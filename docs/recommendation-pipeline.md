@@ -1,0 +1,258 @@
+# 추천 파이프라인 상세
+
+> 1차 구현 기준. 2차 전환 시 교체 지점 명시.
+
+---
+
+## 1차 파이프라인 흐름
+
+```
+[추천 요청 (사용자 접속 시)]
+  ① ClusterService.assignCluster(user)
+     → 1차: 항상 "youth_all" 반환
+
+  ② RetrievalService.retrieve(clusterId, user)
+     → SQL WHERE 필터 (pass/fail)
+     → 상위 K=50건 선별
+     → 신규 정책 가미 (24시간 이내 M=5건 강제 포함)
+
+  ③ RuleScoringService.score(candidates, user)
+     → if-else 기본 가점 → rule_base_score
+     → 우선순위 가중치 적용 → rule_weighted_score
+
+  ④ AiScoringService.score(clusterId, topCandidates, user)
+     → RealtimeAiGateway → OpenAI 실시간 호출
+     → ai_score(0~100), ai_reason 반환
+     → 실패 시 null 반환 (NULL-safe)
+
+  ⑤ ScoreWeightService.getWeight()
+     → recommendation_logs 전체 건수 조회
+     → score_weights 테이블에서 단계 결정
+
+  ⑥ ReRankingService.rerank(candidates, weight)
+     → normalize(rule_weighted_score) × rule_weight
+        + normalize(ai_score) × ai_weight
+     → ai_score NULL이면 norm_rule만 사용
+     → final_score 기준 정렬
+
+  ⑦ RecommendationPersistenceService.save(results)
+     → user_recommendations INSERT
+     → recommended_at(DATETIME), rule_weight_used, ai_weight_used 필수 기록
+
+[사용자 조회]
+  → user_recommendations DB 조회만 (실시간 AI 추가 호출 없음)
+  → final_score 기준 정렬 + ai_reason + 우선순위 태그 + "신규" 뱃지 표시
+```
+
+---
+
+## SQL 필터 조건 (RetrievalService)
+
+```sql
+SELECT ws.*
+FROM welfare_services ws
+WHERE ws.status IN ('ACTIVE', 'UPCOMING')
+  -- 나이 필터 (NULL이면 통과)
+  AND (ws.min_age IS NULL OR ws.min_age <= :userAge)
+  AND (ws.max_age IS NULL OR ws.max_age >= :userAge)
+  -- 소득 필터 (NULL이면 통과)
+  AND (ws.min_income IS NULL OR ws.min_income <= :userIncome)
+  AND (ws.max_income IS NULL OR ws.max_income >= :userIncome)
+  -- 지역 필터 (service_regions 연결, 전국이면 통과)
+  -- 취업상태 필터 (service_tags TARGET_GROUP 매핑)
+ORDER BY ws.view_count DESC
+LIMIT 50;
+```
+
+---
+
+## if-else 기본 가점 (RuleScoringService)
+
+```java
+int score = 0;
+
+// 청년전용 정책
+if (service.isYouthSpecific()) score += 20;
+
+// 지원금 100만원 이상
+if (service.getSupportAmount() >= 1_000_000) score += 15;
+
+// 온라인 신청 가능
+if (service.getIsOnlineApply() == 1) score += 10;
+
+// 지역 일치
+if (regionMatches(user, service)) score += 10;
+
+// 관심분야 일치 (user_attributes INTEREST_FIELD ↔ service_tags INTEREST_THEME)
+if (interestMatches(user, service)) score += 10;
+
+// 마감임박 (apply_end_date 기준 7일 이내)
+if (isDeadlineSoon(service)) score += 5;
+
+return score; // rule_base_score
+```
+
+---
+
+## 우선순위 가중치 (RuleScoringService)
+
+```java
+// user_priorities에서 사용자 우선순위 조회
+// 우선순위 옵션별 rule_base_score에 곱할 배율
+double weight = switch (priorityRank) {
+    case 1 -> 2.0;
+    case 2 -> 1.6;
+    case 3 -> 1.3;
+    case 4 -> 1.1;
+    case 5 -> 1.0;
+    default -> 1.0; // 미설정
+};
+
+// HOUSING 우선순위 1위 → 주거 관련 정책 score × 2.0
+// 복수 우선순위 항목이 매칭될 경우 최고 배율 하나만 적용 (이중합산 방지)
+double ruleWeightedScore = rule_base_score * maxApplicableWeight;
+```
+
+---
+
+## 정규화 (ScoreNormalizer)
+
+### 1차: 단순 min-max
+```java
+public double normalize(double value, double min, double max) {
+    if (max == min) return 0.5;
+    return (value - min) / (max - min);
+}
+// 배치 내 후보 전체의 min/max 기준으로 정규화
+```
+
+### 2차: p5~p95 클리핑 (1차에서 구현 금지)
+```
+Step 1: 배치 전체 분포에서 p5, p95 계산
+Step 2: clipped = max(p5, min(p95, value))
+Step 3: norm = (clipped - p5) / (p95 - p5)
+         예외: p95 == p5 → norm = 0.5
+```
+
+---
+
+## Cold Start 가중치 단계
+
+```
+recommendation_logs 전체 건수 (전역 기준):
+  0 ~ 99건   → COLD_START: rule 0.80 / ai 0.20
+  100 ~ 499건 → GROWTH:    rule 0.60 / ai 0.40
+  500건 이상  → STABLE:    rule 0.40 / ai 0.60
+```
+
+```java
+// ScoreWeightService
+public ScoreWeight getActiveWeight() {
+    long totalLogCount = recommendationLogRepository.count();
+    return scoreWeightRepository.findByMinLogCountLessThanEqualAndIsActive(
+        totalLogCount, true
+    ).stream()
+     .max(Comparator.comparing(ScoreWeight::getMinLogCount))
+     .orElseThrow();
+}
+```
+
+---
+
+## final_score 계산 (ReRankingService)
+
+```java
+ScoreWeight weight = scoreWeightService.getActiveWeight();
+
+double finalScore;
+if (aiScore != null) {
+    double normRule = normalizer.normalize(ruleWeightedScore, minRule, maxRule);
+    double normAi   = normalizer.normalize(aiScore, 0, 100);  // ai_score는 0~100
+    finalScore = normRule * weight.getRuleWeight()
+               + normAi   * weight.getAiWeight();
+} else {
+    // ai_score NULL → rule만 사용
+    finalScore = normalizer.normalize(ruleWeightedScore, minRule, maxRule);
+}
+```
+
+---
+
+## AI 프롬프트 (RealtimeAiGateway)
+
+```
+시스템: 청년 복지 정책 평가 전문가. JSON만 응답.
+군집 특성: {age_group}, {region_sido}, {income_range}, {employment}
+정책 목록: {policy_list}
+응답: {"results": [{"service_id": 1001, "score": 85, "reason": "1문장"}]}
+```
+
+- `reason` → `user_recommendations.ai_reason` 저장
+- 개인 식별 정보 전송 금지 (NFR-02-12): 군집 범주값만 전송
+
+---
+
+## 추천 로그 기록 (RecommendationLogService)
+
+알림 발송 시점에 `recommendation_logs` INSERT:
+
+```java
+RecommendationLog log = RecommendationLog.builder()
+    .userId(userId)
+    .serviceId(serviceId)
+    .finalScore(finalScore)
+    .ruleWeightUsed(weight.getRuleWeight())   // 발송 시점 가중치 기록
+    .aiWeightUsed(weight.getAiWeight())
+    .isFallback(aiScore == null)              // AI 없으면 fallback
+    .isCicked(false)
+    .build();
+```
+
+클릭 추적:
+```java
+// 알림 링크: https://domain.com/policy/{serviceId}?log_id={logId}
+
+// PolicyController
+@GetMapping("/policy/{serviceId}")
+public ResponseEntity<ApiResponse<PolicyDetailResponse>> getDetail(
+        @PathVariable Long serviceId,
+        @RequestParam(required = false) Long logId) {
+    if (logId != null) {
+        recommendationLogService.markClicked(logId);
+    }
+    return ResponseEntity.ok(ApiResponse.success(policyService.getDetail(serviceId)));
+}
+```
+
+---
+
+## 분석용 쿼리 (포트폴리오 데모)
+
+```sql
+-- AI vs Fallback CTR 비교
+SELECT is_fallback,
+       COUNT(*) AS total_sent,
+       SUM(is_clicked) AS clicked,
+       ROUND(SUM(is_clicked) * 100.0 / COUNT(*), 1) AS ctr_pct
+FROM recommendation_logs
+GROUP BY is_fallback;
+
+-- 가중치 단계별 CTR (Cold Start 효과 분석)
+SELECT rule_weight_used, ai_weight_used,
+       COUNT(*) AS total_sent,
+       ROUND(SUM(is_clicked) * 100.0 / COUNT(*), 1) AS ctr_pct
+FROM recommendation_logs
+GROUP BY rule_weight_used, ai_weight_used;
+```
+
+---
+
+## 2차 전환 시 교체 지점
+
+| 항목 | 1차 | 2차 교체 방법 |
+|------|-----|---------------|
+| 군집화 | `ClusterService` → "youth_all" | 내부 로직만 교체 (인터페이스 동일) |
+| AI 호출 | `RealtimeAiGateway` | `BatchAiGateway`로 교체 (Gateway 인터페이스 유지) |
+| 정규화 | `ScoreNormalizer` min-max | p5~p95 로직 추가 (메서드 오버로드) |
+| 알림 후보 | `selectNotificationCandidates()` top 3 | [A,A,B?] 슬롯 배치로 교체 |
+| 배치 스케줄러 | 없음 | `BatchSubmitService`, `BatchPollingScheduler`, `HardDeadlineScheduler` 추가 |
