@@ -10,23 +10,23 @@
 | Phase | 제목 | 상태 |
 |-------|------|:----:|
 | 0 | 프로젝트 초기 설정 | ✅ |
-| 1-A | global 패키지 | ⬜ |
-| 1-B | DB 스키마 | ⬜ |
-| 2-A | user 도메인 Entity·Repository | ⬜ |
-| 2-B | user 도메인 Service | ⬜ |
-| 2-C | user 도메인 Controller·DTO | ⬜ |
-| 3-A | policy 도메인 Entity·Repository | ⬜ |
-| 3-B | policy 도메인 Service·Controller | ⬜ |
-| 4-A | collect 도메인 DTO·Gateway | ⬜ |
-| 4-B | collect 도메인 Mapper·Service | ⬜ |
-| 5-A | recommend 도메인 Entity·Repository | ⬜ |
-| 5-B | recommend 파이프라인 1단계 | ⬜ |
-| 5-C | recommend AI 게이트웨이 | ⬜ |
-| 5-D | recommend 점수 계산·저장 | ⬜ |
-| 5-E | recommend Facade·Controller | ⬜ |
-| 6 | notification 도메인 | ⬜ |
-| 7 | 보안·비기능 요구사항 검증 | ⬜ |
-| 8 | 통합 검증·배포 | ⬜ |
+| 1-A | global 패키지 | ✅ |
+| 1-B | DB 스키마 | ✅ |
+| 2-A | user 도메인 Entity·Repository | ✅ |
+| 2-B | user 도메인 Service | ✅ |
+| 2-C | user 도메인 Controller·DTO | ✅ |
+| 3-A | policy 도메인 Entity·Repository | ✅ |
+| 3-B | policy 도메인 Service·Controller | ✅ |
+| 4-A | collect 도메인 DTO·Gateway | ✅ |
+| 4-B | collect 도메인 Mapper·Service | ✅ |
+| 5-A | recommend 도메인 Entity·Repository | ✅ |
+| 5-B | recommend 파이프라인 1단계 | ✅ |
+| 5-C | recommend AI 게이트웨이 | ✅ |
+| 5-D | recommend 점수 계산·저장 | ✅ |
+| 5-E | recommend Facade·Controller | ✅ |
+| 6 | notification 도메인 | ✅ |
+| 7 | 보안·비기능 요구사항 검증 | ✅ |
+| 8 | 통합 검증·배포 | 🔄 진행 중 |
 
 ---
 
