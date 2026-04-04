@@ -1,0 +1,47 @@
+package com.example.welfare.recommend.repository;
+
+import com.example.welfare.recommend.entity.UserRecommendation;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
+
+public interface UserRecommendationRepository extends JpaRepository<UserRecommendation, Long> {
+
+    // 사용자 추천 목록 — 최종점수 내림차순
+    @Query("""
+            SELECT ur FROM UserRecommendation ur
+            JOIN FETCH ur.service
+            WHERE ur.user.id = :userId
+            ORDER BY ur.finalScore DESC
+            """)
+    List<UserRecommendation> findTopByUserId(@Param("userId") Long userId, Pageable pageable);
+
+    // 북마크 목록
+    List<UserRecommendation> findByUserIdAndIsBookmarkedTrue(Long userId);
+
+    // 클릭 추적용 단건 조회
+    Optional<UserRecommendation> findByIdAndUserId(Long id, Long userId);
+
+    // 오늘 이미 추천받은 서비스 제외 (중복 추천 방지)
+    @Query("""
+            SELECT ur.service.id FROM UserRecommendation ur
+            WHERE ur.user.id = :userId
+              AND ur.recommendedAt >= :since
+            """)
+    List<Long> findRecentlyRecommendedServiceIds(@Param("userId") Long userId,
+                                                  @Param("since") LocalDateTime since);
+
+    // 30일 지나고 북마크 없는 추천 삭제 (데이터 보존 정책)
+    @Modifying
+    @Query("""
+            DELETE FROM UserRecommendation ur
+            WHERE ur.recommendedAt < :before AND ur.isBookmarked = false
+            """)
+    void deleteOldUnbookmarked(@Param("before") LocalDateTime before);
+}

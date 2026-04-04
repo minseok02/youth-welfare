@@ -5,6 +5,7 @@ import com.example.welfare.policy.dto.PolicyDetailResponse;
 import com.example.welfare.policy.dto.PolicySummaryResponse;
 import com.example.welfare.policy.service.PolicySearchService;
 import com.example.welfare.policy.service.PolicyService;
+import com.example.welfare.recommend.service.RecommendationLogService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -22,6 +23,7 @@ public class PolicyController {
 
     private final PolicyService policyService;
     private final PolicySearchService policySearchService;
+    private final RecommendationLogService recommendationLogService;
 
     // 정책 목록 조회 (카테고리 필터, 페이징)
     @GetMapping
@@ -31,9 +33,14 @@ public class PolicyController {
         return ResponseEntity.ok(ApiResponse.success(policyService.getList(category, pageable)));
     }
 
-    // 정책 상세 조회
+    // 정책 상세 조회 + 클릭 추적 (?log_id= 파라미터)
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<PolicyDetailResponse>> getDetail(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<PolicyDetailResponse>> getDetail(
+            @PathVariable Long id,
+            @RequestParam(required = false) Long logId) {
+        if (logId != null) {
+            recommendationLogService.markClicked(logId);
+        }
         return ResponseEntity.ok(ApiResponse.success(policyService.getDetail(id)));
     }
 
