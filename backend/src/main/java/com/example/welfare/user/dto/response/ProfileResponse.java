@@ -1,0 +1,78 @@
+package com.example.welfare.user.dto.response;
+
+import com.example.welfare.user.entity.User;
+import com.example.welfare.user.entity.UserAttribute;
+import com.example.welfare.user.entity.UserPriority;
+import lombok.Builder;
+import lombok.Getter;
+
+import java.time.LocalDate;
+import java.util.List;
+import java.util.stream.Collectors;
+
+@Getter
+@Builder
+public class ProfileResponse {
+
+    private Long id;
+    private String email;
+    private String name;
+    private LocalDate birthDate;
+    private String phone;
+    private String sido;
+    private String sgg;
+    private String regionCode;
+    private Byte incomeLevel;
+    private String householdType;
+    private String employmentStatus;
+    private boolean notificationYn;
+    private String notificationPeriod;
+    private int displayCount;
+    private int profileCompleteness;
+    private List<String> interestFields;
+    private List<PriorityItem> priorities;
+
+    @Getter
+    @Builder
+    public static class PriorityItem {
+        private int rank;
+        private String code;
+        private double weight;
+    }
+
+    public static ProfileResponse of(User user, List<UserAttribute> attributes,
+                                      List<UserPriority> priorities, String phone) {
+        List<String> interestFields = attributes.stream()
+                .filter(a -> UserAttribute.AttrType.INTEREST_FIELD.name().equals(a.getAttrType()))
+                .map(UserAttribute::getAttrValue)
+                .collect(Collectors.toList());
+
+        List<PriorityItem> priorityItems = priorities.stream()
+                .map(p -> PriorityItem.builder()
+                        .rank(p.getPriorityRank())
+                        .code(p.getPriorityOption().getCode())
+                        .weight(p.getWeight())
+                        .build())
+                .collect(Collectors.toList());
+
+        return ProfileResponse.builder()
+                .id(user.getId())
+                .email(user.getEmail())
+                .name(user.getName())
+                .birthDate(user.getBirthDate())
+                .phone(phone)
+                .sido(user.getSido())
+                .sgg(user.getSgg())
+                .regionCode(user.getRegionCode())
+                .incomeLevel(user.getIncomeLevel())
+                .householdType(user.getHouseholdType())
+                .employmentStatus(user.getEmploymentStatus())
+                .notificationYn(user.isNotificationYn())
+                .notificationPeriod(user.getNotificationPeriod().name())
+                .displayCount(user.getDisplayCount())
+                .profileCompleteness(user.getProfileCompleteness())
+                .interestFields(interestFields)
+                .priorities(priorityItems)
+                .build();
+    }
+}

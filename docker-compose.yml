@@ -13,6 +13,15 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_started
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: youth-welfare-redis
+    ports:
+      - "6379:6379"
     restart: unless-stopped
 
   db:
