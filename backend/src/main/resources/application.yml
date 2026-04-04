@@ -1,0 +1,69 @@
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:mysql://localhost:3306/youth_welfare?useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=UTF-8&serverTimezone=Asia/Seoul}
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
+        format_sql: true
+    show-sql: false
+
+  data:
+    jpa:
+      repositories:
+        bootstrap-mode: deferred
+
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: ${GMAIL_USERNAME}
+    password: ${GMAIL_PASSWORD}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
+jwt:
+  secret: ${JWT_SECRET}
+  access-expiration: 1800000       # 30분 (ms)
+  refresh-expiration: 604800000    # 7일 (ms)
+
+openai:
+  api-key: ${OPENAI_API_KEY}
+  model: gpt-4o-mini
+  timeout: 30000
+
+coolsms:
+  api-key: ${COOLSMS_API_KEY}
+  api-secret: ${COOLSMS_API_SECRET}
+  from-number: ${COOLSMS_FROM_NUMBER}
+
+aes:
+  secret-key: ${AES_SECRET_KEY}    # 32바이트 (AES-256)
+
+youth-api:
+  api-key: ${YOUTH_API_KEY}
+  base-url: https://www.youthcenter.go.kr/go/ythAct/getPlcyList.do
+
+bokjiro:
+  api-key: ${BOKJIRO_API_KEY}
+  central-base-url: https://www.bokjiro.go.kr/ssis-tbu/twataa/wlfareInfo/moveTWAT52011M.do
+  local-base-url: https://www.bokjiro.go.kr/ssis-tbu/twatla/lwlfareInfo/moveTWAT52005M.do
+
+springdoc:
+  api-docs:
+    enabled: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
