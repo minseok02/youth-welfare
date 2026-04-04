@@ -74,6 +74,36 @@ public class WelfareService extends BaseTimeEntity {
         this.status = status;
     }
 
+    /** 수집 배치에서 기존 레코드 필드를 최신 API 데이터로 덮어쓴다 */
+    public void updateFromCollect(WelfareService source) {
+        this.title = source.title;
+        this.description = source.description;
+        this.supportContent = source.supportContent;
+        this.categoryMain = source.categoryMain;
+        this.categorySub = source.categorySub;
+        this.keyword = source.keyword;
+        this.unifiedCategory = source.unifiedCategory;
+        this.hostOrg = source.hostOrg;
+        this.operatingOrg = source.operatingOrg;
+        this.minAge = source.minAge;
+        this.maxAge = source.maxAge;
+        this.minIncome = source.minIncome;
+        this.maxIncome = source.maxIncome;
+        this.startDate = source.startDate;
+        this.endDate = source.endDate;
+        this.applyStartDate = source.applyStartDate;
+        this.applyEndDate = source.applyEndDate;
+        this.applyMethodName = source.applyMethodName;
+        this.lifeStage = source.lifeStage;
+        this.supportCycle = source.supportCycle;
+        this.provisionType = source.provisionType;
+        this.isOnlineApply = source.isOnlineApply;
+        this.detailUrl = source.detailUrl;
+        this.apiViewCount = source.apiViewCount;
+        this.registeredAt = source.registeredAt;
+        this.lastModifiedAt = source.lastModifiedAt;
+    }
+
     public enum SourceType {
         YOUTH, BOKJIRO_CENTRAL, BOKJIRO_LOCAL
     }
