@@ -1,0 +1,253 @@
+-- ============================================================
+-- 청년복지 통합 플랫폼 — 1차 스키마 (11개 테이블)
+-- MySQL 8.0+ / FULLTEXT ngram
+-- 실행 순서: FK 의존성 고려
+-- ============================================================
+
+-- 1. priority_options (마스터, 의존 없음)
+CREATE TABLE IF NOT EXISTS priority_options (
+    id          TINYINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    code        VARCHAR(30)  NOT NULL,
+    label       VARCHAR(50)  NOT NULL,
+    description VARCHAR(200),
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_po_code (code)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 2. users
+CREATE TABLE IF NOT EXISTS users (
+    id                      BIGINT           NOT NULL AUTO_INCREMENT,
+    email                   VARCHAR(255)     NOT NULL,
+    password_hash           VARCHAR(255)     NOT NULL,
+    name                    VARCHAR(50),
+    birth_date              DATE,
+    phone_enc               VARCHAR(512),
+    sido                    VARCHAR(50),
+    sgg                     VARCHAR(50),
+    region_code             VARCHAR(20),
+    income_level            TINYINT UNSIGNED,
+    household_type          VARCHAR(30),
+    employment_status       VARCHAR(30),
+    is_active               TINYINT(1)       NOT NULL DEFAULT 1,
+    notification_yn         TINYINT(1)       NOT NULL DEFAULT 0,
+    notification_period     ENUM('DAILY','WEEKLY','NONE') DEFAULT 'NONE',
+    notification_min_score  DECIMAL(4,3)     DEFAULT 0.500,
+    notification_consent_at DATETIME,
+    login_fail_count        TINYINT UNSIGNED NOT NULL DEFAULT 0,
+    locked_until            DATETIME,
+    display_count           TINYINT UNSIGNED NOT NULL DEFAULT 10,
+    profile_completeness    TINYINT UNSIGNED DEFAULT 0,
+    withdrawn_at            DATETIME,
+    created_at              DATETIME         NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at              DATETIME         NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_users_email (email)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 3. user_attributes
+-- attr_type: VARCHAR(30), ENUM 아님. 유효성 검증은 Java Enum으로.
+CREATE TABLE IF NOT EXISTS user_attributes (
+    id         BIGINT       NOT NULL AUTO_INCREMENT,
+    user_id    BIGINT       NOT NULL,
+    attr_type  VARCHAR(30)  NOT NULL,
+    attr_value VARCHAR(100) NOT NULL,
+    created_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_ua_user      (user_id),
+    KEY idx_ua_attr_type (attr_type),
+    CONSTRAINT fk_ua_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 4. user_priorities
+CREATE TABLE IF NOT EXISTS user_priorities (
+    id                 BIGINT           NOT NULL AUTO_INCREMENT,
+    user_id            BIGINT           NOT NULL,
+    priority_option_id TINYINT UNSIGNED NOT NULL,
+    priority_rank      TINYINT UNSIGNED NOT NULL,
+    weight             DECIMAL(3,1)     NOT NULL,
+    created_at         DATETIME         NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at         DATETIME         NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_up_user_option (user_id, priority_option_id),
+    KEY idx_up_user (user_id),
+    CONSTRAINT fk_up_user   FOREIGN KEY (user_id)            REFERENCES users(id)           ON DELETE CASCADE,
+    CONSTRAINT fk_up_option FOREIGN KEY (priority_option_id) REFERENCES priority_options(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 5. welfare_services
+-- ⚠️ ai_score 없음. AI 점수는 user_recommendations에만 존재.
+CREATE TABLE IF NOT EXISTS welfare_services (
+    id                BIGINT      NOT NULL AUTO_INCREMENT,
+    source_type       ENUM('YOUTH','BOKJIRO_CENTRAL','BOKJIRO_LOCAL') NOT NULL,
+    source_id         VARCHAR(50) NOT NULL,
+    title             VARCHAR(255) NOT NULL,
+    description       TEXT,
+    support_content   TEXT,
+    category_main     VARCHAR(100),
+    category_sub      VARCHAR(100),
+    keyword           VARCHAR(200),
+    min_age           TINYINT UNSIGNED,
+    max_age           TINYINT UNSIGNED,
+    min_income        INT UNSIGNED,
+    max_income        INT UNSIGNED,
+    apply_start_date  DATE,
+    apply_end_date    DATE,
+    start_date        DATE,
+    end_date          DATE,
+    life_stage        VARCHAR(200),
+    support_cycle     VARCHAR(50),
+    provision_type    VARCHAR(100),
+    apply_method_name VARCHAR(200),
+    is_online_apply   TINYINT(1)  DEFAULT 0,
+    host_org          VARCHAR(200),
+    operating_org     VARCHAR(200),
+    contact           VARCHAR(100),
+    detail_url        VARCHAR(500),
+    unified_category  VARCHAR(50),
+    is_youth_specific TINYINT(1)  NOT NULL DEFAULT 0,
+    status            ENUM('ACTIVE','UPCOMING','CLOSED') NOT NULL DEFAULT 'ACTIVE',
+    api_view_count    INT UNSIGNED NOT NULL DEFAULT 0,
+    view_count        INT UNSIGNED NOT NULL DEFAULT 0,
+    collected_at      DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    registered_at     DATETIME,
+    last_modified_at  DATETIME,
+    created_at        DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at        DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_ws_source    (source_type, source_id),
+    KEY idx_ws_status          (status),
+    KEY idx_ws_unified_cat     (unified_category),
+    KEY idx_ws_source_type     (source_type),
+    KEY idx_ws_age             (min_age, max_age),
+    KEY idx_ws_end_date        (end_date),
+    KEY idx_ws_apply_end       (apply_end_date),
+    KEY idx_ws_collected       (collected_at),
+    KEY idx_ws_view_count      (view_count DESC),
+    FULLTEXT KEY ft_ws_search  (title, description, support_content, keyword)
+        WITH PARSER ngram
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 6. welfare_service_details (1:1)
+CREATE TABLE IF NOT EXISTS welfare_service_details (
+    id                  BIGINT NOT NULL AUTO_INCREMENT,
+    service_id          BIGINT NOT NULL,
+    target_detail       TEXT,
+    support_detail      TEXT,
+    apply_method_detail TEXT,
+    selection_criteria  TEXT,
+    contact_list        JSON,
+    homepage_url        VARCHAR(500),
+    related_law         VARCHAR(500),
+    form_files          JSON,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_wsd_service (service_id),
+    CONSTRAINT fk_wsd_service FOREIGN KEY (service_id) REFERENCES welfare_services(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 7. service_regions
+CREATE TABLE IF NOT EXISTS service_regions (
+    id          BIGINT      NOT NULL AUTO_INCREMENT,
+    service_id  BIGINT      NOT NULL,
+    region_code VARCHAR(10),
+    sido_name   VARCHAR(50),
+    sgg_name    VARCHAR(50),
+    PRIMARY KEY (id),
+    KEY idx_sr_service     (service_id),
+    KEY idx_sr_region_code (region_code),
+    KEY idx_sr_sido        (sido_name),
+    CONSTRAINT fk_sr_service FOREIGN KEY (service_id) REFERENCES welfare_services(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 8. service_tags
+-- ⚠️ 삽입 시 반드시 UPSERT. 중복 삽입 → rule_base_score 이중합산 버그.
+CREATE TABLE IF NOT EXISTS service_tags (
+    id         BIGINT       NOT NULL AUTO_INCREMENT,
+    service_id BIGINT       NOT NULL,
+    tag_type   ENUM('INTEREST_THEME','TARGET_GROUP','LIFE_STAGE','KEYWORD') NOT NULL,
+    tag_value  VARCHAR(100) NOT NULL,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_st     (service_id, tag_type, tag_value),
+    KEY        idx_st_tag (tag_type, tag_value),
+    CONSTRAINT fk_st_service FOREIGN KEY (service_id) REFERENCES welfare_services(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 9. score_weights (Cold Start 가중치)
+CREATE TABLE IF NOT EXISTS score_weights (
+    id            BIGINT       NOT NULL AUTO_INCREMENT,
+    weight_key    VARCHAR(50)  NOT NULL,
+    rule_weight   DECIMAL(3,2) NOT NULL,
+    ai_weight     DECIMAL(3,2) NOT NULL,
+    min_log_count INT UNSIGNED NOT NULL,
+    is_active     TINYINT(1)   NOT NULL DEFAULT 1,
+    description   VARCHAR(200),
+    created_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_sw_key (weight_key)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 10. user_recommendations
+-- AI 점수·이유는 여기에만 존재. ai_score NULL = AI 미실행 → rule만 사용.
+CREATE TABLE IF NOT EXISTS user_recommendations (
+    id                  BIGINT       NOT NULL AUTO_INCREMENT,
+    user_id             BIGINT       NOT NULL,
+    service_id          BIGINT       NOT NULL,
+    recommended_at      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    rule_base_score     DECIMAL(7,2),
+    rule_weighted_score DECIMAL(7,2),
+    ai_score            DECIMAL(5,2),
+    ai_reason           VARCHAR(500),
+    rule_weight_used    DECIMAL(3,2),
+    ai_weight_used      DECIMAL(3,2),
+    final_score         DECIMAL(6,5) NOT NULL DEFAULT 0,
+    is_bookmarked       TINYINT(1)   NOT NULL DEFAULT 0,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_ur_user_service_time (user_id, service_id, recommended_at),
+    KEY idx_ur_user_score  (user_id, final_score DESC),
+    KEY idx_ur_recommended (recommended_at),
+    KEY idx_ur_bookmark    (user_id, is_bookmarked),
+    CONSTRAINT fk_ur_user    FOREIGN KEY (user_id)    REFERENCES users(id)           ON DELETE CASCADE,
+    CONSTRAINT fk_ur_service FOREIGN KEY (service_id) REFERENCES welfare_services(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 11. recommendation_logs (영구 보관 — CTR + 가중치 단계 분석)
+CREATE TABLE IF NOT EXISTS recommendation_logs (
+    id               BIGINT      NOT NULL AUTO_INCREMENT,
+    user_id          BIGINT      NOT NULL,
+    service_id       BIGINT      NOT NULL,
+    notification_id  BIGINT,
+    final_score      DECIMAL(6,5),
+    rule_weight_used DECIMAL(3,2),
+    ai_weight_used   DECIMAL(3,2),
+    is_fallback      TINYINT(1)  NOT NULL DEFAULT 0,
+    is_clicked       TINYINT(1)  NOT NULL DEFAULT 0,
+    sent_at          DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    clicked_at       DATETIME,
+    PRIMARY KEY (id),
+    KEY idx_rl_user    (user_id),
+    KEY idx_rl_service (service_id),
+    CONSTRAINT fk_rl_user    FOREIGN KEY (user_id)    REFERENCES users(id)           ON DELETE CASCADE,
+    CONSTRAINT fk_rl_service FOREIGN KEY (service_id) REFERENCES welfare_services(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ============================================================
+-- 초기 데이터
+-- ============================================================
+
+INSERT IGNORE INTO priority_options (code, label) VALUES
+('HOUSING',    '주거'),
+('AMOUNT',     '금액'),
+('ONLINE',     '온라인신청'),
+('YOUTH_ONLY', '청년전용'),
+('EDU_JOB',    '교육·취업'),
+('CULTURE',    '문화·여가'),
+('DEADLINE',   '마감임박');
+
+INSERT IGNORE INTO score_weights (weight_key, rule_weight, ai_weight, min_log_count, description) VALUES
+('COLD_START', 0.80, 0.20,   0, '추천 이력 100건 미만: rule 우선'),
+('GROWTH',     0.60, 0.40, 100, '추천 이력 100건 이상: AI 점진 반영'),
+('STABLE',     0.40, 0.60, 500, 'SRS 목표값: AI 우선');
