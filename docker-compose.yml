@@ -7,7 +7,7 @@ services:
       dockerfile: Dockerfile
     container_name: youth-welfare-app
     ports:
-      - "8080:8080"
+      - "8082:8080"
     env_file:
       - .env
     depends_on:
@@ -28,7 +28,7 @@ services:
     image: mysql:8.0
     container_name: youth-welfare-db
     ports:
-      - "3306:3306"
+      - "3307:3306"
     environment:
       MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
       MYSQL_DATABASE: youth_welfare
