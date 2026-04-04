@@ -201,6 +201,8 @@ public abstract class BaseTimeEntity {
 | 문서 | 내용 |
 |------|------|
 | [`docs/architecture.md`](docs/architecture.md) | 서비스 클래스 역할·호출 흐름 |
-| [`docs/db-schema.md`](docs/db-schema.md) | 전체 DDL (1차 11개 + 2차 9개) |
+| [`docs/db-schema-design.md`](docs/db-schema-design.md) | 전체 DDL (1차 11개 + 2차 9개) + 설계 근거 |
 | [`docs/recommendation-pipeline.md`](docs/recommendation-pipeline.md) | 추천 파이프라인 단계별 상세 |
 | [`docs/api-mapping.md`](docs/api-mapping.md) | 공공API 3종 → DB 컬럼 매핑표 |
+| [`docs/srs-v2.9.md`](docs/srs-v2.9.md) | 전체 기능·비기능 요구사항 (FR/NFR) |
+| [`docs/project-plan-v10.md`](docs/project-plan-v10.md) | 13주 마일스톤·역할분담·1차/2차 전략 |
