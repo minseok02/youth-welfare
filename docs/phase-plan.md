@@ -115,7 +115,7 @@ com.example.welfare.global/
 - [ ] `priority_options` 초기 데이터 INSERT (7개)
 - [ ] `src/main/resources/db/migration/` 또는 `schema.sql`에 DDL 보관
 
-> DDL 전문: [`docs/db-schema-design.md`](db-schema-design.md)
+> DDL 전문: [`backend/src/main/resources/db/schema.sql`](../backend/src/main/resources/db/schema.sql)
 
 ---
 
