@@ -43,6 +43,11 @@ public class AuthService {
                 .passwordHash(passwordEncoder.encode(request.getPassword()))
                 .name(request.getName())
                 .birthDate(request.getBirthDate())
+                .sido(request.getSido())
+                .sgg(request.getSgg())
+                .incomeLevel(request.getIncomeLevel())
+                .employmentStatus(request.getEmploymentStatus())
+                .householdType(request.getHouseholdType())
                 .build();
 
         userRepository.save(user);

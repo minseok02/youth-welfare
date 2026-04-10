@@ -58,7 +58,11 @@ bokjiro:
 
 springdoc:
   api-docs:
-    enabled: false
+    enabled: true
+    path: /v3/api-docs
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui
 
 management:
   endpoints:

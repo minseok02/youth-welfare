@@ -22,4 +22,16 @@ public class SignupRequest {
     @NotNull
     @Past
     private LocalDate birthDate;
+
+    private String sido;
+
+    private String sgg;
+
+    /** 소득 분위 1~10 */
+    @Min(1) @Max(10)
+    private Byte incomeLevel;
+
+    private String employmentStatus;
+
+    private String householdType;
 }
