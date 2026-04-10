@@ -46,11 +46,12 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                                                    Pageable pageable);
 
     // FULLTEXT 검색 (Native Query — MySQL ngram)
+    // ft_ws_search 인덱스: title, description, support_content, keyword 4개 컬럼 — 반드시 동일하게 지정
     @Query(value = """
             SELECT * FROM welfare_services
             WHERE status IN ('ACTIVE', 'UPCOMING')
-              AND MATCH(title, description) AGAINST (:keyword IN BOOLEAN MODE)
-            ORDER BY MATCH(title, description) AGAINST (:keyword IN BOOLEAN MODE) DESC
+              AND MATCH(title, description, support_content, keyword) AGAINST (:keyword IN BOOLEAN MODE)
+            ORDER BY MATCH(title, description, support_content, keyword) AGAINST (:keyword IN BOOLEAN MODE) DESC
             LIMIT :limit OFFSET :offset
             """, nativeQuery = true)
     List<WelfareService> searchByKeyword(@Param("keyword") String keyword,
