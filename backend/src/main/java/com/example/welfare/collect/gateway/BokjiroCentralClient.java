@@ -3,13 +3,16 @@ package com.example.welfare.collect.gateway;
 import com.example.welfare.collect.dto.BokjiroCentralDto;
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
+import com.fasterxml.jackson.dataformat.xml.XmlMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 
+import java.net.URI;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -19,17 +22,16 @@ import java.util.List;
 public class BokjiroCentralClient {
 
     private final WebClient webClient;
+    private final XmlMapper xmlMapper;
 
     @Value("${bokjiro.api-key}")
     private String apiKey;
-
-    @Value("${bokjiro.central-base-url}")
-    private String baseUrl;
 
     private static final int PAGE_SIZE = 100;
 
     /**
      * 복지로 중앙정부 서비스 전체 수집 (XML, 페이징)
+     * 엔드포인트: GET https://apis.data.go.kr/B554287/NationalWelfareInformationsV001/NationalWelfarelistV001
      * XXE 비활성화는 WebClientConfig의 XmlMapper 설정에서 처리
      */
     public List<BokjiroCentralDto.Item> fetchAll() {
@@ -57,22 +59,29 @@ public class BokjiroCentralClient {
 
     private BokjiroCentralDto fetchPage(int pageNo, int numOfRows) {
         try {
-            return webClient.get()
-                    .uri(uriBuilder -> uriBuilder
-                            .scheme("https")
-                            .host("www.bokjiro.go.kr")
-                            .path("/ssis-tbu/twataa/wlfareInfo/moveTWAT52011M.do")
-                            .queryParam("serviceKey", apiKey)
-                            .queryParam("pageNo", pageNo)
-                            .queryParam("numOfRows", numOfRows)
-                            .queryParam("srchTrgetAge", "19")    // 청년 대상 필터
-                            .build())
-                    .accept(MediaType.APPLICATION_XML)
+            String encodedKey = URLEncoder.encode(apiKey, StandardCharsets.UTF_8);
+            String url = "https://apis.data.go.kr/B554287/NationalWelfareInformationsV001/NationalWelfarelistV001"
+                    + "?serviceKey=" + encodedKey
+                    + "&callTp=D"
+                    + "&pageNo=" + pageNo
+                    + "&numOfRows=" + numOfRows
+                    + "&srchKeyCode=003"
+                    + "&arrgOrd=001";
+
+            // fetch as String to avoid content-type negotiation issues (server returns application/xml;charset=utf-8)
+            String xml = webClient.get()
+                    .uri(URI.create(url))
                     .retrieve()
-                    .bodyToMono(BokjiroCentralDto.class)
+                    .bodyToMono(String.class)
                     .block();
+
+            if (xml == null || xml.isBlank()) {
+                return null;
+            }
+
+            return xmlMapper.readValue(xml, BokjiroCentralDto.class);
         } catch (Exception e) {
-            log.error("[BokjiroCentralClient] 수집 실패 page={}: {}", pageNo, e.getMessage());
+            log.error("[BokjiroCentralClient] 수집 실패 page={}: {}", pageNo, e.getMessage(), e);
             throw new CustomException(ErrorCode.COLLECT_API_FAILED);
         }
     }

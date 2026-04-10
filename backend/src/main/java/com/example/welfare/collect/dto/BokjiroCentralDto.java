@@ -17,7 +17,7 @@ import java.util.List;
 public class BokjiroCentralDto {
 
     @JacksonXmlElementWrapper(useWrapping = false)
-    @JacksonXmlProperty(localName = "servInfo")
+    @JacksonXmlProperty(localName = "servList")
     private List<Item> items;
 
     @Getter
