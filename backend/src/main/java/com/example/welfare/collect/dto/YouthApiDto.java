@@ -8,107 +8,119 @@ import java.util.List;
 
 /**
  * 온통청년 공공API JSON 응답 DTO
+ * 엔드포인트: GET https://www.youthcenter.go.kr/go/ythip/getPlcy
+ * 실제 응답 구조: { "result": { "youthPolicyList": [...], "totalCnt": N } }
  */
 @Getter
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class YouthApiDto {
 
-    @JsonProperty("body")
-    private Body body;
+    @JsonProperty("result")
+    private Result result;
 
     @Getter
     @JsonIgnoreProperties(ignoreUnknown = true)
-    public static class Body {
-        @JsonProperty("items")
-        private List<Item> items;
+    public static class Result {
+        @JsonProperty("youthPolicyList")
+        private List<Item> youthPolicyList;
 
-        @JsonProperty("totalCount")
-        private Integer totalCount;
+        @JsonProperty("pagging")
+        private Pagging pagging;
 
-        @JsonProperty("pageNo")
-        private Integer pageNo;
+        public int getTotalCnt() {
+            return pagging != null && pagging.getTotCount() != null ? pagging.getTotCount() : 0;
+        }
+    }
 
-        @JsonProperty("numOfRows")
-        private Integer numOfRows;
+    @Getter
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class Pagging {
+        @JsonProperty("totCount")
+        private Integer totCount;
+
+        @JsonProperty("pageNum")
+        private Integer pageNum;
+
+        @JsonProperty("pageSize")
+        private Integer pageSize;
     }
 
     @Getter
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class Item {
 
-        @JsonProperty("bizId")
-        private String bizId;               // 정책번호 → source_id
+        @JsonProperty("plcyNo")
+        private String plcyNo;              // 정책번호 → source_id
 
-        @JsonProperty("polyBizSjnm")
-        private String polyBizSjnm;         // 정책명 → title
+        @JsonProperty("plcyNm")
+        private String plcyNm;              // 정책명 → title
 
-        @JsonProperty("polyItcnCn")
-        private String polyItcnCn;          // 정책소개 → description
+        @JsonProperty("plcyExplnCn")
+        private String plcyExplnCn;         // 정책소개 → description
 
-        @JsonProperty("sporCn")
-        private String sporCn;              // 지원내용 → support_content
+        @JsonProperty("plcySprtCn")
+        private String plcySprtCn;          // 지원내용 → support_content
 
-        @JsonProperty("polyBizTy")
-        private String polyBizTy;           // 정책대부류명 → category_main
+        @JsonProperty("lclsfNm")
+        private String lclsfNm;             // 정책대분류명 → category_main (일자리/주거/교육/복지문화/참여권리)
 
-        @JsonProperty("polyBizSecd")
-        private String polyBizSecd;         // 정책중부류명 → category_sub
+        @JsonProperty("mclsfNm")
+        private String mclsfNm;             // 정책중분류명 → category_sub
 
-        @JsonProperty("keywords")
-        private String keywords;            // 키워드 (콤마 구분) → service_tags KEYWORD
+        @JsonProperty("plcyKywdNm")
+        private String plcyKywdNm;          // 키워드 (콤마 구분) → service_tags KEYWORD
 
-        @JsonProperty("plyBizInsDt")
-        private String plyBizInsDt;         // 등록일 → registered_at
+        @JsonProperty("sprvsnInstCdNm")
+        private String sprvsnInstCdNm;      // 주관기관명 → host_org
 
-        @JsonProperty("plyBizMdfcnDt")
-        private String plyBizMdfcnDt;       // 수정일 → last_modified_at
+        @JsonProperty("operInstCdNm")
+        private String operInstCdNm;        // 운영기관명 → operating_org
 
-        @JsonProperty("sporScvl")
-        private String sporScvl;            // 지원규모
+        @JsonProperty("sprtTrgtMinAge")
+        private Integer sprtTrgtMinAge;     // 지원대상 최소나이 → min_age
 
-        @JsonProperty("rqutPrdSe")
-        private String rqutPrdSe;           // 신청기간 구분
+        @JsonProperty("sprtTrgtMaxAge")
+        private Integer sprtTrgtMaxAge;     // 지원대상 최대나이 → max_age
 
-        @JsonProperty("rqutUrla")
-        private String rqutUrla;            // 신청URL → detail_url
+        @JsonProperty("earnMinAmt")
+        private Integer earnMinAmt;         // 소득하한 → min_income
 
-        @JsonProperty("aplyMthdItm")
-        private String aplyMthdItm;         // 신청방법 → apply_method_name
+        @JsonProperty("earnMaxAmt")
+        private Integer earnMaxAmt;         // 소득상한 → max_income
 
-        @JsonProperty("mngtMson")
-        private String mngtMson;            // 주관기관명 → host_org
+        @JsonProperty("bizPrdBgngYmd")
+        private String bizPrdBgngYmd;       // 사업시작일 (yyyyMMdd) → start_date
 
-        @JsonProperty("implMson")
-        private String implMson;            // 이행기관명 → operating_org
+        @JsonProperty("bizPrdEndYmd")
+        private String bizPrdEndYmd;        // 사업종료일 (yyyyMMdd) → end_date
 
-        @JsonProperty("minAge")
-        private Integer minAge;             // 최소나이
+        /**
+         * 신청기간 문자열 (예: "20260101 ~ 20261231", "상시모집", null).
+         * 범위 형식이므로 파싱하지 않음 — apply_method_name에 그대로 저장.
+         */
+        @JsonProperty("aplyYmd")
+        private String aplyYmd;             // 신청기간 → apply_method_name에 포함
 
-        @JsonProperty("maxAge")
-        private Integer maxAge;             // 최대나이
+        @JsonProperty("plcyAplyMthdCn")
+        private String plcyAplyMthdCn;      // 신청방법 → apply_method_name
 
-        @JsonProperty("incmeLowLimit")
-        private Integer incmeLowLimit;      // 소득하한 → min_income
+        @JsonProperty("aplyUrlAddr")
+        private String aplyUrlAddr;         // 신청URL → detail_url
 
-        @JsonProperty("incmeUpLimit")
-        private Integer incmeUpLimit;       // 소득상한 → max_income
+        @JsonProperty("zipCd")
+        private String zipCd;               // 지역코드 (콤마 구분) → service_regions
 
-        @JsonProperty("bizPrdBgngDt")
-        private String bizPrdBgngDt;        // 사업시작일 → start_date
+        @JsonProperty("inqCnt")
+        private Long inqCnt;                // 조회수 → api_view_count
 
-        @JsonProperty("bizPrdEndDt")
-        private String bizPrdEndDt;         // 사업종료일 → end_date
+        /**
+         * 등록일시 (형식: "yyyy-MM-dd HH:mm:ss" 또는 "yyyyMMdd").
+         * parseDateTimeLoose에서 두 형식 모두 처리.
+         */
+        @JsonProperty("frstRegDt")
+        private String frstRegDt;           // 최초등록일시 → registered_at
 
-        @JsonProperty("rqutPrdBgngDt")
-        private String rqutPrdBgngDt;       // 신청시작일 → apply_start_date
-
-        @JsonProperty("rqutPrdEndDt")
-        private String rqutPrdEndDt;        // 신청종료일 → apply_end_date
-
-        @JsonProperty("regionCd")
-        private String regionCd;            // 지역코드 (콤마 구분) → service_regions
-
-        @JsonProperty("inqNum")
-        private Long inqNum;                // 조회수 → api_view_count
+        @JsonProperty("lastMdfcnDt")
+        private String lastMdfcnDt;         // 최종수정일시 → last_modified_at
     }
 }

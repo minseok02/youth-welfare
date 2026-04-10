@@ -97,7 +97,7 @@ CREATE TABLE IF NOT EXISTS welfare_services (
     life_stage        VARCHAR(200),
     support_cycle     VARCHAR(50),
     provision_type    VARCHAR(100),
-    apply_method_name VARCHAR(200),
+    apply_method_name TEXT,
     is_online_apply   TINYINT(1)  DEFAULT 0,
     host_org          VARCHAR(200),
     operating_org     VARCHAR(200),

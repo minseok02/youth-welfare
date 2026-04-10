@@ -52,6 +52,7 @@ public class WelfareService extends BaseTimeEntity {
     private Integer maxIncome; // 소득분위 상한
 
     private String supportContent;  // 지원 내용 요약
+    @Column(columnDefinition = "TEXT")
     private String applyMethodName; // 신청 방법
 
     private LocalDate startDate;

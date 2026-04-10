@@ -9,5 +9,7 @@ public interface ServiceRegionRepository extends JpaRepository<ServiceRegion, Lo
 
     List<ServiceRegion> findByServiceId(Long serviceId);
 
+    @org.springframework.data.jpa.repository.Modifying
+    @org.springframework.transaction.annotation.Transactional
     void deleteByServiceId(Long serviceId);
 }

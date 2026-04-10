@@ -17,7 +17,7 @@ import java.util.List;
 public class BokjiroLocalDto {
 
     @JacksonXmlElementWrapper(useWrapping = false)
-    @JacksonXmlProperty(localName = "servInfo")
+    @JacksonXmlProperty(localName = "servList")
     private List<Item> items;
 
     @Getter
@@ -61,7 +61,13 @@ public class BokjiroLocalDto {
         private Long inqNum;                // 조회수 → api_view_count
 
         @JacksonXmlProperty(localName = "lastModYmd")
-        private String lastModYmd;          // 최종수정일 → last_modified_at
+        private String lastModYmd;          // 최종수정일 (yyyyMMdd) → last_modified_at
+
+        @JacksonXmlProperty(localName = "enfcBgngYmd")
+        private String enfcBgngYmd;         // 시행시작일 (yyyyMMdd) → start_date
+
+        @JacksonXmlProperty(localName = "enfcEndYmd")
+        private String enfcEndYmd;          // 시행종료일 (yyyyMMdd) → end_date
 
         @JacksonXmlProperty(localName = "ctpvNm")
         private String ctpvNm;              // 시도명 → service_regions.sido_name

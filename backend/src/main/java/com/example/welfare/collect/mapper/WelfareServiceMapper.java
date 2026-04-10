@@ -3,9 +3,11 @@ package com.example.welfare.collect.mapper;
 import com.example.welfare.collect.dto.BokjiroCentralDto;
 import com.example.welfare.collect.dto.BokjiroLocalDto;
 import com.example.welfare.collect.dto.YouthApiDto;
+import com.example.welfare.collect.validation.RawFieldValidator;
 import com.example.welfare.policy.entity.ServiceRegion;
 import com.example.welfare.policy.entity.ServiceTag;
 import com.example.welfare.policy.entity.WelfareService;
+import lombok.extern.slf4j.Slf4j;
 import org.jsoup.Jsoup;
 import org.jsoup.safety.Safelist;
 import org.springframework.stereotype.Component;
@@ -22,65 +24,63 @@ import java.util.List;
  * - unified_category 매핑 포함
  * - Jsoup strip으로 HTML 태그 제거
  */
+@Slf4j
 @Component
 public class WelfareServiceMapper {
 
     // ===== 온통청년 =====
 
     public WelfareService fromYouth(YouthApiDto.Item item) {
+        // aplyYmd: "20260101 ~ 20261231" 형식에서 시작/종료일 파싱
+        LocalDate applyStart = parseApplyStartFromRange(item.getAplyYmd());
+        LocalDate applyEnd   = parseApplyEndFromRange(item.getAplyYmd());
+
         return WelfareService.builder()
                 .sourceType(WelfareService.SourceType.YOUTH)
-                .sourceId(item.getBizId())
-                .title(strip(item.getPolyBizSjnm()))
-                .description(strip(item.getPolyItcnCn()))
-                .supportContent(strip(item.getSporCn()))
-                .categoryMain(item.getPolyBizTy())
-                .categorySub(item.getPolyBizSecd())
-                .keyword(item.getKeywords())
-                .unifiedCategory(mapYouthCategory(item.getPolyBizTy()))
-                .hostOrg(item.getMngtMson())
-                .operatingOrg(item.getImplMson())
-                .minAge(item.getMinAge())
-                .maxAge(item.getMaxAge())
-                .minIncome(item.getIncmeLowLimit())
-                .maxIncome(item.getIncmeUpLimit())
-                .startDate(parseDate(item.getBizPrdBgngDt()))
-                .endDate(parseDate(item.getBizPrdEndDt()))
-                .applyStartDate(parseDate(item.getRqutPrdBgngDt()))
-                .applyEndDate(parseDate(item.getRqutPrdEndDt()))
-                .applyMethodName(item.getAplyMthdItm())
-                .detailUrl(item.getRqutUrla())
-                .apiViewCount(item.getInqNum())
-                .registeredAt(parseDateTimeLoose(item.getPlyBizInsDt()))
-                .lastModifiedAt(parseDateTimeLoose(item.getPlyBizMdfcnDt()))
+                .sourceId(RawFieldValidator.normalize(item.getPlcyNo()))
+                .title(stripAndNormalize(item.getPlcyNm()))
+                .description(stripAndNormalize(item.getPlcyExplnCn()))
+                .supportContent(stripAndNormalize(item.getPlcySprtCn()))
+                .categoryMain(RawFieldValidator.normalize(item.getLclsfNm()))
+                .categorySub(RawFieldValidator.normalize(item.getMclsfNm()))
+                .keyword(RawFieldValidator.normalize(item.getPlcyKywdNm()))
+                .unifiedCategory(mapYouthCategory(item.getLclsfNm()))
+                .hostOrg(RawFieldValidator.normalize(item.getSprvsnInstCdNm()))
+                .operatingOrg(RawFieldValidator.normalize(item.getOperInstCdNm()))
+                .minAge(item.getSprtTrgtMinAge())
+                .maxAge(item.getSprtTrgtMaxAge())
+                .minIncome(item.getEarnMinAmt())
+                .maxIncome(item.getEarnMaxAmt())
+                .startDate(parseDate(item.getBizPrdBgngYmd()))
+                .endDate(parseDate(item.getBizPrdEndYmd()))
+                .applyStartDate(applyStart)
+                .applyEndDate(applyEnd)
+                .applyMethodName(RawFieldValidator.normalize(item.getPlcyAplyMthdCn()))
+                .detailUrl(RawFieldValidator.normalize(item.getAplyUrlAddr()))
+                .apiViewCount(item.getInqCnt())
+                .registeredAt(parseDateTimeLoose(item.getFrstRegDt()))
+                .lastModifiedAt(parseDateTimeLoose(item.getLastMdfcnDt()))
                 .status(WelfareService.ServiceStatus.ACTIVE)
                 .build();
     }
 
     public List<ServiceTag> tagsFromYouth(YouthApiDto.Item item, WelfareService service) {
         List<ServiceTag> tags = new ArrayList<>();
-        if (item.getKeywords() != null) {
-            for (String kw : item.getKeywords().split(",")) {
-                String v = kw.trim();
-                if (!v.isEmpty()) {
-                    tags.add(buildTag(service, ServiceTag.TagType.KEYWORD, v));
-                }
-            }
-        }
+        addTagsFromCsv(tags, service, item.getPlcyKywdNm(), ServiceTag.TagType.KEYWORD);
         return tags;
     }
 
     public List<ServiceRegion> regionsFromYouth(YouthApiDto.Item item, WelfareService service) {
         List<ServiceRegion> regions = new ArrayList<>();
-        if (item.getRegionCd() != null) {
-            for (String code : item.getRegionCd().split(",")) {
-                String c = code.trim();
-                if (!c.isEmpty()) {
-                    regions.add(ServiceRegion.builder()
-                            .service(service)
-                            .regionCode(c)
-                            .build());
-                }
+        String regionCd = item.getZipCd();
+        if (regionCd == null || regionCd.isBlank()) return regions;
+        for (String code : regionCd.split(",")) {
+            String c = code.strip();
+            if (!c.isEmpty()) {
+                regions.add(ServiceRegion.builder()
+                        .service(service)
+                        .regionCode(c)
+                        .build());
             }
         }
         return regions;
@@ -91,17 +91,17 @@ public class WelfareServiceMapper {
     public WelfareService fromBokjiroCentral(BokjiroCentralDto.Item item) {
         return WelfareService.builder()
                 .sourceType(WelfareService.SourceType.BOKJIRO_CENTRAL)
-                .sourceId(item.getServId())
-                .title(strip(item.getServNm()))
-                .description(strip(item.getServDgst()))
+                .sourceId(RawFieldValidator.normalize(item.getServId()))
+                .title(stripAndNormalize(item.getServNm()))
+                .description(stripAndNormalize(item.getServDgst()))
                 .unifiedCategory(mapBokjiroCategory(item.getIntrsThemaArray()))
-                .hostOrg(item.getJurMnofNm())
-                .operatingOrg(item.getJurOrgNm())
-                .lifeStage(item.getLifeArray())
-                .supportCycle(item.getSprtCycNm())
-                .provisionType(item.getSrvPvsnNm())
+                .hostOrg(RawFieldValidator.normalize(item.getJurMnofNm()))
+                .operatingOrg(RawFieldValidator.normalize(item.getJurOrgNm()))
+                .lifeStage(RawFieldValidator.normalize(item.getLifeArray()))
+                .supportCycle(RawFieldValidator.normalize(item.getSprtCycNm()))
+                .provisionType(RawFieldValidator.normalize(item.getSrvPvsnNm()))
                 .isOnlineApply("Y".equalsIgnoreCase(item.getOnapPsbltYn()))
-                .detailUrl(item.getServDtlLink())
+                .detailUrl(RawFieldValidator.normalize(item.getServDtlLink()))
                 .apiViewCount(item.getInqNum())
                 .registeredAt(parseDateTimeLoose(item.getSvcfrstRegTs()))
                 .status(WelfareService.ServiceStatus.ACTIVE)
@@ -126,17 +126,19 @@ public class WelfareServiceMapper {
     public WelfareService fromBokjiroLocal(BokjiroLocalDto.Item item) {
         return WelfareService.builder()
                 .sourceType(WelfareService.SourceType.BOKJIRO_LOCAL)
-                .sourceId(item.getServId())
-                .title(strip(item.getServNm()))
-                .description(strip(item.getServDgst()))
+                .sourceId(RawFieldValidator.normalize(item.getServId()))
+                .title(stripAndNormalize(item.getServNm()))
+                .description(stripAndNormalize(item.getServDgst()))
                 .unifiedCategory(mapBokjiroCategory(item.getIntrsThemaNmArray()))
-                .operatingOrg(item.getBizChrDeptNm())
-                .lifeStage(item.getLifeNmArray())
-                .supportCycle(item.getSprtCycNm())
-                .provisionType(item.getSrvPvsnNm())
-                .applyMethodName(item.getAplyMtdNm())
-                .detailUrl(item.getServDtlLink())
+                .operatingOrg(RawFieldValidator.normalize(item.getBizChrDeptNm()))
+                .lifeStage(RawFieldValidator.normalize(item.getLifeNmArray()))
+                .supportCycle(RawFieldValidator.normalize(item.getSprtCycNm()))
+                .provisionType(RawFieldValidator.normalize(item.getSrvPvsnNm()))
+                .applyMethodName(RawFieldValidator.normalize(item.getAplyMtdNm()))
+                .detailUrl(RawFieldValidator.normalize(item.getServDtlLink()))
                 .apiViewCount(item.getInqNum())
+                .startDate(parseDate(item.getEnfcBgngYmd()))
+                .endDate(parseDate(item.getEnfcEndYmd()))
                 .lastModifiedAt(parseDateTimeLoose(item.getLastModYmd()))
                 .status(WelfareService.ServiceStatus.ACTIVE)
                 .build();
@@ -163,17 +165,27 @@ public class WelfareServiceMapper {
 
     // ===== 공통 유틸 =====
 
-    /** Jsoup으로 HTML 태그 및 위험 속성 제거 */
+    /** Jsoup으로 HTML 태그 제거 후 RawFieldValidator로 null/blank 정규화 */
     public String strip(String html) {
         if (html == null) return null;
-        return Jsoup.clean(html, Safelist.none()).trim();
+        String cleaned = Jsoup.clean(html, Safelist.none()).strip();
+        return cleaned.isEmpty() ? null : cleaned;
+    }
+
+    /**
+     * Jsoup strip + RawFieldValidator.normalize 연결.
+     * 모든 fromXxx 메서드에서 문자열 필드는 이 메서드를 사용한다.
+     */
+    private String stripAndNormalize(String html) {
+        return RawFieldValidator.normalize(strip(html));
     }
 
     private void addTagsFromCsv(List<ServiceTag> tags, WelfareService service,
                                   String csv, ServiceTag.TagType type) {
-        if (csv == null) return;
+        if (csv == null || csv.isBlank()) return;
+        // 콤마 구분 + 앞뒤 유니코드 공백 제거 (탭, NBSP 등 포함)
         for (String v : csv.split(",")) {
-            String value = v.trim();
+            String value = v.strip();
             if (!value.isEmpty()) {
                 tags.add(buildTag(service, type, value));
             }
@@ -188,16 +200,20 @@ public class WelfareServiceMapper {
                 .build();
     }
 
-    /** unified_category 매핑 — 온통청년 대분류 기준 */
-    private String mapYouthCategory(String polyBizTy) {
-        if (polyBizTy == null) return "기타";
-        return switch (polyBizTy.trim()) {
-            case "일자리" -> "일자리";
-            case "주거" -> "주거";
-            case "교육·직업훈련" -> "교육·직업훈련";
-            case "금융·복지·문화" -> "금융·생활지원";
-            case "참여·기회" -> "참여·기회";
-            default -> "기타";
+    /**
+     * unified_category 매핑 — 온통청년 lclsfNm(정책대분류) 기준
+     * 실제 API 확인 값: 일자리 / 주거 / 교육지원 / 복지문화 / 참여·기반
+     * (구 값도 방어적으로 처리)
+     */
+    private String mapYouthCategory(String lclsfNm) {
+        if (lclsfNm == null) return "기타";
+        return switch (lclsfNm.strip()) {
+            case "일자리"               -> "일자리";
+            case "주거"                 -> "주거";
+            case "교육", "교육지원", "교육·직업훈련" -> "교육·직업훈련";
+            case "복지문화", "금융·복지·문화" -> "금융·생활지원";
+            case "참여권리", "참여·기반" -> "참여·기회";
+            default                     -> "기타";
         };
     }
 
@@ -218,31 +234,56 @@ public class WelfareServiceMapper {
         };
     }
 
+    /**
+     * aplyYmd 형식: "20260101 ~ 20261231", "상시모집", null 등.
+     * "yyyyMMdd ~ yyyyMMdd" 패턴에서 시작일 파싱. 그 외 null.
+     */
+    private LocalDate parseApplyStartFromRange(String aplyYmd) {
+        if (aplyYmd == null) return null;
+        String[] parts = aplyYmd.split("~");
+        return parts.length >= 1 ? parseDate(parts[0].strip()) : null;
+    }
+
+    /** aplyYmd에서 종료일 파싱 */
+    private LocalDate parseApplyEndFromRange(String aplyYmd) {
+        if (aplyYmd == null) return null;
+        String[] parts = aplyYmd.split("~");
+        return parts.length >= 2 ? parseDate(parts[1].strip()) : null;
+    }
+
+    /**
+     * "20240101", "2024-01-01", "2024/01/01" 형식을 파싱한다.
+     * isDateSane 검사를 통과하지 못하면 null을 반환한다.
+     */
     private LocalDate parseDate(String s) {
-        if (s == null || s.isBlank()) return null;
+        if (!RawFieldValidator.isDateSane(s)) return null;
         try {
-            return LocalDate.parse(s.replace("-", "").replace("/", ""),
+            String digits = s.replaceAll("[^0-9]", "");
+            return LocalDate.parse(digits.substring(0, 8),
                     DateTimeFormatter.ofPattern("yyyyMMdd"));
         } catch (DateTimeParseException e) {
+            log.debug("[Mapper] parseDate 실패: '{}'", s);
             return null;
         }
     }
 
+    /**
+     * 날짜(8자리) 또는 일시(14자리 이상) 문자열을 파싱한다.
+     * isDateSane 검사를 통과하지 못하면 null을 반환한다.
+     */
     private LocalDateTime parseDateTimeLoose(String s) {
-        if (s == null || s.isBlank()) return null;
+        if (!RawFieldValidator.isDateSane(s)) return null;
         try {
-            String normalized = s.replaceAll("[^0-9]", "");
-            if (normalized.length() >= 14) {
-                return LocalDateTime.parse(normalized.substring(0, 14),
+            String digits = s.replaceAll("[^0-9]", "");
+            if (digits.length() >= 14) {
+                return LocalDateTime.parse(digits.substring(0, 14),
                         DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
             }
-            if (normalized.length() >= 8) {
-                return LocalDate.parse(normalized.substring(0, 8),
-                        DateTimeFormatter.ofPattern("yyyyMMdd")).atStartOfDay();
-            }
+            return LocalDate.parse(digits.substring(0, 8),
+                    DateTimeFormatter.ofPattern("yyyyMMdd")).atStartOfDay();
         } catch (DateTimeParseException e) {
-            // 파싱 실패 시 null 반환
+            log.debug("[Mapper] parseDateTimeLoose 실패: '{}'", s);
+            return null;
         }
-        return null;
     }
 }

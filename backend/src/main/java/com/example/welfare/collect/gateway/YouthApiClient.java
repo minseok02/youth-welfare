@@ -22,69 +22,56 @@ public class YouthApiClient {
     @Value("${youth-api.api-key}")
     private String apiKey;
 
-    @Value("${youth-api.base-url}")
-    private String baseUrl;
-
     private static final int PAGE_SIZE = 100;
 
     /**
-     * 온통청년 정책 전체 수집 (페이징)
+     * 온통청년 정책 전체 수집 (JSON, 페이징)
+     * 엔드포인트: GET https://www.youthcenter.go.kr/go/ythip/getPlcy
      */
     public List<YouthApiDto.Item> fetchAll() {
         List<YouthApiDto.Item> result = new ArrayList<>();
-        int pageNo = 1;
+        int pageNum = 1;
 
         while (true) {
-            YouthApiDto response = fetchPage(pageNo, PAGE_SIZE);
-            if (response == null || response.getBody() == null
-                    || response.getBody().getItems() == null
-                    || response.getBody().getItems().isEmpty()) {
+            YouthApiDto response = fetchPage(pageNum, PAGE_SIZE);
+            if (response == null || response.getResult() == null
+                    || response.getResult().getYouthPolicyList() == null
+                    || response.getResult().getYouthPolicyList().isEmpty()) {
                 break;
             }
 
-            result.addAll(response.getBody().getItems());
+            List<YouthApiDto.Item> items = response.getResult().getYouthPolicyList();
+            result.addAll(items);
 
-            int totalCount = response.getBody().getTotalCount() != null
-                    ? response.getBody().getTotalCount() : 0;
-            if (result.size() >= totalCount) {
+            int totalCnt = response.getResult().getTotalCnt();
+            if (result.size() >= totalCnt || items.size() < PAGE_SIZE) {
                 break;
             }
 
-            pageNo++;
+            pageNum++;
         }
 
         log.info("[YouthApiClient] 수집 완료: {}건", result.size());
         return result;
     }
 
-    private YouthApiDto fetchPage(int pageNo, int numOfRows) {
+    private YouthApiDto fetchPage(int pageNum, int pageSize) {
         try {
             return webClient.get()
                     .uri(uriBuilder -> uriBuilder
                             .scheme("https")
-                            .host(extractHost(baseUrl))
-                            .path(extractPath(baseUrl))
-                            .queryParam("openApiVlak", apiKey)
-                            .queryParam("pageIndex", pageNo)
-                            .queryParam("pageSize", numOfRows)
-                            .queryParam("srchPolyBizSecd", "")   // 전체 조회
+                            .host("www.youthcenter.go.kr")
+                            .path("/go/ythip/getPlcy")
+                            .queryParam("apiKeyNm", apiKey)
+                            .queryParam("pageNum", pageNum)
+                            .queryParam("pageSize", pageSize)
                             .build())
                     .retrieve()
                     .bodyToMono(YouthApiDto.class)
                     .block();
         } catch (Exception e) {
-            log.error("[YouthApiClient] 수집 실패 page={}: {}", pageNo, e.getMessage());
+            log.error("[YouthApiClient] 수집 실패 page={}: {}", pageNum, e.getMessage());
             throw new CustomException(ErrorCode.COLLECT_API_FAILED);
         }
-    }
-
-    private String extractHost(String url) {
-        // e.g. "https://www.youthcenter.go.kr/..." → "www.youthcenter.go.kr"
-        return url.replaceAll("https?://", "").split("/")[0];
-    }
-
-    private String extractPath(String url) {
-        String withoutScheme = url.replaceAll("https?://[^/]+", "");
-        return withoutScheme.isEmpty() ? "/" : withoutScheme;
     }
 }
