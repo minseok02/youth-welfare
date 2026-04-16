@@ -236,6 +236,20 @@ CREATE TABLE IF NOT EXISTS recommendation_logs (
     CONSTRAINT fk_rl_service FOREIGN KEY (service_id) REFERENCES welfare_services(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- 12. service_view_logs (조회수 중복 방지용 로그)
+CREATE TABLE IF NOT EXISTS service_view_logs (
+    id                 BIGINT       NOT NULL AUTO_INCREMENT,
+    service_id         BIGINT       NOT NULL,
+    user_id            BIGINT,
+    client_fingerprint VARCHAR(64)  NOT NULL,
+    viewed_at          DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_svl_service_viewed (service_id, viewed_at),
+    KEY idx_svl_user_service_viewed (user_id, service_id, viewed_at),
+    KEY idx_svl_fp_service_viewed (client_fingerprint, service_id, viewed_at),
+    CONSTRAINT fk_svl_service FOREIGN KEY (service_id) REFERENCES welfare_services(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 -- ============================================================
 -- 초기 데이터
 -- ============================================================

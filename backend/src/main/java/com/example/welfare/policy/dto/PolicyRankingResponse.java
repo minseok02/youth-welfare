@@ -12,20 +12,21 @@ public class PolicyRankingResponse {
     private String title;
     private String unifiedCategory;
     private String sourceType;
+    private Long uniqueViewCount7d;
     private Long viewCount;
     private Long apiViewCount;
     private double rankingScore;
 
-    public static PolicyRankingResponse of(WelfareService service, double score) {
+    public static PolicyRankingResponse of(WelfareService service, long uniqueViewCount7d, double score) {
         return PolicyRankingResponse.builder()
                 .serviceId(service.getId())
                 .title(service.getTitle())
                 .unifiedCategory(service.getUnifiedCategory())
                 .sourceType(service.getSourceType().name())
+                .uniqueViewCount7d(uniqueViewCount7d)
                 .viewCount(service.getViewCount() != null ? service.getViewCount() : 0L)
                 .apiViewCount(service.getApiViewCount() != null ? service.getApiViewCount() : 0L)
                 .rankingScore(score)
                 .build();
     }
 }
-

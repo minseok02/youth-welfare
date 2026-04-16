@@ -47,10 +47,12 @@ public class PolicyService {
     }
 
     @Transactional
-    public PolicyDetailResponse getDetail(Long serviceId) {
+    public PolicyDetailResponse getDetail(Long serviceId, boolean increaseViewCount) {
         WelfareService ws = welfareServiceRepository.findById(serviceId)
                 .orElseThrow(() -> new CustomException(ErrorCode.POLICY_NOT_FOUND));
-        ws.increaseViewCount();
+        if (increaseViewCount) {
+            ws.increaseViewCount();
+        }
 
         WelfareServiceDetail detail = detailRepository.findByServiceId(serviceId).orElse(null);
         List<ServiceRegion> regions = regionRepository.findByServiceId(serviceId);

@@ -2,6 +2,7 @@ package com.example.welfare.policy.service;
 
 import com.example.welfare.policy.dto.PolicyRankingResponse;
 import com.example.welfare.policy.entity.WelfareService;
+import com.example.welfare.policy.repository.ServiceViewLogRepository;
 import com.example.welfare.policy.repository.WelfareServiceRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -9,10 +10,14 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -20,8 +25,12 @@ public class PolicyRankingService {
 
     private static final int DEFAULT_SIZE = 20;
     private static final int MAX_SIZE = 100;
+    private static final int UNIQUE_VIEW_WINDOW_DAYS = 7;
+    private static final int EXPLORE_SLOT_COUNT = 2;
+    private static final int EXPLORE_WINDOW_DAYS = 14;
 
     private final WelfareServiceRepository welfareServiceRepository;
+    private final ServiceViewLogRepository serviceViewLogRepository;
 
     @Transactional(readOnly = true)
     public List<PolicyRankingResponse> getRanking(int size) {
@@ -30,7 +39,23 @@ public class PolicyRankingService {
                 List.of(WelfareService.ServiceStatus.ACTIVE, WelfareService.ServiceStatus.UPCOMING));
         if (services.isEmpty()) return List.of();
 
-        double maxLocalRaw = services.stream()
+        List<Long> serviceIds = services.stream()
+                .map(WelfareService::getId)
+                .toList();
+        LocalDateTime uniqueCutoff = LocalDateTime.now().minusDays(UNIQUE_VIEW_WINDOW_DAYS);
+        Map<Long, Long> uniqueViewsByServiceId = serviceViewLogRepository.findUniqueViewCountsSince(serviceIds, uniqueCutoff)
+                .stream()
+                .collect(Collectors.toMap(
+                        ServiceViewLogRepository.ServiceUniqueViewCount::getServiceId,
+                        row -> safeLong(row.getUniqueViewCount())
+                ));
+
+        double maxUniqueRaw = services.stream()
+                .mapToDouble(s -> log1p(uniqueViewsByServiceId.getOrDefault(s.getId(), 0L)))
+                .max()
+                .orElse(0.0);
+
+        double maxViewRaw = services.stream()
                 .mapToDouble(s -> log1p(s.getViewCount()))
                 .max()
                 .orElse(0.0);
@@ -46,15 +71,17 @@ public class PolicyRankingService {
             maxExternalBySource.put(sourceType, max);
         }
 
-        long totalLocalViews = services.stream()
-                .mapToLong(s -> safeLong(s.getViewCount()))
+        long totalUniqueViews = uniqueViewsByServiceId.values().stream()
+                .mapToLong(this::safeLong)
                 .sum();
 
-        WeightSet baseWeights = weightSetForTraffic(totalLocalViews);
+        WeightSet baseWeights = weightSetForTraffic(totalUniqueViews);
 
-        return services.stream()
+        List<ScoredService> sortedByScore = services.stream()
                 .map(service -> {
-                    double localNorm = normalize(log1p(service.getViewCount()), maxLocalRaw);
+                    long uniqueViews = uniqueViewsByServiceId.getOrDefault(service.getId(), 0L);
+                    double uniqueNorm = normalize(log1p(uniqueViews), maxUniqueRaw);
+                    double viewNorm = normalize(log1p(service.getViewCount()), maxViewRaw);
                     double freshnessNorm = freshnessScore(service);
 
                     double externalNorm = 0.0;
@@ -70,7 +97,8 @@ public class PolicyRankingService {
                             ? baseWeights
                             : baseWeights.withoutExternal();
 
-                    double score = localNorm * applied.localWeight()
+                    double score = uniqueNorm * applied.uniqueWeight()
+                            + viewNorm * applied.viewWeight()
                             + externalNorm * applied.externalWeight()
                             + freshnessNorm * applied.freshnessWeight();
 
@@ -80,8 +108,21 @@ public class PolicyRankingService {
                             .build();
                 })
                 .sorted(Comparator.comparingDouble(ScoredService::score).reversed())
-                .limit(limit)
-                .map(scored -> PolicyRankingResponse.of(scored.service(), round4(scored.score())))
+                .toList();
+
+        Map<Long, ScoredService> scoredByServiceId = sortedByScore.stream()
+                .collect(Collectors.toMap(
+                        scored -> scored.service().getId(),
+                        Function.identity(),
+                        (a, b) -> a
+                ));
+
+        return applyExplorationSlots(sortedByScore, services, scoredByServiceId, limit).stream()
+                .map(scored -> PolicyRankingResponse.of(
+                        scored.service(),
+                        uniqueViewsByServiceId.getOrDefault(scored.service().getId(), 0L),
+                        round4(scored.score())
+                ))
                 .toList();
     }
 
@@ -99,10 +140,11 @@ public class PolicyRankingService {
         return Math.exp(-days / 30.0); // 30일 반감
     }
 
-    private WeightSet weightSetForTraffic(long totalLocalViews) {
-        if (totalLocalViews < 100L) return new WeightSet(0.2, 0.7, 0.1);
-        if (totalLocalViews < 1000L) return new WeightSet(0.5, 0.4, 0.1);
-        return new WeightSet(0.8, 0.1, 0.1);
+    private WeightSet weightSetForTraffic(long totalUniqueViews) {
+        // 고유 조회수가 적은 초기에는 raw view 비중을 높이고, 고유 조회수가 쌓이면 unique 비중을 높인다.
+        if (totalUniqueViews < 100L) return new WeightSet(0.25, 0.50, 0.15, 0.10);
+        if (totalUniqueViews < 1000L) return new WeightSet(0.45, 0.30, 0.15, 0.10);
+        return new WeightSet(0.55, 0.20, 0.15, 0.10);
     }
 
     private double normalize(double value, double max) {
@@ -123,11 +165,51 @@ public class PolicyRankingService {
         return Math.round(v * 10000.0) / 10000.0;
     }
 
-    private record WeightSet(double localWeight, double externalWeight, double freshnessWeight) {
+    private List<ScoredService> applyExplorationSlots(List<ScoredService> sortedByScore,
+                                                      List<WelfareService> services,
+                                                      Map<Long, ScoredService> scoredByServiceId,
+                                                      int limit) {
+        List<ScoredService> top = new ArrayList<>(sortedByScore.stream().limit(limit).toList());
+        if (limit < 10 || top.isEmpty()) return top;
+
+        int slots = Math.min(EXPLORE_SLOT_COUNT, limit);
+        Set<Long> existingIds = top.stream().map(s -> s.service().getId()).collect(Collectors.toSet());
+        LocalDateTime exploreCutoff = LocalDateTime.now().minusDays(EXPLORE_WINDOW_DAYS);
+
+        List<ScoredService> exploreCandidates = services.stream()
+                .filter(this::isRecentPolicy)
+                .filter(s -> policyBaseTime(s) != null && !policyBaseTime(s).isBefore(exploreCutoff))
+                .filter(s -> !existingIds.contains(s.getId()))
+                .sorted(Comparator.comparing(this::policyBaseTime, Comparator.nullsLast(Comparator.reverseOrder())))
+                .map(s -> scoredByServiceId.get(s.getId()))
+                .filter(scored -> scored != null)
+                .limit(slots)
+                .toList();
+
+        for (ScoredService candidate : exploreCandidates) {
+            if (top.size() >= limit && !top.isEmpty()) {
+                top.remove(top.size() - 1);
+            }
+            top.add(candidate);
+        }
+        return top;
+    }
+
+    private boolean isRecentPolicy(WelfareService service) {
+        LocalDateTime base = policyBaseTime(service);
+        return base != null;
+    }
+
+    private LocalDateTime policyBaseTime(WelfareService service) {
+        if (service.getCreatedAt() != null) return service.getCreatedAt();
+        return service.getRegisteredAt();
+    }
+
+    private record WeightSet(double uniqueWeight, double viewWeight, double externalWeight, double freshnessWeight) {
         private WeightSet withoutExternal() {
-            double sum = localWeight + freshnessWeight;
+            double sum = uniqueWeight + viewWeight + freshnessWeight;
             if (sum <= 0.0) return this;
-            return new WeightSet(localWeight / sum, 0.0, freshnessWeight / sum);
+            return new WeightSet(uniqueWeight / sum, viewWeight / sum, 0.0, freshnessWeight / sum);
         }
     }
 

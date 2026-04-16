@@ -7,13 +7,16 @@ import com.example.welfare.policy.dto.PolicySummaryResponse;
 import com.example.welfare.policy.service.PolicyRankingService;
 import com.example.welfare.policy.service.PolicySearchService;
 import com.example.welfare.policy.service.PolicyService;
+import com.example.welfare.policy.service.PolicyViewLogService;
 import com.example.welfare.recommend.service.RecommendationLogService;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -27,6 +30,7 @@ public class PolicyController {
     private final PolicyRankingService policyRankingService;
     private final PolicySearchService policySearchService;
     private final RecommendationLogService recommendationLogService;
+    private final PolicyViewLogService policyViewLogService;
 
     // 정책 목록 조회 (카테고리 필터, 페이징)
     @GetMapping
@@ -40,11 +44,15 @@ public class PolicyController {
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<PolicyDetailResponse>> getDetail(
             @PathVariable Long id,
-            @RequestParam(required = false) Long logId) {
+            @RequestParam(required = false) Long logId,
+            @AuthenticationPrincipal Long userId,
+            HttpServletRequest request) {
         if (logId != null) {
             recommendationLogService.markClicked(logId);
         }
-        return ResponseEntity.ok(ApiResponse.success(policyService.getDetail(id)));
+        String clientFingerprint = policyViewLogService.buildClientFingerprint(request);
+        boolean increaseViewCount = policyViewLogService.registerViewIfFirstInWindow(id, userId, clientFingerprint);
+        return ResponseEntity.ok(ApiResponse.success(policyService.getDetail(id, increaseViewCount)));
     }
 
     // 정책 검색 (FULLTEXT)
