@@ -31,6 +31,7 @@ public class RuleScoringService {
     private final UserAttributeRepository userAttributeRepository;
     private final UserPriorityRepository userPriorityRepository;
     private final ServiceTagRepository serviceTagRepository;
+    private final PriorityMatcher priorityMatcher;
 
     public List<ScoredCandidate> score(List<WelfareService> candidates, User user) {
         List<UserAttribute> attributes = userAttributeRepository.findByUserId(user.getId());
@@ -175,26 +176,11 @@ public class RuleScoringService {
         if (priorities.isEmpty()) return base;
 
         double maxWeight = priorities.stream()
-                .filter(p -> priorityMatches(p, service))
+                .filter(p -> priorityMatcher.matches(p, service))
                 .mapToDouble(UserPriority::getWeight)
                 .max()
                 .orElse(1.0);
 
         return base * maxWeight;
-    }
-
-    private boolean priorityMatches(UserPriority priority, WelfareService service) {
-        String code = priority.getPriorityOption().getCode();
-        return switch (code) {
-            case "HOUSING"    -> "주거".equals(service.getUnifiedCategory());
-            case "AMOUNT"     -> "금융·생활지원".equals(service.getUnifiedCategory());
-            case "ONLINE"     -> Boolean.TRUE.equals(service.getIsOnlineApply());
-            case "YOUTH_ONLY" -> service.getSourceType() == WelfareService.SourceType.YOUTH;
-            case "EDU_JOB"    -> "교육·직업훈련".equals(service.getUnifiedCategory())
-                                 || "일자리".equals(service.getUnifiedCategory());
-            case "CULTURE"    -> "문화·여가".equals(service.getUnifiedCategory());
-            case "DEADLINE"   -> isDeadlineSoon(service);
-            default           -> false;
-        };
     }
 }

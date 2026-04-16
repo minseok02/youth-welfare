@@ -19,7 +19,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -29,6 +31,7 @@ public class UserService {
     private final UserAttributeRepository userAttributeRepository;
     private final UserPriorityRepository userPriorityRepository;
     private final PriorityOptionRepository priorityOptionRepository;
+    private final PriorityWeightPolicy priorityWeightPolicy;
     private final AesEncryptUtil aesEncryptUtil;
     private final PasswordEncoder passwordEncoder;
 
@@ -79,11 +82,18 @@ public class UserService {
     @Transactional
     public void updatePriorities(Long userId, UpdatePrioritiesRequest request) {
         User user = findActiveUser(userId);
+        List<String> codes = request.getPriorityCodes();
+
+        if (codes.size() > priorityWeightPolicy.maxRank()) {
+            throw new CustomException(ErrorCode.INVALID_INPUT);
+        }
+
+        Set<String> uniqueCodes = new HashSet<>(codes);
+        if (uniqueCodes.size() != codes.size()) {
+            throw new CustomException(ErrorCode.INVALID_INPUT);
+        }
 
         userPriorityRepository.deleteByUserId(userId);
-
-        double[] weights = {2.0, 1.6, 1.3, 1.1, 1.0};
-        List<String> codes = request.getPriorityCodes();
 
         for (int i = 0; i < codes.size(); i++) {
             PriorityOption option = priorityOptionRepository.findByCode(codes.get(i))
@@ -93,7 +103,7 @@ public class UserService {
                     .user(user)
                     .priorityOption(option)
                     .priorityRank(i + 1)
-                    .weight(weights[i])
+                    .weight(priorityWeightPolicy.weightForRank(i + 1))
                     .build());
         }
     }

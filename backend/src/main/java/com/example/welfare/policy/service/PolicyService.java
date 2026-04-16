@@ -46,10 +46,11 @@ public class PolicyService {
         return page.map(PolicySummaryResponse::from);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public PolicyDetailResponse getDetail(Long serviceId) {
         WelfareService ws = welfareServiceRepository.findById(serviceId)
                 .orElseThrow(() -> new CustomException(ErrorCode.POLICY_NOT_FOUND));
+        ws.increaseViewCount();
 
         WelfareServiceDetail detail = detailRepository.findByServiceId(serviceId).orElse(null);
         List<ServiceRegion> regions = regionRepository.findByServiceId(serviceId);

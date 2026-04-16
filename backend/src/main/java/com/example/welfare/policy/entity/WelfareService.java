@@ -67,12 +67,22 @@ public class WelfareService extends BaseTimeEntity {
     private Boolean isOnlineApply;
 
     private Long apiViewCount;
+    @Builder.Default
+    private Integer viewCount = 0;
 
     private LocalDateTime registeredAt;
     private LocalDateTime lastModifiedAt;
 
     public void updateStatus(ServiceStatus status) {
         this.status = status;
+    }
+
+    public void increaseViewCount() {
+        if (this.viewCount == null) {
+            this.viewCount = 1;
+            return;
+        }
+        this.viewCount += 1;
     }
 
     /** 수집 배치에서 기존 레코드 필드를 최신 API 데이터로 덮어쓴다 */

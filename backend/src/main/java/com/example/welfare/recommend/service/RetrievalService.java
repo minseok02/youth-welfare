@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.OptionalInt;
@@ -25,6 +26,7 @@ import java.util.stream.Collectors;
 public class RetrievalService {
 
     private static final int K = 50;
+    private static final int M = 5;
     private static final int FETCH_SIZE = 150; // 후처리 필터 감안해 넉넉히 조회
 
     private final WelfareServiceRepository welfareServiceRepository;
@@ -36,6 +38,7 @@ public class RetrievalService {
         int incomeLevel = user.getIncomeLevel() != null ? user.getIncomeLevel() : 5;
 
         List<WelfareService> rawCandidates;
+        List<WelfareService> latestCandidates;
         // sido만 있어도 지역 쿼리 사용 (regionCode는 nullable — LEFT JOIN 쿼리가 NULL 안전 처리)
         if (user.getSido() != null) {
             String regionCode = user.getRegionCode() != null ? user.getRegionCode() : "";
@@ -43,12 +46,25 @@ public class RetrievalService {
                     age, incomeLevel,
                     regionCode, user.getSido(),
                     PageRequest.of(0, FETCH_SIZE));
+            latestCandidates = welfareServiceRepository.findLatestCandidatesWithRegion(
+                    age, incomeLevel,
+                    regionCode, user.getSido(),
+                    PageRequest.of(0, M * 4));
         } else {
             rawCandidates = welfareServiceRepository.findCandidates(age, incomeLevel, PageRequest.of(0, FETCH_SIZE));
+            latestCandidates = welfareServiceRepository.findLatestCandidates(age, incomeLevel, PageRequest.of(0, M * 4));
         }
 
-        return applyExtractedAgeFilter(rawCandidates, age).stream()
+        List<WelfareService> filteredBase = applyExtractedAgeFilter(rawCandidates, age).stream()
                 .limit(K)
+                .toList();
+
+        List<WelfareService> filteredLatest = applyExtractedAgeFilter(latestCandidates, age).stream()
+                .limit(M)
+                .toList();
+
+        return mergeBaseAndLatest(filteredBase, filteredLatest).stream()
+                .limit(K + M)
                 .collect(Collectors.toList());
     }
 
@@ -108,5 +124,16 @@ public class RetrievalService {
         } catch (Exception ignored) {
             return -1;
         }
+    }
+
+    /**
+     * 기본 후보 K + 최신 정책 M을 중복 없이 합친다.
+     * 순서는 기본 후보 우선, 이후 최신 후보를 뒤에 보강한다.
+     */
+    private List<WelfareService> mergeBaseAndLatest(List<WelfareService> base, List<WelfareService> latest) {
+        LinkedHashMap<Long, WelfareService> merged = new LinkedHashMap<>();
+        base.forEach(service -> merged.put(service.getId(), service));
+        latest.forEach(service -> merged.putIfAbsent(service.getId(), service));
+        return List.copyOf(merged.values());
     }
 }

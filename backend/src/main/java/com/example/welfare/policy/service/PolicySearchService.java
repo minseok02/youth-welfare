@@ -3,6 +3,8 @@ package com.example.welfare.policy.service;
 import com.example.welfare.policy.dto.PolicySummaryResponse;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.repository.WelfareServiceRepository;
+import com.example.welfare.global.exception.CustomException;
+import com.example.welfare.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,18 +17,44 @@ import java.util.stream.Collectors;
 public class PolicySearchService {
 
     private static final int DEFAULT_SEARCH_LIMIT = 20;
+    private static final int MAX_SEARCH_LIMIT = 100;
 
     private final WelfareServiceRepository welfareServiceRepository;
 
     @Transactional(readOnly = true)
     public List<PolicySummaryResponse> search(String keyword, int page) {
+        return search(keyword, null, null, null, null, null, page, DEFAULT_SEARCH_LIMIT);
+    }
+
+    @Transactional(readOnly = true)
+    public List<PolicySummaryResponse> search(String keyword,
+                                              String status,
+                                              String category,
+                                              String sourceType,
+                                              Boolean onlineApply,
+                                              String sort,
+                                              int page,
+                                              int size) {
         // MySQL FULLTEXT 검색 (ngram 파서)
         // keyword는 Controller에서 trim 처리 후 전달됨
         String ftKeyword = buildFulltextKeyword(keyword);
-        int offset = page * DEFAULT_SEARCH_LIMIT;
+        int limit = normalizeSize(size);
+        int offset = Math.max(0, page) * limit;
+        String normalizedStatus = normalizeStatus(status);
+        String normalizedSourceType = normalizeSourceType(sourceType);
+        String normalizedCategory = normalizeNullable(category);
+        Integer onlineApplyFlag = onlineApply == null ? null : (onlineApply ? 1 : 0);
+        String normalizedSort = normalizeSort(sort);
 
-        List<WelfareService> results = welfareServiceRepository.searchByKeyword(
-                ftKeyword, DEFAULT_SEARCH_LIMIT, offset);
+        List<WelfareService> results = welfareServiceRepository.searchByKeywordWithFilters(
+                ftKeyword,
+                normalizedStatus,
+                normalizedCategory,
+                normalizedSourceType,
+                onlineApplyFlag,
+                normalizedSort,
+                limit,
+                offset);
 
         return results.stream()
                 .map(PolicySummaryResponse::from)
@@ -43,5 +71,43 @@ public class PolicySearchService {
             }
         }
         return sb.toString().trim();
+    }
+
+    private int normalizeSize(int size) {
+        if (size <= 0) return DEFAULT_SEARCH_LIMIT;
+        return Math.min(size, MAX_SEARCH_LIMIT);
+    }
+
+    private String normalizeSort(String sort) {
+        if (sort == null || sort.isBlank()) return "RELEVANCE";
+        String upper = sort.trim().toUpperCase();
+        return switch (upper) {
+            case "RELEVANCE", "VIEWS", "LATEST" -> upper;
+            default -> throw new CustomException(ErrorCode.INVALID_INPUT);
+        };
+    }
+
+    private String normalizeStatus(String status) {
+        if (status == null || status.isBlank()) return null;
+        String upper = status.trim().toUpperCase();
+        return switch (upper) {
+            case "ACTIVE", "UPCOMING", "CLOSED" -> upper;
+            default -> throw new CustomException(ErrorCode.INVALID_INPUT);
+        };
+    }
+
+    private String normalizeSourceType(String sourceType) {
+        if (sourceType == null || sourceType.isBlank()) return null;
+        String upper = sourceType.trim().toUpperCase();
+        return switch (upper) {
+            case "YOUTH", "BOKJIRO_CENTRAL", "BOKJIRO_LOCAL" -> upper;
+            default -> throw new CustomException(ErrorCode.INVALID_INPUT);
+        };
+    }
+
+    private String normalizeNullable(String text) {
+        if (text == null) return null;
+        String trimmed = text.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 }

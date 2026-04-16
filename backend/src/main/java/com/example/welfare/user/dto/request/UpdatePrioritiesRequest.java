@@ -10,6 +10,6 @@ import java.util.List;
 public class UpdatePrioritiesRequest {
 
     @NotNull
-    @Size(max = 5, message = "우선순위는 최대 5개까지 설정 가능합니다.")
+    @Size(min = 1, max = 5, message = "우선순위는 1개 이상 5개 이하로 설정 가능합니다.")
     private List<String> priorityCodes;
 }

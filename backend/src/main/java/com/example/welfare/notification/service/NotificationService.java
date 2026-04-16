@@ -1,6 +1,6 @@
 package com.example.welfare.notification.service;
 
-import com.example.welfare.notification.gateway.EmailClient;
+import com.example.welfare.notification.gateway.NotificationGateway;
 import com.example.welfare.recommend.entity.RecommendationLog;
 import com.example.welfare.recommend.entity.ScoreWeight;
 import com.example.welfare.recommend.entity.UserRecommendation;
@@ -31,7 +31,7 @@ public class NotificationService {
     private final RecommendationFacade recommendationFacade;
     private final RecommendationLogService logService;
     private final ScoreWeightService scoreWeightService;
-    private final EmailClient emailClient;
+    private final NotificationGateway notificationGateway;
 
     private static final int TOP_N = 3;
 
@@ -66,7 +66,7 @@ public class NotificationService {
             ScoreWeight weight = scoreWeightService.getActiveWeight();
             List<RecommendationLog> logs = logService.logNotification(user, recs, weight);
 
-            emailClient.send(
+            notificationGateway.send(
                     user.getEmail(),
                     "[청년복지] 맞춤 정책 추천",
                     buildEmailText(recs, logs)

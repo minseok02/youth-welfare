@@ -2,7 +2,9 @@ package com.example.welfare.policy.controller;
 
 import com.example.welfare.global.response.ApiResponse;
 import com.example.welfare.policy.dto.PolicyDetailResponse;
+import com.example.welfare.policy.dto.PolicyRankingResponse;
 import com.example.welfare.policy.dto.PolicySummaryResponse;
+import com.example.welfare.policy.service.PolicyRankingService;
 import com.example.welfare.policy.service.PolicySearchService;
 import com.example.welfare.policy.service.PolicyService;
 import com.example.welfare.recommend.service.RecommendationLogService;
@@ -22,6 +24,7 @@ import java.util.List;
 public class PolicyController {
 
     private final PolicyService policyService;
+    private final PolicyRankingService policyRankingService;
     private final PolicySearchService policySearchService;
     private final RecommendationLogService recommendationLogService;
 
@@ -48,7 +51,22 @@ public class PolicyController {
     @GetMapping("/search")
     public ResponseEntity<ApiResponse<List<PolicySummaryResponse>>> search(
             @RequestParam String keyword,
-            @RequestParam(defaultValue = "0") int page) {
-        return ResponseEntity.ok(ApiResponse.success(policySearchService.search(keyword.trim(), page)));
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) String sourceType,
+            @RequestParam(required = false) Boolean onlineApply,
+            @RequestParam(required = false) String sort,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(ApiResponse.success(
+                policySearchService.search(keyword.trim(), status, category, sourceType, onlineApply, sort, page, size)
+        ));
+    }
+
+    // 조회수 기반 랭킹 (내부 조회수 + 외부 조회수 보조 + 최신성)
+    @GetMapping("/ranking")
+    public ResponseEntity<ApiResponse<List<PolicyRankingResponse>>> ranking(
+            @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(ApiResponse.success(policyRankingService.getRanking(size)));
     }
 }

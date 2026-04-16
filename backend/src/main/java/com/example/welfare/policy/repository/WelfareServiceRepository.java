@@ -48,6 +48,38 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                                                    @Param("sidoName") String sidoName,
                                                    Pageable pageable);
 
+    // 추천 후보 조회(최신순): 신규 정책 M건 강제 포함용
+    @Query("""
+            SELECT ws FROM WelfareService ws
+            WHERE ws.status IN ('ACTIVE', 'UPCOMING')
+              AND (ws.minAge IS NULL OR ws.minAge <= :age)
+              AND (ws.maxAge IS NULL OR ws.maxAge >= :age)
+              AND (ws.minIncome IS NULL OR ws.minIncome <= :incomeLevel)
+              AND (ws.maxIncome IS NULL OR ws.maxIncome >= :incomeLevel)
+            ORDER BY ws.createdAt DESC
+            """)
+    List<WelfareService> findLatestCandidates(@Param("age") int age,
+                                              @Param("incomeLevel") int incomeLevel,
+                                              Pageable pageable);
+
+    // 지역 필터 포함 추천 후보 조회(최신순): 신규 정책 M건 강제 포함용
+    @Query("""
+            SELECT DISTINCT ws FROM WelfareService ws
+            LEFT JOIN ServiceRegion sr ON sr.service = ws
+            WHERE ws.status IN ('ACTIVE', 'UPCOMING')
+              AND (ws.minAge IS NULL OR ws.minAge <= :age)
+              AND (ws.maxAge IS NULL OR ws.maxAge >= :age)
+              AND (ws.minIncome IS NULL OR ws.minIncome <= :incomeLevel)
+              AND (ws.maxIncome IS NULL OR ws.maxIncome >= :incomeLevel)
+              AND (sr.id IS NULL OR sr.regionCode = :regionCode OR sr.sidoName = :sidoName)
+            ORDER BY ws.createdAt DESC
+            """)
+    List<WelfareService> findLatestCandidatesWithRegion(@Param("age") int age,
+                                                         @Param("incomeLevel") int incomeLevel,
+                                                         @Param("regionCode") String regionCode,
+                                                         @Param("sidoName") String sidoName,
+                                                         Pageable pageable);
+
     // FULLTEXT 검색 (Native Query — MySQL ngram)
     // ft_ws_search 인덱스: title, description, support_content, keyword 4개 컬럼 — 반드시 동일하게 지정
     @Query(value = """
@@ -61,6 +93,45 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                                          @Param("limit") int limit,
                                          @Param("offset") int offset);
 
+    // FULLTEXT + 필터 검색 (정렬: RELEVANCE / VIEWS / LATEST)
+    @Query(value = """
+            SELECT ws.* FROM welfare_services ws
+            WHERE (
+                    (:status IS NULL AND ws.status IN ('ACTIVE', 'UPCOMING'))
+                    OR (:status IS NOT NULL AND ws.status = :status)
+                  )
+              AND (:category IS NULL OR ws.unified_category = :category)
+              AND (:sourceType IS NULL OR ws.source_type = :sourceType)
+              AND (:onlineApply IS NULL OR ws.is_online_apply = :onlineApply)
+              AND MATCH(ws.title, ws.description, ws.support_content, ws.keyword)
+                  AGAINST (:keyword IN BOOLEAN MODE)
+            ORDER BY
+                CASE
+                    WHEN :sort = 'VIEWS' THEN ws.view_count
+                    ELSE NULL
+                END DESC,
+                CASE
+                    WHEN :sort = 'LATEST' THEN ws.created_at
+                    ELSE NULL
+                END DESC,
+                CASE
+                    WHEN :sort = 'RELEVANCE' THEN MATCH(ws.title, ws.description, ws.support_content, ws.keyword)
+                        AGAINST (:keyword IN BOOLEAN MODE)
+                    ELSE NULL
+                END DESC,
+                ws.view_count DESC,
+                ws.created_at DESC
+            LIMIT :limit OFFSET :offset
+            """, nativeQuery = true)
+    List<WelfareService> searchByKeywordWithFilters(@Param("keyword") String keyword,
+                                                    @Param("status") String status,
+                                                    @Param("category") String category,
+                                                    @Param("sourceType") String sourceType,
+                                                    @Param("onlineApply") Integer onlineApply,
+                                                    @Param("sort") String sort,
+                                                    @Param("limit") int limit,
+                                                    @Param("offset") int offset);
+
     // 카테고리 필터 조회
     Page<WelfareService> findByUnifiedCategoryAndStatusIn(
             String unifiedCategory,
@@ -69,6 +140,7 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
 
     // 상태별 전체 조회 (StatusUpdateService 용)
     List<WelfareService> findByStatus(WelfareService.ServiceStatus status);
+    List<WelfareService> findByStatusIn(List<WelfareService.ServiceStatus> statuses);
 
     List<WelfareService> findBySourceType(WelfareService.SourceType sourceType);
 }
