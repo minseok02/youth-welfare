@@ -2,9 +2,9 @@
 
 | 항목 | 내용 |
 |------|------|
-| 문서 버전 | v11.1 |
-| 작성일 | 2026-04-16 |
-| 변경 이력 | v11.0→v11.1: **복지로 상세 수집 운영 제약 반영** — 공공데이터포털 상세 API 기능별 일일 트래픽 100 기준으로 수정. `BokjiroDetailCollectService`/`BokjiroDetailClient` 반영(요청 간격, 타임아웃, 429 보호, API별 호출 상한). 상세 수집 호출 카운트 기준을 "정책 건수"가 아닌 "실제 HTTP 요청 수(재시도 포함)"로 명확화. 추천은 현재 **동작 가능(룰+AI fallback)** 상태이나 품질 고도화는 후속 단계로 분리. v10→v11: **챗봇 모듈 설계 반영** — welfare/ 패키지(WelfareService) 신규 추가. chat/ 모듈 역할 명확화(로그인 전용, 로그아웃 시 데이터 삭제). 의존 방향 원칙 구체화(chat→welfare 허용, chat→recommendation 금지, chat→user_recommendations 허용). chat/ 내부 클래스 2차 확장 타깃 명확화(ChatService, ChatRepository). 2차 확장 테이블 9개→11개(`chat_sessions`, `chat_messages` 추가). v9→v10: **확장형 MVP 구조 도입** — 1차(11개 테이블) / 2차(9개 테이블) 분리. **Cold Start 전략** — `score_weights` 테이블 신규 추가, 추천 이력 기반 가중치 자동 전환(rule 0.8→0.4 / ai 0.2→0.6). **AI 점수 위치 수정** — `welfare_services.ai_score` 제거, AI 점수는 `user_recommendations`(유저×서비스 단위)에만 존재. **스키마 무결성 강화** — `service_tags` UNIQUE KEY 추가, `user_attributes.attr_type` ENUM→VARCHAR(30). **컬럼 수정** — `batch_date DATE` → `recommended_at DATETIME`, `reason` → `ai_reason`, `rule_weight_used`·`ai_weight_used` 추가. **`unified_category`** — 3개 API 카테고리 통합 필터용 컬럼 추가 |
+| 문서 버전 | v11.2 |
+| 작성일 | 2026-04-17 |
+| 변경 이력 | v11.1→v11.2: **조회수·랭킹 고도화 반영** — `service_view_logs` 테이블/엔티티 추가, 정책 상세 조회 시 24시간 중복 조회 차단(로그인: user_id, 비로그인: fingerprint). 랭킹은 `uniqueViewCount7d`(최근 7일 고유조회) + `view_count` + `api_view_count` + 최신성으로 계산하고, 신규 정책 탐색 슬롯(최근 14일, top>=10 시 최대 2개) 적용. `PolicyRankingResponse`에 `uniqueViewCount7d` 필드 추가. 추천/랭킹/검색/상세 E2E 실데이터 검증 완료. v11.0→v11.1: **복지로 상세 수집 운영 제약 반영** — 공공데이터포털 상세 API 기능별 일일 트래픽 100 기준으로 수정. `BokjiroDetailCollectService`/`BokjiroDetailClient` 반영(요청 간격, 타임아웃, 429 보호, API별 호출 상한). 상세 수집 호출 카운트 기준을 "정책 건수"가 아닌 "실제 HTTP 요청 수(재시도 포함)"로 명확화. 추천은 현재 **동작 가능(룰+AI fallback)** 상태이나 품질 고도화는 후속 단계로 분리. v10→v11: **챗봇 모듈 설계 반영** — welfare/ 패키지(WelfareService) 신규 추가. chat/ 모듈 역할 명확화(로그인 전용, 로그아웃 시 데이터 삭제). 의존 방향 원칙 구체화(chat→welfare 허용, chat→recommendation 금지, chat→user_recommendations 허용). chat/ 내부 클래스 2차 확장 타깃 명확화(ChatService, ChatRepository). 2차 확장 테이블 9개→11개(`chat_sessions`, `chat_messages` 추가). v9→v10: **확장형 MVP 구조 도입** — 1차(11개 테이블) / 2차(9개 테이블) 분리. **Cold Start 전략** — `score_weights` 테이블 신규 추가, 추천 이력 기반 가중치 자동 전환(rule 0.8→0.4 / ai 0.2→0.6). **AI 점수 위치 수정** — `welfare_services.ai_score` 제거, AI 점수는 `user_recommendations`(유저×서비스 단위)에만 존재. **스키마 무결성 강화** — `service_tags` UNIQUE KEY 추가, `user_attributes.attr_type` ENUM→VARCHAR(30). **컬럼 수정** — `batch_date DATE` → `recommended_at DATETIME`, `reason` → `ai_reason`, `rule_weight_used`·`ai_weight_used` 추가. **`unified_category`** — 3개 API 카테고리 통합 필터용 컬럼 추가 |
 
 ---
 
@@ -274,7 +274,7 @@ service/
 
 ## 7. DB 테이블 목록
 
-### 1차 구현 (11개) — 지금 바로 만들 것
+### 1차 구현 (12개) — 지금 바로 만들 것
 
 | # | 테이블 | 역할 | 주요 변경 |
 |---|---|---|---|
@@ -289,6 +289,7 @@ service/
 | 9 | `user_recommendations` | 추천 결과 | **recommended_at DATETIME**, ai_reason, rule/ai_weight_used 추가 |
 | 10 | `recommendation_logs` | 추천 클릭 추적 | rule/ai_weight_used 추가 |
 | 11 | `score_weights` | Cold Start 가중치 설정 | **신규** |
+| 12 | `service_view_logs` | 조회수 중복 방지(24h dedup) | **신규** |
 
 ### 2차 확장 (11개)
 
@@ -302,7 +303,7 @@ service/
 | 17 | `notification_services` | 알림-정책 매핑 | 알림 시스템 구현 시 |
 | 18 | `api_sync_logs` | 수집 배치 이력 | 배치 안정화 후 |
 | 19 | `search_logs` | 검색 키워드 | 검색 기능 안정화 후 |
-| 20 | `service_view_logs` | 조회수 중복 방지 | 조회수 정교화 시 |
+| 20 | `service_view_logs` | 조회수 집계 고도화(윈도우/장치/세션 확장) | 1차 이후 정교화 시 |
 | 21 | `chat_sessions` | 챗봇 대화 세션 | 챗봇 모듈 구현 시 |
 | 22 | `chat_messages` | 챗봇 대화 메시지 히스토리 | 챗봇 모듈 구현 시 |
 
@@ -329,19 +330,20 @@ service/
 - [ ] 복지로 상세 수집 보호로직 (기능별 100/일 기준, API별 상한/429 차단)
 
 ### Phase 2: 핵심 기능 (W4~W6)
-- [ ] 정책 목록 + 검색 (FULLTEXT) + 필터 (unified_category 포함)
-- [ ] 정책 상세 (welfare_service_details JOIN)
+- [x] 정책 목록 + 검색 (FULLTEXT) + 필터 (unified_category 포함)
+- [x] 정책 상세 (welfare_service_details JOIN)
 - [ ] 우선순위 선택 UI
-- [ ] 북마크, 마이페이지, 조회수 랭킹
+- [ ] 북마크, 마이페이지
+- [x] 조회수 랭킹 (고유조회 7일 + 탐색 슬롯)
 
 ### Phase 3: 추천 1차 (W7~W8)
-- [ ] RetrievalService (SQL 필터 + 기본 가점, youth_all 고정)
-- [ ] RuleScoringService (if-else 가점 + 우선순위 가중치)
-- [ ] RealtimeAiGateway (상위 N개 실시간 호출 → ai_score, ai_reason)
-- [ ] ScoreWeightService (Cold Start 가중치 결정)
-- [ ] ReRankingService (final_score 계산 + recommended_at 저장)
+- [x] RetrievalService (SQL 필터 + 기본 가점, youth_all 고정)
+- [x] RuleScoringService (if-else 가점 + 우선순위 가중치)
+- [x] RealtimeAiGateway (상위 N개 실시간 호출 → ai_score, ai_reason)
+- [x] ScoreWeightService (Cold Start 가중치 결정)
+- [x] ReRankingService (final_score 계산 + recommended_at 저장)
 - [ ] 추천 카드 UI (ai_reason + 우선순위 태그)
-- [ ] recommendation_logs 클릭 추적 (`?log_id=`)
+- [x] recommendation_logs 클릭 추적 (`?log_id=`)
 - [ ] 품질 고도화는 별도 트랙으로 분리 (1차 목표: 추천 안정 동작/실패 없는 fallback)
 
 ### Phase 4: 알림 + 2차 확장 (W9~W11)
