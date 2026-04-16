@@ -28,10 +28,12 @@ public class RetrievalService {
         int age = calculateAge(user);
         int incomeLevel = user.getIncomeLevel() != null ? user.getIncomeLevel() : 5;
 
-        if (user.getSido() != null && user.getRegionCode() != null) {
+        // sido만 있어도 지역 쿼리 사용 (regionCode는 nullable — LEFT JOIN 쿼리가 NULL 안전 처리)
+        if (user.getSido() != null) {
+            String regionCode = user.getRegionCode() != null ? user.getRegionCode() : "";
             return welfareServiceRepository.findCandidatesWithRegion(
                     age, incomeLevel,
-                    user.getRegionCode(), user.getSido(),
+                    regionCode, user.getSido(),
                     PageRequest.of(0, K));
         } else {
             return welfareServiceRepository.findCandidates(age, incomeLevel, PageRequest.of(0, K));
