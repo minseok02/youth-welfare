@@ -1,6 +1,9 @@
 package com.example.welfare.notification.service;
 
 import com.example.welfare.notification.gateway.NotificationGateway;
+import com.example.welfare.notification.entity.Notification.NotificationChannel;
+import com.example.welfare.notification.entity.Notification.NotificationPeriodType;
+import com.example.welfare.notification.entity.Notification.NotificationStatus;
 import com.example.welfare.recommend.entity.RecommendationLog;
 import com.example.welfare.recommend.entity.ScoreWeight;
 import com.example.welfare.recommend.entity.UserRecommendation;
@@ -32,8 +35,10 @@ public class NotificationService {
     private final RecommendationLogService logService;
     private final ScoreWeightService scoreWeightService;
     private final NotificationGateway notificationGateway;
+    private final NotificationHistoryService notificationHistoryService;
 
     private static final int TOP_N = 3;
+    private static final String RECOMMEND_SUBJECT = "[청년복지] 맞춤 정책 추천";
 
     /**
      * 매일 오전 9시 — 일간 알림 수신 동의 유저에게 추천 정책 top 3 발송
@@ -65,16 +70,58 @@ public class NotificationService {
 
             ScoreWeight weight = scoreWeightService.getActiveWeight();
             List<RecommendationLog> logs = logService.logNotification(user, recs, weight);
+            String messageText = buildEmailText(recs, logs);
 
-            notificationGateway.send(
+            boolean sent = notificationGateway.send(
                     user.getEmail(),
-                    "[청년복지] 맞춤 정책 추천",
-                    buildEmailText(recs, logs)
+                    RECOMMEND_SUBJECT,
+                    messageText
             );
 
+            NotificationStatus status = sent ? NotificationStatus.SENT : NotificationStatus.FAILED;
+            String errorMessage = sent ? null : "notification gateway returned false";
+            notificationHistoryService.saveResult(
+                    user,
+                    toPeriodType(user.getNotificationPeriod()),
+                    NotificationChannel.EMAIL,
+                    status,
+                    RECOMMEND_SUBJECT,
+                    messageText,
+                    recs,
+                    logs,
+                    errorMessage
+            );
+
+            if (!sent) {
+                log.warn("[NotificationService] 알림 발송 실패(게이트웨이 false) userId={}", user.getId());
+            }
         } catch (Exception e) {
+            try {
+                notificationHistoryService.saveResult(
+                        user,
+                        toPeriodType(user.getNotificationPeriod()),
+                        NotificationChannel.EMAIL,
+                        NotificationStatus.FAILED,
+                        RECOMMEND_SUBJECT,
+                        null,
+                        List.of(),
+                        List.of(),
+                        e.getMessage()
+                );
+            } catch (Exception historyException) {
+                log.error("[NotificationService] 알림 이력 저장 실패 userId={}: {}",
+                        user.getId(), historyException.getMessage());
+            }
             log.error("[NotificationService] 알림 발송 실패 userId={}: {}", user.getId(), e.getMessage());
         }
+    }
+
+    private NotificationPeriodType toPeriodType(NotificationPeriod period) {
+        return switch (period) {
+            case DAILY -> NotificationPeriodType.DAILY;
+            case WEEKLY -> NotificationPeriodType.WEEKLY;
+            case NONE -> NotificationPeriodType.MANUAL;
+        };
     }
 
     private String buildEmailText(List<UserRecommendation> recs, List<RecommendationLog> logs) {

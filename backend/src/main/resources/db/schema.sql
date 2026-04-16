@@ -250,6 +250,46 @@ CREATE TABLE IF NOT EXISTS service_view_logs (
     CONSTRAINT fk_svl_service FOREIGN KEY (service_id) REFERENCES welfare_services(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- 13. notifications (알림 발송 이력 헤더)
+CREATE TABLE IF NOT EXISTS notifications (
+    id             BIGINT       NOT NULL AUTO_INCREMENT,
+    user_id        BIGINT       NOT NULL,
+    channel        ENUM('email','kakao') NOT NULL,
+    period_type    ENUM('daily','weekly','manual') NOT NULL,
+    status         ENUM('sent','failed') NOT NULL,
+    subject        VARCHAR(200) NOT NULL,
+    message_text   TEXT,
+    total_services INT          NOT NULL DEFAULT 0,
+    sent_at        DATETIME,
+    error_message  VARCHAR(500),
+    created_at     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_noti_user_created (user_id, created_at),
+    KEY idx_noti_status_created (status, created_at),
+    CONSTRAINT fk_noti_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 14. notification_services (알림-정책 매핑)
+CREATE TABLE IF NOT EXISTS notification_services (
+    id                    BIGINT       NOT NULL AUTO_INCREMENT,
+    notification_id       BIGINT       NOT NULL,
+    service_id            BIGINT       NOT NULL,
+    recommendation_log_id BIGINT,
+    rank_order            INT          NOT NULL,
+    final_score           DECIMAL(6,5),
+    service_title         VARCHAR(255),
+    created_at            DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at            DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_ns_notification (notification_id),
+    KEY idx_ns_service (service_id),
+    KEY idx_ns_log (recommendation_log_id),
+    CONSTRAINT fk_ns_notification FOREIGN KEY (notification_id) REFERENCES notifications(id) ON DELETE CASCADE,
+    CONSTRAINT fk_ns_service FOREIGN KEY (service_id) REFERENCES welfare_services(id) ON DELETE CASCADE,
+    CONSTRAINT fk_ns_log FOREIGN KEY (recommendation_log_id) REFERENCES recommendation_logs(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 -- ============================================================
 -- 초기 데이터
 -- ============================================================
