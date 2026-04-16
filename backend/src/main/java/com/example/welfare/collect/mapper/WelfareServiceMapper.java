@@ -4,6 +4,7 @@ import com.example.welfare.collect.dto.BokjiroCentralDto;
 import com.example.welfare.collect.dto.BokjiroLocalDto;
 import com.example.welfare.collect.dto.YouthApiDto;
 import com.example.welfare.collect.validation.RawFieldValidator;
+import com.example.welfare.collect.validation.TextConstraintExtractor;
 import com.example.welfare.policy.entity.ServiceRegion;
 import com.example.welfare.policy.entity.ServiceTag;
 import com.example.welfare.policy.entity.WelfareService;
@@ -18,6 +19,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 /**
  * 공공API 3종 DTO → WelfareService Entity 변환
@@ -67,6 +69,8 @@ public class WelfareServiceMapper {
     public List<ServiceTag> tagsFromYouth(YouthApiDto.Item item, WelfareService service) {
         List<ServiceTag> tags = new ArrayList<>();
         addTagsFromCsv(tags, service, item.getPlcyKywdNm(), ServiceTag.TagType.KEYWORD);
+        addConstraintKeywordTags(tags, service,
+                item.getPlcySprtCn(), item.getPlcyExplnCn(), item.getPlcyAplyMthdCn());
         return tags;
     }
 
@@ -113,6 +117,7 @@ public class WelfareServiceMapper {
         addTagsFromCsv(tags, service, item.getLifeArray(), ServiceTag.TagType.LIFE_STAGE);
         addTagsFromCsv(tags, service, item.getIntrsThemaArray(), ServiceTag.TagType.INTEREST_THEME);
         addTagsFromCsv(tags, service, item.getTrgterIndvdlArray(), ServiceTag.TagType.TARGET_GROUP);
+        addConstraintKeywordTags(tags, service, item.getServDgst());
         return tags;
     }
 
@@ -149,6 +154,7 @@ public class WelfareServiceMapper {
         addTagsFromCsv(tags, service, item.getLifeNmArray(), ServiceTag.TagType.LIFE_STAGE);
         addTagsFromCsv(tags, service, item.getIntrsThemaNmArray(), ServiceTag.TagType.INTEREST_THEME);
         addTagsFromCsv(tags, service, item.getTrgterIndvdlNmArray(), ServiceTag.TagType.TARGET_GROUP);
+        addConstraintKeywordTags(tags, service, item.getServDgst());
         return tags;
     }
 
@@ -198,6 +204,15 @@ public class WelfareServiceMapper {
                 .tagType(type)
                 .tagValue(value)
                 .build();
+    }
+
+    /**
+     * 비정형 안내 문구의 자격/제한 조건을 규칙 기반으로 추출하여 KEYWORD 태그로 저장한다.
+     * 예: COND_AGE_MAX_34, COND_INCOME_PCT_LE_130, COND_RENT_WON_LE_80
+     */
+    private void addConstraintKeywordTags(List<ServiceTag> tags, WelfareService service, String... texts) {
+        Set<String> extracted = TextConstraintExtractor.extract(texts);
+        extracted.forEach(token -> tags.add(buildTag(service, ServiceTag.TagType.KEYWORD, token)));
     }
 
     /**

@@ -2,9 +2,9 @@
 
 | 항목 | 내용 |
 |------|------|
-| 문서 버전 | v11.0 |
-| 작성일 | 2026-04-05 |
-| 변경 이력 | v10→v11: **챗봇 모듈 설계 반영** — welfare/ 패키지(WelfareService) 신규 추가. chat/ 모듈 역할 명확화(로그인 전용, 로그아웃 시 데이터 삭제). 의존 방향 원칙 구체화(chat→welfare 허용, chat→recommendation 금지, chat→user_recommendations 허용). chat/ 내부 클래스 2차 확장 타깃 명확화(ChatService, ChatRepository). 2차 확장 테이블 9개→11개(`chat_sessions`, `chat_messages` 추가). v9→v10: **확장형 MVP 구조 도입** — 1차(11개 테이블) / 2차(9개 테이블) 분리. **Cold Start 전략** — `score_weights` 테이블 신규 추가, 추천 이력 기반 가중치 자동 전환(rule 0.8→0.4 / ai 0.2→0.6). **AI 점수 위치 수정** — `welfare_services.ai_score` 제거, AI 점수는 `user_recommendations`(유저×서비스 단위)에만 존재. **스키마 무결성 강화** — `service_tags` UNIQUE KEY 추가, `user_attributes.attr_type` ENUM→VARCHAR(30). **컬럼 수정** — `batch_date DATE` → `recommended_at DATETIME`, `reason` → `ai_reason`, `rule_weight_used`·`ai_weight_used` 추가. **`unified_category`** — 3개 API 카테고리 통합 필터용 컬럼 추가 |
+| 문서 버전 | v11.1 |
+| 작성일 | 2026-04-16 |
+| 변경 이력 | v11.0→v11.1: **복지로 상세 수집 운영 제약 반영** — 공공데이터포털 상세 API 기능별 일일 트래픽 100 기준으로 수정. `BokjiroDetailCollectService`/`BokjiroDetailClient` 반영(요청 간격, 타임아웃, 429 보호, API별 호출 상한). 상세 수집 호출 카운트 기준을 "정책 건수"가 아닌 "실제 HTTP 요청 수(재시도 포함)"로 명확화. 추천은 현재 **동작 가능(룰+AI fallback)** 상태이나 품질 고도화는 후속 단계로 분리. v10→v11: **챗봇 모듈 설계 반영** — welfare/ 패키지(WelfareService) 신규 추가. chat/ 모듈 역할 명확화(로그인 전용, 로그아웃 시 데이터 삭제). 의존 방향 원칙 구체화(chat→welfare 허용, chat→recommendation 금지, chat→user_recommendations 허용). chat/ 내부 클래스 2차 확장 타깃 명확화(ChatService, ChatRepository). 2차 확장 테이블 9개→11개(`chat_sessions`, `chat_messages` 추가). v9→v10: **확장형 MVP 구조 도입** — 1차(11개 테이블) / 2차(9개 테이블) 분리. **Cold Start 전략** — `score_weights` 테이블 신규 추가, 추천 이력 기반 가중치 자동 전환(rule 0.8→0.4 / ai 0.2→0.6). **AI 점수 위치 수정** — `welfare_services.ai_score` 제거, AI 점수는 `user_recommendations`(유저×서비스 단위)에만 존재. **스키마 무결성 강화** — `service_tags` UNIQUE KEY 추가, `user_attributes.attr_type` ENUM→VARCHAR(30). **컬럼 수정** — `batch_date DATE` → `recommended_at DATETIME`, `reason` → `ai_reason`, `rule_weight_used`·`ai_weight_used` 추가. **`unified_category`** — 3개 API 카테고리 통합 필터용 컬럼 추가 |
 
 ---
 
@@ -29,6 +29,12 @@
 | AI API | 1차: OpenAI GPT-4o-mini 실시간 호출 / 2차: Batch API 전환 |
 | 배포 | EC2 **t4g.large** (2vCPU, 8GB RAM, ARM Graviton2) + Docker Compose 2개 |
 | 알림 | 카카오 알림톡 (CoolSMS) + Gmail 폴백 |
+
+### 운영 제약 (2026-04-16 확인)
+
+- 공공데이터포털 복지로 상세 API는 **기능별 일일 트래픽 100**.
+- 운영 기본값: API별 일일 최대 95회(안전 여유 5회).
+- 429 응답 시 해당 API 수집 즉시 중단(한도 보호), 5xx만 재시도.
 
 ---
 
@@ -245,7 +251,8 @@ service/
 │   └── ChatRepository.java                     # 2차: chat_sessions·chat_messages DB 접근 전담
 │                                               # 로그아웃 시 해당 유저 세션·메시지 전체 삭제 처리
 ├── NotificationService.java                    # 알림 발송
-├── CollectService.java                         # 공공 API 수집
+├── CollectService.java                         # 공공 API 수집 (목록 + 상세 트리거)
+├── BokjiroDetailCollectService.java            # 복지로 상세 수집 (API별 상한/429 보호)
 ├── BatchSubmitService.java                     # 2차: JSONL + Batch 제출
 ├── BatchPollingScheduler.java                  # 2차: 폴링
 ├── HardDeadlineScheduler.java                  # 2차: 새벽 6시 Fallback
@@ -319,6 +326,7 @@ service/
 - [ ] DB 스키마 **1차 11개 테이블** (score_weights 초기 데이터 포함)
 - [ ] 회원가입 / 로그인 (JWT, HttpOnly 쿠키)
 - [ ] 수집 배치 + Jsoup strip + unified_category 매핑
+- [ ] 복지로 상세 수집 보호로직 (기능별 100/일 기준, API별 상한/429 차단)
 
 ### Phase 2: 핵심 기능 (W4~W6)
 - [ ] 정책 목록 + 검색 (FULLTEXT) + 필터 (unified_category 포함)
@@ -334,6 +342,7 @@ service/
 - [ ] ReRankingService (final_score 계산 + recommended_at 저장)
 - [ ] 추천 카드 UI (ai_reason + 우선순위 태그)
 - [ ] recommendation_logs 클릭 추적 (`?log_id=`)
+- [ ] 품질 고도화는 별도 트랙으로 분리 (1차 목표: 추천 안정 동작/실패 없는 fallback)
 
 ### Phase 4: 알림 + 2차 확장 (W9~W11)
 - [ ] NotificationService 1차 (top 3 발송)

@@ -26,6 +26,7 @@ public class CollectService {
     private final BokjiroLocalClient bokjiroLocalClient;
     private final WelfareServiceMapper mapper;
     private final CollectItemSaver saver;
+    private final BokjiroDetailCollectService bokjiroDetailCollectService;
 
     /**
      * 매일 새벽 2시 수집 배치
@@ -36,6 +37,7 @@ public class CollectService {
         collectYouth();
         collectBokjiroCentral();
         collectBokjiroLocal();
+        collectBokjiroDetails();
         log.info("[CollectService] 공공API 수집 완료");
     }
 
@@ -106,5 +108,10 @@ public class CollectService {
             }
         }
         log.info("[CollectService][BOKJIRO_LOCAL] 저장 완료: {}건 (skip: {}건)", saved, skipped);
+    }
+
+    public void collectBokjiroDetails() {
+        int saved = bokjiroDetailCollectService.collectBokjiroDetails();
+        log.info("[CollectService][BOKJIRO_DETAIL] 저장 완료: {}건", saved);
     }
 }

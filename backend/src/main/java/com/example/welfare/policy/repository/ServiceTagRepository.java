@@ -18,6 +18,8 @@ public interface ServiceTagRepository extends JpaRepository<ServiceTag, Long> {
 
     List<ServiceTag> findByTagTypeAndTagValue(ServiceTag.TagType tagType, String tagValue);
 
+    List<ServiceTag> findByServiceIdInAndTagType(List<Long> serviceIds, ServiceTag.TagType tagType);
+
     // UPSERT — UNIQUE KEY uq_st(service_id, tag_type, tag_value) 기반
     // 중복 삽입 시 rule_base_score 이중합산 방지
     @Modifying

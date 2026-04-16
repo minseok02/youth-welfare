@@ -69,4 +69,6 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
 
     // 상태별 전체 조회 (StatusUpdateService 용)
     List<WelfareService> findByStatus(WelfareService.ServiceStatus status);
+
+    List<WelfareService> findBySourceType(WelfareService.SourceType sourceType);
 }
