@@ -112,6 +112,11 @@ public class AuthService {
         redisTemplate.delete(REFRESH_TOKEN_PREFIX + userId);
     }
 
+    public void logoutByRefreshToken(String refreshToken) {
+        Long userId = jwtUtil.getUserIdAllowExpired(refreshToken);
+        redisTemplate.delete(REFRESH_TOKEN_PREFIX + userId);
+    }
+
     private void saveRefreshToken(Long userId, String refreshToken) {
         redisTemplate.opsForValue().set(
                 REFRESH_TOKEN_PREFIX + userId,

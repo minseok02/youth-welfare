@@ -53,6 +53,33 @@ public class Notification extends BaseTimeEntity {
     @Column(length = 500)
     private String errorMessage;
 
+    @Column(nullable = false)
+    @Builder.Default
+    private Integer retryCount = 0;
+
+    private LocalDateTime nextRetryAt;
+
+    public void markSent() {
+        this.status = NotificationStatus.SENT;
+        this.sentAt = LocalDateTime.now();
+        this.errorMessage = null;
+        this.nextRetryAt = null;
+    }
+
+    public void scheduleRetry(LocalDateTime nextRetryAt, String errorMessage) {
+        this.status = NotificationStatus.FAILED;
+        this.retryCount = this.retryCount + 1;
+        this.nextRetryAt = nextRetryAt;
+        this.errorMessage = errorMessage;
+    }
+
+    public void failInitially(LocalDateTime nextRetryAt, String errorMessage) {
+        this.status = NotificationStatus.FAILED;
+        this.retryCount = 0;
+        this.nextRetryAt = nextRetryAt;
+        this.errorMessage = errorMessage;
+    }
+
     public enum NotificationChannel {
         EMAIL, KAKAO
     }

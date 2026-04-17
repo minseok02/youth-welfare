@@ -23,7 +23,7 @@ public class PolicySearchService {
 
     @Transactional(readOnly = true)
     public List<PolicySummaryResponse> search(String keyword, int page) {
-        return search(keyword, null, null, null, null, null, page, DEFAULT_SEARCH_LIMIT);
+        return search(keyword, null, null, null, null, null, null, null, page, DEFAULT_SEARCH_LIMIT);
     }
 
     @Transactional(readOnly = true)
@@ -32,6 +32,8 @@ public class PolicySearchService {
                                               String category,
                                               String sourceType,
                                               Boolean onlineApply,
+                                              String sido,
+                                              String sgg,
                                               String sort,
                                               int page,
                                               int size) {
@@ -43,6 +45,8 @@ public class PolicySearchService {
         String normalizedStatus = normalizeStatus(status);
         String normalizedSourceType = normalizeSourceType(sourceType);
         String normalizedCategory = normalizeNullable(category);
+        String normalizedSido = normalizeNullable(sido);
+        String normalizedSgg = normalizeNullable(sgg);
         Integer onlineApplyFlag = onlineApply == null ? null : (onlineApply ? 1 : 0);
         String normalizedSort = normalizeSort(sort);
 
@@ -52,6 +56,8 @@ public class PolicySearchService {
                 normalizedCategory,
                 normalizedSourceType,
                 onlineApplyFlag,
+                normalizedSido,
+                normalizedSgg,
                 normalizedSort,
                 limit,
                 offset);
@@ -82,7 +88,7 @@ public class PolicySearchService {
         if (sort == null || sort.isBlank()) return "RELEVANCE";
         String upper = sort.trim().toUpperCase();
         return switch (upper) {
-            case "RELEVANCE", "VIEWS", "LATEST" -> upper;
+            case "RELEVANCE", "VIEWS", "LATEST", "NAME" -> upper;
             default -> throw new CustomException(ErrorCode.INVALID_INPUT);
         };
     }

@@ -43,14 +43,17 @@ public String assignCluster(User user) {
 ```
 
 ### RetrievalService
-- SQL WHERE 필터: 나이/지역/소득/취업상태 pass/fail
+- SQL WHERE 필터: 나이/지역 pass/fail 우선
+- 소득은 `YOUTH` 구조화 값만 직접 적용, 복지로는 대상 태그 기반 보조 신호
 - 기본 가점 계산 후 상위 K=50건 선별
 - 신규 정책 가미: 수집 후 24시간 이내 + rule_base_score 최소값 M=5건 강제 포함
 
 ### RuleScoringService
 - if-else 기본 가점:
-  - 청년전용 +20, 지원금100만+ +15, 온라인신청 +10
-  - 지역일치 +10, 관심분야 +10, 마감임박 +5
+  - 관심분야 태그 일치 +15, 키워드 일치 +10, 대상유형 태그 일치 +10
+  - 마감임박 +5
+- 제외:
+  - `onlineApply`, `sourceType=YOUTH`, 구조화 지원금 필드는 신뢰도 부족으로 미사용
 - 우선순위 가중치 적용 → `rule_weighted_score`
   - 1순위×2.0 / 2순위×1.6 / 3순위×1.3 / 4순위×1.1 / 5순위×1.0 / 미설정×1.0
 

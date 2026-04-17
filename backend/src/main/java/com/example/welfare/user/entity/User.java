@@ -128,6 +128,11 @@ public class User extends BaseTimeEntity {
         this.notificationConsentAt = consentAt;
     }
 
+    public void unsubscribeNotifications() {
+        this.notificationYn = false;
+        this.notificationPeriod = NotificationPeriod.NONE;
+    }
+
     public void withdraw() {
         this.email = "withdrawn_" + this.id;
         this.passwordHash = "withdrawn";

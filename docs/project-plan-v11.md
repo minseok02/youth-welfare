@@ -2,9 +2,9 @@
 
 | 항목 | 내용 |
 |------|------|
-| 문서 버전 | v11.3 |
-| 작성일 | 2026-04-17 |
-| 변경 이력 | v11.2→v11.3: **알림 운영 현실 반영** — 카카오 알림톡은 사전 등록/템플릿 심사 완료 후 2차 적용으로 명시하고, 1차는 이메일 알림 고정으로 운영. `NotificationService`에 발송 이력 저장(`notifications`, `notification_services`) 반영 완료. v11.1→v11.2: **조회수·랭킹 고도화 반영** — `service_view_logs` 테이블/엔티티 추가, 정책 상세 조회 시 24시간 중복 조회 차단(로그인: user_id, 비로그인: fingerprint). 랭킹은 `uniqueViewCount7d`(최근 7일 고유조회) + `view_count` + `api_view_count` + 최신성으로 계산하고, 신규 정책 탐색 슬롯(최근 14일, top>=10 시 최대 2개) 적용. `PolicyRankingResponse`에 `uniqueViewCount7d` 필드 추가. 추천/랭킹/검색/상세 E2E 실데이터 검증 완료. v11.0→v11.1: **복지로 상세 수집 운영 제약 반영** — 공공데이터포털 상세 API 기능별 일일 트래픽 100 기준으로 수정. `BokjiroDetailCollectService`/`BokjiroDetailClient` 반영(요청 간격, 타임아웃, 429 보호, API별 호출 상한). 상세 수집 호출 카운트 기준을 "정책 건수"가 아닌 "실제 HTTP 요청 수(재시도 포함)"로 명확화. 추천은 현재 **동작 가능(룰+AI fallback)** 상태이나 품질 고도화는 후속 단계로 분리. v10→v11: **챗봇 모듈 설계 반영** — welfare/ 패키지(WelfareService) 신규 추가. chat/ 모듈 역할 명확화(로그인 전용, 로그아웃 시 데이터 삭제). 의존 방향 원칙 구체화(chat→welfare 허용, chat→recommendation 금지, chat→user_recommendations 허용). chat/ 내부 클래스 2차 확장 타깃 명확화(ChatService, ChatRepository). 2차 확장 테이블 9개→11개(`chat_sessions`, `chat_messages` 추가). v9→v10: **확장형 MVP 구조 도입** — 1차(11개 테이블) / 2차(9개 테이블) 분리. **Cold Start 전략** — `score_weights` 테이블 신규 추가, 추천 이력 기반 가중치 자동 전환(rule 0.8→0.4 / ai 0.2→0.6). **AI 점수 위치 수정** — `welfare_services.ai_score` 제거, AI 점수는 `user_recommendations`(유저×서비스 단위)에만 존재. **스키마 무결성 강화** — `service_tags` UNIQUE KEY 추가, `user_attributes.attr_type` ENUM→VARCHAR(30). **컬럼 수정** — `batch_date DATE` → `recommended_at DATETIME`, `reason` → `ai_reason`, `rule_weight_used`·`ai_weight_used` 추가. **`unified_category`** — 3개 API 카테고리 통합 필터용 컬럼 추가 |
+| 문서 버전 | v11.7 |
+| 작성일 | 2026-04-18 |
+| 변경 이력 | v11.6→v11.7: **데모 시나리오 추가** — 회원가입, 로그인, 프로필/우선순위 설정, 정책 목록/검색, 추천 생성·조회, 북마크, 수신 거부, refresh/logout, CTR 분석 SQL까지 포함한 실행 문서(`docs/demo-scenario.md`) 추가. v11.5→v11.6: **HTTPS 운영 설정 추가** — Nginx 리버스 프록시 예시(`deploy/nginx/youth-welfare.conf`) 추가, `80 -> 443 -> 8082` 기준과 Let’s Encrypt 인증서 경로, `X-Forwarded-*` 헤더 전달, HSTS 적용 절차를 배포 문서에 반영. v11.4→v11.5: **배포 기준선 정리** — `.env.example` 보강, `docker-compose.yml`을 `app + db + redis` 기준으로 보정(DB/Redis 서비스명 연결, Redis healthcheck, `APP_BASE_URL` 명시), 운영 배포 가이드(`docs/deployment.md`) 추가. v11.3→v11.4: **백엔드 운영·검증 반영** — 정책 목록/검색에 지역·출처·상태·정렬 필터 반영. 알림 설정(`notification_min_score`)·수신 거부 링크·이메일 `ai_reason`·실패 재시도(`retry_count`, `next_retry_at`) 구현. 추천 북마크 200건 상한 및 30일+미북마크 정리 배치 반영. 기존 DB 반영용 수동 마이그레이션 SQL(`db/migration/V2026_04_17_01__recent_schema_updates.sql`) 및 가이드(`docs/db-migration.md`) 추가. MySQL+Redis 통합 테스트(Auth/Bookmark) 추가 및 전체 테스트 통과. v11.2→v11.3: **알림 운영 현실 반영** — 카카오 알림톡은 사전 등록/템플릿 심사 완료 후 2차 적용으로 명시하고, 1차는 이메일 알림 고정으로 운영. `NotificationService`에 발송 이력 저장(`notifications`, `notification_services`) 반영 완료. v11.1→v11.2: **조회수·랭킹 고도화 반영** — `service_view_logs` 테이블/엔티티 추가, 정책 상세 조회 시 24시간 중복 조회 차단(로그인: user_id, 비로그인: fingerprint). 랭킹은 `uniqueViewCount7d`(최근 7일 고유조회) + `view_count` + `api_view_count` + 최신성으로 계산하고, 신규 정책 탐색 슬롯(최근 14일, top>=10 시 최대 2개) 적용. `PolicyRankingResponse`에 `uniqueViewCount7d` 필드 추가. 추천/랭킹/검색/상세 WebMvc·단위 검증 완료, 실데이터 통합 검증은 후속 진행. v11.0→v11.1: **복지로 상세 수집 운영 제약 반영** — 공공데이터포털 상세 API 기능별 일일 트래픽 100 기준으로 수정. `BokjiroDetailCollectService`/`BokjiroDetailClient` 반영(요청 간격, 타임아웃, 429 보호, API별 호출 상한). 상세 수집 호출 카운트 기준을 "정책 건수"가 아닌 "실제 HTTP 요청 수(재시도 포함)"로 명확화. 추천은 현재 **동작 가능(룰+AI fallback)** 상태이나 품질 고도화는 후속 단계로 분리. v10→v11: **챗봇 모듈 설계 반영** — welfare/ 패키지(WelfareService) 신규 추가. chat/ 모듈 역할 명확화(로그인 전용, 로그아웃 시 데이터 삭제). 의존 방향 원칙 구체화(chat→welfare 허용, chat→recommendation 금지, chat→user_recommendations 허용). chat/ 내부 클래스 2차 확장 타깃 명확화(ChatService, ChatRepository). 2차 확장 테이블 9개→11개(`chat_sessions`, `chat_messages` 추가). v9→v10: **확장형 MVP 구조 도입** — 1차(11개 테이블) / 2차(9개 테이블) 분리. **Cold Start 전략** — `score_weights` 테이블 신규 추가, 추천 이력 기반 가중치 자동 전환(rule 0.8→0.4 / ai 0.2→0.6). **AI 점수 위치 수정** — `welfare_services.ai_score` 제거, AI 점수는 `user_recommendations`(유저×서비스 단위)에만 존재. **스키마 무결성 강화** — `service_tags` UNIQUE KEY 추가, `user_attributes.attr_type` ENUM→VARCHAR(30). **컬럼 수정** — `batch_date DATE` → `recommended_at DATETIME`, `reason` → `ai_reason`, `rule_weight_used`·`ai_weight_used` 추가. **`unified_category`** — 3개 API 카테고리 통합 필터용 컬럼 추가 |
 
 ---
 
@@ -27,7 +27,7 @@
 | Frontend | React + MUI |
 | Database | MySQL 8.0+ |
 | AI API | 1차: OpenAI GPT-4o-mini 실시간 호출 / 2차: Batch API 전환 |
-| 배포 | EC2 **t4g.large** (2vCPU, 8GB RAM, ARM Graviton2) + Docker Compose 2개 |
+| 배포 | EC2 **t4g.large** (2vCPU, 8GB RAM, ARM Graviton2) + Docker Compose 3개(`app`, `db`, `redis`) |
 | 알림 | 1차: Gmail 이메일 / 2차: 카카오 알림톡(CoolSMS, 등록·심사 완료 후) |
 
 ### 운영 제약 (2026-04-16 확인)
@@ -192,7 +192,7 @@ Step 3: norm = (clipped - p5) / (p95 - p5)
 
 ### 4.6 알림 슬롯 배치 → 2차 구현
 
-**1차**: 이메일 발송 + 이력 저장(`notifications`, `notification_services`) + top 3 정책.
+**1차**: 이메일 발송 + 이력 저장(`notifications`, `notification_services`) + `notification_min_score` 필터 + `ai_reason`/수신 거부 링크 포함 + 실패 재시도(30분/2시간) + top 3 정책.
 **2차**: A/B 타입 로직으로 교체.
 
 ---
@@ -202,6 +202,10 @@ Step 3: norm = (clipped - p5) / (p95 - p5)
 ```
 시스템: 청년 복지 정책 평가 전문가. JSON만 응답.
 군집 특성: {age_group}, {region_sido}, {income_range}, {employment}
+
+운영 메모:
+- `income_range`는 사용자 프로필 값으로 AI 프롬프트에는 전달하지만, 정책 측 소득 조건은 현재 `YOUTH` 구조화 값 위주로만 직접 필터링된다.
+- 복지로 계열은 소득 구조화 값이 거의 없어 `TARGET_GROUP`의 `저소득층`, `기초생활` 등 태그를 보조 신호로 사용한다.
 정책 목록: {policy_list}
 응답: {"results": [{"service_id": 1001, "score": 85, "reason": "1문장"}]}
 ```
@@ -252,6 +256,7 @@ service/
 │   └── ChatRepository.java                     # 2차: chat_sessions·chat_messages DB 접근 전담
 │                                               # 로그아웃 시 해당 유저 세션·메시지 전체 삭제 처리
 ├── NotificationService.java                    # 알림 발송
+├── RecommendationRetentionService.java         # 30일+미북마크 추천 정리
 ├── CollectService.java                         # 공공 API 수집 (목록 + 상세 트리거)
 ├── BokjiroDetailCollectService.java            # 복지로 상세 수집 (API별 상한/429 보호)
 ├── BatchSubmitService.java                     # 2차: JSONL + Batch 제출
@@ -259,6 +264,14 @@ service/
 ├── HardDeadlineScheduler.java                  # 2차: 새벽 6시 Fallback
 └── StatusUpdateService.java                    # 만료 갱신
 ```
+
+---
+
+## 7. 검증 상태
+
+- 단위/슬라이스 테스트: 정책 랭킹, 조회수 중복 방지, 알림 이력, 정책/추천 WebMvc 흐름 검증 완료
+- 통합 테스트: MySQL + Redis 기반 `AuthRedisIntegrationTest`, `PolicyBookmarkIntegrationTest` 추가 완료
+- 운영 반영 메모: 기존 DB는 `schema.sql`만으로 갱신되지 않으므로 [`docs/db-migration.md`](db-migration.md) 순서대로 수동 마이그레이션 적용 필요
 
 **설계 원칙**
 
@@ -360,7 +373,7 @@ service/
 - [ ] AWS EC2 배포 + HTTPS
 - [ ] 보안 항목 (Rotation, 잠금, 취약점 비식별화)
 - [ ] 통합 테스트 + 버그 수정
-- [ ] 발표 자료 + 데모 시나리오 (CTR 분석 쿼리 포함)
+- [x] 데모 시나리오 문서 (`docs/demo-scenario.md`, CTR 분석 쿼리 포함)
 
 ---
 

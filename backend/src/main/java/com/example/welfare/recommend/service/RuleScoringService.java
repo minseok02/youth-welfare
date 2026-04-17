@@ -71,12 +71,6 @@ public class RuleScoringService {
                                   Set<String> interestFields, List<ServiceTag> tags) {
         double score = 0;
 
-        // 청년 전용 정책 (source_type=YOUTH)
-        if (service.getSourceType() == WelfareService.SourceType.YOUTH) score += 20;
-
-        // 온라인 신청 가능
-        if (Boolean.TRUE.equals(service.getIsOnlineApply())) score += 10;
-
         // 관심분야 일치: INTEREST_THEME 태그 ↔ 유저 INTEREST_FIELD
         if (interestThemeMatches(interestFields, tags)) score += 15;
 

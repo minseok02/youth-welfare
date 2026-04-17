@@ -50,8 +50,8 @@
   - CoolSMS key (`${COOLSMS_API_KEY}`)
   - Gmail SMTP (`${GMAIL_USERNAME}`, `${GMAIL_PASSWORD}`)
   - JPA ddl-auto: validate
-- [ ] `.env.example` 파일 생성 (실제 값 없이 키 목록만)
-- [ ] `docker-compose.yml` 작성 (Spring + MySQL 2컨테이너)
+- [x] `.env.example` 파일 생성 (실제 값 없이 키 목록만)
+- [x] `docker-compose.yml` 작성 (Spring + MySQL + Redis 3컨테이너)
 - [ ] `Dockerfile` 작성 (ARM Graviton2 호환)
 
 ### 산출물
@@ -116,6 +116,7 @@ com.example.welfare.global/
 - [ ] `src/main/resources/db/migration/` 또는 `schema.sql`에 DDL 보관
 
 > DDL 전문: [`backend/src/main/resources/db/schema.sql`](../backend/src/main/resources/db/schema.sql)
+> 기존 DB 갱신용: [`backend/src/main/resources/db/migration/V2026_04_17_01__recent_schema_updates.sql`](../backend/src/main/resources/db/migration/V2026_04_17_01__recent_schema_updates.sql), 가이드: [`docs/db-migration.md`](db-migration.md)
 
 ---
 
@@ -152,6 +153,7 @@ com.example.welfare.global/
 - [ ] `UserService`
   - 프로필 조회·수정
   - `profile_completeness` 계산 (필수/선택 필드 입력률)
+  - 알림 설정 수정 (`notification_yn`, `notification_period`, `notification_min_score`)
   - 회원탈퇴 비식별화 (`email → 'withdrawn'`, 개인정보 전체 NULL)
   - `user_attributes`, `user_priorities` 즉시 삭제
 
@@ -171,6 +173,7 @@ com.example.welfare.global/
   - `GET /me` — 프로필 조회
   - `PUT /me` — 프로필 수정
   - `PUT /me/priorities` — 우선순위 설정
+  - `POST /me/notifications/unsubscribe` — 로그인 상태 수신 거부
   - `DELETE /me` — 회원탈퇴
 - [ ] 요청·응답 DTO 전체 (Validation 어노테이션 포함)
 
@@ -205,6 +208,7 @@ com.example.welfare.global/
   - 30분 이내 재조회 시 조회수 미증가
   - 북마크 추가·해제
 - [ ] `PolicySearchService` — FULLTEXT ngram 키워드 검색, 관련도+조회수 정렬
+  - 지역 필터 (`sido`, `sgg`) 및 이름순 정렬 포함
 - [ ] `PolicyController` — `/api/policies`
   - `GET /` — 목록
   - `GET /{id}` — 상세 (`?log_id=` 파라미터로 클릭 추적)
@@ -283,13 +287,14 @@ com.example.welfare.global/
 - [ ] `ClusterService`
   - 1차: `assignCluster(User)` → 항상 `"youth_all"` 반환
 - [ ] `RetrievalService`
-  - SQL WHERE 필터: 나이 / 지역 / 소득 / 취업상태 (NULL이면 통과)
+  - SQL WHERE 필터: 나이 / 지역 우선
+  - 소득은 구조화 값 있는 소스(YOUTH)만 직접 적용, 복지로는 NULL 통과 후 대상 태그로 보조 반영
   - 상위 K=50건 선별 (`view_count DESC`)
   - 신규 정책 강제 포함: 수집 후 24시간 이내 + `rule_base_score` 최솟값 M=5건
 - [ ] `RuleScoringService`
-  - if-else 기본 가점 6항목 → `rule_base_score`
-    - 청년전용 +20 / 지원금 100만+ +15 / 온라인신청 +10
-    - 지역일치 +10 / 관심분야 +10 / 마감임박(7일) +5
+  - if-else 기본 가점 → `rule_base_score`
+    - 관심분야 태그 일치 / 대상유형 태그 일치 / 마감임박(7일)
+    - `청년전용(sourceType=YOUTH)`, `온라인신청`, `지원금 100만+`는 데이터 신뢰도 부족으로 가점 제외
   - 우선순위 가중치 적용 → `rule_weighted_score`
     - 복수 매칭 시 최고 배율 1개만 적용 (이중합산 방지)
 
@@ -335,6 +340,8 @@ com.example.welfare.global/
 - [ ] `RecommendationLogService`
   - `recommendation_logs` INSERT (`is_fallback` 포함)
   - `markClicked(logId)` — `is_clicked = TRUE`, `clicked_at` 업데이트
+- [ ] `RecommendationRetentionService`
+  - 30일+미북마크 추천 삭제 배치
 
 ---
 
@@ -373,6 +380,8 @@ com.example.welfare.global/
   - API 키 환경변수 (`${GMAIL_USERNAME}`, `${GMAIL_PASSWORD}`)
 - [ ] `NotificationService` — `@Scheduled(cron = "0 0 8 * * *")`
   - 1차: `notification_yn = 1` 유저 대상 top 3 발송
+  - `notification_min_score` 필터
+  - 메일 본문 `ai_reason` + 수신거부 링크 포함
   - 발송 실패 시 30분 / 2시간 후 최대 2회 재시도
   - 카카오 실패 → 이메일 폴백
   - 수신거부 링크 포함
@@ -396,6 +405,7 @@ com.example.welfare.global/
 - [ ] AI 프롬프트에 개인 식별 정보 없음 확인 (군집 범주값만)
 - [ ] `service_tags` UPSERT (중복 삽입 방지) 확인
 - [ ] `score_weights` 하드코딩 없음 확인
+- [ ] 통합 테스트(Auth/Bookmark, MySQL+Redis) 통과 확인
 
 ---
 
@@ -420,8 +430,12 @@ com.example.welfare.global/
          ROUND(SUM(is_clicked)*100.0/COUNT(*),1) AS ctr_pct
   FROM recommendation_logs GROUP BY rule_weight_used, ai_weight_used;
   ```
+- [x] `.env.example` / [`docs/deployment.md`](deployment.md) 배포 가이드 정리
+- [x] Docker Compose 운영 기동 파일 정리 (`app + db + redis`, 서비스명 기반 연결)
+- [x] Nginx HTTPS 리버스 프록시 예시 추가 (`deploy/nginx/youth-welfare.conf`)
+- [x] 데모 시나리오 문서 추가 (`docs/demo-scenario.md`)
 - [ ] Docker Compose EC2 t4g.large (ARM Graviton2) 배포
-- [ ] HTTPS 설정
+- [ ] HTTPS 실서버 적용 및 인증서 발급
 - [ ] 데모 시나리오 실행 (CTR 분석 결과 포함)
 
 ---

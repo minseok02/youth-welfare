@@ -1,6 +1,8 @@
 package com.example.welfare.collect.service;
 
 import com.example.welfare.collect.gateway.BokjiroDetailClient;
+import com.example.welfare.collect.validation.RawFieldValidator;
+import com.example.welfare.collect.validation.TextConstraintExtractor;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.entity.WelfareServiceDetail;
 import com.example.welfare.policy.repository.WelfareServiceDetailRepository;
@@ -130,6 +132,7 @@ public class BokjiroDetailCollectService {
                         .build();
 
                 detailRepository.save(merged);
+                applyFallbacksToService(service, payload);
                 saved++;
             } catch (Exception e) {
                 log.warn("[BokjiroDetailCollectService] 상세 저장 실패 serviceId={} sourceType={} err={}",
@@ -177,6 +180,47 @@ public class BokjiroDetailCollectService {
             sleepQuietly(waitMs);
         }
         return new FetchOutcome(result, requestCount);
+    }
+
+    private void applyFallbacksToService(WelfareService service, BokjiroDetailClient.DetailPayload payload) {
+        TextConstraintExtractor.ConstraintSummary constraints = TextConstraintExtractor.summarize(
+                payload.getTargetDetail(),
+                payload.getSupportDetail(),
+                payload.getApplyMethodDetail(),
+                payload.getSelectionCriteria()
+        );
+
+        service.applyDetailFallbacks(
+                RawFieldValidator.normalize(payload.getSupportDetail()),
+                RawFieldValidator.normalize(payload.getApplyMethodDetail()),
+                constraints.minAge(),
+                constraints.maxAge(),
+                constraints.applyEndDate(),
+                inferOnlineApply(service.getDetailUrl(), payload.getApplyMethodDetail(), payload.getSupportDetail())
+        );
+    }
+
+    private Boolean inferOnlineApply(String detailUrl, String... texts) {
+        if (RawFieldValidator.normalize(detailUrl) != null) {
+            return true;
+        }
+        if (texts == null) {
+            return null;
+        }
+        for (String text : texts) {
+            String normalized = RawFieldValidator.normalize(text);
+            if (normalized == null) {
+                continue;
+            }
+            if (normalized.contains("온라인")
+                    || normalized.contains("인터넷")
+                    || normalized.contains("홈페이지")
+                    || normalized.contains("모바일")
+                    || normalized.contains("누리집")) {
+                return true;
+            }
+        }
+        return null;
     }
 
     private void sleepQuietly(long millis) {

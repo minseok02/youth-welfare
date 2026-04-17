@@ -96,7 +96,7 @@ class RecommendationPolicyFlowWebMvcTest {
 
         given(recommendationFacade.recommend(isNull())).willReturn(List.of(recommendation));
         given(policyRankingService.getRanking(5)).willReturn(List.of(ranking));
-        given(policySearchService.search("월세", "ACTIVE", "HOUSING", "YOUTH", true, "RELEVANCE", 0, 10))
+        given(policySearchService.search("월세", "ACTIVE", "HOUSING", "YOUTH", true, null, null, "RELEVANCE", 0, 10))
                 .willReturn(List.of(searchHit));
 
         mockMvc.perform(post("/api/recommendations/refresh")
@@ -130,7 +130,7 @@ class RecommendationPolicyFlowWebMvcTest {
 
         verify(recommendationFacade).recommend(isNull());
         verify(policyRankingService).getRanking(5);
-        verify(policySearchService).search("월세", "ACTIVE", "HOUSING", "YOUTH", true, "RELEVANCE", 0, 10);
+        verify(policySearchService).search("월세", "ACTIVE", "HOUSING", "YOUTH", true, null, null, "RELEVANCE", 0, 10);
     }
 
     @Test
@@ -155,6 +155,17 @@ class RecommendationPolicyFlowWebMvcTest {
 
         verify(policyService).getDetail(eq(11L), eq(true));
         verify(recommendationLogService).markClicked(9001L);
+    }
+
+    @Test
+    @DisplayName("정책 북마크 API는 정책 서비스에 토글을 위임한다")
+    void policyBookmarkDelegatesToPolicyService() throws Exception {
+        mockMvc.perform(post("/api/policies/{id}/bookmark", 11L)
+                        .with(authentication(new UsernamePasswordAuthenticationToken(1L, null, Collections.emptyList()))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
+        verify(policyService).toggleBookmark(isNull(), eq(11L));
     }
 
     private WelfareService sampleService(Long id, String title) {

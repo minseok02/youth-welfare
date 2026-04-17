@@ -1,5 +1,7 @@
 package com.example.welfare.collect.validation;
 
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.regex.Matcher;
@@ -33,6 +35,19 @@ public final class TextConstraintExtractor {
             Pattern.compile("(?:연\\s*소득|가구\\s*소득|소득인정액|소득)[^\\n\\r]{0,12}?(\\d{2,5})\\s*만원\\s*이하");
     private static final Pattern RENT_WON =
             Pattern.compile("(?:월세|임차료|임대료)[^\\n\\r]{0,10}?(\\d{1,4})\\s*만원\\s*이하");
+    private static final Pattern DATE_RANGE =
+            Pattern.compile("((?:19|20)\\d{2}[./-]?(?:0[1-9]|1[0-2])[./-]?(?:0[1-9]|[12]\\d|3[01]))\\s*(?:~|\\-|–|부터)\\s*((?:19|20)\\d{2}[./-]?(?:0[1-9]|1[0-2])[./-]?(?:0[1-9]|[12]\\d|3[01]))");
+    private static final Pattern DATE_UNTIL =
+            Pattern.compile("((?:19|20)\\d{2}[./-]?(?:0[1-9]|1[0-2])[./-]?(?:0[1-9]|[12]\\d|3[01]))\\s*까지");
+
+    public record ConstraintSummary(
+            Integer minAge,
+            Integer maxAge,
+            Integer incomePercentMax,
+            Integer incomeManWonMax,
+            Integer rentManWonMax,
+            LocalDate applyEndDate
+    ) {}
 
     public static Set<String> extract(String... texts) {
         Set<String> out = new LinkedHashSet<>();
@@ -48,6 +63,75 @@ public final class TextConstraintExtractor {
             extractRentWon(normalized, out);
         }
         return out;
+    }
+
+    public static ConstraintSummary summarize(String... texts) {
+        Set<String> tokens = extract(texts);
+
+        Integer minAge = tokens.stream()
+                .filter(v -> v.startsWith("COND_AGE_MIN_"))
+                .map(v -> v.substring("COND_AGE_MIN_".length()))
+                .map(TextConstraintExtractor::safeInt)
+                .filter(v -> v > 0)
+                .max(Integer::compareTo)
+                .orElse(null);
+
+        Integer maxAge = tokens.stream()
+                .filter(v -> v.startsWith("COND_AGE_MAX_"))
+                .map(v -> v.substring("COND_AGE_MAX_".length()))
+                .map(TextConstraintExtractor::safeInt)
+                .filter(v -> v > 0)
+                .min(Integer::compareTo)
+                .orElse(null);
+
+        Integer incomePercentMax = tokens.stream()
+                .filter(v -> v.startsWith("COND_INCOME_PCT_LE_"))
+                .map(v -> v.substring("COND_INCOME_PCT_LE_".length()))
+                .map(TextConstraintExtractor::safeInt)
+                .filter(v -> v > 0)
+                .min(Integer::compareTo)
+                .orElse(null);
+
+        Integer incomeManWonMax = tokens.stream()
+                .filter(v -> v.startsWith("COND_INCOME_WON_LE_"))
+                .map(v -> v.substring("COND_INCOME_WON_LE_".length()))
+                .map(TextConstraintExtractor::safeInt)
+                .filter(v -> v > 0)
+                .min(Integer::compareTo)
+                .orElse(null);
+
+        Integer rentManWonMax = tokens.stream()
+                .filter(v -> v.startsWith("COND_RENT_WON_LE_"))
+                .map(v -> v.substring("COND_RENT_WON_LE_".length()))
+                .map(TextConstraintExtractor::safeInt)
+                .filter(v -> v > 0)
+                .min(Integer::compareTo)
+                .orElse(null);
+
+        LocalDate applyEndDate = extractApplyEndDate(texts);
+
+        return new ConstraintSummary(minAge, maxAge, incomePercentMax, incomeManWonMax, rentManWonMax, applyEndDate);
+    }
+
+    public static LocalDate extractApplyEndDate(String... texts) {
+        if (texts == null) return null;
+        for (String text : texts) {
+            if (text == null || text.isBlank()) continue;
+            String normalized = text.replace('\u00A0', ' ');
+
+            Matcher rangeMatcher = DATE_RANGE.matcher(normalized);
+            if (rangeMatcher.find()) {
+                LocalDate end = parseLooseDate(rangeMatcher.group(2));
+                if (end != null) return end;
+            }
+
+            Matcher untilMatcher = DATE_UNTIL.matcher(normalized);
+            if (untilMatcher.find()) {
+                LocalDate end = parseLooseDate(untilMatcher.group(1));
+                if (end != null) return end;
+            }
+        }
+        return null;
     }
 
     private static void extractAge(String text, Set<String> out) {
@@ -105,5 +189,15 @@ public final class TextConstraintExtractor {
             return -1;
         }
     }
-}
 
+    private static LocalDate parseLooseDate(String raw) {
+        if (raw == null) return null;
+        String digits = raw.replaceAll("[^0-9]", "");
+        if (digits.length() < 8) return null;
+        try {
+            return LocalDate.parse(digits.substring(0, 8), DateTimeFormatter.ofPattern("yyyyMMdd"));
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+}

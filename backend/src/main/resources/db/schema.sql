@@ -262,11 +262,14 @@ CREATE TABLE IF NOT EXISTS notifications (
     total_services INT          NOT NULL DEFAULT 0,
     sent_at        DATETIME,
     error_message  VARCHAR(500),
+    retry_count    INT          NOT NULL DEFAULT 0,
+    next_retry_at  DATETIME,
     created_at     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
     KEY idx_noti_user_created (user_id, created_at),
     KEY idx_noti_status_created (status, created_at),
+    KEY idx_noti_retry (status, next_retry_at),
     CONSTRAINT fk_noti_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 

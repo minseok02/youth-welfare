@@ -22,6 +22,11 @@ public class UpdateProfileRequest {
 
     private String householdType;
     private String employmentStatus;
+    private Boolean notificationYn;
+    private String notificationPeriod;
+
+    @Min(0) @Max(1)
+    private Double notificationMinScore;
 
     @Min(1) @Max(30)
     private Integer displayCount;

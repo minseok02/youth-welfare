@@ -115,6 +115,32 @@ public class WelfareService extends BaseTimeEntity {
         this.lastModifiedAt = source.lastModifiedAt;
     }
 
+    public void applyDetailFallbacks(String supportContent,
+                                     String applyMethodName,
+                                     Integer minAge,
+                                     Integer maxAge,
+                                     LocalDate applyEndDate,
+                                     Boolean isOnlineApply) {
+        if ((this.supportContent == null || this.supportContent.isBlank()) && supportContent != null && !supportContent.isBlank()) {
+            this.supportContent = supportContent;
+        }
+        if ((this.applyMethodName == null || this.applyMethodName.isBlank()) && applyMethodName != null && !applyMethodName.isBlank()) {
+            this.applyMethodName = applyMethodName;
+        }
+        if (this.minAge == null && minAge != null) {
+            this.minAge = minAge;
+        }
+        if (this.maxAge == null && maxAge != null) {
+            this.maxAge = maxAge;
+        }
+        if (this.applyEndDate == null && applyEndDate != null) {
+            this.applyEndDate = applyEndDate;
+        }
+        if (this.isOnlineApply == null && isOnlineApply != null) {
+            this.isOnlineApply = isOnlineApply;
+        }
+    }
+
     public enum SourceType {
         YOUTH, BOKJIRO_CENTRAL, BOKJIRO_LOCAL
     }

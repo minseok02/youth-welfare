@@ -25,6 +25,10 @@ public interface UserRecommendationRepository extends JpaRepository<UserRecommen
     // 북마크 목록
     List<UserRecommendation> findByUserIdAndIsBookmarkedTrue(Long userId);
 
+    long countByUserIdAndIsBookmarkedTrue(Long userId);
+
+    Optional<UserRecommendation> findTopByUserIdAndServiceIdOrderByRecommendedAtDesc(Long userId, Long serviceId);
+
     // 클릭 추적용 단건 조회
     Optional<UserRecommendation> findByIdAndUserId(Long id, Long userId);
 

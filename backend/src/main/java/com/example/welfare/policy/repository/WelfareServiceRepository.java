@@ -21,8 +21,13 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
             WHERE ws.status IN ('ACTIVE', 'UPCOMING')
               AND (ws.minAge IS NULL OR ws.minAge <= :age)
               AND (ws.maxAge IS NULL OR ws.maxAge >= :age)
-              AND (ws.minIncome IS NULL OR ws.minIncome <= :incomeLevel)
-              AND (ws.maxIncome IS NULL OR ws.maxIncome >= :incomeLevel)
+              AND (
+                    ws.sourceType <> com.example.welfare.policy.entity.WelfareService$SourceType.YOUTH
+                    OR (
+                        (ws.minIncome IS NULL OR ws.minIncome <= :incomeLevel)
+                        AND (ws.maxIncome IS NULL OR ws.maxIncome >= :incomeLevel)
+                    )
+                  )
             """)
     List<WelfareService> findCandidates(@Param("age") int age,
                                         @Param("incomeLevel") int incomeLevel,
@@ -38,8 +43,13 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
             WHERE ws.status IN ('ACTIVE', 'UPCOMING')
               AND (ws.minAge IS NULL OR ws.minAge <= :age)
               AND (ws.maxAge IS NULL OR ws.maxAge >= :age)
-              AND (ws.minIncome IS NULL OR ws.minIncome <= :incomeLevel)
-              AND (ws.maxIncome IS NULL OR ws.maxIncome >= :incomeLevel)
+              AND (
+                    ws.sourceType <> com.example.welfare.policy.entity.WelfareService$SourceType.YOUTH
+                    OR (
+                        (ws.minIncome IS NULL OR ws.minIncome <= :incomeLevel)
+                        AND (ws.maxIncome IS NULL OR ws.maxIncome >= :incomeLevel)
+                    )
+                  )
               AND (sr.id IS NULL OR sr.regionCode = :regionCode OR sr.sidoName = :sidoName)
             """)
     List<WelfareService> findCandidatesWithRegion(@Param("age") int age,
@@ -54,8 +64,13 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
             WHERE ws.status IN ('ACTIVE', 'UPCOMING')
               AND (ws.minAge IS NULL OR ws.minAge <= :age)
               AND (ws.maxAge IS NULL OR ws.maxAge >= :age)
-              AND (ws.minIncome IS NULL OR ws.minIncome <= :incomeLevel)
-              AND (ws.maxIncome IS NULL OR ws.maxIncome >= :incomeLevel)
+              AND (
+                    ws.sourceType <> com.example.welfare.policy.entity.WelfareService$SourceType.YOUTH
+                    OR (
+                        (ws.minIncome IS NULL OR ws.minIncome <= :incomeLevel)
+                        AND (ws.maxIncome IS NULL OR ws.maxIncome >= :incomeLevel)
+                    )
+                  )
             ORDER BY ws.createdAt DESC
             """)
     List<WelfareService> findLatestCandidates(@Param("age") int age,
@@ -69,8 +84,13 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
             WHERE ws.status IN ('ACTIVE', 'UPCOMING')
               AND (ws.minAge IS NULL OR ws.minAge <= :age)
               AND (ws.maxAge IS NULL OR ws.maxAge >= :age)
-              AND (ws.minIncome IS NULL OR ws.minIncome <= :incomeLevel)
-              AND (ws.maxIncome IS NULL OR ws.maxIncome >= :incomeLevel)
+              AND (
+                    ws.sourceType <> com.example.welfare.policy.entity.WelfareService$SourceType.YOUTH
+                    OR (
+                        (ws.minIncome IS NULL OR ws.minIncome <= :incomeLevel)
+                        AND (ws.maxIncome IS NULL OR ws.maxIncome >= :incomeLevel)
+                    )
+                  )
               AND (sr.id IS NULL OR sr.regionCode = :regionCode OR sr.sidoName = :sidoName)
             ORDER BY ws.createdAt DESC
             """)
@@ -93,9 +113,10 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                                          @Param("limit") int limit,
                                          @Param("offset") int offset);
 
-    // FULLTEXT + 필터 검색 (정렬: RELEVANCE / VIEWS / LATEST)
+    // FULLTEXT + 필터 검색 (정렬: RELEVANCE / VIEWS / LATEST / NAME)
     @Query(value = """
-            SELECT ws.* FROM welfare_services ws
+            SELECT DISTINCT ws.* FROM welfare_services ws
+            LEFT JOIN service_regions sr ON sr.service_id = ws.id
             WHERE (
                     (:status IS NULL AND ws.status IN ('ACTIVE', 'UPCOMING'))
                     OR (:status IS NOT NULL AND ws.status = :status)
@@ -103,6 +124,14 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
               AND (:category IS NULL OR ws.unified_category = :category)
               AND (:sourceType IS NULL OR ws.source_type = :sourceType)
               AND (:onlineApply IS NULL OR ws.is_online_apply = :onlineApply)
+              AND (
+                    :sido IS NULL
+                    OR sr.id IS NULL
+                    OR (
+                        sr.sido_name = :sido
+                        AND (:sgg IS NULL OR sr.sgg_name = :sgg)
+                    )
+                  )
               AND MATCH(ws.title, ws.description, ws.support_content, ws.keyword)
                   AGAINST (:keyword IN BOOLEAN MODE)
             ORDER BY
@@ -114,6 +143,10 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                     WHEN :sort = 'LATEST' THEN ws.created_at
                     ELSE NULL
                 END DESC,
+                CASE
+                    WHEN :sort = 'NAME' THEN ws.title
+                    ELSE NULL
+                END ASC,
                 CASE
                     WHEN :sort = 'RELEVANCE' THEN MATCH(ws.title, ws.description, ws.support_content, ws.keyword)
                         AGAINST (:keyword IN BOOLEAN MODE)
@@ -128,6 +161,8 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                                                     @Param("category") String category,
                                                     @Param("sourceType") String sourceType,
                                                     @Param("onlineApply") Integer onlineApply,
+                                                    @Param("sido") String sido,
+                                                    @Param("sgg") String sgg,
                                                     @Param("sort") String sort,
                                                     @Param("limit") int limit,
                                                     @Param("offset") int offset);
@@ -137,6 +172,67 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
             String unifiedCategory,
             List<WelfareService.ServiceStatus> statuses,
             Pageable pageable);
+
+    @Query(value = """
+            SELECT ws FROM WelfareService ws
+            WHERE (
+                    (:status IS NULL AND (
+                        (:includeClosed = true AND ws.status IN ('ACTIVE', 'UPCOMING', 'CLOSED'))
+                        OR (:includeClosed = false AND ws.status IN ('ACTIVE', 'UPCOMING'))
+                    ))
+                    OR (:status IS NOT NULL AND ws.status = :status)
+                  )
+              AND (:category IS NULL OR ws.unifiedCategory = :category)
+              AND (:sourceType IS NULL OR ws.sourceType = :sourceType)
+              AND (:onlineApply IS NULL OR ws.isOnlineApply = :onlineApply)
+              AND (
+                    :sido IS NULL
+                    OR NOT EXISTS (
+                        SELECT sr1.id FROM ServiceRegion sr1
+                        WHERE sr1.service = ws
+                    )
+                    OR EXISTS (
+                        SELECT sr2.id FROM ServiceRegion sr2
+                        WHERE sr2.service = ws
+                          AND sr2.sidoName = :sido
+                          AND (:sgg IS NULL OR sr2.sggName = :sgg)
+                    )
+                  )
+            """,
+            countQuery = """
+            SELECT COUNT(ws) FROM WelfareService ws
+            WHERE (
+                    (:status IS NULL AND (
+                        (:includeClosed = true AND ws.status IN ('ACTIVE', 'UPCOMING', 'CLOSED'))
+                        OR (:includeClosed = false AND ws.status IN ('ACTIVE', 'UPCOMING'))
+                    ))
+                    OR (:status IS NOT NULL AND ws.status = :status)
+                  )
+              AND (:category IS NULL OR ws.unifiedCategory = :category)
+              AND (:sourceType IS NULL OR ws.sourceType = :sourceType)
+              AND (:onlineApply IS NULL OR ws.isOnlineApply = :onlineApply)
+              AND (
+                    :sido IS NULL
+                    OR NOT EXISTS (
+                        SELECT sr1.id FROM ServiceRegion sr1
+                        WHERE sr1.service = ws
+                    )
+                    OR EXISTS (
+                        SELECT sr2.id FROM ServiceRegion sr2
+                        WHERE sr2.service = ws
+                          AND sr2.sidoName = :sido
+                          AND (:sgg IS NULL OR sr2.sggName = :sgg)
+                    )
+                  )
+            """)
+    Page<WelfareService> findListWithFilters(@Param("category") String category,
+                                             @Param("sourceType") WelfareService.SourceType sourceType,
+                                             @Param("status") WelfareService.ServiceStatus status,
+                                             @Param("includeClosed") boolean includeClosed,
+                                             @Param("sido") String sido,
+                                             @Param("sgg") String sgg,
+                                             @Param("onlineApply") Boolean onlineApply,
+                                             Pageable pageable);
 
     // 상태별 전체 조회 (StatusUpdateService 용)
     List<WelfareService> findByStatus(WelfareService.ServiceStatus status);

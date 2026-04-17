@@ -30,12 +30,17 @@ import java.util.Set;
 @Component
 public class WelfareServiceMapper {
 
+    private static final String[] ONLINE_APPLY_KEYWORDS = {
+            "온라인", "인터넷", "홈페이지", "웹", "모바일", "앱", "신청페이지", "누리집"
+    };
+
     // ===== 온통청년 =====
 
     public WelfareService fromYouth(YouthApiDto.Item item) {
         // aplyYmd: "20260101 ~ 20261231" 형식에서 시작/종료일 파싱
         LocalDate applyStart = parseApplyStartFromRange(item.getAplyYmd());
         LocalDate applyEnd   = parseApplyEndFromRange(item.getAplyYmd());
+        boolean onlineApply = inferOnlineApply(item.getAplyUrlAddr(), item.getPlcyAplyMthdCn(), item.getAplyYmd());
 
         return WelfareService.builder()
                 .sourceType(WelfareService.SourceType.YOUTH)
@@ -58,6 +63,7 @@ public class WelfareServiceMapper {
                 .applyStartDate(applyStart)
                 .applyEndDate(applyEnd)
                 .applyMethodName(RawFieldValidator.normalize(item.getPlcyAplyMthdCn()))
+                .isOnlineApply(onlineApply)
                 .detailUrl(RawFieldValidator.normalize(item.getAplyUrlAddr()))
                 .apiViewCount(item.getInqCnt())
                 .registeredAt(parseDateTimeLoose(item.getFrstRegDt()))
@@ -93,14 +99,26 @@ public class WelfareServiceMapper {
     // ===== 복지로 중앙 =====
 
     public WelfareService fromBokjiroCentral(BokjiroCentralDto.Item item) {
+        TextConstraintExtractor.ConstraintSummary constraints = TextConstraintExtractor.summarize(
+                item.getServDgst(),
+                item.getTrgterIndvdlArray(),
+                item.getLifeArray()
+        );
         return WelfareService.builder()
                 .sourceType(WelfareService.SourceType.BOKJIRO_CENTRAL)
                 .sourceId(RawFieldValidator.normalize(item.getServId()))
                 .title(stripAndNormalize(item.getServNm()))
                 .description(stripAndNormalize(item.getServDgst()))
+                .supportContent(firstNonBlank(
+                        stripAndNormalize(item.getServDgst()),
+                        RawFieldValidator.normalize(item.getSrvPvsnNm())
+                ))
                 .unifiedCategory(mapBokjiroCategory(item.getIntrsThemaArray()))
                 .hostOrg(RawFieldValidator.normalize(item.getJurMnofNm()))
                 .operatingOrg(RawFieldValidator.normalize(item.getJurOrgNm()))
+                .minAge(constraints.minAge())
+                .maxAge(constraints.maxAge())
+                .applyEndDate(constraints.applyEndDate())
                 .lifeStage(RawFieldValidator.normalize(item.getLifeArray()))
                 .supportCycle(RawFieldValidator.normalize(item.getSprtCycNm()))
                 .provisionType(RawFieldValidator.normalize(item.getSrvPvsnNm()))
@@ -129,17 +147,30 @@ public class WelfareServiceMapper {
     // ===== 복지로 지자체 =====
 
     public WelfareService fromBokjiroLocal(BokjiroLocalDto.Item item) {
+        TextConstraintExtractor.ConstraintSummary constraints = TextConstraintExtractor.summarize(
+                item.getServDgst(),
+                item.getTrgterIndvdlNmArray(),
+                item.getAplyMtdNm()
+        );
         return WelfareService.builder()
                 .sourceType(WelfareService.SourceType.BOKJIRO_LOCAL)
                 .sourceId(RawFieldValidator.normalize(item.getServId()))
                 .title(stripAndNormalize(item.getServNm()))
                 .description(stripAndNormalize(item.getServDgst()))
+                .supportContent(firstNonBlank(
+                        stripAndNormalize(item.getServDgst()),
+                        RawFieldValidator.normalize(item.getSrvPvsnNm())
+                ))
                 .unifiedCategory(mapBokjiroCategory(item.getIntrsThemaNmArray()))
                 .operatingOrg(RawFieldValidator.normalize(item.getBizChrDeptNm()))
+                .minAge(constraints.minAge())
+                .maxAge(constraints.maxAge())
+                .applyEndDate(constraints.applyEndDate())
                 .lifeStage(RawFieldValidator.normalize(item.getLifeNmArray()))
                 .supportCycle(RawFieldValidator.normalize(item.getSprtCycNm()))
                 .provisionType(RawFieldValidator.normalize(item.getSrvPvsnNm()))
                 .applyMethodName(RawFieldValidator.normalize(item.getAplyMtdNm()))
+                .isOnlineApply(inferOnlineApply(item.getServDtlLink(), item.getAplyMtdNm()))
                 .detailUrl(RawFieldValidator.normalize(item.getServDtlLink()))
                 .apiViewCount(item.getInqNum())
                 .startDate(parseDate(item.getEnfcBgngYmd()))
@@ -300,5 +331,39 @@ public class WelfareServiceMapper {
             log.debug("[Mapper] parseDateTimeLoose 실패: '{}'", s);
             return null;
         }
+    }
+
+    private boolean inferOnlineApply(String detailUrl, String... texts) {
+        if (RawFieldValidator.normalize(detailUrl) != null) {
+            return true;
+        }
+        if (texts == null) {
+            return false;
+        }
+        for (String text : texts) {
+            String normalized = RawFieldValidator.normalize(text);
+            if (normalized == null) {
+                continue;
+            }
+            for (String keyword : ONLINE_APPLY_KEYWORDS) {
+                if (normalized.contains(keyword)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private String firstNonBlank(String... values) {
+        if (values == null) {
+            return null;
+        }
+        for (String value : values) {
+            String normalized = RawFieldValidator.normalize(value);
+            if (normalized != null) {
+                return normalized;
+            }
+        }
+        return null;
     }
 }

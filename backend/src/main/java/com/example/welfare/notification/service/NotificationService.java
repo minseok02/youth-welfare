@@ -10,16 +10,21 @@ import com.example.welfare.recommend.entity.UserRecommendation;
 import com.example.welfare.recommend.facade.RecommendationFacade;
 import com.example.welfare.recommend.service.RecommendationLogService;
 import com.example.welfare.recommend.service.ScoreWeightService;
+import com.example.welfare.global.util.JwtUtil;
+import com.example.welfare.notification.entity.Notification;
 import com.example.welfare.user.entity.User;
 import com.example.welfare.user.entity.User.NotificationPeriod;
+import com.example.welfare.notification.repository.NotificationRepository;
 import com.example.welfare.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.time.LocalDateTime;
 
 /**
  * 알림 발송 서비스 — Gmail SMTP 이메일만 사용
@@ -36,14 +41,20 @@ public class NotificationService {
     private final ScoreWeightService scoreWeightService;
     private final NotificationGateway notificationGateway;
     private final NotificationHistoryService notificationHistoryService;
+    private final NotificationRepository notificationRepository;
+    private final JwtUtil jwtUtil;
 
     private static final int TOP_N = 3;
     private static final String RECOMMEND_SUBJECT = "[청년복지] 맞춤 정책 추천";
+    private static final int MAX_RETRY_COUNT = 2;
+
+    @Value("${app.base-url:https://youth-welfare.kr}")
+    private String appBaseUrl;
 
     /**
-     * 매일 오전 9시 — 일간 알림 수신 동의 유저에게 추천 정책 top 3 발송
+     * 매일 오전 8시 — 일간 알림 수신 동의 유저에게 추천 정책 top 3 발송
      */
-    @Scheduled(cron = "0 0 9 * * *", zone = "Asia/Seoul")
+    @Scheduled(cron = "0 0 8 * * *", zone = "Asia/Seoul")
     public void sendDailyNotifications() {
         List<User> targets = userRepository.findByNotificationYnTrueAndNotificationPeriod(
                 NotificationPeriod.DAILY);
@@ -52,9 +63,9 @@ public class NotificationService {
     }
 
     /**
-     * 매주 월요일 오전 9시 — 주간 알림
+     * 매주 월요일 오전 8시 — 주간 알림
      */
-    @Scheduled(cron = "0 0 9 * * MON", zone = "Asia/Seoul")
+    @Scheduled(cron = "0 0 8 * * MON", zone = "Asia/Seoul")
     public void sendWeeklyNotifications() {
         List<User> targets = userRepository.findByNotificationYnTrueAndNotificationPeriod(
                 NotificationPeriod.WEEKLY);
@@ -62,15 +73,31 @@ public class NotificationService {
         targets.forEach(this::sendTopRecommendations);
     }
 
+    @Scheduled(cron = "0 */30 * * * *", zone = "Asia/Seoul")
+    public void retryFailedNotifications() {
+        List<Notification> failedNotifications = notificationRepository.findByStatusAndNextRetryAtBefore(
+                NotificationStatus.FAILED, LocalDateTime.now());
+        failedNotifications.stream()
+                .filter(notification -> notification.getRetryCount() < MAX_RETRY_COUNT)
+                .forEach(this::retryNotification);
+    }
+
     @Transactional
     public void sendTopRecommendations(User user) {
+        List<UserRecommendation> recs = List.of();
+        List<RecommendationLog> logs = List.of();
+        String messageText = null;
         try {
-            List<UserRecommendation> recs = recommendationFacade.getRecommendations(user.getId(), TOP_N);
+            recs = recommendationFacade.getRecommendations(user.getId(), Math.max(TOP_N, user.getDisplayCount())).stream()
+                    .filter(rec -> rec.getFinalScore() != null
+                            && rec.getFinalScore().doubleValue() >= user.getNotificationMinScore())
+                    .limit(TOP_N)
+                    .toList();
             if (recs.isEmpty()) return;
 
             ScoreWeight weight = scoreWeightService.getActiveWeight();
-            List<RecommendationLog> logs = logService.logNotification(user, recs, weight);
-            String messageText = buildEmailText(recs, logs);
+            logs = logService.logNotification(user, recs, weight);
+            messageText = buildEmailText(user, recs, logs);
 
             boolean sent = notificationGateway.send(
                     user.getEmail(),
@@ -103,9 +130,9 @@ public class NotificationService {
                         NotificationChannel.EMAIL,
                         NotificationStatus.FAILED,
                         RECOMMEND_SUBJECT,
-                        null,
-                        List.of(),
-                        List.of(),
+                        messageText,
+                        recs,
+                        logs,
                         e.getMessage()
                 );
             } catch (Exception historyException) {
@@ -125,15 +152,53 @@ public class NotificationService {
     }
 
     private String buildEmailText(List<UserRecommendation> recs, List<RecommendationLog> logs) {
+        return buildEmailText(null, recs, logs);
+    }
+
+    private String buildEmailText(User user, List<UserRecommendation> recs, List<RecommendationLog> logs) {
         StringBuilder sb = new StringBuilder("맞춤 복지 정책 추천\n\n");
         for (int i = 0; i < recs.size(); i++) {
             UserRecommendation rec = recs.get(i);
             String logId = (i < logs.size()) ? String.valueOf(logs.get(i).getId()) : "";
             sb.append(i + 1).append(". ").append(rec.getService().getTitle()).append("\n");
-            sb.append("   https://youth-welfare.kr/policies/")
+            if (rec.getAiReason() != null && !rec.getAiReason().isBlank()) {
+                sb.append("   추천 이유: ").append(rec.getAiReason()).append("\n");
+            }
+            sb.append("   ").append(appBaseUrl).append("/policies/")
                     .append(rec.getService().getId())
                     .append("?log_id=").append(logId).append("\n\n");
         }
+        if (user != null) {
+            sb.append("수신 거부: ").append(appBaseUrl).append("/api/notifications/unsubscribe?token=")
+                    .append(jwtUtil.generateNotificationToken(user.getId()))
+                    .append("\n");
+        }
         return sb.toString();
+    }
+
+    private void retryNotification(Notification notification) {
+        try {
+            boolean sent = notificationGateway.send(
+                    notification.getUser().getEmail(),
+                    notification.getSubject(),
+                    notification.getMessageText()
+            );
+            if (sent) {
+                notification.markSent();
+                return;
+            }
+            scheduleNextRetry(notification, "notification gateway returned false");
+        } catch (Exception e) {
+            scheduleNextRetry(notification, e.getMessage());
+        }
+    }
+
+    private void scheduleNextRetry(Notification notification, String errorMessage) {
+        if (notification.getRetryCount() + 1 >= MAX_RETRY_COUNT) {
+            notification.scheduleRetry(null, errorMessage);
+            return;
+        }
+        long delayMinutes = 120;
+        notification.scheduleRetry(LocalDateTime.now().plusMinutes(delayMinutes), errorMessage);
     }
 }

@@ -21,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashSet;
 import java.util.List;
+import java.time.LocalDateTime;
 import java.util.Set;
 
 @Service
@@ -62,6 +63,20 @@ public class UserService {
 
         if (request.getPhone() != null) {
             user.updatePhone(aesEncryptUtil.encrypt(request.getPhone()));
+        }
+
+        if (request.getNotificationYn() != null || request.getNotificationPeriod() != null || request.getNotificationMinScore() != null) {
+            boolean notificationYn = request.getNotificationYn() != null ? request.getNotificationYn() : user.isNotificationYn();
+            User.NotificationPeriod period = request.getNotificationPeriod() != null
+                    ? parseNotificationPeriod(request.getNotificationPeriod())
+                    : user.getNotificationPeriod();
+            Double minScore = request.getNotificationMinScore() != null
+                    ? request.getNotificationMinScore()
+                    : user.getNotificationMinScore();
+            LocalDateTime consentAt = notificationYn
+                    ? (user.getNotificationConsentAt() != null ? user.getNotificationConsentAt() : LocalDateTime.now())
+                    : null;
+            user.updateNotification(notificationYn, period, minScore, consentAt);
         }
 
         // 관심분야 속성 교체
@@ -121,6 +136,12 @@ public class UserService {
         user.withdraw();
     }
 
+    @Transactional
+    public void unsubscribeNotifications(Long userId) {
+        User user = findActiveUser(userId);
+        user.unsubscribeNotifications();
+    }
+
     private User findActiveUser(Long userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
@@ -143,5 +164,14 @@ public class UserService {
         if (user.getPhoneEnc() != null) score += 10;
         if (request.getInterestFields() != null && !request.getInterestFields().isEmpty()) score += 10;
         return Math.min(score, 100);
+    }
+
+    private User.NotificationPeriod parseNotificationPeriod(String raw) {
+        String upper = raw.trim().toUpperCase();
+        try {
+            return User.NotificationPeriod.valueOf(upper);
+        } catch (Exception e) {
+            throw new CustomException(ErrorCode.INVALID_INPUT);
+        }
     }
 }

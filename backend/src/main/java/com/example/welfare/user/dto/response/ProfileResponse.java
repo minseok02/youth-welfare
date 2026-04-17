@@ -27,6 +27,7 @@ public class ProfileResponse {
     private String employmentStatus;
     private boolean notificationYn;
     private String notificationPeriod;
+    private Double notificationMinScore;
     private int displayCount;
     private int profileCompleteness;
     private List<String> interestFields;
@@ -69,6 +70,7 @@ public class ProfileResponse {
                 .employmentStatus(user.getEmploymentStatus())
                 .notificationYn(user.isNotificationYn())
                 .notificationPeriod(user.getNotificationPeriod().name())
+                .notificationMinScore(user.getNotificationMinScore())
                 .displayCount(user.getDisplayCount())
                 .profileCompleteness(user.getProfileCompleteness())
                 .interestFields(interestFields)

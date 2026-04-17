@@ -40,6 +40,12 @@ public class UserController {
         return ResponseEntity.ok(ApiResponse.success(null));
     }
 
+    @PostMapping("/notifications/unsubscribe")
+    public ResponseEntity<ApiResponse<Void>> unsubscribeNotifications(@AuthenticationPrincipal Long userId) {
+        userService.unsubscribeNotifications(userId);
+        return ResponseEntity.ok(ApiResponse.success(null));
+    }
+
     @DeleteMapping
     public ResponseEntity<ApiResponse<Void>> withdraw(
             @AuthenticationPrincipal Long userId,

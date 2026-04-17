@@ -1,0 +1,40 @@
+spring:
+  datasource:
+    url: jdbc:mysql://127.0.0.1:3307/youth_welfare?useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=UTF-8&serverTimezone=Asia/Seoul
+    username: root
+    password: welfare1234!
+  data:
+    redis:
+      host: 127.0.0.1
+      port: 6379
+  mail:
+    host: localhost
+    port: 2525
+    username: test
+    password: test
+
+jwt:
+  secret: 12345678901234567890123456789012
+  access-expiration: 1800000
+  refresh-expiration: 604800000
+  notification-expiration: 2592000000
+
+aes:
+  secret-key: 12345678901234567890123456789012
+
+openai:
+  api-key: test-openai-key
+  model: gpt-4o-mini
+
+youth-api:
+  api-key: test-youth-api-key
+
+bokjiro:
+  api-key: test-bokjiro-api-key
+
+app:
+  base-url: http://localhost:8082
+
+auth:
+  refresh:
+    cookie-secure: false

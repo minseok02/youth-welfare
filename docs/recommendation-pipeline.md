@@ -12,7 +12,7 @@
      → 1차: 항상 "youth_all" 반환
 
   ② RetrievalService.retrieve(clusterId, user)
-     → SQL WHERE 필터 (pass/fail)
+     → SQL WHERE 필터 (나이/지역 우선, 소득은 구조화 값 있는 경우만 직접 적용)
      → 상위 K=50건 선별
      → 신규 정책 가미 (24시간 이내 M=5건 강제 포함)
 
@@ -55,14 +55,19 @@ WHERE ws.status IN ('ACTIVE', 'UPCOMING')
   -- 나이 필터 (NULL이면 통과)
   AND (ws.min_age IS NULL OR ws.min_age <= :userAge)
   AND (ws.max_age IS NULL OR ws.max_age >= :userAge)
-  -- 소득 필터 (NULL이면 통과)
+  -- 소득 필터 (현재는 YOUTH처럼 구조화 값이 있는 경우만 직접 의미가 있음)
   AND (ws.min_income IS NULL OR ws.min_income <= :userIncome)
   AND (ws.max_income IS NULL OR ws.max_income >= :userIncome)
   -- 지역 필터 (service_regions 연결, 전국이면 통과)
-  -- 취업상태 필터 (service_tags TARGET_GROUP 매핑)
+  -- 취업상태/저소득층 등은 service_tags TARGET_GROUP 매핑으로 보조 반영
 ORDER BY ws.view_count DESC
 LIMIT 50;
 ```
+
+주의:
+- 실제 DB 기준으로 `min_income/max_income`은 `YOUTH`에만 대부분 존재한다.
+- `BOKJIRO_CENTRAL/LOCAL`은 현재 소득 구조화 값이 거의 없어 SQL에서 사실상 pass-through 된다.
+- 따라서 소득은 1차에서 강한 pass/fail이라기보다 `YOUTH 직접 필터 + 복지로 대상 태그 보조 신호` 수준이다.
 
 ---
 
@@ -71,26 +76,25 @@ LIMIT 50;
 ```java
 int score = 0;
 
-// 청년전용 정책
-if (service.isYouthSpecific()) score += 20;
-
-// 지원금 100만원 이상
-if (service.getSupportAmount() >= 1_000_000) score += 15;
-
-// 온라인 신청 가능
-if (service.getIsOnlineApply() == 1) score += 10;
-
-// 지역 일치
-if (regionMatches(user, service)) score += 10;
-
 // 관심분야 일치 (user_attributes INTEREST_FIELD ↔ service_tags INTEREST_THEME)
-if (interestMatches(user, service)) score += 10;
+if (interestMatches(user, service)) score += 15;
+
+// 관심분야 키워드 일치 (온통청년 보완)
+if (keywordMatches(user, service)) score += 10;
+
+// 대상유형 태그 일치 (취업상태/가구유형/저소득층 등)
+if (targetGroupMatches(user, service)) score += 10;
 
 // 마감임박 (apply_end_date 기준 7일 이내)
 if (isDeadlineSoon(service)) score += 5;
 
 return score; // rule_base_score
 ```
+
+제외된 항목:
+- `onlineApply`: API별 의미가 일관되지 않아 가점 제거
+- `청년전용(sourceType=YOUTH)`: 출처와 자격 의미가 동일하지 않아 제거
+- `지원금 100만+`: 현재 구조화 지원금 필드가 없어 제거
 
 ---
 

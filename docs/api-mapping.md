@@ -96,6 +96,11 @@ public String mapUnifiedCategory(String sourceType, String rawCategory) {
 
 ## 수집 시 주의사항
 
+### 소득 필드 해석
+- `min_income`, `max_income`는 현재 **온통청년(YOUTH)의 구조화 소득값 전용**으로 취급한다.
+- 복지로 계열의 `중위소득 %`, `연/월소득 금액`, `저소득층` 문구는 같은 축이 아니므로 이 컬럼에 직접 매핑하지 않는다.
+- 추천 후보 SQL의 직접 소득 필터도 `YOUTH`에만 적용하고, 복지로 계열은 `TARGET_GROUP`/`KEYWORD` 태그를 보조 신호로만 사용한다.
+
 ### service_tags UPSERT (중복 삽입 금지)
 ```java
 // 반드시 INSERT IGNORE 또는 ON DUPLICATE KEY UPDATE 사용

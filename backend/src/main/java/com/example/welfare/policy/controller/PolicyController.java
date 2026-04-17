@@ -36,8 +36,17 @@ public class PolicyController {
     @GetMapping
     public ResponseEntity<ApiResponse<Page<PolicySummaryResponse>>> getList(
             @RequestParam(required = false) String category,
+            @RequestParam(required = false) String sourceType,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) Boolean includeClosed,
+            @RequestParam(required = false) String sido,
+            @RequestParam(required = false) String sgg,
+            @RequestParam(required = false) Boolean onlineApply,
+            @RequestParam(required = false) String sort,
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
-        return ResponseEntity.ok(ApiResponse.success(policyService.getList(category, pageable)));
+        return ResponseEntity.ok(ApiResponse.success(
+                policyService.getList(category, sourceType, status, includeClosed, sido, sgg, onlineApply, sort, pageable)
+        ));
     }
 
     // 정책 상세 조회 + 클릭 추적 (?log_id= 파라미터)
@@ -63,11 +72,13 @@ public class PolicyController {
             @RequestParam(required = false) String category,
             @RequestParam(required = false) String sourceType,
             @RequestParam(required = false) Boolean onlineApply,
+            @RequestParam(required = false) String sido,
+            @RequestParam(required = false) String sgg,
             @RequestParam(required = false) String sort,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         return ResponseEntity.ok(ApiResponse.success(
-                policySearchService.search(keyword.trim(), status, category, sourceType, onlineApply, sort, page, size)
+                policySearchService.search(keyword.trim(), status, category, sourceType, onlineApply, sido, sgg, sort, page, size)
         ));
     }
 
@@ -76,5 +87,13 @@ public class PolicyController {
     public ResponseEntity<ApiResponse<List<PolicyRankingResponse>>> ranking(
             @RequestParam(defaultValue = "20") int size) {
         return ResponseEntity.ok(ApiResponse.success(policyRankingService.getRanking(size)));
+    }
+
+    @PostMapping("/{id}/bookmark")
+    public ResponseEntity<ApiResponse<Void>> toggleBookmark(
+            @AuthenticationPrincipal Long userId,
+            @PathVariable Long id) {
+        policyService.toggleBookmark(userId, id);
+        return ResponseEntity.ok(ApiResponse.success(null));
     }
 }

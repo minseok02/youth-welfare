@@ -26,16 +26,16 @@ public class NotificationHistoryService {
     private final NotificationServiceItemRepository notificationServiceItemRepository;
 
     @Transactional
-    public void saveResult(User user,
-                           NotificationPeriodType periodType,
-                           NotificationChannel channel,
-                           NotificationStatus status,
-                           String subject,
-                           String messageText,
-                           List<UserRecommendation> recommendations,
-                           List<RecommendationLog> logs,
-                           String errorMessage) {
-        Notification notification = notificationRepository.save(Notification.builder()
+    public Notification saveResult(User user,
+                                   NotificationPeriodType periodType,
+                                   NotificationChannel channel,
+                                   NotificationStatus status,
+                                   String subject,
+                                   String messageText,
+                                   List<UserRecommendation> recommendations,
+                                   List<RecommendationLog> logs,
+                                   String errorMessage) {
+        Notification notification = Notification.builder()
                 .user(user)
                 .periodType(periodType)
                 .channel(channel)
@@ -44,11 +44,14 @@ public class NotificationHistoryService {
                 .messageText(messageText)
                 .totalServices(recommendations.size())
                 .sentAt(status == NotificationStatus.SENT ? LocalDateTime.now() : null)
-                .errorMessage(errorMessage)
-                .build());
+                .build();
+        if (status == NotificationStatus.FAILED) {
+            notification.failInitially(LocalDateTime.now().plusMinutes(30), errorMessage);
+        }
+        notification = notificationRepository.save(notification);
 
         if (recommendations.isEmpty()) {
-            return;
+            return notification;
         }
 
         List<NotificationServiceItem> items = new ArrayList<>(recommendations.size());
@@ -65,5 +68,6 @@ public class NotificationHistoryService {
                     .build());
         }
         notificationServiceItemRepository.saveAll(items);
+        return notification;
     }
 }

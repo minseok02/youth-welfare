@@ -67,8 +67,18 @@ public class AuthController {
     }
 
     @PostMapping("/logout")
-    public ResponseEntity<ApiResponse<Void>> logout(@AuthenticationPrincipal Long userId) {
-        authService.logout(userId);
+    public ResponseEntity<ApiResponse<Void>> logout(
+            @AuthenticationPrincipal Long userId,
+            @RequestHeader(value = "X-Refresh-Token", required = false) String refreshTokenHeader,
+            @CookieValue(value = REFRESH_COOKIE_NAME, required = false) String refreshTokenCookie) {
+        String refreshToken = StringUtils.hasText(refreshTokenHeader) ? refreshTokenHeader : refreshTokenCookie;
+
+        if (StringUtils.hasText(refreshToken)) {
+            authService.logoutByRefreshToken(refreshToken);
+        } else if (userId != null) {
+            authService.logout(userId);
+        }
+
         ResponseCookie clearCookie = buildRefreshCookie("", 0);
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, clearCookie.toString())
