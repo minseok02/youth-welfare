@@ -30,6 +30,7 @@ public class BokjiroDetailCollectService {
     private final WelfareServiceRepository welfareServiceRepository;
     private final WelfareServiceDetailRepository detailRepository;
     private final BokjiroDetailClient detailClient;
+    private final RawApiPayloadService rawApiPayloadService;
 
     @Value("${collect.detail.max-calls-per-run:900}")
     private int maxCallsPerRun;
@@ -112,6 +113,8 @@ public class BokjiroDetailCollectService {
             if (payload == null || payload.isEmpty()) {
                 continue;
             }
+
+            rawApiPayloadService.saveBokjiroDetail(service.getSourceType(), service.getSourceId(), payload);
 
             try {
                 Optional<WelfareServiceDetail> existing = detailRepository.findByServiceId(service.getId());

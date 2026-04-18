@@ -32,4 +32,5 @@ public class UpdateProfileRequest {
     private Integer displayCount;
 
     private List<String> interestFields;
+    private List<String> targetTypes;
 }

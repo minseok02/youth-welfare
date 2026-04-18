@@ -31,6 +31,7 @@ public class ProfileResponse {
     private int displayCount;
     private int profileCompleteness;
     private List<String> interestFields;
+    private List<String> targetTypes;
     private List<PriorityItem> priorities;
 
     @Getter
@@ -45,6 +46,10 @@ public class ProfileResponse {
                                       List<UserPriority> priorities, String phone) {
         List<String> interestFields = attributes.stream()
                 .filter(a -> UserAttribute.AttrType.INTEREST_FIELD.name().equals(a.getAttrType()))
+                .map(UserAttribute::getAttrValue)
+                .collect(Collectors.toList());
+        List<String> targetTypes = attributes.stream()
+                .filter(a -> UserAttribute.AttrType.TARGET_TYPE.name().equals(a.getAttrType()))
                 .map(UserAttribute::getAttrValue)
                 .collect(Collectors.toList());
 
@@ -74,6 +79,7 @@ public class ProfileResponse {
                 .displayCount(user.getDisplayCount())
                 .profileCompleteness(user.getProfileCompleteness())
                 .interestFields(interestFields)
+                .targetTypes(targetTypes)
                 .priorities(priorityItems)
                 .build();
     }

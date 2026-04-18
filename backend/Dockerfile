@@ -1,3 +1,5 @@
+# syntax=docker/dockerfile:1.7
+
 # ARM Graviton2 (t4g.large) 호환 멀티스테이지 빌드
 FROM eclipse-temurin:17-jdk-jammy AS build
 WORKDIR /app
@@ -9,7 +11,8 @@ COPY settings.gradle .
 COPY src src
 
 RUN chmod +x gradlew
-RUN ./gradlew bootJar -x test --no-daemon
+RUN --mount=type=cache,target=/root/.gradle \
+    ./gradlew bootJar -x test --no-daemon
 
 FROM eclipse-temurin:17-jre-jammy
 WORKDIR /app

@@ -1,15 +1,20 @@
 package com.example.welfare.policy.service;
 
-import com.example.welfare.policy.dto.PolicySummaryResponse;
-import com.example.welfare.policy.entity.WelfareService;
-import com.example.welfare.policy.repository.WelfareServiceRepository;
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
+import com.example.welfare.policy.dto.PolicySummaryResponse;
+import com.example.welfare.policy.entity.ServiceTag;
+import com.example.welfare.policy.entity.WelfareService;
+import com.example.welfare.policy.repository.ServiceTagRepository;
+import com.example.welfare.policy.repository.WelfareServiceRepository;
+import com.example.welfare.recommend.service.YouthPolicyFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -20,6 +25,8 @@ public class PolicySearchService {
     private static final int MAX_SEARCH_LIMIT = 100;
 
     private final WelfareServiceRepository welfareServiceRepository;
+    private final ServiceTagRepository serviceTagRepository;
+    private final YouthPolicyFilter youthPolicyFilter;
 
     @Transactional(readOnly = true)
     public List<PolicySummaryResponse> search(String keyword, int page) {
@@ -62,9 +69,29 @@ public class PolicySearchService {
                 limit,
                 offset);
 
-        return results.stream()
+        return filterYouthRelevant(results).stream()
                 .map(PolicySummaryResponse::from)
                 .collect(Collectors.toList());
+    }
+
+    private List<WelfareService> filterYouthRelevant(List<WelfareService> results) {
+        if (results.isEmpty()) {
+            return results;
+        }
+
+        List<Long> serviceIds = results.stream()
+                .map(WelfareService::getId)
+                .toList();
+
+        Map<Long, List<ServiceTag>> tagsByServiceId = serviceTagRepository.findByServiceIdIn(serviceIds).stream()
+                .collect(Collectors.groupingBy(tag -> tag.getService().getId()));
+
+        return results.stream()
+                .filter(service -> youthPolicyFilter.isYouthRelevant(
+                        service,
+                        tagsByServiceId.getOrDefault(service.getId(), Collections.emptyList())
+                ))
+                .toList();
     }
 
     // Boolean Mode 검색어 구성: 공백 분리 후 각 단어에 + 접두사

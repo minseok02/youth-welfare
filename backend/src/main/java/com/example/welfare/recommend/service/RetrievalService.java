@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -31,6 +32,7 @@ public class RetrievalService {
 
     private final WelfareServiceRepository welfareServiceRepository;
     private final ServiceTagRepository serviceTagRepository;
+    private final YouthPolicyFilter youthPolicyFilter;
 
     @Transactional(readOnly = true)
     public List<WelfareService> retrieve(String clusterId, User user) {
@@ -55,11 +57,11 @@ public class RetrievalService {
             latestCandidates = welfareServiceRepository.findLatestCandidates(age, incomeLevel, PageRequest.of(0, M * 4));
         }
 
-        List<WelfareService> filteredBase = applyExtractedAgeFilter(rawCandidates, age).stream()
+        List<WelfareService> filteredBase = applyRecommendationFilters(rawCandidates, age).stream()
                 .limit(K)
                 .toList();
 
-        List<WelfareService> filteredLatest = applyExtractedAgeFilter(latestCandidates, age).stream()
+        List<WelfareService> filteredLatest = applyRecommendationFilters(latestCandidates, age).stream()
                 .limit(M)
                 .toList();
 
@@ -77,36 +79,45 @@ public class RetrievalService {
      * 구조화된 나이 필드(min_age/max_age)가 비어있는 정책에 한해
      * KEYWORD의 COND_AGE_MIN_*, COND_AGE_MAX_* 토큰으로 보조 필터를 적용한다.
      */
-    private List<WelfareService> applyExtractedAgeFilter(List<WelfareService> candidates, int userAge) {
+    private List<WelfareService> applyRecommendationFilters(List<WelfareService> candidates, int userAge) {
         if (candidates.isEmpty()) return candidates;
 
         List<Long> ids = candidates.stream().map(WelfareService::getId).toList();
-        Map<Long, List<String>> keywordMap = serviceTagRepository
-                .findByServiceIdInAndTagType(ids, ServiceTag.TagType.KEYWORD)
+        Map<Long, List<ServiceTag>> tagsByServiceId = serviceTagRepository
+                .findByServiceIdIn(ids)
                 .stream()
-                .collect(Collectors.groupingBy(
-                        tag -> tag.getService().getId(),
-                        Collectors.mapping(ServiceTag::getTagValue, Collectors.toList())
-                ));
+                .collect(Collectors.groupingBy(tag -> tag.getService().getId()));
 
         return candidates.stream()
-                .filter(service -> matchAgeConstraint(service, userAge, keywordMap.get(service.getId())))
+                .filter(service -> youthPolicyFilter.isYouthRelevant(
+                        service,
+                        tagsByServiceId.getOrDefault(service.getId(), Collections.emptyList())
+                ))
+                .filter(service -> matchAgeConstraint(
+                        service,
+                        userAge,
+                        tagsByServiceId.getOrDefault(service.getId(), Collections.emptyList())
+                ))
                 .collect(Collectors.toList());
     }
 
-    private boolean matchAgeConstraint(WelfareService service, int userAge, List<String> keywords) {
+    private boolean matchAgeConstraint(WelfareService service, int userAge, List<ServiceTag> tags) {
         // 구조화 필드가 있으면 DB 단계에서 이미 필터링됨
         if (service.getMinAge() != null || service.getMaxAge() != null) return true;
-        if (keywords == null || keywords.isEmpty()) return true;
+        if (tags == null || tags.isEmpty()) return true;
 
-        OptionalInt min = keywords.stream()
+        OptionalInt min = tags.stream()
+                .filter(tag -> tag.getTagType() == ServiceTag.TagType.KEYWORD)
+                .map(ServiceTag::getTagValue)
                 .filter(v -> v.startsWith("COND_AGE_MIN_"))
                 .map(v -> v.substring("COND_AGE_MIN_".length()))
                 .mapToInt(this::safeInt)
                 .filter(v -> v > 0)
                 .max();
 
-        OptionalInt max = keywords.stream()
+        OptionalInt max = tags.stream()
+                .filter(tag -> tag.getTagType() == ServiceTag.TagType.KEYWORD)
+                .map(ServiceTag::getTagValue)
                 .filter(v -> v.startsWith("COND_AGE_MAX_"))
                 .map(v -> v.substring("COND_AGE_MAX_".length()))
                 .mapToInt(this::safeInt)

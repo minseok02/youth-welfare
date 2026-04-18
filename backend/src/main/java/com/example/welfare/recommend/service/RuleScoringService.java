@@ -13,9 +13,11 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
+import java.util.Locale;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Stream;
 import java.util.stream.Collectors;
 
 /**
@@ -28,10 +30,14 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class RuleScoringService {
 
+    private static final double SPECIAL_TARGET_MATCH_BONUS = 12.0;
+    private static final double SPECIAL_TARGET_MISMATCH_PENALTY = 8.0;
+
     private final UserAttributeRepository userAttributeRepository;
     private final UserPriorityRepository userPriorityRepository;
     private final ServiceTagRepository serviceTagRepository;
     private final PriorityMatcher priorityMatcher;
+    private final YouthPolicyFilter youthPolicyFilter;
 
     public List<ScoredCandidate> score(List<WelfareService> candidates, User user) {
         List<UserAttribute> attributes = userAttributeRepository.findByUserId(user.getId());
@@ -40,6 +46,10 @@ public class RuleScoringService {
         // 관심분야 (INTEREST_FIELD)
         Set<String> interestFields = attributes.stream()
                 .filter(a -> UserAttribute.AttrType.INTEREST_FIELD.name().equals(a.getAttrType()))
+                .map(UserAttribute::getAttrValue)
+                .collect(Collectors.toSet());
+        Set<String> targetTypes = attributes.stream()
+                .filter(a -> UserAttribute.AttrType.TARGET_TYPE.name().equals(a.getAttrType()))
                 .map(UserAttribute::getAttrValue)
                 .collect(Collectors.toSet());
 
@@ -55,7 +65,7 @@ public class RuleScoringService {
         return candidates.stream()
                 .map(service -> {
                     List<ServiceTag> tags = tagsByServiceId.getOrDefault(service.getId(), List.of());
-                    double base = calcBaseScore(service, user, interestFields, tags);
+                    double base = calcBaseScore(service, user, interestFields, targetTypes, tags);
                     double weighted = applyPriorityWeight(base, service, priorities);
 
                     return ScoredCandidate.builder()
@@ -68,8 +78,11 @@ public class RuleScoringService {
     }
 
     private double calcBaseScore(WelfareService service, User user,
-                                  Set<String> interestFields, List<ServiceTag> tags) {
+                                  Set<String> interestFields, Set<String> targetTypes, List<ServiceTag> tags) {
         double score = 0;
+
+        // 청년 신호가 강한 정책을 우선 노출하고, 나이만 겹치는 정책은 뒤로 보낸다.
+        score += youthPolicyFilter.relevanceBonus(service, tags);
 
         // 관심분야 일치: INTEREST_THEME 태그 ↔ 유저 INTEREST_FIELD
         if (interestThemeMatches(interestFields, tags)) score += 15;
@@ -79,6 +92,9 @@ public class RuleScoringService {
 
         // 대상유형 일치: TARGET_GROUP 태그 ↔ 유저 취업상태·가구유형·소득분위
         if (targetGroupMatches(user, tags)) score += 10;
+
+        if (specialTargetMatches(user, targetTypes, service, tags)) score += SPECIAL_TARGET_MATCH_BONUS;
+        else if (hasSpecialTargetSignal(service, tags)) score -= SPECIAL_TARGET_MISMATCH_PENALTY;
 
         // 마감임박 — apply_end_date 기준 7일 이내
         if (isDeadlineSoon(service)) score += 5;
@@ -160,6 +176,86 @@ public class RuleScoringService {
         LocalDate today = LocalDate.now();
         return !service.getApplyEndDate().isBefore(today)
                 && service.getApplyEndDate().isBefore(today.plusDays(7));
+    }
+
+    private boolean specialTargetMatches(User user, Set<String> targetTypes, WelfareService service, List<ServiceTag> tags) {
+        return specialAudienceMatchedByTargetTypes(targetTypes, service, tags)
+                || specialAudienceMatchedByUserProfile(user, service, tags);
+    }
+
+    private boolean hasSpecialTargetSignal(WelfareService service, List<ServiceTag> tags) {
+        return containsAnySignal(service, tags,
+                "장애", "농어촌", "농촌", "어촌", "자립준비", "보호종료",
+                "가족돌봄", "다문화", "북한이탈", "한부모", "조손", "보훈");
+    }
+
+    private boolean specialAudienceMatchedByTargetTypes(Set<String> targetTypes, WelfareService service, List<ServiceTag> tags) {
+        if (targetTypes.isEmpty()) return false;
+
+        if (targetTypes.stream().anyMatch(type -> containsSignal(service, tags, type))) {
+            return true;
+        }
+        if (targetTypes.contains("자립준비청년") && containsAnySignal(service, tags, "자립준비", "보호종료")) {
+            return true;
+        }
+        if (targetTypes.contains("농어촌") && containsAnySignal(service, tags, "농어촌", "농촌", "어촌")) {
+            return true;
+        }
+        return false;
+    }
+
+    private boolean specialAudienceMatchedByUserProfile(User user, WelfareService service, List<ServiceTag> tags) {
+        if (user.getIncomeLevel() != null && user.getIncomeLevel() <= 3
+                && containsAnySignal(service, tags, "저소득", "기초생활")) {
+            return true;
+        }
+        if (user.getHouseholdType() != null) {
+            String household = user.getHouseholdType();
+            if (household.contains("한부모") && containsAnySignal(service, tags, "한부모")) {
+                return true;
+            }
+            if (household.contains("조손") && containsAnySignal(service, tags, "조손")) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean containsAnySignal(WelfareService service, List<ServiceTag> tags, String... signals) {
+        for (String signal : signals) {
+            if (containsSignal(service, tags, signal)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean containsSignal(WelfareService service, List<ServiceTag> tags, String signal) {
+        String normalizedSignal = normalize(signal);
+        if (normalizedSignal == null) return false;
+
+        boolean inFields = Stream.of(
+                        service.getTitle(),
+                        service.getDescription(),
+                        service.getSupportContent(),
+                        service.getLifeStage())
+                .map(this::normalize)
+                .filter(value -> value != null && !value.isBlank())
+                .anyMatch(value -> value.contains(normalizedSignal));
+        if (inFields) {
+            return true;
+        }
+
+        return tags.stream()
+                .map(ServiceTag::getTagValue)
+                .map(this::normalize)
+                .filter(value -> value != null && !value.isBlank())
+                .anyMatch(value -> value.contains(normalizedSignal));
+    }
+
+    private String normalize(String value) {
+        if (value == null) return null;
+        return value.trim().toLowerCase(Locale.ROOT);
     }
 
     /**

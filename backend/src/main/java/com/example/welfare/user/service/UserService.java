@@ -81,12 +81,23 @@ public class UserService {
 
         // 관심분야 속성 교체
         if (request.getInterestFields() != null) {
-            userAttributeRepository.deleteByUserId(userId);
+            userAttributeRepository.deleteByUserIdAndAttrType(userId, UserAttribute.AttrType.INTEREST_FIELD.name());
             request.getInterestFields().forEach(field ->
                     userAttributeRepository.save(UserAttribute.builder()
                             .user(user)
                             .attrType(UserAttribute.AttrType.INTEREST_FIELD.name())
                             .attrValue(field)
+                            .build())
+            );
+        }
+
+        if (request.getTargetTypes() != null) {
+            userAttributeRepository.deleteByUserIdAndAttrType(userId, UserAttribute.AttrType.TARGET_TYPE.name());
+            request.getTargetTypes().forEach(targetType ->
+                    userAttributeRepository.save(UserAttribute.builder()
+                            .user(user)
+                            .attrType(UserAttribute.AttrType.TARGET_TYPE.name())
+                            .attrValue(targetType)
                             .build())
             );
         }

@@ -12,4 +12,6 @@ public interface UserAttributeRepository extends JpaRepository<UserAttribute, Lo
     List<UserAttribute> findByUserIdAndAttrType(Long userId, String attrType);
 
     void deleteByUserId(Long userId);
+
+    void deleteByUserIdAndAttrType(Long userId, String attrType);
 }

@@ -7,6 +7,7 @@ import com.example.welfare.collect.gateway.BokjiroCentralClient;
 import com.example.welfare.collect.gateway.BokjiroLocalClient;
 import com.example.welfare.collect.gateway.YouthApiClient;
 import com.example.welfare.collect.mapper.WelfareServiceMapper;
+import com.example.welfare.collect.validation.BokjiroYouthFilter;
 import com.example.welfare.collect.validation.FieldQualityStats;
 import com.example.welfare.collect.validation.RawFieldValidator;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +28,8 @@ public class CollectService {
     private final WelfareServiceMapper mapper;
     private final CollectItemSaver saver;
     private final BokjiroDetailCollectService bokjiroDetailCollectService;
+    private final BokjiroYouthFilter bokjiroYouthFilter;
+    private final RawApiPayloadService rawApiPayloadService;
 
     /**
      * 매일 새벽 2시 수집 배치
@@ -50,6 +53,7 @@ public class CollectService {
 
         int saved = 0, skipped = 0;
         for (YouthApiDto.Item item : items) {
+            rawApiPayloadService.saveYouthList(item);
             if (!RawFieldValidator.isValidYouth(item)) {
                 skipped++;
                 continue;
@@ -71,10 +75,15 @@ public class CollectService {
         RawFieldValidator.recordStatsBokjiroCentral(items, stats);
         log.info(stats.summary());
 
-        int saved = 0, skipped = 0;
+        int saved = 0, skipped = 0, filteredOut = 0;
         for (BokjiroCentralDto.Item item : items) {
+            rawApiPayloadService.saveBokjiroCentralList(item);
             if (!RawFieldValidator.isValidBokjiroCentral(item)) {
                 skipped++;
+                continue;
+            }
+            if (!bokjiroYouthFilter.shouldCollect(item)) {
+                filteredOut++;
                 continue;
             }
             try {
@@ -84,7 +93,7 @@ public class CollectService {
                 log.warn("[CollectService][BOKJIRO_CENTRAL] 저장 실패 servId={}: {}", item.getServId(), e.getMessage());
             }
         }
-        log.info("[CollectService][BOKJIRO_CENTRAL] 저장 완료: {}건 (skip: {}건)", saved, skipped);
+        log.info("[CollectService][BOKJIRO_CENTRAL] 저장 완료: {}건 (skip: {}건, filtered: {}건)", saved, skipped, filteredOut);
     }
 
     public void collectBokjiroLocal() {
@@ -94,10 +103,15 @@ public class CollectService {
         RawFieldValidator.recordStatsBokjiroLocal(items, stats);
         log.info(stats.summary());
 
-        int saved = 0, skipped = 0;
+        int saved = 0, skipped = 0, filteredOut = 0;
         for (BokjiroLocalDto.Item item : items) {
+            rawApiPayloadService.saveBokjiroLocalList(item);
             if (!RawFieldValidator.isValidBokjiroLocal(item)) {
                 skipped++;
+                continue;
+            }
+            if (!bokjiroYouthFilter.shouldCollect(item)) {
+                filteredOut++;
                 continue;
             }
             try {
@@ -107,7 +121,7 @@ public class CollectService {
                 log.warn("[CollectService][BOKJIRO_LOCAL] 저장 실패 servId={}: {}", item.getServId(), e.getMessage());
             }
         }
-        log.info("[CollectService][BOKJIRO_LOCAL] 저장 완료: {}건 (skip: {}건)", saved, skipped);
+        log.info("[CollectService][BOKJIRO_LOCAL] 저장 완료: {}건 (skip: {}건, filtered: {}건)", saved, skipped, filteredOut);
     }
 
     public void collectBokjiroDetails() {

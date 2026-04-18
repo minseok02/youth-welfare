@@ -26,6 +26,7 @@ public class RecommendationPersistenceService {
     @Transactional
     public List<UserRecommendation> save(User user, List<ScoredCandidate> candidates, ScoreWeight weight) {
         LocalDateTime now = LocalDateTime.now();
+        userRecommendationRepository.deleteUnbookmarkedByUserId(user.getId());
 
         List<UserRecommendation> recommendations = candidates.stream()
                 .map(c -> UserRecommendation.builder()

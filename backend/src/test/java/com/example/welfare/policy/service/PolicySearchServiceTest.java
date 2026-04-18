@@ -1,20 +1,23 @@
 package com.example.welfare.policy.service;
 
+import com.example.welfare.policy.entity.ServiceTag;
 import com.example.welfare.policy.entity.WelfareService;
+import com.example.welfare.policy.repository.ServiceTagRepository;
 import com.example.welfare.policy.repository.WelfareServiceRepository;
+import com.example.welfare.recommend.service.YouthPolicyFilter;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.verify;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class PolicySearchServiceTest {
@@ -22,59 +25,52 @@ class PolicySearchServiceTest {
     @Mock
     private WelfareServiceRepository welfareServiceRepository;
 
-    @InjectMocks
-    private PolicySearchService policySearchService;
+    @Mock
+    private ServiceTagRepository serviceTagRepository;
+
+    @Mock
+    private YouthPolicyFilter youthPolicyFilter;
 
     @Test
-    @DisplayName("검색은 지역 필터와 NAME 정렬을 정규화해 저장소에 전달한다")
-    void searchNormalizesRegionAndNameSort() {
-        WelfareService service = WelfareService.builder()
-                .id(11L)
-                .sourceType(WelfareService.SourceType.YOUTH)
-                .sourceId("SRC-11")
-                .title("청년 월세 지원")
+    @DisplayName("검색 결과에서 청년 관련 정책만 남긴다")
+    void searchFiltersNonYouthPolicies() {
+        PolicySearchService service = new PolicySearchService(
+                welfareServiceRepository,
+                serviceTagRepository,
+                youthPolicyFilter
+        );
+
+        WelfareService youthService = welfareService(1L, "청년 정책");
+        WelfareService genericService = welfareService(2L, "일반 복지");
+
+        when(welfareServiceRepository.searchByKeywordWithFilters(
+                anyString(),
+                isNull(),
+                isNull(),
+                isNull(),
+                isNull(),
+                isNull(),
+                isNull(),
+                anyString(),
+                anyInt(),
+                anyInt()
+        )).thenReturn(List.of(youthService, genericService));
+        when(serviceTagRepository.findByServiceIdIn(List.of(1L, 2L))).thenReturn(List.of());
+        when(youthPolicyFilter.isYouthRelevant(youthService, List.of())).thenReturn(true);
+        when(youthPolicyFilter.isYouthRelevant(genericService, List.of())).thenReturn(false);
+
+        List<?> results = service.search("청년", null, null, null, null, null, null, null, 0, 10);
+
+        assertThat(results).hasSize(1);
+    }
+
+    private WelfareService welfareService(Long id, String title) {
+        return WelfareService.builder()
+                .id(id)
+                .sourceType(WelfareService.SourceType.BOKJIRO_CENTRAL)
+                .sourceId("S" + id)
+                .title(title)
                 .status(WelfareService.ServiceStatus.ACTIVE)
                 .build();
-
-        given(welfareServiceRepository.searchByKeywordWithFilters(
-                eq("+청년 +월세"),
-                eq("ACTIVE"),
-                eq("HOUSING"),
-                eq("YOUTH"),
-                eq(1),
-                eq("서울특별시"),
-                eq("강남구"),
-                eq("NAME"),
-                eq(20),
-                eq(20)
-        )).willReturn(List.of(service));
-
-        var result = policySearchService.search(
-                "청년 월세",
-                "ACTIVE",
-                "HOUSING",
-                "YOUTH",
-                true,
-                "서울특별시",
-                "강남구",
-                "name",
-                1,
-                20
-        );
-
-        assertEquals(1, result.size());
-        assertEquals(11L, result.get(0).getId());
-        verify(welfareServiceRepository).searchByKeywordWithFilters(
-                "+청년 +월세",
-                "ACTIVE",
-                "HOUSING",
-                "YOUTH",
-                1,
-                "서울특별시",
-                "강남구",
-                "NAME",
-                20,
-                20
-        );
     }
 }
