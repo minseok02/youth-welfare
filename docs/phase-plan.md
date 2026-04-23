@@ -8,7 +8,7 @@
 백엔드 1차 핵심 기능은 구현 완료 상태입니다.
 프론트 메인 페이지는 더미 데이터를 제거하고 정책 목록/검색/저장 추천/북마크 API를 사용하도록 1차 연결했습니다.
 통합 테스트는 MySQL/Redis 컨테이너 상태에서 실행 완료했습니다.
-남은 1차 작업은 나머지 프론트 화면 API 연동, 수집/알림 smoke test, 실서버 배포/HTTPS 적용, 데모 시나리오 실행입니다.
+남은 1차 작업은 나머지 프론트 화면 API 연동, 실서버 배포/HTTPS 적용, 데모 시나리오 실행입니다.
 
 ## 완료된 백엔드 1차 범위
 
@@ -49,6 +49,19 @@
 - 2026-04-24 Docker 앱 최신 이미지 재빌드 후 `POST /api/admin/collect/youth` 실행
   - 외부 API 400으로 `COL001` 응답
   - `api_sync_logs`에 `job_name=YOUTH`, `status=failed`, `failed_count=1`, `error_code=CustomException` 기록 확인
+- 2026-04-24 실제 온통청년 API key로 `POST /api/admin/collect/youth` smoke test 재실행
+  - API 응답 200
+  - `api_sync_logs`에 `job_name=YOUTH`, `status=success`, `requested_count=2266`, `saved_count=2266`, `failed_count=0` 기록 확인
+  - `welfare_services`의 `YOUTH` 정책 2266건, `raw_api_payloads`의 `YOUTH` 원문 2266건 확인
+- 2026-04-24 Gmail SMTP 실제 발송 smoke test 실행
+  - `.env`의 `GMAIL_USERNAME`, `GMAIL_PASSWORD` 환경변수 로딩 확인
+  - `RUN_SMTP_SMOKE=true ./gradlew test --tests com.example.welfare.notification.gateway.GmailSmtpSmokeTest --no-daemon`
+  - 발신 계정 자신에게 테스트 메일 1건 발송 성공
+- 2026-04-24 Gmail SMTP smoke test 수신자 분리 실행
+  - `.env`의 `SMTP_SMOKE_TO` 환경변수 로딩 확인
+  - `RUN_SMTP_SMOKE=true ./gradlew test --tests com.example.welfare.notification.gateway.GmailSmtpSmokeTest --no-daemon --rerun-tasks`
+  - 지정 수신자 대상으로 테스트 메일 1건 발송 성공
+- 2026-04-24 Gmail SMTP smoke test 추가 후 `backend`에서 `./gradlew test --no-daemon`
 
 ## 작업 추적
 
@@ -58,8 +71,6 @@
 
 ### 진행 예정
 
-- [ ] 실제 공공 API key로 수집 smoke test
-- [ ] Gmail SMTP 실제 발송 smoke test
 - [ ] 정책 목록 페이지 더미 데이터 제거 및 API 연결
 - [ ] 정책 상세 API 연결
 - [ ] 추천 refresh API 연결
@@ -88,6 +99,8 @@
 - [x] 통합 테스트 실행 환경 확인 후 `./gradlew integrationTest` 실행
 - [x] 기존 DB에 최신 migration 적용
 - [x] `api_sync_logs` 기록 확인
+- [x] 실제 공공 API key로 수집 smoke test
+- [x] Gmail SMTP 실제 발송 smoke test
 
 ## 통합 테스트 실행 방법
 
@@ -116,12 +129,6 @@ cd backend
 - 마이페이지 북마크 목록 API 연결
 - 아이디/비밀번호 찾기, 이메일 중복확인 처리 방향 확정
 - 정책 검색 API의 총건수/종료 포함 여부 계약 보완
-
-### 운영 적용
-
-- `api_sync_logs` 기록 확인
-- 실제 공공 API key로 수집 smoke test
-- Gmail SMTP 실제 발송 smoke test
 
 ### 배포/데모
 

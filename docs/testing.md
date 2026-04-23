@@ -25,9 +25,29 @@ cd backend
 통합 테스트는 `integration` 프로필을 사용하며, 기본 연결 정보는
 [application-integration.yml](../backend/src/test/resources/application-integration.yml)에 정의되어 있습니다.
 
+## Gmail SMTP smoke test
+
+실제 Gmail SMTP 설정으로 테스트 메일 1건을 발송할 때만 실행합니다.
+기본 테스트에서는 비활성화되어 있으며, `RUN_SMTP_SMOKE=true`를 명시해야 동작합니다.
+
+```bash
+cd backend
+set -a
+source ../.env
+set +a
+RUN_SMTP_SMOKE=true ./gradlew test --tests com.example.welfare.notification.gateway.GmailSmtpSmokeTest --rerun-tasks
+```
+
+수신 주소를 발신 계정과 다르게 지정하려면 `.env`의 `SMTP_SMOKE_TO`를 설정합니다.
+
+```bash
+RUN_SMTP_SMOKE=true ./gradlew test --tests com.example.welfare.notification.gateway.GmailSmtpSmokeTest --rerun-tasks
+```
+
 ## 언제 무엇을 실행할까
 
 - 서비스/컨트롤러/리포지토리 단위 변경: `./gradlew test`
 - 로그인, refresh token, Redis 저장 흐름 변경: `./gradlew integrationTest`
 - 북마크, 추천 refresh/get 전체 흐름 변경: `./gradlew integrationTest`
+- Gmail SMTP 계정/앱 비밀번호 검증: `RUN_SMTP_SMOKE=true ./gradlew test --tests com.example.welfare.notification.gateway.GmailSmtpSmokeTest --rerun-tasks`
 - 배포 전 최종 확인: `./gradlew test` 실행 후 `docker compose up -d db redis` 상태에서 `./gradlew integrationTest`
