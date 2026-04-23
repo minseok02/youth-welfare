@@ -113,4 +113,47 @@ class RecommendationPersistenceServiceTest {
         assertThat(saved).hasSize(1);
         assertThat(saved.get(0).isBookmarked()).isTrue();
     }
+
+    @Test
+    @DisplayName("같은 초 안에 다시 저장해도 기존 추천 시각과 충돌하지 않는다")
+    void saveMovesRecommendedAtAfterLatestRecommendation() {
+        User user = User.builder().id(7L).build();
+        WelfareService service = WelfareService.builder()
+                .id(11L)
+                .sourceType(WelfareService.SourceType.YOUTH)
+                .sourceId("Y1")
+                .title("청년 정책")
+                .status(WelfareService.ServiceStatus.ACTIVE)
+                .build();
+        LocalDateTime latestAt = LocalDateTime.now().plusSeconds(5).withNano(0);
+        UserRecommendation latestRecommendation = UserRecommendation.builder()
+                .id(99L)
+                .user(user)
+                .service(service)
+                .recommendedAt(latestAt)
+                .isBookmarked(true)
+                .build();
+        ScoredCandidate candidate = ScoredCandidate.builder()
+                .service(service)
+                .ruleBaseScore(10.0)
+                .ruleWeightedScore(12.0)
+                .build();
+        candidate.setFinalScore(0.73);
+
+        ScoreWeight weight = ScoreWeight.builder()
+                .weightKey("COLD_START")
+                .ruleWeight(BigDecimal.valueOf(0.8))
+                .aiWeight(BigDecimal.valueOf(0.2))
+                .minLogCount(0)
+                .isActive(true)
+                .build();
+
+        when(userRecommendationRepository.findLatestByUserId(7L)).thenReturn(List.of(latestRecommendation));
+        when(userRecommendationRepository.saveAll(anyList())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        List<UserRecommendation> saved = recommendationPersistenceService.save(user, List.of(candidate), weight);
+
+        assertThat(saved).hasSize(1);
+        assertThat(saved.get(0).getRecommendedAt()).isAfter(latestAt);
+    }
 }

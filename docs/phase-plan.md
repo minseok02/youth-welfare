@@ -7,7 +7,8 @@
 
 백엔드 1차 핵심 기능은 구현 완료 상태입니다.
 프론트 메인 페이지는 더미 데이터를 제거하고 정책 목록/검색/저장 추천/북마크 API를 사용하도록 1차 연결했습니다.
-남은 1차 작업은 나머지 프론트 화면 API 연동, 통합 테스트 실행 환경 확인, 실서버 배포/HTTPS 적용, 데모 시나리오 실행입니다.
+통합 테스트는 MySQL/Redis 컨테이너 상태에서 실행 완료했습니다.
+남은 1차 작업은 나머지 프론트 화면 API 연동, 수집/알림 smoke test, 실서버 배포/HTTPS 적용, 데모 시나리오 실행입니다.
 
 ## 완료된 백엔드 1차 범위
 
@@ -38,6 +39,16 @@
 - 2026-04-23 GitHub push 전 `frontend`에서 `npm run build`  
   - Vite 번들 크기 경고 발생. 빌드는 성공했으며 기능 실패는 아님.
 - 2026-04-23 GitHub push 전 `backend`에서 `./gradlew test --no-daemon`
+- 2026-04-24 `docker compose up -d db redis`
+- 2026-04-24 테스트 DB에 `V2026_04_23_01__add_api_sync_logs.sql` 적용
+- 2026-04-24 테스트 DB `api_sync_logs.status`를 ENUM으로 보정 후 `backend`에서 `./gradlew integrationTest --no-daemon`
+- 2026-04-24 기존 Docker DB에 최신 migration 3종 재적용
+- 2026-04-24 `api_sync_logs` 테이블/인덱스/ENUM 컬럼 확인
+- 2026-04-24 추천 refresh 같은 초 중복 저장 방지 후 `backend`에서 `./gradlew test --no-daemon`
+- 2026-04-24 추천 refresh 같은 초 중복 저장 방지 후 `backend`에서 `./gradlew integrationTest --no-daemon`
+- 2026-04-24 Docker 앱 최신 이미지 재빌드 후 `POST /api/admin/collect/youth` 실행
+  - 외부 API 400으로 `COL001` 응답
+  - `api_sync_logs`에 `job_name=YOUTH`, `status=failed`, `failed_count=1`, `error_code=CustomException` 기록 확인
 
 ## 작업 추적
 
@@ -47,9 +58,6 @@
 
 ### 진행 예정
 
-- [ ] 통합 테스트 실행 환경 확인 후 `./gradlew integrationTest` 실행
-- [ ] 기존 DB에 최신 migration 적용
-- [ ] `api_sync_logs` 기록 확인
 - [ ] 실제 공공 API key로 수집 smoke test
 - [ ] Gmail SMTP 실제 발송 smoke test
 - [ ] 정책 목록 페이지 더미 데이터 제거 및 API 연결
@@ -77,10 +85,13 @@
 - [x] 메인 페이지 저장 추천 get API 연결
 - [x] 메인 페이지 정책/추천 북마크 API 연결
 - [x] GitHub 커밋/푸시/PR 작업 규칙 문서 추가
+- [x] 통합 테스트 실행 환경 확인 후 `./gradlew integrationTest` 실행
+- [x] 기존 DB에 최신 migration 적용
+- [x] `api_sync_logs` 기록 확인
 
-## 통합 테스트 확인 필요
+## 통합 테스트 실행 방법
 
-아래 테스트는 MySQL/Redis 컨테이너가 떠 있는 상태에서 실행해야 합니다.
+아래 테스트는 MySQL/Redis 컨테이너가 떠 있는 상태에서 실행합니다.
 
 ```bash
 docker compose up -d db redis
@@ -108,7 +119,6 @@ cd backend
 
 ### 운영 적용
 
-- 기존 DB에 최신 migration 적용
 - `api_sync_logs` 기록 확인
 - 실제 공공 API key로 수집 smoke test
 - Gmail SMTP 실제 발송 smoke test

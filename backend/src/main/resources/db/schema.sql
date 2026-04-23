@@ -150,7 +150,7 @@ CREATE TABLE IF NOT EXISTS raw_api_payloads (
 CREATE TABLE IF NOT EXISTS api_sync_logs (
     id              BIGINT      NOT NULL AUTO_INCREMENT,
     job_name        VARCHAR(50) NOT NULL,
-    status          VARCHAR(30) NOT NULL,
+    status          ENUM('running','success','partial_success','failed','skipped') NOT NULL,
     started_at      DATETIME    NOT NULL,
     finished_at     DATETIME,
     requested_count INT         NOT NULL DEFAULT 0,

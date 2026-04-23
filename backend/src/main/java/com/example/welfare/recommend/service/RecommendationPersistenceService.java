@@ -11,8 +11,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 /**
@@ -27,9 +29,9 @@ public class RecommendationPersistenceService {
 
     @Transactional
     public List<UserRecommendation> save(User user, List<ScoredCandidate> candidates, ScoreWeight weight) {
-        LocalDateTime now = LocalDateTime.now();
-        Map<Long, Boolean> bookmarkStateByServiceId = userRecommendationRepository.findLatestByUserId(user.getId())
-                .stream()
+        List<UserRecommendation> latestRecommendations = userRecommendationRepository.findLatestByUserId(user.getId());
+        LocalDateTime now = nextRecommendedAt(latestRecommendations);
+        Map<Long, Boolean> bookmarkStateByServiceId = latestRecommendations.stream()
                 .collect(Collectors.toMap(
                         rec -> rec.getService().getId(),
                         UserRecommendation::isBookmarked,
@@ -54,5 +56,16 @@ public class RecommendationPersistenceService {
                 .toList();
 
         return userRecommendationRepository.saveAll(recommendations);
+    }
+
+    private LocalDateTime nextRecommendedAt(List<UserRecommendation> latestRecommendations) {
+        LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+        return latestRecommendations.stream()
+                .map(UserRecommendation::getRecommendedAt)
+                .filter(Objects::nonNull)
+                .max(LocalDateTime::compareTo)
+                .filter(latest -> !latest.isBefore(now))
+                .map(latest -> latest.plusSeconds(1))
+                .orElse(now);
     }
 }

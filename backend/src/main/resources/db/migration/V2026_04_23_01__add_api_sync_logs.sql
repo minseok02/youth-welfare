@@ -3,7 +3,7 @@ USE youth_welfare;
 CREATE TABLE IF NOT EXISTS api_sync_logs (
     id              BIGINT      NOT NULL AUTO_INCREMENT,
     job_name        VARCHAR(50) NOT NULL,
-    status          VARCHAR(30) NOT NULL,
+    status          ENUM('running','success','partial_success','failed','skipped') NOT NULL,
     started_at      DATETIME    NOT NULL,
     finished_at     DATETIME,
     requested_count INT         NOT NULL DEFAULT 0,
@@ -20,3 +20,6 @@ CREATE TABLE IF NOT EXISTS api_sync_logs (
     KEY idx_api_sync_job_started (job_name, started_at),
     KEY idx_api_sync_status_started (status, started_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+ALTER TABLE api_sync_logs
+    MODIFY status ENUM('running','success','partial_success','failed','skipped') NOT NULL;

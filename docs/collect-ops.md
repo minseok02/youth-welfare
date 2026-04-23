@@ -76,6 +76,8 @@
 - `PARTIAL_SUCCESS`: 일부 아이템 저장 실패가 있었지만 source 수집은 완료
 - `FAILED`: 외부 API 예외 등으로 source 수집이 중단
 
+MySQL `api_sync_logs.status` 컬럼은 enum 저장값이 소문자(`running`, `success`, `partial_success`, `failed`, `skipped`)로 보일 수 있다.
+
 주요 집계:
 
 - `requested_count`: 목록 수집은 응답 아이템 수, 상세 수집은 실제 상세 API 호출 수
