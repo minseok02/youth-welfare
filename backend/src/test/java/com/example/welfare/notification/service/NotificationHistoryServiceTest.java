@@ -19,8 +19,10 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
@@ -86,5 +88,33 @@ class NotificationHistoryServiceTest {
         verify(notificationServiceItemRepository).saveAll(captor.capture());
         List savedItems = captor.getValue();
         assertEquals(1, savedItems.size());
+    }
+
+    @Test
+    @DisplayName("실패 이력 저장 시 최초 재시도 시간을 30분 뒤로 설정한다")
+    void saveResultSchedulesInitialRetryForFailure() {
+        User user = User.builder().id(7L).email("test@example.com").passwordHash("pw").build();
+
+        given(notificationRepository.save(any(Notification.class)))
+                .willAnswer(invocation -> invocation.getArgument(0, Notification.class));
+
+        LocalDateTime before = LocalDateTime.now();
+        Notification saved = notificationHistoryService.saveResult(
+                user,
+                NotificationPeriodType.DAILY,
+                NotificationChannel.EMAIL,
+                NotificationStatus.FAILED,
+                "subject",
+                "body",
+                List.of(),
+                List.of(),
+                "gateway failed"
+        );
+        LocalDateTime after = LocalDateTime.now();
+
+        assertThat(saved.getStatus()).isEqualTo(NotificationStatus.FAILED);
+        assertThat(saved.getRetryCount()).isZero();
+        assertThat(saved.getErrorMessage()).isEqualTo("gateway failed");
+        assertThat(saved.getNextRetryAt()).isBetween(before.plusMinutes(30), after.plusMinutes(30));
     }
 }

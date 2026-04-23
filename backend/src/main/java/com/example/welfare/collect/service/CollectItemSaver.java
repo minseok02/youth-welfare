@@ -7,15 +7,22 @@ import com.example.welfare.collect.mapper.WelfareServiceMapper;
 import com.example.welfare.policy.entity.ServiceRegion;
 import com.example.welfare.policy.entity.ServiceTag;
 import com.example.welfare.policy.entity.WelfareService;
-import com.example.welfare.policy.repository.ServiceRegionRepository;
 import com.example.welfare.policy.repository.ServiceTagRepository;
 import com.example.welfare.policy.repository.WelfareServiceRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.CannotAcquireLockException;
+import org.springframework.dao.DeadlockLoserDataAccessException;
+import org.springframework.dao.PessimisticLockingFailureException;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.support.TransactionTemplate;
 
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
 import java.util.List;
 import java.util.Optional;
 
@@ -30,11 +37,18 @@ public class CollectItemSaver {
 
     private final WelfareServiceMapper mapper;
     private final WelfareServiceRepository welfareServiceRepository;
-    private final ServiceRegionRepository regionRepository;
     private final ServiceTagRepository tagRepository;
+    private final PlatformTransactionManager transactionManager;
+    private final JdbcTemplate jdbcTemplate;
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    private static final int MAX_SAVE_ATTEMPTS = 3;
+    private static final long BASE_BACKOFF_MS = 200L;
+
     public void saveYouth(YouthApiDto.Item item) {
+        executeWithRetry("YOUTH", item.getPlcyNo(), () -> saveYouthOnce(item));
+    }
+
+    public void saveYouthOnce(YouthApiDto.Item item) {
         WelfareService entity = upsertService(
                 WelfareService.SourceType.YOUTH,
                 item.getPlcyNo(),
@@ -44,8 +58,11 @@ public class CollectItemSaver {
         upsertTags(entity, mapper.tagsFromYouth(item, entity));
     }
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void saveBokjiroCentral(BokjiroCentralDto.Item item) {
+        executeWithRetry("BOKJIRO_CENTRAL", item.getServId(), () -> saveBokjiroCentralOnce(item));
+    }
+
+    public void saveBokjiroCentralOnce(BokjiroCentralDto.Item item) {
         WelfareService entity = upsertService(
                 WelfareService.SourceType.BOKJIRO_CENTRAL,
                 item.getServId(),
@@ -55,8 +72,11 @@ public class CollectItemSaver {
         upsertTags(entity, mapper.tagsFromBokjiroCentral(item, entity));
     }
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void saveBokjiroLocal(BokjiroLocalDto.Item item) {
+        executeWithRetry("BOKJIRO_LOCAL", item.getServId(), () -> saveBokjiroLocalOnce(item));
+    }
+
+    public void saveBokjiroLocalOnce(BokjiroLocalDto.Item item) {
         WelfareService entity = upsertService(
                 WelfareService.SourceType.BOKJIRO_LOCAL,
                 item.getServId(),
@@ -80,9 +100,22 @@ public class CollectItemSaver {
     }
 
     private void upsertRegions(WelfareService service, List<ServiceRegion> regions) {
+        jdbcTemplate.update("DELETE FROM service_regions WHERE service_id = ?", service.getId());
         if (regions.isEmpty()) return;
-        regionRepository.deleteByServiceId(service.getId());
-        regionRepository.saveAll(regions);
+
+        jdbcTemplate.batchUpdate(
+                "INSERT INTO service_regions (service_id, region_code, sido_name, sgg_name) VALUES (?, ?, ?, ?)",
+                regions,
+                200,
+                this::bindRegion
+        );
+    }
+
+    private void bindRegion(PreparedStatement ps, ServiceRegion region) throws SQLException {
+        ps.setLong(1, region.getService().getId());
+        ps.setString(2, region.getRegionCode());
+        ps.setString(3, region.getSidoName());
+        ps.setString(4, region.getSggName());
     }
 
     private void upsertTags(WelfareService service, List<ServiceTag> tags) {
@@ -93,5 +126,82 @@ public class CollectItemSaver {
                     tag.getTagValue()
             );
         }
+    }
+
+    private void executeWithRetry(String sourceType, String sourceId, CollectRetrySupport.CheckedRunnable action) {
+        for (int attempt = 1; attempt <= MAX_SAVE_ATTEMPTS; attempt++) {
+            try {
+                runInNewTransaction(action);
+                return;
+            } catch (Exception e) {
+                if (!isRetryableLockException(e) || attempt >= MAX_SAVE_ATTEMPTS) {
+                    if (attempt > 1) {
+                        log.warn("[CollectItemSaver] 저장 재시도 실패 sourceType={} sourceId={} attempts={} err={}",
+                                sourceType, sourceId, attempt, e.getMessage());
+                    }
+                    rethrowUnchecked(e);
+                    return;
+                }
+
+                long waitMs = BASE_BACKOFF_MS * attempt;
+                log.warn("[CollectItemSaver] 저장 재시도 sourceType={} sourceId={} attempt={}/{} waitMs={} err={}",
+                        sourceType, sourceId, attempt, MAX_SAVE_ATTEMPTS, waitMs, e.getMessage());
+                sleepQuietly(waitMs);
+            }
+        }
+    }
+
+    private void runInNewTransaction(CollectRetrySupport.CheckedRunnable action) throws Exception {
+        TransactionTemplate template = new TransactionTemplate(transactionManager);
+        template.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+        template.executeWithoutResult(status -> {
+            try {
+                action.run();
+            } catch (RuntimeException e) {
+                throw e;
+            } catch (Exception e) {
+                throw new IllegalStateException(e);
+            }
+        });
+    }
+
+    private boolean isRetryableLockException(Throwable throwable) {
+        Throwable current = throwable;
+        while (current != null) {
+            if (current instanceof DeadlockLoserDataAccessException
+                    || current instanceof CannotAcquireLockException
+                    || current instanceof PessimisticLockingFailureException
+                    || current instanceof ObjectOptimisticLockingFailureException) {
+                return true;
+            }
+
+            String message = current.getMessage();
+            if (message != null) {
+                String normalized = message.toLowerCase();
+                if (normalized.contains("deadlock")
+                        || normalized.contains("lock wait timeout")
+                        || normalized.contains("row was updated or deleted by another transaction")) {
+                    return true;
+                }
+            }
+            current = current.getCause();
+        }
+        return false;
+    }
+
+    private void sleepQuietly(long millis) {
+        try {
+            Thread.sleep(millis);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("수집 재시도 대기 중 인터럽트 발생", e);
+        }
+    }
+
+    private void rethrowUnchecked(Exception e) {
+        if (e instanceof RuntimeException runtimeException) {
+            throw runtimeException;
+        }
+        throw new IllegalStateException(e);
     }
 }

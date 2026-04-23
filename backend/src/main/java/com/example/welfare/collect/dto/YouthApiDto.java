@@ -8,7 +8,7 @@ import java.util.List;
 
 /**
  * 온통청년 공공API JSON 응답 DTO
- * 엔드포인트: GET https://www.youthcenter.go.kr/go/ythip/getPlcy
+ * 현재 운영 확인 기준 엔드포인트: GET https://www.youthcenter.go.kr/go/ythip/getPlcy
  * 실제 응답 구조: { "result": { "youthPolicyList": [...], "totalCnt": N } }
  */
 @Getter

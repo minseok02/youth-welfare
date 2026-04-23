@@ -57,6 +57,12 @@ bokjiro:
   local-base-url: https://www.bokjiro.go.kr/ssis-tbu/twatla/lwlfareInfo/moveTWAT52005M.do
 
 collect:
+  list:
+    request-interval-ms: 300
+    max-consecutive-rate-limit-hits: 1
+    retry:
+      max-attempts: 3
+      base-backoff-ms: 1000
   detail:
     max-calls-per-run: 900  # 트래픽 제한 1,000 가정 시 여유값
     max-calls-per-api-per-run: 95  # API 기능별 일일 100 제한 기준(여유 5)

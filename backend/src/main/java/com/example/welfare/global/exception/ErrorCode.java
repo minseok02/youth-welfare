@@ -30,12 +30,14 @@ public enum ErrorCode {
 
     // 추천
     RECOMMENDATION_NOT_FOUND(HttpStatus.NOT_FOUND, "R001", "추천 정보를 찾을 수 없습니다."),
+    SCORE_WEIGHT_NOT_CONFIGURED(HttpStatus.INTERNAL_SERVER_ERROR, "R002", "추천 가중치 설정을 찾을 수 없습니다."),
 
     // 알림
     NOTIFICATION_SEND_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "N001", "알림 발송에 실패했습니다."),
 
     // 수집
-    COLLECT_API_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "COL001", "공공 API 수집에 실패했습니다.");
+    COLLECT_API_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "COL001", "공공 API 수집에 실패했습니다."),
+    COLLECT_ALREADY_RUNNING(HttpStatus.CONFLICT, "COL002", "이미 다른 수집 작업이 실행 중입니다.");
 
     private final HttpStatus httpStatus;
     private final String code;

@@ -36,8 +36,7 @@ docker compose -f docker-compose.yml up -d --build app
 기존 운영 DB는 `schema.sql`만으로 최신화되지 않는다.
 최근 누적 변경분은 아래 SQL을 먼저 적용한 뒤 앱을 재배포해야 한다.
 
-- 파일: [`backend/src/main/resources/db/migration/V2026_04_17_01__recent_schema_updates.sql`](../backend/src/main/resources/db/migration/V2026_04_17_01__recent_schema_updates.sql)
-- 상세 절차: [`docs/db-migration.md`](db-migration.md)
+- 상세 절차와 최신 SQL 목록: [db-migration.md](db-migration.md)
 
 권장 순서:
 

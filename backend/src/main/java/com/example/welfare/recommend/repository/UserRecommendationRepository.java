@@ -28,8 +28,33 @@ public interface UserRecommendationRepository extends JpaRepository<UserRecommen
             """)
     List<UserRecommendation> findTopByUserId(@Param("userId") Long userId, Pageable pageable);
 
+    @Query("""
+            SELECT ur FROM UserRecommendation ur
+            WHERE ur.user.id = :userId
+              AND ur.recommendedAt = (
+                    SELECT MAX(ur2.recommendedAt)
+                    FROM UserRecommendation ur2
+                    WHERE ur2.user.id = :userId
+                      AND ur2.service.id = ur.service.id
+              )
+            """)
+    List<UserRecommendation> findLatestByUserId(@Param("userId") Long userId);
+
     // 북마크 목록
-    List<UserRecommendation> findByUserIdAndIsBookmarkedTrue(Long userId);
+    @Query("""
+            SELECT ur FROM UserRecommendation ur
+            JOIN FETCH ur.service
+            WHERE ur.user.id = :userId
+              AND ur.isBookmarked = true
+              AND ur.recommendedAt = (
+                    SELECT MAX(ur2.recommendedAt)
+                    FROM UserRecommendation ur2
+                    WHERE ur2.user.id = :userId
+                      AND ur2.service.id = ur.service.id
+              )
+            ORDER BY ur.recommendedAt DESC
+            """)
+    List<UserRecommendation> findLatestBookmarkedByUserId(@Param("userId") Long userId);
 
     long countByUserIdAndIsBookmarkedTrue(Long userId);
 

@@ -62,4 +62,16 @@ dependencies {
 
 tasks.named('test') {
     useJUnitPlatform()
+    exclude '**/integration/**'
+}
+
+tasks.register('integrationTest', Test) {
+    description = 'Runs integration tests that require MySQL and Redis.'
+    group = 'verification'
+
+    useJUnitPlatform()
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+    include '**/integration/**'
+    shouldRunAfter test
 }

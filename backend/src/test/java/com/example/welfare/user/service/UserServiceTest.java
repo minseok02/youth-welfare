@@ -1,6 +1,10 @@
 package com.example.welfare.user.service;
 
 import com.example.welfare.global.util.AesEncryptUtil;
+import com.example.welfare.policy.dto.PolicySummaryResponse;
+import com.example.welfare.policy.entity.WelfareService;
+import com.example.welfare.recommend.entity.UserRecommendation;
+import com.example.welfare.recommend.repository.UserRecommendationRepository;
 import com.example.welfare.user.dto.request.UpdateProfileRequest;
 import com.example.welfare.user.entity.User;
 import com.example.welfare.user.entity.UserAttribute;
@@ -38,6 +42,7 @@ class UserServiceTest {
     @Mock private PriorityWeightPolicy priorityWeightPolicy;
     @Mock private AesEncryptUtil aesEncryptUtil;
     @Mock private PasswordEncoder passwordEncoder;
+    @Mock private UserRecommendationRepository userRecommendationRepository;
 
     private UserService userService;
 
@@ -50,7 +55,8 @@ class UserServiceTest {
                 priorityOptionRepository,
                 priorityWeightPolicy,
                 aesEncryptUtil,
-                passwordEncoder
+                passwordEncoder,
+                userRecommendationRepository
         );
     }
 
@@ -85,5 +91,67 @@ class UserServiceTest {
                         Tuple.tuple(UserAttribute.AttrType.TARGET_TYPE.name(), "농어촌"),
                         Tuple.tuple(UserAttribute.AttrType.TARGET_TYPE.name(), "자립준비청년")
                 );
+    }
+
+    @Test
+    @DisplayName("프로필 수정 시 관심분야 요청이 없어도 기존 관심분야가 있으면 완성도 점수를 유지한다")
+    void updateProfileKeepsCompletenessWhenInterestFieldsNotProvided() {
+        User user = User.builder()
+                .id(1L)
+                .email("user@example.com")
+                .passwordHash("hash")
+                .name("tester")
+                .birthDate(LocalDate.of(1998, 1, 1))
+                .sido("서울")
+                .incomeLevel((byte) 5)
+                .employmentStatus("EMPLOYED")
+                .householdType("ONE_PERSON")
+                .phoneEnc("enc")
+                .build();
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(userAttributeRepository.findByUserIdAndAttrType(1L, UserAttribute.AttrType.INTEREST_FIELD.name()))
+                .thenReturn(List.of(UserAttribute.builder()
+                        .user(user)
+                        .attrType(UserAttribute.AttrType.INTEREST_FIELD.name())
+                        .attrValue("주거")
+                        .build()));
+
+        UpdateProfileRequest request = new UpdateProfileRequest();
+        userService.updateProfile(1L, request);
+
+        assertThat(user.getProfileCompleteness()).isEqualTo(100);
+    }
+
+    @Test
+    @DisplayName("북마크 목록 조회는 최신 북마크 추천을 정책 요약 응답으로 변환한다")
+    void getBookmarksReturnsPolicySummaries() {
+        User user = User.builder()
+                .id(1L)
+                .email("user@example.com")
+                .passwordHash("hash")
+                .build();
+        WelfareService service = WelfareService.builder()
+                .id(11L)
+                .sourceType(WelfareService.SourceType.YOUTH)
+                .sourceId("Y-11")
+                .title("청년 월세 지원")
+                .description("월세 부담 완화")
+                .unifiedCategory("HOUSING")
+                .status(WelfareService.ServiceStatus.ACTIVE)
+                .build();
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(userRecommendationRepository.findLatestBookmarkedByUserId(1L))
+                .thenReturn(List.of(UserRecommendation.builder()
+                        .id(100L)
+                        .user(user)
+                        .service(service)
+                        .isBookmarked(true)
+                        .build()));
+
+        List<PolicySummaryResponse> response = userService.getBookmarks(1L);
+
+        assertThat(response).hasSize(1);
+        assertThat(response.get(0).getId()).isEqualTo(11L);
+        assertThat(response.get(0).getTitle()).isEqualTo("청년 월세 지원");
     }
 }

@@ -47,11 +47,21 @@ public class BokjiroDetailCollectService {
 
     @Transactional
     public int collectBokjiroDetails() {
-        return collectBokjiroDetails(maxCallsPerRun);
+        return collectBokjiroDetailsResult().savedCount();
     }
 
     @Transactional
     public int collectBokjiroDetails(int maxCalls) {
+        return collectBokjiroDetailsResult(maxCalls).savedCount();
+    }
+
+    @Transactional
+    public CollectResult collectBokjiroDetailsResult() {
+        return collectBokjiroDetailsResult(maxCallsPerRun);
+    }
+
+    @Transactional
+    public CollectResult collectBokjiroDetailsResult(int maxCalls) {
         int centralBudget = Math.min(maxCallsPerApiPerRun, maxCalls);
         int localBudget = Math.min(maxCallsPerApiPerRun, Math.max(0, maxCalls - centralBudget));
 
@@ -65,7 +75,10 @@ public class BokjiroDetailCollectService {
 
         log.info("[BokjiroDetailCollectService] 상세 수집 완료 calls={} saved={} skipped={} failed={} maxCalls={} centralCalls={} localCalls={}",
                 calls, saved, skipped, failed, maxCalls, centralStats.calls(), localStats.calls());
-        return saved;
+        String metadataJson = """
+                {"maxCalls":%d,"centralCalls":%d,"localCalls":%d}
+                """.formatted(maxCalls, centralStats.calls(), localStats.calls()).trim();
+        return CollectResult.withMetadata(calls, saved, skipped, 0, failed, metadataJson);
     }
 
     private CollectStats collectBySource(WelfareService.SourceType sourceType, int callBudget) {

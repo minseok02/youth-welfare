@@ -12,6 +12,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * 추천 결과 저장
@@ -26,6 +28,13 @@ public class RecommendationPersistenceService {
     @Transactional
     public List<UserRecommendation> save(User user, List<ScoredCandidate> candidates, ScoreWeight weight) {
         LocalDateTime now = LocalDateTime.now();
+        Map<Long, Boolean> bookmarkStateByServiceId = userRecommendationRepository.findLatestByUserId(user.getId())
+                .stream()
+                .collect(Collectors.toMap(
+                        rec -> rec.getService().getId(),
+                        UserRecommendation::isBookmarked,
+                        (left, right) -> right
+                ));
         userRecommendationRepository.deleteUnbookmarkedByUserId(user.getId());
 
         List<UserRecommendation> recommendations = candidates.stream()
@@ -40,6 +49,7 @@ public class RecommendationPersistenceService {
                         .ruleWeightUsed(weight.getRuleWeight())
                         .aiWeightUsed(weight.getAiWeight())
                         .finalScore(BigDecimal.valueOf(c.getFinalScore()))
+                        .isBookmarked(Boolean.TRUE.equals(bookmarkStateByServiceId.get(c.getService().getId())))
                         .build())
                 .toList();
 

@@ -3,6 +3,9 @@ package com.example.welfare.user.service;
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.global.util.AesEncryptUtil;
+import com.example.welfare.policy.dto.PolicySummaryResponse;
+import com.example.welfare.recommend.entity.UserRecommendation;
+import com.example.welfare.recommend.repository.UserRecommendationRepository;
 import com.example.welfare.user.dto.request.UpdateProfileRequest;
 import com.example.welfare.user.dto.request.UpdatePrioritiesRequest;
 import com.example.welfare.user.dto.response.ProfileResponse;
@@ -35,6 +38,7 @@ public class UserService {
     private final PriorityWeightPolicy priorityWeightPolicy;
     private final AesEncryptUtil aesEncryptUtil;
     private final PasswordEncoder passwordEncoder;
+    private final UserRecommendationRepository userRecommendationRepository;
 
     @Transactional(readOnly = true)
     public ProfileResponse getProfile(Long userId) {
@@ -45,20 +49,30 @@ public class UserService {
         return ProfileResponse.of(user, attributes, priorities, phone);
     }
 
+    @Transactional(readOnly = true)
+    public List<PolicySummaryResponse> getBookmarks(Long userId) {
+        findActiveUser(userId);
+        List<UserRecommendation> bookmarks = userRecommendationRepository.findLatestBookmarkedByUserId(userId);
+        return bookmarks.stream()
+                .map(UserRecommendation::getService)
+                .map(PolicySummaryResponse::from)
+                .toList();
+    }
+
     @Transactional
     public void updateProfile(Long userId, UpdateProfileRequest request) {
         User user = findActiveUser(userId);
 
         user.updateProfile(
-                request.getName(),
-                request.getBirthDate(),
-                request.getSido(),
-                request.getSgg(),
-                request.getRegionCode(),
-                request.getIncomeLevel(),
-                request.getHouseholdType(),
-                request.getEmploymentStatus(),
-                request.getDisplayCount() != null ? request.getDisplayCount() : 10
+                request.getName() != null ? request.getName() : user.getName(),
+                request.getBirthDate() != null ? request.getBirthDate() : user.getBirthDate(),
+                request.getSido() != null ? request.getSido() : user.getSido(),
+                request.getSgg() != null ? request.getSgg() : user.getSgg(),
+                request.getRegionCode() != null ? request.getRegionCode() : user.getRegionCode(),
+                request.getIncomeLevel() != null ? request.getIncomeLevel() : user.getIncomeLevel(),
+                request.getHouseholdType() != null ? request.getHouseholdType() : user.getHouseholdType(),
+                request.getEmploymentStatus() != null ? request.getEmploymentStatus() : user.getEmploymentStatus(),
+                request.getDisplayCount() != null ? request.getDisplayCount() : user.getDisplayCount()
         );
 
         if (request.getPhone() != null) {
@@ -102,7 +116,7 @@ public class UserService {
             );
         }
 
-        user.updateProfileCompleteness(calculateCompleteness(user, request));
+        user.updateProfileCompleteness(calculateCompleteness(userId, user, request));
     }
 
     @Transactional
@@ -162,7 +176,7 @@ public class UserService {
         return user;
     }
 
-    private int calculateCompleteness(User user, UpdateProfileRequest request) {
+    private int calculateCompleteness(Long userId, User user, UpdateProfileRequest request) {
         int score = 0;
         // 필수 항목 (각 20점)
         if (user.getName() != null) score += 20;
@@ -173,7 +187,10 @@ public class UserService {
         if (user.getEmploymentStatus() != null) score += 10;
         if (user.getHouseholdType() != null) score += 10;
         if (user.getPhoneEnc() != null) score += 10;
-        if (request.getInterestFields() != null && !request.getInterestFields().isEmpty()) score += 10;
+        boolean hasInterestFields = request.getInterestFields() != null
+                ? !request.getInterestFields().isEmpty()
+                : !userAttributeRepository.findByUserIdAndAttrType(userId, UserAttribute.AttrType.INTEREST_FIELD.name()).isEmpty();
+        if (hasInterestFields) score += 10;
         return Math.min(score, 100);
     }
 

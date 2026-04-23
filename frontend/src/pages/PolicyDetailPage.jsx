@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import {
   Box, Container, Typography, Chip, Button, Divider,
   IconButton, Snackbar, Alert, Paper,
@@ -40,10 +40,16 @@ const DUMMY_DETAIL = {
 
 const NO_DATA = "원문에서 확인해주세요.";
 
+function SectionTitle({ children }) {
+  return (
+    <Typography variant="subtitle1" fontWeight={700} color="primary" mt={3} mb={1}>
+      {children}
+    </Typography>
+  );
+}
+
 export default function PolicyDetailPage() {
   const navigate = useNavigate();
-  const { id } = useParams();
-  const [searchParams] = useSearchParams();
   const { isLoggedIn } = useAuthStore();
   const [bookmarked, setBookmarked] = useState(false);
   const [toast, setToast] = useState({ open: false, msg: "", severity: "info" });
@@ -63,12 +69,6 @@ export default function PolicyDetailPage() {
     const n = parseInt(dday.replace("D-", ""));
     return n <= 14 ? "error" : "primary";
   };
-
-  const SectionTitle = ({ children }) => (
-    <Typography variant="subtitle1" fontWeight={700} color="primary" mt={3} mb={1}>
-      {children}
-    </Typography>
-  );
 
   return (
     <Box sx={{ minHeight: "100vh", bgcolor: "background.default", pb: 10 }}>

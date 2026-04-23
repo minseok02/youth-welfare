@@ -20,7 +20,9 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -130,5 +132,56 @@ class PolicyBookmarkIntegrationTest {
         }
 
         assertEquals(200L, userRecommendationRepository.countByUserIdAndIsBookmarkedTrue(user.getId()));
+    }
+
+    @Test
+    @DisplayName("정책 북마크는 마이페이지 북마크 목록에 반영되고 해제 시 목록에서 제거된다")
+    void bookmarkAppearsInMyPageAndDisappearsAfterToggleOff() throws Exception {
+        User user = userRepository.save(User.builder()
+                .email(TEST_EMAIL_PREFIX + UUID.randomUUID() + "@example.com")
+                .passwordHash("pw")
+                .name("Bookmark Flow")
+                .build());
+
+        WelfareService service = welfareServiceRepository.save(WelfareService.builder()
+                .sourceType(WelfareService.SourceType.YOUTH)
+                .sourceId(TEST_SOURCE_PREFIX + UUID.randomUUID())
+                .title("마이페이지 검증 정책")
+                .description("북마크 목록 연동 확인")
+                .unifiedCategory("주거")
+                .status(WelfareService.ServiceStatus.ACTIVE)
+                .apiViewCount(0L)
+                .build());
+
+        String accessToken = jwtUtil.generateAccessToken(user.getId());
+
+        mockMvc.perform(post("/api/policies/{id}/bookmark", service.getId())
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
+        mockMvc.perform(get("/api/users/me/bookmarks")
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.length()").value(1))
+                .andExpect(jsonPath("$.data[0].id").value(service.getId()))
+                .andExpect(jsonPath("$.data[0].title").value("마이페이지 검증 정책"));
+
+        mockMvc.perform(post("/api/policies/{id}/bookmark", service.getId())
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
+        mockMvc.perform(get("/api/users/me/bookmarks")
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.length()").value(0));
+
+        UserRecommendation recommendation = userRecommendationRepository
+                .findTopByUserIdAndServiceIdOrderByRecommendedAtDesc(user.getId(), service.getId())
+                .orElseThrow();
+        assertFalse(recommendation.isBookmarked());
     }
 }

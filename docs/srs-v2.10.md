@@ -6,8 +6,9 @@
 |------|------|
 | 문서 버전 | 2.14 |
 | 작성일 | 2026-04-18 |
+| 마지막 정리일 | 2026-04-23 |
 | 프로젝트 유형 | 졸업 프로젝트 (2인) |
-| 변경 이력 | v2.13→v2.14: **데모 시나리오 문서화** — 회원가입, 로그인, 프로필/우선순위 설정, 정책 목록/검색, 추천 생성·조회, 북마크, 수신 거부, refresh/logout, CTR 분석 SQL을 포함한 실행 문서(`docs/demo-scenario.md`) 추가. v2.12→v2.13: **HTTPS 운영 설정 문서화** — Nginx 리버스 프록시 예시(`deploy/nginx/youth-welfare.conf`) 추가, `80 -> 443 -> 8082` 리다이렉트/프록시, Let’s Encrypt 인증서 경로, `X-Forwarded-*`, HSTS 기준을 배포 문서에 반영. v2.11→v2.12: **배포 기준선 문서화** — `.env.example` 보강, Docker Compose를 `app + db + redis` 3컨테이너 기준으로 정리, 서비스명 기반 DB/Redis 연결과 `APP_BASE_URL` 운영값 명시, 배포 가이드(`docs/deployment.md`) 추가. v2.10→v2.11: **운영 반영 및 검증 갱신** — 정책 목록/검색에 지역 필터와 이름순 정렬 반영. 알림 설정(`notification_min_score`), 이메일 `ai_reason`, 수신 거부 링크, 실패 재시도(30분/2시간) 반영. 북마크 200건 상한 및 30일+미북마크 삭제 배치 반영. 기존 DB용 수동 마이그레이션 SQL 및 MySQL+Redis 통합 테스트 추가. v2.9→v2.10: **챗봇 모듈 설계 반영** — 2차 구현 항목으로 chat/ 패키지 추가. 모듈 경계 원칙(chat→welfare 허용, chat→recommendation 금지). v2.8→v2.9: **확장형 MVP 구조** — 1차(11개) / 2차(9개) 테이블 분리. **Cold Start 전략** — `score_weights` 테이블 추가, 추천 이력 기반 rule/ai 가중치 자동 전환. **AI 점수 구조 수정** — `welfare_services.ai_score` 제거, AI 점수는 `user_recommendations`에만 존재. **스키마 무결성** — `service_tags` UNIQUE KEY 추가, `user_attributes.attr_type` ENUM→VARCHAR(30). **컬럼 수정** — `batch_date DATE`→`recommended_at DATETIME`, `reason`→`ai_reason`, `rule_weight_used`·`ai_weight_used` 추가. **unified_category** — 3개 API 분류 통합 필터용 컬럼 추가. **FR 수정** — FR-05-02 분야 필터를 unified_category 기반으로, FR-07-09 점수 가중치를 score_weights 기반으로, FR-07-14 CLOSED 처리를 user_recommendations 기준으로 수정 |
+| 문서 목적 | 현재 기준 요구사항과 1차/2차 범위 정의 |
 
 ---
 

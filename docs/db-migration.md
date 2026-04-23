@@ -9,6 +9,11 @@
 
 ## 최신 마이그레이션
 
+- 파일: [`backend/src/main/resources/db/migration/V2026_04_23_01__add_api_sync_logs.sql`](../backend/src/main/resources/db/migration/V2026_04_23_01__add_api_sync_logs.sql)
+- 포함 내용:
+  - `api_sync_logs` 생성
+  - source별 수집 실행 상태와 저장/스킵/필터/실패 건수 기록
+
 - 파일: [`backend/src/main/resources/db/migration/V2026_04_17_01__recent_schema_updates.sql`](../backend/src/main/resources/db/migration/V2026_04_17_01__recent_schema_updates.sql)
 - 포함 내용:
   - `service_view_logs` 생성
@@ -16,16 +21,25 @@
   - `notifications.retry_count`, `notifications.next_retry_at` 추가
   - `idx_noti_retry` 인덱스 추가
 
+- 파일: [`backend/src/main/resources/db/migration/V2026_04_18_02__add_raw_api_payloads.sql`](../backend/src/main/resources/db/migration/V2026_04_18_02__add_raw_api_payloads.sql)
+- 포함 내용:
+  - `raw_api_payloads` 생성
+  - 공공 API 목록/상세 원문 payload 보관
+
 ## 적용 방법
 
 ```bash
 mysql -h 127.0.0.1 -P 3307 -u root -p youth_welfare < backend/src/main/resources/db/migration/V2026_04_17_01__recent_schema_updates.sql
+mysql -h 127.0.0.1 -P 3307 -u root -p youth_welfare < backend/src/main/resources/db/migration/V2026_04_18_02__add_raw_api_payloads.sql
+mysql -h 127.0.0.1 -P 3307 -u root -p youth_welfare < backend/src/main/resources/db/migration/V2026_04_23_01__add_api_sync_logs.sql
 ```
 
 도커 컨테이너를 쓰는 경우:
 
 ```bash
 docker exec -i youth-welfare-db mysql -uroot -p"$DB_PASSWORD" youth_welfare < backend/src/main/resources/db/migration/V2026_04_17_01__recent_schema_updates.sql
+docker exec -i youth-welfare-db mysql -uroot -p"$DB_PASSWORD" youth_welfare < backend/src/main/resources/db/migration/V2026_04_18_02__add_raw_api_payloads.sql
+docker exec -i youth-welfare-db mysql -uroot -p"$DB_PASSWORD" youth_welfare < backend/src/main/resources/db/migration/V2026_04_23_01__add_api_sync_logs.sql
 ```
 
 ## 확인 쿼리
@@ -35,6 +49,8 @@ SHOW COLUMNS FROM notifications;
 SHOW INDEX FROM notifications;
 SHOW TABLES LIKE 'service_view_logs';
 SHOW TABLES LIKE 'notification_services';
+SHOW TABLES LIKE 'raw_api_payloads';
+SHOW TABLES LIKE 'api_sync_logs';
 ```
 
 ## 주의
