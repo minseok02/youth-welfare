@@ -14,7 +14,6 @@ import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.stream.Collectors;
 
 /**
@@ -29,15 +28,20 @@ public class RecommendationPersistenceService {
 
     @Transactional
     public List<UserRecommendation> save(User user, List<ScoredCandidate> candidates, ScoreWeight weight) {
-        List<UserRecommendation> latestRecommendations = userRecommendationRepository.findLatestByUserId(user.getId());
-        LocalDateTime now = nextRecommendedAt(latestRecommendations);
-        Map<Long, Boolean> bookmarkStateByServiceId = latestRecommendations.stream()
+        // 북마크 상태를 먼저 보존 (serviceId → bookmarked)
+        Map<Long, Boolean> bookmarkStateByServiceId = userRecommendationRepository
+                .findLatestByUserId(user.getId())
+                .stream()
                 .collect(Collectors.toMap(
                         rec -> rec.getService().getId(),
                         UserRecommendation::isBookmarked,
-                        (left, right) -> right
+                        (left, right) -> left  // 먼저 조회된 최신 상태 유지
                 ));
-        userRecommendationRepository.deleteUnbookmarkedByUserId(user.getId());
+
+        // 기존 추천 전체 삭제 (북마크 포함) — 새 행에 북마크 상태 이전
+        userRecommendationRepository.deleteAllByUserId(user.getId());
+
+        LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
 
         List<UserRecommendation> recommendations = candidates.stream()
                 .map(c -> UserRecommendation.builder()
@@ -56,16 +60,5 @@ public class RecommendationPersistenceService {
                 .toList();
 
         return userRecommendationRepository.saveAll(recommendations);
-    }
-
-    private LocalDateTime nextRecommendedAt(List<UserRecommendation> latestRecommendations) {
-        LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
-        return latestRecommendations.stream()
-                .map(UserRecommendation::getRecommendedAt)
-                .filter(Objects::nonNull)
-                .max(LocalDateTime::compareTo)
-                .filter(latest -> !latest.isBefore(now))
-                .map(latest -> latest.plusSeconds(1))
-                .orElse(now);
     }
 }

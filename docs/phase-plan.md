@@ -167,6 +167,10 @@
   - logId 응답 포함 확인 (serviceId=7776 logId=1)
   - `recommendation_logs` 40건 생성 확인
   - is_fallback=1 행은 rule_base_score=0 + AI 미호출 케이스로 정상
+- 2026-04-24 AI 프롬프트 system/user 분리 + TOP_N 조정 + 중복 추천 수정 후 `backend`에서 `./gradlew test --no-daemon`
+- 2026-04-24 개선 후 실제 Docker 앱에서 추천 refresh 재검증
+  - AI 점수 15건/15건 전부 반환 (이전 20건 중 8건 누락 → 개선)
+  - `user_recommendations` total=unique=40 (중복 해소)
 - 2026-04-24 `V2026_04_24_01`, `V2026_04_24_02` migration 적용 확인 후 `backend`에서 `./gradlew integrationTest --no-daemon`
   - `AuthRedisIntegrationTest`, `PolicyBookmarkIntegrationTest`, `RecommendationFlowIntegrationTest` 전체 통과
 - 2026-04-24 Docker 앱 재빌드 후 가상 유저(`testuser@youth-welfare.dev`) end-to-end 검증
@@ -232,6 +236,9 @@
 - [x] AI 프롬프트에 정책 description 앞 100자 추가 (카테고리 추측 의존 개선)
 - [x] 추천 refresh 시 `recommendation_logs` CTR 로그 생성 (알림 발송 의존 제거)
 - [x] 추천 refresh 응답에 `logId` 포함 — 프론트 카드 클릭 시 `?log_id=` 전달
+- [x] AI 프롬프트 system/user 역할 분리 + 전체 평가 필수 명시
+- [x] AI_TOP_N 20→15 조정 (누락 없이 15건 전부 점수 반환 확인)
+- [x] 중복 추천 행 문제 수정 — `deleteAllByUserId`로 교체, 북마크 상태만 새 행에 이전
 
 ## 통합 테스트 실행 방법
 

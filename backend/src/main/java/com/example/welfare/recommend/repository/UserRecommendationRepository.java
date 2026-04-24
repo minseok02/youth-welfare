@@ -87,14 +87,13 @@ public interface UserRecommendationRepository extends JpaRepository<UserRecommen
     List<Long> findRecentlyRecommendedServiceIds(@Param("userId") Long userId,
                                                   @Param("since") LocalDateTime since);
 
-    // 30일 지나고 북마크 없는 추천 삭제 (데이터 보존 정책)
+    // refresh 시 기존 추천 전체 삭제 — 북마크 상태는 호출 전 Map으로 보존 후 새 행에 이전
     @Modifying
     @Query("""
             DELETE FROM UserRecommendation ur
             WHERE ur.user.id = :userId
-              AND ur.isBookmarked = false
             """)
-    void deleteUnbookmarkedByUserId(@Param("userId") Long userId);
+    void deleteAllByUserId(@Param("userId") Long userId);
 
     @Modifying
     @Query("""
