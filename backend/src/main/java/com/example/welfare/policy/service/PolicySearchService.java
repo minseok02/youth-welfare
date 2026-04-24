@@ -11,6 +11,7 @@ import com.example.welfare.policy.repository.WelfareServiceRepository;
 import com.example.welfare.recommend.repository.UserRecommendationRepository;
 import com.example.welfare.recommend.service.YouthPolicyFilter;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,11 +25,15 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class PolicySearchService {
 
     private static final int DEFAULT_SEARCH_LIMIT = 20;
     private static final int MAX_SEARCH_LIMIT = 100;
     private static final int SEARCH_SCAN_BATCH_SIZE = 200;
+    private static final long SEARCH_WARN_DURATION_MS = 300L;
+    private static final int SEARCH_WARN_BATCH_COUNT = 3;
+    private static final int SEARCH_WARN_RAW_SCAN_COUNT = 400;
 
     private final WelfareServiceRepository welfareServiceRepository;
     private final ServiceTagRepository serviceTagRepository;
@@ -53,6 +58,8 @@ public class PolicySearchService {
                                        String sort,
                                        int page,
                                        int size) {
+        long startedAt = System.nanoTime();
+
         // MySQL FULLTEXT 검색 (ngram 파서)
         // keyword는 Controller에서 trim 처리 후 전달됨
         String ftKeyword = buildFulltextKeyword(keyword);
@@ -71,9 +78,12 @@ public class PolicySearchService {
         int endExclusive = startIndex + limit;
         int offset = 0;
         long totalFilteredCount = 0L;
+        long totalRawScannedCount = 0L;
+        int scanBatchCount = 0;
         List<WelfareService> pageServices = new ArrayList<>();
 
         while (true) {
+            scanBatchCount++;
             List<WelfareService> results = welfareServiceRepository.searchByKeywordWithFilters(
                     ftKeyword,
                     normalizedStatus,
@@ -90,6 +100,8 @@ public class PolicySearchService {
             if (results.isEmpty()) {
                 break;
             }
+
+            totalRawScannedCount += results.size();
 
             List<WelfareService> filteredResults = filterYouthRelevant(results);
             for (WelfareService service : filteredResults) {
@@ -117,7 +129,7 @@ public class PolicySearchService {
                 ? 0
                 : (int) Math.ceil((double) totalFilteredCount / limit);
 
-        return PolicySearchResponse.builder()
+        PolicySearchResponse response = PolicySearchResponse.builder()
                 .content(content)
                 .totalElements(totalFilteredCount)
                 .totalPages(totalPages)
@@ -125,6 +137,74 @@ public class PolicySearchService {
                 .pageSize(limit)
                 .hasNext(pageNumber + 1 < totalPages)
                 .build();
+
+        logSearchObservation(
+                response,
+                keyword,
+                normalizedStatus,
+                normalizedIncludeClosed,
+                normalizedCategory,
+                normalizedSourceType,
+                normalizedSort,
+                totalRawScannedCount,
+                totalFilteredCount,
+                scanBatchCount,
+                System.nanoTime() - startedAt
+        );
+        return response;
+    }
+
+    private void logSearchObservation(PolicySearchResponse response,
+                                      String keyword,
+                                      String status,
+                                      Integer includeClosed,
+                                      String category,
+                                      String sourceType,
+                                      String sort,
+                                      long totalRawScannedCount,
+                                      long totalFilteredCount,
+                                      int scanBatchCount,
+                                      long elapsedNanos) {
+        long elapsedMs = elapsedNanos / 1_000_000L;
+        int keywordTokenCount = keyword.trim().isEmpty() ? 0 : keyword.trim().split("\\s+").length;
+        boolean warn = elapsedMs >= SEARCH_WARN_DURATION_MS
+                || scanBatchCount >= SEARCH_WARN_BATCH_COUNT
+                || totalRawScannedCount >= SEARCH_WARN_RAW_SCAN_COUNT;
+
+        if (warn) {
+            log.warn("[PolicySearchService] 검색 비용 경고 elapsedMs={} rawScanned={} filtered={} batches={} page={} size={} hasNext={} includeClosed={} status={} category={} sourceType={} sort={} keywordTokens={}",
+                    elapsedMs,
+                    totalRawScannedCount,
+                    totalFilteredCount,
+                    scanBatchCount,
+                    response.getPageNumber(),
+                    response.getPageSize(),
+                    response.isHasNext(),
+                    includeClosed == 1,
+                    status,
+                    category,
+                    sourceType,
+                    sort,
+                    keywordTokenCount);
+            return;
+        }
+
+        if (scanBatchCount > 1 || totalRawScannedCount > response.getPageSize()) {
+            log.info("[PolicySearchService] 검색 스캔 관측 elapsedMs={} rawScanned={} filtered={} batches={} page={} size={} hasNext={} includeClosed={} status={} category={} sourceType={} sort={} keywordTokens={}",
+                    elapsedMs,
+                    totalRawScannedCount,
+                    totalFilteredCount,
+                    scanBatchCount,
+                    response.getPageNumber(),
+                    response.getPageSize(),
+                    response.isHasNext(),
+                    includeClosed == 1,
+                    status,
+                    category,
+                    sourceType,
+                    sort,
+                    keywordTokenCount);
+        }
     }
 
     private List<WelfareService> filterYouthRelevant(List<WelfareService> results) {
