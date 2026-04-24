@@ -180,6 +180,7 @@ export default function MyPage() {
   const [newPwConfirm, setNewPwConfirm] = useState("");
   const [pwLoading, setPwLoading] = useState(false);
   const [withdrawModal, setWithdrawModal] = useState(false);
+  const [withdrawPw, setWithdrawPw] = useState("");
 
   const togglePriority = (val) => {
     if (priorities.includes(val)) setPriorities(priorities.filter((p) => p !== val));
@@ -267,14 +268,17 @@ export default function MyPage() {
   };
 
   const handleWithdraw = async () => {
-    setWithdrawModal(false);
+    if (!withdrawPw) { showToast("비밀번호를 입력해주세요", "error"); return; }
     try {
-      await api.delete("/api/users/me", { data: { password: currPw } });
-    } catch {
-      // 탈퇴 실패해도 로컬 세션은 정리
+      await api.delete("/api/users/me", { data: { password: withdrawPw } });
+      setWithdrawModal(false);
+      setWithdrawPw("");
+      logout();
+      navigate("/");
+    } catch (err) {
+      const code = err.response?.data?.errorCode;
+      showToast(code === "A004" ? "비밀번호가 올바르지 않습니다" : "탈퇴 처리에 실패했습니다", "error");
     }
-    logout();
-    navigate("/");
   };
 
   const handleRelogin = () => {
@@ -718,13 +722,23 @@ export default function MyPage() {
       </Dialog>
 
       {/* 회원탈퇴 확인 모달 */}
-      <Dialog open={withdrawModal} onClose={() => setWithdrawModal(false)} maxWidth="xs" fullWidth>
+      <Dialog open={withdrawModal} onClose={() => { setWithdrawModal(false); setWithdrawPw(""); }} maxWidth="xs" fullWidth>
         <DialogTitle>정말 탈퇴하시겠습니까?</DialogTitle>
         <DialogContent>
-          <Typography variant="body2">탈퇴 시 북마크, 추천 기록이 모두 삭제됩니다</Typography>
+          <Typography variant="body2" mb={2}>탈퇴 시 북마크, 추천 기록이 모두 삭제됩니다</Typography>
+          <TextField
+            label="비밀번호 확인"
+            type="password"
+            value={withdrawPw}
+            onChange={(e) => setWithdrawPw(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleWithdraw()}
+            fullWidth
+            size="small"
+            autoFocus
+          />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setWithdrawModal(false)}>취소</Button>
+          <Button onClick={() => { setWithdrawModal(false); setWithdrawPw(""); }}>취소</Button>
           <Button onClick={handleWithdraw} variant="contained" color="error">탈퇴하기</Button>
         </DialogActions>
       </Dialog>
