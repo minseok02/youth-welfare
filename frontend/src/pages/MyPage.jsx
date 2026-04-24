@@ -24,17 +24,14 @@ const INCOME_ROWS = [
 ];
 
 const PRIORITY_OPTIONS = [
-  { value: "HOUSING", label: "주거" },
-  { value: "JOB", label: "일자리" },
-  { value: "EDUCATION", label: "교육" },
-  { value: "FINANCE", label: "금융" },
-  { value: "CULTURE", label: "문화" },
-  { value: "HEALTH", label: "건강" },
-  { value: "FAMILY", label: "가족" },
-  { value: "SAFETY", label: "안전" },
-  { value: "PARTICIPATION", label: "참여" },
-  { value: "DEADLINE", label: "마감임박" },
-  { value: "ONLINE", label: "온라인" },
+  { value: "HOUSING",       label: "주거" },
+  { value: "JOB",           label: "일자리" },
+  { value: "EDUCATION",     label: "교육·직업훈련" },
+  { value: "FINANCE",       label: "금융·생활" },
+  { value: "CULTURE",       label: "문화·여가" },
+  { value: "PARTICIPATION", label: "참여·기회" },
+  { value: "FAMILY",        label: "가족·돌봄" },
+  { value: "DEADLINE",      label: "마감임박" },
 ];
 
 const REGIONS = ["서울", "부산", "대구", "인천", "광주", "대전", "울산", "세종", "경기", "강원", "충북", "충남", "전북", "전남", "경북", "경남", "제주"];

@@ -150,6 +150,11 @@
   - Vite 번들 크기 경고 발생. 빌드는 성공했으며 기능 실패는 아님.
 - 2026-04-24 `PolicySearchService` Java 후처리 루프 제거 및 `search_youth_relevant` SQL 필터 기반 단순화 후 `backend`에서 `./gradlew test --no-daemon`
   - `PolicySearchServiceTest` 2건 (지역 없는 검색, 지역 있는 검색) 포함 전체 통과
+- 2026-04-24 `priority_options` 재설계 및 `UserPriorityRepository` flush 수정 후 `backend`에서 `./gradlew test --no-daemon`
+- 2026-04-24 `priority_options` 재설계 후 `frontend`에서 `npm run lint` 및 `npm run build`
+  - Vite 번들 크기 경고 발생. 빌드는 성공했으며 기능 실패는 아님.
+- 2026-04-24 Docker 앱 재빌드 후 가상 유저(`testuser@youth-welfare.dev`) end-to-end 검증
+  - 회원가입 → 로그인 → 프로필 조회 → 우선순위 저장(HOUSING·JOB·EDUCATION·FINANCE·DEADLINE) → 추천 refresh(40건, AI reason 정상) → 북마크 토글 → 북마크 목록 조회 → 검색 결과 북마크 상태 확인 → Refresh Token 재발급 전 구간 정상
 
 ## 작업 추적
 
@@ -198,6 +203,10 @@
 - [x] 아이디/비밀번호 찾기, 이메일 중복확인 처리 방향 확정
 - [x] `PolicySearchService` Java 후처리 배치 루프 제거 — `search_youth_relevant` SQL 필터 기반 단순 Page 쿼리로 교체
 - [x] `PolicySearchServiceTest` 새 계약(NoRegion/WithRegion 분기) 기반으로 작성 및 통과
+- [x] `priority_options` 재설계 — `ONLINE`·`YOUTH_ONLY` 제거, `EDU_JOB`→`EDUCATION`, `AMOUNT`→`FINANCE`, `JOB`·`PARTICIPATION`·`FAMILY` 추가
+- [x] `DefaultPriorityMatcher` 신규 코드 반영
+- [x] `UserPriorityRepository.deleteByUserId` `@Modifying` JPQL로 교체 (flush 순서 보장)
+- [x] 가상 유저로 회원가입→우선순위→추천 refresh→북마크 end-to-end 검증 완료
 
 ## 통합 테스트 실행 방법
 

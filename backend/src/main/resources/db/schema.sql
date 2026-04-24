@@ -341,13 +341,14 @@ CREATE TABLE IF NOT EXISTS notification_services (
 -- ============================================================
 
 INSERT IGNORE INTO priority_options (code, label) VALUES
-('HOUSING',    '주거'),
-('AMOUNT',     '금액'),
-('ONLINE',     '온라인신청'),
-('YOUTH_ONLY', '청년전용'),
-('EDU_JOB',    '교육·취업'),
-('CULTURE',    '문화·여가'),
-('DEADLINE',   '마감임박');
+('HOUSING',       '주거'),
+('JOB',           '일자리'),
+('EDUCATION',     '교육·직업훈련'),
+('FINANCE',       '금융·생활'),
+('CULTURE',       '문화·여가'),
+('DEADLINE',      '마감임박'),
+('PARTICIPATION', '참여·기회'),
+('FAMILY',        '가족·돌봄');
 
 INSERT IGNORE INTO score_weights (weight_key, rule_weight, ai_weight, min_log_count, description) VALUES
 ('COLD_START', 0.80, 0.20,   0, '추천 이력 100건 미만: rule 우선'),
