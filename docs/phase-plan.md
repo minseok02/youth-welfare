@@ -153,6 +153,9 @@
 - 2026-04-24 `priority_options` 재설계 및 `UserPriorityRepository` flush 수정 후 `backend`에서 `./gradlew test --no-daemon`
 - 2026-04-24 `priority_options` 재설계 후 `frontend`에서 `npm run lint` 및 `npm run build`
   - Vite 번들 크기 경고 발생. 빌드는 성공했으며 기능 실패는 아님.
+- 2026-04-24 마이페이지 내 정보/우선순위/알림 설정 API 연동 후 `frontend`에서 `npm run lint` 및 `npm run build`
+  - Vite 번들 크기 경고 발생. 빌드는 성공했으며 기능 실패는 아님.
+- 2026-04-24 마이페이지 API 연동 후 실제 Docker 앱에서 프로필 저장·알림 저장·우선순위 저장 검증 완료
 - 2026-04-24 Docker 앱 재빌드 후 가상 유저(`testuser@youth-welfare.dev`) end-to-end 검증
   - 회원가입 → 로그인 → 프로필 조회 → 우선순위 저장(HOUSING·JOB·EDUCATION·FINANCE·DEADLINE) → 추천 refresh(40건, AI reason 정상) → 북마크 토글 → 북마크 목록 조회 → 검색 결과 북마크 상태 확인 → Refresh Token 재발급 전 구간 정상
 
@@ -207,6 +210,9 @@
 - [x] `DefaultPriorityMatcher` 신규 코드 반영
 - [x] `UserPriorityRepository.deleteByUserId` `@Modifying` JPQL로 교체 (flush 순서 보장)
 - [x] 가상 유저로 회원가입→우선순위→추천 refresh→북마크 end-to-end 검증 완료
+- [x] 마이페이지 내 정보 탭 프로필 조회/저장 API 연동 (`GET/PUT /api/users/me`)
+- [x] 마이페이지 우선순위 탭 저장 API 연동 (`PUT /api/users/me/priorities`)
+- [x] 마이페이지 알림 설정 탭 저장 API 연동 (`PUT /api/users/me` notificationYn/notificationPeriod)
 
 ## 통합 테스트 실행 방법
 

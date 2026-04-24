@@ -92,45 +92,22 @@ export default function MyPage() {
     if (!isLoggedIn) navigate("/login");
   }, [isLoggedIn, navigate]);
 
-  useEffect(() => {
-    if (!isLoggedIn) return;
-
-    const controller = new AbortController();
-
-    const fetchBookmarks = async () => {
-      setBookmarkLoading(true);
-      try {
-        const { data } = await api.get("/api/users/me/bookmarks", {
-          signal: controller.signal,
-        });
-        setBookmarks((data.data ?? []).map(mapBookmark));
-      } catch (error) {
-        if (error.name === "CanceledError" || error.code === "ERR_CANCELED") return;
-        showToast("북마크 목록을 불러오지 못했습니다", "error");
-      } finally {
-        if (!controller.signal.aborted) setBookmarkLoading(false);
-      }
-    };
-
-    fetchBookmarks();
-    return () => controller.abort();
-  }, [isLoggedIn, showToast]);
-
-  // 완성도 계산용
+  // 내 정보
   const [myInfo, setMyInfo] = useState({
-    name: user?.name ?? "", email: user?.email ?? "",
+    name: "", email: user?.email ?? "",
     birthYear: "", birthMonth: "", birthDay: "",
     region: "", subRegion: "", income: "", employ: "",
   });
   const [editing, setEditing] = useState(false);
+  const [infoLoading, setInfoLoading] = useState(false);
   const [reloginModal, setReloginModal] = useState(false);
 
   const completionFields = [myInfo.birthYear, myInfo.region, myInfo.income, myInfo.employ];
-  const completionCount = completionFields.filter(Boolean).length;
-  const completionPct = Math.round((completionCount / completionFields.length) * 100);
+  const completionPct = Math.round((completionFields.filter(Boolean).length / completionFields.length) * 100);
 
   // 우선순위
   const [priorities, setPriorities] = useState([]);
+  const [priorityLoading, setPriorityLoading] = useState(false);
   const [dragIdx, setDragIdx] = useState(null);
 
   // 북마크
@@ -139,7 +116,59 @@ export default function MyPage() {
 
   // 알림
   const [notifOn, setNotifOn] = useState(false);
-  const [notifFreq, setNotifFreq] = useState("daily");
+  const [notifFreq, setNotifFreq] = useState("DAILY");
+  const [notifLoading, setNotifLoading] = useState(false);
+
+  // 프로필 + 우선순위 + 북마크 초기 로드
+  useEffect(() => {
+    if (!isLoggedIn) return;
+    const controller = new AbortController();
+
+    const fetchProfile = async () => {
+      setInfoLoading(true);
+      try {
+        const { data } = await api.get("/api/users/me", { signal: controller.signal });
+        const p = data.data ?? {};
+        const bd = p.birthDate ? p.birthDate.split("-") : ["", "", ""];
+        setMyInfo({
+          name: p.name ?? "",
+          email: p.email ?? "",
+          birthYear: bd[0] ?? "",
+          birthMonth: bd[1] ? String(parseInt(bd[1])) : "",
+          birthDay:   bd[2] ? String(parseInt(bd[2])) : "",
+          region:     p.sido ?? "",
+          subRegion:  p.sgg ?? "",
+          income:     p.incomeLevel != null ? String(p.incomeLevel) : "",
+          employ:     p.employmentStatus ?? "",
+        });
+        setNotifOn(p.notificationYn ?? false);
+        setNotifFreq(p.notificationPeriod === "WEEKLY" ? "WEEKLY" : "DAILY");
+        setPriorities((p.priorities ?? []).map((item) => item.code));
+      } catch (err) {
+        if (err.name === "CanceledError" || err.code === "ERR_CANCELED") return;
+        showToast("프로필을 불러오지 못했습니다", "error");
+      } finally {
+        if (!controller.signal.aborted) setInfoLoading(false);
+      }
+    };
+
+    const fetchBookmarks = async () => {
+      setBookmarkLoading(true);
+      try {
+        const { data } = await api.get("/api/users/me/bookmarks", { signal: controller.signal });
+        setBookmarks((data.data ?? []).map(mapBookmark));
+      } catch (err) {
+        if (err.name === "CanceledError" || err.code === "ERR_CANCELED") return;
+        showToast("북마크 목록을 불러오지 못했습니다", "error");
+      } finally {
+        if (!controller.signal.aborted) setBookmarkLoading(false);
+      }
+    };
+
+    fetchProfile();
+    fetchBookmarks();
+    return () => controller.abort();
+  }, [isLoggedIn, showToast]);
 
   // 필터 기본값
   const [filterIncludeExpired, setFilterIncludeExpired] = useState(filterSettings?.includeExpired ?? false);
@@ -168,20 +197,69 @@ export default function MyPage() {
   };
   const handleDragEnd = () => setDragIdx(null);
 
-  const handleSaveInfo = () => {
-    const emailChanged = myInfo.email !== user?.email;
-    setEditing(false);
-    if (emailChanged) { setReloginModal(true); return; }
-    showToast("저장되었습니다");
+  const handleSaveInfo = async () => {
+    setInfoLoading(true);
+    try {
+      const birthDate =
+        myInfo.birthYear && myInfo.birthMonth && myInfo.birthDay
+          ? `${myInfo.birthYear}-${String(myInfo.birthMonth).padStart(2, "0")}-${String(myInfo.birthDay).padStart(2, "0")}`
+          : undefined;
+      await api.put("/api/users/me", {
+        name:             myInfo.name || undefined,
+        birthDate:        birthDate,
+        sido:             myInfo.region || undefined,
+        sgg:              myInfo.subRegion || undefined,
+        incomeLevel:      myInfo.income ? parseInt(myInfo.income) : undefined,
+        employmentStatus: myInfo.employ || undefined,
+      });
+      setEditing(false);
+      showToast("저장되었습니다");
+    } catch {
+      showToast("저장에 실패했습니다", "error");
+    } finally {
+      setInfoLoading(false);
+    }
+  };
+
+  const handleSavePriorities = async () => {
+    setPriorityLoading(true);
+    try {
+      await api.put("/api/users/me/priorities", { priorityCodes: priorities });
+      showToast("우선순위가 저장되었습니다");
+    } catch {
+      showToast("우선순위 저장에 실패했습니다", "error");
+    } finally {
+      setPriorityLoading(false);
+    }
+  };
+
+  const handleSaveNotif = async () => {
+    setNotifLoading(true);
+    try {
+      await api.put("/api/users/me", {
+        notificationYn:     notifOn,
+        notificationPeriod: notifOn ? notifFreq : "NONE",
+      });
+      showToast("알림 설정이 저장되었습니다");
+    } catch {
+      showToast("알림 설정 저장에 실패했습니다", "error");
+    } finally {
+      setNotifLoading(false);
+    }
   };
 
   const handlePasswordChange = () => {
     if (!currPw || !newPw || newPw !== newPwConfirm) { showToast("입력값을 확인해주세요", "error"); return; }
-    setReloginModal(true);
+    showToast("비밀번호 변경은 준비 중입니다", "info");
   };
 
-  const handleWithdraw = () => {
+  const handleWithdraw = async () => {
     setWithdrawModal(false);
+    try {
+      await api.delete("/api/users/me", { data: { password: currPw } });
+    } catch {
+      // 탈퇴 실패해도 로컬 세션은 정리
+    }
     logout();
     navigate("/");
   };
@@ -241,6 +319,7 @@ export default function MyPage() {
         {/* ── 탭 1: 내 정보 ── */}
         {tabValue === 0 && (
           <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
+            {infoLoading && <LinearProgress />}
             <TextField label="이름" value={myInfo.name} onChange={(e) => setMyInfo({ ...myInfo, name: e.target.value })} disabled={!editing} fullWidth />
 
             <Box>
@@ -357,7 +436,7 @@ export default function MyPage() {
                 variant={editing ? "outlined" : "contained"}
                 onClick={() => { if (editing) setEditing(false); else setEditing(true); }}
                 fullWidth
-                disabled={editing}
+                disabled={editing || infoLoading}
               >
                 수정
               </Button>
@@ -365,9 +444,9 @@ export default function MyPage() {
                 variant={editing ? "contained" : "outlined"}
                 onClick={handleSaveInfo}
                 fullWidth
-                disabled={!editing}
+                disabled={!editing || infoLoading}
               >
-                저장
+                {infoLoading ? <CircularProgress size={20} color="inherit" /> : "저장"}
               </Button>
             </Box>
           </Box>
@@ -428,8 +507,13 @@ export default function MyPage() {
                 </Paper>
               </Box>
             )}
-            <Button variant="contained" fullWidth onClick={() => showToast("우선순위가 저장되었습니다")}>
-              저장
+            <Button
+              variant="contained"
+              fullWidth
+              onClick={handleSavePriorities}
+              disabled={priorityLoading}
+            >
+              {priorityLoading ? <CircularProgress size={20} color="inherit" /> : "저장"}
             </Button>
           </Box>
         )}
@@ -510,15 +594,20 @@ export default function MyPage() {
                 <FormControl>
                   <FormLabel sx={{ fontSize: 14, fontWeight: 600 }}>알림 주기</FormLabel>
                   <RadioGroup value={notifFreq} onChange={(e) => setNotifFreq(e.target.value)}>
-                    <FormControlLabel value="daily" control={<Radio size="small" />} label="매일 오전 8시" />
-                    <FormControlLabel value="weekly" control={<Radio size="small" />} label="주 1회 (월요일 오전 8시)" />
+                    <FormControlLabel value="DAILY" control={<Radio size="small" />} label="매일 오전 8시" />
+                    <FormControlLabel value="WEEKLY" control={<Radio size="small" />} label="주 1회 (월요일 오전 8시)" />
                   </RadioGroup>
                 </FormControl>
-                <Button variant="contained" fullWidth onClick={() => showToast("알림 설정이 저장되었습니다")}>
-                  저장
-                </Button>
               </>
             )}
+            <Button
+              variant="contained"
+              fullWidth
+              onClick={handleSaveNotif}
+              disabled={notifLoading}
+            >
+              {notifLoading ? <CircularProgress size={20} color="inherit" /> : "저장"}
+            </Button>
             <Typography variant="caption" color="text.secondary">
               * 수신 거부는 발송된 이메일 하단 링크로 가능합니다
             </Typography>
