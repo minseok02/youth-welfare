@@ -1,7 +1,36 @@
 # 배포 가이드
 
 현재 백엔드는 Docker Compose 기준으로 `app + db + redis` 3개 컨테이너를 사용한다.
-운영 서버는 EC2 `t4g.large`(ARM) 기준으로 정리한다.
+운영 서버는 EC2 ARM 인스턴스 기준으로 정리하며, 현재 Compose 3컨테이너 동시 운영 기준 권장 최소 사양은 `t4g.medium`(2vCPU, 4GB RAM)이다.
+
+## 0. 권장 사양과 실측 근거
+
+2026-04-25 로컬 Docker 실측 기준:
+
+- 대상 구성: `app + db + redis`
+- `idle`
+  - `app` 약 `765.6MiB`
+  - `db` 약 `392.9MiB`
+  - `redis` 약 `7.4MiB`
+- 공개 조회 API 부하 후
+  - `app` 약 `1.05GiB`
+  - `db` 약 `452MiB`
+- `POST /api/admin/collect/all` 실행 중
+  - `app` 약 `1.12 ~ 1.126GiB`
+  - `db` 약 `475 ~ 498MiB`
+
+앱 프로세스(`youth-welfare-app`) 관측값:
+
+- `idle` RSS 약 `695MB`, `VmHWM` 약 `707MB`
+- 조회 부하 후 RSS 약 `1.08GB`, `VmHWM` 약 `1.11GB`
+- 수집 배치 중 RSS 약 `1.15GB`, `VmHWM` 약 `1.18GB`
+
+해석:
+
+- 현재처럼 `app + db + redis`를 같은 호스트에 두면 총 메모리 사용량이 이미 `1.6GiB` 안팎까지 올라간다.
+- 여기에 OS, Docker 오버헤드까지 포함하면 `t4g.small`(2GB)는 운영 여유가 부족하다.
+- 발표/데모, 수집 배치, 추천 기능을 함께 고려하면 `t4g.medium` 이상을 권장한다.
+- DB를 RDS로 분리한 `app-only` 구조라면 그때 `t4g.small`을 별도로 재검토할 수 있다.
 
 ## 1. 사전 준비
 
@@ -30,6 +59,7 @@ docker compose -f docker-compose.yml up -d --build app
 - 앱 컨테이너는 내부에서 `db`, `redis` 서비스 이름으로 접속한다.
 - 외부 노출 포트는 `8082 -> 8080`이다.
 - DB 신규 초기화는 `backend/src/main/resources/db/schema.sql`로 처리된다.
+- Compose 3컨테이너를 한 서버에서 함께 돌릴 때는 `t4g.medium` 이상을 권장한다.
 
 ## 3. 기존 DB 업그레이드
 
@@ -101,3 +131,4 @@ sudo systemctl reload nginx
 - 기존 운영 DB는 배포 전에 마이그레이션 SQL을 선적용해야 함
 - Gmail 앱 비밀번호 미설정 시 알림 발송은 실패함
 - Nginx 설정의 도메인/인증서 경로는 실제 운영 도메인에 맞게 수정해야 함
+- 현재 Compose 구성(`app + db + redis`)을 한 EC2에 함께 올릴 경우 `t4g.small`은 비권장
