@@ -55,7 +55,7 @@ public class UserService {
         List<UserRecommendation> bookmarks = userRecommendationRepository.findLatestBookmarkedByUserId(userId);
         return bookmarks.stream()
                 .map(UserRecommendation::getService)
-                .map(PolicySummaryResponse::from)
+                .map(service -> PolicySummaryResponse.from(service, true))
                 .toList();
     }
 

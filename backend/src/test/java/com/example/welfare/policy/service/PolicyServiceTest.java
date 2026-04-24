@@ -2,6 +2,7 @@ package com.example.welfare.policy.service;
 
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
+import com.example.welfare.policy.dto.PolicySummaryResponse;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.repository.ServiceRegionRepository;
 import com.example.welfare.policy.repository.ServiceTagRepository;
@@ -76,6 +77,7 @@ class PolicyServiceTest {
         )).willReturn(page);
 
         Page<?> result = policyService.getList(
+                null,
                 "HOUSING",
                 "YOUTH",
                 "ACTIVE",
@@ -100,6 +102,47 @@ class PolicyServiceTest {
                 captor.capture()
         );
         assertEquals("viewCount: DESC", captor.getValue().getSort().getOrderFor("viewCount").toString());
+    }
+
+    @Test
+    @DisplayName("정책 목록 조회는 로그인 사용자의 최신 북마크 상태를 응답에 포함한다")
+    void getListIncludesBookmarkState() {
+        WelfareService service = WelfareService.builder()
+                .id(11L)
+                .sourceType(WelfareService.SourceType.YOUTH)
+                .sourceId("SRC-11")
+                .title("청년 월세 지원")
+                .status(WelfareService.ServiceStatus.ACTIVE)
+                .build();
+        Page<WelfareService> page = new PageImpl<>(List.of(service));
+
+        given(welfareServiceRepository.findListWithFilters(
+                eq(null),
+                eq(null),
+                eq(null),
+                eq(false),
+                eq(null),
+                eq(null),
+                eq(null),
+                any(PageRequest.class)
+        )).willReturn(page);
+        given(userRecommendationRepository.findLatestBookmarkedServiceIds(7L, List.of(11L)))
+                .willReturn(List.of(11L));
+
+        Page<PolicySummaryResponse> result = policyService.getList(
+                7L,
+                null,
+                null,
+                null,
+                false,
+                null,
+                null,
+                null,
+                null,
+                PageRequest.of(0, 20)
+        );
+
+        assertTrue(result.getContent().get(0).isBookmarked());
     }
 
     @Test

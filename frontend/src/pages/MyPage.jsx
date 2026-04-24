@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   Box, Container, Typography, Tabs, Tab, TextField, Button,
@@ -12,6 +12,7 @@ import CloseIcon from "@mui/icons-material/Close";
 import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
 import BookmarkIcon from "@mui/icons-material/Bookmark";
 import Header from "../components/Header";
+import api from "../lib/axios";
 import { useAuthStore } from "../store/authStore";
 
 const INCOME_ROWS = [
@@ -57,13 +58,28 @@ const DISTRICT_MAP = {
   "제주": ["서귀포시", "제주시"],
 };
 
-// 임시: 더미 북마크 데이터 — 실제 데이터 연동 시 삭제
-const DUMMY_BOOKMARKS = [
-  { id: 1, title: "청년 전세자금 대출 지원", category: "주거", dday: "D-12", source: "국토교통부" },
-  { id: 2, title: "청년 취업지원 프로그램", category: "일자리", dday: "D-30", source: "고용노동부" },
-  { id: 3, title: "청년문화누리카드", category: "문화·여가", dday: "D-60", source: "문화체육관광부" },
-];
-// 임시 끝
+const formatDday = (dateText, status) => {
+  if (status === "CLOSED") return "종료";
+  if (!dateText) return "상시";
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const endDate = new Date(`${dateText}T00:00:00`);
+  if (Number.isNaN(endDate.getTime())) return "상시";
+
+  const diff = Math.ceil((endDate - today) / 86400000);
+  if (diff < 0) return "종료";
+  if (diff === 0) return "D-Day";
+  return `D-${diff}`;
+};
+
+const mapBookmark = (policy) => ({
+  id: policy.id,
+  title: policy.title,
+  category: policy.unifiedCategory || "기타",
+  dday: formatDday(policy.applyEndDate, policy.status),
+  source: policy.hostOrg || policy.applyMethodName || "출처 정보 없음",
+});
 
 export default function MyPage() {
   const navigate = useNavigate();
@@ -71,11 +87,37 @@ export default function MyPage() {
   const { isLoggedIn, user, logout, filterSettings, setFilterSettings } = useAuthStore();
   const [tabValue, setTabValue] = useState(parseInt(searchParams.get("tab") ?? "0"));
   const [toast, setToast] = useState({ open: false, msg: "", severity: "success" });
-  const showToast = (msg, severity = "success") => setToast({ open: true, msg, severity });
+  const showToast = useCallback((msg, severity = "success") => {
+    setToast({ open: true, msg, severity });
+  }, []);
 
   useEffect(() => {
     if (!isLoggedIn) navigate("/login");
   }, [isLoggedIn, navigate]);
+
+  useEffect(() => {
+    if (!isLoggedIn) return;
+
+    const controller = new AbortController();
+
+    const fetchBookmarks = async () => {
+      setBookmarkLoading(true);
+      try {
+        const { data } = await api.get("/api/users/me/bookmarks", {
+          signal: controller.signal,
+        });
+        setBookmarks((data.data ?? []).map(mapBookmark));
+      } catch (error) {
+        if (error.name === "CanceledError" || error.code === "ERR_CANCELED") return;
+        showToast("북마크 목록을 불러오지 못했습니다", "error");
+      } finally {
+        if (!controller.signal.aborted) setBookmarkLoading(false);
+      }
+    };
+
+    fetchBookmarks();
+    return () => controller.abort();
+  }, [isLoggedIn, showToast]);
 
   // 완성도 계산용
   const [myInfo, setMyInfo] = useState({
@@ -95,7 +137,8 @@ export default function MyPage() {
   const [dragIdx, setDragIdx] = useState(null);
 
   // 북마크
-  const [bookmarks, setBookmarks] = useState(DUMMY_BOOKMARKS); // 임시: 실제 데이터 연동 시 API 응답으로 교체 후 삭제
+  const [bookmarks, setBookmarks] = useState([]);
+  const [bookmarkLoading, setBookmarkLoading] = useState(false);
 
   // 알림
   const [notifOn, setNotifOn] = useState(false);
@@ -153,7 +196,9 @@ export default function MyPage() {
   };
 
   const ddayColor = (dday) => {
+    if (dday === "종료") return "default";
     if (dday === "상시") return "success";
+    if (dday === "D-Day") return "error";
     const n = parseInt(dday.replace("D-", ""));
     return n <= 14 ? "error" : "primary";
   };
@@ -398,7 +443,11 @@ export default function MyPage() {
             <Typography variant="subtitle1" fontWeight={700} mb={2}>
               북마크한 정책 ({bookmarks.length}건)
             </Typography>
-            {bookmarks.length > 0 ? (
+            {bookmarkLoading ? (
+              <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
+                <CircularProgress />
+              </Box>
+            ) : bookmarks.length > 0 ? (
               <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
                 {bookmarks.map((p) => (
                   <Card
@@ -415,7 +464,15 @@ export default function MyPage() {
                         size="small"
                         variant="outlined"
                         color="warning"
-                        onClick={(e) => { e.stopPropagation(); setBookmarks(bookmarks.filter((b) => b.id !== p.id)); }}
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          try {
+                            await api.post(`/api/policies/${p.id}/bookmark`);
+                            setBookmarks((prev) => prev.filter((b) => b.id !== p.id));
+                          } catch {
+                            showToast("북마크 해제에 실패했습니다", "error");
+                          }
+                        }}
                         sx={{ fontSize: 11, minWidth: 60 }}
                       >
                         해제

@@ -92,11 +92,12 @@ class RecommendationPolicyFlowWebMvcTest {
                 .minAge(19)
                 .maxAge(34)
                 .isOnlineApply(true)
+                .bookmarked(true)
                 .build();
 
         given(recommendationFacade.recommend(isNull())).willReturn(List.of(recommendation));
         given(policyRankingService.getRanking(5)).willReturn(List.of(ranking));
-        given(policySearchService.search("월세", "ACTIVE", "HOUSING", "YOUTH", true, null, null, "RELEVANCE", 0, 10))
+        given(policySearchService.search(isNull(), eq("월세"), eq("ACTIVE"), eq("HOUSING"), eq("YOUTH"), eq(true), isNull(), isNull(), eq("RELEVANCE"), eq(0), eq(10)))
                 .willReturn(List.of(searchHit));
 
         mockMvc.perform(post("/api/recommendations/refresh")
@@ -126,11 +127,12 @@ class RecommendationPolicyFlowWebMvcTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data[0].id").value(11))
-                .andExpect(jsonPath("$.data[0].title").value("청년 월세 지원"));
+                .andExpect(jsonPath("$.data[0].title").value("청년 월세 지원"))
+                .andExpect(jsonPath("$.data[0].bookmarked").value(true));
 
         verify(recommendationFacade).recommend(isNull());
         verify(policyRankingService).getRanking(5);
-        verify(policySearchService).search("월세", "ACTIVE", "HOUSING", "YOUTH", true, null, null, "RELEVANCE", 0, 10);
+        verify(policySearchService).search(isNull(), eq("월세"), eq("ACTIVE"), eq("HOUSING"), eq("YOUTH"), eq(true), isNull(), isNull(), eq("RELEVANCE"), eq(0), eq(10));
     }
 
     @Test
@@ -144,7 +146,7 @@ class RecommendationPolicyFlowWebMvcTest {
                 .build();
         given(policyViewLogService.buildClientFingerprint(org.mockito.ArgumentMatchers.any())).willReturn("fp");
         given(policyViewLogService.registerViewIfFirstInWindow(eq(11L), isNull(), eq("fp"))).willReturn(true);
-        given(policyService.getDetail(11L, true)).willReturn(detail);
+        given(policyService.getDetail(isNull(), eq(11L), eq(true))).willReturn(detail);
 
         mockMvc.perform(get("/api/policies/{id}", 11L)
                         .param("logId", "9001"))
@@ -153,7 +155,7 @@ class RecommendationPolicyFlowWebMvcTest {
                 .andExpect(jsonPath("$.data.id").value(11))
                 .andExpect(jsonPath("$.data.title").value("청년 월세 지원"));
 
-        verify(policyService).getDetail(eq(11L), eq(true));
+        verify(policyService).getDetail(isNull(), eq(11L), eq(true));
         verify(recommendationLogService).markClicked(9001L);
     }
 

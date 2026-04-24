@@ -4,6 +4,7 @@ import com.example.welfare.policy.entity.ServiceTag;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.repository.ServiceTagRepository;
 import com.example.welfare.policy.repository.WelfareServiceRepository;
+import com.example.welfare.recommend.repository.UserRecommendationRepository;
 import com.example.welfare.recommend.service.YouthPolicyFilter;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -29,6 +30,9 @@ class PolicySearchServiceTest {
     private ServiceTagRepository serviceTagRepository;
 
     @Mock
+    private UserRecommendationRepository userRecommendationRepository;
+
+    @Mock
     private YouthPolicyFilter youthPolicyFilter;
 
     @Test
@@ -37,6 +41,7 @@ class PolicySearchServiceTest {
         PolicySearchService service = new PolicySearchService(
                 welfareServiceRepository,
                 serviceTagRepository,
+                userRecommendationRepository,
                 youthPolicyFilter
         );
 
@@ -59,7 +64,7 @@ class PolicySearchServiceTest {
         when(youthPolicyFilter.isYouthRelevant(youthService, List.of())).thenReturn(true);
         when(youthPolicyFilter.isYouthRelevant(genericService, List.of())).thenReturn(false);
 
-        List<?> results = service.search("청년", null, null, null, null, null, null, null, 0, 10);
+        List<?> results = service.search(null, "청년", null, null, null, null, null, null, null, 0, 10);
 
         assertThat(results).hasSize(1);
     }

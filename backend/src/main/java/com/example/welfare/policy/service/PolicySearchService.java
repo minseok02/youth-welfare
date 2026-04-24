@@ -7,14 +7,17 @@ import com.example.welfare.policy.entity.ServiceTag;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.repository.ServiceTagRepository;
 import com.example.welfare.policy.repository.WelfareServiceRepository;
+import com.example.welfare.recommend.repository.UserRecommendationRepository;
 import com.example.welfare.recommend.service.YouthPolicyFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashSet;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -26,15 +29,17 @@ public class PolicySearchService {
 
     private final WelfareServiceRepository welfareServiceRepository;
     private final ServiceTagRepository serviceTagRepository;
+    private final UserRecommendationRepository userRecommendationRepository;
     private final YouthPolicyFilter youthPolicyFilter;
 
     @Transactional(readOnly = true)
-    public List<PolicySummaryResponse> search(String keyword, int page) {
-        return search(keyword, null, null, null, null, null, null, null, page, DEFAULT_SEARCH_LIMIT);
+    public List<PolicySummaryResponse> search(Long userId, String keyword, int page) {
+        return search(userId, keyword, null, null, null, null, null, null, null, page, DEFAULT_SEARCH_LIMIT);
     }
 
     @Transactional(readOnly = true)
-    public List<PolicySummaryResponse> search(String keyword,
+    public List<PolicySummaryResponse> search(Long userId,
+                                              String keyword,
                                               String status,
                                               String category,
                                               String sourceType,
@@ -69,8 +74,14 @@ public class PolicySearchService {
                 limit,
                 offset);
 
-        return filterYouthRelevant(results).stream()
-                .map(PolicySummaryResponse::from)
+        List<WelfareService> filteredResults = filterYouthRelevant(results);
+        Set<Long> bookmarkedServiceIds = getBookmarkedServiceIds(userId, filteredResults);
+
+        return filteredResults.stream()
+                .map(service -> PolicySummaryResponse.from(
+                        service,
+                        bookmarkedServiceIds.contains(service.getId())
+                ))
                 .collect(Collectors.toList());
     }
 
@@ -92,6 +103,18 @@ public class PolicySearchService {
                         tagsByServiceId.getOrDefault(service.getId(), Collections.emptyList())
                 ))
                 .toList();
+    }
+
+    private Set<Long> getBookmarkedServiceIds(Long userId, List<WelfareService> services) {
+        if (userId == null || services.isEmpty()) {
+            return Collections.emptySet();
+        }
+
+        List<Long> serviceIds = services.stream()
+                .map(WelfareService::getId)
+                .toList();
+
+        return new HashSet<>(userRecommendationRepository.findLatestBookmarkedServiceIds(userId, serviceIds));
     }
 
     // Boolean Mode 검색어 구성: 공백 분리 후 각 단어에 + 접두사

@@ -35,6 +35,7 @@ public class PolicyController {
     // 정책 목록 조회 (카테고리 필터, 페이징)
     @GetMapping
     public ResponseEntity<ApiResponse<Page<PolicySummaryResponse>>> getList(
+            @AuthenticationPrincipal Long userId,
             @RequestParam(required = false) String category,
             @RequestParam(required = false) String sourceType,
             @RequestParam(required = false) String status,
@@ -45,7 +46,7 @@ public class PolicyController {
             @RequestParam(required = false) String sort,
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
         return ResponseEntity.ok(ApiResponse.success(
-                policyService.getList(category, sourceType, status, includeClosed, sido, sgg, onlineApply, sort, pageable)
+                policyService.getList(userId, category, sourceType, status, includeClosed, sido, sgg, onlineApply, sort, pageable)
         ));
     }
 
@@ -61,12 +62,13 @@ public class PolicyController {
         }
         String clientFingerprint = policyViewLogService.buildClientFingerprint(request);
         boolean increaseViewCount = policyViewLogService.registerViewIfFirstInWindow(id, userId, clientFingerprint);
-        return ResponseEntity.ok(ApiResponse.success(policyService.getDetail(id, increaseViewCount)));
+        return ResponseEntity.ok(ApiResponse.success(policyService.getDetail(userId, id, increaseViewCount)));
     }
 
     // 정책 검색 (FULLTEXT)
     @GetMapping("/search")
     public ResponseEntity<ApiResponse<List<PolicySummaryResponse>>> search(
+            @AuthenticationPrincipal Long userId,
             @RequestParam String keyword,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String category,
@@ -78,7 +80,7 @@ public class PolicyController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         return ResponseEntity.ok(ApiResponse.success(
-                policySearchService.search(keyword.trim(), status, category, sourceType, onlineApply, sido, sgg, sort, page, size)
+                policySearchService.search(userId, keyword.trim(), status, category, sourceType, onlineApply, sido, sgg, sort, page, size)
         ));
     }
 

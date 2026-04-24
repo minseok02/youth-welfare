@@ -100,7 +100,7 @@ const mapPolicySummary = (policy) => ({
   dday: formatDday(policy.applyEndDate, policy.status),
   source: policy.hostOrg || policy.applyMethodName || statusLabel(policy.status),
   summary: policy.description || "정책 설명 정보가 없습니다.",
-  bookmarked: false,
+  bookmarked: Boolean(policy.bookmarked),
 });
 
 const mapRecommendation = (rec) => ({
@@ -136,10 +136,16 @@ export default function MainPage() {
   const [policies, setPolicies] = useState([]);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [refreshingRecommendations, setRefreshingRecommendations] = useState(false);
   const [toast, setToast] = useState({ open: false, msg: "", severity: "info" });
 
   const showToast = useCallback((msg, severity = "info") => {
     setToast({ open: true, msg, severity });
+  }, []);
+
+  const applyRecommendations = useCallback((items) => {
+    setPolicies((items ?? []).map(mapRecommendation));
+    setTotalPages(1);
   }, []);
 
   useEffect(() => {
@@ -153,8 +159,7 @@ export default function MainPage() {
             params: { size: pageSize },
             signal: controller.signal,
           });
-          setPolicies((data.data ?? []).map(mapRecommendation));
-          setTotalPages(1);
+          applyRecommendations(data.data);
           return;
         }
 
@@ -203,7 +208,7 @@ export default function MainPage() {
 
     fetchPolicies();
     return () => controller.abort();
-  }, [includeExpired, isLoggedIn, isRecommendMode, page, pageSize, region, search, selectedCat, showToast, sort, subRegion]);
+  }, [applyRecommendations, includeExpired, isLoggedIn, isRecommendMode, page, pageSize, region, search, selectedCat, showToast, sort, subRegion]);
 
   const handleBookmark = async (policy, e) => {
     e.stopPropagation();
@@ -233,6 +238,30 @@ export default function MainPage() {
     }
     setIsRecommendMode(true);
     setSelectedCat("");
+  };
+
+  const handleRefreshRecommendations = async () => {
+    if (!isLoggedIn) {
+      showToast("로그인 후 이용 가능해요");
+      return;
+    }
+    if (!user?.hasPriorities) {
+      showToast("마이페이지에서 우선순위를 먼저 설정해주세요");
+      return;
+    }
+
+    setRefreshingRecommendations(true);
+    try {
+      const { data } = await api.post("/api/recommendations/refresh");
+      applyRecommendations(data.data);
+      setIsRecommendMode(true);
+      setSelectedCat("");
+      showToast("추천을 새로 불러왔습니다", "success");
+    } catch {
+      showToast("추천 갱신에 실패했습니다", "error");
+    } finally {
+      setRefreshingRecommendations(false);
+    }
   };
 
   const handleCategorySelect = (val) => {
@@ -516,10 +545,29 @@ export default function MainPage() {
 
         {/* 추천 모드 헤더 */}
         {isLoggedIn && isRecommendMode && (
-          <Typography variant="subtitle1" fontWeight={700} color="primary" mb={2} sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-            <StarIcon fontSize="small" />
-            {user?.name}님의 맞춤 정책이에요
-          </Typography>
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: { xs: "flex-start", sm: "center" },
+              gap: 1,
+              mb: 2,
+              flexWrap: "wrap",
+            }}
+          >
+            <Typography variant="subtitle1" fontWeight={700} color="primary" sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+              <StarIcon fontSize="small" />
+              {user?.name}님의 맞춤 정책이에요
+            </Typography>
+            <Button
+              size="small"
+              variant="outlined"
+              onClick={handleRefreshRecommendations}
+              disabled={refreshingRecommendations}
+            >
+              {refreshingRecommendations ? "추천 갱신 중..." : "추천 새로고침"}
+            </Button>
+          </Box>
         )}
 
         {/* 카드 그리드 */}

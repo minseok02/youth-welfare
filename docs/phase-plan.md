@@ -7,6 +7,11 @@
 
 백엔드 1차 핵심 기능은 구현 완료 상태입니다.
 프론트 메인 페이지는 더미 데이터를 제거하고 정책 목록/검색/저장 추천/북마크 API를 사용하도록 1차 연결했습니다.
+정책 상세 페이지도 실제 상세 API와 북마크 토글 API를 사용하도록 연결했습니다.
+정책 목록 페이지도 실제 목록/검색/북마크 API를 사용하도록 연결했습니다.
+메인 페이지 추천 모드에서는 추천 refresh API로 수동 재추천을 실행할 수 있습니다.
+마이페이지 북마크 탭은 사용자 북마크 목록 API를 사용합니다.
+정책 목록/검색/상세 응답은 로그인 사용자의 초기 북마크 상태를 함께 반환하도록 보완했습니다.
 통합 테스트는 MySQL/Redis 컨테이너 상태에서 실행 완료했습니다.
 남은 1차 작업은 나머지 프론트 화면 API 연동, 실서버 배포/HTTPS 적용, 데모 시나리오 실행입니다.
 
@@ -62,6 +67,23 @@
   - `RUN_SMTP_SMOKE=true ./gradlew test --tests com.example.welfare.notification.gateway.GmailSmtpSmokeTest --no-daemon --rerun-tasks`
   - 지정 수신자 대상으로 테스트 메일 1건 발송 성공
 - 2026-04-24 Gmail SMTP smoke test 추가 후 `backend`에서 `./gradlew test --no-daemon`
+- 2026-04-24 정책 상세 페이지 API 연동 후 `frontend`에서 `npm run lint`
+- 2026-04-24 정책 상세 페이지 API 연동 후 `frontend`에서 `npm run build`
+  - Vite 번들 크기 경고 발생. 빌드는 성공했으며 기능 실패는 아님.
+- 2026-04-24 정책 목록 페이지 API 연동 후 `frontend`에서 `npm run lint`
+- 2026-04-24 정책 목록 페이지 API 연동 후 `frontend`에서 `npm run build`
+  - Vite 번들 크기 경고 발생. 빌드는 성공했으며 기능 실패는 아님.
+- 2026-04-24 추천 refresh API 연동 후 `frontend`에서 `npm run lint`
+- 2026-04-24 추천 refresh API 연동 후 `frontend`에서 `npm run build`
+  - Vite 번들 크기 경고 발생. 빌드는 성공했으며 기능 실패는 아님.
+- 2026-04-24 마이페이지 북마크 목록 API 연동 후 `frontend`에서 `npm run lint`
+- 2026-04-24 마이페이지 북마크 목록 API 연동 후 `frontend`에서 `npm run build`
+  - Vite 번들 크기 경고 발생. 빌드는 성공했으며 기능 실패는 아님.
+- 2026-04-24 정책 목록/검색/상세 초기 북마크 상태 계약 보완 후 `backend`에서 `./gradlew test --no-daemon`
+- 2026-04-24 정책 목록/검색/상세 초기 북마크 상태 계약 보완 후 `backend`에서 `./gradlew integrationTest --no-daemon`
+- 2026-04-24 정책 목록/검색/상세 초기 북마크 상태 계약 보완 후 `frontend`에서 `npm run lint`
+- 2026-04-24 정책 목록/검색/상세 초기 북마크 상태 계약 보완 후 `frontend`에서 `npm run build`
+  - Vite 번들 크기 경고 발생. 빌드는 성공했으며 기능 실패는 아님.
 
 ## 작업 추적
 
@@ -71,11 +93,8 @@
 
 ### 진행 예정
 
-- [ ] 정책 목록 페이지 더미 데이터 제거 및 API 연결
-- [ ] 정책 상세 API 연결
-- [ ] 추천 refresh API 연결
 - [ ] 정책 검색 API의 총건수/종료 포함 여부 계약 보완
-- [ ] 마이페이지 북마크 목록 API 연결
+- [ ] 정책 검색 totalCount 계산 시 청년 후처리 필터 반영 방식 정리
 - [ ] 아이디/비밀번호 찾기, 이메일 중복확인 처리 방향 확정
 - [ ] 운영 서버 Docker Compose 기동
 - [ ] HTTPS/Nginx 적용
@@ -101,6 +120,11 @@
 - [x] `api_sync_logs` 기록 확인
 - [x] 실제 공공 API key로 수집 smoke test
 - [x] Gmail SMTP 실제 발송 smoke test
+- [x] 정책 상세 API 연결
+- [x] 정책 목록 페이지 더미 데이터 제거 및 API 연결
+- [x] 추천 refresh API 연결
+- [x] 마이페이지 북마크 목록 API 연결
+- [x] 정책 목록/상세 초기 북마크 상태 조회 계약 보완
 
 ## 통합 테스트 실행 방법
 
@@ -123,12 +147,9 @@ cd backend
 
 ### 프론트 실제 연동
 
-- 정책 목록 페이지 더미 데이터 제거 및 API 연결
-- 정책 상세 API 연결
-- 추천 refresh API 연결
-- 마이페이지 북마크 목록 API 연결
 - 아이디/비밀번호 찾기, 이메일 중복확인 처리 방향 확정
 - 정책 검색 API의 총건수/종료 포함 여부 계약 보완
+- 정책 검색 totalCount 계산 시 청년 후처리 필터 반영 방식 정리
 
 ### 배포/데모
 

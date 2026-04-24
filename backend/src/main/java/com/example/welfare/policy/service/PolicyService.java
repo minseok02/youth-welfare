@@ -25,8 +25,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
-import java.util.stream.Collectors;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -42,7 +44,8 @@ public class PolicyService {
     private final UserRepository userRepository;
 
     @Transactional(readOnly = true)
-    public Page<PolicySummaryResponse> getList(String category,
+    public Page<PolicySummaryResponse> getList(Long userId,
+                                               String category,
                                                String sourceType,
                                                String status,
                                                Boolean includeClosed,
@@ -62,11 +65,15 @@ public class PolicyService {
                 buildPageable(pageable, sort)
         );
 
-        return page.map(PolicySummaryResponse::from);
+        Set<Long> bookmarkedServiceIds = getBookmarkedServiceIds(userId, page.getContent());
+        return page.map(service -> PolicySummaryResponse.from(
+                service,
+                bookmarkedServiceIds.contains(service.getId())
+        ));
     }
 
     @Transactional
-    public PolicyDetailResponse getDetail(Long serviceId, boolean increaseViewCount) {
+    public PolicyDetailResponse getDetail(Long userId, Long serviceId, boolean increaseViewCount) {
         WelfareService ws = welfareServiceRepository.findById(serviceId)
                 .orElseThrow(() -> new CustomException(ErrorCode.POLICY_NOT_FOUND));
         if (increaseViewCount) {
@@ -76,8 +83,9 @@ public class PolicyService {
         WelfareServiceDetail detail = detailRepository.findByServiceId(serviceId).orElse(null);
         List<ServiceRegion> regions = regionRepository.findByServiceId(serviceId);
         List<ServiceTag> tags = tagRepository.findByServiceId(serviceId);
+        boolean bookmarked = getBookmarkedServiceIds(userId, List.of(ws)).contains(serviceId);
 
-        return PolicyDetailResponse.of(ws, detail, regions, tags);
+        return PolicyDetailResponse.of(ws, detail, regions, tags, bookmarked);
     }
 
     @Transactional
@@ -105,6 +113,18 @@ public class PolicyService {
                 .recommendedAt(LocalDateTime.now())
                 .build();
         return userRecommendationRepository.save(placeholder);
+    }
+
+    private Set<Long> getBookmarkedServiceIds(Long userId, List<WelfareService> services) {
+        if (userId == null || services.isEmpty()) {
+            return Collections.emptySet();
+        }
+
+        List<Long> serviceIds = services.stream()
+                .map(WelfareService::getId)
+                .toList();
+
+        return new HashSet<>(userRecommendationRepository.findLatestBookmarkedServiceIds(userId, serviceIds));
     }
 
     private Pageable buildPageable(Pageable pageable, String sort) {

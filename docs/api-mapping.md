@@ -204,6 +204,26 @@ public void resetAiScoreForClosed() {
 }
 ```
 
+### `GET /api/policies`
+
+- 응답 형식
+  - Spring Page 형식의 `data.content`, `data.totalElements`, `data.totalPages`
+- `data.content[]` 주요 필드
+  - `id`
+  - `title`
+  - `description`
+  - `unifiedCategory`
+  - `status`
+  - `hostOrg`
+  - `applyMethodName`
+  - `applyStartDate`
+  - `applyEndDate`
+  - `isOnlineApply`
+  - `bookmarked`
+- `bookmarked`
+  - 로그인 사용자면 최신 북마크 상태 기준
+  - 비로그인이면 항상 `false`
+
 ### `GET /api/policies/search`
 
 - 현재 지원 파라미터
@@ -211,6 +231,12 @@ public void resetAiScoreForClosed() {
   - `status`, `category`, `sourceType`, `onlineApply`
   - `sort` = `RELEVANCE|VIEWS|LATEST`
   - `page`, `size`
+- 현재 응답 형식
+  - `List<PolicySummaryResponse>`
+  - 각 항목의 `bookmarked`는 로그인 사용자면 최신 북마크 상태 기준, 비로그인이면 `false`
+- 현재 한계
+  - 검색 API는 아직 `totalElements`, `totalPages`, `hasNext`를 내려주지 않음
+  - 기본 상태는 `ACTIVE`, `UPCOMING` 포함이며 `includeClosed` 별도 파라미터는 없음
 
 ### `GET /api/policies/{id}`
 
@@ -218,3 +244,9 @@ public void resetAiScoreForClosed() {
   - 24시간 dedup 적용
   - 로그인: `(user_id, service_id)` 기준
   - 비로그인: `(client_fingerprint, service_id)` 기준
+- 주요 응답 필드
+  - `id`, `title`, `description`, `unifiedCategory`, `status`, `sourceType`
+  - `hostOrg`, `operatingOrg`, `minAge`, `maxAge`, `minIncome`, `maxIncome`
+  - `supportContent`, `applyMethodName`, `applyStartDate`, `applyEndDate`
+  - `targetDetail`, `supportDetail`, `applyMethodDetail`, `contactList`
+  - `regions`, `tags`, `detailUrl`, `bookmarked`
