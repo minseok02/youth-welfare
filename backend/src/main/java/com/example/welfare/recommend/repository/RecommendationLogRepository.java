@@ -3,6 +3,7 @@ package com.example.welfare.recommend.repository;
 import com.example.welfare.recommend.entity.RecommendationLog;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -26,6 +27,14 @@ public interface RecommendationLogRepository extends JpaRepository<Recommendatio
             WHERE rl.user.id = :userId AND rl.isClicked = true
             """)
     long countClickedByUserId(@Param("userId") Long userId);
+
+    // refresh 전 미클릭 로그 삭제 — 클릭된 로그(is_clicked=true)는 CTR 분석용으로 보존
+    @Modifying
+    @Query("""
+            DELETE FROM RecommendationLog rl
+            WHERE rl.user.id = :userId AND rl.isClicked = false
+            """)
+    void deleteUnclickedByUserId(@Param("userId") Long userId);
 
     // serviceId 목록 기준 사용자의 최신 로그 조회 (logId 매핑용)
     @Query("""

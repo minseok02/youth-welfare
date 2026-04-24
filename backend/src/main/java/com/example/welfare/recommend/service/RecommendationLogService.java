@@ -25,6 +25,15 @@ public class RecommendationLogService {
 
     private final RecommendationLogRepository logRepository;
 
+    // refresh 시점 — 미클릭 이전 로그 제거 후 새 로그 생성
+    @Transactional
+    public List<RecommendationLog> refreshLogs(User user,
+                                                List<UserRecommendation> recommendations,
+                                                ScoreWeight weight) {
+        logRepository.deleteUnclickedByUserId(user.getId());
+        return logNotification(user, recommendations, weight);
+    }
+
     @Transactional
     public List<RecommendationLog> logNotification(User user,
                                                     List<UserRecommendation> recommendations,

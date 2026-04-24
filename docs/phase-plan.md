@@ -171,6 +171,11 @@
 - 2026-04-24 개선 후 실제 Docker 앱에서 추천 refresh 재검증
   - AI 점수 15건/15건 전부 반환 (이전 20건 중 8건 누락 → 개선)
   - `user_recommendations` total=unique=40 (중복 해소)
+- 2026-04-24 추천 품질 2차 점검 후 수정
+  - `backend`에서 `./gradlew test --no-daemon` 통과
+  - final_score 범위 0.000~0.980 → 0.287~0.960 (zero 제거)
+  - 노이즈 정책(병역/농촌/다문화) 추천에서 제거됨
+  - 로그 누적 해소: 24건(미클릭) → refresh 시 정리 후 신규 24건만 유지
 - 2026-04-24 `V2026_04_24_01`, `V2026_04_24_02` migration 적용 확인 후 `backend`에서 `./gradlew integrationTest --no-daemon`
   - `AuthRedisIntegrationTest`, `PolicyBookmarkIntegrationTest`, `RecommendationFlowIntegrationTest` 전체 통과
 - 2026-04-24 Docker 앱 재빌드 후 가상 유저(`testuser@youth-welfare.dev`) end-to-end 검증
@@ -239,6 +244,9 @@
 - [x] AI 프롬프트 system/user 역할 분리 + 전체 평가 필수 명시
 - [x] AI_TOP_N 20→15 조정 (누락 없이 15건 전부 점수 반환 확인)
 - [x] 중복 추천 행 문제 수정 — `deleteAllByUserId`로 교체, 북마크 상태만 새 행에 이전
+- [x] `final_score=0` 문제 수정 — 정규화 하한을 min→0 고정으로 변경
+- [x] 노이즈 정책 컷오프 — `rule_base_score > 8.0` 필터 추가 (병역/농촌/다문화 등 제거)
+- [x] CTR 로그 누적 문제 수정 — refresh 전 미클릭 로그 삭제, 클릭 로그는 보존
 
 ## 통합 테스트 실행 방법
 

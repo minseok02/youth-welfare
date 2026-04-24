@@ -66,6 +66,17 @@ public class RecommendationFacade {
         // ③ Rule 점수
         List<ScoredCandidate> scored = ruleScoringService.score(candidates, user);
 
+        // ③-b 노이즈 컷오프: YouthPolicyFilter 기본 신호만 받은 정책 제거
+        // relevanceBonus 최대값은 15+8=23점 — 그 외 가점(관심분야/대상/마감 등)이 없는 정책은 제외
+        // rule_base_score <= 8 → 청년 신호만 있고 실질 매칭 없음
+        scored = scored.stream()
+                .filter(c -> c.getRuleBaseScore() > 8.0)
+                .collect(java.util.stream.Collectors.toList());
+        if (scored.isEmpty()) {
+            log.info("[RecommendationFacade] 컷오프 후 후보 없음 userId={}", userId);
+            return List.of();
+        }
+
         // ④ AI 점수 (실패 시 null 유지)
         scored = aiScoringService.score(clusterId, scored, user);
 
@@ -76,8 +87,8 @@ public class RecommendationFacade {
         // ⑥ 저장 (recommended_at, rule_weight_used, ai_weight_used 필수)
         List<UserRecommendation> saved = persistenceService.save(user, reranked, weight);
 
-        // ⑦ CTR 추적용 로그 생성 (추천 refresh 시점에도 기록)
-        recommendationLogService.logNotification(user, saved, weight);
+        // ⑦ CTR 추적용 로그 생성 — 미클릭 이전 로그 정리 후 새 로그 기록
+        recommendationLogService.refreshLogs(user, saved, weight);
 
         return saved;
     }
