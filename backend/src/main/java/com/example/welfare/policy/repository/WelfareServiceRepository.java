@@ -124,6 +124,7 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                     ))
                     OR (:status IS NOT NULL AND ws.status = :status)
                   )
+              AND ws.search_youth_relevant = 1
               AND (:category IS NULL OR ws.unified_category = :category)
               AND (:sourceType IS NULL OR ws.source_type = :sourceType)
               AND (:onlineApply IS NULL OR ws.is_online_apply = :onlineApply)
@@ -157,9 +158,33 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                 END DESC,
                 ws.view_count DESC,
                 ws.created_at DESC
-            LIMIT :limit OFFSET :offset
+            """,
+            countQuery = """
+            SELECT COUNT(DISTINCT ws.id) FROM welfare_services ws
+            LEFT JOIN service_regions sr ON sr.service_id = ws.id
+            WHERE (
+                    (:status IS NULL AND (
+                        (:includeClosed = 1 AND ws.status IN ('ACTIVE', 'UPCOMING', 'CLOSED'))
+                        OR (:includeClosed = 0 AND ws.status IN ('ACTIVE', 'UPCOMING'))
+                    ))
+                    OR (:status IS NOT NULL AND ws.status = :status)
+                  )
+              AND ws.search_youth_relevant = 1
+              AND (:category IS NULL OR ws.unified_category = :category)
+              AND (:sourceType IS NULL OR ws.source_type = :sourceType)
+              AND (:onlineApply IS NULL OR ws.is_online_apply = :onlineApply)
+              AND (
+                    :sido IS NULL
+                    OR sr.id IS NULL
+                    OR (
+                        sr.sido_name = :sido
+                        AND (:sgg IS NULL OR sr.sgg_name = :sgg)
+                    )
+                  )
+              AND MATCH(ws.title, ws.description, ws.support_content, ws.keyword)
+                  AGAINST (:keyword IN BOOLEAN MODE)
             """, nativeQuery = true)
-    List<WelfareService> searchByKeywordWithFilters(@Param("keyword") String keyword,
+    Page<WelfareService> searchByKeywordWithFilters(@Param("keyword") String keyword,
                                                     @Param("status") String status,
                                                     @Param("includeClosed") Integer includeClosed,
                                                     @Param("category") String category,
@@ -168,8 +193,7 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                                                     @Param("sido") String sido,
                                                     @Param("sgg") String sgg,
                                                     @Param("sort") String sort,
-                                                    @Param("limit") int limit,
-                                                    @Param("offset") int offset);
+                                                    Pageable pageable);
 
     // 카테고리 필터 조회
     Page<WelfareService> findByUnifiedCategoryAndStatusIn(

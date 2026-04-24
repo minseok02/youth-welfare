@@ -4,22 +4,19 @@ import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.policy.dto.PolicySearchResponse;
 import com.example.welfare.policy.dto.PolicySummaryResponse;
-import com.example.welfare.policy.entity.ServiceTag;
 import com.example.welfare.policy.entity.WelfareService;
-import com.example.welfare.policy.repository.ServiceTagRepository;
 import com.example.welfare.policy.repository.WelfareServiceRepository;
 import com.example.welfare.recommend.repository.UserRecommendationRepository;
-import com.example.welfare.recommend.service.YouthPolicyFilter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -30,15 +27,10 @@ public class PolicySearchService {
 
     private static final int DEFAULT_SEARCH_LIMIT = 20;
     private static final int MAX_SEARCH_LIMIT = 100;
-    private static final int SEARCH_SCAN_BATCH_SIZE = 200;
-    private static final long SEARCH_WARN_DURATION_MS = 300L;
-    private static final int SEARCH_WARN_BATCH_COUNT = 3;
-    private static final int SEARCH_WARN_RAW_SCAN_COUNT = 400;
+    private static final long SEARCH_WARN_DURATION_MS = 500L;
 
     private final WelfareServiceRepository welfareServiceRepository;
-    private final ServiceTagRepository serviceTagRepository;
     private final UserRecommendationRepository userRecommendationRepository;
-    private final YouthPolicyFilter youthPolicyFilter;
 
     @Transactional(readOnly = true)
     public PolicySearchResponse search(Long userId, String keyword, int page) {
@@ -73,69 +65,34 @@ public class PolicySearchService {
         String normalizedSgg = normalizeNullable(sgg);
         Integer onlineApplyFlag = onlineApply == null ? null : (onlineApply ? 1 : 0);
         String normalizedSort = normalizeSort(sort);
+        Page<WelfareService> resultPage = welfareServiceRepository.searchByKeywordWithFilters(
+                ftKeyword,
+                normalizedStatus,
+                normalizedIncludeClosed,
+                normalizedCategory,
+                normalizedSourceType,
+                onlineApplyFlag,
+                normalizedSido,
+                normalizedSgg,
+                normalizedSort,
+                PageRequest.of(pageNumber, limit)
+        );
 
-        int startIndex = pageNumber * limit;
-        int endExclusive = startIndex + limit;
-        int offset = 0;
-        long totalFilteredCount = 0L;
-        long totalRawScannedCount = 0L;
-        int scanBatchCount = 0;
-        List<WelfareService> pageServices = new ArrayList<>();
-
-        while (true) {
-            scanBatchCount++;
-            List<WelfareService> results = welfareServiceRepository.searchByKeywordWithFilters(
-                    ftKeyword,
-                    normalizedStatus,
-                    normalizedIncludeClosed,
-                    normalizedCategory,
-                    normalizedSourceType,
-                    onlineApplyFlag,
-                    normalizedSido,
-                    normalizedSgg,
-                    normalizedSort,
-                    SEARCH_SCAN_BATCH_SIZE,
-                    offset);
-
-            if (results.isEmpty()) {
-                break;
-            }
-
-            totalRawScannedCount += results.size();
-
-            List<WelfareService> filteredResults = filterYouthRelevant(results);
-            for (WelfareService service : filteredResults) {
-                if (totalFilteredCount >= startIndex && totalFilteredCount < endExclusive) {
-                    pageServices.add(service);
-                }
-                totalFilteredCount++;
-            }
-
-            if (results.size() < SEARCH_SCAN_BATCH_SIZE) {
-                break;
-            }
-            offset += SEARCH_SCAN_BATCH_SIZE;
-        }
-
-        Set<Long> bookmarkedServiceIds = getBookmarkedServiceIds(userId, pageServices);
-        List<PolicySummaryResponse> content = pageServices.stream()
+        Set<Long> bookmarkedServiceIds = getBookmarkedServiceIds(userId, resultPage.getContent());
+        List<PolicySummaryResponse> content = resultPage.getContent().stream()
                 .map(service -> PolicySummaryResponse.from(
                         service,
                         bookmarkedServiceIds.contains(service.getId())
                 ))
                 .collect(Collectors.toList());
 
-        int totalPages = totalFilteredCount == 0
-                ? 0
-                : (int) Math.ceil((double) totalFilteredCount / limit);
-
         PolicySearchResponse response = PolicySearchResponse.builder()
                 .content(content)
-                .totalElements(totalFilteredCount)
-                .totalPages(totalPages)
+                .totalElements(resultPage.getTotalElements())
+                .totalPages(resultPage.getTotalPages())
                 .pageNumber(pageNumber)
                 .pageSize(limit)
-                .hasNext(pageNumber + 1 < totalPages)
+                .hasNext(resultPage.hasNext())
                 .build();
 
         logSearchObservation(
@@ -146,9 +103,6 @@ public class PolicySearchService {
                 normalizedCategory,
                 normalizedSourceType,
                 normalizedSort,
-                totalRawScannedCount,
-                totalFilteredCount,
-                scanBatchCount,
                 System.nanoTime() - startedAt
         );
         return response;
@@ -161,22 +115,15 @@ public class PolicySearchService {
                                       String category,
                                       String sourceType,
                                       String sort,
-                                      long totalRawScannedCount,
-                                      long totalFilteredCount,
-                                      int scanBatchCount,
                                       long elapsedNanos) {
         long elapsedMs = elapsedNanos / 1_000_000L;
         int keywordTokenCount = keyword.trim().isEmpty() ? 0 : keyword.trim().split("\\s+").length;
-        boolean warn = elapsedMs >= SEARCH_WARN_DURATION_MS
-                || scanBatchCount >= SEARCH_WARN_BATCH_COUNT
-                || totalRawScannedCount >= SEARCH_WARN_RAW_SCAN_COUNT;
+        boolean warn = elapsedMs >= SEARCH_WARN_DURATION_MS;
 
         if (warn) {
-            log.warn("[PolicySearchService] 검색 비용 경고 elapsedMs={} rawScanned={} filtered={} batches={} page={} size={} hasNext={} includeClosed={} status={} category={} sourceType={} sort={} keywordTokens={}",
+            log.warn("[PolicySearchService] 검색 응답 경고 elapsedMs={} total={} page={} size={} hasNext={} includeClosed={} status={} category={} sourceType={} sort={} keywordTokens={}",
                     elapsedMs,
-                    totalRawScannedCount,
-                    totalFilteredCount,
-                    scanBatchCount,
+                    response.getTotalElements(),
                     response.getPageNumber(),
                     response.getPageSize(),
                     response.isHasNext(),
@@ -189,12 +136,10 @@ public class PolicySearchService {
             return;
         }
 
-        if (scanBatchCount > 1 || totalRawScannedCount > response.getPageSize()) {
-            log.info("[PolicySearchService] 검색 스캔 관측 elapsedMs={} rawScanned={} filtered={} batches={} page={} size={} hasNext={} includeClosed={} status={} category={} sourceType={} sort={} keywordTokens={}",
+        if (elapsedMs >= 150L || response.getTotalElements() >= 500) {
+            log.info("[PolicySearchService] 검색 응답 관측 elapsedMs={} total={} page={} size={} hasNext={} includeClosed={} status={} category={} sourceType={} sort={} keywordTokens={}",
                     elapsedMs,
-                    totalRawScannedCount,
-                    totalFilteredCount,
-                    scanBatchCount,
+                    response.getTotalElements(),
                     response.getPageNumber(),
                     response.getPageSize(),
                     response.isHasNext(),
@@ -205,26 +150,6 @@ public class PolicySearchService {
                     sort,
                     keywordTokenCount);
         }
-    }
-
-    private List<WelfareService> filterYouthRelevant(List<WelfareService> results) {
-        if (results.isEmpty()) {
-            return results;
-        }
-
-        List<Long> serviceIds = results.stream()
-                .map(WelfareService::getId)
-                .toList();
-
-        Map<Long, List<ServiceTag>> tagsByServiceId = serviceTagRepository.findByServiceIdIn(serviceIds).stream()
-                .collect(Collectors.groupingBy(tag -> tag.getService().getId()));
-
-        return results.stream()
-                .filter(service -> youthPolicyFilter.isYouthRelevant(
-                        service,
-                        tagsByServiceId.getOrDefault(service.getId(), Collections.emptyList())
-                ))
-                .toList();
     }
 
     private Set<Long> getBookmarkedServiceIds(Long userId, List<WelfareService> services) {

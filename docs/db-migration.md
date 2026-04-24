@@ -9,6 +9,12 @@
 
 ## 최신 마이그레이션
 
+- 파일: [`backend/src/main/resources/db/migration/V2026_04_24_01__add_search_youth_relevance.sql`](../backend/src/main/resources/db/migration/V2026_04_24_01__add_search_youth_relevance.sql)
+- 포함 내용:
+  - `welfare_services.search_youth_relevant` 컬럼 추가
+  - `idx_ws_search_youth` 인덱스 추가
+  - 검색용 청년 관련성 플래그 기반 SQL 필터 준비
+
 - 파일: [`backend/src/main/resources/db/migration/V2026_04_23_01__add_api_sync_logs.sql`](../backend/src/main/resources/db/migration/V2026_04_23_01__add_api_sync_logs.sql)
 - 포함 내용:
   - `api_sync_logs` 생성
@@ -32,6 +38,7 @@
 mysql -h 127.0.0.1 -P 3307 -u root -p youth_welfare < backend/src/main/resources/db/migration/V2026_04_17_01__recent_schema_updates.sql
 mysql -h 127.0.0.1 -P 3307 -u root -p youth_welfare < backend/src/main/resources/db/migration/V2026_04_18_02__add_raw_api_payloads.sql
 mysql -h 127.0.0.1 -P 3307 -u root -p youth_welfare < backend/src/main/resources/db/migration/V2026_04_23_01__add_api_sync_logs.sql
+mysql -h 127.0.0.1 -P 3307 -u root -p youth_welfare < backend/src/main/resources/db/migration/V2026_04_24_01__add_search_youth_relevance.sql
 ```
 
 도커 컨테이너를 쓰는 경우:
@@ -40,7 +47,20 @@ mysql -h 127.0.0.1 -P 3307 -u root -p youth_welfare < backend/src/main/resources
 docker exec -i youth-welfare-db mysql -uroot -p"$DB_PASSWORD" youth_welfare < backend/src/main/resources/db/migration/V2026_04_17_01__recent_schema_updates.sql
 docker exec -i youth-welfare-db mysql -uroot -p"$DB_PASSWORD" youth_welfare < backend/src/main/resources/db/migration/V2026_04_18_02__add_raw_api_payloads.sql
 docker exec -i youth-welfare-db mysql -uroot -p"$DB_PASSWORD" youth_welfare < backend/src/main/resources/db/migration/V2026_04_23_01__add_api_sync_logs.sql
+docker exec -i youth-welfare-db mysql -uroot -p"$DB_PASSWORD" youth_welfare < backend/src/main/resources/db/migration/V2026_04_24_01__add_search_youth_relevance.sql
 ```
+
+마이그레이션 후 검색용 청년 플래그를 실제 규칙으로 다시 계산한다.
+
+```bash
+curl -X POST http://127.0.0.1:8082/api/admin/policies/search-youth-relevance/rebuild
+```
+
+주의:
+
+- 컬럼 기본값은 `1`이라 마이그레이션 직후 기존 데이터는 모두 검색 후보로 남아 있다.
+- 백엔드 최신 코드 배포 후 위 백필 호출까지 끝나야 실제 청년 필터 기준 검색 성능과 결과가 맞는다.
+- 응답 본문에는 `processedCount`, `updatedCount`, `relevantCount`, `excludedCount`가 포함된다.
 
 ## 확인 쿼리
 
@@ -51,6 +71,9 @@ SHOW TABLES LIKE 'service_view_logs';
 SHOW TABLES LIKE 'notification_services';
 SHOW TABLES LIKE 'raw_api_payloads';
 SHOW TABLES LIKE 'api_sync_logs';
+SHOW COLUMNS FROM welfare_services LIKE 'search_youth_relevant';
+SHOW INDEX FROM welfare_services WHERE Key_name = 'idx_ws_search_youth';
+SELECT search_youth_relevant, COUNT(*) FROM welfare_services GROUP BY search_youth_relevant;
 ```
 
 ## 주의
