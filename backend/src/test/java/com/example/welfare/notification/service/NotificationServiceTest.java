@@ -1,0 +1,298 @@
+package com.example.welfare.notification.service;
+
+import com.example.welfare.global.util.JwtUtil;
+import com.example.welfare.notification.entity.Notification;
+import com.example.welfare.notification.entity.Notification.NotificationChannel;
+import com.example.welfare.notification.entity.Notification.NotificationPeriodType;
+import com.example.welfare.notification.entity.Notification.NotificationStatus;
+import com.example.welfare.notification.gateway.NotificationGateway;
+import com.example.welfare.notification.repository.NotificationRepository;
+import com.example.welfare.policy.entity.WelfareService;
+import com.example.welfare.recommend.entity.RecommendationLog;
+import com.example.welfare.recommend.entity.ScoreWeight;
+import com.example.welfare.recommend.entity.UserRecommendation;
+import com.example.welfare.recommend.facade.RecommendationFacade;
+import com.example.welfare.recommend.service.RecommendationLogService;
+import com.example.welfare.recommend.service.ScoreWeightService;
+import com.example.welfare.user.entity.User;
+import com.example.welfare.user.repository.UserRepository;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.List;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.never;
+
+@ExtendWith(MockitoExtension.class)
+class NotificationServiceTest {
+
+    @Mock
+    private UserRepository userRepository;
+    @Mock
+    private RecommendationFacade recommendationFacade;
+    @Mock
+    private RecommendationLogService logService;
+    @Mock
+    private ScoreWeightService scoreWeightService;
+    @Mock
+    private NotificationGateway notificationGateway;
+    @Mock
+    private NotificationHistoryService notificationHistoryService;
+    @Mock
+    private NotificationRepository notificationRepository;
+    @Mock
+    private JwtUtil jwtUtil;
+
+    @InjectMocks
+    private NotificationService notificationService;
+
+    @BeforeEach
+    void setUp() {
+        ReflectionTestUtils.setField(notificationService, "appBaseUrl", "https://youth-welfare.kr");
+    }
+
+    @Test
+    @DisplayName("알림 발송은 최소 점수 이상 추천만 보내고 ai_reason과 수신거부 링크를 본문에 포함한다")
+    void sendTopRecommendationsFiltersByMinScoreAndIncludesReason() {
+        User user = User.builder()
+                .id(1L)
+                .email("test@example.com")
+                .passwordHash("pw")
+                .notificationYn(true)
+                .notificationPeriod(User.NotificationPeriod.DAILY)
+                .notificationMinScore(0.8)
+                .displayCount(10)
+                .build();
+        WelfareService service = WelfareService.builder()
+                .id(11L)
+                .sourceType(WelfareService.SourceType.YOUTH)
+                .sourceId("SRC-11")
+                .title("청년 월세 지원")
+                .build();
+        UserRecommendation pass = UserRecommendation.builder()
+                .service(service)
+                .finalScore(new BigDecimal("0.91"))
+                .aiReason("주거비 부담 완화에 적합")
+                .build();
+        UserRecommendation fail = UserRecommendation.builder()
+                .service(service)
+                .finalScore(new BigDecimal("0.60"))
+                .aiReason("점수 미달")
+                .build();
+        ScoreWeight weight = ScoreWeight.builder()
+                .ruleWeight(new BigDecimal("0.8"))
+                .aiWeight(new BigDecimal("0.2"))
+                .build();
+        RecommendationLog log = RecommendationLog.builder().id(100L).build();
+
+        given(recommendationFacade.getRecommendations(1L, 10)).willReturn(List.of(pass, fail));
+        given(scoreWeightService.getActiveWeight()).willReturn(weight);
+        given(logService.logNotification(eq(user), any(), eq(weight))).willReturn(List.of(log));
+        given(notificationGateway.send(eq("test@example.com"), eq("[청년복지] 맞춤 정책 추천"), any())).willReturn(true);
+        given(jwtUtil.generateNotificationToken(1L)).willReturn("unsubscribe-token");
+
+        notificationService.sendTopRecommendations(user);
+
+        ArgumentCaptor<String> messageCaptor = ArgumentCaptor.forClass(String.class);
+        verify(notificationGateway).send(eq("test@example.com"), eq("[청년복지] 맞춤 정책 추천"), messageCaptor.capture());
+        String message = messageCaptor.getValue();
+        assertTrue(message.contains("추천 이유: 주거비 부담 완화에 적합"));
+        assertTrue(message.contains("unsubscribe-token"));
+        assertTrue(!message.contains("점수 미달"));
+    }
+
+    @Test
+    @DisplayName("최소 점수 이상 추천이 없으면 알림을 보내지 않는다")
+    void sendTopRecommendationsSkipsWhenNoCandidatesAboveThreshold() {
+        User user = User.builder()
+                .id(1L)
+                .email("test@example.com")
+                .passwordHash("pw")
+                .notificationYn(true)
+                .notificationPeriod(User.NotificationPeriod.DAILY)
+                .notificationMinScore(0.95)
+                .displayCount(10)
+                .build();
+        WelfareService service = WelfareService.builder()
+                .id(11L)
+                .sourceType(WelfareService.SourceType.YOUTH)
+                .sourceId("SRC-11")
+                .title("청년 월세 지원")
+                .build();
+        UserRecommendation fail = UserRecommendation.builder()
+                .service(service)
+                .finalScore(new BigDecimal("0.60"))
+                .build();
+
+        given(recommendationFacade.getRecommendations(1L, 10)).willReturn(List.of(fail));
+
+        notificationService.sendTopRecommendations(user);
+
+        verify(notificationGateway, never()).send(any(), any(), any());
+        verify(notificationHistoryService, never()).saveResult(any(), any(), any(), any(), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("게이트웨이가 false를 반환하면 실패 이력을 저장한다")
+    void sendTopRecommendationsStoresFailedHistoryWhenGatewayReturnsFalse() {
+        User user = User.builder()
+                .id(1L)
+                .email("test@example.com")
+                .passwordHash("pw")
+                .notificationYn(true)
+                .notificationPeriod(User.NotificationPeriod.DAILY)
+                .notificationMinScore(0.8)
+                .displayCount(10)
+                .build();
+        WelfareService service = WelfareService.builder()
+                .id(11L)
+                .sourceType(WelfareService.SourceType.YOUTH)
+                .sourceId("SRC-11")
+                .title("청년 월세 지원")
+                .build();
+        UserRecommendation recommendation = UserRecommendation.builder()
+                .service(service)
+                .finalScore(new BigDecimal("0.91"))
+                .aiReason("주거비 부담 완화에 적합")
+                .build();
+        ScoreWeight weight = ScoreWeight.builder()
+                .ruleWeight(new BigDecimal("0.8"))
+                .aiWeight(new BigDecimal("0.2"))
+                .build();
+        RecommendationLog log = RecommendationLog.builder().id(100L).build();
+
+        given(recommendationFacade.getRecommendations(1L, 10)).willReturn(List.of(recommendation));
+        given(scoreWeightService.getActiveWeight()).willReturn(weight);
+        given(logService.logNotification(eq(user), any(), eq(weight))).willReturn(List.of(log));
+        given(notificationGateway.send(eq("test@example.com"), eq("[청년복지] 맞춤 정책 추천"), any())).willReturn(false);
+        given(jwtUtil.generateNotificationToken(1L)).willReturn("unsubscribe-token");
+
+        notificationService.sendTopRecommendations(user);
+
+        verify(notificationHistoryService).saveResult(
+                eq(user),
+                eq(NotificationPeriodType.DAILY),
+                eq(NotificationChannel.EMAIL),
+                eq(NotificationStatus.FAILED),
+                eq("[청년복지] 맞춤 정책 추천"),
+                any(),
+                any(),
+                any(),
+                eq("notification gateway returned false")
+        );
+    }
+
+    @Test
+    @DisplayName("재시도 발송이 성공하면 상태를 SENT로 전환한다")
+    void retryFailedNotificationsMarksSentOnSuccess() {
+        User user = User.builder()
+                .id(1L)
+                .email("test@example.com")
+                .passwordHash("pw")
+                .build();
+        Notification notification = Notification.builder()
+                .user(user)
+                .channel(NotificationChannel.EMAIL)
+                .periodType(NotificationPeriodType.DAILY)
+                .status(NotificationStatus.FAILED)
+                .subject("[청년복지] 맞춤 정책 추천")
+                .messageText("body")
+                .retryCount(1)
+                .nextRetryAt(LocalDateTime.now().minusMinutes(1))
+                .errorMessage("temporary failure")
+                .build();
+
+        given(notificationRepository.findByStatusAndNextRetryAtBefore(eq(NotificationStatus.FAILED), any(LocalDateTime.class)))
+                .willReturn(List.of(notification));
+        given(notificationGateway.send("test@example.com", "[청년복지] 맞춤 정책 추천", "body"))
+                .willReturn(true);
+
+        notificationService.retryFailedNotifications();
+
+        assertThat(notification.getStatus()).isEqualTo(NotificationStatus.SENT);
+        assertThat(notification.getSentAt()).isNotNull();
+        assertThat(notification.getNextRetryAt()).isNull();
+        assertThat(notification.getErrorMessage()).isNull();
+    }
+
+    @Test
+    @DisplayName("첫 재시도도 실패하면 2시간 뒤로 다시 예약한다")
+    void retryFailedNotificationsSchedulesTwoHourDelayAfterFirstRetryFailure() {
+        User user = User.builder()
+                .id(1L)
+                .email("test@example.com")
+                .passwordHash("pw")
+                .build();
+        Notification notification = Notification.builder()
+                .user(user)
+                .channel(NotificationChannel.EMAIL)
+                .periodType(NotificationPeriodType.DAILY)
+                .status(NotificationStatus.FAILED)
+                .subject("[청년복지] 맞춤 정책 추천")
+                .messageText("body")
+                .retryCount(0)
+                .nextRetryAt(LocalDateTime.now().minusMinutes(1))
+                .build();
+
+        given(notificationRepository.findByStatusAndNextRetryAtBefore(eq(NotificationStatus.FAILED), any(LocalDateTime.class)))
+                .willReturn(List.of(notification));
+        given(notificationGateway.send("test@example.com", "[청년복지] 맞춤 정책 추천", "body"))
+                .willReturn(false);
+
+        LocalDateTime before = LocalDateTime.now();
+        notificationService.retryFailedNotifications();
+        LocalDateTime after = LocalDateTime.now();
+
+        assertThat(notification.getStatus()).isEqualTo(NotificationStatus.FAILED);
+        assertThat(notification.getRetryCount()).isEqualTo(1);
+        assertThat(notification.getErrorMessage()).isEqualTo("notification gateway returned false");
+        assertThat(notification.getNextRetryAt()).isBetween(before.plusMinutes(120), after.plusMinutes(120));
+    }
+
+    @Test
+    @DisplayName("최대 재시도 직전 실패하면 더 이상 다음 재시도를 예약하지 않는다")
+    void retryFailedNotificationsStopsSchedulingAfterMaxRetry() {
+        User user = User.builder()
+                .id(1L)
+                .email("test@example.com")
+                .passwordHash("pw")
+                .build();
+        Notification notification = Notification.builder()
+                .user(user)
+                .channel(NotificationChannel.EMAIL)
+                .periodType(NotificationPeriodType.DAILY)
+                .status(NotificationStatus.FAILED)
+                .subject("[청년복지] 맞춤 정책 추천")
+                .messageText("body")
+                .retryCount(1)
+                .nextRetryAt(LocalDateTime.now().minusMinutes(1))
+                .build();
+
+        given(notificationRepository.findByStatusAndNextRetryAtBefore(eq(NotificationStatus.FAILED), any(LocalDateTime.class)))
+                .willReturn(List.of(notification));
+        given(notificationGateway.send("test@example.com", "[청년복지] 맞춤 정책 추천", "body"))
+                .willReturn(false);
+
+        notificationService.retryFailedNotifications();
+
+        assertThat(notification.getStatus()).isEqualTo(NotificationStatus.FAILED);
+        assertThat(notification.getRetryCount()).isEqualTo(2);
+        assertThat(notification.getNextRetryAt()).isNull();
+        assertThat(notification.getErrorMessage()).isEqualTo("notification gateway returned false");
+    }
+}

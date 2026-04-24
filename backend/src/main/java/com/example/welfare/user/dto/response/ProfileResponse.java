@@ -27,9 +27,11 @@ public class ProfileResponse {
     private String employmentStatus;
     private boolean notificationYn;
     private String notificationPeriod;
+    private Double notificationMinScore;
     private int displayCount;
     private int profileCompleteness;
     private List<String> interestFields;
+    private List<String> targetTypes;
     private List<PriorityItem> priorities;
 
     @Getter
@@ -44,6 +46,10 @@ public class ProfileResponse {
                                       List<UserPriority> priorities, String phone) {
         List<String> interestFields = attributes.stream()
                 .filter(a -> UserAttribute.AttrType.INTEREST_FIELD.name().equals(a.getAttrType()))
+                .map(UserAttribute::getAttrValue)
+                .collect(Collectors.toList());
+        List<String> targetTypes = attributes.stream()
+                .filter(a -> UserAttribute.AttrType.TARGET_TYPE.name().equals(a.getAttrType()))
                 .map(UserAttribute::getAttrValue)
                 .collect(Collectors.toList());
 
@@ -69,9 +75,11 @@ public class ProfileResponse {
                 .employmentStatus(user.getEmploymentStatus())
                 .notificationYn(user.isNotificationYn())
                 .notificationPeriod(user.getNotificationPeriod().name())
+                .notificationMinScore(user.getNotificationMinScore())
                 .displayCount(user.getDisplayCount())
                 .profileCompleteness(user.getProfileCompleteness())
                 .interestFields(interestFields)
+                .targetTypes(targetTypes)
                 .priorities(priorityItems)
                 .build();
     }

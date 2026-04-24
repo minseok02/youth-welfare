@@ -2,9 +2,11 @@ package com.example.welfare.recommend.service;
 
 import com.example.welfare.recommend.dto.ScoredCandidate;
 import com.example.welfare.recommend.entity.ScoreWeight;
+import com.example.welfare.policy.entity.WelfareService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -51,11 +53,56 @@ public class ReRankingService {
         });
 
         return candidates.stream()
-                .sorted(Comparator.comparingDouble(ScoredCandidate::getFinalScore).reversed())
+                .sorted(recommendationComparator())
                 .collect(Collectors.toList());
     }
 
     public ScoreWeight getCurrentWeight() {
         return scoreWeightService.getActiveWeight();
+    }
+
+    private Comparator<ScoredCandidate> recommendationComparator() {
+        return Comparator.comparingDouble(ScoredCandidate::getFinalScore).reversed()
+                .thenComparing(ScoredCandidate::getAiScore, Comparator.nullsLast(Comparator.reverseOrder()))
+                .thenComparing(this::deadlinePriority)
+                .thenComparing(this::applyEndDateOrMax)
+                .thenComparing(this::viewCountOrZero, Comparator.reverseOrder())
+                .thenComparing(this::apiViewCountOrZero, Comparator.reverseOrder())
+                .thenComparing(this::registeredAtOrMin, Comparator.reverseOrder())
+                .thenComparing(this::serviceIdOrZero, Comparator.reverseOrder());
+    }
+
+    private Integer deadlinePriority(ScoredCandidate candidate) {
+        WelfareService service = candidate.getService();
+        LocalDate applyEndDate = service.getApplyEndDate();
+        if (applyEndDate == null) {
+            return 1;
+        }
+        LocalDate today = LocalDate.now();
+        return (!applyEndDate.isBefore(today) && applyEndDate.isBefore(today.plusDays(7))) ? 0 : 1;
+    }
+
+    private LocalDate applyEndDateOrMax(ScoredCandidate candidate) {
+        return candidate.getService().getApplyEndDate() != null
+                ? candidate.getService().getApplyEndDate()
+                : LocalDate.MAX;
+    }
+
+    private Integer viewCountOrZero(ScoredCandidate candidate) {
+        return candidate.getService().getViewCount() != null ? candidate.getService().getViewCount() : 0;
+    }
+
+    private Long apiViewCountOrZero(ScoredCandidate candidate) {
+        return candidate.getService().getApiViewCount() != null ? candidate.getService().getApiViewCount() : 0L;
+    }
+
+    private java.time.LocalDateTime registeredAtOrMin(ScoredCandidate candidate) {
+        return candidate.getService().getRegisteredAt() != null
+                ? candidate.getService().getRegisteredAt()
+                : java.time.LocalDateTime.MIN;
+    }
+
+    private Long serviceIdOrZero(ScoredCandidate candidate) {
+        return candidate.getService().getId() != null ? candidate.getService().getId() : 0L;
     }
 }

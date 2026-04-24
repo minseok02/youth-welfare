@@ -43,6 +43,11 @@ public class AuthService {
                 .passwordHash(passwordEncoder.encode(request.getPassword()))
                 .name(request.getName())
                 .birthDate(request.getBirthDate())
+                .sido(request.getSido())
+                .sgg(request.getSgg())
+                .incomeLevel(request.getIncomeLevel())
+                .employmentStatus(request.getEmploymentStatus())
+                .householdType(request.getHouseholdType())
                 .build();
 
         userRepository.save(user);
@@ -104,6 +109,11 @@ public class AuthService {
     }
 
     public void logout(Long userId) {
+        redisTemplate.delete(REFRESH_TOKEN_PREFIX + userId);
+    }
+
+    public void logoutByRefreshToken(String refreshToken) {
+        Long userId = jwtUtil.getUserIdAllowExpired(refreshToken);
         redisTemplate.delete(REFRESH_TOKEN_PREFIX + userId);
     }
 

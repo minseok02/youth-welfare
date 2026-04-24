@@ -36,7 +36,7 @@ export default function LoginPage() {
       const { data } = await api.post("/api/auth/login", { email, password: pw });
       login(data.token, data.user);
       navigate("/");
-    } catch (err) {
+    } catch {
       const newAttempts = attempts + 1;
       setAttempts(newAttempts);
 

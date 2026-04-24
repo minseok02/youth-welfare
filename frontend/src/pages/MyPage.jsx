@@ -84,7 +84,6 @@ export default function MyPage() {
     region: "", subRegion: "", income: "", employ: "",
   });
   const [editing, setEditing] = useState(false);
-  const [emailChecked, setEmailChecked] = useState(true);
   const [reloginModal, setReloginModal] = useState(false);
 
   const completionFields = [myInfo.birthYear, myInfo.region, myInfo.income, myInfo.employ];
@@ -207,12 +206,12 @@ export default function MyPage() {
                 <TextField
                   label="이메일"
                   value={myInfo.email}
-                  onChange={(e) => { setMyInfo({ ...myInfo, email: e.target.value }); setEmailChecked(false); }}
+                  onChange={(e) => { setMyInfo({ ...myInfo, email: e.target.value }); }}
                   disabled={!editing}
                   fullWidth
                 />
                 {editing && (
-                  <Button variant="outlined" onClick={() => setEmailChecked(true)} sx={{ minWidth: 90, whiteSpace: "nowrap" }}>
+                  <Button variant="outlined" onClick={() => showToast("이메일 중복확인 연동은 아직 준비 중입니다", "info")} sx={{ minWidth: 90, whiteSpace: "nowrap" }}>
                     중복확인
                   </Button>
                 )}

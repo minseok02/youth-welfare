@@ -47,4 +47,11 @@ public class CollectAdminController {
         collectService.collectBokjiroLocal();
         return ResponseEntity.ok(ApiResponse.success("복지로 지자체 수집 완료"));
     }
+
+    @PostMapping("/bokjiro-details")
+    public ResponseEntity<ApiResponse<String>> collectBokjiroDetails() {
+        log.info("[Admin] 복지로 상세 수집 수동 트리거");
+        collectService.collectBokjiroDetails();
+        return ResponseEntity.ok(ApiResponse.success("복지로 상세 수집 완료"));
+    }
 }

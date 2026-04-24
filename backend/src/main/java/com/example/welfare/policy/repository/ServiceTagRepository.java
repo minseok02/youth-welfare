@@ -12,7 +12,13 @@ public interface ServiceTagRepository extends JpaRepository<ServiceTag, Long> {
 
     List<ServiceTag> findByServiceId(Long serviceId);
 
+    // 후보 전체 태그 일괄 조회 — N+1 방지 (JOIN FETCH로 service 즉시 로딩)
+    @Query("SELECT t FROM ServiceTag t JOIN FETCH t.service WHERE t.service.id IN :serviceIds")
+    List<ServiceTag> findByServiceIdIn(@Param("serviceIds") List<Long> serviceIds);
+
     List<ServiceTag> findByTagTypeAndTagValue(ServiceTag.TagType tagType, String tagValue);
+
+    List<ServiceTag> findByServiceIdInAndTagType(List<Long> serviceIds, ServiceTag.TagType tagType);
 
     // UPSERT — UNIQUE KEY uq_st(service_id, tag_type, tag_value) 기반
     // 중복 삽입 시 rule_base_score 이중합산 방지

@@ -4,6 +4,7 @@ import com.example.welfare.collect.dto.BokjiroCentralDto;
 import com.example.welfare.collect.dto.BokjiroLocalDto;
 import com.example.welfare.collect.dto.YouthApiDto;
 import com.example.welfare.collect.validation.RawFieldValidator;
+import com.example.welfare.collect.validation.TextConstraintExtractor;
 import com.example.welfare.policy.entity.ServiceRegion;
 import com.example.welfare.policy.entity.ServiceTag;
 import com.example.welfare.policy.entity.WelfareService;
@@ -18,6 +19,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 /**
  * 공공API 3종 DTO → WelfareService Entity 변환
@@ -28,12 +30,17 @@ import java.util.List;
 @Component
 public class WelfareServiceMapper {
 
+    private static final String[] ONLINE_APPLY_KEYWORDS = {
+            "온라인", "인터넷", "홈페이지", "웹", "모바일", "앱", "신청페이지", "누리집"
+    };
+
     // ===== 온통청년 =====
 
     public WelfareService fromYouth(YouthApiDto.Item item) {
         // aplyYmd: "20260101 ~ 20261231" 형식에서 시작/종료일 파싱
         LocalDate applyStart = parseApplyStartFromRange(item.getAplyYmd());
         LocalDate applyEnd   = parseApplyEndFromRange(item.getAplyYmd());
+        boolean onlineApply = inferOnlineApply(item.getAplyUrlAddr(), item.getPlcyAplyMthdCn(), item.getAplyYmd());
 
         return WelfareService.builder()
                 .sourceType(WelfareService.SourceType.YOUTH)
@@ -56,6 +63,7 @@ public class WelfareServiceMapper {
                 .applyStartDate(applyStart)
                 .applyEndDate(applyEnd)
                 .applyMethodName(RawFieldValidator.normalize(item.getPlcyAplyMthdCn()))
+                .isOnlineApply(onlineApply)
                 .detailUrl(RawFieldValidator.normalize(item.getAplyUrlAddr()))
                 .apiViewCount(item.getInqCnt())
                 .registeredAt(parseDateTimeLoose(item.getFrstRegDt()))
@@ -67,6 +75,8 @@ public class WelfareServiceMapper {
     public List<ServiceTag> tagsFromYouth(YouthApiDto.Item item, WelfareService service) {
         List<ServiceTag> tags = new ArrayList<>();
         addTagsFromCsv(tags, service, item.getPlcyKywdNm(), ServiceTag.TagType.KEYWORD);
+        addConstraintKeywordTags(tags, service,
+                item.getPlcySprtCn(), item.getPlcyExplnCn(), item.getPlcyAplyMthdCn());
         return tags;
     }
 
@@ -89,14 +99,26 @@ public class WelfareServiceMapper {
     // ===== 복지로 중앙 =====
 
     public WelfareService fromBokjiroCentral(BokjiroCentralDto.Item item) {
+        TextConstraintExtractor.ConstraintSummary constraints = TextConstraintExtractor.summarize(
+                item.getServDgst(),
+                item.getTrgterIndvdlArray(),
+                item.getLifeArray()
+        );
         return WelfareService.builder()
                 .sourceType(WelfareService.SourceType.BOKJIRO_CENTRAL)
                 .sourceId(RawFieldValidator.normalize(item.getServId()))
                 .title(stripAndNormalize(item.getServNm()))
                 .description(stripAndNormalize(item.getServDgst()))
+                .supportContent(firstNonBlank(
+                        stripAndNormalize(item.getServDgst()),
+                        RawFieldValidator.normalize(item.getSrvPvsnNm())
+                ))
                 .unifiedCategory(mapBokjiroCategory(item.getIntrsThemaArray()))
                 .hostOrg(RawFieldValidator.normalize(item.getJurMnofNm()))
                 .operatingOrg(RawFieldValidator.normalize(item.getJurOrgNm()))
+                .minAge(constraints.minAge())
+                .maxAge(constraints.maxAge())
+                .applyEndDate(constraints.applyEndDate())
                 .lifeStage(RawFieldValidator.normalize(item.getLifeArray()))
                 .supportCycle(RawFieldValidator.normalize(item.getSprtCycNm()))
                 .provisionType(RawFieldValidator.normalize(item.getSrvPvsnNm()))
@@ -113,6 +135,7 @@ public class WelfareServiceMapper {
         addTagsFromCsv(tags, service, item.getLifeArray(), ServiceTag.TagType.LIFE_STAGE);
         addTagsFromCsv(tags, service, item.getIntrsThemaArray(), ServiceTag.TagType.INTEREST_THEME);
         addTagsFromCsv(tags, service, item.getTrgterIndvdlArray(), ServiceTag.TagType.TARGET_GROUP);
+        addConstraintKeywordTags(tags, service, item.getServDgst());
         return tags;
     }
 
@@ -124,17 +147,30 @@ public class WelfareServiceMapper {
     // ===== 복지로 지자체 =====
 
     public WelfareService fromBokjiroLocal(BokjiroLocalDto.Item item) {
+        TextConstraintExtractor.ConstraintSummary constraints = TextConstraintExtractor.summarize(
+                item.getServDgst(),
+                item.getTrgterIndvdlNmArray(),
+                item.getAplyMtdNm()
+        );
         return WelfareService.builder()
                 .sourceType(WelfareService.SourceType.BOKJIRO_LOCAL)
                 .sourceId(RawFieldValidator.normalize(item.getServId()))
                 .title(stripAndNormalize(item.getServNm()))
                 .description(stripAndNormalize(item.getServDgst()))
+                .supportContent(firstNonBlank(
+                        stripAndNormalize(item.getServDgst()),
+                        RawFieldValidator.normalize(item.getSrvPvsnNm())
+                ))
                 .unifiedCategory(mapBokjiroCategory(item.getIntrsThemaNmArray()))
                 .operatingOrg(RawFieldValidator.normalize(item.getBizChrDeptNm()))
+                .minAge(constraints.minAge())
+                .maxAge(constraints.maxAge())
+                .applyEndDate(constraints.applyEndDate())
                 .lifeStage(RawFieldValidator.normalize(item.getLifeNmArray()))
                 .supportCycle(RawFieldValidator.normalize(item.getSprtCycNm()))
                 .provisionType(RawFieldValidator.normalize(item.getSrvPvsnNm()))
                 .applyMethodName(RawFieldValidator.normalize(item.getAplyMtdNm()))
+                .isOnlineApply(inferOnlineApply(item.getServDtlLink(), item.getAplyMtdNm()))
                 .detailUrl(RawFieldValidator.normalize(item.getServDtlLink()))
                 .apiViewCount(item.getInqNum())
                 .startDate(parseDate(item.getEnfcBgngYmd()))
@@ -149,6 +185,7 @@ public class WelfareServiceMapper {
         addTagsFromCsv(tags, service, item.getLifeNmArray(), ServiceTag.TagType.LIFE_STAGE);
         addTagsFromCsv(tags, service, item.getIntrsThemaNmArray(), ServiceTag.TagType.INTEREST_THEME);
         addTagsFromCsv(tags, service, item.getTrgterIndvdlNmArray(), ServiceTag.TagType.TARGET_GROUP);
+        addConstraintKeywordTags(tags, service, item.getServDgst());
         return tags;
     }
 
@@ -198,6 +235,15 @@ public class WelfareServiceMapper {
                 .tagType(type)
                 .tagValue(value)
                 .build();
+    }
+
+    /**
+     * 비정형 안내 문구의 자격/제한 조건을 규칙 기반으로 추출하여 KEYWORD 태그로 저장한다.
+     * 예: COND_AGE_MAX_34, COND_INCOME_PCT_LE_130, COND_RENT_WON_LE_80
+     */
+    private void addConstraintKeywordTags(List<ServiceTag> tags, WelfareService service, String... texts) {
+        Set<String> extracted = TextConstraintExtractor.extract(texts);
+        extracted.forEach(token -> tags.add(buildTag(service, ServiceTag.TagType.KEYWORD, token)));
     }
 
     /**
@@ -285,5 +331,39 @@ public class WelfareServiceMapper {
             log.debug("[Mapper] parseDateTimeLoose 실패: '{}'", s);
             return null;
         }
+    }
+
+    private boolean inferOnlineApply(String detailUrl, String... texts) {
+        if (RawFieldValidator.normalize(detailUrl) != null) {
+            return true;
+        }
+        if (texts == null) {
+            return false;
+        }
+        for (String text : texts) {
+            String normalized = RawFieldValidator.normalize(text);
+            if (normalized == null) {
+                continue;
+            }
+            for (String keyword : ONLINE_APPLY_KEYWORDS) {
+                if (normalized.contains(keyword)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private String firstNonBlank(String... values) {
+        if (values == null) {
+            return null;
+        }
+        for (String value : values) {
+            String normalized = RawFieldValidator.normalize(value);
+            if (normalized != null) {
+                return normalized;
+            }
+        }
+        return null;
     }
 }

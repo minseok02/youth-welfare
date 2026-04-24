@@ -8,4 +8,6 @@ import java.util.Optional;
 public interface WelfareServiceDetailRepository extends JpaRepository<WelfareServiceDetail, Long> {
 
     Optional<WelfareServiceDetail> findByServiceId(Long serviceId);
+
+    boolean existsByServiceId(Long serviceId);
 }

@@ -1,6 +1,7 @@
 package com.example.welfare.user.controller;
 
 import com.example.welfare.global.response.ApiResponse;
+import com.example.welfare.policy.dto.PolicySummaryResponse;
 import com.example.welfare.user.dto.request.UpdatePrioritiesRequest;
 import com.example.welfare.user.dto.request.UpdateProfileRequest;
 import com.example.welfare.user.dto.request.WithdrawRequest;
@@ -12,6 +13,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/users/me")
 @RequiredArgsConstructor
@@ -22,6 +25,11 @@ public class UserController {
     @GetMapping
     public ResponseEntity<ApiResponse<ProfileResponse>> getProfile(@AuthenticationPrincipal Long userId) {
         return ResponseEntity.ok(ApiResponse.success(userService.getProfile(userId)));
+    }
+
+    @GetMapping("/bookmarks")
+    public ResponseEntity<ApiResponse<List<PolicySummaryResponse>>> getBookmarks(@AuthenticationPrincipal Long userId) {
+        return ResponseEntity.ok(ApiResponse.success(userService.getBookmarks(userId)));
     }
 
     @PutMapping
@@ -37,6 +45,12 @@ public class UserController {
             @AuthenticationPrincipal Long userId,
             @Valid @RequestBody UpdatePrioritiesRequest request) {
         userService.updatePriorities(userId, request);
+        return ResponseEntity.ok(ApiResponse.success(null));
+    }
+
+    @PostMapping("/notifications/unsubscribe")
+    public ResponseEntity<ApiResponse<Void>> unsubscribeNotifications(@AuthenticationPrincipal Long userId) {
+        userService.unsubscribeNotifications(userId);
         return ResponseEntity.ok(ApiResponse.success(null));
     }
 

@@ -3,6 +3,7 @@ package com.example.welfare.recommend.gateway;
 import com.example.welfare.recommend.dto.ScoredCandidate;
 import com.example.welfare.user.entity.User;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -141,6 +142,7 @@ public class RealtimeAiGateway implements AiRecommendationGateway {
         @Getter
         @JsonIgnoreProperties(ignoreUnknown = true)
         static class Result {
+            @JsonProperty("service_id")
             private Long serviceId;
             private int score;
             private String reason;

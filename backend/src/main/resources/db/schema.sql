@@ -127,6 +127,47 @@ CREATE TABLE IF NOT EXISTS welfare_services (
         WITH PARSER ngram
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- raw_api_payloads
+-- 원문 API payload 보관용. 정규화 규칙 변경 시 원본 재호출 없이 재처리할 수 있다.
+CREATE TABLE IF NOT EXISTS raw_api_payloads (
+    id           BIGINT NOT NULL AUTO_INCREMENT,
+    source_type  ENUM('YOUTH','BOKJIRO_CENTRAL','BOKJIRO_LOCAL') NOT NULL,
+    source_id    VARCHAR(50) NOT NULL,
+    api_category ENUM('LIST','DETAIL') NOT NULL,
+    payload_json LONGTEXT NOT NULL,
+    payload_hash VARCHAR(64) NOT NULL,
+    fetched_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_raw_source (source_type, source_id, api_category),
+    KEY idx_raw_fetched (fetched_at),
+    KEY idx_raw_hash (payload_hash)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- api_sync_logs
+-- 수집 실행 결과 보관용. source별 성공/부분성공/실패와 저장 건수를 추적한다.
+CREATE TABLE IF NOT EXISTS api_sync_logs (
+    id              BIGINT      NOT NULL AUTO_INCREMENT,
+    job_name        VARCHAR(50) NOT NULL,
+    status          ENUM('running','success','partial_success','failed','skipped') NOT NULL,
+    started_at      DATETIME    NOT NULL,
+    finished_at     DATETIME,
+    requested_count INT         NOT NULL DEFAULT 0,
+    saved_count     INT         NOT NULL DEFAULT 0,
+    skipped_count   INT         NOT NULL DEFAULT 0,
+    filtered_count  INT         NOT NULL DEFAULT 0,
+    failed_count    INT         NOT NULL DEFAULT 0,
+    error_code      VARCHAR(50),
+    error_message   VARCHAR(1000),
+    metadata_json   LONGTEXT,
+    created_at      DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at      DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_api_sync_job_started (job_name, started_at),
+    KEY idx_api_sync_status_started (status, started_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 -- 6. welfare_service_details (1:1)
 CREATE TABLE IF NOT EXISTS welfare_service_details (
     id                  BIGINT NOT NULL AUTO_INCREMENT,
@@ -234,6 +275,63 @@ CREATE TABLE IF NOT EXISTS recommendation_logs (
     KEY idx_rl_service (service_id),
     CONSTRAINT fk_rl_user    FOREIGN KEY (user_id)    REFERENCES users(id)           ON DELETE CASCADE,
     CONSTRAINT fk_rl_service FOREIGN KEY (service_id) REFERENCES welfare_services(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 12. service_view_logs (조회수 중복 방지용 로그)
+CREATE TABLE IF NOT EXISTS service_view_logs (
+    id                 BIGINT       NOT NULL AUTO_INCREMENT,
+    service_id         BIGINT       NOT NULL,
+    user_id            BIGINT,
+    client_fingerprint VARCHAR(64)  NOT NULL,
+    viewed_at          DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_svl_service_viewed (service_id, viewed_at),
+    KEY idx_svl_user_service_viewed (user_id, service_id, viewed_at),
+    KEY idx_svl_fp_service_viewed (client_fingerprint, service_id, viewed_at),
+    CONSTRAINT fk_svl_service FOREIGN KEY (service_id) REFERENCES welfare_services(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 13. notifications (알림 발송 이력 헤더)
+CREATE TABLE IF NOT EXISTS notifications (
+    id             BIGINT       NOT NULL AUTO_INCREMENT,
+    user_id        BIGINT       NOT NULL,
+    channel        ENUM('email','kakao') NOT NULL,
+    period_type    ENUM('daily','weekly','manual') NOT NULL,
+    status         ENUM('sent','failed') NOT NULL,
+    subject        VARCHAR(200) NOT NULL,
+    message_text   TEXT,
+    total_services INT          NOT NULL DEFAULT 0,
+    sent_at        DATETIME,
+    error_message  VARCHAR(500),
+    retry_count    INT          NOT NULL DEFAULT 0,
+    next_retry_at  DATETIME,
+    created_at     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_noti_user_created (user_id, created_at),
+    KEY idx_noti_status_created (status, created_at),
+    KEY idx_noti_retry (status, next_retry_at),
+    CONSTRAINT fk_noti_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 14. notification_services (알림-정책 매핑)
+CREATE TABLE IF NOT EXISTS notification_services (
+    id                    BIGINT       NOT NULL AUTO_INCREMENT,
+    notification_id       BIGINT       NOT NULL,
+    service_id            BIGINT       NOT NULL,
+    recommendation_log_id BIGINT,
+    rank_order            INT          NOT NULL,
+    final_score           DECIMAL(6,5),
+    service_title         VARCHAR(255),
+    created_at            DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at            DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_ns_notification (notification_id),
+    KEY idx_ns_service (service_id),
+    KEY idx_ns_log (recommendation_log_id),
+    CONSTRAINT fk_ns_notification FOREIGN KEY (notification_id) REFERENCES notifications(id) ON DELETE CASCADE,
+    CONSTRAINT fk_ns_service FOREIGN KEY (service_id) REFERENCES welfare_services(id) ON DELETE CASCADE,
+    CONSTRAINT fk_ns_log FOREIGN KEY (recommendation_log_id) REFERENCES recommendation_logs(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ============================================================

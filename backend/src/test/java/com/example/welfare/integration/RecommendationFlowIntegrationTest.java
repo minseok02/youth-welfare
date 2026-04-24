@@ -1,0 +1,193 @@
+package com.example.welfare.integration;
+
+import com.example.welfare.global.util.JwtUtil;
+import com.example.welfare.policy.entity.WelfareService;
+import com.example.welfare.policy.repository.WelfareServiceRepository;
+import com.example.welfare.recommend.dto.ScoredCandidate;
+import com.example.welfare.recommend.entity.UserRecommendation;
+import com.example.welfare.recommend.gateway.AiRecommendationGateway;
+import com.example.welfare.recommend.repository.UserRecommendationRepository;
+import com.example.welfare.user.entity.PriorityOption;
+import com.example.welfare.user.entity.User;
+import com.example.welfare.user.entity.UserPriority;
+import com.example.welfare.user.repository.PriorityOptionRepository;
+import com.example.welfare.user.repository.UserPriorityRepository;
+import com.example.welfare.user.repository.UserRepository;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.web.servlet.MockMvc;
+
+import java.time.LocalDate;
+import java.util.Comparator;
+import java.util.List;
+import java.util.UUID;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.BDDMockito.given;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+@SpringBootTest
+@AutoConfigureMockMvc
+@ActiveProfiles("integration")
+class RecommendationFlowIntegrationTest {
+
+    private static final String TEST_EMAIL_PREFIX = "it_rec_";
+    private static final String TEST_SOURCE_PREFIX = "IT-REC-";
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @Autowired
+    private JwtUtil jwtUtil;
+
+    @Autowired
+    private UserRepository userRepository;
+
+    @Autowired
+    private PriorityOptionRepository priorityOptionRepository;
+
+    @Autowired
+    private UserPriorityRepository userPriorityRepository;
+
+    @Autowired
+    private WelfareServiceRepository welfareServiceRepository;
+
+    @Autowired
+    private UserRecommendationRepository userRecommendationRepository;
+
+    @MockBean
+    private AiRecommendationGateway aiRecommendationGateway;
+
+    @AfterEach
+    void cleanup() {
+        userRepository.findAll().stream()
+                .filter(user -> user.getEmail() != null && user.getEmail().startsWith(TEST_EMAIL_PREFIX))
+                .forEach(userRepository::delete);
+
+        welfareServiceRepository.findAll().stream()
+                .filter(service -> service.getSourceId() != null && service.getSourceId().startsWith(TEST_SOURCE_PREFIX))
+                .forEach(welfareServiceRepository::delete);
+    }
+
+    @Test
+    @DisplayName("추천 refresh/get 흐름은 실제 저장까지 수행되고 북마크 상태를 다음 갱신에도 유지한다")
+    void refreshGetAndBookmarkFlowWorksEndToEnd() throws Exception {
+        User user = userRepository.save(User.builder()
+                .email(TEST_EMAIL_PREFIX + UUID.randomUUID() + "@example.com")
+                .passwordHash("pw")
+                .name("Recommendation Integration")
+                .birthDate(LocalDate.of(2000, 1, 1))
+                .incomeLevel((byte) 5)
+                .displayCount(10)
+                .build());
+
+        PriorityOption housing = priorityOptionRepository.findByCode("HOUSING").orElseThrow();
+        userPriorityRepository.save(UserPriority.builder()
+                .user(user)
+                .priorityOption(housing)
+                .priorityRank(1)
+                .weight(2.0)
+                .build());
+
+        WelfareService housingPolicy = welfareServiceRepository.save(WelfareService.builder()
+                .sourceType(WelfareService.SourceType.YOUTH)
+                .sourceId(TEST_SOURCE_PREFIX + "HOUSE-" + UUID.randomUUID())
+                .title("청년 월세 지원")
+                .description("청년 주거비 경감")
+                .unifiedCategory("주거")
+                .status(WelfareService.ServiceStatus.ACTIVE)
+                .minAge(19)
+                .maxAge(34)
+                .minIncome(1)
+                .maxIncome(10)
+                .applyEndDate(LocalDate.now().plusDays(1))
+                .lifeStage("청년")
+                .viewCount(9_999)
+                .apiViewCount(0L)
+                .registeredAt(java.time.LocalDateTime.now())
+                .build());
+
+        WelfareService culturePolicy = welfareServiceRepository.save(WelfareService.builder()
+                .sourceType(WelfareService.SourceType.YOUTH)
+                .sourceId(TEST_SOURCE_PREFIX + "CULT-" + UUID.randomUUID())
+                .title("청년 문화패스")
+                .description("청년 문화 활동 지원")
+                .unifiedCategory("문화·여가")
+                .status(WelfareService.ServiceStatus.ACTIVE)
+                .minAge(19)
+                .maxAge(34)
+                .minIncome(1)
+                .maxIncome(10)
+                .lifeStage("청년")
+                .viewCount(1)
+                .apiViewCount(0L)
+                .registeredAt(java.time.LocalDateTime.now().minusMinutes(1))
+                .build());
+
+        given(aiRecommendationGateway.score(anyString(), anyList(), any(User.class)))
+                .willAnswer(invocation -> invocation.getArgument(1));
+
+        String accessToken = jwtUtil.generateAccessToken(user.getId());
+
+        mockMvc.perform(post("/api/recommendations/refresh")
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data[0].serviceId").value(housingPolicy.getId()))
+                .andExpect(jsonPath("$.data[0].title").value("청년 월세 지원"))
+                .andExpect(jsonPath("$.data[0].bookmarked").value(false));
+
+        UserRecommendation firstRecommendation = userRecommendationRepository.findLatestByUserId(user.getId()).stream()
+                .filter(rec -> rec.getService().getId().equals(housingPolicy.getId()))
+                .max(Comparator.comparing(UserRecommendation::getRecommendedAt))
+                .orElseThrow();
+
+        mockMvc.perform(post("/api/recommendations/{id}/bookmark", firstRecommendation.getId())
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
+        mockMvc.perform(post("/api/recommendations/refresh")
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data[0].serviceId").value(housingPolicy.getId()))
+                .andExpect(jsonPath("$.data[0].bookmarked").value(true));
+
+        mockMvc.perform(get("/api/recommendations")
+                        .param("size", "10")
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data[0].serviceId").value(housingPolicy.getId()))
+                .andExpect(jsonPath("$.data[0].bookmarked").value(true));
+
+        List<UserRecommendation> latestRecommendations = userRecommendationRepository.findLatestByUserId(user.getId());
+        assertThat(latestRecommendations).isNotEmpty();
+        assertThat(latestRecommendations.stream()
+                .map(rec -> rec.getService().getId()))
+                .contains(housingPolicy.getId(), culturePolicy.getId());
+        assertThat(latestRecommendations.stream()
+                .filter(rec -> rec.getService().getId().equals(housingPolicy.getId()))
+                .findFirst()
+                .orElseThrow()
+                .isBookmarked()).isTrue();
+        assertThat(latestRecommendations.stream()
+                .filter(rec -> rec.getService().getId().equals(culturePolicy.getId()))
+                .findFirst()
+                .orElseThrow()
+                .isBookmarked()).isFalse();
+    }
+}

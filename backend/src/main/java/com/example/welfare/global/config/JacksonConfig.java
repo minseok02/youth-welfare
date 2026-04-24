@@ -29,8 +29,15 @@ public class JacksonConfig implements WebMvcConfigurer {
     }
 
     @Override
-    public void configureMessageConverters(List<HttpMessageConverter<?>> converters) {
-        // JSON 컨버터를 맨 앞에 추가 — XML보다 우선 처리
-        converters.add(0, new MappingJackson2HttpMessageConverter(objectMapper()));
+    public void extendMessageConverters(List<HttpMessageConverter<?>> converters) {
+        // 기존 MappingJackson2HttpMessageConverter의 ObjectMapper를 커스텀으로 교체
+        // 새 인스턴스를 add하면 byte[] 응답(springdoc /v3/api-docs)을 Jackson이 가로채
+        // Base64로 직렬화하는 문제가 생기므로, 기존 인스턴스의 mapper만 교체
+        for (HttpMessageConverter<?> converter : converters) {
+            if (converter instanceof MappingJackson2HttpMessageConverter jacksonConverter) {
+                jacksonConverter.setObjectMapper(objectMapper());
+                break;
+            }
+        }
     }
 }

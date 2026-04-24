@@ -18,12 +18,47 @@ public interface UserRecommendationRepository extends JpaRepository<UserRecommen
             SELECT ur FROM UserRecommendation ur
             JOIN FETCH ur.service
             WHERE ur.user.id = :userId
+              AND ur.recommendedAt = (
+                    SELECT MAX(ur2.recommendedAt)
+                    FROM UserRecommendation ur2
+                    WHERE ur2.user.id = :userId
+                      AND ur2.service.id = ur.service.id
+              )
             ORDER BY ur.finalScore DESC
             """)
     List<UserRecommendation> findTopByUserId(@Param("userId") Long userId, Pageable pageable);
 
+    @Query("""
+            SELECT ur FROM UserRecommendation ur
+            WHERE ur.user.id = :userId
+              AND ur.recommendedAt = (
+                    SELECT MAX(ur2.recommendedAt)
+                    FROM UserRecommendation ur2
+                    WHERE ur2.user.id = :userId
+                      AND ur2.service.id = ur.service.id
+              )
+            """)
+    List<UserRecommendation> findLatestByUserId(@Param("userId") Long userId);
+
     // 북마크 목록
-    List<UserRecommendation> findByUserIdAndIsBookmarkedTrue(Long userId);
+    @Query("""
+            SELECT ur FROM UserRecommendation ur
+            JOIN FETCH ur.service
+            WHERE ur.user.id = :userId
+              AND ur.isBookmarked = true
+              AND ur.recommendedAt = (
+                    SELECT MAX(ur2.recommendedAt)
+                    FROM UserRecommendation ur2
+                    WHERE ur2.user.id = :userId
+                      AND ur2.service.id = ur.service.id
+              )
+            ORDER BY ur.recommendedAt DESC
+            """)
+    List<UserRecommendation> findLatestBookmarkedByUserId(@Param("userId") Long userId);
+
+    long countByUserIdAndIsBookmarkedTrue(Long userId);
+
+    Optional<UserRecommendation> findTopByUserIdAndServiceIdOrderByRecommendedAtDesc(Long userId, Long serviceId);
 
     // 클릭 추적용 단건 조회
     Optional<UserRecommendation> findByIdAndUserId(Long id, Long userId);
@@ -38,6 +73,14 @@ public interface UserRecommendationRepository extends JpaRepository<UserRecommen
                                                   @Param("since") LocalDateTime since);
 
     // 30일 지나고 북마크 없는 추천 삭제 (데이터 보존 정책)
+    @Modifying
+    @Query("""
+            DELETE FROM UserRecommendation ur
+            WHERE ur.user.id = :userId
+              AND ur.isBookmarked = false
+            """)
+    void deleteUnbookmarkedByUserId(@Param("userId") Long userId);
+
     @Modifying
     @Query("""
             DELETE FROM UserRecommendation ur

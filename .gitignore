@@ -27,12 +27,18 @@ replay_pid*
 /build/
 /out/
 /target/
+backend/build/
 
 # Gradle
 .gradle/
 gradle-app.setting
 !gradle-wrapper.jar
 !gradle-wrapper.properties
+backend/gradle.properties
+
+# Local runtime/tooling artifacts
+.jdk/
+.codex
 
 # Maven
 pom.xml.tag

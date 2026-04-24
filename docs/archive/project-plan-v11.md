@@ -2,9 +2,10 @@
 
 | 항목 | 내용 |
 |------|------|
-| 문서 버전 | v11.0 |
-| 작성일 | 2026-04-05 |
-| 변경 이력 | v10→v11: **챗봇 모듈 설계 반영** — welfare/ 패키지(WelfareService) 신규 추가. chat/ 모듈 역할 명확화(로그인 전용, 로그아웃 시 데이터 삭제). 의존 방향 원칙 구체화(chat→welfare 허용, chat→recommendation 금지, chat→user_recommendations 허용). chat/ 내부 클래스 2차 확장 타깃 명확화(ChatService, ChatRepository). 2차 확장 테이블 9개→11개(`chat_sessions`, `chat_messages` 추가). v9→v10: **확장형 MVP 구조 도입** — 1차(11개 테이블) / 2차(9개 테이블) 분리. **Cold Start 전략** — `score_weights` 테이블 신규 추가, 추천 이력 기반 가중치 자동 전환(rule 0.8→0.4 / ai 0.2→0.6). **AI 점수 위치 수정** — `welfare_services.ai_score` 제거, AI 점수는 `user_recommendations`(유저×서비스 단위)에만 존재. **스키마 무결성 강화** — `service_tags` UNIQUE KEY 추가, `user_attributes.attr_type` ENUM→VARCHAR(30). **컬럼 수정** — `batch_date DATE` → `recommended_at DATETIME`, `reason` → `ai_reason`, `rule_weight_used`·`ai_weight_used` 추가. **`unified_category`** — 3개 API 카테고리 통합 필터용 컬럼 추가 |
+| 문서 버전 | v11.7 |
+| 작성일 | 2026-04-18 |
+| 문서 상태 | 보관 문서 |
+| 보관 사유 | 현재 기준은 `phase-plan.md`, `srs-v2.10.md`, `architecture.md`로 분리 관리 |
 
 ---
 
@@ -15,7 +16,7 @@
 3. 2단계 맞춤 추천 (Retrieval → Re-ranking)
 4. 조회수 기반 랭킹
 5. 키워드·필터 검색
-6. 카카오 알림톡 (슬롯 배치)
+6. 알림 발송 (1차: 이메일 / 2차: 카카오 알림톡)
 
 ---
 
@@ -27,8 +28,15 @@
 | Frontend | React + MUI |
 | Database | MySQL 8.0+ |
 | AI API | 1차: OpenAI GPT-4o-mini 실시간 호출 / 2차: Batch API 전환 |
-| 배포 | EC2 **t4g.large** (2vCPU, 8GB RAM, ARM Graviton2) + Docker Compose 2개 |
-| 알림 | 카카오 알림톡 (CoolSMS) + Gmail 폴백 |
+| 배포 | EC2 **t4g.large** (2vCPU, 8GB RAM, ARM Graviton2) + Docker Compose 3개(`app`, `db`, `redis`) |
+| 알림 | 1차: Gmail 이메일 / 2차: 카카오 알림톡(CoolSMS, 등록·심사 완료 후) |
+
+### 운영 제약 (2026-04-16 확인)
+
+- 공공데이터포털 복지로 상세 API는 **기능별 일일 트래픽 100**.
+- 운영 기본값: API별 일일 최대 95회(안전 여유 5회).
+- 429 응답 시 해당 API 수집 즉시 중단(한도 보호), 5xx만 재시도.
+- 카카오 알림톡은 비즈니스 채널/발신 프로필/템플릿 사전 등록 및 심사 완료 후에만 운영 가능.
 
 ---
 
@@ -185,7 +193,7 @@ Step 3: norm = (clipped - p5) / (p95 - p5)
 
 ### 4.6 알림 슬롯 배치 → 2차 구현
 
-**1차**: `selectNotificationCandidates(user)` → top 3 반환.
+**1차**: 이메일 발송 + 이력 저장(`notifications`, `notification_services`) + `notification_min_score` 필터 + `ai_reason`/수신 거부 링크 포함 + 실패 재시도(30분/2시간) + top 3 정책.
 **2차**: A/B 타입 로직으로 교체.
 
 ---
@@ -195,6 +203,10 @@ Step 3: norm = (clipped - p5) / (p95 - p5)
 ```
 시스템: 청년 복지 정책 평가 전문가. JSON만 응답.
 군집 특성: {age_group}, {region_sido}, {income_range}, {employment}
+
+운영 메모:
+- `income_range`는 사용자 프로필 값으로 AI 프롬프트에는 전달하지만, 정책 측 소득 조건은 현재 `YOUTH` 구조화 값 위주로만 직접 필터링된다.
+- 복지로 계열은 소득 구조화 값이 거의 없어 `TARGET_GROUP`의 `저소득층`, `기초생활` 등 태그를 보조 신호로 사용한다.
 정책 목록: {policy_list}
 응답: {"results": [{"service_id": 1001, "score": 85, "reason": "1문장"}]}
 ```
@@ -245,12 +257,22 @@ service/
 │   └── ChatRepository.java                     # 2차: chat_sessions·chat_messages DB 접근 전담
 │                                               # 로그아웃 시 해당 유저 세션·메시지 전체 삭제 처리
 ├── NotificationService.java                    # 알림 발송
-├── CollectService.java                         # 공공 API 수집
+├── RecommendationRetentionService.java         # 30일+미북마크 추천 정리
+├── CollectService.java                         # 공공 API 수집 (목록 + 상세 트리거)
+├── BokjiroDetailCollectService.java            # 복지로 상세 수집 (API별 상한/429 보호)
 ├── BatchSubmitService.java                     # 2차: JSONL + Batch 제출
 ├── BatchPollingScheduler.java                  # 2차: 폴링
 ├── HardDeadlineScheduler.java                  # 2차: 새벽 6시 Fallback
 └── StatusUpdateService.java                    # 만료 갱신
 ```
+
+---
+
+## 7. 검증 상태
+
+- 단위/슬라이스 테스트: 정책 랭킹, 조회수 중복 방지, 알림 이력, 정책/추천 WebMvc 흐름 검증 완료
+- 통합 테스트: MySQL + Redis 기반 `AuthRedisIntegrationTest`, `PolicyBookmarkIntegrationTest` 추가 완료
+- 운영 반영 메모: 기존 DB는 `schema.sql`만으로 갱신되지 않으므로 [db-migration.md](../db-migration.md) 순서대로 수동 마이그레이션 적용 필요
 
 **설계 원칙**
 
@@ -267,7 +289,7 @@ service/
 
 ## 7. DB 테이블 목록
 
-### 1차 구현 (11개) — 지금 바로 만들 것
+### 1차 구현 (12개) — 지금 바로 만들 것
 
 | # | 테이블 | 역할 | 주요 변경 |
 |---|---|---|---|
@@ -282,6 +304,7 @@ service/
 | 9 | `user_recommendations` | 추천 결과 | **recommended_at DATETIME**, ai_reason, rule/ai_weight_used 추가 |
 | 10 | `recommendation_logs` | 추천 클릭 추적 | rule/ai_weight_used 추가 |
 | 11 | `score_weights` | Cold Start 가중치 설정 | **신규** |
+| 12 | `service_view_logs` | 조회수 중복 방지(24h dedup) | **신규** |
 
 ### 2차 확장 (11개)
 
@@ -295,7 +318,7 @@ service/
 | 17 | `notification_services` | 알림-정책 매핑 | 알림 시스템 구현 시 |
 | 18 | `api_sync_logs` | 수집 배치 이력 | 배치 안정화 후 |
 | 19 | `search_logs` | 검색 키워드 | 검색 기능 안정화 후 |
-| 20 | `service_view_logs` | 조회수 중복 방지 | 조회수 정교화 시 |
+| 20 | `service_view_logs` | 조회수 집계 고도화(윈도우/장치/세션 확장) | 1차 이후 정교화 시 |
 | 21 | `chat_sessions` | 챗봇 대화 세션 | 챗봇 모듈 구현 시 |
 | 22 | `chat_messages` | 챗봇 대화 메시지 히스토리 | 챗봇 모듈 구현 시 |
 
@@ -319,24 +342,28 @@ service/
 - [ ] DB 스키마 **1차 11개 테이블** (score_weights 초기 데이터 포함)
 - [ ] 회원가입 / 로그인 (JWT, HttpOnly 쿠키)
 - [ ] 수집 배치 + Jsoup strip + unified_category 매핑
+- [ ] 복지로 상세 수집 보호로직 (기능별 100/일 기준, API별 상한/429 차단)
 
 ### Phase 2: 핵심 기능 (W4~W6)
-- [ ] 정책 목록 + 검색 (FULLTEXT) + 필터 (unified_category 포함)
-- [ ] 정책 상세 (welfare_service_details JOIN)
+- [x] 정책 목록 + 검색 (FULLTEXT) + 필터 (unified_category 포함)
+- [x] 정책 상세 (welfare_service_details JOIN)
 - [ ] 우선순위 선택 UI
-- [ ] 북마크, 마이페이지, 조회수 랭킹
+- [ ] 북마크, 마이페이지
+- [x] 조회수 랭킹 (고유조회 7일 + 탐색 슬롯)
 
 ### Phase 3: 추천 1차 (W7~W8)
-- [ ] RetrievalService (SQL 필터 + 기본 가점, youth_all 고정)
-- [ ] RuleScoringService (if-else 가점 + 우선순위 가중치)
-- [ ] RealtimeAiGateway (상위 N개 실시간 호출 → ai_score, ai_reason)
-- [ ] ScoreWeightService (Cold Start 가중치 결정)
-- [ ] ReRankingService (final_score 계산 + recommended_at 저장)
+- [x] RetrievalService (SQL 필터 + 기본 가점, youth_all 고정)
+- [x] RuleScoringService (if-else 가점 + 우선순위 가중치)
+- [x] RealtimeAiGateway (상위 N개 실시간 호출 → ai_score, ai_reason)
+- [x] ScoreWeightService (Cold Start 가중치 결정)
+- [x] ReRankingService (final_score 계산 + recommended_at 저장)
 - [ ] 추천 카드 UI (ai_reason + 우선순위 태그)
-- [ ] recommendation_logs 클릭 추적 (`?log_id=`)
+- [x] recommendation_logs 클릭 추적 (`?log_id=`)
+- [ ] 품질 고도화는 별도 트랙으로 분리 (1차 목표: 추천 안정 동작/실패 없는 fallback)
 
 ### Phase 4: 알림 + 2차 확장 (W9~W11)
-- [ ] NotificationService 1차 (top 3 발송)
+- [x] NotificationService 1차 (이메일 top 3 발송 + 발송 이력 저장)
+- [ ] 카카오 알림톡 등록/심사 완료 (비즈니스 채널, 발신 프로필, 템플릿)
 - [ ] 2차 테이블 추가 (user_clusters, batch_jobs, cluster_ai_results 등)
 - [ ] BatchAiGateway 교체 (실시간 → Batch API)
 - [ ] ClusterService 2차 (youth_all → 2D 군집)
@@ -347,7 +374,7 @@ service/
 - [ ] AWS EC2 배포 + HTTPS
 - [ ] 보안 항목 (Rotation, 잠금, 취약점 비식별화)
 - [ ] 통합 테스트 + 버그 수정
-- [ ] 발표 자료 + 데모 시나리오 (CTR 분석 쿼리 포함)
+- [x] 데모 시나리오 문서 (`docs/demo-scenario.md`, CTR 분석 쿼리 포함)
 
 ---
 

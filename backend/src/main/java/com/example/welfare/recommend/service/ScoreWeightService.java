@@ -1,5 +1,7 @@
 package com.example.welfare.recommend.service;
 
+import com.example.welfare.global.exception.CustomException;
+import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.recommend.entity.ScoreWeight;
 import com.example.welfare.recommend.repository.RecommendationLogRepository;
 import com.example.welfare.recommend.repository.ScoreWeightRepository;
@@ -27,6 +29,9 @@ public class ScoreWeightService {
         long totalLogCount = logRepository.count();
 
         List<ScoreWeight> activeWeights = scoreWeightRepository.findByIsActiveTrueOrderByMinLogCountAsc();
+        if (activeWeights.isEmpty()) {
+            throw new CustomException(ErrorCode.SCORE_WEIGHT_NOT_CONFIGURED);
+        }
 
         // totalLogCount 이하인 단계 중 minLogCount가 가장 큰 것 선택
         return activeWeights.stream()

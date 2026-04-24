@@ -26,6 +26,9 @@ public class JwtUtil {
     @Value("${jwt.refresh-expiration}")
     private long refreshExpiration;
 
+    @Value("${jwt.notification-expiration:2592000000}")
+    private long notificationExpiration;
+
     private SecretKey key;
 
     @PostConstruct
@@ -41,6 +44,10 @@ public class JwtUtil {
         return buildToken(userId, refreshExpiration);
     }
 
+    public String generateNotificationToken(Long userId) {
+        return buildToken(userId, notificationExpiration);
+    }
+
     private String buildToken(Long userId, long expiration) {
         Date now = new Date();
         return Jwts.builder()
@@ -53,6 +60,16 @@ public class JwtUtil {
 
     public Long getUserId(String token) {
         return Long.parseLong(getClaims(token).getSubject());
+    }
+
+    public Long getUserIdAllowExpired(String token) {
+        try {
+            return Long.parseLong(getClaims(token).getSubject());
+        } catch (ExpiredJwtException e) {
+            return Long.parseLong(e.getClaims().getSubject());
+        } catch (JwtException e) {
+            throw new CustomException(ErrorCode.INVALID_TOKEN);
+        }
     }
 
     public boolean isExpired(String token) {

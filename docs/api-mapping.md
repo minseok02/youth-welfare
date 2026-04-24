@@ -96,6 +96,11 @@ public String mapUnifiedCategory(String sourceType, String rawCategory) {
 
 ## 수집 시 주의사항
 
+### 소득 필드 해석
+- `min_income`, `max_income`는 현재 **온통청년(YOUTH)의 구조화 소득값 전용**으로 취급한다.
+- 복지로 계열의 `중위소득 %`, `연/월소득 금액`, `저소득층` 문구는 같은 축이 아니므로 이 컬럼에 직접 매핑하지 않는다.
+- 추천 후보 SQL의 직접 소득 필터도 `YOUTH`에만 적용하고, 복지로 계열은 `TARGET_GROUP`/`KEYWORD` 태그를 보조 신호로만 사용한다.
+
 ### service_tags UPSERT (중복 삽입 금지)
 ```java
 // 반드시 INSERT IGNORE 또는 ON DUPLICATE KEY UPDATE 사용
@@ -152,12 +157,64 @@ public void resetAiScoreForClosed() {
 
 ## API 엔드포인트 정보
 
-| API | 포맷 | 일일 제한 |
-|-----|------|-----------|
-| 온통청년 | JSON | 1,000건 |
-| 복지로 중앙 | XML | 1,000건 |
-| 복지로 지자체 | XML | 1,000건 |
+| API | 포맷 | 일일 제한(현재 운영 기준) |
+|-----|------|--------------------------|
+| 온통청년 목록 | JSON | 1,000건 |
+| 복지로 중앙/지자체 목록 | XML | 1,000건 |
+| 복지로 상세 API (기능별) | XML | **100건** |
 
-- 수집 실패 시: 1시간 후 재시도, 최대 2회
+- 복지로 상세는 API 기능별 일일 100건 제한 기준으로 운영:
+  - 기본 상한 95회(여유 5회)
+  - 429 응답 즉시 중단
+  - 5xx만 재시도
 - API별 독립 실행 (하나 실패가 다른 API에 영향 없음)
-- API 키는 `.env` + `application.yml` 참조 (하드코딩 절대 금지)
+- API 키는 `.env` + `application.yml` 참조 (하드코딩 금지)
+
+---
+
+## 프론트 연동용 응답 필드 (2026-04-17)
+
+### `GET /api/policies/ranking`
+
+- 주요 필드
+  - `serviceId`
+  - `title`
+  - `unifiedCategory`
+  - `sourceType`
+  - `uniqueViewCount7d` (최근 7일 고유조회수)
+  - `viewCount` (내부 누적 조회수)
+  - `apiViewCount` (외부 API 조회수)
+  - `rankingScore`
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "serviceId": 1829,
+      "title": "청년일자리 도약장려금",
+      "unifiedCategory": "일자리",
+      "sourceType": "YOUTH",
+      "uniqueViewCount7d": 1,
+      "viewCount": 2,
+      "apiViewCount": 187756,
+      "rankingScore": 0.9792
+    }
+  ]
+}
+```
+
+### `GET /api/policies/search`
+
+- 현재 지원 파라미터
+  - `keyword` (필수)
+  - `status`, `category`, `sourceType`, `onlineApply`
+  - `sort` = `RELEVANCE|VIEWS|LATEST`
+  - `page`, `size`
+
+### `GET /api/policies/{id}`
+
+- 조회수 정책
+  - 24시간 dedup 적용
+  - 로그인: `(user_id, service_id)` 기준
+  - 비로그인: `(client_fingerprint, service_id)` 기준

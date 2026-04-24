@@ -4,10 +4,11 @@
 
 | 항목 | 내용 |
 |------|------|
-| 문서 버전 | 2.10 |
-| 작성일 | 2026-04-05 |
+| 문서 버전 | 2.14 |
+| 작성일 | 2026-04-18 |
+| 마지막 정리일 | 2026-04-23 |
 | 프로젝트 유형 | 졸업 프로젝트 (2인) |
-| 변경 이력 | v2.9→v2.10: **챗봇 모듈 설계 반영** — 2차 구현 항목으로 chat/ 패키지 추가. 모듈 경계 원칙(chat→welfare 허용, chat→recommendation 금지). v2.8→v2.9: **확장형 MVP 구조** — 1차(11개) / 2차(9개) 테이블 분리. **Cold Start 전략** — `score_weights` 테이블 추가, 추천 이력 기반 rule/ai 가중치 자동 전환. **AI 점수 구조 수정** — `welfare_services.ai_score` 제거, AI 점수는 `user_recommendations`에만 존재. **스키마 무결성** — `service_tags` UNIQUE KEY 추가, `user_attributes.attr_type` ENUM→VARCHAR(30). **컬럼 수정** — `batch_date DATE`→`recommended_at DATETIME`, `reason`→`ai_reason`, `rule_weight_used`·`ai_weight_used` 추가. **unified_category** — 3개 API 분류 통합 필터용 컬럼 추가. **FR 수정** — FR-05-02 분야 필터를 unified_category 기반으로, FR-07-09 점수 가중치를 score_weights 기반으로, FR-07-14 CLOSED 처리를 user_recommendations 기준으로 수정 |
+| 문서 목적 | 현재 기준 요구사항과 1차/2차 범위 정의 |
 
 ---
 
@@ -78,7 +79,7 @@
 | HTTP 클라이언트 | Spring WebClient | |
 | 인증 | JWT + Spring Security | HttpOnly 쿠키 |
 | 알림 | Spring Mail + Gmail SMTP | |
-| 배포 | EC2 **t4g.large** (2vCPU, 8GB, ARM) + Docker Compose | 컨테이너 2개 |
+| 배포 | EC2 **t4g.large** (2vCPU, 8GB, ARM) + Docker Compose | 컨테이너 3개(`app`, `db`, `redis`) |
 | XML 파싱 | jackson-dataformat-xml | XXE 비활성화 |
 | HTML 정제 | Jsoup | XSS 방지 |
 
@@ -167,7 +168,7 @@
 ```
 [추천 요청]
   ① 군집: youth_all 고정
-  ② SQL WHERE 필터 (나이/지역/소득/취업)
+  ② SQL WHERE 필터 (나이/지역 중심, 소득은 구조화 값 있는 경우만 직접 적용)
   ③ if-else 기본 가점 → rule_base_score
   ④ 상위 K건 선별
   ⑤ AiRecommendationGateway 실시간 호출 → ai_score, ai_reason 저장
@@ -181,8 +182,8 @@
 |----|---------|:--------:|:--------:|
 | FR-07-01 | **군집화**: 1차 youth_all 단일 군집. 2차: 나이대(4구간) × 소득구간(2구간) = 최대 8개 군집 | 필수 | 1차→2차 |
 | FR-07-02 | 2차 군집 폴백: `min_cluster_size`(기본 3) 미만이면 나이대 단일 군집 → "전체 청년" **2단계 폴백만** | 필수 | 2차 |
-| FR-07-03 | SQL WHERE 필터: 나이/지역/소득/취업상태 pass/fail | 필수 | 1차 |
-| FR-07-04 | if-else 기본 가점: 청년전용(+20), 지원금100만+(+15), 온라인신청(+10), 지역일치(+10), 관심분야(+10), 마감임박(+5) | 필수 | 1차 |
+| FR-07-03 | SQL WHERE 필터: 나이/지역 pass/fail 우선. 소득은 **구조화 값이 존재하는 소스(YOUTH)만 직접 적용**, 복지로 계열은 null 통과 후 대상 태그(`저소득층`, `기초생활`)를 보조 신호로 사용 | 필수 | 1차 |
+| FR-07-04 | if-else 기본 가점: 관심분야 태그 일치, 대상유형 태그 일치, 마감임박 중심. `onlineApply`, `청년전용(sourceType=YOUTH)`, `지원금 100만+`는 현재 데이터 신뢰도 부족으로 추천 가점에서 제외 | 필수 | 1차 |
 | FR-07-05 | 상위 K=50건 후보 선별 | 필수 | 1차 |
 | FR-07-06 | **신규 정책 가점 포함**: 수집 후 24시간 이내 신규 정책 중 `rule_base_score` 최솟값 M=5건을 후보 강제 추가. 점수 조정 없이 슬롯 배치에서만 노출 보장 | 필수 | 1차 |
 | FR-07-07 | 우선순위 가중치: 1순위×2.0 / 2순위×1.6 / 3순위×1.3 / 4순위×1.1 / 5순위×1.0 / 미설정×1.0 | 필수 | 1차 |
@@ -250,7 +251,7 @@
 | ID | 요구사항 | 우선순위 |
 |----|---------|:--------:|
 | FR-11-01 | 마이페이지 개인정보 수정 | 필수 |
-| FR-11-02 | 우선순위 설정, 표시 건수 설정 | 필수 |
+| FR-11-02 | 우선순위 설정, 표시 건수 설정, 알림 설정(`notification_yn`, `notification_period`, `notification_min_score`) | 필수 |
 | FR-11-03 | 추천 목록, 북마크, 알림, 프로필, 우선순위, 탈퇴 | 필수 |
 | FR-11-04 | 프로필 완성도 % 표시 | 필수 |
 
@@ -351,7 +352,7 @@
 | 데이터 | 보존 |
 |--------|------|
 | 만료 정책 (`welfare_services`) | 영구 (CLOSED) |
-| 추천 결과 (`user_recommendations`) | 30일 + 미북마크 삭제 |
+| 추천 결과 (`user_recommendations`) | 30일 + 미북마크 삭제, 북마크 200건 상한 |
 | 검색 로그 (`search_logs`, 2차) | 3개월 후 user_id NULL |
 | 탈퇴 사용자 | 비식별화 보존 |
 | `cluster_ai_results` (2차) | 7일 TTL |

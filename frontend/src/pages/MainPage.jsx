@@ -1,10 +1,10 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  Box, Container, Typography, TextField, InputAdornment, Button,
-  Card, CardContent, CardActionArea, Chip, Grid, Pagination,
+  Box, Container, Typography, Button,
+  Card, CardContent, Chip, Grid, Pagination,
   Select, MenuItem, FormControl, Collapse, Radio, RadioGroup,
-  FormControlLabel, Divider, Snackbar, Alert, Switch, Paper,
+  FormControlLabel, Snackbar, Alert, Switch, CircularProgress,
   IconButton,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
@@ -16,19 +16,20 @@ import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import ViewListIcon from "@mui/icons-material/ViewList";
 import GridViewIcon from "@mui/icons-material/GridView";
 import Header from "../components/Header";
+import api from "../lib/axios";
 import { useAuthStore } from "../store/authStore";
 
 const CATEGORIES = [
   { label: "전체", value: "" },
-  { label: "주거", value: "HOUSING" },
-  { label: "일자리", value: "JOB" },
-  { label: "교육·직업훈련", value: "EDUCATION" },
-  { label: "금융·생활", value: "FINANCE" },
-  { label: "문화·여가", value: "CULTURE" },
-  { label: "건강·의료", value: "HEALTH" },
-  { label: "가족·돌봄", value: "FAMILY" },
-  { label: "안전·위기", value: "SAFETY" },
-  { label: "참여·기회", value: "PARTICIPATION" },
+  { label: "주거", value: "주거" },
+  { label: "일자리", value: "일자리" },
+  { label: "교육·직업훈련", value: "교육·직업훈련" },
+  { label: "금융·생활", value: "금융·생활지원" },
+  { label: "문화·여가", value: "문화·여가" },
+  { label: "건강·의료", value: "건강·의료" },
+  { label: "가족·돌봄", value: "가족·돌봄" },
+  { label: "안전·위기", value: "안전·위기" },
+  { label: "참여·기회", value: "참여·기회" },
 ];
 
 const REGIONS = ["전체", "서울", "부산", "대구", "인천", "광주", "대전", "울산", "세종", "경기", "강원", "충북", "충남", "전북", "전남", "경북", "경남", "제주"];
@@ -63,20 +64,56 @@ const INCOME_ROWS = [
 ];
 
 const EMPLOY_OPTIONS = ["전체", "재직중", "구직중", "학생", "기타"];
-const SOURCE_OPTIONS = ["전체", "온통청년", "복지로 중앙", "복지로 지자체"];
 
-// TODO: 더미 데이터 — 실제 데이터 연동 시 삭제
-const DUMMY_POLICIES = [
-  { id: 1, title: "청년 전세자금 대출 지원", category: "주거", dday: "D-12", source: "국토교통부", summary: "최대 1억원 / 온라인신청 가능", isNew: true, bookmarked: false, aiReason: "주거 우선순위 1위 기준 추천" },
-  { id: 2, title: "청년 취업지원 프로그램", category: "일자리", dday: "D-30", source: "고용노동부", summary: "월 50만원 지원 / 서울시", bookmarked: false, aiReason: "취업 우선순위 2위 기준 추천" },
-  { id: 3, title: "국민취업지원제도", category: "일자리", dday: "상시", source: "고용노동부", summary: "취업 취약계층 청년에게 취업지원서비스 및 구직촉진수당 제공", bookmarked: true },
-  { id: 4, title: "청년 창업지원 프로그램", category: "금융·생활", dday: "D-45", source: "중소벤처기업부", summary: "만 39세 이하 청년 창업자 최대 1억원 사업화 자금 지원", bookmarked: false },
-  { id: 5, title: "청년문화누리카드", category: "문화·여가", dday: "D-60", source: "문화체육관광부", summary: "연 11만원 문화·여행·체육 분야 이용권 지원", bookmarked: false },
-  { id: 6, title: "청년 심리상담 지원", category: "건강·의료", dday: "상시", source: "보건복지부", summary: "만 34세 이하 청년 1인당 최대 10회 전문 심리상담 무료 제공", bookmarked: false },
-  { id: 7, title: "청년월세 한시 특별지원", category: "주거", dday: "D-5", source: "국토교통부", summary: "만 19~34세 무주택 청년에게 월 최대 20만원, 12개월 지원", bookmarked: false },
-  { id: 8, title: "청년내일저축계좌", category: "금융·생활", dday: "D-90", source: "보건복지부", summary: "근로·사업소득 월 10만원 저축 시 정부 10~30만원 매칭 지원", bookmarked: false },
-];
-// 더미 데이터 끝
+const SORT_MAP = {
+  views: "VIEWS",
+  latest: "LATEST",
+  name: "NAME",
+};
+
+const statusLabel = (status) => {
+  if (status === "ACTIVE") return "진행중";
+  if (status === "UPCOMING") return "예정";
+  if (status === "CLOSED") return "종료";
+  return "상태 정보 없음";
+};
+
+const formatDday = (dateText, status) => {
+  if (status === "CLOSED") return "종료";
+  if (!dateText) return "상시";
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const endDate = new Date(`${dateText}T00:00:00`);
+  if (Number.isNaN(endDate.getTime())) return "상시";
+
+  const diff = Math.ceil((endDate - today) / 86400000);
+  if (diff < 0) return "종료";
+  if (diff === 0) return "D-Day";
+  return `D-${diff}`;
+};
+
+const mapPolicySummary = (policy) => ({
+  id: policy.id,
+  title: policy.title,
+  category: policy.unifiedCategory || "기타",
+  dday: formatDday(policy.applyEndDate, policy.status),
+  source: policy.hostOrg || policy.applyMethodName || statusLabel(policy.status),
+  summary: policy.description || "정책 설명 정보가 없습니다.",
+  bookmarked: false,
+});
+
+const mapRecommendation = (rec) => ({
+  id: rec.serviceId,
+  recommendationId: rec.id,
+  title: rec.title,
+  category: rec.unifiedCategory || "기타",
+  dday: statusLabel(rec.status),
+  source: "맞춤 추천",
+  summary: rec.description || "정책 설명 정보가 없습니다.",
+  bookmarked: rec.bookmarked,
+  aiReason: rec.aiReason,
+});
 
 export default function MainPage() {
   const navigate = useNavigate();
@@ -90,28 +127,102 @@ export default function MainPage() {
   const [income, setIncome] = useState("전체");
   const [incomeOpen, setIncomeOpen] = useState(false);
   const [employ, setEmploy] = useState("전체");
-  const [source, setSource] = useState("전체");
   const [includeExpired, setIncludeExpired] = useState(filterSettings?.includeExpired ?? false);
   const [sort, setSort] = useState("views");
   const [pageSize, setPageSize] = useState(10);
   const [cols, setCols] = useState(1);
   const [page, setPage] = useState(1);
   const [isRecommendMode, setIsRecommendMode] = useState(isLoggedIn);
-  // TODO: 더미 데이터 — 실제 데이터 연동 시 API 응답으로 교체 후 아래 줄 삭제
-  const [policies, setPolicies] = useState(DUMMY_POLICIES);
+  const [policies, setPolicies] = useState([]);
+  const [totalPages, setTotalPages] = useState(1);
+  const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState({ open: false, msg: "", severity: "info" });
 
-  const showToast = (msg, severity = "info") => setToast({ open: true, msg, severity });
+  const showToast = useCallback((msg, severity = "info") => {
+    setToast({ open: true, msg, severity });
+  }, []);
 
-  const handleBookmark = (id, e) => {
+  useEffect(() => {
+    const controller = new AbortController();
+
+    const fetchPolicies = async () => {
+      setLoading(true);
+      try {
+        if (isRecommendMode && isLoggedIn) {
+          const { data } = await api.get("/api/recommendations", {
+            params: { size: pageSize },
+            signal: controller.signal,
+          });
+          setPolicies((data.data ?? []).map(mapRecommendation));
+          setTotalPages(1);
+          return;
+        }
+
+        const commonParams = {
+          category: selectedCat || undefined,
+          sido: region === "전체" ? undefined : region,
+          sgg: subRegion === "전체" ? undefined : subRegion,
+          sort: SORT_MAP[sort] ?? "LATEST",
+          page: page - 1,
+          size: pageSize,
+        };
+
+        if (search.trim()) {
+          const { data } = await api.get("/api/policies/search", {
+            params: {
+              ...commonParams,
+              keyword: search.trim(),
+            },
+            signal: controller.signal,
+          });
+          const items = data.data ?? [];
+          setPolicies(items.map(mapPolicySummary));
+          setTotalPages(items.length === pageSize ? page + 1 : Math.max(page, 1));
+          return;
+        }
+
+        const { data } = await api.get("/api/policies", {
+          params: {
+            ...commonParams,
+            includeClosed: includeExpired,
+          },
+          signal: controller.signal,
+        });
+        const pageData = data.data ?? {};
+        setPolicies((pageData.content ?? []).map(mapPolicySummary));
+        setTotalPages(Math.max(pageData.totalPages ?? 1, 1));
+      } catch (error) {
+        if (error.name === "CanceledError" || error.code === "ERR_CANCELED") return;
+        setPolicies([]);
+        setTotalPages(1);
+        showToast("정책 목록을 불러오지 못했습니다", "error");
+      } finally {
+        if (!controller.signal.aborted) setLoading(false);
+      }
+    };
+
+    fetchPolicies();
+    return () => controller.abort();
+  }, [includeExpired, isLoggedIn, isRecommendMode, page, pageSize, region, search, selectedCat, showToast, sort, subRegion]);
+
+  const handleBookmark = async (policy, e) => {
     e.stopPropagation();
     if (!isLoggedIn) {
       showToast("로그인 후 이용 가능해요");
       return;
     }
-    setPolicies((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, bookmarked: !p.bookmarked } : p))
-    );
+    try {
+      if (policy.recommendationId) {
+        await api.post(`/api/recommendations/${policy.recommendationId}/bookmark`);
+      } else {
+        await api.post(`/api/policies/${policy.id}/bookmark`);
+      }
+      setPolicies((prev) =>
+        prev.map((p) => (p.id === policy.id ? { ...p, bookmarked: !p.bookmarked } : p))
+      );
+    } catch {
+      showToast("북마크 처리에 실패했습니다", "error");
+    }
   };
 
   const handleRecommend = () => {
@@ -127,6 +238,7 @@ export default function MainPage() {
   const handleCategorySelect = (val) => {
     setSelectedCat(val);
     if (val !== "") setIsRecommendMode(false);
+    setPage(1);
   };
 
   const handleApplyFilter = () => {
@@ -140,23 +252,14 @@ export default function MainPage() {
     setSubRegion("전체");
     setIncome("전체");
     setEmploy("전체");
-    setSource("전체");
     setIncludeExpired(false);
     setPage(1);
   };
 
-  // TODO: 더미 데이터 — 실제 연동 시 필터링/정렬/페이지네이션을 API 파라미터로 교체 후 아래 블록 삭제
-  const filtered = policies.filter((p) => {
-    if (search && !p.title.includes(search) && !p.summary.includes(search)) return false;
-    if (selectedCat && p.category !== CATEGORIES.find((c) => c.value === selectedCat)?.label) return false;
-    return true;
-  });
-
-  const paginated = filtered.slice((page - 1) * pageSize, page * pageSize); // TODO: 더미 데이터 — 삭제
-  const totalPages = Math.ceil(filtered.length / pageSize); // TODO: 더미 데이터 — 삭제
-
   const ddayColor = (dday) => {
+    if (dday === "종료") return "default";
     if (dday === "상시") return "success";
+    if (dday === "D-Day") return "error";
     const n = parseInt(dday.replace("D-", ""));
     return n <= 14 ? "error" : "primary";
   };
@@ -380,10 +483,10 @@ export default function MainPage() {
         <Box sx={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 1, mb: 2 }}>
           <Typography variant="body2" color="text.secondary">정렬:</Typography>
           <FormControl size="small">
-            <Select value={sort} onChange={(e) => setSort(e.target.value)} sx={{ fontSize: 13 }}>
+            <Select value={sort} onChange={(e) => { setSort(e.target.value); setPage(1); }} sx={{ fontSize: 13 }}>
               <MenuItem value="views">조회수순</MenuItem>
               <MenuItem value="latest">최신순</MenuItem>
-              <MenuItem value="deadline">마감임박순</MenuItem>
+              <MenuItem value="name">이름순</MenuItem>
             </Select>
           </FormControl>
           <Typography variant="body2" color="text.secondary">표시:</Typography>
@@ -420,9 +523,13 @@ export default function MainPage() {
         )}
 
         {/* 카드 그리드 */}
-        {paginated.length > 0 ? (
+        {loading ? (
+          <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
+            <CircularProgress />
+          </Box>
+        ) : policies.length > 0 ? (
           <Grid container spacing={2}>
-            {paginated.map((p) => (
+            {policies.map((p) => (
               <Grid size={cols === 1 ? 12 : { xs: 12, sm: 6 }} key={p.id}>
                 <Card
                   sx={{ height: "100%", cursor: "pointer", transition: "all 0.2s", "&:hover": { transform: "translateY(-2px)", boxShadow: "0 8px 24px rgba(2,128,144,0.15)" } }}
@@ -453,7 +560,7 @@ export default function MainPage() {
                       <Typography variant="caption" color="text.secondary">{p.source}</Typography>
                       <IconButton
                         size="small"
-                        onClick={(e) => handleBookmark(p.id, e)}
+                        onClick={(e) => handleBookmark(p, e)}
                         sx={{ color: p.bookmarked ? "#f59e0b" : "text.disabled" }}
                       >
                         {p.bookmarked ? <BookmarkIcon fontSize="small" /> : <BookmarkBorderIcon fontSize="small" />}

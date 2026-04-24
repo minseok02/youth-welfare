@@ -67,12 +67,22 @@ public class WelfareService extends BaseTimeEntity {
     private Boolean isOnlineApply;
 
     private Long apiViewCount;
+    @Builder.Default
+    private Integer viewCount = 0;
 
     private LocalDateTime registeredAt;
     private LocalDateTime lastModifiedAt;
 
     public void updateStatus(ServiceStatus status) {
         this.status = status;
+    }
+
+    public void increaseViewCount() {
+        if (this.viewCount == null) {
+            this.viewCount = 1;
+            return;
+        }
+        this.viewCount += 1;
     }
 
     /** 수집 배치에서 기존 레코드 필드를 최신 API 데이터로 덮어쓴다 */
@@ -103,6 +113,32 @@ public class WelfareService extends BaseTimeEntity {
         this.apiViewCount = source.apiViewCount;
         this.registeredAt = source.registeredAt;
         this.lastModifiedAt = source.lastModifiedAt;
+    }
+
+    public void applyDetailFallbacks(String supportContent,
+                                     String applyMethodName,
+                                     Integer minAge,
+                                     Integer maxAge,
+                                     LocalDate applyEndDate,
+                                     Boolean isOnlineApply) {
+        if ((this.supportContent == null || this.supportContent.isBlank()) && supportContent != null && !supportContent.isBlank()) {
+            this.supportContent = supportContent;
+        }
+        if ((this.applyMethodName == null || this.applyMethodName.isBlank()) && applyMethodName != null && !applyMethodName.isBlank()) {
+            this.applyMethodName = applyMethodName;
+        }
+        if (this.minAge == null && minAge != null) {
+            this.minAge = minAge;
+        }
+        if (this.maxAge == null && maxAge != null) {
+            this.maxAge = maxAge;
+        }
+        if (this.applyEndDate == null && applyEndDate != null) {
+            this.applyEndDate = applyEndDate;
+        }
+        if (this.isOnlineApply == null && isOnlineApply != null) {
+            this.isOnlineApply = isOnlineApply;
+        }
     }
 
     public enum SourceType {
