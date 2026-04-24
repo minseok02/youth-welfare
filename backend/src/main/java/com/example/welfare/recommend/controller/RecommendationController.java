@@ -28,8 +28,12 @@ public class RecommendationController {
             @AuthenticationPrincipal Long userId,
             @RequestParam(defaultValue = "10") int size) {
         List<UserRecommendation> recs = recommendationFacade.getRecommendations(userId, size);
+
+        List<Long> serviceIds = recs.stream().map(r -> r.getService().getId()).toList();
+        Map<Long, Long> serviceLogMap = recommendationLogService.findLatestLogIdMap(userId, serviceIds);
+
         List<RecommendationResponse> response = recs.stream()
-                .map(RecommendationResponse::from)
+                .map(rec -> RecommendationResponse.from(rec, serviceLogMap.get(rec.getService().getId())))
                 .collect(Collectors.toList());
         return ResponseEntity.ok(ApiResponse.success(response));
     }

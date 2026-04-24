@@ -81,20 +81,21 @@ curl -i -X PUT http://127.0.0.1:8082/api/users/me \
 
 사용 가능한 코드:
 
-- `HOUSING`
-- `AMOUNT`
-- `ONLINE`
-- `YOUTH_ONLY`
-- `EMPLOYMENT`
-- `CULTURE`
-- `DEADLINE`
+- `HOUSING` — 주거
+- `JOB` — 일자리
+- `EDUCATION` — 교육·직업훈련
+- `FINANCE` — 금융·생활
+- `CULTURE` — 문화·여가
+- `PARTICIPATION` — 참여·기회
+- `FAMILY` — 가족·돌봄
+- `DEADLINE` — 마감임박
 
 ```bash
 curl -i -X PUT http://127.0.0.1:8082/api/users/me/priorities \
   -H "Authorization: Bearer ${ACCESS_TOKEN}" \
   -H 'Content-Type: application/json' \
   -d '{
-    "priorityCodes": ["HOUSING", "AMOUNT", "ONLINE"]
+    "priorityCodes": ["HOUSING", "EDUCATION", "JOB"]
   }'
 ```
 
@@ -185,19 +186,21 @@ GET /api/notifications/unsubscribe?token=...
 
 ## 10. Refresh / Logout
 
-refresh cookie 기반 access token 재발급:
+refresh cookie 기반 access token 재발급 (로그아웃 전에 실행):
 
 ```bash
 curl -i -b /tmp/yw-cookie.txt -c /tmp/yw-cookie.txt \
   -X POST http://127.0.0.1:8082/api/auth/refresh
 ```
 
-access token 만료 상황 가정 로그아웃:
+로그아웃 (refresh token 무효화):
 
 ```bash
-curl -i -b /tmp/yw-cookie.txt -c /tmp/yw-cookie.txt \
+curl -i -b /tmp/yw-cookie.txt \
   -X POST http://127.0.0.1:8082/api/auth/logout
 ```
+
+> 주의: 로그아웃 후에는 refresh token이 무효화되어 `/api/auth/refresh`가 `A003`을 반환합니다. Refresh 먼저, Logout 나중에 실행하세요.
 
 ## 11. CTR / Cold Start 확인 쿼리
 
