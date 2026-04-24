@@ -50,11 +50,17 @@ public class RecommendationFacade {
      */
     @Transactional
     public List<UserRecommendation> recommend(Long userId) {
+        return recommend(userId, false);
+    }
+
+    // personal=true: 군집 캐시 무시, 개인 프로필 기반 실시간 AI 호출
+    @Transactional
+    public List<UserRecommendation> recommend(Long userId, boolean personal) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
-        // ① 군집 (1차 고정: youth_all)
-        String clusterId = clusterService.assignCluster(user);
+        // ① 군집 결정 — personal 모드는 youth_all로 강제 (캐시 미사용)
+        String clusterId = personal ? "youth_all" : clusterService.assignCluster(user);
 
         // ② 후보 추출
         List<WelfareService> candidates = retrievalService.retrieve(clusterId, user);

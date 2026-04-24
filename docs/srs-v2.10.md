@@ -79,7 +79,7 @@
 | HTTP 클라이언트 | Spring WebClient | |
 | 인증 | JWT + Spring Security | HttpOnly 쿠키 |
 | 알림 | Spring Mail + Gmail SMTP | |
-| 배포 | EC2 **t4g.large** (2vCPU, 8GB, ARM) + Docker Compose | 컨테이너 3개(`app`, `db`, `redis`) |
+| 배포 | EC2 **t4g.medium 이상** (2vCPU, 4GB+, ARM) + Docker Compose | 컨테이너 3개(`app`, `db`, `redis`) |
 | XML 파싱 | jackson-dataformat-xml | XXE 비활성화 |
 | HTML 정제 | Jsoup | XSS 방지 |
 
@@ -87,8 +87,15 @@
 
 | 시나리오 | 인프라 | 월비용 |
 |---------|--------|---------|
-| 졸업 데모 | EC2 t4g.large (8GB ARM) + Docker Compose | ~$25 |
-| 성공 초창기 | EC2 t4g.xlarge + RDS | ~$80 |
+| 졸업 데모 | EC2 t4g.medium (4GB ARM) + Docker Compose | 리전/트래픽에 따라 변동 |
+| 성공 초창기 | EC2 t4g.medium + RDS 또는 상위 사양 | 리전/트래픽에 따라 변동 |
+
+사이징 근거:
+
+- 2026-04-25 로컬 Docker 실측 기준 `idle`에서 `app` 약 `765.6MiB`, `db` 약 `392.9MiB`, `redis` 약 `7.4MiB`
+- 공개 조회 API 부하 후 `app` 약 `1.05GiB`, `db` 약 `452MiB`
+- `collect/all` 실행 중 `app` 약 `1.12GiB`, `db` 약 `475 ~ 498MiB`
+- 따라서 현재 Compose 3컨테이너를 같은 호스트에서 운영할 때 `t4g.small`은 여유가 부족하고, `t4g.medium`을 권장한다
 
 ---
 
@@ -383,7 +390,7 @@
 |---|------|
 | C-01 | 공공 API 일일 1,000건 제한 |
 | C-02 | 복지로 API XML만 지원 |
-| C-03 | EC2 t4g.large RAM 8GB (ARM Graviton2) |
+| C-03 | 현재 Compose 단일 서버 운영 기준 권장 최소 사양은 EC2 t4g.medium RAM 4GB (ARM Graviton2) |
 | C-04 | 개발 13주, 2명 |
 | C-05 | Gmail SMTP 500건/일 |
 | C-06 | EC2 1대 = SPOF |

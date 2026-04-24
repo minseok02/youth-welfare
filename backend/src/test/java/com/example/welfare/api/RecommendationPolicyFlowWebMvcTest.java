@@ -96,7 +96,7 @@ class RecommendationPolicyFlowWebMvcTest {
                 .bookmarked(true)
                 .build();
 
-        given(recommendationFacade.recommend(isNull())).willReturn(List.of(recommendation));
+        given(recommendationFacade.recommend(isNull(), eq(false))).willReturn(List.of(recommendation));
         given(recommendationLogService.findLatestLogIdMap(isNull(), org.mockito.ArgumentMatchers.anyList()))
                 .willReturn(java.util.Map.of(11L, 9001L));
         given(policyRankingService.getRanking(5)).willReturn(List.of(ranking));
@@ -143,7 +143,7 @@ class RecommendationPolicyFlowWebMvcTest {
                 .andExpect(jsonPath("$.data.totalPages").value(1))
                 .andExpect(jsonPath("$.data.hasNext").value(false));
 
-        verify(recommendationFacade).recommend(isNull());
+        verify(recommendationFacade).recommend(isNull(), eq(false));
         verify(policyRankingService).getRanking(5);
         verify(policySearchService).search(isNull(), eq("월세"), eq("ACTIVE"), isNull(), eq("HOUSING"), eq("YOUTH"), eq(true), isNull(), isNull(), eq("RELEVANCE"), eq(0), eq(10));
     }

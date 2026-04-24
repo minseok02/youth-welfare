@@ -2,6 +2,7 @@ package com.example.welfare.collect.service;
 
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.repository.WelfareServiceRepository;
+import com.example.welfare.recommend.repository.ClusterAiResultRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -9,6 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Slf4j
@@ -17,6 +19,7 @@ import java.util.List;
 public class StatusUpdateService {
 
     private final WelfareServiceRepository welfareServiceRepository;
+    private final ClusterAiResultRepository clusterAiResultRepository;
 
     /**
      * 매일 새벽 3시 — 종료된 정책 CLOSED 처리 + CLOSED 정책 후처리
@@ -52,6 +55,10 @@ public class StatusUpdateService {
         }
 
         log.info("[StatusUpdateService] 완료 — CLOSED: {}건, ACTIVE 전환: {}건", closedCount, activatedCount);
+
+        // 군집 AI 캐시 TTL 정리 — 25시간 이상된 캐시 삭제 (매일 수집 주기에 맞춤)
+        clusterAiResultRepository.deleteExpiredBefore(LocalDateTime.now().minusHours(25));
+        log.info("[StatusUpdateService] 군집 AI 캐시 만료 항목 정리 완료");
     }
 
     private boolean isClosed(WelfareService ws, LocalDate today) {

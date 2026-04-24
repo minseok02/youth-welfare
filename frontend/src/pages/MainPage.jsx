@@ -138,6 +138,7 @@ export default function MainPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(false);
   const [refreshingRecommendations, setRefreshingRecommendations] = useState(false);
+  const [personalRefreshing, setPersonalRefreshing] = useState(false);
   const [toast, setToast] = useState({ open: false, msg: "", severity: "info" });
 
   const showToast = useCallback((msg, severity = "info") => {
@@ -263,6 +264,22 @@ export default function MainPage() {
       showToast("추천 갱신에 실패했습니다", "error");
     } finally {
       setRefreshingRecommendations(false);
+    }
+  };
+
+  const handlePersonalRefresh = async () => {
+    if (!isLoggedIn) return;
+    setPersonalRefreshing(true);
+    try {
+      const { data } = await api.post("/api/recommendations/refresh?personal=true");
+      applyRecommendations(data.data);
+      setIsRecommendMode(true);
+      setSelectedCat("");
+      showToast("개인 맞춤 추천을 새로 받았습니다", "success");
+    } catch {
+      showToast("재추천에 실패했습니다", "error");
+    } finally {
+      setPersonalRefreshing(false);
     }
   };
 
@@ -561,14 +578,25 @@ export default function MainPage() {
               <StarIcon fontSize="small" />
               {user?.name}님의 맞춤 정책이에요
             </Typography>
-            <Button
-              size="small"
-              variant="outlined"
-              onClick={handleRefreshRecommendations}
-              disabled={refreshingRecommendations}
-            >
-              {refreshingRecommendations ? "추천 갱신 중..." : "추천 새로고침"}
-            </Button>
+            <Box sx={{ display: "flex", gap: 1 }}>
+              <Button
+                size="small"
+                variant="outlined"
+                onClick={handleRefreshRecommendations}
+                disabled={refreshingRecommendations || personalRefreshing}
+              >
+                {refreshingRecommendations ? "갱신 중..." : "새로고침"}
+              </Button>
+              <Button
+                size="small"
+                variant="contained"
+                onClick={handlePersonalRefresh}
+                disabled={personalRefreshing || refreshingRecommendations}
+                title="군집 캐시 무시하고 내 프로필 기반으로 AI 추천"
+              >
+                {personalRefreshing ? "분석 중..." : "맞춤 재추천"}
+              </Button>
+            </Box>
           </Box>
         )}
 
