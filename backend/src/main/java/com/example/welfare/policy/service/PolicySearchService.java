@@ -2,6 +2,7 @@ package com.example.welfare.policy.service;
 
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
+import com.example.welfare.policy.dto.PolicySearchResponse;
 import com.example.welfare.policy.dto.PolicySummaryResponse;
 import com.example.welfare.policy.entity.ServiceTag;
 import com.example.welfare.policy.entity.WelfareService;
@@ -13,6 +14,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Collections;
 import java.util.List;
@@ -26,6 +28,7 @@ public class PolicySearchService {
 
     private static final int DEFAULT_SEARCH_LIMIT = 20;
     private static final int MAX_SEARCH_LIMIT = 100;
+    private static final int SEARCH_SCAN_BATCH_SIZE = 200;
 
     private final WelfareServiceRepository welfareServiceRepository;
     private final ServiceTagRepository serviceTagRepository;
@@ -33,28 +36,30 @@ public class PolicySearchService {
     private final YouthPolicyFilter youthPolicyFilter;
 
     @Transactional(readOnly = true)
-    public List<PolicySummaryResponse> search(Long userId, String keyword, int page) {
-        return search(userId, keyword, null, null, null, null, null, null, null, page, DEFAULT_SEARCH_LIMIT);
+    public PolicySearchResponse search(Long userId, String keyword, int page) {
+        return search(userId, keyword, null, null, null, null, null, null, null, null, page, DEFAULT_SEARCH_LIMIT);
     }
 
     @Transactional(readOnly = true)
-    public List<PolicySummaryResponse> search(Long userId,
-                                              String keyword,
-                                              String status,
-                                              String category,
-                                              String sourceType,
-                                              Boolean onlineApply,
-                                              String sido,
-                                              String sgg,
-                                              String sort,
-                                              int page,
-                                              int size) {
+    public PolicySearchResponse search(Long userId,
+                                       String keyword,
+                                       String status,
+                                       Boolean includeClosed,
+                                       String category,
+                                       String sourceType,
+                                       Boolean onlineApply,
+                                       String sido,
+                                       String sgg,
+                                       String sort,
+                                       int page,
+                                       int size) {
         // MySQL FULLTEXT 검색 (ngram 파서)
         // keyword는 Controller에서 trim 처리 후 전달됨
         String ftKeyword = buildFulltextKeyword(keyword);
         int limit = normalizeSize(size);
-        int offset = Math.max(0, page) * limit;
+        int pageNumber = Math.max(0, page);
         String normalizedStatus = normalizeStatus(status);
+        Integer normalizedIncludeClosed = normalizeIncludeClosed(includeClosed);
         String normalizedSourceType = normalizeSourceType(sourceType);
         String normalizedCategory = normalizeNullable(category);
         String normalizedSido = normalizeNullable(sido);
@@ -62,27 +67,64 @@ public class PolicySearchService {
         Integer onlineApplyFlag = onlineApply == null ? null : (onlineApply ? 1 : 0);
         String normalizedSort = normalizeSort(sort);
 
-        List<WelfareService> results = welfareServiceRepository.searchByKeywordWithFilters(
-                ftKeyword,
-                normalizedStatus,
-                normalizedCategory,
-                normalizedSourceType,
-                onlineApplyFlag,
-                normalizedSido,
-                normalizedSgg,
-                normalizedSort,
-                limit,
-                offset);
+        int startIndex = pageNumber * limit;
+        int endExclusive = startIndex + limit;
+        int offset = 0;
+        long totalFilteredCount = 0L;
+        List<WelfareService> pageServices = new ArrayList<>();
 
-        List<WelfareService> filteredResults = filterYouthRelevant(results);
-        Set<Long> bookmarkedServiceIds = getBookmarkedServiceIds(userId, filteredResults);
+        while (true) {
+            List<WelfareService> results = welfareServiceRepository.searchByKeywordWithFilters(
+                    ftKeyword,
+                    normalizedStatus,
+                    normalizedIncludeClosed,
+                    normalizedCategory,
+                    normalizedSourceType,
+                    onlineApplyFlag,
+                    normalizedSido,
+                    normalizedSgg,
+                    normalizedSort,
+                    SEARCH_SCAN_BATCH_SIZE,
+                    offset);
 
-        return filteredResults.stream()
+            if (results.isEmpty()) {
+                break;
+            }
+
+            List<WelfareService> filteredResults = filterYouthRelevant(results);
+            for (WelfareService service : filteredResults) {
+                if (totalFilteredCount >= startIndex && totalFilteredCount < endExclusive) {
+                    pageServices.add(service);
+                }
+                totalFilteredCount++;
+            }
+
+            if (results.size() < SEARCH_SCAN_BATCH_SIZE) {
+                break;
+            }
+            offset += SEARCH_SCAN_BATCH_SIZE;
+        }
+
+        Set<Long> bookmarkedServiceIds = getBookmarkedServiceIds(userId, pageServices);
+        List<PolicySummaryResponse> content = pageServices.stream()
                 .map(service -> PolicySummaryResponse.from(
                         service,
                         bookmarkedServiceIds.contains(service.getId())
                 ))
                 .collect(Collectors.toList());
+
+        int totalPages = totalFilteredCount == 0
+                ? 0
+                : (int) Math.ceil((double) totalFilteredCount / limit);
+
+        return PolicySearchResponse.builder()
+                .content(content)
+                .totalElements(totalFilteredCount)
+                .totalPages(totalPages)
+                .pageNumber(pageNumber)
+                .pageSize(limit)
+                .hasNext(pageNumber + 1 < totalPages)
+                .build();
     }
 
     private List<WelfareService> filterYouthRelevant(List<WelfareService> results) {
@@ -150,6 +192,10 @@ public class PolicySearchService {
             case "ACTIVE", "UPCOMING", "CLOSED" -> upper;
             default -> throw new CustomException(ErrorCode.INVALID_INPUT);
         };
+    }
+
+    private Integer normalizeIncludeClosed(Boolean includeClosed) {
+        return includeClosed != null && includeClosed ? 1 : 0;
     }
 
     private String normalizeSourceType(String sourceType) {

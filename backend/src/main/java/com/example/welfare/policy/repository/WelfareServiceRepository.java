@@ -118,7 +118,10 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
             SELECT DISTINCT ws.* FROM welfare_services ws
             LEFT JOIN service_regions sr ON sr.service_id = ws.id
             WHERE (
-                    (:status IS NULL AND ws.status IN ('ACTIVE', 'UPCOMING'))
+                    (:status IS NULL AND (
+                        (:includeClosed = 1 AND ws.status IN ('ACTIVE', 'UPCOMING', 'CLOSED'))
+                        OR (:includeClosed = 0 AND ws.status IN ('ACTIVE', 'UPCOMING'))
+                    ))
                     OR (:status IS NOT NULL AND ws.status = :status)
                   )
               AND (:category IS NULL OR ws.unified_category = :category)
@@ -158,6 +161,7 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
             """, nativeQuery = true)
     List<WelfareService> searchByKeywordWithFilters(@Param("keyword") String keyword,
                                                     @Param("status") String status,
+                                                    @Param("includeClosed") Integer includeClosed,
                                                     @Param("category") String category,
                                                     @Param("sourceType") String sourceType,
                                                     @Param("onlineApply") Integer onlineApply,

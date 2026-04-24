@@ -228,15 +228,23 @@ public void resetAiScoreForClosed() {
 
 - 현재 지원 파라미터
   - `keyword` (필수)
-  - `status`, `category`, `sourceType`, `onlineApply`
-  - `sort` = `RELEVANCE|VIEWS|LATEST`
+  - `status`, `includeClosed`, `category`, `sourceType`, `onlineApply`
+  - `sort` = `RELEVANCE|VIEWS|LATEST|NAME`
   - `page`, `size`
 - 현재 응답 형식
-  - `List<PolicySummaryResponse>`
+  - `data.content`
+  - `data.totalElements`
+  - `data.totalPages`
+  - `data.pageNumber`
+  - `data.pageSize`
+  - `data.hasNext`
+- 상태 규칙
+  - `status`를 직접 주면 해당 상태만 조회
+  - `status`가 없고 `includeClosed=true`면 `ACTIVE`, `UPCOMING`, `CLOSED` 포함
+  - `status`가 없고 `includeClosed`가 없거나 `false`면 `ACTIVE`, `UPCOMING`만 포함
+- 기타
   - 각 항목의 `bookmarked`는 로그인 사용자면 최신 북마크 상태 기준, 비로그인이면 `false`
-- 현재 한계
-  - 검색 API는 아직 `totalElements`, `totalPages`, `hasNext`를 내려주지 않음
-  - 기본 상태는 `ACTIVE`, `UPCOMING` 포함이며 `includeClosed` 별도 파라미터는 없음
+  - `totalElements`는 청년 후처리 필터가 적용된 최종 결과 기준
 
 ### `GET /api/policies/{id}`
 

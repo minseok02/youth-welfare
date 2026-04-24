@@ -177,12 +177,13 @@ export default function MainPage() {
             params: {
               ...commonParams,
               keyword: search.trim(),
+              includeClosed: includeExpired,
             },
             signal: controller.signal,
           });
-          const items = data.data ?? [];
-          setPolicies(items.map(mapPolicySummary));
-          setTotalPages(items.length === pageSize ? page + 1 : Math.max(page, 1));
+          const pageData = data.data ?? {};
+          setPolicies((pageData.content ?? []).map(mapPolicySummary));
+          setTotalPages(Math.max(pageData.totalPages ?? 1, 1));
           return;
         }
 

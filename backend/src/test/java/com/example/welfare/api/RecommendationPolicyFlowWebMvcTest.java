@@ -3,6 +3,7 @@ package com.example.welfare.api;
 import com.example.welfare.policy.controller.PolicyController;
 import com.example.welfare.policy.dto.PolicyDetailResponse;
 import com.example.welfare.policy.dto.PolicyRankingResponse;
+import com.example.welfare.policy.dto.PolicySearchResponse;
 import com.example.welfare.policy.dto.PolicySummaryResponse;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.service.PolicyRankingService;
@@ -97,8 +98,15 @@ class RecommendationPolicyFlowWebMvcTest {
 
         given(recommendationFacade.recommend(isNull())).willReturn(List.of(recommendation));
         given(policyRankingService.getRanking(5)).willReturn(List.of(ranking));
-        given(policySearchService.search(isNull(), eq("월세"), eq("ACTIVE"), eq("HOUSING"), eq("YOUTH"), eq(true), isNull(), isNull(), eq("RELEVANCE"), eq(0), eq(10)))
-                .willReturn(List.of(searchHit));
+        given(policySearchService.search(isNull(), eq("월세"), eq("ACTIVE"), isNull(), eq("HOUSING"), eq("YOUTH"), eq(true), isNull(), isNull(), eq("RELEVANCE"), eq(0), eq(10)))
+                .willReturn(PolicySearchResponse.builder()
+                        .content(List.of(searchHit))
+                        .totalElements(1)
+                        .totalPages(1)
+                        .pageNumber(0)
+                        .pageSize(10)
+                        .hasNext(false)
+                        .build());
 
         mockMvc.perform(post("/api/recommendations/refresh")
                         .with(authentication(new UsernamePasswordAuthenticationToken(1L, null, Collections.emptyList())))
@@ -126,13 +134,16 @@ class RecommendationPolicyFlowWebMvcTest {
                         .param("size", "10"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data[0].id").value(11))
-                .andExpect(jsonPath("$.data[0].title").value("청년 월세 지원"))
-                .andExpect(jsonPath("$.data[0].bookmarked").value(true));
+                .andExpect(jsonPath("$.data.content[0].id").value(11))
+                .andExpect(jsonPath("$.data.content[0].title").value("청년 월세 지원"))
+                .andExpect(jsonPath("$.data.content[0].bookmarked").value(true))
+                .andExpect(jsonPath("$.data.totalElements").value(1))
+                .andExpect(jsonPath("$.data.totalPages").value(1))
+                .andExpect(jsonPath("$.data.hasNext").value(false));
 
         verify(recommendationFacade).recommend(isNull());
         verify(policyRankingService).getRanking(5);
-        verify(policySearchService).search(isNull(), eq("월세"), eq("ACTIVE"), eq("HOUSING"), eq("YOUTH"), eq(true), isNull(), isNull(), eq("RELEVANCE"), eq(0), eq(10));
+        verify(policySearchService).search(isNull(), eq("월세"), eq("ACTIVE"), isNull(), eq("HOUSING"), eq("YOUTH"), eq(true), isNull(), isNull(), eq("RELEVANCE"), eq(0), eq(10));
     }
 
     @Test

@@ -140,14 +140,15 @@ export default function PoliciesPage() {
             params: {
               ...commonParams,
               keyword: searchKeyword.trim(),
+              includeClosed: false,
             },
             signal: controller.signal,
           });
 
-          const items = (data.data ?? []).map(mapPolicySummary);
-          setPolicies(items);
-          setTotalCount(items.length);
-          setTotalPages(items.length === PAGE_SIZE ? page + 1 : Math.max(page, 1));
+          const pageData = data.data ?? {};
+          setPolicies((pageData.content ?? []).map(mapPolicySummary));
+          setTotalCount(pageData.totalElements ?? 0);
+          setTotalPages(Math.max(pageData.totalPages ?? 1, 1));
           return;
         }
 
@@ -200,7 +201,7 @@ export default function PoliciesPage() {
   };
 
   const resultLabel = searchKeyword
-    ? `현재 페이지 검색 결과 ${policies.length}건`
+    ? `검색 결과 ${totalCount}건`
     : `총 ${totalCount}개의 정책`;
 
   return (

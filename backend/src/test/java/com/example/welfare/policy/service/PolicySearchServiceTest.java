@@ -1,5 +1,6 @@
 package com.example.welfare.policy.service;
 
+import com.example.welfare.policy.dto.PolicySearchResponse;
 import com.example.welfare.policy.entity.ServiceTag;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.repository.ServiceTagRepository;
@@ -17,6 +18,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.when;
 
@@ -51,6 +53,7 @@ class PolicySearchServiceTest {
         when(welfareServiceRepository.searchByKeywordWithFilters(
                 anyString(),
                 isNull(),
+                eq(0),
                 isNull(),
                 isNull(),
                 isNull(),
@@ -59,14 +62,17 @@ class PolicySearchServiceTest {
                 anyString(),
                 anyInt(),
                 anyInt()
-        )).thenReturn(List.of(youthService, genericService));
+        )).thenReturn(List.of(youthService, genericService), List.of());
         when(serviceTagRepository.findByServiceIdIn(List.of(1L, 2L))).thenReturn(List.of());
         when(youthPolicyFilter.isYouthRelevant(youthService, List.of())).thenReturn(true);
         when(youthPolicyFilter.isYouthRelevant(genericService, List.of())).thenReturn(false);
 
-        List<?> results = service.search(null, "청년", null, null, null, null, null, null, null, 0, 10);
+        PolicySearchResponse results = service.search(null, "청년", null, null, null, null, null, null, null, null, 0, 10);
 
-        assertThat(results).hasSize(1);
+        assertThat(results.getContent()).hasSize(1);
+        assertThat(results.getTotalElements()).isEqualTo(1);
+        assertThat(results.getTotalPages()).isEqualTo(1);
+        assertThat(results.isHasNext()).isFalse();
     }
 
     private WelfareService welfareService(Long id, String title) {
