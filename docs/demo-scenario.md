@@ -103,25 +103,29 @@ curl -i -X PUT http://127.0.0.1:8082/api/users/me/priorities \
 목록:
 
 ```bash
-curl -s "http://127.0.0.1:8082/api/policies?category=주거&sido=서울특별시&sgg=관악구&sort=VIEWS&page=0&size=5"
+curl -s "http://127.0.0.1:8082/api/policies?category=주거&sido=서울특별시&sgg=관악구&sort=VIEWS&page=0&size=5" \
+  -H "Authorization: Bearer ${ACCESS_TOKEN}"
 ```
 
 검색:
 
 ```bash
-curl -s "http://127.0.0.1:8082/api/policies/search?keyword=청년&status=ACTIVE&sort=NAME&page=0&size=5"
+curl -s "http://127.0.0.1:8082/api/policies/search?keyword=청년&status=ACTIVE&sort=NAME&page=0&size=5" \
+  -H "Authorization: Bearer ${ACCESS_TOKEN}"
 ```
 
 랭킹:
 
 ```bash
-curl -s "http://127.0.0.1:8082/api/policies/ranking?size=5"
+curl -s "http://127.0.0.1:8082/api/policies/ranking?size=5" \
+  -H "Authorization: Bearer ${ACCESS_TOKEN}"
 ```
 
 상세:
 
 ```bash
-curl -s "http://127.0.0.1:8082/api/policies/1"
+curl -s "http://127.0.0.1:8082/api/policies/1" \
+  -H "Authorization: Bearer ${ACCESS_TOKEN}"
 ```
 
 ## 7. 추천 생성 / 조회

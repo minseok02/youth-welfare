@@ -14,6 +14,7 @@
 정책 목록/검색/상세 응답은 로그인 사용자의 초기 북마크 상태를 함께 반환하도록 보완했습니다.
 정책 검색 API는 총건수/총페이지/다음 페이지 여부를 반환하고 종료 포함 여부 파라미터를 지원하도록 보완했습니다.
 정책 검색 totalCount 스캔 비용은 서비스 로그로 관측할 수 있게 보강했습니다.
+실제 앱 로그 기준으로 넓은 단일 키워드 검색은 6초~24초, 8~15배치 스캔까지 올라가 SQL 레벨 청년 필터 이관 검토가 필요한 상태입니다.
 통합 테스트는 MySQL/Redis 컨테이너 상태에서 실행 완료했습니다.
 남은 1차 작업은 나머지 프론트 화면 API 연동, 실서버 배포/HTTPS 적용, 데모 시나리오 실행입니다.
 
@@ -96,6 +97,18 @@
 - 2026-04-24 정책 검색 비용 관측 로그 추가 후 `frontend`에서 `npm run lint`
 - 2026-04-24 정책 검색 비용 관측 로그 추가 후 `frontend`에서 `npm run build`
   - Vite 번들 크기 경고 발생. 빌드는 성공했으며 기능 실패는 아님.
+- 2026-04-24 실제 Docker 앱에서 인증된 검색 요청으로 비용 관측 로그 수집
+  - `keyword=청년&status=ACTIVE&sort=NAME&page=0&size=20`: `elapsedMs=9956`, `rawScanned=1687`, `batches=9`
+  - `keyword=청년&includeClosed=true&sort=LATEST&page=0&size=20`: `elapsedMs=9991`, `rawScanned=1687`, `batches=9`
+  - `keyword=지원&sort=RELEVANCE&page=0&size=20`: `elapsedMs=23861`, `rawScanned=2854`, `filtered=1783`, `batches=15`
+  - `keyword=지원&sort=RELEVANCE&page=3&size=20`: `elapsedMs=23896`, `rawScanned=2854`, `filtered=1783`, `batches=15`
+  - `keyword=사업&includeClosed=true&sort=RELEVANCE&page=5&size=20`: `elapsedMs=6111`, `rawScanned=1553`, `filtered=1090`, `batches=8`
+  - `keyword=교육&category=교육·직업훈련&sort=RELEVANCE&page=0&size=20`: `elapsedMs=278`, `rawScanned=147`, `filtered=87`, `batches=1`
+- 2026-04-24 실제 검색 비용 관측 후 `backend`에서 `./gradlew test --no-daemon`
+- 2026-04-24 실제 검색 비용 관측 후 `backend`에서 `./gradlew integrationTest --no-daemon`
+- 2026-04-24 실제 검색 비용 관측 후 `frontend`에서 `npm run lint`
+- 2026-04-24 실제 검색 비용 관측 후 `frontend`에서 `npm run build`
+  - Vite 번들 크기 경고 발생. 빌드는 성공했으며 기능 실패는 아님.
 
 ## 작업 추적
 
@@ -105,12 +118,13 @@
 
 ### 진행 예정
 
-- [ ] 실운영 검색 로그 확보 후 SQL 레벨 청년 필터 이관 필요 여부 판단
+- [ ] 정책 검색 SQL 레벨 청년 필터 설계 및 이관
 - [ ] 아이디/비밀번호 찾기, 이메일 중복확인 처리 방향 확정
 - [ ] 운영 서버 Docker Compose 기동
 - [ ] HTTPS/Nginx 적용
 - [ ] 데모 시나리오 전체 실행
 - [ ] CTR 분석 쿼리 실행 결과 확보
+- [ ] 정책 조회 API 인증 요구사항과 데모/가이드 문서 일관성 점검
 
 ### 완료
 
@@ -138,6 +152,7 @@
 - [x] 정책 목록/상세 초기 북마크 상태 조회 계약 보완
 - [x] 정책 검색 API의 총건수/종료 포함 여부 계약 보완
 - [x] 정책 검색 totalCount 계산 비용 관측 로그 추가
+- [x] 실제 앱 로그로 정책 검색 비용 관측 및 SQL 이관 필요 여부 판단
 
 ## 통합 테스트 실행 방법
 
@@ -161,7 +176,7 @@ cd backend
 ### 프론트 실제 연동
 
 - 아이디/비밀번호 찾기, 이메일 중복확인 처리 방향 확정
-- 실운영 검색 로그 확보 후 SQL 레벨 청년 필터 이관 필요 여부 판단
+- 정책 검색 SQL 레벨 청년 필터 설계 및 이관
 
 ### 배포/데모
 
