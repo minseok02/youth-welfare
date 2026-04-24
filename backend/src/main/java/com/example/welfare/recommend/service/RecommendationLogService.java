@@ -12,6 +12,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * 알림 발송 시점에 recommendation_logs 기록
@@ -39,6 +41,19 @@ public class RecommendationLogService {
                 .toList();
 
         return logRepository.saveAll(logs);
+    }
+
+    // serviceId 목록 기준 사용자의 최신 logId 맵 반환 (추천 refresh 응답 조합용)
+    @Transactional(readOnly = true)
+    public Map<Long, Long> findLatestLogIdMap(Long userId, List<Long> serviceIds) {
+        if (serviceIds.isEmpty()) return Map.of();
+        return logRepository.findLatestByUserIdAndServiceIds(userId, serviceIds)
+                .stream()
+                .collect(Collectors.toMap(
+                        log -> log.getService().getId(),
+                        RecommendationLog::getId,
+                        (a, b) -> b
+                ));
     }
 
     @Transactional

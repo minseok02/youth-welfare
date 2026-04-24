@@ -97,6 +97,8 @@ class RecommendationPolicyFlowWebMvcTest {
                 .build();
 
         given(recommendationFacade.recommend(isNull())).willReturn(List.of(recommendation));
+        given(recommendationLogService.findLatestLogIdMap(isNull(), org.mockito.ArgumentMatchers.anyList()))
+                .willReturn(java.util.Map.of(11L, 9001L));
         given(policyRankingService.getRanking(5)).willReturn(List.of(ranking));
         given(policySearchService.search(isNull(), eq("월세"), eq("ACTIVE"), isNull(), eq("HOUSING"), eq("YOUTH"), eq(true), isNull(), isNull(), eq("RELEVANCE"), eq(0), eq(10)))
                 .willReturn(PolicySearchResponse.builder()

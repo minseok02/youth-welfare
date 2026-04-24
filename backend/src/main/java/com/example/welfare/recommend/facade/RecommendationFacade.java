@@ -42,6 +42,7 @@ public class RecommendationFacade {
     private final AiScoringService aiScoringService;
     private final ReRankingService reRankingService;
     private final RecommendationPersistenceService persistenceService;
+    private final RecommendationLogService recommendationLogService;
     private final UserRecommendationRepository userRecommendationRepository;
 
     /**
@@ -73,7 +74,12 @@ public class RecommendationFacade {
         ScoreWeight weight = reRankingService.getCurrentWeight();
 
         // ⑥ 저장 (recommended_at, rule_weight_used, ai_weight_used 필수)
-        return persistenceService.save(user, reranked, weight);
+        List<UserRecommendation> saved = persistenceService.save(user, reranked, weight);
+
+        // ⑦ CTR 추적용 로그 생성 (추천 refresh 시점에도 기록)
+        recommendationLogService.logNotification(user, saved, weight);
+
+        return saved;
     }
 
     /**

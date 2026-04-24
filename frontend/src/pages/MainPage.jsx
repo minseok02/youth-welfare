@@ -106,6 +106,7 @@ const mapPolicySummary = (policy) => ({
 const mapRecommendation = (rec) => ({
   id: rec.serviceId,
   recommendationId: rec.id,
+  logId: rec.logId ?? null,
   title: rec.title,
   category: rec.unifiedCategory || "기타",
   dday: statusLabel(rec.status),
@@ -582,7 +583,7 @@ export default function MainPage() {
               <Grid size={cols === 1 ? 12 : { xs: 12, sm: 6 }} key={p.id}>
                 <Card
                   sx={{ height: "100%", cursor: "pointer", transition: "all 0.2s", "&:hover": { transform: "translateY(-2px)", boxShadow: "0 8px 24px rgba(2,128,144,0.15)" } }}
-                  onClick={() => navigate(`/policies/${p.id}`)}
+                  onClick={() => navigate(`/policies/${p.id}${p.logId ? `?log_id=${p.logId}` : ""}`)}
                 >
                   <CardContent>
                     <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>

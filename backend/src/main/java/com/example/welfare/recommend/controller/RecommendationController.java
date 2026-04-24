@@ -4,12 +4,14 @@ import com.example.welfare.global.response.ApiResponse;
 import com.example.welfare.recommend.dto.RecommendationResponse;
 import com.example.welfare.recommend.entity.UserRecommendation;
 import com.example.welfare.recommend.facade.RecommendationFacade;
+import com.example.welfare.recommend.service.RecommendationLogService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @RestController
@@ -18,6 +20,7 @@ import java.util.stream.Collectors;
 public class RecommendationController {
 
     private final RecommendationFacade recommendationFacade;
+    private final RecommendationLogService recommendationLogService;
 
     // 추천 목록 조회 (저장된 결과 반환 — 실시간 AI 추가 호출 없음)
     @GetMapping
@@ -36,8 +39,13 @@ public class RecommendationController {
     public ResponseEntity<ApiResponse<List<RecommendationResponse>>> refresh(
             @AuthenticationPrincipal Long userId) {
         List<UserRecommendation> recs = recommendationFacade.recommend(userId);
+
+        // 방금 생성된 CTR 로그에서 serviceId → logId 매핑 조회
+        List<Long> serviceIds = recs.stream().map(r -> r.getService().getId()).toList();
+        Map<Long, Long> serviceLogMap = recommendationLogService.findLatestLogIdMap(userId, serviceIds);
+
         List<RecommendationResponse> response = recs.stream()
-                .map(RecommendationResponse::from)
+                .map(rec -> RecommendationResponse.from(rec, serviceLogMap.get(rec.getService().getId())))
                 .collect(Collectors.toList());
         return ResponseEntity.ok(ApiResponse.success(response));
     }

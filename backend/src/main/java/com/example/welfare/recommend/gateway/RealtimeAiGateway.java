@@ -83,11 +83,17 @@ public class RealtimeAiGateway implements AiRecommendationGateway {
                 ? user.getEmploymentStatus() : "미입력";
 
         StringBuilder policyList = new StringBuilder();
-        topCandidates.forEach(c -> policyList
-                .append("id:").append(c.getService().getId())
-                .append(" 제목:").append(c.getService().getTitle())
-                .append(" 카테고리:").append(c.getService().getUnifiedCategory())
-                .append("\n"));
+        topCandidates.forEach(c -> {
+            String desc = c.getService().getDescription();
+            String shortDesc = (desc != null && desc.length() > 100)
+                    ? desc.substring(0, 100) : (desc != null ? desc : "");
+            policyList
+                    .append("id:").append(c.getService().getId())
+                    .append(" 제목:").append(c.getService().getTitle())
+                    .append(" 카테고리:").append(c.getService().getUnifiedCategory())
+                    .append(" 내용요약:").append(shortDesc)
+                    .append("\n");
+        });
 
         return String.format("""
                 시스템: 청년 복지 정책 평가 전문가. JSON만 응답.

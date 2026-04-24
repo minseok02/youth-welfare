@@ -26,4 +26,18 @@ public interface RecommendationLogRepository extends JpaRepository<Recommendatio
             WHERE rl.user.id = :userId AND rl.isClicked = true
             """)
     long countClickedByUserId(@Param("userId") Long userId);
+
+    // serviceId 목록 기준 사용자의 최신 로그 조회 (logId 매핑용)
+    @Query("""
+            SELECT rl FROM RecommendationLog rl
+            WHERE rl.user.id = :userId
+              AND rl.service.id IN :serviceIds
+              AND rl.sentAt = (
+                  SELECT MAX(rl2.sentAt) FROM RecommendationLog rl2
+                  WHERE rl2.user.id = :userId AND rl2.service.id = rl.service.id
+              )
+            """)
+    List<RecommendationLog> findLatestByUserIdAndServiceIds(
+            @Param("userId") Long userId,
+            @Param("serviceIds") List<Long> serviceIds);
 }
