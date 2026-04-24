@@ -148,6 +148,8 @@
 - 2026-04-24 이메일 중복확인 API 및 회원가입/로그인 계약 정리 후 `frontend`에서 `npm run lint`
 - 2026-04-24 이메일 중복확인 API 및 회원가입/로그인 계약 정리 후 `frontend`에서 `npm run build`
   - Vite 번들 크기 경고 발생. 빌드는 성공했으며 기능 실패는 아님.
+- 2026-04-24 `PolicySearchService` Java 후처리 루프 제거 및 `search_youth_relevant` SQL 필터 기반 단순화 후 `backend`에서 `./gradlew test --no-daemon`
+  - `PolicySearchServiceTest` 2건 (지역 없는 검색, 지역 있는 검색) 포함 전체 통과
 
 ## 작업 추적
 
@@ -194,6 +196,8 @@
 - [x] 넓은 단일 키워드 검색의 1초대 응답 추가 튜닝 여부 판단
 - [x] 정책 조회 API 인증 요구사항과 데모/가이드 문서 일관성 점검
 - [x] 아이디/비밀번호 찾기, 이메일 중복확인 처리 방향 확정
+- [x] `PolicySearchService` Java 후처리 배치 루프 제거 — `search_youth_relevant` SQL 필터 기반 단순 Page 쿼리로 교체
+- [x] `PolicySearchServiceTest` 새 계약(NoRegion/WithRegion 분기) 기반으로 작성 및 통과
 
 ## 통합 테스트 실행 방법
 
