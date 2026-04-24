@@ -65,7 +65,18 @@ public class PolicySearchService {
         String normalizedSgg = normalizeNullable(sgg);
         Integer onlineApplyFlag = onlineApply == null ? null : (onlineApply ? 1 : 0);
         String normalizedSort = normalizeSort(sort);
-        Page<WelfareService> resultPage = welfareServiceRepository.searchByKeywordWithFilters(
+        Page<WelfareService> resultPage = normalizedSido == null
+                ? welfareServiceRepository.searchByKeywordWithFiltersNoRegion(
+                ftKeyword,
+                normalizedStatus,
+                normalizedIncludeClosed,
+                normalizedCategory,
+                normalizedSourceType,
+                onlineApplyFlag,
+                normalizedSort,
+                PageRequest.of(pageNumber, limit)
+        )
+                : welfareServiceRepository.searchByKeywordWithFiltersWithRegion(
                 ftKeyword,
                 normalizedStatus,
                 normalizedIncludeClosed,

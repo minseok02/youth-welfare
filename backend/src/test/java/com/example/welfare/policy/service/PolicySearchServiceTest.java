@@ -40,12 +40,10 @@ class PolicySearchServiceTest {
         );
 
         WelfareService youthService = welfareService(1L, "청년 정책");
-        given(welfareServiceRepository.searchByKeywordWithFilters(
+        given(welfareServiceRepository.searchByKeywordWithFiltersNoRegion(
                 eq("+청년"),
                 isNull(),
                 eq(0),
-                isNull(),
-                isNull(),
                 isNull(),
                 isNull(),
                 isNull(),
@@ -61,12 +59,10 @@ class PolicySearchServiceTest {
         assertThat(results.isHasNext()).isTrue();
 
         ArgumentCaptor<PageRequest> captor = ArgumentCaptor.forClass(PageRequest.class);
-        verify(welfareServiceRepository).searchByKeywordWithFilters(
+        verify(welfareServiceRepository).searchByKeywordWithFiltersNoRegion(
                 eq("+청년"),
                 isNull(),
                 eq(0),
-                isNull(),
-                isNull(),
                 isNull(),
                 isNull(),
                 isNull(),
@@ -75,6 +71,58 @@ class PolicySearchServiceTest {
         );
         assertThat(captor.getValue().getPageNumber()).isEqualTo(0);
         assertThat(captor.getValue().getPageSize()).isEqualTo(10);
+    }
+
+    @Test
+    @DisplayName("지역 필터가 있으면 EXISTS 기반 지역 검색 쿼리를 사용한다")
+    void searchWithRegionUsesRegionQuery() {
+        PolicySearchService service = new PolicySearchService(
+                welfareServiceRepository,
+                userRecommendationRepository
+        );
+
+        WelfareService youthService = welfareService(2L, "서울 청년 정책");
+        given(welfareServiceRepository.searchByKeywordWithFiltersWithRegion(
+                eq("+청년"),
+                isNull(),
+                eq(0),
+                isNull(),
+                isNull(),
+                isNull(),
+                eq("서울특별시"),
+                eq("관악구"),
+                eq("RELEVANCE"),
+                any(PageRequest.class)
+        )).willReturn(new PageImpl<>(List.of(youthService), PageRequest.of(0, 10), 1));
+
+        PolicySearchResponse results = service.search(
+                null,
+                "청년",
+                null,
+                null,
+                null,
+                null,
+                null,
+                "서울특별시",
+                "관악구",
+                null,
+                0,
+                10
+        );
+
+        assertThat(results.getContent()).hasSize(1);
+        verify(welfareServiceRepository).searchByKeywordWithFiltersWithRegion(
+                eq("+청년"),
+                isNull(),
+                eq(0),
+                isNull(),
+                isNull(),
+                isNull(),
+                eq("서울특별시"),
+                eq("관악구"),
+                eq("RELEVANCE"),
+                any(PageRequest.class)
+        );
     }
 
     private WelfareService welfareService(Long id, String title) {
