@@ -67,11 +67,15 @@ public class RuleScoringService {
                     List<ServiceTag> tags = tagsByServiceId.getOrDefault(service.getId(), List.of());
                     double base = calcBaseScore(service, user, interestFields, targetTypes, tags);
                     double weighted = applyPriorityWeight(base, service, priorities);
+                    // 특수 대상 신호가 있지만 사용자와 불일치한 경우 플래그 설정
+                    boolean mismatch = !specialTargetMatches(user, targetTypes, service, tags)
+                            && hasSpecialTargetSignal(service, tags);
 
                     return ScoredCandidate.builder()
                             .service(service)
                             .ruleBaseScore(base)
                             .ruleWeightedScore(weighted)
+                            .hasSpecialTargetMismatch(mismatch)
                             .build();
                 })
                 .collect(Collectors.toList());
@@ -186,7 +190,8 @@ public class RuleScoringService {
     private boolean hasSpecialTargetSignal(WelfareService service, List<ServiceTag> tags) {
         return containsAnySignal(service, tags,
                 "장애", "농어촌", "농촌", "어촌", "자립준비", "보호종료",
-                "가족돌봄", "다문화", "북한이탈", "한부모", "조손", "보훈");
+                "가족돌봄", "다문화", "북한이탈", "한부모", "조손", "보훈",
+                "현역병", "병역");
     }
 
     private boolean specialAudienceMatchedByTargetTypes(Set<String> targetTypes, WelfareService service, List<ServiceTag> tags) {

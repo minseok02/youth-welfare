@@ -31,4 +31,7 @@ public class ScoredCandidate {
 
     @Setter
     private boolean aiFallback; // true = AI 없이 rule만 사용
+
+    @Setter
+    private boolean hasSpecialTargetMismatch; // true = 특수 대상 불일치 페널티 적용됨
 }

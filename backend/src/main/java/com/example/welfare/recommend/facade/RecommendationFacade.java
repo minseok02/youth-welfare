@@ -66,14 +66,13 @@ public class RecommendationFacade {
         // ③ Rule 점수
         List<ScoredCandidate> scored = ruleScoringService.score(candidates, user);
 
-        // ③-b 노이즈 컷오프: YouthPolicyFilter 기본 신호만 받은 정책 제거
-        // relevanceBonus 최대값은 15+8=23점 — 그 외 가점(관심분야/대상/마감 등)이 없는 정책은 제외
-        // rule_base_score <= 8 → 청년 신호만 있고 실질 매칭 없음
+        // ③-b 특수 대상 불일치 정책 제거 (사용자와 맞지 않는 장애/농촌/다문화 등)
+        // 숫자 임계값이 아닌 RuleScoringService가 명시한 mismatch 플래그를 사용
         scored = scored.stream()
-                .filter(c -> c.getRuleBaseScore() > 8.0)
+                .filter(c -> !c.isHasSpecialTargetMismatch())
                 .collect(java.util.stream.Collectors.toList());
         if (scored.isEmpty()) {
-            log.info("[RecommendationFacade] 컷오프 후 후보 없음 userId={}", userId);
+            log.info("[RecommendationFacade] 필터 후 후보 없음 userId={}", userId);
             return List.of();
         }
 
