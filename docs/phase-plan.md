@@ -160,6 +160,8 @@
 - 2026-04-24 비밀번호 변경 API 구현 후 실제 Docker 앱에서 틀린 비밀번호 거부·변경 성공·새 비밀번호 로그인 검증 완료
 - 2026-04-24 비밀번호 변경 프론트 연동 후 `frontend`에서 `npm run lint` 및 `npm run build`
   - Vite 번들 크기 경고 발생. 빌드는 성공했으며 기능 실패는 아님.
+- 2026-04-24 정책 비로그인 허용 후 `backend`에서 `./gradlew test --no-daemon`
+- 2026-04-24 정책 비로그인 허용 후 실제 Docker 앱에서 비로그인 정책 목록·검색·상세 200, 추천 403 확인
 - 2026-04-24 `V2026_04_24_01`, `V2026_04_24_02` migration 적용 확인 후 `backend`에서 `./gradlew integrationTest --no-daemon`
   - `AuthRedisIntegrationTest`, `PolicyBookmarkIntegrationTest`, `RecommendationFlowIntegrationTest` 전체 통과
 - 2026-04-24 Docker 앱 재빌드 후 가상 유저(`testuser@youth-welfare.dev`) end-to-end 검증
@@ -220,6 +222,8 @@
 - [x] 마이페이지 우선순위 탭 저장 API 연동 (`PUT /api/users/me/priorities`)
 - [x] 마이페이지 알림 설정 탭 저장 API 연동 (`PUT /api/users/me` notificationYn/notificationPeriod)
 - [x] 비밀번호 변경 API 구현 (`PATCH /api/users/me/password`) + 프론트 계정 탭 연동
+- [x] 정책 목록/검색/상세/랭킹 비로그인 허용 (`permitAll`) — 추천/북마크/마이페이지는 로그인 유지
+- [x] CORS `PATCH` 메서드 누락 추가
 
 ## 통합 테스트 실행 방법
 
