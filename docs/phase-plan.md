@@ -10,7 +10,8 @@
 정책 목록/검색/상세/랭킹은 비로그인 허용, 추천/북마크/마이페이지는 로그인 필수로 분리됐습니다.
 AI 추천 품질 점검 후 프롬프트 개선, 중복 추천 제거, 노이즈 정책 필터, CTR 로그 구조를 보완했습니다.
 데모 시나리오 전체 실행 완료 및 발견된 문제 수정됐습니다.
-남은 작업은 2차 기능 구현(군집 캐시 추천, 챗봇 등)과 EC2 배포입니다.
+2차 기능으로 나이대×소득분위 9개 군집 기반 AI 캐시 추천을 구현했습니다. 캐시 hit 0.24초 vs 개인 호출 11.8초로 성능 차이가 확인됐습니다.
+남은 2차 작업은 챗봇, 카카오 알림톡, EC2 배포입니다.
 
 ## 완료된 백엔드 1차 범위
 
@@ -172,6 +173,15 @@ AI 추천 품질 점검 후 프롬프트 개선, 중복 추천 제거, 노이즈
   - `AuthRedisIntegrationTest`, `PolicyBookmarkIntegrationTest`, `RecommendationFlowIntegrationTest` 전체 통과
 - 2026-04-24 Docker 앱 재빌드 후 가상 유저(`testuser@youth-welfare.dev`) end-to-end 검증
   - 회원가입 → 로그인 → 프로필 조회 → 우선순위 저장(HOUSING·JOB·EDUCATION·FINANCE·DEADLINE) → 추천 refresh(40건, AI reason 정상) → 북마크 토글 → 북마크 목록 조회 → 검색 결과 북마크 상태 확인 → Refresh Token 재발급 전 구간 정상
+- 2026-04-25 군집 캐시 추천 구현 후 `backend`에서 `./gradlew test --no-daemon`
+- 2026-04-25 군집 캐시 추천 구현 후 `frontend`에서 `npm run lint` 및 `npm run build`
+  - Vite 번들 크기 경고 발생. 빌드는 성공했으며 기능 실패는 아님.
+- 2026-04-25 Docker DB에 `V2026_04_25_01__add_cluster_ai_results.sql` 적용
+- 2026-04-25 Docker 앱 재빌드 후 군집 캐시 동작 검증
+  - 테스트 유저(25-29세, 5분위) 군집 `mid_mid` 분류 확인
+  - 첫 번째 refresh: 실시간 AI 호출 → `cluster_ai_results`에 15건 캐시 저장
+  - 두 번째 refresh: 캐시 hit → 응답 0.24초 (AI 호출 없음)
+  - `personal=true` refresh: 캐시 무시 실시간 AI 호출 → 응답 11.8초
 
 ## 작업 추적
 
@@ -181,10 +191,11 @@ AI 추천 품질 점검 후 프롬프트 개선, 중복 추천 제거, 노이즈
 
 ### 진행 예정
 
-- [ ] 운영 서버 Docker Compose 기동
+- [ ] 운영 서버 Docker Compose 기동 (EC2)
 - [ ] HTTPS/Nginx 적용
-- [ ] 데모 시나리오 전체 실행
 - [ ] CTR 분석 쿼리 실행 결과 확보
+- [ ] 챗봇 구현 (2차)
+- [ ] 카카오 알림톡 연동 (2차, 심사 완료 후)
 - [ ] 로그인 전 비밀번호 재설정 메일/토큰 구현
 
 ### 완료
@@ -244,6 +255,10 @@ AI 추천 품질 점검 후 프롬프트 개선, 중복 추천 제거, 노이즈
 - [x] 회원탈퇴 다이얼로그 비밀번호 입력 필드 추가 (기존: 빈 값으로 API 호출 → 탈퇴 불가)
 - [x] `GET /api/recommendations`에 `logId` 누락 수정
 - [x] 데모 시나리오 전체 실행 완료 — 발견된 문제 수정 및 문서 갱신
+- [x] 군집 캐시 추천 구현 — `ClusterService` 9개 군집, `cluster_ai_results` 캐시, `AiScoringService` 캐시 우선 조회
+- [x] `POST /api/recommendations/refresh?personal=true` 개인 맞춤 재추천 엔드포인트 추가
+- [x] 프론트 "맞춤 재추천" 버튼 추가 (군집 캐시 무시, 개인 AI 호출)
+- [x] 캐시 TTL 25시간 만료 배치 추가 (`StatusUpdateService` 새벽 3시)
 
 ## 통합 테스트 실행 방법
 
