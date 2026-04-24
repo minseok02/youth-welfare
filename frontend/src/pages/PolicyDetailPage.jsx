@@ -1,42 +1,25 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
-  Box, Container, Typography, Chip, Button, Divider,
-  IconButton, Snackbar, Alert, Paper,
+  Box,
+  Container,
+  Typography,
+  Chip,
+  Button,
+  Divider,
+  IconButton,
+  Snackbar,
+  Alert,
+  Paper,
+  CircularProgress,
 } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import BookmarkBorderIcon from "@mui/icons-material/BookmarkBorder";
 import BookmarkIcon from "@mui/icons-material/Bookmark";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import Header from "../components/Header";
+import api from "../lib/axios";
 import { useAuthStore } from "../store/authStore";
-
-// 임시: 더미 정책 상세 데이터 — 실제 데이터 연동 시 삭제 (API: GET /api/policies/:id)
-const DUMMY_DETAIL = {
-  id: 1,
-  title: "청년 전세자금 대출 지원",
-  category: "주거",
-  source: "복지로 중앙",
-  dday: "D-12",
-  isNew: true,
-  region: "서울 전체",
-  ageRange: "만 19~34세",
-  income: "소득 하위 70% 이하",
-  onlineApply: true,
-  organizer: "국토교통부",
-  period: "2026.01.01 ~ 2026.06.30",
-  supportContent: "전세보증금의 최대 80%, 최대 1억원까지 저금리(연 1.2%)로 대출 지원합니다. 신혼부부 및 다자녀 가구에 대한 우대금리가 적용됩니다.",
-  targetContent: "만 19세 이상 34세 이하 무주택 청년으로 소득 하위 70% 이하인 경우 신청 가능합니다. 부모와 별도 거주 요건이 있을 수 있습니다.",
-  applyMethod: "온라인: 복지로(www.bokjiro.go.kr) 접속 후 신청\n오프라인: 주민센터 방문 신청 가능",
-  contacts: [
-    { name: "국토교통부 콜센터", phone: "1599-0001" },
-    { name: "한국주택금융공사", phone: "1688-8114" },
-  ],
-  law: "주거기본법 제17조",
-  formFile: null,
-  homepage: "https://www.bokjiro.go.kr",
-  detailUrl: "https://www.bokjiro.go.kr",
-};
 
 const NO_DATA = "원문에서 확인해주세요.";
 
@@ -48,34 +31,191 @@ function SectionTitle({ children }) {
   );
 }
 
+const formatDate = (value) => {
+  if (!value) return null;
+  const date = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return null;
+  return `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, "0")}.${String(
+    date.getDate()
+  ).padStart(2, "0")}`;
+};
+
+const formatPeriod = (start, end) => {
+  const formattedStart = formatDate(start);
+  const formattedEnd = formatDate(end);
+  if (formattedStart && formattedEnd) return `${formattedStart} ~ ${formattedEnd}`;
+  if (formattedStart) return `${formattedStart} ~`;
+  if (formattedEnd) return `~ ${formattedEnd}`;
+  return null;
+};
+
+const formatAgeRange = (minAge, maxAge) => {
+  if (minAge && maxAge) return `만 ${minAge}~${maxAge}세`;
+  if (minAge) return `만 ${minAge}세 이상`;
+  if (maxAge) return `만 ${maxAge}세 이하`;
+  return null;
+};
+
+const formatIncome = (minIncome, maxIncome) => {
+  if (minIncome && maxIncome) return `소득 ${minIncome} ~ ${maxIncome}`;
+  if (minIncome) return `소득 ${minIncome} 이상`;
+  if (maxIncome) return `소득 ${maxIncome} 이하`;
+  return null;
+};
+
+const formatSource = (sourceType) => {
+  if (sourceType === "YOUTH") return "온통청년";
+  if (sourceType === "BOKJIRO_CENTRAL") return "복지로 중앙";
+  if (sourceType === "BOKJIRO_LOCAL") return "복지로 지자체";
+  return sourceType || "출처 정보 없음";
+};
+
+const formatStatusLabel = (status) => {
+  if (status === "ACTIVE") return "진행중";
+  if (status === "UPCOMING") return "예정";
+  if (status === "CLOSED") return "종료";
+  return "상태 정보 없음";
+};
+
+const formatDday = (endDate, status) => {
+  if (status === "CLOSED") return "종료";
+  if (!endDate) return "상시";
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const target = new Date(`${endDate}T00:00:00`);
+  if (Number.isNaN(target.getTime())) return "상시";
+
+  const diff = Math.ceil((target - today) / 86400000);
+  if (diff < 0) return "종료";
+  if (diff === 0) return "D-Day";
+  return `D-${diff}`;
+};
+
+const ddayColor = (dday) => {
+  if (dday === "상시") return "success";
+  if (dday === "종료") return "default";
+  if (dday === "D-Day") return "error";
+  const n = Number.parseInt(String(dday).replace("D-", ""), 10);
+  return Number.isNaN(n) ? "default" : n <= 14 ? "error" : "primary";
+};
+
+const parseContacts = (raw) => {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) {
+      return parsed
+        .map((item) => ({
+          name: item?.name || item?.deptNm || item?.orgNm || "",
+          phone: item?.phone || item?.telNo || item?.contact || "",
+        }))
+        .filter((item) => item.name || item.phone);
+    }
+  } catch {
+    return raw
+      .split(/\n+/)
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .map((line) => ({ name: line, phone: "" }));
+  }
+  return [];
+};
+
 export default function PolicyDetailPage() {
   const navigate = useNavigate();
+  const { id } = useParams();
+  const [searchParams] = useSearchParams();
   const { isLoggedIn } = useAuthStore();
+
+  const [policy, setPolicy] = useState(null);
   const [bookmarked, setBookmarked] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState({ open: false, msg: "", severity: "info" });
 
-  const policy = DUMMY_DETAIL; // 임시: 실제 데이터 연동 시 API 응답으로 교체 후 삭제
+  useEffect(() => {
+    const controller = new AbortController();
 
-  const handleBookmark = () => {
+    const fetchPolicy = async () => {
+      setLoading(true);
+      try {
+        const logId = searchParams.get("log_id");
+        const { data } = await api.get(`/api/policies/${id}`, {
+          params: {
+            logId: logId || undefined,
+          },
+          signal: controller.signal,
+        });
+        setPolicy(data.data);
+        setBookmarked(Boolean(data.data?.bookmarked));
+      } catch (error) {
+        if (error.name === "CanceledError" || error.code === "ERR_CANCELED") return;
+        setToast({ open: true, msg: "정책 상세를 불러오지 못했습니다", severity: "error" });
+      } finally {
+        if (!controller.signal.aborted) setLoading(false);
+      }
+    };
+
+    fetchPolicy();
+    return () => controller.abort();
+  }, [id, searchParams]);
+
+  const contacts = useMemo(() => parseContacts(policy?.contactList), [policy?.contactList]);
+
+  const summaryChips = useMemo(() => {
+    if (!policy) return [];
+    const chips = [];
+    if (policy.regions?.length) chips.push({ label: policy.regions.join(", "), icon: "📍" });
+
+    const ageRange = formatAgeRange(policy.minAge, policy.maxAge);
+    if (ageRange) chips.push({ label: ageRange, icon: "👤" });
+
+    const income = formatIncome(policy.minIncome, policy.maxIncome);
+    if (income) chips.push({ label: income, icon: "💰" });
+
+    if (policy.isOnlineApply) chips.push({ label: "온라인 가능", icon: "🖥️", color: "primary" });
+
+    const organizer = policy.hostOrg || policy.operatingOrg;
+    if (organizer) chips.push({ label: organizer, icon: "🏛️" });
+
+    const period =
+      formatPeriod(policy.applyStartDate, policy.applyEndDate) ||
+      formatPeriod(policy.startDate, policy.endDate);
+    if (period) chips.push({ label: `신청기간: ${period}`, icon: "🗓️" });
+
+    if (policy.lifeStage) chips.push({ label: policy.lifeStage, icon: "🌱" });
+
+    return chips;
+  }, [policy]);
+
+  const handleBookmark = async () => {
     if (!isLoggedIn) {
       setToast({ open: true, msg: "로그인 후 이용 가능해요", severity: "info" });
       return;
     }
-    setBookmarked((v) => !v);
+
+    try {
+      await api.post(`/api/policies/${id}/bookmark`);
+      const nextBookmarked = !bookmarked;
+      setBookmarked(nextBookmarked);
+      setPolicy((current) => (current ? { ...current, bookmarked: nextBookmarked } : current));
+      setToast({
+        open: true,
+        msg: nextBookmarked ? "북마크에 저장했어요" : "북마크를 해제했어요",
+        severity: "success",
+      });
+    } catch {
+      setToast({ open: true, msg: "북마크 처리에 실패했습니다", severity: "error" });
+    }
   };
 
-  const ddayColor = (dday) => {
-    if (dday === "상시") return "success";
-    const n = parseInt(dday.replace("D-", ""));
-    return n <= 14 ? "error" : "primary";
-  };
+  const policyDday = policy ? formatDday(policy.applyEndDate, policy.status) : "상시";
 
   return (
     <Box sx={{ minHeight: "100vh", bgcolor: "background.default", pb: 10 }}>
       <Header />
 
       <Container maxWidth="md" sx={{ py: 3 }}>
-        {/* 상단 네비게이션 */}
         <Box sx={{ display: "flex", justifyContent: "space-between", mb: 2 }}>
           <Button startIcon={<ArrowBackIcon />} onClick={() => navigate(-1)} color="inherit">
             뒤로가기
@@ -88,107 +228,144 @@ export default function PolicyDetailPage() {
           </IconButton>
         </Box>
 
-        <Paper elevation={0} sx={{ p: 3, borderRadius: 3, border: "1px solid #E8F4F5" }}>
-          {/* 카테고리 + 출처 태그 */}
-          <Box sx={{ display: "flex", gap: 1, mb: 1.5, flexWrap: "wrap" }}>
-            <Chip label={policy.category} color="primary" size="small" />
-            <Chip label={policy.source} variant="outlined" size="small" color="default" />
-          </Box>
+        {loading ? (
+          <Paper
+            elevation={0}
+            sx={{
+              p: 6,
+              borderRadius: 3,
+              border: "1px solid #E8F4F5",
+              display: "flex",
+              justifyContent: "center",
+            }}
+          >
+            <CircularProgress />
+          </Paper>
+        ) : !policy ? (
+          <Paper elevation={0} sx={{ p: 4, borderRadius: 3, border: "1px solid #E8F4F5" }}>
+            <Typography variant="h6" fontWeight={700} mb={1}>
+              정책 정보를 찾지 못했습니다
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              목록으로 돌아가 다른 정책을 선택해주세요.
+            </Typography>
+          </Paper>
+        ) : (
+          <Paper elevation={0} sx={{ p: 3, borderRadius: 3, border: "1px solid #E8F4F5" }}>
+            <Box sx={{ display: "flex", gap: 1, mb: 1.5, flexWrap: "wrap" }}>
+              <Chip label={policy.unifiedCategory || "기타"} color="primary" size="small" />
+              <Chip label={formatSource(policy.sourceType)} variant="outlined" size="small" />
+              {policy.supportCycle && (
+                <Chip label={policy.supportCycle} variant="outlined" size="small" />
+              )}
+              {policy.provisionType && (
+                <Chip label={policy.provisionType} variant="outlined" size="small" />
+              )}
+            </Box>
 
-          {/* 제목 */}
-          <Typography variant="h5" fontWeight={700} mb={1.5} sx={{ lineHeight: 1.4 }}>
-            {policy.title}
-          </Typography>
+            <Typography variant="h5" fontWeight={700} mb={1.5} sx={{ lineHeight: 1.4 }}>
+              {policy.title}
+            </Typography>
 
-          {/* D-day + 신규 뱃지 */}
-          <Box sx={{ display: "flex", gap: 1, mb: 2 }}>
-            <Chip label={policy.dday} color={ddayColor(policy.dday)} size="small" />
-            {policy.isNew && <Chip label="🆕 신규" size="small" variant="outlined" color="secondary" />}
-          </Box>
+            <Box sx={{ display: "flex", gap: 1, mb: 2, flexWrap: "wrap" }}>
+              <Chip label={policyDday} color={ddayColor(policyDday)} size="small" />
+              <Chip label={formatStatusLabel(policy.status)} size="small" variant="outlined" />
+            </Box>
 
-          <Divider />
+            <Divider />
 
-          {/* 요약 정보 칩 */}
-          <SectionTitle>요약 정보</SectionTitle>
-          <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
-            {policy.region && <Chip icon={<span>📍</span>} label={policy.region} size="small" variant="outlined" />}
-            {policy.ageRange && <Chip icon={<span>👤</span>} label={policy.ageRange} size="small" variant="outlined" />}
-            {policy.income && <Chip icon={<span>💰</span>} label={policy.income} size="small" variant="outlined" />}
-            {policy.onlineApply && <Chip icon={<span>🖥️</span>} label="온라인 가능" size="small" variant="outlined" color="primary" />}
-            {policy.organizer && <Chip icon={<span>🏛️</span>} label={policy.organizer} size="small" variant="outlined" />}
-            {policy.period && <Chip icon={<span>🗓️</span>} label={`신청기간: ${policy.period}`} size="small" variant="outlined" />}
-          </Box>
-
-          {/* 지원내용 */}
-          <SectionTitle>지원내용</SectionTitle>
-          <Divider sx={{ mb: 1.5 }} />
-          <Typography variant="body2" sx={{ whiteSpace: "pre-line", lineHeight: 1.8, color: "text.primary" }}>
-            {policy.supportContent || `지원 내용 정보가 없습니다. ${NO_DATA}`}
-          </Typography>
-
-          {/* 신청대상 */}
-          <SectionTitle>신청대상</SectionTitle>
-          <Divider sx={{ mb: 1.5 }} />
-          <Typography variant="body2" sx={{ whiteSpace: "pre-line", lineHeight: 1.8 }}>
-            {policy.targetContent || `신청 대상 정보가 없습니다. ${NO_DATA}`}
-          </Typography>
-
-          {/* 신청방법 */}
-          <SectionTitle>신청방법</SectionTitle>
-          <Divider sx={{ mb: 1.5 }} />
-          <Typography variant="body2" sx={{ whiteSpace: "pre-line", lineHeight: 1.8 }}>
-            {policy.applyMethod || `신청 방법 정보가 없습니다. ${NO_DATA}`}
-          </Typography>
-
-          {/* 문의처 */}
-          <SectionTitle>문의처</SectionTitle>
-          <Divider sx={{ mb: 1.5 }} />
-          {policy.contacts?.length > 0 ? (
-            policy.contacts.map((c, i) => (
-              <Typography key={i} variant="body2" mb={0.5}>
-                📞 {c.name}&nbsp;&nbsp;{c.phone}
-              </Typography>
-            ))
-          ) : (
-            <Typography variant="body2" color="text.secondary">문의처 정보가 없습니다.</Typography>
-          )}
-
-          {/* 관련 정보 */}
-          <SectionTitle>관련 정보</SectionTitle>
-          <Divider sx={{ mb: 1.5 }} />
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
-            {policy.law && (
-              <Typography variant="body2">📋 관련 법령: {policy.law}</Typography>
-            )}
-            {policy.formFile && (
-              <Typography variant="body2">
-                📎 서식 파일: <Button size="small" variant="text" sx={{ p: 0, minWidth: 0 }}>신청서 다운로드</Button>
-              </Typography>
-            )}
-            {policy.homepage && (
-              <Typography variant="body2">
-                🌐 홈페이지:{" "}
-                <Button
+            <SectionTitle>요약 정보</SectionTitle>
+            <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+              {summaryChips.map((item) => (
+                <Chip
+                  key={`${item.icon}-${item.label}`}
+                  icon={<span>{item.icon}</span>}
+                  label={item.label}
                   size="small"
-                  variant="text"
-                  sx={{ p: 0, minWidth: 0 }}
-                  onClick={() => window.open(policy.homepage, "_blank")}
-                >
-                  바로가기
-                </Button>
+                  variant="outlined"
+                  color={item.color || "default"}
+                />
+              ))}
+            </Box>
+
+            <SectionTitle>정책 소개</SectionTitle>
+            <Divider sx={{ mb: 1.5 }} />
+            <Typography variant="body2" sx={{ whiteSpace: "pre-line", lineHeight: 1.8 }}>
+              {policy.description || `정책 소개 정보가 없습니다. ${NO_DATA}`}
+            </Typography>
+
+            <SectionTitle>지원내용</SectionTitle>
+            <Divider sx={{ mb: 1.5 }} />
+            <Typography variant="body2" sx={{ whiteSpace: "pre-line", lineHeight: 1.8 }}>
+              {policy.supportDetail || policy.supportContent || `지원 내용 정보가 없습니다. ${NO_DATA}`}
+            </Typography>
+
+            <SectionTitle>신청대상</SectionTitle>
+            <Divider sx={{ mb: 1.5 }} />
+            <Typography variant="body2" sx={{ whiteSpace: "pre-line", lineHeight: 1.8 }}>
+              {policy.targetDetail || `신청 대상 정보가 없습니다. ${NO_DATA}`}
+            </Typography>
+
+            <SectionTitle>신청방법</SectionTitle>
+            <Divider sx={{ mb: 1.5 }} />
+            <Typography variant="body2" sx={{ whiteSpace: "pre-line", lineHeight: 1.8 }}>
+              {policy.applyMethodDetail ||
+                policy.applyMethodName ||
+                `신청 방법 정보가 없습니다. ${NO_DATA}`}
+            </Typography>
+
+            <SectionTitle>문의처</SectionTitle>
+            <Divider sx={{ mb: 1.5 }} />
+            {contacts.length > 0 ? (
+              contacts.map((contact, index) => (
+                <Typography key={`${contact.name}-${index}`} variant="body2" mb={0.5}>
+                  📞 {contact.name}
+                  {contact.phone ? `  ${contact.phone}` : ""}
+                </Typography>
+              ))
+            ) : (
+              <Typography variant="body2" color="text.secondary">
+                문의처 정보가 없습니다.
               </Typography>
             )}
-          </Box>
-        </Paper>
+
+            {!!policy.tags?.length && (
+              <>
+                <SectionTitle>관련 태그</SectionTitle>
+                <Divider sx={{ mb: 1.5 }} />
+                <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+                  {policy.tags.map((tag) => (
+                    <Chip
+                      key={`${tag.tagType}-${tag.tagValue}`}
+                      label={`${tag.tagType}: ${tag.tagValue}`}
+                      size="small"
+                      variant="outlined"
+                    />
+                  ))}
+                </Box>
+              </>
+            )}
+          </Paper>
+        )}
       </Container>
 
-      {/* 하단 고정 버튼 */}
-      <Box sx={{
-        position: "fixed", bottom: 0, left: 0, right: 0,
-        bgcolor: "white", borderTop: "1px solid #E8F4F5",
-        px: 2, py: 1.5, display: "flex", gap: 1, justifyContent: "center",
-        maxWidth: 768, mx: "auto",
-      }}>
+      <Box
+        sx={{
+          position: "fixed",
+          bottom: 0,
+          left: 0,
+          right: 0,
+          bgcolor: "white",
+          borderTop: "1px solid #E8F4F5",
+          px: 2,
+          py: 1.5,
+          display: "flex",
+          gap: 1,
+          justifyContent: "center",
+          maxWidth: 768,
+          mx: "auto",
+        }}
+      >
         <Button
           variant={bookmarked ? "contained" : "outlined"}
           startIcon={bookmarked ? <BookmarkIcon /> : <BookmarkBorderIcon />}
@@ -200,15 +377,20 @@ export default function PolicyDetailPage() {
         <Button
           variant="contained"
           endIcon={<OpenInNewIcon />}
-          disabled={!policy.detailUrl}
-          onClick={() => policy.detailUrl && window.open(policy.detailUrl, "_blank")}
+          disabled={!policy?.detailUrl}
+          onClick={() => policy?.detailUrl && window.open(policy.detailUrl, "_blank")}
           sx={{ flex: 1, maxWidth: 200 }}
         >
-          {policy.detailUrl ? "원문 보러가기" : "원문 링크 없음"}
+          {policy?.detailUrl ? "원문 보러가기" : "원문 링크 없음"}
         </Button>
       </Box>
 
-      <Snackbar open={toast.open} autoHideDuration={2000} onClose={() => setToast({ ...toast, open: false })} anchorOrigin={{ vertical: "top", horizontal: "center" }}>
+      <Snackbar
+        open={toast.open}
+        autoHideDuration={2200}
+        onClose={() => setToast((prev) => ({ ...prev, open: false }))}
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}
+      >
         <Alert severity={toast.severity}>{toast.msg}</Alert>
       </Snackbar>
     </Box>

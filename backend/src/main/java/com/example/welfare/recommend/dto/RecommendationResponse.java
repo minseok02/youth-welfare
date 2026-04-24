@@ -13,6 +13,7 @@ public class RecommendationResponse {
 
     private Long id;
     private Long serviceId;
+    private Long logId;             // CTR 클릭 추적용 (?log_id= 파라미터)
     private String title;
     private String description;
     private String unifiedCategory;
@@ -24,9 +25,14 @@ public class RecommendationResponse {
     private LocalDateTime recommendedAt;
 
     public static RecommendationResponse from(UserRecommendation rec) {
+        return from(rec, null);
+    }
+
+    public static RecommendationResponse from(UserRecommendation rec, Long logId) {
         return RecommendationResponse.builder()
                 .id(rec.getId())
                 .serviceId(rec.getService().getId())
+                .logId(logId)
                 .title(rec.getService().getTitle())
                 .description(rec.getService().getDescription())
                 .unifiedCategory(rec.getService().getUnifiedCategory())

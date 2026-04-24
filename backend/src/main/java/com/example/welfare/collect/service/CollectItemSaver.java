@@ -9,6 +9,7 @@ import com.example.welfare.policy.entity.ServiceTag;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.repository.ServiceTagRepository;
 import com.example.welfare.policy.repository.WelfareServiceRepository;
+import com.example.welfare.policy.service.SearchYouthRelevanceService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.CannotAcquireLockException;
@@ -40,6 +41,7 @@ public class CollectItemSaver {
     private final ServiceTagRepository tagRepository;
     private final PlatformTransactionManager transactionManager;
     private final JdbcTemplate jdbcTemplate;
+    private final SearchYouthRelevanceService searchYouthRelevanceService;
 
     private static final int MAX_SAVE_ATTEMPTS = 3;
     private static final long BASE_BACKOFF_MS = 200L;
@@ -55,7 +57,9 @@ public class CollectItemSaver {
                 mapper.fromYouth(item)
         );
         upsertRegions(entity, mapper.regionsFromYouth(item, entity));
-        upsertTags(entity, mapper.tagsFromYouth(item, entity));
+        List<ServiceTag> tags = mapper.tagsFromYouth(item, entity);
+        upsertTags(entity, tags);
+        searchYouthRelevanceService.refreshForService(entity, tags);
     }
 
     public void saveBokjiroCentral(BokjiroCentralDto.Item item) {
@@ -69,7 +73,9 @@ public class CollectItemSaver {
                 mapper.fromBokjiroCentral(item)
         );
         upsertRegions(entity, mapper.regionsFromBokjiroCentral(item, entity));
-        upsertTags(entity, mapper.tagsFromBokjiroCentral(item, entity));
+        List<ServiceTag> tags = mapper.tagsFromBokjiroCentral(item, entity);
+        upsertTags(entity, tags);
+        searchYouthRelevanceService.refreshForService(entity, tags);
     }
 
     public void saveBokjiroLocal(BokjiroLocalDto.Item item) {
@@ -83,7 +89,9 @@ public class CollectItemSaver {
                 mapper.fromBokjiroLocal(item)
         );
         upsertRegions(entity, mapper.regionsFromBokjiroLocal(item, entity));
-        upsertTags(entity, mapper.tagsFromBokjiroLocal(item, entity));
+        List<ServiceTag> tags = mapper.tagsFromBokjiroLocal(item, entity);
+        upsertTags(entity, tags);
+        searchYouthRelevanceService.refreshForService(entity, tags);
     }
 
     private WelfareService upsertService(WelfareService.SourceType sourceType,

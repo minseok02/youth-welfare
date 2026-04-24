@@ -8,9 +8,6 @@ import HomeIcon from "@mui/icons-material/Home";
 import { useAuthStore } from "../store/authStore";
 import api from "../lib/axios";
 
-const MAX_ATTEMPTS = 10;
-const LOCKOUT_MS = 5 * 60 * 1000;
-
 export default function LoginPage() {
   const navigate = useNavigate();
   const { login } = useAuthStore();
@@ -19,33 +16,38 @@ export default function LoginPage() {
   const [pw, setPw] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [attempts, setAttempts] = useState(0);
-  const [lockedUntil, setLockedUntil] = useState(null);
   const [toast, setToast] = useState({ open: false, msg: "" });
-
-  const isLocked = lockedUntil && Date.now() < lockedUntil;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!email || !pw || isLocked) return;
+    if (!email || !pw) return;
 
     setLoading(true);
     setError("");
 
     try {
       const { data } = await api.post("/api/auth/login", { email, password: pw });
-      login(data.token, data.user);
-      navigate("/");
-    } catch {
-      const newAttempts = attempts + 1;
-      setAttempts(newAttempts);
-
-      if (newAttempts >= MAX_ATTEMPTS) {
-        setLockedUntil(Date.now() + LOCKOUT_MS);
-        setError("5분 후 다시 시도해주세요");
-      } else {
-        setError("아이디와 비밀번호를 확인해주세요");
+      const accessToken = data?.data?.accessToken;
+      if (!accessToken) {
+        throw new Error("로그인 응답에 accessToken이 없습니다");
       }
+
+      login(accessToken, { email });
+
+      try {
+        const profileResponse = await api.get("/api/users/me");
+        const profile = profileResponse?.data?.data;
+        login(accessToken, {
+          name: profile?.name ?? "",
+          email: profile?.email ?? email,
+        });
+      } catch {
+        login(accessToken, { email });
+      }
+
+      navigate("/");
+    } catch (err) {
+      setError(err.response?.data?.message ?? "로그인 중 오류가 발생했습니다");
     } finally {
       setLoading(false);
     }
@@ -87,7 +89,6 @@ export default function LoginPage() {
               placeholder="example@email.com"
               fullWidth
               size="medium"
-              disabled={isLocked}
             />
             <TextField
               label="비밀번호"
@@ -97,7 +98,6 @@ export default function LoginPage() {
               placeholder="비밀번호를 입력하세요"
               fullWidth
               size="medium"
-              disabled={isLocked}
               error={!!error}
               helperText={error}
             />
@@ -107,7 +107,7 @@ export default function LoginPage() {
               variant="contained"
               fullWidth
               size="large"
-              disabled={!email || !pw || loading || isLocked}
+              disabled={!email || !pw || loading}
               sx={{ mt: 1, py: 1.5, fontWeight: 700 }}
             >
               {loading ? <CircularProgress size={22} color="inherit" /> : "로그인"}
@@ -131,7 +131,7 @@ export default function LoginPage() {
               variant="body2"
               color="text.secondary"
               underline="hover"
-              onClick={() => setToast({ open: true, msg: "아직 준비 중인 기능이에요" })}
+              onClick={() => setToast({ open: true, msg: "아이디는 가입한 이메일입니다. 비밀번호 재설정 메일 기능은 아직 준비 중입니다." })}
             >
               아이디/비밀번호 찾기
             </Link>

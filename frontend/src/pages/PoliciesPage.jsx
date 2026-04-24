@@ -1,166 +1,343 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  Box, Container, Typography, TextField, InputAdornment, Button,
-  Card, CardContent, Chip, Grid, Pagination, Select, MenuItem,
-  FormControl, IconButton, Snackbar, Alert, Tabs, Tab,
+  Box,
+  Container,
+  Typography,
+  TextField,
+  InputAdornment,
+  Button,
+  Card,
+  CardContent,
+  Chip,
+  Grid,
+  Pagination,
+  Select,
+  MenuItem,
+  FormControl,
+  IconButton,
+  Snackbar,
+  Alert,
+  Tabs,
+  Tab,
+  CircularProgress,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import BookmarkBorderIcon from "@mui/icons-material/BookmarkBorder";
 import BookmarkIcon from "@mui/icons-material/Bookmark";
 import Header from "../components/Header";
+import api from "../lib/axios";
 import { useAuthStore } from "../store/authStore";
 
 const CATEGORIES = [
   { label: "전체", value: "" },
-  { label: "주거", value: "HOUSING" },
-  { label: "일자리", value: "JOB" },
-  { label: "교육·직업훈련", value: "EDUCATION" },
-  { label: "금융·생활", value: "FINANCE" },
-  { label: "문화·여가", value: "CULTURE" },
-  { label: "건강·의료", value: "HEALTH" },
-  { label: "가족·돌봄", value: "FAMILY" },
-  { label: "안전·위기", value: "SAFETY" },
-  { label: "참여·기회", value: "PARTICIPATION" },
+  { label: "주거", value: "주거" },
+  { label: "일자리", value: "일자리" },
+  { label: "교육·직업훈련", value: "교육·직업훈련" },
+  { label: "금융·생활", value: "금융·생활지원" },
+  { label: "문화·여가", value: "문화·여가" },
+  { label: "건강·의료", value: "건강·의료" },
+  { label: "가족·돌봄", value: "가족·돌봄" },
+  { label: "안전·위기", value: "안전·위기" },
+  { label: "참여·기회", value: "참여·기회" },
 ];
 
-const REGIONS = ["전체", "서울", "부산", "대구", "인천", "광주", "대전", "울산", "세종", "경기", "강원", "충북", "충남", "전북", "전남", "경북", "경남", "제주"];
-
-// 임시: 더미 정책 데이터 — 실제 데이터 연동 시 삭제
-const DUMMY = [
-  { id: 1, title: "청년 전세자금 대출 지원", category: "주거", dday: "D-12", source: "국토교통부", summary: "최대 1억원 / 온라인신청 가능", bookmarked: false },
-  { id: 2, title: "청년 취업지원 프로그램", category: "일자리", dday: "D-30", source: "고용노동부", summary: "월 50만원 지원 / 서울시", bookmarked: false },
-  { id: 3, title: "국민취업지원제도", category: "일자리", dday: "상시", source: "고용노동부", summary: "취업 취약계층 청년에게 취업지원서비스 및 구직촉진수당 제공", bookmarked: true },
-  { id: 4, title: "청년 창업지원 프로그램", category: "금융·생활", dday: "D-45", source: "중소벤처기업부", summary: "만 39세 이하 청년 창업자 최대 1억원 사업화 자금 지원", bookmarked: false },
-  { id: 5, title: "청년문화누리카드", category: "문화·여가", dday: "D-60", source: "문화체육관광부", summary: "연 11만원 문화·여행·체육 분야 이용권 지원", bookmarked: false },
-  { id: 6, title: "청년 심리상담 지원", category: "건강·의료", dday: "상시", source: "보건복지부", summary: "만 34세 이하 청년 1인당 최대 10회 전문 심리상담 무료 제공", bookmarked: false },
-  { id: 7, title: "청년월세 한시 특별지원", category: "주거", dday: "D-5", source: "국토교통부", summary: "만 19~34세 무주택 청년에게 월 최대 20만원, 12개월 지원", bookmarked: false },
-  { id: 8, title: "청년내일저축계좌", category: "금융·생활", dday: "D-90", source: "보건복지부", summary: "근로·사업소득 월 10만원 저축 시 정부 10~30만원 매칭 지원", bookmarked: false },
-  { id: 9, title: "청년 교육비 지원", category: "교육·직업훈련", dday: "D-20", source: "교육부", summary: "직업훈련 수강료 80% 지원, 최대 200만원", bookmarked: false },
-  { id: 10, title: "청년 건강검진 지원", category: "건강·의료", dday: "상시", source: "보건복지부", summary: "만 20세, 30세 청년 건강검진 무료 제공", bookmarked: false },
+const REGIONS = [
+  "전체",
+  "서울",
+  "부산",
+  "대구",
+  "인천",
+  "광주",
+  "대전",
+  "울산",
+  "세종",
+  "경기",
+  "강원",
+  "충북",
+  "충남",
+  "전북",
+  "전남",
+  "경북",
+  "경남",
+  "제주",
 ];
-// 임시 끝
+
+const SORT_MAP = {
+  latest: "LATEST",
+  views: "VIEWS",
+  name: "NAME",
+};
+
+const PAGE_SIZE = 20;
+
+const formatDday = (dateText, status) => {
+  if (status === "CLOSED") return "종료";
+  if (!dateText) return "상시";
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const endDate = new Date(`${dateText}T00:00:00`);
+  if (Number.isNaN(endDate.getTime())) return "상시";
+
+  const diff = Math.ceil((endDate - today) / 86400000);
+  if (diff < 0) return "종료";
+  if (diff === 0) return "D-Day";
+  return `D-${diff}`;
+};
+
+const ddayColor = (dday) => {
+  if (dday === "종료") return "default";
+  if (dday === "상시") return "success";
+  if (dday === "D-Day") return "error";
+  const n = Number.parseInt(String(dday).replace("D-", ""), 10);
+  return Number.isNaN(n) ? "default" : n <= 14 ? "error" : "primary";
+};
+
+const mapPolicySummary = (policy) => ({
+  id: policy.id,
+  title: policy.title,
+  category: policy.unifiedCategory || "기타",
+  dday: formatDday(policy.applyEndDate, policy.status),
+  source: policy.hostOrg || policy.applyMethodName || "출처 정보 없음",
+  summary: policy.description || "정책 설명 정보가 없습니다.",
+  bookmarked: Boolean(policy.bookmarked),
+});
 
 export default function PoliciesPage() {
   const navigate = useNavigate();
   const { isLoggedIn } = useAuthStore();
-  const [search, setSearch] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+  const [searchKeyword, setSearchKeyword] = useState("");
   const [catTab, setCatTab] = useState(0);
   const [region, setRegion] = useState("전체");
   const [sort, setSort] = useState("latest");
   const [page, setPage] = useState(1);
-  const [policies, setPolicies] = useState(DUMMY); // 임시: 실제 데이터 연동 시 API 응답으로 교체 후 삭제
-  const [toast, setToast] = useState({ open: false, msg: "" });
+  const [policies, setPolicies] = useState([]);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [toast, setToast] = useState({ open: false, msg: "", severity: "info" });
 
-  const PAGE_SIZE = 20;
+  const selectedCategory = CATEGORIES[catTab]?.value ?? "";
 
-  const handleBookmark = (id, e) => {
-    e.stopPropagation();
+  useEffect(() => {
+    const controller = new AbortController();
+
+    const fetchPolicies = async () => {
+      setLoading(true);
+      try {
+        const commonParams = {
+          category: selectedCategory || undefined,
+          sido: region === "전체" ? undefined : region,
+          sort: SORT_MAP[sort] ?? "LATEST",
+          page: page - 1,
+          size: PAGE_SIZE,
+        };
+
+        if (searchKeyword.trim()) {
+          const { data } = await api.get("/api/policies/search", {
+            params: {
+              ...commonParams,
+              keyword: searchKeyword.trim(),
+              includeClosed: false,
+            },
+            signal: controller.signal,
+          });
+
+          const pageData = data.data ?? {};
+          setPolicies((pageData.content ?? []).map(mapPolicySummary));
+          setTotalCount(pageData.totalElements ?? 0);
+          setTotalPages(Math.max(pageData.totalPages ?? 1, 1));
+          return;
+        }
+
+        const { data } = await api.get("/api/policies", {
+          params: commonParams,
+          signal: controller.signal,
+        });
+
+        const pageData = data.data ?? {};
+        setPolicies((pageData.content ?? []).map(mapPolicySummary));
+        setTotalCount(pageData.totalElements ?? 0);
+        setTotalPages(Math.max(pageData.totalPages ?? 1, 1));
+      } catch (error) {
+        if (error.name === "CanceledError" || error.code === "ERR_CANCELED") return;
+        setPolicies([]);
+        setTotalPages(1);
+        setTotalCount(0);
+        setToast({ open: true, msg: "정책 목록을 불러오지 못했습니다", severity: "error" });
+      } finally {
+        if (!controller.signal.aborted) setLoading(false);
+      }
+    };
+
+    fetchPolicies();
+    return () => controller.abort();
+  }, [page, region, searchKeyword, selectedCategory, sort]);
+
+  const handleBookmark = async (id, event) => {
+    event.stopPropagation();
     if (!isLoggedIn) {
-      setToast({ open: true, msg: "로그인 후 이용 가능해요" });
+      setToast({ open: true, msg: "로그인 후 이용 가능해요", severity: "info" });
       return;
     }
-    setPolicies((prev) => prev.map((p) => (p.id === id ? { ...p, bookmarked: !p.bookmarked } : p)));
+
+    try {
+      await api.post(`/api/policies/${id}/bookmark`);
+      setPolicies((prev) =>
+        prev.map((policy) =>
+          policy.id === id ? { ...policy, bookmarked: !policy.bookmarked } : policy
+        )
+      );
+    } catch {
+      setToast({ open: true, msg: "북마크 처리에 실패했습니다", severity: "error" });
+    }
   };
 
-  const selectedCatValue = CATEGORIES[catTab]?.value ?? "";
-
-  // 임시: 실제 연동 시 필터링/페이지네이션을 API 파라미터로 교체 후 아래 블록 삭제
-  const filtered = policies.filter((p) => {
-    if (search && !p.title.includes(search) && !p.summary.includes(search)) return false;
-    if (selectedCatValue && p.category !== CATEGORIES[catTab]?.label) return false;
-    return true;
-  });
-
-  const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE); // 임시: 삭제
-  const totalPages = Math.ceil(filtered.length / PAGE_SIZE); // 임시: 삭제
-
-  const ddayColor = (dday) => {
-    if (dday === "상시") return "success";
-    const n = parseInt(dday.replace("D-", ""));
-    return n <= 14 ? "error" : "primary";
+  const handleSearch = () => {
+    setPage(1);
+    setSearchKeyword(searchInput.trim());
   };
+
+  const resultLabel = searchKeyword
+    ? `검색 결과 ${totalCount}건`
+    : `총 ${totalCount}개의 정책`;
 
   return (
     <Box sx={{ minHeight: "100vh", bgcolor: "background.default" }}>
       <Header />
 
-      {/* 검색 */}
       <Box sx={{ bgcolor: "white", borderBottom: "1px solid #E8F4F5", px: { xs: 2, sm: 4 }, py: 2 }}>
         <Box sx={{ maxWidth: 600, mx: "auto", display: "flex", gap: 1 }}>
           <TextField
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+            value={searchInput}
+            onChange={(event) => setSearchInput(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") handleSearch();
+            }}
             placeholder="정책명, 키워드로 검색..."
             fullWidth
             size="small"
             InputProps={{
-              startAdornment: <InputAdornment position="start"><SearchIcon color="action" fontSize="small" /></InputAdornment>,
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon color="action" fontSize="small" />
+                </InputAdornment>
+              ),
             }}
           />
-          <Button variant="contained" onClick={() => setPage(1)}>검색</Button>
+          <Button variant="contained" onClick={handleSearch}>
+            검색
+          </Button>
         </Box>
       </Box>
 
-      {/* 카테고리 탭 */}
       <Box sx={{ bgcolor: "white", borderBottom: "1px solid #E8F4F5" }}>
         <Tabs
           value={catTab}
-          onChange={(_, v) => { setCatTab(v); setPage(1); }}
+          onChange={(_, value) => {
+            setCatTab(value);
+            setPage(1);
+          }}
           variant="scrollable"
           scrollButtons="auto"
           sx={{ px: 2, "& .MuiTab-root": { fontSize: 13, minWidth: "auto", px: 2 } }}
         >
-          {CATEGORIES.map((cat) => (
-            <Tab key={cat.value} label={cat.label} />
+          {CATEGORIES.map((category) => (
+            <Tab key={category.value} label={category.label} />
           ))}
         </Tabs>
       </Box>
 
       <Container maxWidth="lg" sx={{ py: 3 }}>
-        {/* 필터 + 정렬 */}
         <Box sx={{ display: "flex", gap: 1, mb: 2, alignItems: "center", flexWrap: "wrap" }}>
           <FormControl size="small">
-            <Select value={region} onChange={(e) => setRegion(e.target.value)} sx={{ fontSize: 13 }}>
-              {REGIONS.map((r) => <MenuItem key={r} value={r}>{r}</MenuItem>)}
+            <Select
+              value={region}
+              onChange={(event) => {
+                setRegion(event.target.value);
+                setPage(1);
+              }}
+              sx={{ fontSize: 13 }}
+            >
+              {REGIONS.map((item) => (
+                <MenuItem key={item} value={item}>
+                  {item}
+                </MenuItem>
+              ))}
             </Select>
           </FormControl>
           <FormControl size="small" sx={{ ml: "auto" }}>
-            <Select value={sort} onChange={(e) => setSort(e.target.value)} sx={{ fontSize: 13 }}>
+            <Select
+              value={sort}
+              onChange={(event) => {
+                setSort(event.target.value);
+                setPage(1);
+              }}
+              sx={{ fontSize: 13 }}
+            >
               <MenuItem value="latest">최신순</MenuItem>
               <MenuItem value="views">인기순</MenuItem>
-              <MenuItem value="deadline">마감임박순</MenuItem>
+              <MenuItem value="name">이름순</MenuItem>
             </Select>
           </FormControl>
         </Box>
 
         <Typography variant="body2" color="text.secondary" mb={2}>
-          총 <strong>{filtered.length}</strong>개의 정책
+          {resultLabel}
         </Typography>
 
-        {paginated.length > 0 ? (
+        {loading ? (
+          <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
+            <CircularProgress />
+          </Box>
+        ) : policies.length > 0 ? (
           <Grid container spacing={2}>
-            {paginated.map((p) => (
-              <Grid item xs={12} sm={6} md={4} key={p.id}>
+            {policies.map((policy) => (
+              <Grid item xs={12} sm={6} md={4} key={policy.id}>
                 <Card
-                  sx={{ height: "100%", cursor: "pointer", transition: "all 0.2s", "&:hover": { transform: "translateY(-2px)", boxShadow: "0 8px 24px rgba(2,128,144,0.15)" } }}
-                  onClick={() => navigate(`/policies/${p.id}`)}
+                  sx={{
+                    height: "100%",
+                    cursor: "pointer",
+                    transition: "all 0.2s",
+                    "&:hover": {
+                      transform: "translateY(-2px)",
+                      boxShadow: "0 8px 24px rgba(2,128,144,0.15)",
+                    },
+                  }}
+                  onClick={() => navigate(`/policies/${policy.id}`)}
                 >
                   <CardContent>
                     <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
-                      <Chip label={p.category} size="small" color="primary" variant="outlined" />
-                      <Chip label={p.dday} size="small" color={ddayColor(p.dday)} variant={p.dday === "상시" ? "outlined" : "filled"} />
+                      <Chip label={policy.category} size="small" color="primary" variant="outlined" />
+                      <Chip
+                        label={policy.dday}
+                        size="small"
+                        color={ddayColor(policy.dday)}
+                        variant={policy.dday === "상시" ? "outlined" : "filled"}
+                      />
                     </Box>
                     <Typography variant="subtitle2" fontWeight={700} mb={0.5} sx={{ lineHeight: 1.4 }}>
-                      {p.title}
+                      {policy.title}
                     </Typography>
                     <Typography variant="body2" color="text.secondary" mb={1} sx={{ fontSize: 12 }}>
-                      {p.summary}
+                      {policy.summary}
                     </Typography>
                     <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <Typography variant="caption" color="text.secondary">{p.source}</Typography>
-                      <IconButton size="small" onClick={(e) => handleBookmark(p.id, e)} sx={{ color: p.bookmarked ? "#f59e0b" : "text.disabled" }}>
-                        {p.bookmarked ? <BookmarkIcon fontSize="small" /> : <BookmarkBorderIcon fontSize="small" />}
+                      <Typography variant="caption" color="text.secondary">
+                        {policy.source}
+                      </Typography>
+                      <IconButton
+                        size="small"
+                        onClick={(event) => handleBookmark(policy.id, event)}
+                        sx={{ color: policy.bookmarked ? "#f59e0b" : "text.disabled" }}
+                      >
+                        {policy.bookmarked ? (
+                          <BookmarkIcon fontSize="small" />
+                        ) : (
+                          <BookmarkBorderIcon fontSize="small" />
+                        )}
                       </IconButton>
                     </Box>
                   </CardContent>
@@ -177,13 +354,23 @@ export default function PoliciesPage() {
 
         {totalPages > 1 && (
           <Box sx={{ display: "flex", justifyContent: "center", mt: 4 }}>
-            <Pagination count={totalPages} page={page} onChange={(_, v) => setPage(v)} color="primary" />
+            <Pagination
+              count={totalPages}
+              page={page}
+              onChange={(_, value) => setPage(value)}
+              color="primary"
+            />
           </Box>
         )}
       </Container>
 
-      <Snackbar open={toast.open} autoHideDuration={2000} onClose={() => setToast({ ...toast, open: false })} anchorOrigin={{ vertical: "bottom", horizontal: "center" }}>
-        <Alert severity="info">{toast.msg}</Alert>
+      <Snackbar
+        open={toast.open}
+        autoHideDuration={2000}
+        onClose={() => setToast((prev) => ({ ...prev, open: false }))}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+      >
+        <Alert severity={toast.severity}>{toast.msg}</Alert>
       </Snackbar>
     </Box>
   );

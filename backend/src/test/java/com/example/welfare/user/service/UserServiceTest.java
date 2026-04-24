@@ -153,5 +153,6 @@ class UserServiceTest {
         assertThat(response).hasSize(1);
         assertThat(response.get(0).getId()).isEqualTo(11L);
         assertThat(response.get(0).getTitle()).isEqualTo("청년 월세 지원");
+        assertThat(response.get(0).isBookmarked()).isTrue();
     }
 }

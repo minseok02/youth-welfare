@@ -37,7 +37,7 @@ public class RealtimeAiGateway implements AiRecommendationGateway {
     @Value("${openai.model:gpt-4o-mini}")
     private String model;
 
-    private static final int AI_TOP_N = 20; // 상위 N건만 AI 호출 (비용 절감)
+    private static final int AI_TOP_N = 15; // 상위 N건만 AI 호출 (비용 절감 + 누락 방지)
 
     @Override
     public List<ScoredCandidate> score(String clusterId, List<ScoredCandidate> candidates, User user) {
@@ -48,7 +48,7 @@ public class RealtimeAiGateway implements AiRecommendationGateway {
                 .collect(Collectors.toList());
 
         try {
-            String prompt = buildPrompt(clusterId, topCandidates, user);
+            String prompt = buildUserPrompt(topCandidates, user);
             AiResponse response = callOpenAi(prompt);
 
             if (response != null && response.getResults() != null) {
@@ -71,39 +71,56 @@ public class RealtimeAiGateway implements AiRecommendationGateway {
         return candidates;
     }
 
-    private String buildPrompt(String clusterId, List<ScoredCandidate> topCandidates, User user) {
+    private static final String SYSTEM_PROMPT =
+            "당신은 한국 청년 복지 정책 추천 전문가입니다. " +
+            "사용자의 특성에 맞는 정책 적합도를 0~100점으로 평가합니다. " +
+            "반드시 JSON만 응답하고, 입력된 모든 정책에 대해 빠짐없이 평가해야 합니다.";
+
+    private String buildUserPrompt(List<ScoredCandidate> topCandidates, User user) {
         // NFR-02-12: 개인식별정보 전송 금지 — 범주값만 전송
         int age = user.getBirthDate() != null
                 ? LocalDate.now().getYear() - user.getBirthDate().getYear() : 25;
-        String ageGroup = age < 25 ? "19-24" : age < 30 ? "25-29" : "30-34";
-        String region = user.getSido() != null ? user.getSido() : "미입력";
+        String ageGroup = age < 25 ? "19-24세" : age < 30 ? "25-29세" : "30-34세";
+        String region = user.getSido() != null ? user.getSido() : "지역 미입력";
         String incomeRange = user.getIncomeLevel() != null
-                ? user.getIncomeLevel() + "분위" : "미입력";
+                ? user.getIncomeLevel() + "분위" : "소득 미입력";
         String employment = user.getEmploymentStatus() != null
-                ? user.getEmploymentStatus() : "미입력";
+                ? user.getEmploymentStatus() : "취업상태 미입력";
 
         StringBuilder policyList = new StringBuilder();
-        topCandidates.forEach(c -> policyList
-                .append("id:").append(c.getService().getId())
-                .append(" 제목:").append(c.getService().getTitle())
-                .append(" 카테고리:").append(c.getService().getUnifiedCategory())
-                .append("\n"));
+        topCandidates.forEach(c -> {
+            String desc = c.getService().getDescription();
+            String shortDesc = (desc != null && desc.length() > 80)
+                    ? desc.substring(0, 80) : (desc != null ? desc : "");
+            policyList
+                    .append("- id:").append(c.getService().getId())
+                    .append(" | 제목:").append(c.getService().getTitle())
+                    .append(" | 분류:").append(c.getService().getUnifiedCategory())
+                    .append(" | 내용:").append(shortDesc)
+                    .append("\n");
+        });
 
         return String.format("""
-                시스템: 청년 복지 정책 평가 전문가. JSON만 응답.
-                군집 특성: 나이대=%s, 지역=%s, 소득=%s, 취업상태=%s
-                정책 목록:
+                [사용자 특성]
+                나이대: %s, 거주지역: %s, 소득: %s, 취업상태: %s
+
+                [평가할 정책 목록 — 아래 %d개를 반드시 모두 평가]
                 %s
-                응답 형식: {"results": [{"service_id": 숫자, "score": 0~100정수, "reason": "1문장이유"}]}
-                """, ageGroup, region, incomeRange, employment, policyList);
+                [응답 형식] 누락 없이 전체 %d개 평가:
+                {"results": [{"service_id": 숫자, "score": 0~100정수, "reason": "사용자 특성 기준 1문장 이유"}]}
+                """,
+                ageGroup, region, incomeRange, employment,
+                topCandidates.size(), policyList,
+                topCandidates.size());
     }
 
-    private AiResponse callOpenAi(String prompt) {
+    private AiResponse callOpenAi(String userPrompt) {
         try {
             Map<String, Object> requestBody = Map.of(
                     "model", model,
                     "messages", List.of(
-                            Map.of("role", "user", "content", prompt)
+                            Map.of("role", "system", "content", SYSTEM_PROMPT),
+                            Map.of("role", "user", "content", userPrompt)
                     ),
                     "temperature", 0.3,
                     "response_format", Map.of("type", "json_object")

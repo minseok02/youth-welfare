@@ -19,6 +19,7 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -47,6 +48,39 @@ class AuthRedisIntegrationTest {
                     redisTemplate.delete("refresh:" + user.getId());
                     userRepository.delete(user);
                 });
+    }
+
+    @Test
+    @DisplayName("이메일 중복확인은 가입 전후 상태를 반영한다")
+    void checkEmailAvailabilityReflectsSignupState() throws Exception {
+        String email = TEST_EMAIL_PREFIX + UUID.randomUUID() + "@example.com";
+
+        mockMvc.perform(get("/api/auth/check-email")
+                        .param("email", email))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.available").value(true));
+
+        String signupBody = """
+                {
+                  "email": "%s",
+                  "password": "password123",
+                  "name": "Integration User",
+                  "birthDate": "%s"
+                }
+                """.formatted(email, LocalDate.of(1998, 1, 10));
+
+        mockMvc.perform(post("/api/auth/signup")
+                        .contentType("application/json")
+                        .content(signupBody))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
+        mockMvc.perform(get("/api/auth/check-email")
+                        .param("email", email))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.available").value(false));
     }
 
     @Test

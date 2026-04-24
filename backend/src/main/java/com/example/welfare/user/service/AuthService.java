@@ -5,6 +5,7 @@ import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.global.util.JwtUtil;
 import com.example.welfare.user.dto.request.LoginRequest;
 import com.example.welfare.user.dto.request.SignupRequest;
+import com.example.welfare.user.dto.response.EmailAvailabilityResponse;
 import com.example.welfare.user.dto.response.TokenResponse;
 import com.example.welfare.user.entity.User;
 import com.example.welfare.user.repository.UserRepository;
@@ -31,6 +32,11 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
     private final RedisTemplate<String, String> redisTemplate;
+
+    @Transactional(readOnly = true)
+    public EmailAvailabilityResponse checkEmailAvailability(String email) {
+        return new EmailAvailabilityResponse(!userRepository.existsByEmail(email));
+    }
 
     @Transactional
     public void signup(SignupRequest request) {

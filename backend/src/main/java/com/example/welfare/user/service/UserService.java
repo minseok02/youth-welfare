@@ -55,7 +55,7 @@ public class UserService {
         List<UserRecommendation> bookmarks = userRecommendationRepository.findLatestBookmarkedByUserId(userId);
         return bookmarks.stream()
                 .map(UserRecommendation::getService)
-                .map(PolicySummaryResponse::from)
+                .map(service -> PolicySummaryResponse.from(service, true))
                 .toList();
     }
 
@@ -146,6 +146,15 @@ public class UserService {
                     .weight(priorityWeightPolicy.weightForRank(i + 1))
                     .build());
         }
+    }
+
+    @Transactional
+    public void changePassword(Long userId, String currentPassword, String newPassword) {
+        User user = findActiveUser(userId);
+        if (!passwordEncoder.matches(currentPassword, user.getPasswordHash())) {
+            throw new CustomException(ErrorCode.INVALID_CREDENTIALS);
+        }
+        user.updatePassword(passwordEncoder.encode(newPassword));
     }
 
     @Transactional

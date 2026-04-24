@@ -65,6 +65,8 @@ public class WelfareService extends BaseTimeEntity {
     private String supportCycle;
     private String provisionType;
     private Boolean isOnlineApply;
+    @Builder.Default
+    private boolean searchYouthRelevant = true;
 
     private Long apiViewCount;
     @Builder.Default
@@ -109,10 +111,15 @@ public class WelfareService extends BaseTimeEntity {
         this.supportCycle = source.supportCycle;
         this.provisionType = source.provisionType;
         this.isOnlineApply = source.isOnlineApply;
+        this.searchYouthRelevant = source.searchYouthRelevant;
         this.detailUrl = source.detailUrl;
         this.apiViewCount = source.apiViewCount;
         this.registeredAt = source.registeredAt;
         this.lastModifiedAt = source.lastModifiedAt;
+    }
+
+    public void updateSearchYouthRelevant(boolean searchYouthRelevant) {
+        this.searchYouthRelevant = searchYouthRelevant;
     }
 
     public void applyDetailFallbacks(String supportContent,

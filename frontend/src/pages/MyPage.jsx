@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   Box, Container, Typography, Tabs, Tab, TextField, Button,
@@ -12,6 +12,7 @@ import CloseIcon from "@mui/icons-material/Close";
 import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
 import BookmarkIcon from "@mui/icons-material/Bookmark";
 import Header from "../components/Header";
+import api from "../lib/axios";
 import { useAuthStore } from "../store/authStore";
 
 const INCOME_ROWS = [
@@ -23,17 +24,14 @@ const INCOME_ROWS = [
 ];
 
 const PRIORITY_OPTIONS = [
-  { value: "HOUSING", label: "주거" },
-  { value: "JOB", label: "일자리" },
-  { value: "EDUCATION", label: "교육" },
-  { value: "FINANCE", label: "금융" },
-  { value: "CULTURE", label: "문화" },
-  { value: "HEALTH", label: "건강" },
-  { value: "FAMILY", label: "가족" },
-  { value: "SAFETY", label: "안전" },
-  { value: "PARTICIPATION", label: "참여" },
-  { value: "DEADLINE", label: "마감임박" },
-  { value: "ONLINE", label: "온라인" },
+  { value: "HOUSING",       label: "주거" },
+  { value: "JOB",           label: "일자리" },
+  { value: "EDUCATION",     label: "교육·직업훈련" },
+  { value: "FINANCE",       label: "금융·생활" },
+  { value: "CULTURE",       label: "문화·여가" },
+  { value: "PARTICIPATION", label: "참여·기회" },
+  { value: "FAMILY",        label: "가족·돌봄" },
+  { value: "DEADLINE",      label: "마감임박" },
 ];
 
 const REGIONS = ["서울", "부산", "대구", "인천", "광주", "대전", "울산", "세종", "경기", "강원", "충북", "충남", "전북", "전남", "경북", "경남", "제주"];
@@ -57,13 +55,28 @@ const DISTRICT_MAP = {
   "제주": ["서귀포시", "제주시"],
 };
 
-// 임시: 더미 북마크 데이터 — 실제 데이터 연동 시 삭제
-const DUMMY_BOOKMARKS = [
-  { id: 1, title: "청년 전세자금 대출 지원", category: "주거", dday: "D-12", source: "국토교통부" },
-  { id: 2, title: "청년 취업지원 프로그램", category: "일자리", dday: "D-30", source: "고용노동부" },
-  { id: 3, title: "청년문화누리카드", category: "문화·여가", dday: "D-60", source: "문화체육관광부" },
-];
-// 임시 끝
+const formatDday = (dateText, status) => {
+  if (status === "CLOSED") return "종료";
+  if (!dateText) return "상시";
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const endDate = new Date(`${dateText}T00:00:00`);
+  if (Number.isNaN(endDate.getTime())) return "상시";
+
+  const diff = Math.ceil((endDate - today) / 86400000);
+  if (diff < 0) return "종료";
+  if (diff === 0) return "D-Day";
+  return `D-${diff}`;
+};
+
+const mapBookmark = (policy) => ({
+  id: policy.id,
+  title: policy.title,
+  category: policy.unifiedCategory || "기타",
+  dday: formatDday(policy.applyEndDate, policy.status),
+  source: policy.hostOrg || policy.applyMethodName || "출처 정보 없음",
+});
 
 export default function MyPage() {
   const navigate = useNavigate();
@@ -71,35 +84,91 @@ export default function MyPage() {
   const { isLoggedIn, user, logout, filterSettings, setFilterSettings } = useAuthStore();
   const [tabValue, setTabValue] = useState(parseInt(searchParams.get("tab") ?? "0"));
   const [toast, setToast] = useState({ open: false, msg: "", severity: "success" });
-  const showToast = (msg, severity = "success") => setToast({ open: true, msg, severity });
+  const showToast = useCallback((msg, severity = "success") => {
+    setToast({ open: true, msg, severity });
+  }, []);
 
   useEffect(() => {
     if (!isLoggedIn) navigate("/login");
   }, [isLoggedIn, navigate]);
 
-  // 완성도 계산용
+  // 내 정보
   const [myInfo, setMyInfo] = useState({
-    name: user?.name ?? "", email: user?.email ?? "",
+    name: "", email: user?.email ?? "",
     birthYear: "", birthMonth: "", birthDay: "",
     region: "", subRegion: "", income: "", employ: "",
   });
   const [editing, setEditing] = useState(false);
+  const [infoLoading, setInfoLoading] = useState(false);
   const [reloginModal, setReloginModal] = useState(false);
 
   const completionFields = [myInfo.birthYear, myInfo.region, myInfo.income, myInfo.employ];
-  const completionCount = completionFields.filter(Boolean).length;
-  const completionPct = Math.round((completionCount / completionFields.length) * 100);
+  const completionPct = Math.round((completionFields.filter(Boolean).length / completionFields.length) * 100);
 
   // 우선순위
   const [priorities, setPriorities] = useState([]);
+  const [priorityLoading, setPriorityLoading] = useState(false);
   const [dragIdx, setDragIdx] = useState(null);
 
   // 북마크
-  const [bookmarks, setBookmarks] = useState(DUMMY_BOOKMARKS); // 임시: 실제 데이터 연동 시 API 응답으로 교체 후 삭제
+  const [bookmarks, setBookmarks] = useState([]);
+  const [bookmarkLoading, setBookmarkLoading] = useState(false);
 
   // 알림
   const [notifOn, setNotifOn] = useState(false);
-  const [notifFreq, setNotifFreq] = useState("daily");
+  const [notifFreq, setNotifFreq] = useState("DAILY");
+  const [notifLoading, setNotifLoading] = useState(false);
+
+  // 프로필 + 우선순위 + 북마크 초기 로드
+  useEffect(() => {
+    if (!isLoggedIn) return;
+    const controller = new AbortController();
+
+    const fetchProfile = async () => {
+      setInfoLoading(true);
+      try {
+        const { data } = await api.get("/api/users/me", { signal: controller.signal });
+        const p = data.data ?? {};
+        const bd = p.birthDate ? p.birthDate.split("-") : ["", "", ""];
+        setMyInfo({
+          name: p.name ?? "",
+          email: p.email ?? "",
+          birthYear: bd[0] ?? "",
+          birthMonth: bd[1] ? String(parseInt(bd[1])) : "",
+          birthDay:   bd[2] ? String(parseInt(bd[2])) : "",
+          region:     p.sido ?? "",
+          subRegion:  p.sgg ?? "",
+          income:     p.incomeLevel != null ? String(p.incomeLevel) : "",
+          employ:     p.employmentStatus ?? "",
+        });
+        setNotifOn(p.notificationYn ?? false);
+        setNotifFreq(p.notificationPeriod === "WEEKLY" ? "WEEKLY" : "DAILY");
+        setPriorities((p.priorities ?? []).map((item) => item.code));
+      } catch (err) {
+        if (err.name === "CanceledError" || err.code === "ERR_CANCELED") return;
+        showToast("프로필을 불러오지 못했습니다", "error");
+      } finally {
+        if (!controller.signal.aborted) setInfoLoading(false);
+      }
+    };
+
+    const fetchBookmarks = async () => {
+      setBookmarkLoading(true);
+      try {
+        const { data } = await api.get("/api/users/me/bookmarks", { signal: controller.signal });
+        setBookmarks((data.data ?? []).map(mapBookmark));
+      } catch (err) {
+        if (err.name === "CanceledError" || err.code === "ERR_CANCELED") return;
+        showToast("북마크 목록을 불러오지 못했습니다", "error");
+      } finally {
+        if (!controller.signal.aborted) setBookmarkLoading(false);
+      }
+    };
+
+    fetchProfile();
+    fetchBookmarks();
+    return () => controller.abort();
+  }, [isLoggedIn, showToast]);
 
   // 필터 기본값
   const [filterIncludeExpired, setFilterIncludeExpired] = useState(filterSettings?.includeExpired ?? false);
@@ -109,7 +178,9 @@ export default function MyPage() {
   const [currPw, setCurrPw] = useState("");
   const [newPw, setNewPw] = useState("");
   const [newPwConfirm, setNewPwConfirm] = useState("");
+  const [pwLoading, setPwLoading] = useState(false);
   const [withdrawModal, setWithdrawModal] = useState(false);
+  const [withdrawPw, setWithdrawPw] = useState("");
 
   const togglePriority = (val) => {
     if (priorities.includes(val)) setPriorities(priorities.filter((p) => p !== val));
@@ -128,22 +199,86 @@ export default function MyPage() {
   };
   const handleDragEnd = () => setDragIdx(null);
 
-  const handleSaveInfo = () => {
-    const emailChanged = myInfo.email !== user?.email;
-    setEditing(false);
-    if (emailChanged) { setReloginModal(true); return; }
-    showToast("저장되었습니다");
+  const handleSaveInfo = async () => {
+    setInfoLoading(true);
+    try {
+      const birthDate =
+        myInfo.birthYear && myInfo.birthMonth && myInfo.birthDay
+          ? `${myInfo.birthYear}-${String(myInfo.birthMonth).padStart(2, "0")}-${String(myInfo.birthDay).padStart(2, "0")}`
+          : undefined;
+      await api.put("/api/users/me", {
+        name:             myInfo.name || undefined,
+        birthDate:        birthDate,
+        sido:             myInfo.region || undefined,
+        sgg:              myInfo.subRegion || undefined,
+        incomeLevel:      myInfo.income ? parseInt(myInfo.income) : undefined,
+        employmentStatus: myInfo.employ || undefined,
+      });
+      setEditing(false);
+      showToast("저장되었습니다");
+    } catch {
+      showToast("저장에 실패했습니다", "error");
+    } finally {
+      setInfoLoading(false);
+    }
   };
 
-  const handlePasswordChange = () => {
+  const handleSavePriorities = async () => {
+    setPriorityLoading(true);
+    try {
+      await api.put("/api/users/me/priorities", { priorityCodes: priorities });
+      showToast("우선순위가 저장되었습니다");
+    } catch {
+      showToast("우선순위 저장에 실패했습니다", "error");
+    } finally {
+      setPriorityLoading(false);
+    }
+  };
+
+  const handleSaveNotif = async () => {
+    setNotifLoading(true);
+    try {
+      await api.put("/api/users/me", {
+        notificationYn:     notifOn,
+        notificationPeriod: notifOn ? notifFreq : "NONE",
+      });
+      showToast("알림 설정이 저장되었습니다");
+    } catch {
+      showToast("알림 설정 저장에 실패했습니다", "error");
+    } finally {
+      setNotifLoading(false);
+    }
+  };
+
+  const handlePasswordChange = async () => {
     if (!currPw || !newPw || newPw !== newPwConfirm) { showToast("입력값을 확인해주세요", "error"); return; }
-    setReloginModal(true);
+    if (newPw.length < 8) { showToast("새 비밀번호는 8자 이상이어야 합니다", "error"); return; }
+    setPwLoading(true);
+    try {
+      await api.patch("/api/users/me/password", { currentPassword: currPw, newPassword: newPw });
+      showToast("비밀번호가 변경되었습니다. 다시 로그인해주세요");
+      setCurrPw(""); setNewPw(""); setNewPwConfirm("");
+      setTimeout(() => { logout(); navigate("/login"); }, 1500);
+    } catch (err) {
+      const code = err.response?.data?.errorCode;
+      showToast(code === "A004" ? "현재 비밀번호가 올바르지 않습니다" : "비밀번호 변경에 실패했습니다", "error");
+    } finally {
+      setPwLoading(false);
+    }
   };
 
-  const handleWithdraw = () => {
-    setWithdrawModal(false);
-    logout();
-    navigate("/");
+  const handleWithdraw = async () => {
+    if (!withdrawPw) { showToast("비밀번호를 입력해주세요", "error"); return; }
+    try {
+      await api.delete("/api/users/me", { data: { password: withdrawPw } });
+      setWithdrawModal(false);
+      setWithdrawPw("");
+      logout();
+      navigate("/");
+    } catch (err) {
+      const code = err.response?.data?.errorCode;
+      showToast(code === "A004" ? "비밀번호가 올바르지 않습니다" : "탈퇴 처리에 실패했습니다", "error");
+    }
   };
 
   const handleRelogin = () => {
@@ -153,7 +288,9 @@ export default function MyPage() {
   };
 
   const ddayColor = (dday) => {
+    if (dday === "종료") return "default";
     if (dday === "상시") return "success";
+    if (dday === "D-Day") return "error";
     const n = parseInt(dday.replace("D-", ""));
     return n <= 14 ? "error" : "primary";
   };
@@ -199,6 +336,7 @@ export default function MyPage() {
         {/* ── 탭 1: 내 정보 ── */}
         {tabValue === 0 && (
           <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
+            {infoLoading && <LinearProgress />}
             <TextField label="이름" value={myInfo.name} onChange={(e) => setMyInfo({ ...myInfo, name: e.target.value })} disabled={!editing} fullWidth />
 
             <Box>
@@ -315,7 +453,7 @@ export default function MyPage() {
                 variant={editing ? "outlined" : "contained"}
                 onClick={() => { if (editing) setEditing(false); else setEditing(true); }}
                 fullWidth
-                disabled={editing}
+                disabled={editing || infoLoading}
               >
                 수정
               </Button>
@@ -323,9 +461,9 @@ export default function MyPage() {
                 variant={editing ? "contained" : "outlined"}
                 onClick={handleSaveInfo}
                 fullWidth
-                disabled={!editing}
+                disabled={!editing || infoLoading}
               >
-                저장
+                {infoLoading ? <CircularProgress size={20} color="inherit" /> : "저장"}
               </Button>
             </Box>
           </Box>
@@ -386,8 +524,13 @@ export default function MyPage() {
                 </Paper>
               </Box>
             )}
-            <Button variant="contained" fullWidth onClick={() => showToast("우선순위가 저장되었습니다")}>
-              저장
+            <Button
+              variant="contained"
+              fullWidth
+              onClick={handleSavePriorities}
+              disabled={priorityLoading}
+            >
+              {priorityLoading ? <CircularProgress size={20} color="inherit" /> : "저장"}
             </Button>
           </Box>
         )}
@@ -398,7 +541,11 @@ export default function MyPage() {
             <Typography variant="subtitle1" fontWeight={700} mb={2}>
               북마크한 정책 ({bookmarks.length}건)
             </Typography>
-            {bookmarks.length > 0 ? (
+            {bookmarkLoading ? (
+              <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
+                <CircularProgress />
+              </Box>
+            ) : bookmarks.length > 0 ? (
               <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
                 {bookmarks.map((p) => (
                   <Card
@@ -415,7 +562,15 @@ export default function MyPage() {
                         size="small"
                         variant="outlined"
                         color="warning"
-                        onClick={(e) => { e.stopPropagation(); setBookmarks(bookmarks.filter((b) => b.id !== p.id)); }}
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          try {
+                            await api.post(`/api/policies/${p.id}/bookmark`);
+                            setBookmarks((prev) => prev.filter((b) => b.id !== p.id));
+                          } catch {
+                            showToast("북마크 해제에 실패했습니다", "error");
+                          }
+                        }}
                         sx={{ fontSize: 11, minWidth: 60 }}
                       >
                         해제
@@ -456,15 +611,20 @@ export default function MyPage() {
                 <FormControl>
                   <FormLabel sx={{ fontSize: 14, fontWeight: 600 }}>알림 주기</FormLabel>
                   <RadioGroup value={notifFreq} onChange={(e) => setNotifFreq(e.target.value)}>
-                    <FormControlLabel value="daily" control={<Radio size="small" />} label="매일 오전 8시" />
-                    <FormControlLabel value="weekly" control={<Radio size="small" />} label="주 1회 (월요일 오전 8시)" />
+                    <FormControlLabel value="DAILY" control={<Radio size="small" />} label="매일 오전 8시" />
+                    <FormControlLabel value="WEEKLY" control={<Radio size="small" />} label="주 1회 (월요일 오전 8시)" />
                   </RadioGroup>
                 </FormControl>
-                <Button variant="contained" fullWidth onClick={() => showToast("알림 설정이 저장되었습니다")}>
-                  저장
-                </Button>
               </>
             )}
+            <Button
+              variant="contained"
+              fullWidth
+              onClick={handleSaveNotif}
+              disabled={notifLoading}
+            >
+              {notifLoading ? <CircularProgress size={20} color="inherit" /> : "저장"}
+            </Button>
             <Typography variant="caption" color="text.secondary">
               * 수신 거부는 발송된 이메일 하단 링크로 가능합니다
             </Typography>
@@ -527,7 +687,9 @@ export default function MyPage() {
                 error={newPwConfirm.length > 0 && newPw !== newPwConfirm}
                 helperText={newPwConfirm.length > 0 && newPw !== newPwConfirm ? "비밀번호가 일치하지 않습니다" : ""}
               />
-              <Button variant="contained" fullWidth onClick={handlePasswordChange}>비밀번호 변경</Button>
+              <Button variant="contained" fullWidth onClick={handlePasswordChange} disabled={pwLoading}>
+                {pwLoading ? <CircularProgress size={20} color="inherit" /> : "비밀번호 변경"}
+              </Button>
             </Box>
 
             <Divider sx={{ my: 4 }} />
@@ -560,13 +722,23 @@ export default function MyPage() {
       </Dialog>
 
       {/* 회원탈퇴 확인 모달 */}
-      <Dialog open={withdrawModal} onClose={() => setWithdrawModal(false)} maxWidth="xs" fullWidth>
+      <Dialog open={withdrawModal} onClose={() => { setWithdrawModal(false); setWithdrawPw(""); }} maxWidth="xs" fullWidth>
         <DialogTitle>정말 탈퇴하시겠습니까?</DialogTitle>
         <DialogContent>
-          <Typography variant="body2">탈퇴 시 북마크, 추천 기록이 모두 삭제됩니다</Typography>
+          <Typography variant="body2" mb={2}>탈퇴 시 북마크, 추천 기록이 모두 삭제됩니다</Typography>
+          <TextField
+            label="비밀번호 확인"
+            type="password"
+            value={withdrawPw}
+            onChange={(e) => setWithdrawPw(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleWithdraw()}
+            fullWidth
+            size="small"
+            autoFocus
+          />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setWithdrawModal(false)}>취소</Button>
+          <Button onClick={() => { setWithdrawModal(false); setWithdrawPw(""); }}>취소</Button>
           <Button onClick={handleWithdraw} variant="contained" color="error">탈퇴하기</Button>
         </DialogActions>
       </Dialog>

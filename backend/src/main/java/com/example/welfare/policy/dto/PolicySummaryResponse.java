@@ -22,8 +22,9 @@ public class PolicySummaryResponse {
     private LocalDate applyStartDate;
     private LocalDate applyEndDate;
     private Boolean isOnlineApply;
+    private boolean bookmarked;
 
-    public static PolicySummaryResponse from(WelfareService ws) {
+    public static PolicySummaryResponse from(WelfareService ws, boolean bookmarked) {
         return PolicySummaryResponse.builder()
                 .id(ws.getId())
                 .title(ws.getTitle())
@@ -37,6 +38,7 @@ public class PolicySummaryResponse {
                 .applyStartDate(ws.getApplyStartDate())
                 .applyEndDate(ws.getApplyEndDate())
                 .isOnlineApply(ws.getIsOnlineApply())
+                .bookmarked(bookmarked)
                 .build();
     }
 }

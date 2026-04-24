@@ -5,8 +5,10 @@ import com.example.welfare.collect.validation.RawFieldValidator;
 import com.example.welfare.collect.validation.TextConstraintExtractor;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.entity.WelfareServiceDetail;
+import com.example.welfare.policy.repository.ServiceTagRepository;
 import com.example.welfare.policy.repository.WelfareServiceDetailRepository;
 import com.example.welfare.policy.repository.WelfareServiceRepository;
+import com.example.welfare.policy.service.SearchYouthRelevanceService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -29,8 +31,10 @@ public class BokjiroDetailCollectService {
 
     private final WelfareServiceRepository welfareServiceRepository;
     private final WelfareServiceDetailRepository detailRepository;
+    private final ServiceTagRepository serviceTagRepository;
     private final BokjiroDetailClient detailClient;
     private final RawApiPayloadService rawApiPayloadService;
+    private final SearchYouthRelevanceService searchYouthRelevanceService;
 
     @Value("${collect.detail.max-calls-per-run:900}")
     private int maxCallsPerRun;
@@ -149,6 +153,7 @@ public class BokjiroDetailCollectService {
 
                 detailRepository.save(merged);
                 applyFallbacksToService(service, payload);
+                searchYouthRelevanceService.refreshForService(service, serviceTagRepository.findByServiceId(service.getId()));
                 saved++;
             } catch (Exception e) {
                 log.warn("[BokjiroDetailCollectService] 상세 저장 실패 serviceId={} sourceType={} err={}",

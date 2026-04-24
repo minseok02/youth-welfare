@@ -26,13 +26,12 @@ public class ReRankingService {
     public List<ScoredCandidate> rerank(List<ScoredCandidate> candidates) {
         ScoreWeight weight = scoreWeightService.getActiveWeight();
 
-        double ruleMin = normalizer.findMin(
-                candidates.stream().map(ScoredCandidate::getRuleWeightedScore).collect(Collectors.toList()));
+        // 하한을 0으로 고정: 최솟값 정책도 final_score=0이 되지 않도록
         double ruleMax = normalizer.findMax(
                 candidates.stream().map(ScoredCandidate::getRuleWeightedScore).collect(Collectors.toList()));
 
         candidates.forEach(c -> {
-            double normRule = normalizer.normalize(c.getRuleWeightedScore(), ruleMin, ruleMax);
+            double normRule = normalizer.normalize(c.getRuleWeightedScore(), 0.0, ruleMax);
 
             double finalScore;
             boolean fallback;

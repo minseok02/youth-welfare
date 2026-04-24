@@ -5,6 +5,70 @@
 
 ---
 
+## 인증/회원가입 계약
+
+- 로그인 아이디는 별도 username이 아니라 `email`이다.
+- 따라서 1차 범위에서는 `아이디 찾기` API를 만들지 않는다. 로그인 화면에서는 "아이디 = 가입한 이메일"로 안내한다.
+- 이메일 중복확인은 회원가입 전에만 사용하고, 응답은 사용 가능 여부 boolean만 반환한다.
+- 회원가입 `POST /api/auth/signup`은 토큰을 바로 발급하지 않는다. 프론트는 가입 성공 후 `POST /api/auth/login`을 한 번 더 호출해 세션을 만든다.
+- 로그인 전 비밀번호 재설정 메일/토큰 플로우는 1차 범위에서 제외한다. 후속 작업으로 별도 구현한다.
+
+### `GET /api/auth/check-email`
+
+- query
+  - `email`
+- response
+
+```json
+{
+  "success": true,
+  "data": {
+    "available": true
+  }
+}
+```
+
+### `POST /api/auth/signup`
+
+- request 주요 필드
+  - `email`
+  - `password`
+  - `name`
+  - `birthDate`
+  - `sido`
+  - `sgg`
+  - `incomeLevel`
+  - `employmentStatus`
+  - `householdType`
+- response
+
+```json
+{
+  "success": true,
+  "data": null
+}
+```
+
+### `POST /api/auth/login`
+
+- request 주요 필드
+  - `email`
+  - `password`
+- response 주요 필드
+  - `data.accessToken`
+  - refresh token은 HttpOnly cookie
+
+```json
+{
+  "success": true,
+  "data": {
+    "accessToken": "..."
+  }
+}
+```
+
+---
+
 ## DB 컬럼 ← API 필드 매핑표
 
 | DB 컬럼 | 온통청년 | 복지로 중앙 | 복지로 지자체 |
@@ -204,13 +268,47 @@ public void resetAiScoreForClosed() {
 }
 ```
 
+### `GET /api/policies`
+
+- 응답 형식
+  - Spring Page 형식의 `data.content`, `data.totalElements`, `data.totalPages`
+- `data.content[]` 주요 필드
+  - `id`
+  - `title`
+  - `description`
+  - `unifiedCategory`
+  - `status`
+  - `hostOrg`
+  - `applyMethodName`
+  - `applyStartDate`
+  - `applyEndDate`
+  - `isOnlineApply`
+  - `bookmarked`
+- `bookmarked`
+  - 로그인 사용자면 최신 북마크 상태 기준
+  - 비로그인이면 항상 `false`
+
 ### `GET /api/policies/search`
 
 - 현재 지원 파라미터
   - `keyword` (필수)
-  - `status`, `category`, `sourceType`, `onlineApply`
-  - `sort` = `RELEVANCE|VIEWS|LATEST`
+  - `status`, `includeClosed`, `category`, `sourceType`, `onlineApply`
+  - `sort` = `RELEVANCE|VIEWS|LATEST|NAME`
   - `page`, `size`
+- 현재 응답 형식
+  - `data.content`
+  - `data.totalElements`
+  - `data.totalPages`
+  - `data.pageNumber`
+  - `data.pageSize`
+  - `data.hasNext`
+- 상태 규칙
+  - `status`를 직접 주면 해당 상태만 조회
+  - `status`가 없고 `includeClosed=true`면 `ACTIVE`, `UPCOMING`, `CLOSED` 포함
+  - `status`가 없고 `includeClosed`가 없거나 `false`면 `ACTIVE`, `UPCOMING`만 포함
+- 기타
+  - 각 항목의 `bookmarked`는 로그인 사용자면 최신 북마크 상태 기준, 비로그인이면 `false`
+  - `totalElements`는 청년 후처리 필터가 적용된 최종 결과 기준
 
 ### `GET /api/policies/{id}`
 
@@ -218,3 +316,9 @@ public void resetAiScoreForClosed() {
   - 24시간 dedup 적용
   - 로그인: `(user_id, service_id)` 기준
   - 비로그인: `(client_fingerprint, service_id)` 기준
+- 주요 응답 필드
+  - `id`, `title`, `description`, `unifiedCategory`, `status`, `sourceType`
+  - `hostOrg`, `operatingOrg`, `minAge`, `maxAge`, `minIncome`, `maxIncome`
+  - `supportContent`, `applyMethodName`, `applyStartDate`, `applyEndDate`
+  - `targetDetail`, `supportDetail`, `applyMethodDetail`, `contactList`
+  - `regions`, `tags`, `detailUrl`, `bookmarked`

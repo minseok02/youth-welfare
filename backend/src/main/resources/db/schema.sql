@@ -105,6 +105,7 @@ CREATE TABLE IF NOT EXISTS welfare_services (
     detail_url        VARCHAR(500),
     unified_category  VARCHAR(50),
     is_youth_specific TINYINT(1)  NOT NULL DEFAULT 0,
+    search_youth_relevant TINYINT(1) NOT NULL DEFAULT 1,
     status            ENUM('ACTIVE','UPCOMING','CLOSED') NOT NULL DEFAULT 'ACTIVE',
     api_view_count    BIGINT NOT NULL DEFAULT 0,
     view_count        INT UNSIGNED NOT NULL DEFAULT 0,
@@ -117,6 +118,7 @@ CREATE TABLE IF NOT EXISTS welfare_services (
     UNIQUE KEY uq_ws_source    (source_type, source_id),
     KEY idx_ws_status          (status),
     KEY idx_ws_unified_cat     (unified_category),
+    KEY idx_ws_search_youth    (search_youth_relevant),
     KEY idx_ws_source_type     (source_type),
     KEY idx_ws_age             (min_age, max_age),
     KEY idx_ws_end_date        (end_date),
@@ -339,13 +341,14 @@ CREATE TABLE IF NOT EXISTS notification_services (
 -- ============================================================
 
 INSERT IGNORE INTO priority_options (code, label) VALUES
-('HOUSING',    '주거'),
-('AMOUNT',     '금액'),
-('ONLINE',     '온라인신청'),
-('YOUTH_ONLY', '청년전용'),
-('EDU_JOB',    '교육·취업'),
-('CULTURE',    '문화·여가'),
-('DEADLINE',   '마감임박');
+('HOUSING',       '주거'),
+('JOB',           '일자리'),
+('EDUCATION',     '교육·직업훈련'),
+('FINANCE',       '금융·생활'),
+('CULTURE',       '문화·여가'),
+('DEADLINE',      '마감임박'),
+('PARTICIPATION', '참여·기회'),
+('FAMILY',        '가족·돌봄');
 
 INSERT IGNORE INTO score_weights (weight_key, rule_weight, ai_weight, min_log_count, description) VALUES
 ('COLD_START', 0.80, 0.20,   0, '추천 이력 100건 미만: rule 우선'),

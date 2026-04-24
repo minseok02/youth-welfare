@@ -100,12 +100,13 @@ const mapPolicySummary = (policy) => ({
   dday: formatDday(policy.applyEndDate, policy.status),
   source: policy.hostOrg || policy.applyMethodName || statusLabel(policy.status),
   summary: policy.description || "정책 설명 정보가 없습니다.",
-  bookmarked: false,
+  bookmarked: Boolean(policy.bookmarked),
 });
 
 const mapRecommendation = (rec) => ({
   id: rec.serviceId,
   recommendationId: rec.id,
+  logId: rec.logId ?? null,
   title: rec.title,
   category: rec.unifiedCategory || "기타",
   dday: statusLabel(rec.status),
@@ -136,10 +137,16 @@ export default function MainPage() {
   const [policies, setPolicies] = useState([]);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [refreshingRecommendations, setRefreshingRecommendations] = useState(false);
   const [toast, setToast] = useState({ open: false, msg: "", severity: "info" });
 
   const showToast = useCallback((msg, severity = "info") => {
     setToast({ open: true, msg, severity });
+  }, []);
+
+  const applyRecommendations = useCallback((items) => {
+    setPolicies((items ?? []).map(mapRecommendation));
+    setTotalPages(1);
   }, []);
 
   useEffect(() => {
@@ -153,8 +160,7 @@ export default function MainPage() {
             params: { size: pageSize },
             signal: controller.signal,
           });
-          setPolicies((data.data ?? []).map(mapRecommendation));
-          setTotalPages(1);
+          applyRecommendations(data.data);
           return;
         }
 
@@ -172,12 +178,13 @@ export default function MainPage() {
             params: {
               ...commonParams,
               keyword: search.trim(),
+              includeClosed: includeExpired,
             },
             signal: controller.signal,
           });
-          const items = data.data ?? [];
-          setPolicies(items.map(mapPolicySummary));
-          setTotalPages(items.length === pageSize ? page + 1 : Math.max(page, 1));
+          const pageData = data.data ?? {};
+          setPolicies((pageData.content ?? []).map(mapPolicySummary));
+          setTotalPages(Math.max(pageData.totalPages ?? 1, 1));
           return;
         }
 
@@ -203,7 +210,7 @@ export default function MainPage() {
 
     fetchPolicies();
     return () => controller.abort();
-  }, [includeExpired, isLoggedIn, isRecommendMode, page, pageSize, region, search, selectedCat, showToast, sort, subRegion]);
+  }, [applyRecommendations, includeExpired, isLoggedIn, isRecommendMode, page, pageSize, region, search, selectedCat, showToast, sort, subRegion]);
 
   const handleBookmark = async (policy, e) => {
     e.stopPropagation();
@@ -233,6 +240,30 @@ export default function MainPage() {
     }
     setIsRecommendMode(true);
     setSelectedCat("");
+  };
+
+  const handleRefreshRecommendations = async () => {
+    if (!isLoggedIn) {
+      showToast("로그인 후 이용 가능해요");
+      return;
+    }
+    if (!user?.hasPriorities) {
+      showToast("마이페이지에서 우선순위를 먼저 설정해주세요");
+      return;
+    }
+
+    setRefreshingRecommendations(true);
+    try {
+      const { data } = await api.post("/api/recommendations/refresh");
+      applyRecommendations(data.data);
+      setIsRecommendMode(true);
+      setSelectedCat("");
+      showToast("추천을 새로 불러왔습니다", "success");
+    } catch {
+      showToast("추천 갱신에 실패했습니다", "error");
+    } finally {
+      setRefreshingRecommendations(false);
+    }
   };
 
   const handleCategorySelect = (val) => {
@@ -516,10 +547,29 @@ export default function MainPage() {
 
         {/* 추천 모드 헤더 */}
         {isLoggedIn && isRecommendMode && (
-          <Typography variant="subtitle1" fontWeight={700} color="primary" mb={2} sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-            <StarIcon fontSize="small" />
-            {user?.name}님의 맞춤 정책이에요
-          </Typography>
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: { xs: "flex-start", sm: "center" },
+              gap: 1,
+              mb: 2,
+              flexWrap: "wrap",
+            }}
+          >
+            <Typography variant="subtitle1" fontWeight={700} color="primary" sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+              <StarIcon fontSize="small" />
+              {user?.name}님의 맞춤 정책이에요
+            </Typography>
+            <Button
+              size="small"
+              variant="outlined"
+              onClick={handleRefreshRecommendations}
+              disabled={refreshingRecommendations}
+            >
+              {refreshingRecommendations ? "추천 갱신 중..." : "추천 새로고침"}
+            </Button>
+          </Box>
         )}
 
         {/* 카드 그리드 */}
@@ -533,7 +583,7 @@ export default function MainPage() {
               <Grid size={cols === 1 ? 12 : { xs: 12, sm: 6 }} key={p.id}>
                 <Card
                   sx={{ height: "100%", cursor: "pointer", transition: "all 0.2s", "&:hover": { transform: "translateY(-2px)", boxShadow: "0 8px 24px rgba(2,128,144,0.15)" } }}
-                  onClick={() => navigate(`/policies/${p.id}`)}
+                  onClick={() => navigate(`/policies/${p.id}${p.logId ? `?log_id=${p.logId}` : ""}`)}
                 >
                   <CardContent>
                     <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>

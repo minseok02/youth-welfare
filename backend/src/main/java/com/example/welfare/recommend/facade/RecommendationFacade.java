@@ -42,6 +42,7 @@ public class RecommendationFacade {
     private final AiScoringService aiScoringService;
     private final ReRankingService reRankingService;
     private final RecommendationPersistenceService persistenceService;
+    private final RecommendationLogService recommendationLogService;
     private final UserRecommendationRepository userRecommendationRepository;
 
     /**
@@ -65,6 +66,16 @@ public class RecommendationFacade {
         // ③ Rule 점수
         List<ScoredCandidate> scored = ruleScoringService.score(candidates, user);
 
+        // ③-b 특수 대상 불일치 정책 제거 (사용자와 맞지 않는 장애/농촌/다문화 등)
+        // 숫자 임계값이 아닌 RuleScoringService가 명시한 mismatch 플래그를 사용
+        scored = scored.stream()
+                .filter(c -> !c.isHasSpecialTargetMismatch())
+                .collect(java.util.stream.Collectors.toList());
+        if (scored.isEmpty()) {
+            log.info("[RecommendationFacade] 필터 후 후보 없음 userId={}", userId);
+            return List.of();
+        }
+
         // ④ AI 점수 (실패 시 null 유지)
         scored = aiScoringService.score(clusterId, scored, user);
 
@@ -73,7 +84,12 @@ public class RecommendationFacade {
         ScoreWeight weight = reRankingService.getCurrentWeight();
 
         // ⑥ 저장 (recommended_at, rule_weight_used, ai_weight_used 필수)
-        return persistenceService.save(user, reranked, weight);
+        List<UserRecommendation> saved = persistenceService.save(user, reranked, weight);
+
+        // ⑦ CTR 추적용 로그 생성 — 미클릭 이전 로그 정리 후 새 로그 기록
+        recommendationLogService.refreshLogs(user, saved, weight);
+
+        return saved;
     }
 
     /**

@@ -114,22 +114,91 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                                          @Param("offset") int offset);
 
     // FULLTEXT + 필터 검색 (정렬: RELEVANCE / VIEWS / LATEST / NAME)
+    // 지역 필터가 없는 일반 검색은 service_regions 조인을 피해서 DISTINCT/임시 테이블 비용을 줄인다.
     @Query(value = """
-            SELECT DISTINCT ws.* FROM welfare_services ws
-            LEFT JOIN service_regions sr ON sr.service_id = ws.id
+            SELECT ws.* FROM welfare_services ws
             WHERE (
-                    (:status IS NULL AND ws.status IN ('ACTIVE', 'UPCOMING'))
+                    (:status IS NULL AND (
+                        (:includeClosed = 1 AND ws.status IN ('ACTIVE', 'UPCOMING', 'CLOSED'))
+                        OR (:includeClosed = 0 AND ws.status IN ('ACTIVE', 'UPCOMING'))
+                    ))
                     OR (:status IS NOT NULL AND ws.status = :status)
                   )
+              AND ws.search_youth_relevant = 1
+              AND (:category IS NULL OR ws.unified_category = :category)
+              AND (:sourceType IS NULL OR ws.source_type = :sourceType)
+              AND (:onlineApply IS NULL OR ws.is_online_apply = :onlineApply)
+              AND MATCH(ws.title, ws.description, ws.support_content, ws.keyword)
+                  AGAINST (:keyword IN BOOLEAN MODE)
+            ORDER BY
+                CASE
+                    WHEN :sort = 'VIEWS' THEN ws.view_count
+                    ELSE NULL
+                END DESC,
+                CASE
+                    WHEN :sort = 'LATEST' THEN ws.created_at
+                    ELSE NULL
+                END DESC,
+                CASE
+                    WHEN :sort = 'NAME' THEN ws.title
+                    ELSE NULL
+                END ASC,
+                CASE
+                    WHEN :sort = 'RELEVANCE' THEN MATCH(ws.title, ws.description, ws.support_content, ws.keyword)
+                        AGAINST (:keyword IN BOOLEAN MODE)
+                    ELSE NULL
+                END DESC,
+                ws.view_count DESC,
+                ws.created_at DESC
+            """,
+            countQuery = """
+            SELECT COUNT(*) FROM welfare_services ws
+            WHERE (
+                    (:status IS NULL AND (
+                        (:includeClosed = 1 AND ws.status IN ('ACTIVE', 'UPCOMING', 'CLOSED'))
+                        OR (:includeClosed = 0 AND ws.status IN ('ACTIVE', 'UPCOMING'))
+                    ))
+                    OR (:status IS NOT NULL AND ws.status = :status)
+                  )
+              AND ws.search_youth_relevant = 1
+              AND (:category IS NULL OR ws.unified_category = :category)
+              AND (:sourceType IS NULL OR ws.source_type = :sourceType)
+              AND (:onlineApply IS NULL OR ws.is_online_apply = :onlineApply)
+              AND MATCH(ws.title, ws.description, ws.support_content, ws.keyword)
+                  AGAINST (:keyword IN BOOLEAN MODE)
+            """, nativeQuery = true)
+    Page<WelfareService> searchByKeywordWithFiltersNoRegion(@Param("keyword") String keyword,
+                                                            @Param("status") String status,
+                                                            @Param("includeClosed") Integer includeClosed,
+                                                            @Param("category") String category,
+                                                            @Param("sourceType") String sourceType,
+                                                            @Param("onlineApply") Integer onlineApply,
+                                                            @Param("sort") String sort,
+                                                            Pageable pageable);
+
+    @Query(value = """
+            SELECT ws.* FROM welfare_services ws
+            WHERE (
+                    (:status IS NULL AND (
+                        (:includeClosed = 1 AND ws.status IN ('ACTIVE', 'UPCOMING', 'CLOSED'))
+                        OR (:includeClosed = 0 AND ws.status IN ('ACTIVE', 'UPCOMING'))
+                    ))
+                    OR (:status IS NOT NULL AND ws.status = :status)
+                  )
+              AND ws.search_youth_relevant = 1
               AND (:category IS NULL OR ws.unified_category = :category)
               AND (:sourceType IS NULL OR ws.source_type = :sourceType)
               AND (:onlineApply IS NULL OR ws.is_online_apply = :onlineApply)
               AND (
-                    :sido IS NULL
-                    OR sr.id IS NULL
-                    OR (
-                        sr.sido_name = :sido
-                        AND (:sgg IS NULL OR sr.sgg_name = :sgg)
+                    NOT EXISTS (
+                        SELECT 1 FROM service_regions sr1
+                        WHERE sr1.service_id = ws.id
+                    )
+                    OR EXISTS (
+                        SELECT 1 FROM service_regions sr2
+                        WHERE sr2.service_id = ws.id
+                          AND sr2.sido_name = :sido
+                          AND (:sgg IS NULL OR sr2.sgg_name = :sgg)
                     )
                   )
               AND MATCH(ws.title, ws.description, ws.support_content, ws.keyword)
@@ -154,18 +223,45 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                 END DESC,
                 ws.view_count DESC,
                 ws.created_at DESC
-            LIMIT :limit OFFSET :offset
+            """,
+            countQuery = """
+            SELECT COUNT(*) FROM welfare_services ws
+            WHERE (
+                    (:status IS NULL AND (
+                        (:includeClosed = 1 AND ws.status IN ('ACTIVE', 'UPCOMING', 'CLOSED'))
+                        OR (:includeClosed = 0 AND ws.status IN ('ACTIVE', 'UPCOMING'))
+                    ))
+                    OR (:status IS NOT NULL AND ws.status = :status)
+                  )
+              AND ws.search_youth_relevant = 1
+              AND (:category IS NULL OR ws.unified_category = :category)
+              AND (:sourceType IS NULL OR ws.source_type = :sourceType)
+              AND (:onlineApply IS NULL OR ws.is_online_apply = :onlineApply)
+              AND (
+                    NOT EXISTS (
+                        SELECT 1 FROM service_regions sr1
+                        WHERE sr1.service_id = ws.id
+                    )
+                    OR EXISTS (
+                        SELECT 1 FROM service_regions sr2
+                        WHERE sr2.service_id = ws.id
+                          AND sr2.sido_name = :sido
+                          AND (:sgg IS NULL OR sr2.sgg_name = :sgg)
+                    )
+                  )
+              AND MATCH(ws.title, ws.description, ws.support_content, ws.keyword)
+                  AGAINST (:keyword IN BOOLEAN MODE)
             """, nativeQuery = true)
-    List<WelfareService> searchByKeywordWithFilters(@Param("keyword") String keyword,
-                                                    @Param("status") String status,
-                                                    @Param("category") String category,
-                                                    @Param("sourceType") String sourceType,
-                                                    @Param("onlineApply") Integer onlineApply,
-                                                    @Param("sido") String sido,
-                                                    @Param("sgg") String sgg,
-                                                    @Param("sort") String sort,
-                                                    @Param("limit") int limit,
-                                                    @Param("offset") int offset);
+    Page<WelfareService> searchByKeywordWithFiltersWithRegion(@Param("keyword") String keyword,
+                                                              @Param("status") String status,
+                                                              @Param("includeClosed") Integer includeClosed,
+                                                              @Param("category") String category,
+                                                              @Param("sourceType") String sourceType,
+                                                              @Param("onlineApply") Integer onlineApply,
+                                                              @Param("sido") String sido,
+                                                              @Param("sgg") String sgg,
+                                                              @Param("sort") String sort,
+                                                              Pageable pageable);
 
     // 카테고리 필터 조회
     Page<WelfareService> findByUnifiedCategoryAndStatusIn(

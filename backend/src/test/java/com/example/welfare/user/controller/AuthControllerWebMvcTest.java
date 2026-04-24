@@ -12,6 +12,8 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.mockito.BDDMockito.then;
+import static org.mockito.BDDMockito.given;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -28,6 +30,21 @@ class AuthControllerWebMvcTest {
     private AuthService authService;
     @MockBean
     private JpaMetamodelMappingContext jpaMetamodelMappingContext;
+
+    @Test
+    @DisplayName("이메일 중복확인은 인증 없이도 사용 가능 여부를 반환한다")
+    void checkEmailAvailability() throws Exception {
+        given(authService.checkEmailAvailability("new@example.com"))
+                .willReturn(new com.example.welfare.user.dto.response.EmailAvailabilityResponse(true));
+
+        mockMvc.perform(get("/api/auth/check-email")
+                        .param("email", "new@example.com"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.available").value(true));
+
+        then(authService).should().checkEmailAvailability("new@example.com");
+    }
 
     @Test
     @DisplayName("로그아웃은 인증 없이 refresh cookie만으로도 서버 토큰을 무효화한다")

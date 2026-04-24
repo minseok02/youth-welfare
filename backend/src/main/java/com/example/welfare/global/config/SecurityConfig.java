@@ -39,7 +39,7 @@ public class SecurityConfig {
                 "http://localhost:3000",
                 "http://localhost:5173"  // Vite 기본 포트
         ));
-        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true); // HttpOnly 쿠키 전송 허용
         config.setMaxAge(3600L);
@@ -56,12 +56,20 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(HttpMethod.GET, "/api/auth/check-email").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/signup", "/api/auth/login").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/refresh").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/logout").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/notifications/unsubscribe").permitAll()
                         .requestMatchers("/actuator/health").permitAll()
                         .requestMatchers("/api/admin/**").permitAll()
+                        // 정책 조회/검색/랭킹 — 비로그인도 허용 (북마크 상태는 null 처리)
+                        .requestMatchers(HttpMethod.GET,
+                                "/api/policies",
+                                "/api/policies/search",
+                                "/api/policies/ranking",
+                                "/api/policies/{id}"
+                        ).permitAll()
                         // Swagger UI
                         .requestMatchers(
                                 "/swagger-ui/**",

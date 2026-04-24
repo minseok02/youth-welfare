@@ -38,6 +38,26 @@ const PRIORITY_OPTIONS = [
 
 const REGIONS = ["서울", "부산", "대구", "인천", "광주", "대전", "울산", "세종", "경기", "강원", "충북", "충남", "전북", "전남", "경북", "경남", "제주"];
 
+const REGION_TO_SIDO = {
+  "서울": "서울특별시",
+  "부산": "부산광역시",
+  "대구": "대구광역시",
+  "인천": "인천광역시",
+  "광주": "광주광역시",
+  "대전": "대전광역시",
+  "울산": "울산광역시",
+  "세종": "세종특별자치시",
+  "경기": "경기도",
+  "강원": "강원특별자치도",
+  "충북": "충청북도",
+  "충남": "충청남도",
+  "전북": "전북특별자치도",
+  "전남": "전라남도",
+  "경북": "경상북도",
+  "경남": "경상남도",
+  "제주": "제주특별자치도",
+};
+
 const DISTRICT_MAP = {
   "서울": ["강남구", "강동구", "강북구", "강서구", "관악구", "광진구", "구로구", "금천구", "노원구", "도봉구", "동대문구", "동작구", "마포구", "서대문구", "서초구", "성동구", "성북구", "송파구", "양천구", "영등포구", "용산구", "은평구", "종로구", "중구", "중랑구"],
   "부산": ["강서구", "금정구", "기장군", "남구", "동구", "동래구", "부산진구", "북구", "사상구", "사하구", "서구", "수영구", "연제구", "영도구", "중구", "해운대구"],
@@ -91,21 +111,17 @@ export default function SignupPage() {
   const pwValid = pw.length >= 8 && /[a-zA-Z]/.test(pw) && /[0-9]/.test(pw);
   const pwMatch = pw === pwConfirm && pwConfirm.length > 0;
   const step1Valid = name && emailChecked && emailMsg.includes("가능") && pwValid && pwMatch;
+  const birthDateComplete = birthYear && birthMonth && birthDay;
 
   const handleCheckEmail = async () => {
     if (!email) return;
     try {
-      await api.get(`/api/auth/check-email?email=${email}`);
-      setEmailMsg("✅ 사용 가능한 이메일입니다");
-      setEmailChecked(true);
+      const { data } = await api.get(`/api/auth/check-email?email=${encodeURIComponent(email)}`);
+      const available = data?.data?.available === true;
+      setEmailMsg(available ? "✅ 사용 가능한 이메일입니다" : "❌ 이미 사용 중인 이메일입니다");
+      setEmailChecked(available);
     } catch (err) {
-      // 임시: 백엔드 미연결 시 이메일 중복확인 우회 — 실제 연동 시 아래 블록 삭제
-      if (!err.response) {
-        setEmailMsg("✅ 사용 가능한 이메일입니다 (개발모드)");
-        setEmailChecked(true);
-        return;
-      }
-      setEmailMsg("❌ 이미 사용 중인 이메일입니다");
+      setEmailMsg(err.response?.data?.message ?? "❌ 이메일 중복확인에 실패했습니다");
       setEmailChecked(false);
     }
   };
@@ -114,29 +130,40 @@ export default function SignupPage() {
     setLoading(true);
     try {
       const body = {
-        name, email, password: pw,
-        ...(birthYear && birthMonth && birthDay && { birthDate: `${birthYear}-${String(birthMonth).padStart(2, "0")}-${String(birthDay).padStart(2, "0")}` }),
-        ...(region && { region: subRegion ? `${region} ${subRegion}` : region }),
-        ...(income && { income: parseInt(income) }),
-        ...(employ && { employment: employ }),
+        name,
+        email,
+        password: pw,
+        birthDate: `${birthYear}-${String(birthMonth).padStart(2, "0")}-${String(birthDay).padStart(2, "0")}`,
+        ...(region && { sido: REGION_TO_SIDO[region] ?? region }),
+        ...(subRegion && { sgg: subRegion }),
+        ...(income && { incomeLevel: parseInt(income, 10) }),
+        ...(employ && { employmentStatus: employ }),
       };
-      const { data } = await api.post("/api/auth/signup", body);
-      login(data.token, data.user);
+      await api.post("/api/auth/signup", body);
+
+      const loginResponse = await api.post("/api/auth/login", { email, password: pw });
+      const accessToken = loginResponse?.data?.data?.accessToken;
+      if (!accessToken) {
+        throw new Error("회원가입 후 로그인 응답에 accessToken이 없습니다");
+      }
+
+      login(accessToken, { name, email });
+
+      const profileResponse = await api.get("/api/users/me");
+      const profile = profileResponse?.data?.data;
+      login(accessToken, {
+        name: profile?.name ?? name,
+        email: profile?.email ?? email,
+      });
 
       if (priorities.length > 0) {
-        await api.put("/api/users/me/priorities", priorities.map((p, i) => ({ option: p, rank: i + 1 })));
+        await api.put("/api/users/me/priorities", { priorityCodes: priorities });
       }
+
       showToast("가입 완료! 환영합니다 🎉", "success");
       setTimeout(() => navigate("/"), 1200);
     } catch (err) {
-      // 임시: 백엔드 미연결 시 회원가입 우회 (dev-token 사용) — 실제 연동 시 아래 블록 삭제
-      if (!err.response) {
-        login("dev-token", { name, email, hasPriorities: priorities.length > 0 });
-        showToast("가입 완료! (개발모드) 🎉", "success");
-        setTimeout(() => navigate("/"), 1200);
-        return;
-      }
-      showToast("회원가입 중 오류가 발생했어요", "error");
+      showToast(err.response?.data?.message ?? "회원가입 중 오류가 발생했어요", "error");
     } finally {
       setLoading(false);
     }
@@ -251,7 +278,7 @@ export default function SignupPage() {
           {step === 1 && (
             <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
               <Typography variant="body2" color="text.secondary">
-                이 정보는 나중에 마이페이지에서도 수정할 수 있어요
+                생년월일은 회원가입 필수이고, 나머지는 마이페이지에서 수정할 수 있어요
               </Typography>
 
               <Box>
@@ -348,11 +375,13 @@ export default function SignupPage() {
 
               <Box sx={{ display: "flex", gap: 1 }}>
                 <Button variant="outlined" fullWidth onClick={() => setStep(0)}>← 이전</Button>
-                <Button variant="contained" fullWidth onClick={() => setStep(2)}>다음 →</Button>
+                <Button variant="contained" fullWidth onClick={() => setStep(2)} disabled={!birthDateComplete}>다음 →</Button>
               </Box>
-              <Button variant="text" size="small" color="inherit" onClick={() => setStep(2)} sx={{ color: "text.secondary" }}>
-                건너뛰고 Step 3으로 →
-              </Button>
+              {!birthDateComplete && (
+                <Typography variant="caption" color="error.main">
+                  생년월일을 입력해야 다음 단계로 진행할 수 있습니다
+                </Typography>
+              )}
             </Box>
           )}
 
@@ -427,13 +456,10 @@ export default function SignupPage() {
                 fullWidth
                 size="large"
                 onClick={handleSignup}
-                disabled={loading}
+                disabled={loading || !birthDateComplete}
                 sx={{ mt: 1 }}
               >
                 {loading ? <CircularProgress size={22} color="inherit" /> : "가입 완료 🎉"}
-              </Button>
-              <Button variant="text" size="small" color="inherit" onClick={handleSignup} sx={{ color: "text.secondary" }}>
-                건너뛰기
               </Button>
             </Box>
           )}

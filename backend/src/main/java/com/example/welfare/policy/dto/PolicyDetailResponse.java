@@ -38,6 +38,7 @@ public class PolicyDetailResponse {
     private String supportCycle;
     private String provisionType;
     private Boolean isOnlineApply;
+    private boolean bookmarked;
 
     // 상세 정보
     private String targetDetail;
@@ -59,7 +60,8 @@ public class PolicyDetailResponse {
     public static PolicyDetailResponse of(WelfareService ws,
                                            WelfareServiceDetail detail,
                                            List<ServiceRegion> regions,
-                                           List<ServiceTag> tags) {
+                                           List<ServiceTag> tags,
+                                           boolean bookmarked) {
         List<String> regionNames = regions.stream()
                 .map(r -> r.getSidoName() != null
                         ? r.getSidoName() + (r.getSggName() != null ? " " + r.getSggName() : "")
@@ -97,6 +99,7 @@ public class PolicyDetailResponse {
                 .supportCycle(ws.getSupportCycle())
                 .provisionType(ws.getProvisionType())
                 .isOnlineApply(ws.getIsOnlineApply())
+                .bookmarked(bookmarked)
                 .targetDetail(detail != null ? detail.getTargetDetail() : null)
                 .supportDetail(detail != null ? detail.getSupportDetail() : null)
                 .applyMethodDetail(detail != null ? detail.getApplyMethodDetail() : null)
