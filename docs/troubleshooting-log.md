@@ -213,6 +213,11 @@
 - 해결: `ScoredCandidate`에 `hasSpecialTargetMismatch` 플래그 추가, `RuleScoringService`가 계산 시점에 명시적으로 설정, Facade에서 플래그로 필터링. 특수 신호 목록에 "현역병", "병역" 추가
 - 이유: 도메인 의미(특수 대상 불일치)는 점수 계산 로직이 가장 잘 알고 있다. 숫자 임계값 대신 의미 기반 플래그로 표현해야 점수 공식이 바뀌어도 필터가 유지된다
 
+## 46) cluster_ai_results FK — welfare_services.id가 BIGINT UNSIGNED가 아닌 BIGINT
+- 문제: migration에서 `service_id BIGINT UNSIGNED`로 정의했지만 `welfare_services.id`는 `BIGINT`(signed)라 FK 생성 시 `ERROR 3780 (HY000): incompatible` 발생
+- 해결: migration과 schema.sql의 `cluster_ai_results.id`, `service_id`를 `BIGINT`(signed)로 수정
+- 이유: FK 참조 컬럼과 참조되는 컬럼의 타입(signed/unsigned 포함)이 정확히 일치해야 한다. 신규 테이블 추가 시 참조 대상 컬럼 타입을 먼저 확인해야 함
+
 ## 42) priority_options 코드가 추천 로직과 UI 코드 사이에서 따로 놀았음
 - 문제: DB `priority_options`에는 `ONLINE`, `YOUTH_ONLY`, `EDU_JOB`, `AMOUNT` 코드가 있었지만, `DefaultPriorityMatcher`에서 `ONLINE`과 `YOUTH_ONLY`는 이미 항상 false였고, 프론트는 `JOB`, `EDUCATION`, `FINANCE`, `HEALTH`, `SAFETY` 등 DB에 없는 코드를 전송해 `C001` 오류가 났음
 - 해결: `ONLINE`, `YOUTH_ONLY` 제거, `EDU_JOB`→`EDUCATION`, `AMOUNT`→`FINANCE` 코드 변경, `JOB`, `PARTICIPATION`, `FAMILY` 추가. DB migration, `DefaultPriorityMatcher`, 프론트 `PRIORITY_OPTIONS` 세 곳을 동시에 맞춤

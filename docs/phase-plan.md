@@ -273,13 +273,22 @@ cd backend
 - [demo-scenario.md](./demo-scenario.md) 전체 실행
 - CTR 분석 쿼리 실행 결과 확보
 
-## 2차로 분리된 항목
+## 2차 구현 현황
 
-- Batch AI Gateway
-- 나이대 x 소득분위 군집화
-- p5~p95 정규화
-- 카카오 알림톡
-- 슬롯 배치 `[A, A, B?]`
-- 챗봇
-- 검색 로그
-- 추천/수집 대시보드
+### 완료
+- [x] 나이대(3) × 소득분위(3) 9개 군집 `ClusterService` 구현
+- [x] `cluster_ai_results` 테이블 + 엔티티 + 레포지토리
+- [x] `AiScoringService` 군집 캐시 우선 조회 → 캐시 히트율 50% 이상이면 캐시 사용
+- [x] 캐시 미스 시 실시간 AI 호출 후 캐시 저장
+- [x] `POST /api/recommendations/refresh?personal=true` — 개인 맞춤 재추천 (캐시 무시)
+- [x] 프론트 "맞춤 재추천" 버튼 추가
+- [x] 캐시 TTL 25시간 — `StatusUpdateService` 새벽 3시 배치에서 정리
+- [x] 검증: 캐시 hit 0.24초 vs 개인 호출 11.8초
+
+### 남은 2차 항목
+- [ ] 챗봇
+- [ ] 카카오 알림톡
+- [ ] p5~p95 정규화
+- [ ] 슬롯 배치 `[A, A, B?]`
+- [ ] 검색 로그
+- [ ] 추천/수집 대시보드
