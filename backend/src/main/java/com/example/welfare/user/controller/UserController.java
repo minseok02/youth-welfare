@@ -2,6 +2,7 @@ package com.example.welfare.user.controller;
 
 import com.example.welfare.global.response.ApiResponse;
 import com.example.welfare.policy.dto.PolicySummaryResponse;
+import com.example.welfare.user.dto.request.ChangePasswordRequest;
 import com.example.welfare.user.dto.request.UpdatePrioritiesRequest;
 import com.example.welfare.user.dto.request.UpdateProfileRequest;
 import com.example.welfare.user.dto.request.WithdrawRequest;
@@ -45,6 +46,14 @@ public class UserController {
             @AuthenticationPrincipal Long userId,
             @Valid @RequestBody UpdatePrioritiesRequest request) {
         userService.updatePriorities(userId, request);
+        return ResponseEntity.ok(ApiResponse.success(null));
+    }
+
+    @PatchMapping("/password")
+    public ResponseEntity<ApiResponse<Void>> changePassword(
+            @AuthenticationPrincipal Long userId,
+            @Valid @RequestBody ChangePasswordRequest request) {
+        userService.changePassword(userId, request.getCurrentPassword(), request.getNewPassword());
         return ResponseEntity.ok(ApiResponse.success(null));
     }
 

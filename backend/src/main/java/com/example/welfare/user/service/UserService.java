@@ -149,6 +149,15 @@ public class UserService {
     }
 
     @Transactional
+    public void changePassword(Long userId, String currentPassword, String newPassword) {
+        User user = findActiveUser(userId);
+        if (!passwordEncoder.matches(currentPassword, user.getPasswordHash())) {
+            throw new CustomException(ErrorCode.INVALID_CREDENTIALS);
+        }
+        user.updatePassword(passwordEncoder.encode(newPassword));
+    }
+
+    @Transactional
     public void withdraw(Long userId, String password) {
         User user = findActiveUser(userId);
 

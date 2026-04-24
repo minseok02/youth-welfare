@@ -178,6 +178,7 @@ export default function MyPage() {
   const [currPw, setCurrPw] = useState("");
   const [newPw, setNewPw] = useState("");
   const [newPwConfirm, setNewPwConfirm] = useState("");
+  const [pwLoading, setPwLoading] = useState(false);
   const [withdrawModal, setWithdrawModal] = useState(false);
 
   const togglePriority = (val) => {
@@ -248,9 +249,21 @@ export default function MyPage() {
     }
   };
 
-  const handlePasswordChange = () => {
+  const handlePasswordChange = async () => {
     if (!currPw || !newPw || newPw !== newPwConfirm) { showToast("입력값을 확인해주세요", "error"); return; }
-    showToast("비밀번호 변경은 준비 중입니다", "info");
+    if (newPw.length < 8) { showToast("새 비밀번호는 8자 이상이어야 합니다", "error"); return; }
+    setPwLoading(true);
+    try {
+      await api.patch("/api/users/me/password", { currentPassword: currPw, newPassword: newPw });
+      showToast("비밀번호가 변경되었습니다. 다시 로그인해주세요");
+      setCurrPw(""); setNewPw(""); setNewPwConfirm("");
+      setTimeout(() => { logout(); navigate("/login"); }, 1500);
+    } catch (err) {
+      const code = err.response?.data?.errorCode;
+      showToast(code === "A004" ? "현재 비밀번호가 올바르지 않습니다" : "비밀번호 변경에 실패했습니다", "error");
+    } finally {
+      setPwLoading(false);
+    }
   };
 
   const handleWithdraw = async () => {
@@ -670,7 +683,9 @@ export default function MyPage() {
                 error={newPwConfirm.length > 0 && newPw !== newPwConfirm}
                 helperText={newPwConfirm.length > 0 && newPw !== newPwConfirm ? "비밀번호가 일치하지 않습니다" : ""}
               />
-              <Button variant="contained" fullWidth onClick={handlePasswordChange}>비밀번호 변경</Button>
+              <Button variant="contained" fullWidth onClick={handlePasswordChange} disabled={pwLoading}>
+                {pwLoading ? <CircularProgress size={20} color="inherit" /> : "비밀번호 변경"}
+              </Button>
             </Box>
 
             <Divider sx={{ my: 4 }} />
