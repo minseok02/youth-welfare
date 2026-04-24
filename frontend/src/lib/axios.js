@@ -44,7 +44,10 @@ api.interceptors.response.use(
 
       try {
         const { data } = await api.post("/api/auth/refresh");
-        const newToken = data.token;
+        const newToken = data?.data?.accessToken;
+        if (!newToken) {
+          throw new Error("refresh token rotation response missing accessToken");
+        }
         localStorage.setItem("token", newToken);
         api.defaults.headers.common.Authorization = `Bearer ${newToken}`;
         processQueue(null, newToken);

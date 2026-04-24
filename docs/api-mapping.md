@@ -5,6 +5,70 @@
 
 ---
 
+## 인증/회원가입 계약
+
+- 로그인 아이디는 별도 username이 아니라 `email`이다.
+- 따라서 1차 범위에서는 `아이디 찾기` API를 만들지 않는다. 로그인 화면에서는 "아이디 = 가입한 이메일"로 안내한다.
+- 이메일 중복확인은 회원가입 전에만 사용하고, 응답은 사용 가능 여부 boolean만 반환한다.
+- 회원가입 `POST /api/auth/signup`은 토큰을 바로 발급하지 않는다. 프론트는 가입 성공 후 `POST /api/auth/login`을 한 번 더 호출해 세션을 만든다.
+- 로그인 전 비밀번호 재설정 메일/토큰 플로우는 1차 범위에서 제외한다. 후속 작업으로 별도 구현한다.
+
+### `GET /api/auth/check-email`
+
+- query
+  - `email`
+- response
+
+```json
+{
+  "success": true,
+  "data": {
+    "available": true
+  }
+}
+```
+
+### `POST /api/auth/signup`
+
+- request 주요 필드
+  - `email`
+  - `password`
+  - `name`
+  - `birthDate`
+  - `sido`
+  - `sgg`
+  - `incomeLevel`
+  - `employmentStatus`
+  - `householdType`
+- response
+
+```json
+{
+  "success": true,
+  "data": null
+}
+```
+
+### `POST /api/auth/login`
+
+- request 주요 필드
+  - `email`
+  - `password`
+- response 주요 필드
+  - `data.accessToken`
+  - refresh token은 HttpOnly cookie
+
+```json
+{
+  "success": true,
+  "data": {
+    "accessToken": "..."
+  }
+}
+```
+
+---
+
 ## DB 컬럼 ← API 필드 매핑표
 
 | DB 컬럼 | 온통청년 | 복지로 중앙 | 복지로 지자체 |

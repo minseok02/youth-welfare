@@ -5,6 +5,7 @@ import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.user.dto.request.LoginRequest;
 import com.example.welfare.user.dto.request.SignupRequest;
+import com.example.welfare.user.dto.response.EmailAvailabilityResponse;
 import com.example.welfare.user.dto.response.TokenResponse;
 import com.example.welfare.user.service.AuthService;
 import jakarta.validation.Valid;
@@ -27,6 +28,11 @@ public class AuthController {
 
     @Value("${auth.refresh.cookie-secure:false}")
     private boolean cookieSecure;
+
+    @GetMapping("/check-email")
+    public ResponseEntity<ApiResponse<EmailAvailabilityResponse>> checkEmailAvailability(@RequestParam String email) {
+        return ResponseEntity.ok(ApiResponse.success(authService.checkEmailAvailability(email)));
+    }
 
     @PostMapping("/signup")
     public ResponseEntity<ApiResponse<Void>> signup(@Valid @RequestBody SignupRequest request) {
