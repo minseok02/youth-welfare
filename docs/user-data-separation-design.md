@@ -1,0 +1,620 @@
+# 사용자 데이터 분리 설계
+
+## 왜 지금 구조가 문제인가
+
+현재 프로젝트는 사용자 핵심 데이터가 `users` 한 테이블에 집중되어 있다.
+
+- 인증 정보: `email`, `password_hash`, `login_fail_count`, `locked_until`
+- 고위험 개인정보: `name`, `birth_date`, `phone_enc`
+- 추천용 프로필: `sido`, `sgg`, `region_code`, `income_level`, `household_type`, `employment_status`
+- 개인 설정: `notification_yn`, `notification_period`, `notification_min_score`, `display_count`
+
+이 구조는 다음 문제가 있다.
+
+1. 한 DB 계정 또는 한 테이블이 유출되면 인증 정보와 개인정보와 서비스 설정이 한 번에 노출된다.
+2. 추천과 알림 기능이 민감정보 원문을 직접 가진 `User` 엔티티에 의존한다.
+3. 같은 `user_id`를 기준으로 추천 로그, 알림 로그, 프로필이 쉽게 재결합된다.
+
+현재 코드 기준으로도 `User`는 너무 많은 책임을 가지고 있다.
+
+- 인증과 회원가입은 [AuthService](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/user/service/AuthService.java:25) 에서 `UserRepository` 하나로 처리한다.
+- 프로필 수정과 전화번호 복호화, 알림 설정, 회원탈퇴는 [UserService](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/user/service/UserService.java:32) 에서 한 엔티티에 몰려 있다.
+- 추천 파이프라인은 [RecommendationFacade](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/recommend/facade/RecommendationFacade.java:36) 에서 `User` 전체를 읽어 사용한다.
+- 실제 `User` 엔티티도 [User](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/user/entity/User.java:16) 한 클래스에 인증, PII, 추천 프로필, 알림 설정이 함께 있다.
+
+## 목표
+
+목표는 "테이블 분리"가 아니라 "PII와 나머지를 분리하고, 최소권한으로 접근시키는 것"이다.
+
+원칙은 아래로 잡는다.
+
+1. 추천 엔진은 실명, 전화번호, 전체 생년월일을 몰라도 동작해야 한다.
+2. 알림 스케줄러는 이메일 발송 대상만 얻으면 되고, 추천 세부 프로필 원문을 몰라도 된다.
+3. 인증 계층은 이름, 전화번호, 관심사, 우선순위를 몰라도 로그인/토큰 발급이 가능해야 한다.
+4. 하나의 저장소가 유출되어도 다른 저장소 없이는 재식별이 어렵게 해야 한다.
+5. 사람 계정과 서비스 계정, 그리고 각 계정의 접근 권한을 분리해야 한다.
+
+## 현재 권한 구조의 문제
+
+현재 배포/보안 구조는 데이터 분리 이전에도 권한 경계가 약하다.
+
+- DB 접속은 [application.yml](/home/minseok/youth-welfare/backend/src/main/resources/application.yml:1) 기준 단일 datasource다.
+- 배포는 [docker-compose.yml](/home/minseok/youth-welfare/docker-compose.yml:1) 기준 앱 컨테이너가 `root` 계정으로 MySQL에 접속한다.
+- API 권한도 [SecurityConfig](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/global/config/SecurityConfig.java:44) 에서 `/api/admin/**` 가 `permitAll()` 이다.
+- 실제 관리자 기능인 [CollectAdminController](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/collect/controller/CollectAdminController.java:17), [PolicyAdminController](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/policy/controller/PolicyAdminController.java:13) 는 인증 없이 호출 가능하다.
+
+즉, 저장소 분리보다 먼저 "누가 무엇에 접근할 수 있는지"를 구조적으로 나눠야 한다.
+
+## 계정 분리 원칙
+
+이 프로젝트에서 분리해야 할 계정은 4종류다.
+
+1. 최종 사용자 계정
+   - 일반 회원 로그인 계정
+   - 마이페이지, 추천, 북마크만 접근
+2. 운영자 사람 계정
+   - 수집 재실행, 정책 백필, 장애 대응 같은 운영용
+   - 일반 회원 계정과 절대 공유하지 않음
+3. 서비스 계정
+   - API 서버, 추천 워커, 알림 워커, 수집 워커 같은 머신 계정
+   - 사람이 직접 로그인하지 않음
+4. 인프라/DB 관리자 계정
+   - DB 유지보수, 백업, 스키마 변경 전용
+   - 앱 런타임에서 사용 금지
+
+## 권장 분리안
+
+현재 프로젝트에는 `2 schema`가 더 맞다.
+
+- `youth_welfare`
+  - 인증
+  - 프로필
+  - 추천
+  - 알림
+  - 수집
+  - 일반 서비스 데이터
+- `youth_welfare_pii`
+  - 재식별 가능한 원문 개인정보
+
+핵심 판단:
+
+- 지금 단계에서 `auth` 와 `profile` 을 다른 schema로 나눠도 실질 보안 경계가 거의 생기지 않는다.
+- 반면 `PII vs non-PII` 분리는 목적이 명확하고 운영 복잡도도 낮다.
+- 따라서 지금은 `2 schema + 테이블 책임 분리 + 계정/권한 분리`가 가장 현실적이다.
+
+## Schema 1. `youth_welfare`
+
+일반 서비스 데이터와 비-PII 사용자 데이터를 저장한다.
+
+권장 테이블:
+
+- `auth_users`
+  - `user_key CHAR(26)` 또는 `BINARY(16)` UUID/ULID
+  - `email_lookup_hash CHAR(64)` unique
+  - `password_hash`
+  - `is_active`
+  - `login_fail_count`
+  - `locked_until`
+  - `withdrawn_at`
+  - `created_at`
+  - `updated_at`
+- `user_profiles`
+  - `user_key`
+  - `age`
+  - `age_band`
+  - `sido`
+  - `sgg`
+  - `region_code`
+  - `income_level`
+  - `household_type`
+  - `employment_status`
+  - `notification_yn`
+  - `notification_period`
+  - `notification_min_score`
+  - `display_count`
+  - `profile_completeness`
+  - `has_name`
+  - `has_birth_date`
+  - `has_phone`
+  - `created_at`
+  - `updated_at`
+- `user_attributes`
+  - `user_key`
+  - `attr_type`
+  - `attr_value`
+- `user_priorities`
+  - `user_key`
+  - `priority_option_id`
+  - `priority_rank`
+  - `weight`
+
+추가로 아래 도메인 테이블도 같은 schema에 둔다.
+
+- `welfare_services`
+- `welfare_service_details`
+- `service_regions`
+- `service_tags`
+- `score_weights`
+- `user_recommendations`
+- `recommendation_logs`
+- `notifications`
+- `notification_services`
+- `raw_api_payloads`
+- `api_sync_logs`
+
+포인트:
+
+- 추천은 `birth_date` 원문이 아니라 `age` 또는 `age_band`만 사용한다.
+- `profile_completeness` 계산에 이름/전화번호/생년월일 원문이 꼭 필요하지 않다. `has_*` 플래그만 있으면 된다.
+- 인증 테이블과 프로필 테이블은 같은 schema에 두되, 테이블 책임은 분리한다.
+
+## Schema 2. `youth_welfare_pii`
+
+재식별 가능한 원문 개인정보를 저장한다.
+
+권장 테이블:
+
+- `user_pii`
+  - `user_key`
+  - `email_enc`
+  - `name_enc`
+  - `birth_date_enc`
+  - `phone_enc`
+  - `created_at`
+  - `updated_at`
+- 선택: `user_pii_audit`
+
+포인트:
+
+- 이메일도 여기서는 암호화 원문으로만 둔다.
+- 회원가입 중복 체크용 해시는 `youth_welfare.auth_users` 에, 실제 연락처 원문은 `youth_welfare_pii.user_pii` 에 둔다.
+- `AesEncryptUtil` 수준에서 끝내지 말고 가능하면 키는 DB 밖 KMS/Vault 또는 최소한 별도 키 관리 정책으로 분리한다.
+
+## 현재 프로젝트 기준 테이블 재배치
+
+### `youth_welfare` 로 이동
+
+- `users.email` -> `auth_users.email_lookup_hash` 와 인증 상태 필드
+- `users.password_hash`
+- `users.is_active`
+- `users.login_fail_count`
+- `users.locked_until`
+- `users.withdrawn_at`
+- `users.sido`
+- `users.sgg`
+- `users.region_code`
+- `users.income_level`
+- `users.household_type`
+- `users.employment_status`
+- `users.notification_yn`
+- `users.notification_period`
+- `users.notification_min_score`
+- `users.display_count`
+- `users.profile_completeness`
+- `user_attributes`
+- `user_priorities`
+
+### `youth_welfare_pii` 로 이동
+
+- `users.name`
+- `users.birth_date`
+- `users.phone_enc`
+- 가능하면 `users.email` 원문도 여기로 이동
+
+## 핵심 설계 포인트
+
+### 1. `Long userId` 대신 `user_key`
+
+현재는 여러 테이블과 JWT가 내부 증가형 PK에 강하게 묶여 있다.
+
+- 증가형 ID는 추측 가능하다.
+- 저장소를 나누면 cross-schema FK와 JPA 연관관계 유지가 오히려 발목을 잡는다.
+
+따라서 공용 식별자는 `user_key` 하나로 통일하고, 각 테이블의 내부 PK는 로컬 PK로만 사용한다.
+
+### 2. 추천은 원문 생년월일 대신 파생값 사용
+
+현재 추천은 `birthDate`로 나이를 계산한다. 이건 굳이 PII 원문을 직접 읽을 이유가 없다.
+
+권장 방식:
+
+- `user_pii.birth_date_enc` 저장
+- 동시에 `user_profiles.age`, `age_band`, `age_calculated_at` 갱신
+- 매일 새벽 1회 `age` 재계산 배치 실행
+
+이렇게 하면 추천/AI에는 full DOB가 노출되지 않는다.
+
+### 3. 알림은 이메일 원문을 직접 조인하지 말고 배치 조회
+
+현재 `NotificationService`는 `User` 엔티티에서 이메일과 알림 설정을 같이 본다. 분리 후에는 이렇게 바꾼다.
+
+1. `youth_welfare.user_profiles` 에서 발송 대상 `user_key` 목록 조회
+2. `youth_welfare_pii.user_pii` 에서 해당 `user_key` 의 `email_enc`만 배치 조회 후 복호화
+3. 발송
+
+이 구조면 일반 추천/프로필 영역에서 이메일 원문 접근 권한이 필요 없다.
+
+### 4. JPA 엔티티 직접 연관관계 제거
+
+분리 이후에는 아래 패턴을 버리는 것이 맞다.
+
+- `Notification.user`
+- `UserRecommendation.user`
+- `RecommendationLog.user`
+- `UserAttribute.user`
+- `UserPriority.user`
+
+대신:
+
+- 저장 테이블에는 `user_key` 컬럼만 둔다.
+- 서비스 계층에서 필요한 경우 목적별 DTO를 조합한다.
+
+즉, `User` 중심 엔티티 그래프에서 `UserSnapshot`, `NotificationTarget`, `ProfileView` 같은 DTO 조합 방식으로 바꿔야 한다.
+
+### 5. 최소권한 DB 계정 분리
+
+같은 MySQL 인스턴스 안에 schema만 나누고 앱이 root 권한으로 전부 붙으면 보안 이점이 거의 없다.
+
+최소한 아래는 필요하다.
+
+- `app_core_rw`
+  - `youth_welfare` read/write
+  - `youth_welfare_pii` 접근 금지
+- `app_pii_rw`
+  - `youth_welfare_pii.user_pii` read/write
+  - 일반 API에서는 최소 사용
+- `notification_pii_ro`
+  - `youth_welfare_pii` 에서 `email_enc` 만 읽는 뷰 또는 컬럼 제한 경로
+- `migration_job`
+  - 배포 시점에만 임시 사용
+  - DDL 권한 보유
+  - 런타임 앱 컨테이너에서는 사용 금지
+
+가능하면 장기적으로는 `youth_welfare_pii` 를 별도 인스턴스로 이동하는 것이 더 낫다.
+
+## 사람 계정 분리
+
+사람 계정도 서비스 계정과 별개로 설계해야 한다.
+
+### 1. 일반 사용자 계정
+
+- `ROLE_USER`
+- 자기 프로필, 추천, 북마크, 알림설정만 접근
+- 관리자 API 접근 금지
+
+### 2. 운영자 계정
+
+- `ROLE_ADMIN_COLLECT`
+- `ROLE_ADMIN_POLICY`
+- `ROLE_ADMIN_SUPPORT`
+- 필요한 역할만 부여
+
+운영자 계정은 일반 사용자 계정과 분리해야 한다.
+
+- 같은 이메일을 일반 사용자와 관리자에 같이 쓰지 않음
+- 운영자 계정은 MFA 필수
+- 장기 세션 금지
+- 접속 IP 제한 또는 VPN 강제
+
+### 3. 보안/감사 계정
+
+- `ROLE_SECURITY_AUDITOR`
+- 개인정보 원문 조회권이 아니라 감사 로그 조회권 중심
+- 읽기 전용
+
+### 4. 비상 대응 계정
+
+- break-glass 계정 1개만 별도 보관
+- 평소 비활성화
+- 사용 시 사유, 시간, 작업자 기록 강제
+
+## API 접근 권한 분리
+
+현재는 `/api/admin/**` 가 전체 공개 상태이므로 이건 즉시 수정 대상이다.
+
+권장 API 권한은 아래와 같다.
+
+### 공개 API
+
+- `/api/auth/signup`
+- `/api/auth/login`
+- `/api/auth/refresh`
+- `/api/policies`
+- `/api/policies/search`
+- `/api/policies/ranking`
+- `/api/policies/{id}`
+- `/api/notifications/unsubscribe`
+
+### 로그인 사용자 API
+
+- `/api/users/me`
+- `/api/users/me/profile`
+- `/api/users/me/priorities`
+- `/api/recommendations/**`
+- `/api/bookmarks/**`
+
+요건:
+
+- `ROLE_USER` 이상 필요
+- 본인 `user_key`만 접근 가능
+
+### 관리자 API
+
+- `/api/admin/collect/**`
+  - `ROLE_ADMIN_COLLECT`
+- `/api/admin/policies/**`
+  - `ROLE_ADMIN_POLICY`
+
+요건:
+
+- `permitAll` 금지
+- 운영자 JWT 또는 사내 SSO 연동
+- 감사 로그 필수
+- rate limit 보다 먼저 인증/인가 수행
+
+## 엔드포인트별 최소 권한 매트릭스
+
+| 기능 | 호출 주체 | youth_welfare | youth_welfare_pii |
+|------|-----------|---------------|-------------------|
+| 회원가입 | public api | RW | W |
+| 로그인 | public api | RW | - |
+| 프로필 조회 | user api | R | R |
+| 프로필 수정 | user api | RW | 일부 RW |
+| 추천 생성 | recommendation worker | R/W | - |
+| 알림 발송 | notification worker | R/W | email만 R |
+| 정책 수집 | collect worker | RW | - |
+| 관리자 수집 실행 | admin api | collect 제어만 | - |
+
+핵심은 프로필 조회 같은 경우에도 앱 내부에서 각 저장소를 목적별로 읽고, 직접 조인 권한을 한 계정에 몰아주지 않는 것이다.
+
+## Spring Security / 계정 모델 변경안
+
+현재 [SecurityConfig](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/global/config/SecurityConfig.java:44) 는 역할 개념이 없다. 데이터 분리와 함께 인증/인가 모델도 같이 바꿔야 한다.
+
+권장 테이블:
+
+- `auth_users`
+  - `user_key`
+  - `account_type` = `END_USER | ADMIN | SERVICE`
+  - `status`
+- `auth_roles`
+  - `role_code`
+- `auth_user_roles`
+  - `user_key`
+  - `role_code`
+
+권장 원칙:
+
+- 일반 사용자와 관리자 계정은 별도 row
+- 서비스 계정은 password 로그인 대신 client credential 또는 mTLS 사용
+- 관리자 권한은 JWT claim에 role 포함
+- DB 권한과 API role은 별도 관리
+
+즉, `ROLE_ADMIN` 이 있다고 해서 DB에 직접 붙는 것은 아니고, 관리자 API를 호출할 수 있다는 뜻이어야 한다.
+
+## 서비스 분리 기준 권한 모델
+
+현재는 백엔드가 단일 Spring Boot 프로세스다. 그래도 논리적으로는 아래 경계로 나눠 설계해야 한다.
+
+### `public-api`
+
+- 회원/로그인/마이페이지
+- 사용자 JWT 처리
+- DB 계정
+  - `app_core_rw`
+  - 필요한 경우에만 `app_pii_rw`
+
+### `recommendation-worker`
+
+- 스케줄 기반 추천 생성 또는 갱신
+- 사용자 JWT 없음
+- DB 계정
+  - `app_core_rw`
+
+### `notification-worker`
+
+- 이메일 발송 전용
+- DB 계정
+  - `app_core_rw`
+  - `notification_pii_ro`
+
+### `collect-worker`
+
+- 공공 API 수집과 백필
+- DB 계정
+  - `app_core_rw`
+
+이렇게 나누면 같은 코드베이스를 쓰더라도 실행 프로파일과 datasource credential을 다르게 가져갈 수 있다.
+
+## 운영 접근 권한 분리
+
+사람이 직접 DB를 만지는 경로도 분리해야 한다.
+
+- 개발자
+  - 운영 DB 직접 접근 금지
+  - staging까지만 허용
+- 운영자
+  - admin API 또는 배치 콘솔만 사용
+  - DB 직접 접근은 원칙적으로 금지
+- DBA
+  - 스키마 작업, 백업, 복구만 수행
+  - 애플리케이션 사용자 데이터 조회는 사유 승인 필요
+- 보안 담당자
+  - 감사 로그 조회만 가능
+
+권장 통제:
+
+- 운영 DB bastion host 경유
+- 개인별 계정 사용, 공용 계정 금지
+- 쿼리 감사 로그 저장
+- `SELECT *` 수준의 광범위 조회 차단 또는 승인 기반
+
+## 감사 로그
+
+계정과 권한을 나누면 누가 어떤 데이터에 접근했는지도 남겨야 한다.
+
+최소한 아래 로그는 필요하다.
+
+- 관리자 로그인 성공/실패
+- 관리자 API 호출
+- PII 조회 이벤트
+- 이메일/전화번호 복호화 이벤트
+- 권한 변경 이벤트
+- break-glass 계정 사용 이벤트
+
+권장 필드:
+
+- `actor_user_key`
+- `actor_type`
+- `role_code`
+- `action`
+- `target_user_key`
+- `resource_type`
+- `result`
+- `ip_address`
+- `user_agent`
+- `occurred_at`
+
+## 이 프로젝트에서 바로 수정해야 할 보안 항목
+
+설계와 별개로 현재 코드 기준 즉시 고쳐야 할 항목은 아래다.
+
+1. `/api/admin/**` 의 `permitAll` 제거
+2. 관리자 계정/역할 테이블 도입
+3. 런타임 DB 계정에서 `root` 사용 중단
+4. 수집 워커와 사용자 API의 datasource credential 분리
+5. 알림 발송용 프로세스가 `youth_welfare_pii` 전체를 읽지 못하게 column/뷰 단위 제한
+
+## 추천 구현 순서
+
+현재 구조에 가장 덜 위험하게 적용하려면 아래 순서가 좋다.
+
+1. `SecurityConfig` 에 역할 기반 인가 추가
+2. 관리자 계정과 일반 사용자 계정 모델 분리
+3. DB 계정을 `root` 에서 기능별 계정으로 전환
+4. `youth_welfare` / `youth_welfare_pii` 분리
+5. 워커 프로세스별 datasource credential 분리
+6. 감사 로그 추가
+
+## Spring Boot 구조 변경안
+
+현재는 datasource가 하나다. [application.yml](/home/minseok/youth-welfare/backend/src/main/resources/application.yml:1) 기준으로 단일 `spring.datasource`만 존재한다.
+
+분리 후에는 최소 2개 datasource를 둔다.
+
+- `app.datasource.core`
+- `app.datasource.pii`
+
+패키지도 책임 기준으로 나누는 편이 좋다.
+
+- `auth`
+  - `AuthUserEntity`
+  - `AuthUserRepository`
+  - `AuthService`
+- `profile`
+  - `UserProfileEntity`
+  - `UserAttributeEntity`
+  - `UserPriorityEntity`
+  - `ProfileService`
+- `privateinfo`
+  - `UserPiiEntity`
+  - `PrivateProfileRepository`
+  - `PrivateProfileService`
+
+현재 `user` 패키지는 너무 넓기 때문에 유지하면 다시 결합된다.
+
+## 요청 흐름 변경안
+
+### 회원가입
+
+1. API가 `normalized_email` 생성
+2. `youth_welfare.auth_users` 에 `email_lookup_hash`, `password_hash`, `user_key` 저장
+3. `youth_welfare_pii.user_pii` 에 `email_enc`, `name_enc`, `birth_date_enc` 저장
+4. `youth_welfare.user_profiles` 에 `age`, `sido`, `sgg`, `income_level`, `employment_status`, `household_type`, 초기 설정 저장
+5. 실패 복구를 위해 outbox 이벤트 또는 가입 보상 트랜잭션 사용
+
+### 로그인
+
+1. 이메일 정규화
+2. `youth_welfare.auth_users.email_lookup_hash` 로 사용자 조회
+3. 비밀번호 검증
+4. JWT `sub = user_key`
+
+### 프로필 조회
+
+1. `youth_welfare` 에서 설정/추천 프로필 조회
+2. `youth_welfare_pii` 에서 `name`, `birth_date`, `phone`, `email` 조회
+3. 응답 DTO 조합
+
+### 추천 생성
+
+1. `youth_welfare` 에서 `RecommendationUserSnapshot` 조회
+2. `user_attributes`, `user_priorities` 조회
+3. 추천 계산
+4. 추천 결과 저장 시 `user_key`만 기록
+
+### 알림 발송
+
+1. `youth_welfare` 에서 알림 대상과 설정 조회
+2. `youth_welfare_pii` 에서 이메일만 조회
+3. 발송 후 `notifications`에 `user_key` 기록
+
+## 이 프로젝트에서 가장 먼저 바꿔야 할 것
+
+우선순위는 아래가 맞다.
+
+1. `User` 엔티티를 해체한다.
+2. JWT subject를 `Long id`에서 `user_key`로 바꾼다.
+3. 추천/알림/로그 테이블의 `ManyToOne User` 연관을 `user_key` 스칼라 컬럼으로 바꾼다.
+4. `birth_date` 원문 의존을 `age` 파생값 의존으로 바꾼다.
+5. datasource를 `core/pii` 로 분리한다.
+
+## 점진적 마이그레이션 단계
+
+### 1단계: 논리 분리
+
+- 현 DB 내에 `youth_welfare` 와 `youth_welfare_pii` schema 생성
+- 새 테이블 작성
+- `user_key` 추가
+- 기존 `users`에서 신규 테이블로 이관 배치 작성
+
+현재 운영 데이터가 없다면 이 단계에서 바로 cut-over 해도 된다.
+
+### 2단계: 애플리케이션 분리
+
+- `UserRepository` 직접 사용 제거
+- 목적별 repository/service/DTO로 교체
+- 추천, 알림, 프로필 API가 각각 필요한 저장소만 읽도록 수정
+
+### 3단계: 물리 분리
+
+- 필요 시 `youth_welfare_pii` 를 별도 인스턴스로 이동
+- 별도 계정/방화벽/백업 정책 적용
+- 운영자 접근 로그 분리
+
+### 4단계: 삭제와 감사 강화
+
+- 회원탈퇴 시 각 저장소에 scrub event 발행
+- PII 데이터는 즉시 또는 정책 시간 경과 후 영구 삭제
+- 일반 서비스 테이블은 최소 식별 정보만 남기고 비식별화
+
+## 이 설계에서 주의할 점
+
+1. 추천 로그와 알림 로그는 `user_key`만 있어도 장기적으로는 행동 패턴 재식별 위험이 있다.
+2. 따라서 로그성 테이블은 TTL 또는 보관기간 정책을 별도로 둬야 한다.
+3. `sido + sgg + income_level + employment_status` 조합도 준식별자다. 그래서 이 데이터는 "민감하지 않다"가 아니라 "원문 PII보다 낮은 민감도"로 다뤄야 한다.
+4. 같은 애플리케이션 프로세스가 두 schema에 모두 항상 접근 가능하면 분리만으로는 한계가 있다. 워커/API별 권한 분리도 같이 가야 한다.
+
+## 결론
+
+이 프로젝트에 맞는 현재 답은 `3 schema` 가 아니라 아래처럼 `2 schema` 로 단순화하는 것이다.
+
+- `youth_welfare`: 인증, 프로필, 추천, 알림, 수집 등 일반 서비스 데이터
+- `youth_welfare_pii`: 이름, 이메일 원문, 전화번호, 생년월일 같은 고위험 PII
+
+그리고 설계의 핵심은 아래 두 가지다.
+
+1. 모든 도메인에서 `Long userId` 대신 공용 `user_key`를 쓰기
+2. 추천/알림은 원문 PII가 아니라 파생 프로필과 목적별 DTO만 쓰게 바꾸기
+
+지금 단계에선 이 구조가 보안 목표와 운영 복잡도 사이에서 가장 현실적이다.

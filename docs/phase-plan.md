@@ -177,6 +177,10 @@ AI 추천 품질 점검 후 프롬프트 개선, 중복 추천 제거, 노이즈
 - 2026-04-25 `/chat` 자리표시자 문구 정리 후 `frontend`에서 `npm run lint`
 - 2026-04-25 `/chat` 자리표시자 문구 정리 후 `frontend`에서 `npm run build`
   - Vite 번들 크기 경고 발생. 빌드는 성공했으며 기능 실패는 아님.
+- 2026-04-25 운영/설계 보조 문서 링크 및 작업 추적 정합성 점검
+  - `docs/README.md`에 `db-search-recommend-ops-guide.md`, `user-data-separation-design.md` 링크 추가
+  - `docs/phase-plan.md`의 완료/진행 예정/남은 작업 간 상태 충돌 정리
+  - `docs/troubleshooting-log.md`에 문서 추적 누락 재발 방지 기록 추가
 
 ## 작업 추적
 
@@ -188,8 +192,10 @@ AI 추천 품질 점검 후 프롬프트 개선, 중복 추천 제거, 노이즈
 
 - [ ] 운영 서버 Docker Compose 기동
 - [ ] HTTPS/Nginx 적용
-- [ ] 데모 시나리오 전체 실행
 - [ ] CTR 분석 쿼리 실행 결과 확보
+- [ ] 검색/추천 쿼리 EXPLAIN 검증 및 인덱스 적용 여부 확정
+- [ ] 관리자 API 인증/권한 강화 (`/api/admin/**` 보호)
+- [ ] 사용자 PII 분리 이행안 확정 (`users` 책임 분리, 서비스 계정 권한 분리)
 - [ ] 챗봇 DB migration 추가 (`chat_sessions`, `chat_messages`)
 - [ ] 챗봇 세션/메시지 API 구현 (`/api/chat/sessions`)
 - [ ] 챗봇 정책 조회 전용 서비스 구현 (`chat -> policy`, `chat -> recommend` 금지)
@@ -201,6 +207,10 @@ AI 추천 품질 점검 후 프롬프트 개선, 중복 추천 제거, 노이즈
 
 ### 완료
 
+- [x] 검색/추천 운영 가이드 `docs/db-search-recommend-ops-guide.md` 추가
+- [x] 사용자 데이터 분리 설계 `docs/user-data-separation-design.md` 추가
+- [x] 문서 목차 `docs/README.md`에 운영/설계 보조 문서 링크 추가
+- [x] `docs/phase-plan.md` 작업 추적과 본문 상태 정합성 점검
 - [x] 챗봇 구현 설계 문서 `docs/chatbot-plan.md` 추가
 - [x] 문서 목차 `docs/README.md`에 챗봇 설계 문서 링크 추가
 - [x] 프론트 `/chat` 자리표시자 문구를 현재 계획(2차)과 일치하도록 정리
@@ -285,8 +295,10 @@ cd backend
 
 - EC2 또는 운영 서버에서 Docker Compose 기동
 - HTTPS/Nginx 적용
-- [demo-scenario.md](./demo-scenario.md) 전체 실행
 - CTR 분석 쿼리 실행 결과 확보
+- 검색/추천 쿼리 EXPLAIN 검증 및 인덱스 적용 여부 확정
+- 관리자 API 인증/권한 강화 (`/api/admin/**` 보호)
+- 사용자 PII 분리 이행안 확정 (`users` 책임 분리, 서비스 계정 권한 분리)
 
 ## 2차로 분리된 항목
 

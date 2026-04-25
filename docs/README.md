@@ -39,6 +39,14 @@
 - [db-migration.md](./db-migration.md)  
   DB 변경 사항, 마이그레이션 기준, 스키마 반영 방법을 확인합니다.
 
+- [db-search-recommend-ops-guide.md](./db-search-recommend-ops-guide.md)
+  검색/추천 쿼리의 EXPLAIN 체크 포인트, 인덱스 후보, DB 운영 시작안을 확인합니다.
+
+### 사용자 데이터 분리나 보안 경계를 정리할 때
+
+- [user-data-separation-design.md](./user-data-separation-design.md)
+  인증/프로필/PII 분리 방향과 서비스 계정 권한 경계를 확인합니다.
+
 ### 테스트를 실행하거나 실패 원인을 볼 때
 
 - [testing.md](./testing.md)  
@@ -68,6 +76,7 @@
 - [architecture.md](./architecture.md)
 - [chatbot-plan.md](./chatbot-plan.md)
 - [collect-ops.md](./collect-ops.md)
+- [db-search-recommend-ops-guide.md](./db-search-recommend-ops-guide.md)
 - [db-migration.md](./db-migration.md)
 - [demo-scenario.md](./demo-scenario.md)
 - [deployment.md](./deployment.md)
@@ -77,6 +86,7 @@
 - [srs-v2.10.md](./srs-v2.10.md)
 - [testing.md](./testing.md)
 - [troubleshooting-log.md](./troubleshooting-log.md)
+- [user-data-separation-design.md](./user-data-separation-design.md)
 
 ## 보관 문서
 
