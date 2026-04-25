@@ -172,6 +172,11 @@ AI 추천 품질 점검 후 프롬프트 개선, 중복 추천 제거, 노이즈
   - `AuthRedisIntegrationTest`, `PolicyBookmarkIntegrationTest`, `RecommendationFlowIntegrationTest` 전체 통과
 - 2026-04-24 Docker 앱 재빌드 후 가상 유저(`testuser@youth-welfare.dev`) end-to-end 검증
   - 회원가입 → 로그인 → 프로필 조회 → 우선순위 저장(HOUSING·JOB·EDUCATION·FINANCE·DEADLINE) → 추천 refresh(40건, AI reason 정상) → 북마크 토글 → 북마크 목록 조회 → 검색 결과 북마크 상태 확인 → Refresh Token 재발급 전 구간 정상
+- 2026-04-25 챗봇 설계 문서 추가 후 `docs` 링크 점검
+  - `docs/README.md`, `docs/chatbot-plan.md`, `docs/phase-plan.md` 상호 링크 확인
+- 2026-04-25 `/chat` 자리표시자 문구 정리 후 `frontend`에서 `npm run lint`
+- 2026-04-25 `/chat` 자리표시자 문구 정리 후 `frontend`에서 `npm run build`
+  - Vite 번들 크기 경고 발생. 빌드는 성공했으며 기능 실패는 아님.
 
 ## 작업 추적
 
@@ -185,10 +190,20 @@ AI 추천 품질 점검 후 프롬프트 개선, 중복 추천 제거, 노이즈
 - [ ] HTTPS/Nginx 적용
 - [ ] 데모 시나리오 전체 실행
 - [ ] CTR 분석 쿼리 실행 결과 확보
+- [ ] 챗봇 DB migration 추가 (`chat_sessions`, `chat_messages`)
+- [ ] 챗봇 세션/메시지 API 구현 (`/api/chat/sessions`)
+- [ ] 챗봇 정책 조회 전용 서비스 구현 (`chat -> policy`, `chat -> recommend` 금지)
+- [ ] 챗봇 OpenAI 프롬프트/응답 스키마 및 근거 정책 참조 구현
+- [ ] 로그아웃/회원탈퇴 시 챗 세션 삭제 연동
+- [ ] 프론트 `/chat` 실제 화면 및 로그인 가드 구현
+- [ ] 카카오 알림톡 연동 (2차, 심사 완료 후)
 - [ ] 로그인 전 비밀번호 재설정 메일/토큰 구현
 
 ### 완료
 
+- [x] 챗봇 구현 설계 문서 `docs/chatbot-plan.md` 추가
+- [x] 문서 목차 `docs/README.md`에 챗봇 설계 문서 링크 추가
+- [x] 프론트 `/chat` 자리표시자 문구를 현재 계획(2차)과 일치하도록 정리
 - [x] 문서 목차 `docs/README.md` 추가
 - [x] 기본 테스트와 통합 테스트 태스크 분리
 - [x] 테스트 실행 기준 `docs/testing.md` 추가
@@ -280,6 +295,6 @@ cd backend
 - p5~p95 정규화
 - 카카오 알림톡
 - 슬롯 배치 `[A, A, B?]`
-- 챗봇
+- 챗봇 (`docs/chatbot-plan.md` 기준 세부 task 분리)
 - 검색 로그
 - 추천/수집 대시보드

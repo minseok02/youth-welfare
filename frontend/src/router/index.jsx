@@ -14,7 +14,7 @@ const router = createBrowserRouter([
   { path: "/policies", element: <PoliciesPage /> },
   { path: "/policies/:id", element: <PolicyDetailPage /> },
   { path: "/mypage", element: <MyPage /> },
-  { path: "/chat", element: <div>챗봇 (Phase 4 예정)</div> },
+  { path: "/chat", element: <div>챗봇 (2차 예정)</div> },
 ]);
 
 export default router;

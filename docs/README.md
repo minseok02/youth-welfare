@@ -21,6 +21,11 @@
 - [recommendation-pipeline.md](./recommendation-pipeline.md)  
   추천 API, 추천 저장, 점수 계산 흐름을 확인합니다.
 
+### 챗봇을 구현하거나 설계할 때
+
+- [chatbot-plan.md](./chatbot-plan.md)  
+  챗봇 모듈 경계, 세션/메시지 API 초안, 작은 task 단위 구현 순서를 확인합니다.
+
 ### 공공 API 수집을 수정하거나 운영할 때
 
 - [collect-ops.md](./collect-ops.md)  
@@ -61,6 +66,7 @@
 
 - [api-mapping.md](./api-mapping.md)
 - [architecture.md](./architecture.md)
+- [chatbot-plan.md](./chatbot-plan.md)
 - [collect-ops.md](./collect-ops.md)
 - [db-migration.md](./db-migration.md)
 - [demo-scenario.md](./demo-scenario.md)
