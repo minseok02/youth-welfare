@@ -9,6 +9,13 @@
 
 ## 최신 마이그레이션
 
+- 파일: [`backend/src/main/resources/db/migration/V2026_04_25_01__add_chat_tables.sql`](../backend/src/main/resources/db/migration/V2026_04_25_01__add_chat_tables.sql)
+- 포함 내용:
+  - `chat_sessions` 생성
+  - `chat_messages` 생성
+  - 챗 세션/메시지 기본 인덱스 추가
+  - 로그아웃/회원탈퇴 시 `users -> chat_sessions -> chat_messages` cascade delete 준비
+
 - 파일: [`backend/src/main/resources/db/migration/V2026_04_24_01__add_search_youth_relevance.sql`](../backend/src/main/resources/db/migration/V2026_04_24_01__add_search_youth_relevance.sql)
 - 포함 내용:
   - `welfare_services.search_youth_relevant` 컬럼 추가
@@ -35,6 +42,7 @@
 ## 적용 방법
 
 ```bash
+mysql -h 127.0.0.1 -P 3307 -u root -p youth_welfare < backend/src/main/resources/db/migration/V2026_04_25_01__add_chat_tables.sql
 mysql -h 127.0.0.1 -P 3307 -u root -p youth_welfare < backend/src/main/resources/db/migration/V2026_04_17_01__recent_schema_updates.sql
 mysql -h 127.0.0.1 -P 3307 -u root -p youth_welfare < backend/src/main/resources/db/migration/V2026_04_18_02__add_raw_api_payloads.sql
 mysql -h 127.0.0.1 -P 3307 -u root -p youth_welfare < backend/src/main/resources/db/migration/V2026_04_23_01__add_api_sync_logs.sql
@@ -44,6 +52,7 @@ mysql -h 127.0.0.1 -P 3307 -u root -p youth_welfare < backend/src/main/resources
 도커 컨테이너를 쓰는 경우:
 
 ```bash
+docker exec -i youth-welfare-db mysql -uroot -p"$DB_PASSWORD" youth_welfare < backend/src/main/resources/db/migration/V2026_04_25_01__add_chat_tables.sql
 docker exec -i youth-welfare-db mysql -uroot -p"$DB_PASSWORD" youth_welfare < backend/src/main/resources/db/migration/V2026_04_17_01__recent_schema_updates.sql
 docker exec -i youth-welfare-db mysql -uroot -p"$DB_PASSWORD" youth_welfare < backend/src/main/resources/db/migration/V2026_04_18_02__add_raw_api_payloads.sql
 docker exec -i youth-welfare-db mysql -uroot -p"$DB_PASSWORD" youth_welfare < backend/src/main/resources/db/migration/V2026_04_23_01__add_api_sync_logs.sql
@@ -71,8 +80,14 @@ SHOW TABLES LIKE 'service_view_logs';
 SHOW TABLES LIKE 'notification_services';
 SHOW TABLES LIKE 'raw_api_payloads';
 SHOW TABLES LIKE 'api_sync_logs';
+SHOW TABLES LIKE 'chat_sessions';
+SHOW TABLES LIKE 'chat_messages';
+SHOW CREATE TABLE chat_sessions;
+SHOW CREATE TABLE chat_messages;
 SHOW COLUMNS FROM welfare_services LIKE 'search_youth_relevant';
 SHOW INDEX FROM welfare_services WHERE Key_name = 'idx_ws_search_youth';
+SHOW INDEX FROM chat_sessions WHERE Key_name = 'idx_cs_user_last_message';
+SHOW INDEX FROM chat_messages WHERE Key_name = 'idx_cm_session_created';
 SELECT search_youth_relevant, COUNT(*) FROM welfare_services GROUP BY search_youth_relevant;
 ```
 

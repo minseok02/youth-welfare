@@ -190,6 +190,14 @@ AI 추천 품질 점검 후 프롬프트 개선, 중복 추천 제거, 노이즈
   - `docs/api-mapping.md`, `docs/chatbot-plan.md`에 세션/메시지/답변 필드 계약 반영
   - `backend`에 `chat/dto` request/response 골격 추가
 - 2026-04-25 챗봇 응답 DTO/API 계약 고정 후 `backend`에서 `./gradlew test --no-daemon`
+- 2026-04-25 테스트 DB에 `V2026_04_25_01__add_chat_tables.sql` 적용
+- 2026-04-25 `chat_sessions`, `chat_messages` 테이블 및 인덱스 확인
+  - `idx_cs_user_last_message`, `idx_cm_session_created`, FK cascade 확인
+- 2026-04-25 챗봇 DB migration 추가 후 `backend`에서 `./gradlew integrationTest --no-daemon`
+- 2026-04-25 챗봇 DB migration 추가
+  - `schema.sql`, `V2026_04_25_01__add_chat_tables.sql`, `docs/db-migration.md` 반영
+- 2026-04-25 테스트 DB에 `V2026_04_25_01__add_chat_tables.sql` 적용
+  - `chat_sessions`, `chat_messages` 테이블 및 인덱스 확인
 
 ## 작업 추적
 
@@ -205,7 +213,6 @@ AI 추천 품질 점검 후 프롬프트 개선, 중복 추천 제거, 노이즈
 - [ ] 검색/추천 쿼리 EXPLAIN 검증 및 인덱스 적용 여부 확정
 - [ ] 운영 admin 계정 수동 생성 절차 문서화 (`SECURITY_ADMIN_EMAILS`, DB 계정 준비)
 - [ ] 사용자 PII 분리 이행안 확정 (`users` 책임 분리, 서비스 계정 권한 분리)
-- [ ] 챗봇 DB migration 추가 (`chat_sessions`, `chat_messages`)
 - [ ] 챗봇 엔티티/리포지토리 골격 추가
 - [ ] 챗봇 세션/메시지 API 구현 (`/api/chat/sessions`)
 - [ ] 챗봇 정책 조회 전용 서비스 구현 (`chat -> policy`, `chat -> recommend` 금지)
@@ -217,6 +224,7 @@ AI 추천 품질 점검 후 프롬프트 개선, 중복 추천 제거, 노이즈
 
 ### 완료
 
+- [x] 챗봇 DB migration 추가 (`chat_sessions`, `chat_messages`)
 - [x] 챗봇 응답 DTO/API 계약 고정 (`sessionId`, `answer`, `references`, `needsClarification`)
 - [x] `/api/admin/**` JWT 권한 기반 보호 + 관리자 예약 이메일 공개 signup 차단
 - [x] 검색/추천 운영 가이드 `docs/db-search-recommend-ops-guide.md` 추가
