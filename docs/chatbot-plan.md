@@ -169,6 +169,23 @@ ChatController
 8. 프론트 `/chat` 화면, 로그인 가드, 세션 목록 UI 구현
 9. 테스트: 세션 권한, 메시지 저장, 정책 참조, JSON 파싱 실패 fallback
 
+## 바로 시작할 첫 task
+
+챗봇은 아래 순서로 착수하면 한 번에 너무 넓게 열지 않고 진행할 수 있다.
+
+1. 응답 DTO 확정
+   - `POST /api/chat/sessions/{sessionId}/messages` 응답 필드 `sessionId`, `answer`, `references`, `needsClarification` 고정
+2. DB 마이그레이션 추가
+   - `chat_sessions`, `chat_messages` 테이블과 인덱스만 먼저 추가
+3. 엔티티/리포지토리 골격 추가
+   - JPA 엔티티, enum, repository만 만들어 CRUD 기반을 확보
+4. 세션 CRUD부터 연결
+   - 세션 생성/목록/삭제, 메시지 목록 조회를 AI 없이 먼저 연결
+5. `ChatPolicyService` 골격 추가
+   - 정책 검색 전용 조회 함수와 참조 정책 DTO를 먼저 고정
+
+위 5개가 끝나면 그다음부터 `ChatAiGateway`, JSON 파서, 메시지 전송 API를 붙이는 순서가 자연스럽다.
+
 ## 먼저 하지 않을 것
 
 - 추천 재계산 요청

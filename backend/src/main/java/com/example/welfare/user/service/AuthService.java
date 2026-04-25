@@ -9,15 +9,23 @@ import com.example.welfare.user.dto.response.EmailAvailabilityResponse;
 import com.example.welfare.user.dto.response.TokenResponse;
 import com.example.welfare.user.entity.User;
 import com.example.welfare.user.repository.UserRepository;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
+import java.util.Arrays;
+import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 import java.time.LocalDateTime;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -33,6 +41,20 @@ public class AuthService {
     private final JwtUtil jwtUtil;
     private final RedisTemplate<String, String> redisTemplate;
 
+    @Value("${security.admin-emails:}")
+    private String adminEmailsProperty;
+
+    private Set<String> adminEmails = Set.of();
+
+    @PostConstruct
+    void initAdminEmails() {
+        adminEmails = Arrays.stream(adminEmailsProperty.split(","))
+                .map(String::trim)
+                .filter(StringUtils::hasText)
+                .map(email -> email.toLowerCase(Locale.ROOT))
+                .collect(Collectors.toUnmodifiableSet());
+    }
+
     @Transactional(readOnly = true)
     public EmailAvailabilityResponse checkEmailAvailability(String email) {
         return new EmailAvailabilityResponse(!userRepository.existsByEmail(email));
@@ -40,6 +62,10 @@ public class AuthService {
 
     @Transactional
     public void signup(SignupRequest request) {
+        if (isAdminEmail(request.getEmail())) {
+            throw new CustomException(ErrorCode.ADMIN_EMAIL_SIGNUP_FORBIDDEN);
+        }
+
         if (userRepository.existsByEmail(request.getEmail())) {
             throw new CustomException(ErrorCode.DUPLICATE_EMAIL);
         }
@@ -83,7 +109,7 @@ public class AuthService {
 
         user.resetLoginFail();
 
-        String accessToken = jwtUtil.generateAccessToken(user.getId());
+        String accessToken = jwtUtil.generateAccessToken(user.getId(), resolveRoles(user.getEmail()));
         String refreshToken = jwtUtil.generateRefreshToken(user.getId());
 
         saveRefreshToken(user.getId(), refreshToken);
@@ -96,6 +122,8 @@ public class AuthService {
         jwtUtil.validate(refreshToken);
 
         Long userId = jwtUtil.getUserId(refreshToken);
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
         String key = REFRESH_TOKEN_PREFIX + userId;
         String stored = redisTemplate.opsForValue().get(key);
 
@@ -105,7 +133,7 @@ public class AuthService {
             throw new CustomException(ErrorCode.REUSED_REFRESH_TOKEN);
         }
 
-        String newAccessToken = jwtUtil.generateAccessToken(userId);
+        String newAccessToken = jwtUtil.generateAccessToken(userId, resolveRoles(user.getEmail()));
         String newRefreshToken = jwtUtil.generateRefreshToken(userId);
 
         // Rotation: 새 Refresh Token으로 교체
@@ -130,5 +158,19 @@ public class AuthService {
                 7,
                 TimeUnit.DAYS
         );
+    }
+
+    private boolean isAdminEmail(String email) {
+        if (!StringUtils.hasText(email)) {
+            return false;
+        }
+        return adminEmails.contains(email.trim().toLowerCase(Locale.ROOT));
+    }
+
+    private List<String> resolveRoles(String email) {
+        if (isAdminEmail(email)) {
+            return List.of("ROLE_USER", "ROLE_ADMIN");
+        }
+        return List.of("ROLE_USER");
     }
 }

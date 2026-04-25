@@ -38,3 +38,6 @@ app:
 auth:
   refresh:
     cookie-secure: false
+
+security:
+  admin-emails: admin@youth-welfare.dev

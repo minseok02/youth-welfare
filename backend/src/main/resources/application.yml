@@ -88,3 +88,6 @@ management:
   health:
     mail:
       enabled: false
+
+security:
+  admin-emails: ${SECURITY_ADMIN_EMAILS:}

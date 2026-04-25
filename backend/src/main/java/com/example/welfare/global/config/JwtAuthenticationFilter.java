@@ -13,7 +13,6 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.util.Collections;
 
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
@@ -31,7 +30,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 jwtUtil.validate(token);
                 Long userId = jwtUtil.getUserId(token);
                 UsernamePasswordAuthenticationToken auth =
-                        new UsernamePasswordAuthenticationToken(userId, null, Collections.emptyList());
+                        new UsernamePasswordAuthenticationToken(userId, null, jwtUtil.getAuthorities(token));
                 SecurityContextHolder.getContext().setAuthentication(auth);
             } catch (CustomException e) {
                 // 유효하지 않은 토큰 — SecurityContext 미설정, 이후 인가 단계에서 거부됨

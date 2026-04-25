@@ -7,15 +7,20 @@ import io.jsonwebtoken.security.Keys;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
+import java.util.Collection;
 import java.util.Date;
+import java.util.List;
 
 @Slf4j
 @Component
 public class JwtUtil {
+    private static final String ROLES_CLAIM = "roles";
 
     @Value("${jwt.secret}")
     private String secret;
@@ -37,29 +42,57 @@ public class JwtUtil {
     }
 
     public String generateAccessToken(Long userId) {
-        return buildToken(userId, accessExpiration);
+        return generateAccessToken(userId, List.of("ROLE_USER"));
+    }
+
+    public String generateAccessToken(Long userId, Collection<String> roles) {
+        return buildToken(userId, accessExpiration, roles);
     }
 
     public String generateRefreshToken(Long userId) {
-        return buildToken(userId, refreshExpiration);
+        return buildToken(userId, refreshExpiration, List.of());
     }
 
     public String generateNotificationToken(Long userId) {
-        return buildToken(userId, notificationExpiration);
+        return buildToken(userId, notificationExpiration, List.of());
     }
 
-    private String buildToken(Long userId, long expiration) {
+    private String buildToken(Long userId, long expiration, Collection<String> roles) {
         Date now = new Date();
-        return Jwts.builder()
+        JwtBuilder builder = Jwts.builder()
                 .subject(String.valueOf(userId))
                 .issuedAt(now)
                 .expiration(new Date(now.getTime() + expiration))
-                .signWith(key)
-                .compact();
+                .signWith(key);
+
+        if (roles != null && !roles.isEmpty()) {
+            builder.claim(ROLES_CLAIM, roles);
+        }
+
+        return builder.compact();
     }
 
     public Long getUserId(String token) {
         return Long.parseLong(getClaims(token).getSubject());
+    }
+
+    public List<String> getRoles(String token) {
+        Object rolesClaim = getClaims(token).get(ROLES_CLAIM);
+        if (!(rolesClaim instanceof Collection<?> roles)) {
+            return List.of();
+        }
+
+        return roles.stream()
+                .filter(String.class::isInstance)
+                .map(String.class::cast)
+                .toList();
+    }
+
+    public List<GrantedAuthority> getAuthorities(String token) {
+        return getRoles(token).stream()
+                .map(SimpleGrantedAuthority::new)
+                .map(GrantedAuthority.class::cast)
+                .toList();
     }
 
     public Long getUserIdAllowExpired(String token) {
