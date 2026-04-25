@@ -179,6 +179,8 @@ AI 추천 품질 점검 후 프롬프트 개선, 중복 추천 제거, 노이즈
   - Vite 번들 크기 경고 발생. 빌드는 성공했으며 기능 실패는 아님.
 - 2026-04-25 챗봇 엔티티/리포지토리 골격 추가 후 `backend`에서 `./gradlew test --no-daemon`
 - 2026-04-25 챗봇 엔티티/리포지토리 골격 추가 후 `backend`에서 `./gradlew integrationTest --no-daemon`
+- 2026-04-26 챗봇 세션 CRUD API 구현 후 `backend`에서 `./gradlew test --no-daemon`
+- 2026-04-26 챗봇 세션 CRUD API 구현 후 `backend`에서 `./gradlew integrationTest --no-daemon`
 - 2026-04-25 운영/설계 보조 문서 링크 및 작업 추적 정합성 점검
   - `docs/README.md`에 `db-search-recommend-ops-guide.md`, `user-data-separation-design.md` 링크 추가
   - `docs/phase-plan.md`의 완료/진행 예정/남은 작업 간 상태 충돌 정리
@@ -205,6 +207,12 @@ AI 추천 품질 점검 후 프롬프트 개선, 중복 추천 제거, 노이즈
   - `ChatRepositoryIntegrationTest`로 세션 최신순 조회, 메시지 정렬, cascade 삭제 검증
 - 2026-04-25 챗봇 엔티티/리포지토리 골격 추가 후 `backend`에서 `./gradlew test --no-daemon`
 - 2026-04-25 챗봇 엔티티/리포지토리 골격 추가 후 `backend`에서 `./gradlew integrationTest --no-daemon`
+- 2026-04-26 챗봇 세션 CRUD API 구현
+  - `ChatSessionController`, `ChatSessionService`, `CH001` 추가
+  - `POST/GET/DELETE /api/chat/sessions` 구현
+  - `ChatSessionApiIntegrationTest`로 생성/목록/삭제/소유권 검증
+- 2026-04-26 챗봇 세션 CRUD API 구현 후 `backend`에서 `./gradlew test --no-daemon`
+- 2026-04-26 챗봇 세션 CRUD API 구현 후 `backend`에서 `./gradlew integrationTest --no-daemon`
 
 ## 작업 추적
 
@@ -220,7 +228,6 @@ AI 추천 품질 점검 후 프롬프트 개선, 중복 추천 제거, 노이즈
 - [ ] 검색/추천 쿼리 EXPLAIN 검증 및 인덱스 적용 여부 확정
 - [ ] 운영 admin 계정 수동 생성 절차 문서화 (`SECURITY_ADMIN_EMAILS`, DB 계정 준비)
 - [ ] 사용자 PII 분리 이행안 확정 (`users` 책임 분리, 서비스 계정 권한 분리)
-- [ ] 챗봇 세션 CRUD API 구현 (`POST/GET/DELETE /api/chat/sessions`)
 - [ ] 챗봇 메시지 목록 조회 API 구현 (`GET /api/chat/sessions/{sessionId}/messages`)
 - [ ] 챗봇 정책 조회 전용 서비스 구현 (`chat -> policy`, `chat -> recommend` 금지)
 - [ ] 챗봇 메시지 전송 API 구현 (`POST /api/chat/sessions/{sessionId}/messages`)
@@ -232,6 +239,7 @@ AI 추천 품질 점검 후 프롬프트 개선, 중복 추천 제거, 노이즈
 
 ### 완료
 
+- [x] 챗봇 세션 CRUD API 구현 (`POST/GET/DELETE /api/chat/sessions`)
 - [x] 챗봇 엔티티/리포지토리 골격 추가
 - [x] 챗봇 DB migration 추가 (`chat_sessions`, `chat_messages`)
 - [x] 챗봇 응답 DTO/API 계약 고정 (`sessionId`, `answer`, `references`, `needsClarification`)

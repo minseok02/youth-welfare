@@ -80,6 +80,7 @@
 - 용도
   - 새 채팅 세션 생성
 - request 주요 필드
+  - body optional
   - `title` optional
 - response 주요 필드
   - `sessionId`
@@ -103,6 +104,7 @@
 
 - 용도
   - 내 최근 세션 목록 조회
+- 현재 구현 기준 최근 20개 세션 반환
 - response 주요 필드
   - `sessionId`
   - `title`

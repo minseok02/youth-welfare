@@ -36,6 +36,9 @@ public enum ErrorCode {
     // 알림
     NOTIFICATION_SEND_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "N001", "알림 발송에 실패했습니다."),
 
+    // 챗봇
+    CHAT_SESSION_NOT_FOUND(HttpStatus.NOT_FOUND, "CH001", "존재하지 않는 챗 세션입니다."),
+
     // 수집
     COLLECT_API_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "COL001", "공공 API 수집에 실패했습니다."),
     COLLECT_ALREADY_RUNNING(HttpStatus.CONFLICT, "COL002", "이미 다른 수집 작업이 실행 중입니다.");
