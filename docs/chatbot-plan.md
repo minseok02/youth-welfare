@@ -193,6 +193,21 @@ ChatController
 
 위 5개가 끝나면 그다음부터 `ChatAiGateway`, JSON 파서, 메시지 전송 API를 붙이는 순서가 자연스럽다.
 
+## 현재까지 완료된 선행 작업
+
+- 응답 DTO/API 계약 고정
+- DB 마이그레이션 추가 (`chat_sessions`, `chat_messages`)
+- 엔티티/리포지토리 골격 추가
+
+## 다음 바로 할 작업
+
+1. 세션 CRUD API 구현
+   - 세션 생성, 목록 조회, 삭제
+2. 메시지 목록 조회 API 구현
+   - `GET /api/chat/sessions/{sessionId}/messages`
+3. `ChatPolicyService` 골격 추가
+   - 정책 참조 DTO와 후보 조회 함수만 먼저 고정
+
 ## 먼저 하지 않을 것
 
 - 추천 재계산 요청
