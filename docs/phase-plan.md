@@ -186,6 +186,10 @@ AI 추천 품질 점검 후 프롬프트 개선, 중복 추천 제거, 노이즈
 - 2026-04-25 `docker compose up -d db redis`
 - 2026-04-25 `/api/admin/**` 인증/권한 강화 후 `backend`에서 `./gradlew integrationTest --no-daemon`
   - `AdminSecurityIntegrationTest`로 관리자 예약 이메일 signup 차단, 관리자 로그인/refresh 후 관리자 API 200 확인
+- 2026-04-25 챗봇 응답 DTO/API 계약 초안 고정
+  - `docs/api-mapping.md`, `docs/chatbot-plan.md`에 세션/메시지/답변 필드 계약 반영
+  - `backend`에 `chat/dto` request/response 골격 추가
+- 2026-04-25 챗봇 응답 DTO/API 계약 고정 후 `backend`에서 `./gradlew test --no-daemon`
 
 ## 작업 추적
 
@@ -201,7 +205,6 @@ AI 추천 품질 점검 후 프롬프트 개선, 중복 추천 제거, 노이즈
 - [ ] 검색/추천 쿼리 EXPLAIN 검증 및 인덱스 적용 여부 확정
 - [ ] 운영 admin 계정 수동 생성 절차 문서화 (`SECURITY_ADMIN_EMAILS`, DB 계정 준비)
 - [ ] 사용자 PII 분리 이행안 확정 (`users` 책임 분리, 서비스 계정 권한 분리)
-- [ ] 챗봇 응답 DTO/API 계약 고정 (`sessionId`, `answer`, `references`, `needsClarification`)
 - [ ] 챗봇 DB migration 추가 (`chat_sessions`, `chat_messages`)
 - [ ] 챗봇 엔티티/리포지토리 골격 추가
 - [ ] 챗봇 세션/메시지 API 구현 (`/api/chat/sessions`)
@@ -214,6 +217,7 @@ AI 추천 품질 점검 후 프롬프트 개선, 중복 추천 제거, 노이즈
 
 ### 완료
 
+- [x] 챗봇 응답 DTO/API 계약 고정 (`sessionId`, `answer`, `references`, `needsClarification`)
 - [x] `/api/admin/**` JWT 권한 기반 보호 + 관리자 예약 이메일 공개 signup 차단
 - [x] 검색/추천 운영 가이드 `docs/db-search-recommend-ops-guide.md` 추가
 - [x] 사용자 데이터 분리 설계 `docs/user-data-separation-design.md` 추가

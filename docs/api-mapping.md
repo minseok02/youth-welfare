@@ -69,6 +69,140 @@
 
 ---
 
+## 챗봇 API 계약 (2차 준비)
+
+- 챗봇은 로그인 사용자 전용이다.
+- `chat` 모듈은 정책 조회 결과를 요약해 답변하며, 추천 재계산은 하지 않는다.
+- 응답 필드명은 프론트와 백엔드 모두 아래 계약으로 고정한다.
+
+### `POST /api/chat/sessions`
+
+- 용도
+  - 새 채팅 세션 생성
+- request 주요 필드
+  - `title` optional
+- response 주요 필드
+  - `sessionId`
+  - `title`
+  - `lastMessageAt`
+  - `createdAt`
+
+```json
+{
+  "success": true,
+  "data": {
+    "sessionId": 12,
+    "title": "서울 청년 주거 상담",
+    "lastMessageAt": "2026-04-25T23:40:00",
+    "createdAt": "2026-04-25T23:40:00"
+  }
+}
+```
+
+### `GET /api/chat/sessions`
+
+- 용도
+  - 내 최근 세션 목록 조회
+- response 주요 필드
+  - `sessionId`
+  - `title`
+  - `lastMessageAt`
+  - `createdAt`
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "sessionId": 12,
+      "title": "서울 청년 주거 상담",
+      "lastMessageAt": "2026-04-25T23:41:12",
+      "createdAt": "2026-04-25T23:40:00"
+    }
+  ]
+}
+```
+
+### `GET /api/chat/sessions/{sessionId}/messages`
+
+- 용도
+  - 세션 메시지 조회
+- response 주요 필드
+  - `messageId`
+  - `role`
+  - `content`
+  - `referencedServiceIds`
+  - `createdAt`
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "messageId": 101,
+      "role": "USER",
+      "content": "서울에서 월세 지원 받을 수 있는 정책 있어?",
+      "referencedServiceIds": [],
+      "createdAt": "2026-04-25T23:40:10"
+    },
+    {
+      "messageId": 102,
+      "role": "ASSISTANT",
+      "content": "서울 거주 청년이라면 청년월세지원과 청년전세임대 정책을 먼저 확인해보세요.",
+      "referencedServiceIds": [1829, 2451],
+      "createdAt": "2026-04-25T23:40:12"
+    }
+  ]
+}
+```
+
+### `POST /api/chat/sessions/{sessionId}/messages`
+
+- 용도
+  - 사용자 질문 전송
+- request 주요 필드
+  - `content`
+- response 주요 필드
+  - `sessionId`
+  - `answer`
+  - `needsClarification`
+  - `references[].serviceId`
+  - `references[].title`
+  - `references[].reason`
+
+```json
+{
+  "success": true,
+  "data": {
+    "sessionId": 12,
+    "answer": "서울 거주 미취업 청년이라면 청년월세지원과 국민취업지원제도를 먼저 확인해보세요.",
+    "needsClarification": false,
+    "references": [
+      {
+        "serviceId": 1829,
+        "title": "청년월세 한시 특별지원",
+        "reason": "서울 거주 청년의 주거비 부담 완화와 직접 연결됩니다."
+      }
+    ]
+  }
+}
+```
+
+### `DELETE /api/chat/sessions/{sessionId}`
+
+- 용도
+  - 사용자가 특정 세션 삭제
+- response
+
+```json
+{
+  "success": true,
+  "data": null
+}
+```
+
+---
+
 ## DB 컬럼 ← API 필드 매핑표
 
 | DB 컬럼 | 온통청년 | 복지로 중앙 | 복지로 지자체 |

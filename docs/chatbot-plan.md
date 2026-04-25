@@ -90,19 +90,23 @@ ChatController
 ### `POST /api/chat/sessions`
 
 - 새 세션 생성
-- 응답: `sessionId`, `title`
+- 요청: `title` optional
+- 응답: `sessionId`, `title`, `lastMessageAt`, `createdAt`
 
 ### `GET /api/chat/sessions`
 
 - 내 최근 세션 목록 조회
+- 응답 항목: `sessionId`, `title`, `lastMessageAt`, `createdAt`
 
 ### `GET /api/chat/sessions/{sessionId}/messages`
 
 - 세션 메시지 조회
+- 응답 항목: `messageId`, `role`, `content`, `referencedServiceIds`, `createdAt`
 
 ### `POST /api/chat/sessions/{sessionId}/messages`
 
 - 사용자 질문 전송
+- 요청: `content`
 - 응답 예시:
 
 ```json
@@ -111,10 +115,12 @@ ChatController
   "data": {
     "sessionId": 12,
     "answer": "서울 거주 미취업 청년이라면 청년월세지원과 국민취업지원제도를 먼저 보세요.",
+    "needsClarification": false,
     "references": [
       {
         "serviceId": 1829,
-        "title": "청년일자리 도약장려금"
+        "title": "청년일자리 도약장려금",
+        "reason": "질문의 취업 준비 상황과 직접 연결됩니다."
       }
     ]
   }
@@ -175,6 +181,7 @@ ChatController
 
 1. 응답 DTO 확정
    - `POST /api/chat/sessions/{sessionId}/messages` 응답 필드 `sessionId`, `answer`, `references`, `needsClarification` 고정
+   - 세션/메시지 목록 필드 `sessionId`, `messageId`, `referencedServiceIds`, `lastMessageAt` 고정
 2. DB 마이그레이션 추가
    - `chat_sessions`, `chat_messages` 테이블과 인덱스만 먼저 추가
 3. 엔티티/리포지토리 골격 추가
