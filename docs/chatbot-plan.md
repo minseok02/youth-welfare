@@ -200,15 +200,15 @@ ChatController
 - 엔티티/리포지토리 골격 추가
 - 세션 CRUD API 구현 (`POST/GET/DELETE /api/chat/sessions`)
 - 메시지 목록 조회 API 구현 (`GET /api/chat/sessions/{sessionId}/messages`)
+- `ChatPolicyService` 골격 추가
 
 ## 다음 바로 할 작업
 
-1. `ChatPolicyService` 골격 추가
-   - 정책 참조 DTO와 후보 조회 함수만 먼저 고정
-2. 메시지 전송 API 구현
+1. 메시지 전송 API 구현
    - `POST /api/chat/sessions/{sessionId}/messages` + 질문 저장/답변 저장 연결
-3. 챗봇 OpenAI 프롬프트/응답 스키마 구현
+2. 챗봇 OpenAI 프롬프트/응답 스키마 구현
    - 정책 근거 포함 JSON 파서와 실패 fallback 기준 확정
+3. 로그아웃/회원탈퇴 시 챗 세션 삭제 연동
 
 ## 먼저 하지 않을 것
 

@@ -113,6 +113,24 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                                          @Param("limit") int limit,
                                          @Param("offset") int offset);
 
+    @Query(value = """
+            SELECT * FROM welfare_services
+            WHERE status IN ('ACTIVE', 'UPCOMING')
+              AND search_youth_relevant = 1
+              AND MATCH(title, description, support_content, keyword) AGAINST (:keyword IN BOOLEAN MODE)
+            ORDER BY MATCH(title, description, support_content, keyword) AGAINST (:keyword IN BOOLEAN MODE) DESC,
+                     view_count DESC,
+                     created_at DESC
+            LIMIT :limit
+            """, nativeQuery = true)
+    List<WelfareService> searchChatCandidates(@Param("keyword") String keyword,
+                                              @Param("limit") int limit);
+
+    List<WelfareService> findBySearchYouthRelevantTrueAndStatusInOrderByViewCountDescCreatedAtDesc(
+            List<WelfareService.ServiceStatus> statuses,
+            Pageable pageable
+    );
+
     // FULLTEXT + 필터 검색 (정렬: RELEVANCE / VIEWS / LATEST / NAME)
     // 지역 필터가 없는 일반 검색은 service_regions 조인을 피해서 DISTINCT/임시 테이블 비용을 줄인다.
     @Query(value = """
