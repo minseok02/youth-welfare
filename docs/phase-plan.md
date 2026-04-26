@@ -222,6 +222,16 @@ AI 추천 품질 점검 후 프롬프트 개선, 중복 추천 제거, 노이즈
 - 2026-04-26 프론트 `/chat` 실제 화면 및 로그인 가드 구현 후 `frontend`에서 `npm run lint`
 - 2026-04-26 프론트 `/chat` 실제 화면 및 로그인 가드 구현 후 `frontend`에서 `npm run build`
   - Vite 번들 크기 경고는 남았지만 빌드는 성공
+- 2026-04-26 로그인 전 비밀번호 재설정 메일/토큰 구현
+  - `POST /api/auth/password-reset/request`, `POST /api/auth/password-reset/confirm` 추가
+  - Redis 30분 토큰, 사용자당 최신 토큰 1개만 유효, 메일 발송 실패 시 토큰 즉시 정리
+  - 프론트 `/reset-password` 공개 화면과 메일 링크 연결
+- 2026-04-26 로그인 전 비밀번호 재설정 메일/토큰 구현 후 `backend`에서 `./gradlew test --no-daemon`
+- 2026-04-26 `docker compose up -d db redis`
+- 2026-04-26 로그인 전 비밀번호 재설정 메일/토큰 구현 후 `backend`에서 `./gradlew integrationTest --no-daemon`
+- 2026-04-26 로그인 전 비밀번호 재설정 메일/토큰 구현 후 `frontend`에서 `npm run lint`
+- 2026-04-26 로그인 전 비밀번호 재설정 메일/토큰 구현 후 `frontend`에서 `npm run build`
+  - Vite 번들 크기 경고는 남았지만 빌드는 성공
 - 2026-04-25 운영/설계 보조 문서 링크 및 작업 추적 정합성 점검
   - `docs/README.md`에 `db-search-recommend-ops-guide.md`, `user-data-separation-design.md` 링크 추가
   - `docs/phase-plan.md`의 완료/진행 예정/남은 작업 간 상태 충돌 정리
@@ -270,10 +280,10 @@ AI 추천 품질 점검 후 프롬프트 개선, 중복 추천 제거, 노이즈
 - [ ] 운영 admin 계정 수동 생성 절차 문서화 (`SECURITY_ADMIN_EMAILS`, DB 계정 준비)
 - [ ] 사용자 PII 분리 이행안 확정 (`users` 책임 분리, 서비스 계정 권한 분리)
 - [ ] 카카오 알림톡 연동 (2차, 심사 완료 후)
-- [ ] 로그인 전 비밀번호 재설정 메일/토큰 구현
 
 ### 완료
 
+- [x] 로그인 전 비밀번호 재설정 메일/토큰 구현
 - [x] 프론트 `/chat` 실제 화면 및 로그인 가드 구현
 - [x] 챗봇 요청 rate limit / abuse 방지
 - [x] 로그아웃/회원탈퇴 시 챗 세션 삭제 연동

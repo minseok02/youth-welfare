@@ -19,6 +19,8 @@ public enum ErrorCode {
     ACCOUNT_LOCKED(HttpStatus.UNAUTHORIZED, "A005", "로그인 실패 횟수 초과로 계정이 잠겼습니다. 30분 후 다시 시도하세요."),
     UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "A006", "로그인이 필요합니다."),
     ADMIN_EMAIL_SIGNUP_FORBIDDEN(HttpStatus.FORBIDDEN, "A007", "관리자 이메일은 공개 회원가입으로 생성할 수 없습니다."),
+    PASSWORD_RESET_TOKEN_INVALID(HttpStatus.BAD_REQUEST, "A008", "유효하지 않거나 만료된 비밀번호 재설정 토큰입니다."),
+    PASSWORD_RESET_EMAIL_SEND_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "A009", "비밀번호 재설정 메일 발송에 실패했습니다."),
 
     // 회원
     DUPLICATE_EMAIL(HttpStatus.CONFLICT, "U001", "이미 사용 중인 이메일입니다."),

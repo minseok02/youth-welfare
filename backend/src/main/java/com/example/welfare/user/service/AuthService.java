@@ -4,6 +4,7 @@ import com.example.welfare.chat.service.ChatSessionCleanupService;
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.global.util.JwtUtil;
+import com.example.welfare.notification.gateway.EmailClient;
 import com.example.welfare.user.dto.request.LoginRequest;
 import com.example.welfare.user.dto.request.SignupRequest;
 import com.example.welfare.user.dto.response.EmailAvailabilityResponse;
@@ -20,12 +21,15 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.time.LocalDateTime;
 import java.util.concurrent.TimeUnit;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -36,15 +40,25 @@ public class AuthService {
     private static final int MAX_LOGIN_FAIL = 5;
     private static final int LOCK_MINUTES = 30;
     private static final String REFRESH_TOKEN_PREFIX = "refresh:";
+    private static final String PASSWORD_RESET_TOKEN_PREFIX = "password-reset:";
+    private static final String PASSWORD_RESET_USER_PREFIX = "password-reset:user:";
+    private static final String PASSWORD_RESET_SUBJECT = "[청년복지] 비밀번호 재설정 안내";
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
     private final RedisTemplate<String, String> redisTemplate;
     private final ChatSessionCleanupService chatSessionCleanupService;
+    private final EmailClient emailClient;
 
     @Value("${security.admin-emails:}")
     private String adminEmailsProperty;
+
+    @Value("${auth.password-reset.expiration-minutes:30}")
+    private long passwordResetExpirationMinutes;
+
+    @Value("${app.base-url:http://localhost:5173}")
+    private String appBaseUrl;
 
     private Set<String> adminEmails = Set.of();
 
@@ -120,6 +134,55 @@ public class AuthService {
     }
 
     @Transactional
+    public void requestPasswordReset(String rawEmail) {
+        String email = normalizeEmail(rawEmail);
+        userRepository.findByEmail(email)
+                .filter(User::isActive)
+                .ifPresent(user -> {
+                    String token = UUID.randomUUID().toString();
+                    savePasswordResetToken(user.getId(), token);
+
+                    boolean sent = emailClient.send(
+                            user.getEmail(),
+                            PASSWORD_RESET_SUBJECT,
+                            buildPasswordResetText(token)
+                    );
+                    if (!sent) {
+                        clearPasswordResetToken(user.getId(), token);
+                        throw new CustomException(ErrorCode.PASSWORD_RESET_EMAIL_SEND_FAILED);
+                    }
+                });
+    }
+
+    @Transactional
+    public void confirmPasswordReset(String token, String newPassword) {
+        String resetToken = token == null ? "" : token.trim();
+        if (!StringUtils.hasText(resetToken)) {
+            throw new CustomException(ErrorCode.PASSWORD_RESET_TOKEN_INVALID);
+        }
+
+        String userIdValue = redisTemplate.opsForValue().get(passwordResetTokenKey(resetToken));
+        if (!StringUtils.hasText(userIdValue)) {
+            throw new CustomException(ErrorCode.PASSWORD_RESET_TOKEN_INVALID);
+        }
+
+        Long userId = Long.parseLong(userIdValue);
+        User user = userRepository.findById(userId)
+                .filter(User::isActive)
+                .orElseThrow(() -> new CustomException(ErrorCode.PASSWORD_RESET_TOKEN_INVALID));
+
+        String latestToken = redisTemplate.opsForValue().get(passwordResetUserKey(userId));
+        if (!resetToken.equals(latestToken)) {
+            throw new CustomException(ErrorCode.PASSWORD_RESET_TOKEN_INVALID);
+        }
+
+        user.updatePassword(passwordEncoder.encode(newPassword));
+        user.resetLoginFail();
+        clearPasswordResetToken(userId, resetToken);
+        redisTemplate.delete(REFRESH_TOKEN_PREFIX + userId);
+    }
+
+    @Transactional
     public TokenResponse refresh(String refreshToken) {
         jwtUtil.validate(refreshToken);
 
@@ -166,11 +229,61 @@ public class AuthService {
         );
     }
 
+    private void savePasswordResetToken(Long userId, String token) {
+        String previousToken = redisTemplate.opsForValue().get(passwordResetUserKey(userId));
+        if (StringUtils.hasText(previousToken)) {
+            redisTemplate.delete(passwordResetTokenKey(previousToken));
+        }
+
+        redisTemplate.opsForValue().set(
+                passwordResetTokenKey(token),
+                String.valueOf(userId),
+                passwordResetExpirationMinutes,
+                TimeUnit.MINUTES
+        );
+        redisTemplate.opsForValue().set(
+                passwordResetUserKey(userId),
+                token,
+                passwordResetExpirationMinutes,
+                TimeUnit.MINUTES
+        );
+    }
+
+    private void clearPasswordResetToken(Long userId, String token) {
+        redisTemplate.delete(passwordResetTokenKey(token));
+        redisTemplate.delete(passwordResetUserKey(userId));
+    }
+
     private boolean isAdminEmail(String email) {
         if (!StringUtils.hasText(email)) {
             return false;
         }
         return adminEmails.contains(email.trim().toLowerCase(Locale.ROOT));
+    }
+
+    private String normalizeEmail(String email) {
+        return email == null ? "" : email.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private String buildPasswordResetText(String token) {
+        String encodedToken = URLEncoder.encode(token, StandardCharsets.UTF_8);
+        String resetUrl = appBaseUrl + "/reset-password?token=" + encodedToken;
+        return """
+                비밀번호 재설정을 요청하셨다면 아래 링크에서 새 비밀번호를 설정해주세요.
+
+                %s
+
+                이 링크는 %d분 동안만 유효합니다.
+                본인이 요청하지 않았다면 이 메일을 무시하셔도 됩니다.
+                """.formatted(resetUrl, passwordResetExpirationMinutes);
+    }
+
+    private String passwordResetTokenKey(String token) {
+        return PASSWORD_RESET_TOKEN_PREFIX + token;
+    }
+
+    private String passwordResetUserKey(Long userId) {
+        return PASSWORD_RESET_USER_PREFIX + userId;
     }
 
     private List<String> resolveRoles(String email) {

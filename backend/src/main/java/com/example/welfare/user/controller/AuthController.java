@@ -4,6 +4,8 @@ import com.example.welfare.global.response.ApiResponse;
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.user.dto.request.LoginRequest;
+import com.example.welfare.user.dto.request.PasswordResetConfirmRequest;
+import com.example.welfare.user.dto.request.PasswordResetRequest;
 import com.example.welfare.user.dto.request.SignupRequest;
 import com.example.welfare.user.dto.response.EmailAvailabilityResponse;
 import com.example.welfare.user.dto.response.TokenResponse;
@@ -37,6 +39,19 @@ public class AuthController {
     @PostMapping("/signup")
     public ResponseEntity<ApiResponse<Void>> signup(@Valid @RequestBody SignupRequest request) {
         authService.signup(request);
+        return ResponseEntity.ok(ApiResponse.success(null));
+    }
+
+    @PostMapping("/password-reset/request")
+    public ResponseEntity<ApiResponse<Void>> requestPasswordReset(@Valid @RequestBody PasswordResetRequest request) {
+        authService.requestPasswordReset(request.getEmail());
+        return ResponseEntity.ok(ApiResponse.success(null));
+    }
+
+    @PostMapping("/password-reset/confirm")
+    public ResponseEntity<ApiResponse<Void>> confirmPasswordReset(
+            @Valid @RequestBody PasswordResetConfirmRequest request) {
+        authService.confirmPasswordReset(request.getToken(), request.getNewPassword());
         return ResponseEntity.ok(ApiResponse.success(null));
     }
 

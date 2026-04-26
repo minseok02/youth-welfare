@@ -11,7 +11,8 @@
 - 따라서 1차 범위에서는 `아이디 찾기` API를 만들지 않는다. 로그인 화면에서는 "아이디 = 가입한 이메일"로 안내한다.
 - 이메일 중복확인은 회원가입 전에만 사용하고, 응답은 사용 가능 여부 boolean만 반환한다.
 - 회원가입 `POST /api/auth/signup`은 토큰을 바로 발급하지 않는다. 프론트는 가입 성공 후 `POST /api/auth/login`을 한 번 더 호출해 세션을 만든다.
-- 로그인 전 비밀번호 재설정 메일/토큰 플로우는 1차 범위에서 제외한다. 후속 작업으로 별도 구현한다.
+- 로그인 전 비밀번호 재설정은 `request -> 메일 링크 -> confirm` 2단계로 처리한다.
+- 재설정 요청은 존재하지 않는 이메일이어도 동일 성공 응답을 반환해 계정 존재 여부를 노출하지 않는다.
 
 ### `GET /api/auth/check-email`
 
@@ -64,6 +65,50 @@
   "data": {
     "accessToken": "..."
   }
+}
+```
+
+### `POST /api/auth/password-reset/request`
+
+- request 주요 필드
+  - `email`
+- 현재 구현 메모
+  - 활성 사용자면 Redis 30분 토큰을 발급하고 재설정 링크 메일을 보낸다
+  - 없는 이메일이나 탈퇴 계정이어도 동일 성공 응답으로 끝낸다
+- response
+
+```json
+{
+  "success": true,
+  "data": null
+}
+```
+
+### `POST /api/auth/password-reset/confirm`
+
+- request 주요 필드
+  - `token`
+  - `newPassword`
+- 현재 구현 메모
+  - 토큰이 유효하면 비밀번호를 변경하고 로그인 실패 횟수를 초기화한다
+  - 사용 완료 시 reset token과 refresh token을 함께 폐기한다
+  - 토큰이 만료되었거나 최신 토큰이 아니면 `A008`
+- response
+
+```json
+{
+  "success": true,
+  "data": null
+}
+```
+
+- 에러 응답 예시
+
+```json
+{
+  "success": false,
+  "message": "유효하지 않거나 만료된 비밀번호 재설정 토큰입니다.",
+  "errorCode": "A008"
 }
 ```
 

@@ -44,6 +44,13 @@ openai:
   model: gpt-4o-mini
   timeout: 30000
 
+app:
+  base-url: ${APP_BASE_URL:http://localhost:5173}
+
+auth:
+  password-reset:
+    expiration-minutes: ${AUTH_PASSWORD_RESET_EXPIRATION_MINUTES:30}
+
 chat:
   rate-limit:
     max-requests: ${CHAT_RATE_LIMIT_MAX_REQUESTS:5}

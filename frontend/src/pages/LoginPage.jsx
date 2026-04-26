@@ -147,7 +147,7 @@ export default function LoginPage() {
               variant="body2"
               color="text.secondary"
               underline="hover"
-              onClick={() => setToast({ open: true, msg: "아이디는 가입한 이메일입니다. 비밀번호 재설정 메일 기능은 아직 준비 중입니다." })}
+              onClick={() => navigate("/reset-password")}
             >
               아이디/비밀번호 찾기
             </Link>
