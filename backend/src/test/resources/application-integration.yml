@@ -26,6 +26,11 @@ openai:
   api-key: test-openai-key
   model: gpt-4o-mini
 
+chat:
+  rate-limit:
+    max-requests: 5
+    window-seconds: 60
+
 youth-api:
   api-key: test-youth-api-key
 

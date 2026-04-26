@@ -38,6 +38,7 @@ public enum ErrorCode {
 
     // 챗봇
     CHAT_SESSION_NOT_FOUND(HttpStatus.NOT_FOUND, "CH001", "존재하지 않는 챗 세션입니다."),
+    CHAT_RATE_LIMIT_EXCEEDED(HttpStatus.TOO_MANY_REQUESTS, "CH002", "짧은 시간에 너무 많은 챗 요청이 발생했습니다. 잠시 후 다시 시도하세요."),
 
     // 수집
     COLLECT_API_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "COL001", "공공 API 수집에 실패했습니다."),

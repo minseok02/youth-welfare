@@ -21,6 +21,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
@@ -39,7 +40,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest
+@SpringBootTest(properties = {
+        "chat.rate-limit.max-requests=2",
+        "chat.rate-limit.window-seconds=60"
+})
 @AutoConfigureMockMvc
 @ActiveProfiles("integration")
 class ChatMessageApiIntegrationTest {
@@ -71,6 +75,9 @@ class ChatMessageApiIntegrationTest {
     @Autowired
     private ObjectMapper objectMapper;
 
+    @Autowired
+    private RedisTemplate<String, String> redisTemplate;
+
     @MockBean
     private ChatAiGateway chatAiGateway;
 
@@ -82,6 +89,10 @@ class ChatMessageApiIntegrationTest {
         welfareServiceRepository.findAll().stream()
                 .filter(service -> service.getSourceId() != null && service.getSourceId().startsWith(TEST_POLICY_SOURCE_PREFIX))
                 .forEach(welfareServiceRepository::delete);
+        var keys = redisTemplate.keys("chat:rate-limit:message:*");
+        if (keys != null && !keys.isEmpty()) {
+            redisTemplate.delete(keys);
+        }
     }
 
     @Test
@@ -218,6 +229,68 @@ class ChatMessageApiIntegrationTest {
                         .content(objectMapper.writeValueAsString(new MessageRequest("서울 월세 지원 알려줘"))))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.errorCode").value("CH001"));
+    }
+
+    @Test
+    @DisplayName("짧은 시간에 메시지를 과도하게 보내면 429와 CH002를 반환하고 추가 저장을 막는다")
+    void sendMessageReturnsTooManyRequestsWhenRateLimitExceeded() throws Exception {
+        User user = createUser();
+        String accessToken = jwtUtil.generateAccessToken(user.getId());
+        String uniqueKeyword = "chatlimit123";
+
+        ChatSession session = chatSessionRepository.save(ChatSession.builder()
+                .user(user)
+                .build());
+
+        WelfareService service = welfareServiceRepository.save(WelfareService.builder()
+                .sourceType(WelfareService.SourceType.YOUTH)
+                .sourceId(TEST_POLICY_SOURCE_PREFIX + UUID.randomUUID().toString().replace("-", "").substring(0, 12))
+                .title(uniqueKeyword + " 월세 지원")
+                .description(uniqueKeyword + " 청년 주거 안정을 돕는 정책입니다.")
+                .supportContent("월세 부담을 낮추는 지원을 제공합니다.")
+                .hostOrg("서울시")
+                .status(WelfareService.ServiceStatus.ACTIVE)
+                .apiViewCount(0L)
+                .viewCount(50)
+                .build());
+        when(chatAiGateway.generateAnswer(any(), any(), any(), any()))
+                .thenReturn(ChatAiResult.builder()
+                        .answer(uniqueKeyword + " 월세 지원 정책을 먼저 확인해보세요.")
+                        .needsClarification(false)
+                        .references(List.of(
+                                ChatReferenceResponse.builder()
+                                        .serviceId(service.getId())
+                                        .title(service.getTitle())
+                                        .reason("월세 부담을 낮추는 지원을 제공합니다.")
+                                        .build()
+                        ))
+                        .build());
+
+        String requestBody = objectMapper.writeValueAsString(new MessageRequest(uniqueKeyword));
+
+        mockMvc.perform(post("/api/chat/sessions/{sessionId}/messages", session.getId())
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType("application/json")
+                        .content(requestBody))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
+        mockMvc.perform(post("/api/chat/sessions/{sessionId}/messages", session.getId())
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType("application/json")
+                        .content(requestBody))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
+        mockMvc.perform(post("/api/chat/sessions/{sessionId}/messages", session.getId())
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType("application/json")
+                        .content(requestBody))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.errorCode").value("CH002"));
+
+        var messages = chatMessageRepository.findBySessionIdOrderByCreatedAtAsc(session.getId());
+        assertThat(messages).hasSize(4);
     }
 
     private User createUser() {

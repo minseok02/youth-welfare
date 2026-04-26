@@ -44,6 +44,11 @@ openai:
   model: gpt-4o-mini
   timeout: 30000
 
+chat:
+  rate-limit:
+    max-requests: ${CHAT_RATE_LIMIT_MAX_REQUESTS:5}
+    window-seconds: ${CHAT_RATE_LIMIT_WINDOW_SECONDS:60}
+
 aes:
   secret-key: ${AES_SECRET_KEY}    # 32바이트 (AES-256)
 

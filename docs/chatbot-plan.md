@@ -206,12 +206,12 @@ ChatController
   - `ChatAiGateway` + JSON 파서 + 후보 정책 allowlist 검증 + fallback 연결
 - 로그아웃/회원탈퇴 시 챗 세션 삭제 연동
   - `AuthService.logout*`, `UserService.withdraw`에서 공용 정리 서비스로 세션/메시지 삭제 보장
+- 챗봇 요청 rate limit / abuse 방지
+  - Redis fixed-window로 사용자별 메시지 전송 횟수를 제한하고 초과 시 `CH002` 429 반환
 
 ## 다음 바로 할 작업
 
-1. 챗봇 요청 rate limit / abuse 방지
-   - 사용자별 호출 상한과 과도한 재시도 방지 기준 추가
-2. 프론트 `/chat` 실제 화면 및 로그인 가드 구현
+1. 프론트 `/chat` 실제 화면 및 로그인 가드 구현
 
 ## 먼저 하지 않을 것
 

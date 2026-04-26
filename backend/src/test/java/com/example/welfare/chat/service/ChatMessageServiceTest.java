@@ -30,6 +30,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -50,6 +51,9 @@ class ChatMessageServiceTest {
     private ChatAiGateway chatAiGateway;
 
     @Mock
+    private ChatRateLimitService chatRateLimitService;
+
+    @Mock
     private UserRepository userRepository;
 
     private ChatMessageService chatMessageService;
@@ -61,6 +65,7 @@ class ChatMessageServiceTest {
                 chatMessageRepository,
                 chatPolicyService,
                 chatAiGateway,
+                chatRateLimitService,
                 userRepository,
                 new ObjectMapper());
     }
@@ -126,6 +131,7 @@ class ChatMessageServiceTest {
         assertThat(captor.getAllValues().get(0).getContent()).isEqualTo("서울 월세 지원 알려줘");
         assertThat(captor.getAllValues().get(1).getRole()).isEqualTo(ChatMessageRole.ASSISTANT);
         assertThat(captor.getAllValues().get(1).getReferencedServiceIds()).isEqualTo("[1829,2451]");
+        verify(chatRateLimitService).checkMessageSendLimit(1L);
     }
 
     @Test
@@ -151,6 +157,7 @@ class ChatMessageServiceTest {
         assertThat(response.getReferences()).isEmpty();
         assertThat(response.getAnswer()).contains("조금 더 구체적으로");
         assertThat(session.getTitle()).isEqualTo("기존 제목");
+        verify(chatRateLimitService).checkMessageSendLimit(1L);
     }
 
     @Test
@@ -184,6 +191,27 @@ class ChatMessageServiceTest {
         assertThat(response.isNeedsClarification()).isFalse();
         assertThat(response.getAnswer()).isEqualTo("청년월세 한시 특별지원 정책을 먼저 확인해보세요.");
         assertThat(response.getReferences()).hasSize(1);
+        verify(chatRateLimitService).checkMessageSendLimit(1L);
+    }
+
+    @Test
+    @DisplayName("rate limit 초과면 메시지를 저장하지 않고 바로 오류를 반환한다")
+    void sendMessageThrowsWhenRateLimitExceeded() {
+        User user = createUser(1L);
+        SendChatMessageRequest request = new SendChatMessageRequest();
+        ReflectionTestUtils.setField(request, "content", "서울 월세 지원 알려줘");
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        org.mockito.Mockito.doThrow(new CustomException(ErrorCode.CHAT_RATE_LIMIT_EXCEEDED))
+                .when(chatRateLimitService).checkMessageSendLimit(1L);
+
+        assertThatThrownBy(() -> chatMessageService.sendMessage(1L, 10L, request))
+                .isInstanceOf(CustomException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.CHAT_RATE_LIMIT_EXCEEDED);
+
+        verify(chatSessionRepository, never()).findByIdAndUserId(10L, 1L);
+        verify(chatMessageRepository, never()).save(any(ChatMessage.class));
     }
 
     @Test

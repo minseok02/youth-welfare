@@ -44,6 +44,7 @@ public class ChatMessageService {
     private final ChatMessageRepository chatMessageRepository;
     private final ChatPolicyService chatPolicyService;
     private final ChatAiGateway chatAiGateway;
+    private final ChatRateLimitService chatRateLimitService;
     private final UserRepository userRepository;
     private final ObjectMapper objectMapper;
 
@@ -61,6 +62,7 @@ public class ChatMessageService {
     @Transactional
     public ChatAnswerResponse sendMessage(Long userId, Long sessionId, SendChatMessageRequest request) {
         User user = findActiveUser(userId);
+        chatRateLimitService.checkMessageSendLimit(userId);
         ChatSession session = chatSessionRepository.findByIdAndUserId(sessionId, userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.CHAT_SESSION_NOT_FOUND));
 
