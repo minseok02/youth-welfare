@@ -204,13 +204,14 @@ ChatController
 - 메시지 전송 API 구현 (`POST /api/chat/sessions/{sessionId}/messages`)
 - 챗봇 OpenAI 프롬프트/응답 스키마 구현
   - `ChatAiGateway` + JSON 파서 + 후보 정책 allowlist 검증 + fallback 연결
+- 로그아웃/회원탈퇴 시 챗 세션 삭제 연동
+  - `AuthService.logout*`, `UserService.withdraw`에서 공용 정리 서비스로 세션/메시지 삭제 보장
 
 ## 다음 바로 할 작업
 
-1. 로그아웃/회원탈퇴 시 챗 세션 삭제 연동
-2. 챗봇 요청 rate limit / abuse 방지
+1. 챗봇 요청 rate limit / abuse 방지
    - 사용자별 호출 상한과 과도한 재시도 방지 기준 추가
-3. 프론트 `/chat` 실제 화면 및 로그인 가드 구현
+2. 프론트 `/chat` 실제 화면 및 로그인 가드 구현
 
 ## 먼저 하지 않을 것
 
@@ -224,6 +225,5 @@ ChatController
 
 - 챗봇 답변의 근거 정책이 항상 상세 페이지로 연결되는지
 - 비로그인 접근 시 `/login`으로 유도할지, 403만 줄지 프론트 정책 통일
-- 로그아웃과 회원탈퇴 모두 세션 삭제를 보장하는지
 - 프롬프트 길이 제한 때문에 정책 후보 수와 대화 턴 수 상한이 필요한지
 - 실패 시 "답변 생성 실패"만 보여주지 말고 정책 검색 결과라도 내려줄지

@@ -1,5 +1,10 @@
 package com.example.welfare.integration;
 
+import com.example.welfare.chat.entity.ChatMessage;
+import com.example.welfare.chat.entity.ChatMessageRole;
+import com.example.welfare.chat.entity.ChatSession;
+import com.example.welfare.chat.repository.ChatMessageRepository;
+import com.example.welfare.chat.repository.ChatSessionRepository;
 import com.example.welfare.user.entity.User;
 import com.example.welfare.user.repository.UserRepository;
 import org.junit.jupiter.api.AfterEach;
@@ -19,6 +24,7 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -39,6 +45,12 @@ class AuthRedisIntegrationTest {
 
     @Autowired
     private RedisTemplate<String, String> redisTemplate;
+
+    @Autowired
+    private ChatSessionRepository chatSessionRepository;
+
+    @Autowired
+    private ChatMessageRepository chatMessageRepository;
 
     @AfterEach
     void cleanup() {
@@ -108,6 +120,15 @@ class AuthRedisIntegrationTest {
                 .andExpect(jsonPath("$.success").value(true));
 
         User user = userRepository.findByEmail(email).orElseThrow();
+        ChatSession chatSession = chatSessionRepository.save(ChatSession.builder()
+                .user(user)
+                .title("로그아웃 전 세션")
+                .build());
+        chatMessageRepository.save(ChatMessage.builder()
+                .session(chatSession)
+                .role(ChatMessageRole.USER)
+                .content("로그아웃해도 대화가 남는지 확인")
+                .build());
 
         String loginBody = """
                 {
@@ -143,6 +164,8 @@ class AuthRedisIntegrationTest {
                 .andExpect(jsonPath("$.success").value(true));
 
         assertNull(redisTemplate.opsForValue().get("refresh:" + user.getId()));
+        assertThat(chatSessionRepository.findById(chatSession.getId())).isEmpty();
+        assertEquals(0L, chatMessageRepository.countBySessionId(chatSession.getId()));
         assertNotNull(loginResult.getResponse().getHeader(HttpHeaders.SET_COOKIE));
         assertNotNull(refreshResult.getResponse().getHeader(HttpHeaders.SET_COOKIE));
     }

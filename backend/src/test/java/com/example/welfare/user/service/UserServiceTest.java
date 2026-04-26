@@ -1,5 +1,6 @@
 package com.example.welfare.user.service;
 
+import com.example.welfare.chat.service.ChatSessionCleanupService;
 import com.example.welfare.global.util.AesEncryptUtil;
 import com.example.welfare.policy.dto.PolicySummaryResponse;
 import com.example.welfare.policy.entity.WelfareService;
@@ -43,6 +44,7 @@ class UserServiceTest {
     @Mock private AesEncryptUtil aesEncryptUtil;
     @Mock private PasswordEncoder passwordEncoder;
     @Mock private UserRecommendationRepository userRecommendationRepository;
+    @Mock private ChatSessionCleanupService chatSessionCleanupService;
 
     private UserService userService;
 
@@ -56,7 +58,8 @@ class UserServiceTest {
                 priorityWeightPolicy,
                 aesEncryptUtil,
                 passwordEncoder,
-                userRecommendationRepository
+                userRecommendationRepository,
+                chatSessionCleanupService
         );
     }
 
@@ -154,5 +157,26 @@ class UserServiceTest {
         assertThat(response.get(0).getId()).isEqualTo(11L);
         assertThat(response.get(0).getTitle()).isEqualTo("청년 월세 지원");
         assertThat(response.get(0).isBookmarked()).isTrue();
+    }
+
+    @Test
+    @DisplayName("회원탈퇴는 비밀번호 검증 후 챗 세션 정리를 함께 수행한다")
+    void withdrawDeletesChatSessionsBeforeMaskingUser() {
+        User user = User.builder()
+                .id(1L)
+                .email("user@example.com")
+                .passwordHash("encoded-password")
+                .name("tester")
+                .build();
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("password123", "encoded-password")).thenReturn(true);
+
+        userService.withdraw(1L, "password123");
+
+        verify(userAttributeRepository).deleteByUserId(1L);
+        verify(userPriorityRepository).deleteByUserId(1L);
+        verify(chatSessionCleanupService).deleteAllByUserId(1L);
+        assertThat(user.isActive()).isFalse();
+        assertThat(user.getEmail()).isEqualTo("withdrawn_1");
     }
 }

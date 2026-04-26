@@ -1,5 +1,6 @@
 package com.example.welfare.user.service;
 
+import com.example.welfare.chat.service.ChatSessionCleanupService;
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.global.util.AesEncryptUtil;
@@ -39,6 +40,7 @@ public class UserService {
     private final AesEncryptUtil aesEncryptUtil;
     private final PasswordEncoder passwordEncoder;
     private final UserRecommendationRepository userRecommendationRepository;
+    private final ChatSessionCleanupService chatSessionCleanupService;
 
     @Transactional(readOnly = true)
     public ProfileResponse getProfile(Long userId) {
@@ -167,6 +169,7 @@ public class UserService {
 
         userAttributeRepository.deleteByUserId(userId);
         userPriorityRepository.deleteByUserId(userId);
+        chatSessionCleanupService.deleteAllByUserId(userId);
         user.withdraw();
     }
 

@@ -1,5 +1,6 @@
 package com.example.welfare.user.service;
 
+import com.example.welfare.chat.service.ChatSessionCleanupService;
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.global.util.JwtUtil;
@@ -40,6 +41,7 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
     private final RedisTemplate<String, String> redisTemplate;
+    private final ChatSessionCleanupService chatSessionCleanupService;
 
     @Value("${security.admin-emails:}")
     private String adminEmailsProperty;
@@ -142,13 +144,17 @@ public class AuthService {
         return TokenResponse.of(newAccessToken, newRefreshToken);
     }
 
+    @Transactional
     public void logout(Long userId) {
         redisTemplate.delete(REFRESH_TOKEN_PREFIX + userId);
+        chatSessionCleanupService.deleteAllByUserId(userId);
     }
 
+    @Transactional
     public void logoutByRefreshToken(String refreshToken) {
         Long userId = jwtUtil.getUserIdAllowExpired(refreshToken);
         redisTemplate.delete(REFRESH_TOKEN_PREFIX + userId);
+        chatSessionCleanupService.deleteAllByUserId(userId);
     }
 
     private void saveRefreshToken(Long userId, String refreshToken) {
