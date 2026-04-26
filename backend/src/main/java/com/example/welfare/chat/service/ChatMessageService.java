@@ -1,7 +1,13 @@
 package com.example.welfare.chat.service;
 
+import com.example.welfare.chat.dto.ChatPolicyCandidate;
+import com.example.welfare.chat.dto.request.SendChatMessageRequest;
+import com.example.welfare.chat.dto.response.ChatAnswerResponse;
 import com.example.welfare.chat.dto.response.ChatMessageResponse;
+import com.example.welfare.chat.dto.response.ChatReferenceResponse;
 import com.example.welfare.chat.entity.ChatMessage;
+import com.example.welfare.chat.entity.ChatMessageRole;
+import com.example.welfare.chat.entity.ChatSession;
 import com.example.welfare.chat.repository.ChatMessageRepository;
 import com.example.welfare.chat.repository.ChatSessionRepository;
 import com.example.welfare.global.exception.CustomException;
@@ -16,14 +22,22 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class ChatMessageService {
 
+    private static final int REFERENCE_LIMIT = 3;
+    private static final int SESSION_TITLE_LIMIT = 100;
+    private static final String CLARIFICATION_ANSWER =
+            "질문과 바로 연결되는 정책을 아직 좁히지 못했습니다. 지역, 상황, 관심 분야를 조금 더 구체적으로 알려주세요.";
+
     private final ChatSessionRepository chatSessionRepository;
     private final ChatMessageRepository chatMessageRepository;
+    private final ChatPolicyService chatPolicyService;
     private final UserRepository userRepository;
     private final ObjectMapper objectMapper;
 
@@ -38,8 +52,58 @@ public class ChatMessageService {
                 .toList();
     }
 
+    @Transactional
+    public ChatAnswerResponse sendMessage(Long userId, Long sessionId, SendChatMessageRequest request) {
+        findActiveUser(userId);
+        ChatSession session = chatSessionRepository.findByIdAndUserId(sessionId, userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.CHAT_SESSION_NOT_FOUND));
+
+        String content = request.getContent().trim();
+        if (!StringUtils.hasText(session.getTitle())) {
+            session.updateTitle(buildSessionTitle(content));
+        }
+
+        chatMessageRepository.save(ChatMessage.builder()
+                .session(session)
+                .role(ChatMessageRole.USER)
+                .content(content)
+                .build());
+
+        List<ChatPolicyCandidate> candidates = chatPolicyService.findCandidates(content, REFERENCE_LIMIT);
+        List<ChatReferenceResponse> references = candidates.stream()
+                .map(this::toReference)
+                .toList();
+
+        boolean needsClarification = references.isEmpty();
+        String answer = needsClarification ? CLARIFICATION_ANSWER : buildAnswer(references);
+
+        chatMessageRepository.save(ChatMessage.builder()
+                .session(session)
+                .role(ChatMessageRole.ASSISTANT)
+                .content(answer)
+                .referencedServiceIds(writeReferencedServiceIds(references))
+                .build());
+
+        session.updateLastMessageAt(LocalDateTime.now());
+
+        return ChatAnswerResponse.builder()
+                .sessionId(session.getId())
+                .answer(answer)
+                .needsClarification(needsClarification)
+                .references(references)
+                .build();
+    }
+
     private ChatMessageResponse toResponse(ChatMessage message) {
         return ChatMessageResponse.from(message, parseReferencedServiceIds(message.getReferencedServiceIds()));
+    }
+
+    private ChatReferenceResponse toReference(ChatPolicyCandidate candidate) {
+        return ChatReferenceResponse.builder()
+                .serviceId(candidate.getServiceId())
+                .title(candidate.getTitle())
+                .reason(buildReason(candidate))
+                .build();
     }
 
     private List<Long> parseReferencedServiceIds(String rawReferencedServiceIds) {
@@ -55,6 +119,47 @@ public class ChatMessageService {
         } catch (JsonProcessingException e) {
             throw new CustomException(ErrorCode.INTERNAL_SERVER_ERROR);
         }
+    }
+
+    private String writeReferencedServiceIds(List<ChatReferenceResponse> references) {
+        try {
+            return objectMapper.writeValueAsString(references.stream()
+                    .map(ChatReferenceResponse::getServiceId)
+                    .toList());
+        } catch (JsonProcessingException e) {
+            throw new CustomException(ErrorCode.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    private String buildAnswer(List<ChatReferenceResponse> references) {
+        String titles = references.stream()
+                .map(ChatReferenceResponse::getTitle)
+                .collect(Collectors.joining(", "));
+        return titles + " 정책을 먼저 확인해보세요.";
+    }
+
+    private String buildReason(ChatPolicyCandidate candidate) {
+        if (StringUtils.hasText(candidate.getSupportContent())) {
+            return trimToLength(candidate.getSupportContent().trim(), 90);
+        }
+        if (StringUtils.hasText(candidate.getDescription())) {
+            return trimToLength(candidate.getDescription().trim(), 90);
+        }
+        if (StringUtils.hasText(candidate.getHostOrg())) {
+            return candidate.getHostOrg().trim() + "에서 운영하는 청년 정책입니다.";
+        }
+        return "질문과 직접 연결되는 청년 정책입니다.";
+    }
+
+    private String buildSessionTitle(String content) {
+        return trimToLength(content, SESSION_TITLE_LIMIT);
+    }
+
+    private String trimToLength(String value, int maxLength) {
+        if (value.length() <= maxLength) {
+            return value;
+        }
+        return value.substring(0, maxLength);
     }
 
     private User findActiveUser(Long userId) {

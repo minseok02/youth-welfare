@@ -1,6 +1,8 @@
 package com.example.welfare.chat.controller;
 
 import com.example.welfare.chat.dto.request.CreateChatSessionRequest;
+import com.example.welfare.chat.dto.request.SendChatMessageRequest;
+import com.example.welfare.chat.dto.response.ChatAnswerResponse;
 import com.example.welfare.chat.dto.response.ChatMessageResponse;
 import com.example.welfare.chat.dto.response.ChatSessionResponse;
 import com.example.welfare.chat.service.ChatMessageService;
@@ -39,6 +41,14 @@ public class ChatSessionController {
             @AuthenticationPrincipal Long userId,
             @PathVariable Long sessionId) {
         return ResponseEntity.ok(ApiResponse.success(chatMessageService.getMessages(userId, sessionId)));
+    }
+
+    @PostMapping("/{sessionId}/messages")
+    public ResponseEntity<ApiResponse<ChatAnswerResponse>> sendMessage(
+            @AuthenticationPrincipal Long userId,
+            @PathVariable Long sessionId,
+            @Valid @RequestBody SendChatMessageRequest request) {
+        return ResponseEntity.ok(ApiResponse.success(chatMessageService.sendMessage(userId, sessionId, request)));
     }
 
     @DeleteMapping("/{sessionId}")
