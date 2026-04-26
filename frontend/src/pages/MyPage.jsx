@@ -13,6 +13,7 @@ import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
 import BookmarkIcon from "@mui/icons-material/Bookmark";
 import Header from "../components/Header";
 import api from "../lib/axios";
+import { performServerLogout } from "../lib/session";
 import { useAuthStore } from "../store/authStore";
 
 const INCOME_ROWS = [
@@ -258,7 +259,9 @@ export default function MyPage() {
       await api.patch("/api/users/me/password", { currentPassword: currPw, newPassword: newPw });
       showToast("비밀번호가 변경되었습니다. 다시 로그인해주세요");
       setCurrPw(""); setNewPw(""); setNewPwConfirm("");
-      setTimeout(() => { logout(); navigate("/login"); }, 1500);
+      setTimeout(() => {
+        void performServerLogout(logout).then(() => navigate("/login"));
+      }, 1500);
     } catch (err) {
       const code = err.response?.data?.errorCode;
       showToast(code === "A004" ? "현재 비밀번호가 올바르지 않습니다" : "비밀번호 변경에 실패했습니다", "error");
@@ -273,7 +276,7 @@ export default function MyPage() {
       await api.delete("/api/users/me", { data: { password: withdrawPw } });
       setWithdrawModal(false);
       setWithdrawPw("");
-      logout();
+      await performServerLogout(logout);
       navigate("/");
     } catch (err) {
       const code = err.response?.data?.errorCode;
@@ -283,8 +286,7 @@ export default function MyPage() {
 
   const handleRelogin = () => {
     setReloginModal(false);
-    logout();
-    navigate("/login");
+    void performServerLogout(logout).then(() => navigate("/login"));
   };
 
   const ddayColor = (dday) => {

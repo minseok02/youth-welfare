@@ -6,7 +6,9 @@ import {
 } from "@mui/material";
 import HomeIcon from "@mui/icons-material/Home";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
+import ForumOutlinedIcon from "@mui/icons-material/ForumOutlined";
 import { useAuthStore } from "../store/authStore";
+import { performServerLogout } from "../lib/session";
 
 export default function Header() {
   const navigate = useNavigate();
@@ -26,9 +28,18 @@ export default function Header() {
     }
   };
 
-  const handleLogout = () => {
+  const handleChat = () => {
+    if (!isLoggedIn) {
+      setToast(true);
+      setTimeout(() => navigate("/login", { state: { from: { pathname: "/chat" }, reason: "login-required" } }), 1500);
+      return;
+    }
+    navigate("/chat");
+  };
+
+  const handleLogout = async () => {
     handleClose();
-    logout();
+    await performServerLogout(logout);
     navigate("/");
   };
 
@@ -47,6 +58,26 @@ export default function Header() {
           </Typography>
 
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <Button
+              variant={isLoggedIn ? "contained" : "outlined"}
+              color={isLoggedIn ? "secondary" : "inherit"}
+              size="small"
+              startIcon={<ForumOutlinedIcon />}
+              onClick={handleChat}
+              sx={{
+                borderRadius: 2,
+                fontSize: 13,
+                borderColor: "rgba(255,255,255,0.45)",
+                bgcolor: isLoggedIn ? "secondary.main" : "transparent",
+                color: "white",
+                "&:hover": {
+                  bgcolor: isLoggedIn ? "secondary.main" : "rgba(255,255,255,0.08)",
+                  borderColor: "rgba(255,255,255,0.7)",
+                },
+              }}
+            >
+              챗봇
+            </Button>
             {isLoggedIn ? (
               <>
                 <Button

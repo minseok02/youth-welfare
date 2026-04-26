@@ -208,10 +208,14 @@ ChatController
   - `AuthService.logout*`, `UserService.withdraw`에서 공용 정리 서비스로 세션/메시지 삭제 보장
 - 챗봇 요청 rate limit / abuse 방지
   - Redis fixed-window로 사용자별 메시지 전송 횟수를 제한하고 초과 시 `CH002` 429 반환
+- 프론트 `/chat` 실제 화면 및 로그인 가드 구현
+  - 세션 목록/메시지 목록/질문 전송/정책 상세 이동 연결
+  - 비로그인 접근은 `/login`으로 리다이렉트하고, 로그인 후 원래 `/chat`으로 복귀
+  - 프론트 로그아웃도 `/api/auth/logout`을 호출해 서버 세션 정리와 refresh cookie 무효화를 보장
 
 ## 다음 바로 할 작업
 
-1. 프론트 `/chat` 실제 화면 및 로그인 가드 구현
+- 현재 필수 범위 완료. 이후는 운영 점검과 UI 미세조정 단계
 
 ## 먼저 하지 않을 것
 
