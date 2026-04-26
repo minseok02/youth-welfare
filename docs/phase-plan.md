@@ -196,6 +196,11 @@ AI 추천 품질 점검 후 프롬프트 개선, 중복 추천 제거, 노이즈
   - 질문 저장, 정책 후보 기반 임시 답변 저장, 세션 제목/`last_message_at` 갱신 연결
 - 2026-04-26 챗봇 메시지 전송 API 구현 후 `backend`에서 `./gradlew test --no-daemon`
 - 2026-04-26 챗봇 메시지 전송 API 구현 후 `backend`에서 `./gradlew integrationTest --no-daemon`
+- 2026-04-26 챗봇 OpenAI 프롬프트/응답 스키마 구현
+  - `ChatAiGateway`, `ChatAiResult` 추가
+  - JSON 응답 파서, 후보 정책 `service_id` allowlist 검증, AI 실패 fallback 연결
+- 2026-04-26 챗봇 OpenAI 프롬프트/응답 스키마 구현 후 `backend`에서 `./gradlew test --no-daemon`
+- 2026-04-26 챗봇 OpenAI 프롬프트/응답 스키마 구현 후 `backend`에서 `./gradlew integrationTest --no-daemon`
 - 2026-04-25 운영/설계 보조 문서 링크 및 작업 추적 정합성 점검
   - `docs/README.md`에 `db-search-recommend-ops-guide.md`, `user-data-separation-design.md` 링크 추가
   - `docs/phase-plan.md`의 완료/진행 예정/남은 작업 간 상태 충돌 정리
@@ -243,14 +248,15 @@ AI 추천 품질 점검 후 프롬프트 개선, 중복 추천 제거, 노이즈
 - [ ] 검색/추천 쿼리 EXPLAIN 검증 및 인덱스 적용 여부 확정
 - [ ] 운영 admin 계정 수동 생성 절차 문서화 (`SECURITY_ADMIN_EMAILS`, DB 계정 준비)
 - [ ] 사용자 PII 분리 이행안 확정 (`users` 책임 분리, 서비스 계정 권한 분리)
-- [ ] 챗봇 OpenAI 프롬프트/응답 스키마 및 근거 정책 참조 구현
 - [ ] 로그아웃/회원탈퇴 시 챗 세션 삭제 연동
+- [ ] 챗봇 요청 rate limit / abuse 방지
 - [ ] 프론트 `/chat` 실제 화면 및 로그인 가드 구현
 - [ ] 카카오 알림톡 연동 (2차, 심사 완료 후)
 - [ ] 로그인 전 비밀번호 재설정 메일/토큰 구현
 
 ### 완료
 
+- [x] 챗봇 OpenAI 프롬프트/응답 스키마 및 근거 정책 참조 구현
 - [x] 챗봇 메시지 전송 API 구현 (`POST /api/chat/sessions/{sessionId}/messages`)
 - [x] 챗봇 정책 조회 전용 서비스 구현 (`chat -> policy`, `chat -> recommend` 금지)
 - [x] 챗봇 메시지 목록 조회 API 구현 (`GET /api/chat/sessions/{sessionId}/messages`)

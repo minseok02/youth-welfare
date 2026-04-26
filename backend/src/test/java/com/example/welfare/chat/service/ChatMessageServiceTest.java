@@ -2,9 +2,12 @@ package com.example.welfare.chat.service;
 
 import com.example.welfare.chat.dto.ChatPolicyCandidate;
 import com.example.welfare.chat.dto.request.SendChatMessageRequest;
+import com.example.welfare.chat.dto.response.ChatReferenceResponse;
+import com.example.welfare.chat.dto.ChatAiResult;
 import com.example.welfare.chat.entity.ChatMessage;
 import com.example.welfare.chat.entity.ChatMessageRole;
 import com.example.welfare.chat.entity.ChatSession;
+import com.example.welfare.chat.gateway.ChatAiGateway;
 import com.example.welfare.chat.repository.ChatMessageRepository;
 import com.example.welfare.chat.repository.ChatSessionRepository;
 import com.example.welfare.global.exception.CustomException;
@@ -44,6 +47,9 @@ class ChatMessageServiceTest {
     private ChatPolicyService chatPolicyService;
 
     @Mock
+    private ChatAiGateway chatAiGateway;
+
+    @Mock
     private UserRepository userRepository;
 
     private ChatMessageService chatMessageService;
@@ -54,6 +60,7 @@ class ChatMessageServiceTest {
                 chatSessionRepository,
                 chatMessageRepository,
                 chatPolicyService,
+                chatAiGateway,
                 userRepository,
                 new ObjectMapper());
     }
@@ -83,13 +90,32 @@ class ChatMessageServiceTest {
                         .description("청년 전세 주거 안정을 지원합니다.")
                         .build()
         ));
+        when(chatAiGateway.generateAnswer(any(User.class), any(String.class), any(List.class), any(List.class)))
+                .thenReturn(ChatAiResult.builder()
+                        .answer("청년월세 한시 특별지원과 청년전세임대를 먼저 확인해보세요.")
+                        .needsClarification(false)
+                        .references(List.of(
+                                ChatReferenceResponse.builder()
+                                        .serviceId(1829L)
+                                        .title("청년월세 한시 특별지원")
+                                        .reason("주거비 부담 완화와 연결됩니다.")
+                                        .build(),
+                                ChatReferenceResponse.builder()
+                                        .serviceId(2451L)
+                                        .title("청년전세임대")
+                                        .reason("전세 주거 안정을 지원합니다.")
+                                        .build()
+                        ))
+                        .build());
+        when(chatMessageRepository.findBySessionIdOrderByCreatedAtDesc(any(Long.class), any(org.springframework.data.domain.Pageable.class)))
+                .thenReturn(List.of());
         when(chatMessageRepository.save(any(ChatMessage.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         var response = chatMessageService.sendMessage(1L, 10L, request);
 
         assertThat(response.getSessionId()).isEqualTo(10L);
         assertThat(response.isNeedsClarification()).isFalse();
-        assertThat(response.getAnswer()).contains("청년월세 한시 특별지원", "청년전세임대");
+        assertThat(response.getAnswer()).isEqualTo("청년월세 한시 특별지원과 청년전세임대를 먼저 확인해보세요.");
         assertThat(response.getReferences()).hasSize(2);
         assertThat(session.getTitle()).isEqualTo("서울 월세 지원 알려줘");
         assertThat(session.getLastMessageAt()).isNotNull();
@@ -125,6 +151,39 @@ class ChatMessageServiceTest {
         assertThat(response.getReferences()).isEmpty();
         assertThat(response.getAnswer()).contains("조금 더 구체적으로");
         assertThat(session.getTitle()).isEqualTo("기존 제목");
+    }
+
+    @Test
+    @DisplayName("AI 호출이 실패하면 정책 후보 기반 fallback 답변을 사용한다")
+    void sendMessageFallsBackWhenAiGatewayReturnsNull() {
+        User user = createUser(1L);
+        ChatSession session = ChatSession.builder()
+                .id(10L)
+                .user(user)
+                .build();
+        SendChatMessageRequest request = new SendChatMessageRequest();
+        ReflectionTestUtils.setField(request, "content", "서울 월세 지원 알려줘");
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(chatSessionRepository.findByIdAndUserId(10L, 1L)).thenReturn(Optional.of(session));
+        when(chatPolicyService.findCandidates("서울 월세 지원 알려줘", 3)).thenReturn(List.of(
+                ChatPolicyCandidate.builder()
+                        .serviceId(1829L)
+                        .title("청년월세 한시 특별지원")
+                        .supportContent("서울 청년의 주거비 부담 완화와 직접 연결됩니다.")
+                        .build()
+        ));
+        when(chatAiGateway.generateAnswer(any(User.class), any(String.class), any(List.class), any(List.class)))
+                .thenReturn(null);
+        when(chatMessageRepository.findBySessionIdOrderByCreatedAtDesc(any(Long.class), any(org.springframework.data.domain.Pageable.class)))
+                .thenReturn(List.of());
+        when(chatMessageRepository.save(any(ChatMessage.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        var response = chatMessageService.sendMessage(1L, 10L, request);
+
+        assertThat(response.isNeedsClarification()).isFalse();
+        assertThat(response.getAnswer()).isEqualTo("청년월세 한시 특별지원 정책을 먼저 확인해보세요.");
+        assertThat(response.getReferences()).hasSize(1);
     }
 
     @Test

@@ -169,6 +169,8 @@
   - USER/ASSISTANT 메시지 2건을 저장한다
   - 세션 제목이 비어 있으면 첫 질문 앞부분으로 자동 채운다
   - 본인 세션이 아니면 `CH001`
+  - OpenAI JSON 응답 파싱 실패 시 정책 후보 기반 fallback 답변으로 내려간다
+  - AI가 반환한 `service_id`는 서버가 전달한 후보 정책 allowlist 안에서만 채택한다
 - request 주요 필드
   - `content`
 - response 주요 필드

@@ -1,5 +1,8 @@
 package com.example.welfare.integration;
 
+import com.example.welfare.chat.dto.ChatAiResult;
+import com.example.welfare.chat.dto.response.ChatReferenceResponse;
+import com.example.welfare.chat.gateway.ChatAiGateway;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.repository.WelfareServiceRepository;
 import com.example.welfare.chat.entity.ChatMessage;
@@ -17,16 +20,20 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.hasItem;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -63,6 +70,9 @@ class ChatMessageApiIntegrationTest {
 
     @Autowired
     private ObjectMapper objectMapper;
+
+    @MockBean
+    private ChatAiGateway chatAiGateway;
 
     @AfterEach
     void cleanup() {
@@ -156,6 +166,18 @@ class ChatMessageApiIntegrationTest {
                 .apiViewCount(0L)
                 .viewCount(50)
                 .build());
+        when(chatAiGateway.generateAnswer(any(), any(), any(), any()))
+                .thenReturn(ChatAiResult.builder()
+                        .answer(uniqueKeyword + " 월세 지원 정책을 먼저 확인해보세요.")
+                        .needsClarification(false)
+                        .references(List.of(
+                                ChatReferenceResponse.builder()
+                                        .serviceId(1L)
+                                        .title(uniqueKeyword + " 월세 지원")
+                                        .reason("월세 부담을 낮추는 지원을 제공합니다.")
+                                        .build()
+                        ))
+                        .build());
 
         mockMvc.perform(post("/api/chat/sessions/{sessionId}/messages", session.getId())
                         .header("Authorization", "Bearer " + accessToken)

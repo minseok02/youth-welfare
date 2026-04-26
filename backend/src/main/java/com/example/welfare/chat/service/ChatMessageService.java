@@ -1,5 +1,6 @@
 package com.example.welfare.chat.service;
 
+import com.example.welfare.chat.dto.ChatAiResult;
 import com.example.welfare.chat.dto.ChatPolicyCandidate;
 import com.example.welfare.chat.dto.request.SendChatMessageRequest;
 import com.example.welfare.chat.dto.response.ChatAnswerResponse;
@@ -8,6 +9,7 @@ import com.example.welfare.chat.dto.response.ChatReferenceResponse;
 import com.example.welfare.chat.entity.ChatMessage;
 import com.example.welfare.chat.entity.ChatMessageRole;
 import com.example.welfare.chat.entity.ChatSession;
+import com.example.welfare.chat.gateway.ChatAiGateway;
 import com.example.welfare.chat.repository.ChatMessageRepository;
 import com.example.welfare.chat.repository.ChatSessionRepository;
 import com.example.welfare.global.exception.CustomException;
@@ -23,6 +25,9 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -38,6 +43,7 @@ public class ChatMessageService {
     private final ChatSessionRepository chatSessionRepository;
     private final ChatMessageRepository chatMessageRepository;
     private final ChatPolicyService chatPolicyService;
+    private final ChatAiGateway chatAiGateway;
     private final UserRepository userRepository;
     private final ObjectMapper objectMapper;
 
@@ -54,7 +60,7 @@ public class ChatMessageService {
 
     @Transactional
     public ChatAnswerResponse sendMessage(Long userId, Long sessionId, SendChatMessageRequest request) {
-        findActiveUser(userId);
+        User user = findActiveUser(userId);
         ChatSession session = chatSessionRepository.findByIdAndUserId(sessionId, userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.CHAT_SESSION_NOT_FOUND));
 
@@ -70,12 +76,23 @@ public class ChatMessageService {
                 .build());
 
         List<ChatPolicyCandidate> candidates = chatPolicyService.findCandidates(content, REFERENCE_LIMIT);
-        List<ChatReferenceResponse> references = candidates.stream()
+        List<ChatReferenceResponse> fallbackReferences = candidates.stream()
                 .map(this::toReference)
                 .toList();
 
-        boolean needsClarification = references.isEmpty();
-        String answer = needsClarification ? CLARIFICATION_ANSWER : buildAnswer(references);
+        ChatAiResult aiResult = null;
+        if (!candidates.isEmpty()) {
+            aiResult = chatAiGateway.generateAnswer(
+                    user,
+                    content,
+                    getRecentMessages(session.getId()),
+                    candidates
+            );
+        }
+
+        List<ChatReferenceResponse> references = resolveReferences(aiResult, fallbackReferences);
+        boolean needsClarification = resolveNeedsClarification(aiResult, references);
+        String answer = resolveAnswer(aiResult, references, needsClarification);
 
         chatMessageRepository.save(ChatMessage.builder()
                 .session(session)
@@ -104,6 +121,16 @@ public class ChatMessageService {
                 .title(candidate.getTitle())
                 .reason(buildReason(candidate))
                 .build();
+    }
+
+    private List<ChatMessage> getRecentMessages(Long sessionId) {
+        List<ChatMessage> messages = new ArrayList<>(chatMessageRepository.findBySessionIdOrderByCreatedAtDesc(
+                sessionId,
+                org.springframework.data.domain.PageRequest.of(0, 6)
+        ));
+        Collections.reverse(messages);
+        messages.sort(Comparator.comparing(ChatMessage::getCreatedAt, Comparator.nullsLast(Comparator.naturalOrder())));
+        return messages;
     }
 
     private List<Long> parseReferencedServiceIds(String rawReferencedServiceIds) {
@@ -136,6 +163,39 @@ public class ChatMessageService {
                 .map(ChatReferenceResponse::getTitle)
                 .collect(Collectors.joining(", "));
         return titles + " 정책을 먼저 확인해보세요.";
+    }
+
+    private List<ChatReferenceResponse> resolveReferences(
+            ChatAiResult aiResult,
+            List<ChatReferenceResponse> fallbackReferences) {
+        if (aiResult != null && aiResult.getReferences() != null && !aiResult.getReferences().isEmpty()) {
+            return aiResult.getReferences();
+        }
+        return fallbackReferences;
+    }
+
+    private boolean resolveNeedsClarification(ChatAiResult aiResult, List<ChatReferenceResponse> references) {
+        if (aiResult != null) {
+            return aiResult.isNeedsClarification();
+        }
+        return references.isEmpty();
+    }
+
+    private String resolveAnswer(
+            ChatAiResult aiResult,
+            List<ChatReferenceResponse> references,
+            boolean needsClarification) {
+        if (needsClarification) {
+            if (aiResult != null && StringUtils.hasText(aiResult.getAnswer())) {
+                return aiResult.getAnswer().trim();
+            }
+            return CLARIFICATION_ANSWER;
+        }
+
+        if (aiResult != null && StringUtils.hasText(aiResult.getAnswer())) {
+            return aiResult.getAnswer().trim();
+        }
+        return buildAnswer(references);
     }
 
     private String buildReason(ChatPolicyCandidate candidate) {

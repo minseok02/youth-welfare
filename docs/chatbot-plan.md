@@ -202,14 +202,15 @@ ChatController
 - 메시지 목록 조회 API 구현 (`GET /api/chat/sessions/{sessionId}/messages`)
 - `ChatPolicyService` 골격 추가
 - 메시지 전송 API 구현 (`POST /api/chat/sessions/{sessionId}/messages`)
+- 챗봇 OpenAI 프롬프트/응답 스키마 구현
+  - `ChatAiGateway` + JSON 파서 + 후보 정책 allowlist 검증 + fallback 연결
 
 ## 다음 바로 할 작업
 
-1. 챗봇 OpenAI 프롬프트/응답 스키마 구현
-   - 정책 근거 포함 JSON 파서와 실패 fallback 기준 확정
-2. 로그아웃/회원탈퇴 시 챗 세션 삭제 연동
-3. `ChatAiGateway` 구현
-   - 추천 모듈과 분리된 챗 전용 호출/타임아웃/JSON 파싱 경로 추가
+1. 로그아웃/회원탈퇴 시 챗 세션 삭제 연동
+2. 챗봇 요청 rate limit / abuse 방지
+   - 사용자별 호출 상한과 과도한 재시도 방지 기준 추가
+3. 프론트 `/chat` 실제 화면 및 로그인 가드 구현
 
 ## 먼저 하지 않을 것
 
