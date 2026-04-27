@@ -266,6 +266,19 @@ AI 추천 품질 점검 후 프롬프트 개선, 중복 추천 제거, 노이즈
 - 2026-04-26 챗봇 세션 CRUD API 구현 후 `backend`에서 `./gradlew integrationTest --no-daemon`
 - 2026-04-27 수집 중복 실행 가드/전체 수집 source 독립 실행 테스트 추가 후 `backend`에서 `./gradlew test --tests com.example.welfare.collect.service.CollectExecutionGuardTest --tests com.example.welfare.collect.service.CollectServiceTest --no-daemon`
 - 2026-04-27 수집 검증 테스트 추가 후 `backend`에서 `./gradlew test --no-daemon`
+- 2026-04-27 JWT 관리자 토큰으로 `POST /api/admin/collect/bokjiro-central` smoke test
+  - 응답 200
+  - `api_sync_logs`에 `job_name=BOKJIRO_CENTRAL`, `status=success`, `requested_count=392`, `saved_count=114`, `filtered_count=278`, `failed_count=0` 확인
+- 2026-04-27 JWT 관리자 토큰으로 `POST /api/admin/collect/bokjiro-local` smoke test
+  - 응답 200
+  - `api_sync_logs`에 `job_name=BOKJIRO_LOCAL`, `status=success`, `requested_count=4563`, `saved_count=1220`, `filtered_count=3343`, `failed_count=0` 확인
+- 2026-04-27 JWT 관리자 토큰으로 `POST /api/admin/collect/bokjiro-details` smoke test
+  - 응답 200
+  - `api_sync_logs`에 `job_name=BOKJIRO_DETAIL`, `status=success`, `requested_count=95`, `saved_count=95`, `skipped_count=509`, `metadata_json={"maxCalls":900,"centralCalls":0,"localCalls":95}` 확인
+- 2026-04-27 이전 중단 실행으로 남은 `api_sync_logs.status=running` 4건 startup recovery로 `failed` 전환 확인
+  - 앱 재기동 후 `api_sync_logs WHERE status='running'` 결과 `0`
+- 2026-04-27 수집 로그 startup recovery 추가 후 `backend`에서 `./gradlew test --tests com.example.welfare.collect.service.ApiSyncLogServiceTest --tests com.example.welfare.collect.service.CollectExecutionGuardTest --tests com.example.welfare.collect.service.CollectServiceTest --no-daemon`
+- 2026-04-27 수집 로그 startup recovery 추가 후 `backend`에서 `./gradlew test --no-daemon`
 
 ## 작업 추적
 
@@ -275,7 +288,7 @@ AI 추천 품질 점검 후 프롬프트 개선, 중복 추천 제거, 노이즈
 
 ### 진행 예정
 
-- [ ] 실제 공공 API key로 복지로 중앙/지자체/상세 수집 smoke test 및 `api_sync_logs` 확인
+- [ ] 복지로 상세 미수집 잔여 730건 추가 배치 실행 계획 확인
 - [ ] 수집 실패 1시간 후 재시도(최대 2회) 설계/구현 (`FR-10-09`)
 - [ ] 운영 서버 Docker Compose 기동
 - [ ] HTTPS/Nginx 적용
@@ -287,6 +300,8 @@ AI 추천 품질 점검 후 프롬프트 개선, 중복 추천 제거, 노이즈
 
 ### 완료
 
+- [x] 실제 공공 API key로 복지로 중앙/지자체/상세 수집 smoke test 및 `api_sync_logs` 확인
+- [x] 이전 중단 실행으로 남은 `api_sync_logs.status=running` startup recovery 추가
 - [x] 수집 중복 실행 가드 테스트 추가 (`CollectExecutionGuardTest`)
 - [x] `collectAll` source 독립 실행 보장 테스트 추가 (`CollectServiceTest`)
 - [x] 수집 관련 설계 문서의 관리자 API 권한 설명 정합성 수정
@@ -389,7 +404,7 @@ cd backend
 
 ### 수집 운영
 
-- 실제 공공 API key로 복지로 중앙/지자체/상세 수집 smoke test 및 `api_sync_logs` 확인
+- 복지로 상세 미수집 잔여 730건 추가 배치 실행 계획 확인
 - 수집 실패 1시간 후 재시도(최대 2회) 설계/구현 (`FR-10-09`)
 
 ### 배포/데모

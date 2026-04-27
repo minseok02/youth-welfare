@@ -15,6 +15,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.BDDMockito.then;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 
@@ -86,5 +87,30 @@ class ApiSyncLogServiceTest {
         assertThat(failed.getErrorCode()).isEqualTo("IllegalStateException");
         assertThat(failed.getErrorMessage()).isEqualTo("external api failed");
         assertThat(failed.getFinishedAt()).isNotNull();
+    }
+
+    @Test
+    @DisplayName("앱 시작 시 남아 있는 RUNNING 로그를 FAILED로 복구한다")
+    void recoverInterruptedRunsMarksRunningLogsAsFailed() {
+        given(apiSyncLogRepository.markRunningLogsAsFailed(any()))
+                .willReturn(1);
+
+        int recovered = apiSyncLogService.recoverInterruptedRuns();
+
+        assertThat(recovered).isEqualTo(1);
+        then(apiSyncLogRepository).should().markRunningLogsAsFailed(any());
+    }
+
+    @Test
+    @DisplayName("복구할 RUNNING 로그가 없으면 저장을 건너뛴다")
+    void recoverInterruptedRunsSkipsWhenNoRunningLogs() {
+        given(apiSyncLogRepository.markRunningLogsAsFailed(any()))
+                .willReturn(0);
+
+        int recovered = apiSyncLogService.recoverInterruptedRuns();
+
+        assertThat(recovered).isZero();
+        then(apiSyncLogRepository).should().markRunningLogsAsFailed(any());
+        then(apiSyncLogRepository).shouldHaveNoMoreInteractions();
     }
 }

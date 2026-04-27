@@ -64,6 +64,7 @@
 - `429 재시도 로그`
 - `429로 수집 중단 로그`
 - `수집 결과 0건, 기존 데이터 유지` 경고
+- `InterruptedRun` 복구 로그
 
 ## DB에 저장되는 수집 실행 로그
 
@@ -75,6 +76,9 @@
 - `SUCCESS`: source 수집이 실패 건수 없이 완료
 - `PARTIAL_SUCCESS`: 일부 아이템 저장 실패가 있었지만 source 수집은 완료
 - `FAILED`: 외부 API 예외 등으로 source 수집이 중단
+
+앱이 재시작되거나 비정상 종료되면 이전 실행에서 남은 `RUNNING` 로그는 다음 앱 시작 시 `FAILED`로 자동 전환한다.
+`error_code=InterruptedRun` 으로 표시되며, 이는 수집 로직 예외가 아니라 중단 복구 기록으로 해석한다.
 
 MySQL `api_sync_logs.status` 컬럼은 enum 저장값이 소문자(`running`, `success`, `partial_success`, `failed`, `skipped`)로 보일 수 있다.
 

@@ -312,3 +312,8 @@
 - 문제: `docs/user-data-separation-design.md`가 `/api/admin/** permitAll` 및 수집 관리자 API 무인증 호출 가능 상태를 그대로 적어 두고 있어, 실제 운영 권한 판단과 수동 수집 검증 흐름을 잘못 유도할 수 있었음
 - 해결: `SecurityConfig`, `AdminSecurityWebMvcTest`, `AdminSecurityIntegrationTest` 기준으로 현재 상태(`ROLE_ADMIN` 필요)로 문서를 수정하고, 남은 과제는 단일 관리자 권한의 세분화로 다시 정리
 - 이유: 보안 문서는 코드보다 늦게 갱신되면 특히 위험하다. 수집/백필 같은 운영 기능은 "누가 호출할 수 있는지" 설명이 실제와 같아야 운영 절차와 후속 권한 설계가 꼬이지 않는다
+
+## 63) 앱 재시작 후 `api_sync_logs`에 `RUNNING` 상태가 영구 잔류할 수 있었음
+- 문제: 2026-04-27 수집 smoke test 확인 중 2026-04-25 실행분 `YOUTH`, `BOKJIRO_CENTRAL`, `BOKJIRO_LOCAL`, `BOKJIRO_DETAIL` 로그가 `status=running`으로 남아 있었고, 앱이 작업 중 재시작되면 운영자가 이를 현재 실행 중인 수집으로 오해할 수 있었음
+- 해결: 앱 시작 시 native update로 기존 `status='running'` 로그를 일괄 `failed` + `error_code=InterruptedRun`으로 전환하는 startup recovery를 추가하고, 실제 Docker 앱 재기동 후 `running=0`을 확인
+- 이유: `RUNNING`은 현재 프로세스 메모리 안의 실행 상태를 의미하지 영구 상태가 아니다. 비정상 종료 이후에도 그대로 두면 운영 판단이 틀어지므로, 재시작 시 명시적으로 종료 상태로 정리해야 재발을 막을 수 있다

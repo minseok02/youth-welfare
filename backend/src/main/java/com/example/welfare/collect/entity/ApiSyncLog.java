@@ -20,6 +20,7 @@ public class ApiSyncLog extends BaseTimeEntity {
 
     private static final int ERROR_CODE_MAX_LENGTH = 50;
     private static final int ERROR_MESSAGE_MAX_LENGTH = 1000;
+    private static final String INTERRUPTED_ERROR_CODE = "InterruptedRun";
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -90,6 +91,14 @@ public class ApiSyncLog extends BaseTimeEntity {
         this.failedCount = Math.max(this.failedCount, 1);
         this.errorCode = truncate(throwable.getClass().getSimpleName(), ERROR_CODE_MAX_LENGTH);
         this.errorMessage = truncate(throwable.getMessage(), ERROR_MESSAGE_MAX_LENGTH);
+    }
+
+    public void markInterrupted(String reason) {
+        this.status = SyncStatus.FAILED;
+        this.finishedAt = LocalDateTime.now();
+        this.failedCount = Math.max(this.failedCount, 1);
+        this.errorCode = INTERRUPTED_ERROR_CODE;
+        this.errorMessage = truncate(reason, ERROR_MESSAGE_MAX_LENGTH);
     }
 
     private String truncate(String value, int maxLength) {
