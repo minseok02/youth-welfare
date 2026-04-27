@@ -372,3 +372,8 @@
 - 문제: `user_pii.email_enc/name_enc/birth_date_enc` 를 앱 레벨 암호화로 채우더라도, 일부 row는 source of truth 인 `users.name` 또는 `users.birth_date` 가 이미 `NULL` 이어서 암호문을 다시 만들 수 없었음
 - 해결: 백필 서비스는 누락 암호문만 채우되, 원본 값이 없는 row는 overwrite 시도 없이 `skippedCount` 로 남기고 검증 결과에 별도로 기록
 - 이유: 이 단계의 backfill은 기존 원문이 남아 있는 범위만 안전하게 옮기는 작업이다. 이미 scrub 된 값까지 복원하려고 들면 잘못된 placeholder 데이터를 넣거나 탈퇴/테스트 fixture 상태를 오염시킬 수 있다
+
+## 75) 비밀번호 재설정 메일 발송이 계속 `users.email` 을 읽으면 PII read path 전환 후에도 legacy 의존이 남음
+- 문제: 로그인/비밀번호 재설정 조회는 이미 `auth_users` 기준으로 넘어갔는데, reset 메일 발송 주소만 계속 `users.email` 을 사용하면 `user_pii.email_enc` backfill 이후에도 인증 경로가 legacy PII 컬럼에 의존하게 되어 read cut-over 경계가 흐려질 수 있었음
+- 해결: `AuthService.requestPasswordReset` 이 `auth_users -> user_key -> user_pii.email_enc` 경로에서 발송 주소를 읽고, `AesEncryptUtil` 로 복호화한 값으로 메일을 보내도록 변경
+- 이유: PII 분리 단계에서는 "누가 사용자 식별을 담당하는가"와 "어디서 원문 연락처를 읽는가"를 같이 끊어야 한다. 비밀번호 재설정은 인증 전 기능이지만 실제 발송 주소는 PII 저장소에서만 읽도록 고정해야 이후 `users.email` 제거가 가능하다

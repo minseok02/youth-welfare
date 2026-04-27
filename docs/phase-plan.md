@@ -13,7 +13,7 @@ CTR 분석 기본 쿼리 실행 결과를 확보했고, 현재 데이터는 `46�
 사용자 PII 분리 이행안은 `2 schema`, `user_key` 선행, `dual-write -> read cut-over` 순서로 확정했고, 1단계 `user_key` migration, 2단계 core 분리 테이블(`auth_users`, `user_profiles`, `user_pii`) 생성/backfill, 3단계 회원가입/프로필/비밀번호/회원탈퇴 dual-write와 `user_pii.email_enc/name_enc/birth_date_enc` 앱 레벨 암호화 backfill까지 반영했습니다.
 데모 시나리오 전체 실행 완료 및 발견된 문제 수정됐습니다.
 로컬 Docker MySQL 기준 `user_pii` 24건 중 `email_enc` 24건, `name_enc` 21건, `birth_date_enc` 21건이 채워졌고, 남은 3건은 원본 `users.name/birth_date` 가 비어 있어 skip 됐습니다.
-남은 작업은 운영 배포/운영성 검증(운영 서버 Docker Compose, HTTPS/Nginx, PII read path 전환, 비밀번호 재설정 발송 경로 `user_pii` 전환, 런타임 DB 계정 분리, CTR 표본 확충 후 재분석)과 2차 확장 기능(군집 캐시 추천, 카카오 알림톡, 검색 로그, 대시보드)입니다.
+남은 작업은 운영 배포/운영성 검증(운영 서버 Docker Compose, HTTPS/Nginx, PII read path 전환, 런타임 DB 계정 분리, CTR 표본 확충 후 재분석)과 2차 확장 기능(군집 캐시 추천, 카카오 알림톡, 검색 로그, 대시보드)입니다.
 
 ## 완료된 백엔드 1차 범위
 
@@ -343,6 +343,14 @@ CTR 분석 기본 쿼리 실행 결과를 확보했고, 현재 데이터는 `46�
 - 2026-04-28 PII 암호화 backfill 후 `backend`에서 `./gradlew test --no-daemon`
 - 2026-04-28 `docker compose up -d db redis`
 - 2026-04-28 PII 암호화 backfill 후 `backend`에서 `./gradlew integrationTest --no-daemon --tests com.example.welfare.integration.UserPiiBackfillIntegrationTest`
+- 2026-04-28 비밀번호 재설정 메일 발송 주소를 `user_pii.email_enc` 복호화 기준으로 전환
+  - `AuthService.requestPasswordReset` 이 `auth_users -> user_key -> user_pii.email_enc` 경로로 발송 주소를 조회하도록 변경
+  - reset 메일 수신 주소는 legacy `users.email` 이 아니라 `AesEncryptUtil.decrypt(user_pii.email_enc)` 값을 사용
+  - `user_pii` row 또는 `email_enc` 누락 시 `PASSWORD_RESET_EMAIL_SEND_FAILED` 로 처리해 silent mismatch 를 막음
+- 2026-04-28 비밀번호 재설정 발송 주소 전환 후 `backend`에서 `./gradlew test --no-daemon --tests com.example.welfare.user.service.AuthServiceTest`
+- 2026-04-28 `docker compose up -d db redis`
+- 2026-04-28 비밀번호 재설정 발송 주소 전환 후 `backend`에서 `./gradlew integrationTest --no-daemon --tests com.example.welfare.integration.AuthRedisIntegrationTest`
+- 2026-04-28 비밀번호 재설정 발송 주소 전환 후 `backend`에서 `./gradlew test --no-daemon`
 
 ## 작업 추적
 
@@ -354,7 +362,6 @@ CTR 분석 기본 쿼리 실행 결과를 확보했고, 현재 데이터는 `46�
 
 - [ ] 운영 서버 Docker Compose 기동
 - [ ] HTTPS/Nginx 적용
-- [ ] 비밀번호 재설정 메일 발송 주소를 `user_pii.email_enc` 복호화 기준으로 전환
 - [ ] 프로필 조회/추천/알림 read path를 `user_profiles` + `user_pii` 기준으로 전환
 - [ ] 런타임 DB 계정 root 제거 및 기능별 계정 분리 (`app_core_rw`, `app_pii_rw`, `notification_pii_ro`)
 - [ ] CTR 표본 추가 확보 후 rule/AI 가중치 및 프롬프트 재분석
@@ -362,6 +369,7 @@ CTR 분석 기본 쿼리 실행 결과를 확보했고, 현재 데이터는 `46�
 
 ### 완료
 
+- [x] 비밀번호 재설정 메일 발송 주소를 `user_pii.email_enc` 복호화 기준으로 전환
 - [x] `user_pii.email_enc/name_enc/birth_date_enc` 앱 레벨 암호화 backfill
 - [x] 로그인/비밀번호 재설정 조회 경로를 `auth_users` 기준으로 전환
 - [x] 회원가입/프로필/비밀번호/회원탈퇴 dual-write 적용 (`users` + `auth_users` + `user_profiles` + `user_pii`)
@@ -474,6 +482,9 @@ cd backend
 - 2026-04-28 Docker MySQL에서 `user_pii` 백필 결과 확인
   - `total_user_pii=24`, `email_filled=24`, `name_filled=21`, `birth_filled=21`
   - 잔여 누락 3건은 `users.id=19,20,21` 이며 `users.name`, `users.birth_date` 가 이미 `NULL`
+- 2026-04-28 비밀번호 재설정 발송 주소 전환 후 `backend`에서 `./gradlew test --no-daemon --tests com.example.welfare.user.service.AuthServiceTest`
+- 2026-04-28 비밀번호 재설정 발송 주소 전환 후 `backend`에서 `./gradlew integrationTest --no-daemon --tests com.example.welfare.integration.AuthRedisIntegrationTest`
+- 2026-04-28 비밀번호 재설정 발송 주소 전환 후 `backend`에서 `./gradlew test --no-daemon`
 
 ## 남은 1차 작업
 
@@ -481,7 +492,6 @@ cd backend
 
 - EC2 또는 운영 서버에서 Docker Compose 기동
 - HTTPS/Nginx 적용
-- 비밀번호 재설정 메일 발송 주소를 `user_pii.email_enc` 복호화 기준으로 전환
 - 프로필 조회/추천/알림 read path를 `user_profiles` + `user_pii` 기준으로 전환
 - 런타임 DB 계정 root 제거 및 기능별 계정 분리
 - CTR 표본 추가 확보 후 rule/AI 가중치 및 프롬프트 재분석

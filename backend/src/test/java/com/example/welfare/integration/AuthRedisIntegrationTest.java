@@ -5,8 +5,11 @@ import com.example.welfare.chat.entity.ChatMessageRole;
 import com.example.welfare.chat.entity.ChatSession;
 import com.example.welfare.chat.repository.ChatMessageRepository;
 import com.example.welfare.chat.repository.ChatSessionRepository;
+import com.example.welfare.global.util.AesEncryptUtil;
 import com.example.welfare.notification.gateway.EmailClient;
 import com.example.welfare.user.entity.User;
+import com.example.welfare.user.entity.UserPii;
+import com.example.welfare.user.repository.UserPiiRepository;
 import com.example.welfare.user.repository.UserRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
@@ -52,6 +55,12 @@ class AuthRedisIntegrationTest {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private UserPiiRepository userPiiRepository;
+
+    @Autowired
+    private AesEncryptUtil aesEncryptUtil;
 
     @Autowired
     private RedisTemplate<String, String> redisTemplate;
@@ -230,6 +239,7 @@ class AuthRedisIntegrationTest {
     @DisplayName("비밀번호 재설정 요청과 확인은 Redis 토큰과 새 비밀번호 로그인까지 연결된다")
     void passwordResetRequestAndConfirmFlow() throws Exception {
         String email = TEST_EMAIL_PREFIX + UUID.randomUUID() + "@example.com";
+        String piiEmail = "reset-target+" + UUID.randomUUID() + "@example.com";
         String signupBody = """
                 {
                   "email": "%s",
@@ -246,6 +256,17 @@ class AuthRedisIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true));
 
+        User user = userRepository.findByEmail(email).orElseThrow();
+        String userKey = userRepository.findUserKeyById(user.getId()).orElseThrow();
+        UserPii userPii = userPiiRepository.findByUserKey(userKey).orElseThrow();
+        userPii.sync(
+                aesEncryptUtil.encrypt(piiEmail),
+                userPii.getNameEnc(),
+                userPii.getBirthDateEnc(),
+                userPii.getPhoneEnc()
+        );
+        userPiiRepository.save(userPii);
+
         mockMvc.perform(post("/api/auth/password-reset/request")
                         .contentType("application/json")
                         .content("""
@@ -257,7 +278,7 @@ class AuthRedisIntegrationTest {
                 .andExpect(jsonPath("$.success").value(true));
 
         var bodyCaptor = org.mockito.ArgumentCaptor.forClass(String.class);
-        then(emailClient).should().send(eq(email), eq("[청년복지] 비밀번호 재설정 안내"), bodyCaptor.capture());
+        then(emailClient).should().send(eq(piiEmail), eq("[청년복지] 비밀번호 재설정 안내"), bodyCaptor.capture());
         String token = extractResetToken(bodyCaptor.getValue());
 
         mockMvc.perform(post("/api/auth/password-reset/confirm")

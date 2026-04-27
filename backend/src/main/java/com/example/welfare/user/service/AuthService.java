@@ -3,6 +3,7 @@ package com.example.welfare.user.service;
 import com.example.welfare.chat.service.ChatSessionCleanupService;
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
+import com.example.welfare.global.util.AesEncryptUtil;
 import com.example.welfare.global.util.JwtUtil;
 import com.example.welfare.notification.gateway.EmailClient;
 import com.example.welfare.user.dto.request.LoginRequest;
@@ -11,7 +12,9 @@ import com.example.welfare.user.dto.response.EmailAvailabilityResponse;
 import com.example.welfare.user.dto.response.TokenResponse;
 import com.example.welfare.user.entity.AuthUser;
 import com.example.welfare.user.entity.User;
+import com.example.welfare.user.entity.UserPii;
 import com.example.welfare.user.repository.AuthUserRepository;
+import com.example.welfare.user.repository.UserPiiRepository;
 import com.example.welfare.user.repository.UserRepository;
 import com.example.welfare.user.util.EmailLookupKeyGenerator;
 import jakarta.annotation.PostConstruct;
@@ -49,12 +52,14 @@ public class AuthService {
 
     private final AuthUserRepository authUserRepository;
     private final UserRepository userRepository;
+    private final UserPiiRepository userPiiRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
     private final RedisTemplate<String, String> redisTemplate;
     private final ChatSessionCleanupService chatSessionCleanupService;
     private final EmailClient emailClient;
     private final UserCoreSyncService userCoreSyncService;
+    private final AesEncryptUtil aesEncryptUtil;
 
     @Value("${security.admin-emails:}")
     private String adminEmailsProperty;
@@ -149,18 +154,20 @@ public class AuthService {
         String email = EmailLookupKeyGenerator.normalize(rawEmail);
         authUserRepository.findByEmailLookupHash(EmailLookupKeyGenerator.hash(email))
                 .filter(AuthUser::isActive)
-                .flatMap(authUser -> userRepository.findByUserKey(authUser.getUserKey()))
+                .flatMap(authUser -> userRepository.findByUserKey(authUser.getUserKey())
+                        .map(user -> new PasswordResetTarget(user, authUser.getUserKey())))
                 .ifPresent(user -> {
+                    String recipientEmail = resolvePasswordResetRecipient(user.userKey());
                     String token = UUID.randomUUID().toString();
-                    savePasswordResetToken(user.getId(), token);
+                    savePasswordResetToken(user.user().getId(), token);
 
                     boolean sent = emailClient.send(
-                            user.getEmail(),
+                            recipientEmail,
                             PASSWORD_RESET_SUBJECT,
                             buildPasswordResetText(token)
                     );
                     if (!sent) {
-                        clearPasswordResetToken(user.getId(), token);
+                        clearPasswordResetToken(user.user().getId(), token);
                         throw new CustomException(ErrorCode.PASSWORD_RESET_EMAIL_SEND_FAILED);
                     }
                 });
@@ -274,6 +281,16 @@ public class AuthService {
         return adminEmails.contains(EmailLookupKeyGenerator.normalize(email));
     }
 
+    private String resolvePasswordResetRecipient(String userKey) {
+        UserPii userPii = userPiiRepository.findByUserKey(userKey)
+                .orElseThrow(() -> new CustomException(ErrorCode.PASSWORD_RESET_EMAIL_SEND_FAILED));
+        String recipientEmail = aesEncryptUtil.decrypt(userPii.getEmailEnc());
+        if (!StringUtils.hasText(recipientEmail)) {
+            throw new CustomException(ErrorCode.PASSWORD_RESET_EMAIL_SEND_FAILED);
+        }
+        return recipientEmail;
+    }
+
     private String buildPasswordResetText(String token) {
         String encodedToken = URLEncoder.encode(token, StandardCharsets.UTF_8);
         String resetUrl = appBaseUrl + "/reset-password?token=" + encodedToken;
@@ -300,5 +317,8 @@ public class AuthService {
             return List.of("ROLE_USER", "ROLE_ADMIN");
         }
         return List.of("ROLE_USER");
+    }
+
+    private record PasswordResetTarget(User user, String userKey) {
     }
 }

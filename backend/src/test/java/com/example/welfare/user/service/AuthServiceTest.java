@@ -3,11 +3,14 @@ package com.example.welfare.user.service;
 import com.example.welfare.chat.service.ChatSessionCleanupService;
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
+import com.example.welfare.global.util.AesEncryptUtil;
 import com.example.welfare.global.util.JwtUtil;
 import com.example.welfare.notification.gateway.EmailClient;
 import com.example.welfare.user.entity.AuthUser;
 import com.example.welfare.user.entity.User;
+import com.example.welfare.user.entity.UserPii;
 import com.example.welfare.user.repository.AuthUserRepository;
+import com.example.welfare.user.repository.UserPiiRepository;
 import com.example.welfare.user.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -38,6 +41,8 @@ class AuthServiceTest {
     @Mock
     private UserRepository userRepository;
     @Mock
+    private UserPiiRepository userPiiRepository;
+    @Mock
     private PasswordEncoder passwordEncoder;
     @Mock
     private JwtUtil jwtUtil;
@@ -50,6 +55,8 @@ class AuthServiceTest {
     @Mock
     private UserCoreSyncService userCoreSyncService;
     @Mock
+    private AesEncryptUtil aesEncryptUtil;
+    @Mock
     private ValueOperations<String, String> valueOperations;
 
     private AuthService authService;
@@ -59,12 +66,14 @@ class AuthServiceTest {
         authService = new AuthService(
                 authUserRepository,
                 userRepository,
+                userPiiRepository,
                 passwordEncoder,
                 jwtUtil,
                 redisTemplate,
                 chatSessionCleanupService,
                 emailClient,
-                userCoreSyncService
+                userCoreSyncService,
+                aesEncryptUtil
         );
         ReflectionTestUtils.setField(authService, "passwordResetExpirationMinutes", 30L);
         ReflectionTestUtils.setField(authService, "appBaseUrl", "http://localhost:5173");
@@ -90,23 +99,29 @@ class AuthServiceTest {
                 .userKey("user-key-7")
                 .isActive(true)
                 .build();
+        UserPii userPii = UserPii.builder()
+                .userKey("user-key-7")
+                .emailEnc("encrypted-email")
+                .build();
         User user = User.builder()
                 .id(7L)
-                .email("user@example.com")
+                .email("legacy@example.com")
                 .passwordHash("hash")
                 .build();
         when(authUserRepository.findByEmailLookupHash("b4c9a289323b21a01c3e940f150eb9b8c542587f1abfd8f0e1cc1ffc5e475514"))
                 .thenReturn(Optional.of(authUser));
         when(userRepository.findByUserKey("user-key-7")).thenReturn(Optional.of(user));
+        when(userPiiRepository.findByUserKey("user-key-7")).thenReturn(Optional.of(userPii));
+        when(aesEncryptUtil.decrypt("encrypted-email")).thenReturn("pii@example.com");
         when(valueOperations.get("password-reset:user:7")).thenReturn(null);
-        when(emailClient.send(eq("user@example.com"), eq("[청년복지] 비밀번호 재설정 안내"), any(String.class)))
+        when(emailClient.send(eq("pii@example.com"), eq("[청년복지] 비밀번호 재설정 안내"), any(String.class)))
                 .thenReturn(true);
 
         authService.requestPasswordReset("USER@example.com");
 
         verify(valueOperations).set(eq("password-reset:user:7"), any(String.class), eq(30L), eq(java.util.concurrent.TimeUnit.MINUTES));
         verify(valueOperations).set(org.mockito.ArgumentMatchers.startsWith("password-reset:"), eq("7"), eq(30L), eq(java.util.concurrent.TimeUnit.MINUTES));
-        verify(emailClient).send(eq("user@example.com"), eq("[청년복지] 비밀번호 재설정 안내"), org.mockito.ArgumentMatchers.contains("/reset-password?token="));
+        verify(emailClient).send(eq("pii@example.com"), eq("[청년복지] 비밀번호 재설정 안내"), org.mockito.ArgumentMatchers.contains("/reset-password?token="));
     }
 
     @Test
@@ -119,6 +134,32 @@ class AuthServiceTest {
 
         verify(emailClient, never()).send(any(), any(), any());
         verify(valueOperations, never()).set(any(), any(), any(Long.class), any());
+    }
+
+    @Test
+    @DisplayName("비밀번호 재설정 요청은 user_pii 이메일이 없으면 발송 실패로 처리한다")
+    void requestPasswordResetFailsWhenEncryptedEmailMissing() {
+        AuthUser authUser = AuthUser.builder()
+                .userKey("user-key-7")
+                .isActive(true)
+                .build();
+        User user = User.builder()
+                .id(7L)
+                .email("legacy@example.com")
+                .passwordHash("hash")
+                .build();
+        when(authUserRepository.findByEmailLookupHash("b4c9a289323b21a01c3e940f150eb9b8c542587f1abfd8f0e1cc1ffc5e475514"))
+                .thenReturn(Optional.of(authUser));
+        when(userRepository.findByUserKey("user-key-7")).thenReturn(Optional.of(user));
+        when(userPiiRepository.findByUserKey("user-key-7")).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> authService.requestPasswordReset("user@example.com"))
+                .isInstanceOf(CustomException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.PASSWORD_RESET_EMAIL_SEND_FAILED);
+
+        verify(valueOperations, never()).set(any(), any(), any(Long.class), any());
+        verify(emailClient, never()).send(any(), any(), any());
     }
 
     @Test
