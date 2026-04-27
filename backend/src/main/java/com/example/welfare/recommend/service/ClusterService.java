@@ -1,6 +1,6 @@
 package com.example.welfare.recommend.service;
 
-import com.example.welfare.user.entity.User;
+import com.example.welfare.recommend.dto.RecommendationUserSnapshot;
 import org.springframework.stereotype.Service;
 
 /**
@@ -10,7 +10,7 @@ import org.springframework.stereotype.Service;
 @Service
 public class ClusterService {
 
-    public String assignCluster(User user) {
+    public String assignCluster(RecommendationUserSnapshot user) {
         return "youth_all";
     }
 }

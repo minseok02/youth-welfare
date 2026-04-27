@@ -3,7 +3,7 @@ package com.example.welfare.recommend.service;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.repository.ServiceTagRepository;
 import com.example.welfare.policy.repository.WelfareServiceRepository;
-import com.example.welfare.user.entity.User;
+import com.example.welfare.recommend.dto.RecommendationUserSnapshot;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -11,7 +11,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.PageRequest;
 
-import java.time.LocalDate;
 import java.util.Collections;
 import java.util.List;
 
@@ -43,7 +42,7 @@ class RetrievalServiceTest {
                 youthPolicyFilter
         );
 
-        User user = user("서울특별시", "11680");
+        RecommendationUserSnapshot user = user("서울특별시", "11680");
         WelfareService candidate = welfareService(1L, "청년 월세 지원");
         given(welfareServiceRepository.findCandidatesWithRegionCode(eq(26), eq(5), eq("11680"), any(PageRequest.class)))
                 .willReturn(List.of(candidate));
@@ -69,7 +68,7 @@ class RetrievalServiceTest {
                 youthPolicyFilter
         );
 
-        User user = user("서울특별시", null);
+        RecommendationUserSnapshot user = user("서울특별시", null);
         WelfareService candidate = welfareService(2L, "청년 취업 지원");
         given(welfareServiceRepository.findCandidatesWithSido(eq(26), eq(5), eq("서울특별시"), any(PageRequest.class)))
                 .willReturn(List.of(candidate));
@@ -86,15 +85,24 @@ class RetrievalServiceTest {
         verify(welfareServiceRepository, never()).findCandidatesWithRegionCode(any(Integer.class), any(Integer.class), any(), any(PageRequest.class));
     }
 
-    private User user(String sido, String regionCode) {
-        return User.builder()
-                .email("retrieval@test.dev")
-                .passwordHash("pw")
-                .birthDate(LocalDate.of(2000, 1, 1))
-                .sido(sido)
-                .regionCode(regionCode)
-                .incomeLevel((byte) 5)
-                .build();
+    private RecommendationUserSnapshot user(String sido, String regionCode) {
+        return new RecommendationUserSnapshot(
+                1L,
+                "user-key-1",
+                26,
+                "25_29",
+                sido,
+                "강남구",
+                regionCode,
+                (byte) 5,
+                null,
+                null,
+                10,
+                0.5,
+                List.of(),
+                List.of(),
+                List.of()
+        );
     }
 
     private WelfareService welfareService(Long id, String title) {

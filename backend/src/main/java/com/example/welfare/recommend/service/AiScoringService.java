@@ -1,8 +1,8 @@
 package com.example.welfare.recommend.service;
 
 import com.example.welfare.recommend.dto.ScoredCandidate;
+import com.example.welfare.recommend.dto.RecommendationUserSnapshot;
 import com.example.welfare.recommend.gateway.AiRecommendationGateway;
-import com.example.welfare.user.entity.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -18,7 +18,7 @@ public class AiScoringService {
 
     private final AiRecommendationGateway aiRecommendationGateway;
 
-    public List<ScoredCandidate> score(String clusterId, List<ScoredCandidate> candidates, User user) {
+    public List<ScoredCandidate> score(String clusterId, List<ScoredCandidate> candidates, RecommendationUserSnapshot user) {
         return aiRecommendationGateway.score(clusterId, candidates, user);
     }
 }

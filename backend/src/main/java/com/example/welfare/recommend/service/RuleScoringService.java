@@ -3,12 +3,9 @@ package com.example.welfare.recommend.service;
 import com.example.welfare.policy.entity.ServiceTag;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.repository.ServiceTagRepository;
+import com.example.welfare.recommend.dto.PriorityPreference;
+import com.example.welfare.recommend.dto.RecommendationUserSnapshot;
 import com.example.welfare.recommend.dto.ScoredCandidate;
-import com.example.welfare.user.entity.User;
-import com.example.welfare.user.entity.UserAttribute;
-import com.example.welfare.user.entity.UserPriority;
-import com.example.welfare.user.repository.UserAttributeRepository;
-import com.example.welfare.user.repository.UserPriorityRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -33,25 +30,13 @@ public class RuleScoringService {
     private static final double SPECIAL_TARGET_MATCH_BONUS = 12.0;
     private static final double SPECIAL_TARGET_MISMATCH_PENALTY = 8.0;
 
-    private final UserAttributeRepository userAttributeRepository;
-    private final UserPriorityRepository userPriorityRepository;
     private final ServiceTagRepository serviceTagRepository;
     private final PriorityMatcher priorityMatcher;
     private final YouthPolicyFilter youthPolicyFilter;
 
-    public List<ScoredCandidate> score(List<WelfareService> candidates, User user) {
-        List<UserAttribute> attributes = userAttributeRepository.findByUserId(user.getId());
-        List<UserPriority> priorities = userPriorityRepository.findByUserIdOrderByPriorityRank(user.getId());
-
-        // 관심분야 (INTEREST_FIELD)
-        Set<String> interestFields = attributes.stream()
-                .filter(a -> UserAttribute.AttrType.INTEREST_FIELD.name().equals(a.getAttrType()))
-                .map(UserAttribute::getAttrValue)
-                .collect(Collectors.toSet());
-        Set<String> targetTypes = attributes.stream()
-                .filter(a -> UserAttribute.AttrType.TARGET_TYPE.name().equals(a.getAttrType()))
-                .map(UserAttribute::getAttrValue)
-                .collect(Collectors.toSet());
+    public List<ScoredCandidate> score(List<WelfareService> candidates, RecommendationUserSnapshot user) {
+        Set<String> interestFields = user.interestFields().stream().collect(Collectors.toSet());
+        Set<String> targetTypes = user.targetTypes().stream().collect(Collectors.toSet());
 
         // 후보 전체 태그 한 번에 로드 (N+1 방지)
         List<Long> serviceIds = candidates.stream()
@@ -66,7 +51,7 @@ public class RuleScoringService {
                 .map(service -> {
                     List<ServiceTag> tags = tagsByServiceId.getOrDefault(service.getId(), List.of());
                     double base = calcBaseScore(service, user, interestFields, targetTypes, tags);
-                    double weighted = applyPriorityWeight(base, service, priorities);
+                    double weighted = applyPriorityWeight(base, service, user.priorities());
                     // 특수 대상 신호가 있지만 사용자와 불일치한 경우 플래그 설정
                     boolean mismatch = !specialTargetMatches(user, targetTypes, service, tags)
                             && hasSpecialTargetSignal(service, tags);
@@ -81,7 +66,7 @@ public class RuleScoringService {
                 .collect(Collectors.toList());
     }
 
-    private double calcBaseScore(WelfareService service, User user,
+    private double calcBaseScore(WelfareService service, RecommendationUserSnapshot user,
                                   Set<String> interestFields, Set<String> targetTypes, List<ServiceTag> tags) {
         double score = 0;
 
@@ -137,7 +122,7 @@ public class RuleScoringService {
      * 복지로 trgterIndvdlArray 실제 값 예시:
      * "미취업청년", "저소득층", "1인가구", "청년", "대학생", "취업준비생"
      */
-    private boolean targetGroupMatches(User user, List<ServiceTag> tags) {
+    private boolean targetGroupMatches(RecommendationUserSnapshot user, List<ServiceTag> tags) {
         List<ServiceTag> targetTags = tags.stream()
                 .filter(t -> t.getTagType() == ServiceTag.TagType.TARGET_GROUP)
                 .collect(Collectors.toList());
@@ -148,8 +133,8 @@ public class RuleScoringService {
             String val = t.getTagValue();
 
             // 취업상태 매핑
-            if (user.getEmploymentStatus() != null) {
-                String emp = user.getEmploymentStatus();
+            if (user.employmentStatus() != null) {
+                String emp = user.employmentStatus();
                 if (val.contains("미취업") && emp.contains("미취업")) return true;
                 if (val.contains("취업준비") && (emp.contains("취업준비") || emp.contains("구직"))) return true;
                 if (val.contains("재직") && emp.contains("재직")) return true;
@@ -158,17 +143,17 @@ public class RuleScoringService {
             }
 
             // 가구유형 매핑
-            if (user.getHouseholdType() != null) {
-                String household = user.getHouseholdType();
+            if (user.householdType() != null) {
+                String household = user.householdType();
                 if (val.contains("1인가구") && household.contains("1인")) return true;
                 if (val.contains("한부모") && household.contains("한부모")) return true;
                 if (val.contains("다자녀") && household.contains("다자녀")) return true;
             }
 
             // 소득분위 매핑 (저소득층 = 3분위 이하로 판단)
-            if (user.getIncomeLevel() != null) {
-                if (val.contains("저소득") && user.getIncomeLevel() <= 3) return true;
-                if (val.contains("기초생활") && user.getIncomeLevel() <= 1) return true;
+            if (user.incomeLevel() != null) {
+                if (val.contains("저소득") && user.incomeLevel() <= 3) return true;
+                if (val.contains("기초생활") && user.incomeLevel() <= 1) return true;
             }
 
             return false;
@@ -182,7 +167,7 @@ public class RuleScoringService {
                 && service.getApplyEndDate().isBefore(today.plusDays(7));
     }
 
-    private boolean specialTargetMatches(User user, Set<String> targetTypes, WelfareService service, List<ServiceTag> tags) {
+    private boolean specialTargetMatches(RecommendationUserSnapshot user, Set<String> targetTypes, WelfareService service, List<ServiceTag> tags) {
         return specialAudienceMatchedByTargetTypes(targetTypes, service, tags)
                 || specialAudienceMatchedByUserProfile(user, service, tags);
     }
@@ -209,13 +194,13 @@ public class RuleScoringService {
         return false;
     }
 
-    private boolean specialAudienceMatchedByUserProfile(User user, WelfareService service, List<ServiceTag> tags) {
-        if (user.getIncomeLevel() != null && user.getIncomeLevel() <= 3
+    private boolean specialAudienceMatchedByUserProfile(RecommendationUserSnapshot user, WelfareService service, List<ServiceTag> tags) {
+        if (user.incomeLevel() != null && user.incomeLevel() <= 3
                 && containsAnySignal(service, tags, "저소득", "기초생활")) {
             return true;
         }
-        if (user.getHouseholdType() != null) {
-            String household = user.getHouseholdType();
+        if (user.householdType() != null) {
+            String household = user.householdType();
             if (household.contains("한부모") && containsAnySignal(service, tags, "한부모")) {
                 return true;
             }
@@ -267,12 +252,12 @@ public class RuleScoringService {
      * 우선순위 가중치 — 복수 매칭 시 최고 배율 하나만 적용 (이중합산 방지)
      */
     private double applyPriorityWeight(double base, WelfareService service,
-                                        List<UserPriority> priorities) {
+                                        List<PriorityPreference> priorities) {
         if (priorities.isEmpty()) return base;
 
         double maxWeight = priorities.stream()
                 .filter(p -> priorityMatcher.matches(p, service))
-                .mapToDouble(UserPriority::getWeight)
+                .mapToDouble(PriorityPreference::weight)
                 .max()
                 .orElse(1.0);
 

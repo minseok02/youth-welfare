@@ -238,6 +238,11 @@
 - 해결: `docs/README.md`에 신규 문서 링크를 추가하고, `docs/phase-plan.md`에서 완료/진행 예정/남은 작업을 실제 문서 상태와 다시 맞춤
 - 이유: 이 저장소는 문서가 구현 계획과 운영 기준의 단일 진입점 역할을 하므로, 새 문서는 본문 작성만으로 끝내지 말고 목차와 추적 문서까지 함께 갱신해야 재발을 막을 수 있음
 
+## 48) read cut-over 시 `user_attributes` / `user_priorities.user_key` 누락으로 프로필·추천 데이터가 비어 보일 수 있었음
+- 문제: 프로필/추천 read path를 `user_profiles` 중심으로 바꾸는 과정에서, 보조 테이블 `user_attributes`, `user_priorities`의 기존 row 상당수가 아직 `user_key` 없이 `user_id`만 채워진 상태라 `where user_key = ?` 조회만 쓰면 관심분야/우선순위가 통째로 누락될 수 있었음
+- 해결: 이번 전환에서는 read query를 `user_id -> users.user_key` 조인 기준으로 바꿔 기존 데이터를 안전하게 읽도록 고정했고, 후속 작업으로 `user_key` write sync 및 backfill을 별도 항목으로 추가
+- 이유: cut-over 단계에서는 "새 키 기준 이상형"보다 "기존 운영 데이터가 빠짐없이 읽히는 것"이 우선이다. 보조 테이블 backfill 전까지는 조인 보정이 있어야 추천/프로필 품질 저하를 막을 수 있음
+
 ## 48) 관리자 이메일 allowlist만 두면 공개 signup으로 권한 선점이 가능했음
 - 문제: 이메일 인증이 없는 현재 구조에서 `SECURITY_ADMIN_EMAILS`만 두고 `/api/admin/**` 권한을 주면, 해당 이메일 주소가 DB에 없을 때 누구나 공개 회원가입으로 관리자 계정을 선점할 수 있었음
 - 해결: 관리자 예약 이메일은 `signup`에서 차단하고, 운영자가 DB에 수동 생성한 계정만 관리자 권한을 얻도록 변경

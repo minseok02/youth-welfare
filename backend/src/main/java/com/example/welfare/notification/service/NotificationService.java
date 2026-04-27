@@ -4,6 +4,7 @@ import com.example.welfare.notification.gateway.NotificationGateway;
 import com.example.welfare.notification.entity.Notification.NotificationChannel;
 import com.example.welfare.notification.entity.Notification.NotificationPeriodType;
 import com.example.welfare.notification.entity.Notification.NotificationStatus;
+import com.example.welfare.notification.dto.NotificationTarget;
 import com.example.welfare.recommend.entity.RecommendationLog;
 import com.example.welfare.recommend.entity.ScoreWeight;
 import com.example.welfare.recommend.entity.UserRecommendation;
@@ -16,6 +17,7 @@ import com.example.welfare.user.entity.User;
 import com.example.welfare.user.entity.User.NotificationPeriod;
 import com.example.welfare.notification.repository.NotificationRepository;
 import com.example.welfare.user.repository.UserRepository;
+import com.example.welfare.user.service.UserReadService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -36,6 +38,7 @@ import java.time.LocalDateTime;
 public class NotificationService {
 
     private final UserRepository userRepository;
+    private final UserReadService userReadService;
     private final RecommendationFacade recommendationFacade;
     private final RecommendationLogService logService;
     private final ScoreWeightService scoreWeightService;
@@ -56,8 +59,7 @@ public class NotificationService {
      */
     @Scheduled(cron = "0 0 8 * * *", zone = "Asia/Seoul")
     public void sendDailyNotifications() {
-        List<User> targets = userRepository.findByNotificationYnTrueAndNotificationPeriod(
-                NotificationPeriod.DAILY);
+        List<NotificationTarget> targets = userReadService.getNotificationTargets(NotificationPeriod.DAILY);
         log.info("[NotificationService] 일간 알림 대상: {}명", targets.size());
         targets.forEach(this::sendTopRecommendations);
     }
@@ -67,8 +69,7 @@ public class NotificationService {
      */
     @Scheduled(cron = "0 0 8 * * MON", zone = "Asia/Seoul")
     public void sendWeeklyNotifications() {
-        List<User> targets = userRepository.findByNotificationYnTrueAndNotificationPeriod(
-                NotificationPeriod.WEEKLY);
+        List<NotificationTarget> targets = userReadService.getNotificationTargets(NotificationPeriod.WEEKLY);
         log.info("[NotificationService] 주간 알림 대상: {}명", targets.size());
         targets.forEach(this::sendTopRecommendations);
     }
@@ -83,24 +84,27 @@ public class NotificationService {
     }
 
     @Transactional
-    public void sendTopRecommendations(User user) {
+    public void sendTopRecommendations(NotificationTarget target) {
+        User user = userRepository.findById(target.userId())
+                .orElseThrow(() -> new IllegalStateException("Notification target user not found: " + target.userId()));
+        double minScore = target.notificationMinScore() != null ? target.notificationMinScore() : 0.0;
         List<UserRecommendation> recs = List.of();
         List<RecommendationLog> logs = List.of();
         String messageText = null;
         try {
-            recs = recommendationFacade.getRecommendations(user.getId(), Math.max(TOP_N, user.getDisplayCount())).stream()
+            recs = recommendationFacade.getRecommendations(target.userId(), Math.max(TOP_N, target.displayCount())).stream()
                     .filter(rec -> rec.getFinalScore() != null
-                            && rec.getFinalScore().doubleValue() >= user.getNotificationMinScore())
+                            && rec.getFinalScore().doubleValue() >= minScore)
                     .limit(TOP_N)
                     .toList();
             if (recs.isEmpty()) return;
 
             ScoreWeight weight = scoreWeightService.getActiveWeight();
             logs = logService.logNotification(user, recs, weight);
-            messageText = buildEmailText(user, recs, logs);
+            messageText = buildEmailText(target.userId(), recs, logs);
 
             boolean sent = notificationGateway.send(
-                    user.getEmail(),
+                    target.email(),
                     RECOMMEND_SUBJECT,
                     messageText
             );
@@ -109,7 +113,7 @@ public class NotificationService {
             String errorMessage = sent ? null : "notification gateway returned false";
             notificationHistoryService.saveResult(
                     user,
-                    toPeriodType(user.getNotificationPeriod()),
+                    toPeriodType(target.notificationPeriod()),
                     NotificationChannel.EMAIL,
                     status,
                     RECOMMEND_SUBJECT,
@@ -126,7 +130,7 @@ public class NotificationService {
             try {
                 notificationHistoryService.saveResult(
                         user,
-                        toPeriodType(user.getNotificationPeriod()),
+                        toPeriodType(target.notificationPeriod()),
                         NotificationChannel.EMAIL,
                         NotificationStatus.FAILED,
                         RECOMMEND_SUBJECT,
@@ -155,7 +159,7 @@ public class NotificationService {
         return buildEmailText(null, recs, logs);
     }
 
-    private String buildEmailText(User user, List<UserRecommendation> recs, List<RecommendationLog> logs) {
+    private String buildEmailText(Long userId, List<UserRecommendation> recs, List<RecommendationLog> logs) {
         StringBuilder sb = new StringBuilder("맞춤 복지 정책 추천\n\n");
         for (int i = 0; i < recs.size(); i++) {
             UserRecommendation rec = recs.get(i);
@@ -168,9 +172,9 @@ public class NotificationService {
                     .append(rec.getService().getId())
                     .append("?log_id=").append(logId).append("\n\n");
         }
-        if (user != null) {
+        if (userId != null) {
             sb.append("수신 거부: ").append(appBaseUrl).append("/api/notifications/unsubscribe?token=")
-                    .append(jwtUtil.generateNotificationToken(user.getId()))
+                    .append(jwtUtil.generateNotificationToken(userId))
                     .append("\n");
         }
         return sb.toString();
@@ -179,7 +183,7 @@ public class NotificationService {
     private void retryNotification(Notification notification) {
         try {
             boolean sent = notificationGateway.send(
-                    notification.getUser().getEmail(),
+                    userReadService.getNotificationEmail(notification.getUser().getId()),
                     notification.getSubject(),
                     notification.getMessageText()
             );

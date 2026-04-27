@@ -5,6 +5,7 @@ import com.example.welfare.notification.entity.Notification;
 import com.example.welfare.notification.entity.Notification.NotificationChannel;
 import com.example.welfare.notification.entity.Notification.NotificationPeriodType;
 import com.example.welfare.notification.entity.Notification.NotificationStatus;
+import com.example.welfare.notification.dto.NotificationTarget;
 import com.example.welfare.notification.gateway.NotificationGateway;
 import com.example.welfare.notification.repository.NotificationRepository;
 import com.example.welfare.policy.entity.WelfareService;
@@ -16,6 +17,7 @@ import com.example.welfare.recommend.service.RecommendationLogService;
 import com.example.welfare.recommend.service.ScoreWeightService;
 import com.example.welfare.user.entity.User;
 import com.example.welfare.user.repository.UserRepository;
+import com.example.welfare.user.service.UserReadService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -29,6 +31,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -43,6 +46,8 @@ class NotificationServiceTest {
 
     @Mock
     private UserRepository userRepository;
+    @Mock
+    private UserReadService userReadService;
     @Mock
     private RecommendationFacade recommendationFacade;
     @Mock
@@ -99,14 +104,17 @@ class NotificationServiceTest {
                 .aiWeight(new BigDecimal("0.2"))
                 .build();
         RecommendationLog log = RecommendationLog.builder().id(100L).build();
+        NotificationTarget target = new NotificationTarget(1L, "user-key-1", "test@example.com",
+                User.NotificationPeriod.DAILY, 0.8, 10);
 
+        given(userRepository.findById(1L)).willReturn(Optional.of(user));
         given(recommendationFacade.getRecommendations(1L, 10)).willReturn(List.of(pass, fail));
         given(scoreWeightService.getActiveWeight()).willReturn(weight);
         given(logService.logNotification(eq(user), any(), eq(weight))).willReturn(List.of(log));
         given(notificationGateway.send(eq("test@example.com"), eq("[청년복지] 맞춤 정책 추천"), any())).willReturn(true);
         given(jwtUtil.generateNotificationToken(1L)).willReturn("unsubscribe-token");
 
-        notificationService.sendTopRecommendations(user);
+        notificationService.sendTopRecommendations(target);
 
         ArgumentCaptor<String> messageCaptor = ArgumentCaptor.forClass(String.class);
         verify(notificationGateway).send(eq("test@example.com"), eq("[청년복지] 맞춤 정책 추천"), messageCaptor.capture());
@@ -138,10 +146,13 @@ class NotificationServiceTest {
                 .service(service)
                 .finalScore(new BigDecimal("0.60"))
                 .build();
+        NotificationTarget target = new NotificationTarget(1L, "user-key-1", "test@example.com",
+                User.NotificationPeriod.DAILY, 0.95, 10);
 
+        given(userRepository.findById(1L)).willReturn(Optional.of(user));
         given(recommendationFacade.getRecommendations(1L, 10)).willReturn(List.of(fail));
 
-        notificationService.sendTopRecommendations(user);
+        notificationService.sendTopRecommendations(target);
 
         verify(notificationGateway, never()).send(any(), any(), any());
         verify(notificationHistoryService, never()).saveResult(any(), any(), any(), any(), any(), any(), any(), any(), any());
@@ -175,14 +186,17 @@ class NotificationServiceTest {
                 .aiWeight(new BigDecimal("0.2"))
                 .build();
         RecommendationLog log = RecommendationLog.builder().id(100L).build();
+        NotificationTarget target = new NotificationTarget(1L, "user-key-1", "test@example.com",
+                User.NotificationPeriod.DAILY, 0.8, 10);
 
+        given(userRepository.findById(1L)).willReturn(Optional.of(user));
         given(recommendationFacade.getRecommendations(1L, 10)).willReturn(List.of(recommendation));
         given(scoreWeightService.getActiveWeight()).willReturn(weight);
         given(logService.logNotification(eq(user), any(), eq(weight))).willReturn(List.of(log));
         given(notificationGateway.send(eq("test@example.com"), eq("[청년복지] 맞춤 정책 추천"), any())).willReturn(false);
         given(jwtUtil.generateNotificationToken(1L)).willReturn("unsubscribe-token");
 
-        notificationService.sendTopRecommendations(user);
+        notificationService.sendTopRecommendations(target);
 
         verify(notificationHistoryService).saveResult(
                 eq(user),
@@ -219,6 +233,7 @@ class NotificationServiceTest {
 
         given(notificationRepository.findByStatusAndNextRetryAtBefore(eq(NotificationStatus.FAILED), any(LocalDateTime.class)))
                 .willReturn(List.of(notification));
+        given(userReadService.getNotificationEmail(1L)).willReturn("test@example.com");
         given(notificationGateway.send("test@example.com", "[청년복지] 맞춤 정책 추천", "body"))
                 .willReturn(true);
 
@@ -251,6 +266,7 @@ class NotificationServiceTest {
 
         given(notificationRepository.findByStatusAndNextRetryAtBefore(eq(NotificationStatus.FAILED), any(LocalDateTime.class)))
                 .willReturn(List.of(notification));
+        given(userReadService.getNotificationEmail(1L)).willReturn("test@example.com");
         given(notificationGateway.send("test@example.com", "[청년복지] 맞춤 정책 추천", "body"))
                 .willReturn(false);
 
@@ -285,6 +301,7 @@ class NotificationServiceTest {
 
         given(notificationRepository.findByStatusAndNextRetryAtBefore(eq(NotificationStatus.FAILED), any(LocalDateTime.class)))
                 .willReturn(List.of(notification));
+        given(userReadService.getNotificationEmail(1L)).willReturn("test@example.com");
         given(notificationGateway.send("test@example.com", "[청년복지] 맞춤 정책 추천", "body"))
                 .willReturn(false);
 

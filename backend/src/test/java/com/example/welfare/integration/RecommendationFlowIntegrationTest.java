@@ -3,16 +3,20 @@ package com.example.welfare.integration;
 import com.example.welfare.global.util.JwtUtil;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.repository.WelfareServiceRepository;
-import com.example.welfare.recommend.dto.ScoredCandidate;
+import com.example.welfare.recommend.dto.RecommendationUserSnapshot;
 import com.example.welfare.recommend.entity.UserRecommendation;
 import com.example.welfare.recommend.gateway.AiRecommendationGateway;
 import com.example.welfare.recommend.repository.UserRecommendationRepository;
 import com.example.welfare.user.entity.PriorityOption;
 import com.example.welfare.user.entity.User;
 import com.example.welfare.user.entity.UserPriority;
+import com.example.welfare.user.repository.AuthUserRepository;
 import com.example.welfare.user.repository.PriorityOptionRepository;
+import com.example.welfare.user.repository.UserPiiRepository;
 import com.example.welfare.user.repository.UserPriorityRepository;
+import com.example.welfare.user.repository.UserProfileRepository;
 import com.example.welfare.user.repository.UserRepository;
+import com.example.welfare.user.service.UserCoreSyncService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -56,7 +60,16 @@ class RecommendationFlowIntegrationTest {
     private UserRepository userRepository;
 
     @Autowired
+    private AuthUserRepository authUserRepository;
+
+    @Autowired
     private PriorityOptionRepository priorityOptionRepository;
+
+    @Autowired
+    private UserProfileRepository userProfileRepository;
+
+    @Autowired
+    private UserPiiRepository userPiiRepository;
 
     @Autowired
     private UserPriorityRepository userPriorityRepository;
@@ -67,6 +80,9 @@ class RecommendationFlowIntegrationTest {
     @Autowired
     private UserRecommendationRepository userRecommendationRepository;
 
+    @Autowired
+    private UserCoreSyncService userCoreSyncService;
+
     @MockBean
     private AiRecommendationGateway aiRecommendationGateway;
 
@@ -74,7 +90,15 @@ class RecommendationFlowIntegrationTest {
     void cleanup() {
         userRepository.findAll().stream()
                 .filter(user -> user.getEmail() != null && user.getEmail().startsWith(TEST_EMAIL_PREFIX))
-                .forEach(userRepository::delete);
+                .forEach(user -> {
+                    String userKey = userRepository.findUserKeyById(user.getId()).orElse(null);
+                    if (userKey != null) {
+                        authUserRepository.findByUserKey(userKey).ifPresent(authUserRepository::delete);
+                        userProfileRepository.findByUserKey(userKey).ifPresent(userProfileRepository::delete);
+                        userPiiRepository.findByUserKey(userKey).ifPresent(userPiiRepository::delete);
+                    }
+                    userRepository.delete(user);
+                });
 
         welfareServiceRepository.findAll().stream()
                 .filter(service -> service.getSourceId() != null && service.getSourceId().startsWith(TEST_SOURCE_PREFIX))
@@ -92,6 +116,7 @@ class RecommendationFlowIntegrationTest {
                 .incomeLevel((byte) 5)
                 .displayCount(10)
                 .build());
+        userCoreSyncService.syncFromUser(user);
 
         PriorityOption housing = priorityOptionRepository.findByCode("HOUSING").orElseThrow();
         userPriorityRepository.save(UserPriority.builder()
@@ -136,7 +161,7 @@ class RecommendationFlowIntegrationTest {
                 .registeredAt(java.time.LocalDateTime.now().minusMinutes(1))
                 .build());
 
-        given(aiRecommendationGateway.score(anyString(), anyList(), any(User.class)))
+        given(aiRecommendationGateway.score(anyString(), anyList(), any(RecommendationUserSnapshot.class)))
                 .willAnswer(invocation -> invocation.getArgument(1));
 
         String accessToken = jwtUtil.generateAccessToken(user.getId());

@@ -46,6 +46,7 @@ class UserServiceTest {
     @Mock private UserRecommendationRepository userRecommendationRepository;
     @Mock private ChatSessionCleanupService chatSessionCleanupService;
     @Mock private UserCoreSyncService userCoreSyncService;
+    @Mock private UserReadService userReadService;
 
     private UserService userService;
 
@@ -61,7 +62,8 @@ class UserServiceTest {
                 passwordEncoder,
                 userRecommendationRepository,
                 chatSessionCleanupService,
-                userCoreSyncService
+                userCoreSyncService,
+                userReadService
         );
     }
 

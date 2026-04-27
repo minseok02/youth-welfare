@@ -1,7 +1,7 @@
 package com.example.welfare.recommend.gateway;
 
+import com.example.welfare.recommend.dto.RecommendationUserSnapshot;
 import com.example.welfare.recommend.dto.ScoredCandidate;
-import com.example.welfare.user.entity.User;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -14,7 +14,6 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 
-import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -40,7 +39,7 @@ public class RealtimeAiGateway implements AiRecommendationGateway {
     private static final int AI_TOP_N = 15; // 상위 N건만 AI 호출 (비용 절감 + 누락 방지)
 
     @Override
-    public List<ScoredCandidate> score(String clusterId, List<ScoredCandidate> candidates, User user) {
+    public List<ScoredCandidate> score(String clusterId, List<ScoredCandidate> candidates, RecommendationUserSnapshot user) {
         // rule_weighted_score 내림차순으로 상위 N개만 AI 호출
         List<ScoredCandidate> topCandidates = candidates.stream()
                 .sorted((a, b) -> Double.compare(b.getRuleWeightedScore(), a.getRuleWeightedScore()))
@@ -76,16 +75,15 @@ public class RealtimeAiGateway implements AiRecommendationGateway {
             "사용자의 특성에 맞는 정책 적합도를 0~100점으로 평가합니다. " +
             "반드시 JSON만 응답하고, 입력된 모든 정책에 대해 빠짐없이 평가해야 합니다.";
 
-    private String buildUserPrompt(List<ScoredCandidate> topCandidates, User user) {
+    private String buildUserPrompt(List<ScoredCandidate> topCandidates, RecommendationUserSnapshot user) {
         // NFR-02-12: 개인식별정보 전송 금지 — 범주값만 전송
-        int age = user.getBirthDate() != null
-                ? LocalDate.now().getYear() - user.getBirthDate().getYear() : 25;
+        int age = user.resolvedAge();
         String ageGroup = age < 25 ? "19-24세" : age < 30 ? "25-29세" : "30-34세";
-        String region = user.getSido() != null ? user.getSido() : "지역 미입력";
-        String incomeRange = user.getIncomeLevel() != null
-                ? user.getIncomeLevel() + "분위" : "소득 미입력";
-        String employment = user.getEmploymentStatus() != null
-                ? user.getEmploymentStatus() : "취업상태 미입력";
+        String region = user.sido() != null ? user.sido() : "지역 미입력";
+        String incomeRange = user.incomeLevel() != null
+                ? user.incomeLevel() + "분위" : "소득 미입력";
+        String employment = user.employmentStatus() != null
+                ? user.employmentStatus() : "취업상태 미입력";
 
         StringBuilder policyList = new StringBuilder();
         topCandidates.forEach(c -> {

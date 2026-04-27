@@ -3,6 +3,9 @@ package com.example.welfare.user.dto.response;
 import com.example.welfare.user.entity.User;
 import com.example.welfare.user.entity.UserAttribute;
 import com.example.welfare.user.entity.UserPriority;
+import com.example.welfare.user.entity.UserProfile;
+import com.example.welfare.user.repository.UserAttributeReadModel;
+import com.example.welfare.user.repository.UserPriorityReadModel;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -78,6 +81,50 @@ public class ProfileResponse {
                 .notificationMinScore(user.getNotificationMinScore())
                 .displayCount(user.getDisplayCount())
                 .profileCompleteness(user.getProfileCompleteness())
+                .interestFields(interestFields)
+                .targetTypes(targetTypes)
+                .priorities(priorityItems)
+                .build();
+    }
+
+    public static ProfileResponse of(Long userId, String email, String name, LocalDate birthDate,
+                                     String phone, UserProfile profile,
+                                     List<UserAttributeReadModel> attributes,
+                                     List<UserPriorityReadModel> priorities) {
+        List<String> interestFields = attributes.stream()
+                .filter(a -> UserAttribute.AttrType.INTEREST_FIELD.name().equals(a.getAttrType()))
+                .map(UserAttributeReadModel::getAttrValue)
+                .collect(Collectors.toList());
+        List<String> targetTypes = attributes.stream()
+                .filter(a -> UserAttribute.AttrType.TARGET_TYPE.name().equals(a.getAttrType()))
+                .map(UserAttributeReadModel::getAttrValue)
+                .collect(Collectors.toList());
+
+        List<PriorityItem> priorityItems = priorities.stream()
+                .map(p -> PriorityItem.builder()
+                        .rank(p.getPriorityRank())
+                        .code(p.getCode())
+                        .weight(p.getWeight())
+                        .build())
+                .collect(Collectors.toList());
+
+        return ProfileResponse.builder()
+                .id(userId)
+                .email(email)
+                .name(name)
+                .birthDate(birthDate)
+                .phone(phone)
+                .sido(profile.getSido())
+                .sgg(profile.getSgg())
+                .regionCode(profile.getRegionCode())
+                .incomeLevel(profile.getIncomeLevel())
+                .householdType(profile.getHouseholdType())
+                .employmentStatus(profile.getEmploymentStatus())
+                .notificationYn(profile.isNotificationYn())
+                .notificationPeriod(profile.getNotificationPeriod() != null ? profile.getNotificationPeriod().name() : User.NotificationPeriod.NONE.name())
+                .notificationMinScore(profile.getNotificationMinScore())
+                .displayCount(profile.getDisplayCount())
+                .profileCompleteness(profile.getProfileCompleteness())
                 .interestFields(interestFields)
                 .targetTypes(targetTypes)
                 .priorities(priorityItems)

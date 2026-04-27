@@ -15,6 +15,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
@@ -27,6 +28,7 @@ import java.util.HexFormat;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -59,6 +61,9 @@ class UserCoreDualWriteIntegrationTest {
 
     @Autowired
     private AesEncryptUtil aesEncryptUtil;
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
 
     @AfterEach
     void cleanup() {
@@ -181,6 +186,71 @@ class UserCoreDualWriteIntegrationTest {
         assertThat(aesEncryptUtil.decrypt(userPii.getNameEnc())).isEqualTo("After Update");
         assertThat(aesEncryptUtil.decrypt(userPii.getBirthDateEnc())).isEqualTo("1996-05-20");
         assertThat(aesEncryptUtil.decrypt(userPii.getPhoneEnc())).isEqualTo("01012345678");
+    }
+
+    @Test
+    @DisplayName("프로필 조회는 user_profiles와 user_pii 값을 우선해서 반환한다")
+    void getProfileReadsFromSplitTables() throws Exception {
+        String email = TEST_EMAIL_PREFIX + UUID.randomUUID() + "@example.com";
+
+        mockMvc.perform(post("/api/auth/signup")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "email": "%s",
+                                  "password": "password123",
+                                  "name": "Legacy Name",
+                                  "birthDate": "1999-01-10",
+                                  "sido": "서울특별시",
+                                  "sgg": "강남구",
+                                  "incomeLevel": 6,
+                                  "employmentStatus": "EMPLOYED",
+                                  "householdType": "SINGLE"
+                                }
+                                """.formatted(email)))
+                .andExpect(status().isOk());
+
+        User user = userRepository.findByEmail(email).orElseThrow();
+        String accessToken = jwtUtil.generateAccessToken(user.getId());
+        String userKey = userRepository.findUserKeyById(user.getId()).orElseThrow();
+
+        jdbcTemplate.update("""
+                update user_profiles
+                set sido = ?, sgg = ?, region_code = ?, income_level = ?, household_type = ?, employment_status = ?,
+                    notification_yn = ?, notification_period = ?, notification_min_score = ?, display_count = ?
+                where user_key = ?
+                """,
+                "제주특별자치도", "제주시", "50000", 2, "ONE_PERSON", "JOB_SEEKER",
+                true, "DAILY", 0.9, 7, userKey);
+        jdbcTemplate.update("""
+                update youth_welfare_pii.user_pii
+                set email_enc = ?, name_enc = ?, birth_date_enc = ?, phone_enc = ?
+                where user_key = ?
+                """,
+                aesEncryptUtil.encrypt("split-read@example.com"),
+                aesEncryptUtil.encrypt("Split Name"),
+                aesEncryptUtil.encrypt("2001-03-15"),
+                aesEncryptUtil.encrypt("01099998888"),
+                userKey);
+
+        mockMvc.perform(get("/api/users/me")
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.email").value("split-read@example.com"))
+                .andExpect(jsonPath("$.data.name").value("Split Name"))
+                .andExpect(jsonPath("$.data.birthDate").value("2001-03-15"))
+                .andExpect(jsonPath("$.data.phone").value("01099998888"))
+                .andExpect(jsonPath("$.data.sido").value("제주특별자치도"))
+                .andExpect(jsonPath("$.data.sgg").value("제주시"))
+                .andExpect(jsonPath("$.data.regionCode").value("50000"))
+                .andExpect(jsonPath("$.data.incomeLevel").value(2))
+                .andExpect(jsonPath("$.data.householdType").value("ONE_PERSON"))
+                .andExpect(jsonPath("$.data.employmentStatus").value("JOB_SEEKER"))
+                .andExpect(jsonPath("$.data.notificationYn").value(true))
+                .andExpect(jsonPath("$.data.notificationPeriod").value("DAILY"))
+                .andExpect(jsonPath("$.data.notificationMinScore").value(0.9))
+                .andExpect(jsonPath("$.data.displayCount").value(7));
     }
 
     private String sha256Hex(String value) {

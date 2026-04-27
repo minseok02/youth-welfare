@@ -3,11 +3,8 @@ package com.example.welfare.recommend.service;
 import com.example.welfare.policy.entity.ServiceTag;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.repository.ServiceTagRepository;
+import com.example.welfare.recommend.dto.RecommendationUserSnapshot;
 import com.example.welfare.recommend.dto.ScoredCandidate;
-import com.example.welfare.user.entity.User;
-import com.example.welfare.user.entity.UserAttribute;
-import com.example.welfare.user.repository.UserAttributeRepository;
-import com.example.welfare.user.repository.UserPriorityRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -25,12 +22,6 @@ import static org.mockito.Mockito.when;
 class RuleScoringServiceTest {
 
     @Mock
-    private UserAttributeRepository userAttributeRepository;
-
-    @Mock
-    private UserPriorityRepository userPriorityRepository;
-
-    @Mock
     private ServiceTagRepository serviceTagRepository;
 
     @Mock
@@ -41,20 +32,16 @@ class RuleScoringServiceTest {
     @BeforeEach
     void setUp() {
         ruleScoringService = new RuleScoringService(
-                userAttributeRepository,
-                userPriorityRepository,
                 serviceTagRepository,
                 priorityMatcher,
                 new YouthPolicyFilter()
         );
-        when(userAttributeRepository.findByUserId(1L)).thenReturn(List.of());
-        when(userPriorityRepository.findByUserIdOrderByPriorityRank(1L)).thenReturn(List.of());
     }
 
     @Test
     @DisplayName("명시적 청년 정책이 나이만 겹치는 정책보다 높은 rule 점수를 받는다")
     void explicitYouthPolicyGetsHigherRuleScoreThanAgeOnlyPolicy() {
-        User user = User.builder().id(1L).build();
+        RecommendationUserSnapshot user = snapshot(List.of(), List.of(), (byte) 5, null, null);
 
         WelfareService explicitYouth = WelfareService.builder()
                 .id(10L)
@@ -92,17 +79,7 @@ class RuleScoringServiceTest {
     @Test
     @DisplayName("특수 대상이 맞지 않는 청년 정책은 일반 청년 정책보다 낮은 rule 점수를 받는다")
     void mismatchedSpecialAudiencePolicyGetsLowerScore() {
-        User user = User.builder()
-                .id(1L)
-                .incomeLevel((byte) 6)
-                .build();
-        when(userAttributeRepository.findByUserId(1L)).thenReturn(List.of(
-                UserAttribute.builder()
-                        .user(user)
-                        .attrType(UserAttribute.AttrType.INTEREST_FIELD.name())
-                        .attrValue("취업")
-                        .build()
-        ));
+        RecommendationUserSnapshot user = snapshot(List.of("취업"), List.of(), (byte) 6, null, null);
 
         WelfareService openYouth = WelfareService.builder()
                 .id(30L)
@@ -139,5 +116,29 @@ class RuleScoringServiceTest {
                 .filter(candidate -> serviceId.equals(candidate.getService().getId()))
                 .findFirst()
                 .orElseThrow();
+    }
+
+    private RecommendationUserSnapshot snapshot(List<String> interestFields,
+                                                List<String> targetTypes,
+                                                Byte incomeLevel,
+                                                String householdType,
+                                                String employmentStatus) {
+        return new RecommendationUserSnapshot(
+                1L,
+                "user-key-1",
+                25,
+                "25_29",
+                "서울특별시",
+                "강남구",
+                "11680",
+                incomeLevel,
+                householdType,
+                employmentStatus,
+                10,
+                0.5,
+                interestFields,
+                targetTypes,
+                List.of()
+        );
     }
 }

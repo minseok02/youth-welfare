@@ -4,14 +4,13 @@ import com.example.welfare.policy.entity.ServiceTag;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.repository.ServiceTagRepository;
 import com.example.welfare.policy.repository.WelfareServiceRepository;
-import com.example.welfare.user.entity.User;
+import com.example.welfare.recommend.dto.RecommendationUserSnapshot;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
-import java.time.LocalDate;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -36,31 +35,31 @@ public class RetrievalService {
     private final YouthPolicyFilter youthPolicyFilter;
 
     @Transactional(readOnly = true)
-    public List<WelfareService> retrieve(String clusterId, User user) {
-        int age = calculateAge(user);
-        int incomeLevel = user.getIncomeLevel() != null ? user.getIncomeLevel() : 5;
+    public List<WelfareService> retrieve(String clusterId, RecommendationUserSnapshot user) {
+        int age = user.resolvedAge();
+        int incomeLevel = user.resolvedIncomeLevel();
 
         List<WelfareService> rawCandidates;
         List<WelfareService> latestCandidates;
         // 지역코드가 있으면 더 정밀한 지역코드 쿼리, 없으면 시도 쿼리를 사용한다.
-        if (user.getSido() != null) {
-            if (StringUtils.hasText(user.getRegionCode())) {
+        if (user.sido() != null) {
+            if (StringUtils.hasText(user.regionCode())) {
                 rawCandidates = welfareServiceRepository.findCandidatesWithRegionCode(
                         age, incomeLevel,
-                        user.getRegionCode().trim(),
+                        user.regionCode().trim(),
                         PageRequest.of(0, FETCH_SIZE));
                 latestCandidates = welfareServiceRepository.findLatestCandidatesWithRegionCode(
                         age, incomeLevel,
-                        user.getRegionCode().trim(),
+                        user.regionCode().trim(),
                         PageRequest.of(0, M * 4));
             } else {
                 rawCandidates = welfareServiceRepository.findCandidatesWithSido(
                         age, incomeLevel,
-                        user.getSido(),
+                        user.sido(),
                         PageRequest.of(0, FETCH_SIZE));
                 latestCandidates = welfareServiceRepository.findLatestCandidatesWithSido(
                         age, incomeLevel,
-                        user.getSido(),
+                        user.sido(),
                         PageRequest.of(0, M * 4));
             }
         } else {
@@ -79,11 +78,6 @@ public class RetrievalService {
         return mergeBaseAndLatest(filteredBase, filteredLatest).stream()
                 .limit(K + M)
                 .collect(Collectors.toList());
-    }
-
-    private int calculateAge(User user) {
-        if (user.getBirthDate() == null) return 25; // 기본값
-        return LocalDate.now().getYear() - user.getBirthDate().getYear();
     }
 
     /**

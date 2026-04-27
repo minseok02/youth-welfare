@@ -1,7 +1,7 @@
 package com.example.welfare.recommend.service;
 
+import com.example.welfare.recommend.dto.PriorityPreference;
 import com.example.welfare.policy.entity.WelfareService;
-import com.example.welfare.user.entity.UserPriority;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
@@ -10,8 +10,8 @@ import java.time.LocalDate;
 public class DefaultPriorityMatcher implements PriorityMatcher {
 
     @Override
-    public boolean matches(UserPriority priority, WelfareService service) {
-        String code = priority.getPriorityOption().getCode();
+    public boolean matches(PriorityPreference priority, WelfareService service) {
+        String code = priority.code();
         return switch (code) {
             case "HOUSING"       -> "주거".equals(service.getUnifiedCategory());
             case "JOB"           -> "일자리".equals(service.getUnifiedCategory());

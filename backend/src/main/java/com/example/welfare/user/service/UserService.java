@@ -42,14 +42,11 @@ public class UserService {
     private final UserRecommendationRepository userRecommendationRepository;
     private final ChatSessionCleanupService chatSessionCleanupService;
     private final UserCoreSyncService userCoreSyncService;
+    private final UserReadService userReadService;
 
     @Transactional(readOnly = true)
     public ProfileResponse getProfile(Long userId) {
-        User user = findActiveUser(userId);
-        List<UserAttribute> attributes = userAttributeRepository.findByUserId(userId);
-        List<UserPriority> priorities = userPriorityRepository.findByUserIdOrderByPriorityRank(userId);
-        String phone = aesEncryptUtil.decrypt(user.getPhoneEnc());
-        return ProfileResponse.of(user, attributes, priorities, phone);
+        return userReadService.getProfile(userId);
     }
 
     @Transactional(readOnly = true)
