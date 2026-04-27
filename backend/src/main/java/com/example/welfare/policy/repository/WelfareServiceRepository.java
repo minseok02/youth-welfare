@@ -33,9 +33,8 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                                         @Param("incomeLevel") int incomeLevel,
                                         Pageable pageable);
 
-    // 지역 필터 포함 추천 후보
+    // 지역코드 필터 포함 추천 후보
     // service_regions 레코드가 없는 전국 정책(복지로 중앙 등)도 포함
-    // LEFT JOIN DISTINCT 대신 EXISTS/NOT EXISTS 로 판정해 중복 제거 비용을 피한다.
     @Query("""
             SELECT ws FROM WelfareService ws
             WHERE ws.status IN ('ACTIVE', 'UPCOMING')
@@ -56,15 +55,44 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                     OR EXISTS (
                         SELECT sr2.id FROM ServiceRegion sr2
                         WHERE sr2.service = ws
-                          AND (sr2.regionCode = :regionCode OR sr2.sidoName = :sidoName)
+                          AND sr2.regionCode = :regionCode
                     )
                   )
             """)
-    List<WelfareService> findCandidatesWithRegion(@Param("age") int age,
-                                                   @Param("incomeLevel") int incomeLevel,
-                                                   @Param("regionCode") String regionCode,
-                                                   @Param("sidoName") String sidoName,
-                                                   Pageable pageable);
+    List<WelfareService> findCandidatesWithRegionCode(@Param("age") int age,
+                                                      @Param("incomeLevel") int incomeLevel,
+                                                      @Param("regionCode") String regionCode,
+                                                      Pageable pageable);
+
+    // 시도 필터 포함 추천 후보
+    @Query("""
+            SELECT ws FROM WelfareService ws
+            WHERE ws.status IN ('ACTIVE', 'UPCOMING')
+              AND (ws.minAge IS NULL OR ws.minAge <= :age)
+              AND (ws.maxAge IS NULL OR ws.maxAge >= :age)
+              AND (
+                    ws.sourceType <> com.example.welfare.policy.entity.WelfareService$SourceType.YOUTH
+                    OR (
+                        (ws.minIncome IS NULL OR ws.minIncome <= :incomeLevel)
+                        AND (ws.maxIncome IS NULL OR ws.maxIncome >= :incomeLevel)
+                    )
+                  )
+              AND (
+                    NOT EXISTS (
+                        SELECT sr1.id FROM ServiceRegion sr1
+                        WHERE sr1.service = ws
+                    )
+                    OR EXISTS (
+                        SELECT sr2.id FROM ServiceRegion sr2
+                        WHERE sr2.service = ws
+                          AND sr2.sidoName = :sidoName
+                    )
+                  )
+            """)
+    List<WelfareService> findCandidatesWithSido(@Param("age") int age,
+                                                @Param("incomeLevel") int incomeLevel,
+                                                @Param("sidoName") String sidoName,
+                                                Pageable pageable);
 
     // 추천 후보 조회(최신순): 신규 정책 M건 강제 포함용
     @Query("""
@@ -85,7 +113,7 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                                               @Param("incomeLevel") int incomeLevel,
                                               Pageable pageable);
 
-    // 지역 필터 포함 추천 후보 조회(최신순): 신규 정책 M건 강제 포함용
+    // 지역코드 필터 포함 추천 후보 조회(최신순): 신규 정책 M건 강제 포함용
     @Query("""
             SELECT ws FROM WelfareService ws
             WHERE ws.status IN ('ACTIVE', 'UPCOMING')
@@ -106,16 +134,46 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                     OR EXISTS (
                         SELECT sr2.id FROM ServiceRegion sr2
                         WHERE sr2.service = ws
-                          AND (sr2.regionCode = :regionCode OR sr2.sidoName = :sidoName)
+                          AND sr2.regionCode = :regionCode
                     )
                   )
             ORDER BY ws.createdAt DESC
             """)
-    List<WelfareService> findLatestCandidatesWithRegion(@Param("age") int age,
-                                                         @Param("incomeLevel") int incomeLevel,
-                                                         @Param("regionCode") String regionCode,
-                                                         @Param("sidoName") String sidoName,
-                                                         Pageable pageable);
+    List<WelfareService> findLatestCandidatesWithRegionCode(@Param("age") int age,
+                                                            @Param("incomeLevel") int incomeLevel,
+                                                            @Param("regionCode") String regionCode,
+                                                            Pageable pageable);
+
+    // 시도 필터 포함 추천 후보 조회(최신순): 신규 정책 M건 강제 포함용
+    @Query("""
+            SELECT ws FROM WelfareService ws
+            WHERE ws.status IN ('ACTIVE', 'UPCOMING')
+              AND (ws.minAge IS NULL OR ws.minAge <= :age)
+              AND (ws.maxAge IS NULL OR ws.maxAge >= :age)
+              AND (
+                    ws.sourceType <> com.example.welfare.policy.entity.WelfareService$SourceType.YOUTH
+                    OR (
+                        (ws.minIncome IS NULL OR ws.minIncome <= :incomeLevel)
+                        AND (ws.maxIncome IS NULL OR ws.maxIncome >= :incomeLevel)
+                    )
+                  )
+              AND (
+                    NOT EXISTS (
+                        SELECT sr1.id FROM ServiceRegion sr1
+                        WHERE sr1.service = ws
+                    )
+                    OR EXISTS (
+                        SELECT sr2.id FROM ServiceRegion sr2
+                        WHERE sr2.service = ws
+                          AND sr2.sidoName = :sidoName
+                    )
+                  )
+            ORDER BY ws.createdAt DESC
+            """)
+    List<WelfareService> findLatestCandidatesWithSido(@Param("age") int age,
+                                                      @Param("incomeLevel") int incomeLevel,
+                                                      @Param("sidoName") String sidoName,
+                                                      Pageable pageable);
 
     // FULLTEXT 검색 (Native Query — MySQL ngram)
     // ft_ws_search 인덱스: title, description, support_content, keyword 4개 컬럼 — 반드시 동일하게 지정

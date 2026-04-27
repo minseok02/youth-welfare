@@ -37,8 +37,8 @@ class RecommendationRegionQueryIntegrationTest {
     }
 
     @Test
-    @DisplayName("지역 추천 후보는 전국 정책과 매칭 지역 정책만 포함하고 중복 반환하지 않는다")
-    void findCandidatesWithRegionIncludesNationwideAndMatchingLocalWithoutDuplicates() {
+    @DisplayName("지역코드 추천 후보는 전국 정책과 매칭 지역 정책만 포함하고 중복 반환하지 않는다")
+    void findCandidatesWithRegionCodeIncludesNationwideAndMatchingLocalWithoutDuplicates() {
         WelfareService nationwide = saveService("nationwide");
         WelfareService seoul = saveService("seoul");
         WelfareService busan = saveService("busan");
@@ -64,11 +64,10 @@ class RecommendationRegionQueryIntegrationTest {
                         .build()
         ));
 
-        List<WelfareService> results = welfareServiceRepository.findCandidatesWithRegion(
+        List<WelfareService> results = welfareServiceRepository.findCandidatesWithRegionCode(
                 25,
                 5,
                 "11680",
-                "서울특별시",
                 PageRequest.of(0, 5000)
         );
 
@@ -82,8 +81,8 @@ class RecommendationRegionQueryIntegrationTest {
     }
 
     @Test
-    @DisplayName("지역 최신 추천 후보도 전국 정책과 매칭 지역 정책만 포함하고 중복 반환하지 않는다")
-    void findLatestCandidatesWithRegionIncludesNationwideAndMatchingLocalWithoutDuplicates() {
+    @DisplayName("지역코드 최신 추천 후보도 전국 정책과 매칭 지역 정책만 포함하고 중복 반환하지 않는다")
+    void findLatestCandidatesWithRegionCodeIncludesNationwideAndMatchingLocalWithoutDuplicates() {
         WelfareService nationwide = saveService("latest-nationwide");
         WelfareService seoul = saveService("latest-seoul");
         WelfareService busan = saveService("latest-busan");
@@ -109,10 +108,85 @@ class RecommendationRegionQueryIntegrationTest {
                         .build()
         ));
 
-        List<WelfareService> results = welfareServiceRepository.findLatestCandidatesWithRegion(
+        List<WelfareService> results = welfareServiceRepository.findLatestCandidatesWithRegionCode(
                 25,
                 5,
                 "11680",
+                PageRequest.of(0, 5000)
+        );
+
+        assertThat(results)
+                .extracting(WelfareService::getId)
+                .contains(nationwide.getId(), seoul.getId())
+                .doesNotContain(busan.getId());
+        assertThat(results.stream()
+                .filter(service -> service.getId().equals(seoul.getId()))
+                .count()).isEqualTo(1L);
+    }
+
+    @Test
+    @DisplayName("시도 추천 후보는 전국 정책과 같은 시도 정책만 포함한다")
+    void findCandidatesWithSidoIncludesNationwideAndMatchingLocalWithoutDuplicates() {
+        WelfareService nationwide = saveService("sido-nationwide");
+        WelfareService seoul = saveService("sido-seoul");
+        WelfareService busan = saveService("sido-busan");
+
+        serviceRegionRepository.saveAll(List.of(
+                ServiceRegion.builder()
+                        .service(seoul)
+                        .regionCode("11740")
+                        .sidoName("서울특별시")
+                        .sggName("강동구")
+                        .build(),
+                ServiceRegion.builder()
+                        .service(busan)
+                        .regionCode("26350")
+                        .sidoName("부산광역시")
+                        .sggName("해운대구")
+                        .build()
+        ));
+
+        List<WelfareService> results = welfareServiceRepository.findCandidatesWithSido(
+                25,
+                5,
+                "서울특별시",
+                PageRequest.of(0, 5000)
+        );
+
+        assertThat(results)
+                .extracting(WelfareService::getId)
+                .contains(nationwide.getId(), seoul.getId())
+                .doesNotContain(busan.getId());
+        assertThat(results.stream()
+                .filter(service -> service.getId().equals(seoul.getId()))
+                .count()).isEqualTo(1L);
+    }
+
+    @Test
+    @DisplayName("시도 최신 추천 후보는 전국 정책과 같은 시도 정책만 포함한다")
+    void findLatestCandidatesWithSidoIncludesNationwideAndMatchingLocalWithoutDuplicates() {
+        WelfareService nationwide = saveService("latest-sido-nationwide");
+        WelfareService seoul = saveService("latest-sido-seoul");
+        WelfareService busan = saveService("latest-sido-busan");
+
+        serviceRegionRepository.saveAll(List.of(
+                ServiceRegion.builder()
+                        .service(seoul)
+                        .regionCode("11740")
+                        .sidoName("서울특별시")
+                        .sggName("강동구")
+                        .build(),
+                ServiceRegion.builder()
+                        .service(busan)
+                        .regionCode("26350")
+                        .sidoName("부산광역시")
+                        .sggName("해운대구")
+                        .build()
+        ));
+
+        List<WelfareService> results = welfareServiceRepository.findLatestCandidatesWithSido(
+                25,
+                5,
                 "서울특별시",
                 PageRequest.of(0, 5000)
         );

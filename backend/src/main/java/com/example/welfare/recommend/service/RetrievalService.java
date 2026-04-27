@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.time.LocalDate;
 import java.util.Collections;
@@ -41,17 +42,27 @@ public class RetrievalService {
 
         List<WelfareService> rawCandidates;
         List<WelfareService> latestCandidates;
-        // sido만 있어도 지역 쿼리 사용 (regionCode는 nullable — LEFT JOIN 쿼리가 NULL 안전 처리)
+        // 지역코드가 있으면 더 정밀한 지역코드 쿼리, 없으면 시도 쿼리를 사용한다.
         if (user.getSido() != null) {
-            String regionCode = user.getRegionCode() != null ? user.getRegionCode() : "";
-            rawCandidates = welfareServiceRepository.findCandidatesWithRegion(
-                    age, incomeLevel,
-                    regionCode, user.getSido(),
-                    PageRequest.of(0, FETCH_SIZE));
-            latestCandidates = welfareServiceRepository.findLatestCandidatesWithRegion(
-                    age, incomeLevel,
-                    regionCode, user.getSido(),
-                    PageRequest.of(0, M * 4));
+            if (StringUtils.hasText(user.getRegionCode())) {
+                rawCandidates = welfareServiceRepository.findCandidatesWithRegionCode(
+                        age, incomeLevel,
+                        user.getRegionCode().trim(),
+                        PageRequest.of(0, FETCH_SIZE));
+                latestCandidates = welfareServiceRepository.findLatestCandidatesWithRegionCode(
+                        age, incomeLevel,
+                        user.getRegionCode().trim(),
+                        PageRequest.of(0, M * 4));
+            } else {
+                rawCandidates = welfareServiceRepository.findCandidatesWithSido(
+                        age, incomeLevel,
+                        user.getSido(),
+                        PageRequest.of(0, FETCH_SIZE));
+                latestCandidates = welfareServiceRepository.findLatestCandidatesWithSido(
+                        age, incomeLevel,
+                        user.getSido(),
+                        PageRequest.of(0, M * 4));
+            }
         } else {
             rawCandidates = welfareServiceRepository.findCandidates(age, incomeLevel, PageRequest.of(0, FETCH_SIZE));
             latestCandidates = welfareServiceRepository.findLatestCandidates(age, incomeLevel, PageRequest.of(0, M * 4));
