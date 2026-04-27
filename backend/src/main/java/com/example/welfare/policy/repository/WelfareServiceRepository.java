@@ -34,12 +34,10 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                                         Pageable pageable);
 
     // 지역 필터 포함 추천 후보
-    // LEFT JOIN: service_regions 레코드가 없는 전국 정책(복지로 중앙 등)도 포함
-    // sr이 NULL인 경우 = 전국 정책 → 지역 조건 없이 통과
-    // sr이 존재하는 경우 = 지역 정책 → regionCode 또는 sidoName 일치 시 통과
+    // service_regions 레코드가 없는 전국 정책(복지로 중앙 등)도 포함
+    // LEFT JOIN DISTINCT 대신 EXISTS/NOT EXISTS 로 판정해 중복 제거 비용을 피한다.
     @Query("""
-            SELECT DISTINCT ws FROM WelfareService ws
-            LEFT JOIN ServiceRegion sr ON sr.service = ws
+            SELECT ws FROM WelfareService ws
             WHERE ws.status IN ('ACTIVE', 'UPCOMING')
               AND (ws.minAge IS NULL OR ws.minAge <= :age)
               AND (ws.maxAge IS NULL OR ws.maxAge >= :age)
@@ -50,7 +48,17 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                         AND (ws.maxIncome IS NULL OR ws.maxIncome >= :incomeLevel)
                     )
                   )
-              AND (sr.id IS NULL OR sr.regionCode = :regionCode OR sr.sidoName = :sidoName)
+              AND (
+                    NOT EXISTS (
+                        SELECT sr1.id FROM ServiceRegion sr1
+                        WHERE sr1.service = ws
+                    )
+                    OR EXISTS (
+                        SELECT sr2.id FROM ServiceRegion sr2
+                        WHERE sr2.service = ws
+                          AND (sr2.regionCode = :regionCode OR sr2.sidoName = :sidoName)
+                    )
+                  )
             """)
     List<WelfareService> findCandidatesWithRegion(@Param("age") int age,
                                                    @Param("incomeLevel") int incomeLevel,
@@ -79,8 +87,7 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
 
     // 지역 필터 포함 추천 후보 조회(최신순): 신규 정책 M건 강제 포함용
     @Query("""
-            SELECT DISTINCT ws FROM WelfareService ws
-            LEFT JOIN ServiceRegion sr ON sr.service = ws
+            SELECT ws FROM WelfareService ws
             WHERE ws.status IN ('ACTIVE', 'UPCOMING')
               AND (ws.minAge IS NULL OR ws.minAge <= :age)
               AND (ws.maxAge IS NULL OR ws.maxAge >= :age)
@@ -91,7 +98,17 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                         AND (ws.maxIncome IS NULL OR ws.maxIncome >= :incomeLevel)
                     )
                   )
-              AND (sr.id IS NULL OR sr.regionCode = :regionCode OR sr.sidoName = :sidoName)
+              AND (
+                    NOT EXISTS (
+                        SELECT sr1.id FROM ServiceRegion sr1
+                        WHERE sr1.service = ws
+                    )
+                    OR EXISTS (
+                        SELECT sr2.id FROM ServiceRegion sr2
+                        WHERE sr2.service = ws
+                          AND (sr2.regionCode = :regionCode OR sr2.sidoName = :sidoName)
+                    )
+                  )
             ORDER BY ws.createdAt DESC
             """)
     List<WelfareService> findLatestCandidatesWithRegion(@Param("age") int age,

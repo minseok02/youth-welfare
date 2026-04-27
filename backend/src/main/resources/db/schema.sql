@@ -202,6 +202,8 @@ CREATE TABLE IF NOT EXISTS service_regions (
     KEY idx_sr_service     (service_id),
     KEY idx_sr_region_code (region_code),
     KEY idx_sr_sido        (sido_name),
+    KEY idx_sr_service_sido_sgg (service_id, sido_name, sgg_name),
+    KEY idx_sr_service_region_code (service_id, region_code),
     CONSTRAINT fk_sr_service FOREIGN KEY (service_id) REFERENCES welfare_services(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
