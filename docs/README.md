@@ -46,6 +46,7 @@
 
 - [user-data-separation-design.md](./user-data-separation-design.md)
   인증/프로필/PII 분리 방향과 서비스 계정 권한 경계를 확인합니다.
+  현재 cut-over 진행 상태와 남은 구현 작업은 `phase-plan.md`와 같이 봅니다.
 
 - [admin-account-runbook.md](./admin-account-runbook.md)
   운영 admin 계정 생성, `SECURITY_ADMIN_EMAILS` 반영, 검증/회수 절차를 확인합니다.

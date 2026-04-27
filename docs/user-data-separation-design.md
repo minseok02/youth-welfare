@@ -55,6 +55,23 @@
 - `users` 중심 단일 엔티티를 목적별 저장소로 분해할 발판 만들기
 - 런타임 경로 중 추천/알림/프로필이 어떤 PII를 정말 필요로 하는지 경계를 고정하기
 
+## 현재 반영 상태
+
+2026-04-28 기준 반영 상태는 아래와 같다.
+
+- 완료
+  - `users.user_key` 및 하위 테이블 `user_key` migration/backfill
+  - `auth_users`, `user_profiles`, `user_pii` 생성과 core backfill
+  - 회원가입/프로필/비밀번호/회원탈퇴 dual-write
+  - 로그인/비밀번호 재설정 조회의 `auth_users` 전환
+  - `user_pii.email_enc/name_enc/birth_date_enc` 앱 레벨 암호화 backfill
+  - 프로필 조회/추천/알림 read path의 `user_profiles + user_pii` 전환
+- 남은 작업
+  - `user_attributes`, `user_priorities` 의 `user_key` write sync 및 backfill
+  - JWT subject, refresh token key, 비밀번호 재설정 토큰 key의 `user_key` 전환
+  - `ManyToOne User` 제거와 `user_id` FK 정리
+  - 런타임 datasource 권한 분리 (`app_core_rw`, `app_pii_rw`, `notification_pii_ro`)
+
 ## 현재 권한 구조의 문제
 
 현재 배포/보안 구조는 데이터 분리 이전에도 권한 경계가 약하다.
@@ -650,11 +667,23 @@
 - 알림 발송은 대상 조회는 `user_profiles`, 이메일 조회는 `user_pii` 로 분리
 - `NotificationService` 와 추천 관련 서비스에서 `User` 전체 엔티티 직접 의존 제거
 
+현재 상태:
+
+- 로그인/비밀번호 재설정 조회 전환 완료
+- 프로필 조회/추천/알림 read path 전환 완료
+- 다만 `user_attributes`, `user_priorities` 는 운영 데이터 호환을 위해 당분간 `user_id -> users.user_key` 조인 read 를 유지
+- 따라서 이 단계의 잔여 작업은 `user_key` write sync/backfill 정리와 조인 제거다
+
 ### 4단계: identity cut-over
 
 - JWT `sub`, refresh token Redis key, 비밀번호 재설정 토큰 사용자 키를 `Long userId`에서 `user_key`로 전환
 - `UserRecommendation`, `RecommendationLog`, `Notification`, `ChatSession`, `UserAttribute`, `UserPriority` 의 `ManyToOne User` 제거
 - 각 테이블의 `user_key NOT NULL` 제약 확정 후 `user_id` FK 제거
+
+현재 상태:
+
+- 아직 미착수
+- 3단계 read path 전환은 끝났지만 identity cut-over 전에 보조 테이블 `user_key` write sync/backfill 을 먼저 끝내는 것이 안전하다
 
 ### 5단계: 물리 분리와 정리
 
@@ -688,11 +717,22 @@
 - `NotificationService` 이메일 조회 분리
 - 나이 파생값 배치 또는 저장 시 재계산 로직
 
+현재 상태:
+
+- 프로필 조회/추천/알림 read path 전환 완료
+- `NotificationService` 이메일 조회 분리 완료
+- 나이 파생값은 `UserCoreSyncService` 저장 시 재계산 경로로 반영 중
+- 후속으로 `user_attributes/user_priorities.user_key` write sync/backfill 이 남아 있다
+
 ### Release D
 
 - JWT `user_key` 전환
 - `ManyToOne User` 제거
 - legacy `users` 의 읽기 전용화
+
+현재 상태:
+
+- 아직 미착수
 
 ## 이 설계에서 주의할 점
 
