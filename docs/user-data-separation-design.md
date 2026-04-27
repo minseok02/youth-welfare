@@ -190,6 +190,7 @@
 - 이메일도 여기서는 암호화 원문으로만 둔다.
 - 회원가입 중복 체크용 해시는 `youth_welfare.auth_users` 에, 실제 연락처 원문은 `youth_welfare_pii.user_pii` 에 둔다.
 - `AesEncryptUtil` 수준에서 끝내지 말고 가능하면 키는 DB 밖 KMS/Vault 또는 최소한 별도 키 관리 정책으로 분리한다.
+- 현재 1차 core table migration에서는 `user_pii` 테이블과 `phone_enc` seed만 먼저 만들고, `email_enc/name_enc/birth_date_enc` 백필은 앱 레벨 암호화 dual-write 단계에서 채운다.
 
 ## 현재 프로젝트 기준 테이블 재배치
 
@@ -679,6 +680,7 @@
 - `auth_users`, `user_profiles`, `user_pii` schema/migration
 - `AuthService`, `UserService` dual-write
 - `ProfileResponse` 조합 DTO 경로 준비
+- 기존 `users.email/name/birth_date` -> `user_pii.email_enc/name_enc/birth_date_enc` 앱 레벨 암호화 backfill
 
 ### Release C
 

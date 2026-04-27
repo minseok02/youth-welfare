@@ -9,6 +9,14 @@
 
 ## 최신 마이그레이션
 
+- 파일: [`backend/src/main/resources/db/migration/V2026_04_27_03__add_user_core_split_tables.sql`](../backend/src/main/resources/db/migration/V2026_04_27_03__add_user_core_split_tables.sql)
+- 포함 내용:
+  - `auth_users`, `user_profiles` 생성
+  - `youth_welfare_pii.user_pii` 생성
+  - 기존 `users` 기준 1회 backfill
+  - `auth_users.email_lookup_hash`, `user_profiles.age/age_band/has_*` 파생값 채움
+  - `user_pii` 는 현재 `phone_enc` 만 backfill하고, `email_enc/name_enc/birth_date_enc` 는 dual-write 단계에서 앱 레벨 암호화 후 채울 준비만 함
+
 - 파일: [`backend/src/main/resources/db/migration/V2026_04_27_02__add_user_key_columns.sql`](../backend/src/main/resources/db/migration/V2026_04_27_02__add_user_key_columns.sql)
 - 포함 내용:
   - `users.user_key CHAR(32)` 추가 및 기존 사용자 deterministic hash backfill
@@ -55,6 +63,7 @@
 ## 적용 방법
 
 ```bash
+mysql -h 127.0.0.1 -P 3307 -u root -p youth_welfare < backend/src/main/resources/db/migration/V2026_04_27_03__add_user_core_split_tables.sql
 mysql -h 127.0.0.1 -P 3307 -u root -p youth_welfare < backend/src/main/resources/db/migration/V2026_04_27_02__add_user_key_columns.sql
 mysql -h 127.0.0.1 -P 3307 -u root -p youth_welfare < backend/src/main/resources/db/migration/V2026_04_27_01__add_service_region_compound_indexes.sql
 mysql -h 127.0.0.1 -P 3307 -u root -p youth_welfare < backend/src/main/resources/db/migration/V2026_04_25_01__add_chat_tables.sql
@@ -67,6 +76,7 @@ mysql -h 127.0.0.1 -P 3307 -u root -p youth_welfare < backend/src/main/resources
 도커 컨테이너를 쓰는 경우:
 
 ```bash
+docker exec -i youth-welfare-db mysql -uroot -p"$DB_PASSWORD" youth_welfare < backend/src/main/resources/db/migration/V2026_04_27_03__add_user_core_split_tables.sql
 docker exec -i youth-welfare-db mysql -uroot -p"$DB_PASSWORD" youth_welfare < backend/src/main/resources/db/migration/V2026_04_27_02__add_user_key_columns.sql
 docker exec -i youth-welfare-db mysql -uroot -p"$DB_PASSWORD" youth_welfare < backend/src/main/resources/db/migration/V2026_04_27_01__add_service_region_compound_indexes.sql
 docker exec -i youth-welfare-db mysql -uroot -p"$DB_PASSWORD" youth_welfare < backend/src/main/resources/db/migration/V2026_04_25_01__add_chat_tables.sql
@@ -107,6 +117,18 @@ SHOW TABLES LIKE 'chat_sessions';
 SHOW TABLES LIKE 'chat_messages';
 SHOW CREATE TABLE chat_sessions;
 SHOW CREATE TABLE chat_messages;
+SHOW TABLES LIKE 'auth_users';
+SHOW TABLES LIKE 'user_profiles';
+SHOW TABLES FROM youth_welfare_pii LIKE 'user_pii';
+SHOW COLUMNS FROM auth_users;
+SHOW COLUMNS FROM user_profiles;
+SHOW COLUMNS FROM youth_welfare_pii.user_pii;
+SELECT COUNT(*) AS auth_user_count FROM auth_users;
+SELECT COUNT(*) AS user_profile_count FROM user_profiles;
+SELECT COUNT(*) AS user_pii_count FROM youth_welfare_pii.user_pii;
+SELECT COUNT(*) AS auth_users_without_hash FROM auth_users WHERE email_lookup_hash IS NULL OR email_lookup_hash = '';
+SELECT COUNT(*) AS user_profiles_without_user_key FROM user_profiles WHERE user_key IS NULL;
+SELECT COUNT(*) AS user_pii_without_user_key FROM youth_welfare_pii.user_pii WHERE user_key IS NULL;
 SHOW COLUMNS FROM users LIKE 'user_key';
 SHOW INDEX FROM users WHERE Key_name = 'uq_users_user_key';
 SHOW COLUMNS FROM user_attributes LIKE 'user_key';
@@ -142,4 +164,6 @@ SELECT search_youth_relevant, COUNT(*) FROM welfare_services GROUP BY search_you
 - `users.user_key`는 migration 직후부터 새 가입에도 자동 채워지도록 `DEFAULT (REPLACE(UUID(), '-', ''))`를 사용한다.
 - 기존 사용자 backfill은 `UUID()` 대량 UPDATE 대신 `SHA2(CONCAT('user:', id), 256)` 앞 32자 사용으로 고정했다. 단일 인스턴스뿐 아니라 binlog safety 경고가 있는 환경에서도 적용 가능하게 하기 위해서다.
 - `V2026_04_27_02__add_user_key_columns.sql`은 세션 시작 시 `SET SESSION sql_log_bin = 0`을 실행한다. 현재 운영 절차처럼 root 또는 migration 전용 계정으로 수동 적용하는 것을 전제로 한다.
+- `V2026_04_27_03__add_user_core_split_tables.sql`도 세션 시작 시 `SET SESSION sql_log_bin = 0`을 실행한다.
+- `user_pii` 의 `email_enc/name_enc/birth_date_enc` 는 이번 단계에서 비워 둔다. 현재 애플리케이션 암호화 포맷과 동일한 값을 SQL만으로 안전하게 만들 수 없어서, dual-write 릴리스에서 앱 레벨 암호화로 채우는 것이 기준이다.
 - 하위 테이블의 `user_key`는 아직 nullable로 유지한다. dual-write/repository cut-over 전에는 기존 `user_id` FK가 계속 기준이다.
