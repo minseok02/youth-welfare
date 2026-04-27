@@ -15,7 +15,7 @@
   - `youth_welfare_pii.user_pii` 생성
   - 기존 `users` 기준 1회 backfill
   - `auth_users.email_lookup_hash`, `user_profiles.age/age_band/has_*` 파생값 채움
-  - `user_pii` 는 현재 `phone_enc` 만 backfill하고, `email_enc/name_enc/birth_date_enc` 는 dual-write 단계에서 앱 레벨 암호화 후 채울 준비만 함
+  - `user_pii` 는 migration 시점에는 `phone_enc` 만 backfill하고, 이후 최신 백엔드의 관리자 백필 API로 `email_enc/name_enc/birth_date_enc` 를 채우는 구조
 
 - 파일: [`backend/src/main/resources/db/migration/V2026_04_27_02__add_user_key_columns.sql`](../backend/src/main/resources/db/migration/V2026_04_27_02__add_user_key_columns.sql)
 - 포함 내용:
@@ -104,6 +104,22 @@ curl -X POST http://127.0.0.1:8082/api/admin/policies/search-youth-relevance/reb
 - 백엔드 최신 코드 배포 후 위 백필 호출까지 끝나야 실제 청년 필터 기준 검색 성능과 결과가 맞는다.
 - 응답 본문에는 `processedCount`, `updatedCount`, `relevantCount`, `excludedCount`가 포함된다.
 
+## 앱 레벨 PII backfill 실행
+
+최신 백엔드 배포 후 `user_pii.email_enc/name_enc/birth_date_enc` 는 관리자 API로 채운다.
+
+```bash
+curl -X POST http://127.0.0.1:8082/api/admin/users/pii-backfill \
+  -H "Authorization: Bearer <ADMIN_ACCESS_TOKEN>"
+```
+
+응답 본문:
+
+- `processedCount`: 누락 암호문이 있어 검사한 `user_pii` row 수
+- `updatedUserCount`: 실제로 하나 이상 암호문을 채운 사용자 수
+- `emailBackfilledCount`, `nameBackfilledCount`, `birthDateBackfilledCount`: 필드별 채운 건수
+- `skippedCount`: 원본 `users.email/name/birth_date` 가 비어 있어 채우지 못한 row 수
+
 ## 확인 쿼리
 
 ```sql
@@ -126,6 +142,18 @@ SHOW COLUMNS FROM youth_welfare_pii.user_pii;
 SELECT COUNT(*) AS auth_user_count FROM auth_users;
 SELECT COUNT(*) AS user_profile_count FROM user_profiles;
 SELECT COUNT(*) AS user_pii_count FROM youth_welfare_pii.user_pii;
+SELECT COUNT(*) AS user_pii_missing_enc
+FROM youth_welfare_pii.user_pii
+WHERE email_enc IS NULL OR email_enc = ''
+   OR name_enc IS NULL OR name_enc = ''
+   OR birth_date_enc IS NULL OR birth_date_enc = '';
+SELECT COUNT(*) AS user_pii_missing_enc_but_source_null
+FROM users u
+JOIN youth_welfare_pii.user_pii up ON up.user_key = u.user_key
+WHERE (up.email_enc IS NULL OR up.email_enc = ''
+    OR up.name_enc IS NULL OR up.name_enc = ''
+    OR up.birth_date_enc IS NULL OR up.birth_date_enc = '')
+  AND (u.name IS NULL OR u.birth_date IS NULL);
 SELECT COUNT(*) AS auth_users_without_hash FROM auth_users WHERE email_lookup_hash IS NULL OR email_lookup_hash = '';
 SELECT COUNT(*) AS user_profiles_without_user_key FROM user_profiles WHERE user_key IS NULL;
 SELECT COUNT(*) AS user_pii_without_user_key FROM youth_welfare_pii.user_pii WHERE user_key IS NULL;
@@ -165,5 +193,6 @@ SELECT search_youth_relevant, COUNT(*) FROM welfare_services GROUP BY search_you
 - 기존 사용자 backfill은 `UUID()` 대량 UPDATE 대신 `SHA2(CONCAT('user:', id), 256)` 앞 32자 사용으로 고정했다. 단일 인스턴스뿐 아니라 binlog safety 경고가 있는 환경에서도 적용 가능하게 하기 위해서다.
 - `V2026_04_27_02__add_user_key_columns.sql`은 세션 시작 시 `SET SESSION sql_log_bin = 0`을 실행한다. 현재 운영 절차처럼 root 또는 migration 전용 계정으로 수동 적용하는 것을 전제로 한다.
 - `V2026_04_27_03__add_user_core_split_tables.sql`도 세션 시작 시 `SET SESSION sql_log_bin = 0`을 실행한다.
-- `user_pii` 의 `email_enc/name_enc/birth_date_enc` 는 이번 단계에서 비워 둔다. 현재 애플리케이션 암호화 포맷과 동일한 값을 SQL만으로 안전하게 만들 수 없어서, dual-write 릴리스에서 앱 레벨 암호화로 채우는 것이 기준이다.
+- `user_pii` 의 `email_enc/name_enc/birth_date_enc` 는 migration SQL로 직접 채우지 않는다. 최신 백엔드의 `/api/admin/users/pii-backfill` 가 `AesEncryptUtil` 과 같은 경로로 채우는 것이 기준이다.
+- `users.name` 또는 `users.birth_date` 가 이미 비어 있는 row는 앱 레벨 backfill 이후에도 남을 수 있다. 이 경우는 source 원문이 없는 상태라 `skippedCount` 로 기록하고 억지로 placeholder 값을 넣지 않는다.
 - 하위 테이블의 `user_key`는 아직 nullable로 유지한다. dual-write/repository cut-over 전에는 기존 `user_id` FK가 계속 기준이다.

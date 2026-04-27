@@ -10,9 +10,10 @@
 정책 목록/검색/상세/랭킹은 비로그인 허용, 추천/북마크/마이페이지는 로그인 필수로 분리됐습니다.
 AI 추천 품질 점검 후 프롬프트 개선, 중복 추천 제거, 노이즈 정책 필터, CTR 로그 구조를 보완했습니다.
 CTR 분석 기본 쿼리 실행 결과를 확보했고, 현재 데이터는 `46건 / 클릭 1건 / fallback 16건 / 가중치 0.80:0.20 단일 구간`이라 후속 표본 확충 후 재분석이 필요합니다.
-사용자 PII 분리 이행안은 `2 schema`, `user_key` 선행, `dual-write -> read cut-over` 순서로 확정했고, 1단계 `user_key` migration, 2단계 core 분리 테이블(`auth_users`, `user_profiles`, `user_pii`) 생성/backfill, 3단계 회원가입/프로필/비밀번호/회원탈퇴 dual-write까지 반영했습니다.
+사용자 PII 분리 이행안은 `2 schema`, `user_key` 선행, `dual-write -> read cut-over` 순서로 확정했고, 1단계 `user_key` migration, 2단계 core 분리 테이블(`auth_users`, `user_profiles`, `user_pii`) 생성/backfill, 3단계 회원가입/프로필/비밀번호/회원탈퇴 dual-write와 `user_pii.email_enc/name_enc/birth_date_enc` 앱 레벨 암호화 backfill까지 반영했습니다.
 데모 시나리오 전체 실행 완료 및 발견된 문제 수정됐습니다.
-남은 작업은 운영 배포/운영성 검증(운영 서버 Docker Compose, HTTPS/Nginx, PII read path 전환 + 암호화 backfill, 비밀번호 재설정 발송 경로 `user_pii` 전환, 런타임 DB 계정 분리, CTR 표본 확충 후 재분석)과 2차 확장 기능(군집 캐시 추천, 카카오 알림톡, 검색 로그, 대시보드)입니다.
+로컬 Docker MySQL 기준 `user_pii` 24건 중 `email_enc` 24건, `name_enc` 21건, `birth_date_enc` 21건이 채워졌고, 남은 3건은 원본 `users.name/birth_date` 가 비어 있어 skip 됐습니다.
+남은 작업은 운영 배포/운영성 검증(운영 서버 Docker Compose, HTTPS/Nginx, PII read path 전환, 비밀번호 재설정 발송 경로 `user_pii` 전환, 런타임 DB 계정 분리, CTR 표본 확충 후 재분석)과 2차 확장 기능(군집 캐시 추천, 카카오 알림톡, 검색 로그, 대시보드)입니다.
 
 ## 완료된 백엔드 1차 범위
 
@@ -334,6 +335,14 @@ CTR 분석 기본 쿼리 실행 결과를 확보했고, 현재 데이터는 `46�
 - 2026-04-28 로그인/비밀번호 재설정 조회 경로 전환 후 `backend`에서 `./gradlew test --no-daemon`
 - 2026-04-28 `docker compose up -d db redis`
 - 2026-04-28 로그인/비밀번호 재설정 조회 경로 전환 후 `backend`에서 `./gradlew integrationTest --no-daemon --tests com.example.welfare.integration.AuthRedisIntegrationTest`
+- 2026-04-28 `user_pii.email_enc/name_enc/birth_date_enc` 앱 레벨 암호화 backfill 구현 및 실행
+  - `POST /api/admin/users/pii-backfill` 관리자 API와 `UserPiiBackfillService` 추가
+  - 누락된 암호문만 앱의 `AesEncryptUtil` 경로로 채우고, 원본 `users.name/birth_date` 가 비어 있는 row는 skip 하도록 고정
+  - 로컬 Docker MySQL 확인 결과 `user_pii` 24건 중 `email_enc=24`, `name_enc=21`, `birth_date_enc=21`, 잔여 누락 3건은 `users.name/birth_date` 가 이미 `NULL`
+- 2026-04-28 PII 암호화 backfill 후 `backend`에서 `./gradlew test --no-daemon --tests com.example.welfare.user.service.UserPiiBackfillServiceTest --tests com.example.welfare.admin.AdminSecurityWebMvcTest`
+- 2026-04-28 PII 암호화 backfill 후 `backend`에서 `./gradlew test --no-daemon`
+- 2026-04-28 `docker compose up -d db redis`
+- 2026-04-28 PII 암호화 backfill 후 `backend`에서 `./gradlew integrationTest --no-daemon --tests com.example.welfare.integration.UserPiiBackfillIntegrationTest`
 
 ## 작업 추적
 
@@ -345,7 +354,6 @@ CTR 분석 기본 쿼리 실행 결과를 확보했고, 현재 데이터는 `46�
 
 - [ ] 운영 서버 Docker Compose 기동
 - [ ] HTTPS/Nginx 적용
-- [ ] `user_pii.email_enc/name_enc/birth_date_enc` 앱 레벨 암호화 backfill
 - [ ] 비밀번호 재설정 메일 발송 주소를 `user_pii.email_enc` 복호화 기준으로 전환
 - [ ] 프로필 조회/추천/알림 read path를 `user_profiles` + `user_pii` 기준으로 전환
 - [ ] 런타임 DB 계정 root 제거 및 기능별 계정 분리 (`app_core_rw`, `app_pii_rw`, `notification_pii_ro`)
@@ -354,6 +362,7 @@ CTR 분석 기본 쿼리 실행 결과를 확보했고, 현재 데이터는 `46�
 
 ### 완료
 
+- [x] `user_pii.email_enc/name_enc/birth_date_enc` 앱 레벨 암호화 backfill
 - [x] 로그인/비밀번호 재설정 조회 경로를 `auth_users` 기준으로 전환
 - [x] 회원가입/프로필/비밀번호/회원탈퇴 dual-write 적용 (`users` + `auth_users` + `user_profiles` + `user_pii`)
 - [x] PII core 테이블 migration 작성 (`auth_users`, `user_profiles`, `user_pii`)
@@ -459,6 +468,12 @@ cd backend
 - 2026-04-28 로그인/비밀번호 재설정 조회 경로 전환 후 `backend`에서 `./gradlew test --no-daemon --tests com.example.welfare.user.service.AuthServiceTest`
 - 2026-04-28 로그인/비밀번호 재설정 조회 경로 전환 후 `backend`에서 `./gradlew test --no-daemon`
 - 2026-04-28 로그인/비밀번호 재설정 조회 경로 전환 후 `backend`에서 `./gradlew integrationTest --no-daemon --tests com.example.welfare.integration.AuthRedisIntegrationTest`
+- 2026-04-28 PII 암호화 backfill 후 `backend`에서 `./gradlew test --no-daemon --tests com.example.welfare.user.service.UserPiiBackfillServiceTest --tests com.example.welfare.admin.AdminSecurityWebMvcTest`
+- 2026-04-28 PII 암호화 backfill 후 `backend`에서 `./gradlew test --no-daemon`
+- 2026-04-28 PII 암호화 backfill 후 `backend`에서 `./gradlew integrationTest --no-daemon --tests com.example.welfare.integration.UserPiiBackfillIntegrationTest`
+- 2026-04-28 Docker MySQL에서 `user_pii` 백필 결과 확인
+  - `total_user_pii=24`, `email_filled=24`, `name_filled=21`, `birth_filled=21`
+  - 잔여 누락 3건은 `users.id=19,20,21` 이며 `users.name`, `users.birth_date` 가 이미 `NULL`
 
 ## 남은 1차 작업
 
@@ -466,7 +481,6 @@ cd backend
 
 - EC2 또는 운영 서버에서 Docker Compose 기동
 - HTTPS/Nginx 적용
-- `user_pii.email_enc/name_enc/birth_date_enc` 앱 레벨 암호화 backfill
 - 비밀번호 재설정 메일 발송 주소를 `user_pii.email_enc` 복호화 기준으로 전환
 - 프로필 조회/추천/알림 read path를 `user_profiles` + `user_pii` 기준으로 전환
 - 런타임 DB 계정 root 제거 및 기능별 계정 분리

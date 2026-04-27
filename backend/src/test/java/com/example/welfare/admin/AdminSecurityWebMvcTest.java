@@ -7,6 +7,9 @@ import com.example.welfare.global.config.SecurityConfig;
 import com.example.welfare.global.util.JwtUtil;
 import com.example.welfare.policy.controller.PolicyAdminController;
 import com.example.welfare.policy.service.SearchYouthRelevanceService;
+import com.example.welfare.user.controller.UserAdminController;
+import com.example.welfare.user.dto.response.UserPiiBackfillResponse;
+import com.example.welfare.user.service.UserPiiBackfillService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,7 +29,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@WebMvcTest(controllers = {CollectAdminController.class, PolicyAdminController.class})
+@WebMvcTest(controllers = {CollectAdminController.class, PolicyAdminController.class, UserAdminController.class})
 @Import({SecurityConfig.class, JacksonConfig.class})
 class AdminSecurityWebMvcTest {
 
@@ -37,6 +40,8 @@ class AdminSecurityWebMvcTest {
     private CollectService collectService;
     @MockBean
     private SearchYouthRelevanceService searchYouthRelevanceService;
+    @MockBean
+    private UserPiiBackfillService userPiiBackfillService;
     @MockBean
     private JwtUtil jwtUtil;
     @MockBean
@@ -79,6 +84,27 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.data").value("온통청년 수집 완료"));
 
         then(collectService).should().collectYouth();
+    }
+
+    @Test
+    @DisplayName("관리자 토큰으로 PII 백필 API를 호출하면 백필 서비스를 실행한다")
+    void adminEndpointAllowsPiiBackfill() throws Exception {
+        mockAuthenticatedToken("admin-token", List.of(
+                new SimpleGrantedAuthority("ROLE_USER"),
+                new SimpleGrantedAuthority("ROLE_ADMIN")
+        ));
+        given(userPiiBackfillService.backfillMissingEncryptedFields())
+                .willReturn(new UserPiiBackfillResponse(3, 2, 2, 1, 1, 1));
+
+        mockMvc.perform(post("/api/admin/users/pii-backfill")
+                        .header("Authorization", "Bearer admin-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.processedCount").value(3))
+                .andExpect(jsonPath("$.data.updatedUserCount").value(2))
+                .andExpect(jsonPath("$.data.skippedCount").value(1));
+
+        then(userPiiBackfillService).should().backfillMissingEncryptedFields();
     }
 
     private void mockAuthenticatedToken(String token,
