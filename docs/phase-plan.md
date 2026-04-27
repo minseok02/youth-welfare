@@ -232,6 +232,11 @@ AI 추천 품질 점검 후 프롬프트 개선, 중복 추천 제거, 노이즈
 - 2026-04-26 로그인 전 비밀번호 재설정 메일/토큰 구현 후 `frontend`에서 `npm run lint`
 - 2026-04-26 로그인 전 비밀번호 재설정 메일/토큰 구현 후 `frontend`에서 `npm run build`
   - Vite 번들 크기 경고는 남았지만 빌드는 성공
+- 2026-04-27 운영 admin 계정 수동 생성 절차 문서화
+  - `docs/admin-account-runbook.md` 추가
+  - `docs/deployment.md`, `docs/README.md`에 admin 계정 bootstrap/revoke 절차 링크 반영
+- 2026-04-27 운영 admin 계정 수동 생성 절차 문서화 후 `backend`에서 `./gradlew integrationTest --no-daemon --tests com.example.welfare.integration.AdminSecurityIntegrationTest`
+- 2026-04-27 운영 admin 계정 수동 생성 절차 문서화 후 `git diff --check`
 - 2026-04-25 운영/설계 보조 문서 링크 및 작업 추적 정합성 점검
   - `docs/README.md`에 `db-search-recommend-ops-guide.md`, `user-data-separation-design.md` 링크 추가
   - `docs/phase-plan.md`의 완료/진행 예정/남은 작업 간 상태 충돌 정리
@@ -277,12 +282,12 @@ AI 추천 품질 점검 후 프롬프트 개선, 중복 추천 제거, 노이즈
 - [ ] HTTPS/Nginx 적용
 - [ ] CTR 분석 쿼리 실행 결과 확보
 - [ ] 검색/추천 쿼리 EXPLAIN 검증 및 인덱스 적용 여부 확정
-- [ ] 운영 admin 계정 수동 생성 절차 문서화 (`SECURITY_ADMIN_EMAILS`, DB 계정 준비)
 - [ ] 사용자 PII 분리 이행안 확정 (`users` 책임 분리, 서비스 계정 권한 분리)
 - [ ] 카카오 알림톡 연동 (2차, 심사 완료 후)
 
 ### 완료
 
+- [x] 운영 admin 계정 수동 생성 절차 문서화 (`SECURITY_ADMIN_EMAILS`, DB 계정 준비)
 - [x] 로그인 전 비밀번호 재설정 메일/토큰 구현
 - [x] 프론트 `/chat` 실제 화면 및 로그인 가드 구현
 - [x] 챗봇 요청 rate limit / abuse 방지

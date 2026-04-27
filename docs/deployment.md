@@ -10,6 +10,7 @@
   - `DB_PASSWORD`
   - `JWT_SECRET`
   - `AES_SECRET_KEY`
+  - `SECURITY_ADMIN_EMAILS`
   - `GMAIL_USERNAME`, `GMAIL_PASSWORD`
   - `OPENAI_API_KEY`
   - `YOUTH_API_KEY`
@@ -50,9 +51,12 @@ docker compose -f docker-compose.yml up -d --build app
 
 - `http://서버IP:8082/actuator/health`
 - 로그인 / refresh / 로그아웃
+- 운영 admin 계정 생성 및 `/api/admin/**` 권한 확인
 - 정책 목록 필터
 - 추천 북마크
 - 알림 수신 거부 링크
+
+운영 admin 계정의 최초 생성/회수 절차는 [admin-account-runbook.md](./admin-account-runbook.md)를 따릅니다.
 
 컨테이너 확인:
 
@@ -97,6 +101,7 @@ sudo systemctl reload nginx
 ## 6. 주의사항
 
 - `.env`는 커밋 금지
+- `SECURITY_ADMIN_EMAILS`를 바꾼 뒤에는 앱 재기동 필요
 - DB 볼륨이 이미 존재하면 `schema.sql`은 다시 자동 적용되지 않음
 - 기존 운영 DB는 배포 전에 마이그레이션 SQL을 선적용해야 함
 - Gmail 앱 비밀번호 미설정 시 알림 발송은 실패함

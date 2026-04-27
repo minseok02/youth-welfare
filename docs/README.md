@@ -47,6 +47,9 @@
 - [user-data-separation-design.md](./user-data-separation-design.md)
   인증/프로필/PII 분리 방향과 서비스 계정 권한 경계를 확인합니다.
 
+- [admin-account-runbook.md](./admin-account-runbook.md)
+  운영 admin 계정 생성, `SECURITY_ADMIN_EMAILS` 반영, 검증/회수 절차를 확인합니다.
+
 ### 테스트를 실행하거나 실패 원인을 볼 때
 
 - [testing.md](./testing.md)  
@@ -73,6 +76,7 @@
 ## 전체 문서 목록
 
 - [api-mapping.md](./api-mapping.md)
+- [admin-account-runbook.md](./admin-account-runbook.md)
 - [architecture.md](./architecture.md)
 - [chatbot-plan.md](./chatbot-plan.md)
 - [collect-ops.md](./collect-ops.md)
