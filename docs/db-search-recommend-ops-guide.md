@@ -16,7 +16,9 @@
 
 ## 1. 추가 검토할 인덱스 DDL
 
-현재 가장 먼저 손볼 후보는 `service_regions` 와 `welfare_services` 쪽이다.
+2026-04-27 로컬 Docker MySQL(`welfare_services` 3,604건 / `service_regions` 117,640건) 기준으로 EXPLAIN을 다시 확인했다.
+결론은 `service_regions` 복합 인덱스는 즉시 적용, `welfare_services` 정렬 보조 인덱스는 보류다.
+다만 `sido/sgg` 기반 지역 검색은 옵티마이저가 새 복합 인덱스를 항상 선택하지 않아 후속 재측정이 필요하다.
 
 ### A. 지역 검색 / 지역 추천 보강
 
@@ -28,13 +30,19 @@
 - 검색 필터
   - `EXISTS (service_id = ws.id AND sido_name = ? AND sgg_name = ?)`
 
-권장 DDL:
+적용 확정 DDL:
 
 ```sql
 ALTER TABLE service_regions
     ADD INDEX idx_sr_service_sido_sgg (service_id, sido_name, sgg_name),
     ADD INDEX idx_sr_service_region_code (service_id, region_code);
 ```
+
+2026-04-27 확인 결과:
+
+- migration 파일 `V2026_04_27_01__add_service_region_compound_indexes.sql` 적용과 `SHOW INDEX` 확인 완료
+- 추천 지역 후보 쿼리는 `LEFT JOIN + DISTINCT` 대신 `EXISTS/NOT EXISTS` 구조로 바꿔 임시 테이블 dedup 비용을 제거
+- 지역 검색 `sido/sgg` 서브쿼리는 재적용 후 EXPLAIN에서 `idx_sr_service` 를 계속 선택하는 케이스가 있어 후속 재검토가 필요
 
 의도:
 
@@ -50,14 +58,18 @@ ALTER TABLE service_regions
 
 현재 추천 후보 쿼리 중 하나는 `status` 필터 후 `createdAt DESC` 정렬을 쓴다.
 
-권장 DDL:
+보류:
 
 ```sql
 ALTER TABLE welfare_services
     ADD INDEX idx_ws_status_created (status, created_at DESC);
 ```
 
-의도:
+- 현재 데이터에선 `status='ACTIVE'` 비중이 거의 전부라 선택도가 낮다.
+- `findLatestCandidates` EXPLAIN 기준 `welfare_services` 전체 스캔 3,604건, `actual time=14.7ms`
+- 추천 최신순은 쿼리 구조보다 후보 수 자체가 아직 작아 체감 이득이 작다.
+
+원래 의도:
 
 - 최신 정책 M건 보강용 쿼리
 - 최신순 검색 정렬
@@ -66,14 +78,17 @@ ALTER TABLE welfare_services
 
 현재 검색 정렬 옵션 중 `VIEWS` 가 있다.
 
-권장 DDL:
+보류:
 
 ```sql
 ALTER TABLE welfare_services
     ADD INDEX idx_ws_status_view_created (status, view_count DESC, created_at DESC);
 ```
 
-의도:
+- FULLTEXT 검색 결과 1,567건 정렬 케이스(`+청년 +지원`, `sort=VIEWS`)도 `actual time=4.2ms` 수준이었다.
+- 현재 병목은 `status/view_count` 정렬보다 FULLTEXT 후보 집합과 지역 조건 쪽이다.
+
+원래 의도:
 
 - `status` 필터 후 조회수 정렬 최적화
 - 동점일 때 최신순 정렬 보조
@@ -113,6 +128,15 @@ ALTER TABLE welfare_services
 - 일반 prefix 인덱스는 부분 매칭 품질이 기대보다 낮다
 
 ## 2. EXPLAIN 체크 포인트
+
+## 2-1. 2026-04-27 측정 요약
+
+- 일반 검색 본문/카운트는 `ft_ws_search` 를 정상 사용했다.
+- `service_regions` 복합 인덱스 migration 추가와 `SHOW INDEX` 검증은 완료했다.
+- 추천 지역 후보는 기존 `LEFT JOIN service_regions + DISTINCT` 구조에서 임시 테이블과 dedup 비용이 있었다.
+- 추천 지역 후보 JPQL은 `EXISTS/NOT EXISTS` 구조로 바꿔 같은 정책이 여러 지역 row를 가질 때도 중복 제거용 임시 테이블을 만들지 않도록 정리했다.
+- 지역 검색 `sido/sgg` 서브쿼리의 복합 인덱스 선택 안정성은 운영 데이터 기준으로 다시 확인한다.
+- `idx_ws_status_created`, `idx_ws_status_view_created` 는 이번 데이터 규모와 분포에선 이득이 작아 보류한다.
 
 배포 전 최소한 아래 쿼리는 `EXPLAIN ANALYZE` 또는 `EXPLAIN FORMAT=JSON` 으로 확인하는 것이 좋다.
 

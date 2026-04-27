@@ -9,6 +9,12 @@
 
 ## 최신 마이그레이션
 
+- 파일: [`backend/src/main/resources/db/migration/V2026_04_27_01__add_service_region_compound_indexes.sql`](../backend/src/main/resources/db/migration/V2026_04_27_01__add_service_region_compound_indexes.sql)
+- 포함 내용:
+  - `service_regions(service_id, sido_name, sgg_name)` 복합 인덱스 추가
+  - `service_regions(service_id, region_code)` 복합 인덱스 추가
+  - 지역 검색 `EXISTS` 서브쿼리와 추천 지역 후보 판정 비용 완화
+
 - 파일: [`backend/src/main/resources/db/migration/V2026_04_25_01__add_chat_tables.sql`](../backend/src/main/resources/db/migration/V2026_04_25_01__add_chat_tables.sql)
 - 포함 내용:
   - `chat_sessions` 생성
@@ -42,6 +48,7 @@
 ## 적용 방법
 
 ```bash
+mysql -h 127.0.0.1 -P 3307 -u root -p youth_welfare < backend/src/main/resources/db/migration/V2026_04_27_01__add_service_region_compound_indexes.sql
 mysql -h 127.0.0.1 -P 3307 -u root -p youth_welfare < backend/src/main/resources/db/migration/V2026_04_25_01__add_chat_tables.sql
 mysql -h 127.0.0.1 -P 3307 -u root -p youth_welfare < backend/src/main/resources/db/migration/V2026_04_17_01__recent_schema_updates.sql
 mysql -h 127.0.0.1 -P 3307 -u root -p youth_welfare < backend/src/main/resources/db/migration/V2026_04_18_02__add_raw_api_payloads.sql
@@ -52,11 +59,18 @@ mysql -h 127.0.0.1 -P 3307 -u root -p youth_welfare < backend/src/main/resources
 도커 컨테이너를 쓰는 경우:
 
 ```bash
+docker exec -i youth-welfare-db mysql -uroot -p"$DB_PASSWORD" youth_welfare < backend/src/main/resources/db/migration/V2026_04_27_01__add_service_region_compound_indexes.sql
 docker exec -i youth-welfare-db mysql -uroot -p"$DB_PASSWORD" youth_welfare < backend/src/main/resources/db/migration/V2026_04_25_01__add_chat_tables.sql
 docker exec -i youth-welfare-db mysql -uroot -p"$DB_PASSWORD" youth_welfare < backend/src/main/resources/db/migration/V2026_04_17_01__recent_schema_updates.sql
 docker exec -i youth-welfare-db mysql -uroot -p"$DB_PASSWORD" youth_welfare < backend/src/main/resources/db/migration/V2026_04_18_02__add_raw_api_payloads.sql
 docker exec -i youth-welfare-db mysql -uroot -p"$DB_PASSWORD" youth_welfare < backend/src/main/resources/db/migration/V2026_04_23_01__add_api_sync_logs.sql
 docker exec -i youth-welfare-db mysql -uroot -p"$DB_PASSWORD" youth_welfare < backend/src/main/resources/db/migration/V2026_04_24_01__add_search_youth_relevance.sql
+```
+
+인덱스를 추가한 뒤에는 통계를 한 번 갱신한다.
+
+```sql
+ANALYZE TABLE service_regions;
 ```
 
 마이그레이션 후 검색용 청년 플래그를 실제 규칙으로 다시 계산한다.
@@ -84,6 +98,7 @@ SHOW TABLES LIKE 'chat_sessions';
 SHOW TABLES LIKE 'chat_messages';
 SHOW CREATE TABLE chat_sessions;
 SHOW CREATE TABLE chat_messages;
+SHOW INDEX FROM service_regions WHERE Key_name IN ('idx_sr_service_sido_sgg', 'idx_sr_service_region_code');
 SHOW COLUMNS FROM welfare_services LIKE 'search_youth_relevant';
 SHOW INDEX FROM welfare_services WHERE Key_name = 'idx_ws_search_youth';
 SHOW INDEX FROM chat_sessions WHERE Key_name = 'idx_cs_user_last_message';

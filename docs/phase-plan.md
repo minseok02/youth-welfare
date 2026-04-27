@@ -10,7 +10,7 @@
 정책 목록/검색/상세/랭킹은 비로그인 허용, 추천/북마크/마이페이지는 로그인 필수로 분리됐습니다.
 AI 추천 품질 점검 후 프롬프트 개선, 중복 추천 제거, 노이즈 정책 필터, CTR 로그 구조를 보완했습니다.
 데모 시나리오 전체 실행 완료 및 발견된 문제 수정됐습니다.
-남은 작업은 2차 기능 구현(군집 캐시 추천, 챗봇 등)과 EC2 배포입니다.
+남은 작업은 운영 배포/운영성 검증(운영 서버 Docker Compose, HTTPS/Nginx, CTR 분석, PII 분리)과 2차 확장 기능(군집 캐시 추천, 카카오 알림톡, 검색 로그, 대시보드)입니다.
 
 ## 완료된 백엔드 1차 범위
 
@@ -22,6 +22,7 @@ AI 추천 품질 점검 후 프롬프트 개선, 중복 추천 제거, 노이즈
 - 수집 안정화: 429 재시도/중단, 중복 실행 방지, lock 재시도, 부분 성공 허용
 - 수집 관측성: raw payload 저장, `api_sync_logs` 실행 결과 저장
 - 추천 1차: `youth_all` 군집, Retrieval, Rule scoring, Realtime AI, ScoreWeight, ReRanking, 추천 저장
+- 검색/추천 운영 튜닝: 일반 검색 지역 조인 분리, EXPLAIN 재검증, `service_regions` 복합 인덱스 확정
 - 북마크: 정책 기준 북마크, 추천 북마크 상태 유지, 200건 제한
 - 알림 1차: 이메일 발송, 발송 이력 저장, 실패 재시도, 수신 거부 링크
 - DB 운영: 신규 schema, 기존 DB용 수동 migration SQL, migration 문서
@@ -237,6 +238,15 @@ AI 추천 품질 점검 후 프롬프트 개선, 중복 추천 제거, 노이즈
   - `docs/deployment.md`, `docs/README.md`에 admin 계정 bootstrap/revoke 절차 링크 반영
 - 2026-04-27 운영 admin 계정 수동 생성 절차 문서화 후 `backend`에서 `./gradlew integrationTest --no-daemon --tests com.example.welfare.integration.AdminSecurityIntegrationTest`
 - 2026-04-27 운영 admin 계정 수동 생성 절차 문서화 후 `git diff --check`
+- 2026-04-27 검색/추천 지역 쿼리 EXPLAIN 재검증 및 `service_regions` 복합 인덱스 확정
+  - Docker MySQL 기준 `welfare_services=3604`, `service_regions=117640`에서 `SHOW VARIABLES LIKE 'ngram_token_size'` = `2` 확인
+  - `V2026_04_27_01__add_service_region_compound_indexes.sql` 적용 및 `SHOW INDEX FROM service_regions` 확인
+  - 추천 지역 후보 JPQL을 `LEFT JOIN DISTINCT` 대신 `EXISTS/NOT EXISTS` 로 변경
+  - 지역 검색 `sido/sgg` EXPLAIN은 복합 인덱스를 항상 선택하지 않아 후속 재측정 항목으로 분리
+- 2026-04-27 검색/추천 지역 쿼리 EXPLAIN 재검증 후 `backend`에서 `./gradlew test --no-daemon`
+- 2026-04-27 `docker compose` 기동 상태에서 `V2026_04_27_01__add_service_region_compound_indexes.sql` 적용 후 `ANALYZE TABLE service_regions`
+- 2026-04-27 검색/추천 지역 쿼리 EXPLAIN 재검증 후 `backend`에서 `./gradlew integrationTest --no-daemon --tests com.example.welfare.integration.RecommendationRegionQueryIntegrationTest`
+- 2026-04-27 검색/추천 지역 쿼리 EXPLAIN 재검증 후 `git diff --check`
 - 2026-04-25 운영/설계 보조 문서 링크 및 작업 추적 정합성 점검
   - `docs/README.md`에 `db-search-recommend-ops-guide.md`, `user-data-separation-design.md` 링크 추가
   - `docs/phase-plan.md`의 완료/진행 예정/남은 작업 간 상태 충돌 정리
@@ -281,12 +291,13 @@ AI 추천 품질 점검 후 프롬프트 개선, 중복 추천 제거, 노이즈
 - [ ] 운영 서버 Docker Compose 기동
 - [ ] HTTPS/Nginx 적용
 - [ ] CTR 분석 쿼리 실행 결과 확보
-- [ ] 검색/추천 쿼리 EXPLAIN 검증 및 인덱스 적용 여부 확정
 - [ ] 사용자 PII 분리 이행안 확정 (`users` 책임 분리, 서비스 계정 권한 분리)
+- [ ] 운영 데이터 기준 지역 검색/추천 쿼리 재측정 후 복합 인덱스 강제 또는 조건 분리 여부 재검토
 - [ ] 카카오 알림톡 연동 (2차, 심사 완료 후)
 
 ### 완료
 
+- [x] 검색/추천 쿼리 EXPLAIN 검증 및 인덱스 적용 여부 확정
 - [x] 운영 admin 계정 수동 생성 절차 문서화 (`SECURITY_ADMIN_EMAILS`, DB 계정 준비)
 - [x] 로그인 전 비밀번호 재설정 메일/토큰 구현
 - [x] 프론트 `/chat` 실제 화면 및 로그인 가드 구현
@@ -383,16 +394,13 @@ cd backend
 
 ## 남은 1차 작업
 
-### 프론트 실제 연동
-
 ### 배포/데모
 
 - EC2 또는 운영 서버에서 Docker Compose 기동
 - HTTPS/Nginx 적용
 - CTR 분석 쿼리 실행 결과 확보
-- 검색/추천 쿼리 EXPLAIN 검증 및 인덱스 적용 여부 확정
-- 운영 admin 계정 수동 생성 절차 문서화 (`SECURITY_ADMIN_EMAILS`, DB 계정 준비)
 - 사용자 PII 분리 이행안 확정 (`users` 책임 분리, 서비스 계정 권한 분리)
+- 운영 데이터 기준 지역 검색/추천 쿼리 재측정 후 복합 인덱스 강제 또는 조건 분리 여부 재검토
 
 ## 2차로 분리된 항목
 
@@ -401,6 +409,5 @@ cd backend
 - p5~p95 정규화
 - 카카오 알림톡
 - 슬롯 배치 `[A, A, B?]`
-- 챗봇 (`docs/chatbot-plan.md` 기준 세부 task 분리)
 - 검색 로그
 - 추천/수집 대시보드
