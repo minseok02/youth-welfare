@@ -41,6 +41,7 @@ public class UserService {
     private final PasswordEncoder passwordEncoder;
     private final UserRecommendationRepository userRecommendationRepository;
     private final ChatSessionCleanupService chatSessionCleanupService;
+    private final UserCoreSyncService userCoreSyncService;
 
     @Transactional(readOnly = true)
     public ProfileResponse getProfile(Long userId) {
@@ -119,6 +120,7 @@ public class UserService {
         }
 
         user.updateProfileCompleteness(calculateCompleteness(userId, user, request));
+        userCoreSyncService.syncFromUser(user);
     }
 
     @Transactional
@@ -157,6 +159,7 @@ public class UserService {
             throw new CustomException(ErrorCode.INVALID_CREDENTIALS);
         }
         user.updatePassword(passwordEncoder.encode(newPassword));
+        userCoreSyncService.syncFromUser(user);
     }
 
     @Transactional
@@ -171,12 +174,14 @@ public class UserService {
         userPriorityRepository.deleteByUserId(userId);
         chatSessionCleanupService.deleteAllByUserId(userId);
         user.withdraw();
+        userCoreSyncService.syncFromUser(user);
     }
 
     @Transactional
     public void unsubscribeNotifications(Long userId) {
         User user = findActiveUser(userId);
         user.unsubscribeNotifications();
+        userCoreSyncService.syncFromUser(user);
     }
 
     private User findActiveUser(Long userId) {

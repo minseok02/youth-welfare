@@ -44,6 +44,8 @@ class AuthServiceTest {
     @Mock
     private EmailClient emailClient;
     @Mock
+    private UserCoreSyncService userCoreSyncService;
+    @Mock
     private ValueOperations<String, String> valueOperations;
 
     private AuthService authService;
@@ -56,7 +58,8 @@ class AuthServiceTest {
                 jwtUtil,
                 redisTemplate,
                 chatSessionCleanupService,
-                emailClient
+                emailClient,
+                userCoreSyncService
         );
         ReflectionTestUtils.setField(authService, "passwordResetExpirationMinutes", 30L);
         ReflectionTestUtils.setField(authService, "appBaseUrl", "http://localhost:5173");
@@ -112,6 +115,7 @@ class AuthServiceTest {
 
         authService.confirmPasswordReset("reset-token", "new-password123");
 
+        verify(userCoreSyncService).syncFromUser(user);
         verify(redisTemplate).delete("password-reset:reset-token");
         verify(redisTemplate).delete("password-reset:user:7");
         verify(redisTemplate).delete("refresh:7");

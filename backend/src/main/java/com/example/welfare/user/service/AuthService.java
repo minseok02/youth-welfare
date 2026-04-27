@@ -50,6 +50,7 @@ public class AuthService {
     private final RedisTemplate<String, String> redisTemplate;
     private final ChatSessionCleanupService chatSessionCleanupService;
     private final EmailClient emailClient;
+    private final UserCoreSyncService userCoreSyncService;
 
     @Value("${security.admin-emails:}")
     private String adminEmailsProperty;
@@ -99,6 +100,7 @@ public class AuthService {
                 .build();
 
         userRepository.save(user);
+        userCoreSyncService.syncFromUser(user);
     }
 
     @Transactional
@@ -178,6 +180,7 @@ public class AuthService {
 
         user.updatePassword(passwordEncoder.encode(newPassword));
         user.resetLoginFail();
+        userCoreSyncService.syncFromUser(user);
         clearPasswordResetToken(userId, resetToken);
         redisTemplate.delete(REFRESH_TOKEN_PREFIX + userId);
     }

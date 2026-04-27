@@ -357,3 +357,8 @@
 - 문제: 현재 애플리케이션의 PII 암호화는 Java `AesEncryptUtil` 포맷을 기준으로 동작하는데, migration SQL만으로 `email/name/birth_date`를 같은 포맷으로 안전하게 변환하려 하면 향후 복호화 호환성이나 키 관리 기준이 어긋날 수 있었음
 - 해결: `V2026_04_27_03__add_user_core_split_tables.sql`에서는 `user_pii` 테이블과 `phone_enc` seed만 먼저 만들고, `email_enc/name_enc/birth_date_enc` backfill은 후속 dual-write 릴리스에서 앱 레벨 암호화로 채우도록 분리
 - 이유: 스키마 준비와 암호화 포맷 전환은 분리하는 편이 안전하다. 특히 이미 서비스 코드가 가진 암호화 규칙이 있을 때는 SQL 편의 변환보다 애플리케이션 동일 경로를 재사용하는 것이 재현성과 복구 가능성 면에서 낫다
+
+## 72) MySQL cross-schema 테이블은 JPA에서 `schema`보다 `catalog` 매핑이 더 직접 맞을 수 있음
+- 문제: `youth_welfare_pii.user_pii` 테이블이 실제로 존재해도, `@Table(schema = "youth_welfare_pii")` 로만 매핑하면 Hibernate validate 단계에서 missing table로 판단할 수 있었음
+- 해결: `UserPii` 엔티티를 `@Table(name = "user_pii", catalog = "youth_welfare_pii")` 로 바꾸고 통합 테스트로 검증
+- 이유: MySQL에서 database와 schema 개념이 사실상 catalog로 취급되는 경로가 있다. cross-schema entity는 DB 엔진 용어에 맞춰 catalog 매핑을 우선 확인하는 편이 안전하다

@@ -45,6 +45,7 @@ class UserServiceTest {
     @Mock private PasswordEncoder passwordEncoder;
     @Mock private UserRecommendationRepository userRecommendationRepository;
     @Mock private ChatSessionCleanupService chatSessionCleanupService;
+    @Mock private UserCoreSyncService userCoreSyncService;
 
     private UserService userService;
 
@@ -59,7 +60,8 @@ class UserServiceTest {
                 aesEncryptUtil,
                 passwordEncoder,
                 userRecommendationRepository,
-                chatSessionCleanupService
+                chatSessionCleanupService,
+                userCoreSyncService
         );
     }
 
@@ -81,6 +83,7 @@ class UserServiceTest {
 
         userService.updateProfile(1L, request);
 
+        verify(userCoreSyncService).syncFromUser(user);
         verify(userAttributeRepository).deleteByUserIdAndAttrType(1L, UserAttribute.AttrType.INTEREST_FIELD.name());
         verify(userAttributeRepository).deleteByUserIdAndAttrType(1L, UserAttribute.AttrType.TARGET_TYPE.name());
 
@@ -122,6 +125,7 @@ class UserServiceTest {
         UpdateProfileRequest request = new UpdateProfileRequest();
         userService.updateProfile(1L, request);
 
+        verify(userCoreSyncService).syncFromUser(user);
         assertThat(user.getProfileCompleteness()).isEqualTo(100);
     }
 
@@ -176,6 +180,7 @@ class UserServiceTest {
         verify(userAttributeRepository).deleteByUserId(1L);
         verify(userPriorityRepository).deleteByUserId(1L);
         verify(chatSessionCleanupService).deleteAllByUserId(1L);
+        verify(userCoreSyncService).syncFromUser(user);
         assertThat(user.isActive()).isFalse();
         assertThat(user.getEmail()).isEqualTo("withdrawn_1");
     }
