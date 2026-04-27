@@ -17,8 +17,7 @@
 ## 1. 추가 검토할 인덱스 DDL
 
 2026-04-27 로컬 Docker MySQL(`welfare_services` 3,604건 / `service_regions` 117,640건) 기준으로 EXPLAIN을 다시 확인했다.
-결론은 `service_regions` 복합 인덱스는 즉시 적용, 지역 검색은 `sido-only`와 `sido+sgg`로 쿼리를 분리해 안정화, `welfare_services` 정렬 보조 인덱스는 보류다.
-남은 후속 항목은 추천 지역 후보의 `regionCode OR sidoName` 조건 재측정이다.
+결론은 `service_regions` 복합 인덱스는 즉시 적용, 지역 검색은 `sido-only`와 `sido+sgg`로, 추천 지역 후보는 `regionCode`와 `sido`로 쿼리를 분리해 안정화했다. `welfare_services` 정렬 보조 인덱스는 보류다.
 
 ### A. 지역 검색 / 지역 추천 보강
 
@@ -45,8 +44,9 @@ ALTER TABLE service_regions
 - `+청년 +취업`, `서울특별시/강남구` count query 기준 `actual time=20.8ms -> 3.4ms`
 - 같은 조건 본문 query 기준 `actual time=15.2ms -> 3.5ms`
 - `+청년 +지원`, `서울특별시` count query는 분리 후 `actual time=12.4ms`
-- 추천 지역 후보 쿼리는 `LEFT JOIN + DISTINCT` 대신 `EXISTS/NOT EXISTS` 구조로 바꿔 임시 테이블 dedup 비용을 제거
-- 추천 지역 후보는 `regionCode OR sidoName` 조건 때문에 아직 후속 재검토가 남아 있다
+- 추천 지역 후보 쿼리는 `LEFT JOIN + DISTINCT` 대신 `EXISTS/NOT EXISTS` 구조로 바꿨고, 이후 `findCandidatesWithRegionCode` / `findCandidatesWithSido` 로 분리
+- 추천 최신순 후보는 `regionCode` 경로 `actual time=17.6ms -> 16.1ms`, `sido` 경로 `actual time=13.3ms`
+- 추천 기본 후보 50건 조회는 `regionCode` 경로 `4.8ms`, `sido` 경로 `3.4ms` 수준으로 유지
 
 의도:
 
@@ -139,8 +139,7 @@ ALTER TABLE welfare_services
 - `service_regions` 복합 인덱스 migration 추가와 `SHOW INDEX` 검증은 완료했다.
 - 지역 검색은 `sgg` optional 분기를 별도 쿼리 두 개로 나눠 `sido+sgg` 경로의 복합 인덱스 선택을 안정화했다.
 - 추천 지역 후보는 기존 `LEFT JOIN service_regions + DISTINCT` 구조에서 임시 테이블과 dedup 비용이 있었다.
-- 추천 지역 후보 JPQL은 `EXISTS/NOT EXISTS` 구조로 바꿔 같은 정책이 여러 지역 row를 가질 때도 중복 제거용 임시 테이블을 만들지 않도록 정리했다.
-- 추천 지역 후보의 `regionCode OR sidoName` 조건은 운영 데이터 기준으로 다시 확인한다.
+- 추천 지역 후보 JPQL은 `EXISTS/NOT EXISTS` 구조로 바꾼 뒤, `regionCode`와 `sido`를 서비스 레벨에서 분기해 각 복합 인덱스가 직접 선택되도록 정리했다.
 - `idx_ws_status_created`, `idx_ws_status_view_created` 는 이번 데이터 규모와 분포에선 이득이 작아 보류한다.
 
 배포 전 최소한 아래 쿼리는 `EXPLAIN ANALYZE` 또는 `EXPLAIN FORMAT=JSON` 으로 확인하는 것이 좋다.
@@ -208,9 +207,11 @@ LIMIT 20 OFFSET 0;
 대상:
 
 - `findCandidates`
-- `findCandidatesWithRegion`
+- `findCandidatesWithRegionCode`
+- `findCandidatesWithSido`
 - `findLatestCandidates`
-- `findLatestCandidatesWithRegion`
+- `findLatestCandidatesWithRegionCode`
+- `findLatestCandidatesWithSido`
 
 확인할 것:
 
