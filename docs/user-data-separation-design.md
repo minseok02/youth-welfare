@@ -40,8 +40,8 @@
 
 - DB 접속은 [application.yml](/home/minseok/youth-welfare/backend/src/main/resources/application.yml:1) 기준 단일 datasource다.
 - 배포는 [docker-compose.yml](/home/minseok/youth-welfare/docker-compose.yml:1) 기준 앱 컨테이너가 `root` 계정으로 MySQL에 접속한다.
-- API 권한도 [SecurityConfig](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/global/config/SecurityConfig.java:44) 에서 `/api/admin/**` 가 `permitAll()` 이다.
-- 실제 관리자 기능인 [CollectAdminController](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/collect/controller/CollectAdminController.java:17), [PolicyAdminController](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/policy/controller/PolicyAdminController.java:13) 는 인증 없이 호출 가능하다.
+- API 권한도 [SecurityConfig](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/global/config/SecurityConfig.java:44) 에서 `/api/admin/**` 가 `ROLE_ADMIN` 단일 역할에 묶여 있다.
+- 실제 관리자 기능인 [CollectAdminController](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/collect/controller/CollectAdminController.java:17), [PolicyAdminController](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/policy/controller/PolicyAdminController.java:13) 는 무인증 공개 상태는 아니지만, 수집/정책 관리 권한이 아직 세분화되지 않았다.
 
 즉, 저장소 분리보다 먼저 "누가 무엇에 접근할 수 있는지"를 구조적으로 나눠야 한다.
 
@@ -479,7 +479,7 @@
 
 설계와 별개로 현재 코드 기준 즉시 고쳐야 할 항목은 아래다.
 
-1. `/api/admin/**` 의 `permitAll` 제거
+1. 단일 `ROLE_ADMIN` 을 수집/정책/지원 등 운영 역할로 세분화
 2. 관리자 계정/역할 테이블 도입
 3. 런타임 DB 계정에서 `root` 사용 중단
 4. 수집 워커와 사용자 API의 datasource credential 분리

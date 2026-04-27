@@ -264,6 +264,8 @@ AI 추천 품질 점검 후 프롬프트 개선, 중복 추천 제거, 노이즈
   - `ChatSessionApiIntegrationTest`로 생성/목록/삭제/소유권 검증
 - 2026-04-26 챗봇 세션 CRUD API 구현 후 `backend`에서 `./gradlew test --no-daemon`
 - 2026-04-26 챗봇 세션 CRUD API 구현 후 `backend`에서 `./gradlew integrationTest --no-daemon`
+- 2026-04-27 수집 중복 실행 가드/전체 수집 source 독립 실행 테스트 추가 후 `backend`에서 `./gradlew test --tests com.example.welfare.collect.service.CollectExecutionGuardTest --tests com.example.welfare.collect.service.CollectServiceTest --no-daemon`
+- 2026-04-27 수집 검증 테스트 추가 후 `backend`에서 `./gradlew test --no-daemon`
 
 ## 작업 추적
 
@@ -273,6 +275,8 @@ AI 추천 품질 점검 후 프롬프트 개선, 중복 추천 제거, 노이즈
 
 ### 진행 예정
 
+- [ ] 실제 공공 API key로 복지로 중앙/지자체/상세 수집 smoke test 및 `api_sync_logs` 확인
+- [ ] 수집 실패 1시간 후 재시도(최대 2회) 설계/구현 (`FR-10-09`)
 - [ ] 운영 서버 Docker Compose 기동
 - [ ] HTTPS/Nginx 적용
 - [ ] CTR 분석 쿼리 실행 결과 확보
@@ -283,6 +287,9 @@ AI 추천 품질 점검 후 프롬프트 개선, 중복 추천 제거, 노이즈
 
 ### 완료
 
+- [x] 수집 중복 실행 가드 테스트 추가 (`CollectExecutionGuardTest`)
+- [x] `collectAll` source 독립 실행 보장 테스트 추가 (`CollectServiceTest`)
+- [x] 수집 관련 설계 문서의 관리자 API 권한 설명 정합성 수정
 - [x] 로그인 전 비밀번호 재설정 메일/토큰 구현
 - [x] 프론트 `/chat` 실제 화면 및 로그인 가드 구현
 - [x] 챗봇 요청 rate limit / abuse 방지
@@ -379,6 +386,11 @@ cd backend
 ## 남은 1차 작업
 
 ### 프론트 실제 연동
+
+### 수집 운영
+
+- 실제 공공 API key로 복지로 중앙/지자체/상세 수집 smoke test 및 `api_sync_logs` 확인
+- 수집 실패 1시간 후 재시도(최대 2회) 설계/구현 (`FR-10-09`)
 
 ### 배포/데모
 
