@@ -10,9 +10,9 @@
 정책 목록/검색/상세/랭킹은 비로그인 허용, 추천/북마크/마이페이지는 로그인 필수로 분리됐습니다.
 AI 추천 품질 점검 후 프롬프트 개선, 중복 추천 제거, 노이즈 정책 필터, CTR 로그 구조를 보완했습니다.
 CTR 분석 기본 쿼리 실행 결과를 확보했고, 현재 데이터는 `46건 / 클릭 1건 / fallback 16건 / 가중치 0.80:0.20 단일 구간`이라 후속 표본 확충 후 재분석이 필요합니다.
-사용자 PII 분리 이행안은 `2 schema`, `user_key` 선행, `dual-write -> read cut-over` 순서로 확정했고 이제 남은 것은 실제 migration과 계정 분리 적용입니다.
+사용자 PII 분리 이행안은 `2 schema`, `user_key` 선행, `dual-write -> read cut-over` 순서로 확정했고, 1단계로 `users` 및 주요 사용자 종속 테이블에 `user_key` migration/backfill을 반영했습니다.
 데모 시나리오 전체 실행 완료 및 발견된 문제 수정됐습니다.
-남은 작업은 운영 배포/운영성 검증(운영 서버 Docker Compose, HTTPS/Nginx, PII 1단계 migration, 런타임 DB 계정 분리, CTR 표본 확충 후 재분석)과 2차 확장 기능(군집 캐시 추천, 카카오 알림톡, 검색 로그, 대시보드)입니다.
+남은 작업은 운영 배포/운영성 검증(운영 서버 Docker Compose, HTTPS/Nginx, PII core 테이블 분리 + dual-write, 런타임 DB 계정 분리, CTR 표본 확충 후 재분석)과 2차 확장 기능(군집 캐시 추천, 카카오 알림톡, 검색 로그, 대시보드)입니다.
 
 ## 완료된 백엔드 1차 범위
 
@@ -270,6 +270,13 @@ CTR 분석 기본 쿼리 실행 결과를 확보했고, 현재 데이터는 `46�
   - `2 schema`, `user_key` 선행, `dual-write -> read cut-over -> legacy 제거` 4단계 순서를 확정
   - `AuthService`, `UserService`, `NotificationService`, 추천/채팅/로그 테이블의 영향 범위와 릴리스별 산출물 정리
   - 문서 정합성 확인 후 `git diff --check`
+- 2026-04-27 PII 분리 1단계 migration 작성 및 검증
+  - `V2026_04_27_02__add_user_key_columns.sql` 추가
+  - `schema.sql`, `db-migration.md`, `user-data-separation-design.md`에 `user_key CHAR(32)` 기준 반영
+  - Docker MySQL에 migration 적용 후 `users`, `user_attributes`, `user_priorities`, `user_recommendations`, `recommendation_logs`, `notifications`, `chat_sessions`, `service_view_logs`의 `user_key` backfill null 건수 `0` 확인
+  - 최근 `users.id=90,83,71` 기준 `user_key` 길이 `32` 확인
+  - `backend`에서 `./gradlew integrationTest --no-daemon --tests com.example.welfare.integration.AuthRedisIntegrationTest`
+  - `git diff --check` 확인
 - 2026-04-27 추천 지역 후보 쿼리 분리 후 `backend`에서 `./gradlew integrationTest --no-daemon --tests com.example.welfare.integration.RecommendationRegionQueryIntegrationTest`
 - 2026-04-25 운영/설계 보조 문서 링크 및 작업 추적 정합성 점검
   - `docs/README.md`에 `db-search-recommend-ops-guide.md`, `user-data-separation-design.md` 링크 추가
@@ -314,13 +321,15 @@ CTR 분석 기본 쿼리 실행 결과를 확보했고, 현재 데이터는 `46�
 
 - [ ] 운영 서버 Docker Compose 기동
 - [ ] HTTPS/Nginx 적용
-- [ ] PII 분리 1단계 migration 작성 (`users.user_key`, 하위 테이블 `user_key` backfill)
+- [ ] PII core 테이블 migration 작성 (`auth_users`, `user_profiles`, `user_pii`)
+- [ ] 회원가입/프로필 수정 dual-write 적용 (`users` + 신규 core 테이블)
 - [ ] 런타임 DB 계정 root 제거 및 기능별 계정 분리 (`app_core_rw`, `app_pii_rw`, `notification_pii_ro`)
 - [ ] CTR 표본 추가 확보 후 rule/AI 가중치 및 프롬프트 재분석
 - [ ] 카카오 알림톡 연동 (2차, 심사 완료 후)
 
 ### 완료
 
+- [x] PII 분리 1단계 migration 작성 (`users.user_key`, 하위 테이블 `user_key` backfill)
 - [x] 사용자 PII 분리 이행안 확정 (`2 schema`, `user_key` 선행, dual-write 순서 확정)
 - [x] CTR 분석 쿼리 실행 결과 확보
 - [x] 운영 데이터 기준 추천 지역 후보 `regionCode` / `sido` 쿼리 분리 및 EXPLAIN 재검증
@@ -426,7 +435,8 @@ cd backend
 
 - EC2 또는 운영 서버에서 Docker Compose 기동
 - HTTPS/Nginx 적용
-- PII 분리 1단계 migration 작성 (`users.user_key`, 하위 테이블 `user_key` backfill)
+- PII core 테이블 migration 작성 (`auth_users`, `user_profiles`, `user_pii`)
+- 회원가입/프로필 수정 dual-write 적용
 - 런타임 DB 계정 root 제거 및 기능별 계정 분리
 - CTR 표본 추가 확보 후 rule/AI 가중치 및 프롬프트 재분석
 

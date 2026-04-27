@@ -9,6 +9,13 @@
 
 ## 최신 마이그레이션
 
+- 파일: [`backend/src/main/resources/db/migration/V2026_04_27_02__add_user_key_columns.sql`](../backend/src/main/resources/db/migration/V2026_04_27_02__add_user_key_columns.sql)
+- 포함 내용:
+  - `users.user_key CHAR(32)` 추가 및 기존 사용자 deterministic hash backfill
+  - `user_attributes`, `user_priorities`, `user_recommendations`, `recommendation_logs`, `notifications`, `chat_sessions`, `service_view_logs` 에 `user_key` nullable 컬럼 추가
+  - 기존 `user_id -> users.user_key` 기준 backfill
+  - PII 분리 1단계용 공용 사용자 식별자 호환 경로 준비
+
 - 파일: [`backend/src/main/resources/db/migration/V2026_04_27_01__add_service_region_compound_indexes.sql`](../backend/src/main/resources/db/migration/V2026_04_27_01__add_service_region_compound_indexes.sql)
 - 포함 내용:
   - `service_regions(service_id, sido_name, sgg_name)` 복합 인덱스 추가
@@ -48,6 +55,7 @@
 ## 적용 방법
 
 ```bash
+mysql -h 127.0.0.1 -P 3307 -u root -p youth_welfare < backend/src/main/resources/db/migration/V2026_04_27_02__add_user_key_columns.sql
 mysql -h 127.0.0.1 -P 3307 -u root -p youth_welfare < backend/src/main/resources/db/migration/V2026_04_27_01__add_service_region_compound_indexes.sql
 mysql -h 127.0.0.1 -P 3307 -u root -p youth_welfare < backend/src/main/resources/db/migration/V2026_04_25_01__add_chat_tables.sql
 mysql -h 127.0.0.1 -P 3307 -u root -p youth_welfare < backend/src/main/resources/db/migration/V2026_04_17_01__recent_schema_updates.sql
@@ -59,6 +67,7 @@ mysql -h 127.0.0.1 -P 3307 -u root -p youth_welfare < backend/src/main/resources
 도커 컨테이너를 쓰는 경우:
 
 ```bash
+docker exec -i youth-welfare-db mysql -uroot -p"$DB_PASSWORD" youth_welfare < backend/src/main/resources/db/migration/V2026_04_27_02__add_user_key_columns.sql
 docker exec -i youth-welfare-db mysql -uroot -p"$DB_PASSWORD" youth_welfare < backend/src/main/resources/db/migration/V2026_04_27_01__add_service_region_compound_indexes.sql
 docker exec -i youth-welfare-db mysql -uroot -p"$DB_PASSWORD" youth_welfare < backend/src/main/resources/db/migration/V2026_04_25_01__add_chat_tables.sql
 docker exec -i youth-welfare-db mysql -uroot -p"$DB_PASSWORD" youth_welfare < backend/src/main/resources/db/migration/V2026_04_17_01__recent_schema_updates.sql
@@ -98,6 +107,26 @@ SHOW TABLES LIKE 'chat_sessions';
 SHOW TABLES LIKE 'chat_messages';
 SHOW CREATE TABLE chat_sessions;
 SHOW CREATE TABLE chat_messages;
+SHOW COLUMNS FROM users LIKE 'user_key';
+SHOW INDEX FROM users WHERE Key_name = 'uq_users_user_key';
+SHOW COLUMNS FROM user_attributes LIKE 'user_key';
+SHOW COLUMNS FROM user_priorities LIKE 'user_key';
+SHOW COLUMNS FROM user_recommendations LIKE 'user_key';
+SHOW COLUMNS FROM recommendation_logs LIKE 'user_key';
+SHOW COLUMNS FROM notifications LIKE 'user_key';
+SHOW COLUMNS FROM chat_sessions LIKE 'user_key';
+SHOW COLUMNS FROM service_view_logs LIKE 'user_key';
+SELECT COUNT(*) AS users_without_user_key FROM users WHERE user_key IS NULL;
+SELECT COUNT(*) AS attrs_without_user_key FROM user_attributes WHERE user_key IS NULL;
+SELECT COUNT(*) AS priorities_without_user_key FROM user_priorities WHERE user_key IS NULL;
+SELECT COUNT(*) AS recommendations_without_user_key FROM user_recommendations WHERE user_key IS NULL;
+SELECT COUNT(*) AS logs_without_user_key FROM recommendation_logs WHERE user_key IS NULL;
+SELECT COUNT(*) AS notifications_without_user_key FROM notifications WHERE user_key IS NULL;
+SELECT COUNT(*) AS chat_sessions_without_user_key FROM chat_sessions WHERE user_key IS NULL;
+SELECT COUNT(*) AS identified_view_logs_without_user_key
+FROM service_view_logs
+WHERE user_id IS NOT NULL
+  AND user_key IS NULL;
 SHOW INDEX FROM service_regions WHERE Key_name IN ('idx_sr_service_sido_sgg', 'idx_sr_service_region_code');
 SHOW COLUMNS FROM welfare_services LIKE 'search_youth_relevant';
 SHOW INDEX FROM welfare_services WHERE Key_name = 'idx_ws_search_youth';
@@ -110,3 +139,7 @@ SELECT search_youth_relevant, COUNT(*) FROM welfare_services GROUP BY search_you
 
 - `schema.sql`은 신규 DB 초기화용이다. 기존 DB 갱신에는 자동 적용되지 않는다.
 - 배포 전에 마이그레이션 SQL을 먼저 적용하고, 그 다음 백엔드를 올리는 순서로 진행한다.
+- `users.user_key`는 migration 직후부터 새 가입에도 자동 채워지도록 `DEFAULT (REPLACE(UUID(), '-', ''))`를 사용한다.
+- 기존 사용자 backfill은 `UUID()` 대량 UPDATE 대신 `SHA2(CONCAT('user:', id), 256)` 앞 32자 사용으로 고정했다. 단일 인스턴스뿐 아니라 binlog safety 경고가 있는 환경에서도 적용 가능하게 하기 위해서다.
+- `V2026_04_27_02__add_user_key_columns.sql`은 세션 시작 시 `SET SESSION sql_log_bin = 0`을 실행한다. 현재 운영 절차처럼 root 또는 migration 전용 계정으로 수동 적용하는 것을 전제로 한다.
+- 하위 테이블의 `user_key`는 아직 nullable로 유지한다. dual-write/repository cut-over 전에는 기존 `user_id` FK가 계속 기준이다.

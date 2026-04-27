@@ -110,7 +110,7 @@
 권장 테이블:
 
 - `auth_users`
-  - `user_key CHAR(26)` 또는 `BINARY(16)` UUID/ULID
+  - `user_key CHAR(32)` UUID hex 문자열
   - `email_lookup_hash CHAR(64)` unique
   - `password_hash`
   - `is_active`
@@ -120,7 +120,7 @@
   - `created_at`
   - `updated_at`
 - `user_profiles`
-  - `user_key`
+- `user_key`
   - `age`
   - `age_band`
   - `sido`
@@ -140,11 +140,11 @@
   - `created_at`
   - `updated_at`
 - `user_attributes`
-  - `user_key`
+- `user_key`
   - `attr_type`
   - `attr_value`
 - `user_priorities`
-  - `user_key`
+- `user_key`
   - `priority_option_id`
   - `priority_rank`
   - `weight`
@@ -176,7 +176,7 @@
 권장 테이블:
 
 - `user_pii`
-  - `user_key`
+- `user_key`
   - `email_enc`
   - `name_enc`
   - `birth_date_enc`
@@ -426,13 +426,13 @@
 권장 테이블:
 
 - `auth_users`
-  - `user_key`
+- `user_key`
   - `account_type` = `END_USER | ADMIN | SERVICE`
   - `status`
 - `auth_roles`
   - `role_code`
 - `auth_user_roles`
-  - `user_key`
+- `user_key`
   - `role_code`
 
 권장 원칙:
@@ -626,7 +626,7 @@
 
 ### 1단계: 식별자 준비
 
-- `users` 에 `user_key CHAR(26)` 추가, 기존 row 전체 backfill
+- `users` 에 `user_key CHAR(32)` 추가, 기존 row 전체 backfill
 - `user_attributes`, `user_priorities`, `user_recommendations`, `recommendation_logs`, `notifications`, `chat_sessions`, `service_view_logs` 에 `user_key` nullable 컬럼 추가
 - 기존 `user_id -> users.user_key` 기준으로 backfill
 - 이 단계에서는 기존 FK와 `user_id` 컬럼을 유지

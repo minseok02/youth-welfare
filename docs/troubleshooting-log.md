@@ -342,3 +342,13 @@
 - 문제: 현재 구조는 `AuthService`, `UserService`, `NotificationService`, 추천/채팅/로그 테이블이 모두 `users.id` 와 `@ManyToOne User` 에 묶여 있어, `auth_users/user_profiles/user_pii` 를 먼저 만들더라도 공용 식별자 없이 곧바로 cut-over 하면 JWT, Redis key, FK, JPA 연관이 동시에 흔들릴 수 있었음
 - 해결: PII 분리 이행안에서 `users.user_key` 및 하위 테이블 `user_key` backfill을 1단계 선행 작업으로 확정하고, 그 다음에 `dual-write -> read cut-over -> legacy 제거` 순서로 진행하도록 문서화
 - 이유: 테이블 분리의 실제 리스크는 schema 생성보다 식별자 전환이다. 호환 기간 동안 `user_id` 와 `user_key` 를 함께 유지해야 로그/추천/알림/챗 세션 같은 주변 테이블을 안전하게 단계별로 넘길 수 있다
+
+## 69) `user_key` migration은 기존 row backfill만 하고 끝내면 다음 가입자부터 다시 NULL 이 생길 수 있음
+- 문제: `users.user_key` 를 nullable로 추가하고 기존 사용자만 UPDATE 하면, dual-write 릴리스 전까지 새 회원가입 row는 다시 `user_key=NULL` 로 들어가 이후 하위 테이블 backfill과 cut-over 기준이 흔들릴 수 있었음
+- 해결: `users.user_key` 를 `CHAR(32) NOT NULL DEFAULT (REPLACE(UUID(), '-', ''))` 로 추가하고, 기존 row는 1회 backfill 후 unique key를 걸도록 migration과 schema를 작성
+- 이유: 식별자 선행 단계는 "과거 데이터 정리"와 "이행 기간 신규 데이터 보호"를 같이 해야 의미가 있다. 새 가입자가 다시 NULL 상태로 들어오면 단계적 전환의 전제가 바로 깨진다
+
+## 70) 기존 행 `UUID()` 대량 UPDATE는 MySQL binlog safety에 걸릴 수 있음
+- 문제: `UPDATE users SET user_key = REPLACE(UUID(), '-', '')` 형태로 기존 사용자를 backfill 하면, MySQL이 "replica에서 값이 달라질 수 있는 시스템 함수"로 보고 실행을 막거나 경고할 수 있었음
+- 해결: 기존 사용자 backfill은 `SUBSTRING(SHA2(CONCAT('user:', id), 256), 1, 32)` 같은 deterministic 식으로 바꾸고, 새 가입자 자동 채움은 `DEFAULT (REPLACE(UUID(), '-', ''))` 를 유지하되 migration 세션 시작 시 `SET SESSION sql_log_bin = 0`을 실행하도록 수정
+- 이유: migration의 목적은 호환 식별자를 안정적으로 심는 것이다. 과거 데이터는 결정적 값으로 채우고, 신규 데이터는 insert-time default를 쓰되, 수동 마이그레이션 세션에서만 binlog safety 제약을 우회하는 편이 현재 운영 방식과 가장 잘 맞는다
