@@ -113,6 +113,43 @@ class AuthRedisIntegrationTest {
     }
 
     @Test
+    @DisplayName("로그인과 이메일 중복확인은 이메일 대소문자 차이를 무시한다")
+    void loginAndEmailAvailabilityIgnoreEmailCase() throws Exception {
+        String email = TEST_EMAIL_PREFIX + UUID.randomUUID() + "@example.com";
+
+        mockMvc.perform(post("/api/auth/signup")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "email": "%s",
+                                  "password": "password123",
+                                  "name": "Case User",
+                                  "birthDate": "%s"
+                                }
+                                """.formatted(email, LocalDate.of(1998, 1, 10))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
+        mockMvc.perform(get("/api/auth/check-email")
+                        .param("email", email.toUpperCase()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.available").value(false));
+
+        mockMvc.perform(post("/api/auth/login")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "email": "%s",
+                                  "password": "password123"
+                                }
+                                """.formatted(email.toUpperCase())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.accessToken").isNotEmpty());
+    }
+
+    @Test
     @DisplayName("회원가입-로그인-재발급-로그아웃 흐름은 MySQL과 Redis에 상태를 반영한다")
     void signupLoginRefreshLogoutFlow() throws Exception {
         given(emailClient.send(anyString(), anyString(), anyString())).willReturn(true);

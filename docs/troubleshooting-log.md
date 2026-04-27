@@ -362,3 +362,8 @@
 - 문제: `youth_welfare_pii.user_pii` 테이블이 실제로 존재해도, `@Table(schema = "youth_welfare_pii")` 로만 매핑하면 Hibernate validate 단계에서 missing table로 판단할 수 있었음
 - 해결: `UserPii` 엔티티를 `@Table(name = "user_pii", catalog = "youth_welfare_pii")` 로 바꾸고 통합 테스트로 검증
 - 이유: MySQL에서 database와 schema 개념이 사실상 catalog로 취급되는 경로가 있다. cross-schema entity는 DB 엔진 용어에 맞춰 catalog 매핑을 우선 확인하는 편이 안전하다
+
+## 73) `auth_users` 읽기 전환을 조회만 바꾸고 상태 동기화를 빼면 계정 잠금 기준이 stale 해질 수 있음
+- 문제: 로그인/비밀번호 재설정 조회를 `auth_users.email_lookup_hash` 기준으로 바꾸기만 하고, 로그인 실패 횟수와 `locked_until` 갱신은 계속 legacy `users` 에만 남겨두면 다음 로그인부터 `auth_users` 의 잠금 상태가 stale 해져 잘못된 허용/차단이 발생할 수 있었음
+- 해결: 로그인 성공/실패 후에는 legacy `users` 를 먼저 갱신하고, 즉시 `UserCoreSyncService.syncFromUser` 를 호출해 `auth_users` 의 `password_hash`, `login_fail_count`, `locked_until`, `is_active` 를 다시 맞추도록 고정
+- 이유: dual-write 단계의 read cut-over 는 "어느 테이블에서 읽느냐"만이 아니라 "그 테이블이 언제 최신 상태로 유지되느냐"까지 포함한다. 인증처럼 상태 기반 분기가 있는 경로는 읽기 전환과 상태 재동기화를 한 작업으로 묶어야 재발을 막을 수 있다

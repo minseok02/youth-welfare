@@ -9,17 +9,14 @@ import com.example.welfare.user.repository.AuthUserRepository;
 import com.example.welfare.user.repository.UserPiiRepository;
 import com.example.welfare.user.repository.UserProfileRepository;
 import com.example.welfare.user.repository.UserRepository;
+import com.example.welfare.user.util.EmailLookupKeyGenerator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.Period;
-import java.util.HexFormat;
-import java.util.Locale;
 
 @Service
 @RequiredArgsConstructor
@@ -46,7 +43,7 @@ public class UserCoreSyncService {
                 .orElse(AuthUser.builder()
                         .userKey(userKey)
                         .build());
-        authUser.syncFrom(user, sha256Hex(normalizeEmail(user.getEmail())));
+        authUser.syncFrom(user, EmailLookupKeyGenerator.hash(user.getEmail()));
         authUserRepository.save(authUser);
     }
 
@@ -97,16 +94,4 @@ public class UserCoreSyncService {
         return "40_PLUS";
     }
 
-    private String normalizeEmail(String email) {
-        return email == null ? "" : email.trim().toLowerCase(Locale.ROOT);
-    }
-
-    private String sha256Hex(String value) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            return HexFormat.of().formatHex(digest.digest(value.getBytes(StandardCharsets.UTF_8)));
-        } catch (Exception e) {
-            throw new IllegalStateException("failed to hash email lookup", e);
-        }
-    }
 }

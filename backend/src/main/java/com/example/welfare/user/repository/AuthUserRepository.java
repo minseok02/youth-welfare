@@ -9,5 +9,9 @@ public interface AuthUserRepository extends JpaRepository<AuthUser, Long> {
 
     Optional<AuthUser> findByUserKey(String userKey);
 
+    Optional<AuthUser> findByEmailLookupHash(String emailLookupHash);
+
+    boolean existsByEmailLookupHash(String emailLookupHash);
+
     void deleteByUserKey(String userKey);
 }

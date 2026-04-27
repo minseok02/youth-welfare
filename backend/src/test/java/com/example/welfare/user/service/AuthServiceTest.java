@@ -5,7 +5,9 @@ import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.global.util.JwtUtil;
 import com.example.welfare.notification.gateway.EmailClient;
+import com.example.welfare.user.entity.AuthUser;
 import com.example.welfare.user.entity.User;
+import com.example.welfare.user.repository.AuthUserRepository;
 import com.example.welfare.user.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -32,6 +34,8 @@ import static org.mockito.Mockito.when;
 class AuthServiceTest {
 
     @Mock
+    private AuthUserRepository authUserRepository;
+    @Mock
     private UserRepository userRepository;
     @Mock
     private PasswordEncoder passwordEncoder;
@@ -53,6 +57,7 @@ class AuthServiceTest {
     @BeforeEach
     void setUp() {
         authService = new AuthService(
+                authUserRepository,
                 userRepository,
                 passwordEncoder,
                 jwtUtil,
@@ -69,14 +74,30 @@ class AuthServiceTest {
     }
 
     @Test
+    @DisplayName("이메일 중복확인은 대소문자를 무시한 auth_users lookup hash 기준으로 판단한다")
+    void checkEmailAvailabilityUsesLookupHash() {
+        when(authUserRepository.existsByEmailLookupHash("b4c9a289323b21a01c3e940f150eb9b8c542587f1abfd8f0e1cc1ffc5e475514"))
+                .thenReturn(true);
+
+        org.assertj.core.api.Assertions.assertThat(authService.checkEmailAvailability(" USER@example.com ").available())
+                .isFalse();
+    }
+
+    @Test
     @DisplayName("비밀번호 재설정 요청은 활성 사용자에게 토큰을 저장하고 메일을 발송한다")
     void requestPasswordResetStoresTokenAndSendsMail() {
+        AuthUser authUser = AuthUser.builder()
+                .userKey("user-key-7")
+                .isActive(true)
+                .build();
         User user = User.builder()
                 .id(7L)
                 .email("user@example.com")
                 .passwordHash("hash")
                 .build();
-        when(userRepository.findByEmail("user@example.com")).thenReturn(Optional.of(user));
+        when(authUserRepository.findByEmailLookupHash("b4c9a289323b21a01c3e940f150eb9b8c542587f1abfd8f0e1cc1ffc5e475514"))
+                .thenReturn(Optional.of(authUser));
+        when(userRepository.findByUserKey("user-key-7")).thenReturn(Optional.of(user));
         when(valueOperations.get("password-reset:user:7")).thenReturn(null);
         when(emailClient.send(eq("user@example.com"), eq("[청년복지] 비밀번호 재설정 안내"), any(String.class)))
                 .thenReturn(true);
@@ -91,7 +112,8 @@ class AuthServiceTest {
     @Test
     @DisplayName("비밀번호 재설정 요청은 없는 이메일이어도 동일 성공으로 끝나며 메일을 보내지 않는다")
     void requestPasswordResetIgnoresUnknownEmail() {
-        when(userRepository.findByEmail("missing@example.com")).thenReturn(Optional.empty());
+        when(authUserRepository.findByEmailLookupHash("62065901fb8d47d884b2737489920faedfdf935aa5cd9e0c34cad99b99a6a91b"))
+                .thenReturn(Optional.empty());
 
         authService.requestPasswordReset("missing@example.com");
 

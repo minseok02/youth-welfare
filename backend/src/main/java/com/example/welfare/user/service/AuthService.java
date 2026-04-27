@@ -9,8 +9,11 @@ import com.example.welfare.user.dto.request.LoginRequest;
 import com.example.welfare.user.dto.request.SignupRequest;
 import com.example.welfare.user.dto.response.EmailAvailabilityResponse;
 import com.example.welfare.user.dto.response.TokenResponse;
+import com.example.welfare.user.entity.AuthUser;
 import com.example.welfare.user.entity.User;
+import com.example.welfare.user.repository.AuthUserRepository;
 import com.example.welfare.user.repository.UserRepository;
+import com.example.welfare.user.util.EmailLookupKeyGenerator;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -44,6 +47,7 @@ public class AuthService {
     private static final String PASSWORD_RESET_USER_PREFIX = "password-reset:user:";
     private static final String PASSWORD_RESET_SUBJECT = "[청년복지] 비밀번호 재설정 안내";
 
+    private final AuthUserRepository authUserRepository;
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
@@ -74,7 +78,7 @@ public class AuthService {
 
     @Transactional(readOnly = true)
     public EmailAvailabilityResponse checkEmailAvailability(String email) {
-        return new EmailAvailabilityResponse(!userRepository.existsByEmail(email));
+        return new EmailAvailabilityResponse(!authUserRepository.existsByEmailLookupHash(EmailLookupKeyGenerator.hash(email)));
     }
 
     @Transactional
@@ -83,7 +87,7 @@ public class AuthService {
             throw new CustomException(ErrorCode.ADMIN_EMAIL_SIGNUP_FORBIDDEN);
         }
 
-        if (userRepository.existsByEmail(request.getEmail())) {
+        if (authUserRepository.existsByEmailLookupHash(EmailLookupKeyGenerator.hash(request.getEmail()))) {
             throw new CustomException(ErrorCode.DUPLICATE_EMAIL);
         }
 
@@ -105,29 +109,34 @@ public class AuthService {
 
     @Transactional
     public TokenResponse login(LoginRequest request) {
-        User user = userRepository.findByEmail(request.getEmail())
+        String normalizedEmail = EmailLookupKeyGenerator.normalize(request.getEmail());
+        AuthUser authUser = authUserRepository.findByEmailLookupHash(EmailLookupKeyGenerator.hash(normalizedEmail))
+                .orElseThrow(() -> new CustomException(ErrorCode.INVALID_CREDENTIALS));
+        User user = userRepository.findByUserKey(authUser.getUserKey())
                 .orElseThrow(() -> new CustomException(ErrorCode.INVALID_CREDENTIALS));
 
-        if (!user.isActive()) {
+        if (!authUser.isActive()) {
             throw new CustomException(ErrorCode.WITHDRAWN_USER);
         }
 
-        if (user.isLocked()) {
+        if (authUser.getLockedUntil() != null && LocalDateTime.now().isBefore(authUser.getLockedUntil())) {
             throw new CustomException(ErrorCode.ACCOUNT_LOCKED);
         }
 
-        if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
+        if (!passwordEncoder.matches(request.getPassword(), authUser.getPasswordHash())) {
             user.increaseLoginFailCount();
             if (user.getLoginFailCount() >= MAX_LOGIN_FAIL) {
                 user.lock(LocalDateTime.now().plusMinutes(LOCK_MINUTES));
                 log.warn("Account locked: userId={}", user.getId());
             }
+            userCoreSyncService.syncFromUser(user);
             throw new CustomException(ErrorCode.INVALID_CREDENTIALS);
         }
 
         user.resetLoginFail();
+        userCoreSyncService.syncFromUser(user);
 
-        String accessToken = jwtUtil.generateAccessToken(user.getId(), resolveRoles(user.getEmail()));
+        String accessToken = jwtUtil.generateAccessToken(user.getId(), resolveRoles(normalizedEmail));
         String refreshToken = jwtUtil.generateRefreshToken(user.getId());
 
         saveRefreshToken(user.getId(), refreshToken);
@@ -137,9 +146,10 @@ public class AuthService {
 
     @Transactional
     public void requestPasswordReset(String rawEmail) {
-        String email = normalizeEmail(rawEmail);
-        userRepository.findByEmail(email)
-                .filter(User::isActive)
+        String email = EmailLookupKeyGenerator.normalize(rawEmail);
+        authUserRepository.findByEmailLookupHash(EmailLookupKeyGenerator.hash(email))
+                .filter(AuthUser::isActive)
+                .flatMap(authUser -> userRepository.findByUserKey(authUser.getUserKey()))
                 .ifPresent(user -> {
                     String token = UUID.randomUUID().toString();
                     savePasswordResetToken(user.getId(), token);
@@ -261,11 +271,7 @@ public class AuthService {
         if (!StringUtils.hasText(email)) {
             return false;
         }
-        return adminEmails.contains(email.trim().toLowerCase(Locale.ROOT));
-    }
-
-    private String normalizeEmail(String email) {
-        return email == null ? "" : email.trim().toLowerCase(Locale.ROOT);
+        return adminEmails.contains(EmailLookupKeyGenerator.normalize(email));
     }
 
     private String buildPasswordResetText(String token) {
