@@ -247,6 +247,12 @@ AI 추천 품질 점검 후 프롬프트 개선, 중복 추천 제거, 노이즈
 - 2026-04-27 `docker compose` 기동 상태에서 `V2026_04_27_01__add_service_region_compound_indexes.sql` 적용 후 `ANALYZE TABLE service_regions`
 - 2026-04-27 검색/추천 지역 쿼리 EXPLAIN 재검증 후 `backend`에서 `./gradlew integrationTest --no-daemon --tests com.example.welfare.integration.RecommendationRegionQueryIntegrationTest`
 - 2026-04-27 검색/추천 지역 쿼리 EXPLAIN 재검증 후 `git diff --check`
+- 2026-04-27 지역 검색 `sido-only` / `sido+sgg` 쿼리 분리
+  - `PolicySearchService`가 `sgg` 유무에 따라 `searchByKeywordWithFiltersWithSido`, `searchByKeywordWithFiltersWithSidoSgg`로 분기
+  - `+청년 +취업`, `서울특별시/강남구` count query `actual time=20.8ms -> 3.4ms`
+  - `+청년 +취업`, `서울특별시/강남구` 본문 query `actual time=15.2ms -> 3.5ms`
+- 2026-04-27 지역 검색 쿼리 분리 후 `backend`에서 `./gradlew test --no-daemon --tests com.example.welfare.policy.service.PolicySearchServiceTest`
+- 2026-04-27 지역 검색 쿼리 분리 후 `backend`에서 `./gradlew integrationTest --no-daemon --tests com.example.welfare.integration.PolicySearchRegionQueryIntegrationTest --tests com.example.welfare.integration.RecommendationRegionQueryIntegrationTest`
 - 2026-04-25 운영/설계 보조 문서 링크 및 작업 추적 정합성 점검
   - `docs/README.md`에 `db-search-recommend-ops-guide.md`, `user-data-separation-design.md` 링크 추가
   - `docs/phase-plan.md`의 완료/진행 예정/남은 작업 간 상태 충돌 정리
@@ -292,11 +298,12 @@ AI 추천 품질 점검 후 프롬프트 개선, 중복 추천 제거, 노이즈
 - [ ] HTTPS/Nginx 적용
 - [ ] CTR 분석 쿼리 실행 결과 확보
 - [ ] 사용자 PII 분리 이행안 확정 (`users` 책임 분리, 서비스 계정 권한 분리)
-- [ ] 운영 데이터 기준 지역 검색/추천 쿼리 재측정 후 복합 인덱스 강제 또는 조건 분리 여부 재검토
+- [ ] 운영 데이터 기준 추천 지역 후보 쿼리 재측정 후 `regionCode` / `sidoName` 조건 분리 여부 재검토
 - [ ] 카카오 알림톡 연동 (2차, 심사 완료 후)
 
 ### 완료
 
+- [x] 운영 데이터 기준 지역 검색 `sido-only` / `sido+sgg` 쿼리 분리 및 EXPLAIN 재검증
 - [x] 검색/추천 쿼리 EXPLAIN 검증 및 인덱스 적용 여부 확정
 - [x] 운영 admin 계정 수동 생성 절차 문서화 (`SECURITY_ADMIN_EMAILS`, DB 계정 준비)
 - [x] 로그인 전 비밀번호 재설정 메일/토큰 구현
@@ -400,7 +407,7 @@ cd backend
 - HTTPS/Nginx 적용
 - CTR 분석 쿼리 실행 결과 확보
 - 사용자 PII 분리 이행안 확정 (`users` 책임 분리, 서비스 계정 권한 분리)
-- 운영 데이터 기준 지역 검색/추천 쿼리 재측정 후 복합 인덱스 강제 또는 조건 분리 여부 재검토
+- 운영 데이터 기준 추천 지역 후보 쿼리 재측정 후 `regionCode` / `sidoName` 조건 분리 여부 재검토
 
 ## 2차로 분리된 항목
 
