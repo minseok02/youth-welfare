@@ -65,29 +65,44 @@ public class PolicySearchService {
         String normalizedSgg = normalizeNullable(sgg);
         Integer onlineApplyFlag = onlineApply == null ? null : (onlineApply ? 1 : 0);
         String normalizedSort = normalizeSort(sort);
-        Page<WelfareService> resultPage = normalizedSido == null
-                ? welfareServiceRepository.searchByKeywordWithFiltersNoRegion(
-                ftKeyword,
-                normalizedStatus,
-                normalizedIncludeClosed,
-                normalizedCategory,
-                normalizedSourceType,
-                onlineApplyFlag,
-                normalizedSort,
-                PageRequest.of(pageNumber, limit)
-        )
-                : welfareServiceRepository.searchByKeywordWithFiltersWithRegion(
-                ftKeyword,
-                normalizedStatus,
-                normalizedIncludeClosed,
-                normalizedCategory,
-                normalizedSourceType,
-                onlineApplyFlag,
-                normalizedSido,
-                normalizedSgg,
-                normalizedSort,
-                PageRequest.of(pageNumber, limit)
-        );
+        Page<WelfareService> resultPage;
+        if (normalizedSido == null) {
+            resultPage = welfareServiceRepository.searchByKeywordWithFiltersNoRegion(
+                    ftKeyword,
+                    normalizedStatus,
+                    normalizedIncludeClosed,
+                    normalizedCategory,
+                    normalizedSourceType,
+                    onlineApplyFlag,
+                    normalizedSort,
+                    PageRequest.of(pageNumber, limit)
+            );
+        } else if (normalizedSgg == null) {
+            resultPage = welfareServiceRepository.searchByKeywordWithFiltersWithSido(
+                    ftKeyword,
+                    normalizedStatus,
+                    normalizedIncludeClosed,
+                    normalizedCategory,
+                    normalizedSourceType,
+                    onlineApplyFlag,
+                    normalizedSido,
+                    normalizedSort,
+                    PageRequest.of(pageNumber, limit)
+            );
+        } else {
+            resultPage = welfareServiceRepository.searchByKeywordWithFiltersWithSidoSgg(
+                    ftKeyword,
+                    normalizedStatus,
+                    normalizedIncludeClosed,
+                    normalizedCategory,
+                    normalizedSourceType,
+                    onlineApplyFlag,
+                    normalizedSido,
+                    normalizedSgg,
+                    normalizedSort,
+                    PageRequest.of(pageNumber, limit)
+            );
+        }
 
         Set<Long> bookmarkedServiceIds = getBookmarkedServiceIds(userId, resultPage.getContent());
         List<PolicySummaryResponse> content = resultPage.getContent().stream()
