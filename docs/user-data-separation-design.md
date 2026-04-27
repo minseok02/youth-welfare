@@ -34,14 +34,35 @@
 4. 하나의 저장소가 유출되어도 다른 저장소 없이는 재식별이 어렵게 해야 한다.
 5. 사람 계정과 서비스 계정, 그리고 각 계정의 접근 권한을 분리해야 한다.
 
+## 이번 작업에서 확정한 이행 범위
+
+이번 단계에서 확정하는 범위는 "최종 이상형"이 아니라 현재 코드베이스에 바로 적용 가능한 cut-over 순서다.
+
+확정안은 아래와 같다.
+
+1. 최종 구조는 `2 schema` 유지
+   - `youth_welfare`: 인증 해시, 추천 프로필, 추천/알림/수집/로그
+   - `youth_welfare_pii`: 이메일 원문, 이름, 생년월일, 전화번호 원문
+2. 공용 사용자 식별자는 `Long id`에서 바로 없애지 않고 `user_key`를 먼저 추가
+   - 기존 `users.id`는 호환용 내부 PK로 잠시 유지
+   - 새 테이블과 새 JWT 기준 식별자는 `user_key`를 사용
+3. 이행은 `schema 준비 -> dual-write -> read cut-over -> legacy 제거` 4단계로 진행
+4. 추천/검색/알림 로직은 원문 PII 대신 `user_profiles`의 파생 프로필만 읽도록 고정
+5. 알림 발송만 `user_pii`의 이메일 복호화 권한을 가진 별도 경로를 사용
+
+즉, 이번 프로젝트의 1차 목표는 "JPA 엔티티를 한 번에 갈아엎기"가 아니라 아래 두 가지를 먼저 안정화하는 것이다.
+
+- `users` 중심 단일 엔티티를 목적별 저장소로 분해할 발판 만들기
+- 런타임 경로 중 추천/알림/프로필이 어떤 PII를 정말 필요로 하는지 경계를 고정하기
+
 ## 현재 권한 구조의 문제
 
 현재 배포/보안 구조는 데이터 분리 이전에도 권한 경계가 약하다.
 
 - DB 접속은 [application.yml](/home/minseok/youth-welfare/backend/src/main/resources/application.yml:1) 기준 단일 datasource다.
 - 배포는 [docker-compose.yml](/home/minseok/youth-welfare/docker-compose.yml:1) 기준 앱 컨테이너가 `root` 계정으로 MySQL에 접속한다.
-- API 권한도 [SecurityConfig](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/global/config/SecurityConfig.java:44) 에서 `/api/admin/**` 가 `permitAll()` 이다.
-- 실제 관리자 기능인 [CollectAdminController](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/collect/controller/CollectAdminController.java:17), [PolicyAdminController](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/policy/controller/PolicyAdminController.java:13) 는 인증 없이 호출 가능하다.
+- API 권한은 [SecurityConfig](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/global/config/SecurityConfig.java:44) 에서 이미 `/api/admin/** -> hasRole("ADMIN")` 으로 막혀 있다.
+- 다만 관리자 권한은 여전히 `SECURITY_ADMIN_EMAILS` allowlist + `users.email` 조합에 의존하고, DB 안의 역할 테이블이나 서비스 계정 분리는 아직 없다.
 
 즉, 저장소 분리보다 먼저 "누가 무엇에 접근할 수 있는지"를 구조적으로 나눠야 한다.
 
@@ -201,6 +222,34 @@
 - `users.phone_enc`
 - 가능하면 `users.email` 원문도 여기로 이동
 
+## 현재 코드 기준 영향 범위
+
+실제 cut-over 시 바로 영향받는 코드는 아래다.
+
+- 인증/계정
+  - [AuthService](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/user/service/AuthService.java:33)
+  - [UserService](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/user/service/UserService.java:25)
+  - [User](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/user/entity/User.java:16)
+- 추천
+  - [RecommendationFacade](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/recommend/facade/RecommendationFacade.java:23)
+  - [RuleScoringService](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/recommend/service/RuleScoringService.java:24)
+  - `UserRecommendation`, `RecommendationLog`
+- 알림
+  - [NotificationService](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/notification/service/NotificationService.java:35)
+  - `Notification`
+- 프로필/관심사
+  - `UserAttribute`, `UserPriority`
+- 기타 사용자 종속 로그/세션
+  - `ChatSession`
+  - `ServiceViewLog`
+
+핵심 결합 지점은 아래 두 가지다.
+
+1. 다수 엔티티가 `@ManyToOne User` 로 직접 묶여 있다.
+2. 서비스 레이어가 `users` 한 row에서 인증 정보와 추천 프로필과 PII를 동시에 읽는다.
+
+따라서 분리 작업의 실제 난점은 schema 생성 자체가 아니라 "기존 `user_id` 연관을 어떻게 compatibility window 동안 유지할 것인가"에 있다.
+
 ## 핵심 설계 포인트
 
 ### 1. `Long userId` 대신 `user_key`
@@ -310,7 +359,8 @@
 
 ## API 접근 권한 분리
 
-현재는 `/api/admin/**` 가 전체 공개 상태이므로 이건 즉시 수정 대상이다.
+현재 `/api/admin/**` 는 공개 상태가 아니라 `ROLE_ADMIN` 이 필요하다.
+문제는 "공개 여부"보다 "관리자/서비스 계정 모델이 DB 권한 분리와 연결되어 있지 않다"는 점이다.
 
 권장 API 권한은 아래와 같다.
 
@@ -347,7 +397,7 @@
 
 요건:
 
-- `permitAll` 금지
+- 현재의 `ROLE_ADMIN` 보호 유지
 - 운영자 JWT 또는 사내 SSO 연동
 - 감사 로그 필수
 - rate limit 보다 먼저 인증/인가 수행
@@ -369,7 +419,9 @@
 
 ## Spring Security / 계정 모델 변경안
 
-현재 [SecurityConfig](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/global/config/SecurityConfig.java:44) 는 역할 개념이 없다. 데이터 분리와 함께 인증/인가 모델도 같이 바꿔야 한다.
+현재 [SecurityConfig](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/global/config/SecurityConfig.java:44) 는 `ROLE_ADMIN` / 일반 사용자 구분은 있다.
+하지만 역할이 DB 테이블이 아니라 환경변수 allowlist에서 유도되고, 서비스 계정/사람 계정/감사 계정이 별도 모델로 분리되어 있지 않다.
+데이터 분리와 함께 인증/인가 모델도 아래 방향으로 확장하는 것이 맞다.
 
 권장 테이블:
 
@@ -479,9 +531,9 @@
 
 설계와 별개로 현재 코드 기준 즉시 고쳐야 할 항목은 아래다.
 
-1. `/api/admin/**` 의 `permitAll` 제거
-2. 관리자 계정/역할 테이블 도입
-3. 런타임 DB 계정에서 `root` 사용 중단
+1. 런타임 DB 계정에서 `root` 사용 중단
+2. `users` 단일 테이블에 `user_key` 를 먼저 추가하고 하위 테이블 backfill 경로 확보
+3. 관리자 계정/역할 테이블 또는 최소한 운영자 사람 계정 전용 저장 구조 도입
 4. 수집 워커와 사용자 API의 datasource credential 분리
 5. 알림 발송용 프로세스가 `youth_welfare_pii` 전체를 읽지 못하게 column/뷰 단위 제한
 
@@ -489,12 +541,13 @@
 
 현재 구조에 가장 덜 위험하게 적용하려면 아래 순서가 좋다.
 
-1. `SecurityConfig` 에 역할 기반 인가 추가
-2. 관리자 계정과 일반 사용자 계정 모델 분리
-3. DB 계정을 `root` 에서 기능별 계정으로 전환
-4. `youth_welfare` / `youth_welfare_pii` 분리
-5. 워커 프로세스별 datasource credential 분리
-6. 감사 로그 추가
+1. `users` 및 사용자 종속 테이블에 `user_key` 추가
+2. `auth_users`, `user_profiles`, `user_pii` 생성 후 dual-write 도입
+3. 추천/알림/프로필 조회를 신규 테이블 read path로 전환
+4. JWT subject, Redis key, 로그/세션 참조를 `user_key` 로 전환
+5. DB 계정을 `root` 에서 기능별 계정으로 전환
+6. 워커 프로세스별 datasource credential 분리
+7. 감사 로그 추가
 
 ## Spring Boot 구조 변경안
 
@@ -563,40 +616,81 @@
 
 우선순위는 아래가 맞다.
 
-1. `User` 엔티티를 해체한다.
-2. JWT subject를 `Long id`에서 `user_key`로 바꾼다.
-3. 추천/알림/로그 테이블의 `ManyToOne User` 연관을 `user_key` 스칼라 컬럼으로 바꾼다.
-4. `birth_date` 원문 의존을 `age` 파생값 의존으로 바꾼다.
-5. datasource를 `core/pii` 로 분리한다.
+1. `users.user_key` 와 하위 테이블 `user_key` 컬럼을 추가해 신규 공용 식별자를 심는다.
+2. `auth_users`, `user_profiles`, `user_pii` 를 만들고 회원가입/프로필 수정에 dual-write 를 넣는다.
+3. `birth_date` 원문 의존을 `age` / `age_band` 파생값 의존으로 바꾼다.
+4. 추천/알림/로그 테이블의 `ManyToOne User` 연관을 `user_key` 스칼라 컬럼으로 바꾼다.
+5. 마지막에 JWT subject와 datasource를 `user_key`, `core/pii` 기준으로 전환한다.
 
 ## 점진적 마이그레이션 단계
 
-### 1단계: 논리 분리
+### 1단계: 식별자 준비
+
+- `users` 에 `user_key CHAR(26)` 추가, 기존 row 전체 backfill
+- `user_attributes`, `user_priorities`, `user_recommendations`, `recommendation_logs`, `notifications`, `chat_sessions`, `service_view_logs` 에 `user_key` nullable 컬럼 추가
+- 기존 `user_id -> users.user_key` 기준으로 backfill
+- 이 단계에서는 기존 FK와 `user_id` 컬럼을 유지
+
+이 단계가 먼저 끝나야 이후 테이블 분리 중에도 기존 API와 로그가 끊기지 않는다.
+
+### 2단계: 논리 분리 + dual-write
 
 - 현 DB 내에 `youth_welfare` 와 `youth_welfare_pii` schema 생성
-- 새 테이블 작성
-- `user_key` 추가
-- 기존 `users`에서 신규 테이블로 이관 배치 작성
+- `auth_users`, `user_profiles`, `user_pii` 작성
+- 기존 `users`에서 신규 테이블로 1회 이관 배치 작성
+- 회원가입, 프로필 수정, 회원탈퇴에 legacy `users` + 신규 테이블 dual-write 도입
+- `user_profiles` 에 `age`, `age_band`, `has_name`, `has_birth_date`, `has_phone` 계산 저장
 
-현재 운영 데이터가 없다면 이 단계에서 바로 cut-over 해도 된다.
+### 3단계: read path 전환
 
-### 2단계: 애플리케이션 분리
+- 로그인/비밀번호 재설정은 `auth_users` 기준 조회
+- 프로필 조회 API는 `user_profiles + user_pii` 조합 DTO로 응답
+- 추천은 `RecommendationUserSnapshot` 을 `user_profiles + user_attributes + user_priorities` 기준으로 조회
+- 알림 발송은 대상 조회는 `user_profiles`, 이메일 조회는 `user_pii` 로 분리
+- `NotificationService` 와 추천 관련 서비스에서 `User` 전체 엔티티 직접 의존 제거
 
-- `UserRepository` 직접 사용 제거
-- 목적별 repository/service/DTO로 교체
-- 추천, 알림, 프로필 API가 각각 필요한 저장소만 읽도록 수정
+### 4단계: identity cut-over
 
-### 3단계: 물리 분리
+- JWT `sub`, refresh token Redis key, 비밀번호 재설정 토큰 사용자 키를 `Long userId`에서 `user_key`로 전환
+- `UserRecommendation`, `RecommendationLog`, `Notification`, `ChatSession`, `UserAttribute`, `UserPriority` 의 `ManyToOne User` 제거
+- 각 테이블의 `user_key NOT NULL` 제약 확정 후 `user_id` FK 제거
+
+### 5단계: 물리 분리와 정리
 
 - 필요 시 `youth_welfare_pii` 를 별도 인스턴스로 이동
 - 별도 계정/방화벽/백업 정책 적용
-- 운영자 접근 로그 분리
-
-### 4단계: 삭제와 감사 강화
-
+- legacy `users` 의 PII 컬럼과 중복 데이터 제거
 - 회원탈퇴 시 각 저장소에 scrub event 발행
 - PII 데이터는 즉시 또는 정책 시간 경과 후 영구 삭제
 - 일반 서비스 테이블은 최소 식별 정보만 남기고 비식별화
+
+## 릴리스별 산출물
+
+각 단계에서 실제로 만들어야 할 산출물도 고정한다.
+
+### Release A
+
+- migration SQL: `users.user_key` + 하위 테이블 `user_key`
+- backfill 스크립트 또는 SQL
+- 무결성 검증 쿼리
+
+### Release B
+
+- `auth_users`, `user_profiles`, `user_pii` schema/migration
+- `AuthService`, `UserService` dual-write
+- `ProfileResponse` 조합 DTO 경로 준비
+
+### Release C
+
+- 추천/알림/프로필 read path 전환
+- `NotificationService` 이메일 조회 분리
+- 나이 파생값 배치 또는 저장 시 재계산 로직
+
+### Release D
+
+- JWT `user_key` 전환
+- `ManyToOne User` 제거
+- legacy `users` 의 읽기 전용화
 
 ## 이 설계에서 주의할 점
 
@@ -616,5 +710,9 @@
 
 1. 모든 도메인에서 `Long userId` 대신 공용 `user_key`를 쓰기
 2. 추천/알림은 원문 PII가 아니라 파생 프로필과 목적별 DTO만 쓰게 바꾸기
+
+이번 작업 기준으로는 여기에 한 가지를 더 고정했다.
+
+3. `user_key` 선행 도입 없이 곧바로 `users -> auth/profile/pii` 분리를 시도하지 않는다.
 
 지금 단계에선 이 구조가 보안 목표와 운영 복잡도 사이에서 가장 현실적이다.
