@@ -187,6 +187,31 @@ curl -X POST http://127.0.0.1:8082/api/admin/users/metadata-user-key-backfill \
 - `attributeUpdatedCount`: `user_attributes.user_key` 채운 row 수
 - `priorityUpdatedCount`: `user_priorities.user_key` 채운 row 수
 
+## `user_pii_sync_queue` admin replay 실행
+
+최신 백엔드 배포 후 `user_pii_sync_queue` 의 실패 row 또는 특정 사용자 row는 관리자 API로 다시 반영할 수 있다.
+
+특정 사용자 재처리:
+
+```bash
+curl -X POST "http://127.0.0.1:8082/api/admin/users/pii-sync-replay?userKey=<USER_KEY>" \
+  -H "Authorization: Bearer <ADMIN_ACCESS_TOKEN>"
+```
+
+실패 row + 대기 row batch 재처리:
+
+```bash
+curl -X POST "http://127.0.0.1:8082/api/admin/users/pii-sync-replay?limit=100" \
+  -H "Authorization: Bearer <ADMIN_ACCESS_TOKEN>"
+```
+
+응답 본문:
+
+- `attemptedCount`: 이번 replay에서 실제로 processor를 태운 queue row 수
+- `syncedCount`: replay 후 `SYNCED` 로 끝난 row 수
+- `failedCount`: replay 후에도 `FAILED` 로 남은 row 수
+- `missingCount`: replay 요청 시점 대비 queue row가 없어 처리하지 못한 수
+
 ## 확인 쿼리
 
 ```sql

@@ -11,8 +11,10 @@ import com.example.welfare.policy.service.SearchYouthRelevanceService;
 import com.example.welfare.user.controller.UserAdminController;
 import com.example.welfare.user.dto.response.UserMetadataUserKeyBackfillResponse;
 import com.example.welfare.user.dto.response.UserPiiBackfillResponse;
+import com.example.welfare.user.dto.response.UserPiiSyncReplayResponse;
 import com.example.welfare.user.service.UserMetadataUserKeyBackfillService;
 import com.example.welfare.user.service.UserPiiBackfillService;
+import com.example.welfare.user.service.UserPiiSyncReplayService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -47,6 +49,8 @@ class AdminSecurityWebMvcTest {
     private UserMetadataUserKeyBackfillService userMetadataUserKeyBackfillService;
     @MockBean
     private UserPiiBackfillService userPiiBackfillService;
+    @MockBean
+    private UserPiiSyncReplayService userPiiSyncReplayService;
     @MockBean
     private JwtUtil jwtUtil;
     @MockBean
@@ -132,6 +136,30 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.data.priorityUpdatedCount").value(2));
 
         then(userMetadataUserKeyBackfillService).should().backfillMissingUserKeys();
+    }
+
+    @Test
+    @DisplayName("관리자 토큰으로 pii sync replay API를 호출하면 replay 서비스를 실행한다")
+    void adminEndpointAllowsPiiSyncReplay() throws Exception {
+        mockAuthenticatedToken("admin-token", List.of(
+                new SimpleGrantedAuthority("ROLE_USER"),
+                new SimpleGrantedAuthority("ROLE_ADMIN")
+        ));
+        given(userPiiSyncReplayService.replay("user-key-1", 25))
+                .willReturn(new UserPiiSyncReplayResponse(1, 1, 0, 0));
+
+        mockMvc.perform(post("/api/admin/users/pii-sync-replay")
+                        .param("userKey", "user-key-1")
+                        .param("limit", "25")
+                        .header("Authorization", "Bearer admin-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.attemptedCount").value(1))
+                .andExpect(jsonPath("$.data.syncedCount").value(1))
+                .andExpect(jsonPath("$.data.failedCount").value(0))
+                .andExpect(jsonPath("$.data.missingCount").value(0));
+
+        then(userPiiSyncReplayService).should().replay("user-key-1", 25);
     }
 
     private void mockAuthenticatedToken(String token,

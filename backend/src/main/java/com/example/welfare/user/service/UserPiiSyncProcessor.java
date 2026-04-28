@@ -1,6 +1,7 @@
 package com.example.welfare.user.service;
 
 import com.example.welfare.user.entity.UserPiiSyncQueue;
+import com.example.welfare.user.entity.UserPiiSyncQueueStatus;
 import com.example.welfare.user.repository.UserPiiReadWriteRepository;
 import com.example.welfare.user.repository.UserPiiSyncQueueRepository;
 import lombok.RequiredArgsConstructor;
@@ -20,12 +21,12 @@ public class UserPiiSyncProcessor {
     private final UserPiiReadWriteRepository userPiiReadWriteRepository;
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void process(String userKey) {
+    public UserPiiSyncQueueStatus process(String userKey) {
         UserPiiSyncQueue queue = userPiiSyncQueueRepository.findByUserKey(userKey)
                 .orElse(null);
         if (queue == null) {
             log.warn("[UserPiiSyncProcessor] queue row not found userKey={}", userKey);
-            return;
+            return null;
         }
 
         try {
@@ -41,6 +42,7 @@ public class UserPiiSyncProcessor {
             queue.markFailed(truncateErrorMessage(e.getMessage()));
             log.error("[UserPiiSyncProcessor] app_pii sync failed userKey={}", userKey, e);
         }
+        return queue.getStatus();
     }
 
     private String truncateErrorMessage(String message) {

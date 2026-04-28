@@ -81,10 +81,12 @@
   - 프로필 조회와 비밀번호 재설정 수신 주소 조회를 `app_pii_rw` secondary datasource로 분리
   - `user_pii` admin backfill write 경로를 `app_pii_rw` secondary datasource로 분리
   - 요청 경로 `user_pii` sync 를 primary `user_pii_sync_queue` 적재 + after-commit `app_pii_rw` upsert 구조로 전환
+  - `user_pii_sync_queue` admin replay API 추가
 - 남은 작업
   - 기존 운영 DB에 `app_core_rw`, `app_pii_rw`, `notification_pii_ro`, `migration_admin` 계정 생성 후 앱 datasource 전환
   - 운영 DB에 `V2026_04_28_02__add_user_pii_sync_queue.sql` 적용 및 request dual-write smoke 검증
-  - `user_pii_sync_queue` retry/admin replay 경로와 운영 모니터링 기준 추가
+  - `user_pii_sync_queue` 자동 retry 경로 추가
+  - `user_pii_sync_queue` 운영 모니터링 기준 정리
   - 기본 datasource의 잔여 `user_pii` 직접 접근 제거
   - `app_core_rw` 의 `youth_welfare_pii.user_pii` DML 권한 회수
   - 운영 DB에 `V2026_04_28_01__drop_runtime_legacy_user_id.sql` 적용 및 배포 smoke 검증
@@ -98,6 +100,7 @@
 - 프로필 조회와 비밀번호 재설정 수신 주소 조회는 `app_pii_rw` 보조 datasource를 통해 `user_pii` 를 읽는다.
 - `user_pii` admin backfill write 는 `app_pii_rw` 보조 datasource를 통해 수행한다.
 - 요청 경로 `user_pii` sync 는 primary `user_pii_sync_queue` 에 적재된 뒤 after-commit listener 가 `app_pii_rw` 로 upsert 한다.
+- 운영자는 `/api/admin/users/pii-sync-replay` 로 특정 `userKey` 또는 실패/대기 queue batch를 수동 replay 할 수 있다.
 - 알림 발송 대상 이메일 조회와 재시도 단건 조회는 `notification_pii_ro` 보조 datasource를 통해 `user_pii(user_key, email_enc)` 만 읽는다.
 - API 권한은 [SecurityConfig](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/global/config/SecurityConfig.java:44) 에서 이미 `/api/admin/** -> hasRole("ADMIN")` 으로 막혀 있다.
 - 다만 `UserPiiRepository` 기반 잔여 직접 접근과 운영 fallback 정리 전까지는 `app_core_rw` 가 임시로 `user_pii` DML 권한을 유지한다.
