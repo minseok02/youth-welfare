@@ -54,4 +54,11 @@ public class CollectAdminController {
         collectService.collectBokjiroDetails();
         return ResponseEntity.ok(ApiResponse.success("복지로 상세 수집 완료"));
     }
+
+    @PostMapping("/bokjiro-details-refresh")
+    public ResponseEntity<ApiResponse<String>> collectBokjiroDetailsRefresh() {
+        log.info("[Admin] 복지로 상세 refresh 수동 트리거");
+        collectService.collectBokjiroDetailsRefresh();
+        return ResponseEntity.ok(ApiResponse.success("복지로 상세 refresh 완료"));
+    }
 }

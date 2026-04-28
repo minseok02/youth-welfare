@@ -52,6 +52,10 @@ public class CollectService {
         collectSource(CollectSource.BOKJIRO_DETAIL);
     }
 
+    public void collectBokjiroDetailsRefresh() {
+        collectSource(CollectSource.BOKJIRO_DETAIL_REFRESH);
+    }
+
     private void collectSource(CollectSource source) {
         collectExecutionGuard.runExclusive(source.lockName(), () -> runSource(source));
     }

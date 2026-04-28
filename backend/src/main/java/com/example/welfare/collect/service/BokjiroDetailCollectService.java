@@ -61,31 +61,56 @@ public class BokjiroDetailCollectService {
 
     @Transactional
     public CollectResult collectBokjiroDetailsResult() {
-        return collectBokjiroDetailsResult(maxCallsPerRun);
+        return collectBokjiroDetailsResult(maxCallsPerRun, false);
     }
 
     @Transactional
     public CollectResult collectBokjiroDetailsResult(int maxCalls) {
+        return collectBokjiroDetailsResult(maxCalls, false);
+    }
+
+    @Transactional
+    public int collectBokjiroDetailsRefresh() {
+        return collectBokjiroDetailsRefreshResult().savedCount();
+    }
+
+    @Transactional
+    public int collectBokjiroDetailsRefresh(int maxCalls) {
+        return collectBokjiroDetailsRefreshResult(maxCalls).savedCount();
+    }
+
+    @Transactional
+    public CollectResult collectBokjiroDetailsRefreshResult() {
+        return collectBokjiroDetailsResult(maxCallsPerRun, true);
+    }
+
+    @Transactional
+    public CollectResult collectBokjiroDetailsRefreshResult(int maxCalls) {
+        return collectBokjiroDetailsResult(maxCalls, true);
+    }
+
+    @Transactional
+    public CollectResult collectBokjiroDetailsResult(int maxCalls, boolean refreshExisting) {
         int centralBudget = Math.min(maxCallsPerApiPerRun, maxCalls);
         int localBudget = Math.min(maxCallsPerApiPerRun, Math.max(0, maxCalls - centralBudget));
 
-        CollectStats centralStats = collectBySource(WelfareService.SourceType.BOKJIRO_CENTRAL, centralBudget);
-        CollectStats localStats = collectBySource(WelfareService.SourceType.BOKJIRO_LOCAL, localBudget);
+        CollectStats centralStats = collectBySource(WelfareService.SourceType.BOKJIRO_CENTRAL, centralBudget, refreshExisting);
+        CollectStats localStats = collectBySource(WelfareService.SourceType.BOKJIRO_LOCAL, localBudget, refreshExisting);
 
         int calls = centralStats.calls() + localStats.calls();
         int saved = centralStats.saved() + localStats.saved();
         int skipped = centralStats.skipped() + localStats.skipped();
         int failed = centralStats.failed() + localStats.failed();
 
-        log.info("[BokjiroDetailCollectService] 상세 수집 완료 calls={} saved={} skipped={} failed={} maxCalls={} centralCalls={} localCalls={}",
-                calls, saved, skipped, failed, maxCalls, centralStats.calls(), localStats.calls());
+        log.info("[BokjiroDetailCollectService] 상세 수집 완료 refreshExisting={} calls={} saved={} skipped={} failed={} maxCalls={} centralCalls={} localCalls={}",
+                refreshExisting, calls, saved, skipped, failed, maxCalls, centralStats.calls(), localStats.calls());
         String metadataJson = """
-                {"maxCalls":%d,"centralCalls":%d,"localCalls":%d}
-                """.formatted(maxCalls, centralStats.calls(), localStats.calls()).trim();
+                {"maxCalls":%d,"centralCalls":%d,"localCalls":%d,"refreshExisting":%s}
+                """.formatted(maxCalls, centralStats.calls(), localStats.calls(), refreshExisting).trim();
         return CollectResult.withMetadata(calls, saved, skipped, 0, failed, metadataJson);
     }
 
-    private CollectStats collectBySource(WelfareService.SourceType sourceType, int callBudget) {
+    private CollectStats collectBySource(WelfareService.SourceType sourceType, int callBudget, boolean refreshExisting) {
         if (callBudget <= 0) {
             return new CollectStats(0, 0, 0, 0);
         }
@@ -100,7 +125,7 @@ public class BokjiroDetailCollectService {
 
         for (WelfareService service : targets) {
             if (calls >= callBudget) break;
-            if (detailRepository.existsByServiceId(service.getId())) {
+            if (!refreshExisting && detailRepository.existsByServiceId(service.getId())) {
                 skipped++;
                 continue;
             }
@@ -118,8 +143,8 @@ public class BokjiroDetailCollectService {
             if (fetchResult.isRateLimited()) {
                 rateLimitHits++;
                 if (rateLimitHits >= maxConsecutiveRateLimitHits) {
-                    log.warn("[BokjiroDetailCollectService] 연속 429 발생으로 sourceType={} 수집 중단 calls={} rateLimitHits={}",
-                            sourceType, calls, rateLimitHits);
+                    log.warn("[BokjiroDetailCollectService] 연속 429 발생으로 sourceType={} refreshExisting={} 수집 중단 calls={} rateLimitHits={}",
+                            sourceType, refreshExisting, calls, rateLimitHits);
                     break;
                 }
                 continue;
@@ -156,14 +181,14 @@ public class BokjiroDetailCollectService {
                 searchYouthRelevanceService.refreshForService(service, serviceTagRepository.findByServiceId(service.getId()));
                 saved++;
             } catch (Exception e) {
-                log.warn("[BokjiroDetailCollectService] 상세 저장 실패 serviceId={} sourceType={} err={}",
-                        service.getId(), service.getSourceType(), e.getMessage());
+                log.warn("[BokjiroDetailCollectService] 상세 저장 실패 serviceId={} sourceType={} refreshExisting={} err={}",
+                        service.getId(), service.getSourceType(), refreshExisting, e.getMessage());
                 failed++;
             }
         }
 
-        log.info("[BokjiroDetailCollectService] sourceType={} 상세 수집 완료 calls={} saved={} skipped={} failed={} budget={}",
-                sourceType, calls, saved, skipped, failed, callBudget);
+        log.info("[BokjiroDetailCollectService] sourceType={} refreshExisting={} 상세 수집 완료 calls={} saved={} skipped={} failed={} budget={}",
+                sourceType, refreshExisting, calls, saved, skipped, failed, callBudget);
         return new CollectStats(calls, saved, skipped, failed);
     }
 

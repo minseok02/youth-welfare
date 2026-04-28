@@ -6,7 +6,8 @@ public enum CollectSource {
     YOUTH("YOUTH", "collect-youth"),
     BOKJIRO_CENTRAL("BOKJIRO_CENTRAL", "collect-bokjiro-central"),
     BOKJIRO_LOCAL("BOKJIRO_LOCAL", "collect-bokjiro-local"),
-    BOKJIRO_DETAIL("BOKJIRO_DETAIL", "collect-bokjiro-details");
+    BOKJIRO_DETAIL("BOKJIRO_DETAIL", "collect-bokjiro-details"),
+    BOKJIRO_DETAIL_REFRESH("BOKJIRO_DETAIL_REFRESH", "collect-bokjiro-details-refresh");
 
     private static final List<CollectSource> EXECUTION_ORDER = List.of(
             YOUTH,

@@ -35,6 +35,14 @@
 - 아이템 단위 저장은 별도 트랜잭션으로 처리한다.
 - deadlock/lock timeout/낙관적 락 충돌은 최대 3회 재시도 후 최종 실패로 기록한다.
 
+### 5. 복지로 상세는 기본 수집과 refresh 수동 경로를 구분
+
+- `/api/admin/collect/bokjiro-details` 는 detail row가 없는 정책 위주로 채우는 기본 경로다.
+- `/api/admin/collect/bokjiro-details-refresh` 는 기존 detail row가 있어도 다시 fetch/merge 하는 refresh 전용 수동 경로다.
+- 운영 해석:
+  - 일반 배치는 기본 경로를 유지해 호출량을 억제한다.
+  - 상세 본문 포맷이 바뀌었거나 기존 적재값을 다시 동기화해야 할 때만 refresh 경로를 쓴다.
+
 ---
 
 ## 장애 판단 기준

@@ -102,6 +102,24 @@ class AdminSecurityWebMvcTest {
     }
 
     @Test
+    @DisplayName("관리자 토큰으로 detail refresh 관리자 API를 호출하면 refresh 수집 서비스를 실행한다")
+    void adminEndpointAllowsDetailRefresh() throws Exception {
+        mockAuthenticatedToken("admin-token", List.of(
+                new SimpleGrantedAuthority("ROLE_USER"),
+                new SimpleGrantedAuthority("ROLE_ADMIN")
+        ));
+        doNothing().when(collectService).collectBokjiroDetailsRefresh();
+
+        mockMvc.perform(post("/api/admin/collect/bokjiro-details-refresh")
+                        .header("Authorization", "Bearer admin-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data").value("복지로 상세 refresh 완료"));
+
+        then(collectService).should().collectBokjiroDetailsRefresh();
+    }
+
+    @Test
     @DisplayName("관리자 토큰으로 PII 백필 API를 호출하면 백필 서비스를 실행한다")
     void adminEndpointAllowsPiiBackfill() throws Exception {
         mockAuthenticatedToken("admin-token", List.of(

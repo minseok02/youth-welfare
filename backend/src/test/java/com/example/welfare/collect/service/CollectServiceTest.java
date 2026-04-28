@@ -34,6 +34,8 @@ class CollectServiceTest {
     private CollectSourceAdapter bokjiroLocalAdapter;
     @Mock
     private CollectSourceAdapter bokjiroDetailAdapter;
+    @Mock
+    private CollectSourceAdapter bokjiroDetailRefreshAdapter;
 
     private CollectService collectService;
 
@@ -43,9 +45,10 @@ class CollectServiceTest {
         given(bokjiroCentralAdapter.source()).willReturn(CollectSource.BOKJIRO_CENTRAL);
         given(bokjiroLocalAdapter.source()).willReturn(CollectSource.BOKJIRO_LOCAL);
         given(bokjiroDetailAdapter.source()).willReturn(CollectSource.BOKJIRO_DETAIL);
+        given(bokjiroDetailRefreshAdapter.source()).willReturn(CollectSource.BOKJIRO_DETAIL_REFRESH);
 
         collectService = new CollectService(
-                List.of(bokjiroLocalAdapter, bokjiroDetailAdapter, youthAdapter, bokjiroCentralAdapter),
+                List.of(bokjiroLocalAdapter, bokjiroDetailAdapter, bokjiroDetailRefreshAdapter, youthAdapter, bokjiroCentralAdapter),
                 collectExecutionGuard,
                 apiSyncLogService
         );
@@ -120,5 +123,32 @@ class CollectServiceTest {
         verify(apiSyncLogService, never()).runWithLog(eq("BOKJIRO_CENTRAL"), any());
         verify(apiSyncLogService, never()).runWithLog(eq("BOKJIRO_LOCAL"), any());
         verify(apiSyncLogService, never()).runWithLog(eq("BOKJIRO_DETAIL"), any());
+        verify(apiSyncLogService, never()).runWithLog(eq("BOKJIRO_DETAIL_REFRESH"), any());
+    }
+
+    @Test
+    @DisplayName("detail refresh 수집은 refresh source lock 과 adapter 만 사용한다")
+    void collectBokjiroDetailsRefreshDelegatesToRefreshSource() throws Exception {
+        List<String> executedJobs = new ArrayList<>();
+
+        doAnswer(invocation -> {
+            Runnable task = invocation.getArgument(1);
+            task.run();
+            return null;
+        }).when(collectExecutionGuard).runExclusive(eq("collect-bokjiro-details-refresh"), any(Runnable.class));
+
+        when(apiSyncLogService.runWithLog(eq("BOKJIRO_DETAIL_REFRESH"), any())).thenAnswer(invocation -> {
+            executedJobs.add(invocation.getArgument(0));
+            ApiSyncLogService.CollectTask task = invocation.getArgument(1);
+            return task.run();
+        });
+        when(bokjiroDetailRefreshAdapter.collect()).thenReturn(CollectResult.of(1, 1, 0, 0, 0));
+
+        collectService.collectBokjiroDetailsRefresh();
+
+        assertThat(executedJobs).containsExactly("BOKJIRO_DETAIL_REFRESH");
+        verify(collectExecutionGuard).runExclusive(eq("collect-bokjiro-details-refresh"), any(Runnable.class));
+        verify(apiSyncLogService).runWithLog(eq("BOKJIRO_DETAIL_REFRESH"), any());
+        verify(bokjiroDetailRefreshAdapter).collect();
     }
 }

@@ -597,3 +597,8 @@
 - 문제: `CollectItemSaver` 는 새 tag만 `upsert` 하고 기존 tag 삭제 경로가 없어, 정책 source의 키워드/대상/생애주기 값이 바뀌거나 빠져도 `service_tags` 에는 예전 값이 계속 남을 수 있었음
 - 해결: 수집 저장 시 `service_id` 기준 기존 tag를 먼저 지우고, 현재 source에서 계산한 tag 집합을 `TagType + tagValue` 기준으로 dedupe 한 뒤 다시 저장하도록 변경했음. tag가 비면 기존 tag를 전부 제거하고 빈 목록으로 relevance 계산을 다시 수행하도록 맞췄음
 - 이유: 추천/검색 필터는 현재 source snapshot에 수렴해야 한다. append-only tag 저장은 source가 변할수록 오염 데이터가 누적되므로, 목록 수집 save는 region처럼 tag도 “현재 상태로 교체”하는 쪽이 안전하다
+
+## 118) 상세 수집이 `existsByServiceId` 만 보고 skip하면 upstream 상세 본문 변경이 영구 반영되지 않을 수 있음
+- 문제: 복지로 상세 수집은 기존 `welfare_service_details` row가 있는지만 보고 바로 skip하므로, 외부 상세 API의 지원내용/신청방법/문의처가 바뀌어도 기존 row가 남아 있는 한 다시 fetch/merge 할 수 있는 경로가 없었음
+- 해결: 기본 상세 수집은 그대로 두되, `BOKJIRO_DETAIL_REFRESH` 전용 source와 `/api/admin/collect/bokjiro-details-refresh` 수동 endpoint를 추가해 refresh 모드에서는 기존 row가 있어도 다시 fetch 후 같은 row id로 merge 저장하도록 분리했음
+- 이유: 상세 수집은 호출 단가가 높아 기본 배치와 refresh 동작을 분리하는 편이 안전하다. missing-row 채우기와 full refresh를 같은 경로에 섞으면 호출량과 정합성 기대가 충돌하므로, 운영자가 의도를 명시할 수 있는 별도 경로가 필요하다
