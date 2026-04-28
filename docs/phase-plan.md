@@ -29,7 +29,8 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 같은 migrated DB의 admin 계정으로 로그인한 뒤 cookie 기반 `refresh` 를 거쳐도 `ROLE_ADMIN` 이 유지되어 `pii-sync-status` / `pii-sync-replay` 를 계속 호출할 수 있는지까지 로컬 smoke를 마쳤습니다.
 같은 admin 계정에서 `logout` 이후 refresh cookie가 실제로 비워지고 `POST /api/auth/refresh` 가 `A001` 로 막히는지, 이후 재로그인으로 admin status/replay 경로가 다시 회복되는지도 로컬 smoke로 확인했습니다.
 같은 admin 계정의 old access token은 `logout` 뒤에도 만료 전까지 `pii-sync-status` / `pii-sync-replay` 에 계속 통과하는 현재 동작을 로컬 smoke로 확인했고, access token 즉시 무효화는 별도 hardening 작업으로 남겼습니다.
-남은 작업은 access token 즉시 무효화 hardening 검토/구현, 운영 배포/운영성 검증(운영 서버 Docker Compose, 기존 운영 DB 계정 생성 SQL 적용 및 datasource 전환, 운영 `.env` / secret store의 `APP_PII_DB_URL` / `NOTIFICATION_PII_DB_URL` 를 `youth_welfare_pii` 기준으로 전환, HTTPS/Nginx, 운영 DB에 `V2026_04_28_02__add_user_pii_sync_queue.sql` / `V2026_04_28_01__drop_runtime_legacy_user_id.sql` 적용 후 smoke 검증, 기존 운영 DB에 `app_core_rw` 의 `youth_welfare_pii.user_pii` revoke SQL 실제 적용과 보조 datasource smoke 검증, CTR 표본 확충 후 재분석)과 2차 확장 기능(군집 캐시 추천, 카카오 알림톡, 검색 로그, 대시보드)입니다.
+수집 파이프라인 코드 검수 결과, 신규 데이터 API 추가를 쉽게 만들기 위해서는 source별 fan-out 구조를 adapter 기반으로 줄이고, stale `service_tags` 정리와 detail 재수집 갱신 경로를 먼저 정리하는 것이 우선이라는 판단입니다.
+남은 작업은 수집 파이프라인 확장성 리팩터링(collect source adapter 추상화, stale tag cleanup, detail refresh 지원, 수집 contract test 보강), access token 즉시 무효화 hardening 검토/구현, 운영 배포/운영성 검증(운영 서버 Docker Compose, 기존 운영 DB 계정 생성 SQL 적용 및 datasource 전환, 운영 `.env` / secret store의 `APP_PII_DB_URL` / `NOTIFICATION_PII_DB_URL` 를 `youth_welfare_pii` 기준으로 전환, HTTPS/Nginx, 운영 DB에 `V2026_04_28_02__add_user_pii_sync_queue.sql` / `V2026_04_28_01__drop_runtime_legacy_user_id.sql` 적용 후 smoke 검증, 기존 운영 DB에 `app_core_rw` 의 `youth_welfare_pii.user_pii` revoke SQL 실제 적용과 보조 datasource smoke 검증, CTR 표본 확충 후 재분석)과 2차 확장 기능(군집 캐시 추천, 카카오 알림톡, 검색 로그, 대시보드)입니다.
 
 ## 완료된 백엔드 1차 범위
 
@@ -126,6 +127,10 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
   - `SECURITY_ADMIN_EMAILS=admin.access-token.smoke@example.com` 으로 최신 앱을 기동한 뒤, admin 계정 로그인과 프로필 수정으로 queue row를 `SYNCED` 상태까지 맞추고 old access token과 cookie jar를 확보
   - 같은 access token + cookie jar로 `POST /api/auth/logout` 호출 후 cookie jar에서 `refresh_token` 이 제거되고, 직후 `POST /api/auth/refresh` 가 `401`, `errorCode=A001` 로 막히는 것 확인
   - 그러나 같은 old access token으로 `GET /api/admin/users/pii-sync-status?failedSampleLimit=5`, `POST /api/admin/users/pii-sync-replay?userKey=<USER_KEY>` 를 다시 호출하면 둘 다 계속 통과해, logout은 refresh만 회수하고 access token 즉시 무효화는 하지 않는 현재 정책을 확인
+- 2026-04-28 수집 파이프라인 확장성 코드 검수
+  - `CollectService`, `CollectItemSaver`, `RawApiPayloadService`, `CollectAdminController`, `WelfareServiceMapper`, `Bokjiro*Client`, `BokjiroDetailCollectService` 를 기준으로 “신규 데이터 API 추가 시 수정 지점 수”를 점검
+  - source별 수집/저장/매핑/관리자 엔드포인트가 클래스별로 fan-out 되어 있어 adapter 없이 새 source를 붙일 때 누락 지점이 많고, `service_tags` 는 upsert-only 라 제거된 태그가 남으며, detail 수집은 기존 row가 있으면 갱신하지 않는 구조라는 점을 후속 리팩터링 과제로 확정
+  - 이번 task는 리뷰와 작업 추적 갱신만 수행했고, 런타임 테스트는 추가로 실행하지 않음
 - 2026-04-28 one-shot PII sync smoke의 `ENV_FILE` 직접 로드 지원 후 `bash -n deploy/smoke/user-pii-sync-cutover-smoke.sh`
 - 2026-04-28 one-shot PII sync smoke의 `ENV_FILE` 직접 로드 지원 후 `ENV_FILE=.env DB_QUERY_USERNAME=migration_admin DB_QUERY_PASSWORD=smoke-db-password-2026! DB_MIGRATION_USERNAME=migration_admin DB_MIGRATION_PASSWORD=smoke-db-password-2026! APP_BASE_URL=http://127.0.0.1:8082 deploy/smoke/user-pii-sync-cutover-smoke.sh`
   - 현재 로컬 `.env` 가 아직 `DB_USERNAME=root` 라 query/migration 계정만 explicit override로 주입한 상태에서 회원가입 -> 로그인 -> 프로필 수정 -> `user_pii_sync_queue` `SYNCED` -> 회원탈퇴 cleanup 재확인
@@ -667,6 +672,10 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 
 ### 진행 예정
 
+- [ ] collect source adapter 추상화로 신규 데이터 API 추가 경로 단일화
+- [ ] 수집 시 제거된 `service_tags` cleanup 반영
+- [ ] detail 수집이 기존 row를 건너뛰지 않고 갱신되도록 refresh 경로 추가
+- [ ] 수집 파이프라인 contract/unit test 보강 (`CollectService` / `CollectItemSaver` / detail 수집)
 - [ ] logout 후 access token 즉시 무효화 전략 검토/구현
 - [ ] 운영 서버 Docker Compose 기동
 - [ ] 기존 운영 DB에 `app_core_rw` / `app_pii_rw` / `notification_pii_ro` / `migration_admin` 계정 생성 및 앱 datasource 전환
@@ -680,6 +689,7 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 
 ### 완료
 
+- [x] 수집 파이프라인 확장성 코드 검수
 - [x] pre-28 migrated DB 기준 admin old access token after logout smoke
 - [x] pre-28 migrated DB 기준 admin logout/relogin recovery smoke
 - [x] pre-28 migrated DB 기준 admin refresh role retention smoke
