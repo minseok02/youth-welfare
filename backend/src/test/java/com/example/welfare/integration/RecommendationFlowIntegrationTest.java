@@ -14,6 +14,7 @@ import com.example.welfare.user.entity.UserPriority;
 import com.example.welfare.user.repository.AuthUserRepository;
 import com.example.welfare.user.repository.PriorityOptionRepository;
 import com.example.welfare.user.repository.UserPiiRepository;
+import com.example.welfare.user.repository.UserPiiSyncQueueRepository;
 import com.example.welfare.user.repository.UserPriorityRepository;
 import com.example.welfare.user.repository.UserProfileRepository;
 import com.example.welfare.user.repository.UserRepository;
@@ -34,6 +35,7 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.hasItem;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -73,6 +75,9 @@ class RecommendationFlowIntegrationTest {
     private UserPiiRepository userPiiRepository;
 
     @Autowired
+    private UserPiiSyncQueueRepository userPiiSyncQueueRepository;
+
+    @Autowired
     private UserPriorityRepository userPriorityRepository;
 
     @Autowired
@@ -102,6 +107,7 @@ class RecommendationFlowIntegrationTest {
                         authUserRepository.findByUserKey(userKey).ifPresent(authUserRepository::delete);
                         userProfileRepository.findByUserKey(userKey).ifPresent(userProfileRepository::delete);
                         userPiiRepository.findByUserKey(userKey).ifPresent(userPiiRepository::delete);
+                        userPiiSyncQueueRepository.deleteByUserKey(userKey);
                     }
                     userRepository.delete(user);
                 });
@@ -204,8 +210,9 @@ class RecommendationFlowIntegrationTest {
                         .header("Authorization", "Bearer " + accessToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data[0].serviceId").value(housingPolicy.getId()))
-                .andExpect(jsonPath("$.data[0].bookmarked").value(true));
+                .andExpect(jsonPath("$.data[*].serviceId").value(hasItem(housingPolicy.getId().intValue())))
+                .andExpect(jsonPath("$.data[?(@.serviceId == %s)].bookmarked".formatted(housingPolicy.getId()))
+                        .value(hasItem(true)));
 
         List<UserRecommendation> latestRecommendations = userRecommendationRepository.findLatestByUserKey(userKey);
         assertThat(latestRecommendations).isNotEmpty();

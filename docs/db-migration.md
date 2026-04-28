@@ -10,6 +10,12 @@
 
 ## 최신 마이그레이션
 
+- 파일: [`backend/src/main/resources/db/migration/V2026_04_28_02__add_user_pii_sync_queue.sql`](../backend/src/main/resources/db/migration/V2026_04_28_02__add_user_pii_sync_queue.sql)
+- 포함 내용:
+  - `user_pii_sync_queue` 생성
+  - request-path `user_pii` sync payload 와 상태(`PENDING/SYNCED/FAILED`) 저장
+  - 향후 retry/admin replay 용 `attempt_count`, `last_error`, `last_*_at` 컬럼 추가
+
 - 파일: [`backend/src/main/resources/db/migration/V2026_04_28_01__drop_runtime_legacy_user_id.sql`](../backend/src/main/resources/db/migration/V2026_04_28_01__drop_runtime_legacy_user_id.sql)
 - 포함 내용:
   - `user_recommendations`, `recommendation_logs`, `notifications`, `chat_sessions`, `service_view_logs` 의 legacy `user_id` 컬럼 제거
@@ -70,13 +76,23 @@
 
 ## 적용 전 체크리스트
 
+- 현재 저장소는 Flyway 자동 적용이 없으므로, 기존 Docker DB/운영 DB/통합 테스트용 고정 DB에는 새 migration SQL을 수동 적용해야 한다.
 - 최신 백엔드가 `user_recommendations`, `recommendation_logs`, `notifications`, `chat_sessions`, `service_view_logs` 를 모두 `user_key` 기준으로 읽고 쓰는지 확인
 - `user_attributes`, `user_priorities` 의 저장/삭제 경로가 더 이상 `userId` 에 의존하지 않는지 확인
+- 최신 백엔드가 request-path `user_pii` sync 를 `user_pii_sync_queue -> app_pii_rw` 경로로 수행하는지 확인
 - `schema.sql` 과 엔티티 `@Table(indexes=...)` 정의를 drop 후 구조와 같이 수정
 - 운영 DB에서 `user_key IS NULL` row 가 없는지 확인
 - 운영 DB에 `app_core_rw`, `app_pii_rw`, `notification_pii_ro`, `migration_admin` 계정과 권한이 준비됐는지 확인
 
 ## 적용 후 검증 쿼리
+
+```sql
+SHOW TABLES LIKE 'user_pii_sync_queue';
+DESCRIBE user_pii_sync_queue;
+SELECT status, COUNT(*) AS cnt
+FROM user_pii_sync_queue
+GROUP BY status;
+```
 
 ```sql
 SHOW COLUMNS FROM user_recommendations LIKE 'user_id';
@@ -96,6 +112,7 @@ SHOW INDEX FROM service_view_logs WHERE Key_name = 'idx_svl_user_key_service_vie
 ```bash
 mysql -h 127.0.0.1 -P 3307 -u "$DB_MIGRATION_USERNAME" -p"$DB_MIGRATION_PASSWORD" youth_welfare < backend/src/main/resources/db/migration/V2026_04_27_02__add_user_key_columns.sql
 mysql -h 127.0.0.1 -P 3307 -u "$DB_MIGRATION_USERNAME" -p"$DB_MIGRATION_PASSWORD" youth_welfare < backend/src/main/resources/db/migration/V2026_04_27_03__add_user_core_split_tables.sql
+mysql -h 127.0.0.1 -P 3307 -u "$DB_MIGRATION_USERNAME" -p"$DB_MIGRATION_PASSWORD" youth_welfare < backend/src/main/resources/db/migration/V2026_04_28_02__add_user_pii_sync_queue.sql
 mysql -h 127.0.0.1 -P 3307 -u "$DB_MIGRATION_USERNAME" -p"$DB_MIGRATION_PASSWORD" youth_welfare < backend/src/main/resources/db/migration/V2026_04_27_01__add_service_region_compound_indexes.sql
 mysql -h 127.0.0.1 -P 3307 -u "$DB_MIGRATION_USERNAME" -p"$DB_MIGRATION_PASSWORD" youth_welfare < backend/src/main/resources/db/migration/V2026_04_25_01__add_chat_tables.sql
 mysql -h 127.0.0.1 -P 3307 -u "$DB_MIGRATION_USERNAME" -p"$DB_MIGRATION_PASSWORD" youth_welfare < backend/src/main/resources/db/migration/V2026_04_17_01__recent_schema_updates.sql
@@ -110,6 +127,7 @@ mysql -h 127.0.0.1 -P 3307 -u "$DB_MIGRATION_USERNAME" -p"$DB_MIGRATION_PASSWORD
 ```bash
 docker exec -e MYSQL_PWD="$DB_MIGRATION_PASSWORD" -i youth-welfare-db mysql -u"$DB_MIGRATION_USERNAME" youth_welfare < backend/src/main/resources/db/migration/V2026_04_27_02__add_user_key_columns.sql
 docker exec -e MYSQL_PWD="$DB_MIGRATION_PASSWORD" -i youth-welfare-db mysql -u"$DB_MIGRATION_USERNAME" youth_welfare < backend/src/main/resources/db/migration/V2026_04_27_03__add_user_core_split_tables.sql
+docker exec -e MYSQL_PWD="$DB_MIGRATION_PASSWORD" -i youth-welfare-db mysql -u"$DB_MIGRATION_USERNAME" youth_welfare < backend/src/main/resources/db/migration/V2026_04_28_02__add_user_pii_sync_queue.sql
 docker exec -e MYSQL_PWD="$DB_MIGRATION_PASSWORD" -i youth-welfare-db mysql -u"$DB_MIGRATION_USERNAME" youth_welfare < backend/src/main/resources/db/migration/V2026_04_27_01__add_service_region_compound_indexes.sql
 docker exec -e MYSQL_PWD="$DB_MIGRATION_PASSWORD" -i youth-welfare-db mysql -u"$DB_MIGRATION_USERNAME" youth_welfare < backend/src/main/resources/db/migration/V2026_04_25_01__add_chat_tables.sql
 docker exec -e MYSQL_PWD="$DB_MIGRATION_PASSWORD" -i youth-welfare-db mysql -u"$DB_MIGRATION_USERNAME" youth_welfare < backend/src/main/resources/db/migration/V2026_04_17_01__recent_schema_updates.sql

@@ -5,6 +5,7 @@ import com.example.welfare.user.entity.User;
 import com.example.welfare.user.entity.UserPii;
 import com.example.welfare.user.repository.AuthUserRepository;
 import com.example.welfare.user.repository.UserPiiRepository;
+import com.example.welfare.user.repository.UserPiiSyncQueueRepository;
 import com.example.welfare.user.repository.UserProfileRepository;
 import com.example.welfare.user.repository.UserRepository;
 import com.example.welfare.user.service.UserCoreSyncService;
@@ -40,6 +41,9 @@ class UserPiiBackfillIntegrationTest {
     private AuthUserRepository authUserRepository;
 
     @Autowired
+    private UserPiiSyncQueueRepository userPiiSyncQueueRepository;
+
+    @Autowired
     private UserCoreSyncService userCoreSyncService;
 
     @Autowired
@@ -58,6 +62,7 @@ class UserPiiBackfillIntegrationTest {
                         authUserRepository.findByUserKey(userKey).ifPresent(authUserRepository::delete);
                         userProfileRepository.findByUserKey(userKey).ifPresent(userProfileRepository::delete);
                         userPiiRepository.findByUserKey(userKey).ifPresent(userPiiRepository::delete);
+                        userPiiSyncQueueRepository.deleteByUserKey(userKey);
                     }
                     userRepository.delete(user);
                 });

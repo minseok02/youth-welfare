@@ -5,6 +5,7 @@ import com.example.welfare.global.util.JwtUtil;
 import com.example.welfare.user.entity.User;
 import com.example.welfare.user.repository.AuthUserRepository;
 import com.example.welfare.user.repository.UserPiiRepository;
+import com.example.welfare.user.repository.UserPiiSyncQueueRepository;
 import com.example.welfare.user.repository.UserProfileRepository;
 import com.example.welfare.user.repository.UserRepository;
 import com.example.welfare.user.service.UserCoreSyncService;
@@ -61,6 +62,9 @@ class AdminSecurityIntegrationTest {
     private UserPiiRepository userPiiRepository;
 
     @Autowired
+    private UserPiiSyncQueueRepository userPiiSyncQueueRepository;
+
+    @Autowired
     private PasswordEncoder passwordEncoder;
 
     @Autowired
@@ -90,6 +94,7 @@ class AdminSecurityIntegrationTest {
                     String userKey = userRepository.findUserKeyById(user.getId()).orElse(null);
                     if (userKey != null) {
                         redisTemplate.delete("refresh:" + userKey);
+                        userPiiSyncQueueRepository.deleteByUserKey(userKey);
                     }
                     redisTemplate.delete("refresh:" + user.getId());
                     userRepository.delete(user);
@@ -174,6 +179,7 @@ class AdminSecurityIntegrationTest {
         transactionTemplate.executeWithoutResult(status -> {
             if (userKey != null) {
                 redisTemplate.delete("refresh:" + userKey);
+                userPiiSyncQueueRepository.deleteByUserKey(userKey);
                 userPiiRepository.deleteByUserKey(userKey);
                 userProfileRepository.deleteByUserKey(userKey);
                 authUserRepository.deleteByUserKey(userKey);

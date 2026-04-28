@@ -5,9 +5,12 @@ import com.example.welfare.global.util.JwtUtil;
 import com.example.welfare.user.entity.AuthUser;
 import com.example.welfare.user.entity.User;
 import com.example.welfare.user.entity.UserPii;
+import com.example.welfare.user.entity.UserPiiSyncQueue;
+import com.example.welfare.user.entity.UserPiiSyncQueueStatus;
 import com.example.welfare.user.entity.UserProfile;
 import com.example.welfare.user.repository.AuthUserRepository;
 import com.example.welfare.user.repository.UserPiiRepository;
+import com.example.welfare.user.repository.UserPiiSyncQueueRepository;
 import com.example.welfare.user.repository.UserProfileRepository;
 import com.example.welfare.user.repository.UserRepository;
 import org.junit.jupiter.api.AfterEach;
@@ -57,6 +60,9 @@ class UserCoreDualWriteIntegrationTest {
     private UserPiiRepository userPiiRepository;
 
     @Autowired
+    private UserPiiSyncQueueRepository userPiiSyncQueueRepository;
+
+    @Autowired
     private JwtUtil jwtUtil;
 
     @Autowired
@@ -75,6 +81,7 @@ class UserCoreDualWriteIntegrationTest {
                         authUserRepository.findByUserKey(userKey).ifPresent(authUserRepository::delete);
                         userProfileRepository.findByUserKey(userKey).ifPresent(userProfileRepository::delete);
                         userPiiRepository.findByUserKey(userKey).ifPresent(userPiiRepository::delete);
+                        userPiiSyncQueueRepository.deleteByUserKey(userKey);
                     }
                     userRepository.delete(user);
                 });
@@ -109,6 +116,7 @@ class UserCoreDualWriteIntegrationTest {
         AuthUser authUser = authUserRepository.findByUserKey(userKey).orElseThrow();
         UserProfile userProfile = userProfileRepository.findByUserKey(userKey).orElseThrow();
         UserPii userPii = userPiiRepository.findByUserKey(userKey).orElseThrow();
+        UserPiiSyncQueue syncQueue = userPiiSyncQueueRepository.findByUserKey(userKey).orElseThrow();
 
         assertThat(authUser.getEmailLookupHash()).isEqualTo(sha256Hex(email.toLowerCase()));
         assertThat(authUser.getPasswordHash()).isEqualTo(user.getPasswordHash());
@@ -122,6 +130,9 @@ class UserCoreDualWriteIntegrationTest {
         assertThat(aesEncryptUtil.decrypt(userPii.getEmailEnc())).isEqualTo(email);
         assertThat(aesEncryptUtil.decrypt(userPii.getNameEnc())).isEqualTo("Dual Write User");
         assertThat(aesEncryptUtil.decrypt(userPii.getBirthDateEnc())).isEqualTo("1998-01-10");
+        assertThat(syncQueue.getStatus()).isEqualTo(UserPiiSyncQueueStatus.SYNCED);
+        assertThat(syncQueue.getAttemptCount()).isEqualTo(1);
+        assertThat(syncQueue.getLastSyncedAt()).isNotNull();
     }
 
     @Test
@@ -170,6 +181,7 @@ class UserCoreDualWriteIntegrationTest {
 
         UserProfile userProfile = userProfileRepository.findByUserKey(userKey).orElseThrow();
         UserPii userPii = userPiiRepository.findByUserKey(userKey).orElseThrow();
+        UserPiiSyncQueue syncQueue = userPiiSyncQueueRepository.findByUserKey(userKey).orElseThrow();
 
         assertThat(userProfile.getSido()).isEqualTo("부산광역시");
         assertThat(userProfile.getSgg()).isEqualTo("해운대구");
@@ -186,6 +198,9 @@ class UserCoreDualWriteIntegrationTest {
         assertThat(aesEncryptUtil.decrypt(userPii.getNameEnc())).isEqualTo("After Update");
         assertThat(aesEncryptUtil.decrypt(userPii.getBirthDateEnc())).isEqualTo("1996-05-20");
         assertThat(aesEncryptUtil.decrypt(userPii.getPhoneEnc())).isEqualTo("01012345678");
+        assertThat(syncQueue.getStatus()).isEqualTo(UserPiiSyncQueueStatus.SYNCED);
+        assertThat(syncQueue.getAttemptCount()).isGreaterThanOrEqualTo(2);
+        assertThat(syncQueue.getPhoneEnc()).isEqualTo(userPii.getPhoneEnc());
     }
 
     @Test

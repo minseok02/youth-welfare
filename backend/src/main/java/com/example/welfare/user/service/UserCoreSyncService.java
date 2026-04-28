@@ -3,14 +3,14 @@ package com.example.welfare.user.service;
 import com.example.welfare.global.util.AesEncryptUtil;
 import com.example.welfare.user.entity.AuthUser;
 import com.example.welfare.user.entity.User;
-import com.example.welfare.user.entity.UserPii;
 import com.example.welfare.user.entity.UserProfile;
+import com.example.welfare.user.event.UserPiiSyncRequestedEvent;
 import com.example.welfare.user.repository.AuthUserRepository;
-import com.example.welfare.user.repository.UserPiiRepository;
 import com.example.welfare.user.repository.UserProfileRepository;
 import com.example.welfare.user.repository.UserRepository;
 import com.example.welfare.user.util.EmailLookupKeyGenerator;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,8 +25,9 @@ public class UserCoreSyncService {
     private final UserRepository userRepository;
     private final AuthUserRepository authUserRepository;
     private final UserProfileRepository userProfileRepository;
-    private final UserPiiRepository userPiiRepository;
+    private final UserPiiSyncQueueService userPiiSyncQueueService;
     private final AesEncryptUtil aesEncryptUtil;
+    private final ApplicationEventPublisher applicationEventPublisher;
 
     @Transactional
     public void syncFromUser(User user) {
@@ -61,18 +62,14 @@ public class UserCoreSyncService {
     }
 
     private void syncUserPii(User user, String userKey) {
-        UserPii userPii = userPiiRepository.findByUserKey(userKey)
-                .orElse(UserPii.builder()
-                        .userKey(userKey)
-                        .build());
-
-        userPii.sync(
+        userPiiSyncQueueService.enqueue(
+                userKey,
                 aesEncryptUtil.encrypt(user.getEmail()),
                 aesEncryptUtil.encrypt(user.getName()),
                 user.getBirthDate() == null ? null : aesEncryptUtil.encrypt(user.getBirthDate().toString()),
                 user.getPhoneEnc()
         );
-        userPiiRepository.save(userPii);
+        applicationEventPublisher.publishEvent(new UserPiiSyncRequestedEvent(userKey));
     }
 
     private Integer calculateAge(LocalDate birthDate) {

@@ -10,6 +10,7 @@ import com.example.welfare.notification.gateway.EmailClient;
 import com.example.welfare.user.entity.User;
 import com.example.welfare.user.entity.UserPii;
 import com.example.welfare.user.repository.UserPiiRepository;
+import com.example.welfare.user.repository.UserPiiSyncQueueRepository;
 import com.example.welfare.user.repository.UserRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
@@ -60,6 +61,9 @@ class AuthRedisIntegrationTest {
     private UserPiiRepository userPiiRepository;
 
     @Autowired
+    private UserPiiSyncQueueRepository userPiiSyncQueueRepository;
+
+    @Autowired
     private AesEncryptUtil aesEncryptUtil;
 
     @Autowired
@@ -83,6 +87,7 @@ class AuthRedisIntegrationTest {
                     if (userKey != null) {
                         redisTemplate.delete("refresh:" + userKey);
                         chatSessionRepository.deleteAll(chatSessionRepository.findAllByUserKey(userKey));
+                        userPiiSyncQueueRepository.deleteByUserKey(userKey);
                     }
                     redisTemplate.delete("refresh:" + user.getId());
                     userRepository.delete(user);

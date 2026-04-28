@@ -60,4 +60,35 @@ public class UserPiiReadWriteRepository {
                         .addValue("birthDateEnc", birthDateEnc)
         );
     }
+
+    public int upsertUserPii(String userKey, String emailEnc, String nameEnc, String birthDateEnc, String phoneEnc) {
+        return jdbcTemplate.update("""
+                        insert into youth_welfare_pii.user_pii (
+                            user_key,
+                            email_enc,
+                            name_enc,
+                            birth_date_enc,
+                            phone_enc
+                        )
+                        values (
+                            :userKey,
+                            :emailEnc,
+                            :nameEnc,
+                            :birthDateEnc,
+                            :phoneEnc
+                        )
+                        on duplicate key update
+                            email_enc = values(email_enc),
+                            name_enc = values(name_enc),
+                            birth_date_enc = values(birth_date_enc),
+                            phone_enc = values(phone_enc)
+                        """,
+                new MapSqlParameterSource()
+                        .addValue("userKey", userKey)
+                        .addValue("emailEnc", emailEnc)
+                        .addValue("nameEnc", nameEnc)
+                        .addValue("birthDateEnc", birthDateEnc)
+                        .addValue("phoneEnc", phoneEnc)
+        );
+    }
 }

@@ -472,3 +472,13 @@
 - 문제: `UserCoreSyncService` 의 요청 dual-write 와 `UserPiiBackfillService` 의 admin batch write 를 같은 “write 분리”로 묶어 보면, backfill 처럼 독립 row update 로 충분한 경로도 cross-datasource 원자성 문제 때문에 같이 멈춰 버릴 수 있었음
 - 해결: 이번 단계에서는 `UserPiiBackfillService` 의 target selection 은 기존 primary query 를 유지하되 실제 update 만 `app_pii_rw` 로 옮겨 admin batch write 를 먼저 분리하고, 요청 dual-write 경로는 별도 transaction 전략 task 로 남겼음
 - 이유: 같은 write 라도 consistency 요구 수준이 다르다. 요청 경로는 원자성이 중요하지만, admin backfill 은 재실행 가능한 batch 성격이라 먼저 분리해 권한 축소를 앞당길 수 있다
+
+## 93) persistent Docker DB를 쓰는 통합 테스트는 새 migration을 자동 적용하지 않아 schema 검증에서 바로 실패할 수 있음
+- 문제: 저장소에는 Flyway 자동 적용이 없어서, `user_pii_sync_queue` 엔티티와 migration 파일만 추가한 뒤 곧바로 통합 테스트를 돌리면 기존 Docker MySQL이 옛 스키마를 유지한 채 `ddl-auto: validate` 단계에서 실패할 수 있었음
+- 해결: `V2026_04_28_02__add_user_pii_sync_queue.sql` 을 테스트 Docker MySQL에 수동 적용한 뒤 통합 테스트를 재실행했고, [db-migration.md](./db-migration.md)에 기존 DB/통합 테스트 DB는 migration 수동 적용이 필요하다는 점을 명시
+- 이유: 이 저장소의 schema 변경 완료 조건은 `schema.sql` 수정만이 아니라 “기존 DB용 migration SQL 반영 + persistent 테스트 DB 반영”까지 포함된다. 자동 적용이 없는 환경에서는 이 절차를 문서와 검증 루틴에 같이 고정해야 재발을 막을 수 있다
+
+## 94) derived delete repository 메서드를 테스트 cleanup에서 직접 쓸 때는 트랜잭션 의미를 메서드 시그니처에 명시해야 함
+- 문제: `UserPiiSyncQueueRepository.deleteByUserKey()` 를 `@AfterEach` cleanup에서 직접 호출하자, 서비스 트랜잭션 밖이라 `TransactionRequiredException` 이 발생했음
+- 해결: `UserPiiSyncQueueRepository.deleteByUserKey()` 에 `@Modifying`, `@Transactional` 을 명시해 cleanup에서도 독립 write query로 실행되도록 고정
+- 이유: split-table/queue 전환이 늘어날수록 테스트 정리 루틴도 전용 repository delete 메서드를 자주 쓰게 된다. 이 경로는 서비스 본문처럼 이미 트랜잭션 안에 있다고 가정하면 깨지기 쉬우므로, cleanup에서 직접 쓰는 write 메서드는 스스로 트랜잭션 의미를 가져야 안전하다

@@ -80,11 +80,13 @@
   - 알림 대상 이메일 조회를 `notification_pii_ro` secondary datasource로 분리
   - 프로필 조회와 비밀번호 재설정 수신 주소 조회를 `app_pii_rw` secondary datasource로 분리
   - `user_pii` admin backfill write 경로를 `app_pii_rw` secondary datasource로 분리
+  - 요청 경로 `user_pii` sync 를 primary `user_pii_sync_queue` 적재 + after-commit `app_pii_rw` upsert 구조로 전환
 - 남은 작업
   - 기존 운영 DB에 `app_core_rw`, `app_pii_rw`, `notification_pii_ro`, `migration_admin` 계정 생성 후 앱 datasource 전환
-  - PII sync dual-write 경로를 `app_pii_rw` datasource로 분리하기 위한 transaction 전략 정리
-  - PII sync dual-write 경로를 `app_pii_rw` datasource로 분리
+  - 운영 DB에 `V2026_04_28_02__add_user_pii_sync_queue.sql` 적용 및 request dual-write smoke 검증
+  - `user_pii_sync_queue` retry/admin replay 경로와 운영 모니터링 기준 추가
   - 기본 datasource의 잔여 `user_pii` 직접 접근 제거
+  - `app_core_rw` 의 `youth_welfare_pii.user_pii` DML 권한 회수
   - 운영 DB에 `V2026_04_28_01__drop_runtime_legacy_user_id.sql` 적용 및 배포 smoke 검증
 
 ## 현재 권한 구조의 문제
@@ -95,9 +97,10 @@
 - 현재 [docker-compose.yml](/home/minseok/youth-welfare/docker-compose.yml:1)은 앱 컨테이너가 `DB_USERNAME` 계정으로 접속하고, 신규 볼륨 초기화 시 `app_core_rw`, `app_pii_rw`, `notification_pii_ro`, `migration_admin` 계정을 함께 생성한다.
 - 프로필 조회와 비밀번호 재설정 수신 주소 조회는 `app_pii_rw` 보조 datasource를 통해 `user_pii` 를 읽는다.
 - `user_pii` admin backfill write 는 `app_pii_rw` 보조 datasource를 통해 수행한다.
+- 요청 경로 `user_pii` sync 는 primary `user_pii_sync_queue` 에 적재된 뒤 after-commit listener 가 `app_pii_rw` 로 upsert 한다.
 - 알림 발송 대상 이메일 조회와 재시도 단건 조회는 `notification_pii_ro` 보조 datasource를 통해 `user_pii(user_key, email_enc)` 만 읽는다.
 - API 권한은 [SecurityConfig](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/global/config/SecurityConfig.java:44) 에서 이미 `/api/admin/** -> hasRole("ADMIN")` 으로 막혀 있다.
-- 다만 요청 경로의 PII sync dual-write 는 여전히 기본 datasource를 통해 동작하고, `app_core_rw` 가 단일 datasource 호환을 위해 `user_pii` DML 권한을 잠시 유지한다.
+- 다만 `UserPiiRepository` 기반 잔여 직접 접근과 운영 fallback 정리 전까지는 `app_core_rw` 가 임시로 `user_pii` DML 권한을 유지한다.
 - 관리자 권한은 여전히 `SECURITY_ADMIN_EMAILS` allowlist + `users.email` 조합에 의존하고, DB 안의 역할 테이블이나 서비스 계정 분리는 아직 없다.
 
 즉, 저장소 분리보다 먼저 "누가 무엇에 접근할 수 있는지"를 구조적으로 나눠야 한다.
@@ -588,7 +591,7 @@
 
 ## Spring Boot 구조 변경안
 
-현재는 datasource가 하나다. [application.yml](/home/minseok/youth-welfare/backend/src/main/resources/application.yml:1) 기준으로 단일 `spring.datasource`만 존재한다. 이번 단계에서 런타임 `root`는 제거했지만, 단일 datasource 구조라 `app_core_rw`가 임시로 `youth_welfare_pii.user_pii` DML 권한까지 가진다.
+현재는 기본 JPA datasource 하나와 보조 datasource 둘(`app_pii_rw`, `notification_pii_ro`)을 함께 쓴다. 런타임 `root`는 제거했고 read/backfill/request sync 일부는 분리됐지만, 잔여 direct 접근 제거 전까지 `app_core_rw`가 임시로 `youth_welfare_pii.user_pii` DML 권한을 가진다.
 
 분리 후에는 최소 2개 datasource를 둔다.
 

@@ -1,0 +1,54 @@
+package com.example.welfare.user.service;
+
+import com.example.welfare.user.entity.UserPiiSyncQueue;
+import com.example.welfare.user.repository.UserPiiReadWriteRepository;
+import com.example.welfare.user.repository.UserPiiSyncQueueRepository;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
+
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class UserPiiSyncProcessor {
+
+    private static final int MAX_ERROR_LENGTH = 500;
+
+    private final UserPiiSyncQueueRepository userPiiSyncQueueRepository;
+    private final UserPiiReadWriteRepository userPiiReadWriteRepository;
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void process(String userKey) {
+        UserPiiSyncQueue queue = userPiiSyncQueueRepository.findByUserKey(userKey)
+                .orElse(null);
+        if (queue == null) {
+            log.warn("[UserPiiSyncProcessor] queue row not found userKey={}", userKey);
+            return;
+        }
+
+        try {
+            userPiiReadWriteRepository.upsertUserPii(
+                    queue.getUserKey(),
+                    queue.getEmailEnc(),
+                    queue.getNameEnc(),
+                    queue.getBirthDateEnc(),
+                    queue.getPhoneEnc()
+            );
+            queue.markSynced();
+        } catch (RuntimeException e) {
+            queue.markFailed(truncateErrorMessage(e.getMessage()));
+            log.error("[UserPiiSyncProcessor] app_pii sync failed userKey={}", userKey, e);
+        }
+    }
+
+    private String truncateErrorMessage(String message) {
+        if (message == null || message.isBlank()) {
+            return "unknown error";
+        }
+        return message.length() <= MAX_ERROR_LENGTH
+                ? message
+                : message.substring(0, MAX_ERROR_LENGTH);
+    }
+}
