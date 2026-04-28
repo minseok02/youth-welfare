@@ -32,13 +32,14 @@ cd backend
 
 ```bash
 cd backend
-set -a
-source ../.env
-set +a
+GMAIL_USERNAME=your-account@gmail.com \
+GMAIL_PASSWORD=your-app-password \
+SMTP_SMOKE_TO=receiver@example.com \
 RUN_SMTP_SMOKE=true ./gradlew test --tests com.example.welfare.notification.gateway.GmailSmtpSmokeTest --rerun-tasks
 ```
 
-수신 주소를 발신 계정과 다르게 지정하려면 `.env`의 `SMTP_SMOKE_TO`를 설정합니다.
+`.env` 전체를 shell `source` 하지 말고, 필요한 Gmail 관련 값만 inline env 또는 `export`로 넘깁니다.
+수신 주소를 발신 계정과 다르게 지정하려면 `.env`의 `SMTP_SMOKE_TO` 값을 그대로 넘기면 됩니다.
 
 ```bash
 RUN_SMTP_SMOKE=true ./gradlew test --tests com.example.welfare.notification.gateway.GmailSmtpSmokeTest --rerun-tasks

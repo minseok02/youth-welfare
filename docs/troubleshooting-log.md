@@ -532,3 +532,13 @@
 - 문제: `APP_PII_DB_URL`, `NOTIFICATION_PII_DB_URL`, split datasource username을 잘못 넣어도 앱 startup validation은 재기동 후에야 터지므로, 운영 cutover 직전에 `.env` / secret store 값을 안전하게 검토하는 빠른 preflight가 없으면 배포 시점에만 문제를 발견하게 될 수 있었음
 - 해결: `deploy/smoke/preflight-runtime-cutover-env.sh` 를 추가해 `.env` 또는 export된 env를 기준으로 필수 변수, 기대 username, core/PII schema 분리, secondary URL 오배치, 가능하면 `docker compose config` 렌더링까지 앱 기동 전에 확인하도록 정리하고 runbook/deployment 문서에 선행 단계로 반영했음
 - 이유: 운영 전환 검증은 “앱이 실패하면 알 수 있다”가 아니라 “앱을 띄우기 전에 틀린 값을 걸러낸다”가 더 안전하다. 특히 secret store 갱신과 재기동 사이의 피드백 루프를 줄여야 cutover 시간을 짧게 유지할 수 있다
+
+## 105) `.env` 를 shell `source`로 직접 읽으면 JDBC URL의 `&` 때문에 값이 잘리거나 background job이 생겨 cutover/smoke 명령이 조용히 잘못될 수 있음
+- 문제: `.env` 의 `DB_URL`, `APP_PII_DB_URL`, `NOTIFICATION_PII_DB_URL` 에는 `allowPublicKeyRetrieval=true&characterEncoding=UTF-8...` 같은 `&` 가 들어가는데, 이를 `source .env` 로 읽으면 shell이 `&` 를 명령 분리자로 해석해 변수 값이 중간에서 끊기고 뒤쪽 문자열을 별도 job처럼 실행할 수 있었음
+- 해결: `deploy/smoke/preflight-runtime-cutover-env.sh` 와 `deploy/smoke/user-pii-sync-cutover-smoke.sh` 가 `.env` 를 직접 파싱하도록 바꾸고, 문서 예시도 `ENV_FILE=.env ...` 형태로 교체했음
+- 이유: `.env` 는 shell script가 아니라 key-value 파일이다. URL query string처럼 shell meta character가 포함될 수 있으므로, 운영 스크립트와 문서는 `source`에 기대지 않고 파일을 안전하게 직접 읽는 쪽이 재발 방지에 맞다
+
+## 106) `ENV_FILE` 을 읽는 스크립트가 caller의 explicit env override보다 파일 값을 우선하면, stale `.env` 를 임시로 우회해야 하는 smoke/preflight에서 계정 override가 무시될 수 있음
+- 문제: local `.env` 가 아직 `DB_USERNAME=root` 인 상태에서 `ENV_FILE=.env DB_QUERY_USERNAME=migration_admin ... deploy/smoke/user-pii-sync-cutover-smoke.sh` 처럼 override를 주더라도, 스크립트의 `.env` 파서가 나중에 파일 값을 다시 export해 caller가 준 `DB_QUERY_*` / `DB_MIGRATION_*` override를 덮어쓸 수 있었음
+- 해결: `deploy/smoke/user-pii-sync-cutover-smoke.sh` 와 `deploy/smoke/preflight-runtime-cutover-env.sh` 의 `.env` 파서를 수정해, caller가 이미 넘긴 env key는 파일에서 다시 덮어쓰지 않도록 바꿨음
+- 이유: 운영 cut-over나 local smoke에서는 `ENV_FILE` 을 기본값 묶음으로 쓰고 일부 key만 명시 override하는 경우가 자주 생긴다. 이때 가장 의도가 명확한 값은 caller가 명령 앞에 준 env이므로, precedence도 그 순서를 따라야 재시도와 우회가 단순해진다

@@ -15,6 +15,7 @@ CTR 분석 기본 쿼리 실행 결과를 확보했고, 현재 데이터는 `46�
 로컬 Docker MySQL 기준 `user_pii` 24건 중 `email_enc` 24건, `name_enc` 21건, `birth_date_enc` 21건이 채워졌고, 남은 3건은 원본 `users.name/birth_date` 가 비어 있어 skip 됐습니다.
 로컬 fresh init 기준으로는 `APP_PII_DB_URL` / `NOTIFICATION_PII_DB_URL` 를 `youth_welfare_pii` schema로 교정한 뒤 reduced-grant Docker Compose 기동과 `deploy/smoke/run-local-pii-sync-cutover-smoke.sh` one-shot smoke까지 통과했습니다.
 운영 env 전환 전에는 `deploy/smoke/preflight-runtime-cutover-env.sh` 로 `.env` / secret export 값의 split-account/schema 규칙과 `docker compose config` 렌더링을 먼저 확인할 수 있게 정리했습니다.
+cut-over one-shot smoke도 `.env` 를 shell `source` 하지 않고 `ENV_FILE=.env ...` 형태로 직접 읽도록 정리해 JDBC URL의 `&` 로 값이 끊기는 문제를 제거했고, 필요하면 `DB_QUERY_*` 같은 explicit override를 함께 줘도 파일 값보다 우선하도록 보강했습니다.
 남은 작업은 운영 배포/운영성 검증(운영 서버 Docker Compose, 기존 운영 DB 계정 생성 SQL 적용 및 datasource 전환, 운영 `.env` / secret store의 `APP_PII_DB_URL` / `NOTIFICATION_PII_DB_URL` 를 `youth_welfare_pii` 기준으로 전환, HTTPS/Nginx, 운영 DB에 `V2026_04_28_02__add_user_pii_sync_queue.sql` / `V2026_04_28_01__drop_runtime_legacy_user_id.sql` 적용 후 smoke 검증, 기존 운영 DB에 `app_core_rw` 의 `youth_welfare_pii.user_pii` revoke SQL 실제 적용과 보조 datasource smoke 검증, CTR 표본 확충 후 재분석)과 2차 확장 기능(군집 캐시 추천, 카카오 알림톡, 검색 로그, 대시보드)입니다.
 
 ## 완료된 백엔드 1차 범위
@@ -66,6 +67,10 @@ CTR 분석 기본 쿼리 실행 결과를 확보했고, 현재 데이터는 `46�
 - 2026-04-28 운영 cutover env preflight 스크립트 추가 후 임시 invalid env로 실패 경로 확인
   - `APP_PII_DB_URL=.../youth_welfare` 입력 시 preflight가 schema mismatch로 즉시 실패하는 것 확인
 - 2026-04-28 운영 cutover env preflight 스크립트 추가 후 `git diff --check`
+- 2026-04-28 one-shot PII sync smoke의 `ENV_FILE` 직접 로드 지원 후 `bash -n deploy/smoke/user-pii-sync-cutover-smoke.sh`
+- 2026-04-28 one-shot PII sync smoke의 `ENV_FILE` 직접 로드 지원 후 `ENV_FILE=.env DB_QUERY_USERNAME=migration_admin DB_QUERY_PASSWORD=smoke-db-password-2026! DB_MIGRATION_USERNAME=migration_admin DB_MIGRATION_PASSWORD=smoke-db-password-2026! APP_BASE_URL=http://127.0.0.1:8082 deploy/smoke/user-pii-sync-cutover-smoke.sh`
+  - 현재 로컬 `.env` 가 아직 `DB_USERNAME=root` 라 query/migration 계정만 explicit override로 주입한 상태에서 회원가입 -> 로그인 -> 프로필 수정 -> `user_pii_sync_queue` `SYNCED` -> 회원탈퇴 cleanup 재확인
+- 2026-04-28 one-shot PII sync smoke의 `ENV_FILE` 직접 로드 지원 후 `git diff --check`
 - 2026-04-28 기존 운영 DB 계정 생성 SQL/runbook 정리 후 `rg -n "db-account-cutover-runbook|runtime-db-accounts.sql.example" docs deploy`
 - 2026-04-28 기존 운영 DB 계정 생성 SQL/runbook 정리 후 `git diff --check`
 - 2026-04-28 알림 대상 이메일 조회를 `notification_pii_ro` secondary datasource로 분리 후 `backend`에서 `./gradlew test --no-daemon --tests com.example.welfare.user.service.UserReadServiceTest --tests com.example.welfare.notification.service.NotificationServiceTest`
@@ -536,6 +541,11 @@ CTR 분석 기본 쿼리 실행 결과를 확보했고, 현재 데이터는 `46�
   - `deploy/mysql/init/z90-create-runtime-db-users.sh`, `deploy/mysql/runtime-db-accounts.sql.example` 에서 `app_core_rw -> youth_welfare_pii.user_pii` grant 를 제거
   - `docker-compose.yml`, `application.yml` 의 secondary datasource fallback 을 `app_pii_rw` / `notification_pii_ro` 기준으로 고정하고, local/compose 기본 password 는 `DB_PASSWORD` 를 재사용하도록 정리
   - `deploy/smoke/user-pii-sync-cutover-smoke.sh` 는 cross-schema query account scope를 미리 확인해 `migration_admin` 또는 `DB_QUERY_*` 사용이 필요할 때 조기에 실패하도록 보강
+- 2026-04-28 one-shot PII sync smoke의 `ENV_FILE` 직접 로드 지원 및 `source .env` 예시 제거
+  - `deploy/smoke/user-pii-sync-cutover-smoke.sh` 가 `.env` 파일을 직접 파싱하도록 바꾸고, `ENV_FILE=.env ...` 형태로 same-process env를 안전하게 주입할 수 있게 정리
+  - `deploy/smoke/user-pii-sync-cutover-smoke.sh`, `deploy/smoke/preflight-runtime-cutover-env.sh` 모두 caller가 앞에서 준 explicit env override를 파일 값보다 우선하도록 보강해, stale `.env` 가 있어도 `DB_QUERY_*` / `DB_MIGRATION_*` 로 안전하게 우회 가능하도록 수정
+  - `docs/deployment.md`, `docs/db-migration.md` 의 one-shot smoke 예시를 `ENV_FILE=.env ...` 기준으로 통일하고, `docs/testing.md` 는 Gmail smoke에서 `.env` 전체를 shell `source` 하지 않도록 수정
+  - JDBC URL query string의 `&` 때문에 `source .env` 가 값을 잘라먹는 재발 가능성을 트러블슈팅과 문서에 반영
 
 ## 작업 추적
 
@@ -557,6 +567,7 @@ CTR 분석 기본 쿼리 실행 결과를 확보했고, 현재 데이터는 `46�
 
 ### 완료
 
+- [x] one-shot PII sync smoke의 `ENV_FILE` 직접 로드 지원 및 `source .env` 예시 제거
 - [x] 운영 cutover `.env` / secret preflight 스크립트 추가
 - [x] secondary datasource schema startup validation 및 integration profile split-account 정리
 - [x] 보조 datasource 기본 URL을 `youth_welfare_pii` schema로 교정하고 local reduced-grant smoke 래퍼 추가

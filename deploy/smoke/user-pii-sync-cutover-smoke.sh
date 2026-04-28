@@ -3,6 +3,65 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 MIGRATION_FILE="${ROOT_DIR}/backend/src/main/resources/db/migration/V2026_04_28_02__add_user_pii_sync_queue.sql"
+ENV_FILE="${ENV_FILE:-}"
+
+trim() {
+  local value="$1"
+  value="${value#"${value%%[![:space:]]*}"}"
+  value="${value%"${value##*[![:space:]]}"}"
+  printf "%s" "${value}"
+}
+
+unquote() {
+  local value="$1"
+  if [[ "${value}" == \"*\" && "${value}" == *\" ]]; then
+    value="${value:1:${#value}-2}"
+  elif [[ "${value}" == \'*\' && "${value}" == *\' ]]; then
+    value="${value:1:${#value}-2}"
+  fi
+  printf "%s" "${value}"
+}
+
+load_env_file() {
+  local line key value
+
+  if [[ ! -f "${ENV_FILE}" ]]; then
+    echo "env file not found: ${ENV_FILE}" >&2
+    exit 1
+  fi
+
+  while IFS= read -r line || [[ -n "${line}" ]]; do
+    line="${line%$'\r'}"
+    [[ -z "$(trim "${line}")" ]] && continue
+    [[ "$(trim "${line}")" == \#* ]] && continue
+
+    if [[ "${line}" != *=* ]]; then
+      continue
+    fi
+
+    key="$(trim "${line%%=*}")"
+    value="${line#*=}"
+    value="$(unquote "${value}")"
+
+    if [[ "${key}" == export\ * ]]; then
+      key="$(trim "${key#export }")"
+    fi
+
+    if [[ ! "${key}" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]]; then
+      continue
+    fi
+
+    if [[ -n "${!key+x}" ]]; then
+      continue
+    fi
+
+    export "${key}=${value}"
+  done < "${ENV_FILE}"
+}
+
+if [[ -n "${ENV_FILE}" ]]; then
+  load_env_file
+fi
 
 APP_BASE_URL="${APP_BASE_URL:-http://127.0.0.1:8082}"
 MYSQL_HOST="${MYSQL_HOST:-127.0.0.1}"

@@ -48,6 +48,14 @@ load_env_file() {
       key="$(trim "${key#export }")"
     fi
 
+    if [[ ! "${key}" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]]; then
+      continue
+    fi
+
+    if [[ -n "${!key+x}" ]]; then
+      continue
+    fi
+
     export "${key}=${value}"
   done < "${ENV_FILE}"
 }

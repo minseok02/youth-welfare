@@ -115,13 +115,11 @@ docker compose -f docker-compose.yml up -d --build app
 one-shot smoke 예시:
 
 ```bash
-set -a
-source .env
-set +a
-APP_BASE_URL=http://127.0.0.1:8082 \
+ENV_FILE=.env APP_BASE_URL=http://127.0.0.1:8082 \
   deploy/smoke/user-pii-sync-cutover-smoke.sh
 ```
 
+- `.env` 의 JDBC URL에는 `&` 가 들어가므로 shell `source .env` 대신 `ENV_FILE=.env ...` 형태를 기준으로 사용한다.
 로컬 fresh init + 앱 기동 + one-shot smoke를 한 번에 실행하려면 아래 래퍼를 사용한다.
 
 ```bash
