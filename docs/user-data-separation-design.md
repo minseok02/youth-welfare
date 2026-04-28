@@ -368,6 +368,7 @@
   - 런타임 앱 컨테이너에서는 사용 금지
 
 secondary datasource URL도 권한 모델과 같이 맞춰야 한다. `APP_PII_DB_URL`, `NOTIFICATION_PII_DB_URL` 이 같은 host를 쓰더라도 기본 database/schema 이름은 `youth_welfare_pii` 여야 하며, `youth_welfare` 로 남겨 두면 `app_pii_rw` / `notification_pii_ro` 가 연결 단계에서 거부된다.
+최신 코드에는 이 조건을 startup validation으로 넣어 두었으므로, 잘못된 URL은 운영 요청 중이 아니라 애플리케이션 부팅 시점에 바로 드러난다.
 
 가능하면 장기적으로는 `youth_welfare_pii` 를 별도 인스턴스로 이동하는 것이 더 낫다.
 

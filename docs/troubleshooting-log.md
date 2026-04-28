@@ -522,3 +522,8 @@
 - 문제: `app_pii_rw` / `notification_pii_ro` 권한을 `youth_welfare_pii.user_pii` 로만 줄인 뒤에도 `APP_PII_DB_URL`, `NOTIFICATION_PII_DB_URL` 이 계속 `.../youth_welfare` 를 가리키면, MySQL이 연결 시점에 `Access denied for user 'app_pii_rw'@'%' to database 'youth_welfare'` 로 거부해 앱이 reduced-grant 상태에서 부팅/요청 처리 중 바로 깨질 수 있었음
 - 해결: `.env.example`, `docker-compose.yml`, `application.yml` 의 secondary datasource 기본 URL을 `youth_welfare_pii` schema로 교정하고, `deploy/smoke/run-local-pii-sync-cutover-smoke.sh` 로 fresh init + app boot + one-shot smoke까지 실제 검증했으며, 운영 runbook에도 `APP_PII_DB_URL`, `NOTIFICATION_PII_DB_URL` 전환 단계를 추가했음
 - 이유: 최소권한 설계는 grant 범위와 connection target이 함께 맞아야 성립한다. SQL이 fully-qualified table을 써도 JDBC connection 자체는 기본 database에 먼저 붙기 때문에, URL이 잘못되면 권한 모델이 맞아도 연결 단계에서 즉시 실패한다
+
+## 103) fresh init 검증용 DB seed가 runtime `DB_USERNAME` 을 따라가면 stale local `.env` 하나로 split-account 테스트가 다시 root 의존으로 돌아갈 수 있음
+- 문제: `docker-compose.yml` 의 DB init용 `MYSQL_APP_USERNAME` 이 runtime `DB_USERNAME` 을 그대로 따라가면, 로컬 `.env` 가 아직 `root` 인 상태에서 fresh init 할 때 `app_core_rw` 대신 root 성격 계정만 만들어져 integration profile이나 reduced-grant smoke가 실제 운영 계정 구조를 검증하지 못할 수 있었음
+- 해결: DB init용 기본값을 `MYSQL_APP_USERNAME=app_core_rw` 로 runtime `DB_USERNAME` 과 분리하고, `application-integration.yml` 도 `app_core_rw` / `app_pii_rw` / `notification_pii_ro` 기준으로 정리한 뒤 fresh init + `AuthRedisIntegrationTest` + container smoke로 다시 검증했음
+- 이유: 런타임 앱이 어떤 계정으로 붙는지와 fresh init 시 어떤 계정을 seed할지는 별개다. init 계정 생성이 stale local env에 끌려가면 테스트가 실제 운영 설계가 아니라 개발자 개인 `.env` 상태를 검증하게 되므로, seed 기본값은 문서화된 split-account 기준으로 고정하는 편이 재발 방지에 안전하다

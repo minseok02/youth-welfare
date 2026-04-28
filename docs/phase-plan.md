@@ -10,7 +10,7 @@
 정책 목록/검색/상세/랭킹은 비로그인 허용, 추천/북마크/마이페이지는 로그인 필수로 분리됐습니다.
 AI 추천 품질 점검 후 프롬프트 개선, 중복 추천 제거, 노이즈 정책 필터, CTR 로그 구조를 보완했습니다.
 CTR 분석 기본 쿼리 실행 결과를 확보했고, 현재 데이터는 `46건 / 클릭 1건 / fallback 16건 / 가중치 0.80:0.20 단일 구간`이라 후속 표본 확충 후 재분석이 필요합니다.
-사용자 PII 분리 이행안은 `2 schema`, `user_key` 선행, `dual-write -> read cut-over` 순서로 확정했고, 1단계 `user_key` migration, 2단계 core 분리 테이블(`auth_users`, `user_profiles`, `user_pii`) 생성/backfill, 3단계 회원가입/프로필/비밀번호/회원탈퇴 dual-write와 `user_pii.email_enc/name_enc/birth_date_enc` 앱 레벨 암호화 backfill, 4단계 프로필 조회/추천/알림 read path 전환, 5단계 JWT/Redis 토큰/로그·세션 기준 `user_key` identity cut-over 1차, 6단계 chat/notification/recommendation log/view log의 legacy `user_id` fallback 제거, 7단계 JWT custom principal cut-over, 8단계 요청 경로 `user_pii` sync의 primary queue + after-commit `app_pii_rw` upsert 기반 분리, 9단계 admin replay API, 10단계 fixed-delay 자동 retry 경로, 11단계 queue status endpoint와 운영 모니터링 기준, 12단계 기본 datasource의 `user_pii` 직접 접근 제거까지 반영했습니다.
+사용자 PII 분리 이행안은 `2 schema`, `user_key` 선행, `dual-write -> read cut-over` 순서로 확정했고, 1단계 `user_key` migration, 2단계 core 분리 테이블(`auth_users`, `user_profiles`, `user_pii`) 생성/backfill, 3단계 회원가입/프로필/비밀번호/회원탈퇴 dual-write와 `user_pii.email_enc/name_enc/birth_date_enc` 앱 레벨 암호화 backfill, 4단계 프로필 조회/추천/알림 read path 전환, 5단계 JWT/Redis 토큰/로그·세션 기준 `user_key` identity cut-over 1차, 6단계 chat/notification/recommendation log/view log의 legacy `user_id` fallback 제거, 7단계 JWT custom principal cut-over, 8단계 요청 경로 `user_pii` sync의 primary queue + after-commit `app_pii_rw` upsert 기반 분리, 9단계 admin replay API, 10단계 fixed-delay 자동 retry 경로, 11단계 queue status endpoint와 운영 모니터링 기준, 12단계 기본 datasource의 `user_pii` 직접 접근 제거, 13단계 secondary datasource schema startup validation과 integration profile split-account 정리까지 반영했습니다.
 데모 시나리오 전체 실행 완료 및 발견된 문제 수정됐습니다.
 로컬 Docker MySQL 기준 `user_pii` 24건 중 `email_enc` 24건, `name_enc` 21건, `birth_date_enc` 21건이 채워졌고, 남은 3건은 원본 `users.name/birth_date` 가 비어 있어 skip 됐습니다.
 로컬 fresh init 기준으로는 `APP_PII_DB_URL` / `NOTIFICATION_PII_DB_URL` 를 `youth_welfare_pii` schema로 교정한 뒤 reduced-grant Docker Compose 기동과 `deploy/smoke/run-local-pii-sync-cutover-smoke.sh` one-shot smoke까지 통과했습니다.
@@ -54,6 +54,12 @@ CTR 분석 기본 쿼리 실행 결과를 확보했고, 현재 데이터는 `46�
   - fresh init + app build + one-shot smoke 성공
   - 회원가입 -> 로그인 -> 프로필 수정 -> `user_pii_sync_queue` `SYNCED` -> 회원탈퇴 cleanup 확인
 - 2026-04-28 보조 datasource 기본 URL을 `youth_welfare_pii` schema로 교정하고 local reduced-grant smoke 래퍼 추가 후 `git diff --check`
+- 2026-04-28 secondary datasource schema startup validation 및 integration profile split-account 정리 후 `backend`에서 `./gradlew test --no-daemon --tests com.example.welfare.global.config.SecondaryDataSourceSchemaGuardTest`
+- 2026-04-28 fresh init split-account 기준 검증을 위해 `docker compose down -v --remove-orphans`
+- 2026-04-28 fresh init split-account 기준 검증을 위해 `docker compose up -d db redis`
+- 2026-04-28 secondary datasource schema startup validation 및 integration profile split-account 정리 후 `backend`에서 `./gradlew integrationTest --no-daemon --tests com.example.welfare.integration.AuthRedisIntegrationTest`
+- 2026-04-28 secondary datasource schema startup validation 및 integration profile split-account 정리 후 `SMOKE_RESET_DB=true APP_HEALTH_TIMEOUT_SECONDS=180 deploy/smoke/run-local-pii-sync-cutover-smoke.sh`
+- 2026-04-28 secondary datasource schema startup validation 및 integration profile split-account 정리 후 `git diff --check`
 - 2026-04-28 기존 운영 DB 계정 생성 SQL/runbook 정리 후 `rg -n "db-account-cutover-runbook|runtime-db-accounts.sql.example" docs deploy`
 - 2026-04-28 기존 운영 DB 계정 생성 SQL/runbook 정리 후 `git diff --check`
 - 2026-04-28 알림 대상 이메일 조회를 `notification_pii_ro` secondary datasource로 분리 후 `backend`에서 `./gradlew test --no-daemon --tests com.example.welfare.user.service.UserReadServiceTest --tests com.example.welfare.notification.service.NotificationServiceTest`
@@ -545,6 +551,7 @@ CTR 분석 기본 쿼리 실행 결과를 확보했고, 현재 데이터는 `46�
 
 ### 완료
 
+- [x] secondary datasource schema startup validation 및 integration profile split-account 정리
 - [x] 보조 datasource 기본 URL을 `youth_welfare_pii` schema로 교정하고 local reduced-grant smoke 래퍼 추가
 - [x] 신규 init/runbook 기준 `app_core_rw` 의 `user_pii` DML grant 제거
 - [x] 기본 datasource의 `user_pii` 직접 접근 제거

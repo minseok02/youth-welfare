@@ -45,6 +45,7 @@ docker compose -f docker-compose.yml up -d --build app
 - 프로필 조회와 비밀번호 재설정 수신 주소 조회는 `app.datasource.pii-rw` 보조 datasource를 사용한다. 별도 DB 호스트를 아직 나누지 않았다면 `APP_PII_DB_URL`은 `DB_URL`과 같은 host를 써도 되지만, database/schema 이름은 `youth_welfare_pii` 로 분리해야 한다.
 - 알림 발송 대상 이메일 조회는 `app.datasource.notification-pii-ro` 보조 datasource를 사용한다. 별도 DB 호스트를 아직 나누지 않았다면 `NOTIFICATION_PII_DB_URL`도 같은 host를 써도 되지만, database/schema 이름은 `youth_welfare_pii` 여야 한다.
 - Docker Compose 앱 컨테이너는 `APP_PII_DB_URL`, `NOTIFICATION_PII_DB_URL` 기본값도 `db` 서비스명의 `youth_welfare_pii` schema로 강제하고, secondary datasource username 기본값은 `app_pii_rw` / `notification_pii_ro`, password 기본값은 `DB_PASSWORD` 로 고정했다. 운영에서 비밀번호를 분리할 경우에는 `DB_APP_PII_PASSWORD`, `DB_NOTIFICATION_PII_RO_PASSWORD` 를 명시해야 한다.
+- 최신 코드 기준 앱은 startup 시 secondary datasource URL의 schema를 검사한다. `APP_PII_DB_URL`, `NOTIFICATION_PII_DB_URL` 이 `youth_welfare_pii` 가 아니면 요청 도중이 아니라 부팅 시점에 바로 실패한다.
 - 요청 경로 `user_pii` sync 실패 row는 `user_pii_sync_queue` 에 남고, 앱은 `USER_PII_SYNC_RETRY_*` 환경변수 기준 fixed-delay batch retry 를 수행한다. 운영 기본값은 `enabled=true`, `batch-size=100`, `initial-delay-ms=60000`, `fixed-delay-ms=300000` 이다.
 
 ## 3. 기존 DB 업그레이드

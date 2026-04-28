@@ -138,6 +138,7 @@ DB_NOTIFICATION_PII_RO_PASSWORD=<notification_pii_ro password>
 - 이번 단계부터 `DB_APP_PII_USERNAME`, `DB_APP_PII_PASSWORD`, `DB_NOTIFICATION_PII_RO_USERNAME`, `DB_NOTIFICATION_PII_RO_PASSWORD` 를 비워 두면 안 됩니다.
 - 이번 단계부터 `APP_PII_DB_URL`, `NOTIFICATION_PII_DB_URL` 도 `youth_welfare_pii` schema를 가리키도록 명시해야 합니다. host만 같고 DB 이름이 `youth_welfare` 로 남아 있으면 최소권한 계정에서 연결이 거부됩니다.
 - `app_core_rw` 가 더 이상 `user_pii` 권한을 가지지 않으므로, secondary datasource가 `DB_USERNAME` 로 fallback 하면 프로필/비밀번호 재설정/알림 경로가 바로 깨집니다.
+- 최신 코드 기준 secondary datasource URL이 `youth_welfare_pii` 가 아니면 앱이 startup validation에서 바로 실패합니다. cutover 전 `.env` 또는 secret store 값을 먼저 확인합니다.
 
 앱 재기동 예시:
 
