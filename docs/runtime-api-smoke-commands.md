@@ -93,6 +93,7 @@ PY
 - 응답 `success=true`
 - `data.accessToken` 재발급
 - `COOKIE_JAR` 의 refresh cookie 갱신
+- 로그인 직후 곧바로 refresh하면 access token 문자열이 같을 수 있으므로, 성공 판단은 새 token으로 보호 API를 재호출해 보는 쪽으로 잡음
 
 ## 4. 추천 목록 조회
 

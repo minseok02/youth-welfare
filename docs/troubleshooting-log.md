@@ -577,3 +577,8 @@
 - 문제: 로컬 smoke 중 `docker exec ... mysql ... < migration.sql` 형태로 수동 migration을 다시 태우다가 `-i` 를 빠뜨리면, host shell의 리다이렉션 파일이 컨테이너 stdin으로 전달되지 않아 `mysql` 이 빈 입력으로 종료하고도 겉보기에는 명령이 조용히 끝날 수 있었음
 - 해결: 수동 migration 예시와 실제 실행 모두 `docker exec -i ... mysql ... < migration.sql` 형태로 맞추고, 적용 직후 `SHOW TABLES` / `SHOW COLUMNS` 같은 후속 검증 쿼리로 schema 변경이 실제 반영됐는지 바로 확인함
 - 이유: 컨테이너 안의 mysql 클라이언트가 host 쪽 리다이렉션 내용을 읽으려면 stdin이 열린 상태여야 한다. 수동 cut-over는 실행 성공 여부보다 결과 schema를 즉시 검증하는 습관이 있어야 동일한 실수를 빨리 잡을 수 있다
+
+## 114) 로그인 직후 즉시 `refresh` 하면 새 access token 문자열이 기존 로그인 token과 같을 수 있어, “토큰 값이 바뀌었는지”를 smoke 성공 기준으로 잡으면 false negative가 생길 수 있음
+- 문제: admin refresh smoke 중 로그인 직후 바로 `POST /api/auth/refresh` 를 호출하자 응답은 성공이었지만 새 access token 문자열이 로그인 응답의 token과 같아, 단순 문자열 비교를 성공 기준으로 두면 refresh 실패로 오해할 수 있었음
+- 해결: refresh smoke와 관련 문서의 확인 기준을 “refreshed token으로 보호 API를 다시 호출해 권한이 유지되는지”로 맞추고, `docs/runtime-api-smoke-commands.md` 에도 같은 주의를 추가했음
+- 이유: 현재 JWT는 같은 초 안에서 같은 subject/userId/roles로 다시 발급되면 동일한 토큰 문자열이 나올 수 있다. 이 경우 핵심은 토큰 문자열 변화가 아니라 refresh 응답 성공과 그 token으로 실제 보호 API가 계속 통과하는지다
