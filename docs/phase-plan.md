@@ -36,6 +36,7 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 4차로 관리자 수동 수집도 `/api/admin/collect/{sourceKey}` 단일 endpoint + `CollectSource` enum dispatch로 정리해, 새 source 추가 시 controller/service 메서드를 source마다 다시 늘리지 않도록 맞췄습니다.
 5차로 `BokjiroDetailCollectServiceTest` 에서 detail `429` 연속 중단, empty payload skip, partial success(save failure 후 다음 건 계속) 케이스를 고정해, 확장 리팩터링 중 상세 수집 제어 흐름이 흔들리지 않도록 보강했습니다.
 로컬 Docker `mysql_data` volume 재사용으로 split-account 인증이 꼬일 때를 대비해 `deploy/mysql/reconcile-local-runtime-db-accounts.sh` 를 추가했고, 현재 `.env` 가 아직 `DB_USERNAME=root` 여도 대상 계정은 `app_core_rw / app_pii_rw / notification_pii_ro / migration_admin` 으로 고정해 다시 맞춘 뒤 `AdminSecurityIntegrationTest` 재검증까지 통과시켰습니다.
+정규화 구조 외부 기준 조사 결과, `온통청년` 대분류 중심 단일 스키마보다 `정부24/보조금24 공공서비스 core + 온통청년 운영 코드북 taxonomy + 구조화 eligibility facts + AI enrichment` 4계층으로 재편하는 쪽이 신규 데이터 API 확장성에 더 적합하다는 판단입니다.
 남은 작업은 access token 즉시 무효화 hardening 검토/구현, 운영 배포/운영성 검증(운영 서버 Docker Compose, 기존 운영 DB 계정 생성 SQL 적용 및 datasource 전환, 운영 `.env` / secret store의 `APP_PII_DB_URL` / `NOTIFICATION_PII_DB_URL` 를 `youth_welfare_pii` 기준으로 전환, HTTPS/Nginx, 운영 DB에 `V2026_04_28_02__add_user_pii_sync_queue.sql` / `V2026_04_28_01__drop_runtime_legacy_user_id.sql` 적용 후 smoke 검증, 기존 운영 DB에 `app_core_rw` 의 `youth_welfare_pii.user_pii` revoke SQL 실제 적용과 보조 datasource smoke 검증, CTR 표본 확충 후 재분석)과 2차 확장 기능(군집 캐시 추천, 카카오 알림톡, 검색 로그, 대시보드)입니다.
 
 ## 완료된 백엔드 1차 범위
@@ -143,6 +144,13 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - 2026-04-29 local runtime DB 계정 reconcile 스크립트 추가 후 `docker run --rm --network youth-welfare_default -e MYSQL_PWD='welfare1234!' mysql:8.0 mysql -hdb -uapp_pii_rw -e 'SELECT 1 AS tcp_ok'`
 - 2026-04-29 local runtime DB 계정 reconcile 스크립트 추가 후 `backend`에서 `./gradlew integrationTest --no-daemon --tests com.example.welfare.integration.AdminSecurityIntegrationTest`
 - 2026-04-29 local runtime DB 계정 reconcile 스크립트 추가 후 `git diff --check`
+- 2026-04-29 정책 정규화 구조 외부 기준 조사 후 `docs/README.md`, `docs/phase-plan.md`, `docs/policy-normalization-research.md`, `docs/troubleshooting-log.md` 링크/상태 점검
+- 2026-04-29 정책 정규화 구조 외부 기준 조사 후 `curl -L -s 'https://www.data.go.kr/data/15113968/openapi.do' | rg -n 'swagger|api.odcloud|gov24/v3'`
+- 2026-04-29 정책 정규화 구조 외부 기준 조사 후 `python3` 로 `https://infuser.odcloud.kr/api/stages/44436/api-docs?1684891964110` Swagger 파싱
+  - `serviceList`, `serviceDetail`, `supportConditions` 3개 endpoint와 `supportConditions_model` 공식 조건 코드(`JA0110`, `JA0201` 등) 확인
+- 2026-04-29 정책 정규화 구조 외부 기준 조사 후 `python3` 로 `https://www.youthcenter.go.kr/downloadform/API코드정보.xlsx` 코드정의서 파싱
+  - `정책대분류`, `정책중분류`, `정책키워드`, `정책제공방법코드`, `정책취업/학력/특화 요건코드` 확인
+- 2026-04-29 정책 정규화 구조 외부 기준 조사 후 `git diff --check`
 - 2026-04-28 pre-28 migrated DB 기준 admin logout / refresh invalidation / relogin smoke
   - `SECURITY_ADMIN_EMAILS=admin.logout.smoke@example.com` 으로 최신 앱을 기동한 뒤, admin 계정 로그인과 프로필 수정으로 queue row를 `SYNCED` 상태까지 맞추고 `POST /api/auth/refresh` 가 먼저 성공하는 것 확인
   - 같은 cookie jar + access token으로 `POST /api/auth/logout` 호출 후 cookie jar에서 `refresh_token` 이 제거되고, 직후 `POST /api/auth/refresh` 가 `401`, `errorCode=A001` 로 막히는 것 확인
@@ -178,6 +186,10 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
   - `deploy/mysql/reconcile-local-runtime-db-accounts.sh` 를 추가해, 기존 `mysql_data` volume을 지우지 않고 recovery MySQL + root grant 재적용으로 `app_core_rw / app_pii_rw / notification_pii_ro / migration_admin` 계정을 split-account 기본값으로 다시 맞추도록 정리
   - 이 스크립트는 inherited shell env 보다 `ENV_FILE` 값을 우선으로 읽고, 현재 로컬 `.env` 가 아직 `DB_USERNAME=root` 여도 대상 계정명은 split-account 이름으로 고정해 drift 복구가 잘못된 root 계정 재설정으로 새지 않게 보정
   - `docs/testing.md` 에 로컬 integration 실패 시 복구 절차를 추가했고, 실제 현재 volume에 적용한 뒤 `app_core_rw`, `app_pii_rw` TCP 로그인과 `AdminSecurityIntegrationTest` 재검증까지 통과
+- 2026-04-29 정책 정규화 구조 외부 기준 조사 및 설계 메모 작성
+  - `온통청년` 공개 분류/운영 입력 모델/코드정의서와 `정부24/보조금24` 공공서비스 Swagger를 함께 조사해, 현재 `온통청년` 중심 단일 정규화가 아니라 `범정부 core + 청년 taxonomy + eligibility facts + AI enrichment` 4계층 구조가 더 적합하다는 결론을 정리
+  - `docs/policy-normalization-research.md` 에 공식 기준 비교, 현재 구조와의 차이, 권장 canonical 축, AI batch enrichment 사용 위치를 문서화
+  - 이번 task는 조사/문서화 중심이라 런타임 테스트는 추가로 실행하지 않았고, 공식 source fetch와 문서 링크/상태 점검만 수행
 - 2026-04-28 one-shot PII sync smoke의 `ENV_FILE` 직접 로드 지원 후 `bash -n deploy/smoke/user-pii-sync-cutover-smoke.sh`
 - 2026-04-28 one-shot PII sync smoke의 `ENV_FILE` 직접 로드 지원 후 `ENV_FILE=.env DB_QUERY_USERNAME=migration_admin DB_QUERY_PASSWORD=smoke-db-password-2026! DB_MIGRATION_USERNAME=migration_admin DB_MIGRATION_PASSWORD=smoke-db-password-2026! APP_BASE_URL=http://127.0.0.1:8082 deploy/smoke/user-pii-sync-cutover-smoke.sh`
   - 현재 로컬 `.env` 가 아직 `DB_USERNAME=root` 라 query/migration 계정만 explicit override로 주입한 상태에서 회원가입 -> 로그인 -> 프로필 수정 -> `user_pii_sync_queue` `SYNCED` -> 회원탈퇴 cleanup 재확인
@@ -719,6 +731,10 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 
 ### 진행 예정
 
+- [ ] 공식 정규화 4계층 구조(`Gov24 core/detail + 온통청년 taxonomy/codebook + eligibility facts + AI enrichment`)를 내부 canonical decision으로 확정
+- [ ] `WelfareService` 중심 단일 모델을 `core / taxonomy / fact` 로 분리하는 스키마 초안 작성
+- [ ] `Gov24 supportConditions` 와 `온통청년` 코드북을 어떤 enum/code table 구조로 보관할지 결정
+- [ ] 신규 source의 source-specific 필드를 raw + AI batch enrichment fact 로 흡수하는 파이프라인 초안 작성
 - [ ] logout 후 access token 즉시 무효화 전략 검토/구현
 - [ ] 운영 서버 Docker Compose 기동
 - [ ] 기존 운영 DB에 `app_core_rw` / `app_pii_rw` / `notification_pii_ro` / `migration_admin` 계정 생성 및 앱 datasource 전환
@@ -732,6 +748,7 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 
 ### 완료
 
+- [x] 정책 정규화 구조 외부 기준 조사 및 설계 메모 작성
 - [x] local persistent MySQL split-account credential drift 복구 스크립트 추가 및 admin integration 재검증
 - [x] 수집 파이프라인 contract/unit test 보강 (detail 429/empty payload/partial success edge case 중심)
 - [x] 관리자 수동 수집 endpoint 를 generic source dispatch 로 정리

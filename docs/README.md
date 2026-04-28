@@ -31,6 +31,9 @@
 - [collect-ops.md](./collect-ops.md)  
   수집 배치, 429 대응, 중복 실행 방지, 부분 성공 기준을 확인합니다.
 
+- [policy-normalization-research.md](./policy-normalization-research.md)
+  신규 데이터 API 확장에 맞춰 공식 정규화 기준(온통청년 운영 코드북, 정부24/보조금24 지원조건 코드)과 AI enrichment 분리 방향을 확인합니다.
+
 - [troubleshooting-log.md](./troubleshooting-log.md)  
   이전에 발생한 장애와 해결 과정을 확인합니다.
 
@@ -103,6 +106,7 @@
 - [runtime-api-smoke-commands.md](./runtime-api-smoke-commands.md)
 - [github-workflow.md](./github-workflow.md)
 - [phase-plan.md](./phase-plan.md)
+- [policy-normalization-research.md](./policy-normalization-research.md)
 - [recommendation-pipeline.md](./recommendation-pipeline.md)
 - [srs-v2.10.md](./srs-v2.10.md)
 - [testing.md](./testing.md)

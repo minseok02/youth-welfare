@@ -622,3 +622,8 @@
 - 문제: 로컬 Docker `mysql_data` volume의 split-account drift를 복구하려고 스크립트를 만들었지만, 초안은 기존 shell env 값을 보존하고 `DB_USERNAME` 을 그대로 app 계정명으로 써서, 작업 세션에 숨은 `DB_PASSWORD` 가 있거나 로컬 `.env` 가 아직 `DB_USERNAME=root` 인 경우 `app_core_rw` 대신 root만 다시 맞추는 잘못된 복구로 이어질 수 있었음
 - 해결: `deploy/mysql/reconcile-local-runtime-db-accounts.sh` 는 기본적으로 `ENV_FILE` 값을 shell env보다 우선으로 읽고, 대상 username도 `app_core_rw / app_pii_rw / notification_pii_ro / migration_admin` 으로 고정하도록 바꿨음. 이후 현재 volume에 재적용해 `app_core_rw`, `app_pii_rw` TCP 로그인과 `AdminSecurityIntegrationTest` 통과까지 확인했음
 - 이유: 로컬 drift 복구의 목적은 “현재 앱/runtime split-account 기준으로 다시 맞추기”이지, 이미 drift 된 `.env` runtime username을 그대로 재현하는 것이 아니다. hidden env나 legacy `root` username을 따라가면 복구 스크립트가 성공처럼 끝나도 integration 경로는 계속 깨질 수 있으므로, file precedence와 target username을 의도적으로 고정해야 한다
+
+## 123) 신규 데이터 API 확장성을 위해 `온통청년` 대분류만 canonical schema로 유지하면, 범정부 서비스 공통 메타데이터와 공식 지원조건 코드를 충분히 흡수하지 못해 source가 늘수록 정규화가 다시 ad-hoc 해질 수 있음
+- 문제: 현재 구조는 `온통청년` 이 가장 구조화가 잘 된 source라는 이유로 `unifiedCategory`, `categoryMain/categorySub`, 일부 `minIncome/maxIncome` 같은 축이 사실상 `온통청년` 중심으로 설계돼 있다. 하지만 외부 기준을 다시 확인해보니 `정부24/보조금24` 는 `serviceList`, `serviceDetail`, `supportConditions` 로 공통 서비스 메타데이터와 지원조건을 공식적으로 분리하고 있고, `온통청년` 운영 코드북도 별도의 `정책대분류/중분류/키워드/제공방법/취업·학력·특화 요건코드` 를 갖고 있어 단일 소스 축으로 다 덮는 방식은 장기적으로 맞지 않았음
+- 해결: 정규화 구조 조사 문서 `docs/policy-normalization-research.md` 를 추가해 canonical 기준을 `범정부 공공서비스 core + 온통청년 taxonomy/codebook + 구조화 eligibility facts + AI enrichment` 4계층으로 재정리하고, 다음 작업을 `core / taxonomy / fact` 스키마 초안과 code table 설계로 분리했음
+- 이유: 신규 API가 늘수록 “공식 공통축”과 “도메인 특화축”을 분리해야 mapping 비용이 내려간다. 공통 메타데이터는 `Gov24` 축으로, 청년정책 분류는 `온통청년` 축으로, source 고유 필드는 raw/AI enrichment로 분리해야 추후 추천 hard filter와 soft signal을 안정적으로 확장할 수 있다
