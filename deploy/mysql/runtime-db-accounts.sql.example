@@ -25,7 +25,6 @@ REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'notification_pii_ro'@'%';
 REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'migration_admin'@'%';
 
 GRANT SELECT, INSERT, UPDATE, DELETE ON youth_welfare.* TO 'app_core_rw'@'%';
-GRANT SELECT, INSERT, UPDATE, DELETE ON youth_welfare_pii.user_pii TO 'app_core_rw'@'%';
 
 GRANT SELECT, INSERT, UPDATE, DELETE ON youth_welfare_pii.user_pii TO 'app_pii_rw'@'%';
 GRANT SELECT (user_key, email_enc) ON youth_welfare_pii.user_pii TO 'notification_pii_ro'@'%';

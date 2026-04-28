@@ -250,6 +250,7 @@ APP_BASE_URL=http://127.0.0.1:8082 \
 
 - `APPLY_PII_SYNC_QUEUE_MIGRATION=true` 를 주면 `V2026_04_28_02__add_user_pii_sync_queue.sql` 적용까지 같이 수행한다.
 - query 계정은 `DB_QUERY_USERNAME` / `DB_QUERY_PASSWORD` 로 override 할 수 있고, 미지정 시 `DB_MIGRATION_*`, 다시 미지정이면 `DB_USERNAME` / `DB_PASSWORD` 로 fallback 한다.
+- `app_core_rw` 의 `user_pii` 권한을 회수한 뒤에는 cross-schema 확인 쿼리에 `migration_admin` 또는 `DB_QUERY_*` 로 넘긴 별도 점검 계정을 쓰는 것이 기준이다.
 - 앱이 `AES_SECRET_KEY` 없이 떠 있으면 회원가입/프로필 수정 단계에서 `C002` 500으로 멈추므로, 운영 smoke 전 secret 주입 상태를 먼저 확인한다.
 
 ## 확인 쿼리

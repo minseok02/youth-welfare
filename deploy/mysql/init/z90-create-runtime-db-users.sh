@@ -31,7 +31,6 @@ CREATE USER IF NOT EXISTS '${app_pii_username_esc}'@'%' IDENTIFIED BY '${app_pii
 CREATE USER IF NOT EXISTS '${notification_ro_username_esc}'@'%' IDENTIFIED BY '${notification_ro_password_esc}';
 
 GRANT SELECT, INSERT, UPDATE, DELETE ON youth_welfare.* TO '${app_username_esc}'@'%';
-GRANT SELECT, INSERT, UPDATE, DELETE ON youth_welfare_pii.user_pii TO '${app_username_esc}'@'%';
 
 GRANT SELECT, INSERT, UPDATE, DELETE ON youth_welfare_pii.user_pii TO '${app_pii_username_esc}'@'%';
 GRANT SELECT (user_key, email_enc) ON youth_welfare_pii.user_pii TO '${notification_ro_username_esc}'@'%';

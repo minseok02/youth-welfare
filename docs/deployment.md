@@ -44,7 +44,7 @@ docker compose -f docker-compose.yml up -d --build app
 - 앱 컨테이너 기본 datasource 계정은 `.env`의 `DB_USERNAME` / `DB_PASSWORD`를 사용하며, 더 이상 `root`를 기본값으로 가정하지 않는다.
 - 프로필 조회와 비밀번호 재설정 수신 주소 조회는 `app.datasource.pii-rw` 보조 datasource를 사용한다. 별도 DB 호스트를 아직 나누지 않았다면 `APP_PII_DB_URL`은 `DB_URL`과 같은 값을 사용해도 된다.
 - 알림 발송 대상 이메일 조회는 `app.datasource.notification-pii-ro` 보조 datasource를 사용한다. 별도 DB 호스트를 아직 나누지 않았다면 `NOTIFICATION_PII_DB_URL`은 `DB_URL`과 같은 값을 사용해도 된다.
-- Docker Compose 앱 컨테이너는 `APP_PII_DB_URL`, `NOTIFICATION_PII_DB_URL` 기본값도 `db` 서비스명으로 강제하고, 별도 secondary credential이 비어 있으면 현재 `DB_USERNAME` / `DB_PASSWORD` 를 따라가게 해 로컬 `.env`가 단일 datasource 기준이어도 secondary datasource가 컨테이너 안에서 연결되도록 고정했다.
+- Docker Compose 앱 컨테이너는 `APP_PII_DB_URL`, `NOTIFICATION_PII_DB_URL` 기본값도 `db` 서비스명으로 강제하고, secondary datasource username 기본값은 `app_pii_rw` / `notification_pii_ro`, password 기본값은 `DB_PASSWORD` 로 고정했다. 운영에서 비밀번호를 분리할 경우에는 `DB_APP_PII_PASSWORD`, `DB_NOTIFICATION_PII_RO_PASSWORD` 를 명시해야 한다.
 - 요청 경로 `user_pii` sync 실패 row는 `user_pii_sync_queue` 에 남고, 앱은 `USER_PII_SYNC_RETRY_*` 환경변수 기준 fixed-delay batch retry 를 수행한다. 운영 기본값은 `enabled=true`, `batch-size=100`, `initial-delay-ms=60000`, `fixed-delay-ms=300000` 이다.
 
 ## 3. 기존 DB 업그레이드
@@ -65,12 +65,12 @@ docker compose -f docker-compose.yml up -d --build app
 기존 볼륨/기존 운영 DB는 `docker-entrypoint-initdb.d` 스크립트가 다시 실행되지 않으므로 계정 생성은 수동으로 맞춰야 한다.
 현재 권한 기준은 아래를 사용한다.
 
-- `app_core_rw`: `youth_welfare.*` DML + 현재 단일 datasource 호환을 위한 `youth_welfare_pii.user_pii` DML
+- `app_core_rw`: `youth_welfare.*` DML
 - `app_pii_rw`: `youth_welfare_pii.user_pii` DML
 - `notification_pii_ro`: `youth_welfare_pii.user_pii(user_key, email_enc)` column-level SELECT
 - `migration_admin`: `youth_welfare.*`, `youth_welfare_pii.*` 전체 권한
 
-최신 코드 기준으로 기본 datasource는 더 이상 `user_pii` 를 직접 읽거나 쓰지 않는다. 위 `app_core_rw` 의 `user_pii` DML 은 운영 cut-over와 grant 템플릿 정리 전까지 남겨 둔 임시 호환 권한이다.
+최신 코드 기준으로 기본 datasource는 더 이상 `user_pii` 를 직접 읽거나 쓰지 않는다. 신규 init 스크립트와 계정 템플릿도 이 기준으로 정리했으므로 `app_core_rw` 는 `youth_welfare_pii.user_pii` 권한을 더 이상 가지지 않는다. 기존 운영 DB는 runbook 기준으로 revoke SQL을 실제 적용해야 한다.
 
 현재 코드 기준 datasource 사용 범위:
 
@@ -93,6 +93,7 @@ docker compose -f docker-compose.yml up -d --build app
 - `user_pii_sync_queue` 자동 retry 로그와 admin replay API smoke 확인
 - `GET /api/admin/users/pii-sync-status?failedSampleLimit=5` 응답 확인
 - 필요하면 `deploy/smoke/user-pii-sync-cutover-smoke.sh` 로 회원가입 -> 로그인 -> 프로필 수정 -> queue `SYNCED` 까지 one-shot smoke 실행
+- one-shot smoke의 cross-schema DB 확인 쿼리는 `migration_admin` 또는 `DB_QUERY_*` 로 지정한 점검 계정을 사용
 
 운영 admin 계정의 최초 생성/회수 절차는 [admin-account-runbook.md](./admin-account-runbook.md)를 따릅니다.
 
@@ -114,6 +115,7 @@ APP_BASE_URL=http://127.0.0.1:8082 \
 ```
 
 - 이 smoke는 회원가입/프로필 수정에서 PII 암호화를 태우므로 앱 컨테이너/서버의 `AES_SECRET_KEY` 가 비어 있으면 `C002` 500으로 실패한다.
+- `app_core_rw` 권한 회수 후에는 `DB_MIGRATION_*` 또는 `DB_QUERY_*` 가 비어 있으면 smoke가 `user_pii` 확인 단계에서 권한 부족으로 중단될 수 있다.
 
 컨테이너 확인:
 

@@ -107,7 +107,8 @@
 - 알림 발송 대상 이메일 조회와 재시도 단건 조회는 `notification_pii_ro` 보조 datasource를 통해 `user_pii(user_key, email_enc)` 만 읽는다.
 - API 권한은 [SecurityConfig](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/global/config/SecurityConfig.java:44) 에서 이미 `/api/admin/** -> hasRole("ADMIN")` 으로 막혀 있다.
 - 기본 datasource/JPA persistence unit은 더 이상 `user_pii` 를 직접 읽거나 쓰지 않는다.
-- 다만 운영 fallback 정리와 grant 템플릿 교체 전까지는 `app_core_rw` 가 임시로 `user_pii` DML 권한을 유지한다.
+- 신규 init 스크립트와 계정 템플릿은 이미 `app_core_rw` 의 `user_pii` 권한을 제거한 상태다.
+- 남은 일은 기존 운영 DB에서 같은 revoke SQL을 실제 적용하고, 운영 smoke/query 계정 경로를 `migration_admin` 기준으로 확인하는 것이다.
 - 관리자 권한은 여전히 `SECURITY_ADMIN_EMAILS` allowlist + `users.email` 조합에 의존하고, DB 안의 역할 테이블이나 서비스 계정 분리는 아직 없다.
 
 즉, 저장소 분리보다 먼저 "누가 무엇에 접근할 수 있는지"를 구조적으로 나눠야 한다.
@@ -598,7 +599,7 @@
 
 ## Spring Boot 구조 변경안
 
-현재는 기본 JPA datasource 하나와 보조 datasource 둘(`app_pii_rw`, `notification_pii_ro`)을 함께 쓴다. 런타임 `root`는 제거했고 프로필/비밀번호 재설정/알림/backfill/request sync는 목적별 datasource로 분리됐으며, 기본 datasource는 더 이상 `user_pii` 를 직접 다루지 않는다. 다만 운영 DB와 init/runbook grant 세트에서 `app_core_rw` 의 `user_pii` DML 권한을 아직 회수하지 못해 최소권한이 완전히 닫히지는 않았다.
+현재는 기본 JPA datasource 하나와 보조 datasource 둘(`app_pii_rw`, `notification_pii_ro`)을 함께 쓴다. 런타임 `root`는 제거했고 프로필/비밀번호 재설정/알림/backfill/request sync는 목적별 datasource로 분리됐으며, 기본 datasource는 더 이상 `user_pii` 를 직접 다루지 않는다. 신규 init 스크립트와 계정 템플릿에서도 `app_core_rw` 의 `user_pii` DML 권한을 제거했고, 남은 작업은 기존 운영 DB에 같은 권한 회수를 실제 반영하는 것이다.
 
 분리 후에는 최소 2개 datasource를 둔다.
 

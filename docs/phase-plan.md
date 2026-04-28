@@ -13,7 +13,7 @@ CTR 분석 기본 쿼리 실행 결과를 확보했고, 현재 데이터는 `46�
 사용자 PII 분리 이행안은 `2 schema`, `user_key` 선행, `dual-write -> read cut-over` 순서로 확정했고, 1단계 `user_key` migration, 2단계 core 분리 테이블(`auth_users`, `user_profiles`, `user_pii`) 생성/backfill, 3단계 회원가입/프로필/비밀번호/회원탈퇴 dual-write와 `user_pii.email_enc/name_enc/birth_date_enc` 앱 레벨 암호화 backfill, 4단계 프로필 조회/추천/알림 read path 전환, 5단계 JWT/Redis 토큰/로그·세션 기준 `user_key` identity cut-over 1차, 6단계 chat/notification/recommendation log/view log의 legacy `user_id` fallback 제거, 7단계 JWT custom principal cut-over, 8단계 요청 경로 `user_pii` sync의 primary queue + after-commit `app_pii_rw` upsert 기반 분리, 9단계 admin replay API, 10단계 fixed-delay 자동 retry 경로, 11단계 queue status endpoint와 운영 모니터링 기준, 12단계 기본 datasource의 `user_pii` 직접 접근 제거까지 반영했습니다.
 데모 시나리오 전체 실행 완료 및 발견된 문제 수정됐습니다.
 로컬 Docker MySQL 기준 `user_pii` 24건 중 `email_enc` 24건, `name_enc` 21건, `birth_date_enc` 21건이 채워졌고, 남은 3건은 원본 `users.name/birth_date` 가 비어 있어 skip 됐습니다.
-남은 작업은 운영 배포/운영성 검증(운영 서버 Docker Compose, 기존 운영 DB 계정 생성 SQL 적용 및 datasource 전환, HTTPS/Nginx, 운영 DB에 `V2026_04_28_02__add_user_pii_sync_queue.sql` / `V2026_04_28_01__drop_runtime_legacy_user_id.sql` 적용 후 smoke 검증, `app_core_rw` 의 `youth_welfare_pii.user_pii` DML 권한 회수와 init/runbook grant 세트 축소, CTR 표본 확충 후 재분석)과 2차 확장 기능(군집 캐시 추천, 카카오 알림톡, 검색 로그, 대시보드)입니다.
+남은 작업은 운영 배포/운영성 검증(운영 서버 Docker Compose, 기존 운영 DB 계정 생성 SQL 적용 및 datasource 전환, HTTPS/Nginx, 운영 DB에 `V2026_04_28_02__add_user_pii_sync_queue.sql` / `V2026_04_28_01__drop_runtime_legacy_user_id.sql` 적용 후 smoke 검증, 기존 운영 DB에 `app_core_rw` 의 `youth_welfare_pii.user_pii` revoke SQL 실제 적용과 보조 datasource smoke 검증, CTR 표본 확충 후 재분석)과 2차 확장 기능(군집 캐시 추천, 카카오 알림톡, 검색 로그, 대시보드)입니다.
 
 ## 완료된 백엔드 1차 범위
 
@@ -84,6 +84,14 @@ CTR 분석 기본 쿼리 실행 결과를 확보했고, 현재 데이터는 `46�
 - 2026-04-28 `docker compose up -d db redis`
 - 2026-04-28 기본 datasource의 `user_pii` 직접 접근 제거 후 `backend`에서 `./gradlew integrationTest --no-daemon --tests com.example.welfare.integration.UserCoreDualWriteIntegrationTest --tests com.example.welfare.integration.UserPiiBackfillIntegrationTest --tests com.example.welfare.integration.UserPiiSyncReplayIntegrationTest --tests com.example.welfare.integration.UserPiiSyncRetrySchedulerIntegrationTest --tests com.example.welfare.integration.AuthRedisIntegrationTest --tests com.example.welfare.integration.UserMetadataUserKeyBackfillIntegrationTest --tests com.example.welfare.integration.RecommendationFlowIntegrationTest --tests com.example.welfare.integration.AdminSecurityIntegrationTest`
 - 2026-04-28 기본 datasource의 `user_pii` 직접 접근 제거 후 `git diff --check`
+- 2026-04-28 신규 init/runbook 기준 `app_core_rw` 의 `user_pii` DML grant 제거 후 `bash -n deploy/mysql/init/z90-create-runtime-db-users.sh`
+- 2026-04-28 신규 init/runbook 기준 `app_core_rw` 의 `user_pii` DML grant 제거 후 `bash -n deploy/smoke/user-pii-sync-cutover-smoke.sh`
+- 2026-04-28 신규 init/runbook 기준 `app_core_rw` 의 `user_pii` DML grant 제거 후 `docker compose config`
+- 2026-04-28 신규 init/runbook 기준 `app_core_rw` 의 `user_pii` DML grant 제거 후 임시 MySQL 8.0 컨테이너 fresh init smoke
+  - `app_core_rw` 는 `youth_welfare.*` DML만 가지고 `youth_welfare_pii.user_pii` 접근이 거부되는 것 확인
+  - `app_pii_rw` 는 `youth_welfare_pii.user_pii` DML만 가지는 것 확인
+  - `notification_pii_ro` 는 `user_key`, `email_enc`만 읽고 `phone_enc`는 읽지 못하는 것 확인
+- 2026-04-28 신규 init/runbook 기준 `app_core_rw` 의 `user_pii` DML grant 제거 후 `git diff --check`
 - 2026-04-23 메인 페이지 API 연동 후 `frontend`에서 `npm run lint`
 - 2026-04-23 메인 페이지 API 연동 후 `frontend`에서 `npm run build`  
   - Vite 번들 크기 경고 발생. 빌드는 성공했으며 기능 실패는 아님.
@@ -503,6 +511,10 @@ CTR 분석 기본 쿼리 실행 결과를 확보했고, 현재 데이터는 `46�
   - `UserPii` JPA 엔티티와 `UserPiiRepository` 를 제거해 기본 datasource/JPA persistence unit이 `user_pii` 테이블을 직접 다루지 않도록 정리
   - `UserPiiBackfillService` 는 primary `users` source 조회와 `app_pii_rw` 의 `user_pii` 누락 암호문 조회/수정 2단계로 재구성
   - 관련 integration test cleanup/assertion도 `UserPiiReadWriteRepository` 기준으로 전환해 런타임과 테스트가 같은 PII 접근 경로를 사용하도록 맞춤
+- 2026-04-28 신규 init/runbook 기준 `app_core_rw` 의 `user_pii` DML grant 제거
+  - `deploy/mysql/init/z90-create-runtime-db-users.sh`, `deploy/mysql/runtime-db-accounts.sql.example` 에서 `app_core_rw -> youth_welfare_pii.user_pii` grant 를 제거
+  - `docker-compose.yml`, `application.yml` 의 secondary datasource fallback 을 `app_pii_rw` / `notification_pii_ro` 기준으로 고정하고, local/compose 기본 password 는 `DB_PASSWORD` 를 재사용하도록 정리
+  - `deploy/smoke/user-pii-sync-cutover-smoke.sh` 는 cross-schema query account scope를 미리 확인해 `migration_admin` 또는 `DB_QUERY_*` 사용이 필요할 때 조기에 실패하도록 보강
 
 ## 작업 추적
 
@@ -516,14 +528,14 @@ CTR 분석 기본 쿼리 실행 결과를 확보했고, 현재 데이터는 `46�
 - [ ] 기존 운영 DB에 `app_core_rw` / `app_pii_rw` / `notification_pii_ro` / `migration_admin` 계정 생성 및 앱 datasource 전환
 - [ ] HTTPS/Nginx 적용
 - [ ] 운영 DB에 `V2026_04_28_02__add_user_pii_sync_queue.sql` 적용 및 request dual-write smoke 검증
-- [ ] `app_core_rw` 의 `youth_welfare_pii.user_pii` DML 권한 회수
-- [ ] `app_core_rw` 권한 회수 후 `deploy/mysql/init` / `deploy/mysql/runtime-db-accounts.sql.example` grant 세트 축소
+- [ ] 기존 운영 DB에 `app_core_rw` 의 `youth_welfare_pii.user_pii` revoke SQL 실제 적용 및 보조 datasource smoke 검증
 - [ ] 운영 DB에 `V2026_04_28_01__drop_runtime_legacy_user_id.sql` 적용 및 배포 smoke 검증
 - [ ] CTR 표본 추가 확보 후 rule/AI 가중치 및 프롬프트 재분석
 - [ ] 카카오 알림톡 연동 (2차, 심사 완료 후)
 
 ### 완료
 
+- [x] 신규 init/runbook 기준 `app_core_rw` 의 `user_pii` DML grant 제거
 - [x] 기본 datasource의 `user_pii` 직접 접근 제거
 - [x] `user_pii_sync_queue` cut-over smoke 스크립트 정리
 - [x] `user_pii_sync_queue` status endpoint 및 운영 모니터링 기준 정리
@@ -695,7 +707,7 @@ cd backend
 - HTTPS/Nginx 적용
 - 운영 DB에 `V2026_04_28_01__drop_runtime_legacy_user_id.sql` 적용 및 배포 smoke 검증
 - 기존 운영 DB 계정 생성 SQL 적용 및 앱 datasource 전환
-- `app_core_rw` 의 `user_pii` DML 권한 회수와 init/runbook grant 세트 축소
+- 기존 운영 DB에 `app_core_rw` 의 `user_pii` revoke SQL 실제 적용 및 보조 datasource smoke 검증
 - CTR 표본 추가 확보 후 rule/AI 가중치 및 프롬프트 재분석
 
 ## 2차로 분리된 항목

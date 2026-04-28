@@ -11,17 +11,16 @@
 
 ## 1. 목표
 
-이번 단계의 목표는 아래 4개 계정을 기존 운영 DB에 맞추고, 앱 datasource를 `app_core_rw`로 전환하는 것입니다.
+이번 단계의 목표는 아래 4개 계정을 기존 운영 DB에 맞추고, 앱 datasource를 `app_core_rw + app_pii_rw + notification_pii_ro` 구조로 전환하는 것입니다.
 
 - `app_core_rw`
-  - 현재 단일 datasource 런타임 앱 계정
+  - 기본 runtime datasource 계정
   - `youth_welfare.*` DML
-  - 임시 호환을 위해 `youth_welfare_pii.user_pii` DML 포함
 - `app_pii_rw`
-  - 추후 PII 전용 datasource용
+  - PII read/write 보조 datasource용
   - `youth_welfare_pii.user_pii` DML
 - `notification_pii_ro`
-  - 추후 알림 전용 read-only 계정
+  - 알림 전용 read-only 계정
   - `youth_welfare_pii.user_pii(user_key, email_enc)` column-level SELECT
 - `migration_admin`
   - 수동 migration, schema 점검, 운영 대응용
@@ -81,7 +80,7 @@ mysql -h 127.0.0.1 -P 3307 -u root -p < /tmp/runtime-db-accounts.sql
 
 - `CREATE USER IF NOT EXISTS`만으로 끝내지 않습니다.
 - 기존에 같은 이름의 계정이 있으면 `ALTER USER`와 `REVOKE ... / GRANT ...`까지 같이 적용해 비밀번호와 권한을 현재 기준으로 덮어씁니다.
-- 현재 구조에서는 `app_core_rw`가 임시로 `user_pii` DML 권한을 가집니다. 이건 다중 datasource 분리 전까지의 타협입니다.
+- 최신 코드 기준 `app_core_rw`는 `user_pii` 권한이 없어도 동작합니다. 이 SQL은 기존 운영 DB에서도 그 임시 호환 grant를 실제로 회수하는 단계입니다.
 
 ## 5. 계정 검증
 
@@ -98,6 +97,7 @@ SHOW GRANTS FOR 'migration_admin'@'%';
 
 - `app_core_rw`
   - `USE youth_welfare; SELECT COUNT(*) FROM users;`
+  - `SELECT COUNT(*) FROM youth_welfare_pii.user_pii;` 는 실패해야 정상
 - `app_pii_rw`
   - `SELECT COUNT(*) FROM youth_welfare_pii.user_pii;`
 - `notification_pii_ro`
@@ -129,6 +129,11 @@ DB_NOTIFICATION_PII_RO_PASSWORD=<notification_pii_ro password>
 4. 앱 재기동
 5. health check, 로그인, 추천, 북마크 최소 smoke
 
+주의:
+
+- 이번 단계부터 `DB_APP_PII_USERNAME`, `DB_APP_PII_PASSWORD`, `DB_NOTIFICATION_PII_RO_USERNAME`, `DB_NOTIFICATION_PII_RO_PASSWORD` 를 비워 두면 안 됩니다.
+- `app_core_rw` 가 더 이상 `user_pii` 권한을 가지지 않으므로, secondary datasource가 `DB_USERNAME` 로 fallback 하면 프로필/비밀번호 재설정/알림 경로가 바로 깨집니다.
+
 앱 재기동 예시:
 
 ```bash
@@ -142,8 +147,9 @@ docker compose -f docker-compose.yml up -d --build app
 - [ ] `runtime-db-accounts.sql.example` placeholder 치환
 - [ ] 운영 DB에 SQL 적용
 - [ ] `SHOW GRANTS` 4종 확인
+- [ ] `app_core_rw` 가 `youth_welfare_pii.user_pii` 를 읽지 못하는지 확인
 - [ ] `notification_pii_ro`가 `phone_enc`를 읽지 못하는지 확인
-- [ ] 운영 `.env`의 `DB_USERNAME`, `DB_PASSWORD` 변경
+- [ ] 운영 `.env`의 `DB_USERNAME`, `DB_PASSWORD`, `DB_APP_PII_*`, `DB_NOTIFICATION_PII_RO_*` 변경
 - [ ] 앱 재기동
 - [ ] `/actuator/health` 200 확인
 - [ ] 로그인 / refresh / 추천 목록 / 북마크 토글 smoke 확인
@@ -159,7 +165,7 @@ docker compose -f docker-compose.yml up -d --build app
 
 롤백 순서:
 
-1. 운영 `.env`의 `DB_USERNAME`, `DB_PASSWORD`를 이전 값으로 복원
+1. 운영 `.env`의 `DB_USERNAME`, `DB_PASSWORD`, `DB_APP_PII_*`, `DB_NOTIFICATION_PII_RO_*` 를 이전 값으로 복원
 2. 앱 재기동
 3. 에러 로그 보존 후 DB 계정 grant 재점검
 

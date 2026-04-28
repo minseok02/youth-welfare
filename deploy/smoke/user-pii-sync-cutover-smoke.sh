@@ -104,6 +104,18 @@ else:
 PY
 }
 
+ensure_query_account_scope() {
+  if ! mysql_exec "SELECT 1 FROM users LIMIT 1;" >/dev/null 2>&1; then
+    echo "DB_QUERY account cannot read youth_welfare.users; use migration_admin or an explicit cross-schema DB_QUERY account" >&2
+    exit 1
+  fi
+
+  if ! mysql_exec "SELECT 1 FROM youth_welfare_pii.user_pii LIMIT 1;" >/dev/null 2>&1; then
+    echo "DB_QUERY account cannot read youth_welfare_pii.user_pii; after app_core_rw grant shrink use migration_admin or explicit DB_QUERY_*" >&2
+    exit 1
+  fi
+}
+
 http_status() {
   local method="$1"
   local url="$2"
@@ -176,6 +188,7 @@ if [[ "${APPLY_PII_SYNC_QUEUE_MIGRATION}" == "true" ]]; then
 fi
 
 echo "verifying queue table exists"
+ensure_query_account_scope
 mysql_exec "SHOW TABLES LIKE 'user_pii_sync_queue';" | grep -qx "user_pii_sync_queue"
 
 echo "signing up smoke user: ${SMOKE_EMAIL}"
