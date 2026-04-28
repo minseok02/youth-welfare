@@ -44,6 +44,7 @@ ENV_FILE=.env PRINT_SUMMARY=true deploy/smoke/preflight-runtime-cutover-env.sh
 
 운영 전환 순서를 한 페이지로 빠르게 따라가려면 [runtime-cutover-checklist.md](./runtime-cutover-checklist.md)를 같이 본다.
 운영 전환 직후 남길 증적 형식은 [runtime-cutover-log-template.md](./runtime-cutover-log-template.md)를 사용한다.
+핵심 API smoke curl 예시는 [runtime-api-smoke-commands.md](./runtime-api-smoke-commands.md)를 사용한다.
 
 ## 2. 최초 기동
 
@@ -73,6 +74,7 @@ docker compose -f docker-compose.yml up -d --build app
 - 기존 운영 DB 계정 생성과 앱 datasource 전환 절차: [db-account-cutover-runbook.md](./db-account-cutover-runbook.md)
 - cutover fast path: [runtime-cutover-checklist.md](./runtime-cutover-checklist.md)
 - cutover execution log: [runtime-cutover-log-template.md](./runtime-cutover-log-template.md)
+- cutover API smoke commands: [runtime-api-smoke-commands.md](./runtime-api-smoke-commands.md)
 
 권장 순서:
 

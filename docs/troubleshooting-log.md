@@ -557,3 +557,8 @@
 - 문제: split-account cutover는 `SHOW GRANTS`, migration 적용 결과, preflight summary, health check, 핵심 API smoke, optional one-shot smoke까지 확인 대상이 많아서, 결과를 즉석에서만 보고 지나가면 성공/실패 판정 근거가 문서로 남지 않을 수 있었음
 - 해결: `docs/runtime-cutover-log-template.md` 를 추가해 실제 운영 전환 직후 결과를 한 문서에 기록하도록 하고, checklist/runbook/deployment 문서에서 바로 링크되도록 정리했음
 - 이유: 운영 전환은 “실행했다”보다 “무엇을 실행했고 어떤 결과였는지 남겼다”가 중요하다. 특히 rollback 여부를 빠르게 판단하거나 다음 차수 cutover를 반복할 때는 동일한 증적 형식이 있어야 비교와 회고가 쉬워진다
+
+## 110) 운영 smoke 명령을 현장에서 다시 조합하면 cookie jar, Bearer token, bookmark path id 종류를 헷갈려 false negative를 만들기 쉬움
+- 문제: cutover 직후 확인해야 할 로그인, refresh, 추천, 북마크, admin status는 단순해 보여도 `refresh_token` cookie 저장, `Authorization: Bearer` 헤더, 추천 bookmark path에 recommendation `id` 를 넣는 규칙처럼 자주 헷갈리는 포인트가 있어, 운영자가 그때그때 curl을 다시 만들면 smoke 자체가 틀릴 수 있었음
+- 해결: `docs/runtime-api-smoke-commands.md` 를 추가해 공통 env, cookie jar, access token 추출, 추천 응답에서 recommendation `id` 추출, admin status 호출까지 copy-paste 가능한 명령 묶음으로 정리하고 checklist/log template에서 바로 링크되도록 반영했음
+- 이유: 운영 smoke는 코드 이해를 시험하는 자리가 아니라 배포 안전성을 확인하는 절차다. 반복되는 인증/토큰/ID 타입 함정은 문서화된 명령으로 고정하는 편이 false negative를 줄이고 cutover 시간을 단축한다

@@ -75,6 +75,9 @@
 - [runtime-cutover-log-template.md](./runtime-cutover-log-template.md)
   운영 전환 직후 남길 실행 로그 템플릿과 최소 증적 항목을 확인합니다.
 
+- [runtime-api-smoke-commands.md](./runtime-api-smoke-commands.md)
+  로그인, refresh, 추천, 북마크, admin status용 최소 curl smoke 명령을 바로 복사해 실행할 수 있습니다.
+
 ### 일정, 단계, 데모 흐름을 볼 때
 
 - [phase-plan.md](./phase-plan.md)  
@@ -97,6 +100,7 @@
 - [deployment.md](./deployment.md)
 - [runtime-cutover-checklist.md](./runtime-cutover-checklist.md)
 - [runtime-cutover-log-template.md](./runtime-cutover-log-template.md)
+- [runtime-api-smoke-commands.md](./runtime-api-smoke-commands.md)
 - [github-workflow.md](./github-workflow.md)
 - [phase-plan.md](./phase-plan.md)
 - [recommendation-pipeline.md](./recommendation-pipeline.md)

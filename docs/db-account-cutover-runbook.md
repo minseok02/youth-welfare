@@ -11,6 +11,7 @@
 - [`docs/db-migration.md`](./db-migration.md)
 - [`docs/runtime-cutover-checklist.md`](./runtime-cutover-checklist.md)
 - [`docs/runtime-cutover-log-template.md`](./runtime-cutover-log-template.md)
+- [`docs/runtime-api-smoke-commands.md`](./runtime-api-smoke-commands.md)
 
 ## 1. 목표
 
@@ -18,6 +19,7 @@
 
 실제 전환 창에서 빠르게 실행할 순서만 보려면 [runtime-cutover-checklist.md](./runtime-cutover-checklist.md)를 먼저 열고, 이 문서는 세부 설명/예외 처리를 볼 때 사용합니다.
 실행 결과와 증적은 [runtime-cutover-log-template.md](./runtime-cutover-log-template.md)에 남기는 것을 기준으로 합니다.
+핵심 API smoke curl은 [runtime-api-smoke-commands.md](./runtime-api-smoke-commands.md)를 기준으로 사용합니다.
 
 - `app_core_rw`
   - 기본 runtime datasource 계정

@@ -2,6 +2,7 @@
 
 이 문서는 실제 운영 cutover 직후 결과를 남기기 위한 기록 템플릿입니다.
 실행 순서는 [runtime-cutover-checklist.md](./runtime-cutover-checklist.md)를 따르고, 이 문서는 그 결과를 채워 넣는 용도로 사용합니다.
+핵심 API 요청 예시는 [runtime-api-smoke-commands.md](./runtime-api-smoke-commands.md)를 사용합니다.
 
 복사해서 날짜/배포차수별 문서나 PR 코멘트에 붙여 넣어 사용합니다.
 
@@ -15,6 +16,7 @@
 - 서버/환경:
 - 관련 브랜치 / PR:
 - 관련 체크리스트: `docs/runtime-cutover-checklist.md`
+- 관련 API smoke 명령: `docs/runtime-api-smoke-commands.md`
 
 ## 1. 사전 준비
 - backup 또는 snapshot:

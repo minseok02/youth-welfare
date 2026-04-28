@@ -3,6 +3,7 @@
 이 문서는 운영 전환 시 `계정 전환 -> migration -> preflight -> app 재기동 -> smoke` 순서만 빠르게 따라가기 위한 one-page 체크리스트입니다.
 세부 설명은 [db-account-cutover-runbook.md](./db-account-cutover-runbook.md), [db-migration.md](./db-migration.md), [deployment.md](./deployment.md)를 봅니다.
 실행 결과 기록은 [runtime-cutover-log-template.md](./runtime-cutover-log-template.md)를 사용합니다.
+핵심 API curl 명령은 [runtime-api-smoke-commands.md](./runtime-api-smoke-commands.md)를 사용합니다.
 
 ## 1. 준비물
 
@@ -97,6 +98,8 @@ curl -fsS http://127.0.0.1:8082/actuator/health
 - 추천 목록
 - 북마크 토글
 - 필요 시 `GET /api/admin/users/pii-sync-status?failedSampleLimit=5`
+
+실행 명령은 [runtime-api-smoke-commands.md](./runtime-api-smoke-commands.md)에 정리합니다.
 
 10. 필요 시 one-shot PII sync smoke
 

@@ -18,6 +18,7 @@ CTR 분석 기본 쿼리 실행 결과를 확보했고, 현재 데이터는 `46�
 이 preflight는 이제 `PRINT_SUMMARY=true` 로 실행하면 실제 cutover에 쓰일 username/schema 조합을 redacted summary로 같이 보여주도록 보강했습니다.
 운영 전환 창에서 그대로 따라갈 수 있게 `계정 전환 -> migration -> preflight -> app 재기동 -> smoke` 순서의 one-page checklist도 별도 문서로 정리했습니다.
 운영 전환 직후 남길 증적도 따로 흩어지지 않도록 cutover 실행 로그 템플릿을 추가했습니다.
+핵심 API smoke도 즉석에서 재조합하지 않도록 로그인/refresh/추천/북마크/admin status curl 명령 묶음을 별도 문서로 정리했습니다.
 cut-over one-shot smoke도 `.env` 를 shell `source` 하지 않고 `ENV_FILE=.env ...` 형태로 직접 읽도록 정리해 JDBC URL의 `&` 로 값이 끊기는 문제를 제거했고, 필요하면 `DB_QUERY_*` 같은 explicit override를 함께 줘도 파일 값보다 우선하도록 보강했습니다.
 남은 작업은 운영 배포/운영성 검증(운영 서버 Docker Compose, 기존 운영 DB 계정 생성 SQL 적용 및 datasource 전환, 운영 `.env` / secret store의 `APP_PII_DB_URL` / `NOTIFICATION_PII_DB_URL` 를 `youth_welfare_pii` 기준으로 전환, HTTPS/Nginx, 운영 DB에 `V2026_04_28_02__add_user_pii_sync_queue.sql` / `V2026_04_28_01__drop_runtime_legacy_user_id.sql` 적용 후 smoke 검증, 기존 운영 DB에 `app_core_rw` 의 `youth_welfare_pii.user_pii` revoke SQL 실제 적용과 보조 datasource smoke 검증, CTR 표본 확충 후 재분석)과 2차 확장 기능(군집 캐시 추천, 카카오 알림톡, 검색 로그, 대시보드)입니다.
 
@@ -78,6 +79,8 @@ cut-over one-shot smoke도 `.env` 를 shell `source` 하지 않고 `ENV_FILE=.en
 - 2026-04-28 운영 runtime cutover one-page checklist 추가 후 `git diff --check`
 - 2026-04-28 운영 runtime cutover 실행 로그 템플릿 추가 후 `rg -n "runtime-cutover-(checklist|log-template)" docs`
 - 2026-04-28 운영 runtime cutover 실행 로그 템플릿 추가 후 `git diff --check`
+- 2026-04-28 운영 runtime API smoke 명령 모음 추가 후 `rg -n "runtime-api-smoke-commands|runtime-cutover-(checklist|log-template)" docs`
+- 2026-04-28 운영 runtime API smoke 명령 모음 추가 후 `git diff --check`
 - 2026-04-28 one-shot PII sync smoke의 `ENV_FILE` 직접 로드 지원 후 `bash -n deploy/smoke/user-pii-sync-cutover-smoke.sh`
 - 2026-04-28 one-shot PII sync smoke의 `ENV_FILE` 직접 로드 지원 후 `ENV_FILE=.env DB_QUERY_USERNAME=migration_admin DB_QUERY_PASSWORD=smoke-db-password-2026! DB_MIGRATION_USERNAME=migration_admin DB_MIGRATION_PASSWORD=smoke-db-password-2026! APP_BASE_URL=http://127.0.0.1:8082 deploy/smoke/user-pii-sync-cutover-smoke.sh`
   - 현재 로컬 `.env` 가 아직 `DB_USERNAME=root` 라 query/migration 계정만 explicit override로 주입한 상태에서 회원가입 -> 로그인 -> 프로필 수정 -> `user_pii_sync_queue` `SYNCED` -> 회원탈퇴 cleanup 재확인
@@ -569,6 +572,10 @@ cut-over one-shot smoke도 `.env` 를 shell `source` 하지 않고 `ENV_FILE=.en
   - `docs/runtime-cutover-log-template.md` 를 추가해 계정 SQL, grant 확인, migration, preflight summary, health, 핵심 API smoke, rollback 여부까지 한 문서에 기록할 수 있게 정리
   - `docs/README.md`, `docs/deployment.md`, `docs/db-account-cutover-runbook.md`, `docs/runtime-cutover-checklist.md` 에서 새 템플릿을 바로 찾을 수 있게 링크를 연결
   - 운영 전환 후 증적이 터미널 출력, 채팅, 메모에 흩어지지 않도록 최소 보관 형식을 고정
+- 2026-04-28 운영 runtime API smoke 명령 모음 추가
+  - `docs/runtime-api-smoke-commands.md` 를 추가해 로그인, refresh, 추천 조회, 추천 북마크 토글, 북마크 목록, admin status, 로그아웃 curl 명령을 한 문서에 정리
+  - `Authorization: Bearer` 헤더, `refresh_token` cookie jar, recommendation bookmark path가 recommendation `id` 를 받는다는 점까지 코드 기준으로 명시
+  - `docs/README.md`, `docs/deployment.md`, `docs/runtime-cutover-checklist.md`, `docs/runtime-cutover-log-template.md` 에 링크를 연결해 운영자가 smoke 명령을 즉석에서 다시 만들지 않게 정리
 
 ## 작업 추적
 
@@ -590,6 +597,7 @@ cut-over one-shot smoke도 `.env` 를 shell `source` 하지 않고 `ENV_FILE=.en
 
 ### 완료
 
+- [x] 운영 runtime API smoke 명령 모음 추가
 - [x] 운영 runtime cutover 실행 로그 템플릿 추가
 - [x] 운영 runtime cutover one-page checklist 추가
 - [x] 운영 cutover env preflight summary 출력 추가
