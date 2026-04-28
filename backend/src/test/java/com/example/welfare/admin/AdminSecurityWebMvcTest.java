@@ -12,9 +12,11 @@ import com.example.welfare.user.controller.UserAdminController;
 import com.example.welfare.user.dto.response.UserMetadataUserKeyBackfillResponse;
 import com.example.welfare.user.dto.response.UserPiiBackfillResponse;
 import com.example.welfare.user.dto.response.UserPiiSyncReplayResponse;
+import com.example.welfare.user.dto.response.UserPiiSyncStatusResponse;
 import com.example.welfare.user.service.UserMetadataUserKeyBackfillService;
 import com.example.welfare.user.service.UserPiiBackfillService;
 import com.example.welfare.user.service.UserPiiSyncReplayService;
+import com.example.welfare.user.service.UserPiiSyncStatusService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,11 +27,13 @@ import org.springframework.context.annotation.Import;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.doNothing;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -51,6 +55,8 @@ class AdminSecurityWebMvcTest {
     private UserPiiBackfillService userPiiBackfillService;
     @MockBean
     private UserPiiSyncReplayService userPiiSyncReplayService;
+    @MockBean
+    private UserPiiSyncStatusService userPiiSyncStatusService;
     @MockBean
     private JwtUtil jwtUtil;
     @MockBean
@@ -160,6 +166,40 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.data.missingCount").value(0));
 
         then(userPiiSyncReplayService).should().replay("user-key-1", 25);
+    }
+
+    @Test
+    @DisplayName("관리자 토큰으로 pii sync status API를 호출하면 queue 상태 요약을 반환한다")
+    void adminEndpointAllowsPiiSyncStatus() throws Exception {
+        mockAuthenticatedToken("admin-token", List.of(
+                new SimpleGrantedAuthority("ROLE_USER"),
+                new SimpleGrantedAuthority("ROLE_ADMIN")
+        ));
+        given(userPiiSyncStatusService.getStatus(3))
+                .willReturn(new UserPiiSyncStatusResponse(
+                        2,
+                        1,
+                        9,
+                        "pending-user",
+                        LocalDateTime.of(2026, 4, 28, 20, 0, 0),
+                        "failed-user",
+                        LocalDateTime.of(2026, 4, 28, 20, 5, 0),
+                        LocalDateTime.of(2026, 4, 28, 20, 10, 0),
+                        List.of()
+                ));
+
+        mockMvc.perform(get("/api/admin/users/pii-sync-status")
+                        .param("failedSampleLimit", "3")
+                        .header("Authorization", "Bearer admin-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.pendingCount").value(2))
+                .andExpect(jsonPath("$.data.failedCount").value(1))
+                .andExpect(jsonPath("$.data.oldestPendingUserKey").value("pending-user"))
+                .andExpect(jsonPath("$.data.oldestFailedUserKey").value("failed-user"))
+                .andExpect(jsonPath("$.data.failedSamples").isArray());
+
+        then(userPiiSyncStatusService).should().getStatus(3);
     }
 
     private void mockAuthenticatedToken(String token,

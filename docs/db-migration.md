@@ -212,6 +212,32 @@ curl -X POST "http://127.0.0.1:8082/api/admin/users/pii-sync-replay?limit=100" \
 - `failedCount`: replay 후에도 `FAILED` 로 남은 row 수
 - `missingCount`: replay 요청 시점 대비 queue row가 없어 처리하지 못한 수
 
+## `user_pii_sync_queue` 상태 조회 / 운영 기준
+
+최신 백엔드 배포 후 운영자는 queue 적체와 실패 상태를 아래 API로 확인할 수 있다.
+
+```bash
+curl "http://127.0.0.1:8082/api/admin/users/pii-sync-status?failedSampleLimit=5" \
+  -H "Authorization: Bearer <ADMIN_ACCESS_TOKEN>"
+```
+
+응답 본문:
+
+- `pendingCount`: 아직 `app_pii_rw` 반영이 끝나지 않은 queue row 수
+- `failedCount`: 자동 retry 후에도 `FAILED` 로 남은 row 수
+- `syncedCount`: 최근까지 `SYNCED` 상태인 row 수
+- `oldestPendingUserKey`, `oldestPendingEnqueuedAt`: 가장 오래된 대기 row
+- `oldestFailedUserKey`, `oldestFailedAttemptAt`: 가장 오래된 실패 row
+- `latestSyncedAt`: 가장 최근 성공 반영 시각
+- `failedSamples`: `attemptCount` 높은 순 실패 sample 목록. `failedSampleLimit` 는 1~20으로 제한
+
+권장 운영 기준:
+
+- `failedCount > 0` 이면 `failedSamples[*].lastError` 를 먼저 확인하고 수동 replay 또는 DB 연결 점검
+- `oldestPendingEnqueuedAt` 가 5분 이상 오래됐으면 after-commit listener 또는 `app_pii_rw` 연결 이상 여부 확인
+- `oldestFailedAttemptAt` 가 10분 이상 오래됐으면 자동 retry만으로 해소되지 않는 장애로 보고 운영 개입
+- `failedSamples[*].attemptCount >= 5` row 는 반복 실패 payload로 보고 우선 조사
+
 ## 확인 쿼리
 
 ```sql

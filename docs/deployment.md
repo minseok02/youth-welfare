@@ -75,6 +75,7 @@ docker compose -f docker-compose.yml up -d --build app
 - 보조 datasource (`APP_PII_DB_URL`, `DB_APP_PII_USERNAME`): 프로필 조회, 비밀번호 재설정 수신 주소 조회, admin `user_pii` backfill write 경로
 - 보조 datasource (`NOTIFICATION_PII_DB_URL`, `DB_NOTIFICATION_PII_RO_USERNAME`): 알림 스케줄러와 재시도 경로의 이메일 암호문 조회
 - 스케줄러 (`USER_PII_SYNC_RETRY_*`): `FAILED` 우선, 이후 `PENDING` queue batch를 `UserPiiSyncReplayService` 재사용으로 재처리
+- 운영 모니터링 API (`GET /api/admin/users/pii-sync-status`): queue 적체 count, oldest pending/failed, recent sync 시각, failed sample 조회
 
 ## 4. 운영 확인
 
@@ -87,8 +88,16 @@ docker compose -f docker-compose.yml up -d --build app
 - 추천 북마크
 - 알림 수신 거부 링크
 - `user_pii_sync_queue` 자동 retry 로그와 admin replay API smoke 확인
+- `GET /api/admin/users/pii-sync-status?failedSampleLimit=5` 응답 확인
 
 운영 admin 계정의 최초 생성/회수 절차는 [admin-account-runbook.md](./admin-account-runbook.md)를 따릅니다.
+
+`user_pii_sync_queue` 운영 기준:
+
+- `failedCount > 0` 이면 즉시 `failedSamples` 와 `lastError` 를 확인하고 `POST /api/admin/users/pii-sync-replay` 재처리를 준비
+- `oldestPendingEnqueuedAt` 가 현재 시각 기준 5분 이상 오래됐으면 after-commit listener 또는 `app_pii_rw` 연결 이상 여부 점검
+- `oldestFailedAttemptAt` 가 10분 이상 오래됐으면 자동 retry만으로 복구되지 않는 상태로 보고 DB 계정/권한 또는 PII schema 연결 점검
+- `failedSamples[*].attemptCount >= 5` row 가 보이면 같은 payload가 반복 실패하는 상태로 간주하고 운영 개입 대상에 올림
 
 컨테이너 확인:
 
@@ -138,5 +147,6 @@ sudo systemctl reload nginx
 - DB 볼륨이 이미 존재하면 `deploy/mysql/init/z90-create-runtime-db-users.sh`도 다시 자동 적용되지 않음
 - 기존 운영 DB는 배포 전에 마이그레이션 SQL을 선적용해야 함
 - scheduler 동작이 테스트나 운영 초기 smoke를 방해하면 `USER_PII_SYNC_RETRY_INITIAL_DELAY_MS` 를 일시적으로 크게 주고 수동 replay로 먼저 검증할 수 있음
+- `GET /api/admin/users/pii-sync-status` 의 `failedSampleLimit` 는 1~20 범위로 제한되어 있으며, 운영 조회도 기본값 `5` 를 유지하는 편이 안전함
 - Gmail 앱 비밀번호 미설정 시 알림 발송은 실패함
 - Nginx 설정의 도메인/인증서 경로는 실제 운영 도메인에 맞게 수정해야 함

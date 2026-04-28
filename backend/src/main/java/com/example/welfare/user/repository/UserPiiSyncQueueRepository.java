@@ -14,12 +14,25 @@ public interface UserPiiSyncQueueRepository extends JpaRepository<UserPiiSyncQue
 
     Optional<UserPiiSyncQueue> findByUserKey(String userKey);
 
+    long countByStatus(UserPiiSyncQueueStatus status);
+
+    Optional<UserPiiSyncQueue> findFirstByStatusOrderByLastEnqueuedAtAscIdAsc(UserPiiSyncQueueStatus status);
+
+    Optional<UserPiiSyncQueue> findFirstByStatusOrderByLastAttemptAtAscIdAsc(UserPiiSyncQueueStatus status);
+
+    Optional<UserPiiSyncQueue> findFirstByStatusOrderByLastSyncedAtDescIdDesc(UserPiiSyncQueueStatus status);
+
     List<UserPiiSyncQueue> findByStatusOrderByLastEnqueuedAtAscIdAsc(
             UserPiiSyncQueueStatus status,
             Pageable pageable
     );
 
     List<UserPiiSyncQueue> findByStatusOrderByLastAttemptAtAscIdAsc(
+            UserPiiSyncQueueStatus status,
+            Pageable pageable
+    );
+
+    List<UserPiiSyncQueue> findByStatusOrderByAttemptCountDescLastAttemptAtDescIdDesc(
             UserPiiSyncQueueStatus status,
             Pageable pageable
     );
