@@ -25,6 +25,22 @@ cd backend
 통합 테스트는 `integration` 프로필을 사용하며, 기본 연결 정보는
 [application-integration.yml](../backend/src/test/resources/application-integration.yml)에 정의되어 있습니다.
 
+로컬 Docker DB 볼륨을 오래 재사용해 `Access denied for user 'app_core_rw'` 같은 split-account 인증 실패가 나면,
+볼륨을 지우기 전에 아래 복구 스크립트로 계정을 현재 `.env` 기준으로 다시 맞춥니다.
+
+```bash
+ENV_FILE=.env deploy/mysql/reconcile-local-runtime-db-accounts.sh
+docker compose up -d db redis
+
+cd backend
+./gradlew integrationTest
+```
+
+이 스크립트는 기존 `mysql_data` volume을 지우지 않고, recovery MySQL을 `--skip-grant-tables` 로 잠깐 띄워
+`root`, `app_core_rw`, `app_pii_rw`, `notification_pii_ro`, `migration_admin` 계정과 grant를 현재 split-account 기본값으로 재정렬합니다.
+현재 로컬 `.env` 가 아직 `DB_USERNAME=root` 여도, 이 스크립트는 대상 계정을 고정된 split-account 이름으로 맞춥니다.
+`.env` 를 shell `source` 하지 않고 직접 파싱하므로 JDBC URL의 `&` 때문에 깨지지 않습니다.
+
 ## Gmail SMTP smoke test
 
 실제 Gmail SMTP 설정으로 테스트 메일 1건을 발송할 때만 실행합니다.

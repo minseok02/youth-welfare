@@ -617,3 +617,8 @@
 - 문제: 상세 수집은 운영상 중요한 edge case 규칙이 이미 코드에 들어 있었지만, 기존 테스트는 “existing row skip” 과 “refresh update” 정도만 확인하고 있어 `429` 연속 중단 기준, empty payload 무시, 일부 저장 실패 후 다음 정책 계속 처리 같은 동작이 리팩터링 중 바뀌어도 바로 드러나지 않을 수 있었음
 - 해결: `BokjiroDetailCollectServiceTest` 에 연속 `429` 임계치 중단, empty payload skip, save failure 후 다음 정책 계속 처리 3개 케이스를 추가해 `requested/saved/failed` 집계와 후속 호출 여부를 고정했음
 - 이유: 신규 데이터 API 추가를 쉽게 만들려면 수집 파이프라인 구조를 바꾸더라도 기존 운영 계약은 테스트로 붙잡아야 한다. 특히 상세 수집은 호출 제한과 부분 성공 규칙이 얽혀 있어, 회귀가 나면 증상이 늦게 보이므로 단위 테스트로 먼저 막는 편이 안전하다
+
+## 122) local DB 계정 drift 복구 스크립트가 inherited shell env 나 현재 `.env` 의 `DB_USERNAME=root` 를 그대로 따라가면, 정작 필요한 `app_core_rw` 계정은 복구되지 않고 integration 이 계속 `Access denied` 로 막힐 수 있음
+- 문제: 로컬 Docker `mysql_data` volume의 split-account drift를 복구하려고 스크립트를 만들었지만, 초안은 기존 shell env 값을 보존하고 `DB_USERNAME` 을 그대로 app 계정명으로 써서, 작업 세션에 숨은 `DB_PASSWORD` 가 있거나 로컬 `.env` 가 아직 `DB_USERNAME=root` 인 경우 `app_core_rw` 대신 root만 다시 맞추는 잘못된 복구로 이어질 수 있었음
+- 해결: `deploy/mysql/reconcile-local-runtime-db-accounts.sh` 는 기본적으로 `ENV_FILE` 값을 shell env보다 우선으로 읽고, 대상 username도 `app_core_rw / app_pii_rw / notification_pii_ro / migration_admin` 으로 고정하도록 바꿨음. 이후 현재 volume에 재적용해 `app_core_rw`, `app_pii_rw` TCP 로그인과 `AdminSecurityIntegrationTest` 통과까지 확인했음
+- 이유: 로컬 drift 복구의 목적은 “현재 앱/runtime split-account 기준으로 다시 맞추기”이지, 이미 drift 된 `.env` runtime username을 그대로 재현하는 것이 아니다. hidden env나 legacy `root` username을 따라가면 복구 스크립트가 성공처럼 끝나도 integration 경로는 계속 깨질 수 있으므로, file precedence와 target username을 의도적으로 고정해야 한다
