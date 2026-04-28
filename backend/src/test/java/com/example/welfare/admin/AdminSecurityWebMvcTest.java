@@ -8,7 +8,9 @@ import com.example.welfare.global.util.JwtUtil;
 import com.example.welfare.policy.controller.PolicyAdminController;
 import com.example.welfare.policy.service.SearchYouthRelevanceService;
 import com.example.welfare.user.controller.UserAdminController;
+import com.example.welfare.user.dto.response.UserMetadataUserKeyBackfillResponse;
 import com.example.welfare.user.dto.response.UserPiiBackfillResponse;
+import com.example.welfare.user.service.UserMetadataUserKeyBackfillService;
 import com.example.welfare.user.service.UserPiiBackfillService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -40,6 +42,8 @@ class AdminSecurityWebMvcTest {
     private CollectService collectService;
     @MockBean
     private SearchYouthRelevanceService searchYouthRelevanceService;
+    @MockBean
+    private UserMetadataUserKeyBackfillService userMetadataUserKeyBackfillService;
     @MockBean
     private UserPiiBackfillService userPiiBackfillService;
     @MockBean
@@ -105,6 +109,28 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.data.skippedCount").value(1));
 
         then(userPiiBackfillService).should().backfillMissingEncryptedFields();
+    }
+
+    @Test
+    @DisplayName("관리자 토큰으로 metadata user_key 백필 API를 호출하면 백필 서비스를 실행한다")
+    void adminEndpointAllowsMetadataUserKeyBackfill() throws Exception {
+        mockAuthenticatedToken("admin-token", List.of(
+                new SimpleGrantedAuthority("ROLE_USER"),
+                new SimpleGrantedAuthority("ROLE_ADMIN")
+        ));
+        given(userMetadataUserKeyBackfillService.backfillMissingUserKeys())
+                .willReturn(new UserMetadataUserKeyBackfillResponse(5, 5, 3, 2));
+
+        mockMvc.perform(post("/api/admin/users/metadata-user-key-backfill")
+                        .header("Authorization", "Bearer admin-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.processedCount").value(5))
+                .andExpect(jsonPath("$.data.updatedRowCount").value(5))
+                .andExpect(jsonPath("$.data.attributeUpdatedCount").value(3))
+                .andExpect(jsonPath("$.data.priorityUpdatedCount").value(2));
+
+        then(userMetadataUserKeyBackfillService).should().backfillMissingUserKeys();
     }
 
     private void mockAuthenticatedToken(String token,

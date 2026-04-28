@@ -243,6 +243,11 @@
 - 해결: 이번 전환에서는 read query를 `user_id -> users.user_key` 조인 기준으로 바꿔 기존 데이터를 안전하게 읽도록 고정했고, 후속 작업으로 `user_key` write sync 및 backfill을 별도 항목으로 추가
 - 이유: cut-over 단계에서는 "새 키 기준 이상형"보다 "기존 운영 데이터가 빠짐없이 읽히는 것"이 우선이다. 보조 테이블 backfill 전까지는 조인 보정이 있어야 추천/프로필 품질 저하를 막을 수 있음
 
+## 49) migration backfill만 하고 저장 경로를 안 바꾸면 새 `user_attributes` / `user_priorities` row가 다시 `user_key=NULL` 로 쌓였을 수 있음
+- 문제: `V2026_04_27_02__add_user_key_columns.sql` 로 기존 row는 한 번 채울 수 있어도, JPA 저장 경로가 계속 `user_id`만 쓰면 이후 프로필 수정/우선순위 저장 때 새 row는 다시 `user_key` 없이 적재되어 read cut-over 이후 같은 문제가 반복될 수 있었음
+- 해결: `UserAttribute`, `UserPriority` 엔티티에 `userKey` 컬럼을 매핑하고 `UserService.updateProfile`, `UserService.updatePriorities` 가 저장 시 `user_key` 를 함께 쓰도록 변경했으며, 남아 있는 null row는 `/api/admin/users/metadata-user-key-backfill` 로 마무리하는 경로를 추가
+- 이유: cut-over 안정성은 "과거 데이터 1회 backfill"과 "미래 데이터 지속 동기화"가 둘 다 있어야 생긴다. 저장 경로를 같이 바꾸지 않으면 backfill은 일회성 복구에 그친다
+
 ## 48) 관리자 이메일 allowlist만 두면 공개 signup으로 권한 선점이 가능했음
 - 문제: 이메일 인증이 없는 현재 구조에서 `SECURITY_ADMIN_EMAILS`만 두고 `/api/admin/**` 권한을 주면, 해당 이메일 주소가 DB에 없을 때 누구나 공개 회원가입으로 관리자 계정을 선점할 수 있었음
 - 해결: 관리자 예약 이메일은 `signup`에서 차단하고, 운영자가 DB에 수동 생성한 계정만 관리자 권한을 얻도록 변경

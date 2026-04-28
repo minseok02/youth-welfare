@@ -20,6 +20,9 @@ public class UserPriority extends BaseTimeEntity {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
+    @Column(length = 32, columnDefinition = "CHAR(32)")
+    private String userKey;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "priority_option_id", nullable = false)
     private PriorityOption priorityOption;

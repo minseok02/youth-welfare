@@ -95,10 +95,12 @@ public class UserService {
 
         // 관심분야 속성 교체
         if (request.getInterestFields() != null) {
+            String userKey = resolveUserKey(userId);
             userAttributeRepository.deleteByUserIdAndAttrType(userId, UserAttribute.AttrType.INTEREST_FIELD.name());
             request.getInterestFields().forEach(field ->
                     userAttributeRepository.save(UserAttribute.builder()
                             .user(user)
+                            .userKey(userKey)
                             .attrType(UserAttribute.AttrType.INTEREST_FIELD.name())
                             .attrValue(field)
                             .build())
@@ -106,10 +108,12 @@ public class UserService {
         }
 
         if (request.getTargetTypes() != null) {
+            String userKey = resolveUserKey(userId);
             userAttributeRepository.deleteByUserIdAndAttrType(userId, UserAttribute.AttrType.TARGET_TYPE.name());
             request.getTargetTypes().forEach(targetType ->
                     userAttributeRepository.save(UserAttribute.builder()
                             .user(user)
+                            .userKey(userKey)
                             .attrType(UserAttribute.AttrType.TARGET_TYPE.name())
                             .attrValue(targetType)
                             .build())
@@ -123,6 +127,7 @@ public class UserService {
     @Transactional
     public void updatePriorities(Long userId, UpdatePrioritiesRequest request) {
         User user = findActiveUser(userId);
+        String userKey = resolveUserKey(userId);
         List<String> codes = request.getPriorityCodes();
 
         if (codes.size() > priorityWeightPolicy.maxRank()) {
@@ -142,6 +147,7 @@ public class UserService {
 
             userPriorityRepository.save(UserPriority.builder()
                     .user(user)
+                    .userKey(userKey)
                     .priorityOption(option)
                     .priorityRank(i + 1)
                     .weight(priorityWeightPolicy.weightForRank(i + 1))
@@ -215,5 +221,10 @@ public class UserService {
         } catch (Exception e) {
             throw new CustomException(ErrorCode.INVALID_INPUT);
         }
+    }
+
+    private String resolveUserKey(Long userId) {
+        return userRepository.findUserKeyById(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
     }
 }

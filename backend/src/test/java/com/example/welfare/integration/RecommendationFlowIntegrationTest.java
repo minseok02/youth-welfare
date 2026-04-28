@@ -117,10 +117,12 @@ class RecommendationFlowIntegrationTest {
                 .displayCount(10)
                 .build());
         userCoreSyncService.syncFromUser(user);
+        String userKey = userRepository.findUserKeyById(user.getId()).orElseThrow();
 
         PriorityOption housing = priorityOptionRepository.findByCode("HOUSING").orElseThrow();
         userPriorityRepository.save(UserPriority.builder()
                 .user(user)
+                .userKey(userKey)
                 .priorityOption(housing)
                 .priorityRank(1)
                 .weight(2.0)

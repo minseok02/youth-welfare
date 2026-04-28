@@ -120,6 +120,22 @@ curl -X POST http://127.0.0.1:8082/api/admin/users/pii-backfill \
 - `emailBackfilledCount`, `nameBackfilledCount`, `birthDateBackfilledCount`: 필드별 채운 건수
 - `skippedCount`: 원본 `users.email/name/birth_date` 가 비어 있어 채우지 못한 row 수
 
+## 앱 레벨 metadata `user_key` backfill 실행
+
+최신 백엔드 배포 후 `user_attributes`, `user_priorities` 의 `user_key` 누락 row는 관리자 API로 채운다.
+
+```bash
+curl -X POST http://127.0.0.1:8082/api/admin/users/metadata-user-key-backfill \
+  -H "Authorization: Bearer <ADMIN_ACCESS_TOKEN>"
+```
+
+응답 본문:
+
+- `processedCount`: `user_key` 누락 상태로 검사한 `user_attributes + user_priorities` row 수
+- `updatedRowCount`: 실제로 `user_key` 를 채운 전체 row 수
+- `attributeUpdatedCount`: `user_attributes.user_key` 채운 row 수
+- `priorityUpdatedCount`: `user_priorities.user_key` 채운 row 수
+
 ## 확인 쿼리
 
 ```sql
@@ -194,5 +210,6 @@ SELECT search_youth_relevant, COUNT(*) FROM welfare_services GROUP BY search_you
 - `V2026_04_27_02__add_user_key_columns.sql`은 세션 시작 시 `SET SESSION sql_log_bin = 0`을 실행한다. 현재 운영 절차처럼 root 또는 migration 전용 계정으로 수동 적용하는 것을 전제로 한다.
 - `V2026_04_27_03__add_user_core_split_tables.sql`도 세션 시작 시 `SET SESSION sql_log_bin = 0`을 실행한다.
 - `user_pii` 의 `email_enc/name_enc/birth_date_enc` 는 migration SQL로 직접 채우지 않는다. 최신 백엔드의 `/api/admin/users/pii-backfill` 가 `AesEncryptUtil` 과 같은 경로로 채우는 것이 기준이다.
+- `user_attributes`, `user_priorities` 의 `user_key` 도 migration backfill만으로 끝내지 않는다. migration 이후 JPA 저장 경로가 `user_key` 를 같이 쓰도록 최신 백엔드를 먼저 배포하고, 기존 누락 row는 `/api/admin/users/metadata-user-key-backfill` 로 마무리하는 것이 기준이다.
 - `users.name` 또는 `users.birth_date` 가 이미 비어 있는 row는 앱 레벨 backfill 이후에도 남을 수 있다. 이 경우는 source 원문이 없는 상태라 `skippedCount` 로 기록하고 억지로 placeholder 값을 넣지 않는다.
-- 하위 테이블의 `user_key`는 아직 nullable로 유지한다. dual-write/repository cut-over 전에는 기존 `user_id` FK가 계속 기준이다.
+- 하위 테이블의 `user_key`는 아직 nullable로 유지한다. 현재는 `user_attributes`, `user_priorities` 까지 write sync/backfill 을 반영했고, 나머지 테이블은 identity cut-over 전까지 기존 `user_id` FK와 함께 유지한다.

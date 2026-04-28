@@ -1,7 +1,9 @@
 package com.example.welfare.user.controller;
 
 import com.example.welfare.global.response.ApiResponse;
+import com.example.welfare.user.dto.response.UserMetadataUserKeyBackfillResponse;
 import com.example.welfare.user.dto.response.UserPiiBackfillResponse;
+import com.example.welfare.user.service.UserMetadataUserKeyBackfillService;
 import com.example.welfare.user.service.UserPiiBackfillService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -16,7 +18,14 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class UserAdminController {
 
+    private final UserMetadataUserKeyBackfillService userMetadataUserKeyBackfillService;
     private final UserPiiBackfillService userPiiBackfillService;
+
+    @PostMapping("/metadata-user-key-backfill")
+    public ResponseEntity<ApiResponse<UserMetadataUserKeyBackfillResponse>> backfillUserMetadataUserKeys() {
+        log.info("[Admin] user_attributes/user_priorities user_key 백필 트리거");
+        return ResponseEntity.ok(ApiResponse.success(userMetadataUserKeyBackfillService.backfillMissingUserKeys()));
+    }
 
     @PostMapping("/pii-backfill")
     public ResponseEntity<ApiResponse<UserPiiBackfillResponse>> backfillUserPii() {

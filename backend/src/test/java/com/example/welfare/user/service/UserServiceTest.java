@@ -7,8 +7,11 @@ import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.recommend.entity.UserRecommendation;
 import com.example.welfare.recommend.repository.UserRecommendationRepository;
 import com.example.welfare.user.dto.request.UpdateProfileRequest;
+import com.example.welfare.user.dto.request.UpdatePrioritiesRequest;
+import com.example.welfare.user.entity.PriorityOption;
 import com.example.welfare.user.entity.User;
 import com.example.welfare.user.entity.UserAttribute;
+import com.example.welfare.user.entity.UserPriority;
 import com.example.welfare.user.repository.PriorityOptionRepository;
 import com.example.welfare.user.repository.UserAttributeRepository;
 import com.example.welfare.user.repository.UserPriorityRepository;
@@ -29,6 +32,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -78,6 +82,7 @@ class UserServiceTest {
                 .birthDate(LocalDate.of(1998, 1, 1))
                 .build();
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(userRepository.findUserKeyById(1L)).thenReturn(Optional.of("user-key-1"));
 
         UpdateProfileRequest request = new UpdateProfileRequest();
         ReflectionTestUtils.setField(request, "interestFields", List.of("주거", "취업"));
@@ -92,12 +97,46 @@ class UserServiceTest {
         ArgumentCaptor<UserAttribute> captor = ArgumentCaptor.forClass(UserAttribute.class);
         verify(userAttributeRepository, times(4)).save(captor.capture());
         assertThat(captor.getAllValues())
-                .extracting(UserAttribute::getAttrType, UserAttribute::getAttrValue)
+                .extracting(UserAttribute::getUserKey, UserAttribute::getAttrType, UserAttribute::getAttrValue)
                 .containsExactlyInAnyOrder(
-                        Tuple.tuple(UserAttribute.AttrType.INTEREST_FIELD.name(), "주거"),
-                        Tuple.tuple(UserAttribute.AttrType.INTEREST_FIELD.name(), "취업"),
-                        Tuple.tuple(UserAttribute.AttrType.TARGET_TYPE.name(), "농어촌"),
-                        Tuple.tuple(UserAttribute.AttrType.TARGET_TYPE.name(), "자립준비청년")
+                        Tuple.tuple("user-key-1", UserAttribute.AttrType.INTEREST_FIELD.name(), "주거"),
+                        Tuple.tuple("user-key-1", UserAttribute.AttrType.INTEREST_FIELD.name(), "취업"),
+                        Tuple.tuple("user-key-1", UserAttribute.AttrType.TARGET_TYPE.name(), "농어촌"),
+                        Tuple.tuple("user-key-1", UserAttribute.AttrType.TARGET_TYPE.name(), "자립준비청년")
+                );
+    }
+
+    @Test
+    @DisplayName("우선순위 저장 시 각 row에 user_key를 함께 기록한다")
+    void updatePrioritiesWritesUserKey() {
+        User user = User.builder()
+                .id(1L)
+                .email("user@example.com")
+                .passwordHash("hash")
+                .build();
+        PriorityOption housing = mock(PriorityOption.class);
+        PriorityOption job = mock(PriorityOption.class);
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(userRepository.findUserKeyById(1L)).thenReturn(Optional.of("user-key-1"));
+        when(priorityWeightPolicy.maxRank()).thenReturn(5);
+        when(priorityWeightPolicy.weightForRank(1)).thenReturn(2.0);
+        when(priorityWeightPolicy.weightForRank(2)).thenReturn(1.6);
+        when(priorityOptionRepository.findByCode("HOUSING")).thenReturn(Optional.of(housing));
+        when(priorityOptionRepository.findByCode("JOB")).thenReturn(Optional.of(job));
+
+        UpdatePrioritiesRequest request = new UpdatePrioritiesRequest();
+        ReflectionTestUtils.setField(request, "priorityCodes", List.of("HOUSING", "JOB"));
+
+        userService.updatePriorities(1L, request);
+
+        ArgumentCaptor<UserPriority> captor = ArgumentCaptor.forClass(UserPriority.class);
+        verify(userPriorityRepository, times(2)).save(captor.capture());
+        assertThat(captor.getAllValues())
+                .extracting(UserPriority::getUserKey, UserPriority::getPriorityRank, UserPriority::getWeight)
+                .containsExactly(
+                        Tuple.tuple("user-key-1", 1, 2.0),
+                        Tuple.tuple("user-key-1", 2, 1.6)
                 );
     }
 

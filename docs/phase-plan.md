@@ -13,7 +13,7 @@ CTR 분석 기본 쿼리 실행 결과를 확보했고, 현재 데이터는 `46�
 사용자 PII 분리 이행안은 `2 schema`, `user_key` 선행, `dual-write -> read cut-over` 순서로 확정했고, 1단계 `user_key` migration, 2단계 core 분리 테이블(`auth_users`, `user_profiles`, `user_pii`) 생성/backfill, 3단계 회원가입/프로필/비밀번호/회원탈퇴 dual-write와 `user_pii.email_enc/name_enc/birth_date_enc` 앱 레벨 암호화 backfill, 4단계 프로필 조회/추천/알림 read path 전환까지 반영했습니다.
 데모 시나리오 전체 실행 완료 및 발견된 문제 수정됐습니다.
 로컬 Docker MySQL 기준 `user_pii` 24건 중 `email_enc` 24건, `name_enc` 21건, `birth_date_enc` 21건이 채워졌고, 남은 3건은 원본 `users.name/birth_date` 가 비어 있어 skip 됐습니다.
-남은 작업은 운영 배포/운영성 검증(운영 서버 Docker Compose, HTTPS/Nginx, 런타임 DB 계정 분리, `user_attributes/user_priorities.user_key` write sync/backfill, CTR 표본 확충 후 재분석)과 2차 확장 기능(군집 캐시 추천, 카카오 알림톡, 검색 로그, 대시보드)입니다.
+남은 작업은 운영 배포/운영성 검증(운영 서버 Docker Compose, HTTPS/Nginx, 런타임 DB 계정 분리, JWT/토큰/로그/세션 기준 `user_key` identity cut-over, CTR 표본 확충 후 재분석)과 2차 확장 기능(군집 캐시 추천, 카카오 알림톡, 검색 로그, 대시보드)입니다.
 
 ## 완료된 백엔드 1차 범위
 
@@ -360,6 +360,14 @@ CTR 분석 기본 쿼리 실행 결과를 확보했고, 현재 데이터는 `46�
 - 2026-04-28 `docker compose up -d db redis`
 - 2026-04-28 프로필/추천/알림 read path 전환 후 `backend`에서 `./gradlew integrationTest --no-daemon --tests com.example.welfare.integration.RecommendationFlowIntegrationTest --tests com.example.welfare.integration.UserCoreDualWriteIntegrationTest`
 - 2026-04-28 프로필/추천/알림 read path 전환 후 `backend`에서 `./gradlew test --no-daemon`
+- 2026-04-28 `user_attributes/user_priorities.user_key` write sync 및 backfill 적용
+  - `UserAttribute`, `UserPriority` 저장 시 `user_key`를 함께 기록하도록 `UserService.updateProfile`, `UserService.updatePriorities` 저장 경로 수정
+  - `POST /api/admin/users/metadata-user-key-backfill` 관리자 API와 `UserMetadataUserKeyBackfillService` 추가
+  - `user_attributes`, `user_priorities` read query를 `user_key` 직독 기준으로 되돌리고, 기존 null row는 관리자 backfill로 보정하는 구조로 정리
+- 2026-04-28 metadata `user_key` write sync/backfill 후 `backend`에서 `./gradlew test --no-daemon --tests com.example.welfare.user.service.UserServiceTest --tests com.example.welfare.user.service.UserMetadataUserKeyBackfillServiceTest --tests com.example.welfare.admin.AdminSecurityWebMvcTest`
+- 2026-04-28 `docker compose up -d db redis`
+- 2026-04-28 metadata `user_key` write sync/backfill 후 `backend`에서 `./gradlew integrationTest --no-daemon --tests com.example.welfare.integration.RecommendationFlowIntegrationTest --tests com.example.welfare.integration.UserCoreDualWriteIntegrationTest --tests com.example.welfare.integration.UserMetadataUserKeyBackfillIntegrationTest`
+- 2026-04-28 metadata `user_key` write sync/backfill 후 `backend`에서 `./gradlew test --no-daemon`
 
 ## 작업 추적
 
@@ -371,13 +379,14 @@ CTR 분석 기본 쿼리 실행 결과를 확보했고, 현재 데이터는 `46�
 
 - [ ] 운영 서버 Docker Compose 기동
 - [ ] HTTPS/Nginx 적용
-- [ ] `user_attributes/user_priorities.user_key` write sync 및 backfill 적용
 - [ ] 런타임 DB 계정 root 제거 및 기능별 계정 분리 (`app_core_rw`, `app_pii_rw`, `notification_pii_ro`)
+- [ ] JWT subject / refresh token / 비밀번호 재설정 토큰 / 로그·세션 참조의 `user_key` identity cut-over
 - [ ] CTR 표본 추가 확보 후 rule/AI 가중치 및 프롬프트 재분석
 - [ ] 카카오 알림톡 연동 (2차, 심사 완료 후)
 
 ### 완료
 
+- [x] `user_attributes/user_priorities.user_key` write sync 및 backfill 적용
 - [x] 프로필 조회/추천/알림 read path를 `user_profiles` + `user_pii` 기준으로 전환
 - [x] 비밀번호 재설정 메일 발송 주소를 `user_pii.email_enc` 복호화 기준으로 전환
 - [x] `user_pii.email_enc/name_enc/birth_date_enc` 앱 레벨 암호화 backfill

@@ -66,8 +66,8 @@
   - 로그인/비밀번호 재설정 조회의 `auth_users` 전환
   - `user_pii.email_enc/name_enc/birth_date_enc` 앱 레벨 암호화 backfill
   - 프로필 조회/추천/알림 read path의 `user_profiles + user_pii` 전환
-- 남은 작업
   - `user_attributes`, `user_priorities` 의 `user_key` write sync 및 backfill
+- 남은 작업
   - JWT subject, refresh token key, 비밀번호 재설정 토큰 key의 `user_key` 전환
   - `ManyToOne User` 제거와 `user_id` FK 정리
   - 런타임 datasource 권한 분리 (`app_core_rw`, `app_pii_rw`, `notification_pii_ro`)
@@ -671,8 +671,8 @@
 
 - 로그인/비밀번호 재설정 조회 전환 완료
 - 프로필 조회/추천/알림 read path 전환 완료
-- 다만 `user_attributes`, `user_priorities` 는 운영 데이터 호환을 위해 당분간 `user_id -> users.user_key` 조인 read 를 유지
-- 따라서 이 단계의 잔여 작업은 `user_key` write sync/backfill 정리와 조인 제거다
+- `user_attributes`, `user_priorities` 의 `user_key` write sync/backfill 완료
+- 따라서 이 단계는 운영 호환 조인 없이 `user_key` 직독 기준으로 정리됐다
 
 ### 4단계: identity cut-over
 
@@ -722,7 +722,7 @@
 - 프로필 조회/추천/알림 read path 전환 완료
 - `NotificationService` 이메일 조회 분리 완료
 - 나이 파생값은 `UserCoreSyncService` 저장 시 재계산 경로로 반영 중
-- 후속으로 `user_attributes/user_priorities.user_key` write sync/backfill 이 남아 있다
+- `user_attributes/user_priorities.user_key` write sync/backfill 까지 완료
 
 ### Release D
 

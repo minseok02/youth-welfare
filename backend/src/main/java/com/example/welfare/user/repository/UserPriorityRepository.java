@@ -17,12 +17,27 @@ public interface UserPriorityRepository extends JpaRepository<UserPriority, Long
                    po.code as code,
                    up.weight as weight
             from user_priorities up
-            join users u on u.id = up.user_id
             join priority_options po on po.id = up.priority_option_id
-            where u.user_key = ?1
+            where up.user_key = ?1
             order by up.priority_rank
             """, nativeQuery = true)
     List<UserPriorityReadModel> findReadModelsByUserKey(String userKey);
+
+    @Query(value = """
+            select count(*)
+            from user_priorities
+            where user_key is null or user_key = ''
+            """, nativeQuery = true)
+    int countMissingUserKeys();
+
+    @Modifying
+    @Query(value = """
+            update user_priorities up
+            join users u on u.id = up.user_id
+            set up.user_key = u.user_key
+            where up.user_key is null or up.user_key = ''
+            """, nativeQuery = true)
+    int backfillMissingUserKeys();
 
     // @Modifying으로 즉시 DELETE를 DB에 반영 — 같은 트랜잭션에서 INSERT 전 flush 보장
     @Modifying
