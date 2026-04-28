@@ -73,8 +73,10 @@
   - `notifications`, `recommendation_logs`, `service_view_logs`, `chat_sessions` 의 `user_key` write 경로 반영
   - `chat_sessions`, `notifications`, `recommendation_logs` 의 `ManyToOne User` 제거와 `user_key` 기준 read/cleanup 전환
   - `user_recommendations` 의 `ManyToOne User` 제거와 추천/북마크 read path 의 `user_key` 전환
+  - legacy runtime 테이블의 `user_id` 호환 컬럼 drop 대상과 migration 순서 설계
 - 남은 작업
-  - legacy `user_id` 호환 컬럼 drop 대상 정리와 migration 설계
+  - `user_attributes`, `user_priorities` 의 write/delete 경로를 `user_key` 기준으로 전환하고 `ManyToOne User` 제거
+  - runtime 테이블 legacy `user_id` drop migration SQL 작성 및 운영 리허설
   - 런타임 datasource 권한 분리 (`app_core_rw`, `app_pii_rw`, `notification_pii_ro`)
 
 ## 현재 권한 구조의 문제
@@ -687,8 +689,39 @@
 
 현재 상태:
 
-- 아직 미착수
-- 3단계 read path 전환은 끝났지만 identity cut-over 전에 보조 테이블 `user_key` write sync/backfill 을 먼저 끝내는 것이 안전하다
+- access token / refresh token / notification unsubscribe token subject, Redis key, read path 전환은 완료
+- `chat_sessions`, `notifications`, `recommendation_logs`, `user_recommendations` 는 `user_key` 기준 read/write 로 정리 완료
+- 다만 `user_attributes`, `user_priorities` 는 저장/삭제 경로가 아직 `userId` 와 `@ManyToOne User` 에 묶여 있어, 이 둘은 실제 `user_id` drop 전 선행 전환이 필요하다
+
+### 4.5단계: legacy `user_id` drop 설계
+
+현재 코드 기준 drop 대상은 한 번에 묶지 않고 아래처럼 나눠야 한다.
+
+- 1차 drop 후보
+  - `user_recommendations`
+    - 교체 대상: `uq_ur_user_service_time`, `idx_ur_user_score`, `idx_ur_bookmark`, `fk_ur_user`, `user_id`
+    - 목표 기준: `(user_key, service_id, recommended_at)`, `(user_key, final_score DESC)`, `(user_key, is_bookmarked)`
+  - `recommendation_logs`
+    - 교체 대상: `idx_rl_user`, `fk_rl_user`, `user_id`
+    - 목표 기준: `idx_rl_user_key_sent` 유지, `user_key NOT NULL`
+  - `notifications`
+    - 교체 대상: `idx_noti_user_created`, `fk_noti_user`, `user_id`
+    - 목표 기준: `idx_noti_user_key_created` 유지, `user_key NOT NULL`
+  - `chat_sessions`
+    - 교체 대상: `idx_cs_user_last_message`, `idx_cs_user_created`, `fk_cs_user`, `user_id`
+    - 목표 기준: `idx_cs_user_key_last_message`, `idx_cs_user_key_created` 유지, `user_key NOT NULL`
+  - `service_view_logs`
+    - 교체 대상: `idx_svl_user_service_viewed`, `user_id`
+    - 목표 기준: 로그인 사용자는 `(user_key, service_id, viewed_at)` dedup, 비로그인은 기존 `client_fingerprint` 기준 유지
+- 2차 선행 전환 필요
+  - `user_attributes`
+    - 현재 `deleteByUserId`, `findByUserIdAndAttrType`, `UserAttribute.user` 연관이 남아 있음
+  - `user_priorities`
+    - 현재 `deleteByUserId`, `findByUserIdOrderByPriorityRank`, `UserPriority.user` 연관이 남아 있음
+- 유지 대상
+  - `users.id`
+    - 아직 서비스 내부 PK, 일부 DTO, `uid` claim, 운영 추적용 숫자 식별자로 쓰인다
+    - 따라서 이번 drop 범위는 하위 runtime 테이블의 호환 `user_id` 컬럼/FK까지만 본다
 
 ### 5단계: 물리 분리와 정리
 
@@ -737,7 +770,14 @@
 
 현재 상태:
 
-- 아직 미착수
+- JWT `user_key` 전환, custom principal 전환, runtime 주요 테이블의 `ManyToOne User` 제거는 완료
+- 남은 범위는 `user_attributes`, `user_priorities` 의 쓰기 경로 전환과 실제 drop migration SQL 작성이다
+
+### Release E
+
+- runtime 테이블의 legacy `user_id` 인덱스/FK/컬럼 제거
+- `schema.sql` 과 엔티티 `@Table(indexes=...)` 메타데이터를 `user_key` 기준으로 동시 정리
+- 운영 DB에 drop SQL 적용 후 무결성/성능 재검증
 
 ## 이 설계에서 주의할 점
 

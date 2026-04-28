@@ -13,7 +13,7 @@ CTR 분석 기본 쿼리 실행 결과를 확보했고, 현재 데이터는 `46�
 사용자 PII 분리 이행안은 `2 schema`, `user_key` 선행, `dual-write -> read cut-over` 순서로 확정했고, 1단계 `user_key` migration, 2단계 core 분리 테이블(`auth_users`, `user_profiles`, `user_pii`) 생성/backfill, 3단계 회원가입/프로필/비밀번호/회원탈퇴 dual-write와 `user_pii.email_enc/name_enc/birth_date_enc` 앱 레벨 암호화 backfill, 4단계 프로필 조회/추천/알림 read path 전환, 5단계 JWT/Redis 토큰/로그·세션 기준 `user_key` identity cut-over 1차, 6단계 chat/notification/recommendation log/view log의 legacy `user_id` fallback 제거, 7단계 JWT custom principal cut-over까지 반영했습니다.
 데모 시나리오 전체 실행 완료 및 발견된 문제 수정됐습니다.
 로컬 Docker MySQL 기준 `user_pii` 24건 중 `email_enc` 24건, `name_enc` 21건, `birth_date_enc` 21건이 채워졌고, 남은 3건은 원본 `users.name/birth_date` 가 비어 있어 skip 됐습니다.
-남은 작업은 운영 배포/운영성 검증(운영 서버 Docker Compose, HTTPS/Nginx, 런타임 DB 계정 분리, `user_recommendations` 중심의 잔여 `user_id`/FK 정리, CTR 표본 확충 후 재분석)과 2차 확장 기능(군집 캐시 추천, 카카오 알림톡, 검색 로그, 대시보드)입니다.
+남은 작업은 운영 배포/운영성 검증(운영 서버 Docker Compose, HTTPS/Nginx, 런타임 DB 계정 분리, `user_attributes`/`user_priorities` 의 `user_key` write path 전환 후 legacy `user_id` drop migration 작성/실행, CTR 표본 확충 후 재분석)과 2차 확장 기능(군집 캐시 추천, 카카오 알림톡, 검색 로그, 대시보드)입니다.
 
 ## 완료된 백엔드 1차 범위
 
@@ -401,6 +401,9 @@ CTR 분석 기본 쿼리 실행 결과를 확보했고, 현재 데이터는 `46�
 - 2026-04-28 `user_recommendations` / 북마크 경로 전환 후 `backend`에서 `./gradlew integrationTest --no-daemon --tests com.example.welfare.integration.PolicyBookmarkIntegrationTest --tests com.example.welfare.integration.RecommendationFlowIntegrationTest`
 - 2026-04-28 `user_recommendations` / 북마크 경로 전환 후 `backend`에서 `./gradlew test --no-daemon`
 - 2026-04-28 `user_recommendations` / 북마크 경로 전환 후 `backend`에서 `./gradlew integrationTest --no-daemon`
+- 2026-04-28 legacy `user_id` drop 대상 및 migration 순서 문서화
+  - `docs/user-data-separation-design.md`, `docs/db-migration.md` 에 즉시 drop 후보와 선행 전환 필요 대상을 분리해 반영
+  - `docs/api-mapping.md`, `docs/chatbot-plan.md` 의 남아 있던 `user_id` 기준 설명을 현재 `user_key` 계약에 맞게 정리
 
 ## 작업 추적
 
@@ -413,12 +416,14 @@ CTR 분석 기본 쿼리 실행 결과를 확보했고, 현재 데이터는 `46�
 - [ ] 운영 서버 Docker Compose 기동
 - [ ] HTTPS/Nginx 적용
 - [ ] 런타임 DB 계정 root 제거 및 기능별 계정 분리 (`app_core_rw`, `app_pii_rw`, `notification_pii_ro`)
-- [ ] legacy `user_id` 호환 컬럼 drop 대상 정리 및 migration 설계
+- [ ] `user_attributes` / `user_priorities` 의 `user_key` 기준 write/delete 전환 및 `ManyToOne User` 제거
+- [ ] runtime 테이블 legacy `user_id` drop migration SQL 작성 및 운영 리허설
 - [ ] CTR 표본 추가 확보 후 rule/AI 가중치 및 프롬프트 재분석
 - [ ] 카카오 알림톡 연동 (2차, 심사 완료 후)
 
 ### 완료
 
+- [x] legacy `user_id` 호환 컬럼 drop 대상 정리 및 migration 설계
 - [x] `user_recommendations` / 북마크 경로의 `user_key` 전환 및 `UserRecommendation` 의 `ManyToOne User` 제거
 - [x] JWT principal을 custom principal 기준으로 전환하고 컨트롤러 인증 경로를 raw `Long` principal 의존에서 분리
 - [x] chat/notification/recommendation log/view log의 legacy `user_id` fallback 제거 및 `ManyToOne User` 축소
@@ -549,6 +554,8 @@ cd backend
 - 2026-04-28 비밀번호 재설정 발송 주소 전환 후 `backend`에서 `./gradlew test --no-daemon --tests com.example.welfare.user.service.AuthServiceTest`
 - 2026-04-28 비밀번호 재설정 발송 주소 전환 후 `backend`에서 `./gradlew integrationTest --no-daemon --tests com.example.welfare.integration.AuthRedisIntegrationTest`
 - 2026-04-28 비밀번호 재설정 발송 주소 전환 후 `backend`에서 `./gradlew test --no-daemon`
+- 2026-04-28 legacy `user_id` drop 설계 문서화 후 `git diff --check`
+- 2026-04-28 legacy `user_id` drop 설계 문서화 후 `docs` 링크/상태 수기 점검
 
 ## 남은 1차 작업
 
@@ -556,7 +563,8 @@ cd backend
 
 - EC2 또는 운영 서버에서 Docker Compose 기동
 - HTTPS/Nginx 적용
-- `user_recommendations` / 북마크 경로의 `user_key` 전환 및 잔여 `user_id` FK 정리
+- `user_attributes` / `user_priorities` 의 `user_key` 기준 write/delete 전환 및 `ManyToOne User` 제거
+- runtime 테이블 legacy `user_id` drop migration SQL 작성 및 운영 리허설
 - 런타임 DB 계정 root 제거 및 기능별 계정 분리
 - CTR 표본 추가 확보 후 rule/AI 가중치 및 프롬프트 재분석
 

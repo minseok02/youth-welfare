@@ -60,6 +60,64 @@
   - `raw_api_payloads` 생성
   - 공공 API 목록/상세 원문 payload 보관
 
+## 다음 마이그레이션 설계
+
+다음 단계는 "새 `user_key` 컬럼 추가"가 아니라, 호환용으로 남겨둔 runtime 테이블의 legacy `user_id` 인덱스/FK/컬럼을 안전하게 제거하는 것이다.
+
+### 1차 drop 후보
+
+- `user_recommendations`
+  - drop: `uq_ur_user_service_time`, `idx_ur_user_score`, `idx_ur_bookmark`, `fk_ur_user`, `user_id`
+  - keep/replace: `user_key NOT NULL`, `(user_key, service_id, recommended_at)` 유니크 키, `(user_key, final_score DESC)`, `(user_key, is_bookmarked)`
+- `recommendation_logs`
+  - drop: `idx_rl_user`, `fk_rl_user`, `user_id`
+  - keep/replace: `user_key NOT NULL`, `idx_rl_user_key_sent`
+- `notifications`
+  - drop: `idx_noti_user_created`, `fk_noti_user`, `user_id`
+  - keep/replace: `user_key NOT NULL`, `idx_noti_user_key_created`
+- `chat_sessions`
+  - drop: `idx_cs_user_last_message`, `idx_cs_user_created`, `fk_cs_user`, `user_id`
+  - keep/replace: `user_key NOT NULL`, `idx_cs_user_key_last_message`, `idx_cs_user_key_created`
+- `service_view_logs`
+  - drop: `idx_svl_user_service_viewed`, `user_id`
+  - keep/replace: 로그인 사용자는 `user_key`, 비로그인은 `client_fingerprint` 기준 dedup 유지
+
+### drop 보류 대상
+
+- `user_attributes`
+  - 현재 `UserService.updateProfile`, `withdraw`, `calculateCompleteness` 와 repository delete/find 메서드가 `userId` 경로를 사용한다.
+- `user_priorities`
+  - 현재 `UserService.updatePriorities` 와 repository delete/find 메서드가 `userId` 경로를 사용한다.
+- `users.id`
+  - 현재 내부 PK와 일부 응답/로그 식별자로 남아 있으므로 이번 단계에서 제거하지 않는다.
+
+즉, 실제 drop SQL은 최소 2번으로 나누는 것이 안전하다.
+
+1. `user_attributes` / `user_priorities` write path 를 `user_key` 기준으로 먼저 전환
+2. 그 다음 runtime 테이블 `user_id` 인덱스/FK/컬럼 drop SQL 적용
+
+### drop 전 체크리스트
+
+- 최신 백엔드가 `user_recommendations`, `recommendation_logs`, `notifications`, `chat_sessions`, `service_view_logs` 를 모두 `user_key` 기준으로 읽고 쓰는지 확인
+- `user_attributes`, `user_priorities` 의 저장/삭제 경로가 더 이상 `userId` 에 의존하지 않는지 확인
+- `schema.sql` 과 엔티티 `@Table(indexes=...)` 정의를 drop 후 구조와 같이 수정
+- 운영 DB에서 `user_key IS NULL` row 가 없는지 확인
+
+### drop 후 검증 쿼리 초안
+
+```sql
+SHOW COLUMNS FROM user_recommendations LIKE 'user_id';
+SHOW COLUMNS FROM recommendation_logs LIKE 'user_id';
+SHOW COLUMNS FROM notifications LIKE 'user_id';
+SHOW COLUMNS FROM chat_sessions LIKE 'user_id';
+SHOW COLUMNS FROM service_view_logs LIKE 'user_id';
+SHOW INDEX FROM user_recommendations WHERE Key_name IN ('uq_ur_user_service_time', 'idx_ur_user_score', 'idx_ur_bookmark');
+SHOW INDEX FROM recommendation_logs WHERE Key_name = 'idx_rl_user';
+SHOW INDEX FROM notifications WHERE Key_name = 'idx_noti_user_created';
+SHOW INDEX FROM chat_sessions WHERE Key_name IN ('idx_cs_user_last_message', 'idx_cs_user_created');
+SHOW INDEX FROM service_view_logs WHERE Key_name = 'idx_svl_user_service_viewed';
+```
+
 ## 적용 방법
 
 ```bash

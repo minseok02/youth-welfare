@@ -515,7 +515,7 @@ public void resetAiScoreForClosed() {
 
 - 조회수 정책
   - 24시간 dedup 적용
-  - 로그인: `(user_id, service_id)` 기준
+  - 로그인: `(user_key, service_id)` 기준
   - 비로그인: `(client_fingerprint, service_id)` 기준
 - 주요 응답 필드
   - `id`, `title`, `description`, `unifiedCategory`, `status`, `sourceType`

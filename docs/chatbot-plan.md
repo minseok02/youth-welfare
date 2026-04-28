@@ -56,7 +56,8 @@ ChatController
 ### `chat_sessions`
 
 - `id`
-- `user_id`
+- `user_key`
+- `user_id` (`legacy` 호환 컬럼, drop 전까지 임시 유지)
 - `title`
 - `last_message_at`
 - `created_at`
@@ -64,7 +65,7 @@ ChatController
 
 인덱스:
 
-- `(user_id, last_message_at desc)`
+- `(user_key, last_message_at desc)`
 
 ### `chat_messages`
 
