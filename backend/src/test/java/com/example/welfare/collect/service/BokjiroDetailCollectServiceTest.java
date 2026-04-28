@@ -22,10 +22,13 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.times;
 
 @ExtendWith(MockitoExtension.class)
 class BokjiroDetailCollectServiceTest {
@@ -130,6 +133,101 @@ class BokjiroDetailCollectServiceTest {
 
         verify(rawApiPayloadService).saveBokjiroDetail(WelfareService.SourceType.BOKJIRO_CENTRAL, "CENTRAL-2", payload);
         verify(searchYouthRelevanceService).refreshForService(eq(central), eq(tags));
+    }
+
+    @Test
+    @DisplayName("상세 수집은 연속 429 가 임계치를 넘으면 현재 source 처리를 중단한다")
+    void collectBokjiroDetailsStopsAfterConsecutiveRateLimits() {
+        WelfareService first = welfareService(21L, WelfareService.SourceType.BOKJIRO_CENTRAL, "CENTRAL-21");
+        WelfareService second = welfareService(22L, WelfareService.SourceType.BOKJIRO_CENTRAL, "CENTRAL-22");
+        WelfareService third = welfareService(23L, WelfareService.SourceType.BOKJIRO_CENTRAL, "CENTRAL-23");
+
+        ReflectionTestUtils.setField(service, "maxConsecutiveRateLimitHits", 2);
+        given(welfareServiceRepository.findBySourceType(WelfareService.SourceType.BOKJIRO_CENTRAL))
+                .willReturn(List.of(first, second, third));
+        given(detailRepository.existsByServiceId(any())).willReturn(false);
+        given(detailClient.fetchCentralWithStatus("CENTRAL-21"))
+                .willReturn(BokjiroDetailClient.FetchResult.failure(false, true, 429));
+        given(detailClient.fetchCentralWithStatus("CENTRAL-22"))
+                .willReturn(BokjiroDetailClient.FetchResult.failure(false, true, 429));
+
+        CollectResult result = service.collectBokjiroDetailsResult(3);
+
+        assertThat(result.requestedCount()).isEqualTo(2);
+        assertThat(result.savedCount()).isZero();
+        assertThat(result.skippedCount()).isZero();
+        assertThat(result.failedCount()).isZero();
+        verify(detailClient, never()).fetchCentralWithStatus("CENTRAL-23");
+        verify(detailRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("상세 수집은 빈 payload 를 실패로 세지 않고 저장 없이 다음 정책으로 진행한다")
+    void collectBokjiroDetailsSkipsEmptyPayloadWithoutFailure() {
+        WelfareService emptyPayloadService = welfareService(31L, WelfareService.SourceType.BOKJIRO_CENTRAL, "CENTRAL-31");
+        WelfareService savedService = welfareService(32L, WelfareService.SourceType.BOKJIRO_CENTRAL, "CENTRAL-32");
+        BokjiroDetailClient.DetailPayload emptyPayload = BokjiroDetailClient.DetailPayload.builder().build();
+        BokjiroDetailClient.DetailPayload validPayload = BokjiroDetailClient.DetailPayload.builder()
+                .supportDetail("지원 내용")
+                .applyMethodDetail("온라인 신청")
+                .build();
+
+        given(welfareServiceRepository.findBySourceType(WelfareService.SourceType.BOKJIRO_CENTRAL))
+                .willReturn(List.of(emptyPayloadService, savedService));
+        given(detailRepository.existsByServiceId(any())).willReturn(false);
+        given(detailClient.fetchCentralWithStatus("CENTRAL-31"))
+                .willReturn(BokjiroDetailClient.FetchResult.success(emptyPayload));
+        given(detailClient.fetchCentralWithStatus("CENTRAL-32"))
+                .willReturn(BokjiroDetailClient.FetchResult.success(validPayload));
+        given(serviceTagRepository.findByServiceId(32L)).willReturn(List.of());
+
+        CollectResult result = service.collectBokjiroDetailsResult(2);
+
+        assertThat(result.requestedCount()).isEqualTo(2);
+        assertThat(result.savedCount()).isEqualTo(1);
+        assertThat(result.failedCount()).isZero();
+        verify(rawApiPayloadService, never())
+                .saveBokjiroDetail(WelfareService.SourceType.BOKJIRO_CENTRAL, "CENTRAL-31", emptyPayload);
+        verify(rawApiPayloadService)
+                .saveBokjiroDetail(WelfareService.SourceType.BOKJIRO_CENTRAL, "CENTRAL-32", validPayload);
+        verify(detailRepository, times(1)).save(any(WelfareServiceDetail.class));
+    }
+
+    @Test
+    @DisplayName("상세 저장이 일부 실패해도 다음 정책은 계속 처리해 partial success 집계를 남긴다")
+    void collectBokjiroDetailsContinuesAfterSaveFailure() {
+        WelfareService failingService = welfareService(41L, WelfareService.SourceType.BOKJIRO_CENTRAL, "CENTRAL-41");
+        WelfareService succeedingService = welfareService(42L, WelfareService.SourceType.BOKJIRO_CENTRAL, "CENTRAL-42");
+        BokjiroDetailClient.DetailPayload failingPayload = BokjiroDetailClient.DetailPayload.builder()
+                .supportDetail("실패 payload")
+                .build();
+        BokjiroDetailClient.DetailPayload succeedingPayload = BokjiroDetailClient.DetailPayload.builder()
+                .supportDetail("성공 payload")
+                .build();
+
+        given(welfareServiceRepository.findBySourceType(WelfareService.SourceType.BOKJIRO_CENTRAL))
+                .willReturn(List.of(failingService, succeedingService));
+        given(detailRepository.existsByServiceId(any())).willReturn(false);
+        given(detailClient.fetchCentralWithStatus("CENTRAL-41"))
+                .willReturn(BokjiroDetailClient.FetchResult.success(failingPayload));
+        given(detailClient.fetchCentralWithStatus("CENTRAL-42"))
+                .willReturn(BokjiroDetailClient.FetchResult.success(succeedingPayload));
+        willThrow(new IllegalStateException("save failed"))
+                .given(detailRepository)
+                .save(argThat(detail -> detail.getService().equals(failingService)));
+        given(serviceTagRepository.findByServiceId(42L)).willReturn(List.of());
+
+        CollectResult result = service.collectBokjiroDetailsResult(2);
+
+        assertThat(result.requestedCount()).isEqualTo(2);
+        assertThat(result.savedCount()).isEqualTo(1);
+        assertThat(result.failedCount()).isEqualTo(1);
+        verify(rawApiPayloadService)
+                .saveBokjiroDetail(WelfareService.SourceType.BOKJIRO_CENTRAL, "CENTRAL-41", failingPayload);
+        verify(rawApiPayloadService)
+                .saveBokjiroDetail(WelfareService.SourceType.BOKJIRO_CENTRAL, "CENTRAL-42", succeedingPayload);
+        verify(searchYouthRelevanceService, never()).refreshForService(eq(failingService), any());
+        verify(searchYouthRelevanceService).refreshForService(eq(succeedingService), eq(List.of()));
     }
 
     private WelfareService welfareService(Long id, WelfareService.SourceType sourceType, String sourceId) {

@@ -612,3 +612,8 @@
 - 문제: 관리자 수동 수집 generic dispatch 검증 중 `docker compose up -d db redis` 뒤 `./gradlew integrationTest --tests com.example.welfare.integration.AdminSecurityIntegrationTest` 를 실행하자, 애플리케이션 context 초기화 단계에서 `Access denied for user 'app_core_rw'` 가 발생해 테스트가 기동조차 되지 않았음
 - 해결: 이번 task의 코드 회귀 여부는 `CollectServiceTest`, `AdminSecurityWebMvcTest` 로 확인하고, integration 실패 원인은 local persistent MySQL volume 의 계정 상태가 현재 `application-integration.yml` / split-account 기본값과 drift 된 환경 문제로 분리 기록했음. 이 경우 fresh init smoke 또는 known password 기준 계정 재정렬 후 다시 integration 을 태워야 함
 - 이유: Compose DB 컨테이너를 recreate 해도 volume 은 유지되므로, 예전 root/app 계정 비밀번호나 grant 상태가 남아 있으면 현재 문서/설정 기본값과 달라도 자동으로 맞춰지지 않는다. split-account 전환 이후에는 “컨테이너 재기동 = 계정 재초기화”라고 가정하면 재발하기 쉽다
+
+## 121) 상세 수집의 `429` 중단, empty payload skip, partial success(save failure 후 계속) 규칙이 테스트로 고정돼 있지 않으면 리팩터링 중 제어 흐름이 쉽게 흔들릴 수 있음
+- 문제: 상세 수집은 운영상 중요한 edge case 규칙이 이미 코드에 들어 있었지만, 기존 테스트는 “existing row skip” 과 “refresh update” 정도만 확인하고 있어 `429` 연속 중단 기준, empty payload 무시, 일부 저장 실패 후 다음 정책 계속 처리 같은 동작이 리팩터링 중 바뀌어도 바로 드러나지 않을 수 있었음
+- 해결: `BokjiroDetailCollectServiceTest` 에 연속 `429` 임계치 중단, empty payload skip, save failure 후 다음 정책 계속 처리 3개 케이스를 추가해 `requested/saved/failed` 집계와 후속 호출 여부를 고정했음
+- 이유: 신규 데이터 API 추가를 쉽게 만들려면 수집 파이프라인 구조를 바꾸더라도 기존 운영 계약은 테스트로 붙잡아야 한다. 특히 상세 수집은 호출 제한과 부분 성공 규칙이 얽혀 있어, 회귀가 나면 증상이 늦게 보이므로 단위 테스트로 먼저 막는 편이 안전하다

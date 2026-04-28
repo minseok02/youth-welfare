@@ -34,7 +34,8 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 2차로 `CollectItemSaver` 가 `service_tags` 를 upsert-only 로 누적하지 않고 source의 최신 tag 집합으로 교체하도록 정리해, 외부 API에서 빠진 태그가 DB에 잔존하지 않게 맞췄습니다.
 3차로 `BOKJIRO_DETAIL_REFRESH` 전용 수동 수집 경로를 추가해, 기본 상세 수집은 기존처럼 missing row 위주로 두면서도 필요할 때는 기존 상세 row를 다시 fetch/merge 할 수 있게 분리했습니다.
 4차로 관리자 수동 수집도 `/api/admin/collect/{sourceKey}` 단일 endpoint + `CollectSource` enum dispatch로 정리해, 새 source 추가 시 controller/service 메서드를 source마다 다시 늘리지 않도록 맞췄습니다.
-남은 작업은 수집 파이프라인 확장성 리팩터링(detail edge-case test 보강), access token 즉시 무효화 hardening 검토/구현, 운영 배포/운영성 검증(운영 서버 Docker Compose, 기존 운영 DB 계정 생성 SQL 적용 및 datasource 전환, 운영 `.env` / secret store의 `APP_PII_DB_URL` / `NOTIFICATION_PII_DB_URL` 를 `youth_welfare_pii` 기준으로 전환, HTTPS/Nginx, 운영 DB에 `V2026_04_28_02__add_user_pii_sync_queue.sql` / `V2026_04_28_01__drop_runtime_legacy_user_id.sql` 적용 후 smoke 검증, 기존 운영 DB에 `app_core_rw` 의 `youth_welfare_pii.user_pii` revoke SQL 실제 적용과 보조 datasource smoke 검증, CTR 표본 확충 후 재분석)과 2차 확장 기능(군집 캐시 추천, 카카오 알림톡, 검색 로그, 대시보드)입니다.
+5차로 `BokjiroDetailCollectServiceTest` 에서 detail `429` 연속 중단, empty payload skip, partial success(save failure 후 다음 건 계속) 케이스를 고정해, 확장 리팩터링 중 상세 수집 제어 흐름이 흔들리지 않도록 보강했습니다.
+남은 작업은 access token 즉시 무효화 hardening 검토/구현, 운영 배포/운영성 검증(운영 서버 Docker Compose, 기존 운영 DB 계정 생성 SQL 적용 및 datasource 전환, 운영 `.env` / secret store의 `APP_PII_DB_URL` / `NOTIFICATION_PII_DB_URL` 를 `youth_welfare_pii` 기준으로 전환, HTTPS/Nginx, 운영 DB에 `V2026_04_28_02__add_user_pii_sync_queue.sql` / `V2026_04_28_01__drop_runtime_legacy_user_id.sql` 적용 후 smoke 검증, 기존 운영 DB에 `app_core_rw` 의 `youth_welfare_pii.user_pii` revoke SQL 실제 적용과 보조 datasource smoke 검증, CTR 표본 확충 후 재분석)과 2차 확장 기능(군집 캐시 추천, 카카오 알림톡, 검색 로그, 대시보드)입니다.
 
 ## 완료된 백엔드 1차 범위
 
@@ -133,6 +134,8 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - 2026-04-29 `docker compose up -d db redis`
 - 2026-04-29 관리자 수동 수집 generic source dispatch 정리 후 `backend`에서 `./gradlew integrationTest --no-daemon --tests com.example.welfare.integration.AdminSecurityIntegrationTest`
   - local persistent MySQL volume에서 `app_core_rw` credential drift로 `Access denied for user 'app_core_rw'` 발생, 코드 회귀가 아니라 로컬 DB 계정 상태 이슈로 중단
+- 2026-04-29 detail edge-case contract/unit test 보강 후 `backend`에서 `./gradlew test --no-daemon --tests com.example.welfare.collect.service.BokjiroDetailCollectServiceTest`
+- 2026-04-29 detail edge-case contract/unit test 보강 후 `git diff --check`
 - 2026-04-28 pre-28 migrated DB 기준 admin logout / refresh invalidation / relogin smoke
   - `SECURITY_ADMIN_EMAILS=admin.logout.smoke@example.com` 으로 최신 앱을 기동한 뒤, admin 계정 로그인과 프로필 수정으로 queue row를 `SYNCED` 상태까지 맞추고 `POST /api/auth/refresh` 가 먼저 성공하는 것 확인
   - 같은 cookie jar + access token으로 `POST /api/auth/logout` 호출 후 cookie jar에서 `refresh_token` 이 제거되고, 직후 `POST /api/auth/refresh` 가 `401`, `errorCode=A001` 로 막히는 것 확인
@@ -161,6 +164,9 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
   - `CollectAdminController` 는 `/api/admin/collect/{sourceKey}` 단일 endpoint 로 바꾸고, `CollectSource` enum 이 path key / trigger label / success message를 함께 들고 source 파싱을 담당하도록 정리
   - `CollectService` 는 source별 public 메서드 fan-out 대신 `collect(CollectSource source)` 단일 진입점만 노출하도록 줄여, 새 source 추가 시 adapter + enum metadata만 맞추면 수동 수집 경로까지 연결되게 변경
   - `AdminSecurityWebMvcTest` 는 invalid source `400/C001` 케이스를 추가했고, `CollectServiceTest` / `AdminSecurityIntegrationTest` 는 새 generic dispatch 시그니처에 맞게 갱신
+- 2026-04-29 detail edge-case contract/unit test 보강
+  - `BokjiroDetailCollectServiceTest` 에서 연속 `429` 가 임계치에 도달하면 현재 source 처리를 중단하는지, empty payload 는 실패로 세지 않고 skip 하는지, save 실패 후에도 다음 정책을 계속 처리해 partial success 집계를 남기는지를 각각 고정
+  - 이번 task는 테스트 보강 중심이라 런타임 동작 코드는 변경하지 않았고, 상세 수집 제어 흐름 회귀를 막는 단위 계약을 추가하는 데 집중
 - 2026-04-28 one-shot PII sync smoke의 `ENV_FILE` 직접 로드 지원 후 `bash -n deploy/smoke/user-pii-sync-cutover-smoke.sh`
 - 2026-04-28 one-shot PII sync smoke의 `ENV_FILE` 직접 로드 지원 후 `ENV_FILE=.env DB_QUERY_USERNAME=migration_admin DB_QUERY_PASSWORD=smoke-db-password-2026! DB_MIGRATION_USERNAME=migration_admin DB_MIGRATION_PASSWORD=smoke-db-password-2026! APP_BASE_URL=http://127.0.0.1:8082 deploy/smoke/user-pii-sync-cutover-smoke.sh`
   - 현재 로컬 `.env` 가 아직 `DB_USERNAME=root` 라 query/migration 계정만 explicit override로 주입한 상태에서 회원가입 -> 로그인 -> 프로필 수정 -> `user_pii_sync_queue` `SYNCED` -> 회원탈퇴 cleanup 재확인
@@ -702,7 +708,6 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 
 ### 진행 예정
 
-- [ ] 수집 파이프라인 contract/unit test 보강 (detail 429/empty payload/partial success edge case 중심)
 - [ ] logout 후 access token 즉시 무효화 전략 검토/구현
 - [ ] 운영 서버 Docker Compose 기동
 - [ ] 기존 운영 DB에 `app_core_rw` / `app_pii_rw` / `notification_pii_ro` / `migration_admin` 계정 생성 및 앱 datasource 전환
@@ -716,6 +721,7 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 
 ### 완료
 
+- [x] 수집 파이프라인 contract/unit test 보강 (detail 429/empty payload/partial success edge case 중심)
 - [x] 관리자 수동 수집 endpoint 를 generic source dispatch 로 정리
 - [x] detail 수집이 기존 row를 건너뛰지 않고 갱신되도록 refresh 경로 추가
 - [x] 수집 시 제거된 `service_tags` cleanup 반영
