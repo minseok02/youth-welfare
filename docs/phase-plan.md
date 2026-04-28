@@ -31,7 +31,8 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 같은 admin 계정의 old access token은 `logout` 뒤에도 만료 전까지 `pii-sync-status` / `pii-sync-replay` 에 계속 통과하는 현재 동작을 로컬 smoke로 확인했고, access token 즉시 무효화는 별도 hardening 작업으로 남겼습니다.
 수집 파이프라인 코드 검수 결과, 신규 데이터 API 추가를 쉽게 만들기 위해서는 source별 fan-out 구조를 adapter 기반으로 줄이고, stale `service_tags` 정리와 detail 재수집 갱신 경로를 먼저 정리하는 것이 우선이라는 판단입니다.
 1차로 `CollectService` 의 하드코딩 fan-out 을 `CollectSourceAdapter` registry 기반 orchestration 으로 옮겨, 새 source 는 service 본문 수정 없이 adapter 추가로 연결할 수 있게 정리했습니다.
-남은 작업은 수집 파이프라인 확장성 리팩터링(stale tag cleanup, detail refresh 지원, generic admin collect trigger, saver/detail 중심 수집 test 보강), access token 즉시 무효화 hardening 검토/구현, 운영 배포/운영성 검증(운영 서버 Docker Compose, 기존 운영 DB 계정 생성 SQL 적용 및 datasource 전환, 운영 `.env` / secret store의 `APP_PII_DB_URL` / `NOTIFICATION_PII_DB_URL` 를 `youth_welfare_pii` 기준으로 전환, HTTPS/Nginx, 운영 DB에 `V2026_04_28_02__add_user_pii_sync_queue.sql` / `V2026_04_28_01__drop_runtime_legacy_user_id.sql` 적용 후 smoke 검증, 기존 운영 DB에 `app_core_rw` 의 `youth_welfare_pii.user_pii` revoke SQL 실제 적용과 보조 datasource smoke 검증, CTR 표본 확충 후 재분석)과 2차 확장 기능(군집 캐시 추천, 카카오 알림톡, 검색 로그, 대시보드)입니다.
+2차로 `CollectItemSaver` 가 `service_tags` 를 upsert-only 로 누적하지 않고 source의 최신 tag 집합으로 교체하도록 정리해, 외부 API에서 빠진 태그가 DB에 잔존하지 않게 맞췄습니다.
+남은 작업은 수집 파이프라인 확장성 리팩터링(detail refresh 지원, generic admin collect trigger, detail 중심 수집 test 보강), access token 즉시 무효화 hardening 검토/구현, 운영 배포/운영성 검증(운영 서버 Docker Compose, 기존 운영 DB 계정 생성 SQL 적용 및 datasource 전환, 운영 `.env` / secret store의 `APP_PII_DB_URL` / `NOTIFICATION_PII_DB_URL` 를 `youth_welfare_pii` 기준으로 전환, HTTPS/Nginx, 운영 DB에 `V2026_04_28_02__add_user_pii_sync_queue.sql` / `V2026_04_28_01__drop_runtime_legacy_user_id.sql` 적용 후 smoke 검증, 기존 운영 DB에 `app_core_rw` 의 `youth_welfare_pii.user_pii` revoke SQL 실제 적용과 보조 datasource smoke 검증, CTR 표본 확충 후 재분석)과 2차 확장 기능(군집 캐시 추천, 카카오 알림톡, 검색 로그, 대시보드)입니다.
 
 ## 완료된 백엔드 1차 범위
 
@@ -122,6 +123,8 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
   - refreshed access token으로 다시 `GET /api/admin/users/pii-sync-status?failedSampleLimit=5`, `POST /api/admin/users/pii-sync-replay?userKey=<USER_KEY>` 를 호출해 admin 권한이 유지되고 queue row가 계속 `SYNCED` 로 재처리되는 것 확인
 - 2026-04-29 collect source adapter registry 1차 리팩터링 후 `backend`에서 `./gradlew test --no-daemon --tests com.example.welfare.collect.service.CollectServiceTest --tests com.example.welfare.admin.AdminSecurityWebMvcTest`
 - 2026-04-29 collect source adapter registry 1차 리팩터링 후 `git diff --check`
+- 2026-04-29 stale `service_tags` cleanup 반영 후 `backend`에서 `./gradlew test --no-daemon --tests com.example.welfare.collect.service.CollectItemSaverTest --tests com.example.welfare.collect.service.CollectServiceTest`
+- 2026-04-29 stale `service_tags` cleanup 반영 후 `git diff --check`
 - 2026-04-28 pre-28 migrated DB 기준 admin logout / refresh invalidation / relogin smoke
   - `SECURITY_ADMIN_EMAILS=admin.logout.smoke@example.com` 으로 최신 앱을 기동한 뒤, admin 계정 로그인과 프로필 수정으로 queue row를 `SYNCED` 상태까지 맞추고 `POST /api/auth/refresh` 가 먼저 성공하는 것 확인
   - 같은 cookie jar + access token으로 `POST /api/auth/logout` 호출 후 cookie jar에서 `refresh_token` 이 제거되고, 직후 `POST /api/auth/refresh` 가 `401`, `errorCode=A001` 로 막히는 것 확인
@@ -138,6 +141,10 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
   - `CollectService` 에서 `CollectSourceAdapter` registry 를 사용하도록 바꾸고, `YOUTH`, `BOKJIRO_CENTRAL`, `BOKJIRO_LOCAL`, `BOKJIRO_DETAIL` 수집 본문을 source별 adapter 클래스로 이동
   - 공통 목록 수집 루프는 `AbstractListCollectSourceAdapter` 로 올리고, 기존 schedule/lock/log 동작은 유지한 채 단일 source 호출과 전체 수집 fan-out 을 enum 기반 dispatch 로 정리
   - `CollectServiceTest` 로 고정 source 실행 순서와 단일 source dispatch 를 검증했고, `AdminSecurityWebMvcTest` 를 같이 돌려 관리자 수동 수집 엔드포인트 계약이 깨지지 않는 것 확인
+- 2026-04-29 stale `service_tags` cleanup 반영
+  - `CollectItemSaver` 가 tag를 누적 upsert 하지 않고 `deleteByServiceId -> normalize/dedupe -> saveAll` 순서로 현재 source 결과만 다시 저장하도록 변경
+  - 중복 tag 입력도 `TagType + tagValue` 기준으로 한 번만 남기도록 정리하고, tag가 비면 기존 tag 전부를 비운 뒤 빈 목록으로 `searchYouthRelevant` 계산을 다시 수행
+  - `CollectItemSaverTest` 로 “기존 tag 교체”, “빈 tag면 전체 정리” 두 경우를 고정
 - 2026-04-28 one-shot PII sync smoke의 `ENV_FILE` 직접 로드 지원 후 `bash -n deploy/smoke/user-pii-sync-cutover-smoke.sh`
 - 2026-04-28 one-shot PII sync smoke의 `ENV_FILE` 직접 로드 지원 후 `ENV_FILE=.env DB_QUERY_USERNAME=migration_admin DB_QUERY_PASSWORD=smoke-db-password-2026! DB_MIGRATION_USERNAME=migration_admin DB_MIGRATION_PASSWORD=smoke-db-password-2026! APP_BASE_URL=http://127.0.0.1:8082 deploy/smoke/user-pii-sync-cutover-smoke.sh`
   - 현재 로컬 `.env` 가 아직 `DB_USERNAME=root` 라 query/migration 계정만 explicit override로 주입한 상태에서 회원가입 -> 로그인 -> 프로필 수정 -> `user_pii_sync_queue` `SYNCED` -> 회원탈퇴 cleanup 재확인
@@ -679,10 +686,9 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 
 ### 진행 예정
 
-- [ ] 수집 시 제거된 `service_tags` cleanup 반영
 - [ ] detail 수집이 기존 row를 건너뛰지 않고 갱신되도록 refresh 경로 추가
 - [ ] 관리자 수동 수집 endpoint 를 generic source dispatch 로 정리
-- [ ] 수집 파이프라인 contract/unit test 보강 (`CollectItemSaver` / detail 수집 중심)
+- [ ] 수집 파이프라인 contract/unit test 보강 (detail 수집 중심)
 - [ ] logout 후 access token 즉시 무효화 전략 검토/구현
 - [ ] 운영 서버 Docker Compose 기동
 - [ ] 기존 운영 DB에 `app_core_rw` / `app_pii_rw` / `notification_pii_ro` / `migration_admin` 계정 생성 및 앱 datasource 전환
@@ -696,6 +702,7 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 
 ### 완료
 
+- [x] 수집 시 제거된 `service_tags` cleanup 반영
 - [x] collect source adapter 추상화로 신규 데이터 API 추가 경로 1차 단일화
 - [x] 수집 파이프라인 확장성 코드 검수
 - [x] pre-28 migrated DB 기준 admin old access token after logout smoke

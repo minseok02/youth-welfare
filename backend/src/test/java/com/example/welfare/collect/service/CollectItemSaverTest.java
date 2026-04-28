@@ -1,0 +1,157 @@
+package com.example.welfare.collect.service;
+
+import com.example.welfare.collect.dto.YouthApiDto;
+import com.example.welfare.collect.mapper.WelfareServiceMapper;
+import com.example.welfare.policy.entity.ServiceRegion;
+import com.example.welfare.policy.entity.ServiceTag;
+import com.example.welfare.policy.entity.WelfareService;
+import com.example.welfare.policy.repository.ServiceTagRepository;
+import com.example.welfare.policy.repository.WelfareServiceRepository;
+import com.example.welfare.policy.service.SearchYouthRelevanceService;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.transaction.PlatformTransactionManager;
+
+import java.util.List;
+import java.util.Optional;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+
+@ExtendWith(MockitoExtension.class)
+class CollectItemSaverTest {
+
+    @Mock
+    private WelfareServiceMapper mapper;
+    @Mock
+    private WelfareServiceRepository welfareServiceRepository;
+    @Mock
+    private ServiceTagRepository tagRepository;
+    @Mock
+    private PlatformTransactionManager transactionManager;
+    @Mock
+    private JdbcTemplate jdbcTemplate;
+    @Mock
+    private SearchYouthRelevanceService searchYouthRelevanceService;
+
+    private CollectItemSaver saver;
+
+    @BeforeEach
+    void setUp() {
+        saver = new CollectItemSaver(
+                mapper,
+                welfareServiceRepository,
+                tagRepository,
+                transactionManager,
+                jdbcTemplate,
+                searchYouthRelevanceService
+        );
+    }
+
+    @Test
+    @DisplayName("saveYouthOnce 는 기존 tag 를 지우고 현재 tag 집합만 중복 없이 다시 저장한다")
+    void saveYouthOnceReplacesTags() {
+        YouthApiDto.Item item = youthItem("Y-1");
+        WelfareService existing = WelfareService.builder()
+                .id(11L)
+                .sourceType(WelfareService.SourceType.YOUTH)
+                .sourceId("Y-1")
+                .title("old")
+                .status(WelfareService.ServiceStatus.ACTIVE)
+                .build();
+        WelfareService incoming = WelfareService.builder()
+                .sourceType(WelfareService.SourceType.YOUTH)
+                .sourceId("Y-1")
+                .title("new")
+                .status(WelfareService.ServiceStatus.ACTIVE)
+                .build();
+
+        ServiceTag first = ServiceTag.builder()
+                .service(existing)
+                .tagType(ServiceTag.TagType.KEYWORD)
+                .tagValue("청년")
+                .build();
+        ServiceTag duplicate = ServiceTag.builder()
+                .service(existing)
+                .tagType(ServiceTag.TagType.KEYWORD)
+                .tagValue("청년")
+                .build();
+        ServiceTag second = ServiceTag.builder()
+                .service(existing)
+                .tagType(ServiceTag.TagType.TARGET_GROUP)
+                .tagValue("대학생")
+                .build();
+
+        given(welfareServiceRepository.findBySourceTypeAndSourceId(WelfareService.SourceType.YOUTH, "Y-1"))
+                .willReturn(Optional.of(existing));
+        given(mapper.fromYouth(item)).willReturn(incoming);
+        given(mapper.regionsFromYouth(item, existing)).willReturn(List.<ServiceRegion>of());
+        given(mapper.tagsFromYouth(item, existing)).willReturn(List.of(first, duplicate, second));
+
+        saver.saveYouthOnce(item);
+
+        verify(tagRepository).deleteByServiceId(11L);
+
+        ArgumentCaptor<List<ServiceTag>> tagsCaptor = ArgumentCaptor.forClass(List.class);
+        verify(tagRepository).saveAll(tagsCaptor.capture());
+        List<ServiceTag> savedTags = tagsCaptor.getValue();
+        assertThat(savedTags).hasSize(2);
+        assertThat(savedTags)
+                .extracting(ServiceTag::getTagType, ServiceTag::getTagValue)
+                .containsExactly(
+                        org.assertj.core.groups.Tuple.tuple(ServiceTag.TagType.KEYWORD, "청년"),
+                        org.assertj.core.groups.Tuple.tuple(ServiceTag.TagType.TARGET_GROUP, "대학생")
+                );
+        assertThat(savedTags).allMatch(tag -> tag.getService() == existing);
+
+        verify(searchYouthRelevanceService).refreshForService(eq(existing), eq(savedTags));
+    }
+
+    @Test
+    @DisplayName("saveYouthOnce 는 현재 tag 가 비어 있으면 기존 tag 만 정리하고 저장은 생략한다")
+    void saveYouthOnceClearsTagsWhenEmpty() {
+        YouthApiDto.Item item = youthItem("Y-2");
+        WelfareService existing = WelfareService.builder()
+                .id(22L)
+                .sourceType(WelfareService.SourceType.YOUTH)
+                .sourceId("Y-2")
+                .title("old")
+                .status(WelfareService.ServiceStatus.ACTIVE)
+                .build();
+        WelfareService incoming = WelfareService.builder()
+                .sourceType(WelfareService.SourceType.YOUTH)
+                .sourceId("Y-2")
+                .title("new")
+                .status(WelfareService.ServiceStatus.ACTIVE)
+                .build();
+
+        given(welfareServiceRepository.findBySourceTypeAndSourceId(WelfareService.SourceType.YOUTH, "Y-2"))
+                .willReturn(Optional.of(existing));
+        given(mapper.fromYouth(item)).willReturn(incoming);
+        given(mapper.regionsFromYouth(item, existing)).willReturn(List.<ServiceRegion>of());
+        given(mapper.tagsFromYouth(item, existing)).willReturn(List.of());
+
+        saver.saveYouthOnce(item);
+
+        verify(tagRepository).deleteByServiceId(22L);
+        verify(tagRepository, never()).saveAll(any());
+        verify(searchYouthRelevanceService).refreshForService(eq(existing), eq(List.of()));
+    }
+
+    private YouthApiDto.Item youthItem(String plcyNo) {
+        YouthApiDto.Item item = new YouthApiDto.Item();
+        ReflectionTestUtils.setField(item, "plcyNo", plcyNo);
+        return item;
+    }
+}

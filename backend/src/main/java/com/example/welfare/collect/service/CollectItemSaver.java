@@ -24,8 +24,11 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * 아이템 단위 저장 — 각 아이템을 별도 트랜잭션으로 처리하여
@@ -57,8 +60,7 @@ public class CollectItemSaver {
                 mapper.fromYouth(item)
         );
         upsertRegions(entity, mapper.regionsFromYouth(item, entity));
-        List<ServiceTag> tags = mapper.tagsFromYouth(item, entity);
-        upsertTags(entity, tags);
+        List<ServiceTag> tags = replaceTags(entity, mapper.tagsFromYouth(item, entity));
         searchYouthRelevanceService.refreshForService(entity, tags);
     }
 
@@ -73,8 +75,7 @@ public class CollectItemSaver {
                 mapper.fromBokjiroCentral(item)
         );
         upsertRegions(entity, mapper.regionsFromBokjiroCentral(item, entity));
-        List<ServiceTag> tags = mapper.tagsFromBokjiroCentral(item, entity);
-        upsertTags(entity, tags);
+        List<ServiceTag> tags = replaceTags(entity, mapper.tagsFromBokjiroCentral(item, entity));
         searchYouthRelevanceService.refreshForService(entity, tags);
     }
 
@@ -89,8 +90,7 @@ public class CollectItemSaver {
                 mapper.fromBokjiroLocal(item)
         );
         upsertRegions(entity, mapper.regionsFromBokjiroLocal(item, entity));
-        List<ServiceTag> tags = mapper.tagsFromBokjiroLocal(item, entity);
-        upsertTags(entity, tags);
+        List<ServiceTag> tags = replaceTags(entity, mapper.tagsFromBokjiroLocal(item, entity));
         searchYouthRelevanceService.refreshForService(entity, tags);
     }
 
@@ -126,14 +126,42 @@ public class CollectItemSaver {
         ps.setString(4, region.getSggName());
     }
 
-    private void upsertTags(WelfareService service, List<ServiceTag> tags) {
-        for (ServiceTag tag : tags) {
-            tagRepository.upsert(
-                    service.getId(),
-                    tag.getTagType().name(),
-                    tag.getTagValue()
-            );
+    private List<ServiceTag> replaceTags(WelfareService service, List<ServiceTag> tags) {
+        tagRepository.deleteByServiceId(service.getId());
+
+        List<ServiceTag> normalizedTags = normalizeTags(service, tags);
+        if (normalizedTags.isEmpty()) {
+            return normalizedTags;
         }
+
+        tagRepository.saveAll(normalizedTags);
+        return normalizedTags;
+    }
+
+    private List<ServiceTag> normalizeTags(WelfareService service, List<ServiceTag> tags) {
+        if (tags == null || tags.isEmpty()) {
+            return List.of();
+        }
+
+        Set<TagKey> seen = new LinkedHashSet<>();
+        List<ServiceTag> normalized = new ArrayList<>();
+
+        for (ServiceTag tag : tags) {
+            if (tag == null || tag.getTagType() == null || tag.getTagValue() == null || tag.getTagValue().isBlank()) {
+                continue;
+            }
+            TagKey key = new TagKey(tag.getTagType(), tag.getTagValue());
+            if (!seen.add(key)) {
+                continue;
+            }
+            normalized.add(ServiceTag.builder()
+                    .service(service)
+                    .tagType(tag.getTagType())
+                    .tagValue(tag.getTagValue())
+                    .build());
+        }
+
+        return normalized;
     }
 
     private void executeWithRetry(String sourceType, String sourceId, CollectRetrySupport.CheckedRunnable action) {
@@ -211,5 +239,8 @@ public class CollectItemSaver {
             throw runtimeException;
         }
         throw new IllegalStateException(e);
+    }
+
+    private record TagKey(ServiceTag.TagType tagType, String tagValue) {
     }
 }

@@ -592,3 +592,8 @@
 - 문제: pre-28 migrated DB 기준 로컬 smoke에서 `POST /api/auth/logout` 뒤 refresh cookie는 정상적으로 비워지고 직후 `POST /api/auth/refresh` 도 `401 / A001` 로 막혔지만, logout 전에 받은 old admin access token으로 `GET /api/admin/users/pii-sync-status`, `POST /api/admin/users/pii-sync-replay?userKey=<USER_KEY>` 를 다시 호출하면 둘 다 계속 `200` 으로 통과했음
 - 해결: 현재 동작을 `docs/phase-plan.md`, `docs/runtime-api-smoke-commands.md` 에 명시하고, “logout 후 access token 즉시 무효화 전략 검토/구현” 을 별도 hardening task로 작업 추적에 추가했음
 - 이유: 현재 `JwtAuthenticationFilter` 는 bearer access token의 서명/만료만 검증하고 별도 Redis blacklist나 logout cutoff를 조회하지 않으며, `logout` 구현도 refresh token 삭제와 cookie clear에만 집중한다. 따라서 이미 발급된 access token은 만료 전까지 stateless 하게 유효한 것이 현재 설계상 자연스러운 결과다
+
+## 117) 수집 저장이 `service_tags` 를 upsert-only 로 누적하면 외부 API에서 제거된 tag 가 DB에 영구 잔존할 수 있음
+- 문제: `CollectItemSaver` 는 새 tag만 `upsert` 하고 기존 tag 삭제 경로가 없어, 정책 source의 키워드/대상/생애주기 값이 바뀌거나 빠져도 `service_tags` 에는 예전 값이 계속 남을 수 있었음
+- 해결: 수집 저장 시 `service_id` 기준 기존 tag를 먼저 지우고, 현재 source에서 계산한 tag 집합을 `TagType + tagValue` 기준으로 dedupe 한 뒤 다시 저장하도록 변경했음. tag가 비면 기존 tag를 전부 제거하고 빈 목록으로 relevance 계산을 다시 수행하도록 맞췄음
+- 이유: 추천/검색 필터는 현재 source snapshot에 수렴해야 한다. append-only tag 저장은 source가 변할수록 오염 데이터가 누적되므로, 목록 수집 save는 region처럼 tag도 “현재 상태로 교체”하는 쪽이 안전하다
