@@ -114,6 +114,12 @@ public class UserReadService {
     @Transactional(readOnly = true)
     public String getNotificationEmail(Long userId) {
         String userKey = resolveActiveUserKey(userId);
+        return getNotificationEmailByUserKey(userKey);
+    }
+
+    @Transactional(readOnly = true)
+    public String getNotificationEmailByUserKey(String userKey) {
+        resolveActiveUserKey(userKey);
         UserPii pii = userPiiRepository.findByUserKey(userKey)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
         String email = decryptNullable(pii.getEmailEnc());
@@ -126,6 +132,10 @@ public class UserReadService {
     private String resolveActiveUserKey(Long userId) {
         String userKey = userRepository.findUserKeyById(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+        return resolveActiveUserKey(userKey);
+    }
+
+    private String resolveActiveUserKey(String userKey) {
         AuthUser authUser = authUserRepository.findByUserKey(userKey)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
         if (!authUser.isActive()) {

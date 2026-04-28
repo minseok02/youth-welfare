@@ -21,6 +21,7 @@ import java.util.List;
 @Component
 public class JwtUtil {
     private static final String ROLES_CLAIM = "roles";
+    private static final String USER_ID_CLAIM = "uid";
 
     @Value("${jwt.secret}")
     private String secret;
@@ -46,25 +47,44 @@ public class JwtUtil {
     }
 
     public String generateAccessToken(Long userId, Collection<String> roles) {
-        return buildToken(userId, accessExpiration, roles);
+        return buildToken(String.valueOf(userId), userId, accessExpiration, roles);
+    }
+
+    public String generateAccessToken(String userKey, Long userId) {
+        return generateAccessToken(userKey, userId, List.of("ROLE_USER"));
+    }
+
+    public String generateAccessToken(String userKey, Long userId, Collection<String> roles) {
+        return buildToken(userKey, userId, accessExpiration, roles);
     }
 
     public String generateRefreshToken(Long userId) {
-        return buildToken(userId, refreshExpiration, List.of());
+        return buildToken(String.valueOf(userId), userId, refreshExpiration, List.of());
+    }
+
+    public String generateRefreshToken(String userKey, Long userId) {
+        return buildToken(userKey, userId, refreshExpiration, List.of());
     }
 
     public String generateNotificationToken(Long userId) {
-        return buildToken(userId, notificationExpiration, List.of());
+        return buildToken(String.valueOf(userId), userId, notificationExpiration, List.of());
     }
 
-    private String buildToken(Long userId, long expiration, Collection<String> roles) {
+    public String generateNotificationToken(String userKey, Long userId) {
+        return buildToken(userKey, userId, notificationExpiration, List.of());
+    }
+
+    private String buildToken(String subject, Long userId, long expiration, Collection<String> roles) {
         Date now = new Date();
         JwtBuilder builder = Jwts.builder()
-                .subject(String.valueOf(userId))
+                .subject(subject)
                 .issuedAt(now)
                 .expiration(new Date(now.getTime() + expiration))
                 .signWith(key);
 
+        if (userId != null) {
+            builder.claim(USER_ID_CLAIM, userId);
+        }
         if (roles != null && !roles.isEmpty()) {
             builder.claim(ROLES_CLAIM, roles);
         }
@@ -73,7 +93,11 @@ public class JwtUtil {
     }
 
     public Long getUserId(String token) {
-        return Long.parseLong(getClaims(token).getSubject());
+        return extractUserId(getClaims(token));
+    }
+
+    public String getSubject(String token) {
+        return getClaims(token).getSubject();
     }
 
     public List<String> getRoles(String token) {
@@ -97,9 +121,19 @@ public class JwtUtil {
 
     public Long getUserIdAllowExpired(String token) {
         try {
-            return Long.parseLong(getClaims(token).getSubject());
+            return extractUserId(getClaims(token));
         } catch (ExpiredJwtException e) {
-            return Long.parseLong(e.getClaims().getSubject());
+            return extractUserId(e.getClaims());
+        } catch (JwtException e) {
+            throw new CustomException(ErrorCode.INVALID_TOKEN);
+        }
+    }
+
+    public String getSubjectAllowExpired(String token) {
+        try {
+            return getClaims(token).getSubject();
+        } catch (ExpiredJwtException e) {
+            return e.getClaims().getSubject();
         } catch (JwtException e) {
             throw new CustomException(ErrorCode.INVALID_TOKEN);
         }
@@ -130,5 +164,16 @@ public class JwtUtil {
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();
+    }
+
+    private Long extractUserId(Claims claims) {
+        Object userIdClaim = claims.get(USER_ID_CLAIM);
+        if (userIdClaim instanceof Number number) {
+            return number.longValue();
+        }
+        if (userIdClaim instanceof String value) {
+            return Long.parseLong(value);
+        }
+        return Long.parseLong(claims.getSubject());
     }
 }

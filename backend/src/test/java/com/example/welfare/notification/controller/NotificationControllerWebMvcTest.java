@@ -34,13 +34,13 @@ class NotificationControllerWebMvcTest {
     @Test
     @DisplayName("수신 거부 토큰으로 알림 설정을 해제한다")
     void unsubscribeByToken() throws Exception {
-        given(jwtUtil.getUserIdAllowExpired("unsubscribe-token")).willReturn(7L);
+        given(jwtUtil.getSubjectAllowExpired("unsubscribe-token")).willReturn("user-key-7");
 
         mockMvc.perform(get("/api/notifications/unsubscribe")
                         .param("token", "unsubscribe-token"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true));
 
-        then(userService).should().unsubscribeNotifications(7L);
+        then(userService).should().unsubscribeNotificationsByUserKey("user-key-7");
     }
 }

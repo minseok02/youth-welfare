@@ -101,7 +101,7 @@ public class NotificationService {
 
             ScoreWeight weight = scoreWeightService.getActiveWeight();
             logs = logService.logNotification(user, recs, weight);
-            messageText = buildEmailText(target.userId(), recs, logs);
+            messageText = buildEmailText(target.userKey(), target.userId(), recs, logs);
 
             boolean sent = notificationGateway.send(
                     target.email(),
@@ -156,10 +156,10 @@ public class NotificationService {
     }
 
     private String buildEmailText(List<UserRecommendation> recs, List<RecommendationLog> logs) {
-        return buildEmailText(null, recs, logs);
+        return buildEmailText(null, null, recs, logs);
     }
 
-    private String buildEmailText(Long userId, List<UserRecommendation> recs, List<RecommendationLog> logs) {
+    private String buildEmailText(String userKey, Long userId, List<UserRecommendation> recs, List<RecommendationLog> logs) {
         StringBuilder sb = new StringBuilder("맞춤 복지 정책 추천\n\n");
         for (int i = 0; i < recs.size(); i++) {
             UserRecommendation rec = recs.get(i);
@@ -172,9 +172,9 @@ public class NotificationService {
                     .append(rec.getService().getId())
                     .append("?log_id=").append(logId).append("\n\n");
         }
-        if (userId != null) {
+        if (userKey != null && userId != null) {
             sb.append("수신 거부: ").append(appBaseUrl).append("/api/notifications/unsubscribe?token=")
-                    .append(jwtUtil.generateNotificationToken(userId))
+                    .append(jwtUtil.generateNotificationToken(userKey, userId))
                     .append("\n");
         }
         return sb.toString();
@@ -183,7 +183,7 @@ public class NotificationService {
     private void retryNotification(Notification notification) {
         try {
             boolean sent = notificationGateway.send(
-                    userReadService.getNotificationEmail(notification.getUser().getId()),
+                    resolveNotificationEmail(notification),
                     notification.getSubject(),
                     notification.getMessageText()
             );
@@ -204,5 +204,12 @@ public class NotificationService {
         }
         long delayMinutes = 120;
         notification.scheduleRetry(LocalDateTime.now().plusMinutes(delayMinutes), errorMessage);
+    }
+
+    private String resolveNotificationEmail(Notification notification) {
+        if (notification.getUserKey() != null && !notification.getUserKey().isBlank()) {
+            return userReadService.getNotificationEmailByUserKey(notification.getUserKey());
+        }
+        return userReadService.getNotificationEmail(notification.getUser().getId());
     }
 }

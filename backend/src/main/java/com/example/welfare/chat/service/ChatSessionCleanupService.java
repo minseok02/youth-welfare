@@ -18,4 +18,12 @@ public class ChatSessionCleanupService {
         }
         chatSessionRepository.deleteByUserId(userId);
     }
+
+    @Transactional
+    public void deleteAllByUserKey(String userKey) {
+        if (userKey == null || userKey.isBlank()) {
+            return;
+        }
+        chatSessionRepository.deleteByUserKey(userKey);
+    }
 }

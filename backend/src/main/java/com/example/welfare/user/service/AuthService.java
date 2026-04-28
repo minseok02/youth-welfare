@@ -141,10 +141,10 @@ public class AuthService {
         user.resetLoginFail();
         userCoreSyncService.syncFromUser(user);
 
-        String accessToken = jwtUtil.generateAccessToken(user.getId(), resolveRoles(normalizedEmail));
-        String refreshToken = jwtUtil.generateRefreshToken(user.getId());
+        String accessToken = jwtUtil.generateAccessToken(authUser.getUserKey(), user.getId(), resolveRoles(normalizedEmail));
+        String refreshToken = jwtUtil.generateRefreshToken(authUser.getUserKey(), user.getId());
 
-        saveRefreshToken(user.getId(), refreshToken);
+        saveRefreshToken(authUser.getUserKey(), refreshToken);
 
         return TokenResponse.of(accessToken, refreshToken);
     }
@@ -159,7 +159,7 @@ public class AuthService {
                 .ifPresent(user -> {
                     String recipientEmail = resolvePasswordResetRecipient(user.userKey());
                     String token = UUID.randomUUID().toString();
-                    savePasswordResetToken(user.user().getId(), token);
+                    savePasswordResetToken(user.userKey(), token);
 
                     boolean sent = emailClient.send(
                             recipientEmail,
@@ -167,7 +167,7 @@ public class AuthService {
                             buildPasswordResetText(token)
                     );
                     if (!sent) {
-                        clearPasswordResetToken(user.user().getId(), token);
+                        clearPasswordResetToken(user.userKey(), token);
                         throw new CustomException(ErrorCode.PASSWORD_RESET_EMAIL_SEND_FAILED);
                     }
                 });
@@ -180,17 +180,16 @@ public class AuthService {
             throw new CustomException(ErrorCode.PASSWORD_RESET_TOKEN_INVALID);
         }
 
-        String userIdValue = redisTemplate.opsForValue().get(passwordResetTokenKey(resetToken));
-        if (!StringUtils.hasText(userIdValue)) {
+        String userKey = redisTemplate.opsForValue().get(passwordResetTokenKey(resetToken));
+        if (!StringUtils.hasText(userKey)) {
             throw new CustomException(ErrorCode.PASSWORD_RESET_TOKEN_INVALID);
         }
 
-        Long userId = Long.parseLong(userIdValue);
-        User user = userRepository.findById(userId)
+        User user = userRepository.findByUserKey(userKey)
                 .filter(User::isActive)
                 .orElseThrow(() -> new CustomException(ErrorCode.PASSWORD_RESET_TOKEN_INVALID));
 
-        String latestToken = redisTemplate.opsForValue().get(passwordResetUserKey(userId));
+        String latestToken = redisTemplate.opsForValue().get(passwordResetUserKey(userKey));
         if (!resetToken.equals(latestToken)) {
             throw new CustomException(ErrorCode.PASSWORD_RESET_TOKEN_INVALID);
         }
@@ -198,80 +197,91 @@ public class AuthService {
         user.updatePassword(passwordEncoder.encode(newPassword));
         user.resetLoginFail();
         userCoreSyncService.syncFromUser(user);
-        clearPasswordResetToken(userId, resetToken);
-        redisTemplate.delete(REFRESH_TOKEN_PREFIX + userId);
+        clearPasswordResetToken(userKey, resetToken);
+        deleteRefreshToken(user.getId(), userKey);
     }
 
     @Transactional
     public TokenResponse refresh(String refreshToken) {
         jwtUtil.validate(refreshToken);
 
+        String userKey = resolveTokenUserKey(refreshToken);
         Long userId = jwtUtil.getUserId(refreshToken);
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
-        String key = REFRESH_TOKEN_PREFIX + userId;
+        String key = REFRESH_TOKEN_PREFIX + userKey;
         String stored = redisTemplate.opsForValue().get(key);
+        String legacyKey = buildLegacyRefreshTokenKey(userId);
+        if (stored == null) {
+            stored = redisTemplate.opsForValue().get(legacyKey);
+        }
 
         // Reuse Detection: 저장된 토큰과 다르면 탈취 가능성 → 전체 무효화
         if (stored == null || !stored.equals(refreshToken)) {
             redisTemplate.delete(key);
+            redisTemplate.delete(legacyKey);
             throw new CustomException(ErrorCode.REUSED_REFRESH_TOKEN);
         }
 
-        String newAccessToken = jwtUtil.generateAccessToken(userId, resolveRoles(user.getEmail()));
-        String newRefreshToken = jwtUtil.generateRefreshToken(userId);
+        String newAccessToken = jwtUtil.generateAccessToken(userKey, userId, resolveRoles(user.getEmail()));
+        String newRefreshToken = jwtUtil.generateRefreshToken(userKey, userId);
 
         // Rotation: 새 Refresh Token으로 교체
-        saveRefreshToken(userId, newRefreshToken);
+        saveRefreshToken(userKey, newRefreshToken);
+        redisTemplate.delete(legacyKey);
 
         return TokenResponse.of(newAccessToken, newRefreshToken);
     }
 
     @Transactional
     public void logout(Long userId) {
-        redisTemplate.delete(REFRESH_TOKEN_PREFIX + userId);
+        String userKey = resolveUserKey(userId);
+        deleteRefreshToken(userId, userKey);
+        chatSessionCleanupService.deleteAllByUserKey(userKey);
         chatSessionCleanupService.deleteAllByUserId(userId);
     }
 
     @Transactional
     public void logoutByRefreshToken(String refreshToken) {
+        String userKey = resolveTokenUserKeyAllowExpired(refreshToken);
         Long userId = jwtUtil.getUserIdAllowExpired(refreshToken);
-        redisTemplate.delete(REFRESH_TOKEN_PREFIX + userId);
+        deleteRefreshToken(userId, userKey);
+        chatSessionCleanupService.deleteAllByUserKey(userKey);
         chatSessionCleanupService.deleteAllByUserId(userId);
     }
 
-    private void saveRefreshToken(Long userId, String refreshToken) {
+    private void saveRefreshToken(String userKey, String refreshToken) {
         redisTemplate.opsForValue().set(
-                REFRESH_TOKEN_PREFIX + userId,
+                REFRESH_TOKEN_PREFIX + userKey,
                 refreshToken,
                 7,
                 TimeUnit.DAYS
         );
     }
 
-    private void savePasswordResetToken(Long userId, String token) {
-        String previousToken = redisTemplate.opsForValue().get(passwordResetUserKey(userId));
+    private void savePasswordResetToken(String userKey, String token) {
+        String previousToken = redisTemplate.opsForValue().get(passwordResetUserKey(userKey));
         if (StringUtils.hasText(previousToken)) {
             redisTemplate.delete(passwordResetTokenKey(previousToken));
         }
 
         redisTemplate.opsForValue().set(
                 passwordResetTokenKey(token),
-                String.valueOf(userId),
+                userKey,
                 passwordResetExpirationMinutes,
                 TimeUnit.MINUTES
         );
         redisTemplate.opsForValue().set(
-                passwordResetUserKey(userId),
+                passwordResetUserKey(userKey),
                 token,
                 passwordResetExpirationMinutes,
                 TimeUnit.MINUTES
         );
     }
 
-    private void clearPasswordResetToken(Long userId, String token) {
+    private void clearPasswordResetToken(String userKey, String token) {
         redisTemplate.delete(passwordResetTokenKey(token));
-        redisTemplate.delete(passwordResetUserKey(userId));
+        redisTemplate.delete(passwordResetUserKey(userKey));
     }
 
     private boolean isAdminEmail(String email) {
@@ -308,8 +318,8 @@ public class AuthService {
         return PASSWORD_RESET_TOKEN_PREFIX + token;
     }
 
-    private String passwordResetUserKey(Long userId) {
-        return PASSWORD_RESET_USER_PREFIX + userId;
+    private String passwordResetUserKey(String userKey) {
+        return PASSWORD_RESET_USER_PREFIX + userKey;
     }
 
     private List<String> resolveRoles(String email) {
@@ -317,6 +327,38 @@ public class AuthService {
             return List.of("ROLE_USER", "ROLE_ADMIN");
         }
         return List.of("ROLE_USER");
+    }
+
+    private void deleteRefreshToken(Long userId, String userKey) {
+        redisTemplate.delete(REFRESH_TOKEN_PREFIX + userKey);
+        redisTemplate.delete(buildLegacyRefreshTokenKey(userId));
+    }
+
+    private String buildLegacyRefreshTokenKey(Long userId) {
+        return REFRESH_TOKEN_PREFIX + userId;
+    }
+
+    private String resolveTokenUserKey(String token) {
+        return normalizeSubjectToUserKey(jwtUtil.getSubject(token), jwtUtil.getUserId(token));
+    }
+
+    private String resolveTokenUserKeyAllowExpired(String token) {
+        return normalizeSubjectToUserKey(jwtUtil.getSubjectAllowExpired(token), jwtUtil.getUserIdAllowExpired(token));
+    }
+
+    private String normalizeSubjectToUserKey(String subject, Long fallbackUserId) {
+        if (!StringUtils.hasText(subject)) {
+            throw new CustomException(ErrorCode.INVALID_TOKEN);
+        }
+        if (subject.chars().allMatch(Character::isDigit)) {
+            return resolveUserKey(fallbackUserId);
+        }
+        return subject;
+    }
+
+    private String resolveUserKey(Long userId) {
+        return userRepository.findUserKeyById(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
     }
 
     private record PasswordResetTarget(User user, String userKey) {

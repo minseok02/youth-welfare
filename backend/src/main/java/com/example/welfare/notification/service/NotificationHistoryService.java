@@ -37,6 +37,7 @@ public class NotificationHistoryService {
                                    String errorMessage) {
         Notification notification = Notification.builder()
                 .user(user)
+                .userKey(user.getUserKey())
                 .periodType(periodType)
                 .channel(channel)
                 .status(status)

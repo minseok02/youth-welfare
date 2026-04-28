@@ -26,6 +26,9 @@ public class Notification extends BaseTimeEntity {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
+    @Column(name = "user_key", length = 32, columnDefinition = "CHAR(32)")
+    private String userKey;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private NotificationChannel channel;

@@ -30,7 +30,7 @@ public class RecommendationLogService {
     public List<RecommendationLog> refreshLogs(User user,
                                                 List<UserRecommendation> recommendations,
                                                 ScoreWeight weight) {
-        logRepository.deleteUnclickedByUserId(user.getId());
+        logRepository.deleteUnclickedByUserKeyOrUserId(user.getUserKey(), user.getId());
         return logNotification(user, recommendations, weight);
     }
 
@@ -41,6 +41,7 @@ public class RecommendationLogService {
         List<RecommendationLog> logs = recommendations.stream()
                 .map(rec -> RecommendationLog.builder()
                         .user(user)
+                        .userKey(user.getUserKey())
                         .service(rec.getService())
                         .finalScore(rec.getFinalScore())
                         .ruleWeightUsed(weight.getRuleWeight())

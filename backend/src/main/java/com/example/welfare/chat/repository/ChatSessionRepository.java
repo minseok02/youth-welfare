@@ -22,4 +22,11 @@ public interface ChatSessionRepository extends JpaRepository<ChatSession, Long> 
             WHERE cs.user.id = :userId
             """)
     void deleteByUserId(@Param("userId") Long userId);
+
+    @Modifying
+    @Query("""
+            DELETE FROM ChatSession cs
+            WHERE cs.userKey = :userKey
+            """)
+    void deleteByUserKey(@Param("userKey") String userKey);
 }

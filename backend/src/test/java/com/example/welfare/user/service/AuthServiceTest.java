@@ -105,6 +105,7 @@ class AuthServiceTest {
                 .build();
         User user = User.builder()
                 .id(7L)
+                .userKey("user-key-7")
                 .email("legacy@example.com")
                 .passwordHash("hash")
                 .build();
@@ -113,14 +114,14 @@ class AuthServiceTest {
         when(userRepository.findByUserKey("user-key-7")).thenReturn(Optional.of(user));
         when(userPiiRepository.findByUserKey("user-key-7")).thenReturn(Optional.of(userPii));
         when(aesEncryptUtil.decrypt("encrypted-email")).thenReturn("pii@example.com");
-        when(valueOperations.get("password-reset:user:7")).thenReturn(null);
+        when(valueOperations.get("password-reset:user:user-key-7")).thenReturn(null);
         when(emailClient.send(eq("pii@example.com"), eq("[청년복지] 비밀번호 재설정 안내"), any(String.class)))
                 .thenReturn(true);
 
         authService.requestPasswordReset("USER@example.com");
 
-        verify(valueOperations).set(eq("password-reset:user:7"), any(String.class), eq(30L), eq(java.util.concurrent.TimeUnit.MINUTES));
-        verify(valueOperations).set(org.mockito.ArgumentMatchers.startsWith("password-reset:"), eq("7"), eq(30L), eq(java.util.concurrent.TimeUnit.MINUTES));
+        verify(valueOperations).set(eq("password-reset:user:user-key-7"), any(String.class), eq(30L), eq(java.util.concurrent.TimeUnit.MINUTES));
+        verify(valueOperations).set(org.mockito.ArgumentMatchers.startsWith("password-reset:"), eq("user-key-7"), eq(30L), eq(java.util.concurrent.TimeUnit.MINUTES));
         verify(emailClient).send(eq("pii@example.com"), eq("[청년복지] 비밀번호 재설정 안내"), org.mockito.ArgumentMatchers.contains("/reset-password?token="));
     }
 
@@ -145,6 +146,7 @@ class AuthServiceTest {
                 .build();
         User user = User.builder()
                 .id(7L)
+                .userKey("user-key-7")
                 .email("legacy@example.com")
                 .passwordHash("hash")
                 .build();
@@ -167,20 +169,22 @@ class AuthServiceTest {
     void confirmPasswordResetUpdatesPasswordAndClearsTokens() {
         User user = User.builder()
                 .id(7L)
+                .userKey("user-key-7")
                 .email("user@example.com")
                 .passwordHash("old-hash")
                 .loginFailCount(3)
                 .build();
-        when(valueOperations.get("password-reset:reset-token")).thenReturn("7");
-        when(userRepository.findById(7L)).thenReturn(Optional.of(user));
-        when(valueOperations.get("password-reset:user:7")).thenReturn("reset-token");
+        when(valueOperations.get("password-reset:reset-token")).thenReturn("user-key-7");
+        when(userRepository.findByUserKey("user-key-7")).thenReturn(Optional.of(user));
+        when(valueOperations.get("password-reset:user:user-key-7")).thenReturn("reset-token");
         when(passwordEncoder.encode("new-password123")).thenReturn("encoded-password");
 
         authService.confirmPasswordReset("reset-token", "new-password123");
 
         verify(userCoreSyncService).syncFromUser(user);
         verify(redisTemplate).delete("password-reset:reset-token");
-        verify(redisTemplate).delete("password-reset:user:7");
+        verify(redisTemplate).delete("password-reset:user:user-key-7");
+        verify(redisTemplate).delete("refresh:user-key-7");
         verify(redisTemplate).delete("refresh:7");
         org.assertj.core.api.Assertions.assertThat(user.getPasswordHash()).isEqualTo("encoded-password");
         org.assertj.core.api.Assertions.assertThat(user.getLoginFailCount()).isZero();
@@ -191,12 +195,13 @@ class AuthServiceTest {
     void confirmPasswordResetRejectsStaleToken() {
         User user = User.builder()
                 .id(7L)
+                .userKey("user-key-7")
                 .email("user@example.com")
                 .passwordHash("old-hash")
                 .build();
-        when(valueOperations.get("password-reset:old-token")).thenReturn("7");
-        when(userRepository.findById(7L)).thenReturn(Optional.of(user));
-        when(valueOperations.get("password-reset:user:7")).thenReturn("new-token");
+        when(valueOperations.get("password-reset:old-token")).thenReturn("user-key-7");
+        when(userRepository.findByUserKey("user-key-7")).thenReturn(Optional.of(user));
+        when(valueOperations.get("password-reset:user:user-key-7")).thenReturn("new-token");
 
         assertThatThrownBy(() -> authService.confirmPasswordReset("old-token", "new-password123"))
                 .isInstanceOf(CustomException.class)

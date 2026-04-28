@@ -32,9 +32,10 @@ public interface RecommendationLogRepository extends JpaRepository<Recommendatio
     @Modifying
     @Query("""
             DELETE FROM RecommendationLog rl
-            WHERE rl.user.id = :userId AND rl.isClicked = false
+            WHERE (rl.userKey = :userKey OR (rl.userKey IS NULL AND rl.user.id = :userId))
+              AND rl.isClicked = false
             """)
-    void deleteUnclickedByUserId(@Param("userId") Long userId);
+    void deleteUnclickedByUserKeyOrUserId(@Param("userKey") String userKey, @Param("userId") Long userId);
 
     // serviceId 목록 기준 사용자의 최신 로그 조회 (logId 매핑용)
     @Query("""

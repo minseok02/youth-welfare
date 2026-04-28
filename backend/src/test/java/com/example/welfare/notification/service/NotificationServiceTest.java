@@ -76,6 +76,7 @@ class NotificationServiceTest {
     void sendTopRecommendationsFiltersByMinScoreAndIncludesReason() {
         User user = User.builder()
                 .id(1L)
+                .userKey("user-key-1")
                 .email("test@example.com")
                 .passwordHash("pw")
                 .notificationYn(true)
@@ -112,7 +113,7 @@ class NotificationServiceTest {
         given(scoreWeightService.getActiveWeight()).willReturn(weight);
         given(logService.logNotification(eq(user), any(), eq(weight))).willReturn(List.of(log));
         given(notificationGateway.send(eq("test@example.com"), eq("[청년복지] 맞춤 정책 추천"), any())).willReturn(true);
-        given(jwtUtil.generateNotificationToken(1L)).willReturn("unsubscribe-token");
+        given(jwtUtil.generateNotificationToken("user-key-1", 1L)).willReturn("unsubscribe-token");
 
         notificationService.sendTopRecommendations(target);
 
@@ -129,6 +130,7 @@ class NotificationServiceTest {
     void sendTopRecommendationsSkipsWhenNoCandidatesAboveThreshold() {
         User user = User.builder()
                 .id(1L)
+                .userKey("user-key-1")
                 .email("test@example.com")
                 .passwordHash("pw")
                 .notificationYn(true)
@@ -194,7 +196,7 @@ class NotificationServiceTest {
         given(scoreWeightService.getActiveWeight()).willReturn(weight);
         given(logService.logNotification(eq(user), any(), eq(weight))).willReturn(List.of(log));
         given(notificationGateway.send(eq("test@example.com"), eq("[청년복지] 맞춤 정책 추천"), any())).willReturn(false);
-        given(jwtUtil.generateNotificationToken(1L)).willReturn("unsubscribe-token");
+        given(jwtUtil.generateNotificationToken("user-key-1", 1L)).willReturn("unsubscribe-token");
 
         notificationService.sendTopRecommendations(target);
 
@@ -216,11 +218,13 @@ class NotificationServiceTest {
     void retryFailedNotificationsMarksSentOnSuccess() {
         User user = User.builder()
                 .id(1L)
+                .userKey("user-key-1")
                 .email("test@example.com")
                 .passwordHash("pw")
                 .build();
         Notification notification = Notification.builder()
                 .user(user)
+                .userKey("user-key-1")
                 .channel(NotificationChannel.EMAIL)
                 .periodType(NotificationPeriodType.DAILY)
                 .status(NotificationStatus.FAILED)
@@ -233,7 +237,7 @@ class NotificationServiceTest {
 
         given(notificationRepository.findByStatusAndNextRetryAtBefore(eq(NotificationStatus.FAILED), any(LocalDateTime.class)))
                 .willReturn(List.of(notification));
-        given(userReadService.getNotificationEmail(1L)).willReturn("test@example.com");
+        given(userReadService.getNotificationEmailByUserKey("user-key-1")).willReturn("test@example.com");
         given(notificationGateway.send("test@example.com", "[청년복지] 맞춤 정책 추천", "body"))
                 .willReturn(true);
 
@@ -250,11 +254,13 @@ class NotificationServiceTest {
     void retryFailedNotificationsSchedulesTwoHourDelayAfterFirstRetryFailure() {
         User user = User.builder()
                 .id(1L)
+                .userKey("user-key-1")
                 .email("test@example.com")
                 .passwordHash("pw")
                 .build();
         Notification notification = Notification.builder()
                 .user(user)
+                .userKey("user-key-1")
                 .channel(NotificationChannel.EMAIL)
                 .periodType(NotificationPeriodType.DAILY)
                 .status(NotificationStatus.FAILED)
@@ -266,7 +272,7 @@ class NotificationServiceTest {
 
         given(notificationRepository.findByStatusAndNextRetryAtBefore(eq(NotificationStatus.FAILED), any(LocalDateTime.class)))
                 .willReturn(List.of(notification));
-        given(userReadService.getNotificationEmail(1L)).willReturn("test@example.com");
+        given(userReadService.getNotificationEmailByUserKey("user-key-1")).willReturn("test@example.com");
         given(notificationGateway.send("test@example.com", "[청년복지] 맞춤 정책 추천", "body"))
                 .willReturn(false);
 

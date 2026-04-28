@@ -2,6 +2,7 @@ package com.example.welfare.policy.service;
 
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.repository.ServiceViewLogRepository;
+import com.example.welfare.user.repository.UserRepository;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -23,6 +24,8 @@ class PolicyViewLogServiceTest {
     @Mock
     private ServiceViewLogRepository serviceViewLogRepository;
     @Mock
+    private UserRepository userRepository;
+    @Mock
     private EntityManager entityManager;
 
     @InjectMocks
@@ -31,7 +34,8 @@ class PolicyViewLogServiceTest {
     @Test
     @DisplayName("같은 사용자의 24시간 내 중복 조회는 카운트하지 않는다")
     void duplicateUserViewInWindow() {
-        given(serviceViewLogRepository.existsByServiceIdAndUserIdAndViewedAtAfter(eq(10L), eq(1L), any()))
+        given(userRepository.findUserKeyById(1L)).willReturn(java.util.Optional.of("user-key-1"));
+        given(serviceViewLogRepository.existsByServiceIdAndUserKeyAndViewedAtAfter(eq(10L), eq("user-key-1"), any()))
                 .willReturn(true);
 
         boolean increase = policyViewLogService.registerViewIfFirstInWindow(10L, 1L, "fp");
@@ -43,7 +47,8 @@ class PolicyViewLogServiceTest {
     @Test
     @DisplayName("중복이 아니면 조회 로그를 남기고 카운트한다")
     void firstViewInWindow() {
-        given(serviceViewLogRepository.existsByServiceIdAndUserIdAndViewedAtAfter(eq(10L), eq(1L), any()))
+        given(userRepository.findUserKeyById(1L)).willReturn(java.util.Optional.of("user-key-1"));
+        given(serviceViewLogRepository.existsByServiceIdAndUserKeyAndViewedAtAfter(eq(10L), eq("user-key-1"), any()))
                 .willReturn(false);
         given(entityManager.getReference(eq(WelfareService.class), eq(10L)))
                 .willReturn(WelfareService.builder().id(10L).build());

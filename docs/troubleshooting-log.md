@@ -387,3 +387,13 @@
 - 문제: 로그인/비밀번호 재설정 조회는 이미 `auth_users` 기준으로 넘어갔는데, reset 메일 발송 주소만 계속 `users.email` 을 사용하면 `user_pii.email_enc` backfill 이후에도 인증 경로가 legacy PII 컬럼에 의존하게 되어 read cut-over 경계가 흐려질 수 있었음
 - 해결: `AuthService.requestPasswordReset` 이 `auth_users -> user_key -> user_pii.email_enc` 경로에서 발송 주소를 읽고, `AesEncryptUtil` 로 복호화한 값으로 메일을 보내도록 변경
 - 이유: PII 분리 단계에서는 "누가 사용자 식별을 담당하는가"와 "어디서 원문 연락처를 읽는가"를 같이 끊어야 한다. 비밀번호 재설정은 인증 전 기능이지만 실제 발송 주소는 PII 저장소에서만 읽도록 고정해야 이후 `users.email` 제거가 가능하다
+
+## 76) `user_key` 컬럼은 migration만 `CHAR(32)` 로 맞추고 JPA 매핑을 기본값으로 두면 통합 테스트 부팅에서 바로 깨질 수 있음
+- 문제: `chat_sessions`, `notifications`, `recommendation_logs`, `service_view_logs`, `users` 의 `user_key` 컬럼은 migration에서 `CHAR(32)` 로 생성됐는데, 엔티티 매핑을 `length = 32` 만 두면 Hibernate validate 가 `VARCHAR(32)` 로 기대해 애플리케이션 부팅이 실패할 수 있었음
+- 해결: 새로 매핑한 `user_key` 필드 전부에 `columnDefinition = "CHAR(32)"` 를 명시하고 `./gradlew integrationTest --no-daemon` 로 schema validate 까지 확인
+- 이유: `user_key` 는 앞으로 공용 식별자이기 때문에 한 테이블만 타입이 어긋나도 배포 즉시 부팅 실패로 이어진다. migration과 JPA 매핑을 항상 한 쌍으로 맞춰야 재발을 막을 수 있다
+
+## 77) split-table 도입 뒤 테스트나 수동 정리에서 `users` 만 지우면 `auth_users/user_profiles/user_pii` orphan 이 남아 중복 충돌을 만들 수 있음
+- 문제: `users` row 만 삭제하고 split table row 를 그대로 두면, 같은 이메일로 다시 fixture 를 만들 때 `auth_users.email_lookup_hash` unique 충돌이 발생할 수 있었음
+- 해결: 고정 이메일 fixture 를 쓰는 `AdminSecurityIntegrationTest` 에서 `UserCoreSyncService` 기반 생성과 `auth_users/user_profiles/user_pii` 동시 정리 루틴을 추가
+- 이유: dual-write 단계에서는 legacy 테이블 하나만 source of truth 라고 가정하면 안 된다. 테스트 fixture, 수동 운영 스크립트, admin bootstrap 모두 split table 동시 정리 기준을 따라야 재시도 가능성이 유지된다

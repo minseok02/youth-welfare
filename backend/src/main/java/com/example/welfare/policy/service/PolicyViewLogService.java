@@ -3,6 +3,7 @@ package com.example.welfare.policy.service;
 import com.example.welfare.policy.entity.ServiceViewLog;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.repository.ServiceViewLogRepository;
+import com.example.welfare.user.repository.UserRepository;
 import jakarta.persistence.EntityManager;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.transaction.Transactional;
@@ -21,15 +22,17 @@ public class PolicyViewLogService {
     private static final int DEDUP_WINDOW_HOURS = 24;
 
     private final ServiceViewLogRepository serviceViewLogRepository;
+    private final UserRepository userRepository;
     private final EntityManager entityManager;
 
     @Transactional
     public boolean registerViewIfFirstInWindow(Long serviceId, Long userId, String clientFingerprint) {
         LocalDateTime cutoff = LocalDateTime.now().minusHours(DEDUP_WINDOW_HOURS);
+        String userKey = resolveUserKey(userId);
 
-        boolean duplicate = userId != null
-                ? serviceViewLogRepository.existsByServiceIdAndUserIdAndViewedAtAfter(
-                serviceId, userId, cutoff
+        boolean duplicate = userKey != null
+                ? serviceViewLogRepository.existsByServiceIdAndUserKeyAndViewedAtAfter(
+                serviceId, userKey, cutoff
         )
                 : serviceViewLogRepository.existsByServiceIdAndClientFingerprintAndViewedAtAfter(
                 serviceId, clientFingerprint, cutoff
@@ -43,6 +46,7 @@ public class PolicyViewLogService {
         serviceViewLogRepository.save(ServiceViewLog.builder()
                 .service(serviceRef)
                 .userId(userId)
+                .userKey(userKey)
                 .clientFingerprint(clientFingerprint)
                 .build());
 
@@ -70,5 +74,12 @@ public class PolicyViewLogService {
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException("SHA-256 algorithm unavailable", e);
         }
+    }
+
+    private String resolveUserKey(Long userId) {
+        if (userId == null) {
+            return null;
+        }
+        return userRepository.findUserKeyById(userId).orElse(null);
     }
 }

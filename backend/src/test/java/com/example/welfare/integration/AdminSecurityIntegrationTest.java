@@ -3,7 +3,12 @@ package com.example.welfare.integration;
 import com.example.welfare.collect.service.CollectService;
 import com.example.welfare.global.util.JwtUtil;
 import com.example.welfare.user.entity.User;
+import com.example.welfare.user.repository.AuthUserRepository;
+import com.example.welfare.user.repository.UserPiiRepository;
+import com.example.welfare.user.repository.UserProfileRepository;
 import com.example.welfare.user.repository.UserRepository;
+import com.example.welfare.user.service.UserCoreSyncService;
+import com.example.welfare.user.util.EmailLookupKeyGenerator;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.AfterEach;
@@ -17,6 +22,7 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -46,7 +52,22 @@ class AdminSecurityIntegrationTest {
     private UserRepository userRepository;
 
     @Autowired
+    private AuthUserRepository authUserRepository;
+
+    @Autowired
+    private UserProfileRepository userProfileRepository;
+
+    @Autowired
+    private UserPiiRepository userPiiRepository;
+
+    @Autowired
     private PasswordEncoder passwordEncoder;
+
+    @Autowired
+    private TransactionTemplate transactionTemplate;
+
+    @Autowired
+    private UserCoreSyncService userCoreSyncService;
 
     @Autowired
     private RedisTemplate<String, String> redisTemplate;
@@ -66,6 +87,10 @@ class AdminSecurityIntegrationTest {
                 .filter(user -> ADMIN_EMAIL.equals(user.getEmail())
                         || (user.getEmail() != null && user.getEmail().startsWith(TEST_EMAIL_PREFIX)))
                 .forEach(user -> {
+                    String userKey = userRepository.findUserKeyById(user.getId()).orElse(null);
+                    if (userKey != null) {
+                        redisTemplate.delete("refresh:" + userKey);
+                    }
                     redisTemplate.delete("refresh:" + user.getId());
                     userRepository.delete(user);
                 });
@@ -114,7 +139,8 @@ class AdminSecurityIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true));
 
-        String refreshToken = redisTemplate.opsForValue().get("refresh:" + adminUser.getId());
+        String adminUserKey = userRepository.findUserKeyById(adminUser.getId()).orElseThrow();
+        String refreshToken = redisTemplate.opsForValue().get("refresh:" + adminUserKey);
         assertFalse(refreshToken == null || refreshToken.isBlank());
 
         String refreshedAccessToken = refreshAndExtractAccessToken(refreshToken);
@@ -129,12 +155,34 @@ class AdminSecurityIntegrationTest {
     }
 
     private User createUser(String email) {
-        return userRepository.save(User.builder()
+        userRepository.findByEmail(email).ifPresent(existing -> {
+            deleteUserState(existing.getId(), userRepository.findUserKeyById(existing.getId()).orElse(null));
+        });
+        authUserRepository.findByEmailLookupHash(EmailLookupKeyGenerator.hash(email))
+                .ifPresent(authUser -> deleteUserState(null, authUser.getUserKey()));
+        User user = userRepository.save(User.builder()
                 .email(email)
                 .passwordHash(passwordEncoder.encode(TEST_PASSWORD))
                 .name("Admin Security Test")
                 .birthDate(LocalDate.of(1998, 1, 10))
                 .build());
+        userCoreSyncService.syncFromUser(user);
+        return user;
+    }
+
+    private void deleteUserState(Long userId, String userKey) {
+        transactionTemplate.executeWithoutResult(status -> {
+            if (userKey != null) {
+                redisTemplate.delete("refresh:" + userKey);
+                userPiiRepository.deleteByUserKey(userKey);
+                userProfileRepository.deleteByUserKey(userKey);
+                authUserRepository.deleteByUserKey(userKey);
+            }
+            if (userId != null) {
+                redisTemplate.delete("refresh:" + userId);
+                userRepository.findById(userId).ifPresent(userRepository::delete);
+            }
+        });
     }
 
     private String loginAndExtractAccessToken(String email, String password) throws Exception {

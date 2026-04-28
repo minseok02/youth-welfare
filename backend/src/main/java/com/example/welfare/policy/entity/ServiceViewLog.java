@@ -28,6 +28,9 @@ public class ServiceViewLog {
     @Column(name = "user_id")
     private Long userId;
 
+    @Column(name = "user_key", length = 32, columnDefinition = "CHAR(32)")
+    private String userKey;
+
     @Column(name = "client_fingerprint", nullable = false, length = 64)
     private String clientFingerprint;
 

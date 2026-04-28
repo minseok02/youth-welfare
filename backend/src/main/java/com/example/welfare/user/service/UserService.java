@@ -187,6 +187,19 @@ public class UserService {
         userCoreSyncService.syncFromUser(user);
     }
 
+    @Transactional
+    public void unsubscribeNotificationsByUserKey(String userKey) {
+        Long userId = userRepository.findIdByUserKey(userKey)
+                .or(() -> {
+                    if (userKey != null && userKey.chars().allMatch(Character::isDigit)) {
+                        return java.util.Optional.of(Long.parseLong(userKey));
+                    }
+                    return java.util.Optional.empty();
+                })
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+        unsubscribeNotifications(userId);
+    }
+
     private User findActiveUser(Long userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));

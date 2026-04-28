@@ -79,6 +79,10 @@ class AuthRedisIntegrationTest {
         userRepository.findAll().stream()
                 .filter(user -> user.getEmail() != null && user.getEmail().startsWith(TEST_EMAIL_PREFIX))
                 .forEach(user -> {
+                    String userKey = userRepository.findUserKeyById(user.getId()).orElse(null);
+                    if (userKey != null) {
+                        redisTemplate.delete("refresh:" + userKey);
+                    }
                     redisTemplate.delete("refresh:" + user.getId());
                     userRepository.delete(user);
                 });
@@ -185,6 +189,7 @@ class AuthRedisIntegrationTest {
                 .andExpect(jsonPath("$.success").value(true));
 
         User user = userRepository.findByEmail(email).orElseThrow();
+        String userKey = userRepository.findUserKeyById(user.getId()).orElseThrow();
         ChatSession chatSession = chatSessionRepository.save(ChatSession.builder()
                 .user(user)
                 .title("로그아웃 전 세션")
@@ -210,7 +215,7 @@ class AuthRedisIntegrationTest {
                 .andExpect(jsonPath("$.data.accessToken").isNotEmpty())
                 .andReturn();
 
-        String storedRefreshToken = redisTemplate.opsForValue().get("refresh:" + user.getId());
+        String storedRefreshToken = redisTemplate.opsForValue().get("refresh:" + userKey);
         assertNotNull(storedRefreshToken);
 
         var refreshResult = mockMvc.perform(post("/api/auth/refresh")
@@ -220,7 +225,7 @@ class AuthRedisIntegrationTest {
                 .andExpect(jsonPath("$.data.accessToken").isNotEmpty())
                 .andReturn();
 
-        String rotatedRefreshToken = redisTemplate.opsForValue().get("refresh:" + user.getId());
+        String rotatedRefreshToken = redisTemplate.opsForValue().get("refresh:" + userKey);
         assertNotNull(rotatedRefreshToken);
 
         mockMvc.perform(post("/api/auth/logout")
@@ -228,7 +233,7 @@ class AuthRedisIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true));
 
-        assertNull(redisTemplate.opsForValue().get("refresh:" + user.getId()));
+        assertNull(redisTemplate.opsForValue().get("refresh:" + userKey));
         assertThat(chatSessionRepository.findById(chatSession.getId())).isEmpty();
         assertEquals(0L, chatMessageRepository.countBySessionId(chatSession.getId()));
         assertNotNull(loginResult.getResponse().getHeader(HttpHeaders.SET_COOKIE));

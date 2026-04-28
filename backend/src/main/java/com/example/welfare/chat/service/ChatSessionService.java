@@ -30,6 +30,7 @@ public class ChatSessionService {
         User user = findActiveUser(userId);
         ChatSession session = chatSessionRepository.save(ChatSession.builder()
                 .user(user)
+                .userKey(user.getUserKey())
                 .title(normalizeTitle(request != null ? request.getTitle() : null))
                 .build());
         return ChatSessionResponse.from(session);

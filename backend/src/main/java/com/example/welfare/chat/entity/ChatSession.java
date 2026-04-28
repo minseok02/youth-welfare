@@ -26,6 +26,9 @@ public class ChatSession extends BaseTimeEntity {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
+    @Column(name = "user_key", length = 32, columnDefinition = "CHAR(32)")
+    private String userKey;
+
     @Column(length = 100)
     private String title;
 

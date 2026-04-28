@@ -10,10 +10,10 @@
 정책 목록/검색/상세/랭킹은 비로그인 허용, 추천/북마크/마이페이지는 로그인 필수로 분리됐습니다.
 AI 추천 품질 점검 후 프롬프트 개선, 중복 추천 제거, 노이즈 정책 필터, CTR 로그 구조를 보완했습니다.
 CTR 분석 기본 쿼리 실행 결과를 확보했고, 현재 데이터는 `46건 / 클릭 1건 / fallback 16건 / 가중치 0.80:0.20 단일 구간`이라 후속 표본 확충 후 재분석이 필요합니다.
-사용자 PII 분리 이행안은 `2 schema`, `user_key` 선행, `dual-write -> read cut-over` 순서로 확정했고, 1단계 `user_key` migration, 2단계 core 분리 테이블(`auth_users`, `user_profiles`, `user_pii`) 생성/backfill, 3단계 회원가입/프로필/비밀번호/회원탈퇴 dual-write와 `user_pii.email_enc/name_enc/birth_date_enc` 앱 레벨 암호화 backfill, 4단계 프로필 조회/추천/알림 read path 전환까지 반영했습니다.
+사용자 PII 분리 이행안은 `2 schema`, `user_key` 선행, `dual-write -> read cut-over` 순서로 확정했고, 1단계 `user_key` migration, 2단계 core 분리 테이블(`auth_users`, `user_profiles`, `user_pii`) 생성/backfill, 3단계 회원가입/프로필/비밀번호/회원탈퇴 dual-write와 `user_pii.email_enc/name_enc/birth_date_enc` 앱 레벨 암호화 backfill, 4단계 프로필 조회/추천/알림 read path 전환, 5단계 JWT/Redis 토큰/로그·세션 기준 `user_key` identity cut-over 1차까지 반영했습니다.
 데모 시나리오 전체 실행 완료 및 발견된 문제 수정됐습니다.
 로컬 Docker MySQL 기준 `user_pii` 24건 중 `email_enc` 24건, `name_enc` 21건, `birth_date_enc` 21건이 채워졌고, 남은 3건은 원본 `users.name/birth_date` 가 비어 있어 skip 됐습니다.
-남은 작업은 운영 배포/운영성 검증(운영 서버 Docker Compose, HTTPS/Nginx, 런타임 DB 계정 분리, JWT/토큰/로그/세션 기준 `user_key` identity cut-over, CTR 표본 확충 후 재분석)과 2차 확장 기능(군집 캐시 추천, 카카오 알림톡, 검색 로그, 대시보드)입니다.
+남은 작업은 운영 배포/운영성 검증(운영 서버 Docker Compose, HTTPS/Nginx, 런타임 DB 계정 분리, legacy `user_id` fallback 제거와 `ManyToOne User`/FK 정리, CTR 표본 확충 후 재분석)과 2차 확장 기능(군집 캐시 추천, 카카오 알림톡, 검색 로그, 대시보드)입니다.
 
 ## 완료된 백엔드 1차 범위
 
@@ -28,6 +28,7 @@ CTR 분석 기본 쿼리 실행 결과를 확보했고, 현재 데이터는 `46�
 - 검색/추천 운영 튜닝: 일반 검색 지역 조인 분리, EXPLAIN 재검증, `service_regions` 복합 인덱스 확정
 - 북마크: 정책 기준 북마크, 추천 북마크 상태 유지, 200건 제한
 - 알림 1차: 이메일 발송, 발송 이력 저장, 실패 재시도, 수신 거부 링크
+- PII 분리 cut-over 1차: `user_key` migration/core split table/dual-write/read path/JWT·Redis 토큰 전환
 - DB 운영: 신규 schema, 기존 DB용 수동 migration SQL, migration 문서
 - 테스트 분리: 기본 테스트 `test`, MySQL/Redis 통합 테스트 `integrationTest`
 
@@ -368,6 +369,16 @@ CTR 분석 기본 쿼리 실행 결과를 확보했고, 현재 데이터는 `46�
 - 2026-04-28 `docker compose up -d db redis`
 - 2026-04-28 metadata `user_key` write sync/backfill 후 `backend`에서 `./gradlew integrationTest --no-daemon --tests com.example.welfare.integration.RecommendationFlowIntegrationTest --tests com.example.welfare.integration.UserCoreDualWriteIntegrationTest --tests com.example.welfare.integration.UserMetadataUserKeyBackfillIntegrationTest`
 - 2026-04-28 metadata `user_key` write sync/backfill 후 `backend`에서 `./gradlew test --no-daemon`
+- 2026-04-28 JWT subject / refresh token / 비밀번호 재설정 토큰 / 로그·세션 참조의 `user_key` identity cut-over 1차 적용
+  - access token / refresh token / notification unsubscribe token 의 JWT subject 를 `user_key` 로 전환하고, 기존 `@AuthenticationPrincipal Long userId` 호환을 위해 `uid` claim 을 함께 기록
+  - Redis `refresh:*`, `password-reset:user:*` key 를 `user_key` 기준으로 전환하고, refresh rotation/logout/password reset confirm 에 legacy `user_id` key 정리 fallback 추가
+  - `notifications`, `recommendation_logs`, `service_view_logs`, `chat_sessions` 에 `user_key` write 경로를 반영하고 unsubscribe/retry/logout cleanup 을 `user_key` 우선 기준으로 정리
+  - `AdminSecurityIntegrationTest` 의 split-table fixture 생성/정리도 `UserCoreSyncService` 와 split-table delete 로 보강
+- 2026-04-28 identity cut-over 1차 적용 후 `backend`에서 `./gradlew test --no-daemon --tests com.example.welfare.user.service.AuthServiceTest --tests com.example.welfare.notification.service.NotificationServiceTest --tests com.example.welfare.notification.controller.NotificationControllerWebMvcTest --tests com.example.welfare.policy.service.PolicyViewLogServiceTest`
+- 2026-04-28 `docker compose up -d db redis`
+- 2026-04-28 identity cut-over 1차 적용 후 `backend`에서 `./gradlew integrationTest --no-daemon --tests com.example.welfare.integration.AdminSecurityIntegrationTest --tests com.example.welfare.integration.AuthRedisIntegrationTest --tests com.example.welfare.integration.RecommendationFlowIntegrationTest --tests com.example.welfare.integration.ChatSessionApiIntegrationTest --tests com.example.welfare.integration.ChatMessageApiIntegrationTest --tests com.example.welfare.integration.UserWithdrawChatCleanupIntegrationTest`
+- 2026-04-28 identity cut-over 1차 적용 후 `backend`에서 `./gradlew test --no-daemon`
+- 2026-04-28 identity cut-over 1차 적용 후 `backend`에서 `./gradlew integrationTest --no-daemon`
 
 ## 작업 추적
 
@@ -380,12 +391,13 @@ CTR 분석 기본 쿼리 실행 결과를 확보했고, 현재 데이터는 `46�
 - [ ] 운영 서버 Docker Compose 기동
 - [ ] HTTPS/Nginx 적용
 - [ ] 런타임 DB 계정 root 제거 및 기능별 계정 분리 (`app_core_rw`, `app_pii_rw`, `notification_pii_ro`)
-- [ ] JWT subject / refresh token / 비밀번호 재설정 토큰 / 로그·세션 참조의 `user_key` identity cut-over
+- [ ] legacy `user_id` fallback 제거 및 `ManyToOne User`/`user_id` FK 정리
 - [ ] CTR 표본 추가 확보 후 rule/AI 가중치 및 프롬프트 재분석
 - [ ] 카카오 알림톡 연동 (2차, 심사 완료 후)
 
 ### 완료
 
+- [x] JWT subject / refresh token / 비밀번호 재설정 토큰 / 로그·세션 참조의 `user_key` identity cut-over 1차 적용
 - [x] `user_attributes/user_priorities.user_key` write sync 및 backfill 적용
 - [x] 프로필 조회/추천/알림 read path를 `user_profiles` + `user_pii` 기준으로 전환
 - [x] 비밀번호 재설정 메일 발송 주소를 `user_pii.email_enc` 복호화 기준으로 전환
@@ -492,6 +504,10 @@ cd backend
 - `AuthRedisIntegrationTest`
 - `PolicyBookmarkIntegrationTest`
 - `RecommendationFlowIntegrationTest`
+- 2026-04-28 identity cut-over 1차 적용 후 `backend`에서 `./gradlew test --no-daemon --tests com.example.welfare.user.service.AuthServiceTest --tests com.example.welfare.notification.service.NotificationServiceTest --tests com.example.welfare.notification.controller.NotificationControllerWebMvcTest --tests com.example.welfare.policy.service.PolicyViewLogServiceTest`
+- 2026-04-28 identity cut-over 1차 적용 후 `backend`에서 `./gradlew integrationTest --no-daemon --tests com.example.welfare.integration.AdminSecurityIntegrationTest --tests com.example.welfare.integration.AuthRedisIntegrationTest --tests com.example.welfare.integration.RecommendationFlowIntegrationTest --tests com.example.welfare.integration.ChatSessionApiIntegrationTest --tests com.example.welfare.integration.ChatMessageApiIntegrationTest --tests com.example.welfare.integration.UserWithdrawChatCleanupIntegrationTest`
+- 2026-04-28 identity cut-over 1차 적용 후 `backend`에서 `./gradlew test --no-daemon`
+- 2026-04-28 identity cut-over 1차 적용 후 `backend`에서 `./gradlew integrationTest --no-daemon`
 - 2026-04-28 로그인/비밀번호 재설정 조회 경로 전환 후 `backend`에서 `./gradlew test --no-daemon --tests com.example.welfare.user.service.AuthServiceTest`
 - 2026-04-28 로그인/비밀번호 재설정 조회 경로 전환 후 `backend`에서 `./gradlew test --no-daemon`
 - 2026-04-28 로그인/비밀번호 재설정 조회 경로 전환 후 `backend`에서 `./gradlew integrationTest --no-daemon --tests com.example.welfare.integration.AuthRedisIntegrationTest`
@@ -511,7 +527,7 @@ cd backend
 
 - EC2 또는 운영 서버에서 Docker Compose 기동
 - HTTPS/Nginx 적용
-- 프로필 조회/추천/알림 read path를 `user_profiles` + `user_pii` 기준으로 전환
+- legacy `user_id` fallback 제거 및 `ManyToOne User`/`user_id` FK 정리
 - 런타임 DB 계정 root 제거 및 기능별 계정 분리
 - CTR 표본 추가 확보 후 rule/AI 가중치 및 프롬프트 재분석
 

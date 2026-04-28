@@ -28,6 +28,9 @@ public class RecommendationLog {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
+    @Column(name = "user_key", length = 32, columnDefinition = "CHAR(32)")
+    private String userKey;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "service_id", nullable = false)
     private WelfareService service;
