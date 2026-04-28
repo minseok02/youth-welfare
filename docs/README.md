@@ -51,6 +51,9 @@
 - [admin-account-runbook.md](./admin-account-runbook.md)
   운영 admin 계정 생성, `SECURITY_ADMIN_EMAILS` 반영, 검증/회수 절차를 확인합니다.
 
+- [db-account-cutover-runbook.md](./db-account-cutover-runbook.md)
+  기존 운영 DB에서 `app_core_rw` / `app_pii_rw` / `notification_pii_ro` / `migration_admin` 계정 생성과 앱 datasource 전환 절차를 확인합니다.
+
 ### 테스트를 실행하거나 실패 원인을 볼 때
 
 - [testing.md](./testing.md)  
@@ -83,6 +86,7 @@
 - [collect-ops.md](./collect-ops.md)
 - [db-search-recommend-ops-guide.md](./db-search-recommend-ops-guide.md)
 - [db-migration.md](./db-migration.md)
+- [db-account-cutover-runbook.md](./db-account-cutover-runbook.md)
 - [demo-scenario.md](./demo-scenario.md)
 - [deployment.md](./deployment.md)
 - [github-workflow.md](./github-workflow.md)

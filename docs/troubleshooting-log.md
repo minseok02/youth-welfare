@@ -447,3 +447,8 @@
 - 문제: 로컬에 이미 생성된 MySQL 볼륨을 재사용하면 `schema.sql` 이 다시 돌지 않아 숨어 있었지만, fresh init smoke 에서는 `notifications`, `chat_sessions` 정의 끝의 말단 쉼표 때문에 SQL 1064 로 초기화가 중단됐음
 - 해결: `backend/src/main/resources/db/schema.sql` 에서 해당 말단 쉼표 2건을 제거하고, 임시 MySQL 8.0 컨테이너로 fresh init 을 다시 검증했음
 - 이유: 신규 서버/새 볼륨 부팅 경로는 기존 개발 DB 재사용 경로와 다르다. 배포/초기화 작업을 건드릴 때는 항상 fresh init smoke 를 같이 돌려야 숨은 schema 문법 오류 재발을 막을 수 있다
+
+## 88) 기존 운영 DB에서 계정 전환 시 `CREATE USER IF NOT EXISTS`만 믿으면 예전 비밀번호나 과권한이 그대로 남을 수 있음
+- 문제: 신규 볼륨 init 스크립트 방식에 익숙해져 기존 운영 DB에서도 `CREATE USER IF NOT EXISTS`만 실행하면, 이미 존재하던 `app_core_rw`류 계정의 비밀번호와 grant가 그대로 남아 실제 앱 cutover 때 인증 실패나 과권한 상태가 이어질 수 있었음
+- 해결: 기존 운영 DB용 템플릿은 `CREATE USER IF NOT EXISTS` 뒤에 `ALTER USER`, `REVOKE ALL PRIVILEGES, GRANT OPTION`, 재부여 `GRANT`를 한 세트로 넣고, 별도 runbook에서 `.env` cutover와 `SHOW GRANTS` 검증까지 같이 수행하도록 정리했음
+- 이유: 신규 init과 기존 운영 계정 보정은 성격이 다르다. 기존 DB는 “있으면 생성”이 아니라 “있어도 현재 기준으로 덮어쓰기”가 핵심이라, 비밀번호/권한 재동기화 절차를 문서와 SQL 템플릿에 동시에 고정해야 재발을 막을 수 있다

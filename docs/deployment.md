@@ -43,6 +43,7 @@ docker compose -f docker-compose.yml up -d --build app
 최근 누적 변경분은 아래 SQL을 먼저 적용한 뒤 앱을 재배포해야 한다.
 
 - 상세 절차와 최신 SQL 목록: [db-migration.md](db-migration.md)
+- 기존 운영 DB 계정 생성과 앱 datasource 전환 절차: [db-account-cutover-runbook.md](./db-account-cutover-runbook.md)
 
 권장 순서:
 
