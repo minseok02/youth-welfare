@@ -67,7 +67,7 @@ docker compose -f docker-compose.yml up -d --build app
 현재 코드 기준 datasource 사용 범위:
 
 - 기본 JPA datasource (`DB_URL`, `DB_USERNAME`): 대부분의 core/runtime 경로
-- 보조 datasource (`APP_PII_DB_URL`, `DB_APP_PII_USERNAME`): 프로필 조회와 비밀번호 재설정 수신 주소 조회의 `user_pii` read 경로
+- 보조 datasource (`APP_PII_DB_URL`, `DB_APP_PII_USERNAME`): 프로필 조회, 비밀번호 재설정 수신 주소 조회, admin `user_pii` backfill write 경로
 - 보조 datasource (`NOTIFICATION_PII_DB_URL`, `DB_NOTIFICATION_PII_RO_USERNAME`): 알림 스케줄러와 재시도 경로의 이메일 암호문 조회
 
 ## 4. 운영 확인

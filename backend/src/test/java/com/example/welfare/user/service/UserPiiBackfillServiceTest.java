@@ -4,6 +4,7 @@ import com.example.welfare.global.util.AesEncryptUtil;
 import com.example.welfare.user.dto.response.UserPiiBackfillResponse;
 import com.example.welfare.user.repository.UserPiiBackfillTarget;
 import com.example.welfare.user.repository.UserPiiRepository;
+import com.example.welfare.user.repository.UserPiiReadWriteRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -25,12 +26,15 @@ class UserPiiBackfillServiceTest {
     private UserPiiRepository userPiiRepository;
 
     @Mock
+    private UserPiiReadWriteRepository userPiiReadWriteRepository;
+
+    @Mock
     private AesEncryptUtil aesEncryptUtil;
 
     @Test
     @DisplayName("백필은 비어 있는 암호화 필드만 앱 레벨 암호화로 채운다")
     void backfillMissingEncryptedFields() {
-        UserPiiBackfillService service = new UserPiiBackfillService(userPiiRepository, aesEncryptUtil);
+        UserPiiBackfillService service = new UserPiiBackfillService(userPiiRepository, userPiiReadWriteRepository, aesEncryptUtil);
 
         UserPiiBackfillTarget target = new StubTarget(
                 "user-key-1",
@@ -55,14 +59,14 @@ class UserPiiBackfillServiceTest {
         assertThat(result.nameBackfilledCount()).isEqualTo(1);
         assertThat(result.birthDateBackfilledCount()).isEqualTo(1);
         assertThat(result.skippedCount()).isZero();
-        then(userPiiRepository).should()
+        then(userPiiReadWriteRepository).should()
                 .backfillEncryptedFields("user-key-1", "enc-email", "enc-name", "enc-birth");
     }
 
     @Test
     @DisplayName("원본 값이 이미 scrub 된 사용자는 건너뛴다")
     void skipWhenLegacySourceAlreadyScrubbed() {
-        UserPiiBackfillService service = new UserPiiBackfillService(userPiiRepository, aesEncryptUtil);
+        UserPiiBackfillService service = new UserPiiBackfillService(userPiiRepository, userPiiReadWriteRepository, aesEncryptUtil);
 
         UserPiiBackfillTarget target = new StubTarget(
                 "user-key-2",
@@ -82,7 +86,7 @@ class UserPiiBackfillServiceTest {
         assertThat(result.updatedUserCount()).isZero();
         assertThat(result.skippedCount()).isEqualTo(1);
         then(userPiiRepository).should().findBackfillTargets();
-        then(userPiiRepository).shouldHaveNoMoreInteractions();
+        then(userPiiReadWriteRepository).shouldHaveNoInteractions();
     }
 
     private static final class StubTarget implements UserPiiBackfillTarget {

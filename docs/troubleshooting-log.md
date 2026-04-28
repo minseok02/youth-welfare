@@ -467,3 +467,8 @@
 - 문제: 프로필 sync나 `user_pii` backfill write 를 바로 `app_pii_rw` datasource로 옮기면, legacy `users` / `auth_users` / `user_profiles` 와 `user_pii` 가 서로 다른 connection pool에서 갱신되어 현재 `@Transactional` 경계만으로는 원자성을 보장할 수 없었음
 - 해결: 이번 단계는 프로필 조회와 비밀번호 재설정 수신 주소 조회 같은 read path만 `app_pii_rw` 로 먼저 이동하고, write 경로는 별도 transaction 전략 정리 task 뒤로 미뤘음
 - 이유: read path는 권한 분리를 바로 얻어도 consistency 리스크가 낮지만, write path는 실패 시 split-table 간 불일치가 바로 남는다. 그래서 read-first, write-later 순서가 안전하다
+
+## 92) `user_pii` write 분리도 요청 경로와 admin batch 경로를 같은 난이도로 보면 일정이 불필요하게 커짐
+- 문제: `UserCoreSyncService` 의 요청 dual-write 와 `UserPiiBackfillService` 의 admin batch write 를 같은 “write 분리”로 묶어 보면, backfill 처럼 독립 row update 로 충분한 경로도 cross-datasource 원자성 문제 때문에 같이 멈춰 버릴 수 있었음
+- 해결: 이번 단계에서는 `UserPiiBackfillService` 의 target selection 은 기존 primary query 를 유지하되 실제 update 만 `app_pii_rw` 로 옮겨 admin batch write 를 먼저 분리하고, 요청 dual-write 경로는 별도 transaction 전략 task 로 남겼음
+- 이유: 같은 write 라도 consistency 요구 수준이 다르다. 요청 경로는 원자성이 중요하지만, admin backfill 은 재실행 가능한 batch 성격이라 먼저 분리해 권한 축소를 앞당길 수 있다

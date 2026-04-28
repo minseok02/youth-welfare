@@ -4,10 +4,10 @@ import com.example.welfare.global.util.AesEncryptUtil;
 import com.example.welfare.user.dto.response.UserPiiBackfillResponse;
 import com.example.welfare.user.repository.UserPiiBackfillTarget;
 import com.example.welfare.user.repository.UserPiiRepository;
+import com.example.welfare.user.repository.UserPiiReadWriteRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 @Slf4j
@@ -16,9 +16,9 @@ import org.springframework.util.StringUtils;
 public class UserPiiBackfillService {
 
     private final UserPiiRepository userPiiRepository;
+    private final UserPiiReadWriteRepository userPiiReadWriteRepository;
     private final AesEncryptUtil aesEncryptUtil;
 
-    @Transactional
     public UserPiiBackfillResponse backfillMissingEncryptedFields() {
         var targets = userPiiRepository.findBackfillTargets();
 
@@ -44,7 +44,7 @@ public class UserPiiBackfillService {
                 continue;
             }
 
-            userPiiRepository.backfillEncryptedFields(target.getUserKey(), emailEnc, nameEnc, birthDateEnc);
+            userPiiReadWriteRepository.backfillEncryptedFields(target.getUserKey(), emailEnc, nameEnc, birthDateEnc);
             updatedUserCount++;
 
             if (emailEnc != null) {

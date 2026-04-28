@@ -35,4 +35,29 @@ public class UserPiiReadWriteRepository {
                 )
         ).stream().findFirst();
     }
+
+    public int backfillEncryptedFields(String userKey, String emailEnc, String nameEnc, String birthDateEnc) {
+        return jdbcTemplate.update("""
+                        update youth_welfare_pii.user_pii
+                        set email_enc = case
+                                when :emailEnc is not null and (email_enc is null or email_enc = '') then :emailEnc
+                                else email_enc
+                            end,
+                            name_enc = case
+                                when :nameEnc is not null and (name_enc is null or name_enc = '') then :nameEnc
+                                else name_enc
+                            end,
+                            birth_date_enc = case
+                                when :birthDateEnc is not null and (birth_date_enc is null or birth_date_enc = '') then :birthDateEnc
+                                else birth_date_enc
+                            end
+                        where user_key = :userKey
+                        """,
+                new MapSqlParameterSource()
+                        .addValue("userKey", userKey)
+                        .addValue("emailEnc", emailEnc)
+                        .addValue("nameEnc", nameEnc)
+                        .addValue("birthDateEnc", birthDateEnc)
+        );
+    }
 }
