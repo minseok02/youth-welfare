@@ -24,6 +24,7 @@ cut-over one-shot smoke도 `.env` 를 shell `source` 하지 않고 `ENV_FILE=.en
 문서 정리 이후에도 로컬 fresh init 기준 `PRINT_SUMMARY=true` preflight와 `SMOKE_RESET_DB=true` one-shot smoke를 다시 돌려 동일한 cut-over 경로가 유지되는지 재검증했습니다.
 pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로 `V2026_04_28_01 -> V2026_04_28_02` 수동 적용과 검증 쿼리를 다시 실행해 migration 문서 순서를 정합화했습니다.
 같은 pre-28 migrated DB에 최신 Spring 앱을 직접 붙여도 `ddl-auto: validate` 가 통과하고, 회원가입 -> 로그인 -> 프로필 수정 -> `user_pii_sync_queue` `SYNCED` -> 회원탈퇴 cleanup end-to-end smoke가 그대로 유지되는지 추가로 확인했습니다.
+같은 조합에서 admin allowlist + DB row를 맞춘 계정으로 `GET /api/admin/users/pii-sync-status`, `POST /api/admin/users/pii-sync-replay` 도 호출해 queue 모니터링/수동 재처리 경로까지 로컬 smoke를 마쳤습니다.
 남은 작업은 운영 배포/운영성 검증(운영 서버 Docker Compose, 기존 운영 DB 계정 생성 SQL 적용 및 datasource 전환, 운영 `.env` / secret store의 `APP_PII_DB_URL` / `NOTIFICATION_PII_DB_URL` 를 `youth_welfare_pii` 기준으로 전환, HTTPS/Nginx, 운영 DB에 `V2026_04_28_02__add_user_pii_sync_queue.sql` / `V2026_04_28_01__drop_runtime_legacy_user_id.sql` 적용 후 smoke 검증, 기존 운영 DB에 `app_core_rw` 의 `youth_welfare_pii.user_pii` revoke SQL 실제 적용과 보조 datasource smoke 검증, CTR 표본 확충 후 재분석)과 2차 확장 기능(군집 캐시 추천, 카카오 알림톡, 검색 로그, 대시보드)입니다.
 
 ## 완료된 백엔드 1차 범위
@@ -101,6 +102,10 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
   - `backend`에서 `SPRING_PROFILES_ACTIVE=prod`, `SERVER_PORT=18082`, `DB_URL/APP_PII_DB_URL/NOTIFICATION_PII_DB_URL=127.0.0.1:3308`, split-account 계정, dummy secret 값을 주고 `./gradlew bootRun --no-daemon` 실행
   - `/actuator/health` 가 `200/UP` 로 올라오고 최신 코드의 `ddl-auto: validate` 가 migrated pre-28 DB에 대해 통과하는 것 확인
   - `APP_BASE_URL=http://127.0.0.1:18082 MYSQL_PORT=3308 DB_QUERY_USERNAME=migration_admin ... deploy/smoke/user-pii-sync-cutover-smoke.sh` 로 회원가입 -> 로그인 -> 프로필 수정 -> queue `SYNCED` -> 회원탈퇴 cleanup 전 구간 재통과
+- 2026-04-28 pre-28 migrated DB 기준 admin `pii-sync-status` / `pii-sync-replay` smoke
+  - `SECURITY_ADMIN_EMAILS=admin.pre28.smoke@example.com` 으로 최신 앱을 다시 기동한 뒤, 공개 signup으로 만든 임시 일반 계정을 `users.email` + `auth_users.email_lookup_hash` 갱신으로 admin 이메일 기준 row로 승격
+  - 승격한 계정으로 로그인 후 프로필 수정으로 queue `SYNCED` 를 다시 확인하고 `GET /api/admin/users/pii-sync-status?failedSampleLimit=5` 응답이 `success=true`, `failedCount=0`, `syncedCount>=1` 인 것 확인
+  - 같은 admin JWT로 `POST /api/admin/users/pii-sync-replay?userKey=<USER_KEY>` 를 호출해 `attemptedCount=1`, `syncedCount=1`, `failedCount=0`, `missingCount=0` 응답을 확인
 - 2026-04-28 one-shot PII sync smoke의 `ENV_FILE` 직접 로드 지원 후 `bash -n deploy/smoke/user-pii-sync-cutover-smoke.sh`
 - 2026-04-28 one-shot PII sync smoke의 `ENV_FILE` 직접 로드 지원 후 `ENV_FILE=.env DB_QUERY_USERNAME=migration_admin DB_QUERY_PASSWORD=smoke-db-password-2026! DB_MIGRATION_USERNAME=migration_admin DB_MIGRATION_PASSWORD=smoke-db-password-2026! APP_BASE_URL=http://127.0.0.1:8082 deploy/smoke/user-pii-sync-cutover-smoke.sh`
   - 현재 로컬 `.env` 가 아직 `DB_USERNAME=root` 라 query/migration 계정만 explicit override로 주입한 상태에서 회원가입 -> 로그인 -> 프로필 수정 -> `user_pii_sync_queue` `SYNCED` -> 회원탈퇴 cleanup 재확인
@@ -613,6 +618,10 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
   - pre-28 migrated DB를 별도 `3308` 포트로 유지한 채 최신 Spring 앱을 `SERVER_PORT=18082` 로 직접 기동해, 최신 엔티티/스키마가 migration 결과와 실제로 맞물리는지 확인
   - 앱 health가 `UP` 인 것을 확인한 뒤 같은 `user-pii-sync-cutover-smoke.sh` 를 `APP_BASE_URL=18082`, `MYSQL_PORT=3308`, `migration_admin` query 계정 조합으로 재사용
   - 회원가입 -> 로그인 -> 프로필 수정 -> `user_pii_sync_queue` `SYNCED` -> 회원탈퇴 cleanup 이 다시 통과해, 수동 migration 문서 정합성뿐 아니라 최신 앱 runtime도 같은 경로를 수용함을 재검증
+- 2026-04-28 pre-28 migrated DB 기준 admin status/replay smoke
+  - `SECURITY_ADMIN_EMAILS` allowlist를 포함한 최신 앱을 같은 migrated DB에 다시 붙이고, 공개 signup 임시 계정을 수동 SQL로 admin 이메일 row로 승격해 실제 운영 런북과 같은 “allowlist + DB row” 조건을 재현
+  - 해당 계정 로그인 후 프로필 수정으로 queue `SYNCED` 를 확인하고 `GET /api/admin/users/pii-sync-status` 로 모니터링 응답이 정상임을 검증
+  - 같은 admin JWT로 `POST /api/admin/users/pii-sync-replay?userKey=<USER_KEY>` 단건 재처리를 호출해 `attempted=1/synced=1/failed=0/missing=0` 결과를 확인
 
 ## 작업 추적
 
@@ -634,6 +643,7 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 
 ### 완료
 
+- [x] pre-28 migrated DB 기준 admin status/replay smoke
 - [x] pre-28 migrated DB에 최신 앱 직접 연결 후 end-to-end smoke
 - [x] 로컬 `migration_admin` 수동 migration 리허설
 - [x] 로컬 runtime cutover 리허설 재실행
