@@ -76,6 +76,10 @@ CTR 분석 기본 쿼리 실행 결과를 확보했고, 현재 데이터는 `46�
 - 2026-04-28 `docker compose up -d db redis`
 - 2026-04-28 `user_pii_sync_queue` status endpoint 및 운영 모니터링 기준 추가 후 `backend`에서 `./gradlew integrationTest --no-daemon --tests "*UserPiiSyncStatusIntegrationTest"`
 - 2026-04-28 `user_pii_sync_queue` status endpoint 및 운영 모니터링 기준 추가 후 `git diff --check`
+- 2026-04-28 `user_pii_sync_queue` cut-over smoke 스크립트 추가 후 `bash -n deploy/smoke/user-pii-sync-cutover-smoke.sh`
+- 2026-04-28 `docker compose up -d --build app`
+- 2026-04-28 `user_pii_sync_queue` cut-over smoke 스크립트 추가 후 `docker compose config`
+- 2026-04-28 `user_pii_sync_queue` cut-over smoke 스크립트 추가 후 `git diff --check`
 - 2026-04-23 메인 페이지 API 연동 후 `frontend`에서 `npm run lint`
 - 2026-04-23 메인 페이지 API 연동 후 `frontend`에서 `npm run build`  
   - Vite 번들 크기 경고 발생. 빌드는 성공했으며 기능 실패는 아님.
@@ -486,6 +490,11 @@ CTR 분석 기본 쿼리 실행 결과를 확보했고, 현재 데이터는 `46�
   - `GET /api/admin/users/pii-sync-status` 로 `pending/failed/synced` count, oldest pending/failed timestamp, latest synced timestamp, failed sample 목록을 조회할 수 있게 추가
   - `UserPiiSyncStatusService` 가 failed sample limit을 `1..20` 으로 clamp 해 운영 조회가 과도한 read amplification으로 번지지 않게 고정
   - `docs/deployment.md`, `docs/db-migration.md`, `docs/user-data-separation-design.md` 에 curl 예시와 warning 기준(`failedCount > 0`, oldest pending 5분 초과, oldest failed 10분 초과, failed sample attemptCount >= 5`)을 반영
+- 2026-04-28 `user_pii_sync_queue` cut-over smoke 스크립트 추가
+  - `deploy/smoke/user-pii-sync-cutover-smoke.sh` 로 회원가입 -> 로그인 -> 프로필 수정 -> `user_pii_sync_queue` `SYNCED` -> split-table row 존재 확인 -> 회원탈퇴 정리까지 one-shot smoke 경로를 추가
+  - query 계정은 `DB_MIGRATION_* -> DB_USERNAME/DB_PASSWORD` 순서로 fallback 하고, `APPLY_PII_SYNC_QUEUE_MIGRATION=true` 로 `V2026_04_28_02` 적용까지 같이 실행할 수 있게 정리
+  - smoke 검증 중 드러난 Docker Compose secondary datasource `localhost` fallback 문제를 막기 위해 `APP_PII_DB_URL`, `NOTIFICATION_PII_DB_URL`, secondary credential 기본값을 앱 컨테이너 environment에 명시
+  - 로컬 full smoke는 현재 `.env` 의 `AES_SECRET_KEY` 빈값 때문에 회원가입 단계 `C002` 500으로 중단됐고, 운영 실행 전 secret 주입 상태를 먼저 확인해야 한다는 점을 문서와 트러블슈팅에 반영
 
 ## 작업 추적
 
@@ -507,6 +516,7 @@ CTR 분석 기본 쿼리 실행 결과를 확보했고, 현재 데이터는 `46�
 
 ### 완료
 
+- [x] `user_pii_sync_queue` cut-over smoke 스크립트 정리
 - [x] `user_pii_sync_queue` status endpoint 및 운영 모니터링 기준 정리
 - [x] `user_pii_sync_queue` 자동 retry 경로 추가
 - [x] `user_pii_sync_queue` admin replay API 추가

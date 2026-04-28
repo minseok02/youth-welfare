@@ -497,3 +497,13 @@
 - 문제: `user_pii_sync_queue` 운영 상태를 보기 위한 admin read API에서 실패 sample 개수를 무제한으로 받으면, 장애 상황처럼 실패 row가 많을 때 운영 확인 요청이 곧 큰 정렬/조회 부하로 바뀔 수 있었음
 - 해결: `GET /api/admin/users/pii-sync-status` 의 `failedSampleLimit` 를 `1..20` 범위로 clamp 하고, 문서 기본값도 `5` 로 고정했음
 - 이유: 장애 대응용 조회는 가장 바쁜 순간에 호출된다. 운영 read API는 필요한 정보만 작은 크기로 제한해야 장애 원인 확인 과정이 시스템 부하를 더 키우지 않는다
+
+## 98) Compose 앱이 기본 datasource만 `db` 서비스명으로 덮어쓰고 secondary datasource는 `localhost` fallback을 타면 cut-over smoke가 컨테이너 안에서 즉시 깨질 수 있음
+- 문제: `docker-compose.yml` 에서 `DB_URL` 만 `db:3306` 으로 강제하고 `APP_PII_DB_URL`, `NOTIFICATION_PII_DB_URL` 은 비워 두면, 로컬 `.env` 에 secondary URL 이 없거나 `localhost` 기준일 때 앱 컨테이너가 `app_pii_rw` / `notification_pii_ro` datasource를 컨테이너 자기 자신으로 붙으려 해 connection refused 를 일으킬 수 있었음
+- 해결: Compose 앱 environment 에 `APP_PII_DB_URL`, `NOTIFICATION_PII_DB_URL`, secondary credential 기본값을 같이 명시해 secondary datasource도 기본적으로 `db` 서비스명과 앱 계정으로 뜨도록 고정했고, `deploy/smoke/user-pii-sync-cutover-smoke.sh` 로 이 경로를 바로 검증할 수 있게 함
+- 이유: 다중 datasource를 넣은 뒤에는 primary datasource만 컨테이너 친화적으로 맞춰도 충분하지 않다. compose 환경은 secondary datasource까지 모두 서비스명 기준으로 덮어써야 실제 운영 smoke와 로컬 재현이 같은 경로를 탄다
+
+## 99) `user_pii` cut-over smoke는 queue/dual-write만 보는 테스트처럼 보여도 실제로는 앱의 `AES_SECRET_KEY` 준비 상태를 함께 요구함
+- 문제: `deploy/smoke/user-pii-sync-cutover-smoke.sh` 는 회원가입과 프로필 수정을 통해 request-path PII sync를 검증하므로, 앱이 `AES_SECRET_KEY` 없이 떠 있으면 queue 로직 이전에 암호화 단계에서 `C002` 500으로 중단될 수 있었음
+- 해결: smoke 스크립트 사용 문서에 `AES_SECRET_KEY` 사전 확인을 명시하고, 검증 결과에도 local `.env` 의 빈 secret 때문에 full smoke가 중단될 수 있음을 남겼음
+- 이유: PII cut-over smoke는 DB migration만의 문제가 아니라 앱 secret 주입까지 포함한 end-to-end 경로다. 운영 실행 전에 secret 상태를 먼저 확인해야 migration 문제와 암호화 환경 문제를 헷갈리지 않는다

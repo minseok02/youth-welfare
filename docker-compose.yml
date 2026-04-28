@@ -11,8 +11,14 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: prod
       DB_URL: jdbc:mysql://db:3306/youth_welfare?useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=UTF-8&serverTimezone=Asia/Seoul
+      APP_PII_DB_URL: ${APP_PII_DB_URL:-jdbc:mysql://db:3306/youth_welfare?useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=UTF-8&serverTimezone=Asia/Seoul}
+      NOTIFICATION_PII_DB_URL: ${NOTIFICATION_PII_DB_URL:-jdbc:mysql://db:3306/youth_welfare?useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=UTF-8&serverTimezone=Asia/Seoul}
       DB_USERNAME: ${DB_USERNAME:-app_core_rw}
       DB_PASSWORD: ${DB_PASSWORD}
+      DB_APP_PII_USERNAME: ${DB_APP_PII_USERNAME:-${DB_USERNAME:-app_core_rw}}
+      DB_APP_PII_PASSWORD: ${DB_APP_PII_PASSWORD:-${DB_PASSWORD}}
+      DB_NOTIFICATION_PII_RO_USERNAME: ${DB_NOTIFICATION_PII_RO_USERNAME:-${DB_USERNAME:-app_core_rw}}
+      DB_NOTIFICATION_PII_RO_PASSWORD: ${DB_NOTIFICATION_PII_RO_PASSWORD:-${DB_PASSWORD}}
       REDIS_HOST: redis
       REDIS_PORT: 6379
       APP_BASE_URL: ${APP_BASE_URL:-https://youth-welfare.kr}

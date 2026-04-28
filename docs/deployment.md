@@ -44,6 +44,7 @@ docker compose -f docker-compose.yml up -d --build app
 - 앱 컨테이너 기본 datasource 계정은 `.env`의 `DB_USERNAME` / `DB_PASSWORD`를 사용하며, 더 이상 `root`를 기본값으로 가정하지 않는다.
 - 프로필 조회와 비밀번호 재설정 수신 주소 조회는 `app.datasource.pii-rw` 보조 datasource를 사용한다. 별도 DB 호스트를 아직 나누지 않았다면 `APP_PII_DB_URL`은 `DB_URL`과 같은 값을 사용해도 된다.
 - 알림 발송 대상 이메일 조회는 `app.datasource.notification-pii-ro` 보조 datasource를 사용한다. 별도 DB 호스트를 아직 나누지 않았다면 `NOTIFICATION_PII_DB_URL`은 `DB_URL`과 같은 값을 사용해도 된다.
+- Docker Compose 앱 컨테이너는 `APP_PII_DB_URL`, `NOTIFICATION_PII_DB_URL` 기본값도 `db` 서비스명으로 강제하고, 별도 secondary credential이 비어 있으면 현재 `DB_USERNAME` / `DB_PASSWORD` 를 따라가게 해 로컬 `.env`가 단일 datasource 기준이어도 secondary datasource가 컨테이너 안에서 연결되도록 고정했다.
 - 요청 경로 `user_pii` sync 실패 row는 `user_pii_sync_queue` 에 남고, 앱은 `USER_PII_SYNC_RETRY_*` 환경변수 기준 fixed-delay batch retry 를 수행한다. 운영 기본값은 `enabled=true`, `batch-size=100`, `initial-delay-ms=60000`, `fixed-delay-ms=300000` 이다.
 
 ## 3. 기존 DB 업그레이드
@@ -89,6 +90,7 @@ docker compose -f docker-compose.yml up -d --build app
 - 알림 수신 거부 링크
 - `user_pii_sync_queue` 자동 retry 로그와 admin replay API smoke 확인
 - `GET /api/admin/users/pii-sync-status?failedSampleLimit=5` 응답 확인
+- 필요하면 `deploy/smoke/user-pii-sync-cutover-smoke.sh` 로 회원가입 -> 로그인 -> 프로필 수정 -> queue `SYNCED` 까지 one-shot smoke 실행
 
 운영 admin 계정의 최초 생성/회수 절차는 [admin-account-runbook.md](./admin-account-runbook.md)를 따릅니다.
 
@@ -98,6 +100,18 @@ docker compose -f docker-compose.yml up -d --build app
 - `oldestPendingEnqueuedAt` 가 현재 시각 기준 5분 이상 오래됐으면 after-commit listener 또는 `app_pii_rw` 연결 이상 여부 점검
 - `oldestFailedAttemptAt` 가 10분 이상 오래됐으면 자동 retry만으로 복구되지 않는 상태로 보고 DB 계정/권한 또는 PII schema 연결 점검
 - `failedSamples[*].attemptCount >= 5` row 가 보이면 같은 payload가 반복 실패하는 상태로 간주하고 운영 개입 대상에 올림
+
+one-shot smoke 예시:
+
+```bash
+set -a
+source .env
+set +a
+APP_BASE_URL=http://127.0.0.1:8082 \
+  deploy/smoke/user-pii-sync-cutover-smoke.sh
+```
+
+- 이 smoke는 회원가입/프로필 수정에서 PII 암호화를 태우므로 앱 컨테이너/서버의 `AES_SECRET_KEY` 가 비어 있으면 `C002` 500으로 실패한다.
 
 컨테이너 확인:
 
