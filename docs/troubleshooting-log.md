@@ -432,3 +432,18 @@
 - 문제: `chat_sessions`, `user_recommendations`, `recommendation_logs`, `notifications` 의 `user_id` FK를 제거한 뒤에도 기존 integration test cleanup 이 `userRepository.delete(user)` 만 호출하면, 런타임 row가 그대로 남아 다음 테스트의 서비스 삭제나 상태 검증을 오염시킬 수 있었음
 - 해결: chat/recommendation 관련 integration test cleanup 을 `user_key` 기준 자식 row 정리 후 사용자 삭제 순서로 바꾸고, `ChatSessionRepository.findAllByUserKey`, `UserRecommendationRepository.findByUserKey`, `RecommendationLogRepository.findByUserKey` 같은 cleanup용 조회를 추가
 - 이유: legacy FK 제거 이후의 정리 기준은 DB cascade가 아니라 애플리케이션 식별자 계약이다. 테스트도 운영과 같은 `user_key` 기반 정리 순서를 따라야 새 스키마에서 안정적으로 반복 실행된다
+
+## 85) Compose에서 앱 DB 계정만 `root`에서 바꾸고 MySQL 초기화 grant를 같이 안 넣으면 신규 환경이 바로 부팅 실패할 수 있음
+- 문제: `docker-compose.yml`과 `.env`에서 앱 datasource 계정을 `app_core_rw`로 바꾸기만 하면, 새 Docker 볼륨이나 새 운영 DB에는 해당 계정 자체가 없어 앱이 `Access denied`로 시작조차 못 할 수 있었음
+- 해결: `deploy/mysql/init/z90-create-runtime-db-users.sh`를 추가해 신규 DB 초기화 시 `app_core_rw`, `app_pii_rw`, `notification_pii_ro`, `migration_admin` 계정과 최소 grant를 함께 생성하고, 기존 DB는 수동 전환이 필요하다는 기준을 배포/마이그레이션 문서에 같이 남겼음
+- 이유: 런타임 `root` 제거는 애플리케이션 설정 변경만으로 끝나지 않는다. 계정 생성, 권한 부여, 앱 env 전환, 기존 DB 예외 처리를 한 묶음으로 다뤄야 같은 실수가 반복되지 않는다
+
+## 86) MySQL `docker-entrypoint-initdb.d` 의 `.sh`는 실행 권한이 없으면 `source` 되어 shell option 이 상위 엔트리포인트에 새어 나갈 수 있음
+- 문제: 초기화 스크립트에 `set -euo pipefail` 을 넣은 상태로 파일이 non-executable 이면 MySQL entrypoint 가 이 파일을 `source` 해서 읽고, `set -u` 가 상위 엔트리포인트까지 남아 `MYSQL_ONETIME_PASSWORD: unbound variable` 로 init 전체가 깨질 수 있었음
+- 해결: `deploy/mysql/init/z90-create-runtime-db-users.sh` 를 executable 로 두고, smoke test 에서 entrypoint 로그가 `running /docker-entrypoint-initdb.d/z90-create-runtime-db-users.sh` 형태로 분리 실행되는 것을 확인했음
+- 이유: Docker init 스크립트는 내용뿐 아니라 실행 방식도 배포 결과를 바꾼다. shell option 을 강하게 쓰는 스크립트는 반드시 독립 프로세스로 실행되게 해야 다른 init 단계에 부작용을 남기지 않는다
+
+## 87) 기존 볼륨에서는 드러나지 않던 `schema.sql` 말단 쉼표가 fresh init 에서만 신규 DB 부팅을 막을 수 있음
+- 문제: 로컬에 이미 생성된 MySQL 볼륨을 재사용하면 `schema.sql` 이 다시 돌지 않아 숨어 있었지만, fresh init smoke 에서는 `notifications`, `chat_sessions` 정의 끝의 말단 쉼표 때문에 SQL 1064 로 초기화가 중단됐음
+- 해결: `backend/src/main/resources/db/schema.sql` 에서 해당 말단 쉼표 2건을 제거하고, 임시 MySQL 8.0 컨테이너로 fresh init 을 다시 검증했음
+- 이유: 신규 서버/새 볼륨 부팅 경로는 기존 개발 DB 재사용 경로와 다르다. 배포/초기화 작업을 건드릴 때는 항상 fresh init smoke 를 같이 돌려야 숨은 schema 문법 오류 재발을 막을 수 있다

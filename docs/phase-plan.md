@@ -13,7 +13,7 @@ CTR 분석 기본 쿼리 실행 결과를 확보했고, 현재 데이터는 `46�
 사용자 PII 분리 이행안은 `2 schema`, `user_key` 선행, `dual-write -> read cut-over` 순서로 확정했고, 1단계 `user_key` migration, 2단계 core 분리 테이블(`auth_users`, `user_profiles`, `user_pii`) 생성/backfill, 3단계 회원가입/프로필/비밀번호/회원탈퇴 dual-write와 `user_pii.email_enc/name_enc/birth_date_enc` 앱 레벨 암호화 backfill, 4단계 프로필 조회/추천/알림 read path 전환, 5단계 JWT/Redis 토큰/로그·세션 기준 `user_key` identity cut-over 1차, 6단계 chat/notification/recommendation log/view log의 legacy `user_id` fallback 제거, 7단계 JWT custom principal cut-over까지 반영했습니다.
 데모 시나리오 전체 실행 완료 및 발견된 문제 수정됐습니다.
 로컬 Docker MySQL 기준 `user_pii` 24건 중 `email_enc` 24건, `name_enc` 21건, `birth_date_enc` 21건이 채워졌고, 남은 3건은 원본 `users.name/birth_date` 가 비어 있어 skip 됐습니다.
-남은 작업은 운영 배포/운영성 검증(운영 서버 Docker Compose, HTTPS/Nginx, 런타임 DB 계정 분리, 운영 DB에 `V2026_04_28_01__drop_runtime_legacy_user_id.sql` 적용 후 smoke 검증, CTR 표본 확충 후 재분석)과 2차 확장 기능(군집 캐시 추천, 카카오 알림톡, 검색 로그, 대시보드)입니다.
+남은 작업은 운영 배포/운영성 검증(운영 서버 Docker Compose, HTTPS/Nginx, 기존 운영 DB 계정 생성 및 datasource 전환, Spring 다중 datasource 분리, 운영 DB에 `V2026_04_28_01__drop_runtime_legacy_user_id.sql` 적용 후 smoke 검증, CTR 표본 확충 후 재분석)과 2차 확장 기능(군집 캐시 추천, 카카오 알림톡, 검색 로그, 대시보드)입니다.
 
 ## 완료된 백엔드 1차 범위
 
@@ -38,6 +38,13 @@ CTR 분석 기본 쿼리 실행 결과를 확보했고, 현재 데이터는 `46�
 - `./gradlew test --no-daemon`
 - `npm run lint`
 - `npm run build`
+- 2026-04-28 Docker Compose 신규 DB 초기화 기준 런타임 앱 DB 계정 `root` 제거 및 계정/권한 시드 추가 후 `bash -n deploy/mysql/init/z90-create-runtime-db-users.sh`
+- 2026-04-28 Docker Compose 신규 DB 초기화 기준 런타임 앱 DB 계정 `root` 제거 및 계정/권한 시드 추가 후 `docker compose config`
+- 2026-04-28 임시 MySQL 8.0 컨테이너로 신규 DB 초기화 smoke 검증
+  - `schema.sql` + `z90-create-runtime-db-users.sh` 마운트로 fresh init 실행
+  - `app_core_rw`, `app_pii_rw`, `notification_pii_ro`, `migration_admin` 로그인 및 `SHOW GRANTS` 확인
+  - `notification_pii_ro` 가 `user_pii(user_key, email_enc)` column-level SELECT 권한만 가지는 것 확인
+- 2026-04-28 Docker Compose 신규 DB 초기화 기준 런타임 앱 DB 계정 `root` 제거 및 계정/권한 시드 추가 후 `git diff --check`
 - 2026-04-23 메인 페이지 API 연동 후 `frontend`에서 `npm run lint`
 - 2026-04-23 메인 페이지 API 연동 후 `frontend`에서 `npm run build`  
   - Vite 번들 크기 경고 발생. 빌드는 성공했으며 기능 실패는 아님.
@@ -412,6 +419,11 @@ CTR 분석 기본 쿼리 실행 결과를 확보했고, 현재 데이터는 `46�
   - `V2026_04_28_01__drop_runtime_legacy_user_id.sql` 추가
   - `user_recommendations`, `recommendation_logs`, `notifications`, `chat_sessions`, `service_view_logs` 에서 `user_id` 컬럼/FK/인덱스 제거
   - `schema.sql`, runtime 엔티티 인덱스 메타데이터, 저장 서비스, 테스트 cleanup 을 최종 구조에 맞게 정리
+- 2026-04-28 Docker Compose 신규 DB 초기화 기준 런타임 앱 DB 계정 `root` 제거 및 계정/권한 시드 추가
+  - `backend/src/main/resources/application.yml`, `.env.example`, `docker-compose.yml` 을 `app_core_rw` / `migration_admin` / `app_pii_rw` / `notification_pii_ro` 기준으로 정리
+  - `deploy/mysql/init/z90-create-runtime-db-users.sh` 추가로 신규 볼륨 초기화 시 계정과 grant 자동 생성
+  - fresh init smoke 중 드러난 `schema.sql` 말단 쉼표 2건을 수정해 신규 DB 부팅 실패를 제거
+  - `docs/deployment.md`, `docs/db-migration.md`, `docs/user-data-separation-design.md` 에 기존 운영 DB 수동 전환 기준과 남은 datasource 분리 범위를 반영
 
 ## 작업 추적
 
@@ -423,13 +435,15 @@ CTR 분석 기본 쿼리 실행 결과를 확보했고, 현재 데이터는 `46�
 
 - [ ] 운영 서버 Docker Compose 기동
 - [ ] HTTPS/Nginx 적용
-- [ ] 런타임 DB 계정 root 제거 및 기능별 계정 분리 (`app_core_rw`, `app_pii_rw`, `notification_pii_ro`)
+- [ ] 기존 운영 DB에 `app_core_rw` / `app_pii_rw` / `notification_pii_ro` / `migration_admin` 계정 생성 및 앱 datasource 전환
+- [ ] Spring 다중 datasource 분리로 `app_core_rw` / `app_pii_rw` / `notification_pii_ro` 실제 사용 경로 분리
 - [ ] 운영 DB에 `V2026_04_28_01__drop_runtime_legacy_user_id.sql` 적용 및 배포 smoke 검증
 - [ ] CTR 표본 추가 확보 후 rule/AI 가중치 및 프롬프트 재분석
 - [ ] 카카오 알림톡 연동 (2차, 심사 완료 후)
 
 ### 완료
 
+- [x] Docker Compose 신규 DB 초기화 기준 런타임 앱 DB 계정 `root` 제거 및 계정/권한 시드 추가
 - [x] runtime 테이블 legacy `user_id` drop migration SQL 작성 및 로컬 Docker 리허설
 - [x] `user_attributes` / `user_priorities` 의 `user_key` 기준 write/delete 전환 및 `ManyToOne User` 제거
 - [x] legacy `user_id` 호환 컬럼 drop 대상 정리 및 migration 설계

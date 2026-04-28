@@ -8,6 +8,9 @@
 - `.env.example`을 복사해서 `.env` 생성
 - 실제 운영 값 채우기:
   - `DB_PASSWORD`
+  - `DB_MIGRATION_USERNAME`, `DB_MIGRATION_PASSWORD`
+  - `DB_APP_PII_USERNAME`, `DB_APP_PII_PASSWORD`
+  - `DB_NOTIFICATION_PII_RO_USERNAME`, `DB_NOTIFICATION_PII_RO_PASSWORD`
   - `JWT_SECRET`
   - `AES_SECRET_KEY`
   - `SECURITY_ADMIN_EMAILS`
@@ -31,6 +34,8 @@ docker compose -f docker-compose.yml up -d --build app
 - 앱 컨테이너는 내부에서 `db`, `redis` 서비스 이름으로 접속한다.
 - 외부 노출 포트는 `8082 -> 8080`이다.
 - DB 신규 초기화는 `backend/src/main/resources/db/schema.sql`로 처리된다.
+- DB 신규 초기화 시 [`deploy/mysql/init/z90-create-runtime-db-users.sh`](../deploy/mysql/init/z90-create-runtime-db-users.sh)가 함께 실행되어 `app_core_rw`, `app_pii_rw`, `notification_pii_ro`, `migration_admin` 계정을 생성한다.
+- 앱 컨테이너 기본 datasource 계정은 `.env`의 `DB_USERNAME` / `DB_PASSWORD`를 사용하며, 더 이상 `root`를 기본값으로 가정하지 않는다.
 
 ## 3. 기존 DB 업그레이드
 
@@ -42,8 +47,17 @@ docker compose -f docker-compose.yml up -d --build app
 권장 순서:
 
 1. `db`, `redis`만 기동
-2. 마이그레이션 SQL 적용
-3. 앱 이미지 재빌드 후 `app` 기동
+2. 운영 DB 계정/권한 생성 또는 확인
+3. 마이그레이션 SQL 적용
+4. 앱 이미지 재빌드 후 `app` 기동
+
+기존 볼륨/기존 운영 DB는 `docker-entrypoint-initdb.d` 스크립트가 다시 실행되지 않으므로 계정 생성은 수동으로 맞춰야 한다.
+현재 권한 기준은 아래를 사용한다.
+
+- `app_core_rw`: `youth_welfare.*` DML + 현재 단일 datasource 호환을 위한 `youth_welfare_pii.user_pii` DML
+- `app_pii_rw`: `youth_welfare_pii.user_pii` DML
+- `notification_pii_ro`: `youth_welfare_pii.user_pii(user_key, email_enc)` column-level SELECT
+- `migration_admin`: `youth_welfare.*`, `youth_welfare_pii.*` 전체 권한
 
 ## 4. 운영 확인
 
@@ -103,6 +117,7 @@ sudo systemctl reload nginx
 - `.env`는 커밋 금지
 - `SECURITY_ADMIN_EMAILS`를 바꾼 뒤에는 앱 재기동 필요
 - DB 볼륨이 이미 존재하면 `schema.sql`은 다시 자동 적용되지 않음
+- DB 볼륨이 이미 존재하면 `deploy/mysql/init/z90-create-runtime-db-users.sh`도 다시 자동 적용되지 않음
 - 기존 운영 DB는 배포 전에 마이그레이션 SQL을 선적용해야 함
 - Gmail 앱 비밀번호 미설정 시 알림 발송은 실패함
 - Nginx 설정의 도메인/인증서 경로는 실제 운영 도메인에 맞게 수정해야 함

@@ -76,8 +76,10 @@
   - legacy runtime 테이블의 `user_id` 호환 컬럼 drop 대상과 migration 순서 설계
   - `user_attributes`, `user_priorities` 의 write/delete 경로를 `user_key` 기준으로 전환하고 `ManyToOne User` 제거
   - runtime 테이블 legacy `user_id` drop migration SQL 작성과 로컬 Docker DB 리허설
+  - Docker Compose 신규 볼륨 기준 앱 datasource의 `root` 제거 및 런타임/마이그레이션/PII 계정 시드 추가
 - 남은 작업
-  - 런타임 datasource 권한 분리 (`app_core_rw`, `app_pii_rw`, `notification_pii_ro`)
+  - 기존 운영 DB에 `app_core_rw`, `app_pii_rw`, `notification_pii_ro`, `migration_admin` 계정 생성 후 앱 datasource 전환
+  - Spring 다중 datasource로 `app_core_rw` / `app_pii_rw` / `notification_pii_ro` 실제 분리
   - 운영 DB에 `V2026_04_28_01__drop_runtime_legacy_user_id.sql` 적용 및 배포 smoke 검증
 
 ## 현재 권한 구조의 문제
@@ -85,7 +87,7 @@
 현재 배포/보안 구조는 데이터 분리 이전에도 권한 경계가 약하다.
 
 - DB 접속은 [application.yml](/home/minseok/youth-welfare/backend/src/main/resources/application.yml:1) 기준 단일 datasource다.
-- 배포는 [docker-compose.yml](/home/minseok/youth-welfare/docker-compose.yml:1) 기준 앱 컨테이너가 `root` 계정으로 MySQL에 접속한다.
+- 현재 [docker-compose.yml](/home/minseok/youth-welfare/docker-compose.yml:1)은 앱 컨테이너가 `DB_USERNAME` 계정으로 접속하고, 신규 볼륨 초기화 시 `app_core_rw`, `app_pii_rw`, `notification_pii_ro`, `migration_admin` 계정을 함께 생성한다.
 - API 권한은 [SecurityConfig](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/global/config/SecurityConfig.java:44) 에서 이미 `/api/admin/** -> hasRole("ADMIN")` 으로 막혀 있다.
 - 다만 관리자 권한은 여전히 `SECURITY_ADMIN_EMAILS` allowlist + `users.email` 조합에 의존하고, DB 안의 역할 테이블이나 서비스 계정 분리는 아직 없다.
 
@@ -577,7 +579,7 @@
 
 ## Spring Boot 구조 변경안
 
-현재는 datasource가 하나다. [application.yml](/home/minseok/youth-welfare/backend/src/main/resources/application.yml:1) 기준으로 단일 `spring.datasource`만 존재한다.
+현재는 datasource가 하나다. [application.yml](/home/minseok/youth-welfare/backend/src/main/resources/application.yml:1) 기준으로 단일 `spring.datasource`만 존재한다. 이번 단계에서 런타임 `root`는 제거했지만, 단일 datasource 구조라 `app_core_rw`가 임시로 `youth_welfare_pii.user_pii` DML 권한까지 가진다.
 
 분리 후에는 최소 2개 datasource를 둔다.
 

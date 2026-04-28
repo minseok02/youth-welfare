@@ -73,6 +73,7 @@
 - `user_attributes`, `user_priorities` 의 저장/삭제 경로가 더 이상 `userId` 에 의존하지 않는지 확인
 - `schema.sql` 과 엔티티 `@Table(indexes=...)` 정의를 drop 후 구조와 같이 수정
 - 운영 DB에서 `user_key IS NULL` row 가 없는지 확인
+- 운영 DB에 `app_core_rw`, `app_pii_rw`, `notification_pii_ro`, `migration_admin` 계정과 권한이 준비됐는지 확인
 
 ## 적용 후 검증 쿼리
 
@@ -92,29 +93,29 @@ SHOW INDEX FROM service_view_logs WHERE Key_name = 'idx_svl_user_key_service_vie
 ## 적용 방법
 
 ```bash
-mysql -h 127.0.0.1 -P 3307 -u root -p youth_welfare < backend/src/main/resources/db/migration/V2026_04_27_02__add_user_key_columns.sql
-mysql -h 127.0.0.1 -P 3307 -u root -p youth_welfare < backend/src/main/resources/db/migration/V2026_04_27_03__add_user_core_split_tables.sql
-mysql -h 127.0.0.1 -P 3307 -u root -p youth_welfare < backend/src/main/resources/db/migration/V2026_04_27_01__add_service_region_compound_indexes.sql
-mysql -h 127.0.0.1 -P 3307 -u root -p youth_welfare < backend/src/main/resources/db/migration/V2026_04_25_01__add_chat_tables.sql
-mysql -h 127.0.0.1 -P 3307 -u root -p youth_welfare < backend/src/main/resources/db/migration/V2026_04_17_01__recent_schema_updates.sql
-mysql -h 127.0.0.1 -P 3307 -u root -p youth_welfare < backend/src/main/resources/db/migration/V2026_04_18_02__add_raw_api_payloads.sql
-mysql -h 127.0.0.1 -P 3307 -u root -p youth_welfare < backend/src/main/resources/db/migration/V2026_04_23_01__add_api_sync_logs.sql
-mysql -h 127.0.0.1 -P 3307 -u root -p youth_welfare < backend/src/main/resources/db/migration/V2026_04_24_01__add_search_youth_relevance.sql
-mysql -h 127.0.0.1 -P 3307 -u root -p youth_welfare < backend/src/main/resources/db/migration/V2026_04_28_01__drop_runtime_legacy_user_id.sql
+mysql -h 127.0.0.1 -P 3307 -u "$DB_MIGRATION_USERNAME" -p"$DB_MIGRATION_PASSWORD" youth_welfare < backend/src/main/resources/db/migration/V2026_04_27_02__add_user_key_columns.sql
+mysql -h 127.0.0.1 -P 3307 -u "$DB_MIGRATION_USERNAME" -p"$DB_MIGRATION_PASSWORD" youth_welfare < backend/src/main/resources/db/migration/V2026_04_27_03__add_user_core_split_tables.sql
+mysql -h 127.0.0.1 -P 3307 -u "$DB_MIGRATION_USERNAME" -p"$DB_MIGRATION_PASSWORD" youth_welfare < backend/src/main/resources/db/migration/V2026_04_27_01__add_service_region_compound_indexes.sql
+mysql -h 127.0.0.1 -P 3307 -u "$DB_MIGRATION_USERNAME" -p"$DB_MIGRATION_PASSWORD" youth_welfare < backend/src/main/resources/db/migration/V2026_04_25_01__add_chat_tables.sql
+mysql -h 127.0.0.1 -P 3307 -u "$DB_MIGRATION_USERNAME" -p"$DB_MIGRATION_PASSWORD" youth_welfare < backend/src/main/resources/db/migration/V2026_04_17_01__recent_schema_updates.sql
+mysql -h 127.0.0.1 -P 3307 -u "$DB_MIGRATION_USERNAME" -p"$DB_MIGRATION_PASSWORD" youth_welfare < backend/src/main/resources/db/migration/V2026_04_18_02__add_raw_api_payloads.sql
+mysql -h 127.0.0.1 -P 3307 -u "$DB_MIGRATION_USERNAME" -p"$DB_MIGRATION_PASSWORD" youth_welfare < backend/src/main/resources/db/migration/V2026_04_23_01__add_api_sync_logs.sql
+mysql -h 127.0.0.1 -P 3307 -u "$DB_MIGRATION_USERNAME" -p"$DB_MIGRATION_PASSWORD" youth_welfare < backend/src/main/resources/db/migration/V2026_04_24_01__add_search_youth_relevance.sql
+mysql -h 127.0.0.1 -P 3307 -u "$DB_MIGRATION_USERNAME" -p"$DB_MIGRATION_PASSWORD" youth_welfare < backend/src/main/resources/db/migration/V2026_04_28_01__drop_runtime_legacy_user_id.sql
 ```
 
 도커 컨테이너를 쓰는 경우:
 
 ```bash
-docker exec -i youth-welfare-db mysql -uroot -p"$DB_PASSWORD" youth_welfare < backend/src/main/resources/db/migration/V2026_04_27_02__add_user_key_columns.sql
-docker exec -i youth-welfare-db mysql -uroot -p"$DB_PASSWORD" youth_welfare < backend/src/main/resources/db/migration/V2026_04_27_03__add_user_core_split_tables.sql
-docker exec -i youth-welfare-db mysql -uroot -p"$DB_PASSWORD" youth_welfare < backend/src/main/resources/db/migration/V2026_04_27_01__add_service_region_compound_indexes.sql
-docker exec -i youth-welfare-db mysql -uroot -p"$DB_PASSWORD" youth_welfare < backend/src/main/resources/db/migration/V2026_04_25_01__add_chat_tables.sql
-docker exec -i youth-welfare-db mysql -uroot -p"$DB_PASSWORD" youth_welfare < backend/src/main/resources/db/migration/V2026_04_17_01__recent_schema_updates.sql
-docker exec -i youth-welfare-db mysql -uroot -p"$DB_PASSWORD" youth_welfare < backend/src/main/resources/db/migration/V2026_04_18_02__add_raw_api_payloads.sql
-docker exec -i youth-welfare-db mysql -uroot -p"$DB_PASSWORD" youth_welfare < backend/src/main/resources/db/migration/V2026_04_23_01__add_api_sync_logs.sql
-docker exec -i youth-welfare-db mysql -uroot -p"$DB_PASSWORD" youth_welfare < backend/src/main/resources/db/migration/V2026_04_24_01__add_search_youth_relevance.sql
-docker exec -i youth-welfare-db mysql -uroot -p"$DB_PASSWORD" youth_welfare < backend/src/main/resources/db/migration/V2026_04_28_01__drop_runtime_legacy_user_id.sql
+docker exec -e MYSQL_PWD="$DB_MIGRATION_PASSWORD" -i youth-welfare-db mysql -u"$DB_MIGRATION_USERNAME" youth_welfare < backend/src/main/resources/db/migration/V2026_04_27_02__add_user_key_columns.sql
+docker exec -e MYSQL_PWD="$DB_MIGRATION_PASSWORD" -i youth-welfare-db mysql -u"$DB_MIGRATION_USERNAME" youth_welfare < backend/src/main/resources/db/migration/V2026_04_27_03__add_user_core_split_tables.sql
+docker exec -e MYSQL_PWD="$DB_MIGRATION_PASSWORD" -i youth-welfare-db mysql -u"$DB_MIGRATION_USERNAME" youth_welfare < backend/src/main/resources/db/migration/V2026_04_27_01__add_service_region_compound_indexes.sql
+docker exec -e MYSQL_PWD="$DB_MIGRATION_PASSWORD" -i youth-welfare-db mysql -u"$DB_MIGRATION_USERNAME" youth_welfare < backend/src/main/resources/db/migration/V2026_04_25_01__add_chat_tables.sql
+docker exec -e MYSQL_PWD="$DB_MIGRATION_PASSWORD" -i youth-welfare-db mysql -u"$DB_MIGRATION_USERNAME" youth_welfare < backend/src/main/resources/db/migration/V2026_04_17_01__recent_schema_updates.sql
+docker exec -e MYSQL_PWD="$DB_MIGRATION_PASSWORD" -i youth-welfare-db mysql -u"$DB_MIGRATION_USERNAME" youth_welfare < backend/src/main/resources/db/migration/V2026_04_18_02__add_raw_api_payloads.sql
+docker exec -e MYSQL_PWD="$DB_MIGRATION_PASSWORD" -i youth-welfare-db mysql -u"$DB_MIGRATION_USERNAME" youth_welfare < backend/src/main/resources/db/migration/V2026_04_23_01__add_api_sync_logs.sql
+docker exec -e MYSQL_PWD="$DB_MIGRATION_PASSWORD" -i youth-welfare-db mysql -u"$DB_MIGRATION_USERNAME" youth_welfare < backend/src/main/resources/db/migration/V2026_04_24_01__add_search_youth_relevance.sql
+docker exec -e MYSQL_PWD="$DB_MIGRATION_PASSWORD" -i youth-welfare-db mysql -u"$DB_MIGRATION_USERNAME" youth_welfare < backend/src/main/resources/db/migration/V2026_04_28_01__drop_runtime_legacy_user_id.sql
 ```
 
 인덱스를 추가한 뒤에는 통계를 한 번 갱신한다.
@@ -240,6 +241,7 @@ SELECT search_youth_relevant, COUNT(*) FROM welfare_services GROUP BY search_you
 - 기존 사용자 backfill은 `UUID()` 대량 UPDATE 대신 `SHA2(CONCAT('user:', id), 256)` 앞 32자 사용으로 고정했다. 단일 인스턴스뿐 아니라 binlog safety 경고가 있는 환경에서도 적용 가능하게 하기 위해서다.
 - `V2026_04_27_02__add_user_key_columns.sql`은 세션 시작 시 `SET SESSION sql_log_bin = 0`을 실행한다. 현재 운영 절차처럼 root 또는 migration 전용 계정으로 수동 적용하는 것을 전제로 한다.
 - `V2026_04_27_03__add_user_core_split_tables.sql`도 세션 시작 시 `SET SESSION sql_log_bin = 0`을 실행한다.
+- 로컬 `docker compose` 신규 볼륨에서는 `deploy/mysql/init/z90-create-runtime-db-users.sh`가 위 계정을 자동 생성한다. 기존 운영 DB나 기존 Docker 볼륨은 이 스크립트가 재실행되지 않으므로 동일한 권한을 수동으로 맞춰야 한다.
 - `user_pii` 의 `email_enc/name_enc/birth_date_enc` 는 migration SQL로 직접 채우지 않는다. 최신 백엔드의 `/api/admin/users/pii-backfill` 가 `AesEncryptUtil` 과 같은 경로로 채우는 것이 기준이다.
 - `user_attributes`, `user_priorities` 의 `user_key` 도 migration backfill만으로 끝내지 않는다. migration 이후 JPA 저장 경로가 `user_key` 를 같이 쓰도록 최신 백엔드를 먼저 배포하고, 기존 누락 row는 `/api/admin/users/metadata-user-key-backfill` 로 마무리하는 것이 기준이다.
 - `users.name` 또는 `users.birth_date` 가 이미 비어 있는 row는 앱 레벨 backfill 이후에도 남을 수 있다. 이 경우는 source 원문이 없는 상태라 `skippedCount` 로 기록하고 억지로 placeholder 값을 넣지 않는다.

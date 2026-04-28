@@ -382,7 +382,7 @@ CREATE TABLE IF NOT EXISTS notifications (
     PRIMARY KEY (id),
     KEY idx_noti_user_key_created (user_key, created_at),
     KEY idx_noti_status_created (status, created_at),
-    KEY idx_noti_retry (status, next_retry_at),
+    KEY idx_noti_retry (status, next_retry_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- 14. notification_services (알림-정책 매핑)
@@ -415,7 +415,7 @@ CREATE TABLE IF NOT EXISTS chat_sessions (
     updated_at      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
     KEY idx_cs_user_key_last_message (user_key, last_message_at),
-    KEY idx_cs_user_key_created (user_key, created_at),
+    KEY idx_cs_user_key_created (user_key, created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- 16. chat_messages (챗 세션 메시지)
