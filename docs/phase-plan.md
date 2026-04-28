@@ -15,6 +15,7 @@ CTR 분석 기본 쿼리 실행 결과를 확보했고, 현재 데이터는 `46�
 로컬 Docker MySQL 기준 `user_pii` 24건 중 `email_enc` 24건, `name_enc` 21건, `birth_date_enc` 21건이 채워졌고, 남은 3건은 원본 `users.name/birth_date` 가 비어 있어 skip 됐습니다.
 로컬 fresh init 기준으로는 `APP_PII_DB_URL` / `NOTIFICATION_PII_DB_URL` 를 `youth_welfare_pii` schema로 교정한 뒤 reduced-grant Docker Compose 기동과 `deploy/smoke/run-local-pii-sync-cutover-smoke.sh` one-shot smoke까지 통과했습니다.
 운영 env 전환 전에는 `deploy/smoke/preflight-runtime-cutover-env.sh` 로 `.env` / secret export 값의 split-account/schema 규칙과 `docker compose config` 렌더링을 먼저 확인할 수 있게 정리했습니다.
+이 preflight는 이제 `PRINT_SUMMARY=true` 로 실행하면 실제 cutover에 쓰일 username/schema 조합을 redacted summary로 같이 보여주도록 보강했습니다.
 cut-over one-shot smoke도 `.env` 를 shell `source` 하지 않고 `ENV_FILE=.env ...` 형태로 직접 읽도록 정리해 JDBC URL의 `&` 로 값이 끊기는 문제를 제거했고, 필요하면 `DB_QUERY_*` 같은 explicit override를 함께 줘도 파일 값보다 우선하도록 보강했습니다.
 남은 작업은 운영 배포/운영성 검증(운영 서버 Docker Compose, 기존 운영 DB 계정 생성 SQL 적용 및 datasource 전환, 운영 `.env` / secret store의 `APP_PII_DB_URL` / `NOTIFICATION_PII_DB_URL` 를 `youth_welfare_pii` 기준으로 전환, HTTPS/Nginx, 운영 DB에 `V2026_04_28_02__add_user_pii_sync_queue.sql` / `V2026_04_28_01__drop_runtime_legacy_user_id.sql` 적용 후 smoke 검증, 기존 운영 DB에 `app_core_rw` 의 `youth_welfare_pii.user_pii` revoke SQL 실제 적용과 보조 datasource smoke 검증, CTR 표본 확충 후 재분석)과 2차 확장 기능(군집 캐시 추천, 카카오 알림톡, 검색 로그, 대시보드)입니다.
 
@@ -67,6 +68,10 @@ cut-over one-shot smoke도 `.env` 를 shell `source` 하지 않고 `ENV_FILE=.en
 - 2026-04-28 운영 cutover env preflight 스크립트 추가 후 임시 invalid env로 실패 경로 확인
   - `APP_PII_DB_URL=.../youth_welfare` 입력 시 preflight가 schema mismatch로 즉시 실패하는 것 확인
 - 2026-04-28 운영 cutover env preflight 스크립트 추가 후 `git diff --check`
+- 2026-04-28 운영 cutover env preflight summary 출력 추가 후 `bash -n deploy/smoke/preflight-runtime-cutover-env.sh`
+- 2026-04-28 운영 cutover env preflight summary 출력 추가 후 `ENV_FILE=.env.example PRINT_SUMMARY=true deploy/smoke/preflight-runtime-cutover-env.sh`
+  - `DB_URL`, `APP_PII_DB_URL`, `NOTIFICATION_PII_DB_URL` 의 target host/schema, split-account username, password set/missing 상태가 redacted summary로 출력되는 것 확인
+- 2026-04-28 운영 cutover env preflight summary 출력 추가 후 `git diff --check`
 - 2026-04-28 one-shot PII sync smoke의 `ENV_FILE` 직접 로드 지원 후 `bash -n deploy/smoke/user-pii-sync-cutover-smoke.sh`
 - 2026-04-28 one-shot PII sync smoke의 `ENV_FILE` 직접 로드 지원 후 `ENV_FILE=.env DB_QUERY_USERNAME=migration_admin DB_QUERY_PASSWORD=smoke-db-password-2026! DB_MIGRATION_USERNAME=migration_admin DB_MIGRATION_PASSWORD=smoke-db-password-2026! APP_BASE_URL=http://127.0.0.1:8082 deploy/smoke/user-pii-sync-cutover-smoke.sh`
   - 현재 로컬 `.env` 가 아직 `DB_USERNAME=root` 라 query/migration 계정만 explicit override로 주입한 상태에서 회원가입 -> 로그인 -> 프로필 수정 -> `user_pii_sync_queue` `SYNCED` -> 회원탈퇴 cleanup 재확인
@@ -546,6 +551,10 @@ cut-over one-shot smoke도 `.env` 를 shell `source` 하지 않고 `ENV_FILE=.en
   - `deploy/smoke/user-pii-sync-cutover-smoke.sh`, `deploy/smoke/preflight-runtime-cutover-env.sh` 모두 caller가 앞에서 준 explicit env override를 파일 값보다 우선하도록 보강해, stale `.env` 가 있어도 `DB_QUERY_*` / `DB_MIGRATION_*` 로 안전하게 우회 가능하도록 수정
   - `docs/deployment.md`, `docs/db-migration.md` 의 one-shot smoke 예시를 `ENV_FILE=.env ...` 기준으로 통일하고, `docs/testing.md` 는 Gmail smoke에서 `.env` 전체를 shell `source` 하지 않도록 수정
   - JDBC URL query string의 `&` 때문에 `source .env` 가 값을 잘라먹는 재발 가능성을 트러블슈팅과 문서에 반영
+- 2026-04-28 운영 cutover env preflight summary 출력 추가
+  - `deploy/smoke/preflight-runtime-cutover-env.sh` 에 `PRINT_SUMMARY=true` 옵션을 추가해 pass/fail만이 아니라 실제로 검증된 target host/schema, split-account username, password set/missing 상태를 redacted summary로 같이 출력하도록 보강
+  - `docs/db-account-cutover-runbook.md`, `docs/deployment.md` 에 운영 cutover 직전 `PRINT_SUMMARY=true` 실행 예시와 체크리스트를 추가
+  - secret store 값은 맞지만 key 이름이나 override precedence가 엇갈려 다른 값으로 검증되는 상황을 운영자가 바로 눈으로 잡을 수 있게 정리
 
 ## 작업 추적
 
@@ -567,6 +576,7 @@ cut-over one-shot smoke도 `.env` 를 shell `source` 하지 않고 `ENV_FILE=.en
 
 ### 완료
 
+- [x] 운영 cutover env preflight summary 출력 추가
 - [x] one-shot PII sync smoke의 `ENV_FILE` 직접 로드 지원 및 `source .env` 예시 제거
 - [x] 운영 cutover `.env` / secret preflight 스크립트 추가
 - [x] secondary datasource schema startup validation 및 integration profile split-account 정리

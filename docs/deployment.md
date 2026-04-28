@@ -36,6 +36,12 @@ cp .env.example .env
 ENV_FILE=.env deploy/smoke/preflight-runtime-cutover-env.sh
 ```
 
+실제 cutover 직전에는 아래처럼 redacted summary까지 같이 확인하는 편이 안전하다.
+
+```bash
+ENV_FILE=.env PRINT_SUMMARY=true deploy/smoke/preflight-runtime-cutover-env.sh
+```
+
 ## 2. 최초 기동
 
 ```bash

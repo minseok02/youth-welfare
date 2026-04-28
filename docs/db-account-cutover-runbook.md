@@ -132,6 +132,12 @@ DB_NOTIFICATION_PII_RO_PASSWORD=<notification_pii_ro password>
 ENV_FILE=.env deploy/smoke/preflight-runtime-cutover-env.sh
 ```
 
+운영 secret store에서 값을 바꾼 직후에는 summary까지 같이 찍어 effective username/schema를 눈으로 다시 확인합니다.
+
+```bash
+ENV_FILE=.env PRINT_SUMMARY=true deploy/smoke/preflight-runtime-cutover-env.sh
+```
+
 적용 순서:
 
 1. DB 계정 SQL 적용
@@ -165,6 +171,7 @@ docker compose -f docker-compose.yml up -d --build app
 - [ ] `notification_pii_ro`가 `phone_enc`를 읽지 못하는지 확인
 - [ ] 운영 `.env`의 `DB_USERNAME`, `DB_PASSWORD`, `APP_PII_DB_URL`, `NOTIFICATION_PII_DB_URL`, `DB_APP_PII_*`, `DB_NOTIFICATION_PII_RO_*` 변경
 - [ ] `ENV_FILE=.env deploy/smoke/preflight-runtime-cutover-env.sh` 통과
+- [ ] `ENV_FILE=.env PRINT_SUMMARY=true deploy/smoke/preflight-runtime-cutover-env.sh` 로 effective username/schema 재확인
 - [ ] 앱 재기동
 - [ ] `/actuator/health` 200 확인
 - [ ] 로그인 / refresh / 추천 목록 / 북마크 토글 smoke 확인
