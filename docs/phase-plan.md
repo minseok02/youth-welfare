@@ -22,6 +22,7 @@ CTR 분석 기본 쿼리 실행 결과를 확보했고, 현재 데이터는 `46�
 cutover 실행 로그 템플릿이 실제로 어느 정도 상세도로 채워지는지 바로 볼 수 있도록 redacted sample 문서도 archive에 추가했습니다.
 cut-over one-shot smoke도 `.env` 를 shell `source` 하지 않고 `ENV_FILE=.env ...` 형태로 직접 읽도록 정리해 JDBC URL의 `&` 로 값이 끊기는 문제를 제거했고, 필요하면 `DB_QUERY_*` 같은 explicit override를 함께 줘도 파일 값보다 우선하도록 보강했습니다.
 문서 정리 이후에도 로컬 fresh init 기준 `PRINT_SUMMARY=true` preflight와 `SMOKE_RESET_DB=true` one-shot smoke를 다시 돌려 동일한 cut-over 경로가 유지되는지 재검증했습니다.
+pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로 `V2026_04_28_01 -> V2026_04_28_02` 수동 적용과 검증 쿼리를 다시 실행해 migration 문서 순서를 정합화했습니다.
 남은 작업은 운영 배포/운영성 검증(운영 서버 Docker Compose, 기존 운영 DB 계정 생성 SQL 적용 및 datasource 전환, 운영 `.env` / secret store의 `APP_PII_DB_URL` / `NOTIFICATION_PII_DB_URL` 를 `youth_welfare_pii` 기준으로 전환, HTTPS/Nginx, 운영 DB에 `V2026_04_28_02__add_user_pii_sync_queue.sql` / `V2026_04_28_01__drop_runtime_legacy_user_id.sql` 적용 후 smoke 검증, 기존 운영 DB에 `app_core_rw` 의 `youth_welfare_pii.user_pii` revoke SQL 실제 적용과 보조 datasource smoke 검증, CTR 표본 확충 후 재분석)과 2차 확장 기능(군집 캐시 추천, 카카오 알림톡, 검색 로그, 대시보드)입니다.
 
 ## 완료된 백엔드 1차 범위
@@ -89,6 +90,11 @@ cut-over one-shot smoke도 `.env` 를 shell `source` 하지 않고 `ENV_FILE=.en
   - split-account username, core/PII schema target, password set 상태가 summary에 기대값대로 출력되는 것 재확인
 - 2026-04-28 로컬 runtime cutover 리허설 재실행 후 `SMOKE_RESET_DB=true APP_HEALTH_TIMEOUT_SECONDS=180 deploy/smoke/run-local-pii-sync-cutover-smoke.sh`
   - fresh init + app rebuild + `V2026_04_28_02` 적용 + 회원가입 -> 로그인 -> 프로필 수정 -> `user_pii_sync_queue` `SYNCED` -> 회원탈퇴 cleanup 전 구간 재통과
+- 2026-04-28 pre-28 schema 임시 MySQL 8.0에서 `migration_admin` 수동 migration 리허설
+  - `git show 28b5f67:backend/src/main/resources/db/schema.sql > /tmp/yw-schema-pre-28.sql` 로 pre-28 schema를 준비하고 `z90-create-runtime-db-users.sh` 와 함께 임시 MySQL 8.0 컨테이너 초기화
+  - `SHOW GRANTS FOR 'migration_admin'@'%'` 확인 후 runtime 테이블의 `user_id` 잔존, nullable `user_key`, `user_pii_sync_queue` 부재를 pre-state로 재확인
+  - `docker exec ... < V2026_04_28_01__drop_runtime_legacy_user_id.sql` 적용 뒤 `SHOW COLUMNS ... LIKE 'user_id'`, `SHOW INDEX ...` 로 drop/index 결과 확인
+  - `docker exec ... < V2026_04_28_02__add_user_pii_sync_queue.sql` 적용 뒤 `SHOW TABLES LIKE 'user_pii_sync_queue'`, `DESCRIBE user_pii_sync_queue` 확인
 - 2026-04-28 one-shot PII sync smoke의 `ENV_FILE` 직접 로드 지원 후 `bash -n deploy/smoke/user-pii-sync-cutover-smoke.sh`
 - 2026-04-28 one-shot PII sync smoke의 `ENV_FILE` 직접 로드 지원 후 `ENV_FILE=.env DB_QUERY_USERNAME=migration_admin DB_QUERY_PASSWORD=smoke-db-password-2026! DB_MIGRATION_USERNAME=migration_admin DB_MIGRATION_PASSWORD=smoke-db-password-2026! APP_BASE_URL=http://127.0.0.1:8082 deploy/smoke/user-pii-sync-cutover-smoke.sh`
   - 현재 로컬 `.env` 가 아직 `DB_USERNAME=root` 라 query/migration 계정만 explicit override로 주입한 상태에서 회원가입 -> 로그인 -> 프로필 수정 -> `user_pii_sync_queue` `SYNCED` -> 회원탈퇴 cleanup 재확인
@@ -592,6 +598,11 @@ cut-over one-shot smoke도 `.env` 를 shell `source` 하지 않고 `ENV_FILE=.en
   - `ENV_FILE=.env.example PRINT_SUMMARY=true deploy/smoke/preflight-runtime-cutover-env.sh` 로 summary 출력이 여전히 split-account/schema 기대값을 보여주는지 재검증
   - `SMOKE_RESET_DB=true APP_HEALTH_TIMEOUT_SECONDS=180 deploy/smoke/run-local-pii-sync-cutover-smoke.sh` 로 fresh init, 앱 재빌드, queue sync, 회원탈퇴 cleanup까지 전 구간을 다시 통과
   - 문서 정리 이후에도 로컬 cut-over 경로가 drift 없이 유지되는지 확인
+- 2026-04-28 로컬 `migration_admin` 수동 migration 리허설
+  - `28b5f67` 시점 `schema.sql` 을 임시 seed로 사용해 pre-28 schema 상태의 MySQL 8.0 컨테이너를 띄우고 `migration_admin` grant를 재확인
+  - runtime 테이블에 `user_id` 가 남아 있고 `user_key` 가 nullable이며 `user_pii_sync_queue` 가 없는 pre-state를 확인한 뒤 `V2026_04_28_01` 을 먼저 적용
+  - `SHOW COLUMNS ... LIKE 'user_id'`, `SHOW INDEX ...` 로 legacy `user_id` drop과 `user_key` 인덱스 재구성을 확인하고, 이어 `V2026_04_28_02` 적용 후 queue table 생성/컬럼 구성을 검증
+  - 이 결과를 기준으로 `docs/db-migration.md` 의 수동 적용 예시 순서를 dependency 기준으로 다시 정렬
 
 ## 작업 추적
 
@@ -613,6 +624,7 @@ cut-over one-shot smoke도 `.env` 를 shell `source` 하지 않고 `ENV_FILE=.en
 
 ### 완료
 
+- [x] 로컬 `migration_admin` 수동 migration 리허설
 - [x] 로컬 runtime cutover 리허설 재실행
 - [x] 운영 runtime cutover 실행 로그 sample 추가
 - [x] 운영 runtime API smoke 명령 모음 추가

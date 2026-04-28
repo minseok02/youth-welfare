@@ -109,32 +109,34 @@ SHOW INDEX FROM service_view_logs WHERE Key_name = 'idx_svl_user_key_service_vie
 
 ## 적용 방법
 
+최신 로컬 수동 리허설 기준으로, `V2026_04_28_01__drop_runtime_legacy_user_id.sql` 과 `V2026_04_28_02__add_user_pii_sync_queue.sql` 는 pre-28 schema 상태에서 `V2026_04_28_01 -> V2026_04_28_02` 순서로 적용/검증했다.
+
 ```bash
-mysql -h 127.0.0.1 -P 3307 -u "$DB_MIGRATION_USERNAME" -p"$DB_MIGRATION_PASSWORD" youth_welfare < backend/src/main/resources/db/migration/V2026_04_27_02__add_user_key_columns.sql
-mysql -h 127.0.0.1 -P 3307 -u "$DB_MIGRATION_USERNAME" -p"$DB_MIGRATION_PASSWORD" youth_welfare < backend/src/main/resources/db/migration/V2026_04_27_03__add_user_core_split_tables.sql
-mysql -h 127.0.0.1 -P 3307 -u "$DB_MIGRATION_USERNAME" -p"$DB_MIGRATION_PASSWORD" youth_welfare < backend/src/main/resources/db/migration/V2026_04_28_02__add_user_pii_sync_queue.sql
-mysql -h 127.0.0.1 -P 3307 -u "$DB_MIGRATION_USERNAME" -p"$DB_MIGRATION_PASSWORD" youth_welfare < backend/src/main/resources/db/migration/V2026_04_27_01__add_service_region_compound_indexes.sql
-mysql -h 127.0.0.1 -P 3307 -u "$DB_MIGRATION_USERNAME" -p"$DB_MIGRATION_PASSWORD" youth_welfare < backend/src/main/resources/db/migration/V2026_04_25_01__add_chat_tables.sql
 mysql -h 127.0.0.1 -P 3307 -u "$DB_MIGRATION_USERNAME" -p"$DB_MIGRATION_PASSWORD" youth_welfare < backend/src/main/resources/db/migration/V2026_04_17_01__recent_schema_updates.sql
 mysql -h 127.0.0.1 -P 3307 -u "$DB_MIGRATION_USERNAME" -p"$DB_MIGRATION_PASSWORD" youth_welfare < backend/src/main/resources/db/migration/V2026_04_18_02__add_raw_api_payloads.sql
 mysql -h 127.0.0.1 -P 3307 -u "$DB_MIGRATION_USERNAME" -p"$DB_MIGRATION_PASSWORD" youth_welfare < backend/src/main/resources/db/migration/V2026_04_23_01__add_api_sync_logs.sql
 mysql -h 127.0.0.1 -P 3307 -u "$DB_MIGRATION_USERNAME" -p"$DB_MIGRATION_PASSWORD" youth_welfare < backend/src/main/resources/db/migration/V2026_04_24_01__add_search_youth_relevance.sql
+mysql -h 127.0.0.1 -P 3307 -u "$DB_MIGRATION_USERNAME" -p"$DB_MIGRATION_PASSWORD" youth_welfare < backend/src/main/resources/db/migration/V2026_04_25_01__add_chat_tables.sql
+mysql -h 127.0.0.1 -P 3307 -u "$DB_MIGRATION_USERNAME" -p"$DB_MIGRATION_PASSWORD" youth_welfare < backend/src/main/resources/db/migration/V2026_04_27_01__add_service_region_compound_indexes.sql
+mysql -h 127.0.0.1 -P 3307 -u "$DB_MIGRATION_USERNAME" -p"$DB_MIGRATION_PASSWORD" youth_welfare < backend/src/main/resources/db/migration/V2026_04_27_02__add_user_key_columns.sql
+mysql -h 127.0.0.1 -P 3307 -u "$DB_MIGRATION_USERNAME" -p"$DB_MIGRATION_PASSWORD" youth_welfare < backend/src/main/resources/db/migration/V2026_04_27_03__add_user_core_split_tables.sql
 mysql -h 127.0.0.1 -P 3307 -u "$DB_MIGRATION_USERNAME" -p"$DB_MIGRATION_PASSWORD" youth_welfare < backend/src/main/resources/db/migration/V2026_04_28_01__drop_runtime_legacy_user_id.sql
+mysql -h 127.0.0.1 -P 3307 -u "$DB_MIGRATION_USERNAME" -p"$DB_MIGRATION_PASSWORD" youth_welfare < backend/src/main/resources/db/migration/V2026_04_28_02__add_user_pii_sync_queue.sql
 ```
 
 도커 컨테이너를 쓰는 경우:
 
 ```bash
-docker exec -e MYSQL_PWD="$DB_MIGRATION_PASSWORD" -i youth-welfare-db mysql -u"$DB_MIGRATION_USERNAME" youth_welfare < backend/src/main/resources/db/migration/V2026_04_27_02__add_user_key_columns.sql
-docker exec -e MYSQL_PWD="$DB_MIGRATION_PASSWORD" -i youth-welfare-db mysql -u"$DB_MIGRATION_USERNAME" youth_welfare < backend/src/main/resources/db/migration/V2026_04_27_03__add_user_core_split_tables.sql
-docker exec -e MYSQL_PWD="$DB_MIGRATION_PASSWORD" -i youth-welfare-db mysql -u"$DB_MIGRATION_USERNAME" youth_welfare < backend/src/main/resources/db/migration/V2026_04_28_02__add_user_pii_sync_queue.sql
-docker exec -e MYSQL_PWD="$DB_MIGRATION_PASSWORD" -i youth-welfare-db mysql -u"$DB_MIGRATION_USERNAME" youth_welfare < backend/src/main/resources/db/migration/V2026_04_27_01__add_service_region_compound_indexes.sql
-docker exec -e MYSQL_PWD="$DB_MIGRATION_PASSWORD" -i youth-welfare-db mysql -u"$DB_MIGRATION_USERNAME" youth_welfare < backend/src/main/resources/db/migration/V2026_04_25_01__add_chat_tables.sql
 docker exec -e MYSQL_PWD="$DB_MIGRATION_PASSWORD" -i youth-welfare-db mysql -u"$DB_MIGRATION_USERNAME" youth_welfare < backend/src/main/resources/db/migration/V2026_04_17_01__recent_schema_updates.sql
 docker exec -e MYSQL_PWD="$DB_MIGRATION_PASSWORD" -i youth-welfare-db mysql -u"$DB_MIGRATION_USERNAME" youth_welfare < backend/src/main/resources/db/migration/V2026_04_18_02__add_raw_api_payloads.sql
 docker exec -e MYSQL_PWD="$DB_MIGRATION_PASSWORD" -i youth-welfare-db mysql -u"$DB_MIGRATION_USERNAME" youth_welfare < backend/src/main/resources/db/migration/V2026_04_23_01__add_api_sync_logs.sql
 docker exec -e MYSQL_PWD="$DB_MIGRATION_PASSWORD" -i youth-welfare-db mysql -u"$DB_MIGRATION_USERNAME" youth_welfare < backend/src/main/resources/db/migration/V2026_04_24_01__add_search_youth_relevance.sql
+docker exec -e MYSQL_PWD="$DB_MIGRATION_PASSWORD" -i youth-welfare-db mysql -u"$DB_MIGRATION_USERNAME" youth_welfare < backend/src/main/resources/db/migration/V2026_04_25_01__add_chat_tables.sql
+docker exec -e MYSQL_PWD="$DB_MIGRATION_PASSWORD" -i youth-welfare-db mysql -u"$DB_MIGRATION_USERNAME" youth_welfare < backend/src/main/resources/db/migration/V2026_04_27_01__add_service_region_compound_indexes.sql
+docker exec -e MYSQL_PWD="$DB_MIGRATION_PASSWORD" -i youth-welfare-db mysql -u"$DB_MIGRATION_USERNAME" youth_welfare < backend/src/main/resources/db/migration/V2026_04_27_02__add_user_key_columns.sql
+docker exec -e MYSQL_PWD="$DB_MIGRATION_PASSWORD" -i youth-welfare-db mysql -u"$DB_MIGRATION_USERNAME" youth_welfare < backend/src/main/resources/db/migration/V2026_04_27_03__add_user_core_split_tables.sql
 docker exec -e MYSQL_PWD="$DB_MIGRATION_PASSWORD" -i youth-welfare-db mysql -u"$DB_MIGRATION_USERNAME" youth_welfare < backend/src/main/resources/db/migration/V2026_04_28_01__drop_runtime_legacy_user_id.sql
+docker exec -e MYSQL_PWD="$DB_MIGRATION_PASSWORD" -i youth-welfare-db mysql -u"$DB_MIGRATION_USERNAME" youth_welfare < backend/src/main/resources/db/migration/V2026_04_28_02__add_user_pii_sync_queue.sql
 ```
 
 인덱스를 추가한 뒤에는 통계를 한 번 갱신한다.

@@ -567,3 +567,8 @@
 - 문제: `runtime-cutover-log-template.md` 로 기록 항목은 정리됐지만, 실제로는 어느 수준의 결과 문장과 redaction을 넣어야 하는지 감이 없으면 작업자마다 기록 품질이 달라질 수 있었음
 - 해결: `docs/archive/runtime-cutover-log-sample.md` 를 추가해 redacted된 sample cutover 기록을 함께 두고, checklist/template 문서에서 바로 참고할 수 있게 링크를 연결했음
 - 이유: 운영 기록도 코드처럼 예시가 있어야 품질이 안정된다. 템플릿만 있으면 최소 항목은 맞춰도 실제 서술 수준이 제각각이 되기 쉬우므로, sample을 함께 두는 편이 다음 차수 cutover 반복성과 비교 가능성을 높인다
+
+## 112) 수동 migration 예시 순서가 문서마다 어긋나면 로컬/운영 리허설에서 “무엇을 먼저 적용해야 하는지”를 다시 판단하게 되어 실수 여지가 생김
+- 문제: `runtime-cutover-checklist.md` 는 최신 2종 migration을 `V2026_04_28_01 -> V2026_04_28_02` 순서로 안내하고 있었지만, `db-migration.md` 의 수동 적용 예시는 older migration과 최신 migration이 뒤섞여 있어 local `migration_admin` 리허설 시 실제 적용 순서를 다시 해석해야 했음
+- 해결: pre-28 schema 임시 MySQL 8.0에서 `migration_admin` 으로 `V2026_04_28_01 -> V2026_04_28_02` 를 직접 적용해 검증한 뒤, `docs/db-migration.md` 의 mysql/docker 예시를 dependency 기준 순서로 재정렬하고 최신 2종은 같은 순서로 명시했음
+- 이유: 수동 cut-over 문서는 실행 예시끼리 같은 순서를 유지해야 작업자가 맥락 없이 복사해도 안전하다. 특히 최신 migration 2종처럼 같은 날 추가된 파일은 체크리스트, runbook, migration 가이드가 한 순서를 공유해야 재시도와 회고가 단순해진다
