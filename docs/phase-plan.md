@@ -27,6 +27,7 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 같은 조합에서 admin allowlist + DB row를 맞춘 계정으로 `GET /api/admin/users/pii-sync-status`, `POST /api/admin/users/pii-sync-replay` 도 호출해 queue 모니터링/수동 재처리 경로까지 로컬 smoke를 마쳤습니다.
 이어 같은 migrated DB에서 queue row를 의도적으로 `FAILED` 로 바꾼 뒤 `failedSamples` 노출과 single replay 복구까지 확인해, 운영자가 보는 장애 확인/수습 경로도 로컬에서 재검증했습니다.
 같은 migrated DB의 admin 계정으로 로그인한 뒤 cookie 기반 `refresh` 를 거쳐도 `ROLE_ADMIN` 이 유지되어 `pii-sync-status` / `pii-sync-replay` 를 계속 호출할 수 있는지까지 로컬 smoke를 마쳤습니다.
+같은 admin 계정에서 `logout` 이후 refresh cookie가 실제로 비워지고 `POST /api/auth/refresh` 가 `A001` 로 막히는지, 이후 재로그인으로 admin status/replay 경로가 다시 회복되는지도 로컬 smoke로 확인했습니다.
 남은 작업은 운영 배포/운영성 검증(운영 서버 Docker Compose, 기존 운영 DB 계정 생성 SQL 적용 및 datasource 전환, 운영 `.env` / secret store의 `APP_PII_DB_URL` / `NOTIFICATION_PII_DB_URL` 를 `youth_welfare_pii` 기준으로 전환, HTTPS/Nginx, 운영 DB에 `V2026_04_28_02__add_user_pii_sync_queue.sql` / `V2026_04_28_01__drop_runtime_legacy_user_id.sql` 적용 후 smoke 검증, 기존 운영 DB에 `app_core_rw` 의 `youth_welfare_pii.user_pii` revoke SQL 실제 적용과 보조 datasource smoke 검증, CTR 표본 확충 후 재분석)과 2차 확장 기능(군집 캐시 추천, 카카오 알림톡, 검색 로그, 대시보드)입니다.
 
 ## 완료된 백엔드 1차 범위
@@ -116,6 +117,10 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
   - `SECURITY_ADMIN_EMAILS=admin.refresh.smoke@example.com` 으로 최신 앱을 기동한 뒤, admin row 로그인으로 받은 초기 access token과 cookie jar를 준비
   - 초기 access token으로 `GET /api/admin/users/pii-sync-status?failedSampleLimit=5` 가 `success=true` 인 것을 확인한 뒤, 같은 cookie jar로 `POST /api/auth/refresh` 를 호출해 새 access token 획득
   - refreshed access token으로 다시 `GET /api/admin/users/pii-sync-status?failedSampleLimit=5`, `POST /api/admin/users/pii-sync-replay?userKey=<USER_KEY>` 를 호출해 admin 권한이 유지되고 queue row가 계속 `SYNCED` 로 재처리되는 것 확인
+- 2026-04-28 pre-28 migrated DB 기준 admin logout / refresh invalidation / relogin smoke
+  - `SECURITY_ADMIN_EMAILS=admin.logout.smoke@example.com` 으로 최신 앱을 기동한 뒤, admin 계정 로그인과 프로필 수정으로 queue row를 `SYNCED` 상태까지 맞추고 `POST /api/auth/refresh` 가 먼저 성공하는 것 확인
+  - 같은 cookie jar + access token으로 `POST /api/auth/logout` 호출 후 cookie jar에서 `refresh_token` 이 제거되고, 직후 `POST /api/auth/refresh` 가 `401`, `errorCode=A001` 로 막히는 것 확인
+  - 이후 같은 admin 이메일로 재로그인한 access token으로 `GET /api/admin/users/pii-sync-status?failedSampleLimit=5`, `POST /api/admin/users/pii-sync-replay?userKey=<USER_KEY>` 를 다시 호출해 admin 경로와 queue 재처리 결과가 회복되는 것 확인
 - 2026-04-28 one-shot PII sync smoke의 `ENV_FILE` 직접 로드 지원 후 `bash -n deploy/smoke/user-pii-sync-cutover-smoke.sh`
 - 2026-04-28 one-shot PII sync smoke의 `ENV_FILE` 직접 로드 지원 후 `ENV_FILE=.env DB_QUERY_USERNAME=migration_admin DB_QUERY_PASSWORD=smoke-db-password-2026! DB_MIGRATION_USERNAME=migration_admin DB_MIGRATION_PASSWORD=smoke-db-password-2026! APP_BASE_URL=http://127.0.0.1:8082 deploy/smoke/user-pii-sync-cutover-smoke.sh`
   - 현재 로컬 `.env` 가 아직 `DB_USERNAME=root` 라 query/migration 계정만 explicit override로 주입한 상태에서 회원가입 -> 로그인 -> 프로필 수정 -> `user_pii_sync_queue` `SYNCED` -> 회원탈퇴 cleanup 재확인
@@ -640,6 +645,10 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
   - 같은 migrated DB에 `SECURITY_ADMIN_EMAILS=admin.refresh.smoke@example.com` 를 준 최신 앱을 붙여, admin 이메일 row 로그인 후 초기 access token과 refresh cookie를 확보
   - 초기 access token으로 `GET /api/admin/users/pii-sync-status` 성공을 먼저 확인한 뒤, 같은 cookie jar로 `POST /api/auth/refresh` 를 호출해 refreshed access token을 획득
   - refreshed access token으로 다시 `GET /api/admin/users/pii-sync-status`, `POST /api/admin/users/pii-sync-replay?userKey=<USER_KEY>` 를 호출해 admin 권한과 queue 재처리 경로가 refresh 이후에도 유지되는 것을 검증
+- 2026-04-28 pre-28 migrated DB 기준 admin logout/relogin recovery smoke
+  - 같은 migrated DB의 admin 계정으로 로그인하고 queue row를 `SYNCED` 상태로 맞춘 뒤, cookie 기반 `POST /api/auth/refresh` 성공까지 먼저 확인
+  - 이어 `POST /api/auth/logout` 후 cookie jar에서 `refresh_token` 이 비워지고, 직후 `POST /api/auth/refresh` 가 `401 / A001` 로 실패하는 것을 확인
+  - 같은 admin 이메일로 재로그인한 access token으로 `GET /api/admin/users/pii-sync-status`, `POST /api/admin/users/pii-sync-replay?userKey=<USER_KEY>` 를 다시 호출해 admin status/replay 경로가 재로그인 후 회복되는 것을 검증
 
 ## 작업 추적
 
@@ -661,6 +670,7 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 
 ### 완료
 
+- [x] pre-28 migrated DB 기준 admin logout/relogin recovery smoke
 - [x] pre-28 migrated DB 기준 admin refresh role retention smoke
 - [x] pre-28 migrated DB 기준 failed sample/status/replay recovery smoke
 - [x] pre-28 migrated DB 기준 admin status/replay smoke

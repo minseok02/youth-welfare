@@ -190,6 +190,7 @@ curl -sS \
 
 - 응답 `success=true`
 - refresh cookie clear
+- 직후 `POST /api/auth/refresh` 는 보통 `401`, `errorCode=A001` 로 실패해야 함
 
 ## 9. 실패 시 먼저 볼 것
 

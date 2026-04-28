@@ -582,3 +582,8 @@
 - 문제: admin refresh smoke 중 로그인 직후 바로 `POST /api/auth/refresh` 를 호출하자 응답은 성공이었지만 새 access token 문자열이 로그인 응답의 token과 같아, 단순 문자열 비교를 성공 기준으로 두면 refresh 실패로 오해할 수 있었음
 - 해결: refresh smoke와 관련 문서의 확인 기준을 “refreshed token으로 보호 API를 다시 호출해 권한이 유지되는지”로 맞추고, `docs/runtime-api-smoke-commands.md` 에도 같은 주의를 추가했음
 - 이유: 현재 JWT는 같은 초 안에서 같은 subject/userId/roles로 다시 발급되면 동일한 토큰 문자열이 나올 수 있다. 이 경우 핵심은 토큰 문자열 변화가 아니라 refresh 응답 성공과 그 token으로 실제 보호 API가 계속 통과하는지다
+
+## 115) logout 직후 refresh 실패를 기대할 때는 Redis reuse 오류보다 cookie clear 이후의 `A001 INVALID_TOKEN` 경로가 먼저 보일 수 있음
+- 문제: admin logout smoke에서 `POST /api/auth/logout` 뒤 바로 `POST /api/auth/refresh` 를 호출했더니, Redis에 저장된 refresh token이 지워졌으므로 재사용 탐지 성격의 오류를 기대하기 쉬웠지만 실제 응답은 `401`, `errorCode=A001` 이었음
+- 해결: smoke 기대값과 문서를 `logout -> refresh cookie clear -> 직후 refresh는 A001` 기준으로 정리하고, 성공 판단은 이후 재로그인으로 admin 보호 API가 다시 회복되는지까지 포함하도록 맞췄음
+- 이유: 현재 logout 응답은 `Set-Cookie` 로 `refresh_token` 자체를 먼저 비우므로, 클라이언트는 재호출 시 토큰이 없는 상태로 `/api/auth/refresh` 를 치게 된다. 이 경우 서버는 reuse 검출보다 앞단의 “토큰 없음/비어 있음” 경로에서 `INVALID_TOKEN` 을 반환하는 것이 자연스럽다
