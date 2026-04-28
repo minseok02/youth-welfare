@@ -74,7 +74,6 @@ class UserWithdrawChatCleanupIntegrationTest {
         String userKey = userRepository.findUserKeyById(user.getId()).orElseThrow();
 
         ChatSession session = chatSessionRepository.save(ChatSession.builder()
-                .userId(user.getId())
                 .userKey(userKey)
                 .title("탈퇴 전 세션")
                 .build());

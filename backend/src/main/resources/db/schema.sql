@@ -309,8 +309,7 @@ CREATE TABLE IF NOT EXISTS score_weights (
 -- AI 점수·이유는 여기에만 존재. ai_score NULL = AI 미실행 → rule만 사용.
 CREATE TABLE IF NOT EXISTS user_recommendations (
     id                  BIGINT       NOT NULL AUTO_INCREMENT,
-    user_id             BIGINT       NOT NULL,
-    user_key            CHAR(32),
+    user_key            CHAR(32)     NOT NULL,
     service_id          BIGINT       NOT NULL,
     recommended_at      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     rule_base_score     DECIMAL(7,2),
@@ -324,21 +323,17 @@ CREATE TABLE IF NOT EXISTS user_recommendations (
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
-    UNIQUE KEY uq_ur_user_service_time (user_id, service_id, recommended_at),
-    KEY idx_ur_user_score  (user_id, final_score DESC),
-    KEY idx_ur_user_key_score (user_key, final_score),
+    UNIQUE KEY uq_ur_user_key_service_time (user_key, service_id, recommended_at),
+    KEY idx_ur_user_key_score (user_key, final_score DESC),
     KEY idx_ur_recommended (recommended_at),
-    KEY idx_ur_bookmark    (user_id, is_bookmarked),
     KEY idx_ur_user_key_bookmark (user_key, is_bookmarked),
-    CONSTRAINT fk_ur_user    FOREIGN KEY (user_id)    REFERENCES users(id)           ON DELETE CASCADE,
     CONSTRAINT fk_ur_service FOREIGN KEY (service_id) REFERENCES welfare_services(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- 11. recommendation_logs (영구 보관 — CTR + 가중치 단계 분석)
 CREATE TABLE IF NOT EXISTS recommendation_logs (
     id               BIGINT      NOT NULL AUTO_INCREMENT,
-    user_id          BIGINT      NOT NULL,
-    user_key         CHAR(32),
+    user_key         CHAR(32)    NOT NULL,
     service_id       BIGINT      NOT NULL,
     notification_id  BIGINT,
     final_score      DECIMAL(6,5),
@@ -349,10 +344,8 @@ CREATE TABLE IF NOT EXISTS recommendation_logs (
     sent_at          DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP,
     clicked_at       DATETIME,
     PRIMARY KEY (id),
-    KEY idx_rl_user    (user_id),
     KEY idx_rl_user_key_sent (user_key, sent_at),
     KEY idx_rl_service (service_id),
-    CONSTRAINT fk_rl_user    FOREIGN KEY (user_id)    REFERENCES users(id)           ON DELETE CASCADE,
     CONSTRAINT fk_rl_service FOREIGN KEY (service_id) REFERENCES welfare_services(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -360,13 +353,11 @@ CREATE TABLE IF NOT EXISTS recommendation_logs (
 CREATE TABLE IF NOT EXISTS service_view_logs (
     id                 BIGINT       NOT NULL AUTO_INCREMENT,
     service_id         BIGINT       NOT NULL,
-    user_id            BIGINT,
     user_key           CHAR(32),
     client_fingerprint VARCHAR(64)  NOT NULL,
     viewed_at          DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
     KEY idx_svl_service_viewed (service_id, viewed_at),
-    KEY idx_svl_user_service_viewed (user_id, service_id, viewed_at),
     KEY idx_svl_user_key_service_viewed (user_key, service_id, viewed_at),
     KEY idx_svl_fp_service_viewed (client_fingerprint, service_id, viewed_at),
     CONSTRAINT fk_svl_service FOREIGN KEY (service_id) REFERENCES welfare_services(id) ON DELETE CASCADE
@@ -375,8 +366,7 @@ CREATE TABLE IF NOT EXISTS service_view_logs (
 -- 13. notifications (알림 발송 이력 헤더)
 CREATE TABLE IF NOT EXISTS notifications (
     id             BIGINT       NOT NULL AUTO_INCREMENT,
-    user_id        BIGINT       NOT NULL,
-    user_key       CHAR(32),
+    user_key       CHAR(32)     NOT NULL,
     channel        ENUM('email','kakao') NOT NULL,
     period_type    ENUM('daily','weekly','manual') NOT NULL,
     status         ENUM('sent','failed') NOT NULL,
@@ -390,11 +380,9 @@ CREATE TABLE IF NOT EXISTS notifications (
     created_at     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
-    KEY idx_noti_user_created (user_id, created_at),
     KEY idx_noti_user_key_created (user_key, created_at),
     KEY idx_noti_status_created (status, created_at),
     KEY idx_noti_retry (status, next_retry_at),
-    CONSTRAINT fk_noti_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- 14. notification_services (알림-정책 매핑)
@@ -420,18 +408,14 @@ CREATE TABLE IF NOT EXISTS notification_services (
 -- 15. chat_sessions (챗 세션 헤더)
 CREATE TABLE IF NOT EXISTS chat_sessions (
     id              BIGINT       NOT NULL AUTO_INCREMENT,
-    user_id         BIGINT       NOT NULL,
-    user_key        CHAR(32),
+    user_key        CHAR(32)     NOT NULL,
     title           VARCHAR(100),
     last_message_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     created_at      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
-    KEY idx_cs_user_last_message (user_id, last_message_at DESC),
-    KEY idx_cs_user_created (user_id, created_at DESC),
     KEY idx_cs_user_key_last_message (user_key, last_message_at),
     KEY idx_cs_user_key_created (user_key, created_at),
-    CONSTRAINT fk_cs_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- 16. chat_messages (챗 세션 메시지)

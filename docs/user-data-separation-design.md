@@ -75,9 +75,10 @@
   - `user_recommendations` 의 `ManyToOne User` 제거와 추천/북마크 read path 의 `user_key` 전환
   - legacy runtime 테이블의 `user_id` 호환 컬럼 drop 대상과 migration 순서 설계
   - `user_attributes`, `user_priorities` 의 write/delete 경로를 `user_key` 기준으로 전환하고 `ManyToOne User` 제거
+  - runtime 테이블 legacy `user_id` drop migration SQL 작성과 로컬 Docker DB 리허설
 - 남은 작업
-  - runtime 테이블 legacy `user_id` drop migration SQL 작성 및 운영 리허설
   - 런타임 datasource 권한 분리 (`app_core_rw`, `app_pii_rw`, `notification_pii_ro`)
+  - 운영 DB에 `V2026_04_28_01__drop_runtime_legacy_user_id.sql` 적용 및 배포 smoke 검증
 
 ## 현재 권한 구조의 문제
 
@@ -767,7 +768,8 @@
 현재 상태:
 
 - JWT `user_key` 전환, custom principal 전환, runtime 주요 테이블의 `ManyToOne User` 제거는 완료
-- 남은 범위는 실제 drop migration SQL 작성과 운영 DB 적용 리허설이다
+- runtime 테이블 legacy `user_id` drop migration SQL과 로컬 Docker DB 리허설까지 완료
+- 남은 범위는 운영 DB 적용과 배포 smoke 검증이다
 
 ### Release E
 

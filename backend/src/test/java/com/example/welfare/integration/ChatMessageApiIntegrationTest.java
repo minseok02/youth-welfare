@@ -85,7 +85,13 @@ class ChatMessageApiIntegrationTest {
     void cleanup() {
         userRepository.findAll().stream()
                 .filter(user -> user.getEmail() != null && user.getEmail().startsWith(TEST_EMAIL_PREFIX))
-                .forEach(userRepository::delete);
+                .forEach(user -> {
+                    String userKey = userRepository.findUserKeyById(user.getId()).orElse(null);
+                    if (userKey != null) {
+                        chatSessionRepository.deleteAll(chatSessionRepository.findAllByUserKey(userKey));
+                    }
+                    userRepository.delete(user);
+                });
         welfareServiceRepository.findAll().stream()
                 .filter(service -> service.getSourceId() != null && service.getSourceId().startsWith(TEST_POLICY_SOURCE_PREFIX))
                 .forEach(welfareServiceRepository::delete);
@@ -103,7 +109,6 @@ class ChatMessageApiIntegrationTest {
         String userKey = userRepository.findUserKeyById(user.getId()).orElseThrow();
 
         ChatSession session = chatSessionRepository.save(ChatSession.builder()
-                .userId(user.getId())
                 .userKey(userKey)
                 .title("주거 상담")
                 .build());
@@ -148,7 +153,6 @@ class ChatMessageApiIntegrationTest {
         String otherKey = userRepository.findUserKeyById(other.getId()).orElseThrow();
 
         ChatSession otherSession = chatSessionRepository.save(ChatSession.builder()
-                .userId(other.getId())
                 .userKey(otherKey)
                 .title("다른 사람 세션")
                 .build());
@@ -168,7 +172,6 @@ class ChatMessageApiIntegrationTest {
         String userKey = userRepository.findUserKeyById(user.getId()).orElseThrow();
 
         ChatSession session = chatSessionRepository.save(ChatSession.builder()
-                .userId(user.getId())
                 .userKey(userKey)
                 .build());
 
@@ -226,7 +229,6 @@ class ChatMessageApiIntegrationTest {
         String otherKey = userRepository.findUserKeyById(other.getId()).orElseThrow();
 
         ChatSession otherSession = chatSessionRepository.save(ChatSession.builder()
-                .userId(other.getId())
                 .userKey(otherKey)
                 .title("다른 사람 세션")
                 .build());
@@ -248,7 +250,6 @@ class ChatMessageApiIntegrationTest {
         String userKey = userRepository.findUserKeyById(user.getId()).orElseThrow();
 
         ChatSession session = chatSessionRepository.save(ChatSession.builder()
-                .userId(user.getId())
                 .userKey(userKey)
                 .build());
 

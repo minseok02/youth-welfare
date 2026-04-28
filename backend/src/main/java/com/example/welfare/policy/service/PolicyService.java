@@ -103,13 +103,10 @@ public class PolicyService {
     }
 
     private UserRecommendation createBookmarkPlaceholder(Long userId, String userKey, Long serviceId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
         WelfareService service = welfareServiceRepository.findById(serviceId)
                 .orElseThrow(() -> new CustomException(ErrorCode.POLICY_NOT_FOUND));
 
         UserRecommendation placeholder = UserRecommendation.builder()
-                .userId(user.getId())
                 .userKey(userKey)
                 .service(service)
                 .recommendedAt(LocalDateTime.now())

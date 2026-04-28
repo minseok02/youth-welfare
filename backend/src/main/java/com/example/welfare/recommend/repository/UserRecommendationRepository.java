@@ -13,6 +13,8 @@ import java.util.Optional;
 
 public interface UserRecommendationRepository extends JpaRepository<UserRecommendation, Long> {
 
+    List<UserRecommendation> findByUserKey(String userKey);
+
     // 사용자 추천 목록 — 최종점수 내림차순
     @Query("""
             SELECT ur FROM UserRecommendation ur

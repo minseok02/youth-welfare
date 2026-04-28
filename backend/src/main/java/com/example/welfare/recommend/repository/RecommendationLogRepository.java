@@ -12,6 +12,8 @@ import java.util.Optional;
 
 public interface RecommendationLogRepository extends JpaRepository<RecommendationLog, Long> {
 
+    List<RecommendationLog> findByUserKey(String userKey);
+
     // 전체 로그 수 — Cold Start 단계 판별에 사용
     long countByUserKey(String userKey);
 

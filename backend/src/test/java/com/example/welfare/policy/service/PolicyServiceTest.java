@@ -166,7 +166,6 @@ class PolicyServiceTest {
     @Test
     @DisplayName("추천 이력이 없어도 북마크 요청 시 placeholder 추천을 생성한다")
     void toggleBookmarkCreatesPlaceholderWhenMissing() {
-        User user = User.builder().id(7L).userKey("user-key-7").email("user@test.com").passwordHash("pw").build();
         WelfareService service = WelfareService.builder()
                 .id(11L)
                 .sourceType(WelfareService.SourceType.YOUTH)
@@ -177,7 +176,6 @@ class PolicyServiceTest {
         given(userRepository.findUserKeyById(7L)).willReturn(Optional.of("user-key-7"));
         given(userRecommendationRepository.findTopByUserKeyAndServiceIdOrderByRecommendedAtDesc("user-key-7", 11L))
                 .willReturn(Optional.empty());
-        given(userRepository.findById(7L)).willReturn(Optional.of(user));
         given(welfareServiceRepository.findById(11L)).willReturn(Optional.of(service));
         given(userRecommendationRepository.save(any(UserRecommendation.class)))
                 .willAnswer(invocation -> invocation.getArgument(0, UserRecommendation.class));

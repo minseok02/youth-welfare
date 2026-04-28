@@ -36,7 +36,6 @@ public class NotificationHistoryService {
                                    List<RecommendationLog> logs,
                                    String errorMessage) {
         Notification notification = Notification.builder()
-                .userId(user.getId())
                 .userKey(user.getUserKey())
                 .periodType(periodType)
                 .channel(channel)

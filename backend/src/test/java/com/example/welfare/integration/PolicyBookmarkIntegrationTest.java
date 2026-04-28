@@ -124,7 +124,6 @@ class PolicyBookmarkIntegrationTest {
 
             if (i < 200) {
                 userRecommendationRepository.save(UserRecommendation.builder()
-                        .userId(user.getId())
                         .userKey(userKey)
                         .service(service)
                         .recommendedAt(LocalDateTime.now())

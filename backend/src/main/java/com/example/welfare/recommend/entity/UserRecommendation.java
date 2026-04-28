@@ -11,13 +11,13 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "user_recommendations",
         uniqueConstraints = {
-                @UniqueConstraint(name = "uq_ur_user_service_time",
-                        columnNames = {"user_id", "service_id", "recommended_at"})
+                @UniqueConstraint(name = "uq_ur_user_key_service_time",
+                        columnNames = {"user_key", "service_id", "recommended_at"})
         },
         indexes = {
-                @Index(name = "idx_ur_user_score", columnList = "user_id, final_score DESC"),
+                @Index(name = "idx_ur_user_key_score", columnList = "user_key, final_score DESC"),
                 @Index(name = "idx_ur_recommended", columnList = "recommended_at"),
-                @Index(name = "idx_ur_bookmark", columnList = "user_id, is_bookmarked")
+                @Index(name = "idx_ur_user_key_bookmark", columnList = "user_key, is_bookmarked")
         })
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -29,10 +29,7 @@ public class UserRecommendation extends BaseTimeEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "user_id", nullable = false)
-    private Long userId;
-
-    @Column(name = "user_key", length = 32, columnDefinition = "CHAR(32)")
+    @Column(name = "user_key", nullable = false, length = 32, columnDefinition = "CHAR(32)")
     private String userKey;
 
     @ManyToOne(fetch = FetchType.LAZY)

@@ -8,8 +8,8 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "chat_sessions", indexes = {
-        @Index(name = "idx_cs_user_last_message", columnList = "user_id, last_message_at DESC"),
-        @Index(name = "idx_cs_user_created", columnList = "user_id, created_at DESC")
+        @Index(name = "idx_cs_user_key_last_message", columnList = "user_key, last_message_at DESC"),
+        @Index(name = "idx_cs_user_key_created", columnList = "user_key, created_at DESC")
 })
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -21,10 +21,7 @@ public class ChatSession extends BaseTimeEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "user_id", nullable = false)
-    private Long userId;
-
-    @Column(name = "user_key", length = 32, columnDefinition = "CHAR(32)")
+    @Column(name = "user_key", nullable = false, length = 32, columnDefinition = "CHAR(32)")
     private String userKey;
 
     @Column(length = 100)

@@ -13,7 +13,7 @@ CTR 분석 기본 쿼리 실행 결과를 확보했고, 현재 데이터는 `46�
 사용자 PII 분리 이행안은 `2 schema`, `user_key` 선행, `dual-write -> read cut-over` 순서로 확정했고, 1단계 `user_key` migration, 2단계 core 분리 테이블(`auth_users`, `user_profiles`, `user_pii`) 생성/backfill, 3단계 회원가입/프로필/비밀번호/회원탈퇴 dual-write와 `user_pii.email_enc/name_enc/birth_date_enc` 앱 레벨 암호화 backfill, 4단계 프로필 조회/추천/알림 read path 전환, 5단계 JWT/Redis 토큰/로그·세션 기준 `user_key` identity cut-over 1차, 6단계 chat/notification/recommendation log/view log의 legacy `user_id` fallback 제거, 7단계 JWT custom principal cut-over까지 반영했습니다.
 데모 시나리오 전체 실행 완료 및 발견된 문제 수정됐습니다.
 로컬 Docker MySQL 기준 `user_pii` 24건 중 `email_enc` 24건, `name_enc` 21건, `birth_date_enc` 21건이 채워졌고, 남은 3건은 원본 `users.name/birth_date` 가 비어 있어 skip 됐습니다.
-남은 작업은 운영 배포/운영성 검증(운영 서버 Docker Compose, HTTPS/Nginx, 런타임 DB 계정 분리, runtime 테이블 legacy `user_id` drop migration 작성/실행, CTR 표본 확충 후 재분석)과 2차 확장 기능(군집 캐시 추천, 카카오 알림톡, 검색 로그, 대시보드)입니다.
+남은 작업은 운영 배포/운영성 검증(운영 서버 Docker Compose, HTTPS/Nginx, 런타임 DB 계정 분리, 운영 DB에 `V2026_04_28_01__drop_runtime_legacy_user_id.sql` 적용 후 smoke 검증, CTR 표본 확충 후 재분석)과 2차 확장 기능(군집 캐시 추천, 카카오 알림톡, 검색 로그, 대시보드)입니다.
 
 ## 완료된 백엔드 1차 범위
 
@@ -408,6 +408,10 @@ CTR 분석 기본 쿼리 실행 결과를 확보했고, 현재 데이터는 `46�
   - `UserAttribute`, `UserPriority` 엔티티를 `userId + userKey` 스칼라 필드 기준으로 전환
   - `UserService.updateProfile`, `updatePriorities`, `withdraw` 의 저장/삭제 경로를 `user_key` 기준 repository 호출로 정리
   - 관련 unit/integration test fixture 도 `userId + userKey` 기준으로 맞춤
+- 2026-04-28 runtime 테이블 legacy `user_id` drop migration 작성 및 로컬 리허설
+  - `V2026_04_28_01__drop_runtime_legacy_user_id.sql` 추가
+  - `user_recommendations`, `recommendation_logs`, `notifications`, `chat_sessions`, `service_view_logs` 에서 `user_id` 컬럼/FK/인덱스 제거
+  - `schema.sql`, runtime 엔티티 인덱스 메타데이터, 저장 서비스, 테스트 cleanup 을 최종 구조에 맞게 정리
 
 ## 작업 추적
 
@@ -420,12 +424,13 @@ CTR 분석 기본 쿼리 실행 결과를 확보했고, 현재 데이터는 `46�
 - [ ] 운영 서버 Docker Compose 기동
 - [ ] HTTPS/Nginx 적용
 - [ ] 런타임 DB 계정 root 제거 및 기능별 계정 분리 (`app_core_rw`, `app_pii_rw`, `notification_pii_ro`)
-- [ ] runtime 테이블 legacy `user_id` drop migration SQL 작성 및 운영 리허설
+- [ ] 운영 DB에 `V2026_04_28_01__drop_runtime_legacy_user_id.sql` 적용 및 배포 smoke 검증
 - [ ] CTR 표본 추가 확보 후 rule/AI 가중치 및 프롬프트 재분석
 - [ ] 카카오 알림톡 연동 (2차, 심사 완료 후)
 
 ### 완료
 
+- [x] runtime 테이블 legacy `user_id` drop migration SQL 작성 및 로컬 Docker 리허설
 - [x] `user_attributes` / `user_priorities` 의 `user_key` 기준 write/delete 전환 및 `ManyToOne User` 제거
 - [x] legacy `user_id` 호환 컬럼 drop 대상 정리 및 migration 설계
 - [x] `user_recommendations` / 북마크 경로의 `user_key` 전환 및 `UserRecommendation` 의 `ManyToOne User` 제거
@@ -564,6 +569,14 @@ cd backend
 - 2026-04-28 `docker compose up -d db redis`
 - 2026-04-28 `user_attributes` / `user_priorities` write/delete 전환 후 `backend`에서 `./gradlew integrationTest --no-daemon --tests com.example.welfare.integration.UserMetadataUserKeyBackfillIntegrationTest --tests com.example.welfare.integration.RecommendationFlowIntegrationTest`
 - 2026-04-28 `user_attributes` / `user_priorities` write/delete 전환 후 `git diff --check`
+- 2026-04-28 `docker compose up -d db redis`
+- 2026-04-28 Docker MySQL에 `V2026_04_28_01__drop_runtime_legacy_user_id.sql` 적용
+- 2026-04-28 runtime legacy `user_id` drop 후 컬럼/인덱스 확인
+  - `user_recommendations`, `recommendation_logs`, `notifications`, `chat_sessions`, `service_view_logs` 에서 `user_id` 컬럼 제거 확인
+  - `uq_ur_user_key_service_time`, `idx_ur_user_key_score`, `idx_ur_user_key_bookmark`, `idx_rl_user_key_sent`, `idx_noti_user_key_created`, `idx_cs_user_key_last_message`, `idx_cs_user_key_created`, `idx_svl_user_key_service_viewed` 확인
+- 2026-04-28 runtime legacy `user_id` drop 후 `backend`에서 `./gradlew test --no-daemon --tests com.example.welfare.recommend.service.RecommendationPersistenceServiceTest --tests com.example.welfare.notification.service.NotificationHistoryServiceTest --tests com.example.welfare.notification.service.NotificationServiceTest --tests com.example.welfare.chat.service.ChatMessageServiceTest --tests com.example.welfare.policy.service.PolicyServiceTest --tests com.example.welfare.user.service.UserServiceTest`
+- 2026-04-28 runtime legacy `user_id` drop 후 `backend`에서 `./gradlew integrationTest --no-daemon --tests com.example.welfare.integration.ChatSessionApiIntegrationTest --tests com.example.welfare.integration.ChatMessageApiIntegrationTest --tests com.example.welfare.integration.ChatRepositoryIntegrationTest --tests com.example.welfare.integration.AuthRedisIntegrationTest --tests com.example.welfare.integration.PolicyBookmarkIntegrationTest --tests com.example.welfare.integration.RecommendationFlowIntegrationTest --tests com.example.welfare.integration.UserWithdrawChatCleanupIntegrationTest`
+- 2026-04-28 runtime legacy `user_id` drop 후 `git diff --check`
 
 ## 남은 1차 작업
 
@@ -571,7 +584,7 @@ cd backend
 
 - EC2 또는 운영 서버에서 Docker Compose 기동
 - HTTPS/Nginx 적용
-- runtime 테이블 legacy `user_id` drop migration SQL 작성 및 운영 리허설
+- 운영 DB에 `V2026_04_28_01__drop_runtime_legacy_user_id.sql` 적용 및 배포 smoke 검증
 - 런타임 DB 계정 root 제거 및 기능별 계정 분리
 - CTR 표본 추가 확보 후 rule/AI 가중치 및 프롬프트 재분석
 

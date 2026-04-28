@@ -427,3 +427,8 @@
 - 문제: `user_attributes`, `user_priorities` 정리 경로를 `deleteByUserKey` `@Modifying` JPQL로 바꾼 뒤, 통합 테스트 `@AfterEach` cleanup 에서 이를 직접 호출하자 `TransactionRequiredException` 이 발생했음
 - 해결: 서비스 본문은 기존처럼 `@Transactional` 경계 안에서 `deleteByUserKey` 를 사용하고, 테스트 cleanup 은 `findByUserKey* -> deleteAll(...)` 경로로 분리해 정리
 - 이유: 즉시 DELETE 보장은 쓰기 트랜잭션 안에서는 필요하지만, 테스트 정리 코드는 같은 제약을 공유하지 않는다. 운영 경로와 cleanup 경로를 같은 메서드로 억지로 맞추기보다 각 경계에 맞는 삭제 방식을 쓰는 편이 안전하다
+
+## 84) runtime 테이블에서 `user_id` FK를 제거하면 테스트의 `userRepository.delete()` 정리 가정이 깨질 수 있음
+- 문제: `chat_sessions`, `user_recommendations`, `recommendation_logs`, `notifications` 의 `user_id` FK를 제거한 뒤에도 기존 integration test cleanup 이 `userRepository.delete(user)` 만 호출하면, 런타임 row가 그대로 남아 다음 테스트의 서비스 삭제나 상태 검증을 오염시킬 수 있었음
+- 해결: chat/recommendation 관련 integration test cleanup 을 `user_key` 기준 자식 row 정리 후 사용자 삭제 순서로 바꾸고, `ChatSessionRepository.findAllByUserKey`, `UserRecommendationRepository.findByUserKey`, `RecommendationLogRepository.findByUserKey` 같은 cleanup용 조회를 추가
+- 이유: legacy FK 제거 이후의 정리 기준은 DB cascade가 아니라 애플리케이션 식별자 계약이다. 테스트도 운영과 같은 `user_key` 기반 정리 순서를 따라야 새 스키마에서 안정적으로 반복 실행된다

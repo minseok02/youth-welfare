@@ -29,7 +29,6 @@ public class ChatSessionService {
     public ChatSessionResponse createSession(Long userId, CreateChatSessionRequest request) {
         User user = findActiveUser(userId);
         ChatSession session = chatSessionRepository.save(ChatSession.builder()
-                .userId(user.getId())
                 .userKey(user.getUserKey())
                 .title(normalizeTitle(request != null ? request.getTitle() : null))
                 .build());

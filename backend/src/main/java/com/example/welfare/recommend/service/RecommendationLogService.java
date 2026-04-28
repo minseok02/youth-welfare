@@ -42,7 +42,6 @@ public class RecommendationLogService {
                                                     ScoreWeight weight) {
         List<RecommendationLog> logs = recommendations.stream()
                 .map(rec -> RecommendationLog.builder()
-                        .userId(user.getId())
                         .userKey(user.getUserKey())
                         .service(rec.getService())
                         .finalScore(rec.getFinalScore())

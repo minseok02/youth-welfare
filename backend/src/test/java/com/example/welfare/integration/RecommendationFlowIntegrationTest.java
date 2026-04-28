@@ -6,6 +6,7 @@ import com.example.welfare.policy.repository.WelfareServiceRepository;
 import com.example.welfare.recommend.dto.RecommendationUserSnapshot;
 import com.example.welfare.recommend.entity.UserRecommendation;
 import com.example.welfare.recommend.gateway.AiRecommendationGateway;
+import com.example.welfare.recommend.repository.RecommendationLogRepository;
 import com.example.welfare.recommend.repository.UserRecommendationRepository;
 import com.example.welfare.user.entity.PriorityOption;
 import com.example.welfare.user.entity.User;
@@ -81,6 +82,9 @@ class RecommendationFlowIntegrationTest {
     private UserRecommendationRepository userRecommendationRepository;
 
     @Autowired
+    private RecommendationLogRepository recommendationLogRepository;
+
+    @Autowired
     private UserCoreSyncService userCoreSyncService;
 
     @MockBean
@@ -93,6 +97,8 @@ class RecommendationFlowIntegrationTest {
                 .forEach(user -> {
                     String userKey = userRepository.findUserKeyById(user.getId()).orElse(null);
                     if (userKey != null) {
+                        recommendationLogRepository.deleteAll(recommendationLogRepository.findByUserKey(userKey));
+                        userRecommendationRepository.deleteAll(userRecommendationRepository.findByUserKey(userKey));
                         authUserRepository.findByUserKey(userKey).ifPresent(authUserRepository::delete);
                         userProfileRepository.findByUserKey(userKey).ifPresent(userProfileRepository::delete);
                         userPiiRepository.findByUserKey(userKey).ifPresent(userPiiRepository::delete);

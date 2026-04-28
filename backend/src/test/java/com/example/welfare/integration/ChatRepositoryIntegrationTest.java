@@ -46,7 +46,13 @@ class ChatRepositoryIntegrationTest {
     void cleanup() {
         userRepository.findAll().stream()
                 .filter(user -> user.getEmail() != null && user.getEmail().startsWith(TEST_EMAIL_PREFIX))
-                .forEach(userRepository::delete);
+                .forEach(user -> {
+                    String userKey = userRepository.findUserKeyById(user.getId()).orElse(null);
+                    if (userKey != null) {
+                        chatSessionRepository.deleteAll(chatSessionRepository.findAllByUserKey(userKey));
+                    }
+                    userRepository.delete(user);
+                });
     }
 
     @Test
@@ -61,14 +67,12 @@ class ChatRepositoryIntegrationTest {
         String userKey = userRepository.findUserKeyById(user.getId()).orElseThrow();
 
         ChatSession olderSession = chatSessionRepository.save(ChatSession.builder()
-                .userId(user.getId())
                 .userKey(userKey)
                 .title("이전 세션")
                 .lastMessageAt(LocalDateTime.of(2026, 4, 25, 9, 0))
                 .build());
 
         ChatSession latestSession = chatSessionRepository.save(ChatSession.builder()
-                .userId(user.getId())
                 .userKey(userKey)
                 .title("최신 세션")
                 .lastMessageAt(LocalDateTime.of(2026, 4, 25, 10, 0))
@@ -134,7 +138,6 @@ class ChatRepositoryIntegrationTest {
         String userKey = userRepository.findUserKeyById(user.getId()).orElseThrow();
 
         ChatSession session = chatSessionRepository.save(ChatSession.builder()
-                .userId(user.getId())
                 .userKey(userKey)
                 .title("삭제 세션")
                 .build());
@@ -147,6 +150,7 @@ class ChatRepositoryIntegrationTest {
 
         long sessionId = session.getId();
 
+        chatSessionRepository.deleteAll(chatSessionRepository.findAllByUserKey(userKey));
         userRepository.delete(user);
         userRepository.flush();
 

@@ -85,7 +85,6 @@ class RecommendationPersistenceServiceTest {
                 .build();
         UserRecommendation latestRecommendation = UserRecommendation.builder()
                 .id(99L)
-                .userId(7L)
                 .userKey("user-key-7")
                 .service(service)
                 .recommendedAt(LocalDateTime.now())
@@ -113,7 +112,6 @@ class RecommendationPersistenceServiceTest {
 
         assertThat(saved).hasSize(1);
         assertThat(saved.get(0).isBookmarked()).isTrue();
-        assertThat(saved.get(0).getUserId()).isEqualTo(7L);
         assertThat(saved.get(0).getUserKey()).isEqualTo("user-key-7");
     }
 

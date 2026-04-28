@@ -9,6 +9,13 @@
 
 ## 최신 마이그레이션
 
+- 파일: [`backend/src/main/resources/db/migration/V2026_04_28_01__drop_runtime_legacy_user_id.sql`](../backend/src/main/resources/db/migration/V2026_04_28_01__drop_runtime_legacy_user_id.sql)
+- 포함 내용:
+  - `user_recommendations`, `recommendation_logs`, `notifications`, `chat_sessions`, `service_view_logs` 의 legacy `user_id` 컬럼 제거
+  - `user_recommendations` 유니크 키를 `(user_key, service_id, recommended_at)` 기준으로 재구성
+  - `recommendation_logs`, `notifications`, `chat_sessions` 의 `user_key NOT NULL` 제약 확정
+  - runtime 테이블의 `user_id` 기반 인덱스/FK 제거 후 `user_key` 기반 인덱스만 유지
+
 - 파일: [`backend/src/main/resources/db/migration/V2026_04_27_03__add_user_core_split_tables.sql`](../backend/src/main/resources/db/migration/V2026_04_27_03__add_user_core_split_tables.sql)
 - 포함 내용:
   - `auth_users`, `user_profiles` 생성
@@ -60,50 +67,14 @@
   - `raw_api_payloads` 생성
   - 공공 API 목록/상세 원문 payload 보관
 
-## 다음 마이그레이션 설계
-
-다음 단계는 "새 `user_key` 컬럼 추가"가 아니라, 호환용으로 남겨둔 runtime 테이블의 legacy `user_id` 인덱스/FK/컬럼을 안전하게 제거하는 것이다.
-
-### 1차 drop 후보
-
-- `user_recommendations`
-  - drop: `uq_ur_user_service_time`, `idx_ur_user_score`, `idx_ur_bookmark`, `fk_ur_user`, `user_id`
-  - keep/replace: `user_key NOT NULL`, `(user_key, service_id, recommended_at)` 유니크 키, `(user_key, final_score DESC)`, `(user_key, is_bookmarked)`
-- `recommendation_logs`
-  - drop: `idx_rl_user`, `fk_rl_user`, `user_id`
-  - keep/replace: `user_key NOT NULL`, `idx_rl_user_key_sent`
-- `notifications`
-  - drop: `idx_noti_user_created`, `fk_noti_user`, `user_id`
-  - keep/replace: `user_key NOT NULL`, `idx_noti_user_key_created`
-- `chat_sessions`
-  - drop: `idx_cs_user_last_message`, `idx_cs_user_created`, `fk_cs_user`, `user_id`
-  - keep/replace: `user_key NOT NULL`, `idx_cs_user_key_last_message`, `idx_cs_user_key_created`
-- `service_view_logs`
-  - drop: `idx_svl_user_service_viewed`, `user_id`
-  - keep/replace: 로그인 사용자는 `user_key`, 비로그인은 `client_fingerprint` 기준 dedup 유지
-
-### drop 보류 대상
-
-- `user_attributes`
-  - 현재 `UserService.updateProfile`, `withdraw`, `calculateCompleteness` 와 repository delete/find 메서드가 `userId` 경로를 사용한다.
-- `user_priorities`
-  - 현재 `UserService.updatePriorities` 와 repository delete/find 메서드가 `userId` 경로를 사용한다.
-- `users.id`
-  - 현재 내부 PK와 일부 응답/로그 식별자로 남아 있으므로 이번 단계에서 제거하지 않는다.
-
-즉, 실제 drop SQL은 최소 2번으로 나누는 것이 안전하다.
-
-1. `user_attributes` / `user_priorities` write path 를 `user_key` 기준으로 먼저 전환
-2. 그 다음 runtime 테이블 `user_id` 인덱스/FK/컬럼 drop SQL 적용
-
-### drop 전 체크리스트
+## 적용 전 체크리스트
 
 - 최신 백엔드가 `user_recommendations`, `recommendation_logs`, `notifications`, `chat_sessions`, `service_view_logs` 를 모두 `user_key` 기준으로 읽고 쓰는지 확인
 - `user_attributes`, `user_priorities` 의 저장/삭제 경로가 더 이상 `userId` 에 의존하지 않는지 확인
 - `schema.sql` 과 엔티티 `@Table(indexes=...)` 정의를 drop 후 구조와 같이 수정
 - 운영 DB에서 `user_key IS NULL` row 가 없는지 확인
 
-### drop 후 검증 쿼리 초안
+## 적용 후 검증 쿼리
 
 ```sql
 SHOW COLUMNS FROM user_recommendations LIKE 'user_id';
@@ -111,37 +82,39 @@ SHOW COLUMNS FROM recommendation_logs LIKE 'user_id';
 SHOW COLUMNS FROM notifications LIKE 'user_id';
 SHOW COLUMNS FROM chat_sessions LIKE 'user_id';
 SHOW COLUMNS FROM service_view_logs LIKE 'user_id';
-SHOW INDEX FROM user_recommendations WHERE Key_name IN ('uq_ur_user_service_time', 'idx_ur_user_score', 'idx_ur_bookmark');
-SHOW INDEX FROM recommendation_logs WHERE Key_name = 'idx_rl_user';
-SHOW INDEX FROM notifications WHERE Key_name = 'idx_noti_user_created';
-SHOW INDEX FROM chat_sessions WHERE Key_name IN ('idx_cs_user_last_message', 'idx_cs_user_created');
-SHOW INDEX FROM service_view_logs WHERE Key_name = 'idx_svl_user_service_viewed';
+SHOW INDEX FROM user_recommendations WHERE Key_name IN ('uq_ur_user_key_service_time', 'idx_ur_user_key_score', 'idx_ur_user_key_bookmark');
+SHOW INDEX FROM recommendation_logs WHERE Key_name = 'idx_rl_user_key_sent';
+SHOW INDEX FROM notifications WHERE Key_name = 'idx_noti_user_key_created';
+SHOW INDEX FROM chat_sessions WHERE Key_name IN ('idx_cs_user_key_last_message', 'idx_cs_user_key_created');
+SHOW INDEX FROM service_view_logs WHERE Key_name = 'idx_svl_user_key_service_viewed';
 ```
 
 ## 적용 방법
 
 ```bash
-mysql -h 127.0.0.1 -P 3307 -u root -p youth_welfare < backend/src/main/resources/db/migration/V2026_04_27_03__add_user_core_split_tables.sql
 mysql -h 127.0.0.1 -P 3307 -u root -p youth_welfare < backend/src/main/resources/db/migration/V2026_04_27_02__add_user_key_columns.sql
+mysql -h 127.0.0.1 -P 3307 -u root -p youth_welfare < backend/src/main/resources/db/migration/V2026_04_27_03__add_user_core_split_tables.sql
 mysql -h 127.0.0.1 -P 3307 -u root -p youth_welfare < backend/src/main/resources/db/migration/V2026_04_27_01__add_service_region_compound_indexes.sql
 mysql -h 127.0.0.1 -P 3307 -u root -p youth_welfare < backend/src/main/resources/db/migration/V2026_04_25_01__add_chat_tables.sql
 mysql -h 127.0.0.1 -P 3307 -u root -p youth_welfare < backend/src/main/resources/db/migration/V2026_04_17_01__recent_schema_updates.sql
 mysql -h 127.0.0.1 -P 3307 -u root -p youth_welfare < backend/src/main/resources/db/migration/V2026_04_18_02__add_raw_api_payloads.sql
 mysql -h 127.0.0.1 -P 3307 -u root -p youth_welfare < backend/src/main/resources/db/migration/V2026_04_23_01__add_api_sync_logs.sql
 mysql -h 127.0.0.1 -P 3307 -u root -p youth_welfare < backend/src/main/resources/db/migration/V2026_04_24_01__add_search_youth_relevance.sql
+mysql -h 127.0.0.1 -P 3307 -u root -p youth_welfare < backend/src/main/resources/db/migration/V2026_04_28_01__drop_runtime_legacy_user_id.sql
 ```
 
 도커 컨테이너를 쓰는 경우:
 
 ```bash
-docker exec -i youth-welfare-db mysql -uroot -p"$DB_PASSWORD" youth_welfare < backend/src/main/resources/db/migration/V2026_04_27_03__add_user_core_split_tables.sql
 docker exec -i youth-welfare-db mysql -uroot -p"$DB_PASSWORD" youth_welfare < backend/src/main/resources/db/migration/V2026_04_27_02__add_user_key_columns.sql
+docker exec -i youth-welfare-db mysql -uroot -p"$DB_PASSWORD" youth_welfare < backend/src/main/resources/db/migration/V2026_04_27_03__add_user_core_split_tables.sql
 docker exec -i youth-welfare-db mysql -uroot -p"$DB_PASSWORD" youth_welfare < backend/src/main/resources/db/migration/V2026_04_27_01__add_service_region_compound_indexes.sql
 docker exec -i youth-welfare-db mysql -uroot -p"$DB_PASSWORD" youth_welfare < backend/src/main/resources/db/migration/V2026_04_25_01__add_chat_tables.sql
 docker exec -i youth-welfare-db mysql -uroot -p"$DB_PASSWORD" youth_welfare < backend/src/main/resources/db/migration/V2026_04_17_01__recent_schema_updates.sql
 docker exec -i youth-welfare-db mysql -uroot -p"$DB_PASSWORD" youth_welfare < backend/src/main/resources/db/migration/V2026_04_18_02__add_raw_api_payloads.sql
 docker exec -i youth-welfare-db mysql -uroot -p"$DB_PASSWORD" youth_welfare < backend/src/main/resources/db/migration/V2026_04_23_01__add_api_sync_logs.sql
 docker exec -i youth-welfare-db mysql -uroot -p"$DB_PASSWORD" youth_welfare < backend/src/main/resources/db/migration/V2026_04_24_01__add_search_youth_relevance.sql
+docker exec -i youth-welfare-db mysql -uroot -p"$DB_PASSWORD" youth_welfare < backend/src/main/resources/db/migration/V2026_04_28_01__drop_runtime_legacy_user_id.sql
 ```
 
 인덱스를 추가한 뒤에는 통계를 한 번 갱신한다.
@@ -270,4 +243,5 @@ SELECT search_youth_relevant, COUNT(*) FROM welfare_services GROUP BY search_you
 - `user_pii` 의 `email_enc/name_enc/birth_date_enc` 는 migration SQL로 직접 채우지 않는다. 최신 백엔드의 `/api/admin/users/pii-backfill` 가 `AesEncryptUtil` 과 같은 경로로 채우는 것이 기준이다.
 - `user_attributes`, `user_priorities` 의 `user_key` 도 migration backfill만으로 끝내지 않는다. migration 이후 JPA 저장 경로가 `user_key` 를 같이 쓰도록 최신 백엔드를 먼저 배포하고, 기존 누락 row는 `/api/admin/users/metadata-user-key-backfill` 로 마무리하는 것이 기준이다.
 - `users.name` 또는 `users.birth_date` 가 이미 비어 있는 row는 앱 레벨 backfill 이후에도 남을 수 있다. 이 경우는 source 원문이 없는 상태라 `skippedCount` 로 기록하고 억지로 placeholder 값을 넣지 않는다.
-- 하위 테이블의 `user_key`는 아직 nullable로 유지한다. 현재는 `user_attributes`, `user_priorities` 까지 write sync/backfill 을 반영했고, 나머지 테이블은 identity cut-over 전까지 기존 `user_id` FK와 함께 유지한다.
+- 현재 runtime 테이블(`user_recommendations`, `recommendation_logs`, `notifications`, `chat_sessions`, `service_view_logs`)은 `user_id` 호환 컬럼을 제거했다.
+- `user_attributes`, `user_priorities` 는 아직 `user_id` 컬럼/FK를 유지한다. 이 둘은 `users` soft-delete/관리용 내부 연결을 남겨두되, read/write 경로는 `user_key` 기준으로 정리된 상태다.

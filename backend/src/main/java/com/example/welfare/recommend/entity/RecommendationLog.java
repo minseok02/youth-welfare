@@ -10,7 +10,7 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "recommendation_logs",
         indexes = {
-                @Index(name = "idx_rl_user", columnList = "user_id"),
+                @Index(name = "idx_rl_user_key_sent", columnList = "user_key, sent_at"),
                 @Index(name = "idx_rl_service", columnList = "service_id")
         })
 @Getter
@@ -23,10 +23,7 @@ public class RecommendationLog {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "user_id", nullable = false)
-    private Long userId;
-
-    @Column(name = "user_key", length = 32, columnDefinition = "CHAR(32)")
+    @Column(name = "user_key", nullable = false, length = 32, columnDefinition = "CHAR(32)")
     private String userKey;
 
     @ManyToOne(fetch = FetchType.LAZY)

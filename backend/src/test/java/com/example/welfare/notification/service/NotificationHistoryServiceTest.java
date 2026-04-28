@@ -60,7 +60,6 @@ class NotificationHistoryServiceTest {
                     Notification arg = invocation.getArgument(0, Notification.class);
                     return Notification.builder()
                             .id(1L)
-                            .userId(arg.getUserId())
                             .userKey(arg.getUserKey())
                             .channel(arg.getChannel())
                             .periodType(arg.getPeriodType())

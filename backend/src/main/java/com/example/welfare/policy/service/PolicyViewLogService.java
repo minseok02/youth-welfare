@@ -45,7 +45,6 @@ public class PolicyViewLogService {
         WelfareService serviceRef = entityManager.getReference(WelfareService.class, serviceId);
         serviceViewLogRepository.save(ServiceViewLog.builder()
                 .service(serviceRef)
-                .userId(userId)
                 .userKey(userKey)
                 .clientFingerprint(clientFingerprint)
                 .build());

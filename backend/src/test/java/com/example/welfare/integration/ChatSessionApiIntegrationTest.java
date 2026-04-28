@@ -56,7 +56,13 @@ class ChatSessionApiIntegrationTest {
     void cleanup() {
         userRepository.findAll().stream()
                 .filter(user -> user.getEmail() != null && user.getEmail().startsWith(TEST_EMAIL_PREFIX))
-                .forEach(userRepository::delete);
+                .forEach(user -> {
+                    String userKey = userRepository.findUserKeyById(user.getId()).orElse(null);
+                    if (userKey != null) {
+                        chatSessionRepository.deleteAll(chatSessionRepository.findAllByUserKey(userKey));
+                    }
+                    userRepository.delete(user);
+                });
     }
 
     @Test
@@ -74,14 +80,12 @@ class ChatSessionApiIntegrationTest {
                 .andExpect(jsonPath("$.data.title").doesNotExist());
 
         ChatSession older = chatSessionRepository.save(ChatSession.builder()
-                .userId(user.getId())
                 .userKey(userKey)
                 .title("이전 세션")
                 .lastMessageAt(LocalDateTime.of(2099, 4, 25, 10, 0))
                 .build());
 
         ChatSession latest = chatSessionRepository.save(ChatSession.builder()
-                .userId(user.getId())
                 .userKey(userKey)
                 .title("최신 세션")
                 .lastMessageAt(LocalDateTime.of(2099, 4, 25, 11, 0))
@@ -110,12 +114,10 @@ class ChatSessionApiIntegrationTest {
         String otherKey = userRepository.findUserKeyById(other.getId()).orElseThrow();
 
         ChatSession ownerSession = chatSessionRepository.save(ChatSession.builder()
-                .userId(owner.getId())
                 .userKey(ownerKey)
                 .title("내 세션")
                 .build());
         ChatSession otherSession = chatSessionRepository.save(ChatSession.builder()
-                .userId(other.getId())
                 .userKey(otherKey)
                 .title("다른 사람 세션")
                 .build());

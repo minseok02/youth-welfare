@@ -224,7 +224,6 @@ class NotificationServiceTest {
                 .passwordHash("pw")
                 .build();
         Notification notification = Notification.builder()
-                .userId(1L)
                 .userKey("user-key-1")
                 .channel(NotificationChannel.EMAIL)
                 .periodType(NotificationPeriodType.DAILY)
@@ -260,7 +259,6 @@ class NotificationServiceTest {
                 .passwordHash("pw")
                 .build();
         Notification notification = Notification.builder()
-                .userId(1L)
                 .userKey("user-key-1")
                 .channel(NotificationChannel.EMAIL)
                 .periodType(NotificationPeriodType.DAILY)
@@ -297,7 +295,6 @@ class NotificationServiceTest {
                 .passwordHash("pw")
                 .build();
         Notification notification = Notification.builder()
-                .userId(1L)
                 .userKey("user-key-1")
                 .channel(NotificationChannel.EMAIL)
                 .periodType(NotificationPeriodType.DAILY)

@@ -82,6 +82,7 @@ class AuthRedisIntegrationTest {
                     String userKey = userRepository.findUserKeyById(user.getId()).orElse(null);
                     if (userKey != null) {
                         redisTemplate.delete("refresh:" + userKey);
+                        chatSessionRepository.deleteAll(chatSessionRepository.findAllByUserKey(userKey));
                     }
                     redisTemplate.delete("refresh:" + user.getId());
                     userRepository.delete(user);
@@ -191,7 +192,6 @@ class AuthRedisIntegrationTest {
         User user = userRepository.findByEmail(email).orElseThrow();
         String userKey = userRepository.findUserKeyById(user.getId()).orElseThrow();
         ChatSession chatSession = chatSessionRepository.save(ChatSession.builder()
-                .userId(user.getId())
                 .userKey(userKey)
                 .title("로그아웃 전 세션")
                 .build());

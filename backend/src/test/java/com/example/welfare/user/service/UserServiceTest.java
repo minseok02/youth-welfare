@@ -195,7 +195,6 @@ class UserServiceTest {
         when(userRecommendationRepository.findLatestBookmarkedByUserKey("user-key-1"))
                 .thenReturn(List.of(UserRecommendation.builder()
                         .id(100L)
-                        .userId(1L)
                         .userKey("user-key-1")
                         .service(service)
                         .isBookmarked(true)

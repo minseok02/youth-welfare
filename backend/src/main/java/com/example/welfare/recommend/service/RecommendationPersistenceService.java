@@ -45,7 +45,6 @@ public class RecommendationPersistenceService {
 
         List<UserRecommendation> recommendations = candidates.stream()
                 .map(c -> UserRecommendation.builder()
-                        .userId(user.getId())
                         .userKey(user.getUserKey())
                         .service(c.getService())
                         .recommendedAt(now)

@@ -76,7 +76,6 @@ class ChatMessageServiceTest {
         User user = createUser(1L);
         ChatSession session = ChatSession.builder()
                 .id(10L)
-                .userId(1L)
                 .userKey("user-key-1")
                 .build();
         SendChatMessageRequest request = new SendChatMessageRequest();
@@ -141,7 +140,6 @@ class ChatMessageServiceTest {
         User user = createUser(1L);
         ChatSession session = ChatSession.builder()
                 .id(10L)
-                .userId(1L)
                 .userKey("user-key-1")
                 .title("기존 제목")
                 .build();
@@ -168,7 +166,6 @@ class ChatMessageServiceTest {
         User user = createUser(1L);
         ChatSession session = ChatSession.builder()
                 .id(10L)
-                .userId(1L)
                 .userKey("user-key-1")
                 .build();
         SendChatMessageRequest request = new SendChatMessageRequest();
@@ -223,7 +220,6 @@ class ChatMessageServiceTest {
         User user = createUser(1L);
         ChatSession session = ChatSession.builder()
                 .id(10L)
-                .userId(1L)
                 .userKey("user-key-1")
                 .title("주거 상담")
                 .build();
