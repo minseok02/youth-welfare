@@ -176,7 +176,7 @@ class RecommendationFlowIntegrationTest {
                 .andExpect(jsonPath("$.data[0].title").value("청년 월세 지원"))
                 .andExpect(jsonPath("$.data[0].bookmarked").value(false));
 
-        UserRecommendation firstRecommendation = userRecommendationRepository.findLatestByUserId(user.getId()).stream()
+        UserRecommendation firstRecommendation = userRecommendationRepository.findLatestByUserKey(userKey).stream()
                 .filter(rec -> rec.getService().getId().equals(housingPolicy.getId()))
                 .max(Comparator.comparing(UserRecommendation::getRecommendedAt))
                 .orElseThrow();
@@ -201,7 +201,7 @@ class RecommendationFlowIntegrationTest {
                 .andExpect(jsonPath("$.data[0].serviceId").value(housingPolicy.getId()))
                 .andExpect(jsonPath("$.data[0].bookmarked").value(true));
 
-        List<UserRecommendation> latestRecommendations = userRecommendationRepository.findLatestByUserId(user.getId());
+        List<UserRecommendation> latestRecommendations = userRecommendationRepository.findLatestByUserKey(userKey);
         assertThat(latestRecommendations).isNotEmpty();
         assertThat(latestRecommendations.stream()
                 .map(rec -> rec.getService().getId()))

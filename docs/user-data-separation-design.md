@@ -72,9 +72,9 @@
   - Redis refresh token key, password reset latest-token key 를 `user_key` 기준으로 전환
   - `notifications`, `recommendation_logs`, `service_view_logs`, `chat_sessions` 의 `user_key` write 경로 반영
   - `chat_sessions`, `notifications`, `recommendation_logs` 의 `ManyToOne User` 제거와 `user_key` 기준 read/cleanup 전환
+  - `user_recommendations` 의 `ManyToOne User` 제거와 추천/북마크 read path 의 `user_key` 전환
 - 남은 작업
-  - `user_recommendations` 와 북마크 경로의 `user_key` 전환
-  - 잔여 `user_id` FK 정리
+  - legacy `user_id` 호환 컬럼 drop 대상 정리와 migration 설계
   - 런타임 datasource 권한 분리 (`app_core_rw`, `app_pii_rw`, `notification_pii_ro`)
 
 ## 현재 권한 구조의 문제

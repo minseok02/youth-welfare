@@ -393,6 +393,14 @@ CTR 분석 기본 쿼리 실행 결과를 확보했고, 현재 데이터는 `46�
 - 2026-04-28 JWT custom principal 전환 후 `backend`에서 `./gradlew integrationTest --no-daemon --tests com.example.welfare.integration.ChatSessionApiIntegrationTest --tests com.example.welfare.integration.ChatMessageApiIntegrationTest --tests com.example.welfare.integration.RecommendationFlowIntegrationTest`
 - 2026-04-28 JWT custom principal 전환 후 `backend`에서 `./gradlew test --no-daemon`
 - 2026-04-28 JWT custom principal 전환 후 `backend`에서 `./gradlew integrationTest --no-daemon`
+- 2026-04-28 `user_recommendations` / 북마크 경로의 `user_key` 전환 및 잔여 `user_id` FK 정리
+  - `UserRecommendation` 을 `ManyToOne User` 대신 `userId + userKey` 값 필드 기준으로 전환
+  - 추천 조회/북마크/placeholder 추천 생성과 정책 목록·검색·상세 북마크 read path를 `user_key` 기준 query 로 전환
+  - 추천 refresh 저장 시 기존 추천 보존/삭제, 마이페이지 북마크 목록, 정책 북마크 제한 검증도 `user_key` 기준으로 정리
+- 2026-04-28 `user_recommendations` / 북마크 경로 전환 후 `backend`에서 `./gradlew test --no-daemon --tests com.example.welfare.recommend.service.RecommendationPersistenceServiceTest --tests com.example.welfare.policy.service.PolicyServiceTest --tests com.example.welfare.policy.service.PolicySearchServiceTest --tests com.example.welfare.user.service.UserServiceTest`
+- 2026-04-28 `user_recommendations` / 북마크 경로 전환 후 `backend`에서 `./gradlew integrationTest --no-daemon --tests com.example.welfare.integration.PolicyBookmarkIntegrationTest --tests com.example.welfare.integration.RecommendationFlowIntegrationTest`
+- 2026-04-28 `user_recommendations` / 북마크 경로 전환 후 `backend`에서 `./gradlew test --no-daemon`
+- 2026-04-28 `user_recommendations` / 북마크 경로 전환 후 `backend`에서 `./gradlew integrationTest --no-daemon`
 
 ## 작업 추적
 
@@ -405,12 +413,13 @@ CTR 분석 기본 쿼리 실행 결과를 확보했고, 현재 데이터는 `46�
 - [ ] 운영 서버 Docker Compose 기동
 - [ ] HTTPS/Nginx 적용
 - [ ] 런타임 DB 계정 root 제거 및 기능별 계정 분리 (`app_core_rw`, `app_pii_rw`, `notification_pii_ro`)
-- [ ] `user_recommendations` / 북마크 경로의 `user_key` 전환 및 잔여 `user_id` FK 정리
+- [ ] legacy `user_id` 호환 컬럼 drop 대상 정리 및 migration 설계
 - [ ] CTR 표본 추가 확보 후 rule/AI 가중치 및 프롬프트 재분석
 - [ ] 카카오 알림톡 연동 (2차, 심사 완료 후)
 
 ### 완료
 
+- [x] `user_recommendations` / 북마크 경로의 `user_key` 전환 및 `UserRecommendation` 의 `ManyToOne User` 제거
 - [x] JWT principal을 custom principal 기준으로 전환하고 컨트롤러 인증 경로를 raw `Long` principal 의존에서 분리
 - [x] chat/notification/recommendation log/view log의 legacy `user_id` fallback 제거 및 `ManyToOne User` 축소
 - [x] JWT subject / refresh token / 비밀번호 재설정 토큰 / 로그·세션 참조의 `user_key` identity cut-over 1차 적용

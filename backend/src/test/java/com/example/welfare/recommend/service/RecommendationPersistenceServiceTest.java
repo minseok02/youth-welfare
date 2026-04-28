@@ -35,7 +35,7 @@ class RecommendationPersistenceServiceTest {
     @Test
     @DisplayName("저장 전 사용자 추천 전체를 삭제하고 새 추천을 저장한다")
     void saveDeletesAllPreviousRecommendations() {
-        User user = User.builder().id(7L).build();
+        User user = User.builder().id(7L).userKey("user-key-7").build();
         WelfareService service = WelfareService.builder()
                 .id(11L)
                 .sourceType(WelfareService.SourceType.YOUTH)
@@ -60,13 +60,13 @@ class RecommendationPersistenceServiceTest {
                 .isActive(true)
                 .build();
 
-        when(userRecommendationRepository.findLatestByUserId(7L)).thenReturn(List.of());
+        when(userRecommendationRepository.findLatestByUserKey("user-key-7")).thenReturn(List.of());
         when(userRecommendationRepository.saveAll(anyList())).thenAnswer(invocation -> invocation.getArgument(0));
 
         recommendationPersistenceService.save(user, List.of(candidate), weight);
 
-        verify(userRecommendationRepository).findLatestByUserId(7L);
-        verify(userRecommendationRepository).deleteAllByUserId(7L);
+        verify(userRecommendationRepository).findLatestByUserKey("user-key-7");
+        verify(userRecommendationRepository).deleteAllByUserKey("user-key-7");
         ArgumentCaptor<List> captor = ArgumentCaptor.forClass(List.class);
         verify(userRecommendationRepository).saveAll(captor.capture());
         assertThat(captor.getValue()).hasSize(1);
@@ -75,7 +75,7 @@ class RecommendationPersistenceServiceTest {
     @Test
     @DisplayName("새 추천 저장 시 기존 최신 추천의 북마크 상태를 이어받는다")
     void saveCarriesOverBookmarkState() {
-        User user = User.builder().id(7L).build();
+        User user = User.builder().id(7L).userKey("user-key-7").build();
         WelfareService service = WelfareService.builder()
                 .id(11L)
                 .sourceType(WelfareService.SourceType.YOUTH)
@@ -85,7 +85,8 @@ class RecommendationPersistenceServiceTest {
                 .build();
         UserRecommendation latestRecommendation = UserRecommendation.builder()
                 .id(99L)
-                .user(user)
+                .userId(7L)
+                .userKey("user-key-7")
                 .service(service)
                 .recommendedAt(LocalDateTime.now())
                 .isBookmarked(true)
@@ -105,13 +106,15 @@ class RecommendationPersistenceServiceTest {
                 .isActive(true)
                 .build();
 
-        when(userRecommendationRepository.findLatestByUserId(7L)).thenReturn(List.of(latestRecommendation));
+        when(userRecommendationRepository.findLatestByUserKey("user-key-7")).thenReturn(List.of(latestRecommendation));
         when(userRecommendationRepository.saveAll(anyList())).thenAnswer(invocation -> invocation.getArgument(0));
 
         List<UserRecommendation> saved = recommendationPersistenceService.save(user, List.of(candidate), weight);
 
         assertThat(saved).hasSize(1);
         assertThat(saved.get(0).isBookmarked()).isTrue();
+        assertThat(saved.get(0).getUserId()).isEqualTo(7L);
+        assertThat(saved.get(0).getUserKey()).isEqualTo("user-key-7");
     }
 
 }

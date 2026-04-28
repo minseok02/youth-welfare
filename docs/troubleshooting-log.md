@@ -412,3 +412,8 @@
 - 문제: JWT filter 에서 `AuthenticatedUser` principal 을 심도록 바꾼 뒤에도, 기존 `@WebMvcTest(addFilters = false)` 슬라이스 테스트는 Security filter chain 을 타지 않아 `@AuthenticationPrincipal` 이 계속 `null` 로 들어와 controller NPE 가 발생할 수 있었음
 - 해결: controller 쪽 principal 해석을 `null` 안전하게 정리하고, WebMvc 슬라이스 테스트는 기존처럼 `null` principal 기준 mock 기대값을 유지한 채 별도로 filter/security 경로는 `AdminSecurityWebMvcTest` 와 integration test 로 검증
 - 이유: principal 객체 전환 자체와 Spring MVC 슬라이스에서 보안 resolver 가 실제 runtime 과 다르게 동작하는 문제를 분리해야 한다. controller 를 null-safe 하게 두고, 인증 해석 검증은 filter 를 실제로 태우는 테스트에서 확인하는 편이 재발 방지에 더 안정적이다
+
+## 81) `users.user_key` 가 DB default 로 채워지는 구조에서는 freshly saved `User` 엔티티가 즉시 `userKey` 를 들고 있다고 가정하면 안 됨
+- 문제: `users.user_key` 는 DB default 와 `insertable = false, updatable = false` 매핑을 쓰기 때문에, 저장 직후 in-memory `User` 엔티티의 `getUserKey()` 는 아직 `null` 일 수 있었음. 이 상태에서 `user_recommendations` placeholder 나 북마크 fixture 가 엔티티 필드만 믿고 `userKey` 를 기록하면 누락 row 가 생길 수 있었음
+- 해결: 추천/북마크 경로와 integration test fixture 는 `userRepository.findUserKeyById()` 로 다시 읽은 값만 사용해 `user_recommendations.user_key` 를 채우도록 고정
+- 이유: DB default 기반 식별자는 "저장 성공"과 "엔티티 메모리 값 가시화"가 같은 시점이 아니다. cut-over 단계에서는 식별자 컬럼을 직접 참조하는 write path와 fixture가 항상 persisted 값을 다시 읽는 편이 안전하다

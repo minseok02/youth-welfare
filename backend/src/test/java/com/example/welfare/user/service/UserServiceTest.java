@@ -188,10 +188,12 @@ class UserServiceTest {
                 .status(WelfareService.ServiceStatus.ACTIVE)
                 .build();
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
-        when(userRecommendationRepository.findLatestBookmarkedByUserId(1L))
+        when(userRepository.findUserKeyById(1L)).thenReturn(Optional.of("user-key-1"));
+        when(userRecommendationRepository.findLatestBookmarkedByUserKey("user-key-1"))
                 .thenReturn(List.of(UserRecommendation.builder()
                         .id(100L)
-                        .user(user)
+                        .userId(1L)
+                        .userKey("user-key-1")
                         .service(service)
                         .isBookmarked(true)
                         .build()));

@@ -4,6 +4,7 @@ import com.example.welfare.policy.dto.PolicySearchResponse;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.repository.WelfareServiceRepository;
 import com.example.welfare.recommend.repository.UserRecommendationRepository;
+import com.example.welfare.user.repository.UserRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -30,13 +31,16 @@ class PolicySearchServiceTest {
 
     @Mock
     private UserRecommendationRepository userRecommendationRepository;
+    @Mock
+    private UserRepository userRepository;
 
     @Test
     @DisplayName("검색은 SQL 레벨 청년 플래그 필터 결과를 페이지 메타데이터와 함께 반환한다")
     void searchReturnsPagedResponse() {
         PolicySearchService service = new PolicySearchService(
                 welfareServiceRepository,
-                userRecommendationRepository
+                userRecommendationRepository,
+                userRepository
         );
 
         WelfareService youthService = welfareService(1L, "청년 정책");
@@ -78,7 +82,8 @@ class PolicySearchServiceTest {
     void searchWithSidoAndSggUsesRegionQuery() {
         PolicySearchService service = new PolicySearchService(
                 welfareServiceRepository,
-                userRecommendationRepository
+                userRecommendationRepository,
+                userRepository
         );
 
         WelfareService youthService = welfareService(2L, "서울 청년 정책");
@@ -130,7 +135,8 @@ class PolicySearchServiceTest {
     void searchWithSidoOnlyUsesSidoQuery() {
         PolicySearchService service = new PolicySearchService(
                 welfareServiceRepository,
-                userRecommendationRepository
+                userRecommendationRepository,
+                userRepository
         );
 
         WelfareService youthService = welfareService(3L, "서울 전체 청년 정책");

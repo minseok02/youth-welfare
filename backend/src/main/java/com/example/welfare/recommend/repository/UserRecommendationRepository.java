@@ -17,83 +17,83 @@ public interface UserRecommendationRepository extends JpaRepository<UserRecommen
     @Query("""
             SELECT ur FROM UserRecommendation ur
             JOIN FETCH ur.service
-            WHERE ur.user.id = :userId
+            WHERE ur.userKey = :userKey
               AND ur.recommendedAt = (
                     SELECT MAX(ur2.recommendedAt)
                     FROM UserRecommendation ur2
-                    WHERE ur2.user.id = :userId
+                    WHERE ur2.userKey = :userKey
                       AND ur2.service.id = ur.service.id
               )
             ORDER BY ur.finalScore DESC
             """)
-    List<UserRecommendation> findTopByUserId(@Param("userId") Long userId, Pageable pageable);
+    List<UserRecommendation> findTopByUserKey(@Param("userKey") String userKey, Pageable pageable);
 
     @Query("""
             SELECT ur FROM UserRecommendation ur
-            WHERE ur.user.id = :userId
+            WHERE ur.userKey = :userKey
               AND ur.recommendedAt = (
                     SELECT MAX(ur2.recommendedAt)
                     FROM UserRecommendation ur2
-                    WHERE ur2.user.id = :userId
+                    WHERE ur2.userKey = :userKey
                       AND ur2.service.id = ur.service.id
               )
             """)
-    List<UserRecommendation> findLatestByUserId(@Param("userId") Long userId);
+    List<UserRecommendation> findLatestByUserKey(@Param("userKey") String userKey);
 
     // 북마크 목록
     @Query("""
             SELECT ur FROM UserRecommendation ur
             JOIN FETCH ur.service
-            WHERE ur.user.id = :userId
+            WHERE ur.userKey = :userKey
               AND ur.isBookmarked = true
               AND ur.recommendedAt = (
                     SELECT MAX(ur2.recommendedAt)
                     FROM UserRecommendation ur2
-                    WHERE ur2.user.id = :userId
+                    WHERE ur2.userKey = :userKey
                       AND ur2.service.id = ur.service.id
               )
             ORDER BY ur.recommendedAt DESC
             """)
-    List<UserRecommendation> findLatestBookmarkedByUserId(@Param("userId") Long userId);
+    List<UserRecommendation> findLatestBookmarkedByUserKey(@Param("userKey") String userKey);
 
     @Query("""
             SELECT ur.service.id FROM UserRecommendation ur
-            WHERE ur.user.id = :userId
+            WHERE ur.userKey = :userKey
               AND ur.service.id IN :serviceIds
               AND ur.isBookmarked = true
               AND ur.recommendedAt = (
                     SELECT MAX(ur2.recommendedAt)
                     FROM UserRecommendation ur2
-                    WHERE ur2.user.id = :userId
+                    WHERE ur2.userKey = :userKey
                       AND ur2.service.id = ur.service.id
               )
             """)
-    List<Long> findLatestBookmarkedServiceIds(@Param("userId") Long userId,
-                                              @Param("serviceIds") List<Long> serviceIds);
+    List<Long> findLatestBookmarkedServiceIdsByUserKey(@Param("userKey") String userKey,
+                                                       @Param("serviceIds") List<Long> serviceIds);
 
-    long countByUserIdAndIsBookmarkedTrue(Long userId);
+    long countByUserKeyAndIsBookmarkedTrue(String userKey);
 
-    Optional<UserRecommendation> findTopByUserIdAndServiceIdOrderByRecommendedAtDesc(Long userId, Long serviceId);
+    Optional<UserRecommendation> findTopByUserKeyAndServiceIdOrderByRecommendedAtDesc(String userKey, Long serviceId);
 
     // 클릭 추적용 단건 조회
-    Optional<UserRecommendation> findByIdAndUserId(Long id, Long userId);
+    Optional<UserRecommendation> findByIdAndUserKey(Long id, String userKey);
 
     // 오늘 이미 추천받은 서비스 제외 (중복 추천 방지)
     @Query("""
             SELECT ur.service.id FROM UserRecommendation ur
-            WHERE ur.user.id = :userId
+            WHERE ur.userKey = :userKey
               AND ur.recommendedAt >= :since
             """)
-    List<Long> findRecentlyRecommendedServiceIds(@Param("userId") Long userId,
-                                                  @Param("since") LocalDateTime since);
+    List<Long> findRecentlyRecommendedServiceIds(@Param("userKey") String userKey,
+                                                 @Param("since") LocalDateTime since);
 
     // refresh 시 기존 추천 전체 삭제 — 북마크 상태는 호출 전 Map으로 보존 후 새 행에 이전
     @Modifying
     @Query("""
             DELETE FROM UserRecommendation ur
-            WHERE ur.user.id = :userId
+            WHERE ur.userKey = :userKey
             """)
-    void deleteAllByUserId(@Param("userId") Long userId);
+    void deleteAllByUserKey(@Param("userKey") String userKey);
 
     @Modifying
     @Query("""

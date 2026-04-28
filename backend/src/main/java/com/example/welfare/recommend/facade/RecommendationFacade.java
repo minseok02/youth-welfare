@@ -101,7 +101,8 @@ public class RecommendationFacade {
      */
     @Transactional(readOnly = true)
     public List<UserRecommendation> getRecommendations(Long userId, int size) {
-        return userRecommendationRepository.findTopByUserId(userId, PageRequest.of(0, size));
+        String userKey = resolveUserKey(userId);
+        return userRecommendationRepository.findTopByUserKey(userKey, PageRequest.of(0, size));
     }
 
     /**
@@ -109,8 +110,14 @@ public class RecommendationFacade {
      */
     @Transactional
     public void toggleBookmark(Long userId, Long recommendationId) {
-        UserRecommendation rec = userRecommendationRepository.findByIdAndUserId(recommendationId, userId)
+        String userKey = resolveUserKey(userId);
+        UserRecommendation rec = userRecommendationRepository.findByIdAndUserKey(recommendationId, userKey)
                 .orElseThrow(() -> new CustomException(ErrorCode.RECOMMENDATION_NOT_FOUND));
         rec.toggleBookmark();
+    }
+
+    private String resolveUserKey(Long userId) {
+        return userRepository.findUserKeyById(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
     }
 }

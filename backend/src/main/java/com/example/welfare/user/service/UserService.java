@@ -52,7 +52,7 @@ public class UserService {
     @Transactional(readOnly = true)
     public List<PolicySummaryResponse> getBookmarks(Long userId) {
         findActiveUser(userId);
-        List<UserRecommendation> bookmarks = userRecommendationRepository.findLatestBookmarkedByUserId(userId);
+        List<UserRecommendation> bookmarks = userRecommendationRepository.findLatestBookmarkedByUserKey(resolveUserKey(userId));
         return bookmarks.stream()
                 .map(UserRecommendation::getService)
                 .map(service -> PolicySummaryResponse.from(service, true))
