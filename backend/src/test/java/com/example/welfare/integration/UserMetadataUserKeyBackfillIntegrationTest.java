@@ -64,9 +64,11 @@ class UserMetadataUserKeyBackfillIntegrationTest {
         userRepository.findAll().stream()
                 .filter(user -> user.getEmail() != null && user.getEmail().startsWith(TEST_EMAIL_PREFIX))
                 .forEach(user -> {
-                    userAttributeRepository.deleteAll(userAttributeRepository.findByUserId(user.getId()));
-                    userPriorityRepository.deleteAll(userPriorityRepository.findByUserIdOrderByPriorityRank(user.getId()));
                     String userKey = userRepository.findUserKeyById(user.getId()).orElse(null);
+                    if (userKey != null) {
+                        userAttributeRepository.deleteAll(userAttributeRepository.findByUserKey(userKey));
+                        userPriorityRepository.deleteAll(userPriorityRepository.findByUserKeyOrderByPriorityRank(userKey));
+                    }
                     if (userKey != null) {
                         authUserRepository.findByUserKey(userKey).ifPresent(authUserRepository::delete);
                         userProfileRepository.findByUserKey(userKey).ifPresent(userProfileRepository::delete);
@@ -93,13 +95,13 @@ class UserMetadataUserKeyBackfillIntegrationTest {
         PriorityOption housing = priorityOptionRepository.findByCode("HOUSING").orElseThrow();
 
         UserAttribute attribute = userAttributeRepository.save(UserAttribute.builder()
-                .user(user)
+                .userId(user.getId())
                 .userKey(null)
                 .attrType(UserAttribute.AttrType.INTEREST_FIELD.name())
                 .attrValue("주거")
                 .build());
         UserPriority priority = userPriorityRepository.save(UserPriority.builder()
-                .user(user)
+                .userId(user.getId())
                 .userKey(null)
                 .priorityOption(housing)
                 .priorityRank(1)

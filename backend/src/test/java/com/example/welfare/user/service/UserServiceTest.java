@@ -91,18 +91,18 @@ class UserServiceTest {
         userService.updateProfile(1L, request);
 
         verify(userCoreSyncService).syncFromUser(user);
-        verify(userAttributeRepository).deleteByUserIdAndAttrType(1L, UserAttribute.AttrType.INTEREST_FIELD.name());
-        verify(userAttributeRepository).deleteByUserIdAndAttrType(1L, UserAttribute.AttrType.TARGET_TYPE.name());
+        verify(userAttributeRepository).deleteByUserKeyAndAttrType("user-key-1", UserAttribute.AttrType.INTEREST_FIELD.name());
+        verify(userAttributeRepository).deleteByUserKeyAndAttrType("user-key-1", UserAttribute.AttrType.TARGET_TYPE.name());
 
         ArgumentCaptor<UserAttribute> captor = ArgumentCaptor.forClass(UserAttribute.class);
         verify(userAttributeRepository, times(4)).save(captor.capture());
         assertThat(captor.getAllValues())
-                .extracting(UserAttribute::getUserKey, UserAttribute::getAttrType, UserAttribute::getAttrValue)
+                .extracting(UserAttribute::getUserId, UserAttribute::getUserKey, UserAttribute::getAttrType, UserAttribute::getAttrValue)
                 .containsExactlyInAnyOrder(
-                        Tuple.tuple("user-key-1", UserAttribute.AttrType.INTEREST_FIELD.name(), "주거"),
-                        Tuple.tuple("user-key-1", UserAttribute.AttrType.INTEREST_FIELD.name(), "취업"),
-                        Tuple.tuple("user-key-1", UserAttribute.AttrType.TARGET_TYPE.name(), "농어촌"),
-                        Tuple.tuple("user-key-1", UserAttribute.AttrType.TARGET_TYPE.name(), "자립준비청년")
+                        Tuple.tuple(1L, "user-key-1", UserAttribute.AttrType.INTEREST_FIELD.name(), "주거"),
+                        Tuple.tuple(1L, "user-key-1", UserAttribute.AttrType.INTEREST_FIELD.name(), "취업"),
+                        Tuple.tuple(1L, "user-key-1", UserAttribute.AttrType.TARGET_TYPE.name(), "농어촌"),
+                        Tuple.tuple(1L, "user-key-1", UserAttribute.AttrType.TARGET_TYPE.name(), "자립준비청년")
                 );
     }
 
@@ -130,13 +130,14 @@ class UserServiceTest {
 
         userService.updatePriorities(1L, request);
 
+        verify(userPriorityRepository).deleteByUserKey("user-key-1");
         ArgumentCaptor<UserPriority> captor = ArgumentCaptor.forClass(UserPriority.class);
         verify(userPriorityRepository, times(2)).save(captor.capture());
         assertThat(captor.getAllValues())
-                .extracting(UserPriority::getUserKey, UserPriority::getPriorityRank, UserPriority::getWeight)
+                .extracting(UserPriority::getUserId, UserPriority::getUserKey, UserPriority::getPriorityRank, UserPriority::getWeight)
                 .containsExactly(
-                        Tuple.tuple("user-key-1", 1, 2.0),
-                        Tuple.tuple("user-key-1", 2, 1.6)
+                        Tuple.tuple(1L, "user-key-1", 1, 2.0),
+                        Tuple.tuple(1L, "user-key-1", 2, 1.6)
                 );
     }
 
@@ -156,9 +157,11 @@ class UserServiceTest {
                 .phoneEnc("enc")
                 .build();
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
-        when(userAttributeRepository.findByUserIdAndAttrType(1L, UserAttribute.AttrType.INTEREST_FIELD.name()))
+        when(userRepository.findUserKeyById(1L)).thenReturn(Optional.of("user-key-1"));
+        when(userAttributeRepository.findByUserKeyAndAttrType("user-key-1", UserAttribute.AttrType.INTEREST_FIELD.name()))
                 .thenReturn(List.of(UserAttribute.builder()
-                        .user(user)
+                        .userId(1L)
+                        .userKey("user-key-1")
                         .attrType(UserAttribute.AttrType.INTEREST_FIELD.name())
                         .attrValue("주거")
                         .build()));
@@ -221,8 +224,8 @@ class UserServiceTest {
 
         userService.withdraw(1L, "password123");
 
-        verify(userAttributeRepository).deleteByUserId(1L);
-        verify(userPriorityRepository).deleteByUserId(1L);
+        verify(userAttributeRepository).deleteByUserKey("user-key-1");
+        verify(userPriorityRepository).deleteByUserKey("user-key-1");
         verify(chatSessionCleanupService).deleteAllByUserKey(user.getUserKey());
         verify(userCoreSyncService).syncFromUser(user);
         assertThat(user.isActive()).isFalse();

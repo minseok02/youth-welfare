@@ -74,8 +74,8 @@
   - `chat_sessions`, `notifications`, `recommendation_logs` 의 `ManyToOne User` 제거와 `user_key` 기준 read/cleanup 전환
   - `user_recommendations` 의 `ManyToOne User` 제거와 추천/북마크 read path 의 `user_key` 전환
   - legacy runtime 테이블의 `user_id` 호환 컬럼 drop 대상과 migration 순서 설계
-- 남은 작업
   - `user_attributes`, `user_priorities` 의 write/delete 경로를 `user_key` 기준으로 전환하고 `ManyToOne User` 제거
+- 남은 작업
   - runtime 테이블 legacy `user_id` drop migration SQL 작성 및 운영 리허설
   - 런타임 datasource 권한 분리 (`app_core_rw`, `app_pii_rw`, `notification_pii_ro`)
 
@@ -691,7 +691,8 @@
 
 - access token / refresh token / notification unsubscribe token subject, Redis key, read path 전환은 완료
 - `chat_sessions`, `notifications`, `recommendation_logs`, `user_recommendations` 는 `user_key` 기준 read/write 로 정리 완료
-- 다만 `user_attributes`, `user_priorities` 는 저장/삭제 경로가 아직 `userId` 와 `@ManyToOne User` 에 묶여 있어, 이 둘은 실제 `user_id` drop 전 선행 전환이 필요하다
+- `user_attributes`, `user_priorities` 도 저장/삭제 경로를 `user_key` 기준으로 전환했고 `ManyToOne User` 제거를 반영했다
+- 따라서 남은 범위는 runtime 테이블의 실제 `user_id` 인덱스/FK/컬럼 drop SQL 작성과 적용이다
 
 ### 4.5단계: legacy `user_id` drop 설계
 
@@ -713,11 +714,6 @@
   - `service_view_logs`
     - 교체 대상: `idx_svl_user_service_viewed`, `user_id`
     - 목표 기준: 로그인 사용자는 `(user_key, service_id, viewed_at)` dedup, 비로그인은 기존 `client_fingerprint` 기준 유지
-- 2차 선행 전환 필요
-  - `user_attributes`
-    - 현재 `deleteByUserId`, `findByUserIdAndAttrType`, `UserAttribute.user` 연관이 남아 있음
-  - `user_priorities`
-    - 현재 `deleteByUserId`, `findByUserIdOrderByPriorityRank`, `UserPriority.user` 연관이 남아 있음
 - 유지 대상
   - `users.id`
     - 아직 서비스 내부 PK, 일부 DTO, `uid` claim, 운영 추적용 숫자 식별자로 쓰인다
@@ -771,7 +767,7 @@
 현재 상태:
 
 - JWT `user_key` 전환, custom principal 전환, runtime 주요 테이블의 `ManyToOne User` 제거는 완료
-- 남은 범위는 `user_attributes`, `user_priorities` 의 쓰기 경로 전환과 실제 drop migration SQL 작성이다
+- 남은 범위는 실제 drop migration SQL 작성과 운영 DB 적용 리허설이다
 
 ### Release E
 

@@ -422,3 +422,8 @@
 - 문제: `user_recommendations`, `chat_sessions`, `notifications` 같은 runtime 테이블은 이미 `user_key` 기준 read/write 로 넘어갔지만, `user_attributes` 와 `user_priorities` 는 아직 `deleteByUserId`, `findByUserId*`, `@ManyToOne User` 저장 경로가 남아 있어 모든 `user_id` 컬럼/FK를 한 번에 제거하면 프로필 수정, 우선순위 저장, 회원탈퇴 정리 로직이 바로 깨질 수 있었음
 - 해결: legacy `user_id` drop 설계를 2단계로 분리해, 먼저 `user_attributes` / `user_priorities` 의 write/delete 경로를 `user_key` 기준으로 바꾸고 그 다음에 runtime 테이블의 `user_id` 인덱스/FK/컬럼 제거 SQL을 적용하도록 문서화
 - 이유: read cut-over와 write cut-over는 같은 완료 조건이 아니다. 컬럼 제거는 "최신 저장/삭제 경로까지 새 식별자를 쓴다"는 것이 확인된 뒤에만 안전하다
+
+## 83) `@Modifying` delete query 는 서비스 트랜잭션 밖에서 바로 호출하면 테스트 cleanup 에서 터질 수 있음
+- 문제: `user_attributes`, `user_priorities` 정리 경로를 `deleteByUserKey` `@Modifying` JPQL로 바꾼 뒤, 통합 테스트 `@AfterEach` cleanup 에서 이를 직접 호출하자 `TransactionRequiredException` 이 발생했음
+- 해결: 서비스 본문은 기존처럼 `@Transactional` 경계 안에서 `deleteByUserKey` 를 사용하고, 테스트 cleanup 은 `findByUserKey* -> deleteAll(...)` 경로로 분리해 정리
+- 이유: 즉시 DELETE 보장은 쓰기 트랜잭션 안에서는 필요하지만, 테스트 정리 코드는 같은 제약을 공유하지 않는다. 운영 경로와 cleanup 경로를 같은 메서드로 억지로 맞추기보다 각 경계에 맞는 삭제 방식을 쓰는 편이 안전하다

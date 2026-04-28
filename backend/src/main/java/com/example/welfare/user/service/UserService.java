@@ -62,6 +62,7 @@ public class UserService {
     @Transactional
     public void updateProfile(Long userId, UpdateProfileRequest request) {
         User user = findActiveUser(userId);
+        String userKey = resolveUserKey(userId);
 
         user.updateProfile(
                 request.getName() != null ? request.getName() : user.getName(),
@@ -95,11 +96,10 @@ public class UserService {
 
         // 관심분야 속성 교체
         if (request.getInterestFields() != null) {
-            String userKey = resolveUserKey(userId);
-            userAttributeRepository.deleteByUserIdAndAttrType(userId, UserAttribute.AttrType.INTEREST_FIELD.name());
+            userAttributeRepository.deleteByUserKeyAndAttrType(userKey, UserAttribute.AttrType.INTEREST_FIELD.name());
             request.getInterestFields().forEach(field ->
                     userAttributeRepository.save(UserAttribute.builder()
-                            .user(user)
+                            .userId(userId)
                             .userKey(userKey)
                             .attrType(UserAttribute.AttrType.INTEREST_FIELD.name())
                             .attrValue(field)
@@ -108,11 +108,10 @@ public class UserService {
         }
 
         if (request.getTargetTypes() != null) {
-            String userKey = resolveUserKey(userId);
-            userAttributeRepository.deleteByUserIdAndAttrType(userId, UserAttribute.AttrType.TARGET_TYPE.name());
+            userAttributeRepository.deleteByUserKeyAndAttrType(userKey, UserAttribute.AttrType.TARGET_TYPE.name());
             request.getTargetTypes().forEach(targetType ->
                     userAttributeRepository.save(UserAttribute.builder()
-                            .user(user)
+                            .userId(userId)
                             .userKey(userKey)
                             .attrType(UserAttribute.AttrType.TARGET_TYPE.name())
                             .attrValue(targetType)
@@ -120,7 +119,7 @@ public class UserService {
             );
         }
 
-        user.updateProfileCompleteness(calculateCompleteness(userId, user, request));
+        user.updateProfileCompleteness(calculateCompleteness(userKey, user, request));
         userCoreSyncService.syncFromUser(user);
     }
 
@@ -139,14 +138,14 @@ public class UserService {
             throw new CustomException(ErrorCode.INVALID_INPUT);
         }
 
-        userPriorityRepository.deleteByUserId(userId);
+        userPriorityRepository.deleteByUserKey(userKey);
 
         for (int i = 0; i < codes.size(); i++) {
             PriorityOption option = priorityOptionRepository.findByCode(codes.get(i))
                     .orElseThrow(() -> new CustomException(ErrorCode.INVALID_INPUT));
 
             userPriorityRepository.save(UserPriority.builder()
-                    .user(user)
+                    .userId(userId)
                     .userKey(userKey)
                     .priorityOption(option)
                     .priorityRank(i + 1)
@@ -173,8 +172,8 @@ public class UserService {
             throw new CustomException(ErrorCode.INVALID_CREDENTIALS);
         }
 
-        userAttributeRepository.deleteByUserId(userId);
-        userPriorityRepository.deleteByUserId(userId);
+        userAttributeRepository.deleteByUserKey(user.getUserKey());
+        userPriorityRepository.deleteByUserKey(user.getUserKey());
         chatSessionCleanupService.deleteAllByUserKey(user.getUserKey());
         user.withdraw();
         userCoreSyncService.syncFromUser(user);
@@ -203,7 +202,7 @@ public class UserService {
         return user;
     }
 
-    private int calculateCompleteness(Long userId, User user, UpdateProfileRequest request) {
+    private int calculateCompleteness(String userKey, User user, UpdateProfileRequest request) {
         int score = 0;
         // 필수 항목 (각 20점)
         if (user.getName() != null) score += 20;
@@ -216,7 +215,7 @@ public class UserService {
         if (user.getPhoneEnc() != null) score += 10;
         boolean hasInterestFields = request.getInterestFields() != null
                 ? !request.getInterestFields().isEmpty()
-                : !userAttributeRepository.findByUserIdAndAttrType(userId, UserAttribute.AttrType.INTEREST_FIELD.name()).isEmpty();
+                : !userAttributeRepository.findByUserKeyAndAttrType(userKey, UserAttribute.AttrType.INTEREST_FIELD.name()).isEmpty();
         if (hasInterestFields) score += 10;
         return Math.min(score, 100);
     }

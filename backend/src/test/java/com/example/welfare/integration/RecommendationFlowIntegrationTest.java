@@ -121,7 +121,7 @@ class RecommendationFlowIntegrationTest {
 
         PriorityOption housing = priorityOptionRepository.findByCode("HOUSING").orElseThrow();
         userPriorityRepository.save(UserPriority.builder()
-                .user(user)
+                .userId(user.getId())
                 .userKey(userKey)
                 .priorityOption(housing)
                 .priorityRank(1)

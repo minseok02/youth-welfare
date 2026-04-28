@@ -16,11 +16,10 @@ public class UserPriority extends BaseTimeEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false)
-    private User user;
+    @Column(name = "user_id", nullable = false)
+    private Long userId;
 
-    @Column(length = 32, columnDefinition = "CHAR(32)")
+    @Column(name = "user_key", length = 32, columnDefinition = "CHAR(32)")
     private String userKey;
 
     @ManyToOne(fetch = FetchType.LAZY)

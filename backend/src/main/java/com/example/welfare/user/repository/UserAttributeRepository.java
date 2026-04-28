@@ -4,14 +4,15 @@ import com.example.welfare.user.entity.UserAttribute;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 
 public interface UserAttributeRepository extends JpaRepository<UserAttribute, Long> {
 
-    List<UserAttribute> findByUserId(Long userId);
+    List<UserAttribute> findByUserKey(String userKey);
 
-    List<UserAttribute> findByUserIdAndAttrType(Long userId, String attrType);
+    List<UserAttribute> findByUserKeyAndAttrType(String userKey, String attrType);
 
     @Query(value = """
             select attr_type as attrType, attr_value as attrValue
@@ -37,7 +38,18 @@ public interface UserAttributeRepository extends JpaRepository<UserAttribute, Lo
             """, nativeQuery = true)
     int backfillMissingUserKeys();
 
-    void deleteByUserId(Long userId);
+    @Modifying
+    @Query("""
+            DELETE FROM UserAttribute ua
+            WHERE ua.userKey = :userKey
+            """)
+    void deleteByUserKey(@Param("userKey") String userKey);
 
-    void deleteByUserIdAndAttrType(Long userId, String attrType);
+    @Modifying
+    @Query("""
+            DELETE FROM UserAttribute ua
+            WHERE ua.userKey = :userKey
+              AND ua.attrType = :attrType
+            """)
+    void deleteByUserKeyAndAttrType(@Param("userKey") String userKey, @Param("attrType") String attrType);
 }

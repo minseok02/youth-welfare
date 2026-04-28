@@ -10,7 +10,7 @@ import java.util.List;
 
 public interface UserPriorityRepository extends JpaRepository<UserPriority, Long> {
 
-    List<UserPriority> findByUserIdOrderByPriorityRank(Long userId);
+    List<UserPriority> findByUserKeyOrderByPriorityRank(String userKey);
 
     @Query(value = """
             select up.priority_rank as priorityRank,
@@ -41,6 +41,9 @@ public interface UserPriorityRepository extends JpaRepository<UserPriority, Long
 
     // @Modifying으로 즉시 DELETE를 DB에 반영 — 같은 트랜잭션에서 INSERT 전 flush 보장
     @Modifying
-    @Query("DELETE FROM UserPriority up WHERE up.user.id = :userId")
-    void deleteByUserId(@Param("userId") Long userId);
+    @Query("""
+            DELETE FROM UserPriority up
+            WHERE up.userKey = :userKey
+            """)
+    void deleteByUserKey(@Param("userKey") String userKey);
 }
