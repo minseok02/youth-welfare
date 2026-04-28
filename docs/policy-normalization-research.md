@@ -405,6 +405,193 @@ AI를 추천 최종판정에 바로 넣기보다, `공식 정규화 축으로 �
 4. 신규 source는 우선 `core + taxonomy + raw` 까지만 붙이고, source 특이 필드는 AI batch enrichment로 보내는 경로 설계
 5. 추천 hard filter/rule scoring이 어떤 fact group까지 직접 읽을지 먼저 고정
 
+## 가능 여부와 타당성 검토
+
+### 결론
+
+제안한 `범정부 core + 청년 taxonomy + eligibility facts + AI enrichment` 구조로 바꾸는 것은 **가능합니다**.
+다만 방식은 `기존 엔티티를 바로 대체하는 빅뱅 교체`가 아니라, **기존 `WelfareService` 옆에 sidecar 구조를 추가하고 추천/조회가 점진적으로 읽는 구조로 전환하는 방식만 타당**합니다.
+
+즉 아래 둘을 구분해야 합니다.
+
+- 가능한가: 가능
+- 지금 당장 한 번에 갈아엎는 게 타당한가: 아니오
+
+### 왜 가능한가
+
+현재 수집 파이프라인은 이미 source fan-out을 일부 줄였기 때문에, 저장 직전 aggregate를 확장할 자리가 있습니다.
+
+현재 코드 기준으로 보면:
+
+- [CollectService.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/collect/service/CollectService.java)
+  - source dispatch가 adapter 기반으로 정리되어 있어 신규 source 또는 신규 정규화 산출물을 연결하기 쉬움
+- [CollectItemSaver.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/collect/service/CollectItemSaver.java)
+  - 지금은 `WelfareService + ServiceRegion + ServiceTag`만 저장하지만, item 저장 경계가 한 군데라 `taxonomy/facts` 저장을 여기에 붙이기 좋음
+- [WelfareServiceMapper.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/collect/mapper/WelfareServiceMapper.java)
+  - source별 mapping이 한 클래스에 몰려 있어 문제이기도 하지만, 반대로 “어디서 공식 core/taxonomy/facts를 뽑아야 하는지”가 명확함
+- `raw_api_payloads`
+  - 이미 존재하므로 source-specific 필드를 AI batch enrichment로 다시 해석할 재료가 있음
+
+즉 수집 진입과 raw 보관은 이미 준비돼 있고, 부족한 것은 저장 모델뿐입니다.
+
+### 왜 빅뱅 교체는 타당하지 않은가
+
+현재 추천/검색/응답은 기존 `WelfareService` 컬럼과 `ServiceTag` 4종에 강하게 묶여 있습니다.
+
+#### 1. 추천 후보 SQL이 기존 필드에 직접 묶여 있음
+
+[WelfareServiceRepository.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/policy/repository/WelfareServiceRepository.java) 의 후보 조회는 아래 컬럼을 직접 사용합니다.
+
+- `minAge`
+- `maxAge`
+- `minIncome`
+- `maxIncome`
+- `status`
+- `sourceType`
+- `unifiedCategory`
+
+특히 `findCandidates*` 쿼리는 `YOUTH` 소스일 때만 소득 필터를 다르게 걸고 있어, `facts` 구조가 생긴다고 해서 바로 바꿀 수 있는 상태가 아닙니다.
+
+#### 2. 추천 후처리가 `ServiceTag` 4종 enum에 묶여 있음
+
+[ServiceTag.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/policy/entity/ServiceTag.java) 의 현재 타입은 아래 4개뿐입니다.
+
+- `INTEREST_THEME`
+- `TARGET_GROUP`
+- `LIFE_STAGE`
+- `KEYWORD`
+
+[RetrievalService.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/recommend/service/RetrievalService.java) 와 [RuleScoringService.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/recommend/service/RuleScoringService.java) 는 이 4종을 전제로 age 보조필터, 관심사 일치, 대상군 일치, 특수대상 추론을 하고 있습니다.
+
+즉 지금 구조는 `facts`가 아니라 `tag + free text` 기반입니다.
+
+#### 3. 우선순위/응답 DTO가 `unifiedCategory` 하나에 묶여 있음
+
+- [DefaultPriorityMatcher.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/recommend/service/DefaultPriorityMatcher.java)
+- [PolicyDetailResponse.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/policy/dto/PolicyDetailResponse.java)
+- [RecommendationResponse.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/recommend/dto/RecommendationResponse.java)
+
+이 경로들은 `주거`, `일자리`, `교육·직업훈련`, `금융·생활지원` 같은 현재 `unifiedCategory` 문자열에 바로 의존합니다.
+따라서 taxonomy가 생겨도 기존 응답 계약은 한동안 `unifiedCategory`를 계속 제공해야 합니다.
+
+#### 4. AI도 아직 새 구조를 쓰지 않음
+
+[RealtimeAiGateway.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/recommend/gateway/RealtimeAiGateway.java) 는 현재 AI에 아래만 보냅니다.
+
+- 제목
+- `unifiedCategory`
+- 설명 요약
+
+즉 `facts`나 `detail`을 반영하는 구조로 아직 설계돼 있지 않습니다.
+AI enrichment를 도입하더라도 이 경로는 별도 확장이 필요합니다.
+
+### 타당한 이행 방식
+
+현재 코드에서는 아래 순서만 타당합니다.
+
+#### 1단계: sidecar 테이블 추가
+
+기존 테이블은 유지하고 아래를 새로 붙입니다.
+
+- `service_taxonomies`
+- `service_taxonomy_terms`
+- `service_facts`
+
+이 단계에서는 기존 API/추천 쿼리는 건드리지 않습니다.
+
+#### 2단계: 저장 경계 확장
+
+`WelfareServiceMapper` 가 source DTO를 아래 내부 aggregate로 만들게 바꿉니다.
+
+- `core`
+- `detail`
+- `taxonomy`
+- `facts`
+- `raw`
+
+그리고 [CollectItemSaver.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/collect/service/CollectItemSaver.java) 가 기존 저장과 함께 sidecar 저장도 수행하게 만듭니다.
+
+핵심은 이 단계에서도 기존 `WelfareService`, `ServiceTag`, `ServiceRegion` 저장을 없애지 않는 것입니다.
+
+#### 3단계: 조회 read-model 추가
+
+기존 응답 DTO를 바로 바꾸지 말고, 새로운 read-model service를 먼저 만듭니다.
+
+예:
+
+- `PolicyClassificationReadService`
+- `PolicyEligibilityReadService`
+
+이 서비스가 `service_taxonomies`, `service_facts`를 읽어 조합하게 합니다.
+
+#### 4단계: 추천 hard filter를 facts로 일부 이관
+
+처음부터 전체 추천을 옮기면 위험합니다.
+우선 deterministic한 것부터 옮깁니다.
+
+- 연령
+- 소득 구간
+- 취업 상태
+- 학력
+- 특화 대상
+- 가구 특성
+
+이 단계에서만 `WelfareServiceRepository.findCandidates*` 쿼리를 서서히 바꾸는 것이 맞습니다.
+
+#### 5단계: `ServiceTag`의 책임 축소
+
+그 다음에야 현재 `KEYWORD`, `TARGET_GROUP`에 과도하게 실린 의미를 줄일 수 있습니다.
+
+미래 상태:
+
+- `ServiceTag`
+  - 검색/표시용 lightweight tag
+- `service_facts`
+  - hard filter / structured signal
+- `service_taxonomies`
+  - 정책 분류 / 제공수단 / 서비스 분야
+
+#### 6단계: AI enrichment 추가
+
+마지막에 raw payload와 detail을 읽어 공식 구조에 안 들어오는 값을 `service_facts(authority=AI_ENRICHED)`로 넣습니다.
+
+이건 추천 core migration보다 뒤에 두는 게 맞습니다.
+AI를 먼저 넣으면 구조화 기준이 흐려집니다.
+
+### 비용 평가
+
+#### 낮은 비용
+
+- 조사 결과를 canonical decision으로 문서화
+- `service_taxonomies`, `service_facts` 스키마 추가
+- collect 저장 aggregate 추가
+- raw 기반 AI batch 설계
+
+#### 중간 비용
+
+- `CollectItemSaver` 저장 경계 확장
+- `WelfareServiceMapper` 를 `core/taxonomy/facts` 산출형으로 분리
+- policy detail/list read-model 확장
+
+#### 높은 비용
+
+- `WelfareServiceRepository.findCandidates*` 전면 개편
+- `RuleScoringService`, `RetrievalService`, `YouthPolicyFilter` 의 태그/텍스트 의존 축소
+- `DefaultPriorityMatcher` 의 `unifiedCategory` 직접 비교 제거
+- 응답 DTO 및 프론트 계약 점진 전환
+
+### 최종 판단
+
+현재 코드 기준으로 가장 현실적인 판단은 아래입니다.
+
+- 구조 변경은 기술적으로 가능하다.
+- 공식 근거도 충분하다.
+- 신규 데이터 API 확장성 측면에서도 타당하다.
+- 하지만 구현 방식은 반드시 `sidecar + 점진 이행` 이어야 한다.
+- 특히 추천 SQL과 `ServiceTag` 의존부를 건너뛰고 바로 최종 구조로 가는 건 타당하지 않다.
+
+즉 이 구조는 **도입 자체는 타당**, **빅뱅 전환은 부적절**, **2~4단계로 쪼개서 가는 것이 유일하게 실무적인 방법**입니다.
+
 ## 판단
 
 권장 canonical 기준은 아래입니다.
