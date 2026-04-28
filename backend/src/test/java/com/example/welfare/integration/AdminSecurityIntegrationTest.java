@@ -4,7 +4,7 @@ import com.example.welfare.collect.service.CollectService;
 import com.example.welfare.global.util.JwtUtil;
 import com.example.welfare.user.entity.User;
 import com.example.welfare.user.repository.AuthUserRepository;
-import com.example.welfare.user.repository.UserPiiRepository;
+import com.example.welfare.user.repository.UserPiiReadWriteRepository;
 import com.example.welfare.user.repository.UserPiiSyncQueueRepository;
 import com.example.welfare.user.repository.UserProfileRepository;
 import com.example.welfare.user.repository.UserRepository;
@@ -59,7 +59,7 @@ class AdminSecurityIntegrationTest {
     private UserProfileRepository userProfileRepository;
 
     @Autowired
-    private UserPiiRepository userPiiRepository;
+    private UserPiiReadWriteRepository userPiiReadWriteRepository;
 
     @Autowired
     private UserPiiSyncQueueRepository userPiiSyncQueueRepository;
@@ -180,7 +180,7 @@ class AdminSecurityIntegrationTest {
             if (userKey != null) {
                 redisTemplate.delete("refresh:" + userKey);
                 userPiiSyncQueueRepository.deleteByUserKey(userKey);
-                userPiiRepository.deleteByUserKey(userKey);
+                userPiiReadWriteRepository.deleteByUserKey(userKey);
                 userProfileRepository.deleteByUserKey(userKey);
                 authUserRepository.deleteByUserKey(userKey);
             }

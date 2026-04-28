@@ -84,11 +84,12 @@
   - `user_pii_sync_queue` admin replay API 추가
   - `user_pii_sync_queue` fixed-delay 자동 retry 경로 추가
   - `user_pii_sync_queue` status endpoint와 운영 모니터링 기준 정리
+  - 기본 datasource의 `user_pii` 직접 접근 제거 (`UserPii` JPA 엔티티 / `UserPiiRepository` 제거)
 - 남은 작업
   - 기존 운영 DB에 `app_core_rw`, `app_pii_rw`, `notification_pii_ro`, `migration_admin` 계정 생성 후 앱 datasource 전환
   - 운영 DB에 `V2026_04_28_02__add_user_pii_sync_queue.sql` 적용 및 request dual-write smoke 검증
-  - 기본 datasource의 잔여 `user_pii` 직접 접근 제거
   - `app_core_rw` 의 `youth_welfare_pii.user_pii` DML 권한 회수
+  - `app_core_rw` 권한 회수 후 init/runbook SQL grant 세트 축소
   - 운영 DB에 `V2026_04_28_01__drop_runtime_legacy_user_id.sql` 적용 및 배포 smoke 검증
 
 ## 현재 권한 구조의 문제
@@ -98,14 +99,15 @@
 - DB 접속은 [application.yml](/home/minseok/youth-welfare/backend/src/main/resources/application.yml:1) 기준 기본 JPA datasource + `app_pii_rw` + `notification_pii_ro` 보조 datasource 3개를 함께 사용한다.
 - 현재 [docker-compose.yml](/home/minseok/youth-welfare/docker-compose.yml:1)은 앱 컨테이너가 `DB_USERNAME` 계정으로 접속하고, 신규 볼륨 초기화 시 `app_core_rw`, `app_pii_rw`, `notification_pii_ro`, `migration_admin` 계정을 함께 생성한다.
 - 프로필 조회와 비밀번호 재설정 수신 주소 조회는 `app_pii_rw` 보조 datasource를 통해 `user_pii` 를 읽는다.
-- `user_pii` admin backfill write 는 `app_pii_rw` 보조 datasource를 통해 수행한다.
+- `user_pii` admin backfill 은 primary `users` source 조회와 `app_pii_rw` 의 누락 암호문 조회/수정 2단계로 수행한다.
 - 요청 경로 `user_pii` sync 는 primary `user_pii_sync_queue` 에 적재된 뒤 after-commit listener 가 `app_pii_rw` 로 upsert 한다.
 - 운영자는 `/api/admin/users/pii-sync-replay` 로 특정 `userKey` 또는 실패/대기 queue batch를 수동 replay 할 수 있다.
 - `UserPiiSyncRetryScheduler` 는 `user.pii-sync.retry.*` 설정값으로 `FAILED` 우선, 이후 `PENDING` queue batch를 fixed-delay 재처리한다.
 - 운영자는 `/api/admin/users/pii-sync-status` 로 queue 적체 count, oldest pending/failed row, 최근 sync 시각, failed sample 목록을 조회할 수 있다.
 - 알림 발송 대상 이메일 조회와 재시도 단건 조회는 `notification_pii_ro` 보조 datasource를 통해 `user_pii(user_key, email_enc)` 만 읽는다.
 - API 권한은 [SecurityConfig](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/global/config/SecurityConfig.java:44) 에서 이미 `/api/admin/** -> hasRole("ADMIN")` 으로 막혀 있다.
-- 다만 `UserPiiRepository` 기반 잔여 직접 접근과 운영 fallback 정리 전까지는 `app_core_rw` 가 임시로 `user_pii` DML 권한을 유지한다.
+- 기본 datasource/JPA persistence unit은 더 이상 `user_pii` 를 직접 읽거나 쓰지 않는다.
+- 다만 운영 fallback 정리와 grant 템플릿 교체 전까지는 `app_core_rw` 가 임시로 `user_pii` DML 권한을 유지한다.
 - 관리자 권한은 여전히 `SECURITY_ADMIN_EMAILS` allowlist + `users.email` 조합에 의존하고, DB 안의 역할 테이블이나 서비스 계정 분리는 아직 없다.
 
 즉, 저장소 분리보다 먼저 "누가 무엇에 접근할 수 있는지"를 구조적으로 나눠야 한다.
@@ -596,7 +598,7 @@
 
 ## Spring Boot 구조 변경안
 
-현재는 기본 JPA datasource 하나와 보조 datasource 둘(`app_pii_rw`, `notification_pii_ro`)을 함께 쓴다. 런타임 `root`는 제거했고 read/backfill/request sync 일부는 분리됐지만, 잔여 direct 접근 제거 전까지 `app_core_rw`가 임시로 `youth_welfare_pii.user_pii` DML 권한을 가진다.
+현재는 기본 JPA datasource 하나와 보조 datasource 둘(`app_pii_rw`, `notification_pii_ro`)을 함께 쓴다. 런타임 `root`는 제거했고 프로필/비밀번호 재설정/알림/backfill/request sync는 목적별 datasource로 분리됐으며, 기본 datasource는 더 이상 `user_pii` 를 직접 다루지 않는다. 다만 운영 DB와 init/runbook grant 세트에서 `app_core_rw` 의 `user_pii` DML 권한을 아직 회수하지 못해 최소권한이 완전히 닫히지는 않았다.
 
 분리 후에는 최소 2개 datasource를 둔다.
 

@@ -8,8 +8,7 @@ import com.example.welfare.chat.repository.ChatSessionRepository;
 import com.example.welfare.global.util.AesEncryptUtil;
 import com.example.welfare.notification.gateway.EmailClient;
 import com.example.welfare.user.entity.User;
-import com.example.welfare.user.entity.UserPii;
-import com.example.welfare.user.repository.UserPiiRepository;
+import com.example.welfare.user.repository.UserPiiReadWriteRepository;
 import com.example.welfare.user.repository.UserPiiSyncQueueRepository;
 import com.example.welfare.user.repository.UserRepository;
 import org.junit.jupiter.api.AfterEach;
@@ -58,7 +57,7 @@ class AuthRedisIntegrationTest {
     private UserRepository userRepository;
 
     @Autowired
-    private UserPiiRepository userPiiRepository;
+    private UserPiiReadWriteRepository userPiiReadWriteRepository;
 
     @Autowired
     private UserPiiSyncQueueRepository userPiiSyncQueueRepository;
@@ -269,14 +268,14 @@ class AuthRedisIntegrationTest {
 
         User user = userRepository.findByEmail(email).orElseThrow();
         String userKey = userRepository.findUserKeyById(user.getId()).orElseThrow();
-        UserPii userPii = userPiiRepository.findByUserKey(userKey).orElseThrow();
-        userPii.sync(
+        var userPii = userPiiReadWriteRepository.findByUserKey(userKey).orElseThrow();
+        userPiiReadWriteRepository.upsertUserPii(
+                userKey,
                 aesEncryptUtil.encrypt(piiEmail),
-                userPii.getNameEnc(),
-                userPii.getBirthDateEnc(),
-                userPii.getPhoneEnc()
+                userPii.nameEnc(),
+                userPii.birthDateEnc(),
+                userPii.phoneEnc()
         );
-        userPiiRepository.save(userPii);
 
         mockMvc.perform(post("/api/auth/password-reset/request")
                         .contentType("application/json")

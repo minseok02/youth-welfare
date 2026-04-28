@@ -8,7 +8,7 @@ import com.example.welfare.user.entity.UserPriority;
 import com.example.welfare.user.repository.AuthUserRepository;
 import com.example.welfare.user.repository.PriorityOptionRepository;
 import com.example.welfare.user.repository.UserAttributeRepository;
-import com.example.welfare.user.repository.UserPiiRepository;
+import com.example.welfare.user.repository.UserPiiReadWriteRepository;
 import com.example.welfare.user.repository.UserPiiSyncQueueRepository;
 import com.example.welfare.user.repository.UserPriorityRepository;
 import com.example.welfare.user.repository.UserProfileRepository;
@@ -49,7 +49,7 @@ class UserMetadataUserKeyBackfillIntegrationTest {
     private UserProfileRepository userProfileRepository;
 
     @Autowired
-    private UserPiiRepository userPiiRepository;
+    private UserPiiReadWriteRepository userPiiReadWriteRepository;
 
     @Autowired
     private AuthUserRepository authUserRepository;
@@ -76,7 +76,7 @@ class UserMetadataUserKeyBackfillIntegrationTest {
                     if (userKey != null) {
                         authUserRepository.findByUserKey(userKey).ifPresent(authUserRepository::delete);
                         userProfileRepository.findByUserKey(userKey).ifPresent(userProfileRepository::delete);
-                        userPiiRepository.findByUserKey(userKey).ifPresent(userPiiRepository::delete);
+                        userPiiReadWriteRepository.deleteByUserKey(userKey);
                         userPiiSyncQueueRepository.deleteByUserKey(userKey);
                     }
                     userRepository.delete(user);

@@ -2,9 +2,8 @@ package com.example.welfare.integration;
 
 import com.example.welfare.global.util.AesEncryptUtil;
 import com.example.welfare.user.entity.User;
-import com.example.welfare.user.entity.UserPii;
 import com.example.welfare.user.repository.AuthUserRepository;
-import com.example.welfare.user.repository.UserPiiRepository;
+import com.example.welfare.user.repository.UserPiiReadWriteRepository;
 import com.example.welfare.user.repository.UserPiiSyncQueueRepository;
 import com.example.welfare.user.repository.UserProfileRepository;
 import com.example.welfare.user.repository.UserRepository;
@@ -32,7 +31,7 @@ class UserPiiBackfillIntegrationTest {
     private UserRepository userRepository;
 
     @Autowired
-    private UserPiiRepository userPiiRepository;
+    private UserPiiReadWriteRepository userPiiReadWriteRepository;
 
     @Autowired
     private UserProfileRepository userProfileRepository;
@@ -61,7 +60,7 @@ class UserPiiBackfillIntegrationTest {
                     if (userKey != null) {
                         authUserRepository.findByUserKey(userKey).ifPresent(authUserRepository::delete);
                         userProfileRepository.findByUserKey(userKey).ifPresent(userProfileRepository::delete);
-                        userPiiRepository.findByUserKey(userKey).ifPresent(userPiiRepository::delete);
+                        userPiiReadWriteRepository.deleteByUserKey(userKey);
                         userPiiSyncQueueRepository.deleteByUserKey(userKey);
                     }
                     userRepository.delete(user);
@@ -82,15 +81,14 @@ class UserPiiBackfillIntegrationTest {
         userCoreSyncService.syncFromUser(user);
 
         String userKey = userRepository.findUserKeyById(user.getId()).orElseThrow();
-        UserPii userPii = userPiiRepository.findByUserKey(userKey).orElseThrow();
-        userPii.sync(null, null, null, userPii.getPhoneEnc());
-        userPiiRepository.save(userPii);
+        var userPii = userPiiReadWriteRepository.findByUserKey(userKey).orElseThrow();
+        userPiiReadWriteRepository.upsertUserPii(userKey, null, null, null, userPii.phoneEnc());
 
         userPiiBackfillService.backfillMissingEncryptedFields();
 
-        UserPii reloaded = userPiiRepository.findByUserKey(userKey).orElseThrow();
-        assertThat(aesEncryptUtil.decrypt(reloaded.getEmailEnc())).isEqualTo(email);
-        assertThat(aesEncryptUtil.decrypt(reloaded.getNameEnc())).isEqualTo("Backfill User");
-        assertThat(aesEncryptUtil.decrypt(reloaded.getBirthDateEnc())).isEqualTo("1998-01-10");
+        var reloaded = userPiiReadWriteRepository.findByUserKey(userKey).orElseThrow();
+        assertThat(aesEncryptUtil.decrypt(reloaded.emailEnc())).isEqualTo(email);
+        assertThat(aesEncryptUtil.decrypt(reloaded.nameEnc())).isEqualTo("Backfill User");
+        assertThat(aesEncryptUtil.decrypt(reloaded.birthDateEnc())).isEqualTo("1998-01-10");
     }
 }

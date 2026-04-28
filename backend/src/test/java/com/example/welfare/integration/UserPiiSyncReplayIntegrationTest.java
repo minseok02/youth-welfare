@@ -3,11 +3,10 @@ package com.example.welfare.integration;
 import com.example.welfare.global.util.AesEncryptUtil;
 import com.example.welfare.user.dto.response.UserPiiSyncReplayResponse;
 import com.example.welfare.user.entity.User;
-import com.example.welfare.user.entity.UserPii;
 import com.example.welfare.user.entity.UserPiiSyncQueue;
 import com.example.welfare.user.entity.UserPiiSyncQueueStatus;
 import com.example.welfare.user.repository.AuthUserRepository;
-import com.example.welfare.user.repository.UserPiiRepository;
+import com.example.welfare.user.repository.UserPiiReadWriteRepository;
 import com.example.welfare.user.repository.UserPiiSyncQueueRepository;
 import com.example.welfare.user.repository.UserProfileRepository;
 import com.example.welfare.user.repository.UserRepository;
@@ -35,7 +34,7 @@ class UserPiiSyncReplayIntegrationTest {
     private UserRepository userRepository;
 
     @Autowired
-    private UserPiiRepository userPiiRepository;
+    private UserPiiReadWriteRepository userPiiReadWriteRepository;
 
     @Autowired
     private UserProfileRepository userProfileRepository;
@@ -64,7 +63,7 @@ class UserPiiSyncReplayIntegrationTest {
                     if (userKey != null) {
                         authUserRepository.findByUserKey(userKey).ifPresent(authUserRepository::delete);
                         userProfileRepository.findByUserKey(userKey).ifPresent(userProfileRepository::delete);
-                        userPiiRepository.findByUserKey(userKey).ifPresent(userPiiRepository::delete);
+                        userPiiReadWriteRepository.deleteByUserKey(userKey);
                         userPiiSyncQueueRepository.deleteByUserKey(userKey);
                     }
                     userRepository.delete(user);
@@ -86,7 +85,7 @@ class UserPiiSyncReplayIntegrationTest {
 
         String userKey = userRepository.findUserKeyById(user.getId()).orElseThrow();
         UserPiiSyncQueue queue = userPiiSyncQueueRepository.findByUserKey(userKey).orElseThrow();
-        userPiiRepository.findByUserKey(userKey).ifPresent(userPiiRepository::delete);
+        userPiiReadWriteRepository.deleteByUserKey(userKey);
         queue.markFailed("forced integration failure");
         userPiiSyncQueueRepository.save(queue);
 
@@ -97,10 +96,10 @@ class UserPiiSyncReplayIntegrationTest {
         assertThat(response.failedCount()).isZero();
         assertThat(response.missingCount()).isZero();
 
-        UserPii reloaded = userPiiRepository.findByUserKey(userKey).orElseThrow();
-        assertThat(aesEncryptUtil.decrypt(reloaded.getEmailEnc())).isEqualTo(email);
-        assertThat(aesEncryptUtil.decrypt(reloaded.getNameEnc())).isEqualTo("Replay User");
-        assertThat(aesEncryptUtil.decrypt(reloaded.getBirthDateEnc())).isEqualTo("1998-01-10");
+        var reloaded = userPiiReadWriteRepository.findByUserKey(userKey).orElseThrow();
+        assertThat(aesEncryptUtil.decrypt(reloaded.emailEnc())).isEqualTo(email);
+        assertThat(aesEncryptUtil.decrypt(reloaded.nameEnc())).isEqualTo("Replay User");
+        assertThat(aesEncryptUtil.decrypt(reloaded.birthDateEnc())).isEqualTo("1998-01-10");
 
         UserPiiSyncQueue reloadedQueue = userPiiSyncQueueRepository.findByUserKey(userKey).orElseThrow();
         assertThat(reloadedQueue.getStatus()).isEqualTo(UserPiiSyncQueueStatus.SYNCED);

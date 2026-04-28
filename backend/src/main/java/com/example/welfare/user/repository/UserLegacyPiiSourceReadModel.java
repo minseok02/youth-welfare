@@ -2,7 +2,7 @@ package com.example.welfare.user.repository;
 
 import java.time.LocalDate;
 
-public interface UserPiiBackfillTarget {
+public interface UserLegacyPiiSourceReadModel {
 
     String getUserKey();
 
@@ -11,10 +11,4 @@ public interface UserPiiBackfillTarget {
     String getName();
 
     LocalDate getBirthDate();
-
-    String getEmailEnc();
-
-    String getNameEnc();
-
-    String getBirthDateEnc();
 }

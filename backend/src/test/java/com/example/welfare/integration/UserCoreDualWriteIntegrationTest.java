@@ -4,12 +4,11 @@ import com.example.welfare.global.util.AesEncryptUtil;
 import com.example.welfare.global.util.JwtUtil;
 import com.example.welfare.user.entity.AuthUser;
 import com.example.welfare.user.entity.User;
-import com.example.welfare.user.entity.UserPii;
 import com.example.welfare.user.entity.UserPiiSyncQueue;
 import com.example.welfare.user.entity.UserPiiSyncQueueStatus;
 import com.example.welfare.user.entity.UserProfile;
 import com.example.welfare.user.repository.AuthUserRepository;
-import com.example.welfare.user.repository.UserPiiRepository;
+import com.example.welfare.user.repository.UserPiiReadWriteRepository;
 import com.example.welfare.user.repository.UserPiiSyncQueueRepository;
 import com.example.welfare.user.repository.UserProfileRepository;
 import com.example.welfare.user.repository.UserRepository;
@@ -57,7 +56,7 @@ class UserCoreDualWriteIntegrationTest {
     private UserProfileRepository userProfileRepository;
 
     @Autowired
-    private UserPiiRepository userPiiRepository;
+    private UserPiiReadWriteRepository userPiiReadWriteRepository;
 
     @Autowired
     private UserPiiSyncQueueRepository userPiiSyncQueueRepository;
@@ -80,7 +79,7 @@ class UserCoreDualWriteIntegrationTest {
                     if (userKey != null) {
                         authUserRepository.findByUserKey(userKey).ifPresent(authUserRepository::delete);
                         userProfileRepository.findByUserKey(userKey).ifPresent(userProfileRepository::delete);
-                        userPiiRepository.findByUserKey(userKey).ifPresent(userPiiRepository::delete);
+                        userPiiReadWriteRepository.deleteByUserKey(userKey);
                         userPiiSyncQueueRepository.deleteByUserKey(userKey);
                     }
                     userRepository.delete(user);
@@ -115,7 +114,7 @@ class UserCoreDualWriteIntegrationTest {
 
         AuthUser authUser = authUserRepository.findByUserKey(userKey).orElseThrow();
         UserProfile userProfile = userProfileRepository.findByUserKey(userKey).orElseThrow();
-        UserPii userPii = userPiiRepository.findByUserKey(userKey).orElseThrow();
+        var userPii = userPiiReadWriteRepository.findByUserKey(userKey).orElseThrow();
         UserPiiSyncQueue syncQueue = userPiiSyncQueueRepository.findByUserKey(userKey).orElseThrow();
 
         assertThat(authUser.getEmailLookupHash()).isEqualTo(sha256Hex(email.toLowerCase()));
@@ -127,9 +126,9 @@ class UserCoreDualWriteIntegrationTest {
         assertThat(userProfile.isHasName()).isTrue();
         assertThat(userProfile.isHasBirthDate()).isTrue();
         assertThat(userProfile.isHasPhone()).isFalse();
-        assertThat(aesEncryptUtil.decrypt(userPii.getEmailEnc())).isEqualTo(email);
-        assertThat(aesEncryptUtil.decrypt(userPii.getNameEnc())).isEqualTo("Dual Write User");
-        assertThat(aesEncryptUtil.decrypt(userPii.getBirthDateEnc())).isEqualTo("1998-01-10");
+        assertThat(aesEncryptUtil.decrypt(userPii.emailEnc())).isEqualTo(email);
+        assertThat(aesEncryptUtil.decrypt(userPii.nameEnc())).isEqualTo("Dual Write User");
+        assertThat(aesEncryptUtil.decrypt(userPii.birthDateEnc())).isEqualTo("1998-01-10");
         assertThat(syncQueue.getStatus()).isEqualTo(UserPiiSyncQueueStatus.SYNCED);
         assertThat(syncQueue.getAttemptCount()).isEqualTo(1);
         assertThat(syncQueue.getLastSyncedAt()).isNotNull();
@@ -180,7 +179,7 @@ class UserCoreDualWriteIntegrationTest {
                 .andExpect(jsonPath("$.success").value(true));
 
         UserProfile userProfile = userProfileRepository.findByUserKey(userKey).orElseThrow();
-        UserPii userPii = userPiiRepository.findByUserKey(userKey).orElseThrow();
+        var userPii = userPiiReadWriteRepository.findByUserKey(userKey).orElseThrow();
         UserPiiSyncQueue syncQueue = userPiiSyncQueueRepository.findByUserKey(userKey).orElseThrow();
 
         assertThat(userProfile.getSido()).isEqualTo("부산광역시");
@@ -195,12 +194,12 @@ class UserCoreDualWriteIntegrationTest {
         assertThat(userProfile.getDisplayCount()).isEqualTo(12);
         assertThat(userProfile.getAgeBand()).isEqualTo("25_29");
         assertThat(userProfile.isHasPhone()).isTrue();
-        assertThat(aesEncryptUtil.decrypt(userPii.getNameEnc())).isEqualTo("After Update");
-        assertThat(aesEncryptUtil.decrypt(userPii.getBirthDateEnc())).isEqualTo("1996-05-20");
-        assertThat(aesEncryptUtil.decrypt(userPii.getPhoneEnc())).isEqualTo("01012345678");
+        assertThat(aesEncryptUtil.decrypt(userPii.nameEnc())).isEqualTo("After Update");
+        assertThat(aesEncryptUtil.decrypt(userPii.birthDateEnc())).isEqualTo("1996-05-20");
+        assertThat(aesEncryptUtil.decrypt(userPii.phoneEnc())).isEqualTo("01012345678");
         assertThat(syncQueue.getStatus()).isEqualTo(UserPiiSyncQueueStatus.SYNCED);
         assertThat(syncQueue.getAttemptCount()).isGreaterThanOrEqualTo(2);
-        assertThat(syncQueue.getPhoneEnc()).isEqualTo(userPii.getPhoneEnc());
+        assertThat(syncQueue.getPhoneEnc()).isEqualTo(userPii.phoneEnc());
     }
 
     @Test

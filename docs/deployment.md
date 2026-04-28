@@ -70,10 +70,12 @@ docker compose -f docker-compose.yml up -d --build app
 - `notification_pii_ro`: `youth_welfare_pii.user_pii(user_key, email_enc)` column-level SELECT
 - `migration_admin`: `youth_welfare.*`, `youth_welfare_pii.*` 전체 권한
 
+최신 코드 기준으로 기본 datasource는 더 이상 `user_pii` 를 직접 읽거나 쓰지 않는다. 위 `app_core_rw` 의 `user_pii` DML 은 운영 cut-over와 grant 템플릿 정리 전까지 남겨 둔 임시 호환 권한이다.
+
 현재 코드 기준 datasource 사용 범위:
 
-- 기본 JPA datasource (`DB_URL`, `DB_USERNAME`): 대부분의 core/runtime 경로
-- 보조 datasource (`APP_PII_DB_URL`, `DB_APP_PII_USERNAME`): 프로필 조회, 비밀번호 재설정 수신 주소 조회, admin `user_pii` backfill write 경로
+- 기본 JPA datasource (`DB_URL`, `DB_USERNAME`): 대부분의 core/runtime 경로. 최신 코드 기준 `user_pii` 직접 read/write 없음
+- 보조 datasource (`APP_PII_DB_URL`, `DB_APP_PII_USERNAME`): 프로필 조회, 비밀번호 재설정 수신 주소 조회, admin `user_pii` backfill 상태 조회/수정, queue replay/retry 최종 upsert 경로
 - 보조 datasource (`NOTIFICATION_PII_DB_URL`, `DB_NOTIFICATION_PII_RO_USERNAME`): 알림 스케줄러와 재시도 경로의 이메일 암호문 조회
 - 스케줄러 (`USER_PII_SYNC_RETRY_*`): `FAILED` 우선, 이후 `PENDING` queue batch를 `UserPiiSyncReplayService` 재사용으로 재처리
 - 운영 모니터링 API (`GET /api/admin/users/pii-sync-status`): queue 적체 count, oldest pending/failed, recent sync 시각, failed sample 조회

@@ -507,3 +507,8 @@
 - 문제: `deploy/smoke/user-pii-sync-cutover-smoke.sh` 는 회원가입과 프로필 수정을 통해 request-path PII sync를 검증하므로, 앱이 `AES_SECRET_KEY` 없이 떠 있으면 queue 로직 이전에 암호화 단계에서 `C002` 500으로 중단될 수 있었음
 - 해결: smoke 스크립트 사용 문서에 `AES_SECRET_KEY` 사전 확인을 명시하고, 검증 결과에도 local `.env` 의 빈 secret 때문에 full smoke가 중단될 수 있음을 남겼음
 - 이유: PII cut-over smoke는 DB migration만의 문제가 아니라 앱 secret 주입까지 포함한 end-to-end 경로다. 운영 실행 전에 secret 상태를 먼저 확인해야 migration 문제와 암호화 환경 문제를 헷갈리지 않는다
+
+## 100) secondary datasource를 도입한 뒤에도 primary JPA가 `user_pii` 엔티티/리포지토리를 계속 들고 있으면 최소권한 회수가 막힘
+- 문제: 프로필 조회, 알림, backfill, request sync를 이미 `app_pii_rw` / `notification_pii_ro` 로 나눴어도 `UserPii` JPA 엔티티와 `UserPiiRepository` 가 기본 persistence unit에 남아 있으면, 런타임 코드가 다시 primary datasource로 `user_pii` 를 읽거나 쓰기 쉬웠고 `app_core_rw` 의 `user_pii` DML 권한도 자신 있게 회수하기 어려웠음
+- 해결: `UserPii` / `UserPiiRepository` 를 제거하고, `UserPiiBackfillService` 는 primary `users` source 조회와 `app_pii_rw` 의 `user_pii` 누락 암호문 조회/수정 2단계로 재구성했으며, integration test도 같은 `UserPiiReadWriteRepository` 경로를 사용하도록 정리했음
+- 이유: 다중 datasource 분리의 마지막 단계는 "코드가 그 권한을 정말 더 이상 쓰지 않는가"를 구조로 보장하는 것이다. primary JPA에 PII 엔티티가 남아 있으면 실수로 우회 경로가 다시 생기므로, 엔티티/리포지토리 자체를 제거하는 편이 재발 방지에 확실하다
