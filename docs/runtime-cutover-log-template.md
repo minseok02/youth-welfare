@@ -3,6 +3,7 @@
 이 문서는 실제 운영 cutover 직후 결과를 남기기 위한 기록 템플릿입니다.
 실행 순서는 [runtime-cutover-checklist.md](./runtime-cutover-checklist.md)를 따르고, 이 문서는 그 결과를 채워 넣는 용도로 사용합니다.
 핵심 API 요청 예시는 [runtime-api-smoke-commands.md](./runtime-api-smoke-commands.md)를 사용합니다.
+채워진 예시는 [archive/runtime-cutover-log-sample.md](./archive/runtime-cutover-log-sample.md)를 봅니다.
 
 복사해서 날짜/배포차수별 문서나 PR 코멘트에 붙여 넣어 사용합니다.
 

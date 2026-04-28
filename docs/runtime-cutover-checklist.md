@@ -4,6 +4,7 @@
 세부 설명은 [db-account-cutover-runbook.md](./db-account-cutover-runbook.md), [db-migration.md](./db-migration.md), [deployment.md](./deployment.md)를 봅니다.
 실행 결과 기록은 [runtime-cutover-log-template.md](./runtime-cutover-log-template.md)를 사용합니다.
 핵심 API curl 명령은 [runtime-api-smoke-commands.md](./runtime-api-smoke-commands.md)를 사용합니다.
+채워진 실행 로그 예시는 [archive/runtime-cutover-log-sample.md](./archive/runtime-cutover-log-sample.md)를 참고합니다.
 
 ## 1. 준비물
 

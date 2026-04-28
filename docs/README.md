@@ -113,3 +113,6 @@
 
 - [archive/project-plan-v11.md](./archive/project-plan-v11.md)  
   과거 프로젝트 플랜 원본입니다. 현재 작업 기준은 `phase-plan.md`를 봅니다.
+
+- [archive/runtime-cutover-log-sample.md](./archive/runtime-cutover-log-sample.md)
+  운영 cutover 실행 로그 템플릿이 실제로 어떻게 채워지는지 보여주는 redacted 예시입니다.
