@@ -457,3 +457,13 @@
 - 문제: 기존 알림 대상 조회 SQL은 `user_profiles`, `users`, `auth_users`, `user_pii`를 한 번에 조인하고 있어, 그대로 `notification_pii_ro` datasource로 옮기면 보조 계정에 main schema SELECT 또는 과도한 권한을 다시 줘야 했음
 - 해결: 알림 대상 조회를 `core 대상 메타데이터 조회`와 `user_pii.email_enc 조회` 두 단계로 분리하고, `notification_pii_ro` 는 `user_pii(user_key, email_enc)` 읽기만 담당하게 재구성
 - 이유: 다중 datasource 분리는 credential 추가만이 아니라 query shape 분리까지 같이 해야 최소권한이 유지된다. cross-schema 조인을 남겨두면 결국 더 넓은 grant가 다시 필요해져 분리 효과가 사라진다
+
+## 90) secondary datasource bean을 직접 추가하면 Spring Boot 기본 `dataSource` 자동 구성이 뒤로 물러날 수 있음
+- 문제: `notification_pii_ro`, `app_pii_rw` datasource bean을 직접 추가하자 Spring Boot의 기본 `spring.datasource` 자동 구성이 빠지고, 컨텍스트가 secondary datasource들만 보고 `PlatformTransactionManager` 를 만들지 못하거나 잘못된 datasource를 주 datasource처럼 취급할 수 있었음
+- 해결: `PrimaryDataSourceConfig` 로 `spring.datasource` 기반 `dataSource` bean 을 명시적으로 `@Primary` 로 등록하고, secondary datasource는 qualifier 기반 보조 경로로만 사용하도록 고정
+- 이유: 다중 datasource는 secondary bean 몇 개를 더 만드는 것으로 끝나지 않는다. 기본 datasource를 어떤 bean이 책임지는지 명시하지 않으면 JPA/트랜잭션/자동 구성 조건이 쉽게 무너진다
+
+## 91) `app_pii_rw` write 분리는 read 분리와 달리 cross-datasource transaction 전략이 먼저 필요함
+- 문제: 프로필 sync나 `user_pii` backfill write 를 바로 `app_pii_rw` datasource로 옮기면, legacy `users` / `auth_users` / `user_profiles` 와 `user_pii` 가 서로 다른 connection pool에서 갱신되어 현재 `@Transactional` 경계만으로는 원자성을 보장할 수 없었음
+- 해결: 이번 단계는 프로필 조회와 비밀번호 재설정 수신 주소 조회 같은 read path만 `app_pii_rw` 로 먼저 이동하고, write 경로는 별도 transaction 전략 정리 task 뒤로 미뤘음
+- 이유: read path는 권한 분리를 바로 얻어도 consistency 리스크가 낮지만, write path는 실패 시 split-table 간 불일치가 바로 남는다. 그래서 read-first, write-later 순서가 안전하다

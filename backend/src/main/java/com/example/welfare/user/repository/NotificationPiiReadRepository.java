@@ -1,6 +1,5 @@
 package com.example.welfare.user.repository;
 
-import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -13,7 +12,6 @@ import java.util.Map;
 import java.util.Optional;
 
 @Repository
-@RequiredArgsConstructor
 public class NotificationPiiReadRepository {
 
     private static final RowMapper<NotificationPiiEmailRow> EMAIL_ROW_MAPPER = (rs, rowNum) ->
@@ -22,8 +20,14 @@ public class NotificationPiiReadRepository {
                     rs.getString("email_enc")
             );
 
-    @Qualifier("notificationPiiReadNamedParameterJdbcTemplate")
     private final NamedParameterJdbcTemplate jdbcTemplate;
+
+    public NotificationPiiReadRepository(
+            @Qualifier("notificationPiiReadNamedParameterJdbcTemplate")
+            NamedParameterJdbcTemplate jdbcTemplate
+    ) {
+        this.jdbcTemplate = jdbcTemplate;
+    }
 
     public Map<String, String> findEncryptedEmailsByUserKeys(List<String> userKeys) {
         if (userKeys.isEmpty()) {

@@ -3,13 +3,16 @@ package com.example.welfare.user.service;
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.util.AesEncryptUtil;
 import com.example.welfare.notification.dto.NotificationTarget;
+import com.example.welfare.user.dto.response.ProfileResponse;
 import com.example.welfare.user.entity.AuthUser;
 import com.example.welfare.user.entity.User;
+import com.example.welfare.user.entity.UserProfile;
 import com.example.welfare.user.repository.AuthUserRepository;
 import com.example.welfare.user.repository.NotificationPiiReadRepository;
 import com.example.welfare.user.repository.NotificationTargetReadModel;
 import com.example.welfare.user.repository.UserAttributeRepository;
-import com.example.welfare.user.repository.UserPiiRepository;
+import com.example.welfare.user.repository.UserPiiReadModel;
+import com.example.welfare.user.repository.UserPiiReadWriteRepository;
 import com.example.welfare.user.repository.UserPriorityRepository;
 import com.example.welfare.user.repository.UserProfileRepository;
 import com.example.welfare.user.repository.UserRepository;
@@ -34,11 +37,63 @@ class UserReadServiceTest {
     @Mock private UserRepository userRepository;
     @Mock private AuthUserRepository authUserRepository;
     @Mock private UserProfileRepository userProfileRepository;
-    @Mock private UserPiiRepository userPiiRepository;
+    @Mock private UserPiiReadWriteRepository userPiiReadWriteRepository;
     @Mock private NotificationPiiReadRepository notificationPiiReadRepository;
     @Mock private UserAttributeRepository userAttributeRepository;
     @Mock private UserPriorityRepository userPriorityRepository;
     @Mock private AesEncryptUtil aesEncryptUtil;
+
+    @Test
+    @DisplayName("프로필 조회는 app_pii_rw 저장소에서 PII 암호문을 읽는다")
+    void getProfileLoadsPiiFromAppPiiReadWriteRepository() {
+        UserReadService userReadService = new UserReadService(
+                userRepository,
+                authUserRepository,
+                userProfileRepository,
+                userPiiReadWriteRepository,
+                notificationPiiReadRepository,
+                userAttributeRepository,
+                userPriorityRepository,
+                aesEncryptUtil
+        );
+
+        AuthUser authUser = AuthUser.builder()
+                .userKey("user-key-1")
+                .isActive(true)
+                .build();
+        UserProfile profile = UserProfile.builder()
+                .userKey("user-key-1")
+                .sido("서울특별시")
+                .sgg("관악구")
+                .displayCount(12)
+                .build();
+
+        when(userRepository.findUserKeyById(1L)).thenReturn(Optional.of("user-key-1"));
+        when(authUserRepository.findByUserKey("user-key-1")).thenReturn(Optional.of(authUser));
+        when(userProfileRepository.findByUserKey("user-key-1")).thenReturn(Optional.of(profile));
+        when(userPiiReadWriteRepository.findByUserKey("user-key-1"))
+                .thenReturn(Optional.of(new UserPiiReadModel(
+                        "user-key-1",
+                        "enc-email",
+                        "enc-name",
+                        "enc-birth",
+                        "enc-phone"
+                )));
+        when(userAttributeRepository.findReadModelsByUserKey("user-key-1")).thenReturn(List.of());
+        when(userPriorityRepository.findReadModelsByUserKey("user-key-1")).thenReturn(List.of());
+        when(aesEncryptUtil.decrypt("enc-email")).thenReturn("user@example.com");
+        when(aesEncryptUtil.decrypt("enc-name")).thenReturn("홍길동");
+        when(aesEncryptUtil.decrypt("enc-birth")).thenReturn("1999-01-10");
+        when(aesEncryptUtil.decrypt("enc-phone")).thenReturn("01012345678");
+
+        ProfileResponse response = userReadService.getProfile(1L);
+
+        assertThat(response.getEmail()).isEqualTo("user@example.com");
+        assertThat(response.getName()).isEqualTo("홍길동");
+        assertThat(response.getBirthDate()).isEqualTo(java.time.LocalDate.of(1999, 1, 10));
+        assertThat(response.getPhone()).isEqualTo("01012345678");
+        verify(userPiiReadWriteRepository).findByUserKey("user-key-1");
+    }
 
     @Test
     @DisplayName("알림 대상 조회는 notification_pii_ro 저장소에서 이메일 암호문을 별도 조회한다")
@@ -47,7 +102,7 @@ class UserReadServiceTest {
                 userRepository,
                 authUserRepository,
                 userProfileRepository,
-                userPiiRepository,
+                userPiiReadWriteRepository,
                 notificationPiiReadRepository,
                 userAttributeRepository,
                 userPriorityRepository,
@@ -101,7 +156,7 @@ class UserReadServiceTest {
                 userRepository,
                 authUserRepository,
                 userProfileRepository,
-                userPiiRepository,
+                userPiiReadWriteRepository,
                 notificationPiiReadRepository,
                 userAttributeRepository,
                 userPriorityRepository,
@@ -131,7 +186,7 @@ class UserReadServiceTest {
                 userRepository,
                 authUserRepository,
                 userProfileRepository,
-                userPiiRepository,
+                userPiiReadWriteRepository,
                 notificationPiiReadRepository,
                 userAttributeRepository,
                 userPriorityRepository,

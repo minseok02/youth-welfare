@@ -8,9 +8,9 @@ import com.example.welfare.global.util.JwtUtil;
 import com.example.welfare.notification.gateway.EmailClient;
 import com.example.welfare.user.entity.AuthUser;
 import com.example.welfare.user.entity.User;
-import com.example.welfare.user.entity.UserPii;
 import com.example.welfare.user.repository.AuthUserRepository;
-import com.example.welfare.user.repository.UserPiiRepository;
+import com.example.welfare.user.repository.UserPiiReadModel;
+import com.example.welfare.user.repository.UserPiiReadWriteRepository;
 import com.example.welfare.user.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -41,7 +41,7 @@ class AuthServiceTest {
     @Mock
     private UserRepository userRepository;
     @Mock
-    private UserPiiRepository userPiiRepository;
+    private UserPiiReadWriteRepository userPiiReadWriteRepository;
     @Mock
     private PasswordEncoder passwordEncoder;
     @Mock
@@ -66,7 +66,7 @@ class AuthServiceTest {
         authService = new AuthService(
                 authUserRepository,
                 userRepository,
-                userPiiRepository,
+                userPiiReadWriteRepository,
                 passwordEncoder,
                 jwtUtil,
                 redisTemplate,
@@ -99,10 +99,6 @@ class AuthServiceTest {
                 .userKey("user-key-7")
                 .isActive(true)
                 .build();
-        UserPii userPii = UserPii.builder()
-                .userKey("user-key-7")
-                .emailEnc("encrypted-email")
-                .build();
         User user = User.builder()
                 .id(7L)
                 .userKey("user-key-7")
@@ -112,7 +108,8 @@ class AuthServiceTest {
         when(authUserRepository.findByEmailLookupHash("b4c9a289323b21a01c3e940f150eb9b8c542587f1abfd8f0e1cc1ffc5e475514"))
                 .thenReturn(Optional.of(authUser));
         when(userRepository.findByUserKey("user-key-7")).thenReturn(Optional.of(user));
-        when(userPiiRepository.findByUserKey("user-key-7")).thenReturn(Optional.of(userPii));
+        when(userPiiReadWriteRepository.findByUserKey("user-key-7"))
+                .thenReturn(Optional.of(new UserPiiReadModel("user-key-7", "encrypted-email", null, null, null)));
         when(aesEncryptUtil.decrypt("encrypted-email")).thenReturn("pii@example.com");
         when(valueOperations.get("password-reset:user:user-key-7")).thenReturn(null);
         when(emailClient.send(eq("pii@example.com"), eq("[청년복지] 비밀번호 재설정 안내"), any(String.class)))
@@ -153,7 +150,7 @@ class AuthServiceTest {
         when(authUserRepository.findByEmailLookupHash("b4c9a289323b21a01c3e940f150eb9b8c542587f1abfd8f0e1cc1ffc5e475514"))
                 .thenReturn(Optional.of(authUser));
         when(userRepository.findByUserKey("user-key-7")).thenReturn(Optional.of(user));
-        when(userPiiRepository.findByUserKey("user-key-7")).thenReturn(Optional.empty());
+        when(userPiiReadWriteRepository.findByUserKey("user-key-7")).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> authService.requestPasswordReset("user@example.com"))
                 .isInstanceOf(CustomException.class)

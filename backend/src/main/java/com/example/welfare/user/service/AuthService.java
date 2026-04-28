@@ -12,9 +12,8 @@ import com.example.welfare.user.dto.response.EmailAvailabilityResponse;
 import com.example.welfare.user.dto.response.TokenResponse;
 import com.example.welfare.user.entity.AuthUser;
 import com.example.welfare.user.entity.User;
-import com.example.welfare.user.entity.UserPii;
 import com.example.welfare.user.repository.AuthUserRepository;
-import com.example.welfare.user.repository.UserPiiRepository;
+import com.example.welfare.user.repository.UserPiiReadWriteRepository;
 import com.example.welfare.user.repository.UserRepository;
 import com.example.welfare.user.util.EmailLookupKeyGenerator;
 import jakarta.annotation.PostConstruct;
@@ -52,7 +51,7 @@ public class AuthService {
 
     private final AuthUserRepository authUserRepository;
     private final UserRepository userRepository;
-    private final UserPiiRepository userPiiRepository;
+    private final UserPiiReadWriteRepository userPiiReadWriteRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
     private final RedisTemplate<String, String> redisTemplate;
@@ -288,9 +287,9 @@ public class AuthService {
     }
 
     private String resolvePasswordResetRecipient(String userKey) {
-        UserPii userPii = userPiiRepository.findByUserKey(userKey)
+        var userPii = userPiiReadWriteRepository.findByUserKey(userKey)
                 .orElseThrow(() -> new CustomException(ErrorCode.PASSWORD_RESET_EMAIL_SEND_FAILED));
-        String recipientEmail = aesEncryptUtil.decrypt(userPii.getEmailEnc());
+        String recipientEmail = aesEncryptUtil.decrypt(userPii.emailEnc());
         if (!StringUtils.hasText(recipientEmail)) {
             throw new CustomException(ErrorCode.PASSWORD_RESET_EMAIL_SEND_FAILED);
         }

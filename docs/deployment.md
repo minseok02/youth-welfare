@@ -8,6 +8,7 @@
 - `.env.example`을 복사해서 `.env` 생성
 - 실제 운영 값 채우기:
   - `DB_PASSWORD`
+  - `APP_PII_DB_URL`
   - `NOTIFICATION_PII_DB_URL`
   - `DB_MIGRATION_USERNAME`, `DB_MIGRATION_PASSWORD`
   - `DB_APP_PII_USERNAME`, `DB_APP_PII_PASSWORD`
@@ -37,6 +38,7 @@ docker compose -f docker-compose.yml up -d --build app
 - DB 신규 초기화는 `backend/src/main/resources/db/schema.sql`로 처리된다.
 - DB 신규 초기화 시 [`deploy/mysql/init/z90-create-runtime-db-users.sh`](../deploy/mysql/init/z90-create-runtime-db-users.sh)가 함께 실행되어 `app_core_rw`, `app_pii_rw`, `notification_pii_ro`, `migration_admin` 계정을 생성한다.
 - 앱 컨테이너 기본 datasource 계정은 `.env`의 `DB_USERNAME` / `DB_PASSWORD`를 사용하며, 더 이상 `root`를 기본값으로 가정하지 않는다.
+- 프로필 조회와 비밀번호 재설정 수신 주소 조회는 `app.datasource.pii-rw` 보조 datasource를 사용한다. 별도 DB 호스트를 아직 나누지 않았다면 `APP_PII_DB_URL`은 `DB_URL`과 같은 값을 사용해도 된다.
 - 알림 발송 대상 이메일 조회는 `app.datasource.notification-pii-ro` 보조 datasource를 사용한다. 별도 DB 호스트를 아직 나누지 않았다면 `NOTIFICATION_PII_DB_URL`은 `DB_URL`과 같은 값을 사용해도 된다.
 
 ## 3. 기존 DB 업그레이드
@@ -65,6 +67,7 @@ docker compose -f docker-compose.yml up -d --build app
 현재 코드 기준 datasource 사용 범위:
 
 - 기본 JPA datasource (`DB_URL`, `DB_USERNAME`): 대부분의 core/runtime 경로
+- 보조 datasource (`APP_PII_DB_URL`, `DB_APP_PII_USERNAME`): 프로필 조회와 비밀번호 재설정 수신 주소 조회의 `user_pii` read 경로
 - 보조 datasource (`NOTIFICATION_PII_DB_URL`, `DB_NOTIFICATION_PII_RO_USERNAME`): 알림 스케줄러와 재시도 경로의 이메일 암호문 조회
 
 ## 4. 운영 확인

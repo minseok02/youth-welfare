@@ -10,14 +10,13 @@ import com.example.welfare.user.dto.response.ProfileResponse;
 import com.example.welfare.user.entity.AuthUser;
 import com.example.welfare.user.entity.User;
 import com.example.welfare.user.entity.UserAttribute;
-import com.example.welfare.user.entity.UserPii;
 import com.example.welfare.user.entity.UserProfile;
 import com.example.welfare.user.repository.AuthUserRepository;
 import com.example.welfare.user.repository.NotificationTargetReadModel;
 import com.example.welfare.user.repository.NotificationPiiReadRepository;
 import com.example.welfare.user.repository.UserAttributeReadModel;
 import com.example.welfare.user.repository.UserAttributeRepository;
-import com.example.welfare.user.repository.UserPiiRepository;
+import com.example.welfare.user.repository.UserPiiReadWriteRepository;
 import com.example.welfare.user.repository.UserPriorityReadModel;
 import com.example.welfare.user.repository.UserPriorityRepository;
 import com.example.welfare.user.repository.UserProfileRepository;
@@ -39,7 +38,7 @@ public class UserReadService {
     private final UserRepository userRepository;
     private final AuthUserRepository authUserRepository;
     private final UserProfileRepository userProfileRepository;
-    private final UserPiiRepository userPiiRepository;
+    private final UserPiiReadWriteRepository userPiiReadWriteRepository;
     private final NotificationPiiReadRepository notificationPiiReadRepository;
     private final UserAttributeRepository userAttributeRepository;
     private final UserPriorityRepository userPriorityRepository;
@@ -50,7 +49,7 @@ public class UserReadService {
         String userKey = resolveActiveUserKey(userId);
         UserProfile profile = userProfileRepository.findByUserKey(userKey)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
-        UserPii pii = userPiiRepository.findByUserKey(userKey)
+        var pii = userPiiReadWriteRepository.findByUserKey(userKey)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
         List<UserAttributeReadModel> attributes = userAttributeRepository.findReadModelsByUserKey(userKey);
@@ -58,10 +57,10 @@ public class UserReadService {
 
         return ProfileResponse.of(
                 userId,
-                decryptNullable(pii.getEmailEnc()),
-                decryptNullable(pii.getNameEnc()),
-                parseBirthDate(pii.getBirthDateEnc()),
-                decryptNullable(pii.getPhoneEnc()),
+                decryptNullable(pii.emailEnc()),
+                decryptNullable(pii.nameEnc()),
+                parseBirthDate(pii.birthDateEnc()),
+                decryptNullable(pii.phoneEnc()),
                 profile,
                 attributes,
                 priorities

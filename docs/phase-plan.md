@@ -13,7 +13,7 @@ CTR 분석 기본 쿼리 실행 결과를 확보했고, 현재 데이터는 `46�
 사용자 PII 분리 이행안은 `2 schema`, `user_key` 선행, `dual-write -> read cut-over` 순서로 확정했고, 1단계 `user_key` migration, 2단계 core 분리 테이블(`auth_users`, `user_profiles`, `user_pii`) 생성/backfill, 3단계 회원가입/프로필/비밀번호/회원탈퇴 dual-write와 `user_pii.email_enc/name_enc/birth_date_enc` 앱 레벨 암호화 backfill, 4단계 프로필 조회/추천/알림 read path 전환, 5단계 JWT/Redis 토큰/로그·세션 기준 `user_key` identity cut-over 1차, 6단계 chat/notification/recommendation log/view log의 legacy `user_id` fallback 제거, 7단계 JWT custom principal cut-over까지 반영했습니다.
 데모 시나리오 전체 실행 완료 및 발견된 문제 수정됐습니다.
 로컬 Docker MySQL 기준 `user_pii` 24건 중 `email_enc` 24건, `name_enc` 21건, `birth_date_enc` 21건이 채워졌고, 남은 3건은 원본 `users.name/birth_date` 가 비어 있어 skip 됐습니다.
-남은 작업은 운영 배포/운영성 검증(운영 서버 Docker Compose, 기존 운영 DB 계정 생성 SQL 적용 및 datasource 전환, HTTPS/Nginx, `app_pii_rw` 분리와 기본 datasource의 잔여 `user_pii` 접근 제거, 운영 DB에 `V2026_04_28_01__drop_runtime_legacy_user_id.sql` 적용 후 smoke 검증, CTR 표본 확충 후 재분석)과 2차 확장 기능(군집 캐시 추천, 카카오 알림톡, 검색 로그, 대시보드)입니다.
+남은 작업은 운영 배포/운영성 검증(운영 서버 Docker Compose, 기존 운영 DB 계정 생성 SQL 적용 및 datasource 전환, HTTPS/Nginx, `app_pii_rw` write 분리와 기본 datasource의 잔여 `user_pii` 접근 제거, 운영 DB에 `V2026_04_28_01__drop_runtime_legacy_user_id.sql` 적용 후 smoke 검증, CTR 표본 확충 후 재분석)과 2차 확장 기능(군집 캐시 추천, 카카오 알림톡, 검색 로그, 대시보드)입니다.
 
 ## 완료된 백엔드 1차 범위
 
@@ -51,6 +51,10 @@ CTR 분석 기본 쿼리 실행 결과를 확보했고, 현재 데이터는 `46�
 - 2026-04-28 `docker compose up -d db redis`
 - 2026-04-28 알림 대상 이메일 조회를 `notification_pii_ro` secondary datasource로 분리 후 `backend`에서 `./gradlew integrationTest --no-daemon --tests com.example.welfare.integration.AuthRedisIntegrationTest`
 - 2026-04-28 알림 대상 이메일 조회를 `notification_pii_ro` secondary datasource로 분리 후 `git diff --check`
+- 2026-04-28 프로필 조회 / 비밀번호 재설정 PII read 경로를 `app_pii_rw` secondary datasource로 분리 후 `backend`에서 `./gradlew test --no-daemon --tests com.example.welfare.user.service.UserReadServiceTest --tests com.example.welfare.user.service.AuthServiceTest`
+- 2026-04-28 `docker compose up -d db redis`
+- 2026-04-28 프로필 조회 / 비밀번호 재설정 PII read 경로를 `app_pii_rw` secondary datasource로 분리 후 `backend`에서 `./gradlew integrationTest --no-daemon --tests com.example.welfare.integration.UserCoreDualWriteIntegrationTest --tests com.example.welfare.integration.AuthRedisIntegrationTest`
+- 2026-04-28 프로필 조회 / 비밀번호 재설정 PII read 경로를 `app_pii_rw` secondary datasource로 분리 후 `git diff --check`
 - 2026-04-23 메인 페이지 API 연동 후 `frontend`에서 `npm run lint`
 - 2026-04-23 메인 페이지 API 연동 후 `frontend`에서 `npm run build`  
   - Vite 번들 크기 경고 발생. 빌드는 성공했으며 기능 실패는 아님.
@@ -438,6 +442,10 @@ CTR 분석 기본 쿼리 실행 결과를 확보했고, 현재 데이터는 `46�
   - `NotificationPiiReadDataSourceConfig`, `NotificationPiiReadRepository` 를 추가해 `user_pii(user_key, email_enc)` 읽기 전용 보조 datasource를 구성
   - `UserProfileRepository.findNotificationTargetsByPeriod` 에서 `user_pii` 조인을 제거하고, `UserReadService` 가 core 대상 조회와 PII 이메일 조회를 `user_key` 기준 2단계로 합치도록 변경
   - 알림 스케줄러의 retry 단건 이메일 조회도 `notification_pii_ro` 경로로 통일하고, `.env.example` / `application.yml` / `application-integration.yml` 에 보조 datasource 설정을 반영
+- 2026-04-28 프로필 조회 / 비밀번호 재설정 PII read 경로를 `app_pii_rw` secondary datasource로 분리
+  - `PrimaryDataSourceConfig` 를 추가해 기본 `spring.datasource` 를 명시적으로 primary bean 으로 고정하고, `AppPiiReadWriteDataSourceConfig`, `UserPiiReadWriteRepository` 로 `user_pii` read 전용 보조 datasource를 구성
+  - `UserReadService.getProfile`, `AuthService.requestPasswordReset` 의 수신 주소 조회를 `app_pii_rw` 저장소로 전환해 기본 datasource의 `user_pii` read 의존을 줄임
+  - 검증 중 드러난 secondary datasource wiring 문제를 수정하기 위해 `NotificationPiiReadRepository` 생성자 qualifier 를 명시적으로 고정
 
 ## 작업 추적
 
@@ -450,7 +458,8 @@ CTR 분석 기본 쿼리 실행 결과를 확보했고, 현재 데이터는 `46�
 - [ ] 운영 서버 Docker Compose 기동
 - [ ] 기존 운영 DB에 `app_core_rw` / `app_pii_rw` / `notification_pii_ro` / `migration_admin` 계정 생성 및 앱 datasource 전환
 - [ ] HTTPS/Nginx 적용
-- [ ] 프로필 조회 / PII sync / backfill 경로를 `app_pii_rw` datasource로 분리
+- [ ] PII sync/backfill write 경로를 `app_pii_rw` datasource로 분리하기 위한 transaction 전략 정리
+- [ ] PII sync/backfill write 경로를 `app_pii_rw` datasource로 분리
 - [ ] 기본 datasource의 잔여 `user_pii` 직접 접근 제거
 - [ ] 운영 DB에 `V2026_04_28_01__drop_runtime_legacy_user_id.sql` 적용 및 배포 smoke 검증
 - [ ] CTR 표본 추가 확보 후 rule/AI 가중치 및 프롬프트 재분석
@@ -458,6 +467,7 @@ CTR 분석 기본 쿼리 실행 결과를 확보했고, 현재 데이터는 `46�
 
 ### 완료
 
+- [x] 프로필 조회 / 비밀번호 재설정 PII read 경로를 `app_pii_rw` secondary datasource로 분리
 - [x] 알림 대상 이메일 조회를 `notification_pii_ro` secondary datasource로 분리
 - [x] 기존 운영 DB 계정 생성 SQL/runbook 및 앱 datasource 전환 체크리스트 정리
 - [x] Docker Compose 신규 DB 초기화 기준 런타임 앱 DB 계정 `root` 제거 및 계정/권한 시드 추가
