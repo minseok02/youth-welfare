@@ -13,6 +13,10 @@
   - `DB_MIGRATION_USERNAME`, `DB_MIGRATION_PASSWORD`
   - `DB_APP_PII_USERNAME`, `DB_APP_PII_PASSWORD`
   - `DB_NOTIFICATION_PII_RO_USERNAME`, `DB_NOTIFICATION_PII_RO_PASSWORD`
+  - `USER_PII_SYNC_RETRY_ENABLED`
+  - `USER_PII_SYNC_RETRY_BATCH_SIZE`
+  - `USER_PII_SYNC_RETRY_FIXED_DELAY_MS`
+  - `USER_PII_SYNC_RETRY_INITIAL_DELAY_MS`
   - `JWT_SECRET`
   - `AES_SECRET_KEY`
   - `SECURITY_ADMIN_EMAILS`
@@ -40,6 +44,7 @@ docker compose -f docker-compose.yml up -d --build app
 - 앱 컨테이너 기본 datasource 계정은 `.env`의 `DB_USERNAME` / `DB_PASSWORD`를 사용하며, 더 이상 `root`를 기본값으로 가정하지 않는다.
 - 프로필 조회와 비밀번호 재설정 수신 주소 조회는 `app.datasource.pii-rw` 보조 datasource를 사용한다. 별도 DB 호스트를 아직 나누지 않았다면 `APP_PII_DB_URL`은 `DB_URL`과 같은 값을 사용해도 된다.
 - 알림 발송 대상 이메일 조회는 `app.datasource.notification-pii-ro` 보조 datasource를 사용한다. 별도 DB 호스트를 아직 나누지 않았다면 `NOTIFICATION_PII_DB_URL`은 `DB_URL`과 같은 값을 사용해도 된다.
+- 요청 경로 `user_pii` sync 실패 row는 `user_pii_sync_queue` 에 남고, 앱은 `USER_PII_SYNC_RETRY_*` 환경변수 기준 fixed-delay batch retry 를 수행한다. 운영 기본값은 `enabled=true`, `batch-size=100`, `initial-delay-ms=60000`, `fixed-delay-ms=300000` 이다.
 
 ## 3. 기존 DB 업그레이드
 
@@ -69,6 +74,7 @@ docker compose -f docker-compose.yml up -d --build app
 - 기본 JPA datasource (`DB_URL`, `DB_USERNAME`): 대부분의 core/runtime 경로
 - 보조 datasource (`APP_PII_DB_URL`, `DB_APP_PII_USERNAME`): 프로필 조회, 비밀번호 재설정 수신 주소 조회, admin `user_pii` backfill write 경로
 - 보조 datasource (`NOTIFICATION_PII_DB_URL`, `DB_NOTIFICATION_PII_RO_USERNAME`): 알림 스케줄러와 재시도 경로의 이메일 암호문 조회
+- 스케줄러 (`USER_PII_SYNC_RETRY_*`): `FAILED` 우선, 이후 `PENDING` queue batch를 `UserPiiSyncReplayService` 재사용으로 재처리
 
 ## 4. 운영 확인
 
@@ -80,6 +86,7 @@ docker compose -f docker-compose.yml up -d --build app
 - 정책 목록 필터
 - 추천 북마크
 - 알림 수신 거부 링크
+- `user_pii_sync_queue` 자동 retry 로그와 admin replay API smoke 확인
 
 운영 admin 계정의 최초 생성/회수 절차는 [admin-account-runbook.md](./admin-account-runbook.md)를 따릅니다.
 
@@ -130,5 +137,6 @@ sudo systemctl reload nginx
 - DB 볼륨이 이미 존재하면 `schema.sql`은 다시 자동 적용되지 않음
 - DB 볼륨이 이미 존재하면 `deploy/mysql/init/z90-create-runtime-db-users.sh`도 다시 자동 적용되지 않음
 - 기존 운영 DB는 배포 전에 마이그레이션 SQL을 선적용해야 함
+- scheduler 동작이 테스트나 운영 초기 smoke를 방해하면 `USER_PII_SYNC_RETRY_INITIAL_DELAY_MS` 를 일시적으로 크게 주고 수동 replay로 먼저 검증할 수 있음
 - Gmail 앱 비밀번호 미설정 시 알림 발송은 실패함
 - Nginx 설정의 도메인/인증서 경로는 실제 운영 도메인에 맞게 수정해야 함

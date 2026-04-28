@@ -487,3 +487,8 @@
 - 문제: `UserPiiSyncQueueRepository` 에서 실패/대기 queue 정렬 조회를 `findByStatusInOrderBy...` 형태로 추가했는데, 실제 시그니처는 `UserPiiSyncQueueStatus` 단일 인자라 Spring Data가 `status IN (?)` 으로 해석하려다 `Collection argument` 예외로 컨텍스트 초기화 자체가 실패했음
 - 해결: 단일 status 조회는 `findByStatusOrderBy...` 로 바꾸고, bulk replay는 서비스에서 `FAILED` 와 `PENDING` 조회를 따로 수행한 뒤 userKey snapshot을 합쳐 재처리하도록 정리했음
 - 이유: repository 메서드명 파싱 오류는 컴파일로는 잡히지 않고 부팅 시점에만 터진다. enum 단일값 정렬 조회는 `In` 을 붙이지 않는 쪽이 안전하고, 여러 상태를 합치는 로직은 서비스 계층에서 명시적으로 조합하는 편이 디버깅도 쉽다
+
+## 96) queue retry scheduler 를 바로 켜면 integration test 가 백그라운드 재처리와 경합해 상태 검증이 흔들릴 수 있음
+- 문제: `user_pii_sync_queue` 자동 retry 를 `@Scheduled` 로 추가한 뒤 integration test profile 에서도 기본 delay 값을 그대로 쓰면, 테스트가 queue 상태를 조작하는 중간에 백그라운드 스케줄러가 먼저 실행되어 `FAILED/PENDING` 상태 검증이나 replay 순서 검증이 비결정적으로 흔들릴 수 있었음
+- 해결: `application-integration.yml` 에서는 `USER_PII_SYNC_RETRY_FIXED_DELAY_MS`, `USER_PII_SYNC_RETRY_INITIAL_DELAY_MS` 를 충분히 크게 고정하고, 통합 테스트는 스케줄러 메서드를 직접 호출해 retry 시점을 명시적으로 제어하도록 정리했음
+- 이유: 상태 기반 retry 로직은 "언제 실행됐는가"가 검증 결과 자체를 바꾼다. 테스트 환경에서는 background scheduler를 사실상 멈추고, 필요한 시점에만 직접 실행하는 편이 재현성과 디버깅 비용 모두에서 안전하다

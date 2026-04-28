@@ -10,10 +10,10 @@
 정책 목록/검색/상세/랭킹은 비로그인 허용, 추천/북마크/마이페이지는 로그인 필수로 분리됐습니다.
 AI 추천 품질 점검 후 프롬프트 개선, 중복 추천 제거, 노이즈 정책 필터, CTR 로그 구조를 보완했습니다.
 CTR 분석 기본 쿼리 실행 결과를 확보했고, 현재 데이터는 `46건 / 클릭 1건 / fallback 16건 / 가중치 0.80:0.20 단일 구간`이라 후속 표본 확충 후 재분석이 필요합니다.
-사용자 PII 분리 이행안은 `2 schema`, `user_key` 선행, `dual-write -> read cut-over` 순서로 확정했고, 1단계 `user_key` migration, 2단계 core 분리 테이블(`auth_users`, `user_profiles`, `user_pii`) 생성/backfill, 3단계 회원가입/프로필/비밀번호/회원탈퇴 dual-write와 `user_pii.email_enc/name_enc/birth_date_enc` 앱 레벨 암호화 backfill, 4단계 프로필 조회/추천/알림 read path 전환, 5단계 JWT/Redis 토큰/로그·세션 기준 `user_key` identity cut-over 1차, 6단계 chat/notification/recommendation log/view log의 legacy `user_id` fallback 제거, 7단계 JWT custom principal cut-over, 8단계 요청 경로 `user_pii` sync의 primary queue + after-commit `app_pii_rw` upsert 기반, 9단계 admin replay API까지 반영했습니다.
+사용자 PII 분리 이행안은 `2 schema`, `user_key` 선행, `dual-write -> read cut-over` 순서로 확정했고, 1단계 `user_key` migration, 2단계 core 분리 테이블(`auth_users`, `user_profiles`, `user_pii`) 생성/backfill, 3단계 회원가입/프로필/비밀번호/회원탈퇴 dual-write와 `user_pii.email_enc/name_enc/birth_date_enc` 앱 레벨 암호화 backfill, 4단계 프로필 조회/추천/알림 read path 전환, 5단계 JWT/Redis 토큰/로그·세션 기준 `user_key` identity cut-over 1차, 6단계 chat/notification/recommendation log/view log의 legacy `user_id` fallback 제거, 7단계 JWT custom principal cut-over, 8단계 요청 경로 `user_pii` sync의 primary queue + after-commit `app_pii_rw` upsert 기반 분리, 9단계 admin replay API, 10단계 fixed-delay 자동 retry 경로까지 반영했습니다.
 데모 시나리오 전체 실행 완료 및 발견된 문제 수정됐습니다.
 로컬 Docker MySQL 기준 `user_pii` 24건 중 `email_enc` 24건, `name_enc` 21건, `birth_date_enc` 21건이 채워졌고, 남은 3건은 원본 `users.name/birth_date` 가 비어 있어 skip 됐습니다.
-남은 작업은 운영 배포/운영성 검증(운영 서버 Docker Compose, 기존 운영 DB 계정 생성 SQL 적용 및 datasource 전환, HTTPS/Nginx, 운영 DB에 `V2026_04_28_02__add_user_pii_sync_queue.sql` / `V2026_04_28_01__drop_runtime_legacy_user_id.sql` 적용 후 smoke 검증, `user_pii_sync_queue` 자동 retry 경로와 운영 모니터링 기준 추가, 기본 datasource의 잔여 `user_pii` 접근 제거 및 `app_core_rw` 권한 축소, CTR 표본 확충 후 재분석)과 2차 확장 기능(군집 캐시 추천, 카카오 알림톡, 검색 로그, 대시보드)입니다.
+남은 작업은 운영 배포/운영성 검증(운영 서버 Docker Compose, 기존 운영 DB 계정 생성 SQL 적용 및 datasource 전환, HTTPS/Nginx, 운영 DB에 `V2026_04_28_02__add_user_pii_sync_queue.sql` / `V2026_04_28_01__drop_runtime_legacy_user_id.sql` 적용 후 smoke 검증, `user_pii_sync_queue` 운영 모니터링 기준 정리, 기본 datasource의 잔여 `user_pii` 접근 제거 및 `app_core_rw` 권한 축소, CTR 표본 확충 후 재분석)과 2차 확장 기능(군집 캐시 추천, 카카오 알림톡, 검색 로그, 대시보드)입니다.
 
 ## 완료된 백엔드 1차 범위
 
@@ -68,6 +68,10 @@ CTR 분석 기본 쿼리 실행 결과를 확보했고, 현재 데이터는 `46�
 - 2026-04-28 `docker compose up -d db redis`
 - 2026-04-28 `user_pii_sync_queue` admin replay API 추가 후 `backend`에서 `./gradlew integrationTest --no-daemon --tests "*UserPiiSyncReplayIntegrationTest"`
 - 2026-04-28 `user_pii_sync_queue` admin replay API 추가 후 `git diff --check`
+- 2026-04-28 `user_pii_sync_queue` 자동 retry scheduler 추가 후 `backend`에서 `./gradlew test --no-daemon --tests com.example.welfare.user.service.UserPiiSyncRetrySchedulerTest --tests com.example.welfare.user.service.UserPiiSyncReplayServiceTest --tests com.example.welfare.user.service.UserPiiSyncProcessorTest`
+- 2026-04-28 `docker compose up -d db redis`
+- 2026-04-28 `user_pii_sync_queue` 자동 retry scheduler 추가 후 `backend`에서 `./gradlew integrationTest --no-daemon --tests "*UserPiiSyncReplayIntegrationTest" --tests "*UserPiiSyncRetrySchedulerIntegrationTest"`
+- 2026-04-28 `user_pii_sync_queue` 자동 retry scheduler 추가 후 `git diff --check`
 - 2026-04-23 메인 페이지 API 연동 후 `frontend`에서 `npm run lint`
 - 2026-04-23 메인 페이지 API 연동 후 `frontend`에서 `npm run build`  
   - Vite 번들 크기 경고 발생. 빌드는 성공했으며 기능 실패는 아님.
@@ -463,6 +467,17 @@ CTR 분석 기본 쿼리 실행 결과를 확보했고, 현재 데이터는 `46�
   - `UserPiiBackfillService` 의 target selection 은 기존 primary query 를 유지하되, 실제 `email_enc/name_enc/birth_date_enc` update 는 `UserPiiReadWriteRepository` 를 통해 `app_pii_rw` 에서 수행하도록 분리
   - admin/batch backfill 은 요청 dual-write 와 달리 cross-datasource 원자성이 필수가 아니므로, `@Transactional` 로 atomic 해 보이게 두지 않고 독립 row update 성격을 문서화
   - 이 단계로 `app_pii_rw` write 경로를 admin batch 에 먼저 연결하고, 남은 요청 경로 `UserCoreSyncService` 분리는 별도 transaction 전략 task 로 유지
+- 2026-04-28 요청 경로 `user_pii` sync를 primary queue + after-commit `app_pii_rw` upsert 구조로 분리
+  - `UserCoreSyncService` 가 직접 `user_pii` 를 쓰지 않고 `user_pii_sync_queue` 에 payload 를 적재한 뒤, after-commit listener 가 `app_pii_rw` 를 통해 upsert 하도록 전환
+  - `V2026_04_28_02__add_user_pii_sync_queue.sql` 로 queue 테이블과 상태/재시도 필드를 추가하고, 통합 테스트 Docker MySQL에는 수동 적용 후 검증
+  - 요청 경로 원자성은 primary commit 기준으로 보장하고, PII sync 실패는 queue 상태로 남겨 admin/자동 재처리 대상으로 넘기도록 정리
+- 2026-04-28 `user_pii_sync_queue` admin replay API 추가
+  - `POST /api/admin/users/pii-sync-replay` 로 특정 `userKey` 단건 또는 `FAILED`/`PENDING` queue batch를 수동 replay 할 수 있게 추가
+  - `UserPiiSyncProcessor` 는 replay 결과 상태를 반환하고, 운영자가 `attempted/synced/failed/missing` 집계를 응답에서 바로 확인할 수 있게 정리
+- 2026-04-28 `user_pii_sync_queue` 자동 retry 경로 추가
+  - `UserPiiSyncRetryScheduler` 가 `user.pii-sync.retry.*` 설정값 기준으로 fixed-delay batch replay 를 수행하도록 추가
+  - 기본값은 `enabled=true`, `batch-size=100`, `initial-delay-ms=60000`, `fixed-delay-ms=300000` 이며, integration profile 은 background interference 방지를 위해 긴 delay 로 고정
+  - 자동 retry 는 기존 admin replay service 를 재사용해 `FAILED` 우선, 남는 배치는 `PENDING` 순으로 재처리한다
 
 ## 작업 추적
 
@@ -476,7 +491,6 @@ CTR 분석 기본 쿼리 실행 결과를 확보했고, 현재 데이터는 `46�
 - [ ] 기존 운영 DB에 `app_core_rw` / `app_pii_rw` / `notification_pii_ro` / `migration_admin` 계정 생성 및 앱 datasource 전환
 - [ ] HTTPS/Nginx 적용
 - [ ] 운영 DB에 `V2026_04_28_02__add_user_pii_sync_queue.sql` 적용 및 request dual-write smoke 검증
-- [ ] `user_pii_sync_queue` 자동 retry 경로 추가
 - [ ] `user_pii_sync_queue` 운영 모니터링 기준 정리
 - [ ] 기본 datasource의 잔여 `user_pii` 직접 접근 제거
 - [ ] `app_core_rw` 의 `youth_welfare_pii.user_pii` DML 권한 회수
@@ -486,6 +500,7 @@ CTR 분석 기본 쿼리 실행 결과를 확보했고, 현재 데이터는 `46�
 
 ### 완료
 
+- [x] `user_pii_sync_queue` 자동 retry 경로 추가
 - [x] `user_pii_sync_queue` admin replay API 추가
 - [x] 요청 경로 `user_pii` sync를 primary queue + after-commit `app_pii_rw` upsert 구조로 분리
 - [x] `user_pii` admin backfill write 경로를 `app_pii_rw` secondary datasource로 분리

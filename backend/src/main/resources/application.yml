@@ -70,6 +70,14 @@ chat:
 aes:
   secret-key: ${AES_SECRET_KEY}    # 32바이트 (AES-256)
 
+user:
+  pii-sync:
+    retry:
+      enabled: ${USER_PII_SYNC_RETRY_ENABLED:true}
+      batch-size: ${USER_PII_SYNC_RETRY_BATCH_SIZE:100}
+      fixed-delay-ms: ${USER_PII_SYNC_RETRY_FIXED_DELAY_MS:300000}
+      initial-delay-ms: ${USER_PII_SYNC_RETRY_INITIAL_DELAY_MS:60000}
+
 youth-api:
   api-key: ${YOUTH_API_KEY}
   base-url: https://www.youthcenter.go.kr/go/ythAct/getPlcyList.do

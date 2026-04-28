@@ -22,6 +22,14 @@ jwt:
 aes:
   secret-key: 12345678901234567890123456789012
 
+user:
+  pii-sync:
+    retry:
+      enabled: true
+      batch-size: 10
+      fixed-delay-ms: 3600000
+      initial-delay-ms: 3600000
+
 openai:
   api-key: test-openai-key
   model: gpt-4o-mini
