@@ -42,9 +42,9 @@ docker compose -f docker-compose.yml up -d --build app
 - DB 신규 초기화는 `backend/src/main/resources/db/schema.sql`로 처리된다.
 - DB 신규 초기화 시 [`deploy/mysql/init/z90-create-runtime-db-users.sh`](../deploy/mysql/init/z90-create-runtime-db-users.sh)가 함께 실행되어 `app_core_rw`, `app_pii_rw`, `notification_pii_ro`, `migration_admin` 계정을 생성한다.
 - 앱 컨테이너 기본 datasource 계정은 `.env`의 `DB_USERNAME` / `DB_PASSWORD`를 사용하며, 더 이상 `root`를 기본값으로 가정하지 않는다.
-- 프로필 조회와 비밀번호 재설정 수신 주소 조회는 `app.datasource.pii-rw` 보조 datasource를 사용한다. 별도 DB 호스트를 아직 나누지 않았다면 `APP_PII_DB_URL`은 `DB_URL`과 같은 값을 사용해도 된다.
-- 알림 발송 대상 이메일 조회는 `app.datasource.notification-pii-ro` 보조 datasource를 사용한다. 별도 DB 호스트를 아직 나누지 않았다면 `NOTIFICATION_PII_DB_URL`은 `DB_URL`과 같은 값을 사용해도 된다.
-- Docker Compose 앱 컨테이너는 `APP_PII_DB_URL`, `NOTIFICATION_PII_DB_URL` 기본값도 `db` 서비스명으로 강제하고, secondary datasource username 기본값은 `app_pii_rw` / `notification_pii_ro`, password 기본값은 `DB_PASSWORD` 로 고정했다. 운영에서 비밀번호를 분리할 경우에는 `DB_APP_PII_PASSWORD`, `DB_NOTIFICATION_PII_RO_PASSWORD` 를 명시해야 한다.
+- 프로필 조회와 비밀번호 재설정 수신 주소 조회는 `app.datasource.pii-rw` 보조 datasource를 사용한다. 별도 DB 호스트를 아직 나누지 않았다면 `APP_PII_DB_URL`은 `DB_URL`과 같은 host를 써도 되지만, database/schema 이름은 `youth_welfare_pii` 로 분리해야 한다.
+- 알림 발송 대상 이메일 조회는 `app.datasource.notification-pii-ro` 보조 datasource를 사용한다. 별도 DB 호스트를 아직 나누지 않았다면 `NOTIFICATION_PII_DB_URL`도 같은 host를 써도 되지만, database/schema 이름은 `youth_welfare_pii` 여야 한다.
+- Docker Compose 앱 컨테이너는 `APP_PII_DB_URL`, `NOTIFICATION_PII_DB_URL` 기본값도 `db` 서비스명의 `youth_welfare_pii` schema로 강제하고, secondary datasource username 기본값은 `app_pii_rw` / `notification_pii_ro`, password 기본값은 `DB_PASSWORD` 로 고정했다. 운영에서 비밀번호를 분리할 경우에는 `DB_APP_PII_PASSWORD`, `DB_NOTIFICATION_PII_RO_PASSWORD` 를 명시해야 한다.
 - 요청 경로 `user_pii` sync 실패 row는 `user_pii_sync_queue` 에 남고, 앱은 `USER_PII_SYNC_RETRY_*` 환경변수 기준 fixed-delay batch retry 를 수행한다. 운영 기본값은 `enabled=true`, `batch-size=100`, `initial-delay-ms=60000`, `fixed-delay-ms=300000` 이다.
 
 ## 3. 기존 DB 업그레이드
@@ -114,8 +114,16 @@ APP_BASE_URL=http://127.0.0.1:8082 \
   deploy/smoke/user-pii-sync-cutover-smoke.sh
 ```
 
+로컬 fresh init + 앱 기동 + one-shot smoke를 한 번에 실행하려면 아래 래퍼를 사용한다.
+
+```bash
+SMOKE_RESET_DB=true \
+  deploy/smoke/run-local-pii-sync-cutover-smoke.sh
+```
+
 - 이 smoke는 회원가입/프로필 수정에서 PII 암호화를 태우므로 앱 컨테이너/서버의 `AES_SECRET_KEY` 가 비어 있으면 `C002` 500으로 실패한다.
 - `app_core_rw` 권한 회수 후에는 `DB_MIGRATION_*` 또는 `DB_QUERY_*` 가 비어 있으면 smoke가 `user_pii` 확인 단계에서 권한 부족으로 중단될 수 있다.
+- secondary datasource URL이 `youth_welfare` 를 가리키면 `app_pii_rw` / `notification_pii_ro` 가 DB 연결 단계에서 바로 거부된다. 운영 `.env` 와 secret store에서도 `APP_PII_DB_URL`, `NOTIFICATION_PII_DB_URL` 이 `youth_welfare_pii` 를 가리키는지 확인한다.
 
 컨테이너 확인:
 

@@ -48,12 +48,12 @@ app:
   base-url: ${APP_BASE_URL:http://localhost:5173}
   datasource:
     pii-rw:
-      url: ${APP_PII_DB_URL:${DB_URL:jdbc:mysql://localhost:3306/youth_welfare?useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=UTF-8&serverTimezone=Asia/Seoul}}
+      url: ${APP_PII_DB_URL:jdbc:mysql://localhost:3306/youth_welfare_pii?useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=UTF-8&serverTimezone=Asia/Seoul}
       username: ${DB_APP_PII_USERNAME:app_pii_rw}
       password: ${DB_APP_PII_PASSWORD:${DB_PASSWORD:}}
       driver-class-name: com.mysql.cj.jdbc.Driver
     notification-pii-ro:
-      url: ${NOTIFICATION_PII_DB_URL:${APP_PII_DB_URL:${DB_URL:jdbc:mysql://localhost:3306/youth_welfare?useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=UTF-8&serverTimezone=Asia/Seoul}}}
+      url: ${NOTIFICATION_PII_DB_URL:${APP_PII_DB_URL:jdbc:mysql://localhost:3306/youth_welfare_pii?useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=UTF-8&serverTimezone=Asia/Seoul}}
       username: ${DB_NOTIFICATION_PII_RO_USERNAME:notification_pii_ro}
       password: ${DB_NOTIFICATION_PII_RO_PASSWORD:${DB_PASSWORD:}}
       driver-class-name: com.mysql.cj.jdbc.Driver

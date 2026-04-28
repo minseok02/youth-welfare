@@ -517,3 +517,8 @@
 - 문제: grant 템플릿에서 `app_core_rw -> youth_welfare_pii.user_pii` 권한을 제거하더라도 `docker-compose.yml` / `application.yml` 의 secondary datasource username fallback 이 계속 `DB_USERNAME` 을 따라가면, 프로필 조회·비밀번호 재설정·알림·PII sync가 여전히 `app_core_rw` 로 붙으려 해 권한 오류가 발생할 수 있었음
 - 해결: compose/app 설정의 secondary datasource 기본 username 을 `app_pii_rw` / `notification_pii_ro` 로 고정하고, `deploy/smoke/user-pii-sync-cutover-smoke.sh` 에 cross-schema query account scope preflight 를 추가해 `migration_admin` 또는 `DB_QUERY_*` 가 필요할 때 조기에 실패하도록 정리했음
 - 이유: 최소권한 회수는 SQL 한 줄로 끝나지 않는다. grant 모델과 애플리케이션 fallback을 같이 바꾸지 않으면 코드 경계는 맞아도 실제 런타임 연결 계정이 예전 값으로 남아 바로 장애로 이어진다
+
+## 102) secondary datasource 계정은 username만 분리해도 충분하지 않고, JDBC URL의 기본 database/schema도 `youth_welfare_pii` 로 바꿔야 함
+- 문제: `app_pii_rw` / `notification_pii_ro` 권한을 `youth_welfare_pii.user_pii` 로만 줄인 뒤에도 `APP_PII_DB_URL`, `NOTIFICATION_PII_DB_URL` 이 계속 `.../youth_welfare` 를 가리키면, MySQL이 연결 시점에 `Access denied for user 'app_pii_rw'@'%' to database 'youth_welfare'` 로 거부해 앱이 reduced-grant 상태에서 부팅/요청 처리 중 바로 깨질 수 있었음
+- 해결: `.env.example`, `docker-compose.yml`, `application.yml` 의 secondary datasource 기본 URL을 `youth_welfare_pii` schema로 교정하고, `deploy/smoke/run-local-pii-sync-cutover-smoke.sh` 로 fresh init + app boot + one-shot smoke까지 실제 검증했으며, 운영 runbook에도 `APP_PII_DB_URL`, `NOTIFICATION_PII_DB_URL` 전환 단계를 추가했음
+- 이유: 최소권한 설계는 grant 범위와 connection target이 함께 맞아야 성립한다. SQL이 fully-qualified table을 써도 JDBC connection 자체는 기본 database에 먼저 붙기 때문에, URL이 잘못되면 권한 모델이 맞아도 연결 단계에서 즉시 실패한다

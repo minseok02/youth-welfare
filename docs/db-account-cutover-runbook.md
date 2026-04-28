@@ -34,6 +34,8 @@
 - 운영 `.env` 또는 secret store에서 아래 값을 새로 발급
   - `DB_USERNAME=app_core_rw`
   - `DB_PASSWORD=<app_core_rw password>`
+  - `APP_PII_DB_URL=jdbc:mysql://<host>:3306/youth_welfare_pii?...`
+  - `NOTIFICATION_PII_DB_URL=jdbc:mysql://<host>:3306/youth_welfare_pii?...`
   - `DB_MIGRATION_USERNAME=migration_admin`
   - `DB_MIGRATION_PASSWORD=<migration_admin password>`
   - `DB_APP_PII_USERNAME=app_pii_rw`
@@ -113,6 +115,8 @@ SHOW GRANTS FOR 'migration_admin'@'%';
 ```env
 DB_USERNAME=app_core_rw
 DB_PASSWORD=<app_core_rw password>
+APP_PII_DB_URL=jdbc:mysql://<host>:3306/youth_welfare_pii?useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=UTF-8&serverTimezone=Asia/Seoul
+NOTIFICATION_PII_DB_URL=jdbc:mysql://<host>:3306/youth_welfare_pii?useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=UTF-8&serverTimezone=Asia/Seoul
 DB_MIGRATION_USERNAME=migration_admin
 DB_MIGRATION_PASSWORD=<migration_admin password>
 DB_APP_PII_USERNAME=app_pii_rw
@@ -132,6 +136,7 @@ DB_NOTIFICATION_PII_RO_PASSWORD=<notification_pii_ro password>
 주의:
 
 - 이번 단계부터 `DB_APP_PII_USERNAME`, `DB_APP_PII_PASSWORD`, `DB_NOTIFICATION_PII_RO_USERNAME`, `DB_NOTIFICATION_PII_RO_PASSWORD` 를 비워 두면 안 됩니다.
+- 이번 단계부터 `APP_PII_DB_URL`, `NOTIFICATION_PII_DB_URL` 도 `youth_welfare_pii` schema를 가리키도록 명시해야 합니다. host만 같고 DB 이름이 `youth_welfare` 로 남아 있으면 최소권한 계정에서 연결이 거부됩니다.
 - `app_core_rw` 가 더 이상 `user_pii` 권한을 가지지 않으므로, secondary datasource가 `DB_USERNAME` 로 fallback 하면 프로필/비밀번호 재설정/알림 경로가 바로 깨집니다.
 
 앱 재기동 예시:
@@ -149,7 +154,7 @@ docker compose -f docker-compose.yml up -d --build app
 - [ ] `SHOW GRANTS` 4종 확인
 - [ ] `app_core_rw` 가 `youth_welfare_pii.user_pii` 를 읽지 못하는지 확인
 - [ ] `notification_pii_ro`가 `phone_enc`를 읽지 못하는지 확인
-- [ ] 운영 `.env`의 `DB_USERNAME`, `DB_PASSWORD`, `DB_APP_PII_*`, `DB_NOTIFICATION_PII_RO_*` 변경
+- [ ] 운영 `.env`의 `DB_USERNAME`, `DB_PASSWORD`, `APP_PII_DB_URL`, `NOTIFICATION_PII_DB_URL`, `DB_APP_PII_*`, `DB_NOTIFICATION_PII_RO_*` 변경
 - [ ] 앱 재기동
 - [ ] `/actuator/health` 200 확인
 - [ ] 로그인 / refresh / 추천 목록 / 북마크 토글 smoke 확인

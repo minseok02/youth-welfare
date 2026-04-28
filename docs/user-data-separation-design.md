@@ -367,6 +367,8 @@
   - DDL 권한 보유
   - 런타임 앱 컨테이너에서는 사용 금지
 
+secondary datasource URL도 권한 모델과 같이 맞춰야 한다. `APP_PII_DB_URL`, `NOTIFICATION_PII_DB_URL` 이 같은 host를 쓰더라도 기본 database/schema 이름은 `youth_welfare_pii` 여야 하며, `youth_welfare` 로 남겨 두면 `app_pii_rw` / `notification_pii_ro` 가 연결 단계에서 거부된다.
+
 가능하면 장기적으로는 `youth_welfare_pii` 를 별도 인스턴스로 이동하는 것이 더 낫다.
 
 ## 사람 계정 분리

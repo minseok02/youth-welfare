@@ -9,6 +9,7 @@ MYSQL_HOST="${MYSQL_HOST:-127.0.0.1}"
 MYSQL_PORT="${MYSQL_PORT:-3307}"
 MYSQL_DATABASE="${MYSQL_DATABASE:-youth_welfare}"
 MYSQL_CONTAINER_NAME="${MYSQL_CONTAINER_NAME:-youth-welfare-db}"
+APP_HEALTH_TIMEOUT_SECONDS="${APP_HEALTH_TIMEOUT_SECONDS:-45}"
 DB_MIGRATION_USERNAME="${DB_MIGRATION_USERNAME:-}"
 DB_MIGRATION_PASSWORD="${DB_MIGRATION_PASSWORD:-}"
 DB_QUERY_USERNAME="${DB_QUERY_USERNAME:-${DB_MIGRATION_USERNAME:-${DB_USERNAME:-}}}"
@@ -104,6 +105,16 @@ else:
 PY
 }
 
+app_health_is_up() {
+  local body_file="$1"
+  local status_code
+  status_code="$(curl -fsS -o "${body_file}" -w "%{http_code}" "${APP_BASE_URL}/actuator/health" 2>/dev/null || true)"
+  if [[ "${status_code}" != "200" ]]; then
+    return 1
+  fi
+  [[ "$(json_read "${body_file}" "status")" == "UP" ]]
+}
+
 ensure_query_account_scope() {
   if ! mysql_exec "SELECT 1 FROM users LIMIT 1;" >/dev/null 2>&1; then
     echo "DB_QUERY account cannot read youth_welfare.users; use migration_admin or an explicit cross-schema DB_QUERY account" >&2
@@ -128,6 +139,9 @@ assert_http_ok() {
   local status_code="$1"
   local body_file="$2"
   if [[ "${status_code}" != "200" ]]; then
+    if grep -q '"code":"C002"' "${body_file}" 2>/dev/null; then
+      echo "server returned C002; check AES_SECRET_KEY and app logs before rerunning smoke" >&2
+    fi
     echo "unexpected HTTP status: ${status_code}" >&2
     cat "${body_file}" >&2
     exit 1
@@ -168,6 +182,29 @@ wait_for_synced_queue() {
   exit 1
 }
 
+wait_for_app_health() {
+  local health_file
+  local waited=0
+  local sleep_seconds=2
+
+  health_file="$(mktemp)"
+
+  while (( waited < APP_HEALTH_TIMEOUT_SECONDS )); do
+    if app_health_is_up "${health_file}"; then
+      echo "app health check passed"
+      rm -f "${health_file}"
+      return 0
+    fi
+    sleep "${sleep_seconds}"
+    waited=$((waited + sleep_seconds))
+  done
+
+  echo "app health did not reach UP within ${APP_HEALTH_TIMEOUT_SECONDS}s: ${APP_BASE_URL}/actuator/health" >&2
+  cat "${health_file}" >&2 || true
+  rm -f "${health_file}"
+  exit 1
+}
+
 if [[ "${APPLY_PII_SYNC_QUEUE_MIGRATION}" == "true" ]]; then
   require_non_empty DB_MIGRATION_USERNAME "${DB_MIGRATION_USERNAME}"
   require_non_empty DB_MIGRATION_PASSWORD "${DB_MIGRATION_PASSWORD}"
@@ -186,6 +223,9 @@ if [[ "${APPLY_PII_SYNC_QUEUE_MIGRATION}" == "true" ]]; then
     exit 1
   fi
 fi
+
+echo "waiting for app health"
+wait_for_app_health
 
 echo "verifying queue table exists"
 ensure_query_account_scope
