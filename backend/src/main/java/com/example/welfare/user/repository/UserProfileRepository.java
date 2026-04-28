@@ -14,14 +14,12 @@ public interface UserProfileRepository extends JpaRepository<UserProfile, Long> 
     @Query(value = """
             select u.id as userId,
                    up.user_key as userKey,
-                   pii.email_enc as emailEnc,
                    up.notification_period as notificationPeriod,
                    up.notification_min_score as notificationMinScore,
                    up.display_count as displayCount
             from user_profiles up
             join users u on u.user_key = up.user_key
             join auth_users au on au.user_key = up.user_key
-            left join youth_welfare_pii.user_pii pii on pii.user_key = up.user_key
             where up.notification_yn = true
               and up.notification_period = ?1
               and au.is_active = true

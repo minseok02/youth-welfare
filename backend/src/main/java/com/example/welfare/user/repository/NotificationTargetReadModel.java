@@ -6,8 +6,6 @@ public interface NotificationTargetReadModel {
 
     String getUserKey();
 
-    String getEmailEnc();
-
     String getNotificationPeriod();
 
     Double getNotificationMinScore();

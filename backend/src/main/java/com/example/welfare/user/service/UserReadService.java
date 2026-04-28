@@ -14,6 +14,7 @@ import com.example.welfare.user.entity.UserPii;
 import com.example.welfare.user.entity.UserProfile;
 import com.example.welfare.user.repository.AuthUserRepository;
 import com.example.welfare.user.repository.NotificationTargetReadModel;
+import com.example.welfare.user.repository.NotificationPiiReadRepository;
 import com.example.welfare.user.repository.UserAttributeReadModel;
 import com.example.welfare.user.repository.UserAttributeRepository;
 import com.example.welfare.user.repository.UserPiiRepository;
@@ -39,6 +40,7 @@ public class UserReadService {
     private final AuthUserRepository authUserRepository;
     private final UserProfileRepository userProfileRepository;
     private final UserPiiRepository userPiiRepository;
+    private final NotificationPiiReadRepository notificationPiiReadRepository;
     private final UserAttributeRepository userAttributeRepository;
     private final UserPriorityRepository userPriorityRepository;
     private final AesEncryptUtil aesEncryptUtil;
@@ -105,8 +107,14 @@ public class UserReadService {
 
     @Transactional(readOnly = true)
     public List<NotificationTarget> getNotificationTargets(User.NotificationPeriod period) {
-        return userProfileRepository.findNotificationTargetsByPeriod(period.name()).stream()
-                .map(this::toNotificationTarget)
+        List<NotificationTargetReadModel> rows = userProfileRepository.findNotificationTargetsByPeriod(period.name());
+        List<String> userKeys = rows.stream()
+                .map(NotificationTargetReadModel::getUserKey)
+                .toList();
+        java.util.Map<String, String> emailByUserKey = notificationPiiReadRepository.findEncryptedEmailsByUserKeys(userKeys);
+
+        return rows.stream()
+                .map(row -> toNotificationTarget(row, emailByUserKey.get(row.getUserKey())))
                 .filter(target -> StringUtils.hasText(target.email()))
                 .toList();
     }
@@ -120,9 +128,8 @@ public class UserReadService {
     @Transactional(readOnly = true)
     public String getNotificationEmailByUserKey(String userKey) {
         resolveActiveUserKey(userKey);
-        UserPii pii = userPiiRepository.findByUserKey(userKey)
-                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
-        String email = decryptNullable(pii.getEmailEnc());
+        String email = decryptNullable(notificationPiiReadRepository.findEncryptedEmailByUserKey(userKey)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND)));
         if (!StringUtils.hasText(email)) {
             throw new CustomException(ErrorCode.NOTIFICATION_SEND_FAILED);
         }
@@ -144,8 +151,8 @@ public class UserReadService {
         return userKey;
     }
 
-    private NotificationTarget toNotificationTarget(NotificationTargetReadModel row) {
-        String email = decryptNullable(row.getEmailEnc());
+    private NotificationTarget toNotificationTarget(NotificationTargetReadModel row, String emailEnc) {
+        String email = decryptNullable(emailEnc);
         if (!StringUtils.hasText(email)) {
             log.warn("[UserReadService] 알림 대상 이메일 누락 userId={} userKey={}", row.getUserId(), row.getUserKey());
         }

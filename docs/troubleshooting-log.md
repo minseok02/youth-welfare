@@ -452,3 +452,8 @@
 - 문제: 신규 볼륨 init 스크립트 방식에 익숙해져 기존 운영 DB에서도 `CREATE USER IF NOT EXISTS`만 실행하면, 이미 존재하던 `app_core_rw`류 계정의 비밀번호와 grant가 그대로 남아 실제 앱 cutover 때 인증 실패나 과권한 상태가 이어질 수 있었음
 - 해결: 기존 운영 DB용 템플릿은 `CREATE USER IF NOT EXISTS` 뒤에 `ALTER USER`, `REVOKE ALL PRIVILEGES, GRANT OPTION`, 재부여 `GRANT`를 한 세트로 넣고, 별도 runbook에서 `.env` cutover와 `SHOW GRANTS` 검증까지 같이 수행하도록 정리했음
 - 이유: 신규 init과 기존 운영 계정 보정은 성격이 다르다. 기존 DB는 “있으면 생성”이 아니라 “있어도 현재 기준으로 덮어쓰기”가 핵심이라, 비밀번호/권한 재동기화 절차를 문서와 SQL 템플릿에 동시에 고정해야 재발을 막을 수 있다
+
+## 89) `notification_pii_ro` 분리는 계정만 바꾸면 끝나지 않음
+- 문제: 기존 알림 대상 조회 SQL은 `user_profiles`, `users`, `auth_users`, `user_pii`를 한 번에 조인하고 있어, 그대로 `notification_pii_ro` datasource로 옮기면 보조 계정에 main schema SELECT 또는 과도한 권한을 다시 줘야 했음
+- 해결: 알림 대상 조회를 `core 대상 메타데이터 조회`와 `user_pii.email_enc 조회` 두 단계로 분리하고, `notification_pii_ro` 는 `user_pii(user_key, email_enc)` 읽기만 담당하게 재구성
+- 이유: 다중 datasource 분리는 credential 추가만이 아니라 query shape 분리까지 같이 해야 최소권한이 유지된다. cross-schema 조인을 남겨두면 결국 더 넓은 grant가 다시 필요해져 분리 효과가 사라진다
