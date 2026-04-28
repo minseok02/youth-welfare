@@ -10,12 +10,14 @@
 - [`docs/deployment.md`](./deployment.md)
 - [`docs/db-migration.md`](./db-migration.md)
 - [`docs/runtime-cutover-checklist.md`](./runtime-cutover-checklist.md)
+- [`docs/runtime-cutover-log-template.md`](./runtime-cutover-log-template.md)
 
 ## 1. 목표
 
 이번 단계의 목표는 아래 4개 계정을 기존 운영 DB에 맞추고, 앱 datasource를 `app_core_rw + app_pii_rw + notification_pii_ro` 구조로 전환하는 것입니다.
 
 실제 전환 창에서 빠르게 실행할 순서만 보려면 [runtime-cutover-checklist.md](./runtime-cutover-checklist.md)를 먼저 열고, 이 문서는 세부 설명/예외 처리를 볼 때 사용합니다.
+실행 결과와 증적은 [runtime-cutover-log-template.md](./runtime-cutover-log-template.md)에 남기는 것을 기준으로 합니다.
 
 - `app_core_rw`
   - 기본 runtime datasource 계정

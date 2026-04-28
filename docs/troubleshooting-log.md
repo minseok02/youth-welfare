@@ -552,3 +552,8 @@
 - 문제: split-account 전환은 `계정 SQL`, `migration`, `preflight summary`, `app 재기동`, `핵심 smoke` 가 모두 필요하지만, 세부 설명이 여러 문서에 나뉘어 있어 실제 운영 전환 때는 어떤 순서로 실행해야 하는지 다시 조합해야 했음
 - 해결: `docs/runtime-cutover-checklist.md` 를 추가해 실제 cutover 창에서 따라갈 순서를 한 페이지로 압축하고, `deployment.md`, `db-account-cutover-runbook.md`, `README.md` 에서 바로 링크되도록 정리했음
 - 이유: 운영 작업은 정보의 양보다 실행 순서의 명확성이 더 중요하다. 긴 설명 문서는 예외 처리에 좋지만, 전환 창에서는 한 페이지 checklist가 있어야 누락 없이 빠르게 진행할 수 있다
+
+## 109) cutover 후 증적이 터미널 출력, 채팅, 메모에 흩어지면 rollback 판단과 사후 검토가 느려지고, 다음 전환 때 재사용할 기준도 남지 않음
+- 문제: split-account cutover는 `SHOW GRANTS`, migration 적용 결과, preflight summary, health check, 핵심 API smoke, optional one-shot smoke까지 확인 대상이 많아서, 결과를 즉석에서만 보고 지나가면 성공/실패 판정 근거가 문서로 남지 않을 수 있었음
+- 해결: `docs/runtime-cutover-log-template.md` 를 추가해 실제 운영 전환 직후 결과를 한 문서에 기록하도록 하고, checklist/runbook/deployment 문서에서 바로 링크되도록 정리했음
+- 이유: 운영 전환은 “실행했다”보다 “무엇을 실행했고 어떤 결과였는지 남겼다”가 중요하다. 특히 rollback 여부를 빠르게 판단하거나 다음 차수 cutover를 반복할 때는 동일한 증적 형식이 있어야 비교와 회고가 쉬워진다

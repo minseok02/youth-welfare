@@ -2,6 +2,7 @@
 
 이 문서는 운영 전환 시 `계정 전환 -> migration -> preflight -> app 재기동 -> smoke` 순서만 빠르게 따라가기 위한 one-page 체크리스트입니다.
 세부 설명은 [db-account-cutover-runbook.md](./db-account-cutover-runbook.md), [db-migration.md](./db-migration.md), [deployment.md](./deployment.md)를 봅니다.
+실행 결과 기록은 [runtime-cutover-log-template.md](./runtime-cutover-log-template.md)를 사용합니다.
 
 ## 1. 준비물
 
@@ -128,6 +129,8 @@ deploy/smoke/user-pii-sync-cutover-smoke.sh
 ## 5. 증적 보관
 
 운영 cutover 직후 아래 결과를 남깁니다.
+
+기록 형식은 [runtime-cutover-log-template.md](./runtime-cutover-log-template.md)를 그대로 사용합니다.
 
 - preflight summary 출력
 - `SHOW GRANTS` 결과

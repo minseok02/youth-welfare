@@ -72,6 +72,9 @@
 - [runtime-cutover-checklist.md](./runtime-cutover-checklist.md)
   운영 전환 시 `계정 전환 -> migration -> preflight -> app 재기동 -> smoke` 순서를 한 페이지로 빠르게 확인합니다.
 
+- [runtime-cutover-log-template.md](./runtime-cutover-log-template.md)
+  운영 전환 직후 남길 실행 로그 템플릿과 최소 증적 항목을 확인합니다.
+
 ### 일정, 단계, 데모 흐름을 볼 때
 
 - [phase-plan.md](./phase-plan.md)  
@@ -93,6 +96,7 @@
 - [demo-scenario.md](./demo-scenario.md)
 - [deployment.md](./deployment.md)
 - [runtime-cutover-checklist.md](./runtime-cutover-checklist.md)
+- [runtime-cutover-log-template.md](./runtime-cutover-log-template.md)
 - [github-workflow.md](./github-workflow.md)
 - [phase-plan.md](./phase-plan.md)
 - [recommendation-pipeline.md](./recommendation-pipeline.md)
