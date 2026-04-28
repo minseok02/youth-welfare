@@ -2,6 +2,7 @@ package com.example.welfare.admin;
 
 import com.example.welfare.collect.controller.CollectAdminController;
 import com.example.welfare.collect.service.CollectService;
+import com.example.welfare.global.auth.AuthenticatedUser;
 import com.example.welfare.global.config.JacksonConfig;
 import com.example.welfare.global.config.SecurityConfig;
 import com.example.welfare.global.util.JwtUtil;
@@ -136,7 +137,7 @@ class AdminSecurityWebMvcTest {
     private void mockAuthenticatedToken(String token,
                                         List<SimpleGrantedAuthority> authorities) {
         doNothing().when(jwtUtil).validate(token);
-        given(jwtUtil.getUserId(token)).willReturn(1L);
+        given(jwtUtil.getAuthenticatedUser(token)).willReturn(new AuthenticatedUser(1L, "user-key-1"));
         given(jwtUtil.getAuthorities(token)).willReturn(List.copyOf(authorities));
     }
 }

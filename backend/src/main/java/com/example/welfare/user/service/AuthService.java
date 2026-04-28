@@ -230,6 +230,11 @@ public class AuthService {
     @Transactional
     public void logout(Long userId) {
         String userKey = resolveUserKey(userId);
+        logoutByUserKey(userKey);
+    }
+
+    @Transactional
+    public void logoutByUserKey(String userKey) {
         deleteRefreshToken(userKey);
         chatSessionCleanupService.deleteAllByUserKey(userKey);
     }

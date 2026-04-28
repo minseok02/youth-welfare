@@ -1,5 +1,6 @@
 package com.example.welfare.user.controller;
 
+import com.example.welfare.global.auth.AuthenticatedUser;
 import com.example.welfare.global.response.ApiResponse;
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
@@ -89,15 +90,17 @@ public class AuthController {
 
     @PostMapping("/logout")
     public ResponseEntity<ApiResponse<Void>> logout(
-            @AuthenticationPrincipal Long userId,
+            @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
             @RequestHeader(value = "X-Refresh-Token", required = false) String refreshTokenHeader,
             @CookieValue(value = REFRESH_COOKIE_NAME, required = false) String refreshTokenCookie) {
         String refreshToken = StringUtils.hasText(refreshTokenHeader) ? refreshTokenHeader : refreshTokenCookie;
 
         if (StringUtils.hasText(refreshToken)) {
             authService.logoutByRefreshToken(refreshToken);
-        } else if (userId != null) {
-            authService.logout(userId);
+        } else if (authenticatedUser != null && authenticatedUser.hasUserKey()) {
+            authService.logoutByUserKey(authenticatedUser.userKey());
+        } else if (authenticatedUser != null && authenticatedUser.hasUserId()) {
+            authService.logout(authenticatedUser.userId());
         }
 
         ResponseCookie clearCookie = buildRefreshCookie("", 0);

@@ -1,5 +1,6 @@
 package com.example.welfare.global.util;
 
+import com.example.welfare.global.auth.AuthenticatedUser;
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
 import io.jsonwebtoken.*;
@@ -96,6 +97,11 @@ public class JwtUtil {
         return extractUserId(getClaims(token));
     }
 
+    public AuthenticatedUser getAuthenticatedUser(String token) {
+        Claims claims = getClaims(token);
+        return new AuthenticatedUser(extractUserId(claims), extractUserKey(claims));
+    }
+
     public String getSubject(String token) {
         return getClaims(token).getSubject();
     }
@@ -175,5 +181,16 @@ public class JwtUtil {
             return Long.parseLong(value);
         }
         return Long.parseLong(claims.getSubject());
+    }
+
+    private String extractUserKey(Claims claims) {
+        String subject = claims.getSubject();
+        if (subject == null || subject.isBlank()) {
+            return null;
+        }
+        if (subject.chars().allMatch(Character::isDigit)) {
+            return null;
+        }
+        return subject;
     }
 }

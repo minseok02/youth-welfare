@@ -1,5 +1,6 @@
 package com.example.welfare.recommend.controller;
 
+import com.example.welfare.global.auth.AuthenticatedUser;
 import com.example.welfare.global.response.ApiResponse;
 import com.example.welfare.recommend.dto.RecommendationResponse;
 import com.example.welfare.recommend.entity.UserRecommendation;
@@ -25,8 +26,9 @@ public class RecommendationController {
     // 추천 목록 조회 (저장된 결과 반환 — 실시간 AI 추가 호출 없음)
     @GetMapping
     public ResponseEntity<ApiResponse<List<RecommendationResponse>>> getRecommendations(
-            @AuthenticationPrincipal Long userId,
+            @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
             @RequestParam(defaultValue = "10") int size) {
+        Long userId = resolveUserId(authenticatedUser);
         List<UserRecommendation> recs = recommendationFacade.getRecommendations(userId, size);
 
         List<Long> serviceIds = recs.stream().map(r -> r.getService().getId()).toList();
@@ -41,7 +43,8 @@ public class RecommendationController {
     // 추천 갱신 — 파이프라인 재실행 (로그인 시 자동 호출 또는 수동 갱신)
     @PostMapping("/refresh")
     public ResponseEntity<ApiResponse<List<RecommendationResponse>>> refresh(
-            @AuthenticationPrincipal Long userId) {
+            @AuthenticationPrincipal AuthenticatedUser authenticatedUser) {
+        Long userId = resolveUserId(authenticatedUser);
         List<UserRecommendation> recs = recommendationFacade.recommend(userId);
 
         // 방금 생성된 CTR 로그에서 serviceId → logId 매핑 조회
@@ -57,9 +60,13 @@ public class RecommendationController {
     // 북마크 토글
     @PostMapping("/{id}/bookmark")
     public ResponseEntity<ApiResponse<Void>> toggleBookmark(
-            @AuthenticationPrincipal Long userId,
+            @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
             @PathVariable Long id) {
-        recommendationFacade.toggleBookmark(userId, id);
+        recommendationFacade.toggleBookmark(resolveUserId(authenticatedUser), id);
         return ResponseEntity.ok(ApiResponse.success(null));
+    }
+
+    private Long resolveUserId(AuthenticatedUser authenticatedUser) {
+        return authenticatedUser != null ? authenticatedUser.userId() : null;
     }
 }

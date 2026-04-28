@@ -7,6 +7,7 @@ import com.example.welfare.chat.dto.response.ChatMessageResponse;
 import com.example.welfare.chat.dto.response.ChatSessionResponse;
 import com.example.welfare.chat.service.ChatMessageService;
 import com.example.welfare.chat.service.ChatSessionService;
+import com.example.welfare.global.auth.AuthenticatedUser;
 import com.example.welfare.global.response.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -26,36 +27,43 @@ public class ChatSessionController {
 
     @PostMapping
     public ResponseEntity<ApiResponse<ChatSessionResponse>> createSession(
-            @AuthenticationPrincipal Long userId,
+            @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
             @Valid @RequestBody(required = false) CreateChatSessionRequest request) {
-        return ResponseEntity.ok(ApiResponse.success(chatSessionService.createSession(userId, request)));
+        return ResponseEntity.ok(ApiResponse.success(chatSessionService.createSession(resolveUserId(authenticatedUser), request)));
     }
 
     @GetMapping
-    public ResponseEntity<ApiResponse<List<ChatSessionResponse>>> getSessions(@AuthenticationPrincipal Long userId) {
-        return ResponseEntity.ok(ApiResponse.success(chatSessionService.getSessions(userId)));
+    public ResponseEntity<ApiResponse<List<ChatSessionResponse>>> getSessions(
+            @AuthenticationPrincipal AuthenticatedUser authenticatedUser) {
+        return ResponseEntity.ok(ApiResponse.success(chatSessionService.getSessions(resolveUserId(authenticatedUser))));
     }
 
     @GetMapping("/{sessionId}/messages")
     public ResponseEntity<ApiResponse<List<ChatMessageResponse>>> getMessages(
-            @AuthenticationPrincipal Long userId,
+            @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
             @PathVariable Long sessionId) {
-        return ResponseEntity.ok(ApiResponse.success(chatMessageService.getMessages(userId, sessionId)));
+        return ResponseEntity.ok(ApiResponse.success(chatMessageService.getMessages(resolveUserId(authenticatedUser), sessionId)));
     }
 
     @PostMapping("/{sessionId}/messages")
     public ResponseEntity<ApiResponse<ChatAnswerResponse>> sendMessage(
-            @AuthenticationPrincipal Long userId,
+            @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
             @PathVariable Long sessionId,
             @Valid @RequestBody SendChatMessageRequest request) {
-        return ResponseEntity.ok(ApiResponse.success(chatMessageService.sendMessage(userId, sessionId, request)));
+        return ResponseEntity.ok(ApiResponse.success(
+                chatMessageService.sendMessage(resolveUserId(authenticatedUser), sessionId, request)
+        ));
     }
 
     @DeleteMapping("/{sessionId}")
     public ResponseEntity<ApiResponse<Void>> deleteSession(
-            @AuthenticationPrincipal Long userId,
+            @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
             @PathVariable Long sessionId) {
-        chatSessionService.deleteSession(userId, sessionId);
+        chatSessionService.deleteSession(resolveUserId(authenticatedUser), sessionId);
         return ResponseEntity.ok(ApiResponse.success(null));
+    }
+
+    private Long resolveUserId(AuthenticatedUser authenticatedUser) {
+        return authenticatedUser != null ? authenticatedUser.userId() : null;
     }
 }

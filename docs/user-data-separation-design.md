@@ -68,11 +68,11 @@
   - 프로필 조회/추천/알림 read path의 `user_profiles + user_pii` 전환
   - `user_attributes`, `user_priorities` 의 `user_key` write sync 및 backfill
   - access token / refresh token / notification unsubscribe token 의 JWT subject 를 `user_key` 로 전환
+  - JWT authentication principal 을 custom principal 로 전환하고 controller 인증 경로에서 raw `Long` principal 의존 제거
   - Redis refresh token key, password reset latest-token key 를 `user_key` 기준으로 전환
   - `notifications`, `recommendation_logs`, `service_view_logs`, `chat_sessions` 의 `user_key` write 경로 반영
   - `chat_sessions`, `notifications`, `recommendation_logs` 의 `ManyToOne User` 제거와 `user_key` 기준 read/cleanup 전환
 - 남은 작업
-  - JWT principal을 `user_key` 또는 custom principal 기준으로 전환
   - `user_recommendations` 와 북마크 경로의 `user_key` 전환
   - 잔여 `user_id` FK 정리
   - 런타임 datasource 권한 분리 (`app_core_rw`, `app_pii_rw`, `notification_pii_ro`)

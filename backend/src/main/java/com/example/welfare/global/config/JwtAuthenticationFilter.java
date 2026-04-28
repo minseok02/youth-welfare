@@ -1,5 +1,6 @@
 package com.example.welfare.global.config;
 
+import com.example.welfare.global.auth.AuthenticatedUser;
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.util.JwtUtil;
 import jakarta.servlet.FilterChain;
@@ -28,9 +29,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         if (StringUtils.hasText(token)) {
             try {
                 jwtUtil.validate(token);
-                Long userId = jwtUtil.getUserId(token);
+                AuthenticatedUser authenticatedUser = jwtUtil.getAuthenticatedUser(token);
                 UsernamePasswordAuthenticationToken auth =
-                        new UsernamePasswordAuthenticationToken(userId, null, jwtUtil.getAuthorities(token));
+                        new UsernamePasswordAuthenticationToken(authenticatedUser, null, jwtUtil.getAuthorities(token));
                 SecurityContextHolder.getContext().setAuthentication(auth);
             } catch (CustomException e) {
                 // 유효하지 않은 토큰 — SecurityContext 미설정, 이후 인가 단계에서 거부됨

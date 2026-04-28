@@ -1,5 +1,6 @@
 package com.example.welfare.user.controller;
 
+import com.example.welfare.global.auth.AuthenticatedUser;
 import com.example.welfare.policy.dto.PolicySummaryResponse;
 import com.example.welfare.user.service.UserService;
 import org.junit.jupiter.api.DisplayName;
@@ -49,7 +50,11 @@ class UserControllerWebMvcTest {
         ));
 
         mockMvc.perform(get("/api/users/me/bookmarks")
-                        .with(authentication(new UsernamePasswordAuthenticationToken(1L, null, Collections.emptyList()))))
+                        .with(authentication(new UsernamePasswordAuthenticationToken(
+                                new AuthenticatedUser(1L, "user-key-1"),
+                                null,
+                                Collections.emptyList()
+                        ))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data[0].id").value(11))

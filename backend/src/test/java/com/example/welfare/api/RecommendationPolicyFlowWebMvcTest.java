@@ -1,5 +1,6 @@
 package com.example.welfare.api;
 
+import com.example.welfare.global.auth.AuthenticatedUser;
 import com.example.welfare.policy.controller.PolicyController;
 import com.example.welfare.policy.dto.PolicyDetailResponse;
 import com.example.welfare.policy.dto.PolicyRankingResponse;
@@ -111,7 +112,11 @@ class RecommendationPolicyFlowWebMvcTest {
                         .build());
 
         mockMvc.perform(post("/api/recommendations/refresh")
-                        .with(authentication(new UsernamePasswordAuthenticationToken(1L, null, Collections.emptyList())))
+                        .with(authentication(new UsernamePasswordAuthenticationToken(
+                                new AuthenticatedUser(1L, "user-key-1"),
+                                null,
+                                Collections.emptyList()
+                        )))
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
@@ -176,7 +181,11 @@ class RecommendationPolicyFlowWebMvcTest {
     @DisplayName("정책 북마크 API는 정책 서비스에 토글을 위임한다")
     void policyBookmarkDelegatesToPolicyService() throws Exception {
         mockMvc.perform(post("/api/policies/{id}/bookmark", 11L)
-                        .with(authentication(new UsernamePasswordAuthenticationToken(1L, null, Collections.emptyList()))))
+                        .with(authentication(new UsernamePasswordAuthenticationToken(
+                                new AuthenticatedUser(1L, "user-key-1"),
+                                null,
+                                Collections.emptyList()
+                        ))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true));
 
