@@ -547,3 +547,8 @@
 - 문제: split-account 전환 직전에는 preflight 통과 여부뿐 아니라 `DB_URL`, `APP_PII_DB_URL`, `NOTIFICATION_PII_DB_URL` 이 실제로 어떤 host/schema 조합으로 해석됐는지와, username/password key가 모두 채워졌는지를 운영자가 바로 눈으로 다시 확인할 필요가 있었음. pass/fail만 있으면 secret store 값과 effective env를 대조할 때 한 번 더 수작업이 필요했음
 - 해결: `deploy/smoke/preflight-runtime-cutover-env.sh` 에 `PRINT_SUMMARY=true` 옵션을 추가해 redacted summary를 출력하도록 보강하고, runbook/deployment 문서에도 cutover 직전 이 모드 실행을 체크리스트로 반영했음
 - 이유: 운영 전환은 “검증이 통과했다”보다 “무슨 값으로 검증이 통과했는지 확인했다”가 더 안전하다. 특히 split datasource처럼 key 수가 늘어난 경우에는 effective config를 짧게 요약해서 눈으로 확인할 수 있어야 재시도와 롤백 판단이 빨라진다
+
+## 108) 운영 cutover 단계가 계정 runbook, migration 문서, deployment 문서에 흩어져 있으면 실제 전환 창에서 순서가 섞이거나 smoke를 빼먹기 쉬움
+- 문제: split-account 전환은 `계정 SQL`, `migration`, `preflight summary`, `app 재기동`, `핵심 smoke` 가 모두 필요하지만, 세부 설명이 여러 문서에 나뉘어 있어 실제 운영 전환 때는 어떤 순서로 실행해야 하는지 다시 조합해야 했음
+- 해결: `docs/runtime-cutover-checklist.md` 를 추가해 실제 cutover 창에서 따라갈 순서를 한 페이지로 압축하고, `deployment.md`, `db-account-cutover-runbook.md`, `README.md` 에서 바로 링크되도록 정리했음
+- 이유: 운영 작업은 정보의 양보다 실행 순서의 명확성이 더 중요하다. 긴 설명 문서는 예외 처리에 좋지만, 전환 창에서는 한 페이지 checklist가 있어야 누락 없이 빠르게 진행할 수 있다
