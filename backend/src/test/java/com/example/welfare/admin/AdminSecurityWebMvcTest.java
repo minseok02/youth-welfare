@@ -1,6 +1,7 @@
 package com.example.welfare.admin;
 
 import com.example.welfare.collect.controller.CollectAdminController;
+import com.example.welfare.collect.service.CollectSource;
 import com.example.welfare.collect.service.CollectService;
 import com.example.welfare.global.auth.AuthenticatedUser;
 import com.example.welfare.global.config.JacksonConfig;
@@ -90,7 +91,7 @@ class AdminSecurityWebMvcTest {
                 new SimpleGrantedAuthority("ROLE_USER"),
                 new SimpleGrantedAuthority("ROLE_ADMIN")
         ));
-        doNothing().when(collectService).collectYouth();
+        doNothing().when(collectService).collect(CollectSource.YOUTH);
 
         mockMvc.perform(post("/api/admin/collect/youth")
                         .header("Authorization", "Bearer admin-token"))
@@ -98,7 +99,7 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data").value("온통청년 수집 완료"));
 
-        then(collectService).should().collectYouth();
+        then(collectService).should().collect(CollectSource.YOUTH);
     }
 
     @Test
@@ -108,7 +109,7 @@ class AdminSecurityWebMvcTest {
                 new SimpleGrantedAuthority("ROLE_USER"),
                 new SimpleGrantedAuthority("ROLE_ADMIN")
         ));
-        doNothing().when(collectService).collectBokjiroDetailsRefresh();
+        doNothing().when(collectService).collect(CollectSource.BOKJIRO_DETAIL_REFRESH);
 
         mockMvc.perform(post("/api/admin/collect/bokjiro-details-refresh")
                         .header("Authorization", "Bearer admin-token"))
@@ -116,7 +117,22 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data").value("복지로 상세 refresh 완료"));
 
-        then(collectService).should().collectBokjiroDetailsRefresh();
+        then(collectService).should().collect(CollectSource.BOKJIRO_DETAIL_REFRESH);
+    }
+
+    @Test
+    @DisplayName("관리자 토큰으로 알 수 없는 collect source 를 호출하면 400을 반환한다")
+    void adminEndpointRejectsUnknownCollectSource() throws Exception {
+        mockAuthenticatedToken("admin-token", List.of(
+                new SimpleGrantedAuthority("ROLE_USER"),
+                new SimpleGrantedAuthority("ROLE_ADMIN")
+        ));
+
+        mockMvc.perform(post("/api/admin/collect/unknown-source")
+                        .header("Authorization", "Bearer admin-token"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("C001"));
     }
 
     @Test

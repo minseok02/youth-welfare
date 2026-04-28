@@ -602,3 +602,13 @@
 - 문제: 복지로 상세 수집은 기존 `welfare_service_details` row가 있는지만 보고 바로 skip하므로, 외부 상세 API의 지원내용/신청방법/문의처가 바뀌어도 기존 row가 남아 있는 한 다시 fetch/merge 할 수 있는 경로가 없었음
 - 해결: 기본 상세 수집은 그대로 두되, `BOKJIRO_DETAIL_REFRESH` 전용 source와 `/api/admin/collect/bokjiro-details-refresh` 수동 endpoint를 추가해 refresh 모드에서는 기존 row가 있어도 다시 fetch 후 같은 row id로 merge 저장하도록 분리했음
 - 이유: 상세 수집은 호출 단가가 높아 기본 배치와 refresh 동작을 분리하는 편이 안전하다. missing-row 채우기와 full refresh를 같은 경로에 섞으면 호출량과 정합성 기대가 충돌하므로, 운영자가 의도를 명시할 수 있는 별도 경로가 필요하다
+
+## 119) 관리자 수동 수집 경로가 source별 controller/service 메서드 fan-out으로 늘어나면 새 데이터 API 추가 때 endpoint 연결 누락이 다시 생기기 쉬움
+- 문제: 수집 adapter registry로 본문 orchestration은 줄였지만, 관리자 수동 수집은 여전히 `/collect/youth`, `/collect/bokjiro-central` 식의 개별 controller 메서드와 `CollectService.collectYouth()` 같은 source별 public 메서드가 남아 있어 새 source를 붙일 때 같은 fan-out을 다시 추가해야 했음
+- 해결: `CollectAdminController` 를 `/api/admin/collect/{sourceKey}` 단일 endpoint로 정리하고, `CollectSource` enum 에 path key / trigger label / success message를 올린 뒤 `CollectService.collect(CollectSource source)` 단일 진입점으로 dispatch 하도록 줄였음. invalid source는 `C001` 로 바로 거절하도록 테스트도 고정했음
+- 이유: 신규 데이터 API 추가 난이도를 낮추려면 source metadata와 adapter 등록만으로 관리자 수동 실행까지 이어져야 한다. orchestration만 추상화하고 admin trigger fan-out을 남겨두면 실제 확장 시 누락 지점이 다시 controller/service로 분산된다
+
+## 120) local persistent MySQL volume 이 현재 split-account 기본값과 어긋난 상태면 `docker compose up -d db redis` 직후 integration test 가 코드와 무관하게 `app_core_rw` 인증 실패로 막힐 수 있음
+- 문제: 관리자 수동 수집 generic dispatch 검증 중 `docker compose up -d db redis` 뒤 `./gradlew integrationTest --tests com.example.welfare.integration.AdminSecurityIntegrationTest` 를 실행하자, 애플리케이션 context 초기화 단계에서 `Access denied for user 'app_core_rw'` 가 발생해 테스트가 기동조차 되지 않았음
+- 해결: 이번 task의 코드 회귀 여부는 `CollectServiceTest`, `AdminSecurityWebMvcTest` 로 확인하고, integration 실패 원인은 local persistent MySQL volume 의 계정 상태가 현재 `application-integration.yml` / split-account 기본값과 drift 된 환경 문제로 분리 기록했음. 이 경우 fresh init smoke 또는 known password 기준 계정 재정렬 후 다시 integration 을 태워야 함
+- 이유: Compose DB 컨테이너를 recreate 해도 volume 은 유지되므로, 예전 root/app 계정 비밀번호나 grant 상태가 남아 있으면 현재 문서/설정 기본값과 달라도 자동으로 맞춰지지 않는다. split-account 전환 이후에는 “컨테이너 재기동 = 계정 재초기화”라고 가정하면 재발하기 쉽다

@@ -36,27 +36,7 @@ public class CollectService {
         });
     }
 
-    public void collectYouth() {
-        collectSource(CollectSource.YOUTH);
-    }
-
-    public void collectBokjiroCentral() {
-        collectSource(CollectSource.BOKJIRO_CENTRAL);
-    }
-
-    public void collectBokjiroLocal() {
-        collectSource(CollectSource.BOKJIRO_LOCAL);
-    }
-
-    public void collectBokjiroDetails() {
-        collectSource(CollectSource.BOKJIRO_DETAIL);
-    }
-
-    public void collectBokjiroDetailsRefresh() {
-        collectSource(CollectSource.BOKJIRO_DETAIL_REFRESH);
-    }
-
-    private void collectSource(CollectSource source) {
+    public void collect(CollectSource source) {
         collectExecutionGuard.runExclusive(source.lockName(), () -> runSource(source));
     }
 

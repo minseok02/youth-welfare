@@ -98,7 +98,7 @@ class CollectServiceTest {
 
     @Test
     @DisplayName("단일 source 수집은 해당 source 의 lock 과 adapter 만 사용한다")
-    void collectYouthDelegatesToRequestedSource() throws Exception {
+    void collectDelegatesToRequestedSource() throws Exception {
         List<String> executedJobs = new ArrayList<>();
 
         doAnswer(invocation -> {
@@ -114,7 +114,7 @@ class CollectServiceTest {
         });
         when(youthAdapter.collect()).thenReturn(CollectResult.of(1, 1, 0, 0, 0));
 
-        collectService.collectYouth();
+        collectService.collect(CollectSource.YOUTH);
 
         assertThat(executedJobs).containsExactly("YOUTH");
         verify(collectExecutionGuard).runExclusive(eq("collect-youth"), any(Runnable.class));
@@ -128,7 +128,7 @@ class CollectServiceTest {
 
     @Test
     @DisplayName("detail refresh 수집은 refresh source lock 과 adapter 만 사용한다")
-    void collectBokjiroDetailsRefreshDelegatesToRefreshSource() throws Exception {
+    void collectDelegatesToRefreshSource() throws Exception {
         List<String> executedJobs = new ArrayList<>();
 
         doAnswer(invocation -> {
@@ -144,7 +144,7 @@ class CollectServiceTest {
         });
         when(bokjiroDetailRefreshAdapter.collect()).thenReturn(CollectResult.of(1, 1, 0, 0, 0));
 
-        collectService.collectBokjiroDetailsRefresh();
+        collectService.collect(CollectSource.BOKJIRO_DETAIL_REFRESH);
 
         assertThat(executedJobs).containsExactly("BOKJIRO_DETAIL_REFRESH");
         verify(collectExecutionGuard).runExclusive(eq("collect-bokjiro-details-refresh"), any(Runnable.class));

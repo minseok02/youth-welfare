@@ -1,5 +1,6 @@
 package com.example.welfare.integration;
 
+import com.example.welfare.collect.service.CollectSource;
 import com.example.welfare.collect.service.CollectService;
 import com.example.welfare.global.util.JwtUtil;
 import com.example.welfare.user.entity.User;
@@ -124,7 +125,7 @@ class AdminSecurityIntegrationTest {
     @Test
     @DisplayName("일반 사용자는 관리자 API를 호출할 수 없고 관리자는 재발급 후에도 호출할 수 있다")
     void adminApiRequiresAdminRoleAcrossRefresh() throws Exception {
-        doNothing().when(collectService).collectYouth();
+        doNothing().when(collectService).collect(CollectSource.YOUTH);
 
         User normalUser = createUser(TEST_EMAIL_PREFIX + UUID.randomUUID() + "@example.com");
         User adminUser = createUser(ADMIN_EMAIL);
@@ -156,7 +157,7 @@ class AdminSecurityIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true));
 
-        then(collectService).should(org.mockito.Mockito.times(2)).collectYouth();
+        then(collectService).should(org.mockito.Mockito.times(2)).collect(CollectSource.YOUTH);
     }
 
     private User createUser(String email) {

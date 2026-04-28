@@ -11,7 +11,8 @@
 
 ### 1. 수집은 한 번에 하나만 실행
 
-- `collect/all`, `collect/youth`, `collect/bokjiro-central`, `collect/bokjiro-local`, `collect/bokjiro-details`는 동시 실행하지 않는다.
+- `collect/all` 과 `collect/{sourceKey}` 수동 경로는 동시 실행하지 않는다.
+- 현재 `sourceKey` 는 `youth`, `bokjiro-central`, `bokjiro-local`, `bokjiro-details`, `bokjiro-details-refresh` 를 지원한다.
 - 이미 다른 수집 작업이 실행 중이면 새 요청은 `409 Conflict (COL002)`로 거절한다.
 - 이유: 중복 실행 시 `service_tags` 저장 경합과 deadlock 위험이 커진다.
 
