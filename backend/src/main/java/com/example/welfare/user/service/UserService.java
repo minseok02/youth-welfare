@@ -175,7 +175,7 @@ public class UserService {
 
         userAttributeRepository.deleteByUserId(userId);
         userPriorityRepository.deleteByUserId(userId);
-        chatSessionCleanupService.deleteAllByUserId(userId);
+        chatSessionCleanupService.deleteAllByUserKey(user.getUserKey());
         user.withdraw();
         userCoreSyncService.syncFromUser(user);
     }
@@ -190,12 +190,6 @@ public class UserService {
     @Transactional
     public void unsubscribeNotificationsByUserKey(String userKey) {
         Long userId = userRepository.findIdByUserKey(userKey)
-                .or(() -> {
-                    if (userKey != null && userKey.chars().allMatch(Character::isDigit)) {
-                        return java.util.Optional.of(Long.parseLong(userKey));
-                    }
-                    return java.util.Optional.empty();
-                })
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
         unsubscribeNotifications(userId);
     }

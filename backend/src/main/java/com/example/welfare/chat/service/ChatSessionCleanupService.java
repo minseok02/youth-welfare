@@ -12,14 +12,6 @@ public class ChatSessionCleanupService {
     private final ChatSessionRepository chatSessionRepository;
 
     @Transactional
-    public void deleteAllByUserId(Long userId) {
-        if (userId == null) {
-            return;
-        }
-        chatSessionRepository.deleteByUserId(userId);
-    }
-
-    @Transactional
     public void deleteAllByUserKey(String userKey) {
         if (userKey == null || userKey.isBlank()) {
             return;

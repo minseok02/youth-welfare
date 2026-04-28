@@ -64,6 +64,7 @@ class ChatSessionApiIntegrationTest {
     void createAndListSessions() throws Exception {
         User user = createUser();
         String accessToken = jwtUtil.generateAccessToken(user.getId());
+        String userKey = userRepository.findUserKeyById(user.getId()).orElseThrow();
 
         mockMvc.perform(post("/api/chat/sessions")
                         .header("Authorization", "Bearer " + accessToken))
@@ -73,13 +74,15 @@ class ChatSessionApiIntegrationTest {
                 .andExpect(jsonPath("$.data.title").doesNotExist());
 
         ChatSession older = chatSessionRepository.save(ChatSession.builder()
-                .user(user)
+                .userId(user.getId())
+                .userKey(userKey)
                 .title("이전 세션")
                 .lastMessageAt(LocalDateTime.of(2099, 4, 25, 10, 0))
                 .build());
 
         ChatSession latest = chatSessionRepository.save(ChatSession.builder()
-                .user(user)
+                .userId(user.getId())
+                .userKey(userKey)
                 .title("최신 세션")
                 .lastMessageAt(LocalDateTime.of(2099, 4, 25, 11, 0))
                 .build());
@@ -103,13 +106,17 @@ class ChatSessionApiIntegrationTest {
         User owner = createUser();
         User other = createUser();
         String ownerToken = jwtUtil.generateAccessToken(owner.getId());
+        String ownerKey = userRepository.findUserKeyById(owner.getId()).orElseThrow();
+        String otherKey = userRepository.findUserKeyById(other.getId()).orElseThrow();
 
         ChatSession ownerSession = chatSessionRepository.save(ChatSession.builder()
-                .user(owner)
+                .userId(owner.getId())
+                .userKey(ownerKey)
                 .title("내 세션")
                 .build());
         ChatSession otherSession = chatSessionRepository.save(ChatSession.builder()
-                .user(other)
+                .userId(other.getId())
+                .userKey(otherKey)
                 .title("다른 사람 세션")
                 .build());
 

@@ -85,8 +85,8 @@ public class NotificationService {
 
     @Transactional
     public void sendTopRecommendations(NotificationTarget target) {
-        User user = userRepository.findById(target.userId())
-                .orElseThrow(() -> new IllegalStateException("Notification target user not found: " + target.userId()));
+        User user = userRepository.findByUserKey(target.userKey())
+                .orElseThrow(() -> new IllegalStateException("Notification target user not found: " + target.userKey()));
         double minScore = target.notificationMinScore() != null ? target.notificationMinScore() : 0.0;
         List<UserRecommendation> recs = List.of();
         List<RecommendationLog> logs = List.of();
@@ -207,9 +207,9 @@ public class NotificationService {
     }
 
     private String resolveNotificationEmail(Notification notification) {
-        if (notification.getUserKey() != null && !notification.getUserKey().isBlank()) {
-            return userReadService.getNotificationEmailByUserKey(notification.getUserKey());
+        if (notification.getUserKey() == null || notification.getUserKey().isBlank()) {
+            throw new IllegalStateException("Notification user_key is required for retry");
         }
-        return userReadService.getNotificationEmail(notification.getUser().getId());
+        return userReadService.getNotificationEmailByUserKey(notification.getUserKey());
     }
 }

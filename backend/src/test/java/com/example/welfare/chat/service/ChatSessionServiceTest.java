@@ -45,6 +45,7 @@ class ChatSessionServiceTest {
     void createSessionNormalizesBlankTitleToNull() {
         User user = User.builder()
                 .id(1L)
+                .userKey("user-key-1")
                 .email("chat@example.com")
                 .passwordHash("hash")
                 .build();
@@ -72,12 +73,13 @@ class ChatSessionServiceTest {
     void deleteSessionThrowsWhenSessionNotOwned() {
         User user = User.builder()
                 .id(1L)
+                .userKey("user-key-1")
                 .email("chat@example.com")
                 .passwordHash("hash")
                 .build();
 
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
-        when(chatSessionRepository.findByIdAndUserId(99L, 1L)).thenReturn(Optional.empty());
+        when(chatSessionRepository.findByIdAndUserKey(99L, "user-key-1")).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> chatSessionService.deleteSession(1L, 99L))
                 .isInstanceOf(CustomException.class)

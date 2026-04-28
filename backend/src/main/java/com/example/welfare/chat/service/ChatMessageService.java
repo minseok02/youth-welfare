@@ -50,8 +50,8 @@ public class ChatMessageService {
 
     @Transactional(readOnly = true)
     public List<ChatMessageResponse> getMessages(Long userId, Long sessionId) {
-        findActiveUser(userId);
-        chatSessionRepository.findByIdAndUserId(sessionId, userId)
+        User user = findActiveUser(userId);
+        chatSessionRepository.findByIdAndUserKey(sessionId, user.getUserKey())
                 .orElseThrow(() -> new CustomException(ErrorCode.CHAT_SESSION_NOT_FOUND));
 
         return chatMessageRepository.findBySessionIdOrderByCreatedAtAsc(sessionId).stream()
@@ -63,7 +63,7 @@ public class ChatMessageService {
     public ChatAnswerResponse sendMessage(Long userId, Long sessionId, SendChatMessageRequest request) {
         User user = findActiveUser(userId);
         chatRateLimitService.checkMessageSendLimit(userId);
-        ChatSession session = chatSessionRepository.findByIdAndUserId(sessionId, userId)
+        ChatSession session = chatSessionRepository.findByIdAndUserKey(sessionId, user.getUserKey())
                 .orElseThrow(() -> new CustomException(ErrorCode.CHAT_SESSION_NOT_FOUND));
 
         String content = request.getContent().trim();

@@ -11,8 +11,6 @@ import java.util.List;
 
 public interface ServiceViewLogRepository extends JpaRepository<ServiceViewLog, Long> {
 
-    boolean existsByServiceIdAndUserIdAndViewedAtAfter(Long serviceId, Long userId, LocalDateTime cutoff);
-
     boolean existsByServiceIdAndUserKeyAndViewedAtAfter(Long serviceId, String userKey, LocalDateTime cutoff);
 
     boolean existsByServiceIdAndClientFingerprintAndViewedAtAfter(
@@ -23,7 +21,6 @@ public interface ServiceViewLogRepository extends JpaRepository<ServiceViewLog, 
             SELECT svl.service.id as serviceId,
                    COUNT(DISTINCT CASE
                         WHEN svl.userKey IS NOT NULL THEN CONCAT('K:', svl.userKey)
-                        WHEN svl.userId IS NOT NULL THEN CONCAT('U:', CAST(svl.userId as string))
                         ELSE CONCAT('F:', svl.clientFingerprint)
                    END) as uniqueViewCount
             FROM ServiceViewLog svl

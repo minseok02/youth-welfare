@@ -108,7 +108,7 @@ class NotificationServiceTest {
         NotificationTarget target = new NotificationTarget(1L, "user-key-1", "test@example.com",
                 User.NotificationPeriod.DAILY, 0.8, 10);
 
-        given(userRepository.findById(1L)).willReturn(Optional.of(user));
+        given(userRepository.findByUserKey("user-key-1")).willReturn(Optional.of(user));
         given(recommendationFacade.getRecommendations(1L, 10)).willReturn(List.of(pass, fail));
         given(scoreWeightService.getActiveWeight()).willReturn(weight);
         given(logService.logNotification(eq(user), any(), eq(weight))).willReturn(List.of(log));
@@ -151,7 +151,7 @@ class NotificationServiceTest {
         NotificationTarget target = new NotificationTarget(1L, "user-key-1", "test@example.com",
                 User.NotificationPeriod.DAILY, 0.95, 10);
 
-        given(userRepository.findById(1L)).willReturn(Optional.of(user));
+        given(userRepository.findByUserKey("user-key-1")).willReturn(Optional.of(user));
         given(recommendationFacade.getRecommendations(1L, 10)).willReturn(List.of(fail));
 
         notificationService.sendTopRecommendations(target);
@@ -165,6 +165,7 @@ class NotificationServiceTest {
     void sendTopRecommendationsStoresFailedHistoryWhenGatewayReturnsFalse() {
         User user = User.builder()
                 .id(1L)
+                .userKey("user-key-1")
                 .email("test@example.com")
                 .passwordHash("pw")
                 .notificationYn(true)
@@ -191,7 +192,7 @@ class NotificationServiceTest {
         NotificationTarget target = new NotificationTarget(1L, "user-key-1", "test@example.com",
                 User.NotificationPeriod.DAILY, 0.8, 10);
 
-        given(userRepository.findById(1L)).willReturn(Optional.of(user));
+        given(userRepository.findByUserKey("user-key-1")).willReturn(Optional.of(user));
         given(recommendationFacade.getRecommendations(1L, 10)).willReturn(List.of(recommendation));
         given(scoreWeightService.getActiveWeight()).willReturn(weight);
         given(logService.logNotification(eq(user), any(), eq(weight))).willReturn(List.of(log));
@@ -223,7 +224,7 @@ class NotificationServiceTest {
                 .passwordHash("pw")
                 .build();
         Notification notification = Notification.builder()
-                .user(user)
+                .userId(1L)
                 .userKey("user-key-1")
                 .channel(NotificationChannel.EMAIL)
                 .periodType(NotificationPeriodType.DAILY)
@@ -259,7 +260,7 @@ class NotificationServiceTest {
                 .passwordHash("pw")
                 .build();
         Notification notification = Notification.builder()
-                .user(user)
+                .userId(1L)
                 .userKey("user-key-1")
                 .channel(NotificationChannel.EMAIL)
                 .periodType(NotificationPeriodType.DAILY)
@@ -291,11 +292,13 @@ class NotificationServiceTest {
     void retryFailedNotificationsStopsSchedulingAfterMaxRetry() {
         User user = User.builder()
                 .id(1L)
+                .userKey("user-key-1")
                 .email("test@example.com")
                 .passwordHash("pw")
                 .build();
         Notification notification = Notification.builder()
-                .user(user)
+                .userId(1L)
+                .userKey("user-key-1")
                 .channel(NotificationChannel.EMAIL)
                 .periodType(NotificationPeriodType.DAILY)
                 .status(NotificationStatus.FAILED)
@@ -307,7 +310,7 @@ class NotificationServiceTest {
 
         given(notificationRepository.findByStatusAndNextRetryAtBefore(eq(NotificationStatus.FAILED), any(LocalDateTime.class)))
                 .willReturn(List.of(notification));
-        given(userReadService.getNotificationEmail(1L)).willReturn("test@example.com");
+        given(userReadService.getNotificationEmailByUserKey("user-key-1")).willReturn("test@example.com");
         given(notificationGateway.send("test@example.com", "[청년복지] 맞춤 정책 추천", "body"))
                 .willReturn(false);
 

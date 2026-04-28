@@ -76,13 +76,14 @@ class ChatMessageServiceTest {
         User user = createUser(1L);
         ChatSession session = ChatSession.builder()
                 .id(10L)
-                .user(user)
+                .userId(1L)
+                .userKey("user-key-1")
                 .build();
         SendChatMessageRequest request = new SendChatMessageRequest();
         ReflectionTestUtils.setField(request, "content", "서울 월세 지원 알려줘");
 
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
-        when(chatSessionRepository.findByIdAndUserId(10L, 1L)).thenReturn(Optional.of(session));
+        when(chatSessionRepository.findByIdAndUserKey(10L, "user-key-1")).thenReturn(Optional.of(session));
         when(chatPolicyService.findCandidates("서울 월세 지원 알려줘", 3)).thenReturn(List.of(
                 ChatPolicyCandidate.builder()
                         .serviceId(1829L)
@@ -140,14 +141,15 @@ class ChatMessageServiceTest {
         User user = createUser(1L);
         ChatSession session = ChatSession.builder()
                 .id(10L)
-                .user(user)
+                .userId(1L)
+                .userKey("user-key-1")
                 .title("기존 제목")
                 .build();
         SendChatMessageRequest request = new SendChatMessageRequest();
         ReflectionTestUtils.setField(request, "content", "조건을 모르겠어");
 
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
-        when(chatSessionRepository.findByIdAndUserId(10L, 1L)).thenReturn(Optional.of(session));
+        when(chatSessionRepository.findByIdAndUserKey(10L, "user-key-1")).thenReturn(Optional.of(session));
         when(chatPolicyService.findCandidates("조건을 모르겠어", 3)).thenReturn(List.of());
         when(chatMessageRepository.save(any(ChatMessage.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -166,13 +168,14 @@ class ChatMessageServiceTest {
         User user = createUser(1L);
         ChatSession session = ChatSession.builder()
                 .id(10L)
-                .user(user)
+                .userId(1L)
+                .userKey("user-key-1")
                 .build();
         SendChatMessageRequest request = new SendChatMessageRequest();
         ReflectionTestUtils.setField(request, "content", "서울 월세 지원 알려줘");
 
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
-        when(chatSessionRepository.findByIdAndUserId(10L, 1L)).thenReturn(Optional.of(session));
+        when(chatSessionRepository.findByIdAndUserKey(10L, "user-key-1")).thenReturn(Optional.of(session));
         when(chatPolicyService.findCandidates("서울 월세 지원 알려줘", 3)).thenReturn(List.of(
                 ChatPolicyCandidate.builder()
                         .serviceId(1829L)
@@ -210,7 +213,7 @@ class ChatMessageServiceTest {
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.CHAT_RATE_LIMIT_EXCEEDED);
 
-        verify(chatSessionRepository, never()).findByIdAndUserId(10L, 1L);
+        verify(chatSessionRepository, never()).findByIdAndUserKey(10L, "user-key-1");
         verify(chatMessageRepository, never()).save(any(ChatMessage.class));
     }
 
@@ -220,7 +223,8 @@ class ChatMessageServiceTest {
         User user = createUser(1L);
         ChatSession session = ChatSession.builder()
                 .id(10L)
-                .user(user)
+                .userId(1L)
+                .userKey("user-key-1")
                 .title("주거 상담")
                 .build();
         ChatMessage userMessage = ChatMessage.builder()
@@ -238,7 +242,7 @@ class ChatMessageServiceTest {
                 .build();
 
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
-        when(chatSessionRepository.findByIdAndUserId(10L, 1L)).thenReturn(Optional.of(session));
+        when(chatSessionRepository.findByIdAndUserKey(10L, "user-key-1")).thenReturn(Optional.of(session));
         when(chatMessageRepository.findBySessionIdOrderByCreatedAtAsc(10L))
                 .thenReturn(List.of(userMessage, assistantMessage));
 
@@ -255,7 +259,7 @@ class ChatMessageServiceTest {
         User user = createUser(1L);
 
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
-        when(chatSessionRepository.findByIdAndUserId(99L, 1L)).thenReturn(Optional.empty());
+        when(chatSessionRepository.findByIdAndUserKey(99L, "user-key-1")).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> chatMessageService.getMessages(1L, 99L))
                 .isInstanceOf(CustomException.class)
@@ -266,6 +270,7 @@ class ChatMessageServiceTest {
     private User createUser(Long userId) {
         return User.builder()
                 .id(userId)
+                .userKey("user-key-" + userId)
                 .email("chat@example.com")
                 .passwordHash("hash")
                 .build();

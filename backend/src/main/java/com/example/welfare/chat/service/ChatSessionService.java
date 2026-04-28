@@ -29,7 +29,7 @@ public class ChatSessionService {
     public ChatSessionResponse createSession(Long userId, CreateChatSessionRequest request) {
         User user = findActiveUser(userId);
         ChatSession session = chatSessionRepository.save(ChatSession.builder()
-                .user(user)
+                .userId(user.getId())
                 .userKey(user.getUserKey())
                 .title(normalizeTitle(request != null ? request.getTitle() : null))
                 .build());
@@ -38,9 +38,9 @@ public class ChatSessionService {
 
     @Transactional(readOnly = true)
     public List<ChatSessionResponse> getSessions(Long userId) {
-        findActiveUser(userId);
-        return chatSessionRepository.findByUserIdOrderByLastMessageAtDesc(
-                        userId, PageRequest.of(0, RECENT_SESSION_LIMIT))
+        User user = findActiveUser(userId);
+        return chatSessionRepository.findByUserKeyOrderByLastMessageAtDesc(
+                        user.getUserKey(), PageRequest.of(0, RECENT_SESSION_LIMIT))
                 .stream()
                 .map(ChatSessionResponse::from)
                 .toList();
@@ -48,8 +48,8 @@ public class ChatSessionService {
 
     @Transactional
     public void deleteSession(Long userId, Long sessionId) {
-        findActiveUser(userId);
-        ChatSession session = chatSessionRepository.findByIdAndUserId(sessionId, userId)
+        User user = findActiveUser(userId);
+        ChatSession session = chatSessionRepository.findByIdAndUserKey(sessionId, user.getUserKey())
                 .orElseThrow(() -> new CustomException(ErrorCode.CHAT_SESSION_NOT_FOUND));
         chatSessionRepository.delete(session);
     }

@@ -198,7 +198,7 @@ public class AuthService {
         user.resetLoginFail();
         userCoreSyncService.syncFromUser(user);
         clearPasswordResetToken(userKey, resetToken);
-        deleteRefreshToken(user.getId(), userKey);
+        deleteRefreshToken(userKey);
     }
 
     @Transactional
@@ -211,15 +211,10 @@ public class AuthService {
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
         String key = REFRESH_TOKEN_PREFIX + userKey;
         String stored = redisTemplate.opsForValue().get(key);
-        String legacyKey = buildLegacyRefreshTokenKey(userId);
-        if (stored == null) {
-            stored = redisTemplate.opsForValue().get(legacyKey);
-        }
 
         // Reuse Detection: 저장된 토큰과 다르면 탈취 가능성 → 전체 무효화
         if (stored == null || !stored.equals(refreshToken)) {
             redisTemplate.delete(key);
-            redisTemplate.delete(legacyKey);
             throw new CustomException(ErrorCode.REUSED_REFRESH_TOKEN);
         }
 
@@ -228,7 +223,6 @@ public class AuthService {
 
         // Rotation: 새 Refresh Token으로 교체
         saveRefreshToken(userKey, newRefreshToken);
-        redisTemplate.delete(legacyKey);
 
         return TokenResponse.of(newAccessToken, newRefreshToken);
     }
@@ -236,18 +230,15 @@ public class AuthService {
     @Transactional
     public void logout(Long userId) {
         String userKey = resolveUserKey(userId);
-        deleteRefreshToken(userId, userKey);
+        deleteRefreshToken(userKey);
         chatSessionCleanupService.deleteAllByUserKey(userKey);
-        chatSessionCleanupService.deleteAllByUserId(userId);
     }
 
     @Transactional
     public void logoutByRefreshToken(String refreshToken) {
         String userKey = resolveTokenUserKeyAllowExpired(refreshToken);
-        Long userId = jwtUtil.getUserIdAllowExpired(refreshToken);
-        deleteRefreshToken(userId, userKey);
+        deleteRefreshToken(userKey);
         chatSessionCleanupService.deleteAllByUserKey(userKey);
-        chatSessionCleanupService.deleteAllByUserId(userId);
     }
 
     private void saveRefreshToken(String userKey, String refreshToken) {
@@ -329,29 +320,24 @@ public class AuthService {
         return List.of("ROLE_USER");
     }
 
-    private void deleteRefreshToken(Long userId, String userKey) {
+    private void deleteRefreshToken(String userKey) {
         redisTemplate.delete(REFRESH_TOKEN_PREFIX + userKey);
-        redisTemplate.delete(buildLegacyRefreshTokenKey(userId));
-    }
-
-    private String buildLegacyRefreshTokenKey(Long userId) {
-        return REFRESH_TOKEN_PREFIX + userId;
     }
 
     private String resolveTokenUserKey(String token) {
-        return normalizeSubjectToUserKey(jwtUtil.getSubject(token), jwtUtil.getUserId(token));
+        return requireUserKeySubject(jwtUtil.getSubject(token));
     }
 
     private String resolveTokenUserKeyAllowExpired(String token) {
-        return normalizeSubjectToUserKey(jwtUtil.getSubjectAllowExpired(token), jwtUtil.getUserIdAllowExpired(token));
+        return requireUserKeySubject(jwtUtil.getSubjectAllowExpired(token));
     }
 
-    private String normalizeSubjectToUserKey(String subject, Long fallbackUserId) {
+    private String requireUserKeySubject(String subject) {
         if (!StringUtils.hasText(subject)) {
             throw new CustomException(ErrorCode.INVALID_TOKEN);
         }
         if (subject.chars().allMatch(Character::isDigit)) {
-            return resolveUserKey(fallbackUserId);
+            throw new CustomException(ErrorCode.INVALID_TOKEN);
         }
         return subject;
     }

@@ -1,7 +1,6 @@
 package com.example.welfare.recommend.entity;
 
 import com.example.welfare.policy.entity.WelfareService;
-import com.example.welfare.user.entity.User;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -24,9 +23,8 @@ public class RecommendationLog {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false)
-    private User user;
+    @Column(name = "user_id", nullable = false)
+    private Long userId;
 
     @Column(name = "user_key", length = 32, columnDefinition = "CHAR(32)")
     private String userKey;

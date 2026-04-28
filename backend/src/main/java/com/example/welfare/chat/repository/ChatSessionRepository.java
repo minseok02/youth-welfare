@@ -12,16 +12,9 @@ import java.util.Optional;
 
 public interface ChatSessionRepository extends JpaRepository<ChatSession, Long> {
 
-    List<ChatSession> findByUserIdOrderByLastMessageAtDesc(Long userId, Pageable pageable);
+    List<ChatSession> findByUserKeyOrderByLastMessageAtDesc(String userKey, Pageable pageable);
 
-    Optional<ChatSession> findByIdAndUserId(Long sessionId, Long userId);
-
-    @Modifying
-    @Query("""
-            DELETE FROM ChatSession cs
-            WHERE cs.user.id = :userId
-            """)
-    void deleteByUserId(@Param("userId") Long userId);
+    Optional<ChatSession> findByIdAndUserKey(Long sessionId, String userKey);
 
     @Modifying
     @Query("""

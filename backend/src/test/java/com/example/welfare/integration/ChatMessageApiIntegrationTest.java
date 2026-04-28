@@ -100,9 +100,11 @@ class ChatMessageApiIntegrationTest {
     void getMessagesReturnsAscendingMessages() throws Exception {
         User user = createUser();
         String accessToken = jwtUtil.generateAccessToken(user.getId());
+        String userKey = userRepository.findUserKeyById(user.getId()).orElseThrow();
 
         ChatSession session = chatSessionRepository.save(ChatSession.builder()
-                .user(user)
+                .userId(user.getId())
+                .userKey(userKey)
                 .title("주거 상담")
                 .build());
 
@@ -143,9 +145,11 @@ class ChatMessageApiIntegrationTest {
         User owner = createUser();
         User other = createUser();
         String ownerToken = jwtUtil.generateAccessToken(owner.getId());
+        String otherKey = userRepository.findUserKeyById(other.getId()).orElseThrow();
 
         ChatSession otherSession = chatSessionRepository.save(ChatSession.builder()
-                .user(other)
+                .userId(other.getId())
+                .userKey(otherKey)
                 .title("다른 사람 세션")
                 .build());
 
@@ -161,9 +165,11 @@ class ChatMessageApiIntegrationTest {
         User user = createUser();
         String accessToken = jwtUtil.generateAccessToken(user.getId());
         String uniqueKeyword = "chatmsgtok123";
+        String userKey = userRepository.findUserKeyById(user.getId()).orElseThrow();
 
         ChatSession session = chatSessionRepository.save(ChatSession.builder()
-                .user(user)
+                .userId(user.getId())
+                .userKey(userKey)
                 .build());
 
         welfareServiceRepository.save(WelfareService.builder()
@@ -217,9 +223,11 @@ class ChatMessageApiIntegrationTest {
         User owner = createUser();
         User other = createUser();
         String ownerToken = jwtUtil.generateAccessToken(owner.getId());
+        String otherKey = userRepository.findUserKeyById(other.getId()).orElseThrow();
 
         ChatSession otherSession = chatSessionRepository.save(ChatSession.builder()
-                .user(other)
+                .userId(other.getId())
+                .userKey(otherKey)
                 .title("다른 사람 세션")
                 .build());
 
@@ -237,9 +245,11 @@ class ChatMessageApiIntegrationTest {
         User user = createUser();
         String accessToken = jwtUtil.generateAccessToken(user.getId());
         String uniqueKeyword = "chatlimit123";
+        String userKey = userRepository.findUserKeyById(user.getId()).orElseThrow();
 
         ChatSession session = chatSessionRepository.save(ChatSession.builder()
-                .user(user)
+                .userId(user.getId())
+                .userKey(userKey)
                 .build());
 
         WelfareService service = welfareServiceRepository.save(WelfareService.builder()

@@ -209,6 +209,7 @@ class UserServiceTest {
     void withdrawDeletesChatSessionsBeforeMaskingUser() {
         User user = User.builder()
                 .id(1L)
+                .userKey("user-key-1")
                 .email("user@example.com")
                 .passwordHash("encoded-password")
                 .name("tester")
@@ -220,7 +221,7 @@ class UserServiceTest {
 
         verify(userAttributeRepository).deleteByUserId(1L);
         verify(userPriorityRepository).deleteByUserId(1L);
-        verify(chatSessionCleanupService).deleteAllByUserId(1L);
+        verify(chatSessionCleanupService).deleteAllByUserKey(user.getUserKey());
         verify(userCoreSyncService).syncFromUser(user);
         assertThat(user.isActive()).isFalse();
         assertThat(user.getEmail()).isEqualTo("withdrawn_1");

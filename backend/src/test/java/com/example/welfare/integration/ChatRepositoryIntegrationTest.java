@@ -58,15 +58,18 @@ class ChatRepositoryIntegrationTest {
                 .name("Chat Integration")
                 .birthDate(LocalDate.of(2000, 1, 1))
                 .build());
+        String userKey = userRepository.findUserKeyById(user.getId()).orElseThrow();
 
         ChatSession olderSession = chatSessionRepository.save(ChatSession.builder()
-                .user(user)
+                .userId(user.getId())
+                .userKey(userKey)
                 .title("이전 세션")
                 .lastMessageAt(LocalDateTime.of(2026, 4, 25, 9, 0))
                 .build());
 
         ChatSession latestSession = chatSessionRepository.save(ChatSession.builder()
-                .user(user)
+                .userId(user.getId())
+                .userKey(userKey)
                 .title("최신 세션")
                 .lastMessageAt(LocalDateTime.of(2026, 4, 25, 10, 0))
                 .build());
@@ -98,13 +101,13 @@ class ChatRepositoryIntegrationTest {
                 secondMessage.getId()
         );
 
-        List<ChatSession> sessions = chatSessionRepository.findByUserIdOrderByLastMessageAtDesc(
-                user.getId(), PageRequest.of(0, 10));
+        List<ChatSession> sessions = chatSessionRepository.findByUserKeyOrderByLastMessageAtDesc(
+                userKey, PageRequest.of(0, 10));
         List<ChatMessage> messagesAsc = chatMessageRepository.findBySessionIdOrderByCreatedAtAsc(latestSession.getId());
         List<ChatMessage> messagesDesc = chatMessageRepository.findBySessionIdOrderByCreatedAtDesc(
                 latestSession.getId(), PageRequest.of(0, 1));
 
-        assertThat(chatSessionRepository.findByIdAndUserId(latestSession.getId(), user.getId())).isPresent();
+        assertThat(chatSessionRepository.findByIdAndUserKey(latestSession.getId(), userKey)).isPresent();
         assertThat(sessions).extracting(ChatSession::getTitle)
                 .containsExactly("최신 세션", "이전 세션");
         assertThat(messagesAsc).extracting(ChatMessage::getRole)
@@ -128,9 +131,11 @@ class ChatRepositoryIntegrationTest {
                 .passwordHash("pw")
                 .name("Cascade Chat")
                 .build());
+        String userKey = userRepository.findUserKeyById(user.getId()).orElseThrow();
 
         ChatSession session = chatSessionRepository.save(ChatSession.builder()
-                .user(user)
+                .userId(user.getId())
+                .userKey(userKey)
                 .title("삭제 세션")
                 .build());
 

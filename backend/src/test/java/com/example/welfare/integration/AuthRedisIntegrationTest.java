@@ -191,7 +191,8 @@ class AuthRedisIntegrationTest {
         User user = userRepository.findByEmail(email).orElseThrow();
         String userKey = userRepository.findUserKeyById(user.getId()).orElseThrow();
         ChatSession chatSession = chatSessionRepository.save(ChatSession.builder()
-                .user(user)
+                .userId(user.getId())
+                .userKey(userKey)
                 .title("로그아웃 전 세션")
                 .build());
         chatMessageRepository.save(ChatMessage.builder()

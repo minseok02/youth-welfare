@@ -397,3 +397,13 @@
 - 문제: `users` row 만 삭제하고 split table row 를 그대로 두면, 같은 이메일로 다시 fixture 를 만들 때 `auth_users.email_lookup_hash` unique 충돌이 발생할 수 있었음
 - 해결: 고정 이메일 fixture 를 쓰는 `AdminSecurityIntegrationTest` 에서 `UserCoreSyncService` 기반 생성과 `auth_users/user_profiles/user_pii` 동시 정리 루틴을 추가
 - 이유: dual-write 단계에서는 legacy 테이블 하나만 source of truth 라고 가정하면 안 된다. 테스트 fixture, 수동 운영 스크립트, admin bootstrap 모두 split table 동시 정리 기준을 따라야 재시도 가능성이 유지된다
+
+## 78) `user_key` 기준 소유권/cleanup 으로 넘어간 뒤 직접 insert fixture 가 `user_key` 를 빼먹으면 새 경로 검증이 어긋날 수 있음
+- 문제: `chat_sessions`, `notifications`, `recommendation_logs` 를 `user_key` 기준으로 조회/cleanup 하도록 바꾼 뒤에도 테스트나 수동 SQL fixture 가 `user_id` 만 채우고 `user_key` 를 비워두면, 로그아웃 cleanup, 채팅 소유권 검증, 알림 retry 가 실제 런타임 경로와 다르게 동작할 수 있었음
+- 해결: 관련 integration/unit test 의 직접 insert fixture 를 `userId + userKey` 동시 기록 기준으로 정리하고, 새 코드에서는 `user_key` 누락 시 fallback 하지 않도록 고정
+- 이유: cut-over 단계에서 가장 위험한 상태는 "코드는 새 식별자를 쓰는데 fixture 만 옛 식별자를 쓰는 경우"다. 테스트 데이터도 운영 경로와 같은 식별자 계약을 강제해야 재발을 막을 수 있다
+
+## 79) legacy refresh token fallback 제거는 배포 시점에 구형 토큰을 즉시 무효화한다
+- 문제: refresh token subject 숫자 fallback 과 `refresh:<userId>` Redis key fallback 을 제거하면, cut-over 이전 형식으로 발급된 refresh token 은 재발급에 실패하게 된다
+- 해결: 현재 코드는 `user_key` subject 와 `refresh:<userKey>` 저장분만 허용하도록 정리했고, full 검증은 `./gradlew test --no-daemon`, `./gradlew integrationTest --no-daemon` 로 확인
+- 이유: fallback 을 오래 끌수록 `user_id` 제거가 다시 어려워진다. 이 단계에서는 호환성보다 식별자 계약 단일화가 더 중요하고, 구형 refresh token 은 재로그인으로 회복 가능하므로 의도적 정리로 보는 편이 맞다

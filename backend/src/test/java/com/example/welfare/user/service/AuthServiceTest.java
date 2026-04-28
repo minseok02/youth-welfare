@@ -185,7 +185,6 @@ class AuthServiceTest {
         verify(redisTemplate).delete("password-reset:reset-token");
         verify(redisTemplate).delete("password-reset:user:user-key-7");
         verify(redisTemplate).delete("refresh:user-key-7");
-        verify(redisTemplate).delete("refresh:7");
         org.assertj.core.api.Assertions.assertThat(user.getPasswordHash()).isEqualTo("encoded-password");
         org.assertj.core.api.Assertions.assertThat(user.getLoginFailCount()).isZero();
     }
