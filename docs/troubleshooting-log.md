@@ -587,3 +587,8 @@
 - 문제: admin logout smoke에서 `POST /api/auth/logout` 뒤 바로 `POST /api/auth/refresh` 를 호출했더니, Redis에 저장된 refresh token이 지워졌으므로 재사용 탐지 성격의 오류를 기대하기 쉬웠지만 실제 응답은 `401`, `errorCode=A001` 이었음
 - 해결: smoke 기대값과 문서를 `logout -> refresh cookie clear -> 직후 refresh는 A001` 기준으로 정리하고, 성공 판단은 이후 재로그인으로 admin 보호 API가 다시 회복되는지까지 포함하도록 맞췄음
 - 이유: 현재 logout 응답은 `Set-Cookie` 로 `refresh_token` 자체를 먼저 비우므로, 클라이언트는 재호출 시 토큰이 없는 상태로 `/api/auth/refresh` 를 치게 된다. 이 경우 서버는 reuse 검출보다 앞단의 “토큰 없음/비어 있음” 경로에서 `INVALID_TOKEN` 을 반환하는 것이 자연스럽다
+
+## 116) logout 은 refresh token만 회수하므로 이미 발급된 access token은 만료 전까지 보호 API에 계속 통과할 수 있음
+- 문제: pre-28 migrated DB 기준 로컬 smoke에서 `POST /api/auth/logout` 뒤 refresh cookie는 정상적으로 비워지고 직후 `POST /api/auth/refresh` 도 `401 / A001` 로 막혔지만, logout 전에 받은 old admin access token으로 `GET /api/admin/users/pii-sync-status`, `POST /api/admin/users/pii-sync-replay?userKey=<USER_KEY>` 를 다시 호출하면 둘 다 계속 `200` 으로 통과했음
+- 해결: 현재 동작을 `docs/phase-plan.md`, `docs/runtime-api-smoke-commands.md` 에 명시하고, “logout 후 access token 즉시 무효화 전략 검토/구현” 을 별도 hardening task로 작업 추적에 추가했음
+- 이유: 현재 `JwtAuthenticationFilter` 는 bearer access token의 서명/만료만 검증하고 별도 Redis blacklist나 logout cutoff를 조회하지 않으며, `logout` 구현도 refresh token 삭제와 cookie clear에만 집중한다. 따라서 이미 발급된 access token은 만료 전까지 stateless 하게 유효한 것이 현재 설계상 자연스러운 결과다
