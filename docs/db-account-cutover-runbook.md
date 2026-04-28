@@ -6,6 +6,7 @@
 관련 파일:
 
 - [`deploy/mysql/runtime-db-accounts.sql.example`](../deploy/mysql/runtime-db-accounts.sql.example)
+- [`deploy/smoke/preflight-runtime-cutover-env.sh`](../deploy/smoke/preflight-runtime-cutover-env.sh)
 - [`docs/deployment.md`](./deployment.md)
 - [`docs/db-migration.md`](./db-migration.md)
 
@@ -125,13 +126,20 @@ DB_NOTIFICATION_PII_RO_USERNAME=notification_pii_ro
 DB_NOTIFICATION_PII_RO_PASSWORD=<notification_pii_ro password>
 ```
 
+변경 후 앱 재기동 전에 env preflight를 먼저 돌립니다.
+
+```bash
+ENV_FILE=.env deploy/smoke/preflight-runtime-cutover-env.sh
+```
+
 적용 순서:
 
 1. DB 계정 SQL 적용
 2. `app_core_rw` 로그인/권한 확인
 3. 운영 `.env` 또는 secret 갱신
-4. 앱 재기동
-5. health check, 로그인, 추천, 북마크 최소 smoke
+4. `deploy/smoke/preflight-runtime-cutover-env.sh` 실행
+5. 앱 재기동
+6. health check, 로그인, 추천, 북마크 최소 smoke
 
 주의:
 
@@ -156,6 +164,7 @@ docker compose -f docker-compose.yml up -d --build app
 - [ ] `app_core_rw` 가 `youth_welfare_pii.user_pii` 를 읽지 못하는지 확인
 - [ ] `notification_pii_ro`가 `phone_enc`를 읽지 못하는지 확인
 - [ ] 운영 `.env`의 `DB_USERNAME`, `DB_PASSWORD`, `APP_PII_DB_URL`, `NOTIFICATION_PII_DB_URL`, `DB_APP_PII_*`, `DB_NOTIFICATION_PII_RO_*` 변경
+- [ ] `ENV_FILE=.env deploy/smoke/preflight-runtime-cutover-env.sh` 통과
 - [ ] 앱 재기동
 - [ ] `/actuator/health` 200 확인
 - [ ] 로그인 / refresh / 추천 목록 / 북마크 토글 smoke 확인

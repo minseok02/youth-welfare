@@ -527,3 +527,8 @@
 - 문제: `docker-compose.yml` 의 DB init용 `MYSQL_APP_USERNAME` 이 runtime `DB_USERNAME` 을 그대로 따라가면, 로컬 `.env` 가 아직 `root` 인 상태에서 fresh init 할 때 `app_core_rw` 대신 root 성격 계정만 만들어져 integration profile이나 reduced-grant smoke가 실제 운영 계정 구조를 검증하지 못할 수 있었음
 - 해결: DB init용 기본값을 `MYSQL_APP_USERNAME=app_core_rw` 로 runtime `DB_USERNAME` 과 분리하고, `application-integration.yml` 도 `app_core_rw` / `app_pii_rw` / `notification_pii_ro` 기준으로 정리한 뒤 fresh init + `AuthRedisIntegrationTest` + container smoke로 다시 검증했음
 - 이유: 런타임 앱이 어떤 계정으로 붙는지와 fresh init 시 어떤 계정을 seed할지는 별개다. init 계정 생성이 stale local env에 끌려가면 테스트가 실제 운영 설계가 아니라 개발자 개인 `.env` 상태를 검증하게 되므로, seed 기본값은 문서화된 split-account 기준으로 고정하는 편이 재발 방지에 안전하다
+
+## 104) 운영 env 전환은 앱 startup validation만 믿으면 재기동까지 기다린 뒤에야 실수를 발견하게 됨
+- 문제: `APP_PII_DB_URL`, `NOTIFICATION_PII_DB_URL`, split datasource username을 잘못 넣어도 앱 startup validation은 재기동 후에야 터지므로, 운영 cutover 직전에 `.env` / secret store 값을 안전하게 검토하는 빠른 preflight가 없으면 배포 시점에만 문제를 발견하게 될 수 있었음
+- 해결: `deploy/smoke/preflight-runtime-cutover-env.sh` 를 추가해 `.env` 또는 export된 env를 기준으로 필수 변수, 기대 username, core/PII schema 분리, secondary URL 오배치, 가능하면 `docker compose config` 렌더링까지 앱 기동 전에 확인하도록 정리하고 runbook/deployment 문서에 선행 단계로 반영했음
+- 이유: 운영 전환 검증은 “앱이 실패하면 알 수 있다”가 아니라 “앱을 띄우기 전에 틀린 값을 걸러낸다”가 더 안전하다. 특히 secret store 갱신과 재기동 사이의 피드백 루프를 줄여야 cutover 시간을 짧게 유지할 수 있다

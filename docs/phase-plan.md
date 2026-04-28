@@ -14,6 +14,7 @@ CTR 분석 기본 쿼리 실행 결과를 확보했고, 현재 데이터는 `46�
 데모 시나리오 전체 실행 완료 및 발견된 문제 수정됐습니다.
 로컬 Docker MySQL 기준 `user_pii` 24건 중 `email_enc` 24건, `name_enc` 21건, `birth_date_enc` 21건이 채워졌고, 남은 3건은 원본 `users.name/birth_date` 가 비어 있어 skip 됐습니다.
 로컬 fresh init 기준으로는 `APP_PII_DB_URL` / `NOTIFICATION_PII_DB_URL` 를 `youth_welfare_pii` schema로 교정한 뒤 reduced-grant Docker Compose 기동과 `deploy/smoke/run-local-pii-sync-cutover-smoke.sh` one-shot smoke까지 통과했습니다.
+운영 env 전환 전에는 `deploy/smoke/preflight-runtime-cutover-env.sh` 로 `.env` / secret export 값의 split-account/schema 규칙과 `docker compose config` 렌더링을 먼저 확인할 수 있게 정리했습니다.
 남은 작업은 운영 배포/운영성 검증(운영 서버 Docker Compose, 기존 운영 DB 계정 생성 SQL 적용 및 datasource 전환, 운영 `.env` / secret store의 `APP_PII_DB_URL` / `NOTIFICATION_PII_DB_URL` 를 `youth_welfare_pii` 기준으로 전환, HTTPS/Nginx, 운영 DB에 `V2026_04_28_02__add_user_pii_sync_queue.sql` / `V2026_04_28_01__drop_runtime_legacy_user_id.sql` 적용 후 smoke 검증, 기존 운영 DB에 `app_core_rw` 의 `youth_welfare_pii.user_pii` revoke SQL 실제 적용과 보조 datasource smoke 검증, CTR 표본 확충 후 재분석)과 2차 확장 기능(군집 캐시 추천, 카카오 알림톡, 검색 로그, 대시보드)입니다.
 
 ## 완료된 백엔드 1차 범위
@@ -60,6 +61,11 @@ CTR 분석 기본 쿼리 실행 결과를 확보했고, 현재 데이터는 `46�
 - 2026-04-28 secondary datasource schema startup validation 및 integration profile split-account 정리 후 `backend`에서 `./gradlew integrationTest --no-daemon --tests com.example.welfare.integration.AuthRedisIntegrationTest`
 - 2026-04-28 secondary datasource schema startup validation 및 integration profile split-account 정리 후 `SMOKE_RESET_DB=true APP_HEALTH_TIMEOUT_SECONDS=180 deploy/smoke/run-local-pii-sync-cutover-smoke.sh`
 - 2026-04-28 secondary datasource schema startup validation 및 integration profile split-account 정리 후 `git diff --check`
+- 2026-04-28 운영 cutover env preflight 스크립트 추가 후 `bash -n deploy/smoke/preflight-runtime-cutover-env.sh`
+- 2026-04-28 운영 cutover env preflight 스크립트 추가 후 `ENV_FILE=.env.example deploy/smoke/preflight-runtime-cutover-env.sh`
+- 2026-04-28 운영 cutover env preflight 스크립트 추가 후 임시 invalid env로 실패 경로 확인
+  - `APP_PII_DB_URL=.../youth_welfare` 입력 시 preflight가 schema mismatch로 즉시 실패하는 것 확인
+- 2026-04-28 운영 cutover env preflight 스크립트 추가 후 `git diff --check`
 - 2026-04-28 기존 운영 DB 계정 생성 SQL/runbook 정리 후 `rg -n "db-account-cutover-runbook|runtime-db-accounts.sql.example" docs deploy`
 - 2026-04-28 기존 운영 DB 계정 생성 SQL/runbook 정리 후 `git diff --check`
 - 2026-04-28 알림 대상 이메일 조회를 `notification_pii_ro` secondary datasource로 분리 후 `backend`에서 `./gradlew test --no-daemon --tests com.example.welfare.user.service.UserReadServiceTest --tests com.example.welfare.notification.service.NotificationServiceTest`
@@ -551,6 +557,7 @@ CTR 분석 기본 쿼리 실행 결과를 확보했고, 현재 데이터는 `46�
 
 ### 완료
 
+- [x] 운영 cutover `.env` / secret preflight 스크립트 추가
 - [x] secondary datasource schema startup validation 및 integration profile split-account 정리
 - [x] 보조 datasource 기본 URL을 `youth_welfare_pii` schema로 교정하고 local reduced-grant smoke 래퍼 추가
 - [x] 신규 init/runbook 기준 `app_core_rw` 의 `user_pii` DML grant 제거
