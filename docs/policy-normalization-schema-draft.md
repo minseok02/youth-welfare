@@ -143,6 +143,11 @@
 - `code_set_key=YOUTH_MAJOR`, `code=JOB`, `label=일자리`
 - `code_set_key=SYSTEM_COMPAT_UNIFIED_CATEGORY`, `code=HOUSING`, `label=주거`
 
+설계 메모:
+
+- `YOUTH_MID` 는 온통청년 공개 `정책중분류` 시트에 라벨/정렬순서만 보이고 stable code 값은 확인되지 않았다.
+- 따라서 전환 초기에는 `normalization_codes` 에 임의 `YOUTH_MID` code 를 넣지 않고, `service_taxonomy_terms.term_code=''` + `term_label` 조합으로 official label만 먼저 적재하는 안을 유지한다.
+
 ## 테이블 3. `service_taxonomies`
 
 서비스당 1행을 기본으로 두는 canonical taxonomy summary 테이블.
@@ -219,6 +224,7 @@
 용도 예시:
 
 - 온통청년 `정책키워드`
+- 온통청년 `정책중분류` label-only term
 - 복지로 `life stage / interest theme / target group`
 - Gov24 `사용자구분` 복수 항목
 - system-derived `compatibility category signal`

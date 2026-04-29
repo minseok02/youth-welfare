@@ -222,6 +222,12 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
   - `docs/db-migration.md` 에 draft SQL 목적과 남은 import 범위를 반영
 - 2026-04-30 정책 canonical code set seed/backfill SQL draft 작성 후 `rg -n "seed_policy_normalization_codes|SYSTEM_COMPAT_UNIFIED_CATEGORY|YOUTH_MAJOR|service_taxonomies summary backfill|YOUTH_MID.*metadata" docs backend/src/main/resources -g'*.md' -g'*.sql'`
 - 2026-04-30 정책 canonical code set seed/backfill SQL draft 작성 후 `git diff --check`
+- 2026-04-30 정책 official code subset seed/backfill SQL draft 작성
+  - `backend/src/main/resources/db/migration-draft/V2026_04_30_03__seed_policy_official_code_subsets.sql` 를 추가해 온통청년 공개 코드정의서의 stable code 집합(`YOUTH_PROVIDER_GROUP`, `YOUTH_PROVISION_METHOD`, `YOUTH_*_REQUIREMENT`, `YOUTH_MARITAL_STATUS`, `YOUTH_INCOME_CONDITION_TYPE`)과 대표 `GOV24_SUPPORT_CONDITION` 공식 코드를 seed 하는 초안을 정리
+  - `YOUTH_MID` 는 공식 sheet 에 stable code 값이 없어 `normalization_codes` import 대신 `service_taxonomy_terms.term_code=''` label-only backfill 로만 처리하고, `GOV24_SERVICE_FIELD` / `GOV24_USER_TYPE` / `GOV24_BENEFIT_TYPE` 는 finite code inventory 확보 전까지 metadata-only 로 남기는 방향을 문서와 같이 고정
+  - `docs/policy-normalization-schema-draft.md`, `docs/db-migration.md` 에 label-only `YOUTH_MID` 와 representative `GOV24_SUPPORT_CONDITION` 범위를 반영
+- 2026-04-30 정책 official code subset seed/backfill SQL draft 작성 후 `rg -n "seed_policy_official_code_subsets|YOUTH_MID.*label-only|GOV24_SUPPORT_CONDITION|YOUTH_PROVISION_METHOD" docs backend/src/main/resources -g'*.md' -g'*.sql'`
+- 2026-04-30 정책 official code subset seed/backfill SQL draft 작성 후 `git diff --check`
 - 2026-04-28 pre-28 migrated DB 기준 admin logout / refresh invalidation / relogin smoke
   - `SECURITY_ADMIN_EMAILS=admin.logout.smoke@example.com` 으로 최신 앱을 기동한 뒤, admin 계정 로그인과 프로필 수정으로 queue row를 `SYNCED` 상태까지 맞추고 `POST /api/auth/refresh` 가 먼저 성공하는 것 확인
   - 같은 cookie jar + access token으로 `POST /api/auth/logout` 호출 후 cookie jar에서 `refresh_token` 이 제거되고, 직후 `POST /api/auth/refresh` 가 `401`, `errorCode=A001` 로 막히는 것 확인
@@ -831,7 +837,9 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - [ ] 한국장학재단/국가장학금 계열의 `제도 row` 와 `지원가능대학/학기/지원구간` reference matrix 분리 모델 초안 작성
 - [ ] 복지로 live detail 적재 기준 `welfare_service_details` / `service_facts` validation 리허설
 - [ ] `DeferredNormalizedPolicySidecarWriter` 를 실제 `service_taxonomies / service_taxonomy_terms / service_facts` DB persistence writer 로 교체
-- [ ] `YOUTH_MID`, `GOV24_SERVICE_FIELD`, `GOV24_USER_TYPE`, `GOV24_BENEFIT_TYPE`, `GOV24_SUPPORT_CONDITION` 공식 code import/backfill SQL 초안 작성
+- [ ] `YOUTH_MID` stable code 정책 결정 및 `normalization_codes` import 초안 작성
+- [ ] `GOV24_SERVICE_FIELD`, `GOV24_USER_TYPE`, `GOV24_BENEFIT_TYPE` 공식 label inventory import/backfill SQL 초안 작성
+- [ ] `GOV24_SUPPORT_CONDITION` 전체 code inventory 확장 및 `service_facts` backfill 초안 작성
 - [ ] `compat_unified_category` 를 저장 필드로 둘지 read-model 계산값으로 둘지 최종 결정
 - [ ] `TextConstraintExtractor` 를 `service_facts` 저장 규격에 맞춘 출력 모델로 재설계
 - [ ] `WelfareServiceRepository.findCandidates*`, `RetrievalService`, `RuleScoringService`, `DefaultPriorityMatcher` 의 점진 이행 순서 설계
@@ -850,6 +858,7 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 
 ### 완료
 
+- [x] 온통청년 stable official code subset + 대표 `GOV24_SUPPORT_CONDITION` seed/backfill SQL 초안 작성
 - [x] `normalization_code_sets / normalization_codes` seed/backfill SQL 초안 작성
 - [x] `service_taxonomies / service_taxonomy_terms / service_facts` 생성 migration SQL 초안 작성
 - [x] future `service_facts` saver 가 `NormalizedFactMergeSupport` 를 재사용하도록 실제 sidecar 저장 경로 연결

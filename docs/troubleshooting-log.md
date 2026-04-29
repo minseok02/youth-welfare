@@ -722,3 +722,8 @@
 - 문제: `normalization_code_sets / normalization_codes` seed/backfill draft 를 만들 때 `service_taxonomies` summary backfill 을 빨리 끝내려고 `YOUTH_MID` 나 `GOV24_SERVICE_FIELD` 코드를 내부 규칙으로 임의 생성해 넣어버리면, 나중에 온통청년/Gov24 공식 코드북을 가져올 때 같은 라벨이 다른 code 로 중복되거나 기존 summary row 와 호환되지 않을 위험이 있었음
 - 해결: `V2026_04_30_02__seed_policy_normalization_codes.sql` draft 에서는 `SYSTEM_COMPAT_UNIFIED_CATEGORY`, `YOUTH_MAJOR` 만 대표 code seed 로 넣고, `YOUTH_MID`, `GOV24_*`, `GOV24_SUPPORT_CONDITION` 은 metadata set만 먼저 생성한 뒤 공식 code import/backfill SQL을 후속 task로 분리했음
 - 이유: canonical code table 은 한 번 잘못 seed 하면 이후 backfill/persistence/read-model 전부가 그 코드를 따라가게 된다. 공식 근거가 없는 계층은 metadata까지만 먼저 열고 code 값은 공식 source 확보 후 넣는 편이 호환성과 재발 방지에 안전하다
+
+## 143) 같은 온통청년 공개 코드정의서 안에서도 어떤 집합은 stable code 값이 있고(`jobCd`, `schoolCd` 등), 어떤 집합은 라벨/정렬만 공개(`정책중분류`)되어 있어 import 전략을 한 파일로 뭉개면 다시 임의 code 생성이 섞일 수 있음
+- 문제: 이번에 official code import draft 를 이어서 만들 때, `jobCd=0013003`, `schoolCd=0049005` 처럼 실제 code 가 공개된 집합과 `정책중분류=취업/재직자/...` 처럼 번호+라벨만 보이는 집합을 같은 방식으로 `normalization_codes` 에 넣으려 하면 결국 `YOUTH_MID` 에 내부 surrogate code 를 급하게 발급하게 될 위험이 있었음
+- 해결: `V2026_04_30_03__seed_policy_official_code_subsets.sql` 에서는 stable code 가 확인된 온통청년 집합과 representative `GOV24_SUPPORT_CONDITION` 만 `normalization_codes` 로 seed 하고, `YOUTH_MID` 는 `service_taxonomy_terms.term_code=''` label-only backfill 로만 처리하도록 분리했음
+- 이유: source granularity 가 다른 집합을 한 import 전략으로 묶으면 공식 코드와 임의 코드가 같은 테이블에서 구분 없이 섞인다. 지금처럼 code-bearing subset 과 label-only subset 을 분리해야 후속 `YOUTH_MID` stable code 정책 결정이 독립적으로 가능하고 재발 방지에 안전하다
