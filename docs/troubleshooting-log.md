@@ -652,3 +652,18 @@
 - 문제: 복지로는 structured facts보다 설명문과 상세 본문 비중이 높아서, `미취업`, `대학생`, `1인가구` 같은 표현을 규칙 기반으로 어느 정도 추출할 수는 있다. 하지만 이런 fallback fact를 곧바로 hard filter에 쓰면 source 문구 차이나 모호한 안내문 때문에 후보가 과하게 빠지거나, 반대로 잘못 남을 위험이 있었음
 - 해결: `docs/policy-normalization-bridge-rules.md` 에서 fallback fact는 저장은 허용하되 초기 hard filter는 `AGE` 만 허용하고, 나머지 `INCOME/EMPLOYMENT/EDUCATION/HOUSEHOLD/SPECIAL_GROUP` 은 `RULE_DERIVED` + confidence 기반 보조 signal로만 쓰도록 제한했음
 - 이유: retrieval의 false negative는 추천 품질 저하를 넘어 “사용자가 받아야 할 정책이 아예 안 보이는” 문제로 이어진다. 복지로 text fallback은 유용하지만 source 문구 편차가 크므로, 초기에는 보수적으로 soft signal로만 소비하는 편이 재발 방지에 안전하다
+
+## 129) local Docker 앱 기준 live collect 검증은 `docker compose up app` 만으로는 충분하지 않고, split-account DB 계정과 prod profile secret이 모두 맞아야 의미 있는 적재 스냅샷이 나온다
+- 문제: 실제 DB 적재 검증을 다시 하려 했을 때 local Docker 앱은 계정 drift와 빈 `AES_SECRET_KEY` 때문에 부팅/회원가입이 코드와 무관하게 막혔고, `.env` 를 쓰는 Compose 앱은 shell override만으로는 필요한 secret이 기대한 방식으로 반영되지 않아 live collect 검증 루프 자체가 흐려질 수 있었음
+- 해결: 먼저 `deploy/mysql/reconcile-local-runtime-db-accounts.sh` 로 local MySQL split-account 계정을 복구한 뒤, prod profile `bootRun` 을 explicit env(`DB_URL`, `APP_PII_DB_URL`, `NOTIFICATION_PII_DB_URL`, `AES_SECRET_KEY`, dummy `OPENAI_API_KEY`) 기준으로 직접 띄워 `/actuator/health` 와 admin collect를 검증 기준으로 삼았음
+- 이유: 실제 적재 검증의 목적은 “현재 수집/정규화 코드가 어떤 row를 만들었는지”를 보는 것이다. Compose/env 문제로 앱 자체가 다른 이유로 실패하면 정규화 판단과 환경 문제를 구분할 수 없으므로, live collect 검증 경로는 split-account와 prod-profile secret을 명시한 known-good boot 경로로 고정하는 편이 재발 방지에 안전하다
+
+## 130) `고용24 채용정보` 나 `마이홈 공공주택 모집공고/단지/대기현황` 같은 listing형 source를 곧바로 `welfare_services` 에 flatten 하면 정책 row grain과 추천 의미가 같이 깨질 수 있음
+- 문제: 신규 source 확장 논의를 실제 공개 source 기준으로 다시 보니, Work24 `채용정보/채용행사/공채속보` 와 MyHome `공공주택 모집공고/단지정보/예비입주자 대기현황` 은 “지원 제도 1건” 이 아니라 빠르게 변하는 listing/inventory 또는 상태 feed 성격이 강했다. 이를 기존 정책 row 테이블에 그대로 넣으면 북마크, CTR, 추천 후보, 정책 상세의 의미가 뒤섞일 수 있었음
+- 해결: [policy-source-onboarding-playbook.md](./policy-source-onboarding-playbook.md) 에 source를 `정책형 / listing형 / reference형` 으로 먼저 분기하는 규칙을 추가하고, listing형 source는 `welfare_services` 가 아니라 별도 도메인(`job_listings`, `housing_recruitments`, `housing_complexes`, `housing_waitlist_stats`) 후보로 분리하는 방향을 고정했음
+- 이유: source 확장성의 핵심은 mapper 추가보다 row grain 보존이다. 정책형 row와 listing row를 같은 canonical에 억지로 밀어 넣으면 단기적으로는 빨라 보여도, 추천/북마크/로그 의미가 무너져 이후 비용이 더 커진다
+
+## 131) 실제 DB에서 복지로 주거/장학/일자리 title이 다수 `기타` 로 남는 상태라면, compat 분류를 title keyword 보정만으로 버티는 방식은 source가 늘수록 빠르게 한계에 부딪힌다
+- 문제: 2026-04-29 실제 DB 스냅샷에서 `대전 청년 월세지원`, `대학생 학자금 대출이자 지원(경기도)`, `취업청년정착수당` 같은 `BOKJIRO_LOCAL` row가 다수 `unified_category=기타` 로 남아 있었다. 이 상태에서 신규 source를 더 붙이면 category 누수를 keyword rule 몇 개로 계속 메우게 되어 분류 기준이 다시 ad-hoc 해질 위험이 컸음
+- 해결: 실제 DB 사례를 [policy-source-onboarding-playbook.md](./policy-source-onboarding-playbook.md)에 남기고, `official taxonomy + compat_unified_category bridge + service_facts` 구조를 우선 강화하며, listing형 source는 아예 정책 canonical 밖으로 분리하는 쪽으로 다음 작업을 정리했음
+- 이유: 실데이터에서 이미 누수가 보이는 상태면 rule patch를 더 쌓기보다 분류 계층 자체를 분리하는 편이 맞다. source가 늘수록 `기타` 예외처리 비용이 커지므로, 지금처럼 유저가 없는 시점에는 구조를 바로잡는 쪽이 장기적으로 안전하다
