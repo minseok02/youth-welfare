@@ -43,6 +43,9 @@
 - [policy-normalization-bridge-rules.md](./policy-normalization-bridge-rules.md)
   Gov24 필드를 현재 추천/응답 호환 분류로 브릿지하는 규칙과 복지로 text/detail의 facts fallback 허용 범위를 확인합니다.
 
+- [policy-normalization-fact-merge-rules.md](./policy-normalization-fact-merge-rules.md)
+  복지로 list aggregate 와 detail aggregate 가 같은 `service_facts` 슬롯에 들어올 때의 merge/upsert 우선순위와 `fact_merge_key` 규칙을 확인합니다.
+
 - [policy-source-onboarding-playbook.md](./policy-source-onboarding-playbook.md)
   실제 DB 적재 스냅샷을 기준으로 일자리/주거/장학/공공서비스 source를 `정책형 / listing형 / reference형` 으로 어떻게 나눠 붙일지 확인합니다.
 
@@ -120,6 +123,7 @@
 - [phase-plan.md](./phase-plan.md)
 - [policy-normalization-sample-spike.md](./policy-normalization-sample-spike.md)
 - [policy-source-onboarding-playbook.md](./policy-source-onboarding-playbook.md)
+- [policy-normalization-fact-merge-rules.md](./policy-normalization-fact-merge-rules.md)
 - [policy-normalization-bridge-rules.md](./policy-normalization-bridge-rules.md)
 - [policy-normalization-schema-draft.md](./policy-normalization-schema-draft.md)
 - [policy-normalization-research.md](./policy-normalization-research.md)

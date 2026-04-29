@@ -692,3 +692,8 @@
 - 문제: `NormalizedPolicyAggregate` 를 collect flow에 태운 뒤에도 `BokjiroDetailCollectService` 가 여전히 `DetailPayload` 원문을 직접 `WelfareServiceDetail` 과 `applyDetailFallbacks` 에 넣고 있으면, list collect는 mapper canonical 규칙을 따르고 detail collect는 service 내부 규칙을 따르는 이중 경로가 남게 된다. 이렇게 되면 `AGE`, `APPLY_END_DATE`, `onlineApply` 같은 보강값이 mapper와 service에서 서로 다르게 해석될 수 있었음
 - 해결: `WelfareServiceMapper.toNormalizedBokjiroDetail(service, detailPayload)` 를 추가하고, `BokjiroDetailCollectService` 가 aggregate `detail` 로 detail entity를 만들고 aggregate `facts` 로 서비스 fallback을 적용하도록 경로를 통일했음
 - 이유: canonical 전환 중에는 “무엇을 source truth로 해석하는지”가 한 곳에 모여 있어야 한다. 복지로 상세처럼 list/detail cadence가 다른 source일수록 mapper를 단일 해석 경계로 두는 편이 후속 sidecar 저장과 추천 read-model 전환에서 재발 방지에 안전하다
+
+## 137) 복지로 list aggregate 와 detail aggregate 가 같은 semantic fact를 다른 `fact_code` 로 내보내면, future `service_facts` upsert 에서 detail 이 list fallback 을 대체하지 못하고 중복 row가 누적될 수 있음
+- 문제: 현재 canonical 초안에서는 복지로 list 쪽에 `TEXT_AGE`, detail 쪽에 `DETAIL_TEXT_AGE` 같은 phase-specific 코드가 남아 있다. 이 상태로 `service_facts` 를 저장하면 같은 `AGE` 슬롯이어도 서로 다른 row로 인식되어, detail collect 가 list fallback 을 교체해야 하는 경우에도 단순 중복 insert 로 끝날 위험이 있었음
+- 해결: [policy-normalization-fact-merge-rules.md](./policy-normalization-fact-merge-rules.md) 를 추가해 `fact_code` 와 별도로 `fact_merge_key` 를 두고, `BK_AGE_ELIGIBILITY`, `BK_APPLY_END_DATE` 같은 stable logical key 기준으로 merge/upsert 하도록 규칙을 고정했음. 이어서 next task로 mapper fact code 를 stable merge key 체계로 정리하도록 작업 추적에 추가했음
+- 이유: list/detail cadence 가 다른 source에서는 “무슨 fact인가”와 “어느 phase에서 나왔는가”를 같은 코드값에 섞으면 deterministic upsert 를 만들기 어렵다. logical merge key 를 먼저 고정해야 migration SQL, saver, read-model 이 같은 fact slot 개념을 공유할 수 있어 재발 방지에 안전하다

@@ -12,6 +12,7 @@
 관련 문서:
 
 - [policy-normalization-bridge-rules.md](./policy-normalization-bridge-rules.md)
+- [policy-normalization-fact-merge-rules.md](./policy-normalization-fact-merge-rules.md)
 - [policy-normalization-research.md](./policy-normalization-research.md)
 - [policy-normalization-sample-spike.md](./policy-normalization-sample-spike.md)
 - [recommendation-pipeline.md](./recommendation-pipeline.md)
@@ -237,6 +238,7 @@
 | `fact_group` | VARCHAR(64) | 예: `AGE`, `INCOME`, `EMPLOYMENT`, `EDUCATION`, `HOUSEHOLD`, `SPECIAL_GROUP` |
 | `fact_code_set_key` | VARCHAR(64) NULL | `GOV24_SUPPORT_CONDITION` 등 |
 | `fact_code` | VARCHAR(64) NULL | 예: `JA0203`, `UNEMPLOYED`, `YOUTH_MAJOR_JOB` |
+| `fact_merge_key` | VARCHAR(128) | 같은 서비스 내 동일 사실 슬롯 merge/upsert용 내부 key |
 | `fact_label` | VARCHAR(255) | 표시 라벨 |
 | `operator` | ENUM | `EQ`, `GTE`, `LTE`, `RANGE`, `FLAG`, `MEMBER` |
 | `value_type` | ENUM | `BOOLEAN`, `INTEGER`, `DECIMAL`, `STRING`, `DATE` |
@@ -258,6 +260,7 @@
 
 인덱스:
 
+- `uq_service_fact_merge (service_id, fact_merge_key)`
 - `(service_id, fact_group)`
 - `(fact_group, fact_code)`
 - `(authority, fact_group, fact_code)`
@@ -270,6 +273,13 @@
 - `fact_group=EMPLOYMENT`, `fact_code=JA0327`, `operator=FLAG`, `bool_value=1`
 - `fact_group=HOUSEHOLD`, `fact_code=JA0412`, `operator=FLAG`, `bool_value=1`
 - `fact_group=EDUCATION`, `fact_code=JA0320`, `operator=FLAG`, `bool_value=1`
+
+`fact_merge_key` 예시:
+
+- `BK_AGE_ELIGIBILITY`
+- `BK_APPLY_END_DATE`
+- `BK_INCOME_LIMIT_PERCENT`
+- `BK_HOUSEHOLD:ONE_PERSON`
 
 ## 테이블 간 역할 분리
 
@@ -364,4 +374,5 @@
 1. `Gov24 service field / user type / benefit type -> compatibility unifiedCategory / youth taxonomy bridge` 규칙 초안 작성
 2. `복지로 list/detail text -> facts fallback extraction` 허용 범위와 authority 기준 작성
 3. collect saver가 새 sidecar를 어떤 aggregate로 저장할지 내부 DTO 초안 작성
-4. `WelfareServiceRepository.findCandidates*` 를 어떤 fact_group부터 치환할지 우선순위 결정
+4. 복지로 list aggregate 와 detail aggregate 의 `service_facts` merge/upsert 규칙 고정
+5. `WelfareServiceRepository.findCandidates*` 를 어떤 fact_group부터 치환할지 우선순위 결정
