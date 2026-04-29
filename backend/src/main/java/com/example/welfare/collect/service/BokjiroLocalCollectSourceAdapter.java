@@ -2,6 +2,7 @@ package com.example.welfare.collect.service;
 
 import com.example.welfare.collect.dto.BokjiroLocalDto;
 import com.example.welfare.collect.gateway.BokjiroLocalClient;
+import com.example.welfare.collect.mapper.WelfareServiceMapper;
 import com.example.welfare.collect.validation.BokjiroYouthFilter;
 import com.example.welfare.collect.validation.FieldQualityStats;
 import com.example.welfare.collect.validation.RawFieldValidator;
@@ -17,6 +18,7 @@ import java.util.List;
 public class BokjiroLocalCollectSourceAdapter extends AbstractListCollectSourceAdapter<BokjiroLocalDto.Item> {
 
     private final BokjiroLocalClient bokjiroLocalClient;
+    private final WelfareServiceMapper welfareServiceMapper;
     private final CollectItemSaver saver;
     private final BokjiroYouthFilter bokjiroYouthFilter;
     private final RawApiPayloadService rawApiPayloadService;
@@ -53,7 +55,7 @@ public class BokjiroLocalCollectSourceAdapter extends AbstractListCollectSourceA
 
     @Override
     protected void saveItem(BokjiroLocalDto.Item item) {
-        saver.saveBokjiroLocal(item);
+        saver.saveBokjiroLocal(item, welfareServiceMapper.toNormalizedBokjiroLocal(item, null));
     }
 
     @Override

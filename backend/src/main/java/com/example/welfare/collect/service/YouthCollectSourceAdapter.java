@@ -2,6 +2,7 @@ package com.example.welfare.collect.service;
 
 import com.example.welfare.collect.dto.YouthApiDto;
 import com.example.welfare.collect.gateway.YouthApiClient;
+import com.example.welfare.collect.mapper.WelfareServiceMapper;
 import com.example.welfare.collect.validation.FieldQualityStats;
 import com.example.welfare.collect.validation.RawFieldValidator;
 import lombok.RequiredArgsConstructor;
@@ -14,6 +15,7 @@ import java.util.List;
 public class YouthCollectSourceAdapter extends AbstractListCollectSourceAdapter<YouthApiDto.Item> {
 
     private final YouthApiClient youthApiClient;
+    private final WelfareServiceMapper welfareServiceMapper;
     private final CollectItemSaver saver;
     private final RawApiPayloadService rawApiPayloadService;
 
@@ -44,7 +46,7 @@ public class YouthCollectSourceAdapter extends AbstractListCollectSourceAdapter<
 
     @Override
     protected void saveItem(YouthApiDto.Item item) {
-        saver.saveYouth(item);
+        saver.saveYouth(item, welfareServiceMapper.toNormalizedYouth(item));
     }
 
     @Override

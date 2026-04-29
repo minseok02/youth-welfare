@@ -677,3 +677,13 @@
 - 문제: 이번 단계에서 `service_taxonomies`, `service_taxonomy_terms`, `service_facts` 실테이블이 아직 없는데 aggregate를 곧바로 entity 집합으로 만들면, collect mapper 리팩터링이 곧 DB migration 선행조건이 되고 `CollectItemSaver` 병행 연결 같은 작은 단계 진행이 막힐 수 있었음
 - 해결: `NormalizedPolicyAggregate` 는 record 기반의 persistence-agnostic 내부 DTO로 두고, `WelfareServiceMapper` 에서 source별 canonical 값만 먼저 채우도록 초안을 분리했음. 실제 sidecar entity/SQL 연결은 다음 task로 남겼음
 - 이유: 지금 목표는 big-bang 저장 전환이 아니라 source별 canonical 계약을 먼저 고정하는 것이다. DTO 계층을 저장 구현과 느슨하게 두어야 기존 `WelfareService` write path를 유지하면서도 mapper, saver, migration 을 작은 task로 나눠 이행할 수 있어 재발 방지에 안전하다
+
+## 134) source adapter 가 canonical aggregate를 만들지 않고 saver 내부에서만 재구성하게 두면, 이후 sidecar 저장/상세 보강이 추가될 때 collect 경계가 다시 legacy entity 중심으로 굳어질 수 있음
+- 문제: `NormalizedPolicyAggregate` 초안을 만든 직후에도 adapter가 여전히 raw DTO만 saver에 넘기고 saver가 legacy mapper만 호출하는 상태를 유지하면, canonical 구조는 테스트용 DTO로만 남고 실제 수집 경계는 계속 `WelfareService` 중심으로 굳을 수 있었음
+- 해결: `Youth/BokjiroCentral/BokjiroLocal` source adapter가 mapper에서 만든 aggregate를 saver overload까지 같이 넘기도록 바꾸고, saver에서는 aggregate source identity가 실제 item과 일치하는지 검증하도록 정리했음
+- 이유: sidecar 저장으로 가기 전 단계라도 “canonical aggregate는 collect 경계에서 이미 만들어진다”는 사실을 코드 경로에 남겨야 이후 `service_taxonomies/service_facts` 저장과 추천 이행이 작은 task로 이어진다. 그렇지 않으면 다음 단계에서 다시 adapter/saver 양쪽을 한 번에 뜯어야 해 재발 위험이 커진다
+
+## 135) 복지로 list 수집만으로 canonical `detail/facts` 를 완결시키려 하면, 실제 상세 payload가 나중에 도착하는 구조와 충돌해 중복 규칙이나 잘못된 덮어쓰기가 생길 수 있음
+- 문제: 이번 task에서 `BokjiroCentral/Local` adapter는 canonical aggregate를 병행 전달하게 되었지만, list 수집 시점에는 상세 payload가 없어 `detail` 대부분이 `null` 또는 list fallback 값만 가진다. 이 상태를 완결 canonical로 간주하면 나중에 `BokjiroDetailCollectService` 가 들어올 때 어느 필드를 authoritative 하게 덮어쓸지 다시 모호해질 수 있었음
+- 해결: adapter 경로에서는 일단 `null detail payload` 기반 aggregate를 넘기고, 다음 작업을 `BokjiroDetailCollectService / detail refresh 경로에서 NormalizedPolicyAggregate detail/facts 후속 보강 연결` 로 분리해 기록했음
+- 이유: 복지로는 list와 detail의 수집 cadence와 정보 밀도가 다르다. list 수집 경로는 canonical 초안/identity 확보까지, detail 수집 경로는 세부 facts 보강까지 담당을 나누는 편이 점진 이행과 덮어쓰기 규칙 관리에 안전하다

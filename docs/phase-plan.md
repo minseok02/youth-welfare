@@ -180,6 +180,12 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
   - `git diff --check`
 - 2026-04-30 정책 canonical `NormalizedPolicyAggregate` 내부 DTO 초안 후 `backend`에서 `./gradlew test --no-daemon --tests com.example.welfare.collect.mapper.WelfareServiceMapperTest --tests com.example.welfare.collect.mapper.NormalizedPolicyAggregateTest --tests com.example.welfare.collect.mapper.PolicyNormalizationSampleCoverageTest`
 - 2026-04-30 정책 canonical `NormalizedPolicyAggregate` 내부 DTO 초안 후 `git diff --check`
+- 2026-04-30 `CollectItemSaver` / source adapter 경로에 `NormalizedPolicyAggregate` 병행 전달 연결
+  - `YouthCollectSourceAdapter`, `BokjiroCentralCollectSourceAdapter`, `BokjiroLocalCollectSourceAdapter` 가 mapper에서 만든 canonical aggregate를 saver까지 같이 전달하도록 변경
+  - `CollectItemSaver` 에 source별 aggregate overload와 identity 검증을 추가해, 기존 `WelfareService` 저장은 유지하면서도 canonical source identity가 실제 item과 어긋나면 즉시 실패하도록 정리
+  - `CollectItemSaverTest` 에 aggregate source mismatch 거부 케이스를 추가해 이후 sidecar 저장 연결 시 source/entity 뒤섞임 회귀를 막음
+- 2026-04-30 `CollectItemSaver` / source adapter 경로에 `NormalizedPolicyAggregate` 병행 전달 연결 후 `backend`에서 `./gradlew test --no-daemon --tests com.example.welfare.collect.service.CollectItemSaverTest --tests com.example.welfare.collect.service.CollectServiceTest --tests com.example.welfare.collect.mapper.WelfareServiceMapperTest --tests com.example.welfare.collect.mapper.NormalizedPolicyAggregateTest`
+- 2026-04-30 `CollectItemSaver` / source adapter 경로에 `NormalizedPolicyAggregate` 병행 전달 연결 후 `git diff --check`
 - 2026-04-28 pre-28 migrated DB 기준 admin logout / refresh invalidation / relogin smoke
   - `SECURITY_ADMIN_EMAILS=admin.logout.smoke@example.com` 으로 최신 앱을 기동한 뒤, admin 계정 로그인과 프로필 수정으로 queue row를 `SYNCED` 상태까지 맞추고 `POST /api/auth/refresh` 가 먼저 성공하는 것 확인
   - 같은 cookie jar + access token으로 `POST /api/auth/logout` 호출 후 cookie jar에서 `refresh_token` 이 제거되고, 직후 `POST /api/auth/refresh` 가 `401`, `errorCode=A001` 로 막히는 것 확인
@@ -788,7 +794,7 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - [ ] `정부지원일자리정보`, `구직자취업역량 강화프로그램`, `Gov24/보조금24` 의 정책형 source canonical onboarding 우선순위와 live validation 순서 작성
 - [ ] 한국장학재단/국가장학금 계열의 `제도 row` 와 `지원가능대학/학기/지원구간` reference matrix 분리 모델 초안 작성
 - [ ] 복지로 live detail 적재 기준 `welfare_service_details` / `service_facts` validation 리허설
-- [ ] `CollectItemSaver` / source adapter 경로에 `NormalizedPolicyAggregate` 병행 전달 연결
+- [ ] `BokjiroDetailCollectService` / detail refresh 경로에서 `NormalizedPolicyAggregate` detail/facts 후속 보강 연결
 - [ ] `service_taxonomies / service_taxonomy_terms / service_facts` 생성 migration SQL 초안 작성
 - [ ] `compat_unified_category` 를 저장 필드로 둘지 read-model 계산값으로 둘지 최종 결정
 - [ ] `TextConstraintExtractor` 를 `service_facts` 저장 규격에 맞춘 출력 모델로 재설계
@@ -808,6 +814,7 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 
 ### 완료
 
+- [x] `CollectItemSaver` / source adapter 경로에 `NormalizedPolicyAggregate` 병행 전달 연결
 - [x] collect 저장용 `NormalizedPolicyAggregate` 내부 DTO 초안 작성
 - [x] 실제 DB 적재 스냅샷 기반 정책 정규화 검증 및 source onboarding 대응안 정리
 - [x] `복지로 list/detail text -> facts fallback extraction` 허용 범위와 authority 구분 기준 작성

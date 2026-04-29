@@ -4,6 +4,7 @@ import com.example.welfare.collect.dto.BokjiroCentralDto;
 import com.example.welfare.collect.dto.BokjiroLocalDto;
 import com.example.welfare.collect.dto.YouthApiDto;
 import com.example.welfare.collect.mapper.WelfareServiceMapper;
+import com.example.welfare.collect.normalization.NormalizedPolicyAggregate;
 import com.example.welfare.policy.entity.ServiceRegion;
 import com.example.welfare.policy.entity.ServiceTag;
 import com.example.welfare.policy.entity.WelfareService;
@@ -53,6 +54,10 @@ public class CollectItemSaver {
         executeWithRetry("YOUTH", item.getPlcyNo(), () -> saveYouthOnce(item));
     }
 
+    public void saveYouth(YouthApiDto.Item item, NormalizedPolicyAggregate aggregate) {
+        executeWithRetry("YOUTH", item.getPlcyNo(), () -> saveYouthOnce(item, aggregate));
+    }
+
     public void saveYouthOnce(YouthApiDto.Item item) {
         WelfareService entity = upsertService(
                 WelfareService.SourceType.YOUTH,
@@ -64,8 +69,24 @@ public class CollectItemSaver {
         searchYouthRelevanceService.refreshForService(entity, tags);
     }
 
+    public void saveYouthOnce(YouthApiDto.Item item, NormalizedPolicyAggregate aggregate) {
+        validateAggregate(aggregate, WelfareService.SourceType.YOUTH, item.getPlcyNo());
+        WelfareService entity = upsertService(
+                toLegacySourceType(aggregate.core().sourceType()),
+                aggregate.core().sourceId(),
+                mapper.fromYouth(item)
+        );
+        upsertRegions(entity, mapper.regionsFromYouth(item, entity));
+        List<ServiceTag> tags = replaceTags(entity, mapper.tagsFromYouth(item, entity));
+        searchYouthRelevanceService.refreshForService(entity, tags);
+    }
+
     public void saveBokjiroCentral(BokjiroCentralDto.Item item) {
         executeWithRetry("BOKJIRO_CENTRAL", item.getServId(), () -> saveBokjiroCentralOnce(item));
+    }
+
+    public void saveBokjiroCentral(BokjiroCentralDto.Item item, NormalizedPolicyAggregate aggregate) {
+        executeWithRetry("BOKJIRO_CENTRAL", item.getServId(), () -> saveBokjiroCentralOnce(item, aggregate));
     }
 
     public void saveBokjiroCentralOnce(BokjiroCentralDto.Item item) {
@@ -79,14 +100,42 @@ public class CollectItemSaver {
         searchYouthRelevanceService.refreshForService(entity, tags);
     }
 
+    public void saveBokjiroCentralOnce(BokjiroCentralDto.Item item, NormalizedPolicyAggregate aggregate) {
+        validateAggregate(aggregate, WelfareService.SourceType.BOKJIRO_CENTRAL, item.getServId());
+        WelfareService entity = upsertService(
+                toLegacySourceType(aggregate.core().sourceType()),
+                aggregate.core().sourceId(),
+                mapper.fromBokjiroCentral(item)
+        );
+        upsertRegions(entity, mapper.regionsFromBokjiroCentral(item, entity));
+        List<ServiceTag> tags = replaceTags(entity, mapper.tagsFromBokjiroCentral(item, entity));
+        searchYouthRelevanceService.refreshForService(entity, tags);
+    }
+
     public void saveBokjiroLocal(BokjiroLocalDto.Item item) {
         executeWithRetry("BOKJIRO_LOCAL", item.getServId(), () -> saveBokjiroLocalOnce(item));
+    }
+
+    public void saveBokjiroLocal(BokjiroLocalDto.Item item, NormalizedPolicyAggregate aggregate) {
+        executeWithRetry("BOKJIRO_LOCAL", item.getServId(), () -> saveBokjiroLocalOnce(item, aggregate));
     }
 
     public void saveBokjiroLocalOnce(BokjiroLocalDto.Item item) {
         WelfareService entity = upsertService(
                 WelfareService.SourceType.BOKJIRO_LOCAL,
                 item.getServId(),
+                mapper.fromBokjiroLocal(item)
+        );
+        upsertRegions(entity, mapper.regionsFromBokjiroLocal(item, entity));
+        List<ServiceTag> tags = replaceTags(entity, mapper.tagsFromBokjiroLocal(item, entity));
+        searchYouthRelevanceService.refreshForService(entity, tags);
+    }
+
+    public void saveBokjiroLocalOnce(BokjiroLocalDto.Item item, NormalizedPolicyAggregate aggregate) {
+        validateAggregate(aggregate, WelfareService.SourceType.BOKJIRO_LOCAL, item.getServId());
+        WelfareService entity = upsertService(
+                toLegacySourceType(aggregate.core().sourceType()),
+                aggregate.core().sourceId(),
                 mapper.fromBokjiroLocal(item)
         );
         upsertRegions(entity, mapper.regionsFromBokjiroLocal(item, entity));
@@ -239,6 +288,25 @@ public class CollectItemSaver {
             throw runtimeException;
         }
         throw new IllegalStateException(e);
+    }
+
+    private void validateAggregate(NormalizedPolicyAggregate aggregate,
+                                   WelfareService.SourceType expectedSourceType,
+                                   String expectedSourceId) {
+        if (aggregate == null || aggregate.core() == null) {
+            throw new IllegalArgumentException("normalized aggregate/core 는 필수입니다.");
+        }
+        if (aggregate.core().sourceType() == null || aggregate.core().sourceId() == null || aggregate.core().sourceId().isBlank()) {
+            throw new IllegalArgumentException("normalized aggregate sourceType/sourceId 는 필수입니다.");
+        }
+        if (aggregate.core().sourceType() != NormalizedPolicyAggregate.SourceType.valueOf(expectedSourceType.name())
+                || !expectedSourceId.equals(aggregate.core().sourceId())) {
+            throw new IllegalArgumentException("normalized aggregate source identity 가 item 과 일치하지 않습니다.");
+        }
+    }
+
+    private WelfareService.SourceType toLegacySourceType(NormalizedPolicyAggregate.SourceType sourceType) {
+        return WelfareService.SourceType.valueOf(sourceType.name());
     }
 
     private record TagKey(ServiceTag.TagType tagType, String tagValue) {

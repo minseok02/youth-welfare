@@ -2,6 +2,7 @@ package com.example.welfare.collect.service;
 
 import com.example.welfare.collect.dto.YouthApiDto;
 import com.example.welfare.collect.mapper.WelfareServiceMapper;
+import com.example.welfare.collect.normalization.NormalizedPolicyAggregate;
 import com.example.welfare.policy.entity.ServiceRegion;
 import com.example.welfare.policy.entity.ServiceTag;
 import com.example.welfare.policy.entity.WelfareService;
@@ -19,10 +20,12 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.transaction.PlatformTransactionManager;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
@@ -149,9 +152,35 @@ class CollectItemSaverTest {
         verify(searchYouthRelevanceService).refreshForService(eq(existing), eq(List.of()));
     }
 
+    @Test
+    @DisplayName("aggregate 병행 저장 경로는 source identity mismatch 를 거부한다")
+    void saveYouthOnceRejectsAggregateSourceMismatch() {
+        YouthApiDto.Item item = youthItem("Y-3");
+
+        assertThatThrownBy(() -> saver.saveYouthOnce(item, normalizedAggregate("WRONG")))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("source identity");
+    }
+
     private YouthApiDto.Item youthItem(String plcyNo) {
         YouthApiDto.Item item = new YouthApiDto.Item();
         ReflectionTestUtils.setField(item, "plcyNo", plcyNo);
         return item;
+    }
+
+    private NormalizedPolicyAggregate normalizedAggregate(String sourceId) {
+        return NormalizedPolicyAggregate.builder()
+                .core(NormalizedPolicyAggregate.Core.builder()
+                        .sourceType(NormalizedPolicyAggregate.SourceType.YOUTH)
+                        .sourceId(sourceId)
+                        .title("title")
+                        .status(NormalizedPolicyAggregate.ServiceStatus.ACTIVE)
+                        .build())
+                .taxonomy(NormalizedPolicyAggregate.TaxonomySummary.builder()
+                        .compatUnifiedCategory("주거")
+                        .authority(NormalizedPolicyAggregate.Authority.OFFICIAL)
+                        .confidence(BigDecimal.ONE)
+                        .build())
+                .build();
     }
 }
