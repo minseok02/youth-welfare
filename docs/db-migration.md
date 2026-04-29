@@ -18,6 +18,13 @@
   - 아직 collect writer/entity/read-model 이 완성되지 않아 `db/migration/` 이 아닌 `db/migration-draft/` 에만 두고 실제 적용 대상에서는 제외
   - `service_taxonomy_terms.term_code` 는 MySQL nullable unique semantics를 피하려고 코드가 없을 때 `''` 로 normalize 하는 안을 포함
 
+- draft 파일: [`backend/src/main/resources/db/migration-draft/V2026_04_30_02__seed_policy_normalization_codes.sql`](../backend/src/main/resources/db/migration-draft/V2026_04_30_02__seed_policy_normalization_codes.sql)
+- 포함 내용:
+  - `SYSTEM_COMPAT_UNIFIED_CATEGORY`, `YOUTH_MAJOR` 중심의 최소 대표 `normalization_codes` seed 초안
+  - `YOUTH_MID`, `GOV24_*` 는 공식 코드 import 전 단계라 metadata set만 먼저 생성
+  - 현재 `welfare_services` 기반 `service_taxonomies` summary backfill 초안
+  - `YOUTH_MID` / `GOV24` 공식 코드 전체 import 와 `service_taxonomy_terms` / `service_facts` backfill 은 후속 task로 분리
+
 - 파일: [`backend/src/main/resources/db/migration/V2026_04_28_02__add_user_pii_sync_queue.sql`](../backend/src/main/resources/db/migration/V2026_04_28_02__add_user_pii_sync_queue.sql)
 - 포함 내용:
   - `user_pii_sync_queue` 생성

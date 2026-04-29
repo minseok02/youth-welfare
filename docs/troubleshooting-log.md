@@ -717,3 +717,8 @@
 - 문제: `service_taxonomy_terms` 는 `(service_id, term_group, term_code, term_label, authority)` 기준으로 dedupe 해야 하는데, MySQL unique key 는 nullable 컬럼의 `NULL` 중복을 막지 않는다. 코드가 없는 taxonomy term 을 그대로 `NULL` 로 두면 SQL draft 상 unique key 가 있어도 동일 term 이 중복 적재될 위험이 있었음
 - 해결: `V2026_04_30_01__create_policy_sidecars.sql` draft 와 `policy-normalization-schema-draft.md` 에서 코드가 없는 term 은 `term_code=''` 로 normalize 하도록 고정했고, `db-migration.md` 에도 이 규칙을 같이 기록했음
 - 이유: canonical sidecar 는 term dedupe 를 DB 제약으로도 최대한 보조해야 한다. MySQL nullable unique semantics 를 초안 단계에서 반영하지 않으면, 나중에 persistence writer/backfill 에서 중복 정리 로직이 불필요하게 복잡해져 재발 방지에 불리하다
+
+## 142) official codebook 이 아직 없는 단계에서 `YOUTH_MID` 나 `GOV24_*` 코드를 임의 생성해 seed 하면, 초기 backfill 은 돌아가도 이후 공식 import 와 코드 호환이 깨질 수 있음
+- 문제: `normalization_code_sets / normalization_codes` seed/backfill draft 를 만들 때 `service_taxonomies` summary backfill 을 빨리 끝내려고 `YOUTH_MID` 나 `GOV24_SERVICE_FIELD` 코드를 내부 규칙으로 임의 생성해 넣어버리면, 나중에 온통청년/Gov24 공식 코드북을 가져올 때 같은 라벨이 다른 code 로 중복되거나 기존 summary row 와 호환되지 않을 위험이 있었음
+- 해결: `V2026_04_30_02__seed_policy_normalization_codes.sql` draft 에서는 `SYSTEM_COMPAT_UNIFIED_CATEGORY`, `YOUTH_MAJOR` 만 대표 code seed 로 넣고, `YOUTH_MID`, `GOV24_*`, `GOV24_SUPPORT_CONDITION` 은 metadata set만 먼저 생성한 뒤 공식 code import/backfill SQL을 후속 task로 분리했음
+- 이유: canonical code table 은 한 번 잘못 seed 하면 이후 backfill/persistence/read-model 전부가 그 코드를 따라가게 된다. 공식 근거가 없는 계층은 metadata까지만 먼저 열고 code 값은 공식 source 확보 후 넣는 편이 호환성과 재발 방지에 안전하다
