@@ -10,6 +10,14 @@
 
 ## 최신 마이그레이션
 
+- draft 파일: [`backend/src/main/resources/db/migration-draft/V2026_04_30_01__create_policy_sidecars.sql`](../backend/src/main/resources/db/migration-draft/V2026_04_30_01__create_policy_sidecars.sql)
+- 포함 내용:
+  - `normalization_code_sets`, `normalization_codes` 생성 초안
+  - `service_taxonomies`, `service_taxonomy_terms`, `service_facts` 생성 초안
+  - `service_facts.fact_merge_key` 유니크 키와 sidecar FK/인덱스 초안
+  - 아직 collect writer/entity/read-model 이 완성되지 않아 `db/migration/` 이 아닌 `db/migration-draft/` 에만 두고 실제 적용 대상에서는 제외
+  - `service_taxonomy_terms.term_code` 는 MySQL nullable unique semantics를 피하려고 코드가 없을 때 `''` 로 normalize 하는 안을 포함
+
 - 파일: [`backend/src/main/resources/db/migration/V2026_04_28_02__add_user_pii_sync_queue.sql`](../backend/src/main/resources/db/migration/V2026_04_28_02__add_user_pii_sync_queue.sql)
 - 포함 내용:
   - `user_pii_sync_queue` 생성

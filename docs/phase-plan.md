@@ -210,6 +210,12 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
   - `CollectItemSaver` 와 `BokjiroDetailCollectService` 가 aggregate 저장 경로에서 모두 sidecar writer 를 호출하도록 변경하고, `CollectItemSaverTest` / `BokjiroDetailCollectServiceTest` 로 list/detail collect 경로 호출을 각각 고정
 - 2026-04-30 canonical aggregate 의 future sidecar writer 훅 연결 후 `backend`에서 `./gradlew test --no-daemon --tests com.example.welfare.collect.service.CollectItemSaverTest --tests com.example.welfare.collect.service.BokjiroDetailCollectServiceTest --tests com.example.welfare.collect.normalization.NormalizedFactMergeSupportTest`
 - 2026-04-30 canonical aggregate 의 future sidecar writer 훅 연결 후 `git diff --check`
+- 2026-04-30 정책 canonical sidecar migration SQL draft 작성
+  - `backend/src/main/resources/db/migration-draft/V2026_04_30_01__create_policy_sidecars.sql` 를 추가해 `normalization_code_sets`, `normalization_codes`, `service_taxonomies`, `service_taxonomy_terms`, `service_facts` 생성 초안을 정리
+  - 실제 적용 전용 migration 이 아니라 `db/migration-draft/` 에 두고, `service_facts.fact_merge_key` 유니크 키, sidecar FK/인덱스, `term_code=''` normalize 규칙까지 한 파일에서 점검 가능하게 정리
+  - `docs/policy-normalization-schema-draft.md`, `docs/db-migration.md` 에 draft SQL 경로와 MySQL nullable unique 회피 규칙을 반영
+- 2026-04-30 정책 canonical sidecar migration SQL draft 작성 후 `rg -n "migration-draft|create_policy_sidecars|term_code.*normalize|uq_service_fact_merge" docs backend/src/main/resources -g'*.md' -g'*.sql'`
+- 2026-04-30 정책 canonical sidecar migration SQL draft 작성 후 `git diff --check`
 - 2026-04-28 pre-28 migrated DB 기준 admin logout / refresh invalidation / relogin smoke
   - `SECURITY_ADMIN_EMAILS=admin.logout.smoke@example.com` 으로 최신 앱을 기동한 뒤, admin 계정 로그인과 프로필 수정으로 queue row를 `SYNCED` 상태까지 맞추고 `POST /api/auth/refresh` 가 먼저 성공하는 것 확인
   - 같은 cookie jar + access token으로 `POST /api/auth/logout` 호출 후 cookie jar에서 `refresh_token` 이 제거되고, 직후 `POST /api/auth/refresh` 가 `401`, `errorCode=A001` 로 막히는 것 확인
@@ -819,7 +825,7 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - [ ] 한국장학재단/국가장학금 계열의 `제도 row` 와 `지원가능대학/학기/지원구간` reference matrix 분리 모델 초안 작성
 - [ ] 복지로 live detail 적재 기준 `welfare_service_details` / `service_facts` validation 리허설
 - [ ] `DeferredNormalizedPolicySidecarWriter` 를 실제 `service_taxonomies / service_taxonomy_terms / service_facts` DB persistence writer 로 교체
-- [ ] `service_taxonomies / service_taxonomy_terms / service_facts` 생성 migration SQL 초안 작성
+- [ ] `normalization_code_sets / normalization_codes` seed/backfill SQL 초안 작성
 - [ ] `compat_unified_category` 를 저장 필드로 둘지 read-model 계산값으로 둘지 최종 결정
 - [ ] `TextConstraintExtractor` 를 `service_facts` 저장 규격에 맞춘 출력 모델로 재설계
 - [ ] `WelfareServiceRepository.findCandidates*`, `RetrievalService`, `RuleScoringService`, `DefaultPriorityMatcher` 의 점진 이행 순서 설계
@@ -838,6 +844,7 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 
 ### 완료
 
+- [x] `service_taxonomies / service_taxonomy_terms / service_facts` 생성 migration SQL 초안 작성
 - [x] future `service_facts` saver 가 `NormalizedFactMergeSupport` 를 재사용하도록 실제 sidecar 저장 경로 연결
 - [x] future `service_facts` saver 에 `fact_merge_key` unique upsert contract 테스트(`list -> detail overwrite`, `detail -> list no-op`, `set-like union`) 추가
 - [x] `WelfareServiceMapper` 의 phase-specific fact code(`TEXT_AGE`, `DETAIL_TEXT_AGE`) 를 stable `fact_merge_key` 체계로 정리

@@ -200,7 +200,7 @@
 | `service_id` | BIGINT FK | `welfare_services.id` |
 | `term_group` | VARCHAR(64) | 예: `YOUTH_KEYWORD`, `LIFE_STAGE`, `TARGET_GROUP`, `GOV24_USER_TYPE` |
 | `code_set_key` | VARCHAR(64) NULL | 연결된 code set |
-| `term_code` | VARCHAR(64) NULL | 외부/내부 코드 |
+| `term_code` | VARCHAR(64) NOT NULL DEFAULT `''` | 외부/내부 코드. 코드가 없는 term은 빈 문자열로 normalize |
 | `term_label` | VARCHAR(255) NOT NULL | 표시 라벨 |
 | `source_field` | VARCHAR(100) | 예: `plcyKywdNm`, `intrsThemaArray` |
 | `authority` | ENUM | `OFFICIAL`, `SYSTEM_DERIVED`, `AI_ENRICHED` |
@@ -211,6 +211,10 @@
 유니크 제약:
 
 - `uq_service_term (service_id, term_group, term_code, term_label, authority)`
+
+설계 메모:
+
+- MySQL 에서는 nullable 컬럼이 포함된 unique key가 `NULL` 중복을 막지 못하므로, 코드가 없는 term은 `term_code=''` 로 normalize 하는 쪽으로 SQL draft를 고정한다.
 
 용도 예시:
 

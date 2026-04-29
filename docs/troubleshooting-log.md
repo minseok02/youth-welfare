@@ -712,3 +712,8 @@
 - 문제: `NormalizedPolicyAggregate`, `factMergeKey`, `NormalizedFactMergeSupport` 를 준비해도 실제 collect 경로가 sidecar writer 를 호출하지 않으면, future `service_taxonomies/service_facts` 저장을 붙일 때 adapter/list/detail 경로 중 일부만 새 writer 를 타고 나머지는 계속 `WelfareService` / `WelfareServiceDetail` write 에서 끝날 수 있다. 그러면 source별 canonical 적재 커버리지가 다시 경로마다 갈라질 위험이 있었음
 - 해결: `NormalizedPolicySidecarWriter` 인터페이스와 `DeferredNormalizedPolicySidecarWriter` 기본 구현을 추가하고, `CollectItemSaver` 와 `BokjiroDetailCollectService` 가 aggregate 저장 경로에서 모두 writer 를 호출하도록 연결했음. 테스트에서도 youth list path 와 bokjiro detail path 모두 writer 호출을 검증하도록 고정했음
 - 이유: canonical 전환은 mapper 규칙만 맞춘다고 끝나지 않고, collect 실행 경로 전체가 같은 저장 훅을 지나야 한다. sidecar DB writer 가 아직 없어도 호출 지점을 먼저 고정해야 이후 persistence 구현을 한 곳에 꽂을 수 있어 재발 방지에 안전하다
+
+## 141) `service_taxonomy_terms` 에서 `term_code` 를 nullable 로 두고 unique key 만 걸면, MySQL 이 `NULL` 중복을 허용해 term dedupe 계약이 깨질 수 있음
+- 문제: `service_taxonomy_terms` 는 `(service_id, term_group, term_code, term_label, authority)` 기준으로 dedupe 해야 하는데, MySQL unique key 는 nullable 컬럼의 `NULL` 중복을 막지 않는다. 코드가 없는 taxonomy term 을 그대로 `NULL` 로 두면 SQL draft 상 unique key 가 있어도 동일 term 이 중복 적재될 위험이 있었음
+- 해결: `V2026_04_30_01__create_policy_sidecars.sql` draft 와 `policy-normalization-schema-draft.md` 에서 코드가 없는 term 은 `term_code=''` 로 normalize 하도록 고정했고, `db-migration.md` 에도 이 규칙을 같이 기록했음
+- 이유: canonical sidecar 는 term dedupe 를 DB 제약으로도 최대한 보조해야 한다. MySQL nullable unique semantics 를 초안 단계에서 반영하지 않으면, 나중에 persistence writer/backfill 에서 중복 정리 로직이 불필요하게 복잡해져 재발 방지에 불리하다
