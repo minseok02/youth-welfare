@@ -11,6 +11,7 @@
 
 관련 문서:
 
+- [policy-normalization-bridge-rules.md](./policy-normalization-bridge-rules.md)
 - [policy-normalization-research.md](./policy-normalization-research.md)
 - [policy-normalization-sample-spike.md](./policy-normalization-sample-spike.md)
 - [recommendation-pipeline.md](./recommendation-pipeline.md)

@@ -40,6 +40,9 @@
 - [policy-normalization-schema-draft.md](./policy-normalization-schema-draft.md)
   새 canonical 구조의 sidecar 스키마(`service_taxonomies`, `service_taxonomy_terms`, `service_facts`)와 코드테이블 저장 방식을 확인합니다.
 
+- [policy-normalization-bridge-rules.md](./policy-normalization-bridge-rules.md)
+  Gov24 필드를 현재 추천/응답 호환 분류로 브릿지하는 규칙과 복지로 text/detail의 facts fallback 허용 범위를 확인합니다.
+
 - [troubleshooting-log.md](./troubleshooting-log.md)  
   이전에 발생한 장애와 해결 과정을 확인합니다.
 
@@ -113,6 +116,7 @@
 - [github-workflow.md](./github-workflow.md)
 - [phase-plan.md](./phase-plan.md)
 - [policy-normalization-sample-spike.md](./policy-normalization-sample-spike.md)
+- [policy-normalization-bridge-rules.md](./policy-normalization-bridge-rules.md)
 - [policy-normalization-schema-draft.md](./policy-normalization-schema-draft.md)
 - [policy-normalization-research.md](./policy-normalization-research.md)
 - [recommendation-pipeline.md](./recommendation-pipeline.md)

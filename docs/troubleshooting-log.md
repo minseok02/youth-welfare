@@ -642,3 +642,13 @@
 - 문제: 새 canonical 구조를 실제 스키마로 내리면서 보니, `JA0203`, `JA0327` 같은 Gov24 조건 코드와 온통청년 대분류/중분류/제공방법/취업·학력·특화 코드들은 source 문서 개정 시 추가/비활성/라벨 수정이 발생할 수 있다. 이걸 Java enum으로 박아두면 코드북 변경이 곧 애플리케이션 릴리스와 1:1로 묶이고, 코드/DB/문서가 다시 쉽게 어긋날 수 있었음
 - 해결: `docs/policy-normalization-schema-draft.md` 에서 코드 저장 결정을 `normalization_code_sets`, `normalization_codes` DB code table 방식으로 고정하고, 서비스별 값은 `service_taxonomies` / `service_taxonomy_terms` / `service_facts` 에 authority와 함께 저장하는 구조로 정리했음
 - 이유: 외부 코드북은 애플리케이션 상수라기보다 운영 데이터에 가깝다. 코드셋 메타데이터와 실제 코드값을 DB에 분리 보관해야 라벨 변경, parent 관계 추가, deprecated 처리, source 버전 추적을 무중단에 가깝게 관리할 수 있어 재발 방지에 안전하다
+
+## 127) Gov24 공식 분류와 서비스 호환용 `compat_unified_category` 를 같은 계층으로 취급하면, official taxonomy와 derived bridge가 뒤섞여 추천/응답 의미가 흐려질 수 있음
+- 문제: Gov24는 `서비스분야`, `사용자구분`, `지원유형` 같은 official taxonomy를 주지만, 현재 서비스는 여전히 `unifiedCategory` 와 priority matcher에 크게 의존한다. 이때 `Gov24 서비스분야` 를 곧바로 `unifiedCategory` 로 저장해버리면 official 필드와 시스템 호환 분류가 섞여, 나중에 “이 값이 source가 준 것인지 우리가 파생한 것인지”를 구분하기 어려워질 수 있었음
+- 해결: `docs/policy-normalization-bridge-rules.md` 에서 `compat_unified_category` 는 `SYSTEM_DERIVED` bridge 로만 다루고, Gov24 official taxonomy는 `service_taxonomies` 의 별도 official layer로 저장하는 규칙을 고정했음
+- 이유: external taxonomy와 compatibility read-model은 역할이 다르다. source truth와 시스템 파생값을 같은 칼럼 의미로 섞으면 디버깅과 후속 추천 튜닝이 어려워지므로, authority를 분리한 브릿지층으로 관리하는 편이 재발 방지에 안전하다
+
+## 128) 복지로 text/detail fallback fact를 충분한 신뢰도 구분 없이 곧바로 retrieval hard filter에 쓰면, 본문 표현 차이만으로 정책 후보가 과도하게 탈락할 수 있음
+- 문제: 복지로는 structured facts보다 설명문과 상세 본문 비중이 높아서, `미취업`, `대학생`, `1인가구` 같은 표현을 규칙 기반으로 어느 정도 추출할 수는 있다. 하지만 이런 fallback fact를 곧바로 hard filter에 쓰면 source 문구 차이나 모호한 안내문 때문에 후보가 과하게 빠지거나, 반대로 잘못 남을 위험이 있었음
+- 해결: `docs/policy-normalization-bridge-rules.md` 에서 fallback fact는 저장은 허용하되 초기 hard filter는 `AGE` 만 허용하고, 나머지 `INCOME/EMPLOYMENT/EDUCATION/HOUSEHOLD/SPECIAL_GROUP` 은 `RULE_DERIVED` + confidence 기반 보조 signal로만 쓰도록 제한했음
+- 이유: retrieval의 false negative는 추천 품질 저하를 넘어 “사용자가 받아야 할 정책이 아예 안 보이는” 문제로 이어진다. 복지로 text fallback은 유용하지만 source 문구 편차가 크므로, 초기에는 보수적으로 soft signal로만 소비하는 편이 재발 방지에 안전하다
