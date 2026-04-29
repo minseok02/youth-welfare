@@ -667,3 +667,13 @@
 - 문제: 2026-04-29 실제 DB 스냅샷에서 `대전 청년 월세지원`, `대학생 학자금 대출이자 지원(경기도)`, `취업청년정착수당` 같은 `BOKJIRO_LOCAL` row가 다수 `unified_category=기타` 로 남아 있었다. 이 상태에서 신규 source를 더 붙이면 category 누수를 keyword rule 몇 개로 계속 메우게 되어 분류 기준이 다시 ad-hoc 해질 위험이 컸음
 - 해결: 실제 DB 사례를 [policy-source-onboarding-playbook.md](./policy-source-onboarding-playbook.md)에 남기고, `official taxonomy + compat_unified_category bridge + service_facts` 구조를 우선 강화하며, listing형 source는 아예 정책 canonical 밖으로 분리하는 쪽으로 다음 작업을 정리했음
 - 이유: 실데이터에서 이미 누수가 보이는 상태면 rule patch를 더 쌓기보다 분류 계층 자체를 분리하는 편이 맞다. source가 늘수록 `기타` 예외처리 비용이 커지므로, 지금처럼 유저가 없는 시점에는 구조를 바로잡는 쪽이 장기적으로 안전하다
+
+## 132) 기존 `ServiceTag.KEYWORD` 는 display keyword와 규칙 기반 constraint token(`COND_AGE_*`, `COND_INCOME_*`) 이 섞여 있어, canonical taxonomy term으로 그대로 옮기면 분류 계층이 오염될 수 있음
+- 문제: `tagsFromYouth`, `tagsFromBokjiro*` 는 기존 검색/추천 보조를 위해 `KEYWORD` 안에 일반 키워드와 규칙 기반 constraint token을 함께 넣고 있다. 새 canonical aggregate 초안에서 이 값을 그대로 `taxonomyTerms` 로 재활용하면 `월세`, `청년주거` 같은 분류어와 `COND_AGE_MAX_34` 같은 eligibility token이 같은 계층으로 섞일 수 있었음
+- 해결: `NormalizedPolicyAggregate` 매핑에서는 taxonomy term을 raw source 필드(`plcyKywdNm`, `lifeArray`, `intrsThemaArray`, `trgterIndvdlArray`) 기준으로 따로 만들고, 구조화 조건은 `facts` 로 분리해 저장하도록 `WelfareServiceMapper` 초안을 정리했음
+- 이유: taxonomy와 facts를 mapper 단계에서부터 분리하지 않으면, 이후 `service_taxonomy_terms` / `service_facts` sidecar 저장 시점에 데이터 의미를 다시 추론해야 한다. 현재처럼 source field 기준으로 분리해 두는 편이 점진 이행과 후속 추천 read-model 전환에서 재발 방지에 안전하다
+
+## 133) `NormalizedPolicyAggregate` 를 처음부터 JPA sidecar entity나 migration 스키마에 직접 맞춰 버리면, DTO 초안 단계부터 persistence 세부구조에 잠겨 점진 이행이 어려워질 수 있음
+- 문제: 이번 단계에서 `service_taxonomies`, `service_taxonomy_terms`, `service_facts` 실테이블이 아직 없는데 aggregate를 곧바로 entity 집합으로 만들면, collect mapper 리팩터링이 곧 DB migration 선행조건이 되고 `CollectItemSaver` 병행 연결 같은 작은 단계 진행이 막힐 수 있었음
+- 해결: `NormalizedPolicyAggregate` 는 record 기반의 persistence-agnostic 내부 DTO로 두고, `WelfareServiceMapper` 에서 source별 canonical 값만 먼저 채우도록 초안을 분리했음. 실제 sidecar entity/SQL 연결은 다음 task로 남겼음
+- 이유: 지금 목표는 big-bang 저장 전환이 아니라 source별 canonical 계약을 먼저 고정하는 것이다. DTO 계층을 저장 구현과 느슨하게 두어야 기존 `WelfareService` write path를 유지하면서도 mapper, saver, migration 을 작은 task로 나눠 이행할 수 있어 재발 방지에 안전하다

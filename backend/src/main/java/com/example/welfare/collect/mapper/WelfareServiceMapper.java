@@ -3,6 +3,8 @@ package com.example.welfare.collect.mapper;
 import com.example.welfare.collect.dto.BokjiroCentralDto;
 import com.example.welfare.collect.dto.BokjiroLocalDto;
 import com.example.welfare.collect.dto.YouthApiDto;
+import com.example.welfare.collect.gateway.BokjiroDetailClient;
+import com.example.welfare.collect.normalization.NormalizedPolicyAggregate;
 import com.example.welfare.collect.validation.RawFieldValidator;
 import com.example.welfare.collect.validation.TextConstraintExtractor;
 import com.example.welfare.policy.entity.ServiceRegion;
@@ -13,6 +15,7 @@ import org.jsoup.Jsoup;
 import org.jsoup.safety.Safelist;
 import org.springframework.stereotype.Component;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -69,6 +72,24 @@ public class WelfareServiceMapper {
                 .registeredAt(parseDateTimeLoose(item.getFrstRegDt()))
                 .lastModifiedAt(parseDateTimeLoose(item.getLastMdfcnDt()))
                 .status(WelfareService.ServiceStatus.ACTIVE)
+                .build();
+    }
+
+    public NormalizedPolicyAggregate toNormalizedYouth(YouthApiDto.Item item) {
+        WelfareService service = fromYouth(item);
+        return NormalizedPolicyAggregate.builder()
+                .core(buildCore(service))
+                .detail(buildDetail(service, null))
+                .taxonomy(NormalizedPolicyAggregate.TaxonomySummary.builder()
+                        .compatUnifiedCategory(service.getUnifiedCategory())
+                        .youthMajor(service.getCategoryMain())
+                        .youthMid(service.getCategorySub())
+                        .provisionMethod(service.getApplyMethodName())
+                        .authority(NormalizedPolicyAggregate.Authority.OFFICIAL)
+                        .confidence(BigDecimal.ONE)
+                        .build())
+                .taxonomyTerms(youthTerms(item))
+                .facts(youthFacts(service))
                 .build();
     }
 
@@ -130,6 +151,22 @@ public class WelfareServiceMapper {
                 .build();
     }
 
+    public NormalizedPolicyAggregate toNormalizedBokjiroCentral(BokjiroCentralDto.Item item,
+                                                                BokjiroDetailClient.DetailPayload detailPayload) {
+        WelfareService service = fromBokjiroCentral(item);
+        return NormalizedPolicyAggregate.builder()
+                .core(buildCore(service))
+                .detail(buildDetail(service, detailPayload))
+                .taxonomy(NormalizedPolicyAggregate.TaxonomySummary.builder()
+                        .compatUnifiedCategory(service.getUnifiedCategory())
+                        .authority(NormalizedPolicyAggregate.Authority.SYSTEM_DERIVED)
+                        .confidence(BigDecimal.valueOf(0.85))
+                        .build())
+                .taxonomyTerms(bokjiroCentralTerms(item))
+                .facts(bokjiroDerivedFacts(service, item.getServDgst()))
+                .build();
+    }
+
     public List<ServiceTag> tagsFromBokjiroCentral(BokjiroCentralDto.Item item, WelfareService service) {
         List<ServiceTag> tags = new ArrayList<>();
         addTagsFromCsv(tags, service, item.getLifeArray(), ServiceTag.TagType.LIFE_STAGE);
@@ -177,6 +214,22 @@ public class WelfareServiceMapper {
                 .endDate(parseDate(item.getEnfcEndYmd()))
                 .lastModifiedAt(parseDateTimeLoose(item.getLastModYmd()))
                 .status(WelfareService.ServiceStatus.ACTIVE)
+                .build();
+    }
+
+    public NormalizedPolicyAggregate toNormalizedBokjiroLocal(BokjiroLocalDto.Item item,
+                                                              BokjiroDetailClient.DetailPayload detailPayload) {
+        WelfareService service = fromBokjiroLocal(item);
+        return NormalizedPolicyAggregate.builder()
+                .core(buildCore(service))
+                .detail(buildDetail(service, detailPayload))
+                .taxonomy(NormalizedPolicyAggregate.TaxonomySummary.builder()
+                        .compatUnifiedCategory(service.getUnifiedCategory())
+                        .authority(NormalizedPolicyAggregate.Authority.SYSTEM_DERIVED)
+                        .confidence(BigDecimal.valueOf(0.85))
+                        .build())
+                .taxonomyTerms(bokjiroLocalTerms(item))
+                .facts(bokjiroDerivedFacts(service, item.getServDgst()))
                 .build();
     }
 
@@ -365,5 +418,262 @@ public class WelfareServiceMapper {
             }
         }
         return null;
+    }
+
+    private NormalizedPolicyAggregate.Core buildCore(WelfareService service) {
+        return NormalizedPolicyAggregate.Core.builder()
+                .sourceType(NormalizedPolicyAggregate.SourceType.valueOf(service.getSourceType().name()))
+                .sourceId(service.getSourceId())
+                .title(service.getTitle())
+                .summary(firstNonBlank(service.getDescription(), service.getSupportContent()))
+                .description(service.getDescription())
+                .supportContent(service.getSupportContent())
+                .hostOrg(service.getHostOrg())
+                .operatingOrg(service.getOperatingOrg())
+                .status(NormalizedPolicyAggregate.ServiceStatus.valueOf(service.getStatus().name()))
+                .startDate(service.getStartDate())
+                .endDate(service.getEndDate())
+                .applyStartDate(service.getApplyStartDate())
+                .applyEndDate(service.getApplyEndDate())
+                .detailUrl(service.getDetailUrl())
+                .onlineApply(service.getIsOnlineApply())
+                .apiViewCount(service.getApiViewCount())
+                .registeredAt(service.getRegisteredAt())
+                .lastModifiedAt(service.getLastModifiedAt())
+                .build();
+    }
+
+    private NormalizedPolicyAggregate.Detail buildDetail(WelfareService service,
+                                                         BokjiroDetailClient.DetailPayload detailPayload) {
+        return NormalizedPolicyAggregate.Detail.builder()
+                .targetDetail(detailPayload == null ? null : RawFieldValidator.normalize(detailPayload.getTargetDetail()))
+                .supportDetail(firstNonBlank(
+                        detailPayload == null ? null : detailPayload.getSupportDetail(),
+                        service.getSupportContent()
+                ))
+                .applyMethodDetail(firstNonBlank(
+                        detailPayload == null ? null : detailPayload.getApplyMethodDetail(),
+                        service.getApplyMethodName()
+                ))
+                .selectionCriteria(detailPayload == null ? null : RawFieldValidator.normalize(detailPayload.getSelectionCriteria()))
+                .requiredDocuments(null)
+                .contactText(detailPayload == null ? null : RawFieldValidator.normalize(detailPayload.getContactList()))
+                .legalBasisText(null)
+                .onlineApplyUrl(service.getIsOnlineApply() != null && service.getIsOnlineApply() ? service.getDetailUrl() : null)
+                .supportCycle(firstNonBlank(
+                        detailPayload == null ? null : detailPayload.getSupportCycle(),
+                        service.getSupportCycle()
+                ))
+                .provisionType(firstNonBlank(
+                        detailPayload == null ? null : detailPayload.getProvisionType(),
+                        service.getProvisionType()
+                ))
+                .build();
+    }
+
+    private List<NormalizedPolicyAggregate.TaxonomyTerm> youthTerms(YouthApiDto.Item item) {
+        List<NormalizedPolicyAggregate.TaxonomyTerm> terms = new ArrayList<>();
+        addTaxonomyTerm(terms, "YOUTH_MAJOR", "YOUTH_MAJOR", null, item.getLclsfNm(), "lclsfNm",
+                NormalizedPolicyAggregate.Authority.OFFICIAL, 0);
+        addTaxonomyTerm(terms, "YOUTH_MID", "YOUTH_MID", null, item.getMclsfNm(), "mclsfNm",
+                NormalizedPolicyAggregate.Authority.OFFICIAL, 1);
+        addTaxonomyTermsFromCsv(terms, "YOUTH_KEYWORD", "YOUTH_KEYWORD", item.getPlcyKywdNm(), "plcyKywdNm",
+                NormalizedPolicyAggregate.Authority.OFFICIAL, 0);
+        return terms;
+    }
+
+    private List<NormalizedPolicyAggregate.TaxonomyTerm> bokjiroCentralTerms(BokjiroCentralDto.Item item) {
+        List<NormalizedPolicyAggregate.TaxonomyTerm> terms = new ArrayList<>();
+        addTaxonomyTermsFromCsv(terms, "LIFE_STAGE", null, item.getLifeArray(), "lifeArray",
+                NormalizedPolicyAggregate.Authority.OFFICIAL, 0);
+        addTaxonomyTermsFromCsv(terms, "INTEREST_THEME", null, item.getIntrsThemaArray(), "intrsThemaArray",
+                NormalizedPolicyAggregate.Authority.OFFICIAL, 0);
+        addTaxonomyTermsFromCsv(terms, "TARGET_GROUP", null, item.getTrgterIndvdlArray(), "trgterIndvdlArray",
+                NormalizedPolicyAggregate.Authority.OFFICIAL, 0);
+        return terms;
+    }
+
+    private List<NormalizedPolicyAggregate.TaxonomyTerm> bokjiroLocalTerms(BokjiroLocalDto.Item item) {
+        List<NormalizedPolicyAggregate.TaxonomyTerm> terms = new ArrayList<>();
+        addTaxonomyTermsFromCsv(terms, "LIFE_STAGE", null, item.getLifeNmArray(), "lifeNmArray",
+                NormalizedPolicyAggregate.Authority.OFFICIAL, 0);
+        addTaxonomyTermsFromCsv(terms, "INTEREST_THEME", null, item.getIntrsThemaNmArray(), "intrsThemaNmArray",
+                NormalizedPolicyAggregate.Authority.OFFICIAL, 0);
+        addTaxonomyTermsFromCsv(terms, "TARGET_GROUP", null, item.getTrgterIndvdlNmArray(), "trgterIndvdlNmArray",
+                NormalizedPolicyAggregate.Authority.OFFICIAL, 0);
+        return terms;
+    }
+
+    private List<NormalizedPolicyAggregate.Fact> youthFacts(WelfareService service) {
+        List<NormalizedPolicyAggregate.Fact> facts = new ArrayList<>();
+        addRangeFact(facts, "AGE", "YOUTH_AGE", "지원 연령", service.getMinAge(), service.getMaxAge(), "세",
+                "sprtTrgtMinAge/sprtTrgtMaxAge", NormalizedPolicyAggregate.Authority.OFFICIAL, BigDecimal.ONE, null);
+        addBoundaryFact(facts, "INCOME", "YOUTH_INCOME_MIN", "소득 하한", service.getMinIncome(),
+                NormalizedPolicyAggregate.Operator.GTE, "legacy-int", "earnMinAmt",
+                NormalizedPolicyAggregate.Authority.OFFICIAL, BigDecimal.ONE, null);
+        addBoundaryFact(facts, "INCOME", "YOUTH_INCOME_MAX", "소득 상한", service.getMaxIncome(),
+                NormalizedPolicyAggregate.Operator.LTE, "legacy-int", "earnMaxAmt",
+                NormalizedPolicyAggregate.Authority.OFFICIAL, BigDecimal.ONE, null);
+        addDateFact(facts, "APPLY_END_DATE", "YOUTH_APPLY_END_DATE", "신청 종료일", service.getApplyEndDate(),
+                "aplyYmd", NormalizedPolicyAggregate.Authority.OFFICIAL, BigDecimal.ONE, null);
+        return facts;
+    }
+
+    private List<NormalizedPolicyAggregate.Fact> bokjiroDerivedFacts(WelfareService service, String evidenceText) {
+        List<NormalizedPolicyAggregate.Fact> facts = new ArrayList<>();
+        addRangeFact(facts, "AGE", "TEXT_AGE", "지원 연령", service.getMinAge(), service.getMaxAge(), "세",
+                "servDgst", NormalizedPolicyAggregate.Authority.RULE_DERIVED, BigDecimal.valueOf(0.90), evidenceText);
+        addDateFact(facts, "APPLY_END_DATE", "TEXT_APPLY_END_DATE", "신청 종료일", service.getApplyEndDate(),
+                "servDgst", NormalizedPolicyAggregate.Authority.RULE_DERIVED, BigDecimal.valueOf(0.80), evidenceText);
+        return facts;
+    }
+
+    private void addTaxonomyTermsFromCsv(List<NormalizedPolicyAggregate.TaxonomyTerm> terms,
+                                         String termGroup,
+                                         String codeSetKey,
+                                         String csv,
+                                         String sourceField,
+                                         NormalizedPolicyAggregate.Authority authority,
+                                         int startSortOrder) {
+        if (csv == null || csv.isBlank()) {
+            return;
+        }
+        int sortOrder = startSortOrder;
+        for (String raw : csv.split(",")) {
+            String label = RawFieldValidator.normalize(raw == null ? null : raw.strip());
+            if (label == null) {
+                continue;
+            }
+            terms.add(NormalizedPolicyAggregate.TaxonomyTerm.builder()
+                    .termGroup(termGroup)
+                    .codeSetKey(codeSetKey)
+                    .termCode(null)
+                    .termLabel(label)
+                    .sourceField(sourceField)
+                    .authority(authority)
+                    .sortOrder(sortOrder++)
+                    .build());
+        }
+    }
+
+    private void addTaxonomyTerm(List<NormalizedPolicyAggregate.TaxonomyTerm> terms,
+                                 String termGroup,
+                                 String codeSetKey,
+                                 String termCode,
+                                 String termLabel,
+                                 String sourceField,
+                                 NormalizedPolicyAggregate.Authority authority,
+                                 int sortOrder) {
+        String normalizedLabel = RawFieldValidator.normalize(termLabel);
+        if (normalizedLabel == null) {
+            return;
+        }
+        terms.add(NormalizedPolicyAggregate.TaxonomyTerm.builder()
+                .termGroup(termGroup)
+                .codeSetKey(codeSetKey)
+                .termCode(termCode)
+                .termLabel(normalizedLabel)
+                .sourceField(sourceField)
+                .authority(authority)
+                .sortOrder(sortOrder)
+                .build());
+    }
+
+    private void addRangeFact(List<NormalizedPolicyAggregate.Fact> facts,
+                              String factGroup,
+                              String factCode,
+                              String factLabel,
+                              Integer rangeMin,
+                              Integer rangeMax,
+                              String unit,
+                              String sourceField,
+                              NormalizedPolicyAggregate.Authority authority,
+                              BigDecimal confidence,
+                              String evidenceText) {
+        if (rangeMin == null && rangeMax == null) {
+            return;
+        }
+        facts.add(NormalizedPolicyAggregate.Fact.builder()
+                .factGroup(factGroup)
+                .factCodeSetKey(null)
+                .factCode(factCode)
+                .factLabel(factLabel)
+                .operator(rangeMin != null && rangeMax != null
+                        ? NormalizedPolicyAggregate.Operator.RANGE
+                        : rangeMin != null
+                        ? NormalizedPolicyAggregate.Operator.GTE
+                        : NormalizedPolicyAggregate.Operator.LTE)
+                .valueType(NormalizedPolicyAggregate.ValueType.INTEGER)
+                .rangeMinInt(rangeMin)
+                .rangeMaxInt(rangeMax)
+                .unit(unit)
+                .sourceField(sourceField)
+                .authority(authority)
+                .confidence(confidence)
+                .rawValue(firstNonBlank(
+                        rangeMin == null ? null : String.valueOf(rangeMin),
+                        rangeMax == null ? null : String.valueOf(rangeMax)
+                ))
+                .evidenceText(RawFieldValidator.normalize(evidenceText))
+                .build());
+    }
+
+    private void addBoundaryFact(List<NormalizedPolicyAggregate.Fact> facts,
+                                 String factGroup,
+                                 String factCode,
+                                 String factLabel,
+                                 Integer intValue,
+                                 NormalizedPolicyAggregate.Operator operator,
+                                 String unit,
+                                 String sourceField,
+                                 NormalizedPolicyAggregate.Authority authority,
+                                 BigDecimal confidence,
+                                 String evidenceText) {
+        if (intValue == null) {
+            return;
+        }
+        facts.add(NormalizedPolicyAggregate.Fact.builder()
+                .factGroup(factGroup)
+                .factCodeSetKey(null)
+                .factCode(factCode)
+                .factLabel(factLabel)
+                .operator(operator)
+                .valueType(NormalizedPolicyAggregate.ValueType.INTEGER)
+                .intValue(intValue)
+                .unit(unit)
+                .sourceField(sourceField)
+                .authority(authority)
+                .confidence(confidence)
+                .rawValue(String.valueOf(intValue))
+                .evidenceText(RawFieldValidator.normalize(evidenceText))
+                .build());
+    }
+
+    private void addDateFact(List<NormalizedPolicyAggregate.Fact> facts,
+                             String factGroup,
+                             String factCode,
+                             String factLabel,
+                             LocalDate dateValue,
+                             String sourceField,
+                             NormalizedPolicyAggregate.Authority authority,
+                             BigDecimal confidence,
+                             String evidenceText) {
+        if (dateValue == null) {
+            return;
+        }
+        facts.add(NormalizedPolicyAggregate.Fact.builder()
+                .factGroup(factGroup)
+                .factCodeSetKey(null)
+                .factCode(factCode)
+                .factLabel(factLabel)
+                .operator(NormalizedPolicyAggregate.Operator.EQ)
+                .valueType(NormalizedPolicyAggregate.ValueType.DATE)
+                .dateValue(dateValue)
+                .sourceField(sourceField)
+                .authority(authority)
+                .confidence(confidence)
+                .rawValue(dateValue.toString())
+                .evidenceText(RawFieldValidator.normalize(evidenceText))
+                .build());
     }
 }

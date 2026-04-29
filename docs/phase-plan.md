@@ -178,6 +178,8 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
   - 실제 title sample 조회로 `대전 청년 월세지원`, `대학생 학자금 대출이자 지원(경기도)`, `취업청년정착수당` 등 `BOKJIRO_LOCAL` row가 `unified_category=기타` 로 남는 사례 확인
   - Work24 / MyHome / Gov24 / 한국장학재단 공식 페이지 메타데이터 재조사
   - `git diff --check`
+- 2026-04-30 정책 canonical `NormalizedPolicyAggregate` 내부 DTO 초안 후 `backend`에서 `./gradlew test --no-daemon --tests com.example.welfare.collect.mapper.WelfareServiceMapperTest --tests com.example.welfare.collect.mapper.NormalizedPolicyAggregateTest --tests com.example.welfare.collect.mapper.PolicyNormalizationSampleCoverageTest`
+- 2026-04-30 정책 canonical `NormalizedPolicyAggregate` 내부 DTO 초안 후 `git diff --check`
 - 2026-04-28 pre-28 migrated DB 기준 admin logout / refresh invalidation / relogin smoke
   - `SECURITY_ADMIN_EMAILS=admin.logout.smoke@example.com` 으로 최신 앱을 기동한 뒤, admin 계정 로그인과 프로필 수정으로 queue row를 `SYNCED` 상태까지 맞추고 `POST /api/auth/refresh` 가 먼저 성공하는 것 확인
   - 같은 cookie jar + access token으로 `POST /api/auth/logout` 호출 후 cookie jar에서 `refresh_token` 이 제거되고, 직후 `POST /api/auth/refresh` 가 `401`, `errorCode=A001` 로 막히는 것 확인
@@ -237,6 +239,10 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
   - local Docker MySQL 기준 실제 적재 row를 다시 확인해 `welfare_services=3376`, `YOUTH=2299`, `BOKJIRO_LOCAL=1169`, `BOKJIRO_CENTRAL=115`, `welfare_service_details=0` 상태와 source별 structured fact 편중(`YOUTH` 중심)을 문서화
   - `대전 청년 월세지원`, `대학생 학자금 대출이자 지원(경기도)`, `취업청년정착수당` 같은 `BOKJIRO_LOCAL` title이 다수 `기타` 로 남는 사례를 실제 DB에서 확인하고, `keyword rule 추가` 대신 `official taxonomy + compat bridge + facts` 구조가 필요하다는 근거로 기록
   - Work24 Open-API 소개, MyHome 공공주택 API, Gov24/보조금24, 한국장학재단 공개 데이터/제도 안내를 다시 조사해 `정책형 / listing형 / reference형` source-shape 기준과 `고용24/워크넷`, `마이홈`, `국가장학금`, `대한민국 공공서비스 정보 API` 대응안을 [policy-source-onboarding-playbook.md](./policy-source-onboarding-playbook.md) 로 정리
+- 2026-04-30 정책 canonical `NormalizedPolicyAggregate` 내부 DTO 초안 및 mapper draft 추가
+  - `backend/src/main/java/com/example/welfare/collect/normalization/NormalizedPolicyAggregate.java` 를 추가해 `core / detail / taxonomy / facts` 내부 계약을 persistence-agnostic record로 고정
+  - `WelfareServiceMapper` 에 `toNormalizedYouth`, `toNormalizedBokjiroCentral`, `toNormalizedBokjiroLocal` 을 추가해 기존 `WelfareService` 저장 경로를 유지하면서도 source별 canonical aggregate를 병행 생성할 수 있게 정리
+  - `NormalizedPolicyAggregateTest` 로 온통청년 structured facts, 복지로 중앙 detail payload 반영, 복지로 지자체 service-field fallback detail 을 각각 고정
 - 2026-04-28 one-shot PII sync smoke의 `ENV_FILE` 직접 로드 지원 후 `bash -n deploy/smoke/user-pii-sync-cutover-smoke.sh`
 - 2026-04-28 one-shot PII sync smoke의 `ENV_FILE` 직접 로드 지원 후 `ENV_FILE=.env DB_QUERY_USERNAME=migration_admin DB_QUERY_PASSWORD=smoke-db-password-2026! DB_MIGRATION_USERNAME=migration_admin DB_MIGRATION_PASSWORD=smoke-db-password-2026! APP_BASE_URL=http://127.0.0.1:8082 deploy/smoke/user-pii-sync-cutover-smoke.sh`
   - 현재 로컬 `.env` 가 아직 `DB_USERNAME=root` 라 query/migration 계정만 explicit override로 주입한 상태에서 회원가입 -> 로그인 -> 프로필 수정 -> `user_pii_sync_queue` `SYNCED` -> 회원탈퇴 cleanup 재확인
@@ -782,7 +788,7 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - [ ] `정부지원일자리정보`, `구직자취업역량 강화프로그램`, `Gov24/보조금24` 의 정책형 source canonical onboarding 우선순위와 live validation 순서 작성
 - [ ] 한국장학재단/국가장학금 계열의 `제도 row` 와 `지원가능대학/학기/지원구간` reference matrix 분리 모델 초안 작성
 - [ ] 복지로 live detail 적재 기준 `welfare_service_details` / `service_facts` validation 리허설
-- [ ] collect 저장용 `NormalizedPolicyAggregate` 내부 DTO 초안 작성
+- [ ] `CollectItemSaver` / source adapter 경로에 `NormalizedPolicyAggregate` 병행 전달 연결
 - [ ] `service_taxonomies / service_taxonomy_terms / service_facts` 생성 migration SQL 초안 작성
 - [ ] `compat_unified_category` 를 저장 필드로 둘지 read-model 계산값으로 둘지 최종 결정
 - [ ] `TextConstraintExtractor` 를 `service_facts` 저장 규격에 맞춘 출력 모델로 재설계
@@ -802,6 +808,7 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 
 ### 완료
 
+- [x] collect 저장용 `NormalizedPolicyAggregate` 내부 DTO 초안 작성
 - [x] 실제 DB 적재 스냅샷 기반 정책 정규화 검증 및 source onboarding 대응안 정리
 - [x] `복지로 list/detail text -> facts fallback extraction` 허용 범위와 authority 구분 기준 작성
 - [x] `Gov24 service field / user type / benefit type -> compatibility unifiedCategory / youth taxonomy bridge` 규칙 초안 작성
