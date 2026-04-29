@@ -2,6 +2,8 @@ package com.example.welfare.collect.service;
 
 import com.example.welfare.collect.gateway.BokjiroDetailClient;
 import com.example.welfare.collect.mapper.WelfareServiceMapper;
+import com.example.welfare.collect.normalization.NormalizedPolicyAggregate;
+import com.example.welfare.collect.normalization.NormalizedPolicySidecarWriter;
 import com.example.welfare.policy.entity.ServiceTag;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.entity.WelfareServiceDetail;
@@ -46,6 +48,8 @@ class BokjiroDetailCollectServiceTest {
     private RawApiPayloadService rawApiPayloadService;
     @Mock
     private SearchYouthRelevanceService searchYouthRelevanceService;
+    @Mock
+    private NormalizedPolicySidecarWriter normalizedPolicySidecarWriter;
 
     private final WelfareServiceMapper welfareServiceMapper = new WelfareServiceMapper();
     private BokjiroDetailCollectService service;
@@ -59,7 +63,8 @@ class BokjiroDetailCollectServiceTest {
                 detailClient,
                 rawApiPayloadService,
                 searchYouthRelevanceService,
-                welfareServiceMapper
+                welfareServiceMapper,
+                normalizedPolicySidecarWriter
         );
         ReflectionTestUtils.setField(service, "maxCallsPerApiPerRun", 95);
         ReflectionTestUtils.setField(service, "requestIntervalMs", 0L);
@@ -139,6 +144,13 @@ class BokjiroDetailCollectServiceTest {
         assertThat(central.getIsOnlineApply()).isTrue();
 
         verify(rawApiPayloadService).saveBokjiroDetail(WelfareService.SourceType.BOKJIRO_CENTRAL, "CENTRAL-2", payload);
+        verify(normalizedPolicySidecarWriter).upsert(eq(central), argThat(aggregate ->
+                aggregate != null
+                        && aggregate.core() != null
+                        && "CENTRAL-2".equals(aggregate.core().sourceId())
+                        && aggregate.facts().stream().anyMatch(fact -> "BK_AGE_ELIGIBILITY".equals(fact.factMergeKey()))
+                        && aggregate.facts().stream().anyMatch(fact -> "BK_APPLY_END_DATE".equals(fact.factMergeKey()))
+        ));
         verify(searchYouthRelevanceService).refreshForService(eq(central), eq(tags));
     }
 

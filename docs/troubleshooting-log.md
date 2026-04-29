@@ -707,3 +707,8 @@
 - 문제: `fact_merge_key` 와 복지로 공통 fact code를 맞춘 뒤에도 실제 `service_facts` saver 가 아직 없으면, 나중에 저장 경로를 만들 때 `authority -> confidence -> sourceField` 우선순위를 각 saver/repository 에서 다시 손으로 구현하게 될 수 있다. 그러면 문서와 현재 테스트가 있어도 실제 upsert 동작이 미묘하게 달라질 위험이 있었음
 - 해결: `NormalizedFactMergeSupport` 를 추가해 `fact_merge_key` 기준 merge/upsert precedence 를 코드 utility로 먼저 고정했고, `NormalizedFactMergeSupportTest` 에 `list -> detail overwrite`, `detail -> list no-op`, `set-like union` 케이스를 추가해 future saver 가 그대로 재사용할 계약을 마련했음
 - 이유: merge 규칙은 “문서 + mapper + persistence” 3층에서 동일해야 한다. 저장 경로가 아직 없어도 precedence 자체는 executable utility와 테스트로 먼저 한 곳에 고정해 둬야 이후 sidecar saver 가 같은 계약을 재사용하며 구현돼 재발 방지에 안전하다
+
+## 140) sidecar writer 훅이 collect list/detail 경로에 연결되지 않으면, 나중에 DB writer 를 붙여도 일부 aggregate 는 계속 legacy entity write path 에서만 끝나 canonical sidecar 가 부분 적재될 수 있음
+- 문제: `NormalizedPolicyAggregate`, `factMergeKey`, `NormalizedFactMergeSupport` 를 준비해도 실제 collect 경로가 sidecar writer 를 호출하지 않으면, future `service_taxonomies/service_facts` 저장을 붙일 때 adapter/list/detail 경로 중 일부만 새 writer 를 타고 나머지는 계속 `WelfareService` / `WelfareServiceDetail` write 에서 끝날 수 있다. 그러면 source별 canonical 적재 커버리지가 다시 경로마다 갈라질 위험이 있었음
+- 해결: `NormalizedPolicySidecarWriter` 인터페이스와 `DeferredNormalizedPolicySidecarWriter` 기본 구현을 추가하고, `CollectItemSaver` 와 `BokjiroDetailCollectService` 가 aggregate 저장 경로에서 모두 writer 를 호출하도록 연결했음. 테스트에서도 youth list path 와 bokjiro detail path 모두 writer 호출을 검증하도록 고정했음
+- 이유: canonical 전환은 mapper 규칙만 맞춘다고 끝나지 않고, collect 실행 경로 전체가 같은 저장 훅을 지나야 한다. sidecar DB writer 가 아직 없어도 호출 지점을 먼저 고정해야 이후 persistence 구현을 한 곳에 꽂을 수 있어 재발 방지에 안전하다

@@ -3,6 +3,7 @@ package com.example.welfare.collect.service;
 import com.example.welfare.collect.gateway.BokjiroDetailClient;
 import com.example.welfare.collect.mapper.WelfareServiceMapper;
 import com.example.welfare.collect.normalization.NormalizedPolicyAggregate;
+import com.example.welfare.collect.normalization.NormalizedPolicySidecarWriter;
 import com.example.welfare.collect.validation.RawFieldValidator;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.entity.WelfareServiceDetail;
@@ -37,6 +38,7 @@ public class BokjiroDetailCollectService {
     private final RawApiPayloadService rawApiPayloadService;
     private final SearchYouthRelevanceService searchYouthRelevanceService;
     private final WelfareServiceMapper welfareServiceMapper;
+    private final NormalizedPolicySidecarWriter normalizedPolicySidecarWriter;
 
     @Value("${collect.detail.max-calls-per-run:900}")
     private int maxCallsPerRun;
@@ -182,6 +184,7 @@ public class BokjiroDetailCollectService {
 
                 detailRepository.save(merged);
                 applyFallbacksToService(service, aggregate);
+                normalizedPolicySidecarWriter.upsert(service, aggregate);
                 searchYouthRelevanceService.refreshForService(service, serviceTagRepository.findByServiceId(service.getId()));
                 saved++;
             } catch (Exception e) {

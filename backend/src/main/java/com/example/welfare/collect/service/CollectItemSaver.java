@@ -5,6 +5,7 @@ import com.example.welfare.collect.dto.BokjiroLocalDto;
 import com.example.welfare.collect.dto.YouthApiDto;
 import com.example.welfare.collect.mapper.WelfareServiceMapper;
 import com.example.welfare.collect.normalization.NormalizedPolicyAggregate;
+import com.example.welfare.collect.normalization.NormalizedPolicySidecarWriter;
 import com.example.welfare.policy.entity.ServiceRegion;
 import com.example.welfare.policy.entity.ServiceTag;
 import com.example.welfare.policy.entity.WelfareService;
@@ -46,6 +47,7 @@ public class CollectItemSaver {
     private final PlatformTransactionManager transactionManager;
     private final JdbcTemplate jdbcTemplate;
     private final SearchYouthRelevanceService searchYouthRelevanceService;
+    private final NormalizedPolicySidecarWriter normalizedPolicySidecarWriter;
 
     private static final int MAX_SAVE_ATTEMPTS = 3;
     private static final long BASE_BACKOFF_MS = 200L;
@@ -76,6 +78,7 @@ public class CollectItemSaver {
                 aggregate.core().sourceId(),
                 mapper.fromYouth(item)
         );
+        normalizedPolicySidecarWriter.upsert(entity, aggregate);
         upsertRegions(entity, mapper.regionsFromYouth(item, entity));
         List<ServiceTag> tags = replaceTags(entity, mapper.tagsFromYouth(item, entity));
         searchYouthRelevanceService.refreshForService(entity, tags);
@@ -107,6 +110,7 @@ public class CollectItemSaver {
                 aggregate.core().sourceId(),
                 mapper.fromBokjiroCentral(item)
         );
+        normalizedPolicySidecarWriter.upsert(entity, aggregate);
         upsertRegions(entity, mapper.regionsFromBokjiroCentral(item, entity));
         List<ServiceTag> tags = replaceTags(entity, mapper.tagsFromBokjiroCentral(item, entity));
         searchYouthRelevanceService.refreshForService(entity, tags);
@@ -138,6 +142,7 @@ public class CollectItemSaver {
                 aggregate.core().sourceId(),
                 mapper.fromBokjiroLocal(item)
         );
+        normalizedPolicySidecarWriter.upsert(entity, aggregate);
         upsertRegions(entity, mapper.regionsFromBokjiroLocal(item, entity));
         List<ServiceTag> tags = replaceTags(entity, mapper.tagsFromBokjiroLocal(item, entity));
         searchYouthRelevanceService.refreshForService(entity, tags);

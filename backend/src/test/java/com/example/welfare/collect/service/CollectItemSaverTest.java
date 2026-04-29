@@ -3,6 +3,7 @@ package com.example.welfare.collect.service;
 import com.example.welfare.collect.dto.YouthApiDto;
 import com.example.welfare.collect.mapper.WelfareServiceMapper;
 import com.example.welfare.collect.normalization.NormalizedPolicyAggregate;
+import com.example.welfare.collect.normalization.NormalizedPolicySidecarWriter;
 import com.example.welfare.policy.entity.ServiceRegion;
 import com.example.welfare.policy.entity.ServiceTag;
 import com.example.welfare.policy.entity.WelfareService;
@@ -47,6 +48,8 @@ class CollectItemSaverTest {
     private JdbcTemplate jdbcTemplate;
     @Mock
     private SearchYouthRelevanceService searchYouthRelevanceService;
+    @Mock
+    private NormalizedPolicySidecarWriter normalizedPolicySidecarWriter;
 
     private CollectItemSaver saver;
 
@@ -58,7 +61,8 @@ class CollectItemSaverTest {
                 tagRepository,
                 transactionManager,
                 jdbcTemplate,
-                searchYouthRelevanceService
+                searchYouthRelevanceService,
+                normalizedPolicySidecarWriter
         );
     }
 
@@ -160,6 +164,36 @@ class CollectItemSaverTest {
         assertThatThrownBy(() -> saver.saveYouthOnce(item, normalizedAggregate("WRONG")))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("source identity");
+    }
+
+    @Test
+    @DisplayName("aggregate 병행 저장 경로는 future sidecar writer 에 canonical aggregate 를 전달한다")
+    void saveYouthOncePassesAggregateToSidecarWriter() {
+        YouthApiDto.Item item = youthItem("Y-4");
+        WelfareService existing = WelfareService.builder()
+                .id(44L)
+                .sourceType(WelfareService.SourceType.YOUTH)
+                .sourceId("Y-4")
+                .title("old")
+                .status(WelfareService.ServiceStatus.ACTIVE)
+                .build();
+        WelfareService incoming = WelfareService.builder()
+                .sourceType(WelfareService.SourceType.YOUTH)
+                .sourceId("Y-4")
+                .title("new")
+                .status(WelfareService.ServiceStatus.ACTIVE)
+                .build();
+        NormalizedPolicyAggregate aggregate = normalizedAggregate("Y-4");
+
+        given(welfareServiceRepository.findBySourceTypeAndSourceId(WelfareService.SourceType.YOUTH, "Y-4"))
+                .willReturn(Optional.of(existing));
+        given(mapper.fromYouth(item)).willReturn(incoming);
+        given(mapper.regionsFromYouth(item, existing)).willReturn(List.of());
+        given(mapper.tagsFromYouth(item, existing)).willReturn(List.of());
+
+        saver.saveYouthOnce(item, aggregate);
+
+        verify(normalizedPolicySidecarWriter).upsert(existing, aggregate);
     }
 
     private YouthApiDto.Item youthItem(String plcyNo) {
