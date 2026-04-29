@@ -702,3 +702,8 @@
 - 문제: `policy-normalization-fact-merge-rules.md` 로 merge key 규칙을 먼저 고정했더라도, `NormalizedPolicyAggregate.Fact` 가 여전히 `factCode` 만 들고 있으면 현재 mapper 출력과 future `service_facts` saver 사이에 merge slot 정보가 사라진다. 이 상태에서는 list/detail 이 같은 semantic fact 를 내보내는지 테스트 레벨에서 고정할 수 없고, sidecar 저장 단계에서 다시 phase-specific 코드에 의존할 위험이 있었음
 - 해결: `NormalizedPolicyAggregate.Fact` 에 `factMergeKey` 필드를 추가하고, `WelfareServiceMapper` 가 복지로 list/detail facts 에 공통 `BOKJIRO_RULE_AGE` / `BOKJIRO_RULE_APPLY_END_DATE` 와 stable `BK_AGE_ELIGIBILITY` / `BK_APPLY_END_DATE` merge key 를 함께 채우도록 정리했음. `NormalizedPolicyAggregateTest` 로 youth/복지로 facts 의 merge key 도 같이 검증하게 바꿨음
 - 이유: canonical aggregate 는 future persistence 계약의 가장 가까운 전단계다. merge slot 정보가 aggregate부터 살아 있어야 migration SQL, saver upsert, retrieval/read-model 이 같은 semantic fact 개념을 일관되게 공유할 수 있어 재발 방지에 안전하다
+
+## 139) merge 규칙이 문서와 mapper에만 있고 executable merge utility가 없으면, future `service_facts` saver 구현 시 precedence 로직이 다시 분산되어 drift 날 수 있음
+- 문제: `fact_merge_key` 와 복지로 공통 fact code를 맞춘 뒤에도 실제 `service_facts` saver 가 아직 없으면, 나중에 저장 경로를 만들 때 `authority -> confidence -> sourceField` 우선순위를 각 saver/repository 에서 다시 손으로 구현하게 될 수 있다. 그러면 문서와 현재 테스트가 있어도 실제 upsert 동작이 미묘하게 달라질 위험이 있었음
+- 해결: `NormalizedFactMergeSupport` 를 추가해 `fact_merge_key` 기준 merge/upsert precedence 를 코드 utility로 먼저 고정했고, `NormalizedFactMergeSupportTest` 에 `list -> detail overwrite`, `detail -> list no-op`, `set-like union` 케이스를 추가해 future saver 가 그대로 재사용할 계약을 마련했음
+- 이유: merge 규칙은 “문서 + mapper + persistence” 3층에서 동일해야 한다. 저장 경로가 아직 없어도 precedence 자체는 executable utility와 테스트로 먼저 한 곳에 고정해 둬야 이후 sidecar saver 가 같은 계약을 재사용하며 구현돼 재발 방지에 안전하다

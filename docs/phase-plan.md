@@ -200,6 +200,11 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
   - `NormalizedPolicyAggregateTest` 에 youth/복지로 facts 의 merge key 와 복지로 list/detail 공통 code 검증을 추가해 mapper 출력이 future sidecar merge 규칙과 어긋나지 않도록 고정
 - 2026-04-30 `WelfareServiceMapper` 복지로 facts stable `fact_merge_key` 정리 후 `backend`에서 `./gradlew test --no-daemon --tests com.example.welfare.collect.mapper.WelfareServiceMapperTest --tests com.example.welfare.collect.mapper.NormalizedPolicyAggregateTest --tests com.example.welfare.collect.mapper.PolicyNormalizationSampleCoverageTest --tests com.example.welfare.collect.service.CollectItemSaverTest`
 - 2026-04-30 `WelfareServiceMapper` 복지로 facts stable `fact_merge_key` 정리 후 `git diff --check`
+- 2026-04-30 future `service_facts` saver `fact_merge_key` unique upsert contract test 추가
+  - `NormalizedFactMergeSupport` 를 추가해 `fact_merge_key` 기준 merge/upsert precedence(`authority -> confidence -> sourceField`)를 executable utility로 고정
+  - `NormalizedFactMergeSupportTest` 에 `list -> detail overwrite`, `detail -> list no-op`, `set-like union` 케이스를 추가해 복지로 merge 규칙 문서와 코드 계약을 맞춤
+- 2026-04-30 future `service_facts` saver `fact_merge_key` unique upsert contract test 추가 후 `backend`에서 `./gradlew test --no-daemon --tests com.example.welfare.collect.normalization.NormalizedFactMergeSupportTest --tests com.example.welfare.collect.mapper.NormalizedPolicyAggregateTest`
+- 2026-04-30 future `service_facts` saver `fact_merge_key` unique upsert contract test 추가 후 `git diff --check`
 - 2026-04-28 pre-28 migrated DB 기준 admin logout / refresh invalidation / relogin smoke
   - `SECURITY_ADMIN_EMAILS=admin.logout.smoke@example.com` 으로 최신 앱을 기동한 뒤, admin 계정 로그인과 프로필 수정으로 queue row를 `SYNCED` 상태까지 맞추고 `POST /api/auth/refresh` 가 먼저 성공하는 것 확인
   - 같은 cookie jar + access token으로 `POST /api/auth/logout` 호출 후 cookie jar에서 `refresh_token` 이 제거되고, 직후 `POST /api/auth/refresh` 가 `401`, `errorCode=A001` 로 막히는 것 확인
@@ -808,7 +813,7 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - [ ] `정부지원일자리정보`, `구직자취업역량 강화프로그램`, `Gov24/보조금24` 의 정책형 source canonical onboarding 우선순위와 live validation 순서 작성
 - [ ] 한국장학재단/국가장학금 계열의 `제도 row` 와 `지원가능대학/학기/지원구간` reference matrix 분리 모델 초안 작성
 - [ ] 복지로 live detail 적재 기준 `welfare_service_details` / `service_facts` validation 리허설
-- [ ] future `service_facts` saver 에 `fact_merge_key` unique upsert contract 테스트(`list -> detail overwrite`, `detail -> list no-op`, `set-like union`) 추가
+- [ ] future `service_facts` saver 가 `NormalizedFactMergeSupport` 를 재사용하도록 실제 sidecar 저장 경로 연결
 - [ ] `service_taxonomies / service_taxonomy_terms / service_facts` 생성 migration SQL 초안 작성
 - [ ] `compat_unified_category` 를 저장 필드로 둘지 read-model 계산값으로 둘지 최종 결정
 - [ ] `TextConstraintExtractor` 를 `service_facts` 저장 규격에 맞춘 출력 모델로 재설계
@@ -828,6 +833,7 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 
 ### 완료
 
+- [x] future `service_facts` saver 에 `fact_merge_key` unique upsert contract 테스트(`list -> detail overwrite`, `detail -> list no-op`, `set-like union`) 추가
 - [x] `WelfareServiceMapper` 의 phase-specific fact code(`TEXT_AGE`, `DETAIL_TEXT_AGE`) 를 stable `fact_merge_key` 체계로 정리
 - [x] `service_facts` sidecar 저장 시 복지로 list aggregate와 detail aggregate merge/upsert 규칙 설계
 - [x] `BokjiroDetailCollectService` / detail refresh 경로에서 `NormalizedPolicyAggregate` detail/facts 후속 보강 연결
