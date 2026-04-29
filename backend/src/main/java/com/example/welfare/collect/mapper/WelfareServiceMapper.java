@@ -36,6 +36,14 @@ public class WelfareServiceMapper {
     private static final String[] ONLINE_APPLY_KEYWORDS = {
             "온라인", "인터넷", "홈페이지", "웹", "모바일", "앱", "신청페이지", "누리집"
     };
+    private static final String YOUTH_AGE_MERGE_KEY = "YOUTH_AGE_ELIGIBILITY";
+    private static final String YOUTH_INCOME_MIN_MERGE_KEY = "YOUTH_INCOME_MIN";
+    private static final String YOUTH_INCOME_MAX_MERGE_KEY = "YOUTH_INCOME_MAX";
+    private static final String YOUTH_APPLY_END_DATE_MERGE_KEY = "YOUTH_APPLY_END_DATE";
+    private static final String BOKJIRO_AGE_FACT_CODE = "BOKJIRO_RULE_AGE";
+    private static final String BOKJIRO_APPLY_END_DATE_FACT_CODE = "BOKJIRO_RULE_APPLY_END_DATE";
+    private static final String BOKJIRO_AGE_MERGE_KEY = "BK_AGE_ELIGIBILITY";
+    private static final String BOKJIRO_APPLY_END_DATE_MERGE_KEY = "BK_APPLY_END_DATE";
 
     // ===== 온통청년 =====
 
@@ -529,24 +537,24 @@ public class WelfareServiceMapper {
 
     private List<NormalizedPolicyAggregate.Fact> youthFacts(WelfareService service) {
         List<NormalizedPolicyAggregate.Fact> facts = new ArrayList<>();
-        addRangeFact(facts, "AGE", "YOUTH_AGE", "지원 연령", service.getMinAge(), service.getMaxAge(), "세",
+        addRangeFact(facts, "AGE", "YOUTH_AGE", YOUTH_AGE_MERGE_KEY, "지원 연령", service.getMinAge(), service.getMaxAge(), "세",
                 "sprtTrgtMinAge/sprtTrgtMaxAge", NormalizedPolicyAggregate.Authority.OFFICIAL, BigDecimal.ONE, null);
-        addBoundaryFact(facts, "INCOME", "YOUTH_INCOME_MIN", "소득 하한", service.getMinIncome(),
+        addBoundaryFact(facts, "INCOME", "YOUTH_INCOME_MIN", YOUTH_INCOME_MIN_MERGE_KEY, "소득 하한", service.getMinIncome(),
                 NormalizedPolicyAggregate.Operator.GTE, "legacy-int", "earnMinAmt",
                 NormalizedPolicyAggregate.Authority.OFFICIAL, BigDecimal.ONE, null);
-        addBoundaryFact(facts, "INCOME", "YOUTH_INCOME_MAX", "소득 상한", service.getMaxIncome(),
+        addBoundaryFact(facts, "INCOME", "YOUTH_INCOME_MAX", YOUTH_INCOME_MAX_MERGE_KEY, "소득 상한", service.getMaxIncome(),
                 NormalizedPolicyAggregate.Operator.LTE, "legacy-int", "earnMaxAmt",
                 NormalizedPolicyAggregate.Authority.OFFICIAL, BigDecimal.ONE, null);
-        addDateFact(facts, "APPLY_END_DATE", "YOUTH_APPLY_END_DATE", "신청 종료일", service.getApplyEndDate(),
+        addDateFact(facts, "APPLY_END_DATE", "YOUTH_APPLY_END_DATE", YOUTH_APPLY_END_DATE_MERGE_KEY, "신청 종료일", service.getApplyEndDate(),
                 "aplyYmd", NormalizedPolicyAggregate.Authority.OFFICIAL, BigDecimal.ONE, null);
         return facts;
     }
 
     private List<NormalizedPolicyAggregate.Fact> bokjiroDerivedFacts(WelfareService service, String evidenceText) {
         List<NormalizedPolicyAggregate.Fact> facts = new ArrayList<>();
-        addRangeFact(facts, "AGE", "TEXT_AGE", "지원 연령", service.getMinAge(), service.getMaxAge(), "세",
+        addRangeFact(facts, "AGE", BOKJIRO_AGE_FACT_CODE, BOKJIRO_AGE_MERGE_KEY, "지원 연령", service.getMinAge(), service.getMaxAge(), "세",
                 "servDgst", NormalizedPolicyAggregate.Authority.RULE_DERIVED, BigDecimal.valueOf(0.90), evidenceText);
-        addDateFact(facts, "APPLY_END_DATE", "TEXT_APPLY_END_DATE", "신청 종료일", service.getApplyEndDate(),
+        addDateFact(facts, "APPLY_END_DATE", BOKJIRO_APPLY_END_DATE_FACT_CODE, BOKJIRO_APPLY_END_DATE_MERGE_KEY, "신청 종료일", service.getApplyEndDate(),
                 "servDgst", NormalizedPolicyAggregate.Authority.RULE_DERIVED, BigDecimal.valueOf(0.80), evidenceText);
         return facts;
     }
@@ -567,10 +575,10 @@ public class WelfareServiceMapper {
         );
 
         List<NormalizedPolicyAggregate.Fact> facts = new ArrayList<>();
-        addRangeFact(facts, "AGE", "DETAIL_TEXT_AGE", "지원 연령", constraints.minAge(), constraints.maxAge(), "세",
+        addRangeFact(facts, "AGE", BOKJIRO_AGE_FACT_CODE, BOKJIRO_AGE_MERGE_KEY, "지원 연령", constraints.minAge(), constraints.maxAge(), "세",
                 "targetDetail/selectionCriteria", NormalizedPolicyAggregate.Authority.RULE_DERIVED,
                 BigDecimal.valueOf(0.90), evidenceText);
-        addDateFact(facts, "APPLY_END_DATE", "DETAIL_TEXT_APPLY_END_DATE", "신청 종료일", constraints.applyEndDate(),
+        addDateFact(facts, "APPLY_END_DATE", BOKJIRO_APPLY_END_DATE_FACT_CODE, BOKJIRO_APPLY_END_DATE_MERGE_KEY, "신청 종료일", constraints.applyEndDate(),
                 "applyMethodDetail/supportDetail", NormalizedPolicyAggregate.Authority.RULE_DERIVED,
                 BigDecimal.valueOf(0.80), evidenceText);
         return facts;
@@ -630,6 +638,7 @@ public class WelfareServiceMapper {
     private void addRangeFact(List<NormalizedPolicyAggregate.Fact> facts,
                               String factGroup,
                               String factCode,
+                              String factMergeKey,
                               String factLabel,
                               Integer rangeMin,
                               Integer rangeMax,
@@ -645,6 +654,7 @@ public class WelfareServiceMapper {
                 .factGroup(factGroup)
                 .factCodeSetKey(null)
                 .factCode(factCode)
+                .factMergeKey(factMergeKey)
                 .factLabel(factLabel)
                 .operator(rangeMin != null && rangeMax != null
                         ? NormalizedPolicyAggregate.Operator.RANGE
@@ -669,6 +679,7 @@ public class WelfareServiceMapper {
     private void addBoundaryFact(List<NormalizedPolicyAggregate.Fact> facts,
                                  String factGroup,
                                  String factCode,
+                                 String factMergeKey,
                                  String factLabel,
                                  Integer intValue,
                                  NormalizedPolicyAggregate.Operator operator,
@@ -684,6 +695,7 @@ public class WelfareServiceMapper {
                 .factGroup(factGroup)
                 .factCodeSetKey(null)
                 .factCode(factCode)
+                .factMergeKey(factMergeKey)
                 .factLabel(factLabel)
                 .operator(operator)
                 .valueType(NormalizedPolicyAggregate.ValueType.INTEGER)
@@ -700,6 +712,7 @@ public class WelfareServiceMapper {
     private void addDateFact(List<NormalizedPolicyAggregate.Fact> facts,
                              String factGroup,
                              String factCode,
+                             String factMergeKey,
                              String factLabel,
                              LocalDate dateValue,
                              String sourceField,
@@ -713,6 +726,7 @@ public class WelfareServiceMapper {
                 .factGroup(factGroup)
                 .factCodeSetKey(null)
                 .factCode(factCode)
+                .factMergeKey(factMergeKey)
                 .factLabel(factLabel)
                 .operator(NormalizedPolicyAggregate.Operator.EQ)
                 .valueType(NormalizedPolicyAggregate.ValueType.DATE)

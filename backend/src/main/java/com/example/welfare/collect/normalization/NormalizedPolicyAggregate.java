@@ -94,6 +94,7 @@ public record NormalizedPolicyAggregate(
             String factGroup,
             String factCodeSetKey,
             String factCode,
+            String factMergeKey,
             String factLabel,
             Operator operator,
             ValueType valueType,

@@ -697,3 +697,8 @@
 - 문제: 현재 canonical 초안에서는 복지로 list 쪽에 `TEXT_AGE`, detail 쪽에 `DETAIL_TEXT_AGE` 같은 phase-specific 코드가 남아 있다. 이 상태로 `service_facts` 를 저장하면 같은 `AGE` 슬롯이어도 서로 다른 row로 인식되어, detail collect 가 list fallback 을 교체해야 하는 경우에도 단순 중복 insert 로 끝날 위험이 있었음
 - 해결: [policy-normalization-fact-merge-rules.md](./policy-normalization-fact-merge-rules.md) 를 추가해 `fact_code` 와 별도로 `fact_merge_key` 를 두고, `BK_AGE_ELIGIBILITY`, `BK_APPLY_END_DATE` 같은 stable logical key 기준으로 merge/upsert 하도록 규칙을 고정했음. 이어서 next task로 mapper fact code 를 stable merge key 체계로 정리하도록 작업 추적에 추가했음
 - 이유: list/detail cadence 가 다른 source에서는 “무슨 fact인가”와 “어느 phase에서 나왔는가”를 같은 코드값에 섞으면 deterministic upsert 를 만들기 어렵다. logical merge key 를 먼저 고정해야 migration SQL, saver, read-model 이 같은 fact slot 개념을 공유할 수 있어 재발 방지에 안전하다
+
+## 138) `fact_merge_key` 가 문서에만 있고 aggregate 계약에는 없으면, mapper 테스트는 통과해도 future sidecar saver 단계에서 같은 semantic fact slot 을 안정적으로 단언할 수 없음
+- 문제: `policy-normalization-fact-merge-rules.md` 로 merge key 규칙을 먼저 고정했더라도, `NormalizedPolicyAggregate.Fact` 가 여전히 `factCode` 만 들고 있으면 현재 mapper 출력과 future `service_facts` saver 사이에 merge slot 정보가 사라진다. 이 상태에서는 list/detail 이 같은 semantic fact 를 내보내는지 테스트 레벨에서 고정할 수 없고, sidecar 저장 단계에서 다시 phase-specific 코드에 의존할 위험이 있었음
+- 해결: `NormalizedPolicyAggregate.Fact` 에 `factMergeKey` 필드를 추가하고, `WelfareServiceMapper` 가 복지로 list/detail facts 에 공통 `BOKJIRO_RULE_AGE` / `BOKJIRO_RULE_APPLY_END_DATE` 와 stable `BK_AGE_ELIGIBILITY` / `BK_APPLY_END_DATE` merge key 를 함께 채우도록 정리했음. `NormalizedPolicyAggregateTest` 로 youth/복지로 facts 의 merge key 도 같이 검증하게 바꿨음
+- 이유: canonical aggregate 는 future persistence 계약의 가장 가까운 전단계다. merge slot 정보가 aggregate부터 살아 있어야 migration SQL, saver upsert, retrieval/read-model 이 같은 semantic fact 개념을 일관되게 공유할 수 있어 재발 방지에 안전하다

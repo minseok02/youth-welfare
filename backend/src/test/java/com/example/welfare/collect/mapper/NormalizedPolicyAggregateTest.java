@@ -57,6 +57,7 @@ class NormalizedPolicyAggregateTest {
                 .filteredOn(fact -> "AGE".equals(fact.factGroup()))
                 .singleElement()
                 .satisfies(fact -> {
+                    assertThat(fact.factMergeKey()).isEqualTo("YOUTH_AGE_ELIGIBILITY");
                     assertThat(fact.operator()).isEqualTo(NormalizedPolicyAggregate.Operator.RANGE);
                     assertThat(fact.rangeMinInt()).isEqualTo(19);
                     assertThat(fact.rangeMaxInt()).isEqualTo(34);
@@ -110,6 +111,8 @@ class NormalizedPolicyAggregateTest {
                 .filteredOn(fact -> "AGE".equals(fact.factGroup()))
                 .singleElement()
                 .satisfies(fact -> {
+                    assertThat(fact.factCode()).isEqualTo("BOKJIRO_RULE_AGE");
+                    assertThat(fact.factMergeKey()).isEqualTo("BK_AGE_ELIGIBILITY");
                     assertThat(fact.authority()).isEqualTo(NormalizedPolicyAggregate.Authority.RULE_DERIVED);
                     assertThat(fact.rangeMinInt()).isEqualTo(18);
                     assertThat(fact.rangeMaxInt()).isEqualTo(39);
@@ -148,6 +151,8 @@ class NormalizedPolicyAggregateTest {
                 .filteredOn(fact -> "AGE".equals(fact.factGroup()))
                 .singleElement()
                 .satisfies(fact -> {
+                    assertThat(fact.factCode()).isEqualTo("BOKJIRO_RULE_AGE");
+                    assertThat(fact.factMergeKey()).isEqualTo("BK_AGE_ELIGIBILITY");
                     assertThat(fact.rangeMinInt()).isEqualTo(19);
                     assertThat(fact.rangeMaxInt()).isEqualTo(34);
                 });
@@ -182,6 +187,8 @@ class NormalizedPolicyAggregateTest {
                 .filteredOn(fact -> "AGE".equals(fact.factGroup()))
                 .singleElement()
                 .satisfies(fact -> {
+                    assertThat(fact.factCode()).isEqualTo("BOKJIRO_RULE_AGE");
+                    assertThat(fact.factMergeKey()).isEqualTo("BK_AGE_ELIGIBILITY");
                     assertThat(fact.rangeMinInt()).isEqualTo(20);
                     assertThat(fact.rangeMaxInt()).isEqualTo(34);
                     assertThat(fact.sourceField()).isEqualTo("targetDetail/selectionCriteria");
@@ -189,7 +196,11 @@ class NormalizedPolicyAggregateTest {
         assertThat(aggregate.facts())
                 .filteredOn(fact -> "APPLY_END_DATE".equals(fact.factGroup()))
                 .singleElement()
-                .satisfies(fact -> assertThat(fact.dateValue()).isEqualTo(LocalDate.of(2026, 12, 31)));
+                .satisfies(fact -> {
+                    assertThat(fact.factCode()).isEqualTo("BOKJIRO_RULE_APPLY_END_DATE");
+                    assertThat(fact.factMergeKey()).isEqualTo("BK_APPLY_END_DATE");
+                    assertThat(fact.dateValue()).isEqualTo(LocalDate.of(2026, 12, 31));
+                });
     }
 
     private void setField(Object target, String name, Object value) throws Exception {
