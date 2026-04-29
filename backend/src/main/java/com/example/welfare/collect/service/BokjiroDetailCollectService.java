@@ -1,8 +1,9 @@
 package com.example.welfare.collect.service;
 
 import com.example.welfare.collect.gateway.BokjiroDetailClient;
+import com.example.welfare.collect.mapper.WelfareServiceMapper;
+import com.example.welfare.collect.normalization.NormalizedPolicyAggregate;
 import com.example.welfare.collect.validation.RawFieldValidator;
-import com.example.welfare.collect.validation.TextConstraintExtractor;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.entity.WelfareServiceDetail;
 import com.example.welfare.policy.repository.ServiceTagRepository;
@@ -35,6 +36,7 @@ public class BokjiroDetailCollectService {
     private final BokjiroDetailClient detailClient;
     private final RawApiPayloadService rawApiPayloadService;
     private final SearchYouthRelevanceService searchYouthRelevanceService;
+    private final WelfareServiceMapper welfareServiceMapper;
 
     @Value("${collect.detail.max-calls-per-run:900}")
     private int maxCallsPerRun;
@@ -159,25 +161,27 @@ public class BokjiroDetailCollectService {
             rawApiPayloadService.saveBokjiroDetail(service.getSourceType(), service.getSourceId(), payload);
 
             try {
+                NormalizedPolicyAggregate aggregate = welfareServiceMapper.toNormalizedBokjiroDetail(service, payload);
                 Optional<WelfareServiceDetail> existing = detailRepository.findByServiceId(service.getId());
                 WelfareServiceDetail entity = existing.orElse(
                         WelfareServiceDetail.builder().service(service).build()
                 );
 
+                NormalizedPolicyAggregate.Detail detail = aggregate.detail();
                 WelfareServiceDetail merged = WelfareServiceDetail.builder()
                         .id(entity.getId())
                         .service(service)
-                        .targetDetail(payload.getTargetDetail())
-                        .supportDetail(payload.getSupportDetail())
-                        .applyMethodDetail(payload.getApplyMethodDetail())
-                        .selectionCriteria(payload.getSelectionCriteria())
-                        .contactList(toJsonArray(payload.getContactList()))
-                        .supportCycle(payload.getSupportCycle())
-                        .provisionType(payload.getProvisionType())
+                        .targetDetail(detail.targetDetail())
+                        .supportDetail(detail.supportDetail())
+                        .applyMethodDetail(detail.applyMethodDetail())
+                        .selectionCriteria(detail.selectionCriteria())
+                        .contactList(toJsonArray(detail.contactText()))
+                        .supportCycle(detail.supportCycle())
+                        .provisionType(detail.provisionType())
                         .build();
 
                 detailRepository.save(merged);
-                applyFallbacksToService(service, payload);
+                applyFallbacksToService(service, aggregate);
                 searchYouthRelevanceService.refreshForService(service, serviceTagRepository.findByServiceId(service.getId()));
                 saved++;
             } catch (Exception e) {
@@ -228,22 +232,46 @@ public class BokjiroDetailCollectService {
         return new FetchOutcome(result, requestCount);
     }
 
-    private void applyFallbacksToService(WelfareService service, BokjiroDetailClient.DetailPayload payload) {
-        TextConstraintExtractor.ConstraintSummary constraints = TextConstraintExtractor.summarize(
-                payload.getTargetDetail(),
-                payload.getSupportDetail(),
-                payload.getApplyMethodDetail(),
-                payload.getSelectionCriteria()
-        );
-
+    private void applyFallbacksToService(WelfareService service, NormalizedPolicyAggregate aggregate) {
+        Integer minAge = findAgeMin(aggregate);
+        Integer maxAge = findAgeMax(aggregate);
+        java.time.LocalDate applyEndDate = findApplyEndDate(aggregate);
+        NormalizedPolicyAggregate.Detail detail = aggregate.detail();
         service.applyDetailFallbacks(
-                RawFieldValidator.normalize(payload.getSupportDetail()),
-                RawFieldValidator.normalize(payload.getApplyMethodDetail()),
-                constraints.minAge(),
-                constraints.maxAge(),
-                constraints.applyEndDate(),
-                inferOnlineApply(service.getDetailUrl(), payload.getApplyMethodDetail(), payload.getSupportDetail())
+                RawFieldValidator.normalize(detail.supportDetail()),
+                RawFieldValidator.normalize(detail.applyMethodDetail()),
+                minAge,
+                maxAge,
+                applyEndDate,
+                inferOnlineApply(service.getDetailUrl(), detail.applyMethodDetail(), detail.supportDetail())
         );
+    }
+
+    private Integer findAgeMin(NormalizedPolicyAggregate aggregate) {
+        return aggregate.facts().stream()
+                .filter(fact -> "AGE".equals(fact.factGroup()))
+                .map(NormalizedPolicyAggregate.Fact::rangeMinInt)
+                .filter(value -> value != null)
+                .findFirst()
+                .orElse(null);
+    }
+
+    private Integer findAgeMax(NormalizedPolicyAggregate aggregate) {
+        return aggregate.facts().stream()
+                .filter(fact -> "AGE".equals(fact.factGroup()))
+                .map(NormalizedPolicyAggregate.Fact::rangeMaxInt)
+                .filter(value -> value != null)
+                .findFirst()
+                .orElse(null);
+    }
+
+    private java.time.LocalDate findApplyEndDate(NormalizedPolicyAggregate aggregate) {
+        return aggregate.facts().stream()
+                .filter(fact -> "APPLY_END_DATE".equals(fact.factGroup()))
+                .map(NormalizedPolicyAggregate.Fact::dateValue)
+                .filter(value -> value != null)
+                .findFirst()
+                .orElse(null);
     }
 
     private Boolean inferOnlineApply(String detailUrl, String... texts) {

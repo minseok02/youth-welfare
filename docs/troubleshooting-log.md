@@ -687,3 +687,8 @@
 - 문제: 이번 task에서 `BokjiroCentral/Local` adapter는 canonical aggregate를 병행 전달하게 되었지만, list 수집 시점에는 상세 payload가 없어 `detail` 대부분이 `null` 또는 list fallback 값만 가진다. 이 상태를 완결 canonical로 간주하면 나중에 `BokjiroDetailCollectService` 가 들어올 때 어느 필드를 authoritative 하게 덮어쓸지 다시 모호해질 수 있었음
 - 해결: adapter 경로에서는 일단 `null detail payload` 기반 aggregate를 넘기고, 다음 작업을 `BokjiroDetailCollectService / detail refresh 경로에서 NormalizedPolicyAggregate detail/facts 후속 보강 연결` 로 분리해 기록했음
 - 이유: 복지로는 list와 detail의 수집 cadence와 정보 밀도가 다르다. list 수집 경로는 canonical 초안/identity 확보까지, detail 수집 경로는 세부 facts 보강까지 담당을 나누는 편이 점진 이행과 덮어쓰기 규칙 관리에 안전하다
+
+## 136) 복지로 상세 수집이 raw payload를 직접 `WelfareServiceDetail` / 서비스 fallback으로 저장하면, list collect가 만든 canonical 규칙과 detail collect 규칙이 쉽게 drift 날 수 있음
+- 문제: `NormalizedPolicyAggregate` 를 collect flow에 태운 뒤에도 `BokjiroDetailCollectService` 가 여전히 `DetailPayload` 원문을 직접 `WelfareServiceDetail` 과 `applyDetailFallbacks` 에 넣고 있으면, list collect는 mapper canonical 규칙을 따르고 detail collect는 service 내부 규칙을 따르는 이중 경로가 남게 된다. 이렇게 되면 `AGE`, `APPLY_END_DATE`, `onlineApply` 같은 보강값이 mapper와 service에서 서로 다르게 해석될 수 있었음
+- 해결: `WelfareServiceMapper.toNormalizedBokjiroDetail(service, detailPayload)` 를 추가하고, `BokjiroDetailCollectService` 가 aggregate `detail` 로 detail entity를 만들고 aggregate `facts` 로 서비스 fallback을 적용하도록 경로를 통일했음
+- 이유: canonical 전환 중에는 “무엇을 source truth로 해석하는지”가 한 곳에 모여 있어야 한다. 복지로 상세처럼 list/detail cadence가 다른 source일수록 mapper를 단일 해석 경계로 두는 편이 후속 sidecar 저장과 추천 read-model 전환에서 재발 방지에 안전하다

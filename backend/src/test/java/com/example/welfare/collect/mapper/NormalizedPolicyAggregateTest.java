@@ -5,6 +5,7 @@ import com.example.welfare.collect.dto.BokjiroLocalDto;
 import com.example.welfare.collect.dto.YouthApiDto;
 import com.example.welfare.collect.gateway.BokjiroDetailClient;
 import com.example.welfare.collect.normalization.NormalizedPolicyAggregate;
+import com.example.welfare.policy.entity.WelfareService;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Field;
@@ -150,6 +151,45 @@ class NormalizedPolicyAggregateTest {
                     assertThat(fact.rangeMinInt()).isEqualTo(19);
                     assertThat(fact.rangeMaxInt()).isEqualTo(34);
                 });
+    }
+
+    @Test
+    void toNormalizedBokjiroDetail_enrichesDetailAndFactsFromPayload() {
+        WelfareService service = WelfareService.builder()
+                .sourceType(WelfareService.SourceType.BOKJIRO_CENTRAL)
+                .sourceId("C002")
+                .title("청년 취업 지원")
+                .description("기존 목록 요약")
+                .unifiedCategory("일자리")
+                .detailUrl("https://bokjiro.go.kr/service/C002")
+                .status(WelfareService.ServiceStatus.ACTIVE)
+                .build();
+        BokjiroDetailClient.DetailPayload payload = BokjiroDetailClient.DetailPayload.builder()
+                .targetDetail("만 20세 이상 34세 이하 미취업 청년")
+                .supportDetail("직무교육 제공")
+                .applyMethodDetail("온라인 신청, 2026.12.31 까지")
+                .selectionCriteria("연령 요건 확인")
+                .contactList("고객센터")
+                .supportCycle("연 1회")
+                .provisionType("프로그램")
+                .build();
+
+        NormalizedPolicyAggregate aggregate = mapper.toNormalizedBokjiroDetail(service, payload);
+
+        assertThat(aggregate.detail().targetDetail()).contains("20세");
+        assertThat(aggregate.detail().applyMethodDetail()).contains("2026.12.31");
+        assertThat(aggregate.facts())
+                .filteredOn(fact -> "AGE".equals(fact.factGroup()))
+                .singleElement()
+                .satisfies(fact -> {
+                    assertThat(fact.rangeMinInt()).isEqualTo(20);
+                    assertThat(fact.rangeMaxInt()).isEqualTo(34);
+                    assertThat(fact.sourceField()).isEqualTo("targetDetail/selectionCriteria");
+                });
+        assertThat(aggregate.facts())
+                .filteredOn(fact -> "APPLY_END_DATE".equals(fact.factGroup()))
+                .singleElement()
+                .satisfies(fact -> assertThat(fact.dateValue()).isEqualTo(LocalDate.of(2026, 12, 31)));
     }
 
     private void setField(Object target, String name, Object value) throws Exception {

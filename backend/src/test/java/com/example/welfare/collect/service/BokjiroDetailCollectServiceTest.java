@@ -1,6 +1,7 @@
 package com.example.welfare.collect.service;
 
 import com.example.welfare.collect.gateway.BokjiroDetailClient;
+import com.example.welfare.collect.mapper.WelfareServiceMapper;
 import com.example.welfare.policy.entity.ServiceTag;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.entity.WelfareServiceDetail;
@@ -46,6 +47,7 @@ class BokjiroDetailCollectServiceTest {
     @Mock
     private SearchYouthRelevanceService searchYouthRelevanceService;
 
+    private final WelfareServiceMapper welfareServiceMapper = new WelfareServiceMapper();
     private BokjiroDetailCollectService service;
 
     @BeforeEach
@@ -56,7 +58,8 @@ class BokjiroDetailCollectServiceTest {
                 serviceTagRepository,
                 detailClient,
                 rawApiPayloadService,
-                searchYouthRelevanceService
+                searchYouthRelevanceService,
+                welfareServiceMapper
         );
         ReflectionTestUtils.setField(service, "maxCallsPerApiPerRun", 95);
         ReflectionTestUtils.setField(service, "requestIntervalMs", 0L);
@@ -94,9 +97,9 @@ class BokjiroDetailCollectServiceTest {
                 .supportDetail("old-support")
                 .build();
         BokjiroDetailClient.DetailPayload payload = BokjiroDetailClient.DetailPayload.builder()
-                .targetDetail("new-target")
+                .targetDetail("만 18세 이상 39세 이하 미취업 청년")
                 .supportDetail("new-support")
-                .applyMethodDetail("online")
+                .applyMethodDetail("온라인 신청, 2026.12.31 까지 접수")
                 .selectionCriteria("age")
                 .contactList("02-123-4567")
                 .supportCycle("MONTHLY")
@@ -127,9 +130,13 @@ class BokjiroDetailCollectServiceTest {
         WelfareServiceDetail saved = detailCaptor.getValue();
         assertThat(saved.getId()).isEqualTo(101L);
         assertThat(saved.getService()).isEqualTo(central);
-        assertThat(saved.getTargetDetail()).isEqualTo("new-target");
+        assertThat(saved.getTargetDetail()).isEqualTo("만 18세 이상 39세 이하 미취업 청년");
         assertThat(saved.getSupportDetail()).isEqualTo("new-support");
         assertThat(saved.getContactList()).isEqualTo("[\"02-123-4567\"]");
+        assertThat(central.getMinAge()).isEqualTo(18);
+        assertThat(central.getMaxAge()).isEqualTo(39);
+        assertThat(central.getApplyEndDate()).isEqualTo(java.time.LocalDate.of(2026, 12, 31));
+        assertThat(central.getIsOnlineApply()).isTrue();
 
         verify(rawApiPayloadService).saveBokjiroDetail(WelfareService.SourceType.BOKJIRO_CENTRAL, "CENTRAL-2", payload);
         verify(searchYouthRelevanceService).refreshForService(eq(central), eq(tags));

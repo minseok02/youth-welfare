@@ -233,6 +233,29 @@ public class WelfareServiceMapper {
                 .build();
     }
 
+    public NormalizedPolicyAggregate toNormalizedBokjiroDetail(WelfareService service,
+                                                               BokjiroDetailClient.DetailPayload detailPayload) {
+        if (service == null || detailPayload == null) {
+            throw new IllegalArgumentException("service/detailPayload 는 필수입니다.");
+        }
+        if (service.getSourceType() != WelfareService.SourceType.BOKJIRO_CENTRAL
+                && service.getSourceType() != WelfareService.SourceType.BOKJIRO_LOCAL) {
+            throw new IllegalArgumentException("복지로 상세 aggregate 는 복지로 source 에만 사용할 수 있습니다.");
+        }
+
+        return NormalizedPolicyAggregate.builder()
+                .core(buildCore(service))
+                .detail(buildDetail(service, detailPayload))
+                .taxonomy(NormalizedPolicyAggregate.TaxonomySummary.builder()
+                        .compatUnifiedCategory(service.getUnifiedCategory())
+                        .authority(NormalizedPolicyAggregate.Authority.SYSTEM_DERIVED)
+                        .confidence(BigDecimal.valueOf(0.85))
+                        .build())
+                .taxonomyTerms(List.of())
+                .facts(bokjiroDetailFacts(detailPayload))
+                .build();
+    }
+
     public List<ServiceTag> tagsFromBokjiroLocal(BokjiroLocalDto.Item item, WelfareService service) {
         List<ServiceTag> tags = new ArrayList<>();
         addTagsFromCsv(tags, service, item.getLifeNmArray(), ServiceTag.TagType.LIFE_STAGE);
@@ -525,6 +548,31 @@ public class WelfareServiceMapper {
                 "servDgst", NormalizedPolicyAggregate.Authority.RULE_DERIVED, BigDecimal.valueOf(0.90), evidenceText);
         addDateFact(facts, "APPLY_END_DATE", "TEXT_APPLY_END_DATE", "신청 종료일", service.getApplyEndDate(),
                 "servDgst", NormalizedPolicyAggregate.Authority.RULE_DERIVED, BigDecimal.valueOf(0.80), evidenceText);
+        return facts;
+    }
+
+    private List<NormalizedPolicyAggregate.Fact> bokjiroDetailFacts(BokjiroDetailClient.DetailPayload detailPayload) {
+        TextConstraintExtractor.ConstraintSummary constraints = TextConstraintExtractor.summarize(
+                detailPayload.getTargetDetail(),
+                detailPayload.getSelectionCriteria(),
+                detailPayload.getApplyMethodDetail(),
+                detailPayload.getSupportDetail()
+        );
+
+        String evidenceText = firstNonBlank(
+                detailPayload.getTargetDetail(),
+                detailPayload.getSelectionCriteria(),
+                detailPayload.getApplyMethodDetail(),
+                detailPayload.getSupportDetail()
+        );
+
+        List<NormalizedPolicyAggregate.Fact> facts = new ArrayList<>();
+        addRangeFact(facts, "AGE", "DETAIL_TEXT_AGE", "지원 연령", constraints.minAge(), constraints.maxAge(), "세",
+                "targetDetail/selectionCriteria", NormalizedPolicyAggregate.Authority.RULE_DERIVED,
+                BigDecimal.valueOf(0.90), evidenceText);
+        addDateFact(facts, "APPLY_END_DATE", "DETAIL_TEXT_APPLY_END_DATE", "신청 종료일", constraints.applyEndDate(),
+                "applyMethodDetail/supportDetail", NormalizedPolicyAggregate.Authority.RULE_DERIVED,
+                BigDecimal.valueOf(0.80), evidenceText);
         return facts;
     }
 
