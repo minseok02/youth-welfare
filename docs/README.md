@@ -37,6 +37,9 @@
 - [policy-normalization-sample-spike.md](./policy-normalization-sample-spike.md)
   온통청년/복지로/Gov24 대표 샘플이 새 canonical 구조(`core/detail/taxonomy/facts`)에 실제로 어떻게 들어가는지와 source별 공백을 확인합니다.
 
+- [policy-normalization-schema-draft.md](./policy-normalization-schema-draft.md)
+  새 canonical 구조의 sidecar 스키마(`service_taxonomies`, `service_taxonomy_terms`, `service_facts`)와 코드테이블 저장 방식을 확인합니다.
+
 - [troubleshooting-log.md](./troubleshooting-log.md)  
   이전에 발생한 장애와 해결 과정을 확인합니다.
 
@@ -110,6 +113,7 @@
 - [github-workflow.md](./github-workflow.md)
 - [phase-plan.md](./phase-plan.md)
 - [policy-normalization-sample-spike.md](./policy-normalization-sample-spike.md)
+- [policy-normalization-schema-draft.md](./policy-normalization-schema-draft.md)
 - [policy-normalization-research.md](./policy-normalization-research.md)
 - [recommendation-pipeline.md](./recommendation-pipeline.md)
 - [srs-v2.10.md](./srs-v2.10.md)

@@ -637,3 +637,8 @@
 - 문제: 샘플 기반으로 다시 보니 Gov24 `serviceList/serviceDetail/supportConditions` 는 서비스 메타데이터, 서류/법령, 연령/소득/학력/취업/가구특성 같은 structured fact는 매우 잘 주지만, 현재 추천/우선순위가 쓰는 `주거/일자리/교육·직업훈련/금융·생활지원` 같은 청년정책 분류축을 직접 제공하지 않는다. `서비스분야` 하나만으로는 청년정책 major/mid category나 우선순위 의미를 그대로 복원하기 어려웠음
 - 해결: `docs/policy-normalization-sample-spike.md` 에 Gov24 sample 결과를 별도 정리하고, 후속 작업을 `Gov24 service field / user type / benefit type -> compatibility unifiedCategory / youth taxonomy bridge` 규칙 초안 작성으로 분리했음. canonical에서도 Gov24 taxonomy는 official layer로 저장하되, 기존 priority/read-model 호환은 별도 bridge 또는 `system_derived` 분류층에서 처리하는 방향으로 고정했음
 - 이유: hard filter 축과 도메인 taxonomy 축은 다르다. Gov24가 facts를 많이 준다고 해서 청년정책 분류까지 자동으로 대체할 수는 없으므로, official source field와 서비스 호환 분류를 같은 계층으로 섞지 않는 편이 재발 방지에 안전하다
+
+## 126) 외부 코드북(`Gov24 supportConditions`, `온통청년` 운영 코드)을 Java enum으로 고정하면 source 코드 변경이 곧 배포 이슈가 되어 정규화 확장성이 다시 떨어질 수 있음
+- 문제: 새 canonical 구조를 실제 스키마로 내리면서 보니, `JA0203`, `JA0327` 같은 Gov24 조건 코드와 온통청년 대분류/중분류/제공방법/취업·학력·특화 코드들은 source 문서 개정 시 추가/비활성/라벨 수정이 발생할 수 있다. 이걸 Java enum으로 박아두면 코드북 변경이 곧 애플리케이션 릴리스와 1:1로 묶이고, 코드/DB/문서가 다시 쉽게 어긋날 수 있었음
+- 해결: `docs/policy-normalization-schema-draft.md` 에서 코드 저장 결정을 `normalization_code_sets`, `normalization_codes` DB code table 방식으로 고정하고, 서비스별 값은 `service_taxonomies` / `service_taxonomy_terms` / `service_facts` 에 authority와 함께 저장하는 구조로 정리했음
+- 이유: 외부 코드북은 애플리케이션 상수라기보다 운영 데이터에 가깝다. 코드셋 메타데이터와 실제 코드값을 DB에 분리 보관해야 라벨 변경, parent 관계 추가, deprecated 처리, source 버전 추적을 무중단에 가깝게 관리할 수 있어 재발 방지에 안전하다

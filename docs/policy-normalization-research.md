@@ -6,6 +6,7 @@
 
 - [api-mapping.md](./api-mapping.md)
 - [collect-ops.md](./collect-ops.md)
+- [policy-normalization-schema-draft.md](./policy-normalization-schema-draft.md)
 - [policy-normalization-sample-spike.md](./policy-normalization-sample-spike.md)
 - [recommendation-pipeline.md](./recommendation-pipeline.md)
 - [phase-plan.md](./phase-plan.md)
