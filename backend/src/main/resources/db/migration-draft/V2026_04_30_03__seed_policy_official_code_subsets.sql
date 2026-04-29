@@ -116,8 +116,13 @@ ON DUPLICATE KEY UPDATE
     is_active = VALUES(is_active),
     updated_at = CURRENT_TIMESTAMP;
 
--- `YOUTH_MID` 는 온통청년 공개 코드정의서에 번호 + 라벨만 공개되어 있고 stable code 값은 보이지 않는다.
--- 따라서 official code import 대신 label-only taxonomy term backfill 까지만 이번 draft 범위에 포함한다.
+-- `YOUTH_MID` 는 공개 시트에 라벨/정렬순서만 있고 stable code 값은 보이지 않는다.
+-- 또 실제 DB의 `category_sub` 는 `취업,재직자` 같은 multi-value 와
+-- `온·오프라인교육`, `문화활동 및 생활지원` 같은 non-official variant를 포함한다.
+-- 따라서 이번 draft 에서는:
+-- 1) `normalization_codes` import 는 보류
+-- 2) `category_sub` 를 쉼표 기준으로 split/trim
+-- 3) 공개 시트의 exact official label 과 일치하는 term 만 label-only backfill
 INSERT INTO service_taxonomy_terms (
     service_id,
     term_group,
@@ -128,43 +133,70 @@ INSERT INTO service_taxonomy_terms (
     authority,
     sort_order
 )
-SELECT
-    ws.id,
+SELECT DISTINCT
+    src.service_id,
     'YOUTH_MID',
     'YOUTH_MID',
     '',
-    TRIM(ws.category_sub),
+    ref.term_label,
     'mclsfNm',
     'OFFICIAL',
-    CASE TRIM(ws.category_sub)
-        WHEN '취업' THEN 1
-        WHEN '재직자' THEN 2
-        WHEN '창업' THEN 3
-        WHEN '주택 및 거주지' THEN 4
-        WHEN '기숙사' THEN 5
-        WHEN '전월세 및 주거급여 지원' THEN 6
-        WHEN '미래역량강화' THEN 7
-        WHEN '교육비지원' THEN 8
-        WHEN '온라인교육' THEN 9
-        WHEN '취약계층 및 금융지원' THEN 10
-        WHEN '건강' THEN 11
-        WHEN '예술인지원' THEN 12
-        WHEN '문화활동' THEN 13
-        WHEN '청년참여' THEN 14
-        WHEN '정책인프라구축' THEN 15
-        WHEN '청년국제교류' THEN 16
-        WHEN '권익보호' THEN 17
-        ELSE 999
-    END
-FROM welfare_services ws
+    ref.sort_order
+FROM (
+    SELECT
+        ws.id AS service_id,
+        TRIM(
+            SUBSTRING_INDEX(
+                SUBSTRING_INDEX(
+                    REPLACE(REPLACE(ws.category_sub, ', ', ','), ' ,', ','),
+                    ',',
+                    seq.n
+                ),
+                ',',
+                -1
+            )
+        ) AS term_label
+    FROM welfare_services ws
+    JOIN (
+        SELECT 1 AS n UNION ALL
+        SELECT 2 UNION ALL
+        SELECT 3 UNION ALL
+        SELECT 4 UNION ALL
+        SELECT 5
+    ) seq
+        ON seq.n <= 1
+            + LENGTH(REPLACE(REPLACE(ws.category_sub, ', ', ','), ' ,', ','))
+            - LENGTH(REPLACE(REPLACE(REPLACE(ws.category_sub, ', ', ','), ' ,', ','), ',', ''))
+    WHERE ws.source_type = 'YOUTH'
+      AND TRIM(COALESCE(ws.category_sub, '')) <> ''
+) src
+JOIN (
+    SELECT 1 AS sort_order, '취업' AS term_label UNION ALL
+    SELECT 2, '재직자' UNION ALL
+    SELECT 3, '창업' UNION ALL
+    SELECT 4, '주택 및 거주지' UNION ALL
+    SELECT 5, '기숙사' UNION ALL
+    SELECT 6, '전월세 및 주거급여 지원' UNION ALL
+    SELECT 7, '미래역량강화' UNION ALL
+    SELECT 8, '교육비지원' UNION ALL
+    SELECT 9, '온라인교육' UNION ALL
+    SELECT 10, '취약계층 및 금융지원' UNION ALL
+    SELECT 11, '건강' UNION ALL
+    SELECT 12, '예술인지원' UNION ALL
+    SELECT 13, '문화활동' UNION ALL
+    SELECT 14, '청년참여' UNION ALL
+    SELECT 15, '정책인프라구축' UNION ALL
+    SELECT 16, '청년국제교류' UNION ALL
+    SELECT 17, '권익보호'
+) ref
+    ON ref.term_label = src.term_label
 LEFT JOIN service_taxonomy_terms stt
-    ON stt.service_id = ws.id
+    ON stt.service_id = src.service_id
    AND stt.term_group = 'YOUTH_MID'
    AND stt.term_code = ''
-   AND stt.term_label = TRIM(ws.category_sub)
+   AND stt.term_label = ref.term_label
    AND stt.authority = 'OFFICIAL'
-WHERE ws.source_type = 'YOUTH'
-  AND TRIM(COALESCE(ws.category_sub, '')) <> ''
+WHERE src.term_label <> ''
   AND stt.id IS NULL;
 
 -- `GOV24_SERVICE_FIELD`, `GOV24_USER_TYPE`, `GOV24_BENEFIT_TYPE` 는 official API field 자체는 확인했지만,

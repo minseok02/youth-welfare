@@ -146,7 +146,9 @@
 설계 메모:
 
 - `YOUTH_MID` 는 온통청년 공개 `정책중분류` 시트에 라벨/정렬순서만 보이고 stable code 값은 확인되지 않았다.
-- 따라서 전환 초기에는 `normalization_codes` 에 임의 `YOUTH_MID` code 를 넣지 않고, `service_taxonomy_terms.term_code=''` + `term_label` 조합으로 official label만 먼저 적재하는 안을 유지한다.
+- 실제 DB의 `welfare_services.category_sub` 는 `취업,재직자` 같은 multi-value 와 `온·오프라인교육`, `문화활동 및 생활지원` 같은 non-official variant를 포함한다.
+- 따라서 전환 초기에는 `normalization_codes` 에 임의 `YOUTH_MID` code 를 넣지 않고, `service_taxonomy_terms.term_code=''` + `term_label` 조합으로 **split/trim 후 exact official label만** 먼저 적재하는 안을 유지한다.
+- `온·오프라인교육`, `문화활동 및 생활지원` 같은 variant는 별도 alias normalization 정책을 정한 뒤 후속 backfill 대상으로 분리한다.
 
 ## 테이블 3. `service_taxonomies`
 

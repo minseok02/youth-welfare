@@ -727,3 +727,8 @@
 - 문제: 이번에 official code import draft 를 이어서 만들 때, `jobCd=0013003`, `schoolCd=0049005` 처럼 실제 code 가 공개된 집합과 `정책중분류=취업/재직자/...` 처럼 번호+라벨만 보이는 집합을 같은 방식으로 `normalization_codes` 에 넣으려 하면 결국 `YOUTH_MID` 에 내부 surrogate code 를 급하게 발급하게 될 위험이 있었음
 - 해결: `V2026_04_30_03__seed_policy_official_code_subsets.sql` 에서는 stable code 가 확인된 온통청년 집합과 representative `GOV24_SUPPORT_CONDITION` 만 `normalization_codes` 로 seed 하고, `YOUTH_MID` 는 `service_taxonomy_terms.term_code=''` label-only backfill 로만 처리하도록 분리했음
 - 이유: source granularity 가 다른 집합을 한 import 전략으로 묶으면 공식 코드와 임의 코드가 같은 테이블에서 구분 없이 섞인다. 지금처럼 code-bearing subset 과 label-only subset 을 분리해야 후속 `YOUTH_MID` stable code 정책 결정이 독립적으로 가능하고 재발 방지에 안전하다
+
+## 144) `YOUTH.category_sub` 를 raw string 그대로 `service_taxonomy_terms` 에 적재하면, multi-value와 non-official variant가 official 중분류 term과 한 row에 섞여 canonical taxonomy가 오염될 수 있음
+- 문제: 로컬 DB를 다시 확인해 보니 `YOUTH.category_sub` 는 `취업`, `재직자` 같은 단일 official label만 있는 게 아니라 `취업,재직자`, `취업,창업`, `온·오프라인교육`, `문화활동 및 생활지원` 같은 multi-value/variant 문자열도 함께 들어 있었다. 이 값을 split 없이 그대로 `YOUTH_MID` term으로 적재하면 official 중분류 집합과 raw source noise가 같은 계층에 섞일 위험이 있었음
+- 해결: `V2026_04_30_03__seed_policy_official_code_subsets.sql` 의 `YOUTH_MID` backfill 을 `split + trim + exact official label filter` 방식으로 바꾸고, 공개 시트의 17개 official label과 일치하는 token만 `service_taxonomy_terms(term_code='')` 에 적재하도록 수정했음. `온·오프라인교육`, `문화활동 및 생활지원` 같은 variant는 alias normalization 후속 task로 분리했음
+- 이유: `YOUTH_MID` 는 아직 stable code 가 없기 때문에 term_label 자체가 canonical key 역할을 일부 대신한다. 따라서 raw combo string 을 그대로 넣지 말고, 최소한 official label inventory와 exact match 하는 값만 먼저 넣어야 taxonomy 정합성과 재발 방지에 안전하다
