@@ -44,6 +44,15 @@
   - 일반 배치는 기본 경로를 유지해 호출량을 억제한다.
   - 상세 본문 포맷이 바뀌었거나 기존 적재값을 다시 동기화해야 할 때만 refresh 경로를 쓴다.
 
+### 6. 복지로 상세 호출 budget 은 source backlog 비율을 먼저 본다
+
+- `collectBokjiroDetailsResult(maxCalls, ...)` 는 중앙/지자체 상세 대상을 먼저 집계한 뒤, `maxCallsPerApiPerRun` cap 안에서 backlog 비율대로 budget을 나눈다.
+- 한쪽 source에 target이 없으면 남은 source가 전체 budget을 가져간다.
+- low `maxCalls` 에서도 중앙 source를 무조건 먼저 소진하지 않는다.
+- 이유:
+  - canonical sidecar merge/backfill 검증은 local source만 따로 태우는 경우가 많다.
+  - 중앙에 target이 있거나 개수가 적어도, local backlog가 더 크면 local path가 0 budget으로 굳지 않도록 해야 한다.
+
 ---
 
 ## 장애 판단 기준

@@ -95,11 +95,22 @@ public class BokjiroDetailCollectService {
 
     @Transactional
     public CollectResult collectBokjiroDetailsResult(int maxCalls, boolean refreshExisting) {
-        int centralBudget = Math.min(maxCallsPerApiPerRun, maxCalls);
-        int localBudget = Math.min(maxCallsPerApiPerRun, Math.max(0, maxCalls - centralBudget));
+        List<WelfareService> centralTargets = new ArrayList<>(welfareServiceRepository.findBySourceType(WelfareService.SourceType.BOKJIRO_CENTRAL));
+        List<WelfareService> localTargets = new ArrayList<>(welfareServiceRepository.findBySourceType(WelfareService.SourceType.BOKJIRO_LOCAL));
+        BudgetAllocation budgetAllocation = allocateBudgets(maxCalls, centralTargets.size(), localTargets.size());
 
-        CollectStats centralStats = collectBySource(WelfareService.SourceType.BOKJIRO_CENTRAL, centralBudget, refreshExisting);
-        CollectStats localStats = collectBySource(WelfareService.SourceType.BOKJIRO_LOCAL, localBudget, refreshExisting);
+        CollectStats centralStats = collectBySource(
+                WelfareService.SourceType.BOKJIRO_CENTRAL,
+                centralTargets,
+                budgetAllocation.centralBudget(),
+                refreshExisting
+        );
+        CollectStats localStats = collectBySource(
+                WelfareService.SourceType.BOKJIRO_LOCAL,
+                localTargets,
+                budgetAllocation.localBudget(),
+                refreshExisting
+        );
 
         int calls = centralStats.calls() + localStats.calls();
         int saved = centralStats.saved() + localStats.saved();
@@ -109,17 +120,25 @@ public class BokjiroDetailCollectService {
         log.info("[BokjiroDetailCollectService] 상세 수집 완료 refreshExisting={} calls={} saved={} skipped={} failed={} maxCalls={} centralCalls={} localCalls={}",
                 refreshExisting, calls, saved, skipped, failed, maxCalls, centralStats.calls(), localStats.calls());
         String metadataJson = """
-                {"maxCalls":%d,"centralCalls":%d,"localCalls":%d,"refreshExisting":%s}
-                """.formatted(maxCalls, centralStats.calls(), localStats.calls(), refreshExisting).trim();
+                {"maxCalls":%d,"centralBudget":%d,"localBudget":%d,"centralCalls":%d,"localCalls":%d,"refreshExisting":%s}
+                """.formatted(
+                maxCalls,
+                budgetAllocation.centralBudget(),
+                budgetAllocation.localBudget(),
+                centralStats.calls(),
+                localStats.calls(),
+                refreshExisting
+        ).trim();
         return CollectResult.withMetadata(calls, saved, skipped, 0, failed, metadataJson);
     }
 
-    private CollectStats collectBySource(WelfareService.SourceType sourceType, int callBudget, boolean refreshExisting) {
+    private CollectStats collectBySource(WelfareService.SourceType sourceType,
+                                         List<WelfareService> targets,
+                                         int callBudget,
+                                         boolean refreshExisting) {
         if (callBudget <= 0) {
             return new CollectStats(0, 0, 0, 0);
         }
-
-        List<WelfareService> targets = new ArrayList<>(welfareServiceRepository.findBySourceType(sourceType));
 
         int calls = 0;
         int saved = 0;
@@ -197,6 +216,53 @@ public class BokjiroDetailCollectService {
         log.info("[BokjiroDetailCollectService] sourceType={} refreshExisting={} 상세 수집 완료 calls={} saved={} skipped={} failed={} budget={}",
                 sourceType, refreshExisting, calls, saved, skipped, failed, callBudget);
         return new CollectStats(calls, saved, skipped, failed);
+    }
+
+    private BudgetAllocation allocateBudgets(int maxCalls, int centralTargetCount, int localTargetCount) {
+        if (maxCalls <= 0) {
+            return new BudgetAllocation(0, 0);
+        }
+
+        boolean hasCentralTargets = centralTargetCount > 0;
+        boolean hasLocalTargets = localTargetCount > 0;
+
+        if (!hasCentralTargets && !hasLocalTargets) {
+            return new BudgetAllocation(0, 0);
+        }
+        if (!hasCentralTargets) {
+            return new BudgetAllocation(0, Math.min(maxCallsPerApiPerRun, maxCalls));
+        }
+        if (!hasLocalTargets) {
+            return new BudgetAllocation(Math.min(maxCallsPerApiPerRun, maxCalls), 0);
+        }
+
+        int totalTargets = centralTargetCount + localTargetCount;
+        double centralShare = (double) centralTargetCount / totalTargets;
+        double localShare = (double) localTargetCount / totalTargets;
+
+        int centralBudget = Math.min(maxCallsPerApiPerRun, (int) Math.floor(maxCalls * centralShare));
+        int localBudget = Math.min(maxCallsPerApiPerRun, (int) Math.floor(maxCalls * localShare));
+        int remaining = maxCalls - centralBudget - localBudget;
+
+        double centralRemainder = maxCalls * centralShare - Math.floor(maxCalls * centralShare);
+        double localRemainder = maxCalls * localShare - Math.floor(maxCalls * localShare);
+
+        while (remaining > 0) {
+            boolean canGiveCentral = centralBudget < maxCallsPerApiPerRun;
+            boolean canGiveLocal = localBudget < maxCallsPerApiPerRun;
+
+            if (!canGiveCentral && !canGiveLocal) {
+                break;
+            }
+            if (!canGiveLocal || (canGiveCentral && centralRemainder >= localRemainder)) {
+                centralBudget++;
+            } else {
+                localBudget++;
+            }
+            remaining--;
+        }
+
+        return new BudgetAllocation(centralBudget, localBudget);
     }
 
     private String toJsonArray(String raw) {
@@ -313,5 +379,8 @@ public class BokjiroDetailCollectService {
     }
 
     private record FetchOutcome(BokjiroDetailClient.FetchResult result, int requestCount) {
+    }
+
+    private record BudgetAllocation(int centralBudget, int localBudget) {
     }
 }

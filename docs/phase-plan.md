@@ -285,6 +285,13 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - 2026-04-30 복지로 list/detail aggregate merge path actual sidecar upsert smoke 검증 후 `cd backend && ./gradlew test --no-daemon --tests com.example.welfare.collect.normalization.DeferredNormalizedPolicySidecarWriterTest --tests com.example.welfare.collect.mapper.NormalizedPolicyAggregateTest`
 - 2026-04-30 복지로 list/detail aggregate merge path actual sidecar upsert smoke 검증 후 `cd backend && ./gradlew integrationTest --no-daemon --tests com.example.welfare.integration.BokjiroSidecarMergeIntegrationTest`
 - 2026-04-30 복지로 list/detail aggregate merge path actual sidecar upsert smoke 검증 후 `git diff --check`
+- 2026-04-30 복지로 detail refresh central/local call budget 분배 보정
+  - `BokjiroDetailCollectService` 가 budget 계산 전에 중앙/지자체 target backlog를 먼저 읽고, `maxCallsPerApiPerRun` cap 안에서 backlog 비율대로 `centralBudget` / `localBudget` 을 나누도록 변경
+  - 한쪽 source에 target이 없으면 남은 source가 전체 budget을 가져가고, low `maxCalls` 에서도 local backlog 비중이 더 크면 local path가 0 budget으로 굳지 않도록 `BudgetAllocation` 계산을 추가
+  - `BokjiroDetailCollectServiceTest` 에서 `central target 없음 -> local full budget`, `local backlog 비중이 더 큼 -> low maxCalls=1 에서 local 호출` regression test를 추가해 central-first 고정 분배 회귀를 막음
+- 2026-04-30 복지로 detail refresh central/local call budget 분배 보정 후 `cd backend && ./gradlew test --no-daemon --tests com.example.welfare.collect.service.BokjiroDetailCollectServiceTest`
+- 2026-04-30 복지로 detail refresh central/local call budget 분배 보정 후 `cd backend && ./gradlew integrationTest --no-daemon --tests com.example.welfare.integration.BokjiroSidecarMergeIntegrationTest`
+- 2026-04-30 복지로 detail refresh central/local call budget 분배 보정 후 `git diff --check`
 - 2026-04-28 pre-28 migrated DB 기준 admin logout / refresh invalidation / relogin smoke
   - `SECURITY_ADMIN_EMAILS=admin.logout.smoke@example.com` 으로 최신 앱을 기동한 뒤, admin 계정 로그인과 프로필 수정으로 queue row를 `SYNCED` 상태까지 맞추고 `POST /api/auth/refresh` 가 먼저 성공하는 것 확인
   - 같은 cookie jar + access token으로 `POST /api/auth/logout` 호출 후 cookie jar에서 `refresh_token` 이 제거되고, 직후 `POST /api/auth/refresh` 가 `401`, `errorCode=A001` 로 막히는 것 확인
@@ -893,8 +900,8 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - [ ] `정부지원일자리정보`, `구직자취업역량 강화프로그램`, `Gov24/보조금24` 의 정책형 source canonical onboarding 우선순위와 live validation 순서 작성
 - [ ] 한국장학재단/국가장학금 계열의 `제도 row` 와 `지원가능대학/학기/지원구간` reference matrix 분리 모델 초안 작성
 - [ ] 복지로 live detail 적재 기준 `welfare_service_details` / `service_facts` validation 리허설
-- [ ] 복지로 detail refresh 의 central/local call budget 분배가 low `maxCalls` 에서 local source 를 굶기지 않는지 검토
 - [ ] sidecar draft migration 적용 상태에서 기존 복지로 적재 데이터 detail refresh/backfill 후 `service_facts` density 재측정
+- [ ] 복지로 detail refresh budget metadata(`centralBudget`/`localBudget`) 를 admin collect observability에 노출할지 결정
 - [ ] 로그인 가능한 testbed/live payload 기준 `YOUTH_MID` / `srchPolyBizSecd` 전체 inventory 수집
 - [ ] `YOUTH_MID` stable code mapping SQL 초안 작성
 - [ ] `GOV24_SERVICE_FIELD`, `GOV24_USER_TYPE`, `GOV24_BENEFIT_TYPE` 공식 label inventory import/backfill SQL 초안 작성
@@ -918,6 +925,7 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 ### 완료
 
 - [x] 복지로 list/detail aggregate merge path actual sidecar upsert smoke 검증
+- [x] 복지로 detail refresh 의 central/local call budget 분배가 low `maxCalls` 에서 local source 를 굶기지 않는지 검토
 - [x] `DeferredNormalizedPolicySidecarWriter` 를 실제 `service_taxonomies / service_taxonomy_terms / service_facts` DB persistence writer 로 교체
 - [x] `DeferredNormalizedPolicySidecarWriter` / backfill SQL 이 skipped `YOUTH_MID` alias를 `YOUTH_MID_RAW_ALIAS` term group으로 실제 저장하도록 연결
 - [x] local DB에 sidecar draft migration(`V2026_04_30_01~03`) 적용 후 collect 경로의 actual sidecar upsert smoke 검증

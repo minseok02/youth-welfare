@@ -155,6 +155,65 @@ class BokjiroDetailCollectServiceTest {
     }
 
     @Test
+    @DisplayName("low maxCalls 에서 central target 이 없으면 local source 가 전체 budget 을 가져간다")
+    void collectBokjiroDetailsUsesLocalBudgetWhenCentralTargetsAreMissing() {
+        WelfareService local = welfareService(12L, WelfareService.SourceType.BOKJIRO_LOCAL, "LOCAL-1");
+        BokjiroDetailClient.DetailPayload payload = BokjiroDetailClient.DetailPayload.builder()
+                .supportDetail("local support")
+                .applyMethodDetail("온라인 신청")
+                .build();
+
+        given(welfareServiceRepository.findBySourceType(WelfareService.SourceType.BOKJIRO_CENTRAL))
+                .willReturn(List.of());
+        given(welfareServiceRepository.findBySourceType(WelfareService.SourceType.BOKJIRO_LOCAL))
+                .willReturn(List.of(local));
+        given(detailRepository.existsByServiceId(12L)).willReturn(false);
+        given(detailClient.fetchLocalWithStatus("LOCAL-1"))
+                .willReturn(BokjiroDetailClient.FetchResult.success(payload));
+        given(serviceTagRepository.findByServiceId(12L)).willReturn(List.of());
+
+        CollectResult result = service.collectBokjiroDetailsResult(1);
+
+        assertThat(result.requestedCount()).isEqualTo(1);
+        assertThat(result.savedCount()).isEqualTo(1);
+        assertThat(result.metadataJson()).contains("\"centralBudget\":0");
+        assertThat(result.metadataJson()).contains("\"localBudget\":1");
+        verify(detailClient, never()).fetchCentralWithStatus(any());
+        verify(detailClient).fetchLocalWithStatus("LOCAL-1");
+    }
+
+    @Test
+    @DisplayName("low maxCalls 에서 local backlog 비중이 더 크면 local source 도 budget 을 받는다")
+    void collectBokjiroDetailsAllocatesBudgetToLocalWhenLocalBacklogIsLarger() {
+        WelfareService central = welfareService(13L, WelfareService.SourceType.BOKJIRO_CENTRAL, "CENTRAL-3");
+        WelfareService local1 = welfareService(14L, WelfareService.SourceType.BOKJIRO_LOCAL, "LOCAL-2");
+        WelfareService local2 = welfareService(15L, WelfareService.SourceType.BOKJIRO_LOCAL, "LOCAL-3");
+        WelfareService local3 = welfareService(16L, WelfareService.SourceType.BOKJIRO_LOCAL, "LOCAL-4");
+        BokjiroDetailClient.DetailPayload payload = BokjiroDetailClient.DetailPayload.builder()
+                .supportDetail("local support")
+                .applyMethodDetail("온라인 신청")
+                .build();
+
+        given(welfareServiceRepository.findBySourceType(WelfareService.SourceType.BOKJIRO_CENTRAL))
+                .willReturn(List.of(central));
+        given(welfareServiceRepository.findBySourceType(WelfareService.SourceType.BOKJIRO_LOCAL))
+                .willReturn(List.of(local1, local2, local3));
+        given(detailRepository.existsByServiceId(14L)).willReturn(false);
+        given(detailClient.fetchLocalWithStatus("LOCAL-2"))
+                .willReturn(BokjiroDetailClient.FetchResult.success(payload));
+        given(serviceTagRepository.findByServiceId(14L)).willReturn(List.of());
+
+        CollectResult result = service.collectBokjiroDetailsResult(1);
+
+        assertThat(result.requestedCount()).isEqualTo(1);
+        assertThat(result.savedCount()).isEqualTo(1);
+        assertThat(result.metadataJson()).contains("\"centralBudget\":0");
+        assertThat(result.metadataJson()).contains("\"localBudget\":1");
+        verify(detailClient, never()).fetchCentralWithStatus(any());
+        verify(detailClient).fetchLocalWithStatus("LOCAL-2");
+    }
+
+    @Test
     @DisplayName("상세 수집은 연속 429 가 임계치를 넘으면 현재 source 처리를 중단한다")
     void collectBokjiroDetailsStopsAfterConsecutiveRateLimits() {
         WelfareService first = welfareService(21L, WelfareService.SourceType.BOKJIRO_CENTRAL, "CENTRAL-21");
