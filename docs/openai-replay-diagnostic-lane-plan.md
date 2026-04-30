@@ -341,3 +341,33 @@ cleanup 은 replay cron 후단에 섞지 않고,
    - `14일` 초과 artifact dir 정리
 
 현재 단계에서는 이 둘을 같은 스크립트 후단에 묶지 않는 것이 맞습니다.
+
+## cleanup cron command/env contract
+
+cleanup cron은 아래 스크립트를 기준으로 둡니다.
+
+- [cleanup-openai-replay-artifacts.sh](/home/minseok/youth-welfare/deploy/smoke/cleanup-openai-replay-artifacts.sh)
+
+기본 env:
+
+- `REPLAY_LOG_ROOT=/var/log/youth-welfare/openai-replay`
+- `SUMMARY_RETENTION_DAYS=30`
+- `ARTIFACT_RETENTION_DAYS=14`
+- `DRY_RUN=false`
+
+권장 명령 예시:
+
+```bash
+REPLAY_LOG_ROOT=/var/log/youth-welfare/openai-replay \
+SUMMARY_RETENTION_DAYS=30 \
+ARTIFACT_RETENTION_DAYS=14 \
+deploy/smoke/cleanup-openai-replay-artifacts.sh
+```
+
+수동 검증 예시:
+
+```bash
+DRY_RUN=true \
+REPLAY_LOG_ROOT=/var/log/youth-welfare/openai-replay \
+deploy/smoke/cleanup-openai-replay-artifacts.sh
+```

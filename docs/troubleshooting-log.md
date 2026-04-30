@@ -1182,3 +1182,8 @@
 - 문제: summary line 필드 집합을 문서로만 정하면, 실제 cron wrapper를 만들 때 파일 경로와 timestamp를 어느 env로 줄지 다시 논의하게 되어 계약이 흔들릴 수 있다
 - 해결: [run-local-education-priority-replay.sh](/home/minseok/youth-welfare/deploy/smoke/run-local-education-priority-replay.sh)에 `REPLAY_SUMMARY_APPEND_FILE`, `REPLAY_SUMMARY_TS` env contract를 추가하고, [openai-replay-diagnostic-lane-plan.md](./openai-replay-diagnostic-lane-plan.md) 와 [policy-normalization-education-priority-replay-procedure.md](./policy-normalization-education-priority-replay-procedure.md)에 같은 이름으로 고정했다
 - 이유: cron wrapper가 최소한의 glue code로 붙으려면, summary append를 켜는 방법과 timestamp override 방법이 스크립트에 바로 있어야 한다. env contract를 먼저 고정하는 편이 다음 단계 명령 초안 작성이 훨씬 단순하다
+
+## 235) cleanup retention 계약도 문서만이 아니라 별도 스크립트로 고정해야 replay cron 과 역할이 안 섞인다
+- 문제: cleanup 을 별도 cron 으로 분리하기로 했어도, 실제 명령/경로/env 계약이 없으면 다음 단계에서 replay wrapper 안으로 다시 밀어 넣거나, host마다 다른 `find`/`rm` 명령을 쓰게 될 수 있다
+- 해결: [cleanup-openai-replay-artifacts.sh](/home/minseok/youth-welfare/deploy/smoke/cleanup-openai-replay-artifacts.sh) 를 추가하고, [openai-replay-diagnostic-lane-plan.md](./openai-replay-diagnostic-lane-plan.md)에 `REPLAY_LOG_ROOT`, `SUMMARY_RETENTION_DAYS`, `ARTIFACT_RETENTION_DAYS`, `DRY_RUN` 계약과 실행 예시를 같이 고정했다
+- 이유: replay cron 과 cleanup cron 의 책임을 실제 파일 단위로 분리해 두어야 역할이 다시 섞이지 않는다. cleanup 도 스크립트로 고정해야 운영자가 dry-run, retention 변경, 수동 재실행을 같은 계약으로 다룰 수 있다
