@@ -106,6 +106,9 @@
 - [openai-replay-allowed-drift-metrics.md](./openai-replay-allowed-drift-metrics.md)
   `real-openai` replay에서 strict equality 대신 `top-N target count`, `score delta`, `explanation drift` 중 무엇을 gate metric으로 볼지 확인합니다.
 
+- [openai-replay-diagnostic-lane-plan.md](./openai-replay-diagnostic-lane-plan.md)
+  `real-openai` replay를 PR gate가 아닌 diagnostic lane으로 분리한 뒤, 실제로 local/manual, self-hosted runner, ops cron 중 어디에 붙일지 확인합니다.
+
 - [policy-normalization-education-target-sample-inventory.md](./policy-normalization-education-target-sample-inventory.md)
   `compat=기타 + youth_major=교육` target row가 실제 추천 결과 집합에 들어오는 local replay sample이 현재 있는지와, region/age scan 결과를 확인합니다.
 
@@ -193,6 +196,7 @@
 - [openai-replay-stability-options.md](./openai-replay-stability-options.md)
 - [openai-replay-validation-policy.md](./openai-replay-validation-policy.md)
 - [openai-replay-allowed-drift-metrics.md](./openai-replay-allowed-drift-metrics.md)
+- [openai-replay-diagnostic-lane-plan.md](./openai-replay-diagnostic-lane-plan.md)
 - [policy-normalization-education-target-sample-inventory.md](./policy-normalization-education-target-sample-inventory.md)
 - [policy-normalization-sample-spike.md](./policy-normalization-sample-spike.md)
 - [policy-source-onboarding-playbook.md](./policy-source-onboarding-playbook.md)

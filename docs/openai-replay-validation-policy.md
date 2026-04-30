@@ -79,6 +79,10 @@ OpenAI live response variability가 남아 있으므로,
 4. sample B `unexpected target count increase` 는 모든 `real-openai` replay에서 warning 으로 본다
 5. 대신 trace/artifact가 남지 않는 실패는 막음
 
+실제 lane 배치와 runner 후보는
+[openai-replay-diagnostic-lane-plan.md](./openai-replay-diagnostic-lane-plan.md)
+를 기준으로 봅니다.
+
 즉:
 
 - `rule-only` 안정성은 release blocker

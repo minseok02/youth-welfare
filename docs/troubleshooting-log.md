@@ -1142,3 +1142,8 @@
 - 문제: same `promptSha256` + same `replaySeed` + same `systemFingerprint` 조건에서도 `ai_score` / `final_score` drift가 남는데, 이 replay를 PR hard gate에 그대로 두면 live model variability가 코드 회귀와 같은 blocker가 된다
 - 해결: [openai-replay-validation-policy.md](./openai-replay-validation-policy.md) 와 [policy-normalization-education-priority-replay-procedure.md](./policy-normalization-education-priority-replay-procedure.md)에 `rule-only-invalid-key` 는 PR hard gate, `real-openai` replay는 nightly/diagnostic 또는 수동 triage lane이라는 운영 경계를 명시했다
 - 이유: 지금 제품이 통제할 수 있는 것은 deterministic한 non-AI 경계와 trace/artifact 품질이지, live OpenAI 응답의 미세한 변동 자체는 아니다. 검증선과 진단선을 분리해야 PR gate가 과민해지지 않는다
+
+## 227) `real-openai` nightly lane은 repo 기본 CI보다 secret-bearing diagnostic runner 쪽에 붙이는 편이 맞다
+- 문제: 현재 repo에는 `.github/workflows` 도 없고, `real-openai` replay는 OpenAI secret, local DB/Redis, artifact retention 을 함께 요구한다. 이걸 기본 PR CI에 바로 얹으면 secret 범위와 flaky surface가 같이 커진다
+- 해결: [openai-replay-diagnostic-lane-plan.md](./openai-replay-diagnostic-lane-plan.md)에 현재 권장 실행 위치를 `manual diagnostic first, scheduled diagnostic later` 로 고정하고, future 자동화 후보를 `self-hosted GitHub Actions runner` 또는 `ops cron host` 로 한정했다
+- 이유: 지금 필요한 건 deterministic PR gate가 아니라 별도 secret-bearing 진단 lane이다. 기본 CI와 같은 lane에 두는 것보다, 격리된 runner/host에서 artifact 중심으로 돌리는 편이 운영/보안/노이즈 측면에서 더 안전하다
