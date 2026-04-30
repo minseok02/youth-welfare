@@ -1234,6 +1234,7 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - [ ] `bokjiro-details-gap-fill` 추가 라운드/호출 예산 전략 정리 후 stored detail payload coverage 추가 확대
 - [ ] same `promptSha256` + same `replaySeed` + same `system_fingerprint` 조건에서도 `ai_score` drift가 남는 현상을 제품적으로 어떻게 다룰지 결정
 - [x] replay/cleanup system cron entry 예시 작성
+- [x] replay nightly/cleanup cron host 적용 runbook 작성
 - [ ] `참여권리` 의 `청년참여` subset만 별도 bridge 후보로 분리할지 결정
 - [ ] 복지로 `threshold_like` income signal(`13`건) 을 `INCOME_*` hard fact 가 아닌 optional soft signal schema 로 분리할지 결정
 - [ ] 복지로 live detail 응답에 신청마감 explicit field가 있는지 재확인하고, 없으면 `BK_APPLY_END_DATE` 는 canonical collect path에서 optional fact로 유지

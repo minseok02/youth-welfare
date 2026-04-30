@@ -1202,3 +1202,8 @@
 - 문제: `system cron` 으로 운영한다고만 적어 두면 host마다 긴 env 조합을 다시 풀거나, summary file과 cron stderr/stdout를 같은 파일에 섞어 적는 식으로 운영 방식이 갈라질 수 있다
 - 해결: [openai-replay-diagnostic-lane-plan.md](./openai-replay-diagnostic-lane-plan.md) 와 [policy-normalization-education-priority-replay-procedure.md](./policy-normalization-education-priority-replay-procedure.md)에 replay/cleanup crontab 예시를 추가하고, wrapper/cleanup 스크립트를 절대경로로 호출하며 `nightly-cron.log`, `cleanup-cron.log` 로 runtime log를 분리하는 기준을 고정했다
 - 이유: summary file은 metric one-line append 용도이고, cron runtime log는 shell/app failure triage 용도다. 두 경로를 분리해야 nightly replay 해석이 단순해지고 host별 cron line drift도 줄어든다
+
+## 239) cron 예시 다음에는 `crontab -e` 적용 순서와 사전 수동 검증까지 묶은 runbook이 있어야 운영자가 문서 사이를 덜 왕복한다
+- 문제: lane plan에 cron line이 있어도 실제 운영자는 `언제 수동 replay를 먼저 돌릴지`, `등록 직후 무엇을 확인할지`, `문제 생기면 cron에서 무엇부터 지울지` 를 여러 문서에서 다시 조합해야 한다
+- 해결: [openai-replay-cron-runbook.md](./openai-replay-cron-runbook.md) 를 추가해 사전 조건, 수동 replay/cleanup dry-run, `crontab -e` block, 등록 직후 확인, 다음날 확인 포인트, 롤백 절차를 한 장으로 정리했고, [deployment.md](./deployment.md) 와 [README.md](./README.md) 에서 바로 링크되도록 맞췄다
+- 이유: ops host 적용은 설계 문서보다 runbook이 더 중요하다. 실제 명령과 확인 순서가 한 문서에 있어야 운영 drift와 누락이 줄어든다
