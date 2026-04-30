@@ -23,6 +23,7 @@ import java.util.List;
 public class JwtUtil {
     private static final String ROLES_CLAIM = "roles";
     private static final String USER_ID_CLAIM = "uid";
+    private static final String ISSUED_AT_MILLIS_CLAIM = "iatm";
 
     @Value("${jwt.secret}")
     private String secret;
@@ -48,7 +49,7 @@ public class JwtUtil {
     }
 
     public String generateAccessToken(Long userId, Collection<String> roles) {
-        return buildToken(String.valueOf(userId), userId, accessExpiration, roles);
+        return buildToken(String.valueOf(userId), userId, accessExpiration, roles, true);
     }
 
     public String generateAccessToken(String userKey, Long userId) {
@@ -56,26 +57,32 @@ public class JwtUtil {
     }
 
     public String generateAccessToken(String userKey, Long userId, Collection<String> roles) {
-        return buildToken(userKey, userId, accessExpiration, roles);
+        return buildToken(userKey, userId, accessExpiration, roles, true);
     }
 
     public String generateRefreshToken(Long userId) {
-        return buildToken(String.valueOf(userId), userId, refreshExpiration, List.of());
+        return buildToken(String.valueOf(userId), userId, refreshExpiration, List.of(), false);
     }
 
     public String generateRefreshToken(String userKey, Long userId) {
-        return buildToken(userKey, userId, refreshExpiration, List.of());
+        return buildToken(userKey, userId, refreshExpiration, List.of(), false);
     }
 
     public String generateNotificationToken(Long userId) {
-        return buildToken(String.valueOf(userId), userId, notificationExpiration, List.of());
+        return buildToken(String.valueOf(userId), userId, notificationExpiration, List.of(), false);
     }
 
     public String generateNotificationToken(String userKey, Long userId) {
-        return buildToken(userKey, userId, notificationExpiration, List.of());
+        return buildToken(userKey, userId, notificationExpiration, List.of(), false);
     }
 
-    private String buildToken(String subject, Long userId, long expiration, Collection<String> roles) {
+    private String buildToken(
+            String subject,
+            Long userId,
+            long expiration,
+            Collection<String> roles,
+            boolean includeIssuedAtMillis
+    ) {
         Date now = new Date();
         JwtBuilder builder = Jwts.builder()
                 .subject(subject)
@@ -88,6 +95,9 @@ public class JwtUtil {
         }
         if (roles != null && !roles.isEmpty()) {
             builder.claim(ROLES_CLAIM, roles);
+        }
+        if (includeIssuedAtMillis) {
+            builder.claim(ISSUED_AT_MILLIS_CLAIM, now.getTime());
         }
 
         return builder.compact();
@@ -155,6 +165,20 @@ public class JwtUtil {
         }
     }
 
+    public long getIssuedAtMillis(String token) {
+        return extractIssuedAtMillis(getClaims(token));
+    }
+
+    public long getIssuedAtMillisAllowExpired(String token) {
+        try {
+            return extractIssuedAtMillis(getClaims(token));
+        } catch (ExpiredJwtException e) {
+            return extractIssuedAtMillis(e.getClaims());
+        } catch (JwtException e) {
+            throw new CustomException(ErrorCode.INVALID_TOKEN);
+        }
+    }
+
     public boolean isExpired(String token) {
         try {
             getClaims(token);
@@ -202,5 +226,16 @@ public class JwtUtil {
             return null;
         }
         return subject;
+    }
+
+    private long extractIssuedAtMillis(Claims claims) {
+        Object issuedAtMillisClaim = claims.get(ISSUED_AT_MILLIS_CLAIM);
+        if (issuedAtMillisClaim instanceof Number number) {
+            return number.longValue();
+        }
+        if (issuedAtMillisClaim instanceof String value) {
+            return Long.parseLong(value);
+        }
+        throw new CustomException(ErrorCode.INVALID_TOKEN);
     }
 }

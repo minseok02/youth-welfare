@@ -139,6 +139,9 @@
 - [auth-admin-forced-logout-package-dependencies-policy.md](./auth-admin-forced-logout-package-dependencies-policy.md)
   `UserSessionRevocationService` 를 어느 package에 두고 어떤 최소 dependency만 주입할지 확인합니다.
 
+- [auth-admin-forced-logout-implementation-order.md](./auth-admin-forced-logout-implementation-order.md)
+  forced logout 구현을 `JwtUtil` helper부터 시작할지, service skeleton부터 시작할지 순서를 확인합니다.
+
 - [policy-normalization-compat-category-drift-inventory.md](./policy-normalization-compat-category-drift-inventory.md)
   local `service_taxonomies` 스냅샷 기준으로 `compat_unified_category` 와 canonical summary(`youth_major_label`, `gov24_*`) 사이 drift/공백/legacy raw 복사 흔적을 확인합니다.
 

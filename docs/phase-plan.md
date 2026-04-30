@@ -1284,6 +1284,13 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - 2026-05-01 admin forced logout package/dependencies 정책 고정
   - [auth-admin-forced-logout-package-dependencies-policy.md](./auth-admin-forced-logout-package-dependencies-policy.md) 를 추가해 `UserSessionRevocationService` 를 `user.service` 패키지에 두고, 1차 생성자 dependency를 `RedisTemplate<String, String>`, `JwtUtil`, `AccessTokenRevocationService` 로 제한한다고 고정했다
   - 즉 다음 액션은 `JwtUtil` helper를 먼저 추가할지, service skeleton을 먼저 만들지 구현 순서를 정하는 쪽으로 좁힌다
+- 2026-05-01 admin forced logout 구현 순서 정책 고정
+  - [auth-admin-forced-logout-implementation-order.md](./auth-admin-forced-logout-implementation-order.md) 를 추가해 구현 순서를 `JwtUtil helper -> UserSessionRevocationService skeleton -> JwtAuthenticationFilter wiring -> admin API -> tests` 로 고정했다
+  - 즉 다음 액션은 문서 트랙을 닫고 실제 코드 작업을 `JwtUtil` helper 추가부터 여는 것이다
+- 2026-05-01 admin forced logout `JwtUtil` helper 추가
+  - access token에만 custom millis claim `iatm` 을 기록하고, `JwtUtil` 에 `getIssuedAtMillis(...)`, `getIssuedAtMillisAllowExpired(...)` helper를 추가했다
+  - refresh/notification token에는 `iatm` 을 넣지 않아 forced logout cutoff 비교의 대상이 access token임을 코드로 고정했고, [JwtUtilTest](../backend/src/test/java/com/example/welfare/global/util/JwtUtilTest.java) 로 `access token success / refresh token fail / expired access token allowExpired` 계약을 고정했다
+  - 즉 다음 액션은 이 helper 계약을 소비하는 `UserSessionRevocationService` skeleton 을 실제 코드로 추가하는 것이다
 
 ## 작업 추적
 

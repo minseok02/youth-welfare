@@ -1407,3 +1407,13 @@
 - 문제: 새 `UserSessionRevocationService` 구조를 정한 뒤에도 package를 새로 뽑거나 `UserRepository`, `ChatSessionCleanupService`, `UserCoreSyncService` 같은 dependency를 한 번에 넣으면 이번 hardening task가 다시 구조 개편으로 번질 수 있다
 - 해결: [auth-admin-forced-logout-package-dependencies-policy.md](./auth-admin-forced-logout-package-dependencies-policy.md) 를 추가해 package는 `user.service`, 최소 dependency는 `RedisTemplate<String, String>`, `JwtUtil`, `AccessTokenRevocationService` 로 고정했다
 - 이유: 1차 forced logout baseline의 본질은 access/refresh revoke다. DB state 변경이나 chat cleanup까지 같이 열지 말고, 기존 auth/user service 층 안에서 최소 dependency로 시작해야 구현 diff와 회귀 범위를 줄일 수 있다
+
+## 280) forced logout 구현을 service skeleton부터 열면 `iatm` claim 계약이 다시 임시 파싱/fallback으로 흘러갈 수 있으므로, `JwtUtil` helper를 먼저 코드로 박는 편이 낫다
+- 문제: forced logout 설계를 문서로만 쌓아 두고 service skeleton부터 만들면, 핵심 read path인 `issued-at millis` 비교를 서비스 안에서 claims 직접 파싱이나 임시 fallback으로 처리하게 될 가능성이 컸다
+- 해결: [auth-admin-forced-logout-implementation-order.md](./auth-admin-forced-logout-implementation-order.md) 를 추가한 뒤, 실제 코드도 그 순서대로 `JwtUtil` 에 access token 전용 `iatm` claim write와 `getIssuedAtMillis(...)` / `getIssuedAtMillisAllowExpired(...)` helper부터 추가했다
+- 이유: forced logout의 핵심은 `token issued-at` 과 `user cutoff` 비교다. 이 계약을 util 층에서 먼저 고정해 두어야 이후 `UserSessionRevocationService` 와 `JwtAuthenticationFilter` 가 ad-hoc JWT parsing 없이 같은 기준을 재사용할 수 있다
+
+## 280) forced logout 구현을 service skeleton부터 열면 `iatm` claim 계약이 다시 임시 parsing/fallback으로 흐르기 쉬우므로, `JwtUtil` helper를 먼저 고정하고 그 위에 service를 얹는 순서가 안전하다
+- 문제: package/dependency까지 정한 뒤 바로 `UserSessionRevocationService` 클래스를 만들면, 정작 핵심인 `iatm` write/read helper가 없어서 service 안에 claims 직접 파싱이나 TODO fallback이 들어갈 위험이 있다
+- 해결: [auth-admin-forced-logout-implementation-order.md](./auth-admin-forced-logout-implementation-order.md) 를 추가해 구현 순서를 `JwtUtil helper -> UserSessionRevocationService skeleton -> JwtAuthenticationFilter wiring -> admin API -> tests` 로 고정했다
+- 이유: forced logout의 핵심은 token ordering correctness다. 이 기준 claim/helper를 먼저 만들고 나서 service를 얹어야 임시 계약이 줄고 회귀 반경도 작다
