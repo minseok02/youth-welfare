@@ -258,6 +258,11 @@
 - 해결: `refresh` 시 DB의 사용자 이메일과 `SECURITY_ADMIN_EMAILS`를 다시 확인해 새 access token에 역할 claim을 재주입하도록 변경
 - 이유: 권한 정보는 최초 로그인 한 번이 아니라 access token을 새로 만들 때마다 같은 기준으로 재계산돼야 일관성이 유지된다
 
+## 280) forced logout 1차 hardening은 revoke correctness와 audit 확장을 분리해 닫아야 다음 pending으로 자연스럽게 넘어갈 수 있음
+- 문제: `admin forced logout` 구현과 smoke가 이미 완료된 뒤에도 actor 로그, DB audit table, action history 같은 후속 감사 항목을 같은 트랙에 계속 붙이면 “현재 1차 hardening이 끝났는지”가 모호해지고, 다음 canonical/source onboarding pending으로 넘어가는 시점이 흐려질 수 있었음
+- 해결: [auth-admin-forced-logout-closeout.md](./auth-admin-forced-logout-closeout.md) 로 현재 phase의 완료 범위를 `old access 즉시 차단 + old refresh 즉시 차단 + relogin 회복 + legacy token A006` 까지로 닫고, actor audit/persistent audit/account lock 결합은 explicit reopen 조건으로만 남겼음
+- 이유: revoke correctness와 감사/운영성 확장은 같은 축이 아니다. 1차 hardening은 “보호 경계가 실제로 작동하는가”를 닫는 일이고, audit 확장은 별도 요구가 생길 때 다시 여는 편이 작업 추적과 우선순위 관리에 더 맞다
+
 ## 50) 새 챗 세션의 `last_message_at`가 NULL이면 최근 세션 정렬이 흔들릴 수 있음
 - 문제: 챗봇 세션은 생성 직후 메시지가 없을 수 있는데 `last_message_at`를 nullable로 두면 세션 목록 최신순 정렬에서 DB별 NULL 정렬 차이 때문에 방금 만든 세션이 뒤로 밀릴 수 있었음
 - 해결: `chat_sessions.last_message_at`를 `NOT NULL DEFAULT CURRENT_TIMESTAMP`로 설계하고 `(user_id, last_message_at DESC)` 인덱스를 함께 추가

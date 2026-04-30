@@ -1318,6 +1318,9 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - 2026-05-01 admin forced logout actor log 정책 고정
   - [auth-admin-forced-logout-actor-log-policy.md](./auth-admin-forced-logout-actor-log-policy.md) 를 추가해 현재 phase의 forced logout 로그는 계속 `userKey + cutoffMillis` 만 남기고, `actor` 는 future audit reopen 조건으로 미룬다고 고정했다
   - 이로써 current forced logout 1차 hardening 범위에서 추가 audit signal 확장은 닫고, 다음 액션은 이 트랙을 멈추고 다른 pending으로 넘어가도 되는지 정리하는 쪽으로 좁힌다
+- 2026-05-01 admin forced logout 1차 hardening closeout 정리
+  - [auth-admin-forced-logout-closeout.md](./auth-admin-forced-logout-closeout.md) 를 추가해 현재 phase의 forced logout 범위를 `old access 즉시 차단 + old refresh 즉시 차단 + relogin 회복 + legacy token A006` 까지로 닫았다
+  - actor audit, 별도 DB audit table, action history, account lock 결합은 이번 phase에서 reopen하지 않고, 다음 활성 pending은 `listing형 source 분리 스키마 초안` 으로 넘긴다고 고정했다
 
 ## 작업 추적
 
@@ -1384,6 +1387,7 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - [x] 현재 admin 권한 회수의 기본 경계가 `SECURITY_ADMIN_EMAILS + 앱 재기동` 인지, forced logout과 별도인지 정리
 - [x] allowlist 제거 + 앱 재기동 후 old admin access/refresh token baseline smoke 작성
 - [x] allowlist 제거 후 old admin refresh token도 즉시 막을지, 새 token부터 role만 제거할지 결정
+- [x] `admin forced logout` 1차 hardening 트랙 closeout 및 다음 활성 pending 전환 정리
 - [ ] 운영 서버 Docker Compose 기동
 - [ ] 기존 운영 DB에 `app_core_rw` / `app_pii_rw` / `notification_pii_ro` / `migration_admin` 계정 생성 및 앱 datasource 전환
 - [ ] 운영 `.env` / secret store의 `APP_PII_DB_URL` / `NOTIFICATION_PII_DB_URL` 를 `youth_welfare_pii` schema 기준으로 전환
