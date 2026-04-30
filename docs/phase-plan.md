@@ -1260,6 +1260,9 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - 2026-05-01 admin forced logout JWT helper 정책 고정
   - [auth-admin-forced-logout-jwt-helper-policy.md](./auth-admin-forced-logout-jwt-helper-policy.md) 를 추가해 `JwtUtil` 에 access token용 `iatm` write, `getIssuedAtMillis(...)` / `getIssuedAtMillisAllowExpired(...)` read helper를 추가하고, forced logout cutoff 비교에서는 legacy access token fallback을 두지 않는 방향으로 고정했다
   - 즉 다음 액션은 rollout 시 legacy admin access token을 기능 경계에서 어떻게 처리할지, 재로그인 요구를 포함한 운영 baseline을 정하는 쪽으로 좁힌다
+- 2026-05-01 admin forced logout legacy token rollout 정책 고정
+  - [auth-admin-forced-logout-legacy-token-rollout-policy.md](./auth-admin-forced-logout-legacy-token-rollout-policy.md) 를 추가해 forced logout 기능 on 이후 `iatm` 없는 legacy admin access token은 compatibility target이 아니라 재로그인 요구 대상으로 보는 운영 계약을 고정했다
+  - 즉 다음 액션은 legacy admin access token이 forced logout protected path에서 어떤 error contract를 낼지 정하는 쪽으로 좁힌다
 
 ## 작업 추적
 

@@ -1367,3 +1367,8 @@
 - 문제: millis precision claim 필요성을 정한 뒤에도 `JwtUtil` helper에서 legacy token에 대해 `iat * 1000` fallback을 허용하면, forced logout 경계가 다시 초 단위 비교로 되돌아간다
 - 해결: [auth-admin-forced-logout-jwt-helper-policy.md](./auth-admin-forced-logout-jwt-helper-policy.md) 를 추가해 access token에는 `iatm` write를 필수로 두고, `getIssuedAtMillis(...)` / `getIssuedAtMillisAllowExpired(...)` helper는 missing `iatm` 을 정상 fallback으로 보지 않는 방향으로 고정했다
 - 이유: forced logout은 운영 hardening 기능이라 legacy token 호환성보다 ordering correctness가 우선이다. access cutoff에서 fallback을 넓히면 old/new token 경계가 다시 불명확해진다
+
+## 272) forced logout rollout에서 `iatm` 없는 legacy admin access token까지 compatibility target으로 잡으면 helper 정책과 충돌하므로, 운영 계약을 재로그인 요구 쪽으로 먼저 고정해야 한다
+- 문제: `iatm` write/read helper와 no-fallback 정책을 정한 뒤에도, rollout 단계에서 legacy admin access token을 계속 “웬만하면 통과”시키려 하면 구현이 다시 이중 계약이 된다. 그러면 forced logout 경계가 새 token contract와 legacy 호환 둘 다 떠안게 된다
+- 해결: [auth-admin-forced-logout-legacy-token-rollout-policy.md](./auth-admin-forced-logout-legacy-token-rollout-policy.md) 를 추가해 forced logout 기능 on 이후 `iatm` 없는 legacy admin access token은 compatibility target이 아니라 재로그인 요구 대상으로 본다고 고정했다
+- 이유: admin forced logout은 운영 보안 기능이므로, rollout의 핵심은 old token을 오래 살리는 것이 아니라 new token contract를 분명히 하는 것이다. legacy 호환을 줄여야 ordering correctness와 incident 대응 의미가 유지된다
