@@ -82,6 +82,9 @@
 - [policy-normalization-education-priority-config-boundary.md](./policy-normalization-education-priority-config-boundary.md)
   `교육 -> 교육·직업훈련` narrow experiment flag를 실제 코드에 넣을 때 `RuleScoringService` 내부 어느 helper/config 경계에서 읽을지 확인합니다.
 
+- [policy-normalization-education-priority-validation-criteria.md](./policy-normalization-education-priority-validation-criteria.md)
+  `교육 -> 교육·직업훈련` narrow experiment를 켰을 때 sample top-N 과 explanation 을 어떤 기준으로 통과/보류 판정할지 확인합니다.
+
 - [policy-source-onboarding-playbook.md](./policy-source-onboarding-playbook.md)
   실제 DB 적재 스냅샷을 기준으로 일자리/주거/장학/공공서비스 source를 `정책형 / listing형 / reference형` 으로 어떻게 나눠 붙일지 확인합니다.
 

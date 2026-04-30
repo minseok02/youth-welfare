@@ -977,3 +977,13 @@
 - 문제: `교육 -> 교육·직업훈련` 실험을 코드에 넣을 때, 별도 `@ConfigurationProperties` 객체나 `ExperimentPolicyService` 같은 공용 레이어를 먼저 만들고 싶어질 수 있다. 하지만 현재 실험은 key 1개, boolean 1개, read site 1곳만 필요해 제어 구조를 먼저 키우면 오히려 “좁은 검증”이 “정식 시스템 계약”처럼 굳어질 위험이 있다
 - 해결: config/helper 경계를 `RuleScoringService` 내부 `@Value` boolean 주입 + private helper 1개로 고정했다. `DefaultPriorityMatcher`, repository, facade 계층에는 flag branching 을 퍼뜨리지 않고, 실제 bonus 적용 여부 판단도 scoring 레이어 안에서만 닫히도록 정리했다
 - 이유: bridge candidate 첫 실험은 가장 작은 diff와 가장 쉬운 rollback 이 중요하다. 토글이 한 군데서만 읽히면 영향 범위와 제거 비용을 같이 낮출 수 있고, 이후 실험이 커질 때만 별도 config/service로 승격하면 된다
+
+## 194) narrow priority experiment는 “점수가 달라졌다”만 보면 안 되고, non-target sample 안정성과 response semantics 불변까지 같이 봐야 함
+- 문제: `교육 -> 교육·직업훈련` 같은 좁은 bonus 실험은 target row가 위로 올라오기만 하면 성공처럼 보일 수 있다. 하지만 실제로는 non-target sample 까지 흔들리거나, `RecommendationResponse.unifiedCategory` / `aiReason` 의미가 같이 변하면 실험 범위를 넘은 부작용인데도 놓치기 쉽다
+- 해결: 검증 기준을 `flag off/on 동일 snapshot 비교`, `target sample 1개 이상 + control sample 1개 이상`, `response unifiedCategory / aiReason 불변` 조건으로 문서화했다. 즉 top-N 개선만이 아니라 “비대상 안정성”과 “응답 의미 불변”까지 함께 통과해야 실험 계속 진행으로 본다
+- 이유: 이 실험은 category contract를 바꾸는 작업이 아니라 scoring bonus 하나를 좁게 여는 작업이다. 따라서 검증도 target gain과 non-target safety를 함께 봐야 하고, response semantics가 흔들리면 그건 이미 다른 종류의 변경이다
+
+## 195) 문서 task 중 `git commit` 직전에 `.git/index.lock` 충돌이 나면 바로 지우기보다 실제 git 프로세스 존재 여부부터 확인해야 함
+- 문제: 이번 문서 작업 커밋 단계에서 `fatal: Unable to create '.git/index.lock': File exists.` 가 한 번 발생했다. 이런 경우 습관적으로 lock 파일을 바로 지우면, 실제로 다른 git 프로세스가 아직 돌고 있을 때 index 손상 위험이 있다
+- 해결: 먼저 `ps -ef | rg "git (commit|add|status|push)"` 로 실제 git 프로세스 유무를 확인하고, 이어 `.git/index.lock` 존재 여부를 다시 확인했다. 이번 경우는 이미 transient 상태로 정리돼 있었고 재시도만으로 진행 가능했다
+- 이유: `index.lock` 은 stale lock일 수도 있지만 active git 작업 보호 장치일 수도 있다. 먼저 프로세스 유무를 확인하면 불필요한 강제 삭제를 피하고, 안전하게 재시도 여부를 판단할 수 있다
