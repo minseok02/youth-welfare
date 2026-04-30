@@ -1327,3 +1327,8 @@
 - 문제: `admin forced logout` 을 다음 revoke 후보로 보기 시작하면, 현재 운영에서 실제로 admin 권한을 어떻게 회수하는지와 “이미 발급된 admin token을 즉시 끊는가”가 한 문제처럼 섞이기 쉽다. 하지만 지금 role source of truth는 config allowlist이고, forced logout/session revoke는 아직 별도 기능이 아니다
 - 해결: [auth-admin-revoke-boundary-policy.md](./auth-admin-revoke-boundary-policy.md) 를 추가해 현재 admin revoke 기본 경로를 `SECURITY_ADMIN_EMAILS` 변경 + 앱 재기동으로 고정하고, role revoke와 future forced logout/token revoke를 분리했다
 - 이유: stale config 문제와 stale token 문제는 원인과 대응이 다르다. 이 경계를 먼저 고정해야 다음 baseline도 “allowlist 제거 후 재기동” 과 “old token 지속성” 으로 나눠서 볼 수 있다
+
+## 264) admin allowlist 제거는 old access token을 바로 무효화하지 않고, refresh로 새로 만든 token부터만 `ROLE_ADMIN` 을 떨어뜨리는 현재 경계를 baseline으로 고정해야 forced logout 필요 범위를 설명할 수 있다
+- 문제: `SECURITY_ADMIN_EMAILS` 제거 + 앱 재기동이 기본 revoke라 해도, 실제로 old access token과 기존 refresh token이 어디서 갈리는지 baseline이 없으면 forced logout 필요성을 추상적으로만 이야기하게 된다
+- 해결: `AdminSecurityIntegrationTest` 에서 `AuthService` allowlist를 비운 뒤 old admin access token은 계속 `/api/admin/collect/youth` 를 통과하고, 같은 refresh token으로 발급한 새 access token부터 `ROLE_ADMIN` 이 빠져 `403 / C003` 이 되는 시나리오를 추가해 현재 경계를 고정했다
+- 이유: 이 baseline은 config-based role revoke가 “future token issuance” 에만 작동하고 “already-issued access token 회수” 와는 다른 문제임을 보여준다. 그래서 `admin forced logout` 이 별도 hardening 후보로 남을 이유도 선명해진다

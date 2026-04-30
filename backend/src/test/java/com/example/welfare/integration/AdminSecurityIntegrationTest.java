@@ -9,6 +9,7 @@ import com.example.welfare.user.repository.UserPiiReadWriteRepository;
 import com.example.welfare.user.repository.UserPiiSyncQueueRepository;
 import com.example.welfare.user.repository.UserProfileRepository;
 import com.example.welfare.user.repository.UserRepository;
+import com.example.welfare.user.service.AuthService;
 import com.example.welfare.user.service.UserCoreSyncService;
 import com.example.welfare.user.util.EmailLookupKeyGenerator;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -23,6 +24,7 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -83,11 +85,16 @@ class AdminSecurityIntegrationTest {
     @Autowired
     private ObjectMapper objectMapper;
 
+    @Autowired
+    private AuthService authService;
+
     @MockBean
     private CollectService collectService;
 
     @AfterEach
     void cleanup() {
+        ReflectionTestUtils.setField(authService, "adminEmailsProperty", ADMIN_EMAIL);
+        ReflectionTestUtils.invokeMethod(authService, "initAdminEmails");
         userRepository.findAll().stream()
                 .filter(user -> ADMIN_EMAIL.equals(user.getEmail())
                         || (user.getEmail() != null && user.getEmail().startsWith(TEST_EMAIL_PREFIX)))
@@ -187,6 +194,42 @@ class AdminSecurityIntegrationTest {
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.errorCode").value("A006"));
+    }
+
+    @Test
+    @DisplayName("allowlist 제거 후 old admin access token은 유지되지만 refresh로 발급된 새 token부터 ROLE_ADMIN이 빠진다")
+    void allowlistRemovalKeepsOldAccessTokenButRefreshDropsAdminRole() throws Exception {
+        doNothing().when(collectService).collect(CollectSource.YOUTH);
+        User adminUser = createUser(ADMIN_EMAIL);
+
+        String adminAccessToken = loginAndExtractAccessToken(adminUser.getEmail(), TEST_PASSWORD);
+        assertTrue(jwtUtil.getRoles(adminAccessToken).contains("ROLE_ADMIN"));
+
+        String adminUserKey = userRepository.findUserKeyById(adminUser.getId()).orElseThrow();
+        String refreshToken = redisTemplate.opsForValue().get("refresh:" + adminUserKey);
+        assertFalse(refreshToken == null || refreshToken.isBlank());
+
+        mockMvc.perform(post("/api/admin/collect/youth")
+                        .header("Authorization", "Bearer " + adminAccessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
+        ReflectionTestUtils.setField(authService, "adminEmailsProperty", "");
+        ReflectionTestUtils.invokeMethod(authService, "initAdminEmails");
+
+        mockMvc.perform(post("/api/admin/collect/youth")
+                        .header("Authorization", "Bearer " + adminAccessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
+        String refreshedAccessToken = refreshAndExtractAccessToken(refreshToken);
+        assertFalse(jwtUtil.getRoles(refreshedAccessToken).contains("ROLE_ADMIN"));
+
+        mockMvc.perform(post("/api/admin/collect/youth")
+                        .header("Authorization", "Bearer " + refreshedAccessToken))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("C003"));
     }
 
     private User createUser(String email) {
