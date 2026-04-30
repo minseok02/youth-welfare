@@ -1447,3 +1447,8 @@
 - 문제: audit scope를 `response=minimal`, `log/Redis=detail` 로 정한 뒤에도, 운영 문서에 실제 기대 로그 라인 형식이 없으면 forced logout 실행 후 `cutoffMillis` 를 어디서 확인해야 하는지 사람 기억에 다시 의존하게 된다
 - 해결: [runtime-api-smoke-commands.md](./runtime-api-smoke-commands.md) 에 `POST /api/admin/users/forced-logout` smoke 예시와 함께 기대 로그 라인 `[Admin] forced logout 트리거 userKey=<userKey> cutoffMillis=<epochMillis>` 및 간단한 `grep` 확인 절을 추가했다
 - 이유: current phase에선 별도 audit UI나 response field를 열지 않으므로, 로그 라인 형식 자체가 운영 증적의 일부다. 최소한 smoke/runbook 문서에 grep 포인트까지 올려 둬야 실제 운영 사용성이 생긴다
+
+## 287) forced logout 로그에 `actor` 를 바로 얹기 시작하면 revoke correctness hardening과 audit 확장이 다시 섞이므로, 현재 phase에서는 `userKey + cutoffMillis` 만 유지하는 편이 낫다
+- 문제: smoke/runbook까지 정리하고 나면 운영자가 “누가 눌렀는지”도 바로 로그에 남기고 싶어질 수 있다. 하지만 여기서 actor identifier까지 추가하면 identifier 선택, masking, retention, future audit storage 같은 논점이 다시 같이 열린다
+- 해결: [auth-admin-forced-logout-actor-log-policy.md](./auth-admin-forced-logout-actor-log-policy.md) 를 추가해 current forced logout 로그 라인은 계속 `[Admin] forced logout 트리거 userKey=<userKey> cutoffMillis=<epochMillis>` 로 유지하고, `actor` 는 future audit reopen 조건으로 미룬다고 고정했다
+- 이유: 지금 단계의 핵심은 old/new token ordering correctness와 운영 triage 가능성이다. `actor` 는 중요하지만 별도 audit problem이라, 1차 hardening 범위에 다시 섞지 않는 편이 경계가 더 깔끔하다
