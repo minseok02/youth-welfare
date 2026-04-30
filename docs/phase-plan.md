@@ -432,6 +432,10 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
   - 이번 단계에서는 `compat_unified_category` 호환 레이어만 재사용하고, canonical taxonomy summary code/label 자체를 priority matcher 가 직접 해석하는 확장은 다음 task 로 분리했다
 - 2026-04-30 priority matcher read-model bridge 추가 후 `cd backend && ./gradlew test --no-daemon --tests com.example.welfare.recommend.service.DefaultPriorityMatcherTest --tests com.example.welfare.recommend.service.RuleScoringServiceTest --tests com.example.welfare.recommend.service.RetrievalServiceTest --tests com.example.welfare.recommend.repository.CanonicalRecommendationReadModelRepositoryTest`
 - 2026-04-30 priority matcher read-model bridge 추가 후 `git diff --check`
+- 2026-04-30 `compat_unified_category` 를 priority 호환 레이어로 유지하고 canonical taxonomy summary code/label 직독은 보류하기로 결정
+  - 현재 `DefaultPriorityMatcher` 는 `RecommendationCandidateProjection.unifiedCategoryCompat` / `applyEndDate` 만 우선 읽고, `youth_major_code`, `gov24_service_field_code` 같은 canonical summary code/label은 직접 해석하지 않기로 고정했다
+  - summary code/label 직독 전환은 `service_taxonomies` summary 안정화, drift inventory 확보, priority code 매핑표 고정 이후의 별도 task로 분리했다
+- 2026-04-30 priority compat layer 유지 정책 정리 후 `git diff --check`
 - 2026-04-28 pre-28 migrated DB 기준 admin logout / refresh invalidation / relogin smoke
   - `SECURITY_ADMIN_EMAILS=admin.logout.smoke@example.com` 으로 최신 앱을 기동한 뒤, admin 계정 로그인과 프로필 수정으로 queue row를 `SYNCED` 상태까지 맞추고 `POST /api/auth/refresh` 가 먼저 성공하는 것 확인
   - 같은 cookie jar + access token으로 `POST /api/auth/logout` 호출 후 cookie jar에서 `refresh_token` 이 제거되고, 직후 `POST /api/auth/refresh` 가 `401`, `errorCode=A001` 로 막히는 것 확인
@@ -1042,7 +1046,7 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - [ ] 복지로 live detail 적재 기준 `welfare_service_details` / `service_facts` validation 리허설
 - [ ] 복지로 detail refresh budget metadata(`centralBudget`/`localBudget`) 를 admin collect observability에 노출할지 결정
 - [ ] `bokjiro-details-gap-fill` 추가 라운드/호출 예산 전략 정리 후 stored detail payload coverage 추가 확대
-- [ ] `compat_unified_category` 를 계속 priority 호환 레이어로 유지할지, canonical taxonomy summary code/label 을 `DefaultPriorityMatcher` 가 직접 읽을지 결정
+- [ ] `service_taxonomies` summary 안정화 후 `compat_unified_category` 와 canonical taxonomy summary code/label drift inventory 작성
 - [ ] 복지로 `threshold_like` income signal(`13`건) 을 `INCOME_*` hard fact 가 아닌 optional soft signal schema 로 분리할지 결정
 - [ ] 복지로 live detail 응답에 신청마감 explicit field가 있는지 재확인하고, 없으면 `BK_APPLY_END_DATE` 는 canonical collect path에서 optional fact로 유지
 - [ ] 로그인 가능한 testbed/live payload 기준 `YOUTH_MID` / `srchPolyBizSecd` 전체 inventory 수집
@@ -1083,6 +1087,7 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - [x] `RuleScoringService` 가 `RecommendationCandidateProjection.targetGroupBuckets` / `beneficiaryTerms` 를 병행 입력으로 읽는 첫 단계 초안 추가
 - [x] `RuleScoringService` 가 `RecommendationCandidateProjection.interestThemes` / `targetGroupsRaw` / `factKeys` 를 legacy `ServiceTag` fallback 과 병행 입력으로 읽는 범위 초안 추가
 - [x] `PriorityMatcher` / `DefaultPriorityMatcher` 가 canonical taxonomy/read-model 호환 입력을 병행 읽는 첫 단계 초안 추가
+- [x] `compat_unified_category` 를 계속 priority 호환 레이어로 유지할지, canonical taxonomy summary code/label 을 `DefaultPriorityMatcher` 가 직접 읽을지 결정
 - [x] sidecar draft migration 적용 상태에서 기존 복지로 적재 데이터 detail refresh/backfill 후 `service_facts` density 재측정
 - [x] `NormalizedPolicySidecarBackfillService` 를 admin/manual 실행 경로로 노출
 - [x] 복지로 `raw_api_payloads` 기반 canonical sidecar backfill service 초안 작성

@@ -284,6 +284,21 @@ Gov24 source에서 `compat_unified_category` 를 만드는 우선순위는 아�
 
 즉 `compat_unified_category` 는 현재 프론트 계약을 유지하기 위한 read-model output일 뿐, canonical 원본은 아닙니다.
 
+2026-04-30 결정:
+
+- 당분간 `DefaultPriorityMatcher` 는 canonical taxonomy summary code/label(`youth_major_code`, `gov24_service_field_code`)을 직접 해석하지 않는다
+- priority 가중치는 먼저 `RecommendationCandidateProjection.unifiedCategoryCompat` / `applyEndDate` 를 우선 읽는 호환 레이어만 사용한다
+- canonical taxonomy summary code/label 직접 해석은 아래 조건이 갖춰질 때 별도 task로 연다
+  - `service_taxonomies` summary가 실제 collect path에서 안정적으로 채워질 것
+  - `compat_unified_category` 와 summary code 간 drift inventory가 확보될 것
+  - 우선순위 코드(`HOUSING`, `JOB`, `EDUCATION` 등)와 summary code 집합의 매핑표가 문서/테스트로 고정될 것
+
+이유:
+
+- 현재 priority 옵션은 여전히 `주거`, `일자리`, `교육·직업훈련` 같은 호환 카테고리 문자열을 기준으로 검증돼 있다
+- 이 상태에서 matcher가 summary code/label까지 바로 해석하면 `compat_unified_category` 와 canonical summary가 동시에 있는 row에서 우선순위 의미가 흔들릴 수 있다
+- 따라서 1차 전환에서는 `compat_unified_category` 를 priority 호환 레이어로 유지하고, canonical summary는 이후 inventory 기반으로 분리 전환한다
+
 ## 6. 지금 결정한 것
 
 - Gov24는 `official facts` source로 강하게 사용

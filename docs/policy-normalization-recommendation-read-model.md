@@ -151,6 +151,12 @@ beneficiary 관련 규칙:
 - raw beneficiary term 개수와 무관하게
 - `BENEFICIARY_SUPPORT` bucket match bonus는 서비스당 최대 1회
 
+priority 가중치 경계:
+
+- [DefaultPriorityMatcher.java](../backend/src/main/java/com/example/welfare/recommend/service/DefaultPriorityMatcher.java)는 1차 전환에서 `RecommendationCandidateProjection.unifiedCategoryCompat`, `applyEndDate` 만 병행 입력으로 읽는다
+- canonical taxonomy summary code/label(`youth_major_code`, `gov24_service_field_code`)은 아직 priority matcher가 직접 해석하지 않는다
+- 즉 priority는 당분간 `compat_unified_category` 기반 호환 레이어를 유지하고, taxonomy summary code 직독은 후속 inventory/매핑표 결정 이후로 미룬다
+
 ## response/UI 경계
 
 추천 응답에서 explanation/badge 용으로는 raw label을 유지한다.
