@@ -436,6 +436,12 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
   - 현재 `DefaultPriorityMatcher` 는 `RecommendationCandidateProjection.unifiedCategoryCompat` / `applyEndDate` 만 우선 읽고, `youth_major_code`, `gov24_service_field_code` 같은 canonical summary code/label은 직접 해석하지 않기로 고정했다
   - summary code/label 직독 전환은 `service_taxonomies` summary 안정화, drift inventory 확보, priority code 매핑표 고정 이후의 별도 task로 분리했다
 - 2026-04-30 priority compat layer 유지 정책 정리 후 `git diff --check`
+- 2026-04-30 local `service_taxonomies` 기준 `compat_unified_category` / canonical summary drift inventory 작성
+  - 로컬 draft migration snapshot에서 `service_taxonomies total=3634`, `compat_filled=3634`, `youth_major_filled=2298`, `youth_mid_filled=0`, `gov24_service_field_filled=0` 을 확인했다
+  - 직접 충돌보다 summary 품질 격차가 더 컸다. `YOUTH` 에서 `compat=기타` + `youth_major_label` 채움이 `471`, `youth_major_label` comma 포함이 `102` 였고, 샘플상 `service_taxonomies.youth_major_label` 은 아직 raw `category_main` 복사 흔적을 많이 품고 있었다
+  - 따라서 현재는 `compat_unified_category` 를 priority 호환 레이어로 유지하고, `youth_major_label` / `gov24_*` summary 직독 전환 전에 `YOUTH category_main -> summary 정제`, comma/duplicate collapse 전략, summary 재적재 후 재측정이 먼저 필요하다고 정리했다
+- 2026-04-30 compat vs canonical summary drift inventory 작성 후 local MySQL snapshot query 재집계
+- 2026-04-30 compat vs canonical summary drift inventory 작성 후 `git diff --check`
 - 2026-04-28 pre-28 migrated DB 기준 admin logout / refresh invalidation / relogin smoke
   - `SECURITY_ADMIN_EMAILS=admin.logout.smoke@example.com` 으로 최신 앱을 기동한 뒤, admin 계정 로그인과 프로필 수정으로 queue row를 `SYNCED` 상태까지 맞추고 `POST /api/auth/refresh` 가 먼저 성공하는 것 확인
   - 같은 cookie jar + access token으로 `POST /api/auth/logout` 호출 후 cookie jar에서 `refresh_token` 이 제거되고, 직후 `POST /api/auth/refresh` 가 `401`, `errorCode=A001` 로 막히는 것 확인
@@ -1046,7 +1052,9 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - [ ] 복지로 live detail 적재 기준 `welfare_service_details` / `service_facts` validation 리허설
 - [ ] 복지로 detail refresh budget metadata(`centralBudget`/`localBudget`) 를 admin collect observability에 노출할지 결정
 - [ ] `bokjiro-details-gap-fill` 추가 라운드/호출 예산 전략 정리 후 stored detail payload coverage 추가 확대
-- [ ] `service_taxonomies` summary 안정화 후 `compat_unified_category` 와 canonical taxonomy summary code/label drift inventory 작성
+- [ ] `YOUTH category_main -> service_taxonomies.youth_major_*` summary 정제 규칙 작성
+- [ ] comma/duplicate `youth_major_label` collapse/backfill 전략 설계
+- [ ] summary 재적재 후 `compat_unified_category` 와 canonical taxonomy summary code/label drift inventory 재측정
 - [ ] 복지로 `threshold_like` income signal(`13`건) 을 `INCOME_*` hard fact 가 아닌 optional soft signal schema 로 분리할지 결정
 - [ ] 복지로 live detail 응답에 신청마감 explicit field가 있는지 재확인하고, 없으면 `BK_APPLY_END_DATE` 는 canonical collect path에서 optional fact로 유지
 - [ ] 로그인 가능한 testbed/live payload 기준 `YOUTH_MID` / `srchPolyBizSecd` 전체 inventory 수집
@@ -1088,6 +1096,7 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - [x] `RuleScoringService` 가 `RecommendationCandidateProjection.interestThemes` / `targetGroupsRaw` / `factKeys` 를 legacy `ServiceTag` fallback 과 병행 입력으로 읽는 범위 초안 추가
 - [x] `PriorityMatcher` / `DefaultPriorityMatcher` 가 canonical taxonomy/read-model 호환 입력을 병행 읽는 첫 단계 초안 추가
 - [x] `compat_unified_category` 를 계속 priority 호환 레이어로 유지할지, canonical taxonomy summary code/label 을 `DefaultPriorityMatcher` 가 직접 읽을지 결정
+- [x] `service_taxonomies` summary 안정화 후 `compat_unified_category` 와 canonical taxonomy summary code/label drift inventory 작성
 - [x] sidecar draft migration 적용 상태에서 기존 복지로 적재 데이터 detail refresh/backfill 후 `service_facts` density 재측정
 - [x] `NormalizedPolicySidecarBackfillService` 를 admin/manual 실행 경로로 노출
 - [x] 복지로 `raw_api_payloads` 기반 canonical sidecar backfill service 초안 작성
