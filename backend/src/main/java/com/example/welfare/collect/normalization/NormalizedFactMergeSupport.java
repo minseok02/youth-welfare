@@ -1,5 +1,7 @@
 package com.example.welfare.collect.normalization;
 
+import org.springframework.stereotype.Component;
+
 import java.math.BigDecimal;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -8,6 +10,7 @@ import java.util.Map;
 /**
  * future service_facts saver 에서 사용할 merge/upsert 우선순위를 canonical Fact 단계에서 먼저 고정한다.
  */
+@Component
 public class NormalizedFactMergeSupport {
 
     private static final Map<NormalizedPolicyAggregate.Authority, Integer> AUTHORITY_PRIORITY = Map.of(
@@ -67,7 +70,7 @@ public class NormalizedFactMergeSupport {
             return sourceFieldOrder < 0;
         }
 
-        return false;
+        return true;
     }
 
     private String mergeKeyOf(NormalizedPolicyAggregate.Fact fact) {

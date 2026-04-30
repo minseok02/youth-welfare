@@ -7,6 +7,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 
 import javax.sql.DataSource;
 
@@ -29,5 +30,13 @@ public class PrimaryDataSourceConfig {
         return properties.initializeDataSourceBuilder()
                 .type(HikariDataSource.class)
                 .build();
+    }
+
+    @Bean(name = "primaryNamedParameterJdbcTemplate")
+    @Primary
+    public NamedParameterJdbcTemplate primaryNamedParameterJdbcTemplate(
+            @Qualifier("dataSource") DataSource dataSource
+    ) {
+        return new NamedParameterJdbcTemplate(dataSource);
     }
 }

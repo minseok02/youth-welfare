@@ -182,6 +182,7 @@ public class CollectItemSaver {
 
     private List<ServiceTag> replaceTags(WelfareService service, List<ServiceTag> tags) {
         tagRepository.deleteByServiceId(service.getId());
+        tagRepository.flush();
 
         List<ServiceTag> normalizedTags = normalizeTags(service, tags);
         if (normalizedTags.isEmpty()) {

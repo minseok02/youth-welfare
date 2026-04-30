@@ -267,6 +267,17 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
   - `YOUTH_MID` summary 는 single official term only invariant 를 유지하고, `BokjiroDetail` aggregate 처럼 `taxonomyTerms` 가 비어 있는 detail 경로는 기존 list taxonomy term delete 를 수행하지 않도록 테스트와 같이 고정
 - 2026-04-30 `DeferredNormalizedPolicySidecarWriter` 실제 JDBC sidecar upsert 경로 연결 후 `cd backend && ./gradlew test --no-daemon --tests com.example.welfare.collect.normalization.DeferredNormalizedPolicySidecarWriterTest --tests com.example.welfare.collect.mapper.NormalizedPolicyAggregateTest --tests com.example.welfare.collect.mapper.PolicyNormalizationSampleCoverageTest`
 - 2026-04-30 `DeferredNormalizedPolicySidecarWriter` 실제 JDBC sidecar upsert 경로 연결 후 `git diff --check`
+- 2026-04-30 local DB sidecar draft migration actual upsert smoke
+  - 로컬 Docker MySQL(`youth-welfare-db`)에 `V2026_04_30_01__create_policy_sidecars.sql`, `V2026_04_30_02__seed_policy_normalization_codes.sql`, `V2026_04_30_03__seed_policy_official_code_subsets.sql` 를 직접 적용해 draft sidecar 스키마/seed 상태를 올림
+  - 적용 직후 로컬 DB 기준 `normalization_code_sets=15`, `normalization_codes=78`, `service_taxonomies=3634`, `service_taxonomy_terms=2395`, `service_facts=0` 을 확인
+  - `NormalizedPolicySidecarPersistenceIntegrationTest` 를 추가해 실제 `CollectItemSaver.saveYouth(...)` refresh 경로가 local MySQL에서 `service_taxonomies`, `service_taxonomy_terms`, `service_facts` 를 갱신하는지 검증하고, 같은 smoke 과정에서 primary `NamedParameterJdbcTemplate` 부재, same-precedence fact refresh stale, `service_tags` delete/insert flush 순서 문제를 함께 수정
+- 2026-04-30 local DB sidecar draft migration actual upsert smoke 후 `docker exec -e MYSQL_PWD='welfare1234!' -i youth-welfare-db mysql -uroot youth_welfare < backend/src/main/resources/db/migration-draft/V2026_04_30_01__create_policy_sidecars.sql`
+- 2026-04-30 local DB sidecar draft migration actual upsert smoke 후 `docker exec -e MYSQL_PWD='welfare1234!' -i youth-welfare-db mysql -uroot youth_welfare < backend/src/main/resources/db/migration-draft/V2026_04_30_02__seed_policy_normalization_codes.sql`
+- 2026-04-30 local DB sidecar draft migration actual upsert smoke 후 `docker exec -e MYSQL_PWD='welfare1234!' -i youth-welfare-db mysql -uroot youth_welfare < backend/src/main/resources/db/migration-draft/V2026_04_30_03__seed_policy_official_code_subsets.sql`
+- 2026-04-30 local DB sidecar draft migration actual upsert smoke 후 `cd backend && ./gradlew test --no-daemon --tests com.example.welfare.collect.normalization.NormalizedFactMergeSupportTest --tests com.example.welfare.collect.normalization.DeferredNormalizedPolicySidecarWriterTest`
+- 2026-04-30 local DB sidecar draft migration actual upsert smoke 후 `cd backend && ./gradlew integrationTest --no-daemon --tests com.example.welfare.integration.NormalizedPolicySidecarPersistenceIntegrationTest`
+- 2026-04-30 local DB sidecar draft migration actual upsert smoke 후 `docker exec -e MYSQL_PWD='welfare1234!' youth-welfare-db mysql --default-character-set=utf8mb4 -uroot -N -e "SET NAMES utf8mb4; SELECT COUNT(*) FROM normalization_code_sets; SELECT COUNT(*) FROM normalization_codes; SELECT COUNT(*) FROM service_taxonomies; SELECT COUNT(*) FROM service_taxonomy_terms; SELECT COUNT(*) FROM service_facts;" youth_welfare`
+- 2026-04-30 local DB sidecar draft migration actual upsert smoke 후 `git diff --check`
 - 2026-04-28 pre-28 migrated DB 기준 admin logout / refresh invalidation / relogin smoke
   - `SECURITY_ADMIN_EMAILS=admin.logout.smoke@example.com` 으로 최신 앱을 기동한 뒤, admin 계정 로그인과 프로필 수정으로 queue row를 `SYNCED` 상태까지 맞추고 `POST /api/auth/refresh` 가 먼저 성공하는 것 확인
   - 같은 cookie jar + access token으로 `POST /api/auth/logout` 호출 후 cookie jar에서 `refresh_token` 이 제거되고, 직후 `POST /api/auth/refresh` 가 `401`, `errorCode=A001` 로 막히는 것 확인
@@ -875,7 +886,7 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - [ ] `정부지원일자리정보`, `구직자취업역량 강화프로그램`, `Gov24/보조금24` 의 정책형 source canonical onboarding 우선순위와 live validation 순서 작성
 - [ ] 한국장학재단/국가장학금 계열의 `제도 row` 와 `지원가능대학/학기/지원구간` reference matrix 분리 모델 초안 작성
 - [ ] 복지로 live detail 적재 기준 `welfare_service_details` / `service_facts` validation 리허설
-- [ ] local DB에 sidecar draft migration(`V2026_04_30_01~03`) 적용 후 collect 경로의 actual sidecar upsert smoke 검증
+- [ ] 복지로 list/detail aggregate merge path actual sidecar upsert smoke 검증
 - [ ] 로그인 가능한 testbed/live payload 기준 `YOUTH_MID` / `srchPolyBizSecd` 전체 inventory 수집
 - [ ] `YOUTH_MID` stable code mapping SQL 초안 작성
 - [ ] `GOV24_SERVICE_FIELD`, `GOV24_USER_TYPE`, `GOV24_BENEFIT_TYPE` 공식 label inventory import/backfill SQL 초안 작성
@@ -900,6 +911,7 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 
 - [x] `DeferredNormalizedPolicySidecarWriter` 를 실제 `service_taxonomies / service_taxonomy_terms / service_facts` DB persistence writer 로 교체
 - [x] `DeferredNormalizedPolicySidecarWriter` / backfill SQL 이 skipped `YOUTH_MID` alias를 `YOUTH_MID_RAW_ALIAS` term group으로 실제 저장하도록 연결
+- [x] local DB에 sidecar draft migration(`V2026_04_30_01~03`) 적용 후 collect 경로의 actual sidecar upsert smoke 검증
 - [x] skipped `YOUTH_MID` alias를 `YOUTH_MID_RAW_ALIAS` 등 별도 term group으로 보존할지 결정
 - [x] `YOUTH_MID` non-official variant alias normalization 규칙 초안 작성
 - [x] `YOUTH_MID` stable code import 보류 정책 확정

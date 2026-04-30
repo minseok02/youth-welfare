@@ -93,6 +93,33 @@ class NormalizedFactMergeSupportTest {
                 .containsExactly("BK_HOUSEHOLD:ONE_PERSON", "BK_HOUSEHOLD:HOMELESS");
     }
 
+    @Test
+    void merge_overwritesExistingWhenRefreshHasSamePrecedence() {
+        NormalizedPolicyAggregate.Fact existingAge = rangeFact(
+                "YOUTH_AGE_ELIGIBILITY",
+                "YOUTH_AGE",
+                19,
+                34,
+                "sprtTrgtMinAge/sprtTrgtMaxAge",
+                BigDecimal.ONE
+        );
+        NormalizedPolicyAggregate.Fact incomingAge = rangeFact(
+                "YOUTH_AGE_ELIGIBILITY",
+                "YOUTH_AGE",
+                20,
+                39,
+                "sprtTrgtMinAge/sprtTrgtMaxAge",
+                BigDecimal.ONE
+        );
+
+        List<NormalizedPolicyAggregate.Fact> merged = mergeSupport.merge(List.of(existingAge), List.of(incomingAge));
+
+        assertThat(merged).singleElement().satisfies(fact -> {
+            assertThat(fact.rangeMinInt()).isEqualTo(20);
+            assertThat(fact.rangeMaxInt()).isEqualTo(39);
+        });
+    }
+
     private NormalizedPolicyAggregate.Fact rangeFact(String mergeKey,
                                                      String factCode,
                                                      Integer minAge,

@@ -36,6 +36,36 @@
   - 공개 API HTML에서는 `srchPolyBizSecd=003002001,003002002` 예시만 보이고, `/sur/link/openApiIntro/46`, `/sur/link/openInfoChcApi` 는 비로그인 상태에서 `Unauthorized` 를 반환하므로 `YOUTH_MID` stable code import 는 authenticated testbed/live inventory 확보 전까지 보류
   - `GOV24_SERVICE_FIELD`, `GOV24_USER_TYPE`, `GOV24_BENEFIT_TYPE` 는 field 자체는 확인됐지만 finite code inventory 를 확보하지 못해 이번 단계에서는 metadata/placeholder만 유지
 
+## 로컬 draft sidecar smoke
+
+로컬 Docker MySQL에서 draft sidecar 스키마와 실제 writer 정합성을 확인할 때는 아래 순서로 검증한다.
+
+```bash
+docker exec -e MYSQL_PWD="$DB_PASSWORD" -i youth-welfare-db mysql -uroot youth_welfare < backend/src/main/resources/db/migration-draft/V2026_04_30_01__create_policy_sidecars.sql
+docker exec -e MYSQL_PWD="$DB_PASSWORD" -i youth-welfare-db mysql -uroot youth_welfare < backend/src/main/resources/db/migration-draft/V2026_04_30_02__seed_policy_normalization_codes.sql
+docker exec -e MYSQL_PWD="$DB_PASSWORD" -i youth-welfare-db mysql -uroot youth_welfare < backend/src/main/resources/db/migration-draft/V2026_04_30_03__seed_policy_official_code_subsets.sql
+
+cd backend
+./gradlew test --no-daemon --tests com.example.welfare.collect.normalization.NormalizedFactMergeSupportTest --tests com.example.welfare.collect.normalization.DeferredNormalizedPolicySidecarWriterTest
+./gradlew integrationTest --no-daemon --tests com.example.welfare.integration.NormalizedPolicySidecarPersistenceIntegrationTest
+```
+
+`NormalizedPolicySidecarPersistenceIntegrationTest` 는 local MySQL에서 실제 `CollectItemSaver.saveYouth(...)` refresh 경로를 두 번 태워 다음을 확인한다.
+
+- `service_taxonomies` summary 가 최신 aggregate 기준으로 upsert 되는지
+- `service_taxonomy_terms` 의 `YOUTH_MID` / `YOUTH_MID_RAW_ALIAS` / keyword refresh 가 실제 DB에서 교체되는지
+- `service_facts` 가 같은 `fact_merge_key` 에 대해 stale 값을 남기지 않고 최신 값으로 갱신되는지
+
+2026-04-30 로컬 smoke 기준 draft 적용 직후 count:
+
+```sql
+SELECT COUNT(*) FROM normalization_code_sets;   -- 15
+SELECT COUNT(*) FROM normalization_codes;       -- 78
+SELECT COUNT(*) FROM service_taxonomies;        -- 3634
+SELECT COUNT(*) FROM service_taxonomy_terms;    -- 2395
+SELECT COUNT(*) FROM service_facts;             -- 0
+```
+
 - 파일: [`backend/src/main/resources/db/migration/V2026_04_28_02__add_user_pii_sync_queue.sql`](../backend/src/main/resources/db/migration/V2026_04_28_02__add_user_pii_sync_queue.sql)
 - 포함 내용:
   - `user_pii_sync_queue` 생성

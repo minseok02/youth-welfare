@@ -762,3 +762,18 @@
 - 문제: `DeferredNormalizedPolicySidecarWriter` 를 실제 JDBC upsert writer 로 바꾼 뒤에도 sidecar 스키마는 아직 `schema.sql` 과 정식 `db/migration/` 에 들어가지 않았다. 이 상태에서 테이블 존재 여부를 확인하지 않고 곧바로 `service_taxonomies/service_facts` 에 쓰면, 현재 로컬/운영 DB 상당수는 해당 테이블이 없어 collect 경로 전체가 SQL 예외로 중단될 위험이 있었다
 - 해결: writer 시작 시 `information_schema.tables` 를 조회해 `normalization_code_sets`, `service_taxonomies`, `service_taxonomy_terms`, `service_facts` 네 테이블이 모두 있을 때만 actual upsert 를 수행하고, 없으면 debug 로그만 남기고 안전하게 skip 하도록 변경했다
 - 이유: canonical sidecar 전환은 collect 코드와 DB rollout 이 완전히 동시에 끝나지 않는다. rollout 이전 단계에서 writer 가 no-op fallback 을 유지해야 현재 수집 흐름을 지키면서도, sidecar 테이블이 준비된 환경에서는 같은 코드가 즉시 actual persistence 로 전환될 수 있어 점진 이행과 재발 방지에 모두 유리하다
+
+## 151) secondary datasource용 `NamedParameterJdbcTemplate` 만 수동 등록한 상태에서 primary named template를 명시하지 않으면, actual sidecar writer 가 켜지는 시점에 Spring context 가 `NoUniqueBeanDefinitionException` 으로 부팅 실패할 수 있음
+- 문제: `DeferredNormalizedPolicySidecarWriter` 가 실제 JDBC upsert writer 로 전환되면서 `NamedParameterJdbcTemplate` 를 주입받기 시작했는데, 애플리케이션에는 `appPiiReadWriteNamedParameterJdbcTemplate`, `notificationPiiReadNamedParameterJdbcTemplate` 두 개만 명시 등록돼 있었다. 이 상태에서는 Spring Boot 기본 primary named template auto-config가 더 이상 유일 후보가 아니어서, local integration smoke에서 context 가 부팅 단계에서 실패했다
+- 해결: `PrimaryDataSourceConfig` 에 primary datasource 기반 `primaryNamedParameterJdbcTemplate` bean을 명시적으로 추가해, collect sidecar writer 가 항상 core schema datasource를 사용하도록 고정했다
+- 이유: secondary datasource를 늘리는 순간 “기본 named JDBC bean이 자동으로 하나 있을 것”이라는 가정은 깨질 수 있다. primary writer 가 어떤 datasource를 써야 하는지 코드로 못 박아야 actual collect path smoke와 runtime이 같은 wiring을 공유해 재발 방지에 안전하다
+
+## 152) `fact_merge_key` 가 같고 authority/confidence/sourceField 우선순위도 같은 refresh fact는 incoming 값으로 덮어써야 하는데, 기존 merge 규칙이 동률에서 old value를 유지해 stale sidecar facts가 남을 수 있었음
+- 문제: local MySQL smoke에서 같은 `source_id` 를 두 번 저장해 보니 `NormalizedFactMergeSupport` 가 동일 우선순위 tie에서 기존 fact를 유지하고 있어, `YOUTH_AGE_ELIGIBILITY`, `YOUTH_INCOME_MAX`, `YOUTH_APPLY_END_DATE` 같은 fact가 refresh 후에도 이전 값에 머무를 수 있었다
+- 해결: `NormalizedFactMergeSupport` 의 tie-breaker를 `incoming wins on exact precedence tie` 로 바꾸고, `NormalizedFactMergeSupportTest.merge_overwritesExistingWhenRefreshHasSamePrecedence` 로 같은 merge key의 refresh overwrite 계약을 추가했다
+- 이유: list/detail merge에서는 stronger source 우선순위가 필요하지만, 같은 source의 재수집 refresh에서는 최신 aggregate가 authoritative 해야 한다. 동률이면 새 값으로 덮어쓰도록 고정해야 sidecar가 stale해지지 않아 재발 방지에 안전하다
+
+## 153) 같은 `service_id` 에 대해 tag replace를 연속 수행할 때 delete가 flush 되기 전에 insert batch가 들어가면 `service_tags.uq_st` 충돌이 날 수 있음
+- 문제: local sidecar smoke에서 같은 청년정책 row를 두 번 저장했을 때 `service_tags` 교체 경로가 `deleteByServiceId -> saveAll` 로 이어지면서, delete가 DB에 먼저 확정되기 전에 같은 `(service_id, tag_type, tag_value)` insert가 들어가 `Duplicate entry ... for key 'service_tags.uq_st'` 가 발생했다
+- 해결: `CollectItemSaver.replaceTags()` 에서 `tagRepository.deleteByServiceId(service.getId())` 직후 `tagRepository.flush()` 를 호출해 delete를 먼저 DB에 반영한 뒤 새 tag 집합을 저장하도록 바꿨다
+- 이유: tag refresh는 sidecar smoke처럼 같은 row를 같은 테스트/수집 창에서 연속 갱신할 때 바로 드러난다. replace semantics를 기대하는 경로에서는 delete와 insert의 flush 순서를 명시적으로 고정해야 unique constraint 재발을 막을 수 있다
