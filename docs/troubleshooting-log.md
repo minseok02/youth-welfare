@@ -872,3 +872,8 @@
 - 문제: local snapshot 에서 beneficiary whitelist overlap service 가 `17`건 있었고, `여성청소년 생리용품 지원`, `통합문화이용권`, `자활근로(기초, 차상위)`, `재난적의료비 지원 사업` 처럼 source 자체가 두 집단을 함께 명시한 사례가 다수였다. 이를 하나의 상위 label로 collapse 하면 “두 집단 모두 대상”이라는 원문 의미가 사라질 수 있었다
 - 해결: current canonical 정책은 `기초생활수급자` 와 `차상위계층` 을 상하위 collapse 하지 않고 multi-term 으로 그대로 유지하도록 문서에 고정했다. 대신 이후 recommendation/read-model 단계에서만 중복 가중치 dedupe 를 따로 설계하는 것으로 후속 작업을 분리했다
 - 이유: beneficiary bucket 은 hard fact 가 아니라 soft taxonomy 이므로, source가 제공한 대상군 richness를 보존하는 편이 안전하다. collapse 는 나중 read-model에서 언제든 할 수 있지만, 저장 단계에서 잃은 정보는 되돌리기 어렵다
+
+## 173) 복지로 beneficiary soft taxonomy 는 저장 단계에서 multi-term 을 보존하되, 추천 단계에서는 `BENEFICIARY_SUPPORT` 같은 dedupe bucket 으로 max-one bonus 를 주는 편이 current rule 구조와 가장 자연스럽게 맞는다
+- 문제: beneficiary whitelist 를 multi-term 으로 남기면 원문 의미는 보존되지만, future canonical read-path 가 raw `TARGET_GROUP` term 두 개를 그대로 scoring 에 태우면 같은 혜택축에서 double-count 가 생길 수 있다. 반대로 저장 단계에서 collapse 하면 나중에 세부 라벨을 설명/배지/UI 에 쓰기 어렵다
+- 해결: persistence 는 raw multi-term 유지, read-model 은 `BENEFICIARY_SUPPORT` dedupe bucket 별도 생성, scoring 은 bucket 기준 서비스당 최대 1회 bonus 라는 전략으로 문서에 고정했다. 현재 `RuleScoringService.targetGroupMatches(...)` 도 boolean 매칭 기반이라 동일 축 다중 라벨을 바로 2배 가산하지 않는다는 점을 근거로 future sidecar read-path 도 같은 `max-one bonus` 규칙을 유지하기로 했다
+- 이유: 현재 추천 구조는 합계형 점수이지만 target group 매칭은 본질적으로 “해당 축 매칭 여부”에 가깝다. soft taxonomy 의 raw richness 는 read-model 밖에서 보존하고, scoring 에서는 bucket 단위로 dedupe 하는 쪽이 precision 과 explainability 를 같이 지키기 쉽다

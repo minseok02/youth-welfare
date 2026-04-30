@@ -98,6 +98,8 @@ local draft migration 상태에서 stored 복지로 detail raw payload replay를
 
 overlap service 는 `17`건이었고, 샘플은 `여성청소년 생리용품 지원`, `통합문화이용권`, `자활근로(기초, 차상위)`, `재난적의료비 지원 사업` 처럼 source 자체가 두 집단을 함께 명시한 경우가 대부분이었다. 따라서 현재 canonical 정책은 `기초생활수급자` 와 `차상위계층` 을 상하위 collapse 하지 않고 multi-term 으로 그대로 유지한다. 이 bucket은 hard fact 가 아니라 soft taxonomy 이므로, 추천/read-model 단계에서 필요하면 중복 가중치만 제어하고 원본 term 정보는 보존하는 쪽이 맞다.
 
+추천/read-model 단계의 초기 dedupe 전략도 같이 고정했다. persistence 에는 raw `TARGET_GROUP` term 둘 다 남기고, canonical read-model 이 `BENEFICIARY_SUPPORT` bucket 을 별도로 만든 뒤 scoring 은 이 bucket 기준으로 서비스당 최대 1회만 bonus 를 주는 방식이다. 현재 [RuleScoringService](../backend/src/main/java/com/example/welfare/recommend/service/RuleScoringService.java) 도 boolean 매칭 기반이라 동일 축 중복 가산은 하지 않으므로, future sidecar read-path 도 같은 “max-one bonus” 규칙을 유지한다.
+
 추가 확인 결과 `targetDetail/supportDetail/selectionCriteria` 의 date-like token 수는 `4 / 1 / 1` 이었지만, 샘플은 출생연도 범위나 혜택 적용기간처럼 신청마감이 아닌 날짜가 대부분이었다. 따라서 현재 canonical collect path 에서는 `BK_APPLY_END_DATE` 를 optional fact 로 유지하고, `targetDetail/selectionCriteria` 까지 deadline fallback 을 넓히지 않는다.
 
 - 파일: [`backend/src/main/resources/db/migration/V2026_04_28_02__add_user_pii_sync_queue.sql`](../backend/src/main/resources/db/migration/V2026_04_28_02__add_user_pii_sync_queue.sql)
