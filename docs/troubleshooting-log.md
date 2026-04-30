@@ -1162,3 +1162,8 @@
 - 문제: nightly `real-openai` replay 결과를 어디로 공유할지 정해야 하지만, 현재 repo/운영 문서에는 Slack, ChatOps, replay 전용 메일 alias 같은 외부 채널 전제가 없다
 - 해결: [openai-replay-diagnostic-lane-plan.md](./openai-replay-diagnostic-lane-plan.md)에 1차 채널을 `ops cron host` 의 append-only summary file로 두고, 상세 증적은 artifact dir에서 확인하는 정책을 반영했다
 - 이유: live variability가 남는 diagnostic lane을 외부 알림으로 바로 밀면 false positive가 곧바로 알림 피로로 이어질 수 있다. 먼저 host-local summary file과 artifact dir로 경계를 좁히고, 이후 운영 채널이 준비되면 그때 바깥으로 확장하는 편이 더 안전하다
+
+## 231) nightly replay는 summary와 artifact를 같은 host root 아래 두되, 보존기간은 다르게 가져가는 편이 수동 triage에 유리하다
+- 문제: nightly `real-openai` replay를 host-local로 운영하기로 했으면, summary와 artifact를 어디에 두고 얼마나 보관할지 기본값이 없으면 cron 구현 때 경로가 흔들리고 cleanup도 제각각이 된다
+- 해결: [openai-replay-diagnostic-lane-plan.md](./openai-replay-diagnostic-lane-plan.md)에 기본 경로를 `/var/log/youth-welfare/openai-replay/` 아래로 모으고, `nightly-summary-YYYY-MM-DD.log` 는 `30일`, `artifacts/<timestamp>/` 는 `14일` 보관으로 고정했다
+- 이유: summary는 drift 추세 비교용이라 더 오래 남겨야 하고, artifact는 상세 triage용이라 용량 대비 보존 가치가 더 빨리 떨어진다. 같은 root 아래 두되 역할별 보존기간을 나누는 편이 운영과 정리에 모두 단순하다

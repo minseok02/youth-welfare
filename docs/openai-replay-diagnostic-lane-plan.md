@@ -211,3 +211,40 @@ PR lane은 그쪽에만 남기는 것이 맞습니다.
 3. 필요 시 사람이 수동 공유
 
 순서가 맞습니다.
+
+## 권장 경로 / rotate
+
+현재 단계에서는 아래 경로를 기본값으로 둡니다.
+
+- summary root:
+  - `/var/log/youth-welfare/openai-replay/`
+- daily summary file:
+  - `/var/log/youth-welfare/openai-replay/nightly-summary-YYYY-MM-DD.log`
+- run artifact root:
+  - `/var/log/youth-welfare/openai-replay/artifacts/`
+- run artifact dir:
+  - `/var/log/youth-welfare/openai-replay/artifacts/YYYY-MM-DDTHHMMSSZ/`
+
+rotate 기본값:
+
+1. daily summary file
+   - 일 단위 분리
+   - 최근 `30일` 보관
+2. run artifact dir
+   - 최근 `14일` 보관
+3. 보관 만료 정리
+   - cron job 후단 또는 별도 daily cleanup step에서 삭제
+
+## 왜 이 경로/보존기간인가
+
+- `/var/log/youth-welfare/` 는 앱/운영 로그와 같은 host-local 관리 맥락에 놓기 쉽습니다.
+- summary는 append-only이므로 30일 정도는 남겨야 drift 추세를 보기 쉽습니다.
+- artifact는 크기가 더 크고 재현 확인이 끝나면 가치가 빨리 떨어지므로 14일 보관이면 충분합니다.
+- summary와 artifact를 같은 root 아래 두되, 파일과 디렉터리를 분리하면 수동 triage가 단순해집니다.
+
+즉:
+
+- 장기 비교는 `nightly-summary-YYYY-MM-DD.log`
+- 상세 triage는 `artifacts/<timestamp>/`
+
+역할로 나눕니다.
