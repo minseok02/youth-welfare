@@ -822,3 +822,8 @@
 - 문제: local DB를 다시 보니 복지로 서비스는 `1335`건인데 detail raw payload는 정확히 `190`건이었다. 이는 `95/API` cap 이 있는 기본 detail 수집을 한 번만 돌린 흔적과 맞아떨어지며, `raw detail 없는 서비스 1145건`, `detail row는 있지만 raw가 없는 서비스 0건` 이라 sidecar replay density는 본문 추출기뿐 아니라 detail fetch coverage ceiling에도 강하게 묶여 있었다
 - 해결: `BokjiroDetailCollectService` 에 multi-round `collectBokjiroDetailGapFillResult(rounds, maxCallsPerRound)` 를 추가하고, `CollectAdminController` 에 `POST /api/admin/collect/bokjiro-details-gap-fill` exact admin path 를 노출해 per-run cap은 유지한 채 여러 라운드로 missing detail backlog 를 점진적으로 더 메울 수 있게 정리했다
 - 이유: rate limit 안전장치와 backlog drain 속도는 같은 문제가 아니다. 단일 실행 cap 때문에 생긴 coverage ceiling을 extractor 한계로 오해하면 잘못된 regex/heuristic만 계속 손보게 되므로, “여러 라운드로 안전하게 더 가져오는 수동 경로”를 따로 두는 편이 재발 해석과 운영 절차 모두에 안전하다
+
+## 163) `bokjiro-details-gap-fill` 로 raw detail coverage 를 늘려도 새 payload 수와 `service_facts` 증가는 1:1 이 아닐 수 있으므로, coverage 개선과 fact density 개선을 별도 지표로 봐야 함
+- 문제: local live smoke에서 `collectBokjiroDetailGapFillResult(2, 20)` 를 태우자 detail raw payload 는 `190 -> 199`, missing detail service 는 `1145 -> 1136` 으로 개선됐지만, `service_facts` 는 `99 -> 103` 으로 `4`건만 늘었다. 새 raw payload `9`건 전부가 곧바로 age/deadline fact로 이어질 것이라고 가정하면 gap fill 효과를 과대평가하거나 extractor 문제를 잘못 짚을 수 있었다
+- 해결: `phase-plan` 과 `db-migration` 에 gap fill 결과를 `raw detail coverage` 와 `service_facts density` 두 축으로 나눠 기록하고, 다음 작업도 `추가 라운드/예산 계획` 과 `fact 미생성 sample 분석` 으로 분리했다
+- 이유: detail 확보와 fact 추출은 서로 다른 단계다. raw payload 가 늘어도 본문에 eligibility signal이 없으면 canonical facts 는 그대로일 수 있으므로, 운영/리팩터링 판단은 coverage와 density를 분리해 봐야 재발 해석이 흔들리지 않는다

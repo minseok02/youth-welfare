@@ -79,14 +79,14 @@ SELECT COUNT(*) FROM service_facts;             -- 0
 
 ```sql
 SELECT COUNT(*) FROM welfare_services WHERE source_type IN ('BOKJIRO_CENTRAL', 'BOKJIRO_LOCAL'); -- 1335
-SELECT COUNT(*) FROM raw_api_payloads WHERE source_type IN ('BOKJIRO_CENTRAL', 'BOKJIRO_LOCAL') AND api_category = 'DETAIL'; -- 190
+SELECT COUNT(*) FROM raw_api_payloads WHERE source_type IN ('BOKJIRO_CENTRAL', 'BOKJIRO_LOCAL') AND api_category = 'DETAIL'; -- 199
 SELECT COUNT(*) FROM service_facts sf JOIN welfare_services ws ON ws.id = sf.service_id
-WHERE ws.source_type IN ('BOKJIRO_CENTRAL', 'BOKJIRO_LOCAL'); -- 99
+WHERE ws.source_type IN ('BOKJIRO_CENTRAL', 'BOKJIRO_LOCAL'); -- 103
 SELECT COUNT(DISTINCT sf.service_id) FROM service_facts sf JOIN welfare_services ws ON ws.id = sf.service_id
-WHERE ws.source_type IN ('BOKJIRO_CENTRAL', 'BOKJIRO_LOCAL'); -- 99
+WHERE ws.source_type IN ('BOKJIRO_CENTRAL', 'BOKJIRO_LOCAL'); -- 103
 ```
 
-현재 local snapshot에서는 `BK_AGE_ELIGIBILITY` 만 `99`건(`BOKJIRO_CENTRAL 49`, `BOKJIRO_LOCAL 50`) 적재됐고, `BK_APPLY_END_DATE` 는 `0`건이다. `TextConstraintExtractor` 의 복지로 age range regex를 `만 20 ~ 49세`, `15세~39세`, `만 19세 이상 ~ 34세 이하` 류까지 넓힌 뒤 replay 를 다시 태우자 `service_facts` 는 `81 -> 99`로 증가했다. 남은 갭은 현재 extractor보다는 stored detail payload coverage(`190 / 1335`)와 payload 내 age-like signal 부재 비중에 더 가깝다.
+현재 local snapshot에서는 `BK_AGE_ELIGIBILITY` 만 `103`건(`BOKJIRO_CENTRAL 51`, `BOKJIRO_LOCAL 52`) 적재됐고, `BK_APPLY_END_DATE` 는 `0`건이다. `TextConstraintExtractor` 보강 뒤 `bokjiro-details-gap-fill` 을 `2 rounds x 20 calls` 로 실제 실행하자 detail raw payload 는 `190 -> 199`, missing detail service 는 `1145 -> 1136`, `service_facts` 는 `99 -> 103` 으로 올라갔다. 다만 새 raw payload `9`건 중 age fact 증가는 `4`건뿐이라, 남은 갭은 extractor 하나보다 payload 자체 signal 부재와 sample 분포 영향이 더 크다.
 
 추가 확인 결과 `targetDetail/supportDetail/selectionCriteria` 의 date-like token 수는 `4 / 1 / 1` 이었지만, 샘플은 출생연도 범위나 혜택 적용기간처럼 신청마감이 아닌 날짜가 대부분이었다. 따라서 현재 canonical collect path 에서는 `BK_APPLY_END_DATE` 를 optional fact 로 유지하고, `targetDetail/selectionCriteria` 까지 deadline fallback 을 넓히지 않는다.
 
