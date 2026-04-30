@@ -932,3 +932,8 @@
 - 문제: writer는 single canonical major만 summary에 남기도록 정제됐지만, `V2026_04_30_02__seed_policy_normalization_codes.sql` 이 여전히 `ws.category_main` exact match / raw label 복사 방식이면 초기 backfill 직후에는 `금융･복지･문화`, `참여･기반`, `일자리,일자리` 같은 값이 들어가고, 이후 live collect refresh가 돌 때만 일부 row가 정제되는 식으로 경로별 summary semantics가 달라질 수 있었다
 - 해결: draft SQL에 `JSON_TABLE` 기반 token split, punctuation normalize, canonical major collapse CTE를 추가해 `distinct canonical major = 1` 일 때만 `youth_major_code`, `youth_major_label` 을 채우도록 바꿨다. local YOUTH snapshot 재집계 결과 `2299 total / 2248 filled / summary_with_comma=0 / raw_variant_labels=0` 으로 정제 효과를 확인했다
 - 이유: canonical summary는 “누가 적재했느냐”와 무관하게 같은 규칙으로 채워져야 한다. writer와 backfill이 다른 collapse 규칙을 쓰면 drift inventory가 데이터 품질 문제가 아니라 경로 차이 문제로 오염되므로, 적재 경로 둘 다 같은 single-major invariant를 공유해야 한다
+
+## 185) `youth_major` summary를 실제로 재적재하고 나니 남은 drift의 본질은 raw multi-value가 아니라 `compat=기타` 와 canonical major 공존 문제였음
+- 문제: 기존 inventory에서는 `youth_major_label` 의 comma/duplicate/raw variant가 너무 커서, `compat_unified_category` 와 canonical summary 사이의 진짜 남은 차이가 “summary 품질”인지 “호환 레이어 설계”인지 분리하기 어려웠다
+- 해결: local DB `service_taxonomies` 의 `YOUTH` summary를 collapse 규칙으로 다시 써넣고 재집계했다. 그 결과 `youth_major_with_comma=0`, `raw_variant_labels=0` 으로 summary 품질 문제는 사라졌고, 대신 `compat=기타 + canonical youth_major 채움` 집합이 `421`건 남는다는 점이 핵심 잔여 drift로 분리됐다
+- 이유: summary가 single canonical value로 안정화된 뒤에는 더 이상 “정제 먼저”가 아니라 “`compat` 를 계속 저장할지, YOUTH canonical major를 어디까지 priority/read-model에 반영할지”가 다음 설계 질문이 된다. 문제 성격이 달라졌으므로 후속 task도 summary 정제에서 호환 레이어 해석 정책으로 옮기는 편이 맞다
