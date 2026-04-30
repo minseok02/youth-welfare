@@ -1167,3 +1167,8 @@
 - 문제: nightly `real-openai` replay를 host-local로 운영하기로 했으면, summary와 artifact를 어디에 두고 얼마나 보관할지 기본값이 없으면 cron 구현 때 경로가 흔들리고 cleanup도 제각각이 된다
 - 해결: [openai-replay-diagnostic-lane-plan.md](./openai-replay-diagnostic-lane-plan.md)에 기본 경로를 `/var/log/youth-welfare/openai-replay/` 아래로 모으고, `nightly-summary-YYYY-MM-DD.log` 는 `30일`, `artifacts/<timestamp>/` 는 `14일` 보관으로 고정했다
 - 이유: summary는 drift 추세 비교용이라 더 오래 남겨야 하고, artifact는 상세 triage용이라 용량 대비 보존 가치가 더 빨리 떨어진다. 같은 root 아래 두되 역할별 보존기간을 나누는 편이 운영과 정리에 모두 단순하다
+
+## 232) nightly summary line은 drift 판단에 직접 쓰는 값만 남기고, row-level/response-level 값은 artifact로 보내는 편이 낫다
+- 문제: nightly summary file 한 줄에 너무 많은 필드를 넣으면 grep/scan 은 쉬워지지 않고, 오히려 `ai_score`, `responseId`, raw fingerprint 같은 노이즈가 늘어나 첫 판단이 느려질 수 있다
+- 해결: [openai-replay-diagnostic-lane-plan.md](./openai-replay-diagnostic-lane-plan.md) 와 [policy-normalization-education-priority-replay-procedure.md](./policy-normalization-education-priority-replay-procedure.md)에 summary line 최소 필드를 `ts`, `mode`, `A/B_top10_target`, `A/B_target_total`, `A/B_fp`, `artifact_dir` 로 고정했다
+- 이유: 현재 운영 판단은 target count와 fingerprint relation이 먼저고, row-level score/response metadata는 warning 이후 artifact에서 보는 것이 맞다. summary line은 “한 줄 triage” 에 집중해야 한다

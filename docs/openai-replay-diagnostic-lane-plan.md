@@ -248,3 +248,50 @@ rotate 기본값:
 - 상세 triage는 `artifacts/<timestamp>/`
 
 역할로 나눕니다.
+
+## 권장 summary line 필드
+
+nightly summary file에는 run당 **한 줄**만 append 하는 것을 기본값으로 둡니다.
+
+권장 필드:
+
+1. `ts`
+   - run 종료 시각
+2. `mode`
+   - `rule-only-invalid-key` 또는 `real-openai`
+3. `A_top10_target`
+   - sample A `off->on`
+4. `B_top10_target`
+   - sample B `off->on`
+5. `A_target_total`
+   - sample A 전체 결과 내 target row 수 `off->on`
+6. `B_target_total`
+   - sample B 전체 결과 내 target row 수 `off->on`
+7. `A_fp`
+   - `same|different|missing`
+8. `B_fp`
+   - `same|different|missing`
+9. `artifact_dir`
+   - 상세 triage용 경로
+
+예시:
+
+```text
+ts=2026-04-30T23:10:00+09:00 mode=real-openai A_top10_target=1->7 B_top10_target=0->1 A_target_total=12->12 B_target_total=3->3 A_fp=same B_fp=different artifact_dir=/var/log/youth-welfare/openai-replay/artifacts/2026-04-30T141000Z
+```
+
+## 왜 이 필드만 남기나
+
+- `A_top10_target`, `B_top10_target` 는 현재 gate/warning 1순위 지표입니다.
+- `A_target_total`, `B_target_total` 은 top-10 밖에 있던 target row 풀이 같이 줄었는지 보는 보조 지표입니다.
+- `A_fp`, `B_fp` 는 warning 이후 triage 분기를 바로 돕습니다.
+- `artifact_dir` 가 있어야 운영자가 summary file에서 바로 상세 증적으로 점프할 수 있습니다.
+
+반대로 지금은 summary line에 아래를 넣지 않습니다.
+
+- 개별 row `ai_score`
+- `responseId`
+- `systemFingerprint` 원문 값
+- top-10 row title dump
+
+이 값들은 한 줄 요약보다 artifact dir 안의 상세 파일에서 보는 편이 맞습니다.
