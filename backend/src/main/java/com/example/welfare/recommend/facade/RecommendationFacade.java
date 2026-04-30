@@ -70,7 +70,7 @@ public class RecommendationFacade {
         List<WelfareService> candidates = retrieved.candidates();
 
         // ③ Rule 점수
-        List<ScoredCandidate> scored = ruleScoringService.score(candidates, snapshot);
+        List<ScoredCandidate> scored = ruleScoringService.score(retrieved, snapshot);
 
         // ③-b 특수 대상 불일치 정책 제거 (사용자와 맞지 않는 장애/농촌/다문화 등)
         // 숫자 임계값이 아닌 RuleScoringService가 명시한 mismatch 플래그를 사용

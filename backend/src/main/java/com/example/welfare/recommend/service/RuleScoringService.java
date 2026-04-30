@@ -4,7 +4,9 @@ import com.example.welfare.policy.entity.ServiceTag;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.repository.ServiceTagRepository;
 import com.example.welfare.recommend.dto.PriorityPreference;
+import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
 import com.example.welfare.recommend.dto.RecommendationUserSnapshot;
+import com.example.welfare.recommend.dto.RetrievedRecommendationCandidates;
 import com.example.welfare.recommend.dto.ScoredCandidate;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -27,6 +29,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class RuleScoringService {
 
+    private static final String BENEFICIARY_SUPPORT_BUCKET = "BENEFICIARY_SUPPORT";
     private static final double SPECIAL_TARGET_MATCH_BONUS = 12.0;
     private static final double SPECIAL_TARGET_MISMATCH_PENALTY = 8.0;
 
@@ -35,6 +38,16 @@ public class RuleScoringService {
     private final YouthPolicyFilter youthPolicyFilter;
 
     public List<ScoredCandidate> score(List<WelfareService> candidates, RecommendationUserSnapshot user) {
+        return score(candidates, Map.of(), user);
+    }
+
+    public List<ScoredCandidate> score(RetrievedRecommendationCandidates retrieved, RecommendationUserSnapshot user) {
+        return score(retrieved.candidates(), retrieved.projections(), user);
+    }
+
+    private List<ScoredCandidate> score(List<WelfareService> candidates,
+                                        Map<Long, RecommendationCandidateProjection> projections,
+                                        RecommendationUserSnapshot user) {
         Set<String> interestFields = user.interestFields().stream().collect(Collectors.toSet());
         Set<String> targetTypes = user.targetTypes().stream().collect(Collectors.toSet());
 
@@ -50,7 +63,8 @@ public class RuleScoringService {
         return candidates.stream()
                 .map(service -> {
                     List<ServiceTag> tags = tagsByServiceId.getOrDefault(service.getId(), List.of());
-                    double base = calcBaseScore(service, user, interestFields, targetTypes, tags);
+                    RecommendationCandidateProjection projection = projections.get(service.getId());
+                    double base = calcBaseScore(service, user, interestFields, targetTypes, tags, projection);
                     double weighted = applyPriorityWeight(base, service, user.priorities());
                     // 특수 대상 신호가 있지만 사용자와 불일치한 경우 플래그 설정
                     boolean mismatch = !specialTargetMatches(user, targetTypes, service, tags)
@@ -67,7 +81,8 @@ public class RuleScoringService {
     }
 
     private double calcBaseScore(WelfareService service, RecommendationUserSnapshot user,
-                                  Set<String> interestFields, Set<String> targetTypes, List<ServiceTag> tags) {
+                                  Set<String> interestFields, Set<String> targetTypes, List<ServiceTag> tags,
+                                  RecommendationCandidateProjection projection) {
         double score = 0;
 
         // 청년 신호가 강한 정책을 우선 노출하고, 나이만 겹치는 정책은 뒤로 보낸다.
@@ -80,7 +95,7 @@ public class RuleScoringService {
         if (keywordMatches(interestFields, tags)) score += 10;
 
         // 대상유형 일치: TARGET_GROUP 태그 ↔ 유저 취업상태·가구유형·소득분위
-        if (targetGroupMatches(user, tags)) score += 10;
+        if (targetGroupMatches(user, tags, projection)) score += 10;
 
         if (specialTargetMatches(user, targetTypes, service, tags)) score += SPECIAL_TARGET_MATCH_BONUS;
         else if (hasSpecialTargetSignal(service, tags)) score -= SPECIAL_TARGET_MISMATCH_PENALTY;
@@ -122,14 +137,16 @@ public class RuleScoringService {
      * 복지로 trgterIndvdlArray 실제 값 예시:
      * "미취업청년", "저소득층", "1인가구", "청년", "대학생", "취업준비생"
      */
-    private boolean targetGroupMatches(RecommendationUserSnapshot user, List<ServiceTag> tags) {
+    private boolean targetGroupMatches(RecommendationUserSnapshot user,
+                                       List<ServiceTag> tags,
+                                       RecommendationCandidateProjection projection) {
         List<ServiceTag> targetTags = tags.stream()
                 .filter(t -> t.getTagType() == ServiceTag.TagType.TARGET_GROUP)
                 .collect(Collectors.toList());
 
-        if (targetTags.isEmpty()) return false;
+        if (targetTags.isEmpty() && !beneficiaryBucketMatches(user, projection)) return false;
 
-        return targetTags.stream().anyMatch(t -> {
+        boolean legacyMatch = targetTags.stream().anyMatch(t -> {
             String val = t.getTagValue();
 
             // 취업상태 매핑
@@ -158,6 +175,26 @@ public class RuleScoringService {
 
             return false;
         });
+
+        return legacyMatch || beneficiaryBucketMatches(user, projection);
+    }
+
+    private boolean beneficiaryBucketMatches(RecommendationUserSnapshot user,
+                                             RecommendationCandidateProjection projection) {
+        if (projection == null || projection.targetGroupBuckets().isEmpty()) {
+            return false;
+        }
+        if (!projection.targetGroupBuckets().contains(BENEFICIARY_SUPPORT_BUCKET)) {
+            return false;
+        }
+        if (user.incomeLevel() == null) {
+            return false;
+        }
+
+        if (projection.beneficiaryTerms().contains("기초생활수급자") && user.incomeLevel() <= 1) {
+            return true;
+        }
+        return projection.beneficiaryTerms().contains("차상위계층") && user.incomeLevel() <= 3;
     }
 
     private boolean isDeadlineSoon(WelfareService service) {

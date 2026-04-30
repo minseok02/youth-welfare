@@ -3,7 +3,9 @@ package com.example.welfare.recommend.service;
 import com.example.welfare.policy.entity.ServiceTag;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.repository.ServiceTagRepository;
+import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
 import com.example.welfare.recommend.dto.RecommendationUserSnapshot;
+import com.example.welfare.recommend.dto.RetrievedRecommendationCandidates;
 import com.example.welfare.recommend.dto.ScoredCandidate;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -12,7 +14,9 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.Map;
 import java.util.List;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyList;
@@ -26,6 +30,8 @@ class RuleScoringServiceTest {
 
     @Mock
     private PriorityMatcher priorityMatcher;
+
+    private static final String BENEFICIARY_SUPPORT_BUCKET = "BENEFICIARY_SUPPORT";
 
     private RuleScoringService ruleScoringService;
 
@@ -109,6 +115,49 @@ class RuleScoringServiceTest {
 
         assertThat(findByServiceId(scored, 30L).getRuleBaseScore())
                 .isGreaterThan(findByServiceId(scored, 40L).getRuleBaseScore());
+    }
+
+    @Test
+    @DisplayName("beneficiary projection bucket은 중복 없이 한 번만 target group bonus를 준다")
+    void beneficiaryProjectionBucketAddsSingleTargetGroupBonus() {
+        RecommendationUserSnapshot user = snapshot(List.of(), List.of(), (byte) 3, null, null);
+
+        WelfareService baseline = WelfareService.builder()
+                .id(50L)
+                .sourceType(WelfareService.SourceType.BOKJIRO_LOCAL)
+                .sourceId("L50")
+                .title("일반 생활 지원")
+                .status(WelfareService.ServiceStatus.ACTIVE)
+                .build();
+
+        WelfareService beneficiary = WelfareService.builder()
+                .id(60L)
+                .sourceType(WelfareService.SourceType.BOKJIRO_LOCAL)
+                .sourceId("L60")
+                .title("생활 안정 지원")
+                .status(WelfareService.ServiceStatus.ACTIVE)
+                .build();
+
+        when(serviceTagRepository.findByServiceIdIn(anyList())).thenReturn(List.of());
+
+        List<ScoredCandidate> scored = ruleScoringService.score(
+                new RetrievedRecommendationCandidates(
+                        List.of(baseline, beneficiary),
+                        Map.of(
+                                beneficiary.getId(),
+                                RecommendationCandidateProjection.builder()
+                                        .serviceId(beneficiary.getId())
+                                        .targetGroupBuckets(Set.of(
+                                                BENEFICIARY_SUPPORT_BUCKET))
+                                        .beneficiaryTerms(Set.of("기초생활수급자", "차상위계층"))
+                                        .build()
+                        )
+                ),
+                user
+        );
+
+        assertThat(findByServiceId(scored, 60L).getRuleBaseScore())
+                .isEqualTo(findByServiceId(scored, 50L).getRuleBaseScore() + 10.0);
     }
 
     private ScoredCandidate findByServiceId(List<ScoredCandidate> scored, Long serviceId) {

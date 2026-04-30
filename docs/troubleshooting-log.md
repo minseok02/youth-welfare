@@ -892,3 +892,8 @@
 - 문제: `RetrievalService` 에 canonical projection hydrate 를 붙이는 단계에서 곧바로 `RuleScoringService` 입력 구조까지 함께 바꾸면, 후보 SQL/후처리 필터 변경과 점수 회귀가 한 PR에 섞여 원인 분리가 어려워진다. 특히 지금 scoring/persistence 흐름은 아직 `List<WelfareService>` 를 기준으로 안정적으로 동작 중이라, 첫 연결부터 scoring까지 건드리면 실패 반경이 커질 수 있었다
 - 해결: `RetrievedRecommendationCandidates` DTO를 추가해 retrieval 단계가 legacy `WelfareService` 후보와 canonical projection map 을 함께 반환하게만 바꾸고, `RecommendationFacade` 는 당분간 `candidates()` 만 꺼내 써서 scoring/persistence 경로를 그대로 유지했다. 다음 단계에서만 `RuleScoringService` 가 projection bucket을 병행 소비하도록 분리했다
 - 이유: canonical read-model 전환은 retrieval, scoring, response 경계를 순차적으로 옮기는 편이 디버깅과 회귀 검증에 유리하다. hydrate 연결과 scoring 전환을 분리하면 “후보 추출 회귀”와 “점수 계산 회귀”를 각각 독립적으로 검증할 수 있다
+
+## 177) canonical beneficiary bucket 은 별도 가산 슬롯을 새로 만들기보다 기존 `targetGroupMatches` boolean bonus 슬롯에 OR 로 연결해야 current rule score 의미를 덜 흔든다
+- 문제: `BENEFICIARY_SUPPORT` bucket 을 scoring 에 연결할 때 새 보너스 항목으로 따로 더하면, 기존 `TARGET_GROUP` 보너스와 함께 같은 축을 이중 가산할 수 있었다. 특히 `기초생활수급자` 와 `차상위계층` raw term을 multi-term 으로 보존하는 현재 정책과 겹치면 “dedupe bucket 도 있고 broad target match 도 있다”는 이유로 점수 회귀가 생길 수 있었다
+- 해결: 첫 단계 브리지는 `RuleScoringService.score(RetrievedRecommendationCandidates, ...)` 오버로드만 추가하고, canonical `BENEFICIARY_SUPPORT` bucket 은 기존 `targetGroupMatches(...)` boolean 슬롯에 OR 로 연결했다. 동시에 `beneficiaryTerms` 로 `기초생활수급자<=1`, `차상위계층<=3` threshold 를 좁게 걸어 서비스당 최대 1회 bonus 만 허용했다
+- 이유: beneficiary bucket 의 목적은 새로운 축을 더 만드는 것이 아니라 raw multi-term 에서 중복 가산을 막으면서 기존 target-group 의도를 canonical read-model 로 옮기는 것이다. 기존 bonus 슬롯에 병행 연결하는 편이 legacy score 의미를 덜 흔들고 회귀 범위도 좁다
