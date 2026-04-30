@@ -807,3 +807,8 @@
 - 문제: local density smoke 직후 `service_facts` 를 보니 `BK_AGE_ELIGIBILITY` 는 81건인데 `BK_APPLY_END_DATE` 는 0건이었다. 처음엔 detail extractor 누락으로 보일 수 있지만, 실제 `raw_api_payloads` 를 확인해 보니 detail `applyMethodDetail` non-null 은 77건이어도 date-like token은 0건이었다
 - 해결: `NormalizedPolicySidecarBackfillDensityIntegrationTest` 는 `BK_APPLY_END_DATE > 0` 을 고정 assertion으로 두지 않고, raw payload 에 date-like `applyMethodDetail` 이 존재할 때만 deadline fact 존재를 요구하도록 바꿨다. 동시에 `phase-plan` 과 `db-migration` 에 현재 local snapshot 수치(`detail payload 190`, `age facts 81`, `deadline facts 0`)를 남기고 후속 보강 과제를 별도로 분리했다
 - 이유: density 측정의 목적은 추출기 결함과 source signal 부재를 구분하는 데 있다. payload 자체에 날짜 단서가 없는데 deadline fact를 기대하면 smoke가 잘못된 요구사항을 테스트하게 되므로, 현재 source 특성을 문서와 테스트에 같이 고정해야 재발 해석이 흔들리지 않는다
+
+## 160) 복지로 detail 의 다른 필드(`targetDetail`, `selectionCriteria`, `supportDetail`)에 date-like token이 조금 보인다고 해서 deadline fallback 을 바로 넓히면, 출생연도 범위나 혜택 적용기간을 신청마감으로 오인할 수 있음
+- 문제: local raw detail payload를 더 확인해 보니 `targetDetail/supportDetail/selectionCriteria` 에도 date-like token이 `4 / 1 / 1` 건 있었다. 하지만 샘플을 보면 `1976.1.1 ~ 2005.12.31` 같은 출생연도 범위, `2024.7.1 ~ 2024.10.31` 같은 할인 적용기간이 섞여 있어 이 값을 `BK_APPLY_END_DATE` 로 쓰면 잘못된 신청마감 fact가 생길 위험이 컸다
+- 해결: 현재 canonical collect path 에서는 `BK_APPLY_END_DATE` 를 optional fact 로 유지하고, fallback 범위를 `applyMethodDetail/supportDetail` 밖으로 넓히지 않기로 결정했다. 후속 작업은 live detail 응답에서 신청마감 explicit field가 실제로 있는지 재확인하는 것으로 분리했다
+- 이유: 복지로 detail 날짜 텍스트는 “신청마감”과 “생년월일/기준기간”이 같은 포맷으로 섞여 있다. 신호가 애매한 필드까지 규칙 기반 fallback 을 넓히면 precision이 급격히 떨어지므로, 현재는 누락을 감수하고 오탐을 막는 편이 canonical fact 품질에 더 안전하다

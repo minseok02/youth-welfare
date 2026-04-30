@@ -311,6 +311,12 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - 2026-04-30 sidecar draft migration 상태의 기존 복지로 데이터 backfill 후 `service_facts` density 재측정 `backend`에서 `./gradlew integrationTest --no-daemon --tests com.example.welfare.integration.NormalizedPolicySidecarBackfillDensityIntegrationTest`
 - 2026-04-30 sidecar draft migration 상태의 기존 복지로 데이터 backfill 후 `docker exec -e MYSQL_PWD='welfare1234!' youth-welfare-db mysql --default-character-set=utf8mb4 -uroot -e "SET NAMES utf8mb4; SELECT COUNT(*) AS bokjiro_services ... ; SELECT COUNT(*) AS detail_payloads ... ; SELECT COUNT(*) AS bokjiro_fact_rows ... ; SELECT COUNT(DISTINCT sf.service_id) AS bokjiro_services_with_facts ... ;" youth_welfare`
 - 2026-04-30 sidecar draft migration 상태의 기존 복지로 데이터 backfill 후 `git diff --check`
+- 2026-04-30 복지로 detail deadline fallback 확대 여부 결정
+  - local raw detail payload에서 date-like token은 `targetDetail/supportDetail/selectionCriteria = 4/1/1`, `applyMethodDetail = 0` 으로 확인됐지만, 샘플을 보면 `1976.1.1 ~ 2005.12.31` 같은 출생연도 범위나 `2024.7.1 ~ 2024.10.31` 같은 적용기간이 섞여 있어 신청마감으로 오인될 가능성이 높았다
+  - 그래서 현재 canonical collect path 에서는 `BK_APPLY_END_DATE` 를 optional fact 로 유지하고, fallback 범위를 `targetDetail/selectionCriteria` 까지 넓히지 않기로 결정
+  - 후속 작업은 live detail 응답에 신청마감 explicit field가 실제로 존재하는지 다시 확인하는 것으로 좁힘
+- 2026-04-30 복지로 detail deadline fallback 확대 여부 결정 후 `docker exec -e MYSQL_PWD='welfare1234!' youth-welfare-db mysql --default-character-set=utf8mb4 -uroot -e "SET NAMES utf8mb4; SELECT SUM(CASE WHEN JSON_UNQUOTE(JSON_EXTRACT(payload_json, '$.targetDetail')) REGEXP ... ) AS target_date_like, ... ;" youth_welfare`
+- 2026-04-30 복지로 detail deadline fallback 확대 여부 결정 후 `git diff --check`
 - 2026-04-28 pre-28 migrated DB 기준 admin logout / refresh invalidation / relogin smoke
   - `SECURITY_ADMIN_EMAILS=admin.logout.smoke@example.com` 으로 최신 앱을 기동한 뒤, admin 계정 로그인과 프로필 수정으로 queue row를 `SYNCED` 상태까지 맞추고 `POST /api/auth/refresh` 가 먼저 성공하는 것 확인
   - 같은 cookie jar + access token으로 `POST /api/auth/logout` 호출 후 cookie jar에서 `refresh_token` 이 제거되고, 직후 `POST /api/auth/refresh` 가 `401`, `errorCode=A001` 로 막히는 것 확인
@@ -920,8 +926,8 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - [ ] 한국장학재단/국가장학금 계열의 `제도 row` 와 `지원가능대학/학기/지원구간` reference matrix 분리 모델 초안 작성
 - [ ] 복지로 live detail 적재 기준 `welfare_service_details` / `service_facts` validation 리허설
 - [ ] 복지로 detail refresh budget metadata(`centralBudget`/`localBudget`) 를 admin collect observability에 노출할지 결정
-- [ ] 복지로 detail raw payload 의 `applyMethodDetail` 에 date-like 값이 없는 상태에서 `BK_APPLY_END_DATE` fact를 계속 0건으로 둘지, 다른 필드/추출 fallback을 확대할지 결정
 - [ ] 복지로 detail/backfill 후에도 `service_facts` 가 81 / 1335 row(6.1%)에 머무는 원인 분석 및 age fallback coverage 보강 여부 검토
+- [ ] 복지로 live detail 응답에 신청마감 explicit field가 있는지 재확인하고, 없으면 `BK_APPLY_END_DATE` 는 canonical collect path에서 optional fact로 유지
 - [ ] 로그인 가능한 testbed/live payload 기준 `YOUTH_MID` / `srchPolyBizSecd` 전체 inventory 수집
 - [ ] `YOUTH_MID` stable code mapping SQL 초안 작성
 - [ ] `GOV24_SERVICE_FIELD`, `GOV24_USER_TYPE`, `GOV24_BENEFIT_TYPE` 공식 label inventory import/backfill SQL 초안 작성
@@ -944,6 +950,7 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 
 ### 완료
 
+- [x] 복지로 detail raw payload 의 `applyMethodDetail` date signal 부재 시 `BK_APPLY_END_DATE` fallback 확대 여부 결정
 - [x] sidecar draft migration 적용 상태에서 기존 복지로 적재 데이터 detail refresh/backfill 후 `service_facts` density 재측정
 - [x] `NormalizedPolicySidecarBackfillService` 를 admin/manual 실행 경로로 노출
 - [x] 복지로 `raw_api_payloads` 기반 canonical sidecar backfill service 초안 작성
