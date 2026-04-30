@@ -1152,3 +1152,8 @@
 - 문제: `real-openai` replay 자동화를 열어야 하지만, 현재 repo는 GitHub Actions workflow 자체가 없고, 바로 self-hosted runner를 붙이면 runner 운영/secret 주입/CI wiring 작업이 먼저 커진다
 - 해결: [openai-replay-diagnostic-lane-plan.md](./openai-replay-diagnostic-lane-plan.md)에 현재 우선순위를 `ops cron host -> self-hosted runner` 로 고정하고, 다음 작업도 cron 주기와 artifact 공유 위치 결정으로 좁혔다
 - 이유: 이미 `deploy/smoke/run-local-education-priority-replay.sh` 와 운영 host/compose 중심 문서가 있으므로, periodic diagnostic artifact를 얻는 가장 짧은 경로는 ops host에서 cron으로 먼저 돌리는 것이다. self-hosted runner는 가시성/연동 이점이 있지만 지금 당장 가장 작은 다음 단계는 아니다
+
+## 229) `real-openai` diagnostic replay는 PR마다나 짧은 주기로 반복하기보다, ops host에서 매일 1회 + 필요 시 수동 실행이 더 맞다
+- 문제: `real-openai` replay는 비용과 live variability가 있어, 짧은 간격으로 자주 돌릴수록 merge 판단보다 노이즈 수집이 늘어날 수 있다
+- 해결: [openai-replay-diagnostic-lane-plan.md](./openai-replay-diagnostic-lane-plan.md)에 기본 스케줄을 `ops cron host nightly once` 로 두고, 추천/AI 관련 큰 변경 후에만 수동 on-demand replay를 추가하는 정책을 반영했다
+- 이유: 지금 목적은 deterministic gate가 아니라 drift 분포 관찰이다. 매일 1회면 fingerprint 분포와 sample A/B target count 변화를 보기엔 충분하고, 운영 부담과 API 비용도 가장 보수적으로 제어할 수 있다

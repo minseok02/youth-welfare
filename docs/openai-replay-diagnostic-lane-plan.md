@@ -134,8 +134,35 @@ PR lane은 그쪽에만 남기는 것이 맞습니다.
 - GitHub-hosted 기본 runner에 OpenAI replay 강제
 - `real-openai` strict equality를 merge blocker로 사용
 
+## 권장 스케줄
+
+현재 단계에서는 아래 스케줄이 맞습니다.
+
+1. 기본 자동 실행:
+   - `ops cron host`
+   - **매일 밤 1회**
+2. 추가 실행:
+   - 추천/AI 관련 큰 변경 후 수동 on-demand replay
+3. 하지 않는 것:
+   - PR마다 실행
+   - 짧은 간격 반복 실행
+
+권장 이유:
+
+- 지금 목적은 merge blocker가 아니라 drift 분포 관찰입니다.
+- `real-openai` replay는 비용과 변동성이 있어 자주 돌릴수록 신호보다 노이즈가 늘 수 있습니다.
+- 매일 1회면 same fingerprint / different fingerprint 분포와 sample A/B count 변화를 보기엔 충분하고,
+  운영 부담도 가장 낮습니다.
+
+즉 기본값은:
+
+- `nightly once`
+- `manual on demand after notable changes`
+
+입니다.
+
 ## 다음 결정 포인트
 
 1. ops cron host에서 artifact를 어디에 보관/공유할 것인가
-2. nightly frequency를 매일로 둘지, 수동/on-demand 중심으로 둘지
+2. nightly 결과를 어느 채널에서 요약 공유할 것인가
 3. 이후 self-hosted runner로 옮길 필요가 생기는 조건은 무엇인가
