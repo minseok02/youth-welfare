@@ -1232,3 +1232,8 @@
 - 문제: no-fact 복지로 detail 재분류에서 `threshold_like 13`건은 `% 이하`, `만원 이하`, `신혼`, `맞벌이`, `우대형`, `일반형`, `개별심사` 같은 branch/context 가 함께 섞여 있었다. 이를 canonical `INCOME_PCT` / `INCOME_WON` hard fact 로 flatten 하면 의미 손실이 크고, retrieval hard filter 로 오용될 위험도 있었다
 - 해결: [policy-normalization-income-threshold-soft-signal-policy.md](./policy-normalization-income-threshold-soft-signal-policy.md) 를 추가해 `threshold_like` 는 현재 hard fact 로 적재하지 않고, future 저장이 필요해도 raw/context 를 보존하는 optional soft signal 계층으로만 다루도록 고정했다. [db-migration.md](./db-migration.md) 와 [README.md](./README.md) 에도 같은 경계를 반영했다
 - 이유: `beneficiary_only` 는 안정적인 label 기반 soft taxonomy 로 분리 가능했지만, `threshold_like` 는 숫자와 branch 조건이 함께 섞인 해석 신호다. current canonical 단계에선 eligibility fact보다 weaker한 계층으로 남기는 편이 더 안전하다
+
+## 245) 복지로 신청마감은 live detail 재확인에서도 explicit field 증거가 없으면 계속 optional fact로 두는 편이 맞다
+- 문제: 이전 분석에서는 local stored raw payload 기준으로 `applyMethodDetail` 에 date-like token이 거의 없고 다른 필드의 날짜도 출생연도 범위/적용기간 성격이어서 `BK_APPLY_END_DATE` fallback 확대를 보류했다. 그래도 live endpoint에만 explicit deadline key가 새로 생겼을 가능성은 다시 확인할 필요가 있었다
+- 해결: 2026-04-30 기준 local DB의 복지로 `DETAIL` raw payload key를 다시 집계한 결과 `targetDetail`, `supportDetail`, `applyMethodDetail`, `selectionCriteria`, `contactList`, `supportCycle`, `provisionType` 외에 deadline 전용 key는 없었고, `applyEndDate/aplyEndDt/deadline/rcptEndDt` 류 key 존재 건수도 `0` 이었다. 같은 날 `BOKJIRO_API_KEY` 로 중앙/지자체 live detail endpoint를 직접 다시 호출했지만 둘 다 `HTTP 429` 로 막혀 신규 raw schema는 확보하지 못했다. 이 상태와 public data.go.kr 설명을 함께 근거로 `BK_APPLY_END_DATE` 는 계속 optional fact로 유지한다고 정리했다
+- 이유: explicit field 증거 없이 fallback 범위만 넓히면 출생연도/적용기간을 신청마감으로 오인할 위험이 계속 남는다. live 재확인에서도 확증이 없으면 보수적으로 optional fact를 유지하는 쪽이 더 안전하다
