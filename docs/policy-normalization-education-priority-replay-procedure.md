@@ -62,6 +62,7 @@ deploy/smoke/run-local-education-priority-replay.sh
 - sample A priority `["EDUCATION","JOB"]`
 - sample B priority `["HOUSING","JOB"]`
 - `USE_REAL_OPENAI_FOR_REPLAY=false`
+- `RECOMMEND_AI_REPLAY_SEED=424242`
 - `.env` 에 real `OPENAI_API_KEY` 가 있어도 기본값에서는 `OPENAI_API_KEY=invalid-for-rule-only-replay` 를 강제
 
 스크립트는 아래를 자동 수행합니다.
@@ -76,7 +77,7 @@ deploy/smoke/run-local-education-priority-replay.sh
 8. sample B(control) drift는 기본 warning, 필요하면 `STRICT_CONTROL_ASSERT=true` 로 strict fail
 9. `user_recommendations` off/on snapshot(`edu-a/b-*-scores.tsv`)도 함께 남겨 `rule_weighted_score` / `ai_score` / `final_score` 경계를 바로 비교
 10. artifact에 `openai-mode.txt` 를 같이 남겨 `rule-only-invalid-key` / `real-openai` 모드를 명시
-11. boot log에서 `[RealtimeAiGateway][replay-trace]` 라인을 추출해 `edu-a/b-*-ai-trace.log`, `ai-trace-off.log`, `ai-trace-on.log` 로 남기고 `candidateIds` / `candidateRuleScores` / `promptSha256` 를 비교
+11. boot log에서 `[RealtimeAiGateway][replay-trace]`, `[RealtimeAiGateway][replay-trace-response]` 라인을 추출해 `edu-a/b-*-ai-trace.log`, `edu-a/b-*-ai-response-trace.log`, `ai-trace-*.log`, `ai-trace-response-*.log` 로 남기고 `candidateIds` / `candidateRuleScores` / `promptSha256` / `replaySeed` / `systemFingerprint` / `responseId` 를 비교
 
 real OpenAI 호출이 정말 필요하면 아래처럼 명시적으로 opt-in 합니다.
 

@@ -1092,3 +1092,8 @@
 - 문제: same `candidateIds` / same `promptSha256` 인데도 `ai_score` 가 달라지는 상태에서, latency/cost용 기능과 determinism 보조 기능을 구분하지 않으면 대응 우선순위가 흐려진다
 - 해결: 공식 OpenAI 문서 기준으로 선택지를 다시 정리했고, [openai-replay-stability-options.md](./openai-replay-stability-options.md)에 `seed` 는 best-effort determinism 수단, `system_fingerprint` 는 backend 변화 추적용, Prompt Caching 은 latency/cost 최적화용이라는 경계를 고정했다. 다음 구현 우선순위도 optional replay `seed` 와 `system_fingerprint` / response id trace 추가로 좁혔다
 - 이유: prompt caching 은 output generation 자체를 안정화하는 기능이 아니므로, 지금 같은 replay drift 분석에는 원인 분리력이 약하다. 반대로 `seed + system_fingerprint` 는 “같은 입력 + 같은 seed + 같은 backend 조건”을 증명하는 최소 증적이어서 다음 디버깅 단계의 정보 가치가 더 높다
+
+## 217) same `promptSha256` 만으로는 부족하고 replay artifact엔 `replaySeed` 와 `system_fingerprint` 도 같이 남겨야 한다
+- 문제: real-openai replay에서 `candidateIds` / `candidateRuleScores` / `promptSha256` 가 같아도 `ai_score` drift가 남는다는 것까진 확인했지만, 이 상태만으로는 “같은 seed 조건인지”와 “backend fingerprint 도 같았는지”를 분리할 수 없다
+- 해결: `RealtimeAiGateway` request body에 optional `seed` 를 추가하고, request trace에 `replaySeed`, response trace에 `responseId`, `systemFingerprint`, `responseSeed`, `resultsCount` 를 남기도록 확장했다. replay script도 `RECOMMEND_AI_REPLAY_SEED` env와 `edu-a/b-*-ai-response-trace.log` artifact를 추가해 다음 real-openai replay에서 same seed/same fingerprint 조건을 바로 확인할 수 있게 했다
+- 이유: determinism 보조 기능을 켰는지와 backend 상태가 같았는지를 먼저 증명해야, 그 다음에야 residual drift를 live model nondeterminism으로 해석할 수 있다. 같은 `promptSha256` 만으로는 그 경계가 아직 부족하다

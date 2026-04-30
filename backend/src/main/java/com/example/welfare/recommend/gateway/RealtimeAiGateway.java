@@ -16,6 +16,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -41,6 +42,9 @@ public class RealtimeAiGateway implements AiRecommendationGateway {
     @Value("${recommend.ai.replay-trace.enabled:false}")
     private boolean replayTraceEnabled;
 
+    @Value("${recommend.ai.replay-seed:}")
+    private String replaySeedValue;
+
     private static final int AI_TOP_N = 15; // 상위 N건만 AI 호출 (비용 절감 + 누락 방지)
 
     @Override
@@ -53,8 +57,11 @@ public class RealtimeAiGateway implements AiRecommendationGateway {
 
         try {
             String prompt = buildUserPrompt(topCandidates, user);
-            logReplayTrace(clusterId, topCandidates, user, prompt);
-            AiResponse response = callOpenAi(prompt);
+            Long replaySeed = replaySeedOrNull();
+            logReplayTrace(clusterId, topCandidates, user, prompt, replaySeed);
+            AiCallResult callResult = callOpenAi(prompt, replaySeed);
+            logReplayTraceResponse(clusterId, prompt, callResult);
+            AiResponse response = callResult.aiResponse();
 
             if (response != null && response.getResults() != null) {
                 Map<Long, AiResponse.Result> resultMap = response.getResults().stream()
@@ -76,12 +83,12 @@ public class RealtimeAiGateway implements AiRecommendationGateway {
         return candidates;
     }
 
-    void logReplayTrace(String clusterId, List<ScoredCandidate> topCandidates, RecommendationUserSnapshot user, String prompt) {
+    void logReplayTrace(String clusterId, List<ScoredCandidate> topCandidates, RecommendationUserSnapshot user, String prompt, Long replaySeed) {
         if (!replayTraceEnabled) {
             return;
         }
         log.info(
-                "[RealtimeAiGateway][replay-trace] clusterId={} ageGroup={} region={} income={} employment={} candidateIds={} candidateRuleScores={} promptSha256={}",
+                "[RealtimeAiGateway][replay-trace] clusterId={} ageGroup={} region={} income={} employment={} candidateIds={} candidateRuleScores={} promptSha256={} replaySeed={}",
                 clusterId,
                 ageGroup(user),
                 regionLabel(user),
@@ -89,7 +96,25 @@ public class RealtimeAiGateway implements AiRecommendationGateway {
                 employmentLabel(user),
                 candidateIds(topCandidates),
                 candidateRuleScores(topCandidates),
-                sha256Hex(prompt)
+                sha256Hex(prompt),
+                replaySeed != null ? replaySeed : "none"
+        );
+    }
+
+    void logReplayTraceResponse(String clusterId, String prompt, AiCallResult callResult) {
+        if (!replayTraceEnabled) {
+            return;
+        }
+        log.info(
+                "[RealtimeAiGateway][replay-trace-response] clusterId={} promptSha256={} responseId={} systemFingerprint={} responseSeed={} resultsCount={}",
+                clusterId,
+                sha256Hex(prompt),
+                callResult.responseId() != null ? callResult.responseId() : "none",
+                callResult.systemFingerprint() != null ? callResult.systemFingerprint() : "none",
+                callResult.responseSeed() != null ? callResult.responseSeed() : "none",
+                callResult.aiResponse() != null && callResult.aiResponse().getResults() != null
+                        ? callResult.aiResponse().getResults().size()
+                        : 0
         );
     }
 
@@ -143,6 +168,13 @@ public class RealtimeAiGateway implements AiRecommendationGateway {
             "사용자의 특성에 맞는 정책 적합도를 0~100점으로 평가합니다. " +
             "반드시 JSON만 응답하고, 입력된 모든 정책에 대해 빠짐없이 평가해야 합니다.";
 
+    Long replaySeedOrNull() {
+        if (replaySeedValue == null || replaySeedValue.isBlank()) {
+            return null;
+        }
+        return Long.parseLong(replaySeedValue.trim());
+    }
+
     private String buildUserPrompt(List<ScoredCandidate> topCandidates, RecommendationUserSnapshot user) {
         // NFR-02-12: 개인식별정보 전송 금지 — 범주값만 전송
         StringBuilder policyList = new StringBuilder();
@@ -172,17 +204,9 @@ public class RealtimeAiGateway implements AiRecommendationGateway {
                 topCandidates.size());
     }
 
-    private AiResponse callOpenAi(String userPrompt) {
+    private AiCallResult callOpenAi(String userPrompt, Long replaySeed) {
         try {
-            Map<String, Object> requestBody = Map.of(
-                    "model", model,
-                    "messages", List.of(
-                            Map.of("role", "system", "content", SYSTEM_PROMPT),
-                            Map.of("role", "user", "content", userPrompt)
-                    ),
-                    "temperature", 0.3,
-                    "response_format", Map.of("type", "json_object")
-            );
+            Map<String, Object> requestBody = buildRequestBody(userPrompt, replaySeed, model);
 
             String responseBody = webClient.post()
                     .uri("https://api.openai.com/v1/chat/completions")
@@ -193,19 +217,65 @@ public class RealtimeAiGateway implements AiRecommendationGateway {
                     .bodyToMono(String.class)
                     .block();
 
-            // OpenAI 응답에서 content 파싱
-            Map<?, ?> parsed = objectMapper.readValue(responseBody, Map.class);
-            List<?> choices = (List<?>) parsed.get("choices");
-            if (choices == null || choices.isEmpty()) return null;
-
-            Map<?, ?> message = (Map<?, ?>) ((Map<?, ?>) choices.get(0)).get("message");
-            String content = (String) message.get("content");
-
-            return objectMapper.readValue(content, AiResponse.class);
+            return parseAiCallResult(objectMapper, responseBody);
 
         } catch (Exception e) {
             log.warn("[RealtimeAiGateway] OpenAI 파싱 실패: {}", e.getMessage());
+            return AiCallResult.empty();
+        }
+    }
+
+    static Map<String, Object> buildRequestBody(String userPrompt, Long replaySeed, String modelName) {
+        Map<String, Object> requestBody = new LinkedHashMap<>();
+        requestBody.put("model", modelName);
+        requestBody.put("messages", List.of(
+                Map.of("role", "system", "content", SYSTEM_PROMPT),
+                Map.of("role", "user", "content", userPrompt)
+        ));
+        requestBody.put("temperature", 0.3);
+        requestBody.put("response_format", Map.of("type", "json_object"));
+        if (replaySeed != null) {
+            requestBody.put("seed", replaySeed);
+        }
+        return requestBody;
+    }
+
+    static AiCallResult parseAiCallResult(ObjectMapper objectMapper, String responseBody) throws Exception {
+        Map<?, ?> parsed = objectMapper.readValue(responseBody, Map.class);
+        List<?> choices = (List<?>) parsed.get("choices");
+        if (choices == null || choices.isEmpty()) {
+            return AiCallResult.empty();
+        }
+
+        Map<?, ?> message = (Map<?, ?>) ((Map<?, ?>) choices.get(0)).get("message");
+        String content = (String) message.get("content");
+        AiResponse aiResponse = objectMapper.readValue(content, AiResponse.class);
+
+        return new AiCallResult(
+                aiResponse,
+                stringValue(parsed.get("id")),
+                stringValue(parsed.get("system_fingerprint")),
+                longValue(parsed.get("seed"))
+        );
+    }
+
+    private static String stringValue(Object value) {
+        return value != null ? String.valueOf(value) : null;
+    }
+
+    private static Long longValue(Object value) {
+        if (value == null) {
             return null;
+        }
+        if (value instanceof Number number) {
+            return number.longValue();
+        }
+        return Long.parseLong(String.valueOf(value));
+    }
+
+    record AiCallResult(AiResponse aiResponse, String responseId, String systemFingerprint, Long responseSeed) {
+        static AiCallResult empty() {
+            return new AiCallResult(null, null, null, null);
         }
     }
 

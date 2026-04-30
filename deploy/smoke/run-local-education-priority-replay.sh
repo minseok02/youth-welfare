@@ -120,6 +120,7 @@ SAMPLE_B_PRIORITY_CODES="${SAMPLE_B_PRIORITY_CODES:-[\"HOUSING\",\"JOB\"]}"
 KEEP_ARTIFACTS="${KEEP_ARTIFACTS:-true}"
 STRICT_CONTROL_ASSERT="${STRICT_CONTROL_ASSERT:-false}"
 RECOMMEND_AI_REPLAY_TRACE_ENABLED="${RECOMMEND_AI_REPLAY_TRACE_ENABLED:-true}"
+RECOMMEND_AI_REPLAY_SEED="${RECOMMEND_AI_REPLAY_SEED:-424242}"
 
 ARTIFACT_DIR="${ARTIFACT_DIR:-$(mktemp -d)}"
 OPENAI_MODE_FILE="${ARTIFACT_DIR}/openai-mode.txt"
@@ -145,6 +146,12 @@ AI_TRACE_A_OFF="${ARTIFACT_DIR}/edu-a-off-ai-trace.log"
 AI_TRACE_B_OFF="${ARTIFACT_DIR}/edu-b-off-ai-trace.log"
 AI_TRACE_A_ON="${ARTIFACT_DIR}/edu-a-on-ai-trace.log"
 AI_TRACE_B_ON="${ARTIFACT_DIR}/edu-b-on-ai-trace.log"
+AI_RESPONSE_TRACE_OFF_RAW="${ARTIFACT_DIR}/ai-trace-response-off.log"
+AI_RESPONSE_TRACE_ON_RAW="${ARTIFACT_DIR}/ai-trace-response-on.log"
+AI_RESPONSE_TRACE_A_OFF="${ARTIFACT_DIR}/edu-a-off-ai-response-trace.log"
+AI_RESPONSE_TRACE_B_OFF="${ARTIFACT_DIR}/edu-b-off-ai-response-trace.log"
+AI_RESPONSE_TRACE_A_ON="${ARTIFACT_DIR}/edu-a-on-ai-response-trace.log"
+AI_RESPONSE_TRACE_B_ON="${ARTIFACT_DIR}/edu-b-on-ai-response-trace.log"
 
 mysql_exec() {
   local sql="$1"
@@ -256,21 +263,22 @@ capture_ai_traces() {
   local raw_output="$2"
   local sample_a_output="$3"
   local sample_b_output="$4"
+  local marker="$5"
 
-  python3 - <<'PY' "${log_file}" "${raw_output}" "${sample_a_output}" "${sample_b_output}"
+  python3 - <<'PY' "${log_file}" "${raw_output}" "${sample_a_output}" "${sample_b_output}" "${marker}"
 from pathlib import Path
 import sys
 
-log_file, raw_output, sample_a_output, sample_b_output = sys.argv[1:]
+log_file, raw_output, sample_a_output, sample_b_output, marker = sys.argv[1:]
 lines = [
     line for line in Path(log_file).read_text(encoding="utf-8", errors="replace").splitlines()
-    if "[RealtimeAiGateway][replay-trace]" in line
+    if marker in line
 ]
 Path(raw_output).write_text("\n".join(lines) + ("\n" if lines else ""), encoding="utf-8")
 Path(sample_a_output).write_text((lines[0] + "\n") if len(lines) >= 1 else "", encoding="utf-8")
 Path(sample_b_output).write_text((lines[1] + "\n") if len(lines) >= 2 else "", encoding="utf-8")
 if len(lines) < 2:
-    raise SystemExit(f"expected at least 2 replay-trace lines in {log_file}, got {len(lines)}")
+    raise SystemExit(f"expected at least 2 lines for {marker} in {log_file}, got {len(lines)}")
 PY
 }
 
@@ -297,6 +305,7 @@ start_app() {
     AES_SECRET_KEY="${AES_SECRET_KEY}" \
     OPENAI_API_KEY="${OPENAI_API_KEY}" \
     RECOMMEND_AI_REPLAY_TRACE_ENABLED="${RECOMMEND_AI_REPLAY_TRACE_ENABLED}" \
+    RECOMMEND_AI_REPLAY_SEED="${RECOMMEND_AI_REPLAY_SEED}" \
     RECOMMEND_PRIORITY_EDUCATION_CANONICAL_BONUS_ENABLED="${flag_value}" \
     SERVER_PORT="${APP_PORT}" \
     ./gradlew bootRun --no-daemon
@@ -487,7 +496,8 @@ signup_or_prepare_samples() {
   capture_recommendation_snapshot "${user_key_a}" "${SCORES_A_OFF}"
   refresh_recommendations "${token_b}" "${RESP_B_OFF}"
   capture_recommendation_snapshot "${user_key_b}" "${SCORES_B_OFF}"
-  capture_ai_traces "${APP_LOG_OFF}" "${AI_TRACE_OFF_RAW}" "${AI_TRACE_A_OFF}" "${AI_TRACE_B_OFF}"
+  capture_ai_traces "${APP_LOG_OFF}" "${AI_TRACE_OFF_RAW}" "${AI_TRACE_A_OFF}" "${AI_TRACE_B_OFF}" "[RealtimeAiGateway][replay-trace]"
+  capture_ai_traces "${APP_LOG_OFF}" "${AI_RESPONSE_TRACE_OFF_RAW}" "${AI_RESPONSE_TRACE_A_OFF}" "${AI_RESPONSE_TRACE_B_OFF}" "[RealtimeAiGateway][replay-trace-response]"
 }
 
 run_on_phase() {
@@ -500,7 +510,8 @@ run_on_phase() {
   capture_recommendation_snapshot "${user_key_a}" "${SCORES_A_ON}"
   refresh_recommendations "${token_b}" "${RESP_B_ON}"
   capture_recommendation_snapshot "${user_key_b}" "${SCORES_B_ON}"
-  capture_ai_traces "${APP_LOG_ON}" "${AI_TRACE_ON_RAW}" "${AI_TRACE_A_ON}" "${AI_TRACE_B_ON}"
+  capture_ai_traces "${APP_LOG_ON}" "${AI_TRACE_ON_RAW}" "${AI_TRACE_A_ON}" "${AI_TRACE_B_ON}" "[RealtimeAiGateway][replay-trace]"
+  capture_ai_traces "${APP_LOG_ON}" "${AI_RESPONSE_TRACE_ON_RAW}" "${AI_RESPONSE_TRACE_A_ON}" "${AI_RESPONSE_TRACE_B_ON}" "[RealtimeAiGateway][replay-trace-response]"
 }
 
 start_app "false" "${APP_LOG_OFF}"

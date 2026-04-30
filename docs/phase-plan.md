@@ -588,6 +588,10 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
   - 공식 OpenAI 문서 기준으로 `seed` 는 Chat Completions의 best-effort determinism 옵션이고, drift 해석에는 `system_fingerprint` 를 같이 남겨야 한다는 점을 정리했다
   - Prompt Caching 은 latency/cost 최적화 기능이지 replay drift의 1차 해결책이 아니라는 점을 [openai-replay-stability-options.md](./openai-replay-stability-options.md)에 고정했다
   - 따라서 다음 구현 우선순위는 `temperature` 변경이나 prompt caching 이 아니라, `RealtimeAiGateway` replay 실험용 optional `seed` 와 `system_fingerprint` / response id trace 추가로 좁혔다
+- 2026-04-30 `RealtimeAiGateway` replay seed / response fingerprint trace 추가
+  - `RealtimeAiGateway` request body에 optional `seed` 를 넣을 수 있게 하고, request trace에 `replaySeed`, response trace에 `responseId`, `systemFingerprint`, `responseSeed`, `resultsCount` 를 남기도록 확장했다
+  - replay script도 `RECOMMEND_AI_REPLAY_SEED` 를 host `bootRun` env로 넘기고, `[RealtimeAiGateway][replay-trace-response]` 로그를 `edu-a/b-*-ai-response-trace.log` artifact로 추출하도록 보강했다
+  - 따라서 다음 real-openai replay에선 same `promptSha256` 뿐 아니라 same `replaySeed` / same `systemFingerprint` 조건에서도 drift가 남는지 바로 확인할 수 있다
 - 2026-04-28 pre-28 migrated DB 기준 admin logout / refresh invalidation / relogin smoke
   - `SECURITY_ADMIN_EMAILS=admin.logout.smoke@example.com` 으로 최신 앱을 기동한 뒤, admin 계정 로그인과 프로필 수정으로 queue row를 `SYNCED` 상태까지 맞추고 `POST /api/auth/refresh` 가 먼저 성공하는 것 확인
   - 같은 cookie jar + access token으로 `POST /api/auth/logout` 호출 후 cookie jar에서 `refresh_token` 이 제거되고, 직후 `POST /api/auth/refresh` 가 `401`, `errorCode=A001` 로 막히는 것 확인
@@ -1198,9 +1202,7 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - [ ] 복지로 live detail 적재 기준 `welfare_service_details` / `service_facts` validation 리허설
 - [ ] 복지로 detail refresh budget metadata(`centralBudget`/`localBudget`) 를 admin collect observability에 노출할지 결정
 - [ ] `bokjiro-details-gap-fill` 추가 라운드/호출 예산 전략 정리 후 stored detail payload coverage 추가 확대
-- [ ] `RealtimeAiGateway` replay 실험용 optional `seed` request parameter 추가
-- [ ] `RealtimeAiGateway` raw response에서 `system_fingerprint` / response id를 trace artifact로 export
-- [ ] same `promptSha256` + same `seed` + same `system_fingerprint` 조건에서 `ai_score` drift가 남는지 재측정
+- [ ] same `promptSha256` + same `replaySeed` + same `system_fingerprint` 조건에서 `ai_score` drift가 남는지 real-openai replay로 재측정
 - [ ] `참여권리` 의 `청년참여` subset만 별도 bridge 후보로 분리할지 결정
 - [ ] 복지로 `threshold_like` income signal(`13`건) 을 `INCOME_*` hard fact 가 아닌 optional soft signal schema 로 분리할지 결정
 - [ ] 복지로 live detail 응답에 신청마감 explicit field가 있는지 재확인하고, 없으면 `BK_APPLY_END_DATE` 는 canonical collect path에서 optional fact로 유지
