@@ -2,6 +2,8 @@ package com.example.welfare.collect.gateway;
 
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.dataformat.xml.XmlMapper;
 import lombok.Builder;
@@ -168,6 +170,7 @@ public class BokjiroDetailClient {
 
     @Getter
     @Builder
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class DetailPayload {
         private String targetDetail;
         private String supportDetail;
@@ -177,6 +180,7 @@ public class BokjiroDetailClient {
         private String supportCycle;
         private String provisionType;
 
+        @JsonIgnore
         public boolean isEmpty() {
             return targetDetail == null
                     && supportDetail == null

@@ -56,6 +56,8 @@ cd backend
 - `service_taxonomy_terms` 의 `YOUTH_MID` / `YOUTH_MID_RAW_ALIAS` / keyword refresh 가 실제 DB에서 교체되는지
 - `service_facts` 가 같은 `fact_merge_key` 에 대해 stale 값을 남기지 않고 최신 값으로 갱신되는지
 
+복지로 기존 raw payload를 다시 써서 sidecar를 채울 때는 `NormalizedPolicySidecarBackfillService` 초안을 사용한다. 이 서비스는 `raw_api_payloads` 의 `LIST` / `DETAIL` JSON 을 다시 읽어 canonical aggregate를 만들고 `NormalizedPolicySidecarWriter` 로 넘긴다. `BokjiroDetailClient.DetailPayload` 는 과거 JSON에 `empty=false` 가 남아 있어도 역직렬화되도록 `ignoreUnknown` 계약으로 맞췄다.
+
 2026-04-30 로컬 smoke 기준 draft 적용 직후 count:
 
 ```sql

@@ -4,6 +4,7 @@ import com.example.welfare.collect.entity.RawApiPayload;
 import com.example.welfare.policy.entity.WelfareService;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.util.List;
 import java.util.Optional;
 
 public interface RawApiPayloadRepository extends JpaRepository<RawApiPayload, Long> {
@@ -11,6 +12,11 @@ public interface RawApiPayloadRepository extends JpaRepository<RawApiPayload, Lo
     Optional<RawApiPayload> findBySourceTypeAndSourceIdAndApiCategory(
             WelfareService.SourceType sourceType,
             String sourceId,
+            RawApiPayload.ApiCategory apiCategory
+    );
+
+    List<RawApiPayload> findAllBySourceTypeAndApiCategoryOrderByFetchedAtAsc(
+            WelfareService.SourceType sourceType,
             RawApiPayload.ApiCategory apiCategory
     );
 }

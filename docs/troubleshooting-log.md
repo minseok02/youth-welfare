@@ -787,3 +787,8 @@
 - 문제: 기존 `collectBokjiroDetailsResult(maxCalls, ...)` 는 `centralBudget = min(cap, maxCalls)`, `localBudget = min(cap, maxCalls - centralBudget)` 구조였다. 이 규칙에서는 `maxCalls=1`, `maxCalls=2` 같은 low budget에서 중앙 source target이 하나라도 존재하면 local은 항상 `0` budget이 되어, 실제 로컬 상세가 더 많이 쌓여 있어도 refresh와 backfill이 계속 미뤄질 수 있었다
 - 해결: `BokjiroDetailCollectService` 가 먼저 중앙/지자체 target backlog를 읽고, `maxCallsPerApiPerRun` cap 안에서 backlog 비율대로 `centralBudget` / `localBudget` 을 나누도록 바꿨다. 한쪽 source가 비어 있으면 다른 쪽이 전체 budget을 가져가고, regression test로 `central 없음 -> local full budget`, `local backlog 우세 -> maxCalls=1 에서 local 호출` 을 고정했다
 - 이유: 복지로 detail 수집은 중앙/지자체 모두 canonical sidecar enrichment의 source다. low budget 상황에서도 한쪽 source가 구조적으로 굶지 않게 해야 local 중심 데이터셋에서 refresh/backfill과 smoke가 의미 있게 유지되므로 재발 방지에 안전하다
+
+## 156) 복지로 detail raw payload 를 그대로 JSON 저장하면 Lombok `isEmpty()` getter 때문에 `empty=false` 가 섞여, 나중에 `DetailPayload` 로 다시 읽는 backfill/replay 경로가 깨질 수 있음
+- 문제: `BokjiroDetailClient.DetailPayload` 는 `isEmpty()` convenience method 를 갖고 있어 Jackson 직렬화 시 `empty=false` 프로퍼티가 함께 저장될 수 있었다. 이후 `raw_api_payloads` 에서 이 JSON을 다시 읽어 `DetailPayload` 로 역직렬화하면, 클래스에는 `empty` 필드가 없어 `Unrecognized field "empty"` 예외가 발생해 canonical sidecar backfill/replay가 실패했다
+- 해결: `DetailPayload` 에 `@JsonIgnoreProperties(ignoreUnknown = true)` 를 붙이고 `isEmpty()` 에 `@JsonIgnore` 를 추가해, 신규 저장에서는 `empty` 가 빠지고 기존 raw JSON 에 `empty=false` 가 남아 있어도 무시하고 다시 읽을 수 있게 맞췄다. 동시에 `NormalizedPolicySidecarBackfillServiceTest` 로 detail raw replay 경로를 고정했다
+- 이유: raw payload 재사용 경로는 “예전 JSON도 읽히고, 앞으로 쌓일 JSON도 깨끗해야” 안전하다. helper getter 하나 때문에 backfill이 전부 막히면 stored payload의 가치가 사라지므로, 직렬화/역직렬화 양방향 계약을 같이 잠가 재발을 막는 편이 안전하다
