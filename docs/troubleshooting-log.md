@@ -283,6 +283,11 @@
 - 해결: [policy-bokjiro-detail-validation-rehearsal.md](./policy-bokjiro-detail-validation-rehearsal.md) 에서 리허설 순서를 `stored/raw coverage baseline -> detail payload shape / welfare_service_details -> service_facts density -> residual sample 재분류` 로 고정하고, `BK_APPLY_END_DATE` 는 이번 단계에서도 optional fact 전제로 확인한다고 정리했음
 - 이유: 복지로 validation은 “얼마나 많이 받았는가”와 “받은 것 중 무엇을 hard fact로 승격할 수 있는가”를 분리해서 봐야 한다. 이 순서를 고정해야 gap-fill, extractor, optional soft signal 판단이 서로 덜 엉킨다
 
+## 285) 복지로 detail budget observability 는 계산값이 있다는 이유만으로 바로 admin response 계약에 올리면 multi-round 의미가 흐려질 수 있다
+- 문제: `BokjiroDetailCollectService` 는 이미 `centralBudget/localBudget` 을 계산하고 `metadataJson` / service log에도 남기지만, 이 값을 곧바로 `bokjiro-details-gap-fill` admin response에 넣으면 “마지막 round budget인지, 합계인지, round별 array인지” 해석이 애매해질 수 있었다
+- 해결: [policy-bokjiro-detail-budget-observability-policy.md](./policy-bokjiro-detail-budget-observability-policy.md) 에서 현재 phase에서는 budget metadata를 service 내부 metadata/log 에만 유지하고, admin API response는 rounds/saved/failed 같은 summary 중심 계약으로 유지한다고 고정했음
+- 이유: observability는 “이미 계산하는 값이면 다 응답에 올린다”가 아니라, 운영자가 어떤 결정을 위해 어떤 granularity가 필요한지에 맞춰야 한다. 지금 단계의 1차 운영 지표는 budget 자체보다 coverage/fact density라 response 확장을 서두르지 않는 편이 안전하다
+
 ## 50) 새 챗 세션의 `last_message_at`가 NULL이면 최근 세션 정렬이 흔들릴 수 있음
 - 문제: 챗봇 세션은 생성 직후 메시지가 없을 수 있는데 `last_message_at`를 nullable로 두면 세션 목록 최신순 정렬에서 DB별 NULL 정렬 차이 때문에 방금 만든 세션이 뒤로 밀릴 수 있었음
 - 해결: `chat_sessions.last_message_at`를 `NOT NULL DEFAULT CURRENT_TIMESTAMP`로 설계하고 `(user_id, last_message_at DESC)` 인덱스를 함께 추가

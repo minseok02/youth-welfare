@@ -241,6 +241,9 @@
 - [policy-bokjiro-detail-validation-rehearsal.md](./policy-bokjiro-detail-validation-rehearsal.md)
   복지로 live detail 적재 기준에서 `welfare_service_details` / `service_facts` 를 어떤 순서로 검증할지 확인합니다.
 
+- [policy-bokjiro-detail-budget-observability-policy.md](./policy-bokjiro-detail-budget-observability-policy.md)
+  복지로 detail refresh/gap-fill 의 `centralBudget` / `localBudget` 을 admin observability에 어디까지 노출할지 확인합니다.
+
 - [troubleshooting-log.md](./troubleshooting-log.md)  
   이전에 발생한 장애와 해결 과정을 확인합니다.
 
