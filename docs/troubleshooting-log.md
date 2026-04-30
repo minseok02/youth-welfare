@@ -1417,3 +1417,8 @@
 - 문제: package/dependency까지 정한 뒤 바로 `UserSessionRevocationService` 클래스를 만들면, 정작 핵심인 `iatm` write/read helper가 없어서 service 안에 claims 직접 파싱이나 TODO fallback이 들어갈 위험이 있다
 - 해결: [auth-admin-forced-logout-implementation-order.md](./auth-admin-forced-logout-implementation-order.md) 를 추가해 구현 순서를 `JwtUtil helper -> UserSessionRevocationService skeleton -> JwtAuthenticationFilter wiring -> admin API -> tests` 로 고정했다
 - 이유: forced logout의 핵심은 token ordering correctness다. 이 기준 claim/helper를 먼저 만들고 나서 service를 얹어야 임시 계약이 줄고 회귀 반경도 작다
+
+## 281) `UserSessionRevocationService` skeleton 단계에서 filter wiring까지 같이 열면 `A006` 노출, legacy token 처리, exact revoke와 cutoff 순서가 한 번에 섞이므로, 지금은 Redis write/read 계약만 먼저 고정하는 편이 낫다
+- 문제: `JwtUtil` helper를 추가한 뒤 바로 `JwtAuthenticationFilter` 까지 붙이면, 서비스 자체의 책임(`refresh delete + access-cutoff write + allow/deny read`)이 맞는지와 filter에서 어떤 에러로 수렴하는지를 한 테스트에서 동시에 디버깅하게 된다
+- 해결: [UserSessionRevocationService.java](../backend/src/main/java/com/example/welfare/user/service/UserSessionRevocationService.java) 를 새 클래스로 추가하되, 이번 단계에서는 wiring 없이 skeleton만 두고 [UserSessionRevocationServiceTest.java](../backend/src/test/java/com/example/welfare/user/service/UserSessionRevocationServiceTest.java) 로 `exact revoke`, `cutoff before/after`, `legacy token without iatm` 계약만 unit 수준에서 먼저 고정했다
+- 이유: forced logout의 read/write core를 서비스 단위로 먼저 고정해 두어야 이후 `JwtAuthenticationFilter` wiring 에서 실패가 나도 원인을 auth gate와 revoke core 중 어디서 찾을지 분리할 수 있다
