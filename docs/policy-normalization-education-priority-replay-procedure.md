@@ -87,6 +87,11 @@ deploy/smoke/run-local-education-priority-replay.sh
     env 로 켜고, 필요하면 `REPLAY_SUMMARY_TS` 로 기록 시각을 wrapper 에서 명시한다
 16. ops host nightly 실행은 직접 env 를 길게 붙이기보다
     `deploy/smoke/run-nightly-openai-replay.sh` wrapper 를 기본 진입점으로 쓴다
+17. host cron 예시는 wrapper/cleanup 둘 다 절대경로 호출로 둔다
+    - replay:
+      - `10 1 * * * REPLAY_LOG_ROOT=/var/log/youth-welfare/openai-replay /home/minseok/youth-welfare/deploy/smoke/run-nightly-openai-replay.sh >> /var/log/youth-welfare/openai-replay/nightly-cron.log 2>&1`
+    - cleanup:
+      - `40 1 * * * REPLAY_LOG_ROOT=/var/log/youth-welfare/openai-replay SUMMARY_RETENTION_DAYS=30 ARTIFACT_RETENTION_DAYS=14 /home/minseok/youth-welfare/deploy/smoke/cleanup-openai-replay-artifacts.sh >> /var/log/youth-welfare/openai-replay/cleanup-cron.log 2>&1`
 
 real OpenAI 호출이 정말 필요하면 아래처럼 명시적으로 opt-in 합니다.
 

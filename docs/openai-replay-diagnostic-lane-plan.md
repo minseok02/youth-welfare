@@ -421,3 +421,56 @@ deploy/smoke/cleanup-openai-replay-artifacts.sh
 
 - 전용 `.service` / `.timer` unit 파일 추가
 - journal 기반 관찰 체계 먼저 설계
+
+## system cron entry examples
+
+현재 단계의 권장 형태는 host의 해당 계정 crontab에서
+wrapper/cleanup 스크립트를 **절대경로로 직접 호출**하는 것입니다.
+
+권장 전제:
+
+1. repo root:
+   - `/home/minseok/youth-welfare`
+2. replay log root:
+   - `/var/log/youth-welfare/openai-replay`
+3. cron user:
+   - 앱 `bootRun`, Docker, `.env`, OpenAI secret 접근 권한이 있는 동일 운영 계정
+
+권장 crontab 예시:
+
+```cron
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+# nightly real-openai diagnostic replay
+10 1 * * * REPLAY_LOG_ROOT=/var/log/youth-welfare/openai-replay /home/minseok/youth-welfare/deploy/smoke/run-nightly-openai-replay.sh >> /var/log/youth-welfare/openai-replay/nightly-cron.log 2>&1
+
+# daily retention cleanup
+40 1 * * * REPLAY_LOG_ROOT=/var/log/youth-welfare/openai-replay SUMMARY_RETENTION_DAYS=30 ARTIFACT_RETENTION_DAYS=14 /home/minseok/youth-welfare/deploy/smoke/cleanup-openai-replay-artifacts.sh >> /var/log/youth-welfare/openai-replay/cleanup-cron.log 2>&1
+```
+
+## 왜 이 형태를 권장하나
+
+1. replay cron은 `run-nightly-openai-replay.sh` 가 `USE_REAL_OPENAI_FOR_REPLAY`,
+   `KEEP_ARTIFACTS`, `ARTIFACT_DIR`, `REPLAY_SUMMARY_APPEND_FILE` 를 직접 계산하므로
+   cron line은 `REPLAY_LOG_ROOT` 정도만 알면 됩니다.
+2. cleanup cron도 retention 숫자만 env로 주면 되므로
+   host별 `find`/`rm` 명령 drift를 피할 수 있습니다.
+3. `nightly-summary-YYYY-MM-DD.log` 는 metric one-line append 용도이고,
+   `nightly-cron.log` / `cleanup-cron.log` 는 wrapper/runtime stderr/stdout 용도라
+   역할이 섞이지 않습니다.
+
+## 운영 메모
+
+1. replay cron은 cleanup cron보다 먼저 두는 편이 낫습니다.
+   - 권장 간격은 `20~30분`
+2. cron 등록 전 수동 검증을 먼저 합니다.
+   - replay:
+     - `REPLAY_LOG_ROOT=/var/log/youth-welfare/openai-replay /home/minseok/youth-welfare/deploy/smoke/run-nightly-openai-replay.sh`
+   - cleanup dry-run:
+     - `DRY_RUN=true REPLAY_LOG_ROOT=/var/log/youth-welfare/openai-replay /home/minseok/youth-welfare/deploy/smoke/cleanup-openai-replay-artifacts.sh`
+3. summary file과 runtime log file은 둘 다 host-local이지만 읽는 목적이 다릅니다.
+   - summary file:
+     - drift metric scan
+   - runtime log:
+     - shell/app failure triage

@@ -1197,3 +1197,8 @@
 - 문제: nightly replay와 cleanup을 host에서 주기 실행해야 하지만, 지금 단계에서 `.service`/`.timer` unit까지 같이 열면 운영 절차가 갑자기 systemd 중심으로 커지고 문서/스크립트 경계가 다시 넓어진다
 - 해결: [openai-replay-diagnostic-lane-plan.md](./openai-replay-diagnostic-lane-plan.md)에 현재 우선순위를 `system cron -> 필요 시 systemd timer` 로 고정하고, 다음 작업도 cron entry 예시 작성으로 좁혔다
 - 이유: 이미 wrapper 스크립트 둘이 있고 운영 문서도 shell/compose 중심이다. 가장 작은 다음 단계는 crontab에서 wrapper를 부르는 것이고, systemd timer는 observability나 표준화 필요가 생겼을 때 뒤에서 붙여도 늦지 않다
+
+## 238) replay/cleanup cron 예시도 절대경로 호출과 별도 runtime log redirection까지 같이 고정해야 host별 drift가 덜 난다
+- 문제: `system cron` 으로 운영한다고만 적어 두면 host마다 긴 env 조합을 다시 풀거나, summary file과 cron stderr/stdout를 같은 파일에 섞어 적는 식으로 운영 방식이 갈라질 수 있다
+- 해결: [openai-replay-diagnostic-lane-plan.md](./openai-replay-diagnostic-lane-plan.md) 와 [policy-normalization-education-priority-replay-procedure.md](./policy-normalization-education-priority-replay-procedure.md)에 replay/cleanup crontab 예시를 추가하고, wrapper/cleanup 스크립트를 절대경로로 호출하며 `nightly-cron.log`, `cleanup-cron.log` 로 runtime log를 분리하는 기준을 고정했다
+- 이유: summary file은 metric one-line append 용도이고, cron runtime log는 shell/app failure triage 용도다. 두 경로를 분리해야 nightly replay 해석이 단순해지고 host별 cron line drift도 줄어든다
