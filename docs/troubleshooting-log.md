@@ -1102,3 +1102,8 @@
 - 문제: `USE_REAL_OPENAI_FOR_REPLAY=true KEEP_ARTIFACTS=true` 로 replay seed를 고정한 artifact(`/tmp/tmp.hisZmhuvuH`)에서도 sample B `ai_score` drift가 남았다. 하지만 response trace를 보면 request trace는 `promptSha256=f7e810...`, `replaySeed=424242` 로 동일했어도 `systemFingerprint=fp_de7acce317 -> fp_ff247d5857` 로 바뀌었고 `responseId` 도 달랐다
 - 해결: 이번 결과는 “same prompt + same seed + same backend” 조건이 아직 성립하지 않은 run으로 분류하고, phase-plan 다음 작업을 same `system_fingerprint` artifact 확보로 다시 좁혔다
 - 이유: `seed` 는 best-effort determinism 수단일 뿐이고, OpenAI 문서도 backend 변화는 `system_fingerprint` 로 같이 보라고 안내한다. fingerprint 가 달라진 run까지 한데 묶어 버리면 residual nondeterminism과 backend churn을 구분할 수 없다
+
+## 219) same `promptSha256` + same `replaySeed` + same `system_fingerprint` 에서도 `ai_score` 가 달라지면, 지금 남은 건 live response variability 로 봐야 한다
+- 문제: 반복 real-openai replay 끝에 artifact(`/tmp/tmp.TpE5SaiHJu`)에서 sample B `off/on` request trace는 `candidateIds`, `candidateRuleScores`, `promptSha256=f7e810...`, `replaySeed=424242` 가 같고, response trace도 `systemFingerprint=fp_ff247d5857` 로 같았다. 그런데도 `edu-b-off-scores.tsv` / `edu-b-on-scores.tsv` 에서는 `404:85 -> 75`, `405:75 -> 85`, `390:55 -> 70` 같은 `ai_score` diff가 계속 남았다
+- 해결: phase-plan 결론을 “same fingerprint artifact 확보”에서 “same fingerprint 안에서도 남는 live response variability 를 제품적으로 어떻게 다룰지 결정”으로 넘겼다. 다음 작업도 strict equality 완화 기준, rule-only 기본선 유지, replay cache 같은 제품 대응 검토로 옮겼다
+- 이유: 이 시점부터는 retrieval/prompt drift, backend churn, score normalization을 먼저 의심할 근거가 약하다. 같은 request 조건과 같은 fingerprint에서 결과가 갈리면, 남은 문제는 live model nondeterminism을 검증/운영에서 어떻게 흡수할지다

@@ -168,6 +168,16 @@ host에서 직접 `bootRun` 할 때는 아래를 같이 맞춥니다.
 - 같은 `promptSha256` / 같은 `replaySeed` 조건에서도 backend fingerprint 가 바뀌면 `ai_score` / `final_score` drift가 계속 남는다는 쪽으로 해석을 좁혔다
 - artifact dir 예시: `/tmp/tmp.hisZmhuvuH`
 
+2026-04-30 same `systemFingerprint` artifact 확보 결과:
+
+- 실행: `USE_REAL_OPENAI_FOR_REPLAY=true KEEP_ARTIFACTS=true deploy/smoke/run-local-education-priority-replay.sh`
+- sample B top-10 target row: `1 -> 1`
+- `edu-b-off-ai-trace.log` / `edu-b-on-ai-trace.log` 의 `candidateIds`, `candidateRuleScores`, `promptSha256`, `replaySeed=424242` 는 동일
+- `edu-b-off-ai-response-trace.log` / `edu-b-on-ai-response-trace.log` 의 `systemFingerprint=fp_ff247d5857` 도 동일했고, `responseId` 만 달랐다
+- 그런데도 `edu-b-off-scores.tsv` / `edu-b-on-scores.tsv` 에서는 `ai_score` / `final_score` diff가 계속 남았다. 예를 들어 주거 row는 `404:85 -> 75`, `405:75 -> 85`, 교육 row는 `390:55 -> 70`, `364:65 -> 70` 식으로 바뀌었다
+- 즉 current real-openai replay drift는 backend fingerprint churn만으로는 설명되지 않고, same fingerprint 안에서도 남는 live response variability 쪽으로 결론이 더 좁혀졌다
+- artifact dir 예시: `/tmp/tmp.TpE5SaiHJu`
+
 ### 3. 공통 변수
 
 ```bash
