@@ -1275,6 +1275,9 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - 2026-05-01 admin forced logout helper name 정책 고정
   - [auth-admin-forced-logout-helper-name-policy.md](./auth-admin-forced-logout-helper-name-policy.md) 를 추가해 새 helper/service 이름을 `UserSessionRevocationService` 로 고정하고, 기존 `AccessTokenRevocationService` 와 exact-token vs user-session revoke 역할을 분리했다
   - 즉 다음 액션은 `UserSessionRevocationService` 의 메서드명을 그대로 갈지 더 domain-specific 하게 바꿀지 정하는 쪽으로 좁힌다
+- 2026-05-01 admin forced logout helper method-name 정책 고정
+  - [auth-admin-forced-logout-helper-method-name-policy.md](./auth-admin-forced-logout-helper-method-name-policy.md) 를 추가해 메서드명을 `isAccessAllowed(String accessToken)` + `revokeUserSessions(String userKey, long cutoffMillis)` 로 그대로 유지한다고 고정했다
+  - 즉 다음 액션은 `UserSessionRevocationService` 를 새 클래스로 둘지, 기존 `AccessTokenRevocationService` 와 composition 관계로 둘지 구조를 정하는 쪽으로 좁힌다
 
 ## 작업 추적
 

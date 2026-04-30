@@ -1392,3 +1392,8 @@
 - 문제: 인터페이스를 정한 뒤에도 이름을 `AdminForcedLogoutGuard` 나 `AccessSessionCutoffService` 로 두면, admin API 전용 guard처럼 보이거나 cutoff 구현 세부만 강조돼 현재 책임 범위가 흐려질 수 있다
 - 해결: [auth-admin-forced-logout-helper-name-policy.md](./auth-admin-forced-logout-helper-name-policy.md) 를 추가해 새 helper/service 이름을 `UserSessionRevocationService` 로 고정하고, 기존 `AccessTokenRevocationService` 와는 exact-token revoke vs user-session revoke로 역할을 분리했다
 - 이유: 이름은 이후 구현과 테스트의 경계를 오래 끌고 간다. current phase에서는 “admin 기능”보다 “user session revoke service”라는 책임 표현이 더 안정적이다
+
+## 277) helper 이름을 정한 뒤 메서드명까지 `cutoff`/`forcedLogout` 세부로 바꾸면 filter와 admin API가 다시 구현 세부를 알게 되므로, `allow/revoke sessions` 수준으로 유지하는 편이 낫다
+- 문제: `UserSessionRevocationService` 라는 이름을 고정한 뒤에도 메서드명을 `isTokenPastCutoff`, `forceLogoutUser`, `applyUserCutoff` 처럼 세부 동작 중심으로 바꾸면, 바깥 호출자가 helper 내부 규칙을 다시 알아야 하는 형태가 된다
+- 해결: [auth-admin-forced-logout-helper-method-name-policy.md](./auth-admin-forced-logout-helper-method-name-policy.md) 를 추가해 read/write 메서드명을 `isAccessAllowed` 와 `revokeUserSessions` 로 그대로 유지한다고 고정했다
+- 이유: filter는 최종 allow/deny만, admin API는 user 단위 revoke intent write만 알면 된다. 메서드명까지 구현 세부를 드러내지 않아야 helper 경계가 안정적으로 유지된다
