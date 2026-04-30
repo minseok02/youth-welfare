@@ -75,6 +75,19 @@ SELECT COUNT(*) FROM service_taxonomy_terms;    -- 2395
 SELECT COUNT(*) FROM service_facts;             -- 0
 ```
 
+2026-04-30 local stored 복지로 raw payload replay 후 count:
+
+```sql
+SELECT COUNT(*) FROM welfare_services WHERE source_type IN ('BOKJIRO_CENTRAL', 'BOKJIRO_LOCAL'); -- 1335
+SELECT COUNT(*) FROM raw_api_payloads WHERE source_type IN ('BOKJIRO_CENTRAL', 'BOKJIRO_LOCAL') AND api_category = 'DETAIL'; -- 190
+SELECT COUNT(*) FROM service_facts sf JOIN welfare_services ws ON ws.id = sf.service_id
+WHERE ws.source_type IN ('BOKJIRO_CENTRAL', 'BOKJIRO_LOCAL'); -- 81
+SELECT COUNT(DISTINCT sf.service_id) FROM service_facts sf JOIN welfare_services ws ON ws.id = sf.service_id
+WHERE ws.source_type IN ('BOKJIRO_CENTRAL', 'BOKJIRO_LOCAL'); -- 81
+```
+
+현재 local snapshot에서는 `BK_AGE_ELIGIBILITY` 만 `81`건(`BOKJIRO_CENTRAL 41`, `BOKJIRO_LOCAL 40`) 적재됐고, `BK_APPLY_END_DATE` 는 `0`건이다. `raw_api_payloads` 의 detail `applyMethodDetail` 는 non-null 이 `77`건이지만 date-like token은 `0`건이라, 현 시점에는 extractor bug보다 source payload signal 부재에 가깝다.
+
 - 파일: [`backend/src/main/resources/db/migration/V2026_04_28_02__add_user_pii_sync_queue.sql`](../backend/src/main/resources/db/migration/V2026_04_28_02__add_user_pii_sync_queue.sql)
 - 포함 내용:
   - `user_pii_sync_queue` 생성

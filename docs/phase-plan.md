@@ -304,6 +304,13 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
   - `AdminSecurityWebMvcTest` 에서 admin 허용/invalid scope 400 회귀를 추가해 보안 경계와 입력 검증을 고정
 - 2026-04-30 `NormalizedPolicySidecarBackfillService` admin/manual 실행 경로 노출 후 `cd backend && ./gradlew test --no-daemon --tests com.example.welfare.admin.AdminSecurityWebMvcTest --tests com.example.welfare.collect.normalization.NormalizedPolicySidecarBackfillServiceTest`
 - 2026-04-30 `NormalizedPolicySidecarBackfillService` admin/manual 실행 경로 노출 후 `git diff --check`
+- 2026-04-30 sidecar draft migration 상태의 기존 복지로 데이터 backfill 후 `service_facts` density 재측정
+  - `NormalizedPolicySidecarBackfillDensityIntegrationTest` 를 추가해 draft sidecar migration 이 적용된 local DB에서 stored `raw_api_payloads` 를 replay 하고, 복지로 `service_facts` row / service coverage 가 감소하지 않으며 `BK_AGE_ELIGIBILITY` 가 실제로 적재되는지 고정
+  - 실제 local DB 측정 결과, 복지로 서비스 `1335`건과 detail raw payload `190`건 기준 `service_facts` 는 `81` rows / `81` services(6.1%)로 증가했고, `BK_AGE_ELIGIBILITY` 만 `81`건(`BOKJIRO_CENTRAL 41`, `BOKJIRO_LOCAL 40`) 적재됐다
+  - 같은 raw detail payload에서 `applyMethodDetail` non-null 은 `77`건이지만 date-like token 은 `0`건이라, 현재 local snapshot 기준 `BK_APPLY_END_DATE` 는 여전히 `0`건이며 이는 extractor bug보다 source payload signal 부재에 가까운 상태로 확인
+- 2026-04-30 sidecar draft migration 상태의 기존 복지로 데이터 backfill 후 `service_facts` density 재측정 `backend`에서 `./gradlew integrationTest --no-daemon --tests com.example.welfare.integration.NormalizedPolicySidecarBackfillDensityIntegrationTest`
+- 2026-04-30 sidecar draft migration 상태의 기존 복지로 데이터 backfill 후 `docker exec -e MYSQL_PWD='welfare1234!' youth-welfare-db mysql --default-character-set=utf8mb4 -uroot -e "SET NAMES utf8mb4; SELECT COUNT(*) AS bokjiro_services ... ; SELECT COUNT(*) AS detail_payloads ... ; SELECT COUNT(*) AS bokjiro_fact_rows ... ; SELECT COUNT(DISTINCT sf.service_id) AS bokjiro_services_with_facts ... ;" youth_welfare`
+- 2026-04-30 sidecar draft migration 상태의 기존 복지로 데이터 backfill 후 `git diff --check`
 - 2026-04-28 pre-28 migrated DB 기준 admin logout / refresh invalidation / relogin smoke
   - `SECURITY_ADMIN_EMAILS=admin.logout.smoke@example.com` 으로 최신 앱을 기동한 뒤, admin 계정 로그인과 프로필 수정으로 queue row를 `SYNCED` 상태까지 맞추고 `POST /api/auth/refresh` 가 먼저 성공하는 것 확인
   - 같은 cookie jar + access token으로 `POST /api/auth/logout` 호출 후 cookie jar에서 `refresh_token` 이 제거되고, 직후 `POST /api/auth/refresh` 가 `401`, `errorCode=A001` 로 막히는 것 확인
@@ -912,8 +919,9 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - [ ] `정부지원일자리정보`, `구직자취업역량 강화프로그램`, `Gov24/보조금24` 의 정책형 source canonical onboarding 우선순위와 live validation 순서 작성
 - [ ] 한국장학재단/국가장학금 계열의 `제도 row` 와 `지원가능대학/학기/지원구간` reference matrix 분리 모델 초안 작성
 - [ ] 복지로 live detail 적재 기준 `welfare_service_details` / `service_facts` validation 리허설
-- [ ] sidecar draft migration 적용 상태에서 기존 복지로 적재 데이터 detail refresh/backfill 후 `service_facts` density 재측정
 - [ ] 복지로 detail refresh budget metadata(`centralBudget`/`localBudget`) 를 admin collect observability에 노출할지 결정
+- [ ] 복지로 detail raw payload 의 `applyMethodDetail` 에 date-like 값이 없는 상태에서 `BK_APPLY_END_DATE` fact를 계속 0건으로 둘지, 다른 필드/추출 fallback을 확대할지 결정
+- [ ] 복지로 detail/backfill 후에도 `service_facts` 가 81 / 1335 row(6.1%)에 머무는 원인 분석 및 age fallback coverage 보강 여부 검토
 - [ ] 로그인 가능한 testbed/live payload 기준 `YOUTH_MID` / `srchPolyBizSecd` 전체 inventory 수집
 - [ ] `YOUTH_MID` stable code mapping SQL 초안 작성
 - [ ] `GOV24_SERVICE_FIELD`, `GOV24_USER_TYPE`, `GOV24_BENEFIT_TYPE` 공식 label inventory import/backfill SQL 초안 작성
@@ -936,6 +944,7 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 
 ### 완료
 
+- [x] sidecar draft migration 적용 상태에서 기존 복지로 적재 데이터 detail refresh/backfill 후 `service_facts` density 재측정
 - [x] `NormalizedPolicySidecarBackfillService` 를 admin/manual 실행 경로로 노출
 - [x] 복지로 `raw_api_payloads` 기반 canonical sidecar backfill service 초안 작성
 - [x] 복지로 list/detail aggregate merge path actual sidecar upsert smoke 검증

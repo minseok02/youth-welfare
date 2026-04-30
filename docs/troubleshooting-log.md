@@ -797,3 +797,13 @@
 - 문제: `NormalizedPolicySidecarBackfillService` 를 수동 실행 경로로 노출할 때 기존 `/api/admin/collect/{sourceKey}` 와 `CollectSource` enum에 `BOKJIRO_SIDECARS_BACKFILL` 같은 값을 추가하면, 외부 API를 다시 호출하는 collect orchestration과 이미 저장된 `raw_api_payloads` 를 replay 하는 maintenance 경로가 같은 fan-out 체계에 섞이게 된다. 이 방식은 새 replay/backfill 기능이 늘 때마다 `CollectSource` 와 `CollectService` 책임을 다시 키울 위험이 있었다
 - 해결: backfill은 `POST /api/admin/collect/bokjiro-sidecars-backfill` exact path로 별도 노출하고, `scope=all|list|detail` 만 받아 `NormalizedPolicySidecarBackfillService` 를 직접 호출하도록 분리했다. generic collect route 는 여전히 외부 API fetch source dispatch만 맡는다
 - 이유: collect enum/registry는 “새 데이터를 외부에서 가져오는 경로”에 집중해야 한다. stored payload replay까지 같은 축에 태우면 orchestration 의미가 흐려지고 controller/service fan-out debt가 다시 커지므로, manual maintenance path를 명시적으로 분리하는 편이 재발 방지에 안전하다
+
+## 158) builder-only nested DTO는 단위 테스트용 `ObjectMapper` 에서는 우연히 통과해도, 실제 Spring `ObjectMapper` 로 raw payload replay를 돌리면 생성자 부재로 전체 detail backfill 이 0건 실패할 수 있음
+- 문제: `BokjiroDetailClient.DetailPayload` 는 `@Builder` 와 getter만 있고 기본 생성자가 없었다. unit test에서는 직렬화된 테스트 JSON을 같은 로컬 `ObjectMapper` 로 읽는 경로만 봐서 지나갔지만, local integration smoke에서 stored detail payload 190건을 Spring `ObjectMapper` 로 다시 읽자 `Cannot construct instance ... no Creators` 예외가 모든 row에서 발생해 `detailResult.upsertedCount=0` 이 됐다
+- 해결: `DetailPayload` 에 `@NoArgsConstructor` / `@AllArgsConstructor` 를 추가해 field-based 역직렬화 경로를 열고, `NormalizedPolicySidecarBackfillDensityIntegrationTest` 로 실제 local DB의 stored detail payload replay가 다시 통과하는지 고정했다
+- 이유: raw payload replay는 테스트 fixture가 아니라 실제 저장 JSON을 대상으로 한다. nested DTO가 builder-only 면 단위 테스트가 놓친 역직렬화 계약 차이가 local/운영 replay에서 한꺼번에 터질 수 있으므로, Spring context 기준 실데이터 smoke와 생성자 계약을 같이 잠가 재발을 막는 편이 안전하다
+
+## 159) 복지로 detail raw payload 에서 `BK_APPLY_END_DATE` fact 가 0건이라고 해서 바로 extractor 버그로 단정하면, source payload 자체에 deadline signal이 없는 상태를 잘못 해석할 수 있음
+- 문제: local density smoke 직후 `service_facts` 를 보니 `BK_AGE_ELIGIBILITY` 는 81건인데 `BK_APPLY_END_DATE` 는 0건이었다. 처음엔 detail extractor 누락으로 보일 수 있지만, 실제 `raw_api_payloads` 를 확인해 보니 detail `applyMethodDetail` non-null 은 77건이어도 date-like token은 0건이었다
+- 해결: `NormalizedPolicySidecarBackfillDensityIntegrationTest` 는 `BK_APPLY_END_DATE > 0` 을 고정 assertion으로 두지 않고, raw payload 에 date-like `applyMethodDetail` 이 존재할 때만 deadline fact 존재를 요구하도록 바꿨다. 동시에 `phase-plan` 과 `db-migration` 에 현재 local snapshot 수치(`detail payload 190`, `age facts 81`, `deadline facts 0`)를 남기고 후속 보강 과제를 별도로 분리했다
+- 이유: density 측정의 목적은 추출기 결함과 source signal 부재를 구분하는 데 있다. payload 자체에 날짜 단서가 없는데 deadline fact를 기대하면 smoke가 잘못된 요구사항을 테스트하게 되므로, 현재 source 특성을 문서와 테스트에 같이 고정해야 재발 해석이 흔들리지 않는다
