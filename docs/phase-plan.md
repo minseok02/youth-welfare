@@ -1263,6 +1263,10 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
   - 현재 `TextConstraintExtractor` 는 `COND_*` 문자열 토큰과 `ConstraintSummary` 를 함께 제공하지만, canonical sidecar 기준으로는 `fact_group`, `fact_merge_key`, typed value, `sourceField`, `authority`, `confidence`, `raw/evidence` 를 가진 typed fact candidate 출력이 주 계약이 되어야 한다고 정리했다
   - 다음 인터페이스는 `SourceText(sourceField, text)` 입력과 `ExtractedFactCandidate` 목록 출력을 기본으로 하고, legacy `COND_*` 토큰은 필요 시 adapter helper에서만 파생하는 구조로 좁힌다
   - 이번 단계에서는 `AGE / INCOME / RENT_CAP / APPLY_END_DATE` 만 우선 다루고, employment/education/household/special-group text fact 는 후속 단계로 남긴다
+- [x] 신규 source의 source-specific 필드를 raw + AI batch enrichment fact 로 흡수하는 파이프라인 초안 작성
+  - 신규 source-specific 필드는 `raw payload 보존 -> official/rule-derived canonical 우선 추출 -> 남는 자유서술만 AI batch enrichment 후보 승격` 순서로 처리한다고 고정했다
+  - AI batch 결과는 `service_facts(authority=AI_ENRICHED)` 또는 `service_taxonomy_terms(authority=AI_ENRICHED)` 같은 보조 signal로만 쓰고, official/rule-derived 동일 슬롯 overwrite나 `unifiedCategory` / compat layer 대체에는 쓰지 않는다
+  - 즉 AI는 source-specific 필드의 1차 저장 경로가 아니라 canonical 정규화 이후 남는 잔여 신호의 마지막 보강 단계로만 위치시킨다
 - [ ] `YOUTH_MID` stable code mapping SQL 초안 작성
 - [ ] `GOV24_SERVICE_FIELD`, `GOV24_USER_TYPE`, `GOV24_BENEFIT_TYPE` 공식 label inventory import/backfill SQL 초안 작성
 - [ ] `GOV24_SUPPORT_CONDITION` 전체 code inventory 확장 및 `service_facts` backfill 초안 작성
@@ -1270,7 +1274,7 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - [x] `TextConstraintExtractor` 를 `service_facts` 저장 규격에 맞춘 출력 모델로 재설계
 - [x] `WelfareServiceRepository.findCandidates*`, `RetrievalService`, `RuleScoringService`, `DefaultPriorityMatcher` 의 점진 이행 순서 설계
 - [x] `unifiedCategory` 응답 계약을 유지하면서 taxonomy/read-model 로 브릿지하는 호환 전략 작성
-- [ ] 신규 source의 source-specific 필드를 raw + AI batch enrichment fact 로 흡수하는 파이프라인 초안 작성
+- [x] 신규 source의 source-specific 필드를 raw + AI batch enrichment fact 로 흡수하는 파이프라인 초안 작성
 - [ ] logout 후 access token 즉시 무효화 전략 검토/구현
 - [ ] 운영 서버 Docker Compose 기동
 - [ ] 기존 운영 DB에 `app_core_rw` / `app_pii_rw` / `notification_pii_ro` / `migration_admin` 계정 생성 및 앱 datasource 전환

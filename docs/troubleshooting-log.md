@@ -1292,3 +1292,8 @@
 - 문제: 현재 extractor는 legacy `service_tags.KEYWORD` 용 문자열 토큰과 singleton `ConstraintSummary` 를 함께 제공한다. 하지만 `service_facts` 저장은 `fact_group`, `fact_merge_key`, typed value, `sourceField`, `authority`, `confidence`, `raw/evidence` 를 필요로 하므로, 지금 출력만으로는 persistence 직전에 다시 한 번 해석 로직이 커질 수밖에 없다
 - 해결: [policy-normalization-text-constraint-output-model.md](./policy-normalization-text-constraint-output-model.md) 를 추가해, 다음 extractor 주 계약을 `SourceText(sourceField, text)` 입력과 `ExtractedFactCandidate` 목록 출력으로 재설계한다고 고정했다. legacy `COND_*` 토큰은 필요 시 별도 adapter helper에서만 파생하고, 본체 extractor는 `AGE / INCOME / RENT_CAP / APPLY_END_DATE` typed fact candidate 쪽으로 수렴시킨다
 - 이유: canonical sidecar 단계에서는 “토큰을 다시 읽는 유틸”보다 “사실 슬롯을 직접 표현하는 typed candidate”가 더 안정적이다. 이 경계를 먼저 못 박아야 mapper/saver가 extractor 결과를 다시 문자열로 되감지 않고 바로 `service_facts` 규격으로 연결할 수 있다
+
+## 257) 신규 source-specific 필드를 canonical 스키마에 바로 없는 이유로 버리거나 `welfare_services` 에 억지 flatten 하면, 나중에 official/rule/AI 경계를 다시 분리하기 어려워진다
+- 문제: 신규 정책형 source를 붙일 때는 항상 official core/facts 외에 source-specific 자유서술 필드가 남는다. 이 값을 collect 단계에서 그냥 버리면 재처리가 막히고, 반대로 `welfare_services` 나 대표 category에 억지로 섞어 넣으면 나중에 “official canonical”, “rule-derived fact”, “AI 보강” 경계를 다시 분리하기 어렵다
+- 해결: [policy-normalization-raw-ai-enrichment-pipeline.md](./policy-normalization-raw-ai-enrichment-pipeline.md) 를 추가해, 신규 source-specific 필드는 `raw payload 보존 -> official/rule-derived canonical 우선 추출 -> 남는 자유서술만 AI batch enrichment 후보 승격` 순서로 처리한다고 고정했다. AI 결과는 `AI_ENRICHED` authority 보조 signal로만 저장하고, official/rule-derived 슬롯 overwrite나 `unifiedCategory` 대체에는 쓰지 않는다
+- 이유: canonical 전환에서 AI는 1차 저장 경로가 아니라 마지막 보강 단계여야 한다. 그래야 source-specific 필드를 잃지 않으면서도, official 축과 soft enrichment 축이 다시 섞이지 않는다

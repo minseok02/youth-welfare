@@ -79,6 +79,9 @@
 - [policy-normalization-text-constraint-output-model.md](./policy-normalization-text-constraint-output-model.md)
   `TextConstraintExtractor` 를 legacy `COND_*` 토큰 생성기에서 `service_facts` 저장 규격 친화 fact candidate extractor로 바꿀 목표 출력 모델을 확인합니다.
 
+- [policy-normalization-raw-ai-enrichment-pipeline.md](./policy-normalization-raw-ai-enrichment-pipeline.md)
+  신규 source-specific 필드를 `raw 보존 -> official/rule-derived canonical -> AI batch enrichment` 순서로 흡수하는 경계를 확인합니다.
+
 - [policy-normalization-compat-category-drift-inventory.md](./policy-normalization-compat-category-drift-inventory.md)
   local `service_taxonomies` 스냅샷 기준으로 `compat_unified_category` 와 canonical summary(`youth_major_label`, `gov24_*`) 사이 drift/공백/legacy raw 복사 흔적을 확인합니다.
 
@@ -248,6 +251,7 @@
 - [policy-normalization-unified-category-response-bridge.md](./policy-normalization-unified-category-response-bridge.md)
 - [policy-normalization-recommendation-migration-order.md](./policy-normalization-recommendation-migration-order.md)
 - [policy-normalization-text-constraint-output-model.md](./policy-normalization-text-constraint-output-model.md)
+- [policy-normalization-raw-ai-enrichment-pipeline.md](./policy-normalization-raw-ai-enrichment-pipeline.md)
 - [policy-normalization-youth-mid-alias-rules.md](./policy-normalization-youth-mid-alias-rules.md)
 - [policy-normalization-bridge-rules.md](./policy-normalization-bridge-rules.md)
 - [policy-normalization-schema-draft.md](./policy-normalization-schema-draft.md)
