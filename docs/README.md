@@ -64,6 +64,9 @@
 - [policy-normalization-compat-other-youth-major-policy.md](./policy-normalization-compat-other-youth-major-policy.md)
   `compat=기타` 인데 canonical `youth_major` 는 채워지는 `YOUTH` 서비스들을 priority/read-model에서 그대로 둘지, 별도 힌트로만 볼지 해석 정책을 확인합니다.
 
+- [policy-normalization-compat-other-youth-major-inventory.md](./policy-normalization-compat-other-youth-major-inventory.md)
+  `compat=기타 + canonical youth_major 채움` `421`건이 `복지문화 / 참여권리 / 교육 / 일자리 / 주거` 로 실제 어떻게 분포하는지와 bridge 검토 우선순위를 확인합니다.
+
 - [policy-source-onboarding-playbook.md](./policy-source-onboarding-playbook.md)
   실제 DB 적재 스냅샷을 기준으로 일자리/주거/장학/공공서비스 source를 `정책형 / listing형 / reference형` 으로 어떻게 나눠 붙일지 확인합니다.
 

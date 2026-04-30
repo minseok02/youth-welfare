@@ -149,3 +149,7 @@ response category에서 `youth_major` 로 치환하지 않는다.
 1. `RecommendationCandidateProjection` 에 canonical summary hint를 어디까지 실을지 정리
 2. `compat=기타 + youth_major 채움 421건` 을 `복지문화 / 참여권리 / 교육 / 일자리 / 주거` 별로 다시 쪼개 inventory 작성
 3. priority용 explicit bridge table이 필요한지 결정
+
+세부 분포와 샘플은
+[policy-normalization-compat-other-youth-major-inventory.md](./policy-normalization-compat-other-youth-major-inventory.md)
+에 별도로 정리한다.

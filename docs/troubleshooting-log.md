@@ -942,3 +942,8 @@
 - 문제: summary 정제 후에도 `compat=기타 + youth_major 채움` 이 `421`건 남았기 때문에, 이를 보고 `DefaultPriorityMatcher` 나 response category를 즉시 canonical `복지문화/참여권리/교육` 등으로 치환하고 싶어질 수 있다. 하지만 현재 priority 옵션(`금융·생활지원`, `참여·기회`, `교육·직업훈련`)은 아직 canonical major와 1:1 브리지 표가 없고, `compat` 는 실제 제품 계약으로 동작 중이라 조용한 의미 변경이 생길 위험이 컸다
 - 해결: 이번 단계에서는 `compat=기타` 를 canonical `youth_major` 로 자동 override 하지 않기로 고정했다. priority/scoring/response category는 계속 `compat_unified_category` 만 기준으로 유지하고, canonical `youth_major` 는 read-model에서 inventory/explanation/future experiment 용 보조 힌트로만 남긴다
 - 이유: explicit bridge table 없이 canonical major를 legacy priority bucket으로 승격하면, 저장 계층의 정규화 성공이 곧바로 UX 의미 변경으로 번진다. 현재는 raw truth와 호환 레이어를 분리해 둔 장점을 유지하고, 별도 inventory와 매핑표가 준비된 뒤에만 bridge를 명시적으로 열어 두는 편이 안전하다
+
+## 187) `compat=기타 + canonical youth_major` 집합도 한 덩어리로 보면 안 되고, major별 분포를 먼저 쪼개야 bridge table 검토 우선순위를 제대로 잡을 수 있음
+- 문제: `421`건을 단순 총량으로만 보면 `canonical youth_major -> legacy priority` 브리지를 하나의 결정처럼 다루게 되지만, 실제로는 `복지문화 171`, `참여권리 130`, `교육 102`, `일자리 15`, `주거 3` 으로 분포가 크게 달랐다. 각 major 안의 `category_sub` 조합도 서로 달라, 같은 bridge 정책을 한 번에 적용하면 과도하게 일반화될 위험이 있었다
+- 해결: local DB에서 major별 count, 대표 `category_sub`, 샘플 row를 다시 뽑아 별도 inventory 문서로 고정했다. 그 결과 bridge 검토 우선순위를 `참여권리`, `교육`, `복지문화` 3개에 집중하고, `일자리`, `주거` 는 duplicate collapse 잔여로 간주해 우선순위를 낮췄다
+- 이유: bridge table은 저장 계층의 canonical major를 UX priority bucket으로 승격시키는 규칙이므로, 총량이 아니라 major별 의미 분포를 기준으로 검토해야 한다. 먼저 분포를 쪼개야 어디가 “실제 새 bridge 후보”이고 어디가 “정제 잔여”인지 구분할 수 있다
