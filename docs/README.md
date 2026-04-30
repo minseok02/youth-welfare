@@ -88,6 +88,9 @@
 - [auth-revocation-reopen-order.md](./auth-revocation-reopen-order.md)
   future user-level revoke를 다시 열어야 할 때 `withdraw`, `관리자 강제 로그아웃`, generic `cookie-only logout` 중 무엇을 먼저 다룰지 확인합니다.
 
+- [auth-withdraw-revocation-next-step.md](./auth-withdraw-revocation-next-step.md)
+  `withdraw` 를 다음 revoke 후보로 보더라도, 구현보다 먼저 baseline smoke/inventory를 고정해야 하는 이유와 다음 액션을 확인합니다.
+
 - [policy-normalization-compat-category-drift-inventory.md](./policy-normalization-compat-category-drift-inventory.md)
   local `service_taxonomies` 스냅샷 기준으로 `compat_unified_category` 와 canonical summary(`youth_major_label`, `gov24_*`) 사이 drift/공백/legacy raw 복사 흔적을 확인합니다.
 
@@ -240,6 +243,7 @@
 - [phase-plan.md](./phase-plan.md)
 - [auth-logout-revocation-scope-policy.md](./auth-logout-revocation-scope-policy.md)
 - [auth-revocation-reopen-order.md](./auth-revocation-reopen-order.md)
+- [auth-withdraw-revocation-next-step.md](./auth-withdraw-revocation-next-step.md)
 - [policy-normalization-youth-income-zero-policy.md](./policy-normalization-youth-income-zero-policy.md)
 - [policy-normalization-youth-mid-live-inventory.md](./policy-normalization-youth-mid-live-inventory.md)
 - [policy-normalization-youth-mid-stable-code-source-plan.md](./policy-normalization-youth-mid-stable-code-source-plan.md)

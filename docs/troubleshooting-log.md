@@ -1312,3 +1312,8 @@
 - 문제: `cookie-only logout` 을 refresh-only 계약으로 고정한 뒤에도, “그럼 다음에 user-level cutoff를 어디서부터 다시 열 것인가”가 남는다. 이걸 generic logout부터 다시 열면 브라우저 UX, multi-device sign-out, 재로그인 경계가 한 번에 엮인다
 - 해결: [auth-revocation-reopen-order.md](./auth-revocation-reopen-order.md) 를 추가해 reopen 우선순위를 `withdraw -> admin forced logout -> generic cookie-only logout` 으로 고정했다
 - 이유: 탈퇴와 운영 강제 로그아웃은 계정 폐기/권한 회수라는 더 강한 이벤트라 제품 의미가 분명하다. 반면 generic logout은 세션 UX 의미가 더 커서, 같은 cutoff 기술을 쓰더라도 가장 나중에 여는 편이 안전하다
+
+## 261) `withdraw` 가 다음 revoke 후보라고 해도, 구현부터 열면 상태 masking/채팅 정리/인증 차단이 한 번에 섞이므로 baseline smoke를 먼저 남기는 편이 안전하다
+- 문제: `withdraw` 는 `logout` 보다 강한 보안 이벤트라 다음 revoke 후보로는 맞지만, 현재 `UserService.withdraw(...)` 는 attribute/priorities 삭제, chat cleanup, withdrawn state 반영까지 함께 수행한다. 이 상태에서 바로 cutoff 구현을 넣으면 실패 원인이 revoke인지, withdrawn state 처리인지 분리하기 어렵다
+- 해결: [auth-withdraw-revocation-next-step.md](./auth-withdraw-revocation-next-step.md) 를 추가해 다음 액션을 `withdraw` 직전 old access token baseline smoke/inventory 확보로 고정하고, 그 결과를 본 뒤에만 전용 revoke 구현을 다시 열기로 정리했다
+- 이유: logout hardening도 먼저 `old access token after logout smoke` 를 남겼기 때문에 이후 정책 변경을 분리할 수 있었다. `withdraw` 도 같은 순서를 따라야 실패 반경이 작다
