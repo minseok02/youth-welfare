@@ -106,6 +106,9 @@
 - [openai-replay-allowed-drift-metrics.md](./openai-replay-allowed-drift-metrics.md)
   `real-openai` replay에서 strict equality 대신 `top-N target count`, `score delta`, `explanation drift` 중 무엇을 gate metric으로 볼지 확인합니다.
 
+- [openai-ai-score-product-policy.md](./openai-ai-score-product-policy.md)
+  same prompt/seed/fingerprint 조건에서도 `ai_score` drift가 남을 때, 제품이 무엇을 보장하고 무엇을 보장하지 않는지 정리한 정책입니다.
+
 - [openai-replay-diagnostic-lane-plan.md](./openai-replay-diagnostic-lane-plan.md)
   `real-openai` replay를 PR gate가 아닌 diagnostic lane으로 분리한 뒤, 실제로 local/manual, self-hosted runner, ops cron 중 어디에 붙일지 확인합니다.
 

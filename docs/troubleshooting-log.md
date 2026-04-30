@@ -1217,3 +1217,8 @@
 - 문제: `non-root ops user`, `.env read-only` 같은 원칙이 있어도 운영자는 실제 host에서 무엇을 실행해 확인할지 다시 추정해야 하고, 그 과정에서 root 계정으로 그냥 돌리거나 log root 권한 부족을 늦게 발견할 수 있다
 - 해결: [openai-replay-cron-runbook.md](./openai-replay-cron-runbook.md)에 `id`, `crontab -l`, `ls -l .env`, `test -r .env`, `test -w /var/log/...`, `stat -c '%A %U:%G %n' ...` 를 추가해 사전 수동 검증과 등록 직후 확인에 바로 쓸 수 있게 했다
 - 이유: 권한 경계는 문장보다 명령으로 확인하는 편이 운영 drift를 줄인다. 특히 `.env readable` 과 `log root writable` 은 replay 성공 조건이라 cron 등록 전에 바로 확인하는 게 맞다
+
+## 242) same prompt/seed/fingerprint 에도 `ai_score` drift가 남는다면, 제품 계약은 exact equality가 아니라 `target visibility + traceability` 에 두는 편이 맞다
+- 문제: same `promptSha256` + same `replaySeed` + same `systemFingerprint` 조건에서도 `ai_score` / `final_score` drift가 남는데, 이걸 그대로 제품 품질 계약으로 들고 가면 false positive 회귀 판정과 운영 노이즈가 커진다
+- 해결: [openai-ai-score-product-policy.md](./openai-ai-score-product-policy.md) 를 추가해 `ai_score` 를 deterministic truth가 아니라 `variable-but-traceable rerank signal` 로 정의하고, 제품 보장 범위를 `rule-only 기준선`, `target row visibility`, `artifact traceability` 로 고정했다. [recommendation-pipeline.md](./recommendation-pipeline.md) 에도 같은 경계를 링크로 반영했다
+- 이유: 현재 제품 목적은 exact 점수 재현이 아니라 target 정책 노출 개선과 drift 추적 가능성이다. live OpenAI 계층을 soft signal로 해석하는 편이 실제 운영과 더 맞다
