@@ -43,6 +43,9 @@
 - [policy-normalization-youth-mid-alias-rules.md](./policy-normalization-youth-mid-alias-rules.md)
   온통청년 `YOUTH_MID` 의 comma-delimited 조합과 non-official variant(`온·오프라인교육`, `문화활동 및 생활지원`)를 canonical taxonomy에서 어떻게 split/skip할지 확인합니다.
 
+- [policy-normalization-youth-mid-live-inventory.md](./policy-normalization-youth-mid-live-inventory.md)
+  authenticated 온통청년 live 목록 응답 기준 `mclsfNm` 전체 inventory와 code-like field 분포, 왜 `srchPolyBizSecd` stable mapping이 아직 보류인지 확인합니다.
+
 - [policy-normalization-bridge-rules.md](./policy-normalization-bridge-rules.md)
   Gov24 필드를 현재 추천/응답 호환 분류로 브릿지하는 규칙과 복지로 text/detail의 facts fallback 허용 범위를 확인합니다.
 
@@ -206,6 +209,7 @@
 - [github-workflow.md](./github-workflow.md)
 - [phase-plan.md](./phase-plan.md)
 - [policy-normalization-youth-income-zero-policy.md](./policy-normalization-youth-income-zero-policy.md)
+- [policy-normalization-youth-mid-live-inventory.md](./policy-normalization-youth-mid-live-inventory.md)
 - [policy-normalization-education-control-drift-analysis.md](./policy-normalization-education-control-drift-analysis.md)
 - [policy-normalization-education-control-ruleweighted-snapshot.md](./policy-normalization-education-control-ruleweighted-snapshot.md)
 - [openai-replay-stability-options.md](./openai-replay-stability-options.md)
