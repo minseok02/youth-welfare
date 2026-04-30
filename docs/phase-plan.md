@@ -1230,6 +1230,9 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - 2026-05-01 `withdraw` revoke의 immediate next step을 baseline smoke로 고정
   - [auth-withdraw-revocation-next-step.md](./auth-withdraw-revocation-next-step.md) 를 추가해, `withdraw` 를 다음 revoke 후보로 보더라도 바로 구현을 열지 않고 old access-token baseline smoke/inventory를 먼저 남기기로 정리했다
   - 같은 revoke 계열이라도 logout처럼 “현재 gap을 먼저 증적화 -> 그 다음 구현” 순서를 유지한다
+- 2026-05-01 `withdraw` old access-token baseline smoke 고정
+  - `UserWithdrawAccessTokenBaselineIntegrationTest` 를 추가해 회원탈퇴 전 old access token으로 `DELETE /api/users/me` 수행 후, 같은 token이 `GET /api/users/me/bookmarks`, `POST /api/recommendations/refresh` 에서는 `410 / U003` 으로 막히는 현재 baseline을 고정했다
+  - 즉 현재 `withdraw` 는 access-token revoke를 아직 하지 않지만, filter를 지난 old token은 사용자 service layer에서 `WITHDRAWN_USER` 로 차단된다는 상태가 증적화됐다
 
 ## 작업 추적
 
@@ -1292,7 +1295,7 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - [x] cookie-only logout 경로를 refresh-only 계약으로 유지할지, user-level cutoff로 넓힐지 결정
 - [x] future user-level revoke를 다시 연다면 `withdraw`, `관리자 강제 로그아웃`, generic `cookie-only logout` 중 무엇을 먼저 다룰지 결정
 - [x] `withdraw` revoke를 바로 구현할지, old access-token baseline smoke를 먼저 고정할지 결정
-- [ ] `withdraw` 전 old access token이 탈퇴 후에도 어디까지 통과하는지 baseline smoke/inventory 작성
+- [x] `withdraw` 전 old access token이 탈퇴 후에도 어디까지 통과하는지 baseline smoke/inventory 작성
 - [ ] 운영 서버 Docker Compose 기동
 - [ ] 기존 운영 DB에 `app_core_rw` / `app_pii_rw` / `notification_pii_ro` / `migration_admin` 계정 생성 및 앱 datasource 전환
 - [ ] 운영 `.env` / secret store의 `APP_PII_DB_URL` / `NOTIFICATION_PII_DB_URL` 를 `youth_welfare_pii` schema 기준으로 전환

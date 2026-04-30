@@ -1317,3 +1317,8 @@
 - 문제: `withdraw` 는 `logout` 보다 강한 보안 이벤트라 다음 revoke 후보로는 맞지만, 현재 `UserService.withdraw(...)` 는 attribute/priorities 삭제, chat cleanup, withdrawn state 반영까지 함께 수행한다. 이 상태에서 바로 cutoff 구현을 넣으면 실패 원인이 revoke인지, withdrawn state 처리인지 분리하기 어렵다
 - 해결: [auth-withdraw-revocation-next-step.md](./auth-withdraw-revocation-next-step.md) 를 추가해 다음 액션을 `withdraw` 직전 old access token baseline smoke/inventory 확보로 고정하고, 그 결과를 본 뒤에만 전용 revoke 구현을 다시 열기로 정리했다
 - 이유: logout hardening도 먼저 `old access token after logout smoke` 를 남겼기 때문에 이후 정책 변경을 분리할 수 있었다. `withdraw` 도 같은 순서를 따라야 실패 반경이 작다
+
+## 262) 현재 `withdraw` 는 old access token을 filter 단계에서 revoke하지는 않지만, 사용자 보호 API에서는 `WITHDRAWN_USER` 로 이미 차단되고 있다는 baseline을 먼저 고정해야 한다
+- 문제: `withdraw` revoke를 열기 전에 가장 먼저 필요한 건 “old access token이 탈퇴 후 정확히 어디까지 살아 있는가”다. 이 baseline이 없으면 이후 cutoff 구현이 인증층 변경인지, 이미 있던 business-layer 차단을 단지 앞당긴 것인지 구분하기 어렵다
+- 해결: `UserWithdrawAccessTokenBaselineIntegrationTest` 를 추가해 회원탈퇴 전에 받은 old access token으로 `DELETE /api/users/me` 를 수행한 뒤, 같은 token으로 `GET /api/users/me/bookmarks`, `POST /api/recommendations/refresh` 를 다시 호출하면 둘 다 `410 / U003` 으로 막히는 현재 상태를 고정했다
+- 이유: 이 결과는 “filter는 아직 revoke하지 않지만 withdrawn user는 service layer에서 막힌다”는 현재 계약을 분명히 보여준다. 이후 `withdraw` 전용 revoke를 넣더라도 어떤 층의 계약을 바꾸는지 비교 기준이 생긴다

@@ -1,0 +1,92 @@
+package com.example.welfare.integration;
+
+import com.example.welfare.global.util.JwtUtil;
+import com.example.welfare.user.entity.User;
+import com.example.welfare.user.repository.UserRepository;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.web.servlet.MockMvc;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+@SpringBootTest
+@AutoConfigureMockMvc
+@ActiveProfiles("integration")
+class UserWithdrawAccessTokenBaselineIntegrationTest {
+
+    private static final String TEST_EMAIL_PREFIX = "it_user_withdraw_token_";
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @Autowired
+    private JwtUtil jwtUtil;
+
+    @Autowired
+    private UserRepository userRepository;
+
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+
+    private final List<Long> createdUserIds = new ArrayList<>();
+
+    @AfterEach
+    void cleanup() {
+        createdUserIds.forEach(userId -> userRepository.findById(userId).ifPresent(userRepository::delete));
+        createdUserIds.clear();
+    }
+
+    @Test
+    @DisplayName("회원탈퇴 전 old access token은 탈퇴 후에도 filter를 지나지만 사용자 보호 API에서는 WITHDRAWN_USER로 막힌다")
+    void withdrawnUserOldAccessTokenStillReachesBusinessLayer() throws Exception {
+        User user = userRepository.save(User.builder()
+                .email(TEST_EMAIL_PREFIX + UUID.randomUUID() + "@example.com")
+                .passwordHash(passwordEncoder.encode("password123"))
+                .name("Withdraw Token Baseline")
+                .build());
+        createdUserIds.add(user.getId());
+
+        String oldAccessToken = jwtUtil.generateAccessToken(user.getId());
+
+        mockMvc.perform(delete("/api/users/me")
+                        .header("Authorization", "Bearer " + oldAccessToken)
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "password": "password123"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
+        User withdrawnUser = userRepository.findById(user.getId()).orElseThrow();
+        assertThat(withdrawnUser.isActive()).isFalse();
+
+        mockMvc.perform(get("/api/users/me/bookmarks")
+                        .header("Authorization", "Bearer " + oldAccessToken))
+                .andExpect(status().isGone())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("U003"));
+
+        mockMvc.perform(post("/api/recommendations/refresh")
+                        .header("Authorization", "Bearer " + oldAccessToken))
+                .andExpect(status().isGone())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("U003"));
+    }
+}
