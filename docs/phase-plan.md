@@ -1303,6 +1303,10 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
   - [UserAdminController.java](../backend/src/main/java/com/example/welfare/user/controller/UserAdminController.java) 에 `POST /api/admin/users/forced-logout` 를 추가해 body `userKey` 검증, 대상 user 존재 확인, `UserSessionRevocationService.revokeUserSessions(...)` 호출을 실제 운영자 진입점으로 연결했다
   - [AdminSecurityWebMvcTest.java](../backend/src/test/java/com/example/welfare/admin/AdminSecurityWebMvcTest.java) 로 `200 success`, `blank userKey -> 400/C001`, `missing userKey -> 404/U002` 계약을 고정했고, [AdminSecurityIntegrationTest.java](../backend/src/test/java/com/example/welfare/integration/AdminSecurityIntegrationTest.java) 에서는 `old access -> 401/A006`, `old refresh -> A003`, `relogin access -> 200` baseline을 API 호출 기준으로 고정했다
   - 즉 다음 액션은 `iatm` 없는 legacy admin access token이 forced logout 보호 경계에서 실제로 `401 / A006` 으로 수렴하는 smoke/test를 추가하는 것이다
+- 2026-05-01 admin forced logout legacy access token smoke 추가
+  - [AdminSecurityIntegrationTest.java](../backend/src/test/java/com/example/welfare/integration/AdminSecurityIntegrationTest.java) 에 `iatm` 없는 legacy admin access token을 직접 발급하는 smoke를 추가해, forced logout 이후 보호 API 접근이 실제로 `401 / A006` 으로 수렴하는 현재 구현을 고정했다
+  - 이로써 문서로만 있던 `legacy admin access token -> re-login required / A006` 계약이 실제 integration baseline으로 내려왔다
+  - 즉 다음 액션은 forced logout 경로의 운영 증적을 위해 cutoffMillis/actor logging 또는 audit 최소 범위를 정하는 것이다
 
 ## 작업 추적
 

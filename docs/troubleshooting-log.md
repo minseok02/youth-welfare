@@ -1432,3 +1432,8 @@
 - 문제: `/api/admin/users/forced-logout` 를 단순 pass-through 로 열면 blank `userKey` 나 존재하지 않는 대상에도 `accepted=true` 가 떨어져, incident/offboarding 상황에서 운영자가 실제 적용 여부를 오해할 수 있다
 - 해결: [UserAdminController.java](../backend/src/main/java/com/example/welfare/user/controller/UserAdminController.java) 에서 body `userKey` trim/blank 검증과 `userRepository.findIdByUserKey(...)` 존재 확인을 먼저 수행하고, [AdminSecurityWebMvcTest.java](../backend/src/test/java/com/example/welfare/admin/AdminSecurityWebMvcTest.java) 로 `blank -> 400/C001`, `missing -> 404/U002`, `valid -> 200` 계약을 고정했다
 - 이유: forced logout은 운영자 액션이라 “실패를 너무 조용히 성공 처리하지 않는 것”도 중요하다. 최소한의 input/not-found 구분을 둬야 write path를 신뢰할 수 있다
+
+## 284) legacy admin access token smoke를 실제 서명된 JWT로 따로 고정하지 않으면 `A006` 계약이 malformed token(`A001`)과 다시 섞일 수 있으므로, `iatm` 만 빠진 정상 토큰을 직접 발급해 검증하는 편이 낫다
+- 문제: 문서에는 `iatm` 없는 legacy admin access token이 forced logout 보호 경계에서 `401 / A006` 으로 떨어진다고 적어 두었지만, 테스트에서 그냥 임의 문자열이나 malformed JWT를 넣으면 실제로는 `INVALID_TOKEN(A001)` 경로만 확인하게 된다
+- 해결: [AdminSecurityIntegrationTest.java](../backend/src/test/java/com/example/welfare/integration/AdminSecurityIntegrationTest.java) 에 `uid`, `roles`, `issuedAt`, `expiration`, 서명은 정상이고 `iatm` 만 없는 legacy admin access token 생성 helper를 추가하고, forced logout 이후 보호 API 접근이 `401 / A006` 으로 수렴하는 smoke를 integration baseline에 넣었다
+- 이유: rollout 정책의 핵심은 “형식이 망가진 토큰”이 아니라 “old contract token은 보호 경계에서 재로그인 요구 대상”이라는 점이다. 그래서 테스트도 malformed가 아닌 structurally valid legacy token으로 고정해야 제품 의미와 맞는다

@@ -14,6 +14,8 @@ import com.example.welfare.user.service.UserCoreSyncService;
 import com.example.welfare.user.util.EmailLookupKeyGenerator;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.security.Keys;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -29,6 +31,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.LocalDate;
+import java.util.Date;
 import java.util.List;
 import java.util.UUID;
 
@@ -278,6 +281,35 @@ class AdminSecurityIntegrationTest {
                 .andExpect(jsonPath("$.success").value(true));
     }
 
+    @Test
+    @DisplayName("iatm 없는 legacy admin access token은 forced logout 보호 경계에서 401 A006으로 차단된다")
+    void legacyAdminAccessTokenWithoutIatmFailsWithA006AfterForcedLogout() throws Exception {
+        doNothing().when(collectService).collect(CollectSource.YOUTH);
+        User adminUser = createUser(ADMIN_EMAIL);
+        String adminUserKey = userRepository.findUserKeyById(adminUser.getId()).orElseThrow();
+
+        String legacyAdminAccessToken = createLegacyAdminAccessToken(adminUserKey, adminUser.getId());
+
+        mockMvc.perform(post("/api/admin/users/forced-logout")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "userKey": "%s"
+                                }
+                                """.formatted(adminUserKey))
+                        .header("Authorization", "Bearer " + legacyAdminAccessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.userKey").value(adminUserKey))
+                .andExpect(jsonPath("$.data.accepted").value(true));
+
+        mockMvc.perform(post("/api/admin/collect/youth")
+                        .header("Authorization", "Bearer " + legacyAdminAccessToken))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("A006"));
+    }
+
     private User createUser(String email) {
         userRepository.findByEmail(email).ifPresent(existing -> {
             deleteUserState(existing.getId(), userRepository.findUserKeyById(existing.getId()).orElse(null));
@@ -342,5 +374,19 @@ class AdminSecurityIntegrationTest {
 
         JsonNode root = objectMapper.readTree(content);
         return root.path("data").path("accessToken").asText();
+    }
+
+    private String createLegacyAdminAccessToken(String userKey, Long userId) {
+        String secret = (String) ReflectionTestUtils.getField(jwtUtil, "secret");
+        long accessExpiration = (long) ReflectionTestUtils.getField(jwtUtil, "accessExpiration");
+        Date now = new Date();
+        return Jwts.builder()
+                .subject(userKey)
+                .claim("uid", userId)
+                .claim("roles", List.of("ROLE_USER", "ROLE_ADMIN"))
+                .issuedAt(now)
+                .expiration(new Date(now.getTime() + accessExpiration))
+                .signWith(Keys.hmacShaKeyFor(secret.getBytes(java.nio.charset.StandardCharsets.UTF_8)))
+                .compact();
     }
 }
