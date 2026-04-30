@@ -65,7 +65,7 @@ public class RuleScoringService {
                     List<ServiceTag> tags = tagsByServiceId.getOrDefault(service.getId(), List.of());
                     RecommendationCandidateProjection projection = projections.get(service.getId());
                     double base = calcBaseScore(service, user, interestFields, targetTypes, tags, projection);
-                    double weighted = applyPriorityWeight(base, service, user.priorities());
+                    double weighted = applyPriorityWeight(base, service, projection, user.priorities());
                     // 특수 대상 신호가 있지만 사용자와 불일치한 경우 플래그 설정
                     boolean mismatch = !specialTargetMatches(user, targetTypes, service, tags)
                             && hasSpecialTargetSignal(service, tags);
@@ -329,12 +329,14 @@ public class RuleScoringService {
     /**
      * 우선순위 가중치 — 복수 매칭 시 최고 배율 하나만 적용 (이중합산 방지)
      */
-    private double applyPriorityWeight(double base, WelfareService service,
-                                        List<PriorityPreference> priorities) {
+    private double applyPriorityWeight(double base,
+                                       WelfareService service,
+                                       RecommendationCandidateProjection projection,
+                                       List<PriorityPreference> priorities) {
         if (priorities.isEmpty()) return base;
 
         double maxWeight = priorities.stream()
-                .filter(p -> priorityMatcher.matches(p, service))
+                .filter(p -> priorityMatcher.matches(p, service, projection))
                 .mapToDouble(PriorityPreference::weight)
                 .max()
                 .orElse(1.0);

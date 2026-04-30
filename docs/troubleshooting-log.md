@@ -902,3 +902,8 @@
 - 문제: retrieval hydrate 뒤 projection term을 읽기 시작할 때, 기존 `ServiceTag` 기반 bonus 위에 canonical term bonus 를 새로 더하면 같은 관심분야/대상군 신호가 legacy tag 와 projection 양쪽에서 동시에 들어오는 순간 점수가 불필요하게 커질 수 있었다. 특히 `targetGroupsRaw` 는 sidecar backfill 이 진행될수록 legacy tag 와 겹칠 가능성이 높았다
 - 해결: `RuleScoringService` 의 `interestThemeMatches`, `keywordMatches`, `targetGroupMatches` 가 projection 값을 별도 가산 슬롯으로 더하지 않고 기존 boolean matcher 안에서 OR 로만 읽도록 바꿨다. `factKeys` 는 이번 단계에서 `isDeadlineSoon` helper 경계에만 먼저 연결하고, bonus 규칙 자체는 기존 `apply_end_date` 의미를 유지했다
 - 이유: canonical read-model 브리지는 “같은 의미의 신호를 다른 저장소에서 읽는 것”이지 새 점수 축을 추가하는 작업이 아니다. 기존 matcher 슬롯을 재사용해야 legacy path 와 canonical path 가 공존하는 동안에도 score inflation 없이 회귀를 좁게 통제할 수 있다
+
+## 179) priority 가중치도 새 taxonomy 해석기를 따로 만들기보다 먼저 `compat_unified_category` / `applyEndDate` read-model summary 를 우선 읽게 연결해야 `DefaultPriorityMatcher` 회귀를 좁게 막을 수 있음
+- 문제: `DefaultPriorityMatcher` 는 아직 `service.getUnifiedCategory()` 와 `service.getApplyEndDate()` 에 직접 묶여 있어, retrieval/scoring 이 canonical projection 을 병행 읽기 시작한 뒤에도 priority 가중치만 legacy entity 값을 계속 보면 read-model summary 와 우선순위 가중치가 서로 다른 값을 볼 수 있었다. 반대로 첫 단계부터 canonical taxonomy summary code/label 해석까지 matcher 안에 같이 넣으면 회귀 반경이 다시 커질 수 있었다
+- 해결: `PriorityMatcher.matches(priority, service, projection)` 오버로드를 추가하고, `DefaultPriorityMatcher` 는 먼저 `RecommendationCandidateProjection.unifiedCategoryCompat` 와 `applyEndDate` 를 우선 읽도록만 좁게 바꿨다. `RuleScoringService.applyPriorityWeight(...)` 도 projection 을 함께 넘기게 맞췄고, canonical taxonomy summary code/label 직접 해석은 후속 task 로 분리했다
+- 이유: priority 가중치는 현재도 `unifiedCategory` 호환 레이어를 전제로 동작한다. 첫 단계는 legacy entity와 canonical read-model summary 간 불일치를 줄이는 것이 목적이고, category code 체계 자체를 바꾸는 일은 별도 결정으로 분리해야 원인 분리가 쉽다
