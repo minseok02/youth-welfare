@@ -1330,7 +1330,6 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 
 ### 진행 예정
 
-- [ ] 복지로 live detail 적재 기준 `welfare_service_details` / `service_facts` validation 리허설
 - [ ] 복지로 detail refresh budget metadata(`centralBudget`/`localBudget`) 를 admin collect observability에 노출할지 결정
 - [ ] `bokjiro-details-gap-fill` 추가 라운드/호출 예산 전략 정리 후 stored detail payload coverage 추가 확대
 - [x] same `promptSha256` + same `replaySeed` + same `system_fingerprint` 조건에서도 `ai_score` drift가 남는 현상을 제품적으로 어떻게 다룰지 결정
@@ -1394,6 +1393,9 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - [x] 한국장학재단/국가장학금 계열의 `제도 row` 와 `지원가능대학/학기/지원구간` reference matrix 분리 모델 초안 작성
   - [policy-scholarship-reference-matrix-draft.md](./policy-scholarship-reference-matrix-draft.md) 를 추가해 장학금 상품 자체는 canonical `welfare_services + sidecars` 로 유지하고, 대학/학기/지원구간/금액표는 `scholarship_reference_sets + scholarship_reference_rows` reference matrix로 분리하는 방향을 고정했다
   - 이 초안에서는 장학금 상품 1건을 대학/학기별 `welfare_services` 파생 row로 늘리지 않고, `service_facts` 는 전역 eligibility만 받고 matrix variation은 reference domain에 남기는 기준을 정리했다
+- [x] 복지로 live detail 적재 기준 `welfare_service_details` / `service_facts` validation 리허설
+  - [policy-bokjiro-detail-validation-rehearsal.md](./policy-bokjiro-detail-validation-rehearsal.md) 를 추가해 복지로 live detail validation 을 `stored/raw coverage baseline -> detail payload shape / welfare_service_details -> service_facts density -> residual sample 재분류` 순서로 본다고 고정했다
+  - 이 리허설은 coverage ceiling, optional fact(`BK_APPLY_END_DATE`), hard fact vs soft signal 경계를 다시 확인하기 위한 절차이고, gap-fill 예산 확대나 observability 구현은 다음 단계로 남긴다고 정리했다
 - [ ] 운영 서버 Docker Compose 기동
 - [ ] 기존 운영 DB에 `app_core_rw` / `app_pii_rw` / `notification_pii_ro` / `migration_admin` 계정 생성 및 앱 datasource 전환
 - [ ] 운영 `.env` / secret store의 `APP_PII_DB_URL` / `NOTIFICATION_PII_DB_URL` 를 `youth_welfare_pii` schema 기준으로 전환

@@ -278,6 +278,11 @@
 - 해결: [policy-scholarship-reference-matrix-draft.md](./policy-scholarship-reference-matrix-draft.md) 에서 장학금 상품은 canonical 정책 row로 유지하고, 세부 대학/학기/구간 정보는 `scholarship_reference_sets + scholarship_reference_rows` reference matrix로 분리하는 초안을 고정했음
 - 이유: 장학금 계열은 “추천 카드로 보여줄 제도 row”와 “상세 안내를 위한 variation matrix”를 분리해야 한다. 그래야 추천/북마크 의미를 보존하면서도 대학/학기별 상세 정보 손실을 막을 수 있다
 
+## 284) 복지로 live detail 검증은 `detail coverage` 와 `fact coverage` 를 한 번에 보지 말고 순서를 고정해야 해석 오류를 줄일 수 있다
+- 문제: 복지로 쪽은 `stored detail payload coverage`, `welfare_service_details` 저장 여부, `service_facts density`, `optional fact` 판단이 서로 다른 층인데, 이를 한 번에 보면 extractor 문제인지 payload ceiling인지, 또는 detail 저장과 fact 저장 중 어디가 비는지 쉽게 섞여 보일 수 있었음
+- 해결: [policy-bokjiro-detail-validation-rehearsal.md](./policy-bokjiro-detail-validation-rehearsal.md) 에서 리허설 순서를 `stored/raw coverage baseline -> detail payload shape / welfare_service_details -> service_facts density -> residual sample 재분류` 로 고정하고, `BK_APPLY_END_DATE` 는 이번 단계에서도 optional fact 전제로 확인한다고 정리했음
+- 이유: 복지로 validation은 “얼마나 많이 받았는가”와 “받은 것 중 무엇을 hard fact로 승격할 수 있는가”를 분리해서 봐야 한다. 이 순서를 고정해야 gap-fill, extractor, optional soft signal 판단이 서로 덜 엉킨다
+
 ## 50) 새 챗 세션의 `last_message_at`가 NULL이면 최근 세션 정렬이 흔들릴 수 있음
 - 문제: 챗봇 세션은 생성 직후 메시지가 없을 수 있는데 `last_message_at`를 nullable로 두면 세션 목록 최신순 정렬에서 DB별 NULL 정렬 차이 때문에 방금 만든 세션이 뒤로 밀릴 수 있었음
 - 해결: `chat_sessions.last_message_at`를 `NOT NULL DEFAULT CURRENT_TIMESTAMP`로 설계하고 `(user_id, last_message_at DESC)` 인덱스를 함께 추가

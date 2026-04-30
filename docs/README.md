@@ -238,6 +238,9 @@
 - [policy-scholarship-reference-matrix-draft.md](./policy-scholarship-reference-matrix-draft.md)
   한국장학재단/국가장학금 계열에서 `제도 row` 와 `지원가능대학/학기/지원구간` reference matrix를 어떻게 분리할지 확인합니다.
 
+- [policy-bokjiro-detail-validation-rehearsal.md](./policy-bokjiro-detail-validation-rehearsal.md)
+  복지로 live detail 적재 기준에서 `welfare_service_details` / `service_facts` 를 어떤 순서로 검증할지 확인합니다.
+
 - [troubleshooting-log.md](./troubleshooting-log.md)  
   이전에 발생한 장애와 해결 과정을 확인합니다.
 
