@@ -1397,3 +1397,8 @@
 - 문제: `UserSessionRevocationService` 라는 이름을 고정한 뒤에도 메서드명을 `isTokenPastCutoff`, `forceLogoutUser`, `applyUserCutoff` 처럼 세부 동작 중심으로 바꾸면, 바깥 호출자가 helper 내부 규칙을 다시 알아야 하는 형태가 된다
 - 해결: [auth-admin-forced-logout-helper-method-name-policy.md](./auth-admin-forced-logout-helper-method-name-policy.md) 를 추가해 read/write 메서드명을 `isAccessAllowed` 와 `revokeUserSessions` 로 그대로 유지한다고 고정했다
 - 이유: filter는 최종 allow/deny만, admin API는 user 단위 revoke intent write만 알면 된다. 메서드명까지 구현 세부를 드러내지 않아야 helper 경계가 안정적으로 유지된다
+
+## 278) forced logout session revoke를 기존 `AccessTokenRevocationService` 에 흡수하면 exact-token blacklist와 user-session cutoff 의미가 다시 섞이므로, 새 클래스로 분리하고 composition으로 엮는 편이 낫다
+- 문제: helper 이름과 메서드명을 정한 뒤에도 구조를 성급하게 합치면 `revoke(token)` 과 `revokeUserSessions(userKey, cutoffMillis)` 가 같은 서비스에 놓여 책임 경계가 흐려질 수 있다
+- 해결: [auth-admin-forced-logout-service-structure-policy.md](./auth-admin-forced-logout-service-structure-policy.md) 를 추가해 `UserSessionRevocationService` 를 새 클래스로 두고, 기존 `AccessTokenRevocationService` 와는 composition 관계를 유지한다고 고정했다
+- 이유: logout/withdraw exact-token revoke는 이미 안정화된 경계이고, forced logout은 별도 user-session revoke 경계다. 구현 diff를 작게 유지하려면 sibling 서비스 + composition이 가장 안전하다
