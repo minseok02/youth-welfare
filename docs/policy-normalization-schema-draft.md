@@ -233,6 +233,17 @@
 - 온통청년 `정책중분류` label-only term
 - 온통청년 skipped 중분류 alias raw bucket (`YOUTH_MID_RAW_ALIAS`)
 - 복지로 `life stage / interest theme / target group`
+- 복지로 detail 본문에서 추출한 explicit beneficiary label soft taxonomy
+  - `term_group='TARGET_GROUP'`
+  - `code_set_key=NULL`, `term_code=''`
+  - `authority='SYSTEM_DERIVED'`
+  - 현재 whitelist:
+    - `기초생활수급자`
+    - `차상위계층`
+  - 라벨 정규화:
+    - `국민기초생활보장수급자`, `생계급여 수급자`, `의료급여 수급자`, `주거급여 수급자`, `교육급여 수급자`, `수급권자` -> `기초생활수급자`
+    - `차상위` -> `차상위계층`
+  - `취업취약계층`, `정보 소외계층`, `저소득 한부모가족` 같이 범위가 넓거나 다른 taxonomy 축과 겹치는 표현은 여기서 바로 canonical `TARGET_GROUP` 으로 승격하지 않는다.
 - Gov24 `사용자구분` 복수 항목
 - system-derived `compatibility category signal`
 

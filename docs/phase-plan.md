@@ -358,6 +358,12 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
   - 따라서 이번 단계에서는 복지로 income-like no-fact row를 canonical `INCOME_PCT` / `INCOME_WON` fact 로 바로 승격하지 않고, 후속 작업을 `beneficiary-like` soft taxonomy 설계와 `threshold-like` optional soft signal 설계로 분리했다
 - 2026-04-30 복지로 income-like no-fact detail soft fact 검토 `docker exec -e MYSQL_PWD='welfare1234!' youth-welfare-db mysql --default-character-set=utf8mb4 -uroot -e \"SET NAMES utf8mb4; ... soft_candidate_total / bucket / threshold branch sample queries ...\" youth_welfare`
 - 2026-04-30 복지로 income-like no-fact detail soft fact 검토 후 `git diff --check`
+- 2026-04-30 복지로 `beneficiary_only` income signal 의 `TARGET_GROUP` soft taxonomy 보존 정책 결정
+  - latest snapshot 기준 `beneficiary_only` `29`건 중 `기초생활수급자` 계열 `24`, `차상위계층` 계열 `5` 는 canonical `TARGET_GROUP` soft taxonomy 후보로 보존하기로 정리했다
+  - `국민기초생활보장수급자`, `생계급여 수급자`, `의료급여 수급자`, `주거급여 수급자`, `교육급여 수급자`, `수급권자` 는 `기초생활수급자` 로, `차상위` 는 `차상위계층` 으로 label normalize 하기로 정했다
+  - 다만 현재 `DeferredNormalizedPolicySidecarWriter` 는 복지로 detail aggregate 가 `TARGET_GROUP` term 을 내보내면 list aggregate 의 `LIFE_STAGE/INTEREST_THEME/TARGET_GROUP` 전체를 지우는 refresh contract 이라, 구현 선행조건으로 `phase-aware term refresh` 분리가 필요하다고 결론냈다
+- 2026-04-30 복지로 `beneficiary_only` income signal soft taxonomy 검토 `docker exec -e MYSQL_PWD='welfare1234!' youth-welfare-db mysql --default-character-set=utf8mb4 -uroot -e \"SET NAMES utf8mb4; ... BASIC_LIVELIHOOD_RECIPIENT / NEAR_POOR bucket queries ...\" youth_welfare`
+- 2026-04-30 복지로 `beneficiary_only` income signal soft taxonomy 검토 후 `git diff --check`
 - 2026-04-28 pre-28 migrated DB 기준 admin logout / refresh invalidation / relogin smoke
   - `SECURITY_ADMIN_EMAILS=admin.logout.smoke@example.com` 으로 최신 앱을 기동한 뒤, admin 계정 로그인과 프로필 수정으로 queue row를 `SYNCED` 상태까지 맞추고 `POST /api/auth/refresh` 가 먼저 성공하는 것 확인
   - 같은 cookie jar + access token으로 `POST /api/auth/logout` 호출 후 cookie jar에서 `refresh_token` 이 제거되고, 직후 `POST /api/auth/refresh` 가 `401`, `errorCode=A001` 로 막히는 것 확인
@@ -968,7 +974,8 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - [ ] 복지로 live detail 적재 기준 `welfare_service_details` / `service_facts` validation 리허설
 - [ ] 복지로 detail refresh budget metadata(`centralBudget`/`localBudget`) 를 admin collect observability에 노출할지 결정
 - [ ] `bokjiro-details-gap-fill` 추가 라운드/호출 예산 전략 정리 후 stored detail payload coverage 추가 확대
-- [ ] 복지로 `beneficiary_only` income signal(`기초생활수급자`/`차상위` 등) 을 canonical `TARGET_GROUP` soft taxonomy 로 보존할지 설계
+- [ ] 복지로 detail-derived `TARGET_GROUP` soft taxonomy 구현 전 `DeferredNormalizedPolicySidecarWriter` 의 term refresh contract 를 phase-aware 로 분리
+- [ ] 복지로 detail 본문의 `기초생활수급자` / `차상위계층` whitelist 를 canonical `TARGET_GROUP` soft taxonomy 로 실제 적재
 - [ ] 복지로 `threshold_like` income signal(`13`건) 을 `INCOME_*` hard fact 가 아닌 optional soft signal schema 로 분리할지 결정
 - [ ] 복지로 live detail 응답에 신청마감 explicit field가 있는지 재확인하고, 없으면 `BK_APPLY_END_DATE` 는 canonical collect path에서 optional fact로 유지
 - [ ] 로그인 가능한 testbed/live payload 기준 `YOUTH_MID` / `srchPolyBizSecd` 전체 inventory 수집

@@ -92,6 +92,8 @@ WHERE ws.source_type IN ('BOKJIRO_CENTRAL', 'BOKJIRO_LOCAL'); -- 103
 
 `second-bound 만` residual을 처리한 최신 snapshot 기준으로는 `detail raw payload 는 있지만 service_facts 는 없는 복지로 서비스` 가 `129`건(`BOKJIRO_CENTRAL 47`, `BOKJIRO_LOCAL 82`)이며, 이 중 income/beneficiary soft candidate pool 은 `49`건이다. 세부 구성은 `beneficiary_only 28`, `threshold_like 13`, `low_income_label 7`, `won_threshold 1`, `other 2` 였다. 특히 `threshold_like 13` 건에는 `신혼/2자녀/출산/맞벌이/우대형/일반형/개별심사` 같은 분기 케이스 `4`건, 다중 `% 이하` threshold `3`건, 다중 `만원 이하` threshold `1`건이 섞여 있어, 현재 단계에서 이를 canonical `INCOME_PCT` / `INCOME_WON` hard fact 로 직접 승격하면 의미 손실이 크다. 따라서 복지로 income-like signal 은 즉시 hard fact 로 올리지 않고, 후속 작업을 `beneficiary-like` soft taxonomy 와 `threshold-like` optional soft signal 설계로 분리한다.
 
+`beneficiary_only` 집합은 별도 결정이 가능했다. local snapshot 재분류 기준 `기초생활수급자` 계열 `24`, `차상위계층` 계열 `5` 는 의미가 비교적 안정적이라 future canonical `TARGET_GROUP` soft taxonomy 후보로 본다. 반면 `취업취약계층`, `정보 소외계층`, `저소득 한부모가족` 같은 나머지 `6`건은 범위가 넓거나 다른 taxonomy 축과 겹쳐서 이번 단계의 whitelist 에 넣지 않는다. 다만 현재 writer는 복지로 detail aggregate 가 `TARGET_GROUP` term을 내보내면 list aggregate의 `TARGET_GROUP` / `LIFE_STAGE` / `INTEREST_THEME` 를 같이 지우는 refresh contract 이라, 실제 구현은 `phase-aware term refresh` 선행 정리 뒤에 넣는다.
+
 추가 확인 결과 `targetDetail/supportDetail/selectionCriteria` 의 date-like token 수는 `4 / 1 / 1` 이었지만, 샘플은 출생연도 범위나 혜택 적용기간처럼 신청마감이 아닌 날짜가 대부분이었다. 따라서 현재 canonical collect path 에서는 `BK_APPLY_END_DATE` 를 optional fact 로 유지하고, `targetDetail/selectionCriteria` 까지 deadline fallback 을 넓히지 않는다.
 
 - 파일: [`backend/src/main/resources/db/migration/V2026_04_28_02__add_user_pii_sync_queue.sql`](../backend/src/main/resources/db/migration/V2026_04_28_02__add_user_pii_sync_queue.sql)
