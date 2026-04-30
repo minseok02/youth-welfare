@@ -1,17 +1,23 @@
 package com.example.welfare.user.controller;
 
+import com.example.welfare.global.exception.CustomException;
+import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.global.response.ApiResponse;
 import com.example.welfare.user.dto.response.UserMetadataUserKeyBackfillResponse;
 import com.example.welfare.user.dto.response.UserPiiBackfillResponse;
 import com.example.welfare.user.dto.response.UserPiiSyncReplayResponse;
 import com.example.welfare.user.dto.response.UserPiiSyncStatusResponse;
+import com.example.welfare.user.repository.UserRepository;
 import com.example.welfare.user.service.UserMetadataUserKeyBackfillService;
 import com.example.welfare.user.service.UserPiiBackfillService;
 import com.example.welfare.user.service.UserPiiSyncReplayService;
 import com.example.welfare.user.service.UserPiiSyncStatusService;
+import com.example.welfare.user.service.UserSessionRevocationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.util.StringUtils;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -28,6 +34,8 @@ public class UserAdminController {
     private final UserPiiBackfillService userPiiBackfillService;
     private final UserPiiSyncReplayService userPiiSyncReplayService;
     private final UserPiiSyncStatusService userPiiSyncStatusService;
+    private final UserSessionRevocationService userSessionRevocationService;
+    private final UserRepository userRepository;
 
     @PostMapping("/metadata-user-key-backfill")
     public ResponseEntity<ApiResponse<UserMetadataUserKeyBackfillResponse>> backfillUserMetadataUserKeys() {
@@ -39,6 +47,23 @@ public class UserAdminController {
     public ResponseEntity<ApiResponse<UserPiiBackfillResponse>> backfillUserPii() {
         log.info("[Admin] user_pii email/name/birth_date 앱 레벨 암호화 백필 트리거");
         return ResponseEntity.ok(ApiResponse.success(userPiiBackfillService.backfillMissingEncryptedFields()));
+    }
+
+    @PostMapping("/forced-logout")
+    public ResponseEntity<ApiResponse<ForcedLogoutResponse>> forceLogoutUserSessions(
+            @RequestBody ForcedLogoutRequest request
+    ) {
+        String userKey = request.userKey() == null ? null : request.userKey().trim();
+        if (!StringUtils.hasText(userKey)) {
+            throw new CustomException(ErrorCode.INVALID_INPUT);
+        }
+        userRepository.findIdByUserKey(userKey)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        long cutoffMillis = System.currentTimeMillis();
+        userSessionRevocationService.revokeUserSessions(userKey, cutoffMillis);
+        log.info("[Admin] forced logout 트리거 userKey={} cutoffMillis={}", userKey, cutoffMillis);
+        return ResponseEntity.ok(ApiResponse.success(new ForcedLogoutResponse(userKey, true)));
     }
 
     @PostMapping("/pii-sync-replay")
@@ -56,5 +81,11 @@ public class UserAdminController {
     ) {
         log.info("[Admin] user_pii sync queue status 조회 failedSampleLimit={}", failedSampleLimit);
         return ResponseEntity.ok(ApiResponse.success(userPiiSyncStatusService.getStatus(failedSampleLimit)));
+    }
+
+    public record ForcedLogoutRequest(String userKey) {
+    }
+
+    public record ForcedLogoutResponse(String userKey, boolean accepted) {
     }
 }

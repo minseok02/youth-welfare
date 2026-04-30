@@ -16,10 +16,12 @@ import com.example.welfare.user.dto.response.UserMetadataUserKeyBackfillResponse
 import com.example.welfare.user.dto.response.UserPiiBackfillResponse;
 import com.example.welfare.user.dto.response.UserPiiSyncReplayResponse;
 import com.example.welfare.user.dto.response.UserPiiSyncStatusResponse;
+import com.example.welfare.user.repository.UserRepository;
 import com.example.welfare.user.service.UserMetadataUserKeyBackfillService;
 import com.example.welfare.user.service.UserPiiBackfillService;
 import com.example.welfare.user.service.UserPiiSyncReplayService;
 import com.example.welfare.user.service.UserPiiSyncStatusService;
+import com.example.welfare.user.service.UserSessionRevocationService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -64,6 +66,10 @@ class AdminSecurityWebMvcTest {
     private UserPiiSyncReplayService userPiiSyncReplayService;
     @MockBean
     private UserPiiSyncStatusService userPiiSyncStatusService;
+    @MockBean
+    private UserSessionRevocationService userSessionRevocationService;
+    @MockBean
+    private UserRepository userRepository;
     @MockBean
     private JwtUtil jwtUtil;
     @MockBean
@@ -249,6 +255,74 @@ class AdminSecurityWebMvcTest {
     }
 
     @Test
+    @DisplayName("관리자 토큰으로 forced logout API를 호출하면 user session revoke를 실행한다")
+    void adminEndpointAllowsForcedLogout() throws Exception {
+        mockAuthenticatedToken("admin-token", List.of(
+                new SimpleGrantedAuthority("ROLE_USER"),
+                new SimpleGrantedAuthority("ROLE_ADMIN")
+        ));
+        given(userRepository.findIdByUserKey("user-key-1")).willReturn(java.util.Optional.of(1L));
+
+        mockMvc.perform(post("/api/admin/users/forced-logout")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "userKey": "user-key-1"
+                                }
+                                """)
+                        .header("Authorization", "Bearer admin-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.userKey").value("user-key-1"))
+                .andExpect(jsonPath("$.data.accepted").value(true));
+
+        then(userSessionRevocationService).should().revokeUserSessions(org.mockito.BDDMockito.eq("user-key-1"), org.mockito.ArgumentMatchers.anyLong());
+    }
+
+    @Test
+    @DisplayName("forced logout API는 빈 userKey에 400을 반환한다")
+    void adminEndpointRejectsBlankForcedLogoutUserKey() throws Exception {
+        mockAuthenticatedToken("admin-token", List.of(
+                new SimpleGrantedAuthority("ROLE_USER"),
+                new SimpleGrantedAuthority("ROLE_ADMIN")
+        ));
+
+        mockMvc.perform(post("/api/admin/users/forced-logout")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "userKey": "   "
+                                }
+                                """)
+                        .header("Authorization", "Bearer admin-token"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("C001"));
+    }
+
+    @Test
+    @DisplayName("forced logout API는 없는 userKey에 404를 반환한다")
+    void adminEndpointRejectsMissingForcedLogoutUser() throws Exception {
+        mockAuthenticatedToken("admin-token", List.of(
+                new SimpleGrantedAuthority("ROLE_USER"),
+                new SimpleGrantedAuthority("ROLE_ADMIN")
+        ));
+        given(userRepository.findIdByUserKey("missing-user")).willReturn(java.util.Optional.empty());
+
+        mockMvc.perform(post("/api/admin/users/forced-logout")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "userKey": "missing-user"
+                                }
+                                """)
+                        .header("Authorization", "Bearer admin-token"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("U002"));
+    }
+
+    @Test
     @DisplayName("관리자 토큰으로 metadata user_key 백필 API를 호출하면 백필 서비스를 실행한다")
     void adminEndpointAllowsMetadataUserKeyBackfill() throws Exception {
         mockAuthenticatedToken("admin-token", List.of(
@@ -331,6 +405,7 @@ class AdminSecurityWebMvcTest {
     private void mockAuthenticatedToken(String token,
                                         List<SimpleGrantedAuthority> authorities) {
         doNothing().when(jwtUtil).validate(token);
+        given(userSessionRevocationService.isAccessAllowed(token)).willReturn(true);
         given(jwtUtil.getAuthenticatedUser(token)).willReturn(new AuthenticatedUser(1L, "user-key-1"));
         given(jwtUtil.getAuthorities(token)).willReturn(List.copyOf(authorities));
     }

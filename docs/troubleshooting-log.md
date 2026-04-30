@@ -1427,3 +1427,8 @@
 - 문제: `UserSessionRevocationService` skeleton 다음 단계에서 곧바로 `POST /api/admin/users/forced-logout` 까지 열면, old token 차단 실패가 Redis write path 문제인지 `JwtAuthenticationFilter` gate 문제인지 한 번에 뒤엉킬 수 있다
 - 해결: [JwtAuthenticationFilter.java](../backend/src/main/java/com/example/welfare/global/config/JwtAuthenticationFilter.java) 와 [SecurityConfig.java](../backend/src/main/java/com/example/welfare/global/config/SecurityConfig.java) 를 먼저 `UserSessionRevocationService` 기반으로 wiring 하고, [AdminSecurityIntegrationTest.java](../backend/src/test/java/com/example/welfare/integration/AdminSecurityIntegrationTest.java) 에서는 service direct call로 cutoff를 기록한 뒤 `old admin access -> 401 / A006`, `relogin access -> 200` 만 먼저 고정했다
 - 이유: forced logout read gate가 제대로 서야 이후 admin API write path를 붙여도 디버깅 surface가 작다. write path보다 auth gate를 먼저 닫는 편이 회귀 반경을 더 잘 통제한다
+
+## 283) forced logout write path를 열 때 `userKey` 유효성/존재 확인 없이 무조건 revoke intent를 받아 버리면 운영자가 오타와 성공을 구분하기 어려우므로, 1차 API도 최소한 `400/C001` 과 `404/U002` 를 분리하는 편이 낫다
+- 문제: `/api/admin/users/forced-logout` 를 단순 pass-through 로 열면 blank `userKey` 나 존재하지 않는 대상에도 `accepted=true` 가 떨어져, incident/offboarding 상황에서 운영자가 실제 적용 여부를 오해할 수 있다
+- 해결: [UserAdminController.java](../backend/src/main/java/com/example/welfare/user/controller/UserAdminController.java) 에서 body `userKey` trim/blank 검증과 `userRepository.findIdByUserKey(...)` 존재 확인을 먼저 수행하고, [AdminSecurityWebMvcTest.java](../backend/src/test/java/com/example/welfare/admin/AdminSecurityWebMvcTest.java) 로 `blank -> 400/C001`, `missing -> 404/U002`, `valid -> 200` 계약을 고정했다
+- 이유: forced logout은 운영자 액션이라 “실패를 너무 조용히 성공 처리하지 않는 것”도 중요하다. 최소한의 input/not-found 구분을 둬야 write path를 신뢰할 수 있다
