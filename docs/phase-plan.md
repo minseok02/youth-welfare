@@ -1254,6 +1254,9 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - 2026-05-01 admin forced logout Redis shape 고정
   - [auth-admin-forced-logout-redis-shape.md](./auth-admin-forced-logout-redis-shape.md) 를 추가해 forced logout의 Redis state를 `refresh:{userKey}` delete + `access-cutoff:{userKey}` cutoff 기록으로 나누고, `access-revoked:{token}` exact blacklist와 역할을 분리했다
   - 즉 다음 액션은 Redis key 존재 여부가 아니라 token 발급시각과 cutoff 비교를 어떤 claim/정밀도로 할지 문서화하는 쪽으로 좁힌다
+- 2026-05-01 admin forced logout issued-at precision 정책 고정
+  - [auth-admin-forced-logout-issued-at-policy.md](./auth-admin-forced-logout-issued-at-policy.md) 를 추가해 forced logout cutoff는 표준 JWT `iat` 만으로는 충분하지 않고, access token에 custom millis precision claim(`iatm`) 을 추가하는 방향으로 고정했다
+  - 즉 다음 액션은 `JwtUtil` 에 `iatm` write/read helper와 legacy token fallback 범위를 어떻게 둘지 정하는 쪽으로 좁힌다
 
 ## 작업 추적
 

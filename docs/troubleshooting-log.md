@@ -1357,3 +1357,8 @@
 - 문제: 현재 revoke 구현은 `logout` 의 presented bearer token 1개를 `access-revoked:{token}` 로 막는 방식이라 범위가 작다. 이 패턴을 그대로 forced logout에 가져오면 운영자는 old access token 원문을 모르는 상태에서 여러 세션을 한 번에 정리할 수 없다
 - 해결: [auth-admin-forced-logout-redis-shape.md](./auth-admin-forced-logout-redis-shape.md) 를 추가해 forced logout Redis state를 `refresh:{userKey}` delete + `access-cutoff:{userKey}` 기록으로 고정하고, logout의 exact token blacklist와 역할을 분리했다
 - 이유: logout은 current presented token revoke, forced logout은 userKey 기준 existing session revoke다. 둘을 같은 key shape로 처리하면 범위가 모자라거나 구현이 과도하게 복잡해진다
+
+## 270) `admin forced logout` cutoff를 표준 JWT `iat` 초 단위만으로 비교하면 same-second relogin에서 old/new token 경계가 흔들리므로, millis precision claim을 별도로 둬야 한다
+- 문제: forced logout은 `access-cutoff:{userKey}` 와 token 발급시각을 비교해 old token만 막고 fresh login token은 통과시켜야 한다. 그런데 현재 `JwtUtil` 은 표준 `issuedAt(now)` 만 기록하므로, old token과 new token이 같은 초에 발급되면 `iat` 만으로는 cutoff 전후를 안전하게 가르기 어렵다
+- 해결: [auth-admin-forced-logout-issued-at-policy.md](./auth-admin-forced-logout-issued-at-policy.md) 를 추가해 forced logout cutoff 비교는 표준 `iat` 만으로 하지 않고, access token에 custom millis precision claim `iatm` 을 추가하는 방향으로 고정했다
+- 이유: logout exact blacklist와 달리 forced logout은 before/after ordering이 핵심이다. incident/offboarding 경계에서 false allow/false deny를 줄이려면 second precision보다 finer-grained claim이 필요하다
