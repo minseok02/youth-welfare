@@ -84,6 +84,47 @@
 2. 온통청년 마이페이지 OPEN API 관리 화면/다운로드 경로
 3. 운영 담당자 제공 공식 codebook/export
 
+## 현재 가장 현실적인 다음 액션
+
+2026-05-01 기준으로는 **운영 담당자 제공 export/codebook 확보를 먼저 시도하는 것**이 가장 현실적이다.
+
+이유:
+
+- 로컬 저장소에는 authenticated 온통청년 member login/session 자동화 단서가 없다.
+- 현재 확인 가능한 로컬 secret은 `YOUTH_API_KEY` 뿐이고, 이 키만으로는 `srchPolyBizSecd -> label` 전체 metadata inventory를 얻지 못했다.
+- 공개 웹 기준으로도 온통청년 OPEN API는 회원 전용/마이페이지 신청 흐름이며, 마이페이지 OPEN API 관리 화면은 로그인 뒤 수동 접근 경로다.
+
+즉 “이론상 우선순위” 와 “지금 바로 시도 가능한 경로” 는 다르다.
+
+- 이론상 best source: authenticated metadata inventory
+- 현재 practical next step: operator-provided official export/codebook
+
+## 현재 보류하는 시도
+
+아래는 지금 바로 자동화 task로 열지 않는다.
+
+### 1. 마이페이지 로그인 자동화
+
+- member credential 부재
+- 로그인/세션/다운로드 구조 미확정
+- repo 안에 재사용 가능한 자동화 스크립트도 없음
+
+따라서 이 경로는 “가능하면 운영자가 직접 export를 받아 전달”하는 쪽이 먼저다.
+
+### 2. live 목록 payload의 추가 역추론
+
+이미 live payload inventory는 충분히 확인했다.
+추가로 `plcyMajorCd/jobCd/schoolCd/sbizCd` 조합을 더 파도 stable `YOUTH_MID` code source가 되진 않는다.
+
+## reopen 전 체크리스트
+
+stable code mapping SQL을 실제로 쓰기 전에 아래가 충족되어야 한다.
+
+1. `code -> label` 전체 inventory 확보
+2. official source provenance 기록
+3. combo/alias label이 official code inventory 안에서 어떻게 처리되는지 확인
+4. `normalization_codes(YOUTH_MID)` seed와 `service_taxonomy_terms` backfill 규칙을 함께 수정
+
 이 중 어느 경로에서도 `code -> label` 전체 inventory가 확보되지 않으면:
 
 - `normalization_codes(YOUTH_MID)` 는 계속 비운다

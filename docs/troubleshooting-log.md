@@ -1247,3 +1247,8 @@
 - 문제: live inventory까지 끝난 뒤에도 pending에는 여전히 `YOUTH_MID stable code mapping SQL 초안 작성` 이 남아 있었다. 하지만 현재 확보된 근거는 `label inventory` 와 broad code-like field뿐이고, 여기서 바로 SQL을 쓰기 시작하면 다시 임의 surrogate code 생성이나 `plcyMajorCd/jobCd/schoolCd/sbizCd` 오용으로 기울 위험이 있었다
 - 해결: [policy-normalization-youth-mid-stable-code-source-plan.md](./policy-normalization-youth-mid-stable-code-source-plan.md) 를 추가해, stable code mapping을 다시 열 수 있는 source를 `authenticated metadata inventory`, `마이페이지/운영 export`, `operator-provided official codebook` 으로 제한하고, 공개 HTML example·broad code-like field·label 역추론만으로는 reopen하지 않는 기준을 고정했다
 - 이유: `YOUTH_MID` 는 지금 label-only taxonomy로도 수집/정규화/read-model 경계가 유지된다. 따라서 다음 단계는 “억지 SQL 작성”이 아니라 “어떤 source를 truth로 인정할지”를 먼저 고정하는 것이고, 그 기준이 있어야 후속 mapping SQL도 다시 흔들리지 않는다
+
+## 248) source 우선순위와 실제 다음 액션은 다를 수 있고, 지금 `YOUTH_MID` 는 운영 담당자 export/codebook 확보가 더 현실적이다
+- 문제: source plan상으로는 `authenticated metadata/testbed -> 마이페이지 OPEN API 관리 화면 -> 운영 담당자 export` 순서를 적어 둘 수 있지만, 실제 로컬 저장소에는 `YOUTH_API_KEY` 외에 member login/session 자동화 단서가 없다. 이 상태에서 “다음 작은 task”를 계속 로그인 자동화 쪽으로 밀면 근거 없는 크롤링/세션 파헤치기로 새기 쉬웠다
+- 해결: [policy-normalization-youth-mid-stable-code-source-plan.md](./policy-normalization-youth-mid-stable-code-source-plan.md)에 `현재 가장 현실적인 다음 액션` 절을 추가해, 지금은 운영 담당자 제공 export/codebook 확보를 먼저 시도하고, 마이페이지 로그인 자동화는 credential/세션 구조가 준비되기 전까지 보류한다고 고정했다
+- 이유: `YOUTH_MID stable code` 문제의 병목은 SQL 작성이 아니라 source 확보다. 그런데 그 source도 지금 당장 자동 수집 가능한 경로와 수동 확보가 더 빠른 경로가 다르다. 이 차이를 문서로 못 박아야 다음 작업이 다시 인증 우회/역추론으로 새지 않는다
