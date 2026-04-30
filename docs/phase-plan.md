@@ -1245,6 +1245,9 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - 2026-05-01 admin forced logout baseline scope 정책 고정
   - [auth-admin-forced-logout-baseline-policy.md](./auth-admin-forced-logout-baseline-policy.md) 를 추가해 future `admin forced logout` 가 증명해야 할 최소 계약을 `old admin access 즉시 차단 + old refresh 즉시 차단 + account lock과 분리` 로 고정했다
   - 즉 다음 액션은 forced logout 구현이 아니라, 운영자 명시 액션의 진입점과 cutoff 저장 경계를 정하는 쪽으로 좁힌다
+- 2026-05-01 admin forced logout entrypoint 정책 고정
+  - [auth-admin-forced-logout-entrypoint-policy.md](./auth-admin-forced-logout-entrypoint-policy.md) 를 추가해 1차 운영자 진입점을 admin API로, 즉시 revoke state의 source를 Redis cutoff/revocation key로 두는 방향을 고정했다
+  - 즉 다음 액션은 DB/Redis 수동 조작이 아니라, future admin API의 최소 request/response 계약을 먼저 문서화하는 쪽으로 좁힌다
 
 ## 작업 추적
 

@@ -1342,3 +1342,8 @@
 - 문제: allowlist 제거 baseline과 refresh 정책을 닫고 나면, 다음 hardening 후보인 `admin forced logout` 이 “운영자가 버튼을 누르면 뭔가 더 세게 막는 것” 정도로만 남기 쉽다. 이 상태에서 구현을 먼저 열면 `old access 즉시 차단`, `old refresh 즉시 차단`, `계정 영구 차단 여부`가 다시 한 기능으로 뒤섞인다
 - 해결: [auth-admin-forced-logout-baseline-policy.md](./auth-admin-forced-logout-baseline-policy.md) 를 추가해 future forced logout baseline을 `old access immediate fail + old refresh immediate fail + account lock과 분리` 로 고정했다
 - 이유: forced logout은 existing session revoke이고, allowlist revoke는 future role issuance revoke다. 둘의 제품 의미를 다시 섞지 않으려면 implementation보다 success criteria를 먼저 박아 두는 편이 안전하다
+
+## 267) `admin forced logout` 진입점을 DB/Redis 수동 조작으로 열면 운영 우회와 제품 계약이 섞이므로, 운영자 액션과 즉시 revoke source를 분리해서 고정해야 한다
+- 문제: forced logout baseline을 고정한 뒤 바로 구현을 열면, 운영자가 어디서 이 기능을 누르는지와 revoke state를 어디에 저장하는지가 다시 뒤섞인다. DB 직접 수정은 의미가 너무 크고, Redis 수동 key 주입은 운영 우회에 가깝다
+- 해결: [auth-admin-forced-logout-entrypoint-policy.md](./auth-admin-forced-logout-entrypoint-policy.md) 를 추가해 1차 운영자 진입점을 admin API로, 즉시 revoke source를 Redis cutoff/revocation key로 고정했다
+- 이유: admin API는 제품 의미와 감사 가능성이 가장 분명하고, Redis는 기존 logout/refresh revoke 경계와 가장 잘 맞는다. 역할을 이렇게 나눠야 allowlist/account state와 session revoke가 다시 섞이지 않는다
