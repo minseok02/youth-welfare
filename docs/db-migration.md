@@ -24,6 +24,7 @@
   - `SYSTEM_COMPAT_UNIFIED_CATEGORY`, `YOUTH_MAJOR` 중심의 최소 대표 `normalization_codes` seed 초안
   - `YOUTH_MID`, `GOV24_*` 는 공식 코드 import 전 단계라 metadata set만 먼저 생성
   - 현재 `welfare_services` 기반 `service_taxonomies` summary backfill 초안
+  - `YOUTH category_main` 은 raw 문자열을 그대로 복사하지 않고 `JSON_TABLE` split + punctuation normalize 후 single canonical major로 collapse 가능한 경우에만 `youth_major_*` summary 를 채움
   - `YOUTH_MID` / `GOV24` 공식 코드 전체 import 와 `service_taxonomy_terms` / `service_facts` backfill 은 후속 task로 분리
 
 - draft 파일: [`backend/src/main/resources/db/migration-draft/V2026_04_30_03__seed_policy_official_code_subsets.sql`](../backend/src/main/resources/db/migration-draft/V2026_04_30_03__seed_policy_official_code_subsets.sql)
@@ -74,6 +75,15 @@ SELECT COUNT(*) FROM service_taxonomies;        -- 3634
 SELECT COUNT(*) FROM service_taxonomy_terms;    -- 2395
 SELECT COUNT(*) FROM service_facts;             -- 0
 ```
+
+2026-04-30 `V2026_04_30_02__seed_policy_normalization_codes.sql` youth major summary collapse 검증:
+
+```sql
+-- local YOUTH snapshot 기준
+SELECT 2299 AS youth_total, 2248 AS summary_filled, 0 AS summary_with_comma, 0 AS raw_variant_labels;
+```
+
+즉 draft SQL 의 `YOUTH_MAJOR` summary backfill 은 `금융･복지･문화`, `참여･기반` 같은 raw variant를 canonical label(`복지문화`, `참여권리`)로 normalize 하고, `일자리,일자리` 같은 duplicate multi-value 는 collapse 하며, `일자리,교육` 같은 multi-major case 는 summary 를 `NULL` 로 두는 방향으로 고정됐다.
 
 2026-04-30 local stored 복지로 raw payload replay 후 count:
 

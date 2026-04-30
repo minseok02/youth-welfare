@@ -62,7 +62,66 @@ ON DUPLICATE KEY UPDATE
 
 -- official YOUTH_MID / GOV24 code import 는 후속 task로 분리한다.
 -- 이 draft 에서는 metadata set 만 만들고, 현재 welfare_services 기반 summary backfill 에 필요한 최소 대표 코드만 먼저 seed 한다.
+-- YOUTH major summary 는 raw category_main 을 그대로 복사하지 않고,
+-- comma split + punctuation normalize 뒤 single canonical major 로 collapse 가능한 경우에만 채운다.
 
+WITH youth_major_tokens AS (
+    SELECT
+        ws.id AS service_id,
+        CASE REPLACE(TRIM(jt.token), '･', '·')
+            WHEN '일자리' THEN 'JOB'
+            WHEN '주거' THEN 'HOUSING'
+            WHEN '교육' THEN 'EDUCATION'
+            WHEN '교육지원' THEN 'EDUCATION'
+            WHEN '교육·직업훈련' THEN 'EDUCATION'
+            WHEN '복지문화' THEN 'WELFARE_CULTURE'
+            WHEN '금융·복지·문화' THEN 'WELFARE_CULTURE'
+            WHEN '참여권리' THEN 'PARTICIPATION_RIGHTS'
+            WHEN '참여·기반' THEN 'PARTICIPATION_RIGHTS'
+            ELSE NULL
+        END AS canonical_code,
+        CASE REPLACE(TRIM(jt.token), '･', '·')
+            WHEN '일자리' THEN '일자리'
+            WHEN '주거' THEN '주거'
+            WHEN '교육' THEN '교육'
+            WHEN '교육지원' THEN '교육'
+            WHEN '교육·직업훈련' THEN '교육'
+            WHEN '복지문화' THEN '복지문화'
+            WHEN '금융·복지·문화' THEN '복지문화'
+            WHEN '참여권리' THEN '참여권리'
+            WHEN '참여·기반' THEN '참여권리'
+            ELSE NULL
+        END AS canonical_label
+    FROM welfare_services ws
+    JOIN JSON_TABLE(
+        CONCAT(
+            '["',
+            REPLACE(REPLACE(REPLACE(COALESCE(ws.category_main, ''), '\\', '\\\\'), '"', '\\"'), ',', '","'),
+            '"]'
+        ),
+        '$[*]' COLUMNS (token VARCHAR(255) PATH '$')
+    ) jt
+    WHERE ws.source_type = 'YOUTH'
+      AND TRIM(COALESCE(ws.category_main, '')) <> ''
+),
+youth_major_summary AS (
+    SELECT
+        service_id,
+        CASE
+            WHEN SUM(canonical_code IS NULL) = 0
+                 AND COUNT(DISTINCT canonical_code) = 1
+            THEN MAX(canonical_code)
+            ELSE NULL
+        END AS youth_major_code,
+        CASE
+            WHEN SUM(canonical_code IS NULL) = 0
+                 AND COUNT(DISTINCT canonical_code) = 1
+            THEN MAX(canonical_label)
+            ELSE NULL
+        END AS youth_major_label
+    FROM youth_major_tokens
+    GROUP BY service_id
+)
 INSERT INTO service_taxonomies (
     service_id,
     primary_source_system,
@@ -95,18 +154,8 @@ SELECT
         ELSE 'OTHER'
     END AS compat_unified_category_code,
     ws.unified_category AS compat_unified_category_label,
-    CASE
-        WHEN ws.source_type = 'YOUTH' AND ws.category_main = '일자리' THEN 'JOB'
-        WHEN ws.source_type = 'YOUTH' AND ws.category_main = '주거' THEN 'HOUSING'
-        WHEN ws.source_type = 'YOUTH' AND ws.category_main IN ('교육', '교육지원', '교육·직업훈련') THEN 'EDUCATION'
-        WHEN ws.source_type = 'YOUTH' AND ws.category_main IN ('복지문화', '금융·복지·문화') THEN 'WELFARE_CULTURE'
-        WHEN ws.source_type = 'YOUTH' AND ws.category_main IN ('참여권리', '참여·기반') THEN 'PARTICIPATION_RIGHTS'
-        ELSE NULL
-    END AS youth_major_code,
-    CASE
-        WHEN ws.source_type = 'YOUTH' THEN ws.category_main
-        ELSE NULL
-    END AS youth_major_label,
+    yms.youth_major_code AS youth_major_code,
+    yms.youth_major_label AS youth_major_label,
     NULL AS youth_mid_code,
     CASE
         WHEN ws.source_type = 'YOUTH' AND TRIM(COALESCE(ws.category_sub, '')) IN (
@@ -141,6 +190,8 @@ SELECT
         ELSE 0.700
     END AS confidence
 FROM welfare_services ws
+LEFT JOIN youth_major_summary yms
+    ON yms.service_id = ws.id
 LEFT JOIN service_taxonomies st
     ON st.service_id = ws.id
 WHERE st.service_id IS NULL;
