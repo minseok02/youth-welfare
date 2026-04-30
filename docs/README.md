@@ -244,6 +244,9 @@
 - [policy-bokjiro-detail-budget-observability-policy.md](./policy-bokjiro-detail-budget-observability-policy.md)
   복지로 detail refresh/gap-fill 의 `centralBudget` / `localBudget` 을 admin observability에 어디까지 노출할지 확인합니다.
 
+- [policy-bokjiro-gap-fill-budget-strategy.md](./policy-bokjiro-gap-fill-budget-strategy.md)
+  `bokjiro-details-gap-fill` 를 몇 라운드, 몇 호출부터 시작하고 어디서 멈출지 운영 기준을 확인합니다.
+
 - [troubleshooting-log.md](./troubleshooting-log.md)  
   이전에 발생한 장애와 해결 과정을 확인합니다.
 

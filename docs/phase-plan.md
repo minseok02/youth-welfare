@@ -1330,7 +1330,6 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 
 ### 진행 예정
 
-- [ ] `bokjiro-details-gap-fill` 추가 라운드/호출 예산 전략 정리 후 stored detail payload coverage 추가 확대
 - [x] same `promptSha256` + same `replaySeed` + same `system_fingerprint` 조건에서도 `ai_score` drift가 남는 현상을 제품적으로 어떻게 다룰지 결정
 - [x] replay/cleanup system cron entry 예시 작성
 - [x] replay nightly/cleanup cron host 적용 runbook 작성
@@ -1398,6 +1397,10 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - [x] 복지로 detail refresh budget metadata(`centralBudget`/`localBudget`) 를 admin collect observability에 노출할지 결정
   - [policy-bokjiro-detail-budget-observability-policy.md](./policy-bokjiro-detail-budget-observability-policy.md) 를 추가해 `centralBudget/localBudget` 은 service 내부 metadata/log 에는 유지하되, 현재 phase의 admin API response 계약에는 올리지 않는다고 고정했다
   - `bokjiro-details-gap-fill` 은 multi-round summary 응답이라 budget 을 response에 올리면 round별/aggregate 의미가 애매해지고, 운영 1차 지표도 budget 자체보다 coverage/fact density 쪽이므로 observability 확장은 future status endpoint 또는 별도 track 으로 미뤘다
+- [x] `bokjiro-details-gap-fill` 추가 라운드/호출 예산 전략 정리
+  - [policy-bokjiro-gap-fill-budget-strategy.md](./policy-bokjiro-gap-fill-budget-strategy.md) 를 추가해 current phase 기본 시작점을 `2 rounds x 20 calls`, 다음 증분을 `2 rounds x 40 calls`, `95/API` 는 catch-up 용 상한으로 두는 운영 기준을 고정했다
+  - stop 조건은 `savedCount=0`, coverage 증가 대비 낮은 fact 증가 효율, rate-limit 부담으로 두고, gap-fill 평가는 budget보다 raw detail coverage / missing backlog / `service_facts` density 결과를 먼저 보도록 정리했다
+- [ ] 위 budget 전략 기준으로 stored detail payload coverage 추가 확대
 - [ ] 운영 서버 Docker Compose 기동
 - [ ] 기존 운영 DB에 `app_core_rw` / `app_pii_rw` / `notification_pii_ro` / `migration_admin` 계정 생성 및 앱 datasource 전환
 - [ ] 운영 `.env` / secret store의 `APP_PII_DB_URL` / `NOTIFICATION_PII_DB_URL` 를 `youth_welfare_pii` schema 기준으로 전환

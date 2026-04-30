@@ -288,6 +288,11 @@
 - 해결: [policy-bokjiro-detail-budget-observability-policy.md](./policy-bokjiro-detail-budget-observability-policy.md) 에서 현재 phase에서는 budget metadata를 service 내부 metadata/log 에만 유지하고, admin API response는 rounds/saved/failed 같은 summary 중심 계약으로 유지한다고 고정했음
 - 이유: observability는 “이미 계산하는 값이면 다 응답에 올린다”가 아니라, 운영자가 어떤 결정을 위해 어떤 granularity가 필요한지에 맞춰야 한다. 지금 단계의 1차 운영 지표는 budget 자체보다 coverage/fact density라 response 확장을 서두르지 않는 편이 안전하다
 
+## 286) 복지로 gap-fill 은 `95/API` 상한이 있다고 해서 그 값을 기본 운영값으로 삼으면 coverage 실험과 catch-up run이 구분되지 않는다
+- 문제: `bokjiro-details-gap-fill` 는 per-run `95/API` cap 을 유지하지만, 그 상한을 바로 기본값처럼 쓰면 “작은 예산으로 coverage slope를 보는 단계”와 “backlog를 실제로 밀어내는 catch-up 단계”가 운영상 구분되지 않을 수 있었다
+- 해결: [policy-bokjiro-gap-fill-budget-strategy.md](./policy-bokjiro-gap-fill-budget-strategy.md) 에서 current phase 기본 시작점을 `2 rounds x 20 calls`, 다음 증분을 `2 rounds x 40 calls`, `95/API` 는 catch-up 용 상한으로만 쓰는 전략으로 고정했음
+- 이유: gap-fill 은 API를 최대한 많이 태우는 작업이 아니라, coverage ceiling과 fact density 효율을 함께 보는 작업이다. 작은 round/budget step을 먼저 두어야 payload coverage 증가와 fact 증가를 덜 헷갈리고, `95/API` 는 정말 backlog drain 이 필요할 때만 쓰게 된다
+
 ## 50) 새 챗 세션의 `last_message_at`가 NULL이면 최근 세션 정렬이 흔들릴 수 있음
 - 문제: 챗봇 세션은 생성 직후 메시지가 없을 수 있는데 `last_message_at`를 nullable로 두면 세션 목록 최신순 정렬에서 DB별 NULL 정렬 차이 때문에 방금 만든 세션이 뒤로 밀릴 수 있었음
 - 해결: `chat_sessions.last_message_at`를 `NOT NULL DEFAULT CURRENT_TIMESTAMP`로 설계하고 `(user_id, last_message_at DESC)` 인덱스를 함께 추가
