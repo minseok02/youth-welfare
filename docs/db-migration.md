@@ -31,6 +31,7 @@
   - Gov24 `supportConditions` 에서 현재 조사로 근거가 확인된 대표 공식 코드(`JA0101`, `JA0102`, `JA0110`, `JA0111`, `JA0201~JA0205`, `JA0320`, `JA0327`, `JA0412`) seed 초안
   - `YOUTH_MID` 는 stable code 없이 official label/정렬만 공개된 상태라 `normalization_codes` 는 비우고, 기존 `welfare_services.category_sub` 를 쉼표 기준 split/trim 한 뒤 official label과 exact match 하는 term만 `service_taxonomy_terms(term_code='')` 로 backfill 하는 초안
   - 로컬 DB 검증 기준 `YOUTH.category_sub` split token은 official 17개 라벨에 수렴하지만 `온·오프라인교육`, `문화활동 및 생활지원` 두 variant가 추가로 보여, alias normalization은 후속 task로 분리
+  - 공개 API HTML에서는 `srchPolyBizSecd=003002001,003002002` 예시만 보이고, `/sur/link/openApiIntro/46`, `/sur/link/openInfoChcApi` 는 비로그인 상태에서 `Unauthorized` 를 반환하므로 `YOUTH_MID` stable code import 는 authenticated testbed/live inventory 확보 전까지 보류
   - `GOV24_SERVICE_FIELD`, `GOV24_USER_TYPE`, `GOV24_BENEFIT_TYPE` 는 field 자체는 확인됐지만 finite code inventory 를 확보하지 못해 이번 단계에서는 metadata/placeholder만 유지
 
 - 파일: [`backend/src/main/resources/db/migration/V2026_04_28_02__add_user_pii_sync_queue.sql`](../backend/src/main/resources/db/migration/V2026_04_28_02__add_user_pii_sync_queue.sql)

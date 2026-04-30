@@ -732,3 +732,8 @@
 - 문제: 로컬 DB를 다시 확인해 보니 `YOUTH.category_sub` 는 `취업`, `재직자` 같은 단일 official label만 있는 게 아니라 `취업,재직자`, `취업,창업`, `온·오프라인교육`, `문화활동 및 생활지원` 같은 multi-value/variant 문자열도 함께 들어 있었다. 이 값을 split 없이 그대로 `YOUTH_MID` term으로 적재하면 official 중분류 집합과 raw source noise가 같은 계층에 섞일 위험이 있었음
 - 해결: `V2026_04_30_03__seed_policy_official_code_subsets.sql` 의 `YOUTH_MID` backfill 을 `split + trim + exact official label filter` 방식으로 바꾸고, 공개 시트의 17개 official label과 일치하는 token만 `service_taxonomy_terms(term_code='')` 에 적재하도록 수정했음. `온·오프라인교육`, `문화활동 및 생활지원` 같은 variant는 alias normalization 후속 task로 분리했음
 - 이유: `YOUTH_MID` 는 아직 stable code 가 없기 때문에 term_label 자체가 canonical key 역할을 일부 대신한다. 따라서 raw combo string 을 그대로 넣지 말고, 최소한 official label inventory와 exact match 하는 값만 먼저 넣어야 taxonomy 정합성과 재발 방지에 안전하다
+
+## 145) 공개 문서에 `srchPolyBizSecd=003002001,003002002` 예시가 보이더라도, 상세 metadata inventory 를 비로그인 상태에서 가져올 수 없으면 그 두 값만으로 `YOUTH_MID` stable code 체계를 확정하면 안 됨
+- 문제: 온통청년 공개 API 문서 HTML에서는 `srchPolyBizSecd=003002001,003002002` 예시가 노출되지만, 실제 파라미터/응답 메타데이터를 주는 `/sur/link/openApiIntro/46`, `/sur/link/openInfoChcApi` 는 비로그인 상태에서 모두 `Unauthorized` 를 반환했다. 이 상태에서 보이는 두 코드만 근거로 `YOUTH_MID` 전체 stable code를 역추론해 seed 하면, 나머지 중분류와의 체계가 뒤틀릴 위험이 있었음
+- 해결: 이번 단계에서는 `YOUTH_MID` stable code import 를 보류하고 `service_taxonomy_terms(term_code='')` label-only 전략을 유지하기로 정책을 고정했음. 후속 task는 로그인 가능한 testbed/live payload 에서 `srchPolyBizSecd` 전체 inventory 를 먼저 수집한 뒤 stable code mapping SQL 초안을 쓰는 것으로 다시 쪼갰음
+- 이유: partial example 과 전체 inventory 는 다르다. 공개 페이지 예시 몇 개만으로 코드 체계를 미리 확정하면 이후 authenticated source 에서 실제 inventory 가 드러났을 때 기존 seed/backfill 과 충돌하기 쉬워 재발 방지에 불리하다

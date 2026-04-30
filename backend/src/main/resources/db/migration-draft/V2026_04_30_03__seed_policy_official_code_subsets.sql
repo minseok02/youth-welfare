@@ -3,6 +3,9 @@
 -- 이 파일은 "공식 source가 stable code 값을 공개한 집합"만 먼저 seed 한다.
 -- `YOUTH_MID`, `GOV24_SERVICE_FIELD`, `GOV24_USER_TYPE`, `GOV24_BENEFIT_TYPE` 처럼
 -- 공개 필드/라벨은 확인됐지만 stable codebook 까지는 확보하지 못한 집합은 후속 task로 분리한다.
+-- 특히 `YOUTH_MID` 는 공개 HTML에 `srchPolyBizSecd=003002001,003002002` 예시만 보이고,
+-- 상세 inventory endpoint(`/sur/link/openApiIntro/46`, `/sur/link/openInfoChcApi`)는 비로그인 상태에서 `Unauthorized` 를 반환하므로
+-- 로그인 가능한 testbed/live payload 검증 전까지는 label-only backfill 정책을 유지한다.
 
 USE youth_welfare;
 
