@@ -139,3 +139,7 @@ explicit table은 단순 문서가 아니라
 1. `교육 -> 교육·직업훈련` 단일 후보를 실제 실험 대상으로 볼지 결정
 2. `참여권리` 의 `청년참여` subset만 분리 bridge 후보로 둘지 결정
 3. `compat_unified_category` 를 저장 필드로 유지할지, read-model 계산값으로 바꿀지 재검토
+
+`교육` 실험 후보 결정은
+[policy-normalization-education-priority-experiment.md](./policy-normalization-education-priority-experiment.md)
+에 별도로 정리한다.

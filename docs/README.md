@@ -73,6 +73,9 @@
 - [policy-normalization-priority-bridge-table-policy.md](./policy-normalization-priority-bridge-table-policy.md)
   canonical `youth_major -> legacy priority bucket` explicit bridge table을 지금 도입할지, 아니면 실험/전환 착수 시점까지 보류할지 정책을 확인합니다.
 
+- [policy-normalization-education-priority-experiment.md](./policy-normalization-education-priority-experiment.md)
+  `교육 -> 교육·직업훈련` 을 기본 동작 변경 없이 첫 priority 실험 후보로 승인할지, 승인한다면 어느 범위까지 좁게 실험할지 확인합니다.
+
 - [policy-source-onboarding-playbook.md](./policy-source-onboarding-playbook.md)
   실제 DB 적재 스냅샷을 기준으로 일자리/주거/장학/공공서비스 source를 `정책형 / listing형 / reference형` 으로 어떻게 나눠 붙일지 확인합니다.
 
