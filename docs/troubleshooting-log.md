@@ -1122,3 +1122,8 @@
 - 문제: current real-openai artifact 분포를 보면 sample B는 `/tmp/tmp.WoIyHuKtMd` 에서 `0 -> 1`, `/tmp/tmp.EZBH319uNA` 에서 `1 -> 0`, `/tmp/tmp.TpE5SaiHJu` 에서 `1 -> 1` 처럼 증가/감소/유지를 모두 보였다. 이 상태에서 increase만 fail 로 고정하면 live variability를 코드 회귀로 과대 판정할 위험이 크다
 - 해결: [openai-replay-allowed-drift-metrics.md](./openai-replay-allowed-drift-metrics.md), [openai-replay-validation-policy.md](./openai-replay-validation-policy.md)에 sample B `unexpected increase` 는 현재 warning 으로만 취급하는 정책을 고정했다. hard gate는 계속 `rule-only` 와 trace/artifact 완전성에 둔다
 - 이유: sample B control drift 자체가 same fingerprint 안에서도 흔들리는 상태라면, count increase 하나만 fail 조건으로 쓰는 건 비대칭적이다. 지금은 “관측 신호”로 남기고 artifact review로 연결하는 쪽이 더 안정적이다
+
+## 223) sample B warning은 `same fingerprint` run에만 한정하지 말고, 모든 `real-openai` replay에서 같은 규칙으로 띄우는 편이 낫다
+- 문제: same fingerprint 여부는 drift 원인을 좁히는 데는 중요하지만, warning 자체를 그 조건에만 묶어 버리면 `different fingerprint` run에선 control sample 이상 징후를 놓치게 된다
+- 해결: [openai-replay-allowed-drift-metrics.md](./openai-replay-allowed-drift-metrics.md), [openai-replay-validation-policy.md](./openai-replay-validation-policy.md)에 sample B `unexpected target count increase` warning은 모든 `real-openai` replay에서 동일하게 띄우고, `systemFingerprint` 동일 여부는 warning 이후 triage 정보로만 쓰는 정책을 반영했다
+- 이유: warning 조건은 “control sample 이상 징후가 있었는가”를 알려주는 1차 신호이고, fingerprint는 그 다음 분석 단계다. 둘을 섞으면 조건이 복잡해지고 운영자가 artifact를 다시 볼 타이밍을 놓치기 쉽다

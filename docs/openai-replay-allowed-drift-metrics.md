@@ -173,8 +173,40 @@ same `promptSha256` + same `replaySeed` + same `systemFingerprint`
 
 가 더 일관된 기준입니다.
 
+## 왜 warning을 `same fingerprint` 조건에만 묶지 않나
+
+현재 기준에서 `unexpected increase` warning은
+**모든 `real-openai` replay** 에서 동일하게 띄우는 쪽이 맞습니다.
+
+이유는 두 단계가 다르기 때문입니다.
+
+1. warning 발생 여부
+2. warning 원인 해석
+
+warning 자체는:
+
+- sample B control 성격이 흔들렸는지
+- 사람이 artifact를 다시 봐야 하는지
+
+를 알리는 신호입니다.
+
+반면 `same fingerprint` 여부는
+그 warning의 원인을
+
+- backend churn
+- same fingerprint 안의 live variability
+
+중 어디로 더 좁힐지 결정하는 **진단 정보** 입니다.
+
+따라서:
+
+- warning 조건은 모든 `real-openai` replay에 동일 적용
+- `systemFingerprint` 는 warning 이후 triage 분기
+
+가 더 단순하고 일관됩니다.
+
 ## 다음 작업
 
 1. replay script summary를 `target count metric 중심` 으로 더 명시적으로 출력할지 결정
-2. sample B warning을 어떤 artifact 조건에서만 출력할지 정교화
+2. replay summary에 `fingerprint-same|different` 라벨을 같이 찍을지 결정
 3. 필요하면 `real-openai` replay를 nightly/diagnostic lane으로 분리
