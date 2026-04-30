@@ -1087,3 +1087,8 @@
 - 문제: trace export를 켠 intentional real-openai replay artifact(`/tmp/tmp.WoIyHuKtMd`)에서 sample B `edu-b-off-ai-trace.log` / `edu-b-on-ai-trace.log` 는 `candidateIds=356,399,403,404,405,407,359,364,365,371,375,381,383,384,390`, `promptSha256=f7e810...` 로 완전히 동일했다. 그런데도 `edu-b-off-scores.tsv` / `edu-b-on-scores.tsv` 의 `ai_score` 와 `final_score` 는 다시 달라졌고 top-10 target row도 `0 -> 1` 로 바뀌었다
 - 해결: phase-plan 다음 작업을 `prompt/input drift 추적`에서 `같은 입력에서도 생기는 live AI 응답 변동성 완화 전략(temperature, seed 지원 여부, cache/replay 방식)` 검토로 다시 좁혔다
 - 이유: 동일 trace인데 결과가 달라졌다면, 더 이상 retrieval/prompt 조성 버그를 먼저 의심할 단계는 아니다. 이제는 live model nondeterminism을 제품/운영 관점에서 어떻게 다룰지로 넘어가야 한다
+
+## 216) `real-openai` replay drift 대응에선 prompt caching 보다 `seed + system_fingerprint` 증적이 먼저다
+- 문제: same `candidateIds` / same `promptSha256` 인데도 `ai_score` 가 달라지는 상태에서, latency/cost용 기능과 determinism 보조 기능을 구분하지 않으면 대응 우선순위가 흐려진다
+- 해결: 공식 OpenAI 문서 기준으로 선택지를 다시 정리했고, [openai-replay-stability-options.md](./openai-replay-stability-options.md)에 `seed` 는 best-effort determinism 수단, `system_fingerprint` 는 backend 변화 추적용, Prompt Caching 은 latency/cost 최적화용이라는 경계를 고정했다. 다음 구현 우선순위도 optional replay `seed` 와 `system_fingerprint` / response id trace 추가로 좁혔다
+- 이유: prompt caching 은 output generation 자체를 안정화하는 기능이 아니므로, 지금 같은 replay drift 분석에는 원인 분리력이 약하다. 반대로 `seed + system_fingerprint` 는 “같은 입력 + 같은 seed + 같은 backend 조건”을 증명하는 최소 증적이어서 다음 디버깅 단계의 정보 가치가 더 높다
