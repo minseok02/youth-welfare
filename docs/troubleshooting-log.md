@@ -1307,3 +1307,8 @@
 - 문제: bearer-present logout revoke를 넣은 뒤에는, refresh cookie만 실린 `cookie-only logout` 도 같은 방식으로 “모든 access token 즉시 차단”까지 해줘야 하는 것처럼 보일 수 있다. 하지만 이 경로는 현재 요청에 어떤 access token이 살아 있었는지 서버가 직접 보지 못하고, 다중 로그인/재로그인/`iat` 경계까지 함께 풀어야 한다
 - 해결: [auth-logout-revocation-scope-policy.md](./auth-logout-revocation-scope-policy.md) 를 추가해 현재 phase의 계약을 `bearer-present exact token revoke` 와 `cookie-only refresh-only` 로 분리하고, user-level cutoff는 별도 reopen 조건이 생길 때만 다시 열기로 고정했다
 - 이유: 지금 필요한 건 “logout에 사용한 현재 token의 즉시 차단”이지, 전체 세션 모델 재정의가 아니다. `cookie-only logout` 을 조용히 넓히면 브라우저 logout, 모바일/다중 세션, admin 강제 로그아웃 의미가 한 번에 섞여 실패 반경이 커진다
+
+## 260) future user-level revoke는 generic logout보다 `withdraw` 와 `admin forced logout` 같은 더 강한 보안 이벤트부터 여는 편이 실패 반경을 더 잘 통제할 수 있다
+- 문제: `cookie-only logout` 을 refresh-only 계약으로 고정한 뒤에도, “그럼 다음에 user-level cutoff를 어디서부터 다시 열 것인가”가 남는다. 이걸 generic logout부터 다시 열면 브라우저 UX, multi-device sign-out, 재로그인 경계가 한 번에 엮인다
+- 해결: [auth-revocation-reopen-order.md](./auth-revocation-reopen-order.md) 를 추가해 reopen 우선순위를 `withdraw -> admin forced logout -> generic cookie-only logout` 으로 고정했다
+- 이유: 탈퇴와 운영 강제 로그아웃은 계정 폐기/권한 회수라는 더 강한 이벤트라 제품 의미가 분명하다. 반면 generic logout은 세션 UX 의미가 더 커서, 같은 cutoff 기술을 쓰더라도 가장 나중에 여는 편이 안전하다

@@ -1224,6 +1224,9 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - 2026-05-01 cookie-only logout revocation scope 정책 고정
   - [auth-logout-revocation-scope-policy.md](./auth-logout-revocation-scope-policy.md) 를 추가해 현재 phase의 logout 계약을 `bearer-present exact token revoke` 와 `cookie-only refresh-only` 로 분리했다
   - user-level cutoff(`logoutAt` / `revokedAfter`) 는 다중 세션, `iat` 정밀도, 재로그인 경계까지 함께 설계해야 하므로 지금 단계에서는 reopen하지 않기로 고정했다
+- 2026-05-01 user-level revoke reopen order 고정
+  - [auth-revocation-reopen-order.md](./auth-revocation-reopen-order.md) 를 추가해 future cutoff 우선순위를 `withdraw -> admin forced logout -> generic cookie-only logout` 으로 정리했다
+  - 즉 다음 hardening 후보는 브라우저 logout 전체 세션 회수보다 강한 보안 이벤트인 `withdraw` 와 future 운영 강제 로그아웃이다
 
 ## 작업 추적
 
@@ -1284,6 +1287,7 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - [x] 신규 source의 source-specific 필드를 raw + AI batch enrichment fact 로 흡수하는 파이프라인 초안 작성
 - [x] logout 후 access token 즉시 무효화 전략 검토/구현
 - [x] cookie-only logout 경로를 refresh-only 계약으로 유지할지, user-level cutoff로 넓힐지 결정
+- [x] future user-level revoke를 다시 연다면 `withdraw`, `관리자 강제 로그아웃`, generic `cookie-only logout` 중 무엇을 먼저 다룰지 결정
 - [ ] 운영 서버 Docker Compose 기동
 - [ ] 기존 운영 DB에 `app_core_rw` / `app_pii_rw` / `notification_pii_ro` / `migration_admin` 계정 생성 및 앱 datasource 전환
 - [ ] 운영 `.env` / secret store의 `APP_PII_DB_URL` / `NOTIFICATION_PII_DB_URL` 를 `youth_welfare_pii` schema 기준으로 전환
