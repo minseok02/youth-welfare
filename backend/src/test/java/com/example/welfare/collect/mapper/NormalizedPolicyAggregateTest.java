@@ -193,10 +193,10 @@ class NormalizedPolicyAggregateTest {
                 .status(WelfareService.ServiceStatus.ACTIVE)
                 .build();
         BokjiroDetailClient.DetailPayload payload = BokjiroDetailClient.DetailPayload.builder()
-                .targetDetail("만 20세 이상 34세 이하 미취업 청년")
+                .targetDetail("만 20세 이상 34세 이하 미취업 청년, 국민기초생활보장수급자 우대")
                 .supportDetail("직무교육 제공")
                 .applyMethodDetail("온라인 신청, 2026.12.31 까지")
-                .selectionCriteria("연령 요건 확인")
+                .selectionCriteria("연령 요건 확인, 차상위 본인부담경감대상자 포함")
                 .contactList("고객센터")
                 .supportCycle("연 1회")
                 .provisionType("프로그램")
@@ -206,6 +206,17 @@ class NormalizedPolicyAggregateTest {
 
         assertThat(aggregate.detail().targetDetail()).contains("20세");
         assertThat(aggregate.detail().applyMethodDetail()).contains("2026.12.31");
+        assertThat(aggregate.taxonomyTerms())
+                .extracting(NormalizedPolicyAggregate.TaxonomyTerm::termGroup,
+                        NormalizedPolicyAggregate.TaxonomyTerm::termLabel,
+                        NormalizedPolicyAggregate.TaxonomyTerm::sourceField,
+                        NormalizedPolicyAggregate.TaxonomyTerm::authority)
+                .containsExactly(
+                        tuple("TARGET_GROUP", "기초생활수급자", "targetDetail/selectionCriteria",
+                                NormalizedPolicyAggregate.Authority.SYSTEM_DERIVED),
+                        tuple("TARGET_GROUP", "차상위계층", "targetDetail/selectionCriteria",
+                                NormalizedPolicyAggregate.Authority.SYSTEM_DERIVED)
+                );
         assertThat(aggregate.facts())
                 .filteredOn(fact -> "AGE".equals(fact.factGroup()))
                 .singleElement()
@@ -224,6 +235,25 @@ class NormalizedPolicyAggregateTest {
                     assertThat(fact.factMergeKey()).isEqualTo("BK_APPLY_END_DATE");
                     assertThat(fact.dateValue()).isEqualTo(LocalDate.of(2026, 12, 31));
                 });
+    }
+
+    @Test
+    void toNormalizedBokjiroDetail_ignoresBroadNonWhitelistBeneficiaryLabels() {
+        WelfareService service = WelfareService.builder()
+                .sourceType(WelfareService.SourceType.BOKJIRO_LOCAL)
+                .sourceId("L002")
+                .title("복지로 지원")
+                .unifiedCategory("금융·생활지원")
+                .status(WelfareService.ServiceStatus.ACTIVE)
+                .build();
+        BokjiroDetailClient.DetailPayload payload = BokjiroDetailClient.DetailPayload.builder()
+                .targetDetail("취업취약계층 및 정보 소외계층 지원")
+                .selectionCriteria("저소득 한부모가족 우대")
+                .build();
+
+        NormalizedPolicyAggregate aggregate = mapper.toNormalizedBokjiroDetail(service, payload);
+
+        assertThat(aggregate.taxonomyTerms()).isEmpty();
     }
 
     private void setField(Object target, String name, Object value) throws Exception {

@@ -45,6 +45,15 @@ public class WelfareServiceMapper {
     private static final String BOKJIRO_APPLY_END_DATE_FACT_CODE = "BOKJIRO_RULE_APPLY_END_DATE";
     private static final String BOKJIRO_AGE_MERGE_KEY = "BK_AGE_ELIGIBILITY";
     private static final String BOKJIRO_APPLY_END_DATE_MERGE_KEY = "BK_APPLY_END_DATE";
+    private static final List<String> BOKJIRO_BASIC_LIVELIHOOD_LABELS = List.of(
+            "국민기초생활보장수급자",
+            "기초생활수급자",
+            "생계급여 수급자",
+            "의료급여 수급자",
+            "주거급여 수급자",
+            "교육급여 수급자",
+            "수급권자"
+    );
     private static final Set<String> OFFICIAL_YOUTH_MID_LABELS = Set.of(
             "취업",
             "재직자",
@@ -280,7 +289,7 @@ public class WelfareServiceMapper {
                         .authority(NormalizedPolicyAggregate.Authority.SYSTEM_DERIVED)
                         .confidence(BigDecimal.valueOf(0.85))
                         .build())
-                .taxonomyTerms(List.of())
+                .taxonomyTerms(bokjiroDetailTerms(detailPayload))
                 .facts(bokjiroDetailFacts(detailPayload))
                 .build();
     }
@@ -632,6 +641,51 @@ public class WelfareServiceMapper {
                 "applyMethodDetail/supportDetail", NormalizedPolicyAggregate.Authority.RULE_DERIVED,
                 BigDecimal.valueOf(0.80), evidenceText);
         return facts;
+    }
+
+    private List<NormalizedPolicyAggregate.TaxonomyTerm> bokjiroDetailTerms(BokjiroDetailClient.DetailPayload detailPayload) {
+        LinkedHashSet<String> normalizedLabels = new LinkedHashSet<>();
+        collectBokjiroBeneficiaryLabels(normalizedLabels, detailPayload.getTargetDetail());
+        collectBokjiroBeneficiaryLabels(normalizedLabels, detailPayload.getSelectionCriteria());
+
+        List<NormalizedPolicyAggregate.TaxonomyTerm> terms = new ArrayList<>();
+        int sortOrder = 0;
+        for (String label : normalizedLabels) {
+            addTaxonomyTerm(
+                    terms,
+                    "TARGET_GROUP",
+                    null,
+                    null,
+                    label,
+                    "targetDetail/selectionCriteria",
+                    NormalizedPolicyAggregate.Authority.SYSTEM_DERIVED,
+                    sortOrder++
+            );
+        }
+        return terms;
+    }
+
+    private void collectBokjiroBeneficiaryLabels(Set<String> labels, String text) {
+        String normalizedText = RawFieldValidator.normalize(text);
+        if (normalizedText == null) {
+            return;
+        }
+
+        if (containsAny(normalizedText, BOKJIRO_BASIC_LIVELIHOOD_LABELS)) {
+            labels.add("기초생활수급자");
+        }
+        if (normalizedText.contains("차상위")) {
+            labels.add("차상위계층");
+        }
+    }
+
+    private boolean containsAny(String text, List<String> candidates) {
+        for (String candidate : candidates) {
+            if (text.contains(candidate)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void addTaxonomyTermsFromCsv(List<NormalizedPolicyAggregate.TaxonomyTerm> terms,

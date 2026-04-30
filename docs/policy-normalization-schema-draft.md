@@ -238,6 +238,7 @@
   - `term_group='TARGET_GROUP'`
   - `code_set_key=NULL`, `term_code=''`
   - `authority='SYSTEM_DERIVED'`
+  - `source_field='targetDetail/selectionCriteria'`
   - 현재 whitelist:
     - `기초생활수급자`
     - `차상위계층`

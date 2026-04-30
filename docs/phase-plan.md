@@ -371,6 +371,12 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - 2026-04-30 phase-aware term refresh 후 `cd backend && ./gradlew test --no-daemon --rerun-tasks --tests com.example.welfare.collect.normalization.DeferredNormalizedPolicySidecarWriterTest`
 - 2026-04-30 phase-aware term refresh 후 `cd backend && ./gradlew integrationTest --no-daemon --tests com.example.welfare.integration.BokjiroSidecarMergeIntegrationTest`
 - 2026-04-30 phase-aware term refresh 후 `git diff --check`
+- 2026-04-30 복지로 detail beneficiary whitelist 를 canonical `TARGET_GROUP` soft taxonomy 로 실제 적재
+  - `WelfareServiceMapper.toNormalizedBokjiroDetail()` 가 `targetDetail/selectionCriteria` 본문에서 `국민기초생활보장수급자`, `기초생활수급자`, `생계/의료/주거/교육급여 수급자`, `수급권자` 를 `기초생활수급자` 로, `차상위*` 표현을 `차상위계층` 으로 정규화해 `TARGET_GROUP(source_field=targetDetail/selectionCriteria, authority=SYSTEM_DERIVED)` term 으로 실제 적재하도록 변경됐다
+  - broad label(`취업취약계층`, `정보 소외계층`, `저소득 한부모가족`) 은 계속 skip 하도록 unit test 로 고정했고, integration 에서는 mapper가 만든 detail aggregate 가 기존 list `TARGET_GROUP(청년, 1인가구)` 와 공존하는 것을 확인했다
+- 2026-04-30 복지로 detail beneficiary whitelist 실제 적재 후 `cd backend && ./gradlew test --no-daemon --tests com.example.welfare.collect.mapper.NormalizedPolicyAggregateTest --tests com.example.welfare.collect.normalization.DeferredNormalizedPolicySidecarWriterTest`
+- 2026-04-30 복지로 detail beneficiary whitelist 실제 적재 후 `cd backend && ./gradlew integrationTest --no-daemon --tests com.example.welfare.integration.BokjiroSidecarMergeIntegrationTest`
+- 2026-04-30 복지로 detail beneficiary whitelist 실제 적재 후 `git diff --check`
 - 2026-04-28 pre-28 migrated DB 기준 admin logout / refresh invalidation / relogin smoke
   - `SECURITY_ADMIN_EMAILS=admin.logout.smoke@example.com` 으로 최신 앱을 기동한 뒤, admin 계정 로그인과 프로필 수정으로 queue row를 `SYNCED` 상태까지 맞추고 `POST /api/auth/refresh` 가 먼저 성공하는 것 확인
   - 같은 cookie jar + access token으로 `POST /api/auth/logout` 호출 후 cookie jar에서 `refresh_token` 이 제거되고, 직후 `POST /api/auth/refresh` 가 `401`, `errorCode=A001` 로 막히는 것 확인
@@ -981,7 +987,7 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - [ ] 복지로 live detail 적재 기준 `welfare_service_details` / `service_facts` validation 리허설
 - [ ] 복지로 detail refresh budget metadata(`centralBudget`/`localBudget`) 를 admin collect observability에 노출할지 결정
 - [ ] `bokjiro-details-gap-fill` 추가 라운드/호출 예산 전략 정리 후 stored detail payload coverage 추가 확대
-- [ ] 복지로 detail 본문의 `기초생활수급자` / `차상위계층` whitelist 를 canonical `TARGET_GROUP` soft taxonomy 로 실제 적재
+- [ ] 복지로 detail beneficiary whitelist(`기초생활수급자` / `차상위계층`) 실제 적재 후 local sidecar density/term count 재측정
 - [ ] 복지로 `threshold_like` income signal(`13`건) 을 `INCOME_*` hard fact 가 아닌 optional soft signal schema 로 분리할지 결정
 - [ ] 복지로 live detail 응답에 신청마감 explicit field가 있는지 재확인하고, 없으면 `BK_APPLY_END_DATE` 는 canonical collect path에서 optional fact로 유지
 - [ ] 로그인 가능한 testbed/live payload 기준 `YOUTH_MID` / `srchPolyBizSecd` 전체 inventory 수집
@@ -1012,6 +1018,7 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - [x] 복지로 missing detail backlog 를 여러 라운드로 메우는 admin gap fill 경로 추가
 - [x] 복지로 detail/backfill 후에도 `service_facts` 가 `81 / 1335` row(6.1%)에 머무는 원인 분석 및 age fallback coverage 보강 여부 검토
 - [x] 복지로 detail raw payload 의 `applyMethodDetail` date signal 부재 시 `BK_APPLY_END_DATE` fallback 확대 여부 결정
+- [x] 복지로 detail 본문의 `기초생활수급자` / `차상위계층` whitelist 를 canonical `TARGET_GROUP` soft taxonomy 로 실제 적재
 - [x] sidecar draft migration 적용 상태에서 기존 복지로 적재 데이터 detail refresh/backfill 후 `service_facts` density 재측정
 - [x] `NormalizedPolicySidecarBackfillService` 를 admin/manual 실행 경로로 노출
 - [x] 복지로 `raw_api_payloads` 기반 canonical sidecar backfill service 초안 작성

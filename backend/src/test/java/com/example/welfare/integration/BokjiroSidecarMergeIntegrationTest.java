@@ -270,29 +270,11 @@ class BokjiroSidecarMergeIntegrationTest {
                 .findBySourceTypeAndSourceId(WelfareService.SourceType.BOKJIRO_LOCAL, sourceId)
                 .orElseThrow();
 
-        NormalizedPolicyAggregate detailAggregate = NormalizedPolicyAggregate.builder()
-                .core(NormalizedPolicyAggregate.Core.builder()
-                        .sourceType(NormalizedPolicyAggregate.SourceType.BOKJIRO_LOCAL)
-                        .sourceId(sourceId)
-                        .title(saved.getTitle())
-                        .status(NormalizedPolicyAggregate.ServiceStatus.ACTIVE)
-                        .build())
-                .taxonomy(NormalizedPolicyAggregate.TaxonomySummary.builder()
-                        .compatUnifiedCategory(saved.getUnifiedCategory())
-                        .authority(NormalizedPolicyAggregate.Authority.SYSTEM_DERIVED)
-                        .confidence(java.math.BigDecimal.valueOf(0.7))
-                        .build())
-                .taxonomyTerms(List.of(
-                        NormalizedPolicyAggregate.TaxonomyTerm.builder()
-                                .termGroup("TARGET_GROUP")
-                                .termLabel("기초생활수급자")
-                                .sourceField("targetDetail/selectionCriteria")
-                                .authority(NormalizedPolicyAggregate.Authority.SYSTEM_DERIVED)
-                                .sortOrder(0)
-                                .build()
-                ))
-                .facts(List.of())
+        BokjiroDetailClient.DetailPayload detailPayload = BokjiroDetailClient.DetailPayload.builder()
+                .targetDetail("기초생활수급자 청년에게 문화 활동비 지원")
+                .selectionCriteria("차상위계층 포함")
                 .build();
+        NormalizedPolicyAggregate detailAggregate = welfareServiceMapper.toNormalizedBokjiroDetail(saved, detailPayload);
 
         new TransactionTemplate(transactionManager).executeWithoutResult(status ->
                 normalizedPolicySidecarWriter.upsert(saved, detailAggregate));
@@ -319,6 +301,12 @@ class BokjiroSidecarMergeIntegrationTest {
         assertThat(taxonomyTerms).anySatisfy(row -> {
             assertThat(row.get("term_group")).isEqualTo("TARGET_GROUP");
             assertThat(row.get("term_label")).isEqualTo("기초생활수급자");
+            assertThat(row.get("source_field")).isEqualTo("targetDetail/selectionCriteria");
+            assertThat(row.get("authority")).isEqualTo("SYSTEM_DERIVED");
+        });
+        assertThat(taxonomyTerms).anySatisfy(row -> {
+            assertThat(row.get("term_group")).isEqualTo("TARGET_GROUP");
+            assertThat(row.get("term_label")).isEqualTo("차상위계층");
             assertThat(row.get("source_field")).isEqualTo("targetDetail/selectionCriteria");
             assertThat(row.get("authority")).isEqualTo("SYSTEM_DERIVED");
         });
