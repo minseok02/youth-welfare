@@ -1262,3 +1262,8 @@
 - 문제: `GOV24_*` import SQL을 빨리 쓰려면 과거 `category` / `category-code` endpoint나 예전 문서 캡처를 가져와 label inventory처럼 쓰고 싶어질 수 있다. 하지만 공공데이터포털 2021 개편 공지는 기존 5종 operation에 현행화되지 않은 정보가 있었다고 밝히고, 2021-09-15부터는 `serviceList`, `serviceDetail`, `supportConditions` 3종만 current source로 남겼다
 - 해결: [policy-normalization-gov24-label-source-plan.md](./policy-normalization-gov24-label-source-plan.md) 를 추가해, `GOV24_SERVICE_FIELD` / `USER_TYPE` / `BENEFIT_TYPE` import SQL은 current Swagger/schema export 또는 provider-provided official codebook이 있어야만 reopen하고, deprecated `category` / `category-code` 응답이나 sample payload 역추론만으로는 열지 않도록 기준을 고정했다
 - 이유: `supportConditions` 는 current 공식 code subset을 이미 일부 확인했지만, 나머지 `GOV24_*` taxonomy는 current finite inventory source가 다르다. deprecated 분류 endpoint를 재사용하면 official taxonomy와 stale 문서가 다시 섞이므로, 먼저 current source-of-truth를 고정하는 편이 안전하다
+
+## 251) `GOV24_*` 도 source plan만으로는 부족하고, 요청 시 어떤 형식이면 sufficient source인지 먼저 못 박아야 다시 sample 캡처만 받게 되는 일을 줄일 수 있다
+- 문제: `GOV24_SERVICE_FIELD` / `USER_TYPE` / `BENEFIT_TYPE` 는 current source 기준으로 다시 받기로 했더라도, 요청 스펙이 없으면 제공기관이나 운영 담당자가 Swagger 캡처, sample payload, label 목록만 보내는 식으로 끝날 수 있다. 그러면 다시 “이걸로 import SQL을 열 수 있나”를 재판단해야 한다
+- 해결: [policy-normalization-gov24-label-source-plan.md](./policy-normalization-gov24-label-source-plan.md)에 sufficient example / insufficient example / 요청 문구 초안을 추가해, 최소 요구를 `field name + code + official label` 로 고정하고 `active/use 여부`, `sort_order`, `설명` 을 권장 필드로 정리했다
+- 이유: `GOV24_* import/backfill SQL` 의 목적은 current finite inventory를 공식 코드테이블에 적재하는 것이다. 요청 스펙을 먼저 고정해야 sample 중심 자료와 actual codebook을 구분할 수 있고, 다시 bridge 결과나 deprecated endpoint로 미끄러지는 일을 줄일 수 있다

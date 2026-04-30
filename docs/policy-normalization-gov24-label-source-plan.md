@@ -144,6 +144,45 @@ current public dataset page는 현재 API가 `REST`, `JSON+XML`, `Swagger UI` �
 - CSV/XLSX
 - 공식 문서 PDF
 
+핵심은 형식이 아니라 **current API와 직접 대응되는 finite code-label inventory** 여야 한다는 점이다.
+
+### sufficient 예시
+
+아래처럼 field별 code와 label이 직접 대응되면 충분하다.
+
+| field | code | label | active |
+|---|---|---|---|
+| `serviceField` | `A01` | `주거` | `Y` |
+| `userType` | `U12` | `청년` | `Y` |
+| `benefitType` | `B07` | `현금지원` | `Y` |
+
+### 불충분 예시
+
+아래만 있으면 충분하지 않다.
+
+- `serviceField` label 목록만 있는 문서
+- Swagger 화면 캡처 몇 장
+- representative sample payload 몇 건
+- deprecated `category` / `category-code` 응답 예시
+- bridge 결과 기준의 내부 매핑표
+
+## 제공기관/운영 담당자에게 보낼 요청 문구 초안
+
+```text
+Gov24 public service current API 기준으로
+`serviceField`, `userType`, `benefitType` 의 전체 code-label inventory가 필요합니다.
+
+가능하면 아래 컬럼이 포함된 공식 schema/export/codebook 전달 부탁드립니다.
+- field name (`serviceField` / `userType` / `benefitType`)
+- code
+- official label
+- active/use 여부 (있으면)
+- sort_order 또는 설명 (있으면)
+
+current API 기준의 자료가 필요하며,
+deprecated `category` / `category-code` 계열 문서는 제외해도 됩니다.
+```
+
 ## 실무 의미
 
 현재 단계의 안전한 판단은 이렇다.
