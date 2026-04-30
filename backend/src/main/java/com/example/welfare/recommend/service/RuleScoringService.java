@@ -9,6 +9,7 @@ import com.example.welfare.recommend.dto.RecommendationUserSnapshot;
 import com.example.welfare.recommend.dto.RetrievedRecommendationCandidates;
 import com.example.welfare.recommend.dto.ScoredCandidate;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -30,12 +31,18 @@ import java.util.stream.Collectors;
 public class RuleScoringService {
 
     private static final String BENEFICIARY_SUPPORT_BUCKET = "BENEFICIARY_SUPPORT";
+    private static final String COMPAT_OTHER = "기타";
+    private static final String EDUCATION_MAJOR = "교육";
+    private static final String EDUCATION_PRIORITY_CODE = "EDUCATION";
     private static final double SPECIAL_TARGET_MATCH_BONUS = 12.0;
     private static final double SPECIAL_TARGET_MISMATCH_PENALTY = 8.0;
 
     private final ServiceTagRepository serviceTagRepository;
     private final PriorityMatcher priorityMatcher;
     private final YouthPolicyFilter youthPolicyFilter;
+
+    @Value("${recommend.priority.education-canonical-bonus.enabled:false}")
+    private boolean educationCanonicalBonusEnabled;
 
     public List<ScoredCandidate> score(List<WelfareService> candidates, RecommendationUserSnapshot user) {
         return score(candidates, Map.of(), user);
@@ -336,11 +343,24 @@ public class RuleScoringService {
         if (priorities.isEmpty()) return base;
 
         double maxWeight = priorities.stream()
-                .filter(p -> priorityMatcher.matches(p, service, projection))
+                .filter(p -> priorityMatcher.matches(p, service, projection)
+                        || matchesEducationCanonicalPriorityExperiment(p, projection))
                 .mapToDouble(PriorityPreference::weight)
                 .max()
                 .orElse(1.0);
 
         return base * maxWeight;
+    }
+
+    private boolean matchesEducationCanonicalPriorityExperiment(PriorityPreference priority,
+                                                                RecommendationCandidateProjection projection) {
+        if (!educationCanonicalBonusEnabled || priority == null || projection == null) {
+            return false;
+        }
+        if (!EDUCATION_PRIORITY_CODE.equals(priority.code())) {
+            return false;
+        }
+        return COMPAT_OTHER.equals(projection.unifiedCategoryCompat())
+                && EDUCATION_MAJOR.equals(projection.youthMajorLabel());
     }
 }

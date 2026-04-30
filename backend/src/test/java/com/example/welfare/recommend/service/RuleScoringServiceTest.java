@@ -3,6 +3,7 @@ package com.example.welfare.recommend.service;
 import com.example.welfare.policy.entity.ServiceTag;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.repository.ServiceTagRepository;
+import com.example.welfare.recommend.dto.PriorityPreference;
 import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
 import com.example.welfare.recommend.dto.RecommendationUserSnapshot;
 import com.example.welfare.recommend.dto.RetrievedRecommendationCandidates;
@@ -13,6 +14,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.Map;
 import java.util.List;
@@ -42,6 +44,7 @@ class RuleScoringServiceTest {
                 priorityMatcher,
                 new YouthPolicyFilter()
         );
+        ReflectionTestUtils.setField(ruleScoringService, "educationCanonicalBonusEnabled", false);
     }
 
     @Test
@@ -244,6 +247,82 @@ class RuleScoringServiceTest {
         assertThat(findByServiceId(scored, 91L).getRuleBaseScore()).isEqualTo(5.0);
     }
 
+    @Test
+    @DisplayName("교육 canonical priority experiment flag가 켜지면 compat 기타 + youth major 교육 후보에만 priority bonus를 준다")
+    void educationCanonicalPriorityExperimentAddsPriorityBonusForEducationMajor() {
+        ReflectionTestUtils.setField(ruleScoringService, "educationCanonicalBonusEnabled", true);
+        RecommendationUserSnapshot user = snapshotWithPriorities(
+                List.of(),
+                List.of(),
+                (byte) 5,
+                null,
+                null,
+                List.of(new PriorityPreference(1, "EDUCATION", 2.0))
+        );
+
+        WelfareService baseline = welfareService(100L, "일반 교육 지원", java.time.LocalDate.now().plusDays(3));
+        WelfareService projected = welfareService(101L, "교육 실험 대상", java.time.LocalDate.now().plusDays(3));
+
+        when(serviceTagRepository.findByServiceIdIn(anyList())).thenReturn(List.of());
+        when(priorityMatcher.matches(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
+                .thenReturn(false);
+
+        List<ScoredCandidate> scored = ruleScoringService.score(
+                new RetrievedRecommendationCandidates(
+                        List.of(baseline, projected),
+                        Map.of(
+                                projected.getId(),
+                                RecommendationCandidateProjection.builder()
+                                        .serviceId(projected.getId())
+                                        .unifiedCategoryCompat("기타")
+                                        .youthMajorLabel("교육")
+                                        .build()
+                        )
+                ),
+                user
+        );
+
+        assertThat(findByServiceId(scored, 100L).getRuleWeightedScore()).isEqualTo(5.0);
+        assertThat(findByServiceId(scored, 101L).getRuleWeightedScore()).isEqualTo(10.0);
+    }
+
+    @Test
+    @DisplayName("교육 canonical priority experiment는 non-education canonical major에는 bonus를 주지 않는다")
+    void educationCanonicalPriorityExperimentDoesNotAddBonusForNonEducationMajor() {
+        ReflectionTestUtils.setField(ruleScoringService, "educationCanonicalBonusEnabled", true);
+        RecommendationUserSnapshot user = snapshotWithPriorities(
+                List.of(),
+                List.of(),
+                (byte) 5,
+                null,
+                null,
+                List.of(new PriorityPreference(1, "EDUCATION", 2.0))
+        );
+
+        WelfareService service = welfareService(110L, "참여 실험 제외", java.time.LocalDate.now().plusDays(3));
+
+        when(serviceTagRepository.findByServiceIdIn(anyList())).thenReturn(List.of());
+        when(priorityMatcher.matches(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
+                .thenReturn(false);
+
+        List<ScoredCandidate> scored = ruleScoringService.score(
+                new RetrievedRecommendationCandidates(
+                        List.of(service),
+                        Map.of(
+                                service.getId(),
+                                RecommendationCandidateProjection.builder()
+                                        .serviceId(service.getId())
+                                        .unifiedCategoryCompat("기타")
+                                        .youthMajorLabel("참여권리")
+                                        .build()
+                        )
+                ),
+                user
+        );
+
+        assertThat(findByServiceId(scored, 110L).getRuleWeightedScore()).isEqualTo(5.0);
+    }
+
     private ScoredCandidate findByServiceId(List<ScoredCandidate> scored, Long serviceId) {
         return scored.stream()
                 .filter(candidate -> serviceId.equals(candidate.getService().getId()))
@@ -271,6 +350,22 @@ class RuleScoringServiceTest {
                                                 Byte incomeLevel,
                                                 String householdType,
                                                 String employmentStatus) {
+        return snapshotWithPriorities(
+                interestFields,
+                targetTypes,
+                incomeLevel,
+                householdType,
+                employmentStatus,
+                List.of()
+        );
+    }
+
+    private RecommendationUserSnapshot snapshotWithPriorities(List<String> interestFields,
+                                                              List<String> targetTypes,
+                                                              Byte incomeLevel,
+                                                              String householdType,
+                                                              String employmentStatus,
+                                                              List<PriorityPreference> priorities) {
         return new RecommendationUserSnapshot(
                 1L,
                 "user-key-1",
@@ -286,7 +381,7 @@ class RuleScoringServiceTest {
                 0.5,
                 interestFields,
                 targetTypes,
-                List.of()
+                priorities
         );
     }
 }

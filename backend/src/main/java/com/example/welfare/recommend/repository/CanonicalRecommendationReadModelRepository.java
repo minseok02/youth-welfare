@@ -74,6 +74,7 @@ public class CanonicalRecommendationReadModelRepository {
                 SELECT ws.id AS service_id,
                        ws.source_type,
                        ws.unified_category,
+                       st.youth_major_label,
                        ws.title,
                        COALESCE(wsd.support_detail, ws.support_content, ws.description) AS summary,
                        ws.min_age,
@@ -84,6 +85,7 @@ public class CanonicalRecommendationReadModelRepository {
                        ws.search_youth_relevant
                 FROM welfare_services ws
                 LEFT JOIN welfare_service_details wsd ON wsd.service_id = ws.id
+                LEFT JOIN service_taxonomies st ON st.service_id = ws.id
                 WHERE ws.id IN (:serviceIds)
                 """, params);
     }
@@ -152,6 +154,7 @@ public class CanonicalRecommendationReadModelRepository {
         private final Long serviceId;
         private final String sourceType;
         private final String unifiedCategoryCompat;
+        private final String youthMajorLabel;
         private final String title;
         private final String summary;
         private final Integer minAge;
@@ -172,6 +175,7 @@ public class CanonicalRecommendationReadModelRepository {
         private MutableProjection(Long serviceId,
                                   String sourceType,
                                   String unifiedCategoryCompat,
+                                  String youthMajorLabel,
                                   String title,
                                   String summary,
                                   Integer minAge,
@@ -183,6 +187,7 @@ public class CanonicalRecommendationReadModelRepository {
             this.serviceId = serviceId;
             this.sourceType = sourceType;
             this.unifiedCategoryCompat = unifiedCategoryCompat;
+            this.youthMajorLabel = youthMajorLabel;
             this.title = title;
             this.summary = summary;
             this.minAge = minAge;
@@ -198,6 +203,7 @@ public class CanonicalRecommendationReadModelRepository {
                     longValue(row.get("service_id")),
                     stringValue(row.get("source_type")),
                     stringValue(row.get("unified_category")),
+                    stringValue(row.get("youth_major_label")),
                     stringValue(row.get("title")),
                     stringValue(row.get("summary")),
                     intValue(row.get("min_age")),
@@ -241,6 +247,7 @@ public class CanonicalRecommendationReadModelRepository {
                     .serviceId(serviceId)
                     .sourceType(sourceType)
                     .unifiedCategoryCompat(unifiedCategoryCompat)
+                    .youthMajorLabel(youthMajorLabel)
                     .title(title)
                     .summary(summary)
                     .minAge(minAge)

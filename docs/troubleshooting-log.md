@@ -997,3 +997,8 @@
 - 문제: `교육 -> 교육·직업훈련` 실험을 검증할 때 `flag off` 와 `flag on` 사이에 collect 재실행, sidecar backfill, user priority 수정, score weight 변경까지 같이 하면 top-N 차이가 생겨도 원인이 flag인지 데이터 변화인지 분리하기 어렵다
 - 해결: replay 절차를 `flag off 앱 기동 -> sample A/B refresh -> flag on 앱 재기동 -> 같은 sample A/B refresh` 순서로 고정했다. 비교 사이에는 collect/backfill/user 수정/score weight 변경을 금지하고, 같은 DB snapshot / 같은 user snapshot 유지까지 명시했다
 - 이유: 이 replay는 데이터 품질 재검증이 아니라 scoring bonus 실험 효과만 보는 절차다. 따라서 바뀌는 변수는 flag 하나여야 하며, control sample까지 같이 보는 편이 non-target 회귀를 빠르게 잡기 쉽다
+
+## 198) canonical bridge 실험 helper만 넣고 read-model hydrate에 `youthMajorLabel`을 안 실어 주면 flag를 켜도 실험이 영원히 비활성처럼 보일 수 있음
+- 문제: 이번 `교육 -> 교육·직업훈련` narrow experiment는 `RuleScoringService` 의 helper가 `compat=기타 + youth_major=교육` 을 읽어야 동작한다. 그런데 retrieval이 sidecar projection에서 `youthMajorLabel` 을 hydrate 하지 않으면 helper 입력이 항상 `null` 이라, flag를 켜도 “실험이 먹지 않는” 조용한 no-op 상태가 될 수 있다
+- 해결: `RecommendationCandidateProjection` / `CanonicalRecommendationReadModelRepository` 에 `youthMajorLabel` 을 추가하고, `RuleScoringServiceTest` 와 repository 테스트로 `youthMajorLabel` hydrate + `flag off/on`, `education / non-education` 회귀를 같이 고정했다
+- 이유: canonical bridge 실험은 flag 토글보다 먼저 read-model 입력이 실제로 scoring 경계까지 도달해야 의미가 있다. 실험 helper와 hydrate 경로를 같은 PR에서 같이 검증해야 “flag는 켰는데 왜 변화가 없지?” 같은 묵묵한 실패를 줄일 수 있다

@@ -40,6 +40,7 @@ class CanonicalRecommendationReadModelRepositoryTest {
         baseRow.put("service_id", 2309L);
         baseRow.put("source_type", "BOKJIRO_CENTRAL");
         baseRow.put("unified_category", "금융·생활지원");
+        baseRow.put("youth_major_label", "교육");
         baseRow.put("title", "여성청소년 생리용품 지원");
         baseRow.put("summary", "바우처 지원");
         baseRow.put("min_age", 9);
@@ -84,6 +85,7 @@ class CanonicalRecommendationReadModelRepositoryTest {
         assertThat(projection.serviceId()).isEqualTo(2309L);
         assertThat(projection.sourceType()).isEqualTo("BOKJIRO_CENTRAL");
         assertThat(projection.unifiedCategoryCompat()).isEqualTo("금융·생활지원");
+        assertThat(projection.youthMajorLabel()).isEqualTo("교육");
         assertThat(projection.title()).isEqualTo("여성청소년 생리용품 지원");
         assertThat(projection.applyEndDate()).isEqualTo(LocalDate.of(2026, 12, 31));
         assertThat(projection.interestThemes()).containsExactly("생활지원");
