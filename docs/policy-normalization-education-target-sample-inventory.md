@@ -20,7 +20,7 @@
 - 하지만 실제 local replay에서 target row가 결과 집합에 들어온 sample은 아직 찾지 못했습니다
 
 따라서 다음 디버깅 경계는 `RuleScoringService` 가 아니라
-`RetrievalService -> candidate pool -> youth filter -> final saved recommendations` 경계입니다.
+`WelfareServiceRepository income gate -> RetrievalService candidate pool -> youth filter -> final saved recommendations` 경계입니다.
 
 ## 1. DB inventory 요약
 
@@ -30,10 +30,11 @@ local DB 기준 target row는 아래와 같았습니다.
 - `status ACTIVE/UPCOMING = 102`
 - `search_youth_relevant = 79`
 
-문제는 age gate입니다.
+문제는 age gate와 income gate가 같이 걸립니다.
 
 - `min_age=0 AND max_age=0` row가 많습니다
 - retrieval SQL은 `NULL` 이 아니라 literal `0` 을 그대로 age filter에 쓰므로, 성인 사용자는 이 row를 대부분 통과하지 못합니다
+- age-pass row도 대부분 `source_type=YOUTH + min_income=0 AND max_income=0` 이라, `incomeLevel=5` 같은 일반 sample에서는 repository 단계에서 다시 모두 탈락합니다
 
 예:
 
@@ -92,14 +93,16 @@ scan 축:
 
 예를 들어 `31200`, `50110`, `29155` 는 DB inventory 상 age-pass target row가 `9~10`건씩 있습니다.
 
-하지만 실제 replay 결과의 `기타` category row는 계속 아래 계열만 반복됐습니다.
+하지만 이 age-pass row들은 동시에 `min_income/max_income = 0/0` 이라, `incomeLevel=5` sample에선 repository `findCandidatesWithRegionCode(...)` 단계에서 target hit가 이미 `0` 이었습니다.
+
+실제 replay 결과의 `기타` category row는 계속 아래 계열만 반복됐습니다.
 
 - `2300 청년내일저축계좌`
 - `2396 청년내일채움공제`
 - `2388 예술체육 비전장학금`
 
 즉 target row가 “없어서”가 아니라,
-현재 retrieval/result path에서 다른 `기타` row가 일관되게 우선 노출되고 있습니다.
+현재는 repository income gate 때문에 target row가 candidate pool에 못 들어가고, 결과적으로 다른 `기타` row만 일관되게 노출되고 있습니다.
 
 ### 3-2. sample miss의 성격이 바뀜
 
@@ -122,14 +125,14 @@ scan 축:
 
 다음 작업은 아래 순서가 맞습니다.
 
-1. 특정 region(`31200`, `50110`, `28110` 중 하나)을 골라 age-pass target row id set을 고정
-2. 같은 user snapshot으로 `RetrievalService` candidate list에 그 row가 들어오는지 확인
-3. 들어오면 `RuleScoringService` / `special target mismatch` / final rerank 단계에서 빠지는지 확인
-4. 안 들어오면 repository query / youth filter / age field 품질 문제로 분리
+1. `YOUTH` row의 `min_income/max_income = 0/0` 을 “미지정”으로 볼지, 실제 `0분위 전용`으로 볼지 retrieval semantics 결정
+2. 결정 후 representative region 한 곳에서 raw repository hit가 생기는지 다시 확인
+3. raw repository hit가 생기면 `RetrievalService` / `RuleScoringService` / final rerank 단계에서 어디서 빠지는지 다음으로 추적
+4. raw repository hit가 여전히 없으면 query semantics 또는 source normalization 문제로 다시 분리
 
 즉 다음 task 이름은 대략 이 수준이 맞습니다.
 
-- `education canonical target row retrieval candidate composition inspect`
+- `education canonical target row YOUTH income gate semantics inspect`
 
 ## 검증 메모
 

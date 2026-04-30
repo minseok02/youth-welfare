@@ -1012,3 +1012,8 @@
 - 문제: local DB에는 `compat=기타 + youth_major=교육` row가 `102`건 있고, 일부 region은 age-pass target pool도 `9~12`건씩 있었다. 하지만 `16 regions × 2 ages` replay scan에서 결과 집합 hit는 전부 `0` 이었다. 단순히 “target row가 region에 많다”는 inventory만 보면 다음 sample을 더 찍으면 될 것처럼 보이지만, 실제로는 `min_age=0 AND max_age=0` literal gate와 candidate/result 조성 경계 때문에 DB pool과 결과 집합 사이가 크게 끊겨 있었다
 - 해결: 별도 inventory 문서로 `target_total / age-pass / zero-zero` 분포와 replay scan 결과(`32`조합 전부 `target_hits=0`)를 같이 고정했다. 동시에 다음 작업도 `sample 추가 탐색`이 아니라 `RetrievalService -> candidate pool -> youth filter -> final saved recommendations` 경계 추적으로 승격했다
 - 이유: narrow experiment는 target row가 결과 집합에 들어와야만 효과를 볼 수 있다. DB inventory만 보고 sample을 더 찍는 방식은 비용만 들고 원인 분리에 도움이 적으므로, gate/후처리 경계를 먼저 추적하는 편이 더 정확하다
+
+## 201) `교육` target row는 age-pass pool이 있어도 `YOUTH min_income/max_income = 0/0` semantics 때문에 repository candidate 단계에서 이미 전부 빠질 수 있음
+- 문제: `16 regions × 2 ages` replay scan에서 `target_hits=0` 이 계속 나와서 처음엔 youth filter나 rerank 문제처럼 보일 수 있었다. 하지만 representative region을 직접 쿼리해 보니 age-pass target row는 존재하는데, 모두 `source_type=YOUTH + min_income=0 + max_income=0` 이어서 `incomeLevel=5` sample에선 repository `findCandidatesWithRegionCode(...)` 조건 `min_income <= 5 AND max_income >= 5` 를 하나도 통과하지 못했다
+- 해결: local DB에서 `age-pass target pool > 0 && income5-pass = 0` 인 representative region을 동적으로 고른 뒤, raw repository candidate hit와 `RetrievalService` hit가 모두 `0` 인 걸 integration test로 고정했다. 후속 작업도 broad candidate composition 추적에서 더 좁혀 `YOUTH 0/0 income semantics 결정`으로 재정의했다
+- 이유: scoring/priority 실험을 계속 보기 전에, retrieval query가 canonical target row를 애초에 후보로 올릴 수 있는지부터 확인해야 한다. 특히 `0/0` 같은 source normalization 잔여값은 “미지정”인지 “실제 gate”인지 해석 정책이 없으면 추천 실험 이전 단계에서 후보를 모두 잃게 된다

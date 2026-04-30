@@ -530,6 +530,10 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
   - `28110~28720`, `31200`, `50110`, `29155`, `41220`, `46230`, `41461` 등 age-pass target pool이 있는 region을 기준으로 `16 regions × 2 ages(25/32)` replay scan을 수행했지만, 결과 집합 hit는 전부 `0` 이었다
   - 따라서 현재 local snapshot 기준으로는 known positive replay sample이 없고, 다음 디버깅 경계는 sample 추가 탐색이 아니라 `RetrievalService -> candidate pool -> youth filter -> final saved recommendations` 조성 경계라고 정리했다
 - 2026-04-30 교육 target sample inventory 재작성 후 local MySQL distribution query, `32` 조합 replay scan, target-id/result-set intersection 확인, `git diff --check`
+- 2026-04-30 `교육` target row candidate composition integration 추적
+  - local DB에서 representative region을 동적으로 뽑아 확인한 결과, age-pass target pool은 있어도 `source_type=YOUTH + min_income=0 + max_income=0` 조건 때문에 `incomeLevel=5` sample에서는 repository `findCandidatesWithRegionCode(...)` 단계 target hit가 이미 `0` 이었다
+  - 즉 현재 `교육` narrow experiment의 막힘은 scoring 이전 경계이고, `RetrievalService` 결과 집합 hit `0` 도 대부분 `YOUTH` income gate semantics(`0/0` 을 실제 gate로 볼지 미지정으로 볼지)에서 먼저 결정된다는 걸 integration test로 고정했다
+- 2026-04-30 교육 target candidate composition integration 추적 후 `backend`에서 `./gradlew integrationTest --no-daemon --tests com.example.welfare.integration.EducationPriorityTargetCandidateCompositionIntegrationTest`, `git diff --check`
 - 2026-04-28 pre-28 migrated DB 기준 admin logout / refresh invalidation / relogin smoke
   - `SECURITY_ADMIN_EMAILS=admin.logout.smoke@example.com` 으로 최신 앱을 기동한 뒤, admin 계정 로그인과 프로필 수정으로 queue row를 `SYNCED` 상태까지 맞추고 `POST /api/auth/refresh` 가 먼저 성공하는 것 확인
   - 같은 cookie jar + access token으로 `POST /api/auth/logout` 호출 후 cookie jar에서 `refresh_token` 이 제거되고, 직후 `POST /api/auth/refresh` 가 `401`, `errorCode=A001` 로 막히는 것 확인
@@ -1141,7 +1145,7 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - [ ] 복지로 detail refresh budget metadata(`centralBudget`/`localBudget`) 를 admin collect observability에 노출할지 결정
 - [ ] `bokjiro-details-gap-fill` 추가 라운드/호출 예산 전략 정리 후 stored detail payload coverage 추가 확대
 - [ ] `교육 -> 교육·직업훈련` 실험 replay 결과를 캡처할 local smoke script 초안 작성 여부 결정
-- [ ] `교육 -> 교육·직업훈련` target row가 왜 retrieval/result set에 전혀 들어오지 않는지 candidate composition 기준으로 추적
+- [ ] `교육 -> 교육·직업훈련` target row의 `YOUTH min_income/max_income = 0/0` semantics 를 retrieval 에서 미지정으로 볼지 실제 gate로 유지할지 결정
 - [ ] `참여권리` 의 `청년참여` subset만 별도 bridge 후보로 분리할지 결정
 - [ ] 복지로 `threshold_like` income signal(`13`건) 을 `INCOME_*` hard fact 가 아닌 optional soft signal schema 로 분리할지 결정
 - [ ] 복지로 live detail 응답에 신청마감 explicit field가 있는지 재확인하고, 없으면 `BK_APPLY_END_DATE` 는 canonical collect path에서 optional fact로 유지
@@ -1230,6 +1234,7 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - [x] `WelfareService` 중심 단일 모델을 `core / taxonomy / fact` 로 분리하는 스키마 초안 작성
 - [x] `교육 -> 교육·직업훈련` 실험 flag off/on local replay smoke 실제 실행
 - [x] `교육 -> 교육·직업훈련` target row(`compat=기타 + youth_major=교육`) 가 실제 retrieval/result set에 들어오는 replay sample inventory 재작성
+- [x] `교육 -> 교육·직업훈련` target row가 왜 retrieval/result set에 전혀 들어오지 않는지 candidate composition 기준으로 추적
 - [x] `service_taxonomies` / `service_taxonomy_terms` / `service_facts` sidecar 테이블 스키마 초안 작성
 - [x] 공식 정규화 4계층 구조(`Gov24 core/detail + 온통청년 taxonomy/codebook + eligibility facts + AI enrichment`)를 내부 canonical decision으로 확정
 - [x] 정책 정규화 sample mapping spike 및 source coverage 검증
