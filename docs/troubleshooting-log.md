@@ -857,3 +857,8 @@
 - 문제: local snapshot 재분류에서 `beneficiary_only` bucket 안에도 `기초생활수급자` / `차상위계층` 처럼 의미가 안정적인 label 과, `취업취약계층`, `정보 소외계층`, `저소득 한부모가족` 처럼 범위가 넓거나 다른 축과 겹치는 label 이 함께 나왔다. 이들을 동일 규칙으로 `TARGET_GROUP` 에 넣으면 복지로 detail soft taxonomy 가 broad vulnerable-group bucket 으로 오염될 위험이 있었다
 - 해결: `WelfareServiceMapper.toNormalizedBokjiroDetail()` 는 `국민기초생활보장수급자`, `기초생활수급자`, `생계/의료/주거/교육급여 수급자`, `수급권자` 만 `기초생활수급자` 로, `차상위*` 표현만 `차상위계층` 으로 정규화해 `TARGET_GROUP(source_field=targetDetail/selectionCriteria, authority=SYSTEM_DERIVED)` term 으로 적재하고, broad label 은 계속 skip 하도록 unit/integration test 로 고정했다
 - 이유: beneficiary soft taxonomy 의 목적은 hard income fact 대체가 아니라 “의미가 안정적인 취약계층 eligibility signal” 보존이다. canonical `TARGET_GROUP` 은 추천 read-model 에 재사용될 가능성이 있으므로, broad label 까지 같이 적재하면 precision 손실이 더 크다
+
+## 170) 같은 테스트 클래스를 대상으로 `gradlew test` 와 `gradlew integrationTest` 를 병렬 실행하면 Gradle XML result writer 가 동일 결과 파일을 동시에 만지면서 가짜 실패를 낼 수 있음
+- 문제: 이번 task 검증에서 `NormalizedPolicyAggregateTest` / `BokjiroSidecarMergeIntegrationTest` 를 두 Gradle 세션으로 거의 동시에 돌리자, 테스트 본문은 통과했는데 `Could not write XML test results ... TEST-com.example.welfare.integration.BokjiroSidecarMergeIntegrationTest.xml` 예외로 한 세션이 실패했다
+- 해결: 같은 테스트 클래스나 동일 result directory 를 쓰는 검증은 병렬로 돌리지 않고, unit -> integration 순서로 순차 재실행해 결과를 확정했다
+- 이유: 코드 결함과 빌드 산출물 write collision 은 원인이 다르다. 결과 파일 경합을 테스트 실패로 오해하지 않으려면 같은 타깃 검증은 순차 실행으로 고정하는 편이 안전하다
