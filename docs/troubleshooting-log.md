@@ -1332,3 +1332,8 @@
 - 문제: `SECURITY_ADMIN_EMAILS` 제거 + 앱 재기동이 기본 revoke라 해도, 실제로 old access token과 기존 refresh token이 어디서 갈리는지 baseline이 없으면 forced logout 필요성을 추상적으로만 이야기하게 된다
 - 해결: `AdminSecurityIntegrationTest` 에서 `AuthService` allowlist를 비운 뒤 old admin access token은 계속 `/api/admin/collect/youth` 를 통과하고, 같은 refresh token으로 발급한 새 access token부터 `ROLE_ADMIN` 이 빠져 `403 / C003` 이 되는 시나리오를 추가해 현재 경계를 고정했다
 - 이유: 이 baseline은 config-based role revoke가 “future token issuance” 에만 작동하고 “already-issued access token 회수” 와는 다른 문제임을 보여준다. 그래서 `admin forced logout` 이 별도 hardening 후보로 남을 이유도 선명해진다
+
+## 265) allowlist 제거 후 old admin refresh token까지 바로 끊으면 config-based role revoke와 forced logout을 다시 한 경로로 합치게 되므로, 현재 phase에서는 새 token부터 role만 제거하는 편이 더 낫다
+- 문제: baseline이 생기고 나면 “그럼 old admin refresh token도 즉시 막아야 하지 않나”는 질문이 다시 생긴다. 하지만 그렇게 바꾸면 allowlist 기반 role revoke와 existing token/session revoke를 다시 같은 기능으로 묶게 된다
+- 해결: [auth-admin-refresh-revoke-policy.md](./auth-admin-refresh-revoke-policy.md) 를 추가해, 현재 allowlist 제거의 의미를 “refresh token 즉시 차단”이 아니라 “새 access token부터 `ROLE_ADMIN` 제거”로 고정했다
+- 이유: 현재 구조의 최소 계약은 future token issuance에서 admin role이 더 이상 나오지 않는 것이다. refresh token 자체 즉시 차단은 incident response/offboarding 성격의 `admin forced logout` 문제로 남겨 두는 편이 경계가 더 분명하다

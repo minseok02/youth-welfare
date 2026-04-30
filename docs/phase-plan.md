@@ -1239,6 +1239,9 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - 2026-05-01 admin allowlist removal baseline smoke 고정
   - `AdminSecurityIntegrationTest` 에서 `AuthService` allowlist를 비운 뒤 old admin access token과 기존 refresh token을 그대로 재사용하는 시나리오를 추가했다
   - 결과는 old admin access token은 계속 `/api/admin/collect/youth` 를 통과하고, 같은 refresh token으로 다시 발급한 새 access token부터 `ROLE_ADMIN` 이 빠져 `403 / C003` 으로 막히는 현재 baseline으로 고정됐다
+- 2026-05-01 old admin refresh token revoke 정책 고정
+  - [auth-admin-refresh-revoke-policy.md](./auth-admin-refresh-revoke-policy.md) 를 추가해 allowlist 제거의 현재 의미를 “기존 refresh token 즉시 차단”이 아니라 “future token issuance에서 admin role 제거”로 고정했다
+  - 즉 현재 운영 계약은 old refresh token이 살아 있어도 새 access token부터 `ROLE_ADMIN` 이 빠지는 것이고, refresh token 자체 즉시 차단은 future forced logout 문제로 분리한다
 
 ## 작업 추적
 
@@ -1304,6 +1307,7 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - [x] `withdraw` 전 old access token이 탈퇴 후에도 어디까지 통과하는지 baseline smoke/inventory 작성
 - [x] 현재 admin 권한 회수의 기본 경계가 `SECURITY_ADMIN_EMAILS + 앱 재기동` 인지, forced logout과 별도인지 정리
 - [x] allowlist 제거 + 앱 재기동 후 old admin access/refresh token baseline smoke 작성
+- [x] allowlist 제거 후 old admin refresh token도 즉시 막을지, 새 token부터 role만 제거할지 결정
 - [ ] 운영 서버 Docker Compose 기동
 - [ ] 기존 운영 DB에 `app_core_rw` / `app_pii_rw` / `notification_pii_ro` / `migration_admin` 계정 생성 및 앱 datasource 전환
 - [ ] 운영 `.env` / secret store의 `APP_PII_DB_URL` / `NOTIFICATION_PII_DB_URL` 를 `youth_welfare_pii` schema 기준으로 전환

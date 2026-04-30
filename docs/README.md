@@ -94,6 +94,9 @@
 - [auth-admin-revoke-boundary-policy.md](./auth-admin-revoke-boundary-policy.md)
   현재 admin 권한 회수가 `SECURITY_ADMIN_EMAILS + 앱 재기동` 과 token/session revoke 중 어디까지를 뜻하는지 확인합니다.
 
+- [auth-admin-refresh-revoke-policy.md](./auth-admin-refresh-revoke-policy.md)
+  allowlist 제거 후 기존 admin refresh token을 즉시 끊을지, 아니면 새 token부터 role만 제거할지 현재 계약을 확인합니다.
+
 - [policy-normalization-compat-category-drift-inventory.md](./policy-normalization-compat-category-drift-inventory.md)
   local `service_taxonomies` 스냅샷 기준으로 `compat_unified_category` 와 canonical summary(`youth_major_label`, `gov24_*`) 사이 drift/공백/legacy raw 복사 흔적을 확인합니다.
 
@@ -248,6 +251,7 @@
 - [auth-revocation-reopen-order.md](./auth-revocation-reopen-order.md)
 - [auth-withdraw-revocation-next-step.md](./auth-withdraw-revocation-next-step.md)
 - [auth-admin-revoke-boundary-policy.md](./auth-admin-revoke-boundary-policy.md)
+- [auth-admin-refresh-revoke-policy.md](./auth-admin-refresh-revoke-policy.md)
 - [policy-normalization-youth-income-zero-policy.md](./policy-normalization-youth-income-zero-policy.md)
 - [policy-normalization-youth-mid-live-inventory.md](./policy-normalization-youth-mid-live-inventory.md)
 - [policy-normalization-youth-mid-stable-code-source-plan.md](./policy-normalization-youth-mid-stable-code-source-plan.md)
