@@ -46,6 +46,9 @@
 - [policy-normalization-youth-mid-live-inventory.md](./policy-normalization-youth-mid-live-inventory.md)
   authenticated 온통청년 live 목록 응답 기준 `mclsfNm` 전체 inventory와 code-like field 분포, 왜 `srchPolyBizSecd` stable mapping이 아직 보류인지 확인합니다.
 
+- [policy-normalization-youth-mid-stable-code-source-plan.md](./policy-normalization-youth-mid-stable-code-source-plan.md)
+  `YOUTH_MID` stable code mapping SQL을 다시 열기 위한 최소 source 조건과, 어떤 근거는 충분하고 어떤 근거는 아직 불충분한지 확인합니다.
+
 - [policy-normalization-bridge-rules.md](./policy-normalization-bridge-rules.md)
   Gov24 필드를 현재 추천/응답 호환 분류로 브릿지하는 규칙과 복지로 text/detail의 facts fallback 허용 범위를 확인합니다.
 
@@ -210,6 +213,7 @@
 - [phase-plan.md](./phase-plan.md)
 - [policy-normalization-youth-income-zero-policy.md](./policy-normalization-youth-income-zero-policy.md)
 - [policy-normalization-youth-mid-live-inventory.md](./policy-normalization-youth-mid-live-inventory.md)
+- [policy-normalization-youth-mid-stable-code-source-plan.md](./policy-normalization-youth-mid-stable-code-source-plan.md)
 - [policy-normalization-education-control-drift-analysis.md](./policy-normalization-education-control-drift-analysis.md)
 - [policy-normalization-education-control-ruleweighted-snapshot.md](./policy-normalization-education-control-ruleweighted-snapshot.md)
 - [openai-replay-stability-options.md](./openai-replay-stability-options.md)
