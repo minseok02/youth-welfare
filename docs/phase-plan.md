@@ -580,6 +580,10 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
   - `RealtimeAiGateway` 가 `recommend.ai.replay-trace.enabled=true` 일 때 `[RealtimeAiGateway][replay-trace]` 로그로 `candidateIds`, `candidateRuleScores`, `promptSha256` 를 남기도록 추가했다
   - `deploy/smoke/run-local-education-priority-replay.sh` 는 이 trace를 `edu-a/b-*-ai-trace.log` 및 phase별 `ai-trace-off.log`, `ai-trace-on.log` artifact로 분리해 저장하도록 확장했다
   - default `rule-only-invalid-key` replay artifact(`/tmp/tmp.BGxKfcPnvT`) 기준 sample B의 `candidateIds`, `candidateRuleScores`, `promptSha256` 는 `off/on` 동일했으므로, rule-only mode에선 input drift가 없다는 기준점이 생겼다
+- 2026-04-30 trace export 포함 intentional `real-openai` replay 재검증
+  - `USE_REAL_OPENAI_FOR_REPLAY=true` 로 replay를 다시 실행한 artifact(`/tmp/tmp.WoIyHuKtMd`)에서 sample B `edu-b-off-ai-trace.log` / `edu-b-on-ai-trace.log` 의 `candidateIds`, `candidateRuleScores`, `promptSha256` 가 완전히 동일함을 확인했다
+  - 그럼에도 sample B `edu-b-off-scores.tsv` / `edu-b-on-scores.tsv` 에선 `ai_score` / `final_score` drift가 다시 재현됐고, top-10 target row도 `0 -> 1` 로 바뀌었다
+  - 따라서 현재 남은 경계는 `topCandidates/prompt ordering drift` 가 아니라, **같은 입력에서도 생기는 live AI 응답 변동성** 쪽으로 더 좁혀졌다
 - 2026-04-28 pre-28 migrated DB 기준 admin logout / refresh invalidation / relogin smoke
   - `SECURITY_ADMIN_EMAILS=admin.logout.smoke@example.com` 으로 최신 앱을 기동한 뒤, admin 계정 로그인과 프로필 수정으로 queue row를 `SYNCED` 상태까지 맞추고 `POST /api/auth/refresh` 가 먼저 성공하는 것 확인
   - 같은 cookie jar + access token으로 `POST /api/auth/logout` 호출 후 cookie jar에서 `refresh_token` 이 제거되고, 직후 `POST /api/auth/refresh` 가 `401`, `errorCode=A001` 로 막히는 것 확인
@@ -1190,7 +1194,7 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - [ ] 복지로 live detail 적재 기준 `welfare_service_details` / `service_facts` validation 리허설
 - [ ] 복지로 detail refresh budget metadata(`centralBudget`/`localBudget`) 를 admin collect observability에 노출할지 결정
 - [ ] `bokjiro-details-gap-fill` 추가 라운드/호출 예산 전략 정리 후 stored detail payload coverage 추가 확대
-- [ ] `USE_REAL_OPENAI_FOR_REPLAY=true` real-openai replay를 trace export 켠 상태로 다시 태워 sample B `candidateIds` / `promptSha256` 가 실제로도 동일한지 확인
+- [ ] `real-openai` replay에서 같은 `promptSha256` 에도 `ai_score` 가 달라지는 현상을 줄이기 위해 model/temperature/seed 또는 response cache 전략을 검토
 - [ ] `참여권리` 의 `청년참여` subset만 별도 bridge 후보로 분리할지 결정
 - [ ] 복지로 `threshold_like` income signal(`13`건) 을 `INCOME_*` hard fact 가 아닌 optional soft signal schema 로 분리할지 결정
 - [ ] 복지로 live detail 응답에 신청마감 explicit field가 있는지 재확인하고, 없으면 `BK_APPLY_END_DATE` 는 canonical collect path에서 optional fact로 유지

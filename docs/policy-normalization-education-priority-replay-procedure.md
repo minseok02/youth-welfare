@@ -150,6 +150,14 @@ host에서 직접 `bootRun` 할 때는 아래를 같이 맞춥니다.
 - sample B `edu-b-off-scores.tsv` / `edu-b-on-scores.tsv` diff 재현
 - artifact dir 예시: `/tmp/tmp.EZBH319uNA`
 
+2026-04-30 trace export 포함 `real-openai` mode 재검증 결과:
+
+- 실행: `USE_REAL_OPENAI_FOR_REPLAY=true deploy/smoke/run-local-education-priority-replay.sh`
+- sample B top-10 target row: `0 -> 1`
+- `edu-b-off-ai-trace.log` / `edu-b-on-ai-trace.log` 의 `candidateIds`, `candidateRuleScores`, `promptSha256` 는 동일
+- 그런데 `edu-b-off-scores.tsv` / `edu-b-on-scores.tsv` 의 `ai_score` / `final_score` 는 다시 달라짐
+- artifact dir 예시: `/tmp/tmp.WoIyHuKtMd`
+
 ### 3. 공통 변수
 
 ```bash

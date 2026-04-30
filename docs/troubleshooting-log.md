@@ -1082,3 +1082,8 @@
 - 문제: persisted `ai_score` / `final_score` snapshot만으로는 sample B drift가 “입력이 달라서”인지 “같은 입력인데 AI가 달리 답해서”인지 분리할 수 없다
 - 해결: `RealtimeAiGateway` 가 `candidateIds`, `candidateRuleScores`, `promptSha256` 를 `[replay-trace]` 로그로 남기고, replay 스크립트가 이를 `edu-a/b-*-ai-trace.log` artifact로 추출하도록 추가했다. default rule-only artifact(`/tmp/tmp.BGxKfcPnvT`) 기준 sample B `off/on` trace는 완전히 동일했다
 - 이유: 먼저 안정한 기준점이 하나 있어야 real-openai mode에서 어떤 층이 처음 달라졌는지 비교할 수 있다. rule-only mode에서 input trace가 같다면, 이후 real-openai mode 차이는 입력 drift인지 live AI 응답 변동인지 더 좁혀 볼 수 있다
+
+## 215) `real-openai` mode에서 `candidateIds` / `promptSha256` 가 같아도 `ai_score` 가 달라지면, 다음 경계는 입력 drift가 아니라 live AI 응답 변동성이다
+- 문제: trace export를 켠 intentional real-openai replay artifact(`/tmp/tmp.WoIyHuKtMd`)에서 sample B `edu-b-off-ai-trace.log` / `edu-b-on-ai-trace.log` 는 `candidateIds=356,399,403,404,405,407,359,364,365,371,375,381,383,384,390`, `promptSha256=f7e810...` 로 완전히 동일했다. 그런데도 `edu-b-off-scores.tsv` / `edu-b-on-scores.tsv` 의 `ai_score` 와 `final_score` 는 다시 달라졌고 top-10 target row도 `0 -> 1` 로 바뀌었다
+- 해결: phase-plan 다음 작업을 `prompt/input drift 추적`에서 `같은 입력에서도 생기는 live AI 응답 변동성 완화 전략(temperature, seed 지원 여부, cache/replay 방식)` 검토로 다시 좁혔다
+- 이유: 동일 trace인데 결과가 달라졌다면, 더 이상 retrieval/prompt 조성 버그를 먼저 의심할 단계는 아니다. 이제는 live model nondeterminism을 제품/운영 관점에서 어떻게 다룰지로 넘어가야 한다
