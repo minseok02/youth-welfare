@@ -1247,10 +1247,14 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - [x] `GOV24_SERVICE_FIELD` / `USER_TYPE` / `BENEFIT_TYPE` import SQL을 다시 열기 위한 official source 조건 정리
 - [x] `GOV24_SERVICE_FIELD` / `USER_TYPE` / `BENEFIT_TYPE` source 확보를 위한 제공기관/운영 담당자 요청 스펙 정리
 - [x] `GOV24_SUPPORT_CONDITION` representative subset과 full inventory 확장 사이의 official source 조건 정리
+- [x] `compat_unified_category` 를 저장 필드로 둘지 read-model 계산값으로 둘지 최종 결정
+  - 현재 phase에서는 `compat_unified_category` 를 read-model 계산값으로 바꾸지 않고 저장 필드로 유지하기로 고정했다. `welfare_services.unified_category` 는 legacy 추천/응답 계약용 compat 값으로, `service_taxonomies.compat_unified_category_*` 는 canonical sidecar 안의 compat mirror로 함께 보존한다
+  - 이유는 current priority/response/replay 계약이 이미 `compat` 위에 서 있고, canonical summary coverage가 아직 compat 대체 수준까지 안정화되지 않았으며, `compat=기타 + canonical youth_major 채움` 집합도 아직 explicit bridge 정책 단계이기 때문이다
+  - 따라서 read-model은 당분간 stored compat를 읽고 canonical summary는 secondary hint로만 소비한다. 계산-only 전환은 `unifiedCategory` 응답 계약 브릿지와 long-term field retirement 순서가 정리된 뒤에만 다시 연다
 - [ ] `YOUTH_MID` stable code mapping SQL 초안 작성
 - [ ] `GOV24_SERVICE_FIELD`, `GOV24_USER_TYPE`, `GOV24_BENEFIT_TYPE` 공식 label inventory import/backfill SQL 초안 작성
 - [ ] `GOV24_SUPPORT_CONDITION` 전체 code inventory 확장 및 `service_facts` backfill 초안 작성
-- [ ] `compat_unified_category` 를 저장 필드로 둘지 read-model 계산값으로 둘지 최종 결정
+- [x] `compat_unified_category` 를 저장 필드로 둘지 read-model 계산값으로 둘지 최종 결정
 - [ ] `TextConstraintExtractor` 를 `service_facts` 저장 규격에 맞춘 출력 모델로 재설계
 - [ ] `WelfareServiceRepository.findCandidates*`, `RetrievalService`, `RuleScoringService`, `DefaultPriorityMatcher` 의 점진 이행 순서 설계
 - [ ] `unifiedCategory` 응답 계약을 유지하면서 taxonomy/read-model 로 브릿지하는 호환 전략 작성

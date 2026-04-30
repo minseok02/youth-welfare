@@ -67,6 +67,9 @@
 - [policy-normalization-recommendation-read-model.md](./policy-normalization-recommendation-read-model.md)
   canonical sidecar를 추천 파이프라인에 붙일 때 raw term, dedupe bucket, retrieval/scoring 경계를 어디서 나눌지 확인합니다.
 
+- [policy-normalization-compat-storage-policy.md](./policy-normalization-compat-storage-policy.md)
+  `compat_unified_category` 를 현재 phase에서 저장 필드로 유지할지, read-model 계산값으로 미루지 않을지와 그 이유를 확인합니다.
+
 - [policy-normalization-compat-category-drift-inventory.md](./policy-normalization-compat-category-drift-inventory.md)
   local `service_taxonomies` 스냅샷 기준으로 `compat_unified_category` 와 canonical summary(`youth_major_label`, `gov24_*`) 사이 drift/공백/legacy raw 복사 흔적을 확인합니다.
 
@@ -232,6 +235,7 @@
 - [policy-normalization-fact-merge-rules.md](./policy-normalization-fact-merge-rules.md)
 - [policy-normalization-beneficiary-dedupe-strategy.md](./policy-normalization-beneficiary-dedupe-strategy.md)
 - [policy-normalization-recommendation-read-model.md](./policy-normalization-recommendation-read-model.md)
+- [policy-normalization-compat-storage-policy.md](./policy-normalization-compat-storage-policy.md)
 - [policy-normalization-youth-mid-alias-rules.md](./policy-normalization-youth-mid-alias-rules.md)
 - [policy-normalization-bridge-rules.md](./policy-normalization-bridge-rules.md)
 - [policy-normalization-schema-draft.md](./policy-normalization-schema-draft.md)

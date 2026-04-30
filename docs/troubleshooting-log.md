@@ -1272,3 +1272,8 @@
 - 문제: 현재는 `JA0101`, `JA0110`, `JA0201~0205`, `JA0320`, `JA0327`, `JA0412` 같은 대표 code는 공식 근거가 있어 seed 했지만, 이걸 그대로 “supportConditions 전체 codebook도 사실상 확보된 것”처럼 확대 해석하면 sample 관찰 범위를 full inventory와 혼동하게 된다
 - 해결: [policy-normalization-gov24-support-condition-source-plan.md](./policy-normalization-gov24-support-condition-source-plan.md) 를 추가해, representative subset seed는 유지하되 full inventory/backfill은 current Swagger/schema export 또는 provider codebook 확보 전까지 보류한다고 고정했다. 동시에 sufficient/insufficient source 기준과 요청 스펙도 분리했다
 - 이유: `supportConditions` 는 `GOV24_*` taxonomy보다 구조화가 강하지만, representative subset을 몇 개 확인한 것과 전체 finite code inventory를 확보한 것은 다른 단계다. 이 경계를 분리해 두어야 subset seed와 full import가 다시 섞이지 않는다
+
+## 253) `compat_unified_category` 를 너무 일찍 read-model 계산값으로 바꾸면 canonical 정규화와 현재 제품 계약 변경이 한 번에 묶여 drift 원인을 분리하기 어려워진다
+- 문제: writer는 이미 `service_taxonomies.compat_unified_category_*` 를 저장하고 있고, canonical summary도 조금씩 붙고 있다 보니 `compat_unified_category` 를 아예 read-model 계산값으로만 바꾸고 싶어질 수 있다. 하지만 현재 priority/response/replay 계약은 여전히 `compat` 를 기준으로 서 있고, canonical summary coverage도 아직 `youth_mid/gov24_*` 공백과 `compat=기타 + youth_major 채움` 정책 이슈를 안고 있다
+- 해결: [policy-normalization-compat-storage-policy.md](./policy-normalization-compat-storage-policy.md) 를 추가해, 현재 phase에서는 `compat_unified_category` 를 저장 필드로 유지하고 `welfare_services.unified_category` 와 `service_taxonomies.compat_unified_category_*` 를 함께 두기로 고정했다. read-model은 저장된 compat를 읽고 canonical summary는 secondary hint로만 소비한다
+- 이유: 지금 compat를 계산-only로 바꾸면 collect/write, sidecar summary 정제, read-model projection, priority 계약 변경이 한 경로로 합쳐져 drift triage가 어려워진다. canonical 전환이 끝나기 전까지는 stored compat를 기준점으로 두는 편이 더 안전하다
