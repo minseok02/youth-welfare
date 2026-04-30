@@ -752,3 +752,13 @@
 - 문제: `YOUTH_MID_RAW_ALIAS` 를 `service_taxonomy_terms` 에 따로 보존하더라도, `taxonomy.youthMid` 나 `service_taxonomies.youth_mid_label` 이 기존처럼 raw `category_sub` 문자열(`취업,재직자`, `온·오프라인교육`)을 그대로 유지하면 summary/read-model 이 계속 비정규 값에 묶이게 된다. 그러면 canonical term과 summary가 서로 다른 기준을 보게 되어 후속 추천 브릿지와 검증 쿼리가 다시 흔들릴 위험이 있었다
 - 해결: `WelfareServiceMapper.toNormalizedYouth()` 와 `V2026_04_30_02__seed_policy_normalization_codes.sql` 모두 `YOUTH_MID` summary 는 exact official 단일 token일 때만 채우고, comma 조합이나 raw alias가 섞이면 `NULL` 로 두도록 규칙을 맞췄다. 동시에 `DeferredNormalizedPolicySidecarWriter` 에 raw alias bucket이 있을 때 summary `youthMid` 가 비어 있어야 한다는 invariant 검증을 추가했다
 - 이유: canonical taxonomy는 summary 와 repeated term row가 같은 정합성 규칙을 공유해야 한다. raw alias bucket을 도입한 뒤에도 summary 를 그대로 두면 정규화 이득이 절반만 남으므로, collect aggregate / backfill SQL / writer invariant 를 같은 기준으로 고정해 재발을 막는 편이 안전하다
+
+## 149) `detail` aggregate 의 `taxonomyTerms` 가 비어 있다는 이유만으로 source별 known term group 을 전부 지우면, 복지로 list 수집이 적재한 taxonomy가 detail refresh 한 번에 사라질 수 있음
+- 문제: 실제 JDBC sidecar writer 로 바꾸면서 source별 term group refresh 삭제를 추가했는데, 이 로직을 `BokjiroDetail` aggregate 에도 그대로 적용하면 detail aggregate 는 `taxonomyTerms` 가 비어 있으므로 기존 `LIFE_STAGE`, `INTEREST_THEME`, `TARGET_GROUP` row를 통째로 삭제해 버릴 수 있었다
+- 해결: `DeferredNormalizedPolicySidecarWriter` 는 `taxonomyTerms` 가 비어 있는 aggregate 에 대해서는 taxonomy term refresh 자체를 건너뛰도록 했고, `DeferredNormalizedPolicySidecarWriterTest` 에서 detail aggregate(`BOKJIRO_CENTRAL`, empty `taxonomyTerms`)가 summary/facts upsert 는 수행하되 `DELETE FROM service_taxonomy_terms` 는 호출하지 않는 계약을 추가했다
+- 이유: list collect 와 detail collect 는 canonical aggregate 의 역할이 다르다. detail 경로는 facts/detail enrichment 전용이고 list taxonomy를 authoritative 하게 대체하지 않으므로, 같은 sourceType 이라도 “term payload 가 비어 있는 detail aggregate” 는 delete semantics 를 다르게 가져가야 기존 수집 결과를 보존할 수 있어 재발 방지에 안전하다
+
+## 150) actual sidecar writer 를 도입해도 아직 local/runtime schema 에 sidecar 테이블이 없으면 collect 호출 시 SQL 예외로 전체 수집이 깨질 수 있음
+- 문제: `DeferredNormalizedPolicySidecarWriter` 를 실제 JDBC upsert writer 로 바꾼 뒤에도 sidecar 스키마는 아직 `schema.sql` 과 정식 `db/migration/` 에 들어가지 않았다. 이 상태에서 테이블 존재 여부를 확인하지 않고 곧바로 `service_taxonomies/service_facts` 에 쓰면, 현재 로컬/운영 DB 상당수는 해당 테이블이 없어 collect 경로 전체가 SQL 예외로 중단될 위험이 있었다
+- 해결: writer 시작 시 `information_schema.tables` 를 조회해 `normalization_code_sets`, `service_taxonomies`, `service_taxonomy_terms`, `service_facts` 네 테이블이 모두 있을 때만 actual upsert 를 수행하고, 없으면 debug 로그만 남기고 안전하게 skip 하도록 변경했다
+- 이유: canonical sidecar 전환은 collect 코드와 DB rollout 이 완전히 동시에 끝나지 않는다. rollout 이전 단계에서 writer 가 no-op fallback 을 유지해야 현재 수집 흐름을 지키면서도, sidecar 테이블이 준비된 환경에서는 같은 코드가 즉시 actual persistence 로 전환될 수 있어 점진 이행과 재발 방지에 모두 유리하다
