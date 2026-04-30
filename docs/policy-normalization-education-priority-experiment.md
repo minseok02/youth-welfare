@@ -8,6 +8,7 @@
 - [policy-normalization-compat-other-youth-major-bridge-review.md](./policy-normalization-compat-other-youth-major-bridge-review.md)
 - [policy-normalization-priority-bridge-table-policy.md](./policy-normalization-priority-bridge-table-policy.md)
 - [policy-normalization-recommendation-read-model.md](./policy-normalization-recommendation-read-model.md)
+- [policy-normalization-education-priority-flag-scope.md](./policy-normalization-education-priority-flag-scope.md)
 
 ## 결론
 

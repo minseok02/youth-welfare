@@ -967,3 +967,8 @@
 - 문제: `교육`을 첫 실험 후보로 승인한 뒤, 이를 `DefaultPriorityMatcher` 에 직접 넣으면 `EDUCATION` priority의 match semantics 자체가 바뀌어 버린다. 그러면 feature flag를 꺼도 matcher 의미와 response/category 해석 경계가 같이 얽혀 rollback 단위가 커질 수 있다
 - 해결: 실험 삽입 위치를 `RuleScoringService` 의 narrow priority bonus 경계로 고정했다. `DefaultPriorityMatcher` 는 계속 `compat_unified_category` 기반 category contract만 유지하고, `compat=기타 + youth_major=교육` 실험은 scoring layer additive bonus + flag로만 제어한다
 - 이유: matcher 는 stable product contract, scoring 은 좁은 실험 레이어다. bridge candidate 실험은 additive bonus 경계에서 먼저 검증하는 편이 on/off, rollback, 영향 범위 설명이 모두 쉽다
+
+## 192) `교육` bridge 실험은 이미 row/user 조건이 좁기 때문에 rollout percent나 user allowlist까지 겹치면 오히려 회귀 원인 분리가 어려워짐
+- 문제: `교육 -> 교육·직업훈련` 실험을 실제로 켜는 시점을 상정하면 percentage rollout, 특정 사용자 allowlist, 환경별 다중 토글 같은 제어 장치를 같이 넣고 싶어질 수 있다. 하지만 이번 실험은 애초에 `compat=기타 + youth_major=교육 + user priority=EDUCATION + priority bonus 경계` 로 이미 후보와 사용자 범위가 좁아, 토글 축을 더 늘리면 왜 순위가 바뀌었는지 설명이 오히려 어려워질 수 있다
+- 해결: flag 범위를 `recommend.priority.education-canonical-bonus.enabled` 전역 boolean 1개로 고정했다. 기본값은 `false` 이고, effect scope 는 계속 narrow candidate/user 조건이 담당하게 두며, flag 는 실험 전체를 켜고 끄는 역할만 맡긴다
+- 이유: bridge candidate 첫 실험은 “효과가 있는가”를 보는 단계이지 rollout 시스템을 만드는 단계가 아니다. 이미 좁은 실험에 control plane까지 복잡하게 얹으면 rollback과 원인 분석이 더 어려워지므로, 가장 작은 boolean toggle부터 쓰는 편이 안전하다

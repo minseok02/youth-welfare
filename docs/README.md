@@ -76,6 +76,9 @@
 - [policy-normalization-education-priority-experiment.md](./policy-normalization-education-priority-experiment.md)
   `교육 -> 교육·직업훈련` 을 기본 동작 변경 없이 첫 priority 실험 후보로 승인할지, 승인한다면 `DefaultPriorityMatcher` 가 아니라 `RuleScoringService` bonus 경계에서 어디까지 좁게 실험할지 확인합니다.
 
+- [policy-normalization-education-priority-flag-scope.md](./policy-normalization-education-priority-flag-scope.md)
+  `교육 -> 교육·직업훈련` narrow experiment를 실제로 켤 때 사용할 flag key와 on/off 범위를 전역 boolean 기준으로 확인합니다.
+
 - [policy-source-onboarding-playbook.md](./policy-source-onboarding-playbook.md)
   실제 DB 적재 스냅샷을 기준으로 일자리/주거/장학/공공서비스 source를 `정책형 / listing형 / reference형` 으로 어떻게 나눠 붙일지 확인합니다.
 
