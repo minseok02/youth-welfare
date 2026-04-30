@@ -400,3 +400,24 @@ DRY_RUN=true \
 REPLAY_LOG_ROOT=/var/log/youth-welfare/openai-replay \
 deploy/smoke/cleanup-openai-replay-artifacts.sh
 ```
+
+## scheduler choice
+
+현재 단계에서는 `nightly replay wrapper` 와 `cleanup cron` 둘 다
+**systemd timer** 보다 **system cron** 을 먼저 쓰는 편이 맞습니다.
+
+이유:
+
+1. 현재 운영 문서가 host shell/compose/cron 수준 절차에 더 가깝습니다.
+2. replay와 cleanup 모두 wrapper 스크립트가 이미 있어 cron line만 붙이면 됩니다.
+3. 지금 필요한 건 observability보다 “가장 작은 운영 진입 경로” 입니다.
+
+즉 권장 순서는:
+
+1. `system cron` 으로 먼저 운영
+2. 필요하면 이후 `systemd timer` 로 승격
+
+현재 단계에서 보류하는 것:
+
+- 전용 `.service` / `.timer` unit 파일 추가
+- journal 기반 관찰 체계 먼저 설계

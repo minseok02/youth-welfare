@@ -1192,3 +1192,8 @@
 - 문제: nightly replay는 `USE_REAL_OPENAI_FOR_REPLAY`, `KEEP_ARTIFACTS`, `ARTIFACT_DIR`, `REPLAY_SUMMARY_APPEND_FILE`, `REPLAY_SUMMARY_TS` 등을 같이 맞춰야 해서, cron line에 직접 길게 쓰면 host마다 오타/경로 불일치가 나기 쉽다
 - 해결: [run-nightly-openai-replay.sh](/home/minseok/youth-welfare/deploy/smoke/run-nightly-openai-replay.sh) 를 추가해 nightly 기본값을 wrapper가 계산하도록 하고, [openai-replay-diagnostic-lane-plan.md](./openai-replay-diagnostic-lane-plan.md) 와 [policy-normalization-education-priority-replay-procedure.md](./policy-normalization-education-priority-replay-procedure.md)에 이를 기본 진입점으로 고정했다
 - 이유: cleanup 과 replay 둘 다 cron에서 바로 호출될 예정이면, 각자의 env/경로 계약이 스크립트에 모여 있어야 운영자가 cron line에서 “무엇을 호출하는지”만 보면 된다. wrapper를 두는 편이 host 간 drift를 줄인다
+
+## 237) 현재 단계에서는 systemd timer보다 system cron이 더 작은 운영 진입 경로다
+- 문제: nightly replay와 cleanup을 host에서 주기 실행해야 하지만, 지금 단계에서 `.service`/`.timer` unit까지 같이 열면 운영 절차가 갑자기 systemd 중심으로 커지고 문서/스크립트 경계가 다시 넓어진다
+- 해결: [openai-replay-diagnostic-lane-plan.md](./openai-replay-diagnostic-lane-plan.md)에 현재 우선순위를 `system cron -> 필요 시 systemd timer` 로 고정하고, 다음 작업도 cron entry 예시 작성으로 좁혔다
+- 이유: 이미 wrapper 스크립트 둘이 있고 운영 문서도 shell/compose 중심이다. 가장 작은 다음 단계는 crontab에서 wrapper를 부르는 것이고, systemd timer는 observability나 표준화 필요가 생겼을 때 뒤에서 붙여도 늦지 않다
