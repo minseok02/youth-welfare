@@ -867,3 +867,8 @@
 - 문제: local draft migration 상태에서 beneficiary-like detail raw payload candidate 는 `42`건이었는데, replay 후 whitelist `TARGET_GROUP(source_field=targetDetail/selectionCriteria)` term 은 `59 rows / 42 services` 로 적재됐다. `기초생활수급자` `38`, `차상위계층` `21` 이라 일부 서비스는 두 label을 동시에 갖고 있었고, 단순 term row count 만 보면 coverage가 실제 서비스 수보다 커 보일 수 있었다
 - 해결: beneficiary density 측정은 `NormalizedPolicySidecarBeneficiaryTermDensityIntegrationTest` 와 문서에서 항상 `term row count` 와 `distinct service count` 를 같이 기록하도록 정리했다
 - 이유: beneficiary soft taxonomy 는 hard fact 한 줄과 달리 한 서비스에 복수 term 이 공존할 수 있다. row count 만 보면 중복으로 과대평가되고, service count 만 보면 label richness가 사라지므로 두 지표를 같이 봐야 재발 해석이 정확하다
+
+## 172) 복지로 beneficiary whitelist overlap service 는 `기초생활수급자` 와 `차상위계층` 을 collapse 하기보다 multi-term 으로 유지해야 source 의미를 보존할 수 있음
+- 문제: local snapshot 에서 beneficiary whitelist overlap service 가 `17`건 있었고, `여성청소년 생리용품 지원`, `통합문화이용권`, `자활근로(기초, 차상위)`, `재난적의료비 지원 사업` 처럼 source 자체가 두 집단을 함께 명시한 사례가 다수였다. 이를 하나의 상위 label로 collapse 하면 “두 집단 모두 대상”이라는 원문 의미가 사라질 수 있었다
+- 해결: current canonical 정책은 `기초생활수급자` 와 `차상위계층` 을 상하위 collapse 하지 않고 multi-term 으로 그대로 유지하도록 문서에 고정했다. 대신 이후 recommendation/read-model 단계에서만 중복 가중치 dedupe 를 따로 설계하는 것으로 후속 작업을 분리했다
+- 이유: beneficiary bucket 은 hard fact 가 아니라 soft taxonomy 이므로, source가 제공한 대상군 richness를 보존하는 편이 안전하다. collapse 는 나중 read-model에서 언제든 할 수 있지만, 저장 단계에서 잃은 정보는 되돌리기 어렵다

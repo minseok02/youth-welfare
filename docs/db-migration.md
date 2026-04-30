@@ -96,6 +96,8 @@ WHERE ws.source_type IN ('BOKJIRO_CENTRAL', 'BOKJIRO_LOCAL'); -- 103
 
 local draft migration 상태에서 stored 복지로 detail raw payload replay를 다시 실행해 보니 beneficiary-like candidate payload 는 `42`건이었고, replay 후 `service_taxonomy_terms(term_group='TARGET_GROUP', source_field='targetDetail/selectionCriteria')` 의 whitelist term 은 총 `59 rows / 42 services` 로 적재됐다. 라벨별로는 `기초생활수급자 38 rows / 38 services`, `차상위계층 21 rows / 21 services` 였다. 한 서비스가 두 beneficiary label을 동시에 가질 수 있으므로, beneficiary density는 앞으로도 `term row count` 와 `distinct service count` 를 같이 기록한다.
 
+overlap service 는 `17`건이었고, 샘플은 `여성청소년 생리용품 지원`, `통합문화이용권`, `자활근로(기초, 차상위)`, `재난적의료비 지원 사업` 처럼 source 자체가 두 집단을 함께 명시한 경우가 대부분이었다. 따라서 현재 canonical 정책은 `기초생활수급자` 와 `차상위계층` 을 상하위 collapse 하지 않고 multi-term 으로 그대로 유지한다. 이 bucket은 hard fact 가 아니라 soft taxonomy 이므로, 추천/read-model 단계에서 필요하면 중복 가중치만 제어하고 원본 term 정보는 보존하는 쪽이 맞다.
+
 추가 확인 결과 `targetDetail/supportDetail/selectionCriteria` 의 date-like token 수는 `4 / 1 / 1` 이었지만, 샘플은 출생연도 범위나 혜택 적용기간처럼 신청마감이 아닌 날짜가 대부분이었다. 따라서 현재 canonical collect path 에서는 `BK_APPLY_END_DATE` 를 optional fact 로 유지하고, `targetDetail/selectionCriteria` 까지 deadline fallback 을 넓히지 않는다.
 
 - 파일: [`backend/src/main/resources/db/migration/V2026_04_28_02__add_user_pii_sync_queue.sql`](../backend/src/main/resources/db/migration/V2026_04_28_02__add_user_pii_sync_queue.sql)
