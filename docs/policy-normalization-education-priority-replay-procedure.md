@@ -87,6 +87,10 @@ real OpenAI 호출이 정말 필요하면 아래처럼 명시적으로 opt-in �
 USE_REAL_OPENAI_FOR_REPLAY=true deploy/smoke/run-local-education-priority-replay.sh
 ```
 
+이 `real-openai` run의 기본 위치는
+PR hard gate가 아니라 nightly/diagnostic 또는 수동 triage입니다.
+즉 strict equality 실패만으로는 PR blocker로 해석하지 않습니다.
+
 ### 1. DB/Redis 기동
 
 ```bash

@@ -1137,3 +1137,8 @@
 - 문제: 기존 summary는 top10 row dump가 먼저 나와서, 실제 gate에 쓰는 `sample A/B top10 target count` 와 fingerprint relation을 눈으로 빨리 찾기 어려웠다
 - 해결: `deploy/smoke/run-local-education-priority-replay.sh` summary 상단에 `SUMMARY_METRIC A_top10_target=... B_top10_target=... A_target_total=... B_target_total=... A_fp=... B_fp=...` 한 줄을 추가했다
 - 이유: replay smoke의 1차 판단값은 상세 row보다 target count/fingerprint relation이다. gate metric을 먼저 보고, 필요할 때만 아래 top10 dump를 읽는 구조가 더 빠르고 일관된다
+
+## 226) same fingerprint 안에서도 live variability가 남는 동안 `real-openai` replay는 PR hard gate보다 nightly/diagnostic lane으로 분리하는 편이 맞다
+- 문제: same `promptSha256` + same `replaySeed` + same `systemFingerprint` 조건에서도 `ai_score` / `final_score` drift가 남는데, 이 replay를 PR hard gate에 그대로 두면 live model variability가 코드 회귀와 같은 blocker가 된다
+- 해결: [openai-replay-validation-policy.md](./openai-replay-validation-policy.md) 와 [policy-normalization-education-priority-replay-procedure.md](./policy-normalization-education-priority-replay-procedure.md)에 `rule-only-invalid-key` 는 PR hard gate, `real-openai` replay는 nightly/diagnostic 또는 수동 triage lane이라는 운영 경계를 명시했다
+- 이유: 지금 제품이 통제할 수 있는 것은 deterministic한 non-AI 경계와 trace/artifact 품질이지, live OpenAI 응답의 미세한 변동 자체는 아니다. 검증선과 진단선을 분리해야 PR gate가 과민해지지 않는다
