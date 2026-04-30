@@ -83,6 +83,8 @@ deploy/smoke/run-local-education-priority-replay.sh
 14. nightly summary file에 append 할 때도 같은 축을 유지하고,
     최소 필드는 `ts`, `mode`, `A_top10_target`, `B_top10_target`,
     `A_target_total`, `B_target_total`, `A_fp`, `B_fp`, `artifact_dir` 로 제한한다
+15. 실제 append 는 `REPLAY_SUMMARY_APPEND_FILE=/path/to/nightly-summary-YYYY-MM-DD.log`
+    env 로 켜고, 필요하면 `REPLAY_SUMMARY_TS` 로 기록 시각을 wrapper 에서 명시한다
 
 real OpenAI 호출이 정말 필요하면 아래처럼 명시적으로 opt-in 합니다.
 

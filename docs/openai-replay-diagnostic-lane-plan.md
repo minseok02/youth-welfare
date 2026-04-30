@@ -296,6 +296,29 @@ ts=2026-04-30T23:10:00+09:00 mode=real-openai A_top10_target=1->7 B_top10_target
 
 이 값들은 한 줄 요약보다 artifact dir 안의 상세 파일에서 보는 편이 맞습니다.
 
+## script/env contract
+
+현재 기준에서 nightly summary line을 실제로 append 할 때는
+[run-local-education-priority-replay.sh](/home/minseok/youth-welfare/deploy/smoke/run-local-education-priority-replay.sh)
+에 아래 env contract를 씁니다.
+
+- `REPLAY_SUMMARY_APPEND_FILE`
+  - 비어 있지 않으면 summary line을 해당 파일에 append
+  - 비어 있으면 stdout에만 출력
+- `REPLAY_SUMMARY_TS`
+  - 비어 있으면 스크립트가 local timezone 기준 current timestamp를 사용
+  - cron wrapper가 명시 timestamp를 주고 싶으면 override 가능
+
+즉 nightly cron wrapper 기본형은 아래처럼 잡습니다.
+
+```bash
+REPLAY_SUMMARY_APPEND_FILE=/var/log/youth-welfare/openai-replay/nightly-summary-$(date +%F).log \
+REPLAY_SUMMARY_TS="$(date --iso-8601=seconds)" \
+USE_REAL_OPENAI_FOR_REPLAY=true \
+KEEP_ARTIFACTS=true \
+deploy/smoke/run-local-education-priority-replay.sh
+```
+
 ## 권장 cleanup 실행 경계
 
 cleanup 은 replay cron 후단에 섞지 않고,

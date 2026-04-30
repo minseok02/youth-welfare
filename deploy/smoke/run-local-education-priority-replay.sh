@@ -121,6 +121,8 @@ KEEP_ARTIFACTS="${KEEP_ARTIFACTS:-true}"
 STRICT_CONTROL_ASSERT="${STRICT_CONTROL_ASSERT:-false}"
 RECOMMEND_AI_REPLAY_TRACE_ENABLED="${RECOMMEND_AI_REPLAY_TRACE_ENABLED:-true}"
 RECOMMEND_AI_REPLAY_SEED="${RECOMMEND_AI_REPLAY_SEED:-424242}"
+REPLAY_SUMMARY_APPEND_FILE="${REPLAY_SUMMARY_APPEND_FILE:-}"
+REPLAY_SUMMARY_TS="${REPLAY_SUMMARY_TS:-}"
 
 ARTIFACT_DIR="${ARTIFACT_DIR:-$(mktemp -d)}"
 OPENAI_MODE_FILE="${ARTIFACT_DIR}/openai-mode.txt"
@@ -408,13 +410,14 @@ PY
 }
 
 print_summary() {
-  python3 - <<'PY' "${RESP_A_OFF}" "${RESP_A_ON}" "${RESP_B_OFF}" "${RESP_B_ON}" "${META_FILE}" "${STRICT_CONTROL_ASSERT}" "${AI_RESPONSE_TRACE_A_OFF}" "${AI_RESPONSE_TRACE_A_ON}" "${AI_RESPONSE_TRACE_B_OFF}" "${AI_RESPONSE_TRACE_B_ON}"
+  python3 - <<'PY' "${RESP_A_OFF}" "${RESP_A_ON}" "${RESP_B_OFF}" "${RESP_B_ON}" "${META_FILE}" "${STRICT_CONTROL_ASSERT}" "${AI_RESPONSE_TRACE_A_OFF}" "${AI_RESPONSE_TRACE_A_ON}" "${AI_RESPONSE_TRACE_B_OFF}" "${AI_RESPONSE_TRACE_B_ON}" "${OPENAI_MODE_FILE}" "${ARTIFACT_DIR}" "${REPLAY_SUMMARY_APPEND_FILE}" "${REPLAY_SUMMARY_TS}"
 import json
 import re
 import sys
 from pathlib import Path
+from datetime import datetime
 
-resp_a_off, resp_a_on, resp_b_off, resp_b_on, meta_path, strict_control_assert, trace_a_off, trace_a_on, trace_b_off, trace_b_on = sys.argv[1:]
+resp_a_off, resp_a_on, resp_b_off, resp_b_on, meta_path, strict_control_assert, trace_a_off, trace_a_on, trace_b_off, trace_b_on, openai_mode_file, artifact_dir, summary_append_file, replay_summary_ts = sys.argv[1:]
 
 def load_rows(path):
     with open(path, "r", encoding="utf-8") as fp:
@@ -469,18 +472,43 @@ a_off_fp = fingerprint_of(trace_a_off)
 a_on_fp = fingerprint_of(trace_a_on)
 b_off_fp = fingerprint_of(trace_b_off)
 b_on_fp = fingerprint_of(trace_b_on)
+a_fp_relation = "same" if a_off_fp == a_on_fp else "different"
+b_fp_relation = "same" if b_off_fp == b_on_fp else "different"
+mode = Path(openai_mode_file).read_text(encoding="utf-8").strip() or "unknown"
+ts_value = replay_summary_ts or datetime.now().astimezone().isoformat(timespec="seconds")
 
-print("A_FINGERPRINT", a_off_fp, a_on_fp, "same" if a_off_fp == a_on_fp else "different")
-print("B_FINGERPRINT", b_off_fp, b_on_fp, "same" if b_off_fp == b_on_fp else "different")
+print("A_FINGERPRINT", a_off_fp, a_on_fp, a_fp_relation)
+print("B_FINGERPRINT", b_off_fp, b_on_fp, b_fp_relation)
 print(
     "SUMMARY_METRIC",
     f"A_top10_target={a_off['top10_target_count']}->{a_on['top10_target_count']}",
     f"B_top10_target={b_off['top10_target_count']}->{b_on['top10_target_count']}",
     f"A_target_total={a_off['target_count']}->{a_on['target_count']}",
     f"B_target_total={b_off['target_count']}->{b_on['target_count']}",
-    f"A_fp={'same' if a_off_fp == a_on_fp else 'different'}",
-    f"B_fp={'same' if b_off_fp == b_on_fp else 'different'}",
+    f"A_fp={a_fp_relation}",
+    f"B_fp={b_fp_relation}",
 )
+
+summary_line = (
+    f"ts={ts_value} "
+    f"mode={mode} "
+    f"A_top10_target={a_off['top10_target_count']}->{a_on['top10_target_count']} "
+    f"B_top10_target={b_off['top10_target_count']}->{b_on['top10_target_count']} "
+    f"A_target_total={a_off['target_count']}->{a_on['target_count']} "
+    f"B_target_total={b_off['target_count']}->{b_on['target_count']} "
+    f"A_fp={a_fp_relation} "
+    f"B_fp={b_fp_relation} "
+    f"artifact_dir={artifact_dir}"
+)
+
+if summary_append_file:
+    summary_path = Path(summary_append_file)
+    summary_path.parent.mkdir(parents=True, exist_ok=True)
+    with summary_path.open("a", encoding="utf-8") as fp:
+        fp.write(summary_line + "\n")
+    print("SUMMARY_APPEND_FILE", summary_append_file)
+
+print("SUMMARY_APPEND_LINE", summary_line)
 
 if a_on["top10_target_count"] <= a_off["top10_target_count"]:
     raise SystemExit("sample A did not improve target row top10 count")

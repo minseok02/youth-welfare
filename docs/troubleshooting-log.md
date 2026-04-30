@@ -1177,3 +1177,8 @@
 - 문제: replay 실행과 cleanup 삭제를 같은 cron 후단에 묶으면, cleanup 실패가 replay 자체 실패처럼 보이거나, replay 실패 시 cleanup이 건너뛰어 보존 정책이 흔들릴 수 있다
 - 해결: [openai-replay-diagnostic-lane-plan.md](./openai-replay-diagnostic-lane-plan.md)에 cleanup을 `별도 daily cleanup cron` 으로 분리하는 정책을 반영했고, phase-plan 다음 작업도 cleanup cron 명령/경로 계약 정리로 좁혔다
 - 이유: replay cron은 artifact 생성과 summary append에만 집중하고, cleanup cron은 보존기간 enforcement에만 집중해야 운영자가 실패 원인을 바로 분리할 수 있다. 역할을 나누는 편이 재실행과 디버깅도 단순하다
+
+## 234) nightly summary line format은 문서만으로 두지 말고, 스크립트 env contract로 바로 노출하는 편이 wrapper 구현 때 덜 흔들린다
+- 문제: summary line 필드 집합을 문서로만 정하면, 실제 cron wrapper를 만들 때 파일 경로와 timestamp를 어느 env로 줄지 다시 논의하게 되어 계약이 흔들릴 수 있다
+- 해결: [run-local-education-priority-replay.sh](/home/minseok/youth-welfare/deploy/smoke/run-local-education-priority-replay.sh)에 `REPLAY_SUMMARY_APPEND_FILE`, `REPLAY_SUMMARY_TS` env contract를 추가하고, [openai-replay-diagnostic-lane-plan.md](./openai-replay-diagnostic-lane-plan.md) 와 [policy-normalization-education-priority-replay-procedure.md](./policy-normalization-education-priority-replay-procedure.md)에 같은 이름으로 고정했다
+- 이유: cron wrapper가 최소한의 glue code로 붙으려면, summary append를 켜는 방법과 timestamp override 방법이 스크립트에 바로 있어야 한다. env contract를 먼저 고정하는 편이 다음 단계 명령 초안 작성이 훨씬 단순하다
