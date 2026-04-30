@@ -232,6 +232,9 @@
 - [policy-listing-source-schema-draft.md](./policy-listing-source-schema-draft.md)
   `고용24/워크넷 채용정보`, `마이홈포털 공공주택 모집공고/단지/대기현황` 같은 listing형 source를 `welfare_services` 대신 어떤 분리 스키마로 받을지 확인합니다.
 
+- [policy-source-canonical-onboarding-priority.md](./policy-source-canonical-onboarding-priority.md)
+  `정부지원일자리정보`, `구직자취업역량 강화프로그램`, `Gov24/보조금24` 같은 정책형 source를 어떤 순서로 canonical onboarding / live validation 할지 확인합니다.
+
 - [troubleshooting-log.md](./troubleshooting-log.md)  
   이전에 발생한 장애와 해결 과정을 확인합니다.
 
