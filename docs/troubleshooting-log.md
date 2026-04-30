@@ -1147,3 +1147,8 @@
 - 문제: 현재 repo에는 `.github/workflows` 도 없고, `real-openai` replay는 OpenAI secret, local DB/Redis, artifact retention 을 함께 요구한다. 이걸 기본 PR CI에 바로 얹으면 secret 범위와 flaky surface가 같이 커진다
 - 해결: [openai-replay-diagnostic-lane-plan.md](./openai-replay-diagnostic-lane-plan.md)에 현재 권장 실행 위치를 `manual diagnostic first, scheduled diagnostic later` 로 고정하고, future 자동화 후보를 `self-hosted GitHub Actions runner` 또는 `ops cron host` 로 한정했다
 - 이유: 지금 필요한 건 deterministic PR gate가 아니라 별도 secret-bearing 진단 lane이다. 기본 CI와 같은 lane에 두는 것보다, 격리된 runner/host에서 artifact 중심으로 돌리는 편이 운영/보안/노이즈 측면에서 더 안전하다
+
+## 228) `.github/workflows` 가 아직 없고 host 기반 smoke 절차가 이미 있으면, 첫 scheduled diagnostic lane은 self-hosted runner보다 ops cron host가 더 짧은 경로다
+- 문제: `real-openai` replay 자동화를 열어야 하지만, 현재 repo는 GitHub Actions workflow 자체가 없고, 바로 self-hosted runner를 붙이면 runner 운영/secret 주입/CI wiring 작업이 먼저 커진다
+- 해결: [openai-replay-diagnostic-lane-plan.md](./openai-replay-diagnostic-lane-plan.md)에 현재 우선순위를 `ops cron host -> self-hosted runner` 로 고정하고, 다음 작업도 cron 주기와 artifact 공유 위치 결정으로 좁혔다
+- 이유: 이미 `deploy/smoke/run-local-education-priority-replay.sh` 와 운영 host/compose 중심 문서가 있으므로, periodic diagnostic artifact를 얻는 가장 짧은 경로는 ops host에서 cron으로 먼저 돌리는 것이다. self-hosted runner는 가시성/연동 이점이 있지만 지금 당장 가장 작은 다음 단계는 아니다

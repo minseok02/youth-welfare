@@ -96,11 +96,37 @@ PR lane은 그쪽에만 남기는 것이 맞습니다.
 1. 기본 PR 검증은 계속 `rule-only-invalid-key`
 2. `real-openai` replay는 local/manual diagnostic로 유지
 3. 이후 자동화를 붙일 때는
-   - 1순위: self-hosted scheduled workflow
-   - 2순위: ops cron host
+   - 1순위: ops cron host
+   - 2순위: self-hosted scheduled workflow
 
 즉 “repo 기본 CI에 바로 넣는다”가 아니라,
 “별도 secret-bearing diagnostic runner에 붙인다”가 현재 권장안입니다.
+
+## 왜 `ops cron host` 를 먼저 보나
+
+현재 상태에서는 `ops cron host` 를 먼저 여는 쪽이 더 현실적입니다.
+
+이유:
+
+1. repo 안에 `.github/workflows` 가 아직 없습니다.
+2. 이미 `deploy/smoke/run-local-education-priority-replay.sh` 가 host 기준 절차를 갖고 있습니다.
+3. `deployment.md`, `runtime-cutover-checklist.md` 같은 운영 문서도 host/compose 중심으로 정리돼 있습니다.
+4. 지금 필요한 건 merge blocker가 아니라 periodic diagnostic artifact 수집이므로,
+   GitHub Actions onboarding보다 host cron이 더 짧은 경로입니다.
+
+즉 현재 순서는:
+
+1. local/manual diagnostic
+2. ops cron host scheduled replay
+3. 필요 시 self-hosted runner로 승격
+
+입니다.
+
+## 현재 보류하는 것
+
+- GitHub Actions self-hosted runner를 먼저 여는 작업
+- repo 안에 workflow 파일부터 만드는 작업
+- PR comment/status check 와 `real-openai` replay를 직접 연결하는 작업
 
 ## 지금 당장 하지 않는 것
 
@@ -110,7 +136,6 @@ PR lane은 그쪽에만 남기는 것이 맞습니다.
 
 ## 다음 결정 포인트
 
-1. self-hosted runner를 먼저 열 수 있는가
-2. 아니면 ops cron host로 먼저 시작할 것인가
-3. artifact를 어디에 보관할 것인가
-4. nightly frequency를 매일로 둘지, 수동/on-demand 중심으로 둘지
+1. ops cron host에서 artifact를 어디에 보관/공유할 것인가
+2. nightly frequency를 매일로 둘지, 수동/on-demand 중심으로 둘지
+3. 이후 self-hosted runner로 옮길 필요가 생기는 조건은 무엇인가
