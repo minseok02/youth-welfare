@@ -73,7 +73,8 @@ OpenAI live response variability가 남아 있으므로,
 1. PR 기본 검증선은 `rule-only` 결과
 2. `real-openai` replay는 supplementary evidence
 3. `real-openai` strict equality 실패만으로 PR을 막지 않음
-4. 대신 trace/artifact가 남지 않는 실패는 막음
+4. sample B `unexpected target count increase` 는 현재 warning 으로만 본다
+5. 대신 trace/artifact가 남지 않는 실패는 막음
 
 즉:
 

@@ -1117,3 +1117,8 @@
 - 문제: `/tmp/tmp.TpE5SaiHJu` 같은 same fingerprint artifact에서도 sample B `ai_score` 는 `404:85 -> 75`, `405:75 -> 85`, `390:55 -> 70` 식으로 흔들렸다. 이런 상태에서 `score delta` 자체를 gate로 쓰면 live variability가 바로 fail 조건이 된다
 - 해결: [openai-replay-allowed-drift-metrics.md](./openai-replay-allowed-drift-metrics.md)에 `real-openai` allowed drift metric 우선순위를 고정했다. 자동 gate는 `top-N target row count` 와 `target row presence/absence` 중심으로 두고, `score delta` 는 artifact 설명용 지표로만 남긴다
 - 이유: 이번 실험의 목적은 target 교육 row가 더 잘 보이게 되는지 확인하는 것이다. 점수 exact match는 그 목적과 직접 연결되지 않고, same fingerprint 안에서도 흔들리므로 자동 gate로 쓰기엔 정보 가치보다 노이즈가 크다
+
+## 222) sample B `unexpected target count increase` 는 지금 단계에선 fail 보다 warning 이 더 맞다
+- 문제: current real-openai artifact 분포를 보면 sample B는 `/tmp/tmp.WoIyHuKtMd` 에서 `0 -> 1`, `/tmp/tmp.EZBH319uNA` 에서 `1 -> 0`, `/tmp/tmp.TpE5SaiHJu` 에서 `1 -> 1` 처럼 증가/감소/유지를 모두 보였다. 이 상태에서 increase만 fail 로 고정하면 live variability를 코드 회귀로 과대 판정할 위험이 크다
+- 해결: [openai-replay-allowed-drift-metrics.md](./openai-replay-allowed-drift-metrics.md), [openai-replay-validation-policy.md](./openai-replay-validation-policy.md)에 sample B `unexpected increase` 는 현재 warning 으로만 취급하는 정책을 고정했다. hard gate는 계속 `rule-only` 와 trace/artifact 완전성에 둔다
+- 이유: sample B control drift 자체가 same fingerprint 안에서도 흔들리는 상태라면, count increase 하나만 fail 조건으로 쓰는 건 비대칭적이다. 지금은 “관측 신호”로 남기고 artifact review로 연결하는 쪽이 더 안정적이다

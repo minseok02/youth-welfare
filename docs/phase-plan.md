@@ -608,6 +608,10 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
   - [openai-replay-allowed-drift-metrics.md](./openai-replay-allowed-drift-metrics.md)에 current gate metric 우선순위를 `top-N target row count -> target row presence/absence -> explanation manual review`, `score delta 자동 gate 제외`로 고정했다
   - 이유는 same fingerprint run에서도 `ai_score` / `final_score` 가 흔들려 `score delta` 가 제품 회귀보다 live variability에 더 민감했기 때문이다
   - 따라서 `real-openai` replay는 sample A improvement와 sample B target count stability를 우선 보고, score exact match는 더 이상 gate metric으로 쓰지 않는다
+- 2026-04-30 sample B `unexpected target count increase` 판정 고정
+  - current artifact 분포상 sample B는 `0 -> 1`, `1 -> 0`, `1 -> 1` 을 모두 보여 target count 자체가 live variability 영향을 받는다는 점을 확인했다
+  - 따라서 [openai-replay-allowed-drift-metrics.md](./openai-replay-allowed-drift-metrics.md), [openai-replay-validation-policy.md](./openai-replay-validation-policy.md)에 sample B `unexpected increase` 는 fail 이 아니라 warning 으로 두는 정책을 반영했다
+  - PR hard gate는 계속 `rule-only` 안정성과 trace/artifact 완전성으로 유지한다
 - 2026-04-28 pre-28 migrated DB 기준 admin logout / refresh invalidation / relogin smoke
   - `SECURITY_ADMIN_EMAILS=admin.logout.smoke@example.com` 으로 최신 앱을 기동한 뒤, admin 계정 로그인과 프로필 수정으로 queue row를 `SYNCED` 상태까지 맞추고 `POST /api/auth/refresh` 가 먼저 성공하는 것 확인
   - 같은 cookie jar + access token으로 `POST /api/auth/logout` 호출 후 cookie jar에서 `refresh_token` 이 제거되고, 직후 `POST /api/auth/refresh` 가 `401`, `errorCode=A001` 로 막히는 것 확인
@@ -1219,7 +1223,7 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - [ ] 복지로 detail refresh budget metadata(`centralBudget`/`localBudget`) 를 admin collect observability에 노출할지 결정
 - [ ] `bokjiro-details-gap-fill` 추가 라운드/호출 예산 전략 정리 후 stored detail payload coverage 추가 확대
 - [ ] same `promptSha256` + same `replaySeed` + same `system_fingerprint` 조건에서도 `ai_score` drift가 남는 현상을 제품적으로 어떻게 다룰지 결정
-- [ ] sample B의 `unexpected target count increase` 를 real-openai replay에서 fail 로 둘지 warning 으로 둘지 최종 결정
+- [ ] sample B warning을 `same fingerprint` 조건에서만 띄울지, 모든 real-openai replay에서 동일하게 띄울지 결정
 - [ ] `real-openai` replay를 PR gate가 아니라 nightly/diagnostic lane으로 분리할지 결정
 - [ ] `참여권리` 의 `청년참여` subset만 별도 bridge 후보로 분리할지 결정
 - [ ] 복지로 `threshold_like` income signal(`13`건) 을 `INCOME_*` hard fact 가 아닌 optional soft signal schema 로 분리할지 결정

@@ -84,8 +84,8 @@
 - sample A:
   - `on >= off + 1` 기대
 - sample B:
-  - `on > off` 면 warning 또는 fail 후보
-  - 현재는 control sample 성격상 `unexpected increase` 만 경고 대상으로 봄
+  - `on > off` 면 **warning**
+  - 현재는 control sample 성격상 fail 로 승격하지 않음
 
 이 metric이 현재 1순위입니다.
 
@@ -139,11 +139,42 @@ sample 수가 작을 때는 “0/1 존재 여부”도 같이 보는 편이 해�
 - hard gate 아님
 - 아래만 본다
   - sample A top-10 target count improvement 유지
-  - sample B target count 비정상 증가 없음
+  - sample B target count 비정상 증가 시 warning
   - trace/artifact 완전성 확보
+
+## 왜 sample B `unexpected increase` 를 warning 으로 두나
+
+실측 artifact를 보면 sample B는 아래처럼 흔들렸습니다.
+
+- `/tmp/tmp.WoIyHuKtMd`: `0 -> 1`
+- `/tmp/tmp.EZBH319uNA`: `1 -> 0`
+- `/tmp/tmp.TpE5SaiHJu`: `1 -> 1`
+
+즉 sample B target count는 이미
+
+- 증가
+- 감소
+- 유지
+
+를 모두 보였고,
+same `promptSha256` + same `replaySeed` + same `systemFingerprint`
+조건에서도 `ai_score` drift가 남았습니다.
+
+이 상황에서 `unexpected increase` 하나만 fail 로 두면:
+
+- live response variability를 코드 회귀로 과대 판정할 수 있고
+- 같은 조건의 `unexpected decrease` 와도 비대칭이 됩니다
+
+따라서 현재 단계에서는:
+
+- `unexpected increase` 는 warning
+- trace/artifact review 필수
+- `rule-only` hard gate 유지
+
+가 더 일관된 기준입니다.
 
 ## 다음 작업
 
 1. replay script summary를 `target count metric 중심` 으로 더 명시적으로 출력할지 결정
-2. sample B의 `unexpected increase` 를 fail 로 둘지 warning 으로 둘지 확정
+2. sample B warning을 어떤 artifact 조건에서만 출력할지 정교화
 3. 필요하면 `real-openai` replay를 nightly/diagnostic lane으로 분리
