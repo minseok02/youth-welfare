@@ -1347,3 +1347,8 @@
 - 문제: forced logout baseline을 고정한 뒤 바로 구현을 열면, 운영자가 어디서 이 기능을 누르는지와 revoke state를 어디에 저장하는지가 다시 뒤섞인다. DB 직접 수정은 의미가 너무 크고, Redis 수동 key 주입은 운영 우회에 가깝다
 - 해결: [auth-admin-forced-logout-entrypoint-policy.md](./auth-admin-forced-logout-entrypoint-policy.md) 를 추가해 1차 운영자 진입점을 admin API로, 즉시 revoke source를 Redis cutoff/revocation key로 고정했다
 - 이유: admin API는 제품 의미와 감사 가능성이 가장 분명하고, Redis는 기존 logout/refresh revoke 경계와 가장 잘 맞는다. 역할을 이렇게 나눠야 allowlist/account state와 session revoke가 다시 섞이지 않는다
+
+## 268) `admin forced logout` API가 role revoke/account lock까지 뜻하는 것처럼 열리면 구현 범위가 다시 커지므로, request/response 계약을 session revoke only로 먼저 고정해야 한다
+- 문제: entrypoint를 admin API로 정한 뒤에도 path, target identifier, success 의미를 바로 고정하지 않으면 이 API가 `ROLE_ADMIN` 제거, user 비활성화, account lock까지 같이 하는 것처럼 확장되기 쉽다
+- 해결: [auth-admin-forced-logout-api-contract.md](./auth-admin-forced-logout-api-contract.md) 를 추가해 1차 계약을 `POST /api/admin/users/forced-logout`, body `userKey`, idempotent by effect, success=`existing access/refresh revoke intent accepted` 로 고정했다
+- 이유: 운영자 액션 API는 범위를 애매하게 열수록 나중에 rollback이 어려워진다. session/token revoke only 라는 경계를 path/body/success 의미에서 먼저 못 박아야 구현이 작게 유지된다
