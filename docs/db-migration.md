@@ -100,6 +100,8 @@ overlap service 는 `17`건이었고, 샘플은 `여성청소년 생리용품 �
 
 추천/read-model 단계의 초기 dedupe 전략도 같이 고정했다. persistence 에는 raw `TARGET_GROUP` term 둘 다 남기고, canonical read-model 이 `BENEFICIARY_SUPPORT` bucket 을 별도로 만든 뒤 scoring 은 이 bucket 기준으로 서비스당 최대 1회만 bonus 를 주는 방식이다. 현재 [RuleScoringService](../backend/src/main/java/com/example/welfare/recommend/service/RuleScoringService.java) 도 boolean 매칭 기반이라 동일 축 중복 가산은 하지 않으므로, future sidecar read-path 도 같은 “max-one bonus” 규칙을 유지한다.
 
+이 dedupe는 repository SQL에서 직접 collapse 하지 않고, `RecommendationCandidateProjection` 류의 canonical recommendation read-model projection 에서 raw `targetGroupsRaw` / `beneficiaryTerms` / `targetGroupBuckets` 를 함께 만드는 방식으로 분리한다. 즉 persistence 는 raw truth, projection 은 scoring-friendly view, response/UI 는 raw explanation 을 각각 따로 가진다.
+
 추가 확인 결과 `targetDetail/supportDetail/selectionCriteria` 의 date-like token 수는 `4 / 1 / 1` 이었지만, 샘플은 출생연도 범위나 혜택 적용기간처럼 신청마감이 아닌 날짜가 대부분이었다. 따라서 현재 canonical collect path 에서는 `BK_APPLY_END_DATE` 를 optional fact 로 유지하고, `targetDetail/selectionCriteria` 까지 deadline fallback 을 넓히지 않는다.
 
 - 파일: [`backend/src/main/resources/db/migration/V2026_04_28_02__add_user_pii_sync_queue.sql`](../backend/src/main/resources/db/migration/V2026_04_28_02__add_user_pii_sync_queue.sql)

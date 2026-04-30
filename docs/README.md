@@ -52,6 +52,9 @@
 - [policy-normalization-beneficiary-dedupe-strategy.md](./policy-normalization-beneficiary-dedupe-strategy.md)
   복지로 detail beneficiary soft taxonomy(`기초생활수급자`, `차상위계층`)를 multi-term으로 저장한 뒤 추천/read-model에서 어떻게 dedupe할지 확인합니다.
 
+- [policy-normalization-recommendation-read-model.md](./policy-normalization-recommendation-read-model.md)
+  canonical sidecar를 추천 파이프라인에 붙일 때 raw term, dedupe bucket, retrieval/scoring 경계를 어디서 나눌지 확인합니다.
+
 - [policy-source-onboarding-playbook.md](./policy-source-onboarding-playbook.md)
   실제 DB 적재 스냅샷을 기준으로 일자리/주거/장학/공공서비스 source를 `정책형 / listing형 / reference형` 으로 어떻게 나눠 붙일지 확인합니다.
 
@@ -131,6 +134,7 @@
 - [policy-source-onboarding-playbook.md](./policy-source-onboarding-playbook.md)
 - [policy-normalization-fact-merge-rules.md](./policy-normalization-fact-merge-rules.md)
 - [policy-normalization-beneficiary-dedupe-strategy.md](./policy-normalization-beneficiary-dedupe-strategy.md)
+- [policy-normalization-recommendation-read-model.md](./policy-normalization-recommendation-read-model.md)
 - [policy-normalization-youth-mid-alias-rules.md](./policy-normalization-youth-mid-alias-rules.md)
 - [policy-normalization-bridge-rules.md](./policy-normalization-bridge-rules.md)
 - [policy-normalization-schema-draft.md](./policy-normalization-schema-draft.md)

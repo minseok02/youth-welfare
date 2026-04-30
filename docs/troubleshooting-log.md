@@ -877,3 +877,8 @@
 - 문제: beneficiary whitelist 를 multi-term 으로 남기면 원문 의미는 보존되지만, future canonical read-path 가 raw `TARGET_GROUP` term 두 개를 그대로 scoring 에 태우면 같은 혜택축에서 double-count 가 생길 수 있다. 반대로 저장 단계에서 collapse 하면 나중에 세부 라벨을 설명/배지/UI 에 쓰기 어렵다
 - 해결: persistence 는 raw multi-term 유지, read-model 은 `BENEFICIARY_SUPPORT` dedupe bucket 별도 생성, scoring 은 bucket 기준 서비스당 최대 1회 bonus 라는 전략으로 문서에 고정했다. 현재 `RuleScoringService.targetGroupMatches(...)` 도 boolean 매칭 기반이라 동일 축 다중 라벨을 바로 2배 가산하지 않는다는 점을 근거로 future sidecar read-path 도 같은 `max-one bonus` 규칙을 유지하기로 했다
 - 이유: 현재 추천 구조는 합계형 점수이지만 target group 매칭은 본질적으로 “해당 축 매칭 여부”에 가깝다. soft taxonomy 의 raw richness 는 read-model 밖에서 보존하고, scoring 에서는 bucket 단위로 dedupe 하는 쪽이 precision 과 explainability 를 같이 지키기 쉽다
+
+## 174) beneficiary dedupe 는 repository SQL에서 바로 collapse 하기보다 canonical recommendation read-model projection 에서 raw term과 dedupe bucket을 함께 만드는 편이 retrieval/scoring/response 책임을 덜 섞는다
+- 문제: beneficiary raw term을 SQL 단계에서 곧바로 `BENEFICIARY_SUPPORT` 하나로 접어버리면 explanation/UI용 raw label, source drift 분석, 향후 bucket 정책 변경 여지가 함께 사라진다. 반대로 raw term만 그대로 넘기면 scoring 단계에서 중복 가산 위험이 남는다
+- 해결: `RecommendationCandidateProjection` 류의 canonical recommendation read-model projection 을 두고, 여기서만 `targetGroupsRaw`, `beneficiaryTerms`, `targetGroupBuckets` 를 동시에 구성하는 경계를 문서로 고정했다. retrieval 은 base entity query 뒤 projection hydrate, scoring 은 projection의 deduped bucket만 사용, response/UI는 raw term을 그대로 참조하는 구조다
+- 이유: persistence / projection / scoring / response 책임을 분리하면 저장 단계는 source truth를 보존하고, 추천 단계는 scoring-friendly 구조를 소비하며, UI는 설명 가능성을 유지할 수 있다. 이 경계를 먼저 고정해야 이후 sidecar read-path 구현이 다시 raw table join과 rule logic을 뒤섞지 않는다

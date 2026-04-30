@@ -395,6 +395,13 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - 2026-04-30 복지로 beneficiary dedupe 전략 확정 후 `sed -n '1,260p' backend/src/main/java/com/example/welfare/recommend/service/RuleScoringService.java`
 - 2026-04-30 복지로 beneficiary dedupe 전략 확정 후 `sed -n '1,240p' backend/src/main/java/com/example/welfare/recommend/service/RetrievalService.java`
 - 2026-04-30 복지로 beneficiary dedupe 전략 확정 후 `git diff --check`
+- 2026-04-30 canonical recommendation read-model 의 `BENEFICIARY_SUPPORT` bucket DTO/조회 경계 초안 작성
+  - raw sidecar 테이블을 추천기가 직접 읽지 않고, `RecommendationCandidateProjection` 류의 projection 이 `targetGroupsRaw`, `beneficiaryTerms`, `targetGroupBuckets` 를 함께 만들도록 경계를 고정했다
+  - retrieval 은 `WelfareServiceRepository.findCandidates* -> CanonicalRecommendationReadModelRepository hydrate -> RetrievalService 후처리` 2단계 구조로, scoring 은 raw beneficiary term이 아니라 `BENEFICIARY_SUPPORT` bucket 기준 max-one bonus 로 소비하도록 설계했다
+- 2026-04-30 recommendation read-model 경계 초안 작성 후 `sed -n '1,260p' backend/src/main/java/com/example/welfare/recommend/dto/RecommendationUserSnapshot.java`
+- 2026-04-30 recommendation read-model 경계 초안 작성 후 `sed -n '1,260p' backend/src/main/java/com/example/welfare/policy/repository/WelfareServiceRepository.java`
+- 2026-04-30 recommendation read-model 경계 초안 작성 후 `sed -n '1,260p' docs/recommendation-pipeline.md`
+- 2026-04-30 recommendation read-model 경계 초안 작성 후 `git diff --check`
 - 2026-04-28 pre-28 migrated DB 기준 admin logout / refresh invalidation / relogin smoke
   - `SECURITY_ADMIN_EMAILS=admin.logout.smoke@example.com` 으로 최신 앱을 기동한 뒤, admin 계정 로그인과 프로필 수정으로 queue row를 `SYNCED` 상태까지 맞추고 `POST /api/auth/refresh` 가 먼저 성공하는 것 확인
   - 같은 cookie jar + access token으로 `POST /api/auth/logout` 호출 후 cookie jar에서 `refresh_token` 이 제거되고, 직후 `POST /api/auth/refresh` 가 `401`, `errorCode=A001` 로 막히는 것 확인
@@ -1005,7 +1012,7 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - [ ] 복지로 live detail 적재 기준 `welfare_service_details` / `service_facts` validation 리허설
 - [ ] 복지로 detail refresh budget metadata(`centralBudget`/`localBudget`) 를 admin collect observability에 노출할지 결정
 - [ ] `bokjiro-details-gap-fill` 추가 라운드/호출 예산 전략 정리 후 stored detail payload coverage 추가 확대
-- [ ] canonical recommendation read-model 에 `BENEFICIARY_SUPPORT` dedupe bucket 을 어떻게 실을지 DTO/조회 경계 설계
+- [ ] `RecommendationCandidateProjection` / `CanonicalRecommendationReadModelRepository` 초안 추가
 - [ ] 복지로 `threshold_like` income signal(`13`건) 을 `INCOME_*` hard fact 가 아닌 optional soft signal schema 로 분리할지 결정
 - [ ] 복지로 live detail 응답에 신청마감 explicit field가 있는지 재확인하고, 없으면 `BK_APPLY_END_DATE` 는 canonical collect path에서 optional fact로 유지
 - [ ] 로그인 가능한 testbed/live payload 기준 `YOUTH_MID` / `srchPolyBizSecd` 전체 inventory 수집
@@ -1040,6 +1047,7 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - [x] 복지로 detail beneficiary whitelist(`기초생활수급자` / `차상위계층`) 실제 적재 후 local sidecar density/term count 재측정
 - [x] 복지로 beneficiary whitelist overlap service(`17`)를 multi-term 으로 유지할지 collapse 할지 결정
 - [x] 복지로 beneficiary soft taxonomy 가 recommendation/read-model 에서 중복 가중치만 만들고 정보 손실은 없도록 dedupe 전략 설계
+- [x] canonical recommendation read-model 에 `BENEFICIARY_SUPPORT` dedupe bucket 을 어떻게 실을지 DTO/조회 경계 설계
 - [x] sidecar draft migration 적용 상태에서 기존 복지로 적재 데이터 detail refresh/backfill 후 `service_facts` density 재측정
 - [x] `NormalizedPolicySidecarBackfillService` 를 admin/manual 실행 경로로 노출
 - [x] 복지로 `raw_api_payloads` 기반 canonical sidecar backfill service 초안 작성
