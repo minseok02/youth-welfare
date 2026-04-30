@@ -78,6 +78,7 @@ deploy/smoke/run-local-education-priority-replay.sh
 9. `user_recommendations` off/on snapshot(`edu-a/b-*-scores.tsv`)도 함께 남겨 `rule_weighted_score` / `ai_score` / `final_score` 경계를 바로 비교
 10. artifact에 `openai-mode.txt` 를 같이 남겨 `rule-only-invalid-key` / `real-openai` 모드를 명시
 11. boot log에서 `[RealtimeAiGateway][replay-trace]`, `[RealtimeAiGateway][replay-trace-response]` 라인을 추출해 `edu-a/b-*-ai-trace.log`, `edu-a/b-*-ai-response-trace.log`, `ai-trace-*.log`, `ai-trace-response-*.log` 로 남기고 `candidateIds` / `candidateRuleScores` / `promptSha256` / `replaySeed` / `systemFingerprint` / `responseId` 를 비교
+12. summary stdout에도 `A_FINGERPRINT ... same|different`, `B_FINGERPRINT ... same|different` 를 같이 출력해 artifact를 열기 전에도 `backend churn` 여부를 바로 볼 수 있게 한다
 
 real OpenAI 호출이 정말 필요하면 아래처럼 명시적으로 opt-in 합니다.
 

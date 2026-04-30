@@ -616,6 +616,9 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
   - sample B `unexpected target count increase` warning은 `same fingerprint` run에만 한정하지 않고, 모든 `real-openai` replay에서 동일하게 띄우는 것으로 고정했다
   - 대신 `systemFingerprint` 동일 여부는 warning 이후 원인을 `backend churn` vs `same fingerprint variability` 로 분기하는 triage 정보로만 쓴다
   - 즉 warning 조건과 원인 해석 조건을 분리해 replay policy를 단순화했다
+- 2026-04-30 replay summary fingerprint relation 노출
+  - `deploy/smoke/run-local-education-priority-replay.sh` summary가 이제 `A_FINGERPRINT ... same|different`, `B_FINGERPRINT ... same|different` 를 같이 출력해 artifact를 열기 전에도 `backend churn` 여부를 바로 볼 수 있게 했다
+  - 이 라벨은 warning 조건을 바꾸지 않고, `same fingerprint` / `different fingerprint` triage를 더 빠르게 하기 위한 summary-only 정보로 둔다
 - 2026-04-28 pre-28 migrated DB 기준 admin logout / refresh invalidation / relogin smoke
   - `SECURITY_ADMIN_EMAILS=admin.logout.smoke@example.com` 으로 최신 앱을 기동한 뒤, admin 계정 로그인과 프로필 수정으로 queue row를 `SYNCED` 상태까지 맞추고 `POST /api/auth/refresh` 가 먼저 성공하는 것 확인
   - 같은 cookie jar + access token으로 `POST /api/auth/logout` 호출 후 cookie jar에서 `refresh_token` 이 제거되고, 직후 `POST /api/auth/refresh` 가 `401`, `errorCode=A001` 로 막히는 것 확인
@@ -1227,7 +1230,7 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - [ ] 복지로 detail refresh budget metadata(`centralBudget`/`localBudget`) 를 admin collect observability에 노출할지 결정
 - [ ] `bokjiro-details-gap-fill` 추가 라운드/호출 예산 전략 정리 후 stored detail payload coverage 추가 확대
 - [ ] same `promptSha256` + same `replaySeed` + same `system_fingerprint` 조건에서도 `ai_score` drift가 남는 현상을 제품적으로 어떻게 다룰지 결정
-- [ ] replay summary에 `same fingerprint` / `different fingerprint` 라벨을 같이 출력할지 결정
+- [ ] replay summary를 `target count metric 중심` 으로 더 명시적으로 출력할지 결정
 - [ ] `real-openai` replay를 PR gate가 아니라 nightly/diagnostic lane으로 분리할지 결정
 - [ ] `참여권리` 의 `청년참여` subset만 별도 bridge 후보로 분리할지 결정
 - [ ] 복지로 `threshold_like` income signal(`13`건) 을 `INCOME_*` hard fact 가 아닌 optional soft signal schema 로 분리할지 결정

@@ -1127,3 +1127,8 @@
 - 문제: same fingerprint 여부는 drift 원인을 좁히는 데는 중요하지만, warning 자체를 그 조건에만 묶어 버리면 `different fingerprint` run에선 control sample 이상 징후를 놓치게 된다
 - 해결: [openai-replay-allowed-drift-metrics.md](./openai-replay-allowed-drift-metrics.md), [openai-replay-validation-policy.md](./openai-replay-validation-policy.md)에 sample B `unexpected target count increase` warning은 모든 `real-openai` replay에서 동일하게 띄우고, `systemFingerprint` 동일 여부는 warning 이후 triage 정보로만 쓰는 정책을 반영했다
 - 이유: warning 조건은 “control sample 이상 징후가 있었는가”를 알려주는 1차 신호이고, fingerprint는 그 다음 분석 단계다. 둘을 섞으면 조건이 복잡해지고 운영자가 artifact를 다시 볼 타이밍을 놓치기 쉽다
+
+## 224) `same fingerprint` 여부는 replay summary에 바로 찍어 주는 편이 triage 속도가 더 빠르다
+- 문제: warning은 모든 `real-openai` replay에 동일하게 띄우기로 했지만, 매번 artifact를 열어 `systemFingerprint` 를 확인해야 하면 `backend churn` 여부 판단이 느려진다
+- 해결: `deploy/smoke/run-local-education-priority-replay.sh` summary가 `A_FINGERPRINT ... same|different`, `B_FINGERPRINT ... same|different` 를 같이 출력하도록 바꿨다. warning 조건은 그대로 두고, fingerprint relation은 stdout summary에서 바로 보이게 분리했다
+- 이유: warning 발생 여부와 warning 해석 근거를 섞지 않으면서도, 운영자가 `same fingerprint` / `different fingerprint` 를 한눈에 확인할 수 있다. summary-only triage 라벨이 가장 단순하다

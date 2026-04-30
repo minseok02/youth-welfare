@@ -408,12 +408,13 @@ PY
 }
 
 print_summary() {
-  python3 - <<'PY' "${RESP_A_OFF}" "${RESP_A_ON}" "${RESP_B_OFF}" "${RESP_B_ON}" "${META_FILE}" "${STRICT_CONTROL_ASSERT}"
+  python3 - <<'PY' "${RESP_A_OFF}" "${RESP_A_ON}" "${RESP_B_OFF}" "${RESP_B_ON}" "${META_FILE}" "${STRICT_CONTROL_ASSERT}" "${AI_RESPONSE_TRACE_A_OFF}" "${AI_RESPONSE_TRACE_A_ON}" "${AI_RESPONSE_TRACE_B_OFF}" "${AI_RESPONSE_TRACE_B_ON}"
 import json
+import re
 import sys
 from pathlib import Path
 
-resp_a_off, resp_a_on, resp_b_off, resp_b_on, meta_path, strict_control_assert = sys.argv[1:]
+resp_a_off, resp_a_on, resp_b_off, resp_b_on, meta_path, strict_control_assert, trace_a_off, trace_a_on, trace_b_off, trace_b_on = sys.argv[1:]
 
 def load_rows(path):
     with open(path, "r", encoding="utf-8") as fp:
@@ -427,6 +428,13 @@ for line in Path(meta_path).read_text(encoding="utf-8").splitlines():
         "compat": compat,
         "youth_major": youth_major,
     }
+
+fp_pattern = re.compile(r"systemFingerprint=([^ ]+)")
+
+def fingerprint_of(path):
+    text = Path(path).read_text(encoding="utf-8")
+    match = fp_pattern.search(text)
+    return match.group(1) if match else "missing"
 
 def summarize(label, rows):
     target_positions = []
@@ -454,6 +462,14 @@ a_off = summarize("A_OFF", load_rows(resp_a_off))
 a_on = summarize("A_ON", load_rows(resp_a_on))
 b_off = summarize("B_OFF", load_rows(resp_b_off))
 b_on = summarize("B_ON", load_rows(resp_b_on))
+
+a_off_fp = fingerprint_of(trace_a_off)
+a_on_fp = fingerprint_of(trace_a_on)
+b_off_fp = fingerprint_of(trace_b_off)
+b_on_fp = fingerprint_of(trace_b_on)
+
+print("A_FINGERPRINT", a_off_fp, a_on_fp, "same" if a_off_fp == a_on_fp else "different")
+print("B_FINGERPRINT", b_off_fp, b_on_fp, "same" if b_off_fp == b_on_fp else "different")
 
 if a_on["top10_target_count"] <= a_off["top10_target_count"]:
     raise SystemExit("sample A did not improve target row top10 count")

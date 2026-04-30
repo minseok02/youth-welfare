@@ -205,8 +205,10 @@ warning 자체는:
 
 가 더 단순하고 일관됩니다.
 
+그래서 replay summary에도 `same|different fingerprint` 라벨을 같이 찍는 편이 맞습니다.
+이 라벨은 warning 자체를 바꾸지 않고, warning 해석 속도만 높이는 용도입니다.
+
 ## 다음 작업
 
 1. replay script summary를 `target count metric 중심` 으로 더 명시적으로 출력할지 결정
-2. replay summary에 `fingerprint-same|different` 라벨을 같이 찍을지 결정
 3. 필요하면 `real-openai` replay를 nightly/diagnostic lane으로 분리
