@@ -24,8 +24,14 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
               AND (
                     ws.sourceType <> com.example.welfare.policy.entity.WelfareService$SourceType.YOUTH
                     OR (
-                        (ws.minIncome IS NULL OR ws.minIncome <= :incomeLevel)
-                        AND (ws.maxIncome IS NULL OR ws.maxIncome >= :incomeLevel)
+                        (
+                            (ws.minIncome IS NULL AND ws.maxIncome IS NULL)
+                            OR (ws.minIncome = 0 AND ws.maxIncome = 0)
+                        )
+                        OR (
+                            (ws.minIncome IS NULL OR ws.minIncome <= :incomeLevel)
+                            AND (ws.maxIncome IS NULL OR ws.maxIncome >= :incomeLevel)
+                        )
                     )
                   )
             """)
@@ -43,8 +49,14 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
               AND (
                     ws.sourceType <> com.example.welfare.policy.entity.WelfareService$SourceType.YOUTH
                     OR (
-                        (ws.minIncome IS NULL OR ws.minIncome <= :incomeLevel)
-                        AND (ws.maxIncome IS NULL OR ws.maxIncome >= :incomeLevel)
+                        (
+                            (ws.minIncome IS NULL AND ws.maxIncome IS NULL)
+                            OR (ws.minIncome = 0 AND ws.maxIncome = 0)
+                        )
+                        OR (
+                            (ws.minIncome IS NULL OR ws.minIncome <= :incomeLevel)
+                            AND (ws.maxIncome IS NULL OR ws.maxIncome >= :incomeLevel)
+                        )
                     )
                   )
               AND (
@@ -73,8 +85,14 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
               AND (
                     ws.sourceType <> com.example.welfare.policy.entity.WelfareService$SourceType.YOUTH
                     OR (
-                        (ws.minIncome IS NULL OR ws.minIncome <= :incomeLevel)
-                        AND (ws.maxIncome IS NULL OR ws.maxIncome >= :incomeLevel)
+                        (
+                            (ws.minIncome IS NULL AND ws.maxIncome IS NULL)
+                            OR (ws.minIncome = 0 AND ws.maxIncome = 0)
+                        )
+                        OR (
+                            (ws.minIncome IS NULL OR ws.minIncome <= :incomeLevel)
+                            AND (ws.maxIncome IS NULL OR ws.maxIncome >= :incomeLevel)
+                        )
                     )
                   )
               AND (
@@ -103,8 +121,14 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
               AND (
                     ws.sourceType <> com.example.welfare.policy.entity.WelfareService$SourceType.YOUTH
                     OR (
-                        (ws.minIncome IS NULL OR ws.minIncome <= :incomeLevel)
-                        AND (ws.maxIncome IS NULL OR ws.maxIncome >= :incomeLevel)
+                        (
+                            (ws.minIncome IS NULL AND ws.maxIncome IS NULL)
+                            OR (ws.minIncome = 0 AND ws.maxIncome = 0)
+                        )
+                        OR (
+                            (ws.minIncome IS NULL OR ws.minIncome <= :incomeLevel)
+                            AND (ws.maxIncome IS NULL OR ws.maxIncome >= :incomeLevel)
+                        )
                     )
                   )
             ORDER BY ws.createdAt DESC
@@ -122,8 +146,14 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
               AND (
                     ws.sourceType <> com.example.welfare.policy.entity.WelfareService$SourceType.YOUTH
                     OR (
-                        (ws.minIncome IS NULL OR ws.minIncome <= :incomeLevel)
-                        AND (ws.maxIncome IS NULL OR ws.maxIncome >= :incomeLevel)
+                        (
+                            (ws.minIncome IS NULL AND ws.maxIncome IS NULL)
+                            OR (ws.minIncome = 0 AND ws.maxIncome = 0)
+                        )
+                        OR (
+                            (ws.minIncome IS NULL OR ws.minIncome <= :incomeLevel)
+                            AND (ws.maxIncome IS NULL OR ws.maxIncome >= :incomeLevel)
+                        )
                     )
                   )
               AND (
@@ -153,8 +183,14 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
               AND (
                     ws.sourceType <> com.example.welfare.policy.entity.WelfareService$SourceType.YOUTH
                     OR (
-                        (ws.minIncome IS NULL OR ws.minIncome <= :incomeLevel)
-                        AND (ws.maxIncome IS NULL OR ws.maxIncome >= :incomeLevel)
+                        (
+                            (ws.minIncome IS NULL AND ws.maxIncome IS NULL)
+                            OR (ws.minIncome = 0 AND ws.maxIncome = 0)
+                        )
+                        OR (
+                            (ws.minIncome IS NULL OR ws.minIncome <= :incomeLevel)
+                            AND (ws.maxIncome IS NULL OR ws.maxIncome >= :incomeLevel)
+                        )
                     )
                   )
               AND (

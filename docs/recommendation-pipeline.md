@@ -66,7 +66,7 @@ LIMIT 50;
 
 주의:
 - 실제 DB 기준으로 `min_income/max_income`은 `YOUTH`에만 대부분 존재한다.
-- `YOUTH` 의 `min_income=0 AND max_income=0` 은 2026-04-30 정책상 “미지정” sentinel로 보고 retrieval 에서는 direct filter pass-through 로 해석할 예정이다. 현재/후속 query semantics는 [policy-normalization-youth-income-zero-policy.md](./policy-normalization-youth-income-zero-policy.md)를 따른다.
+- `YOUTH` 의 `min_income=0 AND max_income=0` 은 2026-04-30 정책상 “미지정” sentinel로 보고 retrieval 에서는 direct filter pass-through 로 해석한다. query semantics 상세는 [policy-normalization-youth-income-zero-policy.md](./policy-normalization-youth-income-zero-policy.md)를 따른다.
 - `BOKJIRO_CENTRAL/LOCAL`은 현재 소득 구조화 값이 거의 없어 SQL에서 사실상 pass-through 된다.
 - 따라서 소득은 1차에서 강한 pass/fail이라기보다 `YOUTH 직접 필터 + 복지로 대상 태그 보조 신호` 수준이다.
 

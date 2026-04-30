@@ -37,11 +37,11 @@ class EducationPriorityTargetCandidateCompositionIntegrationTest {
     private RetrievalService retrievalService;
 
     @Test
-    @DisplayName("대표 education target region 은 DB age-pass pool 이 있어도 YOUTH income gate 때문에 raw candidates 와 retrieval 결과에서 모두 빠질 수 있다")
-    void representativeEducationTargetRegionFallsOutBeforeScoring() {
+    @DisplayName("대표 education target region 은 YOUTH 0/0 income pass-through 적용 후 raw candidates 와 retrieval 결과에 target row가 들어온다")
+    void representativeEducationTargetRegionSurvivesIncomeGate() {
         assumeTrue(tableExists("service_taxonomies"), "canonical sidecar summary 가 있는 local DB 에서만 실행");
 
-        String representativeRegion = jdbcTemplate.queryForObject("""
+        String representativeRegion = jdbcTemplate.queryForList("""
                 SELECT sr.region_code
                 FROM welfare_services ws
                 JOIN service_taxonomies st ON st.service_id = ws.id
@@ -54,16 +54,57 @@ class EducationPriorityTargetCandidateCompositionIntegrationTest {
                 GROUP BY sr.region_code
                 HAVING COUNT(DISTINCT ws.id) > 0
                    AND COUNT(DISTINCT CASE
-                       WHEN ws.source_type = 'YOUTH'
-                        AND ws.min_income <= ?
-                        AND ws.max_income >= ?
+                       WHEN ws.source_type = 'YOUTH' AND (
+                           (ws.min_income IS NULL AND ws.max_income IS NULL)
+                           OR (ws.min_income = 0 AND ws.max_income = 0)
+                           OR (ws.min_income <= ? AND ws.max_income >= ?)
+                       )
                        THEN ws.id END) = 0
                 ORDER BY COUNT(DISTINCT ws.id) DESC, sr.region_code
                 LIMIT 1
-                """, String.class, USER_AGE, USER_AGE, USER_INCOME_LEVEL, USER_INCOME_LEVEL);
+                """, String.class, USER_AGE, USER_AGE, USER_INCOME_LEVEL, USER_INCOME_LEVEL)
+                .stream()
+                .findFirst()
+                .orElse(null);
+
+        if (representativeRegion == null || representativeRegion.isBlank()) {
+            representativeRegion = jdbcTemplate.queryForList("""
+                    SELECT sr.region_code
+                    FROM welfare_services ws
+                    JOIN service_taxonomies st ON st.service_id = ws.id
+                    JOIN service_regions sr ON sr.service_id = ws.id
+                    WHERE ws.unified_category = '기타'
+                      AND st.youth_major_label = '교육'
+                      AND ws.status IN ('ACTIVE', 'UPCOMING')
+                      AND ws.min_age <= ?
+                      AND ws.max_age >= ?
+                    GROUP BY sr.region_code
+                    HAVING COUNT(DISTINCT CASE
+                           WHEN ws.source_type = 'YOUTH' AND (
+                               (ws.min_income IS NULL AND ws.max_income IS NULL)
+                               OR (ws.min_income = 0 AND ws.max_income = 0)
+                               OR (ws.min_income <= ? AND ws.max_income >= ?)
+                           )
+                           THEN ws.id END) > 0
+                    ORDER BY COUNT(DISTINCT CASE
+                           WHEN ws.source_type = 'YOUTH' AND (
+                               (ws.min_income IS NULL AND ws.max_income IS NULL)
+                               OR (ws.min_income = 0 AND ws.max_income = 0)
+                               OR (ws.min_income <= ? AND ws.max_income >= ?)
+                           )
+                           THEN ws.id END) DESC, sr.region_code
+                    LIMIT 1
+                    """, String.class,
+                    USER_AGE, USER_AGE,
+                    USER_INCOME_LEVEL, USER_INCOME_LEVEL,
+                    USER_INCOME_LEVEL, USER_INCOME_LEVEL)
+                    .stream()
+                    .findFirst()
+                    .orElse(null);
+        }
 
         assumeTrue(representativeRegion != null && !representativeRegion.isBlank(),
-                "age-pass target pool 은 있지만 income gate 때문에 retrieval 전부 탈락하는 대표 region 이 있어야 함");
+                "0/0 pass-through 적용 후 target row 가 남는 대표 region 이 있어야 함");
 
         Set<Long> targetServiceIds = jdbcTemplate.queryForList("""
                 SELECT DISTINCT ws.id
@@ -78,7 +119,7 @@ class EducationPriorityTargetCandidateCompositionIntegrationTest {
                   AND sr.region_code = ?
                 """, Long.class, USER_AGE, USER_AGE, representativeRegion).stream().collect(Collectors.toSet());
 
-        Long incomePassCount = jdbcTemplate.queryForObject("""
+        Long effectiveIncomePassCount = jdbcTemplate.queryForObject("""
                 SELECT COUNT(DISTINCT ws.id)
                 FROM welfare_services ws
                 JOIN service_taxonomies st ON st.service_id = ws.id
@@ -89,8 +130,11 @@ class EducationPriorityTargetCandidateCompositionIntegrationTest {
                   AND ws.min_age <= ?
                   AND ws.max_age >= ?
                   AND ws.source_type = 'YOUTH'
-                  AND ws.min_income <= ?
-                  AND ws.max_income >= ?
+                  AND (
+                      (ws.min_income IS NULL AND ws.max_income IS NULL)
+                      OR (ws.min_income = 0 AND ws.max_income = 0)
+                      OR (ws.min_income <= ? AND ws.max_income >= ?)
+                  )
                   AND sr.region_code = ?
                 """, Long.class, USER_AGE, USER_AGE, USER_INCOME_LEVEL, USER_INCOME_LEVEL, representativeRegion);
 
@@ -112,9 +156,9 @@ class EducationPriorityTargetCandidateCompositionIntegrationTest {
                 .count();
 
         assertThat(targetServiceIds).isNotEmpty();
-        assertThat(incomePassCount).isZero();
-        assertThat(rawTargetHits).isZero();
-        assertThat(retrievedTargetHits).isZero();
+        assertThat(effectiveIncomePassCount).isGreaterThan(0);
+        assertThat(rawTargetHits).isGreaterThan(0);
+        assertThat(retrievedTargetHits).isGreaterThan(0);
     }
 
     private boolean tableExists(String tableName) {

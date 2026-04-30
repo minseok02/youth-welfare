@@ -1022,3 +1022,8 @@
 - 문제: 온통청년 row 대부분(`2269 / 2299`)이 `min_income=0 AND max_income=0` 인데, 현재 retrieval SQL은 이 값을 그대로 비교해 `incomeLevel=5` 같은 일반 사용자에게서 거의 전부 탈락시킨다. 하지만 사용자 입력 계약은 이미 `1~10` 분위만 허용하므로, `0/0` 을 “실제 0분위 전용”으로 읽는 해석은 source 전체를 비정상적으로 축소시키는 결과가 된다
 - 해결: `0/0` 은 retrieval 에서 `NULL/NULL` 과 같은 “미지정/pass-through” sentinel로 해석하고, 저장값 자체는 당장 바꾸지 않되 `WelfareServiceRepository.findCandidates* / findLatestCandidates*` query semantics 먼저 수정하는 정책을 문서로 고정했다
 - 이유: 이 문제는 scoring이나 priority보다 앞단의 candidate composition 문제다. source 대부분을 retrieval 단계에서 잃어버리면 이후 canonical bridge 실험과 read-model 검증까지 전부 왜곡되므로, 먼저 query semantics를 바로잡는 편이 맞다
+
+## 203) `YOUTH 0/0 income` 같은 retrieval semantics 변경은 문서 정책만 정하고 끝내면 안 되고, repository hit와 `RetrievalService` hit를 같이 고정해야 재발을 막을 수 있음
+- 문제: `0/0 => pass-through` 정책을 문서로만 정한 상태에서는 실제 JPQL이 그대로 남아 있어도 겉으로는 합의가 끝난 것처럼 보일 수 있다. 특히 이번 `교육` 실험처럼 target row가 scoring 이전 repository 단계에서 이미 사라지는 경우, query semantics 미반영을 helper/flag 문제로 오해하기 쉽다
+- 해결: `WelfareServiceRepository.findCandidates* / findLatestCandidates*` 6개 query 모두에 `source_type=YOUTH AND min_income=0 AND max_income=0` direct pass-through 조건을 실제로 넣고, representative region integration test를 `raw repository candidate hit > 0` 과 `RetrievalService hit > 0` 두 단계 모두 검증하는 형태로 뒤집어 고정했다
+- 이유: candidate composition 문제는 문서 결정과 구현 반영 사이에 가장 쉽게 drift가 난다. repository hit와 retrieval hit를 같이 묶어 두면 “정책은 맞는데 후보가 안 올라오는” 조용한 실패를 빠르게 잡을 수 있다
