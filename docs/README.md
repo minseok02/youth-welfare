@@ -121,6 +121,9 @@
 - [policy-normalization-education-target-sample-inventory.md](./policy-normalization-education-target-sample-inventory.md)
   `compat=기타 + youth_major=교육` target row가 실제 추천 결과 집합에 들어오는 local replay sample이 현재 있는지와, region/age scan 결과를 확인합니다.
 
+- [policy-normalization-participation-subset-bridge-policy.md](./policy-normalization-participation-subset-bridge-policy.md)
+  `참여권리` 전체는 승격하지 않되, `청년참여` subset만 future bridge 후보로 남길지와 왜 지금 바로 실험하지 않는지 정리한 정책입니다.
+
 - [policy-normalization-youth-income-zero-policy.md](./policy-normalization-youth-income-zero-policy.md)
   온통청년 `min_income/max_income = 0/0` 을 retrieval에서 미지정으로 볼지 실제 소득 gate 로 볼지 결정한 정책을 확인합니다.
 

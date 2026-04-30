@@ -110,6 +110,7 @@
 - **조건부 후보**
 - future bridge가 생기더라도 `청년참여` subset 정도로 제한 검토가 먼저 필요
 - 전체 `참여권리` 집합 승격은 아직 이르다
+- 현재 단계에서는 `청년참여` subset도 즉시 실험 대상으로 올리지 않고 future candidate로만 유지한다. 세부 정책은 [policy-normalization-participation-subset-bridge-policy.md](./policy-normalization-participation-subset-bridge-policy.md)를 따른다
 
 ## 3. `복지문화 -> 금융·생활지원`
 

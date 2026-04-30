@@ -135,6 +135,8 @@ response category에서 `youth_major` 로 치환하지 않는다.
 3. 그 bridge가 고정된 뒤에만
    `compat=기타` 일부를 read-model 계산값으로 보정하는 실험 수행
 
+`참여권리` 의 경우에는 전체 승격 대신 `청년참여` subset만 future candidate로 보는 별도 정책을 유지한다. 세부 기준은 [policy-normalization-participation-subset-bridge-policy.md](./policy-normalization-participation-subset-bridge-policy.md)를 따른다.
+
 ## 금지되는 것
 
 현재 단계에서 하지 않는 것:

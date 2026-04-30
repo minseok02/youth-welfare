@@ -1222,3 +1222,8 @@
 - 문제: same `promptSha256` + same `replaySeed` + same `systemFingerprint` 조건에서도 `ai_score` / `final_score` drift가 남는데, 이걸 그대로 제품 품질 계약으로 들고 가면 false positive 회귀 판정과 운영 노이즈가 커진다
 - 해결: [openai-ai-score-product-policy.md](./openai-ai-score-product-policy.md) 를 추가해 `ai_score` 를 deterministic truth가 아니라 `variable-but-traceable rerank signal` 로 정의하고, 제품 보장 범위를 `rule-only 기준선`, `target row visibility`, `artifact traceability` 로 고정했다. [recommendation-pipeline.md](./recommendation-pipeline.md) 에도 같은 경계를 링크로 반영했다
 - 이유: 현재 제품 목적은 exact 점수 재현이 아니라 target 정책 노출 개선과 drift 추적 가능성이다. live OpenAI 계층을 soft signal로 해석하는 편이 실제 운영과 더 맞다
+
+## 243) `참여권리` 안에서 `청년참여` subset만 따로 bridge 후보로 보는 것은 가능하지만, 현재 단계에서는 교육 실험 다음 순번의 future candidate로만 두는 편이 맞다
+- 문제: row-level review에서 `청년참여` sample은 `참여·기회` 와 비교적 가깝게 보이기 때문에, `참여권리` 전체 승격 대신 subset만 바로 narrow bonus로 열고 싶어질 수 있다. 하지만 지금은 이미 `교육 -> 교육·직업훈련` narrow experiment가 active candidate이고, `청년참여` 도 모집/공모/파트너/공간 참여처럼 내부 의미가 완전히 균질하진 않다
+- 해결: [policy-normalization-participation-subset-bridge-policy.md](./policy-normalization-participation-subset-bridge-policy.md) 를 추가해 `참여권리` 전체 승격은 계속 금지하고, `청년참여` subset도 immediate implementation 대상이 아니라 2순위 future candidate로만 유지한다고 고정했다. 관련 bridge review/policy 문서도 같은 결론으로 링크를 맞췄다
+- 이유: 현재 stage에서 예외 bridge 축을 늘리면 `compat=기타` 집합에 narrow rule이 빠르게 늘어난다. 교육 실험 효과를 먼저 본 뒤, 필요할 때 `청년참여` subset만 별도로 다시 inventory/replay sample로 좁히는 편이 더 안전하다
