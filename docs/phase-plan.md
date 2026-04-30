@@ -1263,6 +1263,9 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - 2026-05-01 admin forced logout legacy token rollout 정책 고정
   - [auth-admin-forced-logout-legacy-token-rollout-policy.md](./auth-admin-forced-logout-legacy-token-rollout-policy.md) 를 추가해 forced logout 기능 on 이후 `iatm` 없는 legacy admin access token은 compatibility target이 아니라 재로그인 요구 대상으로 보는 운영 계약을 고정했다
   - 즉 다음 액션은 legacy admin access token이 forced logout protected path에서 어떤 error contract를 낼지 정하는 쪽으로 좁힌다
+- 2026-05-01 admin forced logout legacy error 정책 고정
+  - [auth-admin-forced-logout-legacy-error-policy.md](./auth-admin-forced-logout-legacy-error-policy.md) 를 추가해 forced logout 보호 경계에서 `iatm` 없는 legacy admin access token은 `401 / A006` 으로 통일한다고 고정했다
+  - 즉 다음 액션은 이 `A006` 을 filter에서 바로 낼지, 별도 forced-logout guard helper에서 낼지 구현 위치를 정하는 쪽으로 좁힌다
 
 ## 작업 추적
 

@@ -1372,3 +1372,8 @@
 - 문제: `iatm` write/read helper와 no-fallback 정책을 정한 뒤에도, rollout 단계에서 legacy admin access token을 계속 “웬만하면 통과”시키려 하면 구현이 다시 이중 계약이 된다. 그러면 forced logout 경계가 새 token contract와 legacy 호환 둘 다 떠안게 된다
 - 해결: [auth-admin-forced-logout-legacy-token-rollout-policy.md](./auth-admin-forced-logout-legacy-token-rollout-policy.md) 를 추가해 forced logout 기능 on 이후 `iatm` 없는 legacy admin access token은 compatibility target이 아니라 재로그인 요구 대상으로 본다고 고정했다
 - 이유: admin forced logout은 운영 보안 기능이므로, rollout의 핵심은 old token을 오래 살리는 것이 아니라 new token contract를 분명히 하는 것이다. legacy 호환을 줄여야 ordering correctness와 incident 대응 의미가 유지된다
+
+## 273) forced logout 보호 경계에서 `iatm` 없는 legacy admin access token을 `A001 INVALID_TOKEN` 으로 보내면 malformed token과 의미가 섞이므로, revoke 계열과 같은 `401 / A006` 으로 통일하는 편이 낫다
+- 문제: rollout 정책을 정한 뒤에도 legacy admin access token을 어떤 에러로 노출할지가 남는다. 여기서 `A001` 을 쓰면 “토큰 형식이 깨졌다”와 “이 보호 경계에서 더 이상 인증된 세션으로 보지 않는다”가 같은 의미처럼 보이게 된다
+- 해결: [auth-admin-forced-logout-legacy-error-policy.md](./auth-admin-forced-logout-legacy-error-policy.md) 를 추가해 forced logout 보호 경계의 legacy admin access token은 `401 / A006` 으로 통일한다고 고정했다
+- 이유: logout revoke와 withdraw old token도 이미 `A006` 으로 수렴한다. forced logout도 같은 보호 API 차단 계열로 맞춰야 운영/테스트/문서가 덜 갈라지고, 사용자 의미도 “재로그인 필요”로 더 자연스럽다
