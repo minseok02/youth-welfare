@@ -70,6 +70,9 @@
 - [policy-normalization-compat-other-youth-major-bridge-review.md](./policy-normalization-compat-other-youth-major-bridge-review.md)
   `참여권리 / 교육 / 복지문화` 3개 bridge candidate를 row-level sample 기준으로 지금 승격할지, 조건부 후보로 둘지, 보류할지 판정을 확인합니다.
 
+- [policy-normalization-priority-bridge-table-policy.md](./policy-normalization-priority-bridge-table-policy.md)
+  canonical `youth_major -> legacy priority bucket` explicit bridge table을 지금 도입할지, 아니면 실험/전환 착수 시점까지 보류할지 정책을 확인합니다.
+
 - [policy-source-onboarding-playbook.md](./policy-source-onboarding-playbook.md)
   실제 DB 적재 스냅샷을 기준으로 일자리/주거/장학/공공서비스 source를 `정책형 / listing형 / reference형` 으로 어떻게 나눠 붙일지 확인합니다.
 

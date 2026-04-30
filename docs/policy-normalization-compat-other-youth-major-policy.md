@@ -157,3 +157,7 @@ response category에서 `youth_major` 로 치환하지 않는다.
 row-level candidate 판정은
 [policy-normalization-compat-other-youth-major-bridge-review.md](./policy-normalization-compat-other-youth-major-bridge-review.md)
 에 정리한다.
+
+explicit bridge table 도입 여부 자체는
+[policy-normalization-priority-bridge-table-policy.md](./policy-normalization-priority-bridge-table-policy.md)
+에 별도로 정리한다.

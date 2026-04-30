@@ -952,3 +952,8 @@
 - 문제: `복지문화 171`, `참여권리 130`, `교육 102`처럼 큰 major만 놓고 보면 셋 다 bridge 후보처럼 보일 수 있다. 하지만 실제 sample을 보면 `교육` 은 `교육비지원/미래역량강화/온·오프라인교육` 중심으로 현재 `교육·직업훈련` bucket과 가깝고, `참여권리` 는 `청년참여`와 `정책인프라구축` 이 섞여 있으며, `복지문화` 는 `건강/문화활동/예술인지원` 이 많이 섞여 의미가 다르다
 - 해결: row-level review를 통해 `교육` 은 “가장 유력한 후속 후보”, `참여권리` 는 “subset bridge만 조건부 검토”, `복지문화` 는 “현 시점 보류”로 판정을 갈랐다. 즉 bridge table이 필요하더라도 전집합 일괄 도입이 아니라 candidate별로 다른 정책을 써야 한다고 문서로 고정했다
 - 이유: canonical major를 legacy priority bucket으로 승격시키는 규칙은 category label 하나만 맞는다고 끝나지 않는다. 실제 row-level 행동 가능성, 운영/인프라 성격 혼입 여부, 현재 priority bucket 의미를 함께 봐야 하므로 candidate별 판정을 분리하는 편이 안전하다
+
+## 189) explicit bridge table은 candidate review가 끝났다고 바로 만드는 게 아니라, 실제 실험/전환이 시작될 때만 도입해야 함
+- 문제: `교육` 이 가장 유력한 후보라는 결론이 나오면, 이를 이유로 `youth_major -> priority bucket` explicit bridge table을 미리 만들어 두고 싶어질 수 있다. 하지만 현재 review 결과는 “후보 우선순위”일 뿐이고, `참여권리` 는 subset 조건부, `복지문화` 는 보류라 전체 table 스키마를 먼저 확정하면 오히려 부분적으로만 유효한 규칙을 시스템 계약처럼 굳혀 버릴 위험이 있었다
+- 해결: 이번 단계에서는 explicit bridge table을 만들지 않기로 고정했다. bridge table은 실제 전환 대상이 생길 때, 예를 들어 `교육 -> 교육·직업훈련` 단일 후보 실험이나 `청년참여` subset bridge를 시작할 때만 도입하는 artifact로 정의했다
+- 이유: bridge table은 문서 보조물이 아니라 matcher/read-model/response 의미를 바꾸는 실행 계약이다. 확정되지 않은 후보들을 한 표에 먼저 넣으면 “지금은 안 쓴다” 해도 나중에 암묵 계약처럼 소비될 수 있으므로, 실제 사용 시점 직전에 가장 작은 범위로 도입하는 편이 안전하다
