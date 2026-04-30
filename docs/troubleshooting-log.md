@@ -1017,3 +1017,8 @@
 - 문제: `16 regions × 2 ages` replay scan에서 `target_hits=0` 이 계속 나와서 처음엔 youth filter나 rerank 문제처럼 보일 수 있었다. 하지만 representative region을 직접 쿼리해 보니 age-pass target row는 존재하는데, 모두 `source_type=YOUTH + min_income=0 + max_income=0` 이어서 `incomeLevel=5` sample에선 repository `findCandidatesWithRegionCode(...)` 조건 `min_income <= 5 AND max_income >= 5` 를 하나도 통과하지 못했다
 - 해결: local DB에서 `age-pass target pool > 0 && income5-pass = 0` 인 representative region을 동적으로 고른 뒤, raw repository candidate hit와 `RetrievalService` hit가 모두 `0` 인 걸 integration test로 고정했다. 후속 작업도 broad candidate composition 추적에서 더 좁혀 `YOUTH 0/0 income semantics 결정`으로 재정의했다
 - 이유: scoring/priority 실험을 계속 보기 전에, retrieval query가 canonical target row를 애초에 후보로 올릴 수 있는지부터 확인해야 한다. 특히 `0/0` 같은 source normalization 잔여값은 “미지정”인지 “실제 gate”인지 해석 정책이 없으면 추천 실험 이전 단계에서 후보를 모두 잃게 된다
+
+## 202) `YOUTH min_income/max_income = 0/0` 는 user input 계약상 실제 소득 gate보다 미지정 sentinel로 보는 편이 맞고, retrieval 에서는 `NULL/NULL` 과 같은 pass-through 로 해석해야 함
+- 문제: 온통청년 row 대부분(`2269 / 2299`)이 `min_income=0 AND max_income=0` 인데, 현재 retrieval SQL은 이 값을 그대로 비교해 `incomeLevel=5` 같은 일반 사용자에게서 거의 전부 탈락시킨다. 하지만 사용자 입력 계약은 이미 `1~10` 분위만 허용하므로, `0/0` 을 “실제 0분위 전용”으로 읽는 해석은 source 전체를 비정상적으로 축소시키는 결과가 된다
+- 해결: `0/0` 은 retrieval 에서 `NULL/NULL` 과 같은 “미지정/pass-through” sentinel로 해석하고, 저장값 자체는 당장 바꾸지 않되 `WelfareServiceRepository.findCandidates* / findLatestCandidates*` query semantics 먼저 수정하는 정책을 문서로 고정했다
+- 이유: 이 문제는 scoring이나 priority보다 앞단의 candidate composition 문제다. source 대부분을 retrieval 단계에서 잃어버리면 이후 canonical bridge 실험과 read-model 검증까지 전부 왜곡되므로, 먼저 query semantics를 바로잡는 편이 맞다
