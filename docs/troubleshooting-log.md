@@ -1132,3 +1132,8 @@
 - 문제: warning은 모든 `real-openai` replay에 동일하게 띄우기로 했지만, 매번 artifact를 열어 `systemFingerprint` 를 확인해야 하면 `backend churn` 여부 판단이 느려진다
 - 해결: `deploy/smoke/run-local-education-priority-replay.sh` summary가 `A_FINGERPRINT ... same|different`, `B_FINGERPRINT ... same|different` 를 같이 출력하도록 바꿨다. warning 조건은 그대로 두고, fingerprint relation은 stdout summary에서 바로 보이게 분리했다
 - 이유: warning 발생 여부와 warning 해석 근거를 섞지 않으면서도, 운영자가 `same fingerprint` / `different fingerprint` 를 한눈에 확인할 수 있다. summary-only triage 라벨이 가장 단순하다
+
+## 225) replay summary는 긴 top10 dump보다 `SUMMARY_METRIC` 한 줄을 먼저 보여주는 편이 판단 속도가 빠르다
+- 문제: 기존 summary는 top10 row dump가 먼저 나와서, 실제 gate에 쓰는 `sample A/B top10 target count` 와 fingerprint relation을 눈으로 빨리 찾기 어려웠다
+- 해결: `deploy/smoke/run-local-education-priority-replay.sh` summary 상단에 `SUMMARY_METRIC A_top10_target=... B_top10_target=... A_target_total=... B_target_total=... A_fp=... B_fp=...` 한 줄을 추가했다
+- 이유: replay smoke의 1차 판단값은 상세 row보다 target count/fingerprint relation이다. gate metric을 먼저 보고, 필요할 때만 아래 top10 dump를 읽는 구조가 더 빠르고 일관된다

@@ -208,7 +208,20 @@ warning 자체는:
 그래서 replay summary에도 `same|different fingerprint` 라벨을 같이 찍는 편이 맞습니다.
 이 라벨은 warning 자체를 바꾸지 않고, warning 해석 속도만 높이는 용도입니다.
 
+같은 이유로 replay summary의 첫 판단값도
+`SUMMARY_METRIC`
+한 줄에 모아 두는 편이 맞습니다.
+
+즉 사람이 가장 먼저 볼 값은:
+
+- `A_top10_target`
+- `B_top10_target`
+- `A_fp`
+- `B_fp`
+
+입니다.
+
 ## 다음 작업
 
-1. replay script summary를 `target count metric 중심` 으로 더 명시적으로 출력할지 결정
+1. replay script summary를 `SUMMARY_METRIC` 한 줄 기준으로 먼저 보도록 정리
 3. 필요하면 `real-openai` replay를 nightly/diagnostic lane으로 분리

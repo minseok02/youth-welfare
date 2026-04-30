@@ -455,6 +455,8 @@ def summarize(label, rows):
         print(label, i, row["serviceId"], row["title"], row["unifiedCategory"], row["finalScore"])
     print(label, "top10_target_positions", target_positions[:10])
     return {
+        "count": len(rows),
+        "target_count": len(target_positions),
         "top10_target_count": top10_target_count,
     }
 
@@ -470,6 +472,15 @@ b_on_fp = fingerprint_of(trace_b_on)
 
 print("A_FINGERPRINT", a_off_fp, a_on_fp, "same" if a_off_fp == a_on_fp else "different")
 print("B_FINGERPRINT", b_off_fp, b_on_fp, "same" if b_off_fp == b_on_fp else "different")
+print(
+    "SUMMARY_METRIC",
+    f"A_top10_target={a_off['top10_target_count']}->{a_on['top10_target_count']}",
+    f"B_top10_target={b_off['top10_target_count']}->{b_on['top10_target_count']}",
+    f"A_target_total={a_off['target_count']}->{a_on['target_count']}",
+    f"B_target_total={b_off['target_count']}->{b_on['target_count']}",
+    f"A_fp={'same' if a_off_fp == a_on_fp else 'different'}",
+    f"B_fp={'same' if b_off_fp == b_on_fp else 'different'}",
+)
 
 if a_on["top10_target_count"] <= a_off["top10_target_count"]:
     raise SystemExit("sample A did not improve target row top10 count")
