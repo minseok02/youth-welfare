@@ -1062,3 +1062,13 @@
 - 문제: direct sample B replay는 `off/on` 동일했고, full replay artifact에서도 `rule_weighted_score` / `rule_weight_used` / `ai_weight_used` 는 그대로였다. 그런데 sample B 일부 row는 `ai_score` 가 `85 -> 80`, `75 -> 70`, `70 -> 80` 식으로 바뀌며 `final_score` 도 같이 흔들렸다. 이 상태에서 계속 `ruleMax` 나 request-local normalization만 파면 원인 경계를 잘못 잡게 된다
 - 해결: score snapshot export 컬럼을 `ai_score`, `rule_weight_used`, `ai_weight_used` 까지 넓히고, latest artifact(`/tmp/tmp.Yhv9aqgHiM`) 기준 drift가 `AI score layer` 에서 이미 발생한다는 결론으로 문서와 phase plan을 갱신했다. 다음 작업도 `RealtimeAiGateway` / persistence path 추적으로 옮겼다
 - 이유: 같은 weighted score와 같은 weight 비율 위에서 `ai_score` 만 바뀌면, normalization은 결과 증폭 요인일 수 있어도 최초 drift source는 아니다. 따라서 디버깅은 가장 먼저 달라진 층위에서 시작해야 한다
+
+## 211) `rule-only replay` 스크립트가 `.env` 의 real `OPENAI_API_KEY` 를 상속하면 AI drift 분석 자체가 오염됨
+- 문제: local `.env` 에 real `OPENAI_API_KEY` 가 non-empty 인 상태에서 replay 스크립트가 `OPENAI_API_KEY="${OPENAI_API_KEY:-invalid-for-rule-only-replay}"` 만 쓰고 있으면, 이름/문서상으론 `rule-only replay` 여도 실제론 real OpenAI 호출이 섞인다. 그러면 full replay artifact의 `ai_score` drift가 helper/normalization bug 인지, live AI 응답 변동인지 분리할 수 없다
+- 해결: 스크립트 기본값을 `USE_REAL_OPENAI_FOR_REPLAY=false` 로 고정하고, 이 경우 `.env` 값과 상관없이 항상 `OPENAI_API_KEY=invalid-for-rule-only-replay` 를 강제하도록 수정했다. real AI 호출은 `USE_REAL_OPENAI_FOR_REPLAY=true` 로만 opt-in 하게 바꾸고, artifact에는 `openai-mode.txt` 를 같이 남긴다
+- 이유: `rule-only` smoke의 목적은 AI layer를 배제한 채 rule/priority 변화만 비교하는 것이다. real AI를 보고 싶다면 그것도 하나의 별도 실험이므로, 같은 스크립트 안에서도 mode를 명시적으로 분리해야 결과 해석이 섞이지 않는다
+
+## 212) `rule-only-invalid-key` 기본 모드에서 sample B drift가 사라지면, 이전 `ai_score` drift artifact는 real OpenAI 문맥으로 재분류해야 함
+- 문제: 이전 artifact에서는 sample B의 `rule_weighted_score` 는 그대로인데 `ai_score` / `final_score` 가 흔들려서 `RealtimeAiGateway` / persistence path를 더 파야 하는 상태처럼 보였다. 하지만 그 artifact가 사실상 real OpenAI 호출을 포함한 문맥이었다면, 같은 현상을 rule-only 디버깅 경계로 계속 해석하면 안 된다
+- 해결: default rule-only mode(`openai-mode.txt=rule-only-invalid-key`)로 replay script를 다시 실행했고, artifact(`/tmp/tmp.x4i74TN5Wv`)에서 sample B `edu-b-off-scores.tsv` / `edu-b-on-scores.tsv` diff가 사라지는 것을 확인했다. 이제 이전 `ai_score` drift artifact는 `real-openai` mode에서만 관찰된 현상으로 재분류하고, 다음 작업도 intentional real OpenAI replay 재현으로 좁혔다
+- 이유: 동일 스크립트라도 mode가 다르면 해석해야 하는 문제 종류가 달라진다. default rule-only mode가 안정화됐으면, 남은 drift는 core recommendation bug가 아니라 live AI variability / gateway behavior 실험으로 분리하는 편이 맞다

@@ -77,7 +77,11 @@ NOTIFICATION_PII_DB_URL="${NOTIFICATION_PII_DB_URL:-${APP_PII_DB_URL}}"
 REDIS_HOST="${REDIS_HOST:-127.0.0.1}"
 REDIS_PORT="${REDIS_PORT:-6379}"
 AES_SECRET_KEY="${AES_SECRET_KEY:-0123456789abcdef0123456789abcdef}"
+USE_REAL_OPENAI_FOR_REPLAY="${USE_REAL_OPENAI_FOR_REPLAY:-false}"
 OPENAI_API_KEY="${OPENAI_API_KEY:-invalid-for-rule-only-replay}"
+if [[ "${USE_REAL_OPENAI_FOR_REPLAY}" != "true" ]]; then
+  OPENAI_API_KEY="invalid-for-rule-only-replay"
+fi
 DB_USERNAME="${DB_USERNAME:-root}"
 DB_PASSWORD="${DB_PASSWORD:-welfare1234!}"
 DB_APP_PII_USERNAME="${DB_APP_PII_USERNAME:-app_pii_rw}"
@@ -117,6 +121,7 @@ KEEP_ARTIFACTS="${KEEP_ARTIFACTS:-true}"
 STRICT_CONTROL_ASSERT="${STRICT_CONTROL_ASSERT:-false}"
 
 ARTIFACT_DIR="${ARTIFACT_DIR:-$(mktemp -d)}"
+OPENAI_MODE_FILE="${ARTIFACT_DIR}/openai-mode.txt"
 APP_LOG_OFF="${ARTIFACT_DIR}/bootrun-off.log"
 APP_LOG_ON="${ARTIFACT_DIR}/bootrun-on.log"
 RESP_A_OFF="${ARTIFACT_DIR}/edu-a-off.json"
@@ -229,6 +234,14 @@ wait_for_app_down() {
 
   echo "app did not shut down within 30s" >&2
   return 1
+}
+
+write_openai_mode() {
+  if [[ "${USE_REAL_OPENAI_FOR_REPLAY}" == "true" ]]; then
+    printf "real-openai\n" > "${OPENAI_MODE_FILE}"
+  else
+    printf "rule-only-invalid-key\n" > "${OPENAI_MODE_FILE}"
+  fi
 }
 
 start_app() {
@@ -418,6 +431,7 @@ PY
 load_env_file
 require_command curl
 require_command python3
+write_openai_mode
 
 if [[ "${ENSURE_DOCKER_SERVICES}" == "true" ]]; then
   require_command docker

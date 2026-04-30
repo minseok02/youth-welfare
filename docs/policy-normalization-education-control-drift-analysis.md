@@ -2,7 +2,7 @@
 
 2026-04-30 기준
 `deploy/smoke/run-local-education-priority-replay.sh`
-latest artifact(`/tmp/tmp.pKVwRY4dlt`)를 바탕으로
+latest artifact(`/tmp/tmp.pKVwRY4dlt`, `openai-mode=real-openai`)를 바탕으로
 sample B(control)의 drift를 `finalScore` 기준으로 분해한 결과입니다.
 
 관련 문서:
@@ -16,7 +16,7 @@ sample B(control)의 drift를 `finalScore` 기준으로 분해한 결과입니�
 - current local snapshot에서는 control sample drift를 `strict fail` 기본값으로 두지 않는다
 - 이유는 `sample B`에서 **target row top-10 count는 `0 -> 0`으로 유지**되지만,
   일부 비대상 row의 `finalScore`와 top-10 내부 순서가 소폭 흔들리기 때문이다
-- latest full replay script artifact(`/tmp/tmp.Yhv9aqgHiM`)에서는
+- latest full replay script artifact(`/tmp/tmp.Yhv9aqgHiM`, `openai-mode=real-openai`)에서는
   `edu-b-off-scores.tsv` / `edu-b-on-scores.tsv` 가 같이 남았고,
   여기서 `rule_weighted_score`, `rule_weight_used`, `ai_weight_used` 는 동일한데
   `ai_score` 와 `final_score` 가 함께 달라지는 snapshot이 확인됐다
@@ -24,6 +24,11 @@ sample B(control)의 drift를 `finalScore` 기준으로 분해한 결과입니�
   `ReRankingService` 정규화로 보기보다,
   **full replay context에서 `ai_score` 가 왜 달라지는지**
   쪽으로 추적하는 편이 맞다
+- 단, 이 artifact는 이후 확인된 것처럼
+  `rule-only` 스크립트가 `.env` 의 real `OPENAI_API_KEY` 를 암묵적으로 상속하던 시점에 수집된 것이다.
+  따라서 여기서 관찰한 drift는 `real-openai` 문맥의 현상으로 읽어야 한다
+- 이후 기본값을 `rule-only-invalid-key` 로 고친 뒤 다시 실행한 artifact(`/tmp/tmp.x4i74TN5Wv`)에서는
+  sample B `edu-b-off-scores.tsv` / `edu-b-on-scores.tsv` diff가 사라졌다
 
 즉:
 

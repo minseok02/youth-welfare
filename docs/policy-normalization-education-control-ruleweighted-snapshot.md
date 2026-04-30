@@ -20,7 +20,7 @@ sample B의 `rule_weighted_score`, `ai_score`, `final_score` 가
 
 - drift가 `ruleWeightedScore` 단계에서 시작된다고 볼 근거는 없음
 - direct replay만으로는 `ReRankingService` request-local normalization 가설을 확정할 수 없음
-- 다만 이후 full replay script artifact(`/tmp/tmp.aoUkRUpDdB`)에서
+- 다만 이후 full replay script artifact(`/tmp/tmp.aoUkRUpDdB`, 이후 확인된 `real-openai` mode 시점)에서
   `edu-b-off-scores.tsv` / `edu-b-on-scores.tsv` 비교 결과
   `rule_weighted_score` 는 그대로인데 `ai_score` 와 `final_score` 가 함께 달라지는 snapshot이 추가로 확보됐다
 
@@ -31,6 +31,9 @@ sample B의 `rule_weighted_score`, `ai_score`, `final_score` 가
 - 이번 isolated `sample B only` direct replay snapshot
 
 이 둘이 서로 다르다는 점이 더 중요합니다.
+
+그리고 이후 기본 `rule-only-invalid-key` 모드로 full replay script를 다시 돌렸을 때도
+sample B snapshot은 다시 동일하게 수렴했습니다.
 
 ## direct snapshot 조건
 
@@ -91,6 +94,7 @@ DB snapshot top-15:
 - sample A refresh가 먼저 돌면서 생기는 full replay context 차이
 - full script의 sample seed / refresh 순서 차이
 - direct capture와 full replay script 사이의 AI score 계산/저장 경계 차이
+- 그리고 당시 `rule-only` 스크립트가 `.env` 의 real `OPENAI_API_KEY` 를 상속해 실제 AI 호출이 섞였을 가능성
 
 ## 현재 판단
 

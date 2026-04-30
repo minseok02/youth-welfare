@@ -61,6 +61,8 @@ deploy/smoke/run-local-education-priority-replay.sh
 - `incomeLevel=5`
 - sample A priority `["EDUCATION","JOB"]`
 - sample B priority `["HOUSING","JOB"]`
+- `USE_REAL_OPENAI_FOR_REPLAY=false`
+- `.env` 에 real `OPENAI_API_KEY` 가 있어도 기본값에서는 `OPENAI_API_KEY=invalid-for-rule-only-replay` 를 강제
 
 스크립트는 아래를 자동 수행합니다.
 
@@ -73,6 +75,13 @@ deploy/smoke/run-local-education-priority-replay.sh
 7. sample A 개선 hard assert
 8. sample B(control) drift는 기본 warning, 필요하면 `STRICT_CONTROL_ASSERT=true` 로 strict fail
 9. `user_recommendations` off/on snapshot(`edu-a/b-*-scores.tsv`)도 함께 남겨 `rule_weighted_score` / `ai_score` / `final_score` 경계를 바로 비교
+10. artifact에 `openai-mode.txt` 를 같이 남겨 `rule-only-invalid-key` / `real-openai` 모드를 명시
+
+real OpenAI 호출이 정말 필요하면 아래처럼 명시적으로 opt-in 합니다.
+
+```bash
+USE_REAL_OPENAI_FOR_REPLAY=true deploy/smoke/run-local-education-priority-replay.sh
+```
 
 ### 1. DB/Redis 기동
 
@@ -123,6 +132,13 @@ host에서 직접 `bootRun` 할 때는 아래를 같이 맞춥니다.
 - sample A top-10 target row: `1 -> 7`
 - sample B top-10 target row: `0 -> 0`
 - artifact dir 예시: `/tmp/tmp.pKVwRY4dlt`
+
+2026-04-30 `rule-only-invalid-key` mode 재검증 결과:
+
+- sample A top-10 target row: `5 -> 10`
+- sample B top-10 target row: `2 -> 2`
+- `edu-b-off-scores.tsv` / `edu-b-on-scores.tsv` diff 없음
+- artifact dir 예시: `/tmp/tmp.x4i74TN5Wv`
 
 ### 3. 공통 변수
 
