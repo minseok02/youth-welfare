@@ -4,7 +4,9 @@ import com.example.welfare.policy.entity.ServiceTag;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.repository.ServiceTagRepository;
 import com.example.welfare.policy.repository.WelfareServiceRepository;
+import com.example.welfare.recommend.dto.RetrievedRecommendationCandidates;
 import com.example.welfare.recommend.dto.RecommendationUserSnapshot;
+import com.example.welfare.recommend.repository.CanonicalRecommendationReadModelRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -33,9 +35,10 @@ public class RetrievalService {
     private final WelfareServiceRepository welfareServiceRepository;
     private final ServiceTagRepository serviceTagRepository;
     private final YouthPolicyFilter youthPolicyFilter;
+    private final CanonicalRecommendationReadModelRepository canonicalRecommendationReadModelRepository;
 
     @Transactional(readOnly = true)
-    public List<WelfareService> retrieve(String clusterId, RecommendationUserSnapshot user) {
+    public RetrievedRecommendationCandidates retrieve(String clusterId, RecommendationUserSnapshot user) {
         int age = user.resolvedAge();
         int incomeLevel = user.resolvedIncomeLevel();
 
@@ -75,9 +78,16 @@ public class RetrievalService {
                 .limit(M)
                 .toList();
 
-        return mergeBaseAndLatest(filteredBase, filteredLatest).stream()
+        List<WelfareService> candidates = mergeBaseAndLatest(filteredBase, filteredLatest).stream()
                 .limit(K + M)
                 .collect(Collectors.toList());
+
+        return new RetrievedRecommendationCandidates(
+                candidates,
+                canonicalRecommendationReadModelRepository.findByServiceIds(
+                        candidates.stream().map(WelfareService::getId).toList()
+                )
+        );
     }
 
     /**

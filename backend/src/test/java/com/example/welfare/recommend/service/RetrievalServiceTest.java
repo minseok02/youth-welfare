@@ -3,7 +3,9 @@ package com.example.welfare.recommend.service;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.repository.ServiceTagRepository;
 import com.example.welfare.policy.repository.WelfareServiceRepository;
+import com.example.welfare.recommend.dto.RetrievedRecommendationCandidates;
 import com.example.welfare.recommend.dto.RecommendationUserSnapshot;
+import com.example.welfare.recommend.repository.CanonicalRecommendationReadModelRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -17,6 +19,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -33,13 +36,17 @@ class RetrievalServiceTest {
     @Mock
     private YouthPolicyFilter youthPolicyFilter;
 
+    @Mock
+    private CanonicalRecommendationReadModelRepository canonicalRecommendationReadModelRepository;
+
     @Test
     @DisplayName("regionCode가 있으면 regionCode 추천 쿼리를 사용한다")
     void retrieveUsesRegionCodeQueriesWhenRegionCodeExists() {
         RetrievalService service = new RetrievalService(
                 welfareServiceRepository,
                 serviceTagRepository,
-                youthPolicyFilter
+                youthPolicyFilter,
+                canonicalRecommendationReadModelRepository
         );
 
         RecommendationUserSnapshot user = user("서울특별시", "11680");
@@ -50,13 +57,15 @@ class RetrievalServiceTest {
                 .willReturn(List.of());
         given(serviceTagRepository.findByServiceIdIn(any())).willReturn(Collections.emptyList());
         given(youthPolicyFilter.isYouthRelevant(eq(candidate), any())).willReturn(true);
+        given(canonicalRecommendationReadModelRepository.findByServiceIds(any())).willReturn(Collections.emptyMap());
 
-        List<WelfareService> results = service.retrieve("youth_all", user);
+        RetrievedRecommendationCandidates results = service.retrieve("youth_all", user);
 
-        assertThat(results).extracting(WelfareService::getId).containsExactly(1L);
+        assertThat(results.candidates()).extracting(WelfareService::getId).containsExactly(1L);
         verify(welfareServiceRepository).findCandidatesWithRegionCode(eq(26), eq(5), eq("11680"), any(PageRequest.class));
         verify(welfareServiceRepository).findLatestCandidatesWithRegionCode(eq(26), eq(5), eq("11680"), any(PageRequest.class));
         verify(welfareServiceRepository, never()).findCandidatesWithSido(any(Integer.class), any(Integer.class), any(), any(PageRequest.class));
+        verify(canonicalRecommendationReadModelRepository).findByServiceIds(argThat(ids -> ids.equals(List.of(1L))));
     }
 
     @Test
@@ -65,7 +74,8 @@ class RetrievalServiceTest {
         RetrievalService service = new RetrievalService(
                 welfareServiceRepository,
                 serviceTagRepository,
-                youthPolicyFilter
+                youthPolicyFilter,
+                canonicalRecommendationReadModelRepository
         );
 
         RecommendationUserSnapshot user = user("서울특별시", null);
@@ -76,13 +86,15 @@ class RetrievalServiceTest {
                 .willReturn(List.of());
         given(serviceTagRepository.findByServiceIdIn(any())).willReturn(Collections.emptyList());
         given(youthPolicyFilter.isYouthRelevant(eq(candidate), any())).willReturn(true);
+        given(canonicalRecommendationReadModelRepository.findByServiceIds(any())).willReturn(Collections.emptyMap());
 
-        List<WelfareService> results = service.retrieve("youth_all", user);
+        RetrievedRecommendationCandidates results = service.retrieve("youth_all", user);
 
-        assertThat(results).extracting(WelfareService::getId).containsExactly(2L);
+        assertThat(results.candidates()).extracting(WelfareService::getId).containsExactly(2L);
         verify(welfareServiceRepository).findCandidatesWithSido(eq(26), eq(5), eq("서울특별시"), any(PageRequest.class));
         verify(welfareServiceRepository).findLatestCandidatesWithSido(eq(26), eq(5), eq("서울특별시"), any(PageRequest.class));
         verify(welfareServiceRepository, never()).findCandidatesWithRegionCode(any(Integer.class), any(Integer.class), any(), any(PageRequest.class));
+        verify(canonicalRecommendationReadModelRepository).findByServiceIds(argThat(ids -> ids.equals(List.of(2L))));
     }
 
     private RecommendationUserSnapshot user(String sido, String regionCode) {

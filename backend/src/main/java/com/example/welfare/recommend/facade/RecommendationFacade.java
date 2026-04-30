@@ -2,8 +2,9 @@ package com.example.welfare.recommend.facade;
 
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
-import com.example.welfare.recommend.dto.RecommendationUserSnapshot;
 import com.example.welfare.policy.entity.WelfareService;
+import com.example.welfare.recommend.dto.RecommendationUserSnapshot;
+import com.example.welfare.recommend.dto.RetrievedRecommendationCandidates;
 import com.example.welfare.recommend.dto.ScoredCandidate;
 import com.example.welfare.recommend.entity.ScoreWeight;
 import com.example.welfare.recommend.entity.UserRecommendation;
@@ -61,11 +62,12 @@ public class RecommendationFacade {
         String clusterId = clusterService.assignCluster(snapshot);
 
         // ② 후보 추출
-        List<WelfareService> candidates = retrievalService.retrieve(clusterId, snapshot);
-        if (candidates.isEmpty()) {
+        RetrievedRecommendationCandidates retrieved = retrievalService.retrieve(clusterId, snapshot);
+        if (retrieved.isEmpty()) {
             log.info("[RecommendationFacade] 후보 없음 userId={}", userId);
             return List.of();
         }
+        List<WelfareService> candidates = retrieved.candidates();
 
         // ③ Rule 점수
         List<ScoredCandidate> scored = ruleScoringService.score(candidates, snapshot);

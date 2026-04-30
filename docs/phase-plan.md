@@ -408,6 +408,12 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
   - 이번 단계에서는 실제 추천 파이프라인 연결 없이 read-model 경계와 bucket 조립 규칙만 코드화했다
 - 2026-04-30 recommendation read-model draft 추가 후 `cd backend && ./gradlew test --no-daemon --tests com.example.welfare.recommend.repository.CanonicalRecommendationReadModelRepositoryTest --tests com.example.welfare.recommend.service.RuleScoringServiceTest --tests com.example.welfare.recommend.service.RetrievalServiceTest`
 - 2026-04-30 recommendation read-model draft 추가 후 `git diff --check`
+- 2026-04-30 `RetrievalService` 에 canonical read-model hydrate 를 병행 연결하는 첫 단계 초안 추가
+  - `RetrievedRecommendationCandidates` DTO를 추가해 retrieval 단계가 legacy `WelfareService` 후보 리스트와 `RecommendationCandidateProjection` map 을 함께 반환하도록 바꿨다
+  - `RetrievalService` 는 후보 merge 직후 `CanonicalRecommendationReadModelRepository.findByServiceIds(...)` 로 projection 을 hydrate 하고, `RecommendationFacade` 는 아직 legacy `candidates()` 만 꺼내 써서 scoring/persistence 흐름은 그대로 유지한다
+  - 이번 단계에서는 retrieval 경계만 바꾸고, `BENEFICIARY_SUPPORT` bucket 실제 소비는 다음 task에서 `RuleScoringService` 병행 입력으로 분리한다
+- 2026-04-30 retrieval hydrate 첫 단계 추가 후 `cd backend && ./gradlew test --no-daemon --tests com.example.welfare.recommend.service.RetrievalServiceTest --tests com.example.welfare.recommend.repository.CanonicalRecommendationReadModelRepositoryTest --tests com.example.welfare.recommend.service.RuleScoringServiceTest`
+- 2026-04-30 retrieval hydrate 첫 단계 추가 후 `git diff --check`
 - 2026-04-28 pre-28 migrated DB 기준 admin logout / refresh invalidation / relogin smoke
   - `SECURITY_ADMIN_EMAILS=admin.logout.smoke@example.com` 으로 최신 앱을 기동한 뒤, admin 계정 로그인과 프로필 수정으로 queue row를 `SYNCED` 상태까지 맞추고 `POST /api/auth/refresh` 가 먼저 성공하는 것 확인
   - 같은 cookie jar + access token으로 `POST /api/auth/logout` 호출 후 cookie jar에서 `refresh_token` 이 제거되고, 직후 `POST /api/auth/refresh` 가 `401`, `errorCode=A001` 로 막히는 것 확인
@@ -1018,7 +1024,7 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - [ ] 복지로 live detail 적재 기준 `welfare_service_details` / `service_facts` validation 리허설
 - [ ] 복지로 detail refresh budget metadata(`centralBudget`/`localBudget`) 를 admin collect observability에 노출할지 결정
 - [ ] `bokjiro-details-gap-fill` 추가 라운드/호출 예산 전략 정리 후 stored detail payload coverage 추가 확대
-- [ ] `RetrievalService` 에 canonical read-model hydrate 를 병행 연결하는 첫 단계 초안 추가
+- [ ] `RuleScoringService` 가 `RecommendationCandidateProjection.targetGroupBuckets` / `beneficiaryTerms` 를 병행 입력으로 읽는 첫 단계 초안 추가
 - [ ] 복지로 `threshold_like` income signal(`13`건) 을 `INCOME_*` hard fact 가 아닌 optional soft signal schema 로 분리할지 결정
 - [ ] 복지로 live detail 응답에 신청마감 explicit field가 있는지 재확인하고, 없으면 `BK_APPLY_END_DATE` 는 canonical collect path에서 optional fact로 유지
 - [ ] 로그인 가능한 testbed/live payload 기준 `YOUTH_MID` / `srchPolyBizSecd` 전체 inventory 수집
@@ -1055,6 +1061,7 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - [x] 복지로 beneficiary soft taxonomy 가 recommendation/read-model 에서 중복 가중치만 만들고 정보 손실은 없도록 dedupe 전략 설계
 - [x] canonical recommendation read-model 에 `BENEFICIARY_SUPPORT` dedupe bucket 을 어떻게 실을지 DTO/조회 경계 설계
 - [x] `RecommendationCandidateProjection` / `CanonicalRecommendationReadModelRepository` 초안 추가
+- [x] `RetrievalService` 에 canonical read-model hydrate 를 병행 연결하는 첫 단계 초안 추가
 - [x] sidecar draft migration 적용 상태에서 기존 복지로 적재 데이터 detail refresh/backfill 후 `service_facts` density 재측정
 - [x] `NormalizedPolicySidecarBackfillService` 를 admin/manual 실행 경로로 노출
 - [x] 복지로 `raw_api_payloads` 기반 canonical sidecar backfill service 초안 작성
