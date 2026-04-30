@@ -1269,6 +1269,9 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - 2026-05-01 admin forced logout 구현 위치 정책 고정
   - [auth-admin-forced-logout-implementation-location.md](./auth-admin-forced-logout-implementation-location.md) 를 추가해 차단 판단 시점은 `JwtAuthenticationFilter`, 비교 로직은 dedicated helper/service 로 두는 방향을 고정했다
   - 즉 다음 액션은 helper/service의 최소 인터페이스를 정하고, 그다음 실제 `JwtUtil` / Redis / filter wiring 구현으로 내려가는 쪽으로 좁힌다
+- 2026-05-01 admin forced logout helper interface 정책 고정
+  - [auth-admin-forced-logout-helper-interface.md](./auth-admin-forced-logout-helper-interface.md) 를 추가해 helper/service의 1차 인터페이스를 `boolean isAccessAllowed(String accessToken)` + `void revokeUserSessions(String userKey, long cutoffMillis)` 로 고정했다
+  - 즉 다음 액션은 이 helper/service의 이름을 무엇으로 둘지 정하고, 그다음 구현으로 내려가는 쪽으로 좁힌다
 
 ## 작업 추적
 

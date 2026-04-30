@@ -1382,3 +1382,8 @@
 - 문제: Redis shape, `iatm`, legacy/error 정책까지 정한 뒤에도 구현 위치를 애매하게 두면 `/api/admin/**`, `/api/users/**`, `/api/recommendations/**` 경로마다 forced logout guard가 다시 흩어질 수 있다
 - 해결: [auth-admin-forced-logout-implementation-location.md](./auth-admin-forced-logout-implementation-location.md) 를 추가해 차단 판단 시점은 `JwtAuthenticationFilter`, 세부 비교 로직은 dedicated helper/service 로 두는 방향으로 고정했다
 - 이유: forced logout은 auth-layer concern이라 SecurityContext 세우기 전에 봐야 하고, 동시에 filter 본문에 Redis/JWT 비교 세부를 모두 넣으면 비대해진다. 시점과 로직을 이렇게 분리해야 누락 surface와 복잡도를 같이 줄일 수 있다
+
+## 275) forced logout helper가 `isRevoked(token)` / `isCutoff(token)` 같은 세부 메서드를 바깥에 노출하면 filter가 다시 구현 세부에 묶이므로, read는 최종 allow/deny 하나로 좁히는 편이 낫다
+- 문제: 구현 위치를 filter + helper로 정한 뒤에도 helper 인터페이스를 세부 규칙 단위로 열어 두면, `JwtAuthenticationFilter` 가 exact revoke, cutoff, legacy token 판단 순서를 다시 직접 알아야 한다
+- 해결: [auth-admin-forced-logout-helper-interface.md](./auth-admin-forced-logout-helper-interface.md) 를 추가해 1차 인터페이스를 `boolean isAccessAllowed(String accessToken)` + `void revokeUserSessions(String userKey, long cutoffMillis)` 로 고정했다
+- 이유: filter는 최종 allow/deny만 알고, admin API는 user 단위 revoke intent write만 알면 된다. 세부 Redis/JWT 비교 규칙을 helper 내부에 가둬야 경계가 덜 새고 이후 확장도 쉬워진다
