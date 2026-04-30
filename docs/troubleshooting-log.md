@@ -1267,3 +1267,8 @@
 - 문제: `GOV24_SERVICE_FIELD` / `USER_TYPE` / `BENEFIT_TYPE` 는 current source 기준으로 다시 받기로 했더라도, 요청 스펙이 없으면 제공기관이나 운영 담당자가 Swagger 캡처, sample payload, label 목록만 보내는 식으로 끝날 수 있다. 그러면 다시 “이걸로 import SQL을 열 수 있나”를 재판단해야 한다
 - 해결: [policy-normalization-gov24-label-source-plan.md](./policy-normalization-gov24-label-source-plan.md)에 sufficient example / insufficient example / 요청 문구 초안을 추가해, 최소 요구를 `field name + code + official label` 로 고정하고 `active/use 여부`, `sort_order`, `설명` 을 권장 필드로 정리했다
 - 이유: `GOV24_* import/backfill SQL` 의 목적은 current finite inventory를 공식 코드테이블에 적재하는 것이다. 요청 스펙을 먼저 고정해야 sample 중심 자료와 actual codebook을 구분할 수 있고, 다시 bridge 결과나 deprecated endpoint로 미끄러지는 일을 줄일 수 있다
+
+## 252) `GOV24_SUPPORT_CONDITION` 은 representative subset 근거와 full inventory 근거를 분리해서 봐야 한다
+- 문제: 현재는 `JA0101`, `JA0110`, `JA0201~0205`, `JA0320`, `JA0327`, `JA0412` 같은 대표 code는 공식 근거가 있어 seed 했지만, 이걸 그대로 “supportConditions 전체 codebook도 사실상 확보된 것”처럼 확대 해석하면 sample 관찰 범위를 full inventory와 혼동하게 된다
+- 해결: [policy-normalization-gov24-support-condition-source-plan.md](./policy-normalization-gov24-support-condition-source-plan.md) 를 추가해, representative subset seed는 유지하되 full inventory/backfill은 current Swagger/schema export 또는 provider codebook 확보 전까지 보류한다고 고정했다. 동시에 sufficient/insufficient source 기준과 요청 스펙도 분리했다
+- 이유: `supportConditions` 는 `GOV24_*` taxonomy보다 구조화가 강하지만, representative subset을 몇 개 확인한 것과 전체 finite code inventory를 확보한 것은 다른 단계다. 이 경계를 분리해 두어야 subset seed와 full import가 다시 섞이지 않는다

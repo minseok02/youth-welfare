@@ -1246,6 +1246,7 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - [x] `YOUTH_MID` stable code source 확보를 위한 운영 담당자 요청 스펙 정리
 - [x] `GOV24_SERVICE_FIELD` / `USER_TYPE` / `BENEFIT_TYPE` import SQL을 다시 열기 위한 official source 조건 정리
 - [x] `GOV24_SERVICE_FIELD` / `USER_TYPE` / `BENEFIT_TYPE` source 확보를 위한 제공기관/운영 담당자 요청 스펙 정리
+- [x] `GOV24_SUPPORT_CONDITION` representative subset과 full inventory 확장 사이의 official source 조건 정리
 - [ ] `YOUTH_MID` stable code mapping SQL 초안 작성
 - [ ] `GOV24_SERVICE_FIELD`, `GOV24_USER_TYPE`, `GOV24_BENEFIT_TYPE` 공식 label inventory import/backfill SQL 초안 작성
 - [ ] `GOV24_SUPPORT_CONDITION` 전체 code inventory 확장 및 `service_facts` backfill 초안 작성
