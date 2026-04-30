@@ -987,3 +987,8 @@
 - 문제: 이번 문서 작업 커밋 단계에서 `fatal: Unable to create '.git/index.lock': File exists.` 가 한 번 발생했다. 이런 경우 습관적으로 lock 파일을 바로 지우면, 실제로 다른 git 프로세스가 아직 돌고 있을 때 index 손상 위험이 있다
 - 해결: 먼저 `ps -ef | rg "git (commit|add|status|push)"` 로 실제 git 프로세스 유무를 확인하고, 이어 `.git/index.lock` 존재 여부를 다시 확인했다. 이번 경우는 이미 transient 상태로 정리돼 있었고 재시도만으로 진행 가능했다
 - 이유: `index.lock` 은 stale lock일 수도 있지만 active git 작업 보호 장치일 수도 있다. 먼저 프로세스 유무를 확인하면 불필요한 강제 삭제를 피하고, 안전하게 재시도 여부를 판단할 수 있다
+
+## 196) `교육` bridge 실험을 `calcBaseScore(...)` 나 matcher 쪽에 넣지 말고 `applyPriorityWeight(...)` filter 경계에서만 좁게 OR 하는 편이 diff와 회귀 반경이 가장 작음
+- 문제: 실제 구현에 들어가면 helper를 `calcBaseScore(...)`, `DefaultPriorityMatcher`, facade, repository 등 여러 곳에 흩뿌리고 싶어질 수 있다. 하지만 이 실험은 category contract 변경이 아니라 `EDUCATION priority` 에 한해 weight candidate를 하나 더 인정하는 수준이라, 경계를 넓히면 실험보다 코드 영향 범위가 더 커질 수 있다
+- 해결: helper 이름은 `matchesEducationCanonicalPriorityExperiment(...)` 로 고정하고, 삽입 위치도 `RuleScoringService.applyPriorityWeight(...)` 의 `priorities.stream().filter(...)` 경계로 제한했다. 구현 권장 형태는 `priorityMatcher.matches(...) || helper(...)` 이고, 나머지 scoring slot은 건드리지 않는다
+- 이유: 현재 priority 가중치는 `match -> maxWeight -> base * maxWeight` 구조로 닫혀 있다. 이 구조에서 filter 조건만 좁게 확장하면 실험의 의미가 가장 잘 보존되고, regression test도 matcher/response 의미를 건드리지 않은 채 최소 범위로 작성할 수 있다
