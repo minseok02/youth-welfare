@@ -23,6 +23,7 @@ public class DeferredNormalizedPolicySidecarWriter implements NormalizedPolicySi
         if (service == null || aggregate == null || aggregate.core() == null) {
             throw new IllegalArgumentException("service/aggregate/core 는 필수입니다.");
         }
+        validateYouthMidAliasContract(aggregate);
 
         List<NormalizedPolicyAggregate.Fact> mergedFacts =
                 normalizedFactMergeSupport.merge(List.of(), aggregate.facts());
@@ -32,5 +33,16 @@ public class DeferredNormalizedPolicySidecarWriter implements NormalizedPolicySi
                 service.getSourceType(),
                 mergedFacts.size(),
                 aggregate.taxonomyTerms().size());
+    }
+
+    private void validateYouthMidAliasContract(NormalizedPolicyAggregate aggregate) {
+        boolean hasYouthMidRawAlias = aggregate.taxonomyTerms().stream()
+                .anyMatch(term -> "YOUTH_MID_RAW_ALIAS".equals(term.termGroup()));
+
+        if (hasYouthMidRawAlias
+                && aggregate.taxonomy() != null
+                && aggregate.taxonomy().youthMid() != null) {
+            throw new IllegalArgumentException("YOUTH_MID_RAW_ALIAS 가 있으면 taxonomy.youthMid 는 null 이어야 합니다.");
+        }
     }
 }

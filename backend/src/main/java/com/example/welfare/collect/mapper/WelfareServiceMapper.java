@@ -21,6 +21,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -44,6 +45,25 @@ public class WelfareServiceMapper {
     private static final String BOKJIRO_APPLY_END_DATE_FACT_CODE = "BOKJIRO_RULE_APPLY_END_DATE";
     private static final String BOKJIRO_AGE_MERGE_KEY = "BK_AGE_ELIGIBILITY";
     private static final String BOKJIRO_APPLY_END_DATE_MERGE_KEY = "BK_APPLY_END_DATE";
+    private static final Set<String> OFFICIAL_YOUTH_MID_LABELS = Set.of(
+            "취업",
+            "재직자",
+            "창업",
+            "주택 및 거주지",
+            "기숙사",
+            "전월세 및 주거급여 지원",
+            "미래역량강화",
+            "교육비지원",
+            "온라인교육",
+            "취약계층 및 금융지원",
+            "건강",
+            "예술인지원",
+            "문화활동",
+            "청년참여",
+            "정책인프라구축",
+            "청년국제교류",
+            "권익보호"
+    );
 
     // ===== 온통청년 =====
 
@@ -85,18 +105,19 @@ public class WelfareServiceMapper {
 
     public NormalizedPolicyAggregate toNormalizedYouth(YouthApiDto.Item item) {
         WelfareService service = fromYouth(item);
+        YouthMidPartition youthMidPartition = partitionYouthMidLabels(item.getMclsfNm());
         return NormalizedPolicyAggregate.builder()
                 .core(buildCore(service))
                 .detail(buildDetail(service, null))
                 .taxonomy(NormalizedPolicyAggregate.TaxonomySummary.builder()
                         .compatUnifiedCategory(service.getUnifiedCategory())
                         .youthMajor(service.getCategoryMain())
-                        .youthMid(service.getCategorySub())
+                        .youthMid(youthMidPartition.summaryLabel())
                         .provisionMethod(service.getApplyMethodName())
                         .authority(NormalizedPolicyAggregate.Authority.OFFICIAL)
                         .confidence(BigDecimal.ONE)
                         .build())
-                .taxonomyTerms(youthTerms(item))
+                .taxonomyTerms(youthTerms(item, youthMidPartition))
                 .facts(youthFacts(service))
                 .build();
     }
@@ -502,15 +523,44 @@ public class WelfareServiceMapper {
                 .build();
     }
 
-    private List<NormalizedPolicyAggregate.TaxonomyTerm> youthTerms(YouthApiDto.Item item) {
+    private List<NormalizedPolicyAggregate.TaxonomyTerm> youthTerms(YouthApiDto.Item item,
+                                                                    YouthMidPartition youthMidPartition) {
         List<NormalizedPolicyAggregate.TaxonomyTerm> terms = new ArrayList<>();
         addTaxonomyTerm(terms, "YOUTH_MAJOR", "YOUTH_MAJOR", null, item.getLclsfNm(), "lclsfNm",
                 NormalizedPolicyAggregate.Authority.OFFICIAL, 0);
-        addTaxonomyTerm(terms, "YOUTH_MID", "YOUTH_MID", null, item.getMclsfNm(), "mclsfNm",
-                NormalizedPolicyAggregate.Authority.OFFICIAL, 1);
+        int sortOrder = 0;
+        for (String label : youthMidPartition.officialLabels()) {
+            addTaxonomyTerm(terms, "YOUTH_MID", "YOUTH_MID", null, label, "category_sub",
+                    NormalizedPolicyAggregate.Authority.OFFICIAL, sortOrder++);
+        }
+        for (String label : youthMidPartition.rawAliases()) {
+            addTaxonomyTerm(terms, "YOUTH_MID_RAW_ALIAS", null, null, label, "category_sub",
+                    NormalizedPolicyAggregate.Authority.OFFICIAL, sortOrder++);
+        }
         addTaxonomyTermsFromCsv(terms, "YOUTH_KEYWORD", "YOUTH_KEYWORD", item.getPlcyKywdNm(), "plcyKywdNm",
                 NormalizedPolicyAggregate.Authority.OFFICIAL, 0);
         return terms;
+    }
+
+    private YouthMidPartition partitionYouthMidLabels(String rawYouthMid) {
+        if (rawYouthMid == null || rawYouthMid.isBlank()) {
+            return new YouthMidPartition(List.of(), List.of());
+        }
+
+        LinkedHashSet<String> officialLabels = new LinkedHashSet<>();
+        LinkedHashSet<String> rawAliases = new LinkedHashSet<>();
+        for (String rawToken : rawYouthMid.split(",")) {
+            String label = RawFieldValidator.normalize(rawToken == null ? null : rawToken.strip());
+            if (label == null) {
+                continue;
+            }
+            if (OFFICIAL_YOUTH_MID_LABELS.contains(label)) {
+                officialLabels.add(label);
+            } else {
+                rawAliases.add(label);
+            }
+        }
+        return new YouthMidPartition(List.copyOf(officialLabels), List.copyOf(rawAliases));
     }
 
     private List<NormalizedPolicyAggregate.TaxonomyTerm> bokjiroCentralTerms(BokjiroCentralDto.Item item) {
@@ -737,5 +787,16 @@ public class WelfareServiceMapper {
                 .rawValue(dateValue.toString())
                 .evidenceText(RawFieldValidator.normalize(evidenceText))
                 .build());
+    }
+
+    private record YouthMidPartition(
+            List<String> officialLabels,
+            List<String> rawAliases
+    ) {
+        private String summaryLabel() {
+            return rawAliases.isEmpty() && officialLabels.size() == 1
+                    ? officialLabels.get(0)
+                    : null;
+        }
     }
 }

@@ -202,6 +202,84 @@ LEFT JOIN service_taxonomy_terms stt
 WHERE src.term_label <> ''
   AND stt.id IS NULL;
 
+-- canonical `YOUTH_MID` 에 들어가지 않는 token 은 raw alias bucket 으로 별도 보존한다.
+INSERT INTO service_taxonomy_terms (
+    service_id,
+    term_group,
+    code_set_key,
+    term_code,
+    term_label,
+    source_field,
+    authority,
+    sort_order
+)
+SELECT DISTINCT
+    src.service_id,
+    'YOUTH_MID_RAW_ALIAS',
+    NULL,
+    '',
+    src.term_label,
+    'category_sub',
+    'OFFICIAL',
+    0
+FROM (
+    SELECT
+        ws.id AS service_id,
+        TRIM(
+            SUBSTRING_INDEX(
+                SUBSTRING_INDEX(
+                    REPLACE(REPLACE(ws.category_sub, ', ', ','), ' ,', ','),
+                    ',',
+                    seq.n
+                ),
+                ',',
+                -1
+            )
+        ) AS term_label
+    FROM welfare_services ws
+    JOIN (
+        SELECT 1 AS n UNION ALL
+        SELECT 2 UNION ALL
+        SELECT 3 UNION ALL
+        SELECT 4 UNION ALL
+        SELECT 5
+    ) seq
+        ON seq.n <= 1
+            + LENGTH(REPLACE(REPLACE(ws.category_sub, ', ', ','), ' ,', ','))
+            - LENGTH(REPLACE(REPLACE(REPLACE(ws.category_sub, ', ', ','), ' ,', ','), ',', ''))
+    WHERE ws.source_type = 'YOUTH'
+      AND TRIM(COALESCE(ws.category_sub, '')) <> ''
+) src
+LEFT JOIN (
+    SELECT '취업' AS term_label UNION ALL
+    SELECT '재직자' UNION ALL
+    SELECT '창업' UNION ALL
+    SELECT '주택 및 거주지' UNION ALL
+    SELECT '기숙사' UNION ALL
+    SELECT '전월세 및 주거급여 지원' UNION ALL
+    SELECT '미래역량강화' UNION ALL
+    SELECT '교육비지원' UNION ALL
+    SELECT '온라인교육' UNION ALL
+    SELECT '취약계층 및 금융지원' UNION ALL
+    SELECT '건강' UNION ALL
+    SELECT '예술인지원' UNION ALL
+    SELECT '문화활동' UNION ALL
+    SELECT '청년참여' UNION ALL
+    SELECT '정책인프라구축' UNION ALL
+    SELECT '청년국제교류' UNION ALL
+    SELECT '권익보호'
+) ref
+    ON ref.term_label = src.term_label
+LEFT JOIN service_taxonomy_terms stt
+    ON stt.service_id = src.service_id
+   AND stt.term_group = 'YOUTH_MID_RAW_ALIAS'
+   AND stt.term_code = ''
+   AND stt.term_label = src.term_label
+   AND stt.authority = 'OFFICIAL'
+WHERE src.term_label <> ''
+  AND ref.term_label IS NULL
+  AND stt.id IS NULL;
+
 -- `GOV24_SERVICE_FIELD`, `GOV24_USER_TYPE`, `GOV24_BENEFIT_TYPE` 는 official API field 자체는 확인했지만,
 -- 이번 조사 범위에서는 stable finite codebook/value inventory 를 확보하지 못했다.
 -- 이 집합은 live payload 또는 별도 공식 문서 기준 inventory import/backfill task로 분리한다.

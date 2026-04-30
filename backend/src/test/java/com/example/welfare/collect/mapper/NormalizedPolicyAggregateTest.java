@@ -26,7 +26,7 @@ class NormalizedPolicyAggregateTest {
         setField(item, "plcyExplnCn", "청년 주거비 부담 완화");
         setField(item, "plcySprtCn", "월 최대 20만원 지원");
         setField(item, "lclsfNm", "주거");
-        setField(item, "mclsfNm", "월세지원");
+        setField(item, "mclsfNm", "전월세 및 주거급여 지원");
         setField(item, "plcyKywdNm", "월세,주거,청년");
         setField(item, "sprtTrgtMinAge", 19);
         setField(item, "sprtTrgtMaxAge", 34);
@@ -44,13 +44,13 @@ class NormalizedPolicyAggregateTest {
         assertThat(aggregate.detail().applyMethodDetail()).isEqualTo("온라인 신청");
         assertThat(aggregate.taxonomy().compatUnifiedCategory()).isEqualTo("주거");
         assertThat(aggregate.taxonomy().youthMajor()).isEqualTo("주거");
-        assertThat(aggregate.taxonomy().youthMid()).isEqualTo("월세지원");
+        assertThat(aggregate.taxonomy().youthMid()).isEqualTo("전월세 및 주거급여 지원");
         assertThat(aggregate.taxonomyTerms())
                 .extracting(NormalizedPolicyAggregate.TaxonomyTerm::termGroup,
                         NormalizedPolicyAggregate.TaxonomyTerm::termLabel)
                 .contains(
                         tuple("YOUTH_MAJOR", "주거"),
-                        tuple("YOUTH_MID", "월세지원"),
+                        tuple("YOUTH_MID", "전월세 및 주거급여 지원"),
                         tuple("YOUTH_KEYWORD", "월세")
                 );
         assertThat(aggregate.facts())
@@ -67,6 +67,29 @@ class NormalizedPolicyAggregateTest {
                 .filteredOn(fact -> "APPLY_END_DATE".equals(fact.factGroup()))
                 .singleElement()
                 .satisfies(fact -> assertThat(fact.dateValue()).isEqualTo(LocalDate.of(2026, 12, 31)));
+    }
+
+    @Test
+    void toNormalizedYouth_splitsOfficialMidAndPreservesRawAliasBucket() throws Exception {
+        YouthApiDto.Item item = new YouthApiDto.Item();
+        setField(item, "plcyNo", "Y002");
+        setField(item, "plcyNm", "청년 역량 지원");
+        setField(item, "plcyExplnCn", "청년 취업 역량 강화");
+        setField(item, "plcySprtCn", "교육 및 취업 지원");
+        setField(item, "lclsfNm", "일자리");
+        setField(item, "mclsfNm", "취업,재직자,온·오프라인교육");
+
+        NormalizedPolicyAggregate aggregate = mapper.toNormalizedYouth(item);
+
+        assertThat(aggregate.taxonomy().youthMid()).isNull();
+        assertThat(aggregate.taxonomyTerms())
+                .extracting(NormalizedPolicyAggregate.TaxonomyTerm::termGroup,
+                        NormalizedPolicyAggregate.TaxonomyTerm::termLabel)
+                .contains(
+                        tuple("YOUTH_MID", "취업"),
+                        tuple("YOUTH_MID", "재직자"),
+                        tuple("YOUTH_MID_RAW_ALIAS", "온·오프라인교육")
+                );
     }
 
     @Test

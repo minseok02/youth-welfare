@@ -31,7 +31,7 @@ class PolicyNormalizationSampleCoverageTest {
         setField(item, "plcyExplnCn", "청년의 주거비 부담을 줄이기 위한 정책");
         setField(item, "plcySprtCn", "월 최대 20만원 월세 지원");
         setField(item, "lclsfNm", "주거");
-        setField(item, "mclsfNm", "월세지원");
+        setField(item, "mclsfNm", "전월세 및 주거급여 지원");
         setField(item, "plcyKywdNm", "월세,보조금,청년주거");
         setField(item, "sprvsnInstCdNm", "국토교통부");
         setField(item, "operInstCdNm", "서울특별시");
@@ -50,7 +50,7 @@ class PolicyNormalizationSampleCoverageTest {
         assertThat(service.getTitle()).isEqualTo("청년 월세 특별지원");
         assertThat(service.getUnifiedCategory()).isEqualTo("주거");
         assertThat(service.getCategoryMain()).isEqualTo("주거");
-        assertThat(service.getCategorySub()).isEqualTo("월세지원");
+        assertThat(service.getCategorySub()).isEqualTo("전월세 및 주거급여 지원");
         assertThat(service.getKeyword()).contains("월세");
         assertThat(service.getMinAge()).isEqualTo(19);
         assertThat(service.getMaxAge()).isEqualTo(34);

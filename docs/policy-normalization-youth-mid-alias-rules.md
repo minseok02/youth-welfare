@@ -54,6 +54,7 @@ official exact label은 아래 17개입니다.
 
 - 공개 `정책중분류` 시트의 official 17개 라벨과 exact match 하는 token만 canonical `YOUTH_MID` 로 적재한다.
 - 현재는 `service_taxonomy_terms.term_group='YOUTH_MID'`, `term_code=''`, `authority='OFFICIAL'` 로 저장한다.
+- `service_taxonomies.youth_mid_label` summary 필드는 **단일 exact official token 1개일 때만** 채우고, comma 조합이나 raw alias가 섞이면 `NULL` 로 둔다.
 
 ### 2. comma-delimited 조합은 split 후 official token만 개별 적재
 

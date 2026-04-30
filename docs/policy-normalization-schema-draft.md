@@ -192,6 +192,7 @@
 - `compat_unified_category_*` 는 유지하되 canonical 원본이 아님
 - `authority=OFFICIAL` 인 경우 source가 직접 준 분류만 저장
 - `Gov24 -> youth category` 같은 브릿지 값은 `authority=SYSTEM_DERIVED` 로만 저장
+- `youth_mid_label` 은 `YOUTH_MID` exact official token이 단일값일 때만 채우고, comma 조합이나 raw alias가 섞이면 `NULL` 로 둔다. 복수/비정규 값은 `service_taxonomy_terms` 에서만 관리한다.
 
 ## 테이블 4. `service_taxonomy_terms`
 

@@ -255,6 +255,12 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
   - 후속 작업은 `DeferredNormalizedPolicySidecarWriter` / backfill SQL 이 이 raw alias bucket을 실제로 저장하도록 연결하는 것으로 좁힘
 - 2026-04-30 skipped `YOUTH_MID` alias raw preservation 정책 확정 후 `rg -n "YOUTH_MID_RAW_ALIAS|raw alias|raw-only" docs -g'*.md'`
 - 2026-04-30 skipped `YOUTH_MID` alias raw preservation 정책 확정 후 `git diff --check`
+- 2026-04-30 `YOUTH_MID_RAW_ALIAS` aggregate/backfill 경로 연결
+  - `WelfareServiceMapper.toNormalizedYouth()` 가 `mclsfNm/category_sub` 를 split/trim 해서 official token은 `YOUTH_MID`, non-official token은 `YOUTH_MID_RAW_ALIAS` 로 aggregate `taxonomyTerms` 에 분리해 싣도록 변경
+  - `taxonomy.youthMid` / draft `service_taxonomies.youth_mid_label` summary 는 exact official 단일 token일 때만 채우고, comma 조합이나 raw alias가 섞이면 `NULL` 로 두도록 규칙을 collect 코드와 `V2026_04_30_02__seed_policy_normalization_codes.sql` 에 같이 반영
+  - `V2026_04_30_03__seed_policy_official_code_subsets.sql` 에 skipped alias를 `service_taxonomy_terms(term_group='YOUTH_MID_RAW_ALIAS')` 로 backfill 하는 draft INSERT 를 추가했고, `DeferredNormalizedPolicySidecarWriter` 는 raw alias bucket이 있으면 summary `youthMid` 가 비어 있어야 한다는 invariant 를 검증하도록 보강
+- 2026-04-30 `YOUTH_MID_RAW_ALIAS` aggregate/backfill 경로 연결 후 `cd backend && ./gradlew test --no-daemon --tests com.example.welfare.collect.mapper.NormalizedPolicyAggregateTest --tests com.example.welfare.collect.mapper.PolicyNormalizationSampleCoverageTest --tests com.example.welfare.collect.normalization.DeferredNormalizedPolicySidecarWriterTest`
+- 2026-04-30 `YOUTH_MID_RAW_ALIAS` aggregate/backfill 경로 연결 후 `git diff --check`
 - 2026-04-28 pre-28 migrated DB 기준 admin logout / refresh invalidation / relogin smoke
   - `SECURITY_ADMIN_EMAILS=admin.logout.smoke@example.com` 으로 최신 앱을 기동한 뒤, admin 계정 로그인과 프로필 수정으로 queue row를 `SYNCED` 상태까지 맞추고 `POST /api/auth/refresh` 가 먼저 성공하는 것 확인
   - 같은 cookie jar + access token으로 `POST /api/auth/logout` 호출 후 cookie jar에서 `refresh_token` 이 제거되고, 직후 `POST /api/auth/refresh` 가 `401`, `errorCode=A001` 로 막히는 것 확인
@@ -866,7 +872,6 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - [ ] `DeferredNormalizedPolicySidecarWriter` 를 실제 `service_taxonomies / service_taxonomy_terms / service_facts` DB persistence writer 로 교체
 - [ ] 로그인 가능한 testbed/live payload 기준 `YOUTH_MID` / `srchPolyBizSecd` 전체 inventory 수집
 - [ ] `YOUTH_MID` stable code mapping SQL 초안 작성
-- [ ] `DeferredNormalizedPolicySidecarWriter` / backfill SQL 이 skipped `YOUTH_MID` alias를 `YOUTH_MID_RAW_ALIAS` term group으로 실제 저장하도록 연결
 - [ ] `GOV24_SERVICE_FIELD`, `GOV24_USER_TYPE`, `GOV24_BENEFIT_TYPE` 공식 label inventory import/backfill SQL 초안 작성
 - [ ] `GOV24_SUPPORT_CONDITION` 전체 code inventory 확장 및 `service_facts` backfill 초안 작성
 - [ ] `compat_unified_category` 를 저장 필드로 둘지 read-model 계산값으로 둘지 최종 결정
@@ -887,6 +892,7 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 
 ### 완료
 
+- [x] `DeferredNormalizedPolicySidecarWriter` / backfill SQL 이 skipped `YOUTH_MID` alias를 `YOUTH_MID_RAW_ALIAS` term group으로 실제 저장하도록 연결
 - [x] skipped `YOUTH_MID` alias를 `YOUTH_MID_RAW_ALIAS` 등 별도 term group으로 보존할지 결정
 - [x] `YOUTH_MID` non-official variant alias normalization 규칙 초안 작성
 - [x] `YOUTH_MID` stable code import 보류 정책 확정
