@@ -273,6 +273,11 @@
 - 해결: [policy-source-canonical-onboarding-priority.md](./policy-source-canonical-onboarding-priority.md) 에서 정책형 source canonical onboarding 우선순위를 `Gov24/보조금24 -> 정부지원일자리정보 -> 구직자취업역량 강화프로그램` 순서로 고정하고, live validation 도 같은 순서로 밟도록 정리했음
 - 이유: canonical 확장은 source 수를 늘리는 속도보다 기준선을 먼저 세우는 것이 중요하다. `Gov24` 처럼 `core/detail/facts` 강도가 높은 source를 먼저 붙여야 이후 일자리/프로그램형 source 해석도 덜 흔들린다
 
+## 283) 장학금 reference를 제도 row에 flatten 하면 정책 1건 의미와 상세 matrix 둘 다 잃기 쉽다
+- 문제: 국가장학금/학자금 계열에서 지원가능대학, 학기별 금액표, 지원구간 경곗값 같은 matrix를 `welfare_services` row로 직접 flatten 하면 대학/학기별 파생 row가 과도하게 늘고, 반대로 전부 `service_facts` 로만 밀어 넣으면 장학금 상품 1건에 붙는 세부 variation을 잃기 쉬웠음
+- 해결: [policy-scholarship-reference-matrix-draft.md](./policy-scholarship-reference-matrix-draft.md) 에서 장학금 상품은 canonical 정책 row로 유지하고, 세부 대학/학기/구간 정보는 `scholarship_reference_sets + scholarship_reference_rows` reference matrix로 분리하는 초안을 고정했음
+- 이유: 장학금 계열은 “추천 카드로 보여줄 제도 row”와 “상세 안내를 위한 variation matrix”를 분리해야 한다. 그래야 추천/북마크 의미를 보존하면서도 대학/학기별 상세 정보 손실을 막을 수 있다
+
 ## 50) 새 챗 세션의 `last_message_at`가 NULL이면 최근 세션 정렬이 흔들릴 수 있음
 - 문제: 챗봇 세션은 생성 직후 메시지가 없을 수 있는데 `last_message_at`를 nullable로 두면 세션 목록 최신순 정렬에서 DB별 NULL 정렬 차이 때문에 방금 만든 세션이 뒤로 밀릴 수 있었음
 - 해결: `chat_sessions.last_message_at`를 `NOT NULL DEFAULT CURRENT_TIMESTAMP`로 설계하고 `(user_id, last_message_at DESC)` 인덱스를 함께 추가

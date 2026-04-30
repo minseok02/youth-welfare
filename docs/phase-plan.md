@@ -1330,7 +1330,6 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 
 ### 진행 예정
 
-- [ ] 한국장학재단/국가장학금 계열의 `제도 row` 와 `지원가능대학/학기/지원구간` reference matrix 분리 모델 초안 작성
 - [ ] 복지로 live detail 적재 기준 `welfare_service_details` / `service_facts` validation 리허설
 - [ ] 복지로 detail refresh budget metadata(`centralBudget`/`localBudget`) 를 admin collect observability에 노출할지 결정
 - [ ] `bokjiro-details-gap-fill` 추가 라운드/호출 예산 전략 정리 후 stored detail payload coverage 추가 확대
@@ -1392,6 +1391,9 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - [x] `정부지원일자리정보`, `구직자취업역량 강화프로그램`, `Gov24/보조금24` 의 정책형 source canonical onboarding 우선순위와 live validation 순서 작성
   - [policy-source-canonical-onboarding-priority.md](./policy-source-canonical-onboarding-priority.md) 를 추가해 현재 phase의 정책형 source canonical onboarding 우선순위를 `Gov24/보조금24 -> 정부지원일자리정보 -> 구직자취업역량 강화프로그램` 순서로 고정했다
   - live validation 도 같은 순서로 두고, `Gov24` 는 `core/detail/facts` 기준 source, `정부지원일자리정보` 는 `일자리` canonical 적합도 검증, `구직자취업역량 강화프로그램` 은 `일자리 vs 교육·직업훈련` compat 해석 검증을 우선한다고 정리했다
+- [x] 한국장학재단/국가장학금 계열의 `제도 row` 와 `지원가능대학/학기/지원구간` reference matrix 분리 모델 초안 작성
+  - [policy-scholarship-reference-matrix-draft.md](./policy-scholarship-reference-matrix-draft.md) 를 추가해 장학금 상품 자체는 canonical `welfare_services + sidecars` 로 유지하고, 대학/학기/지원구간/금액표는 `scholarship_reference_sets + scholarship_reference_rows` reference matrix로 분리하는 방향을 고정했다
+  - 이 초안에서는 장학금 상품 1건을 대학/학기별 `welfare_services` 파생 row로 늘리지 않고, `service_facts` 는 전역 eligibility만 받고 matrix variation은 reference domain에 남기는 기준을 정리했다
 - [ ] 운영 서버 Docker Compose 기동
 - [ ] 기존 운영 DB에 `app_core_rw` / `app_pii_rw` / `notification_pii_ro` / `migration_admin` 계정 생성 및 앱 datasource 전환
 - [ ] 운영 `.env` / secret store의 `APP_PII_DB_URL` / `NOTIFICATION_PII_DB_URL` 를 `youth_welfare_pii` schema 기준으로 전환
