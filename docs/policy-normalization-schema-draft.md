@@ -193,6 +193,7 @@
 - `authority=OFFICIAL` 인 경우 source가 직접 준 분류만 저장
 - `Gov24 -> youth category` 같은 브릿지 값은 `authority=SYSTEM_DERIVED` 로만 저장
 - `youth_mid_label` 은 `YOUTH_MID` exact official token이 단일값일 때만 채우고, comma 조합이나 raw alias가 섞이면 `NULL` 로 둔다. 복수/비정규 값은 `service_taxonomy_terms` 에서만 관리한다.
+- `youth_major_label` 도 raw `category_main` 문자열을 그대로 두지 않고, [policy-normalization-youth-major-summary-rules.md](./policy-normalization-youth-major-summary-rules.md) 기준으로 single canonical major로 collapse 가능한 경우에만 채운다. comma/duplicate/raw non-mappable 값은 summary에서 `NULL` 로 둔다.
 
 ## 테이블 4. `service_taxonomy_terms`
 

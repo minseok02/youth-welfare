@@ -917,3 +917,8 @@
 - 문제: 실제 local DB를 집계해 보니 `compat_unified_category_label` 은 `3634 / 3634` rows에서 채워졌지만 `youth_major_label` 은 `2298 / 3634`, `youth_mid_label` 과 `gov24_service_field_label` 은 `0` 이었다. 특히 `YOUTH` 에서 `compat=기타` + `youth_major_label` 채움이 `471`, `youth_major_label` comma 포함이 `102` 였고, 샘플을 보면 `일자리,일자리`, `주거,주거`, `금융･복지･문화` 같은 raw `category_main` 복사 흔적이 남아 있었다
 - 해결: 이 결과를 별도 inventory 문서로 고정하고, 다음 작업을 `YOUTH category_main -> youth_major summary 정제 규칙`, `comma/duplicate collapse`, `summary 재적재 후 drift 재측정` 으로 다시 쪼갰다. 현재는 `compat_unified_category` 를 priority 호환 레이어로 유지하고 summary 직독은 계속 보류한다
 - 이유: 지금 단계의 핵심 문제는 compat와 canonical이 서로 다른 카테고리를 가리키는 충돌보다, canonical summary 자체가 아직 single normalized summary로 안정화되지 않았다는 점이다. 정제 전 summary를 matcher에 바로 연결하면 drift보다 summary 품질 문제가 더 크게 우선순위를 흔들 수 있다
+
+## 182) `service_taxonomies.youth_major_*` summary는 raw `category_main` 문자열을 그대로 복사하지 말고, single canonical major로 안정적으로 collapse 가능한 경우에만 채워야 함
+- 문제: drift inventory를 더 들여다보니 `youth_major_label` 에는 `금융･복지･문화`, `참여･기반` 같은 raw label 뿐 아니라 `일자리,일자리`, `주거,주거`, `일자리,교육` 같은 comma-delimited 문자열도 그대로 들어가 있었다. 이 값을 summary에 남겨두면 `service_taxonomies` 가 “서비스당 1행 canonical summary” 역할을 못 하고 raw multi-value dump와 다를 바 없어졌다
+- 해결: `YOUTH category_main -> service_taxonomies.youth_major_*` 규칙을 문서로 고정해, raw `category_main` 은 split/trim 후 canonical major 집합(`일자리`, `주거`, `교육`, `복지문화`, `참여권리`)으로 normalize 하고, distinct canonical code 가 `1`개일 때만 summary를 채우기로 했다. `2+` distinct code 가 나오면 summary는 `NULL` 로 두고 raw richness는 term/raw 계층에만 남기도록 정리했다
+- 이유: summary row는 read-model과 matcher가 빠르게 읽는 single canonical 값이어야 한다. raw multi-value를 그대로 두면 drift보다 summary semantics 자체가 무너지므로, collapse 가능한 경우만 채우고 나머지는 `NULL` 로 두는 편이 안전하다
