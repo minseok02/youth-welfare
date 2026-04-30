@@ -172,6 +172,9 @@ capture_recommendation_snapshot() {
     SET NAMES utf8mb4;
     SELECT ur.service_id,
            ur.rule_weighted_score,
+           COALESCE(ur.ai_score, 'NULL'),
+           COALESCE(ur.rule_weight_used, 'NULL'),
+           COALESCE(ur.ai_weight_used, 'NULL'),
            ur.final_score,
            ws.title,
            ws.unified_category

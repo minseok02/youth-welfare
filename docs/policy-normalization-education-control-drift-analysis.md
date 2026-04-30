@@ -16,12 +16,14 @@ sample B(control)의 drift를 `finalScore` 기준으로 분해한 결과입니�
 - current local snapshot에서는 control sample drift를 `strict fail` 기본값으로 두지 않는다
 - 이유는 `sample B`에서 **target row top-10 count는 `0 -> 0`으로 유지**되지만,
   일부 비대상 row의 `finalScore`와 top-10 내부 순서가 소폭 흔들리기 때문이다
-- latest full replay script artifact(`/tmp/tmp.aoUkRUpDdB`)에서는
+- latest full replay script artifact(`/tmp/tmp.Yhv9aqgHiM`)에서는
   `edu-b-off-scores.tsv` / `edu-b-on-scores.tsv` 가 같이 남았고,
-  여기서 `rule_weighted_score` 는 동일한데 `final_score` 만 달라지는 snapshot이 확인됐다
-- 따라서 이 흔들림은 현재 구현상
-  `ReRankingService`의 **request-local rule score normalization**
-  영향으로 보는 쪽이 더 강해졌다
+  여기서 `rule_weighted_score`, `rule_weight_used`, `ai_weight_used` 는 동일한데
+  `ai_score` 와 `final_score` 가 함께 달라지는 snapshot이 확인됐다
+- 따라서 현재 기준으로는 이 흔들림을 먼저
+  `ReRankingService` 정규화로 보기보다,
+  **full replay context에서 `ai_score` 가 왜 달라지는지**
+  쪽으로 추적하는 편이 맞다
 
 즉:
 
@@ -77,8 +79,9 @@ latest replay:
 - 그런데 housing row의 `finalScore`가 `±0.02 ~ ±0.06` 수준으로 바뀐다
 - 동시에 top-20 바깥의 `교육` row도 `-0.04` 정도의 delta를 같이 가진다
 
-즉 drift는 특정 `교육` row만 국소적으로 튀는 패턴이 아니라
-후보군 전체 score scale이 함께 다시 잡히는 패턴에 가깝다.
+즉 drift는 특정 `교육` row만 국소적으로 튀는 패턴이 아니라,
+동일한 `rule_weighted_score` 위에 얹히는 `ai_score` 가
+일부 row에서 달라지며 `final_score` 를 다시 흔드는 패턴에 가깝다.
 
 ## 왜 strict fail 기본값이 아닌가
 
@@ -89,21 +92,24 @@ latest replay:
   에만 추가 priority match를 준다
 - `sample B`는 `priorityCodes=["HOUSING","JOB"]` 이라
   helper가 직접 true가 될 조건이 아니다
-- 그럼에도 `finalScore`가 흔들리는 이유는
-  [ReRankingService.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/recommend/service/ReRankingService.java) 가
-  request마다 `ruleMax`를 다시 구해 `normalize(ruleWeightedScore, 0, ruleMax)` 하기 때문이다
+- latest full replay artifact에서는
+  `rule_weighted_score`, `rule_weight_used`, `ai_weight_used` 가 그대로인데도
+  `ai_score` 값이 `90 -> 80`, `75 -> 70`, `70 -> 80` 식으로 달라졌다
+- 따라서 지금 단계에서 더 직접적인 원인은
+  `final_score` 계산에 들어가는 **AI score layer drift** 이다
 
 latest full replay score snapshot 기준으로는:
 
 - 주거 row 상위권의 `rule_weighted_score` 는 그대로 `30.00`
-- 교육/기타 row 상위권의 `rule_weighted_score` 도 그대로 `25.00`
-- 그런데 `final_score` 는 `0.96 -> 0.88`, `0.94 -> 0.88`, `0.76 -> 0.72` 식으로 바뀐다
+- `rule_weight_used=0.60`, `ai_weight_used=0.40` 도 그대로다
+- 그런데 `ai_score` 는 `85 -> 80`, `75 -> 70`, `70 -> 80` 식으로 바뀌고
+  그에 따라 `final_score` 도 `0.94 -> 0.92`, `0.90 -> 0.88`, `0.88 -> 0.92` 식으로 달라진다
 
-따라서 한쪽 후보군의 weighted score 분포가 조금만 바뀌어도:
+따라서 지금 단계에서는:
 
-- 다른 후보의 normalized rule score가 같이 다시 계산될 수 있고
-- exact top-10 id / 순서 / `finalScore` 불변을 기본 자동화 조건으로 두면
-  스모크가 너무 민감해진다
+- exact top-10 id / 순서 / `finalScore` 불변을 기본 자동화 조건으로 두기보다
+- 먼저 full replay context에서 `ai_score` 가 왜 달라지는지
+  `RealtimeAiGateway` / persistence path 기준으로 좁혀 보는 편이 맞다
 
 ## 현재 운영 기준
 
@@ -126,7 +132,8 @@ STRICT_CONTROL_ASSERT=true deploy/smoke/run-local-education-priority-replay.sh
 다음에 볼 것은 두 가지다.
 
 1. full replay 문맥에서 왜 `rule_weighted_score` 는 같은데
-   `final_score` 만 달라지는지 추가 원인(후보군 구성/정렬 tie/정규화 입력) 추적
+   `ai_score` 와 `final_score` 가 달라지는지
+   `RealtimeAiGateway` / 저장 경계 기준으로 추적
 2. local smoke에서는 warning 유지,
    CI/수동 검증에서는 strict mode를 추가할지
 

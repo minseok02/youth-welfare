@@ -13,7 +13,7 @@ sample B(control) drift가 정말 `ruleWeightedScore` 단계부터 생기는지 
 ## 결론
 
 direct snapshot 기준으로는
-sample B의 `rule_weighted_score` 와 `final_score` 가
+sample B의 `rule_weighted_score`, `ai_score`, `final_score` 가
 `off/on` 사이에 **완전히 동일**했습니다.
 
 즉 이번 direct capture만 놓고 보면:
@@ -22,7 +22,7 @@ sample B의 `rule_weighted_score` 와 `final_score` 가
 - direct replay만으로는 `ReRankingService` request-local normalization 가설을 확정할 수 없음
 - 다만 이후 full replay script artifact(`/tmp/tmp.aoUkRUpDdB`)에서
   `edu-b-off-scores.tsv` / `edu-b-on-scores.tsv` 비교 결과
-  `rule_weighted_score` 는 그대로인데 `final_score` 만 달라지는 snapshot이 추가로 확보됐다
+  `rule_weighted_score` 는 그대로인데 `ai_score` 와 `final_score` 가 함께 달라지는 snapshot이 추가로 확보됐다
 
 정확히는:
 
@@ -90,7 +90,7 @@ DB snapshot top-15:
 
 - sample A refresh가 먼저 돌면서 생기는 full replay context 차이
 - full script의 sample seed / refresh 순서 차이
-- direct capture와 full replay script 사이의 candidate pool / normalization 입력 차이
+- direct capture와 full replay script 사이의 AI score 계산/저장 경계 차이
 
 ## 현재 판단
 
@@ -98,14 +98,13 @@ DB snapshot top-15:
 “sample B drift가 normalization 때문인가” 자체보다는:
 
 `sample B only direct replay에서는 drift가 없는데,
-왜 full replay script artifact에서는 drift가 생겼는가`
+왜 full replay script artifact에서는 `ai_score` drift가 생겼는가`
 
 입니다.
 
 그래서 다음 작업은:
 
 - `sample A -> sample B` 순서가 있는 full replay context에서
-  `rule_weighted_score` snapshot까지 같이 채취할지
-- 또는 script 자체에 persisted snapshot export 옵션을 넣을지
-
-중 하나가 맞습니다.
+  `RealtimeAiGateway` 호출/실패/저장 경계를 추적하거나
+- persisted snapshot에 이미 추가된 `ai_score` 기준으로
+  drift source를 더 좁히는 것입니다.

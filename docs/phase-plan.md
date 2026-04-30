@@ -564,9 +564,9 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
   - 결과는 `/tmp/edu-control-off.tsv` 와 `/tmp/edu-control-on.tsv` 가 완전히 동일했고, response JSON(`/tmp/edu-control-off.json`, `/tmp/edu-control-on.json`) top-15도 동일했다. 상위 6건은 `rule_weighted_score=30.00 / final_score=1.00000`, 다음 9건은 `25.00 / 0.83333` 으로 `off/on` 차이가 없었다
   - 따라서 sample B drift가 `ruleWeightedScore` 단계나 단독 direct replay에서 재현된다고 보긴 어렵고, 이전 full replay script artifact drift는 `sample A -> sample B` 순서가 포함된 full context 쪽을 다시 봐야 한다고 정리했다
 - 2026-04-30 full replay script에 sample A/B `user_recommendations` score snapshot export 추가
-  - `deploy/smoke/run-local-education-priority-replay.sh` 가 이제 sample A/B 각각에 대해 `edu-*-off-scores.tsv`, `edu-*-on-scores.tsv` 를 artifact로 같이 남긴다. 내용은 `service_id`, `rule_weighted_score`, `final_score`, `title`, `unified_category` top-30 snapshot이다
-  - latest full replay artifact(`/tmp/tmp.aoUkRUpDdB`) 기준 sample B는 `edu-b-off-scores.tsv` / `edu-b-on-scores.tsv` 에서 `rule_weighted_score` 가 그대로(`30.00`, `25.00`, `24.00`, …)인데 `final_score` 만 `0.96 -> 0.88`, `0.76 -> 0.72` 식으로 달라졌다
-  - 따라서 sample B drift는 `ruleWeightedScore` 단계가 아니라 `final_score` 계산/정렬 경계에서 생긴다는 근거가 더 강해졌고, 다음 작업은 full replay context에서 normalization 입력이 왜 달라지는지 추적하는 것으로 좁혔다
+  - `deploy/smoke/run-local-education-priority-replay.sh` 가 이제 sample A/B 각각에 대해 `edu-*-off-scores.tsv`, `edu-*-on-scores.tsv` 를 artifact로 같이 남긴다. 내용은 `service_id`, `rule_weighted_score`, `ai_score`, `rule_weight_used`, `ai_weight_used`, `final_score`, `title`, `unified_category` top-30 snapshot이다
+  - latest full replay artifact(`/tmp/tmp.Yhv9aqgHiM`) 기준 sample B는 `edu-b-off-scores.tsv` / `edu-b-on-scores.tsv` 에서 `rule_weighted_score`, `rule_weight_used`, `ai_weight_used` 는 그대로인데 `ai_score` 와 `final_score` 가 함께 달라졌다
+  - 따라서 sample B drift는 `ruleWeightedScore` 단계보다 `ai_score` layer 쪽이 더 직접적인 원인으로 좁혀졌고, 다음 작업은 full replay context에서 `ai_score` 가 왜 달라지는지 `RealtimeAiGateway` / persistence 경계 기준으로 추적하는 것으로 바꿨다
 - 2026-04-28 pre-28 migrated DB 기준 admin logout / refresh invalidation / relogin smoke
   - `SECURITY_ADMIN_EMAILS=admin.logout.smoke@example.com` 으로 최신 앱을 기동한 뒤, admin 계정 로그인과 프로필 수정으로 queue row를 `SYNCED` 상태까지 맞추고 `POST /api/auth/refresh` 가 먼저 성공하는 것 확인
   - 같은 cookie jar + access token으로 `POST /api/auth/logout` 호출 후 cookie jar에서 `refresh_token` 이 제거되고, 직후 `POST /api/auth/refresh` 가 `401`, `errorCode=A001` 로 막히는 것 확인
@@ -1177,7 +1177,7 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - [ ] 복지로 live detail 적재 기준 `welfare_service_details` / `service_facts` validation 리허설
 - [ ] 복지로 detail refresh budget metadata(`centralBudget`/`localBudget`) 를 admin collect observability에 노출할지 결정
 - [ ] `bokjiro-details-gap-fill` 추가 라운드/호출 예산 전략 정리 후 stored detail payload coverage 추가 확대
-- [ ] full replay script context(`sample A -> sample B`)에서 sample B의 `final_score` 만 달라지는 원인이 `ReRankingService` 정규화 입력(`ruleMax`) 때문인지 실제로 추적
+- [ ] full replay script context(`sample A -> sample B`)에서 sample B의 `ai_score` / `final_score` drift가 왜 생기는지 `RealtimeAiGateway` / persistence 경계 기준으로 추적
 - [ ] `참여권리` 의 `청년참여` subset만 별도 bridge 후보로 분리할지 결정
 - [ ] 복지로 `threshold_like` income signal(`13`건) 을 `INCOME_*` hard fact 가 아닌 optional soft signal schema 로 분리할지 결정
 - [ ] 복지로 live detail 응답에 신청마감 explicit field가 있는지 재확인하고, 없으면 `BK_APPLY_END_DATE` 는 canonical collect path에서 optional fact로 유지
