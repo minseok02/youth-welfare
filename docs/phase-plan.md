@@ -1251,13 +1251,17 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
   - 현재 phase에서는 `compat_unified_category` 를 read-model 계산값으로 바꾸지 않고 저장 필드로 유지하기로 고정했다. `welfare_services.unified_category` 는 legacy 추천/응답 계약용 compat 값으로, `service_taxonomies.compat_unified_category_*` 는 canonical sidecar 안의 compat mirror로 함께 보존한다
   - 이유는 current priority/response/replay 계약이 이미 `compat` 위에 서 있고, canonical summary coverage가 아직 compat 대체 수준까지 안정화되지 않았으며, `compat=기타 + canonical youth_major 채움` 집합도 아직 explicit bridge 정책 단계이기 때문이다
   - 따라서 read-model은 당분간 stored compat를 읽고 canonical summary는 secondary hint로만 소비한다. 계산-only 전환은 `unifiedCategory` 응답 계약 브릿지와 long-term field retirement 순서가 정리된 뒤에만 다시 연다
+- [x] `unifiedCategory` 응답 계약을 유지하면서 taxonomy/read-model 로 브릿지하는 호환 전략 작성
+  - 현재 `unifiedCategory` 는 추천 응답뿐 아니라 정책 목록/상세/랭킹 응답 전반의 public contract이므로, canonical taxonomy 전환 중에도 계속 legacy compat category 의미를 유지하기로 고정했다
+  - canonical summary(`youth_major`, `gov24_*`)는 response 대표 category를 대체하지 않고 inventory/explanation/future experiment용 secondary hint로만 취급한다
+  - 따라서 현재 phase에서는 `RecommendationResponse`, `PolicySummaryResponse`, `PolicyDetailResponse`, `PolicyRankingResponse` 의 `unifiedCategory` 를 canonical 값으로 조용히 치환하지 않는다
 - [ ] `YOUTH_MID` stable code mapping SQL 초안 작성
 - [ ] `GOV24_SERVICE_FIELD`, `GOV24_USER_TYPE`, `GOV24_BENEFIT_TYPE` 공식 label inventory import/backfill SQL 초안 작성
 - [ ] `GOV24_SUPPORT_CONDITION` 전체 code inventory 확장 및 `service_facts` backfill 초안 작성
 - [x] `compat_unified_category` 를 저장 필드로 둘지 read-model 계산값으로 둘지 최종 결정
 - [ ] `TextConstraintExtractor` 를 `service_facts` 저장 규격에 맞춘 출력 모델로 재설계
 - [ ] `WelfareServiceRepository.findCandidates*`, `RetrievalService`, `RuleScoringService`, `DefaultPriorityMatcher` 의 점진 이행 순서 설계
-- [ ] `unifiedCategory` 응답 계약을 유지하면서 taxonomy/read-model 로 브릿지하는 호환 전략 작성
+- [x] `unifiedCategory` 응답 계약을 유지하면서 taxonomy/read-model 로 브릿지하는 호환 전략 작성
 - [ ] 신규 source의 source-specific 필드를 raw + AI batch enrichment fact 로 흡수하는 파이프라인 초안 작성
 - [ ] logout 후 access token 즉시 무효화 전략 검토/구현
 - [ ] 운영 서버 Docker Compose 기동

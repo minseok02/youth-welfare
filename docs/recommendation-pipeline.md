@@ -42,6 +42,7 @@
 [사용자 조회]
   → user_recommendations DB 조회만 (실시간 AI 추가 호출 없음)
   → final_score 기준 정렬 + ai_reason + 우선순위 태그 + "신규" 뱃지 표시
+  → `RecommendationResponse.unifiedCategory` 는 canonical summary가 아니라 계속 legacy compat category 계약을 유지
 ```
 
 ---
@@ -195,6 +196,7 @@ if (aiScore != null) {
 - `reason` → `user_recommendations.ai_reason` 저장
 - 개인 식별 정보 전송 금지 (NFR-02-12): 군집 범주값만 전송
 - `ai_score` / `ai_reason` 는 current run의 live best-effort 결과로 보고, same input 재실행 시 exact equality는 제품 보장 범위에 두지 않는다. 정책 경계는 [openai-ai-score-product-policy.md](./openai-ai-score-product-policy.md)를 따른다.
+- `unifiedCategory` 응답 계약은 canonical taxonomy 전환 중에도 계속 compat layer를 대표값으로 유지한다. 세부 정책은 [policy-normalization-unified-category-response-bridge.md](./policy-normalization-unified-category-response-bridge.md)를 따른다.
 
 ---
 
