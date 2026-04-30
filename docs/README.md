@@ -124,6 +124,9 @@
 - [policy-normalization-participation-subset-bridge-policy.md](./policy-normalization-participation-subset-bridge-policy.md)
   `참여권리` 전체는 승격하지 않되, `청년참여` subset만 future bridge 후보로 남길지와 왜 지금 바로 실험하지 않는지 정리한 정책입니다.
 
+- [policy-normalization-income-threshold-soft-signal-policy.md](./policy-normalization-income-threshold-soft-signal-policy.md)
+  복지로 `threshold_like` income signal 을 `INCOME_*` hard fact 로 올리지 않고 optional soft signal 로만 유지하는 이유와 소비 범위를 정리한 정책입니다.
+
 - [policy-normalization-youth-income-zero-policy.md](./policy-normalization-youth-income-zero-policy.md)
   온통청년 `min_income/max_income = 0/0` 을 retrieval에서 미지정으로 볼지 실제 소득 gate 로 볼지 결정한 정책을 확인합니다.
 

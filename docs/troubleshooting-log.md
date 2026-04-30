@@ -1227,3 +1227,8 @@
 - 문제: row-level review에서 `청년참여` sample은 `참여·기회` 와 비교적 가깝게 보이기 때문에, `참여권리` 전체 승격 대신 subset만 바로 narrow bonus로 열고 싶어질 수 있다. 하지만 지금은 이미 `교육 -> 교육·직업훈련` narrow experiment가 active candidate이고, `청년참여` 도 모집/공모/파트너/공간 참여처럼 내부 의미가 완전히 균질하진 않다
 - 해결: [policy-normalization-participation-subset-bridge-policy.md](./policy-normalization-participation-subset-bridge-policy.md) 를 추가해 `참여권리` 전체 승격은 계속 금지하고, `청년참여` subset도 immediate implementation 대상이 아니라 2순위 future candidate로만 유지한다고 고정했다. 관련 bridge review/policy 문서도 같은 결론으로 링크를 맞췄다
 - 이유: 현재 stage에서 예외 bridge 축을 늘리면 `compat=기타` 집합에 narrow rule이 빠르게 늘어난다. 교육 실험 효과를 먼저 본 뒤, 필요할 때 `청년참여` subset만 별도로 다시 inventory/replay sample로 좁히는 편이 더 안전하다
+
+## 244) 복지로 `threshold_like` income signal 은 `beneficiary_only` 와 달리 hard fact 나 taxonomy 로 억지 승격하지 말고 optional soft signal 후보로만 남기는 편이 맞다
+- 문제: no-fact 복지로 detail 재분류에서 `threshold_like 13`건은 `% 이하`, `만원 이하`, `신혼`, `맞벌이`, `우대형`, `일반형`, `개별심사` 같은 branch/context 가 함께 섞여 있었다. 이를 canonical `INCOME_PCT` / `INCOME_WON` hard fact 로 flatten 하면 의미 손실이 크고, retrieval hard filter 로 오용될 위험도 있었다
+- 해결: [policy-normalization-income-threshold-soft-signal-policy.md](./policy-normalization-income-threshold-soft-signal-policy.md) 를 추가해 `threshold_like` 는 현재 hard fact 로 적재하지 않고, future 저장이 필요해도 raw/context 를 보존하는 optional soft signal 계층으로만 다루도록 고정했다. [db-migration.md](./db-migration.md) 와 [README.md](./README.md) 에도 같은 경계를 반영했다
+- 이유: `beneficiary_only` 는 안정적인 label 기반 soft taxonomy 로 분리 가능했지만, `threshold_like` 는 숫자와 branch 조건이 함께 섞인 해석 신호다. current canonical 단계에선 eligibility fact보다 weaker한 계층으로 남기는 편이 더 안전하다
