@@ -298,6 +298,12 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
   - `BokjiroDetailClient.DetailPayload` 는 Lombok getter 때문에 raw JSON 에 섞일 수 있는 `empty=false` 를 무시하도록 `@JsonIgnoreProperties(ignoreUnknown = true)` 와 `@JsonIgnore isEmpty()` 를 적용해, 기존 payload 와 신규 payload 모두 역직렬화 가능한 계약으로 맞춤
 - 2026-04-30 복지로 `raw_api_payloads` 기반 canonical sidecar backfill service 초안 작성 후 `cd backend && ./gradlew test --no-daemon --tests com.example.welfare.collect.normalization.NormalizedPolicySidecarBackfillServiceTest --tests com.example.welfare.collect.service.BokjiroDetailCollectServiceTest`
 - 2026-04-30 복지로 `raw_api_payloads` 기반 canonical sidecar backfill service 초안 작성 후 `git diff --check`
+- 2026-04-30 `NormalizedPolicySidecarBackfillService` admin/manual 실행 경로 노출
+  - `CollectAdminController` 에 `POST /api/admin/collect/bokjiro-sidecars-backfill` endpoint 를 추가하고, `scope=all|list|detail`, `limitPerSource` 파라미터로 저장된 복지로 raw payload replay 범위를 선택할 수 있게 정리
+  - raw payload replay 는 외부 API fetch orchestration 과 다르므로 기존 `CollectSource` enum fan-out 에 넣지 않고 별도 exact admin path 로 분리해, generic collect route 와 canonical sidecar backfill 책임이 뒤섞이지 않게 고정
+  - `AdminSecurityWebMvcTest` 에서 admin 허용/invalid scope 400 회귀를 추가해 보안 경계와 입력 검증을 고정
+- 2026-04-30 `NormalizedPolicySidecarBackfillService` admin/manual 실행 경로 노출 후 `cd backend && ./gradlew test --no-daemon --tests com.example.welfare.admin.AdminSecurityWebMvcTest --tests com.example.welfare.collect.normalization.NormalizedPolicySidecarBackfillServiceTest`
+- 2026-04-30 `NormalizedPolicySidecarBackfillService` admin/manual 실행 경로 노출 후 `git diff --check`
 - 2026-04-28 pre-28 migrated DB 기준 admin logout / refresh invalidation / relogin smoke
   - `SECURITY_ADMIN_EMAILS=admin.logout.smoke@example.com` 으로 최신 앱을 기동한 뒤, admin 계정 로그인과 프로필 수정으로 queue row를 `SYNCED` 상태까지 맞추고 `POST /api/auth/refresh` 가 먼저 성공하는 것 확인
   - 같은 cookie jar + access token으로 `POST /api/auth/logout` 호출 후 cookie jar에서 `refresh_token` 이 제거되고, 직후 `POST /api/auth/refresh` 가 `401`, `errorCode=A001` 로 막히는 것 확인
@@ -907,7 +913,6 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - [ ] 한국장학재단/국가장학금 계열의 `제도 row` 와 `지원가능대학/학기/지원구간` reference matrix 분리 모델 초안 작성
 - [ ] 복지로 live detail 적재 기준 `welfare_service_details` / `service_facts` validation 리허설
 - [ ] sidecar draft migration 적용 상태에서 기존 복지로 적재 데이터 detail refresh/backfill 후 `service_facts` density 재측정
-- [ ] `NormalizedPolicySidecarBackfillService` 를 admin/manual 실행 경로로 노출할지 결정
 - [ ] 복지로 detail refresh budget metadata(`centralBudget`/`localBudget`) 를 admin collect observability에 노출할지 결정
 - [ ] 로그인 가능한 testbed/live payload 기준 `YOUTH_MID` / `srchPolyBizSecd` 전체 inventory 수집
 - [ ] `YOUTH_MID` stable code mapping SQL 초안 작성
@@ -931,6 +936,7 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 
 ### 완료
 
+- [x] `NormalizedPolicySidecarBackfillService` 를 admin/manual 실행 경로로 노출
 - [x] 복지로 `raw_api_payloads` 기반 canonical sidecar backfill service 초안 작성
 - [x] 복지로 list/detail aggregate merge path actual sidecar upsert smoke 검증
 - [x] 복지로 detail refresh 의 central/local call budget 분배가 low `maxCalls` 에서 local source 를 굶기지 않는지 검토

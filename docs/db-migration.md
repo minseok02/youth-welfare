@@ -58,6 +58,13 @@ cd backend
 
 복지로 기존 raw payload를 다시 써서 sidecar를 채울 때는 `NormalizedPolicySidecarBackfillService` 초안을 사용한다. 이 서비스는 `raw_api_payloads` 의 `LIST` / `DETAIL` JSON 을 다시 읽어 canonical aggregate를 만들고 `NormalizedPolicySidecarWriter` 로 넘긴다. `BokjiroDetailClient.DetailPayload` 는 과거 JSON에 `empty=false` 가 남아 있어도 역직렬화되도록 `ignoreUnknown` 계약으로 맞췄다.
 
+수동 실행이 필요하면 로컬/개발 환경에서 아래 admin endpoint를 사용한다.
+
+```bash
+curl -X POST "http://127.0.0.1:8082/api/admin/collect/bokjiro-sidecars-backfill?scope=all&limitPerSource=0" \
+  -H "Authorization: Bearer <ADMIN_ACCESS_TOKEN>"
+```
+
 2026-04-30 로컬 smoke 기준 draft 적용 직후 count:
 
 ```sql

@@ -1,15 +1,21 @@
 package com.example.welfare.collect.controller;
 
+import com.example.welfare.collect.normalization.NormalizedPolicySidecarBackfillService;
 import com.example.welfare.collect.service.CollectSource;
 import com.example.welfare.collect.service.CollectService;
+import com.example.welfare.global.exception.CustomException;
+import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.global.response.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.Locale;
 
 /**
  * 수집 배치 수동 트리거 — 로컬/개발 환경 전용 (prod 프로파일에서 비활성화)
@@ -21,6 +27,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class CollectAdminController {
 
     private final CollectService collectService;
+    private final NormalizedPolicySidecarBackfillService normalizedPolicySidecarBackfillService;
 
     @PostMapping("/all")
     public ResponseEntity<ApiResponse<String>> collectAll() {
@@ -35,5 +42,46 @@ public class CollectAdminController {
         log.info("[Admin] {} 수집 수동 트리거", source.triggerLabel());
         collectService.collect(source);
         return ResponseEntity.ok(ApiResponse.success(source.successMessage()));
+    }
+
+    @PostMapping("/bokjiro-sidecars-backfill")
+    public ResponseEntity<ApiResponse<SidecarBackfillResponse>> backfillBokjiroSidecars(
+            @RequestParam(defaultValue = "all") String scope,
+            @RequestParam(defaultValue = "0") int limitPerSource
+    ) {
+        String normalizedScope = scope.toLowerCase(Locale.ROOT);
+        NormalizedPolicySidecarBackfillService.BackfillResult result = switch (normalizedScope) {
+            case "all" -> normalizedPolicySidecarBackfillService.backfillBokjiroListSidecars(limitPerSource)
+                    .plus(normalizedPolicySidecarBackfillService.backfillBokjiroDetailSidecars(limitPerSource));
+            case "list" -> normalizedPolicySidecarBackfillService.backfillBokjiroListSidecars(limitPerSource);
+            case "detail" -> normalizedPolicySidecarBackfillService.backfillBokjiroDetailSidecars(limitPerSource);
+            default -> throw new CustomException(ErrorCode.INVALID_INPUT);
+        };
+
+        log.info("[Admin] 복지로 sidecar backfill 수동 트리거 scope={} limitPerSource={} scanned={} upserted={} missing={} failed={}",
+                normalizedScope,
+                limitPerSource,
+                result.scannedCount(),
+                result.upsertedCount(),
+                result.missingServiceCount(),
+                result.failedCount());
+        return ResponseEntity.ok(ApiResponse.success(new SidecarBackfillResponse(
+                normalizedScope,
+                limitPerSource,
+                result.scannedCount(),
+                result.upsertedCount(),
+                result.missingServiceCount(),
+                result.failedCount()
+        )));
+    }
+
+    public record SidecarBackfillResponse(
+            String scope,
+            int limitPerSource,
+            int scannedCount,
+            int upsertedCount,
+            int missingServiceCount,
+            int failedCount
+    ) {
     }
 }

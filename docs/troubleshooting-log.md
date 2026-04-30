@@ -792,3 +792,8 @@
 - 문제: `BokjiroDetailClient.DetailPayload` 는 `isEmpty()` convenience method 를 갖고 있어 Jackson 직렬화 시 `empty=false` 프로퍼티가 함께 저장될 수 있었다. 이후 `raw_api_payloads` 에서 이 JSON을 다시 읽어 `DetailPayload` 로 역직렬화하면, 클래스에는 `empty` 필드가 없어 `Unrecognized field "empty"` 예외가 발생해 canonical sidecar backfill/replay가 실패했다
 - 해결: `DetailPayload` 에 `@JsonIgnoreProperties(ignoreUnknown = true)` 를 붙이고 `isEmpty()` 에 `@JsonIgnore` 를 추가해, 신규 저장에서는 `empty` 가 빠지고 기존 raw JSON 에 `empty=false` 가 남아 있어도 무시하고 다시 읽을 수 있게 맞췄다. 동시에 `NormalizedPolicySidecarBackfillServiceTest` 로 detail raw replay 경로를 고정했다
 - 이유: raw payload 재사용 경로는 “예전 JSON도 읽히고, 앞으로 쌓일 JSON도 깨끗해야” 안전하다. helper getter 하나 때문에 backfill이 전부 막히면 stored payload의 가치가 사라지므로, 직렬화/역직렬화 양방향 계약을 같이 잠가 재발을 막는 편이 안전하다
+
+## 157) canonical sidecar raw replay를 기존 `CollectSource` fan-out 에 섞으면, 외부 API fetch와 stored payload replay 책임이 뒤섞여 manual collect 경로가 다시 비대해질 수 있음
+- 문제: `NormalizedPolicySidecarBackfillService` 를 수동 실행 경로로 노출할 때 기존 `/api/admin/collect/{sourceKey}` 와 `CollectSource` enum에 `BOKJIRO_SIDECARS_BACKFILL` 같은 값을 추가하면, 외부 API를 다시 호출하는 collect orchestration과 이미 저장된 `raw_api_payloads` 를 replay 하는 maintenance 경로가 같은 fan-out 체계에 섞이게 된다. 이 방식은 새 replay/backfill 기능이 늘 때마다 `CollectSource` 와 `CollectService` 책임을 다시 키울 위험이 있었다
+- 해결: backfill은 `POST /api/admin/collect/bokjiro-sidecars-backfill` exact path로 별도 노출하고, `scope=all|list|detail` 만 받아 `NormalizedPolicySidecarBackfillService` 를 직접 호출하도록 분리했다. generic collect route 는 여전히 외부 API fetch source dispatch만 맡는다
+- 이유: collect enum/registry는 “새 데이터를 외부에서 가져오는 경로”에 집중해야 한다. stored payload replay까지 같은 축에 태우면 orchestration 의미가 흐려지고 controller/service fan-out debt가 다시 커지므로, manual maintenance path를 명시적으로 분리하는 편이 재발 방지에 안전하다

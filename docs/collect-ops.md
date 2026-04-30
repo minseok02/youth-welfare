@@ -13,6 +13,7 @@
 
 - `collect/all` 과 `collect/{sourceKey}` 수동 경로는 동시 실행하지 않는다.
 - 현재 `sourceKey` 는 `youth`, `bokjiro-central`, `bokjiro-local`, `bokjiro-details`, `bokjiro-details-refresh` 를 지원한다.
+- canonical sidecar replay 전용 수동 경로 `POST /api/admin/collect/bokjiro-sidecars-backfill?scope=all|list|detail&limitPerSource=0` 도 같은 시간대에 일반 collect 수동 실행과 겹치지 않게 사용한다.
 - 이미 다른 수집 작업이 실행 중이면 새 요청은 `409 Conflict (COL002)`로 거절한다.
 - 이유: 중복 실행 시 `service_tags` 저장 경합과 deadlock 위험이 커진다.
 
@@ -40,9 +41,11 @@
 
 - `/api/admin/collect/bokjiro-details` 는 detail row가 없는 정책 위주로 채우는 기본 경로다.
 - `/api/admin/collect/bokjiro-details-refresh` 는 기존 detail row가 있어도 다시 fetch/merge 하는 refresh 전용 수동 경로다.
+- `/api/admin/collect/bokjiro-sidecars-backfill` 는 외부 API를 다시 호출하지 않고, 이미 저장된 `raw_api_payloads` 를 canonical sidecar(`service_taxonomies`, `service_taxonomy_terms`, `service_facts`) 로 재적재하는 replay 전용 경로다.
 - 운영 해석:
   - 일반 배치는 기본 경로를 유지해 호출량을 억제한다.
   - 상세 본문 포맷이 바뀌었거나 기존 적재값을 다시 동기화해야 할 때만 refresh 경로를 쓴다.
+  - 기존 raw payload 로 sidecar를 다시 채우거나 density를 재측정할 때만 backfill 경로를 쓴다.
 
 ### 6. 복지로 상세 호출 budget 은 source backlog 비율을 먼저 본다
 

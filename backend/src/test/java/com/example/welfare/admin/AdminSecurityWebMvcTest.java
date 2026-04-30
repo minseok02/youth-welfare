@@ -1,6 +1,7 @@
 package com.example.welfare.admin;
 
 import com.example.welfare.collect.controller.CollectAdminController;
+import com.example.welfare.collect.normalization.NormalizedPolicySidecarBackfillService;
 import com.example.welfare.collect.service.CollectSource;
 import com.example.welfare.collect.service.CollectService;
 import com.example.welfare.global.auth.AuthenticatedUser;
@@ -48,6 +49,8 @@ class AdminSecurityWebMvcTest {
 
     @MockBean
     private CollectService collectService;
+    @MockBean
+    private NormalizedPolicySidecarBackfillService normalizedPolicySidecarBackfillService;
     @MockBean
     private SearchYouthRelevanceService searchYouthRelevanceService;
     @MockBean
@@ -129,6 +132,48 @@ class AdminSecurityWebMvcTest {
         ));
 
         mockMvc.perform(post("/api/admin/collect/unknown-source")
+                        .header("Authorization", "Bearer admin-token"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("C001"));
+    }
+
+    @Test
+    @DisplayName("관리자 토큰으로 복지로 sidecar backfill API를 호출하면 backfill 서비스를 실행한다")
+    void adminEndpointAllowsBokjiroSidecarBackfill() throws Exception {
+        mockAuthenticatedToken("admin-token", List.of(
+                new SimpleGrantedAuthority("ROLE_USER"),
+                new SimpleGrantedAuthority("ROLE_ADMIN")
+        ));
+        given(normalizedPolicySidecarBackfillService.backfillBokjiroListSidecars(25))
+                .willReturn(new NormalizedPolicySidecarBackfillService.BackfillResult(10, 8, 1, 1));
+
+        mockMvc.perform(post("/api/admin/collect/bokjiro-sidecars-backfill")
+                        .param("scope", "list")
+                        .param("limitPerSource", "25")
+                        .header("Authorization", "Bearer admin-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.scope").value("list"))
+                .andExpect(jsonPath("$.data.limitPerSource").value(25))
+                .andExpect(jsonPath("$.data.scannedCount").value(10))
+                .andExpect(jsonPath("$.data.upsertedCount").value(8))
+                .andExpect(jsonPath("$.data.missingServiceCount").value(1))
+                .andExpect(jsonPath("$.data.failedCount").value(1));
+
+        then(normalizedPolicySidecarBackfillService).should().backfillBokjiroListSidecars(25);
+    }
+
+    @Test
+    @DisplayName("지원하지 않는 backfill scope는 400을 반환한다")
+    void adminEndpointRejectsUnknownBackfillScope() throws Exception {
+        mockAuthenticatedToken("admin-token", List.of(
+                new SimpleGrantedAuthority("ROLE_USER"),
+                new SimpleGrantedAuthority("ROLE_ADMIN")
+        ));
+
+        mockMvc.perform(post("/api/admin/collect/bokjiro-sidecars-backfill")
+                        .param("scope", "unknown")
                         .header("Authorization", "Bearer admin-token"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false))
