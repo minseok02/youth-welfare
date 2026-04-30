@@ -37,6 +37,7 @@
   - 공개 API HTML에서는 `srchPolyBizSecd=003002001,003002002` 예시만 보이고, `/sur/link/openApiIntro/46`, `/sur/link/openInfoChcApi` 는 비로그인 상태에서 `Unauthorized` 를 반환하므로 `YOUTH_MID` stable code import 는 authenticated testbed/live inventory 확보 전까지 보류
   - 2026-04-30 authenticated live 목록 응답을 실제로 다시 끝까지 스캔한 결과도 `srchPolyBizSecd` 필드는 payload에 직접 보이지 않았고, 대신 보인 `plcyMajorCd/jobCd/schoolCd/sbizCd` 는 broad/default-like 값과 multi-code가 섞여 있어 stable `YOUTH_MID` code 대체 축으로 쓰기 어려웠다. 세부 inventory는 [policy-normalization-youth-mid-live-inventory.md](./policy-normalization-youth-mid-live-inventory.md)에 정리했다.
   - `GOV24_SERVICE_FIELD`, `GOV24_USER_TYPE`, `GOV24_BENEFIT_TYPE` 는 field 자체는 확인됐지만 finite code inventory 를 확보하지 못해 이번 단계에서는 metadata/placeholder만 유지
+  - 2026-05-01 기준 `GOV24` current public dataset/공지 재확인 결과, old `category` / `category-code` operation은 2021 개편 때 deprecated 되었고 current source-of-truth는 `serviceList` / `serviceDetail` / `supportConditions` 3종이다. 하지만 current public page text만으로는 `serviceField` / `userType` / `benefitType` finite inventory 가 드러나지 않아 import SQL은 계속 보류한다. 자세한 기준은 [policy-normalization-gov24-label-source-plan.md](./policy-normalization-gov24-label-source-plan.md)에 정리했다.
 
 ## 로컬 draft sidecar smoke
 

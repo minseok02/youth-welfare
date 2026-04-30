@@ -52,6 +52,9 @@
 - [policy-normalization-bridge-rules.md](./policy-normalization-bridge-rules.md)
   Gov24 필드를 현재 추천/응답 호환 분류로 브릿지하는 규칙과 복지로 text/detail의 facts fallback 허용 범위를 확인합니다.
 
+- [policy-normalization-gov24-label-source-plan.md](./policy-normalization-gov24-label-source-plan.md)
+  `GOV24_SERVICE_FIELD`, `GOV24_USER_TYPE`, `GOV24_BENEFIT_TYPE` import SQL을 다시 열기 위한 official source 조건과, deprecated endpoint를 왜 source로 쓰지 않는지 확인합니다.
+
 - [policy-normalization-fact-merge-rules.md](./policy-normalization-fact-merge-rules.md)
   복지로 list aggregate 와 detail aggregate 가 같은 `service_facts` 슬롯에 들어올 때의 merge/upsert 우선순위와 `fact_merge_key` 규칙을 확인합니다.
 

@@ -1257,3 +1257,8 @@
 - 문제: `운영 담당자 export/codebook 우선`으로 방향을 잡아도, 요청 스펙이 없으면 상대가 `label 목록만 있는 시트`, `요청 예시 캡처`, `mclsfNm 모음` 같은 불충분한 자료를 줄 수 있다. 그러면 다시 “이걸로 stable code mapping SQL을 열 수 있나”를 재판단해야 한다
 - 해결: [policy-normalization-youth-mid-stable-code-source-plan.md](./policy-normalization-youth-mid-stable-code-source-plan.md)에 `운영 담당자 요청 스펙` 절을 추가해 최소 필수 컬럼을 `code`, `official label` 로 고정하고, `sort_order`, `active 여부` 를 권장 컬럼으로 정리했다. 동시에 sufficient example / insufficient example / 요청 문구 초안까지 같이 적었다
 - 이유: stable code source 확보는 “무언가 받기”가 아니라 “mapping SQL을 열 수 있을 정도로 직접 대응되는 inventory 받기”가 목적이다. 요청 스펙을 먼저 고정해야 운영 커뮤니케이션이 한 번에 끝나고, 다시 label-only 상태에서 맴도는 일을 줄일 수 있다
+
+## 250) `GOV24_SERVICE_FIELD` / `USER_TYPE` / `BENEFIT_TYPE` 는 old `category` 계열 endpoint를 source로 재활용하면 안 되고, current API 기준 source를 다시 잡아야 한다
+- 문제: `GOV24_*` import SQL을 빨리 쓰려면 과거 `category` / `category-code` endpoint나 예전 문서 캡처를 가져와 label inventory처럼 쓰고 싶어질 수 있다. 하지만 공공데이터포털 2021 개편 공지는 기존 5종 operation에 현행화되지 않은 정보가 있었다고 밝히고, 2021-09-15부터는 `serviceList`, `serviceDetail`, `supportConditions` 3종만 current source로 남겼다
+- 해결: [policy-normalization-gov24-label-source-plan.md](./policy-normalization-gov24-label-source-plan.md) 를 추가해, `GOV24_SERVICE_FIELD` / `USER_TYPE` / `BENEFIT_TYPE` import SQL은 current Swagger/schema export 또는 provider-provided official codebook이 있어야만 reopen하고, deprecated `category` / `category-code` 응답이나 sample payload 역추론만으로는 열지 않도록 기준을 고정했다
+- 이유: `supportConditions` 는 current 공식 code subset을 이미 일부 확인했지만, 나머지 `GOV24_*` taxonomy는 current finite inventory source가 다르다. deprecated 분류 endpoint를 재사용하면 official taxonomy와 stale 문서가 다시 섞이므로, 먼저 current source-of-truth를 고정하는 편이 안전하다
