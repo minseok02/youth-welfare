@@ -7,6 +7,7 @@
 
 - [openai-replay-diagnostic-lane-plan.md](./openai-replay-diagnostic-lane-plan.md)
 - [policy-normalization-education-priority-replay-procedure.md](./policy-normalization-education-priority-replay-procedure.md)
+- [openai-replay-cron-security-boundary.md](./openai-replay-cron-security-boundary.md)
 - [deployment.md](./deployment.md)
 
 ## 목적
@@ -31,6 +32,7 @@ nightly diagnostic artifact를 안정적으로 남기는 것입니다.
    - `.env` read
    - Docker / local DB / Redis
    - `OPENAI_API_KEY`
+   - 자세한 경계는 [openai-replay-cron-security-boundary.md](./openai-replay-cron-security-boundary.md)를 따른다
 4. replay log root를 만들 수 있다
    - 기본값: `/var/log/youth-welfare/openai-replay`
 

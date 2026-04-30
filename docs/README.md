@@ -112,6 +112,9 @@
 - [openai-replay-cron-runbook.md](./openai-replay-cron-runbook.md)
   `ops cron host` 에 nightly replay / cleanup cron 을 실제로 적용할 때의 사전 체크, `crontab -e` 예시, 등록 후 확인 절차를 확인합니다.
 
+- [openai-replay-cron-security-boundary.md](./openai-replay-cron-security-boundary.md)
+  `ops cron host` 의 replay `cron user` 가 어떤 권한과 secret 접근 범위를 가져야 하는지, 왜 `root` crontab 을 기본값으로 두지 않는지 확인합니다.
+
 - [policy-normalization-education-target-sample-inventory.md](./policy-normalization-education-target-sample-inventory.md)
   `compat=기타 + youth_major=교육` target row가 실제 추천 결과 집합에 들어오는 local replay sample이 현재 있는지와, region/age scan 결과를 확인합니다.
 

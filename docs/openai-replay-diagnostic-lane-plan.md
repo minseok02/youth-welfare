@@ -8,6 +8,7 @@
 - [openai-replay-validation-policy.md](./openai-replay-validation-policy.md)
 - [openai-replay-allowed-drift-metrics.md](./openai-replay-allowed-drift-metrics.md)
 - [policy-normalization-education-priority-replay-procedure.md](./policy-normalization-education-priority-replay-procedure.md)
+- [openai-replay-cron-security-boundary.md](./openai-replay-cron-security-boundary.md)
 
 ## 결론
 

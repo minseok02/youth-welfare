@@ -46,6 +46,7 @@ ENV_FILE=.env PRINT_SUMMARY=true deploy/smoke/preflight-runtime-cutover-env.sh
 운영 전환 직후 남길 증적 형식은 [runtime-cutover-log-template.md](./runtime-cutover-log-template.md)를 사용한다.
 핵심 API smoke curl 예시는 [runtime-api-smoke-commands.md](./runtime-api-smoke-commands.md)를 사용한다.
 `real-openai` nightly diagnostic replay를 host cron에 붙일 때는 [openai-replay-cron-runbook.md](./openai-replay-cron-runbook.md)를 사용한다.
+권한/secret 범위는 [openai-replay-cron-security-boundary.md](./openai-replay-cron-security-boundary.md)를 따른다.
 
 ## 2. 최초 기동
 

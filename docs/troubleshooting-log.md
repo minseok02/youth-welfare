@@ -1207,3 +1207,8 @@
 - 문제: lane plan에 cron line이 있어도 실제 운영자는 `언제 수동 replay를 먼저 돌릴지`, `등록 직후 무엇을 확인할지`, `문제 생기면 cron에서 무엇부터 지울지` 를 여러 문서에서 다시 조합해야 한다
 - 해결: [openai-replay-cron-runbook.md](./openai-replay-cron-runbook.md) 를 추가해 사전 조건, 수동 replay/cleanup dry-run, `crontab -e` block, 등록 직후 확인, 다음날 확인 포인트, 롤백 절차를 한 장으로 정리했고, [deployment.md](./deployment.md) 와 [README.md](./README.md) 에서 바로 링크되도록 맞췄다
 - 이유: ops host 적용은 설계 문서보다 runbook이 더 중요하다. 실제 명령과 확인 순서가 한 문서에 있어야 운영 drift와 누락이 줄어든다
+
+## 240) replay cron 적용 다음에는 `cron user` 권한과 `.env` / OpenAI secret 경계를 별도 메모로 고정해 두는 편이 안전하다
+- 문제: runbook 에서 `cron user` 가 `.env`, Docker, OpenAI secret 접근 권한을 가진다고만 적어 두면, 실제 운영자가 이를 root cron 이나 broad sudo 계정으로 해석해 권한 범위를 과하게 넓힐 수 있다
+- 해결: [openai-replay-cron-security-boundary.md](./openai-replay-cron-security-boundary.md) 를 추가해 `non-root ops cron user`, `.env` read-only, host-local artifact 접근, broad sudo 비권장, root crontab 비기본값 원칙을 따로 고정했고, [openai-replay-cron-runbook.md](./openai-replay-cron-runbook.md), [openai-replay-diagnostic-lane-plan.md](./openai-replay-diagnostic-lane-plan.md), [deployment.md](./deployment.md), [README.md](./README.md) 에서 바로 링크되게 맞췄다
+- 이유: nightly replay는 diagnostic lane이지만 OpenAI secret 과 host-local artifact를 함께 다루므로, 실행 절차와 권한 경계는 분리해서 적는 편이 운영 해석이 덜 흔들린다
