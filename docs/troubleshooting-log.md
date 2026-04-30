@@ -882,3 +882,8 @@
 - 문제: beneficiary raw term을 SQL 단계에서 곧바로 `BENEFICIARY_SUPPORT` 하나로 접어버리면 explanation/UI용 raw label, source drift 분석, 향후 bucket 정책 변경 여지가 함께 사라진다. 반대로 raw term만 그대로 넘기면 scoring 단계에서 중복 가산 위험이 남는다
 - 해결: `RecommendationCandidateProjection` 류의 canonical recommendation read-model projection 을 두고, 여기서만 `targetGroupsRaw`, `beneficiaryTerms`, `targetGroupBuckets` 를 동시에 구성하는 경계를 문서로 고정했다. retrieval 은 base entity query 뒤 projection hydrate, scoring 은 projection의 deduped bucket만 사용, response/UI는 raw term을 그대로 참조하는 구조다
 - 이유: persistence / projection / scoring / response 책임을 분리하면 저장 단계는 source truth를 보존하고, 추천 단계는 scoring-friendly 구조를 소비하며, UI는 설명 가능성을 유지할 수 있다. 이 경계를 먼저 고정해야 이후 sidecar read-path 구현이 다시 raw table join과 rule logic을 뒤섞지 않는다
+
+## 175) canonical read-model 초안은 실제 추천 파이프라인 연결 전에 repository 단계에서 bucket 조립 규칙을 먼저 고정해야 retrieval/service 경계가 다시 흔들리지 않음
+- 문제: 문서로만 `RecommendationCandidateProjection` 경계를 정해두면, 실제 구현 시 `RetrievalService` 나 `RuleScoringService` 안에서 raw sidecar row를 즉석으로 묶거나 beneficiary bucket을 서비스 레이어에서 임시 조립하는 식으로 다시 책임이 흩어질 수 있었다
+- 해결: `RecommendationCandidateProjection` DTO와 `CanonicalRecommendationReadModelRepository` 초안을 먼저 추가해 `service_id IN (...) -> projection hydrate -> BENEFICIARY_SUPPORT dedupe bucket 생성` 규칙을 repository 단계에서 코드로 고정했다. unit test로 `기초생활수급자` + `차상위계층` raw term이 있어도 bucket은 1개만 생기는 것을 검증했다
+- 이유: retrieval/scoring 전환은 단계적으로 갈 수 있어도, projection 조립 위치는 초기에 잘못 잡으면 이후 리팩터링 비용이 커진다. 추천기가 raw term을 직접 만지지 않도록 repository boundary를 먼저 코드화하는 편이 재발 방지에 유리하다
