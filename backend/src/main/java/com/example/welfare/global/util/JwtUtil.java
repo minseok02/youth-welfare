@@ -145,6 +145,16 @@ public class JwtUtil {
         }
     }
 
+    public Date getExpirationAllowExpired(String token) {
+        try {
+            return getClaims(token).getExpiration();
+        } catch (ExpiredJwtException e) {
+            return e.getClaims().getExpiration();
+        } catch (JwtException e) {
+            throw new CustomException(ErrorCode.INVALID_TOKEN);
+        }
+    }
+
     public boolean isExpired(String token) {
         try {
             getClaims(token);

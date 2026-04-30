@@ -50,13 +50,14 @@ class AuthControllerWebMvcTest {
     @DisplayName("로그아웃은 인증 없이 refresh cookie만으로도 서버 토큰을 무효화한다")
     void logoutUsesRefreshCookieWithoutAuthentication() throws Exception {
         mockMvc.perform(post("/api/auth/logout")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer access-token-value")
                         .cookie(new jakarta.servlet.http.Cookie("refresh_token", "refresh-token-value")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(header().string(HttpHeaders.SET_COOKIE,
                         org.hamcrest.Matchers.containsString("refresh_token=")));
 
-        then(authService).should().logoutByRefreshToken("refresh-token-value");
+        then(authService).should().logoutByRefreshToken("refresh-token-value", "access-token-value");
     }
 
     @Test

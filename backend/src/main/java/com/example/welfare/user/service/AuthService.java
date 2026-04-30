@@ -55,6 +55,7 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
     private final RedisTemplate<String, String> redisTemplate;
+    private final AccessTokenRevocationService accessTokenRevocationService;
     private final ChatSessionCleanupService chatSessionCleanupService;
     private final EmailClient emailClient;
     private final UserCoreSyncService userCoreSyncService;
@@ -227,21 +228,23 @@ public class AuthService {
     }
 
     @Transactional
-    public void logout(Long userId) {
+    public void logout(Long userId, String accessToken) {
         String userKey = resolveUserKey(userId);
-        logoutByUserKey(userKey);
+        logoutByUserKey(userKey, accessToken);
     }
 
     @Transactional
-    public void logoutByUserKey(String userKey) {
+    public void logoutByUserKey(String userKey, String accessToken) {
         deleteRefreshToken(userKey);
+        revokePresentedAccessToken(accessToken);
         chatSessionCleanupService.deleteAllByUserKey(userKey);
     }
 
     @Transactional
-    public void logoutByRefreshToken(String refreshToken) {
+    public void logoutByRefreshToken(String refreshToken, String accessToken) {
         String userKey = resolveTokenUserKeyAllowExpired(refreshToken);
         deleteRefreshToken(userKey);
+        revokePresentedAccessToken(accessToken);
         chatSessionCleanupService.deleteAllByUserKey(userKey);
     }
 
@@ -326,6 +329,17 @@ public class AuthService {
 
     private void deleteRefreshToken(String userKey) {
         redisTemplate.delete(REFRESH_TOKEN_PREFIX + userKey);
+    }
+
+    private void revokePresentedAccessToken(String accessToken) {
+        if (!StringUtils.hasText(accessToken)) {
+            return;
+        }
+        try {
+            accessTokenRevocationService.revoke(accessToken);
+        } catch (CustomException e) {
+            log.debug("Skipping access-token revocation during logout because presented token was invalid");
+        }
     }
 
     private String resolveTokenUserKey(String token) {

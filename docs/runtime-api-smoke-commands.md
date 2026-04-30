@@ -191,7 +191,8 @@ curl -sS \
 - 응답 `success=true`
 - refresh cookie clear
 - 직후 `POST /api/auth/refresh` 는 보통 `401`, `errorCode=A001` 로 실패해야 함
-- 다만 이미 발급된 access token은 별도 blacklist/revocation이 없으면 만료 전까지 보호 API에 계속 통과할 수 있으므로, logout smoke 성공 기준과 “즉시 권한 차단” 기대를 혼동하지 않음
+- 같은 요청에 실린 `Authorization: Bearer <access-token>` 은 Redis revocation으로 즉시 무효화되므로, 같은 token으로 보호 API를 다시 호출하면 `401` 이 나와야 함
+- 다만 logout 요청에 bearer token을 싣지 않은 cookie-only 경로는 refresh 회수만 보장하므로, “현재 access token 즉시 차단” 기대를 그 경로와 혼동하지 않음
 
 ## 9. 실패 시 먼저 볼 것
 

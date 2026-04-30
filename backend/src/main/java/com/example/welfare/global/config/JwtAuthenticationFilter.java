@@ -2,7 +2,9 @@ package com.example.welfare.global.config;
 
 import com.example.welfare.global.auth.AuthenticatedUser;
 import com.example.welfare.global.exception.CustomException;
+import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.global.util.JwtUtil;
+import com.example.welfare.user.service.AccessTokenRevocationService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -19,6 +21,7 @@ import java.io.IOException;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtUtil jwtUtil;
+    private final AccessTokenRevocationService accessTokenRevocationService;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -28,13 +31,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         if (StringUtils.hasText(token)) {
             try {
+                if (accessTokenRevocationService.isRevoked(token)) {
+                    throw new CustomException(ErrorCode.INVALID_TOKEN);
+                }
                 jwtUtil.validate(token);
                 AuthenticatedUser authenticatedUser = jwtUtil.getAuthenticatedUser(token);
                 UsernamePasswordAuthenticationToken auth =
                         new UsernamePasswordAuthenticationToken(authenticatedUser, null, jwtUtil.getAuthorities(token));
                 SecurityContextHolder.getContext().setAuthentication(auth);
             } catch (CustomException e) {
-                // 유효하지 않은 토큰 — SecurityContext 미설정, 이후 인가 단계에서 거부됨
+                // 유효하지 않거나 revoke된 토큰 — SecurityContext 미설정, 이후 인가 단계에서 거부됨
                 SecurityContextHolder.clearContext();
             }
         }

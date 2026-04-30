@@ -1217,6 +1217,10 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
   - 같은 migrated DB의 admin 계정으로 로그인하고 queue row를 `SYNCED` 상태로 맞춘 뒤, logout 전에 받은 old access token과 refresh cookie를 유지한 상태로 `POST /api/auth/logout` 을 호출
   - logout 직후 cookie jar에서 `refresh_token` 이 비워지고 `POST /api/auth/refresh` 는 `401 / A001` 로 실패하지만, 같은 old access token으로 `GET /api/admin/users/pii-sync-status`, `POST /api/admin/users/pii-sync-replay?userKey=<USER_KEY>` 는 계속 성공하는 것을 확인
   - 즉, 현재 구현은 logout 시 refresh token만 회수하고 이미 발급된 access token은 만료 전까지 보호 API에 계속 통과하므로, 즉시 권한 차단이 필요하면 별도 access-token revocation 전략이 추가로 필요함
+- 2026-05-01 logout presented access-token revocation 구현
+  - `AccessTokenRevocationService` 를 추가해 logout 요청에 실린 bearer access token을 남은 만료 시간 TTL로 Redis `access-revoked:*` key에 적재하고, `JwtAuthenticationFilter` 가 revoke된 token이면 SecurityContext를 세우지 않도록 변경
+  - `/api/auth/logout` 는 refresh cookie/header 기반 logout은 그대로 허용하되, 같은 요청의 `Authorization: Bearer <access-token>` 이 있으면 해당 token도 함께 revoke하도록 변경
+  - `AdminSecurityIntegrationTest` 에서 admin logout 직후 같은 old access token으로 `/api/admin/collect/youth` 재호출 시 `401 / A006` 으로 차단되는 것을 고정
 
 ## 작업 추적
 
@@ -1275,7 +1279,7 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - [x] `WelfareServiceRepository.findCandidates*`, `RetrievalService`, `RuleScoringService`, `DefaultPriorityMatcher` 의 점진 이행 순서 설계
 - [x] `unifiedCategory` 응답 계약을 유지하면서 taxonomy/read-model 로 브릿지하는 호환 전략 작성
 - [x] 신규 source의 source-specific 필드를 raw + AI batch enrichment fact 로 흡수하는 파이프라인 초안 작성
-- [ ] logout 후 access token 즉시 무효화 전략 검토/구현
+- [x] logout 후 access token 즉시 무효화 전략 검토/구현
 - [ ] 운영 서버 Docker Compose 기동
 - [ ] 기존 운영 DB에 `app_core_rw` / `app_pii_rw` / `notification_pii_ro` / `migration_admin` 계정 생성 및 앱 datasource 전환
 - [ ] 운영 `.env` / secret store의 `APP_PII_DB_URL` / `NOTIFICATION_PII_DB_URL` 를 `youth_welfare_pii` schema 기준으로 전환

@@ -91,22 +91,31 @@ public class AuthController {
     @PostMapping("/logout")
     public ResponseEntity<ApiResponse<Void>> logout(
             @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
+            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorizationHeader,
             @RequestHeader(value = "X-Refresh-Token", required = false) String refreshTokenHeader,
             @CookieValue(value = REFRESH_COOKIE_NAME, required = false) String refreshTokenCookie) {
         String refreshToken = StringUtils.hasText(refreshTokenHeader) ? refreshTokenHeader : refreshTokenCookie;
+        String accessToken = extractBearerToken(authorizationHeader);
 
         if (StringUtils.hasText(refreshToken)) {
-            authService.logoutByRefreshToken(refreshToken);
+            authService.logoutByRefreshToken(refreshToken, accessToken);
         } else if (authenticatedUser != null && authenticatedUser.hasUserKey()) {
-            authService.logoutByUserKey(authenticatedUser.userKey());
+            authService.logoutByUserKey(authenticatedUser.userKey(), accessToken);
         } else if (authenticatedUser != null && authenticatedUser.hasUserId()) {
-            authService.logout(authenticatedUser.userId());
+            authService.logout(authenticatedUser.userId(), accessToken);
         }
 
         ResponseCookie clearCookie = buildRefreshCookie("", 0);
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, clearCookie.toString())
                 .body(ApiResponse.success(null));
+    }
+
+    private String extractBearerToken(String authorizationHeader) {
+        if (StringUtils.hasText(authorizationHeader) && authorizationHeader.startsWith("Bearer ")) {
+            return authorizationHeader.substring(7);
+        }
+        return null;
     }
 
     private ResponseCookie buildRefreshCookie(String value, long maxAgeSeconds) {

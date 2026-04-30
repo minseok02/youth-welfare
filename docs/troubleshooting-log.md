@@ -1297,3 +1297,8 @@
 - 문제: 신규 정책형 source를 붙일 때는 항상 official core/facts 외에 source-specific 자유서술 필드가 남는다. 이 값을 collect 단계에서 그냥 버리면 재처리가 막히고, 반대로 `welfare_services` 나 대표 category에 억지로 섞어 넣으면 나중에 “official canonical”, “rule-derived fact”, “AI 보강” 경계를 다시 분리하기 어렵다
 - 해결: [policy-normalization-raw-ai-enrichment-pipeline.md](./policy-normalization-raw-ai-enrichment-pipeline.md) 를 추가해, 신규 source-specific 필드는 `raw payload 보존 -> official/rule-derived canonical 우선 추출 -> 남는 자유서술만 AI batch enrichment 후보 승격` 순서로 처리한다고 고정했다. AI 결과는 `AI_ENRICHED` authority 보조 signal로만 저장하고, official/rule-derived 슬롯 overwrite나 `unifiedCategory` 대체에는 쓰지 않는다
 - 이유: canonical 전환에서 AI는 1차 저장 경로가 아니라 마지막 보강 단계여야 한다. 그래야 source-specific 필드를 잃지 않으면서도, official 축과 soft enrichment 축이 다시 섞이지 않는다
+
+## 258) logout 즉시 무효화는 refresh 삭제만으로는 안 되고, logout 요청에 실린 현재 bearer access token을 filter 앞단에서 별도 revoke 검사해야 한다
+- 문제: 기존 구현은 logout 시 `refresh:{userKey}` 만 지우고 chat session만 정리했기 때문에, 이미 발급된 access token은 만료 전까지 `/api/admin/**` 같은 보호 API를 계속 통과했다. 즉 `POST /api/auth/logout` 성공과 “즉시 권한 차단”이 서로 다른 계약이었다
+- 해결: Redis 기반 `AccessTokenRevocationService` 를 추가해 logout 요청에 실린 bearer access token을 남은 만료 시간 TTL로 `access-revoked:*` key에 저장하고, `JwtAuthenticationFilter` 가 인증 세팅 전에 revoke 여부를 먼저 확인하도록 바꿨다. `/api/auth/logout` 는 refresh cookie/header만으로도 계속 성공하지만, 같은 요청에 bearer token이 있으면 그 token은 즉시 차단된다
+- 이유: user-level cutoff timestamp 방식은 JWT `iat` 정밀도와 재로그인 경계 이슈가 남고, 전체 token tracking은 scope가 커진다. 이번 단계에선 “logout에 사용한 현재 access token 즉시 차단”을 exact token blacklist로 고정하는 편이 가장 작은 diff로 실제 위험을 줄인다

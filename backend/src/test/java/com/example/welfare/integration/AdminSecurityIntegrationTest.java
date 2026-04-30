@@ -160,6 +160,35 @@ class AdminSecurityIntegrationTest {
         then(collectService).should(org.mockito.Mockito.times(2)).collect(CollectSource.YOUTH);
     }
 
+    @Test
+    @DisplayName("로그아웃에 사용한 access token은 즉시 관리자 API에서 차단된다")
+    void logoutRevokesPresentedAccessTokenImmediately() throws Exception {
+        doNothing().when(collectService).collect(CollectSource.YOUTH);
+        User adminUser = createUser(ADMIN_EMAIL);
+
+        String adminAccessToken = loginAndExtractAccessToken(adminUser.getEmail(), TEST_PASSWORD);
+        String adminUserKey = userRepository.findUserKeyById(adminUser.getId()).orElseThrow();
+        String refreshToken = redisTemplate.opsForValue().get("refresh:" + adminUserKey);
+        assertFalse(refreshToken == null || refreshToken.isBlank());
+
+        mockMvc.perform(post("/api/admin/collect/youth")
+                        .header("Authorization", "Bearer " + adminAccessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
+        mockMvc.perform(post("/api/auth/logout")
+                        .header("Authorization", "Bearer " + adminAccessToken)
+                        .header("X-Refresh-Token", refreshToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
+        mockMvc.perform(post("/api/admin/collect/youth")
+                        .header("Authorization", "Bearer " + adminAccessToken))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("A006"));
+    }
+
     private User createUser(String email) {
         userRepository.findByEmail(email).ifPresent(existing -> {
             deleteUserState(existing.getId(), userRepository.findUserKeyById(existing.getId()).orElse(null));

@@ -49,6 +49,8 @@ class AuthServiceTest {
     @Mock
     private RedisTemplate<String, String> redisTemplate;
     @Mock
+    private AccessTokenRevocationService accessTokenRevocationService;
+    @Mock
     private ChatSessionCleanupService chatSessionCleanupService;
     @Mock
     private EmailClient emailClient;
@@ -70,6 +72,7 @@ class AuthServiceTest {
                 passwordEncoder,
                 jwtUtil,
                 redisTemplate,
+                accessTokenRevocationService,
                 chatSessionCleanupService,
                 emailClient,
                 userCoreSyncService,
@@ -120,6 +123,16 @@ class AuthServiceTest {
         verify(valueOperations).set(eq("password-reset:user:user-key-7"), any(String.class), eq(30L), eq(java.util.concurrent.TimeUnit.MINUTES));
         verify(valueOperations).set(org.mockito.ArgumentMatchers.startsWith("password-reset:"), eq("user-key-7"), eq(30L), eq(java.util.concurrent.TimeUnit.MINUTES));
         verify(emailClient).send(eq("pii@example.com"), eq("[청년복지] 비밀번호 재설정 안내"), org.mockito.ArgumentMatchers.contains("/reset-password?token="));
+    }
+
+    @Test
+    @DisplayName("로그아웃은 refresh token을 지우고 현재 access token을 revoke한다")
+    void logoutByUserKeyDeletesRefreshTokenAndRevokesAccessToken() {
+        authService.logoutByUserKey("user-key-7", "access-token-value");
+
+        verify(redisTemplate).delete("refresh:user-key-7");
+        verify(accessTokenRevocationService).revoke("access-token-value");
+        verify(chatSessionCleanupService).deleteAllByUserKey("user-key-7");
     }
 
     @Test
