@@ -14,6 +14,8 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -36,6 +38,9 @@ public class RealtimeAiGateway implements AiRecommendationGateway {
     @Value("${openai.model:gpt-4o-mini}")
     private String model;
 
+    @Value("${recommend.ai.replay-trace.enabled:false}")
+    private boolean replayTraceEnabled;
+
     private static final int AI_TOP_N = 15; // 상위 N건만 AI 호출 (비용 절감 + 누락 방지)
 
     @Override
@@ -48,6 +53,7 @@ public class RealtimeAiGateway implements AiRecommendationGateway {
 
         try {
             String prompt = buildUserPrompt(topCandidates, user);
+            logReplayTrace(clusterId, topCandidates, user, prompt);
             AiResponse response = callOpenAi(prompt);
 
             if (response != null && response.getResults() != null) {
@@ -70,6 +76,68 @@ public class RealtimeAiGateway implements AiRecommendationGateway {
         return candidates;
     }
 
+    void logReplayTrace(String clusterId, List<ScoredCandidate> topCandidates, RecommendationUserSnapshot user, String prompt) {
+        if (!replayTraceEnabled) {
+            return;
+        }
+        log.info(
+                "[RealtimeAiGateway][replay-trace] clusterId={} ageGroup={} region={} income={} employment={} candidateIds={} candidateRuleScores={} promptSha256={}",
+                clusterId,
+                ageGroup(user),
+                regionLabel(user),
+                incomeRangeLabel(user),
+                employmentLabel(user),
+                candidateIds(topCandidates),
+                candidateRuleScores(topCandidates),
+                sha256Hex(prompt)
+        );
+    }
+
+    static String candidateIds(List<ScoredCandidate> topCandidates) {
+        return topCandidates.stream()
+                .map(candidate -> String.valueOf(candidate.getService().getId()))
+                .collect(Collectors.joining(","));
+    }
+
+    static String candidateRuleScores(List<ScoredCandidate> topCandidates) {
+        return topCandidates.stream()
+                .map(candidate -> candidate.getService().getId() + ":" + String.format(java.util.Locale.ROOT, "%.2f", candidate.getRuleWeightedScore()))
+                .collect(Collectors.joining(","));
+    }
+
+    static String sha256Hex(String input) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] bytes = digest.digest(input.getBytes(StandardCharsets.UTF_8));
+            StringBuilder sb = new StringBuilder(bytes.length * 2);
+            for (byte value : bytes) {
+                sb.append(String.format(java.util.Locale.ROOT, "%02x", value));
+            }
+            return sb.toString();
+        } catch (Exception e) {
+            throw new IllegalStateException("SHA-256 unavailable", e);
+        }
+    }
+
+    private String ageGroup(RecommendationUserSnapshot user) {
+        int age = user.resolvedAge();
+        return age < 25 ? "19-24세" : age < 30 ? "25-29세" : "30-34세";
+    }
+
+    private String regionLabel(RecommendationUserSnapshot user) {
+        return user.sido() != null ? user.sido() : "지역 미입력";
+    }
+
+    private String incomeRangeLabel(RecommendationUserSnapshot user) {
+        return user.incomeLevel() != null
+                ? user.incomeLevel() + "분위" : "소득 미입력";
+    }
+
+    private String employmentLabel(RecommendationUserSnapshot user) {
+        return user.employmentStatus() != null
+                ? user.employmentStatus() : "취업상태 미입력";
+    }
+
     private static final String SYSTEM_PROMPT =
             "당신은 한국 청년 복지 정책 추천 전문가입니다. " +
             "사용자의 특성에 맞는 정책 적합도를 0~100점으로 평가합니다. " +
@@ -77,14 +145,6 @@ public class RealtimeAiGateway implements AiRecommendationGateway {
 
     private String buildUserPrompt(List<ScoredCandidate> topCandidates, RecommendationUserSnapshot user) {
         // NFR-02-12: 개인식별정보 전송 금지 — 범주값만 전송
-        int age = user.resolvedAge();
-        String ageGroup = age < 25 ? "19-24세" : age < 30 ? "25-29세" : "30-34세";
-        String region = user.sido() != null ? user.sido() : "지역 미입력";
-        String incomeRange = user.incomeLevel() != null
-                ? user.incomeLevel() + "분위" : "소득 미입력";
-        String employment = user.employmentStatus() != null
-                ? user.employmentStatus() : "취업상태 미입력";
-
         StringBuilder policyList = new StringBuilder();
         topCandidates.forEach(c -> {
             String desc = c.getService().getDescription();
@@ -107,7 +167,7 @@ public class RealtimeAiGateway implements AiRecommendationGateway {
                 [응답 형식] 누락 없이 전체 %d개 평가:
                 {"results": [{"service_id": 숫자, "score": 0~100정수, "reason": "사용자 특성 기준 1문장 이유"}]}
                 """,
-                ageGroup, region, incomeRange, employment,
+                ageGroup(user), regionLabel(user), incomeRangeLabel(user), employmentLabel(user),
                 topCandidates.size(), policyList,
                 topCandidates.size());
     }

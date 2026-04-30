@@ -119,6 +119,7 @@ SAMPLE_A_PRIORITY_CODES="${SAMPLE_A_PRIORITY_CODES:-[\"EDUCATION\",\"JOB\"]}"
 SAMPLE_B_PRIORITY_CODES="${SAMPLE_B_PRIORITY_CODES:-[\"HOUSING\",\"JOB\"]}"
 KEEP_ARTIFACTS="${KEEP_ARTIFACTS:-true}"
 STRICT_CONTROL_ASSERT="${STRICT_CONTROL_ASSERT:-false}"
+RECOMMEND_AI_REPLAY_TRACE_ENABLED="${RECOMMEND_AI_REPLAY_TRACE_ENABLED:-true}"
 
 ARTIFACT_DIR="${ARTIFACT_DIR:-$(mktemp -d)}"
 OPENAI_MODE_FILE="${ARTIFACT_DIR}/openai-mode.txt"
@@ -138,6 +139,12 @@ SCORES_A_OFF="${ARTIFACT_DIR}/edu-a-off-scores.tsv"
 SCORES_A_ON="${ARTIFACT_DIR}/edu-a-on-scores.tsv"
 SCORES_B_OFF="${ARTIFACT_DIR}/edu-b-off-scores.tsv"
 SCORES_B_ON="${ARTIFACT_DIR}/edu-b-on-scores.tsv"
+AI_TRACE_OFF_RAW="${ARTIFACT_DIR}/ai-trace-off.log"
+AI_TRACE_ON_RAW="${ARTIFACT_DIR}/ai-trace-on.log"
+AI_TRACE_A_OFF="${ARTIFACT_DIR}/edu-a-off-ai-trace.log"
+AI_TRACE_B_OFF="${ARTIFACT_DIR}/edu-b-off-ai-trace.log"
+AI_TRACE_A_ON="${ARTIFACT_DIR}/edu-a-on-ai-trace.log"
+AI_TRACE_B_ON="${ARTIFACT_DIR}/edu-b-on-ai-trace.log"
 
 mysql_exec() {
   local sql="$1"
@@ -244,6 +251,29 @@ write_openai_mode() {
   fi
 }
 
+capture_ai_traces() {
+  local log_file="$1"
+  local raw_output="$2"
+  local sample_a_output="$3"
+  local sample_b_output="$4"
+
+  python3 - <<'PY' "${log_file}" "${raw_output}" "${sample_a_output}" "${sample_b_output}"
+from pathlib import Path
+import sys
+
+log_file, raw_output, sample_a_output, sample_b_output = sys.argv[1:]
+lines = [
+    line for line in Path(log_file).read_text(encoding="utf-8", errors="replace").splitlines()
+    if "[RealtimeAiGateway][replay-trace]" in line
+]
+Path(raw_output).write_text("\n".join(lines) + ("\n" if lines else ""), encoding="utf-8")
+Path(sample_a_output).write_text((lines[0] + "\n") if len(lines) >= 1 else "", encoding="utf-8")
+Path(sample_b_output).write_text((lines[1] + "\n") if len(lines) >= 2 else "", encoding="utf-8")
+if len(lines) < 2:
+    raise SystemExit(f"expected at least 2 replay-trace lines in {log_file}, got {len(lines)}")
+PY
+}
+
 start_app() {
   local flag_value="$1"
   local log_file="$2"
@@ -266,6 +296,7 @@ start_app() {
     REDIS_PORT="${REDIS_PORT}" \
     AES_SECRET_KEY="${AES_SECRET_KEY}" \
     OPENAI_API_KEY="${OPENAI_API_KEY}" \
+    RECOMMEND_AI_REPLAY_TRACE_ENABLED="${RECOMMEND_AI_REPLAY_TRACE_ENABLED}" \
     RECOMMEND_PRIORITY_EDUCATION_CANONICAL_BONUS_ENABLED="${flag_value}" \
     SERVER_PORT="${APP_PORT}" \
     ./gradlew bootRun --no-daemon
@@ -456,6 +487,7 @@ signup_or_prepare_samples() {
   capture_recommendation_snapshot "${user_key_a}" "${SCORES_A_OFF}"
   refresh_recommendations "${token_b}" "${RESP_B_OFF}"
   capture_recommendation_snapshot "${user_key_b}" "${SCORES_B_OFF}"
+  capture_ai_traces "${APP_LOG_OFF}" "${AI_TRACE_OFF_RAW}" "${AI_TRACE_A_OFF}" "${AI_TRACE_B_OFF}"
 }
 
 run_on_phase() {
@@ -468,6 +500,7 @@ run_on_phase() {
   capture_recommendation_snapshot "${user_key_a}" "${SCORES_A_ON}"
   refresh_recommendations "${token_b}" "${RESP_B_ON}"
   capture_recommendation_snapshot "${user_key_b}" "${SCORES_B_ON}"
+  capture_ai_traces "${APP_LOG_ON}" "${AI_TRACE_ON_RAW}" "${AI_TRACE_A_ON}" "${AI_TRACE_B_ON}"
 }
 
 start_app "false" "${APP_LOG_OFF}"

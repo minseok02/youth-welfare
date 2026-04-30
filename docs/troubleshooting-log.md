@@ -1077,3 +1077,8 @@
 - 문제: default rule-only mode에선 sample B score diff가 사라졌지만, `USE_REAL_OPENAI_FOR_REPLAY=true` 로 intentional replay를 다시 태운 artifact(`/tmp/tmp.EZBH319uNA`)에서는 sample B top-10 target row가 `1 -> 0` 으로 줄고 `edu-b-off-scores.tsv` / `edu-b-on-scores.tsv` 의 `ai_score` / `final_score` drift도 재현됐다. 이 상태에선 “real-openai mode에서 drift가 실제로 남는가”는 확인됐지만, 그 원인이 `RealtimeAiGateway` 로 넘어가는 topCandidates/prompt ordering 변화인지, 같은 입력에서도 생기는 live AI 응답 변동인지 아직 분리되지 않았다
 - 해결: phase-plan 다음 작업을 `RealtimeAiGateway` 입력 증적(topCandidates id/order, prompt hash 또는 prompt dump) export 추가로 좁혔다. 먼저 입력이 같은지부터 확인해야 AI 응답 변동과 입력 drift를 구분할 수 있다
 - 이유: AI 연동 문제는 “입력이 달랐는지”와 “같은 입력인데 출력이 달랐는지”를 분리하지 않으면 디버깅이 길어진다. persisted score snapshot만으로는 후자를 단정할 수 없으므로, 다음 단계는 gateway 입력 증적 확보가 맞다
+
+## 214) `RealtimeAiGateway` 입력 증적을 artifact로 남기면 `input drift` 와 `AI nondeterminism` 을 분리할 기준점이 생김
+- 문제: persisted `ai_score` / `final_score` snapshot만으로는 sample B drift가 “입력이 달라서”인지 “같은 입력인데 AI가 달리 답해서”인지 분리할 수 없다
+- 해결: `RealtimeAiGateway` 가 `candidateIds`, `candidateRuleScores`, `promptSha256` 를 `[replay-trace]` 로그로 남기고, replay 스크립트가 이를 `edu-a/b-*-ai-trace.log` artifact로 추출하도록 추가했다. default rule-only artifact(`/tmp/tmp.BGxKfcPnvT`) 기준 sample B `off/on` trace는 완전히 동일했다
+- 이유: 먼저 안정한 기준점이 하나 있어야 real-openai mode에서 어떤 층이 처음 달라졌는지 비교할 수 있다. rule-only mode에서 input trace가 같다면, 이후 real-openai mode 차이는 입력 drift인지 live AI 응답 변동인지 더 좁혀 볼 수 있다

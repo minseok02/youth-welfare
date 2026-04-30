@@ -76,6 +76,7 @@ deploy/smoke/run-local-education-priority-replay.sh
 8. sample B(control) drift는 기본 warning, 필요하면 `STRICT_CONTROL_ASSERT=true` 로 strict fail
 9. `user_recommendations` off/on snapshot(`edu-a/b-*-scores.tsv`)도 함께 남겨 `rule_weighted_score` / `ai_score` / `final_score` 경계를 바로 비교
 10. artifact에 `openai-mode.txt` 를 같이 남겨 `rule-only-invalid-key` / `real-openai` 모드를 명시
+11. boot log에서 `[RealtimeAiGateway][replay-trace]` 라인을 추출해 `edu-a/b-*-ai-trace.log`, `ai-trace-off.log`, `ai-trace-on.log` 로 남기고 `candidateIds` / `candidateRuleScores` / `promptSha256` 를 비교
 
 real OpenAI 호출이 정말 필요하면 아래처럼 명시적으로 opt-in 합니다.
 
@@ -138,6 +139,7 @@ host에서 직접 `bootRun` 할 때는 아래를 같이 맞춥니다.
 - sample A top-10 target row: `5 -> 10`
 - sample B top-10 target row: `2 -> 2`
 - `edu-b-off-scores.tsv` / `edu-b-on-scores.tsv` diff 없음
+- `edu-b-off-ai-trace.log` / `edu-b-on-ai-trace.log` 의 `candidateIds`, `candidateRuleScores`, `promptSha256` 도 동일
 - artifact dir 예시: `/tmp/tmp.x4i74TN5Wv`
 
 2026-04-30 `real-openai` mode 재검증 결과:
