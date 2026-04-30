@@ -547,6 +547,14 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
   - sample A(`priorityCodes=["EDUCATION","JOB"]`)는 `compat=기타 + youth_major=교육` target row `10`건 중 top-10 진입 수가 `5 -> 10` 으로 늘었고, top-10도 `359,371,364,365,390,147,387,386,393,368` 으로 canonical `교육` row가 전부 채웠다
   - sample B(control, `priorityCodes=["HOUSING","JOB"]`)는 top-10과 target row top-10 진입 수가 `2 -> 2` 로 그대로 유지돼 non-target 안정성도 같이 확인했다
   - 따라서 `28110 / age25 / income5 / priority=EDUCATION` 은 현재 local snapshot의 known positive sample로 승격했고, 다음부터는 sample hunting 대신 이 조합을 기준으로 replay regression을 반복하면 된다
+- 2026-04-30 `교육` known positive sample local replay smoke draft script 추가
+  - `deploy/smoke/run-local-education-priority-replay.sh` 를 추가해 `db/redis ensure -> flag off bootRun -> sample A/B seed+refresh -> flag on bootRun -> same sample refresh -> target row top-10 diff/control stability 검증` 을 한 번에 실행하도록 초안을 만들었다
+  - 기본 sample은 현재 known positive 조합(`28110 / age25 / income5 / priority=EDUCATION`)과 control 조합(`priority=HOUSING`)으로 고정했고, host `bootRun` 에 필요한 `AES_SECRET_KEY`, `APP_PII_DB_URL`, split-account PII credential, `OPENAI_API_KEY=invalid-for-rule-only-replay` override도 스크립트 안에서 같이 맞추도록 정리했다
+  - 스크립트는 `sample A target row top-10 count 증가` 를 hard assert 하고, `sample B` control drift는 기본 warning으로 남기되 `STRICT_CONTROL_ASSERT=true` 일 때만 strict fail 하도록 정리했다. 결과 JSON/bootRun log/meta TSV 는 artifact dir 로 남긴다
+- 2026-04-30 `deploy/smoke/run-local-education-priority-replay.sh` 실제 end-to-end 실행으로 known positive sample regression 재검증
+  - host `bootRun` 전환 구간에서 이전 `off` 앱이 아직 health `UP` 인 순간을 `on` phase 준비 완료로 오인하던 race를 잡기 위해, 스크립트에 `wait_for_app_down()` 과 health artifact reset을 추가했다
+  - latest local snapshot 기준 실제 스크립트 실행은 통과했고, sample A(`28110 / age25 / income5 / priority=EDUCATION`)의 `compat=기타 + youth_major=교육` target row top-10 진입 수는 `1 -> 7`, sample B(control, `priority=HOUSING`)의 top-10 target row count 는 `0 -> 0` 으로 유지됐다
+  - 다만 control sample은 exact top-10 id 불변까지는 보장하지 못했다. local snapshot에선 동점권 reorder가 있어 strict control 비교는 warning-by-default로 두고, 필요할 때만 `STRICT_CONTROL_ASSERT=true` 로 올려 재현하도록 정리했다
 - 2026-04-28 pre-28 migrated DB 기준 admin logout / refresh invalidation / relogin smoke
   - `SECURITY_ADMIN_EMAILS=admin.logout.smoke@example.com` 으로 최신 앱을 기동한 뒤, admin 계정 로그인과 프로필 수정으로 queue row를 `SYNCED` 상태까지 맞추고 `POST /api/auth/refresh` 가 먼저 성공하는 것 확인
   - 같은 cookie jar + access token으로 `POST /api/auth/logout` 호출 후 cookie jar에서 `refresh_token` 이 제거되고, 직후 `POST /api/auth/refresh` 가 `401`, `errorCode=A001` 로 막히는 것 확인
@@ -1157,8 +1165,7 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - [ ] 복지로 live detail 적재 기준 `welfare_service_details` / `service_facts` validation 리허설
 - [ ] 복지로 detail refresh budget metadata(`centralBudget`/`localBudget`) 를 admin collect observability에 노출할지 결정
 - [ ] `bokjiro-details-gap-fill` 추가 라운드/호출 예산 전략 정리 후 stored detail payload coverage 추가 확대
-- [ ] `교육 -> 교육·직업훈련` 실험 replay 결과를 캡처할 local smoke script 초안 작성 여부 결정
-- [ ] `28110 / age25 / income5 / priority=EDUCATION` known positive sample 기준 replay 결과를 캡처할 local smoke script 초안 작성 여부 결정
+- [ ] `deploy/smoke/run-local-education-priority-replay.sh` 의 control sample drift를 strict fail 대신 warning으로 둔 이유를 sample B finalScore 변동 기준으로 추가 분석
 - [ ] `참여권리` 의 `청년참여` subset만 별도 bridge 후보로 분리할지 결정
 - [ ] 복지로 `threshold_like` income signal(`13`건) 을 `INCOME_*` hard fact 가 아닌 optional soft signal schema 로 분리할지 결정
 - [ ] 복지로 live detail 응답에 신청마감 explicit field가 있는지 재확인하고, 없으면 `BK_APPLY_END_DATE` 는 canonical collect path에서 optional fact로 유지

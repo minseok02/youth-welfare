@@ -10,6 +10,10 @@ local 환경에서 `flag off` / `flag on` 결과를 같은 조건으로 비교�
 - [policy-normalization-education-priority-implementation-slot.md](./policy-normalization-education-priority-implementation-slot.md)
 - [runtime-api-smoke-commands.md](./runtime-api-smoke-commands.md)
 
+자동 replay 초안:
+
+- [deploy/smoke/run-local-education-priority-replay.sh](/home/minseok/youth-welfare/deploy/smoke/run-local-education-priority-replay.sh)
+
 ## 전제
 
 이 절차는 **실험 구현이 이미 들어간 뒤** 실행합니다.
@@ -41,6 +45,33 @@ local 환경에서 `flag off` / `flag on` 결과를 같은 조건으로 비교�
 만 허용합니다.
 
 ## 준비
+
+수동 절차 대신 known positive sample 기준 자동 실행이 필요하면 아래 draft script를 우선 사용합니다.
+
+```bash
+deploy/smoke/run-local-education-priority-replay.sh
+```
+
+기본값:
+
+- sample A: `education.replay.afterincome.a@example.com`
+- sample B: `education.replay.afterincome.b@example.com`
+- `regionCode=28110`
+- age `25`
+- `incomeLevel=5`
+- sample A priority `["EDUCATION","JOB"]`
+- sample B priority `["HOUSING","JOB"]`
+
+스크립트는 아래를 자동 수행합니다.
+
+1. local `db` / `redis` ensure
+2. `flag off` host `bootRun`
+3. sample A/B signup-or-login, profile/priority 정렬, refresh
+4. `flag on` host `bootRun`
+5. 같은 sample A/B refresh
+6. `compat=기타 + youth_major=교육` target row top-10 진입 수 비교
+7. sample A 개선 hard assert
+8. sample B(control) drift는 기본 warning, 필요하면 `STRICT_CONTROL_ASSERT=true` 로 strict fail
 
 ### 1. DB/Redis 기동
 
@@ -85,6 +116,12 @@ host에서 직접 `bootRun` 할 때는 아래를 같이 맞춥니다.
 - sample B(control) 성격:
   - 같은 region/profile
   - `priorityCodes=["HOUSING","JOB"]`
+
+2026-04-30 latest script smoke 결과:
+
+- sample A top-10 target row: `1 -> 7`
+- sample B top-10 target row: `0 -> 0`
+- artifact dir 예시: `/tmp/tmp.pKVwRY4dlt`
 
 ### 3. 공통 변수
 
