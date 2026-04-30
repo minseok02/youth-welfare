@@ -125,6 +125,68 @@ stable code mapping SQL을 실제로 쓰기 전에 아래가 충족되어야 한
 3. combo/alias label이 official code inventory 안에서 어떻게 처리되는지 확인
 4. `normalization_codes(YOUTH_MID)` seed와 `service_taxonomy_terms` backfill 규칙을 함께 수정
 
+## 운영 담당자 요청 스펙
+
+현재 가장 현실적인 다음 액션이 운영 담당자 export/codebook 확보이므로, 아래 수준으로 요청해야 sufficient source로 인정한다.
+
+### 최소 필수 컬럼
+
+- `YOUTH_MID code`
+- `official label`
+
+### 있으면 좋은 컬럼
+
+- `sort_order`
+- `사용 여부` 또는 `active 여부`
+- `설명` 또는 `비고`
+- `상위 분류` (`YOUTH_MAJOR` 나 정책분야 대분류와의 관계)
+
+### 허용 형식
+
+- `CSV`
+- `XLSX`
+- 관리자 화면 export
+- 공식 코드정의서 `PDF` 또는 캡처본
+
+핵심은 파일 형식이 아니라, **모든 code와 official label이 직접 대응되는지**다.
+
+### sufficient 예시
+
+아래처럼 주면 충분하다.
+
+| code | label | sort_order | active |
+|---|---|---:|---|
+| `003002001` | `취업` | `1` | `Y` |
+| `003002002` | `재직자` | `2` | `Y` |
+
+### 불충분 예시
+
+아래만 있으면 충분하지 않다.
+
+- label 목록만 있는 시트
+- API 요청 예시 한두 개
+- `mclsfNm` 값 모음
+- `plcyMajorCd/jobCd/schoolCd/sbizCd` broad code 목록
+- `취업 -> 003002001 같음` 식 수기 매핑 메모
+
+## 운영 담당자에게 보낼 요청 문구 초안
+
+아래 정도로 요청하면 된다.
+
+```text
+온통청년 정책중분류(YOUTH_MID) stable code mapping 작업을 위해
+`srchPolyBizSecd` 전체 code-label inventory가 필요합니다.
+
+가능하면 아래 컬럼이 포함된 공식 export/codebook 전달 부탁드립니다.
+- code
+- official label
+- sort_order (있으면)
+- active/use 여부 (있으면)
+
+CSV/XLSX/관리자 export/PDF 모두 괜찮지만,
+모든 code와 official label이 직접 대응되어야 합니다.
+```
+
 이 중 어느 경로에서도 `code -> label` 전체 inventory가 확보되지 않으면:
 
 - `normalization_codes(YOUTH_MID)` 는 계속 비운다

@@ -1252,3 +1252,8 @@
 - 문제: source plan상으로는 `authenticated metadata/testbed -> 마이페이지 OPEN API 관리 화면 -> 운영 담당자 export` 순서를 적어 둘 수 있지만, 실제 로컬 저장소에는 `YOUTH_API_KEY` 외에 member login/session 자동화 단서가 없다. 이 상태에서 “다음 작은 task”를 계속 로그인 자동화 쪽으로 밀면 근거 없는 크롤링/세션 파헤치기로 새기 쉬웠다
 - 해결: [policy-normalization-youth-mid-stable-code-source-plan.md](./policy-normalization-youth-mid-stable-code-source-plan.md)에 `현재 가장 현실적인 다음 액션` 절을 추가해, 지금은 운영 담당자 제공 export/codebook 확보를 먼저 시도하고, 마이페이지 로그인 자동화는 credential/세션 구조가 준비되기 전까지 보류한다고 고정했다
 - 이유: `YOUTH_MID stable code` 문제의 병목은 SQL 작성이 아니라 source 확보다. 그런데 그 source도 지금 당장 자동 수집 가능한 경로와 수동 확보가 더 빠른 경로가 다르다. 이 차이를 문서로 못 박아야 다음 작업이 다시 인증 우회/역추론으로 새지 않는다
+
+## 249) 운영 담당자 export를 받기로 했더라도, 어떤 컬럼이 있어야 sufficient source인지 먼저 못 박지 않으면 label list나 캡처본만 받아 다시 멈출 수 있다
+- 문제: `운영 담당자 export/codebook 우선`으로 방향을 잡아도, 요청 스펙이 없으면 상대가 `label 목록만 있는 시트`, `요청 예시 캡처`, `mclsfNm 모음` 같은 불충분한 자료를 줄 수 있다. 그러면 다시 “이걸로 stable code mapping SQL을 열 수 있나”를 재판단해야 한다
+- 해결: [policy-normalization-youth-mid-stable-code-source-plan.md](./policy-normalization-youth-mid-stable-code-source-plan.md)에 `운영 담당자 요청 스펙` 절을 추가해 최소 필수 컬럼을 `code`, `official label` 로 고정하고, `sort_order`, `active 여부` 를 권장 컬럼으로 정리했다. 동시에 sufficient example / insufficient example / 요청 문구 초안까지 같이 적었다
+- 이유: stable code source 확보는 “무언가 받기”가 아니라 “mapping SQL을 열 수 있을 정도로 직접 대응되는 inventory 받기”가 목적이다. 요청 스펙을 먼저 고정해야 운영 커뮤니케이션이 한 번에 끝나고, 다시 label-only 상태에서 맴도는 일을 줄일 수 있다
