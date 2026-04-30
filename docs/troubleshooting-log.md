@@ -812,3 +812,8 @@
 - 문제: local raw detail payload를 더 확인해 보니 `targetDetail/supportDetail/selectionCriteria` 에도 date-like token이 `4 / 1 / 1` 건 있었다. 하지만 샘플을 보면 `1976.1.1 ~ 2005.12.31` 같은 출생연도 범위, `2024.7.1 ~ 2024.10.31` 같은 할인 적용기간이 섞여 있어 이 값을 `BK_APPLY_END_DATE` 로 쓰면 잘못된 신청마감 fact가 생길 위험이 컸다
 - 해결: 현재 canonical collect path 에서는 `BK_APPLY_END_DATE` 를 optional fact 로 유지하고, fallback 범위를 `applyMethodDetail/supportDetail` 밖으로 넓히지 않기로 결정했다. 후속 작업은 live detail 응답에서 신청마감 explicit field가 실제로 있는지 재확인하는 것으로 분리했다
 - 이유: 복지로 detail 날짜 텍스트는 “신청마감”과 “생년월일/기준기간”이 같은 포맷으로 섞여 있다. 신호가 애매한 필드까지 규칙 기반 fallback 을 넓히면 precision이 급격히 떨어지므로, 현재는 누락을 감수하고 오탐을 막는 편이 canonical fact 품질에 더 안전하다
+
+## 161) 복지로 age range 는 첫 번째 bound 뒤에 `세` 가 빠진 비대칭 표기(`만 20 ~ 49세`)가 실제로 존재하므로, `\\d+세 ~ \\d+세` 형태만 가정하면 sidecar age fact coverage가 눈에 띄게 깎일 수 있음
+- 문제: local 복지로 raw detail/backfill density가 `81 / 1335` 에서 멈춰 있던 원인을 다시 보니, 실제 본문에는 `만 20 ~ 49세 여성`, `15세~39세 청년`, `만 19세 이상 ~ 34세 이하` 처럼 첫 번째 나이 뒤 `세` 가 빠지거나 `이상 ~ 이하` 조합인 문구가 섞여 있었다. 기존 `TextConstraintExtractor.AGE_RANGE` 는 사실상 `\\d+세 ... \\d+세` 패턴만 안정적으로 잡아 이런 row가 누락될 수 있었다
+- 해결: `AGE_RANGE` 정규식을 `(\\d{1,2})(?:\\s*세)? ... (\\d{1,2})\\s*세` 형태로 넓히고, `TextConstraintExtractorTest` 에 asymmetric range / 이상~이하 / 기존 세~세 케이스를 추가했다. 이후 local replay integration 을 다시 태운 결과 복지로 `BK_AGE_ELIGIBILITY` 는 `81 -> 99` rows(`BOKJIRO_CENTRAL 49`, `BOKJIRO_LOCAL 50`)로 증가했다
+- 이유: 복지로/지자체 서술형 본문은 표기 일관성이 약해서 “첫 번째 bound에도 단위가 항상 붙는다”는 가정이 쉽게 깨진다. 텍스트 extractor는 대칭 표기만 가정하지 말고 실제 source snapshot에서 반복되는 비대칭 표기를 허용해야 coverage regress를 줄일 수 있다

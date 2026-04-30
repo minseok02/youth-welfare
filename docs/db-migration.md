@@ -81,12 +81,12 @@ SELECT COUNT(*) FROM service_facts;             -- 0
 SELECT COUNT(*) FROM welfare_services WHERE source_type IN ('BOKJIRO_CENTRAL', 'BOKJIRO_LOCAL'); -- 1335
 SELECT COUNT(*) FROM raw_api_payloads WHERE source_type IN ('BOKJIRO_CENTRAL', 'BOKJIRO_LOCAL') AND api_category = 'DETAIL'; -- 190
 SELECT COUNT(*) FROM service_facts sf JOIN welfare_services ws ON ws.id = sf.service_id
-WHERE ws.source_type IN ('BOKJIRO_CENTRAL', 'BOKJIRO_LOCAL'); -- 81
+WHERE ws.source_type IN ('BOKJIRO_CENTRAL', 'BOKJIRO_LOCAL'); -- 99
 SELECT COUNT(DISTINCT sf.service_id) FROM service_facts sf JOIN welfare_services ws ON ws.id = sf.service_id
-WHERE ws.source_type IN ('BOKJIRO_CENTRAL', 'BOKJIRO_LOCAL'); -- 81
+WHERE ws.source_type IN ('BOKJIRO_CENTRAL', 'BOKJIRO_LOCAL'); -- 99
 ```
 
-현재 local snapshot에서는 `BK_AGE_ELIGIBILITY` 만 `81`건(`BOKJIRO_CENTRAL 41`, `BOKJIRO_LOCAL 40`) 적재됐고, `BK_APPLY_END_DATE` 는 `0`건이다. `raw_api_payloads` 의 detail `applyMethodDetail` 는 non-null 이 `77`건이지만 date-like token은 `0`건이라, 현 시점에는 extractor bug보다 source payload signal 부재에 가깝다.
+현재 local snapshot에서는 `BK_AGE_ELIGIBILITY` 만 `99`건(`BOKJIRO_CENTRAL 49`, `BOKJIRO_LOCAL 50`) 적재됐고, `BK_APPLY_END_DATE` 는 `0`건이다. `TextConstraintExtractor` 의 복지로 age range regex를 `만 20 ~ 49세`, `15세~39세`, `만 19세 이상 ~ 34세 이하` 류까지 넓힌 뒤 replay 를 다시 태우자 `service_facts` 는 `81 -> 99`로 증가했다. 남은 갭은 현재 extractor보다는 stored detail payload coverage(`190 / 1335`)와 payload 내 age-like signal 부재 비중에 더 가깝다.
 
 추가 확인 결과 `targetDetail/supportDetail/selectionCriteria` 의 date-like token 수는 `4 / 1 / 1` 이었지만, 샘플은 출생연도 범위나 혜택 적용기간처럼 신청마감이 아닌 날짜가 대부분이었다. 따라서 현재 canonical collect path 에서는 `BK_APPLY_END_DATE` 를 optional fact 로 유지하고, `targetDetail/selectionCriteria` 까지 deadline fallback 을 넓히지 않는다.
 
