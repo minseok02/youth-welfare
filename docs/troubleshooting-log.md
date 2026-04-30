@@ -962,3 +962,8 @@
 - 문제: `교육` 집합은 sample 기준으로 가장 자연스러운 후보라 바로 `compat=기타` 를 `교육·직업훈련` 으로 승격하고 싶어질 수 있다. 하지만 여기에는 `교육비지원`, `미래역량강화`, `온·오프라인교육` 이 함께 섞여 있어, “교육 canonical major가 보이면 곧바로 제품 category도 바꾼다”로 가면 실험 없이 기본 동작을 바꾸는 문제가 생긴다
 - 해결: 이번 단계에서는 `교육 -> 교육·직업훈련` 을 **첫 실험 후보**로만 승인했다. 실험 범위는 `compat=기타 + youth_major=교육` 집합에 한정하고, 기본 matcher/response category는 유지한 채 필요하면 priority bonus 경계에서만 좁게 실험하도록 문서로 고정했다
 - 이유: `교육`은 bridge 후보 중 가장 안전하지만, “후보”와 “기본값”은 다르다. 먼저 가장 작은 범위에서 효과와 부작용을 볼 수 있게 해야 나머지 `참여권리`, `복지문화` 판단에도 같은 기준을 적용할 수 있다
+
+## 191) `교육 -> 교육·직업훈련` 실험은 matcher에 넣지 말고 scoring bonus 경계에만 둬야 priority 계약 자체가 흔들리지 않음
+- 문제: `교육`을 첫 실험 후보로 승인한 뒤, 이를 `DefaultPriorityMatcher` 에 직접 넣으면 `EDUCATION` priority의 match semantics 자체가 바뀌어 버린다. 그러면 feature flag를 꺼도 matcher 의미와 response/category 해석 경계가 같이 얽혀 rollback 단위가 커질 수 있다
+- 해결: 실험 삽입 위치를 `RuleScoringService` 의 narrow priority bonus 경계로 고정했다. `DefaultPriorityMatcher` 는 계속 `compat_unified_category` 기반 category contract만 유지하고, `compat=기타 + youth_major=교육` 실험은 scoring layer additive bonus + flag로만 제어한다
+- 이유: matcher 는 stable product contract, scoring 은 좁은 실험 레이어다. bridge candidate 실험은 additive bonus 경계에서 먼저 검증하는 편이 on/off, rollback, 영향 범위 설명이 모두 쉽다

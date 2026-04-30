@@ -131,6 +131,60 @@ sample도:
    - `compat=기타 + youth_major=교육` row 유입 수
    - 추천 explanation 혼란 여부
 
+## 실험 삽입 레이어 결정
+
+결론은 **`RuleScoringService` 경계에만 넣는다** 입니다.
+
+즉:
+
+- `DefaultPriorityMatcher` 기본 category contract는 그대로 둔다
+- `compat=기타 + youth_major=교육` 실험은
+  `RuleScoringService.applyPriorityWeight(...)` 의 narrow bonus 경계에서만 다룬다
+
+### 왜 matcher가 아닌가
+
+`DefaultPriorityMatcher` 는 현재 priority 의미 자체를 정의하는 레이어다.
+
+- `JOB -> 일자리`
+- `EDUCATION -> 교육·직업훈련`
+- `DEADLINE -> 마감임박`
+
+이 경계를 바꾸면:
+
+- priority match 여부
+- 설명 가능한 category 의미
+- future compat layer contract
+
+가 한 번에 같이 흔들린다.
+
+반면 `RuleScoringService` 는 이미:
+
+- beneficiary bucket
+- canonical broad term
+- projection fact key
+
+같은 narrow bridge를 기존 rule bonus에 additive 하게 연결하는 위치다.
+따라서 `교육` 실험도 같은 계층에 두는 편이 rollback 과 on/off 제어가 훨씬 쉽다.
+
+## 적용 방식
+
+실험이 실제로 필요해지면:
+
+1. `compat_unified_category = 기타`
+2. `RecommendationCandidateProjection.youthMajorLabel = 교육`
+3. 사용자 priority 에 `EDUCATION` 포함
+4. feature flag on
+
+을 모두 만족할 때만,
+
+- 기존 `DefaultPriorityMatcher` 결과와 별도로
+- `RuleScoringService` 에서 priority bonus 1회 추가
+
+하는 형태로 제한한다.
+
+즉 `match semantics` 는 그대로 두고,
+`bonus scope` 만 좁게 연다.
+
 ## 지금 하지 않는 것
 
 현재 단계에서 하지 않는 것:
@@ -146,10 +200,11 @@ sample도:
 
 - `교육 -> 교육·직업훈련` 은 **첫 실험 후보로 승인**
 - 하지만 **기본 동작 변경은 보류**
+- 실험 삽입 위치는 **`RuleScoringService` priority bonus 경계**
 - **narrow experiment only**
 
 ## 다음 작업
 
-1. 실험이 필요하다면 `DefaultPriorityMatcher` vs `RuleScoringService` 중 어디에 좁게 넣을지 결정
-2. 실험 flag 단위 정의
+1. 실험 flag 단위 정의
+2. `compat=기타 + youth_major=교육` bonus on/off 범위 정의
 3. `참여권리` 의 `청년참여` subset bridge는 별도 트랙으로 유지

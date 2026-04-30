@@ -158,6 +158,7 @@ priority 가중치 경계:
 - 즉 priority는 당분간 `compat_unified_category` 기반 호환 레이어를 유지하고, taxonomy summary code 직독은 후속 inventory/매핑표 결정 이후로 미룬다
 - 특히 `compat=기타 + youth_major 채움` 집합도 현재 단계에서는 `unifiedCategoryCompat` 를 canonical major로 override 하지 않는다. canonical `youth_major` 는 projection 안에 보조 힌트로만 실어 두고, priority/scoring category bonus는 계속 compat layer만 기준으로 계산한다
 - explicit `youth_major -> priority bucket` bridge table도 아직 도입하지 않는다. 그런 table은 실제 실험/전환이 시작될 때만 추가하고, 현재 read-model은 raw compat layer와 canonical hint를 나란히 보존하는 데서 멈춘다
+- `교육 -> 교육·직업훈련` 실험이 필요하더라도 삽입 위치는 `DefaultPriorityMatcher` 가 아니라 `RuleScoringService` 의 narrow priority bonus 경계다. matcher 는 category contract를 유지하고, scoring layer만 feature flag 아래서 additive bonus를 열 수 있게 둔다
 
 ## response/UI 경계
 
