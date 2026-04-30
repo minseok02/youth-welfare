@@ -572,6 +572,10 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
   - `USE_REAL_OPENAI_FOR_REPLAY=false` 를 기본값으로 고정하고, 이때는 `.env` 값과 무관하게 항상 `OPENAI_API_KEY=invalid-for-rule-only-replay` 를 강제하도록 수정했다
   - real AI drift를 다시 보고 싶을 때만 `USE_REAL_OPENAI_FOR_REPLAY=true` 로 opt-in 하도록 분리했고, artifact에 `openai-mode.txt` 도 남겨 replay mode를 바로 확인할 수 있게 했다
   - 수정 뒤 default replay를 다시 실행한 artifact(`/tmp/tmp.x4i74TN5Wv`)에서는 `openai-mode.txt=rule-only-invalid-key`, sample A target row top-10 `5 -> 10`, sample B target row top-10 `2 -> 2`, `edu-b-off-scores.tsv` / `edu-b-on-scores.tsv` diff 없음까지 확인했다
+- 2026-04-30 intentional `real-openai` replay 재실행으로 sample B drift 재현 확인
+  - `USE_REAL_OPENAI_FOR_REPLAY=true deploy/smoke/run-local-education-priority-replay.sh` 로 replay를 다시 돌린 artifact(`/tmp/tmp.EZBH319uNA`)에서 `openai-mode.txt=real-openai` 를 확인했다
+  - sample A target row top-10 은 `1 -> 7`, sample B target row top-10 은 `1 -> 0` 이었고, sample B `edu-b-off-scores.tsv` / `edu-b-on-scores.tsv` 에서 `rule_weighted_score` 는 그대로인데 `ai_score` / `final_score` drift가 다시 재현됐다
+  - 따라서 현재 남은 문제는 `rule-only` core pipeline bug가 아니라, `real-openai` mode에서 `RealtimeAiGateway` 입력(prompt/topCandidates ordering) 또는 live AI 응답 변동이 sample B control 결과를 흔드는지 구분하는 것으로 좁혀졌다
 - 2026-04-28 pre-28 migrated DB 기준 admin logout / refresh invalidation / relogin smoke
   - `SECURITY_ADMIN_EMAILS=admin.logout.smoke@example.com` 으로 최신 앱을 기동한 뒤, admin 계정 로그인과 프로필 수정으로 queue row를 `SYNCED` 상태까지 맞추고 `POST /api/auth/refresh` 가 먼저 성공하는 것 확인
   - 같은 cookie jar + access token으로 `POST /api/auth/logout` 호출 후 cookie jar에서 `refresh_token` 이 제거되고, 직후 `POST /api/auth/refresh` 가 `401`, `errorCode=A001` 로 막히는 것 확인
@@ -1182,7 +1186,7 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - [ ] 복지로 live detail 적재 기준 `welfare_service_details` / `service_facts` validation 리허설
 - [ ] 복지로 detail refresh budget metadata(`centralBudget`/`localBudget`) 를 admin collect observability에 노출할지 결정
 - [ ] `bokjiro-details-gap-fill` 추가 라운드/호출 예산 전략 정리 후 stored detail payload coverage 추가 확대
-- [ ] `USE_REAL_OPENAI_FOR_REPLAY=true` 로 intentional real OpenAI full replay를 다시 태워 sample B `ai_score` / `final_score` drift가 여전히 재현되는지 확인
+- [ ] `USE_REAL_OPENAI_FOR_REPLAY=true` real-openai replay에서 sample B `ai_score` drift가 `AI nondeterminism` 인지 `topCandidates/prompt ordering drift` 인지 구분할 증적 export 추가
 - [ ] `참여권리` 의 `청년참여` subset만 별도 bridge 후보로 분리할지 결정
 - [ ] 복지로 `threshold_like` income signal(`13`건) 을 `INCOME_*` hard fact 가 아닌 optional soft signal schema 로 분리할지 결정
 - [ ] 복지로 live detail 응답에 신청마감 explicit field가 있는지 재확인하고, 없으면 `BK_APPLY_END_DATE` 는 canonical collect path에서 optional fact로 유지

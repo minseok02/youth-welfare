@@ -140,6 +140,14 @@ host에서 직접 `bootRun` 할 때는 아래를 같이 맞춥니다.
 - `edu-b-off-scores.tsv` / `edu-b-on-scores.tsv` diff 없음
 - artifact dir 예시: `/tmp/tmp.x4i74TN5Wv`
 
+2026-04-30 `real-openai` mode 재검증 결과:
+
+- 실행: `USE_REAL_OPENAI_FOR_REPLAY=true deploy/smoke/run-local-education-priority-replay.sh`
+- sample A top-10 target row: `1 -> 7`
+- sample B top-10 target row: `1 -> 0`
+- sample B `edu-b-off-scores.tsv` / `edu-b-on-scores.tsv` diff 재현
+- artifact dir 예시: `/tmp/tmp.EZBH319uNA`
+
 ### 3. 공통 변수
 
 ```bash

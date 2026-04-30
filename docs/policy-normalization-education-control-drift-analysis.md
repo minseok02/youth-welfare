@@ -29,6 +29,8 @@ sample B(control)의 drift를 `finalScore` 기준으로 분해한 결과입니�
   따라서 여기서 관찰한 drift는 `real-openai` 문맥의 현상으로 읽어야 한다
 - 이후 기본값을 `rule-only-invalid-key` 로 고친 뒤 다시 실행한 artifact(`/tmp/tmp.x4i74TN5Wv`)에서는
   sample B `edu-b-off-scores.tsv` / `edu-b-on-scores.tsv` diff가 사라졌다
+- 반대로 `USE_REAL_OPENAI_FOR_REPLAY=true` 로 intentional real OpenAI replay를 다시 실행한 artifact(`/tmp/tmp.EZBH319uNA`)에서는
+  sample B diff가 재현됐다
 
 즉:
 
@@ -38,6 +40,7 @@ sample B(control)의 drift를 `finalScore` 기준으로 분해한 결과입니�
   “교육 target row가 top-10으로 새로 올라오지 않았는가”
   까지만 hard condition으로 두고,
   exact top-10 id / `finalScore` 불변은 artifact review 대상으로 남긴다
+- 그리고 이 artifact review는 이제 `real-openai` mode에서만 의미가 있다
 
 ## latest sample B 수치
 

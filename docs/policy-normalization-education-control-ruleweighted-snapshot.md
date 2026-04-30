@@ -35,6 +35,9 @@ sample B의 `rule_weighted_score`, `ai_score`, `final_score` 가
 그리고 이후 기본 `rule-only-invalid-key` 모드로 full replay script를 다시 돌렸을 때도
 sample B snapshot은 다시 동일하게 수렴했습니다.
 
+반대로 `USE_REAL_OPENAI_FOR_REPLAY=true` 로 intentional full replay를 다시 돌리면
+sample B snapshot drift가 다시 재현됩니다.
+
 ## direct snapshot 조건
 
 - app: host `bootRun`
@@ -109,6 +112,6 @@ DB snapshot top-15:
 그래서 다음 작업은:
 
 - `sample A -> sample B` 순서가 있는 full replay context에서
-  `RealtimeAiGateway` 호출/실패/저장 경계를 추적하거나
+  `RealtimeAiGateway` 로 들어가는 topCandidates/prompt ordering을 같이 캡처하거나
 - persisted snapshot에 이미 추가된 `ai_score` 기준으로
-  drift source를 더 좁히는 것입니다.
+  drift source를 `AI nondeterminism vs prompt/input drift` 로 더 좁히는 것입니다.
