@@ -1233,6 +1233,9 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - 2026-05-01 `withdraw` old access-token baseline smoke 고정
   - `UserWithdrawAccessTokenBaselineIntegrationTest` 를 회원탈퇴 revoke smoke로 확장해, `DELETE /api/users/me` 에 사용한 bearer access token은 직후 `GET /api/users/me/bookmarks` 에서 `401 / A006` 으로 차단되고, 미정리 stale refresh token도 `POST /api/auth/refresh` 에서 `410 / U003` 으로 막히도록 고정했다
   - `UserService.withdraw(...)` 는 refresh key 삭제와 현재 bearer access token revoke까지 같이 수행하고, `AuthService.refresh(...)` 는 withdrawn user를 만나면 refresh 재발급 전에 `WITHDRAWN_USER` 로 중단하도록 보강했다
+- 2026-05-01 admin revoke boundary 정책 고정
+  - [auth-admin-revoke-boundary-policy.md](./auth-admin-revoke-boundary-policy.md) 를 추가해 현재 admin 권한 회수의 기본 경로를 `SECURITY_ADMIN_EMAILS` 변경 + 앱 재기동으로 고정하고, role revoke와 future forced logout/session revoke를 분리했다
+  - 따라서 다음 baseline은 generic forced logout 구현이 아니라, allowlist 제거 후 stale config/stale token이 각각 어디까지 남는지 측정하는 쪽으로 좁힌다
 
 ## 작업 추적
 
@@ -1296,6 +1299,8 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - [x] future user-level revoke를 다시 연다면 `withdraw`, `관리자 강제 로그아웃`, generic `cookie-only logout` 중 무엇을 먼저 다룰지 결정
 - [x] `withdraw` revoke를 바로 구현할지, old access-token baseline smoke를 먼저 고정할지 결정
 - [x] `withdraw` 전 old access token이 탈퇴 후에도 어디까지 통과하는지 baseline smoke/inventory 작성
+- [x] 현재 admin 권한 회수의 기본 경계가 `SECURITY_ADMIN_EMAILS + 앱 재기동` 인지, forced logout과 별도인지 정리
+- [ ] allowlist 제거 + 앱 재기동 후 old admin access/refresh token baseline smoke 작성
 - [ ] 운영 서버 Docker Compose 기동
 - [ ] 기존 운영 DB에 `app_core_rw` / `app_pii_rw` / `notification_pii_ro` / `migration_admin` 계정 생성 및 앱 datasource 전환
 - [ ] 운영 `.env` / secret store의 `APP_PII_DB_URL` / `NOTIFICATION_PII_DB_URL` 를 `youth_welfare_pii` schema 기준으로 전환

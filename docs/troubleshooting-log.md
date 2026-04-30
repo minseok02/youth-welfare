@@ -1322,3 +1322,8 @@
 - 문제: baseline smoke 결과 회원탈퇴 전 old access token은 사용자 보호 API에서 `WITHDRAWN_USER` 로 막혔지만, filter 단계 revoke는 없었고 refresh token 정리도 명시돼 있지 않았다. 즉 탈퇴 계정이 “service layer에서만 막히는 상태”가 남아 있었다
 - 해결: `UserService.withdraw(...)` 에 refresh key 삭제와 presented bearer access token revoke를 추가하고, `AuthService.refresh(...)` 는 withdrawn user를 만나면 stored refresh token 존재 여부와 무관하게 `WITHDRAWN_USER` 로 중단하도록 보강했다. integration smoke도 같은 token의 `/api/users/me/bookmarks -> 401 / A006`, stale refresh의 `/api/auth/refresh -> 410 / U003` 으로 뒤집어 고정했다
 - 이유: 탈퇴는 generic logout보다 강한 terminal event다. 따라서 “old token이 business layer까지 도달한 뒤 막힌다”는 baseline보다, 최소한 현재 탈퇴에 사용한 token과 refresh 재발급은 즉시 정리하는 쪽이 제품 의미와 더 잘 맞는다
+
+## 263) 현재 admin 권한 회수는 forced logout이 아니라 `SECURITY_ADMIN_EMAILS` + 앱 재기동 기반 role revoke가 기본 경계라는 점을 먼저 분리해야 한다
+- 문제: `admin forced logout` 을 다음 revoke 후보로 보기 시작하면, 현재 운영에서 실제로 admin 권한을 어떻게 회수하는지와 “이미 발급된 admin token을 즉시 끊는가”가 한 문제처럼 섞이기 쉽다. 하지만 지금 role source of truth는 config allowlist이고, forced logout/session revoke는 아직 별도 기능이 아니다
+- 해결: [auth-admin-revoke-boundary-policy.md](./auth-admin-revoke-boundary-policy.md) 를 추가해 현재 admin revoke 기본 경로를 `SECURITY_ADMIN_EMAILS` 변경 + 앱 재기동으로 고정하고, role revoke와 future forced logout/token revoke를 분리했다
+- 이유: stale config 문제와 stale token 문제는 원인과 대응이 다르다. 이 경계를 먼저 고정해야 다음 baseline도 “allowlist 제거 후 재기동” 과 “old token 지속성” 으로 나눠서 볼 수 있다
