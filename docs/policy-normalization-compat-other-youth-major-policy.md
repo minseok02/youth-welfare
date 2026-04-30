@@ -153,3 +153,7 @@ response category에서 `youth_major` 로 치환하지 않는다.
 세부 분포와 샘플은
 [policy-normalization-compat-other-youth-major-inventory.md](./policy-normalization-compat-other-youth-major-inventory.md)
 에 별도로 정리한다.
+
+row-level candidate 판정은
+[policy-normalization-compat-other-youth-major-bridge-review.md](./policy-normalization-compat-other-youth-major-bridge-review.md)
+에 정리한다.

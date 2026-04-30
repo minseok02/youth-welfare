@@ -947,3 +947,8 @@
 - 문제: `421`건을 단순 총량으로만 보면 `canonical youth_major -> legacy priority` 브리지를 하나의 결정처럼 다루게 되지만, 실제로는 `복지문화 171`, `참여권리 130`, `교육 102`, `일자리 15`, `주거 3` 으로 분포가 크게 달랐다. 각 major 안의 `category_sub` 조합도 서로 달라, 같은 bridge 정책을 한 번에 적용하면 과도하게 일반화될 위험이 있었다
 - 해결: local DB에서 major별 count, 대표 `category_sub`, 샘플 row를 다시 뽑아 별도 inventory 문서로 고정했다. 그 결과 bridge 검토 우선순위를 `참여권리`, `교육`, `복지문화` 3개에 집중하고, `일자리`, `주거` 는 duplicate collapse 잔여로 간주해 우선순위를 낮췄다
 - 이유: bridge table은 저장 계층의 canonical major를 UX priority bucket으로 승격시키는 규칙이므로, 총량이 아니라 major별 의미 분포를 기준으로 검토해야 한다. 먼저 분포를 쪼개야 어디가 “실제 새 bridge 후보”이고 어디가 “정제 잔여”인지 구분할 수 있다
+
+## 188) major별 분포를 봐도 bridge 승격 판단은 다시 row-level sample로 좁혀야 하고, `교육 / 참여권리 / 복지문화` 는 서로 다른 판정이 필요함
+- 문제: `복지문화 171`, `참여권리 130`, `교육 102`처럼 큰 major만 놓고 보면 셋 다 bridge 후보처럼 보일 수 있다. 하지만 실제 sample을 보면 `교육` 은 `교육비지원/미래역량강화/온·오프라인교육` 중심으로 현재 `교육·직업훈련` bucket과 가깝고, `참여권리` 는 `청년참여`와 `정책인프라구축` 이 섞여 있으며, `복지문화` 는 `건강/문화활동/예술인지원` 이 많이 섞여 의미가 다르다
+- 해결: row-level review를 통해 `교육` 은 “가장 유력한 후속 후보”, `참여권리` 는 “subset bridge만 조건부 검토”, `복지문화` 는 “현 시점 보류”로 판정을 갈랐다. 즉 bridge table이 필요하더라도 전집합 일괄 도입이 아니라 candidate별로 다른 정책을 써야 한다고 문서로 고정했다
+- 이유: canonical major를 legacy priority bucket으로 승격시키는 규칙은 category label 하나만 맞는다고 끝나지 않는다. 실제 row-level 행동 가능성, 운영/인프라 성격 혼입 여부, 현재 priority bucket 의미를 함께 봐야 하므로 candidate별 판정을 분리하는 편이 안전하다

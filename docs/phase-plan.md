@@ -475,6 +475,12 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
   - `복지문화` 는 `취약계층 및 금융지원 71`, `문화활동 및 생활지원 65`, `건강 26`이 섞여 있어 `금융·생활지원` 으로 단순 승격하기 어렵고, `참여권리` 는 `청년참여 83`, `정책인프라구축 20`, `청년참여,정책인프라구축 20`, `교육` 은 `미래역량강화 71`, `교육비지원 16` 중심으로 분포했다
 - 2026-04-30 `compat=기타 + canonical youth_major` major inventory 작성 후 local MySQL distribution query 재집계
 - 2026-04-30 `compat=기타 + canonical youth_major` major inventory 작성 후 `git diff --check`
+- 2026-04-30 `참여권리 / 교육 / 복지문화` 3개 bridge candidate row-level 승격 필요성 판정
+  - `교육 -> 교육·직업훈련` 은 `교육비지원`, `미래역량강화`, `온·오프라인교육` sample 기준으로 가장 자연스러운 후속 후보지만, current product contract가 아직 `compat` 기준이라 이번 단계에서 자동 승격은 하지 않기로 했다
+  - `참여권리 -> 참여·기회` 는 `청년참여` subset은 가깝지만 `정책인프라구축`, `청년국제교류` 가 섞여 있어 전집합 승격은 보류하고, 필요하면 future subset bridge만 검토하기로 정리했다
+  - `복지문화 -> 금융·생활지원` 은 `건강`, `문화활동 및 생활지원`, `예술인지원` 이 많이 섞여 있어 현 시점 bridge는 부적절하다고 판정했다
+- 2026-04-30 bridge candidate row-level review 후 local MySQL sample query 재집계
+- 2026-04-30 bridge candidate row-level review 후 `git diff --check`
 - 2026-04-28 pre-28 migrated DB 기준 admin logout / refresh invalidation / relogin smoke
   - `SECURITY_ADMIN_EMAILS=admin.logout.smoke@example.com` 으로 최신 앱을 기동한 뒤, admin 계정 로그인과 프로필 수정으로 queue row를 `SYNCED` 상태까지 맞추고 `POST /api/auth/refresh` 가 먼저 성공하는 것 확인
   - 같은 cookie jar + access token으로 `POST /api/auth/logout` 호출 후 cookie jar에서 `refresh_token` 이 제거되고, 직후 `POST /api/auth/refresh` 가 `401`, `errorCode=A001` 로 막히는 것 확인
@@ -1086,7 +1092,8 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - [ ] 복지로 detail refresh budget metadata(`centralBudget`/`localBudget`) 를 admin collect observability에 노출할지 결정
 - [ ] `bokjiro-details-gap-fill` 추가 라운드/호출 예산 전략 정리 후 stored detail payload coverage 추가 확대
 - [ ] canonical `youth_major` -> legacy priority bucket explicit bridge table이 필요한지 결정
-- [ ] `참여권리 -> 참여·기회`, `교육 -> 교육·직업훈련`, `복지문화 -> 금융·생활지원` 3개 bridge candidate 에 대해 row-level sample 기준 승격 필요성 판정
+- [ ] explicit bridge table이 필요하다면 `교육 -> 교육·직업훈련` 단일 후보부터 실험할지 결정
+- [ ] `참여권리` 의 `청년참여` subset만 별도 bridge 후보로 분리할지 결정
 - [ ] 복지로 `threshold_like` income signal(`13`건) 을 `INCOME_*` hard fact 가 아닌 optional soft signal schema 로 분리할지 결정
 - [ ] 복지로 live detail 응답에 신청마감 explicit field가 있는지 재확인하고, 없으면 `BK_APPLY_END_DATE` 는 canonical collect path에서 optional fact로 유지
 - [ ] 로그인 가능한 testbed/live payload 기준 `YOUTH_MID` / `srchPolyBizSecd` 전체 inventory 수집
@@ -1135,6 +1142,7 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - [x] summary 재적재 후 `compat_unified_category` 와 canonical taxonomy summary code/label drift inventory 재측정
 - [x] `compat=기타 + canonical youth_major 채움` 집합(`421`건)의 priority/read-model 해석 정책 결정
 - [x] `compat=기타 + canonical youth_major 채움` 집합(`421`건)을 `복지문화 / 참여권리 / 교육 / 일자리 / 주거` 별로 다시 쪼개 inventory 작성
+- [x] `참여권리 -> 참여·기회`, `교육 -> 교육·직업훈련`, `복지문화 -> 금융·생활지원` 3개 bridge candidate 에 대해 row-level sample 기준 승격 필요성 판정
 - [x] sidecar draft migration 적용 상태에서 기존 복지로 적재 데이터 detail refresh/backfill 후 `service_facts` density 재측정
 - [x] `NormalizedPolicySidecarBackfillService` 를 admin/manual 실행 경로로 노출
 - [x] 복지로 `raw_api_payloads` 기반 canonical sidecar backfill service 초안 작성
