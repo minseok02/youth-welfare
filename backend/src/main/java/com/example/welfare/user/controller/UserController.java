@@ -11,8 +11,10 @@ import com.example.welfare.user.dto.response.ProfileResponse;
 import com.example.welfare.user.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -70,9 +72,17 @@ public class UserController {
     @DeleteMapping
     public ResponseEntity<ApiResponse<Void>> withdraw(
             @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
+            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorizationHeader,
             @Valid @RequestBody WithdrawRequest request) {
-        userService.withdraw(resolveUserId(authenticatedUser), request.getPassword());
+        userService.withdraw(resolveUserId(authenticatedUser), request.getPassword(), extractBearerToken(authorizationHeader));
         return ResponseEntity.ok(ApiResponse.success(null));
+    }
+
+    private String extractBearerToken(String authorizationHeader) {
+        if (StringUtils.hasText(authorizationHeader) && authorizationHeader.startsWith("Bearer ")) {
+            return authorizationHeader.substring(7);
+        }
+        return null;
     }
 
     private Long resolveUserId(AuthenticatedUser authenticatedUser) {

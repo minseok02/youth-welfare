@@ -19,9 +19,11 @@ import com.example.welfare.user.repository.UserAttributeRepository;
 import com.example.welfare.user.repository.UserPriorityRepository;
 import com.example.welfare.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.util.HashSet;
 import java.util.List;
@@ -32,6 +34,8 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class UserService {
 
+    private static final String REFRESH_TOKEN_PREFIX = "refresh:";
+
     private final UserRepository userRepository;
     private final UserAttributeRepository userAttributeRepository;
     private final UserPriorityRepository userPriorityRepository;
@@ -40,6 +44,8 @@ public class UserService {
     private final AesEncryptUtil aesEncryptUtil;
     private final PasswordEncoder passwordEncoder;
     private final UserRecommendationRepository userRecommendationRepository;
+    private final RedisTemplate<String, String> redisTemplate;
+    private final AccessTokenRevocationService accessTokenRevocationService;
     private final ChatSessionCleanupService chatSessionCleanupService;
     private final UserCoreSyncService userCoreSyncService;
     private final UserReadService userReadService;
@@ -165,16 +171,19 @@ public class UserService {
     }
 
     @Transactional
-    public void withdraw(Long userId, String password) {
+    public void withdraw(Long userId, String password, String accessToken) {
         User user = findActiveUser(userId);
+        String userKey = user.getUserKey() != null ? user.getUserKey() : resolveUserKey(userId);
 
         if (!passwordEncoder.matches(password, user.getPasswordHash())) {
             throw new CustomException(ErrorCode.INVALID_CREDENTIALS);
         }
 
-        userAttributeRepository.deleteByUserKey(user.getUserKey());
-        userPriorityRepository.deleteByUserKey(user.getUserKey());
-        chatSessionCleanupService.deleteAllByUserKey(user.getUserKey());
+        userAttributeRepository.deleteByUserKey(userKey);
+        userPriorityRepository.deleteByUserKey(userKey);
+        chatSessionCleanupService.deleteAllByUserKey(userKey);
+        redisTemplate.delete(REFRESH_TOKEN_PREFIX + userKey);
+        revokePresentedAccessToken(accessToken);
         user.withdraw();
         userCoreSyncService.syncFromUser(user);
     }
@@ -200,6 +209,18 @@ public class UserService {
             throw new CustomException(ErrorCode.WITHDRAWN_USER);
         }
         return user;
+    }
+
+    private void revokePresentedAccessToken(String accessToken) {
+        if (!StringUtils.hasText(accessToken)) {
+            return;
+        }
+        accessTokenRevocationService.revoke(accessToken);
+    }
+
+    private String resolveUserKey(Long userId) {
+        return userRepository.findUserKeyById(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
     }
 
     private int calculateCompleteness(String userKey, User user, UpdateProfileRequest request) {
@@ -229,8 +250,4 @@ public class UserService {
         }
     }
 
-    private String resolveUserKey(Long userId) {
-        return userRepository.findUserKeyById(userId)
-                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
-    }
 }

@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
@@ -43,6 +44,9 @@ class UserWithdrawAccessTokenBaselineIntegrationTest {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
+    @Autowired
+    private RedisTemplate<String, String> redisTemplate;
+
     private final List<Long> createdUserIds = new ArrayList<>();
 
     @AfterEach
@@ -52,8 +56,8 @@ class UserWithdrawAccessTokenBaselineIntegrationTest {
     }
 
     @Test
-    @DisplayName("회원탈퇴 전 old access token은 탈퇴 후에도 filter를 지나지만 사용자 보호 API에서는 WITHDRAWN_USER로 막힌다")
-    void withdrawnUserOldAccessTokenStillReachesBusinessLayer() throws Exception {
+    @DisplayName("회원탈퇴에 사용한 access token은 즉시 revoke되고 refresh token도 함께 정리된다")
+    void withdrawRevokesPresentedAccessTokenAndClearsRefreshToken() throws Exception {
         User user = userRepository.save(User.builder()
                 .email(TEST_EMAIL_PREFIX + UUID.randomUUID() + "@example.com")
                 .passwordHash(passwordEncoder.encode("password123"))
@@ -62,6 +66,9 @@ class UserWithdrawAccessTokenBaselineIntegrationTest {
         createdUserIds.add(user.getId());
 
         String oldAccessToken = jwtUtil.generateAccessToken(user.getId());
+        String userKey = userRepository.findUserKeyById(user.getId()).orElseThrow();
+        String refreshToken = jwtUtil.generateRefreshToken(userKey, user.getId());
+        redisTemplate.opsForValue().set("refresh:" + userKey, refreshToken);
 
         mockMvc.perform(delete("/api/users/me")
                         .header("Authorization", "Bearer " + oldAccessToken)
@@ -76,15 +83,22 @@ class UserWithdrawAccessTokenBaselineIntegrationTest {
 
         User withdrawnUser = userRepository.findById(user.getId()).orElseThrow();
         assertThat(withdrawnUser.isActive()).isFalse();
+        assertThat(redisTemplate.opsForValue().get("refresh:" + userKey)).isNull();
 
         mockMvc.perform(get("/api/users/me/bookmarks")
                         .header("Authorization", "Bearer " + oldAccessToken))
-                .andExpect(status().isGone())
+                .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.errorCode").value("U003"));
+                .andExpect(jsonPath("$.errorCode").value("A006"));
 
         mockMvc.perform(post("/api/recommendations/refresh")
                         .header("Authorization", "Bearer " + oldAccessToken))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("A006"));
+
+        mockMvc.perform(post("/api/auth/refresh")
+                        .header("X-Refresh-Token", refreshToken))
                 .andExpect(status().isGone())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.errorCode").value("U003"));

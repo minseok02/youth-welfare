@@ -209,6 +209,10 @@ public class AuthService {
         Long userId = jwtUtil.getUserId(refreshToken);
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+        if (!user.isActive()) {
+            deleteRefreshToken(userKey);
+            throw new CustomException(ErrorCode.WITHDRAWN_USER);
+        }
         String key = REFRESH_TOKEN_PREFIX + userKey;
         String stored = redisTemplate.opsForValue().get(key);
 

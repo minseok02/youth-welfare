@@ -24,6 +24,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -48,6 +49,8 @@ class UserServiceTest {
     @Mock private AesEncryptUtil aesEncryptUtil;
     @Mock private PasswordEncoder passwordEncoder;
     @Mock private UserRecommendationRepository userRecommendationRepository;
+    @Mock private RedisTemplate<String, String> redisTemplate;
+    @Mock private AccessTokenRevocationService accessTokenRevocationService;
     @Mock private ChatSessionCleanupService chatSessionCleanupService;
     @Mock private UserCoreSyncService userCoreSyncService;
     @Mock private UserReadService userReadService;
@@ -65,6 +68,8 @@ class UserServiceTest {
                 aesEncryptUtil,
                 passwordEncoder,
                 userRecommendationRepository,
+                redisTemplate,
+                accessTokenRevocationService,
                 chatSessionCleanupService,
                 userCoreSyncService,
                 userReadService
@@ -209,8 +214,8 @@ class UserServiceTest {
     }
 
     @Test
-    @DisplayName("회원탈퇴는 비밀번호 검증 후 챗 세션 정리를 함께 수행한다")
-    void withdrawDeletesChatSessionsBeforeMaskingUser() {
+    @DisplayName("회원탈퇴는 refresh token 삭제와 현재 access token revoke까지 함께 수행한다")
+    void withdrawDeletesChatSessionsRefreshTokenAndRevokesAccessToken() {
         User user = User.builder()
                 .id(1L)
                 .userKey("user-key-1")
@@ -221,11 +226,13 @@ class UserServiceTest {
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
         when(passwordEncoder.matches("password123", "encoded-password")).thenReturn(true);
 
-        userService.withdraw(1L, "password123");
+        userService.withdraw(1L, "password123", "access-token-value");
 
         verify(userAttributeRepository).deleteByUserKey("user-key-1");
         verify(userPriorityRepository).deleteByUserKey("user-key-1");
         verify(chatSessionCleanupService).deleteAllByUserKey(user.getUserKey());
+        verify(redisTemplate).delete("refresh:user-key-1");
+        verify(accessTokenRevocationService).revoke("access-token-value");
         verify(userCoreSyncService).syncFromUser(user);
         assertThat(user.isActive()).isFalse();
         assertThat(user.getEmail()).isEqualTo("withdrawn_1");
