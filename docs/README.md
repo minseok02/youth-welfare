@@ -121,6 +121,9 @@
 - [auth-admin-forced-logout-legacy-error-policy.md](./auth-admin-forced-logout-legacy-error-policy.md)
   forced logout 보호 경계에서 `iatm` 없는 legacy admin access token을 어떤 에러 계약으로 노출할지 확인합니다.
 
+- [auth-admin-forced-logout-implementation-location.md](./auth-admin-forced-logout-implementation-location.md)
+  forced logout 차단을 `JwtAuthenticationFilter` 에서 처리할지, 별도 controller/service guard로 둘지 구현 위치를 확인합니다.
+
 - [policy-normalization-compat-category-drift-inventory.md](./policy-normalization-compat-category-drift-inventory.md)
   local `service_taxonomies` 스냅샷 기준으로 `compat_unified_category` 와 canonical summary(`youth_major_label`, `gov24_*`) 사이 drift/공백/legacy raw 복사 흔적을 확인합니다.
 

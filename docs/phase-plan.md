@@ -1266,6 +1266,9 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - 2026-05-01 admin forced logout legacy error 정책 고정
   - [auth-admin-forced-logout-legacy-error-policy.md](./auth-admin-forced-logout-legacy-error-policy.md) 를 추가해 forced logout 보호 경계에서 `iatm` 없는 legacy admin access token은 `401 / A006` 으로 통일한다고 고정했다
   - 즉 다음 액션은 이 `A006` 을 filter에서 바로 낼지, 별도 forced-logout guard helper에서 낼지 구현 위치를 정하는 쪽으로 좁힌다
+- 2026-05-01 admin forced logout 구현 위치 정책 고정
+  - [auth-admin-forced-logout-implementation-location.md](./auth-admin-forced-logout-implementation-location.md) 를 추가해 차단 판단 시점은 `JwtAuthenticationFilter`, 비교 로직은 dedicated helper/service 로 두는 방향을 고정했다
+  - 즉 다음 액션은 helper/service의 최소 인터페이스를 정하고, 그다음 실제 `JwtUtil` / Redis / filter wiring 구현으로 내려가는 쪽으로 좁힌다
 
 ## 작업 추적
 

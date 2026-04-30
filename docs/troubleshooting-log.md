@@ -1377,3 +1377,8 @@
 - 문제: rollout 정책을 정한 뒤에도 legacy admin access token을 어떤 에러로 노출할지가 남는다. 여기서 `A001` 을 쓰면 “토큰 형식이 깨졌다”와 “이 보호 경계에서 더 이상 인증된 세션으로 보지 않는다”가 같은 의미처럼 보이게 된다
 - 해결: [auth-admin-forced-logout-legacy-error-policy.md](./auth-admin-forced-logout-legacy-error-policy.md) 를 추가해 forced logout 보호 경계의 legacy admin access token은 `401 / A006` 으로 통일한다고 고정했다
 - 이유: logout revoke와 withdraw old token도 이미 `A006` 으로 수렴한다. forced logout도 같은 보호 API 차단 계열로 맞춰야 운영/테스트/문서가 덜 갈라지고, 사용자 의미도 “재로그인 필요”로 더 자연스럽다
+
+## 274) forced logout 비교를 controller/service guard로 내리면 보호 경로별 누락과 business/auth 경계 혼합이 생기므로, 판단 시점은 filter에 두고 로직만 helper로 분리하는 편이 낫다
+- 문제: Redis shape, `iatm`, legacy/error 정책까지 정한 뒤에도 구현 위치를 애매하게 두면 `/api/admin/**`, `/api/users/**`, `/api/recommendations/**` 경로마다 forced logout guard가 다시 흩어질 수 있다
+- 해결: [auth-admin-forced-logout-implementation-location.md](./auth-admin-forced-logout-implementation-location.md) 를 추가해 차단 판단 시점은 `JwtAuthenticationFilter`, 세부 비교 로직은 dedicated helper/service 로 두는 방향으로 고정했다
+- 이유: forced logout은 auth-layer concern이라 SecurityContext 세우기 전에 봐야 하고, 동시에 filter 본문에 Redis/JWT 비교 세부를 모두 넣으면 비대해진다. 시점과 로직을 이렇게 분리해야 누락 surface와 복잡도를 같이 줄일 수 있다
