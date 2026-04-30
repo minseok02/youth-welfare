@@ -3,7 +3,7 @@ package com.example.welfare.global.config;
 import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.global.response.ApiResponse;
 import com.example.welfare.global.util.JwtUtil;
-import com.example.welfare.user.service.AccessTokenRevocationService;
+import com.example.welfare.user.service.UserSessionRevocationService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
@@ -30,7 +30,7 @@ import java.util.List;
 public class SecurityConfig {
 
     private final JwtUtil jwtUtil;
-    private final AccessTokenRevocationService accessTokenRevocationService;
+    private final UserSessionRevocationService userSessionRevocationService;
     private final ObjectMapper objectMapper;
 
     @Bean
@@ -95,7 +95,7 @@ public class SecurityConfig {
                         ).permitAll()
                         .anyRequest().authenticated()
                 )
-                .addFilterBefore(new JwtAuthenticationFilter(jwtUtil, accessTokenRevocationService),
+                .addFilterBefore(new JwtAuthenticationFilter(jwtUtil, userSessionRevocationService),
                         UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

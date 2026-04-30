@@ -10,6 +10,7 @@ import com.example.welfare.user.repository.UserPiiSyncQueueRepository;
 import com.example.welfare.user.repository.UserProfileRepository;
 import com.example.welfare.user.repository.UserRepository;
 import com.example.welfare.user.service.AuthService;
+import com.example.welfare.user.service.UserSessionRevocationService;
 import com.example.welfare.user.service.UserCoreSyncService;
 import com.example.welfare.user.util.EmailLookupKeyGenerator;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -88,6 +89,9 @@ class AdminSecurityIntegrationTest {
     @Autowired
     private AuthService authService;
 
+    @Autowired
+    private UserSessionRevocationService userSessionRevocationService;
+
     @MockBean
     private CollectService collectService;
 
@@ -102,6 +106,7 @@ class AdminSecurityIntegrationTest {
                     String userKey = userRepository.findUserKeyById(user.getId()).orElse(null);
                     if (userKey != null) {
                         redisTemplate.delete("refresh:" + userKey);
+                        redisTemplate.delete("access-cutoff:" + userKey);
                         userPiiSyncQueueRepository.deleteByUserKey(userKey);
                     }
                     redisTemplate.delete("refresh:" + user.getId());
@@ -230,6 +235,33 @@ class AdminSecurityIntegrationTest {
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.errorCode").value("C003"));
+    }
+
+    @Test
+    @DisplayName("forced logout cutoff 이후 old admin access token은 차단되고 재로그인 access token은 통과한다")
+    void forcedLogoutCutoffBlocksOldAdminAccessTokenButAllowsRelogin() throws Exception {
+        doNothing().when(collectService).collect(CollectSource.YOUTH);
+        User adminUser = createUser(ADMIN_EMAIL);
+
+        String oldAdminAccessToken = loginAndExtractAccessToken(adminUser.getEmail(), TEST_PASSWORD);
+        String adminUserKey = userRepository.findUserKeyById(adminUser.getId()).orElseThrow();
+        long cutoffMillis = jwtUtil.getIssuedAtMillis(oldAdminAccessToken);
+
+        userSessionRevocationService.revokeUserSessions(adminUserKey, cutoffMillis);
+
+        mockMvc.perform(post("/api/admin/collect/youth")
+                        .header("Authorization", "Bearer " + oldAdminAccessToken))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("A006"));
+
+        Thread.sleep(10L);
+        String reloginAccessToken = loginAndExtractAccessToken(adminUser.getEmail(), TEST_PASSWORD);
+
+        mockMvc.perform(post("/api/admin/collect/youth")
+                        .header("Authorization", "Bearer " + reloginAccessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
     }
 
     private User createUser(String email) {

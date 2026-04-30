@@ -1295,6 +1295,10 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
   - [UserSessionRevocationService.java](../backend/src/main/java/com/example/welfare/user/service/UserSessionRevocationService.java) 를 추가해 `AccessTokenRevocationService` composition, `refresh:{userKey}` delete, `access-cutoff:{userKey}` write, `iatm` 기반 allow/deny read path를 한 서비스로 묶었다
   - [UserSessionRevocationServiceTest.java](../backend/src/test/java/com/example/welfare/user/service/UserSessionRevocationServiceTest.java) 로 `exact revoke`, `no cutoff`, `before/after cutoff`, `legacy token without iatm` 계약을 고정했다
   - 즉 다음 액션은 이 skeleton 을 `JwtAuthenticationFilter` 에 wiring 해서 실제 보호 경계에서 `A006` 으로 수렴시키는 것이다
+- 2026-05-01 admin forced logout filter wiring 추가
+  - [JwtAuthenticationFilter.java](../backend/src/main/java/com/example/welfare/global/config/JwtAuthenticationFilter.java) 가 이제 `UserSessionRevocationService` 의 `isAccessAllowed(...)` 를 auth gate에서 호출하고, deny 시 기존과 같이 SecurityContext를 비워 보호 API에서 `401 / A006` 으로 수렴한다
+  - [AdminSecurityIntegrationTest.java](../backend/src/test/java/com/example/welfare/integration/AdminSecurityIntegrationTest.java) 에 `forced logout cutoff 이후 old admin access token은 차단되고 재로그인 access token은 통과` smoke를 추가해 old token `401`, relogin token `200` 경계를 고정했다
+  - 즉 다음 액션은 service direct call 대신 실제 `POST /api/admin/users/forced-logout` write path를 연결하는 것이다
 
 ## 작업 추적
 

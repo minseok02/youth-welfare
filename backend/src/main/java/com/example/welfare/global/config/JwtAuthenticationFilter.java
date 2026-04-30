@@ -2,9 +2,8 @@ package com.example.welfare.global.config;
 
 import com.example.welfare.global.auth.AuthenticatedUser;
 import com.example.welfare.global.exception.CustomException;
-import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.global.util.JwtUtil;
-import com.example.welfare.user.service.AccessTokenRevocationService;
+import com.example.welfare.user.service.UserSessionRevocationService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -21,7 +20,7 @@ import java.io.IOException;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtUtil jwtUtil;
-    private final AccessTokenRevocationService accessTokenRevocationService;
+    private final UserSessionRevocationService userSessionRevocationService;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -31,10 +30,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         if (StringUtils.hasText(token)) {
             try {
-                if (accessTokenRevocationService.isRevoked(token)) {
-                    throw new CustomException(ErrorCode.INVALID_TOKEN);
-                }
                 jwtUtil.validate(token);
+                if (!userSessionRevocationService.isAccessAllowed(token)) {
+                    throw new CustomException(com.example.welfare.global.exception.ErrorCode.UNAUTHORIZED);
+                }
                 AuthenticatedUser authenticatedUser = jwtUtil.getAuthenticatedUser(token);
                 UsernamePasswordAuthenticationToken auth =
                         new UsernamePasswordAuthenticationToken(authenticatedUser, null, jwtUtil.getAuthorities(token));
