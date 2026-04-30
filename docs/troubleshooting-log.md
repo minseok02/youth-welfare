@@ -1007,3 +1007,8 @@
 - 문제: 이번 local replay에서 `flag off` 와 `flag on` 결과가 sample A/B, C/D 모두 동일하게 나왔다. 이때 helper 구현이나 config wiring이 잘못됐다고 바로 판단하면, 실제 원인이 `compat=기타 + youth_major=교육` target row가 retrieval/result set에 전혀 들어오지 않은 sample miss였다는 점을 놓칠 수 있다
 - 해결: replay 절차에 `sample A` 는 DB inventory 상 후보 존재가 아니라 실제 `POST /api/recommendations/refresh` 결과 집합 안에 target row가 최소 1건 들어오는 사용자여야 한다는 preflight를 추가했다. 이번 결과는 “실험 무해성”까지만 통과로 기록하고, 후속 작업을 `target row replay sample inventory 재작성` 으로 분리했다
 - 이유: narrow priority experiment는 scoring bonus를 추가하는 구조라, target row가 candidate/result set에 없으면 flag를 켜도 반드시 no-op다. 이 경우 구현 실패와 sample selection 실패를 구분하지 않으면 잘못된 디버깅으로 이어진다
+
+## 200) `교육` target row inventory를 많이 찾았다고 곧바로 positive replay sample이 생기는 건 아니고, `0/0 age` 같은 retrieval gate 때문에 DB pool과 실제 결과 집합 사이에 큰 단절이 생길 수 있음
+- 문제: local DB에는 `compat=기타 + youth_major=교육` row가 `102`건 있고, 일부 region은 age-pass target pool도 `9~12`건씩 있었다. 하지만 `16 regions × 2 ages` replay scan에서 결과 집합 hit는 전부 `0` 이었다. 단순히 “target row가 region에 많다”는 inventory만 보면 다음 sample을 더 찍으면 될 것처럼 보이지만, 실제로는 `min_age=0 AND max_age=0` literal gate와 candidate/result 조성 경계 때문에 DB pool과 결과 집합 사이가 크게 끊겨 있었다
+- 해결: 별도 inventory 문서로 `target_total / age-pass / zero-zero` 분포와 replay scan 결과(`32`조합 전부 `target_hits=0`)를 같이 고정했다. 동시에 다음 작업도 `sample 추가 탐색`이 아니라 `RetrievalService -> candidate pool -> youth filter -> final saved recommendations` 경계 추적으로 승격했다
+- 이유: narrow experiment는 target row가 결과 집합에 들어와야만 효과를 볼 수 있다. DB inventory만 보고 sample을 더 찍는 방식은 비용만 들고 원인 분리에 도움이 적으므로, gate/후처리 경계를 먼저 추적하는 편이 더 정확하다

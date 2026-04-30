@@ -91,6 +91,9 @@
 - [policy-normalization-education-priority-replay-procedure.md](./policy-normalization-education-priority-replay-procedure.md)
   `교육 -> 교육·직업훈련` narrow experiment 구현 후 local에서 `flag off/on` 추천 refresh를 어떤 명령 순서로 비교할지 확인합니다.
 
+- [policy-normalization-education-target-sample-inventory.md](./policy-normalization-education-target-sample-inventory.md)
+  `compat=기타 + youth_major=교육` target row가 실제 추천 결과 집합에 들어오는 local replay sample이 현재 있는지와, region/age scan 결과를 확인합니다.
+
 - [policy-source-onboarding-playbook.md](./policy-source-onboarding-playbook.md)
   실제 DB 적재 스냅샷을 기준으로 일자리/주거/장학/공공서비스 source를 `정책형 / listing형 / reference형` 으로 어떻게 나눠 붙일지 확인합니다.
 
@@ -166,6 +169,7 @@
 - [runtime-api-smoke-commands.md](./runtime-api-smoke-commands.md)
 - [github-workflow.md](./github-workflow.md)
 - [phase-plan.md](./phase-plan.md)
+- [policy-normalization-education-target-sample-inventory.md](./policy-normalization-education-target-sample-inventory.md)
 - [policy-normalization-sample-spike.md](./policy-normalization-sample-spike.md)
 - [policy-source-onboarding-playbook.md](./policy-source-onboarding-playbook.md)
 - [policy-normalization-fact-merge-rules.md](./policy-normalization-fact-merge-rules.md)
