@@ -1233,8 +1233,8 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - [ ] 복지로 detail refresh budget metadata(`centralBudget`/`localBudget`) 를 admin collect observability에 노출할지 결정
 - [ ] `bokjiro-details-gap-fill` 추가 라운드/호출 예산 전략 정리 후 stored detail payload coverage 추가 확대
 - [ ] same `promptSha256` + same `replaySeed` + same `system_fingerprint` 조건에서도 `ai_score` drift가 남는 현상을 제품적으로 어떻게 다룰지 결정
-- [ ] nightly cleanup step 을 replay cron 후단에 둘지 별도 cron 으로 분리할지 결정
 - [ ] nightly summary file line format 을 실제 script/env contract로 어떻게 노출할지 결정
+- [ ] nightly cleanup cron 을 어떤 명령/경로 계약으로 둘지 결정
 - [ ] `참여권리` 의 `청년참여` subset만 별도 bridge 후보로 분리할지 결정
 - [ ] 복지로 `threshold_like` income signal(`13`건) 을 `INCOME_*` hard fact 가 아닌 optional soft signal schema 로 분리할지 결정
 - [ ] 복지로 live detail 응답에 신청마감 explicit field가 있는지 재확인하고, 없으면 `BK_APPLY_END_DATE` 는 canonical collect path에서 optional fact로 유지
@@ -1271,6 +1271,7 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - [x] `real-openai` nightly artifact/result summary 를 host-local append-only summary file 을 1차 채널로 공유할지 결정
 - [x] `real-openai` nightly artifact / summary file 의 host-local 경로와 rotate 기본값 결정
 - [x] nightly summary file에 append 할 필드 집합 결정
+- [x] nightly cleanup step 을 replay cron 후단이 아니라 별도 cron 으로 분리할지 결정
 - [x] 복지로 detail/backfill 후에도 `service_facts` 가 `81 / 1335` row(6.1%)에 머무는 원인 분석 및 age fallback coverage 보강 여부 검토
 - [x] 복지로 detail raw payload 의 `applyMethodDetail` date signal 부재 시 `BK_APPLY_END_DATE` fallback 확대 여부 결정
 - [x] 복지로 detail 본문의 `기초생활수급자` / `차상위계층` whitelist 를 canonical `TARGET_GROUP` soft taxonomy 로 실제 적재

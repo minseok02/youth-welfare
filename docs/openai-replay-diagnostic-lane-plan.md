@@ -295,3 +295,26 @@ ts=2026-04-30T23:10:00+09:00 mode=real-openai A_top10_target=1->7 B_top10_target
 - top-10 row title dump
 
 이 값들은 한 줄 요약보다 artifact dir 안의 상세 파일에서 보는 편이 맞습니다.
+
+## 권장 cleanup 실행 경계
+
+cleanup 은 replay cron 후단에 섞지 않고,
+**별도 daily cleanup cron** 으로 분리하는 편이 맞습니다.
+
+권장 이유:
+
+1. replay 실패와 retention 정리를 분리할 수 있습니다.
+2. cleanup 실패가 replay 결과 성공/실패를 가리지 않습니다.
+3. summary file/artifact 디렉터리 정리 로직을 독립적으로 재실행하기 쉽습니다.
+
+즉 권장 구조는:
+
+1. replay cron
+   - replay 실행
+   - artifact 생성
+   - summary line append
+2. cleanup cron
+   - `30일` 초과 summary file 정리
+   - `14일` 초과 artifact dir 정리
+
+현재 단계에서는 이 둘을 같은 스크립트 후단에 묶지 않는 것이 맞습니다.

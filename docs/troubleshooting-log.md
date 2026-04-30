@@ -1172,3 +1172,8 @@
 - 문제: nightly summary file 한 줄에 너무 많은 필드를 넣으면 grep/scan 은 쉬워지지 않고, 오히려 `ai_score`, `responseId`, raw fingerprint 같은 노이즈가 늘어나 첫 판단이 느려질 수 있다
 - 해결: [openai-replay-diagnostic-lane-plan.md](./openai-replay-diagnostic-lane-plan.md) 와 [policy-normalization-education-priority-replay-procedure.md](./policy-normalization-education-priority-replay-procedure.md)에 summary line 최소 필드를 `ts`, `mode`, `A/B_top10_target`, `A/B_target_total`, `A/B_fp`, `artifact_dir` 로 고정했다
 - 이유: 현재 운영 판단은 target count와 fingerprint relation이 먼저고, row-level score/response metadata는 warning 이후 artifact에서 보는 것이 맞다. summary line은 “한 줄 triage” 에 집중해야 한다
+
+## 233) retention cleanup은 replay cron 후단보다 별도 cron으로 분리하는 편이 실패 원인과 정리 책임을 더 깔끔하게 나눈다
+- 문제: replay 실행과 cleanup 삭제를 같은 cron 후단에 묶으면, cleanup 실패가 replay 자체 실패처럼 보이거나, replay 실패 시 cleanup이 건너뛰어 보존 정책이 흔들릴 수 있다
+- 해결: [openai-replay-diagnostic-lane-plan.md](./openai-replay-diagnostic-lane-plan.md)에 cleanup을 `별도 daily cleanup cron` 으로 분리하는 정책을 반영했고, phase-plan 다음 작업도 cleanup cron 명령/경로 계약 정리로 좁혔다
+- 이유: replay cron은 artifact 생성과 summary append에만 집중하고, cleanup cron은 보존기간 enforcement에만 집중해야 운영자가 실패 원인을 바로 분리할 수 있다. 역할을 나누는 편이 재실행과 디버깅도 단순하다
