@@ -1402,3 +1402,8 @@
 - 문제: helper 이름과 메서드명을 정한 뒤에도 구조를 성급하게 합치면 `revoke(token)` 과 `revokeUserSessions(userKey, cutoffMillis)` 가 같은 서비스에 놓여 책임 경계가 흐려질 수 있다
 - 해결: [auth-admin-forced-logout-service-structure-policy.md](./auth-admin-forced-logout-service-structure-policy.md) 를 추가해 `UserSessionRevocationService` 를 새 클래스로 두고, 기존 `AccessTokenRevocationService` 와는 composition 관계를 유지한다고 고정했다
 - 이유: logout/withdraw exact-token revoke는 이미 안정화된 경계이고, forced logout은 별도 user-session revoke 경계다. 구현 diff를 작게 유지하려면 sibling 서비스 + composition이 가장 안전하다
+
+## 279) forced logout 서비스에 repository/chat cleanup 같은 dependency를 처음부터 많이 넣으면 revoke 핵심 경계가 다시 커지므로, package는 기존 `user.service` 에 두되 생성자 dependency는 Redis/JWT/exact-revoke로 최소화하는 편이 낫다
+- 문제: 새 `UserSessionRevocationService` 구조를 정한 뒤에도 package를 새로 뽑거나 `UserRepository`, `ChatSessionCleanupService`, `UserCoreSyncService` 같은 dependency를 한 번에 넣으면 이번 hardening task가 다시 구조 개편으로 번질 수 있다
+- 해결: [auth-admin-forced-logout-package-dependencies-policy.md](./auth-admin-forced-logout-package-dependencies-policy.md) 를 추가해 package는 `user.service`, 최소 dependency는 `RedisTemplate<String, String>`, `JwtUtil`, `AccessTokenRevocationService` 로 고정했다
+- 이유: 1차 forced logout baseline의 본질은 access/refresh revoke다. DB state 변경이나 chat cleanup까지 같이 열지 말고, 기존 auth/user service 층 안에서 최소 dependency로 시작해야 구현 diff와 회귀 범위를 줄일 수 있다

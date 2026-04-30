@@ -1281,6 +1281,9 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - 2026-05-01 admin forced logout service structure 정책 고정
   - [auth-admin-forced-logout-service-structure-policy.md](./auth-admin-forced-logout-service-structure-policy.md) 를 추가해 `UserSessionRevocationService` 를 새 클래스로 두고, 기존 `AccessTokenRevocationService` 와는 composition 관계로 유지한다고 고정했다
   - 즉 다음 액션은 `UserSessionRevocationService` 의 package 위치와 최소 dependency 집합을 정하는 쪽으로 좁힌다
+- 2026-05-01 admin forced logout package/dependencies 정책 고정
+  - [auth-admin-forced-logout-package-dependencies-policy.md](./auth-admin-forced-logout-package-dependencies-policy.md) 를 추가해 `UserSessionRevocationService` 를 `user.service` 패키지에 두고, 1차 생성자 dependency를 `RedisTemplate<String, String>`, `JwtUtil`, `AccessTokenRevocationService` 로 제한한다고 고정했다
+  - 즉 다음 액션은 `JwtUtil` helper를 먼저 추가할지, service skeleton을 먼저 만들지 구현 순서를 정하는 쪽으로 좁힌다
 
 ## 작업 추적
 
