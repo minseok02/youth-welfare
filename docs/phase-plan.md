@@ -1259,11 +1259,15 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
   - 추천 본체의 canonical 이행 순서는 `repository semantics -> retrieval hydrate -> scoring bridge -> matcher bridge` 로 고정했다
   - `WelfareServiceRepository.findCandidates*` 는 candidate pool pass/fail 의미를 먼저 안정화하는 단계이고, `RetrievalService` 는 legacy 후보 리스트를 유지한 채 canonical projection hydrate 만 붙이는 단계로 본다
   - `RuleScoringService` 는 raw `ServiceTag` fallback과 canonical projection을 OR 방식으로 병행 소비하고, `DefaultPriorityMatcher` 는 가장 마지막에 stored compat / applyEndDate만 좁게 읽도록 유지한다
+- [x] `TextConstraintExtractor` 를 `service_facts` 저장 규격에 맞춘 출력 모델로 재설계
+  - 현재 `TextConstraintExtractor` 는 `COND_*` 문자열 토큰과 `ConstraintSummary` 를 함께 제공하지만, canonical sidecar 기준으로는 `fact_group`, `fact_merge_key`, typed value, `sourceField`, `authority`, `confidence`, `raw/evidence` 를 가진 typed fact candidate 출력이 주 계약이 되어야 한다고 정리했다
+  - 다음 인터페이스는 `SourceText(sourceField, text)` 입력과 `ExtractedFactCandidate` 목록 출력을 기본으로 하고, legacy `COND_*` 토큰은 필요 시 adapter helper에서만 파생하는 구조로 좁힌다
+  - 이번 단계에서는 `AGE / INCOME / RENT_CAP / APPLY_END_DATE` 만 우선 다루고, employment/education/household/special-group text fact 는 후속 단계로 남긴다
 - [ ] `YOUTH_MID` stable code mapping SQL 초안 작성
 - [ ] `GOV24_SERVICE_FIELD`, `GOV24_USER_TYPE`, `GOV24_BENEFIT_TYPE` 공식 label inventory import/backfill SQL 초안 작성
 - [ ] `GOV24_SUPPORT_CONDITION` 전체 code inventory 확장 및 `service_facts` backfill 초안 작성
 - [x] `compat_unified_category` 를 저장 필드로 둘지 read-model 계산값으로 둘지 최종 결정
-- [ ] `TextConstraintExtractor` 를 `service_facts` 저장 규격에 맞춘 출력 모델로 재설계
+- [x] `TextConstraintExtractor` 를 `service_facts` 저장 규격에 맞춘 출력 모델로 재설계
 - [x] `WelfareServiceRepository.findCandidates*`, `RetrievalService`, `RuleScoringService`, `DefaultPriorityMatcher` 의 점진 이행 순서 설계
 - [x] `unifiedCategory` 응답 계약을 유지하면서 taxonomy/read-model 로 브릿지하는 호환 전략 작성
 - [ ] 신규 source의 source-specific 필드를 raw + AI batch enrichment fact 로 흡수하는 파이프라인 초안 작성
