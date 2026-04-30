@@ -837,3 +837,8 @@
 - 문제: gap fill 후 no-fact sample 분석에서 residual `age-like` candidate 는 사실상 `청년내일저축계좌` 한 건뿐이었지만, 본문 패턴이 `만 15세~만 40세` 였다. 기존 `AGE_RANGE` 는 첫 번째 bound 앞의 `만` 만 허용하고 두 번째 bound는 `40세` 형태만 잡았기 때문에, precision을 해치지 않는 좁은 보강 여지가 남아 있었다
 - 해결: `TextConstraintExtractor.AGE_RANGE` 를 `(?:만\\s*)?(\\d{1,2})(?:\\s*세)? ... (?:만\\s*)?(\\d{1,2})\\s*세` 형태로 보강하고 `TextConstraintExtractorTest` 회귀 케이스를 추가했다. 이후 stored raw payload replay integration 을 다시 태워 local DB에서 복지로 `service_facts` 가 `103 -> 104`, `BK_AGE_ELIGIBILITY` 가 `BOKJIRO_CENTRAL 52`, `BOKJIRO_LOCAL 52` 로 증가한 것을 확인했다
 - 이유: 광범위한 regex 확장은 피해야 하지만, 실측 sample 하나가 실제 청년 정책 행이고 패턴도 매우 좁게 정의될 수 있다면 그런 residual은 선택적으로 흡수하는 편이 precision/coverage 균형에 맞다. “남은 게 거의 없으니 아예 안 건드린다”와 “광범위하게 다 넓힌다” 사이에서 source snapshot에 맞는 최소 보강을 택하는 것이 재발 방지에 안전하다
+
+## 166) 복지로 no-fact detail 의 income-like signal 은 숫자 threshold와 수급자/차상위 자격이 한 버킷에 섞여 있고, threshold 쪽도 분기 조건이 많아 현재 canonical `INCOME_*` hard fact 로 바로 승격하면 의미가 쉽게 깨질 수 있음
+- 문제: `second-bound 만` 보강 뒤 남은 no-fact 복지로 detail 을 다시 분류해 보니 income/beneficiary soft candidate 가 `49`건이었고, 구성은 `beneficiary_only 28`, `threshold_like 13`, `low_income_label 7`, `won_threshold 1`, `other 2` 였다. `threshold_like 13` 건도 `신혼/2자녀/출산/맞벌이/우대형/일반형/개별심사` 같은 분기 케이스가 `4`건, 다중 `% 이하` threshold 가 `3`건, 다중 `만원 이하` threshold 가 `1`건 섞여 있어 단일 `INCOME_PCT` 또는 `INCOME_WON` 값으로 접기 어려웠다
+- 해결: 이번 단계에서는 복지로 income-like row를 canonical hard fact 로 승격하지 않고, `phase-plan` 과 `db-migration` 에 “`beneficiary_only` 는 soft taxonomy 검토”, “`threshold_like` 는 optional soft signal 검토”로 작업을 분리해 기록했다
+- 이유: 현재 canonical facts 는 추천 hard filter 로도 재사용될 수 있어, 조건 분기와 자격 라벨이 섞인 source 신호를 성급히 숫자 fact 로 평탄화하면 false negative/false positive 둘 다 커질 수 있다. 먼저 의미가 안정적인 soft bucket 으로 나눠 설계하는 편이 재발 방지와 추천 품질 측면에서 안전하다

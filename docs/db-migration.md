@@ -90,6 +90,8 @@ WHERE ws.source_type IN ('BOKJIRO_CENTRAL', 'BOKJIRO_LOCAL'); -- 103
 
 추가 샘플링 결과 `detail raw payload 는 있지만 service_facts 는 없는 복지로 서비스` 는 `130`건(`BOKJIRO_CENTRAL 48`, `BOKJIRO_LOCAL 82`)이었다. 이 집합에서 `income-like` text signal 은 `40`, `date-like` 는 `2`, strict `age-like` residual candidate 는 `1`건(`청년내일저축계좌` 의 `만 15세~만 40세`) 수준이었다. 따라서 다음 보강 우선순위는 광범위한 age regex 확대보다 `second-bound 만` 패턴 처리와 `income-like` soft fact 전략 검토에 가깝다.
 
+`second-bound 만` residual을 처리한 최신 snapshot 기준으로는 `detail raw payload 는 있지만 service_facts 는 없는 복지로 서비스` 가 `129`건(`BOKJIRO_CENTRAL 47`, `BOKJIRO_LOCAL 82`)이며, 이 중 income/beneficiary soft candidate pool 은 `49`건이다. 세부 구성은 `beneficiary_only 28`, `threshold_like 13`, `low_income_label 7`, `won_threshold 1`, `other 2` 였다. 특히 `threshold_like 13` 건에는 `신혼/2자녀/출산/맞벌이/우대형/일반형/개별심사` 같은 분기 케이스 `4`건, 다중 `% 이하` threshold `3`건, 다중 `만원 이하` threshold `1`건이 섞여 있어, 현재 단계에서 이를 canonical `INCOME_PCT` / `INCOME_WON` hard fact 로 직접 승격하면 의미 손실이 크다. 따라서 복지로 income-like signal 은 즉시 hard fact 로 올리지 않고, 후속 작업을 `beneficiary-like` soft taxonomy 와 `threshold-like` optional soft signal 설계로 분리한다.
+
 추가 확인 결과 `targetDetail/supportDetail/selectionCriteria` 의 date-like token 수는 `4 / 1 / 1` 이었지만, 샘플은 출생연도 범위나 혜택 적용기간처럼 신청마감이 아닌 날짜가 대부분이었다. 따라서 현재 canonical collect path 에서는 `BK_APPLY_END_DATE` 를 optional fact 로 유지하고, `targetDetail/selectionCriteria` 까지 deadline fallback 을 넓히지 않는다.
 
 - 파일: [`backend/src/main/resources/db/migration/V2026_04_28_02__add_user_pii_sync_queue.sql`](../backend/src/main/resources/db/migration/V2026_04_28_02__add_user_pii_sync_queue.sql)
