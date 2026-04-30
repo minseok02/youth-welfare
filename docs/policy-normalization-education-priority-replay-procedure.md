@@ -85,6 +85,8 @@ deploy/smoke/run-local-education-priority-replay.sh
     `A_target_total`, `B_target_total`, `A_fp`, `B_fp`, `artifact_dir` 로 제한한다
 15. 실제 append 는 `REPLAY_SUMMARY_APPEND_FILE=/path/to/nightly-summary-YYYY-MM-DD.log`
     env 로 켜고, 필요하면 `REPLAY_SUMMARY_TS` 로 기록 시각을 wrapper 에서 명시한다
+16. ops host nightly 실행은 직접 env 를 길게 붙이기보다
+    `deploy/smoke/run-nightly-openai-replay.sh` wrapper 를 기본 진입점으로 쓴다
 
 real OpenAI 호출이 정말 필요하면 아래처럼 명시적으로 opt-in 합니다.
 

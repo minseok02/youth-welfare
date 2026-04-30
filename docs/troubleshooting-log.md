@@ -1187,3 +1187,8 @@
 - 문제: cleanup 을 별도 cron 으로 분리하기로 했어도, 실제 명령/경로/env 계약이 없으면 다음 단계에서 replay wrapper 안으로 다시 밀어 넣거나, host마다 다른 `find`/`rm` 명령을 쓰게 될 수 있다
 - 해결: [cleanup-openai-replay-artifacts.sh](/home/minseok/youth-welfare/deploy/smoke/cleanup-openai-replay-artifacts.sh) 를 추가하고, [openai-replay-diagnostic-lane-plan.md](./openai-replay-diagnostic-lane-plan.md)에 `REPLAY_LOG_ROOT`, `SUMMARY_RETENTION_DAYS`, `ARTIFACT_RETENTION_DAYS`, `DRY_RUN` 계약과 실행 예시를 같이 고정했다
 - 이유: replay cron 과 cleanup cron 의 책임을 실제 파일 단위로 분리해 두어야 역할이 다시 섞이지 않는다. cleanup 도 스크립트로 고정해야 운영자가 dry-run, retention 변경, 수동 재실행을 같은 계약으로 다룰 수 있다
+
+## 236) nightly replay도 cron entry에서 긴 env/경로 조합을 직접 쓰기보다 wrapper 스크립트로 한 번 감싸는 편이 안전하다
+- 문제: nightly replay는 `USE_REAL_OPENAI_FOR_REPLAY`, `KEEP_ARTIFACTS`, `ARTIFACT_DIR`, `REPLAY_SUMMARY_APPEND_FILE`, `REPLAY_SUMMARY_TS` 등을 같이 맞춰야 해서, cron line에 직접 길게 쓰면 host마다 오타/경로 불일치가 나기 쉽다
+- 해결: [run-nightly-openai-replay.sh](/home/minseok/youth-welfare/deploy/smoke/run-nightly-openai-replay.sh) 를 추가해 nightly 기본값을 wrapper가 계산하도록 하고, [openai-replay-diagnostic-lane-plan.md](./openai-replay-diagnostic-lane-plan.md) 와 [policy-normalization-education-priority-replay-procedure.md](./policy-normalization-education-priority-replay-procedure.md)에 이를 기본 진입점으로 고정했다
+- 이유: cleanup 과 replay 둘 다 cron에서 바로 호출될 예정이면, 각자의 env/경로 계약이 스크립트에 모여 있어야 운영자가 cron line에서 “무엇을 호출하는지”만 보면 된다. wrapper를 두는 편이 host 간 drift를 줄인다

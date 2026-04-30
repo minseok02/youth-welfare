@@ -319,6 +319,35 @@ KEEP_ARTIFACTS=true \
 deploy/smoke/run-local-education-priority-replay.sh
 ```
 
+## nightly replay wrapper command/env contract
+
+ops cron host에서는 아래 wrapper를 기본 진입점으로 둡니다.
+
+- [run-nightly-openai-replay.sh](/home/minseok/youth-welfare/deploy/smoke/run-nightly-openai-replay.sh)
+
+이 wrapper는 아래를 자동으로 정합니다.
+
+- `USE_REAL_OPENAI_FOR_REPLAY=true`
+- `KEEP_ARTIFACTS=true`
+- `ARTIFACT_DIR=/var/log/youth-welfare/openai-replay/artifacts/<UTC timestamp>`
+- `REPLAY_SUMMARY_APPEND_FILE=/var/log/youth-welfare/openai-replay/nightly-summary-YYYY-MM-DD.log`
+- `REPLAY_SUMMARY_TS=<local timestamp>`
+
+기본 명령 예시:
+
+```bash
+REPLAY_LOG_ROOT=/var/log/youth-welfare/openai-replay \
+deploy/smoke/run-nightly-openai-replay.sh
+```
+
+필요하면 아래 값만 override 합니다.
+
+- `RUN_TS_UTC`
+- `SUMMARY_DATE`
+- `REPLAY_SUMMARY_TS`
+- `ARTIFACT_DIR`
+- `REPLAY_SUMMARY_APPEND_FILE`
+
 ## 권장 cleanup 실행 경계
 
 cleanup 은 replay cron 후단에 섞지 않고,
