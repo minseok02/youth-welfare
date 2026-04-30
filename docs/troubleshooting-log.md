@@ -992,3 +992,8 @@
 - 문제: 실제 구현에 들어가면 helper를 `calcBaseScore(...)`, `DefaultPriorityMatcher`, facade, repository 등 여러 곳에 흩뿌리고 싶어질 수 있다. 하지만 이 실험은 category contract 변경이 아니라 `EDUCATION priority` 에 한해 weight candidate를 하나 더 인정하는 수준이라, 경계를 넓히면 실험보다 코드 영향 범위가 더 커질 수 있다
 - 해결: helper 이름은 `matchesEducationCanonicalPriorityExperiment(...)` 로 고정하고, 삽입 위치도 `RuleScoringService.applyPriorityWeight(...)` 의 `priorities.stream().filter(...)` 경계로 제한했다. 구현 권장 형태는 `priorityMatcher.matches(...) || helper(...)` 이고, 나머지 scoring slot은 건드리지 않는다
 - 이유: 현재 priority 가중치는 `match -> maxWeight -> base * maxWeight` 구조로 닫혀 있다. 이 구조에서 filter 조건만 좁게 확장하면 실험의 의미가 가장 잘 보존되고, regression test도 matcher/response 의미를 건드리지 않은 채 최소 범위로 작성할 수 있다
+
+## 197) narrow priority experiment replay는 app flag만 바꿔 재기동해야지, 중간에 collect/backfill/user 변경을 끼우면 flag 효과와 데이터 변화가 섞여 버림
+- 문제: `교육 -> 교육·직업훈련` 실험을 검증할 때 `flag off` 와 `flag on` 사이에 collect 재실행, sidecar backfill, user priority 수정, score weight 변경까지 같이 하면 top-N 차이가 생겨도 원인이 flag인지 데이터 변화인지 분리하기 어렵다
+- 해결: replay 절차를 `flag off 앱 기동 -> sample A/B refresh -> flag on 앱 재기동 -> 같은 sample A/B refresh` 순서로 고정했다. 비교 사이에는 collect/backfill/user 수정/score weight 변경을 금지하고, 같은 DB snapshot / 같은 user snapshot 유지까지 명시했다
+- 이유: 이 replay는 데이터 품질 재검증이 아니라 scoring bonus 실험 효과만 보는 절차다. 따라서 바뀌는 변수는 flag 하나여야 하며, control sample까지 같이 보는 편이 non-target 회귀를 빠르게 잡기 쉽다

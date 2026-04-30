@@ -88,6 +88,9 @@
 - [policy-normalization-education-priority-implementation-slot.md](./policy-normalization-education-priority-implementation-slot.md)
   `교육 -> 교육·직업훈련` narrow experiment를 실제 코드에 넣을 때 `RuleScoringService.applyPriorityWeight(...)` 어느 filter/helper 경계에 최소 diff로 끼울지 확인합니다.
 
+- [policy-normalization-education-priority-replay-procedure.md](./policy-normalization-education-priority-replay-procedure.md)
+  `교육 -> 교육·직업훈련` narrow experiment 구현 후 local에서 `flag off/on` 추천 refresh를 어떤 명령 순서로 비교할지 확인합니다.
+
 - [policy-source-onboarding-playbook.md](./policy-source-onboarding-playbook.md)
   실제 DB 적재 스냅샷을 기준으로 일자리/주거/장학/공공서비스 source를 `정책형 / listing형 / reference형` 으로 어떻게 나눠 붙일지 확인합니다.
 

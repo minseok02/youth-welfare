@@ -509,6 +509,10 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
   - helper 이름은 `matchesEducationCanonicalPriorityExperiment(...)` 로 고정했다. 이 helper는 단순 flag read가 아니라 `EDUCATION priority + compat=기타 + youth_major=교육 + flag on` eligibility 전체를 판정하므로 `is...Enabled` 보다 의미가 정확하다고 정리했다
   - slot 위치는 `RuleScoringService.applyPriorityWeight(...)` 내부 `priorities.stream().filter(...)` 경계로 고정했다. 구현은 `priorityMatcher.matches(...) || helper(...)` 형태의 최소 diff를 권장하고, `calcBaseScore(...)`, `DefaultPriorityMatcher`, repository, facade 쪽은 건드리지 않기로 했다
 - 2026-04-30 교육 priority experiment helper/slot 결정 후 `git diff --check`
+- 2026-04-30 `교육 -> 교육·직업훈련` 실험 sample replay 절차 명령 수준 구체화
+  - local replay 는 `flag off -> flag on` 두 번의 앱 기동과 같은 user snapshot 기준 `POST /api/recommendations/refresh` 비교로만 수행하기로 정리했다. sample A(`EDUCATION` priority + target row 포함)와 sample B(control) 를 같이 두고, top-10 `serviceId/title/unifiedCategory/finalScore` 비교까지 같은 절차에 포함했다
+  - `off -> on` 비교 사이에는 collect/backfill/user priority 수정/score weight 변경을 금지해 같은 candidate pool 을 최대한 유지하기로 고정했다. 즉 이번 replay 는 feature flag 효과만 보려는 절차이고 데이터 재적재 절차가 아니다
+- 2026-04-30 교육 priority experiment replay 절차 구체화 후 `git diff --check`
 - 2026-04-28 pre-28 migrated DB 기준 admin logout / refresh invalidation / relogin smoke
   - `SECURITY_ADMIN_EMAILS=admin.logout.smoke@example.com` 으로 최신 앱을 기동한 뒤, admin 계정 로그인과 프로필 수정으로 queue row를 `SYNCED` 상태까지 맞추고 `POST /api/auth/refresh` 가 먼저 성공하는 것 확인
   - 같은 cookie jar + access token으로 `POST /api/auth/logout` 호출 후 cookie jar에서 `refresh_token` 이 제거되고, 직후 `POST /api/auth/refresh` 가 `401`, `errorCode=A001` 로 막히는 것 확인
@@ -1119,8 +1123,8 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - [ ] 복지로 live detail 적재 기준 `welfare_service_details` / `service_facts` validation 리허설
 - [ ] 복지로 detail refresh budget metadata(`centralBudget`/`localBudget`) 를 admin collect observability에 노출할지 결정
 - [ ] `bokjiro-details-gap-fill` 추가 라운드/호출 예산 전략 정리 후 stored detail payload coverage 추가 확대
-- [ ] `교육 -> 교육·직업훈련` 실험 sample replay 절차를 실제 명령 수준으로 구체화
 - [ ] `교육 -> 교육·직업훈련` 실제 구현 PR에서 helper / filter diff 를 regression test와 함께 최소 변경으로 넣기
+- [ ] `교육 -> 교육·직업훈련` 실험 replay 결과를 캡처할 local smoke script 초안 작성 여부 결정
 - [ ] `참여권리` 의 `청년참여` subset만 별도 bridge 후보로 분리할지 결정
 - [ ] 복지로 `threshold_like` income signal(`13`건) 을 `INCOME_*` hard fact 가 아닌 optional soft signal schema 로 분리할지 결정
 - [ ] 복지로 live detail 응답에 신청마감 explicit field가 있는지 재확인하고, 없으면 `BK_APPLY_END_DATE` 는 canonical collect path에서 optional fact로 유지
@@ -1178,6 +1182,7 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - [x] `교육 -> 교육·직업훈련` 실험 bonus 를 `RuleScoringService` 안에서 어떤 config/feature flag key로 제어할지 결정
 - [x] `교육 -> 교육·직업훈련` 실험 켠 상태에서 sample top-N 변화와 explanation 확인 기준 정의
 - [x] `교육 -> 교육·직업훈련` 실제 구현 시 `RuleScoringService` 내부 helper 이름과 bonus slot 위치를 최소 diff로 확정
+- [x] `교육 -> 교육·직업훈련` 실험 sample replay 절차를 실제 명령 수준으로 구체화
 - [x] sidecar draft migration 적용 상태에서 기존 복지로 적재 데이터 detail refresh/backfill 후 `service_facts` density 재측정
 - [x] `NormalizedPolicySidecarBackfillService` 를 admin/manual 실행 경로로 노출
 - [x] 복지로 `raw_api_payloads` 기반 canonical sidecar backfill service 초안 작성

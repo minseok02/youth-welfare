@@ -1,0 +1,261 @@
+# `교육 -> 교육·직업훈련` priority 실험 sample replay 절차
+
+2026-04-30 기준 `교육 -> 교육·직업훈련` narrow experiment를 실제로 구현한 뒤,
+local 환경에서 `flag off` / `flag on` 결과를 같은 조건으로 비교하는 절차입니다.
+
+관련 문서:
+
+- [policy-normalization-education-priority-validation-criteria.md](./policy-normalization-education-priority-validation-criteria.md)
+- [policy-normalization-education-priority-flag-scope.md](./policy-normalization-education-priority-flag-scope.md)
+- [policy-normalization-education-priority-implementation-slot.md](./policy-normalization-education-priority-implementation-slot.md)
+- [runtime-api-smoke-commands.md](./runtime-api-smoke-commands.md)
+
+## 전제
+
+이 절차는 **실험 구현이 이미 들어간 뒤** 실행합니다.
+
+즉 아래 조건이 먼저 충족돼야 합니다.
+
+1. `RuleScoringService` 에 education experiment helper / flag read 구현 완료
+2. flag key `recommend.priority.education-canonical-bonus.enabled` 사용 가능
+3. local DB에 canonical sidecar 데이터가 이미 적재돼 있음
+
+## 원칙
+
+비교는 반드시 **같은 user snapshot / 같은 candidate pool** 을 최대한 유지한 상태에서 합니다.
+
+따라서 `off -> on` 비교 사이에 아래를 끼우지 않습니다.
+
+- collect 재실행
+- sidecar backfill 재실행
+- user profile 수정
+- user priorities 수정
+- score weight 변경
+- 다른 branch checkout
+
+즉:
+
+- 앱 설정만 바꿔 재기동
+- 같은 user로 추천 refresh 재호출
+
+만 허용합니다.
+
+## 준비
+
+### 1. DB/Redis 기동
+
+```bash
+docker compose up -d db redis
+```
+
+### 2. 실험 대상 사용자 준비
+
+권장:
+
+- sample A: `EDUCATION` priority 가 있고 `compat=기타 + youth_major=교육` 후보가 실제로 나오는 사용자
+- sample B: 같은 환경에서 `EDUCATION` priority 가 없거나 target row가 없는 control 사용자
+
+### 3. 공통 변수
+
+```bash
+export APP_BASE_URL="http://127.0.0.1:18082"
+
+export SAMPLE_A_EMAIL="education.sample@example.com"
+export SAMPLE_A_PASSWORD="Password123!"
+
+export SAMPLE_B_EMAIL="control.sample@example.com"
+export SAMPLE_B_PASSWORD="Password123!"
+
+export COOKIE_A="$(mktemp)"
+export COOKIE_B="$(mktemp)"
+export RESP_A_OFF="$(mktemp)"
+export RESP_A_ON="$(mktemp)"
+export RESP_B_OFF="$(mktemp)"
+export RESP_B_ON="$(mktemp)"
+```
+
+정리:
+
+```bash
+rm -f "$COOKIE_A" "$COOKIE_B" "$RESP_A_OFF" "$RESP_A_ON" "$RESP_B_OFF" "$RESP_B_ON"
+```
+
+## 1단계: flag `off` 로 앱 기동
+
+```bash
+cd backend
+RECOMMEND_PRIORITY_EDUCATION_CANONICAL_BONUS_ENABLED=false \
+SERVER_PORT=18082 \
+./gradlew bootRun --no-daemon
+```
+
+주의:
+
+- 실제 key 바인딩 이름은 구현 PR에서 정한 env alias에 맞춥니다
+- 비교 중에는 이 앱 프로세스를 유지합니다
+
+## 2단계: sample A 로그인 + 추천 refresh (`off`)
+
+```bash
+curl -sS \
+  -c "$COOKIE_A" \
+  -H 'Content-Type: application/json' \
+  -X POST "$APP_BASE_URL/api/auth/login" \
+  -d "{
+    \"email\": \"$SAMPLE_A_EMAIL\",
+    \"password\": \"$SAMPLE_A_PASSWORD\"
+  }" > /dev/null
+
+export ACCESS_TOKEN_A="$(curl -sS \
+  -c "$COOKIE_A" \
+  -H 'Content-Type: application/json' \
+  -X POST "$APP_BASE_URL/api/auth/login" \
+  -d "{
+    \"email\": \"$SAMPLE_A_EMAIL\",
+    \"password\": \"$SAMPLE_A_PASSWORD\"
+  }" | python3 -c 'import json,sys; print(json.load(sys.stdin)["data"]["accessToken"])')"
+```
+
+```bash
+curl -sS \
+  -H "Authorization: Bearer $ACCESS_TOKEN_A" \
+  -X POST "$APP_BASE_URL/api/recommendations/refresh" | tee "$RESP_A_OFF"
+```
+
+top-10 요약 추출:
+
+```bash
+python3 - "$RESP_A_OFF" <<'PY'
+import json, sys
+data = json.load(open(sys.argv[1], encoding="utf-8"))["data"][:10]
+for i, row in enumerate(data, 1):
+    print(i, row["serviceId"], row["title"], row["unifiedCategory"], row["finalScore"])
+PY
+```
+
+## 3단계: sample B 로그인 + 추천 refresh (`off`)
+
+```bash
+export ACCESS_TOKEN_B="$(curl -sS \
+  -c "$COOKIE_B" \
+  -H 'Content-Type: application/json' \
+  -X POST "$APP_BASE_URL/api/auth/login" \
+  -d "{
+    \"email\": \"$SAMPLE_B_EMAIL\",
+    \"password\": \"$SAMPLE_B_PASSWORD\"
+  }" | python3 -c 'import json,sys; print(json.load(sys.stdin)["data"]["accessToken"])')"
+```
+
+```bash
+curl -sS \
+  -H "Authorization: Bearer $ACCESS_TOKEN_B" \
+  -X POST "$APP_BASE_URL/api/recommendations/refresh" | tee "$RESP_B_OFF"
+```
+
+## 4단계: 앱 종료 후 flag `on` 으로 재기동
+
+앱만 재기동합니다. DB/Redis/데이터는 그대로 둡니다.
+
+```bash
+cd backend
+RECOMMEND_PRIORITY_EDUCATION_CANONICAL_BONUS_ENABLED=true \
+SERVER_PORT=18082 \
+./gradlew bootRun --no-daemon
+```
+
+중요:
+
+- 이 단계 사이에 collect/backfill/user 수정 금지
+- 같은 DB snapshot 을 유지해야 함
+
+## 5단계: sample A / B 추천 refresh (`on`)
+
+```bash
+curl -sS \
+  -H "Authorization: Bearer $ACCESS_TOKEN_A" \
+  -X POST "$APP_BASE_URL/api/recommendations/refresh" | tee "$RESP_A_ON"
+
+curl -sS \
+  -H "Authorization: Bearer $ACCESS_TOKEN_B" \
+  -X POST "$APP_BASE_URL/api/recommendations/refresh" | tee "$RESP_B_ON"
+```
+
+## 6단계: 비교
+
+### sample A top-10 비교
+
+```bash
+python3 - "$RESP_A_OFF" "$RESP_A_ON" <<'PY'
+import json, sys
+off = json.load(open(sys.argv[1], encoding="utf-8"))["data"][:10]
+on = json.load(open(sys.argv[2], encoding="utf-8"))["data"][:10]
+print("OFF")
+for i, row in enumerate(off, 1):
+    print(i, row["serviceId"], row["title"], row["unifiedCategory"], row["finalScore"])
+print("ON")
+for i, row in enumerate(on, 1):
+    print(i, row["serviceId"], row["title"], row["unifiedCategory"], row["finalScore"])
+PY
+```
+
+### sample B top-10 비교
+
+```bash
+python3 - "$RESP_B_OFF" "$RESP_B_ON" <<'PY'
+import json, sys
+off = json.load(open(sys.argv[1], encoding="utf-8"))["data"][:10]
+on = json.load(open(sys.argv[2], encoding="utf-8"))["data"][:10]
+print("OFF")
+for i, row in enumerate(off, 1):
+    print(i, row["serviceId"], row["title"], row["unifiedCategory"], row["finalScore"])
+print("ON")
+for i, row in enumerate(on, 1):
+    print(i, row["serviceId"], row["title"], row["unifiedCategory"], row["finalScore"])
+PY
+```
+
+## 7단계: 판정
+
+판정은 [policy-normalization-education-priority-validation-criteria.md](./policy-normalization-education-priority-validation-criteria.md) 기준으로 합니다.
+
+핵심만 요약하면:
+
+### 계속 진행 가능
+
+- sample A 에서만 순위 변화 발생
+- `compat=기타 + youth_major=교육` row 가 top-N 안으로 진입하거나 상승
+- sample B 는 사실상 유지
+- 응답 `unifiedCategory`, `aiReason` 의미 불변
+
+### 보류
+
+- sample B 도 흔들림
+- `교육` 실험과 무관한 row 가 크게 연쇄 이동
+- 응답 category 의미가 바뀜
+- 사람이 보기에도 올라온 row 가 `교육·직업훈련` priority 와 잘 안 맞음
+
+## 캡처 권장 항목
+
+비교 결과를 남길 때는 아래를 같이 기록합니다.
+
+1. branch / commit
+2. flag off/on 값
+3. sample A / B user 식별자
+4. top-10 serviceId / title / unifiedCategory / finalScore
+5. target row 위치 변화
+6. 이상 징후 여부
+
+## 최종 정책
+
+정리하면:
+
+- replay 는 `flag off -> flag on` 두 번의 refresh 비교로만 한다
+- 같은 DB snapshot / 같은 user snapshot 을 유지한다
+- collect/backfill/user 수정은 사이에 넣지 않는다
+- sample A 와 sample B 를 같이 봐야 한다
+
+## 다음 작업
+
+1. 실제 구현 PR에서 helper / filter diff 를 regression test와 함께 최소 변경으로 넣기
+2. `참여권리` 의 `청년참여` subset bridge 여부 결정
+3. 필요하면 위 절차를 자동화하는 local smoke script 초안 작성
