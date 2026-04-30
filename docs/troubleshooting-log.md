@@ -1337,3 +1337,8 @@
 - 문제: baseline이 생기고 나면 “그럼 old admin refresh token도 즉시 막아야 하지 않나”는 질문이 다시 생긴다. 하지만 그렇게 바꾸면 allowlist 기반 role revoke와 existing token/session revoke를 다시 같은 기능으로 묶게 된다
 - 해결: [auth-admin-refresh-revoke-policy.md](./auth-admin-refresh-revoke-policy.md) 를 추가해, 현재 allowlist 제거의 의미를 “refresh token 즉시 차단”이 아니라 “새 access token부터 `ROLE_ADMIN` 제거”로 고정했다
 - 이유: 현재 구조의 최소 계약은 future token issuance에서 admin role이 더 이상 나오지 않는 것이다. refresh token 자체 즉시 차단은 incident response/offboarding 성격의 `admin forced logout` 문제로 남겨 두는 편이 경계가 더 분명하다
+
+## 266) `admin forced logout` 을 열 때 old access만 끊을지, refresh까지 끊을지 애매하게 두면 allowlist revoke/account lock과 다시 섞이므로 baseline success criteria를 먼저 고정해야 한다
+- 문제: allowlist 제거 baseline과 refresh 정책을 닫고 나면, 다음 hardening 후보인 `admin forced logout` 이 “운영자가 버튼을 누르면 뭔가 더 세게 막는 것” 정도로만 남기 쉽다. 이 상태에서 구현을 먼저 열면 `old access 즉시 차단`, `old refresh 즉시 차단`, `계정 영구 차단 여부`가 다시 한 기능으로 뒤섞인다
+- 해결: [auth-admin-forced-logout-baseline-policy.md](./auth-admin-forced-logout-baseline-policy.md) 를 추가해 future forced logout baseline을 `old access immediate fail + old refresh immediate fail + account lock과 분리` 로 고정했다
+- 이유: forced logout은 existing session revoke이고, allowlist revoke는 future role issuance revoke다. 둘의 제품 의미를 다시 섞지 않으려면 implementation보다 success criteria를 먼저 박아 두는 편이 안전하다

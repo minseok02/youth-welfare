@@ -1242,6 +1242,9 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - 2026-05-01 old admin refresh token revoke 정책 고정
   - [auth-admin-refresh-revoke-policy.md](./auth-admin-refresh-revoke-policy.md) 를 추가해 allowlist 제거의 현재 의미를 “기존 refresh token 즉시 차단”이 아니라 “future token issuance에서 admin role 제거”로 고정했다
   - 즉 현재 운영 계약은 old refresh token이 살아 있어도 새 access token부터 `ROLE_ADMIN` 이 빠지는 것이고, refresh token 자체 즉시 차단은 future forced logout 문제로 분리한다
+- 2026-05-01 admin forced logout baseline scope 정책 고정
+  - [auth-admin-forced-logout-baseline-policy.md](./auth-admin-forced-logout-baseline-policy.md) 를 추가해 future `admin forced logout` 가 증명해야 할 최소 계약을 `old admin access 즉시 차단 + old refresh 즉시 차단 + account lock과 분리` 로 고정했다
+  - 즉 다음 액션은 forced logout 구현이 아니라, 운영자 명시 액션의 진입점과 cutoff 저장 경계를 정하는 쪽으로 좁힌다
 
 ## 작업 추적
 

@@ -97,6 +97,9 @@
 - [auth-admin-refresh-revoke-policy.md](./auth-admin-refresh-revoke-policy.md)
   allowlist 제거 후 기존 admin refresh token을 즉시 끊을지, 아니면 새 token부터 role만 제거할지 현재 계약을 확인합니다.
 
+- [auth-admin-forced-logout-baseline-policy.md](./auth-admin-forced-logout-baseline-policy.md)
+  future `admin forced logout` 가 `allowlist revoke` 와 달리 무엇을 즉시 차단해야 하는지, baseline/success criteria를 확인합니다.
+
 - [policy-normalization-compat-category-drift-inventory.md](./policy-normalization-compat-category-drift-inventory.md)
   local `service_taxonomies` 스냅샷 기준으로 `compat_unified_category` 와 canonical summary(`youth_major_label`, `gov24_*`) 사이 drift/공백/legacy raw 복사 흔적을 확인합니다.
 
