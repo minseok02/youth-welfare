@@ -1437,3 +1437,8 @@
 - 문제: 문서에는 `iatm` 없는 legacy admin access token이 forced logout 보호 경계에서 `401 / A006` 으로 떨어진다고 적어 두었지만, 테스트에서 그냥 임의 문자열이나 malformed JWT를 넣으면 실제로는 `INVALID_TOKEN(A001)` 경로만 확인하게 된다
 - 해결: [AdminSecurityIntegrationTest.java](../backend/src/test/java/com/example/welfare/integration/AdminSecurityIntegrationTest.java) 에 `uid`, `roles`, `issuedAt`, `expiration`, 서명은 정상이고 `iatm` 만 없는 legacy admin access token 생성 helper를 추가하고, forced logout 이후 보호 API 접근이 `401 / A006` 으로 수렴하는 smoke를 integration baseline에 넣었다
 - 이유: rollout 정책의 핵심은 “형식이 망가진 토큰”이 아니라 “old contract token은 보호 경계에서 재로그인 요구 대상”이라는 점이다. 그래서 테스트도 malformed가 아닌 structurally valid legacy token으로 고정해야 제품 의미와 맞는다
+
+## 285) forced logout 운영 증적까지 한 번에 크게 열면 response contract가 내부 ordering detail을 다시 끌고 올라오므로, 현재 phase에선 `cutoffMillis` 를 response가 아니라 log/Redis에만 남기는 편이 낫다
+- 문제: forced logout API와 auth gate, legacy token smoke까지 닫고 나면 운영 증적을 더 남기고 싶어지지만, 여기서 `cutoffMillis` 를 바로 response body에 노출하면 내부 revoke ordering 기준값이 외부 API 계약처럼 굳어질 수 있다
+- 해결: [auth-admin-forced-logout-audit-scope-policy.md](./auth-admin-forced-logout-audit-scope-policy.md) 를 추가해 current phase의 증적 범위를 `response=userKey+accepted`, `server log=userKey+cutoffMillis`, `Redis=current source of truth` 로 고정했다
+- 이유: 지금 중요한 건 revoke correctness와 운영 triage 가능성이지, ordering 숫자를 클라이언트 계약으로 끌어올리는 것이 아니다. response는 최소 ack로 두고 detail은 log/Redis에 남겨야 이후 구현 변경 여지도 유지된다

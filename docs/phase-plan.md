@@ -1307,6 +1307,10 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
   - [AdminSecurityIntegrationTest.java](../backend/src/test/java/com/example/welfare/integration/AdminSecurityIntegrationTest.java) 에 `iatm` 없는 legacy admin access token을 직접 발급하는 smoke를 추가해, forced logout 이후 보호 API 접근이 실제로 `401 / A006` 으로 수렴하는 현재 구현을 고정했다
   - 이로써 문서로만 있던 `legacy admin access token -> re-login required / A006` 계약이 실제 integration baseline으로 내려왔다
   - 즉 다음 액션은 forced logout 경로의 운영 증적을 위해 cutoffMillis/actor logging 또는 audit 최소 범위를 정하는 것이다
+- 2026-05-01 admin forced logout audit scope 정책 고정
+  - [auth-admin-forced-logout-audit-scope-policy.md](./auth-admin-forced-logout-audit-scope-policy.md) 를 추가해 현재 phase에서는 response는 `userKey + accepted` 최소 ack만 유지하고, `cutoffMillis` 는 서버 로그와 Redis source of truth에서만 보도록 고정했다
+  - actor/admin identifier persistent audit, DB audit table, response `cutoffMillis` 노출은 현재 범위에서 제외하고 future reopen 조건으로 남겼다
+  - 즉 다음 액션은 forced logout 현재 log line format을 smoke/runbook 에 명시할지 결정하는 것이다
 
 ## 작업 추적
 
