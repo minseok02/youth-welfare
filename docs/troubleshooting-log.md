@@ -263,6 +263,11 @@
 - 해결: [auth-admin-forced-logout-closeout.md](./auth-admin-forced-logout-closeout.md) 로 현재 phase의 완료 범위를 `old access 즉시 차단 + old refresh 즉시 차단 + relogin 회복 + legacy token A006` 까지로 닫고, actor audit/persistent audit/account lock 결합은 explicit reopen 조건으로만 남겼음
 - 이유: revoke correctness와 감사/운영성 확장은 같은 축이 아니다. 1차 hardening은 “보호 경계가 실제로 작동하는가”를 닫는 일이고, audit 확장은 별도 요구가 생길 때 다시 여는 편이 작업 추적과 우선순위 관리에 더 맞다
 
+## 281) listing형 source를 canonical 정책 스키마에 같이 눌러 담으면 row grain과 추천 의미가 동시에 깨진다
+- 문제: `고용24/워크넷 채용정보`, `마이홈포털 공공주택 모집공고/단지/예비입주자 대기현황` 같은 listing형 source도 신규 source라는 이유만으로 `welfare_services + service_facts` 에 같이 넣으려 하면, 정책 제도 row와 공고/단지/상태 feed row가 한 테이블에서 섞여 `unifiedCategory`, 북마크, CTR, 추천 lane 의미가 모두 흐려질 수 있었음
+- 해결: [policy-listing-source-schema-draft.md](./policy-listing-source-schema-draft.md) 에서 listing형 source는 `listing_items` 공통 header와 `job_listings`, `housing_recruitments`, `housing_complexes`, `housing_waitlist_stats` detail table로 분리하고, raw truth / listing inventory truth / 정책 canonical truth를 서로 다른 층으로 두는 방향을 고정했음
+- 이유: source onboarding의 핵심은 “새 row를 어디엔가 저장하는 것”이 아니라 “그 row grain에 맞는 도메인으로 받는 것”이다. listing inventory를 정책 canonical로 강제 정규화하면 이후 read-model과 추천 semantics가 더 큰 비용으로 무너진다
+
 ## 50) 새 챗 세션의 `last_message_at`가 NULL이면 최근 세션 정렬이 흔들릴 수 있음
 - 문제: 챗봇 세션은 생성 직후 메시지가 없을 수 있는데 `last_message_at`를 nullable로 두면 세션 목록 최신순 정렬에서 DB별 NULL 정렬 차이 때문에 방금 만든 세션이 뒤로 밀릴 수 있었음
 - 해결: `chat_sessions.last_message_at`를 `NOT NULL DEFAULT CURRENT_TIMESTAMP`로 설계하고 `(user_id, last_message_at DESC)` 인덱스를 함께 추가

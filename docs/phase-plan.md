@@ -1330,7 +1330,6 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 
 ### 진행 예정
 
-- [ ] `고용24/워크넷 채용정보`, `마이홈포털 공공주택 모집공고/단지/예비입주자 대기현황` 같은 listing형 source 분리 스키마 초안 작성
 - [ ] `정부지원일자리정보`, `구직자취업역량 강화프로그램`, `Gov24/보조금24` 의 정책형 source canonical onboarding 우선순위와 live validation 순서 작성
 - [ ] 한국장학재단/국가장학금 계열의 `제도 row` 와 `지원가능대학/학기/지원구간` reference matrix 분리 모델 초안 작성
 - [ ] 복지로 live detail 적재 기준 `welfare_service_details` / `service_facts` validation 리허설
@@ -1388,6 +1387,9 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - [x] allowlist 제거 + 앱 재기동 후 old admin access/refresh token baseline smoke 작성
 - [x] allowlist 제거 후 old admin refresh token도 즉시 막을지, 새 token부터 role만 제거할지 결정
 - [x] `admin forced logout` 1차 hardening 트랙 closeout 및 다음 활성 pending 전환 정리
+- [x] `고용24/워크넷 채용정보`, `마이홈포털 공공주택 모집공고/단지/예비입주자 대기현황` 같은 listing형 source 분리 스키마 초안 작성
+  - [policy-listing-source-schema-draft.md](./policy-listing-source-schema-draft.md) 를 추가해 listing형 source는 `welfare_services` 로 바로 넣지 않고, 공통 inventory header `listing_items` 와 source-specific detail table(`job_listings`, `housing_recruitments`, `housing_complexes`, `housing_waitlist_stats`) 조합으로 받는 방향을 고정했다
+  - 이 초안에서는 raw truth(`raw_api_payloads`), listing inventory truth(`listing_items + detail`), 정책 canonical truth(`welfare_services + sidecars`) 를 의도적으로 분리하고, 추천 lane 연결은 future reopen 으로 남겼다
 - [ ] 운영 서버 Docker Compose 기동
 - [ ] 기존 운영 DB에 `app_core_rw` / `app_pii_rw` / `notification_pii_ro` / `migration_admin` 계정 생성 및 앱 datasource 전환
 - [ ] 운영 `.env` / secret store의 `APP_PII_DB_URL` / `NOTIFICATION_PII_DB_URL` 를 `youth_welfare_pii` schema 기준으로 전환

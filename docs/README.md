@@ -229,6 +229,9 @@
 - [policy-source-onboarding-playbook.md](./policy-source-onboarding-playbook.md)
   실제 DB 적재 스냅샷을 기준으로 일자리/주거/장학/공공서비스 source를 `정책형 / listing형 / reference형` 으로 어떻게 나눠 붙일지 확인합니다.
 
+- [policy-listing-source-schema-draft.md](./policy-listing-source-schema-draft.md)
+  `고용24/워크넷 채용정보`, `마이홈포털 공공주택 모집공고/단지/대기현황` 같은 listing형 source를 `welfare_services` 대신 어떤 분리 스키마로 받을지 확인합니다.
+
 - [troubleshooting-log.md](./troubleshooting-log.md)  
   이전에 발생한 장애와 해결 과정을 확인합니다.
 
