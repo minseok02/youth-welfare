@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.sql.Date;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -99,6 +100,7 @@ public class DeferredNormalizedPolicySidecarWriter implements NormalizedPolicySi
         if (taxonomy == null) {
             return;
         }
+        YouthMajorSummary youthMajorSummary = normalizeYouthMajorSummary(taxonomy.youthMajor());
 
         namedParameterJdbcTemplate.update("""
                 INSERT INTO service_taxonomies (
@@ -164,8 +166,8 @@ public class DeferredNormalizedPolicySidecarWriter implements NormalizedPolicySi
                         .addValue("primarySourceSystem", toPrimarySourceSystem(aggregate.core().sourceType()))
                         .addValue("compatUnifiedCategoryCode", toCompatUnifiedCategoryCode(taxonomy.compatUnifiedCategory()))
                         .addValue("compatUnifiedCategoryLabel", taxonomy.compatUnifiedCategory())
-                        .addValue("youthMajorCode", toYouthMajorCode(taxonomy.youthMajor()))
-                        .addValue("youthMajorLabel", taxonomy.youthMajor())
+                        .addValue("youthMajorCode", youthMajorSummary.code())
+                        .addValue("youthMajorLabel", youthMajorSummary.label())
                         .addValue("youthMidCode", null)
                         .addValue("youthMidLabel", taxonomy.youthMid())
                         .addValue("gov24ServiceFieldCode", null)
@@ -437,15 +439,44 @@ public class DeferredNormalizedPolicySidecarWriter implements NormalizedPolicySi
     }
 
     private String toYouthMajorCode(String label) {
+        return toYouthMajorSummaryToken(label).code();
+    }
+
+    private YouthMajorSummary normalizeYouthMajorSummary(String rawLabel) {
+        if (rawLabel == null || rawLabel.isBlank()) {
+            return YouthMajorSummary.empty();
+        }
+
+        Set<YouthMajorSummary> canonicalMajors = new LinkedHashSet<>();
+        for (String token : rawLabel.split(",")) {
+            String trimmed = token.trim();
+            if (trimmed.isEmpty()) {
+                continue;
+            }
+            YouthMajorSummary canonical = toYouthMajorSummaryToken(trimmed);
+            if (canonical == null) {
+                return YouthMajorSummary.empty();
+            }
+            canonicalMajors.add(canonical);
+        }
+
+        if (canonicalMajors.size() != 1) {
+            return YouthMajorSummary.empty();
+        }
+        return canonicalMajors.iterator().next();
+    }
+
+    private YouthMajorSummary toYouthMajorSummaryToken(String label) {
         if (label == null) {
             return null;
         }
-        return switch (label) {
-            case "일자리" -> "JOB";
-            case "주거" -> "HOUSING";
-            case "교육", "교육지원", "교육·직업훈련" -> "EDUCATION";
-            case "복지문화", "금융·복지·문화" -> "WELFARE_CULTURE";
-            case "참여권리", "참여·기반" -> "PARTICIPATION_RIGHTS";
+        String normalized = label.trim().replace('･', '·');
+        return switch (normalized) {
+            case "일자리" -> new YouthMajorSummary("JOB", "일자리");
+            case "주거" -> new YouthMajorSummary("HOUSING", "주거");
+            case "교육", "교육지원", "교육·직업훈련" -> new YouthMajorSummary("EDUCATION", "교육");
+            case "복지문화", "금융·복지·문화" -> new YouthMajorSummary("WELFARE_CULTURE", "복지문화");
+            case "참여권리", "참여·기반" -> new YouthMajorSummary("PARTICIPATION_RIGHTS", "참여권리");
             default -> null;
         };
     }
@@ -459,5 +490,11 @@ public class DeferredNormalizedPolicySidecarWriter implements NormalizedPolicySi
     }
 
     private record TermRefreshScope(String termGroup, String sourceField) {
+    }
+
+    private record YouthMajorSummary(String code, String label) {
+        private static YouthMajorSummary empty() {
+            return new YouthMajorSummary(null, null);
+        }
     }
 }

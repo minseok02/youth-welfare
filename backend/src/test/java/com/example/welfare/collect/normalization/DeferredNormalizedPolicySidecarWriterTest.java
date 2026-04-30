@@ -9,6 +9,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
+import org.springframework.jdbc.core.namedparam.SqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 
 import java.math.BigDecimal;
@@ -189,6 +190,114 @@ class DeferredNormalizedPolicySidecarWriterTest {
         verify(jdbcTemplate).update(org.mockito.ArgumentMatchers.contains("DELETE FROM service_taxonomy_terms"), any(Object[].class));
         verify(namedParameterJdbcTemplate).update(org.mockito.ArgumentMatchers.contains("INSERT INTO service_taxonomy_terms"), any(org.springframework.jdbc.core.namedparam.SqlParameterSource.class));
         verify(namedParameterJdbcTemplate).update(org.mockito.ArgumentMatchers.contains("INSERT INTO service_facts"), any(org.springframework.jdbc.core.namedparam.SqlParameterSource.class));
+    }
+
+    @Test
+    void upsert_normalizesYouthMajorSummaryVariantLabel() {
+        WelfareService service = WelfareService.builder()
+                .id(11L)
+                .sourceType(WelfareService.SourceType.YOUTH)
+                .build();
+
+        NormalizedPolicyAggregate aggregate = NormalizedPolicyAggregate.builder()
+                .core(NormalizedPolicyAggregate.Core.builder()
+                        .sourceType(NormalizedPolicyAggregate.SourceType.YOUTH)
+                        .sourceId("Y011")
+                        .title("청년 생활 지원")
+                        .status(NormalizedPolicyAggregate.ServiceStatus.ACTIVE)
+                        .build())
+                .taxonomy(NormalizedPolicyAggregate.TaxonomySummary.builder()
+                        .compatUnifiedCategory("금융·생활지원")
+                        .youthMajor("금융･복지･문화")
+                        .authority(NormalizedPolicyAggregate.Authority.OFFICIAL)
+                        .confidence(BigDecimal.ONE)
+                        .build())
+                .taxonomyTerms(List.of())
+                .facts(List.of())
+                .build();
+
+        given(jdbcTemplate.queryForObject(anyString(), eq(Integer.class))).willReturn(4);
+
+        assertThatCode(() -> writer.upsert(service, aggregate))
+                .doesNotThrowAnyException();
+
+        ArgumentCaptor<SqlParameterSource> paramsCaptor = ArgumentCaptor.forClass(SqlParameterSource.class);
+        verify(namedParameterJdbcTemplate).update(org.mockito.ArgumentMatchers.contains("INSERT INTO service_taxonomies"), paramsCaptor.capture());
+
+        assertThat(paramsCaptor.getValue().getValue("youthMajorCode")).isEqualTo("WELFARE_CULTURE");
+        assertThat(paramsCaptor.getValue().getValue("youthMajorLabel")).isEqualTo("복지문화");
+    }
+
+    @Test
+    void upsert_collapsesDuplicateYouthMajorSummaryTokens() {
+        WelfareService service = WelfareService.builder()
+                .id(12L)
+                .sourceType(WelfareService.SourceType.YOUTH)
+                .build();
+
+        NormalizedPolicyAggregate aggregate = NormalizedPolicyAggregate.builder()
+                .core(NormalizedPolicyAggregate.Core.builder()
+                        .sourceType(NormalizedPolicyAggregate.SourceType.YOUTH)
+                        .sourceId("Y012")
+                        .title("청년 주거 지원")
+                        .status(NormalizedPolicyAggregate.ServiceStatus.ACTIVE)
+                        .build())
+                .taxonomy(NormalizedPolicyAggregate.TaxonomySummary.builder()
+                        .compatUnifiedCategory("주거")
+                        .youthMajor("주거,주거")
+                        .authority(NormalizedPolicyAggregate.Authority.OFFICIAL)
+                        .confidence(BigDecimal.ONE)
+                        .build())
+                .taxonomyTerms(List.of())
+                .facts(List.of())
+                .build();
+
+        given(jdbcTemplate.queryForObject(anyString(), eq(Integer.class))).willReturn(4);
+
+        assertThatCode(() -> writer.upsert(service, aggregate))
+                .doesNotThrowAnyException();
+
+        ArgumentCaptor<SqlParameterSource> paramsCaptor = ArgumentCaptor.forClass(SqlParameterSource.class);
+        verify(namedParameterJdbcTemplate).update(org.mockito.ArgumentMatchers.contains("INSERT INTO service_taxonomies"), paramsCaptor.capture());
+
+        assertThat(paramsCaptor.getValue().getValue("youthMajorCode")).isEqualTo("HOUSING");
+        assertThat(paramsCaptor.getValue().getValue("youthMajorLabel")).isEqualTo("주거");
+    }
+
+    @Test
+    void upsert_nullsYouthMajorSummaryWhenMultipleCanonicalMajorsRemain() {
+        WelfareService service = WelfareService.builder()
+                .id(13L)
+                .sourceType(WelfareService.SourceType.YOUTH)
+                .build();
+
+        NormalizedPolicyAggregate aggregate = NormalizedPolicyAggregate.builder()
+                .core(NormalizedPolicyAggregate.Core.builder()
+                        .sourceType(NormalizedPolicyAggregate.SourceType.YOUTH)
+                        .sourceId("Y013")
+                        .title("청년 복합 지원")
+                        .status(NormalizedPolicyAggregate.ServiceStatus.ACTIVE)
+                        .build())
+                .taxonomy(NormalizedPolicyAggregate.TaxonomySummary.builder()
+                        .compatUnifiedCategory("기타")
+                        .youthMajor("일자리,교육")
+                        .authority(NormalizedPolicyAggregate.Authority.OFFICIAL)
+                        .confidence(BigDecimal.ONE)
+                        .build())
+                .taxonomyTerms(List.of())
+                .facts(List.of())
+                .build();
+
+        given(jdbcTemplate.queryForObject(anyString(), eq(Integer.class))).willReturn(4);
+
+        assertThatCode(() -> writer.upsert(service, aggregate))
+                .doesNotThrowAnyException();
+
+        ArgumentCaptor<SqlParameterSource> paramsCaptor = ArgumentCaptor.forClass(SqlParameterSource.class);
+        verify(namedParameterJdbcTemplate).update(org.mockito.ArgumentMatchers.contains("INSERT INTO service_taxonomies"), paramsCaptor.capture());
+
+        assertThat(paramsCaptor.getValue().getValue("youthMajorCode")).isNull();
+        assertThat(paramsCaptor.getValue().getValue("youthMajorLabel")).isNull();
     }
 
     @Test
