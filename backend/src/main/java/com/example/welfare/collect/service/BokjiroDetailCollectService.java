@@ -94,6 +94,41 @@ public class BokjiroDetailCollectService {
     }
 
     @Transactional
+    public GapFillResult collectBokjiroDetailGapFillResult(int rounds, int maxCallsPerRound) {
+        int requested = 0;
+        int saved = 0;
+        int skipped = 0;
+        int failed = 0;
+        int roundsExecuted = 0;
+        boolean stoppedAfterNoSaves = false;
+
+        for (int round = 1; round <= rounds; round++) {
+            CollectResult roundResult = collectBokjiroDetailsResult(maxCallsPerRound, false);
+            roundsExecuted++;
+            requested += roundResult.requestedCount();
+            saved += roundResult.savedCount();
+            skipped += roundResult.skippedCount();
+            failed += roundResult.failedCount();
+
+            if (roundResult.savedCount() <= 0) {
+                stoppedAfterNoSaves = true;
+                break;
+            }
+        }
+
+        return new GapFillResult(
+                rounds,
+                roundsExecuted,
+                maxCallsPerRound,
+                requested,
+                saved,
+                skipped,
+                failed,
+                stoppedAfterNoSaves
+        );
+    }
+
+    @Transactional
     public CollectResult collectBokjiroDetailsResult(int maxCalls, boolean refreshExisting) {
         List<WelfareService> centralTargets = new ArrayList<>(welfareServiceRepository.findBySourceType(WelfareService.SourceType.BOKJIRO_CENTRAL));
         List<WelfareService> localTargets = new ArrayList<>(welfareServiceRepository.findBySourceType(WelfareService.SourceType.BOKJIRO_LOCAL));
@@ -382,5 +417,17 @@ public class BokjiroDetailCollectService {
     }
 
     private record BudgetAllocation(int centralBudget, int localBudget) {
+    }
+
+    public record GapFillResult(
+            int roundsRequested,
+            int roundsExecuted,
+            int maxCallsPerRound,
+            int requestedCount,
+            int savedCount,
+            int skippedCount,
+            int failedCount,
+            boolean stoppedAfterNoSaves
+    ) {
     }
 }

@@ -817,3 +817,8 @@
 - 문제: local 복지로 raw detail/backfill density가 `81 / 1335` 에서 멈춰 있던 원인을 다시 보니, 실제 본문에는 `만 20 ~ 49세 여성`, `15세~39세 청년`, `만 19세 이상 ~ 34세 이하` 처럼 첫 번째 나이 뒤 `세` 가 빠지거나 `이상 ~ 이하` 조합인 문구가 섞여 있었다. 기존 `TextConstraintExtractor.AGE_RANGE` 는 사실상 `\\d+세 ... \\d+세` 패턴만 안정적으로 잡아 이런 row가 누락될 수 있었다
 - 해결: `AGE_RANGE` 정규식을 `(\\d{1,2})(?:\\s*세)? ... (\\d{1,2})\\s*세` 형태로 넓히고, `TextConstraintExtractorTest` 에 asymmetric range / 이상~이하 / 기존 세~세 케이스를 추가했다. 이후 local replay integration 을 다시 태운 결과 복지로 `BK_AGE_ELIGIBILITY` 는 `81 -> 99` rows(`BOKJIRO_CENTRAL 49`, `BOKJIRO_LOCAL 50`)로 증가했다
 - 이유: 복지로/지자체 서술형 본문은 표기 일관성이 약해서 “첫 번째 bound에도 단위가 항상 붙는다”는 가정이 쉽게 깨진다. 텍스트 extractor는 대칭 표기만 가정하지 말고 실제 source snapshot에서 반복되는 비대칭 표기를 허용해야 coverage regress를 줄일 수 있다
+
+## 162) 복지로 detail 한 번 실행의 `95/API` cap 은 안전장치로는 맞지만, 이 상태를 모른 채 sidecar density를 보면 extractor 문제가 아니라 stored detail coverage ceiling을 잘못 해석할 수 있음
+- 문제: local DB를 다시 보니 복지로 서비스는 `1335`건인데 detail raw payload는 정확히 `190`건이었다. 이는 `95/API` cap 이 있는 기본 detail 수집을 한 번만 돌린 흔적과 맞아떨어지며, `raw detail 없는 서비스 1145건`, `detail row는 있지만 raw가 없는 서비스 0건` 이라 sidecar replay density는 본문 추출기뿐 아니라 detail fetch coverage ceiling에도 강하게 묶여 있었다
+- 해결: `BokjiroDetailCollectService` 에 multi-round `collectBokjiroDetailGapFillResult(rounds, maxCallsPerRound)` 를 추가하고, `CollectAdminController` 에 `POST /api/admin/collect/bokjiro-details-gap-fill` exact admin path 를 노출해 per-run cap은 유지한 채 여러 라운드로 missing detail backlog 를 점진적으로 더 메울 수 있게 정리했다
+- 이유: rate limit 안전장치와 backlog drain 속도는 같은 문제가 아니다. 단일 실행 cap 때문에 생긴 coverage ceiling을 extractor 한계로 오해하면 잘못된 regex/heuristic만 계속 손보게 되므로, “여러 라운드로 안전하게 더 가져오는 수동 경로”를 따로 두는 편이 재발 해석과 운영 절차 모두에 안전하다

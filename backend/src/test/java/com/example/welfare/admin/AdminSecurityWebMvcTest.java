@@ -2,6 +2,7 @@ package com.example.welfare.admin;
 
 import com.example.welfare.collect.controller.CollectAdminController;
 import com.example.welfare.collect.normalization.NormalizedPolicySidecarBackfillService;
+import com.example.welfare.collect.service.BokjiroDetailCollectService;
 import com.example.welfare.collect.service.CollectSource;
 import com.example.welfare.collect.service.CollectService;
 import com.example.welfare.global.auth.AuthenticatedUser;
@@ -49,6 +50,8 @@ class AdminSecurityWebMvcTest {
 
     @MockBean
     private CollectService collectService;
+    @MockBean
+    private BokjiroDetailCollectService bokjiroDetailCollectService;
     @MockBean
     private NormalizedPolicySidecarBackfillService normalizedPolicySidecarBackfillService;
     @MockBean
@@ -174,6 +177,50 @@ class AdminSecurityWebMvcTest {
 
         mockMvc.perform(post("/api/admin/collect/bokjiro-sidecars-backfill")
                         .param("scope", "unknown")
+                        .header("Authorization", "Bearer admin-token"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("C001"));
+    }
+
+    @Test
+    @DisplayName("관리자 토큰으로 복지로 detail gap fill API를 호출하면 여러 라운드 수집을 실행한다")
+    void adminEndpointAllowsBokjiroDetailGapFill() throws Exception {
+        mockAuthenticatedToken("admin-token", List.of(
+                new SimpleGrantedAuthority("ROLE_USER"),
+                new SimpleGrantedAuthority("ROLE_ADMIN")
+        ));
+        given(bokjiroDetailCollectService.collectBokjiroDetailGapFillResult(4, 190))
+                .willReturn(new BokjiroDetailCollectService.GapFillResult(4, 3, 190, 150, 120, 30, 0, true));
+
+        mockMvc.perform(post("/api/admin/collect/bokjiro-details-gap-fill")
+                        .param("rounds", "4")
+                        .param("maxCallsPerRound", "190")
+                        .header("Authorization", "Bearer admin-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.roundsRequested").value(4))
+                .andExpect(jsonPath("$.data.roundsExecuted").value(3))
+                .andExpect(jsonPath("$.data.maxCallsPerRound").value(190))
+                .andExpect(jsonPath("$.data.requestedCount").value(150))
+                .andExpect(jsonPath("$.data.savedCount").value(120))
+                .andExpect(jsonPath("$.data.skippedCount").value(30))
+                .andExpect(jsonPath("$.data.failedCount").value(0))
+                .andExpect(jsonPath("$.data.stoppedAfterNoSaves").value(true));
+
+        then(bokjiroDetailCollectService).should().collectBokjiroDetailGapFillResult(4, 190);
+    }
+
+    @Test
+    @DisplayName("복지로 detail gap fill API는 잘못된 rounds 또는 maxCallsPerRound 에 400을 반환한다")
+    void adminEndpointRejectsInvalidBokjiroDetailGapFillParams() throws Exception {
+        mockAuthenticatedToken("admin-token", List.of(
+                new SimpleGrantedAuthority("ROLE_USER"),
+                new SimpleGrantedAuthority("ROLE_ADMIN")
+        ));
+
+        mockMvc.perform(post("/api/admin/collect/bokjiro-details-gap-fill")
+                        .param("rounds", "0")
                         .header("Authorization", "Bearer admin-token"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false))

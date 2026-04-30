@@ -325,6 +325,12 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - 2026-04-30 복지로 age range extractor 보강 후 `cd backend && ./gradlew integrationTest --no-daemon --rerun-tasks --tests com.example.welfare.integration.NormalizedPolicySidecarBackfillDensityIntegrationTest`
 - 2026-04-30 복지로 age range extractor 보강 후 `docker exec -e MYSQL_PWD='welfare1234!' youth-welfare-db mysql --default-character-set=utf8mb4 -uroot -e "SET NAMES utf8mb4; SELECT COUNT(*) FROM welfare_services ... ; SELECT COUNT(*) FROM raw_api_payloads ... ; SELECT COUNT(*) ... service_facts ... ; SELECT ws.source_type, sf.fact_merge_key, COUNT(*) ... ;" youth_welfare`
 - 2026-04-30 복지로 age range extractor 보강 후 `git diff --check`
+- 2026-04-30 복지로 missing detail multi-round gap fill 경로 추가
+  - `BokjiroDetailCollectService.collectBokjiroDetailGapFillResult(rounds, maxCallsPerRound)` 를 추가해 기본 detail 수집을 여러 라운드 반복 실행하고, 각 라운드의 `requested/saved/skipped/failed` 를 합산한 뒤 `savedCount=0` 인 시점에서 조기 종료하도록 정리
+  - `CollectAdminController` 에 `POST /api/admin/collect/bokjiro-details-gap-fill?rounds=1&maxCallsPerRound=190` exact path 를 추가해, per-run `95/API` cap은 유지하면서 missing detail backlog 를 수동으로 더 밀 수 있게 했다
+  - `BokjiroDetailCollectServiceTest` 는 backlog 가 여러 라운드에서 순차적으로 줄어드는 경로를, `AdminSecurityWebMvcTest` 는 admin 허용/invalid param 400 회귀를 고정했다
+- 2026-04-30 복지로 missing detail multi-round gap fill 경로 추가 후 `cd backend && ./gradlew test --no-daemon --tests com.example.welfare.collect.service.BokjiroDetailCollectServiceTest --tests com.example.welfare.admin.AdminSecurityWebMvcTest`
+- 2026-04-30 복지로 missing detail multi-round gap fill 경로 추가 후 `git diff --check`
 - 2026-04-28 pre-28 migrated DB 기준 admin logout / refresh invalidation / relogin smoke
   - `SECURITY_ADMIN_EMAILS=admin.logout.smoke@example.com` 으로 최신 앱을 기동한 뒤, admin 계정 로그인과 프로필 수정으로 queue row를 `SYNCED` 상태까지 맞추고 `POST /api/auth/refresh` 가 먼저 성공하는 것 확인
   - 같은 cookie jar + access token으로 `POST /api/auth/logout` 호출 후 cookie jar에서 `refresh_token` 이 제거되고, 직후 `POST /api/auth/refresh` 가 `401`, `errorCode=A001` 로 막히는 것 확인
@@ -934,7 +940,7 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - [ ] 한국장학재단/국가장학금 계열의 `제도 row` 와 `지원가능대학/학기/지원구간` reference matrix 분리 모델 초안 작성
 - [ ] 복지로 live detail 적재 기준 `welfare_service_details` / `service_facts` validation 리허설
 - [ ] 복지로 detail refresh budget metadata(`centralBudget`/`localBudget`) 를 admin collect observability에 노출할지 결정
-- [ ] 복지로 stored detail payload coverage(`190 / 1335`) 확대 후 `service_facts` density 재측정
+- [ ] `bokjiro-details-gap-fill` 수동 경로로 stored detail payload coverage(`190 / 1335`) 확대 후 `service_facts` density 재측정
 - [ ] 복지로 age-like raw detail sample inventory 기준 추가 fallback regex 보강 여부 검토
 - [ ] 복지로 live detail 응답에 신청마감 explicit field가 있는지 재확인하고, 없으면 `BK_APPLY_END_DATE` 는 canonical collect path에서 optional fact로 유지
 - [ ] 로그인 가능한 testbed/live payload 기준 `YOUTH_MID` / `srchPolyBizSecd` 전체 inventory 수집
@@ -959,6 +965,7 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 
 ### 완료
 
+- [x] 복지로 missing detail backlog 를 여러 라운드로 메우는 admin gap fill 경로 추가
 - [x] 복지로 detail/backfill 후에도 `service_facts` 가 `81 / 1335` row(6.1%)에 머무는 원인 분석 및 age fallback coverage 보강 여부 검토
 - [x] 복지로 detail raw payload 의 `applyMethodDetail` date signal 부재 시 `BK_APPLY_END_DATE` fallback 확대 여부 결정
 - [x] sidecar draft migration 적용 상태에서 기존 복지로 적재 데이터 detail refresh/backfill 후 `service_facts` density 재측정

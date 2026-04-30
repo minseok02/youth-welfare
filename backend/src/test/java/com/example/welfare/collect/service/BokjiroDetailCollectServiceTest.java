@@ -214,6 +214,42 @@ class BokjiroDetailCollectServiceTest {
     }
 
     @Test
+    @DisplayName("detail gap fill 은 여러 라운드를 돌며 missing detail backlog 를 순차적으로 메운다")
+    void collectBokjiroDetailGapFillAdvancesAcrossRounds() {
+        WelfareService first = welfareService(17L, WelfareService.SourceType.BOKJIRO_LOCAL, "LOCAL-17");
+        WelfareService second = welfareService(18L, WelfareService.SourceType.BOKJIRO_LOCAL, "LOCAL-18");
+        BokjiroDetailClient.DetailPayload payload = BokjiroDetailClient.DetailPayload.builder()
+                .supportDetail("지원 내용")
+                .applyMethodDetail("온라인 신청")
+                .build();
+
+        given(welfareServiceRepository.findBySourceType(WelfareService.SourceType.BOKJIRO_CENTRAL))
+                .willReturn(List.of(), List.of(), List.of());
+        given(welfareServiceRepository.findBySourceType(WelfareService.SourceType.BOKJIRO_LOCAL))
+                .willReturn(List.of(first, second), List.of(first, second), List.of(first, second));
+        given(detailRepository.existsByServiceId(17L)).willReturn(false, true, true);
+        given(detailRepository.existsByServiceId(18L)).willReturn(false, true);
+        given(detailClient.fetchLocalWithStatus("LOCAL-17"))
+                .willReturn(BokjiroDetailClient.FetchResult.success(payload));
+        given(detailClient.fetchLocalWithStatus("LOCAL-18"))
+                .willReturn(BokjiroDetailClient.FetchResult.success(payload));
+        given(serviceTagRepository.findByServiceId(17L)).willReturn(List.of());
+        given(serviceTagRepository.findByServiceId(18L)).willReturn(List.of());
+
+        BokjiroDetailCollectService.GapFillResult result = service.collectBokjiroDetailGapFillResult(3, 1);
+
+        assertThat(result.roundsRequested()).isEqualTo(3);
+        assertThat(result.roundsExecuted()).isEqualTo(3);
+        assertThat(result.requestedCount()).isEqualTo(2);
+        assertThat(result.savedCount()).isEqualTo(2);
+        assertThat(result.skippedCount()).isEqualTo(3);
+        assertThat(result.failedCount()).isZero();
+        assertThat(result.stoppedAfterNoSaves()).isTrue();
+        verify(detailClient).fetchLocalWithStatus("LOCAL-17");
+        verify(detailClient).fetchLocalWithStatus("LOCAL-18");
+    }
+
+    @Test
     @DisplayName("상세 수집은 연속 429 가 임계치를 넘으면 현재 source 처리를 중단한다")
     void collectBokjiroDetailsStopsAfterConsecutiveRateLimits() {
         WelfareService first = welfareService(21L, WelfareService.SourceType.BOKJIRO_CENTRAL, "CENTRAL-21");

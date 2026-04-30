@@ -1,6 +1,7 @@
 package com.example.welfare.collect.controller;
 
 import com.example.welfare.collect.normalization.NormalizedPolicySidecarBackfillService;
+import com.example.welfare.collect.service.BokjiroDetailCollectService;
 import com.example.welfare.collect.service.CollectSource;
 import com.example.welfare.collect.service.CollectService;
 import com.example.welfare.global.exception.CustomException;
@@ -27,6 +28,7 @@ import java.util.Locale;
 public class CollectAdminController {
 
     private final CollectService collectService;
+    private final BokjiroDetailCollectService bokjiroDetailCollectService;
     private final NormalizedPolicySidecarBackfillService normalizedPolicySidecarBackfillService;
 
     @PostMapping("/all")
@@ -75,6 +77,40 @@ public class CollectAdminController {
         )));
     }
 
+    @PostMapping("/bokjiro-details-gap-fill")
+    public ResponseEntity<ApiResponse<DetailGapFillResponse>> fillBokjiroDetailGaps(
+            @RequestParam(defaultValue = "1") int rounds,
+            @RequestParam(defaultValue = "190") int maxCallsPerRound
+    ) {
+        if (rounds <= 0 || maxCallsPerRound <= 0) {
+            throw new CustomException(ErrorCode.INVALID_INPUT);
+        }
+
+        BokjiroDetailCollectService.GapFillResult result =
+                bokjiroDetailCollectService.collectBokjiroDetailGapFillResult(rounds, maxCallsPerRound);
+
+        log.info("[Admin] 복지로 detail gap fill 수동 트리거 rounds={} maxCallsPerRound={} roundsExecuted={} requested={} saved={} skipped={} failed={} stoppedAfterNoSaves={}",
+                rounds,
+                maxCallsPerRound,
+                result.roundsExecuted(),
+                result.requestedCount(),
+                result.savedCount(),
+                result.skippedCount(),
+                result.failedCount(),
+                result.stoppedAfterNoSaves());
+
+        return ResponseEntity.ok(ApiResponse.success(new DetailGapFillResponse(
+                result.roundsRequested(),
+                result.roundsExecuted(),
+                result.maxCallsPerRound(),
+                result.requestedCount(),
+                result.savedCount(),
+                result.skippedCount(),
+                result.failedCount(),
+                result.stoppedAfterNoSaves()
+        )));
+    }
+
     public record SidecarBackfillResponse(
             String scope,
             int limitPerSource,
@@ -82,6 +118,18 @@ public class CollectAdminController {
             int upsertedCount,
             int missingServiceCount,
             int failedCount
+    ) {
+    }
+
+    public record DetailGapFillResponse(
+            int roundsRequested,
+            int roundsExecuted,
+            int maxCallsPerRound,
+            int requestedCount,
+            int savedCount,
+            int skippedCount,
+            int failedCount,
+            boolean stoppedAfterNoSaves
     ) {
     }
 }
