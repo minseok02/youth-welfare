@@ -862,3 +862,8 @@
 - 문제: 이번 task 검증에서 `NormalizedPolicyAggregateTest` / `BokjiroSidecarMergeIntegrationTest` 를 두 Gradle 세션으로 거의 동시에 돌리자, 테스트 본문은 통과했는데 `Could not write XML test results ... TEST-com.example.welfare.integration.BokjiroSidecarMergeIntegrationTest.xml` 예외로 한 세션이 실패했다
 - 해결: 같은 테스트 클래스나 동일 result directory 를 쓰는 검증은 병렬로 돌리지 않고, unit -> integration 순서로 순차 재실행해 결과를 확정했다
 - 이유: 코드 결함과 빌드 산출물 write collision 은 원인이 다르다. 결과 파일 경합을 테스트 실패로 오해하지 않으려면 같은 타깃 검증은 순차 실행으로 고정하는 편이 안전하다
+
+## 171) 복지로 beneficiary whitelist density 는 `payload 수 == service 수 == term 수` 로 1:1 대응하지 않을 수 있으므로 row count 와 distinct service count 를 분리해 봐야 함
+- 문제: local draft migration 상태에서 beneficiary-like detail raw payload candidate 는 `42`건이었는데, replay 후 whitelist `TARGET_GROUP(source_field=targetDetail/selectionCriteria)` term 은 `59 rows / 42 services` 로 적재됐다. `기초생활수급자` `38`, `차상위계층` `21` 이라 일부 서비스는 두 label을 동시에 갖고 있었고, 단순 term row count 만 보면 coverage가 실제 서비스 수보다 커 보일 수 있었다
+- 해결: beneficiary density 측정은 `NormalizedPolicySidecarBeneficiaryTermDensityIntegrationTest` 와 문서에서 항상 `term row count` 와 `distinct service count` 를 같이 기록하도록 정리했다
+- 이유: beneficiary soft taxonomy 는 hard fact 한 줄과 달리 한 서비스에 복수 term 이 공존할 수 있다. row count 만 보면 중복으로 과대평가되고, service count 만 보면 label richness가 사라지므로 두 지표를 같이 봐야 재발 해석이 정확하다
