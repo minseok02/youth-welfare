@@ -777,3 +777,8 @@
 - 문제: local sidecar smoke에서 같은 청년정책 row를 두 번 저장했을 때 `service_tags` 교체 경로가 `deleteByServiceId -> saveAll` 로 이어지면서, delete가 DB에 먼저 확정되기 전에 같은 `(service_id, tag_type, tag_value)` insert가 들어가 `Duplicate entry ... for key 'service_tags.uq_st'` 가 발생했다
 - 해결: `CollectItemSaver.replaceTags()` 에서 `tagRepository.deleteByServiceId(service.getId())` 직후 `tagRepository.flush()` 를 호출해 delete를 먼저 DB에 반영한 뒤 새 tag 집합을 저장하도록 바꿨다
 - 이유: tag refresh는 sidecar smoke처럼 같은 row를 같은 테스트/수집 창에서 연속 갱신할 때 바로 드러난다. replace semantics를 기대하는 경로에서는 delete와 insert의 flush 순서를 명시적으로 고정해야 unique constraint 재발을 막을 수 있다
+
+## 154) 복지로 detail refresh smoke를 작은 `maxCalls` 로 재현할 때는 실제 repository 전체 scan 대신 isolated target 집합을 주입하지 않으면 local source merge 경로를 안정적으로 고정하기 어렵다
+- 문제: `collectBokjiroDetailsRefreshResult(maxCalls)` 는 central/local budget 을 함께 계산하고 repository 전체 `findBySourceType(...)` 결과를 순회한다. 로컬 DB에는 이미 복지로 row가 많이 적재돼 있어, sidecar merge smoke에서 특정 1건의 `BOKJIRO_LOCAL` list/detail 경로만 검증하려고 해도 전체 적재 데이터 순서와 `maxCallsPerApiPerRun` 분배에 따라 다른 row가 먼저 선택될 수 있었다
+- 해결: integration smoke에서는 real DB에 list aggregate를 먼저 적재한 뒤, 테스트 안에서 isolated `BokjiroDetailCollectService` 를 새로 구성해 mocked `WelfareServiceRepository.findBySourceType(...)` 가 대상 local row만 반환하도록 제한했다. 이 smoke는 canonical sidecar merge 계약만 검증하고, detached entity에 기대는 legacy `welfare_services` fallback 필드 값까지 assertion 범위에 넣지 않도록 좁혔다
+- 이유: 이번 단계의 목적은 운영 batch 전체가 아니라 `service_taxonomy_terms` 보존과 `service_facts` merge key overwrite가 actual JDBC sidecar writer에 연결되는지 확인하는 것이다. 전체 repository scan과 batch budget까지 동시에 테스트에 끌고 오면 sidecar contract 회귀와 unrelated source ordering이 섞여 재현성이 떨어지므로, isolated target 집합으로 contract를 먼저 고정하는 편이 재발 방지에 안전하다
