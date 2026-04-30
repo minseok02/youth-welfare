@@ -1107,3 +1107,8 @@
 - 문제: 반복 real-openai replay 끝에 artifact(`/tmp/tmp.TpE5SaiHJu`)에서 sample B `off/on` request trace는 `candidateIds`, `candidateRuleScores`, `promptSha256=f7e810...`, `replaySeed=424242` 가 같고, response trace도 `systemFingerprint=fp_ff247d5857` 로 같았다. 그런데도 `edu-b-off-scores.tsv` / `edu-b-on-scores.tsv` 에서는 `404:85 -> 75`, `405:75 -> 85`, `390:55 -> 70` 같은 `ai_score` diff가 계속 남았다
 - 해결: phase-plan 결론을 “same fingerprint artifact 확보”에서 “same fingerprint 안에서도 남는 live response variability 를 제품적으로 어떻게 다룰지 결정”으로 넘겼다. 다음 작업도 strict equality 완화 기준, rule-only 기본선 유지, replay cache 같은 제품 대응 검토로 옮겼다
 - 이유: 이 시점부터는 retrieval/prompt drift, backend churn, score normalization을 먼저 의심할 근거가 약하다. 같은 request 조건과 같은 fingerprint에서 결과가 갈리면, 남은 문제는 live model nondeterminism을 검증/운영에서 어떻게 흡수할지다
+
+## 220) same fingerprint 에서도 drift가 남는 단계부터는 `rule-only` 와 `real-openai` 를 같은 pass/fail gate로 두면 안 된다
+- 문제: same `promptSha256` + same `replaySeed` + same `system_fingerprint` 조건에서도 `ai_score` drift가 남는다면, `real-openai` replay strict equality를 PR hard gate로 두는 순간 live model variability가 코드 회귀와 같은 수준의 blocker가 된다
+- 해결: [openai-replay-validation-policy.md](./openai-replay-validation-policy.md)에 현재 정책을 고정했다. `rule-only-invalid-key` replay는 코드 안정성 hard gate로 유지하고, `real-openai` replay는 trace/artifact 완전성을 보는 exploratory gate로 둔다. 즉 `real-openai` strict equality 실패만으로는 PR을 막지 않는다
+- 이유: 지금 단계에서 product가 통제 가능한 것은 retrieval/rule/priority/canonical bridge와 artifact quality이지, live model의 미세한 응답 변동 자체는 아니다. 검증선과 관측선을 분리해야 PR gate가 불필요하게 불안정해지지 않는다

@@ -100,6 +100,9 @@
 - [openai-replay-stability-options.md](./openai-replay-stability-options.md)
   `real-openai` replay에서 같은 `promptSha256` 에도 `ai_score` 가 달라질 때 `seed`, `system_fingerprint`, prompt caching 중 무엇을 먼저 검토할지 공식 OpenAI 문서 기준으로 확인합니다.
 
+- [openai-replay-validation-policy.md](./openai-replay-validation-policy.md)
+  `rule-only` replay와 `real-openai` replay를 같은 pass/fail 기준으로 볼지, 현재 어떤 쪽을 hard gate로 둘지 확인합니다.
+
 - [policy-normalization-education-target-sample-inventory.md](./policy-normalization-education-target-sample-inventory.md)
   `compat=기타 + youth_major=교육` target row가 실제 추천 결과 집합에 들어오는 local replay sample이 현재 있는지와, region/age scan 결과를 확인합니다.
 
@@ -185,6 +188,7 @@
 - [policy-normalization-education-control-drift-analysis.md](./policy-normalization-education-control-drift-analysis.md)
 - [policy-normalization-education-control-ruleweighted-snapshot.md](./policy-normalization-education-control-ruleweighted-snapshot.md)
 - [openai-replay-stability-options.md](./openai-replay-stability-options.md)
+- [openai-replay-validation-policy.md](./openai-replay-validation-policy.md)
 - [policy-normalization-education-target-sample-inventory.md](./policy-normalization-education-target-sample-inventory.md)
 - [policy-normalization-sample-spike.md](./policy-normalization-sample-spike.md)
 - [policy-source-onboarding-playbook.md](./policy-source-onboarding-playbook.md)

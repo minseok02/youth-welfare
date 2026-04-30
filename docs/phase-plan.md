@@ -600,6 +600,10 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
   - 반복 real-openai replay 끝에 artifact(`/tmp/tmp.TpE5SaiHJu`)에서 sample B `off/on` response trace의 `systemFingerprint=fp_ff247d5857` 가 동일한 run을 확보했다
   - 같은 run에서 request trace의 `candidateIds`, `candidateRuleScores`, `promptSha256`, `replaySeed=424242` 도 동일했지만, `edu-b-off-scores.tsv` / `edu-b-on-scores.tsv` 의 `ai_score` / `final_score` diff는 여전히 남았다
   - 따라서 current drift는 backend fingerprint churn만으로는 설명되지 않고, same fingerprint 안에서도 남는 live AI response variability 로 분류하는 쪽이 맞다
+- 2026-04-30 OpenAI replay validation policy 정리
+  - [openai-replay-validation-policy.md](./openai-replay-validation-policy.md)에 `rule-only-invalid-key` replay는 hard gate, `real-openai` replay는 현재 단계에선 exploratory gate라는 기준을 고정했다
+  - 따라서 PR 기본 검증선은 `rule-only` 안정성으로 두고, `real-openai` strict equality 실패만으로는 막지 않되 trace/artifact가 불완전한 실패는 막는 것으로 정리했다
+  - 다음 과제는 `allowed drift` 를 어떤 수치(top-N count, score delta, explanation delta)로 정의할지 결정하는 것이다
 - 2026-04-28 pre-28 migrated DB 기준 admin logout / refresh invalidation / relogin smoke
   - `SECURITY_ADMIN_EMAILS=admin.logout.smoke@example.com` 으로 최신 앱을 기동한 뒤, admin 계정 로그인과 프로필 수정으로 queue row를 `SYNCED` 상태까지 맞추고 `POST /api/auth/refresh` 가 먼저 성공하는 것 확인
   - 같은 cookie jar + access token으로 `POST /api/auth/logout` 호출 후 cookie jar에서 `refresh_token` 이 제거되고, 직후 `POST /api/auth/refresh` 가 `401`, `errorCode=A001` 로 막히는 것 확인
@@ -1211,7 +1215,8 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - [ ] 복지로 detail refresh budget metadata(`centralBudget`/`localBudget`) 를 admin collect observability에 노출할지 결정
 - [ ] `bokjiro-details-gap-fill` 추가 라운드/호출 예산 전략 정리 후 stored detail payload coverage 추가 확대
 - [ ] same `promptSha256` + same `replaySeed` + same `system_fingerprint` 조건에서도 `ai_score` drift가 남는 현상을 제품적으로 어떻게 다룰지 결정
-- [ ] real-openai replay smoke에서 strict equality 대신 allowed drift 정책을 둘지, rule-only mode를 기본 검증선으로 유지할지 결정
+- [ ] real-openai replay의 `allowed drift` 를 top-N count / score delta / explanation delta 중 어떤 수치로 정의할지 결정
+- [ ] `real-openai` replay를 PR gate가 아니라 nightly/diagnostic lane으로 분리할지 결정
 - [ ] `참여권리` 의 `청년참여` subset만 별도 bridge 후보로 분리할지 결정
 - [ ] 복지로 `threshold_like` income signal(`13`건) 을 `INCOME_*` hard fact 가 아닌 optional soft signal schema 로 분리할지 결정
 - [ ] 복지로 live detail 응답에 신청마감 explicit field가 있는지 재확인하고, 없으면 `BK_APPLY_END_DATE` 는 canonical collect path에서 optional fact로 유지
