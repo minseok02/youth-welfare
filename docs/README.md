@@ -61,6 +61,9 @@
 - [policy-normalization-youth-major-summary-rules.md](./policy-normalization-youth-major-summary-rules.md)
   온통청년 raw `category_main` 을 `service_taxonomies.youth_major_*` single canonical summary로 언제 collapse 하고 언제 `NULL` 로 둘지 확인합니다.
 
+- [policy-normalization-compat-other-youth-major-policy.md](./policy-normalization-compat-other-youth-major-policy.md)
+  `compat=기타` 인데 canonical `youth_major` 는 채워지는 `YOUTH` 서비스들을 priority/read-model에서 그대로 둘지, 별도 힌트로만 볼지 해석 정책을 확인합니다.
+
 - [policy-source-onboarding-playbook.md](./policy-source-onboarding-playbook.md)
   실제 DB 적재 스냅샷을 기준으로 일자리/주거/장학/공공서비스 source를 `정책형 / listing형 / reference형` 으로 어떻게 나눠 붙일지 확인합니다.
 

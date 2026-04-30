@@ -42,6 +42,7 @@
 - `youth major` 는 high-confidence일 때만 bridge
 - `youth mid` 는 더 보수적으로 한다
 - 확신이 낮으면 `compat_unified_category` 만 채우고 `youth_major/youth_mid` 는 비운다
+- 반대로 `compat_unified_category=기타` 인 row에 canonical `youth_major` 가 채워졌다고 해서, 현재 priority/read-model 호환 레이어의 `compat` 값을 그 canonical major로 자동 치환하지도 않는다
 
 ## 2. Gov24 -> compatibility unifiedCategory 규칙
 

@@ -937,3 +937,8 @@
 - 문제: 기존 inventory에서는 `youth_major_label` 의 comma/duplicate/raw variant가 너무 커서, `compat_unified_category` 와 canonical summary 사이의 진짜 남은 차이가 “summary 품질”인지 “호환 레이어 설계”인지 분리하기 어려웠다
 - 해결: local DB `service_taxonomies` 의 `YOUTH` summary를 collapse 규칙으로 다시 써넣고 재집계했다. 그 결과 `youth_major_with_comma=0`, `raw_variant_labels=0` 으로 summary 품질 문제는 사라졌고, 대신 `compat=기타 + canonical youth_major 채움` 집합이 `421`건 남는다는 점이 핵심 잔여 drift로 분리됐다
 - 이유: summary가 single canonical value로 안정화된 뒤에는 더 이상 “정제 먼저”가 아니라 “`compat` 를 계속 저장할지, YOUTH canonical major를 어디까지 priority/read-model에 반영할지”가 다음 설계 질문이 된다. 문제 성격이 달라졌으므로 후속 task도 summary 정제에서 호환 레이어 해석 정책으로 옮기는 편이 맞다
+
+## 186) `compat=기타 + canonical youth_major 채움` 집합은 지금 바로 canonical major로 override 하지 말고, priority/read-model 에서는 secondary hint로만 남겨야 기존 제품 의미를 덜 흔든다
+- 문제: summary 정제 후에도 `compat=기타 + youth_major 채움` 이 `421`건 남았기 때문에, 이를 보고 `DefaultPriorityMatcher` 나 response category를 즉시 canonical `복지문화/참여권리/교육` 등으로 치환하고 싶어질 수 있다. 하지만 현재 priority 옵션(`금융·생활지원`, `참여·기회`, `교육·직업훈련`)은 아직 canonical major와 1:1 브리지 표가 없고, `compat` 는 실제 제품 계약으로 동작 중이라 조용한 의미 변경이 생길 위험이 컸다
+- 해결: 이번 단계에서는 `compat=기타` 를 canonical `youth_major` 로 자동 override 하지 않기로 고정했다. priority/scoring/response category는 계속 `compat_unified_category` 만 기준으로 유지하고, canonical `youth_major` 는 read-model에서 inventory/explanation/future experiment 용 보조 힌트로만 남긴다
+- 이유: explicit bridge table 없이 canonical major를 legacy priority bucket으로 승격하면, 저장 계층의 정규화 성공이 곧바로 UX 의미 변경으로 번진다. 현재는 raw truth와 호환 레이어를 분리해 둔 장점을 유지하고, 별도 inventory와 매핑표가 준비된 뒤에만 bridge를 명시적으로 열어 두는 편이 안전하다

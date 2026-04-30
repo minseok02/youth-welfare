@@ -156,6 +156,7 @@ priority 가중치 경계:
 - [DefaultPriorityMatcher.java](../backend/src/main/java/com/example/welfare/recommend/service/DefaultPriorityMatcher.java)는 1차 전환에서 `RecommendationCandidateProjection.unifiedCategoryCompat`, `applyEndDate` 만 병행 입력으로 읽는다
 - canonical taxonomy summary code/label(`youth_major_code`, `gov24_service_field_code`)은 아직 priority matcher가 직접 해석하지 않는다
 - 즉 priority는 당분간 `compat_unified_category` 기반 호환 레이어를 유지하고, taxonomy summary code 직독은 후속 inventory/매핑표 결정 이후로 미룬다
+- 특히 `compat=기타 + youth_major 채움` 집합도 현재 단계에서는 `unifiedCategoryCompat` 를 canonical major로 override 하지 않는다. canonical `youth_major` 는 projection 안에 보조 힌트로만 실어 두고, priority/scoring category bonus는 계속 compat layer만 기준으로 계산한다
 
 ## response/UI 경계
 
