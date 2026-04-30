@@ -742,3 +742,8 @@
 - 문제: 로컬 DB split 결과를 보면 `온·오프라인교육` 11건, `문화활동 및 생활지원` 66건이 존재한다. 전자는 `온라인교육` 과 유사하지만 offline 범위를 포함할 수 있고, 후자는 `문화활동` 과 생활지원 축이 결합된 composite 표현일 수 있어 하나의 official 중분류로 단정하기 어렵다
 - 해결: [policy-normalization-youth-mid-alias-rules.md](./policy-normalization-youth-mid-alias-rules.md) 에서 alias 처리 기준을 따로 고정하고, exact official token만 canonical `YOUTH_MID` 로 적재하며 non-official variant는 현재 단계에서 skip 하도록 명시했음. 별도 보존이 필요하면 future sidecar 에 `YOUTH_MID_RAW_ALIAS` 같은 term group을 둘지 후속 task로 분리했음
 - 이유: stable code 가 없는 상태에서는 `term_label` 자체가 canonical key 일부 역할을 대신한다. 애매한 alias를 섣불리 official 단일 라벨로 접으면 이후 stable code import, 추천 브릿지, 분석 집계가 모두 왜곡될 수 있어 재발 방지에 불리하다
+
+## 147) skipped `YOUTH_MID` alias를 raw payload에만 남기면, canonical sidecar 기준의 디버깅/backfill/read-model 경로가 다시 raw string 재파싱에 의존하게 됨
+- 문제: `온·오프라인교육`, `문화활동 및 생활지원` 을 canonical `YOUTH_MID` 에 넣지 않는 것은 맞지만, 이 값을 `welfare_services.category_sub` / `raw_api_payloads` 에만 두면 나중에 sidecar 기준 분석, backfill, read-model 검증 때마다 raw string 을 다시 파싱해야 한다. 그러면 official exact token과 skipped alias의 구분 기준이 writer/backfill 마다 다시 흩어질 위험이 있었다
+- 해결: skipped alias는 canonical `YOUTH_MID` 에 넣지 않되, future sidecar 에 `service_taxonomy_terms(term_group='YOUTH_MID_RAW_ALIAS', code_set_key=NULL, term_code='', term_label=<raw alias>, authority='OFFICIAL', source_field='category_sub')` 로 별도 보존하기로 정책을 고정했음. canonical taxonomy summary / recommendation read-model 은 이 term group을 기본적으로 읽지 않도록 같이 명시했음
+- 이유: canonical taxonomy를 오염시키지 않으면서도 source가 실제로 준 비정규 label을 잃지 않는 것이 중요하다. raw alias를 별도 bucket으로 남겨두면 나중에 stable code inventory가 확보되었을 때 재매핑이 쉬워지고, collect writer/backfill/read-model 이 같은 기준을 재사용할 수 있어 재발 방지에 유리하다

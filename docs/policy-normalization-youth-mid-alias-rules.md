@@ -85,15 +85,24 @@ official exact label은 아래 17개입니다.
 현재 처리:
 
 - canonical `YOUTH_MID` backfill 에서는 skip
-- 원문 보존은 기존 `welfare_services.category_sub` / `raw_api_payloads` 에 맡김
+- 다만 future sidecar 에서는 별도 raw alias bucket으로 보존한다
+  - `term_group='YOUTH_MID_RAW_ALIAS'`
+  - `code_set_key=NULL`
+  - `term_code=''`
+  - `term_label=<raw alias token>`
+  - `authority='OFFICIAL'`
+  - `source_field='category_sub'`
+- 추천/read-model/canonical taxonomy summary 는 기본적으로 `YOUTH_MID_RAW_ALIAS` 를 읽지 않는다
+- 원문 보존은 기존 `welfare_services.category_sub` / `raw_api_payloads` 도 계속 유지한다
 
 ## 현재 결정
 
-이번 단계에서 alias normalization 은 아래 수준까지만 허용합니다.
+이번 단계에서 alias normalization 은 아래 수준으로 고정합니다.
 
 1. split
 2. trim
 3. official exact-label filter
+4. skipped variant는 canonical `YOUTH_MID` 에 넣지 않고 `YOUTH_MID_RAW_ALIAS` 로 별도 보존
 
 아래는 아직 하지 않습니다.
 
@@ -106,4 +115,4 @@ official exact label은 아래 17개입니다.
 1. 로그인 가능한 testbed/live payload 에서 `srchPolyBizSecd` 전체 inventory 확보
 2. `온·오프라인교육`, `문화활동 및 생활지원` 이 실제 API inventory 상 별도 코드인지 확인
 3. 별도 코드가 아니면 alias normalization table 또는 rule 작성
-4. 필요하면 skipped alias를 위한 별도 term group(`YOUTH_MID_RAW_ALIAS`) 또는 raw-preservation 정책 결정
+4. `DeferredNormalizedPolicySidecarWriter` / backfill SQL 이 skipped alias를 `YOUTH_MID_RAW_ALIAS` 로 실제 저장하도록 연결

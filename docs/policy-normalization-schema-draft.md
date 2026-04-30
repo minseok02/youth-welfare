@@ -149,7 +149,7 @@
 - `YOUTH_MID` 는 온통청년 공개 `정책중분류` 시트에 라벨/정렬순서만 보이고 stable code 값은 확인되지 않았다.
 - 실제 DB의 `welfare_services.category_sub` 는 `취업,재직자` 같은 multi-value 와 `온·오프라인교육`, `문화활동 및 생활지원` 같은 non-official variant를 포함한다.
 - 따라서 전환 초기에는 `normalization_codes` 에 임의 `YOUTH_MID` code 를 넣지 않고, `service_taxonomy_terms.term_code=''` + `term_label` 조합으로 **split/trim 후 exact official label만** 먼저 적재하는 안을 유지한다.
-- `온·오프라인교육`, `문화활동 및 생활지원` 같은 variant는 별도 alias normalization 정책을 정한 뒤 후속 backfill 대상으로 분리한다.
+- `온·오프라인교육`, `문화활동 및 생활지원` 같은 variant는 canonical `YOUTH_MID` 에 넣지 않고, future sidecar 에서는 `service_taxonomy_terms.term_group='YOUTH_MID_RAW_ALIAS'`, `code_set_key=NULL`, `term_code=''`, `authority='OFFICIAL'` bucket으로 별도 보존한다.
 - 공개 API 문서에서는 `srchPolyBizSecd=003002001,003002002` 예시만 확인됐고, 상세 metadata endpoint는 비로그인 상태에서 `Unauthorized` 를 반환했다.
 - 따라서 `YOUTH_MID` stable code import 는 로그인 가능한 testbed/live payload 로 전체 inventory 를 다시 확보하기 전까지 보류한다.
 
@@ -208,7 +208,7 @@
 |---|---|---|
 | `id` | BIGINT PK | 내부 식별자 |
 | `service_id` | BIGINT FK | `welfare_services.id` |
-| `term_group` | VARCHAR(64) | 예: `YOUTH_KEYWORD`, `LIFE_STAGE`, `TARGET_GROUP`, `GOV24_USER_TYPE` |
+| `term_group` | VARCHAR(64) | 예: `YOUTH_KEYWORD`, `LIFE_STAGE`, `TARGET_GROUP`, `GOV24_USER_TYPE`, `YOUTH_MID_RAW_ALIAS` |
 | `code_set_key` | VARCHAR(64) NULL | 연결된 code set |
 | `term_code` | VARCHAR(64) NOT NULL DEFAULT `''` | 외부/내부 코드. 코드가 없는 term은 빈 문자열로 normalize |
 | `term_label` | VARCHAR(255) NOT NULL | 표시 라벨 |
@@ -230,6 +230,7 @@
 
 - 온통청년 `정책키워드`
 - 온통청년 `정책중분류` label-only term
+- 온통청년 skipped 중분류 alias raw bucket (`YOUTH_MID_RAW_ALIAS`)
 - 복지로 `life stage / interest theme / target group`
 - Gov24 `사용자구분` 복수 항목
 - system-derived `compatibility category signal`
