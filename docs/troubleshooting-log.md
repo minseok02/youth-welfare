@@ -1387,3 +1387,8 @@
 - 문제: 구현 위치를 filter + helper로 정한 뒤에도 helper 인터페이스를 세부 규칙 단위로 열어 두면, `JwtAuthenticationFilter` 가 exact revoke, cutoff, legacy token 판단 순서를 다시 직접 알아야 한다
 - 해결: [auth-admin-forced-logout-helper-interface.md](./auth-admin-forced-logout-helper-interface.md) 를 추가해 1차 인터페이스를 `boolean isAccessAllowed(String accessToken)` + `void revokeUserSessions(String userKey, long cutoffMillis)` 로 고정했다
 - 이유: filter는 최종 allow/deny만 알고, admin API는 user 단위 revoke intent write만 알면 된다. 세부 Redis/JWT 비교 규칙을 helper 내부에 가둬야 경계가 덜 새고 이후 확장도 쉬워진다
+
+## 276) forced logout helper 이름을 `Guard` 나 `Cutoff` 중심으로 두면 기존 `AccessTokenRevocationService` 와 역할 차이가 흐려지므로, user-session revoke 의미를 이름에서 먼저 고정해야 한다
+- 문제: 인터페이스를 정한 뒤에도 이름을 `AdminForcedLogoutGuard` 나 `AccessSessionCutoffService` 로 두면, admin API 전용 guard처럼 보이거나 cutoff 구현 세부만 강조돼 현재 책임 범위가 흐려질 수 있다
+- 해결: [auth-admin-forced-logout-helper-name-policy.md](./auth-admin-forced-logout-helper-name-policy.md) 를 추가해 새 helper/service 이름을 `UserSessionRevocationService` 로 고정하고, 기존 `AccessTokenRevocationService` 와는 exact-token revoke vs user-session revoke로 역할을 분리했다
+- 이유: 이름은 이후 구현과 테스트의 경계를 오래 끌고 간다. current phase에서는 “admin 기능”보다 “user session revoke service”라는 책임 표현이 더 안정적이다

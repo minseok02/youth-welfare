@@ -127,6 +127,9 @@
 - [auth-admin-forced-logout-helper-interface.md](./auth-admin-forced-logout-helper-interface.md)
   forced logout helper/service가 filter에 어떤 read 메서드와 admin API에 어떤 write 메서드를 노출할지 확인합니다.
 
+- [auth-admin-forced-logout-helper-name-policy.md](./auth-admin-forced-logout-helper-name-policy.md)
+  forced logout helper/service 이름을 `AccessTokenRevocationService` 와 어떻게 분리할지 확인합니다.
+
 - [policy-normalization-compat-category-drift-inventory.md](./policy-normalization-compat-category-drift-inventory.md)
   local `service_taxonomies` 스냅샷 기준으로 `compat_unified_category` 와 canonical summary(`youth_major_label`, `gov24_*`) 사이 drift/공백/legacy raw 복사 흔적을 확인합니다.
 
