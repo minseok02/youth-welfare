@@ -972,3 +972,8 @@
 - 문제: `교육 -> 교육·직업훈련` 실험을 실제로 켜는 시점을 상정하면 percentage rollout, 특정 사용자 allowlist, 환경별 다중 토글 같은 제어 장치를 같이 넣고 싶어질 수 있다. 하지만 이번 실험은 애초에 `compat=기타 + youth_major=교육 + user priority=EDUCATION + priority bonus 경계` 로 이미 후보와 사용자 범위가 좁아, 토글 축을 더 늘리면 왜 순위가 바뀌었는지 설명이 오히려 어려워질 수 있다
 - 해결: flag 범위를 `recommend.priority.education-canonical-bonus.enabled` 전역 boolean 1개로 고정했다. 기본값은 `false` 이고, effect scope 는 계속 narrow candidate/user 조건이 담당하게 두며, flag 는 실험 전체를 켜고 끄는 역할만 맡긴다
 - 이유: bridge candidate 첫 실험은 “효과가 있는가”를 보는 단계이지 rollout 시스템을 만드는 단계가 아니다. 이미 좁은 실험에 control plane까지 복잡하게 얹으면 rollback과 원인 분석이 더 어려워지므로, 가장 작은 boolean toggle부터 쓰는 편이 안전하다
+
+## 193) 이 정도로 좁은 bridge 실험에 config class나 experiment service까지 먼저 만들면 실제 실험 범위보다 제어 구조가 더 커져 제거 비용만 늘어남
+- 문제: `교육 -> 교육·직업훈련` 실험을 코드에 넣을 때, 별도 `@ConfigurationProperties` 객체나 `ExperimentPolicyService` 같은 공용 레이어를 먼저 만들고 싶어질 수 있다. 하지만 현재 실험은 key 1개, boolean 1개, read site 1곳만 필요해 제어 구조를 먼저 키우면 오히려 “좁은 검증”이 “정식 시스템 계약”처럼 굳어질 위험이 있다
+- 해결: config/helper 경계를 `RuleScoringService` 내부 `@Value` boolean 주입 + private helper 1개로 고정했다. `DefaultPriorityMatcher`, repository, facade 계층에는 flag branching 을 퍼뜨리지 않고, 실제 bonus 적용 여부 판단도 scoring 레이어 안에서만 닫히도록 정리했다
+- 이유: bridge candidate 첫 실험은 가장 작은 diff와 가장 쉬운 rollback 이 중요하다. 토글이 한 군데서만 읽히면 영향 범위와 제거 비용을 같이 낮출 수 있고, 이후 실험이 커질 때만 별도 config/service로 승격하면 된다

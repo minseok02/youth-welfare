@@ -8,6 +8,7 @@
 - [policy-normalization-education-priority-experiment.md](./policy-normalization-education-priority-experiment.md)
 - [policy-normalization-recommendation-read-model.md](./policy-normalization-recommendation-read-model.md)
 - [policy-normalization-priority-bridge-table-policy.md](./policy-normalization-priority-bridge-table-policy.md)
+- [policy-normalization-education-priority-config-boundary.md](./policy-normalization-education-priority-config-boundary.md)
 
 ## 결론
 

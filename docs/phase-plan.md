@@ -497,6 +497,10 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
   - 실험 flag는 `recommend.priority.education-canonical-bonus.enabled` 단일 boolean 으로 고정했다. 기본값은 `false` 이고, rollout percent / user allowlist / multi-major 동시 실험은 이번 단계에서 넣지 않기로 정리했다
   - flag 가 켜져도 영향 범위는 계속 `compat=기타 + youth_major=교육 + user priority=EDUCATION + RuleScoringService priority bonus` 경계로만 제한한다. 즉 실험 범위는 row/user 조건으로 충분히 좁고, flag 는 실험 전체를 켜고 끄는 전역 스위치만 맡는다
 - 2026-04-30 교육 priority experiment flag 범위 정의 후 `git diff --check`
+- 2026-04-30 `교육 -> 교육·직업훈련` 실험 config/helper 경계 결정
+  - 실험 flag read 위치는 `RuleScoringService` 내부로 고정했다. 구현은 `@Value("${recommend.priority.education-canonical-bonus.enabled:false}")` 단일 boolean 주입과 private helper 1개로 끝내고, `DefaultPriorityMatcher`, `RecommendationFacade`, repository 계층에는 flag branching 을 퍼뜨리지 않기로 정리했다
+  - 즉 이번 실험은 rollout framework 가 아니라 `priority bonus 1개를 선택적으로 더하는 작은 토글` 로 취급한다. config object, experiment service, repository-level branching 은 지금 단계에서 도입하지 않는다
+- 2026-04-30 교육 priority experiment config/helper 경계 결정 후 `git diff --check`
 - 2026-04-28 pre-28 migrated DB 기준 admin logout / refresh invalidation / relogin smoke
   - `SECURITY_ADMIN_EMAILS=admin.logout.smoke@example.com` 으로 최신 앱을 기동한 뒤, admin 계정 로그인과 프로필 수정으로 queue row를 `SYNCED` 상태까지 맞추고 `POST /api/auth/refresh` 가 먼저 성공하는 것 확인
   - 같은 cookie jar + access token으로 `POST /api/auth/logout` 호출 후 cookie jar에서 `refresh_token` 이 제거되고, 직후 `POST /api/auth/refresh` 가 `401`, `errorCode=A001` 로 막히는 것 확인
@@ -1109,6 +1113,7 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - [ ] `bokjiro-details-gap-fill` 추가 라운드/호출 예산 전략 정리 후 stored detail payload coverage 추가 확대
 - [ ] `교육 -> 교육·직업훈련` 실험 bonus 를 `RuleScoringService` 안에서 어떤 config/feature flag key로 제어할지 결정
 - [ ] `교육 -> 교육·직업훈련` 실험 켠 상태에서 sample top-N 변화와 explanation 확인 기준 정의
+- [ ] `교육 -> 교육·직업훈련` 실제 구현 시 `RuleScoringService` 내부 helper 이름과 bonus slot 위치를 최소 diff로 확정
 - [ ] `참여권리` 의 `청년참여` subset만 별도 bridge 후보로 분리할지 결정
 - [ ] 복지로 `threshold_like` income signal(`13`건) 을 `INCOME_*` hard fact 가 아닌 optional soft signal schema 로 분리할지 결정
 - [ ] 복지로 live detail 응답에 신청마감 explicit field가 있는지 재확인하고, 없으면 `BK_APPLY_END_DATE` 는 canonical collect path에서 optional fact로 유지
@@ -1163,6 +1168,7 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - [x] explicit bridge table이 필요하다면 `교육 -> 교육·직업훈련` 단일 후보부터 실험할지 결정
 - [x] `교육 -> 교육·직업훈련` 실험이 필요하다면 `DefaultPriorityMatcher` vs `RuleScoringService` 중 어느 경계에 좁게 넣을지 결정
 - [x] `교육 -> 교육·직업훈련` 실험 flag / on-off 범위 정의
+- [x] `교육 -> 교육·직업훈련` 실험 bonus 를 `RuleScoringService` 안에서 어떤 config/feature flag key로 제어할지 결정
 - [x] sidecar draft migration 적용 상태에서 기존 복지로 적재 데이터 detail refresh/backfill 후 `service_facts` density 재측정
 - [x] `NormalizedPolicySidecarBackfillService` 를 admin/manual 실행 경로로 노출
 - [x] 복지로 `raw_api_payloads` 기반 canonical sidecar backfill service 초안 작성
