@@ -1112,3 +1112,8 @@
 - 문제: same `promptSha256` + same `replaySeed` + same `system_fingerprint` 조건에서도 `ai_score` drift가 남는다면, `real-openai` replay strict equality를 PR hard gate로 두는 순간 live model variability가 코드 회귀와 같은 수준의 blocker가 된다
 - 해결: [openai-replay-validation-policy.md](./openai-replay-validation-policy.md)에 현재 정책을 고정했다. `rule-only-invalid-key` replay는 코드 안정성 hard gate로 유지하고, `real-openai` replay는 trace/artifact 완전성을 보는 exploratory gate로 둔다. 즉 `real-openai` strict equality 실패만으로는 PR을 막지 않는다
 - 이유: 지금 단계에서 product가 통제 가능한 것은 retrieval/rule/priority/canonical bridge와 artifact quality이지, live model의 미세한 응답 변동 자체는 아니다. 검증선과 관측선을 분리해야 PR gate가 불필요하게 불안정해지지 않는다
+
+## 221) same fingerprint 에서도 `ai_score` 가 흔들리면, `score delta` 는 gate metric보다 설명 지표에 가깝다
+- 문제: `/tmp/tmp.TpE5SaiHJu` 같은 same fingerprint artifact에서도 sample B `ai_score` 는 `404:85 -> 75`, `405:75 -> 85`, `390:55 -> 70` 식으로 흔들렸다. 이런 상태에서 `score delta` 자체를 gate로 쓰면 live variability가 바로 fail 조건이 된다
+- 해결: [openai-replay-allowed-drift-metrics.md](./openai-replay-allowed-drift-metrics.md)에 `real-openai` allowed drift metric 우선순위를 고정했다. 자동 gate는 `top-N target row count` 와 `target row presence/absence` 중심으로 두고, `score delta` 는 artifact 설명용 지표로만 남긴다
+- 이유: 이번 실험의 목적은 target 교육 row가 더 잘 보이게 되는지 확인하는 것이다. 점수 exact match는 그 목적과 직접 연결되지 않고, same fingerprint 안에서도 흔들리므로 자동 gate로 쓰기엔 정보 가치보다 노이즈가 크다
