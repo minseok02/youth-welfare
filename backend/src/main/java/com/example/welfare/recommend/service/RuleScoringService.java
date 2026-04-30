@@ -89,10 +89,10 @@ public class RuleScoringService {
         score += youthPolicyFilter.relevanceBonus(service, tags);
 
         // 관심분야 일치: INTEREST_THEME 태그 ↔ 유저 INTEREST_FIELD
-        if (interestThemeMatches(interestFields, tags)) score += 15;
+        if (interestThemeMatches(interestFields, tags, projection)) score += 15;
 
         // 관심분야 일치: KEYWORD 태그 ↔ 유저 INTEREST_FIELD (온통청년 보완)
-        if (keywordMatches(interestFields, tags)) score += 10;
+        if (keywordMatches(interestFields, tags, projection)) score += 10;
 
         // 대상유형 일치: TARGET_GROUP 태그 ↔ 유저 취업상태·가구유형·소득분위
         if (targetGroupMatches(user, tags, projection)) score += 10;
@@ -101,7 +101,7 @@ public class RuleScoringService {
         else if (hasSpecialTargetSignal(service, tags)) score -= SPECIAL_TARGET_MISMATCH_PENALTY;
 
         // 마감임박 — apply_end_date 기준 7일 이내
-        if (isDeadlineSoon(service)) score += 5;
+        if (isDeadlineSoon(service, projection)) score += 5;
 
         return score;
     }
@@ -110,24 +110,44 @@ public class RuleScoringService {
      * INTEREST_THEME 태그 ↔ 유저 관심분야 매칭 (복지로 정책)
      * 태그 없으면 건너뜀 (0점 부여하지 않음 — CLAUDE.md 원칙)
      */
-    private boolean interestThemeMatches(Set<String> interestFields, List<ServiceTag> tags) {
+    private boolean interestThemeMatches(Set<String> interestFields,
+                                         List<ServiceTag> tags,
+                                         RecommendationCandidateProjection projection) {
         if (interestFields.isEmpty()) return false;
-        return tags.stream()
+        boolean legacyMatch = tags.stream()
                 .filter(t -> t.getTagType() == ServiceTag.TagType.INTEREST_THEME)
                 .anyMatch(t -> interestFields.stream()
                         .anyMatch(field -> t.getTagValue().contains(field) || field.contains(t.getTagValue())));
+        if (legacyMatch) {
+            return true;
+        }
+        if (projection == null || projection.interestThemes().isEmpty()) {
+            return false;
+        }
+        return projection.interestThemes().stream()
+                .anyMatch(value -> matchesInterestField(interestFields, value));
     }
 
     /**
      * KEYWORD 태그 ↔ 유저 관심분야 매칭 (온통청년 정책 보완)
      * plcyKywdNm에서 생성된 KEYWORD 태그와 유저 관심분야 비교
      */
-    private boolean keywordMatches(Set<String> interestFields, List<ServiceTag> tags) {
+    private boolean keywordMatches(Set<String> interestFields,
+                                   List<ServiceTag> tags,
+                                   RecommendationCandidateProjection projection) {
         if (interestFields.isEmpty()) return false;
-        return tags.stream()
+        boolean legacyMatch = tags.stream()
                 .filter(t -> t.getTagType() == ServiceTag.TagType.KEYWORD)
                 .anyMatch(t -> interestFields.stream()
                         .anyMatch(field -> t.getTagValue().contains(field) || field.contains(t.getTagValue())));
+        if (legacyMatch) {
+            return true;
+        }
+        if (projection == null || projection.keywordTags().isEmpty()) {
+            return false;
+        }
+        return projection.keywordTags().stream()
+                .anyMatch(value -> matchesInterestField(interestFields, value));
     }
 
     /**
@@ -140,15 +160,20 @@ public class RuleScoringService {
     private boolean targetGroupMatches(RecommendationUserSnapshot user,
                                        List<ServiceTag> tags,
                                        RecommendationCandidateProjection projection) {
-        List<ServiceTag> targetTags = tags.stream()
+        List<String> targetGroupValues = tags.stream()
                 .filter(t -> t.getTagType() == ServiceTag.TagType.TARGET_GROUP)
+                .map(ServiceTag::getTagValue)
                 .collect(Collectors.toList());
 
-        if (targetTags.isEmpty() && !beneficiaryBucketMatches(user, projection)) return false;
+        if (projection != null && !projection.targetGroupsRaw().isEmpty()) {
+            targetGroupValues = Stream.concat(targetGroupValues.stream(), projection.targetGroupsRaw().stream())
+                    .distinct()
+                    .toList();
+        }
 
-        boolean legacyMatch = targetTags.stream().anyMatch(t -> {
-            String val = t.getTagValue();
+        if (targetGroupValues.isEmpty() && !beneficiaryBucketMatches(user, projection)) return false;
 
+        boolean legacyMatch = targetGroupValues.stream().anyMatch(val -> {
             // 취업상태 매핑
             if (user.employmentStatus() != null) {
                 String emp = user.employmentStatus();
@@ -197,11 +222,22 @@ public class RuleScoringService {
         return projection.beneficiaryTerms().contains("차상위계층") && user.incomeLevel() <= 3;
     }
 
-    private boolean isDeadlineSoon(WelfareService service) {
+    private boolean isDeadlineSoon(WelfareService service, RecommendationCandidateProjection projection) {
         if (service.getApplyEndDate() == null) return false;
         LocalDate today = LocalDate.now();
-        return !service.getApplyEndDate().isBefore(today)
+        boolean withinWindow = !service.getApplyEndDate().isBefore(today)
                 && service.getApplyEndDate().isBefore(today.plusDays(7));
+        if (!withinWindow) {
+            return false;
+        }
+
+        // canonical fact key 연결은 이번 단계에서 helper 경계만 먼저 고정하고,
+        // bonus 규칙은 legacy apply_end_date 의미를 그대로 유지한다.
+        return projection == null || projection.factKeys().isEmpty() || hasDeadlineFactKey(projection);
+    }
+
+    private boolean hasDeadlineFactKey(RecommendationCandidateProjection projection) {
+        return projection.factKeys().stream().anyMatch(key -> key.endsWith("APPLY_END_DATE"));
     }
 
     private boolean specialTargetMatches(RecommendationUserSnapshot user, Set<String> targetTypes, WelfareService service, List<ServiceTag> tags) {
@@ -283,6 +319,11 @@ public class RuleScoringService {
     private String normalize(String value) {
         if (value == null) return null;
         return value.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private boolean matchesInterestField(Set<String> interestFields, String value) {
+        return interestFields.stream()
+                .anyMatch(field -> value.contains(field) || field.contains(value));
     }
 
     /**

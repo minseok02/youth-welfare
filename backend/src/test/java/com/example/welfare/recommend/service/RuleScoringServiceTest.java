@@ -160,11 +160,110 @@ class RuleScoringServiceTest {
                 .isEqualTo(findByServiceId(scored, 50L).getRuleBaseScore() + 10.0);
     }
 
+    @Test
+    @DisplayName("projection interest theme은 legacy INTEREST_THEME 태그 없이도 관심분야 bonus를 준다")
+    void projectionInterestThemeAddsInterestBonusWithoutLegacyTags() {
+        RecommendationUserSnapshot user = snapshot(List.of("주거"), List.of(), (byte) 5, null, null);
+
+        WelfareService baseline = welfareService(70L, "일반 지원");
+        WelfareService projected = welfareService(71L, "주거 생활 지원");
+
+        when(serviceTagRepository.findByServiceIdIn(anyList())).thenReturn(List.of());
+
+        List<ScoredCandidate> scored = ruleScoringService.score(
+                new RetrievedRecommendationCandidates(
+                        List.of(baseline, projected),
+                        Map.of(
+                                projected.getId(),
+                                RecommendationCandidateProjection.builder()
+                                        .serviceId(projected.getId())
+                                        .interestThemes(Set.of("주거"))
+                                        .build()
+                        )
+                ),
+                user
+        );
+
+        assertThat(findByServiceId(scored, 71L).getRuleBaseScore())
+                .isEqualTo(findByServiceId(scored, 70L).getRuleBaseScore() + 15.0);
+    }
+
+    @Test
+    @DisplayName("projection targetGroupsRaw는 legacy TARGET_GROUP 태그 없이도 broad target group bonus를 준다")
+    void projectionTargetGroupsRawAddsTargetGroupBonusWithoutLegacyTags() {
+        RecommendationUserSnapshot user = snapshot(List.of(), List.of(), (byte) 5, "1인 가구", "미취업");
+
+        WelfareService baseline = welfareService(80L, "기본 지원");
+        WelfareService projected = welfareService(81L, "생활 지원");
+
+        when(serviceTagRepository.findByServiceIdIn(anyList())).thenReturn(List.of());
+
+        List<ScoredCandidate> scored = ruleScoringService.score(
+                new RetrievedRecommendationCandidates(
+                        List.of(baseline, projected),
+                        Map.of(
+                                projected.getId(),
+                                RecommendationCandidateProjection.builder()
+                                        .serviceId(projected.getId())
+                                        .targetGroupsRaw(Set.of("미취업청년", "1인가구"))
+                                        .build()
+                        )
+                ),
+                user
+        );
+
+        assertThat(findByServiceId(scored, 81L).getRuleBaseScore())
+                .isEqualTo(findByServiceId(scored, 80L).getRuleBaseScore() + 10.0);
+    }
+
+    @Test
+    @DisplayName("projection factKeys는 deadline helper 경계에 연결되어도 기존 applyEndDate bonus 의미를 유지한다")
+    void projectionFactKeysKeepsLegacyDeadlineBonusMeaning() {
+        RecommendationUserSnapshot user = snapshot(List.of(), List.of(), (byte) 5, null, null);
+
+        WelfareService baseline = welfareService(90L, "마감 임박 지원", java.time.LocalDate.now().plusDays(3));
+        WelfareService projected = welfareService(91L, "canonical 마감 지원", java.time.LocalDate.now().plusDays(3));
+
+        when(serviceTagRepository.findByServiceIdIn(anyList())).thenReturn(List.of());
+
+        List<ScoredCandidate> scored = ruleScoringService.score(
+                new RetrievedRecommendationCandidates(
+                        List.of(baseline, projected),
+                        Map.of(
+                                projected.getId(),
+                                RecommendationCandidateProjection.builder()
+                                        .serviceId(projected.getId())
+                                        .factKeys(Set.of("BK_APPLY_END_DATE"))
+                                        .build()
+                        )
+                ),
+                user
+        );
+
+        assertThat(findByServiceId(scored, 90L).getRuleBaseScore()).isEqualTo(5.0);
+        assertThat(findByServiceId(scored, 91L).getRuleBaseScore()).isEqualTo(5.0);
+    }
+
     private ScoredCandidate findByServiceId(List<ScoredCandidate> scored, Long serviceId) {
         return scored.stream()
                 .filter(candidate -> serviceId.equals(candidate.getService().getId()))
                 .findFirst()
                 .orElseThrow();
+    }
+
+    private WelfareService welfareService(Long id, String title) {
+        return welfareService(id, title, null);
+    }
+
+    private WelfareService welfareService(Long id, String title, java.time.LocalDate applyEndDate) {
+        return WelfareService.builder()
+                .id(id)
+                .sourceType(WelfareService.SourceType.BOKJIRO_LOCAL)
+                .sourceId("S" + id)
+                .title(title)
+                .status(WelfareService.ServiceStatus.ACTIVE)
+                .applyEndDate(applyEndDate)
+                .build();
     }
 
     private RecommendationUserSnapshot snapshot(List<String> interestFields,

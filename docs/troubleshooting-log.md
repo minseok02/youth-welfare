@@ -897,3 +897,8 @@
 - 문제: `BENEFICIARY_SUPPORT` bucket 을 scoring 에 연결할 때 새 보너스 항목으로 따로 더하면, 기존 `TARGET_GROUP` 보너스와 함께 같은 축을 이중 가산할 수 있었다. 특히 `기초생활수급자` 와 `차상위계층` raw term을 multi-term 으로 보존하는 현재 정책과 겹치면 “dedupe bucket 도 있고 broad target match 도 있다”는 이유로 점수 회귀가 생길 수 있었다
 - 해결: 첫 단계 브리지는 `RuleScoringService.score(RetrievedRecommendationCandidates, ...)` 오버로드만 추가하고, canonical `BENEFICIARY_SUPPORT` bucket 은 기존 `targetGroupMatches(...)` boolean 슬롯에 OR 로 연결했다. 동시에 `beneficiaryTerms` 로 `기초생활수급자<=1`, `차상위계층<=3` threshold 를 좁게 걸어 서비스당 최대 1회 bonus 만 허용했다
 - 이유: beneficiary bucket 의 목적은 새로운 축을 더 만드는 것이 아니라 raw multi-term 에서 중복 가산을 막으면서 기존 target-group 의도를 canonical read-model 로 옮기는 것이다. 기존 bonus 슬롯에 병행 연결하는 편이 legacy score 의미를 덜 흔들고 회귀 범위도 좁다
+
+## 178) canonical broad term(`interestThemes`, `keywordTags`, `targetGroupsRaw`) 도 beneficiary와 마찬가지로 새 가산 항목을 만들기보다 legacy boolean matcher에 OR 로 연결해야 점수식 폭증을 막을 수 있음
+- 문제: retrieval hydrate 뒤 projection term을 읽기 시작할 때, 기존 `ServiceTag` 기반 bonus 위에 canonical term bonus 를 새로 더하면 같은 관심분야/대상군 신호가 legacy tag 와 projection 양쪽에서 동시에 들어오는 순간 점수가 불필요하게 커질 수 있었다. 특히 `targetGroupsRaw` 는 sidecar backfill 이 진행될수록 legacy tag 와 겹칠 가능성이 높았다
+- 해결: `RuleScoringService` 의 `interestThemeMatches`, `keywordMatches`, `targetGroupMatches` 가 projection 값을 별도 가산 슬롯으로 더하지 않고 기존 boolean matcher 안에서 OR 로만 읽도록 바꿨다. `factKeys` 는 이번 단계에서 `isDeadlineSoon` helper 경계에만 먼저 연결하고, bonus 규칙 자체는 기존 `apply_end_date` 의미를 유지했다
+- 이유: canonical read-model 브리지는 “같은 의미의 신호를 다른 저장소에서 읽는 것”이지 새 점수 축을 추가하는 작업이 아니다. 기존 matcher 슬롯을 재사용해야 legacy path 와 canonical path 가 공존하는 동안에도 score inflation 없이 회귀를 좁게 통제할 수 있다
