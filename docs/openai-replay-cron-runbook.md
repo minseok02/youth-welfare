@@ -40,6 +40,35 @@ nightly diagnostic artifact를 안정적으로 남기는 것입니다.
 
 cron 등록 전에 아래 두 명령을 수동으로 먼저 실행합니다.
 
+권한/경로 최소 체크:
+
+```bash
+id
+crontab -l || true
+ls -l /home/minseok/youth-welfare/.env
+test -r /home/minseok/youth-welfare/.env && echo ".env readable"
+ls -ld /var/log/youth-welfare/openai-replay
+test -w /var/log/youth-welfare/openai-replay && echo "log root writable"
+```
+
+권장 해석:
+
+1. `.env readable`
+   - cron user가 replay same-process env를 읽을 수 있음
+2. `log root writable`
+   - summary/artifact/runtime log를 남길 수 있음
+3. `crontab -l`
+   - 기존 replay/cleanup line 중복 여부 확인
+4. `id`
+   - root가 아닌 intended ops user인지 확인
+
+필요하면 권한 메타데이터도 같이 본다:
+
+```bash
+stat -c '%A %U:%G %n' /home/minseok/youth-welfare/.env
+stat -c '%A %U:%G %n' /var/log/youth-welfare/openai-replay
+```
+
 nightly replay wrapper:
 
 ```bash
@@ -101,6 +130,8 @@ crontab -l
 ls -ld /var/log/youth-welfare/openai-replay
 ls -l /home/minseok/youth-welfare/deploy/smoke/run-nightly-openai-replay.sh
 ls -l /home/minseok/youth-welfare/deploy/smoke/cleanup-openai-replay-artifacts.sh
+stat -c '%A %U:%G %n' /home/minseok/youth-welfare/.env
+stat -c '%A %U:%G %n' /var/log/youth-welfare/openai-replay
 ```
 
 ## 4. 다음날 확인 포인트

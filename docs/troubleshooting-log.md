@@ -1212,3 +1212,8 @@
 - 문제: runbook 에서 `cron user` 가 `.env`, Docker, OpenAI secret 접근 권한을 가진다고만 적어 두면, 실제 운영자가 이를 root cron 이나 broad sudo 계정으로 해석해 권한 범위를 과하게 넓힐 수 있다
 - 해결: [openai-replay-cron-security-boundary.md](./openai-replay-cron-security-boundary.md) 를 추가해 `non-root ops cron user`, `.env` read-only, host-local artifact 접근, broad sudo 비권장, root crontab 비기본값 원칙을 따로 고정했고, [openai-replay-cron-runbook.md](./openai-replay-cron-runbook.md), [openai-replay-diagnostic-lane-plan.md](./openai-replay-diagnostic-lane-plan.md), [deployment.md](./deployment.md), [README.md](./README.md) 에서 바로 링크되게 맞췄다
 - 이유: nightly replay는 diagnostic lane이지만 OpenAI secret 과 host-local artifact를 함께 다루므로, 실행 절차와 권한 경계는 분리해서 적는 편이 운영 해석이 덜 흔들린다
+
+## 241) 권한 경계 문장만으로는 부족하고, host 적용 전 `test -r/-w`, `stat`, `id`, `crontab -l` 같은 최소 체크 명령까지 runbook에 있어야 실제 오적용을 줄일 수 있다
+- 문제: `non-root ops user`, `.env read-only` 같은 원칙이 있어도 운영자는 실제 host에서 무엇을 실행해 확인할지 다시 추정해야 하고, 그 과정에서 root 계정으로 그냥 돌리거나 log root 권한 부족을 늦게 발견할 수 있다
+- 해결: [openai-replay-cron-runbook.md](./openai-replay-cron-runbook.md)에 `id`, `crontab -l`, `ls -l .env`, `test -r .env`, `test -w /var/log/...`, `stat -c '%A %U:%G %n' ...` 를 추가해 사전 수동 검증과 등록 직후 확인에 바로 쓸 수 있게 했다
+- 이유: 권한 경계는 문장보다 명령으로 확인하는 편이 운영 drift를 줄인다. 특히 `.env readable` 과 `log root writable` 은 replay 성공 조건이라 cron 등록 전에 바로 확인하는 게 맞다

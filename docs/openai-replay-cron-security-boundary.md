@@ -119,3 +119,9 @@ artifact root와 summary file은 host-local로 남기되,
 3. 현재 단계에서는 그 전 단계로,
    `non-root ops cron user + host-local secret/artifact boundary`
    를 기본값으로 둡니다.
+4. host 적용 전에는 문장 판단보다 실제 권한 체크 명령을 먼저 본다.
+   - `id`
+   - `crontab -l`
+   - `test -r /home/minseok/youth-welfare/.env`
+   - `test -w /var/log/youth-welfare/openai-replay`
+   - `stat -c '%A %U:%G %n' ...`
