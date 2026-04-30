@@ -106,6 +106,9 @@
 - [auth-admin-forced-logout-api-contract.md](./auth-admin-forced-logout-api-contract.md)
   future `admin forced logout` 의 최소 API 계약(path, body, idempotency, success 의미)을 확인합니다.
 
+- [auth-admin-forced-logout-redis-shape.md](./auth-admin-forced-logout-redis-shape.md)
+  future `admin forced logout` 가 Redis에 `refresh:{userKey}` 삭제와 `access-cutoff:{userKey}` 를 어떤 의미로 남길지 확인합니다.
+
 - [policy-normalization-compat-category-drift-inventory.md](./policy-normalization-compat-category-drift-inventory.md)
   local `service_taxonomies` 스냅샷 기준으로 `compat_unified_category` 와 canonical summary(`youth_major_label`, `gov24_*`) 사이 drift/공백/legacy raw 복사 흔적을 확인합니다.
 

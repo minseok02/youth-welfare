@@ -1352,3 +1352,8 @@
 - 문제: entrypoint를 admin API로 정한 뒤에도 path, target identifier, success 의미를 바로 고정하지 않으면 이 API가 `ROLE_ADMIN` 제거, user 비활성화, account lock까지 같이 하는 것처럼 확장되기 쉽다
 - 해결: [auth-admin-forced-logout-api-contract.md](./auth-admin-forced-logout-api-contract.md) 를 추가해 1차 계약을 `POST /api/admin/users/forced-logout`, body `userKey`, idempotent by effect, success=`existing access/refresh revoke intent accepted` 로 고정했다
 - 이유: 운영자 액션 API는 범위를 애매하게 열수록 나중에 rollback이 어려워진다. session/token revoke only 라는 경계를 path/body/success 의미에서 먼저 못 박아야 구현이 작게 유지된다
+
+## 269) `admin forced logout` 을 logout과 같은 exact token blacklist로만 풀면 multi-session/admin offboarding 요구를 못 담으므로, Redis shape를 user cutoff 기준으로 분리해야 한다
+- 문제: 현재 revoke 구현은 `logout` 의 presented bearer token 1개를 `access-revoked:{token}` 로 막는 방식이라 범위가 작다. 이 패턴을 그대로 forced logout에 가져오면 운영자는 old access token 원문을 모르는 상태에서 여러 세션을 한 번에 정리할 수 없다
+- 해결: [auth-admin-forced-logout-redis-shape.md](./auth-admin-forced-logout-redis-shape.md) 를 추가해 forced logout Redis state를 `refresh:{userKey}` delete + `access-cutoff:{userKey}` 기록으로 고정하고, logout의 exact token blacklist와 역할을 분리했다
+- 이유: logout은 current presented token revoke, forced logout은 userKey 기준 existing session revoke다. 둘을 같은 key shape로 처리하면 범위가 모자라거나 구현이 과도하게 복잡해진다
