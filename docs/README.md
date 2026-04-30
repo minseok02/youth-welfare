@@ -82,6 +82,9 @@
 - [policy-normalization-raw-ai-enrichment-pipeline.md](./policy-normalization-raw-ai-enrichment-pipeline.md)
   신규 source-specific 필드를 `raw 보존 -> official/rule-derived canonical -> AI batch enrichment` 순서로 흡수하는 경계를 확인합니다.
 
+- [auth-logout-revocation-scope-policy.md](./auth-logout-revocation-scope-policy.md)
+  `logout` 의 즉시 무효화 범위를 `bearer-present exact token revoke` 와 `cookie-only refresh-only` 로 어떻게 나눌지 확인합니다.
+
 - [policy-normalization-compat-category-drift-inventory.md](./policy-normalization-compat-category-drift-inventory.md)
   local `service_taxonomies` 스냅샷 기준으로 `compat_unified_category` 와 canonical summary(`youth_major_label`, `gov24_*`) 사이 drift/공백/legacy raw 복사 흔적을 확인합니다.
 
@@ -232,6 +235,7 @@
 - [runtime-api-smoke-commands.md](./runtime-api-smoke-commands.md)
 - [github-workflow.md](./github-workflow.md)
 - [phase-plan.md](./phase-plan.md)
+- [auth-logout-revocation-scope-policy.md](./auth-logout-revocation-scope-policy.md)
 - [policy-normalization-youth-income-zero-policy.md](./policy-normalization-youth-income-zero-policy.md)
 - [policy-normalization-youth-mid-live-inventory.md](./policy-normalization-youth-mid-live-inventory.md)
 - [policy-normalization-youth-mid-stable-code-source-plan.md](./policy-normalization-youth-mid-stable-code-source-plan.md)

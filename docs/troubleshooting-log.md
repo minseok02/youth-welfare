@@ -1302,3 +1302,8 @@
 - 문제: 기존 구현은 logout 시 `refresh:{userKey}` 만 지우고 chat session만 정리했기 때문에, 이미 발급된 access token은 만료 전까지 `/api/admin/**` 같은 보호 API를 계속 통과했다. 즉 `POST /api/auth/logout` 성공과 “즉시 권한 차단”이 서로 다른 계약이었다
 - 해결: Redis 기반 `AccessTokenRevocationService` 를 추가해 logout 요청에 실린 bearer access token을 남은 만료 시간 TTL로 `access-revoked:*` key에 저장하고, `JwtAuthenticationFilter` 가 인증 세팅 전에 revoke 여부를 먼저 확인하도록 바꿨다. `/api/auth/logout` 는 refresh cookie/header만으로도 계속 성공하지만, 같은 요청에 bearer token이 있으면 그 token은 즉시 차단된다
 - 이유: user-level cutoff timestamp 방식은 JWT `iat` 정밀도와 재로그인 경계 이슈가 남고, 전체 token tracking은 scope가 커진다. 이번 단계에선 “logout에 사용한 현재 access token 즉시 차단”을 exact token blacklist로 고정하는 편이 가장 작은 diff로 실제 위험을 줄인다
+
+## 259) `cookie-only logout` 까지 user-level cutoff로 넓히면 브라우저 refresh 종료와 전 세션 access-token 회수 의미가 섞여, 현재 제품 계약보다 더 큰 설계 변경이 된다
+- 문제: bearer-present logout revoke를 넣은 뒤에는, refresh cookie만 실린 `cookie-only logout` 도 같은 방식으로 “모든 access token 즉시 차단”까지 해줘야 하는 것처럼 보일 수 있다. 하지만 이 경로는 현재 요청에 어떤 access token이 살아 있었는지 서버가 직접 보지 못하고, 다중 로그인/재로그인/`iat` 경계까지 함께 풀어야 한다
+- 해결: [auth-logout-revocation-scope-policy.md](./auth-logout-revocation-scope-policy.md) 를 추가해 현재 phase의 계약을 `bearer-present exact token revoke` 와 `cookie-only refresh-only` 로 분리하고, user-level cutoff는 별도 reopen 조건이 생길 때만 다시 열기로 고정했다
+- 이유: 지금 필요한 건 “logout에 사용한 현재 token의 즉시 차단”이지, 전체 세션 모델 재정의가 아니다. `cookie-only logout` 을 조용히 넓히면 브라우저 logout, 모바일/다중 세션, admin 강제 로그아웃 의미가 한 번에 섞여 실패 반경이 커진다

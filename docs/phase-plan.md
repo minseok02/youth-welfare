@@ -1221,6 +1221,9 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
   - `AccessTokenRevocationService` 를 추가해 logout 요청에 실린 bearer access token을 남은 만료 시간 TTL로 Redis `access-revoked:*` key에 적재하고, `JwtAuthenticationFilter` 가 revoke된 token이면 SecurityContext를 세우지 않도록 변경
   - `/api/auth/logout` 는 refresh cookie/header 기반 logout은 그대로 허용하되, 같은 요청의 `Authorization: Bearer <access-token>` 이 있으면 해당 token도 함께 revoke하도록 변경
   - `AdminSecurityIntegrationTest` 에서 admin logout 직후 같은 old access token으로 `/api/admin/collect/youth` 재호출 시 `401 / A006` 으로 차단되는 것을 고정
+- 2026-05-01 cookie-only logout revocation scope 정책 고정
+  - [auth-logout-revocation-scope-policy.md](./auth-logout-revocation-scope-policy.md) 를 추가해 현재 phase의 logout 계약을 `bearer-present exact token revoke` 와 `cookie-only refresh-only` 로 분리했다
+  - user-level cutoff(`logoutAt` / `revokedAfter`) 는 다중 세션, `iat` 정밀도, 재로그인 경계까지 함께 설계해야 하므로 지금 단계에서는 reopen하지 않기로 고정했다
 
 ## 작업 추적
 
@@ -1280,6 +1283,7 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - [x] `unifiedCategory` 응답 계약을 유지하면서 taxonomy/read-model 로 브릿지하는 호환 전략 작성
 - [x] 신규 source의 source-specific 필드를 raw + AI batch enrichment fact 로 흡수하는 파이프라인 초안 작성
 - [x] logout 후 access token 즉시 무효화 전략 검토/구현
+- [x] cookie-only logout 경로를 refresh-only 계약으로 유지할지, user-level cutoff로 넓힐지 결정
 - [ ] 운영 서버 Docker Compose 기동
 - [ ] 기존 운영 DB에 `app_core_rw` / `app_pii_rw` / `notification_pii_ro` / `migration_admin` 계정 생성 및 앱 datasource 전환
 - [ ] 운영 `.env` / secret store의 `APP_PII_DB_URL` / `NOTIFICATION_PII_DB_URL` 를 `youth_welfare_pii` schema 기준으로 전환
