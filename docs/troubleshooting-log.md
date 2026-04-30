@@ -1157,3 +1157,8 @@
 - 문제: `real-openai` replay는 비용과 live variability가 있어, 짧은 간격으로 자주 돌릴수록 merge 판단보다 노이즈 수집이 늘어날 수 있다
 - 해결: [openai-replay-diagnostic-lane-plan.md](./openai-replay-diagnostic-lane-plan.md)에 기본 스케줄을 `ops cron host nightly once` 로 두고, 추천/AI 관련 큰 변경 후에만 수동 on-demand replay를 추가하는 정책을 반영했다
 - 이유: 지금 목적은 deterministic gate가 아니라 drift 분포 관찰이다. 매일 1회면 fingerprint 분포와 sample A/B target count 변화를 보기엔 충분하고, 운영 부담과 API 비용도 가장 보수적으로 제어할 수 있다
+
+## 230) nightly replay summary는 외부 chat/email보다 host-local append-only file을 1차 채널로 두는 편이 현재 단계에선 더 안전하다
+- 문제: nightly `real-openai` replay 결과를 어디로 공유할지 정해야 하지만, 현재 repo/운영 문서에는 Slack, ChatOps, replay 전용 메일 alias 같은 외부 채널 전제가 없다
+- 해결: [openai-replay-diagnostic-lane-plan.md](./openai-replay-diagnostic-lane-plan.md)에 1차 채널을 `ops cron host` 의 append-only summary file로 두고, 상세 증적은 artifact dir에서 확인하는 정책을 반영했다
+- 이유: live variability가 남는 diagnostic lane을 외부 알림으로 바로 밀면 false positive가 곧바로 알림 피로로 이어질 수 있다. 먼저 host-local summary file과 artifact dir로 경계를 좁히고, 이후 운영 채널이 준비되면 그때 바깥으로 확장하는 편이 더 안전하다

@@ -164,5 +164,50 @@ PR lane은 그쪽에만 남기는 것이 맞습니다.
 ## 다음 결정 포인트
 
 1. ops cron host에서 artifact를 어디에 보관/공유할 것인가
-2. nightly 결과를 어느 채널에서 요약 공유할 것인가
-3. 이후 self-hosted runner로 옮길 필요가 생기는 조건은 무엇인가
+2. 이후 self-hosted runner로 옮길 필요가 생기는 조건은 무엇인가
+
+## 권장 요약 채널
+
+현재 단계에서는 nightly 결과 요약 채널을
+**외부 chat/email integration** 으로 넓히지 않고,
+`ops cron host` 의 **append-only summary file** 로 시작하는 편이 맞습니다.
+
+권장 형태:
+
+1. cron job stdout/stderr는 run별 artifact dir에 남김
+2. `SUMMARY_METRIC ...` 한 줄은
+   host의 append-only daily summary file에도 함께 append
+3. 운영자는 먼저 summary file을 보고,
+   이상 시 해당 artifact dir을 열어 triage
+
+즉 1차 채널은:
+
+- `host-local summary file`
+
+이고, 2차 상세 증적은:
+
+- `artifact dir`
+
+입니다.
+
+## 왜 chat/email push를 바로 하지 않나
+
+현재는 아래가 아직 없습니다.
+
+- 팀 공용 Slack/ChatOps 경로
+- replay 전용 메일 alias
+- external notification secret/runbook
+
+이 상태에서 chat/email push를 먼저 열면:
+
+- 운영 경로가 repo 밖 의존성에 묶이고
+- false positive drift가 바로 알림 피로로 번질 수 있고
+- app Gmail/notification 경로와 diagnostic lane이 섞일 위험이 있습니다
+
+따라서 지금은:
+
+1. host-local summary file
+2. artifact dir
+3. 필요 시 사람이 수동 공유
+
+순서가 맞습니다.
