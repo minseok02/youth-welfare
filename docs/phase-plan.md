@@ -555,6 +555,10 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
   - host `bootRun` 전환 구간에서 이전 `off` 앱이 아직 health `UP` 인 순간을 `on` phase 준비 완료로 오인하던 race를 잡기 위해, 스크립트에 `wait_for_app_down()` 과 health artifact reset을 추가했다
   - latest local snapshot 기준 실제 스크립트 실행은 통과했고, sample A(`28110 / age25 / income5 / priority=EDUCATION`)의 `compat=기타 + youth_major=교육` target row top-10 진입 수는 `1 -> 7`, sample B(control, `priority=HOUSING`)의 top-10 target row count 는 `0 -> 0` 으로 유지됐다
   - 다만 control sample은 exact top-10 id 불변까지는 보장하지 못했다. local snapshot에선 동점권 reorder가 있어 strict control 비교는 warning-by-default로 두고, 필요할 때만 `STRICT_CONTROL_ASSERT=true` 로 올려 재현하도록 정리했다
+- 2026-04-30 `deploy/smoke/run-local-education-priority-replay.sh` control sample drift를 `finalScore` 기준으로 추가 분석
+  - latest artifact(`/tmp/tmp.pKVwRY4dlt`) 기준 sample B는 top-10 id set 자체는 동일했고, `compat=기타 + youth_major=교육` target row top-10 count도 `0 -> 0` 으로 유지됐다. 대신 housing row 몇 개가 `±0.02 ~ ±0.06` 수준으로 흔들리며 순서가 바뀌었다
+  - 이 drift는 `RuleScoringService` helper가 control sample에 직접 발동해서라기보다, `ReRankingService` 가 request마다 `ruleMax` 를 다시 잡아 `normalize(ruleWeightedScore, 0, ruleMax)` 하는 request-local 정규화 영향으로 보는 쪽이 가장 타당하다고 정리했다
+  - 그래서 local smoke 기본 모드는 계속 `sample A improvement` 만 hard assert 하고, `sample B` 는 target-row 유입 여부를 본 뒤 exact top-10 / `finalScore` drift는 artifact review 대상으로 남긴다. strict control 비교는 `STRICT_CONTROL_ASSERT=true` 일 때만 별도로 실행한다
 - 2026-04-28 pre-28 migrated DB 기준 admin logout / refresh invalidation / relogin smoke
   - `SECURITY_ADMIN_EMAILS=admin.logout.smoke@example.com` 으로 최신 앱을 기동한 뒤, admin 계정 로그인과 프로필 수정으로 queue row를 `SYNCED` 상태까지 맞추고 `POST /api/auth/refresh` 가 먼저 성공하는 것 확인
   - 같은 cookie jar + access token으로 `POST /api/auth/logout` 호출 후 cookie jar에서 `refresh_token` 이 제거되고, 직후 `POST /api/auth/refresh` 가 `401`, `errorCode=A001` 로 막히는 것 확인
@@ -1165,7 +1169,7 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - [ ] 복지로 live detail 적재 기준 `welfare_service_details` / `service_facts` validation 리허설
 - [ ] 복지로 detail refresh budget metadata(`centralBudget`/`localBudget`) 를 admin collect observability에 노출할지 결정
 - [ ] `bokjiro-details-gap-fill` 추가 라운드/호출 예산 전략 정리 후 stored detail payload coverage 추가 확대
-- [ ] `deploy/smoke/run-local-education-priority-replay.sh` 의 control sample drift를 strict fail 대신 warning으로 둔 이유를 sample B finalScore 변동 기준으로 추가 분석
+- [ ] sample B(control) drift가 `ReRankingService` request-local normalization 때문인지 `ruleWeightedScore` snapshot까지 포함해 확인할지 결정
 - [ ] `참여권리` 의 `청년참여` subset만 별도 bridge 후보로 분리할지 결정
 - [ ] 복지로 `threshold_like` income signal(`13`건) 을 `INCOME_*` hard fact 가 아닌 optional soft signal schema 로 분리할지 결정
 - [ ] 복지로 live detail 응답에 신청마감 explicit field가 있는지 재확인하고, 없으면 `BK_APPLY_END_DATE` 는 canonical collect path에서 optional fact로 유지

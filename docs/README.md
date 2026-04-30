@@ -91,6 +91,9 @@
 - [policy-normalization-education-priority-replay-procedure.md](./policy-normalization-education-priority-replay-procedure.md)
   `교육 -> 교육·직업훈련` narrow experiment 구현 후 local에서 `flag off/on` 추천 refresh를 어떤 명령 순서로 비교할지 확인합니다.
 
+- [policy-normalization-education-control-drift-analysis.md](./policy-normalization-education-control-drift-analysis.md)
+  latest replay artifact 기준으로 sample B(control)의 `finalScore` / top-10 drift가 왜 strict fail 기본값이 아닌지 확인합니다.
+
 - [policy-normalization-education-target-sample-inventory.md](./policy-normalization-education-target-sample-inventory.md)
   `compat=기타 + youth_major=교육` target row가 실제 추천 결과 집합에 들어오는 local replay sample이 현재 있는지와, region/age scan 결과를 확인합니다.
 
@@ -173,6 +176,7 @@
 - [github-workflow.md](./github-workflow.md)
 - [phase-plan.md](./phase-plan.md)
 - [policy-normalization-youth-income-zero-policy.md](./policy-normalization-youth-income-zero-policy.md)
+- [policy-normalization-education-control-drift-analysis.md](./policy-normalization-education-control-drift-analysis.md)
 - [policy-normalization-education-target-sample-inventory.md](./policy-normalization-education-target-sample-inventory.md)
 - [policy-normalization-sample-spike.md](./policy-normalization-sample-spike.md)
 - [policy-source-onboarding-playbook.md](./policy-source-onboarding-playbook.md)
