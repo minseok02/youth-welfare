@@ -16,9 +16,12 @@ sample B(control)의 drift를 `finalScore` 기준으로 분해한 결과입니�
 - current local snapshot에서는 control sample drift를 `strict fail` 기본값으로 두지 않는다
 - 이유는 `sample B`에서 **target row top-10 count는 `0 -> 0`으로 유지**되지만,
   일부 비대상 row의 `finalScore`와 top-10 내부 순서가 소폭 흔들리기 때문이다
-- 이 흔들림은 현재 구현상
+- latest full replay script artifact(`/tmp/tmp.aoUkRUpDdB`)에서는
+  `edu-b-off-scores.tsv` / `edu-b-on-scores.tsv` 가 같이 남았고,
+  여기서 `rule_weighted_score` 는 동일한데 `final_score` 만 달라지는 snapshot이 확인됐다
+- 따라서 이 흔들림은 현재 구현상
   `ReRankingService`의 **request-local rule score normalization**
-  영향으로 보는 쪽이 가장 타당하다
+  영향으로 보는 쪽이 더 강해졌다
 
 즉:
 
@@ -90,6 +93,12 @@ latest replay:
   [ReRankingService.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/recommend/service/ReRankingService.java) 가
   request마다 `ruleMax`를 다시 구해 `normalize(ruleWeightedScore, 0, ruleMax)` 하기 때문이다
 
+latest full replay score snapshot 기준으로는:
+
+- 주거 row 상위권의 `rule_weighted_score` 는 그대로 `30.00`
+- 교육/기타 row 상위권의 `rule_weighted_score` 도 그대로 `25.00`
+- 그런데 `final_score` 는 `0.96 -> 0.88`, `0.94 -> 0.88`, `0.76 -> 0.72` 식으로 바뀐다
+
 따라서 한쪽 후보군의 weighted score 분포가 조금만 바뀌어도:
 
 - 다른 후보의 normalized rule score가 같이 다시 계산될 수 있고
@@ -116,8 +125,8 @@ STRICT_CONTROL_ASSERT=true deploy/smoke/run-local-education-priority-replay.sh
 
 다음에 볼 것은 두 가지다.
 
-1. `sample B`의 drift가 실제로 `ReRankingService` 정규화 때문인지
-   `ruleWeightedScore` snapshot까지 포함해 확인할지
+1. full replay 문맥에서 왜 `rule_weighted_score` 는 같은데
+   `final_score` 만 달라지는지 추가 원인(후보군 구성/정렬 tie/정규화 입력) 추적
 2. local smoke에서는 warning 유지,
    CI/수동 검증에서는 strict mode를 추가할지
 

@@ -72,6 +72,7 @@ deploy/smoke/run-local-education-priority-replay.sh
 6. `compat=기타 + youth_major=교육` target row top-10 진입 수 비교
 7. sample A 개선 hard assert
 8. sample B(control) drift는 기본 warning, 필요하면 `STRICT_CONTROL_ASSERT=true` 로 strict fail
+9. `user_recommendations` off/on snapshot(`edu-a/b-*-scores.tsv`)도 함께 남겨 `rule_weighted_score` / `final_score` 경계를 바로 비교
 
 ### 1. DB/Redis 기동
 

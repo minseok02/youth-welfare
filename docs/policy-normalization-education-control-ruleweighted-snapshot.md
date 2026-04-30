@@ -19,7 +19,10 @@ sample B의 `rule_weighted_score` 와 `final_score` 가
 즉 이번 direct capture만 놓고 보면:
 
 - drift가 `ruleWeightedScore` 단계에서 시작된다고 볼 근거는 없음
-- `ReRankingService` request-local normalization 가설도 아직 확정할 수 없음
+- direct replay만으로는 `ReRankingService` request-local normalization 가설을 확정할 수 없음
+- 다만 이후 full replay script artifact(`/tmp/tmp.aoUkRUpDdB`)에서
+  `edu-b-off-scores.tsv` / `edu-b-on-scores.tsv` 비교 결과
+  `rule_weighted_score` 는 그대로인데 `final_score` 만 달라지는 snapshot이 추가로 확보됐다
 
 정확히는:
 
@@ -74,7 +77,7 @@ DB snapshot top-15:
 
 ## 해석
 
-이 결과는 적어도 다음 둘을 말해준다.
+이 direct snapshot은 적어도 다음 둘을 말해준다.
 
 1. `sample B` 단독 direct replay에서는
    `education` canonical bonus가 control sample persisted score를 흔들지 않았다
@@ -85,15 +88,14 @@ DB snapshot top-15:
 
 가능한 후보:
 
-- sample A refresh가 먼저 돌면서 생기는 전역 상태 변화
-- `recommendation_logs` 누적에 따른 다른 경계 변화
+- sample A refresh가 먼저 돌면서 생기는 full replay context 차이
 - full script의 sample seed / refresh 순서 차이
-- latest artifact와 direct capture 사이의 snapshot 차이
+- direct capture와 full replay script 사이의 candidate pool / normalization 입력 차이
 
 ## 현재 판단
 
 이제 가장 타당한 다음 질문은
-“sample B drift가 normalization 때문인가” 가 아니라:
+“sample B drift가 normalization 때문인가” 자체보다는:
 
 `sample B only direct replay에서는 drift가 없는데,
 왜 full replay script artifact에서는 drift가 생겼는가`

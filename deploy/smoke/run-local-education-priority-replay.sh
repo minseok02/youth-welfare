@@ -127,6 +127,12 @@ COOKIE_A="${ARTIFACT_DIR}/edu-a.cookie"
 COOKIE_B="${ARTIFACT_DIR}/edu-b.cookie"
 HEALTH_FILE="${ARTIFACT_DIR}/health.json"
 META_FILE="${ARTIFACT_DIR}/response-service-meta.tsv"
+USER_KEY_A_FILE="${ARTIFACT_DIR}/edu-a.userkey"
+USER_KEY_B_FILE="${ARTIFACT_DIR}/edu-b.userkey"
+SCORES_A_OFF="${ARTIFACT_DIR}/edu-a-off-scores.tsv"
+SCORES_A_ON="${ARTIFACT_DIR}/edu-a-on-scores.tsv"
+SCORES_B_OFF="${ARTIFACT_DIR}/edu-b-off-scores.tsv"
+SCORES_B_ON="${ARTIFACT_DIR}/edu-b-on-scores.tsv"
 
 mysql_exec() {
   local sql="$1"
@@ -146,6 +152,35 @@ mysql_exec() {
   docker exec -e MYSQL_PWD="${DB_QUERY_PASSWORD}" -i "${MYSQL_CONTAINER_NAME}" \
     mysql --default-character-set=utf8mb4 --batch --skip-column-names \
     -u"${DB_QUERY_USERNAME}" youth_welfare -e "${sql}"
+}
+
+lookup_user_key_by_email() {
+  local email="$1"
+  mysql_exec "
+    SET NAMES utf8mb4;
+    SELECT user_key
+    FROM users
+    WHERE email = '${email}'
+    LIMIT 1;
+  "
+}
+
+capture_recommendation_snapshot() {
+  local user_key="$1"
+  local output_file="$2"
+  mysql_exec "
+    SET NAMES utf8mb4;
+    SELECT ur.service_id,
+           ur.rule_weighted_score,
+           ur.final_score,
+           ws.title,
+           ws.unified_category
+    FROM user_recommendations ur
+    JOIN welfare_services ws ON ws.id = ur.service_id
+    WHERE ur.user_key = '${user_key}'
+    ORDER BY ur.final_score DESC, ur.id DESC
+    LIMIT 30;
+  " > "${output_file}"
 }
 
 wait_for_app_health() {
@@ -387,25 +422,35 @@ if [[ "${ENSURE_DOCKER_SERVICES}" == "true" ]]; then
 fi
 
 signup_or_prepare_samples() {
-  local token_a token_b
+  local token_a token_b user_key_a user_key_b
   signup_if_needed "${SAMPLE_A_EMAIL}" "Education Replay Sample A"
   signup_if_needed "${SAMPLE_B_EMAIL}" "Education Replay Sample B"
   token_a="$(login_and_token "${SAMPLE_A_EMAIL}" "${COOKIE_A}")"
   token_b="$(login_and_token "${SAMPLE_B_EMAIL}" "${COOKIE_B}")"
+  user_key_a="$(lookup_user_key_by_email "${SAMPLE_A_EMAIL}")"
+  user_key_b="$(lookup_user_key_by_email "${SAMPLE_B_EMAIL}")"
+  printf "%s\n" "${user_key_a}" > "${USER_KEY_A_FILE}"
+  printf "%s\n" "${user_key_b}" > "${USER_KEY_B_FILE}"
   update_profile "${token_a}"
   update_profile "${token_b}"
   update_priorities "${token_a}" "${SAMPLE_A_PRIORITY_CODES}"
   update_priorities "${token_b}" "${SAMPLE_B_PRIORITY_CODES}"
   refresh_recommendations "${token_a}" "${RESP_A_OFF}"
+  capture_recommendation_snapshot "${user_key_a}" "${SCORES_A_OFF}"
   refresh_recommendations "${token_b}" "${RESP_B_OFF}"
+  capture_recommendation_snapshot "${user_key_b}" "${SCORES_B_OFF}"
 }
 
 run_on_phase() {
-  local token_a token_b
+  local token_a token_b user_key_a user_key_b
   token_a="$(login_and_token "${SAMPLE_A_EMAIL}" "${COOKIE_A}")"
   token_b="$(login_and_token "${SAMPLE_B_EMAIL}" "${COOKIE_B}")"
+  user_key_a="$(cat "${USER_KEY_A_FILE}")"
+  user_key_b="$(cat "${USER_KEY_B_FILE}")"
   refresh_recommendations "${token_a}" "${RESP_A_ON}"
+  capture_recommendation_snapshot "${user_key_a}" "${SCORES_A_ON}"
   refresh_recommendations "${token_b}" "${RESP_B_ON}"
+  capture_recommendation_snapshot "${user_key_b}" "${SCORES_B_ON}"
 }
 
 start_app "false" "${APP_LOG_OFF}"
