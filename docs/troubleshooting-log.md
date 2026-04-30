@@ -1097,3 +1097,8 @@
 - 문제: real-openai replay에서 `candidateIds` / `candidateRuleScores` / `promptSha256` 가 같아도 `ai_score` drift가 남는다는 것까진 확인했지만, 이 상태만으로는 “같은 seed 조건인지”와 “backend fingerprint 도 같았는지”를 분리할 수 없다
 - 해결: `RealtimeAiGateway` request body에 optional `seed` 를 추가하고, request trace에 `replaySeed`, response trace에 `responseId`, `systemFingerprint`, `responseSeed`, `resultsCount` 를 남기도록 확장했다. replay script도 `RECOMMEND_AI_REPLAY_SEED` env와 `edu-a/b-*-ai-response-trace.log` artifact를 추가해 다음 real-openai replay에서 same seed/same fingerprint 조건을 바로 확인할 수 있게 했다
 - 이유: determinism 보조 기능을 켰는지와 backend 상태가 같았는지를 먼저 증명해야, 그 다음에야 residual drift를 live model nondeterminism으로 해석할 수 있다. 같은 `promptSha256` 만으로는 그 경계가 아직 부족하다
+
+## 218) same `promptSha256` + same `replaySeed` 인데 `system_fingerprint` 가 바뀌면, 이번 run의 drift 원인은 backend churn과 분리해서 봐야 한다
+- 문제: `USE_REAL_OPENAI_FOR_REPLAY=true KEEP_ARTIFACTS=true` 로 replay seed를 고정한 artifact(`/tmp/tmp.hisZmhuvuH`)에서도 sample B `ai_score` drift가 남았다. 하지만 response trace를 보면 request trace는 `promptSha256=f7e810...`, `replaySeed=424242` 로 동일했어도 `systemFingerprint=fp_de7acce317 -> fp_ff247d5857` 로 바뀌었고 `responseId` 도 달랐다
+- 해결: 이번 결과는 “same prompt + same seed + same backend” 조건이 아직 성립하지 않은 run으로 분류하고, phase-plan 다음 작업을 same `system_fingerprint` artifact 확보로 다시 좁혔다
+- 이유: `seed` 는 best-effort determinism 수단일 뿐이고, OpenAI 문서도 backend 변화는 `system_fingerprint` 로 같이 보라고 안내한다. fingerprint 가 달라진 run까지 한데 묶어 버리면 residual nondeterminism과 backend churn을 구분할 수 없다
