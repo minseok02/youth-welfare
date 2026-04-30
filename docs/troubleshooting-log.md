@@ -832,3 +832,8 @@
 - 문제: gap fill 이후 `detail raw payload 는 있지만 service_facts 는 없는 복지로 서비스` 를 다시 샘플링해 보니 `130`건 중 `income-like` 는 `40`, `date-like` 는 `2`, strict `age-like` residual candidate 는 사실상 `1`건(`청년내일저축계좌` 의 `만 15세~만 40세`)뿐이었다. 그 외 다수는 저소득층 위문, 보훈 행사, 장애인 수리 지원처럼 연령 eligibility가 없는 일반복지 항목이었다
 - 해결: `phase-plan` 과 `db-migration` 에 no-fact sample 분포를 기록하고, 후속 작업을 광범위한 age regex 확대가 아니라 `second-bound 만` 패턴 처리 여부와 `income-like` soft fact 후보 검토로 좁혔다
 - 이유: sample 분포를 보지 않고 “facts가 없으니 regex를 더 넓힌다”로 가면 일반복지 본문에서 잘못된 age/income fact가 더 생길 수 있다. 남은 미생성 집합의 대부분이 비연령 항목이라면 precision을 지키면서 소수 패턴만 선택적으로 다루는 편이 재발 방지에 안전하다
+
+## 165) 복지로 age range 는 두 번째 bound 앞에도 `만` 이 붙는 실제 residual 패턴(`만 15세~만 40세`)이 있어, 첫 번째 bound만 보강한 상태로 멈추면 소수지만 반복 가능한 age fact 누락이 남을 수 있음
+- 문제: gap fill 후 no-fact sample 분석에서 residual `age-like` candidate 는 사실상 `청년내일저축계좌` 한 건뿐이었지만, 본문 패턴이 `만 15세~만 40세` 였다. 기존 `AGE_RANGE` 는 첫 번째 bound 앞의 `만` 만 허용하고 두 번째 bound는 `40세` 형태만 잡았기 때문에, precision을 해치지 않는 좁은 보강 여지가 남아 있었다
+- 해결: `TextConstraintExtractor.AGE_RANGE` 를 `(?:만\\s*)?(\\d{1,2})(?:\\s*세)? ... (?:만\\s*)?(\\d{1,2})\\s*세` 형태로 보강하고 `TextConstraintExtractorTest` 회귀 케이스를 추가했다. 이후 stored raw payload replay integration 을 다시 태워 local DB에서 복지로 `service_facts` 가 `103 -> 104`, `BK_AGE_ELIGIBILITY` 가 `BOKJIRO_CENTRAL 52`, `BOKJIRO_LOCAL 52` 로 증가한 것을 확인했다
+- 이유: 광범위한 regex 확장은 피해야 하지만, 실측 sample 하나가 실제 청년 정책 행이고 패턴도 매우 좁게 정의될 수 있다면 그런 residual은 선택적으로 흡수하는 편이 precision/coverage 균형에 맞다. “남은 게 거의 없으니 아예 안 건드린다”와 “광범위하게 다 넓힌다” 사이에서 source snapshot에 맞는 최소 보강을 택하는 것이 재발 방지에 안전하다

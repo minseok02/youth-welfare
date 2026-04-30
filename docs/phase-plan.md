@@ -344,6 +344,14 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
   - 즉 현재 gap fill 이후 남은 no-fact 대부분은 청년 연령 eligibility 누락이 아니라 저소득층 위문, 보훈 행사, 장애인 수리지원 같은 비연령 일반복지 항목이어서, 다음 작업은 regex를 크게 더 넓히는 것보다 `second-bound 만` 패턴 1건 처리 여부와 `income-like` soft fact 승격 여부를 따로 검토하는 쪽으로 정리했다
 - 2026-04-30 gap fill 후 `service_facts` 미생성 복지로 detail sample 분석 `docker exec -e MYSQL_PWD='welfare1234!' youth-welfare-db mysql --default-character-set=utf8mb4 -uroot -e \"SET NAMES utf8mb4; ... no_fact service sample queries ...\" youth_welfare`
 - 2026-04-30 gap fill 후 `service_facts` 미생성 복지로 detail sample 분석 후 `git diff --check`
+- 2026-04-30 복지로 `second-bound 만` age range 패턴 대응
+  - `TextConstraintExtractor.AGE_RANGE` 에서 두 번째 bound 앞의 `만` 도 허용하도록 보강해 `만 15세~만 40세` 같은 residual pattern 을 age fact 로 추출하게 했다
+  - `TextConstraintExtractorTest` 에 회귀 케이스를 추가했고, stored raw payload replay integration 을 다시 태운 뒤 local DB에서 복지로 `service_facts` 가 `103 -> 104`, `BK_AGE_ELIGIBILITY` 가 `BOKJIRO_CENTRAL 52`, `BOKJIRO_LOCAL 52` 로 늘어난 것을 확인했다
+  - residual sample 이던 `청년내일저축계좌`(`service_id=2300`) 에도 `BK_AGE_ELIGIBILITY 15~40`, `source_field=targetDetail/selectionCriteria` 가 실제로 적재됐다
+- 2026-04-30 복지로 `second-bound 만` age range 패턴 대응 후 `cd backend && ./gradlew test --no-daemon --tests com.example.welfare.collect.validation.TextConstraintExtractorTest --tests com.example.welfare.collect.normalization.NormalizedPolicySidecarBackfillServiceTest`
+- 2026-04-30 복지로 `second-bound 만` age range 패턴 대응 후 `cd backend && ./gradlew integrationTest --no-daemon --rerun-tasks --tests com.example.welfare.integration.NormalizedPolicySidecarBackfillDensityIntegrationTest`
+- 2026-04-30 복지로 `second-bound 만` age range 패턴 대응 후 `docker exec -e MYSQL_PWD='welfare1234!' youth-welfare-db mysql --default-character-set=utf8mb4 -uroot -e \"SET NAMES utf8mb4; SELECT COUNT(*) ... service_facts ... ; SELECT ws.source_type, sf.fact_merge_key, COUNT(*) ... ; SELECT sf.fact_merge_key, sf.range_min_int, sf.range_max_int, sf.source_field ... service_id=2300 ... ;\" youth_welfare`
+- 2026-04-30 복지로 `second-bound 만` age range 패턴 대응 후 `git diff --check`
 - 2026-04-28 pre-28 migrated DB 기준 admin logout / refresh invalidation / relogin smoke
   - `SECURITY_ADMIN_EMAILS=admin.logout.smoke@example.com` 으로 최신 앱을 기동한 뒤, admin 계정 로그인과 프로필 수정으로 queue row를 `SYNCED` 상태까지 맞추고 `POST /api/auth/refresh` 가 먼저 성공하는 것 확인
   - 같은 cookie jar + access token으로 `POST /api/auth/logout` 호출 후 cookie jar에서 `refresh_token` 이 제거되고, 직후 `POST /api/auth/refresh` 가 `401`, `errorCode=A001` 로 막히는 것 확인
@@ -954,7 +962,6 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - [ ] 복지로 live detail 적재 기준 `welfare_service_details` / `service_facts` validation 리허설
 - [ ] 복지로 detail refresh budget metadata(`centralBudget`/`localBudget`) 를 admin collect observability에 노출할지 결정
 - [ ] `bokjiro-details-gap-fill` 추가 라운드/호출 예산 전략 정리 후 stored detail payload coverage 추가 확대
-- [ ] gap fill 이후 잔여 `만 15세~만 40세` 패턴 대응 여부 결정 및 extractor 반영
 - [ ] gap fill 후 `income-like` no-fact 복지로 detail 을 future soft fact 후보로 승격할지 검토
 - [ ] 복지로 live detail 응답에 신청마감 explicit field가 있는지 재확인하고, 없으면 `BK_APPLY_END_DATE` 는 canonical collect path에서 optional fact로 유지
 - [ ] 로그인 가능한 testbed/live payload 기준 `YOUTH_MID` / `srchPolyBizSecd` 전체 inventory 수집

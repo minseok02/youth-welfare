@@ -38,4 +38,14 @@ class TextConstraintExtractorTest {
 
         assertThat(tokens).contains("COND_AGE_MIN_15", "COND_AGE_MAX_39");
     }
+
+    @Test
+    @DisplayName("두 번째 bound 앞에도 만이 붙는 복지로 범위 문구를 age range로 추출한다")
+    void extractAgeRangeWithSecondBoundMan() {
+        Set<String> tokens = TextConstraintExtractor.extract(
+                "가입연령 : 신청 당시 만 15세~만 40세"
+        );
+
+        assertThat(tokens).contains("COND_AGE_MIN_15", "COND_AGE_MAX_40");
+    }
 }

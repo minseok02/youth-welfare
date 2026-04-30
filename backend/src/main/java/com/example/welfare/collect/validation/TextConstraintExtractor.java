@@ -23,7 +23,7 @@ public final class TextConstraintExtractor {
     private TextConstraintExtractor() {}
 
     private static final Pattern AGE_RANGE =
-            Pattern.compile("(?:만\\s*)?(\\d{1,2})(?:\\s*세)?\\s*(?:~|\\-|–|부터)\\s*(\\d{1,2})\\s*세");
+            Pattern.compile("(?:만\\s*)?(\\d{1,2})(?:\\s*세)?\\s*(?:~|\\-|–|부터)\\s*(?:만\\s*)?(\\d{1,2})\\s*세");
     private static final Pattern AGE_MIN =
             Pattern.compile("(?:만\\s*)?(\\d{1,2})\\s*세\\s*이상");
     private static final Pattern AGE_MAX =
