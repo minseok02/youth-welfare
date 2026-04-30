@@ -364,6 +364,13 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
   - 다만 현재 `DeferredNormalizedPolicySidecarWriter` 는 복지로 detail aggregate 가 `TARGET_GROUP` term 을 내보내면 list aggregate 의 `LIFE_STAGE/INTEREST_THEME/TARGET_GROUP` 전체를 지우는 refresh contract 이라, 구현 선행조건으로 `phase-aware term refresh` 분리가 필요하다고 결론냈다
 - 2026-04-30 복지로 `beneficiary_only` income signal soft taxonomy 검토 `docker exec -e MYSQL_PWD='welfare1234!' youth-welfare-db mysql --default-character-set=utf8mb4 -uroot -e \"SET NAMES utf8mb4; ... BASIC_LIVELIHOOD_RECIPIENT / NEAR_POOR bucket queries ...\" youth_welfare`
 - 2026-04-30 복지로 `beneficiary_only` income signal soft taxonomy 검토 후 `git diff --check`
+- 2026-04-30 `DeferredNormalizedPolicySidecarWriter` term refresh contract 를 source-phase aware 로 분리
+  - `service_taxonomy_terms` replace 경로가 이제 `term_group` 전체가 아니라 incoming term의 `(term_group, source_field)` scope 만 delete 하도록 바뀌었다
+  - unit test 에서 delete SQL/args 가 `TARGET_GROUP + targetDetail/selectionCriteria` 조합으로 좁혀지는 것을 고정했고, integration 에서는 복지로 list aggregate 뒤 detail-derived `TARGET_GROUP('기초생활수급자')` 를 직접 upsert 해도 기존 `청년`, `1인가구` term 이 유지되는 것을 확인했다
+  - 이 변경으로 복지로 detail 본문 whitelist 를 canonical `TARGET_GROUP` soft taxonomy 로 넣기 위한 writer 선행조건이 해소됐다
+- 2026-04-30 phase-aware term refresh 후 `cd backend && ./gradlew test --no-daemon --rerun-tasks --tests com.example.welfare.collect.normalization.DeferredNormalizedPolicySidecarWriterTest`
+- 2026-04-30 phase-aware term refresh 후 `cd backend && ./gradlew integrationTest --no-daemon --tests com.example.welfare.integration.BokjiroSidecarMergeIntegrationTest`
+- 2026-04-30 phase-aware term refresh 후 `git diff --check`
 - 2026-04-28 pre-28 migrated DB 기준 admin logout / refresh invalidation / relogin smoke
   - `SECURITY_ADMIN_EMAILS=admin.logout.smoke@example.com` 으로 최신 앱을 기동한 뒤, admin 계정 로그인과 프로필 수정으로 queue row를 `SYNCED` 상태까지 맞추고 `POST /api/auth/refresh` 가 먼저 성공하는 것 확인
   - 같은 cookie jar + access token으로 `POST /api/auth/logout` 호출 후 cookie jar에서 `refresh_token` 이 제거되고, 직후 `POST /api/auth/refresh` 가 `401`, `errorCode=A001` 로 막히는 것 확인
@@ -974,7 +981,6 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - [ ] 복지로 live detail 적재 기준 `welfare_service_details` / `service_facts` validation 리허설
 - [ ] 복지로 detail refresh budget metadata(`centralBudget`/`localBudget`) 를 admin collect observability에 노출할지 결정
 - [ ] `bokjiro-details-gap-fill` 추가 라운드/호출 예산 전략 정리 후 stored detail payload coverage 추가 확대
-- [ ] 복지로 detail-derived `TARGET_GROUP` soft taxonomy 구현 전 `DeferredNormalizedPolicySidecarWriter` 의 term refresh contract 를 phase-aware 로 분리
 - [ ] 복지로 detail 본문의 `기초생활수급자` / `차상위계층` whitelist 를 canonical `TARGET_GROUP` soft taxonomy 로 실제 적재
 - [ ] 복지로 `threshold_like` income signal(`13`건) 을 `INCOME_*` hard fact 가 아닌 optional soft signal schema 로 분리할지 결정
 - [ ] 복지로 live detail 응답에 신청마감 explicit field가 있는지 재확인하고, 없으면 `BK_APPLY_END_DATE` 는 canonical collect path에서 optional fact로 유지

@@ -226,6 +226,7 @@
 설계 메모:
 
 - MySQL 에서는 nullable 컬럼이 포함된 unique key가 `NULL` 중복을 막지 못하므로, 코드가 없는 term은 `term_code=''` 로 normalize 하는 쪽으로 SQL draft를 고정한다.
+- sidecar writer 의 refresh scope 는 `term_group` 전체가 아니라 incoming term의 `(term_group, source_field)` 조합으로 끊는다. 예를 들어 복지로 list 의 `TARGET_GROUP(source_field=trgterIndvdlNmArray)` 와 detail derived `TARGET_GROUP(source_field=targetDetail/selectionCriteria)` 는 같은 term group 안에서도 별도 refresh phase 로 취급해 공존시킨다.
 
 용도 예시:
 

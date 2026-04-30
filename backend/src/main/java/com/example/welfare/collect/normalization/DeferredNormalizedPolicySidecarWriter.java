@@ -32,18 +32,6 @@ public class DeferredNormalizedPolicySidecarWriter implements NormalizedPolicySi
             "service_taxonomy_terms",
             "service_facts"
     );
-    private static final Set<String> YOUTH_REFRESHABLE_TERM_GROUPS = Set.of(
-            "YOUTH_MAJOR",
-            "YOUTH_MID",
-            "YOUTH_MID_RAW_ALIAS",
-            "YOUTH_KEYWORD"
-    );
-    private static final Set<String> BOKJIRO_REFRESHABLE_TERM_GROUPS = Set.of(
-            "LIFE_STAGE",
-            "INTEREST_THEME",
-            "TARGET_GROUP"
-    );
-
     private final JdbcTemplate jdbcTemplate;
     private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
     private final NormalizedFactMergeSupport normalizedFactMergeSupport;
@@ -197,13 +185,18 @@ public class DeferredNormalizedPolicySidecarWriter implements NormalizedPolicySi
             return;
         }
 
-        Set<String> refreshGroups = refreshableTermGroups(aggregate);
-        jdbcTemplate.update("""
-                DELETE FROM service_taxonomy_terms
-                WHERE service_id = ?
-                  AND term_group IN (%s)
-                """.formatted(String.join(",", refreshGroups.stream().map(group -> "?").toList())),
-                buildDeleteArgs(service.getId(), refreshGroups));
+        List<TermRefreshScope> refreshScopes = refreshableTermScopes(aggregate);
+        if (!refreshScopes.isEmpty()) {
+            jdbcTemplate.update("""
+                    DELETE FROM service_taxonomy_terms
+                    WHERE service_id = ?
+                      AND (%s)
+                    """.formatted(String.join(" OR ",
+                            refreshScopes.stream()
+                                    .map(scope -> "(term_group = ? AND source_field = ?)")
+                                    .toList())),
+                    buildDeleteArgs(service.getId(), refreshScopes));
+        }
 
         for (NormalizedPolicyAggregate.TaxonomyTerm term : aggregate.taxonomyTerms()) {
             namedParameterJdbcTemplate.update("""
@@ -401,22 +394,21 @@ public class DeferredNormalizedPolicySidecarWriter implements NormalizedPolicySi
                 .build();
     }
 
-    private Object[] buildDeleteArgs(Long serviceId, Set<String> refreshGroups) {
+    private Object[] buildDeleteArgs(Long serviceId, List<TermRefreshScope> refreshScopes) {
         List<Object> args = new ArrayList<>();
         args.add(serviceId);
-        args.addAll(refreshGroups);
+        for (TermRefreshScope scope : refreshScopes) {
+            args.add(scope.termGroup());
+            args.add(scope.sourceField());
+        }
         return args.toArray();
     }
 
-    private Set<String> refreshableTermGroups(NormalizedPolicyAggregate aggregate) {
-        if (aggregate.taxonomyTerms().isEmpty()) {
-            return Set.of();
-        }
-
-        return switch (aggregate.core().sourceType()) {
-            case YOUTH -> YOUTH_REFRESHABLE_TERM_GROUPS;
-            case BOKJIRO_CENTRAL, BOKJIRO_LOCAL -> BOKJIRO_REFRESHABLE_TERM_GROUPS;
-        };
+    private List<TermRefreshScope> refreshableTermScopes(NormalizedPolicyAggregate aggregate) {
+        return aggregate.taxonomyTerms().stream()
+                .map(term -> new TermRefreshScope(term.termGroup(), normalizeBlankString(term.sourceField())))
+                .distinct()
+                .toList();
     }
 
     private String toPrimarySourceSystem(NormalizedPolicyAggregate.SourceType sourceType) {
@@ -464,5 +456,8 @@ public class DeferredNormalizedPolicySidecarWriter implements NormalizedPolicySi
 
     private String normalizeBlankString(String value) {
         return Objects.requireNonNullElse(value, "");
+    }
+
+    private record TermRefreshScope(String termGroup, String sourceField) {
     }
 }

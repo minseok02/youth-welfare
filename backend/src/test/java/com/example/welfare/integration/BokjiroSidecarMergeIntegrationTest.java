@@ -247,6 +247,83 @@ class BokjiroSidecarMergeIntegrationTest {
         });
     }
 
+    @Test
+    @DisplayName("복지로 detail phase term upsert 는 같은 TARGET_GROUP 내 list derived term 을 지우지 않고 detail derived term 만 추가한다")
+    void detailPhaseTermsDoNotDeleteListDerivedTerms() {
+        sourceId = "IT-BK-TERM-" + UUID.randomUUID();
+
+        BokjiroLocalDto.Item item = bokjiroLocalItem(
+                sourceId,
+                "청년 문화패스",
+                "만 19세 이상 34세 이하 청년에게 문화 활동비를 지원합니다.",
+                "청년",
+                "문화·여가",
+                "청년,1인가구",
+                "온라인 신청 가능",
+                "https://bokjiro.go.kr/service/" + sourceId
+        );
+
+        NormalizedPolicyAggregate listAggregate = welfareServiceMapper.toNormalizedBokjiroLocal(item, null);
+        collectItemSaver.saveBokjiroLocal(item, listAggregate);
+
+        WelfareService saved = welfareServiceRepository
+                .findBySourceTypeAndSourceId(WelfareService.SourceType.BOKJIRO_LOCAL, sourceId)
+                .orElseThrow();
+
+        NormalizedPolicyAggregate detailAggregate = NormalizedPolicyAggregate.builder()
+                .core(NormalizedPolicyAggregate.Core.builder()
+                        .sourceType(NormalizedPolicyAggregate.SourceType.BOKJIRO_LOCAL)
+                        .sourceId(sourceId)
+                        .title(saved.getTitle())
+                        .status(NormalizedPolicyAggregate.ServiceStatus.ACTIVE)
+                        .build())
+                .taxonomy(NormalizedPolicyAggregate.TaxonomySummary.builder()
+                        .compatUnifiedCategory(saved.getUnifiedCategory())
+                        .authority(NormalizedPolicyAggregate.Authority.SYSTEM_DERIVED)
+                        .confidence(java.math.BigDecimal.valueOf(0.7))
+                        .build())
+                .taxonomyTerms(List.of(
+                        NormalizedPolicyAggregate.TaxonomyTerm.builder()
+                                .termGroup("TARGET_GROUP")
+                                .termLabel("기초생활수급자")
+                                .sourceField("targetDetail/selectionCriteria")
+                                .authority(NormalizedPolicyAggregate.Authority.SYSTEM_DERIVED)
+                                .sortOrder(0)
+                                .build()
+                ))
+                .facts(List.of())
+                .build();
+
+        new TransactionTemplate(transactionManager).executeWithoutResult(status ->
+                normalizedPolicySidecarWriter.upsert(saved, detailAggregate));
+
+        List<Map<String, Object>> taxonomyTerms = jdbcTemplate.queryForList("""
+                SELECT term_group, term_label, source_field, authority
+                FROM service_taxonomy_terms
+                WHERE service_id = ?
+                ORDER BY term_group, source_field, sort_order
+                """, saved.getId());
+
+        assertThat(taxonomyTerms).anySatisfy(row -> {
+            assertThat(row.get("term_group")).isEqualTo("TARGET_GROUP");
+            assertThat(row.get("term_label")).isEqualTo("청년");
+            assertThat(row.get("source_field")).isEqualTo("trgterIndvdlNmArray");
+            assertThat(row.get("authority")).isEqualTo("OFFICIAL");
+        });
+        assertThat(taxonomyTerms).anySatisfy(row -> {
+            assertThat(row.get("term_group")).isEqualTo("TARGET_GROUP");
+            assertThat(row.get("term_label")).isEqualTo("1인가구");
+            assertThat(row.get("source_field")).isEqualTo("trgterIndvdlNmArray");
+            assertThat(row.get("authority")).isEqualTo("OFFICIAL");
+        });
+        assertThat(taxonomyTerms).anySatisfy(row -> {
+            assertThat(row.get("term_group")).isEqualTo("TARGET_GROUP");
+            assertThat(row.get("term_label")).isEqualTo("기초생활수급자");
+            assertThat(row.get("source_field")).isEqualTo("targetDetail/selectionCriteria");
+            assertThat(row.get("authority")).isEqualTo("SYSTEM_DERIVED");
+        });
+    }
+
     private BokjiroLocalDto.Item bokjiroLocalItem(String sourceId,
                                                   String title,
                                                   String digest,

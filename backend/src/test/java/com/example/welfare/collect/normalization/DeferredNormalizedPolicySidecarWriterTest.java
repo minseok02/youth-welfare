@@ -5,6 +5,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
+import org.mockito.ArgumentCaptor;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
@@ -13,6 +14,7 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import java.math.BigDecimal;
 import java.util.List;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -180,9 +182,6 @@ class DeferredNormalizedPolicySidecarWriterTest {
                 .build();
 
         given(jdbcTemplate.queryForObject(anyString(), eq(Integer.class))).willReturn(4);
-        given(namedParameterJdbcTemplate.query(anyString(), any(org.springframework.jdbc.core.namedparam.SqlParameterSource.class), any(RowMapper.class)))
-                .willReturn(List.of());
-
         assertThatCode(() -> writer.upsert(service, aggregate))
                 .doesNotThrowAnyException();
 
@@ -230,14 +229,58 @@ class DeferredNormalizedPolicySidecarWriterTest {
                 .build();
 
         given(jdbcTemplate.queryForObject(anyString(), eq(Integer.class))).willReturn(4);
-        given(namedParameterJdbcTemplate.query(anyString(), any(org.springframework.jdbc.core.namedparam.SqlParameterSource.class), any(RowMapper.class)))
-                .willReturn(List.of());
-
         assertThatCode(() -> writer.upsert(service, aggregate))
                 .doesNotThrowAnyException();
 
         verify(jdbcTemplate, never()).update(org.mockito.ArgumentMatchers.contains("DELETE FROM service_taxonomy_terms"), any(Object[].class));
         verify(namedParameterJdbcTemplate).update(org.mockito.ArgumentMatchers.contains("INSERT INTO service_taxonomies"), any(org.springframework.jdbc.core.namedparam.SqlParameterSource.class));
         verify(namedParameterJdbcTemplate).update(org.mockito.ArgumentMatchers.contains("INSERT INTO service_facts"), any(org.springframework.jdbc.core.namedparam.SqlParameterSource.class));
+    }
+
+    @Test
+    void upsert_scopesBokjiroTermDeleteByGroupAndSourceField() {
+        WelfareService service = WelfareService.builder()
+                .id(30L)
+                .sourceType(WelfareService.SourceType.BOKJIRO_LOCAL)
+                .build();
+
+        NormalizedPolicyAggregate aggregate = NormalizedPolicyAggregate.builder()
+                .core(NormalizedPolicyAggregate.Core.builder()
+                        .sourceType(NormalizedPolicyAggregate.SourceType.BOKJIRO_LOCAL)
+                        .sourceId("B030")
+                        .title("저소득 청년 지원")
+                        .status(NormalizedPolicyAggregate.ServiceStatus.ACTIVE)
+                        .build())
+                .taxonomy(NormalizedPolicyAggregate.TaxonomySummary.builder()
+                        .compatUnifiedCategory("금융·생활지원")
+                        .authority(NormalizedPolicyAggregate.Authority.SYSTEM_DERIVED)
+                        .confidence(BigDecimal.valueOf(0.8))
+                        .build())
+                .taxonomyTerms(List.of(
+                        NormalizedPolicyAggregate.TaxonomyTerm.builder()
+                                .termGroup("TARGET_GROUP")
+                                .termLabel("기초생활수급자")
+                                .sourceField("targetDetail/selectionCriteria")
+                                .authority(NormalizedPolicyAggregate.Authority.SYSTEM_DERIVED)
+                                .sortOrder(0)
+                                .build()
+                ))
+                .facts(List.of())
+                .build();
+
+        given(jdbcTemplate.queryForObject(anyString(), eq(Integer.class))).willReturn(4);
+        assertThatCode(() -> writer.upsert(service, aggregate))
+                .doesNotThrowAnyException();
+
+        ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<Object[]> argsCaptor = ArgumentCaptor.forClass(Object[].class);
+        verify(jdbcTemplate).update(sqlCaptor.capture(), argsCaptor.capture());
+
+        assertThat(sqlCaptor.getValue()).contains("term_group = ? AND source_field = ?");
+        assertThat(argsCaptor.getValue()).containsExactly(
+                30L,
+                "TARGET_GROUP",
+                "targetDetail/selectionCriteria"
+        );
     }
 }
