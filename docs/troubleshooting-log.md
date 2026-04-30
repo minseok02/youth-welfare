@@ -1027,3 +1027,8 @@
 - 문제: `0/0 => pass-through` 정책을 문서로만 정한 상태에서는 실제 JPQL이 그대로 남아 있어도 겉으로는 합의가 끝난 것처럼 보일 수 있다. 특히 이번 `교육` 실험처럼 target row가 scoring 이전 repository 단계에서 이미 사라지는 경우, query semantics 미반영을 helper/flag 문제로 오해하기 쉽다
 - 해결: `WelfareServiceRepository.findCandidates* / findLatestCandidates*` 6개 query 모두에 `source_type=YOUTH AND min_income=0 AND max_income=0` direct pass-through 조건을 실제로 넣고, representative region integration test를 `raw repository candidate hit > 0` 과 `RetrievalService hit > 0` 두 단계 모두 검증하는 형태로 뒤집어 고정했다
 - 이유: candidate composition 문제는 문서 결정과 구현 반영 사이에 가장 쉽게 drift가 난다. repository hit와 retrieval hit를 같이 묶어 두면 “정책은 맞는데 후보가 안 올라오는” 조용한 실패를 빠르게 잡을 수 있다
+
+## 204) host `bootRun` 기반 recommendation replay smoke는 추천 로직과 무관한 `AES/PII datasource` 전제가 비어 있어도 signup 단계에서 바로 깨질 수 있으니, sample 비교 전에 런타임 전제를 먼저 고정해야 함
+- 문제: 이번 representative region replay를 다시 태울 때 처음 시도는 `AES_SECRET_KEY` 가 비어 있어 signup 이 `AES encrypt failed(Empty key)` 로 500을 냈고, 이어 root 계정으로 PII datasource 에 붙으려다 `user_pii access denied` 로그도 함께 발생했다. 이 상태에선 `flag off/on` 차이가 아니라 sample seed 자체가 불안정해져 추천 실험 결과를 해석할 수 없다
+- 해결: host `bootRun` 전제를 `AES_SECRET_KEY` 명시, `DB_URL/APP_PII_DB_URL/NOTIFICATION_PII_DB_URL` host override, `REDIS_HOST=127.0.0.1`, split-account PII 계정(`app_pii_rw`, `notification_pii_ro`) 사용으로 고정했다. 그 뒤 representative sample `28110 / age25 / income5 / priority=EDUCATION` 으로 replay를 다시 실행해 sample A 는 top-10 target row `5 -> 10`, sample B(control)는 unchanged 를 확인했다
+- 이유: local replay smoke는 scoring 실험이 본체여도, 실제 실패 지점은 그보다 앞선 runtime wiring일 수 있다. 같은 known positive sample을 계속 재현하려면 추천 helper가 아니라 app 기동 전제부터 먼저 고정해 두는 편이 재발 방지에 더 효과적이다

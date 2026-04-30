@@ -11,16 +11,23 @@
 
 ## 결론
 
-현재 local snapshot에서는 **known positive replay sample이 아직 없습니다**.
+2026-04-30 기준 결론은 두 단계로 나뉩니다.
 
-즉:
+1. `YOUTH 0/0 income` pass-through 반영 전:
+   - local snapshot에는 **known positive replay sample이 없었습니다**
+   - DB inventory 상 `compat=기타 + youth_major=교육` row와 age-pass region pool은 있었지만,
+     실제 replay에서는 target row가 결과 집합에 한 건도 들어오지 않았습니다
 
-- DB inventory 상 `compat=기타 + youth_major=교육` row는 존재합니다
-- age/pass 조건까지 만족하는 region pool도 존재합니다
-- 하지만 실제 local replay에서 target row가 결과 집합에 들어온 sample은 아직 찾지 못했습니다
+2. `YOUTH 0/0 income` pass-through 반영 후:
+   - representative region `28110`, age `25`, `incomeLevel=5`,
+     `priorityCodes=["EDUCATION","JOB"]`, `interestFields=["교육"]` 조건에서
+     **known positive sample이 생겼습니다**
+   - 같은 snapshot에서 `flag off -> on` 비교 시
+     `compat=기타 + youth_major=교육` target row의 top-10 진입 수가 `5 -> 10` 으로 늘었습니다
+   - control sample(`priorityCodes=["HOUSING","JOB"]`)은 top-10이 그대로 유지됐습니다
 
-따라서 다음 디버깅 경계는 `RuleScoringService` 가 아니라
-`WelfareServiceRepository income gate -> RetrievalService candidate pool -> youth filter -> final saved recommendations` 경계입니다.
+즉 지금 단계의 핵심 경계는 더 이상 “sample이 존재하느냐”가 아니라,
+`known positive sample` 을 기준으로 narrow bonus가 의도대로만 움직이는지 재현 가능하게 유지하는 것입니다.
 
 ## 1. DB inventory 요약
 
@@ -47,6 +54,8 @@ local DB 기준 target row는 아래와 같았습니다.
 `zero/zero age` row를 제외한 age-pass pool이 실제 candidate/result set에 들어오는지 별도로 봐야 합니다.
 
 ## 2. 실제 replay scan
+
+### 2-1. pass-through 반영 전 broad scan
 
 실제 local app(`OPENAI_API_KEY=invalid-for-rule-only-replay`, `flag off`)에서 아래 조합을 직접 태웠습니다.
 
@@ -111,7 +120,46 @@ scan 축:
 이번 scan 이후 결론은 더 강합니다.
 
 - 단순히 sample을 한두 개 더 바꿔보는 문제는 아닙니다
-- 현재 local snapshot에서는 **known positive sample이 없다** 가 더 정확합니다
+- 당시 local snapshot에서는 **known positive sample이 없다** 가 더 정확했습니다
+
+### 2-2. pass-through 반영 후 known positive sample
+
+`WelfareServiceRepository.findCandidates* / findLatestCandidates*` 에
+`YOUTH min_income=0 AND max_income=0 => pass-through` semantics 를 실제 반영한 뒤,
+representative region `28110` 기준으로 local replay를 다시 실행했습니다.
+
+공통 user snapshot:
+
+- age `25` (`birthDate=2001-04-30`)
+- `regionCode=28110`
+- `incomeLevel=5`
+- `employmentStatus=미취업`
+- `displayCount=30`
+- `interestFields=["교육"]`
+- AI 변동성 제거를 위해 `OPENAI_API_KEY=invalid-for-rule-only-replay`
+
+sample A:
+
+- `priorityCodes=["EDUCATION","JOB"]`
+
+sample B:
+
+- `priorityCodes=["HOUSING","JOB"]`
+
+결과:
+
+- sample A
+  - `flag off`: target row `10`건 중 top-10 진입 `5`
+  - `flag on`: target row `10`건 중 top-10 진입 `10`
+  - top-10 교체:
+    - out: `375`, `381`, `383`, `384`, `408`
+    - in: `147`, `387`, `386`, `393`, `368`
+- sample B
+  - `flag off/on` top-10 동일
+  - target row top-10 진입 수 `2 -> 2` 유지
+
+즉 `28110 / age25 / income5 / priority=EDUCATION` 조합은
+현재 local snapshot에서 재현 가능한 `known positive replay sample` 입니다.
 
 ## 4. 지금 바로 하지 말아야 할 것
 
@@ -125,14 +173,9 @@ scan 축:
 
 다음 작업은 아래 순서가 맞습니다.
 
-1. `YOUTH` row의 `min_income/max_income = 0/0` 을 “미지정”으로 볼지, 실제 `0분위 전용`으로 볼지 retrieval semantics 결정
-2. 결정 후 representative region 한 곳에서 raw repository hit가 생기는지 다시 확인
-3. raw repository hit가 생기면 `RetrievalService` / `RuleScoringService` / final rerank 단계에서 어디서 빠지는지 다음으로 추적
-4. raw repository hit가 여전히 없으면 query semantics 또는 source normalization 문제로 다시 분리
-
-즉 다음 task 이름은 대략 이 수준이 맞습니다.
-
-- `education canonical target row YOUTH income gate semantics inspect`
+1. `known positive sample` 을 재현하는 local smoke 절차를 더 짧게 자동화할지 결정
+2. `flag off/on` 비교 시 top-10 diff와 target row 진입 수를 한 번에 뽑는 스크립트 초안 작성 여부 결정
+3. 이후 narrow bonus가 바뀌면 같은 sample A/B로 regression을 반복
 
 ## 검증 메모
 

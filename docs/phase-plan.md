@@ -542,6 +542,11 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
   - `WelfareServiceRepository` 의 추천 후보 JPQL 6개(`findCandidates*`, `findLatestCandidates*`) 모두에서 `source_type=YOUTH` 인 경우 `min_income IS NULL/max_income IS NULL` 뿐 아니라 `min_income=0 AND max_income=0` 도 direct pass-through 로 취급하도록 반영했다
   - representative region integration test도 같이 뒤집었다. 이제 local canonical sidecar snapshot 기준으로 `compat=기타 + youth_major=교육` target row가 age-pass pool에 존재하는 region을 동적으로 고른 뒤, `0/0` pass-through 적용 후 raw repository candidate hit와 `RetrievalService` hit가 모두 `> 0` 임을 `EducationPriorityTargetCandidateCompositionIntegrationTest` 로 고정한다
   - 검증은 `backend` 에서 `./gradlew test --no-daemon --tests com.example.welfare.recommend.service.RetrievalServiceTest`, `./gradlew integrationTest --no-daemon --tests com.example.welfare.integration.EducationPriorityTargetCandidateCompositionIntegrationTest`, `git diff --check` 까지 통과했다
+- 2026-04-30 `YOUTH 0/0 income` pass-through 반영 후 representative region 기준 `교육` target row replay smoke 재실행
+  - local `bootRun` 을 `OPENAI_API_KEY=invalid-for-rule-only-replay`, `AES_SECRET_KEY` 명시, host DB/PII/Redis override 환경에서 `flag off -> on` 으로 재기동하고, `regionCode=28110`, age `25`, `incomeLevel=5`, `employmentStatus=미취업`, `interestFields=["교육"]` snapshot으로 sample A/B를 다시 태웠다
+  - sample A(`priorityCodes=["EDUCATION","JOB"]`)는 `compat=기타 + youth_major=교육` target row `10`건 중 top-10 진입 수가 `5 -> 10` 으로 늘었고, top-10도 `359,371,364,365,390,147,387,386,393,368` 으로 canonical `교육` row가 전부 채웠다
+  - sample B(control, `priorityCodes=["HOUSING","JOB"]`)는 top-10과 target row top-10 진입 수가 `2 -> 2` 로 그대로 유지돼 non-target 안정성도 같이 확인했다
+  - 따라서 `28110 / age25 / income5 / priority=EDUCATION` 은 현재 local snapshot의 known positive sample로 승격했고, 다음부터는 sample hunting 대신 이 조합을 기준으로 replay regression을 반복하면 된다
 - 2026-04-28 pre-28 migrated DB 기준 admin logout / refresh invalidation / relogin smoke
   - `SECURITY_ADMIN_EMAILS=admin.logout.smoke@example.com` 으로 최신 앱을 기동한 뒤, admin 계정 로그인과 프로필 수정으로 queue row를 `SYNCED` 상태까지 맞추고 `POST /api/auth/refresh` 가 먼저 성공하는 것 확인
   - 같은 cookie jar + access token으로 `POST /api/auth/logout` 호출 후 cookie jar에서 `refresh_token` 이 제거되고, 직후 `POST /api/auth/refresh` 가 `401`, `errorCode=A001` 로 막히는 것 확인
@@ -1153,7 +1158,7 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - [ ] 복지로 detail refresh budget metadata(`centralBudget`/`localBudget`) 를 admin collect observability에 노출할지 결정
 - [ ] `bokjiro-details-gap-fill` 추가 라운드/호출 예산 전략 정리 후 stored detail payload coverage 추가 확대
 - [ ] `교육 -> 교육·직업훈련` 실험 replay 결과를 캡처할 local smoke script 초안 작성 여부 결정
-- [ ] `YOUTH 0/0 income` pass-through 반영 후 representative region 기준 `교육` target row replay smoke(`flag off/on`) 재실행
+- [ ] `28110 / age25 / income5 / priority=EDUCATION` known positive sample 기준 replay 결과를 캡처할 local smoke script 초안 작성 여부 결정
 - [ ] `참여권리` 의 `청년참여` subset만 별도 bridge 후보로 분리할지 결정
 - [ ] 복지로 `threshold_like` income signal(`13`건) 을 `INCOME_*` hard fact 가 아닌 optional soft signal schema 로 분리할지 결정
 - [ ] 복지로 live detail 응답에 신청마감 explicit field가 있는지 재확인하고, 없으면 `BK_APPLY_END_DATE` 는 canonical collect path에서 optional fact로 유지

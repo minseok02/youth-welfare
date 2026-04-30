@@ -48,6 +48,18 @@ local 환경에서 `flag off` / `flag on` 결과를 같은 조건으로 비교�
 docker compose up -d db redis
 ```
 
+### 1-1. host `bootRun` 전제
+
+host에서 직접 `bootRun` 할 때는 아래를 같이 맞춥니다.
+
+- `DB_URL`, `APP_PII_DB_URL`, `NOTIFICATION_PII_DB_URL` 를 host 접근 가능한 `127.0.0.1:3307` 기준으로 override
+- `REDIS_HOST=127.0.0.1`
+- `AES_SECRET_KEY` 를 비우지 않음
+- PII datasource 계정은 local split-account(`app_pii_rw`, `notification_pii_ro`) 또는 동등 권한 계정 사용
+
+이 전제를 빼면 signup/login 이전에
+`AES encrypt failed(Empty key)` 나 `user_pii access denied` 로 smoke가 끊길 수 있습니다.
+
 ### 2. 실험 대상 사용자 준비
 
 권장:
@@ -60,6 +72,19 @@ docker compose up -d db redis
 - sample A 는 DB inventory 상 후보 존재만으로는 부족합니다
 - 실제 `POST /api/recommendations/refresh` 결과 집합 안에 `compat=기타 + youth_major=교육` row 가 최소 1건은 들어오는지 먼저 확인해야 합니다
 - 그렇지 않으면 `flag off/on` 비교가 전부 동일하게 끝나도 helper/flag 문제가 아니라 **sample miss** 일 수 있습니다
+
+2026-04-30 local snapshot 기준 known positive 예시는 아래입니다.
+
+- sample A 성격:
+  - `regionCode=28110`
+  - age `25`
+  - `incomeLevel=5`
+  - `employmentStatus=미취업`
+  - `interestFields=["교육"]`
+  - `priorityCodes=["EDUCATION","JOB"]`
+- sample B(control) 성격:
+  - 같은 region/profile
+  - `priorityCodes=["HOUSING","JOB"]`
 
 ### 3. 공통 변수
 
