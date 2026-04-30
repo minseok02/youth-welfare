@@ -199,6 +199,10 @@ repository SQL에서 미리 한 label로 collapse 하면:
 4. beneficiary raw term -> `BENEFICIARY_SUPPORT` bucket 변환 유틸 추가
 5. `RuleScoringService` 가 raw `ServiceTag` 대신 projection을 병행 읽도록 전환
 
+추천 본체 전체의 더 큰 이행 순서는
+[policy-normalization-recommendation-migration-order.md](./policy-normalization-recommendation-migration-order.md)
+를 따른다.
+
 ## 비목표
 
 - 이번 단계에서 retrieval SQL을 sidecar join으로 전면 교체하지 않음

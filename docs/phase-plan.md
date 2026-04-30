@@ -1255,12 +1255,16 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
   - 현재 `unifiedCategory` 는 추천 응답뿐 아니라 정책 목록/상세/랭킹 응답 전반의 public contract이므로, canonical taxonomy 전환 중에도 계속 legacy compat category 의미를 유지하기로 고정했다
   - canonical summary(`youth_major`, `gov24_*`)는 response 대표 category를 대체하지 않고 inventory/explanation/future experiment용 secondary hint로만 취급한다
   - 따라서 현재 phase에서는 `RecommendationResponse`, `PolicySummaryResponse`, `PolicyDetailResponse`, `PolicyRankingResponse` 의 `unifiedCategory` 를 canonical 값으로 조용히 치환하지 않는다
+- [x] `WelfareServiceRepository.findCandidates*`, `RetrievalService`, `RuleScoringService`, `DefaultPriorityMatcher` 의 점진 이행 순서 설계
+  - 추천 본체의 canonical 이행 순서는 `repository semantics -> retrieval hydrate -> scoring bridge -> matcher bridge` 로 고정했다
+  - `WelfareServiceRepository.findCandidates*` 는 candidate pool pass/fail 의미를 먼저 안정화하는 단계이고, `RetrievalService` 는 legacy 후보 리스트를 유지한 채 canonical projection hydrate 만 붙이는 단계로 본다
+  - `RuleScoringService` 는 raw `ServiceTag` fallback과 canonical projection을 OR 방식으로 병행 소비하고, `DefaultPriorityMatcher` 는 가장 마지막에 stored compat / applyEndDate만 좁게 읽도록 유지한다
 - [ ] `YOUTH_MID` stable code mapping SQL 초안 작성
 - [ ] `GOV24_SERVICE_FIELD`, `GOV24_USER_TYPE`, `GOV24_BENEFIT_TYPE` 공식 label inventory import/backfill SQL 초안 작성
 - [ ] `GOV24_SUPPORT_CONDITION` 전체 code inventory 확장 및 `service_facts` backfill 초안 작성
 - [x] `compat_unified_category` 를 저장 필드로 둘지 read-model 계산값으로 둘지 최종 결정
 - [ ] `TextConstraintExtractor` 를 `service_facts` 저장 규격에 맞춘 출력 모델로 재설계
-- [ ] `WelfareServiceRepository.findCandidates*`, `RetrievalService`, `RuleScoringService`, `DefaultPriorityMatcher` 의 점진 이행 순서 설계
+- [x] `WelfareServiceRepository.findCandidates*`, `RetrievalService`, `RuleScoringService`, `DefaultPriorityMatcher` 의 점진 이행 순서 설계
 - [x] `unifiedCategory` 응답 계약을 유지하면서 taxonomy/read-model 로 브릿지하는 호환 전략 작성
 - [ ] 신규 source의 source-specific 필드를 raw + AI batch enrichment fact 로 흡수하는 파이프라인 초안 작성
 - [ ] logout 후 access token 즉시 무효화 전략 검토/구현

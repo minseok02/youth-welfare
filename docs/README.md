@@ -73,6 +73,9 @@
 - [policy-normalization-unified-category-response-bridge.md](./policy-normalization-unified-category-response-bridge.md)
   검색/상세/랭킹/추천 응답의 `unifiedCategory` 필드를 canonical taxonomy 전환 중에도 어떤 의미로 유지할지 확인합니다.
 
+- [policy-normalization-recommendation-migration-order.md](./policy-normalization-recommendation-migration-order.md)
+  `findCandidates* -> RetrievalService -> RuleScoringService -> DefaultPriorityMatcher` 순서로 추천 본체를 점진 이행해야 하는 이유와 각 단계의 허용/금지 범위를 확인합니다.
+
 - [policy-normalization-compat-category-drift-inventory.md](./policy-normalization-compat-category-drift-inventory.md)
   local `service_taxonomies` 스냅샷 기준으로 `compat_unified_category` 와 canonical summary(`youth_major_label`, `gov24_*`) 사이 drift/공백/legacy raw 복사 흔적을 확인합니다.
 
@@ -240,6 +243,7 @@
 - [policy-normalization-recommendation-read-model.md](./policy-normalization-recommendation-read-model.md)
 - [policy-normalization-compat-storage-policy.md](./policy-normalization-compat-storage-policy.md)
 - [policy-normalization-unified-category-response-bridge.md](./policy-normalization-unified-category-response-bridge.md)
+- [policy-normalization-recommendation-migration-order.md](./policy-normalization-recommendation-migration-order.md)
 - [policy-normalization-youth-mid-alias-rules.md](./policy-normalization-youth-mid-alias-rules.md)
 - [policy-normalization-bridge-rules.md](./policy-normalization-bridge-rules.md)
 - [policy-normalization-schema-draft.md](./policy-normalization-schema-draft.md)
