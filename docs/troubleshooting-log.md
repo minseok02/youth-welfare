@@ -1442,3 +1442,8 @@
 - 문제: forced logout API와 auth gate, legacy token smoke까지 닫고 나면 운영 증적을 더 남기고 싶어지지만, 여기서 `cutoffMillis` 를 바로 response body에 노출하면 내부 revoke ordering 기준값이 외부 API 계약처럼 굳어질 수 있다
 - 해결: [auth-admin-forced-logout-audit-scope-policy.md](./auth-admin-forced-logout-audit-scope-policy.md) 를 추가해 current phase의 증적 범위를 `response=userKey+accepted`, `server log=userKey+cutoffMillis`, `Redis=current source of truth` 로 고정했다
 - 이유: 지금 중요한 건 revoke correctness와 운영 triage 가능성이지, ordering 숫자를 클라이언트 계약으로 끌어올리는 것이 아니다. response는 최소 ack로 두고 detail은 log/Redis에 남겨야 이후 구현 변경 여지도 유지된다
+
+## 286) forced logout 로그 형식을 별도 hidden knowledge로만 두면 운영자가 어디서 `cutoffMillis` 를 봐야 하는지 다시 헤매므로, 현재 smoke/runbook 문서에 최소 grep 포인트까지 올려 두는 편이 낫다
+- 문제: audit scope를 `response=minimal`, `log/Redis=detail` 로 정한 뒤에도, 운영 문서에 실제 기대 로그 라인 형식이 없으면 forced logout 실행 후 `cutoffMillis` 를 어디서 확인해야 하는지 사람 기억에 다시 의존하게 된다
+- 해결: [runtime-api-smoke-commands.md](./runtime-api-smoke-commands.md) 에 `POST /api/admin/users/forced-logout` smoke 예시와 함께 기대 로그 라인 `[Admin] forced logout 트리거 userKey=<userKey> cutoffMillis=<epochMillis>` 및 간단한 `grep` 확인 절을 추가했다
+- 이유: current phase에선 별도 audit UI나 response field를 열지 않으므로, 로그 라인 형식 자체가 운영 증적의 일부다. 최소한 smoke/runbook 문서에 grep 포인트까지 올려 둬야 실제 운영 사용성이 생긴다

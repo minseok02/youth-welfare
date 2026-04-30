@@ -1311,6 +1311,10 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
   - [auth-admin-forced-logout-audit-scope-policy.md](./auth-admin-forced-logout-audit-scope-policy.md) 를 추가해 현재 phase에서는 response는 `userKey + accepted` 최소 ack만 유지하고, `cutoffMillis` 는 서버 로그와 Redis source of truth에서만 보도록 고정했다
   - actor/admin identifier persistent audit, DB audit table, response `cutoffMillis` 노출은 현재 범위에서 제외하고 future reopen 조건으로 남겼다
   - 즉 다음 액션은 forced logout 현재 log line format을 smoke/runbook 에 명시할지 결정하는 것이다
+- 2026-05-01 admin forced logout log line format 을 smoke 문서에 명시
+  - [runtime-api-smoke-commands.md](./runtime-api-smoke-commands.md) 에 `POST /api/admin/users/forced-logout` 예시와 현재 기대 로그 라인 `[Admin] forced logout 트리거 userKey=<userKey> cutoffMillis=<epochMillis>` 확인 절을 추가했다
+  - 별도 새 runbook을 만들지 않고, current phase에서는 API ack는 최소로 두고 `cutoffMillis` triage는 로그에서 확인하는 운영 흐름만 문서화했다
+  - 즉 다음 액션은 `actor` 를 현 로그 라인에 실제로 넣을지 말지, 또는 그대로 future reopen 으로 남길지 결정하는 것이다
 
 ## 작업 추적
 

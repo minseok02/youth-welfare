@@ -201,3 +201,51 @@ curl -sS \
 - 추천 실패: `Authorization: Bearer <token>` 누락 여부
 - 북마크 실패: `serviceId` 가 아니라 recommendation `id` 를 path에 넣었는지 확인
 - admin status 실패: 현재 token이 admin 계정 기준인지 확인
+
+## 10. forced logout smoke
+
+이 단계는 admin JWT가 있을 때만 수행합니다.
+
+강제 로그아웃 대상 `userKey` 는 admin `pii-sync-status`, DB 조회, 또는 이미 알고 있는 운영 user key를 사용합니다.
+
+```bash
+export FORCE_LOGOUT_USER_KEY="user-key-1"
+export FORCE_LOGOUT_RESPONSE="$(mktemp)"
+
+curl -sS \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -H 'Content-Type: application/json' \
+  -X POST "$APP_BASE_URL/api/admin/users/forced-logout" \
+  -d "{
+    \"userKey\": \"$FORCE_LOGOUT_USER_KEY\"
+  }" | tee "$FORCE_LOGOUT_RESPONSE"
+```
+
+확인 포인트:
+
+- 응답 `success=true`
+- `data.userKey == $FORCE_LOGOUT_USER_KEY`
+- `data.accepted=true`
+
+## 11. forced logout log 확인
+
+현재 phase에서는 `cutoffMillis` 를 response body에 싣지 않고, 서버 로그와 Redis에서 확인합니다.
+
+기대 로그 라인 형식:
+
+```text
+[Admin] forced logout 트리거 userKey=<userKey> cutoffMillis=<epochMillis>
+```
+
+예:
+
+```bash
+grep -F "forced logout 트리거 userKey=$FORCE_LOGOUT_USER_KEY" /path/to/app.log | tail -n 1
+```
+
+확인 포인트:
+
+- `userKey` 가 대상과 일치
+- `cutoffMillis` 가 숫자로 남음
+
+이 숫자는 old/new access token ordering triage용 증적이고, current API contract의 response 필드는 아닙니다.
