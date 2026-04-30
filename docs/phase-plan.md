@@ -519,6 +519,12 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
   - `CanonicalRecommendationReadModelRepositoryTest`, `RuleScoringServiceTest` 에 `youthMajorLabel` hydrate 와 `flag off/on`, `education / non-education` regression 을 추가해 기본 경로 보존과 좁은 실험 범위를 같이 고정했다
 - 2026-04-30 교육 priority experiment 최소 구현 반영 후 `backend`에서 `./gradlew test --no-daemon --tests com.example.welfare.recommend.repository.CanonicalRecommendationReadModelRepositoryTest --tests com.example.welfare.recommend.service.RuleScoringServiceTest --tests com.example.welfare.recommend.service.RetrievalServiceTest`
 - 2026-04-30 교육 priority experiment 최소 구현 반영 후 `git diff --check`
+- 2026-04-30 `교육 -> 교육·직업훈련` 실험 `flag off/on` local replay smoke 실제 실행
+  - AI 변동성을 제거하려고 local 앱은 `OPENAI_API_KEY=invalid-for-rule-only-replay` 로 기동해 `RealtimeAiGateway` fallback rule-only 경로만 비교했다
+  - sample A/B(`education.replay.a/b@example.com`)와 서울 강남(`regionCode=11680`)으로 좁힌 sample C/D(`education.replay.c/d@example.com`)를 각각 `flag off -> flag on` 으로 비교했지만, 두 쌍 모두 top-10과 전체 결과가 동일했다
+  - 원인은 helper/flag 오동작이 아니라 sample miss였다. OFF/ON 결과 집합 안에 `compat=기타 + canonical youth_major=교육` row 가 실제로 한 건도 들어오지 않아, narrow bonus가 발동할 대상 자체가 없었다
+  - 따라서 이번 smoke는 “실험이 무해하게 no-op로 유지된다”는 점은 확인했지만, 효과 검증을 계속하려면 먼저 target row가 실제 retrieval/result set에 들어오는 replay sample inventory를 다시 잡아야 한다
+- 2026-04-30 교육 priority experiment replay smoke 후 local `bootRun` + `POST /api/recommendations/refresh` off/on 비교, local MySQL sample query, `git diff --check`
 - 2026-04-28 pre-28 migrated DB 기준 admin logout / refresh invalidation / relogin smoke
   - `SECURITY_ADMIN_EMAILS=admin.logout.smoke@example.com` 으로 최신 앱을 기동한 뒤, admin 계정 로그인과 프로필 수정으로 queue row를 `SYNCED` 상태까지 맞추고 `POST /api/auth/refresh` 가 먼저 성공하는 것 확인
   - 같은 cookie jar + access token으로 `POST /api/auth/logout` 호출 후 cookie jar에서 `refresh_token` 이 제거되고, 직후 `POST /api/auth/refresh` 가 `401`, `errorCode=A001` 로 막히는 것 확인
@@ -1130,7 +1136,7 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - [ ] 복지로 detail refresh budget metadata(`centralBudget`/`localBudget`) 를 admin collect observability에 노출할지 결정
 - [ ] `bokjiro-details-gap-fill` 추가 라운드/호출 예산 전략 정리 후 stored detail payload coverage 추가 확대
 - [ ] `교육 -> 교육·직업훈련` 실험 replay 결과를 캡처할 local smoke script 초안 작성 여부 결정
-- [ ] `교육 -> 교육·직업훈련` 실험 flag off/on local replay smoke 실제 실행
+- [ ] `교육 -> 교육·직업훈련` target row(`compat=기타 + youth_major=교육`) 가 실제 retrieval/result set에 들어오는 replay sample inventory 재작성
 - [ ] `참여권리` 의 `청년참여` subset만 별도 bridge 후보로 분리할지 결정
 - [ ] 복지로 `threshold_like` income signal(`13`건) 을 `INCOME_*` hard fact 가 아닌 optional soft signal schema 로 분리할지 결정
 - [ ] 복지로 live detail 응답에 신청마감 explicit field가 있는지 재확인하고, 없으면 `BK_APPLY_END_DATE` 는 canonical collect path에서 optional fact로 유지
@@ -1217,6 +1223,7 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - [x] `Gov24 service field / user type / benefit type -> compatibility unifiedCategory / youth taxonomy bridge` 규칙 초안 작성
 - [x] `Gov24 supportConditions` / `온통청년` 코드북 DB code table 저장 방식 결정
 - [x] `WelfareService` 중심 단일 모델을 `core / taxonomy / fact` 로 분리하는 스키마 초안 작성
+- [x] `교육 -> 교육·직업훈련` 실험 flag off/on local replay smoke 실제 실행
 - [x] `service_taxonomies` / `service_taxonomy_terms` / `service_facts` sidecar 테이블 스키마 초안 작성
 - [x] 공식 정규화 4계층 구조(`Gov24 core/detail + 온통청년 taxonomy/codebook + eligibility facts + AI enrichment`)를 내부 canonical decision으로 확정
 - [x] 정책 정규화 sample mapping spike 및 source coverage 검증

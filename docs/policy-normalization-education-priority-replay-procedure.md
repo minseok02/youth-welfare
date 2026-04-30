@@ -55,6 +55,12 @@ docker compose up -d db redis
 - sample A: `EDUCATION` priority 가 있고 `compat=기타 + youth_major=교육` 후보가 실제로 나오는 사용자
 - sample B: 같은 환경에서 `EDUCATION` priority 가 없거나 target row가 없는 control 사용자
 
+중요:
+
+- sample A 는 DB inventory 상 후보 존재만으로는 부족합니다
+- 실제 `POST /api/recommendations/refresh` 결과 집합 안에 `compat=기타 + youth_major=교육` row 가 최소 1건은 들어오는지 먼저 확인해야 합니다
+- 그렇지 않으면 `flag off/on` 비교가 전부 동일하게 끝나도 helper/flag 문제가 아니라 **sample miss** 일 수 있습니다
+
 ### 3. 공통 변수
 
 ```bash
@@ -182,6 +188,21 @@ curl -sS \
 
 ## 6단계: 비교
 
+비교 전에 한 번 더 아래를 확인합니다.
+
+```bash
+python3 - "$RESP_A_OFF" <<'PY'
+import json, sys
+rows = json.load(open(sys.argv[1], encoding="utf-8"))["data"]
+target = [r for r in rows if r["unifiedCategory"] == "기타"]
+print("other_rows", len(target))
+for row in target[:10]:
+    print(row["serviceId"], row["title"], row["unifiedCategory"], row["finalScore"])
+PY
+```
+
+위 출력만으로는 `youth_major=교육` 여부가 보이지 않으므로, 필요하면 같은 `serviceId` 집합을 local DB의 `service_taxonomies.youth_major_label` 과 다시 대조합니다.
+
 ### sample A top-10 비교
 
 ```bash
@@ -233,6 +254,10 @@ PY
 - `교육` 실험과 무관한 row 가 크게 연쇄 이동
 - 응답 category 의미가 바뀜
 - 사람이 보기에도 올라온 row 가 `교육·직업훈련` priority 와 잘 안 맞음
+- sample A 결과 집합 안에 `compat=기타 + youth_major=교육` target row 자체가 없음
+
+마지막 경우는 실험 실패가 아니라 **sample selection 실패** 로 취급합니다.
+이때는 flag/helper 를 다시 만지기보다, 먼저 target row가 실제 retrieval/result set에 들어오는 user snapshot 을 다시 고릅니다.
 
 ## 캡처 권장 항목
 
@@ -256,6 +281,6 @@ PY
 
 ## 다음 작업
 
-1. 실제 구현 PR에서 helper / filter diff 를 regression test와 함께 최소 변경으로 넣기
+1. target row가 실제 결과 집합에 들어오는 replay sample inventory 작성
 2. `참여권리` 의 `청년참여` subset bridge 여부 결정
 3. 필요하면 위 절차를 자동화하는 local smoke script 초안 작성

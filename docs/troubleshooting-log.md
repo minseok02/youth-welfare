@@ -1002,3 +1002,8 @@
 - 문제: 이번 `교육 -> 교육·직업훈련` narrow experiment는 `RuleScoringService` 의 helper가 `compat=기타 + youth_major=교육` 을 읽어야 동작한다. 그런데 retrieval이 sidecar projection에서 `youthMajorLabel` 을 hydrate 하지 않으면 helper 입력이 항상 `null` 이라, flag를 켜도 “실험이 먹지 않는” 조용한 no-op 상태가 될 수 있다
 - 해결: `RecommendationCandidateProjection` / `CanonicalRecommendationReadModelRepository` 에 `youthMajorLabel` 을 추가하고, `RuleScoringServiceTest` 와 repository 테스트로 `youthMajorLabel` hydrate + `flag off/on`, `education / non-education` 회귀를 같이 고정했다
 - 이유: canonical bridge 실험은 flag 토글보다 먼저 read-model 입력이 실제로 scoring 경계까지 도달해야 의미가 있다. 실험 helper와 hydrate 경로를 같은 PR에서 같이 검증해야 “flag는 켰는데 왜 변화가 없지?” 같은 묵묵한 실패를 줄일 수 있다
+
+## 199) narrow priority replay가 off/on 동일하게 끝났다고 바로 helper/flag 실패로 보면 안 되고, 먼저 target row가 실제 결과 집합에 들어왔는지 확인해야 함
+- 문제: 이번 local replay에서 `flag off` 와 `flag on` 결과가 sample A/B, C/D 모두 동일하게 나왔다. 이때 helper 구현이나 config wiring이 잘못됐다고 바로 판단하면, 실제 원인이 `compat=기타 + youth_major=교육` target row가 retrieval/result set에 전혀 들어오지 않은 sample miss였다는 점을 놓칠 수 있다
+- 해결: replay 절차에 `sample A` 는 DB inventory 상 후보 존재가 아니라 실제 `POST /api/recommendations/refresh` 결과 집합 안에 target row가 최소 1건 들어오는 사용자여야 한다는 preflight를 추가했다. 이번 결과는 “실험 무해성”까지만 통과로 기록하고, 후속 작업을 `target row replay sample inventory 재작성` 으로 분리했다
+- 이유: narrow priority experiment는 scoring bonus를 추가하는 구조라, target row가 candidate/result set에 없으면 flag를 켜도 반드시 no-op다. 이 경우 구현 실패와 sample selection 실패를 구분하지 않으면 잘못된 디버깅으로 이어진다
