@@ -40,6 +40,9 @@
 - [policy-normalization-schema-draft.md](./policy-normalization-schema-draft.md)
   새 canonical 구조의 sidecar 스키마(`service_taxonomies`, `service_taxonomy_terms`, `service_facts`)와 코드테이블 저장 방식을 확인합니다.
 
+- [policy-normalization-youth-mid-alias-rules.md](./policy-normalization-youth-mid-alias-rules.md)
+  온통청년 `YOUTH_MID` 의 comma-delimited 조합과 non-official variant(`온·오프라인교육`, `문화활동 및 생활지원`)를 canonical taxonomy에서 어떻게 split/skip할지 확인합니다.
+
 - [policy-normalization-bridge-rules.md](./policy-normalization-bridge-rules.md)
   Gov24 필드를 현재 추천/응답 호환 분류로 브릿지하는 규칙과 복지로 text/detail의 facts fallback 허용 범위를 확인합니다.
 
@@ -124,6 +127,7 @@
 - [policy-normalization-sample-spike.md](./policy-normalization-sample-spike.md)
 - [policy-source-onboarding-playbook.md](./policy-source-onboarding-playbook.md)
 - [policy-normalization-fact-merge-rules.md](./policy-normalization-fact-merge-rules.md)
+- [policy-normalization-youth-mid-alias-rules.md](./policy-normalization-youth-mid-alias-rules.md)
 - [policy-normalization-bridge-rules.md](./policy-normalization-bridge-rules.md)
 - [policy-normalization-schema-draft.md](./policy-normalization-schema-draft.md)
 - [policy-normalization-research.md](./policy-normalization-research.md)

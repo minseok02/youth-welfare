@@ -243,6 +243,12 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - 2026-04-30 `YOUTH_MID` stable code import 보류 정책 확정 후 `curl -L -s 'https://www.youthcenter.go.kr/sur/link/openApiIntro/46'` -> `Unauthorized`
 - 2026-04-30 `YOUTH_MID` stable code import 보류 정책 확정 후 `curl -L -s 'https://www.youthcenter.go.kr/sur/link/openInfoChcApi'` -> `Unauthorized`
 - 2026-04-30 `YOUTH_MID` stable code import 보류 정책 확정 후 `git diff --check`
+- 2026-04-30 `YOUTH_MID` alias normalization 규칙 초안 작성
+  - [policy-normalization-youth-mid-alias-rules.md](./policy-normalization-youth-mid-alias-rules.md) 를 추가해 `category_sub` 의 세 종류(exact official / comma-delimited combo / non-official variant)를 분리해 기록
+  - exact official token은 그대로 적재하고, comma-delimited 조합은 split 후 official token만 개별 적재하며, `온·오프라인교육`, `문화활동 및 생활지원` 같은 non-official variant 는 canonical `YOUTH_MID` 에 자동 매핑하지 않고 skip 한다는 규칙을 고정
+  - 새 후속 작업으로 skipped alias를 `raw` 에만 둘지, future sidecar 에 별도 term group(`YOUTH_MID_RAW_ALIAS`)으로 보존할지 결정하는 항목을 추가
+- 2026-04-30 `YOUTH_MID` alias normalization 규칙 초안 작성 후 `docker exec -e MYSQL_PWD='welfare1234!' youth-welfare-db mysql --default-character-set=utf8mb4 -uroot -N -e \"SET NAMES utf8mb4; SELECT token, COUNT(*) ...\"`
+- 2026-04-30 `YOUTH_MID` alias normalization 규칙 초안 작성 후 `git diff --check`
 - 2026-04-28 pre-28 migrated DB 기준 admin logout / refresh invalidation / relogin smoke
   - `SECURITY_ADMIN_EMAILS=admin.logout.smoke@example.com` 으로 최신 앱을 기동한 뒤, admin 계정 로그인과 프로필 수정으로 queue row를 `SYNCED` 상태까지 맞추고 `POST /api/auth/refresh` 가 먼저 성공하는 것 확인
   - 같은 cookie jar + access token으로 `POST /api/auth/logout` 호출 후 cookie jar에서 `refresh_token` 이 제거되고, 직후 `POST /api/auth/refresh` 가 `401`, `errorCode=A001` 로 막히는 것 확인
@@ -854,7 +860,7 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - [ ] `DeferredNormalizedPolicySidecarWriter` 를 실제 `service_taxonomies / service_taxonomy_terms / service_facts` DB persistence writer 로 교체
 - [ ] 로그인 가능한 testbed/live payload 기준 `YOUTH_MID` / `srchPolyBizSecd` 전체 inventory 수집
 - [ ] `YOUTH_MID` stable code mapping SQL 초안 작성
-- [ ] `YOUTH_MID` non-official variant(`온·오프라인교육`, `문화활동 및 생활지원`) alias normalization 규칙 작성
+- [ ] skipped `YOUTH_MID` alias를 future sidecar에서 `YOUTH_MID_RAW_ALIAS` 등 별도 term group으로 보존할지 결정
 - [ ] `GOV24_SERVICE_FIELD`, `GOV24_USER_TYPE`, `GOV24_BENEFIT_TYPE` 공식 label inventory import/backfill SQL 초안 작성
 - [ ] `GOV24_SUPPORT_CONDITION` 전체 code inventory 확장 및 `service_facts` backfill 초안 작성
 - [ ] `compat_unified_category` 를 저장 필드로 둘지 read-model 계산값으로 둘지 최종 결정
@@ -875,6 +881,7 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 
 ### 완료
 
+- [x] `YOUTH_MID` non-official variant alias normalization 규칙 초안 작성
 - [x] `YOUTH_MID` stable code import 보류 정책 확정
 - [x] `YOUTH_MID` label-only backfill 을 `split + exact official label filter` 규칙으로 정리
 - [x] 온통청년 stable official code subset + 대표 `GOV24_SUPPORT_CONDITION` seed/backfill SQL 초안 작성

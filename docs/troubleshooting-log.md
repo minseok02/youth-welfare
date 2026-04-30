@@ -737,3 +737,8 @@
 - 문제: 온통청년 공개 API 문서 HTML에서는 `srchPolyBizSecd=003002001,003002002` 예시가 노출되지만, 실제 파라미터/응답 메타데이터를 주는 `/sur/link/openApiIntro/46`, `/sur/link/openInfoChcApi` 는 비로그인 상태에서 모두 `Unauthorized` 를 반환했다. 이 상태에서 보이는 두 코드만 근거로 `YOUTH_MID` 전체 stable code를 역추론해 seed 하면, 나머지 중분류와의 체계가 뒤틀릴 위험이 있었음
 - 해결: 이번 단계에서는 `YOUTH_MID` stable code import 를 보류하고 `service_taxonomy_terms(term_code='')` label-only 전략을 유지하기로 정책을 고정했음. 후속 task는 로그인 가능한 testbed/live payload 에서 `srchPolyBizSecd` 전체 inventory 를 먼저 수집한 뒤 stable code mapping SQL 초안을 쓰는 것으로 다시 쪼갰음
 - 이유: partial example 과 전체 inventory 는 다르다. 공개 페이지 예시 몇 개만으로 코드 체계를 미리 확정하면 이후 authenticated source 에서 실제 inventory 가 드러났을 때 기존 seed/backfill 과 충돌하기 쉬워 재발 방지에 불리하다
+
+## 146) `온·오프라인교육`, `문화활동 및 생활지원` 같은 non-official `YOUTH_MID` variant를 성급히 official 단일 라벨로 접어버리면, taxonomy 의미 손실이나 잘못된 우선순위 브릿지가 생길 수 있음
+- 문제: 로컬 DB split 결과를 보면 `온·오프라인교육` 11건, `문화활동 및 생활지원` 66건이 존재한다. 전자는 `온라인교육` 과 유사하지만 offline 범위를 포함할 수 있고, 후자는 `문화활동` 과 생활지원 축이 결합된 composite 표현일 수 있어 하나의 official 중분류로 단정하기 어렵다
+- 해결: [policy-normalization-youth-mid-alias-rules.md](./policy-normalization-youth-mid-alias-rules.md) 에서 alias 처리 기준을 따로 고정하고, exact official token만 canonical `YOUTH_MID` 로 적재하며 non-official variant는 현재 단계에서 skip 하도록 명시했음. 별도 보존이 필요하면 future sidecar 에 `YOUTH_MID_RAW_ALIAS` 같은 term group을 둘지 후속 task로 분리했음
+- 이유: stable code 가 없는 상태에서는 `term_label` 자체가 canonical key 일부 역할을 대신한다. 애매한 alias를 섣불리 official 단일 라벨로 접으면 이후 stable code import, 추천 브릿지, 분석 집계가 모두 왜곡될 수 있어 재발 방지에 불리하다

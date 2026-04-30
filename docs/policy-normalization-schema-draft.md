@@ -13,6 +13,7 @@
 
 - [policy-normalization-bridge-rules.md](./policy-normalization-bridge-rules.md)
 - [policy-normalization-fact-merge-rules.md](./policy-normalization-fact-merge-rules.md)
+- [policy-normalization-youth-mid-alias-rules.md](./policy-normalization-youth-mid-alias-rules.md)
 - [policy-normalization-research.md](./policy-normalization-research.md)
 - [policy-normalization-sample-spike.md](./policy-normalization-sample-spike.md)
 - [recommendation-pipeline.md](./recommendation-pipeline.md)
