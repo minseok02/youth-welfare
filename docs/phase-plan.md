@@ -338,6 +338,12 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - 2026-04-30 `bokjiro-details-gap-fill` local live smoke 후 `BOKJIRO_API_KEY=\"$(grep '^BOKJIRO_API_KEY=' .env | cut -d= -f2-)\" bash -lc 'cd backend && ./gradlew integrationTest --no-daemon --rerun-tasks --tests com.example.welfare.integration.BokjiroDetailGapFillDensityIntegrationTest'`
 - 2026-04-30 `bokjiro-details-gap-fill` local live smoke 후 `docker exec -e MYSQL_PWD='welfare1234!' youth-welfare-db mysql --default-character-set=utf8mb4 -uroot -e \"SET NAMES utf8mb4; SELECT COUNT(*) FROM raw_api_payloads ... ; SELECT COUNT(DISTINCT ws.id) ... missing detail ... ; SELECT COUNT(*), COUNT(DISTINCT sf.service_id) ... service_facts ... ; SELECT ws.source_type, sf.fact_merge_key, COUNT(*) ... ;\" youth_welfare`
 - 2026-04-30 `bokjiro-details-gap-fill` local live smoke 후 `git diff --check`
+- 2026-04-30 gap fill 후 `service_facts` 미생성 복지로 detail sample 분석
+  - local DB에서 `detail raw payload 는 있지만 service_facts 는 없는 복지로 서비스` 를 다시 집계한 결과 `130`건이었고, source 분포는 `BOKJIRO_CENTRAL 48`, `BOKJIRO_LOCAL 82` 였다
+  - 이 집합에서 text signal 을 다시 분류해 보니 `income-like` 는 `40`, `date-like` 는 `2`, strict `age-like` residual candidate 는 사실상 `1`건(`청년내일저축계좌` 의 `만 15세~만 40세`) 수준이었다
+  - 즉 현재 gap fill 이후 남은 no-fact 대부분은 청년 연령 eligibility 누락이 아니라 저소득층 위문, 보훈 행사, 장애인 수리지원 같은 비연령 일반복지 항목이어서, 다음 작업은 regex를 크게 더 넓히는 것보다 `second-bound 만` 패턴 1건 처리 여부와 `income-like` soft fact 승격 여부를 따로 검토하는 쪽으로 정리했다
+- 2026-04-30 gap fill 후 `service_facts` 미생성 복지로 detail sample 분석 `docker exec -e MYSQL_PWD='welfare1234!' youth-welfare-db mysql --default-character-set=utf8mb4 -uroot -e \"SET NAMES utf8mb4; ... no_fact service sample queries ...\" youth_welfare`
+- 2026-04-30 gap fill 후 `service_facts` 미생성 복지로 detail sample 분석 후 `git diff --check`
 - 2026-04-28 pre-28 migrated DB 기준 admin logout / refresh invalidation / relogin smoke
   - `SECURITY_ADMIN_EMAILS=admin.logout.smoke@example.com` 으로 최신 앱을 기동한 뒤, admin 계정 로그인과 프로필 수정으로 queue row를 `SYNCED` 상태까지 맞추고 `POST /api/auth/refresh` 가 먼저 성공하는 것 확인
   - 같은 cookie jar + access token으로 `POST /api/auth/logout` 호출 후 cookie jar에서 `refresh_token` 이 제거되고, 직후 `POST /api/auth/refresh` 가 `401`, `errorCode=A001` 로 막히는 것 확인
@@ -948,8 +954,8 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - [ ] 복지로 live detail 적재 기준 `welfare_service_details` / `service_facts` validation 리허설
 - [ ] 복지로 detail refresh budget metadata(`centralBudget`/`localBudget`) 를 admin collect observability에 노출할지 결정
 - [ ] `bokjiro-details-gap-fill` 추가 라운드/호출 예산 전략 정리 후 stored detail payload coverage 추가 확대
-- [ ] gap fill 로 새로 적재된 복지로 detail raw payload 중 `service_facts` 미생성 sample 분석
-- [ ] 복지로 age-like raw detail sample inventory 기준 추가 fallback regex 보강 여부 검토
+- [ ] gap fill 이후 잔여 `만 15세~만 40세` 패턴 대응 여부 결정 및 extractor 반영
+- [ ] gap fill 후 `income-like` no-fact 복지로 detail 을 future soft fact 후보로 승격할지 검토
 - [ ] 복지로 live detail 응답에 신청마감 explicit field가 있는지 재확인하고, 없으면 `BK_APPLY_END_DATE` 는 canonical collect path에서 optional fact로 유지
 - [ ] 로그인 가능한 testbed/live payload 기준 `YOUTH_MID` / `srchPolyBizSecd` 전체 inventory 수집
 - [ ] `YOUTH_MID` stable code mapping SQL 초안 작성
@@ -973,6 +979,8 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 
 ### 완료
 
+- [x] gap fill 로 새로 적재된 복지로 detail raw payload 중 `service_facts` 미생성 sample 분석
+- [x] 복지로 age-like raw detail sample inventory 기준 추가 fallback regex 보강 여부 검토
 - [x] `bokjiro-details-gap-fill` 수동 경로로 stored detail payload coverage(`190 / 1335`) 확대 후 `service_facts` density 재측정
 - [x] 복지로 missing detail backlog 를 여러 라운드로 메우는 admin gap fill 경로 추가
 - [x] 복지로 detail/backfill 후에도 `service_facts` 가 `81 / 1335` row(6.1%)에 머무는 원인 분석 및 age fallback coverage 보강 여부 검토

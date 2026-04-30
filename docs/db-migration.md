@@ -88,6 +88,8 @@ WHERE ws.source_type IN ('BOKJIRO_CENTRAL', 'BOKJIRO_LOCAL'); -- 103
 
 현재 local snapshot에서는 `BK_AGE_ELIGIBILITY` 만 `103`건(`BOKJIRO_CENTRAL 51`, `BOKJIRO_LOCAL 52`) 적재됐고, `BK_APPLY_END_DATE` 는 `0`건이다. `TextConstraintExtractor` 보강 뒤 `bokjiro-details-gap-fill` 을 `2 rounds x 20 calls` 로 실제 실행하자 detail raw payload 는 `190 -> 199`, missing detail service 는 `1145 -> 1136`, `service_facts` 는 `99 -> 103` 으로 올라갔다. 다만 새 raw payload `9`건 중 age fact 증가는 `4`건뿐이라, 남은 갭은 extractor 하나보다 payload 자체 signal 부재와 sample 분포 영향이 더 크다.
 
+추가 샘플링 결과 `detail raw payload 는 있지만 service_facts 는 없는 복지로 서비스` 는 `130`건(`BOKJIRO_CENTRAL 48`, `BOKJIRO_LOCAL 82`)이었다. 이 집합에서 `income-like` text signal 은 `40`, `date-like` 는 `2`, strict `age-like` residual candidate 는 `1`건(`청년내일저축계좌` 의 `만 15세~만 40세`) 수준이었다. 따라서 다음 보강 우선순위는 광범위한 age regex 확대보다 `second-bound 만` 패턴 처리와 `income-like` soft fact 전략 검토에 가깝다.
+
 추가 확인 결과 `targetDetail/supportDetail/selectionCriteria` 의 date-like token 수는 `4 / 1 / 1` 이었지만, 샘플은 출생연도 범위나 혜택 적용기간처럼 신청마감이 아닌 날짜가 대부분이었다. 따라서 현재 canonical collect path 에서는 `BK_APPLY_END_DATE` 를 optional fact 로 유지하고, `targetDetail/selectionCriteria` 까지 deadline fallback 을 넓히지 않는다.
 
 - 파일: [`backend/src/main/resources/db/migration/V2026_04_28_02__add_user_pii_sync_queue.sql`](../backend/src/main/resources/db/migration/V2026_04_28_02__add_user_pii_sync_queue.sql)

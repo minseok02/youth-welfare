@@ -827,3 +827,8 @@
 - 문제: local live smoke에서 `collectBokjiroDetailGapFillResult(2, 20)` 를 태우자 detail raw payload 는 `190 -> 199`, missing detail service 는 `1145 -> 1136` 으로 개선됐지만, `service_facts` 는 `99 -> 103` 으로 `4`건만 늘었다. 새 raw payload `9`건 전부가 곧바로 age/deadline fact로 이어질 것이라고 가정하면 gap fill 효과를 과대평가하거나 extractor 문제를 잘못 짚을 수 있었다
 - 해결: `phase-plan` 과 `db-migration` 에 gap fill 결과를 `raw detail coverage` 와 `service_facts density` 두 축으로 나눠 기록하고, 다음 작업도 `추가 라운드/예산 계획` 과 `fact 미생성 sample 분석` 으로 분리했다
 - 이유: detail 확보와 fact 추출은 서로 다른 단계다. raw payload 가 늘어도 본문에 eligibility signal이 없으면 canonical facts 는 그대로일 수 있으므로, 운영/리팩터링 판단은 coverage와 density를 분리해 봐야 재발 해석이 흔들리지 않는다
+
+## 164) gap fill 후 남은 no-fact 복지로 detail 대부분은 extractor 실패가 아니라 연령 eligibility 자체가 없는 일반복지 항목이므로, 소수 예외 패턴만 보고 regex를 과하게 넓히면 precision을 해칠 수 있음
+- 문제: gap fill 이후 `detail raw payload 는 있지만 service_facts 는 없는 복지로 서비스` 를 다시 샘플링해 보니 `130`건 중 `income-like` 는 `40`, `date-like` 는 `2`, strict `age-like` residual candidate 는 사실상 `1`건(`청년내일저축계좌` 의 `만 15세~만 40세`)뿐이었다. 그 외 다수는 저소득층 위문, 보훈 행사, 장애인 수리 지원처럼 연령 eligibility가 없는 일반복지 항목이었다
+- 해결: `phase-plan` 과 `db-migration` 에 no-fact sample 분포를 기록하고, 후속 작업을 광범위한 age regex 확대가 아니라 `second-bound 만` 패턴 처리 여부와 `income-like` soft fact 후보 검토로 좁혔다
+- 이유: sample 분포를 보지 않고 “facts가 없으니 regex를 더 넓힌다”로 가면 일반복지 본문에서 잘못된 age/income fact가 더 생길 수 있다. 남은 미생성 집합의 대부분이 비연령 항목이라면 precision을 지키면서 소수 패턴만 선택적으로 다루는 편이 재발 방지에 안전하다
