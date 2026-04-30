@@ -1362,3 +1362,8 @@
 - 문제: forced logout은 `access-cutoff:{userKey}` 와 token 발급시각을 비교해 old token만 막고 fresh login token은 통과시켜야 한다. 그런데 현재 `JwtUtil` 은 표준 `issuedAt(now)` 만 기록하므로, old token과 new token이 같은 초에 발급되면 `iat` 만으로는 cutoff 전후를 안전하게 가르기 어렵다
 - 해결: [auth-admin-forced-logout-issued-at-policy.md](./auth-admin-forced-logout-issued-at-policy.md) 를 추가해 forced logout cutoff 비교는 표준 `iat` 만으로 하지 않고, access token에 custom millis precision claim `iatm` 을 추가하는 방향으로 고정했다
 - 이유: logout exact blacklist와 달리 forced logout은 before/after ordering이 핵심이다. incident/offboarding 경계에서 false allow/false deny를 줄이려면 second precision보다 finer-grained claim이 필요하다
+
+## 271) `iatm` 을 도입해도 legacy access token에서 다시 `iat` fallback을 허용하면 same-second ambiguity가 재발하므로, forced logout helper는 새 claim을 강하게 요구하는 편이 낫다
+- 문제: millis precision claim 필요성을 정한 뒤에도 `JwtUtil` helper에서 legacy token에 대해 `iat * 1000` fallback을 허용하면, forced logout 경계가 다시 초 단위 비교로 되돌아간다
+- 해결: [auth-admin-forced-logout-jwt-helper-policy.md](./auth-admin-forced-logout-jwt-helper-policy.md) 를 추가해 access token에는 `iatm` write를 필수로 두고, `getIssuedAtMillis(...)` / `getIssuedAtMillisAllowExpired(...)` helper는 missing `iatm` 을 정상 fallback으로 보지 않는 방향으로 고정했다
+- 이유: forced logout은 운영 hardening 기능이라 legacy token 호환성보다 ordering correctness가 우선이다. access cutoff에서 fallback을 넓히면 old/new token 경계가 다시 불명확해진다
