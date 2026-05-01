@@ -247,6 +247,9 @@
 - [policy-bokjiro-gap-fill-budget-strategy.md](./policy-bokjiro-gap-fill-budget-strategy.md)
   `bokjiro-details-gap-fill` 를 몇 라운드, 몇 호출부터 시작하고 어디서 멈출지 운영 기준을 확인합니다.
 
+- [policy-bokjiro-gap-fill-execution-policy.md](./policy-bokjiro-gap-fill-execution-policy.md)
+  `bokjiro-details-gap-fill` 추가 실행을 현재 phase에서 기본 작업으로 둘지, 수동 catch-up/on-demand 로만 둘지 확인합니다.
+
 - [troubleshooting-log.md](./troubleshooting-log.md)  
   이전에 발생한 장애와 해결 과정을 확인합니다.
 

@@ -1400,7 +1400,9 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - [x] `bokjiro-details-gap-fill` 추가 라운드/호출 예산 전략 정리
   - [policy-bokjiro-gap-fill-budget-strategy.md](./policy-bokjiro-gap-fill-budget-strategy.md) 를 추가해 current phase 기본 시작점을 `2 rounds x 20 calls`, 다음 증분을 `2 rounds x 40 calls`, `95/API` 는 catch-up 용 상한으로 두는 운영 기준을 고정했다
   - stop 조건은 `savedCount=0`, coverage 증가 대비 낮은 fact 증가 효율, rate-limit 부담으로 두고, gap-fill 평가는 budget보다 raw detail coverage / missing backlog / `service_facts` density 결과를 먼저 보도록 정리했다
-- [ ] 위 budget 전략 기준으로 stored detail payload coverage 추가 확대
+- [x] `bokjiro-details-gap-fill` 추가 실행을 default 확대 작업으로 둘지, 수동 catch-up/on-demand 로 유지할지 결정
+  - [policy-bokjiro-gap-fill-execution-policy.md](./policy-bokjiro-gap-fill-execution-policy.md) 를 추가해 current phase에서는 gap-fill 추가 실행을 routine default 작업으로 두지 않고, 필요할 때만 여는 수동 catch-up/on-demand 작업으로 유지한다고 고정했다
+  - 이미 확인된 coverage/fact 증가 효율이 완만하고, 남은 갭의 중심도 payload signal 분포와 soft signal 판단 쪽으로 이동했으므로 다음 기본 진행축은 다른 canonical/source pending 으로 넘긴다고 정리했다
 - [ ] 운영 서버 Docker Compose 기동
 - [ ] 기존 운영 DB에 `app_core_rw` / `app_pii_rw` / `notification_pii_ro` / `migration_admin` 계정 생성 및 앱 datasource 전환
 - [ ] 운영 `.env` / secret store의 `APP_PII_DB_URL` / `NOTIFICATION_PII_DB_URL` 를 `youth_welfare_pii` schema 기준으로 전환

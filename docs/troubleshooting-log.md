@@ -1487,3 +1487,8 @@
 - 문제: smoke/runbook까지 정리하고 나면 운영자가 “누가 눌렀는지”도 바로 로그에 남기고 싶어질 수 있다. 하지만 여기서 actor identifier까지 추가하면 identifier 선택, masking, retention, future audit storage 같은 논점이 다시 같이 열린다
 - 해결: [auth-admin-forced-logout-actor-log-policy.md](./auth-admin-forced-logout-actor-log-policy.md) 를 추가해 current forced logout 로그 라인은 계속 `[Admin] forced logout 트리거 userKey=<userKey> cutoffMillis=<epochMillis>` 로 유지하고, `actor` 는 future audit reopen 조건으로 미룬다고 고정했다
 - 이유: 지금 단계의 핵심은 old/new token ordering correctness와 운영 triage 가능성이다. `actor` 는 중요하지만 별도 audit problem이라, 1차 hardening 범위에 다시 섞지 않는 편이 경계가 더 깔끔하다
+
+## 288) gap-fill 예산 전략을 세운 뒤에도 곧바로 추가 실행을 기본 pending 으로 두면, 운영 기준과 실험 기준이 다시 섞일 수 있다
+- 문제: `2 rounds x 20 calls -> 2 rounds x 40 calls -> 95/API catch-up` 같은 예산 전략을 정리한 뒤에도 `stored detail payload coverage 추가 확대` 를 기본 pending 으로 그대로 두면, small-step 실험과 catch-up run 이 모두 “지금 당장 계속 해야 하는 일”처럼 보일 수 있었다
+- 해결: [policy-bokjiro-gap-fill-execution-policy.md](./policy-bokjiro-gap-fill-execution-policy.md) 에서 current phase의 gap-fill 추가 실행은 routine default가 아니라 수동 catch-up/on-demand 작업으로만 유지한다고 고정했다
+- 이유: 전략을 세웠다는 것과 지금 당장 실행을 계속해야 한다는 것은 다르다. 현재는 coverage/fact 증가 효율이 완만하고, 남은 갭의 중심도 payload signal 분포와 soft signal 판단 쪽으로 이동했으므로 기본 진행축을 다른 canonical/source pending 으로 넘기는 편이 더 맞다
