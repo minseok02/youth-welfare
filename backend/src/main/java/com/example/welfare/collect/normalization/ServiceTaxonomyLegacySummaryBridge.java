@@ -1,6 +1,5 @@
 package com.example.welfare.collect.normalization;
 
-import com.example.welfare.collect.normalization.NormalizedPolicyAggregate.TaxonomySummary;
 import com.example.welfare.collect.support.NormalizationKeySupport;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 
@@ -11,22 +10,22 @@ public final class ServiceTaxonomyLegacySummaryBridge {
     private static final List<LegacySummaryBinding> LEGACY_SUMMARY_BINDINGS = List.of(
             LegacySummaryBinding.youthMajor(),
             LegacySummaryBinding.labelOnly(
-                    NormalizationKeySupport.SUMMARY_KEY_YOUTH_MID,
+                    CanonicalTaxonomySummarySlots.SLOT_YOUTH_MID,
                     "youthMidCode",
                     "youthMidLabel"
             ),
             LegacySummaryBinding.labelOnly(
-                    "GOV24_SERVICE_FIELD",
+                    CanonicalTaxonomySummarySlots.SLOT_GOV24_SERVICE_FIELD,
                     "gov24ServiceFieldCode",
                     "gov24ServiceFieldLabel"
             ),
             LegacySummaryBinding.labelOnly(
-                    "GOV24_USER_TYPE",
+                    CanonicalTaxonomySummarySlots.SLOT_GOV24_USER_TYPE,
                     "gov24UserTypeCode",
                     "gov24UserTypeLabel"
             ),
             LegacySummaryBinding.labelOnly(
-                    "GOV24_BENEFIT_TYPE",
+                    CanonicalTaxonomySummarySlots.SLOT_GOV24_BENEFIT_TYPE,
                     "gov24BenefitTypeCode",
                     "gov24BenefitTypeLabel"
             )
@@ -35,12 +34,13 @@ public final class ServiceTaxonomyLegacySummaryBridge {
     private ServiceTaxonomyLegacySummaryBridge() {
     }
 
-    public static MapSqlParameterSource apply(MapSqlParameterSource params, TaxonomySummary taxonomy) {
+    public static MapSqlParameterSource apply(MapSqlParameterSource params,
+                                              CanonicalTaxonomySummarySlots.SummarySlots slots) {
         for (LegacySummaryBinding binding : LEGACY_SUMMARY_BINDINGS) {
-            binding.bind(params, taxonomy);
+            binding.bind(params, slots);
         }
         params.addValue("provisionMethodCode", null);
-        params.addValue("provisionMethodLabel", taxonomy == null ? null : taxonomy.provisionMethod());
+        params.addValue("provisionMethodLabel", slots == null ? null : slots.label(CanonicalTaxonomySummarySlots.SLOT_PROVISION_METHOD));
         return params;
     }
 
@@ -52,7 +52,7 @@ public final class ServiceTaxonomyLegacySummaryBridge {
     ) {
         private static LegacySummaryBinding youthMajor() {
             return new LegacySummaryBinding(
-                    NormalizationKeySupport.SUMMARY_KEY_YOUTH_MAJOR,
+                    CanonicalTaxonomySummarySlots.SLOT_YOUTH_MAJOR,
                     "youthMajorCode",
                     "youthMajorLabel",
                     raw -> {
@@ -74,8 +74,8 @@ public final class ServiceTaxonomyLegacySummaryBridge {
             );
         }
 
-        private void bind(MapSqlParameterSource params, TaxonomySummary taxonomy) {
-            SummaryValue summaryValue = resolver.resolve(TaxonomySummarySupport.summaryLabel(taxonomy, summaryKey));
+        private void bind(MapSqlParameterSource params, CanonicalTaxonomySummarySlots.SummarySlots slots) {
+            SummaryValue summaryValue = resolver.resolve(slots == null ? null : slots.label(summaryKey));
             params.addValue(codeParamName, summaryValue.code());
             params.addValue(labelParamName, summaryValue.label());
         }

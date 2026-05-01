@@ -168,13 +168,13 @@ public class DeferredNormalizedPolicySidecarWriter implements NormalizedPolicySi
                 """,
                 ServiceTaxonomyLegacySummaryBridge.apply(
                         new MapSqlParameterSource()
-                        .addValue("serviceId", service.getId())
-                        .addValue("primarySourceSystem", WelfareSourceTypeSupport.primarySourceSystem(aggregate.core().sourceType()))
-                        .addValue("compatUnifiedCategoryCode", toCompatUnifiedCategoryCode(taxonomy.compatUnifiedCategory()))
-                        .addValue("compatUnifiedCategoryLabel", taxonomy.compatUnifiedCategory())
-                        .addValue("authority", taxonomy.authority().name())
-                        .addValue("confidence", taxonomy.confidence()),
-                        taxonomy
+                                .addValue("serviceId", service.getId())
+                                .addValue("primarySourceSystem", WelfareSourceTypeSupport.primarySourceSystem(aggregate.core().sourceType()))
+                                .addValue("compatUnifiedCategoryCode", toCompatUnifiedCategoryCode(taxonomy.compatUnifiedCategory()))
+                                .addValue("compatUnifiedCategoryLabel", taxonomy.compatUnifiedCategory())
+                                .addValue("authority", taxonomy.authority().name())
+                                .addValue("confidence", taxonomy.confidence()),
+                        CanonicalTaxonomySummarySlots.from(taxonomy)
                 ));
     }
 

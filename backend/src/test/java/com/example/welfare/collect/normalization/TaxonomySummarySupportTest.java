@@ -1,5 +1,6 @@
 package com.example.welfare.collect.normalization;
 
+import com.example.welfare.collect.support.NormalizationKeySupport;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -16,10 +17,10 @@ class TaxonomySummarySupportTest {
     void applyBoundSummaryLabelsBindsKnownKeys() {
         NormalizedPolicyAggregate.TaxonomySummary taxonomy = NormalizedPolicyAggregate.TaxonomySummary.builder()
                 .summaryLabels(Map.of(
-                        "YOUTH_MID", "재직자",
-                        "GOV24_SERVICE_FIELD", "생활안정",
-                        "GOV24_USER_TYPE", "청년",
-                        "GOV24_BENEFIT_TYPE", "현금"
+                        NormalizationKeySupport.SUMMARY_KEY_YOUTH_MID, "재직자",
+                        NormalizationKeySupport.SUMMARY_KEY_GOV24_SERVICE_FIELD, "생활안정",
+                        NormalizationKeySupport.SUMMARY_KEY_GOV24_USER_TYPE, "청년",
+                        NormalizationKeySupport.SUMMARY_KEY_GOV24_BENEFIT_TYPE, "현금"
                 ))
                 .authority(NormalizedPolicyAggregate.Authority.OFFICIAL)
                 .confidence(BigDecimal.ONE)

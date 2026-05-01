@@ -11,10 +11,10 @@ import java.util.Set;
 public final class TaxonomySummarySupport {
 
     private static final List<SummaryLabelBinding> SUMMARY_LABEL_BINDINGS = List.of(
-            new SummaryLabelBinding("youthMidLabel", NormalizationKeySupport.SUMMARY_KEY_YOUTH_MID),
-            new SummaryLabelBinding("gov24ServiceFieldLabel", "GOV24_SERVICE_FIELD"),
-            new SummaryLabelBinding("gov24UserTypeLabel", "GOV24_USER_TYPE"),
-            new SummaryLabelBinding("gov24BenefitTypeLabel", "GOV24_BENEFIT_TYPE")
+            new SummaryLabelBinding("youthMidLabel", CanonicalTaxonomySummarySlots.SLOT_YOUTH_MID),
+            new SummaryLabelBinding("gov24ServiceFieldLabel", CanonicalTaxonomySummarySlots.SLOT_GOV24_SERVICE_FIELD),
+            new SummaryLabelBinding("gov24UserTypeLabel", CanonicalTaxonomySummarySlots.SLOT_GOV24_USER_TYPE),
+            new SummaryLabelBinding("gov24BenefitTypeLabel", CanonicalTaxonomySummarySlots.SLOT_GOV24_BENEFIT_TYPE)
     );
 
     private TaxonomySummarySupport() {
@@ -29,8 +29,9 @@ public final class TaxonomySummarySupport {
 
     public static MapSqlParameterSource applyBoundSummaryLabels(MapSqlParameterSource params,
                                                                 TaxonomySummary taxonomy) {
+        CanonicalTaxonomySummarySlots.SummarySlots slots = CanonicalTaxonomySummarySlots.from(taxonomy);
         for (SummaryLabelBinding binding : SUMMARY_LABEL_BINDINGS) {
-            params.addValue(binding.parameterName(), summaryLabel(taxonomy, binding.summaryKey()));
+            params.addValue(binding.parameterName(), slots.label(binding.summaryKey()));
         }
         return params;
     }
