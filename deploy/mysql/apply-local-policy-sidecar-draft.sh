@@ -151,8 +151,14 @@ education_target_rows="$(
     SELECT COUNT(*)
     FROM welfare_services ws
     JOIN service_taxonomies st ON st.service_id = ws.id
+    LEFT JOIN (
+      SELECT service_id, MAX(slot_label) AS slot_label
+      FROM service_taxonomy_summary_slots
+      WHERE slot_key = 'YOUTH_MAJOR'
+      GROUP BY service_id
+    ) stss_youth_major ON stss_youth_major.service_id = ws.id
     WHERE ws.unified_category = '기타'
-      AND st.youth_major_label = '교육';
+      AND COALESCE(stss_youth_major.slot_label, st.youth_major_label) = '교육';
   "
 )"
 summary_slot_count="$(
