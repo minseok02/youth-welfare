@@ -3,6 +3,7 @@ package com.example.welfare.collect.support;
 import com.example.welfare.collect.dto.BokjiroLocalDto;
 import com.example.welfare.collect.dto.YouthApiDto;
 import com.example.welfare.collect.mapper.WelfareServiceMapper;
+import com.example.welfare.collect.validation.FieldQualityStats;
 import com.example.welfare.policy.entity.WelfareService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -28,6 +29,20 @@ class ListCollectSourceBindingsTest {
         assertThat(binding.sourceId(item)).isEqualTo("Y-100");
         assertThat(binding.toSaveCommand(item).incoming().getSourceId()).isEqualTo("Y-100");
         assertThat(binding.toSaveCommand(item).aggregate().core().sourceId()).isEqualTo("Y-100");
+    }
+
+    @Test
+    @DisplayName("청년 binding은 field quality stats 기록 경계도 함께 제공한다")
+    void youthBindingRecordsFieldQualityStats() {
+        YouthApiDto.Item item = new YouthApiDto.Item();
+        ReflectionTestUtils.setField(item, "plcyNo", "Y-101");
+
+        ListCollectSourceBinding<YouthApiDto.Item> binding = ListCollectSourceBindings.youth(mapper);
+        FieldQualityStats stats = new FieldQualityStats("YOUTH", 1);
+
+        binding.recordStats(java.util.List.of(item), stats);
+
+        assertThat(stats.summary()).contains("title [BLANK]").contains("[FieldQuality][YOUTH]");
     }
 
     @Test

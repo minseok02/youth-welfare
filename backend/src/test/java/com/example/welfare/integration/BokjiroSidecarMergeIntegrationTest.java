@@ -9,6 +9,7 @@ import com.example.welfare.collect.service.BokjiroDetailCollectService;
 import com.example.welfare.collect.service.CollectItemSaver;
 import com.example.welfare.collect.service.CollectResult;
 import com.example.welfare.collect.service.RawApiPayloadService;
+import com.example.welfare.collect.support.ListCollectSourceBindings;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.repository.ServiceTagRepository;
 import com.example.welfare.policy.repository.WelfareServiceDetailRepository;
@@ -111,7 +112,7 @@ class BokjiroSidecarMergeIntegrationTest {
         );
 
         NormalizedPolicyAggregate listAggregate = welfareServiceMapper.toNormalizedBokjiroLocal(item, null);
-        collectItemSaver.saveBokjiroLocal(item, listAggregate);
+        collectItemSaver.save(ListCollectSourceBindings.bokjiroLocal(welfareServiceMapper), item, listAggregate);
 
         WelfareService savedBeforeRefresh = welfareServiceRepository
                 .findBySourceTypeAndSourceId(WelfareService.SourceType.BOKJIRO_LOCAL, sourceId)
@@ -264,7 +265,7 @@ class BokjiroSidecarMergeIntegrationTest {
         );
 
         NormalizedPolicyAggregate listAggregate = welfareServiceMapper.toNormalizedBokjiroLocal(item, null);
-        collectItemSaver.saveBokjiroLocal(item, listAggregate);
+        collectItemSaver.save(ListCollectSourceBindings.bokjiroLocal(welfareServiceMapper), item, listAggregate);
 
         WelfareService saved = welfareServiceRepository
                 .findBySourceTypeAndSourceId(WelfareService.SourceType.BOKJIRO_LOCAL, sourceId)

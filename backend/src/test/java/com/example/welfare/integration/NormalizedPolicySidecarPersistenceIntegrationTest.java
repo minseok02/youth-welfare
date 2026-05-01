@@ -4,6 +4,7 @@ import com.example.welfare.collect.dto.YouthApiDto;
 import com.example.welfare.collect.mapper.WelfareServiceMapper;
 import com.example.welfare.collect.normalization.NormalizedPolicyAggregate;
 import com.example.welfare.collect.service.CollectItemSaver;
+import com.example.welfare.collect.support.ListCollectSourceBindings;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.repository.WelfareServiceRepository;
 import org.junit.jupiter.api.AfterEach;
@@ -76,7 +77,7 @@ class NormalizedPolicySidecarPersistenceIntegrationTest {
         );
 
         NormalizedPolicyAggregate initialAggregate = welfareServiceMapper.toNormalizedYouth(initialItem);
-        collectItemSaver.saveYouth(initialItem, initialAggregate);
+        collectItemSaver.save(ListCollectSourceBindings.youth(welfareServiceMapper), initialItem, initialAggregate);
 
         YouthApiDto.Item refreshedItem = youthItem(
                 sourceId,
@@ -91,7 +92,7 @@ class NormalizedPolicySidecarPersistenceIntegrationTest {
         );
 
         NormalizedPolicyAggregate refreshedAggregate = welfareServiceMapper.toNormalizedYouth(refreshedItem);
-        collectItemSaver.saveYouth(refreshedItem, refreshedAggregate);
+        collectItemSaver.save(ListCollectSourceBindings.youth(welfareServiceMapper), refreshedItem, refreshedAggregate);
 
         WelfareService saved = welfareServiceRepository
                 .findBySourceTypeAndSourceId(WelfareService.SourceType.YOUTH, sourceId)

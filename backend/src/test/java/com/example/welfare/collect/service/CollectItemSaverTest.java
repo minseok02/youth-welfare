@@ -5,6 +5,7 @@ import com.example.welfare.collect.mapper.WelfareServiceMapper;
 import com.example.welfare.collect.normalization.NormalizedPolicyAggregate;
 import com.example.welfare.collect.normalization.NormalizedPolicySidecarWriter;
 import com.example.welfare.collect.support.ListCollectSourceBinding;
+import com.example.welfare.collect.support.ListCollectSourceBindings;
 import com.example.welfare.policy.entity.ServiceRegion;
 import com.example.welfare.policy.entity.ServiceTag;
 import com.example.welfare.policy.entity.WelfareService;
@@ -71,6 +72,7 @@ class CollectItemSaverTest {
     @DisplayName("saveYouthOnce 는 기존 tag 를 지우고 현재 tag 집합만 중복 없이 다시 저장한다")
     void saveYouthOnceReplacesTags() {
         YouthApiDto.Item item = youthItem("Y-1");
+        ListCollectSourceBinding<YouthApiDto.Item> binding = ListCollectSourceBindings.youth(mapper);
         WelfareService existing = WelfareService.builder()
                 .id(11L)
                 .sourceType(WelfareService.SourceType.YOUTH)
@@ -107,7 +109,7 @@ class CollectItemSaverTest {
         given(mapper.regionsFromYouth(item, existing)).willReturn(List.<ServiceRegion>of());
         given(mapper.tagsFromYouth(item, existing)).willReturn(List.of(first, duplicate, second));
 
-        saver.saveYouthOnce(item);
+        saver.saveOnce(binding, item);
 
         verify(tagRepository).deleteByServiceId(11L);
 
@@ -130,6 +132,7 @@ class CollectItemSaverTest {
     @DisplayName("saveYouthOnce 는 현재 tag 가 비어 있으면 기존 tag 만 정리하고 저장은 생략한다")
     void saveYouthOnceClearsTagsWhenEmpty() {
         YouthApiDto.Item item = youthItem("Y-2");
+        ListCollectSourceBinding<YouthApiDto.Item> binding = ListCollectSourceBindings.youth(mapper);
         WelfareService existing = WelfareService.builder()
                 .id(22L)
                 .sourceType(WelfareService.SourceType.YOUTH)
@@ -150,7 +153,7 @@ class CollectItemSaverTest {
         given(mapper.regionsFromYouth(item, existing)).willReturn(List.<ServiceRegion>of());
         given(mapper.tagsFromYouth(item, existing)).willReturn(List.of());
 
-        saver.saveYouthOnce(item);
+        saver.saveOnce(binding, item);
 
         verify(tagRepository).deleteByServiceId(22L);
         verify(tagRepository, never()).saveAll(any());
@@ -161,8 +164,17 @@ class CollectItemSaverTest {
     @DisplayName("aggregate 병행 저장 경로는 source identity mismatch 를 거부한다")
     void saveYouthOnceRejectsAggregateSourceMismatch() {
         YouthApiDto.Item item = youthItem("Y-3");
+        ListCollectSourceBinding<YouthApiDto.Item> binding = ListCollectSourceBindings.youth(mapper);
+        WelfareService incoming = WelfareService.builder()
+                .sourceType(WelfareService.SourceType.YOUTH)
+                .sourceId("Y-3")
+                .title("new")
+                .status(WelfareService.ServiceStatus.ACTIVE)
+                .build();
 
-        assertThatThrownBy(() -> saver.saveYouthOnce(item, normalizedAggregate("WRONG")))
+        given(mapper.fromYouth(item)).willReturn(incoming);
+
+        assertThatThrownBy(() -> saver.saveOnce(binding, item, normalizedAggregate("WRONG")))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("source identity");
     }
@@ -171,6 +183,7 @@ class CollectItemSaverTest {
     @DisplayName("aggregate 병행 저장 경로는 future sidecar writer 에 canonical aggregate 를 전달한다")
     void saveYouthOncePassesAggregateToSidecarWriter() {
         YouthApiDto.Item item = youthItem("Y-4");
+        ListCollectSourceBinding<YouthApiDto.Item> binding = ListCollectSourceBindings.youth(mapper);
         WelfareService existing = WelfareService.builder()
                 .id(44L)
                 .sourceType(WelfareService.SourceType.YOUTH)
@@ -192,7 +205,7 @@ class CollectItemSaverTest {
         given(mapper.regionsFromYouth(item, existing)).willReturn(List.of());
         given(mapper.tagsFromYouth(item, existing)).willReturn(List.of());
 
-        saver.saveYouthOnce(item, aggregate);
+        saver.saveOnce(binding, item, aggregate);
 
         verify(normalizedPolicySidecarWriter).upsert(existing, aggregate);
     }
@@ -218,6 +231,8 @@ class CollectItemSaverTest {
         ListCollectSourceBinding<SyntheticItem> binding = new ListCollectSourceBinding<>(
                 WelfareService.SourceType.YOUTH,
                 SyntheticItem::sourceId,
+                (items, stats) -> {
+                },
                 ignored -> incoming,
                 (ignored, entity) -> List.<ServiceRegion>of(),
                 (ignored, entity) -> List.of(ServiceTag.builder()

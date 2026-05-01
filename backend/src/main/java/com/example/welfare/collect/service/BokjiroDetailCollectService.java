@@ -43,6 +43,8 @@ public class BokjiroDetailCollectService {
     private final WelfareServiceMapper welfareServiceMapper;
     private final NormalizedPolicySidecarWriter normalizedPolicySidecarWriter;
     private final Map<WelfareService.SourceType, DetailCollectCapability> detailCapabilities;
+    private final BokjiroDetailBudgetAllocator budgetAllocator;
+    private final BokjiroDetailPersistenceSupport persistenceSupport;
 
     public BokjiroDetailCollectService(WelfareServiceRepository welfareServiceRepository,
                                        WelfareServiceDetailRepository detailRepository,
@@ -61,6 +63,8 @@ public class BokjiroDetailCollectService {
         this.welfareServiceMapper = welfareServiceMapper;
         this.normalizedPolicySidecarWriter = normalizedPolicySidecarWriter;
         this.detailCapabilities = buildDetailCapabilities(detailClient, welfareServiceMapper);
+        this.budgetAllocator = new BokjiroDetailBudgetAllocator();
+        this.persistenceSupport = new BokjiroDetailPersistenceSupport();
     }
 
     @Value("${collect.detail.max-calls-per-run:900}")
@@ -154,7 +158,12 @@ public class BokjiroDetailCollectService {
     @Transactional
     public CollectResult collectBokjiroDetailsResult(int maxCalls, boolean refreshExisting) {
         Map<WelfareService.SourceType, List<WelfareService>> targetsBySource = loadTargetsBySource();
-        BudgetAllocation budgetAllocation = allocateBudgets(maxCalls, targetsBySource);
+        BokjiroDetailBudgetAllocator.BudgetAllocation budgetAllocation = budgetAllocator.allocate(
+                maxCalls,
+                maxCallsPerApiPerRun,
+                List.copyOf(detailCapabilities.keySet()),
+                targetsBySource
+        );
         Map<WelfareService.SourceType, CollectStats> statsBySource = new LinkedHashMap<>();
 
         for (Map.Entry<WelfareService.SourceType, DetailCollectCapability> entry : detailCapabilities.entrySet()) {
@@ -231,26 +240,9 @@ public class BokjiroDetailCollectService {
 
             try {
                 NormalizedPolicyAggregate aggregate = capability.toAggregate(service, payload);
-                Optional<WelfareServiceDetail> existing = detailRepository.findByServiceId(service.getId());
-                WelfareServiceDetail entity = existing.orElse(
-                        WelfareServiceDetail.builder().service(service).build()
-                );
-
-                NormalizedPolicyAggregate.Detail detail = aggregate.detail();
-                WelfareServiceDetail merged = WelfareServiceDetail.builder()
-                        .id(entity.getId())
-                        .service(service)
-                        .targetDetail(detail.targetDetail())
-                        .supportDetail(detail.supportDetail())
-                        .applyMethodDetail(detail.applyMethodDetail())
-                        .selectionCriteria(detail.selectionCriteria())
-                        .contactList(toJsonArray(detail.contactText()))
-                        .supportCycle(detail.supportCycle())
-                        .provisionType(detail.provisionType())
-                        .build();
-
-                detailRepository.save(merged);
-                applyFallbacksToService(service, aggregate);
+                WelfareServiceDetail existing = detailRepository.findByServiceId(service.getId()).orElse(null);
+                detailRepository.save(persistenceSupport.mergeDetail(service, existing, aggregate));
+                persistenceSupport.applyFallbacksToService(service, aggregate);
                 normalizedPolicySidecarWriter.upsert(service, aggregate);
                 searchYouthRelevanceService.refreshForService(service, serviceTagRepository.findByServiceId(service.getId()));
                 saved++;
@@ -275,89 +267,6 @@ public class BokjiroDetailCollectService {
             );
         }
         return targetsBySource;
-    }
-
-    private BudgetAllocation allocateBudgets(int maxCalls,
-                                             Map<WelfareService.SourceType, List<WelfareService>> targetsBySource) {
-        if (maxCalls <= 0) {
-            return BudgetAllocation.empty();
-        }
-
-        Map<WelfareService.SourceType, Integer> targetCounts = new LinkedHashMap<>();
-        for (Map.Entry<WelfareService.SourceType, List<WelfareService>> entry : targetsBySource.entrySet()) {
-            targetCounts.put(entry.getKey(), entry.getValue().size());
-        }
-
-        int totalTargets = targetCounts.values().stream().mapToInt(Integer::intValue).sum();
-        if (totalTargets <= 0) {
-            return BudgetAllocation.empty();
-        }
-
-        Map<WelfareService.SourceType, Integer> budgets = new LinkedHashMap<>();
-        Map<WelfareService.SourceType, Double> remainders = new LinkedHashMap<>();
-        int allocated = 0;
-
-        for (Map.Entry<WelfareService.SourceType, Integer> entry : targetCounts.entrySet()) {
-            WelfareService.SourceType sourceType = entry.getKey();
-            int count = entry.getValue();
-            if (count <= 0) {
-                budgets.put(sourceType, 0);
-                remainders.put(sourceType, 0.0);
-                continue;
-            }
-
-            double share = (double) count / totalTargets;
-            double exactBudget = maxCalls * share;
-            int baseBudget = Math.min(maxCallsPerApiPerRun, (int) Math.floor(exactBudget));
-            budgets.put(sourceType, baseBudget);
-            remainders.put(sourceType, exactBudget - Math.floor(exactBudget));
-            allocated += baseBudget;
-        }
-
-        int remaining = maxCalls - allocated;
-        while (remaining > 0) {
-            WelfareService.SourceType nextSource = selectNextBudgetSource(targetCounts, budgets, remainders);
-            if (nextSource == null) {
-                break;
-            }
-            budgets.computeIfPresent(nextSource, (key, value) -> value + 1);
-            remaining--;
-        }
-
-        return new BudgetAllocation(budgets);
-    }
-
-    private WelfareService.SourceType selectNextBudgetSource(Map<WelfareService.SourceType, Integer> targetCounts,
-                                                             Map<WelfareService.SourceType, Integer> budgets,
-                                                             Map<WelfareService.SourceType, Double> remainders) {
-        WelfareService.SourceType selected = null;
-        double selectedRemainder = Double.NEGATIVE_INFINITY;
-
-        for (WelfareService.SourceType sourceType : detailCapabilities.keySet()) {
-            int targetCount = targetCounts.getOrDefault(sourceType, 0);
-            int currentBudget = budgets.getOrDefault(sourceType, 0);
-            if (targetCount <= 0 || currentBudget >= maxCallsPerApiPerRun) {
-                continue;
-            }
-
-            double remainder = remainders.getOrDefault(sourceType, 0.0);
-            if (selected == null || remainder > selectedRemainder) {
-                selected = sourceType;
-                selectedRemainder = remainder;
-            }
-        }
-
-        return selected;
-    }
-
-    private String toJsonArray(String raw) {
-        if (raw == null || raw.isBlank()) return null;
-        String escaped = raw
-                .replace("\\", "\\\\")
-                .replace("\"", "\\\"")
-                .replace("\n", "\\n")
-                .replace("\r", "\\r");
-        return "[\"" + escaped + "\"]";
     }
 
     private FetchOutcome fetchWithRetry(WelfareService service) {
@@ -387,71 +296,6 @@ public class BokjiroDetailCollectService {
         return new FetchOutcome(result, requestCount);
     }
 
-    private void applyFallbacksToService(WelfareService service, NormalizedPolicyAggregate aggregate) {
-        Integer minAge = findAgeMin(aggregate);
-        Integer maxAge = findAgeMax(aggregate);
-        java.time.LocalDate applyEndDate = findApplyEndDate(aggregate);
-        NormalizedPolicyAggregate.Detail detail = aggregate.detail();
-        service.applyDetailFallbacks(
-                RawFieldValidator.normalize(detail.supportDetail()),
-                RawFieldValidator.normalize(detail.applyMethodDetail()),
-                minAge,
-                maxAge,
-                applyEndDate,
-                inferOnlineApply(service.getDetailUrl(), detail.applyMethodDetail(), detail.supportDetail())
-        );
-    }
-
-    private Integer findAgeMin(NormalizedPolicyAggregate aggregate) {
-        return aggregate.facts().stream()
-                .filter(fact -> "AGE".equals(fact.factGroup()))
-                .map(NormalizedPolicyAggregate.Fact::rangeMinInt)
-                .filter(value -> value != null)
-                .findFirst()
-                .orElse(null);
-    }
-
-    private Integer findAgeMax(NormalizedPolicyAggregate aggregate) {
-        return aggregate.facts().stream()
-                .filter(fact -> "AGE".equals(fact.factGroup()))
-                .map(NormalizedPolicyAggregate.Fact::rangeMaxInt)
-                .filter(value -> value != null)
-                .findFirst()
-                .orElse(null);
-    }
-
-    private java.time.LocalDate findApplyEndDate(NormalizedPolicyAggregate aggregate) {
-        return aggregate.facts().stream()
-                .filter(fact -> "APPLY_END_DATE".equals(fact.factGroup()))
-                .map(NormalizedPolicyAggregate.Fact::dateValue)
-                .filter(value -> value != null)
-                .findFirst()
-                .orElse(null);
-    }
-
-    private Boolean inferOnlineApply(String detailUrl, String... texts) {
-        if (RawFieldValidator.normalize(detailUrl) != null) {
-            return true;
-        }
-        if (texts == null) {
-            return null;
-        }
-        for (String text : texts) {
-            String normalized = RawFieldValidator.normalize(text);
-            if (normalized == null) {
-                continue;
-            }
-            if (normalized.contains("온라인")
-                    || normalized.contains("인터넷")
-                    || normalized.contains("홈페이지")
-                    || normalized.contains("모바일")
-                    || normalized.contains("누리집")) {
-                return true;
-            }
-        }
-        return null;
-    }
-
     private void sleepQuietly(long millis) {
         if (millis <= 0) return;
         try {
@@ -463,7 +307,7 @@ public class BokjiroDetailCollectService {
 
     private String buildMetadataJson(int maxCalls,
                                      boolean refreshExisting,
-                                     BudgetAllocation budgetAllocation,
+                                     BokjiroDetailBudgetAllocator.BudgetAllocation budgetAllocation,
                                      Map<WelfareService.SourceType, CollectStats> statsBySource) {
         return """
                 {"maxCalls":%d,"refreshExisting":%s,"sourceBudgets":{%s},"sourceCalls":{%s}}
@@ -506,22 +350,6 @@ public class BokjiroDetailCollectService {
     }
 
     private record FetchOutcome(BokjiroDetailClient.FetchResult result, int requestCount) {
-    }
-
-    private record BudgetAllocation(Map<WelfareService.SourceType, Integer> budgets) {
-        private static BudgetAllocation empty() {
-            return new BudgetAllocation(Map.of());
-        }
-
-        private int budgetFor(WelfareService.SourceType sourceType) {
-            return budgets.getOrDefault(sourceType, 0);
-        }
-
-        private String toJsonObject() {
-            return budgets.entrySet().stream()
-                    .map(entry -> "\"%s\":%d".formatted(entry.getKey().name(), entry.getValue()))
-                    .collect(Collectors.joining(","));
-        }
     }
 
     private record DetailCollectCapability(

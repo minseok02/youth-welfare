@@ -1,13 +1,9 @@
 package com.example.welfare.collect.service;
 
-import com.example.welfare.collect.dto.BokjiroCentralDto;
-import com.example.welfare.collect.dto.BokjiroLocalDto;
-import com.example.welfare.collect.dto.YouthApiDto;
 import com.example.welfare.collect.mapper.WelfareServiceMapper;
 import com.example.welfare.collect.normalization.NormalizedPolicyAggregate;
 import com.example.welfare.collect.normalization.NormalizedPolicySidecarWriter;
 import com.example.welfare.collect.support.ListCollectSourceBinding;
-import com.example.welfare.collect.support.ListCollectSourceBindings;
 import com.example.welfare.policy.entity.ServiceRegion;
 import com.example.welfare.policy.entity.ServiceTag;
 import com.example.welfare.policy.entity.WelfareService;
@@ -60,78 +56,6 @@ public class CollectItemSaver {
         executeWithRetry(command.sourceType().name(), command.sourceId(), () -> saveOnce(command));
     }
 
-    public void saveYouth(YouthApiDto.Item item) {
-        save(ListCollectSourceBindings.youth(mapper), item);
-    }
-
-    public void saveYouth(YouthApiDto.Item item, NormalizedPolicyAggregate aggregate) {
-        save(ListCollectSourceBindings.youth(mapper), item, aggregate);
-    }
-
-    public void saveYouthOnce(YouthApiDto.Item item) {
-        WelfareService entity = upsertService(
-                WelfareService.SourceType.YOUTH,
-                item.getPlcyNo(),
-                mapper.fromYouth(item)
-        );
-        upsertRegions(entity, mapper.regionsFromYouth(item, entity));
-        List<ServiceTag> tags = replaceTags(entity, mapper.tagsFromYouth(item, entity));
-        searchYouthRelevanceService.refreshForService(entity, tags);
-    }
-
-    public void saveYouthOnce(YouthApiDto.Item item, NormalizedPolicyAggregate aggregate) {
-        validateAggregate(aggregate, WelfareService.SourceType.YOUTH, item.getPlcyNo());
-        WelfareService entity = upsertService(
-                toLegacySourceType(aggregate.core().sourceType()),
-                aggregate.core().sourceId(),
-                mapper.fromYouth(item)
-        );
-        normalizedPolicySidecarWriter.upsert(entity, aggregate);
-        upsertRegions(entity, mapper.regionsFromYouth(item, entity));
-        List<ServiceTag> tags = replaceTags(entity, mapper.tagsFromYouth(item, entity));
-        searchYouthRelevanceService.refreshForService(entity, tags);
-    }
-
-    public void saveBokjiroCentral(BokjiroCentralDto.Item item) {
-        save(ListCollectSourceBindings.bokjiroCentral(mapper), item);
-    }
-
-    public void saveBokjiroCentral(BokjiroCentralDto.Item item, NormalizedPolicyAggregate aggregate) {
-        save(ListCollectSourceBindings.bokjiroCentral(mapper), item, aggregate);
-    }
-
-    public void saveBokjiroCentralOnce(BokjiroCentralDto.Item item) {
-        WelfareService entity = upsertService(
-                WelfareService.SourceType.BOKJIRO_CENTRAL,
-                item.getServId(),
-                mapper.fromBokjiroCentral(item)
-        );
-        upsertRegions(entity, mapper.regionsFromBokjiroCentral(item, entity));
-        List<ServiceTag> tags = replaceTags(entity, mapper.tagsFromBokjiroCentral(item, entity));
-        searchYouthRelevanceService.refreshForService(entity, tags);
-    }
-
-    public void saveBokjiroCentralOnce(BokjiroCentralDto.Item item, NormalizedPolicyAggregate aggregate) {
-        validateAggregate(aggregate, WelfareService.SourceType.BOKJIRO_CENTRAL, item.getServId());
-        WelfareService entity = upsertService(
-                toLegacySourceType(aggregate.core().sourceType()),
-                aggregate.core().sourceId(),
-                mapper.fromBokjiroCentral(item)
-        );
-        normalizedPolicySidecarWriter.upsert(entity, aggregate);
-        upsertRegions(entity, mapper.regionsFromBokjiroCentral(item, entity));
-        List<ServiceTag> tags = replaceTags(entity, mapper.tagsFromBokjiroCentral(item, entity));
-        searchYouthRelevanceService.refreshForService(entity, tags);
-    }
-
-    public void saveBokjiroLocal(BokjiroLocalDto.Item item) {
-        save(ListCollectSourceBindings.bokjiroLocal(mapper), item);
-    }
-
-    public void saveBokjiroLocal(BokjiroLocalDto.Item item, NormalizedPolicyAggregate aggregate) {
-        save(ListCollectSourceBindings.bokjiroLocal(mapper), item, aggregate);
-    }
-
     public <T> void save(ListCollectSourceBinding<T> binding, T item) {
         save(binding.toSaveCommand(item));
     }
@@ -150,28 +74,22 @@ public class CollectItemSaver {
                 .build());
     }
 
-    public void saveBokjiroLocalOnce(BokjiroLocalDto.Item item) {
-        WelfareService entity = upsertService(
-                WelfareService.SourceType.BOKJIRO_LOCAL,
-                item.getServId(),
-                mapper.fromBokjiroLocal(item)
-        );
-        upsertRegions(entity, mapper.regionsFromBokjiroLocal(item, entity));
-        List<ServiceTag> tags = replaceTags(entity, mapper.tagsFromBokjiroLocal(item, entity));
-        searchYouthRelevanceService.refreshForService(entity, tags);
+    public <T> void saveOnce(ListCollectSourceBinding<T> binding, T item) {
+        saveOnce(binding.toSaveCommand(item));
     }
 
-    public void saveBokjiroLocalOnce(BokjiroLocalDto.Item item, NormalizedPolicyAggregate aggregate) {
-        validateAggregate(aggregate, WelfareService.SourceType.BOKJIRO_LOCAL, item.getServId());
-        WelfareService entity = upsertService(
-                toLegacySourceType(aggregate.core().sourceType()),
-                aggregate.core().sourceId(),
-                mapper.fromBokjiroLocal(item)
-        );
-        normalizedPolicySidecarWriter.upsert(entity, aggregate);
-        upsertRegions(entity, mapper.regionsFromBokjiroLocal(item, entity));
-        List<ServiceTag> tags = replaceTags(entity, mapper.tagsFromBokjiroLocal(item, entity));
-        searchYouthRelevanceService.refreshForService(entity, tags);
+    public <T> void saveOnce(ListCollectSourceBinding<T> binding,
+                             T item,
+                             NormalizedPolicyAggregate aggregate) {
+        SaveCommand command = binding.toSaveCommand(item);
+        saveOnce(SaveCommand.builder()
+                .sourceType(command.sourceType())
+                .sourceId(command.sourceId())
+                .incoming(command.incoming())
+                .regions(command.regions())
+                .tags(command.tags())
+                .aggregate(aggregate)
+                .build());
     }
 
     public void saveOnce(SaveCommand command) {
