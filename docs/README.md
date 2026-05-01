@@ -5,6 +5,14 @@
 
 ## 작업별로 보기
 
+### 지금 상태를 빠르게 확인할 때
+
+- [documentation-map.md](./documentation-map.md)
+  문서를 `current source of truth`, `design history`, `external blocked`, `ops-only` 로 나눠 어디서부터 읽어야 하는지 빠르게 정리합니다.
+
+- [auth-session-revocation-current-state.md](./auth-session-revocation-current-state.md)
+  현재 구현된 logout / withdraw / admin allowlist revoke / admin forced logout 계약을 한 문서에서 바로 확인합니다.
+
 ### 전체 구조를 파악할 때
 
 - [architecture.md](./architecture.md)  
@@ -109,6 +117,9 @@
 - [auth-logout-revocation-scope-policy.md](./auth-logout-revocation-scope-policy.md)
   `logout` 의 즉시 무효화 범위를 `bearer-present exact token revoke` 와 `cookie-only refresh-only` 로 어떻게 나눌지 확인합니다.
 
+- [auth-session-revocation-current-state.md](./auth-session-revocation-current-state.md)
+  현재 구현된 logout / withdraw / admin allowlist revoke / admin forced logout 계약을 한 번에 확인합니다.
+
 - [auth-revocation-reopen-order.md](./auth-revocation-reopen-order.md)
   future user-level revoke를 다시 열어야 할 때 `withdraw`, `관리자 강제 로그아웃`, generic `cookie-only logout` 중 무엇을 먼저 다룰지 확인합니다.
 
@@ -121,20 +132,23 @@
 - [auth-admin-refresh-revoke-policy.md](./auth-admin-refresh-revoke-policy.md)
   allowlist 제거 후 기존 admin refresh token을 즉시 끊을지, 아니면 새 token부터 role만 제거할지 현재 계약을 확인합니다.
 
+- `auth-admin-forced-logout-*` 문서 묶음
+  현재 구현의 배경을 남긴 design history 입니다. 현재 계약 확인은 먼저 [auth-session-revocation-current-state.md](./auth-session-revocation-current-state.md) 와 [auth-admin-forced-logout-closeout.md](./auth-admin-forced-logout-closeout.md) 를 봅니다.
+
 - [auth-admin-forced-logout-baseline-policy.md](./auth-admin-forced-logout-baseline-policy.md)
-  future `admin forced logout` 가 `allowlist revoke` 와 달리 무엇을 즉시 차단해야 하는지, baseline/success criteria를 확인합니다.
+  forced logout 가 `allowlist revoke` 와 달리 무엇을 즉시 차단해야 하는지, baseline/success criteria 배경을 확인합니다.
 
 - [auth-admin-forced-logout-entrypoint-policy.md](./auth-admin-forced-logout-entrypoint-policy.md)
-  future `admin forced logout` 의 운영자 진입점을 admin API로 둘지, revoke state의 즉시 source를 Redis로 둘지 확인합니다.
+  forced logout 의 운영자 진입점을 admin API로 둘지, revoke state의 즉시 source를 Redis로 둘지 정한 배경을 확인합니다.
 
 - [auth-admin-forced-logout-api-contract.md](./auth-admin-forced-logout-api-contract.md)
-  future `admin forced logout` 의 최소 API 계약(path, body, idempotency, success 의미)을 확인합니다.
+  forced logout 최소 API 계약(path, body, idempotency, success 의미)의 설계 배경을 확인합니다.
 
 - [auth-admin-forced-logout-redis-shape.md](./auth-admin-forced-logout-redis-shape.md)
-  future `admin forced logout` 가 Redis에 `refresh:{userKey}` 삭제와 `access-cutoff:{userKey}` 를 어떤 의미로 남길지 확인합니다.
+  forced logout 가 Redis에 `refresh:{userKey}` 삭제와 `access-cutoff:{userKey}` 를 어떤 의미로 남길지 정한 배경을 확인합니다.
 
 - [auth-admin-forced-logout-issued-at-policy.md](./auth-admin-forced-logout-issued-at-policy.md)
-  future `admin forced logout` cutoff 비교에서 표준 `iat` 만으로 충분한지, 별도 millis precision claim이 필요한지 확인합니다.
+  forced logout cutoff 비교에서 표준 `iat` 만으로 충분한지, 별도 millis precision claim이 필요한지 정한 배경을 확인합니다.
 
 - [auth-admin-forced-logout-jwt-helper-policy.md](./auth-admin-forced-logout-jwt-helper-policy.md)
   `JwtUtil` 에 `iatm` claim write/read helper를 어떻게 추가하고, legacy token fallback을 어디까지 허용할지 확인합니다.

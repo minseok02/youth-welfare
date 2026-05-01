@@ -1,5 +1,12 @@
 # Admin Forced Logout Baseline Policy
 
+> Status note (2026-05-01)
+>
+> 이 문서는 현재 구현의 배경을 남긴 **design history** 입니다.
+> 현재 제품/코드 계약은 [auth-session-revocation-current-state.md](./auth-session-revocation-current-state.md) 와
+> [auth-admin-forced-logout-closeout.md](./auth-admin-forced-logout-closeout.md) 를 우선 기준으로 봅니다.
+
+
 ## 결정
 
 future `admin forced logout` 는 `SECURITY_ADMIN_EMAILS` 변경 기반 role revoke와 별도 기능으로 보고, 다음 구현 전에는 아래 **baseline/success criteria** 를 먼저 truth로 둔다.

@@ -1592,3 +1592,8 @@
 - 문제: broad backend regression까지 green 이 된 뒤에는 실제로 로컬에서 더 닫을 active pending 이 없는데도, 다음 액션을 막연히 “다음 작업 진행”으로만 두면 `GOV24_*`, `YOUTH_MID`, deploy 같은 항목을 다시 로컬 설계 대상으로 오해할 수 있었다.
 - 해결: [policy-post-local-closeout-track-split.md](./policy-post-local-closeout-track-split.md) 를 추가해 2026-05-01 기준 남은 항목은 `external blocked` 와 `ops-only` 두 트랙뿐이라고 고정했다. 이 문서에서 blocked 재개 조건과 ops-only 전환 조건도 같이 박아, 이후부터는 새 로컬 구현보다 “외부 응답 대기” 또는 “운영 전환 결정” 중 어느 쪽인지 먼저 해석하도록 정리했다.
 - 이유: local-first 원칙의 끝은 “로컬에서 계속 무언가 더 하는 상태”가 아니라, “이제 로컬로는 더 전진하지 않는다”를 명확히 선언하는 것이다. 그래야 blocked 트랙과 운영 트랙이 다시 섞이지 않는다.
+
+## 309) 문서가 많이 쪼개진 상태에서 구현이 먼저 닫히면, 개별 설계 문서의 `future` 표현이 그대로 남아 현재 계약과 문서가 어긋나 보일 수 있다
+- 문제: `admin forced logout` 는 이미 구현과 smoke까지 닫혔는데, `auth-admin-forced-logout-*` 문서 다수는 여전히 “future” 전제와 다음 task 흐름으로 읽혀 현재 코드 계약을 바로 확인하기 어렵게 만들었다. README 도 current-state 문서보다 개별 설계 문서를 나열하는 쪽에 가까워, 실제 source of truth 가 어디인지 헷갈릴 여지가 컸다.
+- 해결: [documentation-map.md](./documentation-map.md) 를 추가해 `docs/` 를 current source of truth / design history / external blocked / ops-only 로 나눠 읽는 기준을 만들었다. 또 [auth-session-revocation-current-state.md](./auth-session-revocation-current-state.md) 를 추가해 logout / withdraw / allowlist revoke / forced logout 현재 구현을 한 문서에 모았고, `auth-admin-forced-logout-*` 문서에는 design history status note 를 넣어 “배경 문서” 임을 명시했다.
+- 이유: 문서 정리는 파일 수를 무조건 줄이는 것보다, “지금 봐야 할 문서” 와 “결정 배경 문서” 를 분리하는 편이 실제 코드와의 불일치를 더 빠르게 줄인다. 구현이 닫힌 뒤에는 current-state 문서가 앞에 서고, 세부 decision 문서는 뒤로 물러나야 한다.

@@ -1,5 +1,12 @@
 # Admin Forced Logout Legacy Token Rollout Policy
 
+> Status note (2026-05-01)
+>
+> 이 문서는 현재 구현의 배경을 남긴 **design history** 입니다.
+> 현재 제품/코드 계약은 [auth-session-revocation-current-state.md](./auth-session-revocation-current-state.md) 와
+> [auth-admin-forced-logout-closeout.md](./auth-admin-forced-logout-closeout.md) 를 우선 기준으로 봅니다.
+
+
 ## 결정
 
 future `admin forced logout` 가 실제로 켜지는 시점부터는, **`iatm` 없는 legacy admin access token은 forced logout 보호 경계에서 재로그인을 요구하는 대상** 으로 본다.

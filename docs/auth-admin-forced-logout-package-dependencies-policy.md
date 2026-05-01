@@ -1,5 +1,12 @@
 # Admin Forced Logout Package And Dependencies Policy
 
+> Status note (2026-05-01)
+>
+> 이 문서는 현재 구현의 배경을 남긴 **design history** 입니다.
+> 현재 제품/코드 계약은 [auth-session-revocation-current-state.md](./auth-session-revocation-current-state.md) 와
+> [auth-admin-forced-logout-closeout.md](./auth-admin-forced-logout-closeout.md) 를 우선 기준으로 봅니다.
+
+
 ## 결정
 
 `UserSessionRevocationService` 는 **`backend/src/main/java/com/example/welfare/user/service`** 패키지에 두고, 1차 생성자 dependency는 아래 **최소 집합** 으로 고정한다.

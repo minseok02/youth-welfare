@@ -1468,6 +1468,10 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - [x] post-local-closeout pending 성격 분리
   - [policy-post-local-closeout-track-split.md](./policy-post-local-closeout-track-split.md) 를 추가해 2026-05-01 기준 더 이상 active local pending 은 없고, 남은 항목은 `external blocked` 와 `ops-only` 두 트랙뿐이라고 고정했다
   - 이 기준으로 `GOV24_*`, `GOV24_SUPPORT_CONDITION`, `YOUTH_MID`, CTR/알림톡은 external blocked, deploy/DB/secret/Nginx/migration smoke 는 ops-only 로 유지한다
+- [x] 문서 current-state / design-history 경계 정리
+  - [documentation-map.md](./documentation-map.md) 를 추가해 현재 `docs/` 를 current source of truth, design history, external blocked, ops-only 로 나눠 읽는 기준을 만들었다
+  - [auth-session-revocation-current-state.md](./auth-session-revocation-current-state.md) 를 추가해 logout / withdraw / admin allowlist revoke / admin forced logout 의 현재 구현 계약을 한 문서에서 바로 보게 정리했다
+  - 동시에 `auth-admin-forced-logout-*` 문서에는 design history status note 를 넣고, [README.md](./README.md) 는 current-state 우선 / design history 보조 순서로 안내하게 정리했다
 - [ ] 운영 서버 Docker Compose 기동
 - [ ] 기존 운영 DB에 `app_core_rw` / `app_pii_rw` / `notification_pii_ro` / `migration_admin` 계정 생성 및 앱 datasource 전환
 - [ ] 운영 `.env` / secret store의 `APP_PII_DB_URL` / `NOTIFICATION_PII_DB_URL` 를 `youth_welfare_pii` schema 기준으로 전환

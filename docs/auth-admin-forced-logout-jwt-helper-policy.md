@@ -1,5 +1,12 @@
 # Admin Forced Logout JWT Helper Policy
 
+> Status note (2026-05-01)
+>
+> 이 문서는 현재 구현의 배경을 남긴 **design history** 입니다.
+> 현재 제품/코드 계약은 [auth-session-revocation-current-state.md](./auth-session-revocation-current-state.md) 와
+> [auth-admin-forced-logout-closeout.md](./auth-admin-forced-logout-closeout.md) 를 우선 기준으로 봅니다.
+
+
 ## 결정
 
 future `admin forced logout` 구현을 위해 [JwtUtil.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/global/util/JwtUtil.java) 에 아래 helper/claim 계약을 추가하는 방향으로 고정한다.

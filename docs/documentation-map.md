@@ -1,0 +1,117 @@
+# Documentation Map
+
+## 목적
+
+문서 수가 많아도 실제로 매번 다 읽을 필요는 없습니다.
+
+이 문서는 현재 `docs/` 를
+
+- **지금 바로 봐야 하는 source of truth**
+- **구현 배경을 남긴 design history**
+- **외부 응답이 있어야 다시 열리는 blocked 트랙**
+- **운영 전환 때만 의미가 있는 ops 트랙**
+
+으로 나눠서 길을 줄입니다.
+
+## 1. 지금 바로 볼 문서
+
+### 제품/구조
+
+- [README.md](./README.md)
+- [architecture.md](./architecture.md)
+- [api-mapping.md](./api-mapping.md)
+- [recommendation-pipeline.md](./recommendation-pipeline.md)
+- [phase-plan.md](./phase-plan.md)
+
+### 현재 구현 상태 요약
+
+- [auth-session-revocation-current-state.md](./auth-session-revocation-current-state.md)
+- [policy-local-closeout-pending-inventory.md](./policy-local-closeout-pending-inventory.md)
+- [policy-post-local-closeout-track-split.md](./policy-post-local-closeout-track-split.md)
+
+### 로컬/운영 검증 절차
+
+- [runtime-api-smoke-commands.md](./runtime-api-smoke-commands.md)
+- [testing.md](./testing.md)
+- [collect-ops.md](./collect-ops.md)
+
+## 2. design history 로 읽을 문서
+
+아래는 현재 구현의 배경을 남긴 문서입니다.
+
+### auth forced logout cluster
+
+- `auth-admin-forced-logout-*`
+
+읽는 법:
+
+- 현재 계약 확인은 [auth-session-revocation-current-state.md](./auth-session-revocation-current-state.md)
+- 왜 그렇게 됐는지는 개별 design history 문서
+
+### 교육 replay / OpenAI replay cluster
+
+- `policy-normalization-education-*`
+- `openai-replay-*`
+
+읽는 법:
+
+- 현재 local closeout 여부는 [policy-local-closeout-pending-inventory.md](./policy-local-closeout-pending-inventory.md)
+- 세부 실험 배경은 개별 문서
+
+### canonical normalization decision cluster
+
+- `policy-normalization-*`
+
+읽는 법:
+
+- current big picture 는 [policy-source-onboarding-playbook.md](./policy-source-onboarding-playbook.md),
+  [policy-normalization-recommendation-read-model.md](./policy-normalization-recommendation-read-model.md),
+  [policy-normalization-recommendation-migration-order.md](./policy-normalization-recommendation-migration-order.md)
+- 세부 drift/inventory/bridge 판단은 개별 문서
+
+## 3. external blocked 트랙
+
+현재 바로 구현으로 못 가는 문서들입니다.
+
+- `GOV24_*` codebook / inventory / request template
+- `YOUTH_MID` stable code source / request spec
+- CTR sample / 카카오 알림톡 2차
+
+현재 해석:
+
+- 문서 추가보다 외부 응답/승인/표본 확보가 먼저
+
+## 4. ops-only 트랙
+
+운영 host/DB/secret 이 있어야 의미가 있는 문서들입니다.
+
+- [deployment.md](./deployment.md)
+- [runtime-cutover-checklist.md](./runtime-cutover-checklist.md)
+- [db-account-cutover-runbook.md](./db-account-cutover-runbook.md)
+- [openai-replay-cron-runbook.md](./openai-replay-cron-runbook.md)
+- [openai-replay-cron-security-boundary.md](./openai-replay-cron-security-boundary.md)
+
+현재 해석:
+
+- local closeout 이후에만 active 로 올림
+
+## 5. 추천 읽기 순서
+
+### 코드와 문서 불일치가 걱정될 때
+
+1. 실제 코드
+2. [auth-session-revocation-current-state.md](./auth-session-revocation-current-state.md) 또는 현재 상태 요약 문서
+3. [phase-plan.md](./phase-plan.md)
+4. 필요하면 개별 design history
+
+### 새 작업을 열 때
+
+1. [policy-next-active-track-priority.md](./policy-next-active-track-priority.md)
+2. [policy-post-local-closeout-track-split.md](./policy-post-local-closeout-track-split.md)
+3. 현재 active 트랙의 current-state 문서
+
+## 6. 요약
+
+1. 모든 문서를 같은 우선순위로 읽지 않습니다.
+2. 현재 계약 확인은 `current state` 문서와 실제 코드가 우선입니다.
+3. 쪼개진 `policy` / `auth-admin-forced-logout-*` 문서는 대부분 design history 로 읽습니다.

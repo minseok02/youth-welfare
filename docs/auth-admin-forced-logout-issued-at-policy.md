@@ -1,5 +1,12 @@
 # Admin Forced Logout Issued-At Policy
 
+> Status note (2026-05-01)
+>
+> 이 문서는 현재 구현의 배경을 남긴 **design history** 입니다.
+> 현재 제품/코드 계약은 [auth-session-revocation-current-state.md](./auth-session-revocation-current-state.md) 와
+> [auth-admin-forced-logout-closeout.md](./auth-admin-forced-logout-closeout.md) 를 우선 기준으로 봅니다.
+
+
 ## 결정
 
 future `admin forced logout` 의 access cutoff 비교는 **표준 JWT `iat` 만으로는 충분하지 않고**, access token에 **별도 millis precision issued-at claim** 을 추가하는 방향으로 고정한다.

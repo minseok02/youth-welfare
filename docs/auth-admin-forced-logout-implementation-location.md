@@ -1,5 +1,12 @@
 # Admin Forced Logout Implementation Location
 
+> Status note (2026-05-01)
+>
+> 이 문서는 현재 구현의 배경을 남긴 **design history** 입니다.
+> 현재 제품/코드 계약은 [auth-session-revocation-current-state.md](./auth-session-revocation-current-state.md) 와
+> [auth-admin-forced-logout-closeout.md](./auth-admin-forced-logout-closeout.md) 를 우선 기준으로 봅니다.
+
+
 ## 결정
 
 future `admin forced logout` 의 `A006` 차단은 **controller/service guard가 아니라 `JwtAuthenticationFilter` 앞단** 에서 처리하고, 실제 비교 로직은 filter가 직접 들고 있지 않고 **전용 helper/service** 로 분리한다.
