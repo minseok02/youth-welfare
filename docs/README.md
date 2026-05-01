@@ -58,6 +58,9 @@
 - [policy-normalization-gov24-schema-acquisition-path.md](./policy-normalization-gov24-schema-acquisition-path.md)
   `GOV24_*` import/backfill SQL을 다시 열기 전에 current Swagger/schema export를 어디서 확보할지 확인합니다.
 
+- [policy-normalization-gov24-swagger-visibility-check.md](./policy-normalization-gov24-swagger-visibility-check.md)
+  current `data.go.kr` dataset page와 `schema.org` metadata만으로 `GOV24_SERVICE_FIELD`, `GOV24_USER_TYPE`, `GOV24_BENEFIT_TYPE` finite inventory가 실제로 보이는지 확인합니다.
+
 - [policy-normalization-gov24-support-condition-source-plan.md](./policy-normalization-gov24-support-condition-source-plan.md)
   `GOV24_SUPPORT_CONDITION` 을 representative subset seed에서 full inventory/backfill로 넓힐 때 어떤 official source가 더 필요한지 확인합니다.
 

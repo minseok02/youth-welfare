@@ -1502,3 +1502,8 @@
 - 문제: `GOV24_*` reopen 우선순위를 앞에 두더라도, 실제로 어디서 source 증적을 확보할지가 모호하면 다시 deprecated `category` 문서나 sample payload 역추론으로 되돌아갈 위험이 있었다
 - 해결: [policy-normalization-gov24-schema-acquisition-path.md](./policy-normalization-gov24-schema-acquisition-path.md) 에서 practical next step을 `data.go.kr` current dataset page의 Swagger UI 확인 -> `schema.org/DCAT` provenance 확보 -> provider/operator codebook 요청 순서로 고정했다
 - 이유: `Gov24_*` SQL을 다시 열려면 “current source를 어디서 봤는가”가 먼저 명확해야 한다. current dataset page는 이미 official entrypoint이고, deprecated endpoint 재활용보다 Swagger/schema export 증적을 먼저 확보하는 편이 재발 방지에 맞다
+
+## 291) current `data.go.kr` page와 `schema.org` metadata를 실제로 다시 봐도, `GOV24_*` finite inventory는 아직 직접 보이지 않는다
+- 문제: current dataset page를 official entrypoint로 인정하더라도, 실제로 `serviceField` / `userType` / `benefitType` finite inventory가 page text나 metadata에 직접 보이는지 확인하지 않으면 “일단 current page를 봤다”는 사실만으로 SQL reopen 조건이 충족된 것처럼 오해할 수 있었다
+- 해결: [policy-normalization-gov24-swagger-visibility-check.md](./policy-normalization-gov24-swagger-visibility-check.md) 에서 current `data.go.kr` page와 `schema.org` metadata를 다시 확인한 결과, entrypoint/provenance 는 분명하지만 field-level finite inventory는 직접 드러나지 않는다고 고정했다
+- 이유: practical next action을 좁히려면 “current page 확인”과 “finite inventory 확보”를 같은 단계로 취급하면 안 된다. 이번 단계의 결론은 current page 확인 완료이고, 따라서 다음 액션은 provider/operator codebook 요청 실행으로 넘어가는 편이 맞다

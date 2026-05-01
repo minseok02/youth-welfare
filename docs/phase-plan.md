@@ -1409,6 +1409,9 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - [x] `GOV24_SERVICE_FIELD` / `USER_TYPE` / `BENEFIT_TYPE` SQL reopen 전 current Swagger/schema 확보 경로 구체화
   - [policy-normalization-gov24-schema-acquisition-path.md](./policy-normalization-gov24-schema-acquisition-path.md) 를 추가해 practical next step을 `data.go.kr` current dataset page의 Swagger UI 확인 -> `schema.org/DCAT` provenance 확보 -> 그래도 finite inventory가 안 보이면 provider/operator codebook 요청 순서로 고정했다
   - 즉 다음 액션은 deprecated `category` 재활용이 아니라 current Swagger/schema 증적 확보이며, `schema.org/DCAT` 는 provenance 보강용이지 finite code-label inventory의 충분조건은 아니라고 정리했다
+- [x] `GOV24_*` current dataset page / `schema.org` metadata만으로 finite inventory가 직접 보이는지 확인
+  - [policy-normalization-gov24-swagger-visibility-check.md](./policy-normalization-gov24-swagger-visibility-check.md) 를 추가해 current `data.go.kr` page와 `schema.org` metadata는 official current entrypoint/provenance 확인에는 충분하지만, `serviceField` / `userType` / `benefitType` finite inventory 자체는 직접 드러내지 않는다고 고정했다
+  - 따라서 `GOV24_*` SQL reopen의 다음 practical action은 current page 재탐색이 아니라 provider/operator codebook 요청 실행으로 더 좁혀졌다고 정리했다
 - [ ] 운영 서버 Docker Compose 기동
 - [ ] 기존 운영 DB에 `app_core_rw` / `app_pii_rw` / `notification_pii_ro` / `migration_admin` 계정 생성 및 앱 datasource 전환
 - [ ] 운영 `.env` / secret store의 `APP_PII_DB_URL` / `NOTIFICATION_PII_DB_URL` 를 `youth_welfare_pii` schema 기준으로 전환
