@@ -1842,3 +1842,8 @@
 - 문제: `AiScoringService` 는 cluster cache hit/miss 이후 `aiScore`, `aiReason` 을 기존 candidate에 직접 세팅했고, `RealtimeAiGateway` 와 `ReRankingService` 도 같은 객체에 `aiScore`, `finalScore`, `aiFallback` 을 덮어쓰고 있었다. 이 구조에서는 추천 단계들이 값 계산과 객체 상태 변경을 동시에 수행하게 되어, 단계 재배치나 병렬화가 어려울 뿐 아니라 테스트도 “반환값” 대신 “원본 객체가 얼마나 변했는가”를 같이 추적해야 했다.
 - 해결: `ScoredCandidate` 는 `@Builder(toBuilder = true)` 기반 copy-on-write DTO로 바꾸고 `withAiResult(...)`, `withFinalScore(...)` helper를 추가했다. `AiScoringService`, `RealtimeAiGateway`, `ReRankingService` 는 이제 기존 candidate를 직접 수정하지 않고 새 candidate 인스턴스를 만들어 다음 단계로 넘긴다. 관련 테스트도 반환 리스트를 기준으로 검증하도록 갱신해, cache hit 케이스에서 원본 candidate가 그대로 유지되는 점까지 고정했다.
 - 이유: 지금 단계에서 DTO 전체를 record로 갈아엎을 필요는 없지만, 단계별 공유 뮤테이션을 줄이면 추천 파이프라인의 입력/출력 경계가 훨씬 명확해진다. 계산식은 그대로 두고 객체 갱신 방식을 copy-on-write 쪽으로 옮기면 회귀 반경을 크게 늘리지 않고도 구조적 리스크를 줄일 수 있다.
+
+## 343) `CollectSource.executionOrder()` 와 `CollectService` adapter 검증이 서로 다른 source 집합을 보면서도 그 차이를 코드가 설명하지 않으면, manual-only source가 단순 누락인지 의도인지 신규 기여자가 추측해야 한다
+- 문제: `BOKJIRO_DETAIL_REFRESH` 는 `collectAll()` 대상에는 포함되지 않지만 adapter는 필수였고, 이 차이는 `CollectSource.executionOrder()` 의 하드코딩 목록과 `CollectService.buildAdapterMap()` 의 `CollectSource.values()` 전체 검증 사이에 암묵적으로만 존재했다. 구조를 모르는 사람이 보면 “왜 이 source는 배치에서 안 돌면서 adapter는 강제하지?”라는 의문이 남는다.
+- 해결: `CollectSource` 에 `runsInScheduledBatch`, `requiresAdapter` 메타데이터를 추가하고 `executionOrder()` 는 scheduled source만 반환하게 바꿨다. `CollectService` 의 adapter coverage 검증도 이제 `source.requiresAdapter()` 를 기준으로 돈다. 테스트에는 `BOKJIRO_DETAIL_REFRESH` 가 manual-only 이면서도 adapter 필수 source라는 점을 명시적으로 추가했다.
+- 이유: 이 단계의 핵심은 동작을 바꾸는 게 아니라 규칙을 숨기지 않는 것이다. enum 자체가 “배치 실행 여부”와 “adapter 필요 여부”를 함께 들고 있으면 collect 경계의 예외가 service 구현 세부가 아니라 source 메타데이터로 드러난다.
