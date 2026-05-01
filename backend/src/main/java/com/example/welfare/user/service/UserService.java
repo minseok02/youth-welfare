@@ -1,5 +1,6 @@
 package com.example.welfare.user.service;
 
+import com.example.welfare.chat.service.ChatSessionCleanupService;
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.global.util.AesEncryptUtil;
@@ -18,9 +19,11 @@ import com.example.welfare.user.repository.UserAttributeRepository;
 import com.example.welfare.user.repository.UserPriorityRepository;
 import com.example.welfare.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.util.HashSet;
 import java.util.List;
@@ -31,6 +34,8 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class UserService {
 
+    private static final String REFRESH_TOKEN_PREFIX = "refresh:";
+
     private final UserRepository userRepository;
     private final UserAttributeRepository userAttributeRepository;
     private final UserPriorityRepository userPriorityRepository;
@@ -39,20 +44,21 @@ public class UserService {
     private final AesEncryptUtil aesEncryptUtil;
     private final PasswordEncoder passwordEncoder;
     private final UserRecommendationRepository userRecommendationRepository;
+    private final RedisTemplate<String, String> redisTemplate;
+    private final AccessTokenRevocationService accessTokenRevocationService;
+    private final ChatSessionCleanupService chatSessionCleanupService;
+    private final UserCoreSyncService userCoreSyncService;
+    private final UserReadService userReadService;
 
     @Transactional(readOnly = true)
     public ProfileResponse getProfile(Long userId) {
-        User user = findActiveUser(userId);
-        List<UserAttribute> attributes = userAttributeRepository.findByUserId(userId);
-        List<UserPriority> priorities = userPriorityRepository.findByUserIdOrderByPriorityRank(userId);
-        String phone = aesEncryptUtil.decrypt(user.getPhoneEnc());
-        return ProfileResponse.of(user, attributes, priorities, phone);
+        return userReadService.getProfile(userId);
     }
 
     @Transactional(readOnly = true)
     public List<PolicySummaryResponse> getBookmarks(Long userId) {
         findActiveUser(userId);
-        List<UserRecommendation> bookmarks = userRecommendationRepository.findLatestBookmarkedByUserId(userId);
+        List<UserRecommendation> bookmarks = userRecommendationRepository.findLatestBookmarkedByUserKey(resolveUserKey(userId));
         return bookmarks.stream()
                 .map(UserRecommendation::getService)
                 .map(service -> PolicySummaryResponse.from(service, true))
@@ -62,6 +68,7 @@ public class UserService {
     @Transactional
     public void updateProfile(Long userId, UpdateProfileRequest request) {
         User user = findActiveUser(userId);
+        String userKey = resolveUserKey(userId);
 
         user.updateProfile(
                 request.getName() != null ? request.getName() : user.getName(),
@@ -95,10 +102,11 @@ public class UserService {
 
         // 관심분야 속성 교체
         if (request.getInterestFields() != null) {
-            userAttributeRepository.deleteByUserIdAndAttrType(userId, UserAttribute.AttrType.INTEREST_FIELD.name());
+            userAttributeRepository.deleteByUserKeyAndAttrType(userKey, UserAttribute.AttrType.INTEREST_FIELD.name());
             request.getInterestFields().forEach(field ->
                     userAttributeRepository.save(UserAttribute.builder()
-                            .user(user)
+                            .userId(userId)
+                            .userKey(userKey)
                             .attrType(UserAttribute.AttrType.INTEREST_FIELD.name())
                             .attrValue(field)
                             .build())
@@ -106,22 +114,25 @@ public class UserService {
         }
 
         if (request.getTargetTypes() != null) {
-            userAttributeRepository.deleteByUserIdAndAttrType(userId, UserAttribute.AttrType.TARGET_TYPE.name());
+            userAttributeRepository.deleteByUserKeyAndAttrType(userKey, UserAttribute.AttrType.TARGET_TYPE.name());
             request.getTargetTypes().forEach(targetType ->
                     userAttributeRepository.save(UserAttribute.builder()
-                            .user(user)
+                            .userId(userId)
+                            .userKey(userKey)
                             .attrType(UserAttribute.AttrType.TARGET_TYPE.name())
                             .attrValue(targetType)
                             .build())
             );
         }
 
-        user.updateProfileCompleteness(calculateCompleteness(userId, user, request));
+        user.updateProfileCompleteness(calculateCompleteness(userKey, user, request));
+        userCoreSyncService.syncFromUser(user);
     }
 
     @Transactional
     public void updatePriorities(Long userId, UpdatePrioritiesRequest request) {
         User user = findActiveUser(userId);
+        String userKey = resolveUserKey(userId);
         List<String> codes = request.getPriorityCodes();
 
         if (codes.size() > priorityWeightPolicy.maxRank()) {
@@ -133,14 +144,15 @@ public class UserService {
             throw new CustomException(ErrorCode.INVALID_INPUT);
         }
 
-        userPriorityRepository.deleteByUserId(userId);
+        userPriorityRepository.deleteByUserKey(userKey);
 
         for (int i = 0; i < codes.size(); i++) {
             PriorityOption option = priorityOptionRepository.findByCode(codes.get(i))
                     .orElseThrow(() -> new CustomException(ErrorCode.INVALID_INPUT));
 
             userPriorityRepository.save(UserPriority.builder()
-                    .user(user)
+                    .userId(userId)
+                    .userKey(userKey)
                     .priorityOption(option)
                     .priorityRank(i + 1)
                     .weight(priorityWeightPolicy.weightForRank(i + 1))
@@ -155,25 +167,39 @@ public class UserService {
             throw new CustomException(ErrorCode.INVALID_CREDENTIALS);
         }
         user.updatePassword(passwordEncoder.encode(newPassword));
+        userCoreSyncService.syncFromUser(user);
     }
 
     @Transactional
-    public void withdraw(Long userId, String password) {
+    public void withdraw(Long userId, String password, String accessToken) {
         User user = findActiveUser(userId);
+        String userKey = user.getUserKey() != null ? user.getUserKey() : resolveUserKey(userId);
 
         if (!passwordEncoder.matches(password, user.getPasswordHash())) {
             throw new CustomException(ErrorCode.INVALID_CREDENTIALS);
         }
 
-        userAttributeRepository.deleteByUserId(userId);
-        userPriorityRepository.deleteByUserId(userId);
+        userAttributeRepository.deleteByUserKey(userKey);
+        userPriorityRepository.deleteByUserKey(userKey);
+        chatSessionCleanupService.deleteAllByUserKey(userKey);
+        redisTemplate.delete(REFRESH_TOKEN_PREFIX + userKey);
+        revokePresentedAccessToken(accessToken);
         user.withdraw();
+        userCoreSyncService.syncFromUser(user);
     }
 
     @Transactional
     public void unsubscribeNotifications(Long userId) {
         User user = findActiveUser(userId);
         user.unsubscribeNotifications();
+        userCoreSyncService.syncFromUser(user);
+    }
+
+    @Transactional
+    public void unsubscribeNotificationsByUserKey(String userKey) {
+        Long userId = userRepository.findIdByUserKey(userKey)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+        unsubscribeNotifications(userId);
     }
 
     private User findActiveUser(Long userId) {
@@ -185,7 +211,19 @@ public class UserService {
         return user;
     }
 
-    private int calculateCompleteness(Long userId, User user, UpdateProfileRequest request) {
+    private void revokePresentedAccessToken(String accessToken) {
+        if (!StringUtils.hasText(accessToken)) {
+            return;
+        }
+        accessTokenRevocationService.revoke(accessToken);
+    }
+
+    private String resolveUserKey(Long userId) {
+        return userRepository.findUserKeyById(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+    }
+
+    private int calculateCompleteness(String userKey, User user, UpdateProfileRequest request) {
         int score = 0;
         // 필수 항목 (각 20점)
         if (user.getName() != null) score += 20;
@@ -198,7 +236,7 @@ public class UserService {
         if (user.getPhoneEnc() != null) score += 10;
         boolean hasInterestFields = request.getInterestFields() != null
                 ? !request.getInterestFields().isEmpty()
-                : !userAttributeRepository.findByUserIdAndAttrType(userId, UserAttribute.AttrType.INTEREST_FIELD.name()).isEmpty();
+                : !userAttributeRepository.findByUserKeyAndAttrType(userKey, UserAttribute.AttrType.INTEREST_FIELD.name()).isEmpty();
         if (hasInterestFields) score += 10;
         return Math.min(score, 100);
     }
@@ -211,4 +249,5 @@ public class UserService {
             throw new CustomException(ErrorCode.INVALID_INPUT);
         }
     }
+
 }

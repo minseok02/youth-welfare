@@ -126,7 +126,8 @@ class PolicyServiceTest {
                 eq(null),
                 any(PageRequest.class)
         )).willReturn(page);
-        given(userRecommendationRepository.findLatestBookmarkedServiceIds(7L, List.of(11L)))
+        given(userRepository.findUserKeyById(7L)).willReturn(Optional.of("user-key-7"));
+        given(userRecommendationRepository.findLatestBookmarkedServiceIdsByUserKey("user-key-7", List.of(11L)))
                 .willReturn(List.of(11L));
 
         Page<PolicySummaryResponse> result = policyService.getList(
@@ -150,9 +151,11 @@ class PolicyServiceTest {
     void toggleBookmarkOnExistingRecommendation() {
         UserRecommendation recommendation = UserRecommendation.builder()
                 .id(1L)
+                .userKey("user-key-7")
                 .isBookmarked(false)
                 .build();
-        given(userRecommendationRepository.findTopByUserIdAndServiceIdOrderByRecommendedAtDesc(7L, 11L))
+        given(userRepository.findUserKeyById(7L)).willReturn(Optional.of("user-key-7"));
+        given(userRecommendationRepository.findTopByUserKeyAndServiceIdOrderByRecommendedAtDesc("user-key-7", 11L))
                 .willReturn(Optional.of(recommendation));
 
         policyService.toggleBookmark(7L, 11L);
@@ -163,7 +166,6 @@ class PolicyServiceTest {
     @Test
     @DisplayName("추천 이력이 없어도 북마크 요청 시 placeholder 추천을 생성한다")
     void toggleBookmarkCreatesPlaceholderWhenMissing() {
-        User user = User.builder().id(7L).email("user@test.com").passwordHash("pw").build();
         WelfareService service = WelfareService.builder()
                 .id(11L)
                 .sourceType(WelfareService.SourceType.YOUTH)
@@ -171,9 +173,9 @@ class PolicyServiceTest {
                 .title("청년 정책")
                 .build();
 
-        given(userRecommendationRepository.findTopByUserIdAndServiceIdOrderByRecommendedAtDesc(7L, 11L))
+        given(userRepository.findUserKeyById(7L)).willReturn(Optional.of("user-key-7"));
+        given(userRecommendationRepository.findTopByUserKeyAndServiceIdOrderByRecommendedAtDesc("user-key-7", 11L))
                 .willReturn(Optional.empty());
-        given(userRepository.findById(7L)).willReturn(Optional.of(user));
         given(welfareServiceRepository.findById(11L)).willReturn(Optional.of(service));
         given(userRecommendationRepository.save(any(UserRecommendation.class)))
                 .willAnswer(invocation -> invocation.getArgument(0, UserRecommendation.class));
@@ -183,6 +185,7 @@ class PolicyServiceTest {
         ArgumentCaptor<UserRecommendation> captor = ArgumentCaptor.forClass(UserRecommendation.class);
         verify(userRecommendationRepository).save(captor.capture());
         assertTrue(captor.getValue().isBookmarked());
+        assertEquals("user-key-7", captor.getValue().getUserKey());
     }
 
     @Test
@@ -190,11 +193,13 @@ class PolicyServiceTest {
     void toggleBookmarkRejectsWhenLimitExceeded() {
         UserRecommendation recommendation = UserRecommendation.builder()
                 .id(1L)
+                .userKey("user-key-7")
                 .isBookmarked(false)
                 .build();
-        given(userRecommendationRepository.findTopByUserIdAndServiceIdOrderByRecommendedAtDesc(7L, 11L))
+        given(userRepository.findUserKeyById(7L)).willReturn(Optional.of("user-key-7"));
+        given(userRecommendationRepository.findTopByUserKeyAndServiceIdOrderByRecommendedAtDesc("user-key-7", 11L))
                 .willReturn(Optional.of(recommendation));
-        given(userRecommendationRepository.countByUserIdAndIsBookmarkedTrue(7L)).willReturn(200L);
+        given(userRecommendationRepository.countByUserKeyAndIsBookmarkedTrue("user-key-7")).willReturn(200L);
 
         CustomException exception = assertThrows(CustomException.class, () -> policyService.toggleBookmark(7L, 11L));
 

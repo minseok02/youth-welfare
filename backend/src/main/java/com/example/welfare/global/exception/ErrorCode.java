@@ -18,6 +18,9 @@ public enum ErrorCode {
     INVALID_CREDENTIALS(HttpStatus.UNAUTHORIZED, "A004", "이메일 또는 비밀번호가 올바르지 않습니다."),
     ACCOUNT_LOCKED(HttpStatus.UNAUTHORIZED, "A005", "로그인 실패 횟수 초과로 계정이 잠겼습니다. 30분 후 다시 시도하세요."),
     UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "A006", "로그인이 필요합니다."),
+    ADMIN_EMAIL_SIGNUP_FORBIDDEN(HttpStatus.FORBIDDEN, "A007", "관리자 이메일은 공개 회원가입으로 생성할 수 없습니다."),
+    PASSWORD_RESET_TOKEN_INVALID(HttpStatus.BAD_REQUEST, "A008", "유효하지 않거나 만료된 비밀번호 재설정 토큰입니다."),
+    PASSWORD_RESET_EMAIL_SEND_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "A009", "비밀번호 재설정 메일 발송에 실패했습니다."),
 
     // 회원
     DUPLICATE_EMAIL(HttpStatus.CONFLICT, "U001", "이미 사용 중인 이메일입니다."),
@@ -34,6 +37,10 @@ public enum ErrorCode {
 
     // 알림
     NOTIFICATION_SEND_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "N001", "알림 발송에 실패했습니다."),
+
+    // 챗봇
+    CHAT_SESSION_NOT_FOUND(HttpStatus.NOT_FOUND, "CH001", "존재하지 않는 챗 세션입니다."),
+    CHAT_RATE_LIMIT_EXCEEDED(HttpStatus.TOO_MANY_REQUESTS, "CH002", "짧은 시간에 너무 많은 챗 요청이 발생했습니다. 잠시 후 다시 시도하세요."),
 
     // 수집
     COLLECT_API_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "COL001", "공공 API 수집에 실패했습니다."),

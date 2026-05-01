@@ -42,7 +42,7 @@ class NotificationHistoryServiceTest {
     @Test
     @DisplayName("알림 발송 이력 저장 시 헤더와 매핑 아이템이 함께 저장된다")
     void saveResultStoresHeaderAndItems() {
-        User user = User.builder().id(7L).email("test@example.com").passwordHash("pw").build();
+        User user = User.builder().id(7L).userKey("user-key-7").email("test@example.com").passwordHash("pw").build();
         WelfareService ws = WelfareService.builder()
                 .id(100L)
                 .sourceType(WelfareService.SourceType.YOUTH)
@@ -60,7 +60,7 @@ class NotificationHistoryServiceTest {
                     Notification arg = invocation.getArgument(0, Notification.class);
                     return Notification.builder()
                             .id(1L)
-                            .user(arg.getUser())
+                            .userKey(arg.getUserKey())
                             .channel(arg.getChannel())
                             .periodType(arg.getPeriodType())
                             .status(arg.getStatus())
@@ -93,7 +93,7 @@ class NotificationHistoryServiceTest {
     @Test
     @DisplayName("실패 이력 저장 시 최초 재시도 시간을 30분 뒤로 설정한다")
     void saveResultSchedulesInitialRetryForFailure() {
-        User user = User.builder().id(7L).email("test@example.com").passwordHash("pw").build();
+        User user = User.builder().id(7L).userKey("user-key-7").email("test@example.com").passwordHash("pw").build();
 
         given(notificationRepository.save(any(Notification.class)))
                 .willAnswer(invocation -> invocation.getArgument(0, Notification.class));

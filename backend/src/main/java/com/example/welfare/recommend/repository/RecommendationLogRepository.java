@@ -12,41 +12,44 @@ import java.util.Optional;
 
 public interface RecommendationLogRepository extends JpaRepository<RecommendationLog, Long> {
 
+    List<RecommendationLog> findByUserKey(String userKey);
+
     // 전체 로그 수 — Cold Start 단계 판별에 사용
-    long countByUserId(Long userId);
+    long countByUserKey(String userKey);
 
     // 사용자 로그 최신순
-    List<RecommendationLog> findByUserIdOrderBySentAtDesc(Long userId, Pageable pageable);
+    List<RecommendationLog> findByUserKeyOrderBySentAtDesc(String userKey, Pageable pageable);
 
     // 클릭 처리용
-    Optional<RecommendationLog> findByIdAndUserId(Long id, Long userId);
+    Optional<RecommendationLog> findByIdAndUserKey(Long id, String userKey);
 
     // CTR 분석: 사용자별 클릭률 조회
     @Query("""
             SELECT COUNT(rl) FROM RecommendationLog rl
-            WHERE rl.user.id = :userId AND rl.isClicked = true
+            WHERE rl.userKey = :userKey AND rl.isClicked = true
             """)
-    long countClickedByUserId(@Param("userId") Long userId);
+    long countClickedByUserKey(@Param("userKey") String userKey);
 
     // refresh 전 미클릭 로그 삭제 — 클릭된 로그(is_clicked=true)는 CTR 분석용으로 보존
     @Modifying
     @Query("""
             DELETE FROM RecommendationLog rl
-            WHERE rl.user.id = :userId AND rl.isClicked = false
+            WHERE rl.userKey = :userKey
+              AND rl.isClicked = false
             """)
-    void deleteUnclickedByUserId(@Param("userId") Long userId);
+    void deleteUnclickedByUserKey(@Param("userKey") String userKey);
 
     // serviceId 목록 기준 사용자의 최신 로그 조회 (logId 매핑용)
     @Query("""
             SELECT rl FROM RecommendationLog rl
-            WHERE rl.user.id = :userId
+            WHERE rl.userKey = :userKey
               AND rl.service.id IN :serviceIds
               AND rl.sentAt = (
                   SELECT MAX(rl2.sentAt) FROM RecommendationLog rl2
-                  WHERE rl2.user.id = :userId AND rl2.service.id = rl.service.id
+                  WHERE rl2.userKey = :userKey AND rl2.service.id = rl.service.id
               )
             """)
-    List<RecommendationLog> findLatestByUserIdAndServiceIds(
-            @Param("userId") Long userId,
+    List<RecommendationLog> findLatestByUserKeyAndServiceIds(
+            @Param("userKey") String userKey,
             @Param("serviceIds") List<Long> serviceIds);
 }

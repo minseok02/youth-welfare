@@ -4,6 +4,8 @@ import com.example.welfare.collect.dto.BokjiroCentralDto;
 import com.example.welfare.collect.dto.BokjiroLocalDto;
 import com.example.welfare.collect.dto.YouthApiDto;
 import com.example.welfare.collect.mapper.WelfareServiceMapper;
+import com.example.welfare.collect.normalization.NormalizedPolicyAggregate;
+import com.example.welfare.collect.normalization.NormalizedPolicySidecarWriter;
 import com.example.welfare.policy.entity.ServiceRegion;
 import com.example.welfare.policy.entity.ServiceTag;
 import com.example.welfare.policy.entity.WelfareService;
@@ -24,8 +26,11 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * 아이템 단위 저장 — 각 아이템을 별도 트랜잭션으로 처리하여
@@ -42,12 +47,17 @@ public class CollectItemSaver {
     private final PlatformTransactionManager transactionManager;
     private final JdbcTemplate jdbcTemplate;
     private final SearchYouthRelevanceService searchYouthRelevanceService;
+    private final NormalizedPolicySidecarWriter normalizedPolicySidecarWriter;
 
     private static final int MAX_SAVE_ATTEMPTS = 3;
     private static final long BASE_BACKOFF_MS = 200L;
 
     public void saveYouth(YouthApiDto.Item item) {
         executeWithRetry("YOUTH", item.getPlcyNo(), () -> saveYouthOnce(item));
+    }
+
+    public void saveYouth(YouthApiDto.Item item, NormalizedPolicyAggregate aggregate) {
+        executeWithRetry("YOUTH", item.getPlcyNo(), () -> saveYouthOnce(item, aggregate));
     }
 
     public void saveYouthOnce(YouthApiDto.Item item) {
@@ -57,13 +67,29 @@ public class CollectItemSaver {
                 mapper.fromYouth(item)
         );
         upsertRegions(entity, mapper.regionsFromYouth(item, entity));
-        List<ServiceTag> tags = mapper.tagsFromYouth(item, entity);
-        upsertTags(entity, tags);
+        List<ServiceTag> tags = replaceTags(entity, mapper.tagsFromYouth(item, entity));
+        searchYouthRelevanceService.refreshForService(entity, tags);
+    }
+
+    public void saveYouthOnce(YouthApiDto.Item item, NormalizedPolicyAggregate aggregate) {
+        validateAggregate(aggregate, WelfareService.SourceType.YOUTH, item.getPlcyNo());
+        WelfareService entity = upsertService(
+                toLegacySourceType(aggregate.core().sourceType()),
+                aggregate.core().sourceId(),
+                mapper.fromYouth(item)
+        );
+        normalizedPolicySidecarWriter.upsert(entity, aggregate);
+        upsertRegions(entity, mapper.regionsFromYouth(item, entity));
+        List<ServiceTag> tags = replaceTags(entity, mapper.tagsFromYouth(item, entity));
         searchYouthRelevanceService.refreshForService(entity, tags);
     }
 
     public void saveBokjiroCentral(BokjiroCentralDto.Item item) {
         executeWithRetry("BOKJIRO_CENTRAL", item.getServId(), () -> saveBokjiroCentralOnce(item));
+    }
+
+    public void saveBokjiroCentral(BokjiroCentralDto.Item item, NormalizedPolicyAggregate aggregate) {
+        executeWithRetry("BOKJIRO_CENTRAL", item.getServId(), () -> saveBokjiroCentralOnce(item, aggregate));
     }
 
     public void saveBokjiroCentralOnce(BokjiroCentralDto.Item item) {
@@ -73,13 +99,29 @@ public class CollectItemSaver {
                 mapper.fromBokjiroCentral(item)
         );
         upsertRegions(entity, mapper.regionsFromBokjiroCentral(item, entity));
-        List<ServiceTag> tags = mapper.tagsFromBokjiroCentral(item, entity);
-        upsertTags(entity, tags);
+        List<ServiceTag> tags = replaceTags(entity, mapper.tagsFromBokjiroCentral(item, entity));
+        searchYouthRelevanceService.refreshForService(entity, tags);
+    }
+
+    public void saveBokjiroCentralOnce(BokjiroCentralDto.Item item, NormalizedPolicyAggregate aggregate) {
+        validateAggregate(aggregate, WelfareService.SourceType.BOKJIRO_CENTRAL, item.getServId());
+        WelfareService entity = upsertService(
+                toLegacySourceType(aggregate.core().sourceType()),
+                aggregate.core().sourceId(),
+                mapper.fromBokjiroCentral(item)
+        );
+        normalizedPolicySidecarWriter.upsert(entity, aggregate);
+        upsertRegions(entity, mapper.regionsFromBokjiroCentral(item, entity));
+        List<ServiceTag> tags = replaceTags(entity, mapper.tagsFromBokjiroCentral(item, entity));
         searchYouthRelevanceService.refreshForService(entity, tags);
     }
 
     public void saveBokjiroLocal(BokjiroLocalDto.Item item) {
         executeWithRetry("BOKJIRO_LOCAL", item.getServId(), () -> saveBokjiroLocalOnce(item));
+    }
+
+    public void saveBokjiroLocal(BokjiroLocalDto.Item item, NormalizedPolicyAggregate aggregate) {
+        executeWithRetry("BOKJIRO_LOCAL", item.getServId(), () -> saveBokjiroLocalOnce(item, aggregate));
     }
 
     public void saveBokjiroLocalOnce(BokjiroLocalDto.Item item) {
@@ -89,8 +131,20 @@ public class CollectItemSaver {
                 mapper.fromBokjiroLocal(item)
         );
         upsertRegions(entity, mapper.regionsFromBokjiroLocal(item, entity));
-        List<ServiceTag> tags = mapper.tagsFromBokjiroLocal(item, entity);
-        upsertTags(entity, tags);
+        List<ServiceTag> tags = replaceTags(entity, mapper.tagsFromBokjiroLocal(item, entity));
+        searchYouthRelevanceService.refreshForService(entity, tags);
+    }
+
+    public void saveBokjiroLocalOnce(BokjiroLocalDto.Item item, NormalizedPolicyAggregate aggregate) {
+        validateAggregate(aggregate, WelfareService.SourceType.BOKJIRO_LOCAL, item.getServId());
+        WelfareService entity = upsertService(
+                toLegacySourceType(aggregate.core().sourceType()),
+                aggregate.core().sourceId(),
+                mapper.fromBokjiroLocal(item)
+        );
+        normalizedPolicySidecarWriter.upsert(entity, aggregate);
+        upsertRegions(entity, mapper.regionsFromBokjiroLocal(item, entity));
+        List<ServiceTag> tags = replaceTags(entity, mapper.tagsFromBokjiroLocal(item, entity));
         searchYouthRelevanceService.refreshForService(entity, tags);
     }
 
@@ -126,14 +180,43 @@ public class CollectItemSaver {
         ps.setString(4, region.getSggName());
     }
 
-    private void upsertTags(WelfareService service, List<ServiceTag> tags) {
-        for (ServiceTag tag : tags) {
-            tagRepository.upsert(
-                    service.getId(),
-                    tag.getTagType().name(),
-                    tag.getTagValue()
-            );
+    private List<ServiceTag> replaceTags(WelfareService service, List<ServiceTag> tags) {
+        tagRepository.deleteByServiceId(service.getId());
+        tagRepository.flush();
+
+        List<ServiceTag> normalizedTags = normalizeTags(service, tags);
+        if (normalizedTags.isEmpty()) {
+            return normalizedTags;
         }
+
+        tagRepository.saveAll(normalizedTags);
+        return normalizedTags;
+    }
+
+    private List<ServiceTag> normalizeTags(WelfareService service, List<ServiceTag> tags) {
+        if (tags == null || tags.isEmpty()) {
+            return List.of();
+        }
+
+        Set<TagKey> seen = new LinkedHashSet<>();
+        List<ServiceTag> normalized = new ArrayList<>();
+
+        for (ServiceTag tag : tags) {
+            if (tag == null || tag.getTagType() == null || tag.getTagValue() == null || tag.getTagValue().isBlank()) {
+                continue;
+            }
+            TagKey key = new TagKey(tag.getTagType(), tag.getTagValue());
+            if (!seen.add(key)) {
+                continue;
+            }
+            normalized.add(ServiceTag.builder()
+                    .service(service)
+                    .tagType(tag.getTagType())
+                    .tagValue(tag.getTagValue())
+                    .build());
+        }
+
+        return normalized;
     }
 
     private void executeWithRetry(String sourceType, String sourceId, CollectRetrySupport.CheckedRunnable action) {
@@ -211,5 +294,27 @@ public class CollectItemSaver {
             throw runtimeException;
         }
         throw new IllegalStateException(e);
+    }
+
+    private void validateAggregate(NormalizedPolicyAggregate aggregate,
+                                   WelfareService.SourceType expectedSourceType,
+                                   String expectedSourceId) {
+        if (aggregate == null || aggregate.core() == null) {
+            throw new IllegalArgumentException("normalized aggregate/core 는 필수입니다.");
+        }
+        if (aggregate.core().sourceType() == null || aggregate.core().sourceId() == null || aggregate.core().sourceId().isBlank()) {
+            throw new IllegalArgumentException("normalized aggregate sourceType/sourceId 는 필수입니다.");
+        }
+        if (aggregate.core().sourceType() != NormalizedPolicyAggregate.SourceType.valueOf(expectedSourceType.name())
+                || !expectedSourceId.equals(aggregate.core().sourceId())) {
+            throw new IllegalArgumentException("normalized aggregate source identity 가 item 과 일치하지 않습니다.");
+        }
+    }
+
+    private WelfareService.SourceType toLegacySourceType(NormalizedPolicyAggregate.SourceType sourceType) {
+        return WelfareService.SourceType.valueOf(sourceType.name());
+    }
+
+    private record TagKey(ServiceTag.TagType tagType, String tagValue) {
     }
 }

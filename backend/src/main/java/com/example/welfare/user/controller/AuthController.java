@@ -1,9 +1,12 @@
 package com.example.welfare.user.controller;
 
+import com.example.welfare.global.auth.AuthenticatedUser;
 import com.example.welfare.global.response.ApiResponse;
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.user.dto.request.LoginRequest;
+import com.example.welfare.user.dto.request.PasswordResetConfirmRequest;
+import com.example.welfare.user.dto.request.PasswordResetRequest;
 import com.example.welfare.user.dto.request.SignupRequest;
 import com.example.welfare.user.dto.response.EmailAvailabilityResponse;
 import com.example.welfare.user.dto.response.TokenResponse;
@@ -37,6 +40,19 @@ public class AuthController {
     @PostMapping("/signup")
     public ResponseEntity<ApiResponse<Void>> signup(@Valid @RequestBody SignupRequest request) {
         authService.signup(request);
+        return ResponseEntity.ok(ApiResponse.success(null));
+    }
+
+    @PostMapping("/password-reset/request")
+    public ResponseEntity<ApiResponse<Void>> requestPasswordReset(@Valid @RequestBody PasswordResetRequest request) {
+        authService.requestPasswordReset(request.getEmail());
+        return ResponseEntity.ok(ApiResponse.success(null));
+    }
+
+    @PostMapping("/password-reset/confirm")
+    public ResponseEntity<ApiResponse<Void>> confirmPasswordReset(
+            @Valid @RequestBody PasswordResetConfirmRequest request) {
+        authService.confirmPasswordReset(request.getToken(), request.getNewPassword());
         return ResponseEntity.ok(ApiResponse.success(null));
     }
 
@@ -74,21 +90,32 @@ public class AuthController {
 
     @PostMapping("/logout")
     public ResponseEntity<ApiResponse<Void>> logout(
-            @AuthenticationPrincipal Long userId,
+            @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
+            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorizationHeader,
             @RequestHeader(value = "X-Refresh-Token", required = false) String refreshTokenHeader,
             @CookieValue(value = REFRESH_COOKIE_NAME, required = false) String refreshTokenCookie) {
         String refreshToken = StringUtils.hasText(refreshTokenHeader) ? refreshTokenHeader : refreshTokenCookie;
+        String accessToken = extractBearerToken(authorizationHeader);
 
         if (StringUtils.hasText(refreshToken)) {
-            authService.logoutByRefreshToken(refreshToken);
-        } else if (userId != null) {
-            authService.logout(userId);
+            authService.logoutByRefreshToken(refreshToken, accessToken);
+        } else if (authenticatedUser != null && authenticatedUser.hasUserKey()) {
+            authService.logoutByUserKey(authenticatedUser.userKey(), accessToken);
+        } else if (authenticatedUser != null && authenticatedUser.hasUserId()) {
+            authService.logout(authenticatedUser.userId(), accessToken);
         }
 
         ResponseCookie clearCookie = buildRefreshCookie("", 0);
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, clearCookie.toString())
                 .body(ApiResponse.success(null));
+    }
+
+    private String extractBearerToken(String authorizationHeader) {
+        if (StringUtils.hasText(authorizationHeader) && authorizationHeader.startsWith("Bearer ")) {
+            return authorizationHeader.substring(7);
+        }
+        return null;
     }
 
     private ResponseCookie buildRefreshCookie(String value, long maxAgeSeconds) {

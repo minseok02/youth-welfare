@@ -7,6 +7,7 @@ import com.example.welfare.policy.dto.PolicySummaryResponse;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.repository.WelfareServiceRepository;
 import com.example.welfare.recommend.repository.UserRecommendationRepository;
+import com.example.welfare.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -31,6 +32,7 @@ public class PolicySearchService {
 
     private final WelfareServiceRepository welfareServiceRepository;
     private final UserRecommendationRepository userRecommendationRepository;
+    private final UserRepository userRepository;
 
     @Transactional(readOnly = true)
     public PolicySearchResponse search(Long userId, String keyword, int page) {
@@ -65,29 +67,44 @@ public class PolicySearchService {
         String normalizedSgg = normalizeNullable(sgg);
         Integer onlineApplyFlag = onlineApply == null ? null : (onlineApply ? 1 : 0);
         String normalizedSort = normalizeSort(sort);
-        Page<WelfareService> resultPage = normalizedSido == null
-                ? welfareServiceRepository.searchByKeywordWithFiltersNoRegion(
-                ftKeyword,
-                normalizedStatus,
-                normalizedIncludeClosed,
-                normalizedCategory,
-                normalizedSourceType,
-                onlineApplyFlag,
-                normalizedSort,
-                PageRequest.of(pageNumber, limit)
-        )
-                : welfareServiceRepository.searchByKeywordWithFiltersWithRegion(
-                ftKeyword,
-                normalizedStatus,
-                normalizedIncludeClosed,
-                normalizedCategory,
-                normalizedSourceType,
-                onlineApplyFlag,
-                normalizedSido,
-                normalizedSgg,
-                normalizedSort,
-                PageRequest.of(pageNumber, limit)
-        );
+        Page<WelfareService> resultPage;
+        if (normalizedSido == null) {
+            resultPage = welfareServiceRepository.searchByKeywordWithFiltersNoRegion(
+                    ftKeyword,
+                    normalizedStatus,
+                    normalizedIncludeClosed,
+                    normalizedCategory,
+                    normalizedSourceType,
+                    onlineApplyFlag,
+                    normalizedSort,
+                    PageRequest.of(pageNumber, limit)
+            );
+        } else if (normalizedSgg == null) {
+            resultPage = welfareServiceRepository.searchByKeywordWithFiltersWithSido(
+                    ftKeyword,
+                    normalizedStatus,
+                    normalizedIncludeClosed,
+                    normalizedCategory,
+                    normalizedSourceType,
+                    onlineApplyFlag,
+                    normalizedSido,
+                    normalizedSort,
+                    PageRequest.of(pageNumber, limit)
+            );
+        } else {
+            resultPage = welfareServiceRepository.searchByKeywordWithFiltersWithSidoSgg(
+                    ftKeyword,
+                    normalizedStatus,
+                    normalizedIncludeClosed,
+                    normalizedCategory,
+                    normalizedSourceType,
+                    onlineApplyFlag,
+                    normalizedSido,
+                    normalizedSgg,
+                    normalizedSort,
+                    PageRequest.of(pageNumber, limit)
+            );
+        }
 
         Set<Long> bookmarkedServiceIds = getBookmarkedServiceIds(userId, resultPage.getContent());
         List<PolicySummaryResponse> content = resultPage.getContent().stream()
@@ -167,12 +184,16 @@ public class PolicySearchService {
         if (userId == null || services.isEmpty()) {
             return Collections.emptySet();
         }
+        String userKey = userRepository.findUserKeyById(userId).orElse(null);
+        if (userKey == null) {
+            return Collections.emptySet();
+        }
 
         List<Long> serviceIds = services.stream()
                 .map(WelfareService::getId)
                 .toList();
 
-        return new HashSet<>(userRecommendationRepository.findLatestBookmarkedServiceIds(userId, serviceIds));
+        return new HashSet<>(userRecommendationRepository.findLatestBookmarkedServiceIdsByUserKey(userKey, serviceIds));
     }
 
     // Boolean Mode 검색어 구성: 공백 분리 후 각 단어에 + 접두사

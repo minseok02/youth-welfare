@@ -4,6 +4,7 @@ import com.example.welfare.policy.dto.PolicySearchResponse;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.repository.WelfareServiceRepository;
 import com.example.welfare.recommend.repository.UserRecommendationRepository;
+import com.example.welfare.user.repository.UserRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -30,13 +31,16 @@ class PolicySearchServiceTest {
 
     @Mock
     private UserRecommendationRepository userRecommendationRepository;
+    @Mock
+    private UserRepository userRepository;
 
     @Test
     @DisplayName("검색은 SQL 레벨 청년 플래그 필터 결과를 페이지 메타데이터와 함께 반환한다")
     void searchReturnsPagedResponse() {
         PolicySearchService service = new PolicySearchService(
                 welfareServiceRepository,
-                userRecommendationRepository
+                userRecommendationRepository,
+                userRepository
         );
 
         WelfareService youthService = welfareService(1L, "청년 정책");
@@ -74,15 +78,16 @@ class PolicySearchServiceTest {
     }
 
     @Test
-    @DisplayName("지역 필터가 있으면 EXISTS 기반 지역 검색 쿼리를 사용한다")
-    void searchWithRegionUsesRegionQuery() {
+    @DisplayName("시도와 시군구가 있으면 지역 검색 쿼리를 사용한다")
+    void searchWithSidoAndSggUsesRegionQuery() {
         PolicySearchService service = new PolicySearchService(
                 welfareServiceRepository,
-                userRecommendationRepository
+                userRecommendationRepository,
+                userRepository
         );
 
         WelfareService youthService = welfareService(2L, "서울 청년 정책");
-        given(welfareServiceRepository.searchByKeywordWithFiltersWithRegion(
+        given(welfareServiceRepository.searchByKeywordWithFiltersWithSidoSgg(
                 eq("+청년"),
                 isNull(),
                 eq(0),
@@ -111,7 +116,7 @@ class PolicySearchServiceTest {
         );
 
         assertThat(results.getContent()).hasSize(1);
-        verify(welfareServiceRepository).searchByKeywordWithFiltersWithRegion(
+        verify(welfareServiceRepository).searchByKeywordWithFiltersWithSidoSgg(
                 eq("+청년"),
                 isNull(),
                 eq(0),
@@ -120,6 +125,57 @@ class PolicySearchServiceTest {
                 isNull(),
                 eq("서울특별시"),
                 eq("관악구"),
+                eq("RELEVANCE"),
+                any(PageRequest.class)
+        );
+    }
+
+    @Test
+    @DisplayName("시도만 있으면 시도 전용 지역 검색 쿼리를 사용한다")
+    void searchWithSidoOnlyUsesSidoQuery() {
+        PolicySearchService service = new PolicySearchService(
+                welfareServiceRepository,
+                userRecommendationRepository,
+                userRepository
+        );
+
+        WelfareService youthService = welfareService(3L, "서울 전체 청년 정책");
+        given(welfareServiceRepository.searchByKeywordWithFiltersWithSido(
+                eq("+청년"),
+                isNull(),
+                eq(0),
+                isNull(),
+                isNull(),
+                isNull(),
+                eq("서울특별시"),
+                eq("RELEVANCE"),
+                any(PageRequest.class)
+        )).willReturn(new PageImpl<>(List.of(youthService), PageRequest.of(0, 10), 1));
+
+        PolicySearchResponse results = service.search(
+                null,
+                "청년",
+                null,
+                null,
+                null,
+                null,
+                null,
+                "서울특별시",
+                null,
+                null,
+                0,
+                10
+        );
+
+        assertThat(results.getContent()).hasSize(1);
+        verify(welfareServiceRepository).searchByKeywordWithFiltersWithSido(
+                eq("+청년"),
+                isNull(),
+                eq(0),
+                isNull(),
+                isNull(),
+                isNull(),
+                eq("서울특별시"),
                 eq("RELEVANCE"),
                 any(PageRequest.class)
         );

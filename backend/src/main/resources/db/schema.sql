@@ -1,8 +1,12 @@
 -- ============================================================
--- 청년복지 통합 플랫폼 — 1차 스키마 (11개 테이블)
+-- 청년복지 통합 플랫폼 — 현재 스키마 (main + pii split tables 포함)
 -- MySQL 8.0+ / FULLTEXT ngram
 -- 실행 순서: FK 의존성 고려
 -- ============================================================
+
+CREATE DATABASE IF NOT EXISTS youth_welfare_pii
+    DEFAULT CHARACTER SET utf8mb4
+    DEFAULT COLLATE utf8mb4_unicode_ci;
 
 -- 1. priority_options (마스터, 의존 없음)
 CREATE TABLE IF NOT EXISTS priority_options (
@@ -17,6 +21,7 @@ CREATE TABLE IF NOT EXISTS priority_options (
 -- 2. users
 CREATE TABLE IF NOT EXISTS users (
     id                      BIGINT           NOT NULL AUTO_INCREMENT,
+    user_key                CHAR(32)         NOT NULL DEFAULT (REPLACE(UUID(), '-', '')),
     email                   VARCHAR(255)     NOT NULL,
     password_hash           VARCHAR(255)     NOT NULL,
     name                    VARCHAR(50),
@@ -41,20 +46,103 @@ CREATE TABLE IF NOT EXISTS users (
     created_at              DATETIME         NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at              DATETIME         NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
+    UNIQUE KEY uq_users_user_key (user_key),
     UNIQUE KEY uq_users_email (email)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- 3. user_attributes
 -- attr_type: VARCHAR(30), ENUM 아님. 유효성 검증은 Java Enum으로.
+CREATE TABLE IF NOT EXISTS auth_users (
+    id                BIGINT       NOT NULL AUTO_INCREMENT,
+    user_key          CHAR(32)     NOT NULL,
+    email_lookup_hash CHAR(64)     NOT NULL,
+    password_hash     VARCHAR(255) NOT NULL,
+    is_active         TINYINT(1)   NOT NULL DEFAULT 1,
+    login_fail_count  INT          NOT NULL DEFAULT 0,
+    locked_until      DATETIME,
+    withdrawn_at      DATETIME,
+    created_at        DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at        DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_au_user_key (user_key),
+    UNIQUE KEY uq_au_email_lookup_hash (email_lookup_hash)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS user_profiles (
+    id                      BIGINT       NOT NULL AUTO_INCREMENT,
+    user_key                CHAR(32)     NOT NULL,
+    age                     INT,
+    age_band                VARCHAR(20),
+    age_calculated_at       DATETIME,
+    sido                    VARCHAR(50),
+    sgg                     VARCHAR(50),
+    region_code             VARCHAR(20),
+    income_level            TINYINT UNSIGNED,
+    household_type          VARCHAR(30),
+    employment_status       VARCHAR(30),
+    notification_yn         TINYINT(1)   NOT NULL DEFAULT 0,
+    notification_period     ENUM('DAILY','WEEKLY','NONE') DEFAULT 'NONE',
+    notification_min_score  DOUBLE       DEFAULT 0.5,
+    notification_consent_at DATETIME,
+    display_count           INT          NOT NULL DEFAULT 10,
+    profile_completeness    INT          DEFAULT 0,
+    has_name                TINYINT(1)   NOT NULL DEFAULT 0,
+    has_birth_date          TINYINT(1)   NOT NULL DEFAULT 0,
+    has_phone               TINYINT(1)   NOT NULL DEFAULT 0,
+    created_at              DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at              DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_upf_user_key (user_key),
+    KEY idx_upf_notification (notification_yn, notification_period),
+    KEY idx_upf_region (sido, sgg),
+    KEY idx_upf_income_employment (income_level, employment_status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS youth_welfare_pii.user_pii (
+    id             BIGINT       NOT NULL AUTO_INCREMENT,
+    user_key       CHAR(32)     NOT NULL,
+    email_enc      VARCHAR(512),
+    name_enc       VARCHAR(512),
+    birth_date_enc VARCHAR(128),
+    phone_enc      VARCHAR(512),
+    created_at     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_upii_user_key (user_key)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS user_pii_sync_queue (
+    id               BIGINT       NOT NULL AUTO_INCREMENT,
+    user_key         CHAR(32)     NOT NULL,
+    email_enc        VARCHAR(512),
+    name_enc         VARCHAR(512),
+    birth_date_enc   VARCHAR(128),
+    phone_enc        VARCHAR(512),
+    status           ENUM('PENDING','SYNCED','FAILED') NOT NULL DEFAULT 'PENDING',
+    attempt_count    INT          NOT NULL DEFAULT 0,
+    last_enqueued_at DATETIME,
+    last_attempt_at  DATETIME,
+    last_synced_at   DATETIME,
+    last_error       VARCHAR(500),
+    created_at       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_upsq_user_key (user_key),
+    KEY idx_upsq_status_enqueued (status, last_enqueued_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 CREATE TABLE IF NOT EXISTS user_attributes (
     id         BIGINT       NOT NULL AUTO_INCREMENT,
     user_id    BIGINT       NOT NULL,
+    user_key   CHAR(32),
     attr_type  VARCHAR(30)  NOT NULL,
     attr_value VARCHAR(100) NOT NULL,
     created_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
     KEY idx_ua_user      (user_id),
+    KEY idx_ua_user_key  (user_key),
     KEY idx_ua_attr_type (attr_type),
+    KEY idx_ua_user_key_attr_type (user_key, attr_type),
     CONSTRAINT fk_ua_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -62,6 +150,7 @@ CREATE TABLE IF NOT EXISTS user_attributes (
 CREATE TABLE IF NOT EXISTS user_priorities (
     id                 BIGINT           NOT NULL AUTO_INCREMENT,
     user_id            BIGINT           NOT NULL,
+    user_key           CHAR(32),
     priority_option_id TINYINT UNSIGNED NOT NULL,
     priority_rank      INT NOT NULL,
     weight             DOUBLE           NOT NULL,
@@ -70,6 +159,7 @@ CREATE TABLE IF NOT EXISTS user_priorities (
     PRIMARY KEY (id),
     UNIQUE KEY uq_up_user_option (user_id, priority_option_id),
     KEY idx_up_user (user_id),
+    KEY idx_up_user_key_rank (user_key, priority_rank),
     CONSTRAINT fk_up_user   FOREIGN KEY (user_id)            REFERENCES users(id)           ON DELETE CASCADE,
     CONSTRAINT fk_up_option FOREIGN KEY (priority_option_id) REFERENCES priority_options(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -152,7 +242,7 @@ CREATE TABLE IF NOT EXISTS raw_api_payloads (
 CREATE TABLE IF NOT EXISTS api_sync_logs (
     id              BIGINT      NOT NULL AUTO_INCREMENT,
     job_name        VARCHAR(50) NOT NULL,
-    status          ENUM('running','success','partial_success','failed','skipped') NOT NULL,
+    status          VARCHAR(30) NOT NULL,
     started_at      DATETIME    NOT NULL,
     finished_at     DATETIME,
     requested_count INT         NOT NULL DEFAULT 0,
@@ -202,6 +292,8 @@ CREATE TABLE IF NOT EXISTS service_regions (
     KEY idx_sr_service     (service_id),
     KEY idx_sr_region_code (region_code),
     KEY idx_sr_sido        (sido_name),
+    KEY idx_sr_service_sido_sgg (service_id, sido_name, sgg_name),
+    KEY idx_sr_service_region_code (service_id, region_code),
     CONSTRAINT fk_sr_service FOREIGN KEY (service_id) REFERENCES welfare_services(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -237,7 +329,7 @@ CREATE TABLE IF NOT EXISTS score_weights (
 -- AI 점수·이유는 여기에만 존재. ai_score NULL = AI 미실행 → rule만 사용.
 CREATE TABLE IF NOT EXISTS user_recommendations (
     id                  BIGINT       NOT NULL AUTO_INCREMENT,
-    user_id             BIGINT       NOT NULL,
+    user_key            CHAR(32)     NOT NULL,
     service_id          BIGINT       NOT NULL,
     recommended_at      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     rule_base_score     DECIMAL(7,2),
@@ -251,18 +343,17 @@ CREATE TABLE IF NOT EXISTS user_recommendations (
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
-    UNIQUE KEY uq_ur_user_service_time (user_id, service_id, recommended_at),
-    KEY idx_ur_user_score  (user_id, final_score DESC),
+    UNIQUE KEY uq_ur_user_key_service_time (user_key, service_id, recommended_at),
+    KEY idx_ur_user_key_score (user_key, final_score DESC),
     KEY idx_ur_recommended (recommended_at),
-    KEY idx_ur_bookmark    (user_id, is_bookmarked),
-    CONSTRAINT fk_ur_user    FOREIGN KEY (user_id)    REFERENCES users(id)           ON DELETE CASCADE,
+    KEY idx_ur_user_key_bookmark (user_key, is_bookmarked),
     CONSTRAINT fk_ur_service FOREIGN KEY (service_id) REFERENCES welfare_services(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- 11. recommendation_logs (영구 보관 — CTR + 가중치 단계 분석)
 CREATE TABLE IF NOT EXISTS recommendation_logs (
     id               BIGINT      NOT NULL AUTO_INCREMENT,
-    user_id          BIGINT      NOT NULL,
+    user_key         CHAR(32)    NOT NULL,
     service_id       BIGINT      NOT NULL,
     notification_id  BIGINT,
     final_score      DECIMAL(6,5),
@@ -273,9 +364,8 @@ CREATE TABLE IF NOT EXISTS recommendation_logs (
     sent_at          DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP,
     clicked_at       DATETIME,
     PRIMARY KEY (id),
-    KEY idx_rl_user    (user_id),
+    KEY idx_rl_user_key_sent (user_key, sent_at),
     KEY idx_rl_service (service_id),
-    CONSTRAINT fk_rl_user    FOREIGN KEY (user_id)    REFERENCES users(id)           ON DELETE CASCADE,
     CONSTRAINT fk_rl_service FOREIGN KEY (service_id) REFERENCES welfare_services(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -283,12 +373,12 @@ CREATE TABLE IF NOT EXISTS recommendation_logs (
 CREATE TABLE IF NOT EXISTS service_view_logs (
     id                 BIGINT       NOT NULL AUTO_INCREMENT,
     service_id         BIGINT       NOT NULL,
-    user_id            BIGINT,
+    user_key           CHAR(32),
     client_fingerprint VARCHAR(64)  NOT NULL,
     viewed_at          DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
     KEY idx_svl_service_viewed (service_id, viewed_at),
-    KEY idx_svl_user_service_viewed (user_id, service_id, viewed_at),
+    KEY idx_svl_user_key_service_viewed (user_key, service_id, viewed_at),
     KEY idx_svl_fp_service_viewed (client_fingerprint, service_id, viewed_at),
     CONSTRAINT fk_svl_service FOREIGN KEY (service_id) REFERENCES welfare_services(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -296,7 +386,7 @@ CREATE TABLE IF NOT EXISTS service_view_logs (
 -- 13. notifications (알림 발송 이력 헤더)
 CREATE TABLE IF NOT EXISTS notifications (
     id             BIGINT       NOT NULL AUTO_INCREMENT,
-    user_id        BIGINT       NOT NULL,
+    user_key       CHAR(32)     NOT NULL,
     channel        ENUM('email','kakao') NOT NULL,
     period_type    ENUM('daily','weekly','manual') NOT NULL,
     status         ENUM('sent','failed') NOT NULL,
@@ -310,10 +400,9 @@ CREATE TABLE IF NOT EXISTS notifications (
     created_at     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
-    KEY idx_noti_user_created (user_id, created_at),
+    KEY idx_noti_user_key_created (user_key, created_at),
     KEY idx_noti_status_created (status, created_at),
-    KEY idx_noti_retry (status, next_retry_at),
-    CONSTRAINT fk_noti_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    KEY idx_noti_retry (status, next_retry_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- 14. notification_services (알림-정책 매핑)
@@ -336,7 +425,7 @@ CREATE TABLE IF NOT EXISTS notification_services (
     CONSTRAINT fk_ns_log FOREIGN KEY (recommendation_log_id) REFERENCES recommendation_logs(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- 12. cluster_ai_results (군집별 AI 점수 캐시 — 2차)
+-- 15. cluster_ai_results (군집별 AI 점수 캐시 — 2차)
 CREATE TABLE IF NOT EXISTS cluster_ai_results (
     id            BIGINT          NOT NULL AUTO_INCREMENT,
     cluster_id    VARCHAR(50)     NOT NULL,
@@ -348,6 +437,33 @@ CREATE TABLE IF NOT EXISTS cluster_ai_results (
     UNIQUE KEY uq_car (cluster_id, service_id),
     KEY idx_car_cluster (cluster_id),
     CONSTRAINT fk_car_service FOREIGN KEY (service_id) REFERENCES welfare_services(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 16. chat_sessions (챗 세션 헤더)
+CREATE TABLE IF NOT EXISTS chat_sessions (
+    id              BIGINT       NOT NULL AUTO_INCREMENT,
+    user_key        CHAR(32)     NOT NULL,
+    title           VARCHAR(100),
+    last_message_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_at      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_cs_user_key_last_message (user_key, last_message_at),
+    KEY idx_cs_user_key_created (user_key, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 17. chat_messages (챗 세션 메시지)
+CREATE TABLE IF NOT EXISTS chat_messages (
+    id                     BIGINT       NOT NULL AUTO_INCREMENT,
+    session_id             BIGINT       NOT NULL,
+    role                   ENUM('USER','ASSISTANT','SYSTEM') NOT NULL,
+    content                TEXT         NOT NULL,
+    referenced_service_ids JSON,
+    created_at             DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at             DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_cm_session_created (session_id, created_at),
+    CONSTRAINT fk_cm_session FOREIGN KEY (session_id) REFERENCES chat_sessions(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ============================================================

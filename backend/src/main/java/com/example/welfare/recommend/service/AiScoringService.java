@@ -1,10 +1,10 @@
 package com.example.welfare.recommend.service;
 
+import com.example.welfare.recommend.dto.RecommendationUserSnapshot;
 import com.example.welfare.recommend.dto.ScoredCandidate;
-import com.example.welfare.recommend.entity.ClusterAiResult;
 import com.example.welfare.recommend.gateway.AiRecommendationGateway;
+import com.example.welfare.recommend.entity.ClusterAiResult;
 import com.example.welfare.recommend.repository.ClusterAiResultRepository;
-import com.example.welfare.user.entity.User;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -28,7 +28,7 @@ public class AiScoringService {
     private final ClusterAiResultRepository clusterAiResultRepository;
 
     @Transactional
-    public List<ScoredCandidate> score(String clusterId, List<ScoredCandidate> candidates, User user) {
+    public List<ScoredCandidate> score(String clusterId, List<ScoredCandidate> candidates, RecommendationUserSnapshot user) {
         // youth_all은 개인 프로필 기반 실시간 호출 (캐시 미사용)
         if ("youth_all".equals(clusterId)) {
             return aiRecommendationGateway.score(clusterId, candidates, user);

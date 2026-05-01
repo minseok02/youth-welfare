@@ -24,8 +24,14 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
               AND (
                     ws.sourceType <> com.example.welfare.policy.entity.WelfareService$SourceType.YOUTH
                     OR (
-                        (ws.minIncome IS NULL OR ws.minIncome <= :incomeLevel)
-                        AND (ws.maxIncome IS NULL OR ws.maxIncome >= :incomeLevel)
+                        (
+                            (ws.minIncome IS NULL AND ws.maxIncome IS NULL)
+                            OR (ws.minIncome = 0 AND ws.maxIncome = 0)
+                        )
+                        OR (
+                            (ws.minIncome IS NULL OR ws.minIncome <= :incomeLevel)
+                            AND (ws.maxIncome IS NULL OR ws.maxIncome >= :incomeLevel)
+                        )
                     )
                   )
             """)
@@ -33,30 +39,78 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                                         @Param("incomeLevel") int incomeLevel,
                                         Pageable pageable);
 
-    // 지역 필터 포함 추천 후보
-    // LEFT JOIN: service_regions 레코드가 없는 전국 정책(복지로 중앙 등)도 포함
-    // sr이 NULL인 경우 = 전국 정책 → 지역 조건 없이 통과
-    // sr이 존재하는 경우 = 지역 정책 → regionCode 또는 sidoName 일치 시 통과
+    // 지역코드 필터 포함 추천 후보
+    // service_regions 레코드가 없는 전국 정책(복지로 중앙 등)도 포함
     @Query("""
-            SELECT DISTINCT ws FROM WelfareService ws
-            LEFT JOIN ServiceRegion sr ON sr.service = ws
+            SELECT ws FROM WelfareService ws
             WHERE ws.status IN ('ACTIVE', 'UPCOMING')
               AND (ws.minAge IS NULL OR ws.minAge <= :age)
               AND (ws.maxAge IS NULL OR ws.maxAge >= :age)
               AND (
                     ws.sourceType <> com.example.welfare.policy.entity.WelfareService$SourceType.YOUTH
                     OR (
-                        (ws.minIncome IS NULL OR ws.minIncome <= :incomeLevel)
-                        AND (ws.maxIncome IS NULL OR ws.maxIncome >= :incomeLevel)
+                        (
+                            (ws.minIncome IS NULL AND ws.maxIncome IS NULL)
+                            OR (ws.minIncome = 0 AND ws.maxIncome = 0)
+                        )
+                        OR (
+                            (ws.minIncome IS NULL OR ws.minIncome <= :incomeLevel)
+                            AND (ws.maxIncome IS NULL OR ws.maxIncome >= :incomeLevel)
+                        )
                     )
                   )
-              AND (sr.id IS NULL OR sr.regionCode = :regionCode OR sr.sidoName = :sidoName)
+              AND (
+                    NOT EXISTS (
+                        SELECT sr1.id FROM ServiceRegion sr1
+                        WHERE sr1.service = ws
+                    )
+                    OR EXISTS (
+                        SELECT sr2.id FROM ServiceRegion sr2
+                        WHERE sr2.service = ws
+                          AND sr2.regionCode = :regionCode
+                    )
+                  )
             """)
-    List<WelfareService> findCandidatesWithRegion(@Param("age") int age,
-                                                   @Param("incomeLevel") int incomeLevel,
-                                                   @Param("regionCode") String regionCode,
-                                                   @Param("sidoName") String sidoName,
-                                                   Pageable pageable);
+    List<WelfareService> findCandidatesWithRegionCode(@Param("age") int age,
+                                                      @Param("incomeLevel") int incomeLevel,
+                                                      @Param("regionCode") String regionCode,
+                                                      Pageable pageable);
+
+    // 시도 필터 포함 추천 후보
+    @Query("""
+            SELECT ws FROM WelfareService ws
+            WHERE ws.status IN ('ACTIVE', 'UPCOMING')
+              AND (ws.minAge IS NULL OR ws.minAge <= :age)
+              AND (ws.maxAge IS NULL OR ws.maxAge >= :age)
+              AND (
+                    ws.sourceType <> com.example.welfare.policy.entity.WelfareService$SourceType.YOUTH
+                    OR (
+                        (
+                            (ws.minIncome IS NULL AND ws.maxIncome IS NULL)
+                            OR (ws.minIncome = 0 AND ws.maxIncome = 0)
+                        )
+                        OR (
+                            (ws.minIncome IS NULL OR ws.minIncome <= :incomeLevel)
+                            AND (ws.maxIncome IS NULL OR ws.maxIncome >= :incomeLevel)
+                        )
+                    )
+                  )
+              AND (
+                    NOT EXISTS (
+                        SELECT sr1.id FROM ServiceRegion sr1
+                        WHERE sr1.service = ws
+                    )
+                    OR EXISTS (
+                        SELECT sr2.id FROM ServiceRegion sr2
+                        WHERE sr2.service = ws
+                          AND sr2.sidoName = :sidoName
+                    )
+                  )
+            """)
+    List<WelfareService> findCandidatesWithSido(@Param("age") int age,
+                                                @Param("incomeLevel") int incomeLevel,
+                                                @Param("sidoName") String sidoName,
+                                                Pageable pageable);
 
     // 추천 후보 조회(최신순): 신규 정책 M건 강제 포함용
     @Query("""
@@ -67,8 +121,14 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
               AND (
                     ws.sourceType <> com.example.welfare.policy.entity.WelfareService$SourceType.YOUTH
                     OR (
-                        (ws.minIncome IS NULL OR ws.minIncome <= :incomeLevel)
-                        AND (ws.maxIncome IS NULL OR ws.maxIncome >= :incomeLevel)
+                        (
+                            (ws.minIncome IS NULL AND ws.maxIncome IS NULL)
+                            OR (ws.minIncome = 0 AND ws.maxIncome = 0)
+                        )
+                        OR (
+                            (ws.minIncome IS NULL OR ws.minIncome <= :incomeLevel)
+                            AND (ws.maxIncome IS NULL OR ws.maxIncome >= :incomeLevel)
+                        )
                     )
                   )
             ORDER BY ws.createdAt DESC
@@ -77,28 +137,79 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                                               @Param("incomeLevel") int incomeLevel,
                                               Pageable pageable);
 
-    // 지역 필터 포함 추천 후보 조회(최신순): 신규 정책 M건 강제 포함용
+    // 지역코드 필터 포함 추천 후보 조회(최신순): 신규 정책 M건 강제 포함용
     @Query("""
-            SELECT DISTINCT ws FROM WelfareService ws
-            LEFT JOIN ServiceRegion sr ON sr.service = ws
+            SELECT ws FROM WelfareService ws
             WHERE ws.status IN ('ACTIVE', 'UPCOMING')
               AND (ws.minAge IS NULL OR ws.minAge <= :age)
               AND (ws.maxAge IS NULL OR ws.maxAge >= :age)
               AND (
                     ws.sourceType <> com.example.welfare.policy.entity.WelfareService$SourceType.YOUTH
                     OR (
-                        (ws.minIncome IS NULL OR ws.minIncome <= :incomeLevel)
-                        AND (ws.maxIncome IS NULL OR ws.maxIncome >= :incomeLevel)
+                        (
+                            (ws.minIncome IS NULL AND ws.maxIncome IS NULL)
+                            OR (ws.minIncome = 0 AND ws.maxIncome = 0)
+                        )
+                        OR (
+                            (ws.minIncome IS NULL OR ws.minIncome <= :incomeLevel)
+                            AND (ws.maxIncome IS NULL OR ws.maxIncome >= :incomeLevel)
+                        )
                     )
                   )
-              AND (sr.id IS NULL OR sr.regionCode = :regionCode OR sr.sidoName = :sidoName)
+              AND (
+                    NOT EXISTS (
+                        SELECT sr1.id FROM ServiceRegion sr1
+                        WHERE sr1.service = ws
+                    )
+                    OR EXISTS (
+                        SELECT sr2.id FROM ServiceRegion sr2
+                        WHERE sr2.service = ws
+                          AND sr2.regionCode = :regionCode
+                    )
+                  )
             ORDER BY ws.createdAt DESC
             """)
-    List<WelfareService> findLatestCandidatesWithRegion(@Param("age") int age,
-                                                         @Param("incomeLevel") int incomeLevel,
-                                                         @Param("regionCode") String regionCode,
-                                                         @Param("sidoName") String sidoName,
-                                                         Pageable pageable);
+    List<WelfareService> findLatestCandidatesWithRegionCode(@Param("age") int age,
+                                                            @Param("incomeLevel") int incomeLevel,
+                                                            @Param("regionCode") String regionCode,
+                                                            Pageable pageable);
+
+    // 시도 필터 포함 추천 후보 조회(최신순): 신규 정책 M건 강제 포함용
+    @Query("""
+            SELECT ws FROM WelfareService ws
+            WHERE ws.status IN ('ACTIVE', 'UPCOMING')
+              AND (ws.minAge IS NULL OR ws.minAge <= :age)
+              AND (ws.maxAge IS NULL OR ws.maxAge >= :age)
+              AND (
+                    ws.sourceType <> com.example.welfare.policy.entity.WelfareService$SourceType.YOUTH
+                    OR (
+                        (
+                            (ws.minIncome IS NULL AND ws.maxIncome IS NULL)
+                            OR (ws.minIncome = 0 AND ws.maxIncome = 0)
+                        )
+                        OR (
+                            (ws.minIncome IS NULL OR ws.minIncome <= :incomeLevel)
+                            AND (ws.maxIncome IS NULL OR ws.maxIncome >= :incomeLevel)
+                        )
+                    )
+                  )
+              AND (
+                    NOT EXISTS (
+                        SELECT sr1.id FROM ServiceRegion sr1
+                        WHERE sr1.service = ws
+                    )
+                    OR EXISTS (
+                        SELECT sr2.id FROM ServiceRegion sr2
+                        WHERE sr2.service = ws
+                          AND sr2.sidoName = :sidoName
+                    )
+                  )
+            ORDER BY ws.createdAt DESC
+            """)
+    List<WelfareService> findLatestCandidatesWithSido(@Param("age") int age,
+                                                      @Param("incomeLevel") int incomeLevel,
+                                                      @Param("sidoName") String sidoName,
+                                                      Pageable pageable);
 
     // FULLTEXT 검색 (Native Query — MySQL ngram)
     // ft_ws_search 인덱스: title, description, support_content, keyword 4개 컬럼 — 반드시 동일하게 지정
@@ -112,6 +223,24 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
     List<WelfareService> searchByKeyword(@Param("keyword") String keyword,
                                          @Param("limit") int limit,
                                          @Param("offset") int offset);
+
+    @Query(value = """
+            SELECT * FROM welfare_services
+            WHERE status IN ('ACTIVE', 'UPCOMING')
+              AND search_youth_relevant = 1
+              AND MATCH(title, description, support_content, keyword) AGAINST (:keyword IN BOOLEAN MODE)
+            ORDER BY MATCH(title, description, support_content, keyword) AGAINST (:keyword IN BOOLEAN MODE) DESC,
+                     view_count DESC,
+                     created_at DESC
+            LIMIT :limit
+            """, nativeQuery = true)
+    List<WelfareService> searchChatCandidates(@Param("keyword") String keyword,
+                                              @Param("limit") int limit);
+
+    List<WelfareService> findBySearchYouthRelevantTrueAndStatusInOrderByViewCountDescCreatedAtDesc(
+            List<WelfareService.ServiceStatus> statuses,
+            Pageable pageable
+    );
 
     // FULLTEXT + 필터 검색 (정렬: RELEVANCE / VIEWS / LATEST / NAME)
     // 지역 필터가 없는 일반 검색은 service_regions 조인을 피해서 DISTINCT/임시 테이블 비용을 줄인다.
@@ -198,7 +327,6 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                         SELECT 1 FROM service_regions sr2
                         WHERE sr2.service_id = ws.id
                           AND sr2.sido_name = :sido
-                          AND (:sgg IS NULL OR sr2.sgg_name = :sgg)
                     )
                   )
               AND MATCH(ws.title, ws.description, ws.support_content, ws.keyword)
@@ -246,22 +374,107 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                         SELECT 1 FROM service_regions sr2
                         WHERE sr2.service_id = ws.id
                           AND sr2.sido_name = :sido
-                          AND (:sgg IS NULL OR sr2.sgg_name = :sgg)
                     )
                   )
               AND MATCH(ws.title, ws.description, ws.support_content, ws.keyword)
                   AGAINST (:keyword IN BOOLEAN MODE)
             """, nativeQuery = true)
-    Page<WelfareService> searchByKeywordWithFiltersWithRegion(@Param("keyword") String keyword,
-                                                              @Param("status") String status,
-                                                              @Param("includeClosed") Integer includeClosed,
-                                                              @Param("category") String category,
-                                                              @Param("sourceType") String sourceType,
-                                                              @Param("onlineApply") Integer onlineApply,
-                                                              @Param("sido") String sido,
-                                                              @Param("sgg") String sgg,
-                                                              @Param("sort") String sort,
-                                                              Pageable pageable);
+    Page<WelfareService> searchByKeywordWithFiltersWithSido(@Param("keyword") String keyword,
+                                                            @Param("status") String status,
+                                                            @Param("includeClosed") Integer includeClosed,
+                                                            @Param("category") String category,
+                                                            @Param("sourceType") String sourceType,
+                                                            @Param("onlineApply") Integer onlineApply,
+                                                            @Param("sido") String sido,
+                                                            @Param("sort") String sort,
+                                                            Pageable pageable);
+
+    @Query(value = """
+            SELECT ws.* FROM welfare_services ws
+            WHERE (
+                    (:status IS NULL AND (
+                        (:includeClosed = 1 AND ws.status IN ('ACTIVE', 'UPCOMING', 'CLOSED'))
+                        OR (:includeClosed = 0 AND ws.status IN ('ACTIVE', 'UPCOMING'))
+                    ))
+                    OR (:status IS NOT NULL AND ws.status = :status)
+                  )
+              AND ws.search_youth_relevant = 1
+              AND (:category IS NULL OR ws.unified_category = :category)
+              AND (:sourceType IS NULL OR ws.source_type = :sourceType)
+              AND (:onlineApply IS NULL OR ws.is_online_apply = :onlineApply)
+              AND (
+                    NOT EXISTS (
+                        SELECT 1 FROM service_regions sr1
+                        WHERE sr1.service_id = ws.id
+                    )
+                    OR EXISTS (
+                        SELECT 1 FROM service_regions sr2
+                        WHERE sr2.service_id = ws.id
+                          AND sr2.sido_name = :sido
+                          AND sr2.sgg_name = :sgg
+                    )
+                  )
+              AND MATCH(ws.title, ws.description, ws.support_content, ws.keyword)
+                  AGAINST (:keyword IN BOOLEAN MODE)
+            ORDER BY
+                CASE
+                    WHEN :sort = 'VIEWS' THEN ws.view_count
+                    ELSE NULL
+                END DESC,
+                CASE
+                    WHEN :sort = 'LATEST' THEN ws.created_at
+                    ELSE NULL
+                END DESC,
+                CASE
+                    WHEN :sort = 'NAME' THEN ws.title
+                    ELSE NULL
+                END ASC,
+                CASE
+                    WHEN :sort = 'RELEVANCE' THEN MATCH(ws.title, ws.description, ws.support_content, ws.keyword)
+                        AGAINST (:keyword IN BOOLEAN MODE)
+                    ELSE NULL
+                END DESC,
+                ws.view_count DESC,
+                ws.created_at DESC
+            """,
+            countQuery = """
+            SELECT COUNT(*) FROM welfare_services ws
+            WHERE (
+                    (:status IS NULL AND (
+                        (:includeClosed = 1 AND ws.status IN ('ACTIVE', 'UPCOMING', 'CLOSED'))
+                        OR (:includeClosed = 0 AND ws.status IN ('ACTIVE', 'UPCOMING'))
+                    ))
+                    OR (:status IS NOT NULL AND ws.status = :status)
+                  )
+              AND ws.search_youth_relevant = 1
+              AND (:category IS NULL OR ws.unified_category = :category)
+              AND (:sourceType IS NULL OR ws.source_type = :sourceType)
+              AND (:onlineApply IS NULL OR ws.is_online_apply = :onlineApply)
+              AND (
+                    NOT EXISTS (
+                        SELECT 1 FROM service_regions sr1
+                        WHERE sr1.service_id = ws.id
+                    )
+                    OR EXISTS (
+                        SELECT 1 FROM service_regions sr2
+                        WHERE sr2.service_id = ws.id
+                          AND sr2.sido_name = :sido
+                          AND sr2.sgg_name = :sgg
+                    )
+                  )
+              AND MATCH(ws.title, ws.description, ws.support_content, ws.keyword)
+                  AGAINST (:keyword IN BOOLEAN MODE)
+            """, nativeQuery = true)
+    Page<WelfareService> searchByKeywordWithFiltersWithSidoSgg(@Param("keyword") String keyword,
+                                                               @Param("status") String status,
+                                                               @Param("includeClosed") Integer includeClosed,
+                                                               @Param("category") String category,
+                                                               @Param("sourceType") String sourceType,
+                                                               @Param("onlineApply") Integer onlineApply,
+                                                               @Param("sido") String sido,
+                                                               @Param("sgg") String sgg,
+                                                               @Param("sort") String sort,
+                                                               Pageable pageable);
 
     // 카테고리 필터 조회
     Page<WelfareService> findByUnifiedCategoryAndStatusIn(

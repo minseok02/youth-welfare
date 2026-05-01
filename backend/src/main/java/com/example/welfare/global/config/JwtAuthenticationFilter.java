@@ -1,7 +1,9 @@
 package com.example.welfare.global.config;
 
+import com.example.welfare.global.auth.AuthenticatedUser;
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.util.JwtUtil;
+import com.example.welfare.user.service.UserSessionRevocationService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -13,12 +15,12 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.util.Collections;
 
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtUtil jwtUtil;
+    private final UserSessionRevocationService userSessionRevocationService;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -29,12 +31,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         if (StringUtils.hasText(token)) {
             try {
                 jwtUtil.validate(token);
-                Long userId = jwtUtil.getUserId(token);
+                if (!userSessionRevocationService.isAccessAllowed(token)) {
+                    throw new CustomException(com.example.welfare.global.exception.ErrorCode.UNAUTHORIZED);
+                }
+                AuthenticatedUser authenticatedUser = jwtUtil.getAuthenticatedUser(token);
                 UsernamePasswordAuthenticationToken auth =
-                        new UsernamePasswordAuthenticationToken(userId, null, Collections.emptyList());
+                        new UsernamePasswordAuthenticationToken(authenticatedUser, null, jwtUtil.getAuthorities(token));
                 SecurityContextHolder.getContext().setAuthentication(auth);
             } catch (CustomException e) {
-                // 유효하지 않은 토큰 — SecurityContext 미설정, 이후 인가 단계에서 거부됨
+                // 유효하지 않거나 revoke된 토큰 — SecurityContext 미설정, 이후 인가 단계에서 거부됨
                 SecurityContextHolder.clearContext();
             }
         }

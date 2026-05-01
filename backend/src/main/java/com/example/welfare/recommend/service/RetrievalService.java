@@ -4,13 +4,15 @@ import com.example.welfare.policy.entity.ServiceTag;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.repository.ServiceTagRepository;
 import com.example.welfare.policy.repository.WelfareServiceRepository;
-import com.example.welfare.user.entity.User;
+import com.example.welfare.recommend.dto.RetrievedRecommendationCandidates;
+import com.example.welfare.recommend.dto.RecommendationUserSnapshot;
+import com.example.welfare.recommend.repository.CanonicalRecommendationReadModelRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
-import java.time.LocalDate;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -33,25 +35,36 @@ public class RetrievalService {
     private final WelfareServiceRepository welfareServiceRepository;
     private final ServiceTagRepository serviceTagRepository;
     private final YouthPolicyFilter youthPolicyFilter;
+    private final CanonicalRecommendationReadModelRepository canonicalRecommendationReadModelRepository;
 
     @Transactional(readOnly = true)
-    public List<WelfareService> retrieve(String clusterId, User user) {
-        int age = calculateAge(user);
-        int incomeLevel = user.getIncomeLevel() != null ? user.getIncomeLevel() : 5;
+    public RetrievedRecommendationCandidates retrieve(String clusterId, RecommendationUserSnapshot user) {
+        int age = user.resolvedAge();
+        int incomeLevel = user.resolvedIncomeLevel();
 
         List<WelfareService> rawCandidates;
         List<WelfareService> latestCandidates;
-        // sido만 있어도 지역 쿼리 사용 (regionCode는 nullable — LEFT JOIN 쿼리가 NULL 안전 처리)
-        if (user.getSido() != null) {
-            String regionCode = user.getRegionCode() != null ? user.getRegionCode() : "";
-            rawCandidates = welfareServiceRepository.findCandidatesWithRegion(
-                    age, incomeLevel,
-                    regionCode, user.getSido(),
-                    PageRequest.of(0, FETCH_SIZE));
-            latestCandidates = welfareServiceRepository.findLatestCandidatesWithRegion(
-                    age, incomeLevel,
-                    regionCode, user.getSido(),
-                    PageRequest.of(0, M * 4));
+        // 지역코드가 있으면 더 정밀한 지역코드 쿼리, 없으면 시도 쿼리를 사용한다.
+        if (user.sido() != null) {
+            if (StringUtils.hasText(user.regionCode())) {
+                rawCandidates = welfareServiceRepository.findCandidatesWithRegionCode(
+                        age, incomeLevel,
+                        user.regionCode().trim(),
+                        PageRequest.of(0, FETCH_SIZE));
+                latestCandidates = welfareServiceRepository.findLatestCandidatesWithRegionCode(
+                        age, incomeLevel,
+                        user.regionCode().trim(),
+                        PageRequest.of(0, M * 4));
+            } else {
+                rawCandidates = welfareServiceRepository.findCandidatesWithSido(
+                        age, incomeLevel,
+                        user.sido(),
+                        PageRequest.of(0, FETCH_SIZE));
+                latestCandidates = welfareServiceRepository.findLatestCandidatesWithSido(
+                        age, incomeLevel,
+                        user.sido(),
+                        PageRequest.of(0, M * 4));
+            }
         } else {
             rawCandidates = welfareServiceRepository.findCandidates(age, incomeLevel, PageRequest.of(0, FETCH_SIZE));
             latestCandidates = welfareServiceRepository.findLatestCandidates(age, incomeLevel, PageRequest.of(0, M * 4));
@@ -65,14 +78,16 @@ public class RetrievalService {
                 .limit(M)
                 .toList();
 
-        return mergeBaseAndLatest(filteredBase, filteredLatest).stream()
+        List<WelfareService> candidates = mergeBaseAndLatest(filteredBase, filteredLatest).stream()
                 .limit(K + M)
                 .collect(Collectors.toList());
-    }
 
-    private int calculateAge(User user) {
-        if (user.getBirthDate() == null) return 25; // 기본값
-        return LocalDate.now().getYear() - user.getBirthDate().getYear();
+        return new RetrievedRecommendationCandidates(
+                candidates,
+                canonicalRecommendationReadModelRepository.findByServiceIds(
+                        candidates.stream().map(WelfareService::getId).toList()
+                )
+        );
     }
 
     /**

@@ -2,6 +2,7 @@ package com.example.welfare.collect.entity;
 
 import com.example.welfare.collect.service.CollectResult;
 import com.example.welfare.global.entity.BaseTimeEntity;
+import com.example.welfare.collect.entity.converter.ApiSyncLogStatusConverter;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -28,7 +29,7 @@ public class ApiSyncLog extends BaseTimeEntity {
     @Column(name = "job_name", nullable = false, length = 50)
     private String jobName;
 
-    @Enumerated(EnumType.STRING)
+    @Convert(converter = ApiSyncLogStatusConverter.class)
     @Column(nullable = false, length = 30)
     private SyncStatus status;
 

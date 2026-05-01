@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   Box, Paper, Typography, TextField, Button,
   Link, Snackbar, Alert, CircularProgress,
@@ -10,6 +11,7 @@ import api from "../lib/axios";
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { login } = useAuthStore();
 
   const [email, setEmail] = useState("");
@@ -17,6 +19,16 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [toast, setToast] = useState({ open: false, msg: "" });
+
+  useEffect(() => {
+    const reason = location.state?.reason;
+    if (reason === "login-required") {
+      setToast({ open: true, msg: "챗봇은 로그인 후 이용 가능합니다." });
+    }
+    if (reason === "expired") {
+      setToast({ open: true, msg: "로그인 상태가 만료되어 다시 로그인해야 합니다." });
+    }
+  }, [location.state]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -45,7 +57,11 @@ export default function LoginPage() {
         login(accessToken, { email });
       }
 
-      navigate("/");
+      const from = location.state?.from;
+      const redirectTarget = from?.pathname
+        ? `${from.pathname}${from.search ?? ""}`
+        : "/";
+      navigate(redirectTarget, { replace: true });
     } catch (err) {
       setError(err.response?.data?.message ?? "로그인 중 오류가 발생했습니다");
     } finally {
@@ -131,7 +147,7 @@ export default function LoginPage() {
               variant="body2"
               color="text.secondary"
               underline="hover"
-              onClick={() => setToast({ open: true, msg: "아이디는 가입한 이메일입니다. 비밀번호 재설정 메일 기능은 아직 준비 중입니다." })}
+              onClick={() => navigate("/reset-password")}
             >
               아이디/비밀번호 찾기
             </Link>

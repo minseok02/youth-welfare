@@ -30,7 +30,7 @@ public class RecommendationPersistenceService {
     public List<UserRecommendation> save(User user, List<ScoredCandidate> candidates, ScoreWeight weight) {
         // 북마크 상태를 먼저 보존 (serviceId → bookmarked)
         Map<Long, Boolean> bookmarkStateByServiceId = userRecommendationRepository
-                .findLatestByUserId(user.getId())
+                .findLatestByUserKey(user.getUserKey())
                 .stream()
                 .collect(Collectors.toMap(
                         rec -> rec.getService().getId(),
@@ -39,13 +39,13 @@ public class RecommendationPersistenceService {
                 ));
 
         // 기존 추천 전체 삭제 (북마크 포함) — 새 행에 북마크 상태 이전
-        userRecommendationRepository.deleteAllByUserId(user.getId());
+        userRecommendationRepository.deleteAllByUserKey(user.getUserKey());
 
         LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
 
         List<UserRecommendation> recommendations = candidates.stream()
                 .map(c -> UserRecommendation.builder()
-                        .user(user)
+                        .userKey(user.getUserKey())
                         .service(c.getService())
                         .recommendedAt(now)
                         .ruleBaseScore(BigDecimal.valueOf(c.getRuleBaseScore()))

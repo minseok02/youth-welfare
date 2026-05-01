@@ -7,6 +7,7 @@ import com.example.welfare.recommend.entity.ScoreWeight;
 import com.example.welfare.recommend.entity.UserRecommendation;
 import com.example.welfare.recommend.repository.RecommendationLogRepository;
 import com.example.welfare.user.entity.User;
+import com.example.welfare.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,13 +25,14 @@ import java.util.stream.Collectors;
 public class RecommendationLogService {
 
     private final RecommendationLogRepository logRepository;
+    private final UserRepository userRepository;
 
     // refresh 시점 — 미클릭 이전 로그 제거 후 새 로그 생성
     @Transactional
     public List<RecommendationLog> refreshLogs(User user,
                                                 List<UserRecommendation> recommendations,
                                                 ScoreWeight weight) {
-        logRepository.deleteUnclickedByUserId(user.getId());
+        logRepository.deleteUnclickedByUserKey(user.getUserKey());
         return logNotification(user, recommendations, weight);
     }
 
@@ -40,7 +42,7 @@ public class RecommendationLogService {
                                                     ScoreWeight weight) {
         List<RecommendationLog> logs = recommendations.stream()
                 .map(rec -> RecommendationLog.builder()
-                        .user(user)
+                        .userKey(user.getUserKey())
                         .service(rec.getService())
                         .finalScore(rec.getFinalScore())
                         .ruleWeightUsed(weight.getRuleWeight())
@@ -56,7 +58,9 @@ public class RecommendationLogService {
     @Transactional(readOnly = true)
     public Map<Long, Long> findLatestLogIdMap(Long userId, List<Long> serviceIds) {
         if (serviceIds.isEmpty()) return Map.of();
-        return logRepository.findLatestByUserIdAndServiceIds(userId, serviceIds)
+        String userKey = userRepository.findUserKeyById(userId).orElse(null);
+        if (userKey == null) return Map.of();
+        return logRepository.findLatestByUserKeyAndServiceIds(userKey, serviceIds)
                 .stream()
                 .collect(Collectors.toMap(
                         log -> log.getService().getId(),

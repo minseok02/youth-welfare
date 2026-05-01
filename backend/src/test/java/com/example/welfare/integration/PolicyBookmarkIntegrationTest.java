@@ -54,8 +54,13 @@ class PolicyBookmarkIntegrationTest {
     void cleanup() {
         userRepository.findAll().stream()
                 .filter(user -> user.getEmail() != null && user.getEmail().startsWith(TEST_EMAIL_PREFIX))
-                .forEach(user -> userRecommendationRepository.findTopByUserId(user.getId(), org.springframework.data.domain.PageRequest.of(0, 500))
-                        .forEach(userRecommendationRepository::delete));
+                .forEach(user -> {
+                    String userKey = userRepository.findUserKeyById(user.getId()).orElse(null);
+                    if (userKey != null) {
+                        userRecommendationRepository.findTopByUserKey(userKey, org.springframework.data.domain.PageRequest.of(0, 500))
+                                .forEach(userRecommendationRepository::delete);
+                    }
+                });
 
         welfareServiceRepository.findAll().stream()
                 .filter(service -> service.getSourceId() != null && service.getSourceId().startsWith(TEST_SOURCE_PREFIX))
@@ -83,7 +88,8 @@ class PolicyBookmarkIntegrationTest {
                 .apiViewCount(0L)
                 .build());
 
-        String accessToken = jwtUtil.generateAccessToken(user.getId());
+        String userKey = userRepository.findUserKeyById(user.getId()).orElseThrow();
+        String accessToken = jwtUtil.generateAccessToken(userKey, user.getId());
 
         mockMvc.perform(post("/api/policies/{id}/bookmark", service.getId())
                         .header("Authorization", "Bearer " + accessToken))
@@ -91,7 +97,7 @@ class PolicyBookmarkIntegrationTest {
                 .andExpect(jsonPath("$.success").value(true));
 
         UserRecommendation recommendation = userRecommendationRepository
-                .findTopByUserIdAndServiceIdOrderByRecommendedAtDesc(user.getId(), service.getId())
+                .findTopByUserKeyAndServiceIdOrderByRecommendedAtDesc(userKey, service.getId())
                 .orElseThrow();
 
         assertTrue(recommendation.isBookmarked());
@@ -105,6 +111,7 @@ class PolicyBookmarkIntegrationTest {
                 .passwordHash("pw")
                 .name("Policy Limit")
                 .build());
+        String userKey = userRepository.findUserKeyById(user.getId()).orElseThrow();
 
         for (int i = 0; i < 201; i++) {
             WelfareService service = welfareServiceRepository.save(WelfareService.builder()
@@ -117,13 +124,13 @@ class PolicyBookmarkIntegrationTest {
 
             if (i < 200) {
                 userRecommendationRepository.save(UserRecommendation.builder()
-                        .user(user)
+                        .userKey(userKey)
                         .service(service)
                         .recommendedAt(LocalDateTime.now())
                         .isBookmarked(true)
                         .build());
             } else {
-                String accessToken = jwtUtil.generateAccessToken(user.getId());
+                String accessToken = jwtUtil.generateAccessToken(userKey, user.getId());
                 mockMvc.perform(post("/api/policies/{id}/bookmark", service.getId())
                                 .header("Authorization", "Bearer " + accessToken))
                         .andExpect(status().isBadRequest())
@@ -131,7 +138,7 @@ class PolicyBookmarkIntegrationTest {
             }
         }
 
-        assertEquals(200L, userRecommendationRepository.countByUserIdAndIsBookmarkedTrue(user.getId()));
+        assertEquals(200L, userRecommendationRepository.countByUserKeyAndIsBookmarkedTrue(userKey));
     }
 
     @Test
@@ -153,7 +160,8 @@ class PolicyBookmarkIntegrationTest {
                 .apiViewCount(0L)
                 .build());
 
-        String accessToken = jwtUtil.generateAccessToken(user.getId());
+        String userKey = userRepository.findUserKeyById(user.getId()).orElseThrow();
+        String accessToken = jwtUtil.generateAccessToken(userKey, user.getId());
 
         mockMvc.perform(post("/api/policies/{id}/bookmark", service.getId())
                         .header("Authorization", "Bearer " + accessToken))
@@ -180,7 +188,7 @@ class PolicyBookmarkIntegrationTest {
                 .andExpect(jsonPath("$.data.length()").value(0));
 
         UserRecommendation recommendation = userRecommendationRepository
-                .findTopByUserIdAndServiceIdOrderByRecommendedAtDesc(user.getId(), service.getId())
+                .findTopByUserKeyAndServiceIdOrderByRecommendedAtDesc(userKey, service.getId())
                 .orElseThrow();
         assertFalse(recommendation.isBookmarked());
     }

@@ -1,0 +1,269 @@
+package com.example.welfare.recommend.repository;
+
+import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
+import lombok.RequiredArgsConstructor;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.stereotype.Repository;
+
+import java.sql.Date;
+import java.time.LocalDate;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+/**
+ * 추천 후보 service id 목록에 대해 canonical sidecar 기반 projection을 읽는다.
+ * 아직 retrieval/scoring path에는 연결하지 않고, recommendation read-model 경계만 먼저 고정한다.
+ */
+@Repository
+@RequiredArgsConstructor
+public class CanonicalRecommendationReadModelRepository {
+
+    static final String BENEFICIARY_SUPPORT_BUCKET = "BENEFICIARY_SUPPORT";
+    private static final Set<String> BENEFICIARY_TERMS = Set.of("기초생활수급자", "차상위계층");
+
+    private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
+
+    public Map<Long, RecommendationCandidateProjection> findByServiceIds(List<Long> serviceIds) {
+        if (serviceIds == null || serviceIds.isEmpty()) {
+            return Map.of();
+        }
+
+        MapSqlParameterSource params = new MapSqlParameterSource("serviceIds", serviceIds);
+        Map<Long, MutableProjection> projections = baseRows(params).stream()
+                .collect(LinkedHashMap::new,
+                        (map, row) -> map.put((Long) row.get("service_id"), MutableProjection.fromBaseRow(row)),
+                        LinkedHashMap::putAll);
+
+        if (projections.isEmpty()) {
+            return Map.of();
+        }
+
+        for (Map<String, Object> row : taxonomyTermRows(params)) {
+            MutableProjection projection = projections.get(longValue(row.get("service_id")));
+            if (projection == null) {
+                continue;
+            }
+            projection.addTaxonomyTerm(
+                    stringValue(row.get("term_group")),
+                    stringValue(row.get("term_label")),
+                    stringValue(row.get("source_field"))
+            );
+        }
+
+        for (Map<String, Object> row : factRows(params)) {
+            MutableProjection projection = projections.get(longValue(row.get("service_id")));
+            if (projection == null) {
+                continue;
+            }
+            projection.addFactKey(stringValue(row.get("fact_merge_key")));
+        }
+
+        LinkedHashMap<Long, RecommendationCandidateProjection> result = new LinkedHashMap<>();
+        for (MutableProjection projection : projections.values()) {
+            result.put(projection.serviceId, projection.toProjection());
+        }
+        return result;
+    }
+
+    private List<Map<String, Object>> baseRows(MapSqlParameterSource params) {
+        return namedParameterJdbcTemplate.queryForList("""
+                SELECT ws.id AS service_id,
+                       ws.source_type,
+                       ws.unified_category,
+                       st.youth_major_label,
+                       ws.title,
+                       COALESCE(wsd.support_detail, ws.support_content, ws.description) AS summary,
+                       ws.min_age,
+                       ws.max_age,
+                       ws.min_income,
+                       ws.max_income,
+                       ws.apply_end_date,
+                       ws.search_youth_relevant
+                FROM welfare_services ws
+                LEFT JOIN welfare_service_details wsd ON wsd.service_id = ws.id
+                LEFT JOIN service_taxonomies st ON st.service_id = ws.id
+                WHERE ws.id IN (:serviceIds)
+                """, params);
+    }
+
+    private List<Map<String, Object>> taxonomyTermRows(MapSqlParameterSource params) {
+        return namedParameterJdbcTemplate.queryForList("""
+                SELECT service_id,
+                       term_group,
+                       term_label,
+                       source_field
+                FROM service_taxonomy_terms
+                WHERE service_id IN (:serviceIds)
+                ORDER BY service_id, term_group, sort_order, term_label
+                """, params);
+    }
+
+    private List<Map<String, Object>> factRows(MapSqlParameterSource params) {
+        return namedParameterJdbcTemplate.queryForList("""
+                SELECT service_id,
+                       fact_merge_key
+                FROM service_facts
+                WHERE service_id IN (:serviceIds)
+                ORDER BY service_id, fact_merge_key
+                """, params);
+    }
+
+    private static Long longValue(Object value) {
+        if (value instanceof Number number) {
+            return number.longValue();
+        }
+        return value == null ? null : Long.valueOf(String.valueOf(value));
+    }
+
+    private static Integer intValue(Object value) {
+        if (value instanceof Number number) {
+            return number.intValue();
+        }
+        return value == null ? null : Integer.valueOf(String.valueOf(value));
+    }
+
+    private static String stringValue(Object value) {
+        return value == null ? null : String.valueOf(value);
+    }
+
+    private static LocalDate localDateValue(Object value) {
+        if (value instanceof Date date) {
+            return date.toLocalDate();
+        }
+        if (value instanceof LocalDate localDate) {
+            return localDate;
+        }
+        return null;
+    }
+
+    private static boolean booleanValue(Object value) {
+        if (value instanceof Boolean bool) {
+            return bool;
+        }
+        if (value instanceof Number number) {
+            return number.intValue() != 0;
+        }
+        return value != null && Boolean.parseBoolean(String.valueOf(value));
+    }
+
+    private static final class MutableProjection {
+        private final Long serviceId;
+        private final String sourceType;
+        private final String unifiedCategoryCompat;
+        private final String youthMajorLabel;
+        private final String title;
+        private final String summary;
+        private final Integer minAge;
+        private final Integer maxAge;
+        private final Integer incomeMinLegacy;
+        private final Integer incomeMaxLegacy;
+        private final LocalDate applyEndDate;
+        private final boolean youthRelevant;
+
+        private final Set<String> interestThemes = new LinkedHashSet<>();
+        private final Set<String> targetGroupsRaw = new LinkedHashSet<>();
+        private final Set<String> targetGroupBuckets = new LinkedHashSet<>();
+        private final Set<String> lifeStages = new LinkedHashSet<>();
+        private final Set<String> keywordTags = new LinkedHashSet<>();
+        private final Set<String> beneficiaryTerms = new LinkedHashSet<>();
+        private final Set<String> factKeys = new LinkedHashSet<>();
+
+        private MutableProjection(Long serviceId,
+                                  String sourceType,
+                                  String unifiedCategoryCompat,
+                                  String youthMajorLabel,
+                                  String title,
+                                  String summary,
+                                  Integer minAge,
+                                  Integer maxAge,
+                                  Integer incomeMinLegacy,
+                                  Integer incomeMaxLegacy,
+                                  LocalDate applyEndDate,
+                                  boolean youthRelevant) {
+            this.serviceId = serviceId;
+            this.sourceType = sourceType;
+            this.unifiedCategoryCompat = unifiedCategoryCompat;
+            this.youthMajorLabel = youthMajorLabel;
+            this.title = title;
+            this.summary = summary;
+            this.minAge = minAge;
+            this.maxAge = maxAge;
+            this.incomeMinLegacy = incomeMinLegacy;
+            this.incomeMaxLegacy = incomeMaxLegacy;
+            this.applyEndDate = applyEndDate;
+            this.youthRelevant = youthRelevant;
+        }
+
+        static MutableProjection fromBaseRow(Map<String, Object> row) {
+            return new MutableProjection(
+                    longValue(row.get("service_id")),
+                    stringValue(row.get("source_type")),
+                    stringValue(row.get("unified_category")),
+                    stringValue(row.get("youth_major_label")),
+                    stringValue(row.get("title")),
+                    stringValue(row.get("summary")),
+                    intValue(row.get("min_age")),
+                    intValue(row.get("max_age")),
+                    intValue(row.get("min_income")),
+                    intValue(row.get("max_income")),
+                    localDateValue(row.get("apply_end_date")),
+                    booleanValue(row.get("search_youth_relevant"))
+            );
+        }
+
+        void addTaxonomyTerm(String termGroup, String termLabel, String sourceField) {
+            if (termGroup == null || termLabel == null) {
+                return;
+            }
+            switch (termGroup) {
+                case "INTEREST_THEME" -> interestThemes.add(termLabel);
+                case "LIFE_STAGE" -> lifeStages.add(termLabel);
+                case "YOUTH_KEYWORD" -> keywordTags.add(termLabel);
+                case "TARGET_GROUP" -> {
+                    targetGroupsRaw.add(termLabel);
+                    if ("targetDetail/selectionCriteria".equals(sourceField) && BENEFICIARY_TERMS.contains(termLabel)) {
+                        beneficiaryTerms.add(termLabel);
+                        targetGroupBuckets.add(BENEFICIARY_SUPPORT_BUCKET);
+                    }
+                }
+                default -> {
+                    // no-op
+                }
+            }
+        }
+
+        void addFactKey(String factMergeKey) {
+            if (factMergeKey != null && !factMergeKey.isBlank()) {
+                factKeys.add(factMergeKey);
+            }
+        }
+
+        RecommendationCandidateProjection toProjection() {
+            return RecommendationCandidateProjection.builder()
+                    .serviceId(serviceId)
+                    .sourceType(sourceType)
+                    .unifiedCategoryCompat(unifiedCategoryCompat)
+                    .youthMajorLabel(youthMajorLabel)
+                    .title(title)
+                    .summary(summary)
+                    .minAge(minAge)
+                    .maxAge(maxAge)
+                    .incomeMinLegacy(incomeMinLegacy)
+                    .incomeMaxLegacy(incomeMaxLegacy)
+                    .applyEndDate(applyEndDate)
+                    .youthRelevant(youthRelevant)
+                    .interestThemes(interestThemes)
+                    .targetGroupsRaw(targetGroupsRaw)
+                    .targetGroupBuckets(targetGroupBuckets)
+                    .lifeStages(lifeStages)
+                    .keywordTags(keywordTags)
+                    .beneficiaryTerms(beneficiaryTerms)
+                    .factKeys(factKeys)
+                    .build();
+        }
+    }
+}

@@ -1,7 +1,7 @@
 spring:
   datasource:
     url: jdbc:mysql://127.0.0.1:3307/youth_welfare?useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=UTF-8&serverTimezone=Asia/Seoul
-    username: root
+    username: app_core_rw
     password: welfare1234!
   data:
     redis:
@@ -22,9 +22,22 @@ jwt:
 aes:
   secret-key: 12345678901234567890123456789012
 
+user:
+  pii-sync:
+    retry:
+      enabled: true
+      batch-size: 10
+      fixed-delay-ms: 3600000
+      initial-delay-ms: 3600000
+
 openai:
   api-key: test-openai-key
   model: gpt-4o-mini
+
+chat:
+  rate-limit:
+    max-requests: 5
+    window-seconds: 60
 
 youth-api:
   api-key: test-youth-api-key
@@ -34,7 +47,19 @@ bokjiro:
 
 app:
   base-url: http://localhost:8082
+  datasource:
+    pii-rw:
+      url: jdbc:mysql://127.0.0.1:3307/youth_welfare_pii?useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=UTF-8&serverTimezone=Asia/Seoul
+      username: app_pii_rw
+      password: welfare1234!
+    notification-pii-ro:
+      url: jdbc:mysql://127.0.0.1:3307/youth_welfare_pii?useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=UTF-8&serverTimezone=Asia/Seoul
+      username: notification_pii_ro
+      password: welfare1234!
 
 auth:
   refresh:
     cookie-secure: false
+
+security:
+  admin-emails: admin@youth-welfare.dev

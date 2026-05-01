@@ -1,7 +1,7 @@
 # 구현 현황
 
 이 문서는 현재 구현 상태와 남은 1차 작업을 확인하기 위한 현황판입니다.
-요구사항 원본은 [srs-v2.10.md](./srs-v2.10.md), 실행 방법은 [testing.md](./testing.md), 배포 절차는 [deployment.md](./deployment.md)를 봅니다.
+요구사항 원본은 [srs-v2.10.md](./srs-v2.10.md), 실행 방법은 [testing.md](./testing.md), 현재 문서 길찾기는 [documentation-map.md](./documentation-map.md)를 봅니다.
 
 ## 현재 결론
 
@@ -9,9 +9,24 @@
 마이페이지 내 정보/우선순위/알림 설정/계정(비밀번호 변경, 회원탈퇴) 탭 전체 API 연동이 완료됐습니다.
 정책 목록/검색/상세/랭킹은 비로그인 허용, 추천/북마크/마이페이지는 로그인 필수로 분리됐습니다.
 AI 추천 품질 점검 후 프롬프트 개선, 중복 추천 제거, 노이즈 정책 필터, CTR 로그 구조를 보완했습니다.
+CTR 분석 기본 쿼리 실행 결과를 확보했고, 현재 데이터는 `46건 / 클릭 1건 / fallback 16건 / 가중치 0.80:0.20 단일 구간`이라 후속 표본 확충 후 재분석이 필요합니다.
+사용자 PII 분리 이행안은 `2 schema`, `user_key` 선행, `dual-write -> read cut-over` 순서로 확정했고, 1단계 `user_key` migration, 2단계 core 분리 테이블(`auth_users`, `user_profiles`, `user_pii`) 생성/backfill, 3단계 회원가입/프로필/비밀번호/회원탈퇴 dual-write와 `user_pii.email_enc/name_enc/birth_date_enc` 앱 레벨 암호화 backfill, 4단계 프로필 조회/추천/알림 read path 전환, 5단계 JWT/Redis 토큰/로그·세션 기준 `user_key` identity cut-over 1차, 6단계 chat/notification/recommendation log/view log의 legacy `user_id` fallback 제거, 7단계 JWT custom principal cut-over, 8단계 요청 경로 `user_pii` sync의 primary queue + after-commit `app_pii_rw` upsert 기반 분리, 9단계 admin replay API, 10단계 fixed-delay 자동 retry 경로, 11단계 queue status endpoint와 운영 모니터링 기준, 12단계 기본 datasource의 `user_pii` 직접 접근 제거, 13단계 secondary datasource schema startup validation과 integration profile split-account 정리까지 반영했습니다.
 데모 시나리오 전체 실행 완료 및 발견된 문제 수정됐습니다.
-2차 기능으로 나이대×소득분위 9개 군집 기반 AI 캐시 추천을 구현했습니다. 캐시 hit 0.24초 vs 개인 호출 11.8초로 성능 차이가 확인됐습니다.
-남은 2차 작업은 챗봇, 카카오 알림톡, EC2 배포입니다.
+로컬 Docker MySQL 기준 `user_pii` 24건 중 `email_enc` 24건, `name_enc` 21건, `birth_date_enc` 21건이 채워졌고, 남은 3건은 원본 `users.name/birth_date` 가 비어 있어 skip 됐습니다.
+로컬 fresh init 기준으로는 `APP_PII_DB_URL` / `NOTIFICATION_PII_DB_URL` 를 `youth_welfare_pii` schema로 교정한 뒤 reduced-grant Docker Compose 기동과 `deploy/smoke/run-local-pii-sync-cutover-smoke.sh` one-shot smoke까지 통과했습니다.
+운영 env 전환 전에는 `deploy/smoke/preflight-runtime-cutover-env.sh` 로 `.env` / secret export 값의 split-account/schema 규칙과 `docker compose config` 렌더링을 먼저 확인할 수 있게 정리했습니다.
+이 preflight는 이제 `PRINT_SUMMARY=true` 로 실행하면 실제 cutover에 쓰일 username/schema 조합을 redacted summary로 같이 보여주도록 보강했습니다.
+운영 전환 창에서 그대로 따라갈 수 있게 `계정 전환 -> migration -> preflight -> app 재기동 -> smoke` 순서의 one-page checklist도 별도 문서로 정리했습니다.
+운영 전환 직후 남길 증적도 따로 흩어지지 않도록 cutover 실행 로그 템플릿을 추가했습니다.
+핵심 API smoke도 즉석에서 재조합하지 않도록 로그인/refresh/추천/북마크/admin status curl 명령 묶음을 별도 문서로 정리했습니다.
+cutover 실행 로그 템플릿이 실제로 어느 정도 상세도로 채워지는지 바로 볼 수 있도록 redacted sample 문서도 archive에 추가했습니다.
+cut-over one-shot smoke도 `.env` 를 shell `source` 하지 않고 `ENV_FILE=.env ...` 형태로 직접 읽도록 정리해 JDBC URL의 `&` 로 값이 끊기는 문제를 제거했고, 필요하면 `DB_QUERY_*` 같은 explicit override를 함께 줘도 파일 값보다 우선하도록 보강했습니다.
+문서 정리 이후에도 로컬 fresh init 기준 `PRINT_SUMMARY=true` preflight와 `SMOKE_RESET_DB=true` one-shot smoke를 다시 돌려 동일한 cut-over 경로가 유지되는지 재검증했습니다.
+pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로 `V2026_04_28_01 -> V2026_04_28_02` 수동 적용과 검증 쿼리를 다시 실행해 migration 문서 순서를 정합화했습니다.
+같은 pre-28 migrated DB에 최신 Spring 앱을 직접 붙여도 `ddl-auto: validate` 가 통과하고, 회원가입 -> 로그인 -> 프로필 수정 -> `user_pii_sync_queue` `SYNCED` -> 회원탈퇴 cleanup end-to-end smoke가 그대로 유지되는지 추가로 확인했습니다.
+
+같은 조합에서 admin allowlist + DB row를 맞춘 계정으로 `GET /api/admin/users/pii-sync-status`, `POST /api/admin/users/pii-sync-replay` 도 호출해 queue 모니터링/수동 재처리 경로까지 로컬 smoke를 마쳤습니다.
+남은 작업은 운영 배포/운영성 검증(운영 서버 Docker Compose, 기존 운영 DB 계정 생성 SQL 적용 및 datasource 전환, 운영 `.env` / secret store의 `APP_PII_DB_URL` / `NOTIFICATION_PII_DB_URL` 를 `youth_welfare_pii` 기준으로 전환, HTTPS/Nginx, 운영 DB에 `V2026_04_28_02__add_user_pii_sync_queue.sql` / `V2026_04_28_01__drop_runtime_legacy_user_id.sql` 적용 후 smoke 검증, 기존 운영 DB에 `app_core_rw` 의 `youth_welfare_pii.user_pii` revoke SQL 실제 적용과 보조 datasource smoke 검증, CTR 표본 확충 후 재분석)과 2차 확장 기능(군집 캐시 추천, 카카오 알림톡, 검색 로그, 대시보드)입니다.
 
 ## 완료된 백엔드 1차 범위
 
@@ -23,8 +38,10 @@ AI 추천 품질 점검 후 프롬프트 개선, 중복 추천 제거, 노이즈
 - 수집 안정화: 429 재시도/중단, 중복 실행 방지, lock 재시도, 부분 성공 허용
 - 수집 관측성: raw payload 저장, `api_sync_logs` 실행 결과 저장
 - 추천 1차: `youth_all` 군집, Retrieval, Rule scoring, Realtime AI, ScoreWeight, ReRanking, 추천 저장
+- 검색/추천 운영 튜닝: 일반 검색 지역 조인 분리, EXPLAIN 재검증, `service_regions` 복합 인덱스 확정
 - 북마크: 정책 기준 북마크, 추천 북마크 상태 유지, 200건 제한
 - 알림 1차: 이메일 발송, 발송 이력 저장, 실패 재시도, 수신 거부 링크
+- PII 분리 cut-over 1차: `user_key` migration/core split table/dual-write/read path/JWT·Redis 토큰 전환, request-path `user_pii` sync queue 기반 분리
 - DB 운영: 신규 schema, 기존 DB용 수동 migration SQL, migration 문서
 - 테스트 분리: 기본 테스트 `test`, MySQL/Redis 통합 테스트 `integrationTest`
 
@@ -34,6 +51,113 @@ AI 추천 품질 점검 후 프롬프트 개선, 중복 추천 제거, 노이즈
 - `./gradlew test --no-daemon`
 - `npm run lint`
 - `npm run build`
+- 2026-04-28 Docker Compose 신규 DB 초기화 기준 런타임 앱 DB 계정 `root` 제거 및 계정/권한 시드 추가 후 `bash -n deploy/mysql/init/z90-create-runtime-db-users.sh`
+- 2026-04-28 Docker Compose 신규 DB 초기화 기준 런타임 앱 DB 계정 `root` 제거 및 계정/권한 시드 추가 후 `docker compose config`
+- 2026-04-28 임시 MySQL 8.0 컨테이너로 신규 DB 초기화 smoke 검증
+  - `schema.sql` + `z90-create-runtime-db-users.sh` 마운트로 fresh init 실행
+  - `app_core_rw`, `app_pii_rw`, `notification_pii_ro`, `migration_admin` 로그인 및 `SHOW GRANTS` 확인
+  - `notification_pii_ro` 가 `user_pii(user_key, email_enc)` column-level SELECT 권한만 가지는 것 확인
+- 2026-04-28 Docker Compose 신규 DB 초기화 기준 런타임 앱 DB 계정 `root` 제거 및 계정/권한 시드 추가 후 `git diff --check`
+- 2026-04-28 보조 datasource 기본 URL을 `youth_welfare_pii` schema로 교정하고 local reduced-grant smoke 래퍼 추가 후 `bash -n deploy/smoke/run-local-pii-sync-cutover-smoke.sh`
+- 2026-04-28 보조 datasource 기본 URL을 `youth_welfare_pii` schema로 교정하고 local reduced-grant smoke 래퍼 추가 후 `bash -n deploy/smoke/user-pii-sync-cutover-smoke.sh`
+- 2026-04-28 보조 datasource 기본 URL을 `youth_welfare_pii` schema로 교정하고 local reduced-grant smoke 래퍼 추가 후 `docker compose config`
+  - `APP_PII_DB_URL`, `NOTIFICATION_PII_DB_URL` 이 `jdbc:mysql://db:3306/youth_welfare_pii...` 로 렌더링되는 것 확인
+- 2026-04-28 보조 datasource 기본 URL을 `youth_welfare_pii` schema로 교정하고 local reduced-grant smoke 래퍼 추가 후 `SMOKE_RESET_DB=true APP_HEALTH_TIMEOUT_SECONDS=180 deploy/smoke/run-local-pii-sync-cutover-smoke.sh`
+  - fresh init + app build + one-shot smoke 성공
+  - 회원가입 -> 로그인 -> 프로필 수정 -> `user_pii_sync_queue` `SYNCED` -> 회원탈퇴 cleanup 확인
+- 2026-04-28 보조 datasource 기본 URL을 `youth_welfare_pii` schema로 교정하고 local reduced-grant smoke 래퍼 추가 후 `git diff --check`
+- 2026-04-28 secondary datasource schema startup validation 및 integration profile split-account 정리 후 `backend`에서 `./gradlew test --no-daemon --tests com.example.welfare.global.config.SecondaryDataSourceSchemaGuardTest`
+- 2026-04-28 fresh init split-account 기준 검증을 위해 `docker compose down -v --remove-orphans`
+- 2026-04-28 fresh init split-account 기준 검증을 위해 `docker compose up -d db redis`
+- 2026-04-28 secondary datasource schema startup validation 및 integration profile split-account 정리 후 `backend`에서 `./gradlew integrationTest --no-daemon --tests com.example.welfare.integration.AuthRedisIntegrationTest`
+- 2026-04-28 secondary datasource schema startup validation 및 integration profile split-account 정리 후 `SMOKE_RESET_DB=true APP_HEALTH_TIMEOUT_SECONDS=180 deploy/smoke/run-local-pii-sync-cutover-smoke.sh`
+- 2026-04-28 secondary datasource schema startup validation 및 integration profile split-account 정리 후 `git diff --check`
+- 2026-04-28 운영 cutover env preflight 스크립트 추가 후 `bash -n deploy/smoke/preflight-runtime-cutover-env.sh`
+- 2026-04-28 운영 cutover env preflight 스크립트 추가 후 `ENV_FILE=.env.example deploy/smoke/preflight-runtime-cutover-env.sh`
+- 2026-04-28 운영 cutover env preflight 스크립트 추가 후 임시 invalid env로 실패 경로 확인
+  - `APP_PII_DB_URL=.../youth_welfare` 입력 시 preflight가 schema mismatch로 즉시 실패하는 것 확인
+- 2026-04-28 운영 cutover env preflight 스크립트 추가 후 `git diff --check`
+- 2026-04-28 운영 cutover env preflight summary 출력 추가 후 `bash -n deploy/smoke/preflight-runtime-cutover-env.sh`
+- 2026-04-28 운영 cutover env preflight summary 출력 추가 후 `ENV_FILE=.env.example PRINT_SUMMARY=true deploy/smoke/preflight-runtime-cutover-env.sh`
+  - `DB_URL`, `APP_PII_DB_URL`, `NOTIFICATION_PII_DB_URL` 의 target host/schema, split-account username, password set/missing 상태가 redacted summary로 출력되는 것 확인
+- 2026-04-28 운영 cutover env preflight summary 출력 추가 후 `git diff --check`
+- 2026-04-28 운영 runtime cutover one-page checklist 추가 후 `rg -n "runtime-cutover-checklist" docs`
+- 2026-04-28 운영 runtime cutover one-page checklist 추가 후 `git diff --check`
+- 2026-04-28 운영 runtime cutover 실행 로그 템플릿 추가 후 `rg -n "runtime-cutover-(checklist|log-template)" docs`
+- 2026-04-28 운영 runtime cutover 실행 로그 템플릿 추가 후 `git diff --check`
+- 2026-04-28 운영 runtime API smoke 명령 모음 추가 후 `rg -n "runtime-api-smoke-commands|runtime-cutover-(checklist|log-template)" docs`
+- 2026-04-28 운영 runtime API smoke 명령 모음 추가 후 `git diff --check`
+- 2026-04-28 운영 runtime cutover 실행 로그 sample 추가 후 `rg -n "runtime-cutover-log-sample|runtime-cutover-log-template" docs`
+- 2026-04-28 운영 runtime cutover 실행 로그 sample 추가 후 `git diff --check`
+- 2026-04-28 로컬 runtime cutover 리허설 재실행 후 `ENV_FILE=.env.example PRINT_SUMMARY=true deploy/smoke/preflight-runtime-cutover-env.sh`
+  - split-account username, core/PII schema target, password set 상태가 summary에 기대값대로 출력되는 것 재확인
+- 2026-04-28 로컬 runtime cutover 리허설 재실행 후 `SMOKE_RESET_DB=true APP_HEALTH_TIMEOUT_SECONDS=180 deploy/smoke/run-local-pii-sync-cutover-smoke.sh`
+  - fresh init + app rebuild + `V2026_04_28_02` 적용 + 회원가입 -> 로그인 -> 프로필 수정 -> `user_pii_sync_queue` `SYNCED` -> 회원탈퇴 cleanup 전 구간 재통과
+- 2026-04-28 pre-28 schema 임시 MySQL 8.0에서 `migration_admin` 수동 migration 리허설
+  - `git show 28b5f67:backend/src/main/resources/db/schema.sql > /tmp/yw-schema-pre-28.sql` 로 pre-28 schema를 준비하고 `z90-create-runtime-db-users.sh` 와 함께 임시 MySQL 8.0 컨테이너 초기화
+  - `SHOW GRANTS FOR 'migration_admin'@'%'` 확인 후 runtime 테이블의 `user_id` 잔존, nullable `user_key`, `user_pii_sync_queue` 부재를 pre-state로 재확인
+  - `docker exec ... < V2026_04_28_01__drop_runtime_legacy_user_id.sql` 적용 뒤 `SHOW COLUMNS ... LIKE 'user_id'`, `SHOW INDEX ...` 로 drop/index 결과 확인
+  - `docker exec ... < V2026_04_28_02__add_user_pii_sync_queue.sql` 적용 뒤 `SHOW TABLES LIKE 'user_pii_sync_queue'`, `DESCRIBE user_pii_sync_queue` 확인
+- 2026-04-28 pre-28 migrated DB에 최신 Spring 앱 직접 연결 후 end-to-end smoke
+  - `docker compose up -d redis` 로 Redis를 유지한 뒤 pre-28 schema 임시 MySQL 8.0(`3308`)에 `V2026_04_28_01 -> V2026_04_28_02` 적용
+  - `backend`에서 `SPRING_PROFILES_ACTIVE=prod`, `SERVER_PORT=18082`, `DB_URL/APP_PII_DB_URL/NOTIFICATION_PII_DB_URL=127.0.0.1:3308`, split-account 계정, dummy secret 값을 주고 `./gradlew bootRun --no-daemon` 실행
+  - `/actuator/health` 가 `200/UP` 로 올라오고 최신 코드의 `ddl-auto: validate` 가 migrated pre-28 DB에 대해 통과하는 것 확인
+  - `APP_BASE_URL=http://127.0.0.1:18082 MYSQL_PORT=3308 DB_QUERY_USERNAME=migration_admin ... deploy/smoke/user-pii-sync-cutover-smoke.sh` 로 회원가입 -> 로그인 -> 프로필 수정 -> queue `SYNCED` -> 회원탈퇴 cleanup 전 구간 재통과
+- 2026-04-28 pre-28 migrated DB 기준 admin `pii-sync-status` / `pii-sync-replay` smoke
+  - `SECURITY_ADMIN_EMAILS=admin.pre28.smoke@example.com` 으로 최신 앱을 다시 기동한 뒤, 공개 signup으로 만든 임시 일반 계정을 `users.email` + `auth_users.email_lookup_hash` 갱신으로 admin 이메일 기준 row로 승격
+  - 승격한 계정으로 로그인 후 프로필 수정으로 queue `SYNCED` 를 다시 확인하고 `GET /api/admin/users/pii-sync-status?failedSampleLimit=5` 응답이 `success=true`, `failedCount=0`, `syncedCount>=1` 인 것 확인
+  - 같은 admin JWT로 `POST /api/admin/users/pii-sync-replay?userKey=<USER_KEY>` 를 호출해 `attemptedCount=1`, `syncedCount=1`, `failedCount=0`, `missingCount=0` 응답을 확인
+- 2026-04-28 one-shot PII sync smoke의 `ENV_FILE` 직접 로드 지원 후 `bash -n deploy/smoke/user-pii-sync-cutover-smoke.sh`
+- 2026-04-28 one-shot PII sync smoke의 `ENV_FILE` 직접 로드 지원 후 `ENV_FILE=.env DB_QUERY_USERNAME=migration_admin DB_QUERY_PASSWORD=smoke-db-password-2026! DB_MIGRATION_USERNAME=migration_admin DB_MIGRATION_PASSWORD=smoke-db-password-2026! APP_BASE_URL=http://127.0.0.1:8082 deploy/smoke/user-pii-sync-cutover-smoke.sh`
+  - 현재 로컬 `.env` 가 아직 `DB_USERNAME=root` 라 query/migration 계정만 explicit override로 주입한 상태에서 회원가입 -> 로그인 -> 프로필 수정 -> `user_pii_sync_queue` `SYNCED` -> 회원탈퇴 cleanup 재확인
+- 2026-04-28 one-shot PII sync smoke의 `ENV_FILE` 직접 로드 지원 후 `git diff --check`
+- 2026-04-28 기존 운영 DB 계정 생성 SQL/runbook 정리 후 `rg -n "db-account-cutover-runbook|runtime-db-accounts.sql.example" docs deploy`
+- 2026-04-28 기존 운영 DB 계정 생성 SQL/runbook 정리 후 `git diff --check`
+- 2026-04-28 알림 대상 이메일 조회를 `notification_pii_ro` secondary datasource로 분리 후 `backend`에서 `./gradlew test --no-daemon --tests com.example.welfare.user.service.UserReadServiceTest --tests com.example.welfare.notification.service.NotificationServiceTest`
+- 2026-04-28 `docker compose up -d db redis`
+- 2026-04-28 알림 대상 이메일 조회를 `notification_pii_ro` secondary datasource로 분리 후 `backend`에서 `./gradlew integrationTest --no-daemon --tests com.example.welfare.integration.AuthRedisIntegrationTest`
+- 2026-04-28 알림 대상 이메일 조회를 `notification_pii_ro` secondary datasource로 분리 후 `git diff --check`
+- 2026-04-28 프로필 조회 / 비밀번호 재설정 PII read 경로를 `app_pii_rw` secondary datasource로 분리 후 `backend`에서 `./gradlew test --no-daemon --tests com.example.welfare.user.service.UserReadServiceTest --tests com.example.welfare.user.service.AuthServiceTest`
+- 2026-04-28 `docker compose up -d db redis`
+- 2026-04-28 프로필 조회 / 비밀번호 재설정 PII read 경로를 `app_pii_rw` secondary datasource로 분리 후 `backend`에서 `./gradlew integrationTest --no-daemon --tests com.example.welfare.integration.UserCoreDualWriteIntegrationTest --tests com.example.welfare.integration.AuthRedisIntegrationTest`
+- 2026-04-28 프로필 조회 / 비밀번호 재설정 PII read 경로를 `app_pii_rw` secondary datasource로 분리 후 `git diff --check`
+- 2026-04-28 `user_pii` admin backfill write 경로를 `app_pii_rw` secondary datasource로 분리 후 `backend`에서 `./gradlew test --no-daemon --tests com.example.welfare.user.service.UserPiiBackfillServiceTest --tests com.example.welfare.admin.AdminSecurityWebMvcTest`
+- 2026-04-28 `docker compose up -d db redis`
+- 2026-04-28 `user_pii` admin backfill write 경로를 `app_pii_rw` secondary datasource로 분리 후 `backend`에서 `./gradlew integrationTest --no-daemon --tests com.example.welfare.integration.UserPiiBackfillIntegrationTest`
+- 2026-04-28 `user_pii` admin backfill write 경로를 `app_pii_rw` secondary datasource로 분리 후 `git diff --check`
+- 2026-04-28 request-path `user_pii` sync queue 기반 분리 후 `backend`에서 `./gradlew test --no-daemon --tests com.example.welfare.user.service.UserCoreSyncServiceTest --tests com.example.welfare.user.service.UserPiiSyncProcessorTest --tests com.example.welfare.user.service.AuthServiceTest --tests com.example.welfare.user.service.UserServiceTest`
+- 2026-04-28 `docker compose up -d db redis`
+- 2026-04-28 Docker MySQL에 `V2026_04_28_02__add_user_pii_sync_queue.sql` 적용 및 `SHOW TABLES LIKE 'user_pii_sync_queue'`, `DESCRIBE user_pii_sync_queue` 확인
+- 2026-04-28 request-path `user_pii` sync queue 기반 분리 후 `backend`에서 `./gradlew integrationTest --no-daemon --tests com.example.welfare.integration.UserCoreDualWriteIntegrationTest --tests com.example.welfare.integration.AuthRedisIntegrationTest --tests com.example.welfare.integration.UserPiiBackfillIntegrationTest --tests com.example.welfare.integration.RecommendationFlowIntegrationTest --tests com.example.welfare.integration.UserMetadataUserKeyBackfillIntegrationTest --tests com.example.welfare.integration.AdminSecurityIntegrationTest`
+- 2026-04-28 request-path `user_pii` sync queue 기반 분리 후 `git diff --check`
+- 2026-04-28 `user_pii_sync_queue` admin replay API 추가 후 `backend`에서 `./gradlew test --no-daemon --tests com.example.welfare.user.service.UserPiiSyncProcessorTest --tests com.example.welfare.user.service.UserPiiSyncReplayServiceTest --tests com.example.welfare.admin.AdminSecurityWebMvcTest`
+- 2026-04-28 `docker compose up -d db redis`
+- 2026-04-28 `user_pii_sync_queue` admin replay API 추가 후 `backend`에서 `./gradlew integrationTest --no-daemon --tests "*UserPiiSyncReplayIntegrationTest"`
+- 2026-04-28 `user_pii_sync_queue` admin replay API 추가 후 `git diff --check`
+- 2026-04-28 `user_pii_sync_queue` 자동 retry scheduler 추가 후 `backend`에서 `./gradlew test --no-daemon --tests com.example.welfare.user.service.UserPiiSyncRetrySchedulerTest --tests com.example.welfare.user.service.UserPiiSyncReplayServiceTest --tests com.example.welfare.user.service.UserPiiSyncProcessorTest`
+- 2026-04-28 `docker compose up -d db redis`
+- 2026-04-28 `user_pii_sync_queue` 자동 retry scheduler 추가 후 `backend`에서 `./gradlew integrationTest --no-daemon --tests "*UserPiiSyncReplayIntegrationTest" --tests "*UserPiiSyncRetrySchedulerIntegrationTest"`
+- 2026-04-28 `user_pii_sync_queue` 자동 retry scheduler 추가 후 `git diff --check`
+- 2026-04-28 `user_pii_sync_queue` status endpoint 및 운영 모니터링 기준 추가 후 `backend`에서 `./gradlew test --no-daemon --tests com.example.welfare.user.service.UserPiiSyncStatusServiceTest --tests com.example.welfare.admin.AdminSecurityWebMvcTest`
+- 2026-04-28 `docker compose up -d db redis`
+- 2026-04-28 `user_pii_sync_queue` status endpoint 및 운영 모니터링 기준 추가 후 `backend`에서 `./gradlew integrationTest --no-daemon --tests "*UserPiiSyncStatusIntegrationTest"`
+- 2026-04-28 `user_pii_sync_queue` status endpoint 및 운영 모니터링 기준 추가 후 `git diff --check`
+- 2026-04-28 `user_pii_sync_queue` cut-over smoke 스크립트 추가 후 `bash -n deploy/smoke/user-pii-sync-cutover-smoke.sh`
+- 2026-04-28 `docker compose up -d --build app`
+- 2026-04-28 `user_pii_sync_queue` cut-over smoke 스크립트 추가 후 `docker compose config`
+- 2026-04-28 `user_pii_sync_queue` cut-over smoke 스크립트 추가 후 `git diff --check`
+- 2026-04-28 기본 datasource의 `user_pii` 직접 접근 제거 후 `backend`에서 `./gradlew test --no-daemon --tests com.example.welfare.user.service.UserPiiBackfillServiceTest --tests com.example.welfare.user.service.UserReadServiceTest --tests com.example.welfare.user.service.AuthServiceTest`
+- 2026-04-28 `docker compose up -d db redis`
+- 2026-04-28 기본 datasource의 `user_pii` 직접 접근 제거 후 `backend`에서 `./gradlew integrationTest --no-daemon --tests com.example.welfare.integration.UserCoreDualWriteIntegrationTest --tests com.example.welfare.integration.UserPiiBackfillIntegrationTest --tests com.example.welfare.integration.UserPiiSyncReplayIntegrationTest --tests com.example.welfare.integration.UserPiiSyncRetrySchedulerIntegrationTest --tests com.example.welfare.integration.AuthRedisIntegrationTest --tests com.example.welfare.integration.UserMetadataUserKeyBackfillIntegrationTest --tests com.example.welfare.integration.RecommendationFlowIntegrationTest --tests com.example.welfare.integration.AdminSecurityIntegrationTest`
+- 2026-04-28 기본 datasource의 `user_pii` 직접 접근 제거 후 `git diff --check`
+- 2026-04-28 신규 init/runbook 기준 `app_core_rw` 의 `user_pii` DML grant 제거 후 `bash -n deploy/mysql/init/z90-create-runtime-db-users.sh`
+- 2026-04-28 신규 init/runbook 기준 `app_core_rw` 의 `user_pii` DML grant 제거 후 `bash -n deploy/smoke/user-pii-sync-cutover-smoke.sh`
+- 2026-04-28 신규 init/runbook 기준 `app_core_rw` 의 `user_pii` DML grant 제거 후 `docker compose config`
+- 2026-04-28 신규 init/runbook 기준 `app_core_rw` 의 `user_pii` DML grant 제거 후 임시 MySQL 8.0 컨테이너 fresh init smoke
+  - `app_core_rw` 는 `youth_welfare.*` DML만 가지고 `youth_welfare_pii.user_pii` 접근이 거부되는 것 확인
+  - `app_pii_rw` 는 `youth_welfare_pii.user_pii` DML만 가지는 것 확인
+  - `notification_pii_ro` 는 `user_key`, `email_enc`만 읽고 `phone_enc`는 읽지 못하는 것 확인
+- 2026-04-28 신규 init/runbook 기준 `app_core_rw` 의 `user_pii` DML grant 제거 후 `git diff --check`
 - 2026-04-23 메인 페이지 API 연동 후 `frontend`에서 `npm run lint`
 - 2026-04-23 메인 페이지 API 연동 후 `frontend`에서 `npm run build`  
   - Vite 번들 크기 경고 발생. 빌드는 성공했으며 기능 실패는 아님.
@@ -173,15 +297,332 @@ AI 추천 품질 점검 후 프롬프트 개선, 중복 추천 제거, 노이즈
   - `AuthRedisIntegrationTest`, `PolicyBookmarkIntegrationTest`, `RecommendationFlowIntegrationTest` 전체 통과
 - 2026-04-24 Docker 앱 재빌드 후 가상 유저(`testuser@youth-welfare.dev`) end-to-end 검증
   - 회원가입 → 로그인 → 프로필 조회 → 우선순위 저장(HOUSING·JOB·EDUCATION·FINANCE·DEADLINE) → 추천 refresh(40건, AI reason 정상) → 북마크 토글 → 북마크 목록 조회 → 검색 결과 북마크 상태 확인 → Refresh Token 재발급 전 구간 정상
-- 2026-04-25 군집 캐시 추천 구현 후 `backend`에서 `./gradlew test --no-daemon`
-- 2026-04-25 군집 캐시 추천 구현 후 `frontend`에서 `npm run lint` 및 `npm run build`
+- 2026-04-25 챗봇 설계 문서 추가 후 `docs` 링크 점검
+  - `docs/README.md`, `docs/chatbot-plan.md`, `docs/phase-plan.md` 상호 링크 확인
+- 2026-04-25 `/chat` 자리표시자 문구 정리 후 `frontend`에서 `npm run lint`
+- 2026-04-25 `/chat` 자리표시자 문구 정리 후 `frontend`에서 `npm run build`
   - Vite 번들 크기 경고 발생. 빌드는 성공했으며 기능 실패는 아님.
-- 2026-04-25 Docker DB에 `V2026_04_25_01__add_cluster_ai_results.sql` 적용
-- 2026-04-25 Docker 앱 재빌드 후 군집 캐시 동작 검증
-  - 테스트 유저(25-29세, 5분위) 군집 `mid_mid` 분류 확인
-  - 첫 번째 refresh: 실시간 AI 호출 → `cluster_ai_results`에 15건 캐시 저장
-  - 두 번째 refresh: 캐시 hit → 응답 0.24초 (AI 호출 없음)
-  - `personal=true` refresh: 캐시 무시 실시간 AI 호출 → 응답 11.8초
+- 2026-04-25 챗봇 엔티티/리포지토리 골격 추가 후 `backend`에서 `./gradlew test --no-daemon`
+- 2026-04-25 챗봇 엔티티/리포지토리 골격 추가 후 `backend`에서 `./gradlew integrationTest --no-daemon`
+- 2026-04-26 챗봇 세션 CRUD API 구현 후 `backend`에서 `./gradlew test --no-daemon`
+- 2026-04-26 챗봇 세션 CRUD API 구현 후 `backend`에서 `./gradlew integrationTest --no-daemon`
+- 2026-04-26 챗봇 메시지 목록 조회 API 구현
+  - `ChatMessageService`, `GET /api/chat/sessions/{sessionId}/messages` 추가
+  - `ChatMessageServiceTest`, `ChatMessageApiIntegrationTest`로 소유권/정렬/참조 정책 ID 응답 검증
+- 2026-04-26 챗봇 메시지 목록 조회 API 구현 후 `backend`에서 `./gradlew test --no-daemon`
+- 2026-04-26 챗봇 메시지 목록 조회 API 구현 후 `backend`에서 `./gradlew integrationTest --no-daemon`
+- 2026-04-26 챗봇 정책 조회 전용 서비스 구현
+  - `ChatPolicyService`, `ChatPolicyCandidate` 추가
+  - 질문 FULLTEXT 후보 조회 후 무결과/기호-only 입력 시 인기 청년 정책 fallback 규칙 고정
+- 2026-04-26 챗봇 정책 조회 전용 서비스 구현 후 `backend`에서 `./gradlew test --no-daemon`
+- 2026-04-26 챗봇 정책 조회 전용 서비스 구현 후 `backend`에서 `./gradlew integrationTest --no-daemon`
+- 2026-04-26 챗봇 메시지 전송 API 구현
+  - `POST /api/chat/sessions/{sessionId}/messages` 추가
+  - 질문 저장, 정책 후보 기반 임시 답변 저장, 세션 제목/`last_message_at` 갱신 연결
+- 2026-04-26 챗봇 메시지 전송 API 구현 후 `backend`에서 `./gradlew test --no-daemon`
+- 2026-04-26 챗봇 메시지 전송 API 구현 후 `backend`에서 `./gradlew integrationTest --no-daemon`
+- 2026-04-26 챗봇 OpenAI 프롬프트/응답 스키마 구현
+  - `ChatAiGateway`, `ChatAiResult` 추가
+  - JSON 응답 파서, 후보 정책 `service_id` allowlist 검증, AI 실패 fallback 연결
+- 2026-04-26 챗봇 OpenAI 프롬프트/응답 스키마 구현 후 `backend`에서 `./gradlew test --no-daemon`
+- 2026-04-26 챗봇 OpenAI 프롬프트/응답 스키마 구현 후 `backend`에서 `./gradlew integrationTest --no-daemon`
+- 2026-04-26 로그아웃/회원탈퇴 시 챗 세션 삭제 연동
+  - `ChatSessionCleanupService` 추가
+  - `AuthService.logout`, `AuthService.logoutByRefreshToken`, `UserService.withdraw`에서 사용자 세션/메시지 정리 연결
+  - `AuthRedisIntegrationTest`, `UserWithdrawChatCleanupIntegrationTest`로 로그아웃/탈퇴 시 세션 cascade 삭제 확인
+- 2026-04-26 로그아웃/회원탈퇴 시 챗 세션 삭제 연동 후 `backend`에서 `./gradlew test --no-daemon`
+- 2026-04-26 `docker compose up -d db redis`
+- 2026-04-26 로그아웃/회원탈퇴 시 챗 세션 삭제 연동 후 `backend`에서 `./gradlew integrationTest --no-daemon`
+- 2026-04-26 챗봇 요청 rate limit / abuse 방지 구현
+  - `ChatRateLimitService` 추가
+  - Redis fixed-window로 사용자별 `POST /api/chat/sessions/{sessionId}/messages` 요청 상한 적용
+  - 초과 시 `CH002` 429 반환, 차단 요청은 USER/ASSISTANT 메시지를 저장하지 않도록 고정
+- 2026-04-26 챗봇 요청 rate limit / abuse 방지 구현 후 `backend`에서 `./gradlew test --no-daemon`
+- 2026-04-26 `docker compose up -d db redis`
+- 2026-04-26 챗봇 요청 rate limit / abuse 방지 구현 후 `backend`에서 `./gradlew integrationTest --no-daemon`
+- 2026-04-26 프론트 `/chat` 실제 화면 및 로그인 가드 구현
+  - `RequireLogin`, `ChatPage` 추가
+  - 세션 목록/메시지 목록/질문 전송/정책 상세 이동 UI 연결
+  - 로그인 후 원래 경로 복귀, 프론트 로그아웃의 서버 `/api/auth/logout` 연동 추가
+- 2026-04-26 프론트 `/chat` 실제 화면 및 로그인 가드 구현 후 `frontend`에서 `npm run lint`
+- 2026-04-26 프론트 `/chat` 실제 화면 및 로그인 가드 구현 후 `frontend`에서 `npm run build`
+  - Vite 번들 크기 경고는 남았지만 빌드는 성공
+- 2026-04-26 로그인 전 비밀번호 재설정 메일/토큰 구현
+  - `POST /api/auth/password-reset/request`, `POST /api/auth/password-reset/confirm` 추가
+  - Redis 30분 토큰, 사용자당 최신 토큰 1개만 유효, 메일 발송 실패 시 토큰 즉시 정리
+  - 프론트 `/reset-password` 공개 화면과 메일 링크 연결
+- 2026-04-26 로그인 전 비밀번호 재설정 메일/토큰 구현 후 `backend`에서 `./gradlew test --no-daemon`
+- 2026-04-26 `docker compose up -d db redis`
+- 2026-04-26 로그인 전 비밀번호 재설정 메일/토큰 구현 후 `backend`에서 `./gradlew integrationTest --no-daemon`
+- 2026-04-26 로그인 전 비밀번호 재설정 메일/토큰 구현 후 `frontend`에서 `npm run lint`
+- 2026-04-26 로그인 전 비밀번호 재설정 메일/토큰 구현 후 `frontend`에서 `npm run build`
+  - Vite 번들 크기 경고는 남았지만 빌드는 성공
+- 2026-04-27 운영 admin 계정 수동 생성 절차 문서화
+  - `docs/admin-account-runbook.md` 추가
+  - `docs/deployment.md`, `docs/README.md`에 admin 계정 bootstrap/revoke 절차 링크 반영
+- 2026-04-27 운영 admin 계정 수동 생성 절차 문서화 후 `backend`에서 `./gradlew integrationTest --no-daemon --tests com.example.welfare.integration.AdminSecurityIntegrationTest`
+- 2026-04-27 운영 admin 계정 수동 생성 절차 문서화 후 `git diff --check`
+- 2026-04-27 검색/추천 지역 쿼리 EXPLAIN 재검증 및 `service_regions` 복합 인덱스 확정
+  - Docker MySQL 기준 `welfare_services=3604`, `service_regions=117640`에서 `SHOW VARIABLES LIKE 'ngram_token_size'` = `2` 확인
+  - `V2026_04_27_01__add_service_region_compound_indexes.sql` 적용 및 `SHOW INDEX FROM service_regions` 확인
+  - 추천 지역 후보 JPQL을 `LEFT JOIN DISTINCT` 대신 `EXISTS/NOT EXISTS` 로 변경
+  - 지역 검색 `sido/sgg` EXPLAIN은 복합 인덱스를 항상 선택하지 않아 후속 재측정 항목으로 분리
+- 2026-04-27 검색/추천 지역 쿼리 EXPLAIN 재검증 후 `backend`에서 `./gradlew test --no-daemon`
+- 2026-04-27 `docker compose` 기동 상태에서 `V2026_04_27_01__add_service_region_compound_indexes.sql` 적용 후 `ANALYZE TABLE service_regions`
+- 2026-04-27 검색/추천 지역 쿼리 EXPLAIN 재검증 후 `backend`에서 `./gradlew integrationTest --no-daemon --tests com.example.welfare.integration.RecommendationRegionQueryIntegrationTest`
+- 2026-04-27 검색/추천 지역 쿼리 EXPLAIN 재검증 후 `git diff --check`
+- 2026-04-27 지역 검색 `sido-only` / `sido+sgg` 쿼리 분리
+  - `PolicySearchService`가 `sgg` 유무에 따라 `searchByKeywordWithFiltersWithSido`, `searchByKeywordWithFiltersWithSidoSgg`로 분기
+  - `+청년 +취업`, `서울특별시/강남구` count query `actual time=20.8ms -> 3.4ms`
+  - `+청년 +취업`, `서울특별시/강남구` 본문 query `actual time=15.2ms -> 3.5ms`
+- 2026-04-27 지역 검색 쿼리 분리 후 `backend`에서 `./gradlew test --no-daemon --tests com.example.welfare.policy.service.PolicySearchServiceTest`
+- 2026-04-27 지역 검색 쿼리 분리 후 `backend`에서 `./gradlew integrationTest --no-daemon --tests com.example.welfare.integration.PolicySearchRegionQueryIntegrationTest --tests com.example.welfare.integration.RecommendationRegionQueryIntegrationTest`
+- 2026-04-27 추천 지역 후보 `regionCode` / `sido` 쿼리 분리
+  - `RetrievalService`가 `regionCode` 유무에 따라 `findCandidatesWithRegionCode` / `findCandidatesWithSido` 와 최신순 쿼리로 분기
+  - 추천 기본 후보 50건 조회는 `regionCode` 경로 `4.8ms`, `sido` 경로 `3.4ms`
+  - 추천 최신순 후보 20건 조회는 `regionCode` 경로 `16.1ms`, `sido` 경로 `13.3ms`
+- 2026-04-27 추천 지역 후보 쿼리 분리 후 `backend`에서 `./gradlew test --no-daemon --tests com.example.welfare.recommend.service.RetrievalServiceTest`
+- 2026-04-27 Docker MySQL에서 `recommendation_logs` CTR 분석 쿼리 실행
+  - 전체 로그 `46건`, 클릭 `1건`, fallback `16건`, 발송 구간 `2026-04-24 18:46:23 ~ 2026-04-24 20:17:24`
+  - AI 포함(`is_fallback=0`) CTR `3.3%` (`1/30`), fallback CTR `0.0%` (`0/16`)
+  - 가중치 구간은 전부 `rule_weight_used=0.80`, `ai_weight_used=0.20`
+  - 표본이 하루치 2명 사용자(`user_id=83,90`) 중심이라 가중치/프롬프트 변경 판단은 보류하고 baseline 수치로만 기록
+- 2026-04-27 사용자 PII 분리 이행안 확정
+  - [user-data-separation-design.md](./user-data-separation-design.md) 기준 stale 보안 가정(`admin permitAll`)을 현재 코드와 일치하도록 수정
+  - `2 schema`, `user_key` 선행, `dual-write -> read cut-over -> legacy 제거` 4단계 순서를 확정
+  - `AuthService`, `UserService`, `NotificationService`, 추천/채팅/로그 테이블의 영향 범위와 릴리스별 산출물 정리
+  - 문서 정합성 확인 후 `git diff --check`
+- 2026-04-27 PII 분리 1단계 migration 작성 및 검증
+  - `V2026_04_27_02__add_user_key_columns.sql` 추가
+  - `schema.sql`, `db-migration.md`, `user-data-separation-design.md`에 `user_key CHAR(32)` 기준 반영
+  - Docker MySQL에 migration 적용 후 `users`, `user_attributes`, `user_priorities`, `user_recommendations`, `recommendation_logs`, `notifications`, `chat_sessions`, `service_view_logs`의 `user_key` backfill null 건수 `0` 확인
+  - 최근 `users.id=90,83,71` 기준 `user_key` 길이 `32` 확인
+  - `backend`에서 `./gradlew integrationTest --no-daemon --tests com.example.welfare.integration.AuthRedisIntegrationTest`
+  - `git diff --check` 확인
+- 2026-04-27 PII core 테이블 migration 작성 및 검증
+  - `V2026_04_27_03__add_user_core_split_tables.sql` 추가
+  - `auth_users`, `user_profiles`, `youth_welfare_pii.user_pii` 생성 및 기존 `users` 기준 1회 backfill
+  - `auth_users.email_lookup_hash`, `user_profiles.age/age_band/has_*` 파생값 채움 확인
+  - `user_pii` 는 현재 `phone_enc` 만 seed 하고, `email_enc/name_enc/birth_date_enc` 는 dual-write 암호화 backfill 항목으로 분리
+  - Docker MySQL에 migration 적용 후 `auth_users/user_profiles/user_pii` row count 각 `14`, `user_key` null 건수 `0`, `auth_users_without_hash=0` 확인
+  - 현재 로컬 사용자 샘플에는 저장된 전화번호가 없어 `user_pii.phone_enc` 는 `NULL` seed 상태
+  - `backend`에서 `./gradlew integrationTest --no-daemon --tests com.example.welfare.integration.AuthRedisIntegrationTest`
+  - `git diff --check` 확인
+- 2026-04-27 회원가입/프로필 core table dual-write 적용 및 검증
+  - `AuthUser`, `UserProfile`, `UserPii` entity/repository 및 `UserCoreSyncService` 추가
+  - `AuthService.signup`, `AuthService.confirmPasswordReset`, `UserService.updateProfile`, `UserService.changePassword`, `UserService.withdraw`, `UserService.unsubscribeNotifications`에서 legacy `users`와 core split table 동시 갱신 연결
+  - `UserCoreDualWriteIntegrationTest` 추가로 signup/update profile 시 `auth_users`, `user_profiles`, `user_pii` 내용 동기화 검증
+  - `backend`에서 `./gradlew test --no-daemon --tests com.example.welfare.user.service.AuthServiceTest --tests com.example.welfare.user.service.UserServiceTest`
+  - `backend`에서 `./gradlew integrationTest --no-daemon --tests com.example.welfare.integration.UserCoreDualWriteIntegrationTest --tests com.example.welfare.integration.AuthRedisIntegrationTest`
+  - `git diff --check` 확인
+- 2026-04-27 추천 지역 후보 쿼리 분리 후 `backend`에서 `./gradlew integrationTest --no-daemon --tests com.example.welfare.integration.RecommendationRegionQueryIntegrationTest`
+- 2026-04-25 운영/설계 보조 문서 링크 및 작업 추적 정합성 점검
+  - `docs/README.md`에 `db-search-recommend-ops-guide.md`, `user-data-separation-design.md` 링크 추가
+  - `docs/phase-plan.md`의 완료/진행 예정/남은 작업 간 상태 충돌 정리
+  - `docs/troubleshooting-log.md`에 문서 추적 누락 재발 방지 기록 추가
+- 2026-04-25 `/api/admin/**` 인증/권한 강화 후 `backend`에서 `./gradlew test --no-daemon`
+  - `AdminSecurityWebMvcTest`로 비인증 401, 일반 사용자 403, 관리자 200 확인
+- 2026-04-25 `docker compose up -d db redis`
+- 2026-04-25 `/api/admin/**` 인증/권한 강화 후 `backend`에서 `./gradlew integrationTest --no-daemon`
+  - `AdminSecurityIntegrationTest`로 관리자 예약 이메일 signup 차단, 관리자 로그인/refresh 후 관리자 API 200 확인
+- 2026-04-25 챗봇 응답 DTO/API 계약 초안 고정
+  - `docs/api-mapping.md`, `docs/chatbot-plan.md`에 세션/메시지/답변 필드 계약 반영
+  - `backend`에 `chat/dto` request/response 골격 추가
+- 2026-04-25 챗봇 응답 DTO/API 계약 고정 후 `backend`에서 `./gradlew test --no-daemon`
+- 2026-04-25 테스트 DB에 `V2026_04_25_01__add_chat_tables.sql` 적용
+- 2026-04-25 `chat_sessions`, `chat_messages` 테이블 및 인덱스 확인
+  - `idx_cs_user_last_message`, `idx_cm_session_created`, FK cascade 확인
+- 2026-04-25 챗봇 DB migration 추가 후 `backend`에서 `./gradlew integrationTest --no-daemon`
+- 2026-04-25 챗봇 DB migration 추가
+  - `schema.sql`, `V2026_04_25_01__add_chat_tables.sql`, `docs/db-migration.md` 반영
+- 2026-04-25 테스트 DB에 `V2026_04_25_01__add_chat_tables.sql` 적용
+  - `chat_sessions`, `chat_messages` 테이블 및 인덱스 확인
+- 2026-04-25 챗봇 엔티티/리포지토리 골격 추가
+  - `ChatSession`, `ChatMessage`, `ChatMessageRole`, repository 2종 추가
+  - `ChatRepositoryIntegrationTest`로 세션 최신순 조회, 메시지 정렬, cascade 삭제 검증
+- 2026-04-25 챗봇 엔티티/리포지토리 골격 추가 후 `backend`에서 `./gradlew test --no-daemon`
+- 2026-04-25 챗봇 엔티티/리포지토리 골격 추가 후 `backend`에서 `./gradlew integrationTest --no-daemon`
+- 2026-04-26 챗봇 세션 CRUD API 구현
+  - `ChatSessionController`, `ChatSessionService`, `CH001` 추가
+  - `POST/GET/DELETE /api/chat/sessions` 구현
+  - `ChatSessionApiIntegrationTest`로 생성/목록/삭제/소유권 검증
+- 2026-04-26 챗봇 세션 CRUD API 구현 후 `backend`에서 `./gradlew test --no-daemon`
+- 2026-04-26 챗봇 세션 CRUD API 구현 후 `backend`에서 `./gradlew integrationTest --no-daemon`
+- 2026-04-28 로그인/비밀번호 재설정 조회 경로를 `auth_users` 기준으로 전환
+  - 이메일 조회 기준을 `normalize -> SHA-256 -> auth_users.email_lookup_hash` 로 통일
+  - 로그인 실패 횟수/잠금 상태는 legacy `users` 갱신 후 `UserCoreSyncService.syncFromUser` 로 `auth_users` 재동기화
+  - `AuthRedisIntegrationTest`에 이메일 대소문자 무시 로그인/중복확인 시나리오 추가
+- 2026-04-28 로그인/비밀번호 재설정 조회 경로 전환 후 `backend`에서 `./gradlew test --no-daemon --tests com.example.welfare.user.service.AuthServiceTest`
+- 2026-04-28 로그인/비밀번호 재설정 조회 경로 전환 후 `backend`에서 `./gradlew test --no-daemon`
+- 2026-04-28 `docker compose up -d db redis`
+- 2026-04-28 로그인/비밀번호 재설정 조회 경로 전환 후 `backend`에서 `./gradlew integrationTest --no-daemon --tests com.example.welfare.integration.AuthRedisIntegrationTest`
+- 2026-04-28 `user_pii.email_enc/name_enc/birth_date_enc` 앱 레벨 암호화 backfill 구현 및 실행
+  - `POST /api/admin/users/pii-backfill` 관리자 API와 `UserPiiBackfillService` 추가
+  - 누락된 암호문만 앱의 `AesEncryptUtil` 경로로 채우고, 원본 `users.name/birth_date` 가 비어 있는 row는 skip 하도록 고정
+  - 로컬 Docker MySQL 확인 결과 `user_pii` 24건 중 `email_enc=24`, `name_enc=21`, `birth_date_enc=21`, 잔여 누락 3건은 `users.name/birth_date` 가 이미 `NULL`
+- 2026-04-28 PII 암호화 backfill 후 `backend`에서 `./gradlew test --no-daemon --tests com.example.welfare.user.service.UserPiiBackfillServiceTest --tests com.example.welfare.admin.AdminSecurityWebMvcTest`
+- 2026-04-28 PII 암호화 backfill 후 `backend`에서 `./gradlew test --no-daemon`
+- 2026-04-28 `docker compose up -d db redis`
+- 2026-04-28 PII 암호화 backfill 후 `backend`에서 `./gradlew integrationTest --no-daemon --tests com.example.welfare.integration.UserPiiBackfillIntegrationTest`
+- 2026-04-28 비밀번호 재설정 메일 발송 주소를 `user_pii.email_enc` 복호화 기준으로 전환
+  - `AuthService.requestPasswordReset` 이 `auth_users -> user_key -> user_pii.email_enc` 경로로 발송 주소를 조회하도록 변경
+  - reset 메일 수신 주소는 legacy `users.email` 이 아니라 `AesEncryptUtil.decrypt(user_pii.email_enc)` 값을 사용
+  - `user_pii` row 또는 `email_enc` 누락 시 `PASSWORD_RESET_EMAIL_SEND_FAILED` 로 처리해 silent mismatch 를 막음
+- 2026-04-28 비밀번호 재설정 발송 주소 전환 후 `backend`에서 `./gradlew test --no-daemon --tests com.example.welfare.user.service.AuthServiceTest`
+- 2026-04-28 `docker compose up -d db redis`
+- 2026-04-28 비밀번호 재설정 발송 주소 전환 후 `backend`에서 `./gradlew integrationTest --no-daemon --tests com.example.welfare.integration.AuthRedisIntegrationTest`
+- 2026-04-28 비밀번호 재설정 발송 주소 전환 후 `backend`에서 `./gradlew test --no-daemon`
+- 2026-04-28 프로필 조회/추천/알림 read path를 `user_profiles + user_pii` 기준으로 전환
+  - `UserReadService`를 추가해 프로필 조회는 `user_profiles + user_pii + user_attributes + user_priorities` 조합으로 응답하도록 변경
+  - 추천 파이프라인은 `RecommendationUserSnapshot`을 도입해 `user_profiles`와 보조 테이블 read model만으로 Retrieval/Rule/AI 입력을 구성
+  - 알림 스케줄러는 발송 대상 조회를 `user_profiles.notification_* + user_pii.email_enc` 복호화 기준으로 바꾸고, 실패 재시도도 `user_pii` 이메일을 다시 조회하도록 고정
+  - `user_attributes/user_priorities.user_key` 미기입 row 누락을 막기 위해 read query는 당분간 `user_id -> users.user_key` 조인 기준으로 고정
+- 2026-04-28 프로필/추천/알림 read path 전환 후 `backend`에서 `./gradlew test --no-daemon --tests com.example.welfare.user.service.UserServiceTest --tests com.example.welfare.recommend.service.RuleScoringServiceTest --tests com.example.welfare.recommend.service.RetrievalServiceTest --tests com.example.welfare.notification.service.NotificationServiceTest`
+- 2026-04-28 `docker compose up -d db redis`
+- 2026-04-28 프로필/추천/알림 read path 전환 후 `backend`에서 `./gradlew integrationTest --no-daemon --tests com.example.welfare.integration.RecommendationFlowIntegrationTest --tests com.example.welfare.integration.UserCoreDualWriteIntegrationTest`
+- 2026-04-28 프로필/추천/알림 read path 전환 후 `backend`에서 `./gradlew test --no-daemon`
+- 2026-04-28 `user_attributes/user_priorities.user_key` write sync 및 backfill 적용
+  - `UserAttribute`, `UserPriority` 저장 시 `user_key`를 함께 기록하도록 `UserService.updateProfile`, `UserService.updatePriorities` 저장 경로 수정
+  - `POST /api/admin/users/metadata-user-key-backfill` 관리자 API와 `UserMetadataUserKeyBackfillService` 추가
+  - `user_attributes`, `user_priorities` read query를 `user_key` 직독 기준으로 되돌리고, 기존 null row는 관리자 backfill로 보정하는 구조로 정리
+- 2026-04-28 metadata `user_key` write sync/backfill 후 `backend`에서 `./gradlew test --no-daemon --tests com.example.welfare.user.service.UserServiceTest --tests com.example.welfare.user.service.UserMetadataUserKeyBackfillServiceTest --tests com.example.welfare.admin.AdminSecurityWebMvcTest`
+- 2026-04-28 `docker compose up -d db redis`
+- 2026-04-28 metadata `user_key` write sync/backfill 후 `backend`에서 `./gradlew integrationTest --no-daemon --tests com.example.welfare.integration.RecommendationFlowIntegrationTest --tests com.example.welfare.integration.UserCoreDualWriteIntegrationTest --tests com.example.welfare.integration.UserMetadataUserKeyBackfillIntegrationTest`
+- 2026-04-28 metadata `user_key` write sync/backfill 후 `backend`에서 `./gradlew test --no-daemon`
+- 2026-04-28 JWT subject / refresh token / 비밀번호 재설정 토큰 / 로그·세션 참조의 `user_key` identity cut-over 1차 적용
+  - access token / refresh token / notification unsubscribe token 의 JWT subject 를 `user_key` 로 전환하고, 기존 `@AuthenticationPrincipal Long userId` 호환을 위해 `uid` claim 을 함께 기록
+  - Redis `refresh:*`, `password-reset:user:*` key 를 `user_key` 기준으로 전환하고, refresh rotation/logout/password reset confirm 에 legacy `user_id` key 정리 fallback 추가
+  - `notifications`, `recommendation_logs`, `service_view_logs`, `chat_sessions` 에 `user_key` write 경로를 반영하고 unsubscribe/retry/logout cleanup 을 `user_key` 우선 기준으로 정리
+  - `AdminSecurityIntegrationTest` 의 split-table fixture 생성/정리도 `UserCoreSyncService` 와 split-table delete 로 보강
+- 2026-04-28 identity cut-over 1차 적용 후 `backend`에서 `./gradlew test --no-daemon --tests com.example.welfare.user.service.AuthServiceTest --tests com.example.welfare.notification.service.NotificationServiceTest --tests com.example.welfare.notification.controller.NotificationControllerWebMvcTest --tests com.example.welfare.policy.service.PolicyViewLogServiceTest`
+- 2026-04-28 `docker compose up -d db redis`
+- 2026-04-28 identity cut-over 1차 적용 후 `backend`에서 `./gradlew integrationTest --no-daemon --tests com.example.welfare.integration.AdminSecurityIntegrationTest --tests com.example.welfare.integration.AuthRedisIntegrationTest --tests com.example.welfare.integration.RecommendationFlowIntegrationTest --tests com.example.welfare.integration.ChatSessionApiIntegrationTest --tests com.example.welfare.integration.ChatMessageApiIntegrationTest --tests com.example.welfare.integration.UserWithdrawChatCleanupIntegrationTest`
+- 2026-04-28 identity cut-over 1차 적용 후 `backend`에서 `./gradlew test --no-daemon`
+- 2026-04-28 identity cut-over 1차 적용 후 `backend`에서 `./gradlew integrationTest --no-daemon`
+- 2026-04-28 chat/notification/recommendation log/view log의 legacy `user_id` fallback 제거 및 `ManyToOne User` 축소
+  - `ChatSession`, `Notification`, `RecommendationLog` 를 `ManyToOne User` 대신 `userId + userKey` 값 필드 기준으로 전환
+  - 채팅 세션 목록/소유권/로그아웃 cleanup 과 알림 retry, recommendation log 조회를 `user_key` 기준 query 로 전환
+  - refresh token subject가 숫자인 legacy 토큰 fallback 과 `refresh:<userId>` 정리 코드를 제거하고, 현재 기준 `user_key` subject/token key만 허용
+  - 통합 테스트 fixture 의 직접 insert row도 `user_id + user_key` 를 함께 기록하도록 정리
+- 2026-04-28 legacy fallback 제거 후 `backend`에서 `./gradlew test --no-daemon --tests com.example.welfare.chat.service.ChatSessionServiceTest --tests com.example.welfare.chat.service.ChatMessageServiceTest --tests com.example.welfare.notification.service.NotificationServiceTest --tests com.example.welfare.notification.service.NotificationHistoryServiceTest --tests com.example.welfare.user.service.UserServiceTest`
+- 2026-04-28 `docker compose up -d db redis`
+- 2026-04-28 legacy fallback 제거 후 `backend`에서 `./gradlew integrationTest --no-daemon --tests com.example.welfare.integration.AuthRedisIntegrationTest --tests com.example.welfare.integration.ChatSessionApiIntegrationTest --tests com.example.welfare.integration.ChatMessageApiIntegrationTest --tests com.example.welfare.integration.ChatRepositoryIntegrationTest --tests com.example.welfare.integration.UserWithdrawChatCleanupIntegrationTest --tests com.example.welfare.integration.RecommendationFlowIntegrationTest`
+- 2026-04-28 legacy fallback 제거 후 `backend`에서 `./gradlew test --no-daemon`
+- 2026-04-28 legacy fallback 제거 후 `backend`에서 `./gradlew integrationTest --no-daemon`
+- 2026-04-28 JWT custom principal 전환 후 `backend`에서 `./gradlew test --no-daemon --tests com.example.welfare.admin.AdminSecurityWebMvcTest --tests com.example.welfare.user.controller.UserControllerWebMvcTest --tests com.example.welfare.api.RecommendationPolicyFlowWebMvcTest`
+- 2026-04-28 JWT custom principal 전환 후 `backend`에서 `./gradlew integrationTest --no-daemon --tests com.example.welfare.integration.ChatSessionApiIntegrationTest --tests com.example.welfare.integration.ChatMessageApiIntegrationTest --tests com.example.welfare.integration.RecommendationFlowIntegrationTest`
+- 2026-04-28 JWT custom principal 전환 후 `backend`에서 `./gradlew test --no-daemon`
+- 2026-04-28 JWT custom principal 전환 후 `backend`에서 `./gradlew integrationTest --no-daemon`
+- 2026-04-28 `user_recommendations` / 북마크 경로의 `user_key` 전환 및 잔여 `user_id` FK 정리
+  - `UserRecommendation` 을 `ManyToOne User` 대신 `userId + userKey` 값 필드 기준으로 전환
+  - 추천 조회/북마크/placeholder 추천 생성과 정책 목록·검색·상세 북마크 read path를 `user_key` 기준 query 로 전환
+  - 추천 refresh 저장 시 기존 추천 보존/삭제, 마이페이지 북마크 목록, 정책 북마크 제한 검증도 `user_key` 기준으로 정리
+- 2026-04-28 `user_recommendations` / 북마크 경로 전환 후 `backend`에서 `./gradlew test --no-daemon --tests com.example.welfare.recommend.service.RecommendationPersistenceServiceTest --tests com.example.welfare.policy.service.PolicyServiceTest --tests com.example.welfare.policy.service.PolicySearchServiceTest --tests com.example.welfare.user.service.UserServiceTest`
+- 2026-04-28 `user_recommendations` / 북마크 경로 전환 후 `backend`에서 `./gradlew integrationTest --no-daemon --tests com.example.welfare.integration.PolicyBookmarkIntegrationTest --tests com.example.welfare.integration.RecommendationFlowIntegrationTest`
+- 2026-04-28 `user_recommendations` / 북마크 경로 전환 후 `backend`에서 `./gradlew test --no-daemon`
+- 2026-04-28 `user_recommendations` / 북마크 경로 전환 후 `backend`에서 `./gradlew integrationTest --no-daemon`
+- 2026-04-28 legacy `user_id` drop 대상 및 migration 순서 문서화
+  - `docs/user-data-separation-design.md`, `docs/db-migration.md` 에 즉시 drop 후보와 선행 전환 필요 대상을 분리해 반영
+  - `docs/api-mapping.md`, `docs/chatbot-plan.md` 의 남아 있던 `user_id` 기준 설명을 현재 `user_key` 계약에 맞게 정리
+- 2026-04-28 `user_attributes` / `user_priorities` 의 `user_key` 기준 write/delete 전환 및 `ManyToOne User` 제거
+  - `UserAttribute`, `UserPriority` 엔티티를 `userId + userKey` 스칼라 필드 기준으로 전환
+  - `UserService.updateProfile`, `updatePriorities`, `withdraw` 의 저장/삭제 경로를 `user_key` 기준 repository 호출로 정리
+  - 관련 unit/integration test fixture 도 `userId + userKey` 기준으로 맞춤
+- 2026-04-28 runtime 테이블 legacy `user_id` drop migration 작성 및 로컬 리허설
+  - `V2026_04_28_01__drop_runtime_legacy_user_id.sql` 추가
+  - `user_recommendations`, `recommendation_logs`, `notifications`, `chat_sessions`, `service_view_logs` 에서 `user_id` 컬럼/FK/인덱스 제거
+  - `schema.sql`, runtime 엔티티 인덱스 메타데이터, 저장 서비스, 테스트 cleanup 을 최종 구조에 맞게 정리
+- 2026-04-28 Docker Compose 신규 DB 초기화 기준 런타임 앱 DB 계정 `root` 제거 및 계정/권한 시드 추가
+  - `backend/src/main/resources/application.yml`, `.env.example`, `docker-compose.yml` 을 `app_core_rw` / `migration_admin` / `app_pii_rw` / `notification_pii_ro` 기준으로 정리
+  - `deploy/mysql/init/z90-create-runtime-db-users.sh` 추가로 신규 볼륨 초기화 시 계정과 grant 자동 생성
+  - fresh init smoke 중 드러난 `schema.sql` 말단 쉼표 2건을 수정해 신규 DB 부팅 실패를 제거
+  - `docs/deployment.md`, `docs/db-migration.md`, `docs/user-data-separation-design.md` 에 기존 운영 DB 수동 전환 기준과 남은 datasource 분리 범위를 반영
+- 2026-04-28 기존 운영 DB 계정 생성 SQL/runbook 및 앱 datasource 전환 체크리스트 정리
+  - `deploy/mysql/runtime-db-accounts.sql.example` 추가로 기존 운영 DB용 idempotent 계정/권한 SQL 템플릿 작성
+  - `docs/db-account-cutover-runbook.md` 에 적용 순서, `SHOW GRANTS` 검증, `.env` cutover, rollback 기준 정리
+  - `docs/README.md`, `docs/deployment.md`, `docs/db-migration.md` 에 신규 runbook 링크 반영
+- 2026-04-28 알림 대상 이메일 조회를 `notification_pii_ro` secondary datasource로 분리
+  - `NotificationPiiReadDataSourceConfig`, `NotificationPiiReadRepository` 를 추가해 `user_pii(user_key, email_enc)` 읽기 전용 보조 datasource를 구성
+  - `UserProfileRepository.findNotificationTargetsByPeriod` 에서 `user_pii` 조인을 제거하고, `UserReadService` 가 core 대상 조회와 PII 이메일 조회를 `user_key` 기준 2단계로 합치도록 변경
+  - 알림 스케줄러의 retry 단건 이메일 조회도 `notification_pii_ro` 경로로 통일하고, `.env.example` / `application.yml` / `application-integration.yml` 에 보조 datasource 설정을 반영
+- 2026-04-28 프로필 조회 / 비밀번호 재설정 PII read 경로를 `app_pii_rw` secondary datasource로 분리
+  - `PrimaryDataSourceConfig` 를 추가해 기본 `spring.datasource` 를 명시적으로 primary bean 으로 고정하고, `AppPiiReadWriteDataSourceConfig`, `UserPiiReadWriteRepository` 로 `user_pii` read 전용 보조 datasource를 구성
+  - `UserReadService.getProfile`, `AuthService.requestPasswordReset` 의 수신 주소 조회를 `app_pii_rw` 저장소로 전환해 기본 datasource의 `user_pii` read 의존을 줄임
+  - 검증 중 드러난 secondary datasource wiring 문제를 수정하기 위해 `NotificationPiiReadRepository` 생성자 qualifier 를 명시적으로 고정
+- 2026-04-28 `user_pii` admin backfill write 경로를 `app_pii_rw` secondary datasource로 분리
+  - `UserPiiBackfillService` 의 target selection 은 기존 primary query 를 유지하되, 실제 `email_enc/name_enc/birth_date_enc` update 는 `UserPiiReadWriteRepository` 를 통해 `app_pii_rw` 에서 수행하도록 분리
+  - admin/batch backfill 은 요청 dual-write 와 달리 cross-datasource 원자성이 필수가 아니므로, `@Transactional` 로 atomic 해 보이게 두지 않고 독립 row update 성격을 문서화
+  - 이 단계로 `app_pii_rw` write 경로를 admin batch 에 먼저 연결하고, 남은 요청 경로 `UserCoreSyncService` 분리는 별도 transaction 전략 task 로 유지
+- 2026-04-28 요청 경로 `user_pii` sync를 primary queue + after-commit `app_pii_rw` upsert 구조로 분리
+  - `UserCoreSyncService` 가 직접 `user_pii` 를 쓰지 않고 `user_pii_sync_queue` 에 payload 를 적재한 뒤, after-commit listener 가 `app_pii_rw` 를 통해 upsert 하도록 전환
+  - `V2026_04_28_02__add_user_pii_sync_queue.sql` 로 queue 테이블과 상태/재시도 필드를 추가하고, 통합 테스트 Docker MySQL에는 수동 적용 후 검증
+  - 요청 경로 원자성은 primary commit 기준으로 보장하고, PII sync 실패는 queue 상태로 남겨 admin/자동 재처리 대상으로 넘기도록 정리
+- 2026-04-28 `user_pii_sync_queue` admin replay API 추가
+  - `POST /api/admin/users/pii-sync-replay` 로 특정 `userKey` 단건 또는 `FAILED`/`PENDING` queue batch를 수동 replay 할 수 있게 추가
+  - `UserPiiSyncProcessor` 는 replay 결과 상태를 반환하고, 운영자가 `attempted/synced/failed/missing` 집계를 응답에서 바로 확인할 수 있게 정리
+- 2026-04-28 `user_pii_sync_queue` 자동 retry 경로 추가
+  - `UserPiiSyncRetryScheduler` 가 `user.pii-sync.retry.*` 설정값 기준으로 fixed-delay batch replay 를 수행하도록 추가
+  - 기본값은 `enabled=true`, `batch-size=100`, `initial-delay-ms=60000`, `fixed-delay-ms=300000` 이며, integration profile 은 background interference 방지를 위해 긴 delay 로 고정
+  - 자동 retry 는 기존 admin replay service 를 재사용해 `FAILED` 우선, 남는 배치는 `PENDING` 순으로 재처리한다
+- 2026-04-28 `user_pii_sync_queue` status endpoint 및 운영 모니터링 기준 추가
+  - `GET /api/admin/users/pii-sync-status` 로 `pending/failed/synced` count, oldest pending/failed timestamp, latest synced timestamp, failed sample 목록을 조회할 수 있게 추가
+  - `UserPiiSyncStatusService` 가 failed sample limit을 `1..20` 으로 clamp 해 운영 조회가 과도한 read amplification으로 번지지 않게 고정
+  - `docs/deployment.md`, `docs/db-migration.md`, `docs/user-data-separation-design.md` 에 curl 예시와 warning 기준(`failedCount > 0`, oldest pending 5분 초과, oldest failed 10분 초과, failed sample attemptCount >= 5`)을 반영
+- 2026-04-28 `user_pii_sync_queue` cut-over smoke 스크립트 추가
+  - `deploy/smoke/user-pii-sync-cutover-smoke.sh` 로 회원가입 -> 로그인 -> 프로필 수정 -> `user_pii_sync_queue` `SYNCED` -> split-table row 존재 확인 -> 회원탈퇴 정리까지 one-shot smoke 경로를 추가
+  - query 계정은 `DB_MIGRATION_* -> DB_USERNAME/DB_PASSWORD` 순서로 fallback 하고, `APPLY_PII_SYNC_QUEUE_MIGRATION=true` 로 `V2026_04_28_02` 적용까지 같이 실행할 수 있게 정리
+  - smoke 검증 중 드러난 Docker Compose secondary datasource `localhost` fallback 문제를 막기 위해 `APP_PII_DB_URL`, `NOTIFICATION_PII_DB_URL`, secondary credential 기본값을 앱 컨테이너 environment에 명시
+  - 로컬 full smoke는 현재 `.env` 의 `AES_SECRET_KEY` 빈값 때문에 회원가입 단계 `C002` 500으로 중단됐고, 운영 실행 전 secret 주입 상태를 먼저 확인해야 한다는 점을 문서와 트러블슈팅에 반영
+- 2026-04-28 기본 datasource의 `user_pii` 직접 접근 제거
+  - `UserPii` JPA 엔티티와 `UserPiiRepository` 를 제거해 기본 datasource/JPA persistence unit이 `user_pii` 테이블을 직접 다루지 않도록 정리
+  - `UserPiiBackfillService` 는 primary `users` source 조회와 `app_pii_rw` 의 `user_pii` 누락 암호문 조회/수정 2단계로 재구성
+  - 관련 integration test cleanup/assertion도 `UserPiiReadWriteRepository` 기준으로 전환해 런타임과 테스트가 같은 PII 접근 경로를 사용하도록 맞춤
+- 2026-04-28 신규 init/runbook 기준 `app_core_rw` 의 `user_pii` DML grant 제거
+  - `deploy/mysql/init/z90-create-runtime-db-users.sh`, `deploy/mysql/runtime-db-accounts.sql.example` 에서 `app_core_rw -> youth_welfare_pii.user_pii` grant 를 제거
+  - `docker-compose.yml`, `application.yml` 의 secondary datasource fallback 을 `app_pii_rw` / `notification_pii_ro` 기준으로 고정하고, local/compose 기본 password 는 `DB_PASSWORD` 를 재사용하도록 정리
+  - `deploy/smoke/user-pii-sync-cutover-smoke.sh` 는 cross-schema query account scope를 미리 확인해 `migration_admin` 또는 `DB_QUERY_*` 사용이 필요할 때 조기에 실패하도록 보강
+- 2026-04-28 one-shot PII sync smoke의 `ENV_FILE` 직접 로드 지원 및 `source .env` 예시 제거
+  - `deploy/smoke/user-pii-sync-cutover-smoke.sh` 가 `.env` 파일을 직접 파싱하도록 바꾸고, `ENV_FILE=.env ...` 형태로 same-process env를 안전하게 주입할 수 있게 정리
+  - `deploy/smoke/user-pii-sync-cutover-smoke.sh`, `deploy/smoke/preflight-runtime-cutover-env.sh` 모두 caller가 앞에서 준 explicit env override를 파일 값보다 우선하도록 보강해, stale `.env` 가 있어도 `DB_QUERY_*` / `DB_MIGRATION_*` 로 안전하게 우회 가능하도록 수정
+  - `docs/deployment.md`, `docs/db-migration.md` 의 one-shot smoke 예시를 `ENV_FILE=.env ...` 기준으로 통일하고, `docs/testing.md` 는 Gmail smoke에서 `.env` 전체를 shell `source` 하지 않도록 수정
+  - JDBC URL query string의 `&` 때문에 `source .env` 가 값을 잘라먹는 재발 가능성을 트러블슈팅과 문서에 반영
+- 2026-04-28 운영 cutover env preflight summary 출력 추가
+  - `deploy/smoke/preflight-runtime-cutover-env.sh` 에 `PRINT_SUMMARY=true` 옵션을 추가해 pass/fail만이 아니라 실제로 검증된 target host/schema, split-account username, password set/missing 상태를 redacted summary로 같이 출력하도록 보강
+  - `docs/db-account-cutover-runbook.md`, `docs/deployment.md` 에 운영 cutover 직전 `PRINT_SUMMARY=true` 실행 예시와 체크리스트를 추가
+  - secret store 값은 맞지만 key 이름이나 override precedence가 엇갈려 다른 값으로 검증되는 상황을 운영자가 바로 눈으로 잡을 수 있게 정리
+- 2026-04-28 운영 runtime cutover one-page checklist 추가
+  - `docs/runtime-cutover-checklist.md` 를 추가해 `계정 전환 -> migration -> preflight summary -> app 재기동 -> smoke -> 롤백` 순서를 한 페이지로 압축
+  - `docs/README.md`, `docs/deployment.md`, `docs/db-account-cutover-runbook.md` 에서 새 checklist를 바로 찾을 수 있게 링크를 연결
+  - 운영 전환 창에서 runbook/deployment/migration 문서를 왔다 갔다 하며 순서를 재조합하던 부담을 줄이고, cutover 증적까지 같은 문서에서 확인할 수 있게 정리
+- 2026-04-28 운영 runtime cutover 실행 로그 템플릿 추가
+  - `docs/runtime-cutover-log-template.md` 를 추가해 계정 SQL, grant 확인, migration, preflight summary, health, 핵심 API smoke, rollback 여부까지 한 문서에 기록할 수 있게 정리
+  - `docs/README.md`, `docs/deployment.md`, `docs/db-account-cutover-runbook.md`, `docs/runtime-cutover-checklist.md` 에서 새 템플릿을 바로 찾을 수 있게 링크를 연결
+  - 운영 전환 후 증적이 터미널 출력, 채팅, 메모에 흩어지지 않도록 최소 보관 형식을 고정
+- 2026-04-28 운영 runtime API smoke 명령 모음 추가
+  - `docs/runtime-api-smoke-commands.md` 를 추가해 로그인, refresh, 추천 조회, 추천 북마크 토글, 북마크 목록, admin status, 로그아웃 curl 명령을 한 문서에 정리
+  - `Authorization: Bearer` 헤더, `refresh_token` cookie jar, recommendation bookmark path가 recommendation `id` 를 받는다는 점까지 코드 기준으로 명시
+  - `docs/README.md`, `docs/deployment.md`, `docs/runtime-cutover-checklist.md`, `docs/runtime-cutover-log-template.md` 에 링크를 연결해 운영자가 smoke 명령을 즉석에서 다시 만들지 않게 정리
+- 2026-04-28 운영 runtime cutover 실행 로그 sample 추가
+  - `docs/archive/runtime-cutover-log-sample.md` 를 추가해 계정 SQL, grant 확인, migration, preflight summary, health, 핵심 API smoke, optional one-shot smoke, 최종 판정까지 redacted 예시로 채운 샘플을 제공
+  - `docs/README.md`, `docs/runtime-cutover-checklist.md`, `docs/runtime-cutover-log-template.md` 에서 샘플을 바로 찾을 수 있게 링크를 연결
+  - 템플릿만 보고 어느 수준으로 기록해야 하는지 다시 추측하지 않게, 기대 상세도와 문장 톤을 예시로 고정
+- 2026-04-28 로컬 runtime cutover 리허설 재실행
+  - `ENV_FILE=.env.example PRINT_SUMMARY=true deploy/smoke/preflight-runtime-cutover-env.sh` 로 summary 출력이 여전히 split-account/schema 기대값을 보여주는지 재검증
+  - `SMOKE_RESET_DB=true APP_HEALTH_TIMEOUT_SECONDS=180 deploy/smoke/run-local-pii-sync-cutover-smoke.sh` 로 fresh init, 앱 재빌드, queue sync, 회원탈퇴 cleanup까지 전 구간을 다시 통과
+  - 문서 정리 이후에도 로컬 cut-over 경로가 drift 없이 유지되는지 확인
+- 2026-04-28 로컬 `migration_admin` 수동 migration 리허설
+  - `28b5f67` 시점 `schema.sql` 을 임시 seed로 사용해 pre-28 schema 상태의 MySQL 8.0 컨테이너를 띄우고 `migration_admin` grant를 재확인
+  - runtime 테이블에 `user_id` 가 남아 있고 `user_key` 가 nullable이며 `user_pii_sync_queue` 가 없는 pre-state를 확인한 뒤 `V2026_04_28_01` 을 먼저 적용
+  - `SHOW COLUMNS ... LIKE 'user_id'`, `SHOW INDEX ...` 로 legacy `user_id` drop과 `user_key` 인덱스 재구성을 확인하고, 이어 `V2026_04_28_02` 적용 후 queue table 생성/컬럼 구성을 검증
+  - 이 결과를 기준으로 `docs/db-migration.md` 의 수동 적용 예시 순서를 dependency 기준으로 다시 정렬
+- 2026-04-28 pre-28 migrated DB에 최신 앱 직접 연결 후 end-to-end smoke
+  - pre-28 migrated DB를 별도 `3308` 포트로 유지한 채 최신 Spring 앱을 `SERVER_PORT=18082` 로 직접 기동해, 최신 엔티티/스키마가 migration 결과와 실제로 맞물리는지 확인
+  - 앱 health가 `UP` 인 것을 확인한 뒤 같은 `user-pii-sync-cutover-smoke.sh` 를 `APP_BASE_URL=18082`, `MYSQL_PORT=3308`, `migration_admin` query 계정 조합으로 재사용
+  - 회원가입 -> 로그인 -> 프로필 수정 -> `user_pii_sync_queue` `SYNCED` -> 회원탈퇴 cleanup 이 다시 통과해, 수동 migration 문서 정합성뿐 아니라 최신 앱 runtime도 같은 경로를 수용함을 재검증
+- 2026-04-28 pre-28 migrated DB 기준 admin status/replay smoke
+  - `SECURITY_ADMIN_EMAILS` allowlist를 포함한 최신 앱을 같은 migrated DB에 다시 붙이고, 공개 signup 임시 계정을 수동 SQL로 admin 이메일 row로 승격해 실제 운영 런북과 같은 “allowlist + DB row” 조건을 재현
+  - 해당 계정 로그인 후 프로필 수정으로 queue `SYNCED` 를 확인하고 `GET /api/admin/users/pii-sync-status` 로 모니터링 응답이 정상임을 검증
+  - 같은 admin JWT로 `POST /api/admin/users/pii-sync-replay?userKey=<USER_KEY>` 단건 재처리를 호출해 `attempted=1/synced=1/failed=0/missing=0` 결과를 확인
 
 ## 작업 추적
 
@@ -191,15 +632,84 @@ AI 추천 품질 점검 후 프롬프트 개선, 중복 추천 제거, 노이즈
 
 ### 진행 예정
 
-- [ ] 운영 서버 Docker Compose 기동 (EC2)
+- [ ] 운영 서버 Docker Compose 기동
+- [ ] 기존 운영 DB에 `app_core_rw` / `app_pii_rw` / `notification_pii_ro` / `migration_admin` 계정 생성 및 앱 datasource 전환
+- [ ] 운영 `.env` / secret store의 `APP_PII_DB_URL` / `NOTIFICATION_PII_DB_URL` 를 `youth_welfare_pii` schema 기준으로 전환
 - [ ] HTTPS/Nginx 적용
-- [ ] CTR 분석 쿼리 실행 결과 확보
-- [ ] 챗봇 구현 (2차)
+- [ ] 운영 DB에 `V2026_04_28_02__add_user_pii_sync_queue.sql` 적용 및 request dual-write smoke 검증
+- [ ] 기존 운영 DB에 `app_core_rw` 의 `youth_welfare_pii.user_pii` revoke SQL 실제 적용 및 보조 datasource smoke 검증
+- [ ] 운영 DB에 `V2026_04_28_01__drop_runtime_legacy_user_id.sql` 적용 및 배포 smoke 검증
+- [ ] CTR 표본 추가 확보 후 rule/AI 가중치 및 프롬프트 재분석
 - [ ] 카카오 알림톡 연동 (2차, 심사 완료 후)
-- [ ] 로그인 전 비밀번호 재설정 메일/토큰 구현
 
 ### 완료
 
+- [x] pre-28 migrated DB 기준 admin status/replay smoke
+- [x] pre-28 migrated DB에 최신 앱 직접 연결 후 end-to-end smoke
+- [x] 로컬 `migration_admin` 수동 migration 리허설
+- [x] 로컬 runtime cutover 리허설 재실행
+- [x] 운영 runtime cutover 실행 로그 sample 추가
+- [x] 운영 runtime API smoke 명령 모음 추가
+- [x] 운영 runtime cutover 실행 로그 템플릿 추가
+- [x] 운영 runtime cutover one-page checklist 추가
+- [x] 운영 cutover env preflight summary 출력 추가
+- [x] one-shot PII sync smoke의 `ENV_FILE` 직접 로드 지원 및 `source .env` 예시 제거
+- [x] 운영 cutover `.env` / secret preflight 스크립트 추가
+- [x] secondary datasource schema startup validation 및 integration profile split-account 정리
+- [x] 보조 datasource 기본 URL을 `youth_welfare_pii` schema로 교정하고 local reduced-grant smoke 래퍼 추가
+- [x] 신규 init/runbook 기준 `app_core_rw` 의 `user_pii` DML grant 제거
+- [x] 기본 datasource의 `user_pii` 직접 접근 제거
+- [x] `user_pii_sync_queue` cut-over smoke 스크립트 정리
+- [x] `user_pii_sync_queue` status endpoint 및 운영 모니터링 기준 정리
+- [x] `user_pii_sync_queue` 자동 retry 경로 추가
+- [x] `user_pii_sync_queue` admin replay API 추가
+- [x] 요청 경로 `user_pii` sync를 primary queue + after-commit `app_pii_rw` upsert 구조로 분리
+- [x] `user_pii` admin backfill write 경로를 `app_pii_rw` secondary datasource로 분리
+- [x] 프로필 조회 / 비밀번호 재설정 PII read 경로를 `app_pii_rw` secondary datasource로 분리
+- [x] 알림 대상 이메일 조회를 `notification_pii_ro` secondary datasource로 분리
+- [x] 기존 운영 DB 계정 생성 SQL/runbook 및 앱 datasource 전환 체크리스트 정리
+- [x] Docker Compose 신규 DB 초기화 기준 런타임 앱 DB 계정 `root` 제거 및 계정/권한 시드 추가
+- [x] runtime 테이블 legacy `user_id` drop migration SQL 작성 및 로컬 Docker 리허설
+- [x] `user_attributes` / `user_priorities` 의 `user_key` 기준 write/delete 전환 및 `ManyToOne User` 제거
+- [x] legacy `user_id` 호환 컬럼 drop 대상 정리 및 migration 설계
+- [x] `user_recommendations` / 북마크 경로의 `user_key` 전환 및 `UserRecommendation` 의 `ManyToOne User` 제거
+- [x] JWT principal을 custom principal 기준으로 전환하고 컨트롤러 인증 경로를 raw `Long` principal 의존에서 분리
+- [x] chat/notification/recommendation log/view log의 legacy `user_id` fallback 제거 및 `ManyToOne User` 축소
+- [x] JWT subject / refresh token / 비밀번호 재설정 토큰 / 로그·세션 참조의 `user_key` identity cut-over 1차 적용
+- [x] `user_attributes/user_priorities.user_key` write sync 및 backfill 적용
+- [x] 프로필 조회/추천/알림 read path를 `user_profiles` + `user_pii` 기준으로 전환
+- [x] 비밀번호 재설정 메일 발송 주소를 `user_pii.email_enc` 복호화 기준으로 전환
+- [x] `user_pii.email_enc/name_enc/birth_date_enc` 앱 레벨 암호화 backfill
+- [x] 로그인/비밀번호 재설정 조회 경로를 `auth_users` 기준으로 전환
+- [x] 회원가입/프로필/비밀번호/회원탈퇴 dual-write 적용 (`users` + `auth_users` + `user_profiles` + `user_pii`)
+- [x] PII core 테이블 migration 작성 (`auth_users`, `user_profiles`, `user_pii`)
+- [x] PII 분리 1단계 migration 작성 (`users.user_key`, 하위 테이블 `user_key` backfill)
+- [x] 사용자 PII 분리 이행안 확정 (`2 schema`, `user_key` 선행, dual-write 순서 확정)
+- [x] CTR 분석 쿼리 실행 결과 확보
+- [x] 운영 데이터 기준 추천 지역 후보 `regionCode` / `sido` 쿼리 분리 및 EXPLAIN 재검증
+- [x] 운영 데이터 기준 지역 검색 `sido-only` / `sido+sgg` 쿼리 분리 및 EXPLAIN 재검증
+- [x] 검색/추천 쿼리 EXPLAIN 검증 및 인덱스 적용 여부 확정
+- [x] 운영 admin 계정 수동 생성 절차 문서화 (`SECURITY_ADMIN_EMAILS`, DB 계정 준비)
+- [x] 로그인 전 비밀번호 재설정 메일/토큰 구현
+- [x] 프론트 `/chat` 실제 화면 및 로그인 가드 구현
+- [x] 챗봇 요청 rate limit / abuse 방지
+- [x] 로그아웃/회원탈퇴 시 챗 세션 삭제 연동
+- [x] 챗봇 OpenAI 프롬프트/응답 스키마 및 근거 정책 참조 구현
+- [x] 챗봇 메시지 전송 API 구현 (`POST /api/chat/sessions/{sessionId}/messages`)
+- [x] 챗봇 정책 조회 전용 서비스 구현 (`chat -> policy`, `chat -> recommend` 금지)
+- [x] 챗봇 메시지 목록 조회 API 구현 (`GET /api/chat/sessions/{sessionId}/messages`)
+- [x] 챗봇 세션 CRUD API 구현 (`POST/GET/DELETE /api/chat/sessions`)
+- [x] 챗봇 엔티티/리포지토리 골격 추가
+- [x] 챗봇 DB migration 추가 (`chat_sessions`, `chat_messages`)
+- [x] 챗봇 응답 DTO/API 계약 고정 (`sessionId`, `answer`, `references`, `needsClarification`)
+- [x] `/api/admin/**` JWT 권한 기반 보호 + 관리자 예약 이메일 공개 signup 차단
+- [x] 검색/추천 운영 가이드 `docs/db-search-recommend-ops-guide.md` 추가
+- [x] 사용자 데이터 분리 설계 `docs/user-data-separation-design.md` 추가
+- [x] 문서 목차 `docs/README.md`에 운영/설계 보조 문서 링크 추가
+- [x] `docs/phase-plan.md` 작업 추적과 본문 상태 정합성 점검
+- [x] 챗봇 구현 설계 문서 `docs/chatbot-plan.md` 추가
+- [x] 문서 목차 `docs/README.md`에 챗봇 설계 문서 링크 추가
+- [x] 프론트 `/chat` 자리표시자 문구를 현재 계획(2차)과 일치하도록 정리
 - [x] 문서 목차 `docs/README.md` 추가
 - [x] 기본 테스트와 통합 테스트 태스크 분리
 - [x] 테스트 실행 기준 `docs/testing.md` 추가
@@ -255,10 +765,6 @@ AI 추천 품질 점검 후 프롬프트 개선, 중복 추천 제거, 노이즈
 - [x] 회원탈퇴 다이얼로그 비밀번호 입력 필드 추가 (기존: 빈 값으로 API 호출 → 탈퇴 불가)
 - [x] `GET /api/recommendations`에 `logId` 누락 수정
 - [x] 데모 시나리오 전체 실행 완료 — 발견된 문제 수정 및 문서 갱신
-- [x] 군집 캐시 추천 구현 — `ClusterService` 9개 군집, `cluster_ai_results` 캐시, `AiScoringService` 캐시 우선 조회
-- [x] `POST /api/recommendations/refresh?personal=true` 개인 맞춤 재추천 엔드포인트 추가
-- [x] 프론트 "맞춤 재추천" 버튼 추가 (군집 캐시 무시, 개인 AI 호출)
-- [x] 캐시 TTL 25시간 만료 배치 추가 (`StatusUpdateService` 새벽 3시)
 
 ## 통합 테스트 실행 방법
 
@@ -276,34 +782,62 @@ cd backend
 - `AuthRedisIntegrationTest`
 - `PolicyBookmarkIntegrationTest`
 - `RecommendationFlowIntegrationTest`
+- 2026-04-28 legacy fallback 제거 후 `backend`에서 `./gradlew test --no-daemon --tests com.example.welfare.chat.service.ChatSessionServiceTest --tests com.example.welfare.chat.service.ChatMessageServiceTest --tests com.example.welfare.notification.service.NotificationServiceTest --tests com.example.welfare.notification.service.NotificationHistoryServiceTest --tests com.example.welfare.user.service.UserServiceTest`
+- 2026-04-28 legacy fallback 제거 후 `backend`에서 `./gradlew integrationTest --no-daemon --tests com.example.welfare.integration.AuthRedisIntegrationTest --tests com.example.welfare.integration.ChatSessionApiIntegrationTest --tests com.example.welfare.integration.ChatMessageApiIntegrationTest --tests com.example.welfare.integration.ChatRepositoryIntegrationTest --tests com.example.welfare.integration.UserWithdrawChatCleanupIntegrationTest --tests com.example.welfare.integration.RecommendationFlowIntegrationTest`
+- 2026-04-28 legacy fallback 제거 후 `backend`에서 `./gradlew test --no-daemon`
+- 2026-04-28 legacy fallback 제거 후 `backend`에서 `./gradlew integrationTest --no-daemon`
+- 2026-04-28 identity cut-over 1차 적용 후 `backend`에서 `./gradlew test --no-daemon --tests com.example.welfare.user.service.AuthServiceTest --tests com.example.welfare.notification.service.NotificationServiceTest --tests com.example.welfare.notification.controller.NotificationControllerWebMvcTest --tests com.example.welfare.policy.service.PolicyViewLogServiceTest`
+- 2026-04-28 identity cut-over 1차 적용 후 `backend`에서 `./gradlew integrationTest --no-daemon --tests com.example.welfare.integration.AdminSecurityIntegrationTest --tests com.example.welfare.integration.AuthRedisIntegrationTest --tests com.example.welfare.integration.RecommendationFlowIntegrationTest --tests com.example.welfare.integration.ChatSessionApiIntegrationTest --tests com.example.welfare.integration.ChatMessageApiIntegrationTest --tests com.example.welfare.integration.UserWithdrawChatCleanupIntegrationTest`
+- 2026-04-28 identity cut-over 1차 적용 후 `backend`에서 `./gradlew test --no-daemon`
+- 2026-04-28 identity cut-over 1차 적용 후 `backend`에서 `./gradlew integrationTest --no-daemon`
+- 2026-04-28 로그인/비밀번호 재설정 조회 경로 전환 후 `backend`에서 `./gradlew test --no-daemon --tests com.example.welfare.user.service.AuthServiceTest`
+- 2026-04-28 로그인/비밀번호 재설정 조회 경로 전환 후 `backend`에서 `./gradlew test --no-daemon`
+- 2026-04-28 로그인/비밀번호 재설정 조회 경로 전환 후 `backend`에서 `./gradlew integrationTest --no-daemon --tests com.example.welfare.integration.AuthRedisIntegrationTest`
+- 2026-04-28 PII 암호화 backfill 후 `backend`에서 `./gradlew test --no-daemon --tests com.example.welfare.user.service.UserPiiBackfillServiceTest --tests com.example.welfare.admin.AdminSecurityWebMvcTest`
+- 2026-04-28 PII 암호화 backfill 후 `backend`에서 `./gradlew test --no-daemon`
+- 2026-04-28 PII 암호화 backfill 후 `backend`에서 `./gradlew integrationTest --no-daemon --tests com.example.welfare.integration.UserPiiBackfillIntegrationTest`
+- 2026-04-28 Docker MySQL에서 `user_pii` 백필 결과 확인
+  - `total_user_pii=24`, `email_filled=24`, `name_filled=21`, `birth_filled=21`
+  - 잔여 누락 3건은 `users.id=19,20,21` 이며 `users.name`, `users.birth_date` 가 이미 `NULL`
+- 2026-04-28 비밀번호 재설정 발송 주소 전환 후 `backend`에서 `./gradlew test --no-daemon --tests com.example.welfare.user.service.AuthServiceTest`
+- 2026-04-28 비밀번호 재설정 발송 주소 전환 후 `backend`에서 `./gradlew integrationTest --no-daemon --tests com.example.welfare.integration.AuthRedisIntegrationTest`
+- 2026-04-28 비밀번호 재설정 발송 주소 전환 후 `backend`에서 `./gradlew test --no-daemon`
+- 2026-04-28 legacy `user_id` drop 설계 문서화 후 `git diff --check`
+- 2026-04-28 legacy `user_id` drop 설계 문서화 후 `docs` 링크/상태 수기 점검
+- 2026-04-28 `user_attributes` / `user_priorities` write/delete 전환 후 `backend`에서 `./gradlew test --no-daemon --tests com.example.welfare.user.service.UserServiceTest --tests com.example.welfare.user.service.UserMetadataUserKeyBackfillServiceTest`
+- 2026-04-28 `docker compose up -d db redis`
+- 2026-04-28 `user_attributes` / `user_priorities` write/delete 전환 후 `backend`에서 `./gradlew integrationTest --no-daemon --tests com.example.welfare.integration.UserMetadataUserKeyBackfillIntegrationTest --tests com.example.welfare.integration.RecommendationFlowIntegrationTest`
+- 2026-04-28 `user_attributes` / `user_priorities` write/delete 전환 후 `git diff --check`
+- 2026-04-28 `docker compose up -d db redis`
+- 2026-04-28 Docker MySQL에 `V2026_04_28_01__drop_runtime_legacy_user_id.sql` 적용
+- 2026-04-28 runtime legacy `user_id` drop 후 컬럼/인덱스 확인
+  - `user_recommendations`, `recommendation_logs`, `notifications`, `chat_sessions`, `service_view_logs` 에서 `user_id` 컬럼 제거 확인
+  - `uq_ur_user_key_service_time`, `idx_ur_user_key_score`, `idx_ur_user_key_bookmark`, `idx_rl_user_key_sent`, `idx_noti_user_key_created`, `idx_cs_user_key_last_message`, `idx_cs_user_key_created`, `idx_svl_user_key_service_viewed` 확인
+- 2026-04-28 runtime legacy `user_id` drop 후 `backend`에서 `./gradlew test --no-daemon --tests com.example.welfare.recommend.service.RecommendationPersistenceServiceTest --tests com.example.welfare.notification.service.NotificationHistoryServiceTest --tests com.example.welfare.notification.service.NotificationServiceTest --tests com.example.welfare.chat.service.ChatMessageServiceTest --tests com.example.welfare.policy.service.PolicyServiceTest --tests com.example.welfare.user.service.UserServiceTest`
+- 2026-04-28 runtime legacy `user_id` drop 후 `backend`에서 `./gradlew integrationTest --no-daemon --tests com.example.welfare.integration.ChatSessionApiIntegrationTest --tests com.example.welfare.integration.ChatMessageApiIntegrationTest --tests com.example.welfare.integration.ChatRepositoryIntegrationTest --tests com.example.welfare.integration.AuthRedisIntegrationTest --tests com.example.welfare.integration.PolicyBookmarkIntegrationTest --tests com.example.welfare.integration.RecommendationFlowIntegrationTest --tests com.example.welfare.integration.UserWithdrawChatCleanupIntegrationTest`
+- 2026-04-28 runtime legacy `user_id` drop 후 `git diff --check`
+- 2026-04-28 알림 대상 이메일 조회를 `notification_pii_ro` secondary datasource로 분리 후 `backend`에서 `./gradlew test --no-daemon --tests com.example.welfare.user.service.UserReadServiceTest --tests com.example.welfare.notification.service.NotificationServiceTest`
+- 2026-04-28 `docker compose up -d db redis`
+- 2026-04-28 알림 대상 이메일 조회를 `notification_pii_ro` secondary datasource로 분리 후 `backend`에서 `./gradlew integrationTest --no-daemon --tests com.example.welfare.integration.AuthRedisIntegrationTest`
+- 2026-04-28 알림 대상 이메일 조회를 `notification_pii_ro` secondary datasource로 분리 후 `git diff --check`
 
 ## 남은 1차 작업
-
-### 프론트 실제 연동
 
 ### 배포/데모
 
 - EC2 또는 운영 서버에서 Docker Compose 기동
 - HTTPS/Nginx 적용
-- [demo-scenario.md](./demo-scenario.md) 전체 실행
-- CTR 분석 쿼리 실행 결과 확보
+- 운영 DB에 `V2026_04_28_01__drop_runtime_legacy_user_id.sql` 적용 및 배포 smoke 검증
+- 기존 운영 DB 계정 생성 SQL 적용 및 앱 datasource 전환
+- 기존 운영 DB에 `app_core_rw` 의 `user_pii` revoke SQL 실제 적용 및 보조 datasource smoke 검증
+- CTR 표본 추가 확보 후 rule/AI 가중치 및 프롬프트 재분석
 
-## 2차 구현 현황
+## 2차로 분리된 항목
 
-### 완료
-- [x] 나이대(3) × 소득분위(3) 9개 군집 `ClusterService` 구현
-- [x] `cluster_ai_results` 테이블 + 엔티티 + 레포지토리
-- [x] `AiScoringService` 군집 캐시 우선 조회 → 캐시 히트율 50% 이상이면 캐시 사용
-- [x] 캐시 미스 시 실시간 AI 호출 후 캐시 저장
-- [x] `POST /api/recommendations/refresh?personal=true` — 개인 맞춤 재추천 (캐시 무시)
-- [x] 프론트 "맞춤 재추천" 버튼 추가
-- [x] 캐시 TTL 25시간 — `StatusUpdateService` 새벽 3시 배치에서 정리
-- [x] 검증: 캐시 hit 0.24초 vs 개인 호출 11.8초
-
-### 남은 2차 항목
-- [ ] 챗봇
-- [ ] 카카오 알림톡
-- [ ] p5~p95 정규화
-- [ ] 슬롯 배치 `[A, A, B?]`
-- [ ] 검색 로그
-- [ ] 추천/수집 대시보드
+- Batch AI Gateway
+- 나이대 x 소득분위 군집화
+- p5~p95 정규화
+- 카카오 알림톡
+- 슬롯 배치 `[A, A, B?]`
+- 검색 로그
+- 추천/수집 대시보드

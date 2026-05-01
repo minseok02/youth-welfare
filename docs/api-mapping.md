@@ -11,7 +11,8 @@
 - 따라서 1차 범위에서는 `아이디 찾기` API를 만들지 않는다. 로그인 화면에서는 "아이디 = 가입한 이메일"로 안내한다.
 - 이메일 중복확인은 회원가입 전에만 사용하고, 응답은 사용 가능 여부 boolean만 반환한다.
 - 회원가입 `POST /api/auth/signup`은 토큰을 바로 발급하지 않는다. 프론트는 가입 성공 후 `POST /api/auth/login`을 한 번 더 호출해 세션을 만든다.
-- 로그인 전 비밀번호 재설정 메일/토큰 플로우는 1차 범위에서 제외한다. 후속 작업으로 별도 구현한다.
+- 로그인 전 비밀번호 재설정은 `request -> 메일 링크 -> confirm` 2단계로 처리한다.
+- 재설정 요청은 존재하지 않는 이메일이어도 동일 성공 응답을 반환해 계정 존재 여부를 노출하지 않는다.
 
 ### `GET /api/auth/check-email`
 
@@ -64,6 +65,206 @@
   "data": {
     "accessToken": "..."
   }
+}
+```
+
+### `POST /api/auth/password-reset/request`
+
+- request 주요 필드
+  - `email`
+- 현재 구현 메모
+  - 활성 사용자면 Redis 30분 토큰을 발급하고 재설정 링크 메일을 보낸다
+  - 없는 이메일이나 탈퇴 계정이어도 동일 성공 응답으로 끝낸다
+- response
+
+```json
+{
+  "success": true,
+  "data": null
+}
+```
+
+### `POST /api/auth/password-reset/confirm`
+
+- request 주요 필드
+  - `token`
+  - `newPassword`
+- 현재 구현 메모
+  - 토큰이 유효하면 비밀번호를 변경하고 로그인 실패 횟수를 초기화한다
+  - 사용 완료 시 reset token과 refresh token을 함께 폐기한다
+  - 토큰이 만료되었거나 최신 토큰이 아니면 `A008`
+- response
+
+```json
+{
+  "success": true,
+  "data": null
+}
+```
+
+- 에러 응답 예시
+
+```json
+{
+  "success": false,
+  "message": "유효하지 않거나 만료된 비밀번호 재설정 토큰입니다.",
+  "errorCode": "A008"
+}
+```
+
+---
+
+## 챗봇 API 계약 (2차 준비)
+
+- 챗봇은 로그인 사용자 전용이다.
+- `chat` 모듈은 정책 조회 결과를 요약해 답변하며, 추천 재계산은 하지 않는다.
+- 응답 필드명은 프론트와 백엔드 모두 아래 계약으로 고정한다.
+
+### `POST /api/chat/sessions`
+
+- 용도
+  - 새 채팅 세션 생성
+- request 주요 필드
+  - body optional
+  - `title` optional
+- response 주요 필드
+  - `sessionId`
+  - `title`
+  - `lastMessageAt`
+  - `createdAt`
+
+```json
+{
+  "success": true,
+  "data": {
+    "sessionId": 12,
+    "title": "서울 청년 주거 상담",
+    "lastMessageAt": "2026-04-25T23:40:00",
+    "createdAt": "2026-04-25T23:40:00"
+  }
+}
+```
+
+### `GET /api/chat/sessions`
+
+- 용도
+  - 내 최근 세션 목록 조회
+- 현재 구현 기준 최근 20개 세션 반환
+- response 주요 필드
+  - `sessionId`
+  - `title`
+  - `lastMessageAt`
+  - `createdAt`
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "sessionId": 12,
+      "title": "서울 청년 주거 상담",
+      "lastMessageAt": "2026-04-25T23:41:12",
+      "createdAt": "2026-04-25T23:40:00"
+    }
+  ]
+}
+```
+
+### `GET /api/chat/sessions/{sessionId}/messages`
+
+- 용도
+  - 세션 메시지 조회
+- 권한
+  - 본인 세션만 조회 가능
+  - 존재하지 않거나 소유하지 않은 세션은 `CH001`
+- response 주요 필드
+  - `messageId`
+  - `role`
+  - `content`
+  - `referencedServiceIds`
+  - `createdAt`
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "messageId": 101,
+      "role": "USER",
+      "content": "서울에서 월세 지원 받을 수 있는 정책 있어?",
+      "referencedServiceIds": [],
+      "createdAt": "2026-04-25T23:40:10"
+    },
+    {
+      "messageId": 102,
+      "role": "ASSISTANT",
+      "content": "서울 거주 청년이라면 청년월세지원과 청년전세임대 정책을 먼저 확인해보세요.",
+      "referencedServiceIds": [1829, 2451],
+      "createdAt": "2026-04-25T23:40:12"
+    }
+  ]
+}
+```
+
+### `POST /api/chat/sessions/{sessionId}/messages`
+
+- 용도
+  - 사용자 질문 전송
+- 현재 구현 메모
+  - USER/ASSISTANT 메시지 2건을 저장한다
+  - 세션 제목이 비어 있으면 첫 질문 앞부분으로 자동 채운다
+  - 본인 세션이 아니면 `CH001`
+  - 사용자별 fixed-window rate limit을 적용하고 초과 시 `CH002` 429를 반환한다
+  - OpenAI JSON 응답 파싱 실패 시 정책 후보 기반 fallback 답변으로 내려간다
+  - AI가 반환한 `service_id`는 서버가 전달한 후보 정책 allowlist 안에서만 채택한다
+- request 주요 필드
+  - `content`
+- response 주요 필드
+  - `sessionId`
+  - `answer`
+  - `needsClarification`
+  - `references[].serviceId`
+  - `references[].title`
+  - `references[].reason`
+
+```json
+{
+  "success": true,
+  "data": {
+    "sessionId": 12,
+    "answer": "서울 거주 미취업 청년이라면 청년월세지원과 국민취업지원제도를 먼저 확인해보세요.",
+    "needsClarification": false,
+    "references": [
+      {
+        "serviceId": 1829,
+        "title": "청년월세 한시 특별지원",
+        "reason": "서울 거주 청년의 주거비 부담 완화와 직접 연결됩니다."
+      }
+    ]
+  }
+}
+```
+
+- 에러 응답 예시
+
+```json
+{
+  "success": false,
+  "message": "짧은 시간에 너무 많은 챗 요청이 발생했습니다. 잠시 후 다시 시도하세요.",
+  "errorCode": "CH002"
+}
+```
+
+### `DELETE /api/chat/sessions/{sessionId}`
+
+- 용도
+  - 사용자가 특정 세션 삭제
+- response
+
+```json
+{
+  "success": true,
+  "data": null
 }
 ```
 
@@ -314,7 +515,7 @@ public void resetAiScoreForClosed() {
 
 - 조회수 정책
   - 24시간 dedup 적용
-  - 로그인: `(user_id, service_id)` 기준
+  - 로그인: `(user_key, service_id)` 기준
   - 비로그인: `(client_fingerprint, service_id)` 기준
 - 주요 응답 필드
   - `id`, `title`, `description`, `unifiedCategory`, `status`, `sourceType`

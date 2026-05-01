@@ -1,9 +1,9 @@
-# 수집 운영 기준
+# 수집 실행 기준
 
 ## 목적
 
 공공 API 수집은 외부 서비스 상태와 호출 제한에 영향을 받는다.  
-이 문서는 청년복지 플랫폼의 수집 배치를 운영할 때 따르는 기준을 정리한다.
+이 문서는 현재 로컬 기준으로 수집을 실행하고 해석할 때 따르는 기준을 정리한다.
 
 ---
 
@@ -11,7 +11,9 @@
 
 ### 1. 수집은 한 번에 하나만 실행
 
-- `collect/all`, `collect/youth`, `collect/bokjiro-central`, `collect/bokjiro-local`, `collect/bokjiro-details`는 동시 실행하지 않는다.
+- `collect/all` 과 `collect/{sourceKey}` 수동 경로는 동시 실행하지 않는다.
+- 현재 `sourceKey` 는 `youth`, `bokjiro-central`, `bokjiro-local`, `bokjiro-details`, `bokjiro-details-refresh` 를 지원한다.
+- canonical sidecar replay 전용 수동 경로 `POST /api/admin/collect/bokjiro-sidecars-backfill?scope=all|list|detail&limitPerSource=0` 도 같은 시간대에 일반 collect 수동 실행과 겹치지 않게 사용한다.
 - 이미 다른 수집 작업이 실행 중이면 새 요청은 `409 Conflict (COL002)`로 거절한다.
 - 이유: 중복 실행 시 `service_tags` 저장 경합과 deadlock 위험이 커진다.
 
@@ -34,6 +36,27 @@
 - 수집 중 일부 아이템 저장 실패가 있어도 전체 배치를 롤백하지 않는다.
 - 아이템 단위 저장은 별도 트랜잭션으로 처리한다.
 - deadlock/lock timeout/낙관적 락 충돌은 최대 3회 재시도 후 최종 실패로 기록한다.
+
+### 5. 복지로 상세는 기본 수집과 refresh 수동 경로를 구분
+
+- `/api/admin/collect/bokjiro-details` 는 detail row가 없는 정책 위주로 채우는 기본 경로다.
+- `/api/admin/collect/bokjiro-details-refresh` 는 기존 detail row가 있어도 다시 fetch/merge 하는 refresh 전용 수동 경로다.
+- `/api/admin/collect/bokjiro-details-gap-fill` 는 기본 detail 경로를 여러 라운드로 반복 호출해, `95/API` cap은 유지하면서 missing detail backlog 를 점진적으로 더 채우는 coverage 확장 전용 수동 경로다.
+- `/api/admin/collect/bokjiro-sidecars-backfill` 는 외부 API를 다시 호출하지 않고, 이미 저장된 `raw_api_payloads` 를 canonical sidecar(`service_taxonomies`, `service_taxonomy_terms`, `service_facts`) 로 재적재하는 replay 전용 경로다.
+- 운영 해석:
+  - 일반 배치는 기본 경로를 유지해 호출량을 억제한다.
+  - 상세 본문 포맷이 바뀌었거나 기존 적재값을 다시 동기화해야 할 때만 refresh 경로를 쓴다.
+  - stored detail payload coverage 가 낮아 sidecar density가 detail raw 개수에 묶여 있을 때만 gap fill 경로를 써서 여러 라운드 backlog 를 메운다.
+  - 기존 raw payload 로 sidecar를 다시 채우거나 density를 재측정할 때만 backfill 경로를 쓴다.
+
+### 6. 복지로 상세 호출 budget 은 source backlog 비율을 먼저 본다
+
+- `collectBokjiroDetailsResult(maxCalls, ...)` 는 중앙/지자체 상세 대상을 먼저 집계한 뒤, `maxCallsPerApiPerRun` cap 안에서 backlog 비율대로 budget을 나눈다.
+- 한쪽 source에 target이 없으면 남은 source가 전체 budget을 가져간다.
+- low `maxCalls` 에서도 중앙 source를 무조건 먼저 소진하지 않는다.
+- 이유:
+  - canonical sidecar merge/backfill 검증은 local source만 따로 태우는 경우가 많다.
+  - 중앙에 target이 있거나 개수가 적어도, local backlog가 더 크면 local path가 0 budget으로 굳지 않도록 해야 한다.
 
 ---
 

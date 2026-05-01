@@ -1,9 +1,7 @@
 package com.example.welfare.recommend.service;
 
-import com.example.welfare.user.entity.User;
+import com.example.welfare.recommend.dto.RecommendationUserSnapshot;
 import org.springframework.stereotype.Service;
-
-import java.time.LocalDate;
 
 /**
  * 나이대 × 소득분위 2D 군집화
@@ -14,7 +12,7 @@ import java.time.LocalDate;
 @Service
 public class ClusterService {
 
-    public String assignCluster(User user) {
+    public String assignCluster(RecommendationUserSnapshot user) {
         String ageGroup = getAgeGroup(user);
         String incomeGroup = getIncomeGroup(user);
 
@@ -24,18 +22,18 @@ public class ClusterService {
         return ageGroup + "_" + incomeGroup;
     }
 
-    private String getAgeGroup(User user) {
-        if (user.getBirthDate() == null) return null;
-        int age = LocalDate.now().getYear() - user.getBirthDate().getYear();
+    private String getAgeGroup(RecommendationUserSnapshot user) {
+        if (user.age() == null) return null;
+        int age = user.age();
         if (age < 19 || age > 34) return null;
         if (age <= 24) return "young";
         if (age <= 29) return "mid";
         return "senior";
     }
 
-    private String getIncomeGroup(User user) {
-        if (user.getIncomeLevel() == null) return null;
-        int level = user.getIncomeLevel();
+    private String getIncomeGroup(RecommendationUserSnapshot user) {
+        if (user.incomeLevel() == null) return null;
+        int level = user.incomeLevel();
         if (level <= 3) return "low";
         if (level <= 6) return "mid";
         return "high";

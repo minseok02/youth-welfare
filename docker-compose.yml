@@ -11,8 +11,22 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: prod
       DB_URL: jdbc:mysql://db:3306/youth_welfare?useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=UTF-8&serverTimezone=Asia/Seoul
-      DB_USERNAME: root
+      APP_PII_DB_URL: ${APP_PII_DB_URL:-jdbc:mysql://db:3306/youth_welfare_pii?useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=UTF-8&serverTimezone=Asia/Seoul}
+      NOTIFICATION_PII_DB_URL: ${NOTIFICATION_PII_DB_URL:-jdbc:mysql://db:3306/youth_welfare_pii?useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=UTF-8&serverTimezone=Asia/Seoul}
+      DB_USERNAME: ${DB_USERNAME:-app_core_rw}
       DB_PASSWORD: ${DB_PASSWORD}
+      DB_APP_PII_USERNAME: ${DB_APP_PII_USERNAME:-app_pii_rw}
+      DB_APP_PII_PASSWORD: ${DB_APP_PII_PASSWORD:-${DB_PASSWORD}}
+      DB_NOTIFICATION_PII_RO_USERNAME: ${DB_NOTIFICATION_PII_RO_USERNAME:-notification_pii_ro}
+      DB_NOTIFICATION_PII_RO_PASSWORD: ${DB_NOTIFICATION_PII_RO_PASSWORD:-${DB_PASSWORD}}
+      JWT_SECRET: ${JWT_SECRET}
+      AES_SECRET_KEY: ${AES_SECRET_KEY}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      GMAIL_USERNAME: ${GMAIL_USERNAME}
+      GMAIL_PASSWORD: ${GMAIL_PASSWORD}
+      YOUTH_API_KEY: ${YOUTH_API_KEY}
+      BOKJIRO_API_KEY: ${BOKJIRO_API_KEY}
+      SECURITY_ADMIN_EMAILS: ${SECURITY_ADMIN_EMAILS:-}
       REDIS_HOST: redis
       REDIS_PORT: 6379
       APP_BASE_URL: ${APP_BASE_URL:-https://youth-welfare.kr}
@@ -43,11 +57,20 @@ services:
     environment:
       MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
       MYSQL_DATABASE: youth_welfare
+      MYSQL_APP_USERNAME: ${MYSQL_APP_USERNAME:-app_core_rw}
+      MYSQL_APP_PASSWORD: ${DB_PASSWORD}
+      MYSQL_MIGRATION_USERNAME: ${DB_MIGRATION_USERNAME:-migration_admin}
+      MYSQL_MIGRATION_PASSWORD: ${DB_MIGRATION_PASSWORD:-${DB_PASSWORD}}
+      MYSQL_APP_PII_USERNAME: ${DB_APP_PII_USERNAME:-app_pii_rw}
+      MYSQL_APP_PII_PASSWORD: ${DB_APP_PII_PASSWORD:-${DB_PASSWORD}}
+      MYSQL_NOTIFICATION_PII_RO_USERNAME: ${DB_NOTIFICATION_PII_RO_USERNAME:-notification_pii_ro}
+      MYSQL_NOTIFICATION_PII_RO_PASSWORD: ${DB_NOTIFICATION_PII_RO_PASSWORD:-${DB_PASSWORD}}
       MYSQL_CHARSET: utf8mb4
       MYSQL_COLLATION: utf8mb4_unicode_ci
     volumes:
       - mysql_data:/var/lib/mysql
       - ./backend/src/main/resources/db/schema.sql:/docker-entrypoint-initdb.d/schema.sql
+      - ./deploy/mysql/init/z90-create-runtime-db-users.sh:/docker-entrypoint-initdb.d/z90-create-runtime-db-users.sh:ro
     command: >
       --character-set-server=utf8mb4
       --collation-server=utf8mb4_unicode_ci

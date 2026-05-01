@@ -1,7 +1,6 @@
 package com.example.welfare.notification.entity;
 
 import com.example.welfare.global.entity.BaseTimeEntity;
-import com.example.welfare.user.entity.User;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -9,7 +8,7 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "notifications", indexes = {
-        @Index(name = "idx_noti_user_created", columnList = "user_id, created_at"),
+        @Index(name = "idx_noti_user_key_created", columnList = "user_key, created_at"),
         @Index(name = "idx_noti_status_created", columnList = "status, created_at")
 })
 @Getter
@@ -22,9 +21,8 @@ public class Notification extends BaseTimeEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "user_id", nullable = false)
-    private User user;
+    @Column(name = "user_key", nullable = false, length = 32, columnDefinition = "CHAR(32)")
+    private String userKey;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)

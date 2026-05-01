@@ -1,5 +1,6 @@
 package com.example.welfare.policy.controller;
 
+import com.example.welfare.global.auth.AuthenticatedUser;
 import com.example.welfare.global.response.ApiResponse;
 import com.example.welfare.policy.dto.PolicyDetailResponse;
 import com.example.welfare.policy.dto.PolicyRankingResponse;
@@ -36,7 +37,7 @@ public class PolicyController {
     // 정책 목록 조회 (카테고리 필터, 페이징)
     @GetMapping
     public ResponseEntity<ApiResponse<Page<PolicySummaryResponse>>> getList(
-            @AuthenticationPrincipal Long userId,
+            @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
             @RequestParam(required = false) String category,
             @RequestParam(required = false) String sourceType,
             @RequestParam(required = false) String status,
@@ -47,7 +48,7 @@ public class PolicyController {
             @RequestParam(required = false) String sort,
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
         return ResponseEntity.ok(ApiResponse.success(
-                policyService.getList(userId, category, sourceType, status, includeClosed, sido, sgg, onlineApply, sort, pageable)
+                policyService.getList(resolveUserId(authenticatedUser), category, sourceType, status, includeClosed, sido, sgg, onlineApply, sort, pageable)
         ));
     }
 
@@ -56,12 +57,13 @@ public class PolicyController {
     public ResponseEntity<ApiResponse<PolicyDetailResponse>> getDetail(
             @PathVariable Long id,
             @RequestParam(required = false) Long logId,
-            @AuthenticationPrincipal Long userId,
+            @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
             HttpServletRequest request) {
         if (logId != null) {
             recommendationLogService.markClicked(logId);
         }
         String clientFingerprint = policyViewLogService.buildClientFingerprint(request);
+        Long userId = resolveUserId(authenticatedUser);
         boolean increaseViewCount = policyViewLogService.registerViewIfFirstInWindow(id, userId, clientFingerprint);
         return ResponseEntity.ok(ApiResponse.success(policyService.getDetail(userId, id, increaseViewCount)));
     }
@@ -69,7 +71,7 @@ public class PolicyController {
     // 정책 검색 (FULLTEXT)
     @GetMapping("/search")
     public ResponseEntity<ApiResponse<PolicySearchResponse>> search(
-            @AuthenticationPrincipal Long userId,
+            @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
             @RequestParam String keyword,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) Boolean includeClosed,
@@ -82,7 +84,7 @@ public class PolicyController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         return ResponseEntity.ok(ApiResponse.success(
-                policySearchService.search(userId, keyword.trim(), status, includeClosed, category, sourceType, onlineApply, sido, sgg, sort, page, size)
+                policySearchService.search(resolveUserId(authenticatedUser), keyword.trim(), status, includeClosed, category, sourceType, onlineApply, sido, sgg, sort, page, size)
         ));
     }
 
@@ -95,9 +97,13 @@ public class PolicyController {
 
     @PostMapping("/{id}/bookmark")
     public ResponseEntity<ApiResponse<Void>> toggleBookmark(
-            @AuthenticationPrincipal Long userId,
+            @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
             @PathVariable Long id) {
-        policyService.toggleBookmark(userId, id);
+        policyService.toggleBookmark(resolveUserId(authenticatedUser), id);
         return ResponseEntity.ok(ApiResponse.success(null));
+    }
+
+    private Long resolveUserId(AuthenticatedUser authenticatedUser) {
+        return authenticatedUser != null ? authenticatedUser.userId() : null;
     }
 }

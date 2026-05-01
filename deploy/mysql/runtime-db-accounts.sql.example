@@ -1,0 +1,40 @@
+-- 기존 운영 DB / 기존 Docker 볼륨용 런타임 DB 계정 전환 예시
+-- 사용 전 아래 placeholder를 실제 값으로 치환한다.
+--   __APP_CORE_RW_PASSWORD__
+--   __APP_PII_RW_PASSWORD__
+--   __NOTIFICATION_PII_RO_PASSWORD__
+--   __MIGRATION_ADMIN_PASSWORD__
+--
+-- 적용 전제:
+-- - youth_welfare, youth_welfare_pii schema 가 이미 존재함
+-- - root 또는 동등한 관리자 권한 계정으로 실행함
+
+CREATE USER IF NOT EXISTS 'app_core_rw'@'%' IDENTIFIED BY '__APP_CORE_RW_PASSWORD__';
+CREATE USER IF NOT EXISTS 'app_pii_rw'@'%' IDENTIFIED BY '__APP_PII_RW_PASSWORD__';
+CREATE USER IF NOT EXISTS 'notification_pii_ro'@'%' IDENTIFIED BY '__NOTIFICATION_PII_RO_PASSWORD__';
+CREATE USER IF NOT EXISTS 'migration_admin'@'%' IDENTIFIED BY '__MIGRATION_ADMIN_PASSWORD__';
+
+ALTER USER 'app_core_rw'@'%' IDENTIFIED BY '__APP_CORE_RW_PASSWORD__';
+ALTER USER 'app_pii_rw'@'%' IDENTIFIED BY '__APP_PII_RW_PASSWORD__';
+ALTER USER 'notification_pii_ro'@'%' IDENTIFIED BY '__NOTIFICATION_PII_RO_PASSWORD__';
+ALTER USER 'migration_admin'@'%' IDENTIFIED BY '__MIGRATION_ADMIN_PASSWORD__';
+
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'app_core_rw'@'%';
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'app_pii_rw'@'%';
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'notification_pii_ro'@'%';
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'migration_admin'@'%';
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON youth_welfare.* TO 'app_core_rw'@'%';
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON youth_welfare_pii.user_pii TO 'app_pii_rw'@'%';
+GRANT SELECT (user_key, email_enc) ON youth_welfare_pii.user_pii TO 'notification_pii_ro'@'%';
+
+GRANT ALL PRIVILEGES ON youth_welfare.* TO 'migration_admin'@'%';
+GRANT ALL PRIVILEGES ON youth_welfare_pii.* TO 'migration_admin'@'%';
+
+FLUSH PRIVILEGES;
+
+SHOW GRANTS FOR 'app_core_rw'@'%';
+SHOW GRANTS FOR 'app_pii_rw'@'%';
+SHOW GRANTS FOR 'notification_pii_ro'@'%';
+SHOW GRANTS FOR 'migration_admin'@'%';

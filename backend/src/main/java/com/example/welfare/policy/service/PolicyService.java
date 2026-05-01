@@ -90,25 +90,24 @@ public class PolicyService {
 
     @Transactional
     public void toggleBookmark(Long userId, Long serviceId) {
+        String userKey = resolveUserKey(userId);
         UserRecommendation recommendation = userRecommendationRepository
-                .findTopByUserIdAndServiceIdOrderByRecommendedAtDesc(userId, serviceId)
-                .orElseGet(() -> createBookmarkPlaceholder(userId, serviceId));
+                .findTopByUserKeyAndServiceIdOrderByRecommendedAtDesc(userKey, serviceId)
+                .orElseGet(() -> createBookmarkPlaceholder(userId, userKey, serviceId));
 
         if (!recommendation.isBookmarked()
-                && userRecommendationRepository.countByUserIdAndIsBookmarkedTrue(userId) >= MAX_BOOKMARKS) {
+                && userRecommendationRepository.countByUserKeyAndIsBookmarkedTrue(userKey) >= MAX_BOOKMARKS) {
             throw new CustomException(ErrorCode.BOOKMARK_LIMIT_EXCEEDED);
         }
         recommendation.toggleBookmark();
     }
 
-    private UserRecommendation createBookmarkPlaceholder(Long userId, Long serviceId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+    private UserRecommendation createBookmarkPlaceholder(Long userId, String userKey, Long serviceId) {
         WelfareService service = welfareServiceRepository.findById(serviceId)
                 .orElseThrow(() -> new CustomException(ErrorCode.POLICY_NOT_FOUND));
 
         UserRecommendation placeholder = UserRecommendation.builder()
-                .user(user)
+                .userKey(userKey)
                 .service(service)
                 .recommendedAt(LocalDateTime.now())
                 .build();
@@ -119,12 +118,18 @@ public class PolicyService {
         if (userId == null || services.isEmpty()) {
             return Collections.emptySet();
         }
+        String userKey = resolveUserKey(userId);
 
         List<Long> serviceIds = services.stream()
                 .map(WelfareService::getId)
                 .toList();
 
-        return new HashSet<>(userRecommendationRepository.findLatestBookmarkedServiceIds(userId, serviceIds));
+        return new HashSet<>(userRecommendationRepository.findLatestBookmarkedServiceIdsByUserKey(userKey, serviceIds));
+    }
+
+    private String resolveUserKey(Long userId) {
+        return userRepository.findUserKeyById(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
     }
 
     private Pageable buildPageable(Pageable pageable, String sort) {

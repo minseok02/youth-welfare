@@ -1,7 +1,7 @@
 spring:
   datasource:
     url: ${DB_URL:jdbc:mysql://localhost:3306/youth_welfare?useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=UTF-8&serverTimezone=Asia/Seoul}
-    username: ${DB_USERNAME:root}
+    username: ${DB_USERNAME:app_core_rw}
     password: ${DB_PASSWORD:}
     driver-class-name: com.mysql.cj.jdbc.Driver
 
@@ -44,8 +44,39 @@ openai:
   model: gpt-4o-mini
   timeout: 30000
 
+app:
+  base-url: ${APP_BASE_URL:http://localhost:5173}
+  datasource:
+    pii-rw:
+      url: ${APP_PII_DB_URL:jdbc:mysql://localhost:3306/youth_welfare_pii?useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=UTF-8&serverTimezone=Asia/Seoul}
+      username: ${DB_APP_PII_USERNAME:app_pii_rw}
+      password: ${DB_APP_PII_PASSWORD:${DB_PASSWORD:}}
+      driver-class-name: com.mysql.cj.jdbc.Driver
+    notification-pii-ro:
+      url: ${NOTIFICATION_PII_DB_URL:${APP_PII_DB_URL:jdbc:mysql://localhost:3306/youth_welfare_pii?useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=UTF-8&serverTimezone=Asia/Seoul}}
+      username: ${DB_NOTIFICATION_PII_RO_USERNAME:notification_pii_ro}
+      password: ${DB_NOTIFICATION_PII_RO_PASSWORD:${DB_PASSWORD:}}
+      driver-class-name: com.mysql.cj.jdbc.Driver
+
+auth:
+  password-reset:
+    expiration-minutes: ${AUTH_PASSWORD_RESET_EXPIRATION_MINUTES:30}
+
+chat:
+  rate-limit:
+    max-requests: ${CHAT_RATE_LIMIT_MAX_REQUESTS:5}
+    window-seconds: ${CHAT_RATE_LIMIT_WINDOW_SECONDS:60}
+
 aes:
   secret-key: ${AES_SECRET_KEY}    # 32바이트 (AES-256)
+
+user:
+  pii-sync:
+    retry:
+      enabled: ${USER_PII_SYNC_RETRY_ENABLED:true}
+      batch-size: ${USER_PII_SYNC_RETRY_BATCH_SIZE:100}
+      fixed-delay-ms: ${USER_PII_SYNC_RETRY_FIXED_DELAY_MS:300000}
+      initial-delay-ms: ${USER_PII_SYNC_RETRY_INITIAL_DELAY_MS:60000}
 
 youth-api:
   api-key: ${YOUTH_API_KEY}
@@ -88,3 +119,6 @@ management:
   health:
     mail:
       enabled: false
+
+security:
+  admin-emails: ${SECURITY_ADMIN_EMAILS:}
