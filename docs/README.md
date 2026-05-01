@@ -61,6 +61,9 @@
 - [policy-normalization-gov24-swagger-visibility-check.md](./policy-normalization-gov24-swagger-visibility-check.md)
   current `data.go.kr` dataset page와 `schema.org` metadata만으로 `GOV24_SERVICE_FIELD`, `GOV24_USER_TYPE`, `GOV24_BENEFIT_TYPE` finite inventory가 실제로 보이는지 확인합니다.
 
+- [policy-normalization-gov24-codebook-request-template.md](./policy-normalization-gov24-codebook-request-template.md)
+  `GOV24_SERVICE_FIELD`, `GOV24_USER_TYPE`, `GOV24_BENEFIT_TYPE` codebook을 provider/operator 에 실제로 요청할 때의 제목, 본문, sufficient/insufficient 판정 기준을 정리합니다.
+
 - [policy-normalization-gov24-support-condition-source-plan.md](./policy-normalization-gov24-support-condition-source-plan.md)
   `GOV24_SUPPORT_CONDITION` 을 representative subset seed에서 full inventory/backfill로 넓힐 때 어떤 official source가 더 필요한지 확인합니다.
 

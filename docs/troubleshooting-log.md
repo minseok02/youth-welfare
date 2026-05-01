@@ -1507,3 +1507,8 @@
 - 문제: current dataset page를 official entrypoint로 인정하더라도, 실제로 `serviceField` / `userType` / `benefitType` finite inventory가 page text나 metadata에 직접 보이는지 확인하지 않으면 “일단 current page를 봤다”는 사실만으로 SQL reopen 조건이 충족된 것처럼 오해할 수 있었다
 - 해결: [policy-normalization-gov24-swagger-visibility-check.md](./policy-normalization-gov24-swagger-visibility-check.md) 에서 current `data.go.kr` page와 `schema.org` metadata를 다시 확인한 결과, entrypoint/provenance 는 분명하지만 field-level finite inventory는 직접 드러나지 않는다고 고정했다
 - 이유: practical next action을 좁히려면 “current page 확인”과 “finite inventory 확보”를 같은 단계로 취급하면 안 된다. 이번 단계의 결론은 current page 확인 완료이고, 따라서 다음 액션은 provider/operator codebook 요청 실행으로 넘어가는 편이 맞다
+
+## 292) `GOV24_*` source가 막혀 있을 때는 “요청 스펙이 있다”와 “바로 보낼 수 있는 템플릿이 있다”를 구분해야 다음 액션이 실제로 움직인다
+- 문제: 기존 [policy-normalization-gov24-label-source-plan.md](./policy-normalization-gov24-label-source-plan.md) 에도 요청 스펙은 있었지만, 실제 제목/본문/판정 기준까지 내려오지 않으면 여전히 “운영자에게 뭘 보내지?” 단계에서 멈출 수 있었다
+- 해결: [policy-normalization-gov24-codebook-request-template.md](./policy-normalization-gov24-codebook-request-template.md) 에서 요청 제목, long/short 본문 템플릿, sufficient/insufficient 예시, reopen 판정 기준을 따로 고정했다
+- 이유: blocked SQL reopen에서는 source 찾는 일 자체보다 “어떤 자료가 오면 reopen 가능한가”를 명확히 적는 편이 더 중요하다. 이번 단계로 `GOV24_*` practical next action은 실제 요청 발송으로 더 좁혀졌다
