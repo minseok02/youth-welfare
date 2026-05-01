@@ -1365,9 +1365,9 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
   - 신규 source-specific 필드는 `raw payload 보존 -> official/rule-derived canonical 우선 추출 -> 남는 자유서술만 AI batch enrichment 후보 승격` 순서로 처리한다고 고정했다
   - AI batch 결과는 `service_facts(authority=AI_ENRICHED)` 또는 `service_taxonomy_terms(authority=AI_ENRICHED)` 같은 보조 signal로만 쓰고, official/rule-derived 동일 슬롯 overwrite나 `unifiedCategory` / compat layer 대체에는 쓰지 않는다
   - 즉 AI는 source-specific 필드의 1차 저장 경로가 아니라 canonical 정규화 이후 남는 잔여 신호의 마지막 보강 단계로만 위치시킨다
-- [ ] `YOUTH_MID` stable code mapping SQL 초안 작성
 - [ ] `GOV24_SERVICE_FIELD`, `GOV24_USER_TYPE`, `GOV24_BENEFIT_TYPE` 공식 label inventory import/backfill SQL 초안 작성
 - [ ] `GOV24_SUPPORT_CONDITION` 전체 code inventory 확장 및 `service_facts` backfill 초안 작성
+- [ ] `YOUTH_MID` stable code mapping SQL 초안 작성
 - [x] `compat_unified_category` 를 저장 필드로 둘지 read-model 계산값으로 둘지 최종 결정
 - [x] `TextConstraintExtractor` 를 `service_facts` 저장 규격에 맞춘 출력 모델로 재설계
 - [x] `WelfareServiceRepository.findCandidates*`, `RetrievalService`, `RuleScoringService`, `DefaultPriorityMatcher` 의 점진 이행 순서 설계
@@ -1403,6 +1403,9 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - [x] `bokjiro-details-gap-fill` 추가 실행을 default 확대 작업으로 둘지, 수동 catch-up/on-demand 로 유지할지 결정
   - [policy-bokjiro-gap-fill-execution-policy.md](./policy-bokjiro-gap-fill-execution-policy.md) 를 추가해 current phase에서는 gap-fill 추가 실행을 routine default 작업으로 두지 않고, 필요할 때만 여는 수동 catch-up/on-demand 작업으로 유지한다고 고정했다
   - 이미 확인된 coverage/fact 증가 효율이 완만하고, 남은 갭의 중심도 payload signal 분포와 soft signal 판단 쪽으로 이동했으므로 다음 기본 진행축은 다른 canonical/source pending 으로 넘긴다고 정리했다
+- [x] blocked SQL reopen 우선순위(`GOV24_*` vs `YOUTH_MID`) 정리
+  - [policy-normalization-blocked-sql-reopen-priority.md](./policy-normalization-blocked-sql-reopen-priority.md) 를 추가해 blocked SQL reopen 우선순위를 `GOV24_SERVICE_FIELD/USER_TYPE/BENEFIT_TYPE -> GOV24_SUPPORT_CONDITION full inventory -> YOUTH_MID stable code mapping` 순서로 고정했다
+  - 이유는 `Gov24` 가 current canonical onboarding 기준선과 더 직접 연결되고 current API source도 더 명확한 반면, `YOUTH_MID` 는 여전히 operator-provided codebook 의존도가 높고 label-only fallback 으로 당분간 유지 가능하기 때문이다
 - [ ] 운영 서버 Docker Compose 기동
 - [ ] 기존 운영 DB에 `app_core_rw` / `app_pii_rw` / `notification_pii_ro` / `migration_admin` 계정 생성 및 앱 datasource 전환
 - [ ] 운영 `.env` / secret store의 `APP_PII_DB_URL` / `NOTIFICATION_PII_DB_URL` 를 `youth_welfare_pii` schema 기준으로 전환

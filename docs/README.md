@@ -235,6 +235,9 @@
 - [policy-source-canonical-onboarding-priority.md](./policy-source-canonical-onboarding-priority.md)
   `정부지원일자리정보`, `구직자취업역량 강화프로그램`, `Gov24/보조금24` 같은 정책형 source를 어떤 순서로 canonical onboarding / live validation 할지 확인합니다.
 
+- [policy-normalization-blocked-sql-reopen-priority.md](./policy-normalization-blocked-sql-reopen-priority.md)
+  아직 source-of-truth 부족으로 막혀 있는 `GOV24_*` / `YOUTH_MID` 관련 SQL 초안 중 무엇을 먼저 다시 열지 확인합니다.
+
 - [policy-scholarship-reference-matrix-draft.md](./policy-scholarship-reference-matrix-draft.md)
   한국장학재단/국가장학금 계열에서 `제도 row` 와 `지원가능대학/학기/지원구간` reference matrix를 어떻게 분리할지 확인합니다.
 

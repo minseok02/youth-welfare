@@ -1492,3 +1492,8 @@
 - 문제: `2 rounds x 20 calls -> 2 rounds x 40 calls -> 95/API catch-up` 같은 예산 전략을 정리한 뒤에도 `stored detail payload coverage 추가 확대` 를 기본 pending 으로 그대로 두면, small-step 실험과 catch-up run 이 모두 “지금 당장 계속 해야 하는 일”처럼 보일 수 있었다
 - 해결: [policy-bokjiro-gap-fill-execution-policy.md](./policy-bokjiro-gap-fill-execution-policy.md) 에서 current phase의 gap-fill 추가 실행은 routine default가 아니라 수동 catch-up/on-demand 작업으로만 유지한다고 고정했다
 - 이유: 전략을 세웠다는 것과 지금 당장 실행을 계속해야 한다는 것은 다르다. 현재는 coverage/fact 증가 효율이 완만하고, 남은 갭의 중심도 payload signal 분포와 soft signal 판단 쪽으로 이동했으므로 기본 진행축을 다른 canonical/source pending 으로 넘기는 편이 더 맞다
+
+## 289) blocked SQL pending 이 여러 개일 때는 “먼저 다시 열 가능성이 높은 축”을 정하지 않으면 계속 보류 문서만 쌓이고 실제 다음 액션이 흐려질 수 있다
+- 문제: 현재 `YOUTH_MID stable code mapping SQL`, `GOV24_SERVICE_FIELD / USER_TYPE / BENEFIT_TYPE import/backfill SQL`, `GOV24_SUPPORT_CONDITION full inventory` 가 모두 source-of-truth 부족으로 막혀 있다. 이 상태에서 우선순위를 따로 정하지 않으면 세 항목이 모두 같은 수준의 막힌 pending처럼 남아 실제 다음 액션이 다시 흐려질 수 있었다
+- 해결: [policy-normalization-blocked-sql-reopen-priority.md](./policy-normalization-blocked-sql-reopen-priority.md) 에서 reopen 우선순위를 `GOV24_* -> GOV24 supportConditions full inventory -> YOUTH_MID` 로 고정했다
+- 이유: `Gov24` 는 current canonical onboarding 기준선과 더 직접 연결되고 current API source도 더 명확하다. 반면 `YOUTH_MID` 는 operator-provided codebook 의존도가 높고, 지금도 label-only fallback으로 당분간 유지 가능하므로 reopen 우선순위를 뒤로 두는 편이 더 맞다
