@@ -29,13 +29,19 @@ public class RecommendationResponse {
     }
 
     public static RecommendationResponse from(UserRecommendation rec, Long logId) {
+        return from(rec, logId, null);
+    }
+
+    public static RecommendationResponse from(UserRecommendation rec,
+                                              Long logId,
+                                              RecommendationCandidateProjection projection) {
         return RecommendationResponse.builder()
                 .id(rec.getId())
                 .serviceId(rec.getService().getId())
                 .logId(logId)
                 .title(rec.getService().getTitle())
                 .description(rec.getService().getDescription())
-                .unifiedCategory(rec.getService().getUnifiedCategory())
+                .unifiedCategory(resolveUnifiedCategory(rec, projection))
                 .status(rec.getService().getStatus().name())
                 .finalScore(rec.getFinalScore())
                 .aiScore(rec.getAiScore())
@@ -43,5 +49,13 @@ public class RecommendationResponse {
                 .isBookmarked(rec.isBookmarked())
                 .recommendedAt(rec.getRecommendedAt())
                 .build();
+    }
+
+    private static String resolveUnifiedCategory(UserRecommendation rec,
+                                                 RecommendationCandidateProjection projection) {
+        if (projection != null && projection.unifiedCategoryCompat() != null) {
+            return projection.unifiedCategoryCompat();
+        }
+        return rec.getService().getUnifiedCategory();
     }
 }

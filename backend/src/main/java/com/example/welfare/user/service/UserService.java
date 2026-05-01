@@ -5,6 +5,7 @@ import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.global.util.AesEncryptUtil;
 import com.example.welfare.policy.dto.PolicySummaryResponse;
+import com.example.welfare.recommend.repository.CanonicalRecommendationReadModelRepository;
 import com.example.welfare.recommend.entity.UserRecommendation;
 import com.example.welfare.recommend.repository.UserRecommendationRepository;
 import com.example.welfare.user.dto.request.UpdateProfileRequest;
@@ -49,6 +50,7 @@ public class UserService {
     private final ChatSessionCleanupService chatSessionCleanupService;
     private final UserCoreSyncService userCoreSyncService;
     private final UserReadService userReadService;
+    private final CanonicalRecommendationReadModelRepository canonicalRecommendationReadModelRepository;
 
     @Transactional(readOnly = true)
     public ProfileResponse getProfile(Long userId) {
@@ -59,9 +61,13 @@ public class UserService {
     public List<PolicySummaryResponse> getBookmarks(Long userId) {
         findActiveUser(userId);
         List<UserRecommendation> bookmarks = userRecommendationRepository.findLatestBookmarkedByUserKey(resolveUserKey(userId));
+        java.util.Map<Long, com.example.welfare.recommend.dto.RecommendationCandidateProjection> projections =
+                canonicalRecommendationReadModelRepository.findByServiceIds(
+                        bookmarks.stream().map(bookmark -> bookmark.getService().getId()).toList()
+                );
         return bookmarks.stream()
                 .map(UserRecommendation::getService)
-                .map(service -> PolicySummaryResponse.from(service, true))
+                .map(service -> PolicySummaryResponse.from(service, true, projections.get(service.getId())))
                 .toList();
     }
 

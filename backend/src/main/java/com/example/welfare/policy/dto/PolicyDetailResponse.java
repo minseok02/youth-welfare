@@ -4,6 +4,7 @@ import com.example.welfare.policy.entity.ServiceRegion;
 import com.example.welfare.policy.entity.ServiceTag;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.entity.WelfareServiceDetail;
+import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -62,6 +63,15 @@ public class PolicyDetailResponse {
                                            List<ServiceRegion> regions,
                                            List<ServiceTag> tags,
                                            boolean bookmarked) {
+        return of(ws, detail, regions, tags, bookmarked, null);
+    }
+
+    public static PolicyDetailResponse of(WelfareService ws,
+                                          WelfareServiceDetail detail,
+                                          List<ServiceRegion> regions,
+                                          List<ServiceTag> tags,
+                                          boolean bookmarked,
+                                          RecommendationCandidateProjection projection) {
         List<String> regionNames = regions.stream()
                 .map(r -> r.getSidoName() != null
                         ? r.getSidoName() + (r.getSggName() != null ? " " + r.getSggName() : "")
@@ -79,7 +89,7 @@ public class PolicyDetailResponse {
                 .id(ws.getId())
                 .title(ws.getTitle())
                 .description(ws.getDescription())
-                .unifiedCategory(ws.getUnifiedCategory())
+                .unifiedCategory(resolveUnifiedCategory(ws, projection))
                 .status(ws.getStatus().name())
                 .sourceType(ws.getSourceType().name())
                 .hostOrg(ws.getHostOrg())
@@ -107,5 +117,13 @@ public class PolicyDetailResponse {
                 .regions(regionNames)
                 .tags(tagItems)
                 .build();
+    }
+
+    private static String resolveUnifiedCategory(WelfareService ws,
+                                                 RecommendationCandidateProjection projection) {
+        if (projection != null && projection.unifiedCategoryCompat() != null) {
+            return projection.unifiedCategoryCompat();
+        }
+        return ws.getUnifiedCategory();
     }
 }

@@ -7,6 +7,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDate;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -54,6 +55,27 @@ class DefaultPriorityMatcherTest {
 
         assertThat(matcher.matches(priority("DEADLINE"), service, projection)).isTrue();
         assertThat(matcher.matches(priority("DEADLINE"), service, null)).isFalse();
+    }
+
+    @Test
+    @DisplayName("projection priority bucket 이 있으면 compat 문자열 없이도 priority 를 매칭한다")
+    void matchesUsesProjectionPriorityBucketsBeforeCompatString() {
+        WelfareService service = WelfareService.builder()
+                .id(3L)
+                .sourceType(WelfareService.SourceType.BOKJIRO_LOCAL)
+                .sourceId("L3")
+                .title("참여 지원")
+                .unifiedCategory("기타")
+                .status(WelfareService.ServiceStatus.ACTIVE)
+                .build();
+
+        RecommendationCandidateProjection projection = RecommendationCandidateProjection.builder()
+                .serviceId(service.getId())
+                .priorityBuckets(Set.of("PARTICIPATION"))
+                .build();
+
+        assertThat(matcher.matches(priority("PARTICIPATION"), service, projection)).isTrue();
+        assertThat(matcher.matches(priority("FAMILY"), service, projection)).isFalse();
     }
 
     private PriorityPreference priority(String code) {

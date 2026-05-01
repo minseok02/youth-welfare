@@ -12,8 +12,10 @@ import com.example.welfare.policy.service.PolicySearchService;
 import com.example.welfare.policy.service.PolicyService;
 import com.example.welfare.policy.service.PolicyViewLogService;
 import com.example.welfare.recommend.controller.RecommendationController;
+import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
 import com.example.welfare.recommend.entity.UserRecommendation;
 import com.example.welfare.recommend.facade.RecommendationFacade;
+import com.example.welfare.recommend.repository.CanonicalRecommendationReadModelRepository;
 import com.example.welfare.recommend.service.RecommendationLogService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -61,6 +63,8 @@ class RecommendationPolicyFlowWebMvcTest {
     @MockBean
     private RecommendationLogService recommendationLogService;
     @MockBean
+    private CanonicalRecommendationReadModelRepository canonicalRecommendationReadModelRepository;
+    @MockBean
     private PolicyViewLogService policyViewLogService;
 
     @Test
@@ -100,6 +104,14 @@ class RecommendationPolicyFlowWebMvcTest {
         given(recommendationFacade.recommend(isNull(), eq(false))).willReturn(List.of(recommendation));
         given(recommendationLogService.findLatestLogIdMap(isNull(), org.mockito.ArgumentMatchers.anyList()))
                 .willReturn(java.util.Map.of(11L, 9001L));
+        given(canonicalRecommendationReadModelRepository.findByServiceIds(org.mockito.ArgumentMatchers.anyList()))
+                .willReturn(java.util.Map.of(
+                        11L,
+                        RecommendationCandidateProjection.builder()
+                                .serviceId(11L)
+                                .unifiedCategoryCompat("주거")
+                                .build()
+                ));
         given(policyRankingService.getRanking(5)).willReturn(List.of(ranking));
         given(policySearchService.search(isNull(), eq("월세"), eq("ACTIVE"), isNull(), eq("HOUSING"), eq("YOUTH"), eq(true), isNull(), isNull(), eq("RELEVANCE"), eq(0), eq(10)))
                 .willReturn(PolicySearchResponse.builder()
@@ -121,7 +133,8 @@ class RecommendationPolicyFlowWebMvcTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data[0].serviceId").value(11))
-                .andExpect(jsonPath("$.data[0].title").value("청년 월세 지원"));
+                .andExpect(jsonPath("$.data[0].title").value("청년 월세 지원"))
+                .andExpect(jsonPath("$.data[0].unifiedCategory").value("주거"));
 
         mockMvc.perform(get("/api/policies/ranking")
                         .param("size", "5"))

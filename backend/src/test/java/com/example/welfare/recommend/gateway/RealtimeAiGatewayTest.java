@@ -1,6 +1,7 @@
 package com.example.welfare.recommend.gateway;
 
 import com.example.welfare.policy.entity.WelfareService;
+import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
 import com.example.welfare.recommend.dto.ScoredCandidate;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
@@ -84,6 +85,25 @@ class RealtimeAiGatewayTest {
         assertThat(result.aiResponse()).isNotNull();
         assertThat(result.aiResponse().getResults()).hasSize(1);
         assertThat(result.aiResponse().getResults().get(0).getServiceId()).isEqualTo(403L);
+    }
+
+    @Test
+    void resolveUnifiedCategoryUsesProjectionCompatBeforeEntityField() {
+        ScoredCandidate candidate = ScoredCandidate.builder()
+                .service(WelfareService.builder()
+                        .id(1L)
+                        .title("service-1")
+                        .unifiedCategory("기타")
+                        .build())
+                .projection(RecommendationCandidateProjection.builder()
+                        .serviceId(1L)
+                        .unifiedCategoryCompat("주거")
+                        .build())
+                .ruleBaseScore(10.0)
+                .ruleWeightedScore(10.0)
+                .build();
+
+        assertThat(RealtimeAiGateway.resolveUnifiedCategory(candidate)).isEqualTo("주거");
     }
 
     private ScoredCandidate scoredCandidate(Long serviceId, double ruleWeightedScore) {

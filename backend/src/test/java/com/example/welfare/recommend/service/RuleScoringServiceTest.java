@@ -220,6 +220,63 @@ class RuleScoringServiceTest {
     }
 
     @Test
+    @DisplayName("projection audience relevance bonus는 legacy youth heuristic 없이도 rule base score에 반영된다")
+    void projectionAudienceBonusAddsYouthRelevanceWithoutLegacySignals() {
+        RecommendationUserSnapshot user = snapshot(List.of(), List.of(), (byte) 5, null, null);
+
+        WelfareService baseline = welfareService(82L, "기본 지원");
+        WelfareService projected = welfareService(83L, "일반 지원");
+
+        when(serviceTagRepository.findByServiceIdIn(anyList())).thenReturn(List.of());
+
+        List<ScoredCandidate> scored = ruleScoringService.score(
+                new RetrievedRecommendationCandidates(
+                        List.of(baseline, projected),
+                        Map.of(
+                                projected.getId(),
+                                RecommendationCandidateProjection.builder()
+                                        .serviceId(projected.getId())
+                                        .audienceRelevanceBonus(23.0)
+                                        .build()
+                        )
+                ),
+                user
+        );
+
+        assertThat(findByServiceId(scored, 83L).getRuleBaseScore())
+                .isEqualTo(findByServiceId(scored, 82L).getRuleBaseScore() + 23.0);
+    }
+
+    @Test
+    @DisplayName("projection special target bucket은 raw text 없이도 mismatch penalty를 계산한다")
+    void projectionSpecialTargetBucketsDriveMismatchPenaltyWithoutLegacySignals() {
+        RecommendationUserSnapshot user = snapshot(List.of(), List.of(), (byte) 5, null, null);
+
+        WelfareService baseline = welfareService(84L, "일반 지원");
+        WelfareService projected = welfareService(85L, "일반 지원");
+
+        when(serviceTagRepository.findByServiceIdIn(anyList())).thenReturn(List.of());
+
+        List<ScoredCandidate> scored = ruleScoringService.score(
+                new RetrievedRecommendationCandidates(
+                        List.of(baseline, projected),
+                        Map.of(
+                                projected.getId(),
+                                RecommendationCandidateProjection.builder()
+                                        .serviceId(projected.getId())
+                                        .specialTargetBuckets(Set.of("농어촌"))
+                                        .build()
+                        )
+                ),
+                user
+        );
+
+        assertThat(findByServiceId(scored, 85L).getRuleBaseScore())
+                .isEqualTo(findByServiceId(scored, 84L).getRuleBaseScore() - 8.0);
+        assertThat(findByServiceId(scored, 85L).isHasSpecialTargetMismatch()).isTrue();
+    }
+
+    @Test
     @DisplayName("projection factKeys는 deadline helper 경계에 연결되어도 기존 applyEndDate bonus 의미를 유지한다")
     void projectionFactKeysKeepsLegacyDeadlineBonusMeaning() {
         RecommendationUserSnapshot user = snapshot(List.of(), List.of(), (byte) 5, null, null);
@@ -274,8 +331,7 @@ class RuleScoringServiceTest {
                                 projected.getId(),
                                 RecommendationCandidateProjection.builder()
                                         .serviceId(projected.getId())
-                                        .unifiedCategoryCompat("기타")
-                                        .youthMajorLabel("교육")
+                                        .educationPriorityBoostEligible(true)
                                         .build()
                         )
                 ),

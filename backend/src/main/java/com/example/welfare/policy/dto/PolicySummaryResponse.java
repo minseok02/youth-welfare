@@ -1,6 +1,7 @@
 package com.example.welfare.policy.dto;
 
 import com.example.welfare.policy.entity.WelfareService;
+import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -25,11 +26,17 @@ public class PolicySummaryResponse {
     private boolean bookmarked;
 
     public static PolicySummaryResponse from(WelfareService ws, boolean bookmarked) {
+        return from(ws, bookmarked, null);
+    }
+
+    public static PolicySummaryResponse from(WelfareService ws,
+                                             boolean bookmarked,
+                                             RecommendationCandidateProjection projection) {
         return PolicySummaryResponse.builder()
                 .id(ws.getId())
                 .title(ws.getTitle())
                 .description(ws.getDescription())
-                .unifiedCategory(ws.getUnifiedCategory())
+                .unifiedCategory(resolveUnifiedCategory(ws, projection))
                 .status(ws.getStatus().name())
                 .hostOrg(ws.getHostOrg())
                 .minAge(ws.getMinAge())
@@ -40,5 +47,13 @@ public class PolicySummaryResponse {
                 .isOnlineApply(ws.getIsOnlineApply())
                 .bookmarked(bookmarked)
                 .build();
+    }
+
+    private static String resolveUnifiedCategory(WelfareService ws,
+                                                 RecommendationCandidateProjection projection) {
+        if (projection != null && projection.unifiedCategoryCompat() != null) {
+            return projection.unifiedCategoryCompat();
+        }
+        return ws.getUnifiedCategory();
     }
 }

@@ -3,6 +3,8 @@ package com.example.welfare.policy.service;
 import com.example.welfare.policy.dto.PolicySearchResponse;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.repository.WelfareServiceRepository;
+import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
+import com.example.welfare.recommend.repository.CanonicalRecommendationReadModelRepository;
 import com.example.welfare.recommend.repository.UserRecommendationRepository;
 import com.example.welfare.user.repository.UserRepository;
 import org.junit.jupiter.api.DisplayName;
@@ -33,6 +35,8 @@ class PolicySearchServiceTest {
     private UserRecommendationRepository userRecommendationRepository;
     @Mock
     private UserRepository userRepository;
+    @Mock
+    private CanonicalRecommendationReadModelRepository canonicalRecommendationReadModelRepository;
 
     @Test
     @DisplayName("검색은 SQL 레벨 청년 플래그 필터 결과를 페이지 메타데이터와 함께 반환한다")
@@ -40,7 +44,8 @@ class PolicySearchServiceTest {
         PolicySearchService service = new PolicySearchService(
                 welfareServiceRepository,
                 userRecommendationRepository,
-                userRepository
+                userRepository,
+                canonicalRecommendationReadModelRepository
         );
 
         WelfareService youthService = welfareService(1L, "청년 정책");
@@ -54,10 +59,19 @@ class PolicySearchServiceTest {
                 eq("RELEVANCE"),
                 any(PageRequest.class)
         )).willReturn(new PageImpl<>(List.of(youthService), PageRequest.of(0, 10), 21));
+        given(canonicalRecommendationReadModelRepository.findByServiceIds(List.of(1L)))
+                .willReturn(java.util.Map.of(
+                        1L,
+                        RecommendationCandidateProjection.builder()
+                                .serviceId(1L)
+                                .unifiedCategoryCompat("주거")
+                                .build()
+                ));
 
         PolicySearchResponse results = service.search(null, "청년", null, null, null, null, null, null, null, null, 0, 10);
 
         assertThat(results.getContent()).hasSize(1);
+        assertThat(results.getContent().get(0).getUnifiedCategory()).isEqualTo("주거");
         assertThat(results.getTotalElements()).isEqualTo(21);
         assertThat(results.getTotalPages()).isEqualTo(3);
         assertThat(results.isHasNext()).isTrue();
@@ -83,7 +97,8 @@ class PolicySearchServiceTest {
         PolicySearchService service = new PolicySearchService(
                 welfareServiceRepository,
                 userRecommendationRepository,
-                userRepository
+                userRepository,
+                canonicalRecommendationReadModelRepository
         );
 
         WelfareService youthService = welfareService(2L, "서울 청년 정책");
@@ -99,6 +114,8 @@ class PolicySearchServiceTest {
                 eq("RELEVANCE"),
                 any(PageRequest.class)
         )).willReturn(new PageImpl<>(List.of(youthService), PageRequest.of(0, 10), 1));
+        given(canonicalRecommendationReadModelRepository.findByServiceIds(List.of(2L)))
+                .willReturn(java.util.Map.of());
 
         PolicySearchResponse results = service.search(
                 null,
@@ -136,7 +153,8 @@ class PolicySearchServiceTest {
         PolicySearchService service = new PolicySearchService(
                 welfareServiceRepository,
                 userRecommendationRepository,
-                userRepository
+                userRepository,
+                canonicalRecommendationReadModelRepository
         );
 
         WelfareService youthService = welfareService(3L, "서울 전체 청년 정책");
@@ -151,6 +169,8 @@ class PolicySearchServiceTest {
                 eq("RELEVANCE"),
                 any(PageRequest.class)
         )).willReturn(new PageImpl<>(List.of(youthService), PageRequest.of(0, 10), 1));
+        given(canonicalRecommendationReadModelRepository.findByServiceIds(List.of(3L)))
+                .willReturn(java.util.Map.of());
 
         PolicySearchResponse results = service.search(
                 null,

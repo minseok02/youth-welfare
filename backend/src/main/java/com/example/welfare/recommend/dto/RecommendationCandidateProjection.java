@@ -25,22 +25,28 @@ public record RecommendationCandidateProjection(
         Integer incomeMaxLegacy,
         LocalDate applyEndDate,
         boolean youthRelevant,
+        double audienceRelevanceBonus,
+        boolean educationPriorityBoostEligible,
+        Set<String> priorityBuckets,
         Set<String> interestThemes,
         Set<String> targetGroupsRaw,
         Set<String> targetGroupBuckets,
         Set<String> lifeStages,
         Set<String> keywordTags,
         Set<String> beneficiaryTerms,
+        Set<String> specialTargetBuckets,
         Set<String> factKeys
 ) {
 
     public RecommendationCandidateProjection {
+        priorityBuckets = immutableCopy(priorityBuckets);
         interestThemes = immutableCopy(interestThemes);
         targetGroupsRaw = immutableCopy(targetGroupsRaw);
         targetGroupBuckets = immutableCopy(targetGroupBuckets);
         lifeStages = immutableCopy(lifeStages);
         keywordTags = immutableCopy(keywordTags);
         beneficiaryTerms = immutableCopy(beneficiaryTerms);
+        specialTargetBuckets = immutableCopy(specialTargetBuckets);
         factKeys = immutableCopy(factKeys);
     }
 
