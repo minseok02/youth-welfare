@@ -42,6 +42,9 @@
 - [policy-normalization-research.md](./policy-normalization-research.md)
   신규 데이터 API 확장에 맞춰 공식 정규화 기준(온통청년 운영 코드북, 정부24/보조금24 지원조건 코드)과 AI enrichment 분리 방향을 확인합니다.
 
+- [policy-normalization-current-state.md](./policy-normalization-current-state.md)
+  현재 코드/로컬 검증 기준으로 canonical sidecar, recommendation bridge, blocked source가 어디까지 와 있는지 한 문서에서 확인합니다.
+
 - [policy-normalization-sample-spike.md](./policy-normalization-sample-spike.md)
   온통청년/복지로/Gov24 대표 샘플이 새 canonical 구조(`core/detail/taxonomy/facts`)에 실제로 어떻게 들어가는지와 source별 공백을 확인합니다.
 

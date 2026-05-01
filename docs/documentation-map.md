@@ -26,6 +26,7 @@
 ### 현재 구현 상태 요약
 
 - [auth-session-revocation-current-state.md](./auth-session-revocation-current-state.md)
+- [policy-normalization-current-state.md](./policy-normalization-current-state.md)
 - [policy-local-closeout-pending-inventory.md](./policy-local-closeout-pending-inventory.md)
 - [policy-post-local-closeout-track-split.md](./policy-post-local-closeout-track-split.md)
 
@@ -64,7 +65,8 @@
 
 읽는 법:
 
-- current big picture 는 [policy-source-onboarding-playbook.md](./policy-source-onboarding-playbook.md),
+- current big picture 는 [policy-normalization-current-state.md](./policy-normalization-current-state.md),
+  [policy-source-onboarding-playbook.md](./policy-source-onboarding-playbook.md),
   [policy-normalization-recommendation-read-model.md](./policy-normalization-recommendation-read-model.md),
   [policy-normalization-recommendation-migration-order.md](./policy-normalization-recommendation-migration-order.md)
 - 세부 drift/inventory/bridge 판단은 개별 문서

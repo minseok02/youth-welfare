@@ -1472,6 +1472,9 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
   - [documentation-map.md](./documentation-map.md) 를 추가해 현재 `docs/` 를 current source of truth, design history, external blocked, ops-only 로 나눠 읽는 기준을 만들었다
   - [auth-session-revocation-current-state.md](./auth-session-revocation-current-state.md) 를 추가해 logout / withdraw / admin allowlist revoke / admin forced logout 의 현재 구현 계약을 한 문서에서 바로 보게 정리했다
   - 동시에 `auth-admin-forced-logout-*` 문서에는 design history status note 를 넣고, [README.md](./README.md) 는 current-state 우선 / design history 보조 순서로 안내하게 정리했다
+- [x] normalization 문서군 current-state 경계 정리
+  - [policy-normalization-current-state.md](./policy-normalization-current-state.md) 를 추가해 `YOUTH` canonical sidecar, `YOUTH_MID_RAW_ALIAS`, `youth_major` summary, recommendation projection hydrate, `YOUTH 0/0 income` pass-through, education experiment scoring bridge 의 현재 구현 상태를 한 문서에 묶었다
+  - [documentation-map.md](./documentation-map.md), [README.md](./README.md) 도 normalization current-state 문서를 먼저 가리키도록 갱신해, 조사/blocked/history 문서보다 현재 구현 문서를 먼저 읽게 정리했다
 - [ ] 운영 서버 Docker Compose 기동
 - [ ] 기존 운영 DB에 `app_core_rw` / `app_pii_rw` / `notification_pii_ro` / `migration_admin` 계정 생성 및 앱 datasource 전환
 - [ ] 운영 `.env` / secret store의 `APP_PII_DB_URL` / `NOTIFICATION_PII_DB_URL` 를 `youth_welfare_pii` schema 기준으로 전환
