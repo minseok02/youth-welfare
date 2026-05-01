@@ -1,13 +1,15 @@
 package com.example.welfare.global.util;
 
+import com.example.welfare.global.config.AesProperties;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.Cipher;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
+import java.security.SecureRandom;
+import java.util.Arrays;
 import java.util.Base64;
 
 @Slf4j
@@ -15,20 +17,30 @@ import java.util.Base64;
 public class AesEncryptUtil {
 
     private static final String ALGORITHM = "AES/CBC/PKCS5Padding";
-    private static final byte[] IV = "1234567890123456".getBytes(StandardCharsets.UTF_8); // 16바이트 고정 IV
+    private static final int IV_LENGTH = 16;
 
-    @Value("${aes.secret-key}")
-    private String secretKey;
+    private final String secretKey;
+    private final SecureRandom secureRandom = new SecureRandom();
+
+    public AesEncryptUtil(AesProperties aesProperties) {
+        this.secretKey = aesProperties.secretKey();
+    }
 
     public String encrypt(String plainText) {
         if (plainText == null) return null;
         try {
             SecretKeySpec keySpec = new SecretKeySpec(secretKey.getBytes(StandardCharsets.UTF_8), "AES");
-            IvParameterSpec ivSpec = new IvParameterSpec(IV);
+            byte[] iv = new byte[IV_LENGTH];
+            secureRandom.nextBytes(iv);
+            IvParameterSpec ivSpec = new IvParameterSpec(iv);
             Cipher cipher = Cipher.getInstance(ALGORITHM);
             cipher.init(Cipher.ENCRYPT_MODE, keySpec, ivSpec);
             byte[] encrypted = cipher.doFinal(plainText.getBytes(StandardCharsets.UTF_8));
-            return Base64.getEncoder().encodeToString(encrypted);
+
+            byte[] payload = new byte[IV_LENGTH + encrypted.length];
+            System.arraycopy(iv, 0, payload, 0, IV_LENGTH);
+            System.arraycopy(encrypted, 0, payload, IV_LENGTH, encrypted.length);
+            return Base64.getEncoder().encodeToString(payload);
         } catch (Exception e) {
             log.error("AES encrypt failed", e);
             throw new RuntimeException("암호화 처리 중 오류가 발생했습니다.");
@@ -39,11 +51,18 @@ public class AesEncryptUtil {
         if (encryptedText == null) return null;
         try {
             SecretKeySpec keySpec = new SecretKeySpec(secretKey.getBytes(StandardCharsets.UTF_8), "AES");
-            IvParameterSpec ivSpec = new IvParameterSpec(IV);
+            byte[] decoded = Base64.getDecoder().decode(encryptedText);
+            if (decoded.length <= IV_LENGTH) {
+                throw new IllegalArgumentException("encrypted payload is too short");
+            }
+
+            byte[] iv = Arrays.copyOfRange(decoded, 0, IV_LENGTH);
+            byte[] encrypted = Arrays.copyOfRange(decoded, IV_LENGTH, decoded.length);
+
+            IvParameterSpec ivSpec = new IvParameterSpec(iv);
             Cipher cipher = Cipher.getInstance(ALGORITHM);
             cipher.init(Cipher.DECRYPT_MODE, keySpec, ivSpec);
-            byte[] decoded = Base64.getDecoder().decode(encryptedText);
-            return new String(cipher.doFinal(decoded), StandardCharsets.UTF_8);
+            return new String(cipher.doFinal(encrypted), StandardCharsets.UTF_8);
         } catch (Exception e) {
             log.error("AES decrypt failed", e);
             throw new RuntimeException("복호화 처리 중 오류가 발생했습니다.");
