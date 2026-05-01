@@ -17,6 +17,8 @@ public class RecommendationResponse {
     private String title;
     private String description;
     private String unifiedCategory;
+    private String youthMidLabel;
+    private String provisionMethodLabel;
     private String status;
     private BigDecimal finalScore;
     private BigDecimal aiScore;     // null 가능
@@ -42,6 +44,8 @@ public class RecommendationResponse {
                 .title(rec.getService().getTitle())
                 .description(rec.getService().getDescription())
                 .unifiedCategory(resolveUnifiedCategory(rec, projection))
+                .youthMidLabel(resolveYouthMidLabel(projection))
+                .provisionMethodLabel(resolveProvisionMethodLabel(projection))
                 .status(rec.getService().getStatus().name())
                 .finalScore(rec.getFinalScore())
                 .aiScore(rec.getAiScore())
@@ -57,5 +61,13 @@ public class RecommendationResponse {
             return projection.unifiedCategoryCompat();
         }
         return rec.getService().getUnifiedCategory();
+    }
+
+    private static String resolveYouthMidLabel(RecommendationCandidateProjection projection) {
+        return projection != null ? projection.youthMidLabel() : null;
+    }
+
+    private static String resolveProvisionMethodLabel(RecommendationCandidateProjection projection) {
+        return projection != null ? projection.provisionMethodLabel() : null;
     }
 }

@@ -439,6 +439,31 @@ public void resetAiScoreForClosed() {
 
 ## 프론트 연동용 응답 필드 (2026-04-17)
 
+### `GET /api/recommendations`
+
+- 주요 필드
+  - `id`
+  - `serviceId`
+  - `logId`
+  - `title`
+  - `description`
+  - `unifiedCategory`
+  - `youthMidLabel` (nullable, canonical summary)
+  - `provisionMethodLabel` (nullable, canonical summary)
+  - `status`
+  - `finalScore`
+  - `aiScore`
+  - `aiReason`
+  - `bookmarked`
+  - `recommendedAt`
+
+### `POST /api/recommendations/refresh`
+
+- 응답 구조는 `GET /api/recommendations` 와 동일
+- additive canonical summary field
+  - `youthMidLabel`
+  - `provisionMethodLabel`
+
 ### `GET /api/policies/ranking`
 
 - 주요 필드

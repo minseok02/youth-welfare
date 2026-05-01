@@ -1952,3 +1952,8 @@
 - 문제: `youthMidLabel`, `provisionMethodLabel` 을 policy summary/detail/ranking/bookmark 응답에 추가하고 JSON contract 테스트까지 붙인 뒤에도, `api-mapping.md` 는 여전히 예전 응답 필드 집합만 설명하고 있었다. 이 상태에서는 프론트 연결 전 단계의 개발자나 QA가 새 필드 존재를 문서에서 바로 못 찾고, DTO/WebMvc 테스트를 다시 뒤져야 했다.
 - 해결: `api-mapping.md` 에 `GET /api/policies`, `GET /api/policies/search`, `GET /api/policies/{id}`, `GET /api/policies/ranking`, `GET /api/users/me/bookmarks` 의 additive canonical summary field(`youthMidLabel`, `provisionMethodLabel`)를 명시하고 예시 JSON도 갱신했다. 또 `current-state.md` 에 `api-mapping.md` 링크를 추가해 현재 단계의 API contract entrypoint를 분명히 했다.
 - 이유: 프론트 연결 전에는 문서가 사실상 계약서 역할을 한다. 테스트가 green 이더라도 문서가 예전 상태면 연동 전 준비 비용이 다시 커지므로, additive response field는 코드와 문서가 같은 턴에 함께 열려 있어야 한다.
+
+## 365) policy 응답만 additive canonical summary field를 노출하고 recommendation 응답이 예전 shape에 머물면, 프론트는 같은 카드 계열인데도 엔드포인트별로 서로 다른 데이터 모델을 다뤄야 한다
+- 문제: policy summary/detail/ranking/bookmark 응답에는 `youthMidLabel`, `provisionMethodLabel` 을 추가했지만, 추천 목록/refresh 응답은 여전히 기존 필드 집합만 내려주고 있었다. 이 상태에서는 프론트가 추천 카드와 정책 카드를 함께 다룰 때 canonical summary field 유무가 엔드포인트마다 달라져, 연결 전부터 응답 shape가 불필요하게 갈라진다.
+- 해결: `RecommendationResponse` 에 `youthMidLabel`, `provisionMethodLabel` 을 additive field로 추가하고, `RecommendationPolicyFlowWebMvcTest` 에 추천 refresh 응답 JSON 검증을 붙였다. `api-mapping.md` 와 current-state 문서도 추천 응답이 같은 additive field를 노출한다는 점을 반영했다.
+- 이유: canonical summary field는 특정 policy API만의 실험 필드가 아니라 projection에서 공통으로 읽는 응답 metadata다. 프론트 연결 전에는 recommendation/policy 응답 shape를 가능한 한 맞춰 두는 편이 이후 카드 UI와 API client 모델을 단순하게 만든다.

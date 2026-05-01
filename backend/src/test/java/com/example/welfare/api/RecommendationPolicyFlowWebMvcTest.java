@@ -114,6 +114,8 @@ class RecommendationPolicyFlowWebMvcTest {
                         RecommendationCandidateProjection.builder()
                                 .serviceId(11L)
                                 .unifiedCategoryCompat("주거")
+                                .youthMidLabel("전월세 및 주거급여 지원")
+                                .provisionMethodLabel("온라인")
                                 .build()
                 ));
         given(policyRankingService.getRanking(5)).willReturn(List.of(ranking));
@@ -138,7 +140,9 @@ class RecommendationPolicyFlowWebMvcTest {
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data[0].serviceId").value(11))
                 .andExpect(jsonPath("$.data[0].title").value("청년 월세 지원"))
-                .andExpect(jsonPath("$.data[0].unifiedCategory").value("주거"));
+                .andExpect(jsonPath("$.data[0].unifiedCategory").value("주거"))
+                .andExpect(jsonPath("$.data[0].youthMidLabel").value("전월세 및 주거급여 지원"))
+                .andExpect(jsonPath("$.data[0].provisionMethodLabel").value("온라인"));
 
         mockMvc.perform(get("/api/policies/ranking")
                         .param("size", "5"))
