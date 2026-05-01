@@ -15,7 +15,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.sql.Date;
 import java.util.ArrayList;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -30,12 +29,6 @@ import java.util.Set;
 @Transactional
 public class DeferredNormalizedPolicySidecarWriter implements NormalizedPolicySidecarWriter {
 
-    private static final List<SummaryLabelBinding> TAXONOMY_SUMMARY_BINDINGS = List.of(
-            new SummaryLabelBinding("youthMidLabel", NormalizationKeySupport.SUMMARY_KEY_YOUTH_MID),
-            new SummaryLabelBinding("gov24ServiceFieldLabel", "GOV24_SERVICE_FIELD"),
-            new SummaryLabelBinding("gov24UserTypeLabel", "GOV24_USER_TYPE"),
-            new SummaryLabelBinding("gov24BenefitTypeLabel", "GOV24_BENEFIT_TYPE")
-    );
     private static final Set<String> REQUIRED_TABLES = Set.of(
             "normalization_code_sets",
             "service_taxonomies",
@@ -76,7 +69,10 @@ public class DeferredNormalizedPolicySidecarWriter implements NormalizedPolicySi
         long officialYouthMidCount = aggregate.taxonomyTerms().stream()
                 .filter(term -> NormalizationKeySupport.TERM_GROUP_YOUTH_MID.equals(term.termGroup()))
                 .count();
-        String summaryYouthMid = summaryLabel(aggregate.taxonomy(), NormalizationKeySupport.SUMMARY_KEY_YOUTH_MID);
+        String summaryYouthMid = TaxonomySummarySupport.summaryLabel(
+                aggregate.taxonomy(),
+                NormalizationKeySupport.SUMMARY_KEY_YOUTH_MID
+        );
 
         if (officialYouthMidCount != 1
                 && aggregate.taxonomy() != null
@@ -110,7 +106,11 @@ public class DeferredNormalizedPolicySidecarWriter implements NormalizedPolicySi
         if (taxonomy == null) {
             return;
         }
-        YouthMajorSummary youthMajorSummary = normalizeYouthMajorSummary(summaryLabel(taxonomy, NormalizationKeySupport.SUMMARY_KEY_YOUTH_MAJOR));
+        TaxonomySummarySupport.YouthMajorSummary youthMajorSummary =
+                TaxonomySummarySupport.normalizeYouthMajorSummary(TaxonomySummarySupport.summaryLabel(
+                        taxonomy,
+                        NormalizationKeySupport.SUMMARY_KEY_YOUTH_MAJOR
+                ));
 
         namedParameterJdbcTemplate.update("""
                 INSERT INTO service_taxonomies (
@@ -171,7 +171,7 @@ public class DeferredNormalizedPolicySidecarWriter implements NormalizedPolicySi
                     authority = VALUES(authority),
                     confidence = VALUES(confidence)
                 """,
-                applyBoundSummaryLabels(
+                TaxonomySummarySupport.applyBoundSummaryLabels(
                         new MapSqlParameterSource()
                         .addValue("serviceId", service.getId())
                         .addValue("primarySourceSystem", WelfareSourceTypeSupport.primarySourceSystem(aggregate.core().sourceType()))
@@ -431,49 +431,6 @@ public class DeferredNormalizedPolicySidecarWriter implements NormalizedPolicySi
         return CompatCategorySupport.compatCode(label);
     }
 
-    private String toYouthMajorCode(String label) {
-        return toYouthMajorSummaryToken(label).code();
-    }
-
-    private YouthMajorSummary normalizeYouthMajorSummary(String rawLabel) {
-        if (rawLabel == null || rawLabel.isBlank()) {
-            return YouthMajorSummary.empty();
-        }
-
-        Set<YouthMajorSummary> canonicalMajors = new LinkedHashSet<>();
-        for (String token : rawLabel.split(",")) {
-            String trimmed = token.trim();
-            if (trimmed.isEmpty()) {
-                continue;
-            }
-            YouthMajorSummary canonical = toYouthMajorSummaryToken(trimmed);
-            if (canonical == null) {
-                return YouthMajorSummary.empty();
-            }
-            canonicalMajors.add(canonical);
-        }
-
-        if (canonicalMajors.size() != 1) {
-            return YouthMajorSummary.empty();
-        }
-        return canonicalMajors.iterator().next();
-    }
-
-    private YouthMajorSummary toYouthMajorSummaryToken(String label) {
-        if (label == null) {
-            return null;
-        }
-        String normalized = label.trim().replace('･', '·');
-        return switch (normalized) {
-            case "일자리" -> new YouthMajorSummary("JOB", "일자리");
-            case "주거" -> new YouthMajorSummary("HOUSING", "주거");
-            case "교육", "교육지원", "교육·직업훈련" -> new YouthMajorSummary("EDUCATION", "교육");
-            case "복지문화", "금융·복지·문화" -> new YouthMajorSummary("WELFARE_CULTURE", "복지문화");
-            case "참여권리", "참여·기반" -> new YouthMajorSummary("PARTICIPATION_RIGHTS", "참여권리");
-            default -> null;
-        };
-    }
-
     private String normalizeBlankCode(String value) {
         return value == null ? "" : value;
     }
@@ -482,30 +439,6 @@ public class DeferredNormalizedPolicySidecarWriter implements NormalizedPolicySi
         return Objects.requireNonNullElse(value, "");
     }
 
-    private String summaryLabel(NormalizedPolicyAggregate.TaxonomySummary taxonomy, String key) {
-        if (taxonomy == null) {
-            return null;
-        }
-        return taxonomy.summaryLabel(key);
-    }
-
-    private MapSqlParameterSource applyBoundSummaryLabels(MapSqlParameterSource params,
-                                                          NormalizedPolicyAggregate.TaxonomySummary taxonomy) {
-        for (SummaryLabelBinding binding : TAXONOMY_SUMMARY_BINDINGS) {
-            params.addValue(binding.parameterName(), summaryLabel(taxonomy, binding.summaryKey()));
-        }
-        return params;
-    }
-
     private record TermRefreshScope(String termGroup, String sourceField) {
-    }
-
-    private record SummaryLabelBinding(String parameterName, String summaryKey) {
-    }
-
-    private record YouthMajorSummary(String code, String label) {
-        private static YouthMajorSummary empty() {
-            return new YouthMajorSummary(null, null);
-        }
     }
 }
