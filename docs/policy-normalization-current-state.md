@@ -137,7 +137,11 @@ projection이 현재 담는 대표값:
 AI 재평가 입력에서 canonical summary를 직접 소비합니다.
 latest local replay(`rule-only-invalid-key`) 기준으로는
 `SUMMARY_REASON_METRIC A_reason_changed=8 B_reason_changed=0`
-이 나와, sample A에서는 explanation 변화가 생기고 control sample B에서는 reason drift가 없음을 확인했습니다.
+`A_reason_text_changed=0 B_reason_text_changed=0`
+`A_reason_membership_changed=8 B_reason_membership_changed=0`
+가 나왔습니다.
+즉 현재 baseline에서 sample A의 변화는 실제 `ai_reason` 문장 변화가 아니라
+top snapshot membership 변화이고, control sample B에서는 reason drift가 없습니다.
 
 ## 5. retrieval / repository 현재 상태
 

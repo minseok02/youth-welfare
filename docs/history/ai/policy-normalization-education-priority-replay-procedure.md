@@ -77,14 +77,20 @@ deploy/smoke/run-local-education-priority-replay.sh
 8. sample B(control) drift는 기본 warning, 필요하면 `STRICT_CONTROL_ASSERT=true` 로 strict fail
 9. `user_recommendations` off/on snapshot(`edu-a/b-*-scores.tsv`)도 함께 남겨 `rule_weighted_score` / `ai_score` / `ai_reason` / `final_score` 경계를 바로 비교
 10. sample A/B 각각 `edu-a-ai-reason-diff.tsv`, `edu-b-ai-reason-diff.tsv` 를 만들어 off/on 간 `ai_reason` 변화가 실제로 생긴 row를 바로 확인
+    - `change_type=text_changed`: 같은 `service_id` 에서 `ai_reason` 문장이 실제로 바뀐 경우
+    - `change_type=entered|exited`: top snapshot 구성 변화로 row가 새로 들어오거나 빠진 경우
 11. artifact에 `openai-mode.txt` 를 같이 남겨 `rule-only-invalid-key` / `real-openai` 모드를 명시
 12. boot log에서 `[RealtimeAiGateway][replay-trace]`, `[RealtimeAiGateway][replay-trace-response]` 라인을 추출해 `edu-a/b-*-ai-trace.log`, `edu-a/b-*-ai-response-trace.log`, `ai-trace-*.log`, `ai-trace-response-*.log` 로 남기고 `candidateIds` / `candidateRuleScores` / `promptSha256` / `replaySeed` / `systemFingerprint` / `responseId` 를 비교
 13. summary stdout에도 `A_FINGERPRINT ... same|different`, `B_FINGERPRINT ... same|different` 를 같이 출력해 artifact를 열기 전에도 `backend churn` 여부를 바로 볼 수 있게 한다
 14. summary stdout의 `SUMMARY_METRIC` 한 줄에서 `A_top10_target`, `B_top10_target`, `A/B_target_total`, `A/B_fp` 를 먼저 보고 pass/warn 판단을 시작한다
-15. summary stdout의 `SUMMARY_REASON_METRIC` 한 줄에서 `A_reason_changed`, `B_reason_changed` 를 바로 확인하고, 세부 내용이 필요하면 `edu-a/b-ai-reason-diff.tsv` 를 연다
+15. summary stdout의 `SUMMARY_REASON_METRIC` 한 줄에서 `A_reason_changed`, `A_reason_text_changed`, `A_reason_membership_changed`, `B_*` 를 먼저 확인하고, 세부 내용이 필요하면 `edu-a/b-ai-reason-diff.tsv` 를 연다
 16. nightly summary file에 append 할 때도 같은 축을 유지하고,
     최소 필드는 `ts`, `mode`, `A_top10_target`, `B_top10_target`,
-    `A_target_total`, `B_target_total`, `A_fp`, `B_fp`, `A_reason_changed`, `B_reason_changed`, `artifact_dir` 로 제한한다
+    `A_target_total`, `B_target_total`, `A_fp`, `B_fp`,
+    `A_reason_changed`, `B_reason_changed`,
+    `A_reason_text_changed`, `B_reason_text_changed`,
+    `A_reason_membership_changed`, `B_reason_membership_changed`,
+    `artifact_dir` 로 제한한다
 17. 실제 append 는 `REPLAY_SUMMARY_APPEND_FILE=/path/to/nightly-summary-YYYY-MM-DD.log`
     env 로 켜고, 필요하면 `REPLAY_SUMMARY_TS` 로 기록 시각을 wrapper 에서 명시한다
 18. ops host nightly 실행은 직접 env 를 길게 붙이기보다

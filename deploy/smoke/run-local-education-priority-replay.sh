@@ -686,14 +686,32 @@ def write_reason_diff(off_path, on_path, output_path):
     on_rows = load_score_rows(on_path)
     service_ids = sorted(set(off_rows.keys()) | set(on_rows.keys()))
     changed = []
+    text_changed = 0
+    membership_changed = 0
     for service_id in service_ids:
         off_row = off_rows.get(service_id)
         on_row = on_rows.get(service_id)
+        if off_row is None or on_row is None:
+            membership_changed += 1
+            changed.append({
+                "change_type": "entered" if off_row is None else "exited",
+                "service_id": service_id,
+                "title": (on_row or off_row)["title"],
+                "off_reason": off_row["ai_reason"] if off_row else "MISSING",
+                "on_reason": on_row["ai_reason"] if on_row else "MISSING",
+                "off_ai_score": off_row["ai_score"] if off_row else "MISSING",
+                "on_ai_score": on_row["ai_score"] if on_row else "MISSING",
+                "off_final_score": off_row["final_score"] if off_row else "MISSING",
+                "on_final_score": on_row["final_score"] if on_row else "MISSING",
+            })
+            continue
         off_reason = off_row["ai_reason"] if off_row else "MISSING"
         on_reason = on_row["ai_reason"] if on_row else "MISSING"
         if off_reason == on_reason:
             continue
+        text_changed += 1
         changed.append({
+            "change_type": "text_changed",
             "service_id": service_id,
             "title": (on_row or off_row)["title"],
             "off_reason": off_reason,
@@ -704,20 +722,24 @@ def write_reason_diff(off_path, on_path, output_path):
             "on_final_score": on_row["final_score"] if on_row else "MISSING",
         })
     with Path(output_path).open("w", encoding="utf-8") as fp:
-        fp.write("service_id\ttitle\toff_ai_score\ton_ai_score\toff_final_score\ton_final_score\toff_reason\ton_reason\n")
+        fp.write("change_type\tservice_id\ttitle\toff_ai_score\ton_ai_score\toff_final_score\ton_final_score\toff_reason\ton_reason\n")
         for row in changed:
             fp.write(
-                f"{row['service_id']}\t{row['title']}\t{row['off_ai_score']}\t{row['on_ai_score']}\t"
+                f"{row['change_type']}\t{row['service_id']}\t{row['title']}\t{row['off_ai_score']}\t{row['on_ai_score']}\t"
                 f"{row['off_final_score']}\t{row['on_final_score']}\t{row['off_reason']}\t{row['on_reason']}\n"
             )
-    return len(changed)
+    return {
+        "total_changed": len(changed),
+        "text_changed": text_changed,
+        "membership_changed": membership_changed,
+    }
 
 a_off = summarize("A_OFF", load_rows(resp_a_off))
 a_on = summarize("A_ON", load_rows(resp_a_on))
 b_off = summarize("B_OFF", load_rows(resp_b_off))
 b_on = summarize("B_ON", load_rows(resp_b_on))
-a_reason_changed = write_reason_diff(scores_a_off, scores_a_on, reason_diff_a)
-b_reason_changed = write_reason_diff(scores_b_off, scores_b_on, reason_diff_b)
+a_reason_diff = write_reason_diff(scores_a_off, scores_a_on, reason_diff_a)
+b_reason_diff = write_reason_diff(scores_b_off, scores_b_on, reason_diff_b)
 
 a_off_fp = fingerprint_of(trace_a_off)
 a_on_fp = fingerprint_of(trace_a_on)
@@ -754,8 +776,12 @@ print(
 )
 print(
     "SUMMARY_REASON_METRIC",
-    f"A_reason_changed={a_reason_changed}",
-    f"B_reason_changed={b_reason_changed}",
+    f"A_reason_changed={a_reason_diff['total_changed']}",
+    f"B_reason_changed={b_reason_diff['total_changed']}",
+    f"A_reason_text_changed={a_reason_diff['text_changed']}",
+    f"B_reason_text_changed={b_reason_diff['text_changed']}",
+    f"A_reason_membership_changed={a_reason_diff['membership_changed']}",
+    f"B_reason_membership_changed={b_reason_diff['membership_changed']}",
 )
 
 summary_line = (
@@ -767,8 +793,12 @@ summary_line = (
     f"B_target_total={b_off['target_count']}->{b_on['target_count']} "
     f"A_fp={a_fp_relation} "
     f"B_fp={b_fp_relation} "
-    f"A_reason_changed={a_reason_changed} "
-    f"B_reason_changed={b_reason_changed} "
+    f"A_reason_changed={a_reason_diff['total_changed']} "
+    f"B_reason_changed={b_reason_diff['total_changed']} "
+    f"A_reason_text_changed={a_reason_diff['text_changed']} "
+    f"B_reason_text_changed={b_reason_diff['text_changed']} "
+    f"A_reason_membership_changed={a_reason_diff['membership_changed']} "
+    f"B_reason_membership_changed={b_reason_diff['membership_changed']} "
     f"slot_rows={slot_metrics.get('slot_rows', 0)} "
     f"slot_services={slot_metrics.get('slot_services', 0)} "
     f"slot_education_services={slot_metrics.get('slot_education_services', 0)} "

@@ -1982,3 +1982,13 @@
 - 문제: `edu-a-ai-reason-diff.tsv` / `edu-b-ai-reason-diff.tsv` 와 `SUMMARY_REASON_METRIC` 을 추가했어도, 첫 baseline run을 안 남기면 다음 replay에서 숫자가 바뀌었을 때 그 변화가 코드 영향인지 원래 상태였는지 구분이 어렵다.
 - 해결: local `deploy/smoke/run-local-education-priority-replay.sh` 를 다시 실행해 artifact(`/tmp/tmp.vralYMXR1n`) 기준 `SUMMARY_REASON_METRIC A_reason_changed=8 B_reason_changed=0`, `SUMMARY_METRIC A_top10_target=5->8 B_top10_target=2->2` 를 확보했다. 같은 run에서 slot density는 `slot_rows=5619`, `slot_services=2305`, `slot_education_services=110`, `slot_services_YOUTH_MAJOR=2288`, `slot_services_YOUTH_MID=2170`, `slot_services_PROVISION_METHOD=1161` 로 유지됐다.
 - 이유: prompt에 canonical summary를 넣은 효과는 sample A에서 reason 문장 변화가 생기고 control sample B에서는 drift가 없는지 같이 봐야 해석이 선명하다. baseline 숫자를 남겨 두면 이후 replay에서 `reason_changed` count와 top-10 개선 수를 한 번에 비교할 수 있다.
+
+## 371) `A_reason_changed=8` 같은 total count만 보면 실제 문장 변화인지 top snapshot 진입/이탈인지 분리되지 않아, rule-only replay에서도 잘못 해석할 수 있다
+- 문제: 첫 local replay artifact(`/tmp/tmp.vralYMXR1n`)의 `edu-a-ai-reason-diff.tsv` 를 열어 보니 `service_id 870/888/889/895` 는 `entered`, `616/901/905/906` 은 `exited` 로 top-30 membership 변화였고, actual `ai_reason` text 변화가 아니었다. 그런데 summary는 `A_reason_changed=8` 한 숫자만 보여서, 이걸 그대로 보면 “sample A에서 reason 문장 8개가 바뀌었다”로 읽히기 쉽다.
+- 해결: replay script의 reason diff artifact에 `change_type` 컬럼을 추가하고, summary를 `A/B_reason_text_changed` 와 `A/B_reason_membership_changed` 로 분리했다. 이제 total `reason_changed` 는 유지하되, 실제 해석은 text change와 membership change를 따로 본다.
+- 이유: canonical summary를 prompt에 넣은 효과는 문장 자체 변화와 순위권 구성 변화가 동시에 나타날 수 있다. 이 둘을 같은 숫자로 합치면 rule-only replay처럼 `ai_reason` 자체가 `NULL` 인 경우에도 misleading total이 나올 수 있으므로, 분리 지표가 필요하다.
+
+## 372) 새 분리 지표를 붙였으면 baseline도 다시 찍어 둬야, 다음 replay에서 “reason text가 새로 바뀐 건지”를 즉시 비교할 수 있다
+- 문제: `A/B_reason_text_changed`, `A/B_reason_membership_changed` 를 추가만 하고 baseline artifact를 갱신하지 않으면, 다음 run에서 값이 생겨도 이게 새 현상인지 기존 상태인지 바로 비교할 기준이 없다.
+- 해결: local `deploy/smoke/run-local-education-priority-replay.sh` 를 다시 실행해 artifact(`/tmp/tmp.0yFeDNSY6k`) 기준 `SUMMARY_REASON_METRIC A_reason_changed=8 B_reason_changed=0 A_reason_text_changed=0 B_reason_text_changed=0 A_reason_membership_changed=8 B_reason_membership_changed=0` 를 확보했다. 같은 run에서 `SUMMARY_METRIC A_top10_target=5->8 B_top10_target=2->2`, slot density(`slot_rows=5619`, `slot_services=2305`, `slot_education_services=110`)도 그대로 유지됐다.
+- 이유: 이 baseline이 있어야 이후 real-openai replay나 prompt 추가 변경에서 `reason text` 자체가 달라졌는지, 아니면 단순히 top snapshot 구성만 바뀐 건지를 바로 분리해서 볼 수 있다.
