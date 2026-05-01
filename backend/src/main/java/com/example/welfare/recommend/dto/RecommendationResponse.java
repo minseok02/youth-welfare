@@ -17,6 +17,7 @@ public class RecommendationResponse {
     private String title;
     private String description;
     private String unifiedCategory;
+    private String youthMajorLabel;
     private String youthMidLabel;
     private String provisionMethodLabel;
     private String status;
@@ -44,6 +45,7 @@ public class RecommendationResponse {
                 .title(rec.getService().getTitle())
                 .description(rec.getService().getDescription())
                 .unifiedCategory(resolveUnifiedCategory(rec, projection))
+                .youthMajorLabel(resolveYouthMajorLabel(projection))
                 .youthMidLabel(resolveYouthMidLabel(projection))
                 .provisionMethodLabel(resolveProvisionMethodLabel(projection))
                 .status(rec.getService().getStatus().name())
@@ -65,6 +67,10 @@ public class RecommendationResponse {
 
     private static String resolveYouthMidLabel(RecommendationCandidateProjection projection) {
         return projection != null ? projection.youthMidLabel() : null;
+    }
+
+    private static String resolveYouthMajorLabel(RecommendationCandidateProjection projection) {
+        return projection != null ? projection.youthMajorLabel() : null;
     }
 
     private static String resolveProvisionMethodLabel(RecommendationCandidateProjection projection) {

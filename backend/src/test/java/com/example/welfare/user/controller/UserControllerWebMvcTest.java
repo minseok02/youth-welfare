@@ -46,6 +46,7 @@ class UserControllerWebMvcTest {
                         .description("월세 부담 완화")
                         .unifiedCategory("HOUSING")
                         .status("ACTIVE")
+                        .youthMajorLabel("주거")
                         .youthMidLabel("전월세 및 주거급여 지원")
                         .provisionMethodLabel("온라인")
                         .build()
@@ -61,6 +62,7 @@ class UserControllerWebMvcTest {
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data[0].id").value(11))
                 .andExpect(jsonPath("$.data[0].title").value("청년 월세 지원"))
+                .andExpect(jsonPath("$.data[0].youthMajorLabel").value("주거"))
                 .andExpect(jsonPath("$.data[0].youthMidLabel").value("전월세 및 주거급여 지원"))
                 .andExpect(jsonPath("$.data[0].provisionMethodLabel").value("온라인"));
 

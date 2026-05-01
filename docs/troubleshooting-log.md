@@ -1962,3 +1962,8 @@
 - 문제: `RecommendationResponse` 를 확장하고 추천 refresh 응답 JSON까지 검증해도, 저장된 추천 목록을 돌려주는 `GET /api/recommendations` 경로를 따로 확인하지 않으면 `recommendationFacade.getRecommendations(...)` 흐름에서 `logId` 나 additive field 누락이 숨어 있을 수 있다. 두 엔드포인트는 같은 DTO를 쓰지만 controller 진입점과 mock wiring이 달라, 한쪽만 green 이어도 다른 쪽 누락 가능성이 남는다.
 - 해결: `RecommendationPolicyFlowWebMvcTest` 에 `GET /api/recommendations` 전용 케이스를 추가해 `logId`, `unifiedCategory`, `youthMidLabel`, `provisionMethodLabel` 이 실제 저장 추천 조회 응답에도 실리는지 고정했다.
 - 이유: 프론트 연결 전에는 “같은 DTO니까 한 경로만 보면 된다”라고 가정하지 않는 편이 안전하다. 추천 목록 조회와 refresh는 사용 빈도가 높고, CTR 추적용 `logId` 도 함께 실어야 하므로 경로별 contract를 분리해 두는 게 맞다.
+
+## 367) `unifiedCategory` 는 compat를 유지하면서 canonical major는 내부 projection에만 남겨 두면, 외부 API에서는 두 분류 체계를 비교하거나 점진 이행을 확인할 수 없다
+- 문제: `RecommendationCandidateProjection` 과 read-model은 이미 `youthMajorLabel` 을 `slot-first / legacy fallback` 으로 hydrate 하고 있었지만, policy/recommendation 응답 DTO는 `youthMidLabel`, `provisionMethodLabel` 만 additive field로 노출하고 있었다. 이 상태에서는 API 소비자가 compat `unifiedCategory` 와 canonical major를 동시에 볼 수 없어, category bridge 검증이나 프론트 연결 전 데이터 비교가 다시 내부 코드/DB 조회에 의존하게 된다.
+- 해결: `PolicySummaryResponse`, `PolicyDetailResponse`, `PolicyRankingResponse`, `RecommendationResponse` 에 `youthMajorLabel` 을 additive field로 추가하고, service 테스트와 WebMvc contract 테스트를 갱신했다. 같이 `api-mapping.md`, `policy-normalization-current-state.md`, `phase-plan.md` 도 응답 contract 기준으로 반영했다.
+- 이유: 현재 단계에서는 `unifiedCategory` 를 compat contract로 유지하는 편이 안전하지만, canonical summary 전환 준비를 하려면 major summary를 additive field로 먼저 노출해 두는 게 맞다. 그래야 기존 계약을 깨지 않으면서도 외부 경계에서 canonical/compat drift를 관찰할 수 있다.

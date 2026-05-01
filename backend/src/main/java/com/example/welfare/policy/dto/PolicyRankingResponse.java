@@ -12,6 +12,7 @@ public class PolicyRankingResponse {
     private Long serviceId;
     private String title;
     private String unifiedCategory;
+    private String youthMajorLabel;
     private String youthMidLabel;
     private String provisionMethodLabel;
     private String sourceType;
@@ -32,6 +33,7 @@ public class PolicyRankingResponse {
                 .serviceId(service.getId())
                 .title(service.getTitle())
                 .unifiedCategory(resolveUnifiedCategory(service, projection))
+                .youthMajorLabel(resolveYouthMajorLabel(projection))
                 .youthMidLabel(resolveYouthMidLabel(projection))
                 .provisionMethodLabel(resolveProvisionMethodLabel(projection))
                 .sourceType(service.getSourceType().name())
@@ -52,6 +54,10 @@ public class PolicyRankingResponse {
 
     private static String resolveYouthMidLabel(RecommendationCandidateProjection projection) {
         return projection != null ? projection.youthMidLabel() : null;
+    }
+
+    private static String resolveYouthMajorLabel(RecommendationCandidateProjection projection) {
+        return projection != null ? projection.youthMajorLabel() : null;
     }
 
     private static String resolveProvisionMethodLabel(RecommendationCandidateProjection projection) {

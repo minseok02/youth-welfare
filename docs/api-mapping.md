@@ -448,6 +448,7 @@ public void resetAiScoreForClosed() {
   - `title`
   - `description`
   - `unifiedCategory`
+  - `youthMajorLabel` (nullable, canonical summary)
   - `youthMidLabel` (nullable, canonical summary)
   - `provisionMethodLabel` (nullable, canonical summary)
   - `status`
@@ -461,6 +462,7 @@ public void resetAiScoreForClosed() {
 
 - 응답 구조는 `GET /api/recommendations` 와 동일
 - additive canonical summary field
+  - `youthMajorLabel`
   - `youthMidLabel`
   - `provisionMethodLabel`
 
@@ -470,6 +472,7 @@ public void resetAiScoreForClosed() {
   - `serviceId`
   - `title`
   - `unifiedCategory`
+  - `youthMajorLabel` (nullable, canonical summary)
   - `youthMidLabel` (nullable, canonical summary)
   - `provisionMethodLabel` (nullable, canonical summary)
   - `sourceType`
@@ -486,6 +489,7 @@ public void resetAiScoreForClosed() {
       "serviceId": 1829,
       "title": "청년일자리 도약장려금",
       "unifiedCategory": "일자리",
+      "youthMajorLabel": "주거",
       "youthMidLabel": "취업",
       "provisionMethodLabel": "온라인",
       "sourceType": "YOUTH",
@@ -510,6 +514,7 @@ public void resetAiScoreForClosed() {
   - `status`
   - `hostOrg`
   - `applyMethodName`
+  - `youthMajorLabel` (nullable, canonical summary)
   - `youthMidLabel` (nullable, canonical summary)
   - `provisionMethodLabel` (nullable, canonical summary)
   - `applyStartDate`
@@ -541,7 +546,7 @@ public void resetAiScoreForClosed() {
 - 기타
   - 각 항목의 `bookmarked`는 로그인 사용자면 최신 북마크 상태 기준, 비로그인이면 `false`
   - `totalElements`는 청년 후처리 필터가 적용된 최종 결과 기준
-  - `youthMidLabel`, `provisionMethodLabel` 은 additive field이며, canonical projection이 있으면 그 값을 우선 사용
+  - `youthMajorLabel`, `youthMidLabel`, `provisionMethodLabel` 은 additive field이며, canonical projection이 있으면 그 값을 우선 사용
 
 ### `GET /api/policies/{id}`
 
@@ -552,7 +557,7 @@ public void resetAiScoreForClosed() {
 - 주요 응답 필드
   - `id`, `title`, `description`, `unifiedCategory`, `status`, `sourceType`
   - `hostOrg`, `operatingOrg`, `minAge`, `maxAge`, `minIncome`, `maxIncome`
-  - `supportContent`, `applyMethodName`, `youthMidLabel`, `provisionMethodLabel`, `applyStartDate`, `applyEndDate`
+  - `supportContent`, `applyMethodName`, `youthMajorLabel`, `youthMidLabel`, `provisionMethodLabel`, `applyStartDate`, `applyEndDate`
   - `targetDetail`, `supportDetail`, `applyMethodDetail`, `contactList`
   - `regions`, `tags`, `detailUrl`, `bookmarked`
 
@@ -560,11 +565,15 @@ public void resetAiScoreForClosed() {
 
 - 각 항목은 `GET /api/policies` 목록 응답과 같은 `PolicySummaryResponse` 구조
 - 주요 additive field
+  - `youthMajorLabel`
   - `youthMidLabel`
   - `provisionMethodLabel`
 
 ## canonical summary additive field 메모 (2026-05-02)
 
+- `youthMajorLabel`
+  - compat `unifiedCategory` 와 별도로 내려가는 canonical major summary
+  - 현재는 projection이 있으면 응답에 실리고, 없으면 `null`
 - `youthMidLabel`
   - source-neutral canonical summary
   - 현재는 projection이 있으면 응답에 실리고, 없으면 `null`

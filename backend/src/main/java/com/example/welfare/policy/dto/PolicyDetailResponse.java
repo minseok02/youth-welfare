@@ -30,6 +30,7 @@ public class PolicyDetailResponse {
     private Integer maxIncome;
     private String supportContent;
     private String applyMethodName;
+    private String youthMajorLabel;
     private String youthMidLabel;
     private String provisionMethodLabel;
     private LocalDate startDate;
@@ -102,6 +103,7 @@ public class PolicyDetailResponse {
                 .maxIncome(ws.getMaxIncome())
                 .supportContent(ws.getSupportContent())
                 .applyMethodName(ws.getApplyMethodName())
+                .youthMajorLabel(resolveYouthMajorLabel(projection))
                 .youthMidLabel(resolveYouthMidLabel(projection))
                 .provisionMethodLabel(resolveProvisionMethodLabel(projection))
                 .startDate(ws.getStartDate())
@@ -133,6 +135,10 @@ public class PolicyDetailResponse {
 
     private static String resolveYouthMidLabel(RecommendationCandidateProjection projection) {
         return projection != null ? projection.youthMidLabel() : null;
+    }
+
+    private static String resolveYouthMajorLabel(RecommendationCandidateProjection projection) {
+        return projection != null ? projection.youthMajorLabel() : null;
     }
 
     private static String resolveProvisionMethodLabel(RecommendationCandidateProjection projection) {

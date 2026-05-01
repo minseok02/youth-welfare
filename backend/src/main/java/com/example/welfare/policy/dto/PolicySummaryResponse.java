@@ -20,6 +20,7 @@ public class PolicySummaryResponse {
     private Integer minAge;
     private Integer maxAge;
     private String applyMethodName;
+    private String youthMajorLabel;
     private String youthMidLabel;
     private String provisionMethodLabel;
     private LocalDate applyStartDate;
@@ -44,6 +45,7 @@ public class PolicySummaryResponse {
                 .minAge(ws.getMinAge())
                 .maxAge(ws.getMaxAge())
                 .applyMethodName(ws.getApplyMethodName())
+                .youthMajorLabel(resolveYouthMajorLabel(projection))
                 .youthMidLabel(resolveYouthMidLabel(projection))
                 .provisionMethodLabel(resolveProvisionMethodLabel(projection))
                 .applyStartDate(ws.getApplyStartDate())
@@ -63,6 +65,10 @@ public class PolicySummaryResponse {
 
     private static String resolveYouthMidLabel(RecommendationCandidateProjection projection) {
         return projection != null ? projection.youthMidLabel() : null;
+    }
+
+    private static String resolveYouthMajorLabel(RecommendationCandidateProjection projection) {
+        return projection != null ? projection.youthMajorLabel() : null;
     }
 
     private static String resolveProvisionMethodLabel(RecommendationCandidateProjection projection) {

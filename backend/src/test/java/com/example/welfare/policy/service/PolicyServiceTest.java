@@ -138,6 +138,7 @@ class PolicyServiceTest {
                         RecommendationCandidateProjection.builder()
                                 .serviceId(11L)
                                 .unifiedCategoryCompat("주거")
+                                .youthMajorLabel("주거")
                                 .youthMidLabel("전월세 및 주거급여 지원")
                                 .provisionMethodLabel("온라인")
                                 .build()
@@ -161,6 +162,7 @@ class PolicyServiceTest {
 
         assertTrue(result.getContent().get(0).isBookmarked());
         assertEquals("주거", result.getContent().get(0).getUnifiedCategory());
+        assertEquals("주거", result.getContent().get(0).getYouthMajorLabel());
         assertEquals("전월세 및 주거급여 지원", result.getContent().get(0).getYouthMidLabel());
         assertEquals("온라인", result.getContent().get(0).getProvisionMethodLabel());
     }
