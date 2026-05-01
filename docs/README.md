@@ -76,6 +76,9 @@
 - [policy-next-active-track-priority.md](./policy-next-active-track-priority.md)
   `Gov24` blocked SQL/doc 트랙, 로컬 검증 트랙, 운영/deploy 트랙 중 무엇을 다음 active main track으로 둘지 정리합니다.
 
+- [policy-local-closeout-pending-inventory.md](./policy-local-closeout-pending-inventory.md)
+  현재 미완 항목을 local-first 기준으로 다시 분리하고, 로컬에서 바로 끝낼 수 있는 closeout 검증 세트를 정리합니다.
+
 - [policy-normalization-fact-merge-rules.md](./policy-normalization-fact-merge-rules.md)
   복지로 list aggregate 와 detail aggregate 가 같은 `service_facts` 슬롯에 들어올 때의 merge/upsert 우선순위와 `fact_merge_key` 규칙을 확인합니다.
 

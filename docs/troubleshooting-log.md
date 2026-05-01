@@ -1532,3 +1532,8 @@
 - 문제: blocked source 문서가 external response boundary까지 내려온 뒤 다음 active track을 운영/deploy 로 넘기는 쪽으로 정리했지만, 사용자 기준은 “운영 전에 로컬에서 가능한 모든 구현/검증을 끝낸 뒤 넘어간다” 였다. 이 기준을 문서에 다시 반영하지 않으면 active-track 정책과 실제 진행 원칙이 어긋난 상태로 남을 수 있었다
 - 해결: [policy-next-active-track-priority.md](./policy-next-active-track-priority.md) 를 갱신해 다음 기본 진행축을 local-first closeout 으로 다시 고정했다
 - 이유: deploy lane은 available 하더라도, local 테스트/스모크/수정 가능성이 남아 있으면 아직 main track이 아니다. practical next action 기준으로는 로컬에서 끝낼 수 있는 것부터 먼저 닫고, 남은 것이 운영/외부 의존뿐일 때만 운영으로 넘어가는 편이 맞다
+
+## 297) local-first 로 방향을 바꾼 뒤에는 “남은 unchecked 항목”과 “지금 로컬에서 실제로 할 수 있는 일”을 다시 분리하지 않으면, phase-plan 상 미완 리스트가 곧바로 next local action처럼 보일 수 있다
+- 문제: `phase-plan` 의 unchecked 항목은 대부분 external blocked 또는 ops-only 인데, 이 상태에서 local-first 로 방향만 바꾸고 실제 local actionable set을 다시 적지 않으면, 여전히 `GOV24_* SQL` 이나 운영 전환 항목이 다음 로컬 작업처럼 보일 수 있었다
+- 해결: [policy-local-closeout-pending-inventory.md](./policy-local-closeout-pending-inventory.md) 를 추가해 현재 로컬 actionable work를 `auth/session revoke regression`, `PII split-account local smoke`, `education replay smoke`, `runtime API smoke` 로 다시 고정했다
+- 이유: local-first 에서 중요한 것은 unchecked 개수보다 “지금 이 머신에서 state change를 만들 수 있는가”다. practical next action을 분명히 하려면 blocked/ops 항목과 closeout 검증 세트를 분리해서 적는 편이 맞다

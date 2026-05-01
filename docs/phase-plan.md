@@ -1424,6 +1424,9 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - [x] `Gov24` blocked SQL/doc 트랙 이후 다음 active main track 우선순위 정리
   - [policy-next-active-track-priority.md](./policy-next-active-track-priority.md) 를 갱신해 `Gov24` 쪽은 external response boundary까지 이미 내려왔지만, 그 다음 기본 진행축은 곧바로 운영/deploy 가 아니라 local-first closeout 이라고 고정했다
   - practical next action 기준으로는 로컬에서 테스트/스모크/수동확인까지 끝낼 수 있는 것부터 먼저 닫고, `Gov24_*` / `supportConditions` / `YOUTH_MID` 는 source 응답이 올 때까지 blocked/backlog, 운영/deploy 는 로컬 기준 정상작동 확인 후로 미룬다고 정리했다
+- [x] local-first 기준 `로컬에서 바로 끝낼 수 있는 closeout 검증 세트` inventory 정리
+  - [policy-local-closeout-pending-inventory.md](./policy-local-closeout-pending-inventory.md) 를 추가해 남은 미완 항목 대부분이 external blocked 또는 ops-only 임을 다시 분리하고, 현재 로컬 actionable work는 새 설계가 아니라 auth/session revoke, PII split-account, education replay, runtime smoke의 closeout 검증 세트라고 고정했다
+  - practical next action은 문서 추가가 아니라 위 검증 세트를 실제로 돌려 “로컬에서 가능한 것은 끝났다” 기준을 먼저 만족시키는 것이라고 정리했다
 - [ ] 운영 서버 Docker Compose 기동
 - [ ] 기존 운영 DB에 `app_core_rw` / `app_pii_rw` / `notification_pii_ro` / `migration_admin` 계정 생성 및 앱 datasource 전환
 - [ ] 운영 `.env` / secret store의 `APP_PII_DB_URL` / `NOTIFICATION_PII_DB_URL` 를 `youth_welfare_pii` schema 기준으로 전환
