@@ -1,8 +1,10 @@
 package com.example.welfare.recommend.service;
 
+import com.example.welfare.policy.support.CompatCategorySupport;
 import com.example.welfare.recommend.dto.PriorityPreference;
 import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
 import com.example.welfare.policy.entity.WelfareService;
+import com.example.welfare.recommend.support.RecommendationRuntimeSupport;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
@@ -39,17 +41,7 @@ public class DefaultPriorityMatcher implements PriorityMatcher {
         if (projection != null && projection.priorityBuckets().contains(priorityCode)) {
             return true;
         }
-        String unifiedCategory = resolveUnifiedCategory(service, projection);
-        return switch (priorityCode) {
-            case "HOUSING" -> "주거".equals(unifiedCategory);
-            case "JOB" -> "일자리".equals(unifiedCategory);
-            case "EDUCATION" -> "교육·직업훈련".equals(unifiedCategory);
-            case "FINANCE" -> "금융·생활지원".equals(unifiedCategory);
-            case "CULTURE" -> "문화·여가".equals(unifiedCategory);
-            case "PARTICIPATION" -> "참여·기회".equals(unifiedCategory);
-            case "FAMILY" -> "가족·돌봄".equals(unifiedCategory);
-            default -> false;
-        };
+        return priorityCode.equals(CompatCategorySupport.priorityBucket(resolveUnifiedCategory(service, projection)));
     }
 
     private String resolveUnifiedCategory(WelfareService service, RecommendationCandidateProjection projection) {
@@ -63,9 +55,6 @@ public class DefaultPriorityMatcher implements PriorityMatcher {
         LocalDate applyEndDate = projection != null && projection.applyEndDate() != null
                 ? projection.applyEndDate()
                 : service.getApplyEndDate();
-        if (applyEndDate == null) return false;
-        LocalDate today = LocalDate.now();
-        return !applyEndDate.isBefore(today)
-                && applyEndDate.isBefore(today.plusDays(7));
+        return RecommendationRuntimeSupport.isDeadlineSoon(applyEndDate, LocalDate.now());
     }
 }

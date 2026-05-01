@@ -8,6 +8,7 @@ import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
 import com.example.welfare.recommend.dto.RecommendationUserSnapshot;
 import com.example.welfare.recommend.dto.RetrievedRecommendationCandidates;
 import com.example.welfare.recommend.dto.ScoredCandidate;
+import com.example.welfare.recommend.support.RecommendationProjectionHeuristicSupport;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -32,8 +33,6 @@ class RuleScoringServiceTest {
 
     @Mock
     private PriorityMatcher priorityMatcher;
-
-    private static final String BENEFICIARY_SUPPORT_BUCKET = "BENEFICIARY_SUPPORT";
 
     private RuleScoringService ruleScoringService;
 
@@ -151,7 +150,7 @@ class RuleScoringServiceTest {
                                 RecommendationCandidateProjection.builder()
                                         .serviceId(beneficiary.getId())
                                         .targetGroupBuckets(Set.of(
-                                                BENEFICIARY_SUPPORT_BUCKET))
+                                                RecommendationProjectionHeuristicSupport.BENEFICIARY_SUPPORT_BUCKET))
                                         .beneficiaryTerms(Set.of("기초생활수급자", "차상위계층"))
                                         .build()
                         )
@@ -343,8 +342,8 @@ class RuleScoringServiceTest {
     }
 
     @Test
-    @DisplayName("교육 canonical priority experiment는 non-education canonical major에는 bonus를 주지 않는다")
-    void educationCanonicalPriorityExperimentDoesNotAddBonusForNonEducationMajor() {
+    @DisplayName("교육 canonical priority experiment는 projection flag가 false면 raw compat/youth major 조합을 다시 보지 않는다")
+    void educationCanonicalPriorityExperimentUsesProjectionFlagOnly() {
         ReflectionTestUtils.setField(ruleScoringService, "educationCanonicalBonusEnabled", true);
         RecommendationUserSnapshot user = snapshotWithPriorities(
                 List.of(),
@@ -368,8 +367,9 @@ class RuleScoringServiceTest {
                                 service.getId(),
                                 RecommendationCandidateProjection.builder()
                                         .serviceId(service.getId())
+                                        .educationPriorityBoostEligible(false)
                                         .unifiedCategoryCompat("기타")
-                                        .youthMajorLabel("참여권리")
+                                        .youthMajorLabel("교육")
                                         .build()
                         )
                 ),
