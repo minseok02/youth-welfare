@@ -55,6 +55,9 @@
 - [policy-normalization-gov24-label-source-plan.md](./policy-normalization-gov24-label-source-plan.md)
   `GOV24_SERVICE_FIELD`, `GOV24_USER_TYPE`, `GOV24_BENEFIT_TYPE` import SQL을 다시 열기 위한 official source 조건과, deprecated endpoint를 왜 source로 쓰지 않는지 확인합니다.
 
+- [policy-normalization-gov24-schema-acquisition-path.md](./policy-normalization-gov24-schema-acquisition-path.md)
+  `GOV24_*` import/backfill SQL을 다시 열기 전에 current Swagger/schema export를 어디서 확보할지 확인합니다.
+
 - [policy-normalization-gov24-support-condition-source-plan.md](./policy-normalization-gov24-support-condition-source-plan.md)
   `GOV24_SUPPORT_CONDITION` 을 representative subset seed에서 full inventory/backfill로 넓힐 때 어떤 official source가 더 필요한지 확인합니다.
 

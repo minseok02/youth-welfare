@@ -1406,6 +1406,9 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - [x] blocked SQL reopen 우선순위(`GOV24_*` vs `YOUTH_MID`) 정리
   - [policy-normalization-blocked-sql-reopen-priority.md](./policy-normalization-blocked-sql-reopen-priority.md) 를 추가해 blocked SQL reopen 우선순위를 `GOV24_SERVICE_FIELD/USER_TYPE/BENEFIT_TYPE -> GOV24_SUPPORT_CONDITION full inventory -> YOUTH_MID stable code mapping` 순서로 고정했다
   - 이유는 `Gov24` 가 current canonical onboarding 기준선과 더 직접 연결되고 current API source도 더 명확한 반면, `YOUTH_MID` 는 여전히 operator-provided codebook 의존도가 높고 label-only fallback 으로 당분간 유지 가능하기 때문이다
+- [x] `GOV24_SERVICE_FIELD` / `USER_TYPE` / `BENEFIT_TYPE` SQL reopen 전 current Swagger/schema 확보 경로 구체화
+  - [policy-normalization-gov24-schema-acquisition-path.md](./policy-normalization-gov24-schema-acquisition-path.md) 를 추가해 practical next step을 `data.go.kr` current dataset page의 Swagger UI 확인 -> `schema.org/DCAT` provenance 확보 -> 그래도 finite inventory가 안 보이면 provider/operator codebook 요청 순서로 고정했다
+  - 즉 다음 액션은 deprecated `category` 재활용이 아니라 current Swagger/schema 증적 확보이며, `schema.org/DCAT` 는 provenance 보강용이지 finite code-label inventory의 충분조건은 아니라고 정리했다
 - [ ] 운영 서버 Docker Compose 기동
 - [ ] 기존 운영 DB에 `app_core_rw` / `app_pii_rw` / `notification_pii_ro` / `migration_admin` 계정 생성 및 앱 datasource 전환
 - [ ] 운영 `.env` / secret store의 `APP_PII_DB_URL` / `NOTIFICATION_PII_DB_URL` 를 `youth_welfare_pii` schema 기준으로 전환

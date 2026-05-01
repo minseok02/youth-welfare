@@ -1497,3 +1497,8 @@
 - 문제: 현재 `YOUTH_MID stable code mapping SQL`, `GOV24_SERVICE_FIELD / USER_TYPE / BENEFIT_TYPE import/backfill SQL`, `GOV24_SUPPORT_CONDITION full inventory` 가 모두 source-of-truth 부족으로 막혀 있다. 이 상태에서 우선순위를 따로 정하지 않으면 세 항목이 모두 같은 수준의 막힌 pending처럼 남아 실제 다음 액션이 다시 흐려질 수 있었다
 - 해결: [policy-normalization-blocked-sql-reopen-priority.md](./policy-normalization-blocked-sql-reopen-priority.md) 에서 reopen 우선순위를 `GOV24_* -> GOV24 supportConditions full inventory -> YOUTH_MID` 로 고정했다
 - 이유: `Gov24` 는 current canonical onboarding 기준선과 더 직접 연결되고 current API source도 더 명확하다. 반면 `YOUTH_MID` 는 operator-provided codebook 의존도가 높고, 지금도 label-only fallback으로 당분간 유지 가능하므로 reopen 우선순위를 뒤로 두는 편이 더 맞다
+
+## 290) `GOV24_*` SQL reopen의 practical next step은 old endpoint 재검토가 아니라 current dataset page의 Swagger/schema 확보 경로를 먼저 고정하는 것이다
+- 문제: `GOV24_*` reopen 우선순위를 앞에 두더라도, 실제로 어디서 source 증적을 확보할지가 모호하면 다시 deprecated `category` 문서나 sample payload 역추론으로 되돌아갈 위험이 있었다
+- 해결: [policy-normalization-gov24-schema-acquisition-path.md](./policy-normalization-gov24-schema-acquisition-path.md) 에서 practical next step을 `data.go.kr` current dataset page의 Swagger UI 확인 -> `schema.org/DCAT` provenance 확보 -> provider/operator codebook 요청 순서로 고정했다
+- 이유: `Gov24_*` SQL을 다시 열려면 “current source를 어디서 봤는가”가 먼저 명확해야 한다. current dataset page는 이미 official entrypoint이고, deprecated endpoint 재활용보다 Swagger/schema export 증적을 먼저 확보하는 편이 재발 방지에 맞다
