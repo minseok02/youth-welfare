@@ -74,7 +74,7 @@
   `GOV24_SERVICE_FIELD`, `GOV24_USER_TYPE`, `GOV24_BENEFIT_TYPE`, `GOV24_SUPPORT_CONDITION` 요청을 한 번에 보낼 때의 발송 순서와 트랙별 판정 체크리스트를 정리합니다.
 
 - [policy-next-active-track-priority.md](./policy-next-active-track-priority.md)
-  `Gov24` blocked SQL/doc 트랙과 운영/deploy 트랙 중 무엇을 다음 active main track으로 둘지 정리합니다.
+  `Gov24` blocked SQL/doc 트랙, 로컬 검증 트랙, 운영/deploy 트랙 중 무엇을 다음 active main track으로 둘지 정리합니다.
 
 - [policy-normalization-fact-merge-rules.md](./policy-normalization-fact-merge-rules.md)
   복지로 list aggregate 와 detail aggregate 가 같은 `service_facts` 슬롯에 들어올 때의 merge/upsert 우선순위와 `fact_merge_key` 규칙을 확인합니다.

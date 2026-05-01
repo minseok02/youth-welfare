@@ -1527,3 +1527,8 @@
 - 문제: `Gov24` source 경로, visibility check, 요청 템플릿, package checklist까지 모두 정리된 뒤에도 다음 active track을 다시 정하지 않으면, blocked SQL 트랙을 더 파는 문서만 계속 추가하면서 실제로는 아무 state change가 없는 구간에 머물 수 있었다
 - 해결: [policy-next-active-track-priority.md](./policy-next-active-track-priority.md) 에서 `Gov24` blocked SQL/doc 트랙은 external response boundary까지 이미 내려왔다고 보고, 다음 기본 진행축을 운영/deploy pending 으로 넘긴다고 고정했다
 - 이유: practical next action 기준으로는 Docker Compose / DB 계정 / datasource 전환처럼 바로 실행 가능한 운영 pending 이 더 앞선다. blocked SQL 은 source 응답이 오기 전까지는 backlog 로 유지하는 편이 맞다
+
+## 296) “운영으로 바로 갈 수 있다”와 “운영으로 바로 가야 한다”를 같은 의미로 두면 local-first 검증 원칙과 충돌한다
+- 문제: blocked source 문서가 external response boundary까지 내려온 뒤 다음 active track을 운영/deploy 로 넘기는 쪽으로 정리했지만, 사용자 기준은 “운영 전에 로컬에서 가능한 모든 구현/검증을 끝낸 뒤 넘어간다” 였다. 이 기준을 문서에 다시 반영하지 않으면 active-track 정책과 실제 진행 원칙이 어긋난 상태로 남을 수 있었다
+- 해결: [policy-next-active-track-priority.md](./policy-next-active-track-priority.md) 를 갱신해 다음 기본 진행축을 local-first closeout 으로 다시 고정했다
+- 이유: deploy lane은 available 하더라도, local 테스트/스모크/수정 가능성이 남아 있으면 아직 main track이 아니다. practical next action 기준으로는 로컬에서 끝낼 수 있는 것부터 먼저 닫고, 남은 것이 운영/외부 의존뿐일 때만 운영으로 넘어가는 편이 맞다
