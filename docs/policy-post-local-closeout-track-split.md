@@ -15,23 +15,42 @@
 
 - `아직 로컬에서 더 손볼 것이 남았는가`
 - `지금 남은 것은 외부 응답이 있어야 다시 열리는가`
-- `아니면 운영 환경에서만 의미가 있는가`
+- `아니면 아직 실제 대상이 없는 future infra 메모인가`
 
 를 다시 분리하는 것입니다.
 
 ## 결론
 
 2026-05-01 현재 기준으로
-**로컬에서 바로 계속 닫을 수 있는 active pending 은 없다** 고 봅니다.
+기본 local closeout 세트는 통과했지만,
+**기능/구조 추가 검증은 여전히 active pending** 으로 봅니다.
 
-남은 항목은 아래 두 트랙으로만 유지합니다.
+closeout 이후 남은 항목은 아래 세 묶음으로 유지합니다.
 
-1. `external blocked`
-2. `ops-only`
+1. `local feature / structure verification`
+2. `external blocked`
+3. `future infra/deploy memo`
 
 즉 지금 상태는
-“로컬에서 할 수 있는 것은 끝냈고,
-남은 것은 외부 source/codebook 응답 또는 운영 환경이 있어야 다시 움직인다”
+“기본 회귀는 확인했지만,
+기능/구조 검증과 그에 따른 수정은 계속 진행하고,
+외부 응답과 infra는 그 다음으로 미룬다”
+입니다.
+
+## local feature / structure verification
+
+현재 active 로 보는 검증은 아래입니다.
+
+- 실제 collect 이후 검색/상세/추천/북마크/챗봇/auth 흐름 점검
+- 신규 source 추가 구조가 adapter/raw/sidecar/read-model 경계에서 버티는지 확인
+- 검증 중 드러난 수정 포인트 반영
+- 이후 최적화/보안 정리
+
+### 공통 성격
+
+- 로컬에서 바로 재현/수정 가능하다
+- 프론트 완성 전에도 backend/API 기준으로 충분히 검증 가능하다
+- 현재 가장 먼저 움직여야 하는 트랙이다
 입니다.
 
 ## external blocked 트랙
@@ -59,49 +78,49 @@
 
 그 전까지는 backlog 유지가 기본입니다.
 
-## ops-only 트랙
+## future infra/deploy memo
 
-아래는 로컬에서 더 오래 잡고 있어도 실제 진행이 되지 않는 항목입니다.
+아래는 서버/배포 대상이 생긴 뒤에야 의미가 생기는 메모입니다.
 
-- 운영 서버 Docker Compose 기동
-- 운영 DB 계정 생성 및 datasource 전환
-- 운영 `.env` / secret store 전환
+- 서버 기동 절차
+- DB 계정 생성 및 datasource 전환
+- `.env` / secret store 전환
 - HTTPS/Nginx 적용
-- 운영 DB migration / dual-write / revoke / drop-legacy smoke
+- migration / dual-write / revoke / drop-legacy smoke
 
 ### 공통 성격
 
-- 실제 운영 인프라 상태를 바꾸는 작업이다
-- 로컬 성공 이력만으로 완료 판정을 할 수 없다
-- 실제 host / DB / secret / reverse proxy 가 있어야 의미가 있다
+- 로컬 성공 이력만으로는 의미가 없다
+- 실제 host / DB / secret / reverse proxy 가 생겨야 한다
+- 지금은 문서보다 대상 환경이 먼저다
 
 ### 다시 active 로 올리는 조건
 
-- “이제 운영으로 넘어간다”는 명시적 전환 결정
-- 운영 host / DB / secret 접근 가능 상태 확보
-- 로컬 기준 추가 수정 포인트가 더 없다는 현재 판단 유지
+- 실제 서버/DB/secret 경계가 생김
+- 그 시점에 맞춰 절차를 다시 만들기로 결정함
 
 ## 현재 권장 해석
 
 현재 repo 상태는
-`local-first closeout complete` 입니다.
+`local regression baseline restored, but verification track still active` 입니다.
 
-따라서 다음 액션은 더 많은 로컬 설계나 임의 수정이 아니라,
-아래 둘 중 하나입니다.
+따라서 다음 액션은 아래 순서입니다.
 
-1. external blocked 응답을 기다리며 backlog 유지
-2. 운영 전환 결정을 내리고 ops-only 트랙을 active 로 올리기
+1. local feature / structure verification 계속 진행
+2. 검증 중 발견되는 수정/최적화/보안 정리
+3. 프론트 연동 후 통합 검증
+4. 그 다음 external blocked 또는 infra/deploy 재검토
 
 ## 하지 않는 것
 
 현재 단계에서는 아래를 기본 액션으로 보지 않습니다.
 
 - blocked 항목에 대해 근거 없는 SQL 초안 더 만들기
-- 운영 진입 결정을 안 한 채 deploy 문서를 더 확장하기
+- 실제 대상이 없는데 deploy 문서를 더 확장하기
 - 이미 green 인 로컬 smoke/test 를 이유 없이 반복 실행하기
 
 ## 요약
 
-1. 로컬에서 직접 끝낼 수 있는 항목은 2026-05-01 기준으로 모두 닫혔다.
-2. 남은 pending 은 `external blocked` 와 `ops-only` 두 트랙뿐이다.
-3. 따라서 다음 active 작업은 새 로컬 구현이 아니라, 외부 응답 대기 또는 운영 전환 결정 중 하나다.
+1. 기본 local closeout 세트는 2026-05-01 기준으로 통과했다.
+2. 하지만 기능/구조 추가 검증은 아직 active pending 이다.
+3. external blocked 와 future infra/deploy memo 는 그 다음 우선순위다.

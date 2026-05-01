@@ -1,7 +1,7 @@
 # DB Migration Guide
 
-현재 프로젝트는 신규 DB 초기화는 `backend/src/main/resources/db/schema.sql`로 처리하고, 기존 운영 DB 갱신은 수동 마이그레이션 SQL로 처리한다.
-기존 운영 DB에서 런타임 DB 계정을 `root`에서 기능별 계정으로 바꾸는 절차는 [db-account-cutover-runbook.md](./db-account-cutover-runbook.md)를 본다.
+현재 프로젝트는 신규 DB 초기화는 `backend/src/main/resources/db/schema.sql`로 처리하고, 기존 DB 갱신은 수동 마이그레이션 SQL로 처리한다.
+현재는 운영 서버가 없으므로, 이 문서는 로컬/테스트 DB 기준 migration 메모로만 본다.
 
 ## 대상
 

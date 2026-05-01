@@ -1,5 +1,10 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 281) 문서가 `운영 전환` 을 실제 다음 트랙처럼 가정하면, 현재 로컬 검증 우선순위와 어긋나 다음 작업 해석이 틀어질 수 있음
+- 문제: 현재 실제 상태는 `운영 서버 없음`, `로컬 테스트만 진행`, `프론트 후 운영` 인데 일부 current 문서가 `ops-only`, `deploy`, `운영 전환` 을 다음 active track처럼 안내하고 있었음
+- 해결: pure ops/runbook 문서는 삭제하고, current 문서에서는 우선순위를 `로컬 기능 검증 -> 구조 검증 -> 수정 -> 최적화/보안 -> 프론트 연동 검증 -> 마지막 infra/deploy` 로 다시 고정했음
+- 이유: 지금 단계에서 중요한 건 실제 기능/구조가 로컬에서 끝까지 버티는지 확인하는 것이고, deploy 문서는 실제 서버가 생긴 뒤 다시 만드는 편이 오해를 줄인다
+
 ## 1) `JAVA_HOME` 미설정으로 테스트/빌드 실패
 - 문제: 테스트 실행 시 Java 환경 변수 미설정으로 Gradle 실행 불가
 - 해결: `JAVA_HOME`, `PATH`, `GRADLE_USER_HOME`를 명시해 실행
@@ -257,6 +262,21 @@
 - 문제: source onboarding에 필요한 판단 순서와 코드 진입점은 정리됐지만, 실제 새 source가 들어오면 다시 “무슨 항목을 적지?” 부터 시작하게 될 수 있었다
 - 해결: [policy-source-onboarding-template.md](./policy-source-onboarding-template.md) 를 추가해 source name, endpoint inventory, row grain 판정, raw ingest, canonical direct onboarding, codebook 필요 여부, recommendation 영향, next action 을 한 번에 채우는 복붙용 note 템플릿을 만들었다
 - 이유: 구조 설명 문서와 체크리스트, 코드 진입점 다음에 바로 사용할 실행 템플릿이 있어야 다음 source onboarding 때 문서 작성 비용을 줄이고 판단 형식을 표준화할 수 있다
+
+## 320) 프론트엔드 QA는 로컬 API smoke와 달리 “뒤로가기/복귀/세션 만료 UX” 를 자동 회귀로 잡지 못한다
+- 문제: backend smoke와 integration test는 충분히 정리됐지만, 브라우저에서 실제로 보이는 뒤로가기, 로그인 후 원위치 복귀, 세션 만료 후 `/login` 이동, 북마크 화면 간 일관성은 별도 브라우저 자동화가 없어 회귀 기준이 흐릴 수 있었다
+- 해결: [frontend-qa-current-state.md](./frontend-qa-current-state.md), [frontend-qa-checklist.md](./frontend-qa-checklist.md), [frontend-qa-template.md](./frontend-qa-template.md) 를 추가해 현재 프론트 QA를 `build/lint + 수동 브라우저 시나리오` 기준으로 고정하고, route-level 수동 검증 절차를 분리했다
+- 이유: 지금 단계에서는 Playwright/Cypress를 바로 도입하는 것보다, 실제 코드가 가진 라우팅/세션 경계를 빠르게 검증할 수 있는 manual runbook을 먼저 고정하는 편이 비용 대비 효율이 높다
+
+## 321) `PoliciesPage` 검색/필터 상태는 URL이 아니라 local state 중심이라 뒤로가기/새로고침에서 기대와 다르게 보일 가능성이 있다
+- 문제: [PoliciesPage.jsx](../frontend/src/pages/PoliciesPage.jsx) 의 검색어, 카테고리, 지역, 정렬, 페이지 상태는 주로 컴포넌트 local state에 있고 URL query로 영속화되지 않는다
+- 해결: 지금 round에서는 기능 수정 대신 [frontend-qa-current-state.md](./frontend-qa-current-state.md) 와 [frontend-qa-checklist.md](./frontend-qa-checklist.md) 에 이 구간을 명시적 QA 포인트와 리스크로 기록했다
+- 이유: 이건 즉시 버그라고 단정할 문제보다 UX 기대와 현재 구현 경계의 차이로 봐야 한다. 먼저 수동 검증 기준에 올려두고, 실제 사용성 이슈가 확인되면 URL state persist 개선을 여는 편이 맞다
+
+## 322) 프론트 production build는 통과하지만 단일 chunk 크기 경고가 남아 있다
+- 문제: `cd frontend && npm run build` 는 통과했지만 `dist/assets/index-*.js` 가 `500 kB` 경고를 넘었다
+- 해결: 현재는 기능 실패가 아니라 후속 성능 개선 후보로만 기록하고, frontend QA current-state 문서에 기준선으로 반영했다
+- 이유: 지금 우선순위는 브라우저 기능 흐름 검증과 운영 전 정상동작 확인이다. bundle split은 중요하지만, 현재 장애나 기능 실패를 일으키는 즉시 이슈는 아니다
 
 ## 320) `collect-ops.md` 하나만으로는 현재 기준과 실행 절차와 장애 기록 형식이 섞여 보일 수 있다
 - 문제: collect 관련 문서는 있었지만, 현재 collect 동작 기준, 실제 실행 순서, 장애 기록 양식이 한 문서 안에 섞여 있어 바로 쓰기 어려울 수 있었다

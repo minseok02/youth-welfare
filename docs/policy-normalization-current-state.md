@@ -190,10 +190,10 @@ canonical taxonomy 대표값이 아니라
 
 - provider/operator/codebook 응답이 먼저 필요
 
-### ops-only
+### future infra/deploy memo
 
-- 운영 host/DB/secret 기준 전환
-- 운영 migration / datasource / deploy smoke
+- 실제 서버/DB/secret 경계가 생긴 뒤의 전환 메모
+- migration / datasource / deploy smoke 재정의
 
 ## design history 로 읽을 문서
 

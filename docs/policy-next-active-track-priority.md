@@ -12,20 +12,22 @@
 
 - 로컬에서 바로 구현/검증 가능한 트랙
 - 외부 source/codebook 응답이 있어야 다시 열 수 있는 blocked SQL/doc 트랙
-- 운영 환경이 있어야만 진행되는 deploy 트랙
+- 서버가 생긴 뒤에만 의미가 있는 future infra/deploy 메모
 
 중 무엇을 다음 active 메인 트랙으로 둘지 고정합니다.
 
 ## 결론
 
-현재 next active main track은 **로컬에서 끝낼 수 있는 구현/검증 pending 정리** 입니다.
+현재 next active main track은 **로컬에서의 기능/구조 추가 검증** 입니다.
 
 즉 다음 기본 진행축은 아래 순서입니다.
 
-1. 로컬에서 재현/검증 가능한 pending 추리기
-2. 로컬에서 테스트/스모크/수동확인까지 끝내기
-3. 로컬 기준으로 더 손볼 게 있는지 정리하기
-4. 남은 것이 external dependency 또는 운영 dependency뿐일 때만 운영/deploy 로 이동
+1. 실제 기능이 끝까지 이어지는지 로컬에서 다시 검증하기
+2. 새 source 추가 구조가 collector -> raw -> sidecar -> read-model 경계에서 버티는지 확인하기
+3. 검증 중 드러난 수정 포인트를 반영하기
+4. 그 다음 최적화/보안 정리
+5. 프론트 연동 검증
+6. 마지막에만 infra/deploy 검토
 
 반면 아래는 계속 blocked/backlog 로 둡니다.
 
@@ -33,9 +35,9 @@
 - `GOV24_SUPPORT_CONDITION` full inventory/backfill
 - `YOUTH_MID` stable code mapping SQL
 
-아래는 **로컬 정리 완료 전까지 defer** 합니다.
+아래는 **현재 단계에서는 active track으로 보지 않습니다.**
 
-- 운영 서버 Docker Compose 기동
+- 서버가 생긴 뒤의 배포/infra 절차
 - 운영 DB 계정 / datasource 전환
 - 운영 `.env` / secret store 전환
 - HTTPS/Nginx
@@ -59,19 +61,11 @@
 
 문서만 더 쌓아도 실제 unblock은 일어나지 않는다.
 
-## 2. 운영/deploy pending은 “지금 당장 할 수 있다”와 “지금 해야 한다”가 다르다
+## 2. future infra/deploy 메모는 지금 active track이 아니다
 
-운영 pending은 실행하면 state는 바뀌지만,
-지금 방향에서는 그것만으로 우선순위가 되지 않는다.
-
-현재 기준은 아래다.
-
-- 먼저 로컬에서 구현/검증 가능한 것 전부 마무리
-- 로컬 기준 정상작동 확인
-- 추가 수정이 없거나 남은 것이 운영 의존뿐일 때만 운영 이동
-
-즉 deploy lane은 available 하더라도
-**local-first closeout 이후** 로 미룬다.
+현재는 운영 서버 자체가 없으므로,
+deploy/infra 메모는 “나중에 서버가 생기면 다시 만들 주제”일 뿐
+지금 당장 진행할 트랙이 아니다.
 
 ## 3. blocked SQL 은 지금 더 파도 reopen 조건 자체는 바뀌지 않는다
 
@@ -92,22 +86,19 @@ blocked SQL 보다 먼저
 
 ### first lane
 
-- 현재 구현된 기능의 로컬 테스트/스모크/회귀 확인
-- 로컬에서 추가 수정이 필요한지 확인
-- 남은 pending 중 external/ops 의존이 아닌 항목 우선 처리
+- 실제 기능 end-to-end 로컬 검증
+- 신규 source onboarding 구조 검증
+- 검증 중 드러나는 수정 포인트 반영
 
 ### second lane
 
-- blocked source 응답 대기
-- external dependency 없는 문서/코드 보정
+- 최적화와 보안 정리
+- 프론트 연동 이후 통합 검증
 
-### last lane
+### deferred lane
 
-- 운영 서버 Docker Compose 기동
-- 운영 DB 계정 생성
-- 앱 datasource 전환
-- HTTPS/Nginx
-- PII datasource / revoke / legacy user id migration smoke
+- external blocked 응답 대기
+- 서버가 생긴 뒤의 infra/deploy 절차 재정의
 
 ## blocked 트랙 유지 조건
 
@@ -119,16 +110,16 @@ blocked SQL 보다 먼저
 
 그 전까지는 blocked/backlog 유지가 기본이다.
 
-## 운영으로 넘어가는 조건
+## infra/deploy 를 다시 문서화할 조건
 
-아래를 모두 만족할 때만 운영/deploy lane을 active로 올린다.
+아래를 모두 만족할 때만 별도 deploy/infrastructure runbook을 다시 만든다.
 
-1. 로컬에서 가능한 구현/수정이 끝남
-2. 로컬 테스트/스모크 기준 정상작동 확인
-3. 남은 작업이 external dependency 또는 운영 dependency 중심임
+1. 실제 서버/DB/secret 경계가 생김
+2. 로컬 기준 추가 수정이 끝남
+3. 배포 절차를 문서화할 실제 대상이 있음
 
 ## 요약
 
 1. `Gov24` 문서 트랙은 지금 단계에서 external response boundary까지 이미 내려왔다.
-2. 하지만 그 다음 active main track은 곧바로 운영/deploy 가 아니라 local-first closeout 이다.
-3. practical next action 기준으로는 로컬에서 끝낼 수 있는 검증/수정 항목을 먼저 닫고, 더 손볼 게 없을 때만 운영으로 넘어간다.
+2. 지금 단계의 active main track은 local 기능/구조 검증과 그에 따른 수정이다.
+3. 프론트 연동 검증이 끝나기 전 deploy/infra 는 current 작업 기준에서 제외한다.

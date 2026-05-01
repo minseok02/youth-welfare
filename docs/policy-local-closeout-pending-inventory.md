@@ -13,7 +13,7 @@
 
 - 로컬에서 바로 끝낼 수 있는 항목
 - 외부 source/codebook 응답이 있어야 열리는 항목
-- 운영 환경이 있어야 진행되는 항목
+- 현재는 실제 대상이 없는 future infra 항목
 
 을 다시 분리해서,
 local-first closeout 기준의 실제 다음 액션을 고정합니다.
@@ -24,7 +24,7 @@ local-first closeout 기준의 실제 다음 액션을 고정합니다.
 대부분이 아래 두 부류입니다.
 
 1. external blocked
-2. ops-only
+2. future infra/deploy memo
 
 즉 **새로 설계/구현할 로컬 pending은 거의 남지 않았고**,
 지금 로컬에서 할 수 있는 핵심은
@@ -40,17 +40,18 @@ local-first closeout 기준의 실제 다음 액션을 고정합니다.
 
 이들은 current source/codebook 응답이 와야만 다시 열 수 있습니다.
 
-## 2. ops-only 항목
+## 2. future infra/deploy memo
 
-아래는 로컬이 아니라 실제 운영 환경이 있어야 의미가 있습니다.
+아래는 실제 서버/배포 대상이 생긴 뒤에야 의미가 있습니다.
 
-- 운영 서버 Docker Compose 기동
-- 운영 DB 계정 생성 및 datasource 전환
-- 운영 `.env` / secret store 전환
+- 서버 기동 절차
+- DB 계정 생성 및 datasource 전환
+- `.env` / secret store 전환
 - HTTPS/Nginx 적용
-- 운영 DB migration / 배포 smoke
+- migration / 배포 smoke
 
-즉 local-first 원칙상 지금 당장 main track 으로 올리지 않습니다.
+즉 local-first 원칙상 지금 당장 main track 으로 올리지 않고,
+실제 서버가 생길 때 다시 정의합니다.
 
 ## 3. 지금 로컬에서 바로 할 수 있는 것
 
@@ -156,10 +157,10 @@ known-positive replay가 다시 `A_top10_target=0->1`, `B_top10_target=0->0` 으
 1. 핵심 regression test 통과
 2. 핵심 smoke script 통과
 3. broad backend suite에서도 hidden regression이 없음
-4. 남은 일은 external blocked 또는 ops-only 뿐임
+4. 남은 일은 external blocked 또는 future infra memo 뿐임
 
 ## 요약
 
-1. 현재 미완 항목 대부분은 external blocked 또는 ops-only 이다.
+1. 현재 미완 항목 대부분은 external blocked 또는 future infra memo 이다.
 2. closeout 검증 세트(auth/session, PII cutover, education replay, runtime smoke, broad backend suite)는 current 워크트리 기준으로 다시 모두 통과했다.
 3. 따라서 지금 남은 일은 blocked source 응답이나 운영 환경이 필요할 때만 다시 열리는 트랙들이다.
