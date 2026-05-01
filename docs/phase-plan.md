@@ -1460,6 +1460,11 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
   - 이를 기준으로 writer의 refresh scope를 `YOUTH_MID` / `YOUTH_MID_RAW_ALIAS` 묶음으로 넓혀 `NormalizedPolicySidecarPersistenceIntegrationTest` 기준 stale alias 회귀를 정리했다
   - 동시에 `UserPiiSyncStatusIntegrationTest` 는 local smoke가 남긴 shared queue row 때문에 절대 count assertion이 흔들릴 수 있어 baseline delta + 극단 timestamp 기반으로 fixture를 보강했다
   - 검증: `./gradlew test --no-daemon --tests com.example.welfare.collect.normalization.DeferredNormalizedPolicySidecarWriterTest`, `./gradlew integrationTest --no-daemon --tests com.example.welfare.integration.NormalizedPolicySidecarPersistenceIntegrationTest --tests com.example.welfare.integration.UserPiiSyncStatusIntegrationTest`, `./gradlew test integrationTest --no-daemon`
+- [x] actual collect 이후 downstream 동작 재검증
+  - temporary 일반 사용자 계정을 만든 뒤 allowlist 승격 -> 앱 재기동 -> admin 로그인 경로로 실제 `POST /api/admin/collect/youth` 를 다시 실행했고, 응답은 `success`, latest `api_sync_logs` row는 `requested=2363`, `saved=2363`, `failed=0` 으로 닫혔다
+  - collect 직후 로컬 DB 기준선도 다시 확인해 `welfare_services=2363`, `service_taxonomies=2363`, `service_facts=8257`, `service_taxonomy_terms=7931` 상태를 확인했다
+  - 이어서 `deploy/smoke/run-local-education-priority-replay.sh` 를 다시 실행해 `SUMMARY_METRIC A_top10_target=4->8 B_top10_target=3->3 A_target_total=10->10 B_target_total=10->10` 으로 recommendation downstream 도 current live snapshot 기준 정상동작을 확인했다
+  - 검증 뒤에는 temporary allowlist email 을 제거하고 앱 health `UP` 까지 다시 확인했다
 - [x] post-local-closeout pending 성격 분리
   - [policy-post-local-closeout-track-split.md](./policy-post-local-closeout-track-split.md) 를 추가해 2026-05-01 기준 더 이상 active local pending 은 없고, 남은 항목은 `external blocked` 와 `ops-only` 두 트랙뿐이라고 고정했다
   - 이 기준으로 `GOV24_*`, `GOV24_SUPPORT_CONDITION`, `YOUTH_MID`, CTR/알림톡은 external blocked, deploy/DB/secret/Nginx/migration smoke 는 ops-only 로 유지한다
