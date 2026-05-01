@@ -118,6 +118,10 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - 2026-04-28 알림 대상 이메일 조회를 `notification_pii_ro` secondary datasource로 분리 후 `backend`에서 `./gradlew integrationTest --no-daemon --tests com.example.welfare.integration.AuthRedisIntegrationTest`
 - 2026-04-28 알림 대상 이메일 조회를 `notification_pii_ro` secondary datasource로 분리 후 `git diff --check`
 - 2026-05-01 recommendation cleanup 후 `backend`에서 `./gradlew test --no-daemon --tests com.example.welfare.recommend.support.RecommendationMatchingSupportTest --tests com.example.welfare.recommend.repository.CanonicalRecommendationReadModelRepositoryTest --tests com.example.welfare.recommend.service.RuleScoringServiceTest --tests com.example.welfare.recommend.service.DefaultPriorityMatcherTest`
+- 2026-05-01 synthetic source dry-run 테스트 추가 후 `backend`에서 `./gradlew test --no-daemon --tests com.example.welfare.collect.service.RawApiPayloadServiceTest --tests com.example.welfare.collect.service.CollectItemSaverTest --tests com.example.welfare.collect.service.SyntheticListCollectSourceAdapterTest --tests com.example.welfare.collect.support.ListCollectSourceBindingsTest`
+- 2026-05-01 source 구조 검증 마무리 후 `backend`에서 `./gradlew test --no-daemon`
+- 2026-05-01 source 구조 검증 마무리 후 로컬 fresh integration DB를 `DB_PASSWORD=welfare1234!` 기준으로 재초기화하고 `bash deploy/mysql/apply-local-policy-sidecar-draft.sh`
+- 2026-05-01 source 구조 검증 마무리 후 `backend`에서 `./gradlew integrationTest --no-daemon`
 - 2026-04-28 프로필 조회 / 비밀번호 재설정 PII read 경로를 `app_pii_rw` secondary datasource로 분리 후 `backend`에서 `./gradlew test --no-daemon --tests com.example.welfare.user.service.UserReadServiceTest --tests com.example.welfare.user.service.AuthServiceTest`
 - 2026-04-28 `docker compose up -d db redis`
 - 2026-04-28 프로필 조회 / 비밀번호 재설정 PII read 경로를 `app_pii_rw` secondary datasource로 분리 후 `backend`에서 `./gradlew integrationTest --no-daemon --tests com.example.welfare.integration.UserCoreDualWriteIntegrationTest --tests com.example.welfare.integration.AuthRedisIntegrationTest`

@@ -4,6 +4,7 @@ import com.example.welfare.collect.dto.YouthApiDto;
 import com.example.welfare.collect.mapper.WelfareServiceMapper;
 import com.example.welfare.collect.normalization.NormalizedPolicyAggregate;
 import com.example.welfare.collect.normalization.NormalizedPolicySidecarWriter;
+import com.example.welfare.collect.support.ListCollectSourceBinding;
 import com.example.welfare.policy.entity.ServiceRegion;
 import com.example.welfare.policy.entity.ServiceTag;
 import com.example.welfare.policy.entity.WelfareService;
@@ -196,6 +197,48 @@ class CollectItemSaverTest {
         verify(normalizedPolicySidecarWriter).upsert(existing, aggregate);
     }
 
+    @Test
+    @DisplayName("generic save command 는 synthetic item aggregate 도 source-specific DTO 없이 저장 경계를 재사용한다")
+    void saveOnceSupportsSyntheticBindingCommand() {
+        SyntheticItem item = new SyntheticItem("Y-SYN-SAVE-1", "합성 소스 정책");
+        WelfareService existing = WelfareService.builder()
+                .id(55L)
+                .sourceType(WelfareService.SourceType.YOUTH)
+                .sourceId(item.sourceId())
+                .title("old")
+                .status(WelfareService.ServiceStatus.ACTIVE)
+                .build();
+        WelfareService incoming = WelfareService.builder()
+                .sourceType(WelfareService.SourceType.YOUTH)
+                .sourceId(item.sourceId())
+                .title(item.title())
+                .status(WelfareService.ServiceStatus.ACTIVE)
+                .build();
+        NormalizedPolicyAggregate aggregate = normalizedAggregate(item.sourceId());
+        ListCollectSourceBinding<SyntheticItem> binding = new ListCollectSourceBinding<>(
+                WelfareService.SourceType.YOUTH,
+                SyntheticItem::sourceId,
+                ignored -> incoming,
+                (ignored, entity) -> List.<ServiceRegion>of(),
+                (ignored, entity) -> List.of(ServiceTag.builder()
+                        .service(entity)
+                        .tagType(ServiceTag.TagType.KEYWORD)
+                        .tagValue("합성")
+                        .build()),
+                ignored -> aggregate
+        );
+
+        given(welfareServiceRepository.findBySourceTypeAndSourceId(WelfareService.SourceType.YOUTH, item.sourceId()))
+                .willReturn(Optional.of(existing));
+
+        saver.saveOnce(binding.toSaveCommand(item));
+
+        verify(normalizedPolicySidecarWriter).upsert(existing, aggregate);
+        verify(tagRepository).deleteByServiceId(55L);
+        verify(tagRepository).saveAll(any());
+        verify(searchYouthRelevanceService).refreshForService(eq(existing), any());
+    }
+
     private YouthApiDto.Item youthItem(String plcyNo) {
         YouthApiDto.Item item = new YouthApiDto.Item();
         ReflectionTestUtils.setField(item, "plcyNo", plcyNo);
@@ -216,5 +259,8 @@ class CollectItemSaverTest {
                         .confidence(BigDecimal.ONE)
                         .build())
                 .build();
+    }
+
+    private record SyntheticItem(String sourceId, String title) {
     }
 }
