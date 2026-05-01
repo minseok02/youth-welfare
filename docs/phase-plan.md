@@ -148,6 +148,7 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
   - `service_taxonomy_summary_slots=5619`
   - `education_target_rows=110`
   - `slot_education_services=110`
+- 2026-05-02 education replay/history inventory 문서의 `youth_major` 확인 기준을 summary slot-first / legacy fallback 으로 정리 후 `git diff --check`
 - 2026-05-01 `BokjiroDetailCollectService` 내부 예산 배분 / detail persistence-fallback 분리 후 `backend`에서 `./gradlew test --no-daemon --tests com.example.welfare.collect.service.BokjiroDetailCollectServiceTest`
 - 2026-05-01 `BokjiroDetailCollectService` 분리 후 `backend`에서 `./gradlew integrationTest --no-daemon --tests com.example.welfare.integration.BokjiroSidecarMergeIntegrationTest`
 - 2026-05-01 recommendation cleanup 후 `backend`에서 `./gradlew test --no-daemon --tests com.example.welfare.recommend.support.RecommendationMatchingSupportTest --tests com.example.welfare.recommend.repository.CanonicalRecommendationReadModelRepositoryTest --tests com.example.welfare.recommend.service.RuleScoringServiceTest --tests com.example.welfare.recommend.service.DefaultPriorityMatcherTest`

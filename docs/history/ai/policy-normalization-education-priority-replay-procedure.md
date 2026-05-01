@@ -336,7 +336,7 @@ for row in target[:10]:
 PY
 ```
 
-위 출력만으로는 `youth_major=교육` 여부가 보이지 않으므로, 필요하면 같은 `serviceId` 집합을 local DB의 `service_taxonomies.youth_major_label` 과 다시 대조합니다.
+위 출력만으로는 `youth_major=교육` 여부가 보이지 않으므로, 필요하면 같은 `serviceId` 집합을 local DB의 `service_taxonomy_summary_slots(slot_key='YOUTH_MAJOR')` 를 우선 보고, 값이 없을 때만 `service_taxonomies.youth_major_label` 로 fallback 하는 기준으로 다시 대조합니다.
 
 ### sample A top-10 비교
 
