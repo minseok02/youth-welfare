@@ -155,6 +155,7 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
   - `slot_services_GOV24_SERVICE_FIELD=0`
   - `slot_services_GOV24_USER_TYPE=0`
   - `slot_services_GOV24_BENEFIT_TYPE=0`
+- 2026-05-02 recommendation read-model projection에 `youthMidLabel`, `provisionMethodLabel` 을 추가하고 `YOUTH_MID` / `PROVISION_METHOD` 를 slot-first / legacy fallback 으로 hydrate 하도록 확장 후 `backend`에서 `./gradlew test --no-daemon --tests com.example.welfare.recommend.repository.CanonicalRecommendationReadModelRepositoryTest`
 - 2026-05-02 education replay/history inventory 문서의 `youth_major` 확인 기준을 summary slot-first / legacy fallback 으로 정리 후 `git diff --check`
 - 2026-05-01 `BokjiroDetailCollectService` 내부 예산 배분 / detail persistence-fallback 분리 후 `backend`에서 `./gradlew test --no-daemon --tests com.example.welfare.collect.service.BokjiroDetailCollectServiceTest`
 - 2026-05-01 `BokjiroDetailCollectService` 분리 후 `backend`에서 `./gradlew integrationTest --no-daemon --tests com.example.welfare.integration.BokjiroSidecarMergeIntegrationTest`

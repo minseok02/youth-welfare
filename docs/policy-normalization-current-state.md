@@ -113,12 +113,17 @@ projection이 현재 담는 대표값:
 
 - `unifiedCategoryCompat`
 - `youthMajorLabel`
+- `youthMidLabel`
+- `provisionMethodLabel`
 - `applyEndDate`
 - `interestThemes`
 - `targetGroupsRaw`
 - `targetGroupBuckets`
 - `beneficiaryTerms`
 - `factKeys`
+
+현재 `youthMajorLabel` 은 slot-first / legacy fallback 으로 읽고 있고,
+`youthMidLabel`, `provisionMethodLabel` 도 같은 projection 경계에 먼저 실어 둔 상태입니다.
 
 즉 raw sidecar를 추천 서비스가 직접 읽는 게 아니라,
 추천 전용 projection을 통해 hydrate 하는 구조가 이미 코드에 있습니다.

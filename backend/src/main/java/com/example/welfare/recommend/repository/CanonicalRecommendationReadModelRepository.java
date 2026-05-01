@@ -79,6 +79,8 @@ public class CanonicalRecommendationReadModelRepository {
                            ws.source_type,
                            ws.unified_category,
                            COALESCE(stss_youth_major.slot_label, st.youth_major_label) AS youth_major_label,
+                           COALESCE(stss_youth_mid.slot_label, st.youth_mid_label) AS youth_mid_label,
+                           COALESCE(stss_provision_method.slot_label, st.provision_method_label, ws.apply_method_name) AS provision_method_label,
                            ws.title,
                            COALESCE(wsd.support_detail, ws.support_content, ws.description) AS summary,
                            ws.min_age,
@@ -97,6 +99,20 @@ public class CanonicalRecommendationReadModelRepository {
                         WHERE slot_key = 'YOUTH_MAJOR'
                         GROUP BY service_id
                     ) stss_youth_major ON stss_youth_major.service_id = ws.id
+                    LEFT JOIN (
+                        SELECT service_id,
+                               MAX(slot_label) AS slot_label
+                        FROM service_taxonomy_summary_slots
+                        WHERE slot_key = 'YOUTH_MID'
+                        GROUP BY service_id
+                    ) stss_youth_mid ON stss_youth_mid.service_id = ws.id
+                    LEFT JOIN (
+                        SELECT service_id,
+                               MAX(slot_label) AS slot_label
+                        FROM service_taxonomy_summary_slots
+                        WHERE slot_key = 'PROVISION_METHOD'
+                        GROUP BY service_id
+                    ) stss_provision_method ON stss_provision_method.service_id = ws.id
                     WHERE ws.id IN (:serviceIds)
                     """, params);
         }
@@ -105,6 +121,8 @@ public class CanonicalRecommendationReadModelRepository {
                        ws.source_type,
                        ws.unified_category,
                        st.youth_major_label,
+                       st.youth_mid_label,
+                       COALESCE(st.provision_method_label, ws.apply_method_name) AS provision_method_label,
                        ws.title,
                        COALESCE(wsd.support_detail, ws.support_content, ws.description) AS summary,
                        ws.min_age,
@@ -199,6 +217,8 @@ public class CanonicalRecommendationReadModelRepository {
         private final String sourceType;
         private final String unifiedCategoryCompat;
         private final String youthMajorLabel;
+        private final String youthMidLabel;
+        private final String provisionMethodLabel;
         private final String title;
         private final String summary;
         private final Integer minAge;
@@ -222,6 +242,8 @@ public class CanonicalRecommendationReadModelRepository {
                                   String sourceType,
                                   String unifiedCategoryCompat,
                                   String youthMajorLabel,
+                                  String youthMidLabel,
+                                  String provisionMethodLabel,
                                   String title,
                                   String summary,
                                   Integer minAge,
@@ -234,6 +256,8 @@ public class CanonicalRecommendationReadModelRepository {
             this.sourceType = sourceType;
             this.unifiedCategoryCompat = unifiedCategoryCompat;
             this.youthMajorLabel = youthMajorLabel;
+            this.youthMidLabel = youthMidLabel;
+            this.provisionMethodLabel = provisionMethodLabel;
             this.title = title;
             this.summary = summary;
             this.minAge = minAge;
@@ -250,6 +274,8 @@ public class CanonicalRecommendationReadModelRepository {
                     stringValue(row.get("source_type")),
                     stringValue(row.get("unified_category")),
                     stringValue(row.get("youth_major_label")),
+                    stringValue(row.get("youth_mid_label")),
+                    stringValue(row.get("provision_method_label")),
                     stringValue(row.get("title")),
                     stringValue(row.get("summary")),
                     intValue(row.get("min_age")),
@@ -298,6 +324,8 @@ public class CanonicalRecommendationReadModelRepository {
                     .sourceType(sourceType)
                     .unifiedCategoryCompat(unifiedCategoryCompat)
                     .youthMajorLabel(youthMajorLabel)
+                    .youthMidLabel(youthMidLabel)
+                    .provisionMethodLabel(provisionMethodLabel)
                     .title(title)
                     .summary(summary)
                     .minAge(minAge)

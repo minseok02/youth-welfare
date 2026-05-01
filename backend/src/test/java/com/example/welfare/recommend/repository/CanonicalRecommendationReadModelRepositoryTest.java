@@ -45,6 +45,8 @@ class CanonicalRecommendationReadModelRepositoryTest {
         baseRow.put("source_type", "BOKJIRO_CENTRAL");
         baseRow.put("unified_category", "금융·생활지원");
         baseRow.put("youth_major_label", "교육");
+        baseRow.put("youth_mid_label", null);
+        baseRow.put("provision_method_label", "온라인");
         baseRow.put("title", "여성청소년 생리용품 지원");
         baseRow.put("summary", "바우처 지원");
         baseRow.put("min_age", 9);
@@ -92,6 +94,8 @@ class CanonicalRecommendationReadModelRepositoryTest {
         assertThat(projection.sourceType()).isEqualTo("BOKJIRO_CENTRAL");
         assertThat(projection.unifiedCategoryCompat()).isEqualTo("금융·생활지원");
         assertThat(projection.youthMajorLabel()).isEqualTo("교육");
+        assertThat(projection.youthMidLabel()).isNull();
+        assertThat(projection.provisionMethodLabel()).isEqualTo("온라인");
         assertThat(projection.educationPriorityBoostEligible()).isFalse();
         assertThat(projection.title()).isEqualTo("여성청소년 생리용품 지원");
         assertThat(projection.applyEndDate()).isEqualTo(LocalDate.of(2026, 12, 31));
@@ -117,6 +121,8 @@ class CanonicalRecommendationReadModelRepositoryTest {
         baseRow.put("source_type", "BOKJIRO_LOCAL");
         baseRow.put("unified_category", "주거");
         baseRow.put("youth_major_label", "주거");
+        baseRow.put("youth_mid_label", null);
+        baseRow.put("provision_method_label", "방문");
         baseRow.put("title", "청년 농어촌 정착 지원");
         baseRow.put("summary", "한부모 청년의 농촌 정착을 지원");
         baseRow.put("min_age", 19);
@@ -160,6 +166,8 @@ class CanonicalRecommendationReadModelRepositoryTest {
         baseRow.put("source_type", "YOUTH");
         baseRow.put("unified_category", "기타");
         baseRow.put("youth_major_label", "교육");
+        baseRow.put("youth_mid_label", "재직자");
+        baseRow.put("provision_method_label", "온라인");
         baseRow.put("title", "교육 역량 강화");
         baseRow.put("summary", "청년 교육 지원");
         baseRow.put("min_age", 19);
@@ -181,6 +189,8 @@ class CanonicalRecommendationReadModelRepositoryTest {
         RecommendationCandidateProjection projection = repository.findByServiceIds(List.of(5501L)).get(5501L);
 
         assertThat(projection.educationPriorityBoostEligible()).isTrue();
+        assertThat(projection.youthMidLabel()).isEqualTo("재직자");
+        assertThat(projection.provisionMethodLabel()).isEqualTo("온라인");
     }
 
     @Test
@@ -191,6 +201,8 @@ class CanonicalRecommendationReadModelRepositoryTest {
         baseRow.put("source_type", "YOUTH");
         baseRow.put("unified_category", "기타");
         baseRow.put("youth_major_label", "교육");
+        baseRow.put("youth_mid_label", "전월세 및 주거급여 지원");
+        baseRow.put("provision_method_label", "온라인");
         baseRow.put("title", "교육 역량 강화");
         baseRow.put("summary", "청년 교육 지원");
         baseRow.put("min_age", 19);
@@ -212,6 +224,8 @@ class CanonicalRecommendationReadModelRepositoryTest {
         RecommendationCandidateProjection projection = repository.findByServiceIds(List.of(6601L)).get(6601L);
 
         assertThat(projection.youthMajorLabel()).isEqualTo("교육");
+        assertThat(projection.youthMidLabel()).isEqualTo("전월세 및 주거급여 지원");
+        assertThat(projection.provisionMethodLabel()).isEqualTo("온라인");
         assertThat(projection.educationPriorityBoostEligible()).isTrue();
     }
 }

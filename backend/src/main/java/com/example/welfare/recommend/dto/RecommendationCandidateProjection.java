@@ -17,6 +17,8 @@ public record RecommendationCandidateProjection(
         String sourceType,
         String unifiedCategoryCompat,
         String youthMajorLabel,
+        String youthMidLabel,
+        String provisionMethodLabel,
         String title,
         String summary,
         Integer minAge,
