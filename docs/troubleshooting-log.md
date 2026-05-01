@@ -1522,3 +1522,8 @@
 - 문제: label 3종 템플릿과 `supportConditions` 템플릿이 모두 생긴 뒤, 둘을 one package로 보내는 순간 “같은 응답이면 같은 시점에 같이 reopen” 하는 것처럼 오해할 수 있었다
 - 해결: [policy-normalization-gov24-request-package-checklist.md](./policy-normalization-gov24-request-package-checklist.md) 에서 발송은 one package, 판정은 two tracks(`label 3종` / `supportConditions`) 로 분리한다고 고정했다
 - 이유: blocked source 작업에서는 발송 단위와 판정 단위를 일부러 분리해 둬야 실제 응답이 부분적으로만 충분할 때도 한 축만 먼저 reopen할 수 있다. practical next action을 실제 발송/판정 단계로 넘기려면 이 분리가 필요했다
+
+## 295) blocked source 문서를 충분히 내린 뒤에는 “다음에 뭘 할 수 있는가”를 다시 정하지 않으면, 외부 응답이 오기 전까지 문서만 더 쌓이는 상태가 된다
+- 문제: `Gov24` source 경로, visibility check, 요청 템플릿, package checklist까지 모두 정리된 뒤에도 다음 active track을 다시 정하지 않으면, blocked SQL 트랙을 더 파는 문서만 계속 추가하면서 실제로는 아무 state change가 없는 구간에 머물 수 있었다
+- 해결: [policy-next-active-track-priority.md](./policy-next-active-track-priority.md) 에서 `Gov24` blocked SQL/doc 트랙은 external response boundary까지 이미 내려왔다고 보고, 다음 기본 진행축을 운영/deploy pending 으로 넘긴다고 고정했다
+- 이유: practical next action 기준으로는 Docker Compose / DB 계정 / datasource 전환처럼 바로 실행 가능한 운영 pending 이 더 앞선다. blocked SQL 은 source 응답이 오기 전까지는 backlog 로 유지하는 편이 맞다

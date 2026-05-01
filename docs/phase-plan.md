@@ -1421,6 +1421,9 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - [x] `Gov24 current codebook request package` 발송 순서와 트랙별 판정 체크리스트 정리
   - [policy-normalization-gov24-request-package-checklist.md](./policy-normalization-gov24-request-package-checklist.md) 를 추가해 발송은 one package로 묶되, 판정은 `serviceField/userType/benefitType` 과 `supportConditions` 두 트랙으로 나누는 운영 기준을 고정했다
   - 이로써 practical next step은 문서 설계가 아니라 실제 provider/operator 발송 여부 결정으로 넘어갔다고 정리했다
+- [x] `Gov24` blocked SQL/doc 트랙 이후 다음 active main track 우선순위 정리
+  - [policy-next-active-track-priority.md](./policy-next-active-track-priority.md) 를 추가해 `Gov24` 쪽은 external response boundary까지 이미 내려왔으므로, 다음 기본 진행축은 blocked SQL 이 아니라 운영/deploy pending 으로 넘긴다고 고정했다
+  - practical next action 기준으로는 Docker Compose / DB 계정 / datasource 전환이 먼저이고, `Gov24_*` / `supportConditions` / `YOUTH_MID` 는 source 응답이 올 때까지 blocked/backlog 로 유지한다고 정리했다
 - [ ] 운영 서버 Docker Compose 기동
 - [ ] 기존 운영 DB에 `app_core_rw` / `app_pii_rw` / `notification_pii_ro` / `migration_admin` 계정 생성 및 앱 datasource 전환
 - [ ] 운영 `.env` / secret store의 `APP_PII_DB_URL` / `NOTIFICATION_PII_DB_URL` 를 `youth_welfare_pii` schema 기준으로 전환
