@@ -1439,11 +1439,22 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
   - 같은 script는 이제 `service_taxonomies` 존재 여부, `welfare_services` 적재 여부, `compat=기타 + youth_major=교육` target row 존재 여부를 precondition으로 먼저 확인한다
   - 현재 local DB는 직전 `SMOKE_RESET_DB=true` PII smoke 영향으로 base schema만 남아 `welfare_services=0`, `service_taxonomies` 미생성 상태였고, replay는 bootRun 중간 실패 대신 `education replay precondition unmet: service_taxonomies table missing; local canonical schema/backfill not loaded` 로 명시적으로 종료됐다
   - 즉 이번 단계의 결과는 replay success 확보가 아니라 `로컬 snapshot/schema 부족을 early-fail로 고정` 한 것이다. known-positive replay 재검증은 local policy snapshot과 canonical sidecar schema를 다시 적재한 뒤 재개한다
+- [x] local education replay smoke(rule-only) known-positive snapshot 복구 및 재검증
+  - local DB에 draft sidecar schema를 다시 적용한 뒤 `POST /api/admin/collect/youth` 로 온통청년 snapshot을 복구했고, 이 과정에서 `service_taxonomies.provision_method_label` 이 `VARCHAR(100)` 으로는 live payload를 수용하지 못해 canonical sidecar 저장이 깨지는 문제를 확인했다
+  - 이를 기준으로 [V2026_04_30_01__create_policy_sidecars.sql](./../backend/src/main/resources/db/migration-draft/V2026_04_30_01__create_policy_sidecars.sql) 의 `provision_method_label` 타입을 `TEXT` 로 올리고 로컬 DB에도 같은 `ALTER TABLE` 을 적용했다
+  - 그 뒤 `deploy/smoke/run-local-education-priority-replay.sh` 를 다시 실행해 `SUMMARY_METRIC A_top10_target=0->1 B_top10_target=0->0 A_target_total=1->1 B_target_total=1->1` 로 known-positive replay가 current local snapshot 기준에서도 정상 복구되는 것을 확인했다
+- [x] local youth collect canonical sidecar/runtime collect closeout
+  - `ApiSyncLog.status` 가 DB에서는 소문자 값인데 엔티티는 대문자 `EnumType.STRING` 으로 읽고 있어 `POST /api/admin/collect/youth` 완료 단계가 `No enum constant ... running` 으로 깨지는 문제를 확인했다
+  - [ApiSyncLogStatusConverter](./../backend/src/main/java/com/example/welfare/collect/entity/converter/ApiSyncLogStatusConverter.java) 를 추가해 DB 값/도메인 enum을 분리하고, [V2026_04_23_01__add_api_sync_logs.sql](./../backend/src/main/resources/db/migration/V2026_04_23_01__add_api_sync_logs.sql) 과 [schema.sql](./../backend/src/main/resources/db/schema.sql) 의 `api_sync_logs.status` 타입을 `VARCHAR(30)` 으로 정리했다
+  - 로컬 DB에도 같은 `ALTER TABLE` 을 적용한 뒤 app을 재기동하고 `POST /api/admin/collect/youth` 를 다시 실행해 `api_sync_logs success(requested=2363, saved=2363, failed=0)`, `welfare_services=2363`, `service_taxonomies=2363`, `service_facts=8257`, `compat=기타 + youth_major=교육 target_rows=110` 기준선을 current local 상태에서 확인했다
 - [x] local runtime API smoke 재실행
   - `docker-compose.yml` 의 `env_file` 만으로는 shell override가 컨테이너에 전달되지 않아, `.env` 의 빈 `AES_SECRET_KEY` 상태에서 local runtime smoke가 `POST /api/auth/signup -> 500 / C002` 로 실패하는 것을 확인했다
   - 이를 막기 위해 compose app env에 `JWT_SECRET`, `AES_SECRET_KEY`, `OPENAI_API_KEY`, `GMAIL_*`, `YOUTH_API_KEY`, `BOKJIRO_API_KEY`, `SECURITY_ADMIN_EMAILS` explicit pass-through 를 추가했다
   - 그 뒤 smoke용 secret override로 app을 재생성하고 일반 사용자 기준 `signup -> login -> refresh -> recommendations(empty) -> bookmarks(empty) -> logout -> old refresh 401/A001 -> old access 401/A006` 를 현재 로컬에서 재검증했다
   - admin forced logout는 공개 signup이 allowlist email에 대해 `403 / A007` 로 막히는 정책을 확인한 뒤, 일반 사용자 2명을 먼저 만든 뒤 한 명을 `SECURITY_ADMIN_EMAILS` 로 승격해 `forced-logout 200 -> target old access 401/A006 -> target old refresh 401/A003 -> relogin 200` 경계까지 로컬에서 확인했다
+- [x] local-first closeout 세트 종료 판정
+  - current 워크트리 기준으로 `auth/session revoke regression`, `PII split-account local smoke`, `education replay smoke(rule-only)`, `runtime API smoke` 를 모두 다시 통과시켰다
+  - 따라서 지금 남은 미완 항목은 `GOV24_*`, `YOUTH_MID` 같은 external blocked 트랙과 운영 환경이 있어야 의미가 있는 ops-only 트랙뿐이라고 정리한다
 - [ ] 운영 서버 Docker Compose 기동
 - [ ] 기존 운영 DB에 `app_core_rw` / `app_pii_rw` / `notification_pii_ro` / `migration_admin` 계정 생성 및 앱 datasource 전환
 - [ ] 운영 `.env` / secret store의 `APP_PII_DB_URL` / `NOTIFICATION_PII_DB_URL` 를 `youth_welfare_pii` schema 기준으로 전환

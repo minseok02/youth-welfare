@@ -52,7 +52,7 @@ CREATE TABLE IF NOT EXISTS service_taxonomies (
     gov24_benefit_type_code             VARCHAR(64),
     gov24_benefit_type_label            VARCHAR(100),
     provision_method_code               VARCHAR(64),
-    provision_method_label              VARCHAR(100),
+    provision_method_label              TEXT,
     authority                           ENUM('OFFICIAL','SYSTEM_DERIVED','AI_ENRICHED') NOT NULL,
     confidence                          DECIMAL(4,3),
     created_at                          DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP,

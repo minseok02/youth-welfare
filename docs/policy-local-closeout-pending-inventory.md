@@ -128,6 +128,21 @@ local-first closeout 기준의 실제 다음 액션을 고정합니다.
 3. education replay smoke(rule-only)
 4. 필요 시 local runtime API smoke
 
+## 현재 상태
+
+2026-05-01 현재 로컬 기준선은 다시 복구됐다.
+
+1. auth/session revoke regression: 통과
+2. PII split-account local smoke: 통과
+3. education replay smoke(rule-only): 통과
+4. runtime API smoke: 통과
+
+추가로 `education replay` 복구 과정에서
+`service_taxonomies.provision_method_label VARCHAR(100)` 이
+온통청년 live payload 기준으로 너무 짧아 canonical sidecar collect를 깨뜨리는 문제를 확인했고,
+draft sidecar DDL을 `TEXT` 로 보정한 뒤
+known-positive replay가 다시 `A_top10_target=0->1`, `B_top10_target=0->0` 으로 복구되는 것까지 확인했다.
+
 ## local closeout 완료 조건
 
 아래를 만족하면
@@ -141,5 +156,5 @@ local-first closeout 기준의 실제 다음 액션을 고정합니다.
 ## 요약
 
 1. 현재 미완 항목 대부분은 external blocked 또는 ops-only 이다.
-2. 그래서 next local action은 새 기능 설계가 아니라 closeout 검증이다.
-3. practical next step은 auth/session, PII cutover, education replay, runtime smoke를 로컬에서 다시 묶어 확인하는 것이다.
+2. closeout 검증 세트(auth/session, PII cutover, education replay, runtime smoke)는 current 워크트리 기준으로 다시 모두 통과했다.
+3. 따라서 지금 남은 일은 blocked source 응답이나 운영 환경이 필요할 때만 다시 열리는 트랙들이다.
