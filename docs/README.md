@@ -67,6 +67,9 @@
 - [policy-normalization-gov24-support-condition-source-plan.md](./policy-normalization-gov24-support-condition-source-plan.md)
   `GOV24_SUPPORT_CONDITION` 을 representative subset seed에서 full inventory/backfill로 넓힐 때 어떤 official source가 더 필요한지 확인합니다.
 
+- [policy-normalization-gov24-support-condition-request-template.md](./policy-normalization-gov24-support-condition-request-template.md)
+  `GOV24_SUPPORT_CONDITION` full inventory/codebook을 provider/operator 에 실제로 요청할 때의 제목, 본문, sufficient/insufficient 판정 기준을 정리합니다.
+
 - [policy-normalization-fact-merge-rules.md](./policy-normalization-fact-merge-rules.md)
   복지로 list aggregate 와 detail aggregate 가 같은 `service_facts` 슬롯에 들어올 때의 merge/upsert 우선순위와 `fact_merge_key` 규칙을 확인합니다.
 

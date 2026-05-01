@@ -1512,3 +1512,8 @@
 - 문제: 기존 [policy-normalization-gov24-label-source-plan.md](./policy-normalization-gov24-label-source-plan.md) 에도 요청 스펙은 있었지만, 실제 제목/본문/판정 기준까지 내려오지 않으면 여전히 “운영자에게 뭘 보내지?” 단계에서 멈출 수 있었다
 - 해결: [policy-normalization-gov24-codebook-request-template.md](./policy-normalization-gov24-codebook-request-template.md) 에서 요청 제목, long/short 본문 템플릿, sufficient/insufficient 예시, reopen 판정 기준을 따로 고정했다
 - 이유: blocked SQL reopen에서는 source 찾는 일 자체보다 “어떤 자료가 오면 reopen 가능한가”를 명확히 적는 편이 더 중요하다. 이번 단계로 `GOV24_*` practical next action은 실제 요청 발송으로 더 좁혀졌다
+
+## 293) `GOV24_SUPPORT_CONDITION` 은 `serviceField/userType/benefitType` 와 같은 요청 템플릿으로 묶기보다, representative subset과 full inventory를 분리한 별도 템플릿이 더 안전하다
+- 문제: `GOV24_*` 공통 codebook 요청 템플릿이 생긴 뒤 `supportConditions` 도 같은 템플릿에 그냥 묶어 버리면, representative subset 근거가 있는 상태와 full inventory reopen 조건이 섞여 다시 판정 기준이 흐려질 수 있었다
+- 해결: [policy-normalization-gov24-support-condition-request-template.md](./policy-normalization-gov24-support-condition-request-template.md) 에서 `supportConditions` full inventory 요청을 label 3종과 분리된 별도 제목/본문/판정 기준으로 고정했다
+- 이유: `supportConditions` 는 이미 subset seed가 있고, full inventory reopen의 최소 단위도 label 3종보다 넓다. practical next action을 명확히 하려면 요청은 한 패키지로 보낼 수 있어도 판정 문서는 분리하는 편이 맞다
