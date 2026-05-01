@@ -41,6 +41,14 @@
   - 2026-05-01 기준 `GOV24` current public dataset/공지 재확인 결과, old `category` / `category-code` operation은 2021 개편 때 deprecated 되었고 current source-of-truth는 `serviceList` / `serviceDetail` / `supportConditions` 3종이다. 하지만 current public page text만으로는 `serviceField` / `userType` / `benefitType` finite inventory 가 드러나지 않아 import SQL은 계속 보류한다. 자세한 기준은 [policy-normalization-gov24-label-source-plan.md](./history/policy/policy-normalization-gov24-label-source-plan.md)에 정리했다.
   - `GOV24_SUPPORT_CONDITION` 도 현재는 대표 subset code만 공식 근거가 확인된 상태이고, full inventory/backfill은 current Swagger/schema export 또는 provider codebook 확보 전까지 보류한다. 자세한 기준은 [policy-normalization-gov24-support-condition-source-plan.md](./history/policy/policy-normalization-gov24-support-condition-source-plan.md)에 정리했다.
 
+- draft 파일: [`backend/src/main/resources/db/migration-draft/V2026_05_02_01__add_service_taxonomy_summary_slots.sql`](../backend/src/main/resources/db/migration-draft/V2026_05_02_01__add_service_taxonomy_summary_slots.sql)
+- 포함 내용:
+  - `service_taxonomy_summary_slots` 생성 초안
+  - canonical summary slot을 `slot_key / slot_code / slot_label` row로 병행 저장하기 위한 반복 테이블
+  - `service_taxonomies` 는 당분간 legacy projection row로 유지하고, 이 테이블은 장기 canonical summary truth 후보로 분리
+  - 아직 writer dual-write / backfill / read-model 전환은 열지 않았으므로 draft DDL만 먼저 추가
+  - 배경 설계는 [policy-normalization-summary-slot-storage-plan.md](./history/policy/policy-normalization-summary-slot-storage-plan.md)를 따른다
+
 ## 로컬 draft sidecar smoke
 
 로컬 Docker MySQL에서 draft sidecar 스키마와 실제 writer 정합성을 확인할 때는 아래 순서로 검증한다.
@@ -49,6 +57,7 @@
 docker exec -e MYSQL_PWD="$DB_PASSWORD" -i youth-welfare-db mysql -uroot youth_welfare < backend/src/main/resources/db/migration-draft/V2026_04_30_01__create_policy_sidecars.sql
 docker exec -e MYSQL_PWD="$DB_PASSWORD" -i youth-welfare-db mysql -uroot youth_welfare < backend/src/main/resources/db/migration-draft/V2026_04_30_02__seed_policy_normalization_codes.sql
 docker exec -e MYSQL_PWD="$DB_PASSWORD" -i youth-welfare-db mysql -uroot youth_welfare < backend/src/main/resources/db/migration-draft/V2026_04_30_03__seed_policy_official_code_subsets.sql
+docker exec -e MYSQL_PWD="$DB_PASSWORD" -i youth-welfare-db mysql -uroot youth_welfare < backend/src/main/resources/db/migration-draft/V2026_05_02_01__add_service_taxonomy_summary_slots.sql
 
 cd backend
 ./gradlew test --no-daemon --tests com.example.welfare.collect.normalization.NormalizedFactMergeSupportTest --tests com.example.welfare.collect.normalization.DeferredNormalizedPolicySidecarWriterTest
