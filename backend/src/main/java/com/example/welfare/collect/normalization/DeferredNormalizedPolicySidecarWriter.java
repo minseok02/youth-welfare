@@ -106,11 +106,6 @@ public class DeferredNormalizedPolicySidecarWriter implements NormalizedPolicySi
         if (taxonomy == null) {
             return;
         }
-        TaxonomySummarySupport.YouthMajorSummary youthMajorSummary =
-                TaxonomySummarySupport.normalizeYouthMajorSummary(TaxonomySummarySupport.summaryLabel(
-                        taxonomy,
-                        NormalizationKeySupport.SUMMARY_KEY_YOUTH_MAJOR
-                ));
 
         namedParameterJdbcTemplate.update("""
                 INSERT INTO service_taxonomies (
@@ -171,20 +166,12 @@ public class DeferredNormalizedPolicySidecarWriter implements NormalizedPolicySi
                     authority = VALUES(authority),
                     confidence = VALUES(confidence)
                 """,
-                TaxonomySummarySupport.applyBoundSummaryLabels(
+                ServiceTaxonomyLegacySummaryBridge.apply(
                         new MapSqlParameterSource()
                         .addValue("serviceId", service.getId())
                         .addValue("primarySourceSystem", WelfareSourceTypeSupport.primarySourceSystem(aggregate.core().sourceType()))
                         .addValue("compatUnifiedCategoryCode", toCompatUnifiedCategoryCode(taxonomy.compatUnifiedCategory()))
                         .addValue("compatUnifiedCategoryLabel", taxonomy.compatUnifiedCategory())
-                        .addValue("youthMajorCode", youthMajorSummary.code())
-                        .addValue("youthMajorLabel", youthMajorSummary.label())
-                        .addValue("youthMidCode", null)
-                        .addValue("gov24ServiceFieldCode", null)
-                        .addValue("gov24UserTypeCode", null)
-                        .addValue("gov24BenefitTypeCode", null)
-                        .addValue("provisionMethodCode", null)
-                        .addValue("provisionMethodLabel", taxonomy.provisionMethod())
                         .addValue("authority", taxonomy.authority().name())
                         .addValue("confidence", taxonomy.confidence()),
                         taxonomy
