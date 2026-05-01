@@ -65,8 +65,8 @@ class UserWithdrawAccessTokenBaselineIntegrationTest {
                 .build());
         createdUserIds.add(user.getId());
 
-        String oldAccessToken = jwtUtil.generateAccessToken(user.getId());
         String userKey = userRepository.findUserKeyById(user.getId()).orElseThrow();
+        String oldAccessToken = jwtUtil.generateAccessToken(userKey, user.getId());
         String refreshToken = jwtUtil.generateRefreshToken(userKey, user.getId());
         redisTemplate.opsForValue().set("refresh:" + userKey, refreshToken);
 

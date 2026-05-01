@@ -105,8 +105,8 @@ class ChatMessageApiIntegrationTest {
     @DisplayName("메시지 목록 조회는 생성 시각 오름차순과 참조 정책 ID를 반환한다")
     void getMessagesReturnsAscendingMessages() throws Exception {
         User user = createUser();
-        String accessToken = jwtUtil.generateAccessToken(user.getId());
         String userKey = userRepository.findUserKeyById(user.getId()).orElseThrow();
+        String accessToken = jwtUtil.generateAccessToken(userKey, user.getId());
 
         ChatSession session = chatSessionRepository.save(ChatSession.builder()
                 .userKey(userKey)
@@ -149,8 +149,9 @@ class ChatMessageApiIntegrationTest {
     void getMessagesReturnsNotFoundForOtherUsersSession() throws Exception {
         User owner = createUser();
         User other = createUser();
-        String ownerToken = jwtUtil.generateAccessToken(owner.getId());
         String otherKey = userRepository.findUserKeyById(other.getId()).orElseThrow();
+        String ownerKey = userRepository.findUserKeyById(owner.getId()).orElseThrow();
+        String ownerToken = jwtUtil.generateAccessToken(ownerKey, owner.getId());
 
         ChatSession otherSession = chatSessionRepository.save(ChatSession.builder()
                 .userKey(otherKey)
@@ -167,9 +168,9 @@ class ChatMessageApiIntegrationTest {
     @DisplayName("메시지 전송은 사용자 질문과 답변을 저장하고 참조 정책을 반환한다")
     void sendMessageCreatesUserAndAssistantMessages() throws Exception {
         User user = createUser();
-        String accessToken = jwtUtil.generateAccessToken(user.getId());
         String uniqueKeyword = "chatmsgtok123";
         String userKey = userRepository.findUserKeyById(user.getId()).orElseThrow();
+        String accessToken = jwtUtil.generateAccessToken(userKey, user.getId());
 
         ChatSession session = chatSessionRepository.save(ChatSession.builder()
                 .userKey(userKey)
@@ -225,8 +226,9 @@ class ChatMessageApiIntegrationTest {
     void sendMessageReturnsNotFoundForOtherUsersSession() throws Exception {
         User owner = createUser();
         User other = createUser();
-        String ownerToken = jwtUtil.generateAccessToken(owner.getId());
         String otherKey = userRepository.findUserKeyById(other.getId()).orElseThrow();
+        String ownerKey = userRepository.findUserKeyById(owner.getId()).orElseThrow();
+        String ownerToken = jwtUtil.generateAccessToken(ownerKey, owner.getId());
 
         ChatSession otherSession = chatSessionRepository.save(ChatSession.builder()
                 .userKey(otherKey)
@@ -245,9 +247,9 @@ class ChatMessageApiIntegrationTest {
     @DisplayName("짧은 시간에 메시지를 과도하게 보내면 429와 CH002를 반환하고 추가 저장을 막는다")
     void sendMessageReturnsTooManyRequestsWhenRateLimitExceeded() throws Exception {
         User user = createUser();
-        String accessToken = jwtUtil.generateAccessToken(user.getId());
         String uniqueKeyword = "chatlimit123";
         String userKey = userRepository.findUserKeyById(user.getId()).orElseThrow();
+        String accessToken = jwtUtil.generateAccessToken(userKey, user.getId());
 
         ChatSession session = chatSessionRepository.save(ChatSession.builder()
                 .userKey(userKey)

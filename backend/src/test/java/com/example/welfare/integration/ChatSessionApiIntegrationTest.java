@@ -69,8 +69,8 @@ class ChatSessionApiIntegrationTest {
     @DisplayName("세션 생성과 목록 조회는 로그인 사용자 기준으로 동작한다")
     void createAndListSessions() throws Exception {
         User user = createUser();
-        String accessToken = jwtUtil.generateAccessToken(user.getId());
         String userKey = userRepository.findUserKeyById(user.getId()).orElseThrow();
+        String accessToken = jwtUtil.generateAccessToken(userKey, user.getId());
 
         mockMvc.perform(post("/api/chat/sessions")
                         .header("Authorization", "Bearer " + accessToken))
@@ -109,9 +109,9 @@ class ChatSessionApiIntegrationTest {
     void deleteSessionOnlyForOwner() throws Exception {
         User owner = createUser();
         User other = createUser();
-        String ownerToken = jwtUtil.generateAccessToken(owner.getId());
         String ownerKey = userRepository.findUserKeyById(owner.getId()).orElseThrow();
         String otherKey = userRepository.findUserKeyById(other.getId()).orElseThrow();
+        String ownerToken = jwtUtil.generateAccessToken(ownerKey, owner.getId());
 
         ChatSession ownerSession = chatSessionRepository.save(ChatSession.builder()
                 .userKey(ownerKey)
@@ -135,7 +135,8 @@ class ChatSessionApiIntegrationTest {
                 .andExpect(jsonPath("$.errorCode").value("CH001"));
 
         assertThat(chatSessionRepository.findById(otherSession.getId())).isPresent();
-        assertThat(chatMessageRepository.count()).isZero();
+        assertThat(chatMessageRepository.countBySessionId(ownerSession.getId())).isZero();
+        assertThat(chatMessageRepository.countBySessionId(otherSession.getId())).isZero();
     }
 
     private User createUser() {

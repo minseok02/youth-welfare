@@ -70,8 +70,8 @@ class UserWithdrawChatCleanupIntegrationTest {
                 .name("Withdraw Integration")
                 .build());
         createdUserIds.add(user.getId());
-        String accessToken = jwtUtil.generateAccessToken(user.getId());
         String userKey = userRepository.findUserKeyById(user.getId()).orElseThrow();
+        String accessToken = jwtUtil.generateAccessToken(userKey, user.getId());
 
         ChatSession session = chatSessionRepository.save(ChatSession.builder()
                 .userKey(userKey)

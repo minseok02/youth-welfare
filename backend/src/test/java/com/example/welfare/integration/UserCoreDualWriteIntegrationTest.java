@@ -152,8 +152,8 @@ class UserCoreDualWriteIntegrationTest {
                 .andExpect(status().isOk());
 
         User user = userRepository.findByEmail(email).orElseThrow();
-        String accessToken = jwtUtil.generateAccessToken(user.getId());
         String userKey = userRepository.findUserKeyById(user.getId()).orElseThrow();
+        String accessToken = jwtUtil.generateAccessToken(userKey, user.getId());
 
         mockMvc.perform(put("/api/users/me")
                         .header("Authorization", "Bearer " + accessToken)
@@ -225,8 +225,8 @@ class UserCoreDualWriteIntegrationTest {
                 .andExpect(status().isOk());
 
         User user = userRepository.findByEmail(email).orElseThrow();
-        String accessToken = jwtUtil.generateAccessToken(user.getId());
         String userKey = userRepository.findUserKeyById(user.getId()).orElseThrow();
+        String accessToken = jwtUtil.generateAccessToken(userKey, user.getId());
 
         jdbcTemplate.update("""
                 update user_profiles
@@ -236,16 +236,13 @@ class UserCoreDualWriteIntegrationTest {
                 """,
                 "제주특별자치도", "제주시", "50000", 2, "ONE_PERSON", "JOB_SEEKER",
                 true, "DAILY", 0.9, 7, userKey);
-        jdbcTemplate.update("""
-                update youth_welfare_pii.user_pii
-                set email_enc = ?, name_enc = ?, birth_date_enc = ?, phone_enc = ?
-                where user_key = ?
-                """,
+        userPiiReadWriteRepository.upsertUserPii(
+                userKey,
                 aesEncryptUtil.encrypt("split-read@example.com"),
                 aesEncryptUtil.encrypt("Split Name"),
                 aesEncryptUtil.encrypt("2001-03-15"),
-                aesEncryptUtil.encrypt("01099998888"),
-                userKey);
+                aesEncryptUtil.encrypt("01099998888")
+        );
 
         mockMvc.perform(get("/api/users/me")
                         .header("Authorization", "Bearer " + accessToken))

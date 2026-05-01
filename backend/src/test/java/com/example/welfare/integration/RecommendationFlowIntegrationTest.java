@@ -178,7 +178,7 @@ class RecommendationFlowIntegrationTest {
         given(aiRecommendationGateway.score(anyString(), anyList(), any(RecommendationUserSnapshot.class)))
                 .willAnswer(invocation -> invocation.getArgument(1));
 
-        String accessToken = jwtUtil.generateAccessToken(user.getId());
+        String accessToken = jwtUtil.generateAccessToken(userKey, user.getId());
 
         mockMvc.perform(post("/api/recommendations/refresh")
                         .header("Authorization", "Bearer " + accessToken))

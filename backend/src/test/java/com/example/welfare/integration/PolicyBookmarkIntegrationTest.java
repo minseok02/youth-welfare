@@ -88,14 +88,14 @@ class PolicyBookmarkIntegrationTest {
                 .apiViewCount(0L)
                 .build());
 
-        String accessToken = jwtUtil.generateAccessToken(user.getId());
+        String userKey = userRepository.findUserKeyById(user.getId()).orElseThrow();
+        String accessToken = jwtUtil.generateAccessToken(userKey, user.getId());
 
         mockMvc.perform(post("/api/policies/{id}/bookmark", service.getId())
                         .header("Authorization", "Bearer " + accessToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true));
 
-        String userKey = userRepository.findUserKeyById(user.getId()).orElseThrow();
         UserRecommendation recommendation = userRecommendationRepository
                 .findTopByUserKeyAndServiceIdOrderByRecommendedAtDesc(userKey, service.getId())
                 .orElseThrow();
@@ -130,7 +130,7 @@ class PolicyBookmarkIntegrationTest {
                         .isBookmarked(true)
                         .build());
             } else {
-                String accessToken = jwtUtil.generateAccessToken(user.getId());
+                String accessToken = jwtUtil.generateAccessToken(userKey, user.getId());
                 mockMvc.perform(post("/api/policies/{id}/bookmark", service.getId())
                                 .header("Authorization", "Bearer " + accessToken))
                         .andExpect(status().isBadRequest())
@@ -160,7 +160,8 @@ class PolicyBookmarkIntegrationTest {
                 .apiViewCount(0L)
                 .build());
 
-        String accessToken = jwtUtil.generateAccessToken(user.getId());
+        String userKey = userRepository.findUserKeyById(user.getId()).orElseThrow();
+        String accessToken = jwtUtil.generateAccessToken(userKey, user.getId());
 
         mockMvc.perform(post("/api/policies/{id}/bookmark", service.getId())
                         .header("Authorization", "Bearer " + accessToken))
@@ -186,7 +187,6 @@ class PolicyBookmarkIntegrationTest {
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.length()").value(0));
 
-        String userKey = userRepository.findUserKeyById(user.getId()).orElseThrow();
         UserRecommendation recommendation = userRecommendationRepository
                 .findTopByUserKeyAndServiceIdOrderByRecommendedAtDesc(userKey, service.getId())
                 .orElseThrow();

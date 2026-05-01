@@ -1537,3 +1537,8 @@
 - 문제: `phase-plan` 의 unchecked 항목은 대부분 external blocked 또는 ops-only 인데, 이 상태에서 local-first 로 방향만 바꾸고 실제 local actionable set을 다시 적지 않으면, 여전히 `GOV24_* SQL` 이나 운영 전환 항목이 다음 로컬 작업처럼 보일 수 있었다
 - 해결: [policy-local-closeout-pending-inventory.md](./policy-local-closeout-pending-inventory.md) 를 추가해 현재 로컬 actionable work를 `auth/session revoke regression`, `PII split-account local smoke`, `education replay smoke`, `runtime API smoke` 로 다시 고정했다
 - 이유: local-first 에서 중요한 것은 unchecked 개수보다 “지금 이 머신에서 state change를 만들 수 있는가”다. practical next action을 분명히 하려면 blocked/ops 항목과 closeout 검증 세트를 분리해서 적는 편이 맞다
+
+## 298) `UserSessionRevocationService` 이후 integration fixture가 여전히 `userId-only` access token이나 core datasource 직접 PII write를 쓰고 있으면, 실제 구현 회귀가 없어도 local regression suite가 거짓 음성으로 깨질 수 있다
+- 문제: forced logout / revoke gate 이후 integration 테스트 중 일부는 여전히 `jwtUtil.generateAccessToken(userId)` 를 직접 써서 subject에 `userKey` 가 없는 legacy-style token을 만들고 있었고, `UserCoreDualWriteIntegrationTest` 는 reduced-grant split-account 계약과 달리 core `JdbcTemplate` 로 `youth_welfare_pii.user_pii` 를 직접 업데이트하고 있었다. 이 상태에서는 현재 구현이 정상이어도 local closeout regression이 `401` 또는 grant error로 깨질 수 있었다
+- 해결: 관련 integration fixture를 current contract에 맞게 `generateAccessToken(userKey, userId)` 로 정리하고, PII write는 `UserPiiReadWriteRepository.upsertUserPii(...)` 경유로 바꿨다. 또 `ChatSessionApiIntegrationTest` 는 전역 `chatMessageRepository.count()` 대신 session-scope assertion으로 좁혀 다른 테스트와의 shared DB 흔들림을 피했다
+- 이유: local-first closeout 단계에서는 실제 구현 버그와 오래된 test fixture를 분리하는 게 우선이다. current auth/split-account 계약에 맞는 fixture로 먼저 기준선을 맞춰야 regression suite가 의미를 갖는다
