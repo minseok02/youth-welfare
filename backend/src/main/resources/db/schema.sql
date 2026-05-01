@@ -425,7 +425,21 @@ CREATE TABLE IF NOT EXISTS notification_services (
     CONSTRAINT fk_ns_log FOREIGN KEY (recommendation_log_id) REFERENCES recommendation_logs(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- 15. chat_sessions (챗 세션 헤더)
+-- 15. cluster_ai_results (군집별 AI 점수 캐시 — 2차)
+CREATE TABLE IF NOT EXISTS cluster_ai_results (
+    id            BIGINT          NOT NULL AUTO_INCREMENT,
+    cluster_id    VARCHAR(50)     NOT NULL,
+    service_id    BIGINT          NOT NULL,
+    ai_score      DECIMAL(5,2)    NOT NULL,
+    ai_reason     VARCHAR(500)    NULL,
+    created_at    DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_car (cluster_id, service_id),
+    KEY idx_car_cluster (cluster_id),
+    CONSTRAINT fk_car_service FOREIGN KEY (service_id) REFERENCES welfare_services(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 16. chat_sessions (챗 세션 헤더)
 CREATE TABLE IF NOT EXISTS chat_sessions (
     id              BIGINT       NOT NULL AUTO_INCREMENT,
     user_key        CHAR(32)     NOT NULL,
@@ -438,7 +452,7 @@ CREATE TABLE IF NOT EXISTS chat_sessions (
     KEY idx_cs_user_key_created (user_key, created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- 16. chat_messages (챗 세션 메시지)
+-- 17. chat_messages (챗 세션 메시지)
 CREATE TABLE IF NOT EXISTS chat_messages (
     id                     BIGINT       NOT NULL AUTO_INCREMENT,
     session_id             BIGINT       NOT NULL,

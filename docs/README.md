@@ -115,7 +115,6 @@
 
 ### 배포하거나 서버 설정을 볼 때
 
-- [deployment.md](./deployment.md)  
   Docker, nginx, 운영 환경 변수, 배포 절차를 확인합니다.
 
 - [runtime-cutover-checklist.md](./runtime-cutover-checklist.md)
@@ -146,7 +145,6 @@
 - [db-migration.md](./db-migration.md)
 - [db-account-cutover-runbook.md](./db-account-cutover-runbook.md)
 - [demo-scenario.md](./demo-scenario.md)
-- [deployment.md](./deployment.md)
 - [runtime-cutover-checklist.md](./runtime-cutover-checklist.md)
 - [runtime-cutover-log-template.md](./runtime-cutover-log-template.md)
 - [runtime-api-smoke-commands.md](./runtime-api-smoke-commands.md)

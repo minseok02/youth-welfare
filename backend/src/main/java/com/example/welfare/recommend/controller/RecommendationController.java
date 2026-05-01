@@ -40,12 +40,14 @@ public class RecommendationController {
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
-    // 추천 갱신 — 파이프라인 재실행 (로그인 시 자동 호출 또는 수동 갱신)
+    // 추천 갱신 — 파이프라인 재실행
+    // personal=true: 군집 캐시 무시, 개인 프로필 기반 실시간 AI 호출
     @PostMapping("/refresh")
     public ResponseEntity<ApiResponse<List<RecommendationResponse>>> refresh(
-            @AuthenticationPrincipal AuthenticatedUser authenticatedUser) {
+            @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
+            @RequestParam(defaultValue = "false") boolean personal) {
         Long userId = resolveUserId(authenticatedUser);
-        List<UserRecommendation> recs = recommendationFacade.recommend(userId);
+        List<UserRecommendation> recs = recommendationFacade.recommend(userId, personal);
 
         // 방금 생성된 CTR 로그에서 serviceId → logId 매핑 조회
         List<Long> serviceIds = recs.stream().map(r -> r.getService().getId()).toList();

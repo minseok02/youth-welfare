@@ -15,7 +15,7 @@
 | AI API | OpenAI GPT-4o-mini (1차: 실시간 단건 / 2차: Batch API) |
 | 인증 | JWT + HttpOnly 쿠키 (Access 30분 / Refresh 7일 Rotation) |
 | 알림 | 카카오 알림톡(CoolSMS) + Gmail SMTP 폴백 |
-| 배포 | EC2 t4g.large (ARM Graviton2, 8GB) + Docker Compose 2컨테이너 |
+| 배포 | EC2 t4g.medium 이상 (ARM Graviton2, 4GB+) + Docker Compose 3컨테이너 |
 | XML 파싱 | jackson-dataformat-xml (XXE 비활성화 필수) |
 | HTML 정제 | Jsoup strip |
 
@@ -79,6 +79,14 @@ com.example.welfare
 ```
 
 > 상세 서비스 클래스 설명 → [`docs/architecture.md`](docs/architecture.md)
+
+### 배포 메모
+
+- 현재 기본 배포 형태는 `app + db + redis`를 같은 EC2에서 Docker Compose로 운영하는 단일 서버 구조
+- 2026-04-25 로컬 Docker 실측 기준 `idle`에서 `app` 약 `766MiB`, `db` 약 `393MiB`
+- 조회 부하와 수집 배치 구간에서 `app`은 약 `1.12GiB`, `db`는 약 `498MiB`까지 관측됨
+- 따라서 현재 Compose 3컨테이너 구조의 권장 최소 사양은 `t4g.medium`
+- DB를 RDS로 분리하는 경우에만 `t4g.small` 재검토 가능
 
 ---
 
