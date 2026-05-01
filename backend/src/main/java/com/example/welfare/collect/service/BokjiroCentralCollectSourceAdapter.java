@@ -3,6 +3,8 @@ package com.example.welfare.collect.service;
 import com.example.welfare.collect.dto.BokjiroCentralDto;
 import com.example.welfare.collect.gateway.BokjiroCentralClient;
 import com.example.welfare.collect.mapper.WelfareServiceMapper;
+import com.example.welfare.collect.support.ListCollectSourceBinding;
+import com.example.welfare.collect.support.ListCollectSourceBindings;
 import com.example.welfare.collect.validation.BokjiroYouthFilter;
 import com.example.welfare.collect.validation.FieldQualityStats;
 import com.example.welfare.collect.validation.RawFieldValidator;
@@ -22,6 +24,9 @@ public class BokjiroCentralCollectSourceAdapter extends AbstractListCollectSourc
     private final CollectItemSaver saver;
     private final BokjiroYouthFilter bokjiroYouthFilter;
     private final RawApiPayloadService rawApiPayloadService;
+    private ListCollectSourceBinding<BokjiroCentralDto.Item> binding() {
+        return ListCollectSourceBindings.bokjiroCentral(welfareServiceMapper);
+    }
 
     @Override
     public CollectSource source() {
@@ -40,7 +45,7 @@ public class BokjiroCentralCollectSourceAdapter extends AbstractListCollectSourc
 
     @Override
     protected void saveRawPayload(BokjiroCentralDto.Item item) {
-        rawApiPayloadService.saveList(source().toWelfareSourceType(), item.getServId(), item);
+        rawApiPayloadService.saveList(binding(), item);
     }
 
     @Override
@@ -55,14 +60,7 @@ public class BokjiroCentralCollectSourceAdapter extends AbstractListCollectSourc
 
     @Override
     protected void saveItem(BokjiroCentralDto.Item item) {
-        saver.save(CollectItemSaver.SaveCommand.builder()
-                .sourceType(source().toWelfareSourceType())
-                .sourceId(item.getServId())
-                .incoming(welfareServiceMapper.fromBokjiroCentral(item))
-                .regions(entity -> welfareServiceMapper.regionsFromBokjiroCentral(item, entity))
-                .tags(entity -> welfareServiceMapper.tagsFromBokjiroCentral(item, entity))
-                .aggregate(welfareServiceMapper.toNormalizedBokjiroCentral(item, null))
-                .build());
+        saver.save(binding(), item);
     }
 
     @Override

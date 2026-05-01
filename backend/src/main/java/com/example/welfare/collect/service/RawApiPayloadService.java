@@ -6,6 +6,7 @@ import com.example.welfare.collect.dto.YouthApiDto;
 import com.example.welfare.collect.entity.RawApiPayload;
 import com.example.welfare.collect.gateway.BokjiroDetailClient;
 import com.example.welfare.collect.repository.RawApiPayloadRepository;
+import com.example.welfare.collect.support.ListCollectSourceBinding;
 import com.example.welfare.collect.validation.RawFieldValidator;
 import com.example.welfare.policy.entity.WelfareService;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -40,6 +41,11 @@ public class RawApiPayloadService {
     @Transactional
     public void saveBokjiroLocalList(BokjiroLocalDto.Item item) {
         saveList(WelfareService.SourceType.BOKJIRO_LOCAL, item.getServId(), item);
+    }
+
+    @Transactional
+    public <T> void saveList(ListCollectSourceBinding<T> binding, T item) {
+        saveList(binding.sourceType(), binding.sourceId(item), item);
     }
 
     @Transactional

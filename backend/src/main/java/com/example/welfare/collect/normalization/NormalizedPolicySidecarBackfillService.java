@@ -1,11 +1,9 @@
 package com.example.welfare.collect.normalization;
 
-import com.example.welfare.collect.dto.BokjiroCentralDto;
-import com.example.welfare.collect.dto.BokjiroLocalDto;
 import com.example.welfare.collect.entity.RawApiPayload;
-import com.example.welfare.collect.gateway.BokjiroDetailClient;
 import com.example.welfare.collect.mapper.WelfareServiceMapper;
 import com.example.welfare.collect.repository.RawApiPayloadRepository;
+import com.example.welfare.collect.support.BokjiroSourceBinding;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.repository.WelfareServiceRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -44,18 +42,12 @@ public class NormalizedPolicySidecarBackfillService {
 
     @Transactional
     public BackfillResult backfillBokjiroListSidecars(int limitPerSource) {
-        return backfillListSidecars(List.of(
-                WelfareService.SourceType.BOKJIRO_CENTRAL,
-                WelfareService.SourceType.BOKJIRO_LOCAL
-        ), limitPerSource);
+        return backfillListSidecars(configuredSourceTypes(SidecarBackfillCapability::supportsList), limitPerSource);
     }
 
     @Transactional
     public BackfillResult backfillBokjiroDetailSidecars(int limitPerSource) {
-        return backfillDetailSidecars(List.of(
-                WelfareService.SourceType.BOKJIRO_CENTRAL,
-                WelfareService.SourceType.BOKJIRO_LOCAL
-        ), limitPerSource);
+        return backfillDetailSidecars(configuredSourceTypes(SidecarBackfillCapability::supportsDetail), limitPerSource);
     }
 
     @Transactional
@@ -159,39 +151,27 @@ public class NormalizedPolicySidecarBackfillService {
         return payloads.subList(0, limitPerSource);
     }
 
+    private List<WelfareService.SourceType> configuredSourceTypes(java.util.function.Predicate<SidecarBackfillCapability> predicate) {
+        return backfillCapabilities.values().stream()
+                .filter(predicate)
+                .map(SidecarBackfillCapability::sourceType)
+                .toList();
+    }
+
     private Map<WelfareService.SourceType, SidecarBackfillCapability> buildBackfillCapabilities(WelfareServiceMapper welfareServiceMapper,
                                                                                                  ObjectMapper objectMapper) {
         EnumMap<WelfareService.SourceType, SidecarBackfillCapability> capabilities =
                 new EnumMap<>(WelfareService.SourceType.class);
-
-        capabilities.put(
-                WelfareService.SourceType.BOKJIRO_CENTRAL,
-                new SidecarBackfillCapability(
-                        WelfareService.SourceType.BOKJIRO_CENTRAL,
-                        raw -> welfareServiceMapper.toNormalizedBokjiroCentral(
-                                objectMapper.readValue(raw.getPayloadJson(), BokjiroCentralDto.Item.class),
-                                null
-                        ),
-                        (service, raw) -> welfareServiceMapper.toNormalizedBokjiroDetail(
-                                service,
-                                objectMapper.readValue(raw.getPayloadJson(), BokjiroDetailClient.DetailPayload.class)
-                        )
-                )
-        );
-        capabilities.put(
-                WelfareService.SourceType.BOKJIRO_LOCAL,
-                new SidecarBackfillCapability(
-                        WelfareService.SourceType.BOKJIRO_LOCAL,
-                        raw -> welfareServiceMapper.toNormalizedBokjiroLocal(
-                                objectMapper.readValue(raw.getPayloadJson(), BokjiroLocalDto.Item.class),
-                                null
-                        ),
-                        (service, raw) -> welfareServiceMapper.toNormalizedBokjiroDetail(
-                                service,
-                                objectMapper.readValue(raw.getPayloadJson(), BokjiroDetailClient.DetailPayload.class)
-                        )
-                )
-        );
+        for (BokjiroSourceBinding binding : BokjiroSourceBinding.values()) {
+            capabilities.put(
+                    binding.sourceType(),
+                    new SidecarBackfillCapability(
+                            binding.sourceType(),
+                            raw -> binding.toListAggregate(welfareServiceMapper, objectMapper, raw),
+                            (service, raw) -> binding.toDetailAggregate(welfareServiceMapper, service, raw, objectMapper)
+                    )
+            );
+        }
 
         return Map.copyOf(capabilities);
     }

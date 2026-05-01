@@ -181,8 +181,10 @@ class BokjiroDetailCollectServiceTest {
 
         assertThat(result.requestedCount()).isEqualTo(1);
         assertThat(result.savedCount()).isEqualTo(1);
-        assertThat(result.metadataJson()).contains("\"centralBudget\":0");
-        assertThat(result.metadataJson()).contains("\"localBudget\":1");
+        assertThat(result.metadataJson()).contains("\"sourceBudgets\":{");
+        assertThat(result.metadataJson()).contains("\"BOKJIRO_CENTRAL\":0");
+        assertThat(result.metadataJson()).contains("\"BOKJIRO_LOCAL\":1");
+        assertThat(result.metadataJson()).contains("\"sourceCalls\":{");
         verify(detailClient, never()).fetchCentralWithStatus(any());
         verify(detailClient).fetchLocalWithStatus("LOCAL-1");
     }
@@ -212,8 +214,10 @@ class BokjiroDetailCollectServiceTest {
 
         assertThat(result.requestedCount()).isEqualTo(1);
         assertThat(result.savedCount()).isEqualTo(1);
-        assertThat(result.metadataJson()).contains("\"centralBudget\":0");
-        assertThat(result.metadataJson()).contains("\"localBudget\":1");
+        assertThat(result.metadataJson()).contains("\"sourceBudgets\":{");
+        assertThat(result.metadataJson()).contains("\"BOKJIRO_CENTRAL\":0");
+        assertThat(result.metadataJson()).contains("\"BOKJIRO_LOCAL\":1");
+        assertThat(result.metadataJson()).contains("\"sourceCalls\":{");
         verify(detailClient, never()).fetchCentralWithStatus(any());
         verify(detailClient).fetchLocalWithStatus("LOCAL-2");
     }
