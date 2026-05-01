@@ -107,6 +107,15 @@ real OpenAI 호출이 정말 필요하면 아래처럼 명시적으로 opt-in �
 USE_REAL_OPENAI_FOR_REPLAY=true deploy/smoke/run-local-education-priority-replay.sh
 ```
 
+cluster cache를 우회해 실제 live AI 호출을 강제하려면 아래처럼 같이 켭니다.
+
+```bash
+USE_REAL_OPENAI_FOR_REPLAY=true \
+CLEAR_CLUSTER_AI_CACHE_BEFORE_REPLAY=true \
+KEEP_ARTIFACTS=true \
+deploy/smoke/run-local-education-priority-replay.sh
+```
+
 이 `real-openai` run의 기본 위치는
 PR hard gate가 아니라 nightly/diagnostic 또는 수동 triage입니다.
 즉 strict equality 실패만으로는 PR blocker로 해석하지 않습니다.
@@ -203,6 +212,24 @@ host에서 직접 `bootRun` 할 때는 아래를 같이 맞춥니다.
 - 그런데도 `edu-b-off-scores.tsv` / `edu-b-on-scores.tsv` 에서는 `ai_score` / `final_score` diff가 계속 남았다. 예를 들어 주거 row는 `404:85 -> 75`, `405:75 -> 85`, 교육 row는 `390:55 -> 70`, `364:65 -> 70` 식으로 바뀌었다
 - 즉 current real-openai replay drift는 backend fingerprint churn만으로는 설명되지 않고, same fingerprint 안에서도 남는 live response variability 쪽으로 결론이 더 좁혀졌다
 - artifact dir 예시: `/tmp/tmp.TpE5SaiHJu`
+
+2026-05-02 cache clear 포함 `real-openai` replay 결과:
+
+- 실행:
+  - `USE_REAL_OPENAI_FOR_REPLAY=true KEEP_ARTIFACTS=true CLEAR_CLUSTER_AI_CACHE_BEFORE_REPLAY=true deploy/smoke/run-local-education-priority-replay.sh`
+- artifact dir 예시: `/tmp/tmp.TBDFrxfGqo`
+- `SUMMARY_METRIC`
+  - sample A: `A_top10_target=3->5`
+  - sample B: `B_top10_target=0->2` (`WARNING`)
+- `SUMMARY_REASON_METRIC`
+  - sample A: `A_reason_changed=23`, `A_reason_text_changed=15`, `A_reason_membership_changed=8`
+  - sample B: `B_reason_changed=15`, `B_reason_text_changed=15`, `B_reason_membership_changed=0`
+- fingerprint
+  - sample A: `A_fp=same` (`fp_ff247d5857 -> fp_ff247d5857`)
+  - sample B: `B_fp=different` (`fp_de7acce317 -> fp_ff247d5857`)
+- 해석
+  - cache를 비우면 canonical summary prompt 영향이 실제 `ai_reason` text 변화까지 이어지는 것은 확인되지만,
+    control sample B도 text drift와 target row 증가가 동시에 나타나므로 현재 real-openai 결과는 여전히 PR hard gate가 아니라 diagnostic 증적으로만 다뤄야 한다.
 
 ### 3. 공통 변수
 

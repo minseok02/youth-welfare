@@ -143,6 +143,14 @@ latest local replay(`rule-only-invalid-key`) 기준으로는
 즉 현재 baseline에서 sample A의 변화는 실제 `ai_reason` 문장 변화가 아니라
 top snapshot membership 변화이고, control sample B에서는 reason drift가 없습니다.
 
+반대로 `USE_REAL_OPENAI_FOR_REPLAY=true CLEAR_CLUSTER_AI_CACHE_BEFORE_REPLAY=true`
+기준 latest artifact(`/tmp/tmp.TBDFrxfGqo`) 에서는
+`A_reason_text_changed=15`, `B_reason_text_changed=15`,
+`A_top10_target=3->5`, `B_top10_target=0->2`, `B_fp=different`
+가 나왔습니다.
+즉 live AI 경로에서는 canonical summary prompt 영향이 실제 reason text 변화로 이어지지만,
+control sample B drift도 커서 아직 diagnostic 용도로만 보는 게 맞습니다.
+
 ## 5. retrieval / repository 현재 상태
 
 현재 repository 의미에서 이미 구현된 중요한 보정은:

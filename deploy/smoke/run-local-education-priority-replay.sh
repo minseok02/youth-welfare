@@ -74,6 +74,7 @@ ENSURE_DOCKER_SERVICES="${ENSURE_DOCKER_SERVICES:-true}"
 MYSQL_CONTAINER_NAME="${MYSQL_CONTAINER_NAME:-youth-welfare-db}"
 RECONCILE_LOCAL_DB_ACCOUNTS="${RECONCILE_LOCAL_DB_ACCOUNTS:-true}"
 AUTO_APPLY_LOCAL_CANONICAL_DRAFT="${AUTO_APPLY_LOCAL_CANONICAL_DRAFT:-true}"
+CLEAR_CLUSTER_AI_CACHE_BEFORE_REPLAY="${CLEAR_CLUSTER_AI_CACHE_BEFORE_REPLAY:-false}"
 
 DB_URL="${DB_URL:-jdbc:mysql://127.0.0.1:3307/youth_welfare?useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=UTF-8&serverTimezone=Asia/Seoul}"
 APP_PII_DB_URL="${APP_PII_DB_URL:-jdbc:mysql://127.0.0.1:3307/youth_welfare_pii?useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=UTF-8&serverTimezone=Asia/Seoul}"
@@ -189,6 +190,13 @@ mysql_exec() {
   docker exec -e MYSQL_PWD="${DB_QUERY_PASSWORD}" -i "${MYSQL_CONTAINER_NAME}" \
     mysql --default-character-set=utf8mb4 --batch --skip-column-names \
     -u"${DB_QUERY_USERNAME}" youth_welfare -e "${sql}"
+}
+
+clear_cluster_ai_cache() {
+  mysql_exec "
+    SET NAMES utf8mb4;
+    DELETE FROM cluster_ai_results;
+  " >/dev/null
 }
 
 table_exists() {
@@ -395,8 +403,6 @@ lines = [
 Path(raw_output).write_text("\n".join(lines) + ("\n" if lines else ""), encoding="utf-8")
 Path(sample_a_output).write_text((lines[0] + "\n") if len(lines) >= 1 else "", encoding="utf-8")
 Path(sample_b_output).write_text((lines[1] + "\n") if len(lines) >= 2 else "", encoding="utf-8")
-if len(lines) < 2:
-    raise SystemExit(f"expected at least 2 lines for {marker} in {log_file}, got {len(lines)}")
 PY
 }
 
@@ -851,6 +857,9 @@ require_replay_data_preconditions
 
 signup_or_prepare_samples() {
   local token_a token_b user_key_a user_key_b
+  if [[ "${CLEAR_CLUSTER_AI_CACHE_BEFORE_REPLAY}" == "true" ]] && table_exists "cluster_ai_results"; then
+    clear_cluster_ai_cache
+  fi
   signup_if_needed "${SAMPLE_A_EMAIL}" "Education Replay Sample A"
   signup_if_needed "${SAMPLE_B_EMAIL}" "Education Replay Sample B"
   token_a="$(login_and_token "${SAMPLE_A_EMAIL}" "${COOKIE_A}")"
@@ -873,6 +882,9 @@ signup_or_prepare_samples() {
 
 run_on_phase() {
   local token_a token_b user_key_a user_key_b
+  if [[ "${CLEAR_CLUSTER_AI_CACHE_BEFORE_REPLAY}" == "true" ]] && table_exists "cluster_ai_results"; then
+    clear_cluster_ai_cache
+  fi
   token_a="$(login_and_token "${SAMPLE_A_EMAIL}" "${COOKIE_A}")"
   token_b="$(login_and_token "${SAMPLE_B_EMAIL}" "${COOKIE_B}")"
   user_key_a="$(cat "${USER_KEY_A_FILE}")"

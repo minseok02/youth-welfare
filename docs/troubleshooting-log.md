@@ -1992,3 +1992,8 @@
 - 문제: `A/B_reason_text_changed`, `A/B_reason_membership_changed` 를 추가만 하고 baseline artifact를 갱신하지 않으면, 다음 run에서 값이 생겨도 이게 새 현상인지 기존 상태인지 바로 비교할 기준이 없다.
 - 해결: local `deploy/smoke/run-local-education-priority-replay.sh` 를 다시 실행해 artifact(`/tmp/tmp.0yFeDNSY6k`) 기준 `SUMMARY_REASON_METRIC A_reason_changed=8 B_reason_changed=0 A_reason_text_changed=0 B_reason_text_changed=0 A_reason_membership_changed=8 B_reason_membership_changed=0` 를 확보했다. 같은 run에서 `SUMMARY_METRIC A_top10_target=5->8 B_top10_target=2->2`, slot density(`slot_rows=5619`, `slot_services=2305`, `slot_education_services=110`)도 그대로 유지됐다.
 - 이유: 이 baseline이 있어야 이후 real-openai replay나 prompt 추가 변경에서 `reason text` 자체가 달라졌는지, 아니면 단순히 top snapshot 구성만 바뀐 건지를 바로 분리해서 볼 수 있다.
+
+## 373) `real-openai` replay가 cluster cache를 그대로 타면 prompt 변경 영향보다 캐시 재사용 여부가 먼저 걸려, live AI 이유문장 변화를 검증하지 못할 수 있다
+- 문제: `USE_REAL_OPENAI_FOR_REPLAY=true` 만 켠 run(`/tmp/tmp.9tou3184L8`)에서는 `SUMMARY_REASON_METRIC A_reason_text_changed=0 B_reason_text_changed=0` 이고 trace artifact도 대부분 비어 있었다. 이 상태는 prompt 변화가 없어서가 아니라, `cluster_ai_results` cache가 남아 실제 `RealtimeAiGateway` 호출이 충분히 일어나지 않았을 가능성이 컸다.
+- 해결: replay script에 `CLEAR_CLUSTER_AI_CACHE_BEFORE_REPLAY=true` 옵션을 추가해 off/on phase 시작 전에 `cluster_ai_results` 를 비우도록 했다. 그 뒤 real-openai replay를 다시 실행해 artifact(`/tmp/tmp.TBDFrxfGqo`) 기준 `A_reason_text_changed=15`, `B_reason_text_changed=15`, `A_top10_target=3->5`, `B_top10_target=0->2`, `A_fp=same`, `B_fp=different` 를 확보했다.
+- 이유: canonical summary prompt 효과를 live AI에서 보려면 먼저 cache reuse를 걷어내야 한다. cache가 남아 있으면 “실제 AI가 다시 읽고 reason을 바꿨는가”보다 “예전 cluster 결과를 재사용했는가”가 더 큰 변수가 된다.
