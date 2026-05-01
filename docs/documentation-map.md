@@ -29,6 +29,7 @@
 - [auth-session-revocation-current-state.md](./auth-session-revocation-current-state.md)
 - [policy-docs-index.md](./policy-docs-index.md)
 - [policy-normalization-current-state.md](./policy-normalization-current-state.md)
+- [policy-source-onboarding-architecture.md](./policy-source-onboarding-architecture.md)
 - [policy-local-closeout-pending-inventory.md](./policy-local-closeout-pending-inventory.md)
 - [policy-post-local-closeout-track-split.md](./policy-post-local-closeout-track-split.md)
 
@@ -70,6 +71,7 @@
 
 - 전체 policy 묶음은 [policy-docs-index.md](./policy-docs-index.md)
 - current big picture 는 [policy-normalization-current-state.md](./policy-normalization-current-state.md),
+  [policy-source-onboarding-architecture.md](./policy-source-onboarding-architecture.md),
   [policy-source-onboarding-playbook.md](./policy-source-onboarding-playbook.md),
   [policy-normalization-recommendation-read-model.md](./policy-normalization-recommendation-read-model.md),
   [policy-normalization-recommendation-migration-order.md](./policy-normalization-recommendation-migration-order.md)

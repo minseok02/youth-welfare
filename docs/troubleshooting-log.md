@@ -238,6 +238,11 @@
 - 해결: [deploy/mysql/apply-local-policy-sidecar-draft.sh](../deploy/mysql/apply-local-policy-sidecar-draft.sh) 를 추가했고, [run-local-education-priority-replay.sh](../deploy/smoke/run-local-education-priority-replay.sh) 가 missing sidecar schema 또는 zero education target row를 감지하면 local draft create/seed SQL을 자동 재적용하도록 연결했다
 - 이유: 지금 필요한 것은 runtime migration 구조를 당장 바꾸는 것이 아니라, local closeout과 replay smoke가 fresh reset 이후에도 스스로 복구되게 만드는 것이다. draft sidecar를 runtime bootstrap에 편입하는 것과 local smoke self-heal은 분리해서 다루는 편이 안전하다
 
+## 316) `Gov24` 같은 이름을 따라가다 보면 “특정 API 추가” 와 “신규 source를 계속 받는 구조” 를 혼동하기 쉽다
+- 문제: `Gov24` 관련 문서가 많다 보니, 현재 목표가 `Gov24 API key 확보 후 바로 수집 구현` 처럼 보일 수 있었다
+- 해결: [policy-source-onboarding-architecture.md](./policy-source-onboarding-architecture.md) 를 추가해 현재 진짜 목표는 `Gov24` 구현이 아니라, 어떤 정책 API가 들어와도 `정책형 / listing형 / reference matrix형` 으로 분류하고 `raw -> canonical 승격 -> compat bridge -> blocked 판정` 으로 처리하는 공통 구조를 고정하는 것임을 current-state 기준으로 명시했다
+- 이유: source별 사례집과 공통 구조 문서를 분리해야 다음 API를 붙일 때마다 `Gov24를 먼저 해야 하나` 같은 불필요한 오해를 줄일 수 있다
+
 ## 42) priority_options 코드가 추천 로직과 UI 코드 사이에서 따로 놀았음
 - 문제: DB `priority_options`에는 `ONLINE`, `YOUTH_ONLY`, `EDU_JOB`, `AMOUNT` 코드가 있었지만, `DefaultPriorityMatcher`에서 `ONLINE`과 `YOUTH_ONLY`는 이미 항상 false였고, 프론트는 `JOB`, `EDUCATION`, `FINANCE`, `HEALTH`, `SAFETY` 등 DB에 없는 코드를 전송해 `C001` 오류가 났음
 - 해결: `ONLINE`, `YOUTH_ONLY` 제거, `EDU_JOB`→`EDUCATION`, `AMOUNT`→`FINANCE` 코드 변경, `JOB`, `PARTICIPATION`, `FAMILY` 추가. DB migration, `DefaultPriorityMatcher`, 프론트 `PRIORITY_OPTIONS` 세 곳을 동시에 맞춤

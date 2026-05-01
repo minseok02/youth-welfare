@@ -19,6 +19,9 @@
 - [policy-docs-index.md](./policy-docs-index.md)
   `policy-*` 문서군을 current-state, design history, blocked source 조사 문서로 묶어 어디부터 읽어야 하는지 정리합니다.
 
+- [policy-source-onboarding-architecture.md](./policy-source-onboarding-architecture.md)
+  `Gov24` 같은 특정 source가 아니라, 앞으로 다른 정책 API도 쉽게 꽂을 수 있게 하는 공통 onboarding 구조와 분류 기준을 정리합니다.
+
 ### 전체 구조를 파악할 때
 
 - [architecture.md](./architecture.md)  

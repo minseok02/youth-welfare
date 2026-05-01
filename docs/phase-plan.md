@@ -1456,6 +1456,9 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
   - `SMOKE_RESET_DB=true` 이후 local DB에는 base schema만 남고 `service_taxonomies` 같은 canonical sidecar draft schema는 자동 복구되지 않아, collect/replay closeout이 중간에 다시 끊길 수 있음을 확인했다
   - [apply-local-policy-sidecar-draft.sh](./../deploy/mysql/apply-local-policy-sidecar-draft.sh) 를 추가해 local draft sidecar create/seed SQL을 one-shot 적용할 수 있게 만들고, [run-local-education-priority-replay.sh](./../deploy/smoke/run-local-education-priority-replay.sh) 가 missing `service_taxonomies` 또는 zero education target row를 만나면 이 helper를 먼저 호출하도록 연결했다
   - 검증: `deploy/mysql/apply-local-policy-sidecar-draft.sh` -> `service_taxonomies=2363`, `education_target_rows=110`, 이후 `deploy/smoke/run-local-education-priority-replay.sh` 재실행에서 `SUMMARY_METRIC A_top10_target=4->8 B_top10_target=2->2` 로 다시 통과
+- [x] 신규 policy source 추가 공통 구조를 current-state 문서로 통합
+  - [policy-source-onboarding-architecture.md](./policy-source-onboarding-architecture.md) 를 추가해 신규 source를 `정책형 / listing형 / reference matrix형` 으로 먼저 분류하고, `raw -> canonical 승격 -> compat bridge -> blocked 판정` 순서로 처리하는 공통 구조를 한 문서로 묶었다
+  - 이 문서는 `Gov24` 같은 특정 source 도입 문서가 아니라, 앞으로 다른 정책 API도 같은 방식으로 꽂을 수 있게 하는 source-of-truth 문서로 두고, 기존 [policy-source-onboarding-playbook.md](./policy-source-onboarding-playbook.md) 는 source별 사례집 역할로 유지한다
 - [x] local-first closeout 세트 종료 판정
   - current 워크트리 기준으로 `auth/session revoke regression`, `PII split-account local smoke`, `education replay smoke(rule-only)`, `runtime API smoke` 를 모두 다시 통과시켰다
   - 따라서 지금 남은 미완 항목은 `GOV24_*`, `YOUTH_MID` 같은 external blocked 트랙과 운영 환경이 있어야 의미가 있는 ops-only 트랙뿐이라고 정리한다
