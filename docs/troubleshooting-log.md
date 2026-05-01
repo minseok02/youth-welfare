@@ -253,6 +253,11 @@
 - 해결: [policy-source-code-entrypoints.md](./policy-source-code-entrypoints.md) 를 추가해 [CollectAdminController.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/collect/controller/CollectAdminController.java), [CollectService.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/collect/service/CollectService.java), [RawApiPayloadService.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/collect/service/RawApiPayloadService.java), [CollectItemSaver.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/collect/service/CollectItemSaver.java), [DeferredNormalizedPolicySidecarWriter.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/collect/normalization/DeferredNormalizedPolicySidecarWriter.java), [CanonicalRecommendationReadModelRepository.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/recommend/repository/CanonicalRecommendationReadModelRepository.java) 순서로 코드 진입점을 묶었다
 - 이유: 구조 설명, 실행 체크리스트, 코드 진입점 문서를 분리해야 다음 source를 붙일 때 조사와 구현을 섞지 않고 바로 필요한 레이어로 들어갈 수 있다
 
+## 319) 구조/체크리스트/코드 진입점만 있어도 새 source를 받을 때 다시 빈 문서부터 쓰게 된다
+- 문제: source onboarding에 필요한 판단 순서와 코드 진입점은 정리됐지만, 실제 새 source가 들어오면 다시 “무슨 항목을 적지?” 부터 시작하게 될 수 있었다
+- 해결: [policy-source-onboarding-template.md](./policy-source-onboarding-template.md) 를 추가해 source name, endpoint inventory, row grain 판정, raw ingest, canonical direct onboarding, codebook 필요 여부, recommendation 영향, next action 을 한 번에 채우는 복붙용 note 템플릿을 만들었다
+- 이유: 구조 설명 문서와 체크리스트, 코드 진입점 다음에 바로 사용할 실행 템플릿이 있어야 다음 source onboarding 때 문서 작성 비용을 줄이고 판단 형식을 표준화할 수 있다
+
 ## 42) priority_options 코드가 추천 로직과 UI 코드 사이에서 따로 놀았음
 - 문제: DB `priority_options`에는 `ONLINE`, `YOUTH_ONLY`, `EDU_JOB`, `AMOUNT` 코드가 있었지만, `DefaultPriorityMatcher`에서 `ONLINE`과 `YOUTH_ONLY`는 이미 항상 false였고, 프론트는 `JOB`, `EDUCATION`, `FINANCE`, `HEALTH`, `SAFETY` 등 DB에 없는 코드를 전송해 `C001` 오류가 났음
 - 해결: `ONLINE`, `YOUTH_ONLY` 제거, `EDU_JOB`→`EDUCATION`, `AMOUNT`→`FINANCE` 코드 변경, `JOB`, `PARTICIPATION`, `FAMILY` 추가. DB migration, `DefaultPriorityMatcher`, 프론트 `PRIORITY_OPTIONS` 세 곳을 동시에 맞춤

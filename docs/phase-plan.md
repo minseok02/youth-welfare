@@ -1465,6 +1465,9 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - [x] 신규 policy source 코드 진입점 문서화
   - [policy-source-code-entrypoints.md](./policy-source-code-entrypoints.md) 를 추가해 collect admin entry, adapter registry, raw payload 저장, `CollectItemSaver`, `DeferredNormalizedPolicySidecarWriter`, sidecar backfill, recommendation read-model 순서의 실제 코드 경계를 한 문서에 묶었다
   - 이 문서는 구조/체크리스트 다음 단계에서 바로 열 파일을 찾기 위한 코드 탐색 문서로 두고, source onboarding 때 “어디 구현부터 볼까” 를 줄이는 역할로 정리했다
+- [x] 신규 policy source 복붙용 note 템플릿 추가
+  - [policy-source-onboarding-template.md](./policy-source-onboarding-template.md) 를 추가해 새 source를 받을 때 source name, endpoint inventory, row grain 판정, raw ingest, canonical direct onboarding, codebook 필요 여부, recommendation 영향, next action 까지를 바로 채울 수 있는 템플릿을 만들었다
+  - 이 템플릿은 구조 설명, 체크리스트, 코드 진입점 문서를 읽은 뒤 실제 source별 note를 만들 때 쓰는 마지막 실행 자산으로 둔다
 - [x] local-first closeout 세트 종료 판정
   - current 워크트리 기준으로 `auth/session revoke regression`, `PII split-account local smoke`, `education replay smoke(rule-only)`, `runtime API smoke` 를 모두 다시 통과시켰다
   - 따라서 지금 남은 미완 항목은 `GOV24_*`, `YOUTH_MID` 같은 external blocked 트랙과 운영 환경이 있어야 의미가 있는 ops-only 트랙뿐이라고 정리한다

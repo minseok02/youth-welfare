@@ -28,6 +28,9 @@
 - [policy-source-code-entrypoints.md](./policy-source-code-entrypoints.md)
   새 source를 붙일 때 collect entry, raw payload 저장, sidecar writer, recommendation read-model 경계에서 실제로 어떤 클래스를 열어야 하는지 코드 기준으로 정리합니다.
 
+- [policy-source-onboarding-template.md](./policy-source-onboarding-template.md)
+  새 source가 실제로 들어왔을 때 복사해서 바로 채우는 실무용 note 템플릿입니다.
+
 ### 전체 구조를 파악할 때
 
 - [architecture.md](./architecture.md)  

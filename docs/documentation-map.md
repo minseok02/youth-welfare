@@ -32,6 +32,7 @@
 - [policy-source-onboarding-architecture.md](./policy-source-onboarding-architecture.md)
 - [policy-source-onboarding-checklist.md](./policy-source-onboarding-checklist.md)
 - [policy-source-code-entrypoints.md](./policy-source-code-entrypoints.md)
+- [policy-source-onboarding-template.md](./policy-source-onboarding-template.md)
 - [policy-local-closeout-pending-inventory.md](./policy-local-closeout-pending-inventory.md)
 - [policy-post-local-closeout-track-split.md](./policy-post-local-closeout-track-split.md)
 
@@ -76,6 +77,7 @@
   [policy-source-onboarding-architecture.md](./policy-source-onboarding-architecture.md),
   [policy-source-onboarding-checklist.md](./policy-source-onboarding-checklist.md),
   [policy-source-code-entrypoints.md](./policy-source-code-entrypoints.md),
+  [policy-source-onboarding-template.md](./policy-source-onboarding-template.md),
   [policy-source-onboarding-playbook.md](./policy-source-onboarding-playbook.md),
   [policy-normalization-recommendation-read-model.md](./policy-normalization-recommendation-read-model.md),
   [policy-normalization-recommendation-migration-order.md](./policy-normalization-recommendation-migration-order.md)
