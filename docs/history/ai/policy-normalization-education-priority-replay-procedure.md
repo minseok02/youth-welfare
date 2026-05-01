@@ -73,7 +73,7 @@ deploy/smoke/run-local-education-priority-replay.sh
 4. `flag on` host `bootRun`
 5. 같은 sample A/B refresh
 6. `compat=기타 + youth_major=교육` target row top-10 진입 수 비교
-7. sample A 개선 hard assert
+7. `rule-only-invalid-key` 모드에서는 sample A 개선 hard assert
 8. sample B(control) drift는 기본 warning, 필요하면 `STRICT_CONTROL_ASSERT=true` 로 strict fail
 9. `user_recommendations` off/on snapshot(`edu-a/b-*-scores.tsv`)도 함께 남겨 `rule_weighted_score` / `ai_score` / `ai_reason` / `final_score` 경계를 바로 비교
 10. sample A/B 각각 `edu-a-ai-reason-diff.tsv`, `edu-b-ai-reason-diff.tsv` 를 만들어 off/on 간 `ai_reason` 변화가 실제로 생긴 row를 바로 확인
@@ -120,7 +120,8 @@ deploy/smoke/run-local-education-priority-replay.sh
 
 이 `real-openai` run의 기본 위치는
 PR hard gate가 아니라 nightly/diagnostic 또는 수동 triage입니다.
-즉 strict equality 실패만으로는 PR blocker로 해석하지 않습니다.
+즉 strict equality 실패만으로는 PR blocker로 해석하지 않고,
+sample A 미개선도 warning으로만 남깁니다.
 
 ### 1. DB/Redis 기동
 

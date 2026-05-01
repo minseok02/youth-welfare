@@ -159,6 +159,8 @@ off/on 사이에 함께 바뀌었습니다.
 세부 패턴 분류는
 [policy-normalization-live-ai-reason-patterns.md](./history/ai/policy-normalization-live-ai-reason-patterns.md)
 에 따로 정리해 두었습니다.
+그래서 replay 스크립트도 현재는 `real-openai` 모드에서
+sample A 미개선을 hard fail로 보지 않고 warning으로만 남깁니다.
 다음 replay부터는 summary stdout의 `SUMMARY_REASON_PATTERN` 과
 artifact `ai-reason-pattern-summary.tsv` 를 먼저 보면,
 `연관성이 낮`, `특정 분야에 국한`, `실질적인 도움이`, `주거비 부담`

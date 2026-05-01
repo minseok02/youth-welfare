@@ -2012,3 +2012,8 @@
 - 문제: 현재는 `A_reason_text_changed=15` 같은 count와 별도 memo는 있지만, replay를 막 끝낸 직후 stdout만 보고는 어떤 phrase가 많이 흔들렸는지 알 수 없다. 결국 `ai-reason-diff.tsv` 나 pattern memo를 다시 열어 `연관성이 낮`, `특정 분야에 국한`, `실질적인 도움이`, `주거비 부담` 같은 축을 눈으로 세야 한다.
 - 해결: replay script에 `SUMMARY_REASON_PATTERN` 한 줄과 `ai-reason-pattern-summary.tsv` artifact를 추가해 sample A/B별 상위 phrase count를 바로 보이게 했다. 현재 요약 대상 phrase는 `direct_help`, `practical_help`, `narrow_scope`, `interest_fit`, `low_relevance`, `housing_burden`, `strong_help`, `job_opportunity`, `practical_experience`, `creativity` 다.
 - 이유: 이 단계는 제품 계약보다 triage 속도가 더 중요하다. count와 함께 “어떤 표현 축이 흔들렸는가”를 summary에 바로 노출하면 다음 replay 비교가 TSV 재독 없이도 훨씬 빨라진다.
+
+## 377) `real-openai` replay가 diagnostic 용도인데도 sample A 미개선을 rule-only와 같은 hard fail로 처리하면, live variability를 수집하기 위한 run 자체가 자주 중단된다
+- 문제: cache clear 포함 `real-openai` run에서 artifact(`/tmp/tmp.3DkyjL1B9n`)는 `SUMMARY_REASON_PATTERN A_top_patterns=interest_fit:1 B_top_patterns=strong_help:2` 같은 새 증적을 남겼지만, 동시에 `A_top10_target=0->0` 이라 sample A hard assert에 걸려 exit code 1 로 끝났다. 문서상 real-openai replay는 PR hard gate가 아니라 diagnostic 인데, sample A 미개선까지 hard fail로 두면 이유문장/패턴 drift 증적을 남기는 run이 자주 중단된다.
+- 해결: replay summary Python에서 `mode == real-openai` 일 때는 sample A 미개선도 `WARNING:` 으로만 출력하고 종료하지 않도록 바꿨다. `rule-only-invalid-key` 모드의 sample A hard assert는 그대로 유지한다.
+- 이유: 현재 live AI replay의 목적은 deterministic gate가 아니라 drift 관찰이다. sample A 미개선 자체도 진단 신호인데, 그 때문에 artifact 수집이 중단되면 오히려 해석 재료가 줄어든다.

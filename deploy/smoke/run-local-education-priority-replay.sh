@@ -883,7 +883,14 @@ if summary_append_file:
 print("SUMMARY_APPEND_LINE", summary_line)
 
 if a_on["top10_target_count"] <= a_off["top10_target_count"]:
-    raise SystemExit("sample A did not improve target row top10 count")
+    message = (
+        "sample A did not improve target row top10 count "
+        f"({a_off['top10_target_count']} -> {a_on['top10_target_count']})"
+    )
+    if mode == "real-openai":
+        print(f"WARNING: {message}")
+    else:
+        raise SystemExit(message)
 if b_on["top10_target_count"] > b_off["top10_target_count"]:
     message = (
         "sample B target row top10 count increased unexpectedly "
