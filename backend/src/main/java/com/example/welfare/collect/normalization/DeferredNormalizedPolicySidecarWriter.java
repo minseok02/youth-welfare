@@ -408,9 +408,17 @@ public class DeferredNormalizedPolicySidecarWriter implements NormalizedPolicySi
 
     private List<TermRefreshScope> refreshableTermScopes(NormalizedPolicyAggregate aggregate) {
         return aggregate.taxonomyTerms().stream()
-                .map(term -> new TermRefreshScope(term.termGroup(), normalizeBlankString(term.sourceField())))
+                .flatMap(term -> refreshScopeGroups(term.termGroup()).stream()
+                        .map(group -> new TermRefreshScope(group, normalizeBlankString(term.sourceField()))))
                 .distinct()
                 .toList();
+    }
+
+    private List<String> refreshScopeGroups(String termGroup) {
+        if ("YOUTH_MID".equals(termGroup) || "YOUTH_MID_RAW_ALIAS".equals(termGroup)) {
+            return List.of("YOUTH_MID", "YOUTH_MID_RAW_ALIAS");
+        }
+        return List.of(termGroup);
     }
 
     private String toPrimarySourceSystem(NormalizedPolicyAggregate.SourceType sourceType) {

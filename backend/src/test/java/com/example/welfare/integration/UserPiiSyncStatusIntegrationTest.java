@@ -40,47 +40,49 @@ class UserPiiSyncStatusIntegrationTest {
     @Test
     @DisplayName("queue status는 DB 기준 count와 oldest pending/failed, failed sample을 집계한다")
     void getStatusSummarizesQueueRows() {
-        LocalDateTime baseTime = LocalDateTime.of(2026, 4, 28, 21, 0, 0);
+        UserPiiSyncStatusResponse baseline = userPiiSyncStatusService.getStatus(20);
+
+        LocalDateTime baseTime = LocalDateTime.of(1900, 1, 1, 0, 0, 0);
         String pendingKey = saveQueue(UserPiiSyncQueue.builder()
                 .userKey(newUserKey())
                 .status(UserPiiSyncQueueStatus.PENDING)
                 .emailEnc("pending-email")
-                .lastEnqueuedAt(baseTime.minusMinutes(30))
+                .lastEnqueuedAt(baseTime)
                 .build());
         String failedHighAttemptKey = saveQueue(UserPiiSyncQueue.builder()
                 .userKey(newUserKey())
                 .status(UserPiiSyncQueueStatus.FAILED)
-                .attemptCount(4)
-                .lastAttemptAt(baseTime.minusMinutes(25))
+                .attemptCount(999)
+                .lastAttemptAt(baseTime.plusMinutes(5))
                 .lastError("app_pii timeout")
                 .build());
         saveQueue(UserPiiSyncQueue.builder()
                 .userKey(newUserKey())
                 .status(UserPiiSyncQueueStatus.FAILED)
                 .attemptCount(1)
-                .lastAttemptAt(baseTime.minusMinutes(5))
+                .lastAttemptAt(baseTime.plusMinutes(10))
                 .lastError("transient retry")
                 .build());
         saveQueue(UserPiiSyncQueue.builder()
                 .userKey(newUserKey())
                 .status(UserPiiSyncQueueStatus.SYNCED)
                 .attemptCount(1)
-                .lastSyncedAt(baseTime.minusMinutes(1))
+                .lastSyncedAt(LocalDateTime.of(2099, 1, 1, 0, 0, 0))
                 .build());
 
         UserPiiSyncStatusResponse response = userPiiSyncStatusService.getStatus(1);
 
-        assertThat(response.pendingCount()).isEqualTo(1);
-        assertThat(response.failedCount()).isEqualTo(2);
-        assertThat(response.syncedCount()).isEqualTo(1);
+        assertThat(response.pendingCount()).isEqualTo(baseline.pendingCount() + 1);
+        assertThat(response.failedCount()).isEqualTo(baseline.failedCount() + 2);
+        assertThat(response.syncedCount()).isEqualTo(baseline.syncedCount() + 1);
         assertThat(response.oldestPendingUserKey()).isEqualTo(pendingKey);
-        assertThat(response.oldestPendingEnqueuedAt()).isEqualTo(baseTime.minusMinutes(30));
+        assertThat(response.oldestPendingEnqueuedAt()).isEqualTo(baseTime);
         assertThat(response.oldestFailedUserKey()).isEqualTo(failedHighAttemptKey);
-        assertThat(response.oldestFailedAttemptAt()).isEqualTo(baseTime.minusMinutes(25));
-        assertThat(response.latestSyncedAt()).isEqualTo(baseTime.minusMinutes(1));
+        assertThat(response.oldestFailedAttemptAt()).isEqualTo(baseTime.plusMinutes(5));
+        assertThat(response.latestSyncedAt()).isEqualTo(LocalDateTime.of(2099, 1, 1, 0, 0, 0));
         assertThat(response.failedSamples()).hasSize(1);
         assertThat(response.failedSamples().get(0).userKey()).isEqualTo(failedHighAttemptKey);
-        assertThat(response.failedSamples().get(0).attemptCount()).isEqualTo(4);
+        assertThat(response.failedSamples().get(0).attemptCount()).isEqualTo(999);
         assertThat(response.failedSamples().get(0).lastError()).isEqualTo("app_pii timeout");
     }
 

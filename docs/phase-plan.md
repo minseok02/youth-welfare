@@ -1455,6 +1455,11 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - [x] local-first closeout 세트 종료 판정
   - current 워크트리 기준으로 `auth/session revoke regression`, `PII split-account local smoke`, `education replay smoke(rule-only)`, `runtime API smoke` 를 모두 다시 통과시켰다
   - 따라서 지금 남은 미완 항목은 `GOV24_*`, `YOUTH_MID` 같은 external blocked 트랙과 운영 환경이 있어야 의미가 있는 ops-only 트랙뿐이라고 정리한다
+- [x] broad backend regression(`./gradlew test integrationTest --no-daemon`) 재실행 및 shared-state 회귀 정리
+  - full suite 재실행 과정에서 `DeferredNormalizedPolicySidecarWriter` 가 `YOUTH_MID` 와 `YOUTH_MID_RAW_ALIAS` 를 refresh family로 함께 지우지 않아, alias가 official term으로 정규화된 뒤에도 stale `service_taxonomy_terms` row가 남는 문제를 확인했다
+  - 이를 기준으로 writer의 refresh scope를 `YOUTH_MID` / `YOUTH_MID_RAW_ALIAS` 묶음으로 넓혀 `NormalizedPolicySidecarPersistenceIntegrationTest` 기준 stale alias 회귀를 정리했다
+  - 동시에 `UserPiiSyncStatusIntegrationTest` 는 local smoke가 남긴 shared queue row 때문에 절대 count assertion이 흔들릴 수 있어 baseline delta + 극단 timestamp 기반으로 fixture를 보강했다
+  - 검증: `./gradlew test --no-daemon --tests com.example.welfare.collect.normalization.DeferredNormalizedPolicySidecarWriterTest`, `./gradlew integrationTest --no-daemon --tests com.example.welfare.integration.NormalizedPolicySidecarPersistenceIntegrationTest --tests com.example.welfare.integration.UserPiiSyncStatusIntegrationTest`, `./gradlew test integrationTest --no-daemon`
 - [ ] 운영 서버 Docker Compose 기동
 - [ ] 기존 운영 DB에 `app_core_rw` / `app_pii_rw` / `notification_pii_ro` / `migration_admin` 계정 생성 및 앱 datasource 전환
 - [ ] 운영 `.env` / secret store의 `APP_PII_DB_URL` / `NOTIFICATION_PII_DB_URL` 를 `youth_welfare_pii` schema 기준으로 전환

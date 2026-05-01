@@ -136,6 +136,7 @@ local-first closeout 기준의 실제 다음 액션을 고정합니다.
 2. PII split-account local smoke: 통과
 3. education replay smoke(rule-only): 통과
 4. runtime API smoke: 통과
+5. broad backend regression (`./gradlew test integrationTest --no-daemon`): 통과
 
 추가로 `education replay` 복구 과정에서
 `service_taxonomies.provision_method_label VARCHAR(100)` 이
@@ -150,11 +151,11 @@ known-positive replay가 다시 `A_top10_target=0->1`, `B_top10_target=0->0` 으
 
 1. 핵심 regression test 통과
 2. 핵심 smoke script 통과
-3. 수동으로 더 보강할 로컬 수정 포인트가 없음
+3. broad backend suite에서도 hidden regression이 없음
 4. 남은 일은 external blocked 또는 ops-only 뿐임
 
 ## 요약
 
 1. 현재 미완 항목 대부분은 external blocked 또는 ops-only 이다.
-2. closeout 검증 세트(auth/session, PII cutover, education replay, runtime smoke)는 current 워크트리 기준으로 다시 모두 통과했다.
+2. closeout 검증 세트(auth/session, PII cutover, education replay, runtime smoke, broad backend suite)는 current 워크트리 기준으로 다시 모두 통과했다.
 3. 따라서 지금 남은 일은 blocked source 응답이나 운영 환경이 필요할 때만 다시 열리는 트랙들이다.
