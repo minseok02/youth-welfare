@@ -12,6 +12,8 @@ public class PolicyRankingResponse {
     private Long serviceId;
     private String title;
     private String unifiedCategory;
+    private String youthMidLabel;
+    private String provisionMethodLabel;
     private String sourceType;
     private Long uniqueViewCount7d;
     private Long viewCount;
@@ -30,6 +32,8 @@ public class PolicyRankingResponse {
                 .serviceId(service.getId())
                 .title(service.getTitle())
                 .unifiedCategory(resolveUnifiedCategory(service, projection))
+                .youthMidLabel(resolveYouthMidLabel(projection))
+                .provisionMethodLabel(resolveProvisionMethodLabel(projection))
                 .sourceType(service.getSourceType().name())
                 .uniqueViewCount7d(uniqueViewCount7d)
                 .viewCount(service.getViewCount() != null ? service.getViewCount() : 0L)
@@ -44,5 +48,13 @@ public class PolicyRankingResponse {
             return projection.unifiedCategoryCompat();
         }
         return service.getUnifiedCategory();
+    }
+
+    private static String resolveYouthMidLabel(RecommendationCandidateProjection projection) {
+        return projection != null ? projection.youthMidLabel() : null;
+    }
+
+    private static String resolveProvisionMethodLabel(RecommendationCandidateProjection projection) {
+        return projection != null ? projection.provisionMethodLabel() : null;
     }
 }

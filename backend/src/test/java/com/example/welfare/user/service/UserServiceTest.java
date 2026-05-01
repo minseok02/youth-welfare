@@ -214,6 +214,8 @@ class UserServiceTest {
                         RecommendationCandidateProjection.builder()
                                 .serviceId(11L)
                                 .unifiedCategoryCompat("주거")
+                                .youthMidLabel("전월세 및 주거급여 지원")
+                                .provisionMethodLabel("온라인")
                                 .build()
                 ));
 
@@ -223,6 +225,8 @@ class UserServiceTest {
         assertThat(response.get(0).getId()).isEqualTo(11L);
         assertThat(response.get(0).getTitle()).isEqualTo("청년 월세 지원");
         assertThat(response.get(0).getUnifiedCategory()).isEqualTo("주거");
+        assertThat(response.get(0).getYouthMidLabel()).isEqualTo("전월세 및 주거급여 지원");
+        assertThat(response.get(0).getProvisionMethodLabel()).isEqualTo("온라인");
         assertThat(response.get(0).isBookmarked()).isTrue();
     }
 

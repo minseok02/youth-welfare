@@ -128,6 +128,9 @@ projection이 현재 담는 대표값:
 즉 raw sidecar를 추천 서비스가 직접 읽는 게 아니라,
 추천 전용 projection을 통해 hydrate 하는 구조가 이미 코드에 있습니다.
 
+또 policy summary/detail/ranking 응답은 이제 이 projection에서
+`youthMidLabel`, `provisionMethodLabel` 을 additive field로 같이 노출합니다.
+
 ## 5. retrieval / repository 현재 상태
 
 현재 repository 의미에서 이미 구현된 중요한 보정은:
