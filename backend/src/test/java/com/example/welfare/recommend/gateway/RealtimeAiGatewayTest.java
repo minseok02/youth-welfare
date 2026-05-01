@@ -106,6 +106,63 @@ class RealtimeAiGatewayTest {
         assertThat(RealtimeAiGateway.resolveUnifiedCategory(candidate)).isEqualTo("주거");
     }
 
+    @Test
+    void buildPromptPolicyLineIncludesCanonicalSummaryFieldsWhenPresent() {
+        ScoredCandidate candidate = ScoredCandidate.builder()
+                .service(WelfareService.builder()
+                        .id(1L)
+                        .title("청년 정책")
+                        .unifiedCategory("기타")
+                        .build())
+                .projection(RecommendationCandidateProjection.builder()
+                        .serviceId(1L)
+                        .unifiedCategoryCompat("주거")
+                        .youthMajorLabel("주거")
+                        .youthMidLabel("전월세 및 주거급여 지원")
+                        .provisionMethodLabel("온라인")
+                        .build())
+                .ruleBaseScore(10.0)
+                .ruleWeightedScore(10.0)
+                .build();
+
+        String line = RealtimeAiGateway.buildPromptPolicyLine(candidate, "설명");
+
+        assertThat(line)
+                .contains("분류:주거")
+                .contains("정책분야:주거")
+                .contains("세부분야:전월세 및 주거급여 지원")
+                .contains("제공방식:온라인")
+                .contains("내용:설명");
+    }
+
+    @Test
+    void buildPromptPolicyLineSkipsBlankCanonicalSummaryFields() {
+        ScoredCandidate candidate = ScoredCandidate.builder()
+                .service(WelfareService.builder()
+                        .id(2L)
+                        .title("청년 정책")
+                        .unifiedCategory("교육")
+                        .build())
+                .projection(RecommendationCandidateProjection.builder()
+                        .serviceId(2L)
+                        .unifiedCategoryCompat("교육")
+                        .youthMajorLabel("")
+                        .youthMidLabel(null)
+                        .provisionMethodLabel(" ")
+                        .build())
+                .ruleBaseScore(10.0)
+                .ruleWeightedScore(10.0)
+                .build();
+
+        String line = RealtimeAiGateway.buildPromptPolicyLine(candidate, "설명");
+
+        assertThat(line)
+                .contains("분류:교육")
+                .doesNotContain("정책분야:")
+                .doesNotContain("세부분야:")
+                .doesNotContain("제공방식:");
+    }
+
     private ScoredCandidate scoredCandidate(Long serviceId, double ruleWeightedScore) {
         WelfareService service = WelfareService.builder()
                 .id(serviceId)

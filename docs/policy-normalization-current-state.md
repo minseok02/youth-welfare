@@ -132,6 +132,9 @@ projection이 현재 담는 대표값:
 `youthMajorLabel`, `youthMidLabel`, `provisionMethodLabel` 을 additive field로 같이 노출합니다.
 관련 WebMvc contract도 목록/상세/랭킹/북마크 응답 기준으로 테스트 고정된 상태입니다.
 추천 목록/refresh 응답도 같은 additive field를 projection 기준으로 노출합니다.
+또 `RealtimeAiGateway` prompt도 이제 compat 분류 외에
+`youthMajorLabel`, `youthMidLabel`, `provisionMethodLabel` 을 같이 실어
+AI 재평가 입력에서 canonical summary를 직접 소비합니다.
 
 ## 5. retrieval / repository 현재 상태
 

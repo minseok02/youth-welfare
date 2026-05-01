@@ -1967,3 +1967,8 @@
 - 문제: `RecommendationCandidateProjection` 과 read-model은 이미 `youthMajorLabel` 을 `slot-first / legacy fallback` 으로 hydrate 하고 있었지만, policy/recommendation 응답 DTO는 `youthMidLabel`, `provisionMethodLabel` 만 additive field로 노출하고 있었다. 이 상태에서는 API 소비자가 compat `unifiedCategory` 와 canonical major를 동시에 볼 수 없어, category bridge 검증이나 프론트 연결 전 데이터 비교가 다시 내부 코드/DB 조회에 의존하게 된다.
 - 해결: `PolicySummaryResponse`, `PolicyDetailResponse`, `PolicyRankingResponse`, `RecommendationResponse` 에 `youthMajorLabel` 을 additive field로 추가하고, service 테스트와 WebMvc contract 테스트를 갱신했다. 같이 `api-mapping.md`, `policy-normalization-current-state.md`, `phase-plan.md` 도 응답 contract 기준으로 반영했다.
 - 이유: 현재 단계에서는 `unifiedCategory` 를 compat contract로 유지하는 편이 안전하지만, canonical summary 전환 준비를 하려면 major summary를 additive field로 먼저 노출해 두는 게 맞다. 그래야 기존 계약을 깨지 않으면서도 외부 경계에서 canonical/compat drift를 관찰할 수 있다.
+
+## 368) projection에 `youthMajorLabel`, `youthMidLabel`, `provisionMethodLabel` 을 실어도 AI prompt가 계속 compat 분류와 요약만 보내면, canonical summary 확장은 추천 설명 품질에 아직 반영되지 않는다
+- 문제: `CanonicalRecommendationReadModelRepository` 와 응답 DTO는 이미 canonical summary field를 slot-first 기준으로 받아 두고 있었지만, `RealtimeAiGateway` prompt는 여전히 `분류` 와 짧은 설명만 LLM에 전달하고 있었다. 이 상태에서는 canonical summary를 API 밖으로 노출하는 것과 별개로, 실제 AI 재평가 입력은 아직 새 summary 정보를 소비하지 않아 projection 확장이 추천 설명 품질로 이어지지 않는다.
+- 해결: `RealtimeAiGateway` 에 prompt line helper를 추가해 후보별로 `정책분야(youthMajorLabel)`, `세부분야(youthMidLabel)`, `제공방식(provisionMethodLabel)` 을 blank-safe 하게 함께 싣도록 바꾸고, `RealtimeAiGatewayTest` 에 포함/생략 규칙을 고정했다.
+- 이유: canonical summary를 가장 작게 실제 소비할 수 있는 read path가 AI prompt다. 응답 계약은 additive 로 유지하되, 내부 추천 품질 경계에서는 projection-derived summary를 바로 써 보는 편이 이후 reason 품질 변화나 replay 비교에도 도움이 된다.
