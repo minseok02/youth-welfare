@@ -18,6 +18,7 @@
   - collect writer 는 이제 이 draft 스키마가 존재하면 실제 `service_taxonomies / service_taxonomy_terms / service_facts` upsert 를 수행하고, 테이블이 없으면 안전하게 skip 한다
   - 아직 `schema.sql` / 정식 `db/migration/` / read-model 전환이 끝나지 않아 `db/migration/` 이 아닌 `db/migration-draft/` 에만 두고 실제 적용 대상에서는 제외
   - `service_taxonomy_terms.term_code` 는 MySQL nullable unique semantics를 피하려고 코드가 없을 때 `''` 로 normalize 하는 안을 포함
+  - `service_taxonomies` 가 여전히 legacy summary row 중심이므로, generic summary slot 병행 저장 구조는 [policy-normalization-summary-slot-storage-plan.md](./history/policy/policy-normalization-summary-slot-storage-plan.md) 기준으로 후속 draft migration으로 분리한다
 
 - draft 파일: [`backend/src/main/resources/db/migration-draft/V2026_04_30_02__seed_policy_normalization_codes.sql`](../backend/src/main/resources/db/migration-draft/V2026_04_30_02__seed_policy_normalization_codes.sql)
 - 포함 내용:

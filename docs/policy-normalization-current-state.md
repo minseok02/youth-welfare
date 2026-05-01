@@ -195,6 +195,12 @@ canonical taxonomy 대표값이 아니라
 - 실제 서버/DB/secret 경계가 생긴 뒤의 전환 메모
 - migration / datasource / deploy smoke 재정의
 
+### storage model follow-up
+
+- `service_taxonomies` 는 아직 legacy summary row 중심
+- generic summary slot 저장 구조는 후속 설계 상태
+- 기준 문서: [policy-normalization-summary-slot-storage-plan.md](./history/policy/policy-normalization-summary-slot-storage-plan.md)
+
 ## design history 로 읽을 문서
 
 아래는 current-state 문서가 아니라 세부 판단/조사/실험 기록입니다.

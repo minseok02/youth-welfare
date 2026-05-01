@@ -6,6 +6,7 @@
 - [policy-source-canonical-onboarding-priority.md](./policy-source-canonical-onboarding-priority.md)
 - [policy-normalization-current-state.md](./policy-normalization-current-state.md)
 - [policy-normalization-recommendation-read-model.md](./policy-normalization-recommendation-read-model.md)
+- [history/policy/policy-normalization-summary-slot-storage-plan.md](./history/policy/policy-normalization-summary-slot-storage-plan.md)
 - [history/policy/policy-listing-source-schema-draft.md](./history/policy/policy-listing-source-schema-draft.md)
 - [history/policy/policy-scholarship-reference-matrix-draft.md](./history/policy/policy-scholarship-reference-matrix-draft.md)
 
