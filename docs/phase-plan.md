@@ -1476,6 +1476,9 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
   - [recommendation-current-state.md](./recommendation-current-state.md) 를 추가해 현재 recommendation contract, canonical bridge, education experiment, `ai_score` 해석 기준을 current-state 로 요약했다
   - [recommendation-operation-checklist.md](./recommendation-operation-checklist.md) 를 추가해 일반 추천 확인, replay precondition, `rule-only` 와 `real-openai` 결과 해석 순서를 runbook 으로 분리했다
   - [recommendation-replay-template.md](./recommendation-replay-template.md) 를 추가해 replay 결과를 남길 때 필요한 precondition, summary metric, trace, 판정을 복붙 템플릿으로 정리했다
+- [x] auth 문서를 current-state / checklist / template 로 보강
+  - [auth-operation-checklist.md](./auth-operation-checklist.md) 를 추가해 logout, withdraw, admin allowlist revoke, admin forced logout 네 경계를 어떤 순서로 확인하고 어떻게 해석할지 runbook 으로 정리했다
+  - [auth-incident-template.md](./auth-incident-template.md) 를 추가해 old access/refresh 결과, relogin, log/Redis 증적, 다음 액션을 남기는 복붙 템플릿을 만들었다
 - [x] local-first closeout 세트 종료 판정
   - current 워크트리 기준으로 `auth/session revoke regression`, `PII split-account local smoke`, `education replay smoke(rule-only)`, `runtime API smoke` 를 모두 다시 통과시켰다
   - 따라서 지금 남은 미완 항목은 `GOV24_*`, `YOUTH_MID` 같은 external blocked 트랙과 운영 환경이 있어야 의미가 있는 ops-only 트랙뿐이라고 정리한다

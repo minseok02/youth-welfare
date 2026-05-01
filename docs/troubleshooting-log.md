@@ -268,6 +268,11 @@
 - 해결: [recommendation-current-state.md](./recommendation-current-state.md), [recommendation-operation-checklist.md](./recommendation-operation-checklist.md), [recommendation-replay-template.md](./recommendation-replay-template.md) 를 추가해 current-state, 실행 runbook, 기록 템플릿으로 역할을 분리했다
 - 이유: recommendation/replay 도 collect/source onboarding 과 같은 방식으로 문서 층을 나눠야, 현재 계약 확인과 실험 기록 작성이 덜 섞이고 local/diagnostic 검증도 반복하기 쉬워진다
 
+## 322) auth도 current-state는 있었지만 실행 순서와 기록 양식은 별도 문서가 없었다
+- 문제: [auth-session-revocation-current-state.md](./auth-session-revocation-current-state.md) 로 현재 계약은 확인할 수 있었지만, 실제로 logout/withdraw/allowlist revoke/forced logout을 어떤 순서로 점검하고 무엇을 기록할지는 별도 문서가 약했다
+- 해결: [auth-operation-checklist.md](./auth-operation-checklist.md) 와 [auth-incident-template.md](./auth-incident-template.md) 를 추가해 auth도 current-state / checklist / template 구조를 맞췄다
+- 이유: auth도 collect/recommendation 처럼 현재 계약 문서와 실행 runbook, 기록 템플릿을 분리해야 local/runtime 확인과 후속 triage가 반복 가능해진다
+
 ## 42) priority_options 코드가 추천 로직과 UI 코드 사이에서 따로 놀았음
 - 문제: DB `priority_options`에는 `ONLINE`, `YOUTH_ONLY`, `EDU_JOB`, `AMOUNT` 코드가 있었지만, `DefaultPriorityMatcher`에서 `ONLINE`과 `YOUTH_ONLY`는 이미 항상 false였고, 프론트는 `JOB`, `EDUCATION`, `FINANCE`, `HEALTH`, `SAFETY` 등 DB에 없는 코드를 전송해 `C001` 오류가 났음
 - 해결: `ONLINE`, `YOUTH_ONLY` 제거, `EDU_JOB`→`EDUCATION`, `AMOUNT`→`FINANCE` 코드 변경, `JOB`, `PARTICIPATION`, `FAMILY` 추가. DB migration, `DefaultPriorityMatcher`, 프론트 `PRIORITY_OPTIONS` 세 곳을 동시에 맞춤

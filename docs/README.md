@@ -16,6 +16,12 @@
 - [auth-session-revocation-current-state.md](./auth-session-revocation-current-state.md)
   현재 구현된 logout / withdraw / admin allowlist revoke / admin forced logout 계약을 한 문서에서 바로 확인합니다.
 
+- [auth-operation-checklist.md](./auth-operation-checklist.md)
+  auth/session revoke 경계를 실제로 확인할 때 어떤 순서로 봐야 하는지 runbook 으로 정리합니다.
+
+- [auth-incident-template.md](./auth-incident-template.md)
+  logout / withdraw / forced logout 결과를 기록할 때 복사해서 쓰는 템플릿입니다.
+
 - [policy-docs-index.md](./policy-docs-index.md)
   `policy-*` 문서군을 current-state, design history, blocked source 조사 문서로 묶어 어디부터 읽어야 하는지 정리합니다.
 

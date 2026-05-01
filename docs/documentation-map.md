@@ -27,6 +27,7 @@
 
 - [auth-docs-index.md](./auth-docs-index.md)
 - [auth-session-revocation-current-state.md](./auth-session-revocation-current-state.md)
+- [auth-operation-checklist.md](./auth-operation-checklist.md)
 - [policy-docs-index.md](./policy-docs-index.md)
 - [policy-normalization-current-state.md](./policy-normalization-current-state.md)
 - [policy-source-onboarding-architecture.md](./policy-source-onboarding-architecture.md)
@@ -42,6 +43,7 @@
 - [collect-operation-checklist.md](./collect-operation-checklist.md)
 - [recommendation-current-state.md](./recommendation-current-state.md)
 - [recommendation-operation-checklist.md](./recommendation-operation-checklist.md)
+- [auth-operation-checklist.md](./auth-operation-checklist.md)
 - [runtime-api-smoke-commands.md](./runtime-api-smoke-commands.md)
 - [testing.md](./testing.md)
 - [collect-ops.md](./collect-ops.md)
