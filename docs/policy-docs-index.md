@@ -27,6 +27,7 @@
 ### source onboarding 큰 그림
 
 - [policy-source-onboarding-architecture.md](./policy-source-onboarding-architecture.md)
+- [policy-source-onboarding-checklist.md](./policy-source-onboarding-checklist.md)
 - [policy-source-onboarding-playbook.md](./policy-source-onboarding-playbook.md)
 - [policy-source-canonical-onboarding-priority.md](./policy-source-canonical-onboarding-priority.md)
 
@@ -81,6 +82,7 @@
 ## 지금 기준으로 기억할 핵심
 
 1. 현재 구현 확인은 [policy-normalization-current-state.md](./policy-normalization-current-state.md)부터 봅니다.
-2. 신규 API를 어떻게 꽂을지 보려면 [policy-source-onboarding-architecture.md](./policy-source-onboarding-architecture.md)를 먼저 봅니다.
-3. 개별 `policy-*` 문서는 대부분 design history, blocked 조사, 실험 배경입니다.
-4. `policy-*` 파일 수가 많은 이유는 문서가 과한 것보다, local-first로 잘게 검증한 흔적이 누적된 결과에 가깝습니다.
+2. 신규 API를 어떻게 꽂을지 큰 구조는 [policy-source-onboarding-architecture.md](./policy-source-onboarding-architecture.md)를 먼저 봅니다.
+3. 실제로 새 source를 받을 때는 [policy-source-onboarding-checklist.md](./policy-source-onboarding-checklist.md) 순서대로 판단합니다.
+4. 개별 `policy-*` 문서는 대부분 design history, blocked 조사, 실험 배경입니다.
+5. `policy-*` 파일 수가 많은 이유는 문서가 과한 것보다, local-first로 잘게 검증한 흔적이 누적된 결과에 가깝습니다.

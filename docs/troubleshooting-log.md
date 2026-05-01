@@ -243,6 +243,11 @@
 - 해결: [policy-source-onboarding-architecture.md](./policy-source-onboarding-architecture.md) 를 추가해 현재 진짜 목표는 `Gov24` 구현이 아니라, 어떤 정책 API가 들어와도 `정책형 / listing형 / reference matrix형` 으로 분류하고 `raw -> canonical 승격 -> compat bridge -> blocked 판정` 으로 처리하는 공통 구조를 고정하는 것임을 current-state 기준으로 명시했다
 - 이유: source별 사례집과 공통 구조 문서를 분리해야 다음 API를 붙일 때마다 `Gov24를 먼저 해야 하나` 같은 불필요한 오해를 줄일 수 있다
 
+## 317) 공통 구조 문서만 있으면 실제 작업자는 “다음 질문이 뭐지” 를 다시 헤맬 수 있다
+- 문제: [policy-source-onboarding-architecture.md](./policy-source-onboarding-architecture.md) 는 구조 기준은 잘 설명하지만, 새 source를 실제로 받았을 때 바로 따라가는 짧은 실행 절차로는 길 수 있었다
+- 해결: [policy-source-onboarding-checklist.md](./policy-source-onboarding-checklist.md) 를 추가해 `분류 -> minimal inventory -> raw ingest -> canonical 후보 -> codebook/blocked -> recommendation 영향` 순서만 따로 분리했다
+- 이유: 구조 설명 문서와 실무 체크리스트를 분리해야, 다음 source onboarding 때 설계 배경을 다시 다 읽지 않고도 같은 판단 순서를 재사용할 수 있다
+
 ## 42) priority_options 코드가 추천 로직과 UI 코드 사이에서 따로 놀았음
 - 문제: DB `priority_options`에는 `ONLINE`, `YOUTH_ONLY`, `EDU_JOB`, `AMOUNT` 코드가 있었지만, `DefaultPriorityMatcher`에서 `ONLINE`과 `YOUTH_ONLY`는 이미 항상 false였고, 프론트는 `JOB`, `EDUCATION`, `FINANCE`, `HEALTH`, `SAFETY` 등 DB에 없는 코드를 전송해 `C001` 오류가 났음
 - 해결: `ONLINE`, `YOUTH_ONLY` 제거, `EDU_JOB`→`EDUCATION`, `AMOUNT`→`FINANCE` 코드 변경, `JOB`, `PARTICIPATION`, `FAMILY` 추가. DB migration, `DefaultPriorityMatcher`, 프론트 `PRIORITY_OPTIONS` 세 곳을 동시에 맞춤

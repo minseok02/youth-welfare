@@ -22,6 +22,9 @@
 - [policy-source-onboarding-architecture.md](./policy-source-onboarding-architecture.md)
   `Gov24` 같은 특정 source가 아니라, 앞으로 다른 정책 API도 쉽게 꽂을 수 있게 하는 공통 onboarding 구조와 분류 기준을 정리합니다.
 
+- [policy-source-onboarding-checklist.md](./policy-source-onboarding-checklist.md)
+  새 source를 실제로 받았을 때 `분류 -> raw 저장 -> canonical 승격 -> blocked 판정` 을 어떤 순서로 볼지 짧은 실무 체크리스트로 정리합니다.
+
 ### 전체 구조를 파악할 때
 
 - [architecture.md](./architecture.md)  
