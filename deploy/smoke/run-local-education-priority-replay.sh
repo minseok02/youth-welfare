@@ -4,6 +4,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 BACKEND_DIR="${ROOT_DIR}/backend"
 REPO_ENV_FILE="${ROOT_DIR}/.env"
+RECONCILE_DB_SCRIPT="${ROOT_DIR}/deploy/mysql/reconcile-local-runtime-db-accounts.sh"
 
 APP_PID=""
 
@@ -70,6 +71,7 @@ APP_BASE_URL="${APP_BASE_URL:-http://127.0.0.1:${APP_PORT}}"
 APP_HEALTH_TIMEOUT_SECONDS="${APP_HEALTH_TIMEOUT_SECONDS:-120}"
 ENSURE_DOCKER_SERVICES="${ENSURE_DOCKER_SERVICES:-true}"
 MYSQL_CONTAINER_NAME="${MYSQL_CONTAINER_NAME:-youth-welfare-db}"
+RECONCILE_LOCAL_DB_ACCOUNTS="${RECONCILE_LOCAL_DB_ACCOUNTS:-true}"
 
 DB_URL="${DB_URL:-jdbc:mysql://127.0.0.1:3307/youth_welfare?useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=UTF-8&serverTimezone=Asia/Seoul}"
 APP_PII_DB_URL="${APP_PII_DB_URL:-jdbc:mysql://127.0.0.1:3307/youth_welfare_pii?useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=UTF-8&serverTimezone=Asia/Seoul}"
@@ -82,14 +84,23 @@ OPENAI_API_KEY="${OPENAI_API_KEY:-invalid-for-rule-only-replay}"
 if [[ "${USE_REAL_OPENAI_FOR_REPLAY}" != "true" ]]; then
   OPENAI_API_KEY="invalid-for-rule-only-replay"
 fi
-DB_USERNAME="${DB_USERNAME:-root}"
+DB_USERNAME="${DB_USERNAME:-app_core_rw}"
 DB_PASSWORD="${DB_PASSWORD:-welfare1234!}"
+DB_MIGRATION_USERNAME="${DB_MIGRATION_USERNAME:-migration_admin}"
+DB_MIGRATION_PASSWORD="${DB_MIGRATION_PASSWORD:-${DB_PASSWORD}}"
 DB_APP_PII_USERNAME="${DB_APP_PII_USERNAME:-app_pii_rw}"
 DB_APP_PII_PASSWORD="${DB_APP_PII_PASSWORD:-${DB_PASSWORD}}"
 DB_NOTIFICATION_PII_RO_USERNAME="${DB_NOTIFICATION_PII_RO_USERNAME:-notification_pii_ro}"
 DB_NOTIFICATION_PII_RO_PASSWORD="${DB_NOTIFICATION_PII_RO_PASSWORD:-${DB_PASSWORD}}"
-DB_QUERY_USERNAME="${DB_QUERY_USERNAME:-${DB_USERNAME}}"
-DB_QUERY_PASSWORD="${DB_QUERY_PASSWORD:-${DB_PASSWORD}}"
+DB_QUERY_USERNAME="${DB_QUERY_USERNAME:-${DB_MIGRATION_USERNAME}}"
+DB_QUERY_PASSWORD="${DB_QUERY_PASSWORD:-${DB_MIGRATION_PASSWORD}}"
+
+if [[ "${DB_USERNAME}" == "root" ]]; then
+  DB_USERNAME="app_core_rw"
+fi
+if [[ "${DB_QUERY_USERNAME}" == "root" ]]; then
+  DB_QUERY_USERNAME="${DB_MIGRATION_USERNAME}"
+fi
 
 if [[ "${DB_URL}" == jdbc:mysql://db:* ]]; then
   DB_URL="jdbc:mysql://127.0.0.1:3307/youth_welfare?useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=UTF-8&serverTimezone=Asia/Seoul"
@@ -173,6 +184,61 @@ mysql_exec() {
   docker exec -e MYSQL_PWD="${DB_QUERY_PASSWORD}" -i "${MYSQL_CONTAINER_NAME}" \
     mysql --default-character-set=utf8mb4 --batch --skip-column-names \
     -u"${DB_QUERY_USERNAME}" youth_welfare -e "${sql}"
+}
+
+table_exists() {
+  local table_name="$1"
+  local result
+  result="$(
+    mysql_exec "
+      SET NAMES utf8mb4;
+      SELECT COUNT(*)
+      FROM information_schema.tables
+      WHERE table_schema = 'youth_welfare'
+        AND table_name = '${table_name}';
+    "
+  )"
+  [[ "${result}" == "1" ]]
+}
+
+require_replay_data_preconditions() {
+  local welfare_service_count target_count
+
+  if ! table_exists "welfare_services"; then
+    echo "education replay precondition unmet: welfare_services table missing in local youth_welfare db" >&2
+    exit 1
+  fi
+
+  if ! table_exists "service_taxonomies"; then
+    echo "education replay precondition unmet: service_taxonomies table missing; local canonical schema/backfill not loaded" >&2
+    exit 1
+  fi
+
+  welfare_service_count="$(
+    mysql_exec "
+      SET NAMES utf8mb4;
+      SELECT COUNT(*) FROM welfare_services;
+    "
+  )"
+  if [[ "${welfare_service_count}" == "0" ]]; then
+    echo "education replay precondition unmet: welfare_services is empty; load local policy snapshot before replay" >&2
+    exit 1
+  fi
+
+  target_count="$(
+    mysql_exec "
+      SET NAMES utf8mb4;
+      SELECT COUNT(*)
+      FROM welfare_services ws
+      JOIN service_taxonomies st ON st.service_id = ws.id
+      WHERE ws.unified_category = '기타'
+        AND st.youth_major_label = '교육';
+    "
+  )"
+  if [[ "${target_count}" == "0" ]]; then
+    echo "education replay precondition unmet: no compat=기타 + youth_major=교육 target rows in local snapshot" >&2
+    exit 1
+  fi
 }
 
 lookup_user_key_by_email() {
@@ -530,8 +596,13 @@ write_openai_mode
 
 if [[ "${ENSURE_DOCKER_SERVICES}" == "true" ]]; then
   require_command docker
+  if [[ "${RECONCILE_LOCAL_DB_ACCOUNTS}" == "true" ]]; then
+    "${RECONCILE_DB_SCRIPT}" >/dev/null
+  fi
   (cd "${ROOT_DIR}" && docker compose up -d db redis >/dev/null)
 fi
+
+require_replay_data_preconditions
 
 signup_or_prepare_samples() {
   local token_a token_b user_key_a user_key_b

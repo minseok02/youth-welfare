@@ -99,6 +99,12 @@ local-first closeout 기준의 실제 다음 액션을 고정합니다.
 - `deploy/smoke/run-local-education-priority-replay.sh`
 - 관련 repository/service/integration tests
 
+현재 주의:
+
+- 이 smoke는 local policy snapshot과 canonical read-model schema(`service_taxonomies`)가 적재된 DB를 전제로 한다.
+- `SMOKE_RESET_DB=true` 로 base schema만 다시 띄운 직후에는 추천 대상 데이터가 비어 있어 smoke가 의미 있게 통과하지 않는다.
+- 따라서 local closeout에서는 "script가 precondition 부족을 명확히 감지하는가"와 "snapshot이 있는 DB에서 replay가 동작하는가"를 구분해서 본다.
+
 ### D. admin/runtime local smoke
 
 대상:

@@ -1434,6 +1434,11 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - [x] PII split-account local one-shot smoke 재실행
   - reduced-grant local compose 기준 `SMOKE_RESET_DB=true APP_HEALTH_TIMEOUT_SECONDS=180 deploy/smoke/run-local-pii-sync-cutover-smoke.sh` 를 다시 실행해 app build -> DB/Redis/app 기동 -> queue migration 적용 -> signup/login -> profile update request-path sync -> queue `SYNCED` -> withdraw cleanup one-shot 경계가 현재 로컬 기준으로 유지되는지 재검증했다
   - 결과는 `smoke success: user_key=449e4024451411f1b524d215ec674c5b queue_status=SYNCED attempt_count=3` 로 통과했고, local closeout inventory 기준 PII split-account smoke 항목도 다시 정상작동 확인 상태로 올렸다
+- [x] local education replay smoke(rule-only) precondition early-fail 정리
+  - `deploy/smoke/run-local-education-priority-replay.sh` 를 local split-account 기준에 맞게 보강했다. replay 시작 전 `deploy/mysql/reconcile-local-runtime-db-accounts.sh` 를 자동 호출하고, `.env` 의 legacy `DB_USERNAME=root` 를 replay 내부에서는 `app_core_rw` / `migration_admin` 계열로 정규화하도록 수정했다
+  - 같은 script는 이제 `service_taxonomies` 존재 여부, `welfare_services` 적재 여부, `compat=기타 + youth_major=교육` target row 존재 여부를 precondition으로 먼저 확인한다
+  - 현재 local DB는 직전 `SMOKE_RESET_DB=true` PII smoke 영향으로 base schema만 남아 `welfare_services=0`, `service_taxonomies` 미생성 상태였고, replay는 bootRun 중간 실패 대신 `education replay precondition unmet: service_taxonomies table missing; local canonical schema/backfill not loaded` 로 명시적으로 종료됐다
+  - 즉 이번 단계의 결과는 replay success 확보가 아니라 `로컬 snapshot/schema 부족을 early-fail로 고정` 한 것이다. known-positive replay 재검증은 local policy snapshot과 canonical sidecar schema를 다시 적재한 뒤 재개한다
 - [ ] 운영 서버 Docker Compose 기동
 - [ ] 기존 운영 DB에 `app_core_rw` / `app_pii_rw` / `notification_pii_ro` / `migration_admin` 계정 생성 및 앱 datasource 전환
 - [ ] 운영 `.env` / secret store의 `APP_PII_DB_URL` / `NOTIFICATION_PII_DB_URL` 를 `youth_welfare_pii` schema 기준으로 전환
