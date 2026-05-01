@@ -168,6 +168,10 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - 2026-05-02 reason diff artifact를 `change_type=text_changed|entered|exited` 및 `SUMMARY_REASON_METRIC *reason_text_changed/*reason_membership_changed` 로 세분화 후 `deploy/smoke/run-local-education-priority-replay.sh` 재실행 예정
 - 2026-05-02 세분화된 reason metric baseline 재실행 후 `SUMMARY_REASON_METRIC A_reason_changed=8 B_reason_changed=0 A_reason_text_changed=0 B_reason_text_changed=0 A_reason_membership_changed=8 B_reason_membership_changed=0`, artifact `/tmp/tmp.0yFeDNSY6k` 확보
 - 2026-05-02 `CLEAR_CLUSTER_AI_CACHE_BEFORE_REPLAY=true` 옵션을 추가하고 real-openai replay 재실행 후 `SUMMARY_REASON_METRIC A_reason_changed=23 B_reason_changed=15 A_reason_text_changed=15 B_reason_text_changed=15 A_reason_membership_changed=8 B_reason_membership_changed=0`, `SUMMARY_METRIC A_top10_target=3->5 B_top10_target=0->2`, artifact `/tmp/tmp.TBDFrxfGqo` 확보
+- 2026-05-02 `/tmp/tmp.TBDFrxfGqo/edu-a-ai-reason-diff.tsv`, `edu-b-ai-reason-diff.tsv` 해석 결과를 current-state/log에 반영
+  - sample A: `text_changed=15`, `membership_changed=8`
+  - sample B: `text_changed=15`, `membership_changed=0`
+  - 결론: canonical summary prompt 영향 가능성은 보이지만 control drift와 분리되지 않아 아직 diagnostic evidence 로만 유지
 - 2026-05-02 education replay/history inventory 문서의 `youth_major` 확인 기준을 summary slot-first / legacy fallback 으로 정리 후 `git diff --check`
 - 2026-05-01 `BokjiroDetailCollectService` 내부 예산 배분 / detail persistence-fallback 분리 후 `backend`에서 `./gradlew test --no-daemon --tests com.example.welfare.collect.service.BokjiroDetailCollectServiceTest`
 - 2026-05-01 `BokjiroDetailCollectService` 분리 후 `backend`에서 `./gradlew integrationTest --no-daemon --tests com.example.welfare.integration.BokjiroSidecarMergeIntegrationTest`

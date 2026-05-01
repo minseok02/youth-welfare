@@ -1997,3 +1997,8 @@
 - 문제: `USE_REAL_OPENAI_FOR_REPLAY=true` 만 켠 run(`/tmp/tmp.9tou3184L8`)에서는 `SUMMARY_REASON_METRIC A_reason_text_changed=0 B_reason_text_changed=0` 이고 trace artifact도 대부분 비어 있었다. 이 상태는 prompt 변화가 없어서가 아니라, `cluster_ai_results` cache가 남아 실제 `RealtimeAiGateway` 호출이 충분히 일어나지 않았을 가능성이 컸다.
 - 해결: replay script에 `CLEAR_CLUSTER_AI_CACHE_BEFORE_REPLAY=true` 옵션을 추가해 off/on phase 시작 전에 `cluster_ai_results` 를 비우도록 했다. 그 뒤 real-openai replay를 다시 실행해 artifact(`/tmp/tmp.TBDFrxfGqo`) 기준 `A_reason_text_changed=15`, `B_reason_text_changed=15`, `A_top10_target=3->5`, `B_top10_target=0->2`, `A_fp=same`, `B_fp=different` 를 확보했다.
 - 이유: canonical summary prompt 효과를 live AI에서 보려면 먼저 cache reuse를 걷어내야 한다. cache가 남아 있으면 “실제 AI가 다시 읽고 reason을 바꿨는가”보다 “예전 cluster 결과를 재사용했는가”가 더 큰 변수가 된다.
+
+## 374) cache를 비운 real-openai replay에서 `A_reason_text_changed=15` 만 보면 prompt 효과처럼 보이지만, control sample B도 동일하게 15건 바뀌면 우선 해석은 live reasoning drift 쪽이어야 한다
+- 문제: cache clear 포함 artifact(`/tmp/tmp.TBDFrxfGqo`)를 열어 보면 sample A는 `text_changed=15`, `entered/exited=8`, sample B는 `text_changed=15`, `membership_changed=0` 이다. sample A만 보면 canonical summary prompt가 이유문장을 적극적으로 바꿨다고 읽기 쉽지만, control sample B도 같은 수의 text change가 발생하고 `B_top10_target=0->2`, `B_fp=different` 까지 같이 나왔기 때문에 이것을 그대로 제품 품질 개선 증거로 쓰면 과해진다.
+- 해결: current-state와 replay procedure 문서에 이 run의 해석을 “prompt 영향은 보이지만 control drift와 분리되지 않았다”로 고정했다. `edu-a-ai-reason-diff.tsv`, `edu-b-ai-reason-diff.tsv` 에서도 실제로 `직접적인 도움`, `특정 분야에 국한`, `주거비 부담 완화` 같은 phrasing 변화가 양쪽에 공통으로 나타난다는 점을 같이 남겼다.
+- 이유: live AI replay는 지금도 코드 회귀 검증보다 진단 증거 수집에 가깝다. control sample이 같은 규모의 text drift를 보이면, 우선 결론은 “canonical summary prompt 효과 존재 가능성”이 아니라 “effect와 live variability를 아직 분리하지 못했다”가 맞다.

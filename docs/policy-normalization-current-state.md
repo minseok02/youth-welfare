@@ -150,6 +150,12 @@ top snapshot membership 변화이고, control sample B에서는 reason drift가 
 가 나왔습니다.
 즉 live AI 경로에서는 canonical summary prompt 영향이 실제 reason text 변화로 이어지지만,
 control sample B drift도 커서 아직 diagnostic 용도로만 보는 게 맞습니다.
+artifact diff를 보면 sample A는 `text_changed 15 + membership_changed 8`,
+sample B는 `text_changed 15 + membership_changed 0` 이고,
+문장 패턴도 `직접적 도움`, `특정 분야에 국한`, `주거비 부담 완화` 같은 서술이
+off/on 사이에 함께 바뀌었습니다.
+즉 현재 단계의 live AI 결과는 “canonical summary prompt가 reason wording에 영향 없음”이 아니라,
+“영향은 보이지만 control drift와 분리되지 않음”으로 해석하는 쪽이 맞습니다.
 
 ## 5. retrieval / repository 현재 상태
 
