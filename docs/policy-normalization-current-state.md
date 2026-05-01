@@ -165,6 +165,14 @@ sample A 미개선을 hard fail로 보지 않고 warning으로만 남깁니다.
 artifact `ai-reason-pattern-summary.tsv` 를 먼저 보면,
 `연관성이 낮`, `특정 분야에 국한`, `실질적인 도움이`, `주거비 부담`
 같은 phrase drift를 TSV 전체를 다시 읽지 않고도 빠르게 볼 수 있습니다.
+latest cache-clear `real-openai` artifact(`/tmp/tmp.6YybgXCbIo`) 기준으로는
+`SUMMARY_REASON_PATTERN A_top_patterns=interest_fit:2,direct_help:1,job_opportunity:1`
+`B_top_patterns=strong_help:1`
+가 나왔습니다.
+같은 run의 핵심 값은
+`A_reason_text_changed=10`, `B_reason_text_changed=14`,
+`A_reason_membership_changed=2`, `B_reason_membership_changed=0`,
+`A_fp=different`, `B_fp=same` 이었습니다.
 
 ## 5. retrieval / repository 현재 상태
 

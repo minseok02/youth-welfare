@@ -2017,3 +2017,8 @@
 - 문제: cache clear 포함 `real-openai` run에서 artifact(`/tmp/tmp.3DkyjL1B9n`)는 `SUMMARY_REASON_PATTERN A_top_patterns=interest_fit:1 B_top_patterns=strong_help:2` 같은 새 증적을 남겼지만, 동시에 `A_top10_target=0->0` 이라 sample A hard assert에 걸려 exit code 1 로 끝났다. 문서상 real-openai replay는 PR hard gate가 아니라 diagnostic 인데, sample A 미개선까지 hard fail로 두면 이유문장/패턴 drift 증적을 남기는 run이 자주 중단된다.
 - 해결: replay summary Python에서 `mode == real-openai` 일 때는 sample A 미개선도 `WARNING:` 으로만 출력하고 종료하지 않도록 바꿨다. `rule-only-invalid-key` 모드의 sample A hard assert는 그대로 유지한다.
 - 이유: 현재 live AI replay의 목적은 deterministic gate가 아니라 drift 관찰이다. sample A 미개선 자체도 진단 신호인데, 그 때문에 artifact 수집이 중단되면 오히려 해석 재료가 줄어든다.
+
+## 378) warning-only 정책으로 run을 끝까지 살린 뒤엔, 그 산출물을 다시 current-state 기준선으로 박아 두어야 다음 pattern summary 비교가 가능하다
+- 문제: warning-only로 바꾼 뒤 cache clear `real-openai` run(`/tmp/tmp.6YybgXCbIo`)은 끝까지 artifact를 남겼지만, 이 숫자를 문서에 안 박아 두면 다음 run의 `SUMMARY_REASON_PATTERN` 이 새 현상인지 기존 분포인지 바로 비교할 수 없다.
+- 해결: latest artifact 기준 `A_reason_text_changed=10`, `B_reason_text_changed=14`, `A_reason_membership_changed=2`, `B_reason_membership_changed=0`, `A_fp=different`, `B_fp=same`, `SUMMARY_REASON_PATTERN A_top_patterns=interest_fit:2,direct_help:1,job_opportunity:1 B_top_patterns=strong_help:1` 를 current-state / replay procedure / phase-plan에 반영했다.
+- 이유: real-openai replay는 deterministic 수치보다 패턴 분포를 계속 쌓는 쪽이 더 중요하다. warning run도 기준선으로 승격해 둬야 다음 artifact를 “새 drift”와 “기존 분포의 반복”으로 더 빠르게 나눌 수 있다.

@@ -234,6 +234,27 @@ host에서 직접 `bootRun` 할 때는 아래를 같이 맞춥니다.
   - cache를 비우면 canonical summary prompt 영향이 실제 `ai_reason` text 변화까지 이어지는 것은 확인되지만,
     control sample B도 text drift와 target row 증가가 동시에 나타나므로 현재 real-openai 결과는 여전히 PR hard gate가 아니라 diagnostic 증적으로만 다뤄야 한다.
 
+2026-05-02 완화된 assertion 정책 후 cache clear `real-openai` replay 결과:
+
+- 실행:
+  - `USE_REAL_OPENAI_FOR_REPLAY=true KEEP_ARTIFACTS=true CLEAR_CLUSTER_AI_CACHE_BEFORE_REPLAY=true deploy/smoke/run-local-education-priority-replay.sh`
+- artifact dir 예시: `/tmp/tmp.6YybgXCbIo`
+- `SUMMARY_METRIC`
+  - sample A: `A_top10_target=0->0` (`WARNING`)
+  - sample B: `B_top10_target=0->0`
+- `SUMMARY_REASON_METRIC`
+  - sample A: `A_reason_changed=12`, `A_reason_text_changed=10`, `A_reason_membership_changed=2`
+  - sample B: `B_reason_changed=14`, `B_reason_text_changed=14`, `B_reason_membership_changed=0`
+- `SUMMARY_REASON_PATTERN`
+  - sample A: `A_top_patterns=interest_fit:2,direct_help:1,job_opportunity:1`
+  - sample B: `B_top_patterns=strong_help:1`
+- fingerprint
+  - sample A: `A_fp=different`
+  - sample B: `B_fp=same`
+- 해석
+  - warning-only 정책 덕분에 sample A 미개선 run도 artifact를 끝까지 수집할 수 있었다.
+  - 이번 run에서도 control sample B의 text drift가 커서, pattern summary는 triage shortcut으로만 사용하고 제품 효과 증거로는 아직 쓰지 않는다.
+
 ### 3. 공통 변수
 
 ```bash
