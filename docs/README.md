@@ -25,6 +25,9 @@
 - [policy-source-onboarding-checklist.md](./policy-source-onboarding-checklist.md)
   새 source를 실제로 받았을 때 `분류 -> raw 저장 -> canonical 승격 -> blocked 판정` 을 어떤 순서로 볼지 짧은 실무 체크리스트로 정리합니다.
 
+- [policy-source-code-entrypoints.md](./policy-source-code-entrypoints.md)
+  새 source를 붙일 때 collect entry, raw payload 저장, sidecar writer, recommendation read-model 경계에서 실제로 어떤 클래스를 열어야 하는지 코드 기준으로 정리합니다.
+
 ### 전체 구조를 파악할 때
 
 - [architecture.md](./architecture.md)  

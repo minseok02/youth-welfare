@@ -31,6 +31,7 @@
 - [policy-normalization-current-state.md](./policy-normalization-current-state.md)
 - [policy-source-onboarding-architecture.md](./policy-source-onboarding-architecture.md)
 - [policy-source-onboarding-checklist.md](./policy-source-onboarding-checklist.md)
+- [policy-source-code-entrypoints.md](./policy-source-code-entrypoints.md)
 - [policy-local-closeout-pending-inventory.md](./policy-local-closeout-pending-inventory.md)
 - [policy-post-local-closeout-track-split.md](./policy-post-local-closeout-track-split.md)
 
@@ -74,6 +75,7 @@
 - current big picture 는 [policy-normalization-current-state.md](./policy-normalization-current-state.md),
   [policy-source-onboarding-architecture.md](./policy-source-onboarding-architecture.md),
   [policy-source-onboarding-checklist.md](./policy-source-onboarding-checklist.md),
+  [policy-source-code-entrypoints.md](./policy-source-code-entrypoints.md),
   [policy-source-onboarding-playbook.md](./policy-source-onboarding-playbook.md),
   [policy-normalization-recommendation-read-model.md](./policy-normalization-recommendation-read-model.md),
   [policy-normalization-recommendation-migration-order.md](./policy-normalization-recommendation-migration-order.md)
