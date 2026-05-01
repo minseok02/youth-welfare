@@ -1972,3 +1972,13 @@
 - 문제: `CanonicalRecommendationReadModelRepository` 와 응답 DTO는 이미 canonical summary field를 slot-first 기준으로 받아 두고 있었지만, `RealtimeAiGateway` prompt는 여전히 `분류` 와 짧은 설명만 LLM에 전달하고 있었다. 이 상태에서는 canonical summary를 API 밖으로 노출하는 것과 별개로, 실제 AI 재평가 입력은 아직 새 summary 정보를 소비하지 않아 projection 확장이 추천 설명 품질로 이어지지 않는다.
 - 해결: `RealtimeAiGateway` 에 prompt line helper를 추가해 후보별로 `정책분야(youthMajorLabel)`, `세부분야(youthMidLabel)`, `제공방식(provisionMethodLabel)` 을 blank-safe 하게 함께 싣도록 바꾸고, `RealtimeAiGatewayTest` 에 포함/생략 규칙을 고정했다.
 - 이유: canonical summary를 가장 작게 실제 소비할 수 있는 read path가 AI prompt다. 응답 계약은 additive 로 유지하되, 내부 추천 품질 경계에서는 projection-derived summary를 바로 써 보는 편이 이후 reason 품질 변화나 replay 비교에도 도움이 된다.
+
+## 369) prompt 입력을 canonical summary 기준으로 바꿔도 replay artifact가 점수/fingerprint만 보여 주면, `ai_reason` 설명 품질 변화는 다시 raw JSON이나 DB를 뒤져야 한다
+- 문제: `RealtimeAiGateway` prompt에 `youthMajorLabel`, `youthMidLabel`, `provisionMethodLabel` 을 추가한 뒤에는 점수 변화뿐 아니라 `ai_reason` 문장 변화도 같이 봐야 하는데, 기존 replay artifact는 `edu-a/b-*-scores.tsv` 와 `SUMMARY_METRIC` 중심이라 reason diff를 바로 보여주지 못했다. 이 상태에서는 prompt 변경이 실제 설명 품질에 어떤 영향을 줬는지 확인하려면 off/on 응답을 다시 수작업으로 비교해야 한다.
+- 해결: `run-local-education-priority-replay.sh` 가 `user_recommendations` snapshot에 `ai_reason` 컬럼도 함께 남기고, sample A/B 각각 `edu-a-ai-reason-diff.tsv`, `edu-b-ai-reason-diff.tsv` 를 생성하도록 확장했다. summary stdout과 nightly append line에도 `SUMMARY_REASON_METRIC A_reason_changed / B_reason_changed` 를 추가했고, replay procedure 문서도 같은 artifact 기준으로 갱신했다.
+- 이유: canonical summary를 prompt에 넣는 변경은 점수보다 설명 문장 쪽에서 먼저 드러날 수 있다. replay artifact가 reason diff를 1급 결과물로 남겨야, 이후 품질 비교가 점수 drift와 설명 drift를 함께 보는 형태로 바뀐다.
+
+## 370) `ai_reason` diff artifact를 붙인 뒤엔 실제 local replay 한 번을 다시 태워 baseline 숫자를 남겨 두어야, 다음 run에서 “reason 변화가 새로 생긴 건지”를 바로 판단할 수 있다
+- 문제: `edu-a-ai-reason-diff.tsv` / `edu-b-ai-reason-diff.tsv` 와 `SUMMARY_REASON_METRIC` 을 추가했어도, 첫 baseline run을 안 남기면 다음 replay에서 숫자가 바뀌었을 때 그 변화가 코드 영향인지 원래 상태였는지 구분이 어렵다.
+- 해결: local `deploy/smoke/run-local-education-priority-replay.sh` 를 다시 실행해 artifact(`/tmp/tmp.vralYMXR1n`) 기준 `SUMMARY_REASON_METRIC A_reason_changed=8 B_reason_changed=0`, `SUMMARY_METRIC A_top10_target=5->8 B_top10_target=2->2` 를 확보했다. 같은 run에서 slot density는 `slot_rows=5619`, `slot_services=2305`, `slot_education_services=110`, `slot_services_YOUTH_MAJOR=2288`, `slot_services_YOUTH_MID=2170`, `slot_services_PROVISION_METHOD=1161` 로 유지됐다.
+- 이유: prompt에 canonical summary를 넣은 효과는 sample A에서 reason 문장 변화가 생기고 control sample B에서는 drift가 없는지 같이 봐야 해석이 선명하다. baseline 숫자를 남겨 두면 이후 replay에서 `reason_changed` count와 top-10 개선 수를 한 번에 비교할 수 있다.

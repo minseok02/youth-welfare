@@ -75,19 +75,21 @@ deploy/smoke/run-local-education-priority-replay.sh
 6. `compat=기타 + youth_major=교육` target row top-10 진입 수 비교
 7. sample A 개선 hard assert
 8. sample B(control) drift는 기본 warning, 필요하면 `STRICT_CONTROL_ASSERT=true` 로 strict fail
-9. `user_recommendations` off/on snapshot(`edu-a/b-*-scores.tsv`)도 함께 남겨 `rule_weighted_score` / `ai_score` / `final_score` 경계를 바로 비교
-10. artifact에 `openai-mode.txt` 를 같이 남겨 `rule-only-invalid-key` / `real-openai` 모드를 명시
-11. boot log에서 `[RealtimeAiGateway][replay-trace]`, `[RealtimeAiGateway][replay-trace-response]` 라인을 추출해 `edu-a/b-*-ai-trace.log`, `edu-a/b-*-ai-response-trace.log`, `ai-trace-*.log`, `ai-trace-response-*.log` 로 남기고 `candidateIds` / `candidateRuleScores` / `promptSha256` / `replaySeed` / `systemFingerprint` / `responseId` 를 비교
-12. summary stdout에도 `A_FINGERPRINT ... same|different`, `B_FINGERPRINT ... same|different` 를 같이 출력해 artifact를 열기 전에도 `backend churn` 여부를 바로 볼 수 있게 한다
-13. summary stdout의 `SUMMARY_METRIC` 한 줄에서 `A_top10_target`, `B_top10_target`, `A/B_target_total`, `A/B_fp` 를 먼저 보고 pass/warn 판단을 시작한다
-14. nightly summary file에 append 할 때도 같은 축을 유지하고,
+9. `user_recommendations` off/on snapshot(`edu-a/b-*-scores.tsv`)도 함께 남겨 `rule_weighted_score` / `ai_score` / `ai_reason` / `final_score` 경계를 바로 비교
+10. sample A/B 각각 `edu-a-ai-reason-diff.tsv`, `edu-b-ai-reason-diff.tsv` 를 만들어 off/on 간 `ai_reason` 변화가 실제로 생긴 row를 바로 확인
+11. artifact에 `openai-mode.txt` 를 같이 남겨 `rule-only-invalid-key` / `real-openai` 모드를 명시
+12. boot log에서 `[RealtimeAiGateway][replay-trace]`, `[RealtimeAiGateway][replay-trace-response]` 라인을 추출해 `edu-a/b-*-ai-trace.log`, `edu-a/b-*-ai-response-trace.log`, `ai-trace-*.log`, `ai-trace-response-*.log` 로 남기고 `candidateIds` / `candidateRuleScores` / `promptSha256` / `replaySeed` / `systemFingerprint` / `responseId` 를 비교
+13. summary stdout에도 `A_FINGERPRINT ... same|different`, `B_FINGERPRINT ... same|different` 를 같이 출력해 artifact를 열기 전에도 `backend churn` 여부를 바로 볼 수 있게 한다
+14. summary stdout의 `SUMMARY_METRIC` 한 줄에서 `A_top10_target`, `B_top10_target`, `A/B_target_total`, `A/B_fp` 를 먼저 보고 pass/warn 판단을 시작한다
+15. summary stdout의 `SUMMARY_REASON_METRIC` 한 줄에서 `A_reason_changed`, `B_reason_changed` 를 바로 확인하고, 세부 내용이 필요하면 `edu-a/b-ai-reason-diff.tsv` 를 연다
+16. nightly summary file에 append 할 때도 같은 축을 유지하고,
     최소 필드는 `ts`, `mode`, `A_top10_target`, `B_top10_target`,
-    `A_target_total`, `B_target_total`, `A_fp`, `B_fp`, `artifact_dir` 로 제한한다
-15. 실제 append 는 `REPLAY_SUMMARY_APPEND_FILE=/path/to/nightly-summary-YYYY-MM-DD.log`
+    `A_target_total`, `B_target_total`, `A_fp`, `B_fp`, `A_reason_changed`, `B_reason_changed`, `artifact_dir` 로 제한한다
+17. 실제 append 는 `REPLAY_SUMMARY_APPEND_FILE=/path/to/nightly-summary-YYYY-MM-DD.log`
     env 로 켜고, 필요하면 `REPLAY_SUMMARY_TS` 로 기록 시각을 wrapper 에서 명시한다
-16. ops host nightly 실행은 직접 env 를 길게 붙이기보다
+18. ops host nightly 실행은 직접 env 를 길게 붙이기보다
     `deploy/smoke/run-nightly-openai-replay.sh` wrapper 를 기본 진입점으로 쓴다
-17. host cron 예시는 wrapper/cleanup 둘 다 절대경로 호출로 둔다
+19. host cron 예시는 wrapper/cleanup 둘 다 절대경로 호출로 둔다
     - replay:
       - `10 1 * * * REPLAY_LOG_ROOT=/var/log/youth-welfare/openai-replay /home/minseok/youth-welfare/deploy/smoke/run-nightly-openai-replay.sh >> /var/log/youth-welfare/openai-replay/nightly-cron.log 2>&1`
     - cleanup:

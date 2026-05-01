@@ -135,6 +135,9 @@ projection이 현재 담는 대표값:
 또 `RealtimeAiGateway` prompt도 이제 compat 분류 외에
 `youthMajorLabel`, `youthMidLabel`, `provisionMethodLabel` 을 같이 실어
 AI 재평가 입력에서 canonical summary를 직접 소비합니다.
+latest local replay(`rule-only-invalid-key`) 기준으로는
+`SUMMARY_REASON_METRIC A_reason_changed=8 B_reason_changed=0`
+이 나와, sample A에서는 explanation 변화가 생기고 control sample B에서는 reason drift가 없음을 확인했습니다.
 
 ## 5. retrieval / repository 현재 상태
 

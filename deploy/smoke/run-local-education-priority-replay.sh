@@ -156,6 +156,8 @@ SCORES_A_OFF="${ARTIFACT_DIR}/edu-a-off-scores.tsv"
 SCORES_A_ON="${ARTIFACT_DIR}/edu-a-on-scores.tsv"
 SCORES_B_OFF="${ARTIFACT_DIR}/edu-b-off-scores.tsv"
 SCORES_B_ON="${ARTIFACT_DIR}/edu-b-on-scores.tsv"
+REASON_DIFF_A="${ARTIFACT_DIR}/edu-a-ai-reason-diff.tsv"
+REASON_DIFF_B="${ARTIFACT_DIR}/edu-b-ai-reason-diff.tsv"
 AI_TRACE_OFF_RAW="${ARTIFACT_DIR}/ai-trace-off.log"
 AI_TRACE_ON_RAW="${ARTIFACT_DIR}/ai-trace-on.log"
 AI_TRACE_A_OFF="${ARTIFACT_DIR}/edu-a-off-ai-trace.log"
@@ -307,6 +309,7 @@ capture_recommendation_snapshot() {
     SELECT ur.service_id,
            ur.rule_weighted_score,
            COALESCE(ur.ai_score, 'NULL'),
+           COALESCE(REPLACE(REPLACE(ur.ai_reason, '\t', ' '), '\n', ' '), 'NULL'),
            COALESCE(ur.rule_weight_used, 'NULL'),
            COALESCE(ur.ai_weight_used, 'NULL'),
            ur.final_score,
@@ -601,14 +604,14 @@ collect_summary_slot_metrics() {
 }
 
 print_summary() {
-  python3 - <<'PY' "${RESP_A_OFF}" "${RESP_A_ON}" "${RESP_B_OFF}" "${RESP_B_ON}" "${META_FILE}" "${SUMMARY_SLOT_METRICS_FILE}" "${STRICT_CONTROL_ASSERT}" "${AI_RESPONSE_TRACE_A_OFF}" "${AI_RESPONSE_TRACE_A_ON}" "${AI_RESPONSE_TRACE_B_OFF}" "${AI_RESPONSE_TRACE_B_ON}" "${OPENAI_MODE_FILE}" "${ARTIFACT_DIR}" "${REPLAY_SUMMARY_APPEND_FILE}" "${REPLAY_SUMMARY_TS}"
+  python3 - <<'PY' "${RESP_A_OFF}" "${RESP_A_ON}" "${RESP_B_OFF}" "${RESP_B_ON}" "${META_FILE}" "${SUMMARY_SLOT_METRICS_FILE}" "${STRICT_CONTROL_ASSERT}" "${AI_RESPONSE_TRACE_A_OFF}" "${AI_RESPONSE_TRACE_A_ON}" "${AI_RESPONSE_TRACE_B_OFF}" "${AI_RESPONSE_TRACE_B_ON}" "${OPENAI_MODE_FILE}" "${ARTIFACT_DIR}" "${REPLAY_SUMMARY_APPEND_FILE}" "${REPLAY_SUMMARY_TS}" "${SCORES_A_OFF}" "${SCORES_A_ON}" "${SCORES_B_OFF}" "${SCORES_B_ON}" "${REASON_DIFF_A}" "${REASON_DIFF_B}"
 import json
 import re
 import sys
 from pathlib import Path
 from datetime import datetime
 
-resp_a_off, resp_a_on, resp_b_off, resp_b_on, meta_path, slot_metrics_path, strict_control_assert, trace_a_off, trace_a_on, trace_b_off, trace_b_on, openai_mode_file, artifact_dir, summary_append_file, replay_summary_ts = sys.argv[1:]
+resp_a_off, resp_a_on, resp_b_off, resp_b_on, meta_path, slot_metrics_path, strict_control_assert, trace_a_off, trace_a_on, trace_b_off, trace_b_on, openai_mode_file, artifact_dir, summary_append_file, replay_summary_ts, scores_a_off, scores_a_on, scores_b_off, scores_b_on, reason_diff_a, reason_diff_b = sys.argv[1:]
 
 def load_rows(path):
     with open(path, "r", encoding="utf-8") as fp:
@@ -659,10 +662,62 @@ def summarize(label, rows):
         "top10_target_count": top10_target_count,
     }
 
+def load_score_rows(path):
+    rows = {}
+    for line in Path(path).read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        service_id, rule_weighted_score, ai_score, ai_reason, rule_weight_used, ai_weight_used, final_score, title, unified_category = line.split("\t")
+        rows[int(service_id)] = {
+            "service_id": int(service_id),
+            "rule_weighted_score": rule_weighted_score,
+            "ai_score": ai_score,
+            "ai_reason": ai_reason,
+            "rule_weight_used": rule_weight_used,
+            "ai_weight_used": ai_weight_used,
+            "final_score": final_score,
+            "title": title,
+            "unified_category": unified_category,
+        }
+    return rows
+
+def write_reason_diff(off_path, on_path, output_path):
+    off_rows = load_score_rows(off_path)
+    on_rows = load_score_rows(on_path)
+    service_ids = sorted(set(off_rows.keys()) | set(on_rows.keys()))
+    changed = []
+    for service_id in service_ids:
+        off_row = off_rows.get(service_id)
+        on_row = on_rows.get(service_id)
+        off_reason = off_row["ai_reason"] if off_row else "MISSING"
+        on_reason = on_row["ai_reason"] if on_row else "MISSING"
+        if off_reason == on_reason:
+            continue
+        changed.append({
+            "service_id": service_id,
+            "title": (on_row or off_row)["title"],
+            "off_reason": off_reason,
+            "on_reason": on_reason,
+            "off_ai_score": off_row["ai_score"] if off_row else "MISSING",
+            "on_ai_score": on_row["ai_score"] if on_row else "MISSING",
+            "off_final_score": off_row["final_score"] if off_row else "MISSING",
+            "on_final_score": on_row["final_score"] if on_row else "MISSING",
+        })
+    with Path(output_path).open("w", encoding="utf-8") as fp:
+        fp.write("service_id\ttitle\toff_ai_score\ton_ai_score\toff_final_score\ton_final_score\toff_reason\ton_reason\n")
+        for row in changed:
+            fp.write(
+                f"{row['service_id']}\t{row['title']}\t{row['off_ai_score']}\t{row['on_ai_score']}\t"
+                f"{row['off_final_score']}\t{row['on_final_score']}\t{row['off_reason']}\t{row['on_reason']}\n"
+            )
+    return len(changed)
+
 a_off = summarize("A_OFF", load_rows(resp_a_off))
 a_on = summarize("A_ON", load_rows(resp_a_on))
 b_off = summarize("B_OFF", load_rows(resp_b_off))
 b_on = summarize("B_ON", load_rows(resp_b_on))
+a_reason_changed = write_reason_diff(scores_a_off, scores_a_on, reason_diff_a)
+b_reason_changed = write_reason_diff(scores_b_off, scores_b_on, reason_diff_b)
 
 a_off_fp = fingerprint_of(trace_a_off)
 a_on_fp = fingerprint_of(trace_a_on)
@@ -697,6 +752,11 @@ print(
     f"A_fp={a_fp_relation}",
     f"B_fp={b_fp_relation}",
 )
+print(
+    "SUMMARY_REASON_METRIC",
+    f"A_reason_changed={a_reason_changed}",
+    f"B_reason_changed={b_reason_changed}",
+)
 
 summary_line = (
     f"ts={ts_value} "
@@ -707,6 +767,8 @@ summary_line = (
     f"B_target_total={b_off['target_count']}->{b_on['target_count']} "
     f"A_fp={a_fp_relation} "
     f"B_fp={b_fp_relation} "
+    f"A_reason_changed={a_reason_changed} "
+    f"B_reason_changed={b_reason_changed} "
     f"slot_rows={slot_metrics.get('slot_rows', 0)} "
     f"slot_services={slot_metrics.get('slot_services', 0)} "
     f"slot_education_services={slot_metrics.get('slot_education_services', 0)} "
