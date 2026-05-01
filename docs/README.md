@@ -79,6 +79,9 @@
 - [policy-local-closeout-pending-inventory.md](./policy-local-closeout-pending-inventory.md)
   현재 미완 항목을 local-first 기준으로 다시 분리하고, 로컬에서 바로 끝낼 수 있는 closeout 검증 세트를 정리합니다.
 
+- [policy-post-local-closeout-track-split.md](./policy-post-local-closeout-track-split.md)
+  local closeout 완료 이후 남은 pending 을 `external blocked` 와 `ops-only` 로 어떻게 나눌지 정리합니다.
+
 - [policy-normalization-fact-merge-rules.md](./policy-normalization-fact-merge-rules.md)
   복지로 list aggregate 와 detail aggregate 가 같은 `service_facts` 슬롯에 들어올 때의 merge/upsert 우선순위와 `fact_merge_key` 규칙을 확인합니다.
 

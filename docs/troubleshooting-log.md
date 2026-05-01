@@ -1587,3 +1587,8 @@
 - 문제: `UserPiiSyncStatusIntegrationTest` 는 `pending=1`, `failed=2`, `synced=1` 같은 절대 count를 가정하고 있었는데, local PII smoke와 manual run이 남긴 `user_pii_sync_queue` row 때문에 broad backend suite 재실행 시 `syncedCount` 가 더 크게 나와 실패했다. 서비스 구현은 전체 queue 상태를 집계하는 게 맞아서, 테스트가 shared DB state에 너무 민감한 쪽이었다.
 - 해결: 테스트 시작 시 baseline `UserPiiSyncStatusResponse` 를 먼저 읽고, 추가한 fixture row만 delta로 검증하도록 바꿨다. 동시에 oldest/latest ordering이 기존 row와 섞이지 않게 pending/failed/synced row에 극단 timestamp를 주고, failed sample 우선순위도 높은 `attemptCount` 로 고정했다.
 - 이유: local-first closeout의 마지막 broad regression은 실제 구현 버그를 찾는 단계이지, shared integration DB에 남은 이전 smoke 흔적 때문에 깨지는 가짜 실패를 남기는 단계가 아니다. baseline-delta 방식으로 바꿔야 full suite green이 의미를 갖는다.
+
+## 308) local-first closeout 이 끝난 뒤에도 다음 액션을 “무언가 더 로컬에서 만들기”로 잡으면, 이미 blocked/ops 단계로 넘어간 항목에 불필요한 설계가 다시 쌓일 수 있다
+- 문제: broad backend regression까지 green 이 된 뒤에는 실제로 로컬에서 더 닫을 active pending 이 없는데도, 다음 액션을 막연히 “다음 작업 진행”으로만 두면 `GOV24_*`, `YOUTH_MID`, deploy 같은 항목을 다시 로컬 설계 대상으로 오해할 수 있었다.
+- 해결: [policy-post-local-closeout-track-split.md](./policy-post-local-closeout-track-split.md) 를 추가해 2026-05-01 기준 남은 항목은 `external blocked` 와 `ops-only` 두 트랙뿐이라고 고정했다. 이 문서에서 blocked 재개 조건과 ops-only 전환 조건도 같이 박아, 이후부터는 새 로컬 구현보다 “외부 응답 대기” 또는 “운영 전환 결정” 중 어느 쪽인지 먼저 해석하도록 정리했다.
+- 이유: local-first 원칙의 끝은 “로컬에서 계속 무언가 더 하는 상태”가 아니라, “이제 로컬로는 더 전진하지 않는다”를 명확히 선언하는 것이다. 그래야 blocked 트랙과 운영 트랙이 다시 섞이지 않는다.

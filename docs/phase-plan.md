@@ -1460,6 +1460,9 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
   - 이를 기준으로 writer의 refresh scope를 `YOUTH_MID` / `YOUTH_MID_RAW_ALIAS` 묶음으로 넓혀 `NormalizedPolicySidecarPersistenceIntegrationTest` 기준 stale alias 회귀를 정리했다
   - 동시에 `UserPiiSyncStatusIntegrationTest` 는 local smoke가 남긴 shared queue row 때문에 절대 count assertion이 흔들릴 수 있어 baseline delta + 극단 timestamp 기반으로 fixture를 보강했다
   - 검증: `./gradlew test --no-daemon --tests com.example.welfare.collect.normalization.DeferredNormalizedPolicySidecarWriterTest`, `./gradlew integrationTest --no-daemon --tests com.example.welfare.integration.NormalizedPolicySidecarPersistenceIntegrationTest --tests com.example.welfare.integration.UserPiiSyncStatusIntegrationTest`, `./gradlew test integrationTest --no-daemon`
+- [x] post-local-closeout pending 성격 분리
+  - [policy-post-local-closeout-track-split.md](./policy-post-local-closeout-track-split.md) 를 추가해 2026-05-01 기준 더 이상 active local pending 은 없고, 남은 항목은 `external blocked` 와 `ops-only` 두 트랙뿐이라고 고정했다
+  - 이 기준으로 `GOV24_*`, `GOV24_SUPPORT_CONDITION`, `YOUTH_MID`, CTR/알림톡은 external blocked, deploy/DB/secret/Nginx/migration smoke 는 ops-only 로 유지한다
 - [ ] 운영 서버 Docker Compose 기동
 - [ ] 기존 운영 DB에 `app_core_rw` / `app_pii_rw` / `notification_pii_ro` / `migration_admin` 계정 생성 및 앱 datasource 전환
 - [ ] 운영 `.env` / secret store의 `APP_PII_DB_URL` / `NOTIFICATION_PII_DB_URL` 를 `youth_welfare_pii` schema 기준으로 전환
