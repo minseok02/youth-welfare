@@ -6,6 +6,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -25,13 +26,15 @@ import static org.mockito.BDDMockito.given;
 class CanonicalRecommendationReadModelRepositoryTest {
 
     @Mock
+    private JdbcTemplate jdbcTemplate;
+    @Mock
     private NamedParameterJdbcTemplate namedParameterJdbcTemplate;
 
     private CanonicalRecommendationReadModelRepository repository;
 
     @BeforeEach
     void setUp() {
-        repository = new CanonicalRecommendationReadModelRepository(namedParameterJdbcTemplate);
+        repository = new CanonicalRecommendationReadModelRepository(jdbcTemplate, namedParameterJdbcTemplate);
     }
 
     @Test
@@ -51,6 +54,8 @@ class CanonicalRecommendationReadModelRepositoryTest {
         baseRow.put("apply_end_date", Date.valueOf(LocalDate.of(2026, 12, 31)));
         baseRow.put("search_youth_relevant", true);
 
+        given(jdbcTemplate.queryForObject(org.mockito.ArgumentMatchers.contains("table_name = ?"), org.mockito.ArgumentMatchers.eq(Integer.class), org.mockito.ArgumentMatchers.eq("service_taxonomy_summary_slots")))
+                .willReturn(0);
         given(namedParameterJdbcTemplate.queryForList(org.mockito.ArgumentMatchers.contains("FROM welfare_services"), any(MapSqlParameterSource.class)))
                 .willReturn(List.of(baseRow));
         given(namedParameterJdbcTemplate.queryForList(org.mockito.ArgumentMatchers.contains("FROM service_taxonomy_terms"), any(MapSqlParameterSource.class)))
@@ -121,6 +126,8 @@ class CanonicalRecommendationReadModelRepositoryTest {
         baseRow.put("apply_end_date", Date.valueOf(LocalDate.of(2026, 10, 1)));
         baseRow.put("search_youth_relevant", true);
 
+        given(jdbcTemplate.queryForObject(org.mockito.ArgumentMatchers.contains("table_name = ?"), org.mockito.ArgumentMatchers.eq(Integer.class), org.mockito.ArgumentMatchers.eq("service_taxonomy_summary_slots")))
+                .willReturn(0);
         given(namedParameterJdbcTemplate.queryForList(org.mockito.ArgumentMatchers.contains("FROM welfare_services"), any(MapSqlParameterSource.class)))
                 .willReturn(List.of(baseRow));
         given(namedParameterJdbcTemplate.queryForList(org.mockito.ArgumentMatchers.contains("FROM service_taxonomy_terms"), any(MapSqlParameterSource.class)))
@@ -162,6 +169,8 @@ class CanonicalRecommendationReadModelRepositoryTest {
         baseRow.put("apply_end_date", null);
         baseRow.put("search_youth_relevant", true);
 
+        given(jdbcTemplate.queryForObject(org.mockito.ArgumentMatchers.contains("table_name = ?"), org.mockito.ArgumentMatchers.eq(Integer.class), org.mockito.ArgumentMatchers.eq("service_taxonomy_summary_slots")))
+                .willReturn(0);
         given(namedParameterJdbcTemplate.queryForList(org.mockito.ArgumentMatchers.contains("FROM welfare_services"), any(MapSqlParameterSource.class)))
                 .willReturn(List.of(baseRow));
         given(namedParameterJdbcTemplate.queryForList(org.mockito.ArgumentMatchers.contains("FROM service_taxonomy_terms"), any(MapSqlParameterSource.class)))
@@ -171,6 +180,38 @@ class CanonicalRecommendationReadModelRepositoryTest {
 
         RecommendationCandidateProjection projection = repository.findByServiceIds(List.of(5501L)).get(5501L);
 
+        assertThat(projection.educationPriorityBoostEligible()).isTrue();
+    }
+
+    @Test
+    @DisplayName("summary slot table이 있으면 youth major는 slot-first로 읽고 legacy summary를 fallback으로만 사용한다")
+    void findByServiceIds_prefersSummarySlotForYouthMajor() {
+        Map<String, Object> baseRow = new LinkedHashMap<>();
+        baseRow.put("service_id", 6601L);
+        baseRow.put("source_type", "YOUTH");
+        baseRow.put("unified_category", "기타");
+        baseRow.put("youth_major_label", "교육");
+        baseRow.put("title", "교육 역량 강화");
+        baseRow.put("summary", "청년 교육 지원");
+        baseRow.put("min_age", 19);
+        baseRow.put("max_age", 34);
+        baseRow.put("min_income", 0);
+        baseRow.put("max_income", 0);
+        baseRow.put("apply_end_date", null);
+        baseRow.put("search_youth_relevant", true);
+
+        given(jdbcTemplate.queryForObject(org.mockito.ArgumentMatchers.contains("table_name = ?"), org.mockito.ArgumentMatchers.eq(Integer.class), org.mockito.ArgumentMatchers.eq("service_taxonomy_summary_slots")))
+                .willReturn(1);
+        given(namedParameterJdbcTemplate.queryForList(org.mockito.ArgumentMatchers.contains("FROM service_taxonomy_summary_slots"), any(MapSqlParameterSource.class)))
+                .willReturn(List.of(baseRow));
+        given(namedParameterJdbcTemplate.queryForList(org.mockito.ArgumentMatchers.contains("FROM service_taxonomy_terms"), any(MapSqlParameterSource.class)))
+                .willReturn(List.of());
+        given(namedParameterJdbcTemplate.queryForList(org.mockito.ArgumentMatchers.contains("FROM service_facts"), any(MapSqlParameterSource.class)))
+                .willReturn(List.of());
+
+        RecommendationCandidateProjection projection = repository.findByServiceIds(List.of(6601L)).get(6601L);
+
+        assertThat(projection.youthMajorLabel()).isEqualTo("교육");
         assertThat(projection.educationPriorityBoostEligible()).isTrue();
     }
 }
