@@ -179,6 +179,52 @@ class RecommendationPolicyFlowWebMvcTest {
     }
 
     @Test
+    @DisplayName("저장된 추천 목록 조회는 canonical summary additive field를 함께 반환한다")
+    void recommendationListIncludesCanonicalSummaryFields() throws Exception {
+        WelfareService service = sampleService(11L, "청년 월세 지원");
+        UserRecommendation recommendation = UserRecommendation.builder()
+                .id(1001L)
+                .service(service)
+                .finalScore(new BigDecimal("0.9100"))
+                .aiScore(new BigDecimal("0.7600"))
+                .aiReason("주거 부담 완화에 유리")
+                .recommendedAt(LocalDateTime.of(2026, 4, 16, 8, 0))
+                .build();
+
+        given(recommendationFacade.getRecommendations(isNull(), eq(10))).willReturn(List.of(recommendation));
+        given(recommendationLogService.findLatestLogIdMap(isNull(), org.mockito.ArgumentMatchers.anyList()))
+                .willReturn(java.util.Map.of(11L, 9001L));
+        given(canonicalRecommendationReadModelRepository.findByServiceIds(org.mockito.ArgumentMatchers.anyList()))
+                .willReturn(java.util.Map.of(
+                        11L,
+                        RecommendationCandidateProjection.builder()
+                                .serviceId(11L)
+                                .unifiedCategoryCompat("주거")
+                                .youthMidLabel("전월세 및 주거급여 지원")
+                                .provisionMethodLabel("온라인")
+                                .build()
+                ));
+
+        mockMvc.perform(get("/api/recommendations")
+                        .param("size", "10")
+                        .with(authentication(new UsernamePasswordAuthenticationToken(
+                                new AuthenticatedUser(1L, "user-key-1"),
+                                null,
+                                Collections.emptyList()
+                        ))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data[0].id").value(1001))
+                .andExpect(jsonPath("$.data[0].serviceId").value(11))
+                .andExpect(jsonPath("$.data[0].logId").value(9001))
+                .andExpect(jsonPath("$.data[0].unifiedCategory").value("주거"))
+                .andExpect(jsonPath("$.data[0].youthMidLabel").value("전월세 및 주거급여 지원"))
+                .andExpect(jsonPath("$.data[0].provisionMethodLabel").value("온라인"));
+
+        verify(recommendationFacade).getRecommendations(isNull(), eq(10));
+    }
+
+    @Test
     @DisplayName("정책 상세 조회 시 log_id가 있으면 클릭 로그를 기록한다")
     void policyDetailMarksClickWhenLogIdExists() throws Exception {
         PolicyDetailResponse detail = PolicyDetailResponse.builder()

@@ -1957,3 +1957,8 @@
 - 문제: policy summary/detail/ranking/bookmark 응답에는 `youthMidLabel`, `provisionMethodLabel` 을 추가했지만, 추천 목록/refresh 응답은 여전히 기존 필드 집합만 내려주고 있었다. 이 상태에서는 프론트가 추천 카드와 정책 카드를 함께 다룰 때 canonical summary field 유무가 엔드포인트마다 달라져, 연결 전부터 응답 shape가 불필요하게 갈라진다.
 - 해결: `RecommendationResponse` 에 `youthMidLabel`, `provisionMethodLabel` 을 additive field로 추가하고, `RecommendationPolicyFlowWebMvcTest` 에 추천 refresh 응답 JSON 검증을 붙였다. `api-mapping.md` 와 current-state 문서도 추천 응답이 같은 additive field를 노출한다는 점을 반영했다.
 - 이유: canonical summary field는 특정 policy API만의 실험 필드가 아니라 projection에서 공통으로 읽는 응답 metadata다. 프론트 연결 전에는 recommendation/policy 응답 shape를 가능한 한 맞춰 두는 편이 이후 카드 UI와 API client 모델을 단순하게 만든다.
+
+## 366) recommendation refresh 응답만 contract 테스트로 고정하고 `GET /api/recommendations` 저장 추천 조회를 빼면, 같은 DTO를 쓰더라도 실제 조회 경로 누락을 뒤늦게 발견할 수 있다
+- 문제: `RecommendationResponse` 를 확장하고 추천 refresh 응답 JSON까지 검증해도, 저장된 추천 목록을 돌려주는 `GET /api/recommendations` 경로를 따로 확인하지 않으면 `recommendationFacade.getRecommendations(...)` 흐름에서 `logId` 나 additive field 누락이 숨어 있을 수 있다. 두 엔드포인트는 같은 DTO를 쓰지만 controller 진입점과 mock wiring이 달라, 한쪽만 green 이어도 다른 쪽 누락 가능성이 남는다.
+- 해결: `RecommendationPolicyFlowWebMvcTest` 에 `GET /api/recommendations` 전용 케이스를 추가해 `logId`, `unifiedCategory`, `youthMidLabel`, `provisionMethodLabel` 이 실제 저장 추천 조회 응답에도 실리는지 고정했다.
+- 이유: 프론트 연결 전에는 “같은 DTO니까 한 경로만 보면 된다”라고 가정하지 않는 편이 안전하다. 추천 목록 조회와 refresh는 사용 빈도가 높고, CTR 추적용 `logId` 도 함께 실어야 하므로 경로별 contract를 분리해 두는 게 맞다.
