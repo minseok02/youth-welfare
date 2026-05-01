@@ -5,6 +5,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 BACKEND_DIR="${ROOT_DIR}/backend"
 REPO_ENV_FILE="${ROOT_DIR}/.env"
 RECONCILE_DB_SCRIPT="${ROOT_DIR}/deploy/mysql/reconcile-local-runtime-db-accounts.sh"
+APPLY_CANONICAL_DRAFT_SCRIPT="${ROOT_DIR}/deploy/mysql/apply-local-policy-sidecar-draft.sh"
 
 APP_PID=""
 
@@ -72,6 +73,7 @@ APP_HEALTH_TIMEOUT_SECONDS="${APP_HEALTH_TIMEOUT_SECONDS:-120}"
 ENSURE_DOCKER_SERVICES="${ENSURE_DOCKER_SERVICES:-true}"
 MYSQL_CONTAINER_NAME="${MYSQL_CONTAINER_NAME:-youth-welfare-db}"
 RECONCILE_LOCAL_DB_ACCOUNTS="${RECONCILE_LOCAL_DB_ACCOUNTS:-true}"
+AUTO_APPLY_LOCAL_CANONICAL_DRAFT="${AUTO_APPLY_LOCAL_CANONICAL_DRAFT:-true}"
 
 DB_URL="${DB_URL:-jdbc:mysql://127.0.0.1:3307/youth_welfare?useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=UTF-8&serverTimezone=Asia/Seoul}"
 APP_PII_DB_URL="${APP_PII_DB_URL:-jdbc:mysql://127.0.0.1:3307/youth_welfare_pii?useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=UTF-8&serverTimezone=Asia/Seoul}"
@@ -199,6 +201,33 @@ table_exists() {
     "
   )"
   [[ "${result}" == "1" ]]
+}
+
+ensure_local_canonical_draft() {
+  local target_count
+
+  if [[ "${AUTO_APPLY_LOCAL_CANONICAL_DRAFT}" != "true" ]]; then
+    return 0
+  fi
+
+  if ! table_exists "service_taxonomies"; then
+    "${APPLY_CANONICAL_DRAFT_SCRIPT}" >/dev/null
+    return 0
+  fi
+
+  target_count="$(
+    mysql_exec "
+      SET NAMES utf8mb4;
+      SELECT COUNT(*)
+      FROM welfare_services ws
+      JOIN service_taxonomies st ON st.service_id = ws.id
+      WHERE ws.unified_category = '기타'
+        AND st.youth_major_label = '교육';
+    "
+  )"
+  if [[ "${target_count}" == "0" ]]; then
+    APPLY_SEED_WHEN_EMPTY_ONLY=false "${APPLY_CANONICAL_DRAFT_SCRIPT}" >/dev/null
+  fi
 }
 
 require_replay_data_preconditions() {
@@ -602,6 +631,7 @@ if [[ "${ENSURE_DOCKER_SERVICES}" == "true" ]]; then
   (cd "${ROOT_DIR}" && docker compose up -d db redis >/dev/null)
 fi
 
+ensure_local_canonical_draft
 require_replay_data_preconditions
 
 signup_or_prepare_samples() {

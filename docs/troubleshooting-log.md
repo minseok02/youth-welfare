@@ -233,6 +233,11 @@
 - 해결: 이번 round에서는 코드를 바꾸기보다 이 현상을 local measurement 결과로 명시하고, collect 병목/불안정성을 internal regression 이 아니라 external dependency variability 로 분리해 기록했다
 - 이유: 동일 코드/동일 로컬 환경에서도 외부 수집 API 상태에 따라 collect 성공 여부와 시간이 크게 흔들린다. 지금 단계에서 이 구간을 내부 코드 병목으로만 해석하면 원인을 잘못 잡게 된다
 
+## 315) fresh reset 뒤 canonical sidecar draft schema 공백은 runtime bootstrap이 아니라 local replay self-heal로 먼저 메웠다
+- 문제: `SMOKE_RESET_DB=true` 이후 base schema만 살아 있는 상태에서는 `service_taxonomies` 가 없어 replay가 `education replay precondition unmet` 로 끊겼다
+- 해결: [deploy/mysql/apply-local-policy-sidecar-draft.sh](../deploy/mysql/apply-local-policy-sidecar-draft.sh) 를 추가했고, [run-local-education-priority-replay.sh](../deploy/smoke/run-local-education-priority-replay.sh) 가 missing sidecar schema 또는 zero education target row를 감지하면 local draft create/seed SQL을 자동 재적용하도록 연결했다
+- 이유: 지금 필요한 것은 runtime migration 구조를 당장 바꾸는 것이 아니라, local closeout과 replay smoke가 fresh reset 이후에도 스스로 복구되게 만드는 것이다. draft sidecar를 runtime bootstrap에 편입하는 것과 local smoke self-heal은 분리해서 다루는 편이 안전하다
+
 ## 42) priority_options 코드가 추천 로직과 UI 코드 사이에서 따로 놀았음
 - 문제: DB `priority_options`에는 `ONLINE`, `YOUTH_ONLY`, `EDU_JOB`, `AMOUNT` 코드가 있었지만, `DefaultPriorityMatcher`에서 `ONLINE`과 `YOUTH_ONLY`는 이미 항상 false였고, 프론트는 `JOB`, `EDUCATION`, `FINANCE`, `HEALTH`, `SAFETY` 등 DB에 없는 코드를 전송해 `C001` 오류가 났음
 - 해결: `ONLINE`, `YOUTH_ONLY` 제거, `EDU_JOB`→`EDUCATION`, `AMOUNT`→`FINANCE` 코드 변경, `JOB`, `PARTICIPATION`, `FAMILY` 추가. DB migration, `DefaultPriorityMatcher`, 프론트 `PRIORITY_OPTIONS` 세 곳을 동시에 맞춤

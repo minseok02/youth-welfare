@@ -1452,6 +1452,10 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
   - 이를 막기 위해 compose app env에 `JWT_SECRET`, `AES_SECRET_KEY`, `OPENAI_API_KEY`, `GMAIL_*`, `YOUTH_API_KEY`, `BOKJIRO_API_KEY`, `SECURITY_ADMIN_EMAILS` explicit pass-through 를 추가했다
   - 그 뒤 smoke용 secret override로 app을 재생성하고 일반 사용자 기준 `signup -> login -> refresh -> recommendations(empty) -> bookmarks(empty) -> logout -> old refresh 401/A001 -> old access 401/A006` 를 현재 로컬에서 재검증했다
   - admin forced logout는 공개 signup이 allowlist email에 대해 `403 / A007` 로 막히는 정책을 확인한 뒤, 일반 사용자 2명을 먼저 만든 뒤 한 명을 `SECURITY_ADMIN_EMAILS` 로 승격해 `forced-logout 200 -> target old access 401/A006 -> target old refresh 401/A003 -> relogin 200` 경계까지 로컬에서 확인했다
+- [x] fresh reset 뒤 local canonical sidecar replay 공백 self-heal 보강
+  - `SMOKE_RESET_DB=true` 이후 local DB에는 base schema만 남고 `service_taxonomies` 같은 canonical sidecar draft schema는 자동 복구되지 않아, collect/replay closeout이 중간에 다시 끊길 수 있음을 확인했다
+  - [apply-local-policy-sidecar-draft.sh](./../deploy/mysql/apply-local-policy-sidecar-draft.sh) 를 추가해 local draft sidecar create/seed SQL을 one-shot 적용할 수 있게 만들고, [run-local-education-priority-replay.sh](./../deploy/smoke/run-local-education-priority-replay.sh) 가 missing `service_taxonomies` 또는 zero education target row를 만나면 이 helper를 먼저 호출하도록 연결했다
+  - 검증: `deploy/mysql/apply-local-policy-sidecar-draft.sh` -> `service_taxonomies=2363`, `education_target_rows=110`, 이후 `deploy/smoke/run-local-education-priority-replay.sh` 재실행에서 `SUMMARY_METRIC A_top10_target=4->8 B_top10_target=2->2` 로 다시 통과
 - [x] local-first closeout 세트 종료 판정
   - current 워크트리 기준으로 `auth/session revoke regression`, `PII split-account local smoke`, `education replay smoke(rule-only)`, `runtime API smoke` 를 모두 다시 통과시켰다
   - 따라서 지금 남은 미완 항목은 `GOV24_*`, `YOUTH_MID` 같은 external blocked 트랙과 운영 환경이 있어야 의미가 있는 ops-only 트랙뿐이라고 정리한다

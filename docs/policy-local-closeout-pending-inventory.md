@@ -102,8 +102,8 @@ local-first closeout 기준의 실제 다음 액션을 고정합니다.
 현재 주의:
 
 - 이 smoke는 local policy snapshot과 canonical read-model schema(`service_taxonomies`)가 적재된 DB를 전제로 한다.
-- `SMOKE_RESET_DB=true` 로 base schema만 다시 띄운 직후에는 추천 대상 데이터가 비어 있어 smoke가 의미 있게 통과하지 않는다.
-- 따라서 local closeout에서는 "script가 precondition 부족을 명확히 감지하는가"와 "snapshot이 있는 DB에서 replay가 동작하는가"를 구분해서 본다.
+- `SMOKE_RESET_DB=true` 직후에도 replay script는 이제 [apply-local-policy-sidecar-draft.sh](../deploy/mysql/apply-local-policy-sidecar-draft.sh) 를 통해 local draft sidecar schema/backfill을 auto-apply 할 수 있다.
+- 다만 이 복구는 local smoke 편의 경계이고, fresh reset 뒤 `welfare_services` snapshot 자체가 비어 있으면 collect 또는 snapshot restore는 여전히 선행되어야 한다.
 
 ### D. admin/runtime local smoke
 
@@ -137,6 +137,10 @@ local-first closeout 기준의 실제 다음 액션을 고정합니다.
 3. education replay smoke(rule-only): 통과
 4. runtime API smoke: 통과
 5. broad backend regression (`./gradlew test integrationTest --no-daemon`): 통과
+
+추가로 fresh reset 뒤 local canonical sidecar draft schema가 비어 있어 replay가 곧바로 막히던 공백은
+[deploy/mysql/apply-local-policy-sidecar-draft.sh](../deploy/mysql/apply-local-policy-sidecar-draft.sh)
+와 replay script auto-apply 경계로 로컬 smoke 수준에서는 self-heal 되도록 보강했다.
 
 추가로 `education replay` 복구 과정에서
 `service_taxonomies.provision_method_label VARCHAR(100)` 이

@@ -139,6 +139,7 @@ collect snapshot 적재 후 anonymous/public 호출 기준:
 
 - `welfare_services=2363`
 - 이후 fresh-reset 상태에서는 sidecar draft schema가 자동 bootstrap 되지 않아, collect 성공 직후 `service_taxonomies`/`service_facts` 확인은 따로 복구가 필요했다.
+- 현재는 [deploy/mysql/apply-local-policy-sidecar-draft.sh](../deploy/mysql/apply-local-policy-sidecar-draft.sh) 와 [run-local-education-priority-replay.sh](../deploy/smoke/run-local-education-priority-replay.sh) 의 auto-apply 경계로 인해, replay smoke 쪽은 missing `service_taxonomies` 또는 zero education target row를 만나면 local draft schema/backfill을 먼저 다시 적용한 뒤 진행한다.
 
 즉시 재실행:
 
@@ -193,7 +194,8 @@ deploy/smoke/run-local-education-priority-replay.sh
 ### 해석
 
 - replay 자체는 현재 로컬에서 다시 정상이다.
-- 다만 fresh reset 후에는 canonical draft schema/backfill이 선행되지 않으면 바로 재현되지 않는다.
+- fresh reset 뒤 canonical draft schema/backfill이 비어 있어도, replay script는 이제 local draft sidecar create/seed SQL을 먼저 재적용해 self-heal 할 수 있다.
+- 다만 이 복구는 local smoke 편의 경계이고, draft sidecar가 runtime bootstrap에 자동 편입된 것은 아니다.
 
 ## 7. 광역 회귀
 
@@ -222,14 +224,16 @@ cd backend
 - 상태:
   이번 작업에서 수정 완료
 
-### 문제 2. fresh local reset 뒤 canonical sidecar draft schema는 자동 bootstrap 되지 않음
+### 문제 2. fresh local reset 뒤 canonical sidecar draft schema는 runtime bootstrap 되지 않음
 
 - 증상:
   `collect` 는 성공해도 `service_taxonomies` / `service_facts` 가 바로 보장되지 않음
 - 영향:
   education replay 같은 canonical downstream 검증은 곧바로 재현되지 않음
+- 조치:
+  [deploy/mysql/apply-local-policy-sidecar-draft.sh](../deploy/mysql/apply-local-policy-sidecar-draft.sh) 를 추가했고, [run-local-education-priority-replay.sh](../deploy/smoke/run-local-education-priority-replay.sh) 가 replay 전에 missing sidecar schema 또는 zero target row를 감지하면 local draft create/seed SQL을 자동 재적용하도록 연결했다
 - 상태:
-  현재도 local verification caveat 로 남아 있음
+  runtime bootstrap 공백 자체는 그대로지만, local replay smoke 기준으로는 self-heal 가능
 
 ### 문제 3. 온통청년 실제 collect 재실행은 upstream 403 영향을 받음
 
