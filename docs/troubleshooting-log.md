@@ -1542,3 +1542,8 @@
 - 문제: forced logout / revoke gate 이후 integration 테스트 중 일부는 여전히 `jwtUtil.generateAccessToken(userId)` 를 직접 써서 subject에 `userKey` 가 없는 legacy-style token을 만들고 있었고, `UserCoreDualWriteIntegrationTest` 는 reduced-grant split-account 계약과 달리 core `JdbcTemplate` 로 `youth_welfare_pii.user_pii` 를 직접 업데이트하고 있었다. 이 상태에서는 현재 구현이 정상이어도 local closeout regression이 `401` 또는 grant error로 깨질 수 있었다
 - 해결: 관련 integration fixture를 current contract에 맞게 `generateAccessToken(userKey, userId)` 로 정리하고, PII write는 `UserPiiReadWriteRepository.upsertUserPii(...)` 경유로 바꿨다. 또 `ChatSessionApiIntegrationTest` 는 전역 `chatMessageRepository.count()` 대신 session-scope assertion으로 좁혀 다른 테스트와의 shared DB 흔들림을 피했다
 - 이유: local-first closeout 단계에서는 실제 구현 버그와 오래된 test fixture를 분리하는 게 우선이다. current auth/split-account 계약에 맞는 fixture로 먼저 기준선을 맞춰야 regression suite가 의미를 갖는다
+
+## 299) PII split-account smoke 는 예전 성공 이력만으로 충분하지 않고, auth/session 회귀 정리 뒤 다시 돌려 현재 로컬 조합 기준으로 확인해야 한다
+- 문제: local-first closeout 기준에서는 과거 smoke 성공 이력보다 “지금 워크트리, 지금 테스트 fixture, 지금 이미지 빌드 기준으로도 same path가 다시 통과하는가”가 더 중요하다. auth/session fixture를 손본 뒤 `run-local-pii-sync-cutover-smoke.sh` 를 다시 돌리지 않으면, 현재 조합에서 request-path sync 와 withdraw cleanup 이 함께 유지되는지 확신하기 어려웠다
+- 해결: `SMOKE_RESET_DB=true APP_HEALTH_TIMEOUT_SECONDS=180 deploy/smoke/run-local-pii-sync-cutover-smoke.sh` 를 다시 실행해 app build -> DB/Redis/app 기동 -> queue migration -> signup/login -> profile update -> queue `SYNCED` -> withdraw cleanup one-shot 경계를 현재 로컬 상태에서 재검증했다
+- 이유: local closeout 에서는 “예전에 됐다”보다 “지금도 된다”가 중요하다. 특히 split-account smoke 는 build, compose, migration, request-path sync, withdraw cleanup이 한 번에 엮여 있어 current 기준선 재확인이 필요했다
