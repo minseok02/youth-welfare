@@ -3,9 +3,9 @@
 관련 문서:
 
 - [policy-source-onboarding-playbook.md](./policy-source-onboarding-playbook.md)
-- [policy-normalization-sample-spike.md](./policy-normalization-sample-spike.md)
-- [policy-normalization-bridge-rules.md](./policy-normalization-bridge-rules.md)
-- [policy-listing-source-schema-draft.md](./policy-listing-source-schema-draft.md)
+- [policy-normalization-sample-spike.md](./history/policy/policy-normalization-sample-spike.md)
+- [policy-normalization-bridge-rules.md](./history/policy/policy-normalization-bridge-rules.md)
+- [policy-listing-source-schema-draft.md](./history/policy/policy-listing-source-schema-draft.md)
 - [phase-plan.md](./phase-plan.md)
 
 ## 목적

@@ -14,7 +14,7 @@
 - [policy-source-onboarding-playbook.md](./policy-source-onboarding-playbook.md)
 - [policy-normalization-recommendation-read-model.md](./policy-normalization-recommendation-read-model.md)
 - [policy-normalization-recommendation-migration-order.md](./policy-normalization-recommendation-migration-order.md)
-- [policy-normalization-compat-storage-policy.md](./policy-normalization-compat-storage-policy.md)
+- [policy-normalization-compat-storage-policy.md](./history/policy/policy-normalization-compat-storage-policy.md)
 - [policy-post-local-closeout-track-split.md](./policy-post-local-closeout-track-split.md)
 
 ## 목적

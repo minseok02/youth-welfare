@@ -33,7 +33,7 @@
 
 - [policy-normalization-recommendation-read-model.md](./policy-normalization-recommendation-read-model.md)
 - [policy-normalization-recommendation-migration-order.md](./policy-normalization-recommendation-migration-order.md)
-- [policy-normalization-unified-category-response-bridge.md](./policy-normalization-unified-category-response-bridge.md)
+- [policy-normalization-unified-category-response-bridge.md](./history/policy/policy-normalization-unified-category-response-bridge.md)
 
 ## design history 로 읽을 문서
 

@@ -94,8 +94,8 @@
 - [deployment.md](./deployment.md)
 - [runtime-cutover-checklist.md](./runtime-cutover-checklist.md)
 - [db-account-cutover-runbook.md](./db-account-cutover-runbook.md)
-- [openai-replay-cron-runbook.md](./openai-replay-cron-runbook.md)
-- [openai-replay-cron-security-boundary.md](./openai-replay-cron-security-boundary.md)
+- [openai-replay-cron-runbook.md](./history/ai/openai-replay-cron-runbook.md)
+- [openai-replay-cron-security-boundary.md](./history/ai/openai-replay-cron-security-boundary.md)
 
 현재 해석:
 

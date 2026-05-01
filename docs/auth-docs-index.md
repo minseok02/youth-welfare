@@ -42,11 +42,11 @@
 
 ### 기타 auth policy
 
-- [auth-logout-revocation-scope-policy.md](./auth-logout-revocation-scope-policy.md)
-- [auth-withdraw-revocation-next-step.md](./auth-withdraw-revocation-next-step.md)
-- [auth-admin-refresh-revoke-policy.md](./auth-admin-refresh-revoke-policy.md)
-- [auth-admin-revoke-boundary-policy.md](./auth-admin-revoke-boundary-policy.md)
-- [auth-revocation-reopen-order.md](./auth-revocation-reopen-order.md)
+- [auth-logout-revocation-scope-policy.md](./history/auth/auth-logout-revocation-scope-policy.md)
+- [auth-withdraw-revocation-next-step.md](./history/auth/auth-withdraw-revocation-next-step.md)
+- [auth-admin-refresh-revoke-policy.md](./history/auth/auth-admin-refresh-revoke-policy.md)
+- [auth-admin-revoke-boundary-policy.md](./history/auth/auth-admin-revoke-boundary-policy.md)
+- [auth-revocation-reopen-order.md](./history/auth/auth-revocation-reopen-order.md)
 
 읽는 이유:
 

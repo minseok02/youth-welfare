@@ -4,10 +4,10 @@
 
 관련 문서:
 
-- [policy-normalization-research.md](./policy-normalization-research.md)
-- [policy-normalization-sample-spike.md](./policy-normalization-sample-spike.md)
-- [policy-normalization-schema-draft.md](./policy-normalization-schema-draft.md)
-- [policy-normalization-bridge-rules.md](./policy-normalization-bridge-rules.md)
+- [policy-normalization-research.md](./history/policy/policy-normalization-research.md)
+- [policy-normalization-sample-spike.md](./history/policy/policy-normalization-sample-spike.md)
+- [policy-normalization-schema-draft.md](./history/policy/policy-normalization-schema-draft.md)
+- [policy-normalization-bridge-rules.md](./history/policy/policy-normalization-bridge-rules.md)
 - [collect-ops.md](./collect-ops.md)
 - [phase-plan.md](./phase-plan.md)
 

@@ -12,8 +12,8 @@
 관련 문서:
 
 - [policy-normalization-recommendation-read-model.md](./policy-normalization-recommendation-read-model.md)
-- [policy-normalization-compat-storage-policy.md](./policy-normalization-compat-storage-policy.md)
-- [policy-normalization-unified-category-response-bridge.md](./policy-normalization-unified-category-response-bridge.md)
+- [policy-normalization-compat-storage-policy.md](./history/policy/policy-normalization-compat-storage-policy.md)
+- [policy-normalization-unified-category-response-bridge.md](./history/policy/policy-normalization-unified-category-response-bridge.md)
 - [recommendation-pipeline.md](./recommendation-pipeline.md)
 
 ## 결론

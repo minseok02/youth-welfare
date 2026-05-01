@@ -3,8 +3,8 @@
 관련 문서:
 
 - [phase-plan.md](./phase-plan.md)
-- [policy-normalization-blocked-sql-reopen-priority.md](./policy-normalization-blocked-sql-reopen-priority.md)
-- [policy-normalization-gov24-request-package-checklist.md](./policy-normalization-gov24-request-package-checklist.md)
+- [policy-normalization-blocked-sql-reopen-priority.md](./history/policy/policy-normalization-blocked-sql-reopen-priority.md)
+- [policy-normalization-gov24-request-package-checklist.md](./history/policy/policy-normalization-gov24-request-package-checklist.md)
 
 ## 목적
 

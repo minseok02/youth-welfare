@@ -244,7 +244,7 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - 2026-04-30 `YOUTH_MID` stable code import 보류 정책 확정 후 `curl -L -s 'https://www.youthcenter.go.kr/sur/link/openInfoChcApi'` -> `Unauthorized`
 - 2026-04-30 `YOUTH_MID` stable code import 보류 정책 확정 후 `git diff --check`
 - 2026-04-30 `YOUTH_MID` alias normalization 규칙 초안 작성
-  - [policy-normalization-youth-mid-alias-rules.md](./policy-normalization-youth-mid-alias-rules.md) 를 추가해 `category_sub` 의 세 종류(exact official / comma-delimited combo / non-official variant)를 분리해 기록
+  - [policy-normalization-youth-mid-alias-rules.md](./history/policy/policy-normalization-youth-mid-alias-rules.md) 를 추가해 `category_sub` 의 세 종류(exact official / comma-delimited combo / non-official variant)를 분리해 기록
   - exact official token은 그대로 적재하고, comma-delimited 조합은 split 후 official token만 개별 적재하며, `온·오프라인교육`, `문화활동 및 생활지원` 같은 non-official variant 는 canonical `YOUTH_MID` 에 자동 매핑하지 않고 skip 한다는 규칙을 고정
   - 새 후속 작업으로 skipped alias를 `raw` 에만 둘지, future sidecar 에 별도 term group(`YOUTH_MID_RAW_ALIAS`)으로 보존할지 결정하는 항목을 추가
 - 2026-04-30 `YOUTH_MID` alias normalization 규칙 초안 작성 후 `docker exec -e MYSQL_PWD='welfare1234!' youth-welfare-db mysql --default-character-set=utf8mb4 -uroot -N -e \"SET NAMES utf8mb4; SELECT token, COUNT(*) ...\"`
@@ -586,7 +586,7 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
   - 따라서 현재 남은 경계는 `topCandidates/prompt ordering drift` 가 아니라, **같은 입력에서도 생기는 live AI 응답 변동성** 쪽으로 더 좁혀졌다
 - 2026-04-30 OpenAI replay stability option review
   - 공식 OpenAI 문서 기준으로 `seed` 는 Chat Completions의 best-effort determinism 옵션이고, drift 해석에는 `system_fingerprint` 를 같이 남겨야 한다는 점을 정리했다
-  - Prompt Caching 은 latency/cost 최적화 기능이지 replay drift의 1차 해결책이 아니라는 점을 [openai-replay-stability-options.md](./openai-replay-stability-options.md)에 고정했다
+  - Prompt Caching 은 latency/cost 최적화 기능이지 replay drift의 1차 해결책이 아니라는 점을 [openai-replay-stability-options.md](./history/ai/openai-replay-stability-options.md)에 고정했다
   - 따라서 다음 구현 우선순위는 `temperature` 변경이나 prompt caching 이 아니라, `RealtimeAiGateway` replay 실험용 optional `seed` 와 `system_fingerprint` / response id trace 추가로 좁혔다
 - 2026-04-30 `RealtimeAiGateway` replay seed / response fingerprint trace 추가
   - `RealtimeAiGateway` request body에 optional `seed` 를 넣을 수 있게 하고, request trace에 `replaySeed`, response trace에 `responseId`, `systemFingerprint`, `responseSeed`, `resultsCount` 를 남기도록 확장했다
@@ -601,16 +601,16 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
   - 같은 run에서 request trace의 `candidateIds`, `candidateRuleScores`, `promptSha256`, `replaySeed=424242` 도 동일했지만, `edu-b-off-scores.tsv` / `edu-b-on-scores.tsv` 의 `ai_score` / `final_score` diff는 여전히 남았다
   - 따라서 current drift는 backend fingerprint churn만으로는 설명되지 않고, same fingerprint 안에서도 남는 live AI response variability 로 분류하는 쪽이 맞다
 - 2026-04-30 OpenAI replay validation policy 정리
-  - [openai-replay-validation-policy.md](./openai-replay-validation-policy.md)에 `rule-only-invalid-key` replay는 hard gate, `real-openai` replay는 현재 단계에선 exploratory gate라는 기준을 고정했다
+  - [openai-replay-validation-policy.md](./history/ai/openai-replay-validation-policy.md)에 `rule-only-invalid-key` replay는 hard gate, `real-openai` replay는 현재 단계에선 exploratory gate라는 기준을 고정했다
   - 따라서 PR 기본 검증선은 `rule-only` 안정성으로 두고, `real-openai` strict equality 실패만으로는 막지 않되 trace/artifact가 불완전한 실패는 막는 것으로 정리했다
   - 다음 과제는 `allowed drift` 를 어떤 수치(top-N count, score delta, explanation delta)로 정의할지 결정하는 것이다
 - 2026-04-30 OpenAI replay allowed drift metric 결정
-  - [openai-replay-allowed-drift-metrics.md](./openai-replay-allowed-drift-metrics.md)에 current gate metric 우선순위를 `top-N target row count -> target row presence/absence -> explanation manual review`, `score delta 자동 gate 제외`로 고정했다
+  - [openai-replay-allowed-drift-metrics.md](./history/ai/openai-replay-allowed-drift-metrics.md)에 current gate metric 우선순위를 `top-N target row count -> target row presence/absence -> explanation manual review`, `score delta 자동 gate 제외`로 고정했다
   - 이유는 same fingerprint run에서도 `ai_score` / `final_score` 가 흔들려 `score delta` 가 제품 회귀보다 live variability에 더 민감했기 때문이다
   - 따라서 `real-openai` replay는 sample A improvement와 sample B target count stability를 우선 보고, score exact match는 더 이상 gate metric으로 쓰지 않는다
 - 2026-04-30 sample B `unexpected target count increase` 판정 고정
   - current artifact 분포상 sample B는 `0 -> 1`, `1 -> 0`, `1 -> 1` 을 모두 보여 target count 자체가 live variability 영향을 받는다는 점을 확인했다
-  - 따라서 [openai-replay-allowed-drift-metrics.md](./openai-replay-allowed-drift-metrics.md), [openai-replay-validation-policy.md](./openai-replay-validation-policy.md)에 sample B `unexpected increase` 는 fail 이 아니라 warning 으로 두는 정책을 반영했다
+  - 따라서 [openai-replay-allowed-drift-metrics.md](./history/ai/openai-replay-allowed-drift-metrics.md), [openai-replay-validation-policy.md](./history/ai/openai-replay-validation-policy.md)에 sample B `unexpected increase` 는 fail 이 아니라 warning 으로 두는 정책을 반영했다
   - PR hard gate는 계속 `rule-only` 안정성과 trace/artifact 완전성으로 유지한다
 - 2026-04-30 sample B warning scope 결정
   - sample B `unexpected target count increase` warning은 `same fingerprint` run에만 한정하지 않고, 모든 `real-openai` replay에서 동일하게 띄우는 것으로 고정했다
@@ -1222,70 +1222,70 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
   - `/api/auth/logout` 는 refresh cookie/header 기반 logout은 그대로 허용하되, 같은 요청의 `Authorization: Bearer <access-token>` 이 있으면 해당 token도 함께 revoke하도록 변경
   - `AdminSecurityIntegrationTest` 에서 admin logout 직후 같은 old access token으로 `/api/admin/collect/youth` 재호출 시 `401 / A006` 으로 차단되는 것을 고정
 - 2026-05-01 cookie-only logout revocation scope 정책 고정
-  - [auth-logout-revocation-scope-policy.md](./auth-logout-revocation-scope-policy.md) 를 추가해 현재 phase의 logout 계약을 `bearer-present exact token revoke` 와 `cookie-only refresh-only` 로 분리했다
+  - [auth-logout-revocation-scope-policy.md](./history/auth/auth-logout-revocation-scope-policy.md) 를 추가해 현재 phase의 logout 계약을 `bearer-present exact token revoke` 와 `cookie-only refresh-only` 로 분리했다
   - user-level cutoff(`logoutAt` / `revokedAfter`) 는 다중 세션, `iat` 정밀도, 재로그인 경계까지 함께 설계해야 하므로 지금 단계에서는 reopen하지 않기로 고정했다
 - 2026-05-01 user-level revoke reopen order 고정
-  - [auth-revocation-reopen-order.md](./auth-revocation-reopen-order.md) 를 추가해 future cutoff 우선순위를 `withdraw -> admin forced logout -> generic cookie-only logout` 으로 정리했다
+  - [auth-revocation-reopen-order.md](./history/auth/auth-revocation-reopen-order.md) 를 추가해 future cutoff 우선순위를 `withdraw -> admin forced logout -> generic cookie-only logout` 으로 정리했다
   - 즉 다음 hardening 후보는 브라우저 logout 전체 세션 회수보다 강한 보안 이벤트인 `withdraw` 와 future 운영 강제 로그아웃이다
 - 2026-05-01 `withdraw` revoke의 immediate next step을 baseline smoke로 고정
-  - [auth-withdraw-revocation-next-step.md](./auth-withdraw-revocation-next-step.md) 를 추가해, `withdraw` 를 다음 revoke 후보로 보더라도 바로 구현을 열지 않고 old access-token baseline smoke/inventory를 먼저 남기기로 정리했다
+  - [auth-withdraw-revocation-next-step.md](./history/auth/auth-withdraw-revocation-next-step.md) 를 추가해, `withdraw` 를 다음 revoke 후보로 보더라도 바로 구현을 열지 않고 old access-token baseline smoke/inventory를 먼저 남기기로 정리했다
   - 같은 revoke 계열이라도 logout처럼 “현재 gap을 먼저 증적화 -> 그 다음 구현” 순서를 유지한다
 - 2026-05-01 `withdraw` old access-token baseline smoke 고정
   - `UserWithdrawAccessTokenBaselineIntegrationTest` 를 회원탈퇴 revoke smoke로 확장해, `DELETE /api/users/me` 에 사용한 bearer access token은 직후 `GET /api/users/me/bookmarks` 에서 `401 / A006` 으로 차단되고, 미정리 stale refresh token도 `POST /api/auth/refresh` 에서 `410 / U003` 으로 막히도록 고정했다
   - `UserService.withdraw(...)` 는 refresh key 삭제와 현재 bearer access token revoke까지 같이 수행하고, `AuthService.refresh(...)` 는 withdrawn user를 만나면 refresh 재발급 전에 `WITHDRAWN_USER` 로 중단하도록 보강했다
 - 2026-05-01 admin revoke boundary 정책 고정
-  - [auth-admin-revoke-boundary-policy.md](./auth-admin-revoke-boundary-policy.md) 를 추가해 현재 admin 권한 회수의 기본 경로를 `SECURITY_ADMIN_EMAILS` 변경 + 앱 재기동으로 고정하고, role revoke와 future forced logout/session revoke를 분리했다
+  - [auth-admin-revoke-boundary-policy.md](./history/auth/auth-admin-revoke-boundary-policy.md) 를 추가해 현재 admin 권한 회수의 기본 경로를 `SECURITY_ADMIN_EMAILS` 변경 + 앱 재기동으로 고정하고, role revoke와 future forced logout/session revoke를 분리했다
   - 따라서 다음 baseline은 generic forced logout 구현이 아니라, allowlist 제거 후 stale config/stale token이 각각 어디까지 남는지 측정하는 쪽으로 좁힌다
 - 2026-05-01 admin allowlist removal baseline smoke 고정
   - `AdminSecurityIntegrationTest` 에서 `AuthService` allowlist를 비운 뒤 old admin access token과 기존 refresh token을 그대로 재사용하는 시나리오를 추가했다
   - 결과는 old admin access token은 계속 `/api/admin/collect/youth` 를 통과하고, 같은 refresh token으로 다시 발급한 새 access token부터 `ROLE_ADMIN` 이 빠져 `403 / C003` 으로 막히는 현재 baseline으로 고정됐다
 - 2026-05-01 old admin refresh token revoke 정책 고정
-  - [auth-admin-refresh-revoke-policy.md](./auth-admin-refresh-revoke-policy.md) 를 추가해 allowlist 제거의 현재 의미를 “기존 refresh token 즉시 차단”이 아니라 “future token issuance에서 admin role 제거”로 고정했다
+  - [auth-admin-refresh-revoke-policy.md](./history/auth/auth-admin-refresh-revoke-policy.md) 를 추가해 allowlist 제거의 현재 의미를 “기존 refresh token 즉시 차단”이 아니라 “future token issuance에서 admin role 제거”로 고정했다
   - 즉 현재 운영 계약은 old refresh token이 살아 있어도 새 access token부터 `ROLE_ADMIN` 이 빠지는 것이고, refresh token 자체 즉시 차단은 future forced logout 문제로 분리한다
 - 2026-05-01 admin forced logout baseline scope 정책 고정
-  - [auth-admin-forced-logout-baseline-policy.md](./auth-admin-forced-logout-baseline-policy.md) 를 추가해 future `admin forced logout` 가 증명해야 할 최소 계약을 `old admin access 즉시 차단 + old refresh 즉시 차단 + account lock과 분리` 로 고정했다
+  - [auth-admin-forced-logout-baseline-policy.md](./history/auth/auth-admin-forced-logout-baseline-policy.md) 를 추가해 future `admin forced logout` 가 증명해야 할 최소 계약을 `old admin access 즉시 차단 + old refresh 즉시 차단 + account lock과 분리` 로 고정했다
   - 즉 다음 액션은 forced logout 구현이 아니라, 운영자 명시 액션의 진입점과 cutoff 저장 경계를 정하는 쪽으로 좁힌다
 - 2026-05-01 admin forced logout entrypoint 정책 고정
-  - [auth-admin-forced-logout-entrypoint-policy.md](./auth-admin-forced-logout-entrypoint-policy.md) 를 추가해 1차 운영자 진입점을 admin API로, 즉시 revoke state의 source를 Redis cutoff/revocation key로 두는 방향을 고정했다
+  - [auth-admin-forced-logout-entrypoint-policy.md](./history/auth/auth-admin-forced-logout-entrypoint-policy.md) 를 추가해 1차 운영자 진입점을 admin API로, 즉시 revoke state의 source를 Redis cutoff/revocation key로 두는 방향을 고정했다
   - 즉 다음 액션은 DB/Redis 수동 조작이 아니라, future admin API의 최소 request/response 계약을 먼저 문서화하는 쪽으로 좁힌다
 - 2026-05-01 admin forced logout API contract 고정
-  - [auth-admin-forced-logout-api-contract.md](./auth-admin-forced-logout-api-contract.md) 를 추가해 1차 계약을 `POST /api/admin/users/forced-logout`, body `userKey`, `idempotent by effect`, success=`revoke intent accepted` 로 고정했다
+  - [auth-admin-forced-logout-api-contract.md](./history/auth/auth-admin-forced-logout-api-contract.md) 를 추가해 1차 계약을 `POST /api/admin/users/forced-logout`, body `userKey`, `idempotent by effect`, success=`revoke intent accepted` 로 고정했다
   - 즉 다음 액션은 controller 구현이 아니라, access/refresh revoke를 위해 필요한 Redis key shape/TTL/clear 조건을 정하는 쪽으로 좁힌다
 - 2026-05-01 admin forced logout Redis shape 고정
-  - [auth-admin-forced-logout-redis-shape.md](./auth-admin-forced-logout-redis-shape.md) 를 추가해 forced logout의 Redis state를 `refresh:{userKey}` delete + `access-cutoff:{userKey}` cutoff 기록으로 나누고, `access-revoked:{token}` exact blacklist와 역할을 분리했다
+  - [auth-admin-forced-logout-redis-shape.md](./history/auth/auth-admin-forced-logout-redis-shape.md) 를 추가해 forced logout의 Redis state를 `refresh:{userKey}` delete + `access-cutoff:{userKey}` cutoff 기록으로 나누고, `access-revoked:{token}` exact blacklist와 역할을 분리했다
   - 즉 다음 액션은 Redis key 존재 여부가 아니라 token 발급시각과 cutoff 비교를 어떤 claim/정밀도로 할지 문서화하는 쪽으로 좁힌다
 - 2026-05-01 admin forced logout issued-at precision 정책 고정
-  - [auth-admin-forced-logout-issued-at-policy.md](./auth-admin-forced-logout-issued-at-policy.md) 를 추가해 forced logout cutoff는 표준 JWT `iat` 만으로는 충분하지 않고, access token에 custom millis precision claim(`iatm`) 을 추가하는 방향으로 고정했다
+  - [auth-admin-forced-logout-issued-at-policy.md](./history/auth/auth-admin-forced-logout-issued-at-policy.md) 를 추가해 forced logout cutoff는 표준 JWT `iat` 만으로는 충분하지 않고, access token에 custom millis precision claim(`iatm`) 을 추가하는 방향으로 고정했다
   - 즉 다음 액션은 `JwtUtil` 에 `iatm` write/read helper와 legacy token fallback 범위를 어떻게 둘지 정하는 쪽으로 좁힌다
 - 2026-05-01 admin forced logout JWT helper 정책 고정
-  - [auth-admin-forced-logout-jwt-helper-policy.md](./auth-admin-forced-logout-jwt-helper-policy.md) 를 추가해 `JwtUtil` 에 access token용 `iatm` write, `getIssuedAtMillis(...)` / `getIssuedAtMillisAllowExpired(...)` read helper를 추가하고, forced logout cutoff 비교에서는 legacy access token fallback을 두지 않는 방향으로 고정했다
+  - [auth-admin-forced-logout-jwt-helper-policy.md](./history/auth/auth-admin-forced-logout-jwt-helper-policy.md) 를 추가해 `JwtUtil` 에 access token용 `iatm` write, `getIssuedAtMillis(...)` / `getIssuedAtMillisAllowExpired(...)` read helper를 추가하고, forced logout cutoff 비교에서는 legacy access token fallback을 두지 않는 방향으로 고정했다
   - 즉 다음 액션은 rollout 시 legacy admin access token을 기능 경계에서 어떻게 처리할지, 재로그인 요구를 포함한 운영 baseline을 정하는 쪽으로 좁힌다
 - 2026-05-01 admin forced logout legacy token rollout 정책 고정
-  - [auth-admin-forced-logout-legacy-token-rollout-policy.md](./auth-admin-forced-logout-legacy-token-rollout-policy.md) 를 추가해 forced logout 기능 on 이후 `iatm` 없는 legacy admin access token은 compatibility target이 아니라 재로그인 요구 대상으로 보는 운영 계약을 고정했다
+  - [auth-admin-forced-logout-legacy-token-rollout-policy.md](./history/auth/auth-admin-forced-logout-legacy-token-rollout-policy.md) 를 추가해 forced logout 기능 on 이후 `iatm` 없는 legacy admin access token은 compatibility target이 아니라 재로그인 요구 대상으로 보는 운영 계약을 고정했다
   - 즉 다음 액션은 legacy admin access token이 forced logout protected path에서 어떤 error contract를 낼지 정하는 쪽으로 좁힌다
 - 2026-05-01 admin forced logout legacy error 정책 고정
-  - [auth-admin-forced-logout-legacy-error-policy.md](./auth-admin-forced-logout-legacy-error-policy.md) 를 추가해 forced logout 보호 경계에서 `iatm` 없는 legacy admin access token은 `401 / A006` 으로 통일한다고 고정했다
+  - [auth-admin-forced-logout-legacy-error-policy.md](./history/auth/auth-admin-forced-logout-legacy-error-policy.md) 를 추가해 forced logout 보호 경계에서 `iatm` 없는 legacy admin access token은 `401 / A006` 으로 통일한다고 고정했다
   - 즉 다음 액션은 이 `A006` 을 filter에서 바로 낼지, 별도 forced-logout guard helper에서 낼지 구현 위치를 정하는 쪽으로 좁힌다
 - 2026-05-01 admin forced logout 구현 위치 정책 고정
-  - [auth-admin-forced-logout-implementation-location.md](./auth-admin-forced-logout-implementation-location.md) 를 추가해 차단 판단 시점은 `JwtAuthenticationFilter`, 비교 로직은 dedicated helper/service 로 두는 방향을 고정했다
+  - [auth-admin-forced-logout-implementation-location.md](./history/auth/auth-admin-forced-logout-implementation-location.md) 를 추가해 차단 판단 시점은 `JwtAuthenticationFilter`, 비교 로직은 dedicated helper/service 로 두는 방향을 고정했다
   - 즉 다음 액션은 helper/service의 최소 인터페이스를 정하고, 그다음 실제 `JwtUtil` / Redis / filter wiring 구현으로 내려가는 쪽으로 좁힌다
 - 2026-05-01 admin forced logout helper interface 정책 고정
-  - [auth-admin-forced-logout-helper-interface.md](./auth-admin-forced-logout-helper-interface.md) 를 추가해 helper/service의 1차 인터페이스를 `boolean isAccessAllowed(String accessToken)` + `void revokeUserSessions(String userKey, long cutoffMillis)` 로 고정했다
+  - [auth-admin-forced-logout-helper-interface.md](./history/auth/auth-admin-forced-logout-helper-interface.md) 를 추가해 helper/service의 1차 인터페이스를 `boolean isAccessAllowed(String accessToken)` + `void revokeUserSessions(String userKey, long cutoffMillis)` 로 고정했다
   - 즉 다음 액션은 이 helper/service의 이름을 무엇으로 둘지 정하고, 그다음 구현으로 내려가는 쪽으로 좁힌다
 - 2026-05-01 admin forced logout helper name 정책 고정
-  - [auth-admin-forced-logout-helper-name-policy.md](./auth-admin-forced-logout-helper-name-policy.md) 를 추가해 새 helper/service 이름을 `UserSessionRevocationService` 로 고정하고, 기존 `AccessTokenRevocationService` 와 exact-token vs user-session revoke 역할을 분리했다
+  - [auth-admin-forced-logout-helper-name-policy.md](./history/auth/auth-admin-forced-logout-helper-name-policy.md) 를 추가해 새 helper/service 이름을 `UserSessionRevocationService` 로 고정하고, 기존 `AccessTokenRevocationService` 와 exact-token vs user-session revoke 역할을 분리했다
   - 즉 다음 액션은 `UserSessionRevocationService` 의 메서드명을 그대로 갈지 더 domain-specific 하게 바꿀지 정하는 쪽으로 좁힌다
 - 2026-05-01 admin forced logout helper method-name 정책 고정
-  - [auth-admin-forced-logout-helper-method-name-policy.md](./auth-admin-forced-logout-helper-method-name-policy.md) 를 추가해 메서드명을 `isAccessAllowed(String accessToken)` + `revokeUserSessions(String userKey, long cutoffMillis)` 로 그대로 유지한다고 고정했다
+  - [auth-admin-forced-logout-helper-method-name-policy.md](./history/auth/auth-admin-forced-logout-helper-method-name-policy.md) 를 추가해 메서드명을 `isAccessAllowed(String accessToken)` + `revokeUserSessions(String userKey, long cutoffMillis)` 로 그대로 유지한다고 고정했다
   - 즉 다음 액션은 `UserSessionRevocationService` 를 새 클래스로 둘지, 기존 `AccessTokenRevocationService` 와 composition 관계로 둘지 구조를 정하는 쪽으로 좁힌다
 - 2026-05-01 admin forced logout service structure 정책 고정
-  - [auth-admin-forced-logout-service-structure-policy.md](./auth-admin-forced-logout-service-structure-policy.md) 를 추가해 `UserSessionRevocationService` 를 새 클래스로 두고, 기존 `AccessTokenRevocationService` 와는 composition 관계로 유지한다고 고정했다
+  - [auth-admin-forced-logout-service-structure-policy.md](./history/auth/auth-admin-forced-logout-service-structure-policy.md) 를 추가해 `UserSessionRevocationService` 를 새 클래스로 두고, 기존 `AccessTokenRevocationService` 와는 composition 관계로 유지한다고 고정했다
   - 즉 다음 액션은 `UserSessionRevocationService` 의 package 위치와 최소 dependency 집합을 정하는 쪽으로 좁힌다
 - 2026-05-01 admin forced logout package/dependencies 정책 고정
-  - [auth-admin-forced-logout-package-dependencies-policy.md](./auth-admin-forced-logout-package-dependencies-policy.md) 를 추가해 `UserSessionRevocationService` 를 `user.service` 패키지에 두고, 1차 생성자 dependency를 `RedisTemplate<String, String>`, `JwtUtil`, `AccessTokenRevocationService` 로 제한한다고 고정했다
+  - [auth-admin-forced-logout-package-dependencies-policy.md](./history/auth/auth-admin-forced-logout-package-dependencies-policy.md) 를 추가해 `UserSessionRevocationService` 를 `user.service` 패키지에 두고, 1차 생성자 dependency를 `RedisTemplate<String, String>`, `JwtUtil`, `AccessTokenRevocationService` 로 제한한다고 고정했다
   - 즉 다음 액션은 `JwtUtil` helper를 먼저 추가할지, service skeleton을 먼저 만들지 구현 순서를 정하는 쪽으로 좁힌다
 - 2026-05-01 admin forced logout 구현 순서 정책 고정
-  - [auth-admin-forced-logout-implementation-order.md](./auth-admin-forced-logout-implementation-order.md) 를 추가해 구현 순서를 `JwtUtil helper -> UserSessionRevocationService skeleton -> JwtAuthenticationFilter wiring -> admin API -> tests` 로 고정했다
+  - [auth-admin-forced-logout-implementation-order.md](./history/auth/auth-admin-forced-logout-implementation-order.md) 를 추가해 구현 순서를 `JwtUtil helper -> UserSessionRevocationService skeleton -> JwtAuthenticationFilter wiring -> admin API -> tests` 로 고정했다
   - 즉 다음 액션은 문서 트랙을 닫고 실제 코드 작업을 `JwtUtil` helper 추가부터 여는 것이다
 - 2026-05-01 admin forced logout `JwtUtil` helper 추가
   - access token에만 custom millis claim `iatm` 을 기록하고, `JwtUtil` 에 `getIssuedAtMillis(...)`, `getIssuedAtMillisAllowExpired(...)` helper를 추가했다
@@ -1308,7 +1308,7 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
   - 이로써 문서로만 있던 `legacy admin access token -> re-login required / A006` 계약이 실제 integration baseline으로 내려왔다
   - 즉 다음 액션은 forced logout 경로의 운영 증적을 위해 cutoffMillis/actor logging 또는 audit 최소 범위를 정하는 것이다
 - 2026-05-01 admin forced logout audit scope 정책 고정
-  - [auth-admin-forced-logout-audit-scope-policy.md](./auth-admin-forced-logout-audit-scope-policy.md) 를 추가해 현재 phase에서는 response는 `userKey + accepted` 최소 ack만 유지하고, `cutoffMillis` 는 서버 로그와 Redis source of truth에서만 보도록 고정했다
+  - [auth-admin-forced-logout-audit-scope-policy.md](./history/auth/auth-admin-forced-logout-audit-scope-policy.md) 를 추가해 현재 phase에서는 response는 `userKey + accepted` 최소 ack만 유지하고, `cutoffMillis` 는 서버 로그와 Redis source of truth에서만 보도록 고정했다
   - actor/admin identifier persistent audit, DB audit table, response `cutoffMillis` 노출은 현재 범위에서 제외하고 future reopen 조건으로 남겼다
   - 즉 다음 액션은 forced logout 현재 log line format을 smoke/runbook 에 명시할지 결정하는 것이다
 - 2026-05-01 admin forced logout log line format 을 smoke 문서에 명시
@@ -1316,7 +1316,7 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
   - 별도 새 runbook을 만들지 않고, current phase에서는 API ack는 최소로 두고 `cutoffMillis` triage는 로그에서 확인하는 운영 흐름만 문서화했다
   - 즉 다음 액션은 `actor` 를 현 로그 라인에 실제로 넣을지 말지, 또는 그대로 future reopen 으로 남길지 결정하는 것이다
 - 2026-05-01 admin forced logout actor log 정책 고정
-  - [auth-admin-forced-logout-actor-log-policy.md](./auth-admin-forced-logout-actor-log-policy.md) 를 추가해 현재 phase의 forced logout 로그는 계속 `userKey + cutoffMillis` 만 남기고, `actor` 는 future audit reopen 조건으로 미룬다고 고정했다
+  - [auth-admin-forced-logout-actor-log-policy.md](./history/auth/auth-admin-forced-logout-actor-log-policy.md) 를 추가해 현재 phase의 forced logout 로그는 계속 `userKey + cutoffMillis` 만 남기고, `actor` 는 future audit reopen 조건으로 미룬다고 고정했다
   - 이로써 current forced logout 1차 hardening 범위에서 추가 audit signal 확장은 닫고, 다음 액션은 이 트랙을 멈추고 다른 pending으로 넘어가도 되는지 정리하는 쪽으로 좁힌다
 - 2026-05-01 admin forced logout 1차 hardening closeout 정리
   - [auth-admin-forced-logout-closeout.md](./auth-admin-forced-logout-closeout.md) 를 추가해 현재 phase의 forced logout 범위를 `old access 즉시 차단 + old refresh 즉시 차단 + relogin 회복 + legacy token A006` 까지로 닫았다
@@ -1383,43 +1383,43 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - [x] allowlist 제거 후 old admin refresh token도 즉시 막을지, 새 token부터 role만 제거할지 결정
 - [x] `admin forced logout` 1차 hardening 트랙 closeout 및 다음 활성 pending 전환 정리
 - [x] `고용24/워크넷 채용정보`, `마이홈포털 공공주택 모집공고/단지/예비입주자 대기현황` 같은 listing형 source 분리 스키마 초안 작성
-  - [policy-listing-source-schema-draft.md](./policy-listing-source-schema-draft.md) 를 추가해 listing형 source는 `welfare_services` 로 바로 넣지 않고, 공통 inventory header `listing_items` 와 source-specific detail table(`job_listings`, `housing_recruitments`, `housing_complexes`, `housing_waitlist_stats`) 조합으로 받는 방향을 고정했다
+  - [policy-listing-source-schema-draft.md](./history/policy/policy-listing-source-schema-draft.md) 를 추가해 listing형 source는 `welfare_services` 로 바로 넣지 않고, 공통 inventory header `listing_items` 와 source-specific detail table(`job_listings`, `housing_recruitments`, `housing_complexes`, `housing_waitlist_stats`) 조합으로 받는 방향을 고정했다
   - 이 초안에서는 raw truth(`raw_api_payloads`), listing inventory truth(`listing_items + detail`), 정책 canonical truth(`welfare_services + sidecars`) 를 의도적으로 분리하고, 추천 lane 연결은 future reopen 으로 남겼다
 - [x] `정부지원일자리정보`, `구직자취업역량 강화프로그램`, `Gov24/보조금24` 의 정책형 source canonical onboarding 우선순위와 live validation 순서 작성
   - [policy-source-canonical-onboarding-priority.md](./policy-source-canonical-onboarding-priority.md) 를 추가해 현재 phase의 정책형 source canonical onboarding 우선순위를 `Gov24/보조금24 -> 정부지원일자리정보 -> 구직자취업역량 강화프로그램` 순서로 고정했다
   - live validation 도 같은 순서로 두고, `Gov24` 는 `core/detail/facts` 기준 source, `정부지원일자리정보` 는 `일자리` canonical 적합도 검증, `구직자취업역량 강화프로그램` 은 `일자리 vs 교육·직업훈련` compat 해석 검증을 우선한다고 정리했다
 - [x] 한국장학재단/국가장학금 계열의 `제도 row` 와 `지원가능대학/학기/지원구간` reference matrix 분리 모델 초안 작성
-  - [policy-scholarship-reference-matrix-draft.md](./policy-scholarship-reference-matrix-draft.md) 를 추가해 장학금 상품 자체는 canonical `welfare_services + sidecars` 로 유지하고, 대학/학기/지원구간/금액표는 `scholarship_reference_sets + scholarship_reference_rows` reference matrix로 분리하는 방향을 고정했다
+  - [policy-scholarship-reference-matrix-draft.md](./history/policy/policy-scholarship-reference-matrix-draft.md) 를 추가해 장학금 상품 자체는 canonical `welfare_services + sidecars` 로 유지하고, 대학/학기/지원구간/금액표는 `scholarship_reference_sets + scholarship_reference_rows` reference matrix로 분리하는 방향을 고정했다
   - 이 초안에서는 장학금 상품 1건을 대학/학기별 `welfare_services` 파생 row로 늘리지 않고, `service_facts` 는 전역 eligibility만 받고 matrix variation은 reference domain에 남기는 기준을 정리했다
 - [x] 복지로 live detail 적재 기준 `welfare_service_details` / `service_facts` validation 리허설
-  - [policy-bokjiro-detail-validation-rehearsal.md](./policy-bokjiro-detail-validation-rehearsal.md) 를 추가해 복지로 live detail validation 을 `stored/raw coverage baseline -> detail payload shape / welfare_service_details -> service_facts density -> residual sample 재분류` 순서로 본다고 고정했다
+  - [policy-bokjiro-detail-validation-rehearsal.md](./history/policy/policy-bokjiro-detail-validation-rehearsal.md) 를 추가해 복지로 live detail validation 을 `stored/raw coverage baseline -> detail payload shape / welfare_service_details -> service_facts density -> residual sample 재분류` 순서로 본다고 고정했다
   - 이 리허설은 coverage ceiling, optional fact(`BK_APPLY_END_DATE`), hard fact vs soft signal 경계를 다시 확인하기 위한 절차이고, gap-fill 예산 확대나 observability 구현은 다음 단계로 남긴다고 정리했다
 - [x] 복지로 detail refresh budget metadata(`centralBudget`/`localBudget`) 를 admin collect observability에 노출할지 결정
-  - [policy-bokjiro-detail-budget-observability-policy.md](./policy-bokjiro-detail-budget-observability-policy.md) 를 추가해 `centralBudget/localBudget` 은 service 내부 metadata/log 에는 유지하되, 현재 phase의 admin API response 계약에는 올리지 않는다고 고정했다
+  - [policy-bokjiro-detail-budget-observability-policy.md](./history/policy/policy-bokjiro-detail-budget-observability-policy.md) 를 추가해 `centralBudget/localBudget` 은 service 내부 metadata/log 에는 유지하되, 현재 phase의 admin API response 계약에는 올리지 않는다고 고정했다
   - `bokjiro-details-gap-fill` 은 multi-round summary 응답이라 budget 을 response에 올리면 round별/aggregate 의미가 애매해지고, 운영 1차 지표도 budget 자체보다 coverage/fact density 쪽이므로 observability 확장은 future status endpoint 또는 별도 track 으로 미뤘다
 - [x] `bokjiro-details-gap-fill` 추가 라운드/호출 예산 전략 정리
-  - [policy-bokjiro-gap-fill-budget-strategy.md](./policy-bokjiro-gap-fill-budget-strategy.md) 를 추가해 current phase 기본 시작점을 `2 rounds x 20 calls`, 다음 증분을 `2 rounds x 40 calls`, `95/API` 는 catch-up 용 상한으로 두는 운영 기준을 고정했다
+  - [policy-bokjiro-gap-fill-budget-strategy.md](./history/policy/policy-bokjiro-gap-fill-budget-strategy.md) 를 추가해 current phase 기본 시작점을 `2 rounds x 20 calls`, 다음 증분을 `2 rounds x 40 calls`, `95/API` 는 catch-up 용 상한으로 두는 운영 기준을 고정했다
   - stop 조건은 `savedCount=0`, coverage 증가 대비 낮은 fact 증가 효율, rate-limit 부담으로 두고, gap-fill 평가는 budget보다 raw detail coverage / missing backlog / `service_facts` density 결과를 먼저 보도록 정리했다
 - [x] `bokjiro-details-gap-fill` 추가 실행을 default 확대 작업으로 둘지, 수동 catch-up/on-demand 로 유지할지 결정
-  - [policy-bokjiro-gap-fill-execution-policy.md](./policy-bokjiro-gap-fill-execution-policy.md) 를 추가해 current phase에서는 gap-fill 추가 실행을 routine default 작업으로 두지 않고, 필요할 때만 여는 수동 catch-up/on-demand 작업으로 유지한다고 고정했다
+  - [policy-bokjiro-gap-fill-execution-policy.md](./history/policy/policy-bokjiro-gap-fill-execution-policy.md) 를 추가해 current phase에서는 gap-fill 추가 실행을 routine default 작업으로 두지 않고, 필요할 때만 여는 수동 catch-up/on-demand 작업으로 유지한다고 고정했다
   - 이미 확인된 coverage/fact 증가 효율이 완만하고, 남은 갭의 중심도 payload signal 분포와 soft signal 판단 쪽으로 이동했으므로 다음 기본 진행축은 다른 canonical/source pending 으로 넘긴다고 정리했다
 - [x] blocked SQL reopen 우선순위(`GOV24_*` vs `YOUTH_MID`) 정리
-  - [policy-normalization-blocked-sql-reopen-priority.md](./policy-normalization-blocked-sql-reopen-priority.md) 를 추가해 blocked SQL reopen 우선순위를 `GOV24_SERVICE_FIELD/USER_TYPE/BENEFIT_TYPE -> GOV24_SUPPORT_CONDITION full inventory -> YOUTH_MID stable code mapping` 순서로 고정했다
+  - [policy-normalization-blocked-sql-reopen-priority.md](./history/policy/policy-normalization-blocked-sql-reopen-priority.md) 를 추가해 blocked SQL reopen 우선순위를 `GOV24_SERVICE_FIELD/USER_TYPE/BENEFIT_TYPE -> GOV24_SUPPORT_CONDITION full inventory -> YOUTH_MID stable code mapping` 순서로 고정했다
   - 이유는 `Gov24` 가 current canonical onboarding 기준선과 더 직접 연결되고 current API source도 더 명확한 반면, `YOUTH_MID` 는 여전히 operator-provided codebook 의존도가 높고 label-only fallback 으로 당분간 유지 가능하기 때문이다
 - [x] `GOV24_SERVICE_FIELD` / `USER_TYPE` / `BENEFIT_TYPE` SQL reopen 전 current Swagger/schema 확보 경로 구체화
-  - [policy-normalization-gov24-schema-acquisition-path.md](./policy-normalization-gov24-schema-acquisition-path.md) 를 추가해 practical next step을 `data.go.kr` current dataset page의 Swagger UI 확인 -> `schema.org/DCAT` provenance 확보 -> 그래도 finite inventory가 안 보이면 provider/operator codebook 요청 순서로 고정했다
+  - [policy-normalization-gov24-schema-acquisition-path.md](./history/policy/policy-normalization-gov24-schema-acquisition-path.md) 를 추가해 practical next step을 `data.go.kr` current dataset page의 Swagger UI 확인 -> `schema.org/DCAT` provenance 확보 -> 그래도 finite inventory가 안 보이면 provider/operator codebook 요청 순서로 고정했다
   - 즉 다음 액션은 deprecated `category` 재활용이 아니라 current Swagger/schema 증적 확보이며, `schema.org/DCAT` 는 provenance 보강용이지 finite code-label inventory의 충분조건은 아니라고 정리했다
 - [x] `GOV24_*` current dataset page / `schema.org` metadata만으로 finite inventory가 직접 보이는지 확인
-  - [policy-normalization-gov24-swagger-visibility-check.md](./policy-normalization-gov24-swagger-visibility-check.md) 를 추가해 current `data.go.kr` page와 `schema.org` metadata는 official current entrypoint/provenance 확인에는 충분하지만, `serviceField` / `userType` / `benefitType` finite inventory 자체는 직접 드러내지 않는다고 고정했다
+  - [policy-normalization-gov24-swagger-visibility-check.md](./history/policy/policy-normalization-gov24-swagger-visibility-check.md) 를 추가해 current `data.go.kr` page와 `schema.org` metadata는 official current entrypoint/provenance 확인에는 충분하지만, `serviceField` / `userType` / `benefitType` finite inventory 자체는 직접 드러내지 않는다고 고정했다
   - 따라서 `GOV24_*` SQL reopen의 다음 practical action은 current page 재탐색이 아니라 provider/operator codebook 요청 실행으로 더 좁혀졌다고 정리했다
 - [x] `GOV24_SERVICE_FIELD` / `USER_TYPE` / `BENEFIT_TYPE` provider/operator codebook 요청 템플릿 실행 수준으로 구체화
-  - [policy-normalization-gov24-codebook-request-template.md](./policy-normalization-gov24-codebook-request-template.md) 를 추가해 실제 요청 제목/본문, short template, sufficient/insufficient example, reopen 판정 기준을 고정했다
+  - [policy-normalization-gov24-codebook-request-template.md](./history/policy/policy-normalization-gov24-codebook-request-template.md) 를 추가해 실제 요청 제목/본문, short template, sufficient/insufficient example, reopen 판정 기준을 고정했다
   - 이로써 practical next step은 “무엇을 달라고 할지”가 아니라 “이 템플릿으로 실제 요청을 보낼지” 단계로 더 좁혀졌다고 정리했다
 - [x] `GOV24_SUPPORT_CONDITION` full inventory 요청을 label 3종과 분리된 별도 템플릿으로 정리
-  - [policy-normalization-gov24-support-condition-request-template.md](./policy-normalization-gov24-support-condition-request-template.md) 를 추가해 `supportConditions` 는 representative subset seed와 full inventory reopen 조건이 다르므로, `serviceField/userType/benefitType` 요청과 분리된 제목/본문/판정 기준으로 관리한다고 고정했다
+  - [policy-normalization-gov24-support-condition-request-template.md](./history/policy/policy-normalization-gov24-support-condition-request-template.md) 를 추가해 `supportConditions` 는 representative subset seed와 full inventory reopen 조건이 다르므로, `serviceField/userType/benefitType` 요청과 분리된 제목/본문/판정 기준으로 관리한다고 고정했다
   - practical next step은 “Gov24 current codebook package” 를 한 번에 보내더라도 sufficient/insufficient 판정은 label 3종과 `supportConditions` 를 따로 내리는 것이라고 정리했다
 - [x] `Gov24 current codebook request package` 발송 순서와 트랙별 판정 체크리스트 정리
-  - [policy-normalization-gov24-request-package-checklist.md](./policy-normalization-gov24-request-package-checklist.md) 를 추가해 발송은 one package로 묶되, 판정은 `serviceField/userType/benefitType` 과 `supportConditions` 두 트랙으로 나누는 운영 기준을 고정했다
+  - [policy-normalization-gov24-request-package-checklist.md](./history/policy/policy-normalization-gov24-request-package-checklist.md) 를 추가해 발송은 one package로 묶되, 판정은 `serviceField/userType/benefitType` 과 `supportConditions` 두 트랙으로 나누는 운영 기준을 고정했다
   - 이로써 practical next step은 문서 설계가 아니라 실제 provider/operator 발송 여부 결정으로 넘어갔다고 정리했다
 - [x] `Gov24` blocked SQL/doc 트랙 이후 다음 active main track 우선순위 정리
   - [policy-next-active-track-priority.md](./policy-next-active-track-priority.md) 를 갱신해 `Gov24` 쪽은 external response boundary까지 이미 내려왔지만, 그 다음 기본 진행축은 곧바로 운영/deploy 가 아니라 local-first closeout 이라고 고정했다

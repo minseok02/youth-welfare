@@ -270,7 +270,7 @@
 
 ## 281) listing형 source를 canonical 정책 스키마에 같이 눌러 담으면 row grain과 추천 의미가 동시에 깨진다
 - 문제: `고용24/워크넷 채용정보`, `마이홈포털 공공주택 모집공고/단지/예비입주자 대기현황` 같은 listing형 source도 신규 source라는 이유만으로 `welfare_services + service_facts` 에 같이 넣으려 하면, 정책 제도 row와 공고/단지/상태 feed row가 한 테이블에서 섞여 `unifiedCategory`, 북마크, CTR, 추천 lane 의미가 모두 흐려질 수 있었음
-- 해결: [policy-listing-source-schema-draft.md](./policy-listing-source-schema-draft.md) 에서 listing형 source는 `listing_items` 공통 header와 `job_listings`, `housing_recruitments`, `housing_complexes`, `housing_waitlist_stats` detail table로 분리하고, raw truth / listing inventory truth / 정책 canonical truth를 서로 다른 층으로 두는 방향을 고정했음
+- 해결: [policy-listing-source-schema-draft.md](./history/policy/policy-listing-source-schema-draft.md) 에서 listing형 source는 `listing_items` 공통 header와 `job_listings`, `housing_recruitments`, `housing_complexes`, `housing_waitlist_stats` detail table로 분리하고, raw truth / listing inventory truth / 정책 canonical truth를 서로 다른 층으로 두는 방향을 고정했음
 - 이유: source onboarding의 핵심은 “새 row를 어디엔가 저장하는 것”이 아니라 “그 row grain에 맞는 도메인으로 받는 것”이다. listing inventory를 정책 canonical로 강제 정규화하면 이후 read-model과 추천 semantics가 더 큰 비용으로 무너진다
 
 ## 282) 정책형 source도 canonical 적합도와 live validation 비용이 다르므로 한 번에 병렬 확장하면 기준 source 없이 설계가 흔들릴 수 있다
@@ -280,22 +280,22 @@
 
 ## 283) 장학금 reference를 제도 row에 flatten 하면 정책 1건 의미와 상세 matrix 둘 다 잃기 쉽다
 - 문제: 국가장학금/학자금 계열에서 지원가능대학, 학기별 금액표, 지원구간 경곗값 같은 matrix를 `welfare_services` row로 직접 flatten 하면 대학/학기별 파생 row가 과도하게 늘고, 반대로 전부 `service_facts` 로만 밀어 넣으면 장학금 상품 1건에 붙는 세부 variation을 잃기 쉬웠음
-- 해결: [policy-scholarship-reference-matrix-draft.md](./policy-scholarship-reference-matrix-draft.md) 에서 장학금 상품은 canonical 정책 row로 유지하고, 세부 대학/학기/구간 정보는 `scholarship_reference_sets + scholarship_reference_rows` reference matrix로 분리하는 초안을 고정했음
+- 해결: [policy-scholarship-reference-matrix-draft.md](./history/policy/policy-scholarship-reference-matrix-draft.md) 에서 장학금 상품은 canonical 정책 row로 유지하고, 세부 대학/학기/구간 정보는 `scholarship_reference_sets + scholarship_reference_rows` reference matrix로 분리하는 초안을 고정했음
 - 이유: 장학금 계열은 “추천 카드로 보여줄 제도 row”와 “상세 안내를 위한 variation matrix”를 분리해야 한다. 그래야 추천/북마크 의미를 보존하면서도 대학/학기별 상세 정보 손실을 막을 수 있다
 
 ## 284) 복지로 live detail 검증은 `detail coverage` 와 `fact coverage` 를 한 번에 보지 말고 순서를 고정해야 해석 오류를 줄일 수 있다
 - 문제: 복지로 쪽은 `stored detail payload coverage`, `welfare_service_details` 저장 여부, `service_facts density`, `optional fact` 판단이 서로 다른 층인데, 이를 한 번에 보면 extractor 문제인지 payload ceiling인지, 또는 detail 저장과 fact 저장 중 어디가 비는지 쉽게 섞여 보일 수 있었음
-- 해결: [policy-bokjiro-detail-validation-rehearsal.md](./policy-bokjiro-detail-validation-rehearsal.md) 에서 리허설 순서를 `stored/raw coverage baseline -> detail payload shape / welfare_service_details -> service_facts density -> residual sample 재분류` 로 고정하고, `BK_APPLY_END_DATE` 는 이번 단계에서도 optional fact 전제로 확인한다고 정리했음
+- 해결: [policy-bokjiro-detail-validation-rehearsal.md](./history/policy/policy-bokjiro-detail-validation-rehearsal.md) 에서 리허설 순서를 `stored/raw coverage baseline -> detail payload shape / welfare_service_details -> service_facts density -> residual sample 재분류` 로 고정하고, `BK_APPLY_END_DATE` 는 이번 단계에서도 optional fact 전제로 확인한다고 정리했음
 - 이유: 복지로 validation은 “얼마나 많이 받았는가”와 “받은 것 중 무엇을 hard fact로 승격할 수 있는가”를 분리해서 봐야 한다. 이 순서를 고정해야 gap-fill, extractor, optional soft signal 판단이 서로 덜 엉킨다
 
 ## 285) 복지로 detail budget observability 는 계산값이 있다는 이유만으로 바로 admin response 계약에 올리면 multi-round 의미가 흐려질 수 있다
 - 문제: `BokjiroDetailCollectService` 는 이미 `centralBudget/localBudget` 을 계산하고 `metadataJson` / service log에도 남기지만, 이 값을 곧바로 `bokjiro-details-gap-fill` admin response에 넣으면 “마지막 round budget인지, 합계인지, round별 array인지” 해석이 애매해질 수 있었다
-- 해결: [policy-bokjiro-detail-budget-observability-policy.md](./policy-bokjiro-detail-budget-observability-policy.md) 에서 현재 phase에서는 budget metadata를 service 내부 metadata/log 에만 유지하고, admin API response는 rounds/saved/failed 같은 summary 중심 계약으로 유지한다고 고정했음
+- 해결: [policy-bokjiro-detail-budget-observability-policy.md](./history/policy/policy-bokjiro-detail-budget-observability-policy.md) 에서 현재 phase에서는 budget metadata를 service 내부 metadata/log 에만 유지하고, admin API response는 rounds/saved/failed 같은 summary 중심 계약으로 유지한다고 고정했음
 - 이유: observability는 “이미 계산하는 값이면 다 응답에 올린다”가 아니라, 운영자가 어떤 결정을 위해 어떤 granularity가 필요한지에 맞춰야 한다. 지금 단계의 1차 운영 지표는 budget 자체보다 coverage/fact density라 response 확장을 서두르지 않는 편이 안전하다
 
 ## 286) 복지로 gap-fill 은 `95/API` 상한이 있다고 해서 그 값을 기본 운영값으로 삼으면 coverage 실험과 catch-up run이 구분되지 않는다
 - 문제: `bokjiro-details-gap-fill` 는 per-run `95/API` cap 을 유지하지만, 그 상한을 바로 기본값처럼 쓰면 “작은 예산으로 coverage slope를 보는 단계”와 “backlog를 실제로 밀어내는 catch-up 단계”가 운영상 구분되지 않을 수 있었다
-- 해결: [policy-bokjiro-gap-fill-budget-strategy.md](./policy-bokjiro-gap-fill-budget-strategy.md) 에서 current phase 기본 시작점을 `2 rounds x 20 calls`, 다음 증분을 `2 rounds x 40 calls`, `95/API` 는 catch-up 용 상한으로만 쓰는 전략으로 고정했음
+- 해결: [policy-bokjiro-gap-fill-budget-strategy.md](./history/policy/policy-bokjiro-gap-fill-budget-strategy.md) 에서 current phase 기본 시작점을 `2 rounds x 20 calls`, 다음 증분을 `2 rounds x 40 calls`, `95/API` 는 catch-up 용 상한으로만 쓰는 전략으로 고정했음
 - 이유: gap-fill 은 API를 최대한 많이 태우는 작업이 아니라, coverage ceiling과 fact density 효율을 함께 보는 작업이다. 작은 round/budget step을 먼저 두어야 payload coverage 증가와 fact 증가를 덜 헷갈리고, `95/API` 는 정말 backlog drain 이 필요할 때만 쓰게 된다
 
 ## 50) 새 챗 세션의 `last_message_at`가 NULL이면 최근 세션 정렬이 흔들릴 수 있음
@@ -735,7 +735,7 @@
 
 ## 137) 복지로 list aggregate 와 detail aggregate 가 같은 semantic fact를 다른 `fact_code` 로 내보내면, future `service_facts` upsert 에서 detail 이 list fallback 을 대체하지 못하고 중복 row가 누적될 수 있음
 - 문제: 현재 canonical 초안에서는 복지로 list 쪽에 `TEXT_AGE`, detail 쪽에 `DETAIL_TEXT_AGE` 같은 phase-specific 코드가 남아 있다. 이 상태로 `service_facts` 를 저장하면 같은 `AGE` 슬롯이어도 서로 다른 row로 인식되어, detail collect 가 list fallback 을 교체해야 하는 경우에도 단순 중복 insert 로 끝날 위험이 있었음
-- 해결: [policy-normalization-fact-merge-rules.md](./policy-normalization-fact-merge-rules.md) 를 추가해 `fact_code` 와 별도로 `fact_merge_key` 를 두고, `BK_AGE_ELIGIBILITY`, `BK_APPLY_END_DATE` 같은 stable logical key 기준으로 merge/upsert 하도록 규칙을 고정했음. 이어서 next task로 mapper fact code 를 stable merge key 체계로 정리하도록 작업 추적에 추가했음
+- 해결: [policy-normalization-fact-merge-rules.md](./history/policy/policy-normalization-fact-merge-rules.md) 를 추가해 `fact_code` 와 별도로 `fact_merge_key` 를 두고, `BK_AGE_ELIGIBILITY`, `BK_APPLY_END_DATE` 같은 stable logical key 기준으로 merge/upsert 하도록 규칙을 고정했음. 이어서 next task로 mapper fact code 를 stable merge key 체계로 정리하도록 작업 추적에 추가했음
 - 이유: list/detail cadence 가 다른 source에서는 “무슨 fact인가”와 “어느 phase에서 나왔는가”를 같은 코드값에 섞으면 deterministic upsert 를 만들기 어렵다. logical merge key 를 먼저 고정해야 migration SQL, saver, read-model 이 같은 fact slot 개념을 공유할 수 있어 재발 방지에 안전하다
 
 ## 138) `fact_merge_key` 가 문서에만 있고 aggregate 계약에는 없으면, mapper 테스트는 통과해도 future sidecar saver 단계에서 같은 semantic fact slot 을 안정적으로 단언할 수 없음
@@ -780,7 +780,7 @@
 
 ## 146) `온·오프라인교육`, `문화활동 및 생활지원` 같은 non-official `YOUTH_MID` variant를 성급히 official 단일 라벨로 접어버리면, taxonomy 의미 손실이나 잘못된 우선순위 브릿지가 생길 수 있음
 - 문제: 로컬 DB split 결과를 보면 `온·오프라인교육` 11건, `문화활동 및 생활지원` 66건이 존재한다. 전자는 `온라인교육` 과 유사하지만 offline 범위를 포함할 수 있고, 후자는 `문화활동` 과 생활지원 축이 결합된 composite 표현일 수 있어 하나의 official 중분류로 단정하기 어렵다
-- 해결: [policy-normalization-youth-mid-alias-rules.md](./policy-normalization-youth-mid-alias-rules.md) 에서 alias 처리 기준을 따로 고정하고, exact official token만 canonical `YOUTH_MID` 로 적재하며 non-official variant는 현재 단계에서 skip 하도록 명시했음. 별도 보존이 필요하면 future sidecar 에 `YOUTH_MID_RAW_ALIAS` 같은 term group을 둘지 후속 task로 분리했음
+- 해결: [policy-normalization-youth-mid-alias-rules.md](./history/policy/policy-normalization-youth-mid-alias-rules.md) 에서 alias 처리 기준을 따로 고정하고, exact official token만 canonical `YOUTH_MID` 로 적재하며 non-official variant는 현재 단계에서 skip 하도록 명시했음. 별도 보존이 필요하면 future sidecar 에 `YOUTH_MID_RAW_ALIAS` 같은 term group을 둘지 후속 task로 분리했음
 - 이유: stable code 가 없는 상태에서는 `term_label` 자체가 canonical key 일부 역할을 대신한다. 애매한 alias를 섣불리 official 단일 라벨로 접으면 이후 stable code import, 추천 브릿지, 분석 집계가 모두 왜곡될 수 있어 재발 방지에 불리하다
 
 ## 147) skipped `YOUTH_MID` alias를 raw payload에만 남기면, canonical sidecar 기준의 디버깅/backfill/read-model 경로가 다시 raw string 재파싱에 의존하게 됨
@@ -1085,17 +1085,17 @@
 
 ## 207) sample B(control)의 `finalScore` drift는 current snapshot 기준으로 helper 오작동보다 request-local score normalization 영향으로 보는 쪽이 더 타당함
 - 문제: latest replay artifact를 뜯어보면 sample B는 top-10 id set과 target row top-10 count `0 -> 0` 은 유지되는데도, 주거 row 몇 개의 `finalScore` 가 `±0.02 ~ ±0.06` 수준으로 바뀌며 순서가 흔들렸다. 이걸 그대로 “education helper가 control sample에도 잘못 발동했다”로 해석하면 원인 지점을 잘못 잡을 수 있다
-- 해결: sample B의 latest artifact(`/tmp/tmp.pKVwRY4dlt`)를 기준으로 top-10 delta를 다시 분해하고, [policy-normalization-education-control-drift-analysis.md](./policy-normalization-education-control-drift-analysis.md)에 결과를 고정했다. 현재 판단은 [ReRankingService.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/recommend/service/ReRankingService.java)의 `normalize(ruleWeightedScore, 0, ruleMax)` request-local 정규화가 더 유력한 원인이라는 점이며, 그래서 local smoke 기본 모드는 계속 warning-by-default를 유지한다
+- 해결: sample B의 latest artifact(`/tmp/tmp.pKVwRY4dlt`)를 기준으로 top-10 delta를 다시 분해하고, [policy-normalization-education-control-drift-analysis.md](./history/ai/policy-normalization-education-control-drift-analysis.md)에 결과를 고정했다. 현재 판단은 [ReRankingService.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/recommend/service/ReRankingService.java)의 `normalize(ruleWeightedScore, 0, ruleMax)` request-local 정규화가 더 유력한 원인이라는 점이며, 그래서 local smoke 기본 모드는 계속 warning-by-default를 유지한다
 - 이유: control sample에서 exact top-10/`finalScore` 불변을 hard gate로 두기 전에, drift가 target row 유입 때문인지 normalization 재스케일링 때문인지 먼저 분리해야 한다. 그래야 다음 작업을 helper 수정이 아니라 `ruleWeightedScore` snapshot 검증이나 normalization 안정화 검토 쪽으로 올바르게 이어갈 수 있다
 
 ## 208) sample B(control)를 단독 direct replay 했을 때 `ruleWeightedScore` / `finalScore` snapshot이 `off/on` 동일하면, 이전 drift 가설은 full replay context로 다시 한정해서 봐야 함
 - 문제: `sample B finalScore drift -> normalization 영향` 가설을 세운 뒤 실제로 `ruleWeightedScore` snapshot까지 확인하지 않으면, 잘못된 가설을 문서에 굳힐 수 있다
-- 해결: same sample B(`education.replay.afterincome.b@example.com`)로 `flag off` / `flag on` host `bootRun` 을 각각 띄우고, `POST /api/recommendations/refresh` 직후 `user_recommendations` top-15를 `/tmp/edu-control-off.tsv`, `/tmp/edu-control-on.tsv` 로 직접 덤프했다. 결과는 두 파일이 완전히 동일했고, response JSON top-15도 동일했다. 이 결과는 [policy-normalization-education-control-ruleweighted-snapshot.md](./policy-normalization-education-control-ruleweighted-snapshot.md)에 고정했다
+- 해결: same sample B(`education.replay.afterincome.b@example.com`)로 `flag off` / `flag on` host `bootRun` 을 각각 띄우고, `POST /api/recommendations/refresh` 직후 `user_recommendations` top-15를 `/tmp/edu-control-off.tsv`, `/tmp/edu-control-on.tsv` 로 직접 덤프했다. 결과는 두 파일이 완전히 동일했고, response JSON top-15도 동일했다. 이 결과는 [policy-normalization-education-control-ruleweighted-snapshot.md](./history/ai/policy-normalization-education-control-ruleweighted-snapshot.md)에 고정했다
 - 이유: direct snapshot 기준으로 drift가 안 보이면, 이전 artifact drift는 helper 자체나 `ruleWeightedScore` 단계보다는 `sample A -> sample B` 순서가 포함된 full replay 문맥에서 다시 재현/분석해야 한다. 가설과 사실을 분리해 두는 편이 다음 디버깅 경계를 더 정확하게 잡는다
 
 ## 209) full replay script에서 `user_recommendations.rule_weighted_score` snapshot을 같이 남기면 drift가 점수 어느 층위에서 생겼는지 바로 분리할 수 있음
 - 문제: direct snapshot에서는 sample B `off/on` 차이가 없었지만, full replay artifact에선 여전히 `final_score` drift가 남아 있었다. 이 상태에서 response JSON만 보면 drift가 helper 때문인지, `ruleWeightedScore` 때문인지, normalization 때문인지 또 추측으로 돌아가게 된다
-- 해결: `deploy/smoke/run-local-education-priority-replay.sh` 가 sample A/B 각각의 `edu-*-off-scores.tsv`, `edu-*-on-scores.tsv` 를 artifact로 같이 남기도록 바꿨다. 최신 artifact에서는 `rule_weighted_score`, `rule_weight_used`, `ai_weight_used` 는 그대로인데 `ai_score` 와 `final_score` 가 함께 달라졌고, 이 결과를 [policy-normalization-education-control-drift-analysis.md](./policy-normalization-education-control-drift-analysis.md) 와 [policy-normalization-education-control-ruleweighted-snapshot.md](./policy-normalization-education-control-ruleweighted-snapshot.md)에 반영했다
+- 해결: `deploy/smoke/run-local-education-priority-replay.sh` 가 sample A/B 각각의 `edu-*-off-scores.tsv`, `edu-*-on-scores.tsv` 를 artifact로 같이 남기도록 바꿨다. 최신 artifact에서는 `rule_weighted_score`, `rule_weight_used`, `ai_weight_used` 는 그대로인데 `ai_score` 와 `final_score` 가 함께 달라졌고, 이 결과를 [policy-normalization-education-control-drift-analysis.md](./history/ai/policy-normalization-education-control-drift-analysis.md) 와 [policy-normalization-education-control-ruleweighted-snapshot.md](./history/ai/policy-normalization-education-control-ruleweighted-snapshot.md)에 반영했다
 - 이유: replay 스크립트가 response와 persisted score snapshot을 동시에 남기면, 다음 분석은 “왜 drift가 생겼는가” 하나만 보면 된다. 즉 디버깅 경계가 helper -> weighted score -> normalized final score 순서로 더 짧고 명확해진다
 
 ## 210) full replay context에서 `rule_weighted_score` 가 그대로인데 `ai_score` 가 바뀌면, 다음 디버깅 경계는 normalization이 아니라 AI score layer여야 함
@@ -1130,7 +1130,7 @@
 
 ## 216) `real-openai` replay drift 대응에선 prompt caching 보다 `seed + system_fingerprint` 증적이 먼저다
 - 문제: same `candidateIds` / same `promptSha256` 인데도 `ai_score` 가 달라지는 상태에서, latency/cost용 기능과 determinism 보조 기능을 구분하지 않으면 대응 우선순위가 흐려진다
-- 해결: 공식 OpenAI 문서 기준으로 선택지를 다시 정리했고, [openai-replay-stability-options.md](./openai-replay-stability-options.md)에 `seed` 는 best-effort determinism 수단, `system_fingerprint` 는 backend 변화 추적용, Prompt Caching 은 latency/cost 최적화용이라는 경계를 고정했다. 다음 구현 우선순위도 optional replay `seed` 와 `system_fingerprint` / response id trace 추가로 좁혔다
+- 해결: 공식 OpenAI 문서 기준으로 선택지를 다시 정리했고, [openai-replay-stability-options.md](./history/ai/openai-replay-stability-options.md)에 `seed` 는 best-effort determinism 수단, `system_fingerprint` 는 backend 변화 추적용, Prompt Caching 은 latency/cost 최적화용이라는 경계를 고정했다. 다음 구현 우선순위도 optional replay `seed` 와 `system_fingerprint` / response id trace 추가로 좁혔다
 - 이유: prompt caching 은 output generation 자체를 안정화하는 기능이 아니므로, 지금 같은 replay drift 분석에는 원인 분리력이 약하다. 반대로 `seed + system_fingerprint` 는 “같은 입력 + 같은 seed + 같은 backend 조건”을 증명하는 최소 증적이어서 다음 디버깅 단계의 정보 가치가 더 높다
 
 ## 217) same `promptSha256` 만으로는 부족하고 replay artifact엔 `replaySeed` 와 `system_fingerprint` 도 같이 남겨야 한다
@@ -1150,22 +1150,22 @@
 
 ## 220) same fingerprint 에서도 drift가 남는 단계부터는 `rule-only` 와 `real-openai` 를 같은 pass/fail gate로 두면 안 된다
 - 문제: same `promptSha256` + same `replaySeed` + same `system_fingerprint` 조건에서도 `ai_score` drift가 남는다면, `real-openai` replay strict equality를 PR hard gate로 두는 순간 live model variability가 코드 회귀와 같은 수준의 blocker가 된다
-- 해결: [openai-replay-validation-policy.md](./openai-replay-validation-policy.md)에 현재 정책을 고정했다. `rule-only-invalid-key` replay는 코드 안정성 hard gate로 유지하고, `real-openai` replay는 trace/artifact 완전성을 보는 exploratory gate로 둔다. 즉 `real-openai` strict equality 실패만으로는 PR을 막지 않는다
+- 해결: [openai-replay-validation-policy.md](./history/ai/openai-replay-validation-policy.md)에 현재 정책을 고정했다. `rule-only-invalid-key` replay는 코드 안정성 hard gate로 유지하고, `real-openai` replay는 trace/artifact 완전성을 보는 exploratory gate로 둔다. 즉 `real-openai` strict equality 실패만으로는 PR을 막지 않는다
 - 이유: 지금 단계에서 product가 통제 가능한 것은 retrieval/rule/priority/canonical bridge와 artifact quality이지, live model의 미세한 응답 변동 자체는 아니다. 검증선과 관측선을 분리해야 PR gate가 불필요하게 불안정해지지 않는다
 
 ## 221) same fingerprint 에서도 `ai_score` 가 흔들리면, `score delta` 는 gate metric보다 설명 지표에 가깝다
 - 문제: `/tmp/tmp.TpE5SaiHJu` 같은 same fingerprint artifact에서도 sample B `ai_score` 는 `404:85 -> 75`, `405:75 -> 85`, `390:55 -> 70` 식으로 흔들렸다. 이런 상태에서 `score delta` 자체를 gate로 쓰면 live variability가 바로 fail 조건이 된다
-- 해결: [openai-replay-allowed-drift-metrics.md](./openai-replay-allowed-drift-metrics.md)에 `real-openai` allowed drift metric 우선순위를 고정했다. 자동 gate는 `top-N target row count` 와 `target row presence/absence` 중심으로 두고, `score delta` 는 artifact 설명용 지표로만 남긴다
+- 해결: [openai-replay-allowed-drift-metrics.md](./history/ai/openai-replay-allowed-drift-metrics.md)에 `real-openai` allowed drift metric 우선순위를 고정했다. 자동 gate는 `top-N target row count` 와 `target row presence/absence` 중심으로 두고, `score delta` 는 artifact 설명용 지표로만 남긴다
 - 이유: 이번 실험의 목적은 target 교육 row가 더 잘 보이게 되는지 확인하는 것이다. 점수 exact match는 그 목적과 직접 연결되지 않고, same fingerprint 안에서도 흔들리므로 자동 gate로 쓰기엔 정보 가치보다 노이즈가 크다
 
 ## 222) sample B `unexpected target count increase` 는 지금 단계에선 fail 보다 warning 이 더 맞다
 - 문제: current real-openai artifact 분포를 보면 sample B는 `/tmp/tmp.WoIyHuKtMd` 에서 `0 -> 1`, `/tmp/tmp.EZBH319uNA` 에서 `1 -> 0`, `/tmp/tmp.TpE5SaiHJu` 에서 `1 -> 1` 처럼 증가/감소/유지를 모두 보였다. 이 상태에서 increase만 fail 로 고정하면 live variability를 코드 회귀로 과대 판정할 위험이 크다
-- 해결: [openai-replay-allowed-drift-metrics.md](./openai-replay-allowed-drift-metrics.md), [openai-replay-validation-policy.md](./openai-replay-validation-policy.md)에 sample B `unexpected increase` 는 현재 warning 으로만 취급하는 정책을 고정했다. hard gate는 계속 `rule-only` 와 trace/artifact 완전성에 둔다
+- 해결: [openai-replay-allowed-drift-metrics.md](./history/ai/openai-replay-allowed-drift-metrics.md), [openai-replay-validation-policy.md](./history/ai/openai-replay-validation-policy.md)에 sample B `unexpected increase` 는 현재 warning 으로만 취급하는 정책을 고정했다. hard gate는 계속 `rule-only` 와 trace/artifact 완전성에 둔다
 - 이유: sample B control drift 자체가 same fingerprint 안에서도 흔들리는 상태라면, count increase 하나만 fail 조건으로 쓰는 건 비대칭적이다. 지금은 “관측 신호”로 남기고 artifact review로 연결하는 쪽이 더 안정적이다
 
 ## 223) sample B warning은 `same fingerprint` run에만 한정하지 말고, 모든 `real-openai` replay에서 같은 규칙으로 띄우는 편이 낫다
 - 문제: same fingerprint 여부는 drift 원인을 좁히는 데는 중요하지만, warning 자체를 그 조건에만 묶어 버리면 `different fingerprint` run에선 control sample 이상 징후를 놓치게 된다
-- 해결: [openai-replay-allowed-drift-metrics.md](./openai-replay-allowed-drift-metrics.md), [openai-replay-validation-policy.md](./openai-replay-validation-policy.md)에 sample B `unexpected target count increase` warning은 모든 `real-openai` replay에서 동일하게 띄우고, `systemFingerprint` 동일 여부는 warning 이후 triage 정보로만 쓰는 정책을 반영했다
+- 해결: [openai-replay-allowed-drift-metrics.md](./history/ai/openai-replay-allowed-drift-metrics.md), [openai-replay-validation-policy.md](./history/ai/openai-replay-validation-policy.md)에 sample B `unexpected target count increase` warning은 모든 `real-openai` replay에서 동일하게 띄우고, `systemFingerprint` 동일 여부는 warning 이후 triage 정보로만 쓰는 정책을 반영했다
 - 이유: warning 조건은 “control sample 이상 징후가 있었는가”를 알려주는 1차 신호이고, fingerprint는 그 다음 분석 단계다. 둘을 섞으면 조건이 복잡해지고 운영자가 artifact를 다시 볼 타이밍을 놓치기 쉽다
 
 ## 224) `same fingerprint` 여부는 replay summary에 바로 찍어 주는 편이 triage 속도가 더 빠르다
@@ -1180,97 +1180,97 @@
 
 ## 226) same fingerprint 안에서도 live variability가 남는 동안 `real-openai` replay는 PR hard gate보다 nightly/diagnostic lane으로 분리하는 편이 맞다
 - 문제: same `promptSha256` + same `replaySeed` + same `systemFingerprint` 조건에서도 `ai_score` / `final_score` drift가 남는데, 이 replay를 PR hard gate에 그대로 두면 live model variability가 코드 회귀와 같은 blocker가 된다
-- 해결: [openai-replay-validation-policy.md](./openai-replay-validation-policy.md) 와 [policy-normalization-education-priority-replay-procedure.md](./policy-normalization-education-priority-replay-procedure.md)에 `rule-only-invalid-key` 는 PR hard gate, `real-openai` replay는 nightly/diagnostic 또는 수동 triage lane이라는 운영 경계를 명시했다
+- 해결: [openai-replay-validation-policy.md](./history/ai/openai-replay-validation-policy.md) 와 [policy-normalization-education-priority-replay-procedure.md](./history/ai/policy-normalization-education-priority-replay-procedure.md)에 `rule-only-invalid-key` 는 PR hard gate, `real-openai` replay는 nightly/diagnostic 또는 수동 triage lane이라는 운영 경계를 명시했다
 - 이유: 지금 제품이 통제할 수 있는 것은 deterministic한 non-AI 경계와 trace/artifact 품질이지, live OpenAI 응답의 미세한 변동 자체는 아니다. 검증선과 진단선을 분리해야 PR gate가 과민해지지 않는다
 
 ## 227) `real-openai` nightly lane은 repo 기본 CI보다 secret-bearing diagnostic runner 쪽에 붙이는 편이 맞다
 - 문제: 현재 repo에는 `.github/workflows` 도 없고, `real-openai` replay는 OpenAI secret, local DB/Redis, artifact retention 을 함께 요구한다. 이걸 기본 PR CI에 바로 얹으면 secret 범위와 flaky surface가 같이 커진다
-- 해결: [openai-replay-diagnostic-lane-plan.md](./openai-replay-diagnostic-lane-plan.md)에 현재 권장 실행 위치를 `manual diagnostic first, scheduled diagnostic later` 로 고정하고, future 자동화 후보를 `self-hosted GitHub Actions runner` 또는 `ops cron host` 로 한정했다
+- 해결: [openai-replay-diagnostic-lane-plan.md](./history/ai/openai-replay-diagnostic-lane-plan.md)에 현재 권장 실행 위치를 `manual diagnostic first, scheduled diagnostic later` 로 고정하고, future 자동화 후보를 `self-hosted GitHub Actions runner` 또는 `ops cron host` 로 한정했다
 - 이유: 지금 필요한 건 deterministic PR gate가 아니라 별도 secret-bearing 진단 lane이다. 기본 CI와 같은 lane에 두는 것보다, 격리된 runner/host에서 artifact 중심으로 돌리는 편이 운영/보안/노이즈 측면에서 더 안전하다
 
 ## 228) `.github/workflows` 가 아직 없고 host 기반 smoke 절차가 이미 있으면, 첫 scheduled diagnostic lane은 self-hosted runner보다 ops cron host가 더 짧은 경로다
 - 문제: `real-openai` replay 자동화를 열어야 하지만, 현재 repo는 GitHub Actions workflow 자체가 없고, 바로 self-hosted runner를 붙이면 runner 운영/secret 주입/CI wiring 작업이 먼저 커진다
-- 해결: [openai-replay-diagnostic-lane-plan.md](./openai-replay-diagnostic-lane-plan.md)에 현재 우선순위를 `ops cron host -> self-hosted runner` 로 고정하고, 다음 작업도 cron 주기와 artifact 공유 위치 결정으로 좁혔다
+- 해결: [openai-replay-diagnostic-lane-plan.md](./history/ai/openai-replay-diagnostic-lane-plan.md)에 현재 우선순위를 `ops cron host -> self-hosted runner` 로 고정하고, 다음 작업도 cron 주기와 artifact 공유 위치 결정으로 좁혔다
 - 이유: 이미 `deploy/smoke/run-local-education-priority-replay.sh` 와 운영 host/compose 중심 문서가 있으므로, periodic diagnostic artifact를 얻는 가장 짧은 경로는 ops host에서 cron으로 먼저 돌리는 것이다. self-hosted runner는 가시성/연동 이점이 있지만 지금 당장 가장 작은 다음 단계는 아니다
 
 ## 229) `real-openai` diagnostic replay는 PR마다나 짧은 주기로 반복하기보다, ops host에서 매일 1회 + 필요 시 수동 실행이 더 맞다
 - 문제: `real-openai` replay는 비용과 live variability가 있어, 짧은 간격으로 자주 돌릴수록 merge 판단보다 노이즈 수집이 늘어날 수 있다
-- 해결: [openai-replay-diagnostic-lane-plan.md](./openai-replay-diagnostic-lane-plan.md)에 기본 스케줄을 `ops cron host nightly once` 로 두고, 추천/AI 관련 큰 변경 후에만 수동 on-demand replay를 추가하는 정책을 반영했다
+- 해결: [openai-replay-diagnostic-lane-plan.md](./history/ai/openai-replay-diagnostic-lane-plan.md)에 기본 스케줄을 `ops cron host nightly once` 로 두고, 추천/AI 관련 큰 변경 후에만 수동 on-demand replay를 추가하는 정책을 반영했다
 - 이유: 지금 목적은 deterministic gate가 아니라 drift 분포 관찰이다. 매일 1회면 fingerprint 분포와 sample A/B target count 변화를 보기엔 충분하고, 운영 부담과 API 비용도 가장 보수적으로 제어할 수 있다
 
 ## 230) nightly replay summary는 외부 chat/email보다 host-local append-only file을 1차 채널로 두는 편이 현재 단계에선 더 안전하다
 - 문제: nightly `real-openai` replay 결과를 어디로 공유할지 정해야 하지만, 현재 repo/운영 문서에는 Slack, ChatOps, replay 전용 메일 alias 같은 외부 채널 전제가 없다
-- 해결: [openai-replay-diagnostic-lane-plan.md](./openai-replay-diagnostic-lane-plan.md)에 1차 채널을 `ops cron host` 의 append-only summary file로 두고, 상세 증적은 artifact dir에서 확인하는 정책을 반영했다
+- 해결: [openai-replay-diagnostic-lane-plan.md](./history/ai/openai-replay-diagnostic-lane-plan.md)에 1차 채널을 `ops cron host` 의 append-only summary file로 두고, 상세 증적은 artifact dir에서 확인하는 정책을 반영했다
 - 이유: live variability가 남는 diagnostic lane을 외부 알림으로 바로 밀면 false positive가 곧바로 알림 피로로 이어질 수 있다. 먼저 host-local summary file과 artifact dir로 경계를 좁히고, 이후 운영 채널이 준비되면 그때 바깥으로 확장하는 편이 더 안전하다
 
 ## 231) nightly replay는 summary와 artifact를 같은 host root 아래 두되, 보존기간은 다르게 가져가는 편이 수동 triage에 유리하다
 - 문제: nightly `real-openai` replay를 host-local로 운영하기로 했으면, summary와 artifact를 어디에 두고 얼마나 보관할지 기본값이 없으면 cron 구현 때 경로가 흔들리고 cleanup도 제각각이 된다
-- 해결: [openai-replay-diagnostic-lane-plan.md](./openai-replay-diagnostic-lane-plan.md)에 기본 경로를 `/var/log/youth-welfare/openai-replay/` 아래로 모으고, `nightly-summary-YYYY-MM-DD.log` 는 `30일`, `artifacts/<timestamp>/` 는 `14일` 보관으로 고정했다
+- 해결: [openai-replay-diagnostic-lane-plan.md](./history/ai/openai-replay-diagnostic-lane-plan.md)에 기본 경로를 `/var/log/youth-welfare/openai-replay/` 아래로 모으고, `nightly-summary-YYYY-MM-DD.log` 는 `30일`, `artifacts/<timestamp>/` 는 `14일` 보관으로 고정했다
 - 이유: summary는 drift 추세 비교용이라 더 오래 남겨야 하고, artifact는 상세 triage용이라 용량 대비 보존 가치가 더 빨리 떨어진다. 같은 root 아래 두되 역할별 보존기간을 나누는 편이 운영과 정리에 모두 단순하다
 
 ## 232) nightly summary line은 drift 판단에 직접 쓰는 값만 남기고, row-level/response-level 값은 artifact로 보내는 편이 낫다
 - 문제: nightly summary file 한 줄에 너무 많은 필드를 넣으면 grep/scan 은 쉬워지지 않고, 오히려 `ai_score`, `responseId`, raw fingerprint 같은 노이즈가 늘어나 첫 판단이 느려질 수 있다
-- 해결: [openai-replay-diagnostic-lane-plan.md](./openai-replay-diagnostic-lane-plan.md) 와 [policy-normalization-education-priority-replay-procedure.md](./policy-normalization-education-priority-replay-procedure.md)에 summary line 최소 필드를 `ts`, `mode`, `A/B_top10_target`, `A/B_target_total`, `A/B_fp`, `artifact_dir` 로 고정했다
+- 해결: [openai-replay-diagnostic-lane-plan.md](./history/ai/openai-replay-diagnostic-lane-plan.md) 와 [policy-normalization-education-priority-replay-procedure.md](./history/ai/policy-normalization-education-priority-replay-procedure.md)에 summary line 최소 필드를 `ts`, `mode`, `A/B_top10_target`, `A/B_target_total`, `A/B_fp`, `artifact_dir` 로 고정했다
 - 이유: 현재 운영 판단은 target count와 fingerprint relation이 먼저고, row-level score/response metadata는 warning 이후 artifact에서 보는 것이 맞다. summary line은 “한 줄 triage” 에 집중해야 한다
 
 ## 233) retention cleanup은 replay cron 후단보다 별도 cron으로 분리하는 편이 실패 원인과 정리 책임을 더 깔끔하게 나눈다
 - 문제: replay 실행과 cleanup 삭제를 같은 cron 후단에 묶으면, cleanup 실패가 replay 자체 실패처럼 보이거나, replay 실패 시 cleanup이 건너뛰어 보존 정책이 흔들릴 수 있다
-- 해결: [openai-replay-diagnostic-lane-plan.md](./openai-replay-diagnostic-lane-plan.md)에 cleanup을 `별도 daily cleanup cron` 으로 분리하는 정책을 반영했고, phase-plan 다음 작업도 cleanup cron 명령/경로 계약 정리로 좁혔다
+- 해결: [openai-replay-diagnostic-lane-plan.md](./history/ai/openai-replay-diagnostic-lane-plan.md)에 cleanup을 `별도 daily cleanup cron` 으로 분리하는 정책을 반영했고, phase-plan 다음 작업도 cleanup cron 명령/경로 계약 정리로 좁혔다
 - 이유: replay cron은 artifact 생성과 summary append에만 집중하고, cleanup cron은 보존기간 enforcement에만 집중해야 운영자가 실패 원인을 바로 분리할 수 있다. 역할을 나누는 편이 재실행과 디버깅도 단순하다
 
 ## 234) nightly summary line format은 문서만으로 두지 말고, 스크립트 env contract로 바로 노출하는 편이 wrapper 구현 때 덜 흔들린다
 - 문제: summary line 필드 집합을 문서로만 정하면, 실제 cron wrapper를 만들 때 파일 경로와 timestamp를 어느 env로 줄지 다시 논의하게 되어 계약이 흔들릴 수 있다
-- 해결: [run-local-education-priority-replay.sh](/home/minseok/youth-welfare/deploy/smoke/run-local-education-priority-replay.sh)에 `REPLAY_SUMMARY_APPEND_FILE`, `REPLAY_SUMMARY_TS` env contract를 추가하고, [openai-replay-diagnostic-lane-plan.md](./openai-replay-diagnostic-lane-plan.md) 와 [policy-normalization-education-priority-replay-procedure.md](./policy-normalization-education-priority-replay-procedure.md)에 같은 이름으로 고정했다
+- 해결: [run-local-education-priority-replay.sh](/home/minseok/youth-welfare/deploy/smoke/run-local-education-priority-replay.sh)에 `REPLAY_SUMMARY_APPEND_FILE`, `REPLAY_SUMMARY_TS` env contract를 추가하고, [openai-replay-diagnostic-lane-plan.md](./history/ai/openai-replay-diagnostic-lane-plan.md) 와 [policy-normalization-education-priority-replay-procedure.md](./history/ai/policy-normalization-education-priority-replay-procedure.md)에 같은 이름으로 고정했다
 - 이유: cron wrapper가 최소한의 glue code로 붙으려면, summary append를 켜는 방법과 timestamp override 방법이 스크립트에 바로 있어야 한다. env contract를 먼저 고정하는 편이 다음 단계 명령 초안 작성이 훨씬 단순하다
 
 ## 235) cleanup retention 계약도 문서만이 아니라 별도 스크립트로 고정해야 replay cron 과 역할이 안 섞인다
 - 문제: cleanup 을 별도 cron 으로 분리하기로 했어도, 실제 명령/경로/env 계약이 없으면 다음 단계에서 replay wrapper 안으로 다시 밀어 넣거나, host마다 다른 `find`/`rm` 명령을 쓰게 될 수 있다
-- 해결: [cleanup-openai-replay-artifacts.sh](/home/minseok/youth-welfare/deploy/smoke/cleanup-openai-replay-artifacts.sh) 를 추가하고, [openai-replay-diagnostic-lane-plan.md](./openai-replay-diagnostic-lane-plan.md)에 `REPLAY_LOG_ROOT`, `SUMMARY_RETENTION_DAYS`, `ARTIFACT_RETENTION_DAYS`, `DRY_RUN` 계약과 실행 예시를 같이 고정했다
+- 해결: [cleanup-openai-replay-artifacts.sh](/home/minseok/youth-welfare/deploy/smoke/cleanup-openai-replay-artifacts.sh) 를 추가하고, [openai-replay-diagnostic-lane-plan.md](./history/ai/openai-replay-diagnostic-lane-plan.md)에 `REPLAY_LOG_ROOT`, `SUMMARY_RETENTION_DAYS`, `ARTIFACT_RETENTION_DAYS`, `DRY_RUN` 계약과 실행 예시를 같이 고정했다
 - 이유: replay cron 과 cleanup cron 의 책임을 실제 파일 단위로 분리해 두어야 역할이 다시 섞이지 않는다. cleanup 도 스크립트로 고정해야 운영자가 dry-run, retention 변경, 수동 재실행을 같은 계약으로 다룰 수 있다
 
 ## 236) nightly replay도 cron entry에서 긴 env/경로 조합을 직접 쓰기보다 wrapper 스크립트로 한 번 감싸는 편이 안전하다
 - 문제: nightly replay는 `USE_REAL_OPENAI_FOR_REPLAY`, `KEEP_ARTIFACTS`, `ARTIFACT_DIR`, `REPLAY_SUMMARY_APPEND_FILE`, `REPLAY_SUMMARY_TS` 등을 같이 맞춰야 해서, cron line에 직접 길게 쓰면 host마다 오타/경로 불일치가 나기 쉽다
-- 해결: [run-nightly-openai-replay.sh](/home/minseok/youth-welfare/deploy/smoke/run-nightly-openai-replay.sh) 를 추가해 nightly 기본값을 wrapper가 계산하도록 하고, [openai-replay-diagnostic-lane-plan.md](./openai-replay-diagnostic-lane-plan.md) 와 [policy-normalization-education-priority-replay-procedure.md](./policy-normalization-education-priority-replay-procedure.md)에 이를 기본 진입점으로 고정했다
+- 해결: [run-nightly-openai-replay.sh](/home/minseok/youth-welfare/deploy/smoke/run-nightly-openai-replay.sh) 를 추가해 nightly 기본값을 wrapper가 계산하도록 하고, [openai-replay-diagnostic-lane-plan.md](./history/ai/openai-replay-diagnostic-lane-plan.md) 와 [policy-normalization-education-priority-replay-procedure.md](./history/ai/policy-normalization-education-priority-replay-procedure.md)에 이를 기본 진입점으로 고정했다
 - 이유: cleanup 과 replay 둘 다 cron에서 바로 호출될 예정이면, 각자의 env/경로 계약이 스크립트에 모여 있어야 운영자가 cron line에서 “무엇을 호출하는지”만 보면 된다. wrapper를 두는 편이 host 간 drift를 줄인다
 
 ## 237) 현재 단계에서는 systemd timer보다 system cron이 더 작은 운영 진입 경로다
 - 문제: nightly replay와 cleanup을 host에서 주기 실행해야 하지만, 지금 단계에서 `.service`/`.timer` unit까지 같이 열면 운영 절차가 갑자기 systemd 중심으로 커지고 문서/스크립트 경계가 다시 넓어진다
-- 해결: [openai-replay-diagnostic-lane-plan.md](./openai-replay-diagnostic-lane-plan.md)에 현재 우선순위를 `system cron -> 필요 시 systemd timer` 로 고정하고, 다음 작업도 cron entry 예시 작성으로 좁혔다
+- 해결: [openai-replay-diagnostic-lane-plan.md](./history/ai/openai-replay-diagnostic-lane-plan.md)에 현재 우선순위를 `system cron -> 필요 시 systemd timer` 로 고정하고, 다음 작업도 cron entry 예시 작성으로 좁혔다
 - 이유: 이미 wrapper 스크립트 둘이 있고 운영 문서도 shell/compose 중심이다. 가장 작은 다음 단계는 crontab에서 wrapper를 부르는 것이고, systemd timer는 observability나 표준화 필요가 생겼을 때 뒤에서 붙여도 늦지 않다
 
 ## 238) replay/cleanup cron 예시도 절대경로 호출과 별도 runtime log redirection까지 같이 고정해야 host별 drift가 덜 난다
 - 문제: `system cron` 으로 운영한다고만 적어 두면 host마다 긴 env 조합을 다시 풀거나, summary file과 cron stderr/stdout를 같은 파일에 섞어 적는 식으로 운영 방식이 갈라질 수 있다
-- 해결: [openai-replay-diagnostic-lane-plan.md](./openai-replay-diagnostic-lane-plan.md) 와 [policy-normalization-education-priority-replay-procedure.md](./policy-normalization-education-priority-replay-procedure.md)에 replay/cleanup crontab 예시를 추가하고, wrapper/cleanup 스크립트를 절대경로로 호출하며 `nightly-cron.log`, `cleanup-cron.log` 로 runtime log를 분리하는 기준을 고정했다
+- 해결: [openai-replay-diagnostic-lane-plan.md](./history/ai/openai-replay-diagnostic-lane-plan.md) 와 [policy-normalization-education-priority-replay-procedure.md](./history/ai/policy-normalization-education-priority-replay-procedure.md)에 replay/cleanup crontab 예시를 추가하고, wrapper/cleanup 스크립트를 절대경로로 호출하며 `nightly-cron.log`, `cleanup-cron.log` 로 runtime log를 분리하는 기준을 고정했다
 - 이유: summary file은 metric one-line append 용도이고, cron runtime log는 shell/app failure triage 용도다. 두 경로를 분리해야 nightly replay 해석이 단순해지고 host별 cron line drift도 줄어든다
 
 ## 239) cron 예시 다음에는 `crontab -e` 적용 순서와 사전 수동 검증까지 묶은 runbook이 있어야 운영자가 문서 사이를 덜 왕복한다
 - 문제: lane plan에 cron line이 있어도 실제 운영자는 `언제 수동 replay를 먼저 돌릴지`, `등록 직후 무엇을 확인할지`, `문제 생기면 cron에서 무엇부터 지울지` 를 여러 문서에서 다시 조합해야 한다
-- 해결: [openai-replay-cron-runbook.md](./openai-replay-cron-runbook.md) 를 추가해 사전 조건, 수동 replay/cleanup dry-run, `crontab -e` block, 등록 직후 확인, 다음날 확인 포인트, 롤백 절차를 한 장으로 정리했고, [deployment.md](./deployment.md) 와 [README.md](./README.md) 에서 바로 링크되도록 맞췄다
+- 해결: [openai-replay-cron-runbook.md](./history/ai/openai-replay-cron-runbook.md) 를 추가해 사전 조건, 수동 replay/cleanup dry-run, `crontab -e` block, 등록 직후 확인, 다음날 확인 포인트, 롤백 절차를 한 장으로 정리했고, [deployment.md](./deployment.md) 와 [README.md](./README.md) 에서 바로 링크되도록 맞췄다
 - 이유: ops host 적용은 설계 문서보다 runbook이 더 중요하다. 실제 명령과 확인 순서가 한 문서에 있어야 운영 drift와 누락이 줄어든다
 
 ## 240) replay cron 적용 다음에는 `cron user` 권한과 `.env` / OpenAI secret 경계를 별도 메모로 고정해 두는 편이 안전하다
 - 문제: runbook 에서 `cron user` 가 `.env`, Docker, OpenAI secret 접근 권한을 가진다고만 적어 두면, 실제 운영자가 이를 root cron 이나 broad sudo 계정으로 해석해 권한 범위를 과하게 넓힐 수 있다
-- 해결: [openai-replay-cron-security-boundary.md](./openai-replay-cron-security-boundary.md) 를 추가해 `non-root ops cron user`, `.env` read-only, host-local artifact 접근, broad sudo 비권장, root crontab 비기본값 원칙을 따로 고정했고, [openai-replay-cron-runbook.md](./openai-replay-cron-runbook.md), [openai-replay-diagnostic-lane-plan.md](./openai-replay-diagnostic-lane-plan.md), [deployment.md](./deployment.md), [README.md](./README.md) 에서 바로 링크되게 맞췄다
+- 해결: [openai-replay-cron-security-boundary.md](./history/ai/openai-replay-cron-security-boundary.md) 를 추가해 `non-root ops cron user`, `.env` read-only, host-local artifact 접근, broad sudo 비권장, root crontab 비기본값 원칙을 따로 고정했고, [openai-replay-cron-runbook.md](./history/ai/openai-replay-cron-runbook.md), [openai-replay-diagnostic-lane-plan.md](./history/ai/openai-replay-diagnostic-lane-plan.md), [deployment.md](./deployment.md), [README.md](./README.md) 에서 바로 링크되게 맞췄다
 - 이유: nightly replay는 diagnostic lane이지만 OpenAI secret 과 host-local artifact를 함께 다루므로, 실행 절차와 권한 경계는 분리해서 적는 편이 운영 해석이 덜 흔들린다
 
 ## 241) 권한 경계 문장만으로는 부족하고, host 적용 전 `test -r/-w`, `stat`, `id`, `crontab -l` 같은 최소 체크 명령까지 runbook에 있어야 실제 오적용을 줄일 수 있다
 - 문제: `non-root ops user`, `.env read-only` 같은 원칙이 있어도 운영자는 실제 host에서 무엇을 실행해 확인할지 다시 추정해야 하고, 그 과정에서 root 계정으로 그냥 돌리거나 log root 권한 부족을 늦게 발견할 수 있다
-- 해결: [openai-replay-cron-runbook.md](./openai-replay-cron-runbook.md)에 `id`, `crontab -l`, `ls -l .env`, `test -r .env`, `test -w /var/log/...`, `stat -c '%A %U:%G %n' ...` 를 추가해 사전 수동 검증과 등록 직후 확인에 바로 쓸 수 있게 했다
+- 해결: [openai-replay-cron-runbook.md](./history/ai/openai-replay-cron-runbook.md)에 `id`, `crontab -l`, `ls -l .env`, `test -r .env`, `test -w /var/log/...`, `stat -c '%A %U:%G %n' ...` 를 추가해 사전 수동 검증과 등록 직후 확인에 바로 쓸 수 있게 했다
 - 이유: 권한 경계는 문장보다 명령으로 확인하는 편이 운영 drift를 줄인다. 특히 `.env readable` 과 `log root writable` 은 replay 성공 조건이라 cron 등록 전에 바로 확인하는 게 맞다
 
 ## 242) same prompt/seed/fingerprint 에도 `ai_score` drift가 남는다면, 제품 계약은 exact equality가 아니라 `target visibility + traceability` 에 두는 편이 맞다
 - 문제: same `promptSha256` + same `replaySeed` + same `systemFingerprint` 조건에서도 `ai_score` / `final_score` drift가 남는데, 이걸 그대로 제품 품질 계약으로 들고 가면 false positive 회귀 판정과 운영 노이즈가 커진다
-- 해결: [openai-ai-score-product-policy.md](./openai-ai-score-product-policy.md) 를 추가해 `ai_score` 를 deterministic truth가 아니라 `variable-but-traceable rerank signal` 로 정의하고, 제품 보장 범위를 `rule-only 기준선`, `target row visibility`, `artifact traceability` 로 고정했다. [recommendation-pipeline.md](./recommendation-pipeline.md) 에도 같은 경계를 링크로 반영했다
+- 해결: [openai-ai-score-product-policy.md](./history/ai/openai-ai-score-product-policy.md) 를 추가해 `ai_score` 를 deterministic truth가 아니라 `variable-but-traceable rerank signal` 로 정의하고, 제품 보장 범위를 `rule-only 기준선`, `target row visibility`, `artifact traceability` 로 고정했다. [recommendation-pipeline.md](./recommendation-pipeline.md) 에도 같은 경계를 링크로 반영했다
 - 이유: 현재 제품 목적은 exact 점수 재현이 아니라 target 정책 노출 개선과 drift 추적 가능성이다. live OpenAI 계층을 soft signal로 해석하는 편이 실제 운영과 더 맞다
 
 ## 243) `참여권리` 안에서 `청년참여` subset만 따로 bridge 후보로 보는 것은 가능하지만, 현재 단계에서는 교육 실험 다음 순번의 future candidate로만 두는 편이 맞다
 - 문제: row-level review에서 `청년참여` sample은 `참여·기회` 와 비교적 가깝게 보이기 때문에, `참여권리` 전체 승격 대신 subset만 바로 narrow bonus로 열고 싶어질 수 있다. 하지만 지금은 이미 `교육 -> 교육·직업훈련` narrow experiment가 active candidate이고, `청년참여` 도 모집/공모/파트너/공간 참여처럼 내부 의미가 완전히 균질하진 않다
-- 해결: [policy-normalization-participation-subset-bridge-policy.md](./policy-normalization-participation-subset-bridge-policy.md) 를 추가해 `참여권리` 전체 승격은 계속 금지하고, `청년참여` subset도 immediate implementation 대상이 아니라 2순위 future candidate로만 유지한다고 고정했다. 관련 bridge review/policy 문서도 같은 결론으로 링크를 맞췄다
+- 해결: [policy-normalization-participation-subset-bridge-policy.md](./history/policy/policy-normalization-participation-subset-bridge-policy.md) 를 추가해 `참여권리` 전체 승격은 계속 금지하고, `청년참여` subset도 immediate implementation 대상이 아니라 2순위 future candidate로만 유지한다고 고정했다. 관련 bridge review/policy 문서도 같은 결론으로 링크를 맞췄다
 - 이유: 현재 stage에서 예외 bridge 축을 늘리면 `compat=기타` 집합에 narrow rule이 빠르게 늘어난다. 교육 실험 효과를 먼저 본 뒤, 필요할 때 `청년참여` subset만 별도로 다시 inventory/replay sample로 좁히는 편이 더 안전하다
 
 ## 244) 복지로 `threshold_like` income signal 은 `beneficiary_only` 와 달리 hard fact 나 taxonomy 로 억지 승격하지 말고 optional soft signal 후보로만 남기는 편이 맞다
 - 문제: no-fact 복지로 detail 재분류에서 `threshold_like 13`건은 `% 이하`, `만원 이하`, `신혼`, `맞벌이`, `우대형`, `일반형`, `개별심사` 같은 branch/context 가 함께 섞여 있었다. 이를 canonical `INCOME_PCT` / `INCOME_WON` hard fact 로 flatten 하면 의미 손실이 크고, retrieval hard filter 로 오용될 위험도 있었다
-- 해결: [policy-normalization-income-threshold-soft-signal-policy.md](./policy-normalization-income-threshold-soft-signal-policy.md) 를 추가해 `threshold_like` 는 현재 hard fact 로 적재하지 않고, future 저장이 필요해도 raw/context 를 보존하는 optional soft signal 계층으로만 다루도록 고정했다. [db-migration.md](./db-migration.md) 와 [README.md](./README.md) 에도 같은 경계를 반영했다
+- 해결: [policy-normalization-income-threshold-soft-signal-policy.md](./history/policy/policy-normalization-income-threshold-soft-signal-policy.md) 를 추가해 `threshold_like` 는 현재 hard fact 로 적재하지 않고, future 저장이 필요해도 raw/context 를 보존하는 optional soft signal 계층으로만 다루도록 고정했다. [db-migration.md](./db-migration.md) 와 [README.md](./README.md) 에도 같은 경계를 반영했다
 - 이유: `beneficiary_only` 는 안정적인 label 기반 soft taxonomy 로 분리 가능했지만, `threshold_like` 는 숫자와 branch 조건이 함께 섞인 해석 신호다. current canonical 단계에선 eligibility fact보다 weaker한 계층으로 남기는 편이 더 안전하다
 
 ## 245) 복지로 신청마감은 live detail 재확인에서도 explicit field 증거가 없으면 계속 optional fact로 두는 편이 맞다
@@ -1280,47 +1280,47 @@
 
 ## 246) authenticated live 목록 응답에도 `srchPolyBizSecd` 가 직접 안 보인다면, broad code-like field를 억지로 `YOUTH_MID` stable code로 승격하면 안 된다
 - 문제: 공개 HTML 예시와 비로그인 `Unauthorized` 제약 때문에 `YOUTH_MID` stable code를 계속 보류하고 있었는데, authenticated live payload를 실제로 다시 스캔했을 때도 `srchPolyBizSecd` 필드는 직접 보이지 않았다. 대신 `plcyMajorCd`, `jobCd`, `schoolCd`, `sbizCd` 같은 code-like field는 있었지만, 서로 다른 `mclsfNm` 에도 같은 broad/default-like 값이 반복되고 일부는 multi-code로 들어와 stable mid-category key로 보기 어려웠다
-- 해결: 2026-04-30 live inventory 결과를 [policy-normalization-youth-mid-live-inventory.md](./policy-normalization-youth-mid-live-inventory.md) 로 별도 정리하고, `YOUTH_MID` 는 계속 label-only taxonomy + `YOUTH_MID_RAW_ALIAS` 정책을 유지하기로 했다. pending도 `live inventory 수집 완료 -> stable code mapping SQL 초안은 계속 보류` 상태로 다시 분리했다
+- 해결: 2026-04-30 live inventory 결과를 [policy-normalization-youth-mid-live-inventory.md](./history/policy/policy-normalization-youth-mid-live-inventory.md) 로 별도 정리하고, `YOUTH_MID` 는 계속 label-only taxonomy + `YOUTH_MID_RAW_ALIAS` 정책을 유지하기로 했다. pending도 `live inventory 수집 완료 -> stable code mapping SQL 초안은 계속 보류` 상태로 다시 분리했다
 - 이유: live payload에 보이는 아무 code field나 `YOUTH_MID` code로 채택하면, later official metadata 확보 시 canonical code set과 충돌하거나 같은 `mclsfNm` 이 다른 broad code 축과 뒤섞일 위험이 있다. 지금은 label inventory를 더 강하게 확인한 것으로 만족하고, stable code는 metadata source를 따로 확보한 뒤 다시 여는 편이 안전하다
 
 ## 247) `YOUTH_MID stable code mapping SQL` 은 SQL부터 쓰는 게 아니라, 먼저 어떤 source를 truth로 인정할지 못 박아야 다시 흔들리지 않는다
 - 문제: live inventory까지 끝난 뒤에도 pending에는 여전히 `YOUTH_MID stable code mapping SQL 초안 작성` 이 남아 있었다. 하지만 현재 확보된 근거는 `label inventory` 와 broad code-like field뿐이고, 여기서 바로 SQL을 쓰기 시작하면 다시 임의 surrogate code 생성이나 `plcyMajorCd/jobCd/schoolCd/sbizCd` 오용으로 기울 위험이 있었다
-- 해결: [policy-normalization-youth-mid-stable-code-source-plan.md](./policy-normalization-youth-mid-stable-code-source-plan.md) 를 추가해, stable code mapping을 다시 열 수 있는 source를 `authenticated metadata inventory`, `마이페이지/운영 export`, `operator-provided official codebook` 으로 제한하고, 공개 HTML example·broad code-like field·label 역추론만으로는 reopen하지 않는 기준을 고정했다
+- 해결: [policy-normalization-youth-mid-stable-code-source-plan.md](./history/policy/policy-normalization-youth-mid-stable-code-source-plan.md) 를 추가해, stable code mapping을 다시 열 수 있는 source를 `authenticated metadata inventory`, `마이페이지/운영 export`, `operator-provided official codebook` 으로 제한하고, 공개 HTML example·broad code-like field·label 역추론만으로는 reopen하지 않는 기준을 고정했다
 - 이유: `YOUTH_MID` 는 지금 label-only taxonomy로도 수집/정규화/read-model 경계가 유지된다. 따라서 다음 단계는 “억지 SQL 작성”이 아니라 “어떤 source를 truth로 인정할지”를 먼저 고정하는 것이고, 그 기준이 있어야 후속 mapping SQL도 다시 흔들리지 않는다
 
 ## 248) source 우선순위와 실제 다음 액션은 다를 수 있고, 지금 `YOUTH_MID` 는 운영 담당자 export/codebook 확보가 더 현실적이다
 - 문제: source plan상으로는 `authenticated metadata/testbed -> 마이페이지 OPEN API 관리 화면 -> 운영 담당자 export` 순서를 적어 둘 수 있지만, 실제 로컬 저장소에는 `YOUTH_API_KEY` 외에 member login/session 자동화 단서가 없다. 이 상태에서 “다음 작은 task”를 계속 로그인 자동화 쪽으로 밀면 근거 없는 크롤링/세션 파헤치기로 새기 쉬웠다
-- 해결: [policy-normalization-youth-mid-stable-code-source-plan.md](./policy-normalization-youth-mid-stable-code-source-plan.md)에 `현재 가장 현실적인 다음 액션` 절을 추가해, 지금은 운영 담당자 제공 export/codebook 확보를 먼저 시도하고, 마이페이지 로그인 자동화는 credential/세션 구조가 준비되기 전까지 보류한다고 고정했다
+- 해결: [policy-normalization-youth-mid-stable-code-source-plan.md](./history/policy/policy-normalization-youth-mid-stable-code-source-plan.md)에 `현재 가장 현실적인 다음 액션` 절을 추가해, 지금은 운영 담당자 제공 export/codebook 확보를 먼저 시도하고, 마이페이지 로그인 자동화는 credential/세션 구조가 준비되기 전까지 보류한다고 고정했다
 - 이유: `YOUTH_MID stable code` 문제의 병목은 SQL 작성이 아니라 source 확보다. 그런데 그 source도 지금 당장 자동 수집 가능한 경로와 수동 확보가 더 빠른 경로가 다르다. 이 차이를 문서로 못 박아야 다음 작업이 다시 인증 우회/역추론으로 새지 않는다
 
 ## 249) 운영 담당자 export를 받기로 했더라도, 어떤 컬럼이 있어야 sufficient source인지 먼저 못 박지 않으면 label list나 캡처본만 받아 다시 멈출 수 있다
 - 문제: `운영 담당자 export/codebook 우선`으로 방향을 잡아도, 요청 스펙이 없으면 상대가 `label 목록만 있는 시트`, `요청 예시 캡처`, `mclsfNm 모음` 같은 불충분한 자료를 줄 수 있다. 그러면 다시 “이걸로 stable code mapping SQL을 열 수 있나”를 재판단해야 한다
-- 해결: [policy-normalization-youth-mid-stable-code-source-plan.md](./policy-normalization-youth-mid-stable-code-source-plan.md)에 `운영 담당자 요청 스펙` 절을 추가해 최소 필수 컬럼을 `code`, `official label` 로 고정하고, `sort_order`, `active 여부` 를 권장 컬럼으로 정리했다. 동시에 sufficient example / insufficient example / 요청 문구 초안까지 같이 적었다
+- 해결: [policy-normalization-youth-mid-stable-code-source-plan.md](./history/policy/policy-normalization-youth-mid-stable-code-source-plan.md)에 `운영 담당자 요청 스펙` 절을 추가해 최소 필수 컬럼을 `code`, `official label` 로 고정하고, `sort_order`, `active 여부` 를 권장 컬럼으로 정리했다. 동시에 sufficient example / insufficient example / 요청 문구 초안까지 같이 적었다
 - 이유: stable code source 확보는 “무언가 받기”가 아니라 “mapping SQL을 열 수 있을 정도로 직접 대응되는 inventory 받기”가 목적이다. 요청 스펙을 먼저 고정해야 운영 커뮤니케이션이 한 번에 끝나고, 다시 label-only 상태에서 맴도는 일을 줄일 수 있다
 
 ## 250) `GOV24_SERVICE_FIELD` / `USER_TYPE` / `BENEFIT_TYPE` 는 old `category` 계열 endpoint를 source로 재활용하면 안 되고, current API 기준 source를 다시 잡아야 한다
 - 문제: `GOV24_*` import SQL을 빨리 쓰려면 과거 `category` / `category-code` endpoint나 예전 문서 캡처를 가져와 label inventory처럼 쓰고 싶어질 수 있다. 하지만 공공데이터포털 2021 개편 공지는 기존 5종 operation에 현행화되지 않은 정보가 있었다고 밝히고, 2021-09-15부터는 `serviceList`, `serviceDetail`, `supportConditions` 3종만 current source로 남겼다
-- 해결: [policy-normalization-gov24-label-source-plan.md](./policy-normalization-gov24-label-source-plan.md) 를 추가해, `GOV24_SERVICE_FIELD` / `USER_TYPE` / `BENEFIT_TYPE` import SQL은 current Swagger/schema export 또는 provider-provided official codebook이 있어야만 reopen하고, deprecated `category` / `category-code` 응답이나 sample payload 역추론만으로는 열지 않도록 기준을 고정했다
+- 해결: [policy-normalization-gov24-label-source-plan.md](./history/policy/policy-normalization-gov24-label-source-plan.md) 를 추가해, `GOV24_SERVICE_FIELD` / `USER_TYPE` / `BENEFIT_TYPE` import SQL은 current Swagger/schema export 또는 provider-provided official codebook이 있어야만 reopen하고, deprecated `category` / `category-code` 응답이나 sample payload 역추론만으로는 열지 않도록 기준을 고정했다
 - 이유: `supportConditions` 는 current 공식 code subset을 이미 일부 확인했지만, 나머지 `GOV24_*` taxonomy는 current finite inventory source가 다르다. deprecated 분류 endpoint를 재사용하면 official taxonomy와 stale 문서가 다시 섞이므로, 먼저 current source-of-truth를 고정하는 편이 안전하다
 
 ## 251) `GOV24_*` 도 source plan만으로는 부족하고, 요청 시 어떤 형식이면 sufficient source인지 먼저 못 박아야 다시 sample 캡처만 받게 되는 일을 줄일 수 있다
 - 문제: `GOV24_SERVICE_FIELD` / `USER_TYPE` / `BENEFIT_TYPE` 는 current source 기준으로 다시 받기로 했더라도, 요청 스펙이 없으면 제공기관이나 운영 담당자가 Swagger 캡처, sample payload, label 목록만 보내는 식으로 끝날 수 있다. 그러면 다시 “이걸로 import SQL을 열 수 있나”를 재판단해야 한다
-- 해결: [policy-normalization-gov24-label-source-plan.md](./policy-normalization-gov24-label-source-plan.md)에 sufficient example / insufficient example / 요청 문구 초안을 추가해, 최소 요구를 `field name + code + official label` 로 고정하고 `active/use 여부`, `sort_order`, `설명` 을 권장 필드로 정리했다
+- 해결: [policy-normalization-gov24-label-source-plan.md](./history/policy/policy-normalization-gov24-label-source-plan.md)에 sufficient example / insufficient example / 요청 문구 초안을 추가해, 최소 요구를 `field name + code + official label` 로 고정하고 `active/use 여부`, `sort_order`, `설명` 을 권장 필드로 정리했다
 - 이유: `GOV24_* import/backfill SQL` 의 목적은 current finite inventory를 공식 코드테이블에 적재하는 것이다. 요청 스펙을 먼저 고정해야 sample 중심 자료와 actual codebook을 구분할 수 있고, 다시 bridge 결과나 deprecated endpoint로 미끄러지는 일을 줄일 수 있다
 
 ## 252) `GOV24_SUPPORT_CONDITION` 은 representative subset 근거와 full inventory 근거를 분리해서 봐야 한다
 - 문제: 현재는 `JA0101`, `JA0110`, `JA0201~0205`, `JA0320`, `JA0327`, `JA0412` 같은 대표 code는 공식 근거가 있어 seed 했지만, 이걸 그대로 “supportConditions 전체 codebook도 사실상 확보된 것”처럼 확대 해석하면 sample 관찰 범위를 full inventory와 혼동하게 된다
-- 해결: [policy-normalization-gov24-support-condition-source-plan.md](./policy-normalization-gov24-support-condition-source-plan.md) 를 추가해, representative subset seed는 유지하되 full inventory/backfill은 current Swagger/schema export 또는 provider codebook 확보 전까지 보류한다고 고정했다. 동시에 sufficient/insufficient source 기준과 요청 스펙도 분리했다
+- 해결: [policy-normalization-gov24-support-condition-source-plan.md](./history/policy/policy-normalization-gov24-support-condition-source-plan.md) 를 추가해, representative subset seed는 유지하되 full inventory/backfill은 current Swagger/schema export 또는 provider codebook 확보 전까지 보류한다고 고정했다. 동시에 sufficient/insufficient source 기준과 요청 스펙도 분리했다
 - 이유: `supportConditions` 는 `GOV24_*` taxonomy보다 구조화가 강하지만, representative subset을 몇 개 확인한 것과 전체 finite code inventory를 확보한 것은 다른 단계다. 이 경계를 분리해 두어야 subset seed와 full import가 다시 섞이지 않는다
 
 ## 253) `compat_unified_category` 를 너무 일찍 read-model 계산값으로 바꾸면 canonical 정규화와 현재 제품 계약 변경이 한 번에 묶여 drift 원인을 분리하기 어려워진다
 - 문제: writer는 이미 `service_taxonomies.compat_unified_category_*` 를 저장하고 있고, canonical summary도 조금씩 붙고 있다 보니 `compat_unified_category` 를 아예 read-model 계산값으로만 바꾸고 싶어질 수 있다. 하지만 현재 priority/response/replay 계약은 여전히 `compat` 를 기준으로 서 있고, canonical summary coverage도 아직 `youth_mid/gov24_*` 공백과 `compat=기타 + youth_major 채움` 정책 이슈를 안고 있다
-- 해결: [policy-normalization-compat-storage-policy.md](./policy-normalization-compat-storage-policy.md) 를 추가해, 현재 phase에서는 `compat_unified_category` 를 저장 필드로 유지하고 `welfare_services.unified_category` 와 `service_taxonomies.compat_unified_category_*` 를 함께 두기로 고정했다. read-model은 저장된 compat를 읽고 canonical summary는 secondary hint로만 소비한다
+- 해결: [policy-normalization-compat-storage-policy.md](./history/policy/policy-normalization-compat-storage-policy.md) 를 추가해, 현재 phase에서는 `compat_unified_category` 를 저장 필드로 유지하고 `welfare_services.unified_category` 와 `service_taxonomies.compat_unified_category_*` 를 함께 두기로 고정했다. read-model은 저장된 compat를 읽고 canonical summary는 secondary hint로만 소비한다
 - 이유: 지금 compat를 계산-only로 바꾸면 collect/write, sidecar summary 정제, read-model projection, priority 계약 변경이 한 경로로 합쳐져 drift triage가 어려워진다. canonical 전환이 끝나기 전까지는 stored compat를 기준점으로 두는 편이 더 안전하다
 
 ## 254) `unifiedCategory` 는 추천 내부 필드가 아니라 검색/상세/랭킹/추천 전반의 공개 응답 계약이라, canonical taxonomy 전환 중에도 조용히 의미를 바꾸면 UI와 API 소비자 해석이 함께 흔들린다
 - 문제: canonical read-model과 compat storage 정책을 정리하다 보면 `RecommendationResponse.unifiedCategory` 만 먼저 canonical summary로 바꾸고 싶어질 수 있다. 하지만 실제 코드를 보면 `PolicySummaryResponse`, `PolicyDetailResponse`, `PolicyRankingResponse`, `RecommendationResponse` 가 모두 `WelfareService.unifiedCategory` 를 직접 노출하고 있어, 이 필드는 이미 public contract 전체에 퍼져 있다
-- 해결: [policy-normalization-unified-category-response-bridge.md](./policy-normalization-unified-category-response-bridge.md) 를 추가해, 현재 phase에서는 응답 `unifiedCategory` 의미를 계속 legacy compat category로 유지하고 canonical taxonomy는 inventory/explanation/future experiment 용 secondary hint로만 쓰기로 고정했다
+- 해결: [policy-normalization-unified-category-response-bridge.md](./history/policy/policy-normalization-unified-category-response-bridge.md) 를 추가해, 현재 phase에서는 응답 `unifiedCategory` 의미를 계속 legacy compat category로 유지하고 canonical taxonomy는 inventory/explanation/future experiment 용 secondary hint로만 쓰기로 고정했다
 - 이유: canonical taxonomy는 아직 priority/read-model 보조 힌트 단계이고, `compat=기타 + canonical youth_major 채움` 같은 집합도 explicit bridge 정책이 덜 끝났다. 이 상태에서 응답 category를 먼저 canonical로 바꾸면 추천/검색/상세/UI 필터 의미가 한 번에 바뀌어 원인 분리가 더 어려워진다
 
 ## 255) 추천 본체 canonical 이행에서 matcher나 response부터 먼저 건드리면 회귀 원인이 SQL 후보 풀 문제인지, retrieval hydrate 문제인지, scoring bridge 문제인지 분리하기 어려워진다
@@ -1330,12 +1330,12 @@
 
 ## 256) `TextConstraintExtractor` 가 계속 `COND_*` 문자열 토큰과 `ConstraintSummary` 를 주 계약으로 유지하면 canonical `service_facts` 저장 직전에 다시 parsing/의미 보정을 해야 해서 경계가 흐려진다
 - 문제: 현재 extractor는 legacy `service_tags.KEYWORD` 용 문자열 토큰과 singleton `ConstraintSummary` 를 함께 제공한다. 하지만 `service_facts` 저장은 `fact_group`, `fact_merge_key`, typed value, `sourceField`, `authority`, `confidence`, `raw/evidence` 를 필요로 하므로, 지금 출력만으로는 persistence 직전에 다시 한 번 해석 로직이 커질 수밖에 없다
-- 해결: [policy-normalization-text-constraint-output-model.md](./policy-normalization-text-constraint-output-model.md) 를 추가해, 다음 extractor 주 계약을 `SourceText(sourceField, text)` 입력과 `ExtractedFactCandidate` 목록 출력으로 재설계한다고 고정했다. legacy `COND_*` 토큰은 필요 시 별도 adapter helper에서만 파생하고, 본체 extractor는 `AGE / INCOME / RENT_CAP / APPLY_END_DATE` typed fact candidate 쪽으로 수렴시킨다
+- 해결: [policy-normalization-text-constraint-output-model.md](./history/policy/policy-normalization-text-constraint-output-model.md) 를 추가해, 다음 extractor 주 계약을 `SourceText(sourceField, text)` 입력과 `ExtractedFactCandidate` 목록 출력으로 재설계한다고 고정했다. legacy `COND_*` 토큰은 필요 시 별도 adapter helper에서만 파생하고, 본체 extractor는 `AGE / INCOME / RENT_CAP / APPLY_END_DATE` typed fact candidate 쪽으로 수렴시킨다
 - 이유: canonical sidecar 단계에서는 “토큰을 다시 읽는 유틸”보다 “사실 슬롯을 직접 표현하는 typed candidate”가 더 안정적이다. 이 경계를 먼저 못 박아야 mapper/saver가 extractor 결과를 다시 문자열로 되감지 않고 바로 `service_facts` 규격으로 연결할 수 있다
 
 ## 257) 신규 source-specific 필드를 canonical 스키마에 바로 없는 이유로 버리거나 `welfare_services` 에 억지 flatten 하면, 나중에 official/rule/AI 경계를 다시 분리하기 어려워진다
 - 문제: 신규 정책형 source를 붙일 때는 항상 official core/facts 외에 source-specific 자유서술 필드가 남는다. 이 값을 collect 단계에서 그냥 버리면 재처리가 막히고, 반대로 `welfare_services` 나 대표 category에 억지로 섞어 넣으면 나중에 “official canonical”, “rule-derived fact”, “AI 보강” 경계를 다시 분리하기 어렵다
-- 해결: [policy-normalization-raw-ai-enrichment-pipeline.md](./policy-normalization-raw-ai-enrichment-pipeline.md) 를 추가해, 신규 source-specific 필드는 `raw payload 보존 -> official/rule-derived canonical 우선 추출 -> 남는 자유서술만 AI batch enrichment 후보 승격` 순서로 처리한다고 고정했다. AI 결과는 `AI_ENRICHED` authority 보조 signal로만 저장하고, official/rule-derived 슬롯 overwrite나 `unifiedCategory` 대체에는 쓰지 않는다
+- 해결: [policy-normalization-raw-ai-enrichment-pipeline.md](./history/policy/policy-normalization-raw-ai-enrichment-pipeline.md) 를 추가해, 신규 source-specific 필드는 `raw payload 보존 -> official/rule-derived canonical 우선 추출 -> 남는 자유서술만 AI batch enrichment 후보 승격` 순서로 처리한다고 고정했다. AI 결과는 `AI_ENRICHED` authority 보조 signal로만 저장하고, official/rule-derived 슬롯 overwrite나 `unifiedCategory` 대체에는 쓰지 않는다
 - 이유: canonical 전환에서 AI는 1차 저장 경로가 아니라 마지막 보강 단계여야 한다. 그래야 source-specific 필드를 잃지 않으면서도, official 축과 soft enrichment 축이 다시 섞이지 않는다
 
 ## 258) logout 즉시 무효화는 refresh 삭제만으로는 안 되고, logout 요청에 실린 현재 bearer access token을 filter 앞단에서 별도 revoke 검사해야 한다
@@ -1345,17 +1345,17 @@
 
 ## 259) `cookie-only logout` 까지 user-level cutoff로 넓히면 브라우저 refresh 종료와 전 세션 access-token 회수 의미가 섞여, 현재 제품 계약보다 더 큰 설계 변경이 된다
 - 문제: bearer-present logout revoke를 넣은 뒤에는, refresh cookie만 실린 `cookie-only logout` 도 같은 방식으로 “모든 access token 즉시 차단”까지 해줘야 하는 것처럼 보일 수 있다. 하지만 이 경로는 현재 요청에 어떤 access token이 살아 있었는지 서버가 직접 보지 못하고, 다중 로그인/재로그인/`iat` 경계까지 함께 풀어야 한다
-- 해결: [auth-logout-revocation-scope-policy.md](./auth-logout-revocation-scope-policy.md) 를 추가해 현재 phase의 계약을 `bearer-present exact token revoke` 와 `cookie-only refresh-only` 로 분리하고, user-level cutoff는 별도 reopen 조건이 생길 때만 다시 열기로 고정했다
+- 해결: [auth-logout-revocation-scope-policy.md](./history/auth/auth-logout-revocation-scope-policy.md) 를 추가해 현재 phase의 계약을 `bearer-present exact token revoke` 와 `cookie-only refresh-only` 로 분리하고, user-level cutoff는 별도 reopen 조건이 생길 때만 다시 열기로 고정했다
 - 이유: 지금 필요한 건 “logout에 사용한 현재 token의 즉시 차단”이지, 전체 세션 모델 재정의가 아니다. `cookie-only logout` 을 조용히 넓히면 브라우저 logout, 모바일/다중 세션, admin 강제 로그아웃 의미가 한 번에 섞여 실패 반경이 커진다
 
 ## 260) future user-level revoke는 generic logout보다 `withdraw` 와 `admin forced logout` 같은 더 강한 보안 이벤트부터 여는 편이 실패 반경을 더 잘 통제할 수 있다
 - 문제: `cookie-only logout` 을 refresh-only 계약으로 고정한 뒤에도, “그럼 다음에 user-level cutoff를 어디서부터 다시 열 것인가”가 남는다. 이걸 generic logout부터 다시 열면 브라우저 UX, multi-device sign-out, 재로그인 경계가 한 번에 엮인다
-- 해결: [auth-revocation-reopen-order.md](./auth-revocation-reopen-order.md) 를 추가해 reopen 우선순위를 `withdraw -> admin forced logout -> generic cookie-only logout` 으로 고정했다
+- 해결: [auth-revocation-reopen-order.md](./history/auth/auth-revocation-reopen-order.md) 를 추가해 reopen 우선순위를 `withdraw -> admin forced logout -> generic cookie-only logout` 으로 고정했다
 - 이유: 탈퇴와 운영 강제 로그아웃은 계정 폐기/권한 회수라는 더 강한 이벤트라 제품 의미가 분명하다. 반면 generic logout은 세션 UX 의미가 더 커서, 같은 cutoff 기술을 쓰더라도 가장 나중에 여는 편이 안전하다
 
 ## 261) `withdraw` 가 다음 revoke 후보라고 해도, 구현부터 열면 상태 masking/채팅 정리/인증 차단이 한 번에 섞이므로 baseline smoke를 먼저 남기는 편이 안전하다
 - 문제: `withdraw` 는 `logout` 보다 강한 보안 이벤트라 다음 revoke 후보로는 맞지만, 현재 `UserService.withdraw(...)` 는 attribute/priorities 삭제, chat cleanup, withdrawn state 반영까지 함께 수행한다. 이 상태에서 바로 cutoff 구현을 넣으면 실패 원인이 revoke인지, withdrawn state 처리인지 분리하기 어렵다
-- 해결: [auth-withdraw-revocation-next-step.md](./auth-withdraw-revocation-next-step.md) 를 추가해 다음 액션을 `withdraw` 직전 old access token baseline smoke/inventory 확보로 고정하고, 그 결과를 본 뒤에만 전용 revoke 구현을 다시 열기로 정리했다
+- 해결: [auth-withdraw-revocation-next-step.md](./history/auth/auth-withdraw-revocation-next-step.md) 를 추가해 다음 액션을 `withdraw` 직전 old access token baseline smoke/inventory 확보로 고정하고, 그 결과를 본 뒤에만 전용 revoke 구현을 다시 열기로 정리했다
 - 이유: logout hardening도 먼저 `old access token after logout smoke` 를 남겼기 때문에 이후 정책 변경을 분리할 수 있었다. `withdraw` 도 같은 순서를 따라야 실패 반경이 작다
 
 ## 262) `withdraw` 는 logout보다 강한 보안 이벤트이므로, old access token의 business-layer 차단만 두지 말고 현재 bearer token revoke와 refresh key 정리까지 같이 가져가는 편이 더 일관된다
@@ -1365,7 +1365,7 @@
 
 ## 263) 현재 admin 권한 회수는 forced logout이 아니라 `SECURITY_ADMIN_EMAILS` + 앱 재기동 기반 role revoke가 기본 경계라는 점을 먼저 분리해야 한다
 - 문제: `admin forced logout` 을 다음 revoke 후보로 보기 시작하면, 현재 운영에서 실제로 admin 권한을 어떻게 회수하는지와 “이미 발급된 admin token을 즉시 끊는가”가 한 문제처럼 섞이기 쉽다. 하지만 지금 role source of truth는 config allowlist이고, forced logout/session revoke는 아직 별도 기능이 아니다
-- 해결: [auth-admin-revoke-boundary-policy.md](./auth-admin-revoke-boundary-policy.md) 를 추가해 현재 admin revoke 기본 경로를 `SECURITY_ADMIN_EMAILS` 변경 + 앱 재기동으로 고정하고, role revoke와 future forced logout/token revoke를 분리했다
+- 해결: [auth-admin-revoke-boundary-policy.md](./history/auth/auth-admin-revoke-boundary-policy.md) 를 추가해 현재 admin revoke 기본 경로를 `SECURITY_ADMIN_EMAILS` 변경 + 앱 재기동으로 고정하고, role revoke와 future forced logout/token revoke를 분리했다
 - 이유: stale config 문제와 stale token 문제는 원인과 대응이 다르다. 이 경계를 먼저 고정해야 다음 baseline도 “allowlist 제거 후 재기동” 과 “old token 지속성” 으로 나눠서 볼 수 있다
 
 ## 264) admin allowlist 제거는 old access token을 바로 무효화하지 않고, refresh로 새로 만든 token부터만 `ROLE_ADMIN` 을 떨어뜨리는 현재 경계를 baseline으로 고정해야 forced logout 필요 범위를 설명할 수 있다
@@ -1375,87 +1375,87 @@
 
 ## 265) allowlist 제거 후 old admin refresh token까지 바로 끊으면 config-based role revoke와 forced logout을 다시 한 경로로 합치게 되므로, 현재 phase에서는 새 token부터 role만 제거하는 편이 더 낫다
 - 문제: baseline이 생기고 나면 “그럼 old admin refresh token도 즉시 막아야 하지 않나”는 질문이 다시 생긴다. 하지만 그렇게 바꾸면 allowlist 기반 role revoke와 existing token/session revoke를 다시 같은 기능으로 묶게 된다
-- 해결: [auth-admin-refresh-revoke-policy.md](./auth-admin-refresh-revoke-policy.md) 를 추가해, 현재 allowlist 제거의 의미를 “refresh token 즉시 차단”이 아니라 “새 access token부터 `ROLE_ADMIN` 제거”로 고정했다
+- 해결: [auth-admin-refresh-revoke-policy.md](./history/auth/auth-admin-refresh-revoke-policy.md) 를 추가해, 현재 allowlist 제거의 의미를 “refresh token 즉시 차단”이 아니라 “새 access token부터 `ROLE_ADMIN` 제거”로 고정했다
 - 이유: 현재 구조의 최소 계약은 future token issuance에서 admin role이 더 이상 나오지 않는 것이다. refresh token 자체 즉시 차단은 incident response/offboarding 성격의 `admin forced logout` 문제로 남겨 두는 편이 경계가 더 분명하다
 
 ## 266) `admin forced logout` 을 열 때 old access만 끊을지, refresh까지 끊을지 애매하게 두면 allowlist revoke/account lock과 다시 섞이므로 baseline success criteria를 먼저 고정해야 한다
 - 문제: allowlist 제거 baseline과 refresh 정책을 닫고 나면, 다음 hardening 후보인 `admin forced logout` 이 “운영자가 버튼을 누르면 뭔가 더 세게 막는 것” 정도로만 남기 쉽다. 이 상태에서 구현을 먼저 열면 `old access 즉시 차단`, `old refresh 즉시 차단`, `계정 영구 차단 여부`가 다시 한 기능으로 뒤섞인다
-- 해결: [auth-admin-forced-logout-baseline-policy.md](./auth-admin-forced-logout-baseline-policy.md) 를 추가해 future forced logout baseline을 `old access immediate fail + old refresh immediate fail + account lock과 분리` 로 고정했다
+- 해결: [auth-admin-forced-logout-baseline-policy.md](./history/auth/auth-admin-forced-logout-baseline-policy.md) 를 추가해 future forced logout baseline을 `old access immediate fail + old refresh immediate fail + account lock과 분리` 로 고정했다
 - 이유: forced logout은 existing session revoke이고, allowlist revoke는 future role issuance revoke다. 둘의 제품 의미를 다시 섞지 않으려면 implementation보다 success criteria를 먼저 박아 두는 편이 안전하다
 
 ## 267) `admin forced logout` 진입점을 DB/Redis 수동 조작으로 열면 운영 우회와 제품 계약이 섞이므로, 운영자 액션과 즉시 revoke source를 분리해서 고정해야 한다
 - 문제: forced logout baseline을 고정한 뒤 바로 구현을 열면, 운영자가 어디서 이 기능을 누르는지와 revoke state를 어디에 저장하는지가 다시 뒤섞인다. DB 직접 수정은 의미가 너무 크고, Redis 수동 key 주입은 운영 우회에 가깝다
-- 해결: [auth-admin-forced-logout-entrypoint-policy.md](./auth-admin-forced-logout-entrypoint-policy.md) 를 추가해 1차 운영자 진입점을 admin API로, 즉시 revoke source를 Redis cutoff/revocation key로 고정했다
+- 해결: [auth-admin-forced-logout-entrypoint-policy.md](./history/auth/auth-admin-forced-logout-entrypoint-policy.md) 를 추가해 1차 운영자 진입점을 admin API로, 즉시 revoke source를 Redis cutoff/revocation key로 고정했다
 - 이유: admin API는 제품 의미와 감사 가능성이 가장 분명하고, Redis는 기존 logout/refresh revoke 경계와 가장 잘 맞는다. 역할을 이렇게 나눠야 allowlist/account state와 session revoke가 다시 섞이지 않는다
 
 ## 268) `admin forced logout` API가 role revoke/account lock까지 뜻하는 것처럼 열리면 구현 범위가 다시 커지므로, request/response 계약을 session revoke only로 먼저 고정해야 한다
 - 문제: entrypoint를 admin API로 정한 뒤에도 path, target identifier, success 의미를 바로 고정하지 않으면 이 API가 `ROLE_ADMIN` 제거, user 비활성화, account lock까지 같이 하는 것처럼 확장되기 쉽다
-- 해결: [auth-admin-forced-logout-api-contract.md](./auth-admin-forced-logout-api-contract.md) 를 추가해 1차 계약을 `POST /api/admin/users/forced-logout`, body `userKey`, idempotent by effect, success=`existing access/refresh revoke intent accepted` 로 고정했다
+- 해결: [auth-admin-forced-logout-api-contract.md](./history/auth/auth-admin-forced-logout-api-contract.md) 를 추가해 1차 계약을 `POST /api/admin/users/forced-logout`, body `userKey`, idempotent by effect, success=`existing access/refresh revoke intent accepted` 로 고정했다
 - 이유: 운영자 액션 API는 범위를 애매하게 열수록 나중에 rollback이 어려워진다. session/token revoke only 라는 경계를 path/body/success 의미에서 먼저 못 박아야 구현이 작게 유지된다
 
 ## 269) `admin forced logout` 을 logout과 같은 exact token blacklist로만 풀면 multi-session/admin offboarding 요구를 못 담으므로, Redis shape를 user cutoff 기준으로 분리해야 한다
 - 문제: 현재 revoke 구현은 `logout` 의 presented bearer token 1개를 `access-revoked:{token}` 로 막는 방식이라 범위가 작다. 이 패턴을 그대로 forced logout에 가져오면 운영자는 old access token 원문을 모르는 상태에서 여러 세션을 한 번에 정리할 수 없다
-- 해결: [auth-admin-forced-logout-redis-shape.md](./auth-admin-forced-logout-redis-shape.md) 를 추가해 forced logout Redis state를 `refresh:{userKey}` delete + `access-cutoff:{userKey}` 기록으로 고정하고, logout의 exact token blacklist와 역할을 분리했다
+- 해결: [auth-admin-forced-logout-redis-shape.md](./history/auth/auth-admin-forced-logout-redis-shape.md) 를 추가해 forced logout Redis state를 `refresh:{userKey}` delete + `access-cutoff:{userKey}` 기록으로 고정하고, logout의 exact token blacklist와 역할을 분리했다
 - 이유: logout은 current presented token revoke, forced logout은 userKey 기준 existing session revoke다. 둘을 같은 key shape로 처리하면 범위가 모자라거나 구현이 과도하게 복잡해진다
 
 ## 270) `admin forced logout` cutoff를 표준 JWT `iat` 초 단위만으로 비교하면 same-second relogin에서 old/new token 경계가 흔들리므로, millis precision claim을 별도로 둬야 한다
 - 문제: forced logout은 `access-cutoff:{userKey}` 와 token 발급시각을 비교해 old token만 막고 fresh login token은 통과시켜야 한다. 그런데 현재 `JwtUtil` 은 표준 `issuedAt(now)` 만 기록하므로, old token과 new token이 같은 초에 발급되면 `iat` 만으로는 cutoff 전후를 안전하게 가르기 어렵다
-- 해결: [auth-admin-forced-logout-issued-at-policy.md](./auth-admin-forced-logout-issued-at-policy.md) 를 추가해 forced logout cutoff 비교는 표준 `iat` 만으로 하지 않고, access token에 custom millis precision claim `iatm` 을 추가하는 방향으로 고정했다
+- 해결: [auth-admin-forced-logout-issued-at-policy.md](./history/auth/auth-admin-forced-logout-issued-at-policy.md) 를 추가해 forced logout cutoff 비교는 표준 `iat` 만으로 하지 않고, access token에 custom millis precision claim `iatm` 을 추가하는 방향으로 고정했다
 - 이유: logout exact blacklist와 달리 forced logout은 before/after ordering이 핵심이다. incident/offboarding 경계에서 false allow/false deny를 줄이려면 second precision보다 finer-grained claim이 필요하다
 
 ## 271) `iatm` 을 도입해도 legacy access token에서 다시 `iat` fallback을 허용하면 same-second ambiguity가 재발하므로, forced logout helper는 새 claim을 강하게 요구하는 편이 낫다
 - 문제: millis precision claim 필요성을 정한 뒤에도 `JwtUtil` helper에서 legacy token에 대해 `iat * 1000` fallback을 허용하면, forced logout 경계가 다시 초 단위 비교로 되돌아간다
-- 해결: [auth-admin-forced-logout-jwt-helper-policy.md](./auth-admin-forced-logout-jwt-helper-policy.md) 를 추가해 access token에는 `iatm` write를 필수로 두고, `getIssuedAtMillis(...)` / `getIssuedAtMillisAllowExpired(...)` helper는 missing `iatm` 을 정상 fallback으로 보지 않는 방향으로 고정했다
+- 해결: [auth-admin-forced-logout-jwt-helper-policy.md](./history/auth/auth-admin-forced-logout-jwt-helper-policy.md) 를 추가해 access token에는 `iatm` write를 필수로 두고, `getIssuedAtMillis(...)` / `getIssuedAtMillisAllowExpired(...)` helper는 missing `iatm` 을 정상 fallback으로 보지 않는 방향으로 고정했다
 - 이유: forced logout은 운영 hardening 기능이라 legacy token 호환성보다 ordering correctness가 우선이다. access cutoff에서 fallback을 넓히면 old/new token 경계가 다시 불명확해진다
 
 ## 272) forced logout rollout에서 `iatm` 없는 legacy admin access token까지 compatibility target으로 잡으면 helper 정책과 충돌하므로, 운영 계약을 재로그인 요구 쪽으로 먼저 고정해야 한다
 - 문제: `iatm` write/read helper와 no-fallback 정책을 정한 뒤에도, rollout 단계에서 legacy admin access token을 계속 “웬만하면 통과”시키려 하면 구현이 다시 이중 계약이 된다. 그러면 forced logout 경계가 새 token contract와 legacy 호환 둘 다 떠안게 된다
-- 해결: [auth-admin-forced-logout-legacy-token-rollout-policy.md](./auth-admin-forced-logout-legacy-token-rollout-policy.md) 를 추가해 forced logout 기능 on 이후 `iatm` 없는 legacy admin access token은 compatibility target이 아니라 재로그인 요구 대상으로 본다고 고정했다
+- 해결: [auth-admin-forced-logout-legacy-token-rollout-policy.md](./history/auth/auth-admin-forced-logout-legacy-token-rollout-policy.md) 를 추가해 forced logout 기능 on 이후 `iatm` 없는 legacy admin access token은 compatibility target이 아니라 재로그인 요구 대상으로 본다고 고정했다
 - 이유: admin forced logout은 운영 보안 기능이므로, rollout의 핵심은 old token을 오래 살리는 것이 아니라 new token contract를 분명히 하는 것이다. legacy 호환을 줄여야 ordering correctness와 incident 대응 의미가 유지된다
 
 ## 273) forced logout 보호 경계에서 `iatm` 없는 legacy admin access token을 `A001 INVALID_TOKEN` 으로 보내면 malformed token과 의미가 섞이므로, revoke 계열과 같은 `401 / A006` 으로 통일하는 편이 낫다
 - 문제: rollout 정책을 정한 뒤에도 legacy admin access token을 어떤 에러로 노출할지가 남는다. 여기서 `A001` 을 쓰면 “토큰 형식이 깨졌다”와 “이 보호 경계에서 더 이상 인증된 세션으로 보지 않는다”가 같은 의미처럼 보이게 된다
-- 해결: [auth-admin-forced-logout-legacy-error-policy.md](./auth-admin-forced-logout-legacy-error-policy.md) 를 추가해 forced logout 보호 경계의 legacy admin access token은 `401 / A006` 으로 통일한다고 고정했다
+- 해결: [auth-admin-forced-logout-legacy-error-policy.md](./history/auth/auth-admin-forced-logout-legacy-error-policy.md) 를 추가해 forced logout 보호 경계의 legacy admin access token은 `401 / A006` 으로 통일한다고 고정했다
 - 이유: logout revoke와 withdraw old token도 이미 `A006` 으로 수렴한다. forced logout도 같은 보호 API 차단 계열로 맞춰야 운영/테스트/문서가 덜 갈라지고, 사용자 의미도 “재로그인 필요”로 더 자연스럽다
 
 ## 274) forced logout 비교를 controller/service guard로 내리면 보호 경로별 누락과 business/auth 경계 혼합이 생기므로, 판단 시점은 filter에 두고 로직만 helper로 분리하는 편이 낫다
 - 문제: Redis shape, `iatm`, legacy/error 정책까지 정한 뒤에도 구현 위치를 애매하게 두면 `/api/admin/**`, `/api/users/**`, `/api/recommendations/**` 경로마다 forced logout guard가 다시 흩어질 수 있다
-- 해결: [auth-admin-forced-logout-implementation-location.md](./auth-admin-forced-logout-implementation-location.md) 를 추가해 차단 판단 시점은 `JwtAuthenticationFilter`, 세부 비교 로직은 dedicated helper/service 로 두는 방향으로 고정했다
+- 해결: [auth-admin-forced-logout-implementation-location.md](./history/auth/auth-admin-forced-logout-implementation-location.md) 를 추가해 차단 판단 시점은 `JwtAuthenticationFilter`, 세부 비교 로직은 dedicated helper/service 로 두는 방향으로 고정했다
 - 이유: forced logout은 auth-layer concern이라 SecurityContext 세우기 전에 봐야 하고, 동시에 filter 본문에 Redis/JWT 비교 세부를 모두 넣으면 비대해진다. 시점과 로직을 이렇게 분리해야 누락 surface와 복잡도를 같이 줄일 수 있다
 
 ## 275) forced logout helper가 `isRevoked(token)` / `isCutoff(token)` 같은 세부 메서드를 바깥에 노출하면 filter가 다시 구현 세부에 묶이므로, read는 최종 allow/deny 하나로 좁히는 편이 낫다
 - 문제: 구현 위치를 filter + helper로 정한 뒤에도 helper 인터페이스를 세부 규칙 단위로 열어 두면, `JwtAuthenticationFilter` 가 exact revoke, cutoff, legacy token 판단 순서를 다시 직접 알아야 한다
-- 해결: [auth-admin-forced-logout-helper-interface.md](./auth-admin-forced-logout-helper-interface.md) 를 추가해 1차 인터페이스를 `boolean isAccessAllowed(String accessToken)` + `void revokeUserSessions(String userKey, long cutoffMillis)` 로 고정했다
+- 해결: [auth-admin-forced-logout-helper-interface.md](./history/auth/auth-admin-forced-logout-helper-interface.md) 를 추가해 1차 인터페이스를 `boolean isAccessAllowed(String accessToken)` + `void revokeUserSessions(String userKey, long cutoffMillis)` 로 고정했다
 - 이유: filter는 최종 allow/deny만 알고, admin API는 user 단위 revoke intent write만 알면 된다. 세부 Redis/JWT 비교 규칙을 helper 내부에 가둬야 경계가 덜 새고 이후 확장도 쉬워진다
 
 ## 276) forced logout helper 이름을 `Guard` 나 `Cutoff` 중심으로 두면 기존 `AccessTokenRevocationService` 와 역할 차이가 흐려지므로, user-session revoke 의미를 이름에서 먼저 고정해야 한다
 - 문제: 인터페이스를 정한 뒤에도 이름을 `AdminForcedLogoutGuard` 나 `AccessSessionCutoffService` 로 두면, admin API 전용 guard처럼 보이거나 cutoff 구현 세부만 강조돼 현재 책임 범위가 흐려질 수 있다
-- 해결: [auth-admin-forced-logout-helper-name-policy.md](./auth-admin-forced-logout-helper-name-policy.md) 를 추가해 새 helper/service 이름을 `UserSessionRevocationService` 로 고정하고, 기존 `AccessTokenRevocationService` 와는 exact-token revoke vs user-session revoke로 역할을 분리했다
+- 해결: [auth-admin-forced-logout-helper-name-policy.md](./history/auth/auth-admin-forced-logout-helper-name-policy.md) 를 추가해 새 helper/service 이름을 `UserSessionRevocationService` 로 고정하고, 기존 `AccessTokenRevocationService` 와는 exact-token revoke vs user-session revoke로 역할을 분리했다
 - 이유: 이름은 이후 구현과 테스트의 경계를 오래 끌고 간다. current phase에서는 “admin 기능”보다 “user session revoke service”라는 책임 표현이 더 안정적이다
 
 ## 277) helper 이름을 정한 뒤 메서드명까지 `cutoff`/`forcedLogout` 세부로 바꾸면 filter와 admin API가 다시 구현 세부를 알게 되므로, `allow/revoke sessions` 수준으로 유지하는 편이 낫다
 - 문제: `UserSessionRevocationService` 라는 이름을 고정한 뒤에도 메서드명을 `isTokenPastCutoff`, `forceLogoutUser`, `applyUserCutoff` 처럼 세부 동작 중심으로 바꾸면, 바깥 호출자가 helper 내부 규칙을 다시 알아야 하는 형태가 된다
-- 해결: [auth-admin-forced-logout-helper-method-name-policy.md](./auth-admin-forced-logout-helper-method-name-policy.md) 를 추가해 read/write 메서드명을 `isAccessAllowed` 와 `revokeUserSessions` 로 그대로 유지한다고 고정했다
+- 해결: [auth-admin-forced-logout-helper-method-name-policy.md](./history/auth/auth-admin-forced-logout-helper-method-name-policy.md) 를 추가해 read/write 메서드명을 `isAccessAllowed` 와 `revokeUserSessions` 로 그대로 유지한다고 고정했다
 - 이유: filter는 최종 allow/deny만, admin API는 user 단위 revoke intent write만 알면 된다. 메서드명까지 구현 세부를 드러내지 않아야 helper 경계가 안정적으로 유지된다
 
 ## 278) forced logout session revoke를 기존 `AccessTokenRevocationService` 에 흡수하면 exact-token blacklist와 user-session cutoff 의미가 다시 섞이므로, 새 클래스로 분리하고 composition으로 엮는 편이 낫다
 - 문제: helper 이름과 메서드명을 정한 뒤에도 구조를 성급하게 합치면 `revoke(token)` 과 `revokeUserSessions(userKey, cutoffMillis)` 가 같은 서비스에 놓여 책임 경계가 흐려질 수 있다
-- 해결: [auth-admin-forced-logout-service-structure-policy.md](./auth-admin-forced-logout-service-structure-policy.md) 를 추가해 `UserSessionRevocationService` 를 새 클래스로 두고, 기존 `AccessTokenRevocationService` 와는 composition 관계를 유지한다고 고정했다
+- 해결: [auth-admin-forced-logout-service-structure-policy.md](./history/auth/auth-admin-forced-logout-service-structure-policy.md) 를 추가해 `UserSessionRevocationService` 를 새 클래스로 두고, 기존 `AccessTokenRevocationService` 와는 composition 관계를 유지한다고 고정했다
 - 이유: logout/withdraw exact-token revoke는 이미 안정화된 경계이고, forced logout은 별도 user-session revoke 경계다. 구현 diff를 작게 유지하려면 sibling 서비스 + composition이 가장 안전하다
 
 ## 279) forced logout 서비스에 repository/chat cleanup 같은 dependency를 처음부터 많이 넣으면 revoke 핵심 경계가 다시 커지므로, package는 기존 `user.service` 에 두되 생성자 dependency는 Redis/JWT/exact-revoke로 최소화하는 편이 낫다
 - 문제: 새 `UserSessionRevocationService` 구조를 정한 뒤에도 package를 새로 뽑거나 `UserRepository`, `ChatSessionCleanupService`, `UserCoreSyncService` 같은 dependency를 한 번에 넣으면 이번 hardening task가 다시 구조 개편으로 번질 수 있다
-- 해결: [auth-admin-forced-logout-package-dependencies-policy.md](./auth-admin-forced-logout-package-dependencies-policy.md) 를 추가해 package는 `user.service`, 최소 dependency는 `RedisTemplate<String, String>`, `JwtUtil`, `AccessTokenRevocationService` 로 고정했다
+- 해결: [auth-admin-forced-logout-package-dependencies-policy.md](./history/auth/auth-admin-forced-logout-package-dependencies-policy.md) 를 추가해 package는 `user.service`, 최소 dependency는 `RedisTemplate<String, String>`, `JwtUtil`, `AccessTokenRevocationService` 로 고정했다
 - 이유: 1차 forced logout baseline의 본질은 access/refresh revoke다. DB state 변경이나 chat cleanup까지 같이 열지 말고, 기존 auth/user service 층 안에서 최소 dependency로 시작해야 구현 diff와 회귀 범위를 줄일 수 있다
 
 ## 280) forced logout 구현을 service skeleton부터 열면 `iatm` claim 계약이 다시 임시 파싱/fallback으로 흘러갈 수 있으므로, `JwtUtil` helper를 먼저 코드로 박는 편이 낫다
 - 문제: forced logout 설계를 문서로만 쌓아 두고 service skeleton부터 만들면, 핵심 read path인 `issued-at millis` 비교를 서비스 안에서 claims 직접 파싱이나 임시 fallback으로 처리하게 될 가능성이 컸다
-- 해결: [auth-admin-forced-logout-implementation-order.md](./auth-admin-forced-logout-implementation-order.md) 를 추가한 뒤, 실제 코드도 그 순서대로 `JwtUtil` 에 access token 전용 `iatm` claim write와 `getIssuedAtMillis(...)` / `getIssuedAtMillisAllowExpired(...)` helper부터 추가했다
+- 해결: [auth-admin-forced-logout-implementation-order.md](./history/auth/auth-admin-forced-logout-implementation-order.md) 를 추가한 뒤, 실제 코드도 그 순서대로 `JwtUtil` 에 access token 전용 `iatm` claim write와 `getIssuedAtMillis(...)` / `getIssuedAtMillisAllowExpired(...)` helper부터 추가했다
 - 이유: forced logout의 핵심은 `token issued-at` 과 `user cutoff` 비교다. 이 계약을 util 층에서 먼저 고정해 두어야 이후 `UserSessionRevocationService` 와 `JwtAuthenticationFilter` 가 ad-hoc JWT parsing 없이 같은 기준을 재사용할 수 있다
 
 ## 280) forced logout 구현을 service skeleton부터 열면 `iatm` claim 계약이 다시 임시 parsing/fallback으로 흐르기 쉬우므로, `JwtUtil` helper를 먼저 고정하고 그 위에 service를 얹는 순서가 안전하다
 - 문제: package/dependency까지 정한 뒤 바로 `UserSessionRevocationService` 클래스를 만들면, 정작 핵심인 `iatm` write/read helper가 없어서 service 안에 claims 직접 파싱이나 TODO fallback이 들어갈 위험이 있다
-- 해결: [auth-admin-forced-logout-implementation-order.md](./auth-admin-forced-logout-implementation-order.md) 를 추가해 구현 순서를 `JwtUtil helper -> UserSessionRevocationService skeleton -> JwtAuthenticationFilter wiring -> admin API -> tests` 로 고정했다
+- 해결: [auth-admin-forced-logout-implementation-order.md](./history/auth/auth-admin-forced-logout-implementation-order.md) 를 추가해 구현 순서를 `JwtUtil helper -> UserSessionRevocationService skeleton -> JwtAuthenticationFilter wiring -> admin API -> tests` 로 고정했다
 - 이유: forced logout의 핵심은 token ordering correctness다. 이 기준 claim/helper를 먼저 만들고 나서 service를 얹어야 임시 계약이 줄고 회귀 반경도 작다
 
 ## 281) `UserSessionRevocationService` skeleton 단계에서 filter wiring까지 같이 열면 `A006` 노출, legacy token 처리, exact revoke와 cutoff 순서가 한 번에 섞이므로, 지금은 Redis write/read 계약만 먼저 고정하는 편이 낫다
@@ -1480,7 +1480,7 @@
 
 ## 285) forced logout 운영 증적까지 한 번에 크게 열면 response contract가 내부 ordering detail을 다시 끌고 올라오므로, 현재 phase에선 `cutoffMillis` 를 response가 아니라 log/Redis에만 남기는 편이 낫다
 - 문제: forced logout API와 auth gate, legacy token smoke까지 닫고 나면 운영 증적을 더 남기고 싶어지지만, 여기서 `cutoffMillis` 를 바로 response body에 노출하면 내부 revoke ordering 기준값이 외부 API 계약처럼 굳어질 수 있다
-- 해결: [auth-admin-forced-logout-audit-scope-policy.md](./auth-admin-forced-logout-audit-scope-policy.md) 를 추가해 current phase의 증적 범위를 `response=userKey+accepted`, `server log=userKey+cutoffMillis`, `Redis=current source of truth` 로 고정했다
+- 해결: [auth-admin-forced-logout-audit-scope-policy.md](./history/auth/auth-admin-forced-logout-audit-scope-policy.md) 를 추가해 current phase의 증적 범위를 `response=userKey+accepted`, `server log=userKey+cutoffMillis`, `Redis=current source of truth` 로 고정했다
 - 이유: 지금 중요한 건 revoke correctness와 운영 triage 가능성이지, ordering 숫자를 클라이언트 계약으로 끌어올리는 것이 아니다. response는 최소 ack로 두고 detail은 log/Redis에 남겨야 이후 구현 변경 여지도 유지된다
 
 ## 286) forced logout 로그 형식을 별도 hidden knowledge로만 두면 운영자가 어디서 `cutoffMillis` 를 봐야 하는지 다시 헤매므로, 현재 smoke/runbook 문서에 최소 grep 포인트까지 올려 두는 편이 낫다
@@ -1490,42 +1490,42 @@
 
 ## 287) forced logout 로그에 `actor` 를 바로 얹기 시작하면 revoke correctness hardening과 audit 확장이 다시 섞이므로, 현재 phase에서는 `userKey + cutoffMillis` 만 유지하는 편이 낫다
 - 문제: smoke/runbook까지 정리하고 나면 운영자가 “누가 눌렀는지”도 바로 로그에 남기고 싶어질 수 있다. 하지만 여기서 actor identifier까지 추가하면 identifier 선택, masking, retention, future audit storage 같은 논점이 다시 같이 열린다
-- 해결: [auth-admin-forced-logout-actor-log-policy.md](./auth-admin-forced-logout-actor-log-policy.md) 를 추가해 current forced logout 로그 라인은 계속 `[Admin] forced logout 트리거 userKey=<userKey> cutoffMillis=<epochMillis>` 로 유지하고, `actor` 는 future audit reopen 조건으로 미룬다고 고정했다
+- 해결: [auth-admin-forced-logout-actor-log-policy.md](./history/auth/auth-admin-forced-logout-actor-log-policy.md) 를 추가해 current forced logout 로그 라인은 계속 `[Admin] forced logout 트리거 userKey=<userKey> cutoffMillis=<epochMillis>` 로 유지하고, `actor` 는 future audit reopen 조건으로 미룬다고 고정했다
 - 이유: 지금 단계의 핵심은 old/new token ordering correctness와 운영 triage 가능성이다. `actor` 는 중요하지만 별도 audit problem이라, 1차 hardening 범위에 다시 섞지 않는 편이 경계가 더 깔끔하다
 
 ## 288) gap-fill 예산 전략을 세운 뒤에도 곧바로 추가 실행을 기본 pending 으로 두면, 운영 기준과 실험 기준이 다시 섞일 수 있다
 - 문제: `2 rounds x 20 calls -> 2 rounds x 40 calls -> 95/API catch-up` 같은 예산 전략을 정리한 뒤에도 `stored detail payload coverage 추가 확대` 를 기본 pending 으로 그대로 두면, small-step 실험과 catch-up run 이 모두 “지금 당장 계속 해야 하는 일”처럼 보일 수 있었다
-- 해결: [policy-bokjiro-gap-fill-execution-policy.md](./policy-bokjiro-gap-fill-execution-policy.md) 에서 current phase의 gap-fill 추가 실행은 routine default가 아니라 수동 catch-up/on-demand 작업으로만 유지한다고 고정했다
+- 해결: [policy-bokjiro-gap-fill-execution-policy.md](./history/policy/policy-bokjiro-gap-fill-execution-policy.md) 에서 current phase의 gap-fill 추가 실행은 routine default가 아니라 수동 catch-up/on-demand 작업으로만 유지한다고 고정했다
 - 이유: 전략을 세웠다는 것과 지금 당장 실행을 계속해야 한다는 것은 다르다. 현재는 coverage/fact 증가 효율이 완만하고, 남은 갭의 중심도 payload signal 분포와 soft signal 판단 쪽으로 이동했으므로 기본 진행축을 다른 canonical/source pending 으로 넘기는 편이 더 맞다
 
 ## 289) blocked SQL pending 이 여러 개일 때는 “먼저 다시 열 가능성이 높은 축”을 정하지 않으면 계속 보류 문서만 쌓이고 실제 다음 액션이 흐려질 수 있다
 - 문제: 현재 `YOUTH_MID stable code mapping SQL`, `GOV24_SERVICE_FIELD / USER_TYPE / BENEFIT_TYPE import/backfill SQL`, `GOV24_SUPPORT_CONDITION full inventory` 가 모두 source-of-truth 부족으로 막혀 있다. 이 상태에서 우선순위를 따로 정하지 않으면 세 항목이 모두 같은 수준의 막힌 pending처럼 남아 실제 다음 액션이 다시 흐려질 수 있었다
-- 해결: [policy-normalization-blocked-sql-reopen-priority.md](./policy-normalization-blocked-sql-reopen-priority.md) 에서 reopen 우선순위를 `GOV24_* -> GOV24 supportConditions full inventory -> YOUTH_MID` 로 고정했다
+- 해결: [policy-normalization-blocked-sql-reopen-priority.md](./history/policy/policy-normalization-blocked-sql-reopen-priority.md) 에서 reopen 우선순위를 `GOV24_* -> GOV24 supportConditions full inventory -> YOUTH_MID` 로 고정했다
 - 이유: `Gov24` 는 current canonical onboarding 기준선과 더 직접 연결되고 current API source도 더 명확하다. 반면 `YOUTH_MID` 는 operator-provided codebook 의존도가 높고, 지금도 label-only fallback으로 당분간 유지 가능하므로 reopen 우선순위를 뒤로 두는 편이 더 맞다
 
 ## 290) `GOV24_*` SQL reopen의 practical next step은 old endpoint 재검토가 아니라 current dataset page의 Swagger/schema 확보 경로를 먼저 고정하는 것이다
 - 문제: `GOV24_*` reopen 우선순위를 앞에 두더라도, 실제로 어디서 source 증적을 확보할지가 모호하면 다시 deprecated `category` 문서나 sample payload 역추론으로 되돌아갈 위험이 있었다
-- 해결: [policy-normalization-gov24-schema-acquisition-path.md](./policy-normalization-gov24-schema-acquisition-path.md) 에서 practical next step을 `data.go.kr` current dataset page의 Swagger UI 확인 -> `schema.org/DCAT` provenance 확보 -> provider/operator codebook 요청 순서로 고정했다
+- 해결: [policy-normalization-gov24-schema-acquisition-path.md](./history/policy/policy-normalization-gov24-schema-acquisition-path.md) 에서 practical next step을 `data.go.kr` current dataset page의 Swagger UI 확인 -> `schema.org/DCAT` provenance 확보 -> provider/operator codebook 요청 순서로 고정했다
 - 이유: `Gov24_*` SQL을 다시 열려면 “current source를 어디서 봤는가”가 먼저 명확해야 한다. current dataset page는 이미 official entrypoint이고, deprecated endpoint 재활용보다 Swagger/schema export 증적을 먼저 확보하는 편이 재발 방지에 맞다
 
 ## 291) current `data.go.kr` page와 `schema.org` metadata를 실제로 다시 봐도, `GOV24_*` finite inventory는 아직 직접 보이지 않는다
 - 문제: current dataset page를 official entrypoint로 인정하더라도, 실제로 `serviceField` / `userType` / `benefitType` finite inventory가 page text나 metadata에 직접 보이는지 확인하지 않으면 “일단 current page를 봤다”는 사실만으로 SQL reopen 조건이 충족된 것처럼 오해할 수 있었다
-- 해결: [policy-normalization-gov24-swagger-visibility-check.md](./policy-normalization-gov24-swagger-visibility-check.md) 에서 current `data.go.kr` page와 `schema.org` metadata를 다시 확인한 결과, entrypoint/provenance 는 분명하지만 field-level finite inventory는 직접 드러나지 않는다고 고정했다
+- 해결: [policy-normalization-gov24-swagger-visibility-check.md](./history/policy/policy-normalization-gov24-swagger-visibility-check.md) 에서 current `data.go.kr` page와 `schema.org` metadata를 다시 확인한 결과, entrypoint/provenance 는 분명하지만 field-level finite inventory는 직접 드러나지 않는다고 고정했다
 - 이유: practical next action을 좁히려면 “current page 확인”과 “finite inventory 확보”를 같은 단계로 취급하면 안 된다. 이번 단계의 결론은 current page 확인 완료이고, 따라서 다음 액션은 provider/operator codebook 요청 실행으로 넘어가는 편이 맞다
 
 ## 292) `GOV24_*` source가 막혀 있을 때는 “요청 스펙이 있다”와 “바로 보낼 수 있는 템플릿이 있다”를 구분해야 다음 액션이 실제로 움직인다
-- 문제: 기존 [policy-normalization-gov24-label-source-plan.md](./policy-normalization-gov24-label-source-plan.md) 에도 요청 스펙은 있었지만, 실제 제목/본문/판정 기준까지 내려오지 않으면 여전히 “운영자에게 뭘 보내지?” 단계에서 멈출 수 있었다
-- 해결: [policy-normalization-gov24-codebook-request-template.md](./policy-normalization-gov24-codebook-request-template.md) 에서 요청 제목, long/short 본문 템플릿, sufficient/insufficient 예시, reopen 판정 기준을 따로 고정했다
+- 문제: 기존 [policy-normalization-gov24-label-source-plan.md](./history/policy/policy-normalization-gov24-label-source-plan.md) 에도 요청 스펙은 있었지만, 실제 제목/본문/판정 기준까지 내려오지 않으면 여전히 “운영자에게 뭘 보내지?” 단계에서 멈출 수 있었다
+- 해결: [policy-normalization-gov24-codebook-request-template.md](./history/policy/policy-normalization-gov24-codebook-request-template.md) 에서 요청 제목, long/short 본문 템플릿, sufficient/insufficient 예시, reopen 판정 기준을 따로 고정했다
 - 이유: blocked SQL reopen에서는 source 찾는 일 자체보다 “어떤 자료가 오면 reopen 가능한가”를 명확히 적는 편이 더 중요하다. 이번 단계로 `GOV24_*` practical next action은 실제 요청 발송으로 더 좁혀졌다
 
 ## 293) `GOV24_SUPPORT_CONDITION` 은 `serviceField/userType/benefitType` 와 같은 요청 템플릿으로 묶기보다, representative subset과 full inventory를 분리한 별도 템플릿이 더 안전하다
 - 문제: `GOV24_*` 공통 codebook 요청 템플릿이 생긴 뒤 `supportConditions` 도 같은 템플릿에 그냥 묶어 버리면, representative subset 근거가 있는 상태와 full inventory reopen 조건이 섞여 다시 판정 기준이 흐려질 수 있었다
-- 해결: [policy-normalization-gov24-support-condition-request-template.md](./policy-normalization-gov24-support-condition-request-template.md) 에서 `supportConditions` full inventory 요청을 label 3종과 분리된 별도 제목/본문/판정 기준으로 고정했다
+- 해결: [policy-normalization-gov24-support-condition-request-template.md](./history/policy/policy-normalization-gov24-support-condition-request-template.md) 에서 `supportConditions` full inventory 요청을 label 3종과 분리된 별도 제목/본문/판정 기준으로 고정했다
 - 이유: `supportConditions` 는 이미 subset seed가 있고, full inventory reopen의 최소 단위도 label 3종보다 넓다. practical next action을 명확히 하려면 요청은 한 패키지로 보낼 수 있어도 판정 문서는 분리하는 편이 맞다
 
 ## 294) `Gov24` 요청을 한 패키지로 보낼 수 있다는 것과, reopen 판정을 한 번에 내릴 수 있다는 것은 다르다
 - 문제: label 3종 템플릿과 `supportConditions` 템플릿이 모두 생긴 뒤, 둘을 one package로 보내는 순간 “같은 응답이면 같은 시점에 같이 reopen” 하는 것처럼 오해할 수 있었다
-- 해결: [policy-normalization-gov24-request-package-checklist.md](./policy-normalization-gov24-request-package-checklist.md) 에서 발송은 one package, 판정은 two tracks(`label 3종` / `supportConditions`) 로 분리한다고 고정했다
+- 해결: [policy-normalization-gov24-request-package-checklist.md](./history/policy/policy-normalization-gov24-request-package-checklist.md) 에서 발송은 one package, 판정은 two tracks(`label 3종` / `supportConditions`) 로 분리한다고 고정했다
 - 이유: blocked source 작업에서는 발송 단위와 판정 단위를 일부러 분리해 둬야 실제 응답이 부분적으로만 충분할 때도 한 축만 먼저 reopen할 수 있다. practical next action을 실제 발송/판정 단계로 넘기려면 이 분리가 필요했다
 
 ## 295) blocked source 문서를 충분히 내린 뒤에는 “다음에 뭘 할 수 있는가”를 다시 정하지 않으면, 외부 응답이 오기 전까지 문서만 더 쌓이는 상태가 된다

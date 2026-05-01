@@ -12,9 +12,9 @@
 
 관련 문서:
 
-- [auth-logout-revocation-scope-policy.md](./auth-logout-revocation-scope-policy.md)
-- [auth-admin-revoke-boundary-policy.md](./auth-admin-revoke-boundary-policy.md)
-- [auth-admin-refresh-revoke-policy.md](./auth-admin-refresh-revoke-policy.md)
+- [auth-logout-revocation-scope-policy.md](./history/auth/auth-logout-revocation-scope-policy.md)
+- [auth-admin-revoke-boundary-policy.md](./history/auth/auth-admin-revoke-boundary-policy.md)
+- [auth-admin-refresh-revoke-policy.md](./history/auth/auth-admin-refresh-revoke-policy.md)
 - [auth-admin-forced-logout-closeout.md](./auth-admin-forced-logout-closeout.md)
 
 ## 목적
