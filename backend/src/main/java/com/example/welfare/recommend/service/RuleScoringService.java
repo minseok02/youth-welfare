@@ -9,6 +9,7 @@ import com.example.welfare.recommend.dto.RecommendationUserSnapshot;
 import com.example.welfare.recommend.dto.RetrievedRecommendationCandidates;
 import com.example.welfare.recommend.dto.ScoredCandidate;
 import com.example.welfare.recommend.support.RecommendationMatchingSupport;
+import com.example.welfare.recommend.support.RecommendationYouthRelevanceSupport;
 import com.example.welfare.recommend.support.RecommendationRuntimeSupport;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -37,7 +38,7 @@ public class RuleScoringService {
 
     private final ServiceTagRepository serviceTagRepository;
     private final PriorityMatcher priorityMatcher;
-    private final YouthPolicyFilter youthPolicyFilter;
+    private final RecommendationYouthRelevanceSupport recommendationYouthRelevanceSupport;
 
     @Value("${recommend.priority.education-canonical-bonus.enabled:false}")
     private boolean educationCanonicalBonusEnabled;
@@ -202,7 +203,7 @@ public class RuleScoringService {
         if (projection != null && projection.audienceRelevanceBonus() > 0) {
             return projection.audienceRelevanceBonus();
         }
-        return youthPolicyFilter.relevanceBonus(service, tags);
+        return recommendationYouthRelevanceSupport.relevanceBonus(service, tags);
     }
 
     private boolean specialTargetMatches(RecommendationUserSnapshot user,

@@ -3,6 +3,7 @@ package com.example.welfare.user.service;
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.util.AesEncryptUtil;
 import com.example.welfare.notification.dto.NotificationTarget;
+import com.example.welfare.recommend.dto.RecommendationUserSnapshot;
 import com.example.welfare.user.dto.response.ProfileResponse;
 import com.example.welfare.user.entity.AuthUser;
 import com.example.welfare.user.entity.User;
@@ -205,5 +206,58 @@ class UserReadServiceTest {
 
         assertThatThrownBy(() -> userReadService.getNotificationEmailByUserKey("user-key-1"))
                 .isInstanceOf(CustomException.class);
+    }
+
+    @Test
+    @DisplayName("추천 컨텍스트 조회는 active user 검증 후 user entity 와 snapshot 을 함께 반환한다")
+    void getRecommendationContextReturnsUserAndSnapshot() {
+        UserReadService userReadService = new UserReadService(
+                userRepository,
+                authUserRepository,
+                userProfileRepository,
+                userPiiReadWriteRepository,
+                notificationPiiReadRepository,
+                userAttributeRepository,
+                userPriorityRepository,
+                aesEncryptUtil
+        );
+
+        User user = User.builder()
+                .id(7L)
+                .userKey("user-key-7")
+                .notificationPeriod(User.NotificationPeriod.DAILY)
+                .build();
+        AuthUser authUser = AuthUser.builder()
+                .userKey("user-key-7")
+                .isActive(true)
+                .build();
+        UserProfile profile = UserProfile.builder()
+                .userKey("user-key-7")
+                .age(27)
+                .ageBand("25-29")
+                .sido("서울특별시")
+                .sgg("관악구")
+                .regionCode("11620")
+                .incomeLevel((byte) 3)
+                .householdType("1인가구")
+                .employmentStatus("미취업")
+                .displayCount(12)
+                .notificationMinScore(0.7)
+                .build();
+
+        when(userRepository.findById(7L)).thenReturn(Optional.of(user));
+        when(authUserRepository.findByUserKey("user-key-7")).thenReturn(Optional.of(authUser));
+        when(userProfileRepository.findByUserKey("user-key-7")).thenReturn(Optional.of(profile));
+        when(userAttributeRepository.findReadModelsByUserKey("user-key-7")).thenReturn(List.of());
+        when(userPriorityRepository.findReadModelsByUserKey("user-key-7")).thenReturn(List.of());
+
+        UserReadService.RecommendationReadContext context = userReadService.getRecommendationContext(7L);
+
+        assertThat(context.user()).isEqualTo(user);
+        RecommendationUserSnapshot snapshot = context.snapshot();
+        assertThat(snapshot.userId()).isEqualTo(7L);
+        assertThat(snapshot.userKey()).isEqualTo("user-key-7");
+        assertThat(snapshot.sido()).isEqualTo("서울특별시");
+        assertThat(snapshot.regionCode()).isEqualTo("11620");
     }
 }

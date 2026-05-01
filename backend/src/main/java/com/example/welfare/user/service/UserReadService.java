@@ -69,7 +69,14 @@ public class UserReadService {
 
     @Transactional(readOnly = true)
     public RecommendationUserSnapshot getRecommendationSnapshot(Long userId) {
-        String userKey = resolveActiveUserKey(userId);
+        return getRecommendationContext(userId).snapshot();
+    }
+
+    @Transactional(readOnly = true)
+    public RecommendationReadContext getRecommendationContext(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+        String userKey = resolveActiveUserKey(user.getUserKey());
         UserProfile profile = userProfileRepository.findByUserKey(userKey)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
         List<UserAttributeReadModel> attributes = userAttributeRepository.findReadModelsByUserKey(userKey);
@@ -85,7 +92,7 @@ public class UserReadService {
                 .map(priority -> new PriorityPreference(priority.getPriorityRank(), priority.getCode(), priority.getWeight()))
                 .toList();
 
-        return new RecommendationUserSnapshot(
+        RecommendationUserSnapshot snapshot = new RecommendationUserSnapshot(
                 userId,
                 userKey,
                 profile.getAge(),
@@ -102,6 +109,7 @@ public class UserReadService {
                 targetTypes,
                 priorities
         );
+        return new RecommendationReadContext(user, snapshot);
     }
 
     @Transactional(readOnly = true)
@@ -178,5 +186,11 @@ public class UserReadService {
             return null;
         }
         return LocalDate.parse(birthDate);
+    }
+
+    public record RecommendationReadContext(
+            User user,
+            RecommendationUserSnapshot snapshot
+    ) {
     }
 }

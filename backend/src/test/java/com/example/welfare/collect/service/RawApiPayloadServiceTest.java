@@ -2,8 +2,10 @@ package com.example.welfare.collect.service;
 
 import com.example.welfare.collect.dto.BokjiroCentralDto;
 import com.example.welfare.collect.entity.RawApiPayload;
+import com.example.welfare.collect.mapper.WelfareServiceMapper;
 import com.example.welfare.collect.repository.RawApiPayloadRepository;
 import com.example.welfare.collect.support.ListCollectSourceBinding;
+import com.example.welfare.collect.support.ListCollectSourceBindings;
 import com.example.welfare.collect.normalization.NormalizedPolicyAggregate;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.entity.ServiceRegion;
@@ -30,6 +32,8 @@ class RawApiPayloadServiceTest {
 
     @Mock
     private RawApiPayloadRepository rawApiPayloadRepository;
+    @Mock
+    private WelfareServiceMapper welfareServiceMapper;
 
     private RawApiPayloadService rawApiPayloadService;
 
@@ -41,6 +45,7 @@ class RawApiPayloadServiceTest {
     @Test
     void saveBokjiroCentralListCreatesOrUpdatesRawPayload() {
         BokjiroCentralDto.Item item = new BokjiroCentralDto.Item();
+        ListCollectSourceBinding<BokjiroCentralDto.Item> binding = ListCollectSourceBindings.bokjiroCentral(welfareServiceMapper);
         ReflectionTestUtils.setField(item, "servId", "WLF00000060");
         ReflectionTestUtils.setField(item, "servNm", "청년내일저축계좌");
 
@@ -50,7 +55,7 @@ class RawApiPayloadServiceTest {
                 RawApiPayload.ApiCategory.LIST
         )).willReturn(Optional.empty());
 
-        rawApiPayloadService.saveBokjiroCentralList(item);
+        rawApiPayloadService.saveList(binding, item);
 
         verify(rawApiPayloadRepository).save(any(RawApiPayload.class));
     }
@@ -58,9 +63,10 @@ class RawApiPayloadServiceTest {
     @Test
     void saveSkipsWhenSourceIdMissing() {
         BokjiroCentralDto.Item item = new BokjiroCentralDto.Item();
+        ListCollectSourceBinding<BokjiroCentralDto.Item> binding = ListCollectSourceBindings.bokjiroCentral(welfareServiceMapper);
         ReflectionTestUtils.setField(item, "servNm", "이름만 있는 정책");
 
-        rawApiPayloadService.saveBokjiroCentralList(item);
+        rawApiPayloadService.saveList(binding, item);
 
         verifyNoInteractions(rawApiPayloadRepository);
     }
@@ -72,6 +78,8 @@ class RawApiPayloadServiceTest {
         ListCollectSourceBinding<SyntheticItem> binding = new ListCollectSourceBinding<>(
                 WelfareService.SourceType.YOUTH,
                 SyntheticItem::sourceId,
+                (items, stats) -> {
+                },
                 ignored -> WelfareService.builder()
                         .sourceType(WelfareService.SourceType.YOUTH)
                         .sourceId(item.sourceId())

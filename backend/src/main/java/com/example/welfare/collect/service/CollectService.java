@@ -70,6 +70,9 @@ public class CollectService {
             }
         }
         for (CollectSource source : CollectSource.values()) {
+            if (!source.requiresAdapter()) {
+                continue;
+            }
             if (!adapterMap.containsKey(source)) {
                 throw new IllegalStateException("필수 수집 adapter가 없습니다. source=" + source);
             }

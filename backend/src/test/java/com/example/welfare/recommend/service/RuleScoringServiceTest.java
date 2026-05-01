@@ -9,6 +9,7 @@ import com.example.welfare.recommend.dto.RecommendationUserSnapshot;
 import com.example.welfare.recommend.dto.RetrievedRecommendationCandidates;
 import com.example.welfare.recommend.dto.ScoredCandidate;
 import com.example.welfare.recommend.support.RecommendationProjectionHeuristicSupport;
+import com.example.welfare.recommend.support.RecommendationYouthRelevanceSupport;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -41,7 +42,7 @@ class RuleScoringServiceTest {
         ruleScoringService = new RuleScoringService(
                 serviceTagRepository,
                 priorityMatcher,
-                new YouthPolicyFilter()
+                new RecommendationYouthRelevanceSupport()
         );
         ReflectionTestUtils.setField(ruleScoringService, "educationCanonicalBonusEnabled", false);
     }

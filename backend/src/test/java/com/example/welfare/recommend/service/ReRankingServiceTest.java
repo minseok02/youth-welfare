@@ -52,13 +52,12 @@ class ReRankingServiceTest {
     }
 
     private ScoredCandidate candidate(WelfareService service, double ruleWeightedScore, Double aiScore) {
-        ScoredCandidate candidate = ScoredCandidate.builder()
+        return ScoredCandidate.builder()
                 .service(service)
                 .ruleBaseScore(ruleWeightedScore)
                 .ruleWeightedScore(ruleWeightedScore)
+                .aiScore(aiScore)
                 .build();
-        candidate.setAiScore(aiScore);
-        return candidate;
     }
 
     private WelfareService service(Long id,

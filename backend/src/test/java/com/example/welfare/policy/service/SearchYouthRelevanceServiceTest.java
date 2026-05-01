@@ -5,7 +5,7 @@ import com.example.welfare.policy.entity.ServiceTag;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.repository.ServiceTagRepository;
 import com.example.welfare.policy.repository.WelfareServiceRepository;
-import com.example.welfare.recommend.service.YouthPolicyFilter;
+import com.example.welfare.recommend.support.RecommendationYouthRelevanceSupport;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -27,7 +27,7 @@ class SearchYouthRelevanceServiceTest {
     private ServiceTagRepository serviceTagRepository;
 
     @Mock
-    private YouthPolicyFilter youthPolicyFilter;
+    private RecommendationYouthRelevanceSupport recommendationYouthRelevanceSupport;
 
     @Test
     @DisplayName("백필은 현재 규칙으로 검색용 청년 플래그를 다시 계산한다")
@@ -35,7 +35,7 @@ class SearchYouthRelevanceServiceTest {
         SearchYouthRelevanceService service = new SearchYouthRelevanceService(
                 welfareServiceRepository,
                 serviceTagRepository,
-                youthPolicyFilter
+                recommendationYouthRelevanceSupport
         );
 
         WelfareService youth = WelfareService.builder()
@@ -55,8 +55,8 @@ class SearchYouthRelevanceServiceTest {
 
         given(welfareServiceRepository.findAll()).willReturn(List.of(youth, excluded));
         given(serviceTagRepository.findByServiceIdIn(List.of(1L, 2L))).willReturn(List.of());
-        given(youthPolicyFilter.isYouthRelevant(youth, List.of())).willReturn(true);
-        given(youthPolicyFilter.isYouthRelevant(excluded, List.of())).willReturn(false);
+        given(recommendationYouthRelevanceSupport.isYouthRelevant(youth, List.of())).willReturn(true);
+        given(recommendationYouthRelevanceSupport.isYouthRelevant(excluded, List.of())).willReturn(false);
 
         SearchYouthRelevanceBackfillResponse result = service.backfillAll();
 
@@ -74,7 +74,7 @@ class SearchYouthRelevanceServiceTest {
         SearchYouthRelevanceService service = new SearchYouthRelevanceService(
                 welfareServiceRepository,
                 serviceTagRepository,
-                youthPolicyFilter
+                recommendationYouthRelevanceSupport
         );
 
         WelfareService policy = WelfareService.builder()
@@ -91,7 +91,7 @@ class SearchYouthRelevanceServiceTest {
                 .tagValue("일반")
                 .build());
 
-        given(youthPolicyFilter.isYouthRelevant(policy, tags)).willReturn(false);
+        given(recommendationYouthRelevanceSupport.isYouthRelevant(policy, tags)).willReturn(false);
 
         service.refreshForService(policy, tags);
 

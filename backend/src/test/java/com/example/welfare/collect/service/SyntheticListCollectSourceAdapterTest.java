@@ -27,6 +27,7 @@ class SyntheticListCollectSourceAdapterTest {
         ListCollectSourceBinding<SyntheticItem> binding = new ListCollectSourceBinding<>(
                 WelfareService.SourceType.YOUTH,
                 SyntheticItem::sourceId,
+                (items, stats) -> stats.record("syntheticId", items.isEmpty() ? null : items.get(0).sourceId()),
                 current -> WelfareService.builder()
                         .sourceType(WelfareService.SourceType.YOUTH)
                         .sourceId(current.sourceId())
@@ -94,6 +95,7 @@ class SyntheticListCollectSourceAdapterTest {
 
         @Override
         protected void recordStats(List<SyntheticItem> items, FieldQualityStats stats) {
+            binding.recordStats(items, stats);
         }
 
         @Override

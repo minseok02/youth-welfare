@@ -40,7 +40,7 @@ public class BokjiroCentralCollectSourceAdapter extends AbstractListCollectSourc
 
     @Override
     protected void recordStats(List<BokjiroCentralDto.Item> items, FieldQualityStats stats) {
-        RawFieldValidator.recordStatsBokjiroCentral(items, stats);
+        binding().recordStats(items, stats);
     }
 
     @Override

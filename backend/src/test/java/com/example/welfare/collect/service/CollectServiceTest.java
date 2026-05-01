@@ -11,6 +11,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
@@ -150,5 +151,29 @@ class CollectServiceTest {
         verify(collectExecutionGuard).runExclusive(eq("collect-bokjiro-details-refresh"), any(Runnable.class));
         verify(apiSyncLogService).runWithLog(eq("BOKJIRO_DETAIL_REFRESH"), any());
         verify(bokjiroDetailRefreshAdapter).collect();
+    }
+
+    @Test
+    @DisplayName("executionOrder 는 scheduled source 만 포함하고 refresh source 는 수동 실행 대상으로 남긴다")
+    void executionOrderIncludesOnlyScheduledSources() {
+        assertThat(CollectSource.executionOrder()).containsExactly(
+                CollectSource.YOUTH,
+                CollectSource.BOKJIRO_CENTRAL,
+                CollectSource.BOKJIRO_LOCAL,
+                CollectSource.BOKJIRO_DETAIL
+        );
+        assertThat(CollectSource.BOKJIRO_DETAIL_REFRESH.runsInScheduledBatch()).isFalse();
+        assertThat(CollectSource.BOKJIRO_DETAIL_REFRESH.requiresAdapter()).isTrue();
+    }
+
+    @Test
+    @DisplayName("manual-only source 도 adapter requirement 는 명시적으로 검증한다")
+    void manualOnlySourceStillRequiresAdapter() {
+        assertThatThrownBy(() -> new CollectService(
+                List.of(bokjiroLocalAdapter, bokjiroDetailAdapter, youthAdapter, bokjiroCentralAdapter),
+                collectExecutionGuard,
+                apiSyncLogService
+        )).isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("BOKJIRO_DETAIL_REFRESH");
     }
 }

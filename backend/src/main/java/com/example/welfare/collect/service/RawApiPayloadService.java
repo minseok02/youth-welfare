@@ -1,8 +1,5 @@
 package com.example.welfare.collect.service;
 
-import com.example.welfare.collect.dto.BokjiroCentralDto;
-import com.example.welfare.collect.dto.BokjiroLocalDto;
-import com.example.welfare.collect.dto.YouthApiDto;
 import com.example.welfare.collect.entity.RawApiPayload;
 import com.example.welfare.collect.gateway.BokjiroDetailClient;
 import com.example.welfare.collect.repository.RawApiPayloadRepository;
@@ -27,21 +24,6 @@ public class RawApiPayloadService {
 
     private final RawApiPayloadRepository rawApiPayloadRepository;
     private final ObjectMapper objectMapper;
-
-    @Transactional
-    public void saveYouthList(YouthApiDto.Item item) {
-        saveList(WelfareService.SourceType.YOUTH, item.getPlcyNo(), item);
-    }
-
-    @Transactional
-    public void saveBokjiroCentralList(BokjiroCentralDto.Item item) {
-        saveList(WelfareService.SourceType.BOKJIRO_CENTRAL, item.getServId(), item);
-    }
-
-    @Transactional
-    public void saveBokjiroLocalList(BokjiroLocalDto.Item item) {
-        saveList(WelfareService.SourceType.BOKJIRO_LOCAL, item.getServId(), item);
-    }
 
     @Transactional
     public <T> void saveList(ListCollectSourceBinding<T> binding, T item) {

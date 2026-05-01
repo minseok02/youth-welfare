@@ -8,6 +8,7 @@ import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
 import com.example.welfare.recommend.dto.RetrievedRecommendationCandidates;
 import com.example.welfare.recommend.dto.RecommendationUserSnapshot;
 import com.example.welfare.recommend.repository.CanonicalRecommendationReadModelRepository;
+import com.example.welfare.recommend.support.RecommendationYouthRelevanceSupport;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -36,7 +37,7 @@ public class RetrievalService {
 
     private final WelfareServiceRepository welfareServiceRepository;
     private final ServiceTagRepository serviceTagRepository;
-    private final YouthPolicyFilter youthPolicyFilter;
+    private final RecommendationYouthRelevanceSupport recommendationYouthRelevanceSupport;
     private final CanonicalRecommendationReadModelRepository canonicalRecommendationReadModelRepository;
 
     @Transactional(readOnly = true)
@@ -152,7 +153,7 @@ public class RetrievalService {
         if (!service.isSearchYouthRelevant()) {
             return false;
         }
-        return youthPolicyFilter.isYouthRelevant(service, tags);
+        return recommendationYouthRelevanceSupport.isYouthRelevant(service, tags);
     }
 
     private boolean matchAgeConstraint(WelfareService service, int userAge, List<ServiceTag> tags) {

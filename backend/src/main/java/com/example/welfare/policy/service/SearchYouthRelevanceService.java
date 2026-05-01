@@ -5,7 +5,7 @@ import com.example.welfare.policy.entity.ServiceTag;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.repository.ServiceTagRepository;
 import com.example.welfare.policy.repository.WelfareServiceRepository;
-import com.example.welfare.recommend.service.YouthPolicyFilter;
+import com.example.welfare.recommend.support.RecommendationYouthRelevanceSupport;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -23,10 +23,10 @@ public class SearchYouthRelevanceService {
 
     private final WelfareServiceRepository welfareServiceRepository;
     private final ServiceTagRepository serviceTagRepository;
-    private final YouthPolicyFilter youthPolicyFilter;
+    private final RecommendationYouthRelevanceSupport recommendationYouthRelevanceSupport;
 
     public boolean compute(WelfareService service, List<ServiceTag> tags) {
-        return youthPolicyFilter.isYouthRelevant(service, tags != null ? tags : Collections.emptyList());
+        return recommendationYouthRelevanceSupport.isYouthRelevant(service, tags != null ? tags : Collections.emptyList());
     }
 
     public void refreshForService(WelfareService service, List<ServiceTag> tags) {

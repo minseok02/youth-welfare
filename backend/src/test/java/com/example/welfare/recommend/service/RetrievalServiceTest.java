@@ -7,6 +7,7 @@ import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
 import com.example.welfare.recommend.dto.RetrievedRecommendationCandidates;
 import com.example.welfare.recommend.dto.RecommendationUserSnapshot;
 import com.example.welfare.recommend.repository.CanonicalRecommendationReadModelRepository;
+import com.example.welfare.recommend.support.RecommendationYouthRelevanceSupport;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -36,7 +37,7 @@ class RetrievalServiceTest {
     private ServiceTagRepository serviceTagRepository;
 
     @Mock
-    private YouthPolicyFilter youthPolicyFilter;
+    private RecommendationYouthRelevanceSupport recommendationYouthRelevanceSupport;
 
     @Mock
     private CanonicalRecommendationReadModelRepository canonicalRecommendationReadModelRepository;
@@ -47,7 +48,7 @@ class RetrievalServiceTest {
         RetrievalService service = new RetrievalService(
                 welfareServiceRepository,
                 serviceTagRepository,
-                youthPolicyFilter,
+                recommendationYouthRelevanceSupport,
                 canonicalRecommendationReadModelRepository
         );
 
@@ -76,7 +77,7 @@ class RetrievalServiceTest {
         RetrievalService service = new RetrievalService(
                 welfareServiceRepository,
                 serviceTagRepository,
-                youthPolicyFilter,
+                recommendationYouthRelevanceSupport,
                 canonicalRecommendationReadModelRepository
         );
 
@@ -105,7 +106,7 @@ class RetrievalServiceTest {
         RetrievalService service = new RetrievalService(
                 welfareServiceRepository,
                 serviceTagRepository,
-                youthPolicyFilter,
+                recommendationYouthRelevanceSupport,
                 canonicalRecommendationReadModelRepository
         );
 
@@ -122,7 +123,7 @@ class RetrievalServiceTest {
         RetrievedRecommendationCandidates results = service.retrieve("youth_all", user);
 
         assertThat(results.candidates()).isEmpty();
-        verify(youthPolicyFilter, never()).isYouthRelevant(eq(candidate), any());
+        verify(recommendationYouthRelevanceSupport, never()).isYouthRelevant(eq(candidate), any());
     }
 
     private RecommendationUserSnapshot user(String sido, String regionCode) {

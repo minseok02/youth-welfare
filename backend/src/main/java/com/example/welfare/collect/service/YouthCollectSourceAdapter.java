@@ -36,7 +36,7 @@ public class YouthCollectSourceAdapter extends AbstractListCollectSourceAdapter<
 
     @Override
     protected void recordStats(List<YouthApiDto.Item> items, FieldQualityStats stats) {
-        RawFieldValidator.recordStatsYouth(items, stats);
+        binding().recordStats(items, stats);
     }
 
     @Override
