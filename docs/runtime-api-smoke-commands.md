@@ -124,6 +124,7 @@ PY
 - 응답 `success=true`
 - `data[]` 존재
 - 각 항목의 `id`, `serviceId`, `isBookmarked` 확인 가능
+- 로컬 DB가 base schema-only 상태면 `success=true`, `data=[]` 도 정상일 수 있음. 이 경우 smoke 실패로 보지 말고 snapshot 적재 여부를 먼저 분리함
 
 ## 5. 추천 북마크 토글
 
@@ -164,6 +165,11 @@ curl -sS \
 ## 7. admin status 확인
 
 이 호출은 admin JWT가 필요합니다. 현재 로그인 계정이 admin이 아니면 관리자 계정으로 다시 로그인해 `ACCESS_TOKEN` 을 새로 받습니다.
+
+주의:
+
+- 현재 계약상 `SECURITY_ADMIN_EMAILS` 에 들어 있는 이메일은 공개 회원가입으로 생성할 수 없습니다(`403 / A007`).
+- 로컬 smoke에서는 기존 admin 계정을 쓰거나, 일반 사용자 생성 후 allowlist 승격 -> 재로그인 방식으로 admin token을 준비합니다.
 
 ```bash
 curl -sS \

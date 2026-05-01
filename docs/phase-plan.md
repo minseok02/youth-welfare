@@ -1439,6 +1439,11 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
   - 같은 script는 이제 `service_taxonomies` 존재 여부, `welfare_services` 적재 여부, `compat=기타 + youth_major=교육` target row 존재 여부를 precondition으로 먼저 확인한다
   - 현재 local DB는 직전 `SMOKE_RESET_DB=true` PII smoke 영향으로 base schema만 남아 `welfare_services=0`, `service_taxonomies` 미생성 상태였고, replay는 bootRun 중간 실패 대신 `education replay precondition unmet: service_taxonomies table missing; local canonical schema/backfill not loaded` 로 명시적으로 종료됐다
   - 즉 이번 단계의 결과는 replay success 확보가 아니라 `로컬 snapshot/schema 부족을 early-fail로 고정` 한 것이다. known-positive replay 재검증은 local policy snapshot과 canonical sidecar schema를 다시 적재한 뒤 재개한다
+- [x] local runtime API smoke 재실행
+  - `docker-compose.yml` 의 `env_file` 만으로는 shell override가 컨테이너에 전달되지 않아, `.env` 의 빈 `AES_SECRET_KEY` 상태에서 local runtime smoke가 `POST /api/auth/signup -> 500 / C002` 로 실패하는 것을 확인했다
+  - 이를 막기 위해 compose app env에 `JWT_SECRET`, `AES_SECRET_KEY`, `OPENAI_API_KEY`, `GMAIL_*`, `YOUTH_API_KEY`, `BOKJIRO_API_KEY`, `SECURITY_ADMIN_EMAILS` explicit pass-through 를 추가했다
+  - 그 뒤 smoke용 secret override로 app을 재생성하고 일반 사용자 기준 `signup -> login -> refresh -> recommendations(empty) -> bookmarks(empty) -> logout -> old refresh 401/A001 -> old access 401/A006` 를 현재 로컬에서 재검증했다
+  - admin forced logout는 공개 signup이 allowlist email에 대해 `403 / A007` 로 막히는 정책을 확인한 뒤, 일반 사용자 2명을 먼저 만든 뒤 한 명을 `SECURITY_ADMIN_EMAILS` 로 승격해 `forced-logout 200 -> target old access 401/A006 -> target old refresh 401/A003 -> relogin 200` 경계까지 로컬에서 확인했다
 - [ ] 운영 서버 Docker Compose 기동
 - [ ] 기존 운영 DB에 `app_core_rw` / `app_pii_rw` / `notification_pii_ro` / `migration_admin` 계정 생성 및 앱 datasource 전환
 - [ ] 운영 `.env` / secret store의 `APP_PII_DB_URL` / `NOTIFICATION_PII_DB_URL` 를 `youth_welfare_pii` schema 기준으로 전환
