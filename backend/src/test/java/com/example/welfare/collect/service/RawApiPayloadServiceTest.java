@@ -3,8 +3,13 @@ package com.example.welfare.collect.service;
 import com.example.welfare.collect.dto.BokjiroCentralDto;
 import com.example.welfare.collect.entity.RawApiPayload;
 import com.example.welfare.collect.repository.RawApiPayloadRepository;
+import com.example.welfare.collect.support.ListCollectSourceBinding;
+import com.example.welfare.collect.normalization.NormalizedPolicyAggregate;
 import com.example.welfare.policy.entity.WelfareService;
+import com.example.welfare.policy.entity.ServiceRegion;
+import com.example.welfare.policy.entity.ServiceTag;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -13,6 +18,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.Optional;
+import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
@@ -57,5 +63,37 @@ class RawApiPayloadServiceTest {
         rawApiPayloadService.saveBokjiroCentralList(item);
 
         verifyNoInteractions(rawApiPayloadRepository);
+    }
+
+    @Test
+    @DisplayName("generic list binding 은 synthetic item raw payload 도 source-specific 메서드 없이 저장한다")
+    void saveListSupportsSyntheticBinding() {
+        SyntheticItem item = new SyntheticItem("Y-SYN-RAW-1", "합성 소스 정책");
+        ListCollectSourceBinding<SyntheticItem> binding = new ListCollectSourceBinding<>(
+                WelfareService.SourceType.YOUTH,
+                SyntheticItem::sourceId,
+                ignored -> WelfareService.builder()
+                        .sourceType(WelfareService.SourceType.YOUTH)
+                        .sourceId(item.sourceId())
+                        .title(item.title())
+                        .status(WelfareService.ServiceStatus.ACTIVE)
+                        .build(),
+                (ignored, entity) -> List.<ServiceRegion>of(),
+                (ignored, entity) -> List.<ServiceTag>of(),
+                ignored -> NormalizedPolicyAggregate.builder().build()
+        );
+
+        given(rawApiPayloadRepository.findBySourceTypeAndSourceIdAndApiCategory(
+                WelfareService.SourceType.YOUTH,
+                "Y-SYN-RAW-1",
+                RawApiPayload.ApiCategory.LIST
+        )).willReturn(Optional.empty());
+
+        rawApiPayloadService.saveList(binding, item);
+
+        verify(rawApiPayloadRepository).save(any(RawApiPayload.class));
+    }
+
+    private record SyntheticItem(String sourceId, String title) {
     }
 }

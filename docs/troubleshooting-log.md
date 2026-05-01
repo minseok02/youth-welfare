@@ -1807,3 +1807,8 @@
 - 문제: `CanonicalRecommendationReadModelRepository` 클래스 주석에는 아직 “retrieval/scoring path에는 연결하지 않는다”는 예전 설명이 남아 있었고, `RecommendationMatchingSupport.specialAudienceMatchedByTargetTypes()` 는 projection bucket 경로에서 이미 `targetTypes ∩ specialTargetBuckets` 매칭을 한 뒤에도 `자립준비청년`, `농어촌` 두 항목을 다시 같은 의미로 한 번 더 비교하는 dead branch를 유지하고 있었다.
 - 해결: repository 주석은 현재 상태에 맞게 stale 문장을 제거했고, special-target projection 경로는 `targetTypes.stream().anyMatch(projection.specialTargetBuckets()::contains)` 하나만 남기도록 정리했다. 동작 변화 없이 현재 support 경계를 코드가 그대로 반영하도록 맞춘 cleanup이다.
 - 이유: 마지막 cleanup 단계에서는 새 abstraction을 더 만드는 것보다, 이미 옮겨진 계약을 코드와 주석이 정확히 따라가게 만드는 편이 중요하다. stale 설명과 의미 중복 분기를 걷어내야 다음에 보는 사람이 “아직 legacy 경로가 남아 있나?”를 잘못 해석하지 않는다.
+
+## 336) source enum 제약을 당장 풀지 못하더라도, synthetic item dry-run 테스트가 없으면 “지금 구조가 새 DTO 타입에도 실제로 재사용되는가”를 말로만 주장하게 된다
+- 문제: source binding, saver, raw payload, adapter 경계를 공통화한 뒤에도 기존 테스트는 대부분 `YouthApiDto`, `Bokjiro*Dto` 같은 실제 source DTO만 다뤘다. 이 상태에서는 코드가 generic signature를 갖고 있어도, 실제로는 기존 DTO에만 우연히 맞는 구조인지 아니면 임의 item 타입에도 재사용되는지 분리해 검증되지 않는다.
+- 해결: `SyntheticItem` 과 `ListCollectSourceBinding<SyntheticItem>` 를 사용한 dry-run 테스트를 추가해 세 경계를 따로 고정했다. `RawApiPayloadServiceTest` 는 generic `saveList(binding, item)` 이 synthetic payload도 저장하는지 확인하고, `CollectItemSaverTest` 는 `saveOnce(binding.toSaveCommand(item))` 경로가 sidecar/tag refresh까지 재사용되는지 확인하며, `SyntheticListCollectSourceAdapterTest` 는 abstract list adapter가 synthetic item에도 raw/save generic 엔트리를 그대로 호출하는지 검증한다.
+- 이유: 현재 남아 있는 큰 source 종속점은 enum/실제 source 등록부 쪽이지, item DTO 타입 그 자체는 아니다. synthetic dry-run 테스트를 두면 이후 새 source onboarding 때 “새 DTO 타입이라서 generic 경계가 깨진 것인지, 아니면 source catalog/enum을 추가해야 하는 것인지”를 훨씬 빨리 구분할 수 있다.
