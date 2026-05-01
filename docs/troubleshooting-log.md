@@ -1847,3 +1847,8 @@
 - 문제: `BOKJIRO_DETAIL_REFRESH` 는 `collectAll()` 대상에는 포함되지 않지만 adapter는 필수였고, 이 차이는 `CollectSource.executionOrder()` 의 하드코딩 목록과 `CollectService.buildAdapterMap()` 의 `CollectSource.values()` 전체 검증 사이에 암묵적으로만 존재했다. 구조를 모르는 사람이 보면 “왜 이 source는 배치에서 안 돌면서 adapter는 강제하지?”라는 의문이 남는다.
 - 해결: `CollectSource` 에 `runsInScheduledBatch`, `requiresAdapter` 메타데이터를 추가하고 `executionOrder()` 는 scheduled source만 반환하게 바꿨다. `CollectService` 의 adapter coverage 검증도 이제 `source.requiresAdapter()` 를 기준으로 돈다. 테스트에는 `BOKJIRO_DETAIL_REFRESH` 가 manual-only 이면서도 adapter 필수 source라는 점을 명시적으로 추가했다.
 - 이유: 이 단계의 핵심은 동작을 바꾸는 게 아니라 규칙을 숨기지 않는 것이다. enum 자체가 “배치 실행 여부”와 “adapter 필요 여부”를 함께 들고 있으면 collect 경계의 예외가 service 구현 세부가 아니라 source 메타데이터로 드러난다.
+
+## 344) retrieval/scoring/search refresh가 모두 청년 relevance fallback을 쓰더라도 그 규칙이 `YouthPolicyFilter` 라는 서비스 클래스에 남아 있으면, projection heuristic과 같은 레벨의 정책이 support가 아니라 레거시 service 이름공간에 남아 구조가 덜 정리돼 보인다
+- 문제: `RetrievalService`, `RuleScoringService`, `SearchYouthRelevanceService` 는 projection이 없을 때 같은 청년 relevance fallback을 사용했지만, 그 구현은 `YouthPolicyFilter` 서비스에 모여 있었다. 이 상태에서는 실제 역할이 “추천/검색 공통 heuristic policy” 임에도 이름과 의존 형태가 예전 필터 서비스 중심으로 남아 있어, 새 projection support 계층과 경계가 어긋나 보였다.
+- 해결: `RecommendationYouthRelevanceSupport` 를 추가해 `isYouthRelevant(...)`, `relevanceBonus(...)` 규칙을 support 계층으로 옮기고, retrieval/scoring/search refresh는 이 support를 직접 보게 바꿨다. 기존 `YouthPolicyFilter` 는 같은 static policy를 재사용하는 deprecated compatibility wrapper로만 남겼고, 새 support 전용 테스트도 추가했다.
+- 이유: 이 단계의 목적은 점수 공식을 바꾸는 게 아니라 fallback 규칙의 소속을 맞추는 것이다. audience/special-target/runtime helper를 이미 support 쪽으로 정리한 상태에서 youth relevance도 같은 계층에 둬야 추천 정책이 한 레벨에서 보인다.
