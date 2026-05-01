@@ -445,6 +445,8 @@ public void resetAiScoreForClosed() {
   - `serviceId`
   - `title`
   - `unifiedCategory`
+  - `youthMidLabel` (nullable, canonical summary)
+  - `provisionMethodLabel` (nullable, canonical summary)
   - `sourceType`
   - `uniqueViewCount7d` (최근 7일 고유조회수)
   - `viewCount` (내부 누적 조회수)
@@ -459,6 +461,8 @@ public void resetAiScoreForClosed() {
       "serviceId": 1829,
       "title": "청년일자리 도약장려금",
       "unifiedCategory": "일자리",
+      "youthMidLabel": "취업",
+      "provisionMethodLabel": "온라인",
       "sourceType": "YOUTH",
       "uniqueViewCount7d": 1,
       "viewCount": 2,
@@ -481,6 +485,8 @@ public void resetAiScoreForClosed() {
   - `status`
   - `hostOrg`
   - `applyMethodName`
+  - `youthMidLabel` (nullable, canonical summary)
+  - `provisionMethodLabel` (nullable, canonical summary)
   - `applyStartDate`
   - `applyEndDate`
   - `isOnlineApply`
@@ -510,6 +516,7 @@ public void resetAiScoreForClosed() {
 - 기타
   - 각 항목의 `bookmarked`는 로그인 사용자면 최신 북마크 상태 기준, 비로그인이면 `false`
   - `totalElements`는 청년 후처리 필터가 적용된 최종 결과 기준
+  - `youthMidLabel`, `provisionMethodLabel` 은 additive field이며, canonical projection이 있으면 그 값을 우선 사용
 
 ### `GET /api/policies/{id}`
 
@@ -520,6 +527,24 @@ public void resetAiScoreForClosed() {
 - 주요 응답 필드
   - `id`, `title`, `description`, `unifiedCategory`, `status`, `sourceType`
   - `hostOrg`, `operatingOrg`, `minAge`, `maxAge`, `minIncome`, `maxIncome`
-  - `supportContent`, `applyMethodName`, `applyStartDate`, `applyEndDate`
+  - `supportContent`, `applyMethodName`, `youthMidLabel`, `provisionMethodLabel`, `applyStartDate`, `applyEndDate`
   - `targetDetail`, `supportDetail`, `applyMethodDetail`, `contactList`
   - `regions`, `tags`, `detailUrl`, `bookmarked`
+
+### `GET /api/users/me/bookmarks`
+
+- 각 항목은 `GET /api/policies` 목록 응답과 같은 `PolicySummaryResponse` 구조
+- 주요 additive field
+  - `youthMidLabel`
+  - `provisionMethodLabel`
+
+## canonical summary additive field 메모 (2026-05-02)
+
+- `youthMidLabel`
+  - source-neutral canonical summary
+  - 현재는 projection이 있으면 응답에 실리고, 없으면 `null`
+- `provisionMethodLabel`
+  - canonical summary 기준 제공방법명
+  - 현재는 projection이 있으면 응답에 실리고, 없으면 `null`
+- 기존 필드(`applyMethodName`, `unifiedCategory`)를 대체하지 않음
+  - additive contract로만 먼저 노출

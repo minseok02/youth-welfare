@@ -1947,3 +1947,8 @@
 - 문제: `PolicySummaryResponse`, `PolicyDetailResponse`, `PolicyRankingResponse` 에 `youthMidLabel`, `provisionMethodLabel` 을 추가해도, service 단위 테스트만으로는 실제 controller 응답 JSON에 그 필드가 내려가는지 보장되지 않는다. 프론트가 아직 붙지 않은 단계에서는 이런 누락이 바로 드러나지 않아, 나중에 API 연동 시점에 contract mismatch 로 터질 수 있다.
 - 해결: `RecommendationPolicyFlowWebMvcTest`, `UserControllerWebMvcTest` 에 목록/상세/랭킹/북마크 응답 JSON 검증을 추가해 `youthMidLabel`, `provisionMethodLabel` 이 실제 직렬화되는지 고정했다.
 - 이유: 프론트 연결 전 단계에서는 WebMvc contract 테스트가 사실상 API 스키마 안전망 역할을 한다. additive field를 백엔드만 보고 넣어 두는 것보다, JSON 응답까지 고정해 두는 편이 이후 연동 반경을 줄인다.
+
+## 364) WebMvc contract까지 고정해도 응답 문서가 예전 필드 집합에 머물면, 프론트 연결 전에는 새 additive field 존재 자체를 다시 코드에서 찾아야 한다
+- 문제: `youthMidLabel`, `provisionMethodLabel` 을 policy summary/detail/ranking/bookmark 응답에 추가하고 JSON contract 테스트까지 붙인 뒤에도, `api-mapping.md` 는 여전히 예전 응답 필드 집합만 설명하고 있었다. 이 상태에서는 프론트 연결 전 단계의 개발자나 QA가 새 필드 존재를 문서에서 바로 못 찾고, DTO/WebMvc 테스트를 다시 뒤져야 했다.
+- 해결: `api-mapping.md` 에 `GET /api/policies`, `GET /api/policies/search`, `GET /api/policies/{id}`, `GET /api/policies/ranking`, `GET /api/users/me/bookmarks` 의 additive canonical summary field(`youthMidLabel`, `provisionMethodLabel`)를 명시하고 예시 JSON도 갱신했다. 또 `current-state.md` 에 `api-mapping.md` 링크를 추가해 현재 단계의 API contract entrypoint를 분명히 했다.
+- 이유: 프론트 연결 전에는 문서가 사실상 계약서 역할을 한다. 테스트가 green 이더라도 문서가 예전 상태면 연동 전 준비 비용이 다시 커지므로, additive response field는 코드와 문서가 같은 턴에 함께 열려 있어야 한다.
