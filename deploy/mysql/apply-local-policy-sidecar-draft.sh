@@ -5,6 +5,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 REPO_ENV_FILE="${ROOT_DIR}/.env"
 CREATE_SIDECAR_SQL="${ROOT_DIR}/backend/src/main/resources/db/migration-draft/V2026_04_30_01__create_policy_sidecars.sql"
 SEED_NORMALIZATION_SQL="${ROOT_DIR}/backend/src/main/resources/db/migration-draft/V2026_04_30_02__seed_policy_normalization_codes.sql"
+CREATE_SUMMARY_SLOT_SQL="${ROOT_DIR}/backend/src/main/resources/db/migration-draft/V2026_05_02_01__add_service_taxonomy_summary_slots.sql"
 
 trim() {
   local value="$1"
@@ -106,11 +107,18 @@ APPLY_SEED_WHEN_EMPTY_ONLY="${APPLY_SEED_WHEN_EMPTY_ONLY:-true}"
 
 [[ -f "${CREATE_SIDECAR_SQL}" ]] || { echo "missing SQL file: ${CREATE_SIDECAR_SQL}" >&2; exit 1; }
 [[ -f "${SEED_NORMALIZATION_SQL}" ]] || { echo "missing SQL file: ${SEED_NORMALIZATION_SQL}" >&2; exit 1; }
+[[ -f "${CREATE_SUMMARY_SLOT_SQL}" ]] || { echo "missing SQL file: ${CREATE_SUMMARY_SLOT_SQL}" >&2; exit 1; }
 
 apply_sql_file "${CREATE_SIDECAR_SQL}"
+apply_sql_file "${CREATE_SUMMARY_SLOT_SQL}"
 
 if ! table_exists "service_taxonomies"; then
   echo "service_taxonomies table still missing after sidecar create SQL" >&2
+  exit 1
+fi
+
+if ! table_exists "service_taxonomy_summary_slots"; then
+  echo "service_taxonomy_summary_slots table still missing after summary slot create SQL" >&2
   exit 1
 fi
 
@@ -140,6 +148,13 @@ education_target_rows="$(
       AND st.youth_major_label = '교육';
   "
 )"
+summary_slot_count="$(
+  mysql_exec "
+    SELECT COUNT(*)
+    FROM service_taxonomy_summary_slots;
+  "
+)"
 
 echo "service_taxonomies=${taxonomy_count}"
+echo "service_taxonomy_summary_slots=${summary_slot_count}"
 echo "education_target_rows=${education_target_rows}"

@@ -149,6 +149,7 @@ COOKIE_A="${ARTIFACT_DIR}/edu-a.cookie"
 COOKIE_B="${ARTIFACT_DIR}/edu-b.cookie"
 HEALTH_FILE="${ARTIFACT_DIR}/health.json"
 META_FILE="${ARTIFACT_DIR}/response-service-meta.tsv"
+SUMMARY_SLOT_METRICS_FILE="${ARTIFACT_DIR}/summary-slot-metrics.tsv"
 USER_KEY_A_FILE="${ARTIFACT_DIR}/edu-a.userkey"
 USER_KEY_B_FILE="${ARTIFACT_DIR}/edu-b.userkey"
 SCORES_A_OFF="${ARTIFACT_DIR}/edu-a-off-scores.tsv"
@@ -210,7 +211,7 @@ ensure_local_canonical_draft() {
     return 0
   fi
 
-  if ! table_exists "service_taxonomies"; then
+  if ! table_exists "service_taxonomies" || ! table_exists "service_taxonomy_summary_slots"; then
     "${APPLY_CANONICAL_DRAFT_SCRIPT}" >/dev/null
     return 0
   fi
@@ -240,6 +241,11 @@ require_replay_data_preconditions() {
 
   if ! table_exists "service_taxonomies"; then
     echo "education replay precondition unmet: service_taxonomies table missing; local canonical schema/backfill not loaded" >&2
+    exit 1
+  fi
+
+  if ! table_exists "service_taxonomy_summary_slots"; then
+    echo "education replay precondition unmet: service_taxonomy_summary_slots table missing; local summary slot schema/backfill not loaded" >&2
     exit 1
   fi
 
@@ -504,15 +510,38 @@ PY
   " > "${META_FILE}"
 }
 
+collect_summary_slot_metrics() {
+  mysql_exec "
+    SET NAMES utf8mb4;
+    SELECT 'slot_rows', COUNT(*) FROM service_taxonomy_summary_slots
+    UNION ALL
+    SELECT 'slot_services', COUNT(DISTINCT service_id) FROM service_taxonomy_summary_slots
+    UNION ALL
+    SELECT 'slot_education_rows', COUNT(*)
+    FROM service_taxonomy_summary_slots stss
+    JOIN welfare_services ws ON ws.id = stss.service_id
+    WHERE stss.slot_key = 'YOUTH_MAJOR'
+      AND stss.slot_label = '교육'
+      AND ws.unified_category = '기타'
+    UNION ALL
+    SELECT 'slot_education_services', COUNT(DISTINCT stss.service_id)
+    FROM service_taxonomy_summary_slots stss
+    JOIN welfare_services ws ON ws.id = stss.service_id
+    WHERE stss.slot_key = 'YOUTH_MAJOR'
+      AND stss.slot_label = '교육'
+      AND ws.unified_category = '기타';
+  " > "${SUMMARY_SLOT_METRICS_FILE}"
+}
+
 print_summary() {
-  python3 - <<'PY' "${RESP_A_OFF}" "${RESP_A_ON}" "${RESP_B_OFF}" "${RESP_B_ON}" "${META_FILE}" "${STRICT_CONTROL_ASSERT}" "${AI_RESPONSE_TRACE_A_OFF}" "${AI_RESPONSE_TRACE_A_ON}" "${AI_RESPONSE_TRACE_B_OFF}" "${AI_RESPONSE_TRACE_B_ON}" "${OPENAI_MODE_FILE}" "${ARTIFACT_DIR}" "${REPLAY_SUMMARY_APPEND_FILE}" "${REPLAY_SUMMARY_TS}"
+  python3 - <<'PY' "${RESP_A_OFF}" "${RESP_A_ON}" "${RESP_B_OFF}" "${RESP_B_ON}" "${META_FILE}" "${SUMMARY_SLOT_METRICS_FILE}" "${STRICT_CONTROL_ASSERT}" "${AI_RESPONSE_TRACE_A_OFF}" "${AI_RESPONSE_TRACE_A_ON}" "${AI_RESPONSE_TRACE_B_OFF}" "${AI_RESPONSE_TRACE_B_ON}" "${OPENAI_MODE_FILE}" "${ARTIFACT_DIR}" "${REPLAY_SUMMARY_APPEND_FILE}" "${REPLAY_SUMMARY_TS}"
 import json
 import re
 import sys
 from pathlib import Path
 from datetime import datetime
 
-resp_a_off, resp_a_on, resp_b_off, resp_b_on, meta_path, strict_control_assert, trace_a_off, trace_a_on, trace_b_off, trace_b_on, openai_mode_file, artifact_dir, summary_append_file, replay_summary_ts = sys.argv[1:]
+resp_a_off, resp_a_on, resp_b_off, resp_b_on, meta_path, slot_metrics_path, strict_control_assert, trace_a_off, trace_a_on, trace_b_off, trace_b_on, openai_mode_file, artifact_dir, summary_append_file, replay_summary_ts = sys.argv[1:]
 
 def load_rows(path):
     with open(path, "r", encoding="utf-8") as fp:
@@ -526,6 +555,11 @@ for line in Path(meta_path).read_text(encoding="utf-8").splitlines():
         "compat": compat,
         "youth_major": youth_major,
     }
+
+slot_metrics = {}
+for line in Path(slot_metrics_path).read_text(encoding="utf-8").splitlines():
+    key, value = line.split("\t")
+    slot_metrics[key] = int(value)
 
 fp_pattern = re.compile(r"systemFingerprint=([^ ]+)")
 
@@ -575,6 +609,13 @@ ts_value = replay_summary_ts or datetime.now().astimezone().isoformat(timespec="
 print("A_FINGERPRINT", a_off_fp, a_on_fp, a_fp_relation)
 print("B_FINGERPRINT", b_off_fp, b_on_fp, b_fp_relation)
 print(
+    "SUMMARY_SLOT_METRIC",
+    f"slot_rows={slot_metrics.get('slot_rows', 0)}",
+    f"slot_services={slot_metrics.get('slot_services', 0)}",
+    f"slot_education_rows={slot_metrics.get('slot_education_rows', 0)}",
+    f"slot_education_services={slot_metrics.get('slot_education_services', 0)}",
+)
+print(
     "SUMMARY_METRIC",
     f"A_top10_target={a_off['top10_target_count']}->{a_on['top10_target_count']}",
     f"B_top10_target={b_off['top10_target_count']}->{b_on['top10_target_count']}",
@@ -593,6 +634,9 @@ summary_line = (
     f"B_target_total={b_off['target_count']}->{b_on['target_count']} "
     f"A_fp={a_fp_relation} "
     f"B_fp={b_fp_relation} "
+    f"slot_rows={slot_metrics.get('slot_rows', 0)} "
+    f"slot_services={slot_metrics.get('slot_services', 0)} "
+    f"slot_education_services={slot_metrics.get('slot_education_services', 0)} "
     f"artifact_dir={artifact_dir}"
 )
 
@@ -679,6 +723,7 @@ run_on_phase
 stop_app
 
 collect_service_meta
+collect_summary_slot_metrics
 print_summary
 
 echo
