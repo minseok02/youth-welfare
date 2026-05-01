@@ -3,8 +3,6 @@ package com.example.welfare.recommend.service;
 import com.example.welfare.recommend.dto.RecommendationUserSnapshot;
 import com.example.welfare.recommend.dto.ScoredCandidate;
 import com.example.welfare.recommend.gateway.AiRecommendationGateway;
-import com.example.welfare.recommend.entity.ClusterAiResult;
-import com.example.welfare.recommend.repository.ClusterAiResultRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -25,7 +23,7 @@ import java.util.stream.Collectors;
 public class AiScoringService {
 
     private final AiRecommendationGateway aiRecommendationGateway;
-    private final ClusterAiResultRepository clusterAiResultRepository;
+    private final ClusterAiScoreCache clusterAiScoreCache;
 
     @Transactional
     public List<ScoredCandidate> score(String clusterId, List<ScoredCandidate> candidates, RecommendationUserSnapshot user) {
@@ -35,10 +33,7 @@ public class AiScoringService {
         }
 
         // 군집 캐시 조회
-        Map<Long, ClusterAiResult> cacheMap = clusterAiResultRepository
-                .findByClusterId(clusterId)
-                .stream()
-                .collect(Collectors.toMap(c -> c.getService().getId(), c -> c));
+        Map<Long, ClusterAiScoreCache.CachedClusterAiScore> cacheMap = clusterAiScoreCache.findByClusterId(clusterId);
 
         // 캐시 히트 여부 판별
         long cacheHitCount = candidates.stream()
@@ -51,34 +46,29 @@ public class AiScoringService {
 
         // 캐시 히트율 50% 이상이면 캐시 사용
         if (hitRate >= 0.5) {
-            candidates.forEach(c -> {
-                ClusterAiResult cached = cacheMap.get(c.getService().getId());
-                if (cached != null) {
-                    c.setAiScore(cached.getAiScore().doubleValue());
-                    c.setAiReason(cached.getAiReason());
-                }
-            });
-            return candidates;
+            return candidates.stream()
+                    .map(candidate -> {
+                        ClusterAiScoreCache.CachedClusterAiScore cached = cacheMap.get(candidate.getService().getId());
+                        if (cached == null) {
+                            return candidate;
+                        }
+                        return candidate.withAiResult(cached.aiScore().doubleValue(), cached.aiReason());
+                    })
+                    .toList();
         }
 
         // 캐시 미스 — 실시간 AI 호출
         List<ScoredCandidate> scored = aiRecommendationGateway.score(clusterId, candidates, user);
 
         // 결과를 캐시에 저장 (UPSERT)
-        scored.forEach(c -> {
-            if (c.getAiScore() == null) return;
-            ClusterAiResult existing = cacheMap.get(c.getService().getId());
-            if (existing != null) {
-                existing.update(BigDecimal.valueOf(c.getAiScore()), c.getAiReason());
-            } else {
-                clusterAiResultRepository.save(ClusterAiResult.builder()
-                        .clusterId(clusterId)
-                        .service(c.getService())
-                        .aiScore(BigDecimal.valueOf(c.getAiScore()))
-                        .aiReason(c.getAiReason())
-                        .build());
-            }
-        });
+        clusterAiScoreCache.saveAll(clusterId, scored.stream()
+                .filter(candidate -> candidate.getAiScore() != null)
+                .map(candidate -> new ClusterAiScoreCache.ClusterAiScoreWrite(
+                        candidate.getService(),
+                        BigDecimal.valueOf(candidate.getAiScore()),
+                        candidate.getAiReason()
+                ))
+                .toList());
 
         return scored;
     }

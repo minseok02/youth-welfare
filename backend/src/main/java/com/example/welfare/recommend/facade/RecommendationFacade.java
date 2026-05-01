@@ -45,6 +45,7 @@ public class RecommendationFacade {
     private final RuleScoringService ruleScoringService;
     private final AiScoringService aiScoringService;
     private final ReRankingService reRankingService;
+    private final RecommendationPostScoringFilterService recommendationPostScoringFilterService;
     private final RecommendationPersistenceService persistenceService;
     private final RecommendationLogService recommendationLogService;
     private final UserRecommendationRepository userRecommendationRepository;
@@ -60,9 +61,9 @@ public class RecommendationFacade {
     // personal=true: 군집 캐시 무시, 개인 프로필 기반 실시간 AI 호출
     @Transactional
     public List<UserRecommendation> recommend(Long userId, boolean personal) {
-        RecommendationUserSnapshot snapshot = userReadService.getRecommendationSnapshot(userId);
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+        UserReadService.RecommendationReadContext context = userReadService.getRecommendationContext(userId);
+        RecommendationUserSnapshot snapshot = context.snapshot();
+        User user = context.user();
 
         // ① 군집 결정 — personal 모드는 youth_all로 강제 (캐시 미사용)
         String clusterId = personal ? "youth_all" : clusterService.assignCluster(snapshot);
@@ -80,9 +81,7 @@ public class RecommendationFacade {
 
         // ③-b 특수 대상 불일치 정책 제거 (사용자와 맞지 않는 장애/농촌/다문화 등)
         // 숫자 임계값이 아닌 RuleScoringService가 명시한 mismatch 플래그를 사용
-        scored = scored.stream()
-                .filter(c -> !c.isHasSpecialTargetMismatch())
-                .collect(java.util.stream.Collectors.toList());
+        scored = recommendationPostScoringFilterService.filterSpecialTargetMismatches(scored);
         if (scored.isEmpty()) {
             log.info("[RecommendationFacade] 필터 후 후보 없음 userId={}", userId);
             return List.of();

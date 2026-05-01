@@ -30,30 +30,28 @@ public class ReRankingService {
         double ruleMax = normalizer.findMax(
                 candidates.stream().map(ScoredCandidate::getRuleWeightedScore).collect(Collectors.toList()));
 
-        candidates.forEach(c -> {
-            double normRule = normalizer.normalize(c.getRuleWeightedScore(), 0.0, ruleMax);
-
-            double finalScore;
-            boolean fallback;
-
-            if (c.getAiScore() != null) {
-                double normAi = normalizer.normalize(c.getAiScore(), 0.0, 100.0);
-                finalScore = normRule * weight.getRuleWeight().doubleValue()
-                        + normAi * weight.getAiWeight().doubleValue();
-                fallback = false;
-            } else {
-                // ai_score NULL → rule만 사용
-                finalScore = normRule;
-                fallback = true;
-            }
-
-            c.setFinalScore(finalScore);
-            c.setAiFallback(fallback);
-        });
-
         return candidates.stream()
+                .map(candidate -> {
+                    double normRule = normalizer.normalize(candidate.getRuleWeightedScore(), 0.0, ruleMax);
+
+                    double finalScore;
+                    boolean fallback;
+
+                    if (candidate.getAiScore() != null) {
+                        double normAi = normalizer.normalize(candidate.getAiScore(), 0.0, 100.0);
+                        finalScore = normRule * weight.getRuleWeight().doubleValue()
+                                + normAi * weight.getAiWeight().doubleValue();
+                        fallback = false;
+                    } else {
+                        // ai_score NULL → rule만 사용
+                        finalScore = normRule;
+                        fallback = true;
+                    }
+
+                    return candidate.withFinalScore(finalScore, fallback);
+                })
                 .sorted(recommendationComparator())
-                .collect(Collectors.toList());
+                .toList();
     }
 
     public ScoreWeight getCurrentWeight() {

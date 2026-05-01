@@ -47,10 +47,10 @@ class RecommendationPersistenceServiceTest {
                 .service(service)
                 .ruleBaseScore(10.0)
                 .ruleWeightedScore(12.0)
+                .aiScore(88.0)
+                .aiReason("reason")
+                .finalScore(0.73)
                 .build();
-        candidate.setAiScore(88.0);
-        candidate.setAiReason("reason");
-        candidate.setFinalScore(0.73);
 
         ScoreWeight weight = ScoreWeight.builder()
                 .weightKey("COLD_START")
@@ -94,8 +94,8 @@ class RecommendationPersistenceServiceTest {
                 .service(service)
                 .ruleBaseScore(10.0)
                 .ruleWeightedScore(12.0)
+                .finalScore(0.73)
                 .build();
-        candidate.setFinalScore(0.73);
 
         ScoreWeight weight = ScoreWeight.builder()
                 .weightKey("COLD_START")

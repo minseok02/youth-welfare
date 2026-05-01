@@ -66,14 +66,15 @@ public class RealtimeAiGateway implements AiRecommendationGateway {
             if (response != null && response.getResults() != null) {
                 Map<Long, AiResponse.Result> resultMap = response.getResults().stream()
                         .collect(Collectors.toMap(AiResponse.Result::getServiceId, r -> r));
-
-                topCandidates.forEach(c -> {
-                    AiResponse.Result r = resultMap.get(c.getService().getId());
-                    if (r != null) {
-                        c.setAiScore((double) r.getScore());
-                        c.setAiReason(r.getReason());
-                    }
-                });
+                return candidates.stream()
+                        .map(candidate -> {
+                            AiResponse.Result result = resultMap.get(candidate.getService().getId());
+                            if (result == null) {
+                                return candidate;
+                            }
+                            return candidate.withAiResult((double) result.getScore(), result.getReason());
+                        })
+                        .toList();
             }
         } catch (Exception e) {
             log.warn("[RealtimeAiGateway] AI 호출 실패, fallback to rule-only: {}", e.getMessage());
