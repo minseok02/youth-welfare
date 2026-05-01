@@ -263,6 +263,11 @@
 - 해결: [collect-current-state.md](./collect-current-state.md), [collect-operation-checklist.md](./collect-operation-checklist.md), [collect-incident-template.md](./collect-incident-template.md) 를 추가해 current-state, runbook, 복붙 템플릿으로 역할을 분리했다
 - 이유: source onboarding 쪽과 같은 방식으로 collect 운영 문서도 층을 나눠야, 평소에는 current-state 를 보고 실제 실행 시 checklist 를 쓰고, 이슈가 나면 template로 기록하는 흐름이 선명해진다
 
+## 321) recommendation/replay 도 설계 문서와 실험 기록이 많아 현재 계약과 실행 절차가 바로 안 보일 수 있다
+- 문제: 추천 쪽은 [recommendation-pipeline.md](./recommendation-pipeline.md), `policy-normalization-education-*`, `openai-replay-*` 문서가 많아, 현재 코드 기준 계약과 실제 replay 해석 순서를 빠르게 찾기 어려울 수 있었다
+- 해결: [recommendation-current-state.md](./recommendation-current-state.md), [recommendation-operation-checklist.md](./recommendation-operation-checklist.md), [recommendation-replay-template.md](./recommendation-replay-template.md) 를 추가해 current-state, 실행 runbook, 기록 템플릿으로 역할을 분리했다
+- 이유: recommendation/replay 도 collect/source onboarding 과 같은 방식으로 문서 층을 나눠야, 현재 계약 확인과 실험 기록 작성이 덜 섞이고 local/diagnostic 검증도 반복하기 쉬워진다
+
 ## 42) priority_options 코드가 추천 로직과 UI 코드 사이에서 따로 놀았음
 - 문제: DB `priority_options`에는 `ONLINE`, `YOUTH_ONLY`, `EDU_JOB`, `AMOUNT` 코드가 있었지만, `DefaultPriorityMatcher`에서 `ONLINE`과 `YOUTH_ONLY`는 이미 항상 false였고, 프론트는 `JOB`, `EDUCATION`, `FINANCE`, `HEALTH`, `SAFETY` 등 DB에 없는 코드를 전송해 `C001` 오류가 났음
 - 해결: `ONLINE`, `YOUTH_ONLY` 제거, `EDU_JOB`→`EDUCATION`, `AMOUNT`→`FINANCE` 코드 변경, `JOB`, `PARTICIPATION`, `FAMILY` 추가. DB migration, `DefaultPriorityMatcher`, 프론트 `PRIORITY_OPTIONS` 세 곳을 동시에 맞춤

@@ -47,6 +47,15 @@
 - [recommendation-pipeline.md](./recommendation-pipeline.md)  
   추천 API, 추천 저장, 점수 계산 흐름을 확인합니다.
 
+- [recommendation-current-state.md](./recommendation-current-state.md)
+  현재 추천 계약, canonical bridge, education experiment, AI score 해석 기준을 current-state 로 빠르게 확인합니다.
+
+- [recommendation-operation-checklist.md](./recommendation-operation-checklist.md)
+  추천 API 확인이나 replay smoke 실행 시 어떤 전제와 metric을 먼저 봐야 하는지 runbook 으로 정리합니다.
+
+- [recommendation-replay-template.md](./recommendation-replay-template.md)
+  replay 결과를 기록할 때 복사해서 쓰는 템플릿입니다.
+
 ### 챗봇을 구현하거나 설계할 때
 
 - [chatbot-plan.md](./chatbot-plan.md)  

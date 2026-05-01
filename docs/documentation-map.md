@@ -40,6 +40,8 @@
 
 - [collect-current-state.md](./collect-current-state.md)
 - [collect-operation-checklist.md](./collect-operation-checklist.md)
+- [recommendation-current-state.md](./recommendation-current-state.md)
+- [recommendation-operation-checklist.md](./recommendation-operation-checklist.md)
 - [runtime-api-smoke-commands.md](./runtime-api-smoke-commands.md)
 - [testing.md](./testing.md)
 - [collect-ops.md](./collect-ops.md)

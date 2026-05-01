@@ -1472,6 +1472,10 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
   - [collect-current-state.md](./collect-current-state.md) 를 추가해 현재 collect entry, 저장 레이어, `api_sync_logs`, 정상/장애 판단 기준을 current-state 기준으로 요약했다
   - [collect-operation-checklist.md](./collect-operation-checklist.md) 를 추가해 실행 전 확인, collect 종류 선택, 실행 직후 확인, 결과 해석 순서를 짧은 runbook 으로 분리했다
   - [collect-incident-template.md](./collect-incident-template.md) 를 추가해 실제 collect 실행/장애 시 남길 최소 기록 형식을 복붙 템플릿으로 정리했다
+- [x] recommendation / replay 문서를 current-state / checklist / template 로 분리
+  - [recommendation-current-state.md](./recommendation-current-state.md) 를 추가해 현재 recommendation contract, canonical bridge, education experiment, `ai_score` 해석 기준을 current-state 로 요약했다
+  - [recommendation-operation-checklist.md](./recommendation-operation-checklist.md) 를 추가해 일반 추천 확인, replay precondition, `rule-only` 와 `real-openai` 결과 해석 순서를 runbook 으로 분리했다
+  - [recommendation-replay-template.md](./recommendation-replay-template.md) 를 추가해 replay 결과를 남길 때 필요한 precondition, summary metric, trace, 판정을 복붙 템플릿으로 정리했다
 - [x] local-first closeout 세트 종료 판정
   - current 워크트리 기준으로 `auth/session revoke regression`, `PII split-account local smoke`, `education replay smoke(rule-only)`, `runtime API smoke` 를 모두 다시 통과시켰다
   - 따라서 지금 남은 미완 항목은 `GOV24_*`, `YOUTH_MID` 같은 external blocked 트랙과 운영 환경이 있어야 의미가 있는 ops-only 트랙뿐이라고 정리한다
