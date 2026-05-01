@@ -2007,3 +2007,8 @@
 - 문제: cache clear real-openai artifact(`/tmp/tmp.TBDFrxfGqo`)에서 sample A/B reason diff를 읽어 보면, sample A는 `도움이 될 수 있음 -> 실질적인 도움이 됨`, `특정 분야에 국한`, `관심이 있는 청년` 같은 분야 적합성/교육 타깃 phrasing이 반복되고, sample B는 `연관성이 낮음`, `주거비 부담 완화`, `큰 도움이 될 것임` 같은 wording drift가 반복된다. 그런데 이 해석을 로그 한 줄로만 남기면 다음 replay 때 다시 artifact TSV를 열어 같은 분류를 반복하게 된다.
 - 해결: live AI artifact 전용 요약 문서 [policy-normalization-live-ai-reason-patterns.md](./history/ai/policy-normalization-live-ai-reason-patterns.md)를 추가해 sample A/B의 `text_changed` / `membership_changed` 구조와 반복 문장 패턴, 현재 결론을 따로 정리했다.
 - 이유: 이 단계의 산출물은 코드 변경보다 해석 가능한 진단 기록이다. pattern memo를 별도 문서로 떼 두면 이후 replay를 더 수집해도 “이번 wording drift가 새 현상인지, 이미 보던 패턴인지”를 더 빠르게 비교할 수 있다.
+
+## 376) pattern memo까지 따로 만들어도 replay summary가 여전히 숫자만 뿌리면, 다음 run마다 `edu-a/edu-b-ai-reason-diff.tsv` 를 열어 상위 phrase를 다시 읽어야 한다
+- 문제: 현재는 `A_reason_text_changed=15` 같은 count와 별도 memo는 있지만, replay를 막 끝낸 직후 stdout만 보고는 어떤 phrase가 많이 흔들렸는지 알 수 없다. 결국 `ai-reason-diff.tsv` 나 pattern memo를 다시 열어 `연관성이 낮`, `특정 분야에 국한`, `실질적인 도움이`, `주거비 부담` 같은 축을 눈으로 세야 한다.
+- 해결: replay script에 `SUMMARY_REASON_PATTERN` 한 줄과 `ai-reason-pattern-summary.tsv` artifact를 추가해 sample A/B별 상위 phrase count를 바로 보이게 했다. 현재 요약 대상 phrase는 `direct_help`, `practical_help`, `narrow_scope`, `interest_fit`, `low_relevance`, `housing_burden`, `strong_help`, `job_opportunity`, `practical_experience`, `creativity` 다.
+- 이유: 이 단계는 제품 계약보다 triage 속도가 더 중요하다. count와 함께 “어떤 표현 축이 흔들렸는가”를 summary에 바로 노출하면 다음 replay 비교가 TSV 재독 없이도 훨씬 빨라진다.

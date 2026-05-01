@@ -173,6 +173,7 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
   - sample B: `text_changed=15`, `membership_changed=0`
   - 결론: canonical summary prompt 영향 가능성은 보이지만 control drift와 분리되지 않아 아직 diagnostic evidence 로만 유지
 - 2026-05-02 live AI reason diff 패턴을 [docs/history/ai/policy-normalization-live-ai-reason-patterns.md](/home/minseok/youth-welfare/docs/history/ai/policy-normalization-live-ai-reason-patterns.md) 로 분리 정리
+- 2026-05-02 replay script에 `SUMMARY_REASON_PATTERN` / `ai-reason-pattern-summary.tsv` 추가 후 `bash -n deploy/smoke/run-local-education-priority-replay.sh`
 - 2026-05-02 education replay/history inventory 문서의 `youth_major` 확인 기준을 summary slot-first / legacy fallback 으로 정리 후 `git diff --check`
 - 2026-05-01 `BokjiroDetailCollectService` 내부 예산 배분 / detail persistence-fallback 분리 후 `backend`에서 `./gradlew test --no-daemon --tests com.example.welfare.collect.service.BokjiroDetailCollectServiceTest`
 - 2026-05-01 `BokjiroDetailCollectService` 분리 후 `backend`에서 `./gradlew integrationTest --no-daemon --tests com.example.welfare.integration.BokjiroSidecarMergeIntegrationTest`

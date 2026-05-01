@@ -159,6 +159,7 @@ SCORES_B_OFF="${ARTIFACT_DIR}/edu-b-off-scores.tsv"
 SCORES_B_ON="${ARTIFACT_DIR}/edu-b-on-scores.tsv"
 REASON_DIFF_A="${ARTIFACT_DIR}/edu-a-ai-reason-diff.tsv"
 REASON_DIFF_B="${ARTIFACT_DIR}/edu-b-ai-reason-diff.tsv"
+REASON_PATTERN_SUMMARY_FILE="${ARTIFACT_DIR}/ai-reason-pattern-summary.tsv"
 AI_TRACE_OFF_RAW="${ARTIFACT_DIR}/ai-trace-off.log"
 AI_TRACE_ON_RAW="${ARTIFACT_DIR}/ai-trace-on.log"
 AI_TRACE_A_OFF="${ARTIFACT_DIR}/edu-a-off-ai-trace.log"
@@ -740,12 +741,60 @@ def write_reason_diff(off_path, on_path, output_path):
         "membership_changed": membership_changed,
     }
 
+def summarize_reason_patterns(diff_path):
+    phrase_catalog = [
+        ("직접적인 도움", "direct_help"),
+        ("실질적인 도움이", "practical_help"),
+        ("특정 분야에 국한", "narrow_scope"),
+        ("관심이 있는", "interest_fit"),
+        ("연관성이 낮", "low_relevance"),
+        ("주거비 부담", "housing_burden"),
+        ("큰 도움이", "strong_help"),
+        ("취업 기회", "job_opportunity"),
+        ("실무 경험", "practical_experience"),
+        ("창의", "creativity"),
+    ]
+    rows = []
+    counts = {}
+    for phrase, key in phrase_catalog:
+        counts[key] = 0
+    with Path(diff_path).open("r", encoding="utf-8") as fp:
+        for row in fp.read().splitlines()[1:]:
+            if not row.strip():
+                continue
+            cols = row.split("\t")
+            if not cols or cols[0] != "text_changed":
+                continue
+            combined = " || ".join(cols[-2:])
+            for phrase, key in phrase_catalog:
+                if phrase in combined:
+                    counts[key] += 1
+    return counts
+
+def format_top_patterns(prefix, counts):
+    ordered = sorted(
+        ((key, value) for key, value in counts.items() if value > 0),
+        key=lambda item: (-item[1], item[0])
+    )[:4]
+    if not ordered:
+        return f"{prefix}=none"
+    summary = ",".join(f"{key}:{value}" for key, value in ordered)
+    return f"{prefix}={summary}"
+
 a_off = summarize("A_OFF", load_rows(resp_a_off))
 a_on = summarize("A_ON", load_rows(resp_a_on))
 b_off = summarize("B_OFF", load_rows(resp_b_off))
 b_on = summarize("B_ON", load_rows(resp_b_on))
 a_reason_diff = write_reason_diff(scores_a_off, scores_a_on, reason_diff_a)
 b_reason_diff = write_reason_diff(scores_b_off, scores_b_on, reason_diff_b)
+a_reason_patterns = summarize_reason_patterns(reason_diff_a)
+b_reason_patterns = summarize_reason_patterns(reason_diff_b)
+
+with Path(reason_pattern_summary_file := Path(artifact_dir) / "ai-reason-pattern-summary.tsv").open("w", encoding="utf-8") as fp:
+    fp.write("sample\tpattern_key\tcount\n")
+    for sample, counts in (("A", a_reason_patterns), ("B", b_reason_patterns)):
+        for key, value in sorted(counts.items()):
+            fp.write(f"{sample}\t{key}\t{value}\n")
 
 a_off_fp = fingerprint_of(trace_a_off)
 a_on_fp = fingerprint_of(trace_a_on)
@@ -789,6 +838,11 @@ print(
     f"A_reason_membership_changed={a_reason_diff['membership_changed']}",
     f"B_reason_membership_changed={b_reason_diff['membership_changed']}",
 )
+print(
+    "SUMMARY_REASON_PATTERN",
+    format_top_patterns("A_top_patterns", a_reason_patterns),
+    format_top_patterns("B_top_patterns", b_reason_patterns),
+)
 
 summary_line = (
     f"ts={ts_value} "
@@ -805,6 +859,8 @@ summary_line = (
     f"B_reason_text_changed={b_reason_diff['text_changed']} "
     f"A_reason_membership_changed={a_reason_diff['membership_changed']} "
     f"B_reason_membership_changed={b_reason_diff['membership_changed']} "
+    f"{format_top_patterns('A_top_patterns', a_reason_patterns).replace('=', '=')} "
+    f"{format_top_patterns('B_top_patterns', b_reason_patterns).replace('=', '=')} "
     f"slot_rows={slot_metrics.get('slot_rows', 0)} "
     f"slot_services={slot_metrics.get('slot_services', 0)} "
     f"slot_education_services={slot_metrics.get('slot_education_services', 0)} "

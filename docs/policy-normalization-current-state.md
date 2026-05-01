@@ -159,6 +159,10 @@ off/on 사이에 함께 바뀌었습니다.
 세부 패턴 분류는
 [policy-normalization-live-ai-reason-patterns.md](./history/ai/policy-normalization-live-ai-reason-patterns.md)
 에 따로 정리해 두었습니다.
+다음 replay부터는 summary stdout의 `SUMMARY_REASON_PATTERN` 과
+artifact `ai-reason-pattern-summary.tsv` 를 먼저 보면,
+`연관성이 낮`, `특정 분야에 국한`, `실질적인 도움이`, `주거비 부담`
+같은 phrase drift를 TSV 전체를 다시 읽지 않고도 빠르게 볼 수 있습니다.
 
 ## 5. retrieval / repository 현재 상태
 
