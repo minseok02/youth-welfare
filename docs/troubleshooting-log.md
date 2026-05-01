@@ -1942,3 +1942,8 @@
 - 문제: `CanonicalRecommendationReadModelRepository` 와 `RecommendationCandidateProjection` 에 `youthMidLabel`, `provisionMethodLabel` 을 추가한 뒤에도, `PolicySummaryResponse`, `PolicyDetailResponse`, `PolicyRankingResponse` 는 여전히 `WelfareService` 의 기존 필드만 응답에 실어 주고 있었다. 이 상태에서는 새 projection field가 실제 사용자/API 경계에서는 보이지 않아, read-model 확장이 내부 준비 작업으로만 남는다.
 - 해결: policy summary/detail/ranking 응답 DTO에 `youthMidLabel`, `provisionMethodLabel` 을 additive field로 추가하고, projection이 있으면 그 값을 그대로 응답에 싣도록 연결했다. `PolicyServiceTest`, `UserServiceTest`, `PolicyRankingServiceTest` 로 목록/북마크/랭킹 경계에서 값이 전달되는지 고정했다.
 - 이유: read-model 확장은 실제 소비 지점 하나와 연결돼야 의미가 생긴다. 기존 필드를 덮어쓰지 않고 additive field로 먼저 노출하면 회귀 위험을 크게 늘리지 않으면서도, 이후 검색/추천 설명 계층이나 프론트가 canonical summary를 바로 활용할 수 있는 경로를 열 수 있다.
+
+## 363) policy 응답 DTO에 additive field를 추가해도 WebMvc 레벨 직렬화 contract를 고정하지 않으면, 프론트 연결 전까지는 JSON 필드 누락을 뒤늦게 발견할 수 있다
+- 문제: `PolicySummaryResponse`, `PolicyDetailResponse`, `PolicyRankingResponse` 에 `youthMidLabel`, `provisionMethodLabel` 을 추가해도, service 단위 테스트만으로는 실제 controller 응답 JSON에 그 필드가 내려가는지 보장되지 않는다. 프론트가 아직 붙지 않은 단계에서는 이런 누락이 바로 드러나지 않아, 나중에 API 연동 시점에 contract mismatch 로 터질 수 있다.
+- 해결: `RecommendationPolicyFlowWebMvcTest`, `UserControllerWebMvcTest` 에 목록/상세/랭킹/북마크 응답 JSON 검증을 추가해 `youthMidLabel`, `provisionMethodLabel` 이 실제 직렬화되는지 고정했다.
+- 이유: 프론트 연결 전 단계에서는 WebMvc contract 테스트가 사실상 API 스키마 안전망 역할을 한다. additive field를 백엔드만 보고 넣어 두는 것보다, JSON 응답까지 고정해 두는 편이 이후 연동 반경을 줄인다.

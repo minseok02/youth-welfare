@@ -84,6 +84,8 @@ class RecommendationPolicyFlowWebMvcTest {
                 .title("청년 월세 지원")
                 .sourceType("YOUTH")
                 .unifiedCategory("HOUSING")
+                .youthMidLabel("전월세 및 주거급여 지원")
+                .provisionMethodLabel("온라인")
                 .viewCount(8L)
                 .apiViewCount(123L)
                 .rankingScore(0.9812)
@@ -97,6 +99,8 @@ class RecommendationPolicyFlowWebMvcTest {
                 .hostOrg("서울시")
                 .minAge(19)
                 .maxAge(34)
+                .youthMidLabel("전월세 및 주거급여 지원")
+                .provisionMethodLabel("온라인")
                 .isOnlineApply(true)
                 .bookmarked(true)
                 .build();
@@ -141,7 +145,9 @@ class RecommendationPolicyFlowWebMvcTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data[0].serviceId").value(11))
-                .andExpect(jsonPath("$.data[0].rankingScore").value(0.9812));
+                .andExpect(jsonPath("$.data[0].rankingScore").value(0.9812))
+                .andExpect(jsonPath("$.data[0].youthMidLabel").value("전월세 및 주거급여 지원"))
+                .andExpect(jsonPath("$.data[0].provisionMethodLabel").value("온라인"));
 
         mockMvc.perform(get("/api/policies/search")
                         .param("keyword", "월세")
@@ -157,6 +163,8 @@ class RecommendationPolicyFlowWebMvcTest {
                 .andExpect(jsonPath("$.data.content[0].id").value(11))
                 .andExpect(jsonPath("$.data.content[0].title").value("청년 월세 지원"))
                 .andExpect(jsonPath("$.data.content[0].bookmarked").value(true))
+                .andExpect(jsonPath("$.data.content[0].youthMidLabel").value("전월세 및 주거급여 지원"))
+                .andExpect(jsonPath("$.data.content[0].provisionMethodLabel").value("온라인"))
                 .andExpect(jsonPath("$.data.totalElements").value(1))
                 .andExpect(jsonPath("$.data.totalPages").value(1))
                 .andExpect(jsonPath("$.data.hasNext").value(false));
@@ -174,6 +182,8 @@ class RecommendationPolicyFlowWebMvcTest {
                 .title("청년 월세 지원")
                 .status("ACTIVE")
                 .sourceType("YOUTH")
+                .youthMidLabel("전월세 및 주거급여 지원")
+                .provisionMethodLabel("온라인")
                 .build();
         given(policyViewLogService.buildClientFingerprint(org.mockito.ArgumentMatchers.any())).willReturn("fp");
         given(policyViewLogService.registerViewIfFirstInWindow(eq(11L), isNull(), eq("fp"))).willReturn(true);
@@ -184,7 +194,9 @@ class RecommendationPolicyFlowWebMvcTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.id").value(11))
-                .andExpect(jsonPath("$.data.title").value("청년 월세 지원"));
+                .andExpect(jsonPath("$.data.title").value("청년 월세 지원"))
+                .andExpect(jsonPath("$.data.youthMidLabel").value("전월세 및 주거급여 지원"))
+                .andExpect(jsonPath("$.data.provisionMethodLabel").value("온라인"));
 
         verify(policyService).getDetail(isNull(), eq(11L), eq(true));
         verify(recommendationLogService).markClicked(9001L);

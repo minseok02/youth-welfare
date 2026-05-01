@@ -130,6 +130,7 @@ projection이 현재 담는 대표값:
 
 또 policy summary/detail/ranking 응답은 이제 이 projection에서
 `youthMidLabel`, `provisionMethodLabel` 을 additive field로 같이 노출합니다.
+관련 WebMvc contract도 목록/상세/랭킹/북마크 응답 기준으로 테스트 고정된 상태입니다.
 
 ## 5. retrieval / repository 현재 상태
 
