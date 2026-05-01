@@ -1,0 +1,55 @@
+# Project Spec
+
+이 문서는 프로젝트 기본 메타 정보를 짧게 모아 둔 파일입니다.
+
+## 프로젝트 개요
+
+- 프로젝트명: 청년 복지 통합 플랫폼
+- 유형: 졸업 프로젝트
+- 팀 규모: 2명
+- 현재 단계: 로컬 기능/구조 검증 단계
+- 운영 서버: 아직 없음
+
+## 주요 기술
+
+### Backend
+
+- Java 17
+- Spring Boot 3.2.5
+- Gradle 8.7
+- JPA / Spring Security / Redis / WebClient
+
+### Frontend
+
+- React 19
+- Vite 8
+- MUI 7
+- React Query 5
+- Zustand 5
+
+### Data / Infra
+
+- MySQL 8
+- Redis
+- Docker Compose
+
+## 로컬 개발 환경 기준
+
+- OS: Ubuntu 24.04 (WSL2 기준 확인)
+- Shell: bash
+- Node: v24.11.1
+- npm: 11.6.2
+
+## 외부 연동
+
+- OpenAI API
+- 온통청년 API
+- 복지로 API
+- Gmail SMTP
+
+## 참고 문서
+
+- 구조: [architecture.md](./architecture.md)
+- 요구사항: [srs-v2.10.md](./srs-v2.10.md)
+- 테스트: [testing.md](./testing.md)
+- 진행 상황: [phase-plan.md](./phase-plan.md)
