@@ -3,6 +3,7 @@ package com.example.welfare.recommend.service;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.repository.ServiceTagRepository;
 import com.example.welfare.policy.repository.WelfareServiceRepository;
+import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
 import com.example.welfare.recommend.dto.RetrievedRecommendationCandidates;
 import com.example.welfare.recommend.dto.RecommendationUserSnapshot;
 import com.example.welfare.recommend.repository.CanonicalRecommendationReadModelRepository;
@@ -15,6 +16,7 @@ import org.springframework.data.domain.PageRequest;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -56,8 +58,8 @@ class RetrievalServiceTest {
         given(welfareServiceRepository.findLatestCandidatesWithRegionCode(eq(26), eq(5), eq("11680"), any(PageRequest.class)))
                 .willReturn(List.of());
         given(serviceTagRepository.findByServiceIdIn(any())).willReturn(Collections.emptyList());
-        given(youthPolicyFilter.isYouthRelevant(eq(candidate), any())).willReturn(true);
-        given(canonicalRecommendationReadModelRepository.findByServiceIds(any())).willReturn(Collections.emptyMap());
+        given(canonicalRecommendationReadModelRepository.findByServiceIds(any()))
+                .willReturn(Map.of(1L, projection(1L, true)));
 
         RetrievedRecommendationCandidates results = service.retrieve("youth_all", user);
 
@@ -85,8 +87,8 @@ class RetrievalServiceTest {
         given(welfareServiceRepository.findLatestCandidatesWithSido(eq(26), eq(5), eq("서울특별시"), any(PageRequest.class)))
                 .willReturn(List.of());
         given(serviceTagRepository.findByServiceIdIn(any())).willReturn(Collections.emptyList());
-        given(youthPolicyFilter.isYouthRelevant(eq(candidate), any())).willReturn(true);
-        given(canonicalRecommendationReadModelRepository.findByServiceIds(any())).willReturn(Collections.emptyMap());
+        given(canonicalRecommendationReadModelRepository.findByServiceIds(any()))
+                .willReturn(Map.of(2L, projection(2L, true)));
 
         RetrievedRecommendationCandidates results = service.retrieve("youth_all", user);
 
@@ -95,6 +97,32 @@ class RetrievalServiceTest {
         verify(welfareServiceRepository).findLatestCandidatesWithSido(eq(26), eq(5), eq("서울특별시"), any(PageRequest.class));
         verify(welfareServiceRepository, never()).findCandidatesWithRegionCode(any(Integer.class), any(Integer.class), any(), any(PageRequest.class));
         verify(canonicalRecommendationReadModelRepository).findByServiceIds(argThat(ids -> ids.equals(List.of(2L))));
+    }
+
+    @Test
+    @DisplayName("canonical projection 이 있으면 youth heuristic 대신 projection relevance를 사용한다")
+    void retrieveUsesProjectionYouthRelevanceBeforeFallbackHeuristic() {
+        RetrievalService service = new RetrievalService(
+                welfareServiceRepository,
+                serviceTagRepository,
+                youthPolicyFilter,
+                canonicalRecommendationReadModelRepository
+        );
+
+        RecommendationUserSnapshot user = user("서울특별시", "11680");
+        WelfareService candidate = welfareService(3L, "일반 복지");
+        given(welfareServiceRepository.findCandidatesWithRegionCode(eq(26), eq(5), eq("11680"), any(PageRequest.class)))
+                .willReturn(List.of(candidate));
+        given(welfareServiceRepository.findLatestCandidatesWithRegionCode(eq(26), eq(5), eq("11680"), any(PageRequest.class)))
+                .willReturn(List.of());
+        given(serviceTagRepository.findByServiceIdIn(any())).willReturn(Collections.emptyList());
+        given(canonicalRecommendationReadModelRepository.findByServiceIds(any()))
+                .willReturn(Map.of(3L, projection(3L, false)));
+
+        RetrievedRecommendationCandidates results = service.retrieve("youth_all", user);
+
+        assertThat(results.candidates()).isEmpty();
+        verify(youthPolicyFilter, never()).isYouthRelevant(eq(candidate), any());
     }
 
     private RecommendationUserSnapshot user(String sido, String regionCode) {
@@ -129,6 +157,13 @@ class RetrievalServiceTest {
                 .minIncome(1)
                 .maxIncome(10)
                 .apiViewCount(0L)
+                .build();
+    }
+
+    private RecommendationCandidateProjection projection(Long serviceId, boolean youthRelevant) {
+        return RecommendationCandidateProjection.builder()
+                .serviceId(serviceId)
+                .youthRelevant(youthRelevant)
                 .build();
     }
 }

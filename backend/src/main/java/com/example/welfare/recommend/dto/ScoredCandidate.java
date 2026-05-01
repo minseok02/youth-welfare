@@ -16,6 +16,7 @@ import java.math.BigDecimal;
 public class ScoredCandidate {
 
     private WelfareService service;
+    private RecommendationCandidateProjection projection;
 
     private double ruleBaseScore;
     private double ruleWeightedScore;

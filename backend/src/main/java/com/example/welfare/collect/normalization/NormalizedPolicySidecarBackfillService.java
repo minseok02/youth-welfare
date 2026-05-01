@@ -9,16 +9,17 @@ import com.example.welfare.collect.repository.RawApiPayloadRepository;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.repository.WelfareServiceRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.EnumMap;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class NormalizedPolicySidecarBackfillService {
 
     private final RawApiPayloadRepository rawApiPayloadRepository;
@@ -26,22 +27,61 @@ public class NormalizedPolicySidecarBackfillService {
     private final WelfareServiceMapper welfareServiceMapper;
     private final NormalizedPolicySidecarWriter normalizedPolicySidecarWriter;
     private final ObjectMapper objectMapper;
+    private final Map<WelfareService.SourceType, SidecarBackfillCapability> backfillCapabilities;
+
+    public NormalizedPolicySidecarBackfillService(RawApiPayloadRepository rawApiPayloadRepository,
+                                                  WelfareServiceRepository welfareServiceRepository,
+                                                  WelfareServiceMapper welfareServiceMapper,
+                                                  NormalizedPolicySidecarWriter normalizedPolicySidecarWriter,
+                                                  ObjectMapper objectMapper) {
+        this.rawApiPayloadRepository = rawApiPayloadRepository;
+        this.welfareServiceRepository = welfareServiceRepository;
+        this.welfareServiceMapper = welfareServiceMapper;
+        this.normalizedPolicySidecarWriter = normalizedPolicySidecarWriter;
+        this.objectMapper = objectMapper;
+        this.backfillCapabilities = buildBackfillCapabilities(welfareServiceMapper, objectMapper);
+    }
 
     @Transactional
     public BackfillResult backfillBokjiroListSidecars(int limitPerSource) {
-        BackfillResult central = backfillListSource(WelfareService.SourceType.BOKJIRO_CENTRAL, limitPerSource);
-        BackfillResult local = backfillListSource(WelfareService.SourceType.BOKJIRO_LOCAL, limitPerSource);
-        return central.plus(local);
+        return backfillListSidecars(List.of(
+                WelfareService.SourceType.BOKJIRO_CENTRAL,
+                WelfareService.SourceType.BOKJIRO_LOCAL
+        ), limitPerSource);
     }
 
     @Transactional
     public BackfillResult backfillBokjiroDetailSidecars(int limitPerSource) {
-        BackfillResult central = backfillDetailSource(WelfareService.SourceType.BOKJIRO_CENTRAL, limitPerSource);
-        BackfillResult local = backfillDetailSource(WelfareService.SourceType.BOKJIRO_LOCAL, limitPerSource);
-        return central.plus(local);
+        return backfillDetailSidecars(List.of(
+                WelfareService.SourceType.BOKJIRO_CENTRAL,
+                WelfareService.SourceType.BOKJIRO_LOCAL
+        ), limitPerSource);
+    }
+
+    @Transactional
+    public BackfillResult backfillListSidecars(List<WelfareService.SourceType> sourceTypes, int limitPerSource) {
+        BackfillResult result = BackfillResult.empty();
+        for (WelfareService.SourceType sourceType : sourceTypes) {
+            result = result.plus(backfillListSource(sourceType, limitPerSource));
+        }
+        return result;
+    }
+
+    @Transactional
+    public BackfillResult backfillDetailSidecars(List<WelfareService.SourceType> sourceTypes, int limitPerSource) {
+        BackfillResult result = BackfillResult.empty();
+        for (WelfareService.SourceType sourceType : sourceTypes) {
+            result = result.plus(backfillDetailSource(sourceType, limitPerSource));
+        }
+        return result;
     }
 
     private BackfillResult backfillListSource(WelfareService.SourceType sourceType, int limitPerSource) {
+        SidecarBackfillCapability capability = backfillCapabilities.get(sourceType);
+        if (capability == null || !capability.supportsList()) {
+            return BackfillResult.empty();
+        }
+
         List<RawApiPayload> payloads = rawApiPayloadRepository
                 .findAllBySourceTypeAndApiCategoryOrderByFetchedAtAsc(sourceType, RawApiPayload.ApiCategory.LIST);
 
@@ -61,17 +101,7 @@ public class NormalizedPolicySidecarBackfillService {
             }
 
             try {
-                NormalizedPolicyAggregate aggregate = switch (sourceType) {
-                    case BOKJIRO_CENTRAL -> welfareServiceMapper.toNormalizedBokjiroCentral(
-                            objectMapper.readValue(raw.getPayloadJson(), BokjiroCentralDto.Item.class),
-                            null
-                    );
-                    case BOKJIRO_LOCAL -> welfareServiceMapper.toNormalizedBokjiroLocal(
-                            objectMapper.readValue(raw.getPayloadJson(), BokjiroLocalDto.Item.class),
-                            null
-                    );
-                    default -> throw new IllegalArgumentException("지원하지 않는 sourceType: " + sourceType);
-                };
+                NormalizedPolicyAggregate aggregate = capability.toListAggregate(raw);
                 normalizedPolicySidecarWriter.upsert(service, aggregate);
                 upserted++;
             } catch (Exception e) {
@@ -85,6 +115,11 @@ public class NormalizedPolicySidecarBackfillService {
     }
 
     private BackfillResult backfillDetailSource(WelfareService.SourceType sourceType, int limitPerSource) {
+        SidecarBackfillCapability capability = backfillCapabilities.get(sourceType);
+        if (capability == null || !capability.supportsDetail()) {
+            return BackfillResult.empty();
+        }
+
         List<RawApiPayload> payloads = rawApiPayloadRepository
                 .findAllBySourceTypeAndApiCategoryOrderByFetchedAtAsc(sourceType, RawApiPayload.ApiCategory.DETAIL);
 
@@ -104,9 +139,7 @@ public class NormalizedPolicySidecarBackfillService {
             }
 
             try {
-                BokjiroDetailClient.DetailPayload payload =
-                        objectMapper.readValue(raw.getPayloadJson(), BokjiroDetailClient.DetailPayload.class);
-                NormalizedPolicyAggregate aggregate = welfareServiceMapper.toNormalizedBokjiroDetail(service, payload);
+                NormalizedPolicyAggregate aggregate = capability.toDetailAggregate(service, raw);
                 normalizedPolicySidecarWriter.upsert(service, aggregate);
                 upserted++;
             } catch (Exception e) {
@@ -126,7 +159,48 @@ public class NormalizedPolicySidecarBackfillService {
         return payloads.subList(0, limitPerSource);
     }
 
+    private Map<WelfareService.SourceType, SidecarBackfillCapability> buildBackfillCapabilities(WelfareServiceMapper welfareServiceMapper,
+                                                                                                 ObjectMapper objectMapper) {
+        EnumMap<WelfareService.SourceType, SidecarBackfillCapability> capabilities =
+                new EnumMap<>(WelfareService.SourceType.class);
+
+        capabilities.put(
+                WelfareService.SourceType.BOKJIRO_CENTRAL,
+                new SidecarBackfillCapability(
+                        WelfareService.SourceType.BOKJIRO_CENTRAL,
+                        raw -> welfareServiceMapper.toNormalizedBokjiroCentral(
+                                objectMapper.readValue(raw.getPayloadJson(), BokjiroCentralDto.Item.class),
+                                null
+                        ),
+                        (service, raw) -> welfareServiceMapper.toNormalizedBokjiroDetail(
+                                service,
+                                objectMapper.readValue(raw.getPayloadJson(), BokjiroDetailClient.DetailPayload.class)
+                        )
+                )
+        );
+        capabilities.put(
+                WelfareService.SourceType.BOKJIRO_LOCAL,
+                new SidecarBackfillCapability(
+                        WelfareService.SourceType.BOKJIRO_LOCAL,
+                        raw -> welfareServiceMapper.toNormalizedBokjiroLocal(
+                                objectMapper.readValue(raw.getPayloadJson(), BokjiroLocalDto.Item.class),
+                                null
+                        ),
+                        (service, raw) -> welfareServiceMapper.toNormalizedBokjiroDetail(
+                                service,
+                                objectMapper.readValue(raw.getPayloadJson(), BokjiroDetailClient.DetailPayload.class)
+                        )
+                )
+        );
+
+        return Map.copyOf(capabilities);
+    }
+
     public record BackfillResult(int scannedCount, int upsertedCount, int missingServiceCount, int failedCount) {
+        private static BackfillResult empty() {
+            return new BackfillResult(0, 0, 0, 0);
+        }
+
         public BackfillResult plus(BackfillResult other) {
             return new BackfillResult(
                     scannedCount + other.scannedCount,
@@ -135,5 +209,37 @@ public class NormalizedPolicySidecarBackfillService {
                     failedCount + other.failedCount
             );
         }
+    }
+
+    private record SidecarBackfillCapability(
+            WelfareService.SourceType sourceType,
+            ListAggregateLoader listLoader,
+            DetailAggregateLoader detailLoader
+    ) {
+        private boolean supportsList() {
+            return listLoader != null;
+        }
+
+        private boolean supportsDetail() {
+            return detailLoader != null;
+        }
+
+        private NormalizedPolicyAggregate toListAggregate(RawApiPayload raw) throws Exception {
+            return listLoader.load(raw);
+        }
+
+        private NormalizedPolicyAggregate toDetailAggregate(WelfareService service, RawApiPayload raw) throws Exception {
+            return detailLoader.load(service, raw);
+        }
+    }
+
+    @FunctionalInterface
+    private interface ListAggregateLoader {
+        NormalizedPolicyAggregate load(RawApiPayload raw) throws Exception;
+    }
+
+    @FunctionalInterface
+    private interface DetailAggregateLoader {
+        NormalizedPolicyAggregate load(WelfareService service, RawApiPayload raw) throws Exception;
     }
 }

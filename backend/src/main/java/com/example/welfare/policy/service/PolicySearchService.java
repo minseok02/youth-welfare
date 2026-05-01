@@ -6,6 +6,8 @@ import com.example.welfare.policy.dto.PolicySearchResponse;
 import com.example.welfare.policy.dto.PolicySummaryResponse;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.repository.WelfareServiceRepository;
+import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
+import com.example.welfare.recommend.repository.CanonicalRecommendationReadModelRepository;
 import com.example.welfare.recommend.repository.UserRecommendationRepository;
 import com.example.welfare.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -33,6 +35,7 @@ public class PolicySearchService {
     private final WelfareServiceRepository welfareServiceRepository;
     private final UserRecommendationRepository userRecommendationRepository;
     private final UserRepository userRepository;
+    private final CanonicalRecommendationReadModelRepository canonicalRecommendationReadModelRepository;
 
     @Transactional(readOnly = true)
     public PolicySearchResponse search(Long userId, String keyword, int page) {
@@ -107,10 +110,12 @@ public class PolicySearchService {
         }
 
         Set<Long> bookmarkedServiceIds = getBookmarkedServiceIds(userId, resultPage.getContent());
+        java.util.Map<Long, RecommendationCandidateProjection> projections = loadProjections(resultPage.getContent());
         List<PolicySummaryResponse> content = resultPage.getContent().stream()
                 .map(service -> PolicySummaryResponse.from(
                         service,
-                        bookmarkedServiceIds.contains(service.getId())
+                        bookmarkedServiceIds.contains(service.getId()),
+                        projections.get(service.getId())
                 ))
                 .collect(Collectors.toList());
 
@@ -194,6 +199,15 @@ public class PolicySearchService {
                 .toList();
 
         return new HashSet<>(userRecommendationRepository.findLatestBookmarkedServiceIdsByUserKey(userKey, serviceIds));
+    }
+
+    private java.util.Map<Long, RecommendationCandidateProjection> loadProjections(List<WelfareService> services) {
+        if (services == null || services.isEmpty()) {
+            return java.util.Map.of();
+        }
+        return canonicalRecommendationReadModelRepository.findByServiceIds(
+                services.stream().map(WelfareService::getId).toList()
+        );
     }
 
     // Boolean Mode 검색어 구성: 공백 분리 후 각 단어에 + 접두사

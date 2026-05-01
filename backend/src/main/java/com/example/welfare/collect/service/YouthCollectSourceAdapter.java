@@ -36,7 +36,7 @@ public class YouthCollectSourceAdapter extends AbstractListCollectSourceAdapter<
 
     @Override
     protected void saveRawPayload(YouthApiDto.Item item) {
-        rawApiPayloadService.saveYouthList(item);
+        rawApiPayloadService.saveList(source().toWelfareSourceType(), item.getPlcyNo(), item);
     }
 
     @Override
@@ -46,7 +46,14 @@ public class YouthCollectSourceAdapter extends AbstractListCollectSourceAdapter<
 
     @Override
     protected void saveItem(YouthApiDto.Item item) {
-        saver.saveYouth(item, welfareServiceMapper.toNormalizedYouth(item));
+        saver.save(CollectItemSaver.SaveCommand.builder()
+                .sourceType(source().toWelfareSourceType())
+                .sourceId(item.getPlcyNo())
+                .incoming(welfareServiceMapper.fromYouth(item))
+                .regions(entity -> welfareServiceMapper.regionsFromYouth(item, entity))
+                .tags(entity -> welfareServiceMapper.tagsFromYouth(item, entity))
+                .aggregate(welfareServiceMapper.toNormalizedYouth(item))
+                .build());
     }
 
     @Override

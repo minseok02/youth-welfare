@@ -632,6 +632,7 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 
 ### 진행 예정
 
+- [ ] recommendation/policy 경로의 남은 source 특례(`AI prompt/cluster cache path의 entity direct read`, canonical major bridge 실험 정책) 축소
 - [ ] 운영 서버 Docker Compose 기동
 - [ ] 기존 운영 DB에 `app_core_rw` / `app_pii_rw` / `notification_pii_ro` / `migration_admin` 계정 생성 및 앱 datasource 전환
 - [ ] 운영 `.env` / secret store의 `APP_PII_DB_URL` / `NOTIFICATION_PII_DB_URL` 를 `youth_welfare_pii` schema 기준으로 전환
@@ -644,6 +645,50 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 
 ### 완료
 
+- [x] AI gateway prompt / education narrow experiment를 projection 우선 경계로 1차 이동
+  - 목적: `RealtimeAiGateway` 가 prompt 조성에서 `service.getUnifiedCategory()` 를 직접 읽던 경계와 `RuleScoringService` 의 `education narrow experiment` 가 raw `compat=기타 + youth_major=교육` 조합을 직접 보던 경계를 projection-derived 입력으로 바꿔, recommendation read path의 마지막 entity direct read를 더 줄이기
+  - 반영: `backend/src/main/java/com/example/welfare/recommend/dto/RecommendationCandidateProjection.java`, `backend/src/main/java/com/example/welfare/recommend/dto/ScoredCandidate.java`, `backend/src/main/java/com/example/welfare/recommend/repository/CanonicalRecommendationReadModelRepository.java`, `backend/src/main/java/com/example/welfare/recommend/service/RuleScoringService.java`, `backend/src/main/java/com/example/welfare/recommend/gateway/RealtimeAiGateway.java`, `backend/src/test/java/com/example/welfare/recommend/gateway/RealtimeAiGatewayTest.java`, `backend/src/test/java/com/example/welfare/recommend/repository/CanonicalRecommendationReadModelRepositoryTest.java`, `backend/src/test/java/com/example/welfare/recommend/service/RuleScoringServiceTest.java`, `docs/recommendation-current-state.md`
+  - 검증: `cd backend && ./gradlew compileJava --no-daemon`, `cd backend && ./gradlew test --no-daemon --tests com.example.welfare.recommend.gateway.RealtimeAiGatewayTest --tests com.example.welfare.recommend.repository.CanonicalRecommendationReadModelRepositoryTest --tests com.example.welfare.recommend.service.RuleScoringServiceTest --tests com.example.welfare.recommend.service.DefaultPriorityMatcherTest --tests com.example.welfare.api.RecommendationPolicyFlowWebMvcTest`
+- [x] policy/search/detail/ranking/bookmark response의 compat category를 projection 우선 경계로 1차 이동
+  - 목적: `PolicySummaryResponse` / `PolicyDetailResponse` / `PolicyRankingResponse` 와 bookmark 응답이 `WelfareService.unifiedCategory` 를 직접 읽던 경계를 canonical projection compat 우선으로 바꿔, recommendation 밖의 주요 읽기 API도 read-model을 1급 입력으로 사용하게 만들기
+  - 반영: `backend/src/main/java/com/example/welfare/policy/dto/PolicySummaryResponse.java`, `backend/src/main/java/com/example/welfare/policy/dto/PolicyDetailResponse.java`, `backend/src/main/java/com/example/welfare/policy/dto/PolicyRankingResponse.java`, `backend/src/main/java/com/example/welfare/policy/service/PolicyService.java`, `backend/src/main/java/com/example/welfare/policy/service/PolicySearchService.java`, `backend/src/main/java/com/example/welfare/policy/service/PolicyRankingService.java`, `backend/src/main/java/com/example/welfare/user/service/UserService.java`, `backend/src/test/java/com/example/welfare/policy/service/PolicyServiceTest.java`, `backend/src/test/java/com/example/welfare/policy/service/PolicySearchServiceTest.java`, `backend/src/test/java/com/example/welfare/policy/service/PolicyRankingServiceTest.java`, `backend/src/test/java/com/example/welfare/user/service/UserServiceTest.java`
+  - 검증: `cd backend && ./gradlew compileJava --no-daemon`, `cd backend && ./gradlew test --no-daemon --tests com.example.welfare.policy.service.PolicyServiceTest --tests com.example.welfare.policy.service.PolicySearchServiceTest --tests com.example.welfare.policy.service.PolicyRankingServiceTest --tests com.example.welfare.user.service.UserServiceTest --tests com.example.welfare.api.RecommendationPolicyFlowWebMvcTest`
+- [x] recommendation priority matcher / response category를 projection 우선 경계로 1차 이동
+  - 목적: `DefaultPriorityMatcher` 의 compat 문자열 switch와 `RecommendationResponse` 의 entity direct read를 canonical projection 우선 경계로 옮겨, 추천 priority/response path에서도 source-neutral read-model을 1급 입력으로 사용하게 만들기
+  - 반영: `backend/src/main/java/com/example/welfare/recommend/dto/RecommendationCandidateProjection.java`, `backend/src/main/java/com/example/welfare/recommend/repository/CanonicalRecommendationReadModelRepository.java`, `backend/src/main/java/com/example/welfare/recommend/service/DefaultPriorityMatcher.java`, `backend/src/main/java/com/example/welfare/recommend/dto/RecommendationResponse.java`, `backend/src/main/java/com/example/welfare/recommend/controller/RecommendationController.java`, `backend/src/test/java/com/example/welfare/recommend/service/DefaultPriorityMatcherTest.java`, `backend/src/test/java/com/example/welfare/api/RecommendationPolicyFlowWebMvcTest.java`, `docs/recommendation-current-state.md`
+  - 검증: `cd backend && ./gradlew test --no-daemon --tests com.example.welfare.recommend.service.DefaultPriorityMatcherTest --tests com.example.welfare.api.RecommendationPolicyFlowWebMvcTest --tests com.example.welfare.recommend.repository.CanonicalRecommendationReadModelRepositoryTest --tests com.example.welfare.recommend.service.RuleScoringServiceTest`
+- [x] recommendation scoring의 audience/special-target heuristic을 projection 우선 경계로 1차 이동
+  - 목적: `RuleScoringService` 가 `YouthPolicyFilter` 와 raw text scan에 직접 묶여 있던 audience relevance bonus / special-target mismatch 판단을 canonical projection 우선으로 읽게 만들어, 추천 hot path에서 source·문구 특례를 더 줄이기
+  - 반영: `backend/src/main/java/com/example/welfare/recommend/dto/RecommendationCandidateProjection.java`, `backend/src/main/java/com/example/welfare/recommend/repository/CanonicalRecommendationReadModelRepository.java`, `backend/src/main/java/com/example/welfare/recommend/service/RuleScoringService.java`, `backend/src/test/java/com/example/welfare/recommend/repository/CanonicalRecommendationReadModelRepositoryTest.java`, `backend/src/test/java/com/example/welfare/recommend/service/RuleScoringServiceTest.java`, `docs/recommendation-current-state.md`
+  - 검증: `cd backend && ./gradlew test --no-daemon --tests com.example.welfare.recommend.service.RuleScoringServiceTest --tests com.example.welfare.recommend.repository.CanonicalRecommendationReadModelRepositoryTest --tests com.example.welfare.recommend.service.RetrievalServiceTest`
+- [x] recommendation retrieval의 `0/0 income` / youth relevance source 특례 1차 축소
+  - 목적: 후보 조회 SQL에서 `YOUTH` 이름을 직접 참조하던 `0/0 income pass-through` 특례를 source-neutral semantics로 바꾸고, retrieval 후처리는 `YouthPolicyFilter` 직접 호출 대신 canonical projection의 `youthRelevant` 를 우선 사용하게 만들어 recommendation 경계의 source 의존을 줄이기
+  - 반영: `backend/src/main/java/com/example/welfare/policy/repository/WelfareServiceRepository.java`, `backend/src/main/java/com/example/welfare/recommend/service/RetrievalService.java`, `backend/src/test/java/com/example/welfare/recommend/service/RetrievalServiceTest.java`, `backend/src/test/java/com/example/welfare/integration/RecommendationRegionQueryIntegrationTest.java`, `backend/src/test/java/com/example/welfare/integration/EducationPriorityTargetCandidateCompositionIntegrationTest.java`, `docs/recommendation-current-state.md`
+  - 검증: `cd backend && ./gradlew test --no-daemon --tests com.example.welfare.recommend.service.RetrievalServiceTest --tests com.example.welfare.integration.RecommendationRegionQueryIntegrationTest --tests com.example.welfare.integration.EducationPriorityTargetCandidateCompositionIntegrationTest`
+- [x] GitHub 문서에 `작은 task = 작은 커밋`, `큰 해결 단위 = PR` 원칙 명시
+  - 목적: 작업을 잘게 나눌 때 매 task마다 바로 PR을 보내는 것이 아니라, 작은 task는 커밋으로 남기고 같은 문제를 닫는 커밋들을 묶어 PR로 보내는 기준을 문서로 고정하기
+  - 반영: `docs/github-workflow.md`
+  - 검증: `git diff --check`
+- [x] `NormalizedPolicyAggregate` summary를 source-neutral contract로 1차 정리
+  - 목적: canonical aggregate summary가 `youthMajor/youthMid/gov24*` 같은 source 전용 필드를 직접 들고 있지 않게 하고, source별 summary 값은 generic `summaryLabels` 맵으로 옮겨 이후 source 추가 시 aggregate 스키마를 덜 흔들리게 만들기
+  - 반영: `backend/src/main/java/com/example/welfare/collect/normalization/NormalizedPolicyAggregate.java`, `backend/src/main/java/com/example/welfare/collect/mapper/WelfareServiceMapper.java`, `backend/src/main/java/com/example/welfare/collect/normalization/DeferredNormalizedPolicySidecarWriter.java`, `backend/src/test/java/com/example/welfare/collect/mapper/NormalizedPolicyAggregateTest.java`, `backend/src/test/java/com/example/welfare/collect/normalization/DeferredNormalizedPolicySidecarWriterTest.java`
+  - 검증: `cd backend && ./gradlew compileJava --no-daemon`, `cd backend && ./gradlew test --no-daemon --tests com.example.welfare.collect.mapper.NormalizedPolicyAggregateTest --tests com.example.welfare.collect.normalization.DeferredNormalizedPolicySidecarWriterTest --tests com.example.welfare.collect.normalization.NormalizedPolicySidecarBackfillServiceTest`
+- [x] `detail/backfill` 경로를 source capability 기반으로 1차 분리
+  - 목적: 복지로 전용 switch/service 메서드 증설형에서 벗어나, detail fetch와 sidecar backfill aggregate 재생성을 source capability registry 기준으로 돌릴 수 있게 만들기
+  - 반영: `backend/src/main/java/com/example/welfare/collect/service/BokjiroDetailCollectService.java`, `backend/src/main/java/com/example/welfare/collect/normalization/NormalizedPolicySidecarBackfillService.java`, `backend/src/test/java/com/example/welfare/collect/service/BokjiroDetailCollectServiceTest.java`
+  - 검증: `cd backend && ./gradlew compileJava --no-daemon`, `cd backend && ./gradlew test --no-daemon --tests com.example.welfare.collect.service.BokjiroDetailCollectServiceTest --tests com.example.welfare.collect.normalization.NormalizedPolicySidecarBackfillServiceTest --tests com.example.welfare.admin.AdminSecurityWebMvcTest`, `cd backend && ./gradlew test --no-daemon --tests com.example.welfare.collect.service.RawApiPayloadServiceTest`
+- [x] collect adapter가 공통 saver/raw 엔트리를 타도록 1차 정리
+  - 목적: 새 source를 붙일 때 `CollectItemSaver` / `RawApiPayloadService` 에 source별 메서드를 계속 늘리지 않고, adapter가 공통 save/raw 경계만 호출하게 만들기
+  - 반영: `backend/src/main/java/com/example/welfare/collect/service/CollectItemSaver.java`, `backend/src/main/java/com/example/welfare/collect/service/RawApiPayloadService.java`, `backend/src/main/java/com/example/welfare/collect/service/CollectSource.java`, `backend/src/main/java/com/example/welfare/collect/service/YouthCollectSourceAdapter.java`, `backend/src/main/java/com/example/welfare/collect/service/BokjiroCentralCollectSourceAdapter.java`, `backend/src/main/java/com/example/welfare/collect/service/BokjiroLocalCollectSourceAdapter.java`
+  - 검증: `cd backend && ./gradlew compileJava --no-daemon`, `cd backend && ./gradlew test --no-daemon --tests com.example.welfare.collect.service.RawApiPayloadServiceTest --tests com.example.welfare.collect.mapper.NormalizedPolicyAggregateTest`
+- [x] `start.md` + `project-spec.md` 추가로 작업 시작 템플릿 정리
+  - 목적: 긴 작업 지시문 대신 `start 파일 읽고 작업해` 로 시작할 수 있도록, 메인 진입 파일과 프로젝트 메타 파일을 분리
+  - 반영: `docs/start.md`, `docs/project-spec.md`, `docs/README.md`, `docs/documentation-map.md`
+  - 검증: `git diff --check`
+- [x] `README.md` 를 짧은 메인 진입 파일로 줄이고 `current-state.md` / `work-guide.md` / `github-workflow.md` 중심으로 문서 시작 경로 재정리
+  - 목적: 작업 시작 프롬프트를 길게 쓰지 않고도, “현재 상태 확인 -> 작업 규칙 확인 -> 진행 상황 확인 -> Git 규칙 확인” 순서를 짧게 재사용할 수 있게 만들기
+  - 반영: `docs/README.md`, `docs/current-state.md`, `docs/work-guide.md`, `docs/github-workflow.md`
+  - 검증: `git diff --check`
 - [x] pre-28 migrated DB 기준 admin status/replay smoke
 - [x] pre-28 migrated DB에 최신 앱 직접 연결 후 end-to-end smoke
 - [x] 로컬 `migration_admin` 수동 migration 리허설

@@ -29,6 +29,7 @@ import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willThrow;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.times;
@@ -71,6 +72,10 @@ class BokjiroDetailCollectServiceTest {
         ReflectionTestUtils.setField(service, "retryMaxAttempts", 1);
         ReflectionTestUtils.setField(service, "retryBaseBackoffMs", 0L);
         ReflectionTestUtils.setField(service, "maxConsecutiveRateLimitHits", 5);
+        lenient().when(welfareServiceRepository.findBySourceType(WelfareService.SourceType.BOKJIRO_CENTRAL))
+                .thenReturn(List.of());
+        lenient().when(welfareServiceRepository.findBySourceType(WelfareService.SourceType.BOKJIRO_LOCAL))
+                .thenReturn(List.of());
     }
 
     @Test

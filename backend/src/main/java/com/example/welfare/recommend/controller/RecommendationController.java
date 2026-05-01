@@ -3,8 +3,10 @@ package com.example.welfare.recommend.controller;
 import com.example.welfare.global.auth.AuthenticatedUser;
 import com.example.welfare.global.response.ApiResponse;
 import com.example.welfare.recommend.dto.RecommendationResponse;
+import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
 import com.example.welfare.recommend.entity.UserRecommendation;
 import com.example.welfare.recommend.facade.RecommendationFacade;
+import com.example.welfare.recommend.repository.CanonicalRecommendationReadModelRepository;
 import com.example.welfare.recommend.service.RecommendationLogService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -22,6 +24,7 @@ public class RecommendationController {
 
     private final RecommendationFacade recommendationFacade;
     private final RecommendationLogService recommendationLogService;
+    private final CanonicalRecommendationReadModelRepository canonicalRecommendationReadModelRepository;
 
     // 추천 목록 조회 (저장된 결과 반환 — 실시간 AI 추가 호출 없음)
     @GetMapping
@@ -33,10 +36,7 @@ public class RecommendationController {
 
         List<Long> serviceIds = recs.stream().map(r -> r.getService().getId()).toList();
         Map<Long, Long> serviceLogMap = recommendationLogService.findLatestLogIdMap(userId, serviceIds);
-
-        List<RecommendationResponse> response = recs.stream()
-                .map(rec -> RecommendationResponse.from(rec, serviceLogMap.get(rec.getService().getId())))
-                .collect(Collectors.toList());
+        List<RecommendationResponse> response = toResponses(recs, serviceLogMap);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
@@ -52,10 +52,7 @@ public class RecommendationController {
         // 방금 생성된 CTR 로그에서 serviceId → logId 매핑 조회
         List<Long> serviceIds = recs.stream().map(r -> r.getService().getId()).toList();
         Map<Long, Long> serviceLogMap = recommendationLogService.findLatestLogIdMap(userId, serviceIds);
-
-        List<RecommendationResponse> response = recs.stream()
-                .map(rec -> RecommendationResponse.from(rec, serviceLogMap.get(rec.getService().getId())))
-                .collect(Collectors.toList());
+        List<RecommendationResponse> response = toResponses(recs, serviceLogMap);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
@@ -70,5 +67,22 @@ public class RecommendationController {
 
     private Long resolveUserId(AuthenticatedUser authenticatedUser) {
         return authenticatedUser != null ? authenticatedUser.userId() : null;
+    }
+
+    private List<RecommendationResponse> toResponses(List<UserRecommendation> recs,
+                                                     Map<Long, Long> serviceLogMap) {
+        List<Long> serviceIds = recs.stream()
+                .map(rec -> rec.getService().getId())
+                .toList();
+        Map<Long, RecommendationCandidateProjection> projections =
+                canonicalRecommendationReadModelRepository.findByServiceIds(serviceIds);
+
+        return recs.stream()
+                .map(rec -> RecommendationResponse.from(
+                        rec,
+                        serviceLogMap.get(rec.getService().getId()),
+                        projections.get(rec.getService().getId())
+                ))
+                .collect(Collectors.toList());
     }
 }

@@ -4,6 +4,8 @@ import com.example.welfare.policy.dto.PolicyRankingResponse;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.repository.ServiceViewLogRepository;
 import com.example.welfare.policy.repository.WelfareServiceRepository;
+import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
+import com.example.welfare.recommend.repository.CanonicalRecommendationReadModelRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,6 +33,7 @@ public class PolicyRankingService {
 
     private final WelfareServiceRepository welfareServiceRepository;
     private final ServiceViewLogRepository serviceViewLogRepository;
+    private final CanonicalRecommendationReadModelRepository canonicalRecommendationReadModelRepository;
 
     @Transactional(readOnly = true)
     public List<PolicyRankingResponse> getRanking(int size) {
@@ -49,6 +52,8 @@ public class PolicyRankingService {
                         ServiceViewLogRepository.ServiceUniqueViewCount::getServiceId,
                         row -> safeLong(row.getUniqueViewCount())
                 ));
+        Map<Long, RecommendationCandidateProjection> projections =
+                canonicalRecommendationReadModelRepository.findByServiceIds(serviceIds);
 
         double maxUniqueRaw = services.stream()
                 .mapToDouble(s -> log1p(uniqueViewsByServiceId.getOrDefault(s.getId(), 0L)))
@@ -121,7 +126,8 @@ public class PolicyRankingService {
                 .map(scored -> PolicyRankingResponse.of(
                         scored.service(),
                         uniqueViewsByServiceId.getOrDefault(scored.service().getId(), 0L),
-                        round4(scored.score())
+                        round4(scored.score()),
+                        projections.get(scored.service().getId())
                 ))
                 .toList();
     }

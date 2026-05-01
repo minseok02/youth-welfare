@@ -29,31 +29,28 @@ public class RawApiPayloadService {
 
     @Transactional
     public void saveYouthList(YouthApiDto.Item item) {
-        save(
-                WelfareService.SourceType.YOUTH,
-                RawFieldValidator.normalize(item.getPlcyNo()),
-                RawApiPayload.ApiCategory.LIST,
-                item
-        );
+        saveList(WelfareService.SourceType.YOUTH, item.getPlcyNo(), item);
     }
 
     @Transactional
     public void saveBokjiroCentralList(BokjiroCentralDto.Item item) {
-        save(
-                WelfareService.SourceType.BOKJIRO_CENTRAL,
-                RawFieldValidator.normalize(item.getServId()),
-                RawApiPayload.ApiCategory.LIST,
-                item
-        );
+        saveList(WelfareService.SourceType.BOKJIRO_CENTRAL, item.getServId(), item);
     }
 
     @Transactional
     public void saveBokjiroLocalList(BokjiroLocalDto.Item item) {
+        saveList(WelfareService.SourceType.BOKJIRO_LOCAL, item.getServId(), item);
+    }
+
+    @Transactional
+    public void saveList(WelfareService.SourceType sourceType,
+                         String sourceId,
+                         Object payload) {
         save(
-                WelfareService.SourceType.BOKJIRO_LOCAL,
-                RawFieldValidator.normalize(item.getServId()),
+                sourceType,
+                RawFieldValidator.normalize(sourceId),
                 RawApiPayload.ApiCategory.LIST,
-                item
+                payload
         );
     }
 

@@ -8,9 +8,11 @@ import org.springframework.stereotype.Repository;
 
 import java.sql.Date;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
@@ -23,7 +25,47 @@ import java.util.Set;
 public class CanonicalRecommendationReadModelRepository {
 
     static final String BENEFICIARY_SUPPORT_BUCKET = "BENEFICIARY_SUPPORT";
+    static final String PRIORITY_BUCKET_HOUSING = "HOUSING";
+    static final String PRIORITY_BUCKET_JOB = "JOB";
+    static final String PRIORITY_BUCKET_EDUCATION = "EDUCATION";
+    static final String PRIORITY_BUCKET_FINANCE = "FINANCE";
+    static final String PRIORITY_BUCKET_CULTURE = "CULTURE";
+    static final String PRIORITY_BUCKET_PARTICIPATION = "PARTICIPATION";
+    static final String PRIORITY_BUCKET_FAMILY = "FAMILY";
+    static final String SPECIAL_TARGET_RURAL = "농어촌";
+    static final String SPECIAL_TARGET_SELF_RELIANCE = "자립준비청년";
+    static final String SPECIAL_TARGET_FAMILY_CARE = "가족돌봄";
+    static final String SPECIAL_TARGET_MULTICULTURAL = "다문화";
+    static final String SPECIAL_TARGET_DEFECTOR = "북한이탈";
+    static final String SPECIAL_TARGET_SINGLE_PARENT = "한부모";
+    static final String SPECIAL_TARGET_GRANDPARENT = "조손";
+    static final String SPECIAL_TARGET_VETERAN = "보훈";
+    static final String SPECIAL_TARGET_DISABILITY = "장애";
+    static final String SPECIAL_TARGET_MILITARY = "병역";
     private static final Set<String> BENEFICIARY_TERMS = Set.of("기초생활수급자", "차상위계층");
+    private static final int YOUTH_MIN_AGE = 18;
+    private static final int YOUTH_MAX_AGE = 39;
+    private static final double EXPLICIT_YOUTH_BONUS = 15.0;
+    private static final double FOCUSED_LIFE_STAGE_BONUS = 8.0;
+    private static final double AGE_RANGE_ONLY_BONUS = 3.0;
+    private static final Set<String> YOUTH_SIGNALS = Set.of(
+            "청년",
+            "미취업청년",
+            "취업준비생",
+            "사회초년생",
+            "대학생",
+            "대학원생",
+            "청년층"
+    );
+    private static final Set<String> BROAD_LIFE_STAGE_SIGNALS = Set.of(
+            "영유아",
+            "아동",
+            "청소년",
+            "중장년",
+            "노년",
+            "임신",
+            "출산"
+    );
 
     private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
 
@@ -165,11 +207,13 @@ public class CanonicalRecommendationReadModelRepository {
         private final boolean youthRelevant;
 
         private final Set<String> interestThemes = new LinkedHashSet<>();
+        private final Set<String> priorityBuckets = new LinkedHashSet<>();
         private final Set<String> targetGroupsRaw = new LinkedHashSet<>();
         private final Set<String> targetGroupBuckets = new LinkedHashSet<>();
         private final Set<String> lifeStages = new LinkedHashSet<>();
         private final Set<String> keywordTags = new LinkedHashSet<>();
         private final Set<String> beneficiaryTerms = new LinkedHashSet<>();
+        private final Set<String> specialTargetBuckets = new LinkedHashSet<>();
         private final Set<String> factKeys = new LinkedHashSet<>();
 
         private MutableProjection(Long serviceId,
@@ -234,6 +278,7 @@ public class CanonicalRecommendationReadModelRepository {
                     // no-op
                 }
             }
+            addSpecialTargetBucket(termLabel);
         }
 
         void addFactKey(String factMergeKey) {
@@ -243,6 +288,9 @@ public class CanonicalRecommendationReadModelRepository {
         }
 
         RecommendationCandidateProjection toProjection() {
+            addSpecialTargetBucket(title);
+            addSpecialTargetBucket(summary);
+            addPriorityBucket(unifiedCategoryCompat);
             return RecommendationCandidateProjection.builder()
                     .serviceId(serviceId)
                     .sourceType(sourceType)
@@ -256,14 +304,155 @@ public class CanonicalRecommendationReadModelRepository {
                     .incomeMaxLegacy(incomeMaxLegacy)
                     .applyEndDate(applyEndDate)
                     .youthRelevant(youthRelevant)
+                    .audienceRelevanceBonus(computeAudienceRelevanceBonus())
+                    .educationPriorityBoostEligible(isEducationPriorityBoostEligible())
+                    .priorityBuckets(priorityBuckets)
                     .interestThemes(interestThemes)
                     .targetGroupsRaw(targetGroupsRaw)
                     .targetGroupBuckets(targetGroupBuckets)
                     .lifeStages(lifeStages)
                     .keywordTags(keywordTags)
                     .beneficiaryTerms(beneficiaryTerms)
+                    .specialTargetBuckets(specialTargetBuckets)
                     .factKeys(factKeys)
                     .build();
+        }
+
+        private double computeAudienceRelevanceBonus() {
+            boolean explicitYouthSignal = containsExplicitYouthSignal();
+            boolean focusedLifeStage = hasYouthFocusedLifeStage();
+            boolean youthFocusedAgeRange = isYouthFocusedAgeRange();
+
+            double bonus = 0.0;
+            if (explicitYouthSignal) {
+                bonus += EXPLICIT_YOUTH_BONUS;
+            }
+            if (focusedLifeStage) {
+                bonus += FOCUSED_LIFE_STAGE_BONUS;
+            }
+            if (!explicitYouthSignal && !focusedLifeStage && youthFocusedAgeRange) {
+                bonus += AGE_RANGE_ONLY_BONUS;
+            }
+            return bonus;
+        }
+
+        private boolean containsExplicitYouthSignal() {
+            return audienceTextSignals().stream().anyMatch(MutableProjection::containsYouthSignal);
+        }
+
+        private boolean hasYouthFocusedLifeStage() {
+            if (lifeStages.isEmpty()) {
+                return false;
+            }
+            boolean hasYouth = lifeStages.stream().anyMatch(MutableProjection::containsYouthSignal);
+            boolean hasBroadOtherStage = lifeStages.stream()
+                    .map(MutableProjection::normalize)
+                    .filter(value -> value != null)
+                    .anyMatch(value -> BROAD_LIFE_STAGE_SIGNALS.stream().anyMatch(value::contains));
+            return hasYouth && !hasBroadOtherStage;
+        }
+
+        private boolean isYouthFocusedAgeRange() {
+            if (minAge == null && maxAge == null) {
+                return false;
+            }
+            if (maxAge == null) {
+                return false;
+            }
+            int effectiveMin = minAge != null ? minAge : 0;
+            return effectiveMin <= YOUTH_MAX_AGE && maxAge <= YOUTH_MAX_AGE && maxAge >= YOUTH_MIN_AGE;
+        }
+
+        private List<String> audienceTextSignals() {
+            List<String> signals = new ArrayList<>();
+            if (title != null) signals.add(title);
+            if (summary != null) signals.add(summary);
+            signals.addAll(targetGroupsRaw);
+            signals.addAll(keywordTags);
+            signals.addAll(interestThemes);
+            signals.addAll(lifeStages);
+            return signals;
+        }
+
+        private void addSpecialTargetBucket(String raw) {
+            String normalized = normalize(raw);
+            if (normalized == null || normalized.isBlank()) {
+                return;
+            }
+            if (normalized.contains("장애")) {
+                specialTargetBuckets.add(SPECIAL_TARGET_DISABILITY);
+            }
+            if (normalized.contains("농어촌") || normalized.contains("농촌") || normalized.contains("어촌")) {
+                specialTargetBuckets.add(SPECIAL_TARGET_RURAL);
+            }
+            if (normalized.contains("자립준비") || normalized.contains("보호종료")) {
+                specialTargetBuckets.add(SPECIAL_TARGET_SELF_RELIANCE);
+            }
+            if (normalized.contains("가족돌봄")) {
+                specialTargetBuckets.add(SPECIAL_TARGET_FAMILY_CARE);
+            }
+            if (normalized.contains("다문화")) {
+                specialTargetBuckets.add(SPECIAL_TARGET_MULTICULTURAL);
+            }
+            if (normalized.contains("북한이탈")) {
+                specialTargetBuckets.add(SPECIAL_TARGET_DEFECTOR);
+            }
+            if (normalized.contains("한부모")) {
+                specialTargetBuckets.add(SPECIAL_TARGET_SINGLE_PARENT);
+            }
+            if (normalized.contains("조손")) {
+                specialTargetBuckets.add(SPECIAL_TARGET_GRANDPARENT);
+            }
+            if (normalized.contains("보훈")) {
+                specialTargetBuckets.add(SPECIAL_TARGET_VETERAN);
+            }
+            if (normalized.contains("현역병") || normalized.contains("병역")) {
+                specialTargetBuckets.add(SPECIAL_TARGET_MILITARY);
+            }
+        }
+
+        private void addPriorityBucket(String compatCategory) {
+            if (compatCategory == null || compatCategory.isBlank()) {
+                return;
+            }
+            switch (compatCategory) {
+                case "주거" -> priorityBuckets.add(PRIORITY_BUCKET_HOUSING);
+                case "일자리" -> priorityBuckets.add(PRIORITY_BUCKET_JOB);
+                case "교육·직업훈련" -> priorityBuckets.add(PRIORITY_BUCKET_EDUCATION);
+                case "금융·생활지원" -> priorityBuckets.add(PRIORITY_BUCKET_FINANCE);
+                case "문화·여가" -> priorityBuckets.add(PRIORITY_BUCKET_CULTURE);
+                case "참여·기회" -> priorityBuckets.add(PRIORITY_BUCKET_PARTICIPATION);
+                case "가족·돌봄" -> priorityBuckets.add(PRIORITY_BUCKET_FAMILY);
+                default -> {
+                    // no-op
+                }
+            }
+        }
+
+        private boolean isEducationPriorityBoostEligible() {
+            return "기타".equals(unifiedCategoryCompat) && "교육".equals(youthMajorLabel);
+        }
+
+        private static boolean containsYouthSignal(String raw) {
+            String normalized = normalize(raw);
+            if (normalized == null) {
+                return false;
+            }
+            return YOUTH_SIGNALS.stream()
+                    .map(MutableProjection::normalize)
+                    .filter(value -> value != null)
+                    .anyMatch(normalized::contains);
+        }
+
+        private static String normalize(String raw) {
+            if (raw == null) {
+                return null;
+            }
+            String trimmed = raw.trim();
+            if (trimmed.isBlank()) {
+                return null;
+            }
+            return trimmed.toLowerCase(Locale.ROOT);
         }
     }
 }

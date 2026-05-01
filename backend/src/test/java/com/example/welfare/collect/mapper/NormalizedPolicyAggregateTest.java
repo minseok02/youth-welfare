@@ -43,8 +43,8 @@ class NormalizedPolicyAggregateTest {
         assertThat(aggregate.detail().supportDetail()).isEqualTo("월 최대 20만원 지원");
         assertThat(aggregate.detail().applyMethodDetail()).isEqualTo("온라인 신청");
         assertThat(aggregate.taxonomy().compatUnifiedCategory()).isEqualTo("주거");
-        assertThat(aggregate.taxonomy().youthMajor()).isEqualTo("주거");
-        assertThat(aggregate.taxonomy().youthMid()).isEqualTo("전월세 및 주거급여 지원");
+        assertThat(aggregate.taxonomy().summaryLabel("YOUTH_MAJOR")).isEqualTo("주거");
+        assertThat(aggregate.taxonomy().summaryLabel("YOUTH_MID")).isEqualTo("전월세 및 주거급여 지원");
         assertThat(aggregate.taxonomyTerms())
                 .extracting(NormalizedPolicyAggregate.TaxonomyTerm::termGroup,
                         NormalizedPolicyAggregate.TaxonomyTerm::termLabel)
@@ -81,7 +81,7 @@ class NormalizedPolicyAggregateTest {
 
         NormalizedPolicyAggregate aggregate = mapper.toNormalizedYouth(item);
 
-        assertThat(aggregate.taxonomy().youthMid()).isNull();
+        assertThat(aggregate.taxonomy().summaryLabel("YOUTH_MID")).isNull();
         assertThat(aggregate.taxonomyTerms())
                 .extracting(NormalizedPolicyAggregate.TaxonomyTerm::termGroup,
                         NormalizedPolicyAggregate.TaxonomyTerm::termLabel)

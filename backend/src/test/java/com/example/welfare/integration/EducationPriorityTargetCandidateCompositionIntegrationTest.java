@@ -37,7 +37,7 @@ class EducationPriorityTargetCandidateCompositionIntegrationTest {
     private RetrievalService retrievalService;
 
     @Test
-    @DisplayName("대표 education target region 은 YOUTH 0/0 income pass-through 적용 후 raw candidates 와 retrieval 결과에 target row가 들어온다")
+    @DisplayName("대표 education target region 은 0/0 income pass-through 적용 후 raw candidates 와 retrieval 결과에 target row가 들어온다")
     void representativeEducationTargetRegionSurvivesIncomeGate() {
         assumeTrue(tableExists("service_taxonomies"), "canonical sidecar summary 가 있는 local DB 에서만 실행");
 

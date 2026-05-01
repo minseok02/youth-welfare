@@ -86,8 +86,10 @@ class CanonicalRecommendationReadModelRepositoryTest {
         assertThat(projection.sourceType()).isEqualTo("BOKJIRO_CENTRAL");
         assertThat(projection.unifiedCategoryCompat()).isEqualTo("금융·생활지원");
         assertThat(projection.youthMajorLabel()).isEqualTo("교육");
+        assertThat(projection.educationPriorityBoostEligible()).isFalse();
         assertThat(projection.title()).isEqualTo("여성청소년 생리용품 지원");
         assertThat(projection.applyEndDate()).isEqualTo(LocalDate.of(2026, 12, 31));
+        assertThat(projection.audienceRelevanceBonus()).isEqualTo(3.0);
         assertThat(projection.interestThemes()).containsExactly("생활지원");
         assertThat(projection.targetGroupsRaw()).containsExactlyInAnyOrder("기초생활수급자", "차상위계층");
         assertThat(projection.beneficiaryTerms()).containsExactlyInAnyOrder("기초생활수급자", "차상위계층");
@@ -99,5 +101,75 @@ class CanonicalRecommendationReadModelRepositoryTest {
     @DisplayName("service id 가 비면 빈 projection 을 반환하고 DB 조회를 생략한다")
     void findByServiceIds_returnsEmptyMapForEmptyInput() {
         assertThat(repository.findByServiceIds(List.of())).isEmpty();
+    }
+
+    @Test
+    @DisplayName("projection 은 youth bonus 와 special target bucket 을 read-model 단계에서 미리 조립한다")
+    void findByServiceIds_buildsAudienceBonusAndSpecialTargetBuckets() {
+        Map<String, Object> baseRow = new LinkedHashMap<>();
+        baseRow.put("service_id", 4401L);
+        baseRow.put("source_type", "BOKJIRO_LOCAL");
+        baseRow.put("unified_category", "주거");
+        baseRow.put("youth_major_label", "주거");
+        baseRow.put("title", "청년 농어촌 정착 지원");
+        baseRow.put("summary", "한부모 청년의 농촌 정착을 지원");
+        baseRow.put("min_age", 19);
+        baseRow.put("max_age", 34);
+        baseRow.put("min_income", 0);
+        baseRow.put("max_income", 0);
+        baseRow.put("apply_end_date", Date.valueOf(LocalDate.of(2026, 10, 1)));
+        baseRow.put("search_youth_relevant", true);
+
+        given(namedParameterJdbcTemplate.queryForList(org.mockito.ArgumentMatchers.contains("FROM welfare_services"), any(MapSqlParameterSource.class)))
+                .willReturn(List.of(baseRow));
+        given(namedParameterJdbcTemplate.queryForList(org.mockito.ArgumentMatchers.contains("FROM service_taxonomy_terms"), any(MapSqlParameterSource.class)))
+                .willReturn(List.of(
+                        Map.of(
+                                "service_id", 4401L,
+                                "term_group", "LIFE_STAGE",
+                                "term_label", "청년",
+                                "source_field", "lifeStage"
+                        )
+                ));
+        given(namedParameterJdbcTemplate.queryForList(org.mockito.ArgumentMatchers.contains("FROM service_facts"), any(MapSqlParameterSource.class)))
+                .willReturn(List.of());
+
+        RecommendationCandidateProjection projection = repository.findByServiceIds(List.of(4401L)).get(4401L);
+
+        assertThat(projection.audienceRelevanceBonus()).isEqualTo(23.0);
+        assertThat(projection.educationPriorityBoostEligible()).isFalse();
+        assertThat(projection.specialTargetBuckets()).containsExactlyInAnyOrder(
+                CanonicalRecommendationReadModelRepository.SPECIAL_TARGET_RURAL,
+                CanonicalRecommendationReadModelRepository.SPECIAL_TARGET_SINGLE_PARENT
+        );
+    }
+
+    @Test
+    @DisplayName("education priority boost eligibility는 projection 단계에서 미리 계산한다")
+    void findByServiceIds_buildsEducationPriorityBoostEligibility() {
+        Map<String, Object> baseRow = new LinkedHashMap<>();
+        baseRow.put("service_id", 5501L);
+        baseRow.put("source_type", "YOUTH");
+        baseRow.put("unified_category", "기타");
+        baseRow.put("youth_major_label", "교육");
+        baseRow.put("title", "교육 역량 강화");
+        baseRow.put("summary", "청년 교육 지원");
+        baseRow.put("min_age", 19);
+        baseRow.put("max_age", 34);
+        baseRow.put("min_income", 0);
+        baseRow.put("max_income", 0);
+        baseRow.put("apply_end_date", null);
+        baseRow.put("search_youth_relevant", true);
+
+        given(namedParameterJdbcTemplate.queryForList(org.mockito.ArgumentMatchers.contains("FROM welfare_services"), any(MapSqlParameterSource.class)))
+                .willReturn(List.of(baseRow));
+        given(namedParameterJdbcTemplate.queryForList(org.mockito.ArgumentMatchers.contains("FROM service_taxonomy_terms"), any(MapSqlParameterSource.class)))
+                .willReturn(List.of());
+        given(namedParameterJdbcTemplate.queryForList(org.mockito.ArgumentMatchers.contains("FROM service_facts"), any(MapSqlParameterSource.class)))
+                .willReturn(List.of());
+
+        RecommendationCandidateProjection projection = repository.findByServiceIds(List.of(5501L)).get(5501L);
+
+        assertThat(projection.educationPriorityBoostEligible()).isTrue();
     }
 }

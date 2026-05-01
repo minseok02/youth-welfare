@@ -8,7 +8,9 @@ import com.example.welfare.policy.repository.ServiceRegionRepository;
 import com.example.welfare.policy.repository.ServiceTagRepository;
 import com.example.welfare.policy.repository.WelfareServiceDetailRepository;
 import com.example.welfare.policy.repository.WelfareServiceRepository;
+import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
 import com.example.welfare.recommend.entity.UserRecommendation;
+import com.example.welfare.recommend.repository.CanonicalRecommendationReadModelRepository;
 import com.example.welfare.recommend.repository.UserRecommendationRepository;
 import com.example.welfare.user.entity.User;
 import com.example.welfare.user.repository.UserRepository;
@@ -49,6 +51,8 @@ class PolicyServiceTest {
     private UserRecommendationRepository userRecommendationRepository;
     @Mock
     private UserRepository userRepository;
+    @Mock
+    private CanonicalRecommendationReadModelRepository canonicalRecommendationReadModelRepository;
 
     @InjectMocks
     private PolicyService policyService;
@@ -75,6 +79,8 @@ class PolicyServiceTest {
                 eq(true),
                 any(PageRequest.class)
         )).willReturn(page);
+        given(canonicalRecommendationReadModelRepository.findByServiceIds(List.of(11L)))
+                .willReturn(java.util.Map.of());
 
         Page<?> result = policyService.getList(
                 null,
@@ -126,6 +132,14 @@ class PolicyServiceTest {
                 eq(null),
                 any(PageRequest.class)
         )).willReturn(page);
+        given(canonicalRecommendationReadModelRepository.findByServiceIds(List.of(11L)))
+                .willReturn(java.util.Map.of(
+                        11L,
+                        RecommendationCandidateProjection.builder()
+                                .serviceId(11L)
+                                .unifiedCategoryCompat("주거")
+                                .build()
+                ));
         given(userRepository.findUserKeyById(7L)).willReturn(Optional.of("user-key-7"));
         given(userRecommendationRepository.findLatestBookmarkedServiceIdsByUserKey("user-key-7", List.of(11L)))
                 .willReturn(List.of(11L));
@@ -144,6 +158,7 @@ class PolicyServiceTest {
         );
 
         assertTrue(result.getContent().get(0).isBookmarked());
+        assertEquals("주거", result.getContent().get(0).getUnifiedCategory());
     }
 
     @Test

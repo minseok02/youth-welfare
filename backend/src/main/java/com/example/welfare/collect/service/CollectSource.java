@@ -2,6 +2,7 @@ package com.example.welfare.collect.service;
 
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
+import com.example.welfare.policy.entity.WelfareService;
 
 import java.util.EnumSet;
 import java.util.HashMap;
@@ -59,6 +60,16 @@ public enum CollectSource {
 
     public String successMessage() {
         return successMessage;
+    }
+
+    public WelfareService.SourceType toWelfareSourceType() {
+        return switch (this) {
+            case YOUTH -> WelfareService.SourceType.YOUTH;
+            case BOKJIRO_CENTRAL -> WelfareService.SourceType.BOKJIRO_CENTRAL;
+            case BOKJIRO_LOCAL -> WelfareService.SourceType.BOKJIRO_LOCAL;
+            case BOKJIRO_DETAIL, BOKJIRO_DETAIL_REFRESH ->
+                    throw new IllegalStateException("detail collect source 는 welfare source type 으로 직접 매핑하지 않습니다. source=" + this);
+        };
     }
 
     public static List<CollectSource> executionOrder() {

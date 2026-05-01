@@ -4,6 +4,7 @@ import com.example.welfare.policy.entity.ServiceTag;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.repository.ServiceTagRepository;
 import com.example.welfare.policy.repository.WelfareServiceRepository;
+import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
 import com.example.welfare.recommend.dto.RetrievedRecommendationCandidates;
 import com.example.welfare.recommend.dto.RecommendationUserSnapshot;
 import com.example.welfare.recommend.repository.CanonicalRecommendationReadModelRepository;
@@ -14,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -70,11 +72,13 @@ public class RetrievalService {
             latestCandidates = welfareServiceRepository.findLatestCandidates(age, incomeLevel, PageRequest.of(0, M * 4));
         }
 
-        List<WelfareService> filteredBase = applyRecommendationFilters(rawCandidates, age).stream()
+        Map<Long, RecommendationCandidateProjection> projections = loadProjections(rawCandidates, latestCandidates);
+
+        List<WelfareService> filteredBase = applyRecommendationFilters(rawCandidates, projections, age).stream()
                 .limit(K)
                 .toList();
 
-        List<WelfareService> filteredLatest = applyRecommendationFilters(latestCandidates, age).stream()
+        List<WelfareService> filteredLatest = applyRecommendationFilters(latestCandidates, projections, age).stream()
                 .limit(M)
                 .toList();
 
@@ -82,11 +86,19 @@ public class RetrievalService {
                 .limit(K + M)
                 .collect(Collectors.toList());
 
+        Map<Long, RecommendationCandidateProjection> filteredProjections = candidates.stream()
+                .map(WelfareService::getId)
+                .filter(projections::containsKey)
+                .collect(Collectors.toMap(
+                        id -> id,
+                        projections::get,
+                        (left, right) -> left,
+                        LinkedHashMap::new
+                ));
+
         return new RetrievedRecommendationCandidates(
                 candidates,
-                canonicalRecommendationReadModelRepository.findByServiceIds(
-                        candidates.stream().map(WelfareService::getId).toList()
-                )
+                filteredProjections
         );
     }
 
@@ -94,7 +106,9 @@ public class RetrievalService {
      * 구조화된 나이 필드(min_age/max_age)가 비어있는 정책에 한해
      * KEYWORD의 COND_AGE_MIN_*, COND_AGE_MAX_* 토큰으로 보조 필터를 적용한다.
      */
-    private List<WelfareService> applyRecommendationFilters(List<WelfareService> candidates, int userAge) {
+    private List<WelfareService> applyRecommendationFilters(List<WelfareService> candidates,
+                                                            Map<Long, RecommendationCandidateProjection> projections,
+                                                            int userAge) {
         if (candidates.isEmpty()) return candidates;
 
         List<Long> ids = candidates.stream().map(WelfareService::getId).toList();
@@ -104,8 +118,9 @@ public class RetrievalService {
                 .collect(Collectors.groupingBy(tag -> tag.getService().getId()));
 
         return candidates.stream()
-                .filter(service -> youthPolicyFilter.isYouthRelevant(
+                .filter(service -> isPrimaryAudienceRelevant(
                         service,
+                        projections.get(service.getId()),
                         tagsByServiceId.getOrDefault(service.getId(), Collections.emptyList())
                 ))
                 .filter(service -> matchAgeConstraint(
@@ -114,6 +129,30 @@ public class RetrievalService {
                         tagsByServiceId.getOrDefault(service.getId(), Collections.emptyList())
                 ))
                 .collect(Collectors.toList());
+    }
+
+    private Map<Long, RecommendationCandidateProjection> loadProjections(List<WelfareService> rawCandidates,
+                                                                         List<WelfareService> latestCandidates) {
+        LinkedHashSet<Long> serviceIds = new LinkedHashSet<>();
+        rawCandidates.stream()
+                .map(WelfareService::getId)
+                .forEach(serviceIds::add);
+        latestCandidates.stream()
+                .map(WelfareService::getId)
+                .forEach(serviceIds::add);
+        return canonicalRecommendationReadModelRepository.findByServiceIds(List.copyOf(serviceIds));
+    }
+
+    private boolean isPrimaryAudienceRelevant(WelfareService service,
+                                              RecommendationCandidateProjection projection,
+                                              List<ServiceTag> tags) {
+        if (projection != null) {
+            return projection.youthRelevant();
+        }
+        if (!service.isSearchYouthRelevant()) {
+            return false;
+        }
+        return youthPolicyFilter.isYouthRelevant(service, tags);
     }
 
     private boolean matchAgeConstraint(WelfareService service, int userAge, List<ServiceTag> tags) {

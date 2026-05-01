@@ -27,6 +27,11 @@ import java.util.Set;
 @Transactional
 public class DeferredNormalizedPolicySidecarWriter implements NormalizedPolicySidecarWriter {
 
+    private static final String SUMMARY_KEY_YOUTH_MAJOR = "YOUTH_MAJOR";
+    private static final String SUMMARY_KEY_YOUTH_MID = "YOUTH_MID";
+    private static final String SUMMARY_KEY_GOV24_SERVICE_FIELD = "GOV24_SERVICE_FIELD";
+    private static final String SUMMARY_KEY_GOV24_USER_TYPE = "GOV24_USER_TYPE";
+    private static final String SUMMARY_KEY_GOV24_BENEFIT_TYPE = "GOV24_BENEFIT_TYPE";
     private static final Set<String> REQUIRED_TABLES = Set.of(
             "normalization_code_sets",
             "service_taxonomies",
@@ -67,16 +72,17 @@ public class DeferredNormalizedPolicySidecarWriter implements NormalizedPolicySi
         long officialYouthMidCount = aggregate.taxonomyTerms().stream()
                 .filter(term -> "YOUTH_MID".equals(term.termGroup()))
                 .count();
+        String summaryYouthMid = summaryLabel(aggregate.taxonomy(), SUMMARY_KEY_YOUTH_MID);
 
         if (officialYouthMidCount != 1
                 && aggregate.taxonomy() != null
-                && aggregate.taxonomy().youthMid() != null) {
+                && summaryYouthMid != null) {
             throw new IllegalArgumentException("YOUTH_MID summary 는 exact official 단일 token일 때만 채울 수 있습니다.");
         }
 
         if (hasYouthMidRawAlias
                 && aggregate.taxonomy() != null
-                && aggregate.taxonomy().youthMid() != null) {
+                && summaryYouthMid != null) {
             throw new IllegalArgumentException("YOUTH_MID_RAW_ALIAS 가 있으면 taxonomy.youthMid 는 null 이어야 합니다.");
         }
     }
@@ -100,7 +106,7 @@ public class DeferredNormalizedPolicySidecarWriter implements NormalizedPolicySi
         if (taxonomy == null) {
             return;
         }
-        YouthMajorSummary youthMajorSummary = normalizeYouthMajorSummary(taxonomy.youthMajor());
+        YouthMajorSummary youthMajorSummary = normalizeYouthMajorSummary(summaryLabel(taxonomy, SUMMARY_KEY_YOUTH_MAJOR));
 
         namedParameterJdbcTemplate.update("""
                 INSERT INTO service_taxonomies (
@@ -169,13 +175,13 @@ public class DeferredNormalizedPolicySidecarWriter implements NormalizedPolicySi
                         .addValue("youthMajorCode", youthMajorSummary.code())
                         .addValue("youthMajorLabel", youthMajorSummary.label())
                         .addValue("youthMidCode", null)
-                        .addValue("youthMidLabel", taxonomy.youthMid())
+                        .addValue("youthMidLabel", summaryLabel(taxonomy, SUMMARY_KEY_YOUTH_MID))
                         .addValue("gov24ServiceFieldCode", null)
-                        .addValue("gov24ServiceFieldLabel", taxonomy.gov24ServiceField())
+                        .addValue("gov24ServiceFieldLabel", summaryLabel(taxonomy, SUMMARY_KEY_GOV24_SERVICE_FIELD))
                         .addValue("gov24UserTypeCode", null)
-                        .addValue("gov24UserTypeLabel", taxonomy.gov24UserType())
+                        .addValue("gov24UserTypeLabel", summaryLabel(taxonomy, SUMMARY_KEY_GOV24_USER_TYPE))
                         .addValue("gov24BenefitTypeCode", null)
-                        .addValue("gov24BenefitTypeLabel", taxonomy.gov24BenefitType())
+                        .addValue("gov24BenefitTypeLabel", summaryLabel(taxonomy, SUMMARY_KEY_GOV24_BENEFIT_TYPE))
                         .addValue("provisionMethodCode", null)
                         .addValue("provisionMethodLabel", taxonomy.provisionMethod())
                         .addValue("authority", taxonomy.authority().name())
@@ -495,6 +501,13 @@ public class DeferredNormalizedPolicySidecarWriter implements NormalizedPolicySi
 
     private String normalizeBlankString(String value) {
         return Objects.requireNonNullElse(value, "");
+    }
+
+    private String summaryLabel(NormalizedPolicyAggregate.TaxonomySummary taxonomy, String key) {
+        if (taxonomy == null) {
+            return null;
+        }
+        return taxonomy.summaryLabel(key);
     }
 
     private record TermRefreshScope(String termGroup, String sourceField) {

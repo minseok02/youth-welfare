@@ -12,6 +12,8 @@ import com.example.welfare.policy.repository.ServiceRegionRepository;
 import com.example.welfare.policy.repository.ServiceTagRepository;
 import com.example.welfare.policy.repository.WelfareServiceDetailRepository;
 import com.example.welfare.policy.repository.WelfareServiceRepository;
+import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
+import com.example.welfare.recommend.repository.CanonicalRecommendationReadModelRepository;
 import com.example.welfare.recommend.entity.UserRecommendation;
 import com.example.welfare.recommend.repository.UserRecommendationRepository;
 import com.example.welfare.user.entity.User;
@@ -42,6 +44,7 @@ public class PolicyService {
     private final ServiceTagRepository tagRepository;
     private final UserRecommendationRepository userRecommendationRepository;
     private final UserRepository userRepository;
+    private final CanonicalRecommendationReadModelRepository canonicalRecommendationReadModelRepository;
 
     @Transactional(readOnly = true)
     public Page<PolicySummaryResponse> getList(Long userId,
@@ -66,9 +69,11 @@ public class PolicyService {
         );
 
         Set<Long> bookmarkedServiceIds = getBookmarkedServiceIds(userId, page.getContent());
+        java.util.Map<Long, RecommendationCandidateProjection> projections = loadProjections(page.getContent());
         return page.map(service -> PolicySummaryResponse.from(
                 service,
-                bookmarkedServiceIds.contains(service.getId())
+                bookmarkedServiceIds.contains(service.getId()),
+                projections.get(service.getId())
         ));
     }
 
@@ -84,8 +89,11 @@ public class PolicyService {
         List<ServiceRegion> regions = regionRepository.findByServiceId(serviceId);
         List<ServiceTag> tags = tagRepository.findByServiceId(serviceId);
         boolean bookmarked = getBookmarkedServiceIds(userId, List.of(ws)).contains(serviceId);
+        RecommendationCandidateProjection projection = canonicalRecommendationReadModelRepository
+                .findByServiceIds(List.of(serviceId))
+                .get(serviceId);
 
-        return PolicyDetailResponse.of(ws, detail, regions, tags, bookmarked);
+        return PolicyDetailResponse.of(ws, detail, regions, tags, bookmarked, projection);
     }
 
     @Transactional
@@ -125,6 +133,15 @@ public class PolicyService {
                 .toList();
 
         return new HashSet<>(userRecommendationRepository.findLatestBookmarkedServiceIdsByUserKey(userKey, serviceIds));
+    }
+
+    private java.util.Map<Long, RecommendationCandidateProjection> loadProjections(List<WelfareService> services) {
+        if (services == null || services.isEmpty()) {
+            return java.util.Map.of();
+        }
+        return canonicalRecommendationReadModelRepository.findByServiceIds(
+                services.stream().map(WelfareService::getId).toList()
+        );
     }
 
     private String resolveUserKey(Long userId) {

@@ -31,6 +31,10 @@ import java.util.stream.Collectors;
 public class RuleScoringService {
 
     private static final String BENEFICIARY_SUPPORT_BUCKET = "BENEFICIARY_SUPPORT";
+    private static final String SPECIAL_TARGET_RURAL = "농어촌";
+    private static final String SPECIAL_TARGET_SELF_RELIANCE = "자립준비청년";
+    private static final String SPECIAL_TARGET_SINGLE_PARENT = "한부모";
+    private static final String SPECIAL_TARGET_GRANDPARENT = "조손";
     private static final String COMPAT_OTHER = "기타";
     private static final String EDUCATION_MAJOR = "교육";
     private static final String EDUCATION_PRIORITY_CODE = "EDUCATION";
@@ -74,11 +78,12 @@ public class RuleScoringService {
                     double base = calcBaseScore(service, user, interestFields, targetTypes, tags, projection);
                     double weighted = applyPriorityWeight(base, service, projection, user.priorities());
                     // 특수 대상 신호가 있지만 사용자와 불일치한 경우 플래그 설정
-                    boolean mismatch = !specialTargetMatches(user, targetTypes, service, tags)
-                            && hasSpecialTargetSignal(service, tags);
+                    boolean mismatch = !specialTargetMatches(user, targetTypes, service, tags, projection)
+                            && hasSpecialTargetSignal(service, tags, projection);
 
                     return ScoredCandidate.builder()
                             .service(service)
+                            .projection(projection)
                             .ruleBaseScore(base)
                             .ruleWeightedScore(weighted)
                             .hasSpecialTargetMismatch(mismatch)
@@ -93,7 +98,7 @@ public class RuleScoringService {
         double score = 0;
 
         // 청년 신호가 강한 정책을 우선 노출하고, 나이만 겹치는 정책은 뒤로 보낸다.
-        score += youthPolicyFilter.relevanceBonus(service, tags);
+        score += audienceRelevanceBonus(service, tags, projection);
 
         // 관심분야 일치: INTEREST_THEME 태그 ↔ 유저 INTEREST_FIELD
         if (interestThemeMatches(interestFields, tags, projection)) score += 15;
@@ -104,8 +109,8 @@ public class RuleScoringService {
         // 대상유형 일치: TARGET_GROUP 태그 ↔ 유저 취업상태·가구유형·소득분위
         if (targetGroupMatches(user, tags, projection)) score += 10;
 
-        if (specialTargetMatches(user, targetTypes, service, tags)) score += SPECIAL_TARGET_MATCH_BONUS;
-        else if (hasSpecialTargetSignal(service, tags)) score -= SPECIAL_TARGET_MISMATCH_PENALTY;
+        if (specialTargetMatches(user, targetTypes, service, tags, projection)) score += SPECIAL_TARGET_MATCH_BONUS;
+        else if (hasSpecialTargetSignal(service, tags, projection)) score -= SPECIAL_TARGET_MISMATCH_PENALTY;
 
         // 마감임박 — apply_end_date 기준 7일 이내
         if (isDeadlineSoon(service, projection)) score += 5;
@@ -247,44 +252,88 @@ public class RuleScoringService {
         return projection.factKeys().stream().anyMatch(key -> key.endsWith("APPLY_END_DATE"));
     }
 
-    private boolean specialTargetMatches(RecommendationUserSnapshot user, Set<String> targetTypes, WelfareService service, List<ServiceTag> tags) {
-        return specialAudienceMatchedByTargetTypes(targetTypes, service, tags)
-                || specialAudienceMatchedByUserProfile(user, service, tags);
+    private double audienceRelevanceBonus(WelfareService service,
+                                          List<ServiceTag> tags,
+                                          RecommendationCandidateProjection projection) {
+        if (projection != null && projection.audienceRelevanceBonus() > 0) {
+            return projection.audienceRelevanceBonus();
+        }
+        return youthPolicyFilter.relevanceBonus(service, tags);
     }
 
-    private boolean hasSpecialTargetSignal(WelfareService service, List<ServiceTag> tags) {
+    private boolean specialTargetMatches(RecommendationUserSnapshot user,
+                                         Set<String> targetTypes,
+                                         WelfareService service,
+                                         List<ServiceTag> tags,
+                                         RecommendationCandidateProjection projection) {
+        return specialAudienceMatchedByTargetTypes(targetTypes, service, tags, projection)
+                || specialAudienceMatchedByUserProfile(user, service, tags, projection);
+    }
+
+    private boolean hasSpecialTargetSignal(WelfareService service,
+                                           List<ServiceTag> tags,
+                                           RecommendationCandidateProjection projection) {
+        if (projection != null && !projection.specialTargetBuckets().isEmpty()) {
+            return true;
+        }
         return containsAnySignal(service, tags,
                 "장애", "농어촌", "농촌", "어촌", "자립준비", "보호종료",
                 "가족돌봄", "다문화", "북한이탈", "한부모", "조손", "보훈",
                 "현역병", "병역");
     }
 
-    private boolean specialAudienceMatchedByTargetTypes(Set<String> targetTypes, WelfareService service, List<ServiceTag> tags) {
+    private boolean specialAudienceMatchedByTargetTypes(Set<String> targetTypes,
+                                                        WelfareService service,
+                                                        List<ServiceTag> tags,
+                                                        RecommendationCandidateProjection projection) {
         if (targetTypes.isEmpty()) return false;
+
+        if (projection != null && !projection.specialTargetBuckets().isEmpty()) {
+            if (targetTypes.stream().anyMatch(projection.specialTargetBuckets()::contains)) {
+                return true;
+            }
+            if (targetTypes.contains(SPECIAL_TARGET_SELF_RELIANCE)
+                    && projection.specialTargetBuckets().contains(SPECIAL_TARGET_SELF_RELIANCE)) {
+                return true;
+            }
+            return targetTypes.contains(SPECIAL_TARGET_RURAL)
+                    && projection.specialTargetBuckets().contains(SPECIAL_TARGET_RURAL);
+        }
 
         if (targetTypes.stream().anyMatch(type -> containsSignal(service, tags, type))) {
             return true;
         }
-        if (targetTypes.contains("자립준비청년") && containsAnySignal(service, tags, "자립준비", "보호종료")) {
+        if (targetTypes.contains(SPECIAL_TARGET_SELF_RELIANCE) && containsAnySignal(service, tags, "자립준비", "보호종료")) {
             return true;
         }
-        if (targetTypes.contains("농어촌") && containsAnySignal(service, tags, "농어촌", "농촌", "어촌")) {
+        if (targetTypes.contains(SPECIAL_TARGET_RURAL) && containsAnySignal(service, tags, "농어촌", "농촌", "어촌")) {
             return true;
         }
         return false;
     }
 
-    private boolean specialAudienceMatchedByUserProfile(RecommendationUserSnapshot user, WelfareService service, List<ServiceTag> tags) {
+    private boolean specialAudienceMatchedByUserProfile(RecommendationUserSnapshot user,
+                                                        WelfareService service,
+                                                        List<ServiceTag> tags,
+                                                        RecommendationCandidateProjection projection) {
         if (user.incomeLevel() != null && user.incomeLevel() <= 3
                 && containsAnySignal(service, tags, "저소득", "기초생활")) {
             return true;
         }
         if (user.householdType() != null) {
             String household = user.householdType();
-            if (household.contains("한부모") && containsAnySignal(service, tags, "한부모")) {
+            if (projection != null && household.contains(SPECIAL_TARGET_SINGLE_PARENT)
+                    && projection.specialTargetBuckets().contains(SPECIAL_TARGET_SINGLE_PARENT)) {
                 return true;
             }
-            if (household.contains("조손") && containsAnySignal(service, tags, "조손")) {
+            if (projection != null && household.contains(SPECIAL_TARGET_GRANDPARENT)
+                    && projection.specialTargetBuckets().contains(SPECIAL_TARGET_GRANDPARENT)) {
+                return true;
+            }
+            if (household.contains(SPECIAL_TARGET_SINGLE_PARENT) && containsAnySignal(service, tags, SPECIAL_TARGET_SINGLE_PARENT)) {
+                return true;
+            }
+            if (household.contains(SPECIAL_TARGET_GRANDPARENT) && containsAnySignal(service, tags, SPECIAL_TARGET_GRANDPARENT)) {
                 return true;
             }
         }
@@ -360,7 +409,8 @@ public class RuleScoringService {
         if (!EDUCATION_PRIORITY_CODE.equals(priority.code())) {
             return false;
         }
-        return COMPAT_OTHER.equals(projection.unifiedCategoryCompat())
-                && EDUCATION_MAJOR.equals(projection.youthMajorLabel());
+        return projection.educationPriorityBoostEligible()
+                || (COMPAT_OTHER.equals(projection.unifiedCategoryCompat())
+                && EDUCATION_MAJOR.equals(projection.youthMajorLabel()));
     }
 }

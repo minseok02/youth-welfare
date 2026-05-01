@@ -4,7 +4,9 @@ import com.example.welfare.chat.service.ChatSessionCleanupService;
 import com.example.welfare.global.util.AesEncryptUtil;
 import com.example.welfare.policy.dto.PolicySummaryResponse;
 import com.example.welfare.policy.entity.WelfareService;
+import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
 import com.example.welfare.recommend.entity.UserRecommendation;
+import com.example.welfare.recommend.repository.CanonicalRecommendationReadModelRepository;
 import com.example.welfare.recommend.repository.UserRecommendationRepository;
 import com.example.welfare.user.dto.request.UpdateProfileRequest;
 import com.example.welfare.user.dto.request.UpdatePrioritiesRequest;
@@ -54,6 +56,7 @@ class UserServiceTest {
     @Mock private ChatSessionCleanupService chatSessionCleanupService;
     @Mock private UserCoreSyncService userCoreSyncService;
     @Mock private UserReadService userReadService;
+    @Mock private CanonicalRecommendationReadModelRepository canonicalRecommendationReadModelRepository;
 
     private UserService userService;
 
@@ -72,7 +75,8 @@ class UserServiceTest {
                 accessTokenRevocationService,
                 chatSessionCleanupService,
                 userCoreSyncService,
-                userReadService
+                userReadService,
+                canonicalRecommendationReadModelRepository
         );
     }
 
@@ -204,12 +208,21 @@ class UserServiceTest {
                         .service(service)
                         .isBookmarked(true)
                         .build()));
+        when(canonicalRecommendationReadModelRepository.findByServiceIds(List.of(11L)))
+                .thenReturn(java.util.Map.of(
+                        11L,
+                        RecommendationCandidateProjection.builder()
+                                .serviceId(11L)
+                                .unifiedCategoryCompat("주거")
+                                .build()
+                ));
 
         List<PolicySummaryResponse> response = userService.getBookmarks(1L);
 
         assertThat(response).hasSize(1);
         assertThat(response.get(0).getId()).isEqualTo(11L);
         assertThat(response.get(0).getTitle()).isEqualTo("청년 월세 지원");
+        assertThat(response.get(0).getUnifiedCategory()).isEqualTo("주거");
         assertThat(response.get(0).isBookmarked()).isTrue();
     }
 

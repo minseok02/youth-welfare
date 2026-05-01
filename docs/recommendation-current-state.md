@@ -34,7 +34,7 @@
 
 주의:
 
-- `YOUTH min_income=0 && max_income=0` 은 미지정 sentinel 로 보고 pass-through
+- `min_income=0 && max_income=0` 은 source와 무관하게 미지정 sentinel 로 보고 pass-through
 - 복지로 계열은 소득 구조화 값이 약해서 사실상 pass-through가 많음
 
 즉 현재 candidate pool 은 “정확한 hard gate 전부” 가 아니라
@@ -75,6 +75,12 @@
 - `youthMajorLabel`
 - `factKeys`
 - target group bucket
+- `projection.youthRelevant` 우선 사용, heuristic은 projection 부재 시 fallback
+- `projection.audienceRelevanceBonus`, `projection.specialTargetBuckets` 우선 사용, legacy text heuristic은 fallback
+- priority 매칭은 `projection.priorityBuckets` 우선 사용, compat 문자열 비교는 fallback
+- education narrow experiment도 `projection.educationPriorityBoostEligible` 우선 사용, raw compat+youthMajor 조합은 fallback
+- recommendation response의 `unifiedCategory` 는 여전히 compat contract지만, 응답 생성 시 projection compat 값을 우선 사용
+- policy/search/detail/ranking/bookmark 응답도 `unifiedCategory` 의미는 compat contract를 유지하되, 값은 projection compat를 우선 사용
 
 즉 canonical sidecar는 현재 recommendation 의 보조 입력입니다.
 

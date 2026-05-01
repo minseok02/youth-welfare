@@ -37,6 +37,46 @@ class RecommendationRegionQueryIntegrationTest {
     }
 
     @Test
+    @DisplayName("0/0 소득 조건은 source와 무관하게 미지정 sentinel로 통과시킨다")
+    void findCandidatesTreatZeroZeroIncomeAsSourceNeutralPassThrough() {
+        WelfareService passThrough = welfareServiceRepository.save(WelfareService.builder()
+                .sourceType(WelfareService.SourceType.BOKJIRO_CENTRAL)
+                .sourceId(TEST_SOURCE_PREFIX + UUID.randomUUID().toString().substring(0, 8))
+                .title("0/0 소득 조건 테스트")
+                .description("소득 미지정 sentinel")
+                .status(WelfareService.ServiceStatus.ACTIVE)
+                .minAge(19)
+                .maxAge(34)
+                .minIncome(0)
+                .maxIncome(0)
+                .apiViewCount(0L)
+                .build());
+        WelfareService strictIncome = welfareServiceRepository.save(WelfareService.builder()
+                .sourceType(WelfareService.SourceType.BOKJIRO_LOCAL)
+                .sourceId(TEST_SOURCE_PREFIX + UUID.randomUUID().toString().substring(0, 8))
+                .title("소득 제한 정책")
+                .description("소득분위 상한 3")
+                .status(WelfareService.ServiceStatus.ACTIVE)
+                .minAge(19)
+                .maxAge(34)
+                .minIncome(1)
+                .maxIncome(3)
+                .apiViewCount(0L)
+                .build());
+
+        List<WelfareService> results = welfareServiceRepository.findCandidates(
+                25,
+                5,
+                PageRequest.of(0, 5000)
+        );
+
+        assertThat(results)
+                .extracting(WelfareService::getId)
+                .contains(passThrough.getId())
+                .doesNotContain(strictIncome.getId());
+    }
+
+    @Test
     @DisplayName("지역코드 추천 후보는 전국 정책과 매칭 지역 정책만 포함하고 중복 반환하지 않는다")
     void findCandidatesWithRegionCodeIncludesNationwideAndMatchingLocalWithoutDuplicates() {
         WelfareService nationwide = saveService("nationwide");

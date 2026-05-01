@@ -185,7 +185,7 @@ public class RealtimeAiGateway implements AiRecommendationGateway {
             policyList
                     .append("- id:").append(c.getService().getId())
                     .append(" | 제목:").append(c.getService().getTitle())
-                    .append(" | 분류:").append(c.getService().getUnifiedCategory())
+                    .append(" | 분류:").append(resolveUnifiedCategory(c))
                     .append(" | 내용:").append(shortDesc)
                     .append("\n");
         });
@@ -202,6 +202,13 @@ public class RealtimeAiGateway implements AiRecommendationGateway {
                 ageGroup(user), regionLabel(user), incomeRangeLabel(user), employmentLabel(user),
                 topCandidates.size(), policyList,
                 topCandidates.size());
+    }
+
+    static String resolveUnifiedCategory(ScoredCandidate candidate) {
+        if (candidate.getProjection() != null && candidate.getProjection().unifiedCategoryCompat() != null) {
+            return candidate.getProjection().unifiedCategoryCompat();
+        }
+        return candidate.getService().getUnifiedCategory();
     }
 
     private AiCallResult callOpenAi(String userPrompt, Long replaySeed) {

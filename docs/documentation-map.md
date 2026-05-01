@@ -17,7 +17,11 @@
 
 ### 제품/구조
 
+- [start.md](./start.md)
+- [project-spec.md](./project-spec.md)
 - [README.md](./README.md)
+- [current-state.md](./current-state.md)
+- [work-guide.md](./work-guide.md)
 - [architecture.md](./architecture.md)
 - [api-mapping.md](./api-mapping.md)
 - [recommendation-pipeline.md](./recommendation-pipeline.md)
