@@ -135,6 +135,10 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - 2026-05-02 `service_taxonomy_summary_slots` draft DDL 초안(`V2026_05_02_01__add_service_taxonomy_summary_slots.sql`) 추가 후 `git diff --check`
 - 2026-05-02 `DeferredNormalizedPolicySidecarWriter` summary slot dual-write 추가 후 `backend`에서 `./gradlew test --no-daemon --tests com.example.welfare.collect.normalization.CanonicalTaxonomySummarySlotsTest --tests com.example.welfare.collect.normalization.ServiceTaxonomyLegacySummaryBridgeTest --tests com.example.welfare.collect.normalization.TaxonomySummarySupportTest --tests com.example.welfare.collect.normalization.DeferredNormalizedPolicySidecarWriterTest`
 - 2026-05-02 local canonical draft apply/replay smoke에 `service_taxonomy_summary_slots` 적용 및 density summary 추가 후 `bash -n deploy/mysql/apply-local-policy-sidecar-draft.sh` / `bash -n deploy/smoke/run-local-education-priority-replay.sh` / `git diff --check`
+- 2026-05-02 `service_taxonomy_summary_slots` legacy summary backfill 및 replay 재검증 후 `deploy/mysql/apply-local-policy-sidecar-draft.sh` / `deploy/smoke/run-local-education-priority-replay.sh`
+  - `service_taxonomy_summary_slots=5619`
+  - `slot_services=2305`
+  - `slot_education_services=110`
 - 2026-05-01 `BokjiroDetailCollectService` 내부 예산 배분 / detail persistence-fallback 분리 후 `backend`에서 `./gradlew test --no-daemon --tests com.example.welfare.collect.service.BokjiroDetailCollectServiceTest`
 - 2026-05-01 `BokjiroDetailCollectService` 분리 후 `backend`에서 `./gradlew integrationTest --no-daemon --tests com.example.welfare.integration.BokjiroSidecarMergeIntegrationTest`
 - 2026-05-01 recommendation cleanup 후 `backend`에서 `./gradlew test --no-daemon --tests com.example.welfare.recommend.support.RecommendationMatchingSupportTest --tests com.example.welfare.recommend.repository.CanonicalRecommendationReadModelRepositoryTest --tests com.example.welfare.recommend.service.RuleScoringServiceTest --tests com.example.welfare.recommend.service.DefaultPriorityMatcherTest`

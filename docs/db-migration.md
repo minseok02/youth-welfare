@@ -50,6 +50,18 @@
   - backfill / read-model 전환은 아직 열지 않았고, 현재 단계는 collect writer dual-write까지만 검증 범위다
   - 배경 설계는 [policy-normalization-summary-slot-storage-plan.md](./history/policy/policy-normalization-summary-slot-storage-plan.md)를 따른다
 
+- draft 파일: [`backend/src/main/resources/db/migration-draft/V2026_05_02_02__backfill_service_taxonomy_summary_slots.sql`](../backend/src/main/resources/db/migration-draft/V2026_05_02_02__backfill_service_taxonomy_summary_slots.sql)
+- 포함 내용:
+  - 기존 `service_taxonomies` summary row를 `service_taxonomy_summary_slots` 로 재적재하는 local backfill 초안
+  - `YOUTH_MAJOR`, `YOUTH_MID`, `GOV24_*`, `PROVISION_METHOD` managed slot만 재생성
+  - 현재 local replay closeout에서는 dual-write 이전 snapshot을 이 SQL로 먼저 메운 뒤 density를 확인한다
+
+- draft 파일: [`backend/src/main/resources/db/migration-draft/V2026_05_02_03__widen_service_taxonomy_summary_slot_label.sql`](../backend/src/main/resources/db/migration-draft/V2026_05_02_03__widen_service_taxonomy_summary_slot_label.sql)
+- 포함 내용:
+  - `service_taxonomy_summary_slots.slot_label` 을 `TEXT` 로 보정
+  - 유니크 키에서 `slot_label` 을 제외하고 `(service_id, slot_key, slot_code, authority)` 로 재정의
+  - 이유: `provision_method_label` 계열 장문 summary가 `slot_label` 길이 제한과 MySQL unique index 제약에 걸렸기 때문
+
 ## 로컬 draft sidecar smoke
 
 로컬 Docker MySQL에서 draft sidecar 스키마와 실제 writer 정합성을 확인할 때는 아래 순서로 검증한다.
@@ -59,6 +71,8 @@ docker exec -e MYSQL_PWD="$DB_PASSWORD" -i youth-welfare-db mysql -uroot youth_w
 docker exec -e MYSQL_PWD="$DB_PASSWORD" -i youth-welfare-db mysql -uroot youth_welfare < backend/src/main/resources/db/migration-draft/V2026_04_30_02__seed_policy_normalization_codes.sql
 docker exec -e MYSQL_PWD="$DB_PASSWORD" -i youth-welfare-db mysql -uroot youth_welfare < backend/src/main/resources/db/migration-draft/V2026_04_30_03__seed_policy_official_code_subsets.sql
 docker exec -e MYSQL_PWD="$DB_PASSWORD" -i youth-welfare-db mysql -uroot youth_welfare < backend/src/main/resources/db/migration-draft/V2026_05_02_01__add_service_taxonomy_summary_slots.sql
+docker exec -e MYSQL_PWD="$DB_PASSWORD" -i youth-welfare-db mysql -uroot youth_welfare < backend/src/main/resources/db/migration-draft/V2026_05_02_03__widen_service_taxonomy_summary_slot_label.sql
+docker exec -e MYSQL_PWD="$DB_PASSWORD" -i youth-welfare-db mysql -uroot youth_welfare < backend/src/main/resources/db/migration-draft/V2026_05_02_02__backfill_service_taxonomy_summary_slots.sql
 
 cd backend
 ./gradlew test --no-daemon --tests com.example.welfare.collect.normalization.NormalizedFactMergeSupportTest --tests com.example.welfare.collect.normalization.DeferredNormalizedPolicySidecarWriterTest
@@ -85,9 +99,10 @@ curl -X POST "http://127.0.0.1:8082/api/admin/collect/bokjiro-sidecars-backfill?
 ```sql
 SELECT COUNT(*) FROM normalization_code_sets;   -- 15
 SELECT COUNT(*) FROM normalization_codes;       -- 78
-SELECT COUNT(*) FROM service_taxonomies;        -- 3634
-SELECT COUNT(*) FROM service_taxonomy_terms;    -- 2395
-SELECT COUNT(*) FROM service_facts;             -- 0
+SELECT COUNT(*) FROM service_taxonomies;             -- 3634
+SELECT COUNT(*) FROM service_taxonomy_terms;         -- 2395
+SELECT COUNT(*) FROM service_taxonomy_summary_slots; -- 5619
+SELECT COUNT(*) FROM service_facts;                  -- 0
 ```
 
 2026-04-30 `V2026_04_30_02__seed_policy_normalization_codes.sql` youth major summary collapse 검증:

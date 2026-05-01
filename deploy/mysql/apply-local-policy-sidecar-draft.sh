@@ -6,6 +6,8 @@ REPO_ENV_FILE="${ROOT_DIR}/.env"
 CREATE_SIDECAR_SQL="${ROOT_DIR}/backend/src/main/resources/db/migration-draft/V2026_04_30_01__create_policy_sidecars.sql"
 SEED_NORMALIZATION_SQL="${ROOT_DIR}/backend/src/main/resources/db/migration-draft/V2026_04_30_02__seed_policy_normalization_codes.sql"
 CREATE_SUMMARY_SLOT_SQL="${ROOT_DIR}/backend/src/main/resources/db/migration-draft/V2026_05_02_01__add_service_taxonomy_summary_slots.sql"
+BACKFILL_SUMMARY_SLOT_SQL="${ROOT_DIR}/backend/src/main/resources/db/migration-draft/V2026_05_02_02__backfill_service_taxonomy_summary_slots.sql"
+WIDEN_SUMMARY_SLOT_SQL="${ROOT_DIR}/backend/src/main/resources/db/migration-draft/V2026_05_02_03__widen_service_taxonomy_summary_slot_label.sql"
 
 trim() {
   local value="$1"
@@ -108,9 +110,12 @@ APPLY_SEED_WHEN_EMPTY_ONLY="${APPLY_SEED_WHEN_EMPTY_ONLY:-true}"
 [[ -f "${CREATE_SIDECAR_SQL}" ]] || { echo "missing SQL file: ${CREATE_SIDECAR_SQL}" >&2; exit 1; }
 [[ -f "${SEED_NORMALIZATION_SQL}" ]] || { echo "missing SQL file: ${SEED_NORMALIZATION_SQL}" >&2; exit 1; }
 [[ -f "${CREATE_SUMMARY_SLOT_SQL}" ]] || { echo "missing SQL file: ${CREATE_SUMMARY_SLOT_SQL}" >&2; exit 1; }
+[[ -f "${BACKFILL_SUMMARY_SLOT_SQL}" ]] || { echo "missing SQL file: ${BACKFILL_SUMMARY_SLOT_SQL}" >&2; exit 1; }
+[[ -f "${WIDEN_SUMMARY_SLOT_SQL}" ]] || { echo "missing SQL file: ${WIDEN_SUMMARY_SLOT_SQL}" >&2; exit 1; }
 
 apply_sql_file "${CREATE_SIDECAR_SQL}"
 apply_sql_file "${CREATE_SUMMARY_SLOT_SQL}"
+apply_sql_file "${WIDEN_SUMMARY_SLOT_SQL}"
 
 if ! table_exists "service_taxonomies"; then
   echo "service_taxonomies table still missing after sidecar create SQL" >&2
@@ -133,6 +138,8 @@ if [[ "${APPLY_SEED_WHEN_EMPTY_ONLY}" != "true" || "${taxonomy_count}" == "0" ]]
   apply_sql_file "${SEED_NORMALIZATION_SQL}"
 fi
 
+apply_sql_file "${BACKFILL_SUMMARY_SLOT_SQL}"
+
 taxonomy_count="$(
   mysql_exec "
     SELECT COUNT(*)
@@ -154,7 +161,18 @@ summary_slot_count="$(
     FROM service_taxonomy_summary_slots;
   "
 )"
+summary_slot_education_services="$(
+  mysql_exec "
+    SELECT COUNT(DISTINCT stss.service_id)
+    FROM service_taxonomy_summary_slots stss
+    JOIN welfare_services ws ON ws.id = stss.service_id
+    WHERE stss.slot_key = 'YOUTH_MAJOR'
+      AND stss.slot_label = '교육'
+      AND ws.unified_category = '기타';
+  "
+)"
 
 echo "service_taxonomies=${taxonomy_count}"
 echo "service_taxonomy_summary_slots=${summary_slot_count}"
 echo "education_target_rows=${education_target_rows}"
+echo "slot_education_services=${summary_slot_education_services}"

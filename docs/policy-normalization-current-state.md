@@ -53,8 +53,16 @@
 - `service_taxonomies=2363`
 - `service_taxonomy_terms=7931`
 - `service_facts=8257`
+- `service_taxonomy_summary_slots=5619`
 
 즉 `YOUTH` snapshot 기준으로 core row와 canonical sidecar 저장은 현재 로컬에서 정상동작 확인 상태입니다.
+
+추가로 local replay closeout 기준:
+
+- `slot_services=2305`
+- `slot_education_services=110`
+
+즉 summary slot dual-write/backfill 도 현재 로컬 snapshot에서 density 확인까지 끝난 상태입니다.
 
 ## 2. `YOUTH_MID_RAW_ALIAS` 현재 상태
 

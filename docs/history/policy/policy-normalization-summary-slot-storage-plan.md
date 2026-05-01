@@ -225,7 +225,9 @@ summary를 JSON 컬럼으로 두지 않고 row table로 두는 이유는 아래�
 1. `service_taxonomy_summary_slots` draft DDL 작성
   - 2026-05-02 [`V2026_05_02_01__add_service_taxonomy_summary_slots.sql`](../../../backend/src/main/resources/db/migration-draft/V2026_05_02_01__add_service_taxonomy_summary_slots.sql) 로 초안 추가 완료
 2. writer dual-write 범위 정의
+  - 2026-05-02 `DeferredNormalizedPolicySidecarWriter` 가 optional dual-write 를 수행하도록 반영 완료
 3. local replay smoke에 slot density 검증 추가
+  - 2026-05-02 replay summary에 `slot_rows / slot_services / slot_education_services` 출력 추가 완료
 4. read-model 중 어떤 경계를 slot-first로 바꿀지 범위 확정
 
 ## 결론
