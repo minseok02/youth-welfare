@@ -6,6 +6,8 @@ import com.example.welfare.collect.dto.YouthApiDto;
 import com.example.welfare.collect.mapper.WelfareServiceMapper;
 import com.example.welfare.collect.normalization.NormalizedPolicyAggregate;
 import com.example.welfare.collect.normalization.NormalizedPolicySidecarWriter;
+import com.example.welfare.collect.support.ListCollectSourceBinding;
+import com.example.welfare.collect.support.ListCollectSourceBindings;
 import com.example.welfare.policy.entity.ServiceRegion;
 import com.example.welfare.policy.entity.ServiceTag;
 import com.example.welfare.policy.entity.WelfareService;
@@ -59,24 +61,11 @@ public class CollectItemSaver {
     }
 
     public void saveYouth(YouthApiDto.Item item) {
-        save(SaveCommand.builder()
-                .sourceType(WelfareService.SourceType.YOUTH)
-                .sourceId(item.getPlcyNo())
-                .incoming(mapper.fromYouth(item))
-                .regions(entity -> mapper.regionsFromYouth(item, entity))
-                .tags(entity -> mapper.tagsFromYouth(item, entity))
-                .build());
+        save(ListCollectSourceBindings.youth(mapper), item);
     }
 
     public void saveYouth(YouthApiDto.Item item, NormalizedPolicyAggregate aggregate) {
-        save(SaveCommand.builder()
-                .sourceType(WelfareService.SourceType.YOUTH)
-                .sourceId(item.getPlcyNo())
-                .incoming(mapper.fromYouth(item))
-                .regions(entity -> mapper.regionsFromYouth(item, entity))
-                .tags(entity -> mapper.tagsFromYouth(item, entity))
-                .aggregate(aggregate)
-                .build());
+        save(ListCollectSourceBindings.youth(mapper), item, aggregate);
     }
 
     public void saveYouthOnce(YouthApiDto.Item item) {
@@ -104,24 +93,11 @@ public class CollectItemSaver {
     }
 
     public void saveBokjiroCentral(BokjiroCentralDto.Item item) {
-        save(SaveCommand.builder()
-                .sourceType(WelfareService.SourceType.BOKJIRO_CENTRAL)
-                .sourceId(item.getServId())
-                .incoming(mapper.fromBokjiroCentral(item))
-                .regions(entity -> mapper.regionsFromBokjiroCentral(item, entity))
-                .tags(entity -> mapper.tagsFromBokjiroCentral(item, entity))
-                .build());
+        save(ListCollectSourceBindings.bokjiroCentral(mapper), item);
     }
 
     public void saveBokjiroCentral(BokjiroCentralDto.Item item, NormalizedPolicyAggregate aggregate) {
-        save(SaveCommand.builder()
-                .sourceType(WelfareService.SourceType.BOKJIRO_CENTRAL)
-                .sourceId(item.getServId())
-                .incoming(mapper.fromBokjiroCentral(item))
-                .regions(entity -> mapper.regionsFromBokjiroCentral(item, entity))
-                .tags(entity -> mapper.tagsFromBokjiroCentral(item, entity))
-                .aggregate(aggregate)
-                .build());
+        save(ListCollectSourceBindings.bokjiroCentral(mapper), item, aggregate);
     }
 
     public void saveBokjiroCentralOnce(BokjiroCentralDto.Item item) {
@@ -149,22 +125,27 @@ public class CollectItemSaver {
     }
 
     public void saveBokjiroLocal(BokjiroLocalDto.Item item) {
-        save(SaveCommand.builder()
-                .sourceType(WelfareService.SourceType.BOKJIRO_LOCAL)
-                .sourceId(item.getServId())
-                .incoming(mapper.fromBokjiroLocal(item))
-                .regions(entity -> mapper.regionsFromBokjiroLocal(item, entity))
-                .tags(entity -> mapper.tagsFromBokjiroLocal(item, entity))
-                .build());
+        save(ListCollectSourceBindings.bokjiroLocal(mapper), item);
     }
 
     public void saveBokjiroLocal(BokjiroLocalDto.Item item, NormalizedPolicyAggregate aggregate) {
+        save(ListCollectSourceBindings.bokjiroLocal(mapper), item, aggregate);
+    }
+
+    public <T> void save(ListCollectSourceBinding<T> binding, T item) {
+        save(binding.toSaveCommand(item));
+    }
+
+    public <T> void save(ListCollectSourceBinding<T> binding,
+                         T item,
+                         NormalizedPolicyAggregate aggregate) {
+        SaveCommand command = binding.toSaveCommand(item);
         save(SaveCommand.builder()
-                .sourceType(WelfareService.SourceType.BOKJIRO_LOCAL)
-                .sourceId(item.getServId())
-                .incoming(mapper.fromBokjiroLocal(item))
-                .regions(entity -> mapper.regionsFromBokjiroLocal(item, entity))
-                .tags(entity -> mapper.tagsFromBokjiroLocal(item, entity))
+                .sourceType(command.sourceType())
+                .sourceId(command.sourceId())
+                .incoming(command.incoming())
+                .regions(command.regions())
+                .tags(command.tags())
                 .aggregate(aggregate)
                 .build());
     }

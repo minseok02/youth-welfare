@@ -1,6 +1,7 @@
 package com.example.welfare.recommend.repository;
 
 import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
+import com.example.welfare.recommend.support.RecommendationProjectionHeuristicSupport;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -93,7 +94,7 @@ class CanonicalRecommendationReadModelRepositoryTest {
         assertThat(projection.interestThemes()).containsExactly("생활지원");
         assertThat(projection.targetGroupsRaw()).containsExactlyInAnyOrder("기초생활수급자", "차상위계층");
         assertThat(projection.beneficiaryTerms()).containsExactlyInAnyOrder("기초생활수급자", "차상위계층");
-        assertThat(projection.targetGroupBuckets()).containsExactly(CanonicalRecommendationReadModelRepository.BENEFICIARY_SUPPORT_BUCKET);
+        assertThat(projection.targetGroupBuckets()).containsExactly(RecommendationProjectionHeuristicSupport.BENEFICIARY_SUPPORT_BUCKET);
         assertThat(projection.factKeys()).containsExactly("BK_AGE_ELIGIBILITY");
     }
 
@@ -139,8 +140,8 @@ class CanonicalRecommendationReadModelRepositoryTest {
         assertThat(projection.audienceRelevanceBonus()).isEqualTo(23.0);
         assertThat(projection.educationPriorityBoostEligible()).isFalse();
         assertThat(projection.specialTargetBuckets()).containsExactlyInAnyOrder(
-                CanonicalRecommendationReadModelRepository.SPECIAL_TARGET_RURAL,
-                CanonicalRecommendationReadModelRepository.SPECIAL_TARGET_SINGLE_PARENT
+                RecommendationProjectionHeuristicSupport.SPECIAL_TARGET_RURAL,
+                RecommendationProjectionHeuristicSupport.SPECIAL_TARGET_SINGLE_PARENT
         );
     }
 

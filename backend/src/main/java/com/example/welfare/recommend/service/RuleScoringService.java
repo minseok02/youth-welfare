@@ -8,17 +8,18 @@ import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
 import com.example.welfare.recommend.dto.RecommendationUserSnapshot;
 import com.example.welfare.recommend.dto.RetrievedRecommendationCandidates;
 import com.example.welfare.recommend.dto.ScoredCandidate;
+import com.example.welfare.recommend.support.RecommendationMatchingSupport;
+import com.example.welfare.recommend.support.RecommendationRuntimeSupport;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
-import java.util.Locale;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Stream;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * Rule 기반 점수 계산
@@ -30,13 +31,6 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class RuleScoringService {
 
-    private static final String BENEFICIARY_SUPPORT_BUCKET = "BENEFICIARY_SUPPORT";
-    private static final String SPECIAL_TARGET_RURAL = "농어촌";
-    private static final String SPECIAL_TARGET_SELF_RELIANCE = "자립준비청년";
-    private static final String SPECIAL_TARGET_SINGLE_PARENT = "한부모";
-    private static final String SPECIAL_TARGET_GRANDPARENT = "조손";
-    private static final String COMPAT_OTHER = "기타";
-    private static final String EDUCATION_MAJOR = "교육";
     private static final String EDUCATION_PRIORITY_CODE = "EDUCATION";
     private static final double SPECIAL_TARGET_MATCH_BONUS = 12.0;
     private static final double SPECIAL_TARGET_MISMATCH_PENALTY = 8.0;
@@ -183,62 +177,12 @@ public class RuleScoringService {
                     .toList();
         }
 
-        if (targetGroupValues.isEmpty() && !beneficiaryBucketMatches(user, projection)) return false;
-
-        boolean legacyMatch = targetGroupValues.stream().anyMatch(val -> {
-            // 취업상태 매핑
-            if (user.employmentStatus() != null) {
-                String emp = user.employmentStatus();
-                if (val.contains("미취업") && emp.contains("미취업")) return true;
-                if (val.contains("취업준비") && (emp.contains("취업준비") || emp.contains("구직"))) return true;
-                if (val.contains("재직") && emp.contains("재직")) return true;
-                if (val.contains("자영업") && emp.contains("자영업")) return true;
-                if (val.contains("프리랜서") && emp.contains("프리랜서")) return true;
-            }
-
-            // 가구유형 매핑
-            if (user.householdType() != null) {
-                String household = user.householdType();
-                if (val.contains("1인가구") && household.contains("1인")) return true;
-                if (val.contains("한부모") && household.contains("한부모")) return true;
-                if (val.contains("다자녀") && household.contains("다자녀")) return true;
-            }
-
-            // 소득분위 매핑 (저소득층 = 3분위 이하로 판단)
-            if (user.incomeLevel() != null) {
-                if (val.contains("저소득") && user.incomeLevel() <= 3) return true;
-                if (val.contains("기초생활") && user.incomeLevel() <= 1) return true;
-            }
-
-            return false;
-        });
-
-        return legacyMatch || beneficiaryBucketMatches(user, projection);
-    }
-
-    private boolean beneficiaryBucketMatches(RecommendationUserSnapshot user,
-                                             RecommendationCandidateProjection projection) {
-        if (projection == null || projection.targetGroupBuckets().isEmpty()) {
-            return false;
-        }
-        if (!projection.targetGroupBuckets().contains(BENEFICIARY_SUPPORT_BUCKET)) {
-            return false;
-        }
-        if (user.incomeLevel() == null) {
-            return false;
-        }
-
-        if (projection.beneficiaryTerms().contains("기초생활수급자") && user.incomeLevel() <= 1) {
-            return true;
-        }
-        return projection.beneficiaryTerms().contains("차상위계층") && user.incomeLevel() <= 3;
+        return RecommendationMatchingSupport.targetGroupMatches(user, targetGroupValues, projection);
     }
 
     private boolean isDeadlineSoon(WelfareService service, RecommendationCandidateProjection projection) {
         if (service.getApplyEndDate() == null) return false;
-        LocalDate today = LocalDate.now();
-        boolean withinWindow = !service.getApplyEndDate().isBefore(today)
-                && service.getApplyEndDate().isBefore(today.plusDays(7));
+        boolean withinWindow = RecommendationRuntimeSupport.isDeadlineSoon(service.getApplyEndDate(), LocalDate.now());
         if (!withinWindow) {
             return false;
         }
@@ -266,115 +210,13 @@ public class RuleScoringService {
                                          WelfareService service,
                                          List<ServiceTag> tags,
                                          RecommendationCandidateProjection projection) {
-        return specialAudienceMatchedByTargetTypes(targetTypes, service, tags, projection)
-                || specialAudienceMatchedByUserProfile(user, service, tags, projection);
+        return RecommendationMatchingSupport.specialTargetMatches(user, targetTypes, service, tags, projection);
     }
 
     private boolean hasSpecialTargetSignal(WelfareService service,
                                            List<ServiceTag> tags,
                                            RecommendationCandidateProjection projection) {
-        if (projection != null && !projection.specialTargetBuckets().isEmpty()) {
-            return true;
-        }
-        return containsAnySignal(service, tags,
-                "장애", "농어촌", "농촌", "어촌", "자립준비", "보호종료",
-                "가족돌봄", "다문화", "북한이탈", "한부모", "조손", "보훈",
-                "현역병", "병역");
-    }
-
-    private boolean specialAudienceMatchedByTargetTypes(Set<String> targetTypes,
-                                                        WelfareService service,
-                                                        List<ServiceTag> tags,
-                                                        RecommendationCandidateProjection projection) {
-        if (targetTypes.isEmpty()) return false;
-
-        if (projection != null && !projection.specialTargetBuckets().isEmpty()) {
-            if (targetTypes.stream().anyMatch(projection.specialTargetBuckets()::contains)) {
-                return true;
-            }
-            if (targetTypes.contains(SPECIAL_TARGET_SELF_RELIANCE)
-                    && projection.specialTargetBuckets().contains(SPECIAL_TARGET_SELF_RELIANCE)) {
-                return true;
-            }
-            return targetTypes.contains(SPECIAL_TARGET_RURAL)
-                    && projection.specialTargetBuckets().contains(SPECIAL_TARGET_RURAL);
-        }
-
-        if (targetTypes.stream().anyMatch(type -> containsSignal(service, tags, type))) {
-            return true;
-        }
-        if (targetTypes.contains(SPECIAL_TARGET_SELF_RELIANCE) && containsAnySignal(service, tags, "자립준비", "보호종료")) {
-            return true;
-        }
-        if (targetTypes.contains(SPECIAL_TARGET_RURAL) && containsAnySignal(service, tags, "농어촌", "농촌", "어촌")) {
-            return true;
-        }
-        return false;
-    }
-
-    private boolean specialAudienceMatchedByUserProfile(RecommendationUserSnapshot user,
-                                                        WelfareService service,
-                                                        List<ServiceTag> tags,
-                                                        RecommendationCandidateProjection projection) {
-        if (user.incomeLevel() != null && user.incomeLevel() <= 3
-                && containsAnySignal(service, tags, "저소득", "기초생활")) {
-            return true;
-        }
-        if (user.householdType() != null) {
-            String household = user.householdType();
-            if (projection != null && household.contains(SPECIAL_TARGET_SINGLE_PARENT)
-                    && projection.specialTargetBuckets().contains(SPECIAL_TARGET_SINGLE_PARENT)) {
-                return true;
-            }
-            if (projection != null && household.contains(SPECIAL_TARGET_GRANDPARENT)
-                    && projection.specialTargetBuckets().contains(SPECIAL_TARGET_GRANDPARENT)) {
-                return true;
-            }
-            if (household.contains(SPECIAL_TARGET_SINGLE_PARENT) && containsAnySignal(service, tags, SPECIAL_TARGET_SINGLE_PARENT)) {
-                return true;
-            }
-            if (household.contains(SPECIAL_TARGET_GRANDPARENT) && containsAnySignal(service, tags, SPECIAL_TARGET_GRANDPARENT)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private boolean containsAnySignal(WelfareService service, List<ServiceTag> tags, String... signals) {
-        for (String signal : signals) {
-            if (containsSignal(service, tags, signal)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private boolean containsSignal(WelfareService service, List<ServiceTag> tags, String signal) {
-        String normalizedSignal = normalize(signal);
-        if (normalizedSignal == null) return false;
-
-        boolean inFields = Stream.of(
-                        service.getTitle(),
-                        service.getDescription(),
-                        service.getSupportContent(),
-                        service.getLifeStage())
-                .map(this::normalize)
-                .filter(value -> value != null && !value.isBlank())
-                .anyMatch(value -> value.contains(normalizedSignal));
-        if (inFields) {
-            return true;
-        }
-
-        return tags.stream()
-                .map(ServiceTag::getTagValue)
-                .map(this::normalize)
-                .filter(value -> value != null && !value.isBlank())
-                .anyMatch(value -> value.contains(normalizedSignal));
-    }
-
-    private String normalize(String value) {
-        if (value == null) return null;
-        return value.trim().toLowerCase(Locale.ROOT);
+        return RecommendationMatchingSupport.hasSpecialTargetSignal(service, tags, projection);
     }
 
     private boolean matchesInterestField(Set<String> interestFields, String value) {
@@ -409,8 +251,6 @@ public class RuleScoringService {
         if (!EDUCATION_PRIORITY_CODE.equals(priority.code())) {
             return false;
         }
-        return projection.educationPriorityBoostEligible()
-                || (COMPAT_OTHER.equals(projection.unifiedCategoryCompat())
-                && EDUCATION_MAJOR.equals(projection.youthMajorLabel()));
+        return projection.educationPriorityBoostEligible();
     }
 }

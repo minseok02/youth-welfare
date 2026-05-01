@@ -4,6 +4,7 @@ import com.example.welfare.collect.gateway.BokjiroDetailClient;
 import com.example.welfare.collect.mapper.WelfareServiceMapper;
 import com.example.welfare.collect.normalization.NormalizedPolicyAggregate;
 import com.example.welfare.collect.normalization.NormalizedPolicySidecarWriter;
+import com.example.welfare.collect.support.BokjiroSourceBinding;
 import com.example.welfare.collect.validation.RawFieldValidator;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.entity.WelfareServiceDetail;
@@ -23,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.stream.Collectors;
 
 /**
  * 복지로 상세 정보 수집.
@@ -170,21 +172,10 @@ public class BokjiroDetailCollectService {
         int saved = statsBySource.values().stream().mapToInt(CollectStats::saved).sum();
         int skipped = statsBySource.values().stream().mapToInt(CollectStats::skipped).sum();
         int failed = statsBySource.values().stream().mapToInt(CollectStats::failed).sum();
-        CollectStats centralStats = statsBySource.getOrDefault(WelfareService.SourceType.BOKJIRO_CENTRAL, CollectStats.empty());
-        CollectStats localStats = statsBySource.getOrDefault(WelfareService.SourceType.BOKJIRO_LOCAL, CollectStats.empty());
 
-        log.info("[BokjiroDetailCollectService] 상세 수집 완료 refreshExisting={} calls={} saved={} skipped={} failed={} maxCalls={} centralCalls={} localCalls={}",
-                refreshExisting, calls, saved, skipped, failed, maxCalls, centralStats.calls(), localStats.calls());
-        String metadataJson = """
-                {"maxCalls":%d,"centralBudget":%d,"localBudget":%d,"centralCalls":%d,"localCalls":%d,"refreshExisting":%s}
-                """.formatted(
-                maxCalls,
-                budgetAllocation.budgetFor(WelfareService.SourceType.BOKJIRO_CENTRAL),
-                budgetAllocation.budgetFor(WelfareService.SourceType.BOKJIRO_LOCAL),
-                centralStats.calls(),
-                localStats.calls(),
-                refreshExisting
-        ).trim();
+        log.info("[BokjiroDetailCollectService] 상세 수집 완료 refreshExisting={} calls={} saved={} skipped={} failed={} maxCalls={} sourceCalls={}",
+                refreshExisting, calls, saved, skipped, failed, maxCalls, summarizeStats(statsBySource));
+        String metadataJson = buildMetadataJson(maxCalls, refreshExisting, budgetAllocation, statsBySource);
         return CollectResult.withMetadata(calls, saved, skipped, 0, failed, metadataJson);
     }
 
@@ -470,25 +461,41 @@ public class BokjiroDetailCollectService {
         }
     }
 
+    private String buildMetadataJson(int maxCalls,
+                                     boolean refreshExisting,
+                                     BudgetAllocation budgetAllocation,
+                                     Map<WelfareService.SourceType, CollectStats> statsBySource) {
+        return """
+                {"maxCalls":%d,"refreshExisting":%s,"sourceBudgets":{%s},"sourceCalls":{%s}}
+                """.formatted(
+                maxCalls,
+                refreshExisting,
+                budgetAllocation.toJsonObject(),
+                statsBySource.entrySet().stream()
+                        .map(entry -> "\"%s\":%d".formatted(entry.getKey().name(), entry.getValue().calls()))
+                        .collect(Collectors.joining(","))
+        ).trim();
+    }
+
+    private String summarizeStats(Map<WelfareService.SourceType, CollectStats> statsBySource) {
+        return statsBySource.entrySet().stream()
+                .map(entry -> "%s=%d".formatted(entry.getKey().name(), entry.getValue().calls()))
+                .collect(Collectors.joining(","));
+    }
+
     private Map<WelfareService.SourceType, DetailCollectCapability> buildDetailCapabilities(BokjiroDetailClient detailClient,
                                                                                             WelfareServiceMapper welfareServiceMapper) {
         EnumMap<WelfareService.SourceType, DetailCollectCapability> capabilities = new EnumMap<>(WelfareService.SourceType.class);
-        capabilities.put(
-                WelfareService.SourceType.BOKJIRO_CENTRAL,
-                new DetailCollectCapability(
-                        WelfareService.SourceType.BOKJIRO_CENTRAL,
-                        detailClient::fetchCentralWithStatus,
-                        welfareServiceMapper::toNormalizedBokjiroDetail
-                )
-        );
-        capabilities.put(
-                WelfareService.SourceType.BOKJIRO_LOCAL,
-                new DetailCollectCapability(
-                        WelfareService.SourceType.BOKJIRO_LOCAL,
-                        detailClient::fetchLocalWithStatus,
-                        welfareServiceMapper::toNormalizedBokjiroDetail
-                )
-        );
+        for (BokjiroSourceBinding binding : BokjiroSourceBinding.values()) {
+            capabilities.put(
+                    binding.sourceType(),
+                    new DetailCollectCapability(
+                            binding.sourceType(),
+                            sourceId -> binding.fetchDetail(detailClient, sourceId),
+                            (service, payload) -> binding.toDetailAggregate(welfareServiceMapper, service, payload)
+                    )
+            );
+        }
         return Map.copyOf(capabilities);
     }
 
@@ -508,6 +515,12 @@ public class BokjiroDetailCollectService {
 
         private int budgetFor(WelfareService.SourceType sourceType) {
             return budgets.getOrDefault(sourceType, 0);
+        }
+
+        private String toJsonObject() {
+            return budgets.entrySet().stream()
+                    .map(entry -> "\"%s\":%d".formatted(entry.getKey().name(), entry.getValue()))
+                    .collect(Collectors.joining(","));
         }
     }
 

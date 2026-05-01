@@ -3,6 +3,8 @@ package com.example.welfare.collect.service;
 import com.example.welfare.collect.dto.BokjiroLocalDto;
 import com.example.welfare.collect.gateway.BokjiroLocalClient;
 import com.example.welfare.collect.mapper.WelfareServiceMapper;
+import com.example.welfare.collect.support.ListCollectSourceBinding;
+import com.example.welfare.collect.support.ListCollectSourceBindings;
 import com.example.welfare.collect.validation.BokjiroYouthFilter;
 import com.example.welfare.collect.validation.FieldQualityStats;
 import com.example.welfare.collect.validation.RawFieldValidator;
@@ -22,6 +24,9 @@ public class BokjiroLocalCollectSourceAdapter extends AbstractListCollectSourceA
     private final CollectItemSaver saver;
     private final BokjiroYouthFilter bokjiroYouthFilter;
     private final RawApiPayloadService rawApiPayloadService;
+    private ListCollectSourceBinding<BokjiroLocalDto.Item> binding() {
+        return ListCollectSourceBindings.bokjiroLocal(welfareServiceMapper);
+    }
 
     @Override
     public CollectSource source() {
@@ -40,7 +45,7 @@ public class BokjiroLocalCollectSourceAdapter extends AbstractListCollectSourceA
 
     @Override
     protected void saveRawPayload(BokjiroLocalDto.Item item) {
-        rawApiPayloadService.saveList(source().toWelfareSourceType(), item.getServId(), item);
+        rawApiPayloadService.saveList(binding(), item);
     }
 
     @Override
@@ -55,14 +60,7 @@ public class BokjiroLocalCollectSourceAdapter extends AbstractListCollectSourceA
 
     @Override
     protected void saveItem(BokjiroLocalDto.Item item) {
-        saver.save(CollectItemSaver.SaveCommand.builder()
-                .sourceType(source().toWelfareSourceType())
-                .sourceId(item.getServId())
-                .incoming(welfareServiceMapper.fromBokjiroLocal(item))
-                .regions(entity -> welfareServiceMapper.regionsFromBokjiroLocal(item, entity))
-                .tags(entity -> welfareServiceMapper.tagsFromBokjiroLocal(item, entity))
-                .aggregate(welfareServiceMapper.toNormalizedBokjiroLocal(item, null))
-                .build());
+        saver.save(binding(), item);
     }
 
     @Override

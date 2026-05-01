@@ -12,6 +12,7 @@ import com.example.welfare.policy.repository.ServiceRegionRepository;
 import com.example.welfare.policy.repository.ServiceTagRepository;
 import com.example.welfare.policy.repository.WelfareServiceDetailRepository;
 import com.example.welfare.policy.repository.WelfareServiceRepository;
+import com.example.welfare.policy.support.WelfareSourceTypeSupport;
 import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
 import com.example.welfare.recommend.repository.CanonicalRecommendationReadModelRepository;
 import com.example.welfare.recommend.entity.UserRecommendation;
@@ -181,14 +182,11 @@ public class PolicyService {
     }
 
     private WelfareService.SourceType normalizeSourceType(String sourceType) {
-        if (sourceType == null || sourceType.isBlank()) return null;
-        String upper = sourceType.trim().toUpperCase();
-        return switch (upper) {
-            case "YOUTH" -> WelfareService.SourceType.YOUTH;
-            case "BOKJIRO_CENTRAL" -> WelfareService.SourceType.BOKJIRO_CENTRAL;
-            case "BOKJIRO_LOCAL" -> WelfareService.SourceType.BOKJIRO_LOCAL;
-            default -> throw new CustomException(ErrorCode.INVALID_INPUT);
-        };
+        try {
+            return WelfareSourceTypeSupport.parseNullable(sourceType);
+        } catch (IllegalArgumentException e) {
+            throw new CustomException(ErrorCode.INVALID_INPUT);
+        }
     }
 
     private String normalizeNullable(String value) {

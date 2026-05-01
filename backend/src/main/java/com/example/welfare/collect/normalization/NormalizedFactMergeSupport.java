@@ -1,5 +1,6 @@
 package com.example.welfare.collect.normalization;
 
+import com.example.welfare.collect.support.NormalizationKeySupport;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
@@ -18,14 +19,6 @@ public class NormalizedFactMergeSupport {
             NormalizedPolicyAggregate.Authority.SYSTEM_DERIVED, 1,
             NormalizedPolicyAggregate.Authority.RULE_DERIVED, 2,
             NormalizedPolicyAggregate.Authority.AI_ENRICHED, 3
-    );
-
-    private static final Map<String, Integer> SOURCE_FIELD_PRIORITY = Map.of(
-            "targetDetail", 0,
-            "selectionCriteria", 1,
-            "servDgst", 2,
-            "applyMethodDetail", 3,
-            "supportDetail", 4
     );
 
     public List<NormalizedPolicyAggregate.Fact> merge(
@@ -91,15 +84,6 @@ public class NormalizedFactMergeSupport {
     }
 
     private int sourceFieldPriority(String sourceField) {
-        if (sourceField == null || sourceField.isBlank()) {
-            return Integer.MAX_VALUE;
-        }
-
-        int priority = Integer.MAX_VALUE;
-        for (String token : sourceField.split("/")) {
-            String normalized = token == null ? "" : token.strip();
-            priority = Math.min(priority, SOURCE_FIELD_PRIORITY.getOrDefault(normalized, Integer.MAX_VALUE));
-        }
-        return priority;
+        return NormalizationKeySupport.sourceFieldPriority(sourceField);
     }
 }

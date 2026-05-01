@@ -1,5 +1,8 @@
 package com.example.welfare.collect.normalization;
 
+import com.example.welfare.policy.support.WelfareSourceTypeSupport;
+import com.example.welfare.policy.support.CompatCategorySupport;
+import com.example.welfare.collect.support.NormalizationKeySupport;
 import com.example.welfare.policy.entity.WelfareService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,11 +30,12 @@ import java.util.Set;
 @Transactional
 public class DeferredNormalizedPolicySidecarWriter implements NormalizedPolicySidecarWriter {
 
-    private static final String SUMMARY_KEY_YOUTH_MAJOR = "YOUTH_MAJOR";
-    private static final String SUMMARY_KEY_YOUTH_MID = "YOUTH_MID";
-    private static final String SUMMARY_KEY_GOV24_SERVICE_FIELD = "GOV24_SERVICE_FIELD";
-    private static final String SUMMARY_KEY_GOV24_USER_TYPE = "GOV24_USER_TYPE";
-    private static final String SUMMARY_KEY_GOV24_BENEFIT_TYPE = "GOV24_BENEFIT_TYPE";
+    private static final List<SummaryLabelBinding> TAXONOMY_SUMMARY_BINDINGS = List.of(
+            new SummaryLabelBinding("youthMidLabel", NormalizationKeySupport.SUMMARY_KEY_YOUTH_MID),
+            new SummaryLabelBinding("gov24ServiceFieldLabel", "GOV24_SERVICE_FIELD"),
+            new SummaryLabelBinding("gov24UserTypeLabel", "GOV24_USER_TYPE"),
+            new SummaryLabelBinding("gov24BenefitTypeLabel", "GOV24_BENEFIT_TYPE")
+    );
     private static final Set<String> REQUIRED_TABLES = Set.of(
             "normalization_code_sets",
             "service_taxonomies",
@@ -68,11 +72,11 @@ public class DeferredNormalizedPolicySidecarWriter implements NormalizedPolicySi
 
     private void validateYouthMidAliasContract(NormalizedPolicyAggregate aggregate) {
         boolean hasYouthMidRawAlias = aggregate.taxonomyTerms().stream()
-                .anyMatch(term -> "YOUTH_MID_RAW_ALIAS".equals(term.termGroup()));
+                .anyMatch(term -> NormalizationKeySupport.TERM_GROUP_YOUTH_MID_RAW_ALIAS.equals(term.termGroup()));
         long officialYouthMidCount = aggregate.taxonomyTerms().stream()
-                .filter(term -> "YOUTH_MID".equals(term.termGroup()))
+                .filter(term -> NormalizationKeySupport.TERM_GROUP_YOUTH_MID.equals(term.termGroup()))
                 .count();
-        String summaryYouthMid = summaryLabel(aggregate.taxonomy(), SUMMARY_KEY_YOUTH_MID);
+        String summaryYouthMid = summaryLabel(aggregate.taxonomy(), NormalizationKeySupport.SUMMARY_KEY_YOUTH_MID);
 
         if (officialYouthMidCount != 1
                 && aggregate.taxonomy() != null
@@ -106,7 +110,7 @@ public class DeferredNormalizedPolicySidecarWriter implements NormalizedPolicySi
         if (taxonomy == null) {
             return;
         }
-        YouthMajorSummary youthMajorSummary = normalizeYouthMajorSummary(summaryLabel(taxonomy, SUMMARY_KEY_YOUTH_MAJOR));
+        YouthMajorSummary youthMajorSummary = normalizeYouthMajorSummary(summaryLabel(taxonomy, NormalizationKeySupport.SUMMARY_KEY_YOUTH_MAJOR));
 
         namedParameterJdbcTemplate.update("""
                 INSERT INTO service_taxonomies (
@@ -167,25 +171,24 @@ public class DeferredNormalizedPolicySidecarWriter implements NormalizedPolicySi
                     authority = VALUES(authority),
                     confidence = VALUES(confidence)
                 """,
-                new MapSqlParameterSource()
+                applyBoundSummaryLabels(
+                        new MapSqlParameterSource()
                         .addValue("serviceId", service.getId())
-                        .addValue("primarySourceSystem", toPrimarySourceSystem(aggregate.core().sourceType()))
+                        .addValue("primarySourceSystem", WelfareSourceTypeSupport.primarySourceSystem(aggregate.core().sourceType()))
                         .addValue("compatUnifiedCategoryCode", toCompatUnifiedCategoryCode(taxonomy.compatUnifiedCategory()))
                         .addValue("compatUnifiedCategoryLabel", taxonomy.compatUnifiedCategory())
                         .addValue("youthMajorCode", youthMajorSummary.code())
                         .addValue("youthMajorLabel", youthMajorSummary.label())
                         .addValue("youthMidCode", null)
-                        .addValue("youthMidLabel", summaryLabel(taxonomy, SUMMARY_KEY_YOUTH_MID))
                         .addValue("gov24ServiceFieldCode", null)
-                        .addValue("gov24ServiceFieldLabel", summaryLabel(taxonomy, SUMMARY_KEY_GOV24_SERVICE_FIELD))
                         .addValue("gov24UserTypeCode", null)
-                        .addValue("gov24UserTypeLabel", summaryLabel(taxonomy, SUMMARY_KEY_GOV24_USER_TYPE))
                         .addValue("gov24BenefitTypeCode", null)
-                        .addValue("gov24BenefitTypeLabel", summaryLabel(taxonomy, SUMMARY_KEY_GOV24_BENEFIT_TYPE))
                         .addValue("provisionMethodCode", null)
                         .addValue("provisionMethodLabel", taxonomy.provisionMethod())
                         .addValue("authority", taxonomy.authority().name())
-                        .addValue("confidence", taxonomy.confidence()));
+                        .addValue("confidence", taxonomy.confidence()),
+                        taxonomy
+                ));
     }
 
     private void replaceTaxonomyTerms(WelfareService service, NormalizedPolicyAggregate aggregate) {
@@ -421,35 +424,11 @@ public class DeferredNormalizedPolicySidecarWriter implements NormalizedPolicySi
     }
 
     private List<String> refreshScopeGroups(String termGroup) {
-        if ("YOUTH_MID".equals(termGroup) || "YOUTH_MID_RAW_ALIAS".equals(termGroup)) {
-            return List.of("YOUTH_MID", "YOUTH_MID_RAW_ALIAS");
-        }
-        return List.of(termGroup);
-    }
-
-    private String toPrimarySourceSystem(NormalizedPolicyAggregate.SourceType sourceType) {
-        return switch (sourceType) {
-            case YOUTH -> "YOUTH";
-            case BOKJIRO_CENTRAL, BOKJIRO_LOCAL -> "BOKJIRO";
-        };
+        return NormalizationKeySupport.refreshScopeGroups(termGroup);
     }
 
     private String toCompatUnifiedCategoryCode(String label) {
-        if (label == null) {
-            return null;
-        }
-        return switch (label) {
-            case "일자리" -> "JOB";
-            case "주거" -> "HOUSING";
-            case "교육·직업훈련" -> "EDUCATION_TRAINING";
-            case "금융·생활지원" -> "FINANCE_LIFE_SUPPORT";
-            case "문화·여가" -> "CULTURE_LEISURE";
-            case "건강·의료" -> "HEALTH_MEDICAL";
-            case "가족·돌봄" -> "FAMILY_CARE";
-            case "안전·위기" -> "SAFETY_CRISIS";
-            case "참여·기회" -> "PARTICIPATION_OPPORTUNITY";
-            default -> "OTHER";
-        };
+        return CompatCategorySupport.compatCode(label);
     }
 
     private String toYouthMajorCode(String label) {
@@ -510,7 +489,18 @@ public class DeferredNormalizedPolicySidecarWriter implements NormalizedPolicySi
         return taxonomy.summaryLabel(key);
     }
 
+    private MapSqlParameterSource applyBoundSummaryLabels(MapSqlParameterSource params,
+                                                          NormalizedPolicyAggregate.TaxonomySummary taxonomy) {
+        for (SummaryLabelBinding binding : TAXONOMY_SUMMARY_BINDINGS) {
+            params.addValue(binding.parameterName(), summaryLabel(taxonomy, binding.summaryKey()));
+        }
+        return params;
+    }
+
     private record TermRefreshScope(String termGroup, String sourceField) {
+    }
+
+    private record SummaryLabelBinding(String parameterName, String summaryKey) {
     }
 
     private record YouthMajorSummary(String code, String label) {
