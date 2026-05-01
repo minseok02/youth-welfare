@@ -156,6 +156,9 @@ sample B는 `text_changed 15 + membership_changed 0` 이고,
 off/on 사이에 함께 바뀌었습니다.
 즉 현재 단계의 live AI 결과는 “canonical summary prompt가 reason wording에 영향 없음”이 아니라,
 “영향은 보이지만 control drift와 분리되지 않음”으로 해석하는 쪽이 맞습니다.
+세부 패턴 분류는
+[policy-normalization-live-ai-reason-patterns.md](./history/ai/policy-normalization-live-ai-reason-patterns.md)
+에 따로 정리해 두었습니다.
 
 ## 5. retrieval / repository 현재 상태
 

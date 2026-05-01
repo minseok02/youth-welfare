@@ -2002,3 +2002,8 @@
 - 문제: cache clear 포함 artifact(`/tmp/tmp.TBDFrxfGqo`)를 열어 보면 sample A는 `text_changed=15`, `entered/exited=8`, sample B는 `text_changed=15`, `membership_changed=0` 이다. sample A만 보면 canonical summary prompt가 이유문장을 적극적으로 바꿨다고 읽기 쉽지만, control sample B도 같은 수의 text change가 발생하고 `B_top10_target=0->2`, `B_fp=different` 까지 같이 나왔기 때문에 이것을 그대로 제품 품질 개선 증거로 쓰면 과해진다.
 - 해결: current-state와 replay procedure 문서에 이 run의 해석을 “prompt 영향은 보이지만 control drift와 분리되지 않았다”로 고정했다. `edu-a-ai-reason-diff.tsv`, `edu-b-ai-reason-diff.tsv` 에서도 실제로 `직접적인 도움`, `특정 분야에 국한`, `주거비 부담 완화` 같은 phrasing 변화가 양쪽에 공통으로 나타난다는 점을 같이 남겼다.
 - 이유: live AI replay는 지금도 코드 회귀 검증보다 진단 증거 수집에 가깝다. control sample이 같은 규모의 text drift를 보이면, 우선 결론은 “canonical summary prompt 효과 존재 가능성”이 아니라 “effect와 live variability를 아직 분리하지 못했다”가 맞다.
+
+## 375) `edu-a/edu-b-ai-reason-diff.tsv` 를 그대로 로그에만 남겨 두면 다음 사람이 artifact를 다시 열어 같은 패턴을 수작업으로 재분류해야 한다
+- 문제: cache clear real-openai artifact(`/tmp/tmp.TBDFrxfGqo`)에서 sample A/B reason diff를 읽어 보면, sample A는 `도움이 될 수 있음 -> 실질적인 도움이 됨`, `특정 분야에 국한`, `관심이 있는 청년` 같은 분야 적합성/교육 타깃 phrasing이 반복되고, sample B는 `연관성이 낮음`, `주거비 부담 완화`, `큰 도움이 될 것임` 같은 wording drift가 반복된다. 그런데 이 해석을 로그 한 줄로만 남기면 다음 replay 때 다시 artifact TSV를 열어 같은 분류를 반복하게 된다.
+- 해결: live AI artifact 전용 요약 문서 [policy-normalization-live-ai-reason-patterns.md](./history/ai/policy-normalization-live-ai-reason-patterns.md)를 추가해 sample A/B의 `text_changed` / `membership_changed` 구조와 반복 문장 패턴, 현재 결론을 따로 정리했다.
+- 이유: 이 단계의 산출물은 코드 변경보다 해석 가능한 진단 기록이다. pattern memo를 별도 문서로 떼 두면 이후 replay를 더 수집해도 “이번 wording drift가 새 현상인지, 이미 보던 패턴인지”를 더 빠르게 비교할 수 있다.
