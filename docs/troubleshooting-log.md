@@ -218,6 +218,21 @@
 - 해결: [auth-docs-index.md](./auth-docs-index.md), [policy-docs-index.md](./policy-docs-index.md) 를 추가해 왜 문서가 많아졌는지와 어디부터 읽어야 하는지 문서군 단위로 정리
 - 이유: 파일을 무리하게 대이동하면 링크/맥락이 깨질 수 있다. 먼저 읽기 경로를 줄이고 current-state 와 design history 를 분리하는 편이 안전하다
 
+## 312) fresh local reset 뒤 policy sidecar draft schema가 자동 bootstrap 되지 않아 collect 성공과 canonical downstream 검증이 분리됐다
+- 문제: `SMOKE_RESET_DB=true` 로 로컬 DB를 초기화한 뒤에는 `welfare_services` 같은 base schema만 살아 있고, `service_taxonomies` / `service_facts` 같은 canonical sidecar draft schema는 자동으로 올라오지 않았다. 그래서 실제 `POST /api/admin/collect/youth` 는 성공해도 replay 같은 canonical downstream 검증은 곧바로 재현되지 않았다
+- 해결: local verification 기준으로는 draft sidecar schema/backfill을 따로 적용한 뒤 replay를 재실행하도록 정리했고, 관련 측정과 현재 caveat를 [local-feature-performance-check-2026-05-01.md](./local-feature-performance-check-2026-05-01.md)에 남겼다
+- 이유: 현재 sidecar는 아직 draft migration 경로라 runtime bootstrap과 intentionally 분리돼 있다. 이 경계를 모르고 collect 성공만 보면 downstream도 바로 되는 것으로 오해할 수 있다
+
+## 313) `V2026_04_30_02__seed_policy_normalization_codes.sql` 가 MySQL 8.0에서 `CTE + INSERT` 문법 오류로 실행되지 않았음
+- 문제: draft SQL이 `WITH ... INSERT INTO ... SELECT ...` 순서를 사용하고 있어, local MySQL 8.0.45 에서 `line 68` 문법 오류가 발생했다
+- 해결: [V2026_04_30_02__seed_policy_normalization_codes.sql](../backend/src/main/resources/db/migration-draft/V2026_04_30_02__seed_policy_normalization_codes.sql) 을 `INSERT INTO ... WITH ... SELECT ...` 순서로 수정했고, 수정 후 `service_taxonomies=2363`, `education_target_rows=110` 기준으로 실제 적용을 다시 확인했다
+- 이유: draft SQL이라도 로컬 reset 복구와 replay 검증에 실제로 쓰이는 순간이 있다. 실행 불가능한 초안 상태로 두면 canonical closeout 검증이 다시 흔들린다
+
+## 314) 실제 `collect/youth` 는 내부 코드보다 upstream 상태가 더 큰 변동 요인이었다
+- 문제: 실제 runtime matrix에서 첫 `POST /api/admin/collect/youth` 는 `129.638s` 에 성공했지만, 곧바로 다시 실행한 두 번째 collect는 `page=9` 에서 upstream `403` 이 나며 `500` 으로 실패했다
+- 해결: 이번 round에서는 코드를 바꾸기보다 이 현상을 local measurement 결과로 명시하고, collect 병목/불안정성을 internal regression 이 아니라 external dependency variability 로 분리해 기록했다
+- 이유: 동일 코드/동일 로컬 환경에서도 외부 수집 API 상태에 따라 collect 성공 여부와 시간이 크게 흔들린다. 지금 단계에서 이 구간을 내부 코드 병목으로만 해석하면 원인을 잘못 잡게 된다
+
 ## 42) priority_options 코드가 추천 로직과 UI 코드 사이에서 따로 놀았음
 - 문제: DB `priority_options`에는 `ONLINE`, `YOUTH_ONLY`, `EDU_JOB`, `AMOUNT` 코드가 있었지만, `DefaultPriorityMatcher`에서 `ONLINE`과 `YOUTH_ONLY`는 이미 항상 false였고, 프론트는 `JOB`, `EDUCATION`, `FINANCE`, `HEALTH`, `SAFETY` 등 DB에 없는 코드를 전송해 `C001` 오류가 났음
 - 해결: `ONLINE`, `YOUTH_ONLY` 제거, `EDU_JOB`→`EDUCATION`, `AMOUNT`→`FINANCE` 코드 변경, `JOB`, `PARTICIPATION`, `FAMILY` 추가. DB migration, `DefaultPriorityMatcher`, 프론트 `PRIORITY_OPTIONS` 세 곳을 동시에 맞춤

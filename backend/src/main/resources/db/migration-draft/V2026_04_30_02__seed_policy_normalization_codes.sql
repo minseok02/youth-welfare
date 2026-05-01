@@ -65,6 +65,18 @@ ON DUPLICATE KEY UPDATE
 -- YOUTH major summary 는 raw category_main 을 그대로 복사하지 않고,
 -- comma split + punctuation normalize 뒤 single canonical major 로 collapse 가능한 경우에만 채운다.
 
+INSERT INTO service_taxonomies (
+    service_id,
+    primary_source_system,
+    compat_unified_category_code,
+    compat_unified_category_label,
+    youth_major_code,
+    youth_major_label,
+    youth_mid_code,
+    youth_mid_label,
+    authority,
+    confidence
+)
 WITH youth_major_tokens AS (
     SELECT
         ws.id AS service_id,
@@ -121,18 +133,6 @@ youth_major_summary AS (
         END AS youth_major_label
     FROM youth_major_tokens
     GROUP BY service_id
-)
-INSERT INTO service_taxonomies (
-    service_id,
-    primary_source_system,
-    compat_unified_category_code,
-    compat_unified_category_label,
-    youth_major_code,
-    youth_major_label,
-    youth_mid_code,
-    youth_mid_label,
-    authority,
-    confidence
 )
 SELECT
     ws.id AS service_id,

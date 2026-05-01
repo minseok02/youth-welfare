@@ -1778,3 +1778,5 @@ cd backend
 - 검색 로그
 - 추천/수집 대시보드
 문서가 많이 쪼개진 영역은 [documentation-map.md](./documentation-map.md), [auth-docs-index.md](./auth-docs-index.md), [policy-docs-index.md](./policy-docs-index.md) 를 먼저 보고 들어갑니다.
+
+2026-05-01 기능별 로컬 시험/시간 측정 결과는 [local-feature-performance-check-2026-05-01.md](./local-feature-performance-check-2026-05-01.md)에 따로 정리했습니다.
