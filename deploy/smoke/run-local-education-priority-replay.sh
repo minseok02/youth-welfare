@@ -222,8 +222,14 @@ ensure_local_canonical_draft() {
       SELECT COUNT(*)
       FROM welfare_services ws
       JOIN service_taxonomies st ON st.service_id = ws.id
+      LEFT JOIN (
+        SELECT service_id, MAX(slot_label) AS slot_label
+        FROM service_taxonomy_summary_slots
+        WHERE slot_key = 'YOUTH_MAJOR'
+        GROUP BY service_id
+      ) stss_youth_major ON stss_youth_major.service_id = ws.id
       WHERE ws.unified_category = '기타'
-        AND st.youth_major_label = '교육';
+        AND COALESCE(stss_youth_major.slot_label, st.youth_major_label) = '교육';
     "
   )"
   if [[ "${target_count}" == "0" ]]; then
@@ -266,8 +272,14 @@ require_replay_data_preconditions() {
       SELECT COUNT(*)
       FROM welfare_services ws
       JOIN service_taxonomies st ON st.service_id = ws.id
+      LEFT JOIN (
+        SELECT service_id, MAX(slot_label) AS slot_label
+        FROM service_taxonomy_summary_slots
+        WHERE slot_key = 'YOUTH_MAJOR'
+        GROUP BY service_id
+      ) stss_youth_major ON stss_youth_major.service_id = ws.id
       WHERE ws.unified_category = '기타'
-        AND st.youth_major_label = '교육';
+        AND COALESCE(stss_youth_major.slot_label, st.youth_major_label) = '교육';
     "
   )"
   if [[ "${target_count}" == "0" ]]; then
@@ -502,9 +514,15 @@ PY
     SELECT ws.id,
            ws.title,
            ws.unified_category,
-           COALESCE(st.youth_major_label, '')
+           COALESCE(stss_youth_major.slot_label, st.youth_major_label, '')
     FROM welfare_services ws
     LEFT JOIN service_taxonomies st ON st.service_id = ws.id
+    LEFT JOIN (
+      SELECT service_id, MAX(slot_label) AS slot_label
+      FROM service_taxonomy_summary_slots
+      WHERE slot_key = 'YOUTH_MAJOR'
+      GROUP BY service_id
+    ) stss_youth_major ON stss_youth_major.service_id = ws.id
     WHERE ws.id IN (${service_ids})
     ORDER BY ws.id;
   " > "${META_FILE}"
