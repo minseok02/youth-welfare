@@ -53,8 +53,24 @@
 - `service_taxonomies=2363`
 - `service_taxonomy_terms=7931`
 - `service_facts=8257`
+- `service_taxonomy_summary_slots=5619`
 
 즉 `YOUTH` snapshot 기준으로 core row와 canonical sidecar 저장은 현재 로컬에서 정상동작 확인 상태입니다.
+
+추가로 local replay closeout 기준:
+
+- `slot_services=2305`
+- `slot_education_services=110`
+- `slot_services_YOUTH_MAJOR=2288`
+- `slot_services_YOUTH_MID=2170`
+- `slot_services_PROVISION_METHOD=1161`
+- `slot_services_GOV24_SERVICE_FIELD=0`
+- `slot_services_GOV24_USER_TYPE=0`
+- `slot_services_GOV24_BENEFIT_TYPE=0`
+
+즉 summary slot dual-write/backfill 도 현재 로컬 snapshot에서 density 확인까지 끝난 상태입니다.
+현재 local snapshot에서 실제로 채워지는 managed slot은 사실상 `YOUTH_MAJOR`, `YOUTH_MID`, `PROVISION_METHOD` 이고,
+`GOV24_*` 는 아직 runtime collect 기준 populated read 후보가 아닙니다.
 
 ## 2. `YOUTH_MID_RAW_ALIAS` 현재 상태
 
@@ -97,6 +113,8 @@ projection이 현재 담는 대표값:
 
 - `unifiedCategoryCompat`
 - `youthMajorLabel`
+- `youthMidLabel`
+- `provisionMethodLabel`
 - `applyEndDate`
 - `interestThemes`
 - `targetGroupsRaw`
@@ -104,8 +122,57 @@ projection이 현재 담는 대표값:
 - `beneficiaryTerms`
 - `factKeys`
 
+현재 `youthMajorLabel` 은 slot-first / legacy fallback 으로 읽고 있고,
+`youthMidLabel`, `provisionMethodLabel` 도 같은 projection 경계에 먼저 실어 둔 상태입니다.
+
 즉 raw sidecar를 추천 서비스가 직접 읽는 게 아니라,
 추천 전용 projection을 통해 hydrate 하는 구조가 이미 코드에 있습니다.
+
+또 policy summary/detail/ranking 응답은 이제 이 projection에서
+`youthMajorLabel`, `youthMidLabel`, `provisionMethodLabel` 을 additive field로 같이 노출합니다.
+관련 WebMvc contract도 목록/상세/랭킹/북마크 응답 기준으로 테스트 고정된 상태입니다.
+추천 목록/refresh 응답도 같은 additive field를 projection 기준으로 노출합니다.
+또 `RealtimeAiGateway` prompt도 이제 compat 분류 외에
+`youthMajorLabel`, `youthMidLabel`, `provisionMethodLabel` 을 같이 실어
+AI 재평가 입력에서 canonical summary를 직접 소비합니다.
+latest local replay(`rule-only-invalid-key`) 기준으로는
+`SUMMARY_REASON_METRIC A_reason_changed=8 B_reason_changed=0`
+`A_reason_text_changed=0 B_reason_text_changed=0`
+`A_reason_membership_changed=8 B_reason_membership_changed=0`
+가 나왔습니다.
+즉 현재 baseline에서 sample A의 변화는 실제 `ai_reason` 문장 변화가 아니라
+top snapshot membership 변화이고, control sample B에서는 reason drift가 없습니다.
+
+반대로 `USE_REAL_OPENAI_FOR_REPLAY=true CLEAR_CLUSTER_AI_CACHE_BEFORE_REPLAY=true`
+기준 latest artifact(`/tmp/tmp.TBDFrxfGqo`) 에서는
+`A_reason_text_changed=15`, `B_reason_text_changed=15`,
+`A_top10_target=3->5`, `B_top10_target=0->2`, `B_fp=different`
+가 나왔습니다.
+즉 live AI 경로에서는 canonical summary prompt 영향이 실제 reason text 변화로 이어지지만,
+control sample B drift도 커서 아직 diagnostic 용도로만 보는 게 맞습니다.
+artifact diff를 보면 sample A는 `text_changed 15 + membership_changed 8`,
+sample B는 `text_changed 15 + membership_changed 0` 이고,
+문장 패턴도 `직접적 도움`, `특정 분야에 국한`, `주거비 부담 완화` 같은 서술이
+off/on 사이에 함께 바뀌었습니다.
+즉 현재 단계의 live AI 결과는 “canonical summary prompt가 reason wording에 영향 없음”이 아니라,
+“영향은 보이지만 control drift와 분리되지 않음”으로 해석하는 쪽이 맞습니다.
+세부 패턴 분류는
+[policy-normalization-live-ai-reason-patterns.md](./history/ai/policy-normalization-live-ai-reason-patterns.md)
+에 따로 정리해 두었습니다.
+그래서 replay 스크립트도 현재는 `real-openai` 모드에서
+sample A 미개선을 hard fail로 보지 않고 warning으로만 남깁니다.
+다음 replay부터는 summary stdout의 `SUMMARY_REASON_PATTERN` 과
+artifact `ai-reason-pattern-summary.tsv` 를 먼저 보면,
+`연관성이 낮`, `특정 분야에 국한`, `실질적인 도움이`, `주거비 부담`
+같은 phrase drift를 TSV 전체를 다시 읽지 않고도 빠르게 볼 수 있습니다.
+latest cache-clear `real-openai` artifact(`/tmp/tmp.6YybgXCbIo`) 기준으로는
+`SUMMARY_REASON_PATTERN A_top_patterns=interest_fit:2,direct_help:1,job_opportunity:1`
+`B_top_patterns=strong_help:1`
+가 나왔습니다.
+같은 run의 핵심 값은
+`A_reason_text_changed=10`, `B_reason_text_changed=14`,
+`A_reason_membership_changed=2`, `B_reason_membership_changed=0`,
+`A_fp=different`, `B_fp=same` 이었습니다.
 
 ## 5. retrieval / repository 현재 상태
 
@@ -194,6 +261,12 @@ canonical taxonomy 대표값이 아니라
 
 - 실제 서버/DB/secret 경계가 생긴 뒤의 전환 메모
 - migration / datasource / deploy smoke 재정의
+
+### storage model follow-up
+
+- `service_taxonomies` 는 아직 legacy summary row 중심
+- generic summary slot 저장 구조는 후속 설계 상태
+- 기준 문서: [policy-normalization-summary-slot-storage-plan.md](./history/policy/policy-normalization-summary-slot-storage-plan.md)
 
 ## design history 로 읽을 문서
 

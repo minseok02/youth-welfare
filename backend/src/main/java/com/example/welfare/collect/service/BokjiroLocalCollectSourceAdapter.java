@@ -3,8 +3,8 @@ package com.example.welfare.collect.service;
 import com.example.welfare.collect.dto.BokjiroLocalDto;
 import com.example.welfare.collect.gateway.BokjiroLocalClient;
 import com.example.welfare.collect.mapper.WelfareServiceMapper;
+import com.example.welfare.collect.support.CollectSourceRegistry;
 import com.example.welfare.collect.support.ListCollectSourceBinding;
-import com.example.welfare.collect.support.ListCollectSourceBindings;
 import com.example.welfare.collect.validation.BokjiroYouthFilter;
 import com.example.welfare.collect.validation.FieldQualityStats;
 import com.example.welfare.collect.validation.RawFieldValidator;
@@ -25,7 +25,7 @@ public class BokjiroLocalCollectSourceAdapter extends AbstractListCollectSourceA
     private final BokjiroYouthFilter bokjiroYouthFilter;
     private final RawApiPayloadService rawApiPayloadService;
     private ListCollectSourceBinding<BokjiroLocalDto.Item> binding() {
-        return ListCollectSourceBindings.bokjiroLocal(welfareServiceMapper);
+        return CollectSourceRegistry.BOKJIRO_LOCAL.listBinding(welfareServiceMapper);
     }
 
     @Override

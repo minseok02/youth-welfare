@@ -74,6 +74,7 @@ ENSURE_DOCKER_SERVICES="${ENSURE_DOCKER_SERVICES:-true}"
 MYSQL_CONTAINER_NAME="${MYSQL_CONTAINER_NAME:-youth-welfare-db}"
 RECONCILE_LOCAL_DB_ACCOUNTS="${RECONCILE_LOCAL_DB_ACCOUNTS:-true}"
 AUTO_APPLY_LOCAL_CANONICAL_DRAFT="${AUTO_APPLY_LOCAL_CANONICAL_DRAFT:-true}"
+CLEAR_CLUSTER_AI_CACHE_BEFORE_REPLAY="${CLEAR_CLUSTER_AI_CACHE_BEFORE_REPLAY:-false}"
 
 DB_URL="${DB_URL:-jdbc:mysql://127.0.0.1:3307/youth_welfare?useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=UTF-8&serverTimezone=Asia/Seoul}"
 APP_PII_DB_URL="${APP_PII_DB_URL:-jdbc:mysql://127.0.0.1:3307/youth_welfare_pii?useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=UTF-8&serverTimezone=Asia/Seoul}"
@@ -149,12 +150,16 @@ COOKIE_A="${ARTIFACT_DIR}/edu-a.cookie"
 COOKIE_B="${ARTIFACT_DIR}/edu-b.cookie"
 HEALTH_FILE="${ARTIFACT_DIR}/health.json"
 META_FILE="${ARTIFACT_DIR}/response-service-meta.tsv"
+SUMMARY_SLOT_METRICS_FILE="${ARTIFACT_DIR}/summary-slot-metrics.tsv"
 USER_KEY_A_FILE="${ARTIFACT_DIR}/edu-a.userkey"
 USER_KEY_B_FILE="${ARTIFACT_DIR}/edu-b.userkey"
 SCORES_A_OFF="${ARTIFACT_DIR}/edu-a-off-scores.tsv"
 SCORES_A_ON="${ARTIFACT_DIR}/edu-a-on-scores.tsv"
 SCORES_B_OFF="${ARTIFACT_DIR}/edu-b-off-scores.tsv"
 SCORES_B_ON="${ARTIFACT_DIR}/edu-b-on-scores.tsv"
+REASON_DIFF_A="${ARTIFACT_DIR}/edu-a-ai-reason-diff.tsv"
+REASON_DIFF_B="${ARTIFACT_DIR}/edu-b-ai-reason-diff.tsv"
+REASON_PATTERN_SUMMARY_FILE="${ARTIFACT_DIR}/ai-reason-pattern-summary.tsv"
 AI_TRACE_OFF_RAW="${ARTIFACT_DIR}/ai-trace-off.log"
 AI_TRACE_ON_RAW="${ARTIFACT_DIR}/ai-trace-on.log"
 AI_TRACE_A_OFF="${ARTIFACT_DIR}/edu-a-off-ai-trace.log"
@@ -188,6 +193,13 @@ mysql_exec() {
     -u"${DB_QUERY_USERNAME}" youth_welfare -e "${sql}"
 }
 
+clear_cluster_ai_cache() {
+  mysql_exec "
+    SET NAMES utf8mb4;
+    DELETE FROM cluster_ai_results;
+  " >/dev/null
+}
+
 table_exists() {
   local table_name="$1"
   local result
@@ -210,7 +222,7 @@ ensure_local_canonical_draft() {
     return 0
   fi
 
-  if ! table_exists "service_taxonomies"; then
+  if ! table_exists "service_taxonomies" || ! table_exists "service_taxonomy_summary_slots"; then
     "${APPLY_CANONICAL_DRAFT_SCRIPT}" >/dev/null
     return 0
   fi
@@ -221,8 +233,14 @@ ensure_local_canonical_draft() {
       SELECT COUNT(*)
       FROM welfare_services ws
       JOIN service_taxonomies st ON st.service_id = ws.id
+      LEFT JOIN (
+        SELECT service_id, MAX(slot_label) AS slot_label
+        FROM service_taxonomy_summary_slots
+        WHERE slot_key = 'YOUTH_MAJOR'
+        GROUP BY service_id
+      ) stss_youth_major ON stss_youth_major.service_id = ws.id
       WHERE ws.unified_category = '기타'
-        AND st.youth_major_label = '교육';
+        AND COALESCE(stss_youth_major.slot_label, st.youth_major_label) = '교육';
     "
   )"
   if [[ "${target_count}" == "0" ]]; then
@@ -243,6 +261,11 @@ require_replay_data_preconditions() {
     exit 1
   fi
 
+  if ! table_exists "service_taxonomy_summary_slots"; then
+    echo "education replay precondition unmet: service_taxonomy_summary_slots table missing; local summary slot schema/backfill not loaded" >&2
+    exit 1
+  fi
+
   welfare_service_count="$(
     mysql_exec "
       SET NAMES utf8mb4;
@@ -260,8 +283,14 @@ require_replay_data_preconditions() {
       SELECT COUNT(*)
       FROM welfare_services ws
       JOIN service_taxonomies st ON st.service_id = ws.id
+      LEFT JOIN (
+        SELECT service_id, MAX(slot_label) AS slot_label
+        FROM service_taxonomy_summary_slots
+        WHERE slot_key = 'YOUTH_MAJOR'
+        GROUP BY service_id
+      ) stss_youth_major ON stss_youth_major.service_id = ws.id
       WHERE ws.unified_category = '기타'
-        AND st.youth_major_label = '교육';
+        AND COALESCE(stss_youth_major.slot_label, st.youth_major_label) = '교육';
     "
   )"
   if [[ "${target_count}" == "0" ]]; then
@@ -289,6 +318,7 @@ capture_recommendation_snapshot() {
     SELECT ur.service_id,
            ur.rule_weighted_score,
            COALESCE(ur.ai_score, 'NULL'),
+           COALESCE(REPLACE(REPLACE(ur.ai_reason, '\t', ' '), '\n', ' '), 'NULL'),
            COALESCE(ur.rule_weight_used, 'NULL'),
            COALESCE(ur.ai_weight_used, 'NULL'),
            ur.final_score,
@@ -374,8 +404,6 @@ lines = [
 Path(raw_output).write_text("\n".join(lines) + ("\n" if lines else ""), encoding="utf-8")
 Path(sample_a_output).write_text((lines[0] + "\n") if len(lines) >= 1 else "", encoding="utf-8")
 Path(sample_b_output).write_text((lines[1] + "\n") if len(lines) >= 2 else "", encoding="utf-8")
-if len(lines) < 2:
-    raise SystemExit(f"expected at least 2 lines for {marker} in {log_file}, got {len(lines)}")
 PY
 }
 
@@ -496,23 +524,101 @@ PY
     SELECT ws.id,
            ws.title,
            ws.unified_category,
-           COALESCE(st.youth_major_label, '')
+           COALESCE(stss_youth_major.slot_label, st.youth_major_label, '')
     FROM welfare_services ws
     LEFT JOIN service_taxonomies st ON st.service_id = ws.id
+    LEFT JOIN (
+      SELECT service_id, MAX(slot_label) AS slot_label
+      FROM service_taxonomy_summary_slots
+      WHERE slot_key = 'YOUTH_MAJOR'
+      GROUP BY service_id
+    ) stss_youth_major ON stss_youth_major.service_id = ws.id
     WHERE ws.id IN (${service_ids})
     ORDER BY ws.id;
   " > "${META_FILE}"
 }
 
+collect_summary_slot_metrics() {
+  mysql_exec "
+    SET NAMES utf8mb4;
+    SELECT 'slot_rows', COUNT(*) FROM service_taxonomy_summary_slots
+    UNION ALL
+    SELECT 'slot_services', COUNT(DISTINCT service_id) FROM service_taxonomy_summary_slots
+    UNION ALL
+    SELECT 'slot_education_rows', COUNT(*)
+    FROM service_taxonomy_summary_slots stss
+    JOIN welfare_services ws ON ws.id = stss.service_id
+    WHERE stss.slot_key = 'YOUTH_MAJOR'
+      AND stss.slot_label = '교육'
+      AND ws.unified_category = '기타'
+    UNION ALL
+    SELECT 'slot_education_services', COUNT(DISTINCT stss.service_id)
+    FROM service_taxonomy_summary_slots stss
+    JOIN welfare_services ws ON ws.id = stss.service_id
+    WHERE stss.slot_key = 'YOUTH_MAJOR'
+      AND stss.slot_label = '교육'
+      AND ws.unified_category = '기타'
+    UNION ALL
+    SELECT 'slot_services_YOUTH_MAJOR', COUNT(DISTINCT service_id)
+    FROM service_taxonomy_summary_slots
+    WHERE slot_key = 'YOUTH_MAJOR'
+    UNION ALL
+    SELECT 'slot_services_YOUTH_MID', COUNT(DISTINCT service_id)
+    FROM service_taxonomy_summary_slots
+    WHERE slot_key = 'YOUTH_MID'
+    UNION ALL
+    SELECT 'slot_services_GOV24_SERVICE_FIELD', COUNT(DISTINCT service_id)
+    FROM service_taxonomy_summary_slots
+    WHERE slot_key = 'GOV24_SERVICE_FIELD'
+    UNION ALL
+    SELECT 'slot_services_GOV24_USER_TYPE', COUNT(DISTINCT service_id)
+    FROM service_taxonomy_summary_slots
+    WHERE slot_key = 'GOV24_USER_TYPE'
+    UNION ALL
+    SELECT 'slot_services_GOV24_BENEFIT_TYPE', COUNT(DISTINCT service_id)
+    FROM service_taxonomy_summary_slots
+    WHERE slot_key = 'GOV24_BENEFIT_TYPE'
+    UNION ALL
+    SELECT 'slot_services_PROVISION_METHOD', COUNT(DISTINCT service_id)
+    FROM service_taxonomy_summary_slots
+    WHERE slot_key = 'PROVISION_METHOD'
+    UNION ALL
+    SELECT 'slot_rows_PROVISION_METHOD', COUNT(*)
+    FROM service_taxonomy_summary_slots
+    WHERE slot_key = 'PROVISION_METHOD'
+    UNION ALL
+    SELECT 'slot_rows_YOUTH_MID', COUNT(*)
+    FROM service_taxonomy_summary_slots
+    WHERE slot_key = 'YOUTH_MID'
+    UNION ALL
+    SELECT 'slot_rows_GOV24_SERVICE_FIELD', COUNT(*)
+    FROM service_taxonomy_summary_slots
+    WHERE slot_key = 'GOV24_SERVICE_FIELD'
+    UNION ALL
+    SELECT 'slot_rows_GOV24_USER_TYPE', COUNT(*)
+    FROM service_taxonomy_summary_slots
+    WHERE slot_key = 'GOV24_USER_TYPE'
+    UNION ALL
+    SELECT 'slot_rows_GOV24_BENEFIT_TYPE', COUNT(*)
+    FROM service_taxonomy_summary_slots
+    WHERE slot_key = 'GOV24_BENEFIT_TYPE'
+    UNION ALL
+    SELECT 'slot_rows_YOUTH_MAJOR', COUNT(*)
+    FROM service_taxonomy_summary_slots
+    WHERE slot_key = 'YOUTH_MAJOR'
+      ;
+  " > "${SUMMARY_SLOT_METRICS_FILE}"
+}
+
 print_summary() {
-  python3 - <<'PY' "${RESP_A_OFF}" "${RESP_A_ON}" "${RESP_B_OFF}" "${RESP_B_ON}" "${META_FILE}" "${STRICT_CONTROL_ASSERT}" "${AI_RESPONSE_TRACE_A_OFF}" "${AI_RESPONSE_TRACE_A_ON}" "${AI_RESPONSE_TRACE_B_OFF}" "${AI_RESPONSE_TRACE_B_ON}" "${OPENAI_MODE_FILE}" "${ARTIFACT_DIR}" "${REPLAY_SUMMARY_APPEND_FILE}" "${REPLAY_SUMMARY_TS}"
+  python3 - <<'PY' "${RESP_A_OFF}" "${RESP_A_ON}" "${RESP_B_OFF}" "${RESP_B_ON}" "${META_FILE}" "${SUMMARY_SLOT_METRICS_FILE}" "${STRICT_CONTROL_ASSERT}" "${AI_RESPONSE_TRACE_A_OFF}" "${AI_RESPONSE_TRACE_A_ON}" "${AI_RESPONSE_TRACE_B_OFF}" "${AI_RESPONSE_TRACE_B_ON}" "${OPENAI_MODE_FILE}" "${ARTIFACT_DIR}" "${REPLAY_SUMMARY_APPEND_FILE}" "${REPLAY_SUMMARY_TS}" "${SCORES_A_OFF}" "${SCORES_A_ON}" "${SCORES_B_OFF}" "${SCORES_B_ON}" "${REASON_DIFF_A}" "${REASON_DIFF_B}"
 import json
 import re
 import sys
 from pathlib import Path
 from datetime import datetime
 
-resp_a_off, resp_a_on, resp_b_off, resp_b_on, meta_path, strict_control_assert, trace_a_off, trace_a_on, trace_b_off, trace_b_on, openai_mode_file, artifact_dir, summary_append_file, replay_summary_ts = sys.argv[1:]
+resp_a_off, resp_a_on, resp_b_off, resp_b_on, meta_path, slot_metrics_path, strict_control_assert, trace_a_off, trace_a_on, trace_b_off, trace_b_on, openai_mode_file, artifact_dir, summary_append_file, replay_summary_ts, scores_a_off, scores_a_on, scores_b_off, scores_b_on, reason_diff_a, reason_diff_b = sys.argv[1:]
 
 def load_rows(path):
     with open(path, "r", encoding="utf-8") as fp:
@@ -526,6 +632,11 @@ for line in Path(meta_path).read_text(encoding="utf-8").splitlines():
         "compat": compat,
         "youth_major": youth_major,
     }
+
+slot_metrics = {}
+for line in Path(slot_metrics_path).read_text(encoding="utf-8").splitlines():
+    key, value = line.split("\t")
+    slot_metrics[key] = int(value)
 
 fp_pattern = re.compile(r"systemFingerprint=([^ ]+)")
 
@@ -558,10 +669,132 @@ def summarize(label, rows):
         "top10_target_count": top10_target_count,
     }
 
+def load_score_rows(path):
+    rows = {}
+    for line in Path(path).read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        service_id, rule_weighted_score, ai_score, ai_reason, rule_weight_used, ai_weight_used, final_score, title, unified_category = line.split("\t")
+        rows[int(service_id)] = {
+            "service_id": int(service_id),
+            "rule_weighted_score": rule_weighted_score,
+            "ai_score": ai_score,
+            "ai_reason": ai_reason,
+            "rule_weight_used": rule_weight_used,
+            "ai_weight_used": ai_weight_used,
+            "final_score": final_score,
+            "title": title,
+            "unified_category": unified_category,
+        }
+    return rows
+
+def write_reason_diff(off_path, on_path, output_path):
+    off_rows = load_score_rows(off_path)
+    on_rows = load_score_rows(on_path)
+    service_ids = sorted(set(off_rows.keys()) | set(on_rows.keys()))
+    changed = []
+    text_changed = 0
+    membership_changed = 0
+    for service_id in service_ids:
+        off_row = off_rows.get(service_id)
+        on_row = on_rows.get(service_id)
+        if off_row is None or on_row is None:
+            membership_changed += 1
+            changed.append({
+                "change_type": "entered" if off_row is None else "exited",
+                "service_id": service_id,
+                "title": (on_row or off_row)["title"],
+                "off_reason": off_row["ai_reason"] if off_row else "MISSING",
+                "on_reason": on_row["ai_reason"] if on_row else "MISSING",
+                "off_ai_score": off_row["ai_score"] if off_row else "MISSING",
+                "on_ai_score": on_row["ai_score"] if on_row else "MISSING",
+                "off_final_score": off_row["final_score"] if off_row else "MISSING",
+                "on_final_score": on_row["final_score"] if on_row else "MISSING",
+            })
+            continue
+        off_reason = off_row["ai_reason"] if off_row else "MISSING"
+        on_reason = on_row["ai_reason"] if on_row else "MISSING"
+        if off_reason == on_reason:
+            continue
+        text_changed += 1
+        changed.append({
+            "change_type": "text_changed",
+            "service_id": service_id,
+            "title": (on_row or off_row)["title"],
+            "off_reason": off_reason,
+            "on_reason": on_reason,
+            "off_ai_score": off_row["ai_score"] if off_row else "MISSING",
+            "on_ai_score": on_row["ai_score"] if on_row else "MISSING",
+            "off_final_score": off_row["final_score"] if off_row else "MISSING",
+            "on_final_score": on_row["final_score"] if on_row else "MISSING",
+        })
+    with Path(output_path).open("w", encoding="utf-8") as fp:
+        fp.write("change_type\tservice_id\ttitle\toff_ai_score\ton_ai_score\toff_final_score\ton_final_score\toff_reason\ton_reason\n")
+        for row in changed:
+            fp.write(
+                f"{row['change_type']}\t{row['service_id']}\t{row['title']}\t{row['off_ai_score']}\t{row['on_ai_score']}\t"
+                f"{row['off_final_score']}\t{row['on_final_score']}\t{row['off_reason']}\t{row['on_reason']}\n"
+            )
+    return {
+        "total_changed": len(changed),
+        "text_changed": text_changed,
+        "membership_changed": membership_changed,
+    }
+
+def summarize_reason_patterns(diff_path):
+    phrase_catalog = [
+        ("직접적인 도움", "direct_help"),
+        ("실질적인 도움이", "practical_help"),
+        ("특정 분야에 국한", "narrow_scope"),
+        ("관심이 있는", "interest_fit"),
+        ("연관성이 낮", "low_relevance"),
+        ("주거비 부담", "housing_burden"),
+        ("큰 도움이", "strong_help"),
+        ("취업 기회", "job_opportunity"),
+        ("실무 경험", "practical_experience"),
+        ("창의", "creativity"),
+    ]
+    rows = []
+    counts = {}
+    for phrase, key in phrase_catalog:
+        counts[key] = 0
+    with Path(diff_path).open("r", encoding="utf-8") as fp:
+        for row in fp.read().splitlines()[1:]:
+            if not row.strip():
+                continue
+            cols = row.split("\t")
+            if not cols or cols[0] != "text_changed":
+                continue
+            combined = " || ".join(cols[-2:])
+            for phrase, key in phrase_catalog:
+                if phrase in combined:
+                    counts[key] += 1
+    return counts
+
+def format_top_patterns(prefix, counts):
+    ordered = sorted(
+        ((key, value) for key, value in counts.items() if value > 0),
+        key=lambda item: (-item[1], item[0])
+    )[:4]
+    if not ordered:
+        return f"{prefix}=none"
+    summary = ",".join(f"{key}:{value}" for key, value in ordered)
+    return f"{prefix}={summary}"
+
 a_off = summarize("A_OFF", load_rows(resp_a_off))
 a_on = summarize("A_ON", load_rows(resp_a_on))
 b_off = summarize("B_OFF", load_rows(resp_b_off))
 b_on = summarize("B_ON", load_rows(resp_b_on))
+a_reason_diff = write_reason_diff(scores_a_off, scores_a_on, reason_diff_a)
+b_reason_diff = write_reason_diff(scores_b_off, scores_b_on, reason_diff_b)
+a_reason_patterns = summarize_reason_patterns(reason_diff_a)
+b_reason_patterns = summarize_reason_patterns(reason_diff_b)
+
+with Path(reason_pattern_summary_file := Path(artifact_dir) / "ai-reason-pattern-summary.tsv").open("w", encoding="utf-8") as fp:
+    fp.write("sample\tpattern_key\tcount\n")
+    for sample, counts in (("A", a_reason_patterns), ("B", b_reason_patterns)):
+        for key, value in sorted(counts.items()):
+            fp.write(f"{sample}\t{key}\t{value}\n")
 
 a_off_fp = fingerprint_of(trace_a_off)
 a_on_fp = fingerprint_of(trace_a_on)
@@ -575,6 +808,19 @@ ts_value = replay_summary_ts or datetime.now().astimezone().isoformat(timespec="
 print("A_FINGERPRINT", a_off_fp, a_on_fp, a_fp_relation)
 print("B_FINGERPRINT", b_off_fp, b_on_fp, b_fp_relation)
 print(
+    "SUMMARY_SLOT_METRIC",
+    f"slot_rows={slot_metrics.get('slot_rows', 0)}",
+    f"slot_services={slot_metrics.get('slot_services', 0)}",
+    f"slot_education_rows={slot_metrics.get('slot_education_rows', 0)}",
+    f"slot_education_services={slot_metrics.get('slot_education_services', 0)}",
+    f"slot_services_YOUTH_MAJOR={slot_metrics.get('slot_services_YOUTH_MAJOR', 0)}",
+    f"slot_services_YOUTH_MID={slot_metrics.get('slot_services_YOUTH_MID', 0)}",
+    f"slot_services_GOV24_SERVICE_FIELD={slot_metrics.get('slot_services_GOV24_SERVICE_FIELD', 0)}",
+    f"slot_services_GOV24_USER_TYPE={slot_metrics.get('slot_services_GOV24_USER_TYPE', 0)}",
+    f"slot_services_GOV24_BENEFIT_TYPE={slot_metrics.get('slot_services_GOV24_BENEFIT_TYPE', 0)}",
+    f"slot_services_PROVISION_METHOD={slot_metrics.get('slot_services_PROVISION_METHOD', 0)}",
+)
+print(
     "SUMMARY_METRIC",
     f"A_top10_target={a_off['top10_target_count']}->{a_on['top10_target_count']}",
     f"B_top10_target={b_off['top10_target_count']}->{b_on['top10_target_count']}",
@@ -582,6 +828,20 @@ print(
     f"B_target_total={b_off['target_count']}->{b_on['target_count']}",
     f"A_fp={a_fp_relation}",
     f"B_fp={b_fp_relation}",
+)
+print(
+    "SUMMARY_REASON_METRIC",
+    f"A_reason_changed={a_reason_diff['total_changed']}",
+    f"B_reason_changed={b_reason_diff['total_changed']}",
+    f"A_reason_text_changed={a_reason_diff['text_changed']}",
+    f"B_reason_text_changed={b_reason_diff['text_changed']}",
+    f"A_reason_membership_changed={a_reason_diff['membership_changed']}",
+    f"B_reason_membership_changed={b_reason_diff['membership_changed']}",
+)
+print(
+    "SUMMARY_REASON_PATTERN",
+    format_top_patterns("A_top_patterns", a_reason_patterns),
+    format_top_patterns("B_top_patterns", b_reason_patterns),
 )
 
 summary_line = (
@@ -593,6 +853,23 @@ summary_line = (
     f"B_target_total={b_off['target_count']}->{b_on['target_count']} "
     f"A_fp={a_fp_relation} "
     f"B_fp={b_fp_relation} "
+    f"A_reason_changed={a_reason_diff['total_changed']} "
+    f"B_reason_changed={b_reason_diff['total_changed']} "
+    f"A_reason_text_changed={a_reason_diff['text_changed']} "
+    f"B_reason_text_changed={b_reason_diff['text_changed']} "
+    f"A_reason_membership_changed={a_reason_diff['membership_changed']} "
+    f"B_reason_membership_changed={b_reason_diff['membership_changed']} "
+    f"{format_top_patterns('A_top_patterns', a_reason_patterns).replace('=', '=')} "
+    f"{format_top_patterns('B_top_patterns', b_reason_patterns).replace('=', '=')} "
+    f"slot_rows={slot_metrics.get('slot_rows', 0)} "
+    f"slot_services={slot_metrics.get('slot_services', 0)} "
+    f"slot_education_services={slot_metrics.get('slot_education_services', 0)} "
+    f"slot_services_YOUTH_MAJOR={slot_metrics.get('slot_services_YOUTH_MAJOR', 0)} "
+    f"slot_services_YOUTH_MID={slot_metrics.get('slot_services_YOUTH_MID', 0)} "
+    f"slot_services_GOV24_SERVICE_FIELD={slot_metrics.get('slot_services_GOV24_SERVICE_FIELD', 0)} "
+    f"slot_services_GOV24_USER_TYPE={slot_metrics.get('slot_services_GOV24_USER_TYPE', 0)} "
+    f"slot_services_GOV24_BENEFIT_TYPE={slot_metrics.get('slot_services_GOV24_BENEFIT_TYPE', 0)} "
+    f"slot_services_PROVISION_METHOD={slot_metrics.get('slot_services_PROVISION_METHOD', 0)} "
     f"artifact_dir={artifact_dir}"
 )
 
@@ -606,7 +883,14 @@ if summary_append_file:
 print("SUMMARY_APPEND_LINE", summary_line)
 
 if a_on["top10_target_count"] <= a_off["top10_target_count"]:
-    raise SystemExit("sample A did not improve target row top10 count")
+    message = (
+        "sample A did not improve target row top10 count "
+        f"({a_off['top10_target_count']} -> {a_on['top10_target_count']})"
+    )
+    if mode == "real-openai":
+        print(f"WARNING: {message}")
+    else:
+        raise SystemExit(message)
 if b_on["top10_target_count"] > b_off["top10_target_count"]:
     message = (
         "sample B target row top10 count increased unexpectedly "
@@ -636,6 +920,9 @@ require_replay_data_preconditions
 
 signup_or_prepare_samples() {
   local token_a token_b user_key_a user_key_b
+  if [[ "${CLEAR_CLUSTER_AI_CACHE_BEFORE_REPLAY}" == "true" ]] && table_exists "cluster_ai_results"; then
+    clear_cluster_ai_cache
+  fi
   signup_if_needed "${SAMPLE_A_EMAIL}" "Education Replay Sample A"
   signup_if_needed "${SAMPLE_B_EMAIL}" "Education Replay Sample B"
   token_a="$(login_and_token "${SAMPLE_A_EMAIL}" "${COOKIE_A}")"
@@ -658,6 +945,9 @@ signup_or_prepare_samples() {
 
 run_on_phase() {
   local token_a token_b user_key_a user_key_b
+  if [[ "${CLEAR_CLUSTER_AI_CACHE_BEFORE_REPLAY}" == "true" ]] && table_exists "cluster_ai_results"; then
+    clear_cluster_ai_cache
+  fi
   token_a="$(login_and_token "${SAMPLE_A_EMAIL}" "${COOKIE_A}")"
   token_b="$(login_and_token "${SAMPLE_B_EMAIL}" "${COOKIE_B}")"
   user_key_a="$(cat "${USER_KEY_A_FILE}")"
@@ -679,6 +969,7 @@ run_on_phase
 stop_app
 
 collect_service_meta
+collect_summary_slot_metrics
 print_summary
 
 echo

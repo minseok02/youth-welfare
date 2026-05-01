@@ -14,6 +14,9 @@ public final class NormalizationKeySupport {
 
     public static final String SUMMARY_KEY_YOUTH_MAJOR = "YOUTH_MAJOR";
     public static final String SUMMARY_KEY_YOUTH_MID = "YOUTH_MID";
+    public static final String SUMMARY_KEY_GOV24_SERVICE_FIELD = "GOV24_SERVICE_FIELD";
+    public static final String SUMMARY_KEY_GOV24_USER_TYPE = "GOV24_USER_TYPE";
+    public static final String SUMMARY_KEY_GOV24_BENEFIT_TYPE = "GOV24_BENEFIT_TYPE";
 
     public static final String TERM_GROUP_YOUTH_MAJOR = "YOUTH_MAJOR";
     public static final String TERM_GROUP_YOUTH_MID = "YOUTH_MID";

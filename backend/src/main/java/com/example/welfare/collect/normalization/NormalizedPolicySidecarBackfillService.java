@@ -3,7 +3,7 @@ package com.example.welfare.collect.normalization;
 import com.example.welfare.collect.entity.RawApiPayload;
 import com.example.welfare.collect.mapper.WelfareServiceMapper;
 import com.example.welfare.collect.repository.RawApiPayloadRepository;
-import com.example.welfare.collect.support.BokjiroSourceBinding;
+import com.example.welfare.collect.support.CollectSourceRegistry;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.repository.WelfareServiceRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -162,7 +162,7 @@ public class NormalizedPolicySidecarBackfillService {
                                                                                                  ObjectMapper objectMapper) {
         EnumMap<WelfareService.SourceType, SidecarBackfillCapability> capabilities =
                 new EnumMap<>(WelfareService.SourceType.class);
-        for (BokjiroSourceBinding binding : BokjiroSourceBinding.values()) {
+        for (CollectSourceRegistry binding : CollectSourceRegistry.detailSources()) {
             capabilities.put(
                     binding.sourceType(),
                     new SidecarBackfillCapability(

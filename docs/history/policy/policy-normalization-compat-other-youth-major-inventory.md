@@ -1,12 +1,18 @@
 # `compat=기타 + canonical youth_major 채움` 세부 inventory
 
-2026-04-30 local DB `service_taxonomies` summary 재적재 후,
+2026-04-30 local DB canonical summary 재적재 후,
 `YOUTH` source에서:
 
 - `compat_unified_category = 기타`
-- `youth_major_label IS NOT NULL`
+- `YOUTH_MAJOR` summary slot이 있으면 그 `slot_label`, 없으면 `service_taxonomies.youth_major_label`
+  을 읽었을 때 `NULL` 이 아님
 
 인 `421`건을 canonical major별로 다시 쪼갠 결과입니다.
+
+현재 해석 기준:
+
+- 우선: `service_taxonomy_summary_slots.slot_key='YOUTH_MAJOR'`
+- fallback: `service_taxonomies.youth_major_label`
 
 관련 문서:
 

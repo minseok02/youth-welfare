@@ -18,6 +18,7 @@
   - collect writer 는 이제 이 draft 스키마가 존재하면 실제 `service_taxonomies / service_taxonomy_terms / service_facts` upsert 를 수행하고, 테이블이 없으면 안전하게 skip 한다
   - 아직 `schema.sql` / 정식 `db/migration/` / read-model 전환이 끝나지 않아 `db/migration/` 이 아닌 `db/migration-draft/` 에만 두고 실제 적용 대상에서는 제외
   - `service_taxonomy_terms.term_code` 는 MySQL nullable unique semantics를 피하려고 코드가 없을 때 `''` 로 normalize 하는 안을 포함
+  - `service_taxonomies` 가 여전히 legacy summary row 중심이므로, generic summary slot 병행 저장 구조는 [policy-normalization-summary-slot-storage-plan.md](./history/policy/policy-normalization-summary-slot-storage-plan.md) 기준으로 후속 draft migration으로 분리한다
 
 - draft 파일: [`backend/src/main/resources/db/migration-draft/V2026_04_30_02__seed_policy_normalization_codes.sql`](../backend/src/main/resources/db/migration-draft/V2026_04_30_02__seed_policy_normalization_codes.sql)
 - 포함 내용:
@@ -40,6 +41,27 @@
   - 2026-05-01 기준 `GOV24` current public dataset/공지 재확인 결과, old `category` / `category-code` operation은 2021 개편 때 deprecated 되었고 current source-of-truth는 `serviceList` / `serviceDetail` / `supportConditions` 3종이다. 하지만 current public page text만으로는 `serviceField` / `userType` / `benefitType` finite inventory 가 드러나지 않아 import SQL은 계속 보류한다. 자세한 기준은 [policy-normalization-gov24-label-source-plan.md](./history/policy/policy-normalization-gov24-label-source-plan.md)에 정리했다.
   - `GOV24_SUPPORT_CONDITION` 도 현재는 대표 subset code만 공식 근거가 확인된 상태이고, full inventory/backfill은 current Swagger/schema export 또는 provider codebook 확보 전까지 보류한다. 자세한 기준은 [policy-normalization-gov24-support-condition-source-plan.md](./history/policy/policy-normalization-gov24-support-condition-source-plan.md)에 정리했다.
 
+- draft 파일: [`backend/src/main/resources/db/migration-draft/V2026_05_02_01__add_service_taxonomy_summary_slots.sql`](../backend/src/main/resources/db/migration-draft/V2026_05_02_01__add_service_taxonomy_summary_slots.sql)
+- 포함 내용:
+  - `service_taxonomy_summary_slots` 생성 초안
+  - canonical summary slot을 `slot_key / slot_code / slot_label` row로 병행 저장하기 위한 반복 테이블
+  - `service_taxonomies` 는 당분간 legacy projection row로 유지하고, 이 테이블은 장기 canonical summary truth 후보로 분리
+  - 최신 writer는 이 테이블이 존재하면 optional dual-write 를 수행하고, 없으면 기존과 같이 조용히 skip 한다
+  - backfill / read-model 전환은 아직 열지 않았고, 현재 단계는 collect writer dual-write까지만 검증 범위다
+  - 배경 설계는 [policy-normalization-summary-slot-storage-plan.md](./history/policy/policy-normalization-summary-slot-storage-plan.md)를 따른다
+
+- draft 파일: [`backend/src/main/resources/db/migration-draft/V2026_05_02_02__backfill_service_taxonomy_summary_slots.sql`](../backend/src/main/resources/db/migration-draft/V2026_05_02_02__backfill_service_taxonomy_summary_slots.sql)
+- 포함 내용:
+  - 기존 `service_taxonomies` summary row를 `service_taxonomy_summary_slots` 로 재적재하는 local backfill 초안
+  - `YOUTH_MAJOR`, `YOUTH_MID`, `GOV24_*`, `PROVISION_METHOD` managed slot만 재생성
+  - 현재 local replay closeout에서는 dual-write 이전 snapshot을 이 SQL로 먼저 메운 뒤 density를 확인한다
+
+- draft 파일: [`backend/src/main/resources/db/migration-draft/V2026_05_02_03__widen_service_taxonomy_summary_slot_label.sql`](../backend/src/main/resources/db/migration-draft/V2026_05_02_03__widen_service_taxonomy_summary_slot_label.sql)
+- 포함 내용:
+  - `service_taxonomy_summary_slots.slot_label` 을 `TEXT` 로 보정
+  - 유니크 키에서 `slot_label` 을 제외하고 `(service_id, slot_key, slot_code, authority)` 로 재정의
+  - 이유: `provision_method_label` 계열 장문 summary가 `slot_label` 길이 제한과 MySQL unique index 제약에 걸렸기 때문
+
 ## 로컬 draft sidecar smoke
 
 로컬 Docker MySQL에서 draft sidecar 스키마와 실제 writer 정합성을 확인할 때는 아래 순서로 검증한다.
@@ -48,6 +70,9 @@
 docker exec -e MYSQL_PWD="$DB_PASSWORD" -i youth-welfare-db mysql -uroot youth_welfare < backend/src/main/resources/db/migration-draft/V2026_04_30_01__create_policy_sidecars.sql
 docker exec -e MYSQL_PWD="$DB_PASSWORD" -i youth-welfare-db mysql -uroot youth_welfare < backend/src/main/resources/db/migration-draft/V2026_04_30_02__seed_policy_normalization_codes.sql
 docker exec -e MYSQL_PWD="$DB_PASSWORD" -i youth-welfare-db mysql -uroot youth_welfare < backend/src/main/resources/db/migration-draft/V2026_04_30_03__seed_policy_official_code_subsets.sql
+docker exec -e MYSQL_PWD="$DB_PASSWORD" -i youth-welfare-db mysql -uroot youth_welfare < backend/src/main/resources/db/migration-draft/V2026_05_02_01__add_service_taxonomy_summary_slots.sql
+docker exec -e MYSQL_PWD="$DB_PASSWORD" -i youth-welfare-db mysql -uroot youth_welfare < backend/src/main/resources/db/migration-draft/V2026_05_02_03__widen_service_taxonomy_summary_slot_label.sql
+docker exec -e MYSQL_PWD="$DB_PASSWORD" -i youth-welfare-db mysql -uroot youth_welfare < backend/src/main/resources/db/migration-draft/V2026_05_02_02__backfill_service_taxonomy_summary_slots.sql
 
 cd backend
 ./gradlew test --no-daemon --tests com.example.welfare.collect.normalization.NormalizedFactMergeSupportTest --tests com.example.welfare.collect.normalization.DeferredNormalizedPolicySidecarWriterTest
@@ -74,9 +99,10 @@ curl -X POST "http://127.0.0.1:8082/api/admin/collect/bokjiro-sidecars-backfill?
 ```sql
 SELECT COUNT(*) FROM normalization_code_sets;   -- 15
 SELECT COUNT(*) FROM normalization_codes;       -- 78
-SELECT COUNT(*) FROM service_taxonomies;        -- 3634
-SELECT COUNT(*) FROM service_taxonomy_terms;    -- 2395
-SELECT COUNT(*) FROM service_facts;             -- 0
+SELECT COUNT(*) FROM service_taxonomies;             -- 3634
+SELECT COUNT(*) FROM service_taxonomy_terms;         -- 2395
+SELECT COUNT(*) FROM service_taxonomy_summary_slots; -- 5619
+SELECT COUNT(*) FROM service_facts;                  -- 0
 ```
 
 2026-04-30 `V2026_04_30_02__seed_policy_normalization_codes.sql` youth major summary collapse 검증:

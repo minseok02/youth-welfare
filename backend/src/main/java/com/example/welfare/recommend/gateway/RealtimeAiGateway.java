@@ -184,11 +184,8 @@ public class RealtimeAiGateway implements AiRecommendationGateway {
             String shortDesc = (desc != null && desc.length() > 80)
                     ? desc.substring(0, 80) : (desc != null ? desc : "");
             policyList
-                    .append("- id:").append(c.getService().getId())
-                    .append(" | 제목:").append(c.getService().getTitle())
-                    .append(" | 분류:").append(resolveUnifiedCategory(c))
-                    .append(" | 내용:").append(shortDesc)
-                    .append("\n");
+                    .append(buildPromptPolicyLine(c, shortDesc))
+                    .append('\n');
         });
 
         return String.format("""
@@ -205,11 +202,42 @@ public class RealtimeAiGateway implements AiRecommendationGateway {
                 topCandidates.size());
     }
 
+    static String buildPromptPolicyLine(ScoredCandidate candidate, String shortDesc) {
+        StringBuilder line = new StringBuilder()
+                .append("- id:").append(candidate.getService().getId())
+                .append(" | 제목:").append(candidate.getService().getTitle())
+                .append(" | 분류:").append(resolveUnifiedCategory(candidate));
+        appendPromptField(line, "정책분야", resolveYouthMajorLabel(candidate));
+        appendPromptField(line, "세부분야", resolveYouthMidLabel(candidate));
+        appendPromptField(line, "제공방식", resolveProvisionMethodLabel(candidate));
+        line.append(" | 내용:").append(shortDesc);
+        return line.toString();
+    }
+
     static String resolveUnifiedCategory(ScoredCandidate candidate) {
         if (candidate.getProjection() != null && candidate.getProjection().unifiedCategoryCompat() != null) {
             return candidate.getProjection().unifiedCategoryCompat();
         }
         return candidate.getService().getUnifiedCategory();
+    }
+
+    static String resolveYouthMajorLabel(ScoredCandidate candidate) {
+        return candidate.getProjection() != null ? candidate.getProjection().youthMajorLabel() : null;
+    }
+
+    static String resolveYouthMidLabel(ScoredCandidate candidate) {
+        return candidate.getProjection() != null ? candidate.getProjection().youthMidLabel() : null;
+    }
+
+    static String resolveProvisionMethodLabel(ScoredCandidate candidate) {
+        return candidate.getProjection() != null ? candidate.getProjection().provisionMethodLabel() : null;
+    }
+
+    private static void appendPromptField(StringBuilder line, String label, String value) {
+        if (value == null || value.isBlank()) {
+            return;
+        }
+        line.append(" | ").append(label).append(':').append(value);
     }
 
     private AiCallResult callOpenAi(String userPrompt, Long replaySeed) {

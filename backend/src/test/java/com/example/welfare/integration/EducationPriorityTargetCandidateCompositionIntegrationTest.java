@@ -40,14 +40,17 @@ class EducationPriorityTargetCandidateCompositionIntegrationTest {
     @DisplayName("대표 education target region 은 0/0 income pass-through 적용 후 raw candidates 와 retrieval 결과에 target row가 들어온다")
     void representativeEducationTargetRegionSurvivesIncomeGate() {
         assumeTrue(tableExists("service_taxonomies"), "canonical sidecar summary 가 있는 local DB 에서만 실행");
+        String youthMajorJoin = youthMajorJoinSql();
+        String youthMajorFilter = youthMajorFilterSql();
 
         String representativeRegion = jdbcTemplate.queryForList("""
                 SELECT sr.region_code
                 FROM welfare_services ws
                 JOIN service_taxonomies st ON st.service_id = ws.id
+                %s
                 JOIN service_regions sr ON sr.service_id = ws.id
                 WHERE ws.unified_category = '기타'
-                  AND st.youth_major_label = '교육'
+                  AND %s
                   AND ws.status IN ('ACTIVE', 'UPCOMING')
                   AND ws.min_age <= ?
                   AND ws.max_age >= ?
@@ -62,7 +65,7 @@ class EducationPriorityTargetCandidateCompositionIntegrationTest {
                        THEN ws.id END) = 0
                 ORDER BY COUNT(DISTINCT ws.id) DESC, sr.region_code
                 LIMIT 1
-                """, String.class, USER_AGE, USER_AGE, USER_INCOME_LEVEL, USER_INCOME_LEVEL)
+                """.formatted(youthMajorJoin, youthMajorFilter), String.class, USER_AGE, USER_AGE, USER_INCOME_LEVEL, USER_INCOME_LEVEL)
                 .stream()
                 .findFirst()
                 .orElse(null);
@@ -72,9 +75,10 @@ class EducationPriorityTargetCandidateCompositionIntegrationTest {
                     SELECT sr.region_code
                     FROM welfare_services ws
                     JOIN service_taxonomies st ON st.service_id = ws.id
+                    %s
                     JOIN service_regions sr ON sr.service_id = ws.id
                     WHERE ws.unified_category = '기타'
-                      AND st.youth_major_label = '교육'
+                      AND %s
                       AND ws.status IN ('ACTIVE', 'UPCOMING')
                       AND ws.min_age <= ?
                       AND ws.max_age >= ?
@@ -94,7 +98,7 @@ class EducationPriorityTargetCandidateCompositionIntegrationTest {
                            )
                            THEN ws.id END) DESC, sr.region_code
                     LIMIT 1
-                    """, String.class,
+                    """.formatted(youthMajorJoin, youthMajorFilter), String.class,
                     USER_AGE, USER_AGE,
                     USER_INCOME_LEVEL, USER_INCOME_LEVEL,
                     USER_INCOME_LEVEL, USER_INCOME_LEVEL)
@@ -110,22 +114,24 @@ class EducationPriorityTargetCandidateCompositionIntegrationTest {
                 SELECT DISTINCT ws.id
                 FROM welfare_services ws
                 JOIN service_taxonomies st ON st.service_id = ws.id
+                %s
                 JOIN service_regions sr ON sr.service_id = ws.id
                 WHERE ws.unified_category = '기타'
-                  AND st.youth_major_label = '교육'
+                  AND %s
                   AND ws.status IN ('ACTIVE', 'UPCOMING')
                   AND ws.min_age <= ?
                   AND ws.max_age >= ?
                   AND sr.region_code = ?
-                """, Long.class, USER_AGE, USER_AGE, representativeRegion).stream().collect(Collectors.toSet());
+                """.formatted(youthMajorJoin, youthMajorFilter), Long.class, USER_AGE, USER_AGE, representativeRegion).stream().collect(Collectors.toSet());
 
         Long effectiveIncomePassCount = jdbcTemplate.queryForObject("""
                 SELECT COUNT(DISTINCT ws.id)
                 FROM welfare_services ws
                 JOIN service_taxonomies st ON st.service_id = ws.id
+                %s
                 JOIN service_regions sr ON sr.service_id = ws.id
                 WHERE ws.unified_category = '기타'
-                  AND st.youth_major_label = '교육'
+                  AND %s
                   AND ws.status IN ('ACTIVE', 'UPCOMING')
                   AND ws.min_age <= ?
                   AND ws.max_age >= ?
@@ -136,7 +142,7 @@ class EducationPriorityTargetCandidateCompositionIntegrationTest {
                       OR (ws.min_income <= ? AND ws.max_income >= ?)
                   )
                   AND sr.region_code = ?
-                """, Long.class, USER_AGE, USER_AGE, USER_INCOME_LEVEL, USER_INCOME_LEVEL, representativeRegion);
+                """.formatted(youthMajorJoin, youthMajorFilter), Long.class, USER_AGE, USER_AGE, USER_INCOME_LEVEL, USER_INCOME_LEVEL, representativeRegion);
 
         List<WelfareService> rawCandidates = welfareServiceRepository.findCandidatesWithRegionCode(
                 USER_AGE,
@@ -169,6 +175,27 @@ class EducationPriorityTargetCandidateCompositionIntegrationTest {
                   AND table_name = ?
                 """, Integer.class, tableName);
         return count != null && count > 0;
+    }
+
+    private String youthMajorJoinSql() {
+        if (!tableExists("service_taxonomy_summary_slots")) {
+            return "";
+        }
+        return """
+                LEFT JOIN (
+                    SELECT service_id, MAX(slot_label) AS slot_label
+                    FROM service_taxonomy_summary_slots
+                    WHERE slot_key = 'YOUTH_MAJOR'
+                    GROUP BY service_id
+                ) stss_youth_major ON stss_youth_major.service_id = ws.id
+                """;
+    }
+
+    private String youthMajorFilterSql() {
+        if (!tableExists("service_taxonomy_summary_slots")) {
+            return "st.youth_major_label = '교육'";
+        }
+        return "COALESCE(stss_youth_major.slot_label, st.youth_major_label) = '교육'";
     }
 
     private RecommendationUserSnapshot sampleUser(String regionCode) {

@@ -5,6 +5,9 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 REPO_ENV_FILE="${ROOT_DIR}/.env"
 CREATE_SIDECAR_SQL="${ROOT_DIR}/backend/src/main/resources/db/migration-draft/V2026_04_30_01__create_policy_sidecars.sql"
 SEED_NORMALIZATION_SQL="${ROOT_DIR}/backend/src/main/resources/db/migration-draft/V2026_04_30_02__seed_policy_normalization_codes.sql"
+CREATE_SUMMARY_SLOT_SQL="${ROOT_DIR}/backend/src/main/resources/db/migration-draft/V2026_05_02_01__add_service_taxonomy_summary_slots.sql"
+BACKFILL_SUMMARY_SLOT_SQL="${ROOT_DIR}/backend/src/main/resources/db/migration-draft/V2026_05_02_02__backfill_service_taxonomy_summary_slots.sql"
+WIDEN_SUMMARY_SLOT_SQL="${ROOT_DIR}/backend/src/main/resources/db/migration-draft/V2026_05_02_03__widen_service_taxonomy_summary_slot_label.sql"
 
 trim() {
   local value="$1"
@@ -106,11 +109,21 @@ APPLY_SEED_WHEN_EMPTY_ONLY="${APPLY_SEED_WHEN_EMPTY_ONLY:-true}"
 
 [[ -f "${CREATE_SIDECAR_SQL}" ]] || { echo "missing SQL file: ${CREATE_SIDECAR_SQL}" >&2; exit 1; }
 [[ -f "${SEED_NORMALIZATION_SQL}" ]] || { echo "missing SQL file: ${SEED_NORMALIZATION_SQL}" >&2; exit 1; }
+[[ -f "${CREATE_SUMMARY_SLOT_SQL}" ]] || { echo "missing SQL file: ${CREATE_SUMMARY_SLOT_SQL}" >&2; exit 1; }
+[[ -f "${BACKFILL_SUMMARY_SLOT_SQL}" ]] || { echo "missing SQL file: ${BACKFILL_SUMMARY_SLOT_SQL}" >&2; exit 1; }
+[[ -f "${WIDEN_SUMMARY_SLOT_SQL}" ]] || { echo "missing SQL file: ${WIDEN_SUMMARY_SLOT_SQL}" >&2; exit 1; }
 
 apply_sql_file "${CREATE_SIDECAR_SQL}"
+apply_sql_file "${CREATE_SUMMARY_SLOT_SQL}"
+apply_sql_file "${WIDEN_SUMMARY_SLOT_SQL}"
 
 if ! table_exists "service_taxonomies"; then
   echo "service_taxonomies table still missing after sidecar create SQL" >&2
+  exit 1
+fi
+
+if ! table_exists "service_taxonomy_summary_slots"; then
+  echo "service_taxonomy_summary_slots table still missing after summary slot create SQL" >&2
   exit 1
 fi
 
@@ -125,6 +138,8 @@ if [[ "${APPLY_SEED_WHEN_EMPTY_ONLY}" != "true" || "${taxonomy_count}" == "0" ]]
   apply_sql_file "${SEED_NORMALIZATION_SQL}"
 fi
 
+apply_sql_file "${BACKFILL_SUMMARY_SLOT_SQL}"
+
 taxonomy_count="$(
   mysql_exec "
     SELECT COUNT(*)
@@ -136,10 +151,54 @@ education_target_rows="$(
     SELECT COUNT(*)
     FROM welfare_services ws
     JOIN service_taxonomies st ON st.service_id = ws.id
+    LEFT JOIN (
+      SELECT service_id, MAX(slot_label) AS slot_label
+      FROM service_taxonomy_summary_slots
+      WHERE slot_key = 'YOUTH_MAJOR'
+      GROUP BY service_id
+    ) stss_youth_major ON stss_youth_major.service_id = ws.id
     WHERE ws.unified_category = '기타'
-      AND st.youth_major_label = '교육';
+      AND COALESCE(stss_youth_major.slot_label, st.youth_major_label) = '교육';
+  "
+)"
+summary_slot_count="$(
+  mysql_exec "
+    SELECT COUNT(*)
+    FROM service_taxonomy_summary_slots;
+  "
+)"
+summary_slot_education_services="$(
+  mysql_exec "
+    SELECT COUNT(DISTINCT stss.service_id)
+    FROM service_taxonomy_summary_slots stss
+    JOIN welfare_services ws ON ws.id = stss.service_id
+    WHERE stss.slot_key = 'YOUTH_MAJOR'
+      AND stss.slot_label = '교육'
+      AND ws.unified_category = '기타';
+  "
+)"
+summary_slot_density="$(
+  mysql_exec "
+    SELECT CONCAT(slot_key, '=', COUNT(DISTINCT service_id))
+    FROM service_taxonomy_summary_slots
+    WHERE slot_key IN (
+      'YOUTH_MAJOR',
+      'YOUTH_MID',
+      'GOV24_SERVICE_FIELD',
+      'GOV24_USER_TYPE',
+      'GOV24_BENEFIT_TYPE',
+      'PROVISION_METHOD'
+    )
+    GROUP BY slot_key
+    ORDER BY slot_key;
   "
 )"
 
 echo "service_taxonomies=${taxonomy_count}"
+echo "service_taxonomy_summary_slots=${summary_slot_count}"
 echo "education_target_rows=${education_target_rows}"
+echo "slot_education_services=${summary_slot_education_services}"
+while IFS= read -r density_line; do
+  [[ -n "${density_line}" ]] || continue
+  echo "slot_density_${density_line}"
+done <<< "${summary_slot_density}"

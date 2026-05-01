@@ -73,21 +73,31 @@ deploy/smoke/run-local-education-priority-replay.sh
 4. `flag on` host `bootRun`
 5. 같은 sample A/B refresh
 6. `compat=기타 + youth_major=교육` target row top-10 진입 수 비교
-7. sample A 개선 hard assert
+7. `rule-only-invalid-key` 모드에서는 sample A 개선 hard assert
 8. sample B(control) drift는 기본 warning, 필요하면 `STRICT_CONTROL_ASSERT=true` 로 strict fail
-9. `user_recommendations` off/on snapshot(`edu-a/b-*-scores.tsv`)도 함께 남겨 `rule_weighted_score` / `ai_score` / `final_score` 경계를 바로 비교
-10. artifact에 `openai-mode.txt` 를 같이 남겨 `rule-only-invalid-key` / `real-openai` 모드를 명시
-11. boot log에서 `[RealtimeAiGateway][replay-trace]`, `[RealtimeAiGateway][replay-trace-response]` 라인을 추출해 `edu-a/b-*-ai-trace.log`, `edu-a/b-*-ai-response-trace.log`, `ai-trace-*.log`, `ai-trace-response-*.log` 로 남기고 `candidateIds` / `candidateRuleScores` / `promptSha256` / `replaySeed` / `systemFingerprint` / `responseId` 를 비교
-12. summary stdout에도 `A_FINGERPRINT ... same|different`, `B_FINGERPRINT ... same|different` 를 같이 출력해 artifact를 열기 전에도 `backend churn` 여부를 바로 볼 수 있게 한다
-13. summary stdout의 `SUMMARY_METRIC` 한 줄에서 `A_top10_target`, `B_top10_target`, `A/B_target_total`, `A/B_fp` 를 먼저 보고 pass/warn 판단을 시작한다
-14. nightly summary file에 append 할 때도 같은 축을 유지하고,
+9. `user_recommendations` off/on snapshot(`edu-a/b-*-scores.tsv`)도 함께 남겨 `rule_weighted_score` / `ai_score` / `ai_reason` / `final_score` 경계를 바로 비교
+10. sample A/B 각각 `edu-a-ai-reason-diff.tsv`, `edu-b-ai-reason-diff.tsv` 를 만들어 off/on 간 `ai_reason` 변화가 실제로 생긴 row를 바로 확인
+    - `change_type=text_changed`: 같은 `service_id` 에서 `ai_reason` 문장이 실제로 바뀐 경우
+    - `change_type=entered|exited`: top snapshot 구성 변화로 row가 새로 들어오거나 빠진 경우
+11. `ai-reason-pattern-summary.tsv` 를 같이 생성해 sample A/B별 상위 phrase count를 남긴다
+12. artifact에 `openai-mode.txt` 를 같이 남겨 `rule-only-invalid-key` / `real-openai` 모드를 명시
+13. boot log에서 `[RealtimeAiGateway][replay-trace]`, `[RealtimeAiGateway][replay-trace-response]` 라인을 추출해 `edu-a/b-*-ai-trace.log`, `edu-a/b-*-ai-response-trace.log`, `ai-trace-*.log`, `ai-trace-response-*.log` 로 남기고 `candidateIds` / `candidateRuleScores` / `promptSha256` / `replaySeed` / `systemFingerprint` / `responseId` 를 비교
+14. summary stdout에도 `A_FINGERPRINT ... same|different`, `B_FINGERPRINT ... same|different` 를 같이 출력해 artifact를 열기 전에도 `backend churn` 여부를 바로 볼 수 있게 한다
+15. summary stdout의 `SUMMARY_METRIC` 한 줄에서 `A_top10_target`, `B_top10_target`, `A/B_target_total`, `A/B_fp` 를 먼저 보고 pass/warn 판단을 시작한다
+16. summary stdout의 `SUMMARY_REASON_METRIC` 한 줄에서 `A_reason_changed`, `A_reason_text_changed`, `A_reason_membership_changed`, `B_*` 를 먼저 확인하고, 세부 내용이 필요하면 `edu-a/b-ai-reason-diff.tsv` 를 연다
+17. summary stdout의 `SUMMARY_REASON_PATTERN` 한 줄에서 sample A/B별 상위 phrase를 먼저 보고, 더 자세한 count가 필요하면 `ai-reason-pattern-summary.tsv` 를 연다
+18. nightly summary file에 append 할 때도 같은 축을 유지하고,
     최소 필드는 `ts`, `mode`, `A_top10_target`, `B_top10_target`,
-    `A_target_total`, `B_target_total`, `A_fp`, `B_fp`, `artifact_dir` 로 제한한다
-15. 실제 append 는 `REPLAY_SUMMARY_APPEND_FILE=/path/to/nightly-summary-YYYY-MM-DD.log`
+    `A_target_total`, `B_target_total`, `A_fp`, `B_fp`,
+    `A_reason_changed`, `B_reason_changed`,
+    `A_reason_text_changed`, `B_reason_text_changed`,
+    `A_reason_membership_changed`, `B_reason_membership_changed`,
+    `artifact_dir` 로 제한한다
+19. 실제 append 는 `REPLAY_SUMMARY_APPEND_FILE=/path/to/nightly-summary-YYYY-MM-DD.log`
     env 로 켜고, 필요하면 `REPLAY_SUMMARY_TS` 로 기록 시각을 wrapper 에서 명시한다
-16. ops host nightly 실행은 직접 env 를 길게 붙이기보다
+20. ops host nightly 실행은 직접 env 를 길게 붙이기보다
     `deploy/smoke/run-nightly-openai-replay.sh` wrapper 를 기본 진입점으로 쓴다
-17. host cron 예시는 wrapper/cleanup 둘 다 절대경로 호출로 둔다
+21. host cron 예시는 wrapper/cleanup 둘 다 절대경로 호출로 둔다
     - replay:
       - `10 1 * * * REPLAY_LOG_ROOT=/var/log/youth-welfare/openai-replay /home/minseok/youth-welfare/deploy/smoke/run-nightly-openai-replay.sh >> /var/log/youth-welfare/openai-replay/nightly-cron.log 2>&1`
     - cleanup:
@@ -99,9 +109,19 @@ real OpenAI 호출이 정말 필요하면 아래처럼 명시적으로 opt-in �
 USE_REAL_OPENAI_FOR_REPLAY=true deploy/smoke/run-local-education-priority-replay.sh
 ```
 
+cluster cache를 우회해 실제 live AI 호출을 강제하려면 아래처럼 같이 켭니다.
+
+```bash
+USE_REAL_OPENAI_FOR_REPLAY=true \
+CLEAR_CLUSTER_AI_CACHE_BEFORE_REPLAY=true \
+KEEP_ARTIFACTS=true \
+deploy/smoke/run-local-education-priority-replay.sh
+```
+
 이 `real-openai` run의 기본 위치는
 PR hard gate가 아니라 nightly/diagnostic 또는 수동 triage입니다.
-즉 strict equality 실패만으로는 PR blocker로 해석하지 않습니다.
+즉 strict equality 실패만으로는 PR blocker로 해석하지 않고,
+sample A 미개선도 warning으로만 남깁니다.
 
 ### 1. DB/Redis 기동
 
@@ -195,6 +215,45 @@ host에서 직접 `bootRun` 할 때는 아래를 같이 맞춥니다.
 - 그런데도 `edu-b-off-scores.tsv` / `edu-b-on-scores.tsv` 에서는 `ai_score` / `final_score` diff가 계속 남았다. 예를 들어 주거 row는 `404:85 -> 75`, `405:75 -> 85`, 교육 row는 `390:55 -> 70`, `364:65 -> 70` 식으로 바뀌었다
 - 즉 current real-openai replay drift는 backend fingerprint churn만으로는 설명되지 않고, same fingerprint 안에서도 남는 live response variability 쪽으로 결론이 더 좁혀졌다
 - artifact dir 예시: `/tmp/tmp.TpE5SaiHJu`
+
+2026-05-02 cache clear 포함 `real-openai` replay 결과:
+
+- 실행:
+  - `USE_REAL_OPENAI_FOR_REPLAY=true KEEP_ARTIFACTS=true CLEAR_CLUSTER_AI_CACHE_BEFORE_REPLAY=true deploy/smoke/run-local-education-priority-replay.sh`
+- artifact dir 예시: `/tmp/tmp.TBDFrxfGqo`
+- `SUMMARY_METRIC`
+  - sample A: `A_top10_target=3->5`
+  - sample B: `B_top10_target=0->2` (`WARNING`)
+- `SUMMARY_REASON_METRIC`
+  - sample A: `A_reason_changed=23`, `A_reason_text_changed=15`, `A_reason_membership_changed=8`
+  - sample B: `B_reason_changed=15`, `B_reason_text_changed=15`, `B_reason_membership_changed=0`
+- fingerprint
+  - sample A: `A_fp=same` (`fp_ff247d5857 -> fp_ff247d5857`)
+  - sample B: `B_fp=different` (`fp_de7acce317 -> fp_ff247d5857`)
+- 해석
+  - cache를 비우면 canonical summary prompt 영향이 실제 `ai_reason` text 변화까지 이어지는 것은 확인되지만,
+    control sample B도 text drift와 target row 증가가 동시에 나타나므로 현재 real-openai 결과는 여전히 PR hard gate가 아니라 diagnostic 증적으로만 다뤄야 한다.
+
+2026-05-02 완화된 assertion 정책 후 cache clear `real-openai` replay 결과:
+
+- 실행:
+  - `USE_REAL_OPENAI_FOR_REPLAY=true KEEP_ARTIFACTS=true CLEAR_CLUSTER_AI_CACHE_BEFORE_REPLAY=true deploy/smoke/run-local-education-priority-replay.sh`
+- artifact dir 예시: `/tmp/tmp.6YybgXCbIo`
+- `SUMMARY_METRIC`
+  - sample A: `A_top10_target=0->0` (`WARNING`)
+  - sample B: `B_top10_target=0->0`
+- `SUMMARY_REASON_METRIC`
+  - sample A: `A_reason_changed=12`, `A_reason_text_changed=10`, `A_reason_membership_changed=2`
+  - sample B: `B_reason_changed=14`, `B_reason_text_changed=14`, `B_reason_membership_changed=0`
+- `SUMMARY_REASON_PATTERN`
+  - sample A: `A_top_patterns=interest_fit:2,direct_help:1,job_opportunity:1`
+  - sample B: `B_top_patterns=strong_help:1`
+- fingerprint
+  - sample A: `A_fp=different`
+  - sample B: `B_fp=same`
+- 해석
+  - warning-only 정책 덕분에 sample A 미개선 run도 artifact를 끝까지 수집할 수 있었다.
+  - 이번 run에서도 control sample B의 text drift가 커서, pattern summary는 triage shortcut으로만 사용하고 제품 효과 증거로는 아직 쓰지 않는다.
 
 ### 3. 공통 변수
 
@@ -336,7 +395,7 @@ for row in target[:10]:
 PY
 ```
 
-위 출력만으로는 `youth_major=교육` 여부가 보이지 않으므로, 필요하면 같은 `serviceId` 집합을 local DB의 `service_taxonomies.youth_major_label` 과 다시 대조합니다.
+위 출력만으로는 `youth_major=교육` 여부가 보이지 않으므로, 필요하면 같은 `serviceId` 집합을 local DB의 `service_taxonomy_summary_slots(slot_key='YOUTH_MAJOR')` 를 우선 보고, 값이 없을 때만 `service_taxonomies.youth_major_label` 로 fallback 하는 기준으로 다시 대조합니다.
 
 ### sample A top-10 비교
 

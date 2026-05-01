@@ -7,7 +7,7 @@ import com.example.welfare.collect.gateway.BokjiroDetailClient;
 import com.example.welfare.collect.normalization.NormalizedPolicyAggregate;
 import com.example.welfare.collect.support.BokjiroNormalizationSupport;
 import com.example.welfare.collect.support.CollectCategorySupport;
-import com.example.welfare.collect.support.NormalizationKeySupport;
+import com.example.welfare.collect.support.YouthNormalizationSupport;
 import com.example.welfare.collect.validation.RawFieldValidator;
 import com.example.welfare.collect.validation.TextConstraintExtractor;
 import com.example.welfare.policy.entity.ServiceRegion;
@@ -24,7 +24,6 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -81,22 +80,20 @@ public class WelfareServiceMapper {
 
     public NormalizedPolicyAggregate toNormalizedYouth(YouthApiDto.Item item) {
         WelfareService service = fromYouth(item);
-        YouthMidPartition youthMidPartition = partitionYouthMidLabels(item.getMclsfNm());
+        YouthNormalizationSupport.YouthMidPartition youthMidPartition =
+                YouthNormalizationSupport.partitionYouthMidLabels(item.getMclsfNm());
         return NormalizedPolicyAggregate.builder()
                 .core(buildCore(service))
                 .detail(buildDetail(service, null))
                 .taxonomy(NormalizedPolicyAggregate.TaxonomySummary.builder()
                         .compatUnifiedCategory(service.getUnifiedCategory())
                         .provisionMethod(service.getApplyMethodName())
-                        .summaryLabels(summaryLabels(
-                                NormalizationKeySupport.SUMMARY_KEY_YOUTH_MAJOR, service.getCategoryMain(),
-                                NormalizationKeySupport.SUMMARY_KEY_YOUTH_MID, youthMidPartition.summaryLabel()
-                        ))
+                        .summaryLabels(YouthNormalizationSupport.summaryLabels(service, youthMidPartition))
                         .authority(NormalizedPolicyAggregate.Authority.OFFICIAL)
                         .confidence(BigDecimal.ONE)
                         .build())
-                .taxonomyTerms(youthTerms(item, youthMidPartition))
-                .facts(youthFacts(service))
+                .taxonomyTerms(YouthNormalizationSupport.taxonomyTerms(item, youthMidPartition))
+                .facts(YouthNormalizationSupport.facts(service))
                 .build();
     }
 
@@ -169,8 +166,8 @@ public class WelfareServiceMapper {
                         .authority(NormalizedPolicyAggregate.Authority.SYSTEM_DERIVED)
                         .confidence(BigDecimal.valueOf(0.85))
                         .build())
-                .taxonomyTerms(bokjiroCentralTerms(item))
-                .facts(bokjiroDerivedFacts(service, item.getServDgst()))
+                .taxonomyTerms(BokjiroNormalizationSupport.centralTerms(item))
+                .facts(BokjiroNormalizationSupport.derivedFacts(service, item.getServDgst()))
                 .build();
     }
 
@@ -235,8 +232,8 @@ public class WelfareServiceMapper {
                         .authority(NormalizedPolicyAggregate.Authority.SYSTEM_DERIVED)
                         .confidence(BigDecimal.valueOf(0.85))
                         .build())
-                .taxonomyTerms(bokjiroLocalTerms(item))
-                .facts(bokjiroDerivedFacts(service, item.getServDgst()))
+                .taxonomyTerms(BokjiroNormalizationSupport.localTerms(item))
+                .facts(BokjiroNormalizationSupport.derivedFacts(service, item.getServDgst()))
                 .build();
     }
 
@@ -258,8 +255,8 @@ public class WelfareServiceMapper {
                         .authority(NormalizedPolicyAggregate.Authority.SYSTEM_DERIVED)
                         .confidence(BigDecimal.valueOf(0.85))
                         .build())
-                .taxonomyTerms(bokjiroDetailTerms(detailPayload))
-                .facts(bokjiroDetailFacts(detailPayload))
+                .taxonomyTerms(BokjiroNormalizationSupport.detailTerms(detailPayload))
+                .facts(BokjiroNormalizationSupport.detailFacts(detailPayload))
                 .build();
     }
 
@@ -487,362 +484,4 @@ public class WelfareServiceMapper {
                 .build();
     }
 
-    private List<NormalizedPolicyAggregate.TaxonomyTerm> youthTerms(YouthApiDto.Item item,
-                                                                    YouthMidPartition youthMidPartition) {
-        List<NormalizedPolicyAggregate.TaxonomyTerm> terms = new ArrayList<>();
-        addTaxonomyTerm(terms,
-                NormalizationKeySupport.TERM_GROUP_YOUTH_MAJOR,
-                NormalizationKeySupport.TERM_GROUP_YOUTH_MAJOR,
-                null,
-                item.getLclsfNm(),
-                NormalizationKeySupport.SOURCE_FIELD_YOUTH_MAJOR,
-                NormalizedPolicyAggregate.Authority.OFFICIAL, 0);
-        int sortOrder = 0;
-        for (String label : youthMidPartition.officialLabels()) {
-            addTaxonomyTerm(terms,
-                    NormalizationKeySupport.TERM_GROUP_YOUTH_MID,
-                    NormalizationKeySupport.TERM_GROUP_YOUTH_MID,
-                    null,
-                    label,
-                    NormalizationKeySupport.SOURCE_FIELD_YOUTH_CATEGORY_SUB,
-                    NormalizedPolicyAggregate.Authority.OFFICIAL, sortOrder++);
-        }
-        for (String label : youthMidPartition.rawAliases()) {
-            addTaxonomyTerm(terms,
-                    NormalizationKeySupport.TERM_GROUP_YOUTH_MID_RAW_ALIAS,
-                    null,
-                    null,
-                    label,
-                    NormalizationKeySupport.SOURCE_FIELD_YOUTH_CATEGORY_SUB,
-                    NormalizedPolicyAggregate.Authority.OFFICIAL, sortOrder++);
-        }
-        addTaxonomyTermsFromCsv(terms,
-                NormalizationKeySupport.TERM_GROUP_YOUTH_KEYWORD,
-                NormalizationKeySupport.TERM_GROUP_YOUTH_KEYWORD,
-                item.getPlcyKywdNm(),
-                NormalizationKeySupport.SOURCE_FIELD_YOUTH_KEYWORD,
-                NormalizedPolicyAggregate.Authority.OFFICIAL, 0);
-        return terms;
-    }
-
-    private YouthMidPartition partitionYouthMidLabels(String rawYouthMid) {
-        if (rawYouthMid == null || rawYouthMid.isBlank()) {
-            return new YouthMidPartition(List.of(), List.of());
-        }
-
-        LinkedHashSet<String> officialLabels = new LinkedHashSet<>();
-        LinkedHashSet<String> rawAliases = new LinkedHashSet<>();
-        for (String rawToken : rawYouthMid.split(",")) {
-            String label = RawFieldValidator.normalize(rawToken == null ? null : rawToken.strip());
-            if (label == null) {
-                continue;
-            }
-            if (NormalizationKeySupport.isOfficialYouthMidLabel(label)) {
-                officialLabels.add(label);
-            } else {
-                rawAliases.add(label);
-            }
-        }
-        return new YouthMidPartition(List.copyOf(officialLabels), List.copyOf(rawAliases));
-    }
-
-    private List<NormalizedPolicyAggregate.TaxonomyTerm> bokjiroCentralTerms(BokjiroCentralDto.Item item) {
-        return bokjiroTerms(
-                item.getLifeArray(), NormalizationKeySupport.SOURCE_FIELD_BOKJIRO_LIFE_ARRAY,
-                item.getIntrsThemaArray(), NormalizationKeySupport.SOURCE_FIELD_BOKJIRO_INTEREST_THEME_ARRAY,
-                item.getTrgterIndvdlArray(), NormalizationKeySupport.SOURCE_FIELD_BOKJIRO_TARGET_GROUP_ARRAY
-        );
-    }
-
-    private List<NormalizedPolicyAggregate.TaxonomyTerm> bokjiroLocalTerms(BokjiroLocalDto.Item item) {
-        return bokjiroTerms(
-                item.getLifeNmArray(), NormalizationKeySupport.SOURCE_FIELD_BOKJIRO_LIFE_NM_ARRAY,
-                item.getIntrsThemaNmArray(), NormalizationKeySupport.SOURCE_FIELD_BOKJIRO_INTEREST_THEME_NM_ARRAY,
-                item.getTrgterIndvdlNmArray(), NormalizationKeySupport.SOURCE_FIELD_BOKJIRO_TARGET_GROUP_NM_ARRAY
-        );
-    }
-
-    private List<NormalizedPolicyAggregate.TaxonomyTerm> bokjiroTerms(String lifeStageCsv,
-                                                                      String lifeStageField,
-                                                                      String interestThemeCsv,
-                                                                      String interestThemeField,
-                                                                      String targetGroupCsv,
-                                                                      String targetGroupField) {
-        List<NormalizedPolicyAggregate.TaxonomyTerm> terms = new ArrayList<>();
-        addTaxonomyTermsFromCsv(terms, NormalizationKeySupport.TERM_GROUP_LIFE_STAGE, null, lifeStageCsv, lifeStageField,
-                NormalizedPolicyAggregate.Authority.OFFICIAL, 0);
-        addTaxonomyTermsFromCsv(terms, NormalizationKeySupport.TERM_GROUP_INTEREST_THEME, null, interestThemeCsv, interestThemeField,
-                NormalizedPolicyAggregate.Authority.OFFICIAL, 0);
-        addTaxonomyTermsFromCsv(terms, NormalizationKeySupport.TERM_GROUP_TARGET_GROUP, null, targetGroupCsv, targetGroupField,
-                NormalizedPolicyAggregate.Authority.OFFICIAL, 0);
-        return terms;
-    }
-
-    private List<NormalizedPolicyAggregate.Fact> youthFacts(WelfareService service) {
-        List<NormalizedPolicyAggregate.Fact> facts = new ArrayList<>();
-        addRangeFact(facts,
-                NormalizationKeySupport.FACT_GROUP_AGE,
-                NormalizationKeySupport.FACT_CODE_YOUTH_AGE,
-                NormalizationKeySupport.FACT_MERGE_KEY_YOUTH_AGE,
-                "지원 연령", service.getMinAge(), service.getMaxAge(), "세",
-                NormalizationKeySupport.SOURCE_FIELD_YOUTH_AGE, NormalizedPolicyAggregate.Authority.OFFICIAL, BigDecimal.ONE, null);
-        addBoundaryFact(facts,
-                NormalizationKeySupport.FACT_GROUP_INCOME,
-                NormalizationKeySupport.FACT_CODE_YOUTH_INCOME_MIN,
-                NormalizationKeySupport.FACT_MERGE_KEY_YOUTH_INCOME_MIN,
-                "소득 하한", service.getMinIncome(),
-                NormalizedPolicyAggregate.Operator.GTE, "legacy-int", NormalizationKeySupport.SOURCE_FIELD_YOUTH_INCOME_MIN,
-                NormalizedPolicyAggregate.Authority.OFFICIAL, BigDecimal.ONE, null);
-        addBoundaryFact(facts,
-                NormalizationKeySupport.FACT_GROUP_INCOME,
-                NormalizationKeySupport.FACT_CODE_YOUTH_INCOME_MAX,
-                NormalizationKeySupport.FACT_MERGE_KEY_YOUTH_INCOME_MAX,
-                "소득 상한", service.getMaxIncome(),
-                NormalizedPolicyAggregate.Operator.LTE, "legacy-int", NormalizationKeySupport.SOURCE_FIELD_YOUTH_INCOME_MAX,
-                NormalizedPolicyAggregate.Authority.OFFICIAL, BigDecimal.ONE, null);
-        addDateFact(facts,
-                NormalizationKeySupport.FACT_GROUP_APPLY_END_DATE,
-                NormalizationKeySupport.FACT_CODE_YOUTH_APPLY_END_DATE,
-                NormalizationKeySupport.FACT_MERGE_KEY_YOUTH_APPLY_END_DATE,
-                "신청 종료일", service.getApplyEndDate(),
-                NormalizationKeySupport.SOURCE_FIELD_YOUTH_APPLY_END_DATE, NormalizedPolicyAggregate.Authority.OFFICIAL, BigDecimal.ONE, null);
-        return facts;
-    }
-
-    private List<NormalizedPolicyAggregate.Fact> bokjiroDerivedFacts(WelfareService service, String evidenceText) {
-        List<NormalizedPolicyAggregate.Fact> facts = new ArrayList<>();
-        addRangeFact(facts,
-                NormalizationKeySupport.FACT_GROUP_AGE,
-                NormalizationKeySupport.FACT_CODE_BOKJIRO_AGE,
-                NormalizationKeySupport.FACT_MERGE_KEY_BOKJIRO_AGE,
-                "지원 연령", service.getMinAge(), service.getMaxAge(), "세",
-                NormalizationKeySupport.SOURCE_FIELD_BOKJIRO_DIGEST, NormalizedPolicyAggregate.Authority.RULE_DERIVED, BigDecimal.valueOf(0.90), evidenceText);
-        addDateFact(facts,
-                NormalizationKeySupport.FACT_GROUP_APPLY_END_DATE,
-                NormalizationKeySupport.FACT_CODE_BOKJIRO_APPLY_END_DATE,
-                NormalizationKeySupport.FACT_MERGE_KEY_BOKJIRO_APPLY_END_DATE,
-                "신청 종료일", service.getApplyEndDate(),
-                NormalizationKeySupport.SOURCE_FIELD_BOKJIRO_DIGEST, NormalizedPolicyAggregate.Authority.RULE_DERIVED, BigDecimal.valueOf(0.80), evidenceText);
-        return facts;
-    }
-
-    private List<NormalizedPolicyAggregate.Fact> bokjiroDetailFacts(BokjiroDetailClient.DetailPayload detailPayload) {
-        TextConstraintExtractor.ConstraintSummary constraints = TextConstraintExtractor.summarize(
-                detailPayload.getTargetDetail(),
-                detailPayload.getSelectionCriteria(),
-                detailPayload.getApplyMethodDetail(),
-                detailPayload.getSupportDetail()
-        );
-
-        String evidenceText = firstNonBlank(
-                detailPayload.getTargetDetail(),
-                detailPayload.getSelectionCriteria(),
-                detailPayload.getApplyMethodDetail(),
-                detailPayload.getSupportDetail()
-        );
-
-        List<NormalizedPolicyAggregate.Fact> facts = new ArrayList<>();
-        addRangeFact(facts,
-                NormalizationKeySupport.FACT_GROUP_AGE,
-                NormalizationKeySupport.FACT_CODE_BOKJIRO_AGE,
-                NormalizationKeySupport.FACT_MERGE_KEY_BOKJIRO_AGE,
-                "지원 연령", constraints.minAge(), constraints.maxAge(), "세",
-                NormalizationKeySupport.SOURCE_FIELD_TARGET_DETAIL_SELECTION_CRITERIA, NormalizedPolicyAggregate.Authority.RULE_DERIVED,
-                BigDecimal.valueOf(0.90), evidenceText);
-        addDateFact(facts,
-                NormalizationKeySupport.FACT_GROUP_APPLY_END_DATE,
-                NormalizationKeySupport.FACT_CODE_BOKJIRO_APPLY_END_DATE,
-                NormalizationKeySupport.FACT_MERGE_KEY_BOKJIRO_APPLY_END_DATE,
-                "신청 종료일", constraints.applyEndDate(),
-                NormalizationKeySupport.SOURCE_FIELD_APPLY_METHOD_DETAIL_SUPPORT_DETAIL, NormalizedPolicyAggregate.Authority.RULE_DERIVED,
-                BigDecimal.valueOf(0.80), evidenceText);
-        return facts;
-    }
-
-    private List<NormalizedPolicyAggregate.TaxonomyTerm> bokjiroDetailTerms(BokjiroDetailClient.DetailPayload detailPayload) {
-        List<NormalizedPolicyAggregate.TaxonomyTerm> terms = new ArrayList<>();
-        int sortOrder = 0;
-        for (String label : BokjiroNormalizationSupport.beneficiaryLabels(
-                detailPayload.getTargetDetail(),
-                detailPayload.getSelectionCriteria()
-        )) {
-            addTaxonomyTerm(
-                    terms,
-                    NormalizationKeySupport.TERM_GROUP_TARGET_GROUP,
-                    null,
-                    null,
-                    label,
-                    NormalizationKeySupport.SOURCE_FIELD_TARGET_DETAIL_SELECTION_CRITERIA,
-                    NormalizedPolicyAggregate.Authority.SYSTEM_DERIVED,
-                    sortOrder++
-            );
-        }
-        return terms;
-    }
-
-    private void addTaxonomyTermsFromCsv(List<NormalizedPolicyAggregate.TaxonomyTerm> terms,
-                                         String termGroup,
-                                         String codeSetKey,
-                                         String csv,
-                                         String sourceField,
-                                         NormalizedPolicyAggregate.Authority authority,
-                                         int startSortOrder) {
-        if (csv == null || csv.isBlank()) {
-            return;
-        }
-        int sortOrder = startSortOrder;
-        for (String raw : csv.split(",")) {
-            String label = RawFieldValidator.normalize(raw == null ? null : raw.strip());
-            if (label == null) {
-                continue;
-            }
-            terms.add(NormalizedPolicyAggregate.TaxonomyTerm.builder()
-                    .termGroup(termGroup)
-                    .codeSetKey(codeSetKey)
-                    .termCode(null)
-                    .termLabel(label)
-                    .sourceField(sourceField)
-                    .authority(authority)
-                    .sortOrder(sortOrder++)
-                    .build());
-        }
-    }
-
-    private void addTaxonomyTerm(List<NormalizedPolicyAggregate.TaxonomyTerm> terms,
-                                 String termGroup,
-                                 String codeSetKey,
-                                 String termCode,
-                                 String termLabel,
-                                 String sourceField,
-                                 NormalizedPolicyAggregate.Authority authority,
-                                 int sortOrder) {
-        String normalizedLabel = RawFieldValidator.normalize(termLabel);
-        if (normalizedLabel == null) {
-            return;
-        }
-        terms.add(NormalizedPolicyAggregate.TaxonomyTerm.builder()
-                .termGroup(termGroup)
-                .codeSetKey(codeSetKey)
-                .termCode(termCode)
-                .termLabel(normalizedLabel)
-                .sourceField(sourceField)
-                .authority(authority)
-                .sortOrder(sortOrder)
-                .build());
-    }
-
-    private void addRangeFact(List<NormalizedPolicyAggregate.Fact> facts,
-                              String factGroup,
-                              String factCode,
-                              String factMergeKey,
-                              String factLabel,
-                              Integer rangeMin,
-                              Integer rangeMax,
-                              String unit,
-                              String sourceField,
-                              NormalizedPolicyAggregate.Authority authority,
-                              BigDecimal confidence,
-                              String evidenceText) {
-        if (rangeMin == null && rangeMax == null) {
-            return;
-        }
-        facts.add(NormalizedPolicyAggregate.Fact.builder()
-                .factGroup(factGroup)
-                .factCodeSetKey(null)
-                .factCode(factCode)
-                .factMergeKey(factMergeKey)
-                .factLabel(factLabel)
-                .operator(rangeMin != null && rangeMax != null
-                        ? NormalizedPolicyAggregate.Operator.RANGE
-                        : rangeMin != null
-                        ? NormalizedPolicyAggregate.Operator.GTE
-                        : NormalizedPolicyAggregate.Operator.LTE)
-                .valueType(NormalizedPolicyAggregate.ValueType.INTEGER)
-                .rangeMinInt(rangeMin)
-                .rangeMaxInt(rangeMax)
-                .unit(unit)
-                .sourceField(sourceField)
-                .authority(authority)
-                .confidence(confidence)
-                .rawValue(firstNonBlank(
-                        rangeMin == null ? null : String.valueOf(rangeMin),
-                        rangeMax == null ? null : String.valueOf(rangeMax)
-                ))
-                .evidenceText(RawFieldValidator.normalize(evidenceText))
-                .build());
-    }
-
-    private void addBoundaryFact(List<NormalizedPolicyAggregate.Fact> facts,
-                                 String factGroup,
-                                 String factCode,
-                                 String factMergeKey,
-                                 String factLabel,
-                                 Integer intValue,
-                                 NormalizedPolicyAggregate.Operator operator,
-                                 String unit,
-                                 String sourceField,
-                                 NormalizedPolicyAggregate.Authority authority,
-                                 BigDecimal confidence,
-                                 String evidenceText) {
-        if (intValue == null) {
-            return;
-        }
-        facts.add(NormalizedPolicyAggregate.Fact.builder()
-                .factGroup(factGroup)
-                .factCodeSetKey(null)
-                .factCode(factCode)
-                .factMergeKey(factMergeKey)
-                .factLabel(factLabel)
-                .operator(operator)
-                .valueType(NormalizedPolicyAggregate.ValueType.INTEGER)
-                .intValue(intValue)
-                .unit(unit)
-                .sourceField(sourceField)
-                .authority(authority)
-                .confidence(confidence)
-                .rawValue(String.valueOf(intValue))
-                .evidenceText(RawFieldValidator.normalize(evidenceText))
-                .build());
-    }
-
-    private void addDateFact(List<NormalizedPolicyAggregate.Fact> facts,
-                             String factGroup,
-                             String factCode,
-                             String factMergeKey,
-                             String factLabel,
-                             LocalDate dateValue,
-                             String sourceField,
-                             NormalizedPolicyAggregate.Authority authority,
-                             BigDecimal confidence,
-                             String evidenceText) {
-        if (dateValue == null) {
-            return;
-        }
-        facts.add(NormalizedPolicyAggregate.Fact.builder()
-                .factGroup(factGroup)
-                .factCodeSetKey(null)
-                .factCode(factCode)
-                .factMergeKey(factMergeKey)
-                .factLabel(factLabel)
-                .operator(NormalizedPolicyAggregate.Operator.EQ)
-                .valueType(NormalizedPolicyAggregate.ValueType.DATE)
-                .dateValue(dateValue)
-                .sourceField(sourceField)
-                .authority(authority)
-                .confidence(confidence)
-                .rawValue(dateValue.toString())
-                .evidenceText(RawFieldValidator.normalize(evidenceText))
-                .build());
-    }
-
-    private record YouthMidPartition(
-            List<String> officialLabels,
-            List<String> rawAliases
-    ) {
-        private String summaryLabel() {
-            return rawAliases.isEmpty() && officialLabels.size() == 1
-                    ? officialLabels.get(0)
-                    : null;
-        }
-    }
 }

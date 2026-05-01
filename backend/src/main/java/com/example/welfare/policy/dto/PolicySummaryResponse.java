@@ -20,6 +20,9 @@ public class PolicySummaryResponse {
     private Integer minAge;
     private Integer maxAge;
     private String applyMethodName;
+    private String youthMajorLabel;
+    private String youthMidLabel;
+    private String provisionMethodLabel;
     private LocalDate applyStartDate;
     private LocalDate applyEndDate;
     private Boolean isOnlineApply;
@@ -42,6 +45,9 @@ public class PolicySummaryResponse {
                 .minAge(ws.getMinAge())
                 .maxAge(ws.getMaxAge())
                 .applyMethodName(ws.getApplyMethodName())
+                .youthMajorLabel(resolveYouthMajorLabel(projection))
+                .youthMidLabel(resolveYouthMidLabel(projection))
+                .provisionMethodLabel(resolveProvisionMethodLabel(projection))
                 .applyStartDate(ws.getApplyStartDate())
                 .applyEndDate(ws.getApplyEndDate())
                 .isOnlineApply(ws.getIsOnlineApply())
@@ -55,5 +61,17 @@ public class PolicySummaryResponse {
             return projection.unifiedCategoryCompat();
         }
         return ws.getUnifiedCategory();
+    }
+
+    private static String resolveYouthMidLabel(RecommendationCandidateProjection projection) {
+        return projection != null ? projection.youthMidLabel() : null;
+    }
+
+    private static String resolveYouthMajorLabel(RecommendationCandidateProjection projection) {
+        return projection != null ? projection.youthMajorLabel() : null;
+    }
+
+    private static String resolveProvisionMethodLabel(RecommendationCandidateProjection projection) {
+        return projection != null ? projection.provisionMethodLabel() : null;
     }
 }

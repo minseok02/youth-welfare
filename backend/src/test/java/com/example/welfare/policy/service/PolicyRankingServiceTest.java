@@ -57,6 +57,9 @@ class PolicyRankingServiceTest {
                         RecommendationCandidateProjection.builder()
                                 .serviceId(1L)
                                 .unifiedCategoryCompat("주거")
+                                .youthMajorLabel("주거")
+                                .youthMidLabel("전월세 및 주거급여 지원")
+                                .provisionMethodLabel("온라인")
                                 .build()
                 ));
 
@@ -66,6 +69,9 @@ class PolicyRankingServiceTest {
         assertEquals(7L, ranking.get(0).getUniqueViewCount7d());
         assertEquals(1L, ranking.get(0).getServiceId());
         assertEquals("주거", ranking.get(0).getUnifiedCategory());
+        assertEquals("주거", ranking.get(0).getYouthMajorLabel());
+        assertEquals("전월세 및 주거급여 지원", ranking.get(0).getYouthMidLabel());
+        assertEquals("온라인", ranking.get(0).getProvisionMethodLabel());
     }
 
     @Test

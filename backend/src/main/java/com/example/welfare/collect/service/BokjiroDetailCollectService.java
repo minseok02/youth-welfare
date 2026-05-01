@@ -4,7 +4,7 @@ import com.example.welfare.collect.gateway.BokjiroDetailClient;
 import com.example.welfare.collect.mapper.WelfareServiceMapper;
 import com.example.welfare.collect.normalization.NormalizedPolicyAggregate;
 import com.example.welfare.collect.normalization.NormalizedPolicySidecarWriter;
-import com.example.welfare.collect.support.BokjiroSourceBinding;
+import com.example.welfare.collect.support.CollectSourceRegistry;
 import com.example.welfare.collect.validation.RawFieldValidator;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.entity.WelfareServiceDetail;
@@ -330,7 +330,7 @@ public class BokjiroDetailCollectService {
     private Map<WelfareService.SourceType, DetailCollectCapability> buildDetailCapabilities(BokjiroDetailClient detailClient,
                                                                                             WelfareServiceMapper welfareServiceMapper) {
         EnumMap<WelfareService.SourceType, DetailCollectCapability> capabilities = new EnumMap<>(WelfareService.SourceType.class);
-        for (BokjiroSourceBinding binding : BokjiroSourceBinding.values()) {
+        for (CollectSourceRegistry binding : CollectSourceRegistry.detailSources()) {
             capabilities.put(
                     binding.sourceType(),
                     new DetailCollectCapability(
