@@ -177,8 +177,28 @@ summary_slot_education_services="$(
       AND ws.unified_category = '기타';
   "
 )"
+summary_slot_density="$(
+  mysql_exec "
+    SELECT CONCAT(slot_key, '=', COUNT(DISTINCT service_id))
+    FROM service_taxonomy_summary_slots
+    WHERE slot_key IN (
+      'YOUTH_MAJOR',
+      'YOUTH_MID',
+      'GOV24_SERVICE_FIELD',
+      'GOV24_USER_TYPE',
+      'GOV24_BENEFIT_TYPE',
+      'PROVISION_METHOD'
+    )
+    GROUP BY slot_key
+    ORDER BY slot_key;
+  "
+)"
 
 echo "service_taxonomies=${taxonomy_count}"
 echo "service_taxonomy_summary_slots=${summary_slot_count}"
 echo "education_target_rows=${education_target_rows}"
 echo "slot_education_services=${summary_slot_education_services}"
+while IFS= read -r density_line; do
+  [[ -n "${density_line}" ]] || continue
+  echo "slot_density_${density_line}"
+done <<< "${summary_slot_density}"

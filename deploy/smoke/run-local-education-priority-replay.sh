@@ -547,7 +547,56 @@ collect_summary_slot_metrics() {
     JOIN welfare_services ws ON ws.id = stss.service_id
     WHERE stss.slot_key = 'YOUTH_MAJOR'
       AND stss.slot_label = '교육'
-      AND ws.unified_category = '기타';
+      AND ws.unified_category = '기타'
+    UNION ALL
+    SELECT 'slot_services_YOUTH_MAJOR', COUNT(DISTINCT service_id)
+    FROM service_taxonomy_summary_slots
+    WHERE slot_key = 'YOUTH_MAJOR'
+    UNION ALL
+    SELECT 'slot_services_YOUTH_MID', COUNT(DISTINCT service_id)
+    FROM service_taxonomy_summary_slots
+    WHERE slot_key = 'YOUTH_MID'
+    UNION ALL
+    SELECT 'slot_services_GOV24_SERVICE_FIELD', COUNT(DISTINCT service_id)
+    FROM service_taxonomy_summary_slots
+    WHERE slot_key = 'GOV24_SERVICE_FIELD'
+    UNION ALL
+    SELECT 'slot_services_GOV24_USER_TYPE', COUNT(DISTINCT service_id)
+    FROM service_taxonomy_summary_slots
+    WHERE slot_key = 'GOV24_USER_TYPE'
+    UNION ALL
+    SELECT 'slot_services_GOV24_BENEFIT_TYPE', COUNT(DISTINCT service_id)
+    FROM service_taxonomy_summary_slots
+    WHERE slot_key = 'GOV24_BENEFIT_TYPE'
+    UNION ALL
+    SELECT 'slot_services_PROVISION_METHOD', COUNT(DISTINCT service_id)
+    FROM service_taxonomy_summary_slots
+    WHERE slot_key = 'PROVISION_METHOD'
+    UNION ALL
+    SELECT 'slot_rows_PROVISION_METHOD', COUNT(*)
+    FROM service_taxonomy_summary_slots
+    WHERE slot_key = 'PROVISION_METHOD'
+    UNION ALL
+    SELECT 'slot_rows_YOUTH_MID', COUNT(*)
+    FROM service_taxonomy_summary_slots
+    WHERE slot_key = 'YOUTH_MID'
+    UNION ALL
+    SELECT 'slot_rows_GOV24_SERVICE_FIELD', COUNT(*)
+    FROM service_taxonomy_summary_slots
+    WHERE slot_key = 'GOV24_SERVICE_FIELD'
+    UNION ALL
+    SELECT 'slot_rows_GOV24_USER_TYPE', COUNT(*)
+    FROM service_taxonomy_summary_slots
+    WHERE slot_key = 'GOV24_USER_TYPE'
+    UNION ALL
+    SELECT 'slot_rows_GOV24_BENEFIT_TYPE', COUNT(*)
+    FROM service_taxonomy_summary_slots
+    WHERE slot_key = 'GOV24_BENEFIT_TYPE'
+    UNION ALL
+    SELECT 'slot_rows_YOUTH_MAJOR', COUNT(*)
+    FROM service_taxonomy_summary_slots
+    WHERE slot_key = 'YOUTH_MAJOR'
+      ;
   " > "${SUMMARY_SLOT_METRICS_FILE}"
 }
 
@@ -632,6 +681,12 @@ print(
     f"slot_services={slot_metrics.get('slot_services', 0)}",
     f"slot_education_rows={slot_metrics.get('slot_education_rows', 0)}",
     f"slot_education_services={slot_metrics.get('slot_education_services', 0)}",
+    f"slot_services_YOUTH_MAJOR={slot_metrics.get('slot_services_YOUTH_MAJOR', 0)}",
+    f"slot_services_YOUTH_MID={slot_metrics.get('slot_services_YOUTH_MID', 0)}",
+    f"slot_services_GOV24_SERVICE_FIELD={slot_metrics.get('slot_services_GOV24_SERVICE_FIELD', 0)}",
+    f"slot_services_GOV24_USER_TYPE={slot_metrics.get('slot_services_GOV24_USER_TYPE', 0)}",
+    f"slot_services_GOV24_BENEFIT_TYPE={slot_metrics.get('slot_services_GOV24_BENEFIT_TYPE', 0)}",
+    f"slot_services_PROVISION_METHOD={slot_metrics.get('slot_services_PROVISION_METHOD', 0)}",
 )
 print(
     "SUMMARY_METRIC",
@@ -655,6 +710,12 @@ summary_line = (
     f"slot_rows={slot_metrics.get('slot_rows', 0)} "
     f"slot_services={slot_metrics.get('slot_services', 0)} "
     f"slot_education_services={slot_metrics.get('slot_education_services', 0)} "
+    f"slot_services_YOUTH_MAJOR={slot_metrics.get('slot_services_YOUTH_MAJOR', 0)} "
+    f"slot_services_YOUTH_MID={slot_metrics.get('slot_services_YOUTH_MID', 0)} "
+    f"slot_services_GOV24_SERVICE_FIELD={slot_metrics.get('slot_services_GOV24_SERVICE_FIELD', 0)} "
+    f"slot_services_GOV24_USER_TYPE={slot_metrics.get('slot_services_GOV24_USER_TYPE', 0)} "
+    f"slot_services_GOV24_BENEFIT_TYPE={slot_metrics.get('slot_services_GOV24_BENEFIT_TYPE', 0)} "
+    f"slot_services_PROVISION_METHOD={slot_metrics.get('slot_services_PROVISION_METHOD', 0)} "
     f"artifact_dir={artifact_dir}"
 )
 
