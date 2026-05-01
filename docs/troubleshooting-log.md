@@ -1517,3 +1517,8 @@
 - 문제: `GOV24_*` 공통 codebook 요청 템플릿이 생긴 뒤 `supportConditions` 도 같은 템플릿에 그냥 묶어 버리면, representative subset 근거가 있는 상태와 full inventory reopen 조건이 섞여 다시 판정 기준이 흐려질 수 있었다
 - 해결: [policy-normalization-gov24-support-condition-request-template.md](./policy-normalization-gov24-support-condition-request-template.md) 에서 `supportConditions` full inventory 요청을 label 3종과 분리된 별도 제목/본문/판정 기준으로 고정했다
 - 이유: `supportConditions` 는 이미 subset seed가 있고, full inventory reopen의 최소 단위도 label 3종보다 넓다. practical next action을 명확히 하려면 요청은 한 패키지로 보낼 수 있어도 판정 문서는 분리하는 편이 맞다
+
+## 294) `Gov24` 요청을 한 패키지로 보낼 수 있다는 것과, reopen 판정을 한 번에 내릴 수 있다는 것은 다르다
+- 문제: label 3종 템플릿과 `supportConditions` 템플릿이 모두 생긴 뒤, 둘을 one package로 보내는 순간 “같은 응답이면 같은 시점에 같이 reopen” 하는 것처럼 오해할 수 있었다
+- 해결: [policy-normalization-gov24-request-package-checklist.md](./policy-normalization-gov24-request-package-checklist.md) 에서 발송은 one package, 판정은 two tracks(`label 3종` / `supportConditions`) 로 분리한다고 고정했다
+- 이유: blocked source 작업에서는 발송 단위와 판정 단위를 일부러 분리해 둬야 실제 응답이 부분적으로만 충분할 때도 한 축만 먼저 reopen할 수 있다. practical next action을 실제 발송/판정 단계로 넘기려면 이 분리가 필요했다

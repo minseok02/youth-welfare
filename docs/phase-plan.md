@@ -1418,6 +1418,9 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - [x] `GOV24_SUPPORT_CONDITION` full inventory 요청을 label 3종과 분리된 별도 템플릿으로 정리
   - [policy-normalization-gov24-support-condition-request-template.md](./policy-normalization-gov24-support-condition-request-template.md) 를 추가해 `supportConditions` 는 representative subset seed와 full inventory reopen 조건이 다르므로, `serviceField/userType/benefitType` 요청과 분리된 제목/본문/판정 기준으로 관리한다고 고정했다
   - practical next step은 “Gov24 current codebook package” 를 한 번에 보내더라도 sufficient/insufficient 판정은 label 3종과 `supportConditions` 를 따로 내리는 것이라고 정리했다
+- [x] `Gov24 current codebook request package` 발송 순서와 트랙별 판정 체크리스트 정리
+  - [policy-normalization-gov24-request-package-checklist.md](./policy-normalization-gov24-request-package-checklist.md) 를 추가해 발송은 one package로 묶되, 판정은 `serviceField/userType/benefitType` 과 `supportConditions` 두 트랙으로 나누는 운영 기준을 고정했다
+  - 이로써 practical next step은 문서 설계가 아니라 실제 provider/operator 발송 여부 결정으로 넘어갔다고 정리했다
 - [ ] 운영 서버 Docker Compose 기동
 - [ ] 기존 운영 DB에 `app_core_rw` / `app_pii_rw` / `notification_pii_ro` / `migration_admin` 계정 생성 및 앱 datasource 전환
 - [ ] 운영 `.env` / secret store의 `APP_PII_DB_URL` / `NOTIFICATION_PII_DB_URL` 를 `youth_welfare_pii` schema 기준으로 전환
