@@ -32,5 +32,9 @@ class CanonicalTaxonomySummarySlotsTest {
         assertThat(slots.label(CanonicalTaxonomySummarySlots.SLOT_GOV24_SERVICE_FIELD)).isEqualTo("생활안정");
         assertThat(slots.label(CanonicalTaxonomySummarySlots.SLOT_PROVISION_METHOD)).isEqualTo("온라인");
         assertThat(slots.label(CanonicalTaxonomySummarySlots.SLOT_GOV24_USER_TYPE)).isNull();
+        assertThat(slots.slot(CanonicalTaxonomySummarySlots.SLOT_YOUTH_MAJOR).slotCode()).isEqualTo("HOUSING");
+        assertThat(slots.slot(CanonicalTaxonomySummarySlots.SLOT_YOUTH_MAJOR).codeSetKey()).isEqualTo("YOUTH_MAJOR");
+        assertThat(slots.slot(CanonicalTaxonomySummarySlots.SLOT_YOUTH_MID).slotCode()).isEmpty();
+        assertThat(slots.slot(CanonicalTaxonomySummarySlots.SLOT_PROVISION_METHOD).codeSetKey()).isNull();
     }
 }

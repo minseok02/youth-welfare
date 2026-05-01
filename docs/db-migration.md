@@ -46,7 +46,8 @@
   - `service_taxonomy_summary_slots` 생성 초안
   - canonical summary slot을 `slot_key / slot_code / slot_label` row로 병행 저장하기 위한 반복 테이블
   - `service_taxonomies` 는 당분간 legacy projection row로 유지하고, 이 테이블은 장기 canonical summary truth 후보로 분리
-  - 아직 writer dual-write / backfill / read-model 전환은 열지 않았으므로 draft DDL만 먼저 추가
+  - 최신 writer는 이 테이블이 존재하면 optional dual-write 를 수행하고, 없으면 기존과 같이 조용히 skip 한다
+  - backfill / read-model 전환은 아직 열지 않았고, 현재 단계는 collect writer dual-write까지만 검증 범위다
   - 배경 설계는 [policy-normalization-summary-slot-storage-plan.md](./history/policy/policy-normalization-summary-slot-storage-plan.md)를 따른다
 
 ## 로컬 draft sidecar smoke

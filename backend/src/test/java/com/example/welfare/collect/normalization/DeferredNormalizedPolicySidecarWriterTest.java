@@ -21,8 +21,10 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
@@ -194,6 +196,67 @@ class DeferredNormalizedPolicySidecarWriterTest {
         verify(jdbcTemplate).update(org.mockito.ArgumentMatchers.contains("DELETE FROM service_taxonomy_terms"), any(Object[].class));
         verify(namedParameterJdbcTemplate).update(org.mockito.ArgumentMatchers.contains("INSERT INTO service_taxonomy_terms"), any(org.springframework.jdbc.core.namedparam.SqlParameterSource.class));
         verify(namedParameterJdbcTemplate).update(org.mockito.ArgumentMatchers.contains("INSERT INTO service_facts"), any(org.springframework.jdbc.core.namedparam.SqlParameterSource.class));
+    }
+
+    @Test
+    void upsert_dualWritesCanonicalSummarySlotsWhenSlotTableExists() {
+        WelfareService service = WelfareService.builder()
+                .id(14L)
+                .sourceType(WelfareService.SourceType.YOUTH)
+                .build();
+
+        NormalizedPolicyAggregate aggregate = NormalizedPolicyAggregate.builder()
+                .core(NormalizedPolicyAggregate.Core.builder()
+                        .sourceType(NormalizedPolicyAggregate.SourceType.YOUTH)
+                        .sourceId("Y014")
+                        .title("청년 주거 지원")
+                        .status(NormalizedPolicyAggregate.ServiceStatus.ACTIVE)
+                        .build())
+                .taxonomy(NormalizedPolicyAggregate.TaxonomySummary.builder()
+                        .compatUnifiedCategory("주거")
+                        .summaryLabels(Map.of(
+                                "YOUTH_MAJOR", "주거",
+                                "YOUTH_MID", "전월세 및 주거급여 지원"
+                        ))
+                        .provisionMethod("온라인")
+                        .authority(NormalizedPolicyAggregate.Authority.OFFICIAL)
+                        .confidence(BigDecimal.ONE)
+                        .build())
+                .taxonomyTerms(List.of(
+                        NormalizedPolicyAggregate.TaxonomyTerm.builder()
+                                .termGroup("YOUTH_MID")
+                                .codeSetKey("YOUTH_MID")
+                                .termLabel("전월세 및 주거급여 지원")
+                                .sourceField("category_sub")
+                                .authority(NormalizedPolicyAggregate.Authority.OFFICIAL)
+                                .sortOrder(0)
+                                .build()
+                ))
+                .facts(List.of())
+                .build();
+
+        given(jdbcTemplate.queryForObject(contains("table_name IN"), eq(Integer.class))).willReturn(4);
+        given(jdbcTemplate.queryForObject(contains("table_name = ?"), eq(Integer.class), eq("service_taxonomy_summary_slots")))
+                .willReturn(1);
+
+        assertThatCode(() -> writer.upsert(service, aggregate))
+                .doesNotThrowAnyException();
+
+        verify(jdbcTemplate).update(org.mockito.ArgumentMatchers.contains("DELETE FROM service_taxonomy_summary_slots"), any(Object[].class));
+
+        ArgumentCaptor<SqlParameterSource> slotParamsCaptor = ArgumentCaptor.forClass(SqlParameterSource.class);
+        verify(namedParameterJdbcTemplate, atLeastOnce())
+                .update(org.mockito.ArgumentMatchers.contains("INSERT INTO service_taxonomy_summary_slots"), slotParamsCaptor.capture());
+
+        assertThat(slotParamsCaptor.getAllValues())
+                .extracting(params -> params.getValue("slotKey"),
+                        params -> params.getValue("slotCode"),
+                        params -> params.getValue("slotLabel"))
+                .contains(
+                        org.assertj.core.groups.Tuple.tuple("YOUTH_MAJOR", "HOUSING", "주거"),
+                        org.assertj.core.groups.Tuple.tuple("YOUTH_MID", "", "전월세 및 주거급여 지원"),
+                        org.assertj.core.groups.Tuple.tuple("PROVISION_METHOD", "", "온라인")
+                );
     }
 
     @Test

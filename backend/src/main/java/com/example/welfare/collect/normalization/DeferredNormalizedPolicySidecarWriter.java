@@ -35,10 +35,12 @@ public class DeferredNormalizedPolicySidecarWriter implements NormalizedPolicySi
             "service_taxonomy_terms",
             "service_facts"
     );
+    private static final String SUMMARY_SLOT_TABLE = "service_taxonomy_summary_slots";
     private final JdbcTemplate jdbcTemplate;
     private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
     private final NormalizedFactMergeSupport normalizedFactMergeSupport;
     private volatile boolean sidecarTablesReady;
+    private volatile Boolean summarySlotTableReady;
 
     @Override
     public void upsert(WelfareService service, NormalizedPolicyAggregate aggregate) {
@@ -53,6 +55,7 @@ public class DeferredNormalizedPolicySidecarWriter implements NormalizedPolicySi
         }
 
         upsertTaxonomySummary(service, aggregate);
+        replaceTaxonomySummarySlots(service, aggregate);
         replaceTaxonomyTerms(service, aggregate);
         upsertMergedFacts(service, aggregate);
 
@@ -101,11 +104,26 @@ public class DeferredNormalizedPolicySidecarWriter implements NormalizedPolicySi
         return sidecarTablesReady;
     }
 
+    private boolean summarySlotTableReady() {
+        if (summarySlotTableReady != null) {
+            return summarySlotTableReady;
+        }
+        Integer count = jdbcTemplate.queryForObject("""
+                SELECT COUNT(*)
+                FROM information_schema.tables
+                WHERE table_schema = DATABASE()
+                  AND table_name = ?
+                """, Integer.class, SUMMARY_SLOT_TABLE);
+        summarySlotTableReady = count != null && count > 0;
+        return summarySlotTableReady;
+    }
+
     private void upsertTaxonomySummary(WelfareService service, NormalizedPolicyAggregate aggregate) {
         NormalizedPolicyAggregate.TaxonomySummary taxonomy = aggregate.taxonomy();
         if (taxonomy == null) {
             return;
         }
+        CanonicalTaxonomySummarySlots.SummarySlots summarySlots = CanonicalTaxonomySummarySlots.from(taxonomy);
 
         namedParameterJdbcTemplate.update("""
                 INSERT INTO service_taxonomies (
@@ -174,8 +192,68 @@ public class DeferredNormalizedPolicySidecarWriter implements NormalizedPolicySi
                                 .addValue("compatUnifiedCategoryLabel", taxonomy.compatUnifiedCategory())
                                 .addValue("authority", taxonomy.authority().name())
                                 .addValue("confidence", taxonomy.confidence()),
-                        CanonicalTaxonomySummarySlots.from(taxonomy)
+                        summarySlots
                 ));
+    }
+
+    private void replaceTaxonomySummarySlots(WelfareService service, NormalizedPolicyAggregate aggregate) {
+        if (!summarySlotTableReady()) {
+            return;
+        }
+        NormalizedPolicyAggregate.TaxonomySummary taxonomy = aggregate.taxonomy();
+        CanonicalTaxonomySummarySlots.SummarySlots summarySlots = CanonicalTaxonomySummarySlots.from(taxonomy);
+
+        jdbcTemplate.update("""
+                DELETE FROM service_taxonomy_summary_slots
+                WHERE service_id = ?
+                  AND slot_key IN (%s)
+                """.formatted(String.join(", ", CanonicalTaxonomySummarySlots.managedSlotKeys().stream()
+                .map(slot -> "?")
+                .toList())), buildSummarySlotDeleteArgs(service.getId()));
+
+        if (taxonomy == null) {
+            return;
+        }
+
+        for (CanonicalTaxonomySummarySlots.SummarySlot slot : summarySlots.presentSlots()) {
+            namedParameterJdbcTemplate.update("""
+                    INSERT INTO service_taxonomy_summary_slots (
+                        service_id,
+                        slot_key,
+                        code_set_key,
+                        slot_code,
+                        slot_label,
+                        source_field,
+                        authority,
+                        confidence
+                    ) VALUES (
+                        :serviceId,
+                        :slotKey,
+                        :codeSetKey,
+                        :slotCode,
+                        :slotLabel,
+                        :sourceField,
+                        :authority,
+                        :confidence
+                    )
+                    ON DUPLICATE KEY UPDATE
+                        code_set_key = VALUES(code_set_key),
+                        slot_code = VALUES(slot_code),
+                        slot_label = VALUES(slot_label),
+                        source_field = VALUES(source_field),
+                        authority = VALUES(authority),
+                        confidence = VALUES(confidence)
+                    """,
+                    new MapSqlParameterSource()
+                            .addValue("serviceId", service.getId())
+                            .addValue("slotKey", slot.slotKey())
+                            .addValue("codeSetKey", slot.codeSetKey())
+                            .addValue("slotCode", normalizeBlankCode(slot.slotCode()))
+                            .addValue("slotLabel", slot.slotLabel())
+                            .addValue("sourceField", "")
+                            .addValue("authority", taxonomy.authority().name())
+                            .addValue("confidence", taxonomy.confidence()));
+        }
     }
 
     private void replaceTaxonomyTerms(WelfareService service, NormalizedPolicyAggregate aggregate) {
@@ -399,6 +477,13 @@ public class DeferredNormalizedPolicySidecarWriter implements NormalizedPolicySi
             args.add(scope.termGroup());
             args.add(scope.sourceField());
         }
+        return args.toArray();
+    }
+
+    private Object[] buildSummarySlotDeleteArgs(Long serviceId) {
+        List<Object> args = new ArrayList<>();
+        args.add(serviceId);
+        args.addAll(CanonicalTaxonomySummarySlots.managedSlotKeys());
         return args.toArray();
     }
 
