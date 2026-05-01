@@ -25,7 +25,9 @@
 
 ### 현재 구현 상태 요약
 
+- [auth-docs-index.md](./auth-docs-index.md)
 - [auth-session-revocation-current-state.md](./auth-session-revocation-current-state.md)
+- [policy-docs-index.md](./policy-docs-index.md)
 - [policy-normalization-current-state.md](./policy-normalization-current-state.md)
 - [policy-local-closeout-pending-inventory.md](./policy-local-closeout-pending-inventory.md)
 - [policy-post-local-closeout-track-split.md](./policy-post-local-closeout-track-split.md)
@@ -46,6 +48,7 @@
 
 읽는 법:
 
+- 전체 auth 묶음은 [auth-docs-index.md](./auth-docs-index.md)
 - 현재 계약 확인은 [auth-session-revocation-current-state.md](./auth-session-revocation-current-state.md)
 - 왜 그렇게 됐는지는 개별 design history 문서
 
@@ -65,6 +68,7 @@
 
 읽는 법:
 
+- 전체 policy 묶음은 [policy-docs-index.md](./policy-docs-index.md)
 - current big picture 는 [policy-normalization-current-state.md](./policy-normalization-current-state.md),
   [policy-source-onboarding-playbook.md](./policy-source-onboarding-playbook.md),
   [policy-normalization-recommendation-read-model.md](./policy-normalization-recommendation-read-model.md),
@@ -117,3 +121,4 @@
 1. 모든 문서를 같은 우선순위로 읽지 않습니다.
 2. 현재 계약 확인은 `current state` 문서와 실제 코드가 우선입니다.
 3. 쪼개진 `policy` / `auth-admin-forced-logout-*` 문서는 대부분 design history 로 읽습니다.
+4. `auth-docs-index.md`, `policy-docs-index.md` 가 각 문서군의 1차 진입점입니다.

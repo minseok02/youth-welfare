@@ -213,6 +213,11 @@
 - 해결: `ScoredCandidate`에 `hasSpecialTargetMismatch` 플래그 추가, `RuleScoringService`가 계산 시점에 명시적으로 설정, Facade에서 플래그로 필터링. 특수 신호 목록에 "현역병", "병역" 추가
 - 이유: 도메인 의미(특수 대상 불일치)는 점수 계산 로직이 가장 잘 알고 있다. 숫자 임계값 대신 의미 기반 플래그로 표현해야 점수 공식이 바뀌어도 필터가 유지된다
 
+## 311) `auth-*`, `policy-*` 문서가 너무 많아 현재 상태와 설계 배경이 섞여 보였음
+- 문제: local-first로 작은 task를 계속 닫으면서 `auth-*`, `policy-*` 문서가 많이 쪼개졌고, current-state 문서와 design history 문서를 처음 보는 사람이 바로 구분하기 어려웠음
+- 해결: [auth-docs-index.md](./auth-docs-index.md), [policy-docs-index.md](./policy-docs-index.md) 를 추가해 왜 문서가 많아졌는지와 어디부터 읽어야 하는지 문서군 단위로 정리
+- 이유: 파일을 무리하게 대이동하면 링크/맥락이 깨질 수 있다. 먼저 읽기 경로를 줄이고 current-state 와 design history 를 분리하는 편이 안전하다
+
 ## 42) priority_options 코드가 추천 로직과 UI 코드 사이에서 따로 놀았음
 - 문제: DB `priority_options`에는 `ONLINE`, `YOUTH_ONLY`, `EDU_JOB`, `AMOUNT` 코드가 있었지만, `DefaultPriorityMatcher`에서 `ONLINE`과 `YOUTH_ONLY`는 이미 항상 false였고, 프론트는 `JOB`, `EDUCATION`, `FINANCE`, `HEALTH`, `SAFETY` 등 DB에 없는 코드를 전송해 `C001` 오류가 났음
 - 해결: `ONLINE`, `YOUTH_ONLY` 제거, `EDU_JOB`→`EDUCATION`, `AMOUNT`→`FINANCE` 코드 변경, `JOB`, `PARTICIPATION`, `FAMILY` 추가. DB migration, `DefaultPriorityMatcher`, 프론트 `PRIORITY_OPTIONS` 세 곳을 동시에 맞춤

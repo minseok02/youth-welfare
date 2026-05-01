@@ -1777,3 +1777,4 @@ cd backend
 - 슬롯 배치 `[A, A, B?]`
 - 검색 로그
 - 추천/수집 대시보드
+문서가 많이 쪼개진 영역은 [documentation-map.md](./documentation-map.md), [auth-docs-index.md](./auth-docs-index.md), [policy-docs-index.md](./policy-docs-index.md) 를 먼저 보고 들어갑니다.

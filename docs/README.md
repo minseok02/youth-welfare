@@ -10,8 +10,14 @@
 - [documentation-map.md](./documentation-map.md)
   문서를 `current source of truth`, `design history`, `external blocked`, `ops-only` 로 나눠 어디서부터 읽어야 하는지 빠르게 정리합니다.
 
+- [auth-docs-index.md](./auth-docs-index.md)
+  `auth-*` 문서가 왜 많이 생겼는지와, 현재 구현/설계 히스토리 문서를 어디서 구분해 읽어야 하는지 정리합니다.
+
 - [auth-session-revocation-current-state.md](./auth-session-revocation-current-state.md)
   현재 구현된 logout / withdraw / admin allowlist revoke / admin forced logout 계약을 한 문서에서 바로 확인합니다.
+
+- [policy-docs-index.md](./policy-docs-index.md)
+  `policy-*` 문서군을 current-state, design history, blocked source 조사 문서로 묶어 어디부터 읽어야 하는지 정리합니다.
 
 ### 전체 구조를 파악할 때
 
