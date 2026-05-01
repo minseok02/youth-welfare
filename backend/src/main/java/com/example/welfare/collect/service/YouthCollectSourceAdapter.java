@@ -3,8 +3,8 @@ package com.example.welfare.collect.service;
 import com.example.welfare.collect.dto.YouthApiDto;
 import com.example.welfare.collect.gateway.YouthApiClient;
 import com.example.welfare.collect.mapper.WelfareServiceMapper;
+import com.example.welfare.collect.support.CollectSourceRegistry;
 import com.example.welfare.collect.support.ListCollectSourceBinding;
-import com.example.welfare.collect.support.ListCollectSourceBindings;
 import com.example.welfare.collect.validation.FieldQualityStats;
 import com.example.welfare.collect.validation.RawFieldValidator;
 import lombok.RequiredArgsConstructor;
@@ -21,7 +21,7 @@ public class YouthCollectSourceAdapter extends AbstractListCollectSourceAdapter<
     private final CollectItemSaver saver;
     private final RawApiPayloadService rawApiPayloadService;
     private ListCollectSourceBinding<YouthApiDto.Item> binding() {
-        return ListCollectSourceBindings.youth(welfareServiceMapper);
+        return CollectSourceRegistry.YOUTH.listBinding(welfareServiceMapper);
     }
 
     @Override

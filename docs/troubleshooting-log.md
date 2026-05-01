@@ -1852,3 +1852,8 @@
 - 문제: `RetrievalService`, `RuleScoringService`, `SearchYouthRelevanceService` 는 projection이 없을 때 같은 청년 relevance fallback을 사용했지만, 그 구현은 `YouthPolicyFilter` 서비스에 모여 있었다. 이 상태에서는 실제 역할이 “추천/검색 공통 heuristic policy” 임에도 이름과 의존 형태가 예전 필터 서비스 중심으로 남아 있어, 새 projection support 계층과 경계가 어긋나 보였다.
 - 해결: `RecommendationYouthRelevanceSupport` 를 추가해 `isYouthRelevant(...)`, `relevanceBonus(...)` 규칙을 support 계층으로 옮기고, retrieval/scoring/search refresh는 이 support를 직접 보게 바꿨다. 기존 `YouthPolicyFilter` 는 같은 static policy를 재사용하는 deprecated compatibility wrapper로만 남겼고, 새 support 전용 테스트도 추가했다.
 - 이유: 이 단계의 목적은 점수 공식을 바꾸는 게 아니라 fallback 규칙의 소속을 맞추는 것이다. audience/special-target/runtime helper를 이미 support 쪽으로 정리한 상태에서 youth relevance도 같은 계층에 둬야 추천 정책이 한 레벨에서 보인다.
+
+## 345) list collect 등록부와 bokjiro detail/backfill 등록부가 따로 살아 있으면, source를 한 군데서 관리한다고 해도 실제 onboarding 때는 “list 쪽 하나, detail 쪽 하나” 두 catalog를 계속 맞춰야 한다
+- 문제: `ListCollectSourceBindings` 는 `YOUTH/BOKJIRO_*` list binding을 알고 있었고, `BokjiroSourceBinding` 은 `BOKJIRO_*` detail fetch/list aggregate/detail aggregate를 따로 들고 있었다. 둘 다 source registry 역할을 하지만 서로 다른 파일에 같은 source 목록을 유지하고 있어, 신규 source나 복지로 source 의미 조정 시 등록 지식이 다시 분산돼 있었다.
+- 해결: `CollectSourceRegistry` 를 추가해 source type별 list binding과 bokjiro detail/backfill capability를 같은 catalog에 모았다. list adapter들은 이제 이 registry에서 binding을 받고, `BokjiroDetailCollectService` 와 `NormalizedPolicySidecarBackfillService` 도 detail-capable source 목록을 같은 registry에서 순회한다. 기존 `ListCollectSourceBindings`, `BokjiroSourceBinding` 은 테스트/호환 경계용 thin wrapper로만 남겼다.
+- 이유: source-neutral 구조의 다음 단계는 “generic API가 있다”보다 “등록부가 몇 군데인가”를 줄이는 것이다. list/detail/backfill이 같은 source catalog를 보면 신규 source 추가 때 수정 지점이 실제로 한 군데로 좁아진다.

@@ -59,4 +59,15 @@ class ListCollectSourceBindingsTest {
         assertThat(binding.toSaveCommand(item).incoming().getSourceId()).isEqualTo("LOCAL-100");
         assertThat(binding.toSaveCommand(item).aggregate().core().sourceId()).isEqualTo("LOCAL-100");
     }
+
+    @Test
+    @DisplayName("collect source registry는 detail-capable source 목록을 한 곳에서 제공한다")
+    void collectSourceRegistryExposesDetailSources() {
+        assertThat(CollectSourceRegistry.detailSources())
+                .extracting(CollectSourceRegistry::sourceType)
+                .containsExactly(
+                        WelfareService.SourceType.BOKJIRO_CENTRAL,
+                        WelfareService.SourceType.BOKJIRO_LOCAL
+                );
+    }
 }

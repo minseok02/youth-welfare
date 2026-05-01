@@ -1,7 +1,5 @@
 package com.example.welfare.collect.support;
 
-import com.example.welfare.collect.dto.BokjiroCentralDto;
-import com.example.welfare.collect.dto.BokjiroLocalDto;
 import com.example.welfare.collect.entity.RawApiPayload;
 import com.example.welfare.collect.gateway.BokjiroDetailClient;
 import com.example.welfare.collect.mapper.WelfareServiceMapper;
@@ -13,33 +11,27 @@ public enum BokjiroSourceBinding {
     CENTRAL(WelfareService.SourceType.BOKJIRO_CENTRAL) {
         @Override
         public BokjiroDetailClient.FetchResult fetchDetail(BokjiroDetailClient detailClient, String sourceId) {
-            return detailClient.fetchCentralWithStatus(sourceId);
+            return CollectSourceRegistry.BOKJIRO_CENTRAL.fetchDetail(detailClient, sourceId);
         }
 
         @Override
         public NormalizedPolicyAggregate toListAggregate(WelfareServiceMapper welfareServiceMapper,
                                                          ObjectMapper objectMapper,
                                                          RawApiPayload raw) throws Exception {
-            return welfareServiceMapper.toNormalizedBokjiroCentral(
-                    objectMapper.readValue(raw.getPayloadJson(), BokjiroCentralDto.Item.class),
-                    null
-            );
+            return CollectSourceRegistry.BOKJIRO_CENTRAL.toListAggregate(welfareServiceMapper, objectMapper, raw);
         }
     },
     LOCAL(WelfareService.SourceType.BOKJIRO_LOCAL) {
         @Override
         public BokjiroDetailClient.FetchResult fetchDetail(BokjiroDetailClient detailClient, String sourceId) {
-            return detailClient.fetchLocalWithStatus(sourceId);
+            return CollectSourceRegistry.BOKJIRO_LOCAL.fetchDetail(detailClient, sourceId);
         }
 
         @Override
         public NormalizedPolicyAggregate toListAggregate(WelfareServiceMapper welfareServiceMapper,
                                                          ObjectMapper objectMapper,
                                                          RawApiPayload raw) throws Exception {
-            return welfareServiceMapper.toNormalizedBokjiroLocal(
-                    objectMapper.readValue(raw.getPayloadJson(), BokjiroLocalDto.Item.class),
-                    null
-            );
+            return CollectSourceRegistry.BOKJIRO_LOCAL.toListAggregate(welfareServiceMapper, objectMapper, raw);
         }
     };
 
@@ -63,15 +55,12 @@ public enum BokjiroSourceBinding {
                                                        WelfareService service,
                                                        RawApiPayload raw,
                                                        ObjectMapper objectMapper) throws Exception {
-        return welfareServiceMapper.toNormalizedBokjiroDetail(
-                service,
-                objectMapper.readValue(raw.getPayloadJson(), BokjiroDetailClient.DetailPayload.class)
-        );
+        return CollectSourceRegistry.of(sourceType).toDetailAggregate(welfareServiceMapper, service, raw, objectMapper);
     }
 
     public NormalizedPolicyAggregate toDetailAggregate(WelfareServiceMapper welfareServiceMapper,
                                                        WelfareService service,
                                                        BokjiroDetailClient.DetailPayload payload) {
-        return welfareServiceMapper.toNormalizedBokjiroDetail(service, payload);
+        return CollectSourceRegistry.of(sourceType).toDetailAggregate(welfareServiceMapper, service, payload);
     }
 }
