@@ -11,14 +11,16 @@ import com.example.welfare.policy.repository.ServiceTagRepository;
 import com.example.welfare.policy.repository.WelfareServiceDetailRepository;
 import com.example.welfare.policy.repository.WelfareServiceRepository;
 import com.example.welfare.policy.service.SearchYouthRelevanceService;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.EnumMap;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -28,7 +30,6 @@ import java.util.concurrent.ThreadLocalRandom;
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class BokjiroDetailCollectService {
 
     private final WelfareServiceRepository welfareServiceRepository;
@@ -39,6 +40,26 @@ public class BokjiroDetailCollectService {
     private final SearchYouthRelevanceService searchYouthRelevanceService;
     private final WelfareServiceMapper welfareServiceMapper;
     private final NormalizedPolicySidecarWriter normalizedPolicySidecarWriter;
+    private final Map<WelfareService.SourceType, DetailCollectCapability> detailCapabilities;
+
+    public BokjiroDetailCollectService(WelfareServiceRepository welfareServiceRepository,
+                                       WelfareServiceDetailRepository detailRepository,
+                                       ServiceTagRepository serviceTagRepository,
+                                       BokjiroDetailClient detailClient,
+                                       RawApiPayloadService rawApiPayloadService,
+                                       SearchYouthRelevanceService searchYouthRelevanceService,
+                                       WelfareServiceMapper welfareServiceMapper,
+                                       NormalizedPolicySidecarWriter normalizedPolicySidecarWriter) {
+        this.welfareServiceRepository = welfareServiceRepository;
+        this.detailRepository = detailRepository;
+        this.serviceTagRepository = serviceTagRepository;
+        this.detailClient = detailClient;
+        this.rawApiPayloadService = rawApiPayloadService;
+        this.searchYouthRelevanceService = searchYouthRelevanceService;
+        this.welfareServiceMapper = welfareServiceMapper;
+        this.normalizedPolicySidecarWriter = normalizedPolicySidecarWriter;
+        this.detailCapabilities = buildDetailCapabilities(detailClient, welfareServiceMapper);
+    }
 
     @Value("${collect.detail.max-calls-per-run:900}")
     private int maxCallsPerRun;
@@ -130,27 +151,27 @@ public class BokjiroDetailCollectService {
 
     @Transactional
     public CollectResult collectBokjiroDetailsResult(int maxCalls, boolean refreshExisting) {
-        List<WelfareService> centralTargets = new ArrayList<>(welfareServiceRepository.findBySourceType(WelfareService.SourceType.BOKJIRO_CENTRAL));
-        List<WelfareService> localTargets = new ArrayList<>(welfareServiceRepository.findBySourceType(WelfareService.SourceType.BOKJIRO_LOCAL));
-        BudgetAllocation budgetAllocation = allocateBudgets(maxCalls, centralTargets.size(), localTargets.size());
+        Map<WelfareService.SourceType, List<WelfareService>> targetsBySource = loadTargetsBySource();
+        BudgetAllocation budgetAllocation = allocateBudgets(maxCalls, targetsBySource);
+        Map<WelfareService.SourceType, CollectStats> statsBySource = new LinkedHashMap<>();
 
-        CollectStats centralStats = collectBySource(
-                WelfareService.SourceType.BOKJIRO_CENTRAL,
-                centralTargets,
-                budgetAllocation.centralBudget(),
-                refreshExisting
-        );
-        CollectStats localStats = collectBySource(
-                WelfareService.SourceType.BOKJIRO_LOCAL,
-                localTargets,
-                budgetAllocation.localBudget(),
-                refreshExisting
-        );
+        for (Map.Entry<WelfareService.SourceType, DetailCollectCapability> entry : detailCapabilities.entrySet()) {
+            WelfareService.SourceType sourceType = entry.getKey();
+            CollectStats stats = collectBySource(
+                    entry.getValue(),
+                    targetsBySource.getOrDefault(sourceType, List.of()),
+                    budgetAllocation.budgetFor(sourceType),
+                    refreshExisting
+            );
+            statsBySource.put(sourceType, stats);
+        }
 
-        int calls = centralStats.calls() + localStats.calls();
-        int saved = centralStats.saved() + localStats.saved();
-        int skipped = centralStats.skipped() + localStats.skipped();
-        int failed = centralStats.failed() + localStats.failed();
+        int calls = statsBySource.values().stream().mapToInt(CollectStats::calls).sum();
+        int saved = statsBySource.values().stream().mapToInt(CollectStats::saved).sum();
+        int skipped = statsBySource.values().stream().mapToInt(CollectStats::skipped).sum();
+        int failed = statsBySource.values().stream().mapToInt(CollectStats::failed).sum();
+        CollectStats centralStats = statsBySource.getOrDefault(WelfareService.SourceType.BOKJIRO_CENTRAL, CollectStats.empty());
+        CollectStats localStats = statsBySource.getOrDefault(WelfareService.SourceType.BOKJIRO_LOCAL, CollectStats.empty());
 
         log.info("[BokjiroDetailCollectService] 상세 수집 완료 refreshExisting={} calls={} saved={} skipped={} failed={} maxCalls={} centralCalls={} localCalls={}",
                 refreshExisting, calls, saved, skipped, failed, maxCalls, centralStats.calls(), localStats.calls());
@@ -158,8 +179,8 @@ public class BokjiroDetailCollectService {
                 {"maxCalls":%d,"centralBudget":%d,"localBudget":%d,"centralCalls":%d,"localCalls":%d,"refreshExisting":%s}
                 """.formatted(
                 maxCalls,
-                budgetAllocation.centralBudget(),
-                budgetAllocation.localBudget(),
+                budgetAllocation.budgetFor(WelfareService.SourceType.BOKJIRO_CENTRAL),
+                budgetAllocation.budgetFor(WelfareService.SourceType.BOKJIRO_LOCAL),
                 centralStats.calls(),
                 localStats.calls(),
                 refreshExisting
@@ -167,14 +188,15 @@ public class BokjiroDetailCollectService {
         return CollectResult.withMetadata(calls, saved, skipped, 0, failed, metadataJson);
     }
 
-    private CollectStats collectBySource(WelfareService.SourceType sourceType,
+    private CollectStats collectBySource(DetailCollectCapability capability,
                                          List<WelfareService> targets,
                                          int callBudget,
                                          boolean refreshExisting) {
         if (callBudget <= 0) {
-            return new CollectStats(0, 0, 0, 0);
+            return CollectStats.empty();
         }
 
+        WelfareService.SourceType sourceType = capability.sourceType();
         int calls = 0;
         int saved = 0;
         int skipped = 0;
@@ -217,7 +239,7 @@ public class BokjiroDetailCollectService {
             rawApiPayloadService.saveBokjiroDetail(service.getSourceType(), service.getSourceId(), payload);
 
             try {
-                NormalizedPolicyAggregate aggregate = welfareServiceMapper.toNormalizedBokjiroDetail(service, payload);
+                NormalizedPolicyAggregate aggregate = capability.toAggregate(service, payload);
                 Optional<WelfareServiceDetail> existing = detailRepository.findByServiceId(service.getId());
                 WelfareServiceDetail entity = existing.orElse(
                         WelfareServiceDetail.builder().service(service).build()
@@ -253,51 +275,88 @@ public class BokjiroDetailCollectService {
         return new CollectStats(calls, saved, skipped, failed);
     }
 
-    private BudgetAllocation allocateBudgets(int maxCalls, int centralTargetCount, int localTargetCount) {
+    private Map<WelfareService.SourceType, List<WelfareService>> loadTargetsBySource() {
+        Map<WelfareService.SourceType, List<WelfareService>> targetsBySource = new LinkedHashMap<>();
+        for (WelfareService.SourceType sourceType : detailCapabilities.keySet()) {
+            targetsBySource.put(
+                    sourceType,
+                    new ArrayList<>(welfareServiceRepository.findBySourceType(sourceType))
+            );
+        }
+        return targetsBySource;
+    }
+
+    private BudgetAllocation allocateBudgets(int maxCalls,
+                                             Map<WelfareService.SourceType, List<WelfareService>> targetsBySource) {
         if (maxCalls <= 0) {
-            return new BudgetAllocation(0, 0);
+            return BudgetAllocation.empty();
         }
 
-        boolean hasCentralTargets = centralTargetCount > 0;
-        boolean hasLocalTargets = localTargetCount > 0;
-
-        if (!hasCentralTargets && !hasLocalTargets) {
-            return new BudgetAllocation(0, 0);
-        }
-        if (!hasCentralTargets) {
-            return new BudgetAllocation(0, Math.min(maxCallsPerApiPerRun, maxCalls));
-        }
-        if (!hasLocalTargets) {
-            return new BudgetAllocation(Math.min(maxCallsPerApiPerRun, maxCalls), 0);
+        Map<WelfareService.SourceType, Integer> targetCounts = new LinkedHashMap<>();
+        for (Map.Entry<WelfareService.SourceType, List<WelfareService>> entry : targetsBySource.entrySet()) {
+            targetCounts.put(entry.getKey(), entry.getValue().size());
         }
 
-        int totalTargets = centralTargetCount + localTargetCount;
-        double centralShare = (double) centralTargetCount / totalTargets;
-        double localShare = (double) localTargetCount / totalTargets;
+        int totalTargets = targetCounts.values().stream().mapToInt(Integer::intValue).sum();
+        if (totalTargets <= 0) {
+            return BudgetAllocation.empty();
+        }
 
-        int centralBudget = Math.min(maxCallsPerApiPerRun, (int) Math.floor(maxCalls * centralShare));
-        int localBudget = Math.min(maxCallsPerApiPerRun, (int) Math.floor(maxCalls * localShare));
-        int remaining = maxCalls - centralBudget - localBudget;
+        Map<WelfareService.SourceType, Integer> budgets = new LinkedHashMap<>();
+        Map<WelfareService.SourceType, Double> remainders = new LinkedHashMap<>();
+        int allocated = 0;
 
-        double centralRemainder = maxCalls * centralShare - Math.floor(maxCalls * centralShare);
-        double localRemainder = maxCalls * localShare - Math.floor(maxCalls * localShare);
+        for (Map.Entry<WelfareService.SourceType, Integer> entry : targetCounts.entrySet()) {
+            WelfareService.SourceType sourceType = entry.getKey();
+            int count = entry.getValue();
+            if (count <= 0) {
+                budgets.put(sourceType, 0);
+                remainders.put(sourceType, 0.0);
+                continue;
+            }
 
+            double share = (double) count / totalTargets;
+            double exactBudget = maxCalls * share;
+            int baseBudget = Math.min(maxCallsPerApiPerRun, (int) Math.floor(exactBudget));
+            budgets.put(sourceType, baseBudget);
+            remainders.put(sourceType, exactBudget - Math.floor(exactBudget));
+            allocated += baseBudget;
+        }
+
+        int remaining = maxCalls - allocated;
         while (remaining > 0) {
-            boolean canGiveCentral = centralBudget < maxCallsPerApiPerRun;
-            boolean canGiveLocal = localBudget < maxCallsPerApiPerRun;
-
-            if (!canGiveCentral && !canGiveLocal) {
+            WelfareService.SourceType nextSource = selectNextBudgetSource(targetCounts, budgets, remainders);
+            if (nextSource == null) {
                 break;
             }
-            if (!canGiveLocal || (canGiveCentral && centralRemainder >= localRemainder)) {
-                centralBudget++;
-            } else {
-                localBudget++;
-            }
+            budgets.computeIfPresent(nextSource, (key, value) -> value + 1);
             remaining--;
         }
 
-        return new BudgetAllocation(centralBudget, localBudget);
+        return new BudgetAllocation(budgets);
+    }
+
+    private WelfareService.SourceType selectNextBudgetSource(Map<WelfareService.SourceType, Integer> targetCounts,
+                                                             Map<WelfareService.SourceType, Integer> budgets,
+                                                             Map<WelfareService.SourceType, Double> remainders) {
+        WelfareService.SourceType selected = null;
+        double selectedRemainder = Double.NEGATIVE_INFINITY;
+
+        for (WelfareService.SourceType sourceType : detailCapabilities.keySet()) {
+            int targetCount = targetCounts.getOrDefault(sourceType, 0);
+            int currentBudget = budgets.getOrDefault(sourceType, 0);
+            if (targetCount <= 0 || currentBudget >= maxCallsPerApiPerRun) {
+                continue;
+            }
+
+            double remainder = remainders.getOrDefault(sourceType, 0.0);
+            if (selected == null || remainder > selectedRemainder) {
+                selected = sourceType;
+                selectedRemainder = remainder;
+            }
+        }
+
+        return selected;
     }
 
     private String toJsonArray(String raw) {
@@ -311,15 +370,16 @@ public class BokjiroDetailCollectService {
     }
 
     private FetchOutcome fetchWithRetry(WelfareService service) {
+        DetailCollectCapability capability = detailCapabilities.get(service.getSourceType());
+        if (capability == null) {
+            return new FetchOutcome(BokjiroDetailClient.FetchResult.failure(false, false, null), 0);
+        }
+
         BokjiroDetailClient.FetchResult result = null;
         int requestCount = 0;
         for (int attempt = 1; attempt <= retryMaxAttempts; attempt++) {
             requestCount++;
-            result = switch (service.getSourceType()) {
-                case BOKJIRO_CENTRAL -> detailClient.fetchCentralWithStatus(service.getSourceId());
-                case BOKJIRO_LOCAL -> detailClient.fetchLocalWithStatus(service.getSourceId());
-                default -> BokjiroDetailClient.FetchResult.failure(false, false, null);
-            };
+            result = capability.fetchWithStatus(service.getSourceId());
 
             if (!result.isRetryable()) {
                 return new FetchOutcome(result, requestCount);
@@ -410,13 +470,70 @@ public class BokjiroDetailCollectService {
         }
     }
 
+    private Map<WelfareService.SourceType, DetailCollectCapability> buildDetailCapabilities(BokjiroDetailClient detailClient,
+                                                                                            WelfareServiceMapper welfareServiceMapper) {
+        EnumMap<WelfareService.SourceType, DetailCollectCapability> capabilities = new EnumMap<>(WelfareService.SourceType.class);
+        capabilities.put(
+                WelfareService.SourceType.BOKJIRO_CENTRAL,
+                new DetailCollectCapability(
+                        WelfareService.SourceType.BOKJIRO_CENTRAL,
+                        detailClient::fetchCentralWithStatus,
+                        welfareServiceMapper::toNormalizedBokjiroDetail
+                )
+        );
+        capabilities.put(
+                WelfareService.SourceType.BOKJIRO_LOCAL,
+                new DetailCollectCapability(
+                        WelfareService.SourceType.BOKJIRO_LOCAL,
+                        detailClient::fetchLocalWithStatus,
+                        welfareServiceMapper::toNormalizedBokjiroDetail
+                )
+        );
+        return Map.copyOf(capabilities);
+    }
+
     private record CollectStats(int calls, int saved, int skipped, int failed) {
+        private static CollectStats empty() {
+            return new CollectStats(0, 0, 0, 0);
+        }
     }
 
     private record FetchOutcome(BokjiroDetailClient.FetchResult result, int requestCount) {
     }
 
-    private record BudgetAllocation(int centralBudget, int localBudget) {
+    private record BudgetAllocation(Map<WelfareService.SourceType, Integer> budgets) {
+        private static BudgetAllocation empty() {
+            return new BudgetAllocation(Map.of());
+        }
+
+        private int budgetFor(WelfareService.SourceType sourceType) {
+            return budgets.getOrDefault(sourceType, 0);
+        }
+    }
+
+    private record DetailCollectCapability(
+            WelfareService.SourceType sourceType,
+            DetailFetchFunction fetchFunction,
+            DetailAggregateFunction aggregateFunction
+    ) {
+        private BokjiroDetailClient.FetchResult fetchWithStatus(String sourceId) {
+            return fetchFunction.fetch(sourceId);
+        }
+
+        private NormalizedPolicyAggregate toAggregate(WelfareService service,
+                                                      BokjiroDetailClient.DetailPayload payload) {
+            return aggregateFunction.toAggregate(service, payload);
+        }
+    }
+
+    @FunctionalInterface
+    private interface DetailFetchFunction {
+        BokjiroDetailClient.FetchResult fetch(String sourceId);
+    }
+
+    @FunctionalInterface
+    private interface DetailAggregateFunction {
+        NormalizedPolicyAggregate toAggregate(WelfareService service, BokjiroDetailClient.DetailPayload payload);
     }
 
     public record GapFillResult(

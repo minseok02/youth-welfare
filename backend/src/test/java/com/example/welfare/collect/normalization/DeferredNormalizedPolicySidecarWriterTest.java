@@ -14,6 +14,7 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
@@ -59,8 +60,7 @@ class DeferredNormalizedPolicySidecarWriterTest {
                         .status(NormalizedPolicyAggregate.ServiceStatus.ACTIVE)
                         .build())
                 .taxonomy(NormalizedPolicyAggregate.TaxonomySummary.builder()
-                        .youthMajor("일자리")
-                        .youthMid(null)
+                        .summaryLabels(Map.of("YOUTH_MAJOR", "일자리"))
                         .authority(NormalizedPolicyAggregate.Authority.OFFICIAL)
                         .confidence(BigDecimal.ONE)
                         .build())
@@ -105,8 +105,10 @@ class DeferredNormalizedPolicySidecarWriterTest {
                         .status(NormalizedPolicyAggregate.ServiceStatus.ACTIVE)
                         .build())
                 .taxonomy(NormalizedPolicyAggregate.TaxonomySummary.builder()
-                        .youthMajor("일자리")
-                        .youthMid("취업")
+                        .summaryLabels(Map.of(
+                                "YOUTH_MAJOR", "일자리",
+                                "YOUTH_MID", "취업"
+                        ))
                         .authority(NormalizedPolicyAggregate.Authority.OFFICIAL)
                         .confidence(BigDecimal.ONE)
                         .build())
@@ -150,8 +152,10 @@ class DeferredNormalizedPolicySidecarWriterTest {
                         .build())
                 .taxonomy(NormalizedPolicyAggregate.TaxonomySummary.builder()
                         .compatUnifiedCategory("주거")
-                        .youthMajor("주거")
-                        .youthMid("전월세 및 주거급여 지원")
+                        .summaryLabels(Map.of(
+                                "YOUTH_MAJOR", "주거",
+                                "YOUTH_MID", "전월세 및 주거급여 지원"
+                        ))
                         .authority(NormalizedPolicyAggregate.Authority.OFFICIAL)
                         .confidence(BigDecimal.ONE)
                         .build())
@@ -208,7 +212,7 @@ class DeferredNormalizedPolicySidecarWriterTest {
                         .build())
                 .taxonomy(NormalizedPolicyAggregate.TaxonomySummary.builder()
                         .compatUnifiedCategory("금융·생활지원")
-                        .youthMajor("금융･복지･문화")
+                        .summaryLabels(Map.of("YOUTH_MAJOR", "금융･복지･문화"))
                         .authority(NormalizedPolicyAggregate.Authority.OFFICIAL)
                         .confidence(BigDecimal.ONE)
                         .build())
@@ -244,7 +248,7 @@ class DeferredNormalizedPolicySidecarWriterTest {
                         .build())
                 .taxonomy(NormalizedPolicyAggregate.TaxonomySummary.builder()
                         .compatUnifiedCategory("주거")
-                        .youthMajor("주거,주거")
+                        .summaryLabels(Map.of("YOUTH_MAJOR", "주거,주거"))
                         .authority(NormalizedPolicyAggregate.Authority.OFFICIAL)
                         .confidence(BigDecimal.ONE)
                         .build())
@@ -280,7 +284,7 @@ class DeferredNormalizedPolicySidecarWriterTest {
                         .build())
                 .taxonomy(NormalizedPolicyAggregate.TaxonomySummary.builder()
                         .compatUnifiedCategory("기타")
-                        .youthMajor("일자리,교육")
+                        .summaryLabels(Map.of("YOUTH_MAJOR", "일자리,교육"))
                         .authority(NormalizedPolicyAggregate.Authority.OFFICIAL)
                         .confidence(BigDecimal.ONE)
                         .build())

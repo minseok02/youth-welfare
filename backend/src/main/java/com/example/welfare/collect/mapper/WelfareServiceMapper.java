@@ -23,6 +23,7 @@ import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -120,9 +121,11 @@ public class WelfareServiceMapper {
                 .detail(buildDetail(service, null))
                 .taxonomy(NormalizedPolicyAggregate.TaxonomySummary.builder()
                         .compatUnifiedCategory(service.getUnifiedCategory())
-                        .youthMajor(service.getCategoryMain())
-                        .youthMid(youthMidPartition.summaryLabel())
                         .provisionMethod(service.getApplyMethodName())
+                        .summaryLabels(summaryLabels(
+                                "YOUTH_MAJOR", service.getCategoryMain(),
+                                "YOUTH_MID", youthMidPartition.summaryLabel()
+                        ))
                         .authority(NormalizedPolicyAggregate.Authority.OFFICIAL)
                         .confidence(BigDecimal.ONE)
                         .build())
@@ -479,6 +482,26 @@ public class WelfareServiceMapper {
             }
         }
         return null;
+    }
+
+    private Map<String, String> summaryLabels(String... keyValues) {
+        if (keyValues == null || keyValues.length == 0) {
+            return Map.of();
+        }
+        if (keyValues.length % 2 != 0) {
+            throw new IllegalArgumentException("summaryLabels 는 key/value 쌍이어야 합니다.");
+        }
+
+        java.util.LinkedHashMap<String, String> labels = new java.util.LinkedHashMap<>();
+        for (int i = 0; i < keyValues.length; i += 2) {
+            String key = RawFieldValidator.normalize(keyValues[i]);
+            String value = RawFieldValidator.normalize(keyValues[i + 1]);
+            if (key == null || value == null) {
+                continue;
+            }
+            labels.put(key, value);
+        }
+        return Map.copyOf(labels);
     }
 
     private NormalizedPolicyAggregate.Core buildCore(WelfareService service) {

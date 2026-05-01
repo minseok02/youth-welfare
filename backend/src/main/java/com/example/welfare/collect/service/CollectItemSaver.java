@@ -31,6 +31,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
 
 /**
  * 아이템 단위 저장 — 각 아이템을 별도 트랜잭션으로 처리하여
@@ -52,12 +53,30 @@ public class CollectItemSaver {
     private static final int MAX_SAVE_ATTEMPTS = 3;
     private static final long BASE_BACKOFF_MS = 200L;
 
+    public void save(SaveCommand command) {
+        validateCommand(command);
+        executeWithRetry(command.sourceType().name(), command.sourceId(), () -> saveOnce(command));
+    }
+
     public void saveYouth(YouthApiDto.Item item) {
-        executeWithRetry("YOUTH", item.getPlcyNo(), () -> saveYouthOnce(item));
+        save(SaveCommand.builder()
+                .sourceType(WelfareService.SourceType.YOUTH)
+                .sourceId(item.getPlcyNo())
+                .incoming(mapper.fromYouth(item))
+                .regions(entity -> mapper.regionsFromYouth(item, entity))
+                .tags(entity -> mapper.tagsFromYouth(item, entity))
+                .build());
     }
 
     public void saveYouth(YouthApiDto.Item item, NormalizedPolicyAggregate aggregate) {
-        executeWithRetry("YOUTH", item.getPlcyNo(), () -> saveYouthOnce(item, aggregate));
+        save(SaveCommand.builder()
+                .sourceType(WelfareService.SourceType.YOUTH)
+                .sourceId(item.getPlcyNo())
+                .incoming(mapper.fromYouth(item))
+                .regions(entity -> mapper.regionsFromYouth(item, entity))
+                .tags(entity -> mapper.tagsFromYouth(item, entity))
+                .aggregate(aggregate)
+                .build());
     }
 
     public void saveYouthOnce(YouthApiDto.Item item) {
@@ -85,11 +104,24 @@ public class CollectItemSaver {
     }
 
     public void saveBokjiroCentral(BokjiroCentralDto.Item item) {
-        executeWithRetry("BOKJIRO_CENTRAL", item.getServId(), () -> saveBokjiroCentralOnce(item));
+        save(SaveCommand.builder()
+                .sourceType(WelfareService.SourceType.BOKJIRO_CENTRAL)
+                .sourceId(item.getServId())
+                .incoming(mapper.fromBokjiroCentral(item))
+                .regions(entity -> mapper.regionsFromBokjiroCentral(item, entity))
+                .tags(entity -> mapper.tagsFromBokjiroCentral(item, entity))
+                .build());
     }
 
     public void saveBokjiroCentral(BokjiroCentralDto.Item item, NormalizedPolicyAggregate aggregate) {
-        executeWithRetry("BOKJIRO_CENTRAL", item.getServId(), () -> saveBokjiroCentralOnce(item, aggregate));
+        save(SaveCommand.builder()
+                .sourceType(WelfareService.SourceType.BOKJIRO_CENTRAL)
+                .sourceId(item.getServId())
+                .incoming(mapper.fromBokjiroCentral(item))
+                .regions(entity -> mapper.regionsFromBokjiroCentral(item, entity))
+                .tags(entity -> mapper.tagsFromBokjiroCentral(item, entity))
+                .aggregate(aggregate)
+                .build());
     }
 
     public void saveBokjiroCentralOnce(BokjiroCentralDto.Item item) {
@@ -117,11 +149,24 @@ public class CollectItemSaver {
     }
 
     public void saveBokjiroLocal(BokjiroLocalDto.Item item) {
-        executeWithRetry("BOKJIRO_LOCAL", item.getServId(), () -> saveBokjiroLocalOnce(item));
+        save(SaveCommand.builder()
+                .sourceType(WelfareService.SourceType.BOKJIRO_LOCAL)
+                .sourceId(item.getServId())
+                .incoming(mapper.fromBokjiroLocal(item))
+                .regions(entity -> mapper.regionsFromBokjiroLocal(item, entity))
+                .tags(entity -> mapper.tagsFromBokjiroLocal(item, entity))
+                .build());
     }
 
     public void saveBokjiroLocal(BokjiroLocalDto.Item item, NormalizedPolicyAggregate aggregate) {
-        executeWithRetry("BOKJIRO_LOCAL", item.getServId(), () -> saveBokjiroLocalOnce(item, aggregate));
+        save(SaveCommand.builder()
+                .sourceType(WelfareService.SourceType.BOKJIRO_LOCAL)
+                .sourceId(item.getServId())
+                .incoming(mapper.fromBokjiroLocal(item))
+                .regions(entity -> mapper.regionsFromBokjiroLocal(item, entity))
+                .tags(entity -> mapper.tagsFromBokjiroLocal(item, entity))
+                .aggregate(aggregate)
+                .build());
     }
 
     public void saveBokjiroLocalOnce(BokjiroLocalDto.Item item) {
@@ -145,6 +190,25 @@ public class CollectItemSaver {
         normalizedPolicySidecarWriter.upsert(entity, aggregate);
         upsertRegions(entity, mapper.regionsFromBokjiroLocal(item, entity));
         List<ServiceTag> tags = replaceTags(entity, mapper.tagsFromBokjiroLocal(item, entity));
+        searchYouthRelevanceService.refreshForService(entity, tags);
+    }
+
+    public void saveOnce(SaveCommand command) {
+        validateCommand(command);
+
+        WelfareService entity = upsertService(
+                command.sourceType(),
+                command.sourceId(),
+                command.incoming()
+        );
+
+        if (command.aggregate() != null) {
+            validateAggregate(command.aggregate(), command.sourceType(), command.sourceId());
+            normalizedPolicySidecarWriter.upsert(entity, command.aggregate());
+        }
+
+        upsertRegions(entity, command.regions().apply(entity));
+        List<ServiceTag> tags = replaceTags(entity, command.tags().apply(entity));
         searchYouthRelevanceService.refreshForService(entity, tags);
     }
 
@@ -315,6 +379,38 @@ public class CollectItemSaver {
         return WelfareService.SourceType.valueOf(sourceType.name());
     }
 
+    private void validateCommand(SaveCommand command) {
+        if (command == null) {
+            throw new IllegalArgumentException("save command 는 필수입니다.");
+        }
+        if (command.sourceType() == null || command.sourceId() == null || command.sourceId().isBlank()) {
+            throw new IllegalArgumentException("save command sourceType/sourceId 는 필수입니다.");
+        }
+        if (command.incoming() == null) {
+            throw new IllegalArgumentException("save command incoming 은 필수입니다.");
+        }
+        if (command.incoming().getSourceType() != command.sourceType()) {
+            throw new IllegalArgumentException("save command sourceType 과 incoming.sourceType 이 일치하지 않습니다.");
+        }
+        if (!command.sourceId().equals(command.incoming().getSourceId())) {
+            throw new IllegalArgumentException("save command sourceId 와 incoming.sourceId 가 일치하지 않습니다.");
+        }
+        if (command.regions() == null || command.tags() == null) {
+            throw new IllegalArgumentException("save command regions/tags builder 는 필수입니다.");
+        }
+    }
+
     private record TagKey(ServiceTag.TagType tagType, String tagValue) {
+    }
+
+    @lombok.Builder
+    public record SaveCommand(
+            WelfareService.SourceType sourceType,
+            String sourceId,
+            WelfareService incoming,
+            Function<WelfareService, List<ServiceRegion>> regions,
+            Function<WelfareService, List<ServiceTag>> tags,
+            NormalizedPolicyAggregate aggregate
+    ) {
     }
 }

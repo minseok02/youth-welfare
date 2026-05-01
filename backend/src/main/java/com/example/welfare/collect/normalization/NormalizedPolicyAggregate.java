@@ -6,6 +6,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 수집 결과를 canonical 구조로 표현하는 내부 DTO.
@@ -66,15 +67,21 @@ public record NormalizedPolicyAggregate(
     @Builder
     public record TaxonomySummary(
             String compatUnifiedCategory,
-            String youthMajor,
-            String youthMid,
-            String gov24ServiceField,
-            String gov24UserType,
-            String gov24BenefitType,
             String provisionMethod,
+            Map<String, String> summaryLabels,
             Authority authority,
             BigDecimal confidence
     ) {
+        public TaxonomySummary {
+            summaryLabels = summaryLabels == null ? Map.of() : Map.copyOf(summaryLabels);
+        }
+
+        public String summaryLabel(String key) {
+            if (key == null) {
+                return null;
+            }
+            return summaryLabels.get(key);
+        }
     }
 
     @Builder

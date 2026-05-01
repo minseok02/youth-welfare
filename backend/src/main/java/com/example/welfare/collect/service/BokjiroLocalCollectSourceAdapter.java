@@ -40,7 +40,7 @@ public class BokjiroLocalCollectSourceAdapter extends AbstractListCollectSourceA
 
     @Override
     protected void saveRawPayload(BokjiroLocalDto.Item item) {
-        rawApiPayloadService.saveBokjiroLocalList(item);
+        rawApiPayloadService.saveList(source().toWelfareSourceType(), item.getServId(), item);
     }
 
     @Override
@@ -55,7 +55,14 @@ public class BokjiroLocalCollectSourceAdapter extends AbstractListCollectSourceA
 
     @Override
     protected void saveItem(BokjiroLocalDto.Item item) {
-        saver.saveBokjiroLocal(item, welfareServiceMapper.toNormalizedBokjiroLocal(item, null));
+        saver.save(CollectItemSaver.SaveCommand.builder()
+                .sourceType(source().toWelfareSourceType())
+                .sourceId(item.getServId())
+                .incoming(welfareServiceMapper.fromBokjiroLocal(item))
+                .regions(entity -> welfareServiceMapper.regionsFromBokjiroLocal(item, entity))
+                .tags(entity -> welfareServiceMapper.tagsFromBokjiroLocal(item, entity))
+                .aggregate(welfareServiceMapper.toNormalizedBokjiroLocal(item, null))
+                .build());
     }
 
     @Override
