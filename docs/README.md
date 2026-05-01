@@ -54,8 +54,17 @@
 
 ### 공공 API 수집을 수정하거나 운영할 때
 
+- [collect-current-state.md](./collect-current-state.md)
+  현재 collect entry, 저장 레이어, `api_sync_logs` 해석, 정상/장애 경계를 current-state 기준으로 정리합니다.
+
+- [collect-operation-checklist.md](./collect-operation-checklist.md)
+  실제 collect 실행 전후에 무엇을 확인하고 어떤 순서로 해석할지 짧은 runbook 으로 정리합니다.
+
 - [collect-ops.md](./collect-ops.md)  
   수집 배치, 429 대응, 중복 실행 방지, 부분 성공 기준을 확인합니다.
+
+- [collect-incident-template.md](./collect-incident-template.md)
+  실제 collect 실행 결과나 장애 상황을 기록할 때 복사해서 쓰는 템플릿입니다.
 
 - [policy-normalization-research.md](./history/policy/policy-normalization-research.md)
   신규 데이터 API 확장에 맞춰 공식 정규화 기준(온통청년 운영 코드북, 정부24/보조금24 지원조건 코드)과 AI enrichment 분리 방향을 확인합니다.

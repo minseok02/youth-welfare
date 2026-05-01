@@ -258,6 +258,11 @@
 - 해결: [policy-source-onboarding-template.md](./policy-source-onboarding-template.md) 를 추가해 source name, endpoint inventory, row grain 판정, raw ingest, canonical direct onboarding, codebook 필요 여부, recommendation 영향, next action 을 한 번에 채우는 복붙용 note 템플릿을 만들었다
 - 이유: 구조 설명 문서와 체크리스트, 코드 진입점 다음에 바로 사용할 실행 템플릿이 있어야 다음 source onboarding 때 문서 작성 비용을 줄이고 판단 형식을 표준화할 수 있다
 
+## 320) `collect-ops.md` 하나만으로는 현재 기준과 실행 절차와 장애 기록 형식이 섞여 보일 수 있다
+- 문제: collect 관련 문서는 있었지만, 현재 collect 동작 기준, 실제 실행 순서, 장애 기록 양식이 한 문서 안에 섞여 있어 바로 쓰기 어려울 수 있었다
+- 해결: [collect-current-state.md](./collect-current-state.md), [collect-operation-checklist.md](./collect-operation-checklist.md), [collect-incident-template.md](./collect-incident-template.md) 를 추가해 current-state, runbook, 복붙 템플릿으로 역할을 분리했다
+- 이유: source onboarding 쪽과 같은 방식으로 collect 운영 문서도 층을 나눠야, 평소에는 current-state 를 보고 실제 실행 시 checklist 를 쓰고, 이슈가 나면 template로 기록하는 흐름이 선명해진다
+
 ## 42) priority_options 코드가 추천 로직과 UI 코드 사이에서 따로 놀았음
 - 문제: DB `priority_options`에는 `ONLINE`, `YOUTH_ONLY`, `EDU_JOB`, `AMOUNT` 코드가 있었지만, `DefaultPriorityMatcher`에서 `ONLINE`과 `YOUTH_ONLY`는 이미 항상 false였고, 프론트는 `JOB`, `EDUCATION`, `FINANCE`, `HEALTH`, `SAFETY` 등 DB에 없는 코드를 전송해 `C001` 오류가 났음
 - 해결: `ONLINE`, `YOUTH_ONLY` 제거, `EDU_JOB`→`EDUCATION`, `AMOUNT`→`FINANCE` 코드 변경, `JOB`, `PARTICIPATION`, `FAMILY` 추가. DB migration, `DefaultPriorityMatcher`, 프론트 `PRIORITY_OPTIONS` 세 곳을 동시에 맞춤

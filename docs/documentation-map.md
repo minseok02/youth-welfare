@@ -38,6 +38,8 @@
 
 ### 로컬/운영 검증 절차
 
+- [collect-current-state.md](./collect-current-state.md)
+- [collect-operation-checklist.md](./collect-operation-checklist.md)
 - [runtime-api-smoke-commands.md](./runtime-api-smoke-commands.md)
 - [testing.md](./testing.md)
 - [collect-ops.md](./collect-ops.md)
