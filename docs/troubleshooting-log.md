@@ -2327,3 +2327,8 @@
 - 문제: 대시보드는 collect/recommendation/notification/search/user_pii_sync 지표를 한 응답에서 보여줘야 하지만, 이걸 기존 도메인 서비스에 직접 추가하면 각 서비스가 자기 쓰기 책임 외에 admin 집계 책임까지 떠안게 된다. 특히 cross-domain SQL이 여러 repository로 흩어지면 대시보드 변경이 곧 핵심 서비스 변경으로 번진다.
 - 해결: `GET /api/admin/dashboard/summary` 를 새 admin read-model 경계로 두고, `AdminDashboardService` 는 오케스트레이션만 담당하게 했다. 실제 SQL 집계는 `AdminDashboardReadRepository` 로 모아 collect/recommendation/notification/search 지표를 읽고, `UserPiiSyncStatusService` 는 기존 status read-model을 그대로 재사용하게 분리했다.
 - 이유: 대시보드는 본질적으로 운영 관측용 read 모델이다. 핵심 도메인 서비스에 섞지 않고 admin 전용 query/service 계층으로 빼야 SOLID 경계가 덜 흔들리고, 운영 지표 변경도 기능 서비스 회귀 없이 처리할 수 있다.
+
+## 427) 현재 규모에서 군집 캐시를 바로 활성화하면, 추천 가속보다 군집 설계와 stale invalidation 관리 비용이 더 커질 수 있다
+- 문제: 군집 캐시는 겉보기에 추천 속도를 빠르게 할 것 같지만, 실제로는 군집 키 설계, 첫 사용자 miss, 낮은 hit-rate, stale invalidation, AI reason 획일화 같은 비용을 같이 데려온다. 현재처럼 사용자 규모가 크지 않은 졸업 프로젝트에선 이 비용이 실제 이득보다 클 가능성이 높다.
+- 해결: 문서 기준을 `청년정책 통합포털 + 개인화 추천` 으로 다시 명시하고, 추천 재사용 전략도 군집 캐시보다 `userKey` 기준 개인 캐시를 우선 검토하는 방향으로 정리했다. 나이대×소득분위 군집 캐시는 실제 사용자 수와 요청 패턴이 충분히 커졌을 때만 reopen 하는 확장 포인트로 남긴다.
+- 이유: 지금 제품의 기본 단위는 군집보다 사용자다. 추천 가속이 필요해도 먼저 개인 캐시가 더 단순하고 개인화 손실이 적으며, 군집 캐시는 규모 문제를 실제로 겪기 시작한 뒤에 다시 판단하는 편이 더 합리적이다.

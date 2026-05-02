@@ -1,5 +1,6 @@
 # 구현 현황
 
+- 2026-05-03: 제품 포지셔닝을 `청년정책 통합포털 + 개인화 추천` 으로 다시 명시했다. 추천 재사용 전략도 군집 캐시보다 `userKey` 기준 개인 캐시를 우선 검토하고, 나이대×소득분위 군집 캐시는 실제 사용자 수와 요청 패턴이 충분히 커졌을 때만 재검토하는 방향으로 문서 기준선을 맞췄다.
 - 2026-05-02: 추천/수집 2차 기능으로 `GET /api/admin/dashboard/summary` 를 추가했다. `AdminDashboardService` 는 오케스트레이션만 맡고, cross-domain 집계 SQL은 `AdminDashboardReadRepository` 로 분리해 collect/recommendation/notification/search/user_pii_sync 지표를 admin read-model 한 곳에서 묶었다. `AdminDashboardServiceTest`, `AdminSecurityWebMvcTest` 를 다시 통과시켰다.
 - 2026-05-02: 정책 검색에 2차 기능이던 `search_logs` 를 추가했다. `PolicySearchService` 는 read-only로 유지하고, `ClientFingerprintService` 와 `PolicySearchLogService` 를 분리해 controller 경계에서 `keyword/resultCount/filter/pageSize` 를 저장하게 정리했다. `PolicySearchLogServiceTest`, `RecommendationPolicyFlowWebMvcTest`, `PolicySearchServiceTest` 를 다시 통과시켰다.
 - 2026-05-02: 카카오 알림톡 2차는 현재 운영 자격 blocked 로 다시 분류했다. 로컬 코드 구조상 `NotificationGateway` 경계는 이미 있지만, 실제 운영에는 비즈니스 채널/발신 프로필/템플릿 심사와 사업자 증빙이 선행되어야 하고 학생 개인 신분 3개월 운영 범위에서는 리스크가 더 크므로, practical next 2차 기능 우선순위는 `대시보드 > 알림톡` 으로 둔다.
@@ -49,7 +50,7 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 같은 pre-28 migrated DB에 최신 Spring 앱을 직접 붙여도 `ddl-auto: validate` 가 통과하고, 회원가입 -> 로그인 -> 프로필 수정 -> `user_pii_sync_queue` `SYNCED` -> 회원탈퇴 cleanup end-to-end smoke가 그대로 유지되는지 추가로 확인했습니다.
 
 같은 조합에서 admin allowlist + DB row를 맞춘 계정으로 `GET /api/admin/users/pii-sync-status`, `POST /api/admin/users/pii-sync-replay` 도 호출해 queue 모니터링/수동 재처리 경로까지 로컬 smoke를 마쳤습니다.
-남은 작업은 운영 배포/운영성 검증(운영 서버 Docker Compose, 기존 운영 DB 계정 생성 SQL 적용 및 datasource 전환, 운영 `.env` / secret store의 `APP_PII_DB_URL` / `NOTIFICATION_PII_DB_URL` 를 `youth_welfare_pii` 기준으로 전환, HTTPS/Nginx, 운영 DB에 `V2026_04_28_02__add_user_pii_sync_queue.sql` / `V2026_04_28_01__drop_runtime_legacy_user_id.sql` 적용 후 smoke 검증, 기존 운영 DB에 `app_core_rw` 의 `youth_welfare_pii.user_pii` revoke SQL 실제 적용과 보조 datasource smoke 검증, CTR 표본 확충 후 재분석)과 2차 확장 기능(군집 캐시 추천, 카카오 알림톡 blocked)입니다.
+남은 작업은 운영 배포/운영성 검증(운영 서버 Docker Compose, 기존 운영 DB 계정 생성 SQL 적용 및 datasource 전환, 운영 `.env` / secret store의 `APP_PII_DB_URL` / `NOTIFICATION_PII_DB_URL` 를 `youth_welfare_pii` 기준으로 전환, HTTPS/Nginx, 운영 DB에 `V2026_04_28_02__add_user_pii_sync_queue.sql` / `V2026_04_28_01__drop_runtime_legacy_user_id.sql` 적용 후 smoke 검증, 기존 운영 DB에 `app_core_rw` 의 `youth_welfare_pii.user_pii` revoke SQL 실제 적용과 보조 datasource smoke 검증, CTR 표본 확충 후 재분석)과 2차 확장 기능(개인 캐시 기반 추천 가속, 사용자 규모 확대 시 군집 캐시 재검토, 카카오 알림톡 blocked)입니다.
 
 ## 완료된 백엔드 1차 범위
 
@@ -1090,8 +1091,7 @@ cd backend
 ## 2차로 분리된 항목
 
 - Batch AI Gateway
-- 나이대 x 소득분위 군집화
+- 개인 캐시 기반 추천 가속
+- 나이대 x 소득분위 군집화 / 군집 캐시 (사용자 규모 확대 시 재검토)
 - p5~p95 정규화
 - 카카오 알림톡
-- 검색 로그
-- 추천/수집 대시보드
