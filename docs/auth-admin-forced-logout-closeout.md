@@ -1,5 +1,7 @@
 # Admin Forced Logout 1차 Closeout
 
+문서군 진입점: [auth-docs-index.md](./auth-docs-index.md)
+
 현재 구현 상태를 빠르게 보려면 먼저 [auth-session-revocation-current-state.md](./auth-session-revocation-current-state.md) 를 봅니다.
 이 문서는 forced logout 1차 hardening 범위를 어디까지 닫았는지에 더 가깝습니다.
 

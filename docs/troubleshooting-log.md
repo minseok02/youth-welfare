@@ -2162,3 +2162,8 @@
 - 문제: `start/current-state/README/documentation-map` 에는 `auth/collect/recommendation/policy` 문서군 인덱스를 많이 연결했지만, 정작 각 current-state 문서 안에서는 자기 `*-docs-index.md` 를 다시 가리키지 않았다. 이 상태면 사용자는 개별 current-state 문서로 바로 들어왔을 때 문서군 전체 길찾기를 다시 파일 검색이나 상위 문서로 역이동해야 했다.
 - 해결: `auth-session-revocation-current-state.md`, `collect-current-state.md`, `recommendation-current-state.md`, `policy-normalization-current-state.md` 상단에 각 문서군 진입점 링크를 추가했다.
 - 이유: entrypoint 설계는 상위 문서에서만 끝나면 부족하다. 많이 열리는 current-state 문서 자체도 “이 문서군 전체는 어디서 시작하나”를 한 줄로 보여줘야 읽기 흐름이 끊기지 않는다.
+
+## 397) current-state 문서만 docs-index 로 돌아가고 checklist/playbook 문서는 그대로 두면, 실제 실행/설계 문서에서 다시 길을 잃는다
+- 문제: current-state 문서에는 각 `*-docs-index.md` 진입점을 넣었지만, 실무에서 자주 직접 여는 `collect-operation-checklist.md`, `auth-admin-forced-logout-closeout.md`, `recommendation-pipeline.md`, `policy-source-onboarding-playbook.md` 는 여전히 개별 문서 안에서 문서군 인덱스로 돌아가는 링크가 없었다. 이 상태면 current-state 에서 한 번 정리한 읽기 흐름이 checklist/playbook 단계에서 다시 끊긴다.
+- 해결: 위 네 문서 상단에 각각 `collect/auth/recommendation/policy` 문서군 진입점 링크를 추가했다.
+- 이유: entrypoint 패턴은 current-state 에만 적용하면 반쪽짜리다. 실제 실행·설계에 자주 쓰는 checklist/playbook 문서도 자기 문서군 인덱스로 바로 복귀할 수 있어야 문서 구조가 일관된다.
