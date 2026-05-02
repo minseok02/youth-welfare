@@ -54,6 +54,9 @@
 
 을 curl 기준으로 바로 복사해 돌리는 최소 API smoke 모음입니다.
 
+현재 auth/session revoke closeout의 기본 진입점은
+`deploy/smoke/run-local-auth-session-smoke.sh` 입니다.
+
 ### 3. 데모 시나리오
 
 - [demo-scenario.md](./demo-scenario.md)

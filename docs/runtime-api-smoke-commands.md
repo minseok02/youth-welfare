@@ -29,6 +29,18 @@ deploy/smoke/run-local-withdraw-smoke.sh
 
 이 스크립트는 `signup -> login -> refresh -> withdraw -> old access deny(401/A006) -> stale refresh deny(410/U003) -> withdrawn email mask` 를 한 번에 확인합니다.
 
+auth/session revoke 세 개를 연속으로 돌릴 때는 아래 wrapper를 우선 사용합니다.
+
+```bash
+deploy/smoke/run-local-auth-session-smoke.sh
+```
+
+기본 순서:
+
+1. runtime logout smoke
+2. withdraw smoke
+3. admin forced logout smoke
+
 전제:
 
 - 앱 base URL은 `APP_BASE_URL` 로 둡니다.

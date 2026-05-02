@@ -2267,3 +2267,8 @@
 - 문제: withdraw는 현재 계약상 `old access -> 401/A006`, `stale refresh -> 410/U003`, `user inactive + email=withdrawn_<id>` 까지 같이 봐야 닫힌다. 그런데 이걸 수동 curl + DB 조회로만 남겨 두면 token 교체 시점, DELETE body의 password, userKey 추적, withdrawn email 확인을 매번 사람이 다시 조합해야 한다.
 - 해결: `deploy/smoke/run-local-withdraw-smoke.sh` 를 추가해 `signup -> login -> refresh -> withdraw -> old access deny(401/A006) -> stale refresh deny(410/U003) -> withdrawn email mask` 를 한 번에 검증하도록 고정했다. 로컬 전용으로 userKey와 withdrawn state는 DB read 한 번으로 확인하게 했다.
 - 이유: withdraw는 revoke/terminal state가 함께 묶인 경계라서, 성공 기준을 사람 기억에 맡기면 closeout 때 반복 비용이 크다. smoke로 고정해야 같은 계약을 같은 순서로 계속 확인할 수 있다.
+
+## 415) logout / withdraw / forced logout smoke가 각각 있어도, closeout 때 매번 세 개를 순서대로 다시 치는 행위 자체가 누락 포인트가 된다
+- 문제: 개별 smoke를 다 만든 뒤에도 closeout 시점에는 결국 `run-local-runtime-api-smoke.sh`, `run-local-withdraw-smoke.sh`, `run-local-admin-forced-logout-smoke.sh` 를 차례로 다시 실행해야 했다. 이 상태는 사람 손으로 순서를 다시 기억해야 하므로, “세 개 모두 돌렸다”는 증적을 남기기에도 번거롭다.
+- 해결: `deploy/smoke/run-local-auth-session-smoke.sh` wrapper를 추가해 기본 순서를 `runtime logout -> withdraw -> admin forced logout` 으로 고정했다. 필요하면 `RUN_RUNTIME_API_SMOKE=false` 같은 env로 일부만 끌 수 있지만, closeout 기본값은 세 개를 다 도는 쪽으로 뒀다.
+- 이유: revoke 경계는 개별 구현보다 “지금 로컬에서 세트로 다시 살아나는가”가 더 중요하다. wrapper 하나로 묶어야 closeout 기준선이 사람이 아니라 스크립트에 남는다.
