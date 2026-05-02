@@ -2217,3 +2217,8 @@
 - 문제: `RecommendationRegionQueryIntegrationTest`, `PolicyBookmarkIntegrationTest`, `RecommendationFlowIntegrationTest`, `CanonicalRecommendationReadModelIntegrationTest` 도 모두 `TEST_SOURCE_PREFIX` 또는 test email prefix로 test data를 구분하면서 `@AfterEach` cleanup 중심으로만 정리하고 있었다. broad suite가 중간 실패/중단 뒤 다시 돌 때는 같은 류의 잔존 row 오염 가능성이 남는다.
 - 해결: 이 4개 클래스도 `@BeforeEach` 에서 cleanup을 한 번 더 태우고, region/summary slot처럼 dependent row가 있는 케이스는 explicit delete 순서를 맞췄다. 그 뒤 관련 타깃 integration들과 전체 `./gradlew test integrationTest --no-daemon` 을 다시 통과시켰다.
 - 이유: 이번 라운드 목적은 특정 테스트 1개만 고치는 게 아니라, broad suite 기준의 재현성 경계를 비슷한 패턴 전반에서 한 번 더 닫는 것이다. prefix로 test data를 구분하는 클래스는 시작 전 self-heal cleanup을 두는 편이 전체 suite 안정성에 더 유리하다.
+
+## 408) user/email prefix 기반 integration test도 broad suite 재실행 관점에서는 같은 self-heal cleanup 규칙이 필요하다
+- 문제: `UserCoreDualWriteIntegrationTest`, `UserPiiSyncRetrySchedulerIntegrationTest`, `UserMetadataUserKeyBackfillIntegrationTest`, `UserPiiSyncReplayIntegrationTest`, `UserPiiBackfillIntegrationTest`, `AuthRedisIntegrationTest`, `AdminSecurityIntegrationTest` 도 모두 test email prefix로 생성 row를 구분하면서 `@AfterEach` cleanup 중심으로만 정리하고 있었다. broad suite가 이전 중단/실패 후 다시 시작될 때는 같은 패턴으로 stale user row와 queue/redis side effect가 남을 수 있다.
+- 해결: 이 7개 클래스도 `@BeforeEach` 에서 cleanup을 한 번 더 태우도록 맞췄다. 그 뒤 관련 타깃 integration들과 전체 `./gradlew test integrationTest --no-daemon` 을 다시 통과시켰다.
+- 이유: 지금 closeout 목표는 개별 로직 변경보다 suite 재실행 안정성이다. user-prefix 기반 테스트는 broad suite에서 비슷한 종류의 잔존 오염을 만들기 쉬우므로, 시작 전 self-heal cleanup을 통일하는 편이 가장 값싸고 확실한 방어선이다.

@@ -16,6 +16,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -93,6 +94,11 @@ class AdminSecurityIntegrationTest {
 
     @MockBean
     private CollectService collectService;
+
+    @BeforeEach
+    void setup() {
+        cleanup();
+    }
 
     @AfterEach
     void cleanup() {

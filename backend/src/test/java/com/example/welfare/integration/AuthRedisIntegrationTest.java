@@ -11,6 +11,7 @@ import com.example.welfare.user.entity.User;
 import com.example.welfare.user.repository.UserPiiReadWriteRepository;
 import com.example.welfare.user.repository.UserPiiSyncQueueRepository;
 import com.example.welfare.user.repository.UserRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -76,6 +77,11 @@ class AuthRedisIntegrationTest {
 
     @MockBean
     private EmailClient emailClient;
+
+    @BeforeEach
+    void setup() {
+        cleanup();
+    }
 
     @AfterEach
     void cleanup() {
