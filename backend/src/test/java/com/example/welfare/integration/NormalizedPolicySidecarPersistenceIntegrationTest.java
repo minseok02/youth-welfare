@@ -7,6 +7,7 @@ import com.example.welfare.collect.service.CollectItemSaver;
 import com.example.welfare.collect.support.ListCollectSourceBindings;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.repository.WelfareServiceRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -28,6 +29,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 @ActiveProfiles("integration")
 class NormalizedPolicySidecarPersistenceIntegrationTest {
 
+    private static final String TEST_SOURCE_PREFIX = "IT-SIDECAR-";
+
     @Autowired
     private CollectItemSaver collectItemSaver;
 
@@ -42,13 +45,16 @@ class NormalizedPolicySidecarPersistenceIntegrationTest {
 
     private String sourceId;
 
+    @BeforeEach
+    void setup() {
+        cleanup();
+    }
+
     @AfterEach
     void cleanup() {
-        if (sourceId == null) {
-            return;
-        }
-        welfareServiceRepository.findBySourceTypeAndSourceId(WelfareService.SourceType.YOUTH, sourceId)
-                .ifPresent(service -> {
+        welfareServiceRepository.findBySourceType(WelfareService.SourceType.YOUTH).stream()
+                .filter(service -> service.getSourceId() != null && service.getSourceId().startsWith(TEST_SOURCE_PREFIX))
+                .forEach(service -> {
                     Long serviceId = service.getId();
                     jdbcTemplate.update("DELETE FROM service_facts WHERE service_id = ?", serviceId);
                     jdbcTemplate.update("DELETE FROM service_taxonomy_terms WHERE service_id = ?", serviceId);
@@ -62,7 +68,7 @@ class NormalizedPolicySidecarPersistenceIntegrationTest {
     @Test
     @DisplayName("local MySQL draft sidecar tables 에 collect save path 가 taxonomy/facts upsert 를 실제로 반영한다")
     void saveYouthOncePersistsAndRefreshesSidecars() {
-        sourceId = "IT-SIDECAR-" + UUID.randomUUID();
+        sourceId = TEST_SOURCE_PREFIX + UUID.randomUUID();
 
         YouthApiDto.Item initialItem = youthItem(
                 sourceId,
