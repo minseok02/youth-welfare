@@ -2087,3 +2087,8 @@
 - 문제: `documentation-map.md` 에 `policy-gov24-blocked-track-status.md` 링크가 external blocked 트랙 섹션에는 있었지만, 위쪽의 현재 구현 상태 요약 리스트와 “새 작업을 열 때” 읽기 순서에는 아직 없었다. 이 상태면 blocked 트랙이든 active 트랙이든 문서 맵만 빠르게 훑는 사용자는 여전히 해당 entrypoint를 지나칠 수 있다.
 - 해결: `documentation-map.md` 의 현재 구현 상태 요약 섹션에 `policy-gov24-blocked-track-status.md` 를 추가하고, 새 작업 읽기 순서에도 “`Gov24` inactive/reopen 판단이 필요하면 먼저 본다”는 한 줄을 넣었다.
 - 이유: entrypoint 문서는 한 번만 링크해선 충분하지 않다. 실제 사용 흐름에서 사람들이 훑는 섹션마다 보여야 blocked 상태 판단이 재학습 없이 반복 가능해진다.
+
+## 392) top-level entrypoint에 `Gov24 blocked` 만 있고 `next active track` / `local pending` 이 빠져 있으면, 지금 뭘 해야 하는지는 여전히 한 단계 더 내려가서 찾아야 한다
+- 문제: `start.md`, `current-state.md`, `docs/README.md` 는 이제 `policy-gov24-blocked-track-status.md` 를 바로 보여주지만, 반대로 “지금 다음 작업이 뭐냐”를 잡는 `policy-next-active-track-priority.md` 와 `policy-local-closeout-pending-inventory.md` 는 아직 top-level 리스트에 없었다. 이 상태면 blocked 상태는 빨리 찾을 수 있어도 실제 active work 우선순위는 다시 policy 문서군 안으로 들어가야 했다.
+- 해결: 세 top-level entrypoint 모두에 `policy-next-active-track-priority.md` 와 `policy-local-closeout-pending-inventory.md` 링크를 추가해, 현재 상태/blocked 상태/다음 작업 우선순위를 같은 높이에서 바로 찾게 정리했다.
+- 이유: entrypoint 정리는 특정 한 문서만 드러내는 게 목적이 아니라, “지금 상황 판단 -> 다음 액션 선택” 흐름을 한 화면 안에서 닫게 만드는 게 목적이다.
