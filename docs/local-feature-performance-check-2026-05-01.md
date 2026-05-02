@@ -1,5 +1,7 @@
 # 로컬 기능 시험 및 시간 측정 (2026-05-01)
 
+문서군 진입점: [local-validation-docs-index.md](./local-validation-docs-index.md)
+
 ## 목적
 
 로컬 기준으로 현재 구현된 주요 기능을 기능별로 다시 실행하고:

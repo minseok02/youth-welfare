@@ -1,5 +1,7 @@
 # GitHub 작업 규칙
 
+문서군 진입점: [system-docs-index.md](./system-docs-index.md)
+
 2명이 프론트엔드와 백엔드를 나눠 작업하는 기준이다.
 
 ## 영역
