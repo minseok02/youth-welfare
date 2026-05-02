@@ -18,6 +18,7 @@
 - 2026-05-02: broad suite 재실행 중 한 번 튄 `PolicySearchRegionQueryIntegrationTest` 는 클래스 시작 전에 `IT-SRCH-*` 잔존 row를 정리하지 않아 이전 실행 찌꺼기에 영향받을 수 있는 구조라, `@BeforeEach` cleanup과 explicit `service_regions` cleanup을 추가해 재현성을 보강했다. 이후 타깃 integration과 전체 `./gradlew test integrationTest --no-daemon` 을 다시 통과시켰다.
 - 2026-05-02: 같은 prefix-cleanup 패턴을 쓰는 `RecommendationRegionQueryIntegrationTest`, `PolicyBookmarkIntegrationTest`, `RecommendationFlowIntegrationTest`, `CanonicalRecommendationReadModelIntegrationTest` 도 시작 전 cleanup과 explicit dependent-row cleanup 기준으로 맞췄다. 타깃 integration 재실행과 전체 `./gradlew test integrationTest --no-daemon` 이 다시 통과해 broad suite 재현성을 더 보강했다.
 - 2026-05-02: user/email prefix 기반 cleanup을 쓰는 `UserCoreDualWriteIntegrationTest`, `UserPiiSyncRetrySchedulerIntegrationTest`, `UserMetadataUserKeyBackfillIntegrationTest`, `UserPiiSyncReplayIntegrationTest`, `UserPiiBackfillIntegrationTest`, `AuthRedisIntegrationTest`, `AdminSecurityIntegrationTest` 도 `@BeforeEach` self-heal cleanup 기준으로 맞췄다. 관련 타깃 integration들과 전체 `./gradlew test integrationTest --no-daemon` 을 다시 통과시켜 broad suite 재현성을 한 단계 더 정리했다.
+- 2026-05-02: 알림 후보 선택을 단순 top 3에서 `NotificationSlotSelector` 기반 `[A, A, B?]` 슬롯 배치로 바꿨다. A 슬롯은 `final_score` 상위 2건, B 슬롯은 수집 후 24시간 이내 + `rule_base_score >= 0.5` 신규 정책 1건이며, B가 없으면 `[A, A, A]` fallback 한다. `NotificationSlotSelectorTest`, `NotificationServiceTest` 로 배치 규칙과 발송 wiring을 고정했다.
 
 이 문서는 현재 구현 상태와 남은 1차 작업을 확인하기 위한 현황판입니다.
 요구사항 원본은 [srs-v2.10.md](./srs-v2.10.md), 실행 방법은 [testing.md](./testing.md), 현재 문서 길찾기는 [documentation-map.md](./documentation-map.md)를 봅니다.
@@ -1089,6 +1090,5 @@ cd backend
 - 나이대 x 소득분위 군집화
 - p5~p95 정규화
 - 카카오 알림톡
-- 슬롯 배치 `[A, A, B?]`
 - 검색 로그
 - 추천/수집 대시보드
