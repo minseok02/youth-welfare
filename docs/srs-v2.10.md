@@ -1,5 +1,7 @@
 # 소프트웨어 요구사항 명세서 (SRS) v2.10
 
+현재 구조/계약 문서군 진입점은 [system-docs-index.md](./system-docs-index.md)를 먼저 봅니다.
+
 ## 청년 복지 통합 플랫폼
 
 | 항목 | 내용 |
