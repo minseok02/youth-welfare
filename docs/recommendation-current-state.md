@@ -13,6 +13,8 @@
 이 문서는 현재 코드 기준으로 추천이 어떻게 동작하는지,
 무엇이 현재 계약이고 무엇이 실험/보조 신호인지 빠르게 확인하기 위한 current-state 문서입니다.
 
+현재 제품 해석은 `청년정책 통합포털 + 개인화 추천` 이며, 추천 재사용 전략도 군집 캐시보다 개인 캐시를 우선 검토하는 쪽으로 정리합니다.
+
 ## 현재 추천 파이프라인
 
 현재 추천 흐름은 아래 순서입니다.
@@ -24,6 +26,8 @@
 5. `RecommendationPersistenceService`
 
 조회는 저장된 `user_recommendations` 를 읽는 구조입니다.
+
+즉 현재 개인화의 기본 단위는 군집이 아니라 사용자입니다. 군집은 현재 `youth_all` fallback 경계로만 남아 있고, 실제 추천 응답 가속이 필요하면 먼저 `userKey` 기준 캐시를 검토하는 것이 현재 규모에 더 맞습니다.
 
 ## 현재 retrieval 기준
 
@@ -187,3 +191,4 @@ runtime bootstrap이 자동으로 sidecar를 다 복구하는 건 아닙니다.
 3. education experiment는 이미 코드에 들어가 있고 local replay로 검증됐습니다.
 4. `ai_score` exact match는 현재 제품 보장 범위가 아닙니다.
 5. notification 후보 선택은 현재 `[A, A, B?]` 슬롯 배치입니다.
+6. 운영 지표는 `GET /api/admin/dashboard/summary` 에서 collect/recommendation/notification/search/user_pii_sync 묶음으로 조회합니다.

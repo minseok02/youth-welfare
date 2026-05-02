@@ -1,5 +1,8 @@
 package com.example.welfare.admin;
 
+import com.example.welfare.admin.dashboard.controller.AdminDashboardController;
+import com.example.welfare.admin.dashboard.dto.AdminDashboardResponse;
+import com.example.welfare.admin.dashboard.service.AdminDashboardService;
 import com.example.welfare.collect.controller.CollectAdminController;
 import com.example.welfare.collect.normalization.NormalizedPolicySidecarBackfillService;
 import com.example.welfare.collect.service.BokjiroDetailCollectService;
@@ -45,7 +48,12 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@WebMvcTest(controllers = {CollectAdminController.class, PolicyAdminController.class, UserAdminController.class})
+@WebMvcTest(controllers = {
+        CollectAdminController.class,
+        PolicyAdminController.class,
+        UserAdminController.class,
+        AdminDashboardController.class
+})
 @Import({SecurityConfig.class, JacksonConfig.class})
 class AdminSecurityWebMvcTest {
 
@@ -72,6 +80,8 @@ class AdminSecurityWebMvcTest {
     private UserSessionRevocationService userSessionRevocationService;
     @MockBean
     private UserRepository userRepository;
+    @MockBean
+    private AdminDashboardService adminDashboardService;
     @MockBean
     private JwtUtil jwtUtil;
     @MockBean
@@ -114,6 +124,37 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.data").value("온통청년 수집 완료"));
 
         then(collectService).should().collect(CollectSource.YOUTH);
+    }
+
+    @Test
+    @DisplayName("관리자 토큰으로 대시보드 요약 API를 호출하면 admin dashboard service를 실행한다")
+    void adminEndpointAllowsDashboardSummary() throws Exception {
+        mockAuthenticatedToken("admin-token", List.of(
+                new SimpleGrantedAuthority("ROLE_USER"),
+                new SimpleGrantedAuthority("ROLE_ADMIN")
+        ));
+        given(adminDashboardService.getSummary())
+                .willReturn(new AdminDashboardResponse(
+                        LocalDateTime.of(2026, 5, 2, 10, 0),
+                        new AdminDashboardResponse.CollectSection(0, 3, 1, 0, List.of()),
+                        new AdminDashboardResponse.RecommendationSection(2, 8, 3, 1, java.math.BigDecimal.valueOf(0.3750), java.math.BigDecimal.valueOf(0.1250)),
+                        new AdminDashboardResponse.NotificationSection(1, 0, 5, 1),
+                        new AdminDashboardResponse.SearchSection(4, 12, 7, java.math.BigDecimal.valueOf(5.25), List.of(
+                                new AdminDashboardResponse.SearchKeywordSnapshot("월세", 5)
+                        )),
+                        new AdminDashboardResponse.UserPiiSyncSection(0, 1, 12, LocalDateTime.of(2026, 5, 2, 9, 30))
+                ));
+
+        mockMvc.perform(get("/api/admin/dashboard/summary")
+                        .header("Authorization", "Bearer admin-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.collect.successJobsLast24h").value(3))
+                .andExpect(jsonPath("$.data.recommendation.sentLast7d").value(8))
+                .andExpect(jsonPath("$.data.search.topKeywordsLast7d[0].keyword").value("월세"))
+                .andExpect(jsonPath("$.data.userPiiSync.failedCount").value(1));
+
+        then(adminDashboardService).should().getSummary();
     }
 
     @Test
