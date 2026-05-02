@@ -12,6 +12,8 @@
 - 수집: [collect-current-state.md](./collect-current-state.md)
 - 추천: [recommendation-current-state.md](./recommendation-current-state.md)
 - 정책 정규화: [policy-normalization-current-state.md](./policy-normalization-current-state.md)
+- 다음 active track 우선순위: [policy-next-active-track-priority.md](./policy-next-active-track-priority.md)
+- 로컬 closeout pending: [policy-local-closeout-pending-inventory.md](./policy-local-closeout-pending-inventory.md)
 - `Gov24` blocked 상태: [policy-gov24-blocked-track-status.md](./policy-gov24-blocked-track-status.md)
 - 신규 source 구조: [policy-source-onboarding-architecture.md](./policy-source-onboarding-architecture.md)
 - API 응답 contract: [api-mapping.md](./api-mapping.md)
