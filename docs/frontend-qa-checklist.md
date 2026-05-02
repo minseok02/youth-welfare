@@ -1,5 +1,7 @@
 # Frontend QA Checklist
 
+문서군 진입점: [frontend-qa-docs-index.md](./frontend-qa-docs-index.md)
+
 ## 목적
 
 이 문서는 브라우저 관점에서 실제 사용자 흐름을 수동 검증할 때 쓰는 runbook입니다.

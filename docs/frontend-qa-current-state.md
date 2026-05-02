@@ -1,5 +1,7 @@
 # Frontend QA Current State
 
+문서군 진입점: [frontend-qa-docs-index.md](./frontend-qa-docs-index.md)
+
 ## 목적
 
 이 문서는 현재 프론트엔드 QA를 어떤 방식으로 봐야 하는지, 그리고 브라우저 사용자 흐름 기준으로 어디가 핵심 경계인지 빠르게 확인하기 위한 current-state 문서입니다.
