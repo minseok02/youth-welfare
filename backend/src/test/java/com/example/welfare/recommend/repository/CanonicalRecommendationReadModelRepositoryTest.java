@@ -47,6 +47,9 @@ class CanonicalRecommendationReadModelRepositoryTest {
         baseRow.put("youth_major_label", "교육");
         baseRow.put("youth_mid_label", null);
         baseRow.put("provision_method_label", "온라인");
+        baseRow.put("gov24_service_field_label", "보육");
+        baseRow.put("gov24_user_type_label", "영유아");
+        baseRow.put("gov24_benefit_type_label", "현금");
         baseRow.put("title", "여성청소년 생리용품 지원");
         baseRow.put("summary", "바우처 지원");
         baseRow.put("min_age", 9);
@@ -96,6 +99,9 @@ class CanonicalRecommendationReadModelRepositoryTest {
         assertThat(projection.youthMajorLabel()).isEqualTo("교육");
         assertThat(projection.youthMidLabel()).isNull();
         assertThat(projection.provisionMethodLabel()).isEqualTo("온라인");
+        assertThat(projection.gov24ServiceFieldLabel()).isEqualTo("보육");
+        assertThat(projection.gov24UserTypeLabel()).isEqualTo("영유아");
+        assertThat(projection.gov24BenefitTypeLabel()).isEqualTo("현금");
         assertThat(projection.educationPriorityBoostEligible()).isFalse();
         assertThat(projection.title()).isEqualTo("여성청소년 생리용품 지원");
         assertThat(projection.applyEndDate()).isEqualTo(LocalDate.of(2026, 12, 31));
@@ -123,6 +129,9 @@ class CanonicalRecommendationReadModelRepositoryTest {
         baseRow.put("youth_major_label", "주거");
         baseRow.put("youth_mid_label", null);
         baseRow.put("provision_method_label", "방문");
+        baseRow.put("gov24_service_field_label", null);
+        baseRow.put("gov24_user_type_label", null);
+        baseRow.put("gov24_benefit_type_label", null);
         baseRow.put("title", "청년 농어촌 정착 지원");
         baseRow.put("summary", "한부모 청년의 농촌 정착을 지원");
         baseRow.put("min_age", 19);
@@ -168,6 +177,9 @@ class CanonicalRecommendationReadModelRepositoryTest {
         baseRow.put("youth_major_label", "교육");
         baseRow.put("youth_mid_label", "재직자");
         baseRow.put("provision_method_label", "온라인");
+        baseRow.put("gov24_service_field_label", null);
+        baseRow.put("gov24_user_type_label", null);
+        baseRow.put("gov24_benefit_type_label", null);
         baseRow.put("title", "교육 역량 강화");
         baseRow.put("summary", "청년 교육 지원");
         baseRow.put("min_age", 19);
@@ -203,6 +215,9 @@ class CanonicalRecommendationReadModelRepositoryTest {
         baseRow.put("youth_major_label", "교육");
         baseRow.put("youth_mid_label", "전월세 및 주거급여 지원");
         baseRow.put("provision_method_label", "온라인");
+        baseRow.put("gov24_service_field_label", "상담");
+        baseRow.put("gov24_user_type_label", "청년");
+        baseRow.put("gov24_benefit_type_label", "서비스");
         baseRow.put("title", "교육 역량 강화");
         baseRow.put("summary", "청년 교육 지원");
         baseRow.put("min_age", 19);
@@ -226,6 +241,9 @@ class CanonicalRecommendationReadModelRepositoryTest {
         assertThat(projection.youthMajorLabel()).isEqualTo("교육");
         assertThat(projection.youthMidLabel()).isEqualTo("전월세 및 주거급여 지원");
         assertThat(projection.provisionMethodLabel()).isEqualTo("온라인");
+        assertThat(projection.gov24ServiceFieldLabel()).isEqualTo("상담");
+        assertThat(projection.gov24UserTypeLabel()).isEqualTo("청년");
+        assertThat(projection.gov24BenefitTypeLabel()).isEqualTo("서비스");
         assertThat(projection.educationPriorityBoostEligible()).isTrue();
     }
 }

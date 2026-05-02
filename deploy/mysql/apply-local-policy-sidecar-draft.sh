@@ -193,6 +193,22 @@ summary_slot_density="$(
     ORDER BY slot_key;
   "
 )"
+summary_slot_row_density="$(
+  mysql_exec "
+    SELECT CONCAT(slot_key, '=', COUNT(*))
+    FROM service_taxonomy_summary_slots
+    WHERE slot_key IN (
+      'YOUTH_MAJOR',
+      'YOUTH_MID',
+      'GOV24_SERVICE_FIELD',
+      'GOV24_USER_TYPE',
+      'GOV24_BENEFIT_TYPE',
+      'PROVISION_METHOD'
+    )
+    GROUP BY slot_key
+    ORDER BY slot_key;
+  "
+)"
 
 echo "service_taxonomies=${taxonomy_count}"
 echo "service_taxonomy_summary_slots=${summary_slot_count}"
@@ -202,3 +218,7 @@ while IFS= read -r density_line; do
   [[ -n "${density_line}" ]] || continue
   echo "slot_density_${density_line}"
 done <<< "${summary_slot_density}"
+while IFS= read -r density_line; do
+  [[ -n "${density_line}" ]] || continue
+  echo "slot_row_density_${density_line}"
+done <<< "${summary_slot_row_density}"

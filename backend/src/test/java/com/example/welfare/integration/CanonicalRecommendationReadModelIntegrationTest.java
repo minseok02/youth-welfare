@@ -1,0 +1,127 @@
+package com.example.welfare.integration;
+
+import com.example.welfare.policy.entity.WelfareService;
+import com.example.welfare.policy.repository.WelfareServiceRepository;
+import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
+import com.example.welfare.recommend.repository.CanonicalRecommendationReadModelRepository;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.context.ActiveProfiles;
+
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+@SpringBootTest
+@ActiveProfiles("integration")
+class CanonicalRecommendationReadModelIntegrationTest {
+
+    private static final String TEST_SOURCE_PREFIX = "IT-READMODEL-";
+
+    @Autowired
+    private WelfareServiceRepository welfareServiceRepository;
+
+    @Autowired
+    private CanonicalRecommendationReadModelRepository canonicalRecommendationReadModelRepository;
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
+    private Long createdServiceId;
+
+    @AfterEach
+    void cleanup() {
+        if (createdServiceId == null) {
+            return;
+        }
+        jdbcTemplate.update("DELETE FROM service_taxonomy_summary_slots WHERE service_id = ?", createdServiceId);
+        jdbcTemplate.update("DELETE FROM service_taxonomies WHERE service_id = ?", createdServiceId);
+        jdbcTemplate.update("DELETE FROM service_taxonomy_terms WHERE service_id = ?", createdServiceId);
+        jdbcTemplate.update("DELETE FROM service_facts WHERE service_id = ?", createdServiceId);
+        jdbcTemplate.update("DELETE FROM welfare_service_details WHERE service_id = ?", createdServiceId);
+        jdbcTemplate.update("DELETE FROM service_tags WHERE service_id = ?", createdServiceId);
+        jdbcTemplate.update("DELETE FROM service_regions WHERE service_id = ?", createdServiceId);
+        jdbcTemplate.update("DELETE FROM welfare_services WHERE id = ?", createdServiceId);
+    }
+
+    @Test
+    @DisplayName("canonical read-model은 summary slot이 있으면 GOV24 축도 slot-first로 읽고, 없는 축은 legacy summary로 fallback한다")
+    void findByServiceIds_prefersGov24SlotsAndFallsBackPerField() {
+        WelfareService service = welfareServiceRepository.save(WelfareService.builder()
+                .sourceType(WelfareService.SourceType.BOKJIRO_CENTRAL)
+                .sourceId(TEST_SOURCE_PREFIX + UUID.randomUUID().toString().substring(0, 8))
+                .title("복지로 정책 read-model smoke")
+                .description("legacy와 slot 우선순위 확인")
+                .status(WelfareService.ServiceStatus.ACTIVE)
+                .unifiedCategory("기타")
+                .applyMethodName("legacy apply method")
+                .minAge(19)
+                .maxAge(34)
+                .minIncome(0)
+                .maxIncome(0)
+                .apiViewCount(0L)
+                .searchYouthRelevant(true)
+                .build());
+        createdServiceId = service.getId();
+
+        jdbcTemplate.update("""
+                INSERT INTO service_taxonomies (
+                    service_id,
+                    compat_unified_category_label,
+                    youth_major_label,
+                    youth_mid_label,
+                    provision_method_label,
+                    gov24_service_field_label,
+                    gov24_user_type_label,
+                    gov24_benefit_type_label
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                createdServiceId,
+                "주거",
+                "legacy-major",
+                "legacy-mid",
+                "legacy-provision",
+                "legacy-service-field",
+                "legacy-user-type",
+                "legacy-benefit-type");
+
+        insertSummarySlot(createdServiceId, "YOUTH_MAJOR", "slot-major");
+        insertSummarySlot(createdServiceId, "PROVISION_METHOD", "slot-provision");
+        insertSummarySlot(createdServiceId, "GOV24_SERVICE_FIELD", "slot-service-field");
+        insertSummarySlot(createdServiceId, "GOV24_BENEFIT_TYPE", "slot-benefit-type");
+
+        Map<Long, RecommendationCandidateProjection> projections =
+                canonicalRecommendationReadModelRepository.findByServiceIds(List.of(createdServiceId));
+
+        assertThat(projections).containsOnlyKeys(createdServiceId);
+        RecommendationCandidateProjection projection = projections.get(createdServiceId);
+        assertThat(projection.unifiedCategoryCompat()).isEqualTo("기타");
+        assertThat(projection.youthMajorLabel()).isEqualTo("slot-major");
+        assertThat(projection.youthMidLabel()).isEqualTo("legacy-mid");
+        assertThat(projection.provisionMethodLabel()).isEqualTo("slot-provision");
+        assertThat(projection.gov24ServiceFieldLabel()).isEqualTo("slot-service-field");
+        assertThat(projection.gov24UserTypeLabel()).isEqualTo("legacy-user-type");
+        assertThat(projection.gov24BenefitTypeLabel()).isEqualTo("slot-benefit-type");
+    }
+
+    private void insertSummarySlot(Long serviceId, String slotKey, String slotLabel) {
+        jdbcTemplate.update("""
+                INSERT INTO service_taxonomy_summary_slots (
+                    service_id,
+                    slot_key,
+                    code_set_key,
+                    slot_code,
+                    slot_label,
+                    source_field,
+                    authority,
+                    confidence
+                ) VALUES (?, ?, NULL, '', ?, '', 'OFFICIAL', 1.000)
+                """, serviceId, slotKey, slotLabel);
+    }
+}

@@ -522,9 +522,14 @@ PY
   mysql_exec "
     SET NAMES utf8mb4;
     SELECT ws.id,
-           ws.title,
-           ws.unified_category,
-           COALESCE(stss_youth_major.slot_label, st.youth_major_label, '')
+           REPLACE(REPLACE(REPLACE(ws.title, CHAR(9), ' '), CHAR(10), ' '), CHAR(13), ' '),
+           REPLACE(REPLACE(REPLACE(ws.unified_category, CHAR(9), ' '), CHAR(10), ' '), CHAR(13), ' '),
+           REPLACE(REPLACE(REPLACE(COALESCE(stss_youth_major.slot_label, st.youth_major_label, ''), CHAR(9), ' '), CHAR(10), ' '), CHAR(13), ' '),
+           REPLACE(REPLACE(REPLACE(COALESCE(stss_youth_mid.slot_label, st.youth_mid_label, ''), CHAR(9), ' '), CHAR(10), ' '), CHAR(13), ' '),
+           REPLACE(REPLACE(REPLACE(COALESCE(stss_provision_method.slot_label, st.provision_method_label, ws.apply_method_name, ''), CHAR(9), ' '), CHAR(10), ' '), CHAR(13), ' '),
+           REPLACE(REPLACE(REPLACE(COALESCE(stss_gov24_service_field.slot_label, st.gov24_service_field_label, ''), CHAR(9), ' '), CHAR(10), ' '), CHAR(13), ' '),
+           REPLACE(REPLACE(REPLACE(COALESCE(stss_gov24_user_type.slot_label, st.gov24_user_type_label, ''), CHAR(9), ' '), CHAR(10), ' '), CHAR(13), ' '),
+           REPLACE(REPLACE(REPLACE(COALESCE(stss_gov24_benefit_type.slot_label, st.gov24_benefit_type_label, ''), CHAR(9), ' '), CHAR(10), ' '), CHAR(13), ' ')
     FROM welfare_services ws
     LEFT JOIN service_taxonomies st ON st.service_id = ws.id
     LEFT JOIN (
@@ -533,6 +538,36 @@ PY
       WHERE slot_key = 'YOUTH_MAJOR'
       GROUP BY service_id
     ) stss_youth_major ON stss_youth_major.service_id = ws.id
+    LEFT JOIN (
+      SELECT service_id, MAX(slot_label) AS slot_label
+      FROM service_taxonomy_summary_slots
+      WHERE slot_key = 'YOUTH_MID'
+      GROUP BY service_id
+    ) stss_youth_mid ON stss_youth_mid.service_id = ws.id
+    LEFT JOIN (
+      SELECT service_id, MAX(slot_label) AS slot_label
+      FROM service_taxonomy_summary_slots
+      WHERE slot_key = 'PROVISION_METHOD'
+      GROUP BY service_id
+    ) stss_provision_method ON stss_provision_method.service_id = ws.id
+    LEFT JOIN (
+      SELECT service_id, MAX(slot_label) AS slot_label
+      FROM service_taxonomy_summary_slots
+      WHERE slot_key = 'GOV24_SERVICE_FIELD'
+      GROUP BY service_id
+    ) stss_gov24_service_field ON stss_gov24_service_field.service_id = ws.id
+    LEFT JOIN (
+      SELECT service_id, MAX(slot_label) AS slot_label
+      FROM service_taxonomy_summary_slots
+      WHERE slot_key = 'GOV24_USER_TYPE'
+      GROUP BY service_id
+    ) stss_gov24_user_type ON stss_gov24_user_type.service_id = ws.id
+    LEFT JOIN (
+      SELECT service_id, MAX(slot_label) AS slot_label
+      FROM service_taxonomy_summary_slots
+      WHERE slot_key = 'GOV24_BENEFIT_TYPE'
+      GROUP BY service_id
+    ) stss_gov24_benefit_type ON stss_gov24_benefit_type.service_id = ws.id
     WHERE ws.id IN (${service_ids})
     ORDER BY ws.id;
   " > "${META_FILE}"
@@ -626,11 +661,29 @@ def load_rows(path):
 
 meta = {}
 for line in Path(meta_path).read_text(encoding="utf-8").splitlines():
-    service_id, title, compat, youth_major = line.split("\t")
+    parts = line.split("\t")
+    if len(parts) < 9:
+        parts.extend([""] * (9 - len(parts)))
+    (
+        service_id,
+        title,
+        compat,
+        youth_major,
+        youth_mid,
+        provision_method,
+        gov24_service_field,
+        gov24_user_type,
+        gov24_benefit_type,
+    ) = parts[:9]
     meta[int(service_id)] = {
         "title": title,
         "compat": compat,
         "youth_major": youth_major,
+        "youth_mid": youth_mid,
+        "provision_method": provision_method,
+        "gov24_service_field": gov24_service_field,
+        "gov24_user_type": gov24_user_type,
+        "gov24_benefit_type": gov24_benefit_type,
     }
 
 slot_metrics = {}

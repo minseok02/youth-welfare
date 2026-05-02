@@ -141,6 +141,9 @@ class PolicyServiceTest {
                                 .youthMajorLabel("주거")
                                 .youthMidLabel("전월세 및 주거급여 지원")
                                 .provisionMethodLabel("온라인")
+                                .gov24ServiceFieldLabel("보육")
+                                .gov24UserTypeLabel("청년")
+                                .gov24BenefitTypeLabel("서비스")
                                 .build()
                 ));
         given(userRepository.findUserKeyById(7L)).willReturn(Optional.of("user-key-7"));
@@ -165,6 +168,9 @@ class PolicyServiceTest {
         assertEquals("주거", result.getContent().get(0).getYouthMajorLabel());
         assertEquals("전월세 및 주거급여 지원", result.getContent().get(0).getYouthMidLabel());
         assertEquals("온라인", result.getContent().get(0).getProvisionMethodLabel());
+        assertEquals("보육", result.getContent().get(0).getGov24ServiceFieldLabel());
+        assertEquals("청년", result.getContent().get(0).getGov24UserTypeLabel());
+        assertEquals("서비스", result.getContent().get(0).getGov24BenefitTypeLabel());
     }
 
     @Test

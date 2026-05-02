@@ -81,6 +81,9 @@ public class CanonicalRecommendationReadModelRepository {
                            COALESCE(stss_youth_major.slot_label, st.youth_major_label) AS youth_major_label,
                            COALESCE(stss_youth_mid.slot_label, st.youth_mid_label) AS youth_mid_label,
                            COALESCE(stss_provision_method.slot_label, st.provision_method_label, ws.apply_method_name) AS provision_method_label,
+                           COALESCE(stss_gov24_service_field.slot_label, st.gov24_service_field_label) AS gov24_service_field_label,
+                           COALESCE(stss_gov24_user_type.slot_label, st.gov24_user_type_label) AS gov24_user_type_label,
+                           COALESCE(stss_gov24_benefit_type.slot_label, st.gov24_benefit_type_label) AS gov24_benefit_type_label,
                            ws.title,
                            COALESCE(wsd.support_detail, ws.support_content, ws.description) AS summary,
                            ws.min_age,
@@ -113,6 +116,27 @@ public class CanonicalRecommendationReadModelRepository {
                         WHERE slot_key = 'PROVISION_METHOD'
                         GROUP BY service_id
                     ) stss_provision_method ON stss_provision_method.service_id = ws.id
+                    LEFT JOIN (
+                        SELECT service_id,
+                               MAX(slot_label) AS slot_label
+                        FROM service_taxonomy_summary_slots
+                        WHERE slot_key = 'GOV24_SERVICE_FIELD'
+                        GROUP BY service_id
+                    ) stss_gov24_service_field ON stss_gov24_service_field.service_id = ws.id
+                    LEFT JOIN (
+                        SELECT service_id,
+                               MAX(slot_label) AS slot_label
+                        FROM service_taxonomy_summary_slots
+                        WHERE slot_key = 'GOV24_USER_TYPE'
+                        GROUP BY service_id
+                    ) stss_gov24_user_type ON stss_gov24_user_type.service_id = ws.id
+                    LEFT JOIN (
+                        SELECT service_id,
+                               MAX(slot_label) AS slot_label
+                        FROM service_taxonomy_summary_slots
+                        WHERE slot_key = 'GOV24_BENEFIT_TYPE'
+                        GROUP BY service_id
+                    ) stss_gov24_benefit_type ON stss_gov24_benefit_type.service_id = ws.id
                     WHERE ws.id IN (:serviceIds)
                     """, params);
         }
@@ -123,6 +147,9 @@ public class CanonicalRecommendationReadModelRepository {
                        st.youth_major_label,
                        st.youth_mid_label,
                        COALESCE(st.provision_method_label, ws.apply_method_name) AS provision_method_label,
+                       st.gov24_service_field_label,
+                       st.gov24_user_type_label,
+                       st.gov24_benefit_type_label,
                        ws.title,
                        COALESCE(wsd.support_detail, ws.support_content, ws.description) AS summary,
                        ws.min_age,
@@ -219,6 +246,9 @@ public class CanonicalRecommendationReadModelRepository {
         private final String youthMajorLabel;
         private final String youthMidLabel;
         private final String provisionMethodLabel;
+        private final String gov24ServiceFieldLabel;
+        private final String gov24UserTypeLabel;
+        private final String gov24BenefitTypeLabel;
         private final String title;
         private final String summary;
         private final Integer minAge;
@@ -244,6 +274,9 @@ public class CanonicalRecommendationReadModelRepository {
                                   String youthMajorLabel,
                                   String youthMidLabel,
                                   String provisionMethodLabel,
+                                  String gov24ServiceFieldLabel,
+                                  String gov24UserTypeLabel,
+                                  String gov24BenefitTypeLabel,
                                   String title,
                                   String summary,
                                   Integer minAge,
@@ -258,6 +291,9 @@ public class CanonicalRecommendationReadModelRepository {
             this.youthMajorLabel = youthMajorLabel;
             this.youthMidLabel = youthMidLabel;
             this.provisionMethodLabel = provisionMethodLabel;
+            this.gov24ServiceFieldLabel = gov24ServiceFieldLabel;
+            this.gov24UserTypeLabel = gov24UserTypeLabel;
+            this.gov24BenefitTypeLabel = gov24BenefitTypeLabel;
             this.title = title;
             this.summary = summary;
             this.minAge = minAge;
@@ -276,6 +312,9 @@ public class CanonicalRecommendationReadModelRepository {
                     stringValue(row.get("youth_major_label")),
                     stringValue(row.get("youth_mid_label")),
                     stringValue(row.get("provision_method_label")),
+                    stringValue(row.get("gov24_service_field_label")),
+                    stringValue(row.get("gov24_user_type_label")),
+                    stringValue(row.get("gov24_benefit_type_label")),
                     stringValue(row.get("title")),
                     stringValue(row.get("summary")),
                     intValue(row.get("min_age")),
@@ -326,6 +365,9 @@ public class CanonicalRecommendationReadModelRepository {
                     .youthMajorLabel(youthMajorLabel)
                     .youthMidLabel(youthMidLabel)
                     .provisionMethodLabel(provisionMethodLabel)
+                    .gov24ServiceFieldLabel(gov24ServiceFieldLabel)
+                    .gov24UserTypeLabel(gov24UserTypeLabel)
+                    .gov24BenefitTypeLabel(gov24BenefitTypeLabel)
                     .title(title)
                     .summary(summary)
                     .minAge(minAge)

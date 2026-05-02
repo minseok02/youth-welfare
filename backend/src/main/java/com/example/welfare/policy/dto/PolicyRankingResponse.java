@@ -15,6 +15,9 @@ public class PolicyRankingResponse {
     private String youthMajorLabel;
     private String youthMidLabel;
     private String provisionMethodLabel;
+    private String gov24ServiceFieldLabel;
+    private String gov24UserTypeLabel;
+    private String gov24BenefitTypeLabel;
     private String sourceType;
     private Long uniqueViewCount7d;
     private Long viewCount;
@@ -36,6 +39,9 @@ public class PolicyRankingResponse {
                 .youthMajorLabel(resolveYouthMajorLabel(projection))
                 .youthMidLabel(resolveYouthMidLabel(projection))
                 .provisionMethodLabel(resolveProvisionMethodLabel(projection))
+                .gov24ServiceFieldLabel(resolveGov24ServiceFieldLabel(projection))
+                .gov24UserTypeLabel(resolveGov24UserTypeLabel(projection))
+                .gov24BenefitTypeLabel(resolveGov24BenefitTypeLabel(projection))
                 .sourceType(service.getSourceType().name())
                 .uniqueViewCount7d(uniqueViewCount7d)
                 .viewCount(service.getViewCount() != null ? service.getViewCount() : 0L)
@@ -62,5 +68,17 @@ public class PolicyRankingResponse {
 
     private static String resolveProvisionMethodLabel(RecommendationCandidateProjection projection) {
         return projection != null ? projection.provisionMethodLabel() : null;
+    }
+
+    private static String resolveGov24ServiceFieldLabel(RecommendationCandidateProjection projection) {
+        return projection != null ? projection.gov24ServiceFieldLabel() : null;
+    }
+
+    private static String resolveGov24UserTypeLabel(RecommendationCandidateProjection projection) {
+        return projection != null ? projection.gov24UserTypeLabel() : null;
+    }
+
+    private static String resolveGov24BenefitTypeLabel(RecommendationCandidateProjection projection) {
+        return projection != null ? projection.gov24BenefitTypeLabel() : null;
     }
 }

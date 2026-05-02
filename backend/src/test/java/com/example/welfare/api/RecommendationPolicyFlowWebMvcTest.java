@@ -87,6 +87,9 @@ class RecommendationPolicyFlowWebMvcTest {
                 .youthMajorLabel("주거")
                 .youthMidLabel("전월세 및 주거급여 지원")
                 .provisionMethodLabel("온라인")
+                .gov24ServiceFieldLabel("보육")
+                .gov24UserTypeLabel("청년")
+                .gov24BenefitTypeLabel("서비스")
                 .viewCount(8L)
                 .apiViewCount(123L)
                 .rankingScore(0.9812)
@@ -103,6 +106,9 @@ class RecommendationPolicyFlowWebMvcTest {
                 .youthMajorLabel("주거")
                 .youthMidLabel("전월세 및 주거급여 지원")
                 .provisionMethodLabel("온라인")
+                .gov24ServiceFieldLabel("보육")
+                .gov24UserTypeLabel("청년")
+                .gov24BenefitTypeLabel("서비스")
                 .isOnlineApply(true)
                 .bookmarked(true)
                 .build();
@@ -119,6 +125,9 @@ class RecommendationPolicyFlowWebMvcTest {
                                 .youthMajorLabel("주거")
                                 .youthMidLabel("전월세 및 주거급여 지원")
                                 .provisionMethodLabel("온라인")
+                                .gov24ServiceFieldLabel("보육")
+                                .gov24UserTypeLabel("청년")
+                                .gov24BenefitTypeLabel("서비스")
                                 .build()
                 ));
         given(policyRankingService.getRanking(5)).willReturn(List.of(ranking));
@@ -146,7 +155,10 @@ class RecommendationPolicyFlowWebMvcTest {
                 .andExpect(jsonPath("$.data[0].unifiedCategory").value("주거"))
                 .andExpect(jsonPath("$.data[0].youthMajorLabel").value("주거"))
                 .andExpect(jsonPath("$.data[0].youthMidLabel").value("전월세 및 주거급여 지원"))
-                .andExpect(jsonPath("$.data[0].provisionMethodLabel").value("온라인"));
+                .andExpect(jsonPath("$.data[0].provisionMethodLabel").value("온라인"))
+                .andExpect(jsonPath("$.data[0].gov24ServiceFieldLabel").value("보육"))
+                .andExpect(jsonPath("$.data[0].gov24UserTypeLabel").value("청년"))
+                .andExpect(jsonPath("$.data[0].gov24BenefitTypeLabel").value("서비스"));
 
         mockMvc.perform(get("/api/policies/ranking")
                         .param("size", "5"))
@@ -156,7 +168,10 @@ class RecommendationPolicyFlowWebMvcTest {
                 .andExpect(jsonPath("$.data[0].rankingScore").value(0.9812))
                 .andExpect(jsonPath("$.data[0].youthMajorLabel").value("주거"))
                 .andExpect(jsonPath("$.data[0].youthMidLabel").value("전월세 및 주거급여 지원"))
-                .andExpect(jsonPath("$.data[0].provisionMethodLabel").value("온라인"));
+                .andExpect(jsonPath("$.data[0].provisionMethodLabel").value("온라인"))
+                .andExpect(jsonPath("$.data[0].gov24ServiceFieldLabel").value("보육"))
+                .andExpect(jsonPath("$.data[0].gov24UserTypeLabel").value("청년"))
+                .andExpect(jsonPath("$.data[0].gov24BenefitTypeLabel").value("서비스"));
 
         mockMvc.perform(get("/api/policies/search")
                         .param("keyword", "월세")
@@ -175,6 +190,9 @@ class RecommendationPolicyFlowWebMvcTest {
                 .andExpect(jsonPath("$.data.content[0].youthMajorLabel").value("주거"))
                 .andExpect(jsonPath("$.data.content[0].youthMidLabel").value("전월세 및 주거급여 지원"))
                 .andExpect(jsonPath("$.data.content[0].provisionMethodLabel").value("온라인"))
+                .andExpect(jsonPath("$.data.content[0].gov24ServiceFieldLabel").value("보육"))
+                .andExpect(jsonPath("$.data.content[0].gov24UserTypeLabel").value("청년"))
+                .andExpect(jsonPath("$.data.content[0].gov24BenefitTypeLabel").value("서비스"))
                 .andExpect(jsonPath("$.data.totalElements").value(1))
                 .andExpect(jsonPath("$.data.totalPages").value(1))
                 .andExpect(jsonPath("$.data.hasNext").value(false));
@@ -209,6 +227,9 @@ class RecommendationPolicyFlowWebMvcTest {
                                 .youthMajorLabel("주거")
                                 .youthMidLabel("전월세 및 주거급여 지원")
                                 .provisionMethodLabel("온라인")
+                                .gov24ServiceFieldLabel("보육")
+                                .gov24UserTypeLabel("청년")
+                                .gov24BenefitTypeLabel("서비스")
                                 .build()
                 ));
 
@@ -227,7 +248,10 @@ class RecommendationPolicyFlowWebMvcTest {
                 .andExpect(jsonPath("$.data[0].unifiedCategory").value("주거"))
                 .andExpect(jsonPath("$.data[0].youthMajorLabel").value("주거"))
                 .andExpect(jsonPath("$.data[0].youthMidLabel").value("전월세 및 주거급여 지원"))
-                .andExpect(jsonPath("$.data[0].provisionMethodLabel").value("온라인"));
+                .andExpect(jsonPath("$.data[0].provisionMethodLabel").value("온라인"))
+                .andExpect(jsonPath("$.data[0].gov24ServiceFieldLabel").value("보육"))
+                .andExpect(jsonPath("$.data[0].gov24UserTypeLabel").value("청년"))
+                .andExpect(jsonPath("$.data[0].gov24BenefitTypeLabel").value("서비스"));
 
         verify(recommendationFacade).getRecommendations(isNull(), eq(10));
     }
@@ -243,6 +267,9 @@ class RecommendationPolicyFlowWebMvcTest {
                 .youthMajorLabel("주거")
                 .youthMidLabel("전월세 및 주거급여 지원")
                 .provisionMethodLabel("온라인")
+                .gov24ServiceFieldLabel("보육")
+                .gov24UserTypeLabel("청년")
+                .gov24BenefitTypeLabel("서비스")
                 .build();
         given(policyViewLogService.buildClientFingerprint(org.mockito.ArgumentMatchers.any())).willReturn("fp");
         given(policyViewLogService.registerViewIfFirstInWindow(eq(11L), isNull(), eq("fp"))).willReturn(true);
@@ -256,7 +283,10 @@ class RecommendationPolicyFlowWebMvcTest {
                 .andExpect(jsonPath("$.data.title").value("청년 월세 지원"))
                 .andExpect(jsonPath("$.data.youthMajorLabel").value("주거"))
                 .andExpect(jsonPath("$.data.youthMidLabel").value("전월세 및 주거급여 지원"))
-                .andExpect(jsonPath("$.data.provisionMethodLabel").value("온라인"));
+                .andExpect(jsonPath("$.data.provisionMethodLabel").value("온라인"))
+                .andExpect(jsonPath("$.data.gov24ServiceFieldLabel").value("보육"))
+                .andExpect(jsonPath("$.data.gov24UserTypeLabel").value("청년"))
+                .andExpect(jsonPath("$.data.gov24BenefitTypeLabel").value("서비스"));
 
         verify(policyService).getDetail(isNull(), eq(11L), eq(true));
         verify(recommendationLogService).markClicked(9001L);

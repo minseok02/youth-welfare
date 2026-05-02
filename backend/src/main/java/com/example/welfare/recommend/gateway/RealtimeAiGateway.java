@@ -210,6 +210,9 @@ public class RealtimeAiGateway implements AiRecommendationGateway {
         appendPromptField(line, "정책분야", resolveYouthMajorLabel(candidate));
         appendPromptField(line, "세부분야", resolveYouthMidLabel(candidate));
         appendPromptField(line, "제공방식", resolveProvisionMethodLabel(candidate));
+        appendPromptField(line, "서비스분야", resolveGov24ServiceFieldLabel(candidate));
+        appendPromptField(line, "이용대상", resolveGov24UserTypeLabel(candidate));
+        appendPromptField(line, "지원유형", resolveGov24BenefitTypeLabel(candidate));
         line.append(" | 내용:").append(shortDesc);
         return line.toString();
     }
@@ -231,6 +234,18 @@ public class RealtimeAiGateway implements AiRecommendationGateway {
 
     static String resolveProvisionMethodLabel(ScoredCandidate candidate) {
         return candidate.getProjection() != null ? candidate.getProjection().provisionMethodLabel() : null;
+    }
+
+    static String resolveGov24ServiceFieldLabel(ScoredCandidate candidate) {
+        return candidate.getProjection() != null ? candidate.getProjection().gov24ServiceFieldLabel() : null;
+    }
+
+    static String resolveGov24UserTypeLabel(ScoredCandidate candidate) {
+        return candidate.getProjection() != null ? candidate.getProjection().gov24UserTypeLabel() : null;
+    }
+
+    static String resolveGov24BenefitTypeLabel(ScoredCandidate candidate) {
+        return candidate.getProjection() != null ? candidate.getProjection().gov24BenefitTypeLabel() : null;
     }
 
     private static void appendPromptField(StringBuilder line, String label, String value) {
