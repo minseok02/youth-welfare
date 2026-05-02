@@ -10,6 +10,7 @@
 - 2026-05-02: `architecture.md`, `api-mapping.md` 도 현재 문서 독법과 맞게 `system-docs-index.md` entrypoint를 먼저 보게 정리했다.
 - 2026-05-02: `db-migration.md`, `user-data-separation-design.md`, `chatbot-plan.md` 도 현재 문서 독법과 맞게 `system-docs-index.md` entrypoint를 먼저 보게 정리했다.
 - 2026-05-02: `srs-v2.10.md`, `demo-scenario.md`, `archive/README.md` 도 각각 `system/local-validation/history` entrypoint를 먼저 보게 정리해 핵심 참조 문서군의 독법을 맞췄다.
+- 2026-05-02: local closeout 검증 세트를 다시 돌리면서 `run-local-pii-sync-cutover-smoke.sh` 가 `.env` 를 읽지 않아 split-account smoke가 placeholder password로 뜨던 문제를 수정했다. 이제 `.env` 의 password/URL 은 읽되 smoke 기본 split-account username은 유지하고, auth/session regression, PII cutover smoke, education replay smoke를 다시 통과시켰다.
 
 이 문서는 현재 구현 상태와 남은 1차 작업을 확인하기 위한 현황판입니다.
 요구사항 원본은 [srs-v2.10.md](./srs-v2.10.md), 실행 방법은 [testing.md](./testing.md), 현재 문서 길찾기는 [documentation-map.md](./documentation-map.md)를 봅니다.

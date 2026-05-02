@@ -90,6 +90,11 @@ local-first closeout 기준의 실제 다음 액션을 고정합니다.
 - `deploy/smoke/run-local-pii-sync-cutover-smoke.sh`
 - 관련 integration tests
 
+현재 주의:
+
+- `run-local-pii-sync-cutover-smoke.sh` 는 이제 로컬 `.env` 의 password/URL 값은 읽되, smoke 기본 split-account username(`app_core_rw`, `migration_admin`, `app_pii_rw`, `notification_pii_ro`) 은 그대로 유지합니다.
+- 즉 `.env` 가 아직 `DB_USERNAME=root` 여도 smoke 자체는 split-account 경계로 기동/검증되도록 맞춰진 상태입니다.
+
 ### C. recommendation / replay local smoke
 
 대상:

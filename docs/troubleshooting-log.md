@@ -2202,3 +2202,8 @@
 - 문제: `archive/README.md` 에는 이미 `history-docs-index.md` 진입점이 있었지만, 실제 대표 보관 문서인 `archive/project-plan-v11.md` 자체에는 아직 없었다. 이 상태면 사용자가 보관 플랜 문서를 바로 열었을 때는 다시 history 문서군 인덱스로 복귀하려면 상위 디렉터리나 검색에 의존해야 했다.
 - 해결: `archive/project-plan-v11.md` 상단에 `../history-docs-index.md` 진입점 링크를 추가했다.
 - 이유: history/archive 문서군도 현재 문서군과 같은 규칙을 따라야 한다. 실제 보관 문서 안에서도 한 줄로 인덱스로 복귀할 수 있어야 구조가 완전히 닫힌다.
+
+## 405) local PII cutover smoke가 `.env` 를 안 읽고 placeholder password로 app를 띄우면, 기존 로컬 DB 계정과 어긋나 health check에서 막힌다
+- 문제: `run-local-pii-sync-cutover-smoke.sh` 는 split-account smoke를 위해 `DB_USERNAME=app_core_rw` 등을 강제로 잡고 있었지만, password/URL은 로컬 `.env` 대신 placeholder 기본값을 써서 app를 띄웠다. 그 결과 실제 로컬 DB 계정이 `welfare1234!` 인 상태에서는 app가 `Access denied for user 'app_core_rw'` 로 부팅 실패하고, smoke가 health check 단계에서 멈췄다.
+- 해결: script가 `.env` 의 password/URL 값은 먼저 읽되, smoke 기본 split-account username은 유지하도록 보정했다. 그 뒤 `AuthControllerWebMvcTest` 계열 auth/session regression, `run-local-pii-sync-cutover-smoke.sh`, `run-local-education-priority-replay.sh` 를 다시 돌려 closeout 검증 세트를 재통과시켰다.
+- 이유: local closeout smoke는 “지금 이 로컬 `.env` 와 DB 볼륨”에서도 재현 가능해야 의미가 있다. username만 split-account로 고정하고 password는 `.env` 를 따르지 않으면, smoke 자체가 스크립트 기본값에만 맞는 허상 검증이 된다.
