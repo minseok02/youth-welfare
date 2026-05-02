@@ -1042,6 +1042,17 @@ cd backend
 - 2026-04-28 `docker compose up -d db redis`
 - 2026-04-28 알림 대상 이메일 조회를 `notification_pii_ro` secondary datasource로 분리 후 `backend`에서 `./gradlew integrationTest --no-daemon --tests com.example.welfare.integration.AuthRedisIntegrationTest`
 - 2026-04-28 알림 대상 이메일 조회를 `notification_pii_ro` secondary datasource로 분리 후 `git diff --check`
+- 2026-05-02 `YouthApiClient` pacing/retry 보강 후 Docker app 재빌드, 로컬 `POST /api/admin/collect/youth` 실수집 성공 확인
+  - latest `api_sync_logs`: `YOUTH success requested=2363 saved=2363 failed=0`
+  - page 2 transient `500` 는 retry로 복구, page 18 `400` 재현 실패
+- 2026-05-02 summary slot backfill SQL 중복 삽입 경로 수정 후 `deploy/mysql/apply-local-policy-sidecar-draft.sh` 재통과
+  - `service_taxonomies=3705`
+  - `service_taxonomy_summary_slots=5672`
+- 2026-05-02 실수집/sidecar 수정 후 `KEEP_ARTIFACTS=true deploy/smoke/run-local-education-priority-replay.sh` 재통과
+  - artifact: `/tmp/tmp.r7CnW31Szq`
+  - `SUMMARY_METRIC A_top10_target=5->8 B_top10_target=2->2 A_best_target_rank=3->1`
+- 2026-05-02 실수집/sidecar 수정 후 `deploy/smoke/run-local-auth-session-smoke.sh` 재통과
+- 2026-05-02 실수집/sidecar 수정 후 `backend`에서 `./gradlew test integrationTest --no-daemon`
 
 ## 남은 1차 작업
 
