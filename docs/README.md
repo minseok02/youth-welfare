@@ -30,6 +30,7 @@
 - [srs-v2.10.md](./srs-v2.10.md)
 - [testing.md](./testing.md)
 - [local-validation-docs-index.md](./local-validation-docs-index.md)
+- [system-docs-index.md](./system-docs-index.md)
 
 ## 현재 상태 문서
 
@@ -39,6 +40,7 @@
 - [frontend-qa-docs-index.md](./frontend-qa-docs-index.md)
 - [policy-docs-index.md](./policy-docs-index.md)
 - [local-validation-docs-index.md](./local-validation-docs-index.md)
+- [system-docs-index.md](./system-docs-index.md)
 - [auth-session-revocation-current-state.md](./auth-session-revocation-current-state.md)
 - [collect-current-state.md](./collect-current-state.md)
 - [recommendation-current-state.md](./recommendation-current-state.md)
