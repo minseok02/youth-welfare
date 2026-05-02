@@ -1,5 +1,10 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 291) `srs-v2.10.md`, `demo-scenario.md`, `archive/README.md` 도 아직 개별 direct 문서 중심이라 문서군 entrypoint 독법과 완전히 맞지 않음
+- 문제: cross-cutting 독법은 거의 `docs-index` 중심으로 맞췄지만, 요구사항 원본인 `srs-v2.10.md`, 로컬 검증용 `demo-scenario.md`, 보관용 `archive/README.md` 는 각각 상위 entrypoint를 전혀 드러내지 않아 새 사용자가 같은 층위 문서를 찾을 때 다시 파일명을 직접 알아야 했음
+- 해결: 각 문서 상단에 `system-docs-index.md`, `local-validation-docs-index.md`, `history-docs-index.md` 진입점을 먼저 보게 한 줄씩 추가했다
+- 이유: 요구사항/데모/보관 문서도 현재 독법과 같은 패턴을 가져야 예외가 줄고, 문서군 단위로 읽는 흐름이 끝까지 유지된다
+
 ## 290) `db-migration.md`, `user-data-separation-design.md`, `chatbot-plan.md` 도 direct link 중심이라 system docs entrypoint 독법과 완전히 맞지 않음
 - 문제: `project-spec.md`, `architecture.md`, `api-mapping.md` 는 `system-docs-index.md` 기준으로 맞췄지만, 나머지 cross-cutting reference 문서인 `db-migration.md`, `user-data-separation-design.md`, `chatbot-plan.md` 는 여전히 개별 direct link 중심이라 같은 문서군 안에서 진입 방식이 또 달라졌음
 - 해결: 세 문서 상단에 `system-docs-index.md` entrypoint를 먼저 보게 한 줄씩 추가해 cross-cutting 문서군 전체의 독법을 맞췄음

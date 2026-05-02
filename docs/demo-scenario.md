@@ -1,5 +1,7 @@
 # 데모 시나리오
 
+로컬 실행/검증 문서군 진입점은 [local-validation-docs-index.md](./local-validation-docs-index.md)를 먼저 봅니다.
+
 졸업 발표나 기능 검수 때 바로 따라갈 수 있는 백엔드 데모 순서다.
 기준 환경은 `Docker Compose + MySQL + Redis + Nginx(선택)`이다.
 발표용 단일 서버는 현재 실측 기준 `t4g.medium` 이상을 권장한다.

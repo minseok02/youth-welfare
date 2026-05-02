@@ -9,6 +9,7 @@
 - 2026-05-02: `project-spec.md` 참고 문서도 현재 구조와 맞게 정리해 `system-docs-index.md` 와 `local-validation-docs-index.md` 를 우선 entrypoint 로 보게 맞췄다.
 - 2026-05-02: `architecture.md`, `api-mapping.md` 도 현재 문서 독법과 맞게 `system-docs-index.md` entrypoint를 먼저 보게 정리했다.
 - 2026-05-02: `db-migration.md`, `user-data-separation-design.md`, `chatbot-plan.md` 도 현재 문서 독법과 맞게 `system-docs-index.md` entrypoint를 먼저 보게 정리했다.
+- 2026-05-02: `srs-v2.10.md`, `demo-scenario.md`, `archive/README.md` 도 각각 `system/local-validation/history` entrypoint를 먼저 보게 정리해 핵심 참조 문서군의 독법을 맞췄다.
 
 이 문서는 현재 구현 상태와 남은 1차 작업을 확인하기 위한 현황판입니다.
 요구사항 원본은 [srs-v2.10.md](./srs-v2.10.md), 실행 방법은 [testing.md](./testing.md), 현재 문서 길찾기는 [documentation-map.md](./documentation-map.md)를 봅니다.
