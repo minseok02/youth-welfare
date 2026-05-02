@@ -1,5 +1,7 @@
 # 다음 active track 우선순위
 
+문서군 진입점: [policy-docs-index.md](./policy-docs-index.md)
+
 관련 문서:
 
 - [phase-plan.md](./phase-plan.md)
