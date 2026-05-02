@@ -1,5 +1,6 @@
 # 구현 현황
 
+- 2026-05-02: 추천/수집 2차 기능으로 `GET /api/admin/dashboard/summary` 를 추가했다. `AdminDashboardService` 는 오케스트레이션만 맡고, cross-domain 집계 SQL은 `AdminDashboardReadRepository` 로 분리해 collect/recommendation/notification/search/user_pii_sync 지표를 admin read-model 한 곳에서 묶었다. `AdminDashboardServiceTest`, `AdminSecurityWebMvcTest` 를 다시 통과시켰다.
 - 2026-05-02: 정책 검색에 2차 기능이던 `search_logs` 를 추가했다. `PolicySearchService` 는 read-only로 유지하고, `ClientFingerprintService` 와 `PolicySearchLogService` 를 분리해 controller 경계에서 `keyword/resultCount/filter/pageSize` 를 저장하게 정리했다. `PolicySearchLogServiceTest`, `RecommendationPolicyFlowWebMvcTest`, `PolicySearchServiceTest` 를 다시 통과시켰다.
 - 2026-05-02: 카카오 알림톡 2차는 현재 운영 자격 blocked 로 다시 분류했다. 로컬 코드 구조상 `NotificationGateway` 경계는 이미 있지만, 실제 운영에는 비즈니스 채널/발신 프로필/템플릿 심사와 사업자 증빙이 선행되어야 하고 학생 개인 신분 3개월 운영 범위에서는 리스크가 더 크므로, practical next 2차 기능 우선순위는 `대시보드 > 알림톡` 으로 둔다.
 - 2026-05-02: user/email prefix 기반 broad-suite self-heal cleanup이 여러 integration 테스트에 복제돼 있어 `IntegrationCleanupSupport` 를 추가하고 `AuthRedisIntegrationTest`, `AdminSecurityIntegrationTest`, `UserCoreDualWriteIntegrationTest`, `UserMetadataUserKeyBackfillIntegrationTest`, `UserPiiBackfillIntegrationTest`, `UserPiiSyncReplayIntegrationTest`, `UserPiiSyncRetrySchedulerIntegrationTest`, `RecommendationFlowIntegrationTest` 의 cleanup을 공통 support 호출로 수렴시켰다. 타깃 integration 재실행과 전체 `./gradlew test integrationTest --no-daemon` 을 다시 통과시켰다.
@@ -48,7 +49,7 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 같은 pre-28 migrated DB에 최신 Spring 앱을 직접 붙여도 `ddl-auto: validate` 가 통과하고, 회원가입 -> 로그인 -> 프로필 수정 -> `user_pii_sync_queue` `SYNCED` -> 회원탈퇴 cleanup end-to-end smoke가 그대로 유지되는지 추가로 확인했습니다.
 
 같은 조합에서 admin allowlist + DB row를 맞춘 계정으로 `GET /api/admin/users/pii-sync-status`, `POST /api/admin/users/pii-sync-replay` 도 호출해 queue 모니터링/수동 재처리 경로까지 로컬 smoke를 마쳤습니다.
-남은 작업은 운영 배포/운영성 검증(운영 서버 Docker Compose, 기존 운영 DB 계정 생성 SQL 적용 및 datasource 전환, 운영 `.env` / secret store의 `APP_PII_DB_URL` / `NOTIFICATION_PII_DB_URL` 를 `youth_welfare_pii` 기준으로 전환, HTTPS/Nginx, 운영 DB에 `V2026_04_28_02__add_user_pii_sync_queue.sql` / `V2026_04_28_01__drop_runtime_legacy_user_id.sql` 적용 후 smoke 검증, 기존 운영 DB에 `app_core_rw` 의 `youth_welfare_pii.user_pii` revoke SQL 실제 적용과 보조 datasource smoke 검증, CTR 표본 확충 후 재분석)과 2차 확장 기능(군집 캐시 추천, 대시보드, 카카오 알림톡 blocked)입니다.
+남은 작업은 운영 배포/운영성 검증(운영 서버 Docker Compose, 기존 운영 DB 계정 생성 SQL 적용 및 datasource 전환, 운영 `.env` / secret store의 `APP_PII_DB_URL` / `NOTIFICATION_PII_DB_URL` 를 `youth_welfare_pii` 기준으로 전환, HTTPS/Nginx, 운영 DB에 `V2026_04_28_02__add_user_pii_sync_queue.sql` / `V2026_04_28_01__drop_runtime_legacy_user_id.sql` 적용 후 smoke 검증, 기존 운영 DB에 `app_core_rw` 의 `youth_welfare_pii.user_pii` revoke SQL 실제 적용과 보조 datasource smoke 검증, CTR 표본 확충 후 재분석)과 2차 확장 기능(군집 캐시 추천, 카카오 알림톡 blocked)입니다.
 
 ## 완료된 백엔드 1차 범위
 

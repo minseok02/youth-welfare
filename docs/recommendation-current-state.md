@@ -187,3 +187,4 @@ runtime bootstrap이 자동으로 sidecar를 다 복구하는 건 아닙니다.
 3. education experiment는 이미 코드에 들어가 있고 local replay로 검증됐습니다.
 4. `ai_score` exact match는 현재 제품 보장 범위가 아닙니다.
 5. notification 후보 선택은 현재 `[A, A, B?]` 슬롯 배치입니다.
+6. 운영 지표는 `GET /api/admin/dashboard/summary` 에서 collect/recommendation/notification/search/user_pii_sync 묶음으로 조회합니다.

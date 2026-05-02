@@ -2322,3 +2322,8 @@
 - 문제: 현재 알림 경계는 `NotificationGateway` 인터페이스로 분리돼 있어 겉보기에는 알림톡 provider만 붙이면 될 것처럼 보인다. 하지만 실제 알림톡 운영은 비즈니스 채널 전환, 발신 프로필 등록, 템플릿 심사, 사업자 증빙이 선행되어야 하고, 학생 개인 신분의 3개월 졸업 프로젝트 운영 범위에서는 이 전제가 더 큰 병목이다.
 - 해결: 알림톡을 단순 2차 구현 항목이 아니라 `운영 자격 blocked` 항목으로 재분류했다. practical next 2차 기능 우선순위는 `검색 로그 -> 대시보드 -> 알림톡` 으로 두고, 알림톡은 사업자/심사 조건이 실제로 충족될 때만 reopen 하는 기준으로 문서를 정리했다.
 - 이유: 지금 부족한 것은 코드 추상화가 아니라 외부 자격과 심사 가능성이다. 이 상태에서 알림톡 구현을 active track 으로 두면, repo 안에서 해결할 수 없는 문제를 계속 코드 작업처럼 파게 된다.
+
+## 426) 추천/수집 대시보드를 각 도메인 서비스에 따로 얹으면, 2차 운영 지표 기능이 기존 쓰기 경계와 도메인 책임을 다시 섞어 버린다
+- 문제: 대시보드는 collect/recommendation/notification/search/user_pii_sync 지표를 한 응답에서 보여줘야 하지만, 이걸 기존 도메인 서비스에 직접 추가하면 각 서비스가 자기 쓰기 책임 외에 admin 집계 책임까지 떠안게 된다. 특히 cross-domain SQL이 여러 repository로 흩어지면 대시보드 변경이 곧 핵심 서비스 변경으로 번진다.
+- 해결: `GET /api/admin/dashboard/summary` 를 새 admin read-model 경계로 두고, `AdminDashboardService` 는 오케스트레이션만 담당하게 했다. 실제 SQL 집계는 `AdminDashboardReadRepository` 로 모아 collect/recommendation/notification/search 지표를 읽고, `UserPiiSyncStatusService` 는 기존 status read-model을 그대로 재사용하게 분리했다.
+- 이유: 대시보드는 본질적으로 운영 관측용 read 모델이다. 핵심 도메인 서비스에 섞지 않고 admin 전용 query/service 계층으로 빼야 SOLID 경계가 덜 흔들리고, 운영 지표 변경도 기능 서비스 회귀 없이 처리할 수 있다.
