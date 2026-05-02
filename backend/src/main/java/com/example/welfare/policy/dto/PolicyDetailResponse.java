@@ -33,6 +33,9 @@ public class PolicyDetailResponse {
     private String youthMajorLabel;
     private String youthMidLabel;
     private String provisionMethodLabel;
+    private String gov24ServiceFieldLabel;
+    private String gov24UserTypeLabel;
+    private String gov24BenefitTypeLabel;
     private LocalDate startDate;
     private LocalDate endDate;
     private LocalDate applyStartDate;
@@ -106,6 +109,9 @@ public class PolicyDetailResponse {
                 .youthMajorLabel(resolveYouthMajorLabel(projection))
                 .youthMidLabel(resolveYouthMidLabel(projection))
                 .provisionMethodLabel(resolveProvisionMethodLabel(projection))
+                .gov24ServiceFieldLabel(resolveGov24ServiceFieldLabel(projection))
+                .gov24UserTypeLabel(resolveGov24UserTypeLabel(projection))
+                .gov24BenefitTypeLabel(resolveGov24BenefitTypeLabel(projection))
                 .startDate(ws.getStartDate())
                 .endDate(ws.getEndDate())
                 .applyStartDate(ws.getApplyStartDate())
@@ -143,5 +149,17 @@ public class PolicyDetailResponse {
 
     private static String resolveProvisionMethodLabel(RecommendationCandidateProjection projection) {
         return projection != null ? projection.provisionMethodLabel() : null;
+    }
+
+    private static String resolveGov24ServiceFieldLabel(RecommendationCandidateProjection projection) {
+        return projection != null ? projection.gov24ServiceFieldLabel() : null;
+    }
+
+    private static String resolveGov24UserTypeLabel(RecommendationCandidateProjection projection) {
+        return projection != null ? projection.gov24UserTypeLabel() : null;
+    }
+
+    private static String resolveGov24BenefitTypeLabel(RecommendationCandidateProjection projection) {
+        return projection != null ? projection.gov24BenefitTypeLabel() : null;
     }
 }

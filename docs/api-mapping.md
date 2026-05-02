@@ -451,6 +451,9 @@ public void resetAiScoreForClosed() {
   - `youthMajorLabel` (nullable, canonical summary)
   - `youthMidLabel` (nullable, canonical summary)
   - `provisionMethodLabel` (nullable, canonical summary)
+  - `gov24ServiceFieldLabel` (nullable, canonical summary)
+  - `gov24UserTypeLabel` (nullable, canonical summary)
+  - `gov24BenefitTypeLabel` (nullable, canonical summary)
   - `status`
   - `finalScore`
   - `aiScore`
@@ -465,6 +468,9 @@ public void resetAiScoreForClosed() {
   - `youthMajorLabel`
   - `youthMidLabel`
   - `provisionMethodLabel`
+  - `gov24ServiceFieldLabel`
+  - `gov24UserTypeLabel`
+  - `gov24BenefitTypeLabel`
 
 ### `GET /api/policies/ranking`
 
@@ -475,6 +481,9 @@ public void resetAiScoreForClosed() {
   - `youthMajorLabel` (nullable, canonical summary)
   - `youthMidLabel` (nullable, canonical summary)
   - `provisionMethodLabel` (nullable, canonical summary)
+  - `gov24ServiceFieldLabel` (nullable, canonical summary)
+  - `gov24UserTypeLabel` (nullable, canonical summary)
+  - `gov24BenefitTypeLabel` (nullable, canonical summary)
   - `sourceType`
   - `uniqueViewCount7d` (최근 7일 고유조회수)
   - `viewCount` (내부 누적 조회수)
@@ -492,6 +501,9 @@ public void resetAiScoreForClosed() {
       "youthMajorLabel": "주거",
       "youthMidLabel": "취업",
       "provisionMethodLabel": "온라인",
+      "gov24ServiceFieldLabel": "보육",
+      "gov24UserTypeLabel": "청년",
+      "gov24BenefitTypeLabel": "서비스",
       "sourceType": "YOUTH",
       "uniqueViewCount7d": 1,
       "viewCount": 2,
@@ -517,6 +529,9 @@ public void resetAiScoreForClosed() {
   - `youthMajorLabel` (nullable, canonical summary)
   - `youthMidLabel` (nullable, canonical summary)
   - `provisionMethodLabel` (nullable, canonical summary)
+  - `gov24ServiceFieldLabel` (nullable, canonical summary)
+  - `gov24UserTypeLabel` (nullable, canonical summary)
+  - `gov24BenefitTypeLabel` (nullable, canonical summary)
   - `applyStartDate`
   - `applyEndDate`
   - `isOnlineApply`
@@ -546,7 +561,7 @@ public void resetAiScoreForClosed() {
 - 기타
   - 각 항목의 `bookmarked`는 로그인 사용자면 최신 북마크 상태 기준, 비로그인이면 `false`
   - `totalElements`는 청년 후처리 필터가 적용된 최종 결과 기준
-  - `youthMajorLabel`, `youthMidLabel`, `provisionMethodLabel` 은 additive field이며, canonical projection이 있으면 그 값을 우선 사용
+  - `youthMajorLabel`, `youthMidLabel`, `provisionMethodLabel`, `gov24ServiceFieldLabel`, `gov24UserTypeLabel`, `gov24BenefitTypeLabel` 은 additive field이며, canonical projection이 있으면 그 값을 우선 사용
 
 ### `GET /api/policies/{id}`
 
@@ -557,7 +572,7 @@ public void resetAiScoreForClosed() {
 - 주요 응답 필드
   - `id`, `title`, `description`, `unifiedCategory`, `status`, `sourceType`
   - `hostOrg`, `operatingOrg`, `minAge`, `maxAge`, `minIncome`, `maxIncome`
-  - `supportContent`, `applyMethodName`, `youthMajorLabel`, `youthMidLabel`, `provisionMethodLabel`, `applyStartDate`, `applyEndDate`
+  - `supportContent`, `applyMethodName`, `youthMajorLabel`, `youthMidLabel`, `provisionMethodLabel`, `gov24ServiceFieldLabel`, `gov24UserTypeLabel`, `gov24BenefitTypeLabel`, `applyStartDate`, `applyEndDate`
   - `targetDetail`, `supportDetail`, `applyMethodDetail`, `contactList`
   - `regions`, `tags`, `detailUrl`, `bookmarked`
 
@@ -568,6 +583,9 @@ public void resetAiScoreForClosed() {
   - `youthMajorLabel`
   - `youthMidLabel`
   - `provisionMethodLabel`
+  - `gov24ServiceFieldLabel`
+  - `gov24UserTypeLabel`
+  - `gov24BenefitTypeLabel`
 
 ## canonical summary additive field 메모 (2026-05-02)
 
@@ -579,6 +597,15 @@ public void resetAiScoreForClosed() {
   - 현재는 projection이 있으면 응답에 실리고, 없으면 `null`
 - `provisionMethodLabel`
   - canonical summary 기준 제공방법명
+  - 현재는 projection이 있으면 응답에 실리고, 없으면 `null`
+- `gov24ServiceFieldLabel`
+  - 복지로/정부24 계열 canonical 서비스 분야 summary
+  - 현재는 projection이 있으면 응답에 실리고, 없으면 `null`
+- `gov24UserTypeLabel`
+  - 복지로/정부24 계열 canonical 이용대상 summary
+  - 현재는 projection이 있으면 응답에 실리고, 없으면 `null`
+- `gov24BenefitTypeLabel`
+  - 복지로/정부24 계열 canonical 지원유형 summary
   - 현재는 projection이 있으면 응답에 실리고, 없으면 `null`
 - 기존 필드(`applyMethodName`, `unifiedCategory`)를 대체하지 않음
   - additive contract로만 먼저 노출

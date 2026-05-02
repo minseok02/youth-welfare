@@ -115,6 +115,9 @@ projection이 현재 담는 대표값:
 - `youthMajorLabel`
 - `youthMidLabel`
 - `provisionMethodLabel`
+- `gov24ServiceFieldLabel`
+- `gov24UserTypeLabel`
+- `gov24BenefitTypeLabel`
 - `applyEndDate`
 - `interestThemes`
 - `targetGroupsRaw`
@@ -123,17 +126,20 @@ projection이 현재 담는 대표값:
 - `factKeys`
 
 현재 `youthMajorLabel` 은 slot-first / legacy fallback 으로 읽고 있고,
-`youthMidLabel`, `provisionMethodLabel` 도 같은 projection 경계에 먼저 실어 둔 상태입니다.
+`youthMidLabel`, `provisionMethodLabel`, `gov24ServiceFieldLabel`, `gov24UserTypeLabel`, `gov24BenefitTypeLabel`
+도 같은 projection 경계에 먼저 실어 둔 상태입니다.
 
 즉 raw sidecar를 추천 서비스가 직접 읽는 게 아니라,
 추천 전용 projection을 통해 hydrate 하는 구조가 이미 코드에 있습니다.
 
 또 policy summary/detail/ranking 응답은 이제 이 projection에서
-`youthMajorLabel`, `youthMidLabel`, `provisionMethodLabel` 을 additive field로 같이 노출합니다.
+`youthMajorLabel`, `youthMidLabel`, `provisionMethodLabel`, `gov24ServiceFieldLabel`, `gov24UserTypeLabel`, `gov24BenefitTypeLabel`
+을 additive field로 같이 노출합니다.
 관련 WebMvc contract도 목록/상세/랭킹/북마크 응답 기준으로 테스트 고정된 상태입니다.
 추천 목록/refresh 응답도 같은 additive field를 projection 기준으로 노출합니다.
 또 `RealtimeAiGateway` prompt도 이제 compat 분류 외에
-`youthMajorLabel`, `youthMidLabel`, `provisionMethodLabel` 을 같이 실어
+`youthMajorLabel`, `youthMidLabel`, `provisionMethodLabel`, `gov24ServiceFieldLabel`, `gov24UserTypeLabel`, `gov24BenefitTypeLabel`
+을 같이 실어
 AI 재평가 입력에서 canonical summary를 직접 소비합니다.
 latest local replay(`rule-only-invalid-key`) 기준으로는
 `SUMMARY_REASON_METRIC A_reason_changed=8 B_reason_changed=0`

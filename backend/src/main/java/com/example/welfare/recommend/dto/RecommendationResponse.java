@@ -20,6 +20,9 @@ public class RecommendationResponse {
     private String youthMajorLabel;
     private String youthMidLabel;
     private String provisionMethodLabel;
+    private String gov24ServiceFieldLabel;
+    private String gov24UserTypeLabel;
+    private String gov24BenefitTypeLabel;
     private String status;
     private BigDecimal finalScore;
     private BigDecimal aiScore;     // null 가능
@@ -48,6 +51,9 @@ public class RecommendationResponse {
                 .youthMajorLabel(resolveYouthMajorLabel(projection))
                 .youthMidLabel(resolveYouthMidLabel(projection))
                 .provisionMethodLabel(resolveProvisionMethodLabel(projection))
+                .gov24ServiceFieldLabel(resolveGov24ServiceFieldLabel(projection))
+                .gov24UserTypeLabel(resolveGov24UserTypeLabel(projection))
+                .gov24BenefitTypeLabel(resolveGov24BenefitTypeLabel(projection))
                 .status(rec.getService().getStatus().name())
                 .finalScore(rec.getFinalScore())
                 .aiScore(rec.getAiScore())
@@ -75,5 +81,17 @@ public class RecommendationResponse {
 
     private static String resolveProvisionMethodLabel(RecommendationCandidateProjection projection) {
         return projection != null ? projection.provisionMethodLabel() : null;
+    }
+
+    private static String resolveGov24ServiceFieldLabel(RecommendationCandidateProjection projection) {
+        return projection != null ? projection.gov24ServiceFieldLabel() : null;
+    }
+
+    private static String resolveGov24UserTypeLabel(RecommendationCandidateProjection projection) {
+        return projection != null ? projection.gov24UserTypeLabel() : null;
+    }
+
+    private static String resolveGov24BenefitTypeLabel(RecommendationCandidateProjection projection) {
+        return projection != null ? projection.gov24BenefitTypeLabel() : null;
     }
 }
