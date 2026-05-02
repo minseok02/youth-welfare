@@ -2082,3 +2082,8 @@
 - 문제: `policy-gov24-blocked-track-status.md` 를 policy 문서군 내부 인덱스와 `documentation-map.md` 에 연결한 뒤에도, 작업 시작 시 가장 먼저 보는 `start.md`, `current-state.md`, `docs/README.md` 에는 아직 링크가 없었다. 이 상태면 `Gov24` 가 왜 inactive 인지 알고 싶은 사용자는 한 단계 더 들어가서야 문서를 찾게 된다.
 - 해결: 세 top-level entrypoint 모두에 `policy-gov24-blocked-track-status.md` 링크를 추가해, `start -> current-state -> policy docs` 어느 경로로 들어와도 blocked 상태 문서를 바로 찾게 정리했다.
 - 이유: blocked 트랙은 “존재 여부”보다 “얼마나 빨리 도달하느냐”가 중요하다. top-level entrypoint 에서 바로 보여야 같은 배경 설명을 반복하지 않게 된다.
+
+## 391) `documentation-map.md` 의 blocked 섹션에만 `Gov24` 링크가 있으면, 현재 구현 요약이나 새 작업 읽기 순서만 따라가는 사람은 다시 놓칠 수 있다
+- 문제: `documentation-map.md` 에 `policy-gov24-blocked-track-status.md` 링크가 external blocked 트랙 섹션에는 있었지만, 위쪽의 현재 구현 상태 요약 리스트와 “새 작업을 열 때” 읽기 순서에는 아직 없었다. 이 상태면 blocked 트랙이든 active 트랙이든 문서 맵만 빠르게 훑는 사용자는 여전히 해당 entrypoint를 지나칠 수 있다.
+- 해결: `documentation-map.md` 의 현재 구현 상태 요약 섹션에 `policy-gov24-blocked-track-status.md` 를 추가하고, 새 작업 읽기 순서에도 “`Gov24` inactive/reopen 판단이 필요하면 먼저 본다”는 한 줄을 넣었다.
+- 이유: entrypoint 문서는 한 번만 링크해선 충분하지 않다. 실제 사용 흐름에서 사람들이 훑는 섹션마다 보여야 blocked 상태 판단이 재학습 없이 반복 가능해진다.
