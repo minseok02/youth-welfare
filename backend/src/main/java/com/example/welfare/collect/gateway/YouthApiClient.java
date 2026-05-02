@@ -28,6 +28,8 @@ public class YouthApiClient {
     private int retryMaxAttempts;
     @Value("${collect.list.retry.base-backoff-ms:1000}")
     private long retryBaseBackoffMs;
+    @Value("${collect.list.request-interval-ms:300}")
+    private long requestIntervalMs;
 
     private static final int PAGE_SIZE = 100;
 
@@ -42,6 +44,9 @@ public class YouthApiClient {
         int pageNum = 1;
 
         while (true) {
+            if (pageNum > 1) {
+                sleepQuietly(requestIntervalMs);
+            }
             YouthApiDto response = fetchPage(pageNum, PAGE_SIZE);
             if (response == null || response.getResult() == null
                     || response.getResult().getYouthPolicyList() == null
@@ -109,7 +114,7 @@ public class YouthApiClient {
     }
 
     private boolean isRetryableStatus(int status) {
-        return status == 429 || status >= 500;
+        return status == 400 || status == 429 || status >= 500;
     }
 
     private void sleepQuietly(long millis) {

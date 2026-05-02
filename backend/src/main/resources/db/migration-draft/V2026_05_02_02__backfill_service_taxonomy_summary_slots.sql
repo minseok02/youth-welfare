@@ -25,22 +25,24 @@ INSERT INTO service_taxonomy_summary_slots (
     confidence
 )
 SELECT
-    st.service_id,
+    slots.service_id,
     slots.slot_key,
     slots.code_set_key,
     slots.slot_code,
     slots.slot_label,
-    NULL AS source_field,
-    st.authority,
-    st.confidence
-FROM service_taxonomies st
-JOIN (
+    slots.source_field,
+    slots.authority,
+    slots.confidence
+FROM (
     SELECT
         service_id,
         'YOUTH_MAJOR' AS slot_key,
         'YOUTH_MAJOR' AS code_set_key,
         COALESCE(youth_major_code, '') AS slot_code,
-        youth_major_label AS slot_label
+        youth_major_label AS slot_label,
+        NULL AS source_field,
+        authority,
+        confidence
     FROM service_taxonomies
     WHERE youth_major_label IS NOT NULL
 
@@ -51,7 +53,10 @@ JOIN (
         'YOUTH_MID' AS slot_key,
         'YOUTH_MID' AS code_set_key,
         COALESCE(youth_mid_code, '') AS slot_code,
-        youth_mid_label AS slot_label
+        youth_mid_label AS slot_label,
+        NULL AS source_field,
+        authority,
+        confidence
     FROM service_taxonomies
     WHERE youth_mid_label IS NOT NULL
 
@@ -62,7 +67,10 @@ JOIN (
         'GOV24_SERVICE_FIELD' AS slot_key,
         'GOV24_SERVICE_FIELD' AS code_set_key,
         COALESCE(gov24_service_field_code, '') AS slot_code,
-        gov24_service_field_label AS slot_label
+        gov24_service_field_label AS slot_label,
+        NULL AS source_field,
+        authority,
+        confidence
     FROM service_taxonomies
     WHERE gov24_service_field_label IS NOT NULL
 
@@ -73,7 +81,10 @@ JOIN (
         'GOV24_USER_TYPE' AS slot_key,
         'GOV24_USER_TYPE' AS code_set_key,
         COALESCE(gov24_user_type_code, '') AS slot_code,
-        gov24_user_type_label AS slot_label
+        gov24_user_type_label AS slot_label,
+        NULL AS source_field,
+        authority,
+        confidence
     FROM service_taxonomies
     WHERE gov24_user_type_label IS NOT NULL
 
@@ -84,7 +95,10 @@ JOIN (
         'GOV24_BENEFIT_TYPE' AS slot_key,
         'GOV24_BENEFIT_TYPE' AS code_set_key,
         COALESCE(gov24_benefit_type_code, '') AS slot_code,
-        gov24_benefit_type_label AS slot_label
+        gov24_benefit_type_label AS slot_label,
+        NULL AS source_field,
+        authority,
+        confidence
     FROM service_taxonomies
     WHERE gov24_benefit_type_label IS NOT NULL
 
@@ -95,8 +109,16 @@ JOIN (
         'PROVISION_METHOD' AS slot_key,
         NULL AS code_set_key,
         '' AS slot_code,
-        provision_method_label AS slot_label
+        provision_method_label AS slot_label,
+        NULL AS source_field,
+        authority,
+        confidence
     FROM service_taxonomies
     WHERE provision_method_label IS NOT NULL
 ) slots
-    ON slots.service_id = st.service_id;
+ON DUPLICATE KEY UPDATE
+    code_set_key = VALUES(code_set_key),
+    slot_label = VALUES(slot_label),
+    source_field = VALUES(source_field),
+    confidence = VALUES(confidence),
+    updated_at = CURRENT_TIMESTAMP;

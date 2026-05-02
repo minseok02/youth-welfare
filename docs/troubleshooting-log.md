@@ -2272,3 +2272,13 @@
 - 문제: 개별 smoke를 다 만든 뒤에도 closeout 시점에는 결국 `run-local-runtime-api-smoke.sh`, `run-local-withdraw-smoke.sh`, `run-local-admin-forced-logout-smoke.sh` 를 차례로 다시 실행해야 했다. 이 상태는 사람 손으로 순서를 다시 기억해야 하므로, “세 개 모두 돌렸다”는 증적을 남기기에도 번거롭다.
 - 해결: `deploy/smoke/run-local-auth-session-smoke.sh` wrapper를 추가해 기본 순서를 `runtime logout -> withdraw -> admin forced logout` 으로 고정했다. 필요하면 `RUN_RUNTIME_API_SMOKE=false` 같은 env로 일부만 끌 수 있지만, closeout 기본값은 세 개를 다 도는 쪽으로 뒀다.
 - 이유: revoke 경계는 개별 구현보다 “지금 로컬에서 세트로 다시 살아나는가”가 더 중요하다. wrapper 하나로 묶어야 closeout 기준선이 사람이 아니라 스크립트에 남는다.
+
+## 416) 온통청년 실수집은 같은 API key/page 조합이라도 빠른 연속 호출 중 특정 페이지에서 transient `400/500` 을 뱉을 수 있어서, pacing 없이 돌리면 전체 수집이 가끔 깨진다
+- 문제: 로컬에서 `POST /api/admin/collect/youth` 실수집을 다시 태우자 `YouthApiClient` 가 `page=18 status=400` 으로 한 번 실패했다. 그런데 같은 page를 수동 단건 조회하면 `200` 이 나왔고, 재기동 후에는 `page=2 status=500` 도 한 번 관측됐다. 즉 잘못된 page 요청이라기보다 외부 API가 빠른 연속 호출 중 간헐적으로 불안정하게 응답하는 패턴이었다.
+- 해결: `YouthApiClient` 에도 `collect.list.request-interval-ms` pacing을 추가하고, 이 엔드포인트의 transient `400` 을 retryable status에 포함시켰다. 그 뒤 Docker app을 재빌드하고 실수집을 다시 실행해 latest `api_sync_logs` 기준 `YOUTH success requested=2363 saved=2363 failed=0` 로 복구를 확인했다.
+- 이유: 현재 collect closeout 목표는 “실수집이 가끔 깨지지 않고 끝까지 돈다”는 것이다. 온통청년만 pacing이 빠져 있으면 복지로 계열과 달리 외부 변동성에 그대로 노출된다.
+
+## 417) summary slot local backfill SQL이 `service_taxonomies` 를 다시 조인하면 동일 service row에서도 unique 충돌로 draft apply가 멈출 수 있다
+- 문제: `deploy/mysql/apply-local-policy-sidecar-draft.sh` 재실행 중 `V2026_05_02_02__backfill_service_taxonomy_summary_slots.sql` 에서 `Duplicate entry '2419-YOUTH_MAJOR-WELFARE_CULTURE-OFFICIAL'` 가 발생했다. backfill SQL이 `slots` 서브쿼리를 만든 뒤 다시 `service_taxonomies st` 에 조인하며 authority/confidence를 가져오고 있어, 같은 service에 대해 managed slot row가 중복 생성될 수 있었다.
+- 해결: authority/confidence를 각 `UNION ALL` branch 안으로 넣고 outer join을 제거한 뒤, backfill insert를 `ON DUPLICATE KEY UPDATE` 로 바꿨다. 그 뒤 `deploy/mysql/apply-local-policy-sidecar-draft.sh` 를 다시 실행해 `service_taxonomy_summary_slots=5672`, `slot_density_YOUTH_MAJOR=2312`, `slot_density_PROVISION_METHOD=1170` 까지 정상 출력되는 것을 확인했다.
+- 이유: local draft apply는 replay와 current-state 검증의 베이스라인이라 반복 실행에 안전해야 한다. 여기서 unique 충돌이 나면 collect 회귀와 무관한 SQL 중복 때문에 validation 전체가 멈춘다.
