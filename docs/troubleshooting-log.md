@@ -2097,3 +2097,8 @@
 - 문제: `start.md`, `current-state.md`, `docs/README.md` 에 개별 policy 상태 문서는 많이 올라왔지만, 정작 policy 문서군 1차 진입점인 `policy-docs-index.md` 는 빠져 있었다. 이 상태면 사용자는 특정 문서는 바로 열 수 있어도, policy 묶음 전체를 어떻게 읽을지는 다시 `documentation-map.md` 나 파일 검색으로 돌아가야 했다.
 - 해결: 세 top-level entrypoint 모두에 `policy-docs-index.md` 링크를 추가해, 개별 current-state 문서와 문서군 인덱스를 같은 층위에서 바로 열 수 있게 정리했다.
 - 이유: entrypoint는 개별 문서 노출만으로는 충분하지 않다. 문서군 전체의 읽기 순서를 잡아 주는 인덱스도 같은 시작점에서 보여야 길찾기 비용이 줄어든다.
+
+## 394) policy 쪽만 top-level에서 문서군 인덱스를 보이고 auth 쪽은 안 보이면, 두 문서군의 진입 방식이 달라져 다시 기억 비용이 생긴다
+- 문제: `policy-docs-index.md` 를 top-level entrypoint에 올린 뒤에는 policy 문서군은 바로 인덱스로 들어갈 수 있었지만, auth 쪽은 여전히 `auth-session-revocation-current-state.md` 만 노출되고 `auth-docs-index.md` 는 `documentation-map.md` 안으로 들어가야 보였다. 이 상태면 문서군마다 진입 규칙이 달라져 사용자가 다시 예외를 기억해야 했다.
+- 해결: `start.md`, `current-state.md`, `docs/README.md` 에 `auth-docs-index.md` 링크를 추가해, auth/policy 두 문서군 모두 top-level entrypoint에서 바로 인덱스로 들어가게 맞췄다.
+- 이유: entrypoint 설계는 내용보다 패턴 일관성이 중요하다. 문서군마다 들어가는 방식이 같아야 다음 사용자가 생각 없이도 원하는 인덱스로 이동할 수 있다.
