@@ -35,8 +35,10 @@ public class BokjiroCentralClient {
     private int retryMaxAttempts;
     @Value("${collect.list.retry.base-backoff-ms:1000}")
     private long retryBaseBackoffMs;
-    @Value("${collect.list.max-consecutive-rate-limit-hits:1}")
+    @Value("${collect.list.max-consecutive-rate-limit-hits:3}")
     private int maxConsecutiveRateLimitHits;
+    @Value("${collect.list.rate-limit-cooldown-ms:10000}")
+    private long rateLimitCooldownMs;
 
     private static final int PAGE_SIZE = 100;
 
@@ -55,11 +57,14 @@ public class BokjiroCentralClient {
             PageFetchResult<BokjiroCentralDto> fetchResult = fetchPage(pageNo, PAGE_SIZE);
             if (fetchResult.isRateLimited()) {
                 rateLimitHits++;
-                log.warn("[BokjiroCentralClient] 429로 수집 중단 page={} collected={} rateLimitHits={}",
-                        pageNo, result.size(), rateLimitHits);
+                log.warn("[BokjiroCentralClient] 429 감지 page={} collected={} rateLimitHits={} cooldownMs={}",
+                        pageNo, result.size(), rateLimitHits, rateLimitCooldownMs);
                 if (rateLimitHits >= maxConsecutiveRateLimitHits) {
-                    break;
+                    log.warn("[BokjiroCentralClient] 연속 429 임계치 도달로 수집 중단 page={} collected={} rateLimitHits={}",
+                            pageNo, result.size(), rateLimitHits);
+                    throw new CustomException(ErrorCode.COLLECT_API_FAILED);
                 }
+                sleepQuietly(rateLimitCooldownMs);
                 continue;
             }
 

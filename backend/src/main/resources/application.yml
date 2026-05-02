@@ -90,7 +90,8 @@ bokjiro:
 collect:
   list:
     request-interval-ms: 300
-    max-consecutive-rate-limit-hits: 1
+    max-consecutive-rate-limit-hits: 3
+    rate-limit-cooldown-ms: 10000
     retry:
       max-attempts: 3
       base-backoff-ms: 1000
