@@ -2307,3 +2307,8 @@
 - 문제: app 이미지를 재빌드해 띄운 뒤 `admin@example.com` 으로 다시 로그인하자 access token roles가 `ROLE_USER` 뿐이었고, `/api/admin/collect/bokjiro-details-gap-fill` 이 `403 / C003` 으로 떨어졌다. 컨테이너 env를 확인해 보니 `SECURITY_ADMIN_EMAILS=` 로 비어 있었다.
 - 해결: 로컬 runtime contract를 다시 확인할 때는 `SECURITY_ADMIN_EMAILS=admin@example.com docker compose up -d --force-recreate app` 처럼 shell override로 allowlist를 주입한 뒤 검증했다. 이 상태에서 admin login token에 `ROLE_ADMIN` 이 다시 붙었고, collect admin endpoint도 정상적으로 contract 검증이 가능해졌다.
 - 이유: auth/session smoke는 이전 컨테이너 상태를 타고 통과할 수 있지만, fresh rebuild 뒤 admin route를 다시 검증할 때는 allowlist가 진짜 컨테이너 env로 들어갔는지 먼저 확인해야 한다. 그렇지 않으면 code regression이 아니라 env 누락을 기능 버그로 오인하게 된다.
+
+## 423) `BOKJIRO_LOCAL` 이 page 1 연속 `429` 로 실패한 직후 즉시 다시 호출되면, 이미 같은 원인으로 막힌 걸 알면서도 매번 30초씩 재시도하는 낭비가 남아 있었다
+- 문제: `POST /api/admin/collect/bokjiro-local` 은 repeated `429` 를 이제 `500 / COL001` 로 surface 하긴 하지만, operator가 버튼을 다시 누르면 같은 JVM 안에서도 page 1을 다시 세 번 재시도하고 cooldown 세 번을 다 태운 뒤 또 실패했다. 실데이터를 바꾸는 것도 아닌데 짧은 시간에 똑같은 외부 호출을 반복해 로컬 검증과 운영 대응이 모두 느려졌다.
+- 해결: `BokjiroLocalClient` 에 local in-memory open circuit을 추가해, 연속 `429` 임계치 도달 시 `collect.list.local-rate-limit-open-circuit-ms` 동안 회로를 열어 두고 이후 `fetchAll()` 진입 자체를 즉시 `COL001` 로 중단하게 바꿨다. `BokjiroLocalClientTest` 로 “회로가 열려 있으면 WebClient를 전혀 치지 않는다”를 고정했고, Docker app 재빌드 후 실제로 첫 호출은 `32s / 500 COL001`, 직후 두 번째 호출은 `0s / 500 COL001` 이며 로그에 `최근 연속 429로 수집 회로가 열려 있어 즉시 중단 remainingMs=...` 가 찍히는 것까지 확인했다.
+- 이유: 이 회로는 성공을 숨기는 장치가 아니라, 이미 실패가 확정된 짧은 재시도를 외부 API와 앱 둘 다 낭비하지 않게 막는 안전장치다. collect 사실원장은 계속 `FAILED` 로 남기고, operator는 쿨다운이 지난 뒤에만 의미 있는 재시도를 하게 만드는 쪽이 더 안전하다.

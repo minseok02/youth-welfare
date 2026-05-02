@@ -92,6 +92,7 @@ collect:
     request-interval-ms: 300
     max-consecutive-rate-limit-hits: 3
     rate-limit-cooldown-ms: 10000
+    local-rate-limit-open-circuit-ms: 1800000
     retry:
       max-attempts: 3
       base-backoff-ms: 1000
