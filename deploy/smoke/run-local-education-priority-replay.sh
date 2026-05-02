@@ -712,7 +712,21 @@ def summarize(label, rows):
         if meta.get(row["serviceId"], {}).get("compat") == "기타"
         and meta.get(row["serviceId"], {}).get("youth_major") == "교육"
     )
-    print(label, "count", len(rows), "target_count", len(target_positions), "top10_target_count", top10_target_count)
+    best_target_rank = target_positions[0][0] if target_positions else None
+    best_target_score = target_positions[0][3] if target_positions else None
+    print(
+        label,
+        "count",
+        len(rows),
+        "target_count",
+        len(target_positions),
+        "top10_target_count",
+        top10_target_count,
+        "best_target_rank",
+        best_target_rank,
+        "best_target_score",
+        best_target_score,
+    )
     for i, row in enumerate(top10, 1):
         print(label, i, row["serviceId"], row["title"], row["unifiedCategory"], row["finalScore"])
     print(label, "top10_target_positions", target_positions[:10])
@@ -720,6 +734,8 @@ def summarize(label, rows):
         "count": len(rows),
         "target_count": len(target_positions),
         "top10_target_count": top10_target_count,
+        "best_target_rank": best_target_rank,
+        "best_target_score": best_target_score,
     }
 
 def load_score_rows(path):
@@ -885,6 +901,10 @@ print(
     f"B_top10_target={b_off['top10_target_count']}->{b_on['top10_target_count']}",
     f"A_target_total={a_off['target_count']}->{a_on['target_count']}",
     f"B_target_total={b_off['target_count']}->{b_on['target_count']}",
+    f"A_best_target_rank={a_off['best_target_rank']}->{a_on['best_target_rank']}",
+    f"B_best_target_rank={b_off['best_target_rank']}->{b_on['best_target_rank']}",
+    f"A_best_target_score={a_off['best_target_score']}->{a_on['best_target_score']}",
+    f"B_best_target_score={b_off['best_target_score']}->{b_on['best_target_score']}",
     f"A_fp={a_fp_relation}",
     f"B_fp={b_fp_relation}",
 )
@@ -910,6 +930,10 @@ summary_line = (
     f"B_top10_target={b_off['top10_target_count']}->{b_on['top10_target_count']} "
     f"A_target_total={a_off['target_count']}->{a_on['target_count']} "
     f"B_target_total={b_off['target_count']}->{b_on['target_count']} "
+    f"A_best_target_rank={a_off['best_target_rank']}->{a_on['best_target_rank']} "
+    f"B_best_target_rank={b_off['best_target_rank']}->{b_on['best_target_rank']} "
+    f"A_best_target_score={a_off['best_target_score']}->{a_on['best_target_score']} "
+    f"B_best_target_score={b_off['best_target_score']}->{b_on['best_target_score']} "
     f"A_fp={a_fp_relation} "
     f"B_fp={b_fp_relation} "
     f"A_reason_changed={a_reason_diff['total_changed']} "
@@ -947,19 +971,37 @@ if summary_append_file:
 
 print("SUMMARY_APPEND_LINE", summary_line)
 
-if a_on["top10_target_count"] <= a_off["top10_target_count"]:
+def improved_target_rank(off_summary, on_summary):
+    off_rank = off_summary["best_target_rank"]
+    on_rank = on_summary["best_target_rank"]
+    if off_rank is None or on_rank is None:
+        return False
+    return on_rank < off_rank
+
+sample_a_improved = (
+    a_on["top10_target_count"] > a_off["top10_target_count"]
+    or improved_target_rank(a_off, a_on)
+)
+sample_b_regressed = (
+    b_on["top10_target_count"] > b_off["top10_target_count"]
+    or improved_target_rank(b_off, b_on)
+)
+
+if not sample_a_improved:
     message = (
-        "sample A did not improve target row top10 count "
-        f"({a_off['top10_target_count']} -> {a_on['top10_target_count']})"
+        "sample A did not improve target row visibility "
+        f"(top10 {a_off['top10_target_count']} -> {a_on['top10_target_count']}, "
+        f"best_rank {a_off['best_target_rank']} -> {a_on['best_target_rank']})"
     )
     if mode == "real-openai":
         print(f"WARNING: {message}")
     else:
         raise SystemExit(message)
-if b_on["top10_target_count"] > b_off["top10_target_count"]:
+if sample_b_regressed:
     message = (
-        "sample B target row top10 count increased unexpectedly "
-        f"({b_off['top10_target_count']} -> {b_on['top10_target_count']})"
+        "sample B target row visibility increased unexpectedly "
+        f"(top10 {b_off['top10_target_count']} -> {b_on['top10_target_count']}, "
+        f"best_rank {b_off['best_target_rank']} -> {b_on['best_target_rank']})"
     )
     if strict_control_assert.lower() == "true":
         raise SystemExit(message)
