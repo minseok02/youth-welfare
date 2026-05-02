@@ -2197,3 +2197,8 @@
 - 문제: 대부분의 대표 문서에는 `docs-index` 복귀 링크를 넣었지만, 실제로 자주 보는 공통 문서인 `github-workflow.md` 와 `local-feature-performance-check-2026-05-01.md` 는 아직 각각 `system-docs-index.md`, `local-validation-docs-index.md` 로 다시 돌아가는 링크가 없었다.
 - 해결: 두 문서 상단에 각 문서군 진입점 링크를 추가했다.
 - 이유: 문서군 정리는 개수보다 일관성이 중요하다. 몇 장만 예외로 남아도 사용자는 “여긴 왜 패턴이 다르지?”를 다시 생각해야 한다.
+
+## 404) archive 쪽 entrypoint를 `archive/README` 에만 두면, 실제 보관 문서를 직접 열었을 때는 다시 history 인덱스로 복귀할 길이 없다
+- 문제: `archive/README.md` 에는 이미 `history-docs-index.md` 진입점이 있었지만, 실제 대표 보관 문서인 `archive/project-plan-v11.md` 자체에는 아직 없었다. 이 상태면 사용자가 보관 플랜 문서를 바로 열었을 때는 다시 history 문서군 인덱스로 복귀하려면 상위 디렉터리나 검색에 의존해야 했다.
+- 해결: `archive/project-plan-v11.md` 상단에 `../history-docs-index.md` 진입점 링크를 추가했다.
+- 이유: history/archive 문서군도 현재 문서군과 같은 규칙을 따라야 한다. 실제 보관 문서 안에서도 한 줄로 인덱스로 복귀할 수 있어야 구조가 완전히 닫힌다.
