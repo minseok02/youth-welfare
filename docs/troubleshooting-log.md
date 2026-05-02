@@ -2192,3 +2192,8 @@
 - 문제: `policy-docs-index.md` 진입점을 current-state, checklist, playbook, blocked/priority, 구조/이행 설계 문서까지 넓혔지만, `policy-post-local-closeout-track-split.md`, `policy-source-canonical-onboarding-priority.md`, `policy-source-code-entrypoints.md`, `policy-source-onboarding-template.md` 는 여전히 각 문서 안에서 인덱스로 다시 돌아가는 링크가 없었다.
 - 해결: 위 네 문서 상단에도 `policy-docs-index.md` 진입점 링크를 추가했다.
 - 이유: policy 문서군은 문서 수가 많아 한두 장만 예외로 남아도 다시 검색 의존이 생긴다. 남은 대표 문서까지 같은 패턴으로 맞춰야 문서군 독법이 완전히 일관된다.
+
+## 403) 몇 장 안 남았더라도 공통 운영/검증 문서가 인덱스 규칙 밖에 남아 있으면 “거의 다 정리됐다”는 감각이 거짓이 된다
+- 문제: 대부분의 대표 문서에는 `docs-index` 복귀 링크를 넣었지만, 실제로 자주 보는 공통 문서인 `github-workflow.md` 와 `local-feature-performance-check-2026-05-01.md` 는 아직 각각 `system-docs-index.md`, `local-validation-docs-index.md` 로 다시 돌아가는 링크가 없었다.
+- 해결: 두 문서 상단에 각 문서군 진입점 링크를 추가했다.
+- 이유: 문서군 정리는 개수보다 일관성이 중요하다. 몇 장만 예외로 남아도 사용자는 “여긴 왜 패턴이 다르지?”를 다시 생각해야 한다.
