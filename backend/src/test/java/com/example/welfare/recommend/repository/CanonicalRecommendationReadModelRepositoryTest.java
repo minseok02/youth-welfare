@@ -96,6 +96,8 @@ class CanonicalRecommendationReadModelRepositoryTest {
         assertThat(projection.serviceId()).isEqualTo(2309L);
         assertThat(projection.sourceType()).isEqualTo("BOKJIRO_CENTRAL");
         assertThat(projection.unifiedCategoryCompat()).isEqualTo("금융·생활지원");
+        assertThat(projection.compatCategoryCode()).isEqualTo("FINANCE_LIFE_SUPPORT");
+        assertThat(projection.compatPriorityBucket()).isEqualTo("FINANCE");
         assertThat(projection.youthMajorLabel()).isEqualTo("교육");
         assertThat(projection.youthMidLabel()).isNull();
         assertThat(projection.provisionMethodLabel()).isEqualTo("온라인");
@@ -201,6 +203,7 @@ class CanonicalRecommendationReadModelRepositoryTest {
         RecommendationCandidateProjection projection = repository.findByServiceIds(List.of(5501L)).get(5501L);
 
         assertThat(projection.educationPriorityBoostEligible()).isTrue();
+        assertThat(projection.compatCategoryCode()).isEqualTo("OTHER");
         assertThat(projection.youthMidLabel()).isEqualTo("재직자");
         assertThat(projection.provisionMethodLabel()).isEqualTo("온라인");
     }
@@ -239,6 +242,7 @@ class CanonicalRecommendationReadModelRepositoryTest {
         RecommendationCandidateProjection projection = repository.findByServiceIds(List.of(6601L)).get(6601L);
 
         assertThat(projection.youthMajorLabel()).isEqualTo("교육");
+        assertThat(projection.compatCategoryCode()).isEqualTo("OTHER");
         assertThat(projection.youthMidLabel()).isEqualTo("전월세 및 주거급여 지원");
         assertThat(projection.provisionMethodLabel()).isEqualTo("온라인");
         assertThat(projection.gov24ServiceFieldLabel()).isEqualTo("상담");

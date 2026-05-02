@@ -1,6 +1,7 @@
 package com.example.welfare.recommend.support;
 
 import com.example.welfare.collect.support.NormalizationKeySupport;
+import com.example.welfare.policy.support.CompatCategorySupport;
 
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -122,8 +123,8 @@ public final class RecommendationProjectionHeuristicSupport {
         }
     }
 
-    public static boolean educationPriorityBoostEligible(String unifiedCategoryCompat, String youthMajorLabel) {
-        return "기타".equals(unifiedCategoryCompat) && "교육".equals(youthMajorLabel);
+    public static boolean educationPriorityBoostEligible(String compatCategoryCode, String youthMajorLabel) {
+        return CompatCategorySupport.isOtherCompatCode(compatCategoryCode) && "교육".equals(youthMajorLabel);
     }
 
     private static List<String> audienceTextSignals(String title,

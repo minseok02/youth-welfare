@@ -2237,3 +2237,13 @@
 - 문제: `UserCoreDualWriteIntegrationTest`, `UserPiiSyncRetrySchedulerIntegrationTest`, `UserMetadataUserKeyBackfillIntegrationTest`, `UserPiiSyncReplayIntegrationTest`, `UserPiiBackfillIntegrationTest`, `AuthRedisIntegrationTest`, `AdminSecurityIntegrationTest` 도 모두 test email prefix로 생성 row를 구분하면서 `@AfterEach` cleanup 중심으로만 정리하고 있었다. broad suite가 이전 중단/실패 후 다시 시작될 때는 같은 패턴으로 stale user row와 queue/redis side effect가 남을 수 있다.
 - 해결: 이 7개 클래스도 `@BeforeEach` 에서 cleanup을 한 번 더 태우도록 맞췄다. 그 뒤 관련 타깃 integration들과 전체 `./gradlew test integrationTest --no-daemon` 을 다시 통과시켰다.
 - 이유: 지금 closeout 목표는 개별 로직 변경보다 suite 재실행 안정성이다. user-prefix 기반 테스트는 broad suite에서 비슷한 종류의 잔존 오염을 만들기 쉬우므로, 시작 전 self-heal cleanup을 통일하는 편이 가장 값싸고 확실한 방어선이다.
+
+## 409) projection이 있어도 matcher/heuristic이 compat label 문자열을 다시 읽으면 source-neutral read-model 이득이 중간에서 새어 나간다
+- 문제: `DefaultPriorityMatcher` 는 projection에 `priorityBuckets` 가 있어도 비어 있으면 다시 `unifiedCategoryCompat` label을 `CompatCategorySupport` 로 해석했고, `CanonicalRecommendationReadModelRepository` 의 education bridge도 `compat=기타` 여부를 label 문자열로 다시 판정하고 있었다. 이 상태면 read-model이 이미 계산한 의미가 있어도 downstream이 legacy compat label에 부분적으로 다시 결합된다.
+- 해결: projection에 `compatCategoryCode`, `compatPriorityBucket` 을 같이 싣고, matcher와 education bridge heuristic은 projection이 제공한 code/bucket 의미를 우선 사용하게 바꿨다. 그 뒤 추천 타깃 테스트와 전체 `./gradlew test integrationTest --no-daemon` 을 다시 통과시켰다.
+- 이유: compat label은 응답/프롬프트 호환용으로는 계속 필요하지만, 내부 판단까지 label 문자열 재해석에 의존하면 새 source/bridge 규칙이 늘 때마다 downstream 수정 지점이 다시 생긴다. projection에서 한 번 계산한 의미를 재사용하는 편이 더 source-neutral 하다.
+
+## 410) 지역 검색 integration을 FULLTEXT boolean query에 직접 묶어 두면, 로컬 MySQL parser 차이 때문에 region predicate 검증까지 같이 흔들린다
+- 문제: `PolicySearchRegionQueryIntegrationTest` 는 `searchByKeywordWithFiltersWithSido*` native FULLTEXT boolean query를 직접 호출하고 있었는데, 현재 로컬 MySQL에서는 test row를 넣어도 `AGAINST(... IN BOOLEAN MODE)` 가 0건으로 떨어져 broad suite에서 계속 실패했다. 원래 검증하려던 것은 keyword relevance가 아니라 `전국 + 매칭 지역만 남는지` 인데, FULLTEXT parser 차이가 region predicate 검증까지 깨고 있었다.
+- 해결: 테스트를 `findListWithFilters(...)` 기반 region filter integration으로 바꾸고, test row는 `unifiedCategory=IT_SEARCH_REGION` 고정값으로 좁혀서 자기 데이터만 보게 했다. cleanup도 `service_regions` 를 service id 기준 batch delete 하도록 정리한 뒤, 단독 `PolicySearchRegionQueryIntegrationTest` 와 전체 `./gradlew test integrationTest --no-daemon` 을 다시 통과시켰다.
+- 이유: 이 integration의 목적은 FULLTEXT 엔진 동작이 아니라 repository 지역 필터 semantics 검증이다. FULLTEXT boolean parser 차이를 여기서 같이 떠안으면 테스트가 로직 회귀보다 환경 세부에 더 민감해진다.

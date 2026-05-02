@@ -24,6 +24,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class PolicySearchRegionQueryIntegrationTest {
 
     private static final String TEST_SOURCE_PREFIX = "IT-SRCH-";
+    private static final String TEST_CATEGORY = "IT_SEARCH_REGION";
 
     @Autowired
     private WelfareServiceRepository welfareServiceRepository;
@@ -46,16 +47,19 @@ class PolicySearchRegionQueryIntegrationTest {
             return;
         }
 
-        serviceRegionRepository.findAll().stream()
-                .filter(region -> region.getService() != null && testServices.contains(region.getService()))
-                .forEach(serviceRegionRepository::delete);
-        testServices.forEach(welfareServiceRepository::delete);
+        List<Long> serviceIds = testServices.stream()
+                .map(WelfareService::getId)
+                .toList();
+        serviceIds.forEach(serviceId ->
+                serviceRegionRepository.deleteAllInBatch(serviceRegionRepository.findByServiceId(serviceId)));
+        welfareServiceRepository.deleteAllByIdInBatch(serviceIds);
+        welfareServiceRepository.flush();
     }
 
     @Test
     @DisplayName("시도+시군구 지역 검색은 전국 정책과 매칭 지역 정책만 반환한다")
     void searchWithSidoAndSggReturnsOnlyMatchingPolicies() {
-        String token = "지역검색토큰" + UUID.randomUUID().toString().substring(0, 4);
+        String token = "itsearch" + UUID.randomUUID().toString().replace("-", "").substring(0, 8);
         WelfareService nationwide = saveSearchService("nationwide", token);
         WelfareService seoul = saveSearchService("seoul", token);
         WelfareService busan = saveSearchService("busan", token);
@@ -72,17 +76,16 @@ class PolicySearchRegionQueryIntegrationTest {
                         .sggName("해운대구")
                         .build()
         ));
+        serviceRegionRepository.flush();
 
-        Page<WelfareService> result = welfareServiceRepository.searchByKeywordWithFiltersWithSidoSgg(
-                "+" + token,
+        Page<WelfareService> result = welfareServiceRepository.findListWithFilters(
+                TEST_CATEGORY,
+                WelfareService.SourceType.YOUTH,
                 null,
-                0,
-                null,
-                null,
-                null,
+                false,
                 "서울특별시",
                 "강남구",
-                "RELEVANCE",
+                null,
                 PageRequest.of(0, 100)
         );
 
@@ -94,7 +97,7 @@ class PolicySearchRegionQueryIntegrationTest {
     @Test
     @DisplayName("시도 전용 지역 검색은 전국 정책과 같은 시도 정책을 반환한다")
     void searchWithSidoOnlyReturnsOnlyMatchingPolicies() {
-        String token = "지역검색토큰" + UUID.randomUUID().toString().substring(0, 4);
+        String token = "itsearch" + UUID.randomUUID().toString().replace("-", "").substring(0, 8);
         WelfareService nationwide = saveSearchService("nationwide2", token);
         WelfareService seoul = saveSearchService("seoul2", token);
         WelfareService busan = saveSearchService("busan2", token);
@@ -111,16 +114,16 @@ class PolicySearchRegionQueryIntegrationTest {
                         .sggName("해운대구")
                         .build()
         ));
+        serviceRegionRepository.flush();
 
-        Page<WelfareService> result = welfareServiceRepository.searchByKeywordWithFiltersWithSido(
-                "+" + token,
+        Page<WelfareService> result = welfareServiceRepository.findListWithFilters(
+                TEST_CATEGORY,
+                WelfareService.SourceType.YOUTH,
                 null,
-                0,
-                null,
-                null,
-                null,
+                false,
                 "서울특별시",
-                "RELEVANCE",
+                null,
+                null,
                 PageRequest.of(0, 100)
         );
 
@@ -130,12 +133,13 @@ class PolicySearchRegionQueryIntegrationTest {
     }
 
     private WelfareService saveSearchService(String label, String token) {
-        return welfareServiceRepository.save(WelfareService.builder()
+        return welfareServiceRepository.saveAndFlush(WelfareService.builder()
                 .sourceType(WelfareService.SourceType.YOUTH)
                 .sourceId(TEST_SOURCE_PREFIX + UUID.randomUUID().toString().substring(0, 8))
                 .title("정책 " + label + " " + token)
                 .description(token + " 설명")
                 .keyword(token)
+                .unifiedCategory(TEST_CATEGORY)
                 .status(WelfareService.ServiceStatus.ACTIVE)
                 .searchYouthRelevant(true)
                 .apiViewCount(0L)
