@@ -1,5 +1,7 @@
 # 추천 본체 점진 이행 순서
 
+문서군 진입점: [policy-docs-index.md](./policy-docs-index.md)
+
 이 문서는 canonical 정규화 구조를 추천 본체에 붙일 때
 
 - `WelfareServiceRepository.findCandidates*`
