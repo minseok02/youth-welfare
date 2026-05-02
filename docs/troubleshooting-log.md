@@ -1,5 +1,10 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 288) `project-spec.md` 참고 문서는 아직 직접 파일 링크 중심이라 현재 docs-index 독법과 완전히 맞지 않음
+- 문제: top-level과 work-guide는 `docs-index -> current-state/checklist/template` 기준으로 정리됐지만, `project-spec.md` 참고 문서는 여전히 `architecture.md`, `testing.md` 직접 링크 중심이라 cross-cutting/spec 문서에서 읽기 진입점이 한 단계 뒤처져 있었음
+- 해결: `project-spec.md` 참고 문서에 `system-docs-index.md` 와 `local-validation-docs-index.md` 를 우선 노출해 현재 독법과 맞췄음
+- 이유: 메타 문서인 `project-spec.md` 도 같은 독법을 가져야 새 사용자가 구조/검증 문서를 찾을 때 예외 규칙을 따로 기억하지 않게 된다
+
 ## 287) `work-guide.md` 는 여전히 개별 current-state 문서 중심 표현이라 현재 docs-index 구조를 충분히 반영하지 못함
 - 문제: top-level entrypoint와 문서군 index를 여러 개 추가했는데도 `work-guide.md` 는 여전히 “관련 current-state 문서” 표현만 써서, 실제 시작 순서가 `docs-index -> current-state/checklist/template` 로 바뀐 점이 드러나지 않았음
 - 해결: `work-guide.md` 시작 순서와 문서 규칙에 `*-docs-index.md` 우선 기준을 명시해 현재 문서 구조와 맞췄음
