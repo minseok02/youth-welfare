@@ -2062,3 +2062,8 @@
 - 문제: `run-local-education-priority-replay.sh` 와 current-state/log는 이미 `slot_rows_*` 기준까지 확장됐지만, replay procedure 문서의 summary 해석 bullet은 아직 reason/pattern 쪽까지만 강조하고 있었다. 이 상태면 절차 문서만 보고 replay를 다시 돌리는 사람은 `SUMMARY_SLOT_METRIC` 에 새로 붙은 row density 축을 놓치기 쉽다.
 - 해결: replay procedure 문서에 `SUMMARY_SLOT_METRIC` 은 `slot_services_*` 와 `slot_rows_*` 를 같이 읽어 distinct service density와 raw row density를 apply 출력과 같은 축으로 바로 대조하라는 기준을 추가하고, numbering도 다시 맞췄다.
 - 이유: inventory/slot-first follow-up은 코드보다 관측 기준 일치가 중요하다. 실제 스크립트가 내는 축과 절차 문서가 안내하는 축이 다르면 같은 artifact를 두고도 해석이 갈린다.
+
+## 387) `GOV24_*` density가 계속 0이면 writer/read-model 버그처럼 보이기 쉽지만, 현재 local snapshot 기준으로는 populate할 source row 자체가 없다
+- 문제: `slot_services_GOV24_* = 0`, `slot_rows_GOV24_* = 0` 이 계속 유지되다 보니, 겉으로만 보면 `CanonicalTaxonomySummarySlots` dual-write 나 read-model slot-first 경계가 `Gov24` summary를 놓치고 있는 것처럼 읽힐 여지가 있었다.
+- 해결: local DB를 직접 재조회해 `welfare_services.source_type` 분포가 `YOUTH=2364`, `BOKJIRO_CENTRAL=119`, `BOKJIRO_LOCAL=1225` 뿐이고, `service_taxonomy_summary_slots` 도 `PROVISION_METHOD`, `YOUTH_MAJOR`, `YOUTH_MID` 만 채워져 있음을 확인했다. current-state 문서에도 `GOV24_* = 0` 의 이유를 “runtime collect 부재 + blocked import/backfill 트랙 유지”로 명시했다.
+- 이유: 현재 `Gov24` 는 active runtime source가 아니라 external codebook 응답을 기다리는 blocked import/backfill 트랙이다. source row 자체가 없는 상태에서 `GOV24_*` 밀도가 0인 것은 현재 구조의 예상 결과이지, 즉시 코드 버그로 볼 신호는 아니다.

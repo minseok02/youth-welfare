@@ -57,6 +57,17 @@
 
 즉 `YOUTH` snapshot 기준으로 core row와 canonical sidecar 저장은 현재 로컬에서 정상동작 확인 상태입니다.
 
+현재 local snapshot source 분포는:
+
+- `YOUTH=2364`
+- `BOKJIRO_CENTRAL=119`
+- `BOKJIRO_LOCAL=1225`
+
+즉 runtime collect 기준으로는 아직 `GOV24` source row 자체가 없습니다.
+그래서 현재 `GOV24_*` summary slot density가 `0` 인 것은
+writer/read-model 누락이라기보다,
+local snapshot에 `Gov24` source 적재나 별도 import/backfill 이 아직 없기 때문입니다.
+
 추가로 local replay closeout 기준:
 
 - `slot_services=2331`
@@ -80,6 +91,8 @@ latest replay artifact(`/tmp/tmp.lP4I9NWUUU`) 기준 `SUMMARY_SLOT_METRIC` 도 �
 apply/replay 양쪽에서 같은 축으로 raw row density를 바로 대조할 수 있습니다.
 현재 local snapshot에서 실제로 채워지는 managed slot은 사실상 `YOUTH_MAJOR`, `YOUTH_MID`, `PROVISION_METHOD` 이고,
 `GOV24_*` 는 아직 runtime collect 기준 populated read 후보가 아닙니다.
+`GOV24_SERVICE_FIELD / USER_TYPE / BENEFIT_TYPE` 는 현재도
+external codebook 응답이 있어야 다시 여는 blocked import/backfill 트랙으로 유지합니다.
 
 ## 2. `YOUTH_MID_RAW_ALIAS` 현재 상태
 
