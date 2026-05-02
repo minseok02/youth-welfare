@@ -1,5 +1,10 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 289) `architecture.md`, `api-mapping.md` 도 직접 링크 중심이라 docs-index 독법과 완전히 맞지 않음
+- 문제: top-level, `work-guide.md`, `project-spec.md` 는 `docs-index` 중심 독법으로 정리됐지만, `architecture.md` 와 `api-mapping.md` 는 여전히 개별 문서 direct link만 보여 줘 cross-cutting 진입점이 한 단계 덜 드러났음
+- 해결: 두 문서 상단에 `system-docs-index.md` entrypoint를 먼저 보게 한 줄씩 추가해 현재 독법과 맞췄음
+- 이유: 구조/API contract 문서도 같은 진입 패턴을 따라야 다음 사용자가 cross-cutting 문서를 찾을 때 예외를 따로 기억하지 않게 된다
+
 ## 288) `project-spec.md` 참고 문서는 아직 직접 파일 링크 중심이라 현재 docs-index 독법과 완전히 맞지 않음
 - 문제: top-level과 work-guide는 `docs-index -> current-state/checklist/template` 기준으로 정리됐지만, `project-spec.md` 참고 문서는 여전히 `architecture.md`, `testing.md` 직접 링크 중심이라 cross-cutting/spec 문서에서 읽기 진입점이 한 단계 뒤처져 있었음
 - 해결: `project-spec.md` 참고 문서에 `system-docs-index.md` 와 `local-validation-docs-index.md` 를 우선 노출해 현재 독법과 맞췄음
