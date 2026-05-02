@@ -2212,3 +2212,8 @@
 - 문제: `PolicySearchRegionQueryIntegrationTest` 는 `@AfterEach` cleanup만 두고 있어서, 이전 실행이 중간에 끊기거나 broad suite 전에 잔존 `IT-SRCH-*` row가 남아 있으면 시작 시점 query 결과가 오염될 수 있었다. 실제로 `./gradlew test integrationTest --no-daemon` 재실행 중 이 테스트가 한 번 실패했고, 같은 타깃 테스트 단독 재실행은 통과했다.
 - 해결: 클래스 시작 전에도 같은 cleanup을 태우도록 `@BeforeEach` 를 추가했고, `welfare_services` 삭제 전에 연결된 `service_regions` 도 explicit delete 하도록 정리했다. 그 뒤 `./gradlew integrationTest --no-daemon --tests com.example.welfare.integration.PolicySearchRegionQueryIntegrationTest` 와 전체 `./gradlew test integrationTest --no-daemon` 을 다시 통과시켰다.
 - 이유: 이 케이스는 검색 로직 회귀보다 테스트 격리 경계 문제에 가까웠다. local closeout 기준선은 “다시 돌렸을 때 흔들리지 않는지”가 중요하므로, broad suite에서 한 번 튄 지점은 테스트 자체가 self-heal 하도록 보강하는 편이 맞다.
+
+## 407) prefix 기반 test data cleanup을 쓰는 integration test는 시작 전 cleanup이 없으면 같은 종류로 다시 튈 수 있다
+- 문제: `RecommendationRegionQueryIntegrationTest`, `PolicyBookmarkIntegrationTest`, `RecommendationFlowIntegrationTest`, `CanonicalRecommendationReadModelIntegrationTest` 도 모두 `TEST_SOURCE_PREFIX` 또는 test email prefix로 test data를 구분하면서 `@AfterEach` cleanup 중심으로만 정리하고 있었다. broad suite가 중간 실패/중단 뒤 다시 돌 때는 같은 류의 잔존 row 오염 가능성이 남는다.
+- 해결: 이 4개 클래스도 `@BeforeEach` 에서 cleanup을 한 번 더 태우고, region/summary slot처럼 dependent row가 있는 케이스는 explicit delete 순서를 맞췄다. 그 뒤 관련 타깃 integration들과 전체 `./gradlew test integrationTest --no-daemon` 을 다시 통과시켰다.
+- 이유: 이번 라운드 목적은 특정 테스트 1개만 고치는 게 아니라, broad suite 기준의 재현성 경계를 비슷한 패턴 전반에서 한 번 더 닫는 것이다. prefix로 test data를 구분하는 클래스는 시작 전 self-heal cleanup을 두는 편이 전체 suite 안정성에 더 유리하다.

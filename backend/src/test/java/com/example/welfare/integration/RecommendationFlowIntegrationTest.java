@@ -19,6 +19,7 @@ import com.example.welfare.user.repository.UserPriorityRepository;
 import com.example.welfare.user.repository.UserProfileRepository;
 import com.example.welfare.user.repository.UserRepository;
 import com.example.welfare.user.service.UserCoreSyncService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -94,6 +95,11 @@ class RecommendationFlowIntegrationTest {
 
     @MockBean
     private AiRecommendationGateway aiRecommendationGateway;
+
+    @BeforeEach
+    void setup() {
+        cleanup();
+    }
 
     @AfterEach
     void cleanup() {
