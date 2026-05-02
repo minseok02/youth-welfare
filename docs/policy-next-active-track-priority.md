@@ -3,6 +3,7 @@
 관련 문서:
 
 - [phase-plan.md](./phase-plan.md)
+- [policy-gov24-blocked-track-status.md](./policy-gov24-blocked-track-status.md)
 - [policy-normalization-blocked-sql-reopen-priority.md](./history/policy/policy-normalization-blocked-sql-reopen-priority.md)
 - [policy-normalization-gov24-request-package-checklist.md](./history/policy/policy-normalization-gov24-request-package-checklist.md)
 

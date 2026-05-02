@@ -2067,3 +2067,8 @@
 - 문제: `slot_services_GOV24_* = 0`, `slot_rows_GOV24_* = 0` 이 계속 유지되다 보니, 겉으로만 보면 `CanonicalTaxonomySummarySlots` dual-write 나 read-model slot-first 경계가 `Gov24` summary를 놓치고 있는 것처럼 읽힐 여지가 있었다.
 - 해결: local DB를 직접 재조회해 `welfare_services.source_type` 분포가 `YOUTH=2364`, `BOKJIRO_CENTRAL=119`, `BOKJIRO_LOCAL=1225` 뿐이고, `service_taxonomy_summary_slots` 도 `PROVISION_METHOD`, `YOUTH_MAJOR`, `YOUTH_MID` 만 채워져 있음을 확인했다. current-state 문서에도 `GOV24_* = 0` 의 이유를 “runtime collect 부재 + blocked import/backfill 트랙 유지”로 명시했다.
 - 이유: 현재 `Gov24` 는 active runtime source가 아니라 external codebook 응답을 기다리는 blocked import/backfill 트랙이다. source row 자체가 없는 상태에서 `GOV24_*` 밀도가 0인 것은 현재 구조의 예상 결과이지, 즉시 코드 버그로 볼 신호는 아니다.
+
+## 388) `Gov24` blocked 맥락이 여러 문서에 흩어져 있으면, 다음 사람이 “지금 inactive 인 이유”와 “다시 열 조건”을 한 번에 못 보고 같은 확인을 반복하게 된다
+- 문제: 현재 `Gov24` 관련 판단은 active-track 우선순위 문서, local pending inventory, blocked SQL reopen 우선순위, request package checklist에 나뉘어 있었다. 각각은 맞지만, “왜 지금 active 구현 트랙이 아니고 언제 다시 여는가”를 한 번에 보려면 여러 문서를 왕복해야 했다.
+- 해결: `policy-gov24-blocked-track-status.md` 를 추가해 현재 inactive 이유, local snapshot에 `Gov24` source row가 없다는 점, reopen 조건, request package/판정 기준, practical next action을 한 장으로 요약하고, active-track 문서와 pending inventory entrypoint 에도 링크를 걸었다.
+- 이유: 이 트랙은 지금 코드를 더 파는 단계가 아니라 blocked 상태를 정확히 유지하는 게 중요하다. entrypoint 문서가 하나 있어야 불필요한 재확인과 중복 문서 탐색을 줄일 수 있다.
