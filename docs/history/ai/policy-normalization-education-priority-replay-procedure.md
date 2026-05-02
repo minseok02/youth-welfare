@@ -87,18 +87,20 @@ deploy/smoke/run-local-education-priority-replay.sh
 16. summary stdout의 `SUMMARY_METRIC` 한 줄에서 `A_top10_target`, `B_top10_target`, `A/B_target_total`, `A/B_fp` 를 먼저 보고 pass/warn 판단을 시작한다
 17. summary stdout의 `SUMMARY_REASON_METRIC` 한 줄에서 `A_reason_changed`, `A_reason_text_changed`, `A_reason_membership_changed`, `B_*` 를 먼저 확인하고, 세부 내용이 필요하면 `edu-a/b-ai-reason-diff.tsv` 를 연다
 18. summary stdout의 `SUMMARY_REASON_PATTERN` 한 줄에서 sample A/B별 상위 phrase를 먼저 보고, 더 자세한 count가 필요하면 `ai-reason-pattern-summary.tsv` 를 연다
-19. nightly summary file에 append 할 때도 같은 축을 유지하고,
+19. summary stdout의 `SUMMARY_SLOT_METRIC` 은 이제 `slot_services_*` 뿐 아니라 `slot_rows_*` 도 같이 출력하므로,
+    distinct service density와 raw row density를 apply 출력과 같은 축으로 바로 대조한다
+20. nightly summary file에 append 할 때도 같은 축을 유지하고,
     최소 필드는 `ts`, `mode`, `A_top10_target`, `B_top10_target`,
     `A_target_total`, `B_target_total`, `A_fp`, `B_fp`,
     `A_reason_changed`, `B_reason_changed`,
     `A_reason_text_changed`, `B_reason_text_changed`,
     `A_reason_membership_changed`, `B_reason_membership_changed`,
     `artifact_dir` 로 제한한다
-20. 실제 append 는 `REPLAY_SUMMARY_APPEND_FILE=/path/to/nightly-summary-YYYY-MM-DD.log`
+21. 실제 append 는 `REPLAY_SUMMARY_APPEND_FILE=/path/to/nightly-summary-YYYY-MM-DD.log`
     env 로 켜고, 필요하면 `REPLAY_SUMMARY_TS` 로 기록 시각을 wrapper 에서 명시한다
-21. ops host nightly 실행은 직접 env 를 길게 붙이기보다
+22. ops host nightly 실행은 직접 env 를 길게 붙이기보다
     `deploy/smoke/run-nightly-openai-replay.sh` wrapper 를 기본 진입점으로 쓴다
-22. host cron 예시는 wrapper/cleanup 둘 다 절대경로 호출로 둔다
+23. host cron 예시는 wrapper/cleanup 둘 다 절대경로 호출로 둔다
     - replay:
       - `10 1 * * * REPLAY_LOG_ROOT=/var/log/youth-welfare/openai-replay /home/minseok/youth-welfare/deploy/smoke/run-nightly-openai-replay.sh >> /var/log/youth-welfare/openai-replay/nightly-cron.log 2>&1`
     - cleanup:

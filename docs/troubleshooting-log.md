@@ -2057,3 +2057,8 @@
 - 문제: `run-local-education-priority-replay.sh` 는 이미 `summary-slot-metrics.tsv` 에 `slot_rows_YOUTH_MAJOR`, `slot_rows_YOUTH_MID`, `slot_rows_PROVISION_METHOD`, `slot_rows_GOV24_*` 를 모으고 있었지만, 최종 stdout `SUMMARY_SLOT_METRIC` 과 nightly append line에는 아직 `slot_services_*` 만 내보냈다. 이 상태면 replay artifact만 보고는 “distinct service count는 같은데 raw row count가 늘었는지”를 바로 알 수 없고, apply output이나 metrics TSV를 다시 열어야 했다.
 - 해결: replay summary와 append line에도 같은 `slot_rows_*` 축을 같이 싣고, `KEEP_ARTIFACTS=true deploy/smoke/run-local-education-priority-replay.sh` 재실행으로 artifact `/tmp/tmp.lP4I9NWUUU` 기준 `slot_rows=5674`, `slot_services=2331`, `slot_rows_YOUTH_MAJOR=2313`, `slot_rows_YOUTH_MID=2191`, `slot_rows_PROVISION_METHOD=1170`, `slot_rows_GOV24_* = 0` 이 끝까지 그대로 노출되는 것을 확인했다.
 - 이유: apply와 replay가 같은 density vocabulary를 끝단 summary까지 공유해야, slot-first migration 관측을 “script마다 다른 출력”이 아니라 하나의 inventory 기준선으로 읽을 수 있다.
+
+## 386) 절차 문서가 여전히 `slot_services_*` 중심으로만 읽히면, 실제 스크립트/summary는 `slot_rows_*` 까지 내보내는데도 다음 사람이 replay artifact를 반만 읽고 지나갈 수 있다
+- 문제: `run-local-education-priority-replay.sh` 와 current-state/log는 이미 `slot_rows_*` 기준까지 확장됐지만, replay procedure 문서의 summary 해석 bullet은 아직 reason/pattern 쪽까지만 강조하고 있었다. 이 상태면 절차 문서만 보고 replay를 다시 돌리는 사람은 `SUMMARY_SLOT_METRIC` 에 새로 붙은 row density 축을 놓치기 쉽다.
+- 해결: replay procedure 문서에 `SUMMARY_SLOT_METRIC` 은 `slot_services_*` 와 `slot_rows_*` 를 같이 읽어 distinct service density와 raw row density를 apply 출력과 같은 축으로 바로 대조하라는 기준을 추가하고, numbering도 다시 맞췄다.
+- 이유: inventory/slot-first follow-up은 코드보다 관측 기준 일치가 중요하다. 실제 스크립트가 내는 축과 절차 문서가 안내하는 축이 다르면 같은 artifact를 두고도 해석이 갈린다.
