@@ -140,6 +140,7 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - 2026-05-02 런타임 수동 smoke를 재사용 가능하게 `deploy/smoke/run-local-runtime-api-smoke.sh` 로 고정했다. 현재 스크립트는 `signup -> login -> refresh -> recommendations refresh -> bookmark -> bookmarks -> logout -> refresh invalidation(401/A001) -> presented token revoke(401/A006)` 를 한 번에 검증하고, `older login token after logout` 은 현재 계약상 `200` 도 허용되는 관측값으로 분리 기록한다.
 - 2026-05-02 `admin forced logout` 도 반복 가능한 로컬 smoke로 고정했다. `deploy/smoke/run-local-admin-forced-logout-smoke.sh` 는 `admin login -> forced logout -> old access deny(401/A006) -> old refresh deny(401/A003) -> relogin recovery(200)` 와 서버 로그 증적까지 한 번에 확인한다.
 - 2026-05-02 `withdraw` 도 반복 가능한 로컬 smoke로 고정했다. `deploy/smoke/run-local-withdraw-smoke.sh` 는 `signup -> login -> refresh -> withdraw -> old access deny(401/A006) -> stale refresh deny(410/U003) -> withdrawn email mask` 를 한 번에 확인한다.
+- 2026-05-02 auth/session revoke closeout을 한 번에 다시 태울 수 있게 `deploy/smoke/run-local-auth-session-smoke.sh` wrapper를 추가했다. 기본 순서는 `runtime logout smoke -> withdraw smoke -> admin forced logout smoke` 이고, 세 스크립트가 모두 통과하면 현재 revoke 경계 세트가 local runtime 기준으로 다시 닫힌다.
 - 2026-05-02 `auth/collect/recommendation/policy` current-state 문서에 각 `*-docs-index.md` 진입점 추가 후 `git diff --check`
 - 2026-05-02 `auth/collect/recommendation/policy` 대표 checklist/playbook 문서에 각 `*-docs-index.md` 진입점 추가 후 `git diff --check`
 - 2026-05-02 `frontend-qa` 와 `local-validation` 대표 current-state/checklist/runbook 문서에 각 `*-docs-index.md` 진입점 추가 후 `git diff --check`
