@@ -2072,3 +2072,8 @@
 - 문제: 현재 `Gov24` 관련 판단은 active-track 우선순위 문서, local pending inventory, blocked SQL reopen 우선순위, request package checklist에 나뉘어 있었다. 각각은 맞지만, “왜 지금 active 구현 트랙이 아니고 언제 다시 여는가”를 한 번에 보려면 여러 문서를 왕복해야 했다.
 - 해결: `policy-gov24-blocked-track-status.md` 를 추가해 현재 inactive 이유, local snapshot에 `Gov24` source row가 없다는 점, reopen 조건, request package/판정 기준, practical next action을 한 장으로 요약하고, active-track 문서와 pending inventory entrypoint 에도 링크를 걸었다.
 - 이유: 이 트랙은 지금 코드를 더 파는 단계가 아니라 blocked 상태를 정확히 유지하는 게 중요하다. entrypoint 문서가 하나 있어야 불필요한 재확인과 중복 문서 탐색을 줄일 수 있다.
+
+## 389) blocked entrypoint를 만들어도 `policy-docs-index` 와 전체 문서 맵에 안 걸려 있으면, 실제 읽기 시작 지점에서는 여전히 못 본다
+- 문제: `policy-gov24-blocked-track-status.md` 를 추가한 뒤에도 policy 문서군의 첫 진입점인 `policy-docs-index.md` 와 상위 `documentation-map.md` 에는 아직 링크가 없었다. 이 상태면 새 문서는 존재하더라도 “알고 있는 사람만 보는 문서”로 남을 수 있다.
+- 해결: `policy-docs-index.md` 의 현재 코드/로컬 검증 기준 및 blocked 섹션, `documentation-map.md` 의 external blocked 트랙 섹션에 `policy-gov24-blocked-track-status.md` 링크를 추가했다.
+- 이유: blocked 상태를 잘 유지하려면 문서 자체뿐 아니라 진입 경로가 중요하다. entrypoint가 실제 인덱스에 걸려 있어야 다음 사람이 같은 결론을 다시 만들지 않는다.
