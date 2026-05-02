@@ -1058,6 +1058,10 @@ cd backend
   - latest `api_sync_logs`: `id=15 YOUTH success`
   - 예전 잔여 row `id=1,2,8,13,14` 는 `FAILED / InterruptedRun` 으로 정리
 - 2026-05-02 broad suite 재실행 중 `RecommendationFlowIntegrationTest` 기대치를 실데이터 환경 기준으로 보정 후 `backend`에서 `./gradlew test integrationTest --no-daemon` 재통과
+- 2026-05-02 `BOKJIRO_LOCAL` 실수집 재검증 중 page 1 연속 `429` 재현
+  - list rate-limit 완충(`max-consecutive-rate-limit-hits=3`, `rate-limit-cooldown-ms=10000`) 추가
+  - incomplete list collect는 더 이상 `SUCCESS requested=0 saved=0` 로 남기지 않고 `500 / COL001` + `api_sync_logs FAILED` 로 표면화
+  - latest failed row: `id=21 BOKJIRO_LOCAL failed requested=0 saved=0 failed=1`
 
 ## 남은 1차 작업
 

@@ -2292,3 +2292,8 @@
 - 문제: broad suite 재실행 중 `RecommendationFlowIntegrationTest` 가 `$.data[0].serviceId == housingPolicy.id` 를 기대하다 실패했다. 로컬 DB에 실수집 정책이 많이 들어온 상태에서는 추천 refresh 응답의 0번 인덱스가 항상 테스트가 만든 주거 정책일 필요는 없는데, 테스트가 정렬 결과까지 과하게 고정하고 있었다.
 - 해결: 테스트 기대치를 “응답 배열 안에 내가 만든 `housingPolicy` 가 존재하고, 그 row의 `title/bookmarked` 상태가 맞는가”로 바꿨다. 그 뒤 단독 `RecommendationFlowIntegrationTest` 와 전체 `./gradlew test integrationTest --no-daemon` 을 다시 통과시켰다.
 - 이유: 이 integration의 목적은 refresh/get/bookmark 저장 흐름 검증이지 전역 실데이터까지 포함한 절대 ranking 보장이 아니다. 자기 row 포함과 상태 전파만 검증해야 환경이 커져도 재현성이 유지된다.
+
+## 420) 복지로 list collect가 page 1부터 `429` 로 막히는 날에는, `0건 success` 로 남기는 것보다 실패로 표면화해야 operator가 실제 상태를 읽을 수 있다
+- 문제: `POST /api/admin/collect/bokjiro-local` 실검증 중 page 1이 연속 `429` 로 막히는 날이 재현됐다. 완충 이전에는 `requested=0 saved=0 failed=0` 인데도 `SUCCESS` 로 로그가 남았고, 완충을 넣어도 임계치 도달 후 그대로 `0건 success` 로 끝나면 collect 사실원장이 오염됐다.
+- 해결: `collect.list.max-consecutive-rate-limit-hits` 를 `3` 으로 올리고 `collect.list.rate-limit-cooldown-ms=10000` 을 추가해 즉시 종료를 줄였다. 그 다음에도 임계치까지 회복하지 못한 경우에는 `BokjiroLocalClient` / `BokjiroCentralClient` 가 `CustomException(COLLECT_API_FAILED)` 를 던지게 바꿨다. `ApiSyncLogService` 의 stale self-heal 때문에 들어간 트랜잭션도 repository query 쪽으로 옮겨, 실패 시 `api_sync_logs` row가 롤백되지 않게 정리했다. 실제 재검증에서 `POST /api/admin/collect/bokjiro-local` 은 `500 / COL001` 을 반환했고, DB에도 `id=21 BOKJIRO_LOCAL failed requested=0 saved=0 failed=1` 이 남았다.
+- 이유: 페이지네이션을 끝까지 못 돈 collect는 부분 성공이 아니라 실패로 보는 쪽이 더 안전하다. 특히 현재 구현은 absent row를 delete하지 않아서, `0건 success` 나 `800건 success` 는 실제 최신성보다 “겉보기 성공” 을 더 많이 남긴다. rate-limit 상황은 재시도/다음 배치로 넘기되, 현재 run은 실패로 남겨야 운영 해석이 맞다.
