@@ -4,6 +4,7 @@ import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.repository.WelfareServiceRepository;
 import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
 import com.example.welfare.recommend.repository.CanonicalRecommendationReadModelRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -35,19 +36,38 @@ class CanonicalRecommendationReadModelIntegrationTest {
 
     private Long createdServiceId;
 
+    @BeforeEach
+    void setup() {
+        cleanup();
+    }
+
     @AfterEach
     void cleanup() {
-        if (createdServiceId == null) {
+        List<Long> testServiceIds = welfareServiceRepository.findAll().stream()
+                .filter(service -> service.getSourceId() != null && service.getSourceId().startsWith(TEST_SOURCE_PREFIX))
+                .map(WelfareService::getId)
+                .toList();
+
+        if (createdServiceId != null && !testServiceIds.contains(createdServiceId)) {
+            testServiceIds = new java.util.ArrayList<>(testServiceIds);
+            testServiceIds.add(createdServiceId);
+        }
+
+        if (testServiceIds.isEmpty()) {
+            createdServiceId = null;
             return;
         }
-        jdbcTemplate.update("DELETE FROM service_taxonomy_summary_slots WHERE service_id = ?", createdServiceId);
-        jdbcTemplate.update("DELETE FROM service_taxonomies WHERE service_id = ?", createdServiceId);
-        jdbcTemplate.update("DELETE FROM service_taxonomy_terms WHERE service_id = ?", createdServiceId);
-        jdbcTemplate.update("DELETE FROM service_facts WHERE service_id = ?", createdServiceId);
-        jdbcTemplate.update("DELETE FROM welfare_service_details WHERE service_id = ?", createdServiceId);
-        jdbcTemplate.update("DELETE FROM service_tags WHERE service_id = ?", createdServiceId);
-        jdbcTemplate.update("DELETE FROM service_regions WHERE service_id = ?", createdServiceId);
-        jdbcTemplate.update("DELETE FROM welfare_services WHERE id = ?", createdServiceId);
+        for (Long serviceId : testServiceIds) {
+            jdbcTemplate.update("DELETE FROM service_taxonomy_summary_slots WHERE service_id = ?", serviceId);
+            jdbcTemplate.update("DELETE FROM service_taxonomies WHERE service_id = ?", serviceId);
+            jdbcTemplate.update("DELETE FROM service_taxonomy_terms WHERE service_id = ?", serviceId);
+            jdbcTemplate.update("DELETE FROM service_facts WHERE service_id = ?", serviceId);
+            jdbcTemplate.update("DELETE FROM welfare_service_details WHERE service_id = ?", serviceId);
+            jdbcTemplate.update("DELETE FROM service_tags WHERE service_id = ?", serviceId);
+            jdbcTemplate.update("DELETE FROM service_regions WHERE service_id = ?", serviceId);
+            jdbcTemplate.update("DELETE FROM welfare_services WHERE id = ?", serviceId);
+        }
+        createdServiceId = null;
     }
 
     @Test
