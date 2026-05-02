@@ -11,6 +11,10 @@ SMOKE_RESET_DB="${SMOKE_RESET_DB:-false}"
 SMOKE_BUILD_APP="${SMOKE_BUILD_APP:-true}"
 APP_HEALTH_TIMEOUT_SECONDS="${APP_HEALTH_TIMEOUT_SECONDS:-120}"
 APPLY_PII_SYNC_QUEUE_MIGRATION="${APPLY_PII_SYNC_QUEUE_MIGRATION:-true}"
+DB_USERNAME_WAS_SET="${DB_USERNAME+x}"
+DB_MIGRATION_USERNAME_WAS_SET="${DB_MIGRATION_USERNAME+x}"
+DB_APP_PII_USERNAME_WAS_SET="${DB_APP_PII_USERNAME+x}"
+DB_NOTIFICATION_PII_RO_USERNAME_WAS_SET="${DB_NOTIFICATION_PII_RO_USERNAME+x}"
 
 require_command() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -25,6 +29,54 @@ require_command python3
 
 TEMP_ENV_CREATED="false"
 OVERRIDE_COMPOSE_FILE="$(mktemp)"
+
+trim() {
+  local value="$1"
+  value="${value#"${value%%[![:space:]]*}"}"
+  value="${value%"${value##*[![:space:]]}"}"
+  printf "%s" "${value}"
+}
+
+unquote() {
+  local value="$1"
+  if [[ "${value}" == \"*\" && "${value}" == *\" ]]; then
+    value="${value:1:${#value}-2}"
+  elif [[ "${value}" == \'*\' && "${value}" == *\' ]]; then
+    value="${value:1:${#value}-2}"
+  fi
+  printf "%s" "${value}"
+}
+
+load_env_file() {
+  local line key value
+
+  [[ -f "${REPO_ENV_FILE}" ]] || return 0
+
+  while IFS= read -r line || [[ -n "${line}" ]]; do
+    line="${line%$'\r'}"
+    [[ -z "$(trim "${line}")" ]] && continue
+    [[ "$(trim "${line}")" == \#* ]] && continue
+    [[ "${line}" != *=* ]] && continue
+
+    key="$(trim "${line%%=*}")"
+    value="${line#*=}"
+    value="$(unquote "${value}")"
+
+    if [[ "${key}" == export\ * ]]; then
+      key="$(trim "${key#export }")"
+    fi
+
+    if [[ ! "${key}" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]]; then
+      continue
+    fi
+
+    if [[ -n "${!key+x}" ]]; then
+      continue
+    fi
+
+    export "${key}=${value}"
+  done < "${REPO_ENV_FILE}"
+}
 
 yaml_quote() {
   local value="$1"
@@ -45,15 +97,33 @@ if [[ ! -f "${REPO_ENV_FILE}" ]]; then
   TEMP_ENV_CREATED="true"
 fi
 
+load_env_file
+
 export DB_PASSWORD="${DB_PASSWORD:-smoke-db-password-2026!}"
-export DB_USERNAME="${DB_USERNAME:-app_core_rw}"
-export DB_MIGRATION_USERNAME="${DB_MIGRATION_USERNAME:-migration_admin}"
+if [[ -z "${DB_USERNAME_WAS_SET}" ]]; then
+  export DB_USERNAME="app_core_rw"
+else
+  export DB_USERNAME
+fi
+if [[ -z "${DB_MIGRATION_USERNAME_WAS_SET}" ]]; then
+  export DB_MIGRATION_USERNAME="migration_admin"
+else
+  export DB_MIGRATION_USERNAME
+fi
 export DB_MIGRATION_PASSWORD="${DB_MIGRATION_PASSWORD:-${DB_PASSWORD}}"
 export APP_PII_DB_URL="${APP_PII_DB_URL:-jdbc:mysql://db:3306/youth_welfare_pii?useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=UTF-8&serverTimezone=Asia/Seoul}"
 export NOTIFICATION_PII_DB_URL="${NOTIFICATION_PII_DB_URL:-${APP_PII_DB_URL}}"
-export DB_APP_PII_USERNAME="${DB_APP_PII_USERNAME:-app_pii_rw}"
+if [[ -z "${DB_APP_PII_USERNAME_WAS_SET}" ]]; then
+  export DB_APP_PII_USERNAME="app_pii_rw"
+else
+  export DB_APP_PII_USERNAME
+fi
 export DB_APP_PII_PASSWORD="${DB_APP_PII_PASSWORD:-${DB_PASSWORD}}"
-export DB_NOTIFICATION_PII_RO_USERNAME="${DB_NOTIFICATION_PII_RO_USERNAME:-notification_pii_ro}"
+if [[ -z "${DB_NOTIFICATION_PII_RO_USERNAME_WAS_SET}" ]]; then
+  export DB_NOTIFICATION_PII_RO_USERNAME="notification_pii_ro"
+else
+  export DB_NOTIFICATION_PII_RO_USERNAME
+fi
 export DB_NOTIFICATION_PII_RO_PASSWORD="${DB_NOTIFICATION_PII_RO_PASSWORD:-${DB_PASSWORD}}"
 export JWT_SECRET="${JWT_SECRET:-smoke-local-jwt-secret-must-be-at-least-32-bytes!!}"
 export AES_SECRET_KEY="${AES_SECRET_KEY:-smoke-aes-256-secret-key-32bytes}"
