@@ -243,6 +243,8 @@ public class CanonicalRecommendationReadModelRepository {
         private final Long serviceId;
         private final String sourceType;
         private final String unifiedCategoryCompat;
+        private final String compatCategoryCode;
+        private final String compatPriorityBucket;
         private final String youthMajorLabel;
         private final String youthMidLabel;
         private final String provisionMethodLabel;
@@ -288,6 +290,8 @@ public class CanonicalRecommendationReadModelRepository {
             this.serviceId = serviceId;
             this.sourceType = sourceType;
             this.unifiedCategoryCompat = unifiedCategoryCompat;
+            this.compatCategoryCode = CompatCategorySupport.compatCode(unifiedCategoryCompat);
+            this.compatPriorityBucket = CompatCategorySupport.priorityBucket(unifiedCategoryCompat);
             this.youthMajorLabel = youthMajorLabel;
             this.youthMidLabel = youthMidLabel;
             this.provisionMethodLabel = provisionMethodLabel;
@@ -357,11 +361,13 @@ public class CanonicalRecommendationReadModelRepository {
         RecommendationCandidateProjection toProjection() {
             RecommendationProjectionHeuristicSupport.collectSpecialTargetBuckets(specialTargetBuckets, title);
             RecommendationProjectionHeuristicSupport.collectSpecialTargetBuckets(specialTargetBuckets, summary);
-            addPriorityBucket(unifiedCategoryCompat);
+            addPriorityBucket(compatPriorityBucket);
             return RecommendationCandidateProjection.builder()
                     .serviceId(serviceId)
                     .sourceType(sourceType)
                     .unifiedCategoryCompat(unifiedCategoryCompat)
+                    .compatCategoryCode(compatCategoryCode)
+                    .compatPriorityBucket(compatPriorityBucket)
                     .youthMajorLabel(youthMajorLabel)
                     .youthMidLabel(youthMidLabel)
                     .provisionMethodLabel(provisionMethodLabel)
@@ -388,7 +394,7 @@ public class CanonicalRecommendationReadModelRepository {
                     ))
                     .educationPriorityBoostEligible(
                             RecommendationProjectionHeuristicSupport.educationPriorityBoostEligible(
-                                    unifiedCategoryCompat,
+                                    compatCategoryCode,
                                     youthMajorLabel
                             )
                     )
@@ -404,8 +410,7 @@ public class CanonicalRecommendationReadModelRepository {
                     .build();
         }
 
-        private void addPriorityBucket(String compatCategory) {
-            String priorityBucket = CompatCategorySupport.priorityBucket(compatCategory);
+        private void addPriorityBucket(String priorityBucket) {
             if (priorityBucket != null) {
                 priorityBuckets.add(priorityBucket);
             }

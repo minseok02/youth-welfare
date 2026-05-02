@@ -16,8 +16,8 @@ class DefaultPriorityMatcherTest {
     private final DefaultPriorityMatcher matcher = new DefaultPriorityMatcher();
 
     @Test
-    @DisplayName("projection unifiedCategoryCompat 가 있으면 legacy unifiedCategory 대신 사용한다")
-    void matchesUsesProjectionUnifiedCategoryCompat() {
+    @DisplayName("projection compatPriorityBucket 이 있으면 legacy unifiedCategory 대신 사용한다")
+    void matchesUsesProjectionCompatPriorityBucket() {
         WelfareService service = WelfareService.builder()
                 .id(1L)
                 .sourceType(WelfareService.SourceType.BOKJIRO_LOCAL)
@@ -30,6 +30,7 @@ class DefaultPriorityMatcherTest {
         RecommendationCandidateProjection projection = RecommendationCandidateProjection.builder()
                 .serviceId(service.getId())
                 .unifiedCategoryCompat("주거")
+                .compatPriorityBucket("HOUSING")
                 .build();
 
         assertThat(matcher.matches(priority("HOUSING"), service, projection)).isTrue();

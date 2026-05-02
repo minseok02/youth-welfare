@@ -16,6 +16,8 @@ public record RecommendationCandidateProjection(
         Long serviceId,
         String sourceType,
         String unifiedCategoryCompat,
+        String compatCategoryCode,
+        String compatPriorityBucket,
         String youthMajorLabel,
         String youthMidLabel,
         String provisionMethodLabel,

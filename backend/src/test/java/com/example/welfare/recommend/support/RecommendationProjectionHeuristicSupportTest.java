@@ -56,9 +56,9 @@ class RecommendationProjectionHeuristicSupportTest {
     }
 
     @Test
-    @DisplayName("education priority boost eligibility는 compat/youth major 조합으로 계산한다")
+    @DisplayName("education priority boost eligibility는 compat code/youth major 조합으로 계산한다")
     void resolvesEducationPriorityBoostEligibility() {
-        assertThat(RecommendationProjectionHeuristicSupport.educationPriorityBoostEligible("기타", "교육")).isTrue();
-        assertThat(RecommendationProjectionHeuristicSupport.educationPriorityBoostEligible("주거", "교육")).isFalse();
+        assertThat(RecommendationProjectionHeuristicSupport.educationPriorityBoostEligible("OTHER", "교육")).isTrue();
+        assertThat(RecommendationProjectionHeuristicSupport.educationPriorityBoostEligible("HOUSING", "교육")).isFalse();
     }
 }

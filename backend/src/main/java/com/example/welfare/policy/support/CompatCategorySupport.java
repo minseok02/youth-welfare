@@ -45,4 +45,8 @@ public final class CompatCategorySupport {
         }
         return PRIORITY_BUCKETS.get(compatLabel.trim());
     }
+
+    public static boolean isOtherCompatCode(String compatCode) {
+        return COMPAT_OTHER_CODE.equals(compatCode);
+    }
 }

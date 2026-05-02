@@ -38,17 +38,16 @@ public class DefaultPriorityMatcher implements PriorityMatcher {
     private boolean matchesPriorityBucket(String priorityCode,
                                           WelfareService service,
                                           RecommendationCandidateProjection projection) {
-        if (projection != null && projection.priorityBuckets().contains(priorityCode)) {
-            return true;
+        if (projection != null) {
+            if (projection.priorityBuckets().contains(priorityCode)) {
+                return true;
+            }
+            if (projection.compatPriorityBucket() != null) {
+                return priorityCode.equals(projection.compatPriorityBucket());
+            }
+            return false;
         }
-        return priorityCode.equals(CompatCategorySupport.priorityBucket(resolveUnifiedCategory(service, projection)));
-    }
-
-    private String resolveUnifiedCategory(WelfareService service, RecommendationCandidateProjection projection) {
-        if (projection != null && projection.unifiedCategoryCompat() != null) {
-            return projection.unifiedCategoryCompat();
-        }
-        return service.getUnifiedCategory();
+        return priorityCode.equals(CompatCategorySupport.priorityBucket(service.getUnifiedCategory()));
     }
 
     private boolean isDeadlineSoon(WelfareService service, RecommendationCandidateProjection projection) {
