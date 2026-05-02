@@ -1,5 +1,7 @@
 # 공공API 3종 → DB 컬럼 매핑
 
+API / 응답 contract 문서군 진입점은 [system-docs-index.md](./system-docs-index.md)를 먼저 봅니다.
+
 > 수집 시 `WelfareServiceMapper`에서 참조.
 > `unified_category` 매핑 및 `service_tags` 분류 포함.
 
