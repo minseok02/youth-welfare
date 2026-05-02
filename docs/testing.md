@@ -1,5 +1,7 @@
 # 테스트 실행 기준
 
+문서군 진입점: [local-validation-docs-index.md](./local-validation-docs-index.md)
+
 ## 기본 테스트
 
 DB나 Redis 없이 빠르게 확인할 때 실행합니다.

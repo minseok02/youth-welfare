@@ -2167,3 +2167,8 @@
 - 문제: current-state 문서에는 각 `*-docs-index.md` 진입점을 넣었지만, 실무에서 자주 직접 여는 `collect-operation-checklist.md`, `auth-admin-forced-logout-closeout.md`, `recommendation-pipeline.md`, `policy-source-onboarding-playbook.md` 는 여전히 개별 문서 안에서 문서군 인덱스로 돌아가는 링크가 없었다. 이 상태면 current-state 에서 한 번 정리한 읽기 흐름이 checklist/playbook 단계에서 다시 끊긴다.
 - 해결: 위 네 문서 상단에 각각 `collect/auth/recommendation/policy` 문서군 진입점 링크를 추가했다.
 - 이유: entrypoint 패턴은 current-state 에만 적용하면 반쪽짜리다. 실제 실행·설계에 자주 쓰는 checklist/playbook 문서도 자기 문서군 인덱스로 바로 복귀할 수 있어야 문서 구조가 일관된다.
+
+## 398) `frontend-qa` 와 `local-validation` 문서군도 top-level 인덱스는 생겼지만, 실제 자주 여는 current-state/checklist/runbook 안에서는 다시 길을 잃을 수 있다
+- 문제: `frontend-qa-docs-index.md` 와 `local-validation-docs-index.md` 를 만들고 top-level entrypoint 에도 연결했지만, 정작 많이 직접 여는 `frontend-qa-current-state.md`, `frontend-qa-checklist.md`, `testing.md`, `runtime-api-smoke-commands.md` 는 각 문서 안에서 다시 자기 문서군 인덱스로 돌아가는 링크가 없었다. 이 상태면 사용자는 개별 실행 문서로 곧바로 들어왔을 때 문서군 전체 길찾기를 다시 상위 문서나 검색에 의존하게 된다.
+- 해결: 위 네 문서 상단에 각각 `frontend-qa-docs-index.md` 또는 `local-validation-docs-index.md` 진입점 링크를 추가했다.
+- 이유: docs-index 패턴은 auth/collect/recommendation/policy 에만 적용하면 또 비대칭이 된다. QA와 로컬 검증 문서도 같은 독법을 따르게 해야 전체 문서 구조가 일관된다.

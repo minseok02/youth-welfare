@@ -1,5 +1,7 @@
 # 런타임 API Smoke 명령 모음
 
+문서군 진입점: [local-validation-docs-index.md](./local-validation-docs-index.md)
+
 이 문서는 현재 로컬 런타임에서 바로 실행할 최소 API smoke 명령 모음입니다.
 운영 cutover 전제는 없고, `docker compose` 로 띄운 app/db/redis 또는 수동 로컬 기동 상태에서 그대로 복사해 쓸 수 있게 정리했습니다.
 
