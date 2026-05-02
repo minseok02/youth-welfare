@@ -32,6 +32,7 @@
 - [auth-docs-index.md](./auth-docs-index.md)
 - [auth-session-revocation-current-state.md](./auth-session-revocation-current-state.md)
 - [auth-operation-checklist.md](./auth-operation-checklist.md)
+- [collect-docs-index.md](./collect-docs-index.md)
 - [policy-docs-index.md](./policy-docs-index.md)
 - [policy-normalization-current-state.md](./policy-normalization-current-state.md)
 - [policy-gov24-blocked-track-status.md](./policy-gov24-blocked-track-status.md)
@@ -44,6 +45,7 @@
 
 ### 로컬 검증 절차
 
+- [collect-docs-index.md](./collect-docs-index.md)
 - [collect-current-state.md](./collect-current-state.md)
 - [collect-operation-checklist.md](./collect-operation-checklist.md)
 - [recommendation-current-state.md](./recommendation-current-state.md)

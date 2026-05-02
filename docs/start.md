@@ -26,11 +26,13 @@
 - [testing.md](./testing.md)
 - [documentation-map.md](./documentation-map.md)
 - [auth-docs-index.md](./auth-docs-index.md)
+- [collect-docs-index.md](./collect-docs-index.md)
 - [policy-docs-index.md](./policy-docs-index.md)
 
 ## 주제별 현재 상태
 
 - 인증 문서군 진입점: [auth-docs-index.md](./auth-docs-index.md)
+- 수집 문서군 진입점: [collect-docs-index.md](./collect-docs-index.md)
 - 정책 문서군 진입점: [policy-docs-index.md](./policy-docs-index.md)
 - 인증/세션: [auth-session-revocation-current-state.md](./auth-session-revocation-current-state.md)
 - 수집: [collect-current-state.md](./collect-current-state.md)
