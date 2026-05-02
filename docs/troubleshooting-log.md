@@ -1,5 +1,10 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 287) `work-guide.md` 는 여전히 개별 current-state 문서 중심 표현이라 현재 docs-index 구조를 충분히 반영하지 못함
+- 문제: top-level entrypoint와 문서군 index를 여러 개 추가했는데도 `work-guide.md` 는 여전히 “관련 current-state 문서” 표현만 써서, 실제 시작 순서가 `docs-index -> current-state/checklist/template` 로 바뀐 점이 드러나지 않았음
+- 해결: `work-guide.md` 시작 순서와 문서 규칙에 `*-docs-index.md` 우선 기준을 명시해 현재 문서 구조와 맞췄음
+- 이유: 사용자가 다음 작업을 열 때 top-level entrypoint와 work-guide가 같은 독법을 가져야 문서 진입 순서가 흔들리지 않는다
+
 ## 286) design history / archive 문서도 묶인 entrypoint가 없어 current-state와 배경 문서 경계가 약함
 - 문제: `docs/history/*` 와 `archive/README.md` 는 실제 계약 문서가 아니라 설계 배경/실험 기록/보관 문서인데, top-level 진입점에서는 별도 묶음이 없어 current-state 문서와 같은 층위로 보이기 쉬웠음
 - 해결: `history-docs-index.md` 를 추가하고 `start.md`, `current-state.md`, `README.md`, `documentation-map.md` 에 연결해 history/archive 문서를 별도 entrypoint 로 분리했음

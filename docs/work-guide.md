@@ -6,7 +6,7 @@
 
 1. [current-state.md](./current-state.md)
 2. [phase-plan.md](./phase-plan.md)
-3. 작업과 직접 관련된 current-state 문서
+3. 작업과 직접 관련된 `*-docs-index.md` 또는 current-state 문서
 4. 필요한 코드
 
 작업 이력이나 과거 판단이 더 필요할 때만 [troubleshooting-log.md](./troubleshooting-log.md) 또는 [documentation-map.md](./documentation-map.md)을 추가로 봅니다.
@@ -32,6 +32,7 @@
 ## 문서 규칙
 
 - `README.md` 는 짧은 진입점만 유지합니다.
+- top-level 진입점에서는 먼저 `*-docs-index.md` 를 찾고, 그 다음 current-state / checklist / template 로 내려갑니다.
 - `phase-plan.md` 는 진행 상황을 기록합니다.
 - `troubleshooting-log.md` 는 문제 / 해결 / 이유를 기록합니다.
 - 상세 배경 문서는 필요할 때만 봅니다.
