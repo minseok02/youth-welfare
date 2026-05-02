@@ -59,7 +59,7 @@
 
 추가로 local replay closeout 기준:
 
-- `slot_services=2305`
+- `slot_services=2331`
 - `slot_education_services=110`
 - `slot_services_YOUTH_MAJOR=2313`
 - `slot_services_YOUTH_MID=2191`
@@ -75,6 +75,9 @@
 - `slot_rows_GOV24_BENEFIT_TYPE=0`
 
 즉 summary slot dual-write/backfill 도 현재 로컬 snapshot에서 density 확인까지 끝난 상태입니다.
+latest replay artifact(`/tmp/tmp.lP4I9NWUUU`) 기준 `SUMMARY_SLOT_METRIC` 도 이제
+`slot_services_*` 뿐 아니라 `slot_rows_*` 를 같이 출력하므로,
+apply/replay 양쪽에서 같은 축으로 raw row density를 바로 대조할 수 있습니다.
 현재 local snapshot에서 실제로 채워지는 managed slot은 사실상 `YOUTH_MAJOR`, `YOUTH_MID`, `PROVISION_METHOD` 이고,
 `GOV24_*` 는 아직 runtime collect 기준 populated read 후보가 아닙니다.
 

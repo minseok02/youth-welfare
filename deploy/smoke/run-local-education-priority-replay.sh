@@ -872,6 +872,12 @@ print(
     f"slot_services_GOV24_USER_TYPE={slot_metrics.get('slot_services_GOV24_USER_TYPE', 0)}",
     f"slot_services_GOV24_BENEFIT_TYPE={slot_metrics.get('slot_services_GOV24_BENEFIT_TYPE', 0)}",
     f"slot_services_PROVISION_METHOD={slot_metrics.get('slot_services_PROVISION_METHOD', 0)}",
+    f"slot_rows_YOUTH_MAJOR={slot_metrics.get('slot_rows_YOUTH_MAJOR', 0)}",
+    f"slot_rows_YOUTH_MID={slot_metrics.get('slot_rows_YOUTH_MID', 0)}",
+    f"slot_rows_GOV24_SERVICE_FIELD={slot_metrics.get('slot_rows_GOV24_SERVICE_FIELD', 0)}",
+    f"slot_rows_GOV24_USER_TYPE={slot_metrics.get('slot_rows_GOV24_USER_TYPE', 0)}",
+    f"slot_rows_GOV24_BENEFIT_TYPE={slot_metrics.get('slot_rows_GOV24_BENEFIT_TYPE', 0)}",
+    f"slot_rows_PROVISION_METHOD={slot_metrics.get('slot_rows_PROVISION_METHOD', 0)}",
 )
 print(
     "SUMMARY_METRIC",
@@ -923,6 +929,12 @@ summary_line = (
     f"slot_services_GOV24_USER_TYPE={slot_metrics.get('slot_services_GOV24_USER_TYPE', 0)} "
     f"slot_services_GOV24_BENEFIT_TYPE={slot_metrics.get('slot_services_GOV24_BENEFIT_TYPE', 0)} "
     f"slot_services_PROVISION_METHOD={slot_metrics.get('slot_services_PROVISION_METHOD', 0)} "
+    f"slot_rows_YOUTH_MAJOR={slot_metrics.get('slot_rows_YOUTH_MAJOR', 0)} "
+    f"slot_rows_YOUTH_MID={slot_metrics.get('slot_rows_YOUTH_MID', 0)} "
+    f"slot_rows_GOV24_SERVICE_FIELD={slot_metrics.get('slot_rows_GOV24_SERVICE_FIELD', 0)} "
+    f"slot_rows_GOV24_USER_TYPE={slot_metrics.get('slot_rows_GOV24_USER_TYPE', 0)} "
+    f"slot_rows_GOV24_BENEFIT_TYPE={slot_metrics.get('slot_rows_GOV24_BENEFIT_TYPE', 0)} "
+    f"slot_rows_PROVISION_METHOD={slot_metrics.get('slot_rows_PROVISION_METHOD', 0)} "
     f"artifact_dir={artifact_dir}"
 )
 
