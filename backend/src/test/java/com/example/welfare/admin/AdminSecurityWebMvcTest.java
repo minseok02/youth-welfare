@@ -8,6 +8,8 @@ import com.example.welfare.collect.service.CollectService;
 import com.example.welfare.global.auth.AuthenticatedUser;
 import com.example.welfare.global.config.JacksonConfig;
 import com.example.welfare.global.config.SecurityConfig;
+import com.example.welfare.global.exception.CustomException;
+import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.global.util.JwtUtil;
 import com.example.welfare.policy.controller.PolicyAdminController;
 import com.example.welfare.policy.service.SearchYouthRelevanceService;
@@ -231,6 +233,25 @@ class AdminSecurityWebMvcTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.errorCode").value("C001"));
+    }
+
+    @Test
+    @DisplayName("복지로 detail gap fill 이 연속 429로 진전 없이 중단되면 500/COL001 을 반환한다")
+    void adminEndpointSurfacesBokjiroDetailGapFillRateLimitFailure() throws Exception {
+        mockAuthenticatedToken("admin-token", List.of(
+                new SimpleGrantedAuthority("ROLE_USER"),
+                new SimpleGrantedAuthority("ROLE_ADMIN")
+        ));
+        given(bokjiroDetailCollectService.collectBokjiroDetailGapFillResult(1, 95))
+                .willThrow(new CustomException(ErrorCode.COLLECT_API_FAILED));
+
+        mockMvc.perform(post("/api/admin/collect/bokjiro-details-gap-fill")
+                        .param("rounds", "1")
+                        .param("maxCallsPerRound", "95")
+                        .header("Authorization", "Bearer admin-token"))
+                .andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("COL001"));
     }
 
     @Test

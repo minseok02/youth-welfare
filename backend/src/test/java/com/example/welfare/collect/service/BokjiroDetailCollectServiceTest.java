@@ -4,6 +4,7 @@ import com.example.welfare.collect.gateway.BokjiroDetailClient;
 import com.example.welfare.collect.mapper.WelfareServiceMapper;
 import com.example.welfare.collect.normalization.NormalizedPolicyAggregate;
 import com.example.welfare.collect.normalization.NormalizedPolicySidecarWriter;
+import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.policy.entity.ServiceTag;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.entity.WelfareServiceDetail;
@@ -24,6 +25,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
@@ -256,6 +258,25 @@ class BokjiroDetailCollectServiceTest {
         assertThat(result.stoppedAfterNoSaves()).isTrue();
         verify(detailClient).fetchLocalWithStatus("LOCAL-17");
         verify(detailClient).fetchLocalWithStatus("LOCAL-18");
+    }
+
+    @Test
+    @DisplayName("detail gap fill 이 연속 429로 한 건도 저장하지 못하면 COL001 로 surface 한다")
+    void collectBokjiroDetailGapFillFailsWhenRateLimitedWithoutProgress() {
+        WelfareService local = welfareService(19L, WelfareService.SourceType.BOKJIRO_LOCAL, "LOCAL-19");
+
+        ReflectionTestUtils.setField(service, "maxConsecutiveRateLimitHits", 1);
+        given(welfareServiceRepository.findBySourceType(WelfareService.SourceType.BOKJIRO_CENTRAL))
+                .willReturn(List.of());
+        given(welfareServiceRepository.findBySourceType(WelfareService.SourceType.BOKJIRO_LOCAL))
+                .willReturn(List.of(local));
+        given(detailRepository.existsByServiceId(19L)).willReturn(false);
+        given(detailClient.fetchLocalWithStatus("LOCAL-19"))
+                .willReturn(BokjiroDetailClient.FetchResult.failure(false, true, 429));
+
+        assertThatThrownBy(() -> service.collectBokjiroDetailGapFillResult(1, 5))
+                .isInstanceOf(CustomException.class)
+                .satisfies(ex -> assertThat(((CustomException) ex).getErrorCode()).isEqualTo(com.example.welfare.global.exception.ErrorCode.COLLECT_API_FAILED));
     }
 
     @Test

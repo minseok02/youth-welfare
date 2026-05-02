@@ -6,6 +6,8 @@ import com.example.welfare.collect.normalization.NormalizedPolicyAggregate;
 import com.example.welfare.collect.normalization.NormalizedPolicySidecarWriter;
 import com.example.welfare.collect.support.CollectSourceRegistry;
 import com.example.welfare.collect.validation.RawFieldValidator;
+import com.example.welfare.global.exception.CustomException;
+import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.entity.WelfareServiceDetail;
 import com.example.welfare.policy.repository.ServiceTagRepository;
@@ -92,12 +94,12 @@ public class BokjiroDetailCollectService {
 
     @Transactional
     public CollectResult collectBokjiroDetailsResult() {
-        return collectBokjiroDetailsResult(maxCallsPerRun, false);
+        return collectBokjiroDetailsRun(maxCallsPerRun, false).collectResult();
     }
 
     @Transactional
     public CollectResult collectBokjiroDetailsResult(int maxCalls) {
-        return collectBokjiroDetailsResult(maxCalls, false);
+        return collectBokjiroDetailsRun(maxCalls, false).collectResult();
     }
 
     @Transactional
@@ -112,12 +114,12 @@ public class BokjiroDetailCollectService {
 
     @Transactional
     public CollectResult collectBokjiroDetailsRefreshResult() {
-        return collectBokjiroDetailsResult(maxCallsPerRun, true);
+        return collectBokjiroDetailsRun(maxCallsPerRun, true).collectResult();
     }
 
     @Transactional
     public CollectResult collectBokjiroDetailsRefreshResult(int maxCalls) {
-        return collectBokjiroDetailsResult(maxCalls, true);
+        return collectBokjiroDetailsRun(maxCalls, true).collectResult();
     }
 
     @Transactional
@@ -130,12 +132,19 @@ public class BokjiroDetailCollectService {
         boolean stoppedAfterNoSaves = false;
 
         for (int round = 1; round <= rounds; round++) {
-            CollectResult roundResult = collectBokjiroDetailsResult(maxCallsPerRound, false);
+            DetailCollectRunResult roundRun = collectBokjiroDetailsRun(maxCallsPerRound, false);
+            CollectResult roundResult = roundRun.collectResult();
             roundsExecuted++;
             requested += roundResult.requestedCount();
             saved += roundResult.savedCount();
             skipped += roundResult.skippedCount();
             failed += roundResult.failedCount();
+
+            if (roundRun.rateLimitedAbort() && roundResult.savedCount() <= 0) {
+                log.warn("[BokjiroDetailCollectService] gap fill 수집 실패 roundsExecuted={} requested={} saved={} skipped={} failed={} rateLimitedAbort=true",
+                        roundsExecuted, requested, saved, skipped, failed);
+                throw new CustomException(ErrorCode.COLLECT_API_FAILED);
+            }
 
             if (roundResult.savedCount() <= 0) {
                 stoppedAfterNoSaves = true;
@@ -156,7 +165,7 @@ public class BokjiroDetailCollectService {
     }
 
     @Transactional
-    public CollectResult collectBokjiroDetailsResult(int maxCalls, boolean refreshExisting) {
+    private DetailCollectRunResult collectBokjiroDetailsRun(int maxCalls, boolean refreshExisting) {
         Map<WelfareService.SourceType, List<WelfareService>> targetsBySource = loadTargetsBySource();
         BokjiroDetailBudgetAllocator.BudgetAllocation budgetAllocation = budgetAllocator.allocate(
                 maxCalls,
@@ -181,11 +190,15 @@ public class BokjiroDetailCollectService {
         int saved = statsBySource.values().stream().mapToInt(CollectStats::saved).sum();
         int skipped = statsBySource.values().stream().mapToInt(CollectStats::skipped).sum();
         int failed = statsBySource.values().stream().mapToInt(CollectStats::failed).sum();
+        boolean rateLimitedAbort = statsBySource.values().stream().anyMatch(CollectStats::rateLimitedAbort);
 
         log.info("[BokjiroDetailCollectService] 상세 수집 완료 refreshExisting={} calls={} saved={} skipped={} failed={} maxCalls={} sourceCalls={}",
                 refreshExisting, calls, saved, skipped, failed, maxCalls, summarizeStats(statsBySource));
-        String metadataJson = buildMetadataJson(maxCalls, refreshExisting, budgetAllocation, statsBySource);
-        return CollectResult.withMetadata(calls, saved, skipped, 0, failed, metadataJson);
+        String metadataJson = buildMetadataJson(maxCalls, refreshExisting, budgetAllocation, statsBySource, rateLimitedAbort);
+        return new DetailCollectRunResult(
+                CollectResult.withMetadata(calls, saved, skipped, 0, failed, metadataJson),
+                rateLimitedAbort
+        );
     }
 
     private CollectStats collectBySource(DetailCollectCapability capability,
@@ -202,6 +215,7 @@ public class BokjiroDetailCollectService {
         int skipped = 0;
         int failed = 0;
         int rateLimitHits = 0;
+        boolean rateLimitedAbort = false;
 
         for (WelfareService service : targets) {
             if (calls >= callBudget) break;
@@ -225,6 +239,7 @@ public class BokjiroDetailCollectService {
                 if (rateLimitHits >= maxConsecutiveRateLimitHits) {
                     log.warn("[BokjiroDetailCollectService] 연속 429 발생으로 sourceType={} refreshExisting={} 수집 중단 calls={} rateLimitHits={}",
                             sourceType, refreshExisting, calls, rateLimitHits);
+                    rateLimitedAbort = true;
                     break;
                 }
                 continue;
@@ -255,7 +270,7 @@ public class BokjiroDetailCollectService {
 
         log.info("[BokjiroDetailCollectService] sourceType={} refreshExisting={} 상세 수집 완료 calls={} saved={} skipped={} failed={} budget={}",
                 sourceType, refreshExisting, calls, saved, skipped, failed, callBudget);
-        return new CollectStats(calls, saved, skipped, failed);
+        return new CollectStats(calls, saved, skipped, failed, rateLimitedAbort);
     }
 
     private Map<WelfareService.SourceType, List<WelfareService>> loadTargetsBySource() {
@@ -308,12 +323,14 @@ public class BokjiroDetailCollectService {
     private String buildMetadataJson(int maxCalls,
                                      boolean refreshExisting,
                                      BokjiroDetailBudgetAllocator.BudgetAllocation budgetAllocation,
-                                     Map<WelfareService.SourceType, CollectStats> statsBySource) {
+                                     Map<WelfareService.SourceType, CollectStats> statsBySource,
+                                     boolean rateLimitedAbort) {
         return """
-                {"maxCalls":%d,"refreshExisting":%s,"sourceBudgets":{%s},"sourceCalls":{%s}}
+                {"maxCalls":%d,"refreshExisting":%s,"rateLimitedAbort":%s,"sourceBudgets":{%s},"sourceCalls":{%s}}
                 """.formatted(
                 maxCalls,
                 refreshExisting,
+                rateLimitedAbort,
                 budgetAllocation.toJsonObject(),
                 statsBySource.entrySet().stream()
                         .map(entry -> "\"%s\":%d".formatted(entry.getKey().name(), entry.getValue().calls()))
@@ -343,10 +360,13 @@ public class BokjiroDetailCollectService {
         return Map.copyOf(capabilities);
     }
 
-    private record CollectStats(int calls, int saved, int skipped, int failed) {
+    private record CollectStats(int calls, int saved, int skipped, int failed, boolean rateLimitedAbort) {
         private static CollectStats empty() {
-            return new CollectStats(0, 0, 0, 0);
+            return new CollectStats(0, 0, 0, 0, false);
         }
+    }
+
+    private record DetailCollectRunResult(CollectResult collectResult, boolean rateLimitedAbort) {
     }
 
     private record FetchOutcome(BokjiroDetailClient.FetchResult result, int requestCount) {
