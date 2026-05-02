@@ -1,5 +1,7 @@
 # 추천 파이프라인 상세
 
+문서군 진입점: [recommendation-docs-index.md](./recommendation-docs-index.md)
+
 > 1차 구현 기준. 2차 전환 시 교체 지점 명시.
 
 ---

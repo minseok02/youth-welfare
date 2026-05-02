@@ -1,5 +1,7 @@
 # 정책 source 온보딩 플레이북
 
+문서군 진입점: [policy-docs-index.md](./policy-docs-index.md)
+
 이 문서는 실제 DB 적재 스냅샷과 공식 source 메타데이터를 기준으로, 신규 정책/일자리/주거/장학 source를 어떤 방식으로 붙일지 정리한 실무용 메모입니다.
 
 관련 문서:
