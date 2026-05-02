@@ -139,12 +139,12 @@ local-first closeout 기준의 실제 다음 액션을 고정합니다.
 
 ## 현재 상태
 
-2026-05-01 현재 로컬 기준선은 다시 복구됐다.
+2026-05-02 현재 로컬 기준선은 다시 복구됐다.
 
 1. auth/session revoke regression: 통과
 2. PII split-account local smoke: 통과
 3. education replay smoke(rule-only): 통과
-4. runtime API smoke: 통과
+4. runtime API smoke(signup -> login -> refresh -> recommendations -> logout -> refresh invalidation / presented access revoke): 통과
 5. broad backend regression (`./gradlew test integrationTest --no-daemon`): 통과
 
 추가로 fresh reset 뒤 local canonical sidecar draft schema가 비어 있어 replay가 곧바로 막히던 공백은
