@@ -2252,3 +2252,8 @@
 - 문제: 실수집(`POST /api/admin/collect/youth`) 후 `run-local-education-priority-replay.sh` 를 다시 돌리니 sample A의 canonical bonus 대상 row가 `34위 -> 27위`, `0.06 -> 0.12` 로 실제로 올라왔는데도, 기존 hard gate가 `A_top10_target` 개선만 요구해서 `0->0` 에서 실패했다. 현재 snapshot에서는 compat=`기타` + youth_major=`교육` target row가 응답 전체에 1건만 남아 있어, top10 진입 자체를 고정 기준으로 두는 게 과거 snapshot에 과적합된 상태였다.
 - 해결: replay summary에 `A/B_best_target_rank`, `A/B_best_target_score` 를 추가하고, rule-only hard gate도 `top10 진입` 또는 `best target rank 개선` 중 하나가 일어나면 pass 하도록 바꿨다. 그 뒤 replay를 다시 실행해 artifact(`/tmp/tmp.jTCGzE2Yps`) 기준 `A_best_target_rank=34->27`, `A_best_target_score=0.06->0.12`, `B_best_target_rank=34->34` 로 통과를 확인했다.
 - 이유: 이 smoke의 핵심은 canonical education bonus가 target row 가시성을 실제로 올리는지 보는 것이다. live snapshot이 바뀐 뒤에도 그 효과가 `rank` 와 `score` 에 드러나면 기능은 살아 있는 것이고, top10 진입만 유일한 기준으로 두면 오히려 정상 동작을 거짓 실패로 처리하게 된다.
+
+## 412) runtime API smoke를 수동 curl 묶음으로만 두면, logout/revoke 같은 미묘한 계약을 매번 사람이 다시 해석하게 된다
+- 문제: 실제 런타임에서 `signup -> login -> refresh -> recommendations -> bookmark -> logout` 을 다시 확인할 때마다 쿠키 jar, refresh 후 새 access token, recommendation bookmark path의 `id`, `logout` 요청에 실린 `presented token` 과 더 오래된 login token의 차이를 사람이 다시 조립해야 했다. 특히 logout 뒤 `presented token` 은 `401 / A006` 으로 막히지만, 더 오래된 login token까지 같은 계약으로 막히는 것은 아니어서, 수동 smoke는 쉽게 오해를 만든다.
+- 해결: `deploy/smoke/run-local-runtime-api-smoke.sh` 를 추가해 `signup -> login -> refresh -> recommendations refresh -> bookmark -> bookmarks -> logout -> refresh invalidation(401/A001) -> presented access revoke(401/A006)` 를 한 번에 검증하도록 고정했다. 동시에 `older login token after logout` 은 현재 계약상 `200` 도 허용되는 관측값으로 따로 기록하게 했다.
+- 이유: 이 경계는 “logout이 무엇을 보장하는가”를 매번 다시 해석하게 두면 안 된다. 스크립트로 고정해야 closeout 때 같은 계약을 반복해서 같은 방식으로 확인할 수 있다.
