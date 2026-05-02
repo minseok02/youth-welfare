@@ -18,6 +18,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.atomic.AtomicLong;
 
 @Slf4j
 @Component
@@ -39,14 +40,19 @@ public class BokjiroLocalClient {
     private int maxConsecutiveRateLimitHits;
     @Value("${collect.list.rate-limit-cooldown-ms:10000}")
     private long rateLimitCooldownMs;
+    @Value("${collect.list.local-rate-limit-open-circuit-ms:1800000}")
+    private long localRateLimitOpenCircuitMs;
 
     private static final int PAGE_SIZE = 100;
+    private final AtomicLong rateLimitCircuitOpenUntilEpochMs = new AtomicLong(0);
 
     /**
      * 복지로 지자체 서비스 전체 수집 (XML, 페이징)
      * 엔드포인트: GET https://apis.data.go.kr/B554287/LocalGovernmentWelfareInformations/LcgvWelfarelist
      */
     public List<BokjiroLocalDto.Item> fetchAll() {
+        ensureRateLimitCircuitClosed();
+
         List<BokjiroLocalDto.Item> result = new ArrayList<>();
         int pageNo = 1;
         int rateLimitHits = 0;
@@ -59,6 +65,7 @@ public class BokjiroLocalClient {
                 log.warn("[BokjiroLocalClient] 429 감지 page={} collected={} rateLimitHits={} cooldownMs={}",
                         pageNo, result.size(), rateLimitHits, rateLimitCooldownMs);
                 if (rateLimitHits >= maxConsecutiveRateLimitHits) {
+                    openRateLimitCircuit();
                     log.warn("[BokjiroLocalClient] 연속 429 임계치 도달로 수집 중단 page={} collected={} rateLimitHits={}",
                             pageNo, result.size(), rateLimitHits);
                     throw new CustomException(ErrorCode.COLLECT_API_FAILED);
@@ -129,6 +136,23 @@ public class BokjiroLocalClient {
         }
 
         return PageFetchResult.rateLimited();
+    }
+
+    private void ensureRateLimitCircuitClosed() {
+        long openUntil = rateLimitCircuitOpenUntilEpochMs.get();
+        long now = System.currentTimeMillis();
+        if (openUntil <= now) {
+            return;
+        }
+
+        long remainingMs = openUntil - now;
+        log.warn("[BokjiroLocalClient] 최근 연속 429로 수집 회로가 열려 있어 즉시 중단 remainingMs={}", remainingMs);
+        throw new CustomException(ErrorCode.COLLECT_API_FAILED);
+    }
+
+    private void openRateLimitCircuit() {
+        long openUntil = System.currentTimeMillis() + Math.max(localRateLimitOpenCircuitMs, 0L);
+        rateLimitCircuitOpenUntilEpochMs.set(openUntil);
     }
 
     private void sleepQuietly(long millis) {

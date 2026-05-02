@@ -1062,6 +1062,11 @@ cd backend
   - list rate-limit 완충(`max-consecutive-rate-limit-hits=3`, `rate-limit-cooldown-ms=10000`) 추가
   - incomplete list collect는 더 이상 `SUCCESS requested=0 saved=0` 로 남기지 않고 `500 / COL001` + `api_sync_logs FAILED` 로 표면화
   - latest failed row: `id=21 BOKJIRO_LOCAL failed requested=0 saved=0 failed=1`
+- 2026-05-02 같은 `BOKJIRO_LOCAL` 연속 `429` 재현에서 즉시 재시도 시 page 1을 다시 두드리며 30초 이상 낭비하던 점 보강
+  - `BokjiroLocalClient` 에 local in-memory rate-limit open circuit(`collect.list.local-rate-limit-open-circuit-ms=1800000`) 추가
+  - 첫 실패 run은 기존처럼 `500 / COL001` 이지만, 직후 두 번째 run은 `duration=0s` 로 즉시 `500 / COL001`
+  - app log: `최근 연속 429로 수집 회로가 열려 있어 즉시 중단 remainingMs=...`
+  - latest failed rows: `id=32,31,30 BOKJIRO_LOCAL failed requested=0 saved=0 failed=1`
 - 2026-05-02 collect/replay/broad suite 재검증 루프에서 `bokjiro-details-gap-fill` 의 repeated `429` 경계 정리
   - 기존에는 `saved=0 skipped=198 stoppedAfterNoSaves=true` 로 `200 success` 처럼 보였음
   - `BokjiroDetailCollectService` 가 rate-limit abort 여부를 내부 결과로 들고 가고, `0-save + rate-limited abort` 라운드는 `COL001` 로 surface 하도록 수정
