@@ -25,6 +25,7 @@
 - [architecture.md](./architecture.md)
 - [api-mapping.md](./api-mapping.md)
 - [recommendation-pipeline.md](./recommendation-pipeline.md)
+- [local-validation-docs-index.md](./local-validation-docs-index.md)
 - [phase-plan.md](./phase-plan.md)
 
 ### 현재 구현 상태 요약
@@ -58,6 +59,7 @@
 - [frontend-qa-current-state.md](./frontend-qa-current-state.md)
 - [frontend-qa-checklist.md](./frontend-qa-checklist.md)
 - [frontend-qa-template.md](./frontend-qa-template.md)
+- [local-validation-docs-index.md](./local-validation-docs-index.md)
 - [runtime-api-smoke-commands.md](./runtime-api-smoke-commands.md)
 - [testing.md](./testing.md)
 - [collect-ops.md](./collect-ops.md)

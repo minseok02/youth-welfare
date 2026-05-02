@@ -1,5 +1,10 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 284) 공통 로컬 검증 문서도 `testing` / `runtime smoke` / `demo` 가 흩어져 있어 top-level 진입점이 약함
+- 문제: `testing.md`, `runtime-api-smoke-commands.md`, `demo-scenario.md` 는 중요도가 높은 공통 검증 문서인데도 별도 묶음 index가 없어, 도메인별 index는 늘었지만 공통 local validation entrypoint 는 비어 있었음
+- 해결: `local-validation-docs-index.md` 를 추가하고 `start.md`, `current-state.md`, `README.md`, `documentation-map.md` 에 연결해 공통 로컬 검증 문서군도 독립 entrypoint 로 정리했음
+- 이유: 로컬 smoke/test/demo 문서는 개별 도메인보다 상위에서 자주 열리므로, 공통 검증 기준을 한 entrypoint 에서 바로 찾게 하는 편이 다음 작업 해석과 handoff 속도를 높인다
+
 ## 282) 추천 문서가 current-state/checklist/pipeline/replay template로 흩어져 있어 진입점이 약함
 - 문제: `recommendation-current-state.md`, `recommendation-operation-checklist.md`, `recommendation-pipeline.md`, `recommendation-replay-template.md` 가 있었지만 top-level 진입점에는 별도 index가 없어 auth/collect/policy 대비 recommendation 묶음만 덜 보였음
 - 해결: `recommendation-docs-index.md` 를 추가하고 `start.md`, `current-state.md`, `README.md`, `documentation-map.md` 에 연결해 추천 문서군도 같은 entrypoint 패턴으로 맞췄음
