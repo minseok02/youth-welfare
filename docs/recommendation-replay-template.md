@@ -1,5 +1,7 @@
 # 추천 / Replay 기록 템플릿
 
+문서군 진입점: [recommendation-docs-index.md](./recommendation-docs-index.md)
+
 관련 문서:
 
 - [recommendation-current-state.md](./recommendation-current-state.md)

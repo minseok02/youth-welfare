@@ -1,5 +1,7 @@
 # Auth / Session Revoke 실행 체크리스트
 
+문서군 진입점: [auth-docs-index.md](./auth-docs-index.md)
+
 관련 문서:
 
 - [auth-session-revocation-current-state.md](./auth-session-revocation-current-state.md)

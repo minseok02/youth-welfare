@@ -1,5 +1,7 @@
 # 수집 실행/장애 기록 템플릿
 
+문서군 진입점: [collect-docs-index.md](./collect-docs-index.md)
+
 관련 문서:
 
 - [collect-current-state.md](./collect-current-state.md)
