@@ -1,5 +1,10 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 285) 구조/API/DB/후속설계 문서도 top-level에서는 흩어져 있어 cross-cutting 진입점이 약함
+- 문제: `project-spec.md`, `architecture.md`, `api-mapping.md`, `db-migration.md`, `user-data-separation-design.md`, `chatbot-plan.md` 는 중요도가 높지만 도메인 index처럼 묶인 진입점이 없어 cross-cutting 문서를 찾을 때 다시 전체 맵을 뒤져야 했음
+- 해결: `system-docs-index.md` 를 추가하고 `start.md`, `current-state.md`, `README.md`, `documentation-map.md` 에 연결해 구조/계약/DB/후속설계 문서도 별도 entrypoint 로 정리했음
+- 이유: local current-state 문서군과 별개로 시스템 전반 reference 문서가 반복적으로 열리므로, cross-cutting 문서도 한 묶음 진입점이 있어야 handoff와 다음 작업 판단이 빨라진다
+
 ## 284) 공통 로컬 검증 문서도 `testing` / `runtime smoke` / `demo` 가 흩어져 있어 top-level 진입점이 약함
 - 문제: `testing.md`, `runtime-api-smoke-commands.md`, `demo-scenario.md` 는 중요도가 높은 공통 검증 문서인데도 별도 묶음 index가 없어, 도메인별 index는 늘었지만 공통 local validation entrypoint 는 비어 있었음
 - 해결: `local-validation-docs-index.md` 를 추가하고 `start.md`, `current-state.md`, `README.md`, `documentation-map.md` 에 연결해 공통 로컬 검증 문서군도 독립 entrypoint 로 정리했음

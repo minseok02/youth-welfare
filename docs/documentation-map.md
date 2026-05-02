@@ -26,6 +26,7 @@
 - [api-mapping.md](./api-mapping.md)
 - [recommendation-pipeline.md](./recommendation-pipeline.md)
 - [local-validation-docs-index.md](./local-validation-docs-index.md)
+- [system-docs-index.md](./system-docs-index.md)
 - [phase-plan.md](./phase-plan.md)
 
 ### 현재 구현 상태 요약
