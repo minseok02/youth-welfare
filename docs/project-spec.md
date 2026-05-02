@@ -49,7 +49,8 @@
 
 ## 참고 문서
 
+- 시스템 문서군 진입점: [system-docs-index.md](./system-docs-index.md)
 - 구조: [architecture.md](./architecture.md)
 - 요구사항: [srs-v2.10.md](./srs-v2.10.md)
-- 테스트: [testing.md](./testing.md)
+- 로컬 검증: [local-validation-docs-index.md](./local-validation-docs-index.md)
 - 진행 상황: [phase-plan.md](./phase-plan.md)
