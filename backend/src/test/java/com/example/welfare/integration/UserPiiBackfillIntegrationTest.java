@@ -59,18 +59,17 @@ class UserPiiBackfillIntegrationTest {
 
     @AfterEach
     void cleanup() {
-        userRepository.findAll().stream()
-                .filter(user -> user.getEmail() != null && user.getEmail().startsWith(TEST_EMAIL_PREFIX))
-                .forEach(user -> {
-                    String userKey = userRepository.findUserKeyById(user.getId()).orElse(null);
-                    if (userKey != null) {
-                        authUserRepository.findByUserKey(userKey).ifPresent(authUserRepository::delete);
-                        userProfileRepository.findByUserKey(userKey).ifPresent(userProfileRepository::delete);
-                        userPiiReadWriteRepository.deleteByUserKey(userKey);
-                        userPiiSyncQueueRepository.deleteByUserKey(userKey);
-                    }
-                    userRepository.delete(user);
-                });
+        IntegrationCleanupSupport.cleanupUsers(
+                userRepository,
+                user -> user.getEmail() != null && user.getEmail().startsWith(TEST_EMAIL_PREFIX),
+                userKey -> {
+                    authUserRepository.findByUserKey(userKey).ifPresent(authUserRepository::delete);
+                    userProfileRepository.findByUserKey(userKey).ifPresent(userProfileRepository::delete);
+                    userPiiReadWriteRepository.deleteByUserKey(userKey);
+                    userPiiSyncQueueRepository.deleteByUserKey(userKey);
+                },
+                null
+        );
     }
 
     @Test

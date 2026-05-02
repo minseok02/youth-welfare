@@ -103,24 +103,25 @@ class RecommendationFlowIntegrationTest {
 
     @AfterEach
     void cleanup() {
-        userRepository.findAll().stream()
-                .filter(user -> user.getEmail() != null && user.getEmail().startsWith(TEST_EMAIL_PREFIX))
-                .forEach(user -> {
-                    String userKey = userRepository.findUserKeyById(user.getId()).orElse(null);
-                    if (userKey != null) {
-                        recommendationLogRepository.deleteAll(recommendationLogRepository.findByUserKey(userKey));
-                        userRecommendationRepository.deleteAll(userRecommendationRepository.findByUserKey(userKey));
-                        authUserRepository.findByUserKey(userKey).ifPresent(authUserRepository::delete);
-                        userProfileRepository.findByUserKey(userKey).ifPresent(userProfileRepository::delete);
-                        userPiiReadWriteRepository.deleteByUserKey(userKey);
-                        userPiiSyncQueueRepository.deleteByUserKey(userKey);
-                    }
-                    userRepository.delete(user);
-                });
+        IntegrationCleanupSupport.cleanupUsers(
+                userRepository,
+                user -> user.getEmail() != null && user.getEmail().startsWith(TEST_EMAIL_PREFIX),
+                userKey -> {
+                    recommendationLogRepository.deleteAll(recommendationLogRepository.findByUserKey(userKey));
+                    userRecommendationRepository.deleteAll(userRecommendationRepository.findByUserKey(userKey));
+                    authUserRepository.findByUserKey(userKey).ifPresent(authUserRepository::delete);
+                    userProfileRepository.findByUserKey(userKey).ifPresent(userProfileRepository::delete);
+                    userPiiReadWriteRepository.deleteByUserKey(userKey);
+                    userPiiSyncQueueRepository.deleteByUserKey(userKey);
+                },
+                null
+        );
 
-        welfareServiceRepository.findAll().stream()
-                .filter(service -> service.getSourceId() != null && service.getSourceId().startsWith(TEST_SOURCE_PREFIX))
-                .forEach(welfareServiceRepository::delete);
+        IntegrationCleanupSupport.cleanupServices(
+                welfareServiceRepository,
+                service -> service.getSourceId() != null && service.getSourceId().startsWith(TEST_SOURCE_PREFIX),
+                welfareServiceRepository::delete
+        );
     }
 
     @Test
