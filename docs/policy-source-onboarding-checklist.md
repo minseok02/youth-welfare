@@ -1,5 +1,7 @@
 # 신규 Policy Source 온보딩 체크리스트
 
+문서군 진입점: [policy-docs-index.md](./policy-docs-index.md)
+
 관련 문서:
 
 - [policy-source-onboarding-architecture.md](./policy-source-onboarding-architecture.md)

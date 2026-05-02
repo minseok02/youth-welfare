@@ -2177,3 +2177,8 @@
 - 문제: `auth/collect/recommendation/frontend-qa` 문서군은 top-level, current-state, checklist 일부까지는 docs-index 흐름을 맞췄지만, 정작 실무에서 많이 직접 여는 `auth-operation-checklist.md`, `auth-incident-template.md`, `collect-incident-template.md`, `frontend-qa-template.md`, `recommendation-operation-checklist.md`, `recommendation-replay-template.md` 는 여전히 각 문서 안에서 자기 문서군 인덱스로 다시 돌아가는 링크가 없었다.
 - 해결: 위 여섯 문서 상단에 각 문서군 진입점 링크를 추가했다.
 - 이유: entrypoint 패턴은 “현재 상태 확인”까지만이 아니라 “실행/기록” 단계까지 이어져야 한다. operation/template 문서가 docs-index 로 복귀하지 않으면 마지막 단계에서 다시 파일명을 외워야 한다.
+
+## 400) policy 문서군은 current-state/playbook 은 정리됐어도, 실제 우선순위·blocked·checklist 문서 안에서는 여전히 인덱스로 복귀하지 못했다
+- 문제: `policy-docs-index.md` 와 top-level entrypoint 를 정리한 뒤에도, 실제로 자주 직접 여는 `policy-next-active-track-priority.md`, `policy-local-closeout-pending-inventory.md`, `policy-gov24-blocked-track-status.md`, `policy-source-onboarding-checklist.md` 는 각 문서 안에서 다시 `policy-docs-index.md` 로 돌아가는 링크가 없었다. 이 상태면 policy 문서군은 일부 문서만 entrypoint 규칙을 따르고 나머지는 다시 개별 파일명을 기억해야 했다.
+- 해결: 위 네 문서 상단에 모두 `policy-docs-index.md` 진입점 링크를 추가했다.
+- 이유: policy 쪽은 문서 수가 많고 분기 판단도 많아서, 개별 문서에서 인덱스로 바로 복귀할 수 있어야 재탐색 비용이 줄어든다.

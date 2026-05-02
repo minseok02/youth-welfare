@@ -1,5 +1,7 @@
 # `Gov24` blocked track 현재 상태
 
+문서군 진입점: [policy-docs-index.md](./policy-docs-index.md)
+
 관련 문서:
 
 - [policy-next-active-track-priority.md](./policy-next-active-track-priority.md)
