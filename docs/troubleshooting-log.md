@@ -2172,3 +2172,8 @@
 - 문제: `frontend-qa-docs-index.md` 와 `local-validation-docs-index.md` 를 만들고 top-level entrypoint 에도 연결했지만, 정작 많이 직접 여는 `frontend-qa-current-state.md`, `frontend-qa-checklist.md`, `testing.md`, `runtime-api-smoke-commands.md` 는 각 문서 안에서 다시 자기 문서군 인덱스로 돌아가는 링크가 없었다. 이 상태면 사용자는 개별 실행 문서로 곧바로 들어왔을 때 문서군 전체 길찾기를 다시 상위 문서나 검색에 의존하게 된다.
 - 해결: 위 네 문서 상단에 각각 `frontend-qa-docs-index.md` 또는 `local-validation-docs-index.md` 진입점 링크를 추가했다.
 - 이유: docs-index 패턴은 auth/collect/recommendation/policy 에만 적용하면 또 비대칭이 된다. QA와 로컬 검증 문서도 같은 독법을 따르게 해야 전체 문서 구조가 일관된다.
+
+## 399) current-state/checklist 까지 정리해도 operation/template 문서가 빠지면, 실제 실행 기록 단계에서 다시 문서군 인덱스를 잃는다
+- 문제: `auth/collect/recommendation/frontend-qa` 문서군은 top-level, current-state, checklist 일부까지는 docs-index 흐름을 맞췄지만, 정작 실무에서 많이 직접 여는 `auth-operation-checklist.md`, `auth-incident-template.md`, `collect-incident-template.md`, `frontend-qa-template.md`, `recommendation-operation-checklist.md`, `recommendation-replay-template.md` 는 여전히 각 문서 안에서 자기 문서군 인덱스로 다시 돌아가는 링크가 없었다.
+- 해결: 위 여섯 문서 상단에 각 문서군 진입점 링크를 추가했다.
+- 이유: entrypoint 패턴은 “현재 상태 확인”까지만이 아니라 “실행/기록” 단계까지 이어져야 한다. operation/template 문서가 docs-index 로 복귀하지 않으면 마지막 단계에서 다시 파일명을 외워야 한다.

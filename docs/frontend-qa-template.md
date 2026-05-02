@@ -1,5 +1,7 @@
 # Frontend QA Template
 
+문서군 진입점: [frontend-qa-docs-index.md](./frontend-qa-docs-index.md)
+
 ## 실행 정보
 
 - 날짜:
