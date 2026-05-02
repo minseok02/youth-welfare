@@ -105,6 +105,9 @@ collect:
       max-attempts: 3
       base-backoff-ms: 1500
 
+recommend:
+  refresh-cache-ttl-minutes: ${RECOMMEND_REFRESH_CACHE_TTL_MINUTES:15}
+
 springdoc:
   api-docs:
     enabled: true

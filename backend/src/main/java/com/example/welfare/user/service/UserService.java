@@ -8,6 +8,7 @@ import com.example.welfare.policy.dto.PolicySummaryResponse;
 import com.example.welfare.recommend.repository.CanonicalRecommendationReadModelRepository;
 import com.example.welfare.recommend.entity.UserRecommendation;
 import com.example.welfare.recommend.repository.UserRecommendationRepository;
+import com.example.welfare.recommend.service.RecommendationRefreshCacheService;
 import com.example.welfare.user.dto.request.UpdateProfileRequest;
 import com.example.welfare.user.dto.request.UpdatePrioritiesRequest;
 import com.example.welfare.user.dto.response.ProfileResponse;
@@ -51,6 +52,7 @@ public class UserService {
     private final UserCoreSyncService userCoreSyncService;
     private final UserReadService userReadService;
     private final CanonicalRecommendationReadModelRepository canonicalRecommendationReadModelRepository;
+    private final RecommendationRefreshCacheService recommendationRefreshCacheService;
 
     @Transactional(readOnly = true)
     public ProfileResponse getProfile(Long userId) {
@@ -75,6 +77,7 @@ public class UserService {
     public void updateProfile(Long userId, UpdateProfileRequest request) {
         User user = findActiveUser(userId);
         String userKey = resolveUserKey(userId);
+        recommendationRefreshCacheService.evict(userKey);
 
         user.updateProfile(
                 request.getName() != null ? request.getName() : user.getName(),
@@ -139,6 +142,7 @@ public class UserService {
     public void updatePriorities(Long userId, UpdatePrioritiesRequest request) {
         User user = findActiveUser(userId);
         String userKey = resolveUserKey(userId);
+        recommendationRefreshCacheService.evict(userKey);
         List<String> codes = request.getPriorityCodes();
 
         if (codes.size() > priorityWeightPolicy.maxRank()) {
@@ -180,6 +184,7 @@ public class UserService {
     public void withdraw(Long userId, String password, String accessToken) {
         User user = findActiveUser(userId);
         String userKey = user.getUserKey() != null ? user.getUserKey() : resolveUserKey(userId);
+        recommendationRefreshCacheService.evict(userKey);
 
         if (!passwordEncoder.matches(password, user.getPasswordHash())) {
             throw new CustomException(ErrorCode.INVALID_CREDENTIALS);

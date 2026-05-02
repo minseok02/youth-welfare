@@ -48,6 +48,7 @@ public class RecommendationFacade {
     private final RecommendationPostScoringFilterService recommendationPostScoringFilterService;
     private final RecommendationPersistenceService persistenceService;
     private final RecommendationLogService recommendationLogService;
+    private final RecommendationRefreshCacheService recommendationRefreshCacheService;
     private final UserRecommendationRepository userRecommendationRepository;
 
     /**
@@ -64,6 +65,18 @@ public class RecommendationFacade {
         UserReadService.RecommendationReadContext context = userReadService.getRecommendationContext(userId);
         RecommendationUserSnapshot snapshot = context.snapshot();
         User user = context.user();
+        String userKey = snapshot.userKey();
+
+        if (personal) {
+            recommendationRefreshCacheService.evict(userKey);
+        } else if (recommendationRefreshCacheService.canReuse(userKey)) {
+            List<UserRecommendation> cached = userRecommendationRepository.findLatestByUserKeyOrderByFinalScoreDesc(userKey);
+            if (!cached.isEmpty()) {
+                log.info("[RecommendationFacade] refresh cache hit userId={} userKey={}", userId, userKey);
+                return cached;
+            }
+            recommendationRefreshCacheService.evict(userKey);
+        }
 
         // ① 군집 결정 — personal 모드는 youth_all로 강제 (캐시 미사용)
         String clusterId = personal ? "youth_all" : clusterService.assignCluster(snapshot);
@@ -99,6 +112,9 @@ public class RecommendationFacade {
 
         // ⑦ CTR 추적용 로그 생성 — 미클릭 이전 로그 정리 후 새 로그 기록
         recommendationLogService.refreshLogs(user, saved, weight);
+        if (!personal) {
+            recommendationRefreshCacheService.markReusable(userKey);
+        }
 
         return saved;
     }

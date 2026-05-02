@@ -14,6 +14,7 @@
 무엇이 현재 계약이고 무엇이 실험/보조 신호인지 빠르게 확인하기 위한 current-state 문서입니다.
 
 현재 제품 해석은 `청년정책 통합포털 + 개인화 추천` 이며, 추천 재사용 전략도 군집 캐시보다 개인 캐시를 우선 검토하는 쪽으로 정리합니다.
+현재 코드 기준 개인 캐시는 추천 payload 전체를 Redis에 저장하는 구조가 아니라, `non-personal refresh` 를 최근에 끝냈는지 나타내는 짧은 TTL 마커만 저장하고 실제 추천 row 는 계속 DB에서 읽는 형태입니다.
 
 ## 현재 추천 파이프라인
 
@@ -26,6 +27,7 @@
 5. `RecommendationPersistenceService`
 
 조회는 저장된 `user_recommendations` 를 읽는 구조입니다.
+또한 `POST /api/recommendations/refresh?personal=false` 는 최근 same-user refresh 마커가 살아 있으면 재계산을 생략하고 최신 저장 row 를 그대로 반환합니다. 반대로 `personal=true` refresh 는 항상 실계산하며, 프로필/우선순위/탈퇴 변경 시 refresh 마커는 즉시 invalidate 됩니다.
 
 즉 현재 개인화의 기본 단위는 군집이 아니라 사용자입니다. 군집은 현재 `youth_all` fallback 경계로만 남아 있고, 실제 추천 응답 가속이 필요하면 먼저 `userKey` 기준 캐시를 검토하는 것이 현재 규모에 더 맞습니다.
 

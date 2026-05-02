@@ -8,6 +8,7 @@ import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
 import com.example.welfare.recommend.entity.UserRecommendation;
 import com.example.welfare.recommend.repository.CanonicalRecommendationReadModelRepository;
 import com.example.welfare.recommend.repository.UserRecommendationRepository;
+import com.example.welfare.recommend.service.RecommendationRefreshCacheService;
 import com.example.welfare.user.dto.request.UpdateProfileRequest;
 import com.example.welfare.user.dto.request.UpdatePrioritiesRequest;
 import com.example.welfare.user.entity.PriorityOption;
@@ -57,6 +58,7 @@ class UserServiceTest {
     @Mock private UserCoreSyncService userCoreSyncService;
     @Mock private UserReadService userReadService;
     @Mock private CanonicalRecommendationReadModelRepository canonicalRecommendationReadModelRepository;
+    @Mock private RecommendationRefreshCacheService recommendationRefreshCacheService;
 
     private UserService userService;
 
@@ -76,7 +78,8 @@ class UserServiceTest {
                 chatSessionCleanupService,
                 userCoreSyncService,
                 userReadService,
-                canonicalRecommendationReadModelRepository
+                canonicalRecommendationReadModelRepository,
+                recommendationRefreshCacheService
         );
     }
 
@@ -99,6 +102,7 @@ class UserServiceTest {
 
         userService.updateProfile(1L, request);
 
+        verify(recommendationRefreshCacheService).evict("user-key-1");
         verify(userCoreSyncService).syncFromUser(user);
         verify(userAttributeRepository).deleteByUserKeyAndAttrType("user-key-1", UserAttribute.AttrType.INTEREST_FIELD.name());
         verify(userAttributeRepository).deleteByUserKeyAndAttrType("user-key-1", UserAttribute.AttrType.TARGET_TYPE.name());
@@ -139,6 +143,7 @@ class UserServiceTest {
 
         userService.updatePriorities(1L, request);
 
+        verify(recommendationRefreshCacheService).evict("user-key-1");
         verify(userPriorityRepository).deleteByUserKey("user-key-1");
         ArgumentCaptor<UserPriority> captor = ArgumentCaptor.forClass(UserPriority.class);
         verify(userPriorityRepository, times(2)).save(captor.capture());
@@ -178,6 +183,7 @@ class UserServiceTest {
         UpdateProfileRequest request = new UpdateProfileRequest();
         userService.updateProfile(1L, request);
 
+        verify(recommendationRefreshCacheService).evict("user-key-1");
         verify(userCoreSyncService).syncFromUser(user);
         assertThat(user.getProfileCompleteness()).isEqualTo(100);
     }
@@ -253,6 +259,7 @@ class UserServiceTest {
 
         userService.withdraw(1L, "password123", "access-token-value");
 
+        verify(recommendationRefreshCacheService).evict("user-key-1");
         verify(userAttributeRepository).deleteByUserKey("user-key-1");
         verify(userPriorityRepository).deleteByUserKey("user-key-1");
         verify(chatSessionCleanupService).deleteAllByUserKey(user.getUserKey());

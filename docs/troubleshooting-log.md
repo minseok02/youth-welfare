@@ -2332,3 +2332,8 @@
 - 문제: 군집 캐시는 겉보기에 추천 속도를 빠르게 할 것 같지만, 실제로는 군집 키 설계, 첫 사용자 miss, 낮은 hit-rate, stale invalidation, AI reason 획일화 같은 비용을 같이 데려온다. 현재처럼 사용자 규모가 크지 않은 졸업 프로젝트에선 이 비용이 실제 이득보다 클 가능성이 높다.
 - 해결: 문서 기준을 `청년정책 통합포털 + 개인화 추천` 으로 다시 명시하고, 추천 재사용 전략도 군집 캐시보다 `userKey` 기준 개인 캐시를 우선 검토하는 방향으로 정리했다. 나이대×소득분위 군집 캐시는 실제 사용자 수와 요청 패턴이 충분히 커졌을 때만 reopen 하는 확장 포인트로 남긴다.
 - 이유: 지금 제품의 기본 단위는 군집보다 사용자다. 추천 가속이 필요해도 먼저 개인 캐시가 더 단순하고 개인화 손실이 적으며, 군집 캐시는 규모 문제를 실제로 겪기 시작한 뒤에 다시 판단하는 편이 더 합리적이다.
+
+## 428) 현재 구조에서 추천 payload 전체를 캐시하려 하면, persistence/log/북마크 경계까지 같이 복제되어 처음 얻는 속도보다 경계 혼선이 더 커질 수 있다
+- 문제: 현재 추천 응답은 이미 `user_recommendations` 테이블에 저장된 row, CTR용 `recommendation_logs`, 북마크 상태 이전, canonical projection 조합을 전제로 움직인다. 이 시점에 Redis에 추천 payload 자체를 별도로 넣으면 추천 결과 저장소가 DB와 Redis 두 군데가 되고, stale invalidation 뿐 아니라 log id 생성 시점과 bookmark 최신성까지 같이 복제 관리해야 한다.
+- 해결: 1차 개인 캐시는 추천 row 전체를 저장하지 않고 `RecommendationRefreshCacheService` 에서 `userKey` 기준 `non-personal refresh` 완료 마커만 짧은 TTL로 저장하는 형태로 좁혔다. cache hit 시에도 실제 응답은 계속 `user_recommendations` 의 최신 row 를 읽고, `personal=true` refresh 와 `updateProfile` / `updatePriorities` / `withdraw` 는 즉시 invalidate 하도록 정리했다.
+- 이유: 지금 필요한 것은 “같은 사용자가 짧은 시간 안에 같은 refresh를 다시 눌렀을 때 재계산을 한 번 줄이는 것”이지, 추천 저장 체계를 이중화하는 것이 아니다. 마커 캐시는 효과 대비 책임이 훨씬 작고, 현재 persistence/log/bookmark 경계를 그대로 유지할 수 있다.
