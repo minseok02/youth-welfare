@@ -50,10 +50,10 @@
 현재 로컬 실수집 검증 기준:
 
 - `welfare_services=2363`
-- `service_taxonomies=2363`
+- `service_taxonomies=3708`
 - `service_taxonomy_terms=7931`
 - `service_facts=8257`
-- `service_taxonomy_summary_slots=5619`
+- `service_taxonomy_summary_slots=5674`
 
 즉 `YOUTH` snapshot 기준으로 core row와 canonical sidecar 저장은 현재 로컬에서 정상동작 확인 상태입니다.
 
@@ -61,15 +61,15 @@
 
 - `slot_services=2305`
 - `slot_education_services=110`
-- `slot_services_YOUTH_MAJOR=2288`
-- `slot_services_YOUTH_MID=2170`
-- `slot_services_PROVISION_METHOD=1161`
+- `slot_services_YOUTH_MAJOR=2313`
+- `slot_services_YOUTH_MID=2191`
+- `slot_services_PROVISION_METHOD=1170`
 - `slot_services_GOV24_SERVICE_FIELD=0`
 - `slot_services_GOV24_USER_TYPE=0`
 - `slot_services_GOV24_BENEFIT_TYPE=0`
-- `slot_rows_YOUTH_MAJOR=2288`
-- `slot_rows_YOUTH_MID=2170`
-- `slot_rows_PROVISION_METHOD=1161`
+- `slot_rows_YOUTH_MAJOR=2313`
+- `slot_rows_YOUTH_MID=2191`
+- `slot_rows_PROVISION_METHOD=1170`
 - `slot_rows_GOV24_SERVICE_FIELD=0`
 - `slot_rows_GOV24_USER_TYPE=0`
 - `slot_rows_GOV24_BENEFIT_TYPE=0`
