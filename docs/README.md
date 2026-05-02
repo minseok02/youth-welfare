@@ -31,6 +31,7 @@
 - [testing.md](./testing.md)
 - [local-validation-docs-index.md](./local-validation-docs-index.md)
 - [system-docs-index.md](./system-docs-index.md)
+- [history-docs-index.md](./history-docs-index.md)
 
 ## 현재 상태 문서
 
@@ -41,6 +42,7 @@
 - [policy-docs-index.md](./policy-docs-index.md)
 - [local-validation-docs-index.md](./local-validation-docs-index.md)
 - [system-docs-index.md](./system-docs-index.md)
+- [history-docs-index.md](./history-docs-index.md)
 - [auth-session-revocation-current-state.md](./auth-session-revocation-current-state.md)
 - [collect-current-state.md](./collect-current-state.md)
 - [recommendation-current-state.md](./recommendation-current-state.md)

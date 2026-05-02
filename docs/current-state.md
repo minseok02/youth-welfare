@@ -15,6 +15,7 @@
 - 정책 문서군 진입점: [policy-docs-index.md](./policy-docs-index.md)
 - 공통 로컬 검증 문서군 진입점: [local-validation-docs-index.md](./local-validation-docs-index.md)
 - 시스템 문서군 진입점: [system-docs-index.md](./system-docs-index.md)
+- 히스토리 문서군 진입점: [history-docs-index.md](./history-docs-index.md)
 - 인증/세션: [auth-session-revocation-current-state.md](./auth-session-revocation-current-state.md)
 - 수집: [collect-current-state.md](./collect-current-state.md)
 - 추천: [recommendation-current-state.md](./recommendation-current-state.md)

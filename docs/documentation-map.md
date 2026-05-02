@@ -27,6 +27,7 @@
 - [recommendation-pipeline.md](./recommendation-pipeline.md)
 - [local-validation-docs-index.md](./local-validation-docs-index.md)
 - [system-docs-index.md](./system-docs-index.md)
+- [history-docs-index.md](./history-docs-index.md)
 - [phase-plan.md](./phase-plan.md)
 
 ### 현재 구현 상태 요약
@@ -77,6 +78,8 @@
 ## 2. design history 로 읽을 문서
 
 아래는 현재 구현의 배경을 남긴 문서입니다.
+
+먼저 entrypoint가 필요하면 [history-docs-index.md](./history-docs-index.md) 를 봅니다.
 
 ### auth forced logout cluster
 
