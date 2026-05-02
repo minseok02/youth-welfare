@@ -5,6 +5,14 @@
 이 문서는 현재 로컬 런타임에서 바로 실행할 최소 API smoke 명령 모음입니다.
 운영 cutover 전제는 없고, `docker compose` 로 띄운 app/db/redis 또는 수동 로컬 기동 상태에서 그대로 복사해 쓸 수 있게 정리했습니다.
 
+반복 검증은 수동 curl 대신 아래 스크립트를 우선 사용합니다.
+
+```bash
+deploy/smoke/run-local-runtime-api-smoke.sh
+```
+
+이 스크립트는 `signup -> login -> refresh -> recommendations refresh -> bookmark -> bookmarks -> logout -> refresh invalidation -> presented access revoke` 를 한 번에 확인합니다.
+
 전제:
 
 - 앱 base URL은 `APP_BASE_URL` 로 둡니다.
