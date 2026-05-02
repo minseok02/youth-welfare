@@ -1,5 +1,10 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 286) design history / archive 문서도 묶인 entrypoint가 없어 current-state와 배경 문서 경계가 약함
+- 문제: `docs/history/*` 와 `archive/README.md` 는 실제 계약 문서가 아니라 설계 배경/실험 기록/보관 문서인데, top-level 진입점에서는 별도 묶음이 없어 current-state 문서와 같은 층위로 보이기 쉬웠음
+- 해결: `history-docs-index.md` 를 추가하고 `start.md`, `current-state.md`, `README.md`, `documentation-map.md` 에 연결해 history/archive 문서를 별도 entrypoint 로 분리했음
+- 이유: 먼저 current-state/index 문서를 보고, 배경이 필요할 때만 history로 내려가는 순서를 문서 구조로 드러내야 다음 작업 판단과 handoff가 쉬워진다
+
 ## 285) 구조/API/DB/후속설계 문서도 top-level에서는 흩어져 있어 cross-cutting 진입점이 약함
 - 문제: `project-spec.md`, `architecture.md`, `api-mapping.md`, `db-migration.md`, `user-data-separation-design.md`, `chatbot-plan.md` 는 중요도가 높지만 도메인 index처럼 묶인 진입점이 없어 cross-cutting 문서를 찾을 때 다시 전체 맵을 뒤져야 했음
 - 해결: `system-docs-index.md` 를 추가하고 `start.md`, `current-state.md`, `README.md`, `documentation-map.md` 에 연결해 구조/계약/DB/후속설계 문서도 별도 entrypoint 로 정리했음
