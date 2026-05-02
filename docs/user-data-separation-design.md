@@ -1,5 +1,7 @@
 # 사용자 데이터 분리 설계
 
+전체 cross-cutting 구조/데이터 문서 진입점은 [system-docs-index.md](./system-docs-index.md)를 먼저 봅니다.
+
 ## 왜 지금 구조가 문제인가
 
 현재 프로젝트는 사용자 핵심 데이터가 `users` 한 테이블에 집중되어 있다.
