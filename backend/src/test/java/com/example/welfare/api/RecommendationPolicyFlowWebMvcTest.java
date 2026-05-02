@@ -1,6 +1,7 @@
 package com.example.welfare.api;
 
 import com.example.welfare.global.auth.AuthenticatedUser;
+import com.example.welfare.global.web.ClientFingerprintService;
 import com.example.welfare.policy.controller.PolicyController;
 import com.example.welfare.policy.dto.PolicyDetailResponse;
 import com.example.welfare.policy.dto.PolicyRankingResponse;
@@ -8,6 +9,7 @@ import com.example.welfare.policy.dto.PolicySearchResponse;
 import com.example.welfare.policy.dto.PolicySummaryResponse;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.service.PolicyRankingService;
+import com.example.welfare.policy.service.PolicySearchLogService;
 import com.example.welfare.policy.service.PolicySearchService;
 import com.example.welfare.policy.service.PolicyService;
 import com.example.welfare.policy.service.PolicyViewLogService;
@@ -33,6 +35,7 @@ import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.BDDMockito.given;
@@ -61,11 +64,15 @@ class RecommendationPolicyFlowWebMvcTest {
     @MockBean
     private PolicySearchService policySearchService;
     @MockBean
+    private PolicySearchLogService policySearchLogService;
+    @MockBean
     private RecommendationLogService recommendationLogService;
     @MockBean
     private CanonicalRecommendationReadModelRepository canonicalRecommendationReadModelRepository;
     @MockBean
     private PolicyViewLogService policyViewLogService;
+    @MockBean
+    private ClientFingerprintService clientFingerprintService;
 
     @Test
     @DisplayName("추천 갱신 -> 랭킹 조회 -> 검색 조회 핵심 흐름이 성공 응답을 반환한다")
@@ -140,6 +147,7 @@ class RecommendationPolicyFlowWebMvcTest {
                         .pageSize(10)
                         .hasNext(false)
                         .build());
+        given(clientFingerprintService.build(any())).willReturn("fp-search");
 
         mockMvc.perform(post("/api/recommendations/refresh")
                         .with(authentication(new UsernamePasswordAuthenticationToken(
@@ -200,6 +208,7 @@ class RecommendationPolicyFlowWebMvcTest {
         verify(recommendationFacade).recommend(isNull(), eq(false));
         verify(policyRankingService).getRanking(5);
         verify(policySearchService).search(isNull(), eq("월세"), eq("ACTIVE"), isNull(), eq("HOUSING"), eq("YOUTH"), eq(true), isNull(), isNull(), eq("RELEVANCE"), eq(0), eq(10));
+        verify(policySearchLogService).record(any());
     }
 
     @Test
@@ -271,7 +280,7 @@ class RecommendationPolicyFlowWebMvcTest {
                 .gov24UserTypeLabel("청년")
                 .gov24BenefitTypeLabel("서비스")
                 .build();
-        given(policyViewLogService.buildClientFingerprint(org.mockito.ArgumentMatchers.any())).willReturn("fp");
+        given(clientFingerprintService.build(org.mockito.ArgumentMatchers.any())).willReturn("fp");
         given(policyViewLogService.registerViewIfFirstInWindow(eq(11L), isNull(), eq("fp"))).willReturn(true);
         given(policyService.getDetail(isNull(), eq(11L), eq(true))).willReturn(detail);
 

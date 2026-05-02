@@ -1,0 +1,22 @@
+CREATE TABLE search_logs (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    user_key CHAR(32) NULL,
+    client_fingerprint VARCHAR(64) NOT NULL,
+    keyword VARCHAR(255) NOT NULL,
+    result_count BIGINT NOT NULL,
+    status_filter VARCHAR(16) NULL,
+    include_closed TINYINT(1) NOT NULL DEFAULT 0,
+    category VARCHAR(64) NULL,
+    source_type VARCHAR(32) NULL,
+    online_apply TINYINT(1) NULL,
+    sido VARCHAR(64) NULL,
+    sgg VARCHAR(64) NULL,
+    sort_key VARCHAR(16) NULL,
+    page_number INT NOT NULL,
+    page_size INT NOT NULL,
+    searched_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_sl_searched (searched_at),
+    KEY idx_sl_user_key_searched (user_key, searched_at),
+    KEY idx_sl_keyword_searched (keyword, searched_at)
+);
