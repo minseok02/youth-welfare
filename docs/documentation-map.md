@@ -109,6 +109,7 @@
 
 현재 바로 구현으로 못 가는 문서들입니다.
 
+- [policy-gov24-blocked-track-status.md](./policy-gov24-blocked-track-status.md)
 - `GOV24_*` codebook / inventory / request template
 - `YOUTH_MID` stable code source / request spec
 - CTR sample / 카카오 알림톡 2차

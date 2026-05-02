@@ -22,6 +22,7 @@
 
 - [policy-normalization-current-state.md](./policy-normalization-current-state.md)
 - [policy-local-closeout-pending-inventory.md](./policy-local-closeout-pending-inventory.md)
+- [policy-gov24-blocked-track-status.md](./policy-gov24-blocked-track-status.md)
 - [policy-post-local-closeout-track-split.md](./policy-post-local-closeout-track-split.md)
 
 ### source onboarding 큰 그림
@@ -78,15 +79,17 @@
 
 아래는 지금 바로 구현을 계속하는 문서가 아니라, 외부 source/codebook 응답이 와야 다시 여는 문서입니다.
 
+- [policy-gov24-blocked-track-status.md](./policy-gov24-blocked-track-status.md)
 - `policy-normalization-gov24-*`
 - `policy-normalization-youth-mid-*`
 
 ## 지금 기준으로 기억할 핵심
 
 1. 현재 구현 확인은 [policy-normalization-current-state.md](./policy-normalization-current-state.md)부터 봅니다.
-2. 신규 API를 어떻게 꽂을지 큰 구조는 [policy-source-onboarding-architecture.md](./policy-source-onboarding-architecture.md)를 먼저 봅니다.
-3. 실제로 새 source를 받을 때는 [policy-source-onboarding-checklist.md](./policy-source-onboarding-checklist.md) 순서대로 판단합니다.
-4. 실제 코드에서 어디를 열지 찾으려면 [policy-source-code-entrypoints.md](./policy-source-code-entrypoints.md)를 봅니다.
-5. 실제 새 source note를 만들 때는 [policy-source-onboarding-template.md](./policy-source-onboarding-template.md)를 복사해서 씁니다.
-6. 개별 `policy-*` 문서는 대부분 design history, blocked 조사, 실험 배경입니다.
-7. `policy-*` 파일 수가 많은 이유는 문서가 과한 것보다, local-first로 잘게 검증한 흔적이 누적된 결과에 가깝습니다.
+2. `Gov24` 가 왜 지금 inactive 인지와 언제 다시 여는지는 [policy-gov24-blocked-track-status.md](./policy-gov24-blocked-track-status.md)를 먼저 봅니다.
+3. 신규 API를 어떻게 꽂을지 큰 구조는 [policy-source-onboarding-architecture.md](./policy-source-onboarding-architecture.md)를 먼저 봅니다.
+4. 실제로 새 source를 받을 때는 [policy-source-onboarding-checklist.md](./policy-source-onboarding-checklist.md) 순서대로 판단합니다.
+5. 실제 코드에서 어디를 열지 찾으려면 [policy-source-code-entrypoints.md](./policy-source-code-entrypoints.md)를 봅니다.
+6. 실제 새 source note를 만들 때는 [policy-source-onboarding-template.md](./policy-source-onboarding-template.md)를 복사해서 씁니다.
+7. 개별 `policy-*` 문서는 대부분 design history, blocked 조사, 실험 배경입니다.
+8. `policy-*` 파일 수가 많은 이유는 문서가 과한 것보다, local-first로 잘게 검증한 흔적이 누적된 결과에 가깝습니다.
