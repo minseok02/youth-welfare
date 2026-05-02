@@ -1,5 +1,7 @@
 # Policy Normalization Current State
 
+문서군 진입점: [policy-docs-index.md](./policy-docs-index.md)
+
 관련 코드:
 
 - [DeferredNormalizedPolicySidecarWriter.java](../backend/src/main/java/com/example/welfare/collect/normalization/DeferredNormalizedPolicySidecarWriter.java)

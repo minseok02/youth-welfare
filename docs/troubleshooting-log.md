@@ -2157,3 +2157,8 @@
 - 문제: auth/policy 문서군은 각각 `auth-docs-index.md`, `policy-docs-index.md` 가 생겨 top-level entrypoint에서도 바로 들어갈 수 있는데, collect 쪽은 여전히 `collect-current-state.md`, `collect-operation-checklist.md`, `collect-ops.md` 를 개별로 기억해야 했다. 이 상태면 문서군마다 길찾기 규칙이 다시 달라졌다.
 - 해결: `collect-docs-index.md` 를 추가해 수집 현재 동작 기준, 실행 체크리스트, 운영 기준, 실행/장애 템플릿을 한 문서에서 정리하고, `start.md`, `current-state.md`, `docs/README.md`, `documentation-map.md` 에 모두 연결했다.
 - 이유: entrypoint 정리는 특정 주제 하나만 예쁘게 만드는 일이 아니라, 문서군마다 같은 진입 패턴을 갖게 만드는 일이다. collect 도 인덱스가 있어야 문서 구조가 auth/policy 와 같은 수준으로 정리된다.
+
+## 396) top-level entrypoint 와 docs-index 를 정리해도, 각 current-state 문서가 자기 문서군 인덱스로 다시 안 돌아가면 읽기 흐름이 중간에서 끊긴다
+- 문제: `start/current-state/README/documentation-map` 에는 `auth/collect/recommendation/policy` 문서군 인덱스를 많이 연결했지만, 정작 각 current-state 문서 안에서는 자기 `*-docs-index.md` 를 다시 가리키지 않았다. 이 상태면 사용자는 개별 current-state 문서로 바로 들어왔을 때 문서군 전체 길찾기를 다시 파일 검색이나 상위 문서로 역이동해야 했다.
+- 해결: `auth-session-revocation-current-state.md`, `collect-current-state.md`, `recommendation-current-state.md`, `policy-normalization-current-state.md` 상단에 각 문서군 진입점 링크를 추가했다.
+- 이유: entrypoint 설계는 상위 문서에서만 끝나면 부족하다. 많이 열리는 current-state 문서 자체도 “이 문서군 전체는 어디서 시작하나”를 한 줄로 보여줘야 읽기 흐름이 끊기지 않는다.

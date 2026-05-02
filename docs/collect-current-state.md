@@ -1,5 +1,7 @@
 # 수집 현재 동작 기준
 
+문서군 진입점: [collect-docs-index.md](./collect-docs-index.md)
+
 관련 문서:
 
 - [collect-ops.md](./collect-ops.md)
