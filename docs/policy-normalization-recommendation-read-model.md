@@ -1,5 +1,7 @@
 # Canonical Recommendation Read-Model 경계 초안
 
+문서군 진입점: [policy-docs-index.md](./policy-docs-index.md)
+
 ## 목적
 
 canonical sidecar(`service_taxonomies`, `service_taxonomy_terms`, `service_facts`)를 추천 파이프라인에 붙일 때,

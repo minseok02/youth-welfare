@@ -2182,3 +2182,8 @@
 - 문제: `policy-docs-index.md` 와 top-level entrypoint 를 정리한 뒤에도, 실제로 자주 직접 여는 `policy-next-active-track-priority.md`, `policy-local-closeout-pending-inventory.md`, `policy-gov24-blocked-track-status.md`, `policy-source-onboarding-checklist.md` 는 각 문서 안에서 다시 `policy-docs-index.md` 로 돌아가는 링크가 없었다. 이 상태면 policy 문서군은 일부 문서만 entrypoint 규칙을 따르고 나머지는 다시 개별 파일명을 기억해야 했다.
 - 해결: 위 네 문서 상단에 모두 `policy-docs-index.md` 진입점 링크를 추가했다.
 - 이유: policy 쪽은 문서 수가 많고 분기 판단도 많아서, 개별 문서에서 인덱스로 바로 복귀할 수 있어야 재탐색 비용이 줄어든다.
+
+## 401) 운영/우선순위 문서만 정리하고 구조/이행 설계 문서를 그대로 두면, collect/policy 문서군은 설계 단계에서 다시 길찾기가 끊긴다
+- 문제: `collect-docs-index.md` 와 `policy-docs-index.md` 를 만들고 current-state/checklist/ops 일부까지 정리했지만, 실제로 자주 직접 여는 `collect-ops.md`, `policy-normalization-recommendation-read-model.md`, `policy-normalization-recommendation-migration-order.md`, `policy-source-onboarding-architecture.md` 는 여전히 각 문서 안에서 자기 문서군 인덱스로 다시 돌아가는 링크가 없었다.
+- 해결: 위 네 문서 상단에 각각 `collect-docs-index.md` 또는 `policy-docs-index.md` 진입점 링크를 추가했다.
+- 이유: 문서군 인덱스 규칙은 실행 문서뿐 아니라 구조/이행 설계 문서에도 같게 적용돼야 한다. 그래야 사용자가 설계 문서를 열었을 때도 다시 문서군 전체 맥락으로 쉽게 복귀할 수 있다.

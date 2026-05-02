@@ -1,5 +1,7 @@
 # 신규 Policy Source 온보딩 공통 구조
 
+문서군 진입점: [policy-docs-index.md](./policy-docs-index.md)
+
 관련 문서:
 
 - [policy-source-onboarding-playbook.md](./policy-source-onboarding-playbook.md)

@@ -1,5 +1,7 @@
 # 수집 실행 기준
 
+문서군 진입점: [collect-docs-index.md](./collect-docs-index.md)
+
 ## 목적
 
 공공 API 수집은 외부 서비스 상태와 호출 제한에 영향을 받는다.  
