@@ -1,5 +1,10 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 282) 추천 문서가 current-state/checklist/pipeline/replay template로 흩어져 있어 진입점이 약함
+- 문제: `recommendation-current-state.md`, `recommendation-operation-checklist.md`, `recommendation-pipeline.md`, `recommendation-replay-template.md` 가 있었지만 top-level 진입점에는 별도 index가 없어 auth/collect/policy 대비 recommendation 묶음만 덜 보였음
+- 해결: `recommendation-docs-index.md` 를 추가하고 `start.md`, `current-state.md`, `README.md`, `documentation-map.md` 에 연결해 추천 문서군도 같은 entrypoint 패턴으로 맞췄음
+- 이유: recommendation 도 로컬 refresh/get/replay 와 current-state/pipeline 문서를 같이 봐야 하므로, 흩어진 개별 문서보다 묶음 진입점이 있어야 다음 작업 해석이 빨라진다
+
 ## 281) 문서가 `운영 전환` 을 실제 다음 트랙처럼 가정하면, 현재 로컬 검증 우선순위와 어긋나 다음 작업 해석이 틀어질 수 있음
 - 문제: 현재 실제 상태는 `운영 서버 없음`, `로컬 테스트만 진행`, `프론트 후 운영` 인데 일부 current 문서가 `ops-only`, `deploy`, `운영 전환` 을 다음 active track처럼 안내하고 있었음
 - 해결: pure ops/runbook 문서는 삭제하고, current 문서에서는 우선순위를 `로컬 기능 검증 -> 구조 검증 -> 수정 -> 최적화/보안 -> 프론트 연동 검증 -> 마지막 infra/deploy` 로 다시 고정했음

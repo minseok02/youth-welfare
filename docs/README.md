@@ -34,6 +34,7 @@
 
 - [auth-docs-index.md](./auth-docs-index.md)
 - [collect-docs-index.md](./collect-docs-index.md)
+- [recommendation-docs-index.md](./recommendation-docs-index.md)
 - [policy-docs-index.md](./policy-docs-index.md)
 - [auth-session-revocation-current-state.md](./auth-session-revocation-current-state.md)
 - [collect-current-state.md](./collect-current-state.md)
