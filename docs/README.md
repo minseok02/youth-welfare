@@ -36,6 +36,7 @@
 - [collect-current-state.md](./collect-current-state.md)
 - [recommendation-current-state.md](./recommendation-current-state.md)
 - [policy-normalization-current-state.md](./policy-normalization-current-state.md)
+- [policy-gov24-blocked-track-status.md](./policy-gov24-blocked-track-status.md)
 
 ## 작업용 문서
 
