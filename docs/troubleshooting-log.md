@@ -2262,3 +2262,8 @@
 - 문제: forced logout은 일반 runtime smoke보다 한 단계 더 까다롭다. admin token이 필요하고, 대상 `userKey` 도 알아야 하며, 그 뒤 `old access -> 401/A006`, `old refresh -> 401/A003`, `relogin -> 200` 을 순서대로 다시 확인해야 한다. 이걸 수동 curl로만 남겨 두면 로컬에서 매번 admin 계정 준비, DB 조회, 로그 grep을 다시 조합해야 해서 false negative가 섞이기 쉽다.
 - 해결: `deploy/smoke/run-local-admin-forced-logout-smoke.sh` 를 추가해 `admin login -> forced logout -> old access deny -> old refresh deny -> relogin recovery -> server log evidence` 를 한 번에 검증하도록 고정했다. 로컬 전용으로 target user의 `userKey` 는 DB read 한 번으로 조회하고, admin 자격 증명은 env(`ADMIN_EMAIL`, `ADMIN_PASSWORD`)로 받되 기본값은 현재 로컬 baseline(`admin@example.com`)을 따른다.
 - 이유: forced logout은 auth/session revoke 현재 phase의 핵심 보안 경계 중 하나다. 이 경계도 반복 가능한 smoke로 고정해야 다음 closeout이나 회귀 점검에서 “구현은 맞는데 실행 절차를 다시 조립하다 틀리는” 문제를 줄일 수 있다.
+
+## 414) withdraw 경계도 수동 확인에 남겨 두면 A006/U003와 withdrawn mask를 같은 런에서 다시 증명하기가 번거롭다
+- 문제: withdraw는 현재 계약상 `old access -> 401/A006`, `stale refresh -> 410/U003`, `user inactive + email=withdrawn_<id>` 까지 같이 봐야 닫힌다. 그런데 이걸 수동 curl + DB 조회로만 남겨 두면 token 교체 시점, DELETE body의 password, userKey 추적, withdrawn email 확인을 매번 사람이 다시 조합해야 한다.
+- 해결: `deploy/smoke/run-local-withdraw-smoke.sh` 를 추가해 `signup -> login -> refresh -> withdraw -> old access deny(401/A006) -> stale refresh deny(410/U003) -> withdrawn email mask` 를 한 번에 검증하도록 고정했다. 로컬 전용으로 userKey와 withdrawn state는 DB read 한 번으로 확인하게 했다.
+- 이유: withdraw는 revoke/terminal state가 함께 묶인 경계라서, 성공 기준을 사람 기억에 맡기면 closeout 때 반복 비용이 크다. smoke로 고정해야 같은 계약을 같은 순서로 계속 확인할 수 있다.

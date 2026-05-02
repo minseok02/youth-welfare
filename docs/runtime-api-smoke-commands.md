@@ -21,6 +21,14 @@ deploy/smoke/run-local-admin-forced-logout-smoke.sh
 
 이 스크립트는 `admin login -> forced logout -> old access deny(401/A006) -> old refresh deny(401/A003) -> relogin recovery(200)` 를 한 번에 확인합니다.
 
+withdraw 반복 검증은 아래 스크립트를 우선 사용합니다.
+
+```bash
+deploy/smoke/run-local-withdraw-smoke.sh
+```
+
+이 스크립트는 `signup -> login -> refresh -> withdraw -> old access deny(401/A006) -> stale refresh deny(410/U003) -> withdrawn email mask` 를 한 번에 확인합니다.
+
 전제:
 
 - 앱 base URL은 `APP_BASE_URL` 로 둡니다.
