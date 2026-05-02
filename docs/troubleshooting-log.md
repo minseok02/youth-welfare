@@ -2257,3 +2257,8 @@
 - 문제: 실제 런타임에서 `signup -> login -> refresh -> recommendations -> bookmark -> logout` 을 다시 확인할 때마다 쿠키 jar, refresh 후 새 access token, recommendation bookmark path의 `id`, `logout` 요청에 실린 `presented token` 과 더 오래된 login token의 차이를 사람이 다시 조립해야 했다. 특히 logout 뒤 `presented token` 은 `401 / A006` 으로 막히지만, 더 오래된 login token까지 같은 계약으로 막히는 것은 아니어서, 수동 smoke는 쉽게 오해를 만든다.
 - 해결: `deploy/smoke/run-local-runtime-api-smoke.sh` 를 추가해 `signup -> login -> refresh -> recommendations refresh -> bookmark -> bookmarks -> logout -> refresh invalidation(401/A001) -> presented access revoke(401/A006)` 를 한 번에 검증하도록 고정했다. 동시에 `older login token after logout` 은 현재 계약상 `200` 도 허용되는 관측값으로 따로 기록하게 했다.
 - 이유: 이 경계는 “logout이 무엇을 보장하는가”를 매번 다시 해석하게 두면 안 된다. 스크립트로 고정해야 closeout 때 같은 계약을 반복해서 같은 방식으로 확인할 수 있다.
+
+## 413) admin forced logout도 수동 단계로만 남겨 두면, old access/old refresh/relogin 경계를 다시 칠 때마다 admin 준비와 userKey 조회가 흔들린다
+- 문제: forced logout은 일반 runtime smoke보다 한 단계 더 까다롭다. admin token이 필요하고, 대상 `userKey` 도 알아야 하며, 그 뒤 `old access -> 401/A006`, `old refresh -> 401/A003`, `relogin -> 200` 을 순서대로 다시 확인해야 한다. 이걸 수동 curl로만 남겨 두면 로컬에서 매번 admin 계정 준비, DB 조회, 로그 grep을 다시 조합해야 해서 false negative가 섞이기 쉽다.
+- 해결: `deploy/smoke/run-local-admin-forced-logout-smoke.sh` 를 추가해 `admin login -> forced logout -> old access deny -> old refresh deny -> relogin recovery -> server log evidence` 를 한 번에 검증하도록 고정했다. 로컬 전용으로 target user의 `userKey` 는 DB read 한 번으로 조회하고, admin 자격 증명은 env(`ADMIN_EMAIL`, `ADMIN_PASSWORD`)로 받되 기본값은 현재 로컬 baseline(`admin@example.com`)을 따른다.
+- 이유: forced logout은 auth/session revoke 현재 phase의 핵심 보안 경계 중 하나다. 이 경계도 반복 가능한 smoke로 고정해야 다음 closeout이나 회귀 점검에서 “구현은 맞는데 실행 절차를 다시 조립하다 틀리는” 문제를 줄일 수 있다.

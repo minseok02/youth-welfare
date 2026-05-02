@@ -13,6 +13,14 @@ deploy/smoke/run-local-runtime-api-smoke.sh
 
 이 스크립트는 `signup -> login -> refresh -> recommendations refresh -> bookmark -> bookmarks -> logout -> refresh invalidation -> presented access revoke` 를 한 번에 확인합니다.
 
+admin forced logout 반복 검증은 아래 스크립트를 우선 사용합니다.
+
+```bash
+deploy/smoke/run-local-admin-forced-logout-smoke.sh
+```
+
+이 스크립트는 `admin login -> forced logout -> old access deny(401/A006) -> old refresh deny(401/A003) -> relogin recovery(200)` 를 한 번에 확인합니다.
+
 전제:
 
 - 앱 base URL은 `APP_BASE_URL` 로 둡니다.
