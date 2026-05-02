@@ -1,5 +1,7 @@
 # Auth Session Revocation Current State
 
+문서군 진입점: [auth-docs-index.md](./auth-docs-index.md)
+
 관련 코드:
 
 - [AuthService.java](../backend/src/main/java/com/example/welfare/user/service/AuthService.java)

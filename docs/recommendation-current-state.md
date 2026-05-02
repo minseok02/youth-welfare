@@ -1,5 +1,7 @@
 # 추천 현재 동작 기준
 
+문서군 진입점: [recommendation-docs-index.md](./recommendation-docs-index.md)
+
 관련 문서:
 
 - [recommendation-pipeline.md](./recommendation-pipeline.md)
