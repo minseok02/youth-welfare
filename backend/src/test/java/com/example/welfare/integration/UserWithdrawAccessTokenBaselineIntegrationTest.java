@@ -3,6 +3,7 @@ package com.example.welfare.integration;
 import com.example.welfare.global.util.JwtUtil;
 import com.example.welfare.user.entity.User;
 import com.example.welfare.user.repository.UserRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -47,12 +48,26 @@ class UserWithdrawAccessTokenBaselineIntegrationTest {
     @Autowired
     private RedisTemplate<String, String> redisTemplate;
 
-    private final List<Long> createdUserIds = new ArrayList<>();
+    @BeforeEach
+    void setup() {
+        cleanup();
+    }
 
     @AfterEach
     void cleanup() {
-        createdUserIds.forEach(userId -> userRepository.findById(userId).ifPresent(userRepository::delete));
-        createdUserIds.clear();
+        userRepository.findAll().stream()
+                .filter(user -> {
+                    String email = user.getEmail();
+                    return email != null && (email.startsWith(TEST_EMAIL_PREFIX) || email.startsWith("withdrawn_"));
+                })
+                .forEach(user -> {
+                    String userKey = userRepository.findUserKeyById(user.getId()).orElse(null);
+                    if (userKey != null) {
+                        redisTemplate.delete("refresh:" + userKey);
+                    }
+                    redisTemplate.delete("refresh:" + user.getId());
+                    userRepository.delete(user);
+                });
     }
 
     @Test
@@ -63,7 +78,6 @@ class UserWithdrawAccessTokenBaselineIntegrationTest {
                 .passwordHash(passwordEncoder.encode("password123"))
                 .name("Withdraw Token Baseline")
                 .build());
-        createdUserIds.add(user.getId());
 
         String userKey = userRepository.findUserKeyById(user.getId()).orElseThrow();
         String oldAccessToken = jwtUtil.generateAccessToken(userKey, user.getId());

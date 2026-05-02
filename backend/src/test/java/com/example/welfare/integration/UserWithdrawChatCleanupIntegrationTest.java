@@ -8,6 +8,7 @@ import com.example.welfare.chat.repository.ChatSessionRepository;
 import com.example.welfare.global.util.JwtUtil;
 import com.example.welfare.user.entity.User;
 import com.example.welfare.user.repository.UserRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -53,12 +54,25 @@ class UserWithdrawChatCleanupIntegrationTest {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
-    private final List<Long> createdUserIds = new ArrayList<>();
+    @BeforeEach
+    void setup() {
+        cleanup();
+    }
 
     @AfterEach
     void cleanup() {
-        createdUserIds.forEach(userId -> userRepository.findById(userId).ifPresent(userRepository::delete));
-        createdUserIds.clear();
+        userRepository.findAll().stream()
+                .filter(user -> {
+                    String email = user.getEmail();
+                    return email != null && (email.startsWith(TEST_EMAIL_PREFIX) || email.startsWith("withdrawn_"));
+                })
+                .forEach(user -> {
+                    String userKey = userRepository.findUserKeyById(user.getId()).orElse(null);
+                    if (userKey != null) {
+                        chatSessionRepository.deleteAll(chatSessionRepository.findAllByUserKey(userKey));
+                    }
+                    userRepository.delete(user);
+                });
     }
 
     @Test
@@ -69,7 +83,6 @@ class UserWithdrawChatCleanupIntegrationTest {
                 .passwordHash(passwordEncoder.encode("password123"))
                 .name("Withdraw Integration")
                 .build());
-        createdUserIds.add(user.getId());
         String userKey = userRepository.findUserKeyById(user.getId()).orElseThrow();
         String accessToken = jwtUtil.generateAccessToken(userKey, user.getId());
 

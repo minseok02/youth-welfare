@@ -14,6 +14,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.example.welfare.global.util.JwtUtil;
 import com.example.welfare.user.entity.User;
 import com.example.welfare.user.repository.UserRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -80,6 +81,11 @@ class ChatMessageApiIntegrationTest {
 
     @MockBean
     private ChatAiGateway chatAiGateway;
+
+    @BeforeEach
+    void setup() {
+        cleanup();
+    }
 
     @AfterEach
     void cleanup() {

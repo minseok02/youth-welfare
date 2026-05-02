@@ -5,6 +5,7 @@ import com.example.welfare.user.entity.UserPiiSyncQueue;
 import com.example.welfare.user.entity.UserPiiSyncQueueStatus;
 import com.example.welfare.user.repository.UserPiiSyncQueueRepository;
 import com.example.welfare.user.service.UserPiiSyncStatusService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -13,8 +14,6 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -23,18 +22,24 @@ import static org.assertj.core.api.Assertions.assertThat;
 @ActiveProfiles("integration")
 class UserPiiSyncStatusIntegrationTest {
 
+    private static final String TEST_USER_KEY_PREFIX = "itpiis_";
+
     @Autowired
     private UserPiiSyncQueueRepository userPiiSyncQueueRepository;
 
     @Autowired
     private UserPiiSyncStatusService userPiiSyncStatusService;
 
-    private final List<String> createdUserKeys = new ArrayList<>();
+    @BeforeEach
+    void setup() {
+        cleanup();
+    }
 
     @AfterEach
     void cleanup() {
-        createdUserKeys.forEach(userPiiSyncQueueRepository::deleteByUserKey);
-        createdUserKeys.clear();
+        userPiiSyncQueueRepository.findAll().stream()
+                .filter(row -> row.getUserKey() != null && row.getUserKey().startsWith(TEST_USER_KEY_PREFIX))
+                .forEach(row -> userPiiSyncQueueRepository.deleteByUserKey(row.getUserKey()));
     }
 
     @Test
@@ -87,11 +92,10 @@ class UserPiiSyncStatusIntegrationTest {
     }
 
     private String saveQueue(UserPiiSyncQueue queue) {
-        createdUserKeys.add(queue.getUserKey());
         return userPiiSyncQueueRepository.save(queue).getUserKey();
     }
 
     private String newUserKey() {
-        return UUID.randomUUID().toString().replace("-", "");
+        return TEST_USER_KEY_PREFIX + UUID.randomUUID().toString().replace("-", "").substring(0, 24);
     }
 }

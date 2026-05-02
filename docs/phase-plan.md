@@ -1,5 +1,7 @@
 # 구현 현황
 
+- 2026-05-02: broad suite 중단 뒤에도 다시 살아나게 `ChatSessionApiIntegrationTest`, `ChatMessageApiIntegrationTest`, `ChatRepositoryIntegrationTest`, `UserWithdrawChatCleanupIntegrationTest`, `UserWithdrawAccessTokenBaselineIntegrationTest` 를 prefix 스캔 기반 `@BeforeEach` self-heal cleanup 기준으로 맞췄다. `withdrawn_` email/legacy refresh key까지 같이 치우도록 정리한 뒤 타깃 integration과 전체 `./gradlew test integrationTest --no-daemon` 을 다시 통과시켰다.
+- 2026-05-02: 같은 broad-suite hardening을 `NormalizedPolicySidecarPersistenceIntegrationTest`, `BokjiroSidecarMergeIntegrationTest`, `UserPiiSyncStatusIntegrationTest` 에도 적용했다. 단일 `sourceId`/생성 key 목록 기반 `@AfterEach` cleanup 대신 prefix 스캔 기반 `@BeforeEach` self-heal cleanup으로 바꾸고, 타깃 integration 및 전체 `./gradlew test integrationTest --no-daemon` 을 다시 통과시켰다.
 - 2026-05-02: `recommendation-docs-index.md` 를 추가하고 `start.md`, `current-state.md`, `README.md`, `documentation-map.md` 에 추천 문서군 진입점을 연결했다. 추천 current-state/checklist/pipeline/replay template 를 한 entrypoint 로 찾게 정리했다.
 - 2026-05-02: `frontend-qa-docs-index.md` 를 추가하고 `start.md`, `current-state.md`, `README.md`, `documentation-map.md` 에 프론트 QA 문서군 진입점을 연결했다. 브라우저 QA current-state/checklist/template 를 한 entrypoint 로 찾게 정리했다.
 - 2026-05-02: `local-validation-docs-index.md` 를 추가하고 `start.md`, `current-state.md`, `README.md`, `documentation-map.md` 에 공통 로컬 검증 문서군 진입점을 연결했다. `testing.md`, `runtime-api-smoke-commands.md`, `demo-scenario.md` 를 한 entrypoint 로 찾게 정리했다.

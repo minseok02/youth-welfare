@@ -1,5 +1,15 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 292) chat/withdraw integration 테스트 일부가 broad suite 중단 뒤 잔존 user/chat/refresh 상태를 전제로 다시 깨질 수 있었음
+- 문제: `ChatSessionApiIntegrationTest`, `ChatMessageApiIntegrationTest`, `ChatRepositoryIntegrationTest`, `UserWithdrawChatCleanupIntegrationTest`, `UserWithdrawAccessTokenBaselineIntegrationTest` 는 prefix 기반 fixture를 쓰면서도 cleanup이 사실상 `@AfterEach` 또는 생성 중 추적한 ID 목록에 기대고 있었다. 이전 broad suite가 중간에 끊기면 stale user/chat session/`withdrawn_` email/legacy `refresh:{userId}` key 가 남아 다음 실행을 오염시킬 수 있었음
+- 해결: 다섯 클래스 모두 `@BeforeEach` 에서 prefix 스캔 기반 self-heal cleanup을 먼저 돌리도록 맞췄고, withdraw 계열은 `withdrawn_` email 과 `refresh:{userKey}`, `refresh:{userId}` 레거시 키까지 같이 제거하게 정리했음
+- 이유: broad suite 재현성 hardening의 핵심은 “이번 JVM에서 만든 ID만” 지우는 것이 아니라, 이전 실패 실행의 찌꺼기까지 시작 시점에 스스로 복구하는 구조다
+
+## 293) sidecar/status integration 테스트 일부도 단일 생성 ID/목록 기반 cleanup만 써서 broad suite 중단 뒤 self-heal 성질이 부족했음
+- 문제: `NormalizedPolicySidecarPersistenceIntegrationTest`, `BokjiroSidecarMergeIntegrationTest`, `UserPiiSyncStatusIntegrationTest` 는 각각 단일 `sourceId` 또는 생성한 `userKey` 목록만 `@AfterEach` 에서 치웠다. 이전 실행이 중간에 죽으면 prefix fixture가 DB에 남아 broad suite 재실행 때 다시 영향을 줄 수 있었음
+- 해결: `YOUTH` sidecar는 `IT-SIDECAR-`, `BOKJIRO_LOCAL` sidecar는 `IT-BK-`, sync status queue는 `itpiis_` prefix 스캔 기반 cleanup으로 바꾸고 `@BeforeEach` self-heal cleanup을 추가했다. 작업 중 `user_key` 32자 제한 때문에 처음 쓴 긴 prefix가 `DataIntegrityViolationException` 을 내서, prefix를 7자로 줄이고 UUID suffix를 24자로 잘라 다시 통과시켰음
+- 이유: broad suite 재현성 hardening은 source/status fixture에도 같은 규칙을 적용해야 한다. 시작 전에 prefix 전체를 스캔해 찌꺼기를 복구하는 편이 단일 생성 ID 추적보다 실패 복원력이 높다
+
 ## 291) `srs-v2.10.md`, `demo-scenario.md`, `archive/README.md` 도 아직 개별 direct 문서 중심이라 문서군 entrypoint 독법과 완전히 맞지 않음
 - 문제: cross-cutting 독법은 거의 `docs-index` 중심으로 맞췄지만, 요구사항 원본인 `srs-v2.10.md`, 로컬 검증용 `demo-scenario.md`, 보관용 `archive/README.md` 는 각각 상위 entrypoint를 전혀 드러내지 않아 새 사용자가 같은 층위 문서를 찾을 때 다시 파일명을 직접 알아야 했음
 - 해결: 각 문서 상단에 `system-docs-index.md`, `local-validation-docs-index.md`, `history-docs-index.md` 진입점을 먼저 보게 한 줄씩 추가했다

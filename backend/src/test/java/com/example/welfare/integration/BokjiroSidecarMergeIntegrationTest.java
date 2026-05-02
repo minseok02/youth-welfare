@@ -15,6 +15,7 @@ import com.example.welfare.policy.repository.ServiceTagRepository;
 import com.example.welfare.policy.repository.WelfareServiceDetailRepository;
 import com.example.welfare.policy.repository.WelfareServiceRepository;
 import com.example.welfare.policy.service.SearchYouthRelevanceService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -39,6 +40,8 @@ import static org.mockito.Mockito.mock;
 @SpringBootTest
 @ActiveProfiles("integration")
 class BokjiroSidecarMergeIntegrationTest {
+
+    private static final String TEST_SOURCE_PREFIX = "IT-BK-";
 
     @Autowired
     private CollectItemSaver collectItemSaver;
@@ -72,13 +75,17 @@ class BokjiroSidecarMergeIntegrationTest {
 
     private String sourceId;
 
+    @BeforeEach
+    void setup() {
+        cleanup();
+    }
+
     @AfterEach
     void cleanup() {
-        if (sourceId == null) {
-            return;
-        }
-        welfareServiceRepository.findBySourceTypeAndSourceId(WelfareService.SourceType.BOKJIRO_LOCAL, sourceId)
-                .ifPresent(service -> {
+        welfareServiceRepository.findBySourceType(WelfareService.SourceType.BOKJIRO_LOCAL).stream()
+                .filter(service -> service.getSourceId() != null && service.getSourceId().startsWith(TEST_SOURCE_PREFIX))
+                .forEach(service -> {
+                    String cleanupSourceId = service.getSourceId();
                     Long serviceId = service.getId();
                     jdbcTemplate.update("DELETE FROM service_facts WHERE service_id = ?", serviceId);
                     jdbcTemplate.update("DELETE FROM service_taxonomy_terms WHERE service_id = ?", serviceId);
@@ -90,7 +97,7 @@ class BokjiroSidecarMergeIntegrationTest {
                             DELETE FROM raw_api_payloads
                             WHERE source_type = ?
                               AND source_id = ?
-                            """, WelfareService.SourceType.BOKJIRO_LOCAL.name(), sourceId);
+                            """, WelfareService.SourceType.BOKJIRO_LOCAL.name(), cleanupSourceId);
                     jdbcTemplate.update("DELETE FROM welfare_services WHERE id = ?", serviceId);
                 });
     }
