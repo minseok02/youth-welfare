@@ -2207,3 +2207,8 @@
 - 문제: `run-local-pii-sync-cutover-smoke.sh` 는 split-account smoke를 위해 `DB_USERNAME=app_core_rw` 등을 강제로 잡고 있었지만, password/URL은 로컬 `.env` 대신 placeholder 기본값을 써서 app를 띄웠다. 그 결과 실제 로컬 DB 계정이 `welfare1234!` 인 상태에서는 app가 `Access denied for user 'app_core_rw'` 로 부팅 실패하고, smoke가 health check 단계에서 멈췄다.
 - 해결: script가 `.env` 의 password/URL 값은 먼저 읽되, smoke 기본 split-account username은 유지하도록 보정했다. 그 뒤 `AuthControllerWebMvcTest` 계열 auth/session regression, `run-local-pii-sync-cutover-smoke.sh`, `run-local-education-priority-replay.sh` 를 다시 돌려 closeout 검증 세트를 재통과시켰다.
 - 이유: local closeout smoke는 “지금 이 로컬 `.env` 와 DB 볼륨”에서도 재현 가능해야 의미가 있다. username만 split-account로 고정하고 password는 `.env` 를 따르지 않으면, smoke 자체가 스크립트 기본값에만 맞는 허상 검증이 된다.
+
+## 406) broad integration suite에서 지역 검색 테스트는 이전 `IT-SRCH-*` 찌꺼기가 남아 있으면 한 번씩 튈 수 있다
+- 문제: `PolicySearchRegionQueryIntegrationTest` 는 `@AfterEach` cleanup만 두고 있어서, 이전 실행이 중간에 끊기거나 broad suite 전에 잔존 `IT-SRCH-*` row가 남아 있으면 시작 시점 query 결과가 오염될 수 있었다. 실제로 `./gradlew test integrationTest --no-daemon` 재실행 중 이 테스트가 한 번 실패했고, 같은 타깃 테스트 단독 재실행은 통과했다.
+- 해결: 클래스 시작 전에도 같은 cleanup을 태우도록 `@BeforeEach` 를 추가했고, `welfare_services` 삭제 전에 연결된 `service_regions` 도 explicit delete 하도록 정리했다. 그 뒤 `./gradlew integrationTest --no-daemon --tests com.example.welfare.integration.PolicySearchRegionQueryIntegrationTest` 와 전체 `./gradlew test integrationTest --no-daemon` 을 다시 통과시켰다.
+- 이유: 이 케이스는 검색 로직 회귀보다 테스트 격리 경계 문제에 가까웠다. local closeout 기준선은 “다시 돌렸을 때 흔들리지 않는지”가 중요하므로, broad suite에서 한 번 튄 지점은 테스트 자체가 self-heal 하도록 보강하는 편이 맞다.

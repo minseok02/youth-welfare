@@ -4,6 +4,7 @@ import com.example.welfare.policy.entity.ServiceRegion;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.repository.ServiceRegionRepository;
 import com.example.welfare.policy.repository.WelfareServiceRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -30,11 +31,25 @@ class PolicySearchRegionQueryIntegrationTest {
     @Autowired
     private ServiceRegionRepository serviceRegionRepository;
 
+    @BeforeEach
+    void setup() {
+        cleanup();
+    }
+
     @AfterEach
     void cleanup() {
-        welfareServiceRepository.findAll().stream()
+        List<WelfareService> testServices = welfareServiceRepository.findAll().stream()
                 .filter(service -> service.getSourceId() != null && service.getSourceId().startsWith(TEST_SOURCE_PREFIX))
-                .forEach(welfareServiceRepository::delete);
+                .toList();
+
+        if (testServices.isEmpty()) {
+            return;
+        }
+
+        serviceRegionRepository.findAll().stream()
+                .filter(region -> region.getService() != null && testServices.contains(region.getService()))
+                .forEach(serviceRegionRepository::delete);
+        testServices.forEach(welfareServiceRepository::delete);
     }
 
     @Test

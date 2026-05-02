@@ -12,6 +12,7 @@
 - 2026-05-02: `srs-v2.10.md`, `demo-scenario.md`, `archive/README.md` 도 각각 `system/local-validation/history` entrypoint를 먼저 보게 정리해 핵심 참조 문서군의 독법을 맞췄다.
 - 2026-05-02: local closeout 검증 세트를 다시 돌리면서 `run-local-pii-sync-cutover-smoke.sh` 가 `.env` 를 읽지 않아 split-account smoke가 placeholder password로 뜨던 문제를 수정했다. 이제 `.env` 의 password/URL 은 읽되 smoke 기본 split-account username은 유지하고, auth/session regression, PII cutover smoke, education replay smoke를 다시 통과시켰다.
 - 2026-05-02: 같은 closeout 맥락에서 broad backend regression(`./gradlew test integrationTest --no-daemon`)도 다시 통과시켰고, 런타임에서는 임시 signup -> login -> refresh -> recommendations -> logout -> refresh invalidation / presented access revoke(`401/A006`) 흐름까지 재확인했다.
+- 2026-05-02: broad suite 재실행 중 한 번 튄 `PolicySearchRegionQueryIntegrationTest` 는 클래스 시작 전에 `IT-SRCH-*` 잔존 row를 정리하지 않아 이전 실행 찌꺼기에 영향받을 수 있는 구조라, `@BeforeEach` cleanup과 explicit `service_regions` cleanup을 추가해 재현성을 보강했다. 이후 타깃 integration과 전체 `./gradlew test integrationTest --no-daemon` 을 다시 통과시켰다.
 
 이 문서는 현재 구현 상태와 남은 1차 작업을 확인하기 위한 현황판입니다.
 요구사항 원본은 [srs-v2.10.md](./srs-v2.10.md), 실행 방법은 [testing.md](./testing.md), 현재 문서 길찾기는 [documentation-map.md](./documentation-map.md)를 봅니다.
