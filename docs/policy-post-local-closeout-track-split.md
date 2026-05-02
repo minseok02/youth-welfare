@@ -1,5 +1,7 @@
 # post-local closeout track split
 
+문서군 진입점: [policy-docs-index.md](./policy-docs-index.md)
+
 관련 문서:
 
 - [phase-plan.md](./phase-plan.md)

@@ -2187,3 +2187,8 @@
 - 문제: `collect-docs-index.md` 와 `policy-docs-index.md` 를 만들고 current-state/checklist/ops 일부까지 정리했지만, 실제로 자주 직접 여는 `collect-ops.md`, `policy-normalization-recommendation-read-model.md`, `policy-normalization-recommendation-migration-order.md`, `policy-source-onboarding-architecture.md` 는 여전히 각 문서 안에서 자기 문서군 인덱스로 다시 돌아가는 링크가 없었다.
 - 해결: 위 네 문서 상단에 각각 `collect-docs-index.md` 또는 `policy-docs-index.md` 진입점 링크를 추가했다.
 - 이유: 문서군 인덱스 규칙은 실행 문서뿐 아니라 구조/이행 설계 문서에도 같게 적용돼야 한다. 그래야 사용자가 설계 문서를 열었을 때도 다시 문서군 전체 맥락으로 쉽게 복귀할 수 있다.
+
+## 402) policy 문서군은 일부 설계 문서만 정리하면 또 비대칭이 남는다
+- 문제: `policy-docs-index.md` 진입점을 current-state, checklist, playbook, blocked/priority, 구조/이행 설계 문서까지 넓혔지만, `policy-post-local-closeout-track-split.md`, `policy-source-canonical-onboarding-priority.md`, `policy-source-code-entrypoints.md`, `policy-source-onboarding-template.md` 는 여전히 각 문서 안에서 인덱스로 다시 돌아가는 링크가 없었다.
+- 해결: 위 네 문서 상단에도 `policy-docs-index.md` 진입점 링크를 추가했다.
+- 이유: policy 문서군은 문서 수가 많아 한두 장만 예외로 남아도 다시 검색 의존이 생긴다. 남은 대표 문서까지 같은 패턴으로 맞춰야 문서군 독법이 완전히 일관된다.

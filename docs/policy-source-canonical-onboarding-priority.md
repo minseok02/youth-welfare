@@ -1,5 +1,7 @@
 # 정책형 Source Canonical 온보딩 우선순위
 
+문서군 진입점: [policy-docs-index.md](./policy-docs-index.md)
+
 관련 문서:
 
 - [policy-source-onboarding-playbook.md](./policy-source-onboarding-playbook.md)
