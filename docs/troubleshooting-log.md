@@ -2092,3 +2092,8 @@
 - 문제: `start.md`, `current-state.md`, `docs/README.md` 는 이제 `policy-gov24-blocked-track-status.md` 를 바로 보여주지만, 반대로 “지금 다음 작업이 뭐냐”를 잡는 `policy-next-active-track-priority.md` 와 `policy-local-closeout-pending-inventory.md` 는 아직 top-level 리스트에 없었다. 이 상태면 blocked 상태는 빨리 찾을 수 있어도 실제 active work 우선순위는 다시 policy 문서군 안으로 들어가야 했다.
 - 해결: 세 top-level entrypoint 모두에 `policy-next-active-track-priority.md` 와 `policy-local-closeout-pending-inventory.md` 링크를 추가해, 현재 상태/blocked 상태/다음 작업 우선순위를 같은 높이에서 바로 찾게 정리했다.
 - 이유: entrypoint 정리는 특정 한 문서만 드러내는 게 목적이 아니라, “지금 상황 판단 -> 다음 액션 선택” 흐름을 한 화면 안에서 닫게 만드는 게 목적이다.
+
+## 393) top-level entrypoint에 개별 policy current-state만 있고 `policy-docs-index.md` 자체가 없으면, policy 문서군 전체 길찾기는 다시 `documentation-map` 이나 검색에 의존하게 된다
+- 문제: `start.md`, `current-state.md`, `docs/README.md` 에 개별 policy 상태 문서는 많이 올라왔지만, 정작 policy 문서군 1차 진입점인 `policy-docs-index.md` 는 빠져 있었다. 이 상태면 사용자는 특정 문서는 바로 열 수 있어도, policy 묶음 전체를 어떻게 읽을지는 다시 `documentation-map.md` 나 파일 검색으로 돌아가야 했다.
+- 해결: 세 top-level entrypoint 모두에 `policy-docs-index.md` 링크를 추가해, 개별 current-state 문서와 문서군 인덱스를 같은 층위에서 바로 열 수 있게 정리했다.
+- 이유: entrypoint는 개별 문서 노출만으로는 충분하지 않다. 문서군 전체의 읽기 순서를 잡아 주는 인덱스도 같은 시작점에서 보여야 길찾기 비용이 줄어든다.

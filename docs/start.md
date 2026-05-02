@@ -25,9 +25,11 @@
 - [srs-v2.10.md](./srs-v2.10.md)
 - [testing.md](./testing.md)
 - [documentation-map.md](./documentation-map.md)
+- [policy-docs-index.md](./policy-docs-index.md)
 
 ## 주제별 현재 상태
 
+- 정책 문서군 진입점: [policy-docs-index.md](./policy-docs-index.md)
 - 인증/세션: [auth-session-revocation-current-state.md](./auth-session-revocation-current-state.md)
 - 수집: [collect-current-state.md](./collect-current-state.md)
 - 추천: [recommendation-current-state.md](./recommendation-current-state.md)
