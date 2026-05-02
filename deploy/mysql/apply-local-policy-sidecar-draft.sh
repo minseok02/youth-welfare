@@ -179,34 +179,56 @@ summary_slot_education_services="$(
 )"
 summary_slot_density="$(
   mysql_exec "
-    SELECT CONCAT(slot_key, '=', COUNT(DISTINCT service_id))
+    SELECT 'GOV24_BENEFIT_TYPE', COUNT(DISTINCT service_id)
     FROM service_taxonomy_summary_slots
-    WHERE slot_key IN (
-      'YOUTH_MAJOR',
-      'YOUTH_MID',
-      'GOV24_SERVICE_FIELD',
-      'GOV24_USER_TYPE',
-      'GOV24_BENEFIT_TYPE',
-      'PROVISION_METHOD'
-    )
-    GROUP BY slot_key
-    ORDER BY slot_key;
+    WHERE slot_key = 'GOV24_BENEFIT_TYPE'
+    UNION ALL
+    SELECT 'GOV24_SERVICE_FIELD', COUNT(DISTINCT service_id)
+    FROM service_taxonomy_summary_slots
+    WHERE slot_key = 'GOV24_SERVICE_FIELD'
+    UNION ALL
+    SELECT 'GOV24_USER_TYPE', COUNT(DISTINCT service_id)
+    FROM service_taxonomy_summary_slots
+    WHERE slot_key = 'GOV24_USER_TYPE'
+    UNION ALL
+    SELECT 'PROVISION_METHOD', COUNT(DISTINCT service_id)
+    FROM service_taxonomy_summary_slots
+    WHERE slot_key = 'PROVISION_METHOD'
+    UNION ALL
+    SELECT 'YOUTH_MAJOR', COUNT(DISTINCT service_id)
+    FROM service_taxonomy_summary_slots
+    WHERE slot_key = 'YOUTH_MAJOR'
+    UNION ALL
+    SELECT 'YOUTH_MID', COUNT(DISTINCT service_id)
+    FROM service_taxonomy_summary_slots
+    WHERE slot_key = 'YOUTH_MID';
   "
 )"
 summary_slot_row_density="$(
   mysql_exec "
-    SELECT CONCAT(slot_key, '=', COUNT(*))
+    SELECT 'GOV24_BENEFIT_TYPE', COUNT(*)
     FROM service_taxonomy_summary_slots
-    WHERE slot_key IN (
-      'YOUTH_MAJOR',
-      'YOUTH_MID',
-      'GOV24_SERVICE_FIELD',
-      'GOV24_USER_TYPE',
-      'GOV24_BENEFIT_TYPE',
-      'PROVISION_METHOD'
-    )
-    GROUP BY slot_key
-    ORDER BY slot_key;
+    WHERE slot_key = 'GOV24_BENEFIT_TYPE'
+    UNION ALL
+    SELECT 'GOV24_SERVICE_FIELD', COUNT(*)
+    FROM service_taxonomy_summary_slots
+    WHERE slot_key = 'GOV24_SERVICE_FIELD'
+    UNION ALL
+    SELECT 'GOV24_USER_TYPE', COUNT(*)
+    FROM service_taxonomy_summary_slots
+    WHERE slot_key = 'GOV24_USER_TYPE'
+    UNION ALL
+    SELECT 'PROVISION_METHOD', COUNT(*)
+    FROM service_taxonomy_summary_slots
+    WHERE slot_key = 'PROVISION_METHOD'
+    UNION ALL
+    SELECT 'YOUTH_MAJOR', COUNT(*)
+    FROM service_taxonomy_summary_slots
+    WHERE slot_key = 'YOUTH_MAJOR'
+    UNION ALL
+    SELECT 'YOUTH_MID', COUNT(*)
+    FROM service_taxonomy_summary_slots
+    WHERE slot_key = 'YOUTH_MID';
   "
 )"
 
@@ -216,9 +238,13 @@ echo "education_target_rows=${education_target_rows}"
 echo "slot_education_services=${summary_slot_education_services}"
 while IFS= read -r density_line; do
   [[ -n "${density_line}" ]] || continue
-  echo "slot_density_${density_line}"
+  slot_key="${density_line%%$'\t'*}"
+  slot_count="${density_line#*$'\t'}"
+  echo "slot_density_${slot_key}=${slot_count}"
 done <<< "${summary_slot_density}"
 while IFS= read -r density_line; do
   [[ -n "${density_line}" ]] || continue
-  echo "slot_row_density_${density_line}"
+  slot_key="${density_line%%$'\t'*}"
+  slot_count="${density_line#*$'\t'}"
+  echo "slot_row_density_${slot_key}=${slot_count}"
 done <<< "${summary_slot_row_density}"

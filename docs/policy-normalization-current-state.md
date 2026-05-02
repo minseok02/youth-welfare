@@ -50,33 +50,49 @@
 현재 로컬 실수집 검증 기준:
 
 - `welfare_services=2363`
-- `service_taxonomies=2363`
+- `service_taxonomies=3708`
 - `service_taxonomy_terms=7931`
 - `service_facts=8257`
-- `service_taxonomy_summary_slots=5619`
+- `service_taxonomy_summary_slots=5674`
 
 즉 `YOUTH` snapshot 기준으로 core row와 canonical sidecar 저장은 현재 로컬에서 정상동작 확인 상태입니다.
 
+현재 local snapshot source 분포는:
+
+- `YOUTH=2364`
+- `BOKJIRO_CENTRAL=119`
+- `BOKJIRO_LOCAL=1225`
+
+즉 runtime collect 기준으로는 아직 `GOV24` source row 자체가 없습니다.
+그래서 현재 `GOV24_*` summary slot density가 `0` 인 것은
+writer/read-model 누락이라기보다,
+local snapshot에 `Gov24` source 적재나 별도 import/backfill 이 아직 없기 때문입니다.
+
 추가로 local replay closeout 기준:
 
-- `slot_services=2305`
+- `slot_services=2331`
 - `slot_education_services=110`
-- `slot_services_YOUTH_MAJOR=2288`
-- `slot_services_YOUTH_MID=2170`
-- `slot_services_PROVISION_METHOD=1161`
+- `slot_services_YOUTH_MAJOR=2313`
+- `slot_services_YOUTH_MID=2191`
+- `slot_services_PROVISION_METHOD=1170`
 - `slot_services_GOV24_SERVICE_FIELD=0`
 - `slot_services_GOV24_USER_TYPE=0`
 - `slot_services_GOV24_BENEFIT_TYPE=0`
-- `slot_rows_YOUTH_MAJOR=2288`
-- `slot_rows_YOUTH_MID=2170`
-- `slot_rows_PROVISION_METHOD=1161`
+- `slot_rows_YOUTH_MAJOR=2313`
+- `slot_rows_YOUTH_MID=2191`
+- `slot_rows_PROVISION_METHOD=1170`
 - `slot_rows_GOV24_SERVICE_FIELD=0`
 - `slot_rows_GOV24_USER_TYPE=0`
 - `slot_rows_GOV24_BENEFIT_TYPE=0`
 
 즉 summary slot dual-write/backfill 도 현재 로컬 snapshot에서 density 확인까지 끝난 상태입니다.
+latest replay artifact(`/tmp/tmp.lP4I9NWUUU`) 기준 `SUMMARY_SLOT_METRIC` 도 이제
+`slot_services_*` 뿐 아니라 `slot_rows_*` 를 같이 출력하므로,
+apply/replay 양쪽에서 같은 축으로 raw row density를 바로 대조할 수 있습니다.
 현재 local snapshot에서 실제로 채워지는 managed slot은 사실상 `YOUTH_MAJOR`, `YOUTH_MID`, `PROVISION_METHOD` 이고,
 `GOV24_*` 는 아직 runtime collect 기준 populated read 후보가 아닙니다.
+`GOV24_SERVICE_FIELD / USER_TYPE / BENEFIT_TYPE` 는 현재도
+external codebook 응답이 있어야 다시 여는 blocked import/backfill 트랙으로 유지합니다.
 
 ## 2. `YOUTH_MID_RAW_ALIAS` 현재 상태
 

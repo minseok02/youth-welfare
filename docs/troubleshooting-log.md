@@ -2047,3 +2047,28 @@
 - 문제: `response-service-meta.tsv` 를 `service_id/title/compat/youth_major/youth_mid/provision_method/gov24_service_field/gov24_user_type/gov24_benefit_type` 9컬럼으로 확장한 뒤 `KEEP_ARTIFACTS=true deploy/smoke/run-local-education-priority-replay.sh` 를 바로 재실행하니, 첫 번째는 trailing empty column 때문에 `expected 9, got 6`, 두 번째는 `provision_method` 장문에 실제 줄바꿈이 들어가 `service_id` 위치에서 `invalid literal for int()` 예외가 났다.
 - 해결: replay script의 meta parser는 `split(\"\\t\")` 결과를 9칸까지 padding 하도록 바꾸고, `collect_service_meta` SQL은 `title/unified_category/youth*/provision/gov24*` 텍스트를 `REPLACE(..., CHAR(10|13|9), ' ')` 로 정규화해 TSV row 경계를 깨지 않게 만들었다. 그 뒤 artifact `/tmp/tmp.BbthQST2op` 기준 `response-service-meta.tsv` 가 9컬럼으로 안정적으로 생성되고, `SUMMARY_METRIC A_top10_target=5->8 B_top10_target=2->2`, `SUMMARY_SLOT_METRIC slot_rows=5619 ...` 도 다시 끝까지 출력되는 것을 확인했다.
 - 이유: replay artifact는 DB를 다시 조회하지 않고도 prompt/reason drift를 해석하는 용도라, meta TSV가 조금만 brittle해도 전체 smoke가 마지막 summary 단계에서 자주 죽는다. canonical summary 축을 늘릴수록 row-safe text normalization과 lenient parser가 같이 필요하다.
+
+## 384) apply 스크립트가 `slot_density_*` 를 `GROUP BY` 결과만 그대로 출력하면, 0건인 `GOV24_*` slot은 라인이 통째로 빠져 current-state 기준선이 매번 “없음”인지 “0”인지 애매해진다
+- 문제: `apply-local-policy-sidecar-draft.sh` 를 실제 다시 돌려 보니 `service_taxonomies=3708`, `service_taxonomy_summary_slots=5674`, `slot_density_YOUTH_MAJOR=2313`, `slot_density_YOUTH_MID=2191`, `slot_density_PROVISION_METHOD=1170` 까지는 잘 나오는데, `GOV24_*` 는 row가 0이라 `GROUP BY slot_key` 결과 자체가 없어져 출력 라인이 사라졌다. 이 상태면 current-state나 triage 로그에서 `GOV24_*` 가 “정말 0인지, 스크립트가 안 본 건지”를 매번 다시 해석해야 한다.
+- 해결: apply 스크립트의 density SQL을 `UNION ALL` 고정 축 집계로 바꿔 `GOV24_SERVICE_FIELD`, `GOV24_USER_TYPE`, `GOV24_BENEFIT_TYPE`, `PROVISION_METHOD`, `YOUTH_MAJOR`, `YOUTH_MID` 를 항상 한 줄씩 출력하게 만들고, 실제 재실행으로 `slot_density_GOV24_* = 0`, `slot_row_density_GOV24_* = 0` 이 명시적으로 찍히는 것을 확인했다.
+- 이유: slot-first migration의 관측치는 “라인이 있음”보다 “0도 명시적으로 보임”이 더 중요하다. populated 되지 않은 축까지 항상 출력돼야 다음 source onboarding이나 data acquisition 이후 값이 바뀌는 순간 diff가 바로 눈에 들어온다.
+
+## 385) replay summary가 `slot_services_*` 만 보여주면 apply 쪽 `slot_row_density_*` 와 다시 머릿속으로 대응시켜야 해서, 최신 snapshot에서 row inflation이나 duplicate 여부를 한 번에 읽기 어렵다
+- 문제: `run-local-education-priority-replay.sh` 는 이미 `summary-slot-metrics.tsv` 에 `slot_rows_YOUTH_MAJOR`, `slot_rows_YOUTH_MID`, `slot_rows_PROVISION_METHOD`, `slot_rows_GOV24_*` 를 모으고 있었지만, 최종 stdout `SUMMARY_SLOT_METRIC` 과 nightly append line에는 아직 `slot_services_*` 만 내보냈다. 이 상태면 replay artifact만 보고는 “distinct service count는 같은데 raw row count가 늘었는지”를 바로 알 수 없고, apply output이나 metrics TSV를 다시 열어야 했다.
+- 해결: replay summary와 append line에도 같은 `slot_rows_*` 축을 같이 싣고, `KEEP_ARTIFACTS=true deploy/smoke/run-local-education-priority-replay.sh` 재실행으로 artifact `/tmp/tmp.lP4I9NWUUU` 기준 `slot_rows=5674`, `slot_services=2331`, `slot_rows_YOUTH_MAJOR=2313`, `slot_rows_YOUTH_MID=2191`, `slot_rows_PROVISION_METHOD=1170`, `slot_rows_GOV24_* = 0` 이 끝까지 그대로 노출되는 것을 확인했다.
+- 이유: apply와 replay가 같은 density vocabulary를 끝단 summary까지 공유해야, slot-first migration 관측을 “script마다 다른 출력”이 아니라 하나의 inventory 기준선으로 읽을 수 있다.
+
+## 386) 절차 문서가 여전히 `slot_services_*` 중심으로만 읽히면, 실제 스크립트/summary는 `slot_rows_*` 까지 내보내는데도 다음 사람이 replay artifact를 반만 읽고 지나갈 수 있다
+- 문제: `run-local-education-priority-replay.sh` 와 current-state/log는 이미 `slot_rows_*` 기준까지 확장됐지만, replay procedure 문서의 summary 해석 bullet은 아직 reason/pattern 쪽까지만 강조하고 있었다. 이 상태면 절차 문서만 보고 replay를 다시 돌리는 사람은 `SUMMARY_SLOT_METRIC` 에 새로 붙은 row density 축을 놓치기 쉽다.
+- 해결: replay procedure 문서에 `SUMMARY_SLOT_METRIC` 은 `slot_services_*` 와 `slot_rows_*` 를 같이 읽어 distinct service density와 raw row density를 apply 출력과 같은 축으로 바로 대조하라는 기준을 추가하고, numbering도 다시 맞췄다.
+- 이유: inventory/slot-first follow-up은 코드보다 관측 기준 일치가 중요하다. 실제 스크립트가 내는 축과 절차 문서가 안내하는 축이 다르면 같은 artifact를 두고도 해석이 갈린다.
+
+## 387) `GOV24_*` density가 계속 0이면 writer/read-model 버그처럼 보이기 쉽지만, 현재 local snapshot 기준으로는 populate할 source row 자체가 없다
+- 문제: `slot_services_GOV24_* = 0`, `slot_rows_GOV24_* = 0` 이 계속 유지되다 보니, 겉으로만 보면 `CanonicalTaxonomySummarySlots` dual-write 나 read-model slot-first 경계가 `Gov24` summary를 놓치고 있는 것처럼 읽힐 여지가 있었다.
+- 해결: local DB를 직접 재조회해 `welfare_services.source_type` 분포가 `YOUTH=2364`, `BOKJIRO_CENTRAL=119`, `BOKJIRO_LOCAL=1225` 뿐이고, `service_taxonomy_summary_slots` 도 `PROVISION_METHOD`, `YOUTH_MAJOR`, `YOUTH_MID` 만 채워져 있음을 확인했다. current-state 문서에도 `GOV24_* = 0` 의 이유를 “runtime collect 부재 + blocked import/backfill 트랙 유지”로 명시했다.
+- 이유: 현재 `Gov24` 는 active runtime source가 아니라 external codebook 응답을 기다리는 blocked import/backfill 트랙이다. source row 자체가 없는 상태에서 `GOV24_*` 밀도가 0인 것은 현재 구조의 예상 결과이지, 즉시 코드 버그로 볼 신호는 아니다.
+
+## 388) `Gov24` blocked 맥락이 여러 문서에 흩어져 있으면, 다음 사람이 “지금 inactive 인 이유”와 “다시 열 조건”을 한 번에 못 보고 같은 확인을 반복하게 된다
+- 문제: 현재 `Gov24` 관련 판단은 active-track 우선순위 문서, local pending inventory, blocked SQL reopen 우선순위, request package checklist에 나뉘어 있었다. 각각은 맞지만, “왜 지금 active 구현 트랙이 아니고 언제 다시 여는가”를 한 번에 보려면 여러 문서를 왕복해야 했다.
+- 해결: `policy-gov24-blocked-track-status.md` 를 추가해 현재 inactive 이유, local snapshot에 `Gov24` source row가 없다는 점, reopen 조건, request package/판정 기준, practical next action을 한 장으로 요약하고, active-track 문서와 pending inventory entrypoint 에도 링크를 걸었다.
+- 이유: 이 트랙은 지금 코드를 더 파는 단계가 아니라 blocked 상태를 정확히 유지하는 게 중요하다. entrypoint 문서가 하나 있어야 불필요한 재확인과 중복 문서 탐색을 줄일 수 있다.

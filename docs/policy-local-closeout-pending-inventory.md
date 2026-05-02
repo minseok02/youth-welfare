@@ -4,6 +4,7 @@
 
 - [phase-plan.md](./phase-plan.md)
 - [policy-next-active-track-priority.md](./policy-next-active-track-priority.md)
+- [policy-gov24-blocked-track-status.md](./policy-gov24-blocked-track-status.md)
 - [testing.md](./testing.md)
 - [runtime-api-smoke-commands.md](./runtime-api-smoke-commands.md)
 
