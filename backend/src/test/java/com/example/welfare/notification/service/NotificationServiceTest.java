@@ -55,6 +55,8 @@ class NotificationServiceTest {
     @Mock
     private ScoreWeightService scoreWeightService;
     @Mock
+    private NotificationSlotSelector notificationSlotSelector;
+    @Mock
     private NotificationGateway notificationGateway;
     @Mock
     private NotificationHistoryService notificationHistoryService;
@@ -109,7 +111,8 @@ class NotificationServiceTest {
                 User.NotificationPeriod.DAILY, 0.8, 10);
 
         given(userRepository.findByUserKey("user-key-1")).willReturn(Optional.of(user));
-        given(recommendationFacade.getRecommendations(1L, 10)).willReturn(List.of(pass, fail));
+        given(recommendationFacade.getRecommendations(1L, 50)).willReturn(List.of(pass, fail));
+        given(notificationSlotSelector.selectCandidates(List.of(pass, fail), 0.8)).willReturn(List.of(pass));
         given(scoreWeightService.getActiveWeight()).willReturn(weight);
         given(logService.logNotification(eq(user), any(), eq(weight))).willReturn(List.of(log));
         given(notificationGateway.send(eq("test@example.com"), eq("[청년복지] 맞춤 정책 추천"), any())).willReturn(true);
@@ -152,7 +155,8 @@ class NotificationServiceTest {
                 User.NotificationPeriod.DAILY, 0.95, 10);
 
         given(userRepository.findByUserKey("user-key-1")).willReturn(Optional.of(user));
-        given(recommendationFacade.getRecommendations(1L, 10)).willReturn(List.of(fail));
+        given(recommendationFacade.getRecommendations(1L, 50)).willReturn(List.of(fail));
+        given(notificationSlotSelector.selectCandidates(List.of(fail), 0.95)).willReturn(List.of());
 
         notificationService.sendTopRecommendations(target);
 
@@ -193,7 +197,8 @@ class NotificationServiceTest {
                 User.NotificationPeriod.DAILY, 0.8, 10);
 
         given(userRepository.findByUserKey("user-key-1")).willReturn(Optional.of(user));
-        given(recommendationFacade.getRecommendations(1L, 10)).willReturn(List.of(recommendation));
+        given(recommendationFacade.getRecommendations(1L, 50)).willReturn(List.of(recommendation));
+        given(notificationSlotSelector.selectCandidates(List.of(recommendation), 0.8)).willReturn(List.of(recommendation));
         given(scoreWeightService.getActiveWeight()).willReturn(weight);
         given(logService.logNotification(eq(user), any(), eq(weight))).willReturn(List.of(log));
         given(notificationGateway.send(eq("test@example.com"), eq("[청년복지] 맞춤 정책 추천"), any())).willReturn(false);
@@ -212,6 +217,78 @@ class NotificationServiceTest {
                 any(),
                 eq("notification gateway returned false")
         );
+    }
+
+    @Test
+    @DisplayName("슬롯 배치는 상위 A 2건과 신규 B 1건을 발송 본문에 반영한다")
+    void sendTopRecommendationsUsesSlotSelectorResult() {
+        User user = User.builder()
+                .id(1L)
+                .userKey("user-key-1")
+                .email("test@example.com")
+                .passwordHash("pw")
+                .notificationYn(true)
+                .notificationPeriod(User.NotificationPeriod.DAILY)
+                .notificationMinScore(0.8)
+                .displayCount(10)
+                .build();
+        WelfareService a1Service = WelfareService.builder()
+                .id(11L)
+                .sourceType(WelfareService.SourceType.YOUTH)
+                .sourceId("SRC-11")
+                .title("A1")
+                .build();
+        WelfareService a2Service = WelfareService.builder()
+                .id(12L)
+                .sourceType(WelfareService.SourceType.YOUTH)
+                .sourceId("SRC-12")
+                .title("A2")
+                .build();
+        WelfareService bService = WelfareService.builder()
+                .id(13L)
+                .sourceType(WelfareService.SourceType.YOUTH)
+                .sourceId("SRC-13")
+                .title("B1")
+                .build();
+        UserRecommendation a1 = UserRecommendation.builder()
+                .service(a1Service)
+                .finalScore(new BigDecimal("0.95"))
+                .aiReason("A1 reason")
+                .build();
+        UserRecommendation a2 = UserRecommendation.builder()
+                .service(a2Service)
+                .finalScore(new BigDecimal("0.90"))
+                .aiReason("A2 reason")
+                .build();
+        UserRecommendation b1 = UserRecommendation.builder()
+                .service(bService)
+                .finalScore(new BigDecimal("0.55"))
+                .aiReason("B1 reason")
+                .build();
+        ScoreWeight weight = ScoreWeight.builder()
+                .ruleWeight(new BigDecimal("0.8"))
+                .aiWeight(new BigDecimal("0.2"))
+                .build();
+        RecommendationLog log1 = RecommendationLog.builder().id(100L).build();
+        RecommendationLog log2 = RecommendationLog.builder().id(101L).build();
+        RecommendationLog log3 = RecommendationLog.builder().id(102L).build();
+        NotificationTarget target = new NotificationTarget(1L, "user-key-1", "test@example.com",
+                User.NotificationPeriod.DAILY, 0.8, 10);
+
+        given(userRepository.findByUserKey("user-key-1")).willReturn(Optional.of(user));
+        given(recommendationFacade.getRecommendations(1L, 50)).willReturn(List.of(a1, a2, b1));
+        given(notificationSlotSelector.selectCandidates(List.of(a1, a2, b1), 0.8)).willReturn(List.of(a1, a2, b1));
+        given(scoreWeightService.getActiveWeight()).willReturn(weight);
+        given(logService.logNotification(eq(user), any(), eq(weight))).willReturn(List.of(log1, log2, log3));
+        given(notificationGateway.send(eq("test@example.com"), eq("[청년복지] 맞춤 정책 추천"), any())).willReturn(true);
+        given(jwtUtil.generateNotificationToken("user-key-1", 1L)).willReturn("unsubscribe-token");
+
+        notificationService.sendTopRecommendations(target);
+
+        ArgumentCaptor<List<UserRecommendation>> recommendationsCaptor = ArgumentCaptor.forClass(List.class);
+        verify(logService).logNotification(eq(user), recommendationsCaptor.capture(), eq(weight));
+        assertThat(recommendationsCaptor.getValue()).extracting(rec -> rec.getService().getTitle())
+                .containsExactly("A1", "A2", "B1");
     }
 
     @Test

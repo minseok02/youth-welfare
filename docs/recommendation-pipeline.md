@@ -257,6 +257,23 @@ GROUP BY rule_weight_used, ai_weight_used;
 
 ---
 
+## 현재 알림 슬롯 배치
+
+현재 알림 후보 선택은 단순 top 3가 아니라 `[A, A, B?]` 패턴입니다.
+
+- A 슬롯: `final_score` 기준 상위 개인화 추천 2건
+- B 슬롯: 수집 후 24시간 이내 + `rule_base_score >= 0.5` 를 통과한 신규 정책 1건
+- B 슬롯이 없으면 `[A, A, A]` fallback
+
+현재 구현 위치:
+
+- `NotificationSlotSelector`
+- `NotificationService.sendTopRecommendations()`
+
+즉 추천 저장/정렬 로직은 그대로 두고, 알림 발송 시점에만 후보 3건을 별도 규칙으로 다시 고릅니다.
+
+---
+
 ## 2차 전환 시 교체 지점
 
 | 항목 | 1차 | 2차 교체 방법 |
@@ -264,5 +281,5 @@ GROUP BY rule_weight_used, ai_weight_used;
 | 군집화 | `ClusterService` → "youth_all" | 내부 로직만 교체 (인터페이스 동일) |
 | AI 호출 | `RealtimeAiGateway` | `BatchAiGateway`로 교체 (Gateway 인터페이스 유지) |
 | 정규화 | `ScoreNormalizer` min-max | p5~p95 로직 추가 (메서드 오버로드) |
-| 알림 후보 | `selectNotificationCandidates()` top 3 | [A,A,B?] 슬롯 배치로 교체 |
+| 알림 후보 | `NotificationSlotSelector` `[A,A,B?]` | 카카오 채널/실험 슬롯 정책으로 확장 |
 | 배치 스케줄러 | 없음 | `BatchSubmitService`, `BatchPollingScheduler`, `HardDeadlineScheduler` 추가 |

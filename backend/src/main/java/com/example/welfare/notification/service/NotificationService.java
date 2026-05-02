@@ -30,7 +30,7 @@ import java.time.LocalDateTime;
 
 /**
  * 알림 발송 서비스 — Gmail SMTP 이메일만 사용
- * - top 3 발송 (notificationYn = true 유저)
+ * - [A, A, B?] 슬롯 배치로 최대 3건 발송
  */
 @Slf4j
 @Service
@@ -42,6 +42,7 @@ public class NotificationService {
     private final RecommendationFacade recommendationFacade;
     private final RecommendationLogService logService;
     private final ScoreWeightService scoreWeightService;
+    private final NotificationSlotSelector notificationSlotSelector;
     private final NotificationGateway notificationGateway;
     private final NotificationHistoryService notificationHistoryService;
     private final NotificationRepository notificationRepository;
@@ -55,7 +56,7 @@ public class NotificationService {
     private String appBaseUrl;
 
     /**
-     * 매일 오전 8시 — 일간 알림 수신 동의 유저에게 추천 정책 top 3 발송
+     * 매일 오전 8시 — 일간 알림 수신 동의 유저에게 [A, A, B?] 최대 3건 발송
      */
     @Scheduled(cron = "0 0 8 * * *", zone = "Asia/Seoul")
     public void sendDailyNotifications() {
@@ -92,11 +93,9 @@ public class NotificationService {
         List<RecommendationLog> logs = List.of();
         String messageText = null;
         try {
-            recs = recommendationFacade.getRecommendations(target.userId(), Math.max(TOP_N, target.displayCount())).stream()
-                    .filter(rec -> rec.getFinalScore() != null
-                            && rec.getFinalScore().doubleValue() >= minScore)
-                    .limit(TOP_N)
-                    .toList();
+            int poolSize = Math.max(50, Math.max(TOP_N, target.displayCount()));
+            List<UserRecommendation> recommendationPool = recommendationFacade.getRecommendations(target.userId(), poolSize);
+            recs = notificationSlotSelector.selectCandidates(recommendationPool, minScore);
             if (recs.isEmpty()) return;
 
             ScoreWeight weight = scoreWeightService.getActiveWeight();
