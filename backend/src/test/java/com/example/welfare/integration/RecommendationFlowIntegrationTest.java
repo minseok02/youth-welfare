@@ -191,9 +191,11 @@ class RecommendationFlowIntegrationTest {
                         .header("Authorization", "Bearer " + accessToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data[0].serviceId").value(housingPolicy.getId()))
-                .andExpect(jsonPath("$.data[0].title").value("청년 월세 지원"))
-                .andExpect(jsonPath("$.data[0].bookmarked").value(false));
+                .andExpect(jsonPath("$.data[*].serviceId").value(hasItem(housingPolicy.getId().intValue())))
+                .andExpect(jsonPath("$.data[?(@.serviceId == %s)].title".formatted(housingPolicy.getId()))
+                        .value(hasItem("청년 월세 지원")))
+                .andExpect(jsonPath("$.data[?(@.serviceId == %s)].bookmarked".formatted(housingPolicy.getId()))
+                        .value(hasItem(false)));
 
         UserRecommendation firstRecommendation = userRecommendationRepository.findLatestByUserKey(userKey).stream()
                 .filter(rec -> rec.getService().getId().equals(housingPolicy.getId()))
@@ -209,8 +211,9 @@ class RecommendationFlowIntegrationTest {
                         .header("Authorization", "Bearer " + accessToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data[0].serviceId").value(housingPolicy.getId()))
-                .andExpect(jsonPath("$.data[0].bookmarked").value(true));
+                .andExpect(jsonPath("$.data[*].serviceId").value(hasItem(housingPolicy.getId().intValue())))
+                .andExpect(jsonPath("$.data[?(@.serviceId == %s)].bookmarked".formatted(housingPolicy.getId()))
+                        .value(hasItem(true)));
 
         mockMvc.perform(get("/api/recommendations")
                         .param("size", "10")

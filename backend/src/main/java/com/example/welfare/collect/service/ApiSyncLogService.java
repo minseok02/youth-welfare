@@ -5,15 +5,23 @@ import com.example.welfare.collect.repository.ApiSyncLogRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class ApiSyncLogService {
 
+    private static final String STALE_RUNNING_ERROR_CODE = "InterruptedRun";
+    private static final String STALE_RUNNING_ERROR_MESSAGE = "previous running log was auto-closed before a new collect run";
+
     private final ApiSyncLogRepository apiSyncLogRepository;
 
+    @Transactional
     public CollectResult runWithLog(String jobName, CollectTask task) {
+        closeStaleRunningLogs(jobName);
         ApiSyncLog syncLog = apiSyncLogRepository.save(ApiSyncLog.start(jobName));
         try {
             CollectResult result = task.run();
@@ -36,6 +44,18 @@ public class ApiSyncLogService {
             syncLog.fail(e);
             apiSyncLogRepository.save(syncLog);
             throw new IllegalStateException(e);
+        }
+    }
+
+    private void closeStaleRunningLogs(String jobName) {
+        int healedCount = apiSyncLogRepository.failStaleRunningLogs(
+                jobName,
+                LocalDateTime.now(),
+                STALE_RUNNING_ERROR_CODE,
+                STALE_RUNNING_ERROR_MESSAGE
+        );
+        if (healedCount > 0) {
+            log.warn("[ApiSyncLogService] stale RUNNING collect log auto-closed job={} count={}", jobName, healedCount);
         }
     }
 

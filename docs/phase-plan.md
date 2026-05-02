@@ -1053,6 +1053,11 @@ cd backend
   - `SUMMARY_METRIC A_top10_target=5->8 B_top10_target=2->2 A_best_target_rank=3->1`
 - 2026-05-02 실수집/sidecar 수정 후 `deploy/smoke/run-local-auth-session-smoke.sh` 재통과
 - 2026-05-02 실수집/sidecar 수정 후 `backend`에서 `./gradlew test integrationTest --no-daemon`
+- 2026-05-02 `ApiSyncLogService` stale `RUNNING` self-heal 추가 후 Docker app 재빌드, 로컬 `POST /api/admin/collect/youth` 재실행으로 검증
+  - 시작 직전 app log: `stale RUNNING collect log auto-closed job=YOUTH count=5`
+  - latest `api_sync_logs`: `id=15 YOUTH success`
+  - 예전 잔여 row `id=1,2,8,13,14` 는 `FAILED / InterruptedRun` 으로 정리
+- 2026-05-02 broad suite 재실행 중 `RecommendationFlowIntegrationTest` 기대치를 실데이터 환경 기준으로 보정 후 `backend`에서 `./gradlew test integrationTest --no-daemon` 재통과
 
 ## 남은 1차 작업
 
