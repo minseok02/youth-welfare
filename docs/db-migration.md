@@ -1,5 +1,6 @@
 # DB Migration Guide
 
+전체 cross-cutting schema / migration 문서 진입점은 [system-docs-index.md](./system-docs-index.md)를 먼저 봅니다.
 현재 프로젝트는 신규 DB 초기화는 `backend/src/main/resources/db/schema.sql`로 처리하고, 기존 DB 갱신은 수동 마이그레이션 SQL로 처리한다.
 현재는 운영 서버가 없으므로, 이 문서는 로컬/테스트 DB 기준 migration 메모로만 본다.
 

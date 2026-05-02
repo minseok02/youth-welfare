@@ -1,5 +1,10 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 290) `db-migration.md`, `user-data-separation-design.md`, `chatbot-plan.md` 도 direct link 중심이라 system docs entrypoint 독법과 완전히 맞지 않음
+- 문제: `project-spec.md`, `architecture.md`, `api-mapping.md` 는 `system-docs-index.md` 기준으로 맞췄지만, 나머지 cross-cutting reference 문서인 `db-migration.md`, `user-data-separation-design.md`, `chatbot-plan.md` 는 여전히 개별 direct link 중심이라 같은 문서군 안에서 진입 방식이 또 달라졌음
+- 해결: 세 문서 상단에 `system-docs-index.md` entrypoint를 먼저 보게 한 줄씩 추가해 cross-cutting 문서군 전체의 독법을 맞췄음
+- 이유: 구조/계약/DB/확장 설계 문서는 같은 층위에서 읽히므로, 일부만 docs-index를 알면 오히려 예외가 생긴다. 시스템 문서군 전체가 같은 entrypoint 규칙을 가져야 다음 사용자가 문서군을 한 번에 인식할 수 있다
+
 ## 289) `architecture.md`, `api-mapping.md` 도 직접 링크 중심이라 docs-index 독법과 완전히 맞지 않음
 - 문제: top-level, `work-guide.md`, `project-spec.md` 는 `docs-index` 중심 독법으로 정리됐지만, `architecture.md` 와 `api-mapping.md` 는 여전히 개별 문서 direct link만 보여 줘 cross-cutting 진입점이 한 단계 덜 드러났음
 - 해결: 두 문서 상단에 `system-docs-index.md` entrypoint를 먼저 보게 한 줄씩 추가해 현재 독법과 맞췄음
