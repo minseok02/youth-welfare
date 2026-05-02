@@ -1,5 +1,7 @@
 # 구현 현황
 
+- 2026-05-02: `recommendation-docs-index.md` 를 추가하고 `start.md`, `current-state.md`, `README.md`, `documentation-map.md` 에 추천 문서군 진입점을 연결했다. 추천 current-state/checklist/pipeline/replay template 를 한 entrypoint 로 찾게 정리했다.
+
 이 문서는 현재 구현 상태와 남은 1차 작업을 확인하기 위한 현황판입니다.
 요구사항 원본은 [srs-v2.10.md](./srs-v2.10.md), 실행 방법은 [testing.md](./testing.md), 현재 문서 길찾기는 [documentation-map.md](./documentation-map.md)를 봅니다.
 
