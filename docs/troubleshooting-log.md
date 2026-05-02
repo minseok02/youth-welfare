@@ -2077,3 +2077,8 @@
 - 문제: `policy-gov24-blocked-track-status.md` 를 추가한 뒤에도 policy 문서군의 첫 진입점인 `policy-docs-index.md` 와 상위 `documentation-map.md` 에는 아직 링크가 없었다. 이 상태면 새 문서는 존재하더라도 “알고 있는 사람만 보는 문서”로 남을 수 있다.
 - 해결: `policy-docs-index.md` 의 현재 코드/로컬 검증 기준 및 blocked 섹션, `documentation-map.md` 의 external blocked 트랙 섹션에 `policy-gov24-blocked-track-status.md` 링크를 추가했다.
 - 이유: blocked 상태를 잘 유지하려면 문서 자체뿐 아니라 진입 경로가 중요하다. entrypoint가 실제 인덱스에 걸려 있어야 다음 사람이 같은 결론을 다시 만들지 않는다.
+
+## 390) policy 인덱스와 문서 맵에만 링크가 있어도, 실제 top-level 진입점인 `start/current-state/README` 에서 안 보이면 처음 들어온 사람은 여전히 놓친다
+- 문제: `policy-gov24-blocked-track-status.md` 를 policy 문서군 내부 인덱스와 `documentation-map.md` 에 연결한 뒤에도, 작업 시작 시 가장 먼저 보는 `start.md`, `current-state.md`, `docs/README.md` 에는 아직 링크가 없었다. 이 상태면 `Gov24` 가 왜 inactive 인지 알고 싶은 사용자는 한 단계 더 들어가서야 문서를 찾게 된다.
+- 해결: 세 top-level entrypoint 모두에 `policy-gov24-blocked-track-status.md` 링크를 추가해, `start -> current-state -> policy docs` 어느 경로로 들어와도 blocked 상태 문서를 바로 찾게 정리했다.
+- 이유: blocked 트랙은 “존재 여부”보다 “얼마나 빨리 도달하느냐”가 중요하다. top-level entrypoint 에서 바로 보여야 같은 배경 설명을 반복하지 않게 된다.
