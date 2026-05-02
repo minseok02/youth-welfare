@@ -2282,3 +2282,13 @@
 - 문제: `deploy/mysql/apply-local-policy-sidecar-draft.sh` 재실행 중 `V2026_05_02_02__backfill_service_taxonomy_summary_slots.sql` 에서 `Duplicate entry '2419-YOUTH_MAJOR-WELFARE_CULTURE-OFFICIAL'` 가 발생했다. backfill SQL이 `slots` 서브쿼리를 만든 뒤 다시 `service_taxonomies st` 에 조인하며 authority/confidence를 가져오고 있어, 같은 service에 대해 managed slot row가 중복 생성될 수 있었다.
 - 해결: authority/confidence를 각 `UNION ALL` branch 안으로 넣고 outer join을 제거한 뒤, backfill insert를 `ON DUPLICATE KEY UPDATE` 로 바꿨다. 그 뒤 `deploy/mysql/apply-local-policy-sidecar-draft.sh` 를 다시 실행해 `service_taxonomy_summary_slots=5672`, `slot_density_YOUTH_MAJOR=2312`, `slot_density_PROVISION_METHOD=1170` 까지 정상 출력되는 것을 확인했다.
 - 이유: local draft apply는 replay와 current-state 검증의 베이스라인이라 반복 실행에 안전해야 한다. 여기서 unique 충돌이 나면 collect 회귀와 무관한 SQL 중복 때문에 validation 전체가 멈춘다.
+
+## 418) collect 중단 뒤 남은 `api_sync_logs.RUNNING` row를 그대로 두면, 다음 실수집이 성공해도 수집 이력이 거짓으로 열려 있는 상태가 남는다
+- 문제: 로컬 collect/replay 검증 중 DB restart와 중단 실행이 섞이면서 `api_sync_logs` 에 `YOUTH` 기준 `id=1,2,8,13,14` 같은 오래된 `RUNNING` row가 남았다. 실제로 새 `POST /api/admin/collect/youth` 는 정상 완료되는데도, 수집 이력 테이블만 보면 아직 진행 중인 작업이 여러 건 열려 있는 것처럼 보여 진단을 오염시켰다.
+- 해결: `ApiSyncLogService.runWithLog(...)` 시작 직전에 같은 `job_name` 의 stale `RUNNING` row를 bulk update로 `FAILED / InterruptedRun` 처리하도록 바꿨다. Docker app 재빌드 후 `POST /api/admin/collect/youth` 를 다시 실행하자 app log에 `stale RUNNING collect log auto-closed job=YOUTH count=5` 가 찍혔고, DB에서도 새 `id=15` 성공 row와 함께 과거 `RUNNING` row들이 모두 `FAILED` 로 닫힌 것을 확인했다.
+- 이유: collect 배치의 exclusivity는 in-memory guard가 담당하더라도, operator가 보는 사실원장은 `api_sync_logs` 이다. 중단된 run의 잔여 상태를 시작 경계에서 자동 정리해야 실수집 회귀를 다시 돌릴 때 로그 해석이 틀어지지 않는다.
+
+## 419) recommendation flow integration이 “첫 번째 추천이 내가 만든 정책이어야 한다”까지 강제하면, 실데이터가 많은 로컬 DB에서는 정상 흐름도 거짓 실패가 된다
+- 문제: broad suite 재실행 중 `RecommendationFlowIntegrationTest` 가 `$.data[0].serviceId == housingPolicy.id` 를 기대하다 실패했다. 로컬 DB에 실수집 정책이 많이 들어온 상태에서는 추천 refresh 응답의 0번 인덱스가 항상 테스트가 만든 주거 정책일 필요는 없는데, 테스트가 정렬 결과까지 과하게 고정하고 있었다.
+- 해결: 테스트 기대치를 “응답 배열 안에 내가 만든 `housingPolicy` 가 존재하고, 그 row의 `title/bookmarked` 상태가 맞는가”로 바꿨다. 그 뒤 단독 `RecommendationFlowIntegrationTest` 와 전체 `./gradlew test integrationTest --no-daemon` 을 다시 통과시켰다.
+- 이유: 이 integration의 목적은 refresh/get/bookmark 저장 흐름 검증이지 전역 실데이터까지 포함한 절대 ranking 보장이 아니다. 자기 row 포함과 상태 전파만 검증해야 환경이 커져도 재현성이 유지된다.

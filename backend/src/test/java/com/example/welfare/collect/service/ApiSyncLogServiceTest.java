@@ -15,6 +15,9 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.contains;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 
@@ -30,6 +33,8 @@ class ApiSyncLogServiceTest {
     @Test
     @DisplayName("수집 작업이 성공하면 SUCCESS 로그를 저장한다")
     void runWithLogStoresSuccess() {
+        given(apiSyncLogRepository.failStaleRunningLogs(anyString(), any(), anyString(), anyString()))
+                .willReturn(0);
         given(apiSyncLogRepository.save(any(ApiSyncLog.class)))
                 .willAnswer(invocation -> invocation.getArgument(0));
 
@@ -53,6 +58,8 @@ class ApiSyncLogServiceTest {
     @Test
     @DisplayName("수집 작업에 저장 실패가 있으면 PARTIAL_SUCCESS 로그를 저장한다")
     void runWithLogStoresPartialSuccess() {
+        given(apiSyncLogRepository.failStaleRunningLogs(anyString(), any(), anyString(), anyString()))
+                .willReturn(0);
         given(apiSyncLogRepository.save(any(ApiSyncLog.class)))
                 .willAnswer(invocation -> invocation.getArgument(0));
 
@@ -72,6 +79,8 @@ class ApiSyncLogServiceTest {
     @Test
     @DisplayName("수집 작업이 예외로 중단되면 FAILED 로그를 저장하고 예외를 다시 던진다")
     void runWithLogStoresFailureAndRethrows() {
+        given(apiSyncLogRepository.failStaleRunningLogs(anyString(), any(), anyString(), anyString()))
+                .willReturn(0);
         given(apiSyncLogRepository.save(any(ApiSyncLog.class)))
                 .willAnswer(invocation -> invocation.getArgument(0));
 
@@ -86,5 +95,27 @@ class ApiSyncLogServiceTest {
         assertThat(failed.getErrorCode()).isEqualTo("IllegalStateException");
         assertThat(failed.getErrorMessage()).isEqualTo("external api failed");
         assertThat(failed.getFinishedAt()).isNotNull();
+    }
+
+    @Test
+    @DisplayName("같은 job의 stale RUNNING 로그가 있으면 새 수집 시작 전에 FAILED로 정리한다")
+    void runWithLogClosesStaleRunningLogsBeforeStartingNewLog() {
+        given(apiSyncLogRepository.failStaleRunningLogs(anyString(), any(), anyString(), anyString()))
+                .willReturn(2);
+        given(apiSyncLogRepository.save(any(ApiSyncLog.class)))
+                .willAnswer(invocation -> invocation.getArgument(0));
+
+        apiSyncLogService.runWithLog(
+                "YOUTH",
+                () -> CollectResult.of(5, 5, 0, 0, 0)
+        );
+
+        verify(apiSyncLogRepository).failStaleRunningLogs(
+                eq("YOUTH"),
+                any(),
+                eq("InterruptedRun"),
+                contains("auto-closed")
+        );
+        verify(apiSyncLogRepository, org.mockito.Mockito.times(2)).save(any(ApiSyncLog.class));
     }
 }
