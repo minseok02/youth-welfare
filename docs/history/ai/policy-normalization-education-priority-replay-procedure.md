@@ -80,24 +80,25 @@ deploy/smoke/run-local-education-priority-replay.sh
     - `change_type=text_changed`: 같은 `service_id` 에서 `ai_reason` 문장이 실제로 바뀐 경우
     - `change_type=entered|exited`: top snapshot 구성 변화로 row가 새로 들어오거나 빠진 경우
 11. `ai-reason-pattern-summary.tsv` 를 같이 생성해 sample A/B별 상위 phrase count를 남긴다
-12. artifact에 `openai-mode.txt` 를 같이 남겨 `rule-only-invalid-key` / `real-openai` 모드를 명시
-13. boot log에서 `[RealtimeAiGateway][replay-trace]`, `[RealtimeAiGateway][replay-trace-response]` 라인을 추출해 `edu-a/b-*-ai-trace.log`, `edu-a/b-*-ai-response-trace.log`, `ai-trace-*.log`, `ai-trace-response-*.log` 로 남기고 `candidateIds` / `candidateRuleScores` / `promptSha256` / `replaySeed` / `systemFingerprint` / `responseId` 를 비교
-14. summary stdout에도 `A_FINGERPRINT ... same|different`, `B_FINGERPRINT ... same|different` 를 같이 출력해 artifact를 열기 전에도 `backend churn` 여부를 바로 볼 수 있게 한다
-15. summary stdout의 `SUMMARY_METRIC` 한 줄에서 `A_top10_target`, `B_top10_target`, `A/B_target_total`, `A/B_fp` 를 먼저 보고 pass/warn 판단을 시작한다
-16. summary stdout의 `SUMMARY_REASON_METRIC` 한 줄에서 `A_reason_changed`, `A_reason_text_changed`, `A_reason_membership_changed`, `B_*` 를 먼저 확인하고, 세부 내용이 필요하면 `edu-a/b-ai-reason-diff.tsv` 를 연다
-17. summary stdout의 `SUMMARY_REASON_PATTERN` 한 줄에서 sample A/B별 상위 phrase를 먼저 보고, 더 자세한 count가 필요하면 `ai-reason-pattern-summary.tsv` 를 연다
-18. nightly summary file에 append 할 때도 같은 축을 유지하고,
+12. `response-service-meta.tsv` 에 `youthMajor/youthMid/provisionMethod/GOV24_*` canonical summary를 같이 남겨, reason diff와 prompt drift를 service-level summary 축과 바로 대조할 수 있게 한다
+13. artifact에 `openai-mode.txt` 를 같이 남겨 `rule-only-invalid-key` / `real-openai` 모드를 명시
+14. boot log에서 `[RealtimeAiGateway][replay-trace]`, `[RealtimeAiGateway][replay-trace-response]` 라인을 추출해 `edu-a/b-*-ai-trace.log`, `edu-a/b-*-ai-response-trace.log`, `ai-trace-*.log`, `ai-trace-response-*.log` 로 남기고 `candidateIds` / `candidateRuleScores` / `promptSha256` / `replaySeed` / `systemFingerprint` / `responseId` 를 비교
+15. summary stdout에도 `A_FINGERPRINT ... same|different`, `B_FINGERPRINT ... same|different` 를 같이 출력해 artifact를 열기 전에도 `backend churn` 여부를 바로 볼 수 있게 한다
+16. summary stdout의 `SUMMARY_METRIC` 한 줄에서 `A_top10_target`, `B_top10_target`, `A/B_target_total`, `A/B_fp` 를 먼저 보고 pass/warn 판단을 시작한다
+17. summary stdout의 `SUMMARY_REASON_METRIC` 한 줄에서 `A_reason_changed`, `A_reason_text_changed`, `A_reason_membership_changed`, `B_*` 를 먼저 확인하고, 세부 내용이 필요하면 `edu-a/b-ai-reason-diff.tsv` 를 연다
+18. summary stdout의 `SUMMARY_REASON_PATTERN` 한 줄에서 sample A/B별 상위 phrase를 먼저 보고, 더 자세한 count가 필요하면 `ai-reason-pattern-summary.tsv` 를 연다
+19. nightly summary file에 append 할 때도 같은 축을 유지하고,
     최소 필드는 `ts`, `mode`, `A_top10_target`, `B_top10_target`,
     `A_target_total`, `B_target_total`, `A_fp`, `B_fp`,
     `A_reason_changed`, `B_reason_changed`,
     `A_reason_text_changed`, `B_reason_text_changed`,
     `A_reason_membership_changed`, `B_reason_membership_changed`,
     `artifact_dir` 로 제한한다
-19. 실제 append 는 `REPLAY_SUMMARY_APPEND_FILE=/path/to/nightly-summary-YYYY-MM-DD.log`
+20. 실제 append 는 `REPLAY_SUMMARY_APPEND_FILE=/path/to/nightly-summary-YYYY-MM-DD.log`
     env 로 켜고, 필요하면 `REPLAY_SUMMARY_TS` 로 기록 시각을 wrapper 에서 명시한다
-20. ops host nightly 실행은 직접 env 를 길게 붙이기보다
+21. ops host nightly 실행은 직접 env 를 길게 붙이기보다
     `deploy/smoke/run-nightly-openai-replay.sh` wrapper 를 기본 진입점으로 쓴다
-21. host cron 예시는 wrapper/cleanup 둘 다 절대경로 호출로 둔다
+22. host cron 예시는 wrapper/cleanup 둘 다 절대경로 호출로 둔다
     - replay:
       - `10 1 * * * REPLAY_LOG_ROOT=/var/log/youth-welfare/openai-replay /home/minseok/youth-welfare/deploy/smoke/run-nightly-openai-replay.sh >> /var/log/youth-welfare/openai-replay/nightly-cron.log 2>&1`
     - cleanup:
