@@ -1,5 +1,10 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 294) broad-suite self-heal cleanup이 안정화됐지만 user-prefix integration 테스트들에 거의 같은 정리 코드가 복제돼 다시 drift할 가능성이 있었음
+- 문제: `AuthRedisIntegrationTest`, `AdminSecurityIntegrationTest`, `UserCoreDualWriteIntegrationTest`, `UserMetadataUserKeyBackfillIntegrationTest`, `UserPiiBackfillIntegrationTest`, `UserPiiSyncReplayIntegrationTest`, `UserPiiSyncRetrySchedulerIntegrationTest`, `RecommendationFlowIntegrationTest` 는 모두 “email prefix로 user를 찾고 userKey 파생 cleanup 후 user delete” 구조가 거의 같았는데, 세부 차이가 조금씩 있어 다음 hardening 때 일부 클래스만 갱신될 위험이 있었음
+- 해결: test 전용 `IntegrationCleanupSupport` 를 추가하고 user-prefix cleanup, service-prefix cleanup 진입점을 공통화했다. 각 클래스는 이제 “무슨 추가 정리가 필요한가”만 람다로 넘기고, 사용자 탐색/삭제 흐름 자체는 한 곳에서 처리한다
+- 이유: broad-suite 재현성 hardening은 한 번 패턴을 정했으면 다음 수정이 같은 방향으로 퍼질 수 있어야 한다. cleanup 보일러플레이트를 줄여야 drift와 누락 가능성도 같이 줄어든다
+
 ## 292) chat/withdraw integration 테스트 일부가 broad suite 중단 뒤 잔존 user/chat/refresh 상태를 전제로 다시 깨질 수 있었음
 - 문제: `ChatSessionApiIntegrationTest`, `ChatMessageApiIntegrationTest`, `ChatRepositoryIntegrationTest`, `UserWithdrawChatCleanupIntegrationTest`, `UserWithdrawAccessTokenBaselineIntegrationTest` 는 prefix 기반 fixture를 쓰면서도 cleanup이 사실상 `@AfterEach` 또는 생성 중 추적한 ID 목록에 기대고 있었다. 이전 broad suite가 중간에 끊기면 stale user/chat session/`withdrawn_` email/legacy `refresh:{userId}` key 가 남아 다음 실행을 오염시킬 수 있었음
 - 해결: 다섯 클래스 모두 `@BeforeEach` 에서 prefix 스캔 기반 self-heal cleanup을 먼저 돌리도록 맞췄고, withdraw 계열은 `withdrawn_` email 과 `refresh:{userKey}`, `refresh:{userId}` 레거시 키까지 같이 제거하게 정리했음

@@ -104,19 +104,17 @@ class AdminSecurityIntegrationTest {
     void cleanup() {
         ReflectionTestUtils.setField(authService, "adminEmailsProperty", ADMIN_EMAIL);
         ReflectionTestUtils.invokeMethod(authService, "initAdminEmails");
-        userRepository.findAll().stream()
-                .filter(user -> ADMIN_EMAIL.equals(user.getEmail())
-                        || (user.getEmail() != null && user.getEmail().startsWith(TEST_EMAIL_PREFIX)))
-                .forEach(user -> {
-                    String userKey = userRepository.findUserKeyById(user.getId()).orElse(null);
-                    if (userKey != null) {
-                        redisTemplate.delete("refresh:" + userKey);
-                        redisTemplate.delete("access-cutoff:" + userKey);
-                        userPiiSyncQueueRepository.deleteByUserKey(userKey);
-                    }
-                    redisTemplate.delete("refresh:" + user.getId());
-                    userRepository.delete(user);
-                });
+        IntegrationCleanupSupport.cleanupUsers(
+                userRepository,
+                user -> ADMIN_EMAIL.equals(user.getEmail())
+                        || (user.getEmail() != null && user.getEmail().startsWith(TEST_EMAIL_PREFIX)),
+                userKey -> {
+                    redisTemplate.delete("refresh:" + userKey);
+                    redisTemplate.delete("access-cutoff:" + userKey);
+                    userPiiSyncQueueRepository.deleteByUserKey(userKey);
+                },
+                userId -> redisTemplate.delete("refresh:" + userId)
+        );
     }
 
     @Test

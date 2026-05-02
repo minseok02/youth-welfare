@@ -85,18 +85,16 @@ class AuthRedisIntegrationTest {
 
     @AfterEach
     void cleanup() {
-        userRepository.findAll().stream()
-                .filter(user -> user.getEmail() != null && user.getEmail().startsWith(TEST_EMAIL_PREFIX))
-                .forEach(user -> {
-                    String userKey = userRepository.findUserKeyById(user.getId()).orElse(null);
-                    if (userKey != null) {
-                        redisTemplate.delete("refresh:" + userKey);
-                        chatSessionRepository.deleteAll(chatSessionRepository.findAllByUserKey(userKey));
-                        userPiiSyncQueueRepository.deleteByUserKey(userKey);
-                    }
-                    redisTemplate.delete("refresh:" + user.getId());
-                    userRepository.delete(user);
-                });
+        IntegrationCleanupSupport.cleanupUsers(
+                userRepository,
+                user -> user.getEmail() != null && user.getEmail().startsWith(TEST_EMAIL_PREFIX),
+                userKey -> {
+                    redisTemplate.delete("refresh:" + userKey);
+                    chatSessionRepository.deleteAll(chatSessionRepository.findAllByUserKey(userKey));
+                    userPiiSyncQueueRepository.deleteByUserKey(userKey);
+                },
+                userId -> redisTemplate.delete("refresh:" + userId)
+        );
         var keys = redisTemplate.keys("password-reset:*");
         if (keys != null && !keys.isEmpty()) {
             redisTemplate.delete(keys);
