@@ -67,6 +67,12 @@
 - `slot_services_GOV24_SERVICE_FIELD=0`
 - `slot_services_GOV24_USER_TYPE=0`
 - `slot_services_GOV24_BENEFIT_TYPE=0`
+- `slot_rows_YOUTH_MAJOR=2288`
+- `slot_rows_YOUTH_MID=2170`
+- `slot_rows_PROVISION_METHOD=1161`
+- `slot_rows_GOV24_SERVICE_FIELD=0`
+- `slot_rows_GOV24_USER_TYPE=0`
+- `slot_rows_GOV24_BENEFIT_TYPE=0`
 
 즉 summary slot dual-write/backfill 도 현재 로컬 snapshot에서 density 확인까지 끝난 상태입니다.
 현재 local snapshot에서 실제로 채워지는 managed slot은 사실상 `YOUTH_MAJOR`, `YOUTH_MID`, `PROVISION_METHOD` 이고,

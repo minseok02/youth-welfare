@@ -2037,3 +2037,8 @@
 - 문제: `run-local-education-priority-replay.sh` 는 이미 `RealtimeAiGateway` prompt에 `youthMajor/youthMid/provisionMethod/GOV24_*` canonical summary를 같이 넣지만, artifact 쪽 `response-service-meta.tsv` 는 아직 `service_id/title/compat/youth_major` 네 컬럼만 남기고 있었다. 이 상태면 다음 live replay에서 `ai_reason` 나 pattern drift가 생겨도, 후보별 canonical summary 전체를 보려면 DB나 API 응답을 다시 조회해야 한다.
 - 해결: `response-service-meta.tsv` 생성 쿼리를 slot-first / legacy fallback 기준 `youthMajor`, `youthMid`, `provisionMethod`, `gov24ServiceField`, `gov24UserType`, `gov24BenefitType` 까지 확장하고, summary Python parser도 같은 9컬럼 포맷을 읽도록 바꿨다. replay procedure 문서에도 meta artifact가 canonical summary 대조용이라는 점을 같이 남겼다.
 - 이유: replay는 점점 “순위 숫자 비교”보다 “왜 이 reason/prompt drift가 났는지”를 보는 단계로 가고 있다. artifact 하나에 후보별 canonical summary 축을 같이 실어야 다음 diff triage가 DB 재조회 없이 끝난다.
+
+## 382) local apply 스크립트가 slot service density만 출력하면, replay summary가 보여주는 `slot_rows_*` 와 바로 대조되지 않아 snapshot 상태를 두 스크립트 사이에서 다시 변환해 읽어야 한다
+- 문제: `apply-local-policy-sidecar-draft.sh` 는 `slot_density_<SLOT>=<distinct service count>` 만 출력하고, replay summary는 `slot_services_*` 와 `slot_rows_*` 를 둘 다 출력한다. 이 차이 때문에 local snapshot을 재적용한 직후에는 “서비스 수는 같은데 row 수가 늘었는지” 같은 비교가 즉시 안 되고, `service_taxonomy_summary_slots` 를 다시 직접 조회해야 했다.
+- 해결: apply 스크립트에도 `slot_row_density_<SLOT>=<row count>` 출력을 추가해 `YOUTH_MAJOR/YOUTH_MID/PROVISION_METHOD/GOV24_*` 각 축의 service density와 row density를 동시에 보이게 했다. current-state/phase-plan 문서도 같은 관측 축으로 맞췄다.
+- 이유: slot-first migration은 write/backfill 결과를 빠르게 읽어내는 관측성이 중요하다. apply와 replay가 같은 density vocabulary를 써야 snapshot 상태를 한 번에 비교할 수 있다.
