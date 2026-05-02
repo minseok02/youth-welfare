@@ -1062,6 +1062,10 @@ cd backend
   - list rate-limit 완충(`max-consecutive-rate-limit-hits=3`, `rate-limit-cooldown-ms=10000`) 추가
   - incomplete list collect는 더 이상 `SUCCESS requested=0 saved=0` 로 남기지 않고 `500 / COL001` + `api_sync_logs FAILED` 로 표면화
   - latest failed row: `id=21 BOKJIRO_LOCAL failed requested=0 saved=0 failed=1`
+- 2026-05-02 collect/replay/broad suite 재검증 루프에서 `bokjiro-details-gap-fill` 의 repeated `429` 경계 정리
+  - 기존에는 `saved=0 skipped=198 stoppedAfterNoSaves=true` 로 `200 success` 처럼 보였음
+  - `BokjiroDetailCollectService` 가 rate-limit abort 여부를 내부 결과로 들고 가고, `0-save + rate-limited abort` 라운드는 `COL001` 로 surface 하도록 수정
+  - 단위/WebMvc 회귀 후 Docker app 재기동 + `SECURITY_ADMIN_EMAILS=admin@example.com` override 상태에서 실제 `POST /api/admin/collect/bokjiro-details-gap-fill?rounds=1&maxCallsPerRound=95` 가 `500 / COL001` 반환 확인
 
 ## 남은 1차 작업
 
