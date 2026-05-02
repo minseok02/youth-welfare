@@ -2313,6 +2313,11 @@
 - 해결: `BokjiroLocalClient` 에 local in-memory open circuit을 추가해, 연속 `429` 임계치 도달 시 `collect.list.local-rate-limit-open-circuit-ms` 동안 회로를 열어 두고 이후 `fetchAll()` 진입 자체를 즉시 `COL001` 로 중단하게 바꿨다. `BokjiroLocalClientTest` 로 “회로가 열려 있으면 WebClient를 전혀 치지 않는다”를 고정했고, Docker app 재빌드 후 실제로 첫 호출은 `32s / 500 COL001`, 직후 두 번째 호출은 `0s / 500 COL001` 이며 로그에 `최근 연속 429로 수집 회로가 열려 있어 즉시 중단 remainingMs=...` 가 찍히는 것까지 확인했다.
 - 이유: 이 회로는 성공을 숨기는 장치가 아니라, 이미 실패가 확정된 짧은 재시도를 외부 API와 앱 둘 다 낭비하지 않게 막는 안전장치다. collect 사실원장은 계속 `FAILED` 로 남기고, operator는 쿨다운이 지난 뒤에만 의미 있는 재시도를 하게 만드는 쪽이 더 안전하다.
 
+## 424) 검색 로그를 search service 안에 직접 섞으면 조회 책임과 HTTP 식별 책임이 같이 얽혀 2차 기능이 핵심 검색 경계를 오염시킨다
+- 문제: `search_logs` 는 2차 기능이지만 실제로 붙이려면 `keyword/resultCount` 뿐 아니라 익명 검색 식별용 fingerprint도 필요하다. 이걸 `PolicySearchService` 안에 직접 넣으면 검색 read model, userKey 조회, HTTP fingerprint 생성, 로그 저장이 한 서비스에 섞여 read-only 경계가 무너진다.
+- 해결: `ClientFingerprintService` 를 별도로 두고, `PolicySearchLogService` 가 `search_logs` 저장만 담당하도록 분리했다. `PolicyController` 는 검색 응답을 만든 뒤 controller 경계에서 `PolicySearchLogCommand` 를 조립해 logging service에 넘기고, 기존 `PolicySearchService` 는 그대로 read-only로 유지했다. 검색 로그 저장 실패는 warn으로만 남기고 검색 응답은 깨지지 않게 해 secondary logging failure가 핵심 조회 흐름을 막지 않도록 정리했다.
+- 이유: 검색 자체와 검색 관측은 생명주기가 다르다. fingerprint 생성은 web concern이고, search log 저장은 write-side concern이며, 실제 검색은 read concern이다. 이 셋을 나누어야 2차 기능을 붙여도 핵심 검색 경계가 덜 흔들린다.
+
 ## 425) 카카오 알림톡은 코드 경계만 있다고 바로 next feature 로 취급하면, 실제 병목인 운영 자격 심사 문제를 구현 문제로 오판하게 된다
 - 문제: 현재 알림 경계는 `NotificationGateway` 인터페이스로 분리돼 있어 겉보기에는 알림톡 provider만 붙이면 될 것처럼 보인다. 하지만 실제 알림톡 운영은 비즈니스 채널 전환, 발신 프로필 등록, 템플릿 심사, 사업자 증빙이 선행되어야 하고, 학생 개인 신분의 3개월 졸업 프로젝트 운영 범위에서는 이 전제가 더 큰 병목이다.
 - 해결: 알림톡을 단순 2차 구현 항목이 아니라 `운영 자격 blocked` 항목으로 재분류했다. practical next 2차 기능 우선순위는 `검색 로그 -> 대시보드 -> 알림톡` 으로 두고, 알림톡은 사업자/심사 조건이 실제로 충족될 때만 reopen 하는 기준으로 문서를 정리했다.

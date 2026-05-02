@@ -2,10 +2,13 @@ package com.example.welfare.policy.controller;
 
 import com.example.welfare.global.auth.AuthenticatedUser;
 import com.example.welfare.global.response.ApiResponse;
+import com.example.welfare.global.web.ClientFingerprintService;
 import com.example.welfare.policy.dto.PolicyDetailResponse;
 import com.example.welfare.policy.dto.PolicyRankingResponse;
 import com.example.welfare.policy.dto.PolicySearchResponse;
 import com.example.welfare.policy.dto.PolicySummaryResponse;
+import com.example.welfare.policy.service.PolicySearchLogCommand;
+import com.example.welfare.policy.service.PolicySearchLogService;
 import com.example.welfare.policy.service.PolicyRankingService;
 import com.example.welfare.policy.service.PolicySearchService;
 import com.example.welfare.policy.service.PolicyService;
@@ -33,6 +36,8 @@ public class PolicyController {
     private final PolicySearchService policySearchService;
     private final RecommendationLogService recommendationLogService;
     private final PolicyViewLogService policyViewLogService;
+    private final PolicySearchLogService policySearchLogService;
+    private final ClientFingerprintService clientFingerprintService;
 
     // 정책 목록 조회 (카테고리 필터, 페이징)
     @GetMapping
@@ -62,7 +67,7 @@ public class PolicyController {
         if (logId != null) {
             recommendationLogService.markClicked(logId);
         }
-        String clientFingerprint = policyViewLogService.buildClientFingerprint(request);
+        String clientFingerprint = clientFingerprintService.build(request);
         Long userId = resolveUserId(authenticatedUser);
         boolean increaseViewCount = policyViewLogService.registerViewIfFirstInWindow(id, userId, clientFingerprint);
         return ResponseEntity.ok(ApiResponse.success(policyService.getDetail(userId, id, increaseViewCount)));
@@ -82,10 +87,41 @@ public class PolicyController {
             @RequestParam(required = false) String sgg,
             @RequestParam(required = false) String sort,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
-        return ResponseEntity.ok(ApiResponse.success(
-                policySearchService.search(resolveUserId(authenticatedUser), keyword.trim(), status, includeClosed, category, sourceType, onlineApply, sido, sgg, sort, page, size)
-        ));
+            @RequestParam(defaultValue = "20") int size,
+            HttpServletRequest request) {
+        Long userId = resolveUserId(authenticatedUser);
+        String trimmedKeyword = keyword.trim();
+        PolicySearchResponse response = policySearchService.search(
+                userId,
+                trimmedKeyword,
+                status,
+                includeClosed,
+                category,
+                sourceType,
+                onlineApply,
+                sido,
+                sgg,
+                sort,
+                page,
+                size
+        );
+        policySearchLogService.record(PolicySearchLogCommand.builder()
+                .userId(userId)
+                .clientFingerprint(clientFingerprintService.build(request))
+                .keyword(trimmedKeyword)
+                .resultCount(response.getTotalElements())
+                .status(status)
+                .includeClosed(includeClosed)
+                .category(category)
+                .sourceType(sourceType)
+                .onlineApply(onlineApply)
+                .sido(sido)
+                .sgg(sgg)
+                .sort(sort)
+                .page(page)
+                .size(size)
+                .build());
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     // 조회수 기반 랭킹 (내부 조회수 + 외부 조회수 보조 + 최신성)
