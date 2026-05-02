@@ -8,6 +8,7 @@
 
 ## 지금 먼저 볼 문서
 
+- 정책 문서군 진입점: [policy-docs-index.md](./policy-docs-index.md)
 - 인증/세션: [auth-session-revocation-current-state.md](./auth-session-revocation-current-state.md)
 - 수집: [collect-current-state.md](./collect-current-state.md)
 - 추천: [recommendation-current-state.md](./recommendation-current-state.md)
