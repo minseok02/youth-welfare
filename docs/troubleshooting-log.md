@@ -2102,3 +2102,8 @@
 - 문제: `policy-docs-index.md` 를 top-level entrypoint에 올린 뒤에는 policy 문서군은 바로 인덱스로 들어갈 수 있었지만, auth 쪽은 여전히 `auth-session-revocation-current-state.md` 만 노출되고 `auth-docs-index.md` 는 `documentation-map.md` 안으로 들어가야 보였다. 이 상태면 문서군마다 진입 규칙이 달라져 사용자가 다시 예외를 기억해야 했다.
 - 해결: `start.md`, `current-state.md`, `docs/README.md` 에 `auth-docs-index.md` 링크를 추가해, auth/policy 두 문서군 모두 top-level entrypoint에서 바로 인덱스로 들어가게 맞췄다.
 - 이유: entrypoint 설계는 내용보다 패턴 일관성이 중요하다. 문서군마다 들어가는 방식이 같아야 다음 사용자가 생각 없이도 원하는 인덱스로 이동할 수 있다.
+
+## 395) 수집 쪽만 문서군 인덱스가 없으면, auth/policy 는 인덱스로 들어가고 collect 는 개별 current-state/checklist를 따로 기억해야 해서 구조가 다시 비대칭이 된다
+- 문제: auth/policy 문서군은 각각 `auth-docs-index.md`, `policy-docs-index.md` 가 생겨 top-level entrypoint에서도 바로 들어갈 수 있는데, collect 쪽은 여전히 `collect-current-state.md`, `collect-operation-checklist.md`, `collect-ops.md` 를 개별로 기억해야 했다. 이 상태면 문서군마다 길찾기 규칙이 다시 달라졌다.
+- 해결: `collect-docs-index.md` 를 추가해 수집 현재 동작 기준, 실행 체크리스트, 운영 기준, 실행/장애 템플릿을 한 문서에서 정리하고, `start.md`, `current-state.md`, `docs/README.md`, `documentation-map.md` 에 모두 연결했다.
+- 이유: entrypoint 정리는 특정 주제 하나만 예쁘게 만드는 일이 아니라, 문서군마다 같은 진입 패턴을 갖게 만드는 일이다. collect 도 인덱스가 있어야 문서 구조가 auth/policy 와 같은 수준으로 정리된다.
