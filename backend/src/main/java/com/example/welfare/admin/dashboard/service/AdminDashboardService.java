@@ -1,5 +1,6 @@
 package com.example.welfare.admin.dashboard.service;
 
+import com.example.welfare.admin.dashboard.dto.AdminCollectFailureResponse;
 import com.example.welfare.admin.dashboard.dto.AdminSearchFailureResponse;
 import com.example.welfare.admin.dashboard.dto.AdminRecommendationBreakdownResponse;
 import com.example.welfare.admin.dashboard.dto.AdminDashboardResponse;
@@ -24,11 +25,13 @@ import java.util.List;
 public class AdminDashboardService {
 
     private static final int FAILED_SAMPLE_LIMIT = 5;
+    private static final int COLLECT_FAILURE_PATTERN_LIMIT = 5;
     private static final int SEARCH_FAILURE_PATTERN_LIMIT = 5;
     private static final int RECOMMENDATION_BREAKDOWN_LIMIT = 5;
     private static final int DEFAULT_SUMMARY_WINDOW_DAYS = 7;
     private static final List<Integer> DEFAULT_TREND_WINDOWS_DAYS = List.of(1, 7, 30);
     private static final int MAX_WINDOW_DAYS = 365;
+    private static final int MAX_COLLECT_FAILURE_PATTERN_LIMIT = 20;
     private static final int MAX_SEARCH_FAILURE_PATTERN_LIMIT = 20;
     private static final int MAX_RECOMMENDATION_BREAKDOWN_LIMIT = 20;
 
@@ -313,6 +316,50 @@ public class AdminDashboardService {
         );
     }
 
+    public AdminCollectFailureResponse getCollectFailures(Integer requestedSummaryWindowDays, Integer requestedLimit) {
+        LocalDateTime now = LocalDateTime.now();
+        int summaryWindowDays = resolveSummaryWindowDays(requestedSummaryWindowDays);
+        int patternLimit = resolveCollectFailurePatternLimit(requestedLimit);
+        LocalDateTime summaryWindowAgo = now.minusDays(summaryWindowDays);
+
+        AdminDashboardReadRepository.CollectFailureSummaryRow collectFailureSummary =
+                adminDashboardReadRepository.fetchCollectFailureSummary(summaryWindowAgo);
+
+        return new AdminCollectFailureResponse(
+                now,
+                summaryWindowDays,
+                collectFailureSummary.totalFailedJobs(),
+                collectFailureSummary.totalPartialSuccessJobs(),
+                adminDashboardReadRepository.fetchCollectFailureJobBreakdowns(summaryWindowAgo, patternLimit).stream()
+                        .map(row -> new AdminCollectFailureResponse.JobBreakdown(
+                                row.jobName(),
+                                row.failedCount(),
+                                row.partialSuccessCount(),
+                                row.latestStartedAt()
+                        ))
+                        .toList(),
+                adminDashboardReadRepository.fetchCollectFailureErrorCodeBreakdowns(summaryWindowAgo, patternLimit).stream()
+                        .map(row -> new AdminCollectFailureResponse.ErrorCodeBreakdown(
+                                row.errorCode(),
+                                row.failedCount()
+                        ))
+                        .toList(),
+                adminDashboardReadRepository.fetchRecentCollectFailureSamples(summaryWindowAgo, patternLimit).stream()
+                        .map(row -> new AdminCollectFailureResponse.FailureSample(
+                                row.jobName(),
+                                row.status(),
+                                row.errorCode(),
+                                row.errorMessage(),
+                                row.startedAt(),
+                                row.finishedAt(),
+                                row.requestedCount(),
+                                row.savedCount(),
+                                row.failedCount()
+                        ))
+                        .toList()
+        );
+    }
+
     private int resolveSummaryWindowDays(Integer requestedSummaryWindowDays) {
         if (requestedSummaryWindowDays == null) {
             return DEFAULT_SUMMARY_WINDOW_DAYS;
@@ -344,6 +391,18 @@ public class AdminDashboardService {
 
         if (requestedLimit <= 0 || requestedLimit > MAX_RECOMMENDATION_BREAKDOWN_LIMIT) {
             return RECOMMENDATION_BREAKDOWN_LIMIT;
+        }
+
+        return requestedLimit;
+    }
+
+    private int resolveCollectFailurePatternLimit(Integer requestedLimit) {
+        if (requestedLimit == null) {
+            return COLLECT_FAILURE_PATTERN_LIMIT;
+        }
+
+        if (requestedLimit <= 0 || requestedLimit > MAX_COLLECT_FAILURE_PATTERN_LIMIT) {
+            return COLLECT_FAILURE_PATTERN_LIMIT;
         }
 
         return requestedLimit;

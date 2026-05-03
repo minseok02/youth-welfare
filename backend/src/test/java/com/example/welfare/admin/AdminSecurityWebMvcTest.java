@@ -1,6 +1,7 @@
 package com.example.welfare.admin;
 
 import com.example.welfare.admin.dashboard.controller.AdminDashboardController;
+import com.example.welfare.admin.dashboard.dto.AdminCollectFailureResponse;
 import com.example.welfare.admin.dashboard.dto.AdminRecommendationBreakdownResponse;
 import com.example.welfare.admin.dashboard.dto.AdminSearchFailureResponse;
 import com.example.welfare.admin.dashboard.dto.AdminDashboardResponse;
@@ -520,6 +521,61 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.data.repeatExposureGroups[0].exposureCount").value(3));
 
         then(adminDashboardService).should().getRecommendationBreakdowns(14, 3);
+    }
+
+    @Test
+    @DisplayName("관리자 토큰으로 collect 실패 상세 API를 호출하면 collect failure 응답을 반환한다")
+    void adminEndpointAllowsCollectFailures() throws Exception {
+        mockAuthenticatedToken("admin-token", List.of(
+                new SimpleGrantedAuthority("ROLE_USER"),
+                new SimpleGrantedAuthority("ROLE_ADMIN")
+        ));
+        given(adminDashboardService.getCollectFailures(14, 3))
+                .willReturn(new AdminCollectFailureResponse(
+                        LocalDateTime.of(2026, 5, 3, 16, 30),
+                        14,
+                        6,
+                        2,
+                        List.of(
+                                new AdminCollectFailureResponse.JobBreakdown(
+                                        "BOKJIRO_LOCAL",
+                                        4,
+                                        1,
+                                        LocalDateTime.of(2026, 5, 3, 9, 0)
+                                )
+                        ),
+                        List.of(
+                                new AdminCollectFailureResponse.ErrorCodeBreakdown("COL001", 5)
+                        ),
+                        List.of(
+                                new AdminCollectFailureResponse.FailureSample(
+                                        "BOKJIRO_LOCAL",
+                                        "FAILED",
+                                        "COL001",
+                                        "rate limited",
+                                        LocalDateTime.of(2026, 5, 3, 9, 0),
+                                        LocalDateTime.of(2026, 5, 3, 9, 1),
+                                        0,
+                                        0,
+                                        1
+                                )
+                        )
+                ));
+
+        mockMvc.perform(get("/api/admin/dashboard/collect-failures")
+                        .param("summaryWindowDays", "14")
+                        .param("limit", "3")
+                        .header("Authorization", "Bearer admin-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.windowDays").value(14))
+                .andExpect(jsonPath("$.data.totalFailedJobs").value(6))
+                .andExpect(jsonPath("$.data.totalPartialSuccessJobs").value(2))
+                .andExpect(jsonPath("$.data.jobBreakdowns[0].jobName").value("BOKJIRO_LOCAL"))
+                .andExpect(jsonPath("$.data.errorCodeBreakdowns[0].errorCode").value("COL001"))
+                .andExpect(jsonPath("$.data.recentSamples[0].errorMessage").value("rate limited"));
+
+        then(adminDashboardService).should().getCollectFailures(14, 3);
     }
 
     @Test

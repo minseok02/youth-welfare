@@ -1,5 +1,6 @@
 package com.example.welfare.admin.dashboard.service;
 
+import com.example.welfare.admin.dashboard.dto.AdminCollectFailureResponse;
 import com.example.welfare.admin.dashboard.dto.AdminRecommendationBreakdownResponse;
 import com.example.welfare.admin.dashboard.dto.AdminSearchFailureResponse;
 import com.example.welfare.admin.dashboard.dto.AdminDashboardResponse;
@@ -492,6 +493,68 @@ class AdminDashboardServiceTest {
             assertThat(group.firstSentAt()).isEqualTo(LocalDateTime.of(2026, 5, 1, 8, 0));
             assertThat(group.latestSentAt()).isEqualTo(LocalDateTime.of(2026, 5, 3, 9, 0));
             assertThat(group.latestClickedAt()).isEqualTo(LocalDateTime.of(2026, 5, 3, 9, 10));
+        });
+    }
+
+    @Test
+    @DisplayName("collect 실패 상세는 failed/partial 총량, job 분포, error code 분포, 최근 샘플을 조합한다")
+    void getCollectFailuresBuildsResponse() {
+        given(adminDashboardReadRepository.fetchCollectFailureSummary(org.mockito.ArgumentMatchers.any()))
+                .willReturn(new AdminDashboardReadRepository.CollectFailureSummaryRow(6, 2));
+        given(adminDashboardReadRepository.fetchCollectFailureJobBreakdowns(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.eq(3)
+        )).willReturn(List.of(
+                new AdminDashboardReadRepository.CollectFailureJobBreakdownRow(
+                        "BOKJIRO_LOCAL",
+                        4,
+                        1,
+                        LocalDateTime.of(2026, 5, 3, 9, 0)
+                )
+        ));
+        given(adminDashboardReadRepository.fetchCollectFailureErrorCodeBreakdowns(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.eq(3)
+        )).willReturn(List.of(
+                new AdminDashboardReadRepository.CollectFailureErrorCodeBreakdownRow("COL001", 5)
+        ));
+        given(adminDashboardReadRepository.fetchRecentCollectFailureSamples(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.eq(3)
+        )).willReturn(List.of(
+                new AdminDashboardReadRepository.CollectFailureSampleRow(
+                        "BOKJIRO_LOCAL",
+                        "FAILED",
+                        "COL001",
+                        "rate limited",
+                        LocalDateTime.of(2026, 5, 3, 9, 0),
+                        LocalDateTime.of(2026, 5, 3, 9, 1),
+                        0,
+                        0,
+                        1
+                )
+        ));
+
+        AdminCollectFailureResponse response = adminDashboardService.getCollectFailures(14, 3);
+
+        assertThat(response.windowDays()).isEqualTo(14);
+        assertThat(response.totalFailedJobs()).isEqualTo(6);
+        assertThat(response.totalPartialSuccessJobs()).isEqualTo(2);
+        assertThat(response.jobBreakdowns()).singleElement().satisfies(job -> {
+            assertThat(job.jobName()).isEqualTo("BOKJIRO_LOCAL");
+            assertThat(job.failedCount()).isEqualTo(4);
+            assertThat(job.partialSuccessCount()).isEqualTo(1);
+            assertThat(job.latestStartedAt()).isEqualTo(LocalDateTime.of(2026, 5, 3, 9, 0));
+        });
+        assertThat(response.errorCodeBreakdowns()).singleElement().satisfies(error -> {
+            assertThat(error.errorCode()).isEqualTo("COL001");
+            assertThat(error.failedCount()).isEqualTo(5);
+        });
+        assertThat(response.recentSamples()).singleElement().satisfies(sample -> {
+            assertThat(sample.jobName()).isEqualTo("BOKJIRO_LOCAL");
+            assertThat(sample.status()).isEqualTo("FAILED");
+            assertThat(sample.errorCode()).isEqualTo("COL001");
+            assertThat(sample.errorMessage()).isEqualTo("rate limited");
         });
     }
 }

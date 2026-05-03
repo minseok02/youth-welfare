@@ -2483,7 +2483,12 @@
 - 해결: `recommendation-breakdowns` 응답에 repeat exposure group을 추가해 `user_key + service_id` 기준 노출 횟수, click/fallback 누적, 첫/마지막 노출 시각을 같이 반환하게 했다.
 - 이유: 추천 품질 문제는 단순 CTR 총량보다 재노출 패턴에 더 잘 드러나는 경우가 많다. repeat group이 있으면 과한 재노출과 정상 반복 노출을 더 빨리 구분할 수 있다.
 
-## 448) recommendation summary에 CTR/fallback 총량만 있으면, 어떤 source/category/weight stage가 클릭 또는 fallback을 만들고 있는지 다시 raw join을 내려가야 한다
+## 449) recommendation summary에 CTR/fallback 총량만 있으면, 어떤 source/category/weight stage가 클릭 또는 fallback을 만들고 있는지 다시 raw join을 내려가야 한다
 - 문제: summary 응답의 `sentInWindow`, `clickedInWindow`, `fallbackInWindow`, `weightBucketsInWindow` 만으로는 실제 triage 때 “어느 source/category가 fallback을 많이 만들고 있는가”, “어느 weight stage에서 클릭이 붙는가”, “최근 fallback/click 샘플이 무엇인가”를 바로 읽을 수 없다.
 - 해결: `/api/admin/dashboard/recommendation-breakdowns` 를 추가해 summary window 기준 source/category/weight breakdown과 최근 fallback/click sample을 별도 admin API로 분리했다.
 - 이유: 추천 품질 조정은 총량 지표보다 상세 분포가 먼저 필요하다. 요약 대시보드는 그대로 두고, 세부 triage는 별도 endpoint에 분리하는 편이 책임과 확장성이 더 낫다.
+
+## 450) collect summary에 실패 총량과 최신 샘플 몇 개만 있으면, 어떤 job이 반복 실패하는지와 error code 분포를 다시 raw `api_sync_logs` 에서 group by 해야 한다
+- 문제: summary 응답의 `failedJobsLast24h`, `latestFailuresInWindow` 만으로는 “어느 collect job이 반복적으로 실패하는가”, “partial success가 어느 정도 섞이는가”, “실패 원인이 어떤 error code에 몰리는가”를 바로 읽기 어렵다.
+- 해결: `/api/admin/dashboard/collect-failures` 를 추가해 summary window 기준 failed/partial 총량, job breakdown, error code breakdown, recent sample을 별도 admin API로 분리했다.
+- 이유: 수집 triage는 summary 총량보다 실패 분포와 최근 샘플이 먼저 필요하다. 대시보드 요약은 유지하고, 상세는 별도 endpoint로 분리하는 편이 책임과 후속 확장이 더 낫다.
