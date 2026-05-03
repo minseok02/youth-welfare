@@ -60,6 +60,29 @@ dependencies {
     testImplementation 'org.springframework.security:spring-security-test'
 }
 
+bootRun {
+    def envFile = file("../.env")
+    if (envFile.exists()) {
+        envFile.readLines().each { line ->
+            def trimmed = line.trim()
+            if (trimmed && !trimmed.startsWith('#')) {
+                def idx = trimmed.indexOf('=')
+                if (idx > 0) {
+                    def key = trimmed.substring(0, idx).trim()
+                    def value = trimmed.substring(idx + 1).trim()
+                    environment(key, value)
+                }
+            }
+        }
+    }
+    // Docker 컨테이너 포트 로컬 매핑 (db:3306 → localhost:3307, redis → localhost)
+    environment 'DB_URL', 'jdbc:mysql://localhost:3307/youth_welfare?useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=UTF-8&serverTimezone=Asia/Seoul'
+    environment 'APP_PII_DB_URL', 'jdbc:mysql://localhost:3307/youth_welfare_pii?useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=UTF-8&serverTimezone=Asia/Seoul'
+    environment 'NOTIFICATION_PII_DB_URL', 'jdbc:mysql://localhost:3307/youth_welfare_pii?useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=UTF-8&serverTimezone=Asia/Seoul'
+    environment 'REDIS_HOST', 'localhost'
+    environment 'REDIS_PORT', '6379'
+}
+
 tasks.named('test') {
     useJUnitPlatform()
     exclude '**/integration/**'

@@ -18,10 +18,21 @@ import BookmarkBorderIcon from "@mui/icons-material/BookmarkBorder";
 import BookmarkIcon from "@mui/icons-material/Bookmark";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import Header from "../components/Header";
+import FloatingNav from "../components/FloatingNav";
 import api from "../lib/axios";
 import { useAuthStore } from "../store/authStore";
 
 const NO_DATA = "원문에서 확인해주세요.";
+
+const HTML_ENTITIES = {
+  "&amp;": "&", "&lt;": "<", "&gt;": ">", "&quot;": '"', "&#39;": "'",
+  "&nbsp;": " ", "&middot;": "·", "&bull;": "•", "&ndash;": "–",
+  "&mdash;": "—", "&laquo;": "«", "&raquo;": "»", "&times;": "×",
+};
+const decodeHtml = (text) => {
+  if (!text) return text;
+  return text.replace(/&[a-zA-Z0-9#]+;/g, (entity) => HTML_ENTITIES[entity] ?? entity);
+};
 
 function SectionTitle({ children }) {
   return (
@@ -165,7 +176,8 @@ export default function PolicyDetailPage() {
   const summaryChips = useMemo(() => {
     if (!policy) return [];
     const chips = [];
-    if (policy.regions?.length) chips.push({ label: policy.regions.join(", "), icon: "📍" });
+    const readableRegions = policy.regions?.filter(r => !/^\d+$/.test(r));
+    if (readableRegions?.length) chips.push({ label: readableRegions.join(", "), icon: "📍" });
 
     const ageRange = formatAgeRange(policy.minAge, policy.maxAge);
     if (ageRange) chips.push({ label: ageRange, icon: "👤" });
@@ -291,26 +303,25 @@ export default function PolicyDetailPage() {
             <SectionTitle>정책 소개</SectionTitle>
             <Divider sx={{ mb: 1.5 }} />
             <Typography variant="body2" sx={{ whiteSpace: "pre-line", lineHeight: 1.8 }}>
-              {policy.description || `정책 소개 정보가 없습니다. ${NO_DATA}`}
+              {decodeHtml(policy.description) || `정책 소개 정보가 없습니다. ${NO_DATA}`}
             </Typography>
 
             <SectionTitle>지원내용</SectionTitle>
             <Divider sx={{ mb: 1.5 }} />
             <Typography variant="body2" sx={{ whiteSpace: "pre-line", lineHeight: 1.8 }}>
-              {policy.supportDetail || policy.supportContent || `지원 내용 정보가 없습니다. ${NO_DATA}`}
+              {decodeHtml(policy.supportDetail || policy.supportContent) || `지원 내용 정보가 없습니다. ${NO_DATA}`}
             </Typography>
 
             <SectionTitle>신청대상</SectionTitle>
             <Divider sx={{ mb: 1.5 }} />
             <Typography variant="body2" sx={{ whiteSpace: "pre-line", lineHeight: 1.8 }}>
-              {policy.targetDetail || `신청 대상 정보가 없습니다. ${NO_DATA}`}
+              {decodeHtml(policy.targetDetail) || `신청 대상 정보가 없습니다. ${NO_DATA}`}
             </Typography>
 
             <SectionTitle>신청방법</SectionTitle>
             <Divider sx={{ mb: 1.5 }} />
             <Typography variant="body2" sx={{ whiteSpace: "pre-line", lineHeight: 1.8 }}>
-              {policy.applyMethodDetail ||
-                policy.applyMethodName ||
+              {decodeHtml(policy.applyMethodDetail || policy.applyMethodName) ||
                 `신청 방법 정보가 없습니다. ${NO_DATA}`}
             </Typography>
 
@@ -393,6 +404,7 @@ export default function PolicyDetailPage() {
       >
         <Alert severity={toast.severity}>{toast.msg}</Alert>
       </Snackbar>
+      <FloatingNav />
     </Box>
   );
 }

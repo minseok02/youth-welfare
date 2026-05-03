@@ -2,6 +2,7 @@ package com.example.welfare.policy.service;
 
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
+import com.example.welfare.global.util.RegionCodeUtil;
 import com.example.welfare.policy.dto.PolicyDetailResponse;
 import com.example.welfare.policy.dto.PolicySummaryResponse;
 import com.example.welfare.policy.entity.ServiceRegion;
@@ -58,13 +59,23 @@ public class PolicyService {
                                                Boolean onlineApply,
                                                String sort,
                                                Pageable pageable) {
+        String normalizedSido = normalizeNullable(sido);
+        String normalizedSgg = normalizeNullable(sgg);
+
+        // 온통청년 데이터는 sido_name/sgg_name이 NULL이고 region_code(5자리)만 저장됨.
+        // RegionCodeUtil로 행정코드를 계산해 JPQL에서 region_code 경로도 함께 조회한다.
+        String sidoCode = RegionCodeUtil.getSidoCode(normalizedSido);       // 예: "서울" → "11"
+        String regionCode = RegionCodeUtil.getRegionCode(normalizedSido, normalizedSgg); // 예: "서울"+"강남구" → "11680"
+
         Page<WelfareService> page = welfareServiceRepository.findListWithFilters(
                 normalizeNullable(category),
                 normalizeSourceType(sourceType),
                 normalizeStatus(status),
-                includeClosed != null && includeClosed,
-                normalizeNullable(sido),
-                normalizeNullable(sgg),
+                (includeClosed != null && includeClosed) ? 1 : 0,
+                normalizedSido,
+                normalizedSgg,
+                sidoCode,
+                regionCode,
                 onlineApply,
                 buildPageable(pageable, sort)
         );

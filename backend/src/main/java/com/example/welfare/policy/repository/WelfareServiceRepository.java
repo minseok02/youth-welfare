@@ -456,8 +456,8 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
             SELECT ws FROM WelfareService ws
             WHERE (
                     (:status IS NULL AND (
-                        (:includeClosed = true AND ws.status IN ('ACTIVE', 'UPCOMING', 'CLOSED'))
-                        OR (:includeClosed = false AND ws.status IN ('ACTIVE', 'UPCOMING'))
+                        (:includeClosed = 1 AND ws.status IN ('ACTIVE', 'UPCOMING', 'CLOSED'))
+                        OR (:includeClosed = 0 AND ws.status IN ('ACTIVE', 'UPCOMING'))
                     ))
                     OR (:status IS NOT NULL AND ws.status = :status)
                   )
@@ -473,8 +473,15 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                     OR EXISTS (
                         SELECT sr2.id FROM ServiceRegion sr2
                         WHERE sr2.service = ws
-                          AND sr2.sidoName = :sido
-                          AND (:sgg IS NULL OR sr2.sggName = :sgg)
+                          AND (
+                              sr2.sidoName = :sido
+                              OR (:sidoCode IS NOT NULL AND sr2.regionCode LIKE CONCAT(:sidoCode, '%'))
+                          )
+                          AND (
+                              :sgg IS NULL
+                              OR sr2.sggName = :sgg
+                              OR (:regionCode IS NOT NULL AND sr2.regionCode = :regionCode)
+                          )
                     )
                   )
             """,
@@ -482,8 +489,8 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
             SELECT COUNT(ws) FROM WelfareService ws
             WHERE (
                     (:status IS NULL AND (
-                        (:includeClosed = true AND ws.status IN ('ACTIVE', 'UPCOMING', 'CLOSED'))
-                        OR (:includeClosed = false AND ws.status IN ('ACTIVE', 'UPCOMING'))
+                        (:includeClosed = 1 AND ws.status IN ('ACTIVE', 'UPCOMING', 'CLOSED'))
+                        OR (:includeClosed = 0 AND ws.status IN ('ACTIVE', 'UPCOMING'))
                     ))
                     OR (:status IS NOT NULL AND ws.status = :status)
                   )
@@ -499,17 +506,28 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                     OR EXISTS (
                         SELECT sr2.id FROM ServiceRegion sr2
                         WHERE sr2.service = ws
-                          AND sr2.sidoName = :sido
-                          AND (:sgg IS NULL OR sr2.sggName = :sgg)
+                          AND (
+                              sr2.sidoName = :sido
+                              OR (:sidoCode IS NOT NULL AND sr2.regionCode LIKE CONCAT(:sidoCode, '%'))
+                          )
+                          AND (
+                              :sgg IS NULL
+                              OR sr2.sggName = :sgg
+                              OR (:regionCode IS NOT NULL AND sr2.regionCode = :regionCode)
+                          )
                     )
                   )
             """)
     Page<WelfareService> findListWithFilters(@Param("category") String category,
                                              @Param("sourceType") WelfareService.SourceType sourceType,
                                              @Param("status") WelfareService.ServiceStatus status,
-                                             @Param("includeClosed") boolean includeClosed,
+                                             @Param("includeClosed") int includeClosed,
                                              @Param("sido") String sido,
                                              @Param("sgg") String sgg,
+                                             // 온통청년 시도 필터: sido 앞 2자리 행정코드 (예: "11"), null이면 regionCode 경로 비활성
+                                             @Param("sidoCode") String sidoCode,
+                                             // 온통청년 시군구 필터: 5자리 행정코드 (예: "11680"), null이면 regionCode 경로 비활성
+                                             @Param("regionCode") String regionCode,
                                              @Param("onlineApply") Boolean onlineApply,
                                              Pageable pageable);
 

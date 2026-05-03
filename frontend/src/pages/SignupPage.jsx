@@ -86,9 +86,11 @@ export default function SignupPage() {
 
   // Step 1
   const [name, setName] = useState("");
+  const [nameError, setNameError] = useState("");
   const [email, setEmail] = useState("");
   const [emailChecked, setEmailChecked] = useState(false);
   const [emailMsg, setEmailMsg] = useState("");
+  const [emailFormatError, setEmailFormatError] = useState("");
   const [pw, setPw] = useState("");
   const [pwConfirm, setPwConfirm] = useState("");
 
@@ -108,13 +110,41 @@ export default function SignupPage() {
   const showToast = (msg, severity = "info") => setToast({ open: true, msg, severity });
 
   // Step 1 검증
+  const nameRegex = /^[가-힣]{2,10}$/;
   const pwValid = pw.length >= 8 && /[a-zA-Z]/.test(pw) && /[0-9]/.test(pw);
   const pwMatch = pw === pwConfirm && pwConfirm.length > 0;
-  const step1Valid = name && emailChecked && emailMsg.includes("가능") && pwValid && pwMatch;
+  const nameValid = nameRegex.test(name);
+  const step1Valid = nameValid && emailChecked && emailMsg.includes("가능") && pwValid && pwMatch;
   const birthDateComplete = birthYear && birthMonth && birthDay;
+
+  const handleNameBlur = () => {
+    if (!name) return;
+    if (!nameRegex.test(name)) {
+      setNameError("이름은 한글 2~10자로 입력해주세요");
+    } else {
+      setNameError("");
+    }
+  };
+
+  const emailRegex1 = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+  const emailRegex2 = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
+  const isValidEmail = (v) => emailRegex1.test(v) && emailRegex2.test(v);
+
+  const handleEmailBlur = () => {
+    if (!email) return;
+    if (!isValidEmail(email)) {
+      setEmailFormatError("올바른 이메일 형식이 아닙니다");
+    } else {
+      setEmailFormatError("");
+    }
+  };
 
   const handleCheckEmail = async () => {
     if (!email) return;
+    if (!isValidEmail(email)) {
+      setEmailFormatError("올바른 이메일 형식이 아닙니다");
+      return;
+    }
     try {
       const { data } = await api.get(`/api/auth/check-email?email=${encodeURIComponent(email)}`);
       const available = data?.data?.available === true;
@@ -213,7 +243,10 @@ export default function SignupPage() {
               <TextField
                 label="이름 *"
                 value={name}
-                onChange={(e) => setName(e.target.value)}
+                onChange={(e) => { setName(e.target.value); setNameError(""); }}
+                onBlur={handleNameBlur}
+                error={!!nameError}
+                helperText={nameError}
                 fullWidth
               />
 
@@ -223,7 +256,10 @@ export default function SignupPage() {
                     label="이메일 *"
                     type="email"
                     value={email}
-                    onChange={(e) => { setEmail(e.target.value); setEmailChecked(false); setEmailMsg(""); }}
+                    onChange={(e) => { setEmail(e.target.value); setEmailChecked(false); setEmailMsg(""); setEmailFormatError(""); }}
+                    onBlur={handleEmailBlur}
+                    error={!!emailFormatError}
+                    helperText={emailFormatError}
                     fullWidth
                   />
                   <Button variant="outlined" onClick={handleCheckEmail} sx={{ minWidth: 90, whiteSpace: "nowrap" }}>

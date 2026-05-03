@@ -12,6 +12,7 @@ import CloseIcon from "@mui/icons-material/Close";
 import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
 import BookmarkIcon from "@mui/icons-material/Bookmark";
 import Header from "../components/Header";
+import FloatingNav from "../components/FloatingNav";
 import api from "../lib/axios";
 import { performServerLogout } from "../lib/session";
 import { useAuthStore } from "../store/authStore";
@@ -36,6 +37,15 @@ const PRIORITY_OPTIONS = [
 ];
 
 const REGIONS = ["서울", "부산", "대구", "인천", "광주", "대전", "울산", "세종", "경기", "강원", "충북", "충남", "전북", "전남", "경북", "경남", "제주"];
+
+const SIDO_TO_REGION = {
+  "서울특별시": "서울", "부산광역시": "부산", "대구광역시": "대구",
+  "인천광역시": "인천", "광주광역시": "광주", "대전광역시": "대전",
+  "울산광역시": "울산", "세종특별자치시": "세종", "경기도": "경기",
+  "강원특별자치도": "강원", "충청북도": "충북", "충청남도": "충남",
+  "전북특별자치도": "전북", "전라남도": "전남", "경상북도": "경북",
+  "경상남도": "경남", "제주특별자치도": "제주",
+};
 
 const DISTRICT_MAP = {
   "서울": ["강남구", "강동구", "강북구", "강서구", "관악구", "광진구", "구로구", "금천구", "노원구", "도봉구", "동대문구", "동작구", "마포구", "서대문구", "서초구", "성동구", "성북구", "송파구", "양천구", "영등포구", "용산구", "은평구", "종로구", "중구", "중랑구"],
@@ -103,13 +113,13 @@ export default function MyPage() {
   const [infoLoading, setInfoLoading] = useState(false);
   const [reloginModal, setReloginModal] = useState(false);
 
-  const completionFields = [myInfo.birthYear, myInfo.region, myInfo.income, myInfo.employ];
-  const completionPct = Math.round((completionFields.filter(Boolean).length / completionFields.length) * 100);
-
   // 우선순위
   const [priorities, setPriorities] = useState([]);
   const [priorityLoading, setPriorityLoading] = useState(false);
   const [dragIdx, setDragIdx] = useState(null);
+
+  const completionFields = [myInfo.birthYear, myInfo.region, myInfo.income, myInfo.employ, priorities.length > 0];
+  const completionPct = Math.round((completionFields.filter(Boolean).length / completionFields.length) * 100);
 
   // 북마크
   const [bookmarks, setBookmarks] = useState([]);
@@ -137,7 +147,7 @@ export default function MyPage() {
           birthYear: bd[0] ?? "",
           birthMonth: bd[1] ? String(parseInt(bd[1])) : "",
           birthDay:   bd[2] ? String(parseInt(bd[2])) : "",
-          region:     p.sido ?? "",
+          region:     SIDO_TO_REGION[p.sido] ?? p.sido ?? "",
           subRegion:  p.sgg ?? "",
           income:     p.incomeLevel != null ? String(p.incomeLevel) : "",
           employ:     p.employmentStatus ?? "",
@@ -316,10 +326,13 @@ export default function MyPage() {
               </Box>
               <LinearProgress variant="determinate" value={completionPct} sx={{ borderRadius: 4, height: 8, mb: 1 }} />
               <Typography variant="caption" color="text.secondary">
-                {[!myInfo.birthYear && "생년월일", !myInfo.region && "주소", !myInfo.income && "소득수준", !myInfo.employ && "취업상태"].filter(Boolean).join(", ")}을(를) 입력하면 더 정확한 추천을 받을 수 있어요
+                {[!myInfo.birthYear && "생년월일", !myInfo.region && "주소", !myInfo.income && "소득수준", !myInfo.employ && "취업상태", priorities.length === 0 && "우선순위"].filter(Boolean).join(", ")}을(를) 입력하면 더 정확한 추천을 받을 수 있어요
               </Typography>
               <Box sx={{ mt: 1 }}>
-                <Button size="small" variant="outlined" onClick={() => setTabValue(0)}>지금 완성하기</Button>
+                <Button size="small" variant="outlined" onClick={() => {
+                  const profileIncomplete = !myInfo.birthYear || !myInfo.region || !myInfo.income || !myInfo.employ;
+                  setTabValue(profileIncomplete ? 0 : 1);
+                }}>지금 완성하기</Button>
               </Box>
             </CardContent>
           </Card>
@@ -748,6 +761,7 @@ export default function MyPage() {
       <Snackbar open={toast.open} autoHideDuration={2500} onClose={() => setToast({ ...toast, open: false })} anchorOrigin={{ vertical: "bottom", horizontal: "center" }}>
         <Alert severity={toast.severity}>{toast.msg}</Alert>
       </Snackbar>
+      <FloatingNav />
     </Box>
   );
 }

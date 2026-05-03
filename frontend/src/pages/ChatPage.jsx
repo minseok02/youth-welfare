@@ -26,6 +26,7 @@ import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import ForumOutlinedIcon from "@mui/icons-material/ForumOutlined";
 import SendRoundedIcon from "@mui/icons-material/SendRounded";
 import Header from "../components/Header";
+import FloatingNav from "../components/FloatingNav";
 import api from "../lib/axios";
 
 const SUGGESTED_PROMPTS = [
@@ -713,6 +714,7 @@ export default function ChatPage() {
           {toast.msg}
         </Alert>
       </Snackbar>
+      <FloatingNav />
     </Box>
   );
 }

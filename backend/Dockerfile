@@ -10,7 +10,7 @@ COPY build.gradle .
 COPY settings.gradle .
 COPY src src
 
-RUN chmod +x gradlew
+RUN sed -i 's/\r//' gradlew && chmod +x gradlew
 RUN --mount=type=cache,target=/root/.gradle \
     ./gradlew bootJar -x test --no-daemon
 
