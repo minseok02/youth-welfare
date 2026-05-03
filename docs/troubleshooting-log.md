@@ -2432,3 +2432,8 @@
 - 문제: `run-local-validation-suite.sh` 가 상위 순서와 quick/full 프로필을 제공해도, 끝났을 때 각 단계가 몇 초 걸렸는지 정보가 없으면 병목이 auth/session 인지 click 인지 replay 인지를 다시 출력 감으로만 추정해야 했다.
 - 해결: wrapper 종료 시 `suite_duration_seconds` 와 `step_duration_seconds=<label>|<seconds>` 요약을 같이 찍도록 보강했다.
 - 이유: 반복 검증 도구는 성공 여부뿐 아니라 비용도 바로 보여줘야 실제 루프 최적화에 쓸 수 있다. 단계별 duration이 있으면 “quick면 충분한지”, “replay가 얼마나 무거운지”를 바로 읽을 수 있다.
+
+## 439) 상위 wrapper가 실패만 전파하고 어느 단계에서 끊겼는지 바로 안 찍어 주면, 긴 로컬 검증 중단 지점을 다시 로그 흐름으로 눈으로 찾아야 한다
+- 문제: `run-local-validation-suite.sh` 는 하위 smoke 실패를 그대로 전파하지만, 실패 시점에 상위 wrapper가 현재 단계명을 별도로 찍지 않으면 긴 출력에서 “auth/session 중이었는지, click이었는지, replay였는지”를 사람이 다시 따라가야 했다.
+- 해결: wrapper에 `CURRENT_STEP_LABEL` 과 `ERR` trap을 넣어 `failed_step=<label>`, `elapsed_before_failure_seconds=<n>` 를 즉시 출력하게 했다.
+- 이유: 상위 오케스트레이터는 성공한 경우 요약만 주는 것으로 끝나면 안 되고, 실패한 경우에도 어디서 끊겼는지 가장 먼저 알려줘야 반복 디버깅 속도가 올라간다.

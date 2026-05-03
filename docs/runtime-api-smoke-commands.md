@@ -105,6 +105,7 @@ VALIDATION_PROFILE=quick deploy/smoke/run-local-validation-suite.sh
 `quick` 은 `auth/session -> recommendation click -> admin dashboard` 까지만 돌고 replay는 건너뜁니다.
 기본 `full` 프로필은 replay까지 포함합니다.
 wrapper 끝에는 `suite_duration_seconds`, `step_duration_seconds=<label>|<seconds>` 형태의 요약이 같이 출력됩니다.
+실패 시에는 `failed_step=<label>`, `elapsed_before_failure_seconds=<n>` 도 같이 출력됩니다.
 
 전제:
 
