@@ -12,10 +12,12 @@ import com.example.welfare.user.repository.AuthUserRepository;
 import com.example.welfare.user.repository.NotificationPiiReadRepository;
 import com.example.welfare.user.repository.NotificationTargetReadModel;
 import com.example.welfare.user.repository.UserAttributeRepository;
+import com.example.welfare.user.repository.UserProfileAggregateReadModel;
 import com.example.welfare.user.repository.UserPiiReadModel;
 import com.example.welfare.user.repository.UserPiiReadWriteRepository;
 import com.example.welfare.user.repository.UserPriorityRepository;
 import com.example.welfare.user.repository.UserProfileRepository;
+import com.example.welfare.user.repository.UserProfileReadRepository;
 import com.example.welfare.user.repository.UserRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -38,6 +40,7 @@ class UserReadServiceTest {
     @Mock private UserRepository userRepository;
     @Mock private AuthUserRepository authUserRepository;
     @Mock private UserProfileRepository userProfileRepository;
+    @Mock private UserProfileReadRepository userProfileReadRepository;
     @Mock private UserPiiReadWriteRepository userPiiReadWriteRepository;
     @Mock private NotificationPiiReadRepository notificationPiiReadRepository;
     @Mock private UserAttributeRepository userAttributeRepository;
@@ -52,6 +55,7 @@ class UserReadServiceTest {
                 userRepository,
                 authUserRepository,
                 userProfileRepository,
+                userProfileReadRepository,
                 userPiiReadWriteRepository,
                 notificationPiiReadRepository,
                 userAttributeRepository,
@@ -73,17 +77,13 @@ class UserReadServiceTest {
 
         when(userKeyLookupService.findRequired(1L)).thenReturn("user-key-1");
         when(authUserRepository.findByUserKey("user-key-1")).thenReturn(Optional.of(authUser));
-        when(userProfileRepository.findByUserKey("user-key-1")).thenReturn(Optional.of(profile));
-        when(userPiiReadWriteRepository.findByUserKey("user-key-1"))
-                .thenReturn(Optional.of(new UserPiiReadModel(
-                        "user-key-1",
-                        "enc-email",
-                        "enc-name",
-                        "enc-birth",
-                        "enc-phone"
+        when(userProfileReadRepository.findProfileAggregateByUserKey("user-key-1"))
+                .thenReturn(Optional.of(new UserProfileAggregateReadModel(
+                        profile,
+                        new UserPiiReadModel("user-key-1", "enc-email", "enc-name", "enc-birth", "enc-phone"),
+                        List.of(),
+                        List.of()
                 )));
-        when(userAttributeRepository.findReadModelsByUserKey("user-key-1")).thenReturn(List.of());
-        when(userPriorityRepository.findReadModelsByUserKey("user-key-1")).thenReturn(List.of());
         when(aesEncryptUtil.decrypt("enc-email")).thenReturn("user@example.com");
         when(aesEncryptUtil.decrypt("enc-name")).thenReturn("홍길동");
         when(aesEncryptUtil.decrypt("enc-birth")).thenReturn("1999-01-10");
@@ -93,7 +93,7 @@ class UserReadServiceTest {
         assertThat(response.getEmail()).isEqualTo("user@example.com");
         assertThat(response.getName()).isEqualTo("홍길동");
         assertThat(response.getBirthDate()).isEqualTo(java.time.LocalDate.of(1999, 1, 10));
-        verify(userPiiReadWriteRepository).findByUserKey("user-key-1");
+        verify(userProfileReadRepository).findProfileAggregateByUserKey("user-key-1");
     }
 
     @Test
@@ -103,6 +103,7 @@ class UserReadServiceTest {
                 userRepository,
                 authUserRepository,
                 userProfileRepository,
+                userProfileReadRepository,
                 userPiiReadWriteRepository,
                 notificationPiiReadRepository,
                 userAttributeRepository,
@@ -158,6 +159,7 @@ class UserReadServiceTest {
                 userRepository,
                 authUserRepository,
                 userProfileRepository,
+                userProfileReadRepository,
                 userPiiReadWriteRepository,
                 notificationPiiReadRepository,
                 userAttributeRepository,
@@ -189,6 +191,7 @@ class UserReadServiceTest {
                 userRepository,
                 authUserRepository,
                 userProfileRepository,
+                userProfileReadRepository,
                 userPiiReadWriteRepository,
                 notificationPiiReadRepository,
                 userAttributeRepository,
@@ -218,6 +221,7 @@ class UserReadServiceTest {
                 userRepository,
                 authUserRepository,
                 userProfileRepository,
+                userProfileReadRepository,
                 userPiiReadWriteRepository,
                 notificationPiiReadRepository,
                 userAttributeRepository,
@@ -272,6 +276,7 @@ class UserReadServiceTest {
                 userRepository,
                 authUserRepository,
                 userProfileRepository,
+                userProfileReadRepository,
                 userPiiReadWriteRepository,
                 notificationPiiReadRepository,
                 userAttributeRepository,
@@ -299,6 +304,7 @@ class UserReadServiceTest {
                 userRepository,
                 authUserRepository,
                 userProfileRepository,
+                userProfileReadRepository,
                 userPiiReadWriteRepository,
                 notificationPiiReadRepository,
                 userAttributeRepository,
@@ -324,6 +330,7 @@ class UserReadServiceTest {
                 userRepository,
                 authUserRepository,
                 userProfileRepository,
+                userProfileReadRepository,
                 userPiiReadWriteRepository,
                 notificationPiiReadRepository,
                 userAttributeRepository,
@@ -352,6 +359,7 @@ class UserReadServiceTest {
                 userRepository,
                 authUserRepository,
                 userProfileRepository,
+                userProfileReadRepository,
                 userPiiReadWriteRepository,
                 notificationPiiReadRepository,
                 userAttributeRepository,

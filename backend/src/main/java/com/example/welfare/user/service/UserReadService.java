@@ -20,6 +20,7 @@ import com.example.welfare.user.repository.UserPiiReadWriteRepository;
 import com.example.welfare.user.repository.UserPriorityReadModel;
 import com.example.welfare.user.repository.UserPriorityRepository;
 import com.example.welfare.user.repository.UserProfileRepository;
+import com.example.welfare.user.repository.UserProfileReadRepository;
 import com.example.welfare.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -39,6 +40,7 @@ public class UserReadService {
     private final UserRepository userRepository;
     private final AuthUserRepository authUserRepository;
     private final UserProfileRepository userProfileRepository;
+    private final UserProfileReadRepository userProfileReadRepository;
     private final UserPiiReadWriteRepository userPiiReadWriteRepository;
     private final NotificationPiiReadRepository notificationPiiReadRepository;
     private final UserAttributeRepository userAttributeRepository;
@@ -49,22 +51,17 @@ public class UserReadService {
     @Transactional(readOnly = true)
     public ProfileResponse getProfile(Long userId) {
         String userKey = resolveActiveUserKey(userId);
-        UserProfile profile = userProfileRepository.findByUserKey(userKey)
+        var aggregate = userProfileReadRepository.findProfileAggregateByUserKey(userKey)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
-        var pii = userPiiReadWriteRepository.findByUserKey(userKey)
-                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
-
-        List<UserAttributeReadModel> attributes = userAttributeRepository.findReadModelsByUserKey(userKey);
-        List<UserPriorityReadModel> priorities = userPriorityRepository.findReadModelsByUserKey(userKey);
 
         return ProfileResponse.of(
                 userId,
-                decryptNullable(pii.emailEnc()),
-                decryptNullable(pii.nameEnc()),
-                parseBirthDate(pii.birthDateEnc()),
-                profile,
-                attributes,
-                priorities
+                decryptNullable(aggregate.pii().emailEnc()),
+                decryptNullable(aggregate.pii().nameEnc()),
+                parseBirthDate(aggregate.pii().birthDateEnc()),
+                aggregate.profile(),
+                aggregate.attributes(),
+                aggregate.priorities()
         );
     }
 

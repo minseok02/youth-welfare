@@ -2686,3 +2686,8 @@
 - 문제: `getRanking(...)` 은 랭킹 대상 정책은 `PolicyRankingReadRepository` 로 읽으면서도, 7일 고유 조회수 집계는 별도 `ServiceViewLogRepository.findUniqueViewCountsSince(...)` 를 직접 호출하고 있었다.
 - 해결: unique view 집계 조회를 `PolicyRankingReadRepository.findUniqueViewCountsSince(...)` 로 이동하고, 랭킹 서비스는 같은 read 경계만 사용하게 정리했다.
 - 이유: 랭킹 계산 서비스는 score 계산과 exploration slot 전략에 집중하고, 랭킹에 필요한 persistence 조합은 같은 read repository 안에 두는 편이 경계가 더 일관된다.
+
+## 490) `UserReadService.getProfile(...)` 가 profile/pii/attribute/priority 저장소를 직접 조합하면, 사용자 프로필 aggregate read 규칙이 service 본문에 묻혀 책임이 너무 넓어진다
+- 문제: 프로필 조회는 `UserProfileRepository`, `UserPiiReadWriteRepository`, `UserAttributeRepository`, `UserPriorityRepository` 를 service 본문에서 직접 호출해 aggregate 를 만들고 있었다.
+- 해결: `UserProfileReadRepository` 와 `UserProfileAggregateReadModel` 을 추가하고, `getProfile(...)` 의 aggregate 조회를 이 read 경계로 이동했다.
+- 이유: 사용자 읽기 서비스는 active user 검증과 응답 조립에 집중하고, 여러 저장소를 묶는 프로필 aggregate read 조합은 별도 read repository 에 두는 편이 SRP와 read 경계 일관성에 낫다.
