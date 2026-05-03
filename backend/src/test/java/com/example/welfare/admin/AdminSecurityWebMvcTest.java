@@ -189,6 +189,8 @@ class AdminSecurityWebMvcTest {
                         new AdminDashboardResponse.NotificationSection(1, 0, 7, 5, 1),
                         new AdminDashboardResponse.SearchSection(4, 7, 12, 2, 7, java.math.BigDecimal.valueOf(5.25), List.of(
                                 new AdminDashboardResponse.SearchKeywordSnapshot("월세", 5)
+                        ), List.of(
+                                new AdminDashboardResponse.SearchKeywordSnapshot("대출", 2)
                         )),
                         new AdminDashboardResponse.UserPiiSyncSection(0, 1, 12, LocalDateTime.of(2026, 5, 2, 9, 30)),
                         new AdminDashboardResponse.TrendSection(
@@ -250,6 +252,7 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.data.trend.recommendation[1].clickThroughRate").value(0.3000))
                 .andExpect(jsonPath("$.data.trend.search[2].zeroResultSearches").value(7))
                 .andExpect(jsonPath("$.data.search.topKeywordsInWindow[0].keyword").value("월세"))
+                .andExpect(jsonPath("$.data.search.zeroResultKeywordsInWindow[0].keyword").value("대출"))
                 .andExpect(jsonPath("$.data.userPiiSync.failedCount").value(1));
 
         then(adminDashboardService).should().getSummary(
@@ -289,7 +292,7 @@ class AdminSecurityWebMvcTest {
                                 List.of()
                         ),
                         new AdminDashboardResponse.NotificationSection(0, 0, 14, 0, 0),
-                        new AdminDashboardResponse.SearchSection(0, 14, 0, 0, 0, java.math.BigDecimal.ZERO, List.of()),
+                        new AdminDashboardResponse.SearchSection(0, 14, 0, 0, 0, java.math.BigDecimal.ZERO, List.of(), List.of()),
                         new AdminDashboardResponse.UserPiiSyncSection(0, 0, 0, null),
                         new AdminDashboardResponse.TrendSection(
                                 List.of(

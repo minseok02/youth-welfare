@@ -94,7 +94,8 @@ public record AdminDashboardResponse(
             long zeroResultSearchesInWindow,
             long uniqueFingerprintsInWindow,
             BigDecimal averageResultCountInWindow,
-            List<SearchKeywordSnapshot> topKeywordsInWindow
+            List<SearchKeywordSnapshot> topKeywordsInWindow,
+            List<SearchKeywordSnapshot> zeroResultKeywordsInWindow
     ) {
     }
 

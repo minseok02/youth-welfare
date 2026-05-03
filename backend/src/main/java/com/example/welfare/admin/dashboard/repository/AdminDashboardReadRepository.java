@@ -258,6 +258,27 @@ public class AdminDashboardReadRepository {
         );
     }
 
+    public List<SearchKeywordSnapshotRow> fetchTopZeroResultSearchKeywords(LocalDateTime weekAgo) {
+        return jdbcTemplate.query("""
+                select keyword,
+                       count(*) as search_count
+                  from search_logs
+                 where searched_at >= :weekAgo
+                   and result_count = 0
+                   and keyword is not null
+                   and trim(keyword) <> ''
+              group by keyword
+              order by search_count desc, keyword asc
+                 limit %d
+                """.formatted(DEFAULT_TOP_KEYWORD_LIMIT),
+                new MapSqlParameterSource("weekAgo", weekAgo),
+                (rs, rowNum) -> new SearchKeywordSnapshotRow(
+                        rs.getString("keyword"),
+                        rs.getLong("search_count")
+                )
+        );
+    }
+
     private LocalDateTime getLocalDateTime(ResultSet rs, String columnName) throws SQLException {
         java.sql.Timestamp timestamp = rs.getTimestamp(columnName);
         return timestamp != null ? timestamp.toLocalDateTime() : null;
