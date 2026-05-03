@@ -17,7 +17,7 @@ import com.example.welfare.recommend.controller.RecommendationController;
 import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
 import com.example.welfare.recommend.entity.UserRecommendation;
 import com.example.welfare.recommend.facade.RecommendationFacade;
-import com.example.welfare.recommend.repository.CanonicalRecommendationReadModelRepository;
+import com.example.welfare.recommend.facade.RecommendationReadFacade;
 import com.example.welfare.recommend.service.RecommendationLogService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -68,7 +68,7 @@ class RecommendationPolicyFlowWebMvcTest {
     @MockBean
     private RecommendationLogService recommendationLogService;
     @MockBean
-    private CanonicalRecommendationReadModelRepository canonicalRecommendationReadModelRepository;
+    private RecommendationReadFacade recommendationReadFacade;
     @MockBean
     private PolicyViewLogService policyViewLogService;
     @MockBean
@@ -123,7 +123,7 @@ class RecommendationPolicyFlowWebMvcTest {
         given(recommendationFacade.recommend(isNull(), eq(false))).willReturn(List.of(recommendation));
         given(recommendationLogService.findLatestLogIdMap(isNull(), org.mockito.ArgumentMatchers.anyList()))
                 .willReturn(java.util.Map.of(11L, 9001L));
-        given(canonicalRecommendationReadModelRepository.findByServiceIds(org.mockito.ArgumentMatchers.anyList()))
+        given(recommendationReadFacade.findCandidateProjections(org.mockito.ArgumentMatchers.anyList()))
                 .willReturn(java.util.Map.of(
                         11L,
                         RecommendationCandidateProjection.builder()
@@ -227,7 +227,7 @@ class RecommendationPolicyFlowWebMvcTest {
         given(recommendationFacade.getRecommendations(isNull(), eq(10))).willReturn(List.of(recommendation));
         given(recommendationLogService.findLatestLogIdMap(isNull(), org.mockito.ArgumentMatchers.anyList()))
                 .willReturn(java.util.Map.of(11L, 9001L));
-        given(canonicalRecommendationReadModelRepository.findByServiceIds(org.mockito.ArgumentMatchers.anyList()))
+        given(recommendationReadFacade.findCandidateProjections(org.mockito.ArgumentMatchers.anyList()))
                 .willReturn(java.util.Map.of(
                         11L,
                         RecommendationCandidateProjection.builder()

@@ -2,11 +2,11 @@ package com.example.welfare.recommend.controller;
 
 import com.example.welfare.global.auth.AuthenticatedUser;
 import com.example.welfare.global.response.ApiResponse;
-import com.example.welfare.recommend.dto.RecommendationResponse;
 import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
+import com.example.welfare.recommend.dto.RecommendationResponse;
 import com.example.welfare.recommend.entity.UserRecommendation;
 import com.example.welfare.recommend.facade.RecommendationFacade;
-import com.example.welfare.recommend.repository.CanonicalRecommendationReadModelRepository;
+import com.example.welfare.recommend.facade.RecommendationReadFacade;
 import com.example.welfare.recommend.service.RecommendationLogService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -23,8 +23,8 @@ import java.util.stream.Collectors;
 public class RecommendationController {
 
     private final RecommendationFacade recommendationFacade;
+    private final RecommendationReadFacade recommendationReadFacade;
     private final RecommendationLogService recommendationLogService;
-    private final CanonicalRecommendationReadModelRepository canonicalRecommendationReadModelRepository;
 
     // 추천 목록 조회 (저장된 결과 반환 — 실시간 AI 추가 호출 없음)
     @GetMapping
@@ -71,11 +71,8 @@ public class RecommendationController {
 
     private List<RecommendationResponse> toResponses(List<UserRecommendation> recs,
                                                      Map<Long, Long> serviceLogMap) {
-        List<Long> serviceIds = recs.stream()
-                .map(rec -> rec.getService().getId())
-                .toList();
         Map<Long, RecommendationCandidateProjection> projections =
-                canonicalRecommendationReadModelRepository.findByServiceIds(serviceIds);
+                recommendationReadFacade.findCandidateProjections(recs);
 
         return recs.stream()
                 .map(rec -> RecommendationResponse.from(
