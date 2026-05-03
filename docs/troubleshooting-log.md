@@ -2696,3 +2696,8 @@
 - 문제: 추천 snapshot 조회는 `UserProfileRepository`, `UserAttributeRepository`, `UserPriorityRepository` 를 service 본문에서 직접 호출해 `RecommendationUserSnapshot` 입력 aggregate 를 조합하고 있었다.
 - 해결: `RecommendationUserReadRepository` 와 `RecommendationUserReadModel` 을 추가하고, `getRecommendationContext(...)` 의 추천용 aggregate 조회를 이 read 경계로 이동했다.
 - 이유: 사용자 읽기 서비스는 active user 검증과 snapshot 조립에 집중하고, 추천용 profile/attribute/priority read 조합은 별도 repository 로 내려야 read 경계가 더 일관되고 테스트도 단순해진다.
+
+## 492) `UserPiiBackfillService` 가 missing state 조회와 legacy source 조회를 서로 다른 저장소에서 직접 조합하면, PII 백필 read 규칙이 service 본문에 남아 책임이 다시 넓어진다
+- 문제: 백필 서비스는 `UserPiiReadWriteRepository.findMissingEncryptedFields()` 와 `UserRepository.findPiiBackfillSourcesByUserKeys(...)` 를 직접 묶어 state/source 조합을 만들고 있었다.
+- 해결: `UserPiiBackfillReadRepository` 를 추가하고, missing state 조회와 legacy source lookup 을 이 read 경계로 이동했다.
+- 이유: PII 백필 서비스는 암호화/backfill 정책과 결과 집계에 집중하고, 여러 저장소를 묶는 read 조합은 별도 repository 로 내리는 편이 user backfill 경계를 더 일관되게 유지한다.
