@@ -1109,6 +1109,7 @@ cd backend
 - wrapper 종료 시 `suite_duration_seconds`, `step_duration_seconds=...` 로 단계별 소요 시간도 같이 확인
 - wrapper 실패 시 `failed_step`, `elapsed_before_failure_seconds` 로 중단 지점 즉시 확인
 - wrapper 실행 전 `--print-plan`, `--help` 로 현재 프로필/override 계획 확인 가능
+- `--quick`, `--full`, `--skip-replay` CLI shortcut 지원
 
 ## 2차로 분리된 항목
 
