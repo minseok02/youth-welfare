@@ -2636,3 +2636,8 @@
 - 문제: `PolicyService.getDetail(...)` 는 `WelfareServiceRepository.findById(...)`, `WelfareServiceDetailRepository.findByServiceId(...)`, `ServiceRegionRepository.findByServiceId(...)`, `ServiceTagRepository.findByServiceId(...)` 를 한 메서드 안에서 직접 호출하고 있었다.
 - 해결: 정책 엔티티 조회는 `PolicyLookupService`, 상세/지역/태그 묶음 조회는 `PolicyDetailReadService.getAggregate(...)` 로 이동했다.
 - 이유: `PolicyService` 는 상세 응답 orchestration과 bookmark/projection 결합만 맡고, detail aggregate read 구현은 별도 read 서비스에 두는 편이 책임 분리가 더 선명하다.
+
+## 480) `RetrievalService` 가 canonical recommendation read-model 저장소를 직접 조회하면, 추천 후보 조회 서비스가 projection 저장 구조까지 같이 떠안는다
+- 문제: base/latest 후보를 고른 뒤 `CanonicalRecommendationReadModelRepository.findByServiceIds(...)` 로 projection map 을 직접 조회하고 있었다. 이 상태에서는 retrieval 서비스가 후보 조회 조건뿐 아니라 canonical projection read-model 선택까지 알아야 한다.
+- 해결: `RecommendationReadFacade.findCandidateProjectionsByServiceIds(...)` 를 추가하고, `RetrievalService` 는 service id 목록만 넘겨 projection map 을 받도록 정리했다.
+- 이유: retrieval 은 후보 selection/filtering 에 집중하고, canonical projection 조회 규칙은 recommendation read 경계에 모으는 편이 projection 저장 구조 변경의 파급을 줄인다.

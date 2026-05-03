@@ -116,6 +116,29 @@ class RecommendationReadFacadeTest {
     }
 
     @Test
+    @DisplayName("service id projection 조회는 canonical read model 저장소에 위임한다")
+    void findCandidateProjectionsByServiceIdsDelegatesToCanonicalReadModelRepository() {
+        RecommendationReadFacade facade = new RecommendationReadFacade(
+                userRecommendationRepository,
+                canonicalRecommendationReadModelRepository,
+                userKeyLookupService
+        );
+        RecommendationCandidateProjection projection = RecommendationCandidateProjection.builder()
+                .serviceId(11L)
+                .unifiedCategoryCompat("주거")
+                .build();
+
+        when(canonicalRecommendationReadModelRepository.findByServiceIds(List.of(11L)))
+                .thenReturn(Map.of(11L, projection));
+
+        Map<Long, RecommendationCandidateProjection> result =
+                facade.findCandidateProjectionsByServiceIds(List.of(11L));
+
+        assertThat(result).containsEntry(11L, projection);
+        verify(canonicalRecommendationReadModelRepository).findByServiceIds(List.of(11L));
+    }
+
+    @Test
     @DisplayName("북마크 정책 요약 조회는 recommendation read 경계 안에서 summary 응답으로 조립한다")
     void findBookmarkedPolicySummariesReturnsPolicySummaries() {
         RecommendationReadFacade facade = new RecommendationReadFacade(

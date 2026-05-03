@@ -8,7 +8,7 @@ import com.example.welfare.recommend.repository.RecommendationCandidateReadRepos
 import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
 import com.example.welfare.recommend.dto.RetrievedRecommendationCandidates;
 import com.example.welfare.recommend.dto.RecommendationUserSnapshot;
-import com.example.welfare.recommend.repository.CanonicalRecommendationReadModelRepository;
+import com.example.welfare.recommend.facade.RecommendationReadFacade;
 import com.example.welfare.recommend.support.RecommendationYouthRelevanceSupport;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
@@ -39,7 +39,7 @@ public class RetrievalService {
     private final RecommendationCandidateReadRepository recommendationCandidateReadRepository;
     private final ServiceTagRepository serviceTagRepository;
     private final RecommendationYouthRelevanceSupport recommendationYouthRelevanceSupport;
-    private final CanonicalRecommendationReadModelRepository canonicalRecommendationReadModelRepository;
+    private final RecommendationReadFacade recommendationReadFacade;
 
     @Transactional(readOnly = true)
     public RetrievedRecommendationCandidates retrieve(String clusterId, RecommendationUserSnapshot user) {
@@ -125,7 +125,7 @@ public class RetrievalService {
         latestCandidates.stream()
                 .map(WelfareService::getId)
                 .forEach(serviceIds::add);
-        return canonicalRecommendationReadModelRepository.findByServiceIds(List.copyOf(serviceIds));
+        return recommendationReadFacade.findCandidateProjectionsByServiceIds(List.copyOf(serviceIds));
     }
 
     private boolean isPrimaryAudienceRelevant(WelfareService service,

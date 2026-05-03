@@ -47,7 +47,7 @@ public class RecommendationReadFacade {
         List<Long> serviceIds = recommendations.stream()
                 .map(rec -> rec.getService().getId())
                 .toList();
-        return canonicalRecommendationReadModelRepository.findByServiceIds(serviceIds);
+        return findCandidateProjectionsByServiceIds(serviceIds);
     }
 
     public Map<Long, RecommendationCandidateProjection> findCandidateProjectionsByServices(List<WelfareService> services) {
@@ -57,6 +57,13 @@ public class RecommendationReadFacade {
         List<Long> serviceIds = services.stream()
                 .map(WelfareService::getId)
                 .toList();
+        return findCandidateProjectionsByServiceIds(serviceIds);
+    }
+
+    public Map<Long, RecommendationCandidateProjection> findCandidateProjectionsByServiceIds(List<Long> serviceIds) {
+        if (serviceIds == null || serviceIds.isEmpty()) {
+            return Map.of();
+        }
         return canonicalRecommendationReadModelRepository.findByServiceIds(serviceIds);
     }
 

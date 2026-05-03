@@ -1206,6 +1206,7 @@ cd backend
 - policy 목록/검색 서비스는 canonical projection read-model을 직접 조회하지 않고 `RecommendationReadFacade` 를 통해 summary projection 을 받도록 정리
 - policy ranking 서비스도 canonical projection read-model 직접 조회를 제거하고 `RecommendationReadFacade` 로 summary projection 을 받도록 정리
 - `PolicyService.getDetail(...)` 의 상세/지역/태그 조회는 `PolicyDetailReadService` 로 분리해 서비스 본문이 detail aggregate orchestration만 하도록 정리
+- `RetrievalService` 도 canonical projection read-model 직접 조회를 제거하고 `RecommendationReadFacade` 를 통해 projection map 을 받도록 정리
 
 ## 2차로 분리된 항목
 
