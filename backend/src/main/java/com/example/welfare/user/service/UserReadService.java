@@ -14,11 +14,9 @@ import com.example.welfare.user.entity.UserProfile;
 import com.example.welfare.user.repository.AuthUserRepository;
 import com.example.welfare.user.repository.NotificationTargetReadModel;
 import com.example.welfare.user.repository.NotificationPiiReadRepository;
+import com.example.welfare.user.repository.RecommendationUserReadRepository;
 import com.example.welfare.user.repository.UserAttributeReadModel;
-import com.example.welfare.user.repository.UserAttributeRepository;
 import com.example.welfare.user.repository.UserPiiReadWriteRepository;
-import com.example.welfare.user.repository.UserPriorityReadModel;
-import com.example.welfare.user.repository.UserPriorityRepository;
 import com.example.welfare.user.repository.UserProfileRepository;
 import com.example.welfare.user.repository.UserProfileReadRepository;
 import com.example.welfare.user.repository.UserRepository;
@@ -41,10 +39,9 @@ public class UserReadService {
     private final AuthUserRepository authUserRepository;
     private final UserProfileRepository userProfileRepository;
     private final UserProfileReadRepository userProfileReadRepository;
+    private final RecommendationUserReadRepository recommendationUserReadRepository;
     private final UserPiiReadWriteRepository userPiiReadWriteRepository;
     private final NotificationPiiReadRepository notificationPiiReadRepository;
-    private final UserAttributeRepository userAttributeRepository;
-    private final UserPriorityRepository userPriorityRepository;
     private final AesEncryptUtil aesEncryptUtil;
     private final UserKeyLookupService userKeyLookupService;
 
@@ -104,18 +101,18 @@ public class UserReadService {
         ActiveUserContext activeUserContext = getActiveUserContext(userId);
         User user = activeUserContext.user();
         String userKey = resolveActiveUserKey(activeUserContext.userKey());
-        UserProfile profile = userProfileRepository.findByUserKey(userKey)
+        var aggregate = recommendationUserReadRepository.findByUserKey(userKey)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
-        List<UserAttributeReadModel> attributes = userAttributeRepository.findReadModelsByUserKey(userKey);
-        List<String> interestFields = attributes.stream()
+        UserProfile profile = aggregate.profile();
+        List<String> interestFields = aggregate.attributes().stream()
                 .filter(attr -> UserAttribute.AttrType.INTEREST_FIELD.name().equals(attr.getAttrType()))
                 .map(UserAttributeReadModel::getAttrValue)
                 .toList();
-        List<String> targetTypes = attributes.stream()
+        List<String> targetTypes = aggregate.attributes().stream()
                 .filter(attr -> UserAttribute.AttrType.TARGET_TYPE.name().equals(attr.getAttrType()))
                 .map(UserAttributeReadModel::getAttrValue)
                 .toList();
-        List<PriorityPreference> priorities = userPriorityRepository.findReadModelsByUserKey(userKey).stream()
+        List<PriorityPreference> priorities = aggregate.priorities().stream()
                 .map(priority -> new PriorityPreference(priority.getPriorityRank(), priority.getCode(), priority.getWeight()))
                 .toList();
 

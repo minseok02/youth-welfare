@@ -2691,3 +2691,8 @@
 - 문제: 프로필 조회는 `UserProfileRepository`, `UserPiiReadWriteRepository`, `UserAttributeRepository`, `UserPriorityRepository` 를 service 본문에서 직접 호출해 aggregate 를 만들고 있었다.
 - 해결: `UserProfileReadRepository` 와 `UserProfileAggregateReadModel` 을 추가하고, `getProfile(...)` 의 aggregate 조회를 이 read 경계로 이동했다.
 - 이유: 사용자 읽기 서비스는 active user 검증과 응답 조립에 집중하고, 여러 저장소를 묶는 프로필 aggregate read 조합은 별도 read repository 에 두는 편이 SRP와 read 경계 일관성에 낫다.
+
+## 491) `UserReadService.getRecommendationContext(...)` 가 profile/attribute/priority 저장소를 직접 조합하면, 추천용 사용자 snapshot read 규칙도 service 본문에 묻혀 read 결합이 다시 넓어진다
+- 문제: 추천 snapshot 조회는 `UserProfileRepository`, `UserAttributeRepository`, `UserPriorityRepository` 를 service 본문에서 직접 호출해 `RecommendationUserSnapshot` 입력 aggregate 를 조합하고 있었다.
+- 해결: `RecommendationUserReadRepository` 와 `RecommendationUserReadModel` 을 추가하고, `getRecommendationContext(...)` 의 추천용 aggregate 조회를 이 read 경계로 이동했다.
+- 이유: 사용자 읽기 서비스는 active user 검증과 snapshot 조립에 집중하고, 추천용 profile/attribute/priority read 조합은 별도 repository 로 내려야 read 경계가 더 일관되고 테스트도 단순해진다.
