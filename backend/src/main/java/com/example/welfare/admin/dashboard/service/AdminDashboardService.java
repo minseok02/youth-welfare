@@ -5,7 +5,7 @@ import com.example.welfare.admin.dashboard.dto.AdminSearchFailureResponse;
 import com.example.welfare.admin.dashboard.dto.AdminRecommendationBreakdownResponse;
 import com.example.welfare.admin.dashboard.dto.AdminDashboardResponse;
 import com.example.welfare.collect.entity.ApiSyncLog;
-import com.example.welfare.collect.gateway.BokjiroLocalClient;
+import com.example.welfare.collect.service.CollectRuntimeStatusService;
 import com.example.welfare.admin.dashboard.repository.AdminDashboardReadRepository;
 import com.example.welfare.recommend.entity.ScoreWeight;
 import com.example.welfare.recommend.service.ScoreWeightService;
@@ -44,7 +44,7 @@ public class AdminDashboardService {
     private final AdminDashboardReadRepository adminDashboardReadRepository;
     private final UserPiiSyncStatusService userPiiSyncStatusService;
     private final ScoreWeightService scoreWeightService;
-    private final BokjiroLocalClient bokjiroLocalClient;
+    private final CollectRuntimeStatusService collectRuntimeStatusService;
 
     public AdminDashboardResponse getSummary() {
         return getSummary(null, null);
@@ -401,7 +401,9 @@ public class AdminDashboardService {
                                 row.failedCount()
                         ))
                         .toList(),
-                List.of(toCircuitStatus("BOKJIRO_LOCAL", bokjiroLocalClient.getRateLimitCircuitStatus()))
+                collectRuntimeStatusService.getCircuitStatuses().stream()
+                        .map(this::toCircuitStatus)
+                        .toList()
         );
     }
 
@@ -454,11 +456,10 @@ public class AdminDashboardService {
     }
 
     private AdminCollectFailureResponse.CircuitStatus toCircuitStatus(
-            String circuitKey,
-            BokjiroLocalClient.RateLimitCircuitStatus status
+            CollectRuntimeStatusService.CircuitStatusSnapshot status
     ) {
         return new AdminCollectFailureResponse.CircuitStatus(
-                circuitKey,
+                status.circuitKey(),
                 status.open(),
                 status.remainingMs(),
                 status.openUntil()
