@@ -30,13 +30,13 @@ class RecommendationRefreshCacheServiceTest {
     @BeforeEach
     void setUp() {
         lenient().when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        cacheService = new RecommendationRefreshCacheService(redisTemplate, 15);
+        cacheService = new RecommendationRefreshCacheService(redisTemplate, 15, false);
     }
 
     @Test
     @DisplayName("userKey 마커가 있으면 refresh 결과를 재사용할 수 있다")
     void canReuseReturnsTrueWhenMarkerExists() {
-        when(redisTemplate.hasKey("recommend:refresh:user:user-key-1")).thenReturn(true);
+        when(redisTemplate.hasKey("recommend:refresh:user:user-key-1:education-bonus:false")).thenReturn(true);
 
         assertThat(cacheService.canReuse("user-key-1")).isTrue();
     }
@@ -46,7 +46,7 @@ class RecommendationRefreshCacheServiceTest {
     void markReusableStoresTtlMarker() {
         cacheService.markReusable("user-key-1");
 
-        verify(valueOperations).set("recommend:refresh:user:user-key-1", "1", 15, TimeUnit.MINUTES);
+        verify(valueOperations).set("recommend:refresh:user:user-key-1:education-bonus:false", "1", 15, TimeUnit.MINUTES);
     }
 
     @Test
@@ -54,6 +54,16 @@ class RecommendationRefreshCacheServiceTest {
     void evictDeletesMarker() {
         cacheService.evict("user-key-1");
 
-        verify(redisTemplate).delete("recommend:refresh:user:user-key-1");
+        verify(redisTemplate).delete("recommend:refresh:user:user-key-1:education-bonus:false");
+    }
+
+    @Test
+    @DisplayName("refresh 마커 key 는 추천 규칙 플래그 버전을 포함한다")
+    void cacheKeyIncludesRecommendationRuleVersion() {
+        RecommendationRefreshCacheService enabledCacheService =
+                new RecommendationRefreshCacheService(redisTemplate, 15, true);
+
+        assertThat(enabledCacheService.cacheKey("user-key-1"))
+                .isEqualTo("recommend:refresh:user:user-key-1:education-bonus:true");
     }
 }

@@ -20,13 +20,16 @@ public class RecommendationRefreshCacheService {
 
     private final RedisTemplate<String, String> redisTemplate;
     private final long ttlMinutes;
+    private final boolean educationCanonicalBonusEnabled;
 
     public RecommendationRefreshCacheService(
             RedisTemplate<String, String> redisTemplate,
-            @Value("${recommend.refresh-cache-ttl-minutes:15}") long ttlMinutes
+            @Value("${recommend.refresh-cache-ttl-minutes:15}") long ttlMinutes,
+            @Value("${recommend.priority.education-canonical-bonus.enabled:false}") boolean educationCanonicalBonusEnabled
     ) {
         this.redisTemplate = redisTemplate;
         this.ttlMinutes = ttlMinutes;
+        this.educationCanonicalBonusEnabled = educationCanonicalBonusEnabled;
     }
 
     public boolean canReuse(String userKey) {
@@ -56,6 +59,6 @@ public class RecommendationRefreshCacheService {
     }
 
     String cacheKey(String userKey) {
-        return REFRESH_CACHE_PREFIX + userKey;
+        return REFRESH_CACHE_PREFIX + userKey + ":education-bonus:" + educationCanonicalBonusEnabled;
     }
 }
