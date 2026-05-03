@@ -1,6 +1,7 @@
 # 구현 현황
 
 - 2026-05-03: collect 실검증을 다시 돌려 `YOUTH`, `BOKJIRO_CENTRAL`, `BOKJIRO_LOCAL`, `bokjiro-details-gap-fill` 이 모두 현재 `main` 기준에서 정상 완료되는 것을 확인했다. 다만 replay smoke는 최신 collect snapshot에서 sample A가 OFF 단계부터 이미 `A_best_target_rank=2`, `A_top10_target=5` 로 충분히 높은 포화 상태인데도 “ON에서 추가 개선”만 요구해 거짓 실패가 났다. `run-local-education-priority-replay.sh` gate를 보정해, sample A가 이미 강한 visibility(`best_target_rank<=2` 또는 `top10_target_count>=5`)면 OFF/ON이 동일해도 pass 하도록 정리했다.
+- 2026-05-03: `ClusterService` 를 다시 `youth_all` 고정으로 맞췄다. 문서는 이미 1차 운영 기준을 “단일 군집 + 개인 캐시 우선”으로 보고 있었는데, 코드엔 예전 2D 군집화(나이대×소득분위)가 남아 있어 문서와 실제 동작이 어긋나 있었다. 현재 규모에서는 군집 hit-rate보다 개인 캐시가 더 타당하므로, 2D 군집은 2차 확장 포인트로만 남기고 `ClusterServiceTest` 로 단일 군집 계약을 고정했다.
 - 2026-05-03: 개인 추천 refresh 캐시 도입 직후 replay smoke가 `A_top10_target=5->5` 로 무너진 원인은 explicit refresh 자체가 아니라 cache key가 `userKey` 만 보고 있었기 때문이었다. `RecommendationRefreshCacheService` key에 `educationCanonicalBonusEnabled` 규칙 버전을 같이 넣어, replay OFF/ON phase처럼 앱 재기동으로 추천 규칙 플래그가 바뀌는 경우에는 서로 다른 refresh 마커를 사용하도록 보정했다. 그 뒤 `run-local-education-priority-replay.sh` 기준선도 다시 `A_top10_target=5->8`, `A_best_target_rank=3->1` 로 복구됐다.
 - 2026-05-03: `RecommendationRefreshCacheService` 를 추가해 `userKey` 기준 개인 추천 refresh 캐시를 1차 구현했다. 현재 캐시는 추천 payload 전체가 아니라 `non-personal refresh` 완료 마커만 Redis에 짧은 TTL로 저장하고, cache hit 시에도 실제 추천 row 는 계속 `user_recommendations` 에서 읽는다. `personal=true` refresh 는 항상 실계산하며, `updateProfile`, `updatePriorities`, `withdraw` 시점에는 마커를 즉시 비운다.
 - 2026-05-03: 제품 포지셔닝을 `청년정책 통합포털 + 개인화 추천` 으로 다시 명시했다. 추천 재사용 전략도 군집 캐시보다 `userKey` 기준 개인 캐시를 우선 검토하고, 나이대×소득분위 군집 캐시는 실제 사용자 수와 요청 패턴이 충분히 커졌을 때만 재검토하는 방향으로 문서 기준선을 맞췄다.
@@ -757,7 +758,8 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 
 ### 진행 예정
 
-- [ ] recommendation/policy 경로의 남은 source 특례(`cluster cache path의 legacy category 의존`, canonical major bridge 실험 정책) 축소
+- [x] recommendation/policy 경로의 남은 source 특례(`cluster cache path의 legacy category 의존`, canonical major bridge 실험 정책) 축소
+  - `compat/priority` 의미는 projection 단계로 수렴했고, 1차 운영 군집은 `ClusterService -> youth_all` 고정으로 되돌려 문서/코드 mismatch를 제거
 - [ ] 운영 서버 Docker Compose 기동
 - [ ] 기존 운영 DB에 `app_core_rw` / `app_pii_rw` / `notification_pii_ro` / `migration_admin` 계정 생성 및 앱 datasource 전환
 - [ ] 운영 `.env` / secret store의 `APP_PII_DB_URL` / `NOTIFICATION_PII_DB_URL` 를 `youth_welfare_pii` schema 기준으로 전환
