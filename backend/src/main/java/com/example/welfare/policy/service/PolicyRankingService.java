@@ -3,7 +3,6 @@ package com.example.welfare.policy.service;
 import com.example.welfare.policy.dto.PolicyRankingResponse;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.repository.PolicyRankingReadRepository;
-import com.example.welfare.policy.repository.ServiceViewLogRepository;
 import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
 import com.example.welfare.recommend.facade.RecommendationReadFacade;
 import lombok.RequiredArgsConstructor;
@@ -32,7 +31,6 @@ public class PolicyRankingService {
     private static final int EXPLORE_WINDOW_DAYS = 14;
 
     private final PolicyRankingReadRepository policyRankingReadRepository;
-    private final ServiceViewLogRepository serviceViewLogRepository;
     private final RecommendationReadFacade recommendationReadFacade;
 
     @Transactional(readOnly = true)
@@ -45,10 +43,10 @@ public class PolicyRankingService {
                 .map(WelfareService::getId)
                 .toList();
         LocalDateTime uniqueCutoff = LocalDateTime.now().minusDays(UNIQUE_VIEW_WINDOW_DAYS);
-        Map<Long, Long> uniqueViewsByServiceId = serviceViewLogRepository.findUniqueViewCountsSince(serviceIds, uniqueCutoff)
+        Map<Long, Long> uniqueViewsByServiceId = policyRankingReadRepository.findUniqueViewCountsSince(serviceIds, uniqueCutoff)
                 .stream()
                 .collect(Collectors.toMap(
-                        ServiceViewLogRepository.ServiceUniqueViewCount::getServiceId,
+                        PolicyRankingReadRepository.ServiceUniqueViewCount::getServiceId,
                         row -> safeLong(row.getUniqueViewCount())
                 ));
         Map<Long, RecommendationCandidateProjection> projections =

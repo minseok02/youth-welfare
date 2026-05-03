@@ -3,7 +3,6 @@ package com.example.welfare.policy.service;
 import com.example.welfare.policy.dto.PolicyRankingResponse;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.repository.PolicyRankingReadRepository;
-import com.example.welfare.policy.repository.ServiceViewLogRepository;
 import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
 import com.example.welfare.recommend.facade.RecommendationReadFacade;
 import org.junit.jupiter.api.DisplayName;
@@ -27,8 +26,6 @@ class PolicyRankingServiceTest {
     @Mock
     private PolicyRankingReadRepository policyRankingReadRepository;
     @Mock
-    private ServiceViewLogRepository serviceViewLogRepository;
-    @Mock
     private RecommendationReadFacade recommendationReadFacade;
 
     @InjectMocks
@@ -49,7 +46,7 @@ class PolicyRankingServiceTest {
                 .build();
 
         given(policyRankingReadRepository.findRankableServices()).willReturn(List.of(service));
-        given(serviceViewLogRepository.findUniqueViewCountsSince(anyCollection(), any()))
+        given(policyRankingReadRepository.findUniqueViewCountsSince(anyCollection(), any()))
                 .willReturn(List.of(uniqueCount(1L, 7L)));
         given(recommendationReadFacade.findCandidateProjectionsByServices(List.of(service)))
                 .willReturn(java.util.Map.of(
@@ -118,7 +115,7 @@ class PolicyRankingServiceTest {
 
         List<WelfareService> services = List.of(oldHighScore, oldLowScore, recentNew);
         given(policyRankingReadRepository.findRankableServices()).willReturn(services);
-        given(serviceViewLogRepository.findUniqueViewCountsSince(anyCollection(), any()))
+        given(policyRankingReadRepository.findUniqueViewCountsSince(anyCollection(), any()))
                 .willReturn(List.of(
                         uniqueCount(1L, 50L),
                         uniqueCount(2L, 1L),
@@ -135,8 +132,8 @@ class PolicyRankingServiceTest {
         assertEquals(true, ids.contains(3L));
     }
 
-    private ServiceViewLogRepository.ServiceUniqueViewCount uniqueCount(Long serviceId, Long uniqueCount) {
-        return new ServiceViewLogRepository.ServiceUniqueViewCount() {
+    private PolicyRankingReadRepository.ServiceUniqueViewCount uniqueCount(Long serviceId, Long uniqueCount) {
+        return new PolicyRankingReadRepository.ServiceUniqueViewCount() {
             @Override
             public Long getServiceId() {
                 return serviceId;

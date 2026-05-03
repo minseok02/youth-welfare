@@ -2681,3 +2681,8 @@
 - 문제: 상태 집계(count/oldest/latest/failed samples)와 replay 대상 조회(failed 우선, pending 보충)를 각 서비스가 저장소 질의 형태로 직접 알고 있었다.
 - 해결: `UserPiiSyncQueueService` 에 count/status snapshot/failed sample/replay user key 조회 메서드를 추가하고, status/replay 서비스는 이 경계로만 읽게 정리했다.
 - 이유: queue row 생성뿐 아니라 queue 상태 read 정책도 같은 service 경계에 모아야 user pii sync 흐름의 저장소 접근 규칙을 한 곳에서 유지하기 쉽다.
+
+## 489) `PolicyRankingService` 가 rankable policy 목록은 read repository를 쓰면서 unique view 집계는 `ServiceViewLogRepository` 를 직접 보면, 랭킹 read 경계가 절반만 묶인 상태로 남는다
+- 문제: `getRanking(...)` 은 랭킹 대상 정책은 `PolicyRankingReadRepository` 로 읽으면서도, 7일 고유 조회수 집계는 별도 `ServiceViewLogRepository.findUniqueViewCountsSince(...)` 를 직접 호출하고 있었다.
+- 해결: unique view 집계 조회를 `PolicyRankingReadRepository.findUniqueViewCountsSince(...)` 로 이동하고, 랭킹 서비스는 같은 read 경계만 사용하게 정리했다.
+- 이유: 랭킹 계산 서비스는 score 계산과 exploration slot 전략에 집중하고, 랭킹에 필요한 persistence 조합은 같은 read repository 안에 두는 편이 경계가 더 일관된다.
