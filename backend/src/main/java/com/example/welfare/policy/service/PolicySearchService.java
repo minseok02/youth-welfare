@@ -5,7 +5,8 @@ import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.policy.dto.PolicySearchResponse;
 import com.example.welfare.policy.dto.PolicySummaryResponse;
 import com.example.welfare.policy.entity.WelfareService;
-import com.example.welfare.policy.repository.WelfareServiceRepository;
+import com.example.welfare.policy.repository.PolicySearchReadCondition;
+import com.example.welfare.policy.repository.WelfareServiceReadRepository;
 import com.example.welfare.policy.support.WelfareSourceTypeSupport;
 import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
 import com.example.welfare.recommend.facade.RecommendationReadFacade;
@@ -30,7 +31,7 @@ public class PolicySearchService {
     private static final int MAX_SEARCH_LIMIT = 100;
     private static final long SEARCH_WARN_DURATION_MS = 500L;
 
-    private final WelfareServiceRepository welfareServiceRepository;
+    private final WelfareServiceReadRepository welfareServiceReadRepository;
     private final RecommendationReadFacade recommendationReadFacade;
     private final CanonicalRecommendationReadModelRepository canonicalRecommendationReadModelRepository;
 
@@ -67,44 +68,20 @@ public class PolicySearchService {
         String normalizedSgg = normalizeNullable(sgg);
         Integer onlineApplyFlag = onlineApply == null ? null : (onlineApply ? 1 : 0);
         String normalizedSort = normalizeSort(sort);
-        Page<WelfareService> resultPage;
-        if (normalizedSido == null) {
-            resultPage = welfareServiceRepository.searchByKeywordWithFiltersNoRegion(
-                    ftKeyword,
-                    normalizedStatus,
-                    normalizedIncludeClosed,
-                    normalizedCategory,
-                    normalizedSourceType,
-                    onlineApplyFlag,
-                    normalizedSort,
-                    PageRequest.of(pageNumber, limit)
-            );
-        } else if (normalizedSgg == null) {
-            resultPage = welfareServiceRepository.searchByKeywordWithFiltersWithSido(
-                    ftKeyword,
-                    normalizedStatus,
-                    normalizedIncludeClosed,
-                    normalizedCategory,
-                    normalizedSourceType,
-                    onlineApplyFlag,
-                    normalizedSido,
-                    normalizedSort,
-                    PageRequest.of(pageNumber, limit)
-            );
-        } else {
-            resultPage = welfareServiceRepository.searchByKeywordWithFiltersWithSidoSgg(
-                    ftKeyword,
-                    normalizedStatus,
-                    normalizedIncludeClosed,
-                    normalizedCategory,
-                    normalizedSourceType,
-                    onlineApplyFlag,
-                    normalizedSido,
-                    normalizedSgg,
-                    normalizedSort,
-                    PageRequest.of(pageNumber, limit)
-            );
-        }
+        Page<WelfareService> resultPage = welfareServiceReadRepository.search(
+                new PolicySearchReadCondition(
+                        ftKeyword,
+                        normalizedStatus,
+                        normalizedIncludeClosed,
+                        normalizedCategory,
+                        normalizedSourceType,
+                        onlineApplyFlag,
+                        normalizedSido,
+                        normalizedSgg,
+                        normalizedSort
+                ),
+                PageRequest.of(pageNumber, limit)
+        );
 
         Set<Long> bookmarkedServiceIds = recommendationReadFacade.findBookmarkedServiceIds(userId, resultPage.getContent());
         java.util.Map<Long, RecommendationCandidateProjection> projections = loadProjections(resultPage.getContent());

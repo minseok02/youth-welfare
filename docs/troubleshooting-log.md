@@ -2531,3 +2531,8 @@
 - 문제: `PolicyService` 와 `PolicySearchService` 가 북마크 여부를 계산하려고 `UserRecommendationRepository` 와 `UserRepository` 를 직접 사용하고 있었다. 이 상태에서는 추천 저장 모델이나 사용자 키 조회 방식이 바뀌면 policy read service까지 같이 수정해야 했다.
 - 해결: 북마크 읽기 전용 경계를 `RecommendationReadFacade` 로 분리하고, policy 쪽은 더 이상 추천 repository를 직접 조회하지 않게 정리했다.
 - 이유: policy는 “북마크 여부가 필요하다”는 의도만 표현하고, 실제 추천 read model 조회 방식은 recommend 도메인 안에 두는 편이 경계가 명확하다.
+
+## 459) `PolicyService` 와 `PolicySearchService` 가 `WelfareServiceRepository` 의 조합식 조회 메서드를 직접 고르면, 필터 조합이 늘어날수록 서비스가 쿼리 선택 책임까지 같이 떠안게 된다
+- 문제: 정책 목록과 검색 서비스가 `findListWithFilters`, `searchByKeywordWithFiltersNoRegion`, `...WithSido`, `...WithSidoSgg` 같은 조합식 메서드를 직접 선택하고 있었다. 이 구조에서는 지역/정렬/필터 조합이 늘어날 때마다 서비스가 persistence 분기까지 함께 수정해야 한다.
+- 해결: `PolicyListReadCondition`, `PolicySearchReadCondition`, `WelfareServiceReadRepository` 를 추가하고, `PolicyService` 와 `PolicySearchService` 가 목록/검색 조건 객체만 넘기도록 바꿨다. 조합식 쿼리 선택 책임은 read repository 구현으로 이동시켰다.
+- 이유: 지금 단계에서는 기존 JPA repository 메서드를 완전히 걷어내지 않더라도, 서비스에서 “무슨 조건으로 읽고 싶은가”만 표현하고 “어떤 조합식 메서드를 고를지”는 read layer에 두는 편이 SRP와 경계 분리에 맞다.

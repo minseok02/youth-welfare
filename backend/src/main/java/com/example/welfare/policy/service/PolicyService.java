@@ -8,9 +8,11 @@ import com.example.welfare.policy.entity.ServiceRegion;
 import com.example.welfare.policy.entity.ServiceTag;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.entity.WelfareServiceDetail;
+import com.example.welfare.policy.repository.PolicyListReadCondition;
 import com.example.welfare.policy.repository.ServiceRegionRepository;
 import com.example.welfare.policy.repository.ServiceTagRepository;
 import com.example.welfare.policy.repository.WelfareServiceDetailRepository;
+import com.example.welfare.policy.repository.WelfareServiceReadRepository;
 import com.example.welfare.policy.repository.WelfareServiceRepository;
 import com.example.welfare.policy.support.WelfareSourceTypeSupport;
 import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
@@ -38,6 +40,7 @@ public class PolicyService {
 
     private static final long MAX_BOOKMARKS = 200;
 
+    private final WelfareServiceReadRepository welfareServiceReadRepository;
     private final WelfareServiceRepository welfareServiceRepository;
     private final WelfareServiceDetailRepository detailRepository;
     private final ServiceRegionRepository regionRepository;
@@ -58,14 +61,16 @@ public class PolicyService {
                                                Boolean onlineApply,
                                                String sort,
                                                Pageable pageable) {
-        Page<WelfareService> page = welfareServiceRepository.findListWithFilters(
-                normalizeNullable(category),
-                normalizeSourceType(sourceType),
-                normalizeStatus(status),
-                includeClosed != null && includeClosed,
-                normalizeNullable(sido),
-                normalizeNullable(sgg),
-                onlineApply,
+        Page<WelfareService> page = welfareServiceReadRepository.findList(
+                new PolicyListReadCondition(
+                        normalizeNullable(category),
+                        normalizeSourceType(sourceType),
+                        normalizeStatus(status),
+                        includeClosed != null && includeClosed,
+                        normalizeNullable(sido),
+                        normalizeNullable(sgg),
+                        onlineApply
+                ),
                 buildPageable(pageable, sort)
         );
 

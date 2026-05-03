@@ -1113,6 +1113,10 @@ cd backend
   - `PolicyService`, `PolicySearchService` 의 북마크 읽기 경로를 `RecommendationReadFacade` 로 이동
   - policy domain 이 `UserRecommendationRepository` 직접 조회에 덜 묶이도록 read coupling 축소
   - 관련 `PolicyServiceTest`, `PolicySearchServiceTest` 재통과 확인
+- 2026-05-03 policy 검색/목록 조합식 조회 경계 정리
+  - `PolicyListReadCondition`, `PolicySearchReadCondition`, `WelfareServiceReadRepository` 추가
+  - `PolicyService`, `PolicySearchService` 가 `WelfareServiceRepository` 의 조합식 조회 메서드를 직접 고르지 않도록 read repository로 위임
+  - 추천 후보/챗봇 등 다른 경로는 그대로 두고, policy list/search 서비스 경계만 먼저 축소
 
 ## 남은 1차 작업
 

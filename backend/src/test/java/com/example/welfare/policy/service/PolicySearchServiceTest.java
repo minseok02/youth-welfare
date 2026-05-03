@@ -2,7 +2,8 @@ package com.example.welfare.policy.service;
 
 import com.example.welfare.policy.dto.PolicySearchResponse;
 import com.example.welfare.policy.entity.WelfareService;
-import com.example.welfare.policy.repository.WelfareServiceRepository;
+import com.example.welfare.policy.repository.PolicySearchReadCondition;
+import com.example.welfare.policy.repository.WelfareServiceReadRepository;
 import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
 import com.example.welfare.recommend.facade.RecommendationReadFacade;
 import com.example.welfare.recommend.repository.CanonicalRecommendationReadModelRepository;
@@ -28,8 +29,7 @@ import static org.mockito.Mockito.verify;
 class PolicySearchServiceTest {
 
     @Mock
-    private WelfareServiceRepository welfareServiceRepository;
-
+    private WelfareServiceReadRepository welfareServiceReadRepository;
     @Mock
     private RecommendationReadFacade recommendationReadFacade;
     @Mock
@@ -39,20 +39,16 @@ class PolicySearchServiceTest {
     @DisplayName("검색은 SQL 레벨 청년 플래그 필터 결과를 페이지 메타데이터와 함께 반환한다")
     void searchReturnsPagedResponse() {
         PolicySearchService service = new PolicySearchService(
-                welfareServiceRepository,
+                welfareServiceReadRepository,
                 recommendationReadFacade,
                 canonicalRecommendationReadModelRepository
         );
 
         WelfareService youthService = welfareService(1L, "청년 정책");
-        given(welfareServiceRepository.searchByKeywordWithFiltersNoRegion(
-                eq("+청년"),
-                isNull(),
-                eq(0),
-                isNull(),
-                isNull(),
-                isNull(),
-                eq("RELEVANCE"),
+        given(welfareServiceReadRepository.search(
+                eq(new PolicySearchReadCondition(
+                        "+청년", null, 0, null, null, null, null, null, "RELEVANCE"
+                )),
                 any(PageRequest.class)
         )).willReturn(new PageImpl<>(List.of(youthService), PageRequest.of(0, 10), 21));
         given(canonicalRecommendationReadModelRepository.findByServiceIds(List.of(1L)))
@@ -73,14 +69,10 @@ class PolicySearchServiceTest {
         assertThat(results.isHasNext()).isTrue();
 
         ArgumentCaptor<PageRequest> captor = ArgumentCaptor.forClass(PageRequest.class);
-        verify(welfareServiceRepository).searchByKeywordWithFiltersNoRegion(
-                eq("+청년"),
-                isNull(),
-                eq(0),
-                isNull(),
-                isNull(),
-                isNull(),
-                eq("RELEVANCE"),
+        verify(welfareServiceReadRepository).search(
+                eq(new PolicySearchReadCondition(
+                        "+청년", null, 0, null, null, null, null, null, "RELEVANCE"
+                )),
                 captor.capture()
         );
         assertThat(captor.getValue().getPageNumber()).isEqualTo(0);
@@ -91,22 +83,16 @@ class PolicySearchServiceTest {
     @DisplayName("시도와 시군구가 있으면 지역 검색 쿼리를 사용한다")
     void searchWithSidoAndSggUsesRegionQuery() {
         PolicySearchService service = new PolicySearchService(
-                welfareServiceRepository,
+                welfareServiceReadRepository,
                 recommendationReadFacade,
                 canonicalRecommendationReadModelRepository
         );
 
         WelfareService youthService = welfareService(2L, "서울 청년 정책");
-        given(welfareServiceRepository.searchByKeywordWithFiltersWithSidoSgg(
-                eq("+청년"),
-                isNull(),
-                eq(0),
-                isNull(),
-                isNull(),
-                isNull(),
-                eq("서울특별시"),
-                eq("관악구"),
-                eq("RELEVANCE"),
+        given(welfareServiceReadRepository.search(
+                eq(new PolicySearchReadCondition(
+                        "+청년", null, 0, null, null, null, "서울특별시", "관악구", "RELEVANCE"
+                )),
                 any(PageRequest.class)
         )).willReturn(new PageImpl<>(List.of(youthService), PageRequest.of(0, 10), 1));
         given(canonicalRecommendationReadModelRepository.findByServiceIds(List.of(2L)))
@@ -128,16 +114,10 @@ class PolicySearchServiceTest {
         );
 
         assertThat(results.getContent()).hasSize(1);
-        verify(welfareServiceRepository).searchByKeywordWithFiltersWithSidoSgg(
-                eq("+청년"),
-                isNull(),
-                eq(0),
-                isNull(),
-                isNull(),
-                isNull(),
-                eq("서울특별시"),
-                eq("관악구"),
-                eq("RELEVANCE"),
+        verify(welfareServiceReadRepository).search(
+                eq(new PolicySearchReadCondition(
+                        "+청년", null, 0, null, null, null, "서울특별시", "관악구", "RELEVANCE"
+                )),
                 any(PageRequest.class)
         );
     }
@@ -146,21 +126,16 @@ class PolicySearchServiceTest {
     @DisplayName("시도만 있으면 시도 전용 지역 검색 쿼리를 사용한다")
     void searchWithSidoOnlyUsesSidoQuery() {
         PolicySearchService service = new PolicySearchService(
-                welfareServiceRepository,
+                welfareServiceReadRepository,
                 recommendationReadFacade,
                 canonicalRecommendationReadModelRepository
         );
 
         WelfareService youthService = welfareService(3L, "서울 전체 청년 정책");
-        given(welfareServiceRepository.searchByKeywordWithFiltersWithSido(
-                eq("+청년"),
-                isNull(),
-                eq(0),
-                isNull(),
-                isNull(),
-                isNull(),
-                eq("서울특별시"),
-                eq("RELEVANCE"),
+        given(welfareServiceReadRepository.search(
+                eq(new PolicySearchReadCondition(
+                        "+청년", null, 0, null, null, null, "서울특별시", null, "RELEVANCE"
+                )),
                 any(PageRequest.class)
         )).willReturn(new PageImpl<>(List.of(youthService), PageRequest.of(0, 10), 1));
         given(canonicalRecommendationReadModelRepository.findByServiceIds(List.of(3L)))
@@ -182,15 +157,10 @@ class PolicySearchServiceTest {
         );
 
         assertThat(results.getContent()).hasSize(1);
-        verify(welfareServiceRepository).searchByKeywordWithFiltersWithSido(
-                eq("+청년"),
-                isNull(),
-                eq(0),
-                isNull(),
-                isNull(),
-                isNull(),
-                eq("서울특별시"),
-                eq("RELEVANCE"),
+        verify(welfareServiceReadRepository).search(
+                eq(new PolicySearchReadCondition(
+                        "+청년", null, 0, null, null, null, "서울특별시", null, "RELEVANCE"
+                )),
                 any(PageRequest.class)
         );
     }
