@@ -381,7 +381,7 @@ public class AdminDashboardService {
                                 row.latestStartedAt()
                         ))
                         .toList(),
-                buildCollectJobStreaks(summaryWindowAgo, patternLimit),
+                buildCollectJobStreaks(patternLimit),
                 adminDashboardReadRepository.fetchCollectFailureErrorCodeBreakdowns(summaryWindowAgo, patternLimit).stream()
                         .map(row -> new AdminCollectFailureResponse.ErrorCodeBreakdown(
                                 row.errorCode(),
@@ -405,9 +405,9 @@ public class AdminDashboardService {
         );
     }
 
-    private List<AdminCollectFailureResponse.JobStreak> buildCollectJobStreaks(LocalDateTime windowAgo, int limit) {
+    private List<AdminCollectFailureResponse.JobStreak> buildCollectJobStreaks(int limit) {
         Map<String, List<AdminDashboardReadRepository.CollectJobRunRow>> runsByJob = adminDashboardReadRepository
-                .fetchRecentCollectJobRuns(windowAgo, COLLECT_STREAK_RUN_LIMIT)
+                .fetchRecentCollectJobRuns(COLLECT_STREAK_RUN_LIMIT)
                 .stream()
                 .collect(Collectors.groupingBy(
                         AdminDashboardReadRepository.CollectJobRunRow::jobName,

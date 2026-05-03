@@ -575,7 +575,6 @@ class AdminDashboardServiceTest {
                 )
         ));
         given(adminDashboardReadRepository.fetchRecentCollectJobRuns(
-                org.mockito.ArgumentMatchers.any(),
                 org.mockito.ArgumentMatchers.eq(20)
         )).willReturn(List.of(
                 new AdminDashboardReadRepository.CollectJobRunRow(
@@ -587,6 +586,11 @@ class AdminDashboardServiceTest {
                         "BOKJIRO_LOCAL",
                         "FAILED",
                         LocalDateTime.of(2026, 5, 2, 9, 0)
+                ),
+                new AdminDashboardReadRepository.CollectJobRunRow(
+                        "BOKJIRO_LOCAL",
+                        "FAILED",
+                        LocalDateTime.of(2026, 4, 1, 9, 0)
                 ),
                 new AdminDashboardReadRepository.CollectJobRunRow(
                         "BOKJIRO_LOCAL",
@@ -637,7 +641,7 @@ class AdminDashboardServiceTest {
         assertThat(response.jobStreaks()).singleElement().satisfies(streak -> {
             assertThat(streak.jobName()).isEqualTo("BOKJIRO_LOCAL");
             assertThat(streak.streakStatus()).isEqualTo("FAILED");
-            assertThat(streak.streakCount()).isEqualTo(2);
+            assertThat(streak.streakCount()).isEqualTo(3);
             assertThat(streak.latestStartedAt()).isEqualTo(LocalDateTime.of(2026, 5, 3, 9, 0));
         });
         assertThat(response.errorCodeBreakdowns()).singleElement().satisfies(error -> {
