@@ -29,6 +29,7 @@ import org.springframework.util.StringUtils;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 @Slf4j
 @Service
@@ -43,6 +44,7 @@ public class UserReadService {
     private final UserAttributeRepository userAttributeRepository;
     private final UserPriorityRepository userPriorityRepository;
     private final AesEncryptUtil aesEncryptUtil;
+    private final UserKeyLookupService userKeyLookupService;
 
     @Transactional(readOnly = true)
     public ProfileResponse getProfile(Long userId) {
@@ -60,7 +62,6 @@ public class UserReadService {
                 decryptNullable(pii.emailEnc()),
                 decryptNullable(pii.nameEnc()),
                 parseBirthDate(pii.birthDateEnc()),
-                decryptNullable(pii.phoneEnc()),
                 profile,
                 attributes,
                 priorities
@@ -73,10 +74,39 @@ public class UserReadService {
     }
 
     @Transactional(readOnly = true)
-    public RecommendationReadContext getRecommendationContext(Long userId) {
+    public ActiveUserContext getActiveUserContext(Long userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
-        String userKey = resolveActiveUserKey(user.getUserKey());
+        if (!user.isActive()) {
+            throw new CustomException(ErrorCode.WITHDRAWN_USER);
+        }
+        String userKey = user.getUserKey() != null ? user.getUserKey() : userKeyLookupService.findRequired(userId);
+        return new ActiveUserContext(user, userKey);
+    }
+
+    @Transactional(readOnly = true)
+    public User getActiveUserByUserKey(String userKey) {
+        return findOptionalActiveUserByUserKey(userKey)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<User> findOptionalActiveUserByUserKey(String userKey) {
+        return userRepository.findByUserKey(userKey)
+                .filter(User::isActive);
+    }
+
+    @Transactional(readOnly = true)
+    public Long requireExistingUserIdByUserKey(String userKey) {
+        return userRepository.findIdByUserKey(userKey)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+    }
+
+    @Transactional(readOnly = true)
+    public RecommendationReadContext getRecommendationContext(Long userId) {
+        ActiveUserContext activeUserContext = getActiveUserContext(userId);
+        User user = activeUserContext.user();
+        String userKey = resolveActiveUserKey(activeUserContext.userKey());
         UserProfile profile = userProfileRepository.findByUserKey(userKey)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
         List<UserAttributeReadModel> attributes = userAttributeRepository.findReadModelsByUserKey(userKey);
@@ -144,8 +174,7 @@ public class UserReadService {
     }
 
     private String resolveActiveUserKey(Long userId) {
-        String userKey = userRepository.findUserKeyById(userId)
-                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+        String userKey = userKeyLookupService.findRequired(userId);
         return resolveActiveUserKey(userKey);
     }
 
@@ -191,6 +220,12 @@ public class UserReadService {
     public record RecommendationReadContext(
             User user,
             RecommendationUserSnapshot snapshot
+    ) {
+    }
+
+    public record ActiveUserContext(
+            User user,
+            String userKey
     ) {
     }
 }

@@ -1,7 +1,5 @@
 package com.example.welfare.recommend.facade;
 
-import com.example.welfare.global.exception.CustomException;
-import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.recommend.dto.RecommendationUserSnapshot;
 import com.example.welfare.recommend.dto.RetrievedRecommendationCandidates;
@@ -11,7 +9,7 @@ import com.example.welfare.recommend.entity.UserRecommendation;
 import com.example.welfare.recommend.repository.UserRecommendationRepository;
 import com.example.welfare.recommend.service.*;
 import com.example.welfare.user.entity.User;
-import com.example.welfare.user.repository.UserRepository;
+import com.example.welfare.user.service.UserKeyLookupService;
 import com.example.welfare.user.service.UserReadService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -38,7 +36,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class RecommendationFacade {
 
-    private final UserRepository userRepository;
+    private final UserKeyLookupService userKeyLookupService;
     private final UserReadService userReadService;
     private final ClusterService clusterService;
     private final RetrievalService retrievalService;
@@ -49,6 +47,7 @@ public class RecommendationFacade {
     private final RecommendationPersistenceService persistenceService;
     private final RecommendationLogService recommendationLogService;
     private final RecommendationRefreshCacheService recommendationRefreshCacheService;
+    private final RecommendationBookmarkCommandService recommendationBookmarkCommandService;
     private final UserRecommendationRepository userRecommendationRepository;
 
     /**
@@ -133,14 +132,10 @@ public class RecommendationFacade {
      */
     @Transactional
     public void toggleBookmark(Long userId, Long recommendationId) {
-        String userKey = resolveUserKey(userId);
-        UserRecommendation rec = userRecommendationRepository.findByIdAndUserKey(recommendationId, userKey)
-                .orElseThrow(() -> new CustomException(ErrorCode.RECOMMENDATION_NOT_FOUND));
-        rec.toggleBookmark();
+        recommendationBookmarkCommandService.toggleRecommendationBookmark(userId, recommendationId);
     }
 
     private String resolveUserKey(Long userId) {
-        return userRepository.findUserKeyById(userId)
-                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+        return userKeyLookupService.findRequired(userId);
     }
 }

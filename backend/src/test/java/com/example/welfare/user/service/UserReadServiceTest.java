@@ -43,6 +43,7 @@ class UserReadServiceTest {
     @Mock private UserAttributeRepository userAttributeRepository;
     @Mock private UserPriorityRepository userPriorityRepository;
     @Mock private AesEncryptUtil aesEncryptUtil;
+    @Mock private UserKeyLookupService userKeyLookupService;
 
     @Test
     @DisplayName("프로필 조회는 app_pii_rw 저장소에서 PII 암호문을 읽는다")
@@ -55,7 +56,8 @@ class UserReadServiceTest {
                 notificationPiiReadRepository,
                 userAttributeRepository,
                 userPriorityRepository,
-                aesEncryptUtil
+                aesEncryptUtil,
+                userKeyLookupService
         );
 
         AuthUser authUser = AuthUser.builder()
@@ -69,7 +71,7 @@ class UserReadServiceTest {
                 .displayCount(12)
                 .build();
 
-        when(userRepository.findUserKeyById(1L)).thenReturn(Optional.of("user-key-1"));
+        when(userKeyLookupService.findRequired(1L)).thenReturn("user-key-1");
         when(authUserRepository.findByUserKey("user-key-1")).thenReturn(Optional.of(authUser));
         when(userProfileRepository.findByUserKey("user-key-1")).thenReturn(Optional.of(profile));
         when(userPiiReadWriteRepository.findByUserKey("user-key-1"))
@@ -85,14 +87,12 @@ class UserReadServiceTest {
         when(aesEncryptUtil.decrypt("enc-email")).thenReturn("user@example.com");
         when(aesEncryptUtil.decrypt("enc-name")).thenReturn("홍길동");
         when(aesEncryptUtil.decrypt("enc-birth")).thenReturn("1999-01-10");
-        when(aesEncryptUtil.decrypt("enc-phone")).thenReturn("01012345678");
 
         ProfileResponse response = userReadService.getProfile(1L);
 
         assertThat(response.getEmail()).isEqualTo("user@example.com");
         assertThat(response.getName()).isEqualTo("홍길동");
         assertThat(response.getBirthDate()).isEqualTo(java.time.LocalDate.of(1999, 1, 10));
-        assertThat(response.getPhone()).isEqualTo("01012345678");
         verify(userPiiReadWriteRepository).findByUserKey("user-key-1");
     }
 
@@ -107,7 +107,8 @@ class UserReadServiceTest {
                 notificationPiiReadRepository,
                 userAttributeRepository,
                 userPriorityRepository,
-                aesEncryptUtil
+                aesEncryptUtil,
+                userKeyLookupService
         );
 
         NotificationTargetReadModel row = new NotificationTargetReadModel() {
@@ -161,7 +162,8 @@ class UserReadServiceTest {
                 notificationPiiReadRepository,
                 userAttributeRepository,
                 userPriorityRepository,
-                aesEncryptUtil
+                aesEncryptUtil,
+                userKeyLookupService
         );
 
         AuthUser authUser = AuthUser.builder()
@@ -191,7 +193,8 @@ class UserReadServiceTest {
                 notificationPiiReadRepository,
                 userAttributeRepository,
                 userPriorityRepository,
-                aesEncryptUtil
+                aesEncryptUtil,
+                userKeyLookupService
         );
 
         AuthUser authUser = AuthUser.builder()
@@ -219,7 +222,8 @@ class UserReadServiceTest {
                 notificationPiiReadRepository,
                 userAttributeRepository,
                 userPriorityRepository,
-                aesEncryptUtil
+                aesEncryptUtil,
+                userKeyLookupService
         );
 
         User user = User.builder()
@@ -259,5 +263,105 @@ class UserReadServiceTest {
         assertThat(snapshot.userKey()).isEqualTo("user-key-7");
         assertThat(snapshot.sido()).isEqualTo("서울특별시");
         assertThat(snapshot.regionCode()).isEqualTo("11620");
+    }
+
+    @Test
+    @DisplayName("active user context 조회는 user와 resolved userKey를 함께 반환한다")
+    void getActiveUserContextReturnsUserAndUserKey() {
+        UserReadService userReadService = new UserReadService(
+                userRepository,
+                authUserRepository,
+                userProfileRepository,
+                userPiiReadWriteRepository,
+                notificationPiiReadRepository,
+                userAttributeRepository,
+                userPriorityRepository,
+                aesEncryptUtil,
+                userKeyLookupService
+        );
+        User user = User.builder()
+                .id(9L)
+                .userKey("user-key-9")
+                .build();
+
+        when(userRepository.findById(9L)).thenReturn(Optional.of(user));
+
+        UserReadService.ActiveUserContext context = userReadService.getActiveUserContext(9L);
+
+        assertThat(context.user()).isEqualTo(user);
+        assertThat(context.userKey()).isEqualTo("user-key-9");
+    }
+
+    @Test
+    @DisplayName("optional active user by userKey 조회는 탈퇴 사용자를 제외한다")
+    void findOptionalActiveUserByUserKeyExcludesWithdrawnUser() {
+        UserReadService userReadService = new UserReadService(
+                userRepository,
+                authUserRepository,
+                userProfileRepository,
+                userPiiReadWriteRepository,
+                notificationPiiReadRepository,
+                userAttributeRepository,
+                userPriorityRepository,
+                aesEncryptUtil,
+                userKeyLookupService
+        );
+        User withdrawnUser = User.builder()
+                .id(10L)
+                .userKey("user-key-10")
+                .isActive(false)
+                .build();
+
+        when(userRepository.findByUserKey("user-key-10")).thenReturn(Optional.of(withdrawnUser));
+
+        assertThat(userReadService.findOptionalActiveUserByUserKey("user-key-10")).isEmpty();
+    }
+
+    @Test
+    @DisplayName("required active user by userKey 조회는 탈퇴 사용자를 찾지 못한 것으로 처리한다")
+    void getActiveUserByUserKeyRejectsWithdrawnUser() {
+        UserReadService userReadService = new UserReadService(
+                userRepository,
+                authUserRepository,
+                userProfileRepository,
+                userPiiReadWriteRepository,
+                notificationPiiReadRepository,
+                userAttributeRepository,
+                userPriorityRepository,
+                aesEncryptUtil,
+                userKeyLookupService
+        );
+        User withdrawnUser = User.builder()
+                .id(10L)
+                .userKey("user-key-10")
+                .isActive(false)
+                .build();
+
+        when(userRepository.findByUserKey("user-key-10")).thenReturn(Optional.of(withdrawnUser));
+
+        assertThatThrownBy(() -> userReadService.getActiveUserByUserKey("user-key-10"))
+                .isInstanceOf(CustomException.class)
+                .extracting("errorCode")
+                .isEqualTo(com.example.welfare.global.exception.ErrorCode.USER_NOT_FOUND);
+    }
+
+    @Test
+    @DisplayName("existing user id by userKey 조회는 userId를 반환한다")
+    void requireExistingUserIdByUserKeyReturnsUserId() {
+        UserReadService userReadService = new UserReadService(
+                userRepository,
+                authUserRepository,
+                userProfileRepository,
+                userPiiReadWriteRepository,
+                notificationPiiReadRepository,
+                userAttributeRepository,
+                userPriorityRepository,
+                aesEncryptUtil,
+                userKeyLookupService
+        );
+
+        when(userRepository.findIdByUserKey("user-key-11")).thenReturn(Optional.of(11L));
+
+        assertThat(userReadService.requireExistingUserIdByUserKey("user-key-11")).isEqualTo(11L);
     }
 }

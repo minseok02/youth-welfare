@@ -2477,3 +2477,142 @@
 - 문제: `zeroResultKeywordsInWindow` 는 “무슨 단어가 실패하나”까지는 보여주지만, 실제 triage 단계에서는 `sido/sgg`, `status_filter`, `category`, `source_type`, `online_apply`, `include_closed`, `sort_key` 같은 조건 조합과 최근 샘플을 같이 봐야 원인을 더 빨리 좁힐 수 있다.
 - 해결: `/api/admin/dashboard/search-failures` 를 추가해 summary window 기준 zero-result keyword/region/filter pattern/recent sample 상세를 별도 admin API로 분리했다.
 - 이유: 요약 대시보드는 가볍게 유지하고, 검색 실패 triage는 별도 상세 endpoint에서 읽게 분리하는 편이 책임이 명확하고 후속 확장도 쉽다.
+## 448) recommendation summary에 source/category/weight 분포와 최근 샘플만 있으면, 같은 사용자에게 같은 정책이 반복 노출되는 패턴은 다시 raw `recommendation_logs` 를 `user_key + service_id` 기준으로 group by 해야 한다
+- 문제: 추천 triage에서 자주 필요한 것은 “같은 사용자에게 같은 정책이 몇 번 반복 노출되었는가”인데, 상세 응답에 재노출 그룹이 없으면 결국 `recommendation_logs` 를 다시 수동 group by 해야 한다.
+- 해결: `recommendation-breakdowns` 응답에 repeat exposure group을 추가해 `user_key + service_id` 기준 노출 횟수, click/fallback 누적, 첫/마지막 노출 시각을 같이 반환하게 했다.
+- 이유: 추천 품질 문제는 단순 CTR 총량보다 재노출 패턴에 더 잘 드러나는 경우가 많다. repeat group이 있으면 과한 재노출과 정상 반복 노출을 더 빨리 구분할 수 있다.
+
+## 449) recommendation summary에 CTR/fallback 총량만 있으면, 어떤 source/category/weight stage가 클릭 또는 fallback을 만들고 있는지 다시 raw join을 내려가야 한다
+- 문제: summary 응답의 `sentInWindow`, `clickedInWindow`, `fallbackInWindow`, `weightBucketsInWindow` 만으로는 실제 triage 때 “어느 source/category가 fallback을 많이 만들고 있는가”, “어느 weight stage에서 클릭이 붙는가”, “최근 fallback/click 샘플이 무엇인가”를 바로 읽을 수 없다.
+- 해결: `/api/admin/dashboard/recommendation-breakdowns` 를 추가해 summary window 기준 source/category/weight breakdown과 최근 fallback/click sample을 별도 admin API로 분리했다.
+- 이유: 추천 품질 조정은 총량 지표보다 상세 분포가 먼저 필요하다. 요약 대시보드는 그대로 두고, 세부 triage는 별도 endpoint에 분리하는 편이 책임과 확장성이 더 낫다.
+
+## 450) collect 실패 상세에 총량/분포/샘플만 있으면, 지금도 실패 streak가 이어지는지와 `BOKJIRO_LOCAL` 회로가 열려 있는지를 다시 raw log와 runtime state에서 따로 찾아야 한다
+- 문제: 수집 triage에서 실제로 중요한 것은 “지금 연속 실패가 이어지는가”와 “rate-limit 회로가 아직 열려 있는가”인데, 실패 상세에 이 두 신호가 없으면 운영자가 `api_sync_logs` 를 다시 시간순으로 읽고, local circuit state는 로그로만 추정해야 했다.
+- 해결: `collect-failures` 응답에 job streak 와 circuit status 를 추가해 최근 연속 `FAILED/PARTIAL_SUCCESS` 길이와 `BOKJIRO_LOCAL` open-circuit 상태를 같이 반환하게 했다.
+- 이유: 총량 지표는 과거를 설명하지만, streak 와 circuit 은 현재 진행형 위험을 더 잘 보여준다. 둘을 같이 봐야 “한 번 실패한 것”과 “지금도 계속 막혀 있는 것”을 바로 구분할 수 있다.
+
+## 451) collect summary에 실패 총량과 최신 샘플 몇 개만 있으면, 어떤 job이 반복 실패하는지와 error code 분포를 다시 raw `api_sync_logs` 에서 group by 해야 한다
+- 문제: summary 응답의 `failedJobsLast24h`, `latestFailuresInWindow` 만으로는 “어느 collect job이 반복적으로 실패하는가”, “partial success가 어느 정도 섞이는가”, “실패 원인이 어떤 error code에 몰리는가”를 바로 읽기 어렵다.
+- 해결: `/api/admin/dashboard/collect-failures` 를 추가해 summary window 기준 failed/partial 총량, job breakdown, error code breakdown, recent sample을 별도 admin API로 분리했다.
+- 이유: 수집 triage는 summary 총량보다 실패 분포와 최근 샘플이 먼저 필요하다. 대시보드 요약은 유지하고, 상세는 별도 endpoint로 분리하는 편이 책임과 후속 확장이 더 낫다.
+
+## 452) zero-result 상세에 keyword/region/filter/sample만 있으면, 같은 사용자나 같은 브라우저가 같은 실패 검색을 반복하는 패턴은 다시 raw `search_logs` 를 actor 기준으로 group by 해야 한다
+- 문제: zero-result triage에서 실제로 자주 필요한 것은 “같은 사람이 같은 실패 검색을 반복하는가”인데, 상세 응답에 actor 기준 재시도 묶음이 없으면 결국 `user_key` 또는 `client_fingerprint` 로 다시 수동 group by 를 해야 한다.
+- 해결: `search-failures` 응답에 retry group을 추가해 `USER_KEY` 또는 `FINGERPRINT` actor 기준으로 같은 zero-result 검색 반복 패턴을 같이 반환하게 했다.
+- 이유: 검색 실패 원인은 단순 분포뿐 아니라 반복 행동 패턴에도 숨어 있다. retry group이 있으면 “지속적으로 못 찾는 수요”와 “일회성 실패”를 바로 구분할 수 있다.
+
+## 453) zero-result 상세에 분포와 샘플만 있으면, 같은 actor가 반복 실패하다가 나중에 성공으로 회복한 패턴은 다시 raw `search_logs` 를 actor 기준으로 훑어봐야 한다
+- 문제: 검색 triage에서 중요한 건 반복 실패 자체뿐 아니라, 같은 `user_key` 또는 `client_fingerprint` 가 같은 검색을 나중에 성공으로 회복했는지 여부다. 이 정보가 없으면 “계속 막혀 있는 수요”와 “일시 실패 후 해소된 수요”를 분리하기 어렵다.
+- 해결: `search-failures` 응답에 recovered search group을 추가해 같은 actor/query 조합에서 zero-result 이후 non-zero result가 붙은 패턴을 같이 반환하게 했다.
+- 이유: 회복 그룹이 있으면 검색 품질 문제가 영구적인지, 재시도나 데이터 갱신으로 해소되는 성격인지를 더 빨리 판단할 수 있다.
+
+## 454) 전화번호를 “지금은 안 받는다”고 결정했으면, 프론트에서만 숨기는 걸로 끝내지 말고 프로필 API 계약과 저장 경로도 같이 닫아야 한다
+- 문제: 회원가입은 이미 전화번호를 받지 않는데, `UpdateProfileRequest` 와 `ProfileResponse` 에는 여전히 `phone` 필드가 남아 있었고 `UserService.updateProfile()` 도 요청이 오면 `phone_enc` 를 갱신했다. 이 상태에서는 프론트 UI만 숨겨도 다른 클라이언트가 phone을 보내면 제품 정책과 다르게 수집이 계속될 수 있었다.
+- 해결: `UpdateProfileRequest` 와 `ProfileResponse` 에서 `phone` 계약을 제거하고, `UserService.updateProfile()` 의 `phone_enc` 갱신도 중단했다. 동시에 프로필 완성도 계산에서 전화번호 가산점을 빼서 “미수집 정책”과 점수 기준도 맞췄다.
+- 이유: 개인정보 최소 수집 정책은 UI가 아니라 API 계약에서 닫혀 있어야 안정적이다. DB 컬럼과 PII 경계는 future 확장성 때문에 남겨 두더라도, 현재 제품 범위에서는 dormant 상태로 두는 편이 맞다.
+
+## 455) 챗 메시지 전송 전체를 하나의 트랜잭션으로 감싼 채 외부 AI 호출까지 넣어두면, DB 트랜잭션이 네트워크 지연 시간만큼 길어지고 실패 범위도 불필요하게 커진다
+- 문제: `ChatMessageService.sendMessage()` 가 USER 메시지 저장, 후보 조회, `ChatAiGateway` 호출, ASSISTANT 메시지 저장을 한 transaction 안에서 처리하고 있었다. OpenAI 호출이 느리면 DB 커넥션이 계속 잡혀 있고, AI 호출 실패 시 사용자 메시지까지 같이 rollback될 수 있었다.
+- 해결: 새 `ChatMessageCommandService` 를 만들어 USER 메시지 저장과 ASSISTANT 메시지 저장을 각각 짧은 transaction으로 분리하고, `ChatMessageService` 는 orchestration과 외부 AI 호출만 담당하게 바꿨다.
+- 이유: 외부 네트워크 호출은 transaction 밖으로 밀어내고, DB write는 짧고 명확한 command 경계로 자르는 편이 커넥션 점유와 실패 전파를 줄인다.
+
+## 456) `bokjiro-details-gap-fill` 이 표준 collect 경계 바깥에서 직접 실행되면, 일반 수집과 다른 lock/log discipline을 가져서 운영 관측과 실패 추적이 엇갈린다
+- 문제: `CollectAdminController` 가 `BokjiroDetailCollectService.collectBokjiroDetailGapFillResult(...)` 를 직접 호출하고 있어, 일반 source collect가 공유하는 `CollectExecutionGuard` 와 `ApiSyncLogService` 경계를 타지 않았다. 그래서 gap-fill 실패는 `api_sync_logs` 에 안 남고, collect lock discipline도 별도로 흩어져 있었다.
+- 해결: `CollectService.collectBokjiroDetailGapFill(...)` 를 추가하고, 전용 `CollectSource.BOKJIRO_DETAIL_GAP_FILL` 을 도입해 gap-fill도 표준 lock/log 경계 안에서 실행되게 바꿨다.
+- 이유: 같은 collect 계열 작업은 수동 경로라도 실행 직렬화와 로그 저장 방식을 공유해야 운영자가 같은 기준으로 상태를 읽을 수 있다.
+
+## 457) `AuthService` 가 로그인, refresh/logout, 비밀번호 재설정까지 모두 들고 있으면, 토큰 정책 변경과 비밀번호 재설정 정책 변경이 같은 클래스 수정으로 얽힌다
+- 문제: 기존 `AuthService` 는 signup/login 외에도 refresh token rotation, logout, password reset token 저장/메일 발송/비밀번호 변경까지 한 클래스에 몰려 있었다. 이 상태에서는 토큰 수명주기나 비밀번호 재설정 흐름이 바뀔 때마다 같은 서비스가 동시에 바뀌어 책임이 과해졌다.
+- 해결: 토큰 발급/refresh/logout 은 `AuthTokenService` 로, 비밀번호 재설정 요청/확정은 `PasswordResetService` 로 분리하고, `AuthService` 는 signup/login/admin role 해석 위주의 orchestration으로 축소했다.
+- 이유: 로그인 진입점과 토큰 수명주기, 비밀번호 재설정은 변경 이유가 다르다. API 계약은 그대로 두되 내부 경계를 나누는 편이 SRP에 맞고 테스트도 더 좁게 유지할 수 있다.
+
+## 458) policy 조회 서비스가 추천 persistence repository를 직접 읽으면, policy 도메인이 recommend 저장 모델 변경에 같이 흔들린다
+- 문제: `PolicyService` 와 `PolicySearchService` 가 북마크 여부를 계산하려고 `UserRecommendationRepository` 와 `UserRepository` 를 직접 사용하고 있었다. 이 상태에서는 추천 저장 모델이나 사용자 키 조회 방식이 바뀌면 policy read service까지 같이 수정해야 했다.
+- 해결: 북마크 읽기 전용 경계를 `RecommendationReadFacade` 로 분리하고, policy 쪽은 더 이상 추천 repository를 직접 조회하지 않게 정리했다.
+- 이유: policy는 “북마크 여부가 필요하다”는 의도만 표현하고, 실제 추천 read model 조회 방식은 recommend 도메인 안에 두는 편이 경계가 명확하다.
+
+## 459) `PolicyService` 와 `PolicySearchService` 가 `WelfareServiceRepository` 의 조합식 조회 메서드를 직접 고르면, 필터 조합이 늘어날수록 서비스가 쿼리 선택 책임까지 같이 떠안게 된다
+- 문제: 정책 목록과 검색 서비스가 `findListWithFilters`, `searchByKeywordWithFiltersNoRegion`, `...WithSido`, `...WithSidoSgg` 같은 조합식 메서드를 직접 선택하고 있었다. 이 구조에서는 지역/정렬/필터 조합이 늘어날 때마다 서비스가 persistence 분기까지 함께 수정해야 한다.
+- 해결: `PolicyListReadCondition`, `PolicySearchReadCondition`, `WelfareServiceReadRepository` 를 추가하고, `PolicyService` 와 `PolicySearchService` 가 목록/검색 조건 객체만 넘기도록 바꿨다. 조합식 쿼리 선택 책임은 read repository 구현으로 이동시켰다.
+- 이유: 지금 단계에서는 기존 JPA repository 메서드를 완전히 걷어내지 않더라도, 서비스에서 “무슨 조건으로 읽고 싶은가”만 표현하고 “어떤 조합식 메서드를 고를지”는 read layer에 두는 편이 SRP와 경계 분리에 맞다.
+
+## 460) `UserService` 가 북마크 조회, 프로필/우선순위 수정, 비밀번호 변경, 탈퇴, 알림 수신 거부까지 모두 들고 있으면 사용자 도메인 변경이 한 서비스에 과도하게 몰린다
+- 문제: 기존 `UserService` 는 read 경로(`getProfile`, `getBookmarks`)와 command 경로(`updateProfile`, `updatePriorities`, `changePassword`, `withdraw`, `unsubscribeNotifications`)를 함께 들고 있었고, 프로필/우선순위/계정 종료 규칙이 바뀔 때마다 같은 클래스를 같이 수정해야 했다.
+- 해결: 북마크 조회는 `UserBookmarkReadService` 로, 프로필/우선순위 변경은 `UserProfileCommandService` 로, 비밀번호/탈퇴/알림 수신 거부는 `UserAccountCommandService` 로 분리했다. `UserService` 는 기존 controller 계약을 유지하는 facade만 남겼다.
+- 이유: 외부 API 계약은 유지하면서 내부 책임을 read/bookmark, profile command, account command로 나누면 테스트 범위가 좁아지고 SRP/CQS 위반도 줄일 수 있다.
+
+## 461) `collect-failures` 의 streak를 summary window 안쪽 최근 이력만으로 계산하면, 더 오래 이어진 연속 실패/partial 상태를 과소계상한다
+- 문제: `jobStreaks` 계산이 `summaryWindowAgo` 이후 실행만 읽고 있었기 때문에, 예를 들어 7일보다 더 오래 이어진 실패 streak는 대시보드에서 잘린 값으로 보였다. 이 상태에서는 운영자가 “현재 연속 실패 길이”를 실제보다 작게 읽을 수 있었다.
+- 해결: `fetchRecentCollectJobRuns(...)` 를 job별 최신 N건 전체 이력 기준으로 바꾸고, `collect-failures` 서비스는 summary window와 별개로 current streak를 계산하게 수정했다.
+- 이유: summary window는 분포/샘플 범위를 제한하는 용도이고, streak는 현재 상태를 보여주는 지표다. 두 의미를 섞으면 운영 해석이 틀어진다.
+
+## 462) admin dashboard가 `BokjiroLocalClient` 구현을 직접 보면, collect 운영 관측 계층이 특정 gateway 구현 세부사항에 묶인다
+- 문제: `AdminDashboardService` 가 `BokjiroLocalClient.getRateLimitCircuitStatus()` 를 직접 호출하고 있었다. 이 구조에서는 admin dashboard가 collect runtime status 자체가 아니라 특정 source gateway 구현과 그 내부 상태 표현을 직접 알아야 했다.
+- 해결: `CollectRuntimeStatusService` 를 추가하고, dashboard는 collect runtime status 전용 서비스가 반환하는 snapshot만 읽도록 바꿨다.
+- 이유: 운영 관측 계층은 개별 gateway 구현보다 “현재 수집 런타임 상태”라는 응용 계층 개념에 의존하는 편이 경계가 더 명확하고, 이후 source가 늘어나도 dashboard 수정 범위를 줄일 수 있다.
+
+## 463) `RetrievalService` 가 지역/최신 조합마다 `WelfareServiceRepository` 메서드를 직접 고르면, 추천 후보 조회 규칙이 서비스 코드와 persistence 분기 로직에 같이 퍼진다
+- 문제: `RetrievalService` 가 `findCandidatesWithRegionCode`, `findCandidatesWithSido`, `findLatestCandidatesWithRegionCode`, `findLatestCandidatesWithSido`, `findCandidates`, `findLatestCandidates` 를 직접 선택하고 있었다. 이 상태에서는 추천 후보 조회 조합이 바뀔 때 retrieval 서비스와 repository 분기가 함께 수정된다.
+- 해결: `RecommendationCandidateReadCondition`, `RecommendationCandidateReadRepository` 를 추가하고, `RetrievalService` 는 추천 후보 조회 의도만 condition으로 넘기게 바꿨다. 실제 조합식 repository 선택은 전용 read repository 구현으로 이동시켰다.
+- 이유: 추천 파이프라인 서비스는 “어떤 후보를 읽고 싶은가”에 집중하고, 지역/최신 조합식 persistence 선택은 read 계층으로 숨기는 편이 SRP와 변경 파급도 관리에 더 낫다.
+
+## 464) `ChatPolicyService` 가 챗봇 후보 검색과 fallback 인기 정책 조회를 위해 `WelfareServiceRepository` 메서드 조합을 직접 고르면, 챗 도메인이 policy persistence 분기까지 같이 떠안게 된다
+- 문제: `ChatPolicyService` 가 `searchChatCandidates(...)` 와 `findBySearchYouthRelevantTrueAndStatusInOrderByViewCountDescCreatedAtDesc(...)` 를 직접 고르고 있었다. 이 상태에서는 챗봇 후보 조회 규칙이 바뀔 때 질문 해석 서비스와 persistence 분기를 함께 수정해야 했다.
+- 해결: `ChatPolicyReadCondition`, `ChatPolicyReadRepository` 를 추가하고, `ChatPolicyService` 는 질문에서 만든 fulltext keyword 와 limit만 조건 객체로 넘기게 바꿨다. 검색 우선/fallback 인기 정책 조회 선택은 전용 read repository 구현으로 이동시켰다.
+- 이유: 챗 도메인 서비스는 질문 해석과 limit 정규화에 집중하고, 후보 조회 구현 분기는 read 계층으로 숨기는 편이 SRP와 도메인 경계 분리에 더 낫다.
+
+## 465) policy 상세/목록의 북마크 토글이 recommendation 저장소와 `userKey` 조회를 직접 들고 있으면, policy 도메인이 recommendation command 규칙과 저장 모델 변경에 같이 묶인다
+- 문제: `PolicyService.toggleBookmark(...)` 가 `UserRecommendationRepository`, `UserRepository`, `WelfareServiceRepository` 를 직접 사용해 `userKey` 조회, 기존 추천 이력 조회, placeholder 추천 생성, 북마크 한도 검사까지 모두 처리하고 있었다. 동시에 `RecommendationFacade.toggleBookmark(...)` 도 별도 방식으로 북마크 토글을 들고 있어 command 규칙이 두 군데로 갈라져 있었다.
+- 해결: `RecommendationBookmarkCommandService` 를 추가해 recommendation ID 기준 토글과 policy service ID 기준 토글을 한 경계로 모으고, `PolicyService` 와 `RecommendationFacade` 는 북마크 command 서비스로만 위임하게 바꿨다.
+- 이유: 북마크 토글은 recommendation 저장 모델과 userKey 해석 규칙에 가까운 command다. policy/read 진입점과 recommendation API 진입점이 같은 규칙을 공유하도록 recommendation 도메인 안으로 모으는 편이 경계와 변경 파급도 관리에 더 낫다.
+
+## 466) `PolicyRankingService` 가 랭킹 대상 정책 조회를 위해 `WelfareServiceRepository.findByStatusIn(...)` 를 직접 호출하면, 랭킹 계산 서비스가 persistence selection 책임까지 같이 떠안게 된다
+- 문제: `PolicyRankingService` 가 ACTIVE/UPCOMING 정책 목록을 직접 조회하고 있었다. 이 상태에서는 랭킹 대상 정책 범위가 바뀔 때 점수 계산 서비스와 persistence 선택이 함께 수정된다.
+- 해결: `PolicyRankingReadRepository` 를 추가하고, `PolicyRankingService` 는 랭킹 대상 정책 목록을 전용 read repository로부터 받게 바꿨다.
+- 이유: 랭킹 서비스는 unique view, freshness, explore slot 계산에 집중하고, “어떤 정책이 랭킹 대상인가”라는 조회 규칙은 read 계층으로 숨기는 편이 SRP와 변경 파급도 관리에 더 낫다.
+
+## 467) policy 로그 서비스마다 `UserRepository.findUserKeyById(...)` 를 직접 호출하면, nullable user key 해석 규칙이 여러 서비스에 중복되고 이후 user key 조회 정책 변경이 분산된다
+- 문제: `PolicyViewLogService` 와 `PolicySearchLogService` 가 각각 `resolveUserKey(...)` 를 가지고 `UserRepository.findUserKeyById(...)` 를 직접 호출하고 있었다. 이 상태에서는 비로그인 시 `null` 처리, 향후 user key 조회 정책 변경이 서비스별로 흩어진다.
+- 해결: `UserKeyLookupService` 를 추가하고, policy 로그 서비스 둘 다 nullable user key 해석을 전용 lookup 서비스로 위임하게 바꿨다.
+- 이유: user key 조회는 도메인 서비스의 핵심 로직이 아니라 cross-cutting lookup 규칙에 가깝다. lookup 책임을 한 경계로 모아두는 편이 중복과 변경 파급도를 줄인다.
+
+## 468) policy 로그만 `UserKeyLookupService` 를 쓰고 recommend/user 서비스들은 계속 `findUserKeyById(...)` 를 직접 호출하면, nullable/required user key 해석 규칙이 절반만 정리된 상태로 남는다
+- 문제: `RecommendationReadFacade`, `RecommendationLogService`, `UserBookmarkReadService`, `UserProfileCommandService`, `UserAccountCommandService`, `UserReadService`, `AuthTokenService` 가 여전히 각각 `findUserKeyById(...)` 를 직접 호출하고 있었다. 이 상태에서는 policy 쪽만 중복이 줄고, 나머지 경계에서는 required/nullable 규칙과 예외 처리 방식이 다시 흩어진다.
+- 해결: 위 서비스들도 `UserKeyLookupService` 를 사용하게 바꿔 nullable lookup(`findNullable`) 과 required lookup(`findRequired`) 규칙을 한 곳으로 모았다.
+- 이유: user key 조회는 policy 전용 concern이 아니라 user/recommend/policy 전반의 공통 lookup이다. 공통 경계를 한 번 만들었다면 넓게 적용하는 편이 중복 제거와 후속 정책 변경 대응에 더 낫다.
+
+## 469) 공통 lookup 서비스를 도입한 뒤에도 `RecommendationBookmarkCommandService`, `RecommendationFacade`, `UserCoreSyncService` 가 직접 `findUserKeyById(...)` 를 들고 있으면, 경계가 대부분 정리된 것처럼 보여도 핵심 command/orchestration 경로에는 예외 규칙이 남는다
+- 문제: `UserKeyLookupService` 도입 후에도 recommendation 북마크 command, 추천 facade의 저장 추천 조회, user core dual-write sync 경로는 여전히 `UserRepository.findUserKeyById(...)` 를 직접 호출하고 있었다. 이 상태에서는 핵심 진입점에서만 별도 예외 처리/lookup 정책이 남아 “공통 lookup 규칙”이 완결되지 않는다.
+- 해결: 세 서비스 모두 `UserKeyLookupService.findRequired(...)` 로 전환하고, 직접 `findUserKeyById(...)` 호출은 운영 코드 기준 lookup 서비스 내부로만 가두었다.
+- 이유: lookup 규칙을 공통 경계로 만들었다면, 남은 직접 호출이 command/orchestration 핵심 경로에 있을수록 정책 drift 가능성이 커진다. 마지막 잔여 직접 조회까지 접어야 예외 처리와 후속 변경 포인트를 truly one place 로 모을 수 있다.
+
+## 470) `ChatMessageService`, `ChatSessionService`, `NotificationService` 와 user command/read 서비스들이 각자 `findActiveUser(...)` 나 `findByUserKey(...)` 를 들고 있으면, 탈퇴 사용자 차단 규칙과 userKey 전달 규칙이 서비스별로 조금씩 갈라진다
+- 문제: chat 두 서비스와 notification, bookmark/profile/account/auth token 경로가 각자 `UserRepository.findById(...)`, `findByUserKey(...)`, `user.isActive()` 검사를 직접 들고 있었다. 이 상태에서는 탈퇴 사용자 거부 기준과 “user와 userKey를 같이 써야 하는가” 같은 lookup 규칙이 여러 서비스에 중복된다.
+- 해결: `UserReadService` 에 `getActiveUserContext(...)`, `getActiveUserByUserKey(...)` 를 추가하고, 위 서비스들이 active user resolution 을 전부 user read 경계로 위임하게 정리했다.
+- 이유: active user lookup 은 chat/notification/user command 어느 한 도메인의 핵심 로직이 아니라 cross-cutting read 규칙이다. user entity 와 resolved userKey 를 함께 써야 하는 경우까지 공통화해야 탈퇴 사용자 차단과 lookup drift 를 한 곳에서 관리할 수 있다.
+
+## 471) `AuthService` 와 `PasswordResetService` 가 active user 조회를 각자 직접 들고 있으면, 인증/재설정 경로만 user read 경계 밖의 예외로 남아 lookup 규칙이 완결되지 않는다
+- 문제: `AuthService.login(...)` 은 `UserRepository.findByUserKey(...)` 로 active user 를 직접 조회하고 있었고, `PasswordResetService` 도 reset 대상 검증을 위해 같은 조회를 반복하고 있었다. 이 상태에서는 auth/reset 경로만 탈퇴 사용자 차단과 예외 규칙이 별도로 남는다.
+- 해결: `AuthService` 는 `UserReadService.getActiveUserByUserKey(...)` 로 위임하고, `PasswordResetService` 는 `UserReadService.findOptionalActiveUserByUserKey(...)` 로 reset 대상 활성 사용자 검증을 공통화했다.
+- 이유: 인증과 비밀번호 재설정도 결국 공통 active-user read 규칙 위에 있어야 한다. 마지막 직접 `findByUserKey(...)` 경로까지 정리해야 lookup 정책과 예외 처리 drift 를 truly one place 로 모을 수 있다.
+
+## 472) `UserAdminController` 가 forced logout 전에 `UserRepository.findIdByUserKey(...)` 를 직접 호출하면, 컨트롤러가 user 존재 판단까지 떠안고 user read 경계 바깥의 예외로 남는다
+- 문제: forced logout 경로는 userKey 공백 검증 뒤 곧바로 `UserRepository.findIdByUserKey(...)` 를 호출하고 있었다. 이 상태에서는 컨트롤러가 요청/응답 orchestration뿐 아니라 user 존재 확인까지 직접 책임진다.
+- 해결: `UserReadService.requireExistingUserIdByUserKey(...)` 를 추가하고, `UserAdminController` 는 forced logout 전에 해당 read 경계만 호출하게 정리했다.
+- 이유: 컨트롤러는 입력 검증과 응답 orchestration에 집중하고, user 존재/조회 규칙은 read 서비스로 모아야 이후 admin 경로가 늘어나도 저장소 직접 의존이 다시 번지지 않는다.
+
+## 473) `SearchYouthRelevanceService` 가 backfill 대상 전체 정책을 위해 `WelfareServiceRepository.findAll()` 을 직접 호출하면, relevance 규칙 서비스가 대상 조회 persistence 선택까지 같이 떠안는다
+- 문제: `SearchYouthRelevanceService.backfillAll()` 은 전체 정책을 직접 조회한 뒤 tag를 묶고 청년 검색 relevance를 재계산하고 있었다. 이 상태에서는 “어떤 정책이 backfill 대상인가”라는 조회 규칙이 서비스 코드에 묻어난다.
+- 해결: `SearchYouthRelevanceReadRepository` 를 추가하고, `backfillAll()` 은 `findBackfillTargetServices()` 로 전체 대상만 받게 정리했다.
+- 이유: relevance 계산 서비스는 청년 검색 relevance 규칙과 집계에 집중하고, 대상 조회 범위/선택은 read 계층으로 숨기는 편이 SRP와 후속 backfill 범위 변경 대응에 더 낫다.
+
+## 474) `RecommendationController` 가 `CanonicalRecommendationReadModelRepository` 를 직접 호출하면, 웹 계층이 recommendation read-model 선택과 projection 조립 책임까지 같이 떠안는다
+- 문제: 추천 목록/갱신 API는 `UserRecommendation` 목록을 받은 뒤 컨트롤러 내부 `toResponses(...)` 에서 `CanonicalRecommendationReadModelRepository.findByServiceIds(...)` 를 직접 호출하고 있었다. 이 상태에서는 recommendation 응답 조립 규칙이 controller 레벨에 묻어난다.
+- 해결: `RecommendationReadFacade` 에 `findCandidateProjections(...)` 를 추가하고, 컨트롤러는 facade를 통해 projection map만 받아 응답 조립하게 정리했다.
+- 이유: 웹 계층은 요청/응답 orchestration에 집중하고, recommendation read-model 선택은 recommendation 경계로 숨기는 편이 controller 단 책임과 후속 projection 변경 파급도 관리에 더 낫다.
+
+## 475) `UserBookmarkReadService` 가 recommendation 저장소와 canonical projection을 직접 읽으면, user 도메인이 recommendation persistence와 summary 조립 책임까지 같이 떠안는다
+- 문제: 북마크 목록 조회는 active user 해석 뒤 `UserRecommendationRepository.findLatestBookmarkedByUserKey(...)` 와 `CanonicalRecommendationReadModelRepository.findByServiceIds(...)` 를 직접 호출하고 있었다. 이 상태에서는 user 도메인이 recommendation summary 조립 방식을 알아야 한다.
+- 해결: `RecommendationReadFacade` 에 `findBookmarkedPolicySummaries(...)` 를 추가하고, `UserBookmarkReadService` 는 active user 해석 후 facade 위임만 하게 정리했다.
+- 이유: 북마크 목록은 user 기능이지만, 실제 summary 조립은 recommendation 저장 모델과 canonical projection을 아는 recommendation 경계에 두는 편이 도메인 분리와 변경 파급도 관리에 더 낫다.

@@ -1092,6 +1092,86 @@ cd backend
   - 기존에는 `saved=0 skipped=198 stoppedAfterNoSaves=true` 로 `200 success` 처럼 보였음
   - `BokjiroDetailCollectService` 가 rate-limit abort 여부를 내부 결과로 들고 가고, `0-save + rate-limited abort` 라운드는 `COL001` 로 surface 하도록 수정
   - 단위/WebMvc 회귀 후 Docker app 재기동 + `SECURITY_ADMIN_EMAILS=admin@example.com` override 상태에서 실제 `POST /api/admin/collect/bokjiro-details-gap-fill?rounds=1&maxCallsPerRound=95` 가 `500 / COL001` 반환 확인
+- 2026-05-03 전화번호는 제품/API 범위에서는 미수집 상태로 다시 고정
+  - `SignupRequest` 는 원래 phone 필드가 없었고, 이번에 `UpdateProfileRequest` 와 `ProfileResponse` 에서도 phone 계약 제거
+  - `UserService.updateProfile()` 는 더 이상 `phone_enc` 를 갱신하지 않고, 프로필 완성도 점수도 전화번호 가산점 없이 계산
+  - DB의 `phone_enc` 컬럼과 PII 경계는 future 확장성 때문에 남겨 두되, 현재 제품 범위에서는 dormant 상태로 유지
+- 2026-05-03 챗 메시지 전송 경계를 재구성
+  - `ChatMessageService.sendMessage()` 에서 외부 `ChatAiGateway` 호출을 트랜잭션 밖으로 분리
+  - 새 `ChatMessageCommandService` 가 USER/ASSISTANT 메시지 저장과 `lastMessageAt` 갱신만 짧은 transaction으로 담당
+  - `./gradlew test integrationTest --no-daemon` 재통과로 chat API 회귀 없음 확인
+- 2026-05-03 `bokjiro-details-gap-fill` 을 표준 collect 실행 경계로 편입
+  - `CollectAdminController` 직접 호출 대신 `CollectService.collectBokjiroDetailGapFill(...)` 로 우회 경로 제거
+  - 전용 `CollectSource.BOKJIRO_DETAIL_GAP_FILL` 를 추가해 `CollectExecutionGuard + ApiSyncLogService` lock/log 경계를 공유
+  - WebMvc/unit/integration 후 `./gradlew test integrationTest --no-daemon` 재통과
+- 2026-05-03 `AuthService` 책임 분리 1차 정리
+  - 토큰 발급/refresh/logout 경계를 `AuthTokenService` 로 분리
+  - 비밀번호 재설정 요청/확정 경계를 `PasswordResetService` 로 분리
+  - `AuthService` 는 signup/login/admin role 해석 중심 orchestration으로 축소
+  - 관련 단위 테스트를 서비스별로 재배치하고 `./gradlew test integrationTest --no-daemon` 재통과
+- 2026-05-03 policy 읽기 경계 정리
+  - `PolicyService`, `PolicySearchService` 의 북마크 읽기 경로를 `RecommendationReadFacade` 로 이동
+  - policy domain 이 `UserRecommendationRepository` 직접 조회에 덜 묶이도록 read coupling 축소
+  - 관련 `PolicyServiceTest`, `PolicySearchServiceTest` 재통과 확인
+- 2026-05-03 policy 검색/목록 조합식 조회 경계 정리
+  - `PolicyListReadCondition`, `PolicySearchReadCondition`, `WelfareServiceReadRepository` 추가
+  - `PolicyService`, `PolicySearchService` 가 `WelfareServiceRepository` 의 조합식 조회 메서드를 직접 고르지 않도록 read repository로 위임
+  - 추천 후보/챗봇 등 다른 경로는 그대로 두고, policy list/search 서비스 경계만 먼저 축소
+- 2026-05-03 user command/read 책임 정리
+  - `UserBookmarkReadService`, `UserProfileCommandService`, `UserAccountCommandService` 추가
+  - `UserService` 는 controller facade만 남기고 profile/priorities/account 명령을 각 전용 서비스로 위임
+  - `UserServiceTest` 는 delegation 확인용으로 축소하고, 실제 로직 검증은 새 전용 서비스 테스트로 이동
+- 2026-05-03 collect streak 집계 정확도 보정
+  - `collect-failures` 의 `jobStreaks` 계산을 summary window 안쪽으로 자르지 않고, job별 최신 실행 이력 전체 기준 current streak로 계산
+  - 대시보드 window는 failed/partial 총량/샘플용으로만 쓰고, streak는 “현재 연속 상태”를 보여주도록 의미를 분리
+- 2026-05-03 collect runtime status 경계 정리
+  - `CollectRuntimeStatusService` 추가
+  - `AdminDashboardService` 가 `BokjiroLocalClient` 구현을 직접 알지 않고 collect runtime status 전용 서비스만 보도록 정리
+- 2026-05-03 recommendation retrieval 조합식 조회 경계 정리
+  - `RecommendationCandidateReadCondition`, `RecommendationCandidateReadRepository` 추가
+  - `RetrievalService` 가 `findCandidates...` / `findLatestCandidates...` 조합 메서드를 직접 고르지 않고 추천 후보 전용 read repository로 위임
+- 2026-05-03 chat policy 조회 경계 정리
+  - `ChatPolicyReadCondition`, `ChatPolicyReadRepository` 추가
+  - `ChatPolicyService` 가 `searchChatCandidates` / fallback 인기 정책 조회 메서드를 직접 고르지 않고 챗봇 후보 전용 read repository로 위임
+- 2026-05-03 recommendation bookmark command 경계 정리
+  - `RecommendationBookmarkCommandService` 추가
+  - `PolicyService` 와 `RecommendationFacade` 가 북마크 토글 규칙과 userKey 해석, placeholder 생성 로직을 recommendation command 서비스로 위임
+- 2026-05-03 policy ranking 조회 경계 정리
+  - `PolicyRankingReadRepository` 추가
+  - `PolicyRankingService` 가 `findByStatusIn(...)` 를 직접 호출하지 않고 랭킹 대상 정책 조회를 전용 read repository로 위임
+- 2026-05-03 user key lookup 경계 정리
+  - `UserKeyLookupService` 추가
+  - `PolicyViewLogService`, `PolicySearchLogService` 가 `UserRepository.findUserKeyById(...)` 를 직접 호출하지 않고 nullable userKey 해석을 전용 서비스로 위임
+- 2026-05-03 shared user key lookup 확장
+  - `RecommendationReadFacade`, `RecommendationLogService`, `UserBookmarkReadService`, `UserProfileCommandService`, `UserAccountCommandService`, `UserReadService`, `AuthTokenService` 도 `UserKeyLookupService` 를 사용하도록 정리
+  - user/recommend 경계에서 `findUserKeyById(...)` 중복 해석을 줄이고 nullable/required lookup 규칙을 한 곳으로 모음
+- 2026-05-03 shared user key lookup 잔여 직접 조회 제거
+  - `RecommendationBookmarkCommandService`, `RecommendationFacade`, `UserCoreSyncService` 도 `UserKeyLookupService` 로 전환
+  - 운영 코드 기준 직접 `findUserKeyById(...)` 호출은 이제 lookup 서비스 내부와 repository 자체 정의로만 남김
+- 2026-05-03 active user lookup 경계 정리
+  - `UserReadService` 에 `getActiveUserContext(...)`, `getActiveUserByUserKey(...)` 추가
+  - `ChatMessageService`, `ChatSessionService`, `NotificationService`, `UserBookmarkReadService`, `UserProfileCommandService`, `UserAccountCommandService`, `AuthTokenService` 가 각자 `findActiveUser(...)` 나 `findByUserKey(...)` 를 직접 들지 않도록 정리
+  - user + userKey 를 같이 써야 하는 command/orchestration 경로는 `ActiveUserContext` 로 한 번에 전달
+- 2026-05-03 auth active user read 경계 정리
+  - `AuthService.login(...)` 이 `UserReadService.getActiveUserByUserKey(...)` 로 active user 조회를 위임
+  - `PasswordResetService` 는 `UserReadService.findOptionalActiveUserByUserKey(...)` 로 reset 대상 활성 사용자 검증을 공통화
+  - auth/reset 경로에서 `findByUserKey(...)` + `isActive()` 중복을 줄이고 user read 경계를 한 곳으로 모음
+- 2026-05-04 user admin read 경계 정리
+  - `UserAdminController` 의 forced logout 경로가 `UserRepository.findIdByUserKey(...)` 를 직접 들지 않도록 변경
+  - userKey 존재 검증은 `UserReadService.requireExistingUserIdByUserKey(...)` 로 위임
+  - 컨트롤러는 요청 검증과 응답 orchestration만 맡고 user 존재 판단은 read 경계로 이동
+- 2026-05-04 search youth relevance read 경계 정리
+  - `SearchYouthRelevanceService.backfillAll()` 이 `WelfareServiceRepository.findAll()` 을 직접 호출하지 않도록 변경
+  - 전체 정책 조회는 `SearchYouthRelevanceReadRepository.findBackfillTargetServices()` 로 위임
+  - 서비스는 청년 검색 relevance 재계산 규칙에 집중하고, backfill 대상 조회 규칙은 read 계층으로 이동
+- 2026-05-04 recommendation controller read 경계 정리
+  - `RecommendationController` 가 `CanonicalRecommendationReadModelRepository` 를 직접 들지 않도록 변경
+  - 추천 응답용 projection 조회는 `RecommendationReadFacade.findCandidateProjections(...)` 로 이동
+  - 컨트롤러는 요청/응답 orchestration에 집중하고 recommendation read-model 선택은 facade 경계로 이동
+- 2026-05-04 bookmark summary read 경계 정리
+  - `UserBookmarkReadService` 가 recommendation 저장소와 canonical projection 조립을 직접 들지 않도록 변경
+  - 북마크 정책 요약 조회는 `RecommendationReadFacade.findBookmarkedPolicySummaries(...)` 로 이동
+  - user 도메인은 active user 해석과 위임에 집중하고 북마크 summary 조립은 recommendation read 경계로 이동
 
 ## 남은 1차 작업
 
@@ -1114,6 +1194,11 @@ cd backend
 - `--only auth-session|click|dashboard|replay` 단일 단계 실행 shortcut 지원
 - `--only` 사용 시 plan/실패 출력에도 `only_step=...` 노출
 - admin 검색 분석은 summary count만 보지 않고 `/api/admin/dashboard/search-failures` 로 zero-result 키워드/지역/필터 패턴/샘플 상세 조회 가능
+- admin 추천 분석은 summary count만 보지 않고 `/api/admin/dashboard/recommendation-breakdowns` 로 source/category/weight 분포와 userKey 기준 재노출 그룹, fallback·click sample 상세 조회 가능
+- admin 수집 분석은 summary count만 보지 않고 `/api/admin/dashboard/collect-failures` 로 failed/partial 총량, job 분포, error code 분포, 최근 샘플 상세 조회 가능
+- `collect-failures` 상세에서는 최근 연속 실패/partial streak 과 `BOKJIRO_LOCAL` open-circuit 상태까지 같이 확인 가능
+- 같은 `userKey` 또는 `clientFingerprint` 가 같은 zero-result 검색을 반복한 경우, `search-failures` 응답에서 retry group으로 바로 확인 가능
+- `search-failures` 상세에서는 같은 actor가 반복 실패했다가 나중에 회복된 검색 그룹도 같이 확인 가능
 
 ## 2차로 분리된 항목
 

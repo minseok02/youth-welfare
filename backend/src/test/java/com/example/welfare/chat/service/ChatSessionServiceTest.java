@@ -6,7 +6,7 @@ import com.example.welfare.chat.repository.ChatSessionRepository;
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.user.entity.User;
-import com.example.welfare.user.repository.UserRepository;
+import com.example.welfare.user.service.UserReadService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -31,13 +31,13 @@ class ChatSessionServiceTest {
     private ChatSessionRepository chatSessionRepository;
 
     @Mock
-    private UserRepository userRepository;
+    private UserReadService userReadService;
 
     private ChatSessionService chatSessionService;
 
     @BeforeEach
     void setUp() {
-        chatSessionService = new ChatSessionService(chatSessionRepository, userRepository);
+        chatSessionService = new ChatSessionService(chatSessionRepository, userReadService);
     }
 
     @Test
@@ -52,7 +52,8 @@ class ChatSessionServiceTest {
         CreateChatSessionRequest request = new CreateChatSessionRequest();
         ReflectionTestUtils.setField(request, "title", "   ");
 
-        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(userReadService.getActiveUserContext(1L))
+                .thenReturn(new UserReadService.ActiveUserContext(user, "user-key-1"));
         when(chatSessionRepository.save(any(ChatSession.class))).thenAnswer(invocation -> {
             ChatSession session = invocation.getArgument(0);
             ReflectionTestUtils.setField(session, "id", 10L);
@@ -78,7 +79,8 @@ class ChatSessionServiceTest {
                 .passwordHash("hash")
                 .build();
 
-        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(userReadService.getActiveUserContext(1L))
+                .thenReturn(new UserReadService.ActiveUserContext(user, "user-key-1"));
         when(chatSessionRepository.findByIdAndUserKey(99L, "user-key-1")).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> chatSessionService.deleteSession(1L, 99L))

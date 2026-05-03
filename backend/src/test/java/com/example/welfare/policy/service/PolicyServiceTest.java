@@ -4,16 +4,16 @@ import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.policy.dto.PolicySummaryResponse;
 import com.example.welfare.policy.entity.WelfareService;
+import com.example.welfare.policy.repository.PolicyListReadCondition;
 import com.example.welfare.policy.repository.ServiceRegionRepository;
 import com.example.welfare.policy.repository.ServiceTagRepository;
+import com.example.welfare.policy.repository.WelfareServiceReadRepository;
 import com.example.welfare.policy.repository.WelfareServiceDetailRepository;
 import com.example.welfare.policy.repository.WelfareServiceRepository;
 import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
-import com.example.welfare.recommend.entity.UserRecommendation;
+import com.example.welfare.recommend.facade.RecommendationReadFacade;
 import com.example.welfare.recommend.repository.CanonicalRecommendationReadModelRepository;
-import com.example.welfare.recommend.repository.UserRecommendationRepository;
-import com.example.welfare.user.entity.User;
-import com.example.welfare.user.repository.UserRepository;
+import com.example.welfare.recommend.service.RecommendationBookmarkCommandService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -25,8 +25,8 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.Optional;
 import java.util.List;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -48,9 +48,11 @@ class PolicyServiceTest {
     @Mock
     private ServiceTagRepository tagRepository;
     @Mock
-    private UserRecommendationRepository userRecommendationRepository;
+    private WelfareServiceReadRepository welfareServiceReadRepository;
     @Mock
-    private UserRepository userRepository;
+    private RecommendationReadFacade recommendationReadFacade;
+    @Mock
+    private RecommendationBookmarkCommandService recommendationBookmarkCommandService;
     @Mock
     private CanonicalRecommendationReadModelRepository canonicalRecommendationReadModelRepository;
 
@@ -69,14 +71,16 @@ class PolicyServiceTest {
                 .build();
         Page<WelfareService> page = new PageImpl<>(List.of(service));
 
-        given(welfareServiceRepository.findListWithFilters(
-                eq("HOUSING"),
-                eq(WelfareService.SourceType.YOUTH),
-                eq(WelfareService.ServiceStatus.ACTIVE),
-                eq(false),
-                eq("서울특별시"),
-                eq("강남구"),
-                eq(true),
+        given(welfareServiceReadRepository.findList(
+                eq(new PolicyListReadCondition(
+                        "HOUSING",
+                        WelfareService.SourceType.YOUTH,
+                        WelfareService.ServiceStatus.ACTIVE,
+                        false,
+                        "서울특별시",
+                        "강남구",
+                        true
+                )),
                 any(PageRequest.class)
         )).willReturn(page);
         given(canonicalRecommendationReadModelRepository.findByServiceIds(List.of(11L)))
@@ -97,14 +101,16 @@ class PolicyServiceTest {
 
         assertEquals(1, result.getTotalElements());
         ArgumentCaptor<PageRequest> captor = ArgumentCaptor.forClass(PageRequest.class);
-        verify(welfareServiceRepository).findListWithFilters(
-                eq("HOUSING"),
-                eq(WelfareService.SourceType.YOUTH),
-                eq(WelfareService.ServiceStatus.ACTIVE),
-                eq(false),
-                eq("서울특별시"),
-                eq("강남구"),
-                eq(true),
+        verify(welfareServiceReadRepository).findList(
+                eq(new PolicyListReadCondition(
+                        "HOUSING",
+                        WelfareService.SourceType.YOUTH,
+                        WelfareService.ServiceStatus.ACTIVE,
+                        false,
+                        "서울특별시",
+                        "강남구",
+                        true
+                )),
                 captor.capture()
         );
         assertEquals("viewCount: DESC", captor.getValue().getSort().getOrderFor("viewCount").toString());
@@ -122,14 +128,8 @@ class PolicyServiceTest {
                 .build();
         Page<WelfareService> page = new PageImpl<>(List.of(service));
 
-        given(welfareServiceRepository.findListWithFilters(
-                eq(null),
-                eq(null),
-                eq(null),
-                eq(false),
-                eq(null),
-                eq(null),
-                eq(null),
+        given(welfareServiceReadRepository.findList(
+                eq(new PolicyListReadCondition(null, null, null, false, null, null, null)),
                 any(PageRequest.class)
         )).willReturn(page);
         given(canonicalRecommendationReadModelRepository.findByServiceIds(List.of(11L)))
@@ -146,9 +146,8 @@ class PolicyServiceTest {
                                 .gov24BenefitTypeLabel("서비스")
                                 .build()
                 ));
-        given(userRepository.findUserKeyById(7L)).willReturn(Optional.of("user-key-7"));
-        given(userRecommendationRepository.findLatestBookmarkedServiceIdsByUserKey("user-key-7", List.of(11L)))
-                .willReturn(List.of(11L));
+        given(recommendationReadFacade.findBookmarkedServiceIds(7L, List.of(service)))
+                .willReturn(Set.of(11L));
 
         Page<PolicySummaryResponse> result = policyService.getList(
                 7L,
@@ -176,57 +175,25 @@ class PolicyServiceTest {
     @Test
     @DisplayName("기존 추천 이력이 있으면 북마크 상태를 토글한다")
     void toggleBookmarkOnExistingRecommendation() {
-        UserRecommendation recommendation = UserRecommendation.builder()
-                .id(1L)
-                .userKey("user-key-7")
-                .isBookmarked(false)
-                .build();
-        given(userRepository.findUserKeyById(7L)).willReturn(Optional.of("user-key-7"));
-        given(userRecommendationRepository.findTopByUserKeyAndServiceIdOrderByRecommendedAtDesc("user-key-7", 11L))
-                .willReturn(Optional.of(recommendation));
-
         policyService.toggleBookmark(7L, 11L);
 
-        assertTrue(recommendation.isBookmarked());
+        verify(recommendationBookmarkCommandService).togglePolicyBookmark(7L, 11L);
     }
 
     @Test
     @DisplayName("추천 이력이 없어도 북마크 요청 시 placeholder 추천을 생성한다")
     void toggleBookmarkCreatesPlaceholderWhenMissing() {
-        WelfareService service = WelfareService.builder()
-                .id(11L)
-                .sourceType(WelfareService.SourceType.YOUTH)
-                .sourceId("SRC-11")
-                .title("청년 정책")
-                .build();
-
-        given(userRepository.findUserKeyById(7L)).willReturn(Optional.of("user-key-7"));
-        given(userRecommendationRepository.findTopByUserKeyAndServiceIdOrderByRecommendedAtDesc("user-key-7", 11L))
-                .willReturn(Optional.empty());
-        given(welfareServiceRepository.findById(11L)).willReturn(Optional.of(service));
-        given(userRecommendationRepository.save(any(UserRecommendation.class)))
-                .willAnswer(invocation -> invocation.getArgument(0, UserRecommendation.class));
-
         policyService.toggleBookmark(7L, 11L);
 
-        ArgumentCaptor<UserRecommendation> captor = ArgumentCaptor.forClass(UserRecommendation.class);
-        verify(userRecommendationRepository).save(captor.capture());
-        assertTrue(captor.getValue().isBookmarked());
-        assertEquals("user-key-7", captor.getValue().getUserKey());
+        verify(recommendationBookmarkCommandService).togglePolicyBookmark(7L, 11L);
     }
 
     @Test
     @DisplayName("북마크가 이미 200건이면 추가 북마크를 막는다")
     void toggleBookmarkRejectsWhenLimitExceeded() {
-        UserRecommendation recommendation = UserRecommendation.builder()
-                .id(1L)
-                .userKey("user-key-7")
-                .isBookmarked(false)
-                .build();
-        given(userRepository.findUserKeyById(7L)).willReturn(Optional.of("user-key-7"));
-        given(userRecommendationRepository.findTopByUserKeyAndServiceIdOrderByRecommendedAtDesc("user-key-7", 11L))
-                .willReturn(Optional.of(recommendation));
-        given(userRecommendationRepository.countByUserKeyAndIsBookmarkedTrue("user-key-7")).willReturn(200L);
+        org.mockito.BDDMockito.willThrow(new CustomException(ErrorCode.BOOKMARK_LIMIT_EXCEEDED))
+                .given(recommendationBookmarkCommandService)
+                .togglePolicyBookmark(7L, 11L);
 
         CustomException exception = assertThrows(CustomException.class, () -> policyService.toggleBookmark(7L, 11L));
 

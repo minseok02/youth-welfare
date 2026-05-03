@@ -1,8 +1,11 @@
 package com.example.welfare.admin.dashboard.service;
 
+import com.example.welfare.admin.dashboard.dto.AdminCollectFailureResponse;
+import com.example.welfare.admin.dashboard.dto.AdminRecommendationBreakdownResponse;
 import com.example.welfare.admin.dashboard.dto.AdminSearchFailureResponse;
 import com.example.welfare.admin.dashboard.dto.AdminDashboardResponse;
 import com.example.welfare.admin.dashboard.repository.AdminDashboardReadRepository;
+import com.example.welfare.collect.service.CollectRuntimeStatusService;
 import com.example.welfare.recommend.entity.ScoreWeight;
 import com.example.welfare.recommend.service.ScoreWeightService;
 import com.example.welfare.user.dto.response.UserPiiSyncStatusResponse;
@@ -34,6 +37,9 @@ class AdminDashboardServiceTest {
 
     @Mock
     private ScoreWeightService scoreWeightService;
+
+    @Mock
+    private CollectRuntimeStatusService collectRuntimeStatusService;
 
     @InjectMocks
     private AdminDashboardService adminDashboardService;
@@ -327,6 +333,48 @@ class AdminDashboardServiceTest {
                         LocalDateTime.of(2026, 5, 3, 9, 15)
                 )
         ));
+        given(adminDashboardReadRepository.fetchZeroResultRetryGroups(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.eq(3)
+        )).willReturn(List.of(
+                new AdminDashboardReadRepository.SearchRetryGroupRow(
+                        "USER_KEY",
+                        "user-key-1",
+                        "대출",
+                        "서울",
+                        "관악구",
+                        "UNEMPLOYED",
+                        "HOUSING",
+                        "YOUTH",
+                        Boolean.TRUE,
+                        false,
+                        "LATEST",
+                        3,
+                        LocalDateTime.of(2026, 5, 3, 8, 30),
+                        LocalDateTime.of(2026, 5, 3, 9, 15)
+                )
+        ));
+        given(adminDashboardReadRepository.fetchRecoveredSearchGroups(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.eq(3)
+        )).willReturn(List.of(
+                new AdminDashboardReadRepository.RecoveredSearchGroupRow(
+                        "USER_KEY",
+                        "user-key-1",
+                        "대출",
+                        "서울",
+                        "관악구",
+                        "UNEMPLOYED",
+                        "HOUSING",
+                        "YOUTH",
+                        Boolean.TRUE,
+                        false,
+                        "LATEST",
+                        2,
+                        1,
+                        LocalDateTime.of(2026, 5, 3, 9, 25)
+                )
+        ));
 
         AdminSearchFailureResponse response = adminDashboardService.getSearchFailures(14, 3);
 
@@ -350,6 +398,268 @@ class AdminDashboardServiceTest {
             assertThat(sample.sido()).isEqualTo("서울");
             assertThat(sample.sgg()).isEqualTo("관악구");
             assertThat(sample.searchedAt()).isEqualTo(LocalDateTime.of(2026, 5, 3, 9, 15));
+        });
+        assertThat(response.retryGroups()).singleElement().satisfies(group -> {
+            assertThat(group.actorType()).isEqualTo("USER_KEY");
+            assertThat(group.actorKey()).isEqualTo("user-key-1");
+            assertThat(group.keyword()).isEqualTo("대출");
+            assertThat(group.retryCount()).isEqualTo(3);
+            assertThat(group.firstSearchedAt()).isEqualTo(LocalDateTime.of(2026, 5, 3, 8, 30));
+            assertThat(group.latestSearchedAt()).isEqualTo(LocalDateTime.of(2026, 5, 3, 9, 15));
+        });
+        assertThat(response.recoveredSearchGroups()).singleElement().satisfies(group -> {
+            assertThat(group.actorType()).isEqualTo("USER_KEY");
+            assertThat(group.actorKey()).isEqualTo("user-key-1");
+            assertThat(group.keyword()).isEqualTo("대출");
+            assertThat(group.zeroResultCount()).isEqualTo(2);
+            assertThat(group.recoveredResultCount()).isEqualTo(1);
+            assertThat(group.latestRecoveredAt()).isEqualTo(LocalDateTime.of(2026, 5, 3, 9, 25));
+        });
+    }
+
+    @Test
+    @DisplayName("추천 breakdown은 source/category/weight/fallback sample/clicked sample을 조합한다")
+    void getRecommendationBreakdownsBuildsResponse() {
+        given(adminDashboardReadRepository.fetchRecommendationSummary(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any()
+        )).willReturn(new AdminDashboardReadRepository.RecommendationSummaryRow(
+                250,
+                12,
+                30,
+                9,
+                6,
+                LocalDateTime.of(2026, 5, 2, 8, 45)
+        ));
+        given(adminDashboardReadRepository.fetchRecommendationSourceBreakdowns(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.eq(3)
+        )).willReturn(List.of(
+                new AdminDashboardReadRepository.RecommendationSourceBreakdownRow("YOUTH", 18, 6, 3)
+        ));
+        given(adminDashboardReadRepository.fetchRecommendationCategoryBreakdowns(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.eq(3)
+        )).willReturn(List.of(
+                new AdminDashboardReadRepository.RecommendationCategoryBreakdownRow("HOUSING", 10, 4, 1)
+        ));
+        given(adminDashboardReadRepository.fetchRecommendationWeightBreakdowns(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.eq(3)
+        )).willReturn(List.of(
+                new AdminDashboardReadRepository.RecommendationWeightBreakdownRow(
+                        "GROWTH",
+                        new BigDecimal("0.60"),
+                        new BigDecimal("0.40"),
+                        12,
+                        3,
+                        2
+                )
+        ));
+        given(adminDashboardReadRepository.fetchRecentFallbackRecommendationSamples(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.eq(3)
+        )).willReturn(List.of(
+                new AdminDashboardReadRepository.RecommendationSampleRow(
+                        101L,
+                        501L,
+                        "청년 월세 지원",
+                        "YOUTH",
+                        "HOUSING",
+                        new BigDecimal("0.75231"),
+                        true,
+                        false,
+                        LocalDateTime.of(2026, 5, 3, 9, 0),
+                        null
+                )
+        ));
+        given(adminDashboardReadRepository.fetchRecentClickedRecommendationSamples(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.eq(3)
+        )).willReturn(List.of(
+                new AdminDashboardReadRepository.RecommendationSampleRow(
+                        102L,
+                        502L,
+                        "청년 전세 지원",
+                        "BOKJIRO_LOCAL",
+                        "HOUSING",
+                        new BigDecimal("0.88123"),
+                        false,
+                        true,
+                        LocalDateTime.of(2026, 5, 3, 8, 0),
+                        LocalDateTime.of(2026, 5, 3, 8, 30)
+                )
+        ));
+        given(adminDashboardReadRepository.fetchRecommendationRepeatExposureGroups(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.eq(3)
+        )).willReturn(List.of(
+                new AdminDashboardReadRepository.RecommendationRepeatExposureGroupRow(
+                        "user-key-1",
+                        501L,
+                        "청년 월세 지원",
+                        "YOUTH",
+                        "HOUSING",
+                        3,
+                        1,
+                        1,
+                        LocalDateTime.of(2026, 5, 1, 8, 0),
+                        LocalDateTime.of(2026, 5, 3, 9, 0),
+                        LocalDateTime.of(2026, 5, 3, 9, 10)
+                )
+        ));
+
+        AdminRecommendationBreakdownResponse response = adminDashboardService.getRecommendationBreakdowns(14, 3);
+
+        assertThat(response.windowDays()).isEqualTo(14);
+        assertThat(response.totalLogs()).isEqualTo(30);
+        assertThat(response.clickedLogs()).isEqualTo(9);
+        assertThat(response.fallbackLogs()).isEqualTo(6);
+        assertThat(response.sourceBreakdowns()).singleElement().satisfies(source -> {
+            assertThat(source.sourceType()).isEqualTo("YOUTH");
+            assertThat(source.sentCount()).isEqualTo(18);
+            assertThat(source.clickedCount()).isEqualTo(6);
+            assertThat(source.fallbackCount()).isEqualTo(3);
+            assertThat(source.clickThroughRate()).isEqualByComparingTo("0.3333");
+            assertThat(source.fallbackRate()).isEqualByComparingTo("0.1667");
+        });
+        assertThat(response.categoryBreakdowns()).singleElement().satisfies(category -> {
+            assertThat(category.category()).isEqualTo("HOUSING");
+            assertThat(category.clickThroughRate()).isEqualByComparingTo("0.4000");
+        });
+        assertThat(response.weightBreakdowns()).singleElement().satisfies(weight -> {
+            assertThat(weight.weightKey()).isEqualTo("GROWTH");
+            assertThat(weight.ruleWeight()).isEqualByComparingTo("0.60");
+            assertThat(weight.aiWeight()).isEqualByComparingTo("0.40");
+            assertThat(weight.clickThroughRate()).isEqualByComparingTo("0.2500");
+            assertThat(weight.fallbackRate()).isEqualByComparingTo("0.1667");
+        });
+        assertThat(response.recentFallbackSamples()).singleElement().satisfies(sample -> {
+            assertThat(sample.logId()).isEqualTo(101L);
+            assertThat(sample.title()).isEqualTo("청년 월세 지원");
+            assertThat(sample.fallback()).isTrue();
+        });
+        assertThat(response.recentClickedSamples()).singleElement().satisfies(sample -> {
+            assertThat(sample.logId()).isEqualTo(102L);
+            assertThat(sample.title()).isEqualTo("청년 전세 지원");
+            assertThat(sample.clicked()).isTrue();
+            assertThat(sample.clickedAt()).isEqualTo(LocalDateTime.of(2026, 5, 3, 8, 30));
+        });
+        assertThat(response.repeatExposureGroups()).singleElement().satisfies(group -> {
+            assertThat(group.userKey()).isEqualTo("user-key-1");
+            assertThat(group.serviceId()).isEqualTo(501L);
+            assertThat(group.title()).isEqualTo("청년 월세 지원");
+            assertThat(group.exposureCount()).isEqualTo(3);
+            assertThat(group.clickedCount()).isEqualTo(1);
+            assertThat(group.fallbackCount()).isEqualTo(1);
+            assertThat(group.firstSentAt()).isEqualTo(LocalDateTime.of(2026, 5, 1, 8, 0));
+            assertThat(group.latestSentAt()).isEqualTo(LocalDateTime.of(2026, 5, 3, 9, 0));
+            assertThat(group.latestClickedAt()).isEqualTo(LocalDateTime.of(2026, 5, 3, 9, 10));
+        });
+    }
+
+    @Test
+    @DisplayName("collect 실패 상세는 failed/partial 총량, job 분포, error code 분포, 최근 샘플을 조합한다")
+    void getCollectFailuresBuildsResponse() {
+        given(adminDashboardReadRepository.fetchCollectFailureSummary(org.mockito.ArgumentMatchers.any()))
+                .willReturn(new AdminDashboardReadRepository.CollectFailureSummaryRow(6, 2));
+        given(adminDashboardReadRepository.fetchCollectFailureJobBreakdowns(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.eq(3)
+        )).willReturn(List.of(
+                new AdminDashboardReadRepository.CollectFailureJobBreakdownRow(
+                        "BOKJIRO_LOCAL",
+                        4,
+                        1,
+                        LocalDateTime.of(2026, 5, 3, 9, 0)
+                )
+        ));
+        given(adminDashboardReadRepository.fetchRecentCollectJobRuns(
+                org.mockito.ArgumentMatchers.eq(20)
+        )).willReturn(List.of(
+                new AdminDashboardReadRepository.CollectJobRunRow(
+                        "BOKJIRO_LOCAL",
+                        "FAILED",
+                        LocalDateTime.of(2026, 5, 3, 9, 0)
+                ),
+                new AdminDashboardReadRepository.CollectJobRunRow(
+                        "BOKJIRO_LOCAL",
+                        "FAILED",
+                        LocalDateTime.of(2026, 5, 2, 9, 0)
+                ),
+                new AdminDashboardReadRepository.CollectJobRunRow(
+                        "BOKJIRO_LOCAL",
+                        "FAILED",
+                        LocalDateTime.of(2026, 4, 1, 9, 0)
+                ),
+                new AdminDashboardReadRepository.CollectJobRunRow(
+                        "BOKJIRO_LOCAL",
+                        "SUCCESS",
+                        LocalDateTime.of(2026, 5, 1, 9, 0)
+                )
+        ));
+        given(adminDashboardReadRepository.fetchCollectFailureErrorCodeBreakdowns(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.eq(3)
+        )).willReturn(List.of(
+                new AdminDashboardReadRepository.CollectFailureErrorCodeBreakdownRow("COL001", 5)
+        ));
+        given(adminDashboardReadRepository.fetchRecentCollectFailureSamples(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.eq(3)
+        )).willReturn(List.of(
+                new AdminDashboardReadRepository.CollectFailureSampleRow(
+                        "BOKJIRO_LOCAL",
+                        "FAILED",
+                        "COL001",
+                        "rate limited",
+                        LocalDateTime.of(2026, 5, 3, 9, 0),
+                        LocalDateTime.of(2026, 5, 3, 9, 1),
+                        0,
+                        0,
+                        1
+                )
+        ));
+        given(collectRuntimeStatusService.getCircuitStatuses())
+                .willReturn(List.of(new CollectRuntimeStatusService.CircuitStatusSnapshot(
+                        "BOKJIRO_LOCAL",
+                        true,
+                        60000L,
+                        LocalDateTime.of(2026, 5, 3, 10, 0)
+                )));
+
+        AdminCollectFailureResponse response = adminDashboardService.getCollectFailures(14, 3);
+
+        assertThat(response.windowDays()).isEqualTo(14);
+        assertThat(response.totalFailedJobs()).isEqualTo(6);
+        assertThat(response.totalPartialSuccessJobs()).isEqualTo(2);
+        assertThat(response.jobBreakdowns()).singleElement().satisfies(job -> {
+            assertThat(job.jobName()).isEqualTo("BOKJIRO_LOCAL");
+            assertThat(job.failedCount()).isEqualTo(4);
+            assertThat(job.partialSuccessCount()).isEqualTo(1);
+            assertThat(job.latestStartedAt()).isEqualTo(LocalDateTime.of(2026, 5, 3, 9, 0));
+        });
+        assertThat(response.jobStreaks()).singleElement().satisfies(streak -> {
+            assertThat(streak.jobName()).isEqualTo("BOKJIRO_LOCAL");
+            assertThat(streak.streakStatus()).isEqualTo("FAILED");
+            assertThat(streak.streakCount()).isEqualTo(3);
+            assertThat(streak.latestStartedAt()).isEqualTo(LocalDateTime.of(2026, 5, 3, 9, 0));
+        });
+        assertThat(response.errorCodeBreakdowns()).singleElement().satisfies(error -> {
+            assertThat(error.errorCode()).isEqualTo("COL001");
+            assertThat(error.failedCount()).isEqualTo(5);
+        });
+        assertThat(response.recentSamples()).singleElement().satisfies(sample -> {
+            assertThat(sample.jobName()).isEqualTo("BOKJIRO_LOCAL");
+            assertThat(sample.status()).isEqualTo("FAILED");
+            assertThat(sample.errorCode()).isEqualTo("COL001");
+            assertThat(sample.errorMessage()).isEqualTo("rate limited");
+        });
+        assertThat(response.circuitStatuses()).singleElement().satisfies(circuit -> {
+            assertThat(circuit.circuitKey()).isEqualTo("BOKJIRO_LOCAL");
+            assertThat(circuit.open()).isTrue();
+            assertThat(circuit.remainingMs()).isEqualTo(60000L);
+            assertThat(circuit.openUntil()).isEqualTo(LocalDateTime.of(2026, 5, 3, 10, 0));
         });
     }
 }

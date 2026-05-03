@@ -1,12 +1,13 @@
 package com.example.welfare.admin;
 
 import com.example.welfare.admin.dashboard.controller.AdminDashboardController;
+import com.example.welfare.admin.dashboard.dto.AdminCollectFailureResponse;
+import com.example.welfare.admin.dashboard.dto.AdminRecommendationBreakdownResponse;
 import com.example.welfare.admin.dashboard.dto.AdminSearchFailureResponse;
 import com.example.welfare.admin.dashboard.dto.AdminDashboardResponse;
 import com.example.welfare.admin.dashboard.service.AdminDashboardService;
 import com.example.welfare.collect.controller.CollectAdminController;
 import com.example.welfare.collect.normalization.NormalizedPolicySidecarBackfillService;
-import com.example.welfare.collect.service.BokjiroDetailCollectService;
 import com.example.welfare.collect.service.CollectSource;
 import com.example.welfare.collect.service.CollectService;
 import com.example.welfare.global.auth.AuthenticatedUser;
@@ -22,9 +23,9 @@ import com.example.welfare.user.dto.response.UserMetadataUserKeyBackfillResponse
 import com.example.welfare.user.dto.response.UserPiiBackfillResponse;
 import com.example.welfare.user.dto.response.UserPiiSyncReplayResponse;
 import com.example.welfare.user.dto.response.UserPiiSyncStatusResponse;
-import com.example.welfare.user.repository.UserRepository;
 import com.example.welfare.user.service.UserMetadataUserKeyBackfillService;
 import com.example.welfare.user.service.UserPiiBackfillService;
+import com.example.welfare.user.service.UserReadService;
 import com.example.welfare.user.service.UserPiiSyncReplayService;
 import com.example.welfare.user.service.UserPiiSyncStatusService;
 import com.example.welfare.user.service.UserSessionRevocationService;
@@ -64,8 +65,6 @@ class AdminSecurityWebMvcTest {
     @MockBean
     private CollectService collectService;
     @MockBean
-    private BokjiroDetailCollectService bokjiroDetailCollectService;
-    @MockBean
     private NormalizedPolicySidecarBackfillService normalizedPolicySidecarBackfillService;
     @MockBean
     private SearchYouthRelevanceService searchYouthRelevanceService;
@@ -80,7 +79,7 @@ class AdminSecurityWebMvcTest {
     @MockBean
     private UserSessionRevocationService userSessionRevocationService;
     @MockBean
-    private UserRepository userRepository;
+    private UserReadService userReadService;
     @MockBean
     private AdminDashboardService adminDashboardService;
     @MockBean
@@ -387,6 +386,42 @@ class AdminSecurityWebMvcTest {
                                         "LATEST",
                                         LocalDateTime.of(2026, 5, 3, 14, 45)
                                 )
+                        ),
+                        List.of(
+                                new AdminSearchFailureResponse.RetryGroup(
+                                        "USER_KEY",
+                                        "user-key-1",
+                                        "대출",
+                                        "서울",
+                                        "관악구",
+                                        "UNEMPLOYED",
+                                        "HOUSING",
+                                        "YOUTH",
+                                        true,
+                                        false,
+                                        "LATEST",
+                                        3,
+                                        LocalDateTime.of(2026, 5, 3, 14, 0),
+                                        LocalDateTime.of(2026, 5, 3, 14, 45)
+                                )
+                        ),
+                        List.of(
+                                new AdminSearchFailureResponse.RecoveredSearchGroup(
+                                        "USER_KEY",
+                                        "user-key-1",
+                                        "대출",
+                                        "서울",
+                                        "관악구",
+                                        "UNEMPLOYED",
+                                        "HOUSING",
+                                        "YOUTH",
+                                        true,
+                                        false,
+                                        "LATEST",
+                                        2,
+                                        1,
+                                        LocalDateTime.of(2026, 5, 3, 14, 55)
+                                )
                         )
                 ));
 
@@ -403,9 +438,205 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.data.zeroResultRegions[0].sgg").value("관악구"))
                 .andExpect(jsonPath("$.data.zeroResultFilterPatterns[0].statusFilter").value("UNEMPLOYED"))
                 .andExpect(jsonPath("$.data.zeroResultFilterPatterns[0].searchCount").value(5))
-                .andExpect(jsonPath("$.data.recentSamples[0].keyword").value("대출"));
+                .andExpect(jsonPath("$.data.recentSamples[0].keyword").value("대출"))
+                .andExpect(jsonPath("$.data.retryGroups[0].actorType").value("USER_KEY"))
+                .andExpect(jsonPath("$.data.retryGroups[0].actorKey").value("user-key-1"))
+                .andExpect(jsonPath("$.data.retryGroups[0].retryCount").value(3))
+                .andExpect(jsonPath("$.data.recoveredSearchGroups[0].actorType").value("USER_KEY"))
+                .andExpect(jsonPath("$.data.recoveredSearchGroups[0].actorKey").value("user-key-1"))
+                .andExpect(jsonPath("$.data.recoveredSearchGroups[0].zeroResultCount").value(2))
+                .andExpect(jsonPath("$.data.recoveredSearchGroups[0].recoveredResultCount").value(1));
 
         then(adminDashboardService).should().getSearchFailures(14, 3);
+    }
+
+    @Test
+    @DisplayName("관리자 토큰으로 추천 breakdown API를 호출하면 recommendation 상세 응답을 반환한다")
+    void adminEndpointAllowsRecommendationBreakdowns() throws Exception {
+        mockAuthenticatedToken("admin-token", List.of(
+                new SimpleGrantedAuthority("ROLE_USER"),
+                new SimpleGrantedAuthority("ROLE_ADMIN")
+        ));
+        given(adminDashboardService.getRecommendationBreakdowns(14, 3))
+                .willReturn(new AdminRecommendationBreakdownResponse(
+                        LocalDateTime.of(2026, 5, 3, 16, 0),
+                        14,
+                        30,
+                        9,
+                        6,
+                        List.of(
+                                new AdminRecommendationBreakdownResponse.SourceBreakdown(
+                                        "YOUTH",
+                                        18,
+                                        6,
+                                        3,
+                                        java.math.BigDecimal.valueOf(0.3333),
+                                        java.math.BigDecimal.valueOf(0.1667)
+                                )
+                        ),
+                        List.of(
+                                new AdminRecommendationBreakdownResponse.CategoryBreakdown(
+                                        "HOUSING",
+                                        10,
+                                        4,
+                                        1,
+                                        java.math.BigDecimal.valueOf(0.4000),
+                                        java.math.BigDecimal.valueOf(0.1000)
+                                )
+                        ),
+                        List.of(
+                                new AdminRecommendationBreakdownResponse.WeightBreakdown(
+                                        "GROWTH",
+                                        java.math.BigDecimal.valueOf(0.60),
+                                        java.math.BigDecimal.valueOf(0.40),
+                                        12,
+                                        3,
+                                        2,
+                                        java.math.BigDecimal.valueOf(0.2500),
+                                        java.math.BigDecimal.valueOf(0.1667)
+                                )
+                        ),
+                        List.of(
+                                new AdminRecommendationBreakdownResponse.RecommendationSample(
+                                        101L,
+                                        501L,
+                                        "청년 월세 지원",
+                                        "YOUTH",
+                                        "HOUSING",
+                                        java.math.BigDecimal.valueOf(0.75231),
+                                        true,
+                                        false,
+                                        LocalDateTime.of(2026, 5, 3, 9, 0),
+                                        null
+                                )
+                        ),
+                        List.of(
+                                new AdminRecommendationBreakdownResponse.RecommendationSample(
+                                        102L,
+                                        502L,
+                                        "청년 전세 지원",
+                                        "BOKJIRO_LOCAL",
+                                        "HOUSING",
+                                        java.math.BigDecimal.valueOf(0.88123),
+                                        false,
+                                        true,
+                                        LocalDateTime.of(2026, 5, 3, 8, 0),
+                                        LocalDateTime.of(2026, 5, 3, 8, 30)
+                                )
+                        ),
+                        List.of(
+                                new AdminRecommendationBreakdownResponse.RepeatExposureGroup(
+                                        "user-key-1",
+                                        501L,
+                                        "청년 월세 지원",
+                                        "YOUTH",
+                                        "HOUSING",
+                                        3,
+                                        1,
+                                        1,
+                                        LocalDateTime.of(2026, 5, 1, 8, 0),
+                                        LocalDateTime.of(2026, 5, 3, 9, 0),
+                                        LocalDateTime.of(2026, 5, 3, 9, 10)
+                                )
+                        )
+                ));
+
+        mockMvc.perform(get("/api/admin/dashboard/recommendation-breakdowns")
+                        .param("summaryWindowDays", "14")
+                        .param("limit", "3")
+                        .header("Authorization", "Bearer admin-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.windowDays").value(14))
+                .andExpect(jsonPath("$.data.totalLogs").value(30))
+                .andExpect(jsonPath("$.data.clickedLogs").value(9))
+                .andExpect(jsonPath("$.data.fallbackLogs").value(6))
+                .andExpect(jsonPath("$.data.sourceBreakdowns[0].sourceType").value("YOUTH"))
+                .andExpect(jsonPath("$.data.categoryBreakdowns[0].category").value("HOUSING"))
+                .andExpect(jsonPath("$.data.weightBreakdowns[0].weightKey").value("GROWTH"))
+                .andExpect(jsonPath("$.data.recentFallbackSamples[0].title").value("청년 월세 지원"))
+                .andExpect(jsonPath("$.data.recentClickedSamples[0].title").value("청년 전세 지원"))
+                .andExpect(jsonPath("$.data.repeatExposureGroups[0].userKey").value("user-key-1"))
+                .andExpect(jsonPath("$.data.repeatExposureGroups[0].serviceId").value(501))
+                .andExpect(jsonPath("$.data.repeatExposureGroups[0].exposureCount").value(3));
+
+        then(adminDashboardService).should().getRecommendationBreakdowns(14, 3);
+    }
+
+    @Test
+    @DisplayName("관리자 토큰으로 collect 실패 상세 API를 호출하면 collect failure 응답을 반환한다")
+    void adminEndpointAllowsCollectFailures() throws Exception {
+        mockAuthenticatedToken("admin-token", List.of(
+                new SimpleGrantedAuthority("ROLE_USER"),
+                new SimpleGrantedAuthority("ROLE_ADMIN")
+        ));
+        given(adminDashboardService.getCollectFailures(14, 3))
+                .willReturn(new AdminCollectFailureResponse(
+                        LocalDateTime.of(2026, 5, 3, 16, 30),
+                        14,
+                        6,
+                        2,
+                        List.of(
+                                new AdminCollectFailureResponse.JobBreakdown(
+                                        "BOKJIRO_LOCAL",
+                                        4,
+                                        1,
+                                        LocalDateTime.of(2026, 5, 3, 9, 0)
+                                )
+                        ),
+                        List.of(
+                                new AdminCollectFailureResponse.JobStreak(
+                                        "BOKJIRO_LOCAL",
+                                        "FAILED",
+                                        2,
+                                        LocalDateTime.of(2026, 5, 3, 9, 0)
+                                )
+                        ),
+                        List.of(
+                                new AdminCollectFailureResponse.ErrorCodeBreakdown("COL001", 5)
+                        ),
+                        List.of(
+                                new AdminCollectFailureResponse.FailureSample(
+                                        "BOKJIRO_LOCAL",
+                                        "FAILED",
+                                        "COL001",
+                                        "rate limited",
+                                        LocalDateTime.of(2026, 5, 3, 9, 0),
+                                        LocalDateTime.of(2026, 5, 3, 9, 1),
+                                        0,
+                                        0,
+                                        1
+                                )
+                        ),
+                        List.of(
+                                new AdminCollectFailureResponse.CircuitStatus(
+                                        "BOKJIRO_LOCAL",
+                                        true,
+                                        60000L,
+                                        LocalDateTime.of(2026, 5, 3, 17, 0)
+                                )
+                        )
+                ));
+
+        mockMvc.perform(get("/api/admin/dashboard/collect-failures")
+                        .param("summaryWindowDays", "14")
+                        .param("limit", "3")
+                        .header("Authorization", "Bearer admin-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.windowDays").value(14))
+                .andExpect(jsonPath("$.data.totalFailedJobs").value(6))
+                .andExpect(jsonPath("$.data.totalPartialSuccessJobs").value(2))
+                .andExpect(jsonPath("$.data.jobBreakdowns[0].jobName").value("BOKJIRO_LOCAL"))
+                .andExpect(jsonPath("$.data.jobStreaks[0].streakStatus").value("FAILED"))
+                .andExpect(jsonPath("$.data.jobStreaks[0].streakCount").value(2))
+                .andExpect(jsonPath("$.data.errorCodeBreakdowns[0].errorCode").value("COL001"))
+                .andExpect(jsonPath("$.data.recentSamples[0].errorMessage").value("rate limited"))
+                .andExpect(jsonPath("$.data.circuitStatuses[0].circuitKey").value("BOKJIRO_LOCAL"))
+                .andExpect(jsonPath("$.data.circuitStatuses[0].open").value(true))
+                .andExpect(jsonPath("$.data.circuitStatuses[0].remainingMs").value(60000));
+
+        then(adminDashboardService).should().getCollectFailures(14, 3);
     }
 
     @Test
@@ -490,8 +721,10 @@ class AdminSecurityWebMvcTest {
                 new SimpleGrantedAuthority("ROLE_USER"),
                 new SimpleGrantedAuthority("ROLE_ADMIN")
         ));
-        given(bokjiroDetailCollectService.collectBokjiroDetailGapFillResult(4, 190))
-                .willReturn(new BokjiroDetailCollectService.GapFillResult(4, 3, 190, 150, 120, 30, 0, true));
+        given(collectService.collectBokjiroDetailGapFill(4, 190))
+                .willReturn(new com.example.welfare.collect.service.BokjiroDetailCollectService.GapFillResult(
+                        4, 3, 190, 150, 120, 30, 0, true
+                ));
 
         mockMvc.perform(post("/api/admin/collect/bokjiro-details-gap-fill")
                         .param("rounds", "4")
@@ -508,7 +741,7 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.data.failedCount").value(0))
                 .andExpect(jsonPath("$.data.stoppedAfterNoSaves").value(true));
 
-        then(bokjiroDetailCollectService).should().collectBokjiroDetailGapFillResult(4, 190);
+        then(collectService).should().collectBokjiroDetailGapFill(4, 190);
     }
 
     @Test
@@ -534,7 +767,7 @@ class AdminSecurityWebMvcTest {
                 new SimpleGrantedAuthority("ROLE_USER"),
                 new SimpleGrantedAuthority("ROLE_ADMIN")
         ));
-        given(bokjiroDetailCollectService.collectBokjiroDetailGapFillResult(1, 95))
+        given(collectService.collectBokjiroDetailGapFill(1, 95))
                 .willThrow(new CustomException(ErrorCode.COLLECT_API_FAILED));
 
         mockMvc.perform(post("/api/admin/collect/bokjiro-details-gap-fill")
@@ -574,7 +807,7 @@ class AdminSecurityWebMvcTest {
                 new SimpleGrantedAuthority("ROLE_USER"),
                 new SimpleGrantedAuthority("ROLE_ADMIN")
         ));
-        given(userRepository.findIdByUserKey("user-key-1")).willReturn(java.util.Optional.of(1L));
+        given(userReadService.requireExistingUserIdByUserKey("user-key-1")).willReturn(1L);
 
         mockMvc.perform(post("/api/admin/users/forced-logout")
                         .contentType("application/json")
@@ -620,7 +853,8 @@ class AdminSecurityWebMvcTest {
                 new SimpleGrantedAuthority("ROLE_USER"),
                 new SimpleGrantedAuthority("ROLE_ADMIN")
         ));
-        given(userRepository.findIdByUserKey("missing-user")).willReturn(java.util.Optional.empty());
+        given(userReadService.requireExistingUserIdByUserKey("missing-user"))
+                .willThrow(new CustomException(ErrorCode.USER_NOT_FOUND));
 
         mockMvc.perform(post("/api/admin/users/forced-logout")
                         .contentType("application/json")
