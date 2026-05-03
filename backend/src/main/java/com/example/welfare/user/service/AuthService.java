@@ -42,6 +42,7 @@ public class AuthService {
     private final UserCoreSyncService userCoreSyncService;
     private final AuthTokenService authTokenService;
     private final PasswordResetService passwordResetService;
+    private final UserReadService userReadService;
 
     @Value("${security.admin-emails:}")
     private String adminEmailsProperty;
@@ -93,12 +94,12 @@ public class AuthService {
         String normalizedEmail = EmailLookupKeyGenerator.normalize(request.getEmail());
         AuthUser authUser = authUserRepository.findByEmailLookupHash(EmailLookupKeyGenerator.hash(normalizedEmail))
                 .orElseThrow(() -> new CustomException(ErrorCode.INVALID_CREDENTIALS));
-        User user = userRepository.findByUserKey(authUser.getUserKey())
-                .orElseThrow(() -> new CustomException(ErrorCode.INVALID_CREDENTIALS));
 
         if (!authUser.isActive()) {
             throw new CustomException(ErrorCode.WITHDRAWN_USER);
         }
+
+        User user = userReadService.getActiveUserByUserKey(authUser.getUserKey());
 
         if (authUser.getLockedUntil() != null && LocalDateTime.now().isBefore(authUser.getLockedUntil())) {
             throw new CustomException(ErrorCode.ACCOUNT_LOCKED);

@@ -293,7 +293,32 @@ class UserReadServiceTest {
     }
 
     @Test
-    @DisplayName("active user by userKey 조회는 탈퇴 사용자를 거부한다")
+    @DisplayName("optional active user by userKey 조회는 탈퇴 사용자를 제외한다")
+    void findOptionalActiveUserByUserKeyExcludesWithdrawnUser() {
+        UserReadService userReadService = new UserReadService(
+                userRepository,
+                authUserRepository,
+                userProfileRepository,
+                userPiiReadWriteRepository,
+                notificationPiiReadRepository,
+                userAttributeRepository,
+                userPriorityRepository,
+                aesEncryptUtil,
+                userKeyLookupService
+        );
+        User withdrawnUser = User.builder()
+                .id(10L)
+                .userKey("user-key-10")
+                .isActive(false)
+                .build();
+
+        when(userRepository.findByUserKey("user-key-10")).thenReturn(Optional.of(withdrawnUser));
+
+        assertThat(userReadService.findOptionalActiveUserByUserKey("user-key-10")).isEmpty();
+    }
+
+    @Test
+    @DisplayName("required active user by userKey 조회는 탈퇴 사용자를 찾지 못한 것으로 처리한다")
     void getActiveUserByUserKeyRejectsWithdrawnUser() {
         UserReadService userReadService = new UserReadService(
                 userRepository,
@@ -317,6 +342,6 @@ class UserReadServiceTest {
         assertThatThrownBy(() -> userReadService.getActiveUserByUserKey("user-key-10"))
                 .isInstanceOf(CustomException.class)
                 .extracting("errorCode")
-                .isEqualTo(com.example.welfare.global.exception.ErrorCode.WITHDRAWN_USER);
+                .isEqualTo(com.example.welfare.global.exception.ErrorCode.USER_NOT_FOUND);
     }
 }

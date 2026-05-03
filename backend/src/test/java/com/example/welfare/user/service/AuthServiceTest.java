@@ -19,7 +19,6 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
 import java.util.Optional;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyList;
@@ -44,6 +43,8 @@ class AuthServiceTest {
     private AuthTokenService authTokenService;
     @Mock
     private PasswordResetService passwordResetService;
+    @Mock
+    private UserReadService userReadService;
 
     private AuthService authService;
 
@@ -55,7 +56,8 @@ class AuthServiceTest {
                 passwordEncoder,
                 userCoreSyncService,
                 authTokenService,
-                passwordResetService
+                passwordResetService,
+                userReadService
         );
         ReflectionTestUtils.setField(authService, "adminEmailsProperty", "admin@example.com");
         authService.initAdminEmails();
@@ -91,7 +93,7 @@ class AuthServiceTest {
 
         when(authUserRepository.findByEmailLookupHash(anyString()))
                 .thenReturn(Optional.of(authUser));
-        when(userRepository.findByUserKey("user-key-1")).thenReturn(Optional.of(user));
+        when(userReadService.getActiveUserByUserKey("user-key-1")).thenReturn(user);
         when(passwordEncoder.matches("password123!", "encoded")).thenReturn(true);
         when(authTokenService.issueTokens(eq("user-key-1"), eq(1L), anyList()))
                 .thenReturn(TokenResponse.of("access", "refresh"));
@@ -144,7 +146,7 @@ class AuthServiceTest {
 
         when(authUserRepository.findByEmailLookupHash("b4c9a289323b21a01c3e940f150eb9b8c542587f1abfd8f0e1cc1ffc5e475514"))
                 .thenReturn(Optional.of(authUser));
-        when(userRepository.findByUserKey("user-key-1")).thenReturn(Optional.of(user));
+        when(userReadService.getActiveUserByUserKey("user-key-1")).thenReturn(user);
         when(passwordEncoder.matches("wrong-password", "encoded")).thenReturn(false);
 
         assertThatThrownBy(() -> authService.login(request))
