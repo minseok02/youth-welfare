@@ -1208,6 +1208,7 @@ cd backend
 - `PolicyService.getDetail(...)` 의 상세/지역/태그 조회는 `PolicyDetailReadService` 로 분리해 서비스 본문이 detail aggregate orchestration만 하도록 정리
 - `RetrievalService` 도 canonical projection read-model 직접 조회를 제거하고 `RecommendationReadFacade` 를 통해 projection map 을 받도록 정리
 - `SearchYouthRelevanceService` 의 backfill 대상 태그 조회도 `SearchYouthRelevanceReadRepository` 로 이동해 백필 서비스가 read 구현을 직접 고르지 않도록 정리
+- `PolicyDetailReadService`, `RetrievalService`, `RuleScoringService` 의 태그 조회는 `PolicyTagReadRepository` 뒤로 모아 `ServiceTagRepository` 직접 read 결합 축소
 - `UserPiiSyncProcessor` / `UserPiiSyncReplayService` 의 queue row lookup 도 `UserPiiSyncQueueService` 로 모아 user pii sync 흐름의 queue access 경계를 단일화
 - `UserCoreSyncService` 는 orchestration만 남기고 auth/profile projection upsert 는 `UserCoreProjectionSyncService` 로 분리
 - `PasswordResetService` 의 reset 메일 수신자 조회는 `UserReadService` 로 모아 user PII 저장소 직접 의존 제거

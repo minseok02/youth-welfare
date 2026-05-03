@@ -2661,3 +2661,8 @@
 - 문제: `requestPasswordReset(...)` 는 userKey를 찾은 뒤 `UserPiiReadWriteRepository.findByUserKey(...)` 와 `AesEncryptUtil.decrypt(...)` 를 직접 호출해 메일 수신자를 만들고 있었다.
 - 해결: reset 메일 수신자 조회를 `UserReadService.getNotificationEmailByUserKey(...)` 로 위임하고, `PasswordResetService` 에서 user pii 저장소와 복호화 의존을 제거했다.
 - 이유: 비밀번호 재설정 흐름은 토큰 발급과 검증에 집중하고, 활성 사용자 이메일 read 규칙은 user read 경계에 모아두는 편이 PII 접근 규칙을 한 곳에서 유지하기 쉽다.
+
+## 485) `PolicyDetailReadService`, `RetrievalService`, `RuleScoringService` 가 태그 조회를 위해 각자 `ServiceTagRepository` 를 직접 보면, tag read 규칙이 policy/recommend 경계에 다시 흩어진다
+- 문제: 정책 상세 aggregate 조회, 추천 후보 후처리, rule scoring 후보 태그 로딩이 모두 `ServiceTagRepository.findByServiceId...` 를 직접 호출하고 있었다.
+- 해결: `PolicyTagReadRepository` 를 추가하고, policy/recommend read 경로의 태그 조회를 이 경계 뒤로 이동했다.
+- 이유: collect 쪽은 tag write를 그대로 유지하되, 태그 read 구현 선택은 별도 read repository 에 모아야 policy/recommend 서비스가 JPA 저장소 선택과 grouping 세부사항을 직접 들지 않게 된다.

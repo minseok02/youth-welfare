@@ -2,7 +2,7 @@ package com.example.welfare.recommend.service;
 
 import com.example.welfare.policy.entity.ServiceTag;
 import com.example.welfare.policy.entity.WelfareService;
-import com.example.welfare.policy.repository.ServiceTagRepository;
+import com.example.welfare.policy.repository.PolicyTagReadRepository;
 import com.example.welfare.recommend.repository.RecommendationCandidateReadCondition;
 import com.example.welfare.recommend.repository.RecommendationCandidateReadRepository;
 import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
@@ -37,7 +37,7 @@ public class RetrievalService {
     private static final int FETCH_SIZE = 150; // 후처리 필터 감안해 넉넉히 조회
 
     private final RecommendationCandidateReadRepository recommendationCandidateReadRepository;
-    private final ServiceTagRepository serviceTagRepository;
+    private final PolicyTagReadRepository policyTagReadRepository;
     private final RecommendationYouthRelevanceSupport recommendationYouthRelevanceSupport;
     private final RecommendationReadFacade recommendationReadFacade;
 
@@ -97,10 +97,7 @@ public class RetrievalService {
         if (candidates.isEmpty()) return candidates;
 
         List<Long> ids = candidates.stream().map(WelfareService::getId).toList();
-        Map<Long, List<ServiceTag>> tagsByServiceId = serviceTagRepository
-                .findByServiceIdIn(ids)
-                .stream()
-                .collect(Collectors.groupingBy(tag -> tag.getService().getId()));
+        Map<Long, List<ServiceTag>> tagsByServiceId = policyTagReadRepository.findByServiceIds(ids);
 
         return candidates.stream()
                 .filter(service -> isPrimaryAudienceRelevant(
