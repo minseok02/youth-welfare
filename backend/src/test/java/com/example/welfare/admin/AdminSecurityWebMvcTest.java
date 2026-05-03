@@ -133,7 +133,7 @@ class AdminSecurityWebMvcTest {
                 new SimpleGrantedAuthority("ROLE_USER"),
                 new SimpleGrantedAuthority("ROLE_ADMIN")
         ));
-        given(adminDashboardService.getSummary())
+        given(adminDashboardService.getSummary(null))
                 .willReturn(new AdminDashboardResponse(
                         LocalDateTime.of(2026, 5, 2, 10, 0),
                         new AdminDashboardResponse.CollectSection(
@@ -236,7 +236,78 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.data.search.topKeywordsLast7d[0].keyword").value("월세"))
                 .andExpect(jsonPath("$.data.userPiiSync.failedCount").value(1));
 
-        then(adminDashboardService).should().getSummary();
+        then(adminDashboardService).should().getSummary(null);
+    }
+
+    @Test
+    @DisplayName("관리자 토큰으로 대시보드 요약 API를 호출할 때 trendWindowDays를 전달하면 해당 창으로 조회한다")
+    void adminEndpointAllowsDashboardSummaryWithCustomTrendWindows() throws Exception {
+        mockAuthenticatedToken("admin-token", List.of(
+                new SimpleGrantedAuthority("ROLE_USER"),
+                new SimpleGrantedAuthority("ROLE_ADMIN")
+        ));
+        given(adminDashboardService.getSummary(List.of(3, 14)))
+                .willReturn(new AdminDashboardResponse(
+                        LocalDateTime.of(2026, 5, 3, 14, 0),
+                        new AdminDashboardResponse.CollectSection(0, 0, 0, 0, List.of(), List.of()),
+                        new AdminDashboardResponse.RecommendationSection(
+                                "GROWTH",
+                                java.math.BigDecimal.valueOf(0.60),
+                                java.math.BigDecimal.valueOf(0.40),
+                                10,
+                                1,
+                                2,
+                                1,
+                                0,
+                                null,
+                                java.math.BigDecimal.valueOf(0.5000),
+                                java.math.BigDecimal.valueOf(0.0000),
+                                List.of()
+                        ),
+                        new AdminDashboardResponse.NotificationSection(0, 0, 0, 0),
+                        new AdminDashboardResponse.SearchSection(0, 0, 0, 0, java.math.BigDecimal.ZERO, List.of()),
+                        new AdminDashboardResponse.UserPiiSyncSection(0, 0, 0, null),
+                        new AdminDashboardResponse.TrendSection(
+                                List.of(
+                                        new AdminDashboardResponse.CollectTrendPoint(3, 1, 0, 0),
+                                        new AdminDashboardResponse.CollectTrendPoint(14, 2, 0, 1)
+                                ),
+                                List.of(
+                                        new AdminDashboardResponse.RecommendationTrendPoint(
+                                                3,
+                                                1,
+                                                1,
+                                                0,
+                                                java.math.BigDecimal.valueOf(1.0000),
+                                                java.math.BigDecimal.valueOf(0.0000)
+                                        ),
+                                        new AdminDashboardResponse.RecommendationTrendPoint(
+                                                14,
+                                                2,
+                                                1,
+                                                1,
+                                                java.math.BigDecimal.valueOf(0.5000),
+                                                java.math.BigDecimal.valueOf(0.5000)
+                                        )
+                                ),
+                                List.of(
+                                        new AdminDashboardResponse.SearchTrendPoint(3, 2, 0),
+                                        new AdminDashboardResponse.SearchTrendPoint(14, 5, 1)
+                                )
+                        )
+                ));
+
+        mockMvc.perform(get("/api/admin/dashboard/summary")
+                        .param("trendWindowDays", "3", "14")
+                        .header("Authorization", "Bearer admin-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.trend.collect[0].windowDays").value(3))
+                .andExpect(jsonPath("$.data.trend.collect[1].windowDays").value(14))
+                .andExpect(jsonPath("$.data.trend.recommendation[1].fallbackRate").value(0.5000))
+                .andExpect(jsonPath("$.data.trend.search[1].windowDays").value(14));
+
+        then(adminDashboardService).should().getSummary(List.of(3, 14));
     }
 
     @Test

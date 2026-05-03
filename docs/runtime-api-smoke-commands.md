@@ -50,6 +50,12 @@ deploy/smoke/run-local-admin-dashboard-smoke.sh
 SECURITY_ADMIN_EMAILS=admin@example.com docker compose up -d --force-recreate app
 ```
 
+기본 trend window는 `1,7,30` 이고, 다른 기간을 보고 싶으면 `TREND_WINDOW_DAYS_CSV` 로 덮어씁니다.
+
+```bash
+TREND_WINDOW_DAYS_CSV=3,14 deploy/smoke/run-local-admin-dashboard-smoke.sh
+```
+
 auth/session revoke 세 개를 연속으로 돌릴 때는 아래 wrapper를 우선 사용합니다.
 
 ```bash

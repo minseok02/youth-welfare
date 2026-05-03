@@ -13,6 +13,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
+import java.util.LinkedHashSet;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -20,16 +22,22 @@ import java.time.LocalDateTime;
 public class AdminDashboardService {
 
     private static final int FAILED_SAMPLE_LIMIT = 5;
-    private static final int[] TREND_WINDOWS_DAYS = {1, 7, 30};
+    private static final List<Integer> DEFAULT_TREND_WINDOWS_DAYS = List.of(1, 7, 30);
+    private static final int MAX_TREND_WINDOW_DAYS = 365;
 
     private final AdminDashboardReadRepository adminDashboardReadRepository;
     private final UserPiiSyncStatusService userPiiSyncStatusService;
     private final ScoreWeightService scoreWeightService;
 
     public AdminDashboardResponse getSummary() {
+        return getSummary(DEFAULT_TREND_WINDOWS_DAYS);
+    }
+
+    public AdminDashboardResponse getSummary(List<Integer> requestedTrendWindows) {
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime dayAgo = now.minusDays(1);
         LocalDateTime weekAgo = now.minusDays(7);
+        List<Integer> trendWindows = resolveTrendWindows(requestedTrendWindows);
 
         AdminDashboardReadRepository.CollectSummaryRow collectSummary =
                 adminDashboardReadRepository.fetchCollectSummary(dayAgo);
@@ -121,16 +129,32 @@ public class AdminDashboardService {
                         userPiiSyncStatus.latestSyncedAt()
                 ),
                 new AdminDashboardResponse.TrendSection(
-                        buildCollectTrends(now),
-                        buildRecommendationTrends(now),
-                        buildSearchTrends(now)
+                        buildCollectTrends(now, trendWindows),
+                        buildRecommendationTrends(now, trendWindows),
+                        buildSearchTrends(now, trendWindows)
                 )
         );
     }
 
-    private java.util.List<AdminDashboardResponse.CollectTrendPoint> buildCollectTrends(LocalDateTime now) {
+    private List<Integer> resolveTrendWindows(List<Integer> requestedTrendWindows) {
+        if (requestedTrendWindows == null || requestedTrendWindows.isEmpty()) {
+            return DEFAULT_TREND_WINDOWS_DAYS;
+        }
+
+        List<Integer> normalized = requestedTrendWindows.stream()
+                .filter(java.util.Objects::nonNull)
+                .filter(windowDays -> windowDays > 0 && windowDays <= MAX_TREND_WINDOW_DAYS)
+                .collect(java.util.stream.Collectors.collectingAndThen(
+                        java.util.stream.Collectors.toCollection(LinkedHashSet::new),
+                        List::copyOf
+                ));
+
+        return normalized.isEmpty() ? DEFAULT_TREND_WINDOWS_DAYS : normalized;
+    }
+
+    private java.util.List<AdminDashboardResponse.CollectTrendPoint> buildCollectTrends(LocalDateTime now, List<Integer> trendWindows) {
         java.util.List<AdminDashboardResponse.CollectTrendPoint> points = new java.util.ArrayList<>();
-        for (int windowDays : TREND_WINDOWS_DAYS) {
+        for (int windowDays : trendWindows) {
             AdminDashboardReadRepository.CollectTrendRow row =
                     adminDashboardReadRepository.fetchCollectTrend(now.minusDays(windowDays));
             points.add(new AdminDashboardResponse.CollectTrendPoint(
@@ -143,9 +167,9 @@ public class AdminDashboardService {
         return points;
     }
 
-    private java.util.List<AdminDashboardResponse.RecommendationTrendPoint> buildRecommendationTrends(LocalDateTime now) {
+    private java.util.List<AdminDashboardResponse.RecommendationTrendPoint> buildRecommendationTrends(LocalDateTime now, List<Integer> trendWindows) {
         java.util.List<AdminDashboardResponse.RecommendationTrendPoint> points = new java.util.ArrayList<>();
-        for (int windowDays : TREND_WINDOWS_DAYS) {
+        for (int windowDays : trendWindows) {
             AdminDashboardReadRepository.RecommendationTrendRow row =
                     adminDashboardReadRepository.fetchRecommendationTrend(now.minusDays(windowDays));
             points.add(new AdminDashboardResponse.RecommendationTrendPoint(
@@ -160,9 +184,9 @@ public class AdminDashboardService {
         return points;
     }
 
-    private java.util.List<AdminDashboardResponse.SearchTrendPoint> buildSearchTrends(LocalDateTime now) {
+    private java.util.List<AdminDashboardResponse.SearchTrendPoint> buildSearchTrends(LocalDateTime now, List<Integer> trendWindows) {
         java.util.List<AdminDashboardResponse.SearchTrendPoint> points = new java.util.ArrayList<>();
-        for (int windowDays : TREND_WINDOWS_DAYS) {
+        for (int windowDays : trendWindows) {
             AdminDashboardReadRepository.SearchTrendRow row =
                     adminDashboardReadRepository.fetchSearchTrend(now.minusDays(windowDays));
             points.add(new AdminDashboardResponse.SearchTrendPoint(

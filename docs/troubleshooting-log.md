@@ -10,6 +10,11 @@
 - 해결: `SECURITY_ADMIN_EMAILS=admin@example.com docker compose up -d --force-recreate app` 로 app을 다시 띄운 뒤 대시보드 응답을 재확인했고, 이를 반복 가능하게 `run-local-admin-dashboard-smoke.sh` 로 묶었다. 이 smoke는 로그인 후 JWT `ROLE_ADMIN` 존재 여부를 먼저 확인하고, 누락 시 allowlist 재기동 명령을 바로 안내한다
 - 이유: 현재 문제는 대시보드 로직 자체보다 “로컬 Docker app이 어떤 env로 떠 있느냐”에 좌우된다. 이 조건을 smoke가 먼저 체크해야 같은 혼선을 반복하지 않는다
 
+## 297) 대시보드 추세가 1/7/30 고정이면 특정 기간의 collect/search/recommendation 패턴을 바로 보기 어려웠음
+- 문제: `/api/admin/dashboard/summary` 는 trend를 `1/7/30` 윈도로만 내려줘 기본 관측은 충분했지만, 로컬 검증 중 `3일`, `14일` 같은 중간 창을 바로 비교해 보고 싶으면 코드를 바꾸거나 DB 쿼리를 직접 날려야 했다
+- 해결: `trendWindowDays` query param을 추가해 요청이 들어온 기간 창만 계산하게 했고, `run-local-admin-dashboard-smoke.sh` 도 `TREND_WINDOW_DAYS_CSV` 를 받아 custom window 계약을 같이 검증하도록 맞췄다
+- 이유: summary 계약 기본값은 유지하되, 운영/로컬 관측이 필요할 때만 창을 좁혀 보는 편이 cross-domain dashboard 구조를 흔들지 않고도 실용성이 높다
+
 ## 294) broad-suite self-heal cleanup이 안정화됐지만 user-prefix integration 테스트들에 거의 같은 정리 코드가 복제돼 다시 drift할 가능성이 있었음
 - 문제: `AuthRedisIntegrationTest`, `AdminSecurityIntegrationTest`, `UserCoreDualWriteIntegrationTest`, `UserMetadataUserKeyBackfillIntegrationTest`, `UserPiiBackfillIntegrationTest`, `UserPiiSyncReplayIntegrationTest`, `UserPiiSyncRetrySchedulerIntegrationTest`, `RecommendationFlowIntegrationTest` 는 모두 “email prefix로 user를 찾고 userKey 파생 cleanup 후 user delete” 구조가 거의 같았는데, 세부 차이가 조금씩 있어 다음 hardening 때 일부 클래스만 갱신될 위험이 있었음
 - 해결: test 전용 `IntegrationCleanupSupport` 를 추가하고 user-prefix cleanup, service-prefix cleanup 진입점을 공통화했다. 각 클래스는 이제 “무슨 추가 정리가 필요한가”만 람다로 넘기고, 사용자 탐색/삭제 흐름 자체는 한 곳에서 처리한다

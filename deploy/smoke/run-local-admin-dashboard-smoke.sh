@@ -7,6 +7,7 @@ APP_CONTAINER_NAME="${APP_CONTAINER_NAME:-youth-welfare-app}"
 
 ADMIN_EMAIL="${ADMIN_EMAIL:-admin@example.com}"
 ADMIN_PASSWORD="${ADMIN_PASSWORD:-password123!}"
+TREND_WINDOW_DAYS_CSV="${TREND_WINDOW_DAYS_CSV:-1,7,30}"
 
 ARTIFACT_DIR="${ARTIFACT_DIR:-$(mktemp -d)}"
 HEALTH_RESPONSE="${ARTIFACT_DIR}/health.json"
@@ -77,7 +78,8 @@ extract_container_admin_allowlist() {
 
 assert_dashboard_contract() {
   local response_file="$1"
-  python3 - "$response_file" <<'PY'
+  local expected_windows_csv="$2"
+  python3 - "$response_file" "$expected_windows_csv" <<'PY'
 import json
 import sys
 
@@ -85,6 +87,7 @@ with open(sys.argv[1], "r", encoding="utf-8") as fp:
     payload = json.load(fp)
 
 data = payload["data"]
+expected_windows = [int(value) for value in sys.argv[2].split(",") if value]
 
 assert data["generatedAt"], "generatedAt missing"
 assert isinstance(data["collect"]["failedJobsLast24h"], int), "collect.failedJobsLast24h must be int"
@@ -95,9 +98,9 @@ collect_windows = [point["windowDays"] for point in data["trend"]["collect"]]
 recommendation_windows = [point["windowDays"] for point in data["trend"]["recommendation"]]
 search_windows = [point["windowDays"] for point in data["trend"]["search"]]
 
-assert collect_windows == [1, 7, 30], f"unexpected collect trend windows: {collect_windows}"
-assert recommendation_windows == [1, 7, 30], f"unexpected recommendation trend windows: {recommendation_windows}"
-assert search_windows == [1, 7, 30], f"unexpected search trend windows: {search_windows}"
+assert collect_windows == expected_windows, f"unexpected collect trend windows: {collect_windows}"
+assert recommendation_windows == expected_windows, f"unexpected recommendation trend windows: {recommendation_windows}"
+assert search_windows == expected_windows, f"unexpected search trend windows: {search_windows}"
 
 print(data["generatedAt"])
 print(data["collect"]["failedJobsLast24h"])
@@ -158,13 +161,21 @@ if [[ ",${ADMIN_ROLES}," != *",ROLE_ADMIN,"* ]]; then
 fi
 
 print_step "dashboard summary"
+TREND_QUERY_STRING="$(python3 - "${TREND_WINDOW_DAYS_CSV}" <<'PY'
+import sys
+from urllib.parse import urlencode
+
+values = [value.strip() for value in sys.argv[1].split(",") if value.strip()]
+print(urlencode([("trendWindowDays", value) for value in values]))
+PY
+)"
 DASHBOARD_STATUS="$(
-  http_status GET "${APP_BASE_URL}/api/admin/dashboard/summary" "${DASHBOARD_RESPONSE}" \
+  http_status GET "${APP_BASE_URL}/api/admin/dashboard/summary?${TREND_QUERY_STRING}" "${DASHBOARD_RESPONSE}" \
     -H "Authorization: Bearer ${ADMIN_TOKEN}"
 )"
 assert_status 200 "${DASHBOARD_STATUS}" "dashboard summary" "${DASHBOARD_RESPONSE}"
 
-mapfile -t DASHBOARD_VALUES < <(assert_dashboard_contract "${DASHBOARD_RESPONSE}")
+mapfile -t DASHBOARD_VALUES < <(assert_dashboard_contract "${DASHBOARD_RESPONSE}" "${TREND_WINDOW_DAYS_CSV}")
 
 echo
 echo "admin dashboard smoke passed"
@@ -176,6 +187,7 @@ echo "collect_failed_jobs_last24h=${DASHBOARD_VALUES[1]}"
 echo "recommendation_total_logs=${DASHBOARD_VALUES[2]}"
 echo "search_zero_result_searches_last7d=${DASHBOARD_VALUES[3]}"
 echo "collect_trend_windows=${DASHBOARD_VALUES[4]}"
+echo "requested_trend_window_days=${TREND_WINDOW_DAYS_CSV}"
 if [[ -n "${CONTAINER_ADMIN_ALLOWLIST}" ]]; then
   echo "container_security_admin_emails=${CONTAINER_ADMIN_ALLOWLIST}"
 fi
