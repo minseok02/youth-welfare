@@ -2,7 +2,7 @@ package com.example.welfare.policy.service;
 
 import com.example.welfare.policy.entity.SearchLog;
 import com.example.welfare.policy.repository.SearchLogRepository;
-import com.example.welfare.user.repository.UserRepository;
+import com.example.welfare.user.service.UserKeyLookupService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -10,8 +10,6 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-
-import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.never;
@@ -25,7 +23,7 @@ class PolicySearchLogServiceTest {
     private SearchLogRepository searchLogRepository;
 
     @Mock
-    private UserRepository userRepository;
+    private UserKeyLookupService userKeyLookupService;
 
     @InjectMocks
     private PolicySearchLogService policySearchLogService;
@@ -33,7 +31,7 @@ class PolicySearchLogServiceTest {
     @Test
     @DisplayName("검색 로그는 userKey와 필터 메타데이터를 저장한다")
     void recordSavesSearchLog() {
-        given(userRepository.findUserKeyById(7L)).willReturn(Optional.of("user-key-7"));
+        given(userKeyLookupService.findNullable(7L)).willReturn("user-key-7");
 
         policySearchLogService.record(PolicySearchLogCommand.builder()
                 .userId(7L)
