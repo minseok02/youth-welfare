@@ -7,7 +7,6 @@ import com.example.welfare.recommend.entity.UserRecommendation;
 import com.example.welfare.recommend.repository.CanonicalRecommendationReadModelRepository;
 import com.example.welfare.recommend.repository.UserRecommendationRepository;
 import com.example.welfare.user.entity.User;
-import com.example.welfare.user.repository.UserRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -23,19 +22,17 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class UserBookmarkReadServiceTest {
 
-    @Mock private UserRepository userRepository;
+    @Mock private UserReadService userReadService;
     @Mock private UserRecommendationRepository userRecommendationRepository;
     @Mock private CanonicalRecommendationReadModelRepository canonicalRecommendationReadModelRepository;
-    @Mock private UserKeyLookupService userKeyLookupService;
 
     @Test
     @DisplayName("북마크 목록 조회는 최신 북마크 추천을 정책 요약 응답으로 변환한다")
     void getBookmarksReturnsPolicySummaries() {
         UserBookmarkReadService service = new UserBookmarkReadService(
-                userRepository,
+                userReadService,
                 userRecommendationRepository,
-                canonicalRecommendationReadModelRepository,
-                userKeyLookupService
+                canonicalRecommendationReadModelRepository
         );
         User user = User.builder()
                 .id(1L)
@@ -51,8 +48,8 @@ class UserBookmarkReadServiceTest {
                 .unifiedCategory("HOUSING")
                 .status(WelfareService.ServiceStatus.ACTIVE)
                 .build();
-        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
-        when(userKeyLookupService.findRequired(1L)).thenReturn("user-key-1");
+        when(userReadService.getActiveUserContext(1L))
+                .thenReturn(new UserReadService.ActiveUserContext(user, "user-key-1"));
         when(userRecommendationRepository.findLatestBookmarkedByUserKey("user-key-1"))
                 .thenReturn(List.of(UserRecommendation.builder()
                         .id(100L)

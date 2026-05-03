@@ -10,7 +10,6 @@ import com.example.welfare.user.entity.UserPriority;
 import com.example.welfare.user.repository.PriorityOptionRepository;
 import com.example.welfare.user.repository.UserAttributeRepository;
 import com.example.welfare.user.repository.UserPriorityRepository;
-import com.example.welfare.user.repository.UserRepository;
 import org.assertj.core.groups.Tuple;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -33,27 +32,25 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class UserProfileCommandServiceTest {
 
-    @Mock private UserRepository userRepository;
+    @Mock private UserReadService userReadService;
     @Mock private UserAttributeRepository userAttributeRepository;
     @Mock private UserPriorityRepository userPriorityRepository;
     @Mock private PriorityOptionRepository priorityOptionRepository;
     @Mock private PriorityWeightPolicy priorityWeightPolicy;
     @Mock private UserCoreSyncService userCoreSyncService;
     @Mock private RecommendationRefreshCacheService recommendationRefreshCacheService;
-    @Mock private UserKeyLookupService userKeyLookupService;
 
     @Test
     @DisplayName("프로필 수정 시 관심분야와 특수대상을 각각 교체 저장한다")
     void updateProfileReplacesInterestFieldsAndTargetTypesSeparately() {
         UserProfileCommandService service = new UserProfileCommandService(
-                userRepository,
+                userReadService,
                 userAttributeRepository,
                 userPriorityRepository,
                 priorityOptionRepository,
                 priorityWeightPolicy,
                 userCoreSyncService,
-                recommendationRefreshCacheService,
-                userKeyLookupService
+                recommendationRefreshCacheService
         );
         User user = User.builder()
                 .id(1L)
@@ -62,8 +59,8 @@ class UserProfileCommandServiceTest {
                 .name("tester")
                 .birthDate(LocalDate.of(1998, 1, 1))
                 .build();
-        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
-        when(userKeyLookupService.findRequired(1L)).thenReturn("user-key-1");
+        when(userReadService.getActiveUserContext(1L))
+                .thenReturn(new UserReadService.ActiveUserContext(user, "user-key-1"));
 
         UpdateProfileRequest request = new UpdateProfileRequest();
         ReflectionTestUtils.setField(request, "interestFields", List.of("주거", "취업"));
@@ -92,14 +89,13 @@ class UserProfileCommandServiceTest {
     @DisplayName("우선순위 저장 시 각 row에 user_key를 함께 기록한다")
     void updatePrioritiesWritesUserKey() {
         UserProfileCommandService service = new UserProfileCommandService(
-                userRepository,
+                userReadService,
                 userAttributeRepository,
                 userPriorityRepository,
                 priorityOptionRepository,
                 priorityWeightPolicy,
                 userCoreSyncService,
-                recommendationRefreshCacheService,
-                userKeyLookupService
+                recommendationRefreshCacheService
         );
         User user = User.builder()
                 .id(1L)
@@ -109,8 +105,8 @@ class UserProfileCommandServiceTest {
         PriorityOption housing = mock(PriorityOption.class);
         PriorityOption job = mock(PriorityOption.class);
 
-        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
-        when(userKeyLookupService.findRequired(1L)).thenReturn("user-key-1");
+        when(userReadService.getActiveUserContext(1L))
+                .thenReturn(new UserReadService.ActiveUserContext(user, "user-key-1"));
         when(priorityWeightPolicy.maxRank()).thenReturn(5);
         when(priorityWeightPolicy.weightForRank(1)).thenReturn(2.0);
         when(priorityWeightPolicy.weightForRank(2)).thenReturn(1.6);
@@ -138,14 +134,13 @@ class UserProfileCommandServiceTest {
     @DisplayName("프로필 수정 시 관심분야 요청이 없어도 기존 관심분야가 있으면 완성도 점수를 유지한다")
     void updateProfileKeepsCompletenessWhenInterestFieldsNotProvided() {
         UserProfileCommandService service = new UserProfileCommandService(
-                userRepository,
+                userReadService,
                 userAttributeRepository,
                 userPriorityRepository,
                 priorityOptionRepository,
                 priorityWeightPolicy,
                 userCoreSyncService,
-                recommendationRefreshCacheService,
-                userKeyLookupService
+                recommendationRefreshCacheService
         );
         User user = User.builder()
                 .id(1L)
@@ -159,8 +154,8 @@ class UserProfileCommandServiceTest {
                 .householdType("ONE_PERSON")
                 .phoneEnc("enc")
                 .build();
-        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
-        when(userKeyLookupService.findRequired(1L)).thenReturn("user-key-1");
+        when(userReadService.getActiveUserContext(1L))
+                .thenReturn(new UserReadService.ActiveUserContext(user, "user-key-1"));
         when(userAttributeRepository.findByUserKeyAndAttrType("user-key-1", UserAttribute.AttrType.INTEREST_FIELD.name()))
                 .thenReturn(List.of(UserAttribute.builder()
                         .userId(1L)

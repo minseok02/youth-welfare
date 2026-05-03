@@ -2586,3 +2586,8 @@
 - 문제: `UserKeyLookupService` 도입 후에도 recommendation 북마크 command, 추천 facade의 저장 추천 조회, user core dual-write sync 경로는 여전히 `UserRepository.findUserKeyById(...)` 를 직접 호출하고 있었다. 이 상태에서는 핵심 진입점에서만 별도 예외 처리/lookup 정책이 남아 “공통 lookup 규칙”이 완결되지 않는다.
 - 해결: 세 서비스 모두 `UserKeyLookupService.findRequired(...)` 로 전환하고, 직접 `findUserKeyById(...)` 호출은 운영 코드 기준 lookup 서비스 내부로만 가두었다.
 - 이유: lookup 규칙을 공통 경계로 만들었다면, 남은 직접 호출이 command/orchestration 핵심 경로에 있을수록 정책 drift 가능성이 커진다. 마지막 잔여 직접 조회까지 접어야 예외 처리와 후속 변경 포인트를 truly one place 로 모을 수 있다.
+
+## 470) `ChatMessageService`, `ChatSessionService`, `NotificationService` 와 user command/read 서비스들이 각자 `findActiveUser(...)` 나 `findByUserKey(...)` 를 들고 있으면, 탈퇴 사용자 차단 규칙과 userKey 전달 규칙이 서비스별로 조금씩 갈라진다
+- 문제: chat 두 서비스와 notification, bookmark/profile/account/auth token 경로가 각자 `UserRepository.findById(...)`, `findByUserKey(...)`, `user.isActive()` 검사를 직접 들고 있었다. 이 상태에서는 탈퇴 사용자 거부 기준과 “user와 userKey를 같이 써야 하는가” 같은 lookup 규칙이 여러 서비스에 중복된다.
+- 해결: `UserReadService` 에 `getActiveUserContext(...)`, `getActiveUserByUserKey(...)` 를 추가하고, 위 서비스들이 active user resolution 을 전부 user read 경계로 위임하게 정리했다.
+- 이유: active user lookup 은 chat/notification/user command 어느 한 도메인의 핵심 로직이 아니라 cross-cutting read 규칙이다. user entity 와 resolved userKey 를 함께 써야 하는 경우까지 공통화해야 탈퇴 사용자 차단과 lookup drift 를 한 곳에서 관리할 수 있다.

@@ -15,7 +15,7 @@ import com.example.welfare.chat.repository.ChatSessionRepository;
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.user.entity.User;
-import com.example.welfare.user.repository.UserRepository;
+import com.example.welfare.user.service.UserReadService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -46,13 +46,13 @@ public class ChatMessageService {
     private final ChatAiGateway chatAiGateway;
     private final ChatRateLimitService chatRateLimitService;
     private final ChatMessageCommandService chatMessageCommandService;
-    private final UserRepository userRepository;
+    private final UserReadService userReadService;
     private final ObjectMapper objectMapper;
 
     @Transactional(readOnly = true)
     public List<ChatMessageResponse> getMessages(Long userId, Long sessionId) {
-        User user = findActiveUser(userId);
-        chatSessionRepository.findByIdAndUserKey(sessionId, user.getUserKey())
+        UserReadService.ActiveUserContext activeUserContext = userReadService.getActiveUserContext(userId);
+        chatSessionRepository.findByIdAndUserKey(sessionId, activeUserContext.userKey())
                 .orElseThrow(() -> new CustomException(ErrorCode.CHAT_SESSION_NOT_FOUND));
 
         return chatMessageRepository.findBySessionIdOrderByCreatedAtAsc(sessionId).stream()
@@ -61,9 +61,10 @@ public class ChatMessageService {
     }
 
     public ChatAnswerResponse sendMessage(Long userId, Long sessionId, SendChatMessageRequest request) {
-        User user = findActiveUser(userId);
+        UserReadService.ActiveUserContext activeUserContext = userReadService.getActiveUserContext(userId);
+        User user = activeUserContext.user();
         chatRateLimitService.checkMessageSendLimit(userId);
-        ChatSession session = chatSessionRepository.findByIdAndUserKey(sessionId, user.getUserKey())
+        ChatSession session = chatSessionRepository.findByIdAndUserKey(sessionId, activeUserContext.userKey())
                 .orElseThrow(() -> new CustomException(ErrorCode.CHAT_SESSION_NOT_FOUND));
 
         String content = request.getContent().trim();
@@ -215,12 +216,4 @@ public class ChatMessageService {
         return value.substring(0, maxLength);
     }
 
-    private User findActiveUser(Long userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
-        if (!user.isActive()) {
-            throw new CustomException(ErrorCode.WITHDRAWN_USER);
-        }
-        return user;
-    }
 }

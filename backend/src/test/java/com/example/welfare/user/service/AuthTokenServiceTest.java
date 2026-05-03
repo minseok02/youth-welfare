@@ -6,7 +6,6 @@ import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.global.util.JwtUtil;
 import com.example.welfare.user.dto.response.TokenResponse;
 import com.example.welfare.user.entity.User;
-import com.example.welfare.user.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -33,7 +32,7 @@ class AuthTokenServiceTest {
 
     @Mock private JwtUtil jwtUtil;
     @Mock private RedisTemplate<String, String> redisTemplate;
-    @Mock private UserRepository userRepository;
+    @Mock private UserReadService userReadService;
     @Mock private AccessTokenRevocationService accessTokenRevocationService;
     @Mock private ChatSessionCleanupService chatSessionCleanupService;
     @Mock private UserKeyLookupService userKeyLookupService;
@@ -46,7 +45,7 @@ class AuthTokenServiceTest {
         authTokenService = new AuthTokenService(
                 jwtUtil,
                 redisTemplate,
-                userRepository,
+                userReadService,
                 accessTokenRevocationService,
                 chatSessionCleanupService,
                 userKeyLookupService
@@ -73,7 +72,8 @@ class AuthTokenServiceTest {
                 .email("user@example.com")
                 .passwordHash("hash")
                 .build();
-        when(userRepository.findById(7L)).thenReturn(Optional.of(user));
+        when(userReadService.getActiveUserContext(7L))
+                .thenReturn(new UserReadService.ActiveUserContext(user, "user-key-7"));
         when(valueOperations.get("refresh:user-key-7")).thenReturn("refresh-token");
         when(jwtUtil.getSubject("refresh-token")).thenReturn("user-key-7");
         when(jwtUtil.getUserId("refresh-token")).thenReturn(7L);
@@ -96,7 +96,8 @@ class AuthTokenServiceTest {
                 .email("user@example.com")
                 .passwordHash("hash")
                 .build();
-        when(userRepository.findById(7L)).thenReturn(Optional.of(user));
+        when(userReadService.getActiveUserContext(7L))
+                .thenReturn(new UserReadService.ActiveUserContext(user, "user-key-7"));
         when(valueOperations.get("refresh:user-key-7")).thenReturn("different-refresh-token");
         when(jwtUtil.getSubject("refresh-token")).thenReturn("user-key-7");
         when(jwtUtil.getUserId("refresh-token")).thenReturn(7L);

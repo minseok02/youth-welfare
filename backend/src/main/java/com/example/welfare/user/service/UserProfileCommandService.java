@@ -12,7 +12,6 @@ import com.example.welfare.user.entity.UserPriority;
 import com.example.welfare.user.repository.PriorityOptionRepository;
 import com.example.welfare.user.repository.UserAttributeRepository;
 import com.example.welfare.user.repository.UserPriorityRepository;
-import com.example.welfare.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,19 +25,19 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class UserProfileCommandService {
 
-    private final UserRepository userRepository;
+    private final UserReadService userReadService;
     private final UserAttributeRepository userAttributeRepository;
     private final UserPriorityRepository userPriorityRepository;
     private final PriorityOptionRepository priorityOptionRepository;
     private final PriorityWeightPolicy priorityWeightPolicy;
     private final UserCoreSyncService userCoreSyncService;
     private final RecommendationRefreshCacheService recommendationRefreshCacheService;
-    private final UserKeyLookupService userKeyLookupService;
 
     @Transactional
     public void updateProfile(Long userId, UpdateProfileRequest request) {
-        User user = findActiveUser(userId);
-        String userKey = userKeyLookupService.findRequired(userId);
+        UserReadService.ActiveUserContext activeUserContext = userReadService.getActiveUserContext(userId);
+        User user = activeUserContext.user();
+        String userKey = activeUserContext.userKey();
         recommendationRefreshCacheService.evict(userKey);
 
         user.updateProfile(
@@ -97,8 +96,7 @@ public class UserProfileCommandService {
 
     @Transactional
     public void updatePriorities(Long userId, UpdatePrioritiesRequest request) {
-        findActiveUser(userId);
-        String userKey = userKeyLookupService.findRequired(userId);
+        String userKey = userReadService.getActiveUserContext(userId).userKey();
         recommendationRefreshCacheService.evict(userKey);
         List<String> codes = request.getPriorityCodes();
 
@@ -125,15 +123,6 @@ public class UserProfileCommandService {
                     .weight(priorityWeightPolicy.weightForRank(i + 1))
                     .build());
         }
-    }
-
-    private User findActiveUser(Long userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
-        if (!user.isActive()) {
-            throw new CustomException(ErrorCode.WITHDRAWN_USER);
-        }
-        return user;
     }
 
     private int calculateCompleteness(String userKey, User user, UpdateProfileRequest request) {

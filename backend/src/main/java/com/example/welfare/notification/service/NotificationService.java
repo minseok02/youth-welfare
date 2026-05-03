@@ -16,7 +16,6 @@ import com.example.welfare.notification.entity.Notification;
 import com.example.welfare.user.entity.User;
 import com.example.welfare.user.entity.User.NotificationPeriod;
 import com.example.welfare.notification.repository.NotificationRepository;
-import com.example.welfare.user.repository.UserRepository;
 import com.example.welfare.user.service.UserReadService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -37,7 +36,6 @@ import java.time.LocalDateTime;
 @RequiredArgsConstructor
 public class NotificationService {
 
-    private final UserRepository userRepository;
     private final UserReadService userReadService;
     private final RecommendationFacade recommendationFacade;
     private final RecommendationLogService logService;
@@ -86,8 +84,7 @@ public class NotificationService {
 
     @Transactional
     public void sendTopRecommendations(NotificationTarget target) {
-        User user = userRepository.findByUserKey(target.userKey())
-                .orElseThrow(() -> new IllegalStateException("Notification target user not found: " + target.userKey()));
+        User user = userReadService.getActiveUserByUserKey(target.userKey());
         double minScore = target.notificationMinScore() != null ? target.notificationMinScore() : 0.0;
         List<UserRecommendation> recs = List.of();
         List<RecommendationLog> logs = List.of();

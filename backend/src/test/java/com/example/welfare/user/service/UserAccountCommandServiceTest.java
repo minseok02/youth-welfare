@@ -5,7 +5,6 @@ import com.example.welfare.recommend.service.RecommendationRefreshCacheService;
 import com.example.welfare.user.entity.User;
 import com.example.welfare.user.repository.UserAttributeRepository;
 import com.example.welfare.user.repository.UserPriorityRepository;
-import com.example.welfare.user.repository.UserRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -23,7 +22,7 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class UserAccountCommandServiceTest {
 
-    @Mock private UserRepository userRepository;
+    @Mock private UserReadService userReadService;
     @Mock private UserAttributeRepository userAttributeRepository;
     @Mock private UserPriorityRepository userPriorityRepository;
     @Mock private PasswordEncoder passwordEncoder;
@@ -32,13 +31,12 @@ class UserAccountCommandServiceTest {
     @Mock private ChatSessionCleanupService chatSessionCleanupService;
     @Mock private UserCoreSyncService userCoreSyncService;
     @Mock private RecommendationRefreshCacheService recommendationRefreshCacheService;
-    @Mock private UserKeyLookupService userKeyLookupService;
 
     @Test
     @DisplayName("회원탈퇴는 refresh token 삭제와 현재 access token revoke까지 함께 수행한다")
     void withdrawDeletesChatSessionsRefreshTokenAndRevokesAccessToken() {
         UserAccountCommandService service = new UserAccountCommandService(
-                userRepository,
+                userReadService,
                 userAttributeRepository,
                 userPriorityRepository,
                 passwordEncoder,
@@ -46,8 +44,7 @@ class UserAccountCommandServiceTest {
                 accessTokenRevocationService,
                 chatSessionCleanupService,
                 userCoreSyncService,
-                recommendationRefreshCacheService,
-                userKeyLookupService
+                recommendationRefreshCacheService
         );
         User user = User.builder()
                 .id(1L)
@@ -56,7 +53,8 @@ class UserAccountCommandServiceTest {
                 .passwordHash("encoded-password")
                 .name("tester")
                 .build();
-        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(userReadService.getActiveUserContext(1L))
+                .thenReturn(new UserReadService.ActiveUserContext(user, "user-key-1"));
         when(passwordEncoder.matches("password123", "encoded-password")).thenReturn(true);
 
         service.withdraw(1L, "password123", "access-token-value");
