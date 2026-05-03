@@ -43,6 +43,7 @@ class UserReadServiceTest {
     @Mock private UserAttributeRepository userAttributeRepository;
     @Mock private UserPriorityRepository userPriorityRepository;
     @Mock private AesEncryptUtil aesEncryptUtil;
+    @Mock private UserKeyLookupService userKeyLookupService;
 
     @Test
     @DisplayName("프로필 조회는 app_pii_rw 저장소에서 PII 암호문을 읽는다")
@@ -55,7 +56,8 @@ class UserReadServiceTest {
                 notificationPiiReadRepository,
                 userAttributeRepository,
                 userPriorityRepository,
-                aesEncryptUtil
+                aesEncryptUtil,
+                userKeyLookupService
         );
 
         AuthUser authUser = AuthUser.builder()
@@ -69,7 +71,7 @@ class UserReadServiceTest {
                 .displayCount(12)
                 .build();
 
-        when(userRepository.findUserKeyById(1L)).thenReturn(Optional.of("user-key-1"));
+        when(userKeyLookupService.findRequired(1L)).thenReturn("user-key-1");
         when(authUserRepository.findByUserKey("user-key-1")).thenReturn(Optional.of(authUser));
         when(userProfileRepository.findByUserKey("user-key-1")).thenReturn(Optional.of(profile));
         when(userPiiReadWriteRepository.findByUserKey("user-key-1"))
@@ -105,7 +107,8 @@ class UserReadServiceTest {
                 notificationPiiReadRepository,
                 userAttributeRepository,
                 userPriorityRepository,
-                aesEncryptUtil
+                aesEncryptUtil,
+                userKeyLookupService
         );
 
         NotificationTargetReadModel row = new NotificationTargetReadModel() {
@@ -159,7 +162,8 @@ class UserReadServiceTest {
                 notificationPiiReadRepository,
                 userAttributeRepository,
                 userPriorityRepository,
-                aesEncryptUtil
+                aesEncryptUtil,
+                userKeyLookupService
         );
 
         AuthUser authUser = AuthUser.builder()
@@ -189,7 +193,8 @@ class UserReadServiceTest {
                 notificationPiiReadRepository,
                 userAttributeRepository,
                 userPriorityRepository,
-                aesEncryptUtil
+                aesEncryptUtil,
+                userKeyLookupService
         );
 
         AuthUser authUser = AuthUser.builder()
@@ -217,7 +222,8 @@ class UserReadServiceTest {
                 notificationPiiReadRepository,
                 userAttributeRepository,
                 userPriorityRepository,
-                aesEncryptUtil
+                aesEncryptUtil,
+                userKeyLookupService
         );
 
         User user = User.builder()

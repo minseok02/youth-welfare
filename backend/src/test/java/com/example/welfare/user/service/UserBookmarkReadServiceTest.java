@@ -26,6 +26,7 @@ class UserBookmarkReadServiceTest {
     @Mock private UserRepository userRepository;
     @Mock private UserRecommendationRepository userRecommendationRepository;
     @Mock private CanonicalRecommendationReadModelRepository canonicalRecommendationReadModelRepository;
+    @Mock private UserKeyLookupService userKeyLookupService;
 
     @Test
     @DisplayName("북마크 목록 조회는 최신 북마크 추천을 정책 요약 응답으로 변환한다")
@@ -33,7 +34,8 @@ class UserBookmarkReadServiceTest {
         UserBookmarkReadService service = new UserBookmarkReadService(
                 userRepository,
                 userRecommendationRepository,
-                canonicalRecommendationReadModelRepository
+                canonicalRecommendationReadModelRepository,
+                userKeyLookupService
         );
         User user = User.builder()
                 .id(1L)
@@ -50,7 +52,7 @@ class UserBookmarkReadServiceTest {
                 .status(WelfareService.ServiceStatus.ACTIVE)
                 .build();
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
-        when(userRepository.findUserKeyById(1L)).thenReturn(Optional.of("user-key-1"));
+        when(userKeyLookupService.findRequired(1L)).thenReturn("user-key-1");
         when(userRecommendationRepository.findLatestBookmarkedByUserKey("user-key-1"))
                 .thenReturn(List.of(UserRecommendation.builder()
                         .id(100L)

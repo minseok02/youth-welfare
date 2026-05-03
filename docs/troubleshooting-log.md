@@ -2576,3 +2576,8 @@
 - 문제: `PolicyViewLogService` 와 `PolicySearchLogService` 가 각각 `resolveUserKey(...)` 를 가지고 `UserRepository.findUserKeyById(...)` 를 직접 호출하고 있었다. 이 상태에서는 비로그인 시 `null` 처리, 향후 user key 조회 정책 변경이 서비스별로 흩어진다.
 - 해결: `UserKeyLookupService` 를 추가하고, policy 로그 서비스 둘 다 nullable user key 해석을 전용 lookup 서비스로 위임하게 바꿨다.
 - 이유: user key 조회는 도메인 서비스의 핵심 로직이 아니라 cross-cutting lookup 규칙에 가깝다. lookup 책임을 한 경계로 모아두는 편이 중복과 변경 파급도를 줄인다.
+
+## 468) policy 로그만 `UserKeyLookupService` 를 쓰고 recommend/user 서비스들은 계속 `findUserKeyById(...)` 를 직접 호출하면, nullable/required user key 해석 규칙이 절반만 정리된 상태로 남는다
+- 문제: `RecommendationReadFacade`, `RecommendationLogService`, `UserBookmarkReadService`, `UserProfileCommandService`, `UserAccountCommandService`, `UserReadService`, `AuthTokenService` 가 여전히 각각 `findUserKeyById(...)` 를 직접 호출하고 있었다. 이 상태에서는 policy 쪽만 중복이 줄고, 나머지 경계에서는 required/nullable 규칙과 예외 처리 방식이 다시 흩어진다.
+- 해결: 위 서비스들도 `UserKeyLookupService` 를 사용하게 바꿔 nullable lookup(`findNullable`) 과 required lookup(`findRequired`) 규칙을 한 곳으로 모았다.
+- 이유: user key 조회는 policy 전용 concern이 아니라 user/recommend/policy 전반의 공통 lookup이다. 공통 경계를 한 번 만들었다면 넓게 적용하는 편이 중복 제거와 후속 정책 변경 대응에 더 낫다.

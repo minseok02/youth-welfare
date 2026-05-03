@@ -36,6 +36,7 @@ class AuthTokenServiceTest {
     @Mock private UserRepository userRepository;
     @Mock private AccessTokenRevocationService accessTokenRevocationService;
     @Mock private ChatSessionCleanupService chatSessionCleanupService;
+    @Mock private UserKeyLookupService userKeyLookupService;
     @Mock private ValueOperations<String, String> valueOperations;
 
     private AuthTokenService authTokenService;
@@ -47,7 +48,8 @@ class AuthTokenServiceTest {
                 redisTemplate,
                 userRepository,
                 accessTokenRevocationService,
-                chatSessionCleanupService
+                chatSessionCleanupService,
+                userKeyLookupService
         );
         lenient().when(redisTemplate.opsForValue()).thenReturn(valueOperations);
     }

@@ -30,6 +30,7 @@ public class UserAccountCommandService {
     private final ChatSessionCleanupService chatSessionCleanupService;
     private final UserCoreSyncService userCoreSyncService;
     private final RecommendationRefreshCacheService recommendationRefreshCacheService;
+    private final UserKeyLookupService userKeyLookupService;
 
     @Transactional
     public void changePassword(Long userId, String currentPassword, String newPassword) {
@@ -44,7 +45,7 @@ public class UserAccountCommandService {
     @Transactional
     public void withdraw(Long userId, String password, String accessToken) {
         User user = findActiveUser(userId);
-        String userKey = user.getUserKey() != null ? user.getUserKey() : resolveUserKey(userId);
+        String userKey = user.getUserKey() != null ? user.getUserKey() : userKeyLookupService.findRequired(userId);
         recommendationRefreshCacheService.evict(userKey);
 
         if (!passwordEncoder.matches(password, user.getPasswordHash())) {
@@ -90,8 +91,4 @@ public class UserAccountCommandService {
         accessTokenRevocationService.revoke(accessToken);
     }
 
-    private String resolveUserKey(Long userId) {
-        return userRepository.findUserKeyById(userId)
-                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
-    }
 }

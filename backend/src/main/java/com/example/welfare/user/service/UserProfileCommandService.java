@@ -33,11 +33,12 @@ public class UserProfileCommandService {
     private final PriorityWeightPolicy priorityWeightPolicy;
     private final UserCoreSyncService userCoreSyncService;
     private final RecommendationRefreshCacheService recommendationRefreshCacheService;
+    private final UserKeyLookupService userKeyLookupService;
 
     @Transactional
     public void updateProfile(Long userId, UpdateProfileRequest request) {
         User user = findActiveUser(userId);
-        String userKey = resolveUserKey(userId);
+        String userKey = userKeyLookupService.findRequired(userId);
         recommendationRefreshCacheService.evict(userKey);
 
         user.updateProfile(
@@ -97,7 +98,7 @@ public class UserProfileCommandService {
     @Transactional
     public void updatePriorities(Long userId, UpdatePrioritiesRequest request) {
         findActiveUser(userId);
-        String userKey = resolveUserKey(userId);
+        String userKey = userKeyLookupService.findRequired(userId);
         recommendationRefreshCacheService.evict(userKey);
         List<String> codes = request.getPriorityCodes();
 
@@ -133,11 +134,6 @@ public class UserProfileCommandService {
             throw new CustomException(ErrorCode.WITHDRAWN_USER);
         }
         return user;
-    }
-
-    private String resolveUserKey(Long userId) {
-        return userRepository.findUserKeyById(userId)
-                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
     }
 
     private int calculateCompleteness(String userKey, User user, UpdateProfileRequest request) {

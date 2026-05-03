@@ -32,6 +32,7 @@ class UserAccountCommandServiceTest {
     @Mock private ChatSessionCleanupService chatSessionCleanupService;
     @Mock private UserCoreSyncService userCoreSyncService;
     @Mock private RecommendationRefreshCacheService recommendationRefreshCacheService;
+    @Mock private UserKeyLookupService userKeyLookupService;
 
     @Test
     @DisplayName("회원탈퇴는 refresh token 삭제와 현재 access token revoke까지 함께 수행한다")
@@ -45,7 +46,8 @@ class UserAccountCommandServiceTest {
                 accessTokenRevocationService,
                 chatSessionCleanupService,
                 userCoreSyncService,
-                recommendationRefreshCacheService
+                recommendationRefreshCacheService,
+                userKeyLookupService
         );
         User user = User.builder()
                 .id(1L)

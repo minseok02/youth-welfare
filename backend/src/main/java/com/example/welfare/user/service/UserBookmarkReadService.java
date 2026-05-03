@@ -21,11 +21,12 @@ public class UserBookmarkReadService {
     private final UserRepository userRepository;
     private final UserRecommendationRepository userRecommendationRepository;
     private final CanonicalRecommendationReadModelRepository canonicalRecommendationReadModelRepository;
+    private final UserKeyLookupService userKeyLookupService;
 
     @Transactional(readOnly = true)
     public List<PolicySummaryResponse> getBookmarks(Long userId) {
         findActiveUser(userId);
-        String userKey = resolveUserKey(userId);
+        String userKey = userKeyLookupService.findRequired(userId);
         List<UserRecommendation> bookmarks = userRecommendationRepository.findLatestBookmarkedByUserKey(userKey);
         java.util.Map<Long, com.example.welfare.recommend.dto.RecommendationCandidateProjection> projections =
                 canonicalRecommendationReadModelRepository.findByServiceIds(
@@ -44,10 +45,5 @@ public class UserBookmarkReadService {
             throw new CustomException(ErrorCode.WITHDRAWN_USER);
         }
         return user;
-    }
-
-    private String resolveUserKey(Long userId) {
-        return userRepository.findUserKeyById(userId)
-                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
     }
 }
