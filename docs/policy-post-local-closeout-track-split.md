@@ -63,7 +63,9 @@ closeout 이후 남은 항목은 아래 세 묶음으로 유지합니다.
 - `GOV24_SUPPORT_CONDITION` full inventory/backfill
 - `YOUTH_MID` stable code mapping SQL
 - CTR 표본 추가 확보 후 rule/AI 가중치 및 프롬프트 재분석
+- `Batch AI Gateway`
 - 카카오 알림톡 연동 2차
+- 사용자 규모 확대 전의 군집 캐시 추천
 
 ### 공통 성격
 
@@ -78,6 +80,22 @@ closeout 이후 남은 항목은 아래 세 묶음으로 유지합니다.
 - 학생 개인 신분만으로는 practical하게 unblock 되기 어렵다
 
 는 점에서, "개발 backlog" 보다는 "운영 자격 충족 시 reopen" 성격이 더 강하다.
+
+`Batch AI Gateway` 도 현재 프로젝트 규모에서는
+
+- 실시간 개인화로도 현재 트래픽/비용을 감당 가능하고
+- batch polling / deadline fallback / partial completion 같은 운영 복잡도가 먼저 커지며
+- 사용자 규모와 야간 사전계산 수요가 실제로 생기기 전까지는 얻는 이득보다 시스템 복잡도 증가가 더 크다
+
+는 점에서, 즉시 active 기능이라기보다 "규모 확대 또는 비용 압박이 생길 때 재검토할 2차 기능"으로 둔다.
+
+비슷하게 `군집 캐시 추천` 도 현재 프로젝트 규모에서는
+
+- 군집 설계보다 `userKey` 기준 개인 캐시가 더 단순하고
+- 첫 사용자 miss 비용, hit-rate, stale invalidation 관리 비용을 감안하면
+- 사용자 수가 실제로 커지기 전에는 과설계가 될 가능성이 높다
+
+는 점에서, 즉시 active 기능이라기보다 "규모가 커졌을 때 재평가할 확장 포인트"에 더 가깝다.
 
 ### 다시 active 로 올리는 조건
 

@@ -1,5 +1,22 @@
 # 구현 현황
 
+- 2026-05-03: 로컬 검증 루프에서 auth/session smoke와 replay smoke는 **병렬로 돌리면 안 된다**는 점을 다시 확인했다. replay 스크립트가 DB 컨테이너를 재기동하므로, 같은 시점에 runtime/auth smoke를 같이 돌리면 `500/C002`, `Connection is closed` 같은 거짓 실패가 날 수 있다. 검증 기준은 `auth/session -> recommendation click -> replay` 순차 실행으로 다시 고정했다.
+- 2026-05-03: `/api/admin/dashboard/summary` 실검증도 별도 smoke로 묶었다. `run-local-admin-dashboard-smoke.sh` 는 `admin login -> ROLE_ADMIN 확인 -> dashboard summary -> summary/trend window 계약` 을 한 번에 검사하고, 로컬 Docker app이 `SECURITY_ADMIN_EMAILS` 없이 떠 있어 `admin@example.com` 에 `ROLE_ADMIN` 이 빠진 경우까지 바로 드러내게 했다.
+- 2026-05-03: admin dashboard summary는 이제 `summaryWindowDays`, `trendWindowDays` query param을 같이 받는다. 기본은 `summary=7`, `trend=1,7,30` 유지지만, 로컬에서는 `summaryWindowDays=14&trendWindowDays=3&trendWindowDays=14` 같은 식으로 다른 기간 창도 바로 비교할 수 있다. smoke 스크립트도 `SUMMARY_WINDOW_DAYS`, `TREND_WINDOW_DAYS_CSV` 로 같은 계약을 검증하도록 맞췄다.
+- 2026-05-03: 같은 `summaryWindowDays` 계약에서 collect/recommendation/search 만 가변이고 notification만 `sentLast7d/failedLast7d` 로 남아 있던 불일치도 정리했다. notification 섹션도 이제 `windowDays/sentInWindow/failedInWindow` 를 내려 summary 전체가 같은 기간 해석을 따르게 했다.
+- 2026-05-03: collect 실검증을 다시 돌려 `YOUTH`, `BOKJIRO_CENTRAL`, `BOKJIRO_LOCAL`, `bokjiro-details-gap-fill` 이 모두 현재 `main` 기준에서 정상 완료되는 것을 확인했다. 다만 replay smoke는 최신 collect snapshot에서 sample A가 OFF 단계부터 이미 `A_best_target_rank=2`, `A_top10_target=5` 로 충분히 높은 포화 상태인데도 “ON에서 추가 개선”만 요구해 거짓 실패가 났다. `run-local-education-priority-replay.sh` gate를 보정해, sample A가 이미 강한 visibility(`best_target_rank<=2` 또는 `top10_target_count>=5`)면 OFF/ON이 동일해도 pass 하도록 정리했다.
+- 2026-05-03: admin dashboard 추천 섹션을 보강해 `activeWeightKey/ruleWeight/aiWeight`, `totalLogs`, `latestClickedAt`, summary window 기준 `weightBucketsInWindow` 를 같이 노출하게 했다. 이로써 CTR 튜닝이 막힌 이유가 “클릭 instrumentation 버그”가 아니라 “표본 부족 + 아직 특정 weight bucket 편중”인지 `/api/admin/dashboard/summary` 한 번으로 읽을 수 있게 정리했다.
+- 2026-05-03: recommendation 섹션에 `nextWeightKey`, `nextWeightMinLogCount`, `remainingLogsUntilNextWeight`, `topWeightStage` 도 추가했다. 이제 CTR 표본 부족이 단순 클릭 수 부족인지, 아니면 현재 추천 로그 총량이 다음 score weight 단계까지 얼마나 남았는지도 대시보드 한 번으로 바로 읽을 수 있다.
+- 2026-05-03: `run-local-admin-dashboard-smoke.sh` 도 recommendation weight progress(`nextWeightKey`, `remainingLogsUntilNextWeight`, `topWeightStage`) 계약까지 검증하도록 보강했다. 이제 대시보드 코드와 smoke 기준이 다시 어긋나는 문제를 줄였다.
+- 2026-05-03: 같은 smoke에서 재빌드 직후 `health check` 가 `curl 56` 으로 한두 번 튀는 startup race를 줄이기 위해 health retry(`HEALTH_RETRY_COUNT`, `HEALTH_RETRY_DELAY_SECONDS`) 를 추가했다. 이제 앱이 막 올라오는 구간에서도 smoke가 바로 죽지 않고 짧게 재시도한다.
+- 2026-05-03: 같은 startup race 패턴이 `run-local-runtime-api-smoke.sh`, `run-local-recommendation-click-smoke.sh`, `run-local-admin-forced-logout-smoke.sh`, `run-local-withdraw-smoke.sh` 에도 남아 있어, 네 스크립트에도 같은 health retry를 맞췄다. 이제 로컬 app 재기동 직후 auth/recommendation smoke도 거짓 `curl 56` 실패를 덜 낸다.
+- 2026-05-03: admin dashboard collect/search 섹션도 보강해 `collect.latestFailuresInWindow`, `search.zeroResultSearchesInWindow` 를 추가했다. 이로써 최근 collect 실패가 최신 성공 row에 가려지는지, 검색에서 결과 0건이 얼마나 나오는지까지 `/api/admin/dashboard/summary` 한 번으로 같이 볼 수 있게 정리했다.
+- 2026-05-03: admin dashboard에 `trend` 섹션을 추가해 collect/recommendation/search 각각 1일/7일/30일 추세를 같이 노출하게 했다. 기존 summary count 계약은 유지하고, 운영자가 같은 응답에서 단기/중기 추세를 바로 비교할 수 있게 정리했다.
+- 2026-05-03: `ClusterService` 를 다시 `youth_all` 고정으로 맞췄다. 문서는 이미 1차 운영 기준을 “단일 군집 + 개인 캐시 우선”으로 보고 있었는데, 코드엔 예전 2D 군집화(나이대×소득분위)가 남아 있어 문서와 실제 동작이 어긋나 있었다. 현재 규모에서는 군집 hit-rate보다 개인 캐시가 더 타당하므로, 2D 군집은 2차 확장 포인트로만 남기고 `ClusterServiceTest` 로 단일 군집 계약을 고정했다.
+- 2026-05-03: 개인 추천 refresh 캐시 도입 직후 replay smoke가 `A_top10_target=5->5` 로 무너진 원인은 explicit refresh 자체가 아니라 cache key가 `userKey` 만 보고 있었기 때문이었다. `RecommendationRefreshCacheService` key에 `educationCanonicalBonusEnabled` 규칙 버전을 같이 넣어, replay OFF/ON phase처럼 앱 재기동으로 추천 규칙 플래그가 바뀌는 경우에는 서로 다른 refresh 마커를 사용하도록 보정했다. 그 뒤 `run-local-education-priority-replay.sh` 기준선도 다시 `A_top10_target=5->8`, `A_best_target_rank=3->1` 로 복구됐다.
+- 2026-05-03: `RecommendationRefreshCacheService` 를 추가해 `userKey` 기준 개인 추천 refresh 캐시를 1차 구현했다. 현재 캐시는 추천 payload 전체가 아니라 `non-personal refresh` 완료 마커만 Redis에 짧은 TTL로 저장하고, cache hit 시에도 실제 추천 row 는 계속 `user_recommendations` 에서 읽는다. `personal=true` refresh 는 항상 실계산하며, `updateProfile`, `updatePriorities`, `withdraw` 시점에는 마커를 즉시 비운다.
+- 2026-05-03: 제품 포지셔닝을 `청년정책 통합포털 + 개인화 추천` 으로 다시 명시했다. 추천 재사용 전략도 군집 캐시보다 `userKey` 기준 개인 캐시를 우선 검토하고, 나이대×소득분위 군집 캐시는 실제 사용자 수와 요청 패턴이 충분히 커졌을 때만 재검토하는 방향으로 문서 기준선을 맞췄다.
+- 2026-05-02: 추천/수집 2차 기능으로 `GET /api/admin/dashboard/summary` 를 추가했다. `AdminDashboardService` 는 오케스트레이션만 맡고, cross-domain 집계 SQL은 `AdminDashboardReadRepository` 로 분리해 collect/recommendation/notification/search/user_pii_sync 지표를 admin read-model 한 곳에서 묶었다. `AdminDashboardServiceTest`, `AdminSecurityWebMvcTest` 를 다시 통과시켰다.
 - 2026-05-02: 정책 검색에 2차 기능이던 `search_logs` 를 추가했다. `PolicySearchService` 는 read-only로 유지하고, `ClientFingerprintService` 와 `PolicySearchLogService` 를 분리해 controller 경계에서 `keyword/resultCount/filter/pageSize` 를 저장하게 정리했다. `PolicySearchLogServiceTest`, `RecommendationPolicyFlowWebMvcTest`, `PolicySearchServiceTest` 를 다시 통과시켰다.
 - 2026-05-02: 카카오 알림톡 2차는 현재 운영 자격 blocked 로 다시 분류했다. 로컬 코드 구조상 `NotificationGateway` 경계는 이미 있지만, 실제 운영에는 비즈니스 채널/발신 프로필/템플릿 심사와 사업자 증빙이 선행되어야 하고 학생 개인 신분 3개월 운영 범위에서는 리스크가 더 크므로, practical next 2차 기능 우선순위는 `대시보드 > 알림톡` 으로 둔다.
 - 2026-05-02: user/email prefix 기반 broad-suite self-heal cleanup이 여러 integration 테스트에 복제돼 있어 `IntegrationCleanupSupport` 를 추가하고 `AuthRedisIntegrationTest`, `AdminSecurityIntegrationTest`, `UserCoreDualWriteIntegrationTest`, `UserMetadataUserKeyBackfillIntegrationTest`, `UserPiiBackfillIntegrationTest`, `UserPiiSyncReplayIntegrationTest`, `UserPiiSyncRetrySchedulerIntegrationTest`, `RecommendationFlowIntegrationTest` 의 cleanup을 공통 support 호출로 수렴시켰다. 타깃 integration 재실행과 전체 `./gradlew test integrationTest --no-daemon` 을 다시 통과시켰다.
@@ -48,7 +65,7 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 같은 pre-28 migrated DB에 최신 Spring 앱을 직접 붙여도 `ddl-auto: validate` 가 통과하고, 회원가입 -> 로그인 -> 프로필 수정 -> `user_pii_sync_queue` `SYNCED` -> 회원탈퇴 cleanup end-to-end smoke가 그대로 유지되는지 추가로 확인했습니다.
 
 같은 조합에서 admin allowlist + DB row를 맞춘 계정으로 `GET /api/admin/users/pii-sync-status`, `POST /api/admin/users/pii-sync-replay` 도 호출해 queue 모니터링/수동 재처리 경로까지 로컬 smoke를 마쳤습니다.
-남은 작업은 운영 배포/운영성 검증(운영 서버 Docker Compose, 기존 운영 DB 계정 생성 SQL 적용 및 datasource 전환, 운영 `.env` / secret store의 `APP_PII_DB_URL` / `NOTIFICATION_PII_DB_URL` 를 `youth_welfare_pii` 기준으로 전환, HTTPS/Nginx, 운영 DB에 `V2026_04_28_02__add_user_pii_sync_queue.sql` / `V2026_04_28_01__drop_runtime_legacy_user_id.sql` 적용 후 smoke 검증, 기존 운영 DB에 `app_core_rw` 의 `youth_welfare_pii.user_pii` revoke SQL 실제 적용과 보조 datasource smoke 검증, CTR 표본 확충 후 재분석)과 2차 확장 기능(군집 캐시 추천, 대시보드, 카카오 알림톡 blocked)입니다.
+남은 작업은 운영 배포/운영성 검증(운영 서버 Docker Compose, 기존 운영 DB 계정 생성 SQL 적용 및 datasource 전환, 운영 `.env` / secret store의 `APP_PII_DB_URL` / `NOTIFICATION_PII_DB_URL` 를 `youth_welfare_pii` 기준으로 전환, HTTPS/Nginx, 운영 DB에 `V2026_04_28_02__add_user_pii_sync_queue.sql` / `V2026_04_28_01__drop_runtime_legacy_user_id.sql` 적용 후 smoke 검증, 기존 운영 DB에 `app_core_rw` 의 `youth_welfare_pii.user_pii` revoke SQL 실제 적용과 보조 datasource smoke 검증, CTR 표본 확충 후 재분석)과 2차 확장 기능(개인 캐시 회귀 검증/튜닝, 사용자 규모 확대 시 군집 캐시 재검토, 카카오 알림톡 blocked)입니다. 클릭 추적 경계 자체는 `serviceId + logId` local smoke로 다시 확인됐고, 현재 CTR 조정이 막힌 이유는 instrumentation이 아니라 표본 부족입니다.
 
 ## 완료된 백엔드 1차 범위
 
@@ -752,7 +769,8 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 
 ### 진행 예정
 
-- [ ] recommendation/policy 경로의 남은 source 특례(`cluster cache path의 legacy category 의존`, canonical major bridge 실험 정책) 축소
+- [x] recommendation/policy 경로의 남은 source 특례(`cluster cache path의 legacy category 의존`, canonical major bridge 실험 정책) 축소
+  - `compat/priority` 의미는 projection 단계로 수렴했고, 1차 운영 군집은 `ClusterService -> youth_all` 고정으로 되돌려 문서/코드 mismatch를 제거
 - [ ] 운영 서버 Docker Compose 기동
 - [ ] 기존 운영 DB에 `app_core_rw` / `app_pii_rw` / `notification_pii_ro` / `migration_admin` 계정 생성 및 앱 datasource 전환
 - [ ] 운영 `.env` / secret store의 `APP_PII_DB_URL` / `NOTIFICATION_PII_DB_URL` 를 `youth_welfare_pii` schema 기준으로 전환
@@ -1085,12 +1103,23 @@ cd backend
 - 기존 운영 DB 계정 생성 SQL 적용 및 앱 datasource 전환
 - 기존 운영 DB에 `app_core_rw` 의 `user_pii` revoke SQL 실제 적용 및 보조 datasource smoke 검증
 - CTR 표본 추가 확보 후 rule/AI 가중치 및 프롬프트 재분석
+- 추천 클릭 smoke 반복 검증(`deploy/smoke/run-local-recommendation-click-smoke.sh`) 유지
+- search 품질 분석용으로 admin dashboard search 섹션에 `zeroResultKeywordsInWindow` 추가
+- 로컬 기준선 전체 재검증 진입점은 `deploy/smoke/run-local-validation-suite.sh`
+- 빠른 반복 검증은 `VALIDATION_PROFILE=quick deploy/smoke/run-local-validation-suite.sh`
+- wrapper 종료 시 `suite_duration_seconds`, `step_duration_seconds=...` 로 단계별 소요 시간도 같이 확인
+- wrapper 실패 시 `failed_step`, `elapsed_before_failure_seconds` 로 중단 지점 즉시 확인
+- wrapper 실행 전 `--print-plan`, `--help` 로 현재 프로필/override 계획 확인 가능
+- `--quick`, `--full`, `--skip-replay` CLI shortcut 지원
+- `--only auth-session|click|dashboard|replay` 단일 단계 실행 shortcut 지원
+- `--only` 사용 시 plan/실패 출력에도 `only_step=...` 노출
+- admin 검색 분석은 summary count만 보지 않고 `/api/admin/dashboard/search-failures` 로 zero-result 키워드/지역/필터 패턴/샘플 상세 조회 가능
 
 ## 2차로 분리된 항목
 
 - Batch AI Gateway
-- 나이대 x 소득분위 군집화
+  - 현재 규모에서는 실시간 개인화 대비 운영 복잡도(polling / fallback / partial completion)가 더 커서 보류
+- 개인 캐시 기반 추천 가속 회귀 검증
+- 나이대 x 소득분위 군집화 / 군집 캐시 (사용자 규모 확대 시 재검토)
 - p5~p95 정규화
 - 카카오 알림톡
-- 검색 로그
-- 추천/수집 대시보드

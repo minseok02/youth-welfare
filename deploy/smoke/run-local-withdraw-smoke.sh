@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+source "${ROOT_DIR}/deploy/smoke/smoke-common.sh"
+
 APP_BASE_URL="${APP_BASE_URL:-http://127.0.0.1:8082}"
 APP_HEALTH_URL="${APP_HEALTH_URL:-${APP_BASE_URL}/actuator/health}"
 MYSQL_CONTAINER_NAME="${MYSQL_CONTAINER_NAME:-youth-welfare-db}"
@@ -17,6 +20,8 @@ SMOKE_HOUSEHOLD_TYPE="${SMOKE_HOUSEHOLD_TYPE:-1인 가구}"
 
 DB_QUERY_USERNAME="${DB_QUERY_USERNAME:-migration_admin}"
 DB_QUERY_PASSWORD="${DB_QUERY_PASSWORD:-welfare1234!}"
+HEALTH_RETRY_COUNT="${HEALTH_RETRY_COUNT:-15}"
+HEALTH_RETRY_DELAY_SECONDS="${HEALTH_RETRY_DELAY_SECONDS:-1}"
 
 ARTIFACT_DIR="${ARTIFACT_DIR:-$(mktemp -d)}"
 COOKIE_JAR="${ARTIFACT_DIR}/user.cookie"
@@ -33,21 +38,6 @@ cleanup() {
   rm -rf "${ARTIFACT_DIR}"
 }
 trap cleanup EXIT
-
-require_command() {
-  command -v "$1" >/dev/null 2>&1 || {
-    echo "missing required command: $1" >&2
-    exit 1
-  }
-}
-
-http_status() {
-  local method="$1"
-  local url="$2"
-  local output_file="$3"
-  shift 3
-  curl -sS -o "${output_file}" -w "%{http_code}" -X "${method}" "$url" "$@"
-}
 
 extract_access_token() {
   local response_file="$1"
@@ -91,35 +81,19 @@ capture_user_state() {
     -e "SELECT id, email, is_active FROM users WHERE user_key = '${user_key}' LIMIT 1;"
 }
 
-print_step() {
-  printf '\n[%s] %s\n' "$(date '+%H:%M:%S')" "$1"
-}
-
-assert_status() {
-  local expected="$1"
-  local actual="$2"
-  local context="$3"
-  local file_path="$4"
-  if [[ "${expected}" != "${actual}" ]]; then
-    echo "${context} failed: expected ${expected}, got ${actual}" >&2
-    cat "${file_path}" >&2
-    exit 1
-  fi
-}
-
-require_command curl
-require_command python3
-require_command docker
+smoke_require_command curl
+smoke_require_command python3
+smoke_require_command docker
 
 SMOKE_EMAIL="${SMOKE_EMAIL_PREFIX}.$(date +%s)@example.com"
 
-print_step "health check"
-HEALTH_STATUS="$(http_status GET "${APP_HEALTH_URL}" "${HEALTH_RESPONSE}")"
-assert_status 200 "${HEALTH_STATUS}" "health check" "${HEALTH_RESPONSE}"
+smoke_print_step "health check"
+HEALTH_STATUS="$(smoke_wait_for_health "${HEALTH_RETRY_COUNT}" "${HEALTH_RETRY_DELAY_SECONDS}" "${APP_HEALTH_URL}" "${HEALTH_RESPONSE}" "${ARTIFACT_DIR}/health.stderr")"
+smoke_assert_status 200 "${HEALTH_STATUS}" "health check" "${HEALTH_RESPONSE}"
 
-print_step "signup ${SMOKE_EMAIL}"
+smoke_print_step "signup ${SMOKE_EMAIL}"
 SIGNUP_STATUS="$(
-  http_status POST "${APP_BASE_URL}/api/auth/signup" "${SIGNUP_RESPONSE}" \
+  smoke_http_status POST "${APP_BASE_URL}/api/auth/signup" "${SIGNUP_RESPONSE}" \
     -H 'Content-Type: application/json' \
     -d "{
       \"email\": \"${SMOKE_EMAIL}\",
@@ -133,11 +107,11 @@ SIGNUP_STATUS="$(
       \"householdType\": \"${SMOKE_HOUSEHOLD_TYPE}\"
     }"
 )"
-assert_status 200 "${SIGNUP_STATUS}" "signup" "${SIGNUP_RESPONSE}"
+smoke_assert_status 200 "${SIGNUP_STATUS}" "signup" "${SIGNUP_RESPONSE}"
 
-print_step "login"
+smoke_print_step "login"
 LOGIN_STATUS="$(
-  http_status POST "${APP_BASE_URL}/api/auth/login" "${LOGIN_RESPONSE}" \
+  smoke_http_status POST "${APP_BASE_URL}/api/auth/login" "${LOGIN_RESPONSE}" \
     -c "${COOKIE_JAR}" \
     -H 'Content-Type: application/json' \
     -d "{
@@ -145,42 +119,42 @@ LOGIN_STATUS="$(
       \"password\": \"${SMOKE_PASSWORD}\"
     }"
 )"
-assert_status 200 "${LOGIN_STATUS}" "login" "${LOGIN_RESPONSE}"
+smoke_assert_status 200 "${LOGIN_STATUS}" "login" "${LOGIN_RESPONSE}"
 LOGIN_TOKEN="$(extract_access_token "${LOGIN_RESPONSE}")"
 
-print_step "refresh"
+smoke_print_step "refresh"
 REFRESH_STATUS="$(
-  http_status POST "${APP_BASE_URL}/api/auth/refresh" "${REFRESH_RESPONSE}" \
+  smoke_http_status POST "${APP_BASE_URL}/api/auth/refresh" "${REFRESH_RESPONSE}" \
     -b "${COOKIE_JAR}" \
     -c "${COOKIE_JAR}"
 )"
-assert_status 200 "${REFRESH_STATUS}" "refresh" "${REFRESH_RESPONSE}"
+smoke_assert_status 200 "${REFRESH_STATUS}" "refresh" "${REFRESH_RESPONSE}"
 REFRESHED_TOKEN="$(extract_access_token "${REFRESH_RESPONSE}")"
 
-print_step "lookup userKey"
+smoke_print_step "lookup userKey"
 USER_KEY="$(lookup_user_key_by_email "${SMOKE_EMAIL}")"
 if [[ -z "${USER_KEY}" ]]; then
   echo "failed to resolve userKey for ${SMOKE_EMAIL}" >&2
   exit 1
 fi
 
-print_step "withdraw"
+smoke_print_step "withdraw"
 WITHDRAW_STATUS="$(
-  http_status DELETE "${APP_BASE_URL}/api/users/me" "${WITHDRAW_RESPONSE}" \
+  smoke_http_status DELETE "${APP_BASE_URL}/api/users/me" "${WITHDRAW_RESPONSE}" \
     -b "${COOKIE_JAR}" \
     -c "${COOKIE_JAR}" \
     -H "Authorization: Bearer ${REFRESHED_TOKEN}" \
     -H 'Content-Type: application/json' \
     -d "{\"password\":\"${SMOKE_PASSWORD}\"}"
 )"
-assert_status 200 "${WITHDRAW_STATUS}" "withdraw" "${WITHDRAW_RESPONSE}"
+smoke_assert_status 200 "${WITHDRAW_STATUS}" "withdraw" "${WITHDRAW_RESPONSE}"
 
-print_step "old access denied"
+smoke_print_step "old access denied"
 OLD_ACCESS_STATUS="$(
-  http_status GET "${APP_BASE_URL}/api/users/me/bookmarks" "${OLD_ACCESS_RESPONSE}" \
+  smoke_http_status GET "${APP_BASE_URL}/api/users/me/bookmarks" "${OLD_ACCESS_RESPONSE}" \
     -H "Authorization: Bearer ${REFRESHED_TOKEN}"
 )"
-assert_status 401 "${OLD_ACCESS_STATUS}" "old access after withdraw" "${OLD_ACCESS_RESPONSE}"
+smoke_assert_status 401 "${OLD_ACCESS_STATUS}" "old access after withdraw" "${OLD_ACCESS_RESPONSE}"
 OLD_ACCESS_ERROR="$(extract_error_code "${OLD_ACCESS_RESPONSE}")"
 if [[ "${OLD_ACCESS_ERROR}" != "A006" ]]; then
   echo "unexpected old-access errorCode: ${OLD_ACCESS_ERROR}" >&2
@@ -188,13 +162,13 @@ if [[ "${OLD_ACCESS_ERROR}" != "A006" ]]; then
   exit 1
 fi
 
-print_step "stale refresh denied"
+smoke_print_step "stale refresh denied"
 STALE_REFRESH_STATUS="$(
-  http_status POST "${APP_BASE_URL}/api/auth/refresh" "${STALE_REFRESH_RESPONSE}" \
+  smoke_http_status POST "${APP_BASE_URL}/api/auth/refresh" "${STALE_REFRESH_RESPONSE}" \
     -b "${COOKIE_JAR}" \
     -c "${COOKIE_JAR}"
 )"
-assert_status 410 "${STALE_REFRESH_STATUS}" "stale refresh after withdraw" "${STALE_REFRESH_RESPONSE}"
+smoke_assert_status 410 "${STALE_REFRESH_STATUS}" "stale refresh after withdraw" "${STALE_REFRESH_RESPONSE}"
 STALE_REFRESH_ERROR="$(extract_error_code "${STALE_REFRESH_RESPONSE}")"
 if [[ "${STALE_REFRESH_ERROR}" != "U003" ]]; then
   echo "unexpected stale-refresh errorCode: ${STALE_REFRESH_ERROR}" >&2
@@ -202,7 +176,7 @@ if [[ "${STALE_REFRESH_ERROR}" != "U003" ]]; then
   exit 1
 fi
 
-print_step "capture withdrawn user state"
+smoke_print_step "capture withdrawn user state"
 capture_user_state "${USER_KEY}" > "${USER_STATE_FILE}"
 if [[ ! -s "${USER_STATE_FILE}" ]]; then
   echo "withdrawn user state missing for userKey=${USER_KEY}" >&2

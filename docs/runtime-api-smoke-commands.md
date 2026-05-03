@@ -12,6 +12,16 @@ deploy/smoke/run-local-runtime-api-smoke.sh
 ```
 
 이 스크립트는 `signup -> login -> refresh -> recommendations refresh -> bookmark -> bookmarks -> logout -> refresh invalidation -> presented access revoke` 를 한 번에 확인합니다.
+앱 재기동 직후 startup race가 있으면 `HEALTH_RETRY_COUNT`, `HEALTH_RETRY_DELAY_SECONDS` 로 health check 재시도 횟수를 늘릴 수 있습니다.
+
+추천 클릭 추적 반복 검증은 아래 스크립트를 우선 사용합니다.
+
+```bash
+deploy/smoke/run-local-recommendation-click-smoke.sh
+```
+
+이 스크립트는 `signup -> login -> recommendations refresh -> first recommendation detail(serviceId + logId) -> recommendation_logs.is_clicked=1` 을 한 번에 확인합니다.
+앱 재기동 직후 startup race가 있으면 `HEALTH_RETRY_COUNT`, `HEALTH_RETRY_DELAY_SECONDS` 로 health check 재시도 횟수를 늘릴 수 있습니다.
 
 admin forced logout 반복 검증은 아래 스크립트를 우선 사용합니다.
 
@@ -20,6 +30,7 @@ deploy/smoke/run-local-admin-forced-logout-smoke.sh
 ```
 
 이 스크립트는 `admin login -> forced logout -> old access deny(401/A006) -> old refresh deny(401/A003) -> relogin recovery(200)` 를 한 번에 확인합니다.
+앱 재기동 직후 startup race가 있으면 `HEALTH_RETRY_COUNT`, `HEALTH_RETRY_DELAY_SECONDS` 로 health check 재시도 횟수를 늘릴 수 있습니다.
 
 withdraw 반복 검증은 아래 스크립트를 우선 사용합니다.
 
@@ -28,6 +39,32 @@ deploy/smoke/run-local-withdraw-smoke.sh
 ```
 
 이 스크립트는 `signup -> login -> refresh -> withdraw -> old access deny(401/A006) -> stale refresh deny(410/U003) -> withdrawn email mask` 를 한 번에 확인합니다.
+앱 재기동 직후 startup race가 있으면 `HEALTH_RETRY_COUNT`, `HEALTH_RETRY_DELAY_SECONDS` 로 health check 재시도 횟수를 늘릴 수 있습니다.
+
+admin dashboard 반복 검증은 아래 스크립트를 우선 사용합니다.
+
+```bash
+deploy/smoke/run-local-admin-dashboard-smoke.sh
+```
+
+이 스크립트는 `admin login -> ROLE_ADMIN 확인 -> /api/admin/dashboard/summary -> summary window + trend window + recommendation weight progress 계약` 을 한 번에 확인합니다.
+로컬 Docker app이 `SECURITY_ADMIN_EMAILS` 없이 떠 있으면 `admin@example.com` 이 `ROLE_ADMIN` 없이 로그인될 수 있으므로, 이 경우에는 아래처럼 다시 띄웁니다.
+
+```bash
+SECURITY_ADMIN_EMAILS=admin@example.com docker compose up -d --force-recreate app
+```
+
+기본 summary window는 `7`, 기본 trend window는 `1,7,30` 입니다. 다른 기간을 보고 싶으면 `SUMMARY_WINDOW_DAYS`, `TREND_WINDOW_DAYS_CSV` 로 덮어씁니다.
+
+```bash
+SUMMARY_WINDOW_DAYS=14 TREND_WINDOW_DAYS_CSV=3,14 deploy/smoke/run-local-admin-dashboard-smoke.sh
+```
+
+앱 재기동 직후 startup race가 있으면 아래 재시도 env를 같이 조절할 수 있습니다.
+
+```bash
+HEALTH_RETRY_COUNT=30 HEALTH_RETRY_DELAY_SECONDS=1 deploy/smoke/run-local-admin-dashboard-smoke.sh
+```
 
 auth/session revoke 세 개를 연속으로 돌릴 때는 아래 wrapper를 우선 사용합니다.
 
@@ -40,6 +77,58 @@ deploy/smoke/run-local-auth-session-smoke.sh
 1. runtime logout smoke
 2. withdraw smoke
 3. admin forced logout smoke
+
+로컬 기준선을 한 번에 다시 확인할 때는 아래 상위 wrapper를 우선 사용합니다.
+
+```bash
+deploy/smoke/run-local-validation-suite.sh
+```
+
+기본 순서:
+
+1. auth/session smoke wrapper
+2. recommendation click smoke
+3. admin dashboard smoke
+4. education priority replay smoke
+
+주의:
+
+- replay smoke는 DB/app 재기동이 섞일 수 있어 항상 마지막에 둡니다.
+- local Docker app에서 admin 검증이 필요하면 `SECURITY_ADMIN_EMAILS=admin@example.com` 상태로 app이 떠 있어야 합니다.
+
+빠른 재검증만 할 때는 `quick` 프로필을 사용합니다.
+
+```bash
+VALIDATION_PROFILE=quick deploy/smoke/run-local-validation-suite.sh
+```
+
+`quick` 은 `auth/session -> recommendation click -> admin dashboard` 까지만 돌고 replay는 건너뜁니다.
+기본 `full` 프로필은 replay까지 포함합니다.
+wrapper 끝에는 `suite_duration_seconds`, `step_duration_seconds=<label>|<seconds>` 형태의 요약이 같이 출력됩니다.
+실패 시에는 `failed_step=<label>`, `elapsed_before_failure_seconds=<n>` 도 같이 출력됩니다.
+
+실행 전에 현재 프로필/override 기준 어떤 단계가 켜질지만 보고 싶으면:
+
+```bash
+deploy/smoke/run-local-validation-suite.sh --print-plan
+```
+
+짧은 사용법은:
+
+```bash
+deploy/smoke/run-local-validation-suite.sh --help
+```
+
+env를 직접 쓰기 싫으면 CLI shortcut도 씁니다.
+
+```bash
+deploy/smoke/run-local-validation-suite.sh --quick --print-plan
+deploy/smoke/run-local-validation-suite.sh --full --skip-replay
+deploy/smoke/run-local-validation-suite.sh --only dashboard --print-plan
+deploy/smoke/run-local-validation-suite.sh --only replay
+```
+
+`--only` 를 쓰면 plan/failure 출력에도 `only_step=...` 가 같이 찍혀서 단일 단계 실행 의도가 바로 보입니다.
 
 전제:
 
@@ -186,6 +275,26 @@ curl -sS \
 
 - 토글 응답 `success=true`
 - 재조회 시 해당 recommendation의 `isBookmarked` 값 변경
+
+## 5-1. 추천 클릭 추적 smoke
+
+반복 검증은 수동 curl 대신 아래 스크립트를 우선 사용합니다.
+
+```bash
+deploy/smoke/run-local-recommendation-click-smoke.sh
+```
+
+이 smoke의 핵심 포인트:
+
+- 추천 응답의 상세 진입 path는 `id` 가 아니라 `serviceId` 를 사용
+- CTR 추적은 `logId` 를 query param(`?logId=`) 으로 전달
+- 상세 조회 직후 `recommendation_logs.is_clicked=1`, `clicked_at` 이 채워져야 정상
+
+수동 확인 시 주의:
+
+- `recommendation.id` 는 추천 row id
+- `recommendation.serviceId` 는 정책 상세 path variable
+- 둘을 혼동하면 수동 probe에서 거짓 `500` 을 만들 수 있음
 
 ## 6. 정책 북마크 목록 확인
 

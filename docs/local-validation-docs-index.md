@@ -57,6 +57,11 @@
 현재 auth/session revoke closeout의 기본 진입점은
 `deploy/smoke/run-local-auth-session-smoke.sh` 입니다.
 
+현재 로컬 검증 전체 기준선을 빠르게 다시 확인하는 기본 진입점은
+`deploy/smoke/run-local-validation-suite.sh` 입니다.
+
+짧은 재검증은 `VALIDATION_PROFILE=quick`, 전체 기준선은 기본 `full` 프로필을 사용합니다.
+
 ### 3. 데모 시나리오
 
 - [demo-scenario.md](./demo-scenario.md)

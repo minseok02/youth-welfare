@@ -13,6 +13,9 @@
 이 문서는 현재 코드 기준으로 추천이 어떻게 동작하는지,
 무엇이 현재 계약이고 무엇이 실험/보조 신호인지 빠르게 확인하기 위한 current-state 문서입니다.
 
+현재 제품 해석은 `청년정책 통합포털 + 개인화 추천` 이며, 추천 재사용 전략도 군집 캐시보다 개인 캐시를 우선 검토하는 쪽으로 정리합니다.
+현재 코드 기준 개인 캐시는 추천 payload 전체를 Redis에 저장하는 구조가 아니라, `non-personal refresh` 를 최근에 끝냈는지 나타내는 짧은 TTL 마커만 저장하고 실제 추천 row 는 계속 DB에서 읽는 형태입니다. 이 마커 key 는 `userKey` 뿐 아니라 현재 추천 규칙 버전(예: `educationCanonicalBonusEnabled`)도 함께 포함해, 앱 재기동으로 추천 규칙 플래그가 바뀐 뒤 이전 refresh 결과를 재사용하지 않게 합니다.
+
 ## 현재 추천 파이프라인
 
 현재 추천 흐름은 아래 순서입니다.
@@ -24,6 +27,9 @@
 5. `RecommendationPersistenceService`
 
 조회는 저장된 `user_recommendations` 를 읽는 구조입니다.
+또한 `POST /api/recommendations/refresh?personal=false` 는 최근 same-user refresh 마커가 살아 있으면 재계산을 생략하고 최신 저장 row 를 그대로 반환합니다. 반대로 `personal=true` refresh 는 항상 실계산하며, 프로필/우선순위/탈퇴 변경 시 refresh 마커는 즉시 invalidate 됩니다.
+
+즉 현재 개인화의 기본 단위는 군집이 아니라 사용자입니다. 군집은 현재 `youth_all` 단일 경계로만 유지하고, 실제 추천 응답 가속도 먼저 `userKey` 기준 캐시로 해결합니다. 나이대×소득분위 2D 군집은 사용자 규모와 hit-rate가 충분히 커졌을 때만 다시 검토합니다.
 
 ## 현재 retrieval 기준
 
@@ -127,6 +133,7 @@
 현재 로컬에서 다시 확인된 것은:
 
 - auth/runtime smoke 통과
+- recommendation click smoke 통과
 - actual collect 이후 downstream replay 통과
 - `education replay` rule-only 성공
 - broad regression 통과
@@ -141,6 +148,7 @@
 - collect
 - sidecar
 - recommendation downstream
+- CTR click instrumentation
 
 이 다시 이어져 있습니다.
 
@@ -158,6 +166,15 @@ recommendation/replay 는 collect와 sidecar snapshot 품질에 직접 의존합
 - `ai_score` drift
 
 가 남습니다.
+
+### 3. CTR 표본 부족
+
+클릭 추적 경계 자체는 현재 정상입니다.
+
+- 추천 응답의 `serviceId + logId` 로 정책 상세 진입 시
+- `recommendation_logs.is_clicked=1` 이 실제 DB에 기록됨
+
+즉 현재 병목은 click instrumentation이 아니라 실사용 클릭 표본 부족입니다.
 
 ### 3. fresh reset 뒤 sidecar 공백
 
@@ -187,3 +204,8 @@ runtime bootstrap이 자동으로 sidecar를 다 복구하는 건 아닙니다.
 3. education experiment는 이미 코드에 들어가 있고 local replay로 검증됐습니다.
 4. `ai_score` exact match는 현재 제품 보장 범위가 아닙니다.
 5. notification 후보 선택은 현재 `[A, A, B?]` 슬롯 배치입니다.
+6. 운영 지표는 `GET /api/admin/dashboard/summary` 에서 collect/recommendation/notification/search/user_pii_sync 묶음으로 조회합니다.
+   recommendation 섹션에는 현재 active weight, 누적 recommendation log 수, latest clicked 시각, 최근 7일 weight bucket 분포가 포함됩니다.
+   collect 섹션에는 최근 실패 run 목록, search 섹션에는 최근 7일 0건 검색 수가 포함됩니다.
+   `trend` 섹션에는 collect/recommendation/search 의 1일/7일/30일 추세가 포함됩니다.
+7. 추천 가중치/프롬프트 재조정은 CTR 표본이 더 쌓인 뒤에만 reopen 합니다.

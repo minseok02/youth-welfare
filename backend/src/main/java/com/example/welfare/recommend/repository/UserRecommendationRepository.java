@@ -15,6 +15,20 @@ public interface UserRecommendationRepository extends JpaRepository<UserRecommen
 
     List<UserRecommendation> findByUserKey(String userKey);
 
+    @Query("""
+            SELECT ur FROM UserRecommendation ur
+            JOIN FETCH ur.service
+            WHERE ur.userKey = :userKey
+              AND ur.recommendedAt = (
+                    SELECT MAX(ur2.recommendedAt)
+                    FROM UserRecommendation ur2
+                    WHERE ur2.userKey = :userKey
+                      AND ur2.service.id = ur.service.id
+              )
+            ORDER BY ur.finalScore DESC
+            """)
+    List<UserRecommendation> findLatestByUserKeyOrderByFinalScoreDesc(@Param("userKey") String userKey);
+
     // 사용자 추천 목록 — 최종점수 내림차순
     @Query("""
             SELECT ur FROM UserRecommendation ur

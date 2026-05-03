@@ -1,5 +1,50 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 295) replay smoke와 auth/session smoke를 병렬로 돌리면 DB 재기동 간섭으로 거짓 `500/C002` 가 날 수 있었음
+- 문제: `run-local-education-priority-replay.sh` 는 내부에서 `youth-welfare-db` 컨테이너를 재기동한다. 이걸 `run-local-auth-session-smoke.sh` 와 같은 타이밍에 돌리면 앱 쪽에서 `Connection is closed`, `Unable to rollback against JDBC Connection` 이 튀고, 실제 추천/API 회귀가 없어도 auth smoke가 `500/C002` 로 깨질 수 있었음
+- 해결: 로컬 검증 기준을 `auth/session -> recommendation click -> replay` 순차 실행으로 다시 고정했다. 이후 순차 재실행에서는 auth/session smoke, recommendation click smoke, replay smoke가 모두 통과했다
+- 이유: 지금 단계는 운영 검증이 아니라 로컬 검증 루프이므로, smoke 자체가 서로 실행 환경을 깨지 않는 순서가 중요하다. replay는 DB 재기동형이라 독립 실행으로 다뤄야 한다
+
+## 296) `/api/admin/dashboard/summary` 가 한 번 `500/C002` 로 보였지만 실제 원인은 코드보다 로컬 admin allowlist 실행 조건이었음
+- 문제: 대시보드 실응답을 보려 했을 때 `admin@example.com` login은 성공했지만 JWT `roles` 에 `ROLE_ADMIN` 이 빠져 있었다. fresh rebuild 뒤 로컬 Docker app 컨테이너의 `SECURITY_ADMIN_EMAILS` 가 비어 있었고, 이 상태에서는 `admin@example.com` 이 일반 사용자로만 로그인되어 `/api/admin/dashboard/summary` 검증이 실패할 수 있었음
+- 해결: `SECURITY_ADMIN_EMAILS=admin@example.com docker compose up -d --force-recreate app` 로 app을 다시 띄운 뒤 대시보드 응답을 재확인했고, 이를 반복 가능하게 `run-local-admin-dashboard-smoke.sh` 로 묶었다. 이 smoke는 로그인 후 JWT `ROLE_ADMIN` 존재 여부를 먼저 확인하고, 누락 시 allowlist 재기동 명령을 바로 안내한다
+- 이유: 현재 문제는 대시보드 로직 자체보다 “로컬 Docker app이 어떤 env로 떠 있느냐”에 좌우된다. 이 조건을 smoke가 먼저 체크해야 같은 혼선을 반복하지 않는다
+
+## 297) 대시보드 추세가 1/7/30 고정이면 특정 기간의 collect/search/recommendation 패턴을 바로 보기 어려웠음
+- 문제: `/api/admin/dashboard/summary` 는 trend를 `1/7/30` 윈도로만 내려줘 기본 관측은 충분했지만, 로컬 검증 중 `3일`, `14일` 같은 중간 창을 바로 비교해 보고 싶으면 코드를 바꾸거나 DB 쿼리를 직접 날려야 했다
+- 해결: `trendWindowDays` query param을 추가해 요청이 들어온 기간 창만 계산하게 했고, `run-local-admin-dashboard-smoke.sh` 도 `TREND_WINDOW_DAYS_CSV` 를 받아 custom window 계약을 같이 검증하도록 맞췄다
+- 이유: summary 계약 기본값은 유지하되, 운영/로컬 관측이 필요할 때만 창을 좁혀 보는 편이 cross-domain dashboard 구조를 흔들지 않고도 실용성이 높다
+
+## 298) 대시보드의 일부 collect/search/recommendation 필드는 여전히 7일 고정이라 trend만 가변이고 summary는 고정이라는 어색한 계약이 남아 있었음
+- 문제: `trendWindowDays` 는 커스터마이즈할 수 있게 됐지만, `collect.latestFailuresLast7d`, `recommendation.sentLast7d/clickedLast7d/fallbackLast7d/weightBucketsLast7d`, `search.zeroResultSearchesLast7d/topKeywordsLast7d` 는 여전히 7일 고정이었다. 그래서 같은 응답 안에서 trend는 `3/14일`로 보면서 summary는 항상 `7일`로 읽어야 하는 계약 불일치가 생겼다
+- 해결: `summaryWindowDays` query param을 추가해 collect/search/recommendation summary window를 함께 제어하게 바꿨다. DTO 필드도 `latestFailuresInWindow`, `sentInWindow`, `zeroResultSearchesInWindow`, `weightBucketsInWindow` 같은 형태로 일반화했고, `run-local-admin-dashboard-smoke.sh` 도 `SUMMARY_WINDOW_DAYS` 를 받아 summary/trend 계약을 같이 검증하도록 확장했다
+- 이유: 대시보드 응답은 “현재 요약 + 기간별 추세”를 같이 보여 주는 용도이므로, summary 기간 자체도 요청자가 선택 가능해야 trend와 함께 해석하기 쉽다
+
+## 299) summary window를 도입한 뒤에도 notification 섹션만 7일 고정 명명과 해석을 유지해 대시보드 계약이 완전히 일관되지 않았음
+- 문제: `summaryWindowDays` 를 추가한 뒤에도 `notification.sentLast7d/failedLast7d` 는 그대로 남아 있어, 같은 summary 응답에서 collect/recommendation/search는 요청한 기간으로 읽고 notification만 7일 고정으로 읽어야 하는 어색함이 남았다
+- 해결: notification 섹션도 `windowDays`, `sentInWindow`, `failedInWindow` 로 바꾸고 `fetchNotificationSummary` SQL alias도 같은 window semantics로 맞췄다. 이로써 `/api/admin/dashboard/summary` 의 모든 summary 섹션이 같은 기간 파라미터 해석을 따르게 됐다
+- 이유: 운영 대시보드는 특정 기간 창을 맞춰 놓고 섹션 간 비교를 해야 의미가 있다. notification만 별도 고정 기간이면 해석 비용이 다시 생긴다
+
+## 300) recommendation 섹션에 active weight와 클릭 수는 있었지만 “다음 단계까지 얼마나 남았는지”가 없어 CTR/가중치 튜닝 readiness를 한 번에 읽기 어려웠음
+- 문제: `/api/admin/dashboard/summary` recommendation 섹션은 이미 `activeWeightKey`, `totalLogs`, `clickedInWindow`, `weightBucketsInWindow` 를 내려주고 있었지만, 운영자가 지금 단계가 `GROWTH` 인지 아는 것과 “그럼 `STABLE` 까지 몇 로그가 더 필요한지”를 아는 것은 별개였다. 결국 `score_weights.min_log_count` 를 다시 떠올리거나 DB를 조회해야 했다
+- 해결: `ScoreWeightService` 에 진행도 계산을 추가하고, recommendation 섹션에 `nextWeightKey`, `nextWeightMinLogCount`, `remainingLogsUntilNextWeight`, `topWeightStage` 를 노출했다. dashboard는 이제 score weight 규칙을 직접 재해석하지 않고 도메인 서비스가 계산한 진행도만 읽는다
+- 이유: CTR/가중치 재조정 판단은 “최근 클릭 수”와 “현재 추천 로그 총량”이 같이 보여야 한다. 다음 단계까지 남은 로그 수를 바로 보여 주면 표본 부족과 weight stage 부족을 같은 화면에서 구분할 수 있다
+
+## 301) recommendation weight progress를 대시보드에 추가한 뒤에도 로컬 smoke가 그 필드를 아예 검증하지 않아 계약 이탈을 놓칠 수 있었음
+- 문제: `/api/admin/dashboard/summary` recommendation 섹션에 `nextWeightKey`, `remainingLogsUntilNextWeight`, `topWeightStage` 를 추가했지만, `run-local-admin-dashboard-smoke.sh` 는 여전히 window/카운트/추세만 확인하고 있었다. 이 상태면 DTO나 서비스가 progress 필드를 깨도 smoke는 계속 green 일 수 있었다
+- 해결: admin dashboard smoke도 recommendation weight progress 계약을 같이 보게 바꿨다. top stage면 `nextWeight*` 가 `null` 이어야 하고, 아니면 `nextWeightKey`/`nextWeightMinLogCount`/`remainingLogsUntilNextWeight>=0` 가 있어야 한다는 조건을 추가했다
+- 이유: 운영 관측 필드는 테스트만 통과해도 되는 게 아니라 로컬 smoke에서도 실제 JSON 계약을 다시 확인해야 한다. 그래야 대시보드 실응답과 테스트 fixture가 어긋날 때 바로 잡힌다
+
+## 302) admin dashboard smoke가 앱 재빌드 직후 startup race를 흡수하지 못해 `curl: (56) Recv failure: Connection reset by peer` 로 자주 끊겼음
+- 문제: `docker compose up -d --build app` 직후 `run-local-admin-dashboard-smoke.sh` 를 바로 실행하면, 앱 컨테이너는 `Started` 상태여도 Tomcat/JPA 초기화 막바지라 `/actuator/health` 에서 한두 번 `connection reset` 이 날 수 있었다. 스크립트는 health check를 단발로만 때려 이런 타이밍 이슈를 그대로 실패로 처리했다
+- 해결: `HEALTH_RETRY_COUNT`, `HEALTH_RETRY_DELAY_SECONDS` 를 추가하고 health check를 짧게 재시도하게 바꿨다. 마지막 시도까지 실패한 경우에만 stderr와 health 응답을 같이 출력하도록 정리했다
+- 이유: 이 문제는 대시보드 코드 버그가 아니라 로컬 Docker startup race다. smoke가 최소한의 retry를 가져야 반복 검증에서 불필요한 거짓 실패를 줄일 수 있다
+
+## 303) 같은 startup race가 runtime/withdraw/recommendation-click/admin-forced-logout smoke에도 반복될 수 있었음
+- 문제: `run-local-runtime-api-smoke.sh`, `run-local-recommendation-click-smoke.sh`, `run-local-admin-forced-logout-smoke.sh`, `run-local-withdraw-smoke.sh` 도 모두 `/actuator/health` 를 단발로만 확인하고 있어서, 앱 재기동 직후에는 admin dashboard smoke와 똑같이 `curl 56` 으로 바로 죽을 수 있었다
+- 해결: 네 스크립트에도 같은 `wait_for_health` retry helper와 `HEALTH_RETRY_COUNT`, `HEALTH_RETRY_DELAY_SECONDS` env를 추가했다
+- 이유: 이건 개별 smoke의 비즈니스 로직 문제가 아니라 공통적인 로컬 startup race다. 자주 쓰는 smoke들끼리는 같은 회복력 기준을 가져야 반복 검증이 덜 흔들린다
+
 ## 294) broad-suite self-heal cleanup이 안정화됐지만 user-prefix integration 테스트들에 거의 같은 정리 코드가 복제돼 다시 drift할 가능성이 있었음
 - 문제: `AuthRedisIntegrationTest`, `AdminSecurityIntegrationTest`, `UserCoreDualWriteIntegrationTest`, `UserMetadataUserKeyBackfillIntegrationTest`, `UserPiiBackfillIntegrationTest`, `UserPiiSyncReplayIntegrationTest`, `UserPiiSyncRetrySchedulerIntegrationTest`, `RecommendationFlowIntegrationTest` 는 모두 “email prefix로 user를 찾고 userKey 파생 cleanup 후 user delete” 구조가 거의 같았는데, 세부 차이가 조금씩 있어 다음 hardening 때 일부 클래스만 갱신될 위험이 있었음
 - 해결: test 전용 `IntegrationCleanupSupport` 를 추가하고 user-prefix cleanup, service-prefix cleanup 진입점을 공통화했다. 각 클래스는 이제 “무슨 추가 정리가 필요한가”만 람다로 넘기고, 사용자 탐색/삭제 흐름 자체는 한 곳에서 처리한다
@@ -2322,3 +2367,113 @@
 - 문제: 현재 알림 경계는 `NotificationGateway` 인터페이스로 분리돼 있어 겉보기에는 알림톡 provider만 붙이면 될 것처럼 보인다. 하지만 실제 알림톡 운영은 비즈니스 채널 전환, 발신 프로필 등록, 템플릿 심사, 사업자 증빙이 선행되어야 하고, 학생 개인 신분의 3개월 졸업 프로젝트 운영 범위에서는 이 전제가 더 큰 병목이다.
 - 해결: 알림톡을 단순 2차 구현 항목이 아니라 `운영 자격 blocked` 항목으로 재분류했다. practical next 2차 기능 우선순위는 `검색 로그 -> 대시보드 -> 알림톡` 으로 두고, 알림톡은 사업자/심사 조건이 실제로 충족될 때만 reopen 하는 기준으로 문서를 정리했다.
 - 이유: 지금 부족한 것은 코드 추상화가 아니라 외부 자격과 심사 가능성이다. 이 상태에서 알림톡 구현을 active track 으로 두면, repo 안에서 해결할 수 없는 문제를 계속 코드 작업처럼 파게 된다.
+
+## 426) 추천/수집 대시보드를 각 도메인 서비스에 따로 얹으면, 2차 운영 지표 기능이 기존 쓰기 경계와 도메인 책임을 다시 섞어 버린다
+- 문제: 대시보드는 collect/recommendation/notification/search/user_pii_sync 지표를 한 응답에서 보여줘야 하지만, 이걸 기존 도메인 서비스에 직접 추가하면 각 서비스가 자기 쓰기 책임 외에 admin 집계 책임까지 떠안게 된다. 특히 cross-domain SQL이 여러 repository로 흩어지면 대시보드 변경이 곧 핵심 서비스 변경으로 번진다.
+- 해결: `GET /api/admin/dashboard/summary` 를 새 admin read-model 경계로 두고, `AdminDashboardService` 는 오케스트레이션만 담당하게 했다. 실제 SQL 집계는 `AdminDashboardReadRepository` 로 모아 collect/recommendation/notification/search 지표를 읽고, `UserPiiSyncStatusService` 는 기존 status read-model을 그대로 재사용하게 분리했다.
+- 이유: 대시보드는 본질적으로 운영 관측용 read 모델이다. 핵심 도메인 서비스에 섞지 않고 admin 전용 query/service 계층으로 빼야 SOLID 경계가 덜 흔들리고, 운영 지표 변경도 기능 서비스 회귀 없이 처리할 수 있다.
+
+## 427) 현재 규모에서 군집 캐시를 바로 활성화하면, 추천 가속보다 군집 설계와 stale invalidation 관리 비용이 더 커질 수 있다
+- 문제: 군집 캐시는 겉보기에 추천 속도를 빠르게 할 것 같지만, 실제로는 군집 키 설계, 첫 사용자 miss, 낮은 hit-rate, stale invalidation, AI reason 획일화 같은 비용을 같이 데려온다. 현재처럼 사용자 규모가 크지 않은 졸업 프로젝트에선 이 비용이 실제 이득보다 클 가능성이 높다.
+- 해결: 문서 기준을 `청년정책 통합포털 + 개인화 추천` 으로 다시 명시하고, 추천 재사용 전략도 군집 캐시보다 `userKey` 기준 개인 캐시를 우선 검토하는 방향으로 정리했다. 나이대×소득분위 군집 캐시는 실제 사용자 수와 요청 패턴이 충분히 커졌을 때만 reopen 하는 확장 포인트로 남긴다.
+- 이유: 지금 제품의 기본 단위는 군집보다 사용자다. 추천 가속이 필요해도 먼저 개인 캐시가 더 단순하고 개인화 손실이 적으며, 군집 캐시는 규모 문제를 실제로 겪기 시작한 뒤에 다시 판단하는 편이 더 합리적이다.
+
+## 428) 현재 구조에서 추천 payload 전체를 캐시하려 하면, persistence/log/북마크 경계까지 같이 복제되어 처음 얻는 속도보다 경계 혼선이 더 커질 수 있다
+- 문제: 현재 추천 응답은 이미 `user_recommendations` 테이블에 저장된 row, CTR용 `recommendation_logs`, 북마크 상태 이전, canonical projection 조합을 전제로 움직인다. 이 시점에 Redis에 추천 payload 자체를 별도로 넣으면 추천 결과 저장소가 DB와 Redis 두 군데가 되고, stale invalidation 뿐 아니라 log id 생성 시점과 bookmark 최신성까지 같이 복제 관리해야 한다.
+- 해결: 1차 개인 캐시는 추천 row 전체를 저장하지 않고 `RecommendationRefreshCacheService` 에서 `userKey` 기준 `non-personal refresh` 완료 마커만 짧은 TTL로 저장하는 형태로 좁혔다. cache hit 시에도 실제 응답은 계속 `user_recommendations` 의 최신 row 를 읽고, `personal=true` refresh 와 `updateProfile` / `updatePriorities` / `withdraw` 는 즉시 invalidate 하도록 정리했다.
+- 이유: 지금 필요한 것은 “같은 사용자가 짧은 시간 안에 같은 refresh를 다시 눌렀을 때 재계산을 한 번 줄이는 것”이지, 추천 저장 체계를 이중화하는 것이 아니다. 마커 캐시는 효과 대비 책임이 훨씬 작고, 현재 persistence/log/bookmark 경계를 그대로 유지할 수 있다.
+
+## 429) 개인 refresh 캐시 key가 `userKey` 만 보면, replay처럼 앱 재기동으로 추천 규칙 플래그가 바뀐 뒤에도 이전 refresh 결과를 재사용해 비교 실험을 오염시킬 수 있다
+- 문제: 개인 캐시 도입 뒤 `run-local-education-priority-replay.sh` 가 갑자기 `A_top10_target=5->5`, `A_best_target_rank=3->3` 으로 실패했다. 추천 로직 자체 회귀처럼 보였지만, 실제 원인은 OFF phase가 만든 refresh 마커를 ON phase도 그대로 cache hit 하며 재사용한 것이었다. replay는 `RECOMMEND_PRIORITY_EDUCATION_CANONICAL_BONUS_ENABLED` 값을 바꾸기 위해 앱을 재기동하지만 Redis 마커는 남아 있으므로, `userKey` 단독 key 는 규칙 버전 차이를 구분하지 못했다.
+- 해결: `RecommendationRefreshCacheService` key에 `educationCanonicalBonusEnabled` 규칙 버전을 포함시켰다. 같은 사용자라도 추천 규칙 플래그 조합이 달라지면 서로 다른 refresh 마커를 보게 만들었고, 그 뒤 replay smoke는 다시 `A_top10_target=5->8`, `A_best_target_rank=3->1` 로 복구됐다.
+- 이유: 개인 캐시는 “같은 입력/같은 규칙 버전의 짧은 재계산”만 줄여야 한다. 캐시 key가 사용자만 구분하고 규칙 버전을 구분하지 않으면, 실험/feature-flag 전환/앱 재기동 비교가 전부 stale hit 로 오염된다.
+
+## 430) education replay smoke는 sample A가 OFF 단계부터 이미 상위권에 포화된 snapshot이면 “추가 개선”만 hard gate로 요구할수록 거짓 실패가 늘어난다
+- 문제: collect 실검증을 다시 돌린 최신 snapshot에서 `YOUTH`, `BOKJIRO_CENTRAL`, `BOKJIRO_LOCAL`, `bokjiro-details-gap-fill` 은 모두 정상 완료됐지만, replay는 sample A가 OFF 단계부터 `A_best_target_rank=2`, `A_top10_target=5` 인 상태라 ON에서도 같은 수치가 나오자 `sample A did not improve target row visibility` 로 실패했다. 이건 canonical bonus가 죽은 게 아니라, target row visibility가 이미 충분히 높은 포화 상태인데 gate가 “더 좋아져야만 통과”라고 가정한 경우였다.
+- 해결: `run-local-education-priority-replay.sh` 에 `strong_target_visibility()` 조건을 추가해, sample A가 OFF 단계에서 이미 `best_target_rank<=2` 또는 `top10_target_count>=5` 이면 OFF/ON이 동일해도 pass 하도록 보정했다.
+- 이유: replay smoke의 목적은 canonical bonus가 죽었는지 빠르게 보는 것이지, 이미 충분히 잘 보이는 snapshot에서도 매번 추가 상승을 강제하는 것이 아니다. 포화 구간을 gate에 반영해야 collect snapshot 변화에 덜 과적합된다.
+
+## 431) 군집 캐시를 문서상으론 보류해두고 코드에는 2D 군집화가 남아 있으면, 추천 운영 기준과 실제 동작이 다시 어긋난다
+- 문제: 문서 기준은 이미 `1차는 youth_all 단일 군집, 군집 캐시보다 개인 캐시 우선` 이었지만, 실제 `ClusterService` 는 나이대×소득분위 2D 군집을 계속 만들고 있었다. 그러면 non-personal 추천은 여전히 군집 캐시 경로를 탈 수 있어, “현재는 개인 캐시 중심”이라는 운영 설명과 실제 동작이 어긋난다.
+- 해결: `ClusterService` 를 다시 `youth_all` 고정으로 되돌리고, `ClusterServiceTest` 로 어떤 사용자 입력에도 단일 군집만 반환하는 계약을 고정했다. 2D 군집화는 코드 active path가 아니라 2차 확장 포인트로만 남긴다.
+- 이유: 지금 규모에서는 군집 hit-rate보다 `userKey` 기준 개인 캐시가 더 단순하고 효과적이다. 군집화는 사용자 수와 요청 패턴이 커졌을 때 다시 여는 편이 맞고, 그 전까지는 문서와 코드가 같은 1차 기준을 따라야 한다.
+
+## 432) CTR 재분석이 막힌 원인이 click instrumentation 자체인지, 단순 표본 부족인지 먼저 분리해야 한다
+- 문제: 최근 local DB를 다시 보니 `recommendation_logs` 는 누적되는데 `clicked_logs` 가 거의 없어, CTR 가중치/프롬프트 재조정이 정말 “클릭이 안 찍히는 버그” 때문에 막힌 건지, 아니면 그냥 실사용 클릭 표본이 아직 적은 건지 구분이 필요했다. 이 상태에서 바로 가중치 조정을 논하면 잘못된 병목을 기준으로 설계를 바꿀 수 있었다.
+- 해결: 추천 상세 클릭 경계를 `signup -> login -> recommendations refresh -> first recommendation detail(serviceId + logId)` 로 다시 태워 `recommendation_logs.is_clicked=1` 과 `clicked_at` 갱신을 DB에서 직접 확인하는 local smoke를 추가했다. 수동 probe에서 한 번 `recommendation.id` 를 정책 path id로 잘못 넣어 거짓 `500` 이 났지만, 실제 프론트 계약대로 `serviceId + logId` 를 쓰자 `200` 과 함께 클릭 마킹이 정상 반영됐다.
+- 이유: 현재 CTR tuning의 병목은 instrumentation이 아니라 표본 부족이다. 클릭 trace 경계가 살아 있다는 것을 smoke로 고정해 두면, 이후에는 로그 수집/사용량 문제와 코드 버그를 분리해서 판단할 수 있다.
+
+## 433) 대시보드에 CTR 비율만 있으면 “왜 지금 추천 품질 튜닝을 안 하는지”가 한 번에 안 보인다
+- 문제: `clickThroughRateLast7d` 와 `fallbackRateLast7d` 만으로는 CTR 튜닝 보류 원인이 click 표본 부족인지, 특정 weight stage 편중인지, 아니면 아예 active weight 단계가 바뀌었는지 바로 읽기 어려웠다. 결국 운영자는 다시 DB에서 `recommendation_logs` 와 `score_weights` 를 따로 조회해야 했다.
+- 해결: `GET /api/admin/dashboard/summary` recommendation 섹션에 `activeWeightKey`, `activeRuleWeight`, `activeAiWeight`, `totalLogs`, `latestClickedAt`, 최근 7일 `weightBucketsLast7d` 를 추가했다. 집계 SQL은 기존 admin read-model 경계에 유지하고, active weight는 `ScoreWeightService` 를 재사용해 현재 추천 단계와 최근 분포를 한 응답에서 같이 보게 정리했다.
+- 이유: CTR 조정의 next step은 단순 비율보다 “현재 얼마나 많은 로그가 쌓였고, 어느 weight stage에 몰려 있으며, 마지막 클릭이 언제였는가”를 같이 봐야 판단이 된다. 이 정도 컨텍스트는 dashboard summary에 함께 있어야 운영자가 DB ad-hoc 쿼리 없이도 현재 병목을 읽을 수 있다.
+
+## 434) collect/search 대시보드가 요약 count만 보여주면 “무엇이 실패했고 검색이 얼마나 헛돌고 있는지”를 다시 DB에서 찾아야 한다
+- 문제: 기존 대시보드는 collect 쪽에서 `failedJobsLast24h` count 만 보여 줬고, search 쪽도 총 검색 수와 평균 결과 수만 보여 줬다. 이 상태로는 최근 어떤 collect run이 왜 실패했는지, 검색 결과 0건이 최근 얼마나 자주 나왔는지를 운영자가 다시 `api_sync_logs` / `search_logs` 로 내려가서 따로 봐야 했다.
+- 해결: collect 섹션에 `latestFailuresLast7d` 를 추가해 최근 실패 run의 `jobName/status/errorCode/errorMessage/requested/saved/failed` 를 같이 보여 주고, search 섹션에는 `zeroResultSearchesLast7d` 를 추가했다. 집계/리스트 SQL은 계속 `AdminDashboardReadRepository` 안에만 두어 admin read-model 경계를 유지했다.
+- 이유: 운영 summary는 count만 보는 화면이 아니라 다음 액션을 바로 정할 수 있어야 한다. 최근 실패 run 세부와 0건 검색 빈도는 운영자가 추가 DB 쿼리 없이도 collect 안정화와 검색 품질 문제를 즉시 분리하게 해 주는 최소한의 맥락이다.
+
+## 435) 운영 지표가 “현재 수치”만 있으면 단기 이상치와 30일 누적 흐름을 한 번에 비교하기 어렵다
+- 문제: dashboard summary가 현재 시점 count와 최근 7일 중심 수치만 보여 주면, collect/recommendation/search가 오늘만 튄 건지, 최근 일주일 내내 같은 패턴인지, 30일 누적 기준으로도 비슷한지까지는 다시 쿼리를 나눠 봐야 했다.
+- 해결: `trend` 섹션을 추가해 collect/recommendation/search 각각 1일/7일/30일 window point를 함께 반환하게 했다. 기존 summary contract는 유지하고, 추세 비교는 별도 list로만 확장해 API 호환성과 운영 가독성을 같이 유지했다.
+- 이유: 운영 판단은 절대값보다 기울기를 같이 봐야 정확해진다. 1/7/30일 추세를 한 응답에 같이 실어 두면, 당일 이상치인지 구조적 추세인지 훨씬 빨리 구분할 수 있다.
+
+## 436) 로컬 검증 스크립트가 늘어나면 “이번엔 어떤 순서로 돌려야 안전한가”가 다시 암묵지로 돌아간다
+- 문제: auth/session, recommendation click, admin dashboard, replay smoke가 각각 분리돼 있으면 한 번에 로컬 기준선을 다시 확인할 때 순서를 사람이 기억해야 한다. 특히 replay는 DB/app 재기동을 건드릴 수 있어 앞쪽 smoke와 병렬 또는 잘못된 순서로 돌리면 거짓 실패를 만든다.
+- 해결: `run-local-validation-suite.sh` 를 추가해 `auth/session -> recommendation click -> admin dashboard -> replay` 순서를 상위 wrapper로 고정했다. 문서도 이 wrapper를 로컬 검증 기본 진입점으로 연결했다.
+- 이유: 반복 검증 루프는 “어떤 스크립트가 있나”보다 “실패 없이 어떤 순서로 다시 태울 수 있나”가 더 중요하다. 상위 wrapper가 있어야 검증 순서가 개인 기억이 아니라 repo contract가 된다.
+
+## 437) 전체 로컬 검증 wrapper가 replay까지 기본 포함하면 빠른 회귀 확인 때 다시 무거워진다
+- 문제: `run-local-validation-suite.sh` 는 순서를 고정해 주지만, 기본이 replay 포함인 full run 하나뿐이면 자잘한 회귀 확인에도 DB 재기동과 긴 replay를 매번 감수해야 한다. 결국 wrapper가 생겨도 짧은 피드백 루프에서는 다시 부분 실행 env를 외워야 했다.
+- 해결: wrapper에 `VALIDATION_PROFILE=quick|full` 을 추가했다. `quick` 은 `auth/session -> recommendation click -> admin dashboard` 만 돌고, `full` 은 기존처럼 replay까지 포함한다. 개별 `RUN_*` override는 그대로 유지해 필요 시 더 세밀하게 조절할 수 있다.
+- 이유: 상위 wrapper는 순서만 고정하는 것으로 끝나지 않고, 빠른 루프와 전체 루프를 둘 다 제공해야 실제로 자주 쓰인다. `quick/full` 프로필이 있어야 반복 검증이 가벼워지고 replay는 정말 필요할 때만 태우게 된다.
+
+## 438) 로컬 검증 wrapper가 성공/실패만 알려주면 어떤 단계가 느린지 다시 체감으로만 추정하게 된다
+- 문제: `run-local-validation-suite.sh` 가 상위 순서와 quick/full 프로필을 제공해도, 끝났을 때 각 단계가 몇 초 걸렸는지 정보가 없으면 병목이 auth/session 인지 click 인지 replay 인지를 다시 출력 감으로만 추정해야 했다.
+- 해결: wrapper 종료 시 `suite_duration_seconds` 와 `step_duration_seconds=<label>|<seconds>` 요약을 같이 찍도록 보강했다.
+- 이유: 반복 검증 도구는 성공 여부뿐 아니라 비용도 바로 보여줘야 실제 루프 최적화에 쓸 수 있다. 단계별 duration이 있으면 “quick면 충분한지”, “replay가 얼마나 무거운지”를 바로 읽을 수 있다.
+
+## 439) 상위 wrapper가 실패만 전파하고 어느 단계에서 끊겼는지 바로 안 찍어 주면, 긴 로컬 검증 중단 지점을 다시 로그 흐름으로 눈으로 찾아야 한다
+- 문제: `run-local-validation-suite.sh` 는 하위 smoke 실패를 그대로 전파하지만, 실패 시점에 상위 wrapper가 현재 단계명을 별도로 찍지 않으면 긴 출력에서 “auth/session 중이었는지, click이었는지, replay였는지”를 사람이 다시 따라가야 했다.
+- 해결: wrapper에 `CURRENT_STEP_LABEL` 과 `ERR` trap을 넣어 `failed_step=<label>`, `elapsed_before_failure_seconds=<n>` 를 즉시 출력하게 했다.
+- 이유: 상위 오케스트레이터는 성공한 경우 요약만 주는 것으로 끝나면 안 되고, 실패한 경우에도 어디서 끊겼는지 가장 먼저 알려줘야 반복 디버깅 속도가 올라간다.
+
+## 440) 상위 wrapper가 env 기반 실행 계획만 지원하면, “지금 어떤 단계가 켜질지” 확인하려고 실제 실행 직전까지 문서를 다시 읽게 된다
+- 문제: `run-local-validation-suite.sh` 에 quick/full 과 `RUN_*` override가 생긴 뒤에도, 현재 조합이 실제로 무엇을 돌릴지 확인하려면 스크립트 본문이나 문서를 다시 봐야 했다.
+- 해결: wrapper에 `--help` 와 `--print-plan` 을 추가했다. `--print-plan` 은 현재 env/profile 기준 `validation_profile=... auth=... click=... dashboard=... replay=...` 만 출력하고 종료한다.
+- 이유: 자주 돌리는 도구는 “실행”뿐 아니라 “실행 전 계획 확인”도 짧아야 한다. 계획 확인이 가벼워야 env override를 안전하게 바꿔가며 쓸 수 있다.
+
+## 441) 실행 계획 확인이 env만 기준이면, 자주 쓰는 quick/full 조합조차 쉘 문법을 기억해야 해서 도구 사용성이 다시 떨어진다
+- 문제: `VALIDATION_PROFILE=quick ...` 같은 env override는 유연하지만, quick/full 전환이나 replay skip 같은 자주 쓰는 조합조차 매번 env 문법으로 적어야 해 사용성이 떨어진다.
+- 해결: wrapper에 `--quick`, `--full`, `--skip-replay` CLI shortcut을 추가했다. `--print-plan` 과 함께 조합해 실행 없이 계획만 확인할 수도 있게 했다.
+- 이유: 반복 실행 도구는 가장 자주 쓰는 조합에 대해 더 짧은 입력 경로를 제공해야 한다. env override는 유지하되, 빈도가 높은 경로는 CLI shortcut으로 내려주는 편이 실사용성이 좋다.
+
+## 442) 프로필과 skip shortcut이 있어도 “dashboard만 다시 확인”, “replay만 다시 태우기” 같은 단일 단계 실행은 여전히 env override를 여러 개 조합해야 한다
+- 문제: quick/full/skip-replay 까지 생겨도, 단일 단계만 실행하려면 `RUN_AUTH_SESSION_SMOKE=false ...` 같은 override를 여전히 외워야 했다.
+- 해결: wrapper에 `--only auth-session|click|dashboard|replay` 를 추가했다. `--print-plan` 과 조합하면 실제 실행 없이 단일 단계 계획도 바로 확인할 수 있다.
+- 이유: 자주 쓰는 로컬 도구는 “전체 실행”뿐 아니라 “특정 단계만 다시 보기”가 빨라야 한다. 단일 단계 shortcut이 있어야 디버깅 중 반복 입력이 줄어든다.
+
+## 443) 단일 단계 실행이 들어간 뒤에도 상위 출력이 기존 booleans만 보여주면, “왜 auth=false click=false 인지”를 다시 역해석해야 한다
+- 문제: `--only dashboard` 같은 실행은 내부적으로 다른 단계를 false로 바꾸므로, plan 출력이 booleans만 있으면 단일 단계 의도를 사람이 다시 역으로 읽어야 했다.
+- 해결: plan 출력과 failure 출력에 `only_step=...` 를 같이 노출하게 했다.
+- 이유: 상위 wrapper는 내부 상태를 사람이 다시 추론하게 만들기보다, 사용자가 준 고수준 의도(`only_step`)를 그대로 드러내는 편이 읽기 쉽다.
+
+## 444) replay artifact 보존이 자주 필요한데 상위 wrapper에서 이 의도를 못 받으면, 하위 스크립트 env를 또 따로 기억해야 한다
+- 문제: replay 디버깅 때는 `KEEP_ARTIFACTS=true` 가 자주 필요하지만, 상위 wrapper가 이 intent를 직접 받지 못하면 사용자가 다시 하위 replay 스크립트 전용 env를 떠올려야 했다.
+- 해결: wrapper에 `--keep-artifacts` 를 추가하고, plan 출력에도 `keep_artifacts=true` 를 노출한 뒤 replay 하위 스크립트로 그대로 전달하게 했다.
+- 이유: 상위 오케스트레이터가 자주 쓰는 디버깅 의도까지 같이 받아줘야 실제 반복 루프가 짧아진다.
+
+## 445) search 대시보드가 zero-result 총량만 보여주면, 실제로 어떤 키워드가 실패를 만들고 있는지 다시 raw `search_logs` 를 내려가 봐야 한다
+- 문제: `zeroResultSearchesInWindow` count 만으로는 검색 품질 개선 액션을 바로 잡기 어렵다. 운영자는 결국 `search_logs` 에서 `result_count=0` keyword를 다시 직접 group by 해야 했다.
+- 해결: admin dashboard search 섹션에 `zeroResultKeywordsInWindow` 를 추가해 최근 summary window 기준 상위 zero-result keyword를 같이 반환하게 했다.
+- 이유: 검색 품질 개선의 첫 단계는 “얼마나 실패했나”보다 “무엇이 실패했나”를 바로 보는 것이다. top zero-result keyword가 summary 응답에 있어야 후속 ranking/filter 개선이 빨라진다.
+
+## 446) `Batch AI Gateway` 를 “남은 기능”이라는 이유만으로 바로 next track에 올리면, 실제 병목보다 운영 복잡도만 먼저 시스템에 들여오게 된다
+- 문제: 문서상 2차 기능으로 남아 있다는 이유만으로 `Batch AI Gateway` 를 곧바로 다음 구현 대상으로 삼으면, 현재 트래픽/비용 규모에서는 실시간 개인화가 충분한데도 batch polling, hard deadline fallback, partial completion 처리 같은 운영 모델을 먼저 구현하게 된다.
+- 해결: `Batch AI Gateway` 는 지금 단계에서 active backlog가 아니라 “규모 확대 또는 비용 압박 발생 시 재검토할 deferred 2차 기능”으로 문서상 위치를 더 분명히 했다.
+- 이유: 지금 프로젝트의 병목은 AI batch 미구현이 아니라 표본/운영 규모 부족이다. 이 상황에서 batch는 기능 공백보다 과한 운영 복잡도 추가에 가깝다.
+
+## 447) search summary에 top zero-result keyword만 있으면, 어떤 지역/필터 조합이 계속 실패하는지는 여전히 raw `search_logs` 를 다시 뒤져야 한다
+- 문제: `zeroResultKeywordsInWindow` 는 “무슨 단어가 실패하나”까지는 보여주지만, 실제 triage 단계에서는 `sido/sgg`, `status_filter`, `category`, `source_type`, `online_apply`, `include_closed`, `sort_key` 같은 조건 조합과 최근 샘플을 같이 봐야 원인을 더 빨리 좁힐 수 있다.
+- 해결: `/api/admin/dashboard/search-failures` 를 추가해 summary window 기준 zero-result keyword/region/filter pattern/recent sample 상세를 별도 admin API로 분리했다.
+- 이유: 요약 대시보드는 가볍게 유지하고, 검색 실패 triage는 별도 상세 endpoint에서 읽게 분리하는 편이 책임이 명확하고 후속 확장도 쉽다.

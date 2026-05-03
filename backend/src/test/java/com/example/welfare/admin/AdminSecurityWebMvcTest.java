@@ -1,5 +1,9 @@
 package com.example.welfare.admin;
 
+import com.example.welfare.admin.dashboard.controller.AdminDashboardController;
+import com.example.welfare.admin.dashboard.dto.AdminSearchFailureResponse;
+import com.example.welfare.admin.dashboard.dto.AdminDashboardResponse;
+import com.example.welfare.admin.dashboard.service.AdminDashboardService;
 import com.example.welfare.collect.controller.CollectAdminController;
 import com.example.welfare.collect.normalization.NormalizedPolicySidecarBackfillService;
 import com.example.welfare.collect.service.BokjiroDetailCollectService;
@@ -45,7 +49,12 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@WebMvcTest(controllers = {CollectAdminController.class, PolicyAdminController.class, UserAdminController.class})
+@WebMvcTest(controllers = {
+        CollectAdminController.class,
+        PolicyAdminController.class,
+        UserAdminController.class,
+        AdminDashboardController.class
+})
 @Import({SecurityConfig.class, JacksonConfig.class})
 class AdminSecurityWebMvcTest {
 
@@ -72,6 +81,8 @@ class AdminSecurityWebMvcTest {
     private UserSessionRevocationService userSessionRevocationService;
     @MockBean
     private UserRepository userRepository;
+    @MockBean
+    private AdminDashboardService adminDashboardService;
     @MockBean
     private JwtUtil jwtUtil;
     @MockBean
@@ -114,6 +125,287 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.data").value("온통청년 수집 완료"));
 
         then(collectService).should().collect(CollectSource.YOUTH);
+    }
+
+    @Test
+    @DisplayName("관리자 토큰으로 대시보드 요약 API를 호출하면 admin dashboard service를 실행한다")
+    void adminEndpointAllowsDashboardSummary() throws Exception {
+        mockAuthenticatedToken("admin-token", List.of(
+                new SimpleGrantedAuthority("ROLE_USER"),
+                new SimpleGrantedAuthority("ROLE_ADMIN")
+        ));
+        given(adminDashboardService.getSummary(
+                org.mockito.ArgumentMatchers.isNull(),
+                org.mockito.ArgumentMatchers.any()
+        ))
+                .willReturn(new AdminDashboardResponse(
+                        LocalDateTime.of(2026, 5, 2, 10, 0),
+                        new AdminDashboardResponse.CollectSection(
+                                0,
+                                3,
+                                1,
+                                0,
+                                7,
+                                List.of(),
+                                List.of(
+                                        new AdminDashboardResponse.CollectFailureSnapshot(
+                                                "BOKJIRO_LOCAL",
+                                                "FAILED",
+                                                LocalDateTime.of(2026, 5, 2, 7, 0),
+                                                LocalDateTime.of(2026, 5, 2, 7, 1),
+                                                "COL001",
+                                                "rate limited",
+                                                0,
+                                                0,
+                                                1
+                                        )
+                                )
+                        ),
+                        new AdminDashboardResponse.RecommendationSection(
+                                "GROWTH",
+                                java.math.BigDecimal.valueOf(0.60),
+                                java.math.BigDecimal.valueOf(0.40),
+                                "STABLE",
+                                500,
+                                250L,
+                                false,
+                                250,
+                                2,
+                                7,
+                                8,
+                                3,
+                                1,
+                                LocalDateTime.of(2026, 5, 2, 9, 45),
+                                java.math.BigDecimal.valueOf(0.3750),
+                                java.math.BigDecimal.valueOf(0.1250),
+                                List.of(
+                                        new AdminDashboardResponse.RecommendationWeightSnapshot(
+                                                "GROWTH",
+                                                java.math.BigDecimal.valueOf(0.60),
+                                                java.math.BigDecimal.valueOf(0.40),
+                                                8
+                                        )
+                                )
+                        ),
+                        new AdminDashboardResponse.NotificationSection(1, 0, 7, 5, 1),
+                        new AdminDashboardResponse.SearchSection(4, 7, 12, 2, 7, java.math.BigDecimal.valueOf(5.25), List.of(
+                                new AdminDashboardResponse.SearchKeywordSnapshot("월세", 5)
+                        ), List.of(
+                                new AdminDashboardResponse.SearchKeywordSnapshot("대출", 2)
+                        )),
+                        new AdminDashboardResponse.UserPiiSyncSection(0, 1, 12, LocalDateTime.of(2026, 5, 2, 9, 30)),
+                        new AdminDashboardResponse.TrendSection(
+                                List.of(
+                                        new AdminDashboardResponse.CollectTrendPoint(1, 3, 1, 0),
+                                        new AdminDashboardResponse.CollectTrendPoint(7, 9, 2, 1),
+                                        new AdminDashboardResponse.CollectTrendPoint(30, 18, 4, 2)
+                                ),
+                                List.of(
+                                        new AdminDashboardResponse.RecommendationTrendPoint(
+                                                1,
+                                                8,
+                                                3,
+                                                1,
+                                                java.math.BigDecimal.valueOf(0.3750),
+                                                java.math.BigDecimal.valueOf(0.1250)
+                                        ),
+                                        new AdminDashboardResponse.RecommendationTrendPoint(
+                                                7,
+                                                30,
+                                                9,
+                                                6,
+                                                java.math.BigDecimal.valueOf(0.3000),
+                                                java.math.BigDecimal.valueOf(0.2000)
+                                        ),
+                                        new AdminDashboardResponse.RecommendationTrendPoint(
+                                                30,
+                                                90,
+                                                18,
+                                                20,
+                                                java.math.BigDecimal.valueOf(0.2000),
+                                                java.math.BigDecimal.valueOf(0.2222)
+                                        )
+                                ),
+                                List.of(
+                                        new AdminDashboardResponse.SearchTrendPoint(1, 4, 1),
+                                        new AdminDashboardResponse.SearchTrendPoint(7, 12, 2),
+                                        new AdminDashboardResponse.SearchTrendPoint(30, 40, 7)
+                                )
+                        )
+                ));
+
+        mockMvc.perform(get("/api/admin/dashboard/summary")
+                        .header("Authorization", "Bearer admin-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.collect.successJobsLast24h").value(3))
+                .andExpect(jsonPath("$.data.collect.failureWindowDays").value(7))
+                .andExpect(jsonPath("$.data.collect.latestFailuresInWindow[0].jobName").value("BOKJIRO_LOCAL"))
+                .andExpect(jsonPath("$.data.recommendation.windowDays").value(7))
+                .andExpect(jsonPath("$.data.recommendation.nextWeightKey").value("STABLE"))
+                .andExpect(jsonPath("$.data.recommendation.remainingLogsUntilNextWeight").value(250))
+                .andExpect(jsonPath("$.data.recommendation.sentInWindow").value(8))
+                .andExpect(jsonPath("$.data.notification.windowDays").value(7))
+                .andExpect(jsonPath("$.data.notification.sentInWindow").value(5))
+                .andExpect(jsonPath("$.data.search.windowDays").value(7))
+                .andExpect(jsonPath("$.data.search.zeroResultSearchesInWindow").value(2))
+                .andExpect(jsonPath("$.data.trend.collect[1].windowDays").value(7))
+                .andExpect(jsonPath("$.data.trend.recommendation[1].clickThroughRate").value(0.3000))
+                .andExpect(jsonPath("$.data.trend.search[2].zeroResultSearches").value(7))
+                .andExpect(jsonPath("$.data.search.topKeywordsInWindow[0].keyword").value("월세"))
+                .andExpect(jsonPath("$.data.search.zeroResultKeywordsInWindow[0].keyword").value("대출"))
+                .andExpect(jsonPath("$.data.userPiiSync.failedCount").value(1));
+
+        then(adminDashboardService).should().getSummary(
+                org.mockito.ArgumentMatchers.isNull(),
+                org.mockito.ArgumentMatchers.any()
+        );
+    }
+
+    @Test
+    @DisplayName("관리자 토큰으로 대시보드 요약 API를 호출할 때 trendWindowDays를 전달하면 해당 창으로 조회한다")
+    void adminEndpointAllowsDashboardSummaryWithCustomTrendWindows() throws Exception {
+        mockAuthenticatedToken("admin-token", List.of(
+                new SimpleGrantedAuthority("ROLE_USER"),
+                new SimpleGrantedAuthority("ROLE_ADMIN")
+        ));
+        given(adminDashboardService.getSummary(14, List.of(3, 14)))
+                .willReturn(new AdminDashboardResponse(
+                        LocalDateTime.of(2026, 5, 3, 14, 0),
+                        new AdminDashboardResponse.CollectSection(0, 0, 0, 0, 14, List.of(), List.of()),
+                        new AdminDashboardResponse.RecommendationSection(
+                                "GROWTH",
+                                java.math.BigDecimal.valueOf(0.60),
+                                java.math.BigDecimal.valueOf(0.40),
+                                "STABLE",
+                                500,
+                                490L,
+                                false,
+                                10,
+                                1,
+                                14,
+                                2,
+                                1,
+                                0,
+                                null,
+                                java.math.BigDecimal.valueOf(0.5000),
+                                java.math.BigDecimal.valueOf(0.0000),
+                                List.of()
+                        ),
+                        new AdminDashboardResponse.NotificationSection(0, 0, 14, 0, 0),
+                        new AdminDashboardResponse.SearchSection(0, 14, 0, 0, 0, java.math.BigDecimal.ZERO, List.of(), List.of()),
+                        new AdminDashboardResponse.UserPiiSyncSection(0, 0, 0, null),
+                        new AdminDashboardResponse.TrendSection(
+                                List.of(
+                                        new AdminDashboardResponse.CollectTrendPoint(3, 1, 0, 0),
+                                        new AdminDashboardResponse.CollectTrendPoint(14, 2, 0, 1)
+                                ),
+                                List.of(
+                                        new AdminDashboardResponse.RecommendationTrendPoint(
+                                                3,
+                                                1,
+                                                1,
+                                                0,
+                                                java.math.BigDecimal.valueOf(1.0000),
+                                                java.math.BigDecimal.valueOf(0.0000)
+                                        ),
+                                        new AdminDashboardResponse.RecommendationTrendPoint(
+                                                14,
+                                                2,
+                                                1,
+                                                1,
+                                                java.math.BigDecimal.valueOf(0.5000),
+                                                java.math.BigDecimal.valueOf(0.5000)
+                                        )
+                                ),
+                                List.of(
+                                        new AdminDashboardResponse.SearchTrendPoint(3, 2, 0),
+                                        new AdminDashboardResponse.SearchTrendPoint(14, 5, 1)
+                                )
+                        )
+                ));
+
+        mockMvc.perform(get("/api/admin/dashboard/summary")
+                        .param("summaryWindowDays", "14")
+                        .param("trendWindowDays", "3", "14")
+                        .header("Authorization", "Bearer admin-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.collect.failureWindowDays").value(14))
+                .andExpect(jsonPath("$.data.trend.collect[0].windowDays").value(3))
+                .andExpect(jsonPath("$.data.trend.collect[1].windowDays").value(14))
+                .andExpect(jsonPath("$.data.recommendation.windowDays").value(14))
+                .andExpect(jsonPath("$.data.recommendation.nextWeightMinLogCount").value(500))
+                .andExpect(jsonPath("$.data.notification.windowDays").value(14))
+                .andExpect(jsonPath("$.data.trend.recommendation[1].fallbackRate").value(0.5000))
+                .andExpect(jsonPath("$.data.search.windowDays").value(14))
+                .andExpect(jsonPath("$.data.trend.search[1].windowDays").value(14));
+
+        then(adminDashboardService).should().getSummary(14, List.of(3, 14));
+    }
+
+    @Test
+    @DisplayName("관리자 토큰으로 검색 실패 상세 API를 호출하면 search failure 응답을 반환한다")
+    void adminEndpointAllowsSearchFailures() throws Exception {
+        mockAuthenticatedToken("admin-token", List.of(
+                new SimpleGrantedAuthority("ROLE_USER"),
+                new SimpleGrantedAuthority("ROLE_ADMIN")
+        ));
+        given(adminDashboardService.getSearchFailures(14, 3))
+                .willReturn(new AdminSearchFailureResponse(
+                        LocalDateTime.of(2026, 5, 3, 15, 0),
+                        14,
+                        6,
+                        List.of(
+                                new AdminSearchFailureResponse.KeywordCount("대출", 4),
+                                new AdminSearchFailureResponse.KeywordCount("월세", 2)
+                        ),
+                        List.of(
+                                new AdminSearchFailureResponse.RegionCount("서울", "관악구", 3)
+                        ),
+                        List.of(
+                                new AdminSearchFailureResponse.FilterPatternCount(
+                                        "UNEMPLOYED",
+                                        "HOUSING",
+                                        "YOUTH",
+                                        true,
+                                        false,
+                                        "LATEST",
+                                        5
+                                )
+                        ),
+                        List.of(
+                                new AdminSearchFailureResponse.SearchFailureSample(
+                                        "대출",
+                                        "서울",
+                                        "관악구",
+                                        "UNEMPLOYED",
+                                        "HOUSING",
+                                        "YOUTH",
+                                        true,
+                                        false,
+                                        "LATEST",
+                                        LocalDateTime.of(2026, 5, 3, 14, 45)
+                                )
+                        )
+                ));
+
+        mockMvc.perform(get("/api/admin/dashboard/search-failures")
+                        .param("summaryWindowDays", "14")
+                        .param("limit", "3")
+                        .header("Authorization", "Bearer admin-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.windowDays").value(14))
+                .andExpect(jsonPath("$.data.totalZeroResultSearches").value(6))
+                .andExpect(jsonPath("$.data.zeroResultKeywords[0].keyword").value("대출"))
+                .andExpect(jsonPath("$.data.zeroResultRegions[0].sido").value("서울"))
+                .andExpect(jsonPath("$.data.zeroResultRegions[0].sgg").value("관악구"))
+                .andExpect(jsonPath("$.data.zeroResultFilterPatterns[0].statusFilter").value("UNEMPLOYED"))
+                .andExpect(jsonPath("$.data.zeroResultFilterPatterns[0].searchCount").value(5))
+                .andExpect(jsonPath("$.data.recentSamples[0].keyword").value("대출"));
+
+        then(adminDashboardService).should().getSearchFailures(14, 3);
     }
 
     @Test
