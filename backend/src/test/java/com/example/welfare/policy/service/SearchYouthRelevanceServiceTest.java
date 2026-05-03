@@ -4,7 +4,6 @@ import com.example.welfare.policy.dto.SearchYouthRelevanceBackfillResponse;
 import com.example.welfare.policy.entity.ServiceTag;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.repository.SearchYouthRelevanceReadRepository;
-import com.example.welfare.policy.repository.ServiceTagRepository;
 import com.example.welfare.recommend.support.RecommendationYouthRelevanceSupport;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -24,9 +23,6 @@ class SearchYouthRelevanceServiceTest {
     private SearchYouthRelevanceReadRepository searchYouthRelevanceReadRepository;
 
     @Mock
-    private ServiceTagRepository serviceTagRepository;
-
-    @Mock
     private RecommendationYouthRelevanceSupport recommendationYouthRelevanceSupport;
 
     @Test
@@ -34,7 +30,6 @@ class SearchYouthRelevanceServiceTest {
     void backfillAllRefreshesFlags() {
         SearchYouthRelevanceService service = new SearchYouthRelevanceService(
                 searchYouthRelevanceReadRepository,
-                serviceTagRepository,
                 recommendationYouthRelevanceSupport
         );
 
@@ -54,7 +49,7 @@ class SearchYouthRelevanceServiceTest {
                 .build();
 
         given(searchYouthRelevanceReadRepository.findBackfillTargetServices()).willReturn(List.of(youth, excluded));
-        given(serviceTagRepository.findByServiceIdIn(List.of(1L, 2L))).willReturn(List.of());
+        given(searchYouthRelevanceReadRepository.findTagsByServiceIds(List.of(1L, 2L))).willReturn(List.of());
         given(recommendationYouthRelevanceSupport.isYouthRelevant(youth, List.of())).willReturn(true);
         given(recommendationYouthRelevanceSupport.isYouthRelevant(excluded, List.of())).willReturn(false);
 
@@ -73,7 +68,6 @@ class SearchYouthRelevanceServiceTest {
     void refreshForServiceUpdatesFlag() {
         SearchYouthRelevanceService service = new SearchYouthRelevanceService(
                 searchYouthRelevanceReadRepository,
-                serviceTagRepository,
                 recommendationYouthRelevanceSupport
         );
 

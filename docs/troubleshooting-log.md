@@ -2641,3 +2641,8 @@
 - 문제: base/latest 후보를 고른 뒤 `CanonicalRecommendationReadModelRepository.findByServiceIds(...)` 로 projection map 을 직접 조회하고 있었다. 이 상태에서는 retrieval 서비스가 후보 조회 조건뿐 아니라 canonical projection read-model 선택까지 알아야 한다.
 - 해결: `RecommendationReadFacade.findCandidateProjectionsByServiceIds(...)` 를 추가하고, `RetrievalService` 는 service id 목록만 넘겨 projection map 을 받도록 정리했다.
 - 이유: retrieval 은 후보 selection/filtering 에 집중하고, canonical projection 조회 규칙은 recommendation read 경계에 모으는 편이 projection 저장 구조 변경의 파급을 줄인다.
+
+## 481) `SearchYouthRelevanceService` 가 backfill 대상 조회는 read 경계 뒤로 넘겼는데 태그 조회는 여전히 `ServiceTagRepository` 를 직접 들고 있으면, 백필 서비스가 read 구현을 절반만 숨긴 상태로 남는다
+- 문제: `backfillAll()` 은 대상 정책 목록은 `SearchYouthRelevanceReadRepository.findBackfillTargetServices()` 로 읽으면서도, 태그는 다시 `ServiceTagRepository.findByServiceIdIn(...)` 를 직접 호출하고 있었다.
+- 해결: `SearchYouthRelevanceReadRepository.findTagsByServiceIds(...)` 를 추가하고, backfill 서비스는 태그 로딩도 같은 read 경계로 받게 정리했다.
+- 이유: 백필 서비스는 relevance 재계산 규칙에 집중하고, 대상/태그 읽기 구현은 같은 read 경계 안에 두는 편이 저장소 선택 책임을 한 곳으로 모으기에 낫다.
