@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+source "${ROOT_DIR}/deploy/smoke/smoke-common.sh"
+
 APP_BASE_URL="${APP_BASE_URL:-http://127.0.0.1:8082}"
 APP_HEALTH_URL="${APP_HEALTH_URL:-${APP_BASE_URL}/actuator/health}"
 APP_CONTAINER_NAME="${APP_CONTAINER_NAME:-youth-welfare-app}"
@@ -44,51 +47,6 @@ cleanup() {
 }
 trap cleanup EXIT
 
-require_command() {
-  command -v "$1" >/dev/null 2>&1 || {
-    echo "missing required command: $1" >&2
-    exit 1
-  }
-}
-
-http_status() {
-  local method="$1"
-  local url="$2"
-  local output_file="$3"
-  shift 3
-  curl -sS -o "${output_file}" -w "%{http_code}" -X "${method}" "$url" "$@"
-}
-
-wait_for_health() {
-  local retries="$1"
-  local delay_seconds="$2"
-  local status=""
-  local attempt=1
-
-  while (( attempt <= retries )); do
-    if status="$(http_status GET "${APP_HEALTH_URL}" "${HEALTH_RESPONSE}" 2>"${ARTIFACT_DIR}/health.stderr")"; then
-      if [[ "${status}" == "200" ]]; then
-        printf '%s' "${status}"
-        return 0
-      fi
-    fi
-
-    if (( attempt == retries )); then
-      echo "health check failed after ${retries} attempts" >&2
-      if [[ -s "${ARTIFACT_DIR}/health.stderr" ]]; then
-        cat "${ARTIFACT_DIR}/health.stderr" >&2
-      fi
-      if [[ -f "${HEALTH_RESPONSE}" ]]; then
-        cat "${HEALTH_RESPONSE}" >&2
-      fi
-      return 1
-    fi
-
-    sleep "${delay_seconds}"
-    attempt=$((attempt + 1))
-  done
-}
-
 extract_access_token() {
   local response_file="$1"
   python3 - "$response_file" <<'PY'
@@ -123,35 +81,19 @@ lookup_user_key_by_email() {
     -e "SELECT user_key FROM users WHERE email = '${email}' LIMIT 1;"
 }
 
-print_step() {
-  printf '\n[%s] %s\n' "$(date '+%H:%M:%S')" "$1"
-}
-
-assert_status() {
-  local expected="$1"
-  local actual="$2"
-  local context="$3"
-  local file_path="$4"
-  if [[ "${expected}" != "${actual}" ]]; then
-    echo "${context} failed: expected ${expected}, got ${actual}" >&2
-    cat "${file_path}" >&2
-    exit 1
-  fi
-}
-
-require_command curl
-require_command python3
-require_command docker
+smoke_require_command curl
+smoke_require_command python3
+smoke_require_command docker
 
 SMOKE_EMAIL="${SMOKE_EMAIL_PREFIX}.$(date +%s)@example.com"
 
-print_step "health check"
-HEALTH_STATUS="$(wait_for_health "${HEALTH_RETRY_COUNT}" "${HEALTH_RETRY_DELAY_SECONDS}")"
-assert_status 200 "${HEALTH_STATUS}" "health check" "${HEALTH_RESPONSE}"
+smoke_print_step "health check"
+HEALTH_STATUS="$(smoke_wait_for_health "${HEALTH_RETRY_COUNT}" "${HEALTH_RETRY_DELAY_SECONDS}" "${APP_HEALTH_URL}" "${HEALTH_RESPONSE}" "${ARTIFACT_DIR}/health.stderr")"
+smoke_assert_status 200 "${HEALTH_STATUS}" "health check" "${HEALTH_RESPONSE}"
 
-print_step "signup ${SMOKE_EMAIL}"
+smoke_print_step "signup ${SMOKE_EMAIL}"
 SIGNUP_STATUS="$(
-  http_status POST "${APP_BASE_URL}/api/auth/signup" "${SIGNUP_RESPONSE}" \
+  smoke_http_status POST "${APP_BASE_URL}/api/auth/signup" "${SIGNUP_RESPONSE}" \
     -H 'Content-Type: application/json' \
     -d "{
       \"email\": \"${SMOKE_EMAIL}\",
@@ -165,11 +107,11 @@ SIGNUP_STATUS="$(
       \"householdType\": \"${SMOKE_HOUSEHOLD_TYPE}\"
     }"
 )"
-assert_status 200 "${SIGNUP_STATUS}" "signup" "${SIGNUP_RESPONSE}"
+smoke_assert_status 200 "${SIGNUP_STATUS}" "signup" "${SIGNUP_RESPONSE}"
 
-print_step "user login"
+smoke_print_step "user login"
 USER_LOGIN_STATUS="$(
-  http_status POST "${APP_BASE_URL}/api/auth/login" "${USER_LOGIN_RESPONSE}" \
+  smoke_http_status POST "${APP_BASE_URL}/api/auth/login" "${USER_LOGIN_RESPONSE}" \
     -c "${USER_COOKIE_JAR}" \
     -H 'Content-Type: application/json' \
     -d "{
@@ -177,28 +119,28 @@ USER_LOGIN_STATUS="$(
       \"password\": \"${SMOKE_PASSWORD}\"
     }"
 )"
-assert_status 200 "${USER_LOGIN_STATUS}" "user login" "${USER_LOGIN_RESPONSE}"
+smoke_assert_status 200 "${USER_LOGIN_STATUS}" "user login" "${USER_LOGIN_RESPONSE}"
 USER_LOGIN_TOKEN="$(extract_access_token "${USER_LOGIN_RESPONSE}")"
 
-print_step "user refresh"
+smoke_print_step "user refresh"
 USER_REFRESH_STATUS="$(
-  http_status POST "${APP_BASE_URL}/api/auth/refresh" "${USER_REFRESH_RESPONSE}" \
+  smoke_http_status POST "${APP_BASE_URL}/api/auth/refresh" "${USER_REFRESH_RESPONSE}" \
     -b "${USER_COOKIE_JAR}" \
     -c "${USER_COOKIE_JAR}"
 )"
-assert_status 200 "${USER_REFRESH_STATUS}" "user refresh" "${USER_REFRESH_RESPONSE}"
+smoke_assert_status 200 "${USER_REFRESH_STATUS}" "user refresh" "${USER_REFRESH_RESPONSE}"
 USER_REFRESHED_TOKEN="$(extract_access_token "${USER_REFRESH_RESPONSE}")"
 
-print_step "lookup userKey"
+smoke_print_step "lookup userKey"
 USER_KEY="$(lookup_user_key_by_email "${SMOKE_EMAIL}")"
 if [[ -z "${USER_KEY}" ]]; then
   echo "failed to resolve userKey for ${SMOKE_EMAIL}" >&2
   exit 1
 fi
 
-print_step "admin login (${ADMIN_EMAIL})"
+smoke_print_step "admin login (${ADMIN_EMAIL})"
 ADMIN_LOGIN_STATUS="$(
-  http_status POST "${APP_BASE_URL}/api/auth/login" "${ADMIN_LOGIN_RESPONSE}" \
+  smoke_http_status POST "${APP_BASE_URL}/api/auth/login" "${ADMIN_LOGIN_RESPONSE}" \
     -c "${ADMIN_COOKIE_JAR}" \
     -H 'Content-Type: application/json' \
     -d "{
@@ -206,24 +148,24 @@ ADMIN_LOGIN_STATUS="$(
       \"password\": \"${ADMIN_PASSWORD}\"
     }"
 )"
-assert_status 200 "${ADMIN_LOGIN_STATUS}" "admin login" "${ADMIN_LOGIN_RESPONSE}"
+smoke_assert_status 200 "${ADMIN_LOGIN_STATUS}" "admin login" "${ADMIN_LOGIN_RESPONSE}"
 ADMIN_TOKEN="$(extract_access_token "${ADMIN_LOGIN_RESPONSE}")"
 
-print_step "forced logout userKey=${USER_KEY}"
+smoke_print_step "forced logout userKey=${USER_KEY}"
 FORCED_LOGOUT_STATUS="$(
-  http_status POST "${APP_BASE_URL}/api/admin/users/forced-logout" "${FORCED_LOGOUT_RESPONSE}" \
+  smoke_http_status POST "${APP_BASE_URL}/api/admin/users/forced-logout" "${FORCED_LOGOUT_RESPONSE}" \
     -H "Authorization: Bearer ${ADMIN_TOKEN}" \
     -H 'Content-Type: application/json' \
     -d "{\"userKey\":\"${USER_KEY}\"}"
 )"
-assert_status 200 "${FORCED_LOGOUT_STATUS}" "forced logout" "${FORCED_LOGOUT_RESPONSE}"
+smoke_assert_status 200 "${FORCED_LOGOUT_STATUS}" "forced logout" "${FORCED_LOGOUT_RESPONSE}"
 
-print_step "old access denied"
+smoke_print_step "old access denied"
 OLD_ACCESS_STATUS="$(
-  http_status GET "${APP_BASE_URL}/api/users/me/bookmarks" "${OLD_ACCESS_RESPONSE}" \
+  smoke_http_status GET "${APP_BASE_URL}/api/users/me/bookmarks" "${OLD_ACCESS_RESPONSE}" \
     -H "Authorization: Bearer ${USER_REFRESHED_TOKEN}"
 )"
-assert_status 401 "${OLD_ACCESS_STATUS}" "old access after forced logout" "${OLD_ACCESS_RESPONSE}"
+smoke_assert_status 401 "${OLD_ACCESS_STATUS}" "old access after forced logout" "${OLD_ACCESS_RESPONSE}"
 OLD_ACCESS_ERROR="$(extract_error_code "${OLD_ACCESS_RESPONSE}")"
 if [[ "${OLD_ACCESS_ERROR}" != "A006" ]]; then
   echo "unexpected old-access errorCode: ${OLD_ACCESS_ERROR}" >&2
@@ -231,13 +173,13 @@ if [[ "${OLD_ACCESS_ERROR}" != "A006" ]]; then
   exit 1
 fi
 
-print_step "old refresh denied"
+smoke_print_step "old refresh denied"
 OLD_REFRESH_STATUS="$(
-  http_status POST "${APP_BASE_URL}/api/auth/refresh" "${OLD_REFRESH_RESPONSE}" \
+  smoke_http_status POST "${APP_BASE_URL}/api/auth/refresh" "${OLD_REFRESH_RESPONSE}" \
     -b "${USER_COOKIE_JAR}" \
     -c "${USER_COOKIE_JAR}"
 )"
-assert_status 401 "${OLD_REFRESH_STATUS}" "old refresh after forced logout" "${OLD_REFRESH_RESPONSE}"
+smoke_assert_status 401 "${OLD_REFRESH_STATUS}" "old refresh after forced logout" "${OLD_REFRESH_RESPONSE}"
 OLD_REFRESH_ERROR="$(extract_error_code "${OLD_REFRESH_RESPONSE}")"
 if [[ "${OLD_REFRESH_ERROR}" != "A003" ]]; then
   echo "unexpected old-refresh errorCode: ${OLD_REFRESH_ERROR}" >&2
@@ -245,9 +187,9 @@ if [[ "${OLD_REFRESH_ERROR}" != "A003" ]]; then
   exit 1
 fi
 
-print_step "relogin after forced logout"
+smoke_print_step "relogin after forced logout"
 RELOGIN_STATUS="$(
-  http_status POST "${APP_BASE_URL}/api/auth/login" "${RELOGIN_RESPONSE}" \
+  smoke_http_status POST "${APP_BASE_URL}/api/auth/login" "${RELOGIN_RESPONSE}" \
     -c "${USER_COOKIE_JAR}" \
     -H 'Content-Type: application/json' \
     -d "{
@@ -255,17 +197,17 @@ RELOGIN_STATUS="$(
       \"password\": \"${SMOKE_PASSWORD}\"
     }"
 )"
-assert_status 200 "${RELOGIN_STATUS}" "relogin after forced logout" "${RELOGIN_RESPONSE}"
+smoke_assert_status 200 "${RELOGIN_STATUS}" "relogin after forced logout" "${RELOGIN_RESPONSE}"
 RELOGIN_TOKEN="$(extract_access_token "${RELOGIN_RESPONSE}")"
 
-print_step "relogin protected api"
+smoke_print_step "relogin protected api"
 RELOGIN_BOOKMARKS_STATUS="$(
-  http_status GET "${APP_BASE_URL}/api/users/me/bookmarks" "${RELOGIN_BOOKMARKS_RESPONSE}" \
+  smoke_http_status GET "${APP_BASE_URL}/api/users/me/bookmarks" "${RELOGIN_BOOKMARKS_RESPONSE}" \
     -H "Authorization: Bearer ${RELOGIN_TOKEN}"
 )"
-assert_status 200 "${RELOGIN_BOOKMARKS_STATUS}" "relogin protected api" "${RELOGIN_BOOKMARKS_RESPONSE}"
+smoke_assert_status 200 "${RELOGIN_BOOKMARKS_STATUS}" "relogin protected api" "${RELOGIN_BOOKMARKS_RESPONSE}"
 
-print_step "forced logout log evidence"
+smoke_print_step "forced logout log evidence"
 docker logs "${APP_CONTAINER_NAME}" 2>&1 | grep -F "forced logout 트리거 userKey=${USER_KEY}" | tail -n 1 > "${ADMIN_LOG_MATCH_FILE}" || true
 if [[ ! -s "${ADMIN_LOG_MATCH_FILE}" ]]; then
   echo "forced logout log line not found for userKey=${USER_KEY}" >&2

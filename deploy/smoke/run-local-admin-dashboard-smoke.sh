@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+source "${ROOT_DIR}/deploy/smoke/smoke-common.sh"
+
 APP_BASE_URL="${APP_BASE_URL:-http://127.0.0.1:8082}"
 APP_HEALTH_URL="${APP_HEALTH_URL:-${APP_BASE_URL}/actuator/health}"
 APP_CONTAINER_NAME="${APP_CONTAINER_NAME:-youth-welfare-app}"
@@ -21,51 +24,6 @@ cleanup() {
   rm -rf "${ARTIFACT_DIR}"
 }
 trap cleanup EXIT
-
-require_command() {
-  command -v "$1" >/dev/null 2>&1 || {
-    echo "missing required command: $1" >&2
-    exit 1
-  }
-}
-
-http_status() {
-  local method="$1"
-  local url="$2"
-  local output_file="$3"
-  shift 3
-  curl -sS -o "${output_file}" -w "%{http_code}" -X "${method}" "$url" "$@"
-}
-
-wait_for_health() {
-  local retries="$1"
-  local delay_seconds="$2"
-  local status=""
-  local attempt=1
-
-  while (( attempt <= retries )); do
-    if status="$(http_status GET "${APP_HEALTH_URL}" "${HEALTH_RESPONSE}" 2>"${ARTIFACT_DIR}/health.stderr")"; then
-      if [[ "${status}" == "200" ]]; then
-        printf '%s' "${status}"
-        return 0
-      fi
-    fi
-
-    if (( attempt == retries )); then
-      echo "health check failed after ${retries} attempts" >&2
-      if [[ -s "${ARTIFACT_DIR}/health.stderr" ]]; then
-        cat "${ARTIFACT_DIR}/health.stderr" >&2
-      fi
-      if [[ -f "${HEALTH_RESPONSE}" ]]; then
-        cat "${HEALTH_RESPONSE}" >&2
-      fi
-      return 1
-    fi
-
-    sleep "${delay_seconds}"
-    attempt=$((attempt + 1))
-  done
-}
 
 extract_access_token() {
   local response_file="$1"
@@ -164,41 +122,25 @@ print(",".join(str(v) for v in collect_windows))
 PY
 }
 
-print_step() {
-  printf '\n[%s] %s\n' "$(date '+%H:%M:%S')" "$1"
-}
+smoke_require_command curl
+smoke_require_command python3
 
-assert_status() {
-  local expected="$1"
-  local actual="$2"
-  local context="$3"
-  local file_path="$4"
-  if [[ "${expected}" != "${actual}" ]]; then
-    echo "${context} failed: expected ${expected}, got ${actual}" >&2
-    cat "${file_path}" >&2
-    exit 1
-  fi
-}
-
-require_command curl
-require_command python3
-
-print_step "health check"
-HEALTH_STATUS="$(wait_for_health "${HEALTH_RETRY_COUNT}" "${HEALTH_RETRY_DELAY_SECONDS}")"
-assert_status 200 "${HEALTH_STATUS}" "health check" "${HEALTH_RESPONSE}"
+smoke_print_step "health check"
+HEALTH_STATUS="$(smoke_wait_for_health "${HEALTH_RETRY_COUNT}" "${HEALTH_RETRY_DELAY_SECONDS}" "${APP_HEALTH_URL}" "${HEALTH_RESPONSE}" "${ARTIFACT_DIR}/health.stderr")"
+smoke_assert_status 200 "${HEALTH_STATUS}" "health check" "${HEALTH_RESPONSE}"
 
 CONTAINER_ADMIN_ALLOWLIST="$(extract_container_admin_allowlist)"
 
-print_step "admin login (${ADMIN_EMAIL})"
+smoke_print_step "admin login (${ADMIN_EMAIL})"
 LOGIN_STATUS="$(
-  http_status POST "${APP_BASE_URL}/api/auth/login" "${LOGIN_RESPONSE}" \
+  smoke_http_status POST "${APP_BASE_URL}/api/auth/login" "${LOGIN_RESPONSE}" \
     -H 'Content-Type: application/json' \
     -d "{
       \"email\": \"${ADMIN_EMAIL}\",
       \"password\": \"${ADMIN_PASSWORD}\"
     }"
 )"
-assert_status 200 "${LOGIN_STATUS}" "admin login" "${LOGIN_RESPONSE}"
+smoke_assert_status 200 "${LOGIN_STATUS}" "admin login" "${LOGIN_RESPONSE}"
 ADMIN_TOKEN="$(extract_access_token "${LOGIN_RESPONSE}")"
 ADMIN_ROLES="$(extract_jwt_roles "${LOGIN_RESPONSE}")"
 
@@ -214,7 +156,7 @@ if [[ ",${ADMIN_ROLES}," != *",ROLE_ADMIN,"* ]]; then
   exit 1
 fi
 
-print_step "dashboard summary"
+smoke_print_step "dashboard summary"
 TREND_QUERY_STRING="$(python3 - "${TREND_WINDOW_DAYS_CSV}" <<'PY'
 import sys
 from urllib.parse import urlencode
@@ -224,10 +166,10 @@ print(urlencode([("trendWindowDays", value) for value in values]))
 PY
 )"
 DASHBOARD_STATUS="$(
-  http_status GET "${APP_BASE_URL}/api/admin/dashboard/summary?summaryWindowDays=${SUMMARY_WINDOW_DAYS}&${TREND_QUERY_STRING}" "${DASHBOARD_RESPONSE}" \
+  smoke_http_status GET "${APP_BASE_URL}/api/admin/dashboard/summary?summaryWindowDays=${SUMMARY_WINDOW_DAYS}&${TREND_QUERY_STRING}" "${DASHBOARD_RESPONSE}" \
     -H "Authorization: Bearer ${ADMIN_TOKEN}"
 )"
-assert_status 200 "${DASHBOARD_STATUS}" "dashboard summary" "${DASHBOARD_RESPONSE}"
+smoke_assert_status 200 "${DASHBOARD_STATUS}" "dashboard summary" "${DASHBOARD_RESPONSE}"
 
 DASHBOARD_ASSERT_OUTPUT="$(
   assert_dashboard_contract "${DASHBOARD_RESPONSE}" "${SUMMARY_WINDOW_DAYS}" "${TREND_WINDOW_DAYS_CSV}"

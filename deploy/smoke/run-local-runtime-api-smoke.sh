@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+source "${ROOT_DIR}/deploy/smoke/smoke-common.sh"
+
 APP_BASE_URL="${APP_BASE_URL:-http://127.0.0.1:8082}"
 APP_HEALTH_URL="${APP_HEALTH_URL:-${APP_BASE_URL}/actuator/health}"
 SMOKE_PASSWORD="${SMOKE_PASSWORD:-Password123!}"
@@ -37,51 +40,6 @@ cleanup() {
   rm -rf "${ARTIFACT_DIR}"
 }
 trap cleanup EXIT
-
-require_command() {
-  command -v "$1" >/dev/null 2>&1 || {
-    echo "missing required command: $1" >&2
-    exit 1
-  }
-}
-
-http_status() {
-  local method="$1"
-  local url="$2"
-  local output_file="$3"
-  shift 3
-  curl -sS -o "${output_file}" -w "%{http_code}" -X "${method}" "$url" "$@"
-}
-
-wait_for_health() {
-  local retries="$1"
-  local delay_seconds="$2"
-  local status=""
-  local attempt=1
-
-  while (( attempt <= retries )); do
-    if status="$(http_status GET "${APP_HEALTH_URL}" "${HEALTH_RESPONSE}" 2>"${ARTIFACT_DIR}/health.stderr")"; then
-      if [[ "${status}" == "200" ]]; then
-        printf '%s' "${status}"
-        return 0
-      fi
-    fi
-
-    if (( attempt == retries )); then
-      echo "health check failed after ${retries} attempts" >&2
-      if [[ -s "${ARTIFACT_DIR}/health.stderr" ]]; then
-        cat "${ARTIFACT_DIR}/health.stderr" >&2
-      fi
-      if [[ -f "${HEALTH_RESPONSE}" ]]; then
-        cat "${HEALTH_RESPONSE}" >&2
-      fi
-      return 1
-    fi
-
-    sleep "${delay_seconds}"
-    attempt=$((attempt + 1))
-  done
-}
 
 extract_access_token() {
   local response_file="$1"
@@ -136,34 +94,18 @@ print(payload.get("errorCode", ""))
 PY
 }
 
-print_step() {
-  printf '\n[%s] %s\n' "$(date '+%H:%M:%S')" "$1"
-}
-
-assert_status() {
-  local expected="$1"
-  local actual="$2"
-  local context="$3"
-  local file_path="$4"
-  if [[ "${expected}" != "${actual}" ]]; then
-    echo "${context} failed: expected ${expected}, got ${actual}" >&2
-    cat "${file_path}" >&2
-    exit 1
-  fi
-}
-
-require_command curl
-require_command python3
+smoke_require_command curl
+smoke_require_command python3
 
 SMOKE_EMAIL="${SMOKE_EMAIL_PREFIX}.$(date +%s)@example.com"
 
-print_step "health check"
-HEALTH_STATUS="$(wait_for_health "${HEALTH_RETRY_COUNT}" "${HEALTH_RETRY_DELAY_SECONDS}")"
-assert_status 200 "${HEALTH_STATUS}" "health check" "${HEALTH_RESPONSE}"
+smoke_print_step "health check"
+HEALTH_STATUS="$(smoke_wait_for_health "${HEALTH_RETRY_COUNT}" "${HEALTH_RETRY_DELAY_SECONDS}" "${APP_HEALTH_URL}" "${HEALTH_RESPONSE}" "${ARTIFACT_DIR}/health.stderr")"
+smoke_assert_status 200 "${HEALTH_STATUS}" "health check" "${HEALTH_RESPONSE}"
 
-print_step "signup ${SMOKE_EMAIL}"
+smoke_print_step "signup ${SMOKE_EMAIL}"
 SIGNUP_STATUS="$(
-  http_status POST "${APP_BASE_URL}/api/auth/signup" "${SIGNUP_RESPONSE}" \
+  smoke_http_status POST "${APP_BASE_URL}/api/auth/signup" "${SIGNUP_RESPONSE}" \
     -H 'Content-Type: application/json' \
     -d "{
       \"email\": \"${SMOKE_EMAIL}\",
@@ -177,11 +119,11 @@ SIGNUP_STATUS="$(
       \"householdType\": \"${SMOKE_HOUSEHOLD_TYPE}\"
     }"
 )"
-assert_status 200 "${SIGNUP_STATUS}" "signup" "${SIGNUP_RESPONSE}"
+smoke_assert_status 200 "${SIGNUP_STATUS}" "signup" "${SIGNUP_RESPONSE}"
 
-print_step "login"
+smoke_print_step "login"
 LOGIN_STATUS="$(
-  http_status POST "${APP_BASE_URL}/api/auth/login" "${LOGIN_RESPONSE}" \
+  smoke_http_status POST "${APP_BASE_URL}/api/auth/login" "${LOGIN_RESPONSE}" \
     -c "${COOKIE_JAR}" \
     -H 'Content-Type: application/json' \
     -d "{
@@ -189,24 +131,24 @@ LOGIN_STATUS="$(
       \"password\": \"${SMOKE_PASSWORD}\"
     }"
 )"
-assert_status 200 "${LOGIN_STATUS}" "login" "${LOGIN_RESPONSE}"
+smoke_assert_status 200 "${LOGIN_STATUS}" "login" "${LOGIN_RESPONSE}"
 LOGIN_TOKEN="$(extract_access_token "${LOGIN_RESPONSE}")"
 
-print_step "refresh"
+smoke_print_step "refresh"
 REFRESH_STATUS="$(
-  http_status POST "${APP_BASE_URL}/api/auth/refresh" "${REFRESH_RESPONSE}" \
+  smoke_http_status POST "${APP_BASE_URL}/api/auth/refresh" "${REFRESH_RESPONSE}" \
     -b "${COOKIE_JAR}" \
     -c "${COOKIE_JAR}"
 )"
-assert_status 200 "${REFRESH_STATUS}" "refresh" "${REFRESH_RESPONSE}"
+smoke_assert_status 200 "${REFRESH_STATUS}" "refresh" "${REFRESH_RESPONSE}"
 REFRESHED_TOKEN="$(extract_access_token "${REFRESH_RESPONSE}")"
 
-print_step "recommendations refresh"
+smoke_print_step "recommendations refresh"
 RECOMMEND_REFRESH_STATUS="$(
-  http_status POST "${APP_BASE_URL}/api/recommendations/refresh" "${RECOMMEND_REFRESH_RESPONSE}" \
+  smoke_http_status POST "${APP_BASE_URL}/api/recommendations/refresh" "${RECOMMEND_REFRESH_RESPONSE}" \
     -H "Authorization: Bearer ${REFRESHED_TOKEN}"
 )"
-assert_status 200 "${RECOMMEND_REFRESH_STATUS}" "recommendations refresh" "${RECOMMEND_REFRESH_RESPONSE}"
+smoke_assert_status 200 "${RECOMMEND_REFRESH_STATUS}" "recommendations refresh" "${RECOMMEND_REFRESH_RESPONSE}"
 RECOMMENDATION_COUNT="$(extract_recommendation_count "${RECOMMEND_REFRESH_RESPONSE}")"
 RECOMMENDATION_ID="$(extract_first_recommendation_id "${RECOMMEND_REFRESH_RESPONSE}")"
 
@@ -216,11 +158,11 @@ if [[ -z "${RECOMMENDATION_ID}" ]]; then
     cat "${RECOMMEND_REFRESH_RESPONSE}" >&2
     exit 1
   fi
-  print_step "recommendation list empty; skipping bookmark flow"
+  smoke_print_step "recommendation list empty; skipping bookmark flow"
 else
-  print_step "toggle bookmark recommendationId=${RECOMMENDATION_ID}"
+  smoke_print_step "toggle bookmark recommendationId=${RECOMMENDATION_ID}"
   BOOKMARK_STATUS="$(
-    http_status POST "${APP_BASE_URL}/api/recommendations/${RECOMMENDATION_ID}/bookmark" /dev/null \
+    smoke_http_status POST "${APP_BASE_URL}/api/recommendations/${RECOMMENDATION_ID}/bookmark" /dev/null \
       -H "Authorization: Bearer ${REFRESHED_TOKEN}"
   )"
   if [[ "${BOOKMARK_STATUS}" != "200" ]]; then
@@ -228,30 +170,30 @@ else
     exit 1
   fi
 
-  print_step "bookmarks list"
+  smoke_print_step "bookmarks list"
   BOOKMARK_LIST_STATUS="$(
-    http_status GET "${APP_BASE_URL}/api/users/me/bookmarks" "${BOOKMARK_LIST_RESPONSE}" \
+    smoke_http_status GET "${APP_BASE_URL}/api/users/me/bookmarks" "${BOOKMARK_LIST_RESPONSE}" \
       -H "Authorization: Bearer ${REFRESHED_TOKEN}"
   )"
-  assert_status 200 "${BOOKMARK_LIST_STATUS}" "bookmarks list" "${BOOKMARK_LIST_RESPONSE}"
+  smoke_assert_status 200 "${BOOKMARK_LIST_STATUS}" "bookmarks list" "${BOOKMARK_LIST_RESPONSE}"
 fi
 
-print_step "logout"
+smoke_print_step "logout"
 LOGOUT_STATUS="$(
-  http_status POST "${APP_BASE_URL}/api/auth/logout" "${LOGOUT_RESPONSE}" \
+  smoke_http_status POST "${APP_BASE_URL}/api/auth/logout" "${LOGOUT_RESPONSE}" \
     -b "${COOKIE_JAR}" \
     -c "${COOKIE_JAR}" \
     -H "Authorization: Bearer ${REFRESHED_TOKEN}"
 )"
-assert_status 200 "${LOGOUT_STATUS}" "logout" "${LOGOUT_RESPONSE}"
+smoke_assert_status 200 "${LOGOUT_STATUS}" "logout" "${LOGOUT_RESPONSE}"
 
-print_step "refresh after logout"
+smoke_print_step "refresh after logout"
 REFRESH_AFTER_LOGOUT_STATUS="$(
-  http_status POST "${APP_BASE_URL}/api/auth/refresh" "${REFRESH_AFTER_LOGOUT_RESPONSE}" \
+  smoke_http_status POST "${APP_BASE_URL}/api/auth/refresh" "${REFRESH_AFTER_LOGOUT_RESPONSE}" \
     -b "${COOKIE_JAR}" \
     -c "${COOKIE_JAR}"
 )"
-assert_status 401 "${REFRESH_AFTER_LOGOUT_STATUS}" "refresh after logout" "${REFRESH_AFTER_LOGOUT_RESPONSE}"
+smoke_assert_status 401 "${REFRESH_AFTER_LOGOUT_STATUS}" "refresh after logout" "${REFRESH_AFTER_LOGOUT_RESPONSE}"
 REFRESH_AFTER_LOGOUT_ERROR="$(extract_error_code "${REFRESH_AFTER_LOGOUT_RESPONSE}")"
 if [[ "${REFRESH_AFTER_LOGOUT_ERROR}" != "A001" ]]; then
   echo "unexpected refresh-after-logout errorCode: ${REFRESH_AFTER_LOGOUT_ERROR}" >&2
@@ -259,12 +201,12 @@ if [[ "${REFRESH_AFTER_LOGOUT_ERROR}" != "A001" ]]; then
   exit 1
 fi
 
-print_step "presented token revoke after logout"
+smoke_print_step "presented token revoke after logout"
 PRESENTED_AFTER_LOGOUT_STATUS="$(
-  http_status GET "${APP_BASE_URL}/api/users/me/bookmarks" "${PRESENTED_AFTER_LOGOUT_RESPONSE}" \
+  smoke_http_status GET "${APP_BASE_URL}/api/users/me/bookmarks" "${PRESENTED_AFTER_LOGOUT_RESPONSE}" \
     -H "Authorization: Bearer ${REFRESHED_TOKEN}"
 )"
-assert_status 401 "${PRESENTED_AFTER_LOGOUT_STATUS}" "presented token revoke after logout" "${PRESENTED_AFTER_LOGOUT_RESPONSE}"
+smoke_assert_status 401 "${PRESENTED_AFTER_LOGOUT_STATUS}" "presented token revoke after logout" "${PRESENTED_AFTER_LOGOUT_RESPONSE}"
 PRESENTED_AFTER_LOGOUT_ERROR="$(extract_error_code "${PRESENTED_AFTER_LOGOUT_RESPONSE}")"
 if [[ "${PRESENTED_AFTER_LOGOUT_ERROR}" != "A006" ]]; then
   echo "unexpected presented-token-after-logout errorCode: ${PRESENTED_AFTER_LOGOUT_ERROR}" >&2
@@ -272,9 +214,9 @@ if [[ "${PRESENTED_AFTER_LOGOUT_ERROR}" != "A006" ]]; then
   exit 1
 fi
 
-print_step "older login token after logout"
+smoke_print_step "older login token after logout"
 OLDER_AFTER_LOGOUT_STATUS="$(
-  http_status GET "${APP_BASE_URL}/api/users/me/bookmarks" "${OLDER_TOKEN_AFTER_LOGOUT_RESPONSE}" \
+  smoke_http_status GET "${APP_BASE_URL}/api/users/me/bookmarks" "${OLDER_TOKEN_AFTER_LOGOUT_RESPONSE}" \
     -H "Authorization: Bearer ${LOGIN_TOKEN}"
 )"
 if [[ "${OLDER_AFTER_LOGOUT_STATUS}" != "200" && "${OLDER_AFTER_LOGOUT_STATUS}" != "401" ]]; then
