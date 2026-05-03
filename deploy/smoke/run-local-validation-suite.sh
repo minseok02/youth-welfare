@@ -26,11 +26,16 @@ normalize_flag() {
 
 print_usage() {
   cat <<'EOF'
-usage: deploy/smoke/run-local-validation-suite.sh [--help] [--print-plan]
+usage: deploy/smoke/run-local-validation-suite.sh [--help] [--print-plan] [--quick|--full] [--skip-replay]
 
 Profiles:
   VALIDATION_PROFILE=full   auth/session + click + admin dashboard + replay
   VALIDATION_PROFILE=quick  auth/session + click + admin dashboard
+
+CLI shortcuts:
+  --quick        set VALIDATION_PROFILE=quick
+  --full         set VALIDATION_PROFILE=full
+  --skip-replay  force RUN_REPLAY_SMOKE=false
 
 Optional overrides:
   RUN_AUTH_SESSION_SMOKE=true|false
@@ -42,6 +47,8 @@ Examples:
   deploy/smoke/run-local-validation-suite.sh
   VALIDATION_PROFILE=quick deploy/smoke/run-local-validation-suite.sh
   RUN_REPLAY_SMOKE=false deploy/smoke/run-local-validation-suite.sh
+  deploy/smoke/run-local-validation-suite.sh --quick --print-plan
+  deploy/smoke/run-local-validation-suite.sh --full --skip-replay
   deploy/smoke/run-local-validation-suite.sh --print-plan
 EOF
 }
@@ -102,25 +109,35 @@ on_error() {
 
 trap on_error ERR
 
-resolve_profile_defaults
-
 PRINT_PLAN_ONLY="false"
-case "${1:-}" in
-  --help|-h)
-    print_usage
-    exit 0
-    ;;
-  --print-plan)
-    PRINT_PLAN_ONLY="true"
-    ;;
-  "")
-    ;;
-  *)
-    echo "unsupported argument: ${1}" >&2
-    print_usage >&2
-    exit 1
-    ;;
-esac
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --help|-h)
+      print_usage
+      exit 0
+      ;;
+    --print-plan)
+      PRINT_PLAN_ONLY="true"
+      ;;
+    --quick)
+      VALIDATION_PROFILE="quick"
+      ;;
+    --full)
+      VALIDATION_PROFILE="full"
+      ;;
+    --skip-replay)
+      RUN_REPLAY_SMOKE="false"
+      ;;
+    *)
+      echo "unsupported argument: $1" >&2
+      print_usage >&2
+      exit 1
+      ;;
+  esac
+  shift
+done
+
+resolve_profile_defaults
 
 printf 'validation_profile=%s auth=%s click=%s dashboard=%s replay=%s\n' \
   "${VALIDATION_PROFILE}" \

@@ -119,6 +119,13 @@ deploy/smoke/run-local-validation-suite.sh --print-plan
 deploy/smoke/run-local-validation-suite.sh --help
 ```
 
+env를 직접 쓰기 싫으면 CLI shortcut도 씁니다.
+
+```bash
+deploy/smoke/run-local-validation-suite.sh --quick --print-plan
+deploy/smoke/run-local-validation-suite.sh --full --skip-replay
+```
+
 전제:
 
 - 앱 base URL은 `APP_BASE_URL` 로 둡니다.

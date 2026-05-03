@@ -2442,3 +2442,8 @@
 - 문제: `run-local-validation-suite.sh` 에 quick/full 과 `RUN_*` override가 생긴 뒤에도, 현재 조합이 실제로 무엇을 돌릴지 확인하려면 스크립트 본문이나 문서를 다시 봐야 했다.
 - 해결: wrapper에 `--help` 와 `--print-plan` 을 추가했다. `--print-plan` 은 현재 env/profile 기준 `validation_profile=... auth=... click=... dashboard=... replay=...` 만 출력하고 종료한다.
 - 이유: 자주 돌리는 도구는 “실행”뿐 아니라 “실행 전 계획 확인”도 짧아야 한다. 계획 확인이 가벼워야 env override를 안전하게 바꿔가며 쓸 수 있다.
+
+## 441) 실행 계획 확인이 env만 기준이면, 자주 쓰는 quick/full 조합조차 쉘 문법을 기억해야 해서 도구 사용성이 다시 떨어진다
+- 문제: `VALIDATION_PROFILE=quick ...` 같은 env override는 유연하지만, quick/full 전환이나 replay skip 같은 자주 쓰는 조합조차 매번 env 문법으로 적어야 해 사용성이 떨어진다.
+- 해결: wrapper에 `--quick`, `--full`, `--skip-replay` CLI shortcut을 추가했다. `--print-plan` 과 함께 조합해 실행 없이 계획만 확인할 수도 있게 했다.
+- 이유: 반복 실행 도구는 가장 자주 쓰는 조합에 대해 더 짧은 입력 경로를 제공해야 한다. env override는 유지하되, 빈도가 높은 경로는 CLI shortcut으로 내려주는 편이 실사용성이 좋다.
