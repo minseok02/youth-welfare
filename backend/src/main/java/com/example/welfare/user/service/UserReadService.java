@@ -12,8 +12,9 @@ import com.example.welfare.user.entity.User;
 import com.example.welfare.user.entity.UserAttribute;
 import com.example.welfare.user.entity.UserProfile;
 import com.example.welfare.user.repository.AuthUserRepository;
-import com.example.welfare.user.repository.NotificationTargetReadModel;
+import com.example.welfare.user.repository.NotificationTargetAggregateReadModel;
 import com.example.welfare.user.repository.NotificationPiiReadRepository;
+import com.example.welfare.user.repository.NotificationTargetReadRepository;
 import com.example.welfare.user.repository.RecommendationUserReadRepository;
 import com.example.welfare.user.repository.UserAttributeReadModel;
 import com.example.welfare.user.repository.UserPiiReadWriteRepository;
@@ -42,6 +43,7 @@ public class UserReadService {
     private final RecommendationUserReadRepository recommendationUserReadRepository;
     private final UserPiiReadWriteRepository userPiiReadWriteRepository;
     private final NotificationPiiReadRepository notificationPiiReadRepository;
+    private final NotificationTargetReadRepository notificationTargetReadRepository;
     private final AesEncryptUtil aesEncryptUtil;
     private final UserKeyLookupService userKeyLookupService;
 
@@ -138,14 +140,8 @@ public class UserReadService {
 
     @Transactional(readOnly = true)
     public List<NotificationTarget> getNotificationTargets(User.NotificationPeriod period) {
-        List<NotificationTargetReadModel> rows = userProfileRepository.findNotificationTargetsByPeriod(period.name());
-        List<String> userKeys = rows.stream()
-                .map(NotificationTargetReadModel::getUserKey)
-                .toList();
-        java.util.Map<String, String> emailByUserKey = notificationPiiReadRepository.findEncryptedEmailsByUserKeys(userKeys);
-
-        return rows.stream()
-                .map(row -> toNotificationTarget(row, emailByUserKey.get(row.getUserKey())))
+        return notificationTargetReadRepository.findNotificationTargetsByPeriod(period).stream()
+                .map(this::toNotificationTarget)
                 .filter(target -> StringUtils.hasText(target.email()))
                 .toList();
     }
@@ -181,18 +177,18 @@ public class UserReadService {
         return userKey;
     }
 
-    private NotificationTarget toNotificationTarget(NotificationTargetReadModel row, String emailEnc) {
-        String email = decryptNullable(emailEnc);
+    private NotificationTarget toNotificationTarget(NotificationTargetAggregateReadModel row) {
+        String email = decryptNullable(row.emailEnc());
         if (!StringUtils.hasText(email)) {
-            log.warn("[UserReadService] 알림 대상 이메일 누락 userId={} userKey={}", row.getUserId(), row.getUserKey());
+            log.warn("[UserReadService] 알림 대상 이메일 누락 userId={} userKey={}", row.userId(), row.userKey());
         }
         return new NotificationTarget(
-                row.getUserId(),
-                row.getUserKey(),
+                row.userId(),
+                row.userKey(),
                 email,
-                User.NotificationPeriod.valueOf(row.getNotificationPeriod()),
-                row.getNotificationMinScore(),
-                row.getDisplayCount()
+                User.NotificationPeriod.valueOf(row.notificationPeriod()),
+                row.notificationMinScore(),
+                row.displayCount()
         );
     }
 

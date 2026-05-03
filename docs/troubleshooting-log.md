@@ -2706,3 +2706,8 @@
 - 문제: metadata user_key 백필은 `UserAttributeRepository`, `UserPriorityRepository` 의 count/update 메서드를 service 본문에서 직접 각각 호출하고 있었다.
 - 해결: `UserMetadataBackfillRepository` 를 추가하고, missing count 와 backfill update 조합을 이 repository 경계로 이동했다.
 - 이유: metadata 백필 서비스는 처리량 집계와 로깅에 집중하고, attribute/priority 저장소를 함께 다루는 backfill 규칙은 별도 repository 로 내리는 편이 user backfill 경계를 더 일관되게 유지한다.
+
+## 494) `UserReadService.getNotificationTargets(...)` 가 notification target row 조회와 encrypted email bulk lookup 을 service 본문에서 직접 조합하면, 알림 대상 read 규칙이 사용자 읽기 서비스 안에 남아 책임이 다시 넓어진다
+- 문제: period별 알림 대상 조회는 `UserProfileRepository.findNotificationTargetsByPeriod(...)` 와 `NotificationPiiReadRepository.findEncryptedEmailsByUserKeys(...)` 를 service 본문에서 직접 묶어 aggregate 를 만들고 있었다.
+- 해결: `NotificationTargetReadRepository` 와 `NotificationTargetAggregateReadModel` 을 추가하고, bulk notification target read 조합을 이 repository 경계로 이동했다.
+- 이유: 사용자 읽기 서비스는 active-user 검증과 응답 변환에 집중하고, 알림 대상 row/email 조합은 별도 read repository 로 내려야 notification read 경계가 더 일관되고 재사용도 쉬워진다.

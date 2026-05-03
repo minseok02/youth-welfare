@@ -9,8 +9,9 @@ import com.example.welfare.user.entity.AuthUser;
 import com.example.welfare.user.entity.User;
 import com.example.welfare.user.entity.UserProfile;
 import com.example.welfare.user.repository.AuthUserRepository;
+import com.example.welfare.user.repository.NotificationTargetAggregateReadModel;
 import com.example.welfare.user.repository.NotificationPiiReadRepository;
-import com.example.welfare.user.repository.NotificationTargetReadModel;
+import com.example.welfare.user.repository.NotificationTargetReadRepository;
 import com.example.welfare.user.repository.RecommendationUserReadModel;
 import com.example.welfare.user.repository.RecommendationUserReadRepository;
 import com.example.welfare.user.repository.UserProfileAggregateReadModel;
@@ -26,7 +27,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -44,6 +44,7 @@ class UserReadServiceTest {
     @Mock private RecommendationUserReadRepository recommendationUserReadRepository;
     @Mock private UserPiiReadWriteRepository userPiiReadWriteRepository;
     @Mock private NotificationPiiReadRepository notificationPiiReadRepository;
+    @Mock private NotificationTargetReadRepository notificationTargetReadRepository;
     @Mock private AesEncryptUtil aesEncryptUtil;
     @Mock private UserKeyLookupService userKeyLookupService;
 
@@ -58,6 +59,7 @@ class UserReadServiceTest {
                 recommendationUserReadRepository,
                 userPiiReadWriteRepository,
                 notificationPiiReadRepository,
+                notificationTargetReadRepository,
                 aesEncryptUtil,
                 userKeyLookupService
         );
@@ -105,40 +107,19 @@ class UserReadServiceTest {
                 recommendationUserReadRepository,
                 userPiiReadWriteRepository,
                 notificationPiiReadRepository,
+                notificationTargetReadRepository,
                 aesEncryptUtil,
                 userKeyLookupService
         );
-
-        NotificationTargetReadModel row = new NotificationTargetReadModel() {
-            @Override
-            public Long getUserId() {
-                return 1L;
-            }
-
-            @Override
-            public String getUserKey() {
-                return "user-key-1";
-            }
-
-            @Override
-            public String getNotificationPeriod() {
-                return "DAILY";
-            }
-
-            @Override
-            public Double getNotificationMinScore() {
-                return 0.7;
-            }
-
-            @Override
-            public int getDisplayCount() {
-                return 10;
-            }
-        };
-
-        when(userProfileRepository.findNotificationTargetsByPeriod("DAILY")).thenReturn(List.of(row));
-        when(notificationPiiReadRepository.findEncryptedEmailsByUserKeys(List.of("user-key-1")))
-                .thenReturn(Map.of("user-key-1", "encrypted-email"));
+        when(notificationTargetReadRepository.findNotificationTargetsByPeriod(User.NotificationPeriod.DAILY))
+                .thenReturn(List.of(new NotificationTargetAggregateReadModel(
+                        1L,
+                        "user-key-1",
+                        "DAILY",
+                        0.7,
+                        10,
+                        "encrypted-email"
+                )));
         when(aesEncryptUtil.decrypt("encrypted-email")).thenReturn("user@example.com");
 
         List<NotificationTarget> targets = userReadService.getNotificationTargets(User.NotificationPeriod.DAILY);
@@ -146,7 +127,7 @@ class UserReadServiceTest {
         assertThat(targets).containsExactly(
                 new NotificationTarget(1L, "user-key-1", "user@example.com", User.NotificationPeriod.DAILY, 0.7, 10)
         );
-        verify(notificationPiiReadRepository).findEncryptedEmailsByUserKeys(List.of("user-key-1"));
+        verify(notificationTargetReadRepository).findNotificationTargetsByPeriod(User.NotificationPeriod.DAILY);
     }
 
     @Test
@@ -160,6 +141,7 @@ class UserReadServiceTest {
                 recommendationUserReadRepository,
                 userPiiReadWriteRepository,
                 notificationPiiReadRepository,
+                notificationTargetReadRepository,
                 aesEncryptUtil,
                 userKeyLookupService
         );
@@ -191,6 +173,7 @@ class UserReadServiceTest {
                 recommendationUserReadRepository,
                 userPiiReadWriteRepository,
                 notificationPiiReadRepository,
+                notificationTargetReadRepository,
                 aesEncryptUtil,
                 userKeyLookupService
         );
@@ -220,6 +203,7 @@ class UserReadServiceTest {
                 recommendationUserReadRepository,
                 userPiiReadWriteRepository,
                 notificationPiiReadRepository,
+                notificationTargetReadRepository,
                 aesEncryptUtil,
                 userKeyLookupService
         );
@@ -277,6 +261,7 @@ class UserReadServiceTest {
                 recommendationUserReadRepository,
                 userPiiReadWriteRepository,
                 notificationPiiReadRepository,
+                notificationTargetReadRepository,
                 aesEncryptUtil,
                 userKeyLookupService
         );
@@ -304,6 +289,7 @@ class UserReadServiceTest {
                 recommendationUserReadRepository,
                 userPiiReadWriteRepository,
                 notificationPiiReadRepository,
+                notificationTargetReadRepository,
                 aesEncryptUtil,
                 userKeyLookupService
         );
@@ -329,6 +315,7 @@ class UserReadServiceTest {
                 recommendationUserReadRepository,
                 userPiiReadWriteRepository,
                 notificationPiiReadRepository,
+                notificationTargetReadRepository,
                 aesEncryptUtil,
                 userKeyLookupService
         );
@@ -357,6 +344,7 @@ class UserReadServiceTest {
                 recommendationUserReadRepository,
                 userPiiReadWriteRepository,
                 notificationPiiReadRepository,
+                notificationTargetReadRepository,
                 aesEncryptUtil,
                 userKeyLookupService
         );
