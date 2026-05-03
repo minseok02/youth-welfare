@@ -1,5 +1,6 @@
 # 구현 현황
 
+- 2026-05-03: 개인 추천 refresh 캐시 도입 직후 replay smoke가 `A_top10_target=5->5` 로 무너진 원인은 explicit refresh 자체가 아니라 cache key가 `userKey` 만 보고 있었기 때문이었다. `RecommendationRefreshCacheService` key에 `educationCanonicalBonusEnabled` 규칙 버전을 같이 넣어, replay OFF/ON phase처럼 앱 재기동으로 추천 규칙 플래그가 바뀌는 경우에는 서로 다른 refresh 마커를 사용하도록 보정했다. 그 뒤 `run-local-education-priority-replay.sh` 기준선도 다시 `A_top10_target=5->8`, `A_best_target_rank=3->1` 로 복구됐다.
 - 2026-05-03: `RecommendationRefreshCacheService` 를 추가해 `userKey` 기준 개인 추천 refresh 캐시를 1차 구현했다. 현재 캐시는 추천 payload 전체가 아니라 `non-personal refresh` 완료 마커만 Redis에 짧은 TTL로 저장하고, cache hit 시에도 실제 추천 row 는 계속 `user_recommendations` 에서 읽는다. `personal=true` refresh 는 항상 실계산하며, `updateProfile`, `updatePriorities`, `withdraw` 시점에는 마커를 즉시 비운다.
 - 2026-05-03: 제품 포지셔닝을 `청년정책 통합포털 + 개인화 추천` 으로 다시 명시했다. 추천 재사용 전략도 군집 캐시보다 `userKey` 기준 개인 캐시를 우선 검토하고, 나이대×소득분위 군집 캐시는 실제 사용자 수와 요청 패턴이 충분히 커졌을 때만 재검토하는 방향으로 문서 기준선을 맞췄다.
 - 2026-05-02: 추천/수집 2차 기능으로 `GET /api/admin/dashboard/summary` 를 추가했다. `AdminDashboardService` 는 오케스트레이션만 맡고, cross-domain 집계 SQL은 `AdminDashboardReadRepository` 로 분리해 collect/recommendation/notification/search/user_pii_sync 지표를 admin read-model 한 곳에서 묶었다. `AdminDashboardServiceTest`, `AdminSecurityWebMvcTest` 를 다시 통과시켰다.

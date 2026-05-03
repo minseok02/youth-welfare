@@ -2337,3 +2337,8 @@
 - 문제: 현재 추천 응답은 이미 `user_recommendations` 테이블에 저장된 row, CTR용 `recommendation_logs`, 북마크 상태 이전, canonical projection 조합을 전제로 움직인다. 이 시점에 Redis에 추천 payload 자체를 별도로 넣으면 추천 결과 저장소가 DB와 Redis 두 군데가 되고, stale invalidation 뿐 아니라 log id 생성 시점과 bookmark 최신성까지 같이 복제 관리해야 한다.
 - 해결: 1차 개인 캐시는 추천 row 전체를 저장하지 않고 `RecommendationRefreshCacheService` 에서 `userKey` 기준 `non-personal refresh` 완료 마커만 짧은 TTL로 저장하는 형태로 좁혔다. cache hit 시에도 실제 응답은 계속 `user_recommendations` 의 최신 row 를 읽고, `personal=true` refresh 와 `updateProfile` / `updatePriorities` / `withdraw` 는 즉시 invalidate 하도록 정리했다.
 - 이유: 지금 필요한 것은 “같은 사용자가 짧은 시간 안에 같은 refresh를 다시 눌렀을 때 재계산을 한 번 줄이는 것”이지, 추천 저장 체계를 이중화하는 것이 아니다. 마커 캐시는 효과 대비 책임이 훨씬 작고, 현재 persistence/log/bookmark 경계를 그대로 유지할 수 있다.
+
+## 429) 개인 refresh 캐시 key가 `userKey` 만 보면, replay처럼 앱 재기동으로 추천 규칙 플래그가 바뀐 뒤에도 이전 refresh 결과를 재사용해 비교 실험을 오염시킬 수 있다
+- 문제: 개인 캐시 도입 뒤 `run-local-education-priority-replay.sh` 가 갑자기 `A_top10_target=5->5`, `A_best_target_rank=3->3` 으로 실패했다. 추천 로직 자체 회귀처럼 보였지만, 실제 원인은 OFF phase가 만든 refresh 마커를 ON phase도 그대로 cache hit 하며 재사용한 것이었다. replay는 `RECOMMEND_PRIORITY_EDUCATION_CANONICAL_BONUS_ENABLED` 값을 바꾸기 위해 앱을 재기동하지만 Redis 마커는 남아 있으므로, `userKey` 단독 key 는 규칙 버전 차이를 구분하지 못했다.
+- 해결: `RecommendationRefreshCacheService` key에 `educationCanonicalBonusEnabled` 규칙 버전을 포함시켰다. 같은 사용자라도 추천 규칙 플래그 조합이 달라지면 서로 다른 refresh 마커를 보게 만들었고, 그 뒤 replay smoke는 다시 `A_top10_target=5->8`, `A_best_target_rank=3->1` 로 복구됐다.
+- 이유: 개인 캐시는 “같은 입력/같은 규칙 버전의 짧은 재계산”만 줄여야 한다. 캐시 key가 사용자만 구분하고 규칙 버전을 구분하지 않으면, 실험/feature-flag 전환/앱 재기동 비교가 전부 stale hit 로 오염된다.
