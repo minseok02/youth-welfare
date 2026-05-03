@@ -29,7 +29,7 @@
 조회는 저장된 `user_recommendations` 를 읽는 구조입니다.
 또한 `POST /api/recommendations/refresh?personal=false` 는 최근 same-user refresh 마커가 살아 있으면 재계산을 생략하고 최신 저장 row 를 그대로 반환합니다. 반대로 `personal=true` refresh 는 항상 실계산하며, 프로필/우선순위/탈퇴 변경 시 refresh 마커는 즉시 invalidate 됩니다.
 
-즉 현재 개인화의 기본 단위는 군집이 아니라 사용자입니다. 군집은 현재 `youth_all` fallback 경계로만 남아 있고, 실제 추천 응답 가속이 필요하면 먼저 `userKey` 기준 캐시를 검토하는 것이 현재 규모에 더 맞습니다.
+즉 현재 개인화의 기본 단위는 군집이 아니라 사용자입니다. 군집은 현재 `youth_all` 단일 경계로만 유지하고, 실제 추천 응답 가속도 먼저 `userKey` 기준 캐시로 해결합니다. 나이대×소득분위 2D 군집은 사용자 규모와 hit-rate가 충분히 커졌을 때만 다시 검토합니다.
 
 ## 현재 retrieval 기준
 

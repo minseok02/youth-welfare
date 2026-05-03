@@ -2347,3 +2347,8 @@
 - 문제: collect 실검증을 다시 돌린 최신 snapshot에서 `YOUTH`, `BOKJIRO_CENTRAL`, `BOKJIRO_LOCAL`, `bokjiro-details-gap-fill` 은 모두 정상 완료됐지만, replay는 sample A가 OFF 단계부터 `A_best_target_rank=2`, `A_top10_target=5` 인 상태라 ON에서도 같은 수치가 나오자 `sample A did not improve target row visibility` 로 실패했다. 이건 canonical bonus가 죽은 게 아니라, target row visibility가 이미 충분히 높은 포화 상태인데 gate가 “더 좋아져야만 통과”라고 가정한 경우였다.
 - 해결: `run-local-education-priority-replay.sh` 에 `strong_target_visibility()` 조건을 추가해, sample A가 OFF 단계에서 이미 `best_target_rank<=2` 또는 `top10_target_count>=5` 이면 OFF/ON이 동일해도 pass 하도록 보정했다.
 - 이유: replay smoke의 목적은 canonical bonus가 죽었는지 빠르게 보는 것이지, 이미 충분히 잘 보이는 snapshot에서도 매번 추가 상승을 강제하는 것이 아니다. 포화 구간을 gate에 반영해야 collect snapshot 변화에 덜 과적합된다.
+
+## 431) 군집 캐시를 문서상으론 보류해두고 코드에는 2D 군집화가 남아 있으면, 추천 운영 기준과 실제 동작이 다시 어긋난다
+- 문제: 문서 기준은 이미 `1차는 youth_all 단일 군집, 군집 캐시보다 개인 캐시 우선` 이었지만, 실제 `ClusterService` 는 나이대×소득분위 2D 군집을 계속 만들고 있었다. 그러면 non-personal 추천은 여전히 군집 캐시 경로를 탈 수 있어, “현재는 개인 캐시 중심”이라는 운영 설명과 실제 동작이 어긋난다.
+- 해결: `ClusterService` 를 다시 `youth_all` 고정으로 되돌리고, `ClusterServiceTest` 로 어떤 사용자 입력에도 단일 군집만 반환하는 계약을 고정했다. 2D 군집화는 코드 active path가 아니라 2차 확장 포인트로만 남긴다.
+- 이유: 지금 규모에서는 군집 hit-rate보다 `userKey` 기준 개인 캐시가 더 단순하고 효과적이다. 군집화는 사용자 수와 요청 패턴이 커졌을 때 다시 여는 편이 맞고, 그 전까지는 문서와 코드가 같은 1차 기준을 따라야 한다.
