@@ -2417,3 +2417,8 @@
 - 문제: dashboard summary가 현재 시점 count와 최근 7일 중심 수치만 보여 주면, collect/recommendation/search가 오늘만 튄 건지, 최근 일주일 내내 같은 패턴인지, 30일 누적 기준으로도 비슷한지까지는 다시 쿼리를 나눠 봐야 했다.
 - 해결: `trend` 섹션을 추가해 collect/recommendation/search 각각 1일/7일/30일 window point를 함께 반환하게 했다. 기존 summary contract는 유지하고, 추세 비교는 별도 list로만 확장해 API 호환성과 운영 가독성을 같이 유지했다.
 - 이유: 운영 판단은 절대값보다 기울기를 같이 봐야 정확해진다. 1/7/30일 추세를 한 응답에 같이 실어 두면, 당일 이상치인지 구조적 추세인지 훨씬 빨리 구분할 수 있다.
+
+## 436) 로컬 검증 스크립트가 늘어나면 “이번엔 어떤 순서로 돌려야 안전한가”가 다시 암묵지로 돌아간다
+- 문제: auth/session, recommendation click, admin dashboard, replay smoke가 각각 분리돼 있으면 한 번에 로컬 기준선을 다시 확인할 때 순서를 사람이 기억해야 한다. 특히 replay는 DB/app 재기동을 건드릴 수 있어 앞쪽 smoke와 병렬 또는 잘못된 순서로 돌리면 거짓 실패를 만든다.
+- 해결: `run-local-validation-suite.sh` 를 추가해 `auth/session -> recommendation click -> admin dashboard -> replay` 순서를 상위 wrapper로 고정했다. 문서도 이 wrapper를 로컬 검증 기본 진입점으로 연결했다.
+- 이유: 반복 검증 루프는 “어떤 스크립트가 있나”보다 “실패 없이 어떤 순서로 다시 태울 수 있나”가 더 중요하다. 상위 wrapper가 있어야 검증 순서가 개인 기억이 아니라 repo contract가 된다.
