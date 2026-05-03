@@ -2606,3 +2606,8 @@
 - 문제: `SearchYouthRelevanceService.backfillAll()` 은 전체 정책을 직접 조회한 뒤 tag를 묶고 청년 검색 relevance를 재계산하고 있었다. 이 상태에서는 “어떤 정책이 backfill 대상인가”라는 조회 규칙이 서비스 코드에 묻어난다.
 - 해결: `SearchYouthRelevanceReadRepository` 를 추가하고, `backfillAll()` 은 `findBackfillTargetServices()` 로 전체 대상만 받게 정리했다.
 - 이유: relevance 계산 서비스는 청년 검색 relevance 규칙과 집계에 집중하고, 대상 조회 범위/선택은 read 계층으로 숨기는 편이 SRP와 후속 backfill 범위 변경 대응에 더 낫다.
+
+## 474) `RecommendationController` 가 `CanonicalRecommendationReadModelRepository` 를 직접 호출하면, 웹 계층이 recommendation read-model 선택과 projection 조립 책임까지 같이 떠안는다
+- 문제: 추천 목록/갱신 API는 `UserRecommendation` 목록을 받은 뒤 컨트롤러 내부 `toResponses(...)` 에서 `CanonicalRecommendationReadModelRepository.findByServiceIds(...)` 를 직접 호출하고 있었다. 이 상태에서는 recommendation 응답 조립 규칙이 controller 레벨에 묻어난다.
+- 해결: `RecommendationReadFacade` 에 `findCandidateProjections(...)` 를 추가하고, 컨트롤러는 facade를 통해 projection map만 받아 응답 조립하게 정리했다.
+- 이유: 웹 계층은 요청/응답 orchestration에 집중하고, recommendation read-model 선택은 recommendation 경계로 숨기는 편이 controller 단 책임과 후속 projection 변경 파급도 관리에 더 낫다.

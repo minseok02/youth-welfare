@@ -1164,6 +1164,10 @@ cd backend
   - `SearchYouthRelevanceService.backfillAll()` 이 `WelfareServiceRepository.findAll()` 을 직접 호출하지 않도록 변경
   - 전체 정책 조회는 `SearchYouthRelevanceReadRepository.findBackfillTargetServices()` 로 위임
   - 서비스는 청년 검색 relevance 재계산 규칙에 집중하고, backfill 대상 조회 규칙은 read 계층으로 이동
+- 2026-05-04 recommendation controller read 경계 정리
+  - `RecommendationController` 가 `CanonicalRecommendationReadModelRepository` 를 직접 들지 않도록 변경
+  - 추천 응답용 projection 조회는 `RecommendationReadFacade.findCandidateProjections(...)` 로 이동
+  - 컨트롤러는 요청/응답 orchestration에 집중하고 recommendation read-model 선택은 facade 경계로 이동
 
 ## 남은 1차 작업
 
