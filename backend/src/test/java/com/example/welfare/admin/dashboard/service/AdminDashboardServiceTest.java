@@ -427,6 +427,24 @@ class AdminDashboardServiceTest {
                         LocalDateTime.of(2026, 5, 3, 8, 30)
                 )
         ));
+        given(adminDashboardReadRepository.fetchRecommendationRepeatExposureGroups(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.eq(3)
+        )).willReturn(List.of(
+                new AdminDashboardReadRepository.RecommendationRepeatExposureGroupRow(
+                        "user-key-1",
+                        501L,
+                        "청년 월세 지원",
+                        "YOUTH",
+                        "HOUSING",
+                        3,
+                        1,
+                        1,
+                        LocalDateTime.of(2026, 5, 1, 8, 0),
+                        LocalDateTime.of(2026, 5, 3, 9, 0),
+                        LocalDateTime.of(2026, 5, 3, 9, 10)
+                )
+        ));
 
         AdminRecommendationBreakdownResponse response = adminDashboardService.getRecommendationBreakdowns(14, 3);
 
@@ -463,6 +481,17 @@ class AdminDashboardServiceTest {
             assertThat(sample.title()).isEqualTo("청년 전세 지원");
             assertThat(sample.clicked()).isTrue();
             assertThat(sample.clickedAt()).isEqualTo(LocalDateTime.of(2026, 5, 3, 8, 30));
+        });
+        assertThat(response.repeatExposureGroups()).singleElement().satisfies(group -> {
+            assertThat(group.userKey()).isEqualTo("user-key-1");
+            assertThat(group.serviceId()).isEqualTo(501L);
+            assertThat(group.title()).isEqualTo("청년 월세 지원");
+            assertThat(group.exposureCount()).isEqualTo(3);
+            assertThat(group.clickedCount()).isEqualTo(1);
+            assertThat(group.fallbackCount()).isEqualTo(1);
+            assertThat(group.firstSentAt()).isEqualTo(LocalDateTime.of(2026, 5, 1, 8, 0));
+            assertThat(group.latestSentAt()).isEqualTo(LocalDateTime.of(2026, 5, 3, 9, 0));
+            assertThat(group.latestClickedAt()).isEqualTo(LocalDateTime.of(2026, 5, 3, 9, 10));
         });
     }
 }

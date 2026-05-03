@@ -14,7 +14,8 @@ public record AdminRecommendationBreakdownResponse(
         List<CategoryBreakdown> categoryBreakdowns,
         List<WeightBreakdown> weightBreakdowns,
         List<RecommendationSample> recentFallbackSamples,
-        List<RecommendationSample> recentClickedSamples
+        List<RecommendationSample> recentClickedSamples,
+        List<RepeatExposureGroup> repeatExposureGroups
 ) {
 
     public record SourceBreakdown(
@@ -60,6 +61,21 @@ public record AdminRecommendationBreakdownResponse(
             boolean clicked,
             LocalDateTime sentAt,
             LocalDateTime clickedAt
+    ) {
+    }
+
+    public record RepeatExposureGroup(
+            String userKey,
+            Long serviceId,
+            String title,
+            String sourceType,
+            String category,
+            long exposureCount,
+            long clickedCount,
+            long fallbackCount,
+            LocalDateTime firstSentAt,
+            LocalDateTime latestSentAt,
+            LocalDateTime latestClickedAt
     ) {
     }
 }

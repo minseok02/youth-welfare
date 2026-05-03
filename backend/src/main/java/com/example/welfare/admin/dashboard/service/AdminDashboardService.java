@@ -294,6 +294,21 @@ public class AdminDashboardService {
                                 row.sentAt(),
                                 row.clickedAt()
                         ))
+                        .toList(),
+                adminDashboardReadRepository.fetchRecommendationRepeatExposureGroups(summaryWindowAgo, breakdownLimit).stream()
+                        .map(row -> new AdminRecommendationBreakdownResponse.RepeatExposureGroup(
+                                row.userKey(),
+                                row.serviceId(),
+                                row.title(),
+                                row.sourceType(),
+                                row.category(),
+                                row.exposureCount(),
+                                row.clickedCount(),
+                                row.fallbackCount(),
+                                row.firstSentAt(),
+                                row.latestSentAt(),
+                                row.latestClickedAt()
+                        ))
                         .toList()
         );
     }

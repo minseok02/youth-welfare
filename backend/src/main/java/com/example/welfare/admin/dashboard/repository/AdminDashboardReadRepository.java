@@ -329,6 +329,47 @@ public class AdminDashboardReadRepository {
         );
     }
 
+    public List<RecommendationRepeatExposureGroupRow> fetchRecommendationRepeatExposureGroups(LocalDateTime windowAgo, int limit) {
+        return jdbcTemplate.query("""
+                select rl.user_key,
+                       ws.id as service_id,
+                       ws.title,
+                       ws.source_type,
+                       ws.unified_category,
+                       count(*) as exposure_count,
+                       coalesce(sum(case when rl.is_clicked = true then 1 else 0 end), 0) as clicked_count,
+                       coalesce(sum(case when rl.is_fallback = true then 1 else 0 end), 0) as fallback_count,
+                       min(rl.sent_at) as first_sent_at,
+                       max(rl.sent_at) as latest_sent_at,
+                       max(rl.clicked_at) as latest_clicked_at
+                  from recommendation_logs rl
+                  join welfare_services ws on ws.id = rl.service_id
+                 where rl.sent_at >= :windowAgo
+              group by rl.user_key, ws.id, ws.title, ws.source_type, ws.unified_category
+                having count(*) > 1
+              order by exposure_count desc,
+                       latest_sent_at desc,
+                       rl.user_key asc,
+                       ws.id asc
+                 limit %d
+                """.formatted(limit),
+                new MapSqlParameterSource("windowAgo", windowAgo),
+                (rs, rowNum) -> new RecommendationRepeatExposureGroupRow(
+                        rs.getString("user_key"),
+                        rs.getLong("service_id"),
+                        rs.getString("title"),
+                        rs.getString("source_type"),
+                        rs.getString("unified_category"),
+                        rs.getLong("exposure_count"),
+                        rs.getLong("clicked_count"),
+                        rs.getLong("fallback_count"),
+                        getLocalDateTime(rs, "first_sent_at"),
+                        getLocalDateTime(rs, "latest_sent_at"),
+                        getLocalDateTime(rs, "latest_clicked_at")
+                )
+        );
+    }
+
     public NotificationSummaryRow fetchNotificationSummary(LocalDateTime dayAgo, LocalDateTime weekAgo) {
         return jdbcTemplate.queryForObject("""
                 select coalesce(sum(case when status = 'SENT' and sent_at >= :dayAgo then 1 else 0 end), 0) as sent_last_24h,
@@ -633,6 +674,21 @@ public class AdminDashboardReadRepository {
             boolean clicked,
             LocalDateTime sentAt,
             LocalDateTime clickedAt
+    ) {
+    }
+
+    public record RecommendationRepeatExposureGroupRow(
+            String userKey,
+            Long serviceId,
+            String title,
+            String sourceType,
+            String category,
+            long exposureCount,
+            long clickedCount,
+            long fallbackCount,
+            LocalDateTime firstSentAt,
+            LocalDateTime latestSentAt,
+            LocalDateTime latestClickedAt
     ) {
     }
 

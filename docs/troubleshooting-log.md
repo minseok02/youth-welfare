@@ -2478,6 +2478,11 @@
 - 해결: `/api/admin/dashboard/search-failures` 를 추가해 summary window 기준 zero-result keyword/region/filter pattern/recent sample 상세를 별도 admin API로 분리했다.
 - 이유: 요약 대시보드는 가볍게 유지하고, 검색 실패 triage는 별도 상세 endpoint에서 읽게 분리하는 편이 책임이 명확하고 후속 확장도 쉽다.
 
+## 448) recommendation summary에 source/category/weight 분포와 최근 샘플만 있으면, 같은 사용자에게 같은 정책이 반복 노출되는 패턴은 다시 raw `recommendation_logs` 를 `user_key + service_id` 기준으로 group by 해야 한다
+- 문제: 추천 triage에서 자주 필요한 것은 “같은 사용자에게 같은 정책이 몇 번 반복 노출되었는가”인데, 상세 응답에 재노출 그룹이 없으면 결국 `recommendation_logs` 를 다시 수동 group by 해야 한다.
+- 해결: `recommendation-breakdowns` 응답에 repeat exposure group을 추가해 `user_key + service_id` 기준 노출 횟수, click/fallback 누적, 첫/마지막 노출 시각을 같이 반환하게 했다.
+- 이유: 추천 품질 문제는 단순 CTR 총량보다 재노출 패턴에 더 잘 드러나는 경우가 많다. repeat group이 있으면 과한 재노출과 정상 반복 노출을 더 빨리 구분할 수 있다.
+
 ## 448) recommendation summary에 CTR/fallback 총량만 있으면, 어떤 source/category/weight stage가 클릭 또는 fallback을 만들고 있는지 다시 raw join을 내려가야 한다
 - 문제: summary 응답의 `sentInWindow`, `clickedInWindow`, `fallbackInWindow`, `weightBucketsInWindow` 만으로는 실제 triage 때 “어느 source/category가 fallback을 많이 만들고 있는가”, “어느 weight stage에서 클릭이 붙는가”, “최근 fallback/click 샘플이 무엇인가”를 바로 읽을 수 없다.
 - 해결: `/api/admin/dashboard/recommendation-breakdowns` 를 추가해 summary window 기준 source/category/weight breakdown과 최근 fallback/click sample을 별도 admin API로 분리했다.

@@ -482,6 +482,21 @@ class AdminSecurityWebMvcTest {
                                         LocalDateTime.of(2026, 5, 3, 8, 0),
                                         LocalDateTime.of(2026, 5, 3, 8, 30)
                                 )
+                        ),
+                        List.of(
+                                new AdminRecommendationBreakdownResponse.RepeatExposureGroup(
+                                        "user-key-1",
+                                        501L,
+                                        "청년 월세 지원",
+                                        "YOUTH",
+                                        "HOUSING",
+                                        3,
+                                        1,
+                                        1,
+                                        LocalDateTime.of(2026, 5, 1, 8, 0),
+                                        LocalDateTime.of(2026, 5, 3, 9, 0),
+                                        LocalDateTime.of(2026, 5, 3, 9, 10)
+                                )
                         )
                 ));
 
@@ -499,7 +514,10 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.data.categoryBreakdowns[0].category").value("HOUSING"))
                 .andExpect(jsonPath("$.data.weightBreakdowns[0].weightKey").value("GROWTH"))
                 .andExpect(jsonPath("$.data.recentFallbackSamples[0].title").value("청년 월세 지원"))
-                .andExpect(jsonPath("$.data.recentClickedSamples[0].title").value("청년 전세 지원"));
+                .andExpect(jsonPath("$.data.recentClickedSamples[0].title").value("청년 전세 지원"))
+                .andExpect(jsonPath("$.data.repeatExposureGroups[0].userKey").value("user-key-1"))
+                .andExpect(jsonPath("$.data.repeatExposureGroups[0].serviceId").value(501))
+                .andExpect(jsonPath("$.data.repeatExposureGroups[0].exposureCount").value(3));
 
         then(adminDashboardService).should().getRecommendationBreakdowns(14, 3);
     }

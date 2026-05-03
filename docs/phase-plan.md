@@ -1114,6 +1114,7 @@ cd backend
 - `--only auth-session|click|dashboard|replay` 단일 단계 실행 shortcut 지원
 - `--only` 사용 시 plan/실패 출력에도 `only_step=...` 노출
 - admin 검색 분석은 summary count만 보지 않고 `/api/admin/dashboard/search-failures` 로 zero-result 키워드/지역/필터 패턴/샘플 상세 조회 가능
+- admin 추천 분석은 summary count만 보지 않고 `/api/admin/dashboard/recommendation-breakdowns` 로 source/category/weight 분포와 userKey 기준 재노출 그룹 상세 조회 가능
 - admin 추천 분석은 summary count만 보지 않고 `/api/admin/dashboard/recommendation-breakdowns` 로 source/category/weight/fallback·click sample 상세 조회 가능
 
 ## 2차로 분리된 항목
