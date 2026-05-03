@@ -2566,3 +2566,8 @@
 - 문제: `PolicyService.toggleBookmark(...)` 가 `UserRecommendationRepository`, `UserRepository`, `WelfareServiceRepository` 를 직접 사용해 `userKey` 조회, 기존 추천 이력 조회, placeholder 추천 생성, 북마크 한도 검사까지 모두 처리하고 있었다. 동시에 `RecommendationFacade.toggleBookmark(...)` 도 별도 방식으로 북마크 토글을 들고 있어 command 규칙이 두 군데로 갈라져 있었다.
 - 해결: `RecommendationBookmarkCommandService` 를 추가해 recommendation ID 기준 토글과 policy service ID 기준 토글을 한 경계로 모으고, `PolicyService` 와 `RecommendationFacade` 는 북마크 command 서비스로만 위임하게 바꿨다.
 - 이유: 북마크 토글은 recommendation 저장 모델과 userKey 해석 규칙에 가까운 command다. policy/read 진입점과 recommendation API 진입점이 같은 규칙을 공유하도록 recommendation 도메인 안으로 모으는 편이 경계와 변경 파급도 관리에 더 낫다.
+
+## 466) `PolicyRankingService` 가 랭킹 대상 정책 조회를 위해 `WelfareServiceRepository.findByStatusIn(...)` 를 직접 호출하면, 랭킹 계산 서비스가 persistence selection 책임까지 같이 떠안게 된다
+- 문제: `PolicyRankingService` 가 ACTIVE/UPCOMING 정책 목록을 직접 조회하고 있었다. 이 상태에서는 랭킹 대상 정책 범위가 바뀔 때 점수 계산 서비스와 persistence 선택이 함께 수정된다.
+- 해결: `PolicyRankingReadRepository` 를 추가하고, `PolicyRankingService` 는 랭킹 대상 정책 목록을 전용 read repository로부터 받게 바꿨다.
+- 이유: 랭킹 서비스는 unique view, freshness, explore slot 계산에 집중하고, “어떤 정책이 랭킹 대상인가”라는 조회 규칙은 read 계층으로 숨기는 편이 SRP와 변경 파급도 관리에 더 낫다.

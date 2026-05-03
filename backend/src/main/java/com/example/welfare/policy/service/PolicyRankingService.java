@@ -2,8 +2,8 @@ package com.example.welfare.policy.service;
 
 import com.example.welfare.policy.dto.PolicyRankingResponse;
 import com.example.welfare.policy.entity.WelfareService;
+import com.example.welfare.policy.repository.PolicyRankingReadRepository;
 import com.example.welfare.policy.repository.ServiceViewLogRepository;
-import com.example.welfare.policy.repository.WelfareServiceRepository;
 import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
 import com.example.welfare.recommend.repository.CanonicalRecommendationReadModelRepository;
 import lombok.RequiredArgsConstructor;
@@ -31,15 +31,14 @@ public class PolicyRankingService {
     private static final int EXPLORE_SLOT_COUNT = 2;
     private static final int EXPLORE_WINDOW_DAYS = 14;
 
-    private final WelfareServiceRepository welfareServiceRepository;
+    private final PolicyRankingReadRepository policyRankingReadRepository;
     private final ServiceViewLogRepository serviceViewLogRepository;
     private final CanonicalRecommendationReadModelRepository canonicalRecommendationReadModelRepository;
 
     @Transactional(readOnly = true)
     public List<PolicyRankingResponse> getRanking(int size) {
         int limit = normalizeSize(size);
-        List<WelfareService> services = welfareServiceRepository.findByStatusIn(
-                List.of(WelfareService.ServiceStatus.ACTIVE, WelfareService.ServiceStatus.UPCOMING));
+        List<WelfareService> services = policyRankingReadRepository.findRankableServices();
         if (services.isEmpty()) return List.of();
 
         List<Long> serviceIds = services.stream()
