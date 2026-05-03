@@ -2621,3 +2621,8 @@
 - 문제: 정책 북마크 이력이 없을 때 placeholder 추천을 만드는 경로는 `WelfareServiceRepository.findById(...)` 로 정책 엔티티를 직접 조회하고 있었다. 이 상태에서는 recommendation command가 북마크 규칙뿐 아니라 policy entity lookup 구현도 알아야 한다.
 - 해결: `PolicyLookupService` 를 추가하고, `RecommendationBookmarkCommandService` 는 `getRequiredService(...)` 로 정책 엔티티 조회를 위임하게 정리했다.
 - 이유: placeholder 추천 생성에 정책 엔티티가 필요하더라도, entity lookup은 policy 경계에 두는 편이 cross-domain 저장소 결합을 줄이고 recommendation command의 책임을 북마크 규칙에 집중시키기에 더 낫다.
+
+## 477) `PolicyService` 와 `PolicySearchService` 가 canonical recommendation read-model 을 직접 조회하면, policy 도메인이 recommendation projection 저장 구조를 계속 알아야 한다
+- 문제: 정책 목록/상세/검색 응답은 `CanonicalRecommendationReadModelRepository.findByServiceIds(...)` 를 직접 호출해 summary projection 을 조립하고 있었다. 이 상태에서는 policy 서비스가 recommendation read-model 선택과 projection 조회 규칙까지 같이 떠안는다.
+- 해결: `RecommendationReadFacade.findCandidateProjectionsByServices(...)` 를 추가하고, `PolicyService` 와 `PolicySearchService` 는 정책 목록만 넘겨 projection map 을 받도록 정리했다.
+- 이유: policy 서비스는 정책 필터링과 응답 조립에 집중하고, recommendation canonical projection 조회는 recommendation read 경계에 모아야 projection 저장 구조 변경의 파급 범위를 줄일 수 있다.

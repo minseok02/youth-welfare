@@ -1203,6 +1203,7 @@ cd backend
 - `collect-failures` 상세에서는 최근 연속 실패/partial streak 과 `BOKJIRO_LOCAL` open-circuit 상태까지 같이 확인 가능
 - 같은 `userKey` 또는 `clientFingerprint` 가 같은 zero-result 검색을 반복한 경우, `search-failures` 응답에서 retry group으로 바로 확인 가능
 - `search-failures` 상세에서는 같은 actor가 반복 실패했다가 나중에 회복된 검색 그룹도 같이 확인 가능
+- policy 목록/검색 서비스는 canonical projection read-model을 직접 조회하지 않고 `RecommendationReadFacade` 를 통해 summary projection 을 받도록 정리
 
 ## 2차로 분리된 항목
 

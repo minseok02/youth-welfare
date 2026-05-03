@@ -12,7 +12,6 @@ import com.example.welfare.policy.repository.WelfareServiceDetailRepository;
 import com.example.welfare.policy.repository.WelfareServiceRepository;
 import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
 import com.example.welfare.recommend.facade.RecommendationReadFacade;
-import com.example.welfare.recommend.repository.CanonicalRecommendationReadModelRepository;
 import com.example.welfare.recommend.service.RecommendationBookmarkCommandService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -53,8 +52,6 @@ class PolicyServiceTest {
     private RecommendationReadFacade recommendationReadFacade;
     @Mock
     private RecommendationBookmarkCommandService recommendationBookmarkCommandService;
-    @Mock
-    private CanonicalRecommendationReadModelRepository canonicalRecommendationReadModelRepository;
 
     @InjectMocks
     private PolicyService policyService;
@@ -83,7 +80,7 @@ class PolicyServiceTest {
                 )),
                 any(PageRequest.class)
         )).willReturn(page);
-        given(canonicalRecommendationReadModelRepository.findByServiceIds(List.of(11L)))
+        given(recommendationReadFacade.findCandidateProjectionsByServices(List.of(service)))
                 .willReturn(java.util.Map.of());
 
         Page<?> result = policyService.getList(
@@ -132,7 +129,7 @@ class PolicyServiceTest {
                 eq(new PolicyListReadCondition(null, null, null, false, null, null, null)),
                 any(PageRequest.class)
         )).willReturn(page);
-        given(canonicalRecommendationReadModelRepository.findByServiceIds(List.of(11L)))
+        given(recommendationReadFacade.findCandidateProjectionsByServices(List.of(service)))
                 .willReturn(java.util.Map.of(
                         11L,
                         RecommendationCandidateProjection.builder()

@@ -50,6 +50,16 @@ public class RecommendationReadFacade {
         return canonicalRecommendationReadModelRepository.findByServiceIds(serviceIds);
     }
 
+    public Map<Long, RecommendationCandidateProjection> findCandidateProjectionsByServices(List<WelfareService> services) {
+        if (services == null || services.isEmpty()) {
+            return Map.of();
+        }
+        List<Long> serviceIds = services.stream()
+                .map(WelfareService::getId)
+                .toList();
+        return canonicalRecommendationReadModelRepository.findByServiceIds(serviceIds);
+    }
+
     public List<PolicySummaryResponse> findBookmarkedPolicySummaries(String userKey) {
         List<UserRecommendation> bookmarks = userRecommendationRepository.findLatestBookmarkedByUserKey(userKey);
         Map<Long, RecommendationCandidateProjection> projections = findCandidateProjections(bookmarks);

@@ -17,7 +17,6 @@ import com.example.welfare.policy.repository.WelfareServiceRepository;
 import com.example.welfare.policy.support.WelfareSourceTypeSupport;
 import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
 import com.example.welfare.recommend.facade.RecommendationReadFacade;
-import com.example.welfare.recommend.repository.CanonicalRecommendationReadModelRepository;
 import com.example.welfare.recommend.service.RecommendationBookmarkCommandService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
@@ -41,7 +40,6 @@ public class PolicyService {
     private final ServiceTagRepository tagRepository;
     private final RecommendationReadFacade recommendationReadFacade;
     private final RecommendationBookmarkCommandService recommendationBookmarkCommandService;
-    private final CanonicalRecommendationReadModelRepository canonicalRecommendationReadModelRepository;
 
     @Transactional(readOnly = true)
     public Page<PolicySummaryResponse> getList(Long userId,
@@ -88,8 +86,8 @@ public class PolicyService {
         List<ServiceRegion> regions = regionRepository.findByServiceId(serviceId);
         List<ServiceTag> tags = tagRepository.findByServiceId(serviceId);
         boolean bookmarked = recommendationReadFacade.findBookmarkedServiceIds(userId, List.of(ws)).contains(serviceId);
-        RecommendationCandidateProjection projection = canonicalRecommendationReadModelRepository
-                .findByServiceIds(List.of(serviceId))
+        RecommendationCandidateProjection projection = recommendationReadFacade
+                .findCandidateProjectionsByServices(List.of(ws))
                 .get(serviceId);
 
         return PolicyDetailResponse.of(ws, detail, regions, tags, bookmarked, projection);
@@ -104,9 +102,7 @@ public class PolicyService {
         if (services == null || services.isEmpty()) {
             return java.util.Map.of();
         }
-        return canonicalRecommendationReadModelRepository.findByServiceIds(
-                services.stream().map(WelfareService::getId).toList()
-        );
+        return recommendationReadFacade.findCandidateProjectionsByServices(services);
     }
 
     private Pageable buildPageable(Pageable pageable, String sort) {

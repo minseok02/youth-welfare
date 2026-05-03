@@ -10,7 +10,6 @@ import com.example.welfare.policy.repository.WelfareServiceReadRepository;
 import com.example.welfare.policy.support.WelfareSourceTypeSupport;
 import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
 import com.example.welfare.recommend.facade.RecommendationReadFacade;
-import com.example.welfare.recommend.repository.CanonicalRecommendationReadModelRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -33,7 +32,6 @@ public class PolicySearchService {
 
     private final WelfareServiceReadRepository welfareServiceReadRepository;
     private final RecommendationReadFacade recommendationReadFacade;
-    private final CanonicalRecommendationReadModelRepository canonicalRecommendationReadModelRepository;
 
     @Transactional(readOnly = true)
     public PolicySearchResponse search(Long userId, String keyword, int page) {
@@ -163,9 +161,7 @@ public class PolicySearchService {
         if (services == null || services.isEmpty()) {
             return java.util.Map.of();
         }
-        return canonicalRecommendationReadModelRepository.findByServiceIds(
-                services.stream().map(WelfareService::getId).toList()
-        );
+        return recommendationReadFacade.findCandidateProjectionsByServices(services);
     }
 
     // Boolean Mode 검색어 구성: 공백 분리 후 각 단어에 + 접두사
