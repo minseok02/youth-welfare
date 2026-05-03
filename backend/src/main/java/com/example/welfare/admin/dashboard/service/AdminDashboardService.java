@@ -228,7 +228,6 @@ public class AdminDashboardService {
                         .toList(),
                 adminDashboardReadRepository.fetchZeroResultRetryGroups(summaryWindowAgo, patternLimit).stream()
                         .map(row -> new AdminSearchFailureResponse.RetryGroup(
-                        .map(row -> new AdminSearchFailureResponse.RetryGroup(
                                 row.actorType(),
                                 row.actorKey(),
                                 row.keyword(),
