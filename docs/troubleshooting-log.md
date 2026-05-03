@@ -35,6 +35,11 @@
 - 해결: admin dashboard smoke도 recommendation weight progress 계약을 같이 보게 바꿨다. top stage면 `nextWeight*` 가 `null` 이어야 하고, 아니면 `nextWeightKey`/`nextWeightMinLogCount`/`remainingLogsUntilNextWeight>=0` 가 있어야 한다는 조건을 추가했다
 - 이유: 운영 관측 필드는 테스트만 통과해도 되는 게 아니라 로컬 smoke에서도 실제 JSON 계약을 다시 확인해야 한다. 그래야 대시보드 실응답과 테스트 fixture가 어긋날 때 바로 잡힌다
 
+## 302) admin dashboard smoke가 앱 재빌드 직후 startup race를 흡수하지 못해 `curl: (56) Recv failure: Connection reset by peer` 로 자주 끊겼음
+- 문제: `docker compose up -d --build app` 직후 `run-local-admin-dashboard-smoke.sh` 를 바로 실행하면, 앱 컨테이너는 `Started` 상태여도 Tomcat/JPA 초기화 막바지라 `/actuator/health` 에서 한두 번 `connection reset` 이 날 수 있었다. 스크립트는 health check를 단발로만 때려 이런 타이밍 이슈를 그대로 실패로 처리했다
+- 해결: `HEALTH_RETRY_COUNT`, `HEALTH_RETRY_DELAY_SECONDS` 를 추가하고 health check를 짧게 재시도하게 바꿨다. 마지막 시도까지 실패한 경우에만 stderr와 health 응답을 같이 출력하도록 정리했다
+- 이유: 이 문제는 대시보드 코드 버그가 아니라 로컬 Docker startup race다. smoke가 최소한의 retry를 가져야 반복 검증에서 불필요한 거짓 실패를 줄일 수 있다
+
 ## 294) broad-suite self-heal cleanup이 안정화됐지만 user-prefix integration 테스트들에 거의 같은 정리 코드가 복제돼 다시 drift할 가능성이 있었음
 - 문제: `AuthRedisIntegrationTest`, `AdminSecurityIntegrationTest`, `UserCoreDualWriteIntegrationTest`, `UserMetadataUserKeyBackfillIntegrationTest`, `UserPiiBackfillIntegrationTest`, `UserPiiSyncReplayIntegrationTest`, `UserPiiSyncRetrySchedulerIntegrationTest`, `RecommendationFlowIntegrationTest` 는 모두 “email prefix로 user를 찾고 userKey 파생 cleanup 후 user delete” 구조가 거의 같았는데, 세부 차이가 조금씩 있어 다음 hardening 때 일부 클래스만 갱신될 위험이 있었음
 - 해결: test 전용 `IntegrationCleanupSupport` 를 추가하고 user-prefix cleanup, service-prefix cleanup 진입점을 공통화했다. 각 클래스는 이제 “무슨 추가 정리가 필요한가”만 람다로 넘기고, 사용자 탐색/삭제 흐름 자체는 한 곳에서 처리한다

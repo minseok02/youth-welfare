@@ -9,6 +9,8 @@ ADMIN_EMAIL="${ADMIN_EMAIL:-admin@example.com}"
 ADMIN_PASSWORD="${ADMIN_PASSWORD:-password123!}"
 SUMMARY_WINDOW_DAYS="${SUMMARY_WINDOW_DAYS:-7}"
 TREND_WINDOW_DAYS_CSV="${TREND_WINDOW_DAYS_CSV:-1,7,30}"
+HEALTH_RETRY_COUNT="${HEALTH_RETRY_COUNT:-15}"
+HEALTH_RETRY_DELAY_SECONDS="${HEALTH_RETRY_DELAY_SECONDS:-1}"
 
 ARTIFACT_DIR="${ARTIFACT_DIR:-$(mktemp -d)}"
 HEALTH_RESPONSE="${ARTIFACT_DIR}/health.json"
@@ -33,6 +35,36 @@ http_status() {
   local output_file="$3"
   shift 3
   curl -sS -o "${output_file}" -w "%{http_code}" -X "${method}" "$url" "$@"
+}
+
+wait_for_health() {
+  local retries="$1"
+  local delay_seconds="$2"
+  local status=""
+  local attempt=1
+
+  while (( attempt <= retries )); do
+    if status="$(http_status GET "${APP_HEALTH_URL}" "${HEALTH_RESPONSE}" 2>"${ARTIFACT_DIR}/health.stderr")"; then
+      if [[ "${status}" == "200" ]]; then
+        printf '%s' "${status}"
+        return 0
+      fi
+    fi
+
+    if (( attempt == retries )); then
+      echo "health check failed after ${retries} attempts" >&2
+      if [[ -s "${ARTIFACT_DIR}/health.stderr" ]]; then
+        cat "${ARTIFACT_DIR}/health.stderr" >&2
+      fi
+      if [[ -f "${HEALTH_RESPONSE}" ]]; then
+        cat "${HEALTH_RESPONSE}" >&2
+      fi
+      return 1
+    fi
+
+    sleep "${delay_seconds}"
+    attempt=$((attempt + 1))
+  done
 }
 
 extract_access_token() {
@@ -152,7 +184,7 @@ require_command curl
 require_command python3
 
 print_step "health check"
-HEALTH_STATUS="$(http_status GET "${APP_HEALTH_URL}" "${HEALTH_RESPONSE}")"
+HEALTH_STATUS="$(wait_for_health "${HEALTH_RETRY_COUNT}" "${HEALTH_RETRY_DELAY_SECONDS}")"
 assert_status 200 "${HEALTH_STATUS}" "health check" "${HEALTH_RESPONSE}"
 
 CONTAINER_ADMIN_ALLOWLIST="$(extract_container_admin_allowlist)"
