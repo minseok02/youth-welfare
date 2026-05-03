@@ -16,6 +16,7 @@ import com.example.welfare.recommend.facade.RecommendationFacade;
 import com.example.welfare.recommend.service.RecommendationLogService;
 import com.example.welfare.recommend.service.ScoreWeightService;
 import com.example.welfare.user.entity.User;
+import com.example.welfare.user.service.UserNotificationReadService;
 import com.example.welfare.user.service.UserReadService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -45,6 +46,8 @@ class NotificationServiceTest {
 
     @Mock
     private UserReadService userReadService;
+    @Mock
+    private UserNotificationReadService userNotificationReadService;
     @Mock
     private RecommendationFacade recommendationFacade;
     @Mock
@@ -311,7 +314,7 @@ class NotificationServiceTest {
 
         given(notificationRepository.findByStatusAndNextRetryAtBefore(eq(NotificationStatus.FAILED), any(LocalDateTime.class)))
                 .willReturn(List.of(notification));
-        given(userReadService.getNotificationEmailByUserKey("user-key-1")).willReturn("test@example.com");
+        given(userNotificationReadService.getNotificationEmailByUserKey("user-key-1")).willReturn("test@example.com");
         given(notificationGateway.send("test@example.com", "[청년복지] 맞춤 정책 추천", "body"))
                 .willReturn(true);
 
@@ -345,7 +348,7 @@ class NotificationServiceTest {
 
         given(notificationRepository.findByStatusAndNextRetryAtBefore(eq(NotificationStatus.FAILED), any(LocalDateTime.class)))
                 .willReturn(List.of(notification));
-        given(userReadService.getNotificationEmailByUserKey("user-key-1")).willReturn("test@example.com");
+        given(userNotificationReadService.getNotificationEmailByUserKey("user-key-1")).willReturn("test@example.com");
         given(notificationGateway.send("test@example.com", "[청년복지] 맞춤 정책 추천", "body"))
                 .willReturn(false);
 
@@ -381,7 +384,7 @@ class NotificationServiceTest {
 
         given(notificationRepository.findByStatusAndNextRetryAtBefore(eq(NotificationStatus.FAILED), any(LocalDateTime.class)))
                 .willReturn(List.of(notification));
-        given(userReadService.getNotificationEmailByUserKey("user-key-1")).willReturn("test@example.com");
+        given(userNotificationReadService.getNotificationEmailByUserKey("user-key-1")).willReturn("test@example.com");
         given(notificationGateway.send("test@example.com", "[청년복지] 맞춤 정책 추천", "body"))
                 .willReturn(false);
 

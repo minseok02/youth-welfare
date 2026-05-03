@@ -34,6 +34,7 @@ public class PasswordResetService {
     private final UserCoreSyncService userCoreSyncService;
     private final AuthTokenService authTokenService;
     private final UserReadService userReadService;
+    private final UserNotificationReadService userNotificationReadService;
 
     @Value("${auth.password-reset.expiration-minutes:30}")
     private long passwordResetExpirationMinutes;
@@ -49,7 +50,7 @@ public class PasswordResetService {
                 .flatMap(authUser -> userReadService.findOptionalActiveUserByUserKey(authUser.getUserKey())
                         .map(user -> authUser.getUserKey()))
                 .ifPresent(userKey -> {
-                    String recipientEmail = userReadService.getNotificationEmailByUserKey(userKey);
+                    String recipientEmail = userNotificationReadService.getNotificationEmailByUserKey(userKey);
                     String token = UUID.randomUUID().toString();
                     savePasswordResetToken(userKey, token);
 

@@ -38,6 +38,7 @@ class PasswordResetServiceTest {
     @Mock private UserCoreSyncService userCoreSyncService;
     @Mock private AuthTokenService authTokenService;
     @Mock private UserReadService userReadService;
+    @Mock private UserNotificationReadService userNotificationReadService;
     @Mock private ValueOperations<String, String> valueOperations;
 
     private PasswordResetService passwordResetService;
@@ -51,7 +52,8 @@ class PasswordResetServiceTest {
                 emailClient,
                 userCoreSyncService,
                 authTokenService,
-                userReadService
+                userReadService,
+                userNotificationReadService
         );
         ReflectionTestUtils.setField(passwordResetService, "passwordResetExpirationMinutes", 30L);
         ReflectionTestUtils.setField(passwordResetService, "appBaseUrl", "http://localhost:5173");
@@ -74,7 +76,7 @@ class PasswordResetServiceTest {
         when(authUserRepository.findByEmailLookupHash("b4c9a289323b21a01c3e940f150eb9b8c542587f1abfd8f0e1cc1ffc5e475514"))
                 .thenReturn(Optional.of(authUser));
         when(userReadService.findOptionalActiveUserByUserKey("user-key-7")).thenReturn(Optional.of(user));
-        when(userReadService.getNotificationEmailByUserKey("user-key-7")).thenReturn("pii@example.com");
+        when(userNotificationReadService.getNotificationEmailByUserKey("user-key-7")).thenReturn("pii@example.com");
         when(valueOperations.get("password-reset:user:user-key-7")).thenReturn(null);
         when(emailClient.send(eq("pii@example.com"), eq("[청년복지] 비밀번호 재설정 안내"), any(String.class)))
                 .thenReturn(true);
@@ -114,7 +116,7 @@ class PasswordResetServiceTest {
         when(authUserRepository.findByEmailLookupHash("b4c9a289323b21a01c3e940f150eb9b8c542587f1abfd8f0e1cc1ffc5e475514"))
                 .thenReturn(Optional.of(authUser));
         when(userReadService.findOptionalActiveUserByUserKey("user-key-7")).thenReturn(Optional.of(user));
-        when(userReadService.getNotificationEmailByUserKey("user-key-7"))
+        when(userNotificationReadService.getNotificationEmailByUserKey("user-key-7"))
                 .thenThrow(new CustomException(ErrorCode.PASSWORD_RESET_EMAIL_SEND_FAILED));
 
         assertThatThrownBy(() -> passwordResetService.requestPasswordReset("user@example.com"))

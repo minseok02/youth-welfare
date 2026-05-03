@@ -13,8 +13,9 @@ import com.example.welfare.recommend.service.RecommendationLogService;
 import com.example.welfare.recommend.service.ScoreWeightService;
 import com.example.welfare.global.util.JwtUtil;
 import com.example.welfare.notification.entity.Notification;
-import com.example.welfare.user.entity.User;
 import com.example.welfare.user.entity.User.NotificationPeriod;
+import com.example.welfare.user.entity.User;
+import com.example.welfare.user.service.UserNotificationReadService;
 import com.example.welfare.notification.repository.NotificationRepository;
 import com.example.welfare.user.service.UserReadService;
 import lombok.RequiredArgsConstructor;
@@ -37,6 +38,7 @@ import java.time.LocalDateTime;
 public class NotificationService {
 
     private final UserReadService userReadService;
+    private final UserNotificationReadService userNotificationReadService;
     private final RecommendationFacade recommendationFacade;
     private final RecommendationLogService logService;
     private final ScoreWeightService scoreWeightService;
@@ -58,7 +60,7 @@ public class NotificationService {
      */
     @Scheduled(cron = "0 0 8 * * *", zone = "Asia/Seoul")
     public void sendDailyNotifications() {
-        List<NotificationTarget> targets = userReadService.getNotificationTargets(NotificationPeriod.DAILY);
+        List<NotificationTarget> targets = userNotificationReadService.getNotificationTargets(NotificationPeriod.DAILY);
         log.info("[NotificationService] 일간 알림 대상: {}명", targets.size());
         targets.forEach(this::sendTopRecommendations);
     }
@@ -68,7 +70,7 @@ public class NotificationService {
      */
     @Scheduled(cron = "0 0 8 * * MON", zone = "Asia/Seoul")
     public void sendWeeklyNotifications() {
-        List<NotificationTarget> targets = userReadService.getNotificationTargets(NotificationPeriod.WEEKLY);
+        List<NotificationTarget> targets = userNotificationReadService.getNotificationTargets(NotificationPeriod.WEEKLY);
         log.info("[NotificationService] 주간 알림 대상: {}명", targets.size());
         targets.forEach(this::sendTopRecommendations);
     }
@@ -206,6 +208,6 @@ public class NotificationService {
         if (notification.getUserKey() == null || notification.getUserKey().isBlank()) {
             throw new IllegalStateException("Notification user_key is required for retry");
         }
-        return userReadService.getNotificationEmailByUserKey(notification.getUserKey());
+        return userNotificationReadService.getNotificationEmailByUserKey(notification.getUserKey());
     }
 }

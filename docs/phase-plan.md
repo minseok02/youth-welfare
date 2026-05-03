@@ -1220,6 +1220,7 @@ cd backend
 - `UserReadService.getNotificationTargets(...)` 의 notification target row + encrypted email bulk lookup 도 `NotificationTargetReadRepository` 뒤로 이동해 알림 대상 read 조합 책임을 사용자 읽기 서비스 밖으로 분리
 - `UserReadService.getNotificationEmailByUserKey(...)` 의 단건 encrypted email 조회도 같은 `NotificationTargetReadRepository` 로 통일해 notification read 경계를 한 곳으로 모음
 - `UserProfileCommandService` 와 `UserAccountCommandService` 가 attribute/priority 저장소를 직접 조합하던 write 경계는 `UserMetadataCommandRepository` 로 모아 profile 수정/우선순위 저장/탈퇴 시 metadata 조작 규칙을 한 곳에 정리
+- 알림 대상/알림 이메일 read 메서드는 `UserReadService` 에서 분리해 `UserNotificationReadService` 로 이동하고, `NotificationService` 와 `PasswordResetService` 도 이 전용 읽기 경계를 사용하도록 정리
 - `UserPiiSyncProcessor` / `UserPiiSyncReplayService` 의 queue row lookup 도 `UserPiiSyncQueueService` 로 모아 user pii sync 흐름의 queue access 경계를 단일화
 - `UserCoreSyncService` 는 orchestration만 남기고 auth/profile projection upsert 는 `UserCoreProjectionSyncService` 로 분리
 - `PasswordResetService` 의 reset 메일 수신자 조회는 `UserReadService` 로 모아 user PII 저장소 직접 의존 제거

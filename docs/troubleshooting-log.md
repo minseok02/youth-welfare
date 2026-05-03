@@ -2721,3 +2721,8 @@
 - 문제: 프로필 수정은 관심분야/대상유형 교체 저장을 직접 처리하고, 우선순위 저장은 priority delete+save 를 직접 수행했으며, 탈퇴도 attribute/priority 삭제를 각각 직접 호출하고 있었다.
 - 해결: `UserMetadataCommandRepository` 를 추가하고, attribute replace / priority replace / metadata delete-all / 관심분야 존재 확인을 같은 write 경계로 모았다.
 - 이유: metadata 조작 규칙은 profile/account command 서비스에서 중복으로 들고 있기보다, 별도 command repository 에 모아야 변경 영향 범위가 줄고 테스트도 단순해진다.
+
+## 497) `UserReadService` 가 알림 대상 조회와 알림 이메일 조회까지 함께 들고 있으면, 사용자 일반 read 와 notification read 책임이 한 서비스에 다시 섞인다
+- 문제: `UserReadService` 는 profile/snapshot/active-user read 외에 `getNotificationTargets(...)`, `getNotificationEmailByUserKey(...)` 같은 notification read 메서드도 같이 갖고 있었고, `NotificationService`, `PasswordResetService` 가 이를 직접 사용하고 있었다.
+- 해결: `UserNotificationReadService` 를 추가하고, 알림 대상/알림 이메일 read 메서드를 이 서비스로 이동했다. `NotificationService`, `PasswordResetService` 도 전용 읽기 경계로 교체했다.
+- 이유: active-user/profile/snapshot 읽기와 notification target/email 읽기는 바뀌는 이유가 다르므로, 분리해야 `UserReadService` 책임이 가벼워지고 notification read 정책 변경도 독립적으로 다루기 쉽다.

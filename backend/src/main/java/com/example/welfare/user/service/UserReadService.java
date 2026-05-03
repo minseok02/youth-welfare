@@ -3,7 +3,6 @@ package com.example.welfare.user.service;
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.global.util.AesEncryptUtil;
-import com.example.welfare.notification.dto.NotificationTarget;
 import com.example.welfare.recommend.dto.PriorityPreference;
 import com.example.welfare.recommend.dto.RecommendationUserSnapshot;
 import com.example.welfare.user.dto.response.ProfileResponse;
@@ -12,8 +11,6 @@ import com.example.welfare.user.entity.User;
 import com.example.welfare.user.entity.UserAttribute;
 import com.example.welfare.user.entity.UserProfile;
 import com.example.welfare.user.repository.AuthUserRepository;
-import com.example.welfare.user.repository.NotificationTargetAggregateReadModel;
-import com.example.welfare.user.repository.NotificationTargetReadRepository;
 import com.example.welfare.user.repository.RecommendationUserReadRepository;
 import com.example.welfare.user.repository.UserAttributeReadModel;
 import com.example.welfare.user.repository.UserPiiReadWriteRepository;
@@ -41,7 +38,6 @@ public class UserReadService {
     private final UserProfileReadRepository userProfileReadRepository;
     private final RecommendationUserReadRepository recommendationUserReadRepository;
     private final UserPiiReadWriteRepository userPiiReadWriteRepository;
-    private final NotificationTargetReadRepository notificationTargetReadRepository;
     private final AesEncryptUtil aesEncryptUtil;
     private final UserKeyLookupService userKeyLookupService;
 
@@ -136,31 +132,6 @@ public class UserReadService {
         return new RecommendationReadContext(user, snapshot);
     }
 
-    @Transactional(readOnly = true)
-    public List<NotificationTarget> getNotificationTargets(User.NotificationPeriod period) {
-        return notificationTargetReadRepository.findNotificationTargetsByPeriod(period).stream()
-                .map(this::toNotificationTarget)
-                .filter(target -> StringUtils.hasText(target.email()))
-                .toList();
-    }
-
-    @Transactional(readOnly = true)
-    public String getNotificationEmail(Long userId) {
-        String userKey = resolveActiveUserKey(userId);
-        return getNotificationEmailByUserKey(userKey);
-    }
-
-    @Transactional(readOnly = true)
-    public String getNotificationEmailByUserKey(String userKey) {
-        resolveActiveUserKey(userKey);
-        String email = decryptNullable(notificationTargetReadRepository.findEncryptedEmailByUserKey(userKey)
-                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND)));
-        if (!StringUtils.hasText(email)) {
-            throw new CustomException(ErrorCode.NOTIFICATION_SEND_FAILED);
-        }
-        return email;
-    }
-
     private String resolveActiveUserKey(Long userId) {
         String userKey = userKeyLookupService.findRequired(userId);
         return resolveActiveUserKey(userKey);
@@ -173,21 +144,6 @@ public class UserReadService {
             throw new CustomException(ErrorCode.WITHDRAWN_USER);
         }
         return userKey;
-    }
-
-    private NotificationTarget toNotificationTarget(NotificationTargetAggregateReadModel row) {
-        String email = decryptNullable(row.emailEnc());
-        if (!StringUtils.hasText(email)) {
-            log.warn("[UserReadService] 알림 대상 이메일 누락 userId={} userKey={}", row.userId(), row.userKey());
-        }
-        return new NotificationTarget(
-                row.userId(),
-                row.userKey(),
-                email,
-                User.NotificationPeriod.valueOf(row.notificationPeriod()),
-                row.notificationMinScore(),
-                row.displayCount()
-        );
     }
 
     private String decryptNullable(String encryptedValue) {

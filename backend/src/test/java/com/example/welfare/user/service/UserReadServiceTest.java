@@ -2,15 +2,12 @@ package com.example.welfare.user.service;
 
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.util.AesEncryptUtil;
-import com.example.welfare.notification.dto.NotificationTarget;
 import com.example.welfare.recommend.dto.RecommendationUserSnapshot;
 import com.example.welfare.user.dto.response.ProfileResponse;
 import com.example.welfare.user.entity.AuthUser;
 import com.example.welfare.user.entity.User;
 import com.example.welfare.user.entity.UserProfile;
 import com.example.welfare.user.repository.AuthUserRepository;
-import com.example.welfare.user.repository.NotificationTargetAggregateReadModel;
-import com.example.welfare.user.repository.NotificationTargetReadRepository;
 import com.example.welfare.user.repository.RecommendationUserReadModel;
 import com.example.welfare.user.repository.RecommendationUserReadRepository;
 import com.example.welfare.user.repository.UserProfileAggregateReadModel;
@@ -42,7 +39,6 @@ class UserReadServiceTest {
     @Mock private UserProfileReadRepository userProfileReadRepository;
     @Mock private RecommendationUserReadRepository recommendationUserReadRepository;
     @Mock private UserPiiReadWriteRepository userPiiReadWriteRepository;
-    @Mock private NotificationTargetReadRepository notificationTargetReadRepository;
     @Mock private AesEncryptUtil aesEncryptUtil;
     @Mock private UserKeyLookupService userKeyLookupService;
 
@@ -56,7 +52,6 @@ class UserReadServiceTest {
                 userProfileReadRepository,
                 recommendationUserReadRepository,
                 userPiiReadWriteRepository,
-                notificationTargetReadRepository,
                 aesEncryptUtil,
                 userKeyLookupService
         );
@@ -94,99 +89,6 @@ class UserReadServiceTest {
     }
 
     @Test
-    @DisplayName("알림 대상 조회는 notification_pii_ro 저장소에서 이메일 암호문을 별도 조회한다")
-    void getNotificationTargetsLoadsEmailsFromNotificationPiiReadRepository() {
-        UserReadService userReadService = new UserReadService(
-                userRepository,
-                authUserRepository,
-                userProfileRepository,
-                userProfileReadRepository,
-                recommendationUserReadRepository,
-                userPiiReadWriteRepository,
-                notificationTargetReadRepository,
-                aesEncryptUtil,
-                userKeyLookupService
-        );
-        when(notificationTargetReadRepository.findNotificationTargetsByPeriod(User.NotificationPeriod.DAILY))
-                .thenReturn(List.of(new NotificationTargetAggregateReadModel(
-                        1L,
-                        "user-key-1",
-                        "DAILY",
-                        0.7,
-                        10,
-                        "encrypted-email"
-                )));
-        when(aesEncryptUtil.decrypt("encrypted-email")).thenReturn("user@example.com");
-
-        List<NotificationTarget> targets = userReadService.getNotificationTargets(User.NotificationPeriod.DAILY);
-
-        assertThat(targets).containsExactly(
-                new NotificationTarget(1L, "user-key-1", "user@example.com", User.NotificationPeriod.DAILY, 0.7, 10)
-        );
-        verify(notificationTargetReadRepository).findNotificationTargetsByPeriod(User.NotificationPeriod.DAILY);
-    }
-
-    @Test
-    @DisplayName("알림 재시도용 이메일 조회는 notification_pii_ro 저장소를 사용한다")
-    void getNotificationEmailByUserKeyUsesNotificationPiiReadRepository() {
-        UserReadService userReadService = new UserReadService(
-                userRepository,
-                authUserRepository,
-                userProfileRepository,
-                userProfileReadRepository,
-                recommendationUserReadRepository,
-                userPiiReadWriteRepository,
-                notificationTargetReadRepository,
-                aesEncryptUtil,
-                userKeyLookupService
-        );
-
-        AuthUser authUser = AuthUser.builder()
-                .userKey("user-key-1")
-                .isActive(true)
-                .build();
-
-        when(authUserRepository.findByUserKey("user-key-1")).thenReturn(Optional.of(authUser));
-        when(notificationTargetReadRepository.findEncryptedEmailByUserKey("user-key-1"))
-                .thenReturn(Optional.of("encrypted-email"));
-        when(aesEncryptUtil.decrypt("encrypted-email")).thenReturn("user@example.com");
-
-        String email = userReadService.getNotificationEmailByUserKey("user-key-1");
-
-        assertThat(email).isEqualTo("user@example.com");
-        verify(notificationTargetReadRepository).findEncryptedEmailByUserKey("user-key-1");
-    }
-
-    @Test
-    @DisplayName("알림 재시도용 이메일이 비어 있으면 발송 실패 예외를 던진다")
-    void getNotificationEmailByUserKeyThrowsWhenEmailBlank() {
-        UserReadService userReadService = new UserReadService(
-                userRepository,
-                authUserRepository,
-                userProfileRepository,
-                userProfileReadRepository,
-                recommendationUserReadRepository,
-                userPiiReadWriteRepository,
-                notificationTargetReadRepository,
-                aesEncryptUtil,
-                userKeyLookupService
-        );
-
-        AuthUser authUser = AuthUser.builder()
-                .userKey("user-key-1")
-                .isActive(true)
-                .build();
-
-        when(authUserRepository.findByUserKey("user-key-1")).thenReturn(Optional.of(authUser));
-        when(notificationTargetReadRepository.findEncryptedEmailByUserKey("user-key-1"))
-                .thenReturn(Optional.of("encrypted-email"));
-        when(aesEncryptUtil.decrypt("encrypted-email")).thenReturn("");
-
-        assertThatThrownBy(() -> userReadService.getNotificationEmailByUserKey("user-key-1"))
-                .isInstanceOf(CustomException.class);
-    }
-
-    @Test
     @DisplayName("추천 컨텍스트 조회는 active user 검증 후 user entity 와 snapshot 을 함께 반환한다")
     void getRecommendationContextReturnsUserAndSnapshot() {
         UserReadService userReadService = new UserReadService(
@@ -196,7 +98,6 @@ class UserReadServiceTest {
                 userProfileReadRepository,
                 recommendationUserReadRepository,
                 userPiiReadWriteRepository,
-                notificationTargetReadRepository,
                 aesEncryptUtil,
                 userKeyLookupService
         );
@@ -253,7 +154,6 @@ class UserReadServiceTest {
                 userProfileReadRepository,
                 recommendationUserReadRepository,
                 userPiiReadWriteRepository,
-                notificationTargetReadRepository,
                 aesEncryptUtil,
                 userKeyLookupService
         );
@@ -280,7 +180,6 @@ class UserReadServiceTest {
                 userProfileReadRepository,
                 recommendationUserReadRepository,
                 userPiiReadWriteRepository,
-                notificationTargetReadRepository,
                 aesEncryptUtil,
                 userKeyLookupService
         );
@@ -305,7 +204,6 @@ class UserReadServiceTest {
                 userProfileReadRepository,
                 recommendationUserReadRepository,
                 userPiiReadWriteRepository,
-                notificationTargetReadRepository,
                 aesEncryptUtil,
                 userKeyLookupService
         );
@@ -333,7 +231,6 @@ class UserReadServiceTest {
                 userProfileReadRepository,
                 recommendationUserReadRepository,
                 userPiiReadWriteRepository,
-                notificationTargetReadRepository,
                 aesEncryptUtil,
                 userKeyLookupService
         );
