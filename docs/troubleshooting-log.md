@@ -2437,3 +2437,8 @@
 - 문제: `run-local-validation-suite.sh` 는 하위 smoke 실패를 그대로 전파하지만, 실패 시점에 상위 wrapper가 현재 단계명을 별도로 찍지 않으면 긴 출력에서 “auth/session 중이었는지, click이었는지, replay였는지”를 사람이 다시 따라가야 했다.
 - 해결: wrapper에 `CURRENT_STEP_LABEL` 과 `ERR` trap을 넣어 `failed_step=<label>`, `elapsed_before_failure_seconds=<n>` 를 즉시 출력하게 했다.
 - 이유: 상위 오케스트레이터는 성공한 경우 요약만 주는 것으로 끝나면 안 되고, 실패한 경우에도 어디서 끊겼는지 가장 먼저 알려줘야 반복 디버깅 속도가 올라간다.
+
+## 440) 상위 wrapper가 env 기반 실행 계획만 지원하면, “지금 어떤 단계가 켜질지” 확인하려고 실제 실행 직전까지 문서를 다시 읽게 된다
+- 문제: `run-local-validation-suite.sh` 에 quick/full 과 `RUN_*` override가 생긴 뒤에도, 현재 조합이 실제로 무엇을 돌릴지 확인하려면 스크립트 본문이나 문서를 다시 봐야 했다.
+- 해결: wrapper에 `--help` 와 `--print-plan` 을 추가했다. `--print-plan` 은 현재 env/profile 기준 `validation_profile=... auth=... click=... dashboard=... replay=...` 만 출력하고 종료한다.
+- 이유: 자주 돌리는 도구는 “실행”뿐 아니라 “실행 전 계획 확인”도 짧아야 한다. 계획 확인이 가벼워야 env override를 안전하게 바꿔가며 쓸 수 있다.
