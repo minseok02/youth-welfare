@@ -70,20 +70,50 @@ public class AdminDashboardReadRepository {
 
     public RecommendationSummaryRow fetchRecommendationSummary(LocalDateTime dayAgo, LocalDateTime weekAgo) {
         return jdbcTemplate.queryForObject("""
-                select coalesce(sum(case when sent_at >= :dayAgo then 1 else 0 end), 0) as sent_last_24h,
+                select count(*) as total_logs,
+                       coalesce(sum(case when sent_at >= :dayAgo then 1 else 0 end), 0) as sent_last_24h,
                        coalesce(sum(case when sent_at >= :weekAgo then 1 else 0 end), 0) as sent_last_7d,
                        coalesce(sum(case when is_clicked = true and clicked_at >= :weekAgo then 1 else 0 end), 0) as clicked_last_7d,
-                       coalesce(sum(case when is_fallback = true and sent_at >= :weekAgo then 1 else 0 end), 0) as fallback_last_7d
+                       coalesce(sum(case when is_fallback = true and sent_at >= :weekAgo then 1 else 0 end), 0) as fallback_last_7d,
+                       max(clicked_at) as latest_clicked_at
                   from recommendation_logs
                 """,
                 new MapSqlParameterSource()
                         .addValue("dayAgo", dayAgo)
                         .addValue("weekAgo", weekAgo),
                 (rs, rowNum) -> new RecommendationSummaryRow(
+                        rs.getLong("total_logs"),
                         rs.getLong("sent_last_24h"),
                         rs.getLong("sent_last_7d"),
                         rs.getLong("clicked_last_7d"),
-                        rs.getLong("fallback_last_7d")
+                        rs.getLong("fallback_last_7d"),
+                        getLocalDateTime(rs, "latest_clicked_at")
+                )
+        );
+    }
+
+    public List<RecommendationWeightSnapshotRow> fetchRecommendationWeightBuckets(LocalDateTime weekAgo) {
+        return jdbcTemplate.query("""
+                select case
+                           when rule_weight_used = 0.80 and ai_weight_used = 0.20 then 'COLD_START'
+                           when rule_weight_used = 0.60 and ai_weight_used = 0.40 then 'GROWTH'
+                           when rule_weight_used = 0.40 and ai_weight_used = 0.60 then 'STABLE'
+                           else 'CUSTOM'
+                       end as weight_key,
+                       rule_weight_used,
+                       ai_weight_used,
+                       count(*) as log_count
+                  from recommendation_logs
+                 where sent_at >= :weekAgo
+              group by weight_key, rule_weight_used, ai_weight_used
+              order by log_count desc, rule_weight_used desc, ai_weight_used asc
+                """,
+                new MapSqlParameterSource("weekAgo", weekAgo),
+                (rs, rowNum) -> new RecommendationWeightSnapshotRow(
+                        rs.getString("weight_key"),
+                        rs.getBigDecimal("rule_weight_used"),
+                        rs.getBigDecimal("ai_weight_used"),
+                        rs.getLong("log_count")
                 )
         );
     }
@@ -173,10 +203,20 @@ public class AdminDashboardReadRepository {
     }
 
     public record RecommendationSummaryRow(
+            long totalLogs,
             long sentLast24h,
             long sentLast7d,
             long clickedLast7d,
-            long fallbackLast7d
+            long fallbackLast7d,
+            LocalDateTime latestClickedAt
+    ) {
+    }
+
+    public record RecommendationWeightSnapshotRow(
+            String weightKey,
+            BigDecimal ruleWeight,
+            BigDecimal aiWeight,
+            long logCount
     ) {
     }
 

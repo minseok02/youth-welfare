@@ -2,6 +2,8 @@ package com.example.welfare.admin.dashboard.service;
 
 import com.example.welfare.admin.dashboard.dto.AdminDashboardResponse;
 import com.example.welfare.admin.dashboard.repository.AdminDashboardReadRepository;
+import com.example.welfare.recommend.entity.ScoreWeight;
+import com.example.welfare.recommend.service.ScoreWeightService;
 import com.example.welfare.user.dto.response.UserPiiSyncStatusResponse;
 import com.example.welfare.user.service.UserPiiSyncStatusService;
 import org.junit.jupiter.api.DisplayName;
@@ -27,6 +29,9 @@ class AdminDashboardServiceTest {
     @Mock
     private UserPiiSyncStatusService userPiiSyncStatusService;
 
+    @Mock
+    private ScoreWeightService scoreWeightService;
+
     @InjectMocks
     private AdminDashboardService adminDashboardService;
 
@@ -50,7 +55,27 @@ class AdminDashboardServiceTest {
         given(adminDashboardReadRepository.fetchRecommendationSummary(
                 org.mockito.ArgumentMatchers.any(),
                 org.mockito.ArgumentMatchers.any()
-        )).willReturn(new AdminDashboardReadRepository.RecommendationSummaryRow(12, 30, 9, 6));
+        )).willReturn(new AdminDashboardReadRepository.RecommendationSummaryRow(
+                250,
+                12,
+                30,
+                9,
+                6,
+                LocalDateTime.of(2026, 5, 2, 8, 45)
+        ));
+        given(scoreWeightService.getActiveWeight())
+                .willReturn(ScoreWeight.builder()
+                        .weightKey("GROWTH")
+                        .ruleWeight(new BigDecimal("0.60"))
+                        .aiWeight(new BigDecimal("0.40"))
+                        .minLogCount(100)
+                        .isActive(true)
+                        .build());
+        given(adminDashboardReadRepository.fetchRecommendationWeightBuckets(org.mockito.ArgumentMatchers.any()))
+                .willReturn(List.of(
+                        new AdminDashboardReadRepository.RecommendationWeightSnapshotRow("GROWTH", new BigDecimal("0.60"), new BigDecimal("0.40"), 18),
+                        new AdminDashboardReadRepository.RecommendationWeightSnapshotRow("COLD_START", new BigDecimal("0.80"), new BigDecimal("0.20"), 12)
+                ));
         given(adminDashboardReadRepository.fetchNotificationSummary(
                 org.mockito.ArgumentMatchers.any(),
                 org.mockito.ArgumentMatchers.any()
@@ -81,9 +106,16 @@ class AdminDashboardServiceTest {
 
         assertThat(response.collect().runningJobs()).isEqualTo(1);
         assertThat(response.collect().latestJobs()).hasSize(1);
+        assertThat(response.recommendation().activeWeightKey()).isEqualTo("GROWTH");
+        assertThat(response.recommendation().activeRuleWeight()).isEqualByComparingTo("0.60");
+        assertThat(response.recommendation().activeAiWeight()).isEqualByComparingTo("0.40");
+        assertThat(response.recommendation().totalLogs()).isEqualTo(250);
         assertThat(response.recommendation().sentLast7d()).isEqualTo(30);
+        assertThat(response.recommendation().latestClickedAt()).isEqualTo(LocalDateTime.of(2026, 5, 2, 8, 45));
         assertThat(response.recommendation().clickThroughRateLast7d()).isEqualByComparingTo("0.3000");
         assertThat(response.recommendation().fallbackRateLast7d()).isEqualByComparingTo("0.2000");
+        assertThat(response.recommendation().weightBucketsLast7d()).extracting(AdminDashboardResponse.RecommendationWeightSnapshot::weightKey)
+                .containsExactly("GROWTH", "COLD_START");
         assertThat(response.notification().failedLast24h()).isEqualTo(1);
         assertThat(response.search().searchesLast7d()).isEqualTo(88);
         assertThat(response.search().averageResultCountLast7d()).isEqualByComparingTo("6.38");

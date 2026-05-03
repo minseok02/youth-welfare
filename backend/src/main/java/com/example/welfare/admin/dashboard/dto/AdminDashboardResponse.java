@@ -34,12 +34,26 @@ public record AdminDashboardResponse(
     }
 
     public record RecommendationSection(
+            String activeWeightKey,
+            BigDecimal activeRuleWeight,
+            BigDecimal activeAiWeight,
+            long totalLogs,
             long sentLast24h,
             long sentLast7d,
             long clickedLast7d,
             long fallbackLast7d,
+            LocalDateTime latestClickedAt,
             BigDecimal clickThroughRateLast7d,
-            BigDecimal fallbackRateLast7d
+            BigDecimal fallbackRateLast7d,
+            List<RecommendationWeightSnapshot> weightBucketsLast7d
+    ) {
+    }
+
+    public record RecommendationWeightSnapshot(
+            String weightKey,
+            BigDecimal ruleWeight,
+            BigDecimal aiWeight,
+            long logCount
     ) {
     }
 

@@ -137,7 +137,27 @@ class AdminSecurityWebMvcTest {
                 .willReturn(new AdminDashboardResponse(
                         LocalDateTime.of(2026, 5, 2, 10, 0),
                         new AdminDashboardResponse.CollectSection(0, 3, 1, 0, List.of()),
-                        new AdminDashboardResponse.RecommendationSection(2, 8, 3, 1, java.math.BigDecimal.valueOf(0.3750), java.math.BigDecimal.valueOf(0.1250)),
+                        new AdminDashboardResponse.RecommendationSection(
+                                "GROWTH",
+                                java.math.BigDecimal.valueOf(0.60),
+                                java.math.BigDecimal.valueOf(0.40),
+                                250,
+                                2,
+                                8,
+                                3,
+                                1,
+                                LocalDateTime.of(2026, 5, 2, 9, 45),
+                                java.math.BigDecimal.valueOf(0.3750),
+                                java.math.BigDecimal.valueOf(0.1250),
+                                List.of(
+                                        new AdminDashboardResponse.RecommendationWeightSnapshot(
+                                                "GROWTH",
+                                                java.math.BigDecimal.valueOf(0.60),
+                                                java.math.BigDecimal.valueOf(0.40),
+                                                8
+                                        )
+                                )
+                        ),
                         new AdminDashboardResponse.NotificationSection(1, 0, 5, 1),
                         new AdminDashboardResponse.SearchSection(4, 12, 7, java.math.BigDecimal.valueOf(5.25), List.of(
                                 new AdminDashboardResponse.SearchKeywordSnapshot("월세", 5)
