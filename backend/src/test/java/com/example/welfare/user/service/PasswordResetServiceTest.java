@@ -2,13 +2,10 @@ package com.example.welfare.user.service;
 
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
-import com.example.welfare.global.util.AesEncryptUtil;
 import com.example.welfare.notification.gateway.EmailClient;
 import com.example.welfare.user.entity.AuthUser;
 import com.example.welfare.user.entity.User;
 import com.example.welfare.user.repository.AuthUserRepository;
-import com.example.welfare.user.repository.UserPiiReadModel;
-import com.example.welfare.user.repository.UserPiiReadWriteRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -35,12 +32,10 @@ import static org.mockito.Mockito.when;
 class PasswordResetServiceTest {
 
     @Mock private AuthUserRepository authUserRepository;
-    @Mock private UserPiiReadWriteRepository userPiiReadWriteRepository;
     @Mock private PasswordEncoder passwordEncoder;
     @Mock private RedisTemplate<String, String> redisTemplate;
     @Mock private EmailClient emailClient;
     @Mock private UserCoreSyncService userCoreSyncService;
-    @Mock private AesEncryptUtil aesEncryptUtil;
     @Mock private AuthTokenService authTokenService;
     @Mock private UserReadService userReadService;
     @Mock private ValueOperations<String, String> valueOperations;
@@ -51,12 +46,10 @@ class PasswordResetServiceTest {
     void setUp() {
         passwordResetService = new PasswordResetService(
                 authUserRepository,
-                userPiiReadWriteRepository,
                 passwordEncoder,
                 redisTemplate,
                 emailClient,
                 userCoreSyncService,
-                aesEncryptUtil,
                 authTokenService,
                 userReadService
         );
@@ -81,9 +74,7 @@ class PasswordResetServiceTest {
         when(authUserRepository.findByEmailLookupHash("b4c9a289323b21a01c3e940f150eb9b8c542587f1abfd8f0e1cc1ffc5e475514"))
                 .thenReturn(Optional.of(authUser));
         when(userReadService.findOptionalActiveUserByUserKey("user-key-7")).thenReturn(Optional.of(user));
-        when(userPiiReadWriteRepository.findByUserKey("user-key-7"))
-                .thenReturn(Optional.of(new UserPiiReadModel("user-key-7", "encrypted-email", null, null, null)));
-        when(aesEncryptUtil.decrypt("encrypted-email")).thenReturn("pii@example.com");
+        when(userReadService.getNotificationEmailByUserKey("user-key-7")).thenReturn("pii@example.com");
         when(valueOperations.get("password-reset:user:user-key-7")).thenReturn(null);
         when(emailClient.send(eq("pii@example.com"), eq("[청년복지] 비밀번호 재설정 안내"), any(String.class)))
                 .thenReturn(true);
@@ -123,7 +114,8 @@ class PasswordResetServiceTest {
         when(authUserRepository.findByEmailLookupHash("b4c9a289323b21a01c3e940f150eb9b8c542587f1abfd8f0e1cc1ffc5e475514"))
                 .thenReturn(Optional.of(authUser));
         when(userReadService.findOptionalActiveUserByUserKey("user-key-7")).thenReturn(Optional.of(user));
-        when(userPiiReadWriteRepository.findByUserKey("user-key-7")).thenReturn(Optional.empty());
+        when(userReadService.getNotificationEmailByUserKey("user-key-7"))
+                .thenThrow(new CustomException(ErrorCode.PASSWORD_RESET_EMAIL_SEND_FAILED));
 
         assertThatThrownBy(() -> passwordResetService.requestPasswordReset("user@example.com"))
                 .isInstanceOf(CustomException.class)

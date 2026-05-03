@@ -2,11 +2,9 @@ package com.example.welfare.user.service;
 
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
-import com.example.welfare.global.util.AesEncryptUtil;
 import com.example.welfare.notification.gateway.EmailClient;
 import com.example.welfare.user.entity.AuthUser;
 import com.example.welfare.user.repository.AuthUserRepository;
-import com.example.welfare.user.repository.UserPiiReadWriteRepository;
 import com.example.welfare.user.util.EmailLookupKeyGenerator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -30,12 +28,10 @@ public class PasswordResetService {
     private static final String PASSWORD_RESET_SUBJECT = "[청년복지] 비밀번호 재설정 안내";
 
     private final AuthUserRepository authUserRepository;
-    private final UserPiiReadWriteRepository userPiiReadWriteRepository;
     private final PasswordEncoder passwordEncoder;
     private final RedisTemplate<String, String> redisTemplate;
     private final EmailClient emailClient;
     private final UserCoreSyncService userCoreSyncService;
-    private final AesEncryptUtil aesEncryptUtil;
     private final AuthTokenService authTokenService;
     private final UserReadService userReadService;
 
@@ -53,7 +49,7 @@ public class PasswordResetService {
                 .flatMap(authUser -> userReadService.findOptionalActiveUserByUserKey(authUser.getUserKey())
                         .map(user -> authUser.getUserKey()))
                 .ifPresent(userKey -> {
-                    String recipientEmail = resolvePasswordResetRecipient(userKey);
+                    String recipientEmail = userReadService.getNotificationEmailByUserKey(userKey);
                     String token = UUID.randomUUID().toString();
                     savePasswordResetToken(userKey, token);
 
@@ -119,16 +115,6 @@ public class PasswordResetService {
     private void clearPasswordResetToken(String userKey, String token) {
         redisTemplate.delete(passwordResetTokenKey(token));
         redisTemplate.delete(passwordResetUserKey(userKey));
-    }
-
-    private String resolvePasswordResetRecipient(String userKey) {
-        var userPii = userPiiReadWriteRepository.findByUserKey(userKey)
-                .orElseThrow(() -> new CustomException(ErrorCode.PASSWORD_RESET_EMAIL_SEND_FAILED));
-        String recipientEmail = aesEncryptUtil.decrypt(userPii.emailEnc());
-        if (!StringUtils.hasText(recipientEmail)) {
-            throw new CustomException(ErrorCode.PASSWORD_RESET_EMAIL_SEND_FAILED);
-        }
-        return recipientEmail;
     }
 
     private String buildPasswordResetText(String token) {

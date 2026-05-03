@@ -2656,3 +2656,8 @@
 - 문제: `UserCoreSyncService.syncFromUser(...)` 는 userKey 해석 뒤 `AuthUserRepository.findByUserKey(...)`, `UserProfileRepository.findByUserKey(...)`, save 호출을 모두 직접 처리하고 있었다.
 - 해결: auth/profile projection upsert 를 `UserCoreProjectionSyncService` 로 옮기고, `UserCoreSyncService` 는 age 계산과 sync orchestration, pii queue 적재만 맡게 정리했다.
 - 이유: core sync는 어떤 projection을 언제 갱신할지만 결정하고, projection별 upsert 구현은 별도 write 경계에 두는 편이 SRP와 후속 변경 파급도 관리에 낫다.
+
+## 484) `PasswordResetService` 가 reset 메일 수신자 조회를 위해 user pii 저장소와 복호화를 직접 들고 있으면, reset flow 서비스가 user read 경계 밖의 PII read 구현까지 떠안는다
+- 문제: `requestPasswordReset(...)` 는 userKey를 찾은 뒤 `UserPiiReadWriteRepository.findByUserKey(...)` 와 `AesEncryptUtil.decrypt(...)` 를 직접 호출해 메일 수신자를 만들고 있었다.
+- 해결: reset 메일 수신자 조회를 `UserReadService.getNotificationEmailByUserKey(...)` 로 위임하고, `PasswordResetService` 에서 user pii 저장소와 복호화 의존을 제거했다.
+- 이유: 비밀번호 재설정 흐름은 토큰 발급과 검증에 집중하고, 활성 사용자 이메일 read 규칙은 user read 경계에 모아두는 편이 PII 접근 규칙을 한 곳에서 유지하기 쉽다.
