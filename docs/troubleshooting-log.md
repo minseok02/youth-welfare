@@ -2536,3 +2536,8 @@
 - 문제: 정책 목록과 검색 서비스가 `findListWithFilters`, `searchByKeywordWithFiltersNoRegion`, `...WithSido`, `...WithSidoSgg` 같은 조합식 메서드를 직접 선택하고 있었다. 이 구조에서는 지역/정렬/필터 조합이 늘어날 때마다 서비스가 persistence 분기까지 함께 수정해야 한다.
 - 해결: `PolicyListReadCondition`, `PolicySearchReadCondition`, `WelfareServiceReadRepository` 를 추가하고, `PolicyService` 와 `PolicySearchService` 가 목록/검색 조건 객체만 넘기도록 바꿨다. 조합식 쿼리 선택 책임은 read repository 구현으로 이동시켰다.
 - 이유: 지금 단계에서는 기존 JPA repository 메서드를 완전히 걷어내지 않더라도, 서비스에서 “무슨 조건으로 읽고 싶은가”만 표현하고 “어떤 조합식 메서드를 고를지”는 read layer에 두는 편이 SRP와 경계 분리에 맞다.
+
+## 460) `UserService` 가 북마크 조회, 프로필/우선순위 수정, 비밀번호 변경, 탈퇴, 알림 수신 거부까지 모두 들고 있으면 사용자 도메인 변경이 한 서비스에 과도하게 몰린다
+- 문제: 기존 `UserService` 는 read 경로(`getProfile`, `getBookmarks`)와 command 경로(`updateProfile`, `updatePriorities`, `changePassword`, `withdraw`, `unsubscribeNotifications`)를 함께 들고 있었고, 프로필/우선순위/계정 종료 규칙이 바뀔 때마다 같은 클래스를 같이 수정해야 했다.
+- 해결: 북마크 조회는 `UserBookmarkReadService` 로, 프로필/우선순위 변경은 `UserProfileCommandService` 로, 비밀번호/탈퇴/알림 수신 거부는 `UserAccountCommandService` 로 분리했다. `UserService` 는 기존 controller 계약을 유지하는 facade만 남겼다.
+- 이유: 외부 API 계약은 유지하면서 내부 책임을 read/bookmark, profile command, account command로 나누면 테스트 범위가 좁아지고 SRP/CQS 위반도 줄일 수 있다.
