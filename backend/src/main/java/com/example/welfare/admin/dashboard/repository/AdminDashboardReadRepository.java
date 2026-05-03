@@ -116,6 +116,128 @@ public class AdminDashboardReadRepository {
         );
     }
 
+    public CollectFailureSummaryRow fetchCollectFailureSummary(LocalDateTime windowAgo) {
+        return jdbcTemplate.queryForObject("""
+                select coalesce(sum(case when status = 'FAILED' then 1 else 0 end), 0) as total_failed_jobs,
+                       coalesce(sum(case when status = 'PARTIAL_SUCCESS' then 1 else 0 end), 0) as total_partial_success_jobs
+                  from api_sync_logs
+                 where started_at >= :windowAgo
+                """,
+                new MapSqlParameterSource("windowAgo", windowAgo),
+                (rs, rowNum) -> new CollectFailureSummaryRow(
+                        rs.getLong("total_failed_jobs"),
+                        rs.getLong("total_partial_success_jobs")
+                )
+        );
+    }
+
+    public List<CollectFailureJobBreakdownRow> fetchCollectFailureJobBreakdowns(LocalDateTime windowAgo, int limit) {
+        return jdbcTemplate.query("""
+                select job_name,
+                       coalesce(sum(case when status = 'FAILED' then 1 else 0 end), 0) as failed_count,
+                       coalesce(sum(case when status = 'PARTIAL_SUCCESS' then 1 else 0 end), 0) as partial_success_count,
+                       max(started_at) as latest_started_at
+                  from api_sync_logs
+                 where started_at >= :windowAgo
+                   and status in ('FAILED', 'PARTIAL_SUCCESS')
+              group by job_name
+              order by failed_count desc,
+                       partial_success_count desc,
+                       latest_started_at desc,
+                       job_name asc
+                 limit %d
+                """.formatted(limit),
+                new MapSqlParameterSource("windowAgo", windowAgo),
+                (rs, rowNum) -> new CollectFailureJobBreakdownRow(
+                        rs.getString("job_name"),
+                        rs.getLong("failed_count"),
+                        rs.getLong("partial_success_count"),
+                        getLocalDateTime(rs, "latest_started_at")
+                )
+        );
+    }
+
+    public List<CollectFailureErrorCodeBreakdownRow> fetchCollectFailureErrorCodeBreakdowns(LocalDateTime windowAgo, int limit) {
+        return jdbcTemplate.query("""
+                select coalesce(error_code, 'UNKNOWN') as error_code,
+                       count(*) as failed_count
+                  from api_sync_logs
+                 where started_at >= :windowAgo
+                   and status = 'FAILED'
+              group by coalesce(error_code, 'UNKNOWN')
+              order by failed_count desc, error_code asc
+                 limit %d
+                """.formatted(limit),
+                new MapSqlParameterSource("windowAgo", windowAgo),
+                (rs, rowNum) -> new CollectFailureErrorCodeBreakdownRow(
+                        rs.getString("error_code"),
+                        rs.getLong("failed_count")
+                )
+        );
+    }
+
+    public List<CollectFailureSampleRow> fetchRecentCollectFailureSamples(LocalDateTime windowAgo, int limit) {
+        return jdbcTemplate.query("""
+                select job_name,
+                       status,
+                       error_code,
+                       error_message,
+                       started_at,
+                       finished_at,
+                       requested_count,
+                       saved_count,
+                       failed_count
+                  from api_sync_logs
+                 where started_at >= :windowAgo
+                   and status in ('FAILED', 'PARTIAL_SUCCESS')
+              order by started_at desc, id desc
+                 limit %d
+                """.formatted(limit),
+                new MapSqlParameterSource("windowAgo", windowAgo),
+                (rs, rowNum) -> new CollectFailureSampleRow(
+                        rs.getString("job_name"),
+                        rs.getString("status"),
+                        rs.getString("error_code"),
+                        rs.getString("error_message"),
+                        getLocalDateTime(rs, "started_at"),
+                        getLocalDateTime(rs, "finished_at"),
+                        rs.getInt("requested_count"),
+                        rs.getInt("saved_count"),
+                        rs.getInt("failed_count")
+                )
+        );
+    }
+
+    public List<CollectJobRunRow> fetchRecentCollectJobRuns(LocalDateTime windowAgo, int perJobLimit) {
+        return jdbcTemplate.query("""
+                select ranked.job_name,
+                       ranked.status,
+                       ranked.started_at
+                  from (
+                        select log.job_name,
+                               log.status,
+                               log.started_at,
+                               row_number() over (
+                                   partition by log.job_name
+                                   order by log.started_at desc, log.id desc
+                               ) as rn
+                          from api_sync_logs log
+                         where log.started_at >= :windowAgo
+                  ) ranked
+                 where ranked.rn <= :perJobLimit
+              order by ranked.job_name asc, ranked.started_at desc
+                """,
+                new MapSqlParameterSource()
+                        .addValue("windowAgo", windowAgo)
+                        .addValue("perJobLimit", perJobLimit),
+                (rs, rowNum) -> new CollectJobRunRow(
+                        rs.getString("job_name"),
+                        rs.getString("status"),
+                        getLocalDateTime(rs, "started_at")
+                )
+        );
+    }
+
     public RecommendationSummaryRow fetchRecommendationSummary(LocalDateTime dayAgo, LocalDateTime weekAgo) {
         return jdbcTemplate.queryForObject("""
                 select count(*) as total_logs,
@@ -581,6 +703,12 @@ public class AdminDashboardReadRepository {
     ) {
     }
 
+    public record CollectFailureSummaryRow(
+            long totalFailedJobs,
+            long totalPartialSuccessJobs
+    ) {
+    }
+
     public record CollectTrendRow(
             long successJobs,
             long partialSuccessJobs,
@@ -609,6 +737,40 @@ public class AdminDashboardReadRepository {
             int requestedCount,
             int savedCount,
             int failedCount
+    ) {
+    }
+
+    public record CollectFailureJobBreakdownRow(
+            String jobName,
+            long failedCount,
+            long partialSuccessCount,
+            LocalDateTime latestStartedAt
+    ) {
+    }
+
+    public record CollectFailureErrorCodeBreakdownRow(
+            String errorCode,
+            long failedCount
+    ) {
+    }
+
+    public record CollectFailureSampleRow(
+            String jobName,
+            String status,
+            String errorCode,
+            String errorMessage,
+            LocalDateTime startedAt,
+            LocalDateTime finishedAt,
+            int requestedCount,
+            int savedCount,
+            int failedCount
+    ) {
+    }
+
+    public record CollectJobRunRow(
+            String jobName,
+            String status,
+            LocalDateTime startedAt
     ) {
     }
 

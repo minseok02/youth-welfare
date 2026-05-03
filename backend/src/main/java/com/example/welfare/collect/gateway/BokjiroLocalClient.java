@@ -155,6 +155,19 @@ public class BokjiroLocalClient {
         rateLimitCircuitOpenUntilEpochMs.set(openUntil);
     }
 
+    public RateLimitCircuitStatus getRateLimitCircuitStatus() {
+        long openUntilEpochMs = rateLimitCircuitOpenUntilEpochMs.get();
+        long now = System.currentTimeMillis();
+        boolean open = openUntilEpochMs > now;
+        long remainingMs = open ? openUntilEpochMs - now : 0L;
+        java.time.LocalDateTime openUntil = open
+                ? java.time.Instant.ofEpochMilli(openUntilEpochMs)
+                .atZone(java.time.ZoneId.systemDefault())
+                .toLocalDateTime()
+                : null;
+        return new RateLimitCircuitStatus(open, remainingMs, openUntil);
+    }
+
     private void sleepQuietly(long millis) {
         if (millis <= 0) {
             return;
@@ -180,5 +193,12 @@ public class BokjiroLocalClient {
         static <T> PageFetchResult<T> rateLimited() {
             return PageFetchResult.of(null, true);
         }
+    }
+
+    public record RateLimitCircuitStatus(
+            boolean open,
+            long remainingMs,
+            java.time.LocalDateTime openUntil
+    ) {
     }
 }

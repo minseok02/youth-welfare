@@ -1,8 +1,11 @@
 package com.example.welfare.admin.dashboard.service;
 
+import com.example.welfare.admin.dashboard.dto.AdminCollectFailureResponse;
 import com.example.welfare.admin.dashboard.dto.AdminSearchFailureResponse;
 import com.example.welfare.admin.dashboard.dto.AdminRecommendationBreakdownResponse;
 import com.example.welfare.admin.dashboard.dto.AdminDashboardResponse;
+import com.example.welfare.collect.entity.ApiSyncLog;
+import com.example.welfare.collect.gateway.BokjiroLocalClient;
 import com.example.welfare.admin.dashboard.repository.AdminDashboardReadRepository;
 import com.example.welfare.recommend.entity.ScoreWeight;
 import com.example.welfare.recommend.service.ScoreWeightService;
@@ -15,8 +18,11 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -24,17 +30,21 @@ import java.util.List;
 public class AdminDashboardService {
 
     private static final int FAILED_SAMPLE_LIMIT = 5;
+    private static final int COLLECT_FAILURE_PATTERN_LIMIT = 5;
+    private static final int COLLECT_STREAK_RUN_LIMIT = 20;
     private static final int SEARCH_FAILURE_PATTERN_LIMIT = 5;
     private static final int RECOMMENDATION_BREAKDOWN_LIMIT = 5;
     private static final int DEFAULT_SUMMARY_WINDOW_DAYS = 7;
     private static final List<Integer> DEFAULT_TREND_WINDOWS_DAYS = List.of(1, 7, 30);
     private static final int MAX_WINDOW_DAYS = 365;
+    private static final int MAX_COLLECT_FAILURE_PATTERN_LIMIT = 20;
     private static final int MAX_SEARCH_FAILURE_PATTERN_LIMIT = 20;
     private static final int MAX_RECOMMENDATION_BREAKDOWN_LIMIT = 20;
 
     private final AdminDashboardReadRepository adminDashboardReadRepository;
     private final UserPiiSyncStatusService userPiiSyncStatusService;
     private final ScoreWeightService scoreWeightService;
+    private final BokjiroLocalClient bokjiroLocalClient;
 
     public AdminDashboardResponse getSummary() {
         return getSummary(null, null);
@@ -313,6 +323,112 @@ public class AdminDashboardService {
         );
     }
 
+    public AdminCollectFailureResponse getCollectFailures(Integer requestedSummaryWindowDays, Integer requestedLimit) {
+        LocalDateTime now = LocalDateTime.now();
+        int summaryWindowDays = resolveSummaryWindowDays(requestedSummaryWindowDays);
+        int patternLimit = resolveCollectFailurePatternLimit(requestedLimit);
+        LocalDateTime summaryWindowAgo = now.minusDays(summaryWindowDays);
+
+        AdminDashboardReadRepository.CollectFailureSummaryRow collectFailureSummary =
+                adminDashboardReadRepository.fetchCollectFailureSummary(summaryWindowAgo);
+
+        return new AdminCollectFailureResponse(
+                now,
+                summaryWindowDays,
+                collectFailureSummary.totalFailedJobs(),
+                collectFailureSummary.totalPartialSuccessJobs(),
+                adminDashboardReadRepository.fetchCollectFailureJobBreakdowns(summaryWindowAgo, patternLimit).stream()
+                        .map(row -> new AdminCollectFailureResponse.JobBreakdown(
+                                row.jobName(),
+                                row.failedCount(),
+                                row.partialSuccessCount(),
+                                row.latestStartedAt()
+                        ))
+                        .toList(),
+                buildCollectJobStreaks(summaryWindowAgo, patternLimit),
+                adminDashboardReadRepository.fetchCollectFailureErrorCodeBreakdowns(summaryWindowAgo, patternLimit).stream()
+                        .map(row -> new AdminCollectFailureResponse.ErrorCodeBreakdown(
+                                row.errorCode(),
+                                row.failedCount()
+                        ))
+                        .toList(),
+                adminDashboardReadRepository.fetchRecentCollectFailureSamples(summaryWindowAgo, patternLimit).stream()
+                        .map(row -> new AdminCollectFailureResponse.FailureSample(
+                                row.jobName(),
+                                row.status(),
+                                row.errorCode(),
+                                row.errorMessage(),
+                                row.startedAt(),
+                                row.finishedAt(),
+                                row.requestedCount(),
+                                row.savedCount(),
+                                row.failedCount()
+                        ))
+                        .toList(),
+                List.of(toCircuitStatus("BOKJIRO_LOCAL", bokjiroLocalClient.getRateLimitCircuitStatus()))
+        );
+    }
+
+    private List<AdminCollectFailureResponse.JobStreak> buildCollectJobStreaks(LocalDateTime windowAgo, int limit) {
+        Map<String, List<AdminDashboardReadRepository.CollectJobRunRow>> runsByJob = adminDashboardReadRepository
+                .fetchRecentCollectJobRuns(windowAgo, COLLECT_STREAK_RUN_LIMIT)
+                .stream()
+                .collect(Collectors.groupingBy(
+                        AdminDashboardReadRepository.CollectJobRunRow::jobName,
+                        java.util.LinkedHashMap::new,
+                        Collectors.toList()
+                ));
+
+        List<AdminCollectFailureResponse.JobStreak> streaks = new ArrayList<>();
+        for (Map.Entry<String, List<AdminDashboardReadRepository.CollectJobRunRow>> entry : runsByJob.entrySet()) {
+            List<AdminDashboardReadRepository.CollectJobRunRow> runs = entry.getValue();
+            if (runs.isEmpty()) {
+                continue;
+            }
+
+            ApiSyncLog.SyncStatus latestStatus = ApiSyncLog.SyncStatus.valueOf(runs.get(0).status());
+            if (latestStatus != ApiSyncLog.SyncStatus.FAILED && latestStatus != ApiSyncLog.SyncStatus.PARTIAL_SUCCESS) {
+                continue;
+            }
+
+            long streakCount = 0;
+            for (AdminDashboardReadRepository.CollectJobRunRow run : runs) {
+                ApiSyncLog.SyncStatus status = ApiSyncLog.SyncStatus.valueOf(run.status());
+                if (status != latestStatus) {
+                    break;
+                }
+                streakCount++;
+            }
+
+            streaks.add(new AdminCollectFailureResponse.JobStreak(
+                    entry.getKey(),
+                    latestStatus.name(),
+                    streakCount,
+                    runs.get(0).startedAt()
+            ));
+        }
+
+        return streaks.stream()
+                .sorted(java.util.Comparator
+                        .comparingLong(AdminCollectFailureResponse.JobStreak::streakCount).reversed()
+                        .thenComparing(AdminCollectFailureResponse.JobStreak::latestStartedAt, java.util.Comparator.nullsLast(java.util.Comparator.reverseOrder()))
+                        .thenComparing(AdminCollectFailureResponse.JobStreak::jobName))
+                .limit(limit)
+                .toList();
+    }
+
+    private AdminCollectFailureResponse.CircuitStatus toCircuitStatus(
+            String circuitKey,
+            BokjiroLocalClient.RateLimitCircuitStatus status
+    ) {
+        return new AdminCollectFailureResponse.CircuitStatus(
+                circuitKey,
+                status.open(),
+                status.remainingMs(),
+                status.openUntil()
+        );
+    }
+
     private int resolveSummaryWindowDays(Integer requestedSummaryWindowDays) {
         if (requestedSummaryWindowDays == null) {
             return DEFAULT_SUMMARY_WINDOW_DAYS;
@@ -344,6 +460,18 @@ public class AdminDashboardService {
 
         if (requestedLimit <= 0 || requestedLimit > MAX_RECOMMENDATION_BREAKDOWN_LIMIT) {
             return RECOMMENDATION_BREAKDOWN_LIMIT;
+        }
+
+        return requestedLimit;
+    }
+
+    private int resolveCollectFailurePatternLimit(Integer requestedLimit) {
+        if (requestedLimit == null) {
+            return COLLECT_FAILURE_PATTERN_LIMIT;
+        }
+
+        if (requestedLimit <= 0 || requestedLimit > MAX_COLLECT_FAILURE_PATTERN_LIMIT) {
+            return COLLECT_FAILURE_PATTERN_LIMIT;
         }
 
         return requestedLimit;
