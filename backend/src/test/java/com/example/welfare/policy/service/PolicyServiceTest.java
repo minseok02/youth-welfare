@@ -9,6 +9,7 @@ import com.example.welfare.policy.repository.ServiceTagRepository;
 import com.example.welfare.policy.repository.WelfareServiceDetailRepository;
 import com.example.welfare.policy.repository.WelfareServiceRepository;
 import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
+import com.example.welfare.recommend.facade.RecommendationReadFacade;
 import com.example.welfare.recommend.entity.UserRecommendation;
 import com.example.welfare.recommend.repository.CanonicalRecommendationReadModelRepository;
 import com.example.welfare.recommend.repository.UserRecommendationRepository;
@@ -27,6 +28,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.Optional;
 import java.util.List;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -47,6 +49,8 @@ class PolicyServiceTest {
     private ServiceRegionRepository regionRepository;
     @Mock
     private ServiceTagRepository tagRepository;
+    @Mock
+    private RecommendationReadFacade recommendationReadFacade;
     @Mock
     private UserRecommendationRepository userRecommendationRepository;
     @Mock
@@ -146,9 +150,8 @@ class PolicyServiceTest {
                                 .gov24BenefitTypeLabel("서비스")
                                 .build()
                 ));
-        given(userRepository.findUserKeyById(7L)).willReturn(Optional.of("user-key-7"));
-        given(userRecommendationRepository.findLatestBookmarkedServiceIdsByUserKey("user-key-7", List.of(11L)))
-                .willReturn(List.of(11L));
+        given(recommendationReadFacade.findBookmarkedServiceIds(7L, List.of(service)))
+                .willReturn(Set.of(11L));
 
         Page<PolicySummaryResponse> result = policyService.getList(
                 7L,

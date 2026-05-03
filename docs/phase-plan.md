@@ -1109,6 +1109,10 @@ cd backend
   - 비밀번호 재설정 요청/확정 경계를 `PasswordResetService` 로 분리
   - `AuthService` 는 signup/login/admin role 해석 중심 orchestration으로 축소
   - 관련 단위 테스트를 서비스별로 재배치하고 `./gradlew test integrationTest --no-daemon` 재통과
+- 2026-05-03 policy 읽기 경계 정리
+  - `PolicyService`, `PolicySearchService` 의 북마크 읽기 경로를 `RecommendationReadFacade` 로 이동
+  - policy domain 이 `UserRecommendationRepository` 직접 조회에 덜 묶이도록 read coupling 축소
+  - 관련 `PolicyServiceTest`, `PolicySearchServiceTest` 재통과 확인
 
 ## 남은 1차 작업
 

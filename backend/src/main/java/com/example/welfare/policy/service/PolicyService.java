@@ -14,6 +14,7 @@ import com.example.welfare.policy.repository.WelfareServiceDetailRepository;
 import com.example.welfare.policy.repository.WelfareServiceRepository;
 import com.example.welfare.policy.support.WelfareSourceTypeSupport;
 import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
+import com.example.welfare.recommend.facade.RecommendationReadFacade;
 import com.example.welfare.recommend.repository.CanonicalRecommendationReadModelRepository;
 import com.example.welfare.recommend.entity.UserRecommendation;
 import com.example.welfare.recommend.repository.UserRecommendationRepository;
@@ -28,8 +29,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -43,6 +42,7 @@ public class PolicyService {
     private final WelfareServiceDetailRepository detailRepository;
     private final ServiceRegionRepository regionRepository;
     private final ServiceTagRepository tagRepository;
+    private final RecommendationReadFacade recommendationReadFacade;
     private final UserRecommendationRepository userRecommendationRepository;
     private final UserRepository userRepository;
     private final CanonicalRecommendationReadModelRepository canonicalRecommendationReadModelRepository;
@@ -69,7 +69,7 @@ public class PolicyService {
                 buildPageable(pageable, sort)
         );
 
-        Set<Long> bookmarkedServiceIds = getBookmarkedServiceIds(userId, page.getContent());
+        Set<Long> bookmarkedServiceIds = recommendationReadFacade.findBookmarkedServiceIds(userId, page.getContent());
         java.util.Map<Long, RecommendationCandidateProjection> projections = loadProjections(page.getContent());
         return page.map(service -> PolicySummaryResponse.from(
                 service,
@@ -89,7 +89,7 @@ public class PolicyService {
         WelfareServiceDetail detail = detailRepository.findByServiceId(serviceId).orElse(null);
         List<ServiceRegion> regions = regionRepository.findByServiceId(serviceId);
         List<ServiceTag> tags = tagRepository.findByServiceId(serviceId);
-        boolean bookmarked = getBookmarkedServiceIds(userId, List.of(ws)).contains(serviceId);
+        boolean bookmarked = recommendationReadFacade.findBookmarkedServiceIds(userId, List.of(ws)).contains(serviceId);
         RecommendationCandidateProjection projection = canonicalRecommendationReadModelRepository
                 .findByServiceIds(List.of(serviceId))
                 .get(serviceId);
@@ -121,19 +121,6 @@ public class PolicyService {
                 .recommendedAt(LocalDateTime.now())
                 .build();
         return userRecommendationRepository.save(placeholder);
-    }
-
-    private Set<Long> getBookmarkedServiceIds(Long userId, List<WelfareService> services) {
-        if (userId == null || services.isEmpty()) {
-            return Collections.emptySet();
-        }
-        String userKey = resolveUserKey(userId);
-
-        List<Long> serviceIds = services.stream()
-                .map(WelfareService::getId)
-                .toList();
-
-        return new HashSet<>(userRecommendationRepository.findLatestBookmarkedServiceIdsByUserKey(userKey, serviceIds));
     }
 
     private java.util.Map<Long, RecommendationCandidateProjection> loadProjections(List<WelfareService> services) {

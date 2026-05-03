@@ -4,9 +4,8 @@ import com.example.welfare.policy.dto.PolicySearchResponse;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.repository.WelfareServiceRepository;
 import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
+import com.example.welfare.recommend.facade.RecommendationReadFacade;
 import com.example.welfare.recommend.repository.CanonicalRecommendationReadModelRepository;
-import com.example.welfare.recommend.repository.UserRecommendationRepository;
-import com.example.welfare.user.repository.UserRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -32,9 +31,7 @@ class PolicySearchServiceTest {
     private WelfareServiceRepository welfareServiceRepository;
 
     @Mock
-    private UserRecommendationRepository userRecommendationRepository;
-    @Mock
-    private UserRepository userRepository;
+    private RecommendationReadFacade recommendationReadFacade;
     @Mock
     private CanonicalRecommendationReadModelRepository canonicalRecommendationReadModelRepository;
 
@@ -43,8 +40,7 @@ class PolicySearchServiceTest {
     void searchReturnsPagedResponse() {
         PolicySearchService service = new PolicySearchService(
                 welfareServiceRepository,
-                userRecommendationRepository,
-                userRepository,
+                recommendationReadFacade,
                 canonicalRecommendationReadModelRepository
         );
 
@@ -96,8 +92,7 @@ class PolicySearchServiceTest {
     void searchWithSidoAndSggUsesRegionQuery() {
         PolicySearchService service = new PolicySearchService(
                 welfareServiceRepository,
-                userRecommendationRepository,
-                userRepository,
+                recommendationReadFacade,
                 canonicalRecommendationReadModelRepository
         );
 
@@ -152,8 +147,7 @@ class PolicySearchServiceTest {
     void searchWithSidoOnlyUsesSidoQuery() {
         PolicySearchService service = new PolicySearchService(
                 welfareServiceRepository,
-                userRecommendationRepository,
-                userRepository,
+                recommendationReadFacade,
                 canonicalRecommendationReadModelRepository
         );
 

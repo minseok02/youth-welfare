@@ -2526,3 +2526,8 @@
 - 문제: 기존 `AuthService` 는 signup/login 외에도 refresh token rotation, logout, password reset token 저장/메일 발송/비밀번호 변경까지 한 클래스에 몰려 있었다. 이 상태에서는 토큰 수명주기나 비밀번호 재설정 흐름이 바뀔 때마다 같은 서비스가 동시에 바뀌어 책임이 과해졌다.
 - 해결: 토큰 발급/refresh/logout 은 `AuthTokenService` 로, 비밀번호 재설정 요청/확정은 `PasswordResetService` 로 분리하고, `AuthService` 는 signup/login/admin role 해석 위주의 orchestration으로 축소했다.
 - 이유: 로그인 진입점과 토큰 수명주기, 비밀번호 재설정은 변경 이유가 다르다. API 계약은 그대로 두되 내부 경계를 나누는 편이 SRP에 맞고 테스트도 더 좁게 유지할 수 있다.
+
+## 458) policy 조회 서비스가 추천 persistence repository를 직접 읽으면, policy 도메인이 recommend 저장 모델 변경에 같이 흔들린다
+- 문제: `PolicyService` 와 `PolicySearchService` 가 북마크 여부를 계산하려고 `UserRecommendationRepository` 와 `UserRepository` 를 직접 사용하고 있었다. 이 상태에서는 추천 저장 모델이나 사용자 키 조회 방식이 바뀌면 policy read service까지 같이 수정해야 했다.
+- 해결: 북마크 읽기 전용 경계를 `RecommendationReadFacade` 로 분리하고, policy 쪽은 더 이상 추천 repository를 직접 조회하지 않게 정리했다.
+- 이유: policy는 “북마크 여부가 필요하다”는 의도만 표현하고, 실제 추천 read model 조회 방식은 recommend 도메인 안에 두는 편이 경계가 명확하다.
