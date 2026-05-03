@@ -1152,6 +1152,10 @@ cd backend
   - `UserReadService` 에 `getActiveUserContext(...)`, `getActiveUserByUserKey(...)` 추가
   - `ChatMessageService`, `ChatSessionService`, `NotificationService`, `UserBookmarkReadService`, `UserProfileCommandService`, `UserAccountCommandService`, `AuthTokenService` 가 각자 `findActiveUser(...)` 나 `findByUserKey(...)` 를 직접 들지 않도록 정리
   - user + userKey 를 같이 써야 하는 command/orchestration 경로는 `ActiveUserContext` 로 한 번에 전달
+- 2026-05-03 auth active user read 경계 정리
+  - `AuthService.login(...)` 이 `UserReadService.getActiveUserByUserKey(...)` 로 active user 조회를 위임
+  - `PasswordResetService` 는 `UserReadService.findOptionalActiveUserByUserKey(...)` 로 reset 대상 활성 사용자 검증을 공통화
+  - auth/reset 경로에서 `findByUserKey(...)` + `isActive()` 중복을 줄이고 user read 경계를 한 곳으로 모음
 
 ## 남은 1차 작업
 

@@ -9,7 +9,6 @@ import com.example.welfare.user.entity.User;
 import com.example.welfare.user.repository.AuthUserRepository;
 import com.example.welfare.user.repository.UserPiiReadModel;
 import com.example.welfare.user.repository.UserPiiReadWriteRepository;
-import com.example.welfare.user.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -36,7 +35,6 @@ import static org.mockito.Mockito.when;
 class PasswordResetServiceTest {
 
     @Mock private AuthUserRepository authUserRepository;
-    @Mock private UserRepository userRepository;
     @Mock private UserPiiReadWriteRepository userPiiReadWriteRepository;
     @Mock private PasswordEncoder passwordEncoder;
     @Mock private RedisTemplate<String, String> redisTemplate;
@@ -44,6 +42,7 @@ class PasswordResetServiceTest {
     @Mock private UserCoreSyncService userCoreSyncService;
     @Mock private AesEncryptUtil aesEncryptUtil;
     @Mock private AuthTokenService authTokenService;
+    @Mock private UserReadService userReadService;
     @Mock private ValueOperations<String, String> valueOperations;
 
     private PasswordResetService passwordResetService;
@@ -52,14 +51,14 @@ class PasswordResetServiceTest {
     void setUp() {
         passwordResetService = new PasswordResetService(
                 authUserRepository,
-                userRepository,
                 userPiiReadWriteRepository,
                 passwordEncoder,
                 redisTemplate,
                 emailClient,
                 userCoreSyncService,
                 aesEncryptUtil,
-                authTokenService
+                authTokenService,
+                userReadService
         );
         ReflectionTestUtils.setField(passwordResetService, "passwordResetExpirationMinutes", 30L);
         ReflectionTestUtils.setField(passwordResetService, "appBaseUrl", "http://localhost:5173");
@@ -81,7 +80,7 @@ class PasswordResetServiceTest {
                 .build();
         when(authUserRepository.findByEmailLookupHash("b4c9a289323b21a01c3e940f150eb9b8c542587f1abfd8f0e1cc1ffc5e475514"))
                 .thenReturn(Optional.of(authUser));
-        when(userRepository.findByUserKey("user-key-7")).thenReturn(Optional.of(user));
+        when(userReadService.findOptionalActiveUserByUserKey("user-key-7")).thenReturn(Optional.of(user));
         when(userPiiReadWriteRepository.findByUserKey("user-key-7"))
                 .thenReturn(Optional.of(new UserPiiReadModel("user-key-7", "encrypted-email", null, null, null)));
         when(aesEncryptUtil.decrypt("encrypted-email")).thenReturn("pii@example.com");
@@ -123,7 +122,7 @@ class PasswordResetServiceTest {
                 .build();
         when(authUserRepository.findByEmailLookupHash("b4c9a289323b21a01c3e940f150eb9b8c542587f1abfd8f0e1cc1ffc5e475514"))
                 .thenReturn(Optional.of(authUser));
-        when(userRepository.findByUserKey("user-key-7")).thenReturn(Optional.of(user));
+        when(userReadService.findOptionalActiveUserByUserKey("user-key-7")).thenReturn(Optional.of(user));
         when(userPiiReadWriteRepository.findByUserKey("user-key-7")).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> passwordResetService.requestPasswordReset("user@example.com"))
@@ -146,7 +145,7 @@ class PasswordResetServiceTest {
                 .loginFailCount(3)
                 .build();
         when(valueOperations.get("password-reset:reset-token")).thenReturn("user-key-7");
-        when(userRepository.findByUserKey("user-key-7")).thenReturn(Optional.of(user));
+        when(userReadService.findOptionalActiveUserByUserKey("user-key-7")).thenReturn(Optional.of(user));
         when(valueOperations.get("password-reset:user:user-key-7")).thenReturn("reset-token");
         when(passwordEncoder.encode("new-password123")).thenReturn("encoded-password");
 
@@ -170,7 +169,7 @@ class PasswordResetServiceTest {
                 .passwordHash("old-hash")
                 .build();
         when(valueOperations.get("password-reset:old-token")).thenReturn("user-key-7");
-        when(userRepository.findByUserKey("user-key-7")).thenReturn(Optional.of(user));
+        when(userReadService.findOptionalActiveUserByUserKey("user-key-7")).thenReturn(Optional.of(user));
         when(valueOperations.get("password-reset:user:user-key-7")).thenReturn("new-token");
 
         assertThatThrownBy(() -> passwordResetService.confirmPasswordReset("old-token", "new-password123"))

@@ -29,6 +29,7 @@ import org.springframework.util.StringUtils;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 @Slf4j
 @Service
@@ -85,12 +86,14 @@ public class UserReadService {
 
     @Transactional(readOnly = true)
     public User getActiveUserByUserKey(String userKey) {
-        User user = userRepository.findByUserKey(userKey)
+        return findOptionalActiveUserByUserKey(userKey)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
-        if (!user.isActive()) {
-            throw new CustomException(ErrorCode.WITHDRAWN_USER);
-        }
-        return user;
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<User> findOptionalActiveUserByUserKey(String userKey) {
+        return userRepository.findByUserKey(userKey)
+                .filter(User::isActive);
     }
 
     @Transactional(readOnly = true)

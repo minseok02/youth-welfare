@@ -2591,3 +2591,8 @@
 - 문제: chat 두 서비스와 notification, bookmark/profile/account/auth token 경로가 각자 `UserRepository.findById(...)`, `findByUserKey(...)`, `user.isActive()` 검사를 직접 들고 있었다. 이 상태에서는 탈퇴 사용자 거부 기준과 “user와 userKey를 같이 써야 하는가” 같은 lookup 규칙이 여러 서비스에 중복된다.
 - 해결: `UserReadService` 에 `getActiveUserContext(...)`, `getActiveUserByUserKey(...)` 를 추가하고, 위 서비스들이 active user resolution 을 전부 user read 경계로 위임하게 정리했다.
 - 이유: active user lookup 은 chat/notification/user command 어느 한 도메인의 핵심 로직이 아니라 cross-cutting read 규칙이다. user entity 와 resolved userKey 를 함께 써야 하는 경우까지 공통화해야 탈퇴 사용자 차단과 lookup drift 를 한 곳에서 관리할 수 있다.
+
+## 471) `AuthService` 와 `PasswordResetService` 가 active user 조회를 각자 직접 들고 있으면, 인증/재설정 경로만 user read 경계 밖의 예외로 남아 lookup 규칙이 완결되지 않는다
+- 문제: `AuthService.login(...)` 은 `UserRepository.findByUserKey(...)` 로 active user 를 직접 조회하고 있었고, `PasswordResetService` 도 reset 대상 검증을 위해 같은 조회를 반복하고 있었다. 이 상태에서는 auth/reset 경로만 탈퇴 사용자 차단과 예외 규칙이 별도로 남는다.
+- 해결: `AuthService` 는 `UserReadService.getActiveUserByUserKey(...)` 로 위임하고, `PasswordResetService` 는 `UserReadService.findOptionalActiveUserByUserKey(...)` 로 reset 대상 활성 사용자 검증을 공통화했다.
+- 이유: 인증과 비밀번호 재설정도 결국 공통 active-user read 규칙 위에 있어야 한다. 마지막 직접 `findByUserKey(...)` 경로까지 정리해야 lookup 정책과 예외 처리 drift 를 truly one place 로 모을 수 있다.
