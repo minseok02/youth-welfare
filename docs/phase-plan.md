@@ -1111,6 +1111,7 @@ cd backend
 - wrapper 실행 전 `--print-plan`, `--help` 로 현재 프로필/override 계획 확인 가능
 - `--quick`, `--full`, `--skip-replay` CLI shortcut 지원
 - `--only auth-session|click|dashboard|replay` 단일 단계 실행 shortcut 지원
+- `--only` 사용 시 plan/실패 출력에도 `only_step=...` 노출
 
 ## 2차로 분리된 항목
 

@@ -140,6 +140,9 @@ on_error() {
   failed_at_epoch="$(date +%s)"
   echo
   echo "local validation suite failed" >&2
+  if [[ -n "${ONLY_STEP}" ]]; then
+    echo "only_step=${ONLY_STEP}" >&2
+  fi
   if [[ -n "${CURRENT_STEP_LABEL}" ]]; then
     echo "failed_step=${CURRENT_STEP_LABEL}" >&2
   fi
@@ -191,12 +194,18 @@ done
 resolve_profile_defaults
 apply_only_step
 
-printf 'validation_profile=%s auth=%s click=%s dashboard=%s replay=%s\n' \
+printf 'validation_profile=%s auth=%s click=%s dashboard=%s replay=%s' \
   "${VALIDATION_PROFILE}" \
   "${RUN_AUTH_SESSION_SMOKE}" \
   "${RUN_RECOMMENDATION_CLICK_SMOKE}" \
   "${RUN_ADMIN_DASHBOARD_SMOKE}" \
   "${RUN_REPLAY_SMOKE}"
+
+if [[ -n "${ONLY_STEP}" ]]; then
+  printf ' only_step=%s' "${ONLY_STEP}"
+fi
+
+printf '\n'
 
 if [[ "${PRINT_PLAN_ONLY}" == "true" ]]; then
   exit 0
