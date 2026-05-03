@@ -107,6 +107,18 @@ VALIDATION_PROFILE=quick deploy/smoke/run-local-validation-suite.sh
 wrapper 끝에는 `suite_duration_seconds`, `step_duration_seconds=<label>|<seconds>` 형태의 요약이 같이 출력됩니다.
 실패 시에는 `failed_step=<label>`, `elapsed_before_failure_seconds=<n>` 도 같이 출력됩니다.
 
+실행 전에 현재 프로필/override 기준 어떤 단계가 켜질지만 보고 싶으면:
+
+```bash
+deploy/smoke/run-local-validation-suite.sh --print-plan
+```
+
+짧은 사용법은:
+
+```bash
+deploy/smoke/run-local-validation-suite.sh --help
+```
+
 전제:
 
 - 앱 base URL은 `APP_BASE_URL` 로 둡니다.

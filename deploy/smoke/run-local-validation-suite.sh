@@ -24,6 +24,28 @@ normalize_flag() {
   esac
 }
 
+print_usage() {
+  cat <<'EOF'
+usage: deploy/smoke/run-local-validation-suite.sh [--help] [--print-plan]
+
+Profiles:
+  VALIDATION_PROFILE=full   auth/session + click + admin dashboard + replay
+  VALIDATION_PROFILE=quick  auth/session + click + admin dashboard
+
+Optional overrides:
+  RUN_AUTH_SESSION_SMOKE=true|false
+  RUN_RECOMMENDATION_CLICK_SMOKE=true|false
+  RUN_ADMIN_DASHBOARD_SMOKE=true|false
+  RUN_REPLAY_SMOKE=true|false
+
+Examples:
+  deploy/smoke/run-local-validation-suite.sh
+  VALIDATION_PROFILE=quick deploy/smoke/run-local-validation-suite.sh
+  RUN_REPLAY_SMOKE=false deploy/smoke/run-local-validation-suite.sh
+  deploy/smoke/run-local-validation-suite.sh --print-plan
+EOF
+}
+
 resolve_profile_defaults() {
   case "${VALIDATION_PROFILE}" in
     quick)
@@ -82,12 +104,34 @@ trap on_error ERR
 
 resolve_profile_defaults
 
+PRINT_PLAN_ONLY="false"
+case "${1:-}" in
+  --help|-h)
+    print_usage
+    exit 0
+    ;;
+  --print-plan)
+    PRINT_PLAN_ONLY="true"
+    ;;
+  "")
+    ;;
+  *)
+    echo "unsupported argument: ${1}" >&2
+    print_usage >&2
+    exit 1
+    ;;
+esac
+
 printf 'validation_profile=%s auth=%s click=%s dashboard=%s replay=%s\n' \
   "${VALIDATION_PROFILE}" \
   "${RUN_AUTH_SESSION_SMOKE}" \
   "${RUN_RECOMMENDATION_CLICK_SMOKE}" \
   "${RUN_ADMIN_DASHBOARD_SMOKE}" \
   "${RUN_REPLAY_SMOKE}"
+
+if [[ "${PRINT_PLAN_ONLY}" == "true" ]]; then
+  exit 0
+fi
 
 if [[ "${RUN_AUTH_SESSION_SMOKE}" == "true" ]]; then
   run_step \
