@@ -30,6 +30,7 @@ public class AuthTokenService {
     private final UserRepository userRepository;
     private final AccessTokenRevocationService accessTokenRevocationService;
     private final ChatSessionCleanupService chatSessionCleanupService;
+    private final UserKeyLookupService userKeyLookupService;
 
     public TokenResponse issueTokens(String userKey, Long userId, List<String> roles) {
         String accessToken = jwtUtil.generateAccessToken(userKey, userId, roles);
@@ -62,8 +63,7 @@ public class AuthTokenService {
 
     @Transactional
     public void logout(Long userId, String accessToken) {
-        String userKey = userRepository.findUserKeyById(userId)
-                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+        String userKey = userKeyLookupService.findRequired(userId);
         logoutByUserKey(userKey, accessToken);
     }
 

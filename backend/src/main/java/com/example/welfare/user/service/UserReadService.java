@@ -43,6 +43,7 @@ public class UserReadService {
     private final UserAttributeRepository userAttributeRepository;
     private final UserPriorityRepository userPriorityRepository;
     private final AesEncryptUtil aesEncryptUtil;
+    private final UserKeyLookupService userKeyLookupService;
 
     @Transactional(readOnly = true)
     public ProfileResponse getProfile(Long userId) {
@@ -143,8 +144,7 @@ public class UserReadService {
     }
 
     private String resolveActiveUserKey(Long userId) {
-        String userKey = userRepository.findUserKeyById(userId)
-                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+        String userKey = userKeyLookupService.findRequired(userId);
         return resolveActiveUserKey(userKey);
     }
 

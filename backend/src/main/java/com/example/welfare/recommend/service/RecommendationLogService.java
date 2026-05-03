@@ -7,7 +7,7 @@ import com.example.welfare.recommend.entity.ScoreWeight;
 import com.example.welfare.recommend.entity.UserRecommendation;
 import com.example.welfare.recommend.repository.RecommendationLogRepository;
 import com.example.welfare.user.entity.User;
-import com.example.welfare.user.repository.UserRepository;
+import com.example.welfare.user.service.UserKeyLookupService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,7 +25,7 @@ import java.util.stream.Collectors;
 public class RecommendationLogService {
 
     private final RecommendationLogRepository logRepository;
-    private final UserRepository userRepository;
+    private final UserKeyLookupService userKeyLookupService;
 
     // refresh 시점 — 미클릭 이전 로그 제거 후 새 로그 생성
     @Transactional
@@ -58,7 +58,7 @@ public class RecommendationLogService {
     @Transactional(readOnly = true)
     public Map<Long, Long> findLatestLogIdMap(Long userId, List<Long> serviceIds) {
         if (serviceIds.isEmpty()) return Map.of();
-        String userKey = userRepository.findUserKeyById(userId).orElse(null);
+        String userKey = userKeyLookupService.findNullable(userId);
         if (userKey == null) return Map.of();
         return logRepository.findLatestByUserKeyAndServiceIds(userKey, serviceIds)
                 .stream()

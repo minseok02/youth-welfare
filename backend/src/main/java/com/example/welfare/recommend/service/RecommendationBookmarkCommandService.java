@@ -6,7 +6,7 @@ import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.repository.WelfareServiceRepository;
 import com.example.welfare.recommend.entity.UserRecommendation;
 import com.example.welfare.recommend.repository.UserRecommendationRepository;
-import com.example.welfare.user.repository.UserRepository;
+import com.example.welfare.user.service.UserKeyLookupService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,7 +20,7 @@ public class RecommendationBookmarkCommandService {
     private static final long MAX_BOOKMARKS = 200;
 
     private final UserRecommendationRepository userRecommendationRepository;
-    private final UserRepository userRepository;
+    private final UserKeyLookupService userKeyLookupService;
     private final WelfareServiceRepository welfareServiceRepository;
 
     @Transactional
@@ -58,7 +58,6 @@ public class RecommendationBookmarkCommandService {
     }
 
     private String resolveUserKey(Long userId) {
-        return userRepository.findUserKeyById(userId)
-                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+        return userKeyLookupService.findRequired(userId);
     }
 }

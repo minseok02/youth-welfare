@@ -6,7 +6,7 @@ import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.repository.WelfareServiceRepository;
 import com.example.welfare.recommend.entity.UserRecommendation;
 import com.example.welfare.recommend.repository.UserRecommendationRepository;
-import com.example.welfare.user.repository.UserRepository;
+import com.example.welfare.user.service.UserKeyLookupService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -30,7 +30,7 @@ class RecommendationBookmarkCommandServiceTest {
     @Mock
     private UserRecommendationRepository userRecommendationRepository;
     @Mock
-    private UserRepository userRepository;
+    private UserKeyLookupService userKeyLookupService;
     @Mock
     private WelfareServiceRepository welfareServiceRepository;
 
@@ -45,7 +45,7 @@ class RecommendationBookmarkCommandServiceTest {
                 .userKey("user-key-7")
                 .isBookmarked(false)
                 .build();
-        given(userRepository.findUserKeyById(7L)).willReturn(Optional.of("user-key-7"));
+        given(userKeyLookupService.findRequired(7L)).willReturn("user-key-7");
         given(userRecommendationRepository.findTopByUserKeyAndServiceIdOrderByRecommendedAtDesc("user-key-7", 11L))
                 .willReturn(Optional.of(recommendation));
 
@@ -64,7 +64,7 @@ class RecommendationBookmarkCommandServiceTest {
                 .title("청년 정책")
                 .build();
 
-        given(userRepository.findUserKeyById(7L)).willReturn(Optional.of("user-key-7"));
+        given(userKeyLookupService.findRequired(7L)).willReturn("user-key-7");
         given(userRecommendationRepository.findTopByUserKeyAndServiceIdOrderByRecommendedAtDesc("user-key-7", 11L))
                 .willReturn(Optional.empty());
         given(welfareServiceRepository.findById(11L)).willReturn(Optional.of(service));
@@ -87,7 +87,7 @@ class RecommendationBookmarkCommandServiceTest {
                 .userKey("user-key-7")
                 .isBookmarked(false)
                 .build();
-        given(userRepository.findUserKeyById(7L)).willReturn(Optional.of("user-key-7"));
+        given(userKeyLookupService.findRequired(7L)).willReturn("user-key-7");
         given(userRecommendationRepository.findTopByUserKeyAndServiceIdOrderByRecommendedAtDesc("user-key-7", 11L))
                 .willReturn(Optional.of(recommendation));
         given(userRecommendationRepository.countByUserKeyAndIsBookmarkedTrue("user-key-7")).willReturn(200L);

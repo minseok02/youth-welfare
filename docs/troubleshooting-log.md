@@ -2576,3 +2576,13 @@
 - 문제: `PolicyViewLogService` 와 `PolicySearchLogService` 가 각각 `resolveUserKey(...)` 를 가지고 `UserRepository.findUserKeyById(...)` 를 직접 호출하고 있었다. 이 상태에서는 비로그인 시 `null` 처리, 향후 user key 조회 정책 변경이 서비스별로 흩어진다.
 - 해결: `UserKeyLookupService` 를 추가하고, policy 로그 서비스 둘 다 nullable user key 해석을 전용 lookup 서비스로 위임하게 바꿨다.
 - 이유: user key 조회는 도메인 서비스의 핵심 로직이 아니라 cross-cutting lookup 규칙에 가깝다. lookup 책임을 한 경계로 모아두는 편이 중복과 변경 파급도를 줄인다.
+
+## 468) policy 로그만 `UserKeyLookupService` 를 쓰고 recommend/user 서비스들은 계속 `findUserKeyById(...)` 를 직접 호출하면, nullable/required user key 해석 규칙이 절반만 정리된 상태로 남는다
+- 문제: `RecommendationReadFacade`, `RecommendationLogService`, `UserBookmarkReadService`, `UserProfileCommandService`, `UserAccountCommandService`, `UserReadService`, `AuthTokenService` 가 여전히 각각 `findUserKeyById(...)` 를 직접 호출하고 있었다. 이 상태에서는 policy 쪽만 중복이 줄고, 나머지 경계에서는 required/nullable 규칙과 예외 처리 방식이 다시 흩어진다.
+- 해결: 위 서비스들도 `UserKeyLookupService` 를 사용하게 바꿔 nullable lookup(`findNullable`) 과 required lookup(`findRequired`) 규칙을 한 곳으로 모았다.
+- 이유: user key 조회는 policy 전용 concern이 아니라 user/recommend/policy 전반의 공통 lookup이다. 공통 경계를 한 번 만들었다면 넓게 적용하는 편이 중복 제거와 후속 정책 변경 대응에 더 낫다.
+
+## 469) 공통 lookup 서비스를 도입한 뒤에도 `RecommendationBookmarkCommandService`, `RecommendationFacade`, `UserCoreSyncService` 가 직접 `findUserKeyById(...)` 를 들고 있으면, 경계가 대부분 정리된 것처럼 보여도 핵심 command/orchestration 경로에는 예외 규칙이 남는다
+- 문제: `UserKeyLookupService` 도입 후에도 recommendation 북마크 command, 추천 facade의 저장 추천 조회, user core dual-write sync 경로는 여전히 `UserRepository.findUserKeyById(...)` 를 직접 호출하고 있었다. 이 상태에서는 핵심 진입점에서만 별도 예외 처리/lookup 정책이 남아 “공통 lookup 규칙”이 완결되지 않는다.
+- 해결: 세 서비스 모두 `UserKeyLookupService.findRequired(...)` 로 전환하고, 직접 `findUserKeyById(...)` 호출은 운영 코드 기준 lookup 서비스 내부로만 가두었다.
+- 이유: lookup 규칙을 공통 경계로 만들었다면, 남은 직접 호출이 command/orchestration 핵심 경로에 있을수록 정책 drift 가능성이 커진다. 마지막 잔여 직접 조회까지 접어야 예외 처리와 후속 변경 포인트를 truly one place 로 모을 수 있다.

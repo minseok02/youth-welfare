@@ -40,6 +40,7 @@ class UserProfileCommandServiceTest {
     @Mock private PriorityWeightPolicy priorityWeightPolicy;
     @Mock private UserCoreSyncService userCoreSyncService;
     @Mock private RecommendationRefreshCacheService recommendationRefreshCacheService;
+    @Mock private UserKeyLookupService userKeyLookupService;
 
     @Test
     @DisplayName("프로필 수정 시 관심분야와 특수대상을 각각 교체 저장한다")
@@ -51,7 +52,8 @@ class UserProfileCommandServiceTest {
                 priorityOptionRepository,
                 priorityWeightPolicy,
                 userCoreSyncService,
-                recommendationRefreshCacheService
+                recommendationRefreshCacheService,
+                userKeyLookupService
         );
         User user = User.builder()
                 .id(1L)
@@ -61,7 +63,7 @@ class UserProfileCommandServiceTest {
                 .birthDate(LocalDate.of(1998, 1, 1))
                 .build();
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
-        when(userRepository.findUserKeyById(1L)).thenReturn(Optional.of("user-key-1"));
+        when(userKeyLookupService.findRequired(1L)).thenReturn("user-key-1");
 
         UpdateProfileRequest request = new UpdateProfileRequest();
         ReflectionTestUtils.setField(request, "interestFields", List.of("주거", "취업"));
@@ -96,7 +98,8 @@ class UserProfileCommandServiceTest {
                 priorityOptionRepository,
                 priorityWeightPolicy,
                 userCoreSyncService,
-                recommendationRefreshCacheService
+                recommendationRefreshCacheService,
+                userKeyLookupService
         );
         User user = User.builder()
                 .id(1L)
@@ -107,7 +110,7 @@ class UserProfileCommandServiceTest {
         PriorityOption job = mock(PriorityOption.class);
 
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
-        when(userRepository.findUserKeyById(1L)).thenReturn(Optional.of("user-key-1"));
+        when(userKeyLookupService.findRequired(1L)).thenReturn("user-key-1");
         when(priorityWeightPolicy.maxRank()).thenReturn(5);
         when(priorityWeightPolicy.weightForRank(1)).thenReturn(2.0);
         when(priorityWeightPolicy.weightForRank(2)).thenReturn(1.6);
@@ -141,7 +144,8 @@ class UserProfileCommandServiceTest {
                 priorityOptionRepository,
                 priorityWeightPolicy,
                 userCoreSyncService,
-                recommendationRefreshCacheService
+                recommendationRefreshCacheService,
+                userKeyLookupService
         );
         User user = User.builder()
                 .id(1L)
@@ -156,7 +160,7 @@ class UserProfileCommandServiceTest {
                 .phoneEnc("enc")
                 .build();
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
-        when(userRepository.findUserKeyById(1L)).thenReturn(Optional.of("user-key-1"));
+        when(userKeyLookupService.findRequired(1L)).thenReturn("user-key-1");
         when(userAttributeRepository.findByUserKeyAndAttrType("user-key-1", UserAttribute.AttrType.INTEREST_FIELD.name()))
                 .thenReturn(List.of(UserAttribute.builder()
                         .userId(1L)

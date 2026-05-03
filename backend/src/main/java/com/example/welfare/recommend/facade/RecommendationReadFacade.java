@@ -2,7 +2,7 @@ package com.example.welfare.recommend.facade;
 
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.recommend.repository.UserRecommendationRepository;
-import com.example.welfare.user.repository.UserRepository;
+import com.example.welfare.user.service.UserKeyLookupService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -16,13 +16,13 @@ import java.util.Set;
 public class RecommendationReadFacade {
 
     private final UserRecommendationRepository userRecommendationRepository;
-    private final UserRepository userRepository;
+    private final UserKeyLookupService userKeyLookupService;
 
     public Set<Long> findBookmarkedServiceIds(Long userId, List<WelfareService> services) {
         if (userId == null || services == null || services.isEmpty()) {
             return Collections.emptySet();
         }
-        String userKey = userRepository.findUserKeyById(userId).orElse(null);
+        String userKey = userKeyLookupService.findNullable(userId);
         if (userKey == null) {
             return Collections.emptySet();
         }

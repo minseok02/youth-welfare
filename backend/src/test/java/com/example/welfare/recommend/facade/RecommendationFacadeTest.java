@@ -18,7 +18,7 @@ import com.example.welfare.recommend.service.RecommendationRefreshCacheService;
 import com.example.welfare.recommend.service.RetrievalService;
 import com.example.welfare.recommend.service.RuleScoringService;
 import com.example.welfare.user.entity.User;
-import com.example.welfare.user.repository.UserRepository;
+import com.example.welfare.user.service.UserKeyLookupService;
 import com.example.welfare.user.service.UserReadService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -42,7 +42,7 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class RecommendationFacadeTest {
 
-    @Mock private UserRepository userRepository;
+    @Mock private UserKeyLookupService userKeyLookupService;
     @Mock private UserReadService userReadService;
     @Mock private ClusterService clusterService;
     @Mock private RetrievalService retrievalService;
@@ -61,7 +61,7 @@ class RecommendationFacadeTest {
     @BeforeEach
     void setUp() {
         recommendationFacade = new RecommendationFacade(
-                userRepository,
+                userKeyLookupService,
                 userReadService,
                 clusterService,
                 retrievalService,
