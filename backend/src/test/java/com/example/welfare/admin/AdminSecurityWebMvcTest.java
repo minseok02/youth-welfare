@@ -182,7 +182,7 @@ class AdminSecurityWebMvcTest {
                                         )
                                 )
                         ),
-                        new AdminDashboardResponse.NotificationSection(1, 0, 5, 1),
+                        new AdminDashboardResponse.NotificationSection(1, 0, 7, 5, 1),
                         new AdminDashboardResponse.SearchSection(4, 7, 12, 2, 7, java.math.BigDecimal.valueOf(5.25), List.of(
                                 new AdminDashboardResponse.SearchKeywordSnapshot("월세", 5)
                         )),
@@ -236,6 +236,8 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.data.collect.latestFailuresInWindow[0].jobName").value("BOKJIRO_LOCAL"))
                 .andExpect(jsonPath("$.data.recommendation.windowDays").value(7))
                 .andExpect(jsonPath("$.data.recommendation.sentInWindow").value(8))
+                .andExpect(jsonPath("$.data.notification.windowDays").value(7))
+                .andExpect(jsonPath("$.data.notification.sentInWindow").value(5))
                 .andExpect(jsonPath("$.data.search.windowDays").value(7))
                 .andExpect(jsonPath("$.data.search.zeroResultSearchesInWindow").value(2))
                 .andExpect(jsonPath("$.data.trend.collect[1].windowDays").value(7))
@@ -276,7 +278,7 @@ class AdminSecurityWebMvcTest {
                                 java.math.BigDecimal.valueOf(0.0000),
                                 List.of()
                         ),
-                        new AdminDashboardResponse.NotificationSection(0, 0, 0, 0),
+                        new AdminDashboardResponse.NotificationSection(0, 0, 14, 0, 0),
                         new AdminDashboardResponse.SearchSection(0, 14, 0, 0, 0, java.math.BigDecimal.ZERO, List.of()),
                         new AdminDashboardResponse.UserPiiSyncSection(0, 0, 0, null),
                         new AdminDashboardResponse.TrendSection(
@@ -319,6 +321,7 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.data.trend.collect[0].windowDays").value(3))
                 .andExpect(jsonPath("$.data.trend.collect[1].windowDays").value(14))
                 .andExpect(jsonPath("$.data.recommendation.windowDays").value(14))
+                .andExpect(jsonPath("$.data.notification.windowDays").value(14))
                 .andExpect(jsonPath("$.data.trend.recommendation[1].fallbackRate").value(0.5000))
                 .andExpect(jsonPath("$.data.search.windowDays").value(14))
                 .andExpect(jsonPath("$.data.trend.search[1].windowDays").value(14));

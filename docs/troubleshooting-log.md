@@ -20,6 +20,11 @@
 - 해결: `summaryWindowDays` query param을 추가해 collect/search/recommendation summary window를 함께 제어하게 바꿨다. DTO 필드도 `latestFailuresInWindow`, `sentInWindow`, `zeroResultSearchesInWindow`, `weightBucketsInWindow` 같은 형태로 일반화했고, `run-local-admin-dashboard-smoke.sh` 도 `SUMMARY_WINDOW_DAYS` 를 받아 summary/trend 계약을 같이 검증하도록 확장했다
 - 이유: 대시보드 응답은 “현재 요약 + 기간별 추세”를 같이 보여 주는 용도이므로, summary 기간 자체도 요청자가 선택 가능해야 trend와 함께 해석하기 쉽다
 
+## 299) summary window를 도입한 뒤에도 notification 섹션만 7일 고정 명명과 해석을 유지해 대시보드 계약이 완전히 일관되지 않았음
+- 문제: `summaryWindowDays` 를 추가한 뒤에도 `notification.sentLast7d/failedLast7d` 는 그대로 남아 있어, 같은 summary 응답에서 collect/recommendation/search는 요청한 기간으로 읽고 notification만 7일 고정으로 읽어야 하는 어색함이 남았다
+- 해결: notification 섹션도 `windowDays`, `sentInWindow`, `failedInWindow` 로 바꾸고 `fetchNotificationSummary` SQL alias도 같은 window semantics로 맞췄다. 이로써 `/api/admin/dashboard/summary` 의 모든 summary 섹션이 같은 기간 파라미터 해석을 따르게 됐다
+- 이유: 운영 대시보드는 특정 기간 창을 맞춰 놓고 섹션 간 비교를 해야 의미가 있다. notification만 별도 고정 기간이면 해석 비용이 다시 생긴다
+
 ## 294) broad-suite self-heal cleanup이 안정화됐지만 user-prefix integration 테스트들에 거의 같은 정리 코드가 복제돼 다시 drift할 가능성이 있었음
 - 문제: `AuthRedisIntegrationTest`, `AdminSecurityIntegrationTest`, `UserCoreDualWriteIntegrationTest`, `UserMetadataUserKeyBackfillIntegrationTest`, `UserPiiBackfillIntegrationTest`, `UserPiiSyncReplayIntegrationTest`, `UserPiiSyncRetrySchedulerIntegrationTest`, `RecommendationFlowIntegrationTest` 는 모두 “email prefix로 user를 찾고 userKey 파생 cleanup 후 user delete” 구조가 거의 같았는데, 세부 차이가 조금씩 있어 다음 hardening 때 일부 클래스만 갱신될 위험이 있었음
 - 해결: test 전용 `IntegrationCleanupSupport` 를 추가하고 user-prefix cleanup, service-prefix cleanup 진입점을 공통화했다. 각 클래스는 이제 “무슨 추가 정리가 필요한가”만 람다로 넘기고, 사용자 탐색/삭제 흐름 자체는 한 곳에서 처리한다

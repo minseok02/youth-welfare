@@ -97,7 +97,9 @@ assert isinstance(data["collect"]["failedJobsLast24h"], int), "collect.failedJob
 assert isinstance(data["recommendation"]["totalLogs"], int), "recommendation.totalLogs must be int"
 assert data["collect"]["failureWindowDays"] == expected_summary_window, "unexpected collect failureWindowDays"
 assert data["recommendation"]["windowDays"] == expected_summary_window, "unexpected recommendation windowDays"
+assert data["notification"]["windowDays"] == expected_summary_window, "unexpected notification windowDays"
 assert data["search"]["windowDays"] == expected_summary_window, "unexpected search windowDays"
+assert isinstance(data["notification"]["sentInWindow"], int), "notification.sentInWindow must be int"
 assert isinstance(data["search"]["zeroResultSearchesInWindow"], int), "search.zeroResultSearchesInWindow must be int"
 
 collect_windows = [point["windowDays"] for point in data["trend"]["collect"]]
@@ -111,6 +113,7 @@ assert search_windows == expected_trend_windows, f"unexpected search trend windo
 print(data["generatedAt"])
 print(data["collect"]["failedJobsLast24h"])
 print(data["recommendation"]["totalLogs"])
+print(data["notification"]["sentInWindow"])
 print(data["search"]["zeroResultSearchesInWindow"])
 print(data["collect"]["failureWindowDays"])
 print(",".join(str(v) for v in collect_windows))
@@ -182,7 +185,10 @@ DASHBOARD_STATUS="$(
 )"
 assert_status 200 "${DASHBOARD_STATUS}" "dashboard summary" "${DASHBOARD_RESPONSE}"
 
-mapfile -t DASHBOARD_VALUES < <(assert_dashboard_contract "${DASHBOARD_RESPONSE}" "${SUMMARY_WINDOW_DAYS}" "${TREND_WINDOW_DAYS_CSV}")
+DASHBOARD_ASSERT_OUTPUT="$(
+  assert_dashboard_contract "${DASHBOARD_RESPONSE}" "${SUMMARY_WINDOW_DAYS}" "${TREND_WINDOW_DAYS_CSV}"
+)"
+mapfile -t DASHBOARD_VALUES <<< "${DASHBOARD_ASSERT_OUTPUT}"
 
 echo
 echo "admin dashboard smoke passed"
@@ -192,9 +198,10 @@ echo "admin_roles=${ADMIN_ROLES}"
 echo "generated_at=${DASHBOARD_VALUES[0]}"
 echo "collect_failed_jobs_last24h=${DASHBOARD_VALUES[1]}"
 echo "recommendation_total_logs=${DASHBOARD_VALUES[2]}"
-echo "search_zero_result_searches_in_window=${DASHBOARD_VALUES[3]}"
-echo "summary_window_days=${DASHBOARD_VALUES[4]}"
-echo "collect_trend_windows=${DASHBOARD_VALUES[5]}"
+echo "notification_sent_in_window=${DASHBOARD_VALUES[3]}"
+echo "search_zero_result_searches_in_window=${DASHBOARD_VALUES[4]}"
+echo "summary_window_days=${DASHBOARD_VALUES[5]}"
+echo "collect_trend_windows=${DASHBOARD_VALUES[6]}"
 echo "requested_summary_window_days=${SUMMARY_WINDOW_DAYS}"
 echo "requested_trend_window_days=${TREND_WINDOW_DAYS_CSV}"
 if [[ -n "${CONTAINER_ADMIN_ALLOWLIST}" ]]; then

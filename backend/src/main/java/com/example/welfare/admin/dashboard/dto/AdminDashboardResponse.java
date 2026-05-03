@@ -77,8 +77,9 @@ public record AdminDashboardResponse(
     public record NotificationSection(
             long sentLast24h,
             long failedLast24h,
-            long sentLast7d,
-            long failedLast7d
+            int windowDays,
+            long sentInWindow,
+            long failedInWindow
     ) {
     }
 

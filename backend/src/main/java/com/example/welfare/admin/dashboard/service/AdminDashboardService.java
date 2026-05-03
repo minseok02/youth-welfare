@@ -114,8 +114,9 @@ public class AdminDashboardService {
                 new AdminDashboardResponse.NotificationSection(
                         notificationSummary.sentLast24h(),
                         notificationSummary.failedLast24h(),
-                        notificationSummary.sentLast7d(),
-                        notificationSummary.failedLast7d()
+                        summaryWindowDays,
+                        notificationSummary.sentInWindow(),
+                        notificationSummary.failedInWindow()
                 ),
                 new AdminDashboardResponse.SearchSection(
                         searchSummary.searchesLast24h(),
