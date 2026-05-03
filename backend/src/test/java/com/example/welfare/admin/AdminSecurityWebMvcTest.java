@@ -407,6 +407,24 @@ class AdminSecurityWebMvcTest {
                                         LocalDateTime.of(2026, 5, 3, 14, 0),
                                         LocalDateTime.of(2026, 5, 3, 14, 45)
                                 )
+                        ),
+                        List.of(
+                                new AdminSearchFailureResponse.RecoveredSearchGroup(
+                                        "USER_KEY",
+                                        "user-key-1",
+                                        "대출",
+                                        "서울",
+                                        "관악구",
+                                        "UNEMPLOYED",
+                                        "HOUSING",
+                                        "YOUTH",
+                                        true,
+                                        false,
+                                        "LATEST",
+                                        2,
+                                        1,
+                                        LocalDateTime.of(2026, 5, 3, 14, 55)
+                                )
                         )
                 ));
 
@@ -426,7 +444,11 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.data.recentSamples[0].keyword").value("대출"))
                 .andExpect(jsonPath("$.data.retryGroups[0].actorType").value("USER_KEY"))
                 .andExpect(jsonPath("$.data.retryGroups[0].actorKey").value("user-key-1"))
-                .andExpect(jsonPath("$.data.retryGroups[0].retryCount").value(3));
+                .andExpect(jsonPath("$.data.retryGroups[0].retryCount").value(3))
+                .andExpect(jsonPath("$.data.recoveredSearchGroups[0].actorType").value("USER_KEY"))
+                .andExpect(jsonPath("$.data.recoveredSearchGroups[0].actorKey").value("user-key-1"))
+                .andExpect(jsonPath("$.data.recoveredSearchGroups[0].zeroResultCount").value(2))
+                .andExpect(jsonPath("$.data.recoveredSearchGroups[0].recoveredResultCount").value(1));
 
         then(adminDashboardService).should().getSearchFailures(14, 3);
     }

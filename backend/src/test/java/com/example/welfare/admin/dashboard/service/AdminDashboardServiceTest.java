@@ -354,6 +354,27 @@ class AdminDashboardServiceTest {
                         LocalDateTime.of(2026, 5, 3, 9, 15)
                 )
         ));
+        given(adminDashboardReadRepository.fetchRecoveredSearchGroups(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.eq(3)
+        )).willReturn(List.of(
+                new AdminDashboardReadRepository.RecoveredSearchGroupRow(
+                        "USER_KEY",
+                        "user-key-1",
+                        "대출",
+                        "서울",
+                        "관악구",
+                        "UNEMPLOYED",
+                        "HOUSING",
+                        "YOUTH",
+                        Boolean.TRUE,
+                        false,
+                        "LATEST",
+                        2,
+                        1,
+                        LocalDateTime.of(2026, 5, 3, 9, 25)
+                )
+        ));
 
         AdminSearchFailureResponse response = adminDashboardService.getSearchFailures(14, 3);
 
@@ -385,6 +406,14 @@ class AdminDashboardServiceTest {
             assertThat(group.retryCount()).isEqualTo(3);
             assertThat(group.firstSearchedAt()).isEqualTo(LocalDateTime.of(2026, 5, 3, 8, 30));
             assertThat(group.latestSearchedAt()).isEqualTo(LocalDateTime.of(2026, 5, 3, 9, 15));
+        });
+        assertThat(response.recoveredSearchGroups()).singleElement().satisfies(group -> {
+            assertThat(group.actorType()).isEqualTo("USER_KEY");
+            assertThat(group.actorKey()).isEqualTo("user-key-1");
+            assertThat(group.keyword()).isEqualTo("대출");
+            assertThat(group.zeroResultCount()).isEqualTo(2);
+            assertThat(group.recoveredResultCount()).isEqualTo(1);
+            assertThat(group.latestRecoveredAt()).isEqualTo(LocalDateTime.of(2026, 5, 3, 9, 25));
         });
     }
 
