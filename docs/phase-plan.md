@@ -1096,6 +1096,14 @@ cd backend
   - `SignupRequest` 는 원래 phone 필드가 없었고, 이번에 `UpdateProfileRequest` 와 `ProfileResponse` 에서도 phone 계약 제거
   - `UserService.updateProfile()` 는 더 이상 `phone_enc` 를 갱신하지 않고, 프로필 완성도 점수도 전화번호 가산점 없이 계산
   - DB의 `phone_enc` 컬럼과 PII 경계는 future 확장성 때문에 남겨 두되, 현재 제품 범위에서는 dormant 상태로 유지
+- 2026-05-03 챗 메시지 전송 경계를 재구성
+  - `ChatMessageService.sendMessage()` 에서 외부 `ChatAiGateway` 호출을 트랜잭션 밖으로 분리
+  - 새 `ChatMessageCommandService` 가 USER/ASSISTANT 메시지 저장과 `lastMessageAt` 갱신만 짧은 transaction으로 담당
+  - `./gradlew test integrationTest --no-daemon` 재통과로 chat API 회귀 없음 확인
+- 2026-05-03 `bokjiro-details-gap-fill` 을 표준 collect 실행 경계로 편입
+  - `CollectAdminController` 직접 호출 대신 `CollectService.collectBokjiroDetailGapFill(...)` 로 우회 경로 제거
+  - 전용 `CollectSource.BOKJIRO_DETAIL_GAP_FILL` 를 추가해 `CollectExecutionGuard + ApiSyncLogService` lock/log 경계를 공유
+  - WebMvc/unit/integration 후 `./gradlew test integrationTest --no-daemon` 재통과
 
 ## 남은 1차 작업
 

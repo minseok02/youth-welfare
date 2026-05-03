@@ -1,7 +1,6 @@
 package com.example.welfare.collect.controller;
 
 import com.example.welfare.collect.normalization.NormalizedPolicySidecarBackfillService;
-import com.example.welfare.collect.service.BokjiroDetailCollectService;
 import com.example.welfare.collect.service.CollectSource;
 import com.example.welfare.collect.service.CollectService;
 import com.example.welfare.global.exception.CustomException;
@@ -28,7 +27,6 @@ import java.util.Locale;
 public class CollectAdminController {
 
     private final CollectService collectService;
-    private final BokjiroDetailCollectService bokjiroDetailCollectService;
     private final NormalizedPolicySidecarBackfillService normalizedPolicySidecarBackfillService;
 
     @PostMapping("/all")
@@ -86,8 +84,8 @@ public class CollectAdminController {
             throw new CustomException(ErrorCode.INVALID_INPUT);
         }
 
-        BokjiroDetailCollectService.GapFillResult result =
-                bokjiroDetailCollectService.collectBokjiroDetailGapFillResult(rounds, maxCallsPerRound);
+        GapFillResult result =
+                GapFillResult.from(collectService.collectBokjiroDetailGapFill(rounds, maxCallsPerRound));
 
         log.info("[Admin] 복지로 detail gap fill 수동 트리거 rounds={} maxCallsPerRound={} roundsExecuted={} requested={} saved={} skipped={} failed={} stoppedAfterNoSaves={}",
                 rounds,
@@ -131,5 +129,29 @@ public class CollectAdminController {
             int failedCount,
             boolean stoppedAfterNoSaves
     ) {
+    }
+
+    private record GapFillResult(
+            int roundsRequested,
+            int roundsExecuted,
+            int maxCallsPerRound,
+            int requestedCount,
+            int savedCount,
+            int skippedCount,
+            int failedCount,
+            boolean stoppedAfterNoSaves
+    ) {
+        private static GapFillResult from(com.example.welfare.collect.service.BokjiroDetailCollectService.GapFillResult result) {
+            return new GapFillResult(
+                    result.roundsRequested(),
+                    result.roundsExecuted(),
+                    result.maxCallsPerRound(),
+                    result.requestedCount(),
+                    result.savedCount(),
+                    result.skippedCount(),
+                    result.failedCount(),
+                    result.stoppedAfterNoSaves()
+            );
+        }
     }
 }

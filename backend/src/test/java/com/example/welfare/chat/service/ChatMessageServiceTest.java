@@ -19,7 +19,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -30,8 +29,8 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -54,6 +53,9 @@ class ChatMessageServiceTest {
     private ChatRateLimitService chatRateLimitService;
 
     @Mock
+    private ChatMessageCommandService chatMessageCommandService;
+
+    @Mock
     private UserRepository userRepository;
 
     private ChatMessageService chatMessageService;
@@ -66,6 +68,7 @@ class ChatMessageServiceTest {
                 chatPolicyService,
                 chatAiGateway,
                 chatRateLimitService,
+                chatMessageCommandService,
                 userRepository,
                 new ObjectMapper());
     }
@@ -114,7 +117,6 @@ class ChatMessageServiceTest {
                         .build());
         when(chatMessageRepository.findBySessionIdOrderByCreatedAtDesc(any(Long.class), any(org.springframework.data.domain.Pageable.class)))
                 .thenReturn(List.of());
-        when(chatMessageRepository.save(any(ChatMessage.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         var response = chatMessageService.sendMessage(1L, 10L, request);
 
@@ -122,15 +124,8 @@ class ChatMessageServiceTest {
         assertThat(response.isNeedsClarification()).isFalse();
         assertThat(response.getAnswer()).isEqualTo("청년월세 한시 특별지원과 청년전세임대를 먼저 확인해보세요.");
         assertThat(response.getReferences()).hasSize(2);
-        assertThat(session.getTitle()).isEqualTo("서울 월세 지원 알려줘");
-        assertThat(session.getLastMessageAt()).isNotNull();
-
-        ArgumentCaptor<ChatMessage> captor = ArgumentCaptor.forClass(ChatMessage.class);
-        verify(chatMessageRepository, times(2)).save(captor.capture());
-        assertThat(captor.getAllValues().get(0).getRole()).isEqualTo(ChatMessageRole.USER);
-        assertThat(captor.getAllValues().get(0).getContent()).isEqualTo("서울 월세 지원 알려줘");
-        assertThat(captor.getAllValues().get(1).getRole()).isEqualTo(ChatMessageRole.ASSISTANT);
-        assertThat(captor.getAllValues().get(1).getReferencedServiceIds()).isEqualTo("[1829,2451]");
+        verify(chatMessageCommandService).appendUserMessage(10L, "서울 월세 지원 알려줘", "서울 월세 지원 알려줘");
+        verify(chatMessageCommandService).appendAssistantMessage(eq(10L), eq("청년월세 한시 특별지원과 청년전세임대를 먼저 확인해보세요."), eq("[1829,2451]"), any());
         verify(chatRateLimitService).checkMessageSendLimit(1L);
     }
 
@@ -149,14 +144,13 @@ class ChatMessageServiceTest {
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
         when(chatSessionRepository.findByIdAndUserKey(10L, "user-key-1")).thenReturn(Optional.of(session));
         when(chatPolicyService.findCandidates("조건을 모르겠어", 3)).thenReturn(List.of());
-        when(chatMessageRepository.save(any(ChatMessage.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         var response = chatMessageService.sendMessage(1L, 10L, request);
 
         assertThat(response.isNeedsClarification()).isTrue();
         assertThat(response.getReferences()).isEmpty();
         assertThat(response.getAnswer()).contains("조금 더 구체적으로");
-        assertThat(session.getTitle()).isEqualTo("기존 제목");
+        verify(chatMessageCommandService).appendUserMessage(10L, "조건을 모르겠어", null);
         verify(chatRateLimitService).checkMessageSendLimit(1L);
     }
 
@@ -184,13 +178,13 @@ class ChatMessageServiceTest {
                 .thenReturn(null);
         when(chatMessageRepository.findBySessionIdOrderByCreatedAtDesc(any(Long.class), any(org.springframework.data.domain.Pageable.class)))
                 .thenReturn(List.of());
-        when(chatMessageRepository.save(any(ChatMessage.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         var response = chatMessageService.sendMessage(1L, 10L, request);
 
         assertThat(response.isNeedsClarification()).isFalse();
         assertThat(response.getAnswer()).isEqualTo("청년월세 한시 특별지원 정책을 먼저 확인해보세요.");
         assertThat(response.getReferences()).hasSize(1);
+        verify(chatMessageCommandService).appendAssistantMessage(eq(10L), eq("청년월세 한시 특별지원 정책을 먼저 확인해보세요."), eq("[1829]"), any());
         verify(chatRateLimitService).checkMessageSendLimit(1L);
     }
 
@@ -211,7 +205,7 @@ class ChatMessageServiceTest {
                 .isEqualTo(ErrorCode.CHAT_RATE_LIMIT_EXCEEDED);
 
         verify(chatSessionRepository, never()).findByIdAndUserKey(10L, "user-key-1");
-        verify(chatMessageRepository, never()).save(any(ChatMessage.class));
+        verify(chatMessageCommandService, never()).appendUserMessage(any(), any(), any());
     }
 
     @Test

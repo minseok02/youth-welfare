@@ -15,6 +15,7 @@ public enum CollectSource {
     BOKJIRO_CENTRAL("BOKJIRO_CENTRAL", "collect-bokjiro-central", "bokjiro-central", "복지로 중앙", "복지로 중앙 수집 완료", true, true),
     BOKJIRO_LOCAL("BOKJIRO_LOCAL", "collect-bokjiro-local", "bokjiro-local", "복지로 지자체", "복지로 지자체 수집 완료", true, true),
     BOKJIRO_DETAIL("BOKJIRO_DETAIL", "collect-bokjiro-details", "bokjiro-details", "복지로 상세", "복지로 상세 수집 완료", true, true),
+    BOKJIRO_DETAIL_GAP_FILL("BOKJIRO_DETAIL_GAP_FILL", "collect-bokjiro-details-gap-fill", "bokjiro-details-gap-fill", "복지로 상세 gap fill", "복지로 상세 gap fill 완료", false, false),
     BOKJIRO_DETAIL_REFRESH("BOKJIRO_DETAIL_REFRESH", "collect-bokjiro-details-refresh", "bokjiro-details-refresh", "복지로 상세 refresh", "복지로 상세 refresh 완료", false, true);
 
     private static final List<CollectSource> EXECUTION_ORDER = Arrays.stream(values())
@@ -79,7 +80,7 @@ public enum CollectSource {
             case YOUTH -> WelfareService.SourceType.YOUTH;
             case BOKJIRO_CENTRAL -> WelfareService.SourceType.BOKJIRO_CENTRAL;
             case BOKJIRO_LOCAL -> WelfareService.SourceType.BOKJIRO_LOCAL;
-            case BOKJIRO_DETAIL, BOKJIRO_DETAIL_REFRESH ->
+            case BOKJIRO_DETAIL, BOKJIRO_DETAIL_GAP_FILL, BOKJIRO_DETAIL_REFRESH ->
                     throw new IllegalStateException("detail collect source 는 welfare source type 으로 직접 매핑하지 않습니다. source=" + this);
         };
     }

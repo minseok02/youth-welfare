@@ -2511,3 +2511,13 @@
 - 문제: 회원가입은 이미 전화번호를 받지 않는데, `UpdateProfileRequest` 와 `ProfileResponse` 에는 여전히 `phone` 필드가 남아 있었고 `UserService.updateProfile()` 도 요청이 오면 `phone_enc` 를 갱신했다. 이 상태에서는 프론트 UI만 숨겨도 다른 클라이언트가 phone을 보내면 제품 정책과 다르게 수집이 계속될 수 있었다.
 - 해결: `UpdateProfileRequest` 와 `ProfileResponse` 에서 `phone` 계약을 제거하고, `UserService.updateProfile()` 의 `phone_enc` 갱신도 중단했다. 동시에 프로필 완성도 계산에서 전화번호 가산점을 빼서 “미수집 정책”과 점수 기준도 맞췄다.
 - 이유: 개인정보 최소 수집 정책은 UI가 아니라 API 계약에서 닫혀 있어야 안정적이다. DB 컬럼과 PII 경계는 future 확장성 때문에 남겨 두더라도, 현재 제품 범위에서는 dormant 상태로 두는 편이 맞다.
+
+## 455) 챗 메시지 전송 전체를 하나의 트랜잭션으로 감싼 채 외부 AI 호출까지 넣어두면, DB 트랜잭션이 네트워크 지연 시간만큼 길어지고 실패 범위도 불필요하게 커진다
+- 문제: `ChatMessageService.sendMessage()` 가 USER 메시지 저장, 후보 조회, `ChatAiGateway` 호출, ASSISTANT 메시지 저장을 한 transaction 안에서 처리하고 있었다. OpenAI 호출이 느리면 DB 커넥션이 계속 잡혀 있고, AI 호출 실패 시 사용자 메시지까지 같이 rollback될 수 있었다.
+- 해결: 새 `ChatMessageCommandService` 를 만들어 USER 메시지 저장과 ASSISTANT 메시지 저장을 각각 짧은 transaction으로 분리하고, `ChatMessageService` 는 orchestration과 외부 AI 호출만 담당하게 바꿨다.
+- 이유: 외부 네트워크 호출은 transaction 밖으로 밀어내고, DB write는 짧고 명확한 command 경계로 자르는 편이 커넥션 점유와 실패 전파를 줄인다.
+
+## 456) `bokjiro-details-gap-fill` 이 표준 collect 경계 바깥에서 직접 실행되면, 일반 수집과 다른 lock/log discipline을 가져서 운영 관측과 실패 추적이 엇갈린다
+- 문제: `CollectAdminController` 가 `BokjiroDetailCollectService.collectBokjiroDetailGapFillResult(...)` 를 직접 호출하고 있어, 일반 source collect가 공유하는 `CollectExecutionGuard` 와 `ApiSyncLogService` 경계를 타지 않았다. 그래서 gap-fill 실패는 `api_sync_logs` 에 안 남고, collect lock discipline도 별도로 흩어져 있었다.
+- 해결: `CollectService.collectBokjiroDetailGapFill(...)` 를 추가하고, 전용 `CollectSource.BOKJIRO_DETAIL_GAP_FILL` 을 도입해 gap-fill도 표준 lock/log 경계 안에서 실행되게 바꿨다.
+- 이유: 같은 collect 계열 작업은 수동 경로라도 실행 직렬화와 로그 저장 방식을 공유해야 운영자가 같은 기준으로 상태를 읽을 수 있다.

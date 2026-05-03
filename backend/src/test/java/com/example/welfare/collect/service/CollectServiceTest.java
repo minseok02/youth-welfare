@@ -37,6 +37,8 @@ class CollectServiceTest {
     private CollectSourceAdapter bokjiroDetailAdapter;
     @Mock
     private CollectSourceAdapter bokjiroDetailRefreshAdapter;
+    @Mock
+    private BokjiroDetailCollectService bokjiroDetailCollectService;
 
     private CollectService collectService;
 
@@ -51,7 +53,8 @@ class CollectServiceTest {
         collectService = new CollectService(
                 List.of(bokjiroLocalAdapter, bokjiroDetailAdapter, bokjiroDetailRefreshAdapter, youthAdapter, bokjiroCentralAdapter),
                 collectExecutionGuard,
-                apiSyncLogService
+                apiSyncLogService,
+                bokjiroDetailCollectService
         );
     }
 
@@ -154,6 +157,32 @@ class CollectServiceTest {
     }
 
     @Test
+    @DisplayName("detail gap fill 수집은 전용 lock 과 api_sync_logs 경계를 사용한다")
+    void collectDetailGapFillUsesExclusiveLockAndLog() throws Exception {
+        BokjiroDetailCollectService.GapFillResult expected =
+                new BokjiroDetailCollectService.GapFillResult(2, 2, 95, 10, 7, 2, 1, false);
+
+        doAnswer(invocation -> {
+            Runnable task = invocation.getArgument(1);
+            task.run();
+            return null;
+        }).when(collectExecutionGuard).runExclusive(eq("collect-bokjiro-details-gap-fill"), any(Runnable.class));
+
+        when(apiSyncLogService.runWithLog(eq("BOKJIRO_DETAIL_GAP_FILL"), any())).thenAnswer(invocation -> {
+            ApiSyncLogService.CollectTask task = invocation.getArgument(1);
+            return task.run();
+        });
+        when(bokjiroDetailCollectService.collectBokjiroDetailGapFillResult(2, 95)).thenReturn(expected);
+
+        BokjiroDetailCollectService.GapFillResult actual = collectService.collectBokjiroDetailGapFill(2, 95);
+
+        assertThat(actual).isEqualTo(expected);
+        verify(collectExecutionGuard).runExclusive(eq("collect-bokjiro-details-gap-fill"), any(Runnable.class));
+        verify(apiSyncLogService).runWithLog(eq("BOKJIRO_DETAIL_GAP_FILL"), any());
+        verify(bokjiroDetailCollectService).collectBokjiroDetailGapFillResult(2, 95);
+    }
+
+    @Test
     @DisplayName("executionOrder 는 scheduled source 만 포함하고 refresh source 는 수동 실행 대상으로 남긴다")
     void executionOrderIncludesOnlyScheduledSources() {
         assertThat(CollectSource.executionOrder()).containsExactly(
@@ -172,7 +201,8 @@ class CollectServiceTest {
         assertThatThrownBy(() -> new CollectService(
                 List.of(bokjiroLocalAdapter, bokjiroDetailAdapter, youthAdapter, bokjiroCentralAdapter),
                 collectExecutionGuard,
-                apiSyncLogService
+                apiSyncLogService,
+                bokjiroDetailCollectService
         )).isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("BOKJIRO_DETAIL_REFRESH");
     }
