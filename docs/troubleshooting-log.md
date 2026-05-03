@@ -2511,3 +2511,28 @@
 - 문제: 회원가입은 이미 전화번호를 받지 않는데, `UpdateProfileRequest` 와 `ProfileResponse` 에는 여전히 `phone` 필드가 남아 있었고 `UserService.updateProfile()` 도 요청이 오면 `phone_enc` 를 갱신했다. 이 상태에서는 프론트 UI만 숨겨도 다른 클라이언트가 phone을 보내면 제품 정책과 다르게 수집이 계속될 수 있었다.
 - 해결: `UpdateProfileRequest` 와 `ProfileResponse` 에서 `phone` 계약을 제거하고, `UserService.updateProfile()` 의 `phone_enc` 갱신도 중단했다. 동시에 프로필 완성도 계산에서 전화번호 가산점을 빼서 “미수집 정책”과 점수 기준도 맞췄다.
 - 이유: 개인정보 최소 수집 정책은 UI가 아니라 API 계약에서 닫혀 있어야 안정적이다. DB 컬럼과 PII 경계는 future 확장성 때문에 남겨 두더라도, 현재 제품 범위에서는 dormant 상태로 두는 편이 맞다.
+
+## 455) 챗 메시지 전송 전체를 하나의 트랜잭션으로 감싼 채 외부 AI 호출까지 넣어두면, DB 트랜잭션이 네트워크 지연 시간만큼 길어지고 실패 범위도 불필요하게 커진다
+- 문제: `ChatMessageService.sendMessage()` 가 USER 메시지 저장, 후보 조회, `ChatAiGateway` 호출, ASSISTANT 메시지 저장을 한 transaction 안에서 처리하고 있었다. OpenAI 호출이 느리면 DB 커넥션이 계속 잡혀 있고, AI 호출 실패 시 사용자 메시지까지 같이 rollback될 수 있었다.
+- 해결: 새 `ChatMessageCommandService` 를 만들어 USER 메시지 저장과 ASSISTANT 메시지 저장을 각각 짧은 transaction으로 분리하고, `ChatMessageService` 는 orchestration과 외부 AI 호출만 담당하게 바꿨다.
+- 이유: 외부 네트워크 호출은 transaction 밖으로 밀어내고, DB write는 짧고 명확한 command 경계로 자르는 편이 커넥션 점유와 실패 전파를 줄인다.
+
+## 456) `bokjiro-details-gap-fill` 이 표준 collect 경계 바깥에서 직접 실행되면, 일반 수집과 다른 lock/log discipline을 가져서 운영 관측과 실패 추적이 엇갈린다
+- 문제: `CollectAdminController` 가 `BokjiroDetailCollectService.collectBokjiroDetailGapFillResult(...)` 를 직접 호출하고 있어, 일반 source collect가 공유하는 `CollectExecutionGuard` 와 `ApiSyncLogService` 경계를 타지 않았다. 그래서 gap-fill 실패는 `api_sync_logs` 에 안 남고, collect lock discipline도 별도로 흩어져 있었다.
+- 해결: `CollectService.collectBokjiroDetailGapFill(...)` 를 추가하고, 전용 `CollectSource.BOKJIRO_DETAIL_GAP_FILL` 을 도입해 gap-fill도 표준 lock/log 경계 안에서 실행되게 바꿨다.
+- 이유: 같은 collect 계열 작업은 수동 경로라도 실행 직렬화와 로그 저장 방식을 공유해야 운영자가 같은 기준으로 상태를 읽을 수 있다.
+
+## 457) `AuthService` 가 로그인, refresh/logout, 비밀번호 재설정까지 모두 들고 있으면, 토큰 정책 변경과 비밀번호 재설정 정책 변경이 같은 클래스 수정으로 얽힌다
+- 문제: 기존 `AuthService` 는 signup/login 외에도 refresh token rotation, logout, password reset token 저장/메일 발송/비밀번호 변경까지 한 클래스에 몰려 있었다. 이 상태에서는 토큰 수명주기나 비밀번호 재설정 흐름이 바뀔 때마다 같은 서비스가 동시에 바뀌어 책임이 과해졌다.
+- 해결: 토큰 발급/refresh/logout 은 `AuthTokenService` 로, 비밀번호 재설정 요청/확정은 `PasswordResetService` 로 분리하고, `AuthService` 는 signup/login/admin role 해석 위주의 orchestration으로 축소했다.
+- 이유: 로그인 진입점과 토큰 수명주기, 비밀번호 재설정은 변경 이유가 다르다. API 계약은 그대로 두되 내부 경계를 나누는 편이 SRP에 맞고 테스트도 더 좁게 유지할 수 있다.
+
+## 458) policy 조회 서비스가 추천 persistence repository를 직접 읽으면, policy 도메인이 recommend 저장 모델 변경에 같이 흔들린다
+- 문제: `PolicyService` 와 `PolicySearchService` 가 북마크 여부를 계산하려고 `UserRecommendationRepository` 와 `UserRepository` 를 직접 사용하고 있었다. 이 상태에서는 추천 저장 모델이나 사용자 키 조회 방식이 바뀌면 policy read service까지 같이 수정해야 했다.
+- 해결: 북마크 읽기 전용 경계를 `RecommendationReadFacade` 로 분리하고, policy 쪽은 더 이상 추천 repository를 직접 조회하지 않게 정리했다.
+- 이유: policy는 “북마크 여부가 필요하다”는 의도만 표현하고, 실제 추천 read model 조회 방식은 recommend 도메인 안에 두는 편이 경계가 명확하다.
+
+## 459) `PolicyService` 와 `PolicySearchService` 가 `WelfareServiceRepository` 의 조합식 조회 메서드를 직접 고르면, 필터 조합이 늘어날수록 서비스가 쿼리 선택 책임까지 같이 떠안게 된다
+- 문제: 정책 목록과 검색 서비스가 `findListWithFilters`, `searchByKeywordWithFiltersNoRegion`, `...WithSido`, `...WithSidoSgg` 같은 조합식 메서드를 직접 선택하고 있었다. 이 구조에서는 지역/정렬/필터 조합이 늘어날 때마다 서비스가 persistence 분기까지 함께 수정해야 한다.
+- 해결: `PolicyListReadCondition`, `PolicySearchReadCondition`, `WelfareServiceReadRepository` 를 추가하고, `PolicyService` 와 `PolicySearchService` 가 목록/검색 조건 객체만 넘기도록 바꿨다. 조합식 쿼리 선택 책임은 read repository 구현으로 이동시켰다.
+- 이유: 지금 단계에서는 기존 JPA repository 메서드를 완전히 걷어내지 않더라도, 서비스에서 “무슨 조건으로 읽고 싶은가”만 표현하고 “어떤 조합식 메서드를 고를지”는 read layer에 두는 편이 SRP와 경계 분리에 맞다.

@@ -4,15 +4,17 @@ import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.policy.dto.PolicySummaryResponse;
 import com.example.welfare.policy.entity.WelfareService;
+import com.example.welfare.policy.repository.PolicyListReadCondition;
 import com.example.welfare.policy.repository.ServiceRegionRepository;
 import com.example.welfare.policy.repository.ServiceTagRepository;
+import com.example.welfare.policy.repository.WelfareServiceReadRepository;
 import com.example.welfare.policy.repository.WelfareServiceDetailRepository;
 import com.example.welfare.policy.repository.WelfareServiceRepository;
 import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
+import com.example.welfare.recommend.facade.RecommendationReadFacade;
 import com.example.welfare.recommend.entity.UserRecommendation;
 import com.example.welfare.recommend.repository.CanonicalRecommendationReadModelRepository;
 import com.example.welfare.recommend.repository.UserRecommendationRepository;
-import com.example.welfare.user.entity.User;
 import com.example.welfare.user.repository.UserRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -27,6 +29,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.Optional;
 import java.util.List;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -47,6 +50,10 @@ class PolicyServiceTest {
     private ServiceRegionRepository regionRepository;
     @Mock
     private ServiceTagRepository tagRepository;
+    @Mock
+    private WelfareServiceReadRepository welfareServiceReadRepository;
+    @Mock
+    private RecommendationReadFacade recommendationReadFacade;
     @Mock
     private UserRecommendationRepository userRecommendationRepository;
     @Mock
@@ -69,14 +76,16 @@ class PolicyServiceTest {
                 .build();
         Page<WelfareService> page = new PageImpl<>(List.of(service));
 
-        given(welfareServiceRepository.findListWithFilters(
-                eq("HOUSING"),
-                eq(WelfareService.SourceType.YOUTH),
-                eq(WelfareService.ServiceStatus.ACTIVE),
-                eq(false),
-                eq("서울특별시"),
-                eq("강남구"),
-                eq(true),
+        given(welfareServiceReadRepository.findList(
+                eq(new PolicyListReadCondition(
+                        "HOUSING",
+                        WelfareService.SourceType.YOUTH,
+                        WelfareService.ServiceStatus.ACTIVE,
+                        false,
+                        "서울특별시",
+                        "강남구",
+                        true
+                )),
                 any(PageRequest.class)
         )).willReturn(page);
         given(canonicalRecommendationReadModelRepository.findByServiceIds(List.of(11L)))
@@ -97,14 +106,16 @@ class PolicyServiceTest {
 
         assertEquals(1, result.getTotalElements());
         ArgumentCaptor<PageRequest> captor = ArgumentCaptor.forClass(PageRequest.class);
-        verify(welfareServiceRepository).findListWithFilters(
-                eq("HOUSING"),
-                eq(WelfareService.SourceType.YOUTH),
-                eq(WelfareService.ServiceStatus.ACTIVE),
-                eq(false),
-                eq("서울특별시"),
-                eq("강남구"),
-                eq(true),
+        verify(welfareServiceReadRepository).findList(
+                eq(new PolicyListReadCondition(
+                        "HOUSING",
+                        WelfareService.SourceType.YOUTH,
+                        WelfareService.ServiceStatus.ACTIVE,
+                        false,
+                        "서울특별시",
+                        "강남구",
+                        true
+                )),
                 captor.capture()
         );
         assertEquals("viewCount: DESC", captor.getValue().getSort().getOrderFor("viewCount").toString());
@@ -122,14 +133,8 @@ class PolicyServiceTest {
                 .build();
         Page<WelfareService> page = new PageImpl<>(List.of(service));
 
-        given(welfareServiceRepository.findListWithFilters(
-                eq(null),
-                eq(null),
-                eq(null),
-                eq(false),
-                eq(null),
-                eq(null),
-                eq(null),
+        given(welfareServiceReadRepository.findList(
+                eq(new PolicyListReadCondition(null, null, null, false, null, null, null)),
                 any(PageRequest.class)
         )).willReturn(page);
         given(canonicalRecommendationReadModelRepository.findByServiceIds(List.of(11L)))
@@ -146,9 +151,8 @@ class PolicyServiceTest {
                                 .gov24BenefitTypeLabel("서비스")
                                 .build()
                 ));
-        given(userRepository.findUserKeyById(7L)).willReturn(Optional.of("user-key-7"));
-        given(userRecommendationRepository.findLatestBookmarkedServiceIdsByUserKey("user-key-7", List.of(11L)))
-                .willReturn(List.of(11L));
+        given(recommendationReadFacade.findBookmarkedServiceIds(7L, List.of(service)))
+                .willReturn(Set.of(11L));
 
         Page<PolicySummaryResponse> result = policyService.getList(
                 7L,

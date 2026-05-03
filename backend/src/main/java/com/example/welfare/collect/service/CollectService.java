@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
@@ -14,13 +15,16 @@ public class CollectService {
 
     private final CollectExecutionGuard collectExecutionGuard;
     private final ApiSyncLogService apiSyncLogService;
+    private final BokjiroDetailCollectService bokjiroDetailCollectService;
     private final Map<CollectSource, CollectSourceAdapter> adapters;
 
     public CollectService(List<CollectSourceAdapter> adapters,
                           CollectExecutionGuard collectExecutionGuard,
-                          ApiSyncLogService apiSyncLogService) {
+                          ApiSyncLogService apiSyncLogService,
+                          BokjiroDetailCollectService bokjiroDetailCollectService) {
         this.collectExecutionGuard = collectExecutionGuard;
         this.apiSyncLogService = apiSyncLogService;
+        this.bokjiroDetailCollectService = bokjiroDetailCollectService;
         this.adapters = buildAdapterMap(adapters);
     }
 
@@ -38,6 +42,24 @@ public class CollectService {
 
     public void collect(CollectSource source) {
         collectExecutionGuard.runExclusive(source.lockName(), () -> runSource(source));
+    }
+
+    public BokjiroDetailCollectService.GapFillResult collectBokjiroDetailGapFill(int rounds, int maxCallsPerRound) {
+        AtomicReference<BokjiroDetailCollectService.GapFillResult> resultRef = new AtomicReference<>();
+        collectExecutionGuard.runExclusive(CollectSource.BOKJIRO_DETAIL_GAP_FILL.lockName(), () ->
+                apiSyncLogService.runWithLog(CollectSource.BOKJIRO_DETAIL_GAP_FILL.jobName(), () -> {
+                    BokjiroDetailCollectService.GapFillResult result =
+                            bokjiroDetailCollectService.collectBokjiroDetailGapFillResult(rounds, maxCallsPerRound);
+                    resultRef.set(result);
+                    return CollectResult.of(
+                            result.requestedCount(),
+                            result.savedCount(),
+                            result.skippedCount(),
+                            0,
+                            result.failedCount()
+                    );
+                }));
+        return resultRef.get();
     }
 
     private void runSourceSafely(CollectSource source) {

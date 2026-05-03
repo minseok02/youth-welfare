@@ -1096,6 +1096,27 @@ cd backend
   - `SignupRequest` 는 원래 phone 필드가 없었고, 이번에 `UpdateProfileRequest` 와 `ProfileResponse` 에서도 phone 계약 제거
   - `UserService.updateProfile()` 는 더 이상 `phone_enc` 를 갱신하지 않고, 프로필 완성도 점수도 전화번호 가산점 없이 계산
   - DB의 `phone_enc` 컬럼과 PII 경계는 future 확장성 때문에 남겨 두되, 현재 제품 범위에서는 dormant 상태로 유지
+- 2026-05-03 챗 메시지 전송 경계를 재구성
+  - `ChatMessageService.sendMessage()` 에서 외부 `ChatAiGateway` 호출을 트랜잭션 밖으로 분리
+  - 새 `ChatMessageCommandService` 가 USER/ASSISTANT 메시지 저장과 `lastMessageAt` 갱신만 짧은 transaction으로 담당
+  - `./gradlew test integrationTest --no-daemon` 재통과로 chat API 회귀 없음 확인
+- 2026-05-03 `bokjiro-details-gap-fill` 을 표준 collect 실행 경계로 편입
+  - `CollectAdminController` 직접 호출 대신 `CollectService.collectBokjiroDetailGapFill(...)` 로 우회 경로 제거
+  - 전용 `CollectSource.BOKJIRO_DETAIL_GAP_FILL` 를 추가해 `CollectExecutionGuard + ApiSyncLogService` lock/log 경계를 공유
+  - WebMvc/unit/integration 후 `./gradlew test integrationTest --no-daemon` 재통과
+- 2026-05-03 `AuthService` 책임 분리 1차 정리
+  - 토큰 발급/refresh/logout 경계를 `AuthTokenService` 로 분리
+  - 비밀번호 재설정 요청/확정 경계를 `PasswordResetService` 로 분리
+  - `AuthService` 는 signup/login/admin role 해석 중심 orchestration으로 축소
+  - 관련 단위 테스트를 서비스별로 재배치하고 `./gradlew test integrationTest --no-daemon` 재통과
+- 2026-05-03 policy 읽기 경계 정리
+  - `PolicyService`, `PolicySearchService` 의 북마크 읽기 경로를 `RecommendationReadFacade` 로 이동
+  - policy domain 이 `UserRecommendationRepository` 직접 조회에 덜 묶이도록 read coupling 축소
+  - 관련 `PolicyServiceTest`, `PolicySearchServiceTest` 재통과 확인
+- 2026-05-03 policy 검색/목록 조합식 조회 경계 정리
+  - `PolicyListReadCondition`, `PolicySearchReadCondition`, `WelfareServiceReadRepository` 추가
+  - `PolicyService`, `PolicySearchService` 가 `WelfareServiceRepository` 의 조합식 조회 메서드를 직접 고르지 않도록 read repository로 위임
+  - 추천 후보/챗봇 등 다른 경로는 그대로 두고, policy list/search 서비스 경계만 먼저 축소
 
 ## 남은 1차 작업
 

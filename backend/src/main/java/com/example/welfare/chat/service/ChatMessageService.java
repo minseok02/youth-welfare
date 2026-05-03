@@ -45,6 +45,7 @@ public class ChatMessageService {
     private final ChatPolicyService chatPolicyService;
     private final ChatAiGateway chatAiGateway;
     private final ChatRateLimitService chatRateLimitService;
+    private final ChatMessageCommandService chatMessageCommandService;
     private final UserRepository userRepository;
     private final ObjectMapper objectMapper;
 
@@ -59,7 +60,6 @@ public class ChatMessageService {
                 .toList();
     }
 
-    @Transactional
     public ChatAnswerResponse sendMessage(Long userId, Long sessionId, SendChatMessageRequest request) {
         User user = findActiveUser(userId);
         chatRateLimitService.checkMessageSendLimit(userId);
@@ -67,15 +67,8 @@ public class ChatMessageService {
                 .orElseThrow(() -> new CustomException(ErrorCode.CHAT_SESSION_NOT_FOUND));
 
         String content = request.getContent().trim();
-        if (!StringUtils.hasText(session.getTitle())) {
-            session.updateTitle(buildSessionTitle(content));
-        }
-
-        chatMessageRepository.save(ChatMessage.builder()
-                .session(session)
-                .role(ChatMessageRole.USER)
-                .content(content)
-                .build());
+        String sessionTitle = StringUtils.hasText(session.getTitle()) ? null : buildSessionTitle(content);
+        chatMessageCommandService.appendUserMessage(session.getId(), content, sessionTitle);
 
         List<ChatPolicyCandidate> candidates = chatPolicyService.findCandidates(content, REFERENCE_LIMIT);
         List<ChatReferenceResponse> fallbackReferences = candidates.stream()
@@ -96,14 +89,12 @@ public class ChatMessageService {
         boolean needsClarification = resolveNeedsClarification(aiResult, references);
         String answer = resolveAnswer(aiResult, references, needsClarification);
 
-        chatMessageRepository.save(ChatMessage.builder()
-                .session(session)
-                .role(ChatMessageRole.ASSISTANT)
-                .content(answer)
-                .referencedServiceIds(writeReferencedServiceIds(references))
-                .build());
-
-        session.updateLastMessageAt(LocalDateTime.now());
+        chatMessageCommandService.appendAssistantMessage(
+                session.getId(),
+                answer,
+                writeReferencedServiceIds(references),
+                LocalDateTime.now()
+        );
 
         return ChatAnswerResponse.builder()
                 .sessionId(session.getId())

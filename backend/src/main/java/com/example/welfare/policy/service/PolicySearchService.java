@@ -5,12 +5,12 @@ import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.policy.dto.PolicySearchResponse;
 import com.example.welfare.policy.dto.PolicySummaryResponse;
 import com.example.welfare.policy.entity.WelfareService;
-import com.example.welfare.policy.repository.WelfareServiceRepository;
+import com.example.welfare.policy.repository.PolicySearchReadCondition;
+import com.example.welfare.policy.repository.WelfareServiceReadRepository;
 import com.example.welfare.policy.support.WelfareSourceTypeSupport;
 import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
+import com.example.welfare.recommend.facade.RecommendationReadFacade;
 import com.example.welfare.recommend.repository.CanonicalRecommendationReadModelRepository;
-import com.example.welfare.recommend.repository.UserRecommendationRepository;
-import com.example.welfare.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -18,8 +18,6 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.HashSet;
-import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -33,9 +31,8 @@ public class PolicySearchService {
     private static final int MAX_SEARCH_LIMIT = 100;
     private static final long SEARCH_WARN_DURATION_MS = 500L;
 
-    private final WelfareServiceRepository welfareServiceRepository;
-    private final UserRecommendationRepository userRecommendationRepository;
-    private final UserRepository userRepository;
+    private final WelfareServiceReadRepository welfareServiceReadRepository;
+    private final RecommendationReadFacade recommendationReadFacade;
     private final CanonicalRecommendationReadModelRepository canonicalRecommendationReadModelRepository;
 
     @Transactional(readOnly = true)
@@ -71,46 +68,22 @@ public class PolicySearchService {
         String normalizedSgg = normalizeNullable(sgg);
         Integer onlineApplyFlag = onlineApply == null ? null : (onlineApply ? 1 : 0);
         String normalizedSort = normalizeSort(sort);
-        Page<WelfareService> resultPage;
-        if (normalizedSido == null) {
-            resultPage = welfareServiceRepository.searchByKeywordWithFiltersNoRegion(
-                    ftKeyword,
-                    normalizedStatus,
-                    normalizedIncludeClosed,
-                    normalizedCategory,
-                    normalizedSourceType,
-                    onlineApplyFlag,
-                    normalizedSort,
-                    PageRequest.of(pageNumber, limit)
-            );
-        } else if (normalizedSgg == null) {
-            resultPage = welfareServiceRepository.searchByKeywordWithFiltersWithSido(
-                    ftKeyword,
-                    normalizedStatus,
-                    normalizedIncludeClosed,
-                    normalizedCategory,
-                    normalizedSourceType,
-                    onlineApplyFlag,
-                    normalizedSido,
-                    normalizedSort,
-                    PageRequest.of(pageNumber, limit)
-            );
-        } else {
-            resultPage = welfareServiceRepository.searchByKeywordWithFiltersWithSidoSgg(
-                    ftKeyword,
-                    normalizedStatus,
-                    normalizedIncludeClosed,
-                    normalizedCategory,
-                    normalizedSourceType,
-                    onlineApplyFlag,
-                    normalizedSido,
-                    normalizedSgg,
-                    normalizedSort,
-                    PageRequest.of(pageNumber, limit)
-            );
-        }
+        Page<WelfareService> resultPage = welfareServiceReadRepository.search(
+                new PolicySearchReadCondition(
+                        ftKeyword,
+                        normalizedStatus,
+                        normalizedIncludeClosed,
+                        normalizedCategory,
+                        normalizedSourceType,
+                        onlineApplyFlag,
+                        normalizedSido,
+                        normalizedSgg,
+                        normalizedSort
+                ),
+                PageRequest.of(pageNumber, limit)
+        );
 
-        Set<Long> bookmarkedServiceIds = getBookmarkedServiceIds(userId, resultPage.getContent());
+        Set<Long> bookmarkedServiceIds = recommendationReadFacade.findBookmarkedServiceIds(userId, resultPage.getContent());
         java.util.Map<Long, RecommendationCandidateProjection> projections = loadProjections(resultPage.getContent());
         List<PolicySummaryResponse> content = resultPage.getContent().stream()
                 .map(service -> PolicySummaryResponse.from(
@@ -184,22 +157,6 @@ public class PolicySearchService {
                     sort,
                     keywordTokenCount);
         }
-    }
-
-    private Set<Long> getBookmarkedServiceIds(Long userId, List<WelfareService> services) {
-        if (userId == null || services.isEmpty()) {
-            return Collections.emptySet();
-        }
-        String userKey = userRepository.findUserKeyById(userId).orElse(null);
-        if (userKey == null) {
-            return Collections.emptySet();
-        }
-
-        List<Long> serviceIds = services.stream()
-                .map(WelfareService::getId)
-                .toList();
-
-        return new HashSet<>(userRecommendationRepository.findLatestBookmarkedServiceIdsByUserKey(userKey, serviceIds));
     }
 
     private java.util.Map<Long, RecommendationCandidateProjection> loadProjections(List<WelfareService> services) {

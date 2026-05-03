@@ -8,7 +8,6 @@ import com.example.welfare.admin.dashboard.dto.AdminDashboardResponse;
 import com.example.welfare.admin.dashboard.service.AdminDashboardService;
 import com.example.welfare.collect.controller.CollectAdminController;
 import com.example.welfare.collect.normalization.NormalizedPolicySidecarBackfillService;
-import com.example.welfare.collect.service.BokjiroDetailCollectService;
 import com.example.welfare.collect.service.CollectSource;
 import com.example.welfare.collect.service.CollectService;
 import com.example.welfare.global.auth.AuthenticatedUser;
@@ -65,8 +64,6 @@ class AdminSecurityWebMvcTest {
 
     @MockBean
     private CollectService collectService;
-    @MockBean
-    private BokjiroDetailCollectService bokjiroDetailCollectService;
     @MockBean
     private NormalizedPolicySidecarBackfillService normalizedPolicySidecarBackfillService;
     @MockBean
@@ -724,8 +721,10 @@ class AdminSecurityWebMvcTest {
                 new SimpleGrantedAuthority("ROLE_USER"),
                 new SimpleGrantedAuthority("ROLE_ADMIN")
         ));
-        given(bokjiroDetailCollectService.collectBokjiroDetailGapFillResult(4, 190))
-                .willReturn(new BokjiroDetailCollectService.GapFillResult(4, 3, 190, 150, 120, 30, 0, true));
+        given(collectService.collectBokjiroDetailGapFill(4, 190))
+                .willReturn(new com.example.welfare.collect.service.BokjiroDetailCollectService.GapFillResult(
+                        4, 3, 190, 150, 120, 30, 0, true
+                ));
 
         mockMvc.perform(post("/api/admin/collect/bokjiro-details-gap-fill")
                         .param("rounds", "4")
@@ -742,7 +741,7 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.data.failedCount").value(0))
                 .andExpect(jsonPath("$.data.stoppedAfterNoSaves").value(true));
 
-        then(bokjiroDetailCollectService).should().collectBokjiroDetailGapFillResult(4, 190);
+        then(collectService).should().collectBokjiroDetailGapFill(4, 190);
     }
 
     @Test
@@ -768,7 +767,7 @@ class AdminSecurityWebMvcTest {
                 new SimpleGrantedAuthority("ROLE_USER"),
                 new SimpleGrantedAuthority("ROLE_ADMIN")
         ));
-        given(bokjiroDetailCollectService.collectBokjiroDetailGapFillResult(1, 95))
+        given(collectService.collectBokjiroDetailGapFill(1, 95))
                 .willThrow(new CustomException(ErrorCode.COLLECT_API_FAILED));
 
         mockMvc.perform(post("/api/admin/collect/bokjiro-details-gap-fill")
