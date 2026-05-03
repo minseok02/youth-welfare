@@ -1,6 +1,7 @@
 package com.example.welfare.admin.dashboard.service;
 
 import com.example.welfare.admin.dashboard.dto.AdminSearchFailureResponse;
+import com.example.welfare.admin.dashboard.dto.AdminRecommendationBreakdownResponse;
 import com.example.welfare.admin.dashboard.dto.AdminDashboardResponse;
 import com.example.welfare.admin.dashboard.repository.AdminDashboardReadRepository;
 import com.example.welfare.recommend.entity.ScoreWeight;
@@ -24,10 +25,12 @@ public class AdminDashboardService {
 
     private static final int FAILED_SAMPLE_LIMIT = 5;
     private static final int SEARCH_FAILURE_PATTERN_LIMIT = 5;
+    private static final int RECOMMENDATION_BREAKDOWN_LIMIT = 5;
     private static final int DEFAULT_SUMMARY_WINDOW_DAYS = 7;
     private static final List<Integer> DEFAULT_TREND_WINDOWS_DAYS = List.of(1, 7, 30);
     private static final int MAX_WINDOW_DAYS = 365;
     private static final int MAX_SEARCH_FAILURE_PATTERN_LIMIT = 20;
+    private static final int MAX_RECOMMENDATION_BREAKDOWN_LIMIT = 20;
 
     private final AdminDashboardReadRepository adminDashboardReadRepository;
     private final UserPiiSyncStatusService userPiiSyncStatusService;
@@ -216,6 +219,85 @@ public class AdminDashboardService {
         );
     }
 
+    public AdminRecommendationBreakdownResponse getRecommendationBreakdowns(Integer requestedSummaryWindowDays, Integer requestedLimit) {
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime dayAgo = now.minusDays(1);
+        int summaryWindowDays = resolveSummaryWindowDays(requestedSummaryWindowDays);
+        int breakdownLimit = resolveRecommendationBreakdownLimit(requestedLimit);
+        LocalDateTime summaryWindowAgo = now.minusDays(summaryWindowDays);
+
+        AdminDashboardReadRepository.RecommendationSummaryRow recommendationSummary =
+                adminDashboardReadRepository.fetchRecommendationSummary(dayAgo, summaryWindowAgo);
+
+        return new AdminRecommendationBreakdownResponse(
+                now,
+                summaryWindowDays,
+                recommendationSummary.sentInWindow(),
+                recommendationSummary.clickedInWindow(),
+                recommendationSummary.fallbackInWindow(),
+                adminDashboardReadRepository.fetchRecommendationSourceBreakdowns(summaryWindowAgo, breakdownLimit).stream()
+                        .map(row -> new AdminRecommendationBreakdownResponse.SourceBreakdown(
+                                row.sourceType(),
+                                row.sentCount(),
+                                row.clickedCount(),
+                                row.fallbackCount(),
+                                ratio(row.clickedCount(), row.sentCount()),
+                                ratio(row.fallbackCount(), row.sentCount())
+                        ))
+                        .toList(),
+                adminDashboardReadRepository.fetchRecommendationCategoryBreakdowns(summaryWindowAgo, breakdownLimit).stream()
+                        .map(row -> new AdminRecommendationBreakdownResponse.CategoryBreakdown(
+                                row.category(),
+                                row.sentCount(),
+                                row.clickedCount(),
+                                row.fallbackCount(),
+                                ratio(row.clickedCount(), row.sentCount()),
+                                ratio(row.fallbackCount(), row.sentCount())
+                        ))
+                        .toList(),
+                adminDashboardReadRepository.fetchRecommendationWeightBreakdowns(summaryWindowAgo, breakdownLimit).stream()
+                        .map(row -> new AdminRecommendationBreakdownResponse.WeightBreakdown(
+                                row.weightKey(),
+                                row.ruleWeight(),
+                                row.aiWeight(),
+                                row.sentCount(),
+                                row.clickedCount(),
+                                row.fallbackCount(),
+                                ratio(row.clickedCount(), row.sentCount()),
+                                ratio(row.fallbackCount(), row.sentCount())
+                        ))
+                        .toList(),
+                adminDashboardReadRepository.fetchRecentFallbackRecommendationSamples(summaryWindowAgo, breakdownLimit).stream()
+                        .map(row -> new AdminRecommendationBreakdownResponse.RecommendationSample(
+                                row.logId(),
+                                row.serviceId(),
+                                row.title(),
+                                row.sourceType(),
+                                row.category(),
+                                row.finalScore(),
+                                row.fallback(),
+                                row.clicked(),
+                                row.sentAt(),
+                                row.clickedAt()
+                        ))
+                        .toList(),
+                adminDashboardReadRepository.fetchRecentClickedRecommendationSamples(summaryWindowAgo, breakdownLimit).stream()
+                        .map(row -> new AdminRecommendationBreakdownResponse.RecommendationSample(
+                                row.logId(),
+                                row.serviceId(),
+                                row.title(),
+                                row.sourceType(),
+                                row.category(),
+                                row.finalScore(),
+                                row.fallback(),
+                                row.clicked(),
+                                row.sentAt(),
+                                row.clickedAt()
+                        ))
+                        .toList()
+        );
+    }
+
     private int resolveSummaryWindowDays(Integer requestedSummaryWindowDays) {
         if (requestedSummaryWindowDays == null) {
             return DEFAULT_SUMMARY_WINDOW_DAYS;
@@ -235,6 +317,18 @@ public class AdminDashboardService {
 
         if (requestedLimit <= 0 || requestedLimit > MAX_SEARCH_FAILURE_PATTERN_LIMIT) {
             return SEARCH_FAILURE_PATTERN_LIMIT;
+        }
+
+        return requestedLimit;
+    }
+
+    private int resolveRecommendationBreakdownLimit(Integer requestedLimit) {
+        if (requestedLimit == null) {
+            return RECOMMENDATION_BREAKDOWN_LIMIT;
+        }
+
+        if (requestedLimit <= 0 || requestedLimit > MAX_RECOMMENDATION_BREAKDOWN_LIMIT) {
+            return RECOMMENDATION_BREAKDOWN_LIMIT;
         }
 
         return requestedLimit;

@@ -1,5 +1,6 @@
 package com.example.welfare.admin.dashboard.service;
 
+import com.example.welfare.admin.dashboard.dto.AdminRecommendationBreakdownResponse;
 import com.example.welfare.admin.dashboard.dto.AdminSearchFailureResponse;
 import com.example.welfare.admin.dashboard.dto.AdminDashboardResponse;
 import com.example.welfare.admin.dashboard.repository.AdminDashboardReadRepository;
@@ -350,6 +351,118 @@ class AdminDashboardServiceTest {
             assertThat(sample.sido()).isEqualTo("서울");
             assertThat(sample.sgg()).isEqualTo("관악구");
             assertThat(sample.searchedAt()).isEqualTo(LocalDateTime.of(2026, 5, 3, 9, 15));
+        });
+    }
+
+    @Test
+    @DisplayName("추천 breakdown은 source/category/weight/fallback sample/clicked sample을 조합한다")
+    void getRecommendationBreakdownsBuildsResponse() {
+        given(adminDashboardReadRepository.fetchRecommendationSummary(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any()
+        )).willReturn(new AdminDashboardReadRepository.RecommendationSummaryRow(
+                250,
+                12,
+                30,
+                9,
+                6,
+                LocalDateTime.of(2026, 5, 2, 8, 45)
+        ));
+        given(adminDashboardReadRepository.fetchRecommendationSourceBreakdowns(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.eq(3)
+        )).willReturn(List.of(
+                new AdminDashboardReadRepository.RecommendationSourceBreakdownRow("YOUTH", 18, 6, 3)
+        ));
+        given(adminDashboardReadRepository.fetchRecommendationCategoryBreakdowns(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.eq(3)
+        )).willReturn(List.of(
+                new AdminDashboardReadRepository.RecommendationCategoryBreakdownRow("HOUSING", 10, 4, 1)
+        ));
+        given(adminDashboardReadRepository.fetchRecommendationWeightBreakdowns(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.eq(3)
+        )).willReturn(List.of(
+                new AdminDashboardReadRepository.RecommendationWeightBreakdownRow(
+                        "GROWTH",
+                        new BigDecimal("0.60"),
+                        new BigDecimal("0.40"),
+                        12,
+                        3,
+                        2
+                )
+        ));
+        given(adminDashboardReadRepository.fetchRecentFallbackRecommendationSamples(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.eq(3)
+        )).willReturn(List.of(
+                new AdminDashboardReadRepository.RecommendationSampleRow(
+                        101L,
+                        501L,
+                        "청년 월세 지원",
+                        "YOUTH",
+                        "HOUSING",
+                        new BigDecimal("0.75231"),
+                        true,
+                        false,
+                        LocalDateTime.of(2026, 5, 3, 9, 0),
+                        null
+                )
+        ));
+        given(adminDashboardReadRepository.fetchRecentClickedRecommendationSamples(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.eq(3)
+        )).willReturn(List.of(
+                new AdminDashboardReadRepository.RecommendationSampleRow(
+                        102L,
+                        502L,
+                        "청년 전세 지원",
+                        "BOKJIRO_LOCAL",
+                        "HOUSING",
+                        new BigDecimal("0.88123"),
+                        false,
+                        true,
+                        LocalDateTime.of(2026, 5, 3, 8, 0),
+                        LocalDateTime.of(2026, 5, 3, 8, 30)
+                )
+        ));
+
+        AdminRecommendationBreakdownResponse response = adminDashboardService.getRecommendationBreakdowns(14, 3);
+
+        assertThat(response.windowDays()).isEqualTo(14);
+        assertThat(response.totalLogs()).isEqualTo(30);
+        assertThat(response.clickedLogs()).isEqualTo(9);
+        assertThat(response.fallbackLogs()).isEqualTo(6);
+        assertThat(response.sourceBreakdowns()).singleElement().satisfies(source -> {
+            assertThat(source.sourceType()).isEqualTo("YOUTH");
+            assertThat(source.sentCount()).isEqualTo(18);
+            assertThat(source.clickedCount()).isEqualTo(6);
+            assertThat(source.fallbackCount()).isEqualTo(3);
+            assertThat(source.clickThroughRate()).isEqualByComparingTo("0.3333");
+            assertThat(source.fallbackRate()).isEqualByComparingTo("0.1667");
+        });
+        assertThat(response.categoryBreakdowns()).singleElement().satisfies(category -> {
+            assertThat(category.category()).isEqualTo("HOUSING");
+            assertThat(category.clickThroughRate()).isEqualByComparingTo("0.4000");
+        });
+        assertThat(response.weightBreakdowns()).singleElement().satisfies(weight -> {
+            assertThat(weight.weightKey()).isEqualTo("GROWTH");
+            assertThat(weight.ruleWeight()).isEqualByComparingTo("0.60");
+            assertThat(weight.aiWeight()).isEqualByComparingTo("0.40");
+            assertThat(weight.clickThroughRate()).isEqualByComparingTo("0.2500");
+            assertThat(weight.fallbackRate()).isEqualByComparingTo("0.1667");
+        });
+        assertThat(response.recentFallbackSamples()).singleElement().satisfies(sample -> {
+            assertThat(sample.logId()).isEqualTo(101L);
+            assertThat(sample.title()).isEqualTo("청년 월세 지원");
+            assertThat(sample.fallback()).isTrue();
+        });
+        assertThat(response.recentClickedSamples()).singleElement().satisfies(sample -> {
+            assertThat(sample.logId()).isEqualTo(102L);
+            assertThat(sample.title()).isEqualTo("청년 전세 지원");
+            assertThat(sample.clicked()).isTrue();
+            assertThat(sample.clickedAt()).isEqualTo(LocalDateTime.of(2026, 5, 3, 8, 30));
         });
     }
 }

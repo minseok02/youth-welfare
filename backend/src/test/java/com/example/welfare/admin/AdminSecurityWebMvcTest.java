@@ -1,6 +1,7 @@
 package com.example.welfare.admin;
 
 import com.example.welfare.admin.dashboard.controller.AdminDashboardController;
+import com.example.welfare.admin.dashboard.dto.AdminRecommendationBreakdownResponse;
 import com.example.welfare.admin.dashboard.dto.AdminSearchFailureResponse;
 import com.example.welfare.admin.dashboard.dto.AdminDashboardResponse;
 import com.example.welfare.admin.dashboard.service.AdminDashboardService;
@@ -406,6 +407,101 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.data.recentSamples[0].keyword").value("대출"));
 
         then(adminDashboardService).should().getSearchFailures(14, 3);
+    }
+
+    @Test
+    @DisplayName("관리자 토큰으로 추천 breakdown API를 호출하면 recommendation 상세 응답을 반환한다")
+    void adminEndpointAllowsRecommendationBreakdowns() throws Exception {
+        mockAuthenticatedToken("admin-token", List.of(
+                new SimpleGrantedAuthority("ROLE_USER"),
+                new SimpleGrantedAuthority("ROLE_ADMIN")
+        ));
+        given(adminDashboardService.getRecommendationBreakdowns(14, 3))
+                .willReturn(new AdminRecommendationBreakdownResponse(
+                        LocalDateTime.of(2026, 5, 3, 16, 0),
+                        14,
+                        30,
+                        9,
+                        6,
+                        List.of(
+                                new AdminRecommendationBreakdownResponse.SourceBreakdown(
+                                        "YOUTH",
+                                        18,
+                                        6,
+                                        3,
+                                        java.math.BigDecimal.valueOf(0.3333),
+                                        java.math.BigDecimal.valueOf(0.1667)
+                                )
+                        ),
+                        List.of(
+                                new AdminRecommendationBreakdownResponse.CategoryBreakdown(
+                                        "HOUSING",
+                                        10,
+                                        4,
+                                        1,
+                                        java.math.BigDecimal.valueOf(0.4000),
+                                        java.math.BigDecimal.valueOf(0.1000)
+                                )
+                        ),
+                        List.of(
+                                new AdminRecommendationBreakdownResponse.WeightBreakdown(
+                                        "GROWTH",
+                                        java.math.BigDecimal.valueOf(0.60),
+                                        java.math.BigDecimal.valueOf(0.40),
+                                        12,
+                                        3,
+                                        2,
+                                        java.math.BigDecimal.valueOf(0.2500),
+                                        java.math.BigDecimal.valueOf(0.1667)
+                                )
+                        ),
+                        List.of(
+                                new AdminRecommendationBreakdownResponse.RecommendationSample(
+                                        101L,
+                                        501L,
+                                        "청년 월세 지원",
+                                        "YOUTH",
+                                        "HOUSING",
+                                        java.math.BigDecimal.valueOf(0.75231),
+                                        true,
+                                        false,
+                                        LocalDateTime.of(2026, 5, 3, 9, 0),
+                                        null
+                                )
+                        ),
+                        List.of(
+                                new AdminRecommendationBreakdownResponse.RecommendationSample(
+                                        102L,
+                                        502L,
+                                        "청년 전세 지원",
+                                        "BOKJIRO_LOCAL",
+                                        "HOUSING",
+                                        java.math.BigDecimal.valueOf(0.88123),
+                                        false,
+                                        true,
+                                        LocalDateTime.of(2026, 5, 3, 8, 0),
+                                        LocalDateTime.of(2026, 5, 3, 8, 30)
+                                )
+                        )
+                ));
+
+        mockMvc.perform(get("/api/admin/dashboard/recommendation-breakdowns")
+                        .param("summaryWindowDays", "14")
+                        .param("limit", "3")
+                        .header("Authorization", "Bearer admin-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.windowDays").value(14))
+                .andExpect(jsonPath("$.data.totalLogs").value(30))
+                .andExpect(jsonPath("$.data.clickedLogs").value(9))
+                .andExpect(jsonPath("$.data.fallbackLogs").value(6))
+                .andExpect(jsonPath("$.data.sourceBreakdowns[0].sourceType").value("YOUTH"))
+                .andExpect(jsonPath("$.data.categoryBreakdowns[0].category").value("HOUSING"))
+                .andExpect(jsonPath("$.data.weightBreakdowns[0].weightKey").value("GROWTH"))
+                .andExpect(jsonPath("$.data.recentFallbackSamples[0].title").value("청년 월세 지원"))
+                .andExpect(jsonPath("$.data.recentClickedSamples[0].title").value("청년 전세 지원"));
+
+        then(adminDashboardService).should().getRecommendationBreakdowns(14, 3);
     }
 
     @Test
