@@ -2447,3 +2447,8 @@
 - 문제: `VALIDATION_PROFILE=quick ...` 같은 env override는 유연하지만, quick/full 전환이나 replay skip 같은 자주 쓰는 조합조차 매번 env 문법으로 적어야 해 사용성이 떨어진다.
 - 해결: wrapper에 `--quick`, `--full`, `--skip-replay` CLI shortcut을 추가했다. `--print-plan` 과 함께 조합해 실행 없이 계획만 확인할 수도 있게 했다.
 - 이유: 반복 실행 도구는 가장 자주 쓰는 조합에 대해 더 짧은 입력 경로를 제공해야 한다. env override는 유지하되, 빈도가 높은 경로는 CLI shortcut으로 내려주는 편이 실사용성이 좋다.
+
+## 442) 프로필과 skip shortcut이 있어도 “dashboard만 다시 확인”, “replay만 다시 태우기” 같은 단일 단계 실행은 여전히 env override를 여러 개 조합해야 한다
+- 문제: quick/full/skip-replay 까지 생겨도, 단일 단계만 실행하려면 `RUN_AUTH_SESSION_SMOKE=false ...` 같은 override를 여전히 외워야 했다.
+- 해결: wrapper에 `--only auth-session|click|dashboard|replay` 를 추가했다. `--print-plan` 과 조합하면 실제 실행 없이 단일 단계 계획도 바로 확인할 수 있다.
+- 이유: 자주 쓰는 로컬 도구는 “전체 실행”뿐 아니라 “특정 단계만 다시 보기”가 빨라야 한다. 단일 단계 shortcut이 있어야 디버깅 중 반복 입력이 줄어든다.

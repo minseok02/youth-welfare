@@ -124,6 +124,8 @@ env를 직접 쓰기 싫으면 CLI shortcut도 씁니다.
 ```bash
 deploy/smoke/run-local-validation-suite.sh --quick --print-plan
 deploy/smoke/run-local-validation-suite.sh --full --skip-replay
+deploy/smoke/run-local-validation-suite.sh --only dashboard --print-plan
+deploy/smoke/run-local-validation-suite.sh --only replay
 ```
 
 전제:

@@ -9,6 +9,7 @@ RUN_AUTH_SESSION_SMOKE="${RUN_AUTH_SESSION_SMOKE:-}"
 RUN_RECOMMENDATION_CLICK_SMOKE="${RUN_RECOMMENDATION_CLICK_SMOKE:-}"
 RUN_ADMIN_DASHBOARD_SMOKE="${RUN_ADMIN_DASHBOARD_SMOKE:-}"
 RUN_REPLAY_SMOKE="${RUN_REPLAY_SMOKE:-}"
+ONLY_STEP="${ONLY_STEP:-}"
 SUITE_START_EPOCH="$(date +%s)"
 STEP_SUMMARY_LINES=()
 CURRENT_STEP_LABEL=""
@@ -26,7 +27,7 @@ normalize_flag() {
 
 print_usage() {
   cat <<'EOF'
-usage: deploy/smoke/run-local-validation-suite.sh [--help] [--print-plan] [--quick|--full] [--skip-replay]
+usage: deploy/smoke/run-local-validation-suite.sh [--help] [--print-plan] [--quick|--full] [--skip-replay] [--only STEP]
 
 Profiles:
   VALIDATION_PROFILE=full   auth/session + click + admin dashboard + replay
@@ -36,12 +37,14 @@ CLI shortcuts:
   --quick        set VALIDATION_PROFILE=quick
   --full         set VALIDATION_PROFILE=full
   --skip-replay  force RUN_REPLAY_SMOKE=false
+  --only STEP    run only one step: auth-session | click | dashboard | replay
 
 Optional overrides:
   RUN_AUTH_SESSION_SMOKE=true|false
   RUN_RECOMMENDATION_CLICK_SMOKE=true|false
   RUN_ADMIN_DASHBOARD_SMOKE=true|false
   RUN_REPLAY_SMOKE=true|false
+  ONLY_STEP=auth-session|click|dashboard|replay
 
 Examples:
   deploy/smoke/run-local-validation-suite.sh
@@ -49,8 +52,44 @@ Examples:
   RUN_REPLAY_SMOKE=false deploy/smoke/run-local-validation-suite.sh
   deploy/smoke/run-local-validation-suite.sh --quick --print-plan
   deploy/smoke/run-local-validation-suite.sh --full --skip-replay
+  deploy/smoke/run-local-validation-suite.sh --only dashboard --print-plan
   deploy/smoke/run-local-validation-suite.sh --print-plan
 EOF
+}
+
+apply_only_step() {
+  case "${ONLY_STEP}" in
+    "")
+      ;;
+    auth-session)
+      RUN_AUTH_SESSION_SMOKE="true"
+      RUN_RECOMMENDATION_CLICK_SMOKE="false"
+      RUN_ADMIN_DASHBOARD_SMOKE="false"
+      RUN_REPLAY_SMOKE="false"
+      ;;
+    click)
+      RUN_AUTH_SESSION_SMOKE="false"
+      RUN_RECOMMENDATION_CLICK_SMOKE="true"
+      RUN_ADMIN_DASHBOARD_SMOKE="false"
+      RUN_REPLAY_SMOKE="false"
+      ;;
+    dashboard)
+      RUN_AUTH_SESSION_SMOKE="false"
+      RUN_RECOMMENDATION_CLICK_SMOKE="false"
+      RUN_ADMIN_DASHBOARD_SMOKE="true"
+      RUN_REPLAY_SMOKE="false"
+      ;;
+    replay)
+      RUN_AUTH_SESSION_SMOKE="false"
+      RUN_RECOMMENDATION_CLICK_SMOKE="false"
+      RUN_ADMIN_DASHBOARD_SMOKE="false"
+      RUN_REPLAY_SMOKE="true"
+      ;;
+    *)
+      echo "unsupported ONLY_STEP: ${ONLY_STEP} (expected auth-session, click, dashboard, or replay)" >&2
+      exit 1
+      ;;
+  esac
 }
 
 resolve_profile_defaults() {
@@ -128,6 +167,18 @@ while [[ $# -gt 0 ]]; do
     --skip-replay)
       RUN_REPLAY_SMOKE="false"
       ;;
+    --only)
+      if [[ $# -lt 2 ]]; then
+        echo "--only requires a step name" >&2
+        print_usage >&2
+        exit 1
+      fi
+      ONLY_STEP="$2"
+      shift
+      ;;
+    --only=*)
+      ONLY_STEP="${1#--only=}"
+      ;;
     *)
       echo "unsupported argument: $1" >&2
       print_usage >&2
@@ -138,6 +189,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 resolve_profile_defaults
+apply_only_step
 
 printf 'validation_profile=%s auth=%s click=%s dashboard=%s replay=%s\n' \
   "${VALIDATION_PROFILE}" \
