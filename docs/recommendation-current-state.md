@@ -133,6 +133,7 @@
 현재 로컬에서 다시 확인된 것은:
 
 - auth/runtime smoke 통과
+- recommendation click smoke 통과
 - actual collect 이후 downstream replay 통과
 - `education replay` rule-only 성공
 - broad regression 통과
@@ -147,6 +148,7 @@
 - collect
 - sidecar
 - recommendation downstream
+- CTR click instrumentation
 
 이 다시 이어져 있습니다.
 
@@ -164,6 +166,15 @@ recommendation/replay 는 collect와 sidecar snapshot 품질에 직접 의존합
 - `ai_score` drift
 
 가 남습니다.
+
+### 3. CTR 표본 부족
+
+클릭 추적 경계 자체는 현재 정상입니다.
+
+- 추천 응답의 `serviceId + logId` 로 정책 상세 진입 시
+- `recommendation_logs.is_clicked=1` 이 실제 DB에 기록됨
+
+즉 현재 병목은 click instrumentation이 아니라 실사용 클릭 표본 부족입니다.
 
 ### 3. fresh reset 뒤 sidecar 공백
 
@@ -194,3 +205,4 @@ runtime bootstrap이 자동으로 sidecar를 다 복구하는 건 아닙니다.
 4. `ai_score` exact match는 현재 제품 보장 범위가 아닙니다.
 5. notification 후보 선택은 현재 `[A, A, B?]` 슬롯 배치입니다.
 6. 운영 지표는 `GET /api/admin/dashboard/summary` 에서 collect/recommendation/notification/search/user_pii_sync 묶음으로 조회합니다.
+7. 추천 가중치/프롬프트 재조정은 CTR 표본이 더 쌓인 뒤에만 reopen 합니다.

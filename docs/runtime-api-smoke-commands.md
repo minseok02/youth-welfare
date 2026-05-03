@@ -13,6 +13,14 @@ deploy/smoke/run-local-runtime-api-smoke.sh
 
 이 스크립트는 `signup -> login -> refresh -> recommendations refresh -> bookmark -> bookmarks -> logout -> refresh invalidation -> presented access revoke` 를 한 번에 확인합니다.
 
+추천 클릭 추적 반복 검증은 아래 스크립트를 우선 사용합니다.
+
+```bash
+deploy/smoke/run-local-recommendation-click-smoke.sh
+```
+
+이 스크립트는 `signup -> login -> recommendations refresh -> first recommendation detail(serviceId + logId) -> recommendation_logs.is_clicked=1` 을 한 번에 확인합니다.
+
 admin forced logout 반복 검증은 아래 스크립트를 우선 사용합니다.
 
 ```bash
@@ -186,6 +194,26 @@ curl -sS \
 
 - 토글 응답 `success=true`
 - 재조회 시 해당 recommendation의 `isBookmarked` 값 변경
+
+## 5-1. 추천 클릭 추적 smoke
+
+반복 검증은 수동 curl 대신 아래 스크립트를 우선 사용합니다.
+
+```bash
+deploy/smoke/run-local-recommendation-click-smoke.sh
+```
+
+이 smoke의 핵심 포인트:
+
+- 추천 응답의 상세 진입 path는 `id` 가 아니라 `serviceId` 를 사용
+- CTR 추적은 `logId` 를 query param(`?logId=`) 으로 전달
+- 상세 조회 직후 `recommendation_logs.is_clicked=1`, `clicked_at` 이 채워져야 정상
+
+수동 확인 시 주의:
+
+- `recommendation.id` 는 추천 row id
+- `recommendation.serviceId` 는 정책 상세 path variable
+- 둘을 혼동하면 수동 probe에서 거짓 `500` 을 만들 수 있음
 
 ## 6. 정책 북마크 목록 확인
 
