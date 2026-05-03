@@ -2551,3 +2551,18 @@
 - 문제: `AdminDashboardService` 가 `BokjiroLocalClient.getRateLimitCircuitStatus()` 를 직접 호출하고 있었다. 이 구조에서는 admin dashboard가 collect runtime status 자체가 아니라 특정 source gateway 구현과 그 내부 상태 표현을 직접 알아야 했다.
 - 해결: `CollectRuntimeStatusService` 를 추가하고, dashboard는 collect runtime status 전용 서비스가 반환하는 snapshot만 읽도록 바꿨다.
 - 이유: 운영 관측 계층은 개별 gateway 구현보다 “현재 수집 런타임 상태”라는 응용 계층 개념에 의존하는 편이 경계가 더 명확하고, 이후 source가 늘어나도 dashboard 수정 범위를 줄일 수 있다.
+
+## 463) `RetrievalService` 가 지역/최신 조합마다 `WelfareServiceRepository` 메서드를 직접 고르면, 추천 후보 조회 규칙이 서비스 코드와 persistence 분기 로직에 같이 퍼진다
+- 문제: `RetrievalService` 가 `findCandidatesWithRegionCode`, `findCandidatesWithSido`, `findLatestCandidatesWithRegionCode`, `findLatestCandidatesWithSido`, `findCandidates`, `findLatestCandidates` 를 직접 선택하고 있었다. 이 상태에서는 추천 후보 조회 조합이 바뀔 때 retrieval 서비스와 repository 분기가 함께 수정된다.
+- 해결: `RecommendationCandidateReadCondition`, `RecommendationCandidateReadRepository` 를 추가하고, `RetrievalService` 는 추천 후보 조회 의도만 condition으로 넘기게 바꿨다. 실제 조합식 repository 선택은 전용 read repository 구현으로 이동시켰다.
+- 이유: 추천 파이프라인 서비스는 “어떤 후보를 읽고 싶은가”에 집중하고, 지역/최신 조합식 persistence 선택은 read 계층으로 숨기는 편이 SRP와 변경 파급도 관리에 더 낫다.
+
+## 464) `ChatPolicyService` 가 챗봇 후보 검색과 fallback 인기 정책 조회를 위해 `WelfareServiceRepository` 메서드 조합을 직접 고르면, 챗 도메인이 policy persistence 분기까지 같이 떠안게 된다
+- 문제: `ChatPolicyService` 가 `searchChatCandidates(...)` 와 `findBySearchYouthRelevantTrueAndStatusInOrderByViewCountDescCreatedAtDesc(...)` 를 직접 고르고 있었다. 이 상태에서는 챗봇 후보 조회 규칙이 바뀔 때 질문 해석 서비스와 persistence 분기를 함께 수정해야 했다.
+- 해결: `ChatPolicyReadCondition`, `ChatPolicyReadRepository` 를 추가하고, `ChatPolicyService` 는 질문에서 만든 fulltext keyword 와 limit만 조건 객체로 넘기게 바꿨다. 검색 우선/fallback 인기 정책 조회 선택은 전용 read repository 구현으로 이동시켰다.
+- 이유: 챗 도메인 서비스는 질문 해석과 limit 정규화에 집중하고, 후보 조회 구현 분기는 read 계층으로 숨기는 편이 SRP와 도메인 경계 분리에 더 낫다.
+
+## 465) policy 상세/목록의 북마크 토글이 recommendation 저장소와 `userKey` 조회를 직접 들고 있으면, policy 도메인이 recommendation command 규칙과 저장 모델 변경에 같이 묶인다
+- 문제: `PolicyService.toggleBookmark(...)` 가 `UserRecommendationRepository`, `UserRepository`, `WelfareServiceRepository` 를 직접 사용해 `userKey` 조회, 기존 추천 이력 조회, placeholder 추천 생성, 북마크 한도 검사까지 모두 처리하고 있었다. 동시에 `RecommendationFacade.toggleBookmark(...)` 도 별도 방식으로 북마크 토글을 들고 있어 command 규칙이 두 군데로 갈라져 있었다.
+- 해결: `RecommendationBookmarkCommandService` 를 추가해 recommendation ID 기준 토글과 policy service ID 기준 토글을 한 경계로 모으고, `PolicyService` 와 `RecommendationFacade` 는 북마크 command 서비스로만 위임하게 바꿨다.
+- 이유: 북마크 토글은 recommendation 저장 모델과 userKey 해석 규칙에 가까운 command다. policy/read 진입점과 recommendation API 진입점이 같은 규칙을 공유하도록 recommendation 도메인 안으로 모으는 편이 경계와 변경 파급도 관리에 더 낫다.

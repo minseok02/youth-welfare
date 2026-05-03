@@ -1127,6 +1127,15 @@ cd backend
 - 2026-05-03 collect runtime status 경계 정리
   - `CollectRuntimeStatusService` 추가
   - `AdminDashboardService` 가 `BokjiroLocalClient` 구현을 직접 알지 않고 collect runtime status 전용 서비스만 보도록 정리
+- 2026-05-03 recommendation retrieval 조합식 조회 경계 정리
+  - `RecommendationCandidateReadCondition`, `RecommendationCandidateReadRepository` 추가
+  - `RetrievalService` 가 `findCandidates...` / `findLatestCandidates...` 조합 메서드를 직접 고르지 않고 추천 후보 전용 read repository로 위임
+- 2026-05-03 chat policy 조회 경계 정리
+  - `ChatPolicyReadCondition`, `ChatPolicyReadRepository` 추가
+  - `ChatPolicyService` 가 `searchChatCandidates` / fallback 인기 정책 조회 메서드를 직접 고르지 않고 챗봇 후보 전용 read repository로 위임
+- 2026-05-03 recommendation bookmark command 경계 정리
+  - `RecommendationBookmarkCommandService` 추가
+  - `PolicyService` 와 `RecommendationFacade` 가 북마크 토글 규칙과 userKey 해석, placeholder 생성 로직을 recommendation command 서비스로 위임
 
 ## 남은 1차 작업
 

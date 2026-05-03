@@ -49,6 +49,7 @@ public class RecommendationFacade {
     private final RecommendationPersistenceService persistenceService;
     private final RecommendationLogService recommendationLogService;
     private final RecommendationRefreshCacheService recommendationRefreshCacheService;
+    private final RecommendationBookmarkCommandService recommendationBookmarkCommandService;
     private final UserRecommendationRepository userRecommendationRepository;
 
     /**
@@ -133,10 +134,7 @@ public class RecommendationFacade {
      */
     @Transactional
     public void toggleBookmark(Long userId, Long recommendationId) {
-        String userKey = resolveUserKey(userId);
-        UserRecommendation rec = userRecommendationRepository.findByIdAndUserKey(recommendationId, userKey)
-                .orElseThrow(() -> new CustomException(ErrorCode.RECOMMENDATION_NOT_FOUND));
-        rec.toggleBookmark();
+        recommendationBookmarkCommandService.toggleRecommendationBookmark(userId, recommendationId);
     }
 
     private String resolveUserKey(Long userId) {

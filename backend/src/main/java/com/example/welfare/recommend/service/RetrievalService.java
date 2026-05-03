@@ -3,7 +3,8 @@ package com.example.welfare.recommend.service;
 import com.example.welfare.policy.entity.ServiceTag;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.repository.ServiceTagRepository;
-import com.example.welfare.policy.repository.WelfareServiceRepository;
+import com.example.welfare.recommend.repository.RecommendationCandidateReadCondition;
+import com.example.welfare.recommend.repository.RecommendationCandidateReadRepository;
 import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
 import com.example.welfare.recommend.dto.RetrievedRecommendationCandidates;
 import com.example.welfare.recommend.dto.RecommendationUserSnapshot;
@@ -35,7 +36,7 @@ public class RetrievalService {
     private static final int M = 5;
     private static final int FETCH_SIZE = 150; // 후처리 필터 감안해 넉넉히 조회
 
-    private final WelfareServiceRepository welfareServiceRepository;
+    private final RecommendationCandidateReadRepository recommendationCandidateReadRepository;
     private final ServiceTagRepository serviceTagRepository;
     private final RecommendationYouthRelevanceSupport recommendationYouthRelevanceSupport;
     private final CanonicalRecommendationReadModelRepository canonicalRecommendationReadModelRepository;
@@ -45,33 +46,16 @@ public class RetrievalService {
         int age = user.resolvedAge();
         int incomeLevel = user.resolvedIncomeLevel();
 
-        List<WelfareService> rawCandidates;
-        List<WelfareService> latestCandidates;
-        // 지역코드가 있으면 더 정밀한 지역코드 쿼리, 없으면 시도 쿼리를 사용한다.
-        if (user.sido() != null) {
-            if (StringUtils.hasText(user.regionCode())) {
-                rawCandidates = welfareServiceRepository.findCandidatesWithRegionCode(
-                        age, incomeLevel,
-                        user.regionCode().trim(),
-                        PageRequest.of(0, FETCH_SIZE));
-                latestCandidates = welfareServiceRepository.findLatestCandidatesWithRegionCode(
-                        age, incomeLevel,
-                        user.regionCode().trim(),
-                        PageRequest.of(0, M * 4));
-            } else {
-                rawCandidates = welfareServiceRepository.findCandidatesWithSido(
-                        age, incomeLevel,
-                        user.sido(),
-                        PageRequest.of(0, FETCH_SIZE));
-                latestCandidates = welfareServiceRepository.findLatestCandidatesWithSido(
-                        age, incomeLevel,
-                        user.sido(),
-                        PageRequest.of(0, M * 4));
-            }
-        } else {
-            rawCandidates = welfareServiceRepository.findCandidates(age, incomeLevel, PageRequest.of(0, FETCH_SIZE));
-            latestCandidates = welfareServiceRepository.findLatestCandidates(age, incomeLevel, PageRequest.of(0, M * 4));
-        }
+        RecommendationCandidateReadCondition condition = new RecommendationCandidateReadCondition(
+                age,
+                incomeLevel,
+                user.sido(),
+                normalizeRegionCode(user.regionCode()),
+                FETCH_SIZE,
+                M * 4
+        );
+        List<WelfareService> rawCandidates = recommendationCandidateReadRepository.findBaseCandidates(condition);
+        List<WelfareService> latestCandidates = recommendationCandidateReadRepository.findLatestCandidates(condition);
 
         Map<Long, RecommendationCandidateProjection> projections = loadProjections(rawCandidates, latestCandidates);
 
@@ -190,6 +174,13 @@ public class RetrievalService {
         } catch (Exception ignored) {
             return -1;
         }
+    }
+
+    private String normalizeRegionCode(String regionCode) {
+        if (!StringUtils.hasText(regionCode)) {
+            return null;
+        }
+        return regionCode.trim();
     }
 
     /**

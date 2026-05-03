@@ -11,6 +11,7 @@ import com.example.welfare.recommend.service.AiScoringService;
 import com.example.welfare.recommend.service.ClusterService;
 import com.example.welfare.recommend.service.ReRankingService;
 import com.example.welfare.recommend.service.RecommendationLogService;
+import com.example.welfare.recommend.service.RecommendationBookmarkCommandService;
 import com.example.welfare.recommend.service.RecommendationPersistenceService;
 import com.example.welfare.recommend.service.RecommendationPostScoringFilterService;
 import com.example.welfare.recommend.service.RecommendationRefreshCacheService;
@@ -52,6 +53,7 @@ class RecommendationFacadeTest {
     @Mock private RecommendationPersistenceService recommendationPersistenceService;
     @Mock private RecommendationLogService recommendationLogService;
     @Mock private RecommendationRefreshCacheService recommendationRefreshCacheService;
+    @Mock private RecommendationBookmarkCommandService recommendationBookmarkCommandService;
     @Mock private UserRecommendationRepository userRecommendationRepository;
 
     private RecommendationFacade recommendationFacade;
@@ -70,6 +72,7 @@ class RecommendationFacadeTest {
                 recommendationPersistenceService,
                 recommendationLogService,
                 recommendationRefreshCacheService,
+                recommendationBookmarkCommandService,
                 userRecommendationRepository
         );
     }
