@@ -389,6 +389,24 @@ class AdminSecurityWebMvcTest {
                                         "LATEST",
                                         LocalDateTime.of(2026, 5, 3, 14, 45)
                                 )
+                        ),
+                        List.of(
+                                new AdminSearchFailureResponse.RetryGroup(
+                                        "USER_KEY",
+                                        "user-key-1",
+                                        "대출",
+                                        "서울",
+                                        "관악구",
+                                        "UNEMPLOYED",
+                                        "HOUSING",
+                                        "YOUTH",
+                                        true,
+                                        false,
+                                        "LATEST",
+                                        3,
+                                        LocalDateTime.of(2026, 5, 3, 14, 0),
+                                        LocalDateTime.of(2026, 5, 3, 14, 45)
+                                )
                         )
                 ));
 
@@ -405,7 +423,10 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.data.zeroResultRegions[0].sgg").value("관악구"))
                 .andExpect(jsonPath("$.data.zeroResultFilterPatterns[0].statusFilter").value("UNEMPLOYED"))
                 .andExpect(jsonPath("$.data.zeroResultFilterPatterns[0].searchCount").value(5))
-                .andExpect(jsonPath("$.data.recentSamples[0].keyword").value("대출"));
+                .andExpect(jsonPath("$.data.recentSamples[0].keyword").value("대출"))
+                .andExpect(jsonPath("$.data.retryGroups[0].actorType").value("USER_KEY"))
+                .andExpect(jsonPath("$.data.retryGroups[0].actorKey").value("user-key-1"))
+                .andExpect(jsonPath("$.data.retryGroups[0].retryCount").value(3));
 
         then(adminDashboardService).should().getSearchFailures(14, 3);
     }
