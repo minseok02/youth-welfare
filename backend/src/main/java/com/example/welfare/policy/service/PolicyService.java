@@ -4,16 +4,9 @@ import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.policy.dto.PolicyDetailResponse;
 import com.example.welfare.policy.dto.PolicySummaryResponse;
-import com.example.welfare.policy.entity.ServiceRegion;
-import com.example.welfare.policy.entity.ServiceTag;
 import com.example.welfare.policy.entity.WelfareService;
-import com.example.welfare.policy.entity.WelfareServiceDetail;
 import com.example.welfare.policy.repository.PolicyListReadCondition;
-import com.example.welfare.policy.repository.ServiceRegionRepository;
-import com.example.welfare.policy.repository.ServiceTagRepository;
-import com.example.welfare.policy.repository.WelfareServiceDetailRepository;
 import com.example.welfare.policy.repository.WelfareServiceReadRepository;
-import com.example.welfare.policy.repository.WelfareServiceRepository;
 import com.example.welfare.policy.support.WelfareSourceTypeSupport;
 import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
 import com.example.welfare.recommend.facade.RecommendationReadFacade;
@@ -34,10 +27,8 @@ import java.util.Set;
 public class PolicyService {
 
     private final WelfareServiceReadRepository welfareServiceReadRepository;
-    private final WelfareServiceRepository welfareServiceRepository;
-    private final WelfareServiceDetailRepository detailRepository;
-    private final ServiceRegionRepository regionRepository;
-    private final ServiceTagRepository tagRepository;
+    private final PolicyLookupService policyLookupService;
+    private final PolicyDetailReadService policyDetailReadService;
     private final RecommendationReadFacade recommendationReadFacade;
     private final RecommendationBookmarkCommandService recommendationBookmarkCommandService;
 
@@ -76,21 +67,25 @@ public class PolicyService {
 
     @Transactional
     public PolicyDetailResponse getDetail(Long userId, Long serviceId, boolean increaseViewCount) {
-        WelfareService ws = welfareServiceRepository.findById(serviceId)
-                .orElseThrow(() -> new CustomException(ErrorCode.POLICY_NOT_FOUND));
+        WelfareService ws = policyLookupService.getRequiredService(serviceId);
         if (increaseViewCount) {
             ws.increaseViewCount();
         }
 
-        WelfareServiceDetail detail = detailRepository.findByServiceId(serviceId).orElse(null);
-        List<ServiceRegion> regions = regionRepository.findByServiceId(serviceId);
-        List<ServiceTag> tags = tagRepository.findByServiceId(serviceId);
+        PolicyDetailReadService.PolicyDetailAggregate detailAggregate = policyDetailReadService.getAggregate(serviceId);
         boolean bookmarked = recommendationReadFacade.findBookmarkedServiceIds(userId, List.of(ws)).contains(serviceId);
         RecommendationCandidateProjection projection = recommendationReadFacade
                 .findCandidateProjectionsByServices(List.of(ws))
                 .get(serviceId);
 
-        return PolicyDetailResponse.of(ws, detail, regions, tags, bookmarked, projection);
+        return PolicyDetailResponse.of(
+                ws,
+                detailAggregate.detail(),
+                detailAggregate.regions(),
+                detailAggregate.tags(),
+                bookmarked,
+                projection
+        );
     }
 
     @Transactional

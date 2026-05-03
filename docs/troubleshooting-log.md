@@ -2631,3 +2631,8 @@
 - 문제: 정책 랭킹 응답은 rankable policy 목록을 구한 뒤 `CanonicalRecommendationReadModelRepository.findByServiceIds(...)` 를 직접 호출해 summary projection 을 조립하고 있었다. 이 상태에서는 ranking 서비스가 점수 계산뿐 아니라 recommendation projection 조회 구현까지 알아야 한다.
 - 해결: `PolicyRankingService` 도 `RecommendationReadFacade.findCandidateProjectionsByServices(...)` 를 사용하게 정리했다.
 - 이유: 목록/검색/랭킹 모두 정책 summary projection 조회 규칙은 동일한 recommendation read 경계로 모으는 편이 이후 projection 저장 구조나 조립 규칙이 바뀔 때 영향 범위를 줄인다.
+
+## 479) `PolicyService.getDetail(...)` 가 정책 엔티티 조회와 상세/지역/태그 조회를 모두 직접 들고 있으면, 정책 상세 orchestration 서비스가 detail aggregate read 구현까지 같이 떠안는다
+- 문제: `PolicyService.getDetail(...)` 는 `WelfareServiceRepository.findById(...)`, `WelfareServiceDetailRepository.findByServiceId(...)`, `ServiceRegionRepository.findByServiceId(...)`, `ServiceTagRepository.findByServiceId(...)` 를 한 메서드 안에서 직접 호출하고 있었다.
+- 해결: 정책 엔티티 조회는 `PolicyLookupService`, 상세/지역/태그 묶음 조회는 `PolicyDetailReadService.getAggregate(...)` 로 이동했다.
+- 이유: `PolicyService` 는 상세 응답 orchestration과 bookmark/projection 결합만 맡고, detail aggregate read 구현은 별도 read 서비스에 두는 편이 책임 분리가 더 선명하다.

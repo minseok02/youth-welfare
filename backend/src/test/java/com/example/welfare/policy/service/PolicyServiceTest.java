@@ -2,14 +2,14 @@ package com.example.welfare.policy.service;
 
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
+import com.example.welfare.policy.dto.PolicyDetailResponse;
 import com.example.welfare.policy.dto.PolicySummaryResponse;
+import com.example.welfare.policy.entity.ServiceRegion;
+import com.example.welfare.policy.entity.ServiceTag;
 import com.example.welfare.policy.entity.WelfareService;
+import com.example.welfare.policy.entity.WelfareServiceDetail;
 import com.example.welfare.policy.repository.PolicyListReadCondition;
-import com.example.welfare.policy.repository.ServiceRegionRepository;
-import com.example.welfare.policy.repository.ServiceTagRepository;
 import com.example.welfare.policy.repository.WelfareServiceReadRepository;
-import com.example.welfare.policy.repository.WelfareServiceDetailRepository;
-import com.example.welfare.policy.repository.WelfareServiceRepository;
 import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
 import com.example.welfare.recommend.facade.RecommendationReadFacade;
 import com.example.welfare.recommend.service.RecommendationBookmarkCommandService;
@@ -39,15 +39,11 @@ import static org.mockito.Mockito.verify;
 class PolicyServiceTest {
 
     @Mock
-    private WelfareServiceRepository welfareServiceRepository;
-    @Mock
-    private WelfareServiceDetailRepository detailRepository;
-    @Mock
-    private ServiceRegionRepository regionRepository;
-    @Mock
-    private ServiceTagRepository tagRepository;
-    @Mock
     private WelfareServiceReadRepository welfareServiceReadRepository;
+    @Mock
+    private PolicyLookupService policyLookupService;
+    @Mock
+    private PolicyDetailReadService policyDetailReadService;
     @Mock
     private RecommendationReadFacade recommendationReadFacade;
     @Mock
@@ -167,6 +163,60 @@ class PolicyServiceTest {
         assertEquals("보육", result.getContent().get(0).getGov24ServiceFieldLabel());
         assertEquals("청년", result.getContent().get(0).getGov24UserTypeLabel());
         assertEquals("서비스", result.getContent().get(0).getGov24BenefitTypeLabel());
+    }
+
+    @Test
+    @DisplayName("정책 상세 조회는 lookup/read 경계를 통해 상세 aggregate를 조립한다")
+    void getDetailUsesLookupAndDetailReadBoundary() {
+        WelfareService service = WelfareService.builder()
+                .id(11L)
+                .sourceType(WelfareService.SourceType.YOUTH)
+                .sourceId("SRC-11")
+                .title("청년 월세 지원")
+                .status(WelfareService.ServiceStatus.ACTIVE)
+                .build();
+        WelfareServiceDetail detail = WelfareServiceDetail.builder()
+                .service(service)
+                .targetDetail("청년")
+                .supportDetail("월세")
+                .build();
+        ServiceRegion region = ServiceRegion.builder()
+                .service(service)
+                .sidoName("서울특별시")
+                .sggName("강남구")
+                .build();
+        ServiceTag tag = ServiceTag.builder()
+                .service(service)
+                .tagType(ServiceTag.TagType.KEYWORD)
+                .tagValue("주거")
+                .build();
+
+        given(policyLookupService.getRequiredService(11L)).willReturn(service);
+        given(policyDetailReadService.getAggregate(11L))
+                .willReturn(new PolicyDetailReadService.PolicyDetailAggregate(
+                        detail,
+                        List.of(region),
+                        List.of(tag)
+                ));
+        given(recommendationReadFacade.findBookmarkedServiceIds(7L, List.of(service)))
+                .willReturn(Set.of(11L));
+        given(recommendationReadFacade.findCandidateProjectionsByServices(List.of(service)))
+                .willReturn(java.util.Map.of(
+                        11L,
+                        RecommendationCandidateProjection.builder()
+                                .serviceId(11L)
+                                .unifiedCategoryCompat("주거")
+                                .build()
+                ));
+
+        PolicyDetailResponse response = policyService.getDetail(7L, 11L, true);
+
+        assertEquals(11L, response.getId());
+        assertTrue(response.isBookmarked());
+        assertEquals("주거", response.getUnifiedCategory());
+        assertEquals(List.of("서울특별시 강남구"), response.getRegions());
+        verify(policyLookupService).getRequiredService(11L);
+        verify(policyDetailReadService).getAggregate(11L);
     }
 
     @Test
