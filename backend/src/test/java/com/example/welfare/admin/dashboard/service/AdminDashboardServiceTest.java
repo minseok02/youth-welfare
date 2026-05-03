@@ -1,5 +1,6 @@
 package com.example.welfare.admin.dashboard.service;
 
+import com.example.welfare.admin.dashboard.dto.AdminSearchFailureResponse;
 import com.example.welfare.admin.dashboard.dto.AdminDashboardResponse;
 import com.example.welfare.admin.dashboard.repository.AdminDashboardReadRepository;
 import com.example.welfare.recommend.entity.ScoreWeight;
@@ -273,5 +274,82 @@ class AdminDashboardServiceTest {
         verify(adminDashboardReadRepository, times(2)).fetchCollectTrend(org.mockito.ArgumentMatchers.any());
         verify(adminDashboardReadRepository, times(2)).fetchRecommendationTrend(org.mockito.ArgumentMatchers.any());
         verify(adminDashboardReadRepository, times(2)).fetchSearchTrend(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    @DisplayName("검색 실패 상세는 zero-result 키워드/지역/필터 패턴/샘플을 조합한다")
+    void getSearchFailuresBuildsResponse() {
+        given(adminDashboardReadRepository.fetchSearchSummary(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any()
+        )).willReturn(new AdminDashboardReadRepository.SearchSummaryRow(21, 88, 13, 43, new BigDecimal("6.375")));
+        given(adminDashboardReadRepository.fetchTopZeroResultSearchKeywords(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.eq(3)
+        )).willReturn(List.of(
+                new AdminDashboardReadRepository.SearchKeywordSnapshotRow("대출", 4),
+                new AdminDashboardReadRepository.SearchKeywordSnapshotRow("월세", 2)
+        ));
+        given(adminDashboardReadRepository.fetchTopZeroResultRegions(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.eq(3)
+        )).willReturn(List.of(
+                new AdminDashboardReadRepository.SearchRegionSnapshotRow("서울", "관악구", 3)
+        ));
+        given(adminDashboardReadRepository.fetchTopZeroResultFilterPatterns(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.eq(3)
+        )).willReturn(List.of(
+                new AdminDashboardReadRepository.SearchFilterPatternSnapshotRow(
+                        "UNEMPLOYED",
+                        "HOUSING",
+                        "YOUTH",
+                        Boolean.TRUE,
+                        false,
+                        "LATEST",
+                        5
+                )
+        ));
+        given(adminDashboardReadRepository.fetchRecentZeroResultSearchSamples(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.eq(3)
+        )).willReturn(List.of(
+                new AdminDashboardReadRepository.SearchFailureSampleRow(
+                        "대출",
+                        "서울",
+                        "관악구",
+                        "UNEMPLOYED",
+                        "HOUSING",
+                        "YOUTH",
+                        Boolean.TRUE,
+                        false,
+                        "LATEST",
+                        LocalDateTime.of(2026, 5, 3, 9, 15)
+                )
+        ));
+
+        AdminSearchFailureResponse response = adminDashboardService.getSearchFailures(14, 3);
+
+        assertThat(response.windowDays()).isEqualTo(14);
+        assertThat(response.totalZeroResultSearches()).isEqualTo(13);
+        assertThat(response.zeroResultKeywords()).extracting(AdminSearchFailureResponse.KeywordCount::keyword)
+                .containsExactly("대출", "월세");
+        assertThat(response.zeroResultRegions()).extracting(AdminSearchFailureResponse.RegionCount::sido, AdminSearchFailureResponse.RegionCount::sgg)
+                .containsExactly(org.assertj.core.groups.Tuple.tuple("서울", "관악구"));
+        assertThat(response.zeroResultFilterPatterns()).singleElement().satisfies(pattern -> {
+            assertThat(pattern.statusFilter()).isEqualTo("UNEMPLOYED");
+            assertThat(pattern.category()).isEqualTo("HOUSING");
+            assertThat(pattern.sourceType()).isEqualTo("YOUTH");
+            assertThat(pattern.onlineApply()).isTrue();
+            assertThat(pattern.includeClosed()).isFalse();
+            assertThat(pattern.sortKey()).isEqualTo("LATEST");
+            assertThat(pattern.searchCount()).isEqualTo(5);
+        });
+        assertThat(response.recentSamples()).singleElement().satisfies(sample -> {
+            assertThat(sample.keyword()).isEqualTo("대출");
+            assertThat(sample.sido()).isEqualTo("서울");
+            assertThat(sample.sgg()).isEqualTo("관악구");
+            assertThat(sample.searchedAt()).isEqualTo(LocalDateTime.of(2026, 5, 3, 9, 15));
+        });
     }
 }

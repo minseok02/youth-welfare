@@ -2467,3 +2467,13 @@
 - 문제: `zeroResultSearchesInWindow` count 만으로는 검색 품질 개선 액션을 바로 잡기 어렵다. 운영자는 결국 `search_logs` 에서 `result_count=0` keyword를 다시 직접 group by 해야 했다.
 - 해결: admin dashboard search 섹션에 `zeroResultKeywordsInWindow` 를 추가해 최근 summary window 기준 상위 zero-result keyword를 같이 반환하게 했다.
 - 이유: 검색 품질 개선의 첫 단계는 “얼마나 실패했나”보다 “무엇이 실패했나”를 바로 보는 것이다. top zero-result keyword가 summary 응답에 있어야 후속 ranking/filter 개선이 빨라진다.
+
+## 446) `Batch AI Gateway` 를 “남은 기능”이라는 이유만으로 바로 next track에 올리면, 실제 병목보다 운영 복잡도만 먼저 시스템에 들여오게 된다
+- 문제: 문서상 2차 기능으로 남아 있다는 이유만으로 `Batch AI Gateway` 를 곧바로 다음 구현 대상으로 삼으면, 현재 트래픽/비용 규모에서는 실시간 개인화가 충분한데도 batch polling, hard deadline fallback, partial completion 처리 같은 운영 모델을 먼저 구현하게 된다.
+- 해결: `Batch AI Gateway` 는 지금 단계에서 active backlog가 아니라 “규모 확대 또는 비용 압박 발생 시 재검토할 deferred 2차 기능”으로 문서상 위치를 더 분명히 했다.
+- 이유: 지금 프로젝트의 병목은 AI batch 미구현이 아니라 표본/운영 규모 부족이다. 이 상황에서 batch는 기능 공백보다 과한 운영 복잡도 추가에 가깝다.
+
+## 447) search summary에 top zero-result keyword만 있으면, 어떤 지역/필터 조합이 계속 실패하는지는 여전히 raw `search_logs` 를 다시 뒤져야 한다
+- 문제: `zeroResultKeywordsInWindow` 는 “무슨 단어가 실패하나”까지는 보여주지만, 실제 triage 단계에서는 `sido/sgg`, `status_filter`, `category`, `source_type`, `online_apply`, `include_closed`, `sort_key` 같은 조건 조합과 최근 샘플을 같이 봐야 원인을 더 빨리 좁힐 수 있다.
+- 해결: `/api/admin/dashboard/search-failures` 를 추가해 summary window 기준 zero-result keyword/region/filter pattern/recent sample 상세를 별도 admin API로 분리했다.
+- 이유: 요약 대시보드는 가볍게 유지하고, 검색 실패 triage는 별도 상세 endpoint에서 읽게 분리하는 편이 책임이 명확하고 후속 확장도 쉽다.

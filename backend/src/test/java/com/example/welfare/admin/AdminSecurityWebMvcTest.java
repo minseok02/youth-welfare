@@ -1,6 +1,7 @@
 package com.example.welfare.admin;
 
 import com.example.welfare.admin.dashboard.controller.AdminDashboardController;
+import com.example.welfare.admin.dashboard.dto.AdminSearchFailureResponse;
 import com.example.welfare.admin.dashboard.dto.AdminDashboardResponse;
 import com.example.welfare.admin.dashboard.service.AdminDashboardService;
 import com.example.welfare.collect.controller.CollectAdminController;
@@ -341,6 +342,70 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.data.trend.search[1].windowDays").value(14));
 
         then(adminDashboardService).should().getSummary(14, List.of(3, 14));
+    }
+
+    @Test
+    @DisplayName("관리자 토큰으로 검색 실패 상세 API를 호출하면 search failure 응답을 반환한다")
+    void adminEndpointAllowsSearchFailures() throws Exception {
+        mockAuthenticatedToken("admin-token", List.of(
+                new SimpleGrantedAuthority("ROLE_USER"),
+                new SimpleGrantedAuthority("ROLE_ADMIN")
+        ));
+        given(adminDashboardService.getSearchFailures(14, 3))
+                .willReturn(new AdminSearchFailureResponse(
+                        LocalDateTime.of(2026, 5, 3, 15, 0),
+                        14,
+                        6,
+                        List.of(
+                                new AdminSearchFailureResponse.KeywordCount("대출", 4),
+                                new AdminSearchFailureResponse.KeywordCount("월세", 2)
+                        ),
+                        List.of(
+                                new AdminSearchFailureResponse.RegionCount("서울", "관악구", 3)
+                        ),
+                        List.of(
+                                new AdminSearchFailureResponse.FilterPatternCount(
+                                        "UNEMPLOYED",
+                                        "HOUSING",
+                                        "YOUTH",
+                                        true,
+                                        false,
+                                        "LATEST",
+                                        5
+                                )
+                        ),
+                        List.of(
+                                new AdminSearchFailureResponse.SearchFailureSample(
+                                        "대출",
+                                        "서울",
+                                        "관악구",
+                                        "UNEMPLOYED",
+                                        "HOUSING",
+                                        "YOUTH",
+                                        true,
+                                        false,
+                                        "LATEST",
+                                        LocalDateTime.of(2026, 5, 3, 14, 45)
+                                )
+                        )
+                ));
+
+        mockMvc.perform(get("/api/admin/dashboard/search-failures")
+                        .param("summaryWindowDays", "14")
+                        .param("limit", "3")
+                        .header("Authorization", "Bearer admin-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.windowDays").value(14))
+                .andExpect(jsonPath("$.data.totalZeroResultSearches").value(6))
+                .andExpect(jsonPath("$.data.zeroResultKeywords[0].keyword").value("대출"))
+                .andExpect(jsonPath("$.data.zeroResultRegions[0].sido").value("서울"))
+                .andExpect(jsonPath("$.data.zeroResultRegions[0].sgg").value("관악구"))
+                .andExpect(jsonPath("$.data.zeroResultFilterPatterns[0].statusFilter").value("UNEMPLOYED"))
+                .andExpect(jsonPath("$.data.zeroResultFilterPatterns[0].searchCount").value(5))
+                .andExpect(jsonPath("$.data.recentSamples[0].keyword").value("대출"));
+
+        then(adminDashboardService).should().getSearchFailures(14, 3);
     }
 
     @Test
