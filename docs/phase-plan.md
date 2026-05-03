@@ -1216,6 +1216,7 @@ cd backend
 - `UserReadService.getProfile(...)` 의 profile/pii/attribute/priority aggregate 조회는 `UserProfileReadRepository` 뒤로 이동해 사용자 읽기 서비스가 저장소 4개를 직접 조합하지 않도록 정리
 - `UserReadService.getRecommendationContext(...)` 의 profile/attribute/priority snapshot 조회도 `RecommendationUserReadRepository` 뒤로 이동해 추천용 사용자 aggregate 읽기 조합 책임을 서비스 밖으로 분리
 - `UserPiiBackfillService` 의 missing state/legacy source 조회는 `UserPiiBackfillReadRepository` 뒤로 이동해 PII 백필 서비스가 `UserRepository` 와 `UserPiiReadWriteRepository` read 조합을 직접 들지 않도록 정리
+- `UserMetadataUserKeyBackfillService` 의 attribute/priority count/update 조합도 `UserMetadataBackfillRepository` 뒤로 이동해 metadata 백필 서비스가 저장소 2개를 직접 병렬 조합하지 않도록 정리
 - `UserPiiSyncProcessor` / `UserPiiSyncReplayService` 의 queue row lookup 도 `UserPiiSyncQueueService` 로 모아 user pii sync 흐름의 queue access 경계를 단일화
 - `UserCoreSyncService` 는 orchestration만 남기고 auth/profile projection upsert 는 `UserCoreProjectionSyncService` 로 분리
 - `PasswordResetService` 의 reset 메일 수신자 조회는 `UserReadService` 로 모아 user PII 저장소 직접 의존 제거

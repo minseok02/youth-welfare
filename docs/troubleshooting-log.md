@@ -2701,3 +2701,8 @@
 - 문제: 백필 서비스는 `UserPiiReadWriteRepository.findMissingEncryptedFields()` 와 `UserRepository.findPiiBackfillSourcesByUserKeys(...)` 를 직접 묶어 state/source 조합을 만들고 있었다.
 - 해결: `UserPiiBackfillReadRepository` 를 추가하고, missing state 조회와 legacy source lookup 을 이 read 경계로 이동했다.
 - 이유: PII 백필 서비스는 암호화/backfill 정책과 결과 집계에 집중하고, 여러 저장소를 묶는 read 조합은 별도 repository 로 내리는 편이 user backfill 경계를 더 일관되게 유지한다.
+
+## 493) `UserMetadataUserKeyBackfillService` 가 attribute/priority 저장소의 count/update 를 service 본문에서 직접 병렬 조합하면, metadata 백필 write 규칙이 service 안에 남아 책임이 다시 넓어진다
+- 문제: metadata user_key 백필은 `UserAttributeRepository`, `UserPriorityRepository` 의 count/update 메서드를 service 본문에서 직접 각각 호출하고 있었다.
+- 해결: `UserMetadataBackfillRepository` 를 추가하고, missing count 와 backfill update 조합을 이 repository 경계로 이동했다.
+- 이유: metadata 백필 서비스는 처리량 집계와 로깅에 집중하고, attribute/priority 저장소를 함께 다루는 backfill 규칙은 별도 repository 로 내리는 편이 user backfill 경계를 더 일관되게 유지한다.
