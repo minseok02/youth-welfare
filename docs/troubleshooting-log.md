@@ -2601,3 +2601,8 @@
 - 문제: forced logout 경로는 userKey 공백 검증 뒤 곧바로 `UserRepository.findIdByUserKey(...)` 를 호출하고 있었다. 이 상태에서는 컨트롤러가 요청/응답 orchestration뿐 아니라 user 존재 확인까지 직접 책임진다.
 - 해결: `UserReadService.requireExistingUserIdByUserKey(...)` 를 추가하고, `UserAdminController` 는 forced logout 전에 해당 read 경계만 호출하게 정리했다.
 - 이유: 컨트롤러는 입력 검증과 응답 orchestration에 집중하고, user 존재/조회 규칙은 read 서비스로 모아야 이후 admin 경로가 늘어나도 저장소 직접 의존이 다시 번지지 않는다.
+
+## 473) `SearchYouthRelevanceService` 가 backfill 대상 전체 정책을 위해 `WelfareServiceRepository.findAll()` 을 직접 호출하면, relevance 규칙 서비스가 대상 조회 persistence 선택까지 같이 떠안는다
+- 문제: `SearchYouthRelevanceService.backfillAll()` 은 전체 정책을 직접 조회한 뒤 tag를 묶고 청년 검색 relevance를 재계산하고 있었다. 이 상태에서는 “어떤 정책이 backfill 대상인가”라는 조회 규칙이 서비스 코드에 묻어난다.
+- 해결: `SearchYouthRelevanceReadRepository` 를 추가하고, `backfillAll()` 은 `findBackfillTargetServices()` 로 전체 대상만 받게 정리했다.
+- 이유: relevance 계산 서비스는 청년 검색 relevance 규칙과 집계에 집중하고, 대상 조회 범위/선택은 read 계층으로 숨기는 편이 SRP와 후속 backfill 범위 변경 대응에 더 낫다.
