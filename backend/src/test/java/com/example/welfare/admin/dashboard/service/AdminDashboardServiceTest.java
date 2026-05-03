@@ -19,6 +19,8 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
 class AdminDashboardServiceTest {
@@ -165,5 +167,71 @@ class AdminDashboardServiceTest {
                 .containsExactly(1, 7, 30);
         assertThat(response.userPiiSync().failedCount()).isEqualTo(1);
         assertThat(response.userPiiSync().latestSyncedAt()).isEqualTo(LocalDateTime.of(2026, 5, 2, 7, 45));
+    }
+
+    @Test
+    @DisplayName("대시보드 요약은 요청한 trend window days만 사용한다")
+    void getSummaryUsesRequestedTrendWindows() {
+        given(adminDashboardReadRepository.fetchCollectSummary(org.mockito.ArgumentMatchers.any()))
+                .willReturn(new AdminDashboardReadRepository.CollectSummaryRow(0, 0, 0, 0));
+        given(adminDashboardReadRepository.fetchLatestCollectJobs()).willReturn(List.of());
+        given(adminDashboardReadRepository.fetchLatestCollectFailures(org.mockito.ArgumentMatchers.any())).willReturn(List.of());
+        given(adminDashboardReadRepository.fetchRecommendationSummary(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any()
+        )).willReturn(new AdminDashboardReadRepository.RecommendationSummaryRow(
+                0, 0, 0, 0, 0, null
+        ));
+        given(scoreWeightService.getActiveWeight())
+                .willReturn(ScoreWeight.builder()
+                        .weightKey("GROWTH")
+                        .ruleWeight(new BigDecimal("0.60"))
+                        .aiWeight(new BigDecimal("0.40"))
+                        .minLogCount(100)
+                        .isActive(true)
+                        .build());
+        given(adminDashboardReadRepository.fetchRecommendationWeightBuckets(org.mockito.ArgumentMatchers.any()))
+                .willReturn(List.of());
+        given(adminDashboardReadRepository.fetchNotificationSummary(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any()
+        )).willReturn(new AdminDashboardReadRepository.NotificationSummaryRow(0, 0, 0, 0));
+        given(adminDashboardReadRepository.fetchSearchSummary(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any()
+        )).willReturn(new AdminDashboardReadRepository.SearchSummaryRow(0, 0, 0, 0, BigDecimal.ZERO));
+        given(adminDashboardReadRepository.fetchTopSearchKeywords(org.mockito.ArgumentMatchers.any()))
+                .willReturn(List.of());
+        given(userPiiSyncStatusService.getStatus(5))
+                .willReturn(new UserPiiSyncStatusResponse(0, 0, 0, null, null, null, null, null, List.of()));
+
+        given(adminDashboardReadRepository.fetchCollectTrend(org.mockito.ArgumentMatchers.any()))
+                .willReturn(
+                        new AdminDashboardReadRepository.CollectTrendRow(1, 0, 0),
+                        new AdminDashboardReadRepository.CollectTrendRow(2, 0, 0)
+                );
+        given(adminDashboardReadRepository.fetchRecommendationTrend(org.mockito.ArgumentMatchers.any()))
+                .willReturn(
+                        new AdminDashboardReadRepository.RecommendationTrendRow(3, 1, 0),
+                        new AdminDashboardReadRepository.RecommendationTrendRow(4, 2, 0)
+                );
+        given(adminDashboardReadRepository.fetchSearchTrend(org.mockito.ArgumentMatchers.any()))
+                .willReturn(
+                        new AdminDashboardReadRepository.SearchTrendRow(5, 1),
+                        new AdminDashboardReadRepository.SearchTrendRow(6, 2)
+                );
+
+        AdminDashboardResponse response = adminDashboardService.getSummary(List.of(3, 14, 14, -1, 400));
+
+        assertThat(response.trend().collect()).extracting(AdminDashboardResponse.CollectTrendPoint::windowDays)
+                .containsExactly(3, 14);
+        assertThat(response.trend().recommendation()).extracting(AdminDashboardResponse.RecommendationTrendPoint::windowDays)
+                .containsExactly(3, 14);
+        assertThat(response.trend().search()).extracting(AdminDashboardResponse.SearchTrendPoint::windowDays)
+                .containsExactly(3, 14);
+
+        verify(adminDashboardReadRepository, times(2)).fetchCollectTrend(org.mockito.ArgumentMatchers.any());
+        verify(adminDashboardReadRepository, times(2)).fetchRecommendationTrend(org.mockito.ArgumentMatchers.any());
+        verify(adminDashboardReadRepository, times(2)).fetchSearchTrend(org.mockito.ArgumentMatchers.any());
     }
 }
