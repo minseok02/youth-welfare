@@ -727,6 +727,7 @@ public class AdminDashboardReadRepository {
                 """.formatted(limit),
                 new MapSqlParameterSource("windowAgo", windowAgo),
                 (rs, rowNum) -> new SearchRetryGroupRow(
+                (rs, rowNum) -> new SearchRetryGroupRow(
                         rs.getString("actor_type"),
                         rs.getString("actor_key"),
                         rs.getString("keyword"),
@@ -741,6 +742,67 @@ public class AdminDashboardReadRepository {
                         rs.getLong("retry_count"),
                         getLocalDateTime(rs, "first_searched_at"),
                         getLocalDateTime(rs, "latest_searched_at")
+                )
+        );
+    }
+
+    public List<RecoveredSearchGroupRow> fetchRecoveredSearchGroups(LocalDateTime windowAgo, int limit) {
+        return jdbcTemplate.query("""
+                select case
+                           when user_key is not null and trim(user_key) <> '' then 'USER_KEY'
+                           else 'FINGERPRINT'
+                       end as actor_type,
+                       coalesce(nullif(trim(user_key), ''), client_fingerprint) as actor_key,
+                       keyword,
+                       sido,
+                       sgg,
+                       status_filter,
+                       category,
+                       source_type,
+                       online_apply,
+                       include_closed,
+                       sort_key,
+                       coalesce(sum(case when result_count = 0 then 1 else 0 end), 0) as zero_result_count,
+                       coalesce(sum(case when result_count > 0 then 1 else 0 end), 0) as recovered_result_count,
+                       max(case when result_count > 0 then searched_at end) as latest_recovered_at
+                  from search_logs
+                 where searched_at >= :windowAgo
+              group by actor_type,
+                       actor_key,
+                       keyword,
+                       sido,
+                       sgg,
+                       status_filter,
+                       category,
+                       source_type,
+                       online_apply,
+                       include_closed,
+                       sort_key
+                having zero_result_count > 0
+                   and recovered_result_count > 0
+              order by zero_result_count desc,
+                       recovered_result_count desc,
+                       latest_recovered_at desc,
+                       actor_type asc,
+                       actor_key asc
+                 limit %d
+                """.formatted(limit),
+                new MapSqlParameterSource("windowAgo", windowAgo),
+                (rs, rowNum) -> new RecoveredSearchGroupRow(
+                        rs.getString("actor_type"),
+                        rs.getString("actor_key"),
+                        rs.getString("keyword"),
+                        rs.getString("sido"),
+                        rs.getString("sgg"),
+                        rs.getString("status_filter"),
+                        rs.getString("category"),
+                        rs.getString("source_type"),
+                        getNullableBoolean(rs, "online_apply"),
+                        rs.getBoolean("include_closed"),
+                        rs.getString("sort_key"),
+                        rs.getLong("zero_result_count"),
+                        rs.getLong("recovered_result_count"),
+                        getLocalDateTime(rs, "latest_recovered_at")
                 )
         );
     }
@@ -990,6 +1052,24 @@ public class AdminDashboardReadRepository {
             long retryCount,
             LocalDateTime firstSearchedAt,
             LocalDateTime latestSearchedAt
+    ) {
+    }
+
+    public record RecoveredSearchGroupRow(
+            String actorType,
+            String actorKey,
+            String keyword,
+            String sido,
+            String sgg,
+            String statusFilter,
+            String category,
+            String sourceType,
+            Boolean onlineApply,
+            boolean includeClosed,
+            String sortKey,
+            long zeroResultCount,
+            long recoveredResultCount,
+            LocalDateTime latestRecoveredAt
     ) {
     }
 }

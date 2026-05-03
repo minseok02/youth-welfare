@@ -11,7 +11,8 @@ public record AdminSearchFailureResponse(
         List<RegionCount> zeroResultRegions,
         List<FilterPatternCount> zeroResultFilterPatterns,
         List<SearchFailureSample> recentSamples,
-        List<RetryGroup> retryGroups
+        List<RetryGroup> retryGroups,
+        List<RecoveredSearchGroup> recoveredSearchGroups
 ) {
 
     public record KeywordCount(
@@ -67,6 +68,24 @@ public record AdminSearchFailureResponse(
             long retryCount,
             LocalDateTime firstSearchedAt,
             LocalDateTime latestSearchedAt
+    ) {
+    }
+
+    public record RecoveredSearchGroup(
+            String actorType,
+            String actorKey,
+            String keyword,
+            String sido,
+            String sgg,
+            String statusFilter,
+            String category,
+            String sourceType,
+            Boolean onlineApply,
+            boolean includeClosed,
+            String sortKey,
+            long zeroResultCount,
+            long recoveredResultCount,
+            LocalDateTime latestRecoveredAt
     ) {
     }
 }

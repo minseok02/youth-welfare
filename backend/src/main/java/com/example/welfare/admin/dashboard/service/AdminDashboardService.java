@@ -228,6 +228,7 @@ public class AdminDashboardService {
                         .toList(),
                 adminDashboardReadRepository.fetchZeroResultRetryGroups(summaryWindowAgo, patternLimit).stream()
                         .map(row -> new AdminSearchFailureResponse.RetryGroup(
+                        .map(row -> new AdminSearchFailureResponse.RetryGroup(
                                 row.actorType(),
                                 row.actorKey(),
                                 row.keyword(),
@@ -242,6 +243,24 @@ public class AdminDashboardService {
                                 row.retryCount(),
                                 row.firstSearchedAt(),
                                 row.latestSearchedAt()
+                        ))
+                        .toList(),
+                adminDashboardReadRepository.fetchRecoveredSearchGroups(summaryWindowAgo, patternLimit).stream()
+                        .map(row -> new AdminSearchFailureResponse.RecoveredSearchGroup(
+                                row.actorType(),
+                                row.actorKey(),
+                                row.keyword(),
+                                row.sido(),
+                                row.sgg(),
+                                row.statusFilter(),
+                                row.category(),
+                                row.sourceType(),
+                                row.onlineApply(),
+                                row.includeClosed(),
+                                row.sortKey(),
+                                row.zeroResultCount(),
+                                row.recoveredResultCount(),
+                                row.latestRecoveredAt()
                         ))
                         .toList()
         );
