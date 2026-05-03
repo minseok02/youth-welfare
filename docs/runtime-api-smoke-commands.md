@@ -12,6 +12,7 @@ deploy/smoke/run-local-runtime-api-smoke.sh
 ```
 
 이 스크립트는 `signup -> login -> refresh -> recommendations refresh -> bookmark -> bookmarks -> logout -> refresh invalidation -> presented access revoke` 를 한 번에 확인합니다.
+앱 재기동 직후 startup race가 있으면 `HEALTH_RETRY_COUNT`, `HEALTH_RETRY_DELAY_SECONDS` 로 health check 재시도 횟수를 늘릴 수 있습니다.
 
 추천 클릭 추적 반복 검증은 아래 스크립트를 우선 사용합니다.
 
@@ -20,6 +21,7 @@ deploy/smoke/run-local-recommendation-click-smoke.sh
 ```
 
 이 스크립트는 `signup -> login -> recommendations refresh -> first recommendation detail(serviceId + logId) -> recommendation_logs.is_clicked=1` 을 한 번에 확인합니다.
+앱 재기동 직후 startup race가 있으면 `HEALTH_RETRY_COUNT`, `HEALTH_RETRY_DELAY_SECONDS` 로 health check 재시도 횟수를 늘릴 수 있습니다.
 
 admin forced logout 반복 검증은 아래 스크립트를 우선 사용합니다.
 
@@ -28,6 +30,7 @@ deploy/smoke/run-local-admin-forced-logout-smoke.sh
 ```
 
 이 스크립트는 `admin login -> forced logout -> old access deny(401/A006) -> old refresh deny(401/A003) -> relogin recovery(200)` 를 한 번에 확인합니다.
+앱 재기동 직후 startup race가 있으면 `HEALTH_RETRY_COUNT`, `HEALTH_RETRY_DELAY_SECONDS` 로 health check 재시도 횟수를 늘릴 수 있습니다.
 
 withdraw 반복 검증은 아래 스크립트를 우선 사용합니다.
 
@@ -36,6 +39,7 @@ deploy/smoke/run-local-withdraw-smoke.sh
 ```
 
 이 스크립트는 `signup -> login -> refresh -> withdraw -> old access deny(401/A006) -> stale refresh deny(410/U003) -> withdrawn email mask` 를 한 번에 확인합니다.
+앱 재기동 직후 startup race가 있으면 `HEALTH_RETRY_COUNT`, `HEALTH_RETRY_DELAY_SECONDS` 로 health check 재시도 횟수를 늘릴 수 있습니다.
 
 admin dashboard 반복 검증은 아래 스크립트를 우선 사용합니다.
 

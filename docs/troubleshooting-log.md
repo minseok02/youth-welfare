@@ -40,6 +40,11 @@
 - 해결: `HEALTH_RETRY_COUNT`, `HEALTH_RETRY_DELAY_SECONDS` 를 추가하고 health check를 짧게 재시도하게 바꿨다. 마지막 시도까지 실패한 경우에만 stderr와 health 응답을 같이 출력하도록 정리했다
 - 이유: 이 문제는 대시보드 코드 버그가 아니라 로컬 Docker startup race다. smoke가 최소한의 retry를 가져야 반복 검증에서 불필요한 거짓 실패를 줄일 수 있다
 
+## 303) 같은 startup race가 runtime/withdraw/recommendation-click/admin-forced-logout smoke에도 반복될 수 있었음
+- 문제: `run-local-runtime-api-smoke.sh`, `run-local-recommendation-click-smoke.sh`, `run-local-admin-forced-logout-smoke.sh`, `run-local-withdraw-smoke.sh` 도 모두 `/actuator/health` 를 단발로만 확인하고 있어서, 앱 재기동 직후에는 admin dashboard smoke와 똑같이 `curl 56` 으로 바로 죽을 수 있었다
+- 해결: 네 스크립트에도 같은 `wait_for_health` retry helper와 `HEALTH_RETRY_COUNT`, `HEALTH_RETRY_DELAY_SECONDS` env를 추가했다
+- 이유: 이건 개별 smoke의 비즈니스 로직 문제가 아니라 공통적인 로컬 startup race다. 자주 쓰는 smoke들끼리는 같은 회복력 기준을 가져야 반복 검증이 덜 흔들린다
+
 ## 294) broad-suite self-heal cleanup이 안정화됐지만 user-prefix integration 테스트들에 거의 같은 정리 코드가 복제돼 다시 drift할 가능성이 있었음
 - 문제: `AuthRedisIntegrationTest`, `AdminSecurityIntegrationTest`, `UserCoreDualWriteIntegrationTest`, `UserMetadataUserKeyBackfillIntegrationTest`, `UserPiiBackfillIntegrationTest`, `UserPiiSyncReplayIntegrationTest`, `UserPiiSyncRetrySchedulerIntegrationTest`, `RecommendationFlowIntegrationTest` 는 모두 “email prefix로 user를 찾고 userKey 파생 cleanup 후 user delete” 구조가 거의 같았는데, 세부 차이가 조금씩 있어 다음 hardening 때 일부 클래스만 갱신될 위험이 있었음
 - 해결: test 전용 `IntegrationCleanupSupport` 를 추가하고 user-prefix cleanup, service-prefix cleanup 진입점을 공통화했다. 각 클래스는 이제 “무슨 추가 정리가 필요한가”만 람다로 넘기고, 사용자 탐색/삭제 흐름 자체는 한 곳에서 처리한다

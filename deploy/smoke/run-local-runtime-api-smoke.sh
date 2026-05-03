@@ -17,6 +17,8 @@ SMOKE_NOTIFICATION_MIN_SCORE="${SMOKE_NOTIFICATION_MIN_SCORE:-0.5}"
 SMOKE_DISPLAY_COUNT="${SMOKE_DISPLAY_COUNT:-10}"
 SMOKE_INTEREST_FIELD="${SMOKE_INTEREST_FIELD:-교육}"
 REQUIRE_RECOMMENDATIONS="${REQUIRE_RECOMMENDATIONS:-false}"
+HEALTH_RETRY_COUNT="${HEALTH_RETRY_COUNT:-15}"
+HEALTH_RETRY_DELAY_SECONDS="${HEALTH_RETRY_DELAY_SECONDS:-1}"
 
 ARTIFACT_DIR="${ARTIFACT_DIR:-$(mktemp -d)}"
 COOKIE_JAR="${ARTIFACT_DIR}/runtime.cookie"
@@ -49,6 +51,36 @@ http_status() {
   local output_file="$3"
   shift 3
   curl -sS -o "${output_file}" -w "%{http_code}" -X "${method}" "$url" "$@"
+}
+
+wait_for_health() {
+  local retries="$1"
+  local delay_seconds="$2"
+  local status=""
+  local attempt=1
+
+  while (( attempt <= retries )); do
+    if status="$(http_status GET "${APP_HEALTH_URL}" "${HEALTH_RESPONSE}" 2>"${ARTIFACT_DIR}/health.stderr")"; then
+      if [[ "${status}" == "200" ]]; then
+        printf '%s' "${status}"
+        return 0
+      fi
+    fi
+
+    if (( attempt == retries )); then
+      echo "health check failed after ${retries} attempts" >&2
+      if [[ -s "${ARTIFACT_DIR}/health.stderr" ]]; then
+        cat "${ARTIFACT_DIR}/health.stderr" >&2
+      fi
+      if [[ -f "${HEALTH_RESPONSE}" ]]; then
+        cat "${HEALTH_RESPONSE}" >&2
+      fi
+      return 1
+    fi
+
+    sleep "${delay_seconds}"
+    attempt=$((attempt + 1))
+  done
 }
 
 extract_access_token() {
@@ -126,7 +158,7 @@ require_command python3
 SMOKE_EMAIL="${SMOKE_EMAIL_PREFIX}.$(date +%s)@example.com"
 
 print_step "health check"
-HEALTH_STATUS="$(http_status GET "${APP_HEALTH_URL}" "${HEALTH_RESPONSE}")"
+HEALTH_STATUS="$(wait_for_health "${HEALTH_RETRY_COUNT}" "${HEALTH_RETRY_DELAY_SECONDS}")"
 assert_status 200 "${HEALTH_STATUS}" "health check" "${HEALTH_RESPONSE}"
 
 print_step "signup ${SMOKE_EMAIL}"
