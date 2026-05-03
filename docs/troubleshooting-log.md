@@ -2357,3 +2357,8 @@
 - 문제: 최근 local DB를 다시 보니 `recommendation_logs` 는 누적되는데 `clicked_logs` 가 거의 없어, CTR 가중치/프롬프트 재조정이 정말 “클릭이 안 찍히는 버그” 때문에 막힌 건지, 아니면 그냥 실사용 클릭 표본이 아직 적은 건지 구분이 필요했다. 이 상태에서 바로 가중치 조정을 논하면 잘못된 병목을 기준으로 설계를 바꿀 수 있었다.
 - 해결: 추천 상세 클릭 경계를 `signup -> login -> recommendations refresh -> first recommendation detail(serviceId + logId)` 로 다시 태워 `recommendation_logs.is_clicked=1` 과 `clicked_at` 갱신을 DB에서 직접 확인하는 local smoke를 추가했다. 수동 probe에서 한 번 `recommendation.id` 를 정책 path id로 잘못 넣어 거짓 `500` 이 났지만, 실제 프론트 계약대로 `serviceId + logId` 를 쓰자 `200` 과 함께 클릭 마킹이 정상 반영됐다.
 - 이유: 현재 CTR tuning의 병목은 instrumentation이 아니라 표본 부족이다. 클릭 trace 경계가 살아 있다는 것을 smoke로 고정해 두면, 이후에는 로그 수집/사용량 문제와 코드 버그를 분리해서 판단할 수 있다.
+
+## 433) 대시보드에 CTR 비율만 있으면 “왜 지금 추천 품질 튜닝을 안 하는지”가 한 번에 안 보인다
+- 문제: `clickThroughRateLast7d` 와 `fallbackRateLast7d` 만으로는 CTR 튜닝 보류 원인이 click 표본 부족인지, 특정 weight stage 편중인지, 아니면 아예 active weight 단계가 바뀌었는지 바로 읽기 어려웠다. 결국 운영자는 다시 DB에서 `recommendation_logs` 와 `score_weights` 를 따로 조회해야 했다.
+- 해결: `GET /api/admin/dashboard/summary` recommendation 섹션에 `activeWeightKey`, `activeRuleWeight`, `activeAiWeight`, `totalLogs`, `latestClickedAt`, 최근 7일 `weightBucketsLast7d` 를 추가했다. 집계 SQL은 기존 admin read-model 경계에 유지하고, active weight는 `ScoreWeightService` 를 재사용해 현재 추천 단계와 최근 분포를 한 응답에서 같이 보게 정리했다.
+- 이유: CTR 조정의 next step은 단순 비율보다 “현재 얼마나 많은 로그가 쌓였고, 어느 weight stage에 몰려 있으며, 마지막 클릭이 언제였는가”를 같이 봐야 판단이 된다. 이 정도 컨텍스트는 dashboard summary에 함께 있어야 운영자가 DB ad-hoc 쿼리 없이도 현재 병목을 읽을 수 있다.

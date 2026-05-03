@@ -2,6 +2,8 @@ package com.example.welfare.admin.dashboard.service;
 
 import com.example.welfare.admin.dashboard.dto.AdminDashboardResponse;
 import com.example.welfare.admin.dashboard.repository.AdminDashboardReadRepository;
+import com.example.welfare.recommend.entity.ScoreWeight;
+import com.example.welfare.recommend.service.ScoreWeightService;
 import com.example.welfare.user.dto.response.UserPiiSyncStatusResponse;
 import com.example.welfare.user.service.UserPiiSyncStatusService;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +23,7 @@ public class AdminDashboardService {
 
     private final AdminDashboardReadRepository adminDashboardReadRepository;
     private final UserPiiSyncStatusService userPiiSyncStatusService;
+    private final ScoreWeightService scoreWeightService;
 
     public AdminDashboardResponse getSummary() {
         LocalDateTime now = LocalDateTime.now();
@@ -31,6 +34,7 @@ public class AdminDashboardService {
                 adminDashboardReadRepository.fetchCollectSummary(dayAgo);
         AdminDashboardReadRepository.RecommendationSummaryRow recommendationSummary =
                 adminDashboardReadRepository.fetchRecommendationSummary(dayAgo, weekAgo);
+        ScoreWeight activeWeight = scoreWeightService.getActiveWeight();
         AdminDashboardReadRepository.NotificationSummaryRow notificationSummary =
                 adminDashboardReadRepository.fetchNotificationSummary(dayAgo, weekAgo);
         AdminDashboardReadRepository.SearchSummaryRow searchSummary =
@@ -57,12 +61,25 @@ public class AdminDashboardService {
                                 .toList()
                 ),
                 new AdminDashboardResponse.RecommendationSection(
+                        activeWeight.getWeightKey(),
+                        activeWeight.getRuleWeight(),
+                        activeWeight.getAiWeight(),
+                        recommendationSummary.totalLogs(),
                         recommendationSummary.sentLast24h(),
                         recommendationSummary.sentLast7d(),
                         recommendationSummary.clickedLast7d(),
                         recommendationSummary.fallbackLast7d(),
+                        recommendationSummary.latestClickedAt(),
                         ratio(recommendationSummary.clickedLast7d(), recommendationSummary.sentLast7d()),
-                        ratio(recommendationSummary.fallbackLast7d(), recommendationSummary.sentLast7d())
+                        ratio(recommendationSummary.fallbackLast7d(), recommendationSummary.sentLast7d()),
+                        adminDashboardReadRepository.fetchRecommendationWeightBuckets(weekAgo).stream()
+                                .map(row -> new AdminDashboardResponse.RecommendationWeightSnapshot(
+                                        row.weightKey(),
+                                        row.ruleWeight(),
+                                        row.aiWeight(),
+                                        row.logCount()
+                                ))
+                                .toList()
                 ),
                 new AdminDashboardResponse.NotificationSection(
                         notificationSummary.sentLast24h(),

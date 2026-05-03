@@ -205,4 +205,5 @@ runtime bootstrap이 자동으로 sidecar를 다 복구하는 건 아닙니다.
 4. `ai_score` exact match는 현재 제품 보장 범위가 아닙니다.
 5. notification 후보 선택은 현재 `[A, A, B?]` 슬롯 배치입니다.
 6. 운영 지표는 `GET /api/admin/dashboard/summary` 에서 collect/recommendation/notification/search/user_pii_sync 묶음으로 조회합니다.
+   recommendation 섹션에는 현재 active weight, 누적 recommendation log 수, latest clicked 시각, 최근 7일 weight bucket 분포가 포함됩니다.
 7. 추천 가중치/프롬프트 재조정은 CTR 표본이 더 쌓인 뒤에만 reopen 합니다.
