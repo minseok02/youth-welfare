@@ -1156,6 +1156,10 @@ cd backend
   - `AuthService.login(...)` 이 `UserReadService.getActiveUserByUserKey(...)` 로 active user 조회를 위임
   - `PasswordResetService` 는 `UserReadService.findOptionalActiveUserByUserKey(...)` 로 reset 대상 활성 사용자 검증을 공통화
   - auth/reset 경로에서 `findByUserKey(...)` + `isActive()` 중복을 줄이고 user read 경계를 한 곳으로 모음
+- 2026-05-04 user admin read 경계 정리
+  - `UserAdminController` 의 forced logout 경로가 `UserRepository.findIdByUserKey(...)` 를 직접 들지 않도록 변경
+  - userKey 존재 검증은 `UserReadService.requireExistingUserIdByUserKey(...)` 로 위임
+  - 컨트롤러는 요청 검증과 응답 orchestration만 맡고 user 존재 판단은 read 경계로 이동
 
 ## 남은 1차 작업
 

@@ -97,6 +97,12 @@ public class UserReadService {
     }
 
     @Transactional(readOnly = true)
+    public Long requireExistingUserIdByUserKey(String userKey) {
+        return userRepository.findIdByUserKey(userKey)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+    }
+
+    @Transactional(readOnly = true)
     public RecommendationReadContext getRecommendationContext(Long userId) {
         ActiveUserContext activeUserContext = getActiveUserContext(userId);
         User user = activeUserContext.user();

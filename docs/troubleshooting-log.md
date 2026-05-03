@@ -2596,3 +2596,8 @@
 - 문제: `AuthService.login(...)` 은 `UserRepository.findByUserKey(...)` 로 active user 를 직접 조회하고 있었고, `PasswordResetService` 도 reset 대상 검증을 위해 같은 조회를 반복하고 있었다. 이 상태에서는 auth/reset 경로만 탈퇴 사용자 차단과 예외 규칙이 별도로 남는다.
 - 해결: `AuthService` 는 `UserReadService.getActiveUserByUserKey(...)` 로 위임하고, `PasswordResetService` 는 `UserReadService.findOptionalActiveUserByUserKey(...)` 로 reset 대상 활성 사용자 검증을 공통화했다.
 - 이유: 인증과 비밀번호 재설정도 결국 공통 active-user read 규칙 위에 있어야 한다. 마지막 직접 `findByUserKey(...)` 경로까지 정리해야 lookup 정책과 예외 처리 drift 를 truly one place 로 모을 수 있다.
+
+## 472) `UserAdminController` 가 forced logout 전에 `UserRepository.findIdByUserKey(...)` 를 직접 호출하면, 컨트롤러가 user 존재 판단까지 떠안고 user read 경계 바깥의 예외로 남는다
+- 문제: forced logout 경로는 userKey 공백 검증 뒤 곧바로 `UserRepository.findIdByUserKey(...)` 를 호출하고 있었다. 이 상태에서는 컨트롤러가 요청/응답 orchestration뿐 아니라 user 존재 확인까지 직접 책임진다.
+- 해결: `UserReadService.requireExistingUserIdByUserKey(...)` 를 추가하고, `UserAdminController` 는 forced logout 전에 해당 read 경계만 호출하게 정리했다.
+- 이유: 컨트롤러는 입력 검증과 응답 orchestration에 집중하고, user 존재/조회 규칙은 read 서비스로 모아야 이후 admin 경로가 늘어나도 저장소 직접 의존이 다시 번지지 않는다.
