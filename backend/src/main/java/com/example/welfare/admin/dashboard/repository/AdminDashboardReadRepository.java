@@ -259,6 +259,10 @@ public class AdminDashboardReadRepository {
     }
 
     public List<SearchKeywordSnapshotRow> fetchTopZeroResultSearchKeywords(LocalDateTime weekAgo) {
+        return fetchTopZeroResultSearchKeywords(weekAgo, DEFAULT_TOP_KEYWORD_LIMIT);
+    }
+
+    public List<SearchKeywordSnapshotRow> fetchTopZeroResultSearchKeywords(LocalDateTime weekAgo, int limit) {
         return jdbcTemplate.query("""
                 select keyword,
                        count(*) as search_count
@@ -270,7 +274,7 @@ public class AdminDashboardReadRepository {
               group by keyword
               order by search_count desc, keyword asc
                  limit %d
-                """.formatted(DEFAULT_TOP_KEYWORD_LIMIT),
+                """.formatted(limit),
                 new MapSqlParameterSource("weekAgo", weekAgo),
                 (rs, rowNum) -> new SearchKeywordSnapshotRow(
                         rs.getString("keyword"),
@@ -279,9 +283,106 @@ public class AdminDashboardReadRepository {
         );
     }
 
+    public List<SearchRegionSnapshotRow> fetchTopZeroResultRegions(LocalDateTime windowAgo, int limit) {
+        return jdbcTemplate.query("""
+                select sido,
+                       sgg,
+                       count(*) as search_count
+                  from search_logs
+                 where searched_at >= :windowAgo
+                   and result_count = 0
+                   and (sido is not null or sgg is not null)
+              group by sido, sgg
+              order by search_count desc,
+                       coalesce(sido, '') asc,
+                       coalesce(sgg, '') asc
+                 limit %d
+                """.formatted(limit),
+                new MapSqlParameterSource("windowAgo", windowAgo),
+                (rs, rowNum) -> new SearchRegionSnapshotRow(
+                        rs.getString("sido"),
+                        rs.getString("sgg"),
+                        rs.getLong("search_count")
+                )
+        );
+    }
+
+    public List<SearchFilterPatternSnapshotRow> fetchTopZeroResultFilterPatterns(LocalDateTime windowAgo, int limit) {
+        return jdbcTemplate.query("""
+                select status_filter,
+                       category,
+                       source_type,
+                       online_apply,
+                       include_closed,
+                       sort_key,
+                       count(*) as search_count
+                  from search_logs
+                 where searched_at >= :windowAgo
+                   and result_count = 0
+              group by status_filter, category, source_type, online_apply, include_closed, sort_key
+              order by search_count desc,
+                       coalesce(status_filter, '') asc,
+                       coalesce(category, '') asc,
+                       coalesce(source_type, '') asc,
+                       include_closed asc,
+                       coalesce(sort_key, '') asc
+                 limit %d
+                """.formatted(limit),
+                new MapSqlParameterSource("windowAgo", windowAgo),
+                (rs, rowNum) -> new SearchFilterPatternSnapshotRow(
+                        rs.getString("status_filter"),
+                        rs.getString("category"),
+                        rs.getString("source_type"),
+                        getNullableBoolean(rs, "online_apply"),
+                        rs.getBoolean("include_closed"),
+                        rs.getString("sort_key"),
+                        rs.getLong("search_count")
+                )
+        );
+    }
+
+    public List<SearchFailureSampleRow> fetchRecentZeroResultSearchSamples(LocalDateTime windowAgo, int limit) {
+        return jdbcTemplate.query("""
+                select keyword,
+                       sido,
+                       sgg,
+                       status_filter,
+                       category,
+                       source_type,
+                       online_apply,
+                       include_closed,
+                       sort_key,
+                       searched_at
+                  from search_logs
+                 where searched_at >= :windowAgo
+                   and result_count = 0
+              order by searched_at desc, id desc
+                 limit %d
+                """.formatted(limit),
+                new MapSqlParameterSource("windowAgo", windowAgo),
+                (rs, rowNum) -> new SearchFailureSampleRow(
+                        rs.getString("keyword"),
+                        rs.getString("sido"),
+                        rs.getString("sgg"),
+                        rs.getString("status_filter"),
+                        rs.getString("category"),
+                        rs.getString("source_type"),
+                        getNullableBoolean(rs, "online_apply"),
+                        rs.getBoolean("include_closed"),
+                        rs.getString("sort_key"),
+                        getLocalDateTime(rs, "searched_at")
+                )
+        );
+    }
+
     private LocalDateTime getLocalDateTime(ResultSet rs, String columnName) throws SQLException {
         java.sql.Timestamp timestamp = rs.getTimestamp(columnName);
         return timestamp != null ? timestamp.toLocalDateTime() : null;
+    }
+
+    private Boolean getNullableBoolean(ResultSet rs, String columnName) throws SQLException {
+        boolean value = rs.getBoolean(columnName);
+        return rs.wasNull() ? null : value;
     }
 
     public record CollectSummaryRow(
@@ -374,6 +475,38 @@ public class AdminDashboardReadRepository {
     public record SearchKeywordSnapshotRow(
             String keyword,
             long searchCount
+    ) {
+    }
+
+    public record SearchRegionSnapshotRow(
+            String sido,
+            String sgg,
+            long searchCount
+    ) {
+    }
+
+    public record SearchFilterPatternSnapshotRow(
+            String statusFilter,
+            String category,
+            String sourceType,
+            Boolean onlineApply,
+            boolean includeClosed,
+            String sortKey,
+            long searchCount
+    ) {
+    }
+
+    public record SearchFailureSampleRow(
+            String keyword,
+            String sido,
+            String sgg,
+            String statusFilter,
+            String category,
+            String sourceType,
+            Boolean onlineApply,
+            boolean includeClosed,
+            String sortKey,
+            LocalDateTime searchedAt
     ) {
     }
 }

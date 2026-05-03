@@ -1113,10 +1113,12 @@ cd backend
 - `--quick`, `--full`, `--skip-replay` CLI shortcut 지원
 - `--only auth-session|click|dashboard|replay` 단일 단계 실행 shortcut 지원
 - `--only` 사용 시 plan/실패 출력에도 `only_step=...` 노출
+- admin 검색 분석은 summary count만 보지 않고 `/api/admin/dashboard/search-failures` 로 zero-result 키워드/지역/필터 패턴/샘플 상세 조회 가능
 
 ## 2차로 분리된 항목
 
 - Batch AI Gateway
+  - 현재 규모에서는 실시간 개인화 대비 운영 복잡도(polling / fallback / partial completion)가 더 커서 보류
 - 개인 캐시 기반 추천 가속 회귀 검증
 - 나이대 x 소득분위 군집화 / 군집 캐시 (사용자 규모 확대 시 재검토)
 - p5~p95 정규화

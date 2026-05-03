@@ -1,5 +1,6 @@
 package com.example.welfare.admin.dashboard.controller;
 
+import com.example.welfare.admin.dashboard.dto.AdminSearchFailureResponse;
 import com.example.welfare.admin.dashboard.dto.AdminDashboardResponse;
 import com.example.welfare.admin.dashboard.service.AdminDashboardService;
 import com.example.welfare.global.response.ApiResponse;
@@ -28,5 +29,14 @@ public class AdminDashboardController {
     ) {
         log.info("[Admin] dashboard summary 조회 summaryWindowDays={} trendWindowDays={}", summaryWindowDays, trendWindowDays);
         return ResponseEntity.ok(ApiResponse.success(adminDashboardService.getSummary(summaryWindowDays, trendWindowDays)));
+    }
+
+    @GetMapping("/search-failures")
+    public ResponseEntity<ApiResponse<AdminSearchFailureResponse>> getSearchFailures(
+            @RequestParam(name = "summaryWindowDays", required = false) Integer summaryWindowDays,
+            @RequestParam(name = "limit", required = false) Integer limit
+    ) {
+        log.info("[Admin] dashboard search failures 조회 summaryWindowDays={} limit={}", summaryWindowDays, limit);
+        return ResponseEntity.ok(ApiResponse.success(adminDashboardService.getSearchFailures(summaryWindowDays, limit)));
     }
 }

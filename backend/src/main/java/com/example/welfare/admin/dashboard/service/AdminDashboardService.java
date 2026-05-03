@@ -1,5 +1,6 @@
 package com.example.welfare.admin.dashboard.service;
 
+import com.example.welfare.admin.dashboard.dto.AdminSearchFailureResponse;
 import com.example.welfare.admin.dashboard.dto.AdminDashboardResponse;
 import com.example.welfare.admin.dashboard.repository.AdminDashboardReadRepository;
 import com.example.welfare.recommend.entity.ScoreWeight;
@@ -22,9 +23,11 @@ import java.util.List;
 public class AdminDashboardService {
 
     private static final int FAILED_SAMPLE_LIMIT = 5;
+    private static final int SEARCH_FAILURE_PATTERN_LIMIT = 5;
     private static final int DEFAULT_SUMMARY_WINDOW_DAYS = 7;
     private static final List<Integer> DEFAULT_TREND_WINDOWS_DAYS = List.of(1, 7, 30);
     private static final int MAX_WINDOW_DAYS = 365;
+    private static final int MAX_SEARCH_FAILURE_PATTERN_LIMIT = 20;
 
     private final AdminDashboardReadRepository adminDashboardReadRepository;
     private final UserPiiSyncStatusService userPiiSyncStatusService;
@@ -158,6 +161,61 @@ public class AdminDashboardService {
         );
     }
 
+    public AdminSearchFailureResponse getSearchFailures(Integer requestedSummaryWindowDays, Integer requestedLimit) {
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime dayAgo = now.minusDays(1);
+        int summaryWindowDays = resolveSummaryWindowDays(requestedSummaryWindowDays);
+        int patternLimit = resolveSearchFailurePatternLimit(requestedLimit);
+        LocalDateTime summaryWindowAgo = now.minusDays(summaryWindowDays);
+
+        AdminDashboardReadRepository.SearchSummaryRow searchSummary =
+                adminDashboardReadRepository.fetchSearchSummary(dayAgo, summaryWindowAgo);
+
+        return new AdminSearchFailureResponse(
+                now,
+                summaryWindowDays,
+                searchSummary.zeroResultSearchesInWindow(),
+                adminDashboardReadRepository.fetchTopZeroResultSearchKeywords(summaryWindowAgo, patternLimit).stream()
+                        .map(row -> new AdminSearchFailureResponse.KeywordCount(
+                                row.keyword(),
+                                row.searchCount()
+                        ))
+                        .toList(),
+                adminDashboardReadRepository.fetchTopZeroResultRegions(summaryWindowAgo, patternLimit).stream()
+                        .map(row -> new AdminSearchFailureResponse.RegionCount(
+                                row.sido(),
+                                row.sgg(),
+                                row.searchCount()
+                        ))
+                        .toList(),
+                adminDashboardReadRepository.fetchTopZeroResultFilterPatterns(summaryWindowAgo, patternLimit).stream()
+                        .map(row -> new AdminSearchFailureResponse.FilterPatternCount(
+                                row.statusFilter(),
+                                row.category(),
+                                row.sourceType(),
+                                row.onlineApply(),
+                                row.includeClosed(),
+                                row.sortKey(),
+                                row.searchCount()
+                        ))
+                        .toList(),
+                adminDashboardReadRepository.fetchRecentZeroResultSearchSamples(summaryWindowAgo, patternLimit).stream()
+                        .map(row -> new AdminSearchFailureResponse.SearchFailureSample(
+                                row.keyword(),
+                                row.sido(),
+                                row.sgg(),
+                                row.statusFilter(),
+                                row.category(),
+                                row.sourceType(),
+                                row.onlineApply(),
+                                row.includeClosed(),
+                                row.sortKey(),
+                                row.searchedAt()
+                        ))
+                        .toList()
+        );
+    }
+
     private int resolveSummaryWindowDays(Integer requestedSummaryWindowDays) {
         if (requestedSummaryWindowDays == null) {
             return DEFAULT_SUMMARY_WINDOW_DAYS;
@@ -168,6 +226,18 @@ public class AdminDashboardService {
         }
 
         return requestedSummaryWindowDays;
+    }
+
+    private int resolveSearchFailurePatternLimit(Integer requestedLimit) {
+        if (requestedLimit == null) {
+            return SEARCH_FAILURE_PATTERN_LIMIT;
+        }
+
+        if (requestedLimit <= 0 || requestedLimit > MAX_SEARCH_FAILURE_PATTERN_LIMIT) {
+            return SEARCH_FAILURE_PATTERN_LIMIT;
+        }
+
+        return requestedLimit;
     }
 
     private List<Integer> resolveTrendWindows(List<Integer> requestedTrendWindows) {
