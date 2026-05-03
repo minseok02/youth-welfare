@@ -1117,6 +1117,10 @@ cd backend
   - `PolicyListReadCondition`, `PolicySearchReadCondition`, `WelfareServiceReadRepository` 추가
   - `PolicyService`, `PolicySearchService` 가 `WelfareServiceRepository` 의 조합식 조회 메서드를 직접 고르지 않도록 read repository로 위임
   - 추천 후보/챗봇 등 다른 경로는 그대로 두고, policy list/search 서비스 경계만 먼저 축소
+- 2026-05-03 user command/read 책임 정리
+  - `UserBookmarkReadService`, `UserProfileCommandService`, `UserAccountCommandService` 추가
+  - `UserService` 는 controller facade만 남기고 profile/priorities/account 명령을 각 전용 서비스로 위임
+  - `UserServiceTest` 는 delegation 확인용으로 축소하고, 실제 로직 검증은 새 전용 서비스 테스트로 이동
 
 ## 남은 1차 작업
 
