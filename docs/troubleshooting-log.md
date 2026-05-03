@@ -30,6 +30,11 @@
 - 해결: `ScoreWeightService` 에 진행도 계산을 추가하고, recommendation 섹션에 `nextWeightKey`, `nextWeightMinLogCount`, `remainingLogsUntilNextWeight`, `topWeightStage` 를 노출했다. dashboard는 이제 score weight 규칙을 직접 재해석하지 않고 도메인 서비스가 계산한 진행도만 읽는다
 - 이유: CTR/가중치 재조정 판단은 “최근 클릭 수”와 “현재 추천 로그 총량”이 같이 보여야 한다. 다음 단계까지 남은 로그 수를 바로 보여 주면 표본 부족과 weight stage 부족을 같은 화면에서 구분할 수 있다
 
+## 301) recommendation weight progress를 대시보드에 추가한 뒤에도 로컬 smoke가 그 필드를 아예 검증하지 않아 계약 이탈을 놓칠 수 있었음
+- 문제: `/api/admin/dashboard/summary` recommendation 섹션에 `nextWeightKey`, `remainingLogsUntilNextWeight`, `topWeightStage` 를 추가했지만, `run-local-admin-dashboard-smoke.sh` 는 여전히 window/카운트/추세만 확인하고 있었다. 이 상태면 DTO나 서비스가 progress 필드를 깨도 smoke는 계속 green 일 수 있었다
+- 해결: admin dashboard smoke도 recommendation weight progress 계약을 같이 보게 바꿨다. top stage면 `nextWeight*` 가 `null` 이어야 하고, 아니면 `nextWeightKey`/`nextWeightMinLogCount`/`remainingLogsUntilNextWeight>=0` 가 있어야 한다는 조건을 추가했다
+- 이유: 운영 관측 필드는 테스트만 통과해도 되는 게 아니라 로컬 smoke에서도 실제 JSON 계약을 다시 확인해야 한다. 그래야 대시보드 실응답과 테스트 fixture가 어긋날 때 바로 잡힌다
+
 ## 294) broad-suite self-heal cleanup이 안정화됐지만 user-prefix integration 테스트들에 거의 같은 정리 코드가 복제돼 다시 drift할 가능성이 있었음
 - 문제: `AuthRedisIntegrationTest`, `AdminSecurityIntegrationTest`, `UserCoreDualWriteIntegrationTest`, `UserMetadataUserKeyBackfillIntegrationTest`, `UserPiiBackfillIntegrationTest`, `UserPiiSyncReplayIntegrationTest`, `UserPiiSyncRetrySchedulerIntegrationTest`, `RecommendationFlowIntegrationTest` 는 모두 “email prefix로 user를 찾고 userKey 파생 cleanup 후 user delete” 구조가 거의 같았는데, 세부 차이가 조금씩 있어 다음 hardening 때 일부 클래스만 갱신될 위험이 있었음
 - 해결: test 전용 `IntegrationCleanupSupport` 를 추가하고 user-prefix cleanup, service-prefix cleanup 진입점을 공통화했다. 각 클래스는 이제 “무슨 추가 정리가 필요한가”만 람다로 넘기고, 사용자 탐색/삭제 흐름 자체는 한 곳에서 처리한다
