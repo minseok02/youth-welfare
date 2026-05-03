@@ -58,6 +58,19 @@ public class AdminDashboardService {
                                         row.savedCount(),
                                         row.failedCount()
                                 ))
+                                .toList(),
+                        adminDashboardReadRepository.fetchLatestCollectFailures(weekAgo).stream()
+                                .map(row -> new AdminDashboardResponse.CollectFailureSnapshot(
+                                        row.jobName(),
+                                        row.status(),
+                                        row.startedAt(),
+                                        row.finishedAt(),
+                                        row.errorCode(),
+                                        row.errorMessage(),
+                                        row.requestedCount(),
+                                        row.savedCount(),
+                                        row.failedCount()
+                                ))
                                 .toList()
                 ),
                 new AdminDashboardResponse.RecommendationSection(
@@ -90,6 +103,7 @@ public class AdminDashboardService {
                 new AdminDashboardResponse.SearchSection(
                         searchSummary.searchesLast24h(),
                         searchSummary.searchesLast7d(),
+                        searchSummary.zeroResultSearchesLast7d(),
                         searchSummary.uniqueFingerprintsLast7d(),
                         searchSummary.averageResultCountLast7d().setScale(2, RoundingMode.HALF_UP),
                         adminDashboardReadRepository.fetchTopSearchKeywords(weekAgo).stream()

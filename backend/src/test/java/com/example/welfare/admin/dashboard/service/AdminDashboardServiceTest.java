@@ -52,6 +52,20 @@ class AdminDashboardServiceTest {
                                 0
                         )
                 ));
+        given(adminDashboardReadRepository.fetchLatestCollectFailures(org.mockito.ArgumentMatchers.any()))
+                .willReturn(List.of(
+                        new AdminDashboardReadRepository.CollectFailureSnapshotRow(
+                                "BOKJIRO_LOCAL",
+                                "FAILED",
+                                LocalDateTime.of(2026, 5, 2, 7, 0),
+                                LocalDateTime.of(2026, 5, 2, 7, 1),
+                                "COL001",
+                                "rate limited",
+                                0,
+                                0,
+                                1
+                        )
+                ));
         given(adminDashboardReadRepository.fetchRecommendationSummary(
                 org.mockito.ArgumentMatchers.any(),
                 org.mockito.ArgumentMatchers.any()
@@ -83,7 +97,7 @@ class AdminDashboardServiceTest {
         given(adminDashboardReadRepository.fetchSearchSummary(
                 org.mockito.ArgumentMatchers.any(),
                 org.mockito.ArgumentMatchers.any()
-        )).willReturn(new AdminDashboardReadRepository.SearchSummaryRow(21, 88, 43, new BigDecimal("6.375")));
+        )).willReturn(new AdminDashboardReadRepository.SearchSummaryRow(21, 88, 13, 43, new BigDecimal("6.375")));
         given(adminDashboardReadRepository.fetchTopSearchKeywords(org.mockito.ArgumentMatchers.any()))
                 .willReturn(List.of(
                         new AdminDashboardReadRepository.SearchKeywordSnapshotRow("월세", 17),
@@ -106,6 +120,8 @@ class AdminDashboardServiceTest {
 
         assertThat(response.collect().runningJobs()).isEqualTo(1);
         assertThat(response.collect().latestJobs()).hasSize(1);
+        assertThat(response.collect().latestFailuresLast7d()).hasSize(1);
+        assertThat(response.collect().latestFailuresLast7d().get(0).jobName()).isEqualTo("BOKJIRO_LOCAL");
         assertThat(response.recommendation().activeWeightKey()).isEqualTo("GROWTH");
         assertThat(response.recommendation().activeRuleWeight()).isEqualByComparingTo("0.60");
         assertThat(response.recommendation().activeAiWeight()).isEqualByComparingTo("0.40");
@@ -118,6 +134,7 @@ class AdminDashboardServiceTest {
                 .containsExactly("GROWTH", "COLD_START");
         assertThat(response.notification().failedLast24h()).isEqualTo(1);
         assertThat(response.search().searchesLast7d()).isEqualTo(88);
+        assertThat(response.search().zeroResultSearchesLast7d()).isEqualTo(13);
         assertThat(response.search().averageResultCountLast7d()).isEqualByComparingTo("6.38");
         assertThat(response.search().topKeywordsLast7d()).extracting(AdminDashboardResponse.SearchKeywordSnapshot::keyword)
                 .containsExactly("월세", "주거");

@@ -2362,3 +2362,8 @@
 - 문제: `clickThroughRateLast7d` 와 `fallbackRateLast7d` 만으로는 CTR 튜닝 보류 원인이 click 표본 부족인지, 특정 weight stage 편중인지, 아니면 아예 active weight 단계가 바뀌었는지 바로 읽기 어려웠다. 결국 운영자는 다시 DB에서 `recommendation_logs` 와 `score_weights` 를 따로 조회해야 했다.
 - 해결: `GET /api/admin/dashboard/summary` recommendation 섹션에 `activeWeightKey`, `activeRuleWeight`, `activeAiWeight`, `totalLogs`, `latestClickedAt`, 최근 7일 `weightBucketsLast7d` 를 추가했다. 집계 SQL은 기존 admin read-model 경계에 유지하고, active weight는 `ScoreWeightService` 를 재사용해 현재 추천 단계와 최근 분포를 한 응답에서 같이 보게 정리했다.
 - 이유: CTR 조정의 next step은 단순 비율보다 “현재 얼마나 많은 로그가 쌓였고, 어느 weight stage에 몰려 있으며, 마지막 클릭이 언제였는가”를 같이 봐야 판단이 된다. 이 정도 컨텍스트는 dashboard summary에 함께 있어야 운영자가 DB ad-hoc 쿼리 없이도 현재 병목을 읽을 수 있다.
+
+## 434) collect/search 대시보드가 요약 count만 보여주면 “무엇이 실패했고 검색이 얼마나 헛돌고 있는지”를 다시 DB에서 찾아야 한다
+- 문제: 기존 대시보드는 collect 쪽에서 `failedJobsLast24h` count 만 보여 줬고, search 쪽도 총 검색 수와 평균 결과 수만 보여 줬다. 이 상태로는 최근 어떤 collect run이 왜 실패했는지, 검색 결과 0건이 최근 얼마나 자주 나왔는지를 운영자가 다시 `api_sync_logs` / `search_logs` 로 내려가서 따로 봐야 했다.
+- 해결: collect 섹션에 `latestFailuresLast7d` 를 추가해 최근 실패 run의 `jobName/status/errorCode/errorMessage/requested/saved/failed` 를 같이 보여 주고, search 섹션에는 `zeroResultSearchesLast7d` 를 추가했다. 집계/리스트 SQL은 계속 `AdminDashboardReadRepository` 안에만 두어 admin read-model 경계를 유지했다.
+- 이유: 운영 summary는 count만 보는 화면이 아니라 다음 액션을 바로 정할 수 있어야 한다. 최근 실패 run 세부와 0건 검색 빈도는 운영자가 추가 DB 쿼리 없이도 collect 안정화와 검색 품질 문제를 즉시 분리하게 해 주는 최소한의 맥락이다.

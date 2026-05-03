@@ -136,7 +136,26 @@ class AdminSecurityWebMvcTest {
         given(adminDashboardService.getSummary())
                 .willReturn(new AdminDashboardResponse(
                         LocalDateTime.of(2026, 5, 2, 10, 0),
-                        new AdminDashboardResponse.CollectSection(0, 3, 1, 0, List.of()),
+                        new AdminDashboardResponse.CollectSection(
+                                0,
+                                3,
+                                1,
+                                0,
+                                List.of(),
+                                List.of(
+                                        new AdminDashboardResponse.CollectFailureSnapshot(
+                                                "BOKJIRO_LOCAL",
+                                                "FAILED",
+                                                LocalDateTime.of(2026, 5, 2, 7, 0),
+                                                LocalDateTime.of(2026, 5, 2, 7, 1),
+                                                "COL001",
+                                                "rate limited",
+                                                0,
+                                                0,
+                                                1
+                                        )
+                                )
+                        ),
                         new AdminDashboardResponse.RecommendationSection(
                                 "GROWTH",
                                 java.math.BigDecimal.valueOf(0.60),
@@ -159,7 +178,7 @@ class AdminSecurityWebMvcTest {
                                 )
                         ),
                         new AdminDashboardResponse.NotificationSection(1, 0, 5, 1),
-                        new AdminDashboardResponse.SearchSection(4, 12, 7, java.math.BigDecimal.valueOf(5.25), List.of(
+                        new AdminDashboardResponse.SearchSection(4, 12, 2, 7, java.math.BigDecimal.valueOf(5.25), List.of(
                                 new AdminDashboardResponse.SearchKeywordSnapshot("월세", 5)
                         )),
                         new AdminDashboardResponse.UserPiiSyncSection(0, 1, 12, LocalDateTime.of(2026, 5, 2, 9, 30))
@@ -170,7 +189,9 @@ class AdminSecurityWebMvcTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.collect.successJobsLast24h").value(3))
+                .andExpect(jsonPath("$.data.collect.latestFailuresLast7d[0].jobName").value("BOKJIRO_LOCAL"))
                 .andExpect(jsonPath("$.data.recommendation.sentLast7d").value(8))
+                .andExpect(jsonPath("$.data.search.zeroResultSearchesLast7d").value(2))
                 .andExpect(jsonPath("$.data.search.topKeywordsLast7d[0].keyword").value("월세"))
                 .andExpect(jsonPath("$.data.userPiiSync.failedCount").value(1));
 
