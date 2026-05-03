@@ -1,0 +1,183 @@
+package com.example.welfare.user.service;
+
+import com.example.welfare.global.exception.CustomException;
+import com.example.welfare.global.exception.ErrorCode;
+import com.example.welfare.global.util.AesEncryptUtil;
+import com.example.welfare.notification.gateway.EmailClient;
+import com.example.welfare.user.entity.AuthUser;
+import com.example.welfare.user.entity.User;
+import com.example.welfare.user.repository.AuthUserRepository;
+import com.example.welfare.user.repository.UserPiiReadModel;
+import com.example.welfare.user.repository.UserPiiReadWriteRepository;
+import com.example.welfare.user.repository.UserRepository;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.ValueOperations;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.util.ReflectionTestUtils;
+
+import java.util.Optional;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+@ExtendWith(MockitoExtension.class)
+class PasswordResetServiceTest {
+
+    @Mock private AuthUserRepository authUserRepository;
+    @Mock private UserRepository userRepository;
+    @Mock private UserPiiReadWriteRepository userPiiReadWriteRepository;
+    @Mock private PasswordEncoder passwordEncoder;
+    @Mock private RedisTemplate<String, String> redisTemplate;
+    @Mock private EmailClient emailClient;
+    @Mock private UserCoreSyncService userCoreSyncService;
+    @Mock private AesEncryptUtil aesEncryptUtil;
+    @Mock private AuthTokenService authTokenService;
+    @Mock private ValueOperations<String, String> valueOperations;
+
+    private PasswordResetService passwordResetService;
+
+    @BeforeEach
+    void setUp() {
+        passwordResetService = new PasswordResetService(
+                authUserRepository,
+                userRepository,
+                userPiiReadWriteRepository,
+                passwordEncoder,
+                redisTemplate,
+                emailClient,
+                userCoreSyncService,
+                aesEncryptUtil,
+                authTokenService
+        );
+        ReflectionTestUtils.setField(passwordResetService, "passwordResetExpirationMinutes", 30L);
+        ReflectionTestUtils.setField(passwordResetService, "appBaseUrl", "http://localhost:5173");
+        lenient().when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+    }
+
+    @Test
+    @DisplayName("비밀번호 재설정 요청은 활성 사용자에게 토큰을 저장하고 메일을 발송한다")
+    void requestPasswordResetStoresTokenAndSendsMail() {
+        AuthUser authUser = AuthUser.builder()
+                .userKey("user-key-7")
+                .isActive(true)
+                .build();
+        User user = User.builder()
+                .id(7L)
+                .userKey("user-key-7")
+                .email("legacy@example.com")
+                .passwordHash("hash")
+                .build();
+        when(authUserRepository.findByEmailLookupHash("b4c9a289323b21a01c3e940f150eb9b8c542587f1abfd8f0e1cc1ffc5e475514"))
+                .thenReturn(Optional.of(authUser));
+        when(userRepository.findByUserKey("user-key-7")).thenReturn(Optional.of(user));
+        when(userPiiReadWriteRepository.findByUserKey("user-key-7"))
+                .thenReturn(Optional.of(new UserPiiReadModel("user-key-7", "encrypted-email", null, null, null)));
+        when(aesEncryptUtil.decrypt("encrypted-email")).thenReturn("pii@example.com");
+        when(valueOperations.get("password-reset:user:user-key-7")).thenReturn(null);
+        when(emailClient.send(eq("pii@example.com"), eq("[청년복지] 비밀번호 재설정 안내"), any(String.class)))
+                .thenReturn(true);
+
+        passwordResetService.requestPasswordReset("USER@example.com");
+
+        verify(valueOperations).set(eq("password-reset:user:user-key-7"), any(String.class), eq(30L), eq(java.util.concurrent.TimeUnit.MINUTES));
+        verify(valueOperations).set(org.mockito.ArgumentMatchers.startsWith("password-reset:"), eq("user-key-7"), eq(30L), eq(java.util.concurrent.TimeUnit.MINUTES));
+        verify(emailClient).send(eq("pii@example.com"), eq("[청년복지] 비밀번호 재설정 안내"), org.mockito.ArgumentMatchers.contains("/reset-password?token="));
+    }
+
+    @Test
+    @DisplayName("비밀번호 재설정 요청은 없는 이메일이어도 동일 성공으로 끝나며 메일을 보내지 않는다")
+    void requestPasswordResetIgnoresUnknownEmail() {
+        when(authUserRepository.findByEmailLookupHash("62065901fb8d47d884b2737489920faedfdf935aa5cd9e0c34cad99b99a6a91b"))
+                .thenReturn(Optional.empty());
+
+        passwordResetService.requestPasswordReset("missing@example.com");
+
+        verify(emailClient, never()).send(any(), any(), any());
+        verify(valueOperations, never()).set(any(), any(), any(Long.class), any());
+    }
+
+    @Test
+    @DisplayName("비밀번호 재설정 요청은 user_pii 이메일이 없으면 발송 실패로 처리한다")
+    void requestPasswordResetFailsWhenEncryptedEmailMissing() {
+        AuthUser authUser = AuthUser.builder()
+                .userKey("user-key-7")
+                .isActive(true)
+                .build();
+        User user = User.builder()
+                .id(7L)
+                .userKey("user-key-7")
+                .email("legacy@example.com")
+                .passwordHash("hash")
+                .build();
+        when(authUserRepository.findByEmailLookupHash("b4c9a289323b21a01c3e940f150eb9b8c542587f1abfd8f0e1cc1ffc5e475514"))
+                .thenReturn(Optional.of(authUser));
+        when(userRepository.findByUserKey("user-key-7")).thenReturn(Optional.of(user));
+        when(userPiiReadWriteRepository.findByUserKey("user-key-7")).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> passwordResetService.requestPasswordReset("user@example.com"))
+                .isInstanceOf(CustomException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.PASSWORD_RESET_EMAIL_SEND_FAILED);
+
+        verify(valueOperations, never()).set(any(), any(), any(Long.class), any());
+        verify(emailClient, never()).send(any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("비밀번호 재설정 확인은 비밀번호를 바꾸고 토큰과 refresh 토큰을 폐기한다")
+    void confirmPasswordResetUpdatesPasswordAndClearsTokens() {
+        User user = User.builder()
+                .id(7L)
+                .userKey("user-key-7")
+                .email("user@example.com")
+                .passwordHash("old-hash")
+                .loginFailCount(3)
+                .build();
+        when(valueOperations.get("password-reset:reset-token")).thenReturn("user-key-7");
+        when(userRepository.findByUserKey("user-key-7")).thenReturn(Optional.of(user));
+        when(valueOperations.get("password-reset:user:user-key-7")).thenReturn("reset-token");
+        when(passwordEncoder.encode("new-password123")).thenReturn("encoded-password");
+
+        passwordResetService.confirmPasswordReset("reset-token", "new-password123");
+
+        verify(userCoreSyncService).syncFromUser(user);
+        verify(redisTemplate).delete("password-reset:reset-token");
+        verify(redisTemplate).delete("password-reset:user:user-key-7");
+        verify(authTokenService).invalidateRefreshToken("user-key-7");
+        assertThat(user.getPasswordHash()).isEqualTo("encoded-password");
+        assertThat(user.getLoginFailCount()).isZero();
+    }
+
+    @Test
+    @DisplayName("비밀번호 재설정 확인은 최신 토큰이 아니면 거부한다")
+    void confirmPasswordResetRejectsStaleToken() {
+        User user = User.builder()
+                .id(7L)
+                .userKey("user-key-7")
+                .email("user@example.com")
+                .passwordHash("old-hash")
+                .build();
+        when(valueOperations.get("password-reset:old-token")).thenReturn("user-key-7");
+        when(userRepository.findByUserKey("user-key-7")).thenReturn(Optional.of(user));
+        when(valueOperations.get("password-reset:user:user-key-7")).thenReturn("new-token");
+
+        assertThatThrownBy(() -> passwordResetService.confirmPasswordReset("old-token", "new-password123"))
+                .isInstanceOf(CustomException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.PASSWORD_RESET_TOKEN_INVALID);
+
+        verify(passwordEncoder, never()).encode(any());
+    }
+}

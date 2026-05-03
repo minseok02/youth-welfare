@@ -1104,6 +1104,11 @@ cd backend
   - `CollectAdminController` 직접 호출 대신 `CollectService.collectBokjiroDetailGapFill(...)` 로 우회 경로 제거
   - 전용 `CollectSource.BOKJIRO_DETAIL_GAP_FILL` 를 추가해 `CollectExecutionGuard + ApiSyncLogService` lock/log 경계를 공유
   - WebMvc/unit/integration 후 `./gradlew test integrationTest --no-daemon` 재통과
+- 2026-05-03 `AuthService` 책임 분리 1차 정리
+  - 토큰 발급/refresh/logout 경계를 `AuthTokenService` 로 분리
+  - 비밀번호 재설정 요청/확정 경계를 `PasswordResetService` 로 분리
+  - `AuthService` 는 signup/login/admin role 해석 중심 orchestration으로 축소
+  - 관련 단위 테스트를 서비스별로 재배치하고 `./gradlew test integrationTest --no-daemon` 재통과
 
 ## 남은 1차 작업
 

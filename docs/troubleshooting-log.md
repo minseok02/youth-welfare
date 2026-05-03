@@ -2521,3 +2521,8 @@
 - 문제: `CollectAdminController` 가 `BokjiroDetailCollectService.collectBokjiroDetailGapFillResult(...)` 를 직접 호출하고 있어, 일반 source collect가 공유하는 `CollectExecutionGuard` 와 `ApiSyncLogService` 경계를 타지 않았다. 그래서 gap-fill 실패는 `api_sync_logs` 에 안 남고, collect lock discipline도 별도로 흩어져 있었다.
 - 해결: `CollectService.collectBokjiroDetailGapFill(...)` 를 추가하고, 전용 `CollectSource.BOKJIRO_DETAIL_GAP_FILL` 을 도입해 gap-fill도 표준 lock/log 경계 안에서 실행되게 바꿨다.
 - 이유: 같은 collect 계열 작업은 수동 경로라도 실행 직렬화와 로그 저장 방식을 공유해야 운영자가 같은 기준으로 상태를 읽을 수 있다.
+
+## 457) `AuthService` 가 로그인, refresh/logout, 비밀번호 재설정까지 모두 들고 있으면, 토큰 정책 변경과 비밀번호 재설정 정책 변경이 같은 클래스 수정으로 얽힌다
+- 문제: 기존 `AuthService` 는 signup/login 외에도 refresh token rotation, logout, password reset token 저장/메일 발송/비밀번호 변경까지 한 클래스에 몰려 있었다. 이 상태에서는 토큰 수명주기나 비밀번호 재설정 흐름이 바뀔 때마다 같은 서비스가 동시에 바뀌어 책임이 과해졌다.
+- 해결: 토큰 발급/refresh/logout 은 `AuthTokenService` 로, 비밀번호 재설정 요청/확정은 `PasswordResetService` 로 분리하고, `AuthService` 는 signup/login/admin role 해석 위주의 orchestration으로 축소했다.
+- 이유: 로그인 진입점과 토큰 수명주기, 비밀번호 재설정은 변경 이유가 다르다. API 계약은 그대로 두되 내부 경계를 나누는 편이 SRP에 맞고 테스트도 더 좁게 유지할 수 있다.
