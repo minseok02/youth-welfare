@@ -1,5 +1,15 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 295) replay smoke와 auth/session smoke를 병렬로 돌리면 DB 재기동 간섭으로 거짓 `500/C002` 가 날 수 있었음
+- 문제: `run-local-education-priority-replay.sh` 는 내부에서 `youth-welfare-db` 컨테이너를 재기동한다. 이걸 `run-local-auth-session-smoke.sh` 와 같은 타이밍에 돌리면 앱 쪽에서 `Connection is closed`, `Unable to rollback against JDBC Connection` 이 튀고, 실제 추천/API 회귀가 없어도 auth smoke가 `500/C002` 로 깨질 수 있었음
+- 해결: 로컬 검증 기준을 `auth/session -> recommendation click -> replay` 순차 실행으로 다시 고정했다. 이후 순차 재실행에서는 auth/session smoke, recommendation click smoke, replay smoke가 모두 통과했다
+- 이유: 지금 단계는 운영 검증이 아니라 로컬 검증 루프이므로, smoke 자체가 서로 실행 환경을 깨지 않는 순서가 중요하다. replay는 DB 재기동형이라 독립 실행으로 다뤄야 한다
+
+## 296) `/api/admin/dashboard/summary` 가 한 번 `500/C002` 로 보였지만 실제 원인은 코드보다 로컬 admin allowlist 실행 조건이었음
+- 문제: 대시보드 실응답을 보려 했을 때 `admin@example.com` login은 성공했지만 JWT `roles` 에 `ROLE_ADMIN` 이 빠져 있었다. fresh rebuild 뒤 로컬 Docker app 컨테이너의 `SECURITY_ADMIN_EMAILS` 가 비어 있었고, 이 상태에서는 `admin@example.com` 이 일반 사용자로만 로그인되어 `/api/admin/dashboard/summary` 검증이 실패할 수 있었음
+- 해결: `SECURITY_ADMIN_EMAILS=admin@example.com docker compose up -d --force-recreate app` 로 app을 다시 띄운 뒤 대시보드 응답을 재확인했고, 이를 반복 가능하게 `run-local-admin-dashboard-smoke.sh` 로 묶었다. 이 smoke는 로그인 후 JWT `ROLE_ADMIN` 존재 여부를 먼저 확인하고, 누락 시 allowlist 재기동 명령을 바로 안내한다
+- 이유: 현재 문제는 대시보드 로직 자체보다 “로컬 Docker app이 어떤 env로 떠 있느냐”에 좌우된다. 이 조건을 smoke가 먼저 체크해야 같은 혼선을 반복하지 않는다
+
 ## 294) broad-suite self-heal cleanup이 안정화됐지만 user-prefix integration 테스트들에 거의 같은 정리 코드가 복제돼 다시 drift할 가능성이 있었음
 - 문제: `AuthRedisIntegrationTest`, `AdminSecurityIntegrationTest`, `UserCoreDualWriteIntegrationTest`, `UserMetadataUserKeyBackfillIntegrationTest`, `UserPiiBackfillIntegrationTest`, `UserPiiSyncReplayIntegrationTest`, `UserPiiSyncRetrySchedulerIntegrationTest`, `RecommendationFlowIntegrationTest` 는 모두 “email prefix로 user를 찾고 userKey 파생 cleanup 후 user delete” 구조가 거의 같았는데, 세부 차이가 조금씩 있어 다음 hardening 때 일부 클래스만 갱신될 위험이 있었음
 - 해결: test 전용 `IntegrationCleanupSupport` 를 추가하고 user-prefix cleanup, service-prefix cleanup 진입점을 공통화했다. 각 클래스는 이제 “무슨 추가 정리가 필요한가”만 람다로 넘기고, 사용자 탐색/삭제 흐름 자체는 한 곳에서 처리한다

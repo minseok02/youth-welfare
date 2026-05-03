@@ -1,0 +1,181 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+APP_BASE_URL="${APP_BASE_URL:-http://127.0.0.1:8082}"
+APP_HEALTH_URL="${APP_HEALTH_URL:-${APP_BASE_URL}/actuator/health}"
+APP_CONTAINER_NAME="${APP_CONTAINER_NAME:-youth-welfare-app}"
+
+ADMIN_EMAIL="${ADMIN_EMAIL:-admin@example.com}"
+ADMIN_PASSWORD="${ADMIN_PASSWORD:-password123!}"
+
+ARTIFACT_DIR="${ARTIFACT_DIR:-$(mktemp -d)}"
+HEALTH_RESPONSE="${ARTIFACT_DIR}/health.json"
+LOGIN_RESPONSE="${ARTIFACT_DIR}/admin-login.json"
+DASHBOARD_RESPONSE="${ARTIFACT_DIR}/dashboard-summary.json"
+
+cleanup() {
+  rm -rf "${ARTIFACT_DIR}"
+}
+trap cleanup EXIT
+
+require_command() {
+  command -v "$1" >/dev/null 2>&1 || {
+    echo "missing required command: $1" >&2
+    exit 1
+  }
+}
+
+http_status() {
+  local method="$1"
+  local url="$2"
+  local output_file="$3"
+  shift 3
+  curl -sS -o "${output_file}" -w "%{http_code}" -X "${method}" "$url" "$@"
+}
+
+extract_access_token() {
+  local response_file="$1"
+  python3 - "$response_file" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], "r", encoding="utf-8") as fp:
+    payload = json.load(fp)
+
+print(payload["data"]["accessToken"])
+PY
+}
+
+extract_jwt_roles() {
+  local response_file="$1"
+  python3 - "$response_file" <<'PY'
+import base64
+import json
+import sys
+
+with open(sys.argv[1], "r", encoding="utf-8") as fp:
+    token = json.load(fp)["data"]["accessToken"]
+
+payload = token.split(".")[1]
+payload += "=" * (-len(payload) % 4)
+decoded = json.loads(base64.urlsafe_b64decode(payload))
+print(",".join(decoded.get("roles") or []))
+PY
+}
+
+extract_container_admin_allowlist() {
+  if ! command -v docker >/dev/null 2>&1; then
+    return 0
+  fi
+
+  if ! docker ps --format '{{.Names}}' | grep -Fxq "${APP_CONTAINER_NAME}"; then
+    return 0
+  fi
+
+  docker exec "${APP_CONTAINER_NAME}" /bin/sh -lc 'printf "%s" "${SECURITY_ADMIN_EMAILS:-}"' 2>/dev/null || true
+}
+
+assert_dashboard_contract() {
+  local response_file="$1"
+  python3 - "$response_file" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], "r", encoding="utf-8") as fp:
+    payload = json.load(fp)
+
+data = payload["data"]
+
+assert data["generatedAt"], "generatedAt missing"
+assert isinstance(data["collect"]["failedJobsLast24h"], int), "collect.failedJobsLast24h must be int"
+assert isinstance(data["recommendation"]["totalLogs"], int), "recommendation.totalLogs must be int"
+assert isinstance(data["search"]["zeroResultSearchesLast7d"], int), "search.zeroResultSearchesLast7d must be int"
+
+collect_windows = [point["windowDays"] for point in data["trend"]["collect"]]
+recommendation_windows = [point["windowDays"] for point in data["trend"]["recommendation"]]
+search_windows = [point["windowDays"] for point in data["trend"]["search"]]
+
+assert collect_windows == [1, 7, 30], f"unexpected collect trend windows: {collect_windows}"
+assert recommendation_windows == [1, 7, 30], f"unexpected recommendation trend windows: {recommendation_windows}"
+assert search_windows == [1, 7, 30], f"unexpected search trend windows: {search_windows}"
+
+print(data["generatedAt"])
+print(data["collect"]["failedJobsLast24h"])
+print(data["recommendation"]["totalLogs"])
+print(data["search"]["zeroResultSearchesLast7d"])
+print(",".join(str(v) for v in collect_windows))
+PY
+}
+
+print_step() {
+  printf '\n[%s] %s\n' "$(date '+%H:%M:%S')" "$1"
+}
+
+assert_status() {
+  local expected="$1"
+  local actual="$2"
+  local context="$3"
+  local file_path="$4"
+  if [[ "${expected}" != "${actual}" ]]; then
+    echo "${context} failed: expected ${expected}, got ${actual}" >&2
+    cat "${file_path}" >&2
+    exit 1
+  fi
+}
+
+require_command curl
+require_command python3
+
+print_step "health check"
+HEALTH_STATUS="$(http_status GET "${APP_HEALTH_URL}" "${HEALTH_RESPONSE}")"
+assert_status 200 "${HEALTH_STATUS}" "health check" "${HEALTH_RESPONSE}"
+
+CONTAINER_ADMIN_ALLOWLIST="$(extract_container_admin_allowlist)"
+
+print_step "admin login (${ADMIN_EMAIL})"
+LOGIN_STATUS="$(
+  http_status POST "${APP_BASE_URL}/api/auth/login" "${LOGIN_RESPONSE}" \
+    -H 'Content-Type: application/json' \
+    -d "{
+      \"email\": \"${ADMIN_EMAIL}\",
+      \"password\": \"${ADMIN_PASSWORD}\"
+    }"
+)"
+assert_status 200 "${LOGIN_STATUS}" "admin login" "${LOGIN_RESPONSE}"
+ADMIN_TOKEN="$(extract_access_token "${LOGIN_RESPONSE}")"
+ADMIN_ROLES="$(extract_jwt_roles "${LOGIN_RESPONSE}")"
+
+if [[ ",${ADMIN_ROLES}," != *",ROLE_ADMIN,"* ]]; then
+  echo "admin login succeeded but ROLE_ADMIN is missing for ${ADMIN_EMAIL}" >&2
+  if [[ -n "${CONTAINER_ADMIN_ALLOWLIST}" ]]; then
+    echo "current ${APP_CONTAINER_NAME} SECURITY_ADMIN_EMAILS=${CONTAINER_ADMIN_ALLOWLIST}" >&2
+  else
+    echo "current ${APP_CONTAINER_NAME} SECURITY_ADMIN_EMAILS is empty or container was not inspectable" >&2
+  fi
+  echo "for local docker validation, restart app with:" >&2
+  echo "  SECURITY_ADMIN_EMAILS=${ADMIN_EMAIL} docker compose up -d --force-recreate app" >&2
+  exit 1
+fi
+
+print_step "dashboard summary"
+DASHBOARD_STATUS="$(
+  http_status GET "${APP_BASE_URL}/api/admin/dashboard/summary" "${DASHBOARD_RESPONSE}" \
+    -H "Authorization: Bearer ${ADMIN_TOKEN}"
+)"
+assert_status 200 "${DASHBOARD_STATUS}" "dashboard summary" "${DASHBOARD_RESPONSE}"
+
+mapfile -t DASHBOARD_VALUES < <(assert_dashboard_contract "${DASHBOARD_RESPONSE}")
+
+echo
+echo "admin dashboard smoke passed"
+echo "app_base_url=${APP_BASE_URL}"
+echo "admin_email=${ADMIN_EMAIL}"
+echo "admin_roles=${ADMIN_ROLES}"
+echo "generated_at=${DASHBOARD_VALUES[0]}"
+echo "collect_failed_jobs_last24h=${DASHBOARD_VALUES[1]}"
+echo "recommendation_total_logs=${DASHBOARD_VALUES[2]}"
+echo "search_zero_result_searches_last7d=${DASHBOARD_VALUES[3]}"
+echo "collect_trend_windows=${DASHBOARD_VALUES[4]}"
+if [[ -n "${CONTAINER_ADMIN_ALLOWLIST}" ]]; then
+  echo "container_security_admin_emails=${CONTAINER_ADMIN_ALLOWLIST}"
+fi
