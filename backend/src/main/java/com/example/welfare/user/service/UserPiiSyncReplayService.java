@@ -21,6 +21,7 @@ public class UserPiiSyncReplayService {
     private static final int DEFAULT_LIMIT = 100;
     private static final int MAX_LIMIT = 1000;
 
+    private final UserPiiSyncQueueService userPiiSyncQueueService;
     private final UserPiiSyncQueueRepository userPiiSyncQueueRepository;
     private final UserPiiSyncProcessor userPiiSyncProcessor;
 
@@ -32,7 +33,7 @@ public class UserPiiSyncReplayService {
     }
 
     private UserPiiSyncReplayResponse replaySingle(String userKey) {
-        if (userPiiSyncQueueRepository.findByUserKey(userKey).isEmpty()) {
+        if (!userPiiSyncQueueService.exists(userKey)) {
             log.warn("[UserPiiSyncReplayService] queue row missing for manual replay userKey={}", userKey);
             return new UserPiiSyncReplayResponse(0, 0, 0, 1);
         }

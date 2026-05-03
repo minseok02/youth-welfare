@@ -2646,3 +2646,8 @@
 - 문제: `backfillAll()` 은 대상 정책 목록은 `SearchYouthRelevanceReadRepository.findBackfillTargetServices()` 로 읽으면서도, 태그는 다시 `ServiceTagRepository.findByServiceIdIn(...)` 를 직접 호출하고 있었다.
 - 해결: `SearchYouthRelevanceReadRepository.findTagsByServiceIds(...)` 를 추가하고, backfill 서비스는 태그 로딩도 같은 read 경계로 받게 정리했다.
 - 이유: 백필 서비스는 relevance 재계산 규칙에 집중하고, 대상/태그 읽기 구현은 같은 read 경계 안에 두는 편이 저장소 선택 책임을 한 곳으로 모으기에 낫다.
+
+## 482) `UserPiiSyncQueueService` 가 enqueue만 감싸고 queue row lookup은 processor/replay가 각자 `findByUserKey(...)` 를 직접 호출하면, user pii sync 흐름의 queue access 규칙이 다시 분산된다
+- 문제: `UserPiiSyncProcessor.process(...)` 와 `UserPiiSyncReplayService.replaySingle(...)` 는 queue row 존재 확인을 위해 `UserPiiSyncQueueRepository.findByUserKey(...)` 를 직접 호출하고 있었다.
+- 해결: `UserPiiSyncQueueService` 에 `findOptional(...)`, `exists(...)` 를 추가하고, processor/replay는 queue lookup도 같은 service 경계로 위임하게 정리했다.
+- 이유: enqueue와 queue lookup 규칙을 같은 service로 모아야 user pii sync 흐름에서 queue row access 책임이 한 곳에 남고, replay/processor 간 존재 확인 정책 drift를 줄일 수 있다.

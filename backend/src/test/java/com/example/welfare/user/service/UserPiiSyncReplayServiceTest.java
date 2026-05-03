@@ -23,6 +23,9 @@ import static org.mockito.BDDMockito.then;
 class UserPiiSyncReplayServiceTest {
 
     @Mock
+    private UserPiiSyncQueueService userPiiSyncQueueService;
+
+    @Mock
     private UserPiiSyncQueueRepository userPiiSyncQueueRepository;
 
     @Mock
@@ -49,7 +52,11 @@ class UserPiiSyncReplayServiceTest {
         given(userPiiSyncProcessor.process("failed-user")).willReturn(UserPiiSyncQueueStatus.SYNCED);
         given(userPiiSyncProcessor.process("pending-user")).willReturn(UserPiiSyncQueueStatus.FAILED);
 
-        UserPiiSyncReplayService service = new UserPiiSyncReplayService(userPiiSyncQueueRepository, userPiiSyncProcessor);
+        UserPiiSyncReplayService service = new UserPiiSyncReplayService(
+                userPiiSyncQueueService,
+                userPiiSyncQueueRepository,
+                userPiiSyncProcessor
+        );
 
         UserPiiSyncReplayResponse response = service.replay(null, 2);
 
@@ -64,9 +71,13 @@ class UserPiiSyncReplayServiceTest {
     @Test
     @DisplayName("single replay는 없는 user_key면 missing으로 응답한다")
     void replaySingleReturnsMissingWhenQueueDoesNotExist() {
-        given(userPiiSyncQueueRepository.findByUserKey("missing-user")).willReturn(Optional.empty());
+        given(userPiiSyncQueueService.exists("missing-user")).willReturn(false);
 
-        UserPiiSyncReplayService service = new UserPiiSyncReplayService(userPiiSyncQueueRepository, userPiiSyncProcessor);
+        UserPiiSyncReplayService service = new UserPiiSyncReplayService(
+                userPiiSyncQueueService,
+                userPiiSyncQueueRepository,
+                userPiiSyncProcessor
+        );
 
         UserPiiSyncReplayResponse response = service.replay("missing-user", 10);
 
@@ -83,10 +94,14 @@ class UserPiiSyncReplayServiceTest {
         UserPiiSyncQueue queue = UserPiiSyncQueue.builder()
                 .userKey("user-key-1")
                 .build();
-        given(userPiiSyncQueueRepository.findByUserKey("user-key-1")).willReturn(Optional.of(queue));
+        given(userPiiSyncQueueService.exists("user-key-1")).willReturn(true);
         given(userPiiSyncProcessor.process("user-key-1")).willReturn(UserPiiSyncQueueStatus.SYNCED);
 
-        UserPiiSyncReplayService service = new UserPiiSyncReplayService(userPiiSyncQueueRepository, userPiiSyncProcessor);
+        UserPiiSyncReplayService service = new UserPiiSyncReplayService(
+                userPiiSyncQueueService,
+                userPiiSyncQueueRepository,
+                userPiiSyncProcessor
+        );
 
         UserPiiSyncReplayResponse response = service.replay("user-key-1", 10);
 

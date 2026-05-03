@@ -3,7 +3,6 @@ package com.example.welfare.user.service;
 import com.example.welfare.user.entity.UserPiiSyncQueue;
 import com.example.welfare.user.entity.UserPiiSyncQueueStatus;
 import com.example.welfare.user.repository.UserPiiReadWriteRepository;
-import com.example.welfare.user.repository.UserPiiSyncQueueRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -20,7 +19,7 @@ import static org.mockito.BDDMockito.then;
 class UserPiiSyncProcessorTest {
 
     @Mock
-    private UserPiiSyncQueueRepository userPiiSyncQueueRepository;
+    private UserPiiSyncQueueService userPiiSyncQueueService;
 
     @Mock
     private UserPiiReadWriteRepository userPiiReadWriteRepository;
@@ -33,9 +32,9 @@ class UserPiiSyncProcessorTest {
                 .build();
         queue.enqueue("enc-email", "enc-name", "enc-birth", "enc-phone");
 
-        given(userPiiSyncQueueRepository.findByUserKey("user-key-1")).willReturn(Optional.of(queue));
+        given(userPiiSyncQueueService.findOptional("user-key-1")).willReturn(Optional.of(queue));
 
-        UserPiiSyncProcessor processor = new UserPiiSyncProcessor(userPiiSyncQueueRepository, userPiiReadWriteRepository);
+        UserPiiSyncProcessor processor = new UserPiiSyncProcessor(userPiiSyncQueueService, userPiiReadWriteRepository);
 
         processor.process("user-key-1");
 
@@ -56,11 +55,11 @@ class UserPiiSyncProcessorTest {
                 .build();
         queue.enqueue("enc-email", "enc-name", "enc-birth", "enc-phone");
 
-        given(userPiiSyncQueueRepository.findByUserKey("user-key-2")).willReturn(Optional.of(queue));
+        given(userPiiSyncQueueService.findOptional("user-key-2")).willReturn(Optional.of(queue));
         given(userPiiReadWriteRepository.upsertUserPii("user-key-2", "enc-email", "enc-name", "enc-birth", "enc-phone"))
                 .willThrow(new RuntimeException("app pii unavailable"));
 
-        UserPiiSyncProcessor processor = new UserPiiSyncProcessor(userPiiSyncQueueRepository, userPiiReadWriteRepository);
+        UserPiiSyncProcessor processor = new UserPiiSyncProcessor(userPiiSyncQueueService, userPiiReadWriteRepository);
 
         processor.process("user-key-2");
 
