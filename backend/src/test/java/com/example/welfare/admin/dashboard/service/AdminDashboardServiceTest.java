@@ -66,6 +66,12 @@ class AdminDashboardServiceTest {
                                 1
                         )
                 ));
+        given(adminDashboardReadRepository.fetchCollectTrend(org.mockito.ArgumentMatchers.any()))
+                .willReturn(
+                        new AdminDashboardReadRepository.CollectTrendRow(3, 1, 0),
+                        new AdminDashboardReadRepository.CollectTrendRow(9, 2, 1),
+                        new AdminDashboardReadRepository.CollectTrendRow(18, 4, 2)
+                );
         given(adminDashboardReadRepository.fetchRecommendationSummary(
                 org.mockito.ArgumentMatchers.any(),
                 org.mockito.ArgumentMatchers.any()
@@ -90,6 +96,12 @@ class AdminDashboardServiceTest {
                         new AdminDashboardReadRepository.RecommendationWeightSnapshotRow("GROWTH", new BigDecimal("0.60"), new BigDecimal("0.40"), 18),
                         new AdminDashboardReadRepository.RecommendationWeightSnapshotRow("COLD_START", new BigDecimal("0.80"), new BigDecimal("0.20"), 12)
                 ));
+        given(adminDashboardReadRepository.fetchRecommendationTrend(org.mockito.ArgumentMatchers.any()))
+                .willReturn(
+                        new AdminDashboardReadRepository.RecommendationTrendRow(8, 3, 1),
+                        new AdminDashboardReadRepository.RecommendationTrendRow(30, 9, 6),
+                        new AdminDashboardReadRepository.RecommendationTrendRow(90, 18, 20)
+                );
         given(adminDashboardReadRepository.fetchNotificationSummary(
                 org.mockito.ArgumentMatchers.any(),
                 org.mockito.ArgumentMatchers.any()
@@ -98,6 +110,12 @@ class AdminDashboardServiceTest {
                 org.mockito.ArgumentMatchers.any(),
                 org.mockito.ArgumentMatchers.any()
         )).willReturn(new AdminDashboardReadRepository.SearchSummaryRow(21, 88, 13, 43, new BigDecimal("6.375")));
+        given(adminDashboardReadRepository.fetchSearchTrend(org.mockito.ArgumentMatchers.any()))
+                .willReturn(
+                        new AdminDashboardReadRepository.SearchTrendRow(12, 2),
+                        new AdminDashboardReadRepository.SearchTrendRow(88, 13),
+                        new AdminDashboardReadRepository.SearchTrendRow(240, 31)
+                );
         given(adminDashboardReadRepository.fetchTopSearchKeywords(org.mockito.ArgumentMatchers.any()))
                 .willReturn(List.of(
                         new AdminDashboardReadRepository.SearchKeywordSnapshotRow("월세", 17),
@@ -122,6 +140,8 @@ class AdminDashboardServiceTest {
         assertThat(response.collect().latestJobs()).hasSize(1);
         assertThat(response.collect().latestFailuresLast7d()).hasSize(1);
         assertThat(response.collect().latestFailuresLast7d().get(0).jobName()).isEqualTo("BOKJIRO_LOCAL");
+        assertThat(response.trend().collect()).extracting(AdminDashboardResponse.CollectTrendPoint::windowDays)
+                .containsExactly(1, 7, 30);
         assertThat(response.recommendation().activeWeightKey()).isEqualTo("GROWTH");
         assertThat(response.recommendation().activeRuleWeight()).isEqualByComparingTo("0.60");
         assertThat(response.recommendation().activeAiWeight()).isEqualByComparingTo("0.40");
@@ -132,12 +152,17 @@ class AdminDashboardServiceTest {
         assertThat(response.recommendation().fallbackRateLast7d()).isEqualByComparingTo("0.2000");
         assertThat(response.recommendation().weightBucketsLast7d()).extracting(AdminDashboardResponse.RecommendationWeightSnapshot::weightKey)
                 .containsExactly("GROWTH", "COLD_START");
+        assertThat(response.trend().recommendation()).extracting(AdminDashboardResponse.RecommendationTrendPoint::windowDays)
+                .containsExactly(1, 7, 30);
+        assertThat(response.trend().recommendation().get(1).clickThroughRate()).isEqualByComparingTo("0.3000");
         assertThat(response.notification().failedLast24h()).isEqualTo(1);
         assertThat(response.search().searchesLast7d()).isEqualTo(88);
         assertThat(response.search().zeroResultSearchesLast7d()).isEqualTo(13);
         assertThat(response.search().averageResultCountLast7d()).isEqualByComparingTo("6.38");
         assertThat(response.search().topKeywordsLast7d()).extracting(AdminDashboardResponse.SearchKeywordSnapshot::keyword)
                 .containsExactly("월세", "주거");
+        assertThat(response.trend().search()).extracting(AdminDashboardResponse.SearchTrendPoint::windowDays)
+                .containsExactly(1, 7, 30);
         assertThat(response.userPiiSync().failedCount()).isEqualTo(1);
         assertThat(response.userPiiSync().latestSyncedAt()).isEqualTo(LocalDateTime.of(2026, 5, 2, 7, 45));
     }

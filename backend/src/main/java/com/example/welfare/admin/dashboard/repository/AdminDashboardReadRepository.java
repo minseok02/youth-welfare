@@ -39,6 +39,22 @@ public class AdminDashboardReadRepository {
         );
     }
 
+    public CollectTrendRow fetchCollectTrend(LocalDateTime windowAgo) {
+        return jdbcTemplate.queryForObject("""
+                select coalesce(sum(case when status = 'SUCCESS' and started_at >= :windowAgo then 1 else 0 end), 0) as success_jobs,
+                       coalesce(sum(case when status = 'PARTIAL_SUCCESS' and started_at >= :windowAgo then 1 else 0 end), 0) as partial_success_jobs,
+                       coalesce(sum(case when status = 'FAILED' and started_at >= :windowAgo then 1 else 0 end), 0) as failed_jobs
+                  from api_sync_logs
+                """,
+                new MapSqlParameterSource("windowAgo", windowAgo),
+                (rs, rowNum) -> new CollectTrendRow(
+                        rs.getLong("success_jobs"),
+                        rs.getLong("partial_success_jobs"),
+                        rs.getLong("failed_jobs")
+                )
+        );
+    }
+
     public List<CollectJobSnapshotRow> fetchLatestCollectJobs() {
         return jdbcTemplate.query("""
                 select log.job_name,
@@ -124,6 +140,22 @@ public class AdminDashboardReadRepository {
         );
     }
 
+    public RecommendationTrendRow fetchRecommendationTrend(LocalDateTime windowAgo) {
+        return jdbcTemplate.queryForObject("""
+                select coalesce(sum(case when sent_at >= :windowAgo then 1 else 0 end), 0) as sent_count,
+                       coalesce(sum(case when is_clicked = true and clicked_at >= :windowAgo then 1 else 0 end), 0) as clicked_count,
+                       coalesce(sum(case when is_fallback = true and sent_at >= :windowAgo then 1 else 0 end), 0) as fallback_count
+                  from recommendation_logs
+                """,
+                new MapSqlParameterSource("windowAgo", windowAgo),
+                (rs, rowNum) -> new RecommendationTrendRow(
+                        rs.getLong("sent_count"),
+                        rs.getLong("clicked_count"),
+                        rs.getLong("fallback_count")
+                )
+        );
+    }
+
     public List<RecommendationWeightSnapshotRow> fetchRecommendationWeightBuckets(LocalDateTime weekAgo) {
         return jdbcTemplate.query("""
                 select case
@@ -192,6 +224,20 @@ public class AdminDashboardReadRepository {
         );
     }
 
+    public SearchTrendRow fetchSearchTrend(LocalDateTime windowAgo) {
+        return jdbcTemplate.queryForObject("""
+                select coalesce(sum(case when searched_at >= :windowAgo then 1 else 0 end), 0) as searches,
+                       coalesce(sum(case when searched_at >= :windowAgo and result_count = 0 then 1 else 0 end), 0) as zero_result_searches
+                  from search_logs
+                """,
+                new MapSqlParameterSource("windowAgo", windowAgo),
+                (rs, rowNum) -> new SearchTrendRow(
+                        rs.getLong("searches"),
+                        rs.getLong("zero_result_searches")
+                )
+        );
+    }
+
     public List<SearchKeywordSnapshotRow> fetchTopSearchKeywords(LocalDateTime weekAgo) {
         return jdbcTemplate.query("""
                 select keyword,
@@ -222,6 +268,13 @@ public class AdminDashboardReadRepository {
             long successJobsLast24h,
             long partialSuccessJobsLast24h,
             long failedJobsLast24h
+    ) {
+    }
+
+    public record CollectTrendRow(
+            long successJobs,
+            long partialSuccessJobs,
+            long failedJobs
     ) {
     }
 
@@ -267,6 +320,13 @@ public class AdminDashboardReadRepository {
     ) {
     }
 
+    public record RecommendationTrendRow(
+            long sentCount,
+            long clickedCount,
+            long fallbackCount
+    ) {
+    }
+
     public record NotificationSummaryRow(
             long sentLast24h,
             long failedLast24h,
@@ -281,6 +341,12 @@ public class AdminDashboardReadRepository {
             long zeroResultSearchesLast7d,
             long uniqueFingerprintsLast7d,
             BigDecimal averageResultCountLast7d
+    ) {
+    }
+
+    public record SearchTrendRow(
+            long searches,
+            long zeroResultSearches
     ) {
     }
 
