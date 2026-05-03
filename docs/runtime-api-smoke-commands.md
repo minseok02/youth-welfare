@@ -78,6 +78,24 @@ deploy/smoke/run-local-auth-session-smoke.sh
 2. withdraw smoke
 3. admin forced logout smoke
 
+로컬 기준선을 한 번에 다시 확인할 때는 아래 상위 wrapper를 우선 사용합니다.
+
+```bash
+deploy/smoke/run-local-validation-suite.sh
+```
+
+기본 순서:
+
+1. auth/session smoke wrapper
+2. recommendation click smoke
+3. admin dashboard smoke
+4. education priority replay smoke
+
+주의:
+
+- replay smoke는 DB/app 재기동이 섞일 수 있어 항상 마지막에 둡니다.
+- local Docker app에서 admin 검증이 필요하면 `SECURITY_ADMIN_EMAILS=admin@example.com` 상태로 app이 떠 있어야 합니다.
+
 전제:
 
 - 앱 base URL은 `APP_BASE_URL` 로 둡니다.

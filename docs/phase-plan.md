@@ -1104,6 +1104,7 @@ cd backend
 - 기존 운영 DB에 `app_core_rw` 의 `user_pii` revoke SQL 실제 적용 및 보조 datasource smoke 검증
 - CTR 표본 추가 확보 후 rule/AI 가중치 및 프롬프트 재분석
 - 추천 클릭 smoke 반복 검증(`deploy/smoke/run-local-recommendation-click-smoke.sh`) 유지
+- 로컬 기준선 전체 재검증 진입점은 `deploy/smoke/run-local-validation-suite.sh`
 
 ## 2차로 분리된 항목
 
