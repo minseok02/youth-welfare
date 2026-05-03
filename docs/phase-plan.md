@@ -1110,6 +1110,7 @@ cd backend
 - wrapper 실패 시 `failed_step`, `elapsed_before_failure_seconds` 로 중단 지점 즉시 확인
 - wrapper 실행 전 `--print-plan`, `--help` 로 현재 프로필/override 계획 확인 가능
 - `--quick`, `--full`, `--skip-replay` CLI shortcut 지원
+- `--only auth-session|click|dashboard|replay` 단일 단계 실행 shortcut 지원
 
 ## 2차로 분리된 항목
 
