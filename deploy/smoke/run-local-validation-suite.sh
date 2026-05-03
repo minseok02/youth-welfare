@@ -9,6 +9,8 @@ RUN_AUTH_SESSION_SMOKE="${RUN_AUTH_SESSION_SMOKE:-}"
 RUN_RECOMMENDATION_CLICK_SMOKE="${RUN_RECOMMENDATION_CLICK_SMOKE:-}"
 RUN_ADMIN_DASHBOARD_SMOKE="${RUN_ADMIN_DASHBOARD_SMOKE:-}"
 RUN_REPLAY_SMOKE="${RUN_REPLAY_SMOKE:-}"
+SUITE_START_EPOCH="$(date +%s)"
+STEP_SUMMARY_LINES=()
 
 normalize_flag() {
   local value="${1,,}"
@@ -50,9 +52,16 @@ resolve_profile_defaults() {
 run_step() {
   local label="$1"
   local script_path="$2"
+  local step_start
+  local step_end
+  local step_duration
 
   smoke_print_step "${label}"
+  step_start="$(date +%s)"
   bash "${script_path}"
+  step_end="$(date +%s)"
+  step_duration="$((step_end - step_start))"
+  STEP_SUMMARY_LINES+=("${label}|${step_duration}")
 }
 
 resolve_profile_defaults
@@ -88,4 +97,12 @@ if [[ "${RUN_REPLAY_SMOKE}" == "true" ]]; then
     "${ROOT_DIR}/deploy/smoke/run-local-education-priority-replay.sh"
 fi
 
+SUITE_END_EPOCH="$(date +%s)"
+SUITE_DURATION_SECONDS="$((SUITE_END_EPOCH - SUITE_START_EPOCH))"
+
 printf '\nlocal validation suite passed\n'
+printf 'suite_duration_seconds=%s\n' "${SUITE_DURATION_SECONDS}"
+
+for step_summary in "${STEP_SUMMARY_LINES[@]}"; do
+  printf 'step_duration_seconds=%s\n' "${step_summary}"
+done
