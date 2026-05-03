@@ -56,6 +56,12 @@ SECURITY_ADMIN_EMAILS=admin@example.com docker compose up -d --force-recreate ap
 SUMMARY_WINDOW_DAYS=14 TREND_WINDOW_DAYS_CSV=3,14 deploy/smoke/run-local-admin-dashboard-smoke.sh
 ```
 
+앱 재기동 직후 startup race가 있으면 아래 재시도 env를 같이 조절할 수 있습니다.
+
+```bash
+HEALTH_RETRY_COUNT=30 HEALTH_RETRY_DELAY_SECONDS=1 deploy/smoke/run-local-admin-dashboard-smoke.sh
+```
+
 auth/session revoke 세 개를 연속으로 돌릴 때는 아래 wrapper를 우선 사용합니다.
 
 ```bash
