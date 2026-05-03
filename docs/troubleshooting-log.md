@@ -2671,3 +2671,8 @@
 - 문제: 상세 저장이 끝난 뒤 `searchYouthRelevanceService.refreshForService(service, serviceTagRepository.findByServiceId(...))` 형태로 collect 서비스가 태그 조회까지 직접 수행하고 있었다.
 - 해결: `SearchYouthRelevanceReadRepository` 에 단건 태그 조회를 추가하고, `SearchYouthRelevanceService.refreshForService(service)` 가 내부에서 태그를 읽어 재계산하도록 정리했다.
 - 이유: collect 서비스는 detail 저장 orchestration 에 집중하고, youth relevance 재계산에 필요한 태그 read 규칙은 relevance 경계 안에 두는 편이 read/write 책임이 더 분명하다.
+
+## 487) `PolicyDetailReadService` 가 detail/region/tag 저장소 3개를 직접 조합하면, 정책 상세 aggregate read 경계가 서비스 안에 묻혀 저장소 조합 책임이 다시 분산된다
+- 문제: `getAggregate(serviceId)` 는 `WelfareServiceDetailRepository`, `ServiceRegionRepository`, `PolicyTagReadRepository` 를 서비스 본문에서 직접 호출해 aggregate 를 만들고 있었다.
+- 해결: `PolicyDetailReadRepository` 를 추가하고, 상세 aggregate 조립을 repository 구현으로 이동했다.
+- 이유: 서비스는 상세 응답 orchestration 에 집중하고, 여러 저장소를 묶는 read 조합 책임은 별도 read repository 에 두는 편이 policy read 경계를 더 일관되게 유지한다.

@@ -3,9 +3,7 @@ package com.example.welfare.policy.service;
 import com.example.welfare.policy.entity.ServiceRegion;
 import com.example.welfare.policy.entity.ServiceTag;
 import com.example.welfare.policy.entity.WelfareServiceDetail;
-import com.example.welfare.policy.repository.PolicyTagReadRepository;
-import com.example.welfare.policy.repository.ServiceRegionRepository;
-import com.example.welfare.policy.repository.WelfareServiceDetailRepository;
+import com.example.welfare.policy.repository.PolicyDetailReadRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,16 +14,11 @@ import java.util.List;
 @RequiredArgsConstructor
 public class PolicyDetailReadService {
 
-    private final WelfareServiceDetailRepository detailRepository;
-    private final ServiceRegionRepository regionRepository;
-    private final PolicyTagReadRepository policyTagReadRepository;
+    private final PolicyDetailReadRepository policyDetailReadRepository;
 
     @Transactional(readOnly = true)
     public PolicyDetailAggregate getAggregate(Long serviceId) {
-        WelfareServiceDetail detail = detailRepository.findByServiceId(serviceId).orElse(null);
-        List<ServiceRegion> regions = regionRepository.findByServiceId(serviceId);
-        List<ServiceTag> tags = policyTagReadRepository.findByServiceId(serviceId);
-        return new PolicyDetailAggregate(detail, regions, tags);
+        return policyDetailReadRepository.findAggregate(serviceId);
     }
 
     public record PolicyDetailAggregate(
