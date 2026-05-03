@@ -208,7 +208,7 @@ public class AdminDashboardReadRepository {
         );
     }
 
-    public List<CollectJobRunRow> fetchRecentCollectJobRuns(LocalDateTime windowAgo, int perJobLimit) {
+    public List<CollectJobRunRow> fetchRecentCollectJobRuns(int perJobLimit) {
         return jdbcTemplate.query("""
                 select ranked.job_name,
                        ranked.status,
@@ -222,13 +222,11 @@ public class AdminDashboardReadRepository {
                                    order by log.started_at desc, log.id desc
                                ) as rn
                           from api_sync_logs log
-                         where log.started_at >= :windowAgo
                   ) ranked
                  where ranked.rn <= :perJobLimit
               order by ranked.job_name asc, ranked.started_at desc
                 """,
                 new MapSqlParameterSource()
-                        .addValue("windowAgo", windowAgo)
                         .addValue("perJobLimit", perJobLimit),
                 (rs, rowNum) -> new CollectJobRunRow(
                         rs.getString("job_name"),

@@ -2541,3 +2541,8 @@
 - 문제: 기존 `UserService` 는 read 경로(`getProfile`, `getBookmarks`)와 command 경로(`updateProfile`, `updatePriorities`, `changePassword`, `withdraw`, `unsubscribeNotifications`)를 함께 들고 있었고, 프로필/우선순위/계정 종료 규칙이 바뀔 때마다 같은 클래스를 같이 수정해야 했다.
 - 해결: 북마크 조회는 `UserBookmarkReadService` 로, 프로필/우선순위 변경은 `UserProfileCommandService` 로, 비밀번호/탈퇴/알림 수신 거부는 `UserAccountCommandService` 로 분리했다. `UserService` 는 기존 controller 계약을 유지하는 facade만 남겼다.
 - 이유: 외부 API 계약은 유지하면서 내부 책임을 read/bookmark, profile command, account command로 나누면 테스트 범위가 좁아지고 SRP/CQS 위반도 줄일 수 있다.
+
+## 461) `collect-failures` 의 streak를 summary window 안쪽 최근 이력만으로 계산하면, 더 오래 이어진 연속 실패/partial 상태를 과소계상한다
+- 문제: `jobStreaks` 계산이 `summaryWindowAgo` 이후 실행만 읽고 있었기 때문에, 예를 들어 7일보다 더 오래 이어진 실패 streak는 대시보드에서 잘린 값으로 보였다. 이 상태에서는 운영자가 “현재 연속 실패 길이”를 실제보다 작게 읽을 수 있었다.
+- 해결: `fetchRecentCollectJobRuns(...)` 를 job별 최신 N건 전체 이력 기준으로 바꾸고, `collect-failures` 서비스는 summary window와 별개로 current streak를 계산하게 수정했다.
+- 이유: summary window는 분포/샘플 범위를 제한하는 용도이고, streak는 현재 상태를 보여주는 지표다. 두 의미를 섞으면 운영 해석이 틀어진다.
