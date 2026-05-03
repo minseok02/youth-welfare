@@ -225,6 +225,24 @@ public class AdminDashboardService {
                                 row.sortKey(),
                                 row.searchedAt()
                         ))
+                        .toList(),
+                adminDashboardReadRepository.fetchZeroResultRetryGroups(summaryWindowAgo, patternLimit).stream()
+                        .map(row -> new AdminSearchFailureResponse.RetryGroup(
+                                row.actorType(),
+                                row.actorKey(),
+                                row.keyword(),
+                                row.sido(),
+                                row.sgg(),
+                                row.statusFilter(),
+                                row.category(),
+                                row.sourceType(),
+                                row.onlineApply(),
+                                row.includeClosed(),
+                                row.sortKey(),
+                                row.retryCount(),
+                                row.firstSearchedAt(),
+                                row.latestSearchedAt()
+                        ))
                         .toList()
         );
     }

@@ -685,6 +685,66 @@ public class AdminDashboardReadRepository {
         );
     }
 
+    public List<SearchRetryGroupRow> fetchZeroResultRetryGroups(LocalDateTime windowAgo, int limit) {
+        return jdbcTemplate.query("""
+                select case
+                           when user_key is not null and trim(user_key) <> '' then 'USER_KEY'
+                           else 'FINGERPRINT'
+                       end as actor_type,
+                       coalesce(nullif(trim(user_key), ''), client_fingerprint) as actor_key,
+                       keyword,
+                       sido,
+                       sgg,
+                       status_filter,
+                       category,
+                       source_type,
+                       online_apply,
+                       include_closed,
+                       sort_key,
+                       count(*) as retry_count,
+                       min(searched_at) as first_searched_at,
+                       max(searched_at) as latest_searched_at
+                  from search_logs
+                 where searched_at >= :windowAgo
+                   and result_count = 0
+              group by actor_type,
+                       actor_key,
+                       keyword,
+                       sido,
+                       sgg,
+                       status_filter,
+                       category,
+                       source_type,
+                       online_apply,
+                       include_closed,
+                       sort_key
+                having count(*) > 1
+              order by retry_count desc,
+                       latest_searched_at desc,
+                       actor_type asc,
+                       actor_key asc
+                 limit %d
+                """.formatted(limit),
+                new MapSqlParameterSource("windowAgo", windowAgo),
+                (rs, rowNum) -> new SearchRetryGroupRow(
+                        rs.getString("actor_type"),
+                        rs.getString("actor_key"),
+                        rs.getString("keyword"),
+                        rs.getString("sido"),
+                        rs.getString("sgg"),
+                        rs.getString("status_filter"),
+                        rs.getString("category"),
+                        rs.getString("source_type"),
+                        getNullableBoolean(rs, "online_apply"),
+                        rs.getBoolean("include_closed"),
+                        rs.getString("sort_key"),
+                        rs.getLong("retry_count"),
+                        getLocalDateTime(rs, "first_searched_at"),
+                        getLocalDateTime(rs, "latest_searched_at")
+                )
+        );
+    }
+
     private LocalDateTime getLocalDateTime(ResultSet rs, String columnName) throws SQLException {
         java.sql.Timestamp timestamp = rs.getTimestamp(columnName);
         return timestamp != null ? timestamp.toLocalDateTime() : null;
@@ -912,6 +972,24 @@ public class AdminDashboardReadRepository {
             boolean includeClosed,
             String sortKey,
             LocalDateTime searchedAt
+    ) {
+    }
+
+    public record SearchRetryGroupRow(
+            String actorType,
+            String actorKey,
+            String keyword,
+            String sido,
+            String sgg,
+            String statusFilter,
+            String category,
+            String sourceType,
+            Boolean onlineApply,
+            boolean includeClosed,
+            String sortKey,
+            long retryCount,
+            LocalDateTime firstSearchedAt,
+            LocalDateTime latestSearchedAt
     ) {
     }
 }
