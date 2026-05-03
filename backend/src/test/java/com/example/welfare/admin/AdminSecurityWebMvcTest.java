@@ -545,6 +545,14 @@ class AdminSecurityWebMvcTest {
                                 )
                         ),
                         List.of(
+                                new AdminCollectFailureResponse.JobStreak(
+                                        "BOKJIRO_LOCAL",
+                                        "FAILED",
+                                        2,
+                                        LocalDateTime.of(2026, 5, 3, 9, 0)
+                                )
+                        ),
+                        List.of(
                                 new AdminCollectFailureResponse.ErrorCodeBreakdown("COL001", 5)
                         ),
                         List.of(
@@ -559,6 +567,14 @@ class AdminSecurityWebMvcTest {
                                         0,
                                         1
                                 )
+                        ),
+                        List.of(
+                                new AdminCollectFailureResponse.CircuitStatus(
+                                        "BOKJIRO_LOCAL",
+                                        true,
+                                        60000L,
+                                        LocalDateTime.of(2026, 5, 3, 17, 0)
+                                )
                         )
                 ));
 
@@ -572,8 +588,13 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.data.totalFailedJobs").value(6))
                 .andExpect(jsonPath("$.data.totalPartialSuccessJobs").value(2))
                 .andExpect(jsonPath("$.data.jobBreakdowns[0].jobName").value("BOKJIRO_LOCAL"))
+                .andExpect(jsonPath("$.data.jobStreaks[0].streakStatus").value("FAILED"))
+                .andExpect(jsonPath("$.data.jobStreaks[0].streakCount").value(2))
                 .andExpect(jsonPath("$.data.errorCodeBreakdowns[0].errorCode").value("COL001"))
-                .andExpect(jsonPath("$.data.recentSamples[0].errorMessage").value("rate limited"));
+                .andExpect(jsonPath("$.data.recentSamples[0].errorMessage").value("rate limited"))
+                .andExpect(jsonPath("$.data.circuitStatuses[0].circuitKey").value("BOKJIRO_LOCAL"))
+                .andExpect(jsonPath("$.data.circuitStatuses[0].open").value(true))
+                .andExpect(jsonPath("$.data.circuitStatuses[0].remainingMs").value(60000));
 
         then(adminDashboardService).should().getCollectFailures(14, 3);
     }

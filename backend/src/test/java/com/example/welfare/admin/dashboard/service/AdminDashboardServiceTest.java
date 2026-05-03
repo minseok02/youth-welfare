@@ -5,6 +5,7 @@ import com.example.welfare.admin.dashboard.dto.AdminRecommendationBreakdownRespo
 import com.example.welfare.admin.dashboard.dto.AdminSearchFailureResponse;
 import com.example.welfare.admin.dashboard.dto.AdminDashboardResponse;
 import com.example.welfare.admin.dashboard.repository.AdminDashboardReadRepository;
+import com.example.welfare.collect.gateway.BokjiroLocalClient;
 import com.example.welfare.recommend.entity.ScoreWeight;
 import com.example.welfare.recommend.service.ScoreWeightService;
 import com.example.welfare.user.dto.response.UserPiiSyncStatusResponse;
@@ -36,6 +37,9 @@ class AdminDashboardServiceTest {
 
     @Mock
     private ScoreWeightService scoreWeightService;
+
+    @Mock
+    private BokjiroLocalClient bokjiroLocalClient;
 
     @InjectMocks
     private AdminDashboardService adminDashboardService;
@@ -512,6 +516,26 @@ class AdminDashboardServiceTest {
                         LocalDateTime.of(2026, 5, 3, 9, 0)
                 )
         ));
+        given(adminDashboardReadRepository.fetchRecentCollectJobRuns(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.eq(20)
+        )).willReturn(List.of(
+                new AdminDashboardReadRepository.CollectJobRunRow(
+                        "BOKJIRO_LOCAL",
+                        "FAILED",
+                        LocalDateTime.of(2026, 5, 3, 9, 0)
+                ),
+                new AdminDashboardReadRepository.CollectJobRunRow(
+                        "BOKJIRO_LOCAL",
+                        "FAILED",
+                        LocalDateTime.of(2026, 5, 2, 9, 0)
+                ),
+                new AdminDashboardReadRepository.CollectJobRunRow(
+                        "BOKJIRO_LOCAL",
+                        "SUCCESS",
+                        LocalDateTime.of(2026, 5, 1, 9, 0)
+                )
+        ));
         given(adminDashboardReadRepository.fetchCollectFailureErrorCodeBreakdowns(
                 org.mockito.ArgumentMatchers.any(),
                 org.mockito.ArgumentMatchers.eq(3)
@@ -534,6 +558,12 @@ class AdminDashboardServiceTest {
                         1
                 )
         ));
+        given(bokjiroLocalClient.getRateLimitCircuitStatus())
+                .willReturn(new BokjiroLocalClient.RateLimitCircuitStatus(
+                        true,
+                        60000L,
+                        LocalDateTime.of(2026, 5, 3, 10, 0)
+                ));
 
         AdminCollectFailureResponse response = adminDashboardService.getCollectFailures(14, 3);
 
@@ -546,6 +576,12 @@ class AdminDashboardServiceTest {
             assertThat(job.partialSuccessCount()).isEqualTo(1);
             assertThat(job.latestStartedAt()).isEqualTo(LocalDateTime.of(2026, 5, 3, 9, 0));
         });
+        assertThat(response.jobStreaks()).singleElement().satisfies(streak -> {
+            assertThat(streak.jobName()).isEqualTo("BOKJIRO_LOCAL");
+            assertThat(streak.streakStatus()).isEqualTo("FAILED");
+            assertThat(streak.streakCount()).isEqualTo(2);
+            assertThat(streak.latestStartedAt()).isEqualTo(LocalDateTime.of(2026, 5, 3, 9, 0));
+        });
         assertThat(response.errorCodeBreakdowns()).singleElement().satisfies(error -> {
             assertThat(error.errorCode()).isEqualTo("COL001");
             assertThat(error.failedCount()).isEqualTo(5);
@@ -555,6 +591,12 @@ class AdminDashboardServiceTest {
             assertThat(sample.status()).isEqualTo("FAILED");
             assertThat(sample.errorCode()).isEqualTo("COL001");
             assertThat(sample.errorMessage()).isEqualTo("rate limited");
+        });
+        assertThat(response.circuitStatuses()).singleElement().satisfies(circuit -> {
+            assertThat(circuit.circuitKey()).isEqualTo("BOKJIRO_LOCAL");
+            assertThat(circuit.open()).isTrue();
+            assertThat(circuit.remainingMs()).isEqualTo(60000L);
+            assertThat(circuit.openUntil()).isEqualTo(LocalDateTime.of(2026, 5, 3, 10, 0));
         });
     }
 }

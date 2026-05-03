@@ -208,6 +208,36 @@ public class AdminDashboardReadRepository {
         );
     }
 
+    public List<CollectJobRunRow> fetchRecentCollectJobRuns(LocalDateTime windowAgo, int perJobLimit) {
+        return jdbcTemplate.query("""
+                select ranked.job_name,
+                       ranked.status,
+                       ranked.started_at
+                  from (
+                        select log.job_name,
+                               log.status,
+                               log.started_at,
+                               row_number() over (
+                                   partition by log.job_name
+                                   order by log.started_at desc, log.id desc
+                               ) as rn
+                          from api_sync_logs log
+                         where log.started_at >= :windowAgo
+                  ) ranked
+                 where ranked.rn <= :perJobLimit
+              order by ranked.job_name asc, ranked.started_at desc
+                """,
+                new MapSqlParameterSource()
+                        .addValue("windowAgo", windowAgo)
+                        .addValue("perJobLimit", perJobLimit),
+                (rs, rowNum) -> new CollectJobRunRow(
+                        rs.getString("job_name"),
+                        rs.getString("status"),
+                        getLocalDateTime(rs, "started_at")
+                )
+        );
+    }
+
     public RecommendationSummaryRow fetchRecommendationSummary(LocalDateTime dayAgo, LocalDateTime weekAgo) {
         return jdbcTemplate.queryForObject("""
                 select count(*) as total_logs,
@@ -734,6 +764,13 @@ public class AdminDashboardReadRepository {
             int requestedCount,
             int savedCount,
             int failedCount
+    ) {
+    }
+
+    public record CollectJobRunRow(
+            String jobName,
+            String status,
+            LocalDateTime startedAt
     ) {
     }
 

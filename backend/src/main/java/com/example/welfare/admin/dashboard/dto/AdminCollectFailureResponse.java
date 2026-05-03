@@ -9,8 +9,10 @@ public record AdminCollectFailureResponse(
         long totalFailedJobs,
         long totalPartialSuccessJobs,
         List<JobBreakdown> jobBreakdowns,
+        List<JobStreak> jobStreaks,
         List<ErrorCodeBreakdown> errorCodeBreakdowns,
-        List<FailureSample> recentSamples
+        List<FailureSample> recentSamples,
+        List<CircuitStatus> circuitStatuses
 ) {
 
     public record JobBreakdown(
@@ -27,6 +29,14 @@ public record AdminCollectFailureResponse(
     ) {
     }
 
+    public record JobStreak(
+            String jobName,
+            String streakStatus,
+            long streakCount,
+            LocalDateTime latestStartedAt
+    ) {
+    }
+
     public record FailureSample(
             String jobName,
             String status,
@@ -37,6 +47,14 @@ public record AdminCollectFailureResponse(
             int requestedCount,
             int savedCount,
             int failedCount
+    ) {
+    }
+
+    public record CircuitStatus(
+            String circuitKey,
+            boolean open,
+            long remainingMs,
+            LocalDateTime openUntil
     ) {
     }
 }

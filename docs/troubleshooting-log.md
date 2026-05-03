@@ -2478,6 +2478,7 @@
 - 해결: `/api/admin/dashboard/search-failures` 를 추가해 summary window 기준 zero-result keyword/region/filter pattern/recent sample 상세를 별도 admin API로 분리했다.
 - 이유: 요약 대시보드는 가볍게 유지하고, 검색 실패 triage는 별도 상세 endpoint에서 읽게 분리하는 편이 책임이 명확하고 후속 확장도 쉽다.
 
+<<<<<<< HEAD
 ## 448) recommendation summary에 source/category/weight 분포와 최근 샘플만 있으면, 같은 사용자에게 같은 정책이 반복 노출되는 패턴은 다시 raw `recommendation_logs` 를 `user_key + service_id` 기준으로 group by 해야 한다
 - 문제: 추천 triage에서 자주 필요한 것은 “같은 사용자에게 같은 정책이 몇 번 반복 노출되었는가”인데, 상세 응답에 재노출 그룹이 없으면 결국 `recommendation_logs` 를 다시 수동 group by 해야 한다.
 - 해결: `recommendation-breakdowns` 응답에 repeat exposure group을 추가해 `user_key + service_id` 기준 노출 횟수, click/fallback 누적, 첫/마지막 노출 시각을 같이 반환하게 했다.
@@ -2488,7 +2489,12 @@
 - 해결: `/api/admin/dashboard/recommendation-breakdowns` 를 추가해 summary window 기준 source/category/weight breakdown과 최근 fallback/click sample을 별도 admin API로 분리했다.
 - 이유: 추천 품질 조정은 총량 지표보다 상세 분포가 먼저 필요하다. 요약 대시보드는 그대로 두고, 세부 triage는 별도 endpoint에 분리하는 편이 책임과 확장성이 더 낫다.
 
-## 450) collect summary에 실패 총량과 최신 샘플 몇 개만 있으면, 어떤 job이 반복 실패하는지와 error code 분포를 다시 raw `api_sync_logs` 에서 group by 해야 한다
+## 450) collect 실패 상세에 총량/분포/샘플만 있으면, 지금도 실패 streak가 이어지는지와 `BOKJIRO_LOCAL` 회로가 열려 있는지를 다시 raw log와 runtime state에서 따로 찾아야 한다
+- 문제: 수집 triage에서 실제로 중요한 것은 “지금 연속 실패가 이어지는가”와 “rate-limit 회로가 아직 열려 있는가”인데, 실패 상세에 이 두 신호가 없으면 운영자가 `api_sync_logs` 를 다시 시간순으로 읽고, local circuit state는 로그로만 추정해야 했다.
+- 해결: `collect-failures` 응답에 job streak 와 circuit status 를 추가해 최근 연속 `FAILED/PARTIAL_SUCCESS` 길이와 `BOKJIRO_LOCAL` open-circuit 상태를 같이 반환하게 했다.
+- 이유: 총량 지표는 과거를 설명하지만, streak 와 circuit 은 현재 진행형 위험을 더 잘 보여준다. 둘을 같이 봐야 “한 번 실패한 것”과 “지금도 계속 막혀 있는 것”을 바로 구분할 수 있다.
+
+## 451) collect summary에 실패 총량과 최신 샘플 몇 개만 있으면, 어떤 job이 반복 실패하는지와 error code 분포를 다시 raw `api_sync_logs` 에서 group by 해야 한다
 - 문제: summary 응답의 `failedJobsLast24h`, `latestFailuresInWindow` 만으로는 “어느 collect job이 반복적으로 실패하는가”, “partial success가 어느 정도 섞이는가”, “실패 원인이 어떤 error code에 몰리는가”를 바로 읽기 어렵다.
 - 해결: `/api/admin/dashboard/collect-failures` 를 추가해 summary window 기준 failed/partial 총량, job breakdown, error code breakdown, recent sample을 별도 admin API로 분리했다.
 - 이유: 수집 triage는 summary 총량보다 실패 분포와 최근 샘플이 먼저 필요하다. 대시보드 요약은 유지하고, 상세는 별도 endpoint로 분리하는 편이 책임과 후속 확장이 더 낫다.

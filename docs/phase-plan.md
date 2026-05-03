@@ -1118,6 +1118,7 @@ cd backend
 - admin 수집 분석은 summary count만 보지 않고 `/api/admin/dashboard/collect-failures` 로 failed/partial 총량, job 분포, error code 분포, 최근 샘플 상세 조회 가능
 - admin 추천 분석은 summary count만 보지 않고 `/api/admin/dashboard/recommendation-breakdowns` 로 source/category/weight 분포와 userKey 기준 재노출 그룹, fallback·click sample 상세 조회 가능
 - admin 수집 분석은 summary count만 보지 않고 `/api/admin/dashboard/collect-failures` 로 failed/partial 총량, job 분포, error code 분포, 최근 샘플 상세 조회 가능
+- `collect-failures` 상세에서는 최근 연속 실패/partial streak 과 `BOKJIRO_LOCAL` open-circuit 상태까지 같이 확인 가능
 
 ## 2차로 분리된 항목
 
