@@ -53,7 +53,7 @@ public class PolicyService {
                                                String category,
                                                String sourceType,
                                                String status,
-                                               Boolean includeClosed,
+                                               String statusFilter,
                                                String sido,
                                                String sgg,
                                                Boolean onlineApply,
@@ -71,7 +71,7 @@ public class PolicyService {
                 normalizeNullable(category),
                 normalizeSourceType(sourceType),
                 normalizeStatus(status),
-                (includeClosed != null && includeClosed) ? 1 : 0,
+                normalizeStatusFilter(statusFilter),
                 normalizedSido,
                 normalizedSgg,
                 sidoCode,
@@ -189,6 +189,18 @@ public class PolicyService {
             case "CLOSED" -> WelfareService.ServiceStatus.CLOSED;
             case "ALL" -> null;
             default -> throw new CustomException(ErrorCode.INVALID_INPUT);
+        };
+    }
+
+    // ACTIVE_ONLY(기본): 신청가능·예정, 마감일 미도래
+    // EXPIRED_ONLY: CLOSED 또는 applyEndDate 지남 (온통청년처럼 DB status=ACTIVE이지만 마감된 경우 포함)
+    // ALL: 모든 상태
+    private String normalizeStatusFilter(String statusFilter) {
+        if (statusFilter == null || statusFilter.isBlank()) return "ACTIVE_ONLY";
+        return switch (statusFilter.trim().toUpperCase()) {
+            case "ALL" -> "ALL";
+            case "EXPIRED_ONLY" -> "EXPIRED_ONLY";
+            default -> "ACTIVE_ONLY";
         };
     }
 

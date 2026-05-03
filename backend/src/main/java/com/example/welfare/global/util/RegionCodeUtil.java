@@ -1,5 +1,8 @@
 package com.example.welfare.global.util;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -35,6 +38,29 @@ public final class RegionCodeUtil {
             Map.entry("경북", "47"),
             Map.entry("경남", "48"),
             Map.entry("제주", "50")
+    );
+
+    // 시도 전체명 → 단축명 (온통청년 host_org에서 활용)
+    private static final Map<String, String> SIDO_ALIAS_MAP = Map.ofEntries(
+            Map.entry("서울특별시", "서울"),
+            Map.entry("부산광역시", "부산"),
+            Map.entry("대구광역시", "대구"),
+            Map.entry("인천광역시", "인천"),
+            Map.entry("광주광역시", "광주"),
+            Map.entry("대전광역시", "대전"),
+            Map.entry("울산광역시", "울산"),
+            Map.entry("세종특별자치시", "세종"),
+            Map.entry("경기도", "경기"),
+            Map.entry("강원특별자치도", "강원"),
+            Map.entry("강원도", "강원"),
+            Map.entry("충청북도", "충북"),
+            Map.entry("충청남도", "충남"),
+            Map.entry("전라북도", "전북"),
+            Map.entry("전북특별자치도", "전북"),
+            Map.entry("전라남도", "전남"),
+            Map.entry("경상북도", "경북"),
+            Map.entry("경상남도", "경남"),
+            Map.entry("제주특별자치도", "제주")
     );
 
     // (시도 단축명 + "/" + 시군구명) → 5자리 행정구역코드
@@ -174,6 +200,25 @@ public final class RegionCodeUtil {
             Map.entry("제주/서귀포시", "50130"), Map.entry("제주/제주시", "50110")
     );
 
+    // 전국에 중복되지 않는 시군구명 → 5자리 코드 (host_org 역매핑용)
+    private static final Map<String, String> UNIQUE_SGG_CODE_MAP = buildUniqueSggCodeMap();
+
+    private static Map<String, String> buildUniqueSggCodeMap() {
+        Map<String, Integer> nameCount = new HashMap<>();
+        for (String key : SGG_CODE_MAP.keySet()) {
+            String sgg = key.split("/", 2)[1];
+            nameCount.merge(sgg, 1, Integer::sum);
+        }
+        Map<String, String> result = new java.util.LinkedHashMap<>();
+        for (Map.Entry<String, String> e : SGG_CODE_MAP.entrySet()) {
+            String sgg = e.getKey().split("/", 2)[1];
+            if (nameCount.getOrDefault(sgg, 0) == 1) {
+                result.put(sgg, e.getValue());
+            }
+        }
+        return java.util.Collections.unmodifiableMap(result);
+    }
+
     /**
      * 시도 단축명("서울", "경기" 등)을 행정구역코드 앞 2자리로 변환.
      * 온통청년 region_code LIKE '11%' 형태의 시도 필터에 사용.
@@ -182,6 +227,53 @@ public final class RegionCodeUtil {
     public static String getSidoCode(String sido) {
         if (sido == null || sido.isBlank()) return null;
         return SIDO_CODE_MAP.get(sido.trim());
+    }
+
+    /**
+     * zipCd가 전국 수준일 때 host_org(주관기관명)에서 실제 운영 지역 코드를 추정한다.
+     *
+     * 추정 순서:
+     * 1. 전국 고유 시군구명 포함 → 해당 5자리 코드 1개 반환 (예: "서산시청" → ["44210"])
+     * 2. 시도 전체명/단축명 포함 → 해당 시도의 모든 시군구 코드 반환 (예: "충청남도청" → 충남 전체)
+     * 3. 매핑 불가(중앙부처 등) → 빈 리스트 반환 → service_regions에 행 없음 → NOT EXISTS로 전국 노출
+     *
+     * 한계: 중앙부처가 주관하는 지역 한정 정책은 전국 노출로 처리된다.
+     * 온통청년 API가 명확한 지역 구분 필드를 제공하지 않아 현재 방식으로 최선이다.
+     */
+    public static List<String> inferFromHostOrg(String hostOrg) {
+        if (hostOrg == null || hostOrg.isBlank()) return List.of();
+        String trimmed = hostOrg.trim();
+
+        // 1. 전국 고유 시군구명 매칭 (예: "서산시청" → "44210")
+        for (Map.Entry<String, String> entry : UNIQUE_SGG_CODE_MAP.entrySet()) {
+            if (trimmed.contains(entry.getKey())) {
+                return List.of(entry.getValue());
+            }
+        }
+
+        // 2. 시도 전체명 정규화 후 매칭 (예: "충청남도청" → "충남" → 충남 전체 코드)
+        String normalized = trimmed;
+        for (Map.Entry<String, String> alias : SIDO_ALIAS_MAP.entrySet()) {
+            if (trimmed.contains(alias.getKey())) {
+                normalized = alias.getValue();
+                break;
+            }
+        }
+
+        // 3. 시도 단축명 직접 매칭 (예: "충남도청", "서울시")
+        for (String sido : SIDO_CODE_MAP.keySet()) {
+            if (normalized.contains(sido) || trimmed.contains(sido)) {
+                List<String> codes = new ArrayList<>();
+                for (Map.Entry<String, String> e : SGG_CODE_MAP.entrySet()) {
+                    if (e.getKey().startsWith(sido + "/")) {
+                        codes.add(e.getValue());
+                    }
+                }
+                if (!codes.isEmpty()) return codes;
+            }
+        }
+
+        return List.of();
     }
 
     /**

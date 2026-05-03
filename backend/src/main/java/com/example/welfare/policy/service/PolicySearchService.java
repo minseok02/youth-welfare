@@ -47,7 +47,7 @@ public class PolicySearchService {
     public PolicySearchResponse search(Long userId,
                                        String keyword,
                                        String status,
-                                       Boolean includeClosed,
+                                       String statusFilter,
                                        String category,
                                        String sourceType,
                                        Boolean onlineApply,
@@ -64,7 +64,7 @@ public class PolicySearchService {
         int limit = normalizeSize(size);
         int pageNumber = Math.max(0, page);
         String normalizedStatus = normalizeStatus(status);
-        Integer normalizedIncludeClosed = normalizeIncludeClosed(includeClosed);
+        String normalizedStatusFilter = normalizeStatusFilter(statusFilter);
         String normalizedSourceType = normalizeSourceType(sourceType);
         String normalizedCategory = normalizeNullable(category);
         String normalizedSido = normalizeNullable(sido);
@@ -76,7 +76,7 @@ public class PolicySearchService {
             resultPage = welfareServiceRepository.searchByKeywordWithFiltersNoRegion(
                     ftKeyword,
                     normalizedStatus,
-                    normalizedIncludeClosed,
+                    normalizedStatusFilter,
                     normalizedCategory,
                     normalizedSourceType,
                     onlineApplyFlag,
@@ -87,7 +87,7 @@ public class PolicySearchService {
             resultPage = welfareServiceRepository.searchByKeywordWithFiltersWithSido(
                     ftKeyword,
                     normalizedStatus,
-                    normalizedIncludeClosed,
+                    normalizedStatusFilter,
                     normalizedCategory,
                     normalizedSourceType,
                     onlineApplyFlag,
@@ -99,7 +99,7 @@ public class PolicySearchService {
             resultPage = welfareServiceRepository.searchByKeywordWithFiltersWithSidoSgg(
                     ftKeyword,
                     normalizedStatus,
-                    normalizedIncludeClosed,
+                    normalizedStatusFilter,
                     normalizedCategory,
                     normalizedSourceType,
                     onlineApplyFlag,
@@ -133,7 +133,7 @@ public class PolicySearchService {
                 response,
                 keyword,
                 normalizedStatus,
-                normalizedIncludeClosed,
+                normalizedStatusFilter,
                 normalizedCategory,
                 normalizedSourceType,
                 normalizedSort,
@@ -145,7 +145,7 @@ public class PolicySearchService {
     private void logSearchObservation(PolicySearchResponse response,
                                       String keyword,
                                       String status,
-                                      Integer includeClosed,
+                                      String statusFilter,
                                       String category,
                                       String sourceType,
                                       String sort,
@@ -161,7 +161,7 @@ public class PolicySearchService {
                     response.getPageNumber(),
                     response.getPageSize(),
                     response.isHasNext(),
-                    includeClosed == 1,
+                    statusFilter,
                     status,
                     category,
                     sourceType,
@@ -177,7 +177,7 @@ public class PolicySearchService {
                     response.getPageNumber(),
                     response.getPageSize(),
                     response.isHasNext(),
-                    includeClosed == 1,
+                    statusFilter,
                     status,
                     category,
                     sourceType,
@@ -246,8 +246,16 @@ public class PolicySearchService {
         };
     }
 
-    private Integer normalizeIncludeClosed(Boolean includeClosed) {
-        return includeClosed != null && includeClosed ? 1 : 0;
+    // ACTIVE_ONLY(기본): 신청가능·예정, 마감일 미도래
+    // EXPIRED_ONLY: CLOSED 또는 applyEndDate 지남 (온통청년처럼 DB status=ACTIVE이지만 마감된 경우 포함)
+    // ALL: 모든 상태
+    private String normalizeStatusFilter(String statusFilter) {
+        if (statusFilter == null || statusFilter.isBlank()) return "ACTIVE_ONLY";
+        return switch (statusFilter.trim().toUpperCase()) {
+            case "ALL" -> "ALL";
+            case "EXPIRED_ONLY" -> "EXPIRED_ONLY";
+            default -> "ACTIVE_ONLY";
+        };
     }
 
     private String normalizeSourceType(String sourceType) {

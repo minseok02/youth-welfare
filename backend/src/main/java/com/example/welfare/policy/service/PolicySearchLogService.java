@@ -29,7 +29,7 @@ public class PolicySearchLogService {
                     .keyword(command.keyword().trim())
                     .resultCount(command.resultCount())
                     .statusFilter(normalizeUpper(command.status()))
-                    .includeClosed(Boolean.TRUE.equals(command.includeClosed()))
+                    .includeClosed("ALL".equals(command.statusFilter()) || "EXPIRED_ONLY".equals(command.statusFilter()))
                     .category(normalizeUpper(command.category()))
                     .sourceType(normalizeUpper(command.sourceType()))
                     .onlineApply(command.onlineApply())

@@ -21,6 +21,7 @@
 ### 현재 코드/로컬 검증 기준
 
 - [policy-normalization-current-state.md](./policy-normalization-current-state.md)
+- [policy-status-filter-design.md](./policy-status-filter-design.md) ← statusFilter 설계 및 온통청년 마감 처리
 - [policy-local-closeout-pending-inventory.md](./policy-local-closeout-pending-inventory.md)
 - [policy-gov24-blocked-track-status.md](./policy-gov24-blocked-track-status.md)
 - [policy-post-local-closeout-track-split.md](./policy-post-local-closeout-track-split.md)

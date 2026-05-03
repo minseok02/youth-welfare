@@ -3,6 +3,7 @@ package com.example.welfare.collect.mapper;
 import com.example.welfare.collect.dto.BokjiroCentralDto;
 import com.example.welfare.collect.dto.BokjiroLocalDto;
 import com.example.welfare.collect.dto.YouthApiDto;
+import com.example.welfare.global.util.RegionCodeUtil;
 import com.example.welfare.collect.gateway.BokjiroDetailClient;
 import com.example.welfare.collect.normalization.NormalizedPolicyAggregate;
 import com.example.welfare.collect.support.BokjiroNormalizationSupport;
@@ -105,18 +106,50 @@ public class WelfareServiceMapper {
         return tags;
     }
 
+    // 온통청년 API는 "전국 노출" 정책에 255개 시군구 코드를 모두 부여한다.
+    // zipCd가 이 수 이상의 시도에 걸쳐 있으면 전국 마커로 판단하고, host_org 기반 지역 추정으로 전환한다.
+    private static final int NATIONWIDE_SIDO_THRESHOLD = 15;
+
+    // [지역 추정 한계]
+    // host_org가 중앙부처(고용노동부 등)인 경우 inferFromHostOrg가 빈 리스트를 반환한다.
+    // → service_regions에 행이 없으면 NOT EXISTS 조건으로 전체 지역 필터에 노출된다(전국 정책으로 처리).
+    // 그러나 중앙부처가 주관하더라도 특정 지역 대상인 정책은 전국 노출로 잘못 처리될 수 있다.
+    // 온통청년 API 자체에 명확한 지역 정보가 없으므로 현재로서는 이 방식이 최선이다.
     public List<ServiceRegion> regionsFromYouth(YouthApiDto.Item item, WelfareService service) {
         List<ServiceRegion> regions = new ArrayList<>();
         String regionCd = item.getZipCd();
         if (regionCd == null || regionCd.isBlank()) return regions;
+
+        List<String> codes = new ArrayList<>();
         for (String code : regionCd.split(",")) {
             String c = code.strip();
-            if (!c.isEmpty()) {
+            if (!c.isEmpty()) codes.add(c);
+        }
+
+        long distinctSido = codes.stream()
+                .filter(c -> c.length() >= 2)
+                .map(c -> c.substring(0, 2))
+                .distinct()
+                .count();
+
+        // zipCd가 전국 수준이면 host_org로 실제 운영 지역 추정
+        // 추정 불가(중앙부처 등)이면 빈 리스트 → 전국 정책으로 처리
+        if (distinctSido >= NATIONWIDE_SIDO_THRESHOLD) {
+            List<String> inferred = RegionCodeUtil.inferFromHostOrg(item.getSprvsnInstCdNm());
+            for (String code : inferred) {
                 regions.add(ServiceRegion.builder()
                         .service(service)
-                        .regionCode(c)
+                        .regionCode(code)
                         .build());
             }
+            return regions;
+        }
+
+        for (String code : codes) {
+            regions.add(ServiceRegion.builder()
+                    .service(service)
+                    .regionCode(code)
+                    .build());
         }
         return regions;
     }

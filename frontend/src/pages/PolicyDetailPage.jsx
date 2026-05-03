@@ -81,10 +81,17 @@ const formatSource = (sourceType) => {
   return sourceType || "출처 정보 없음";
 };
 
-const formatStatusLabel = (status) => {
+// DB status만 보면 온통청년 정책이 ACTIVE인데도 신청 마감인 경우가 있어
+// applyEndDate도 함께 확인한다.
+const formatStatusLabel = (status, applyEndDate) => {
+  if (status === "CLOSED") return "종료";
+  if (applyEndDate) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (new Date(`${applyEndDate}T00:00:00`) < today) return "종료";
+  }
   if (status === "ACTIVE") return "진행중";
   if (status === "UPCOMING") return "예정";
-  if (status === "CLOSED") return "종료";
   return "상태 정보 없음";
 };
 
@@ -281,7 +288,7 @@ export default function PolicyDetailPage() {
 
             <Box sx={{ display: "flex", gap: 1, mb: 2, flexWrap: "wrap" }}>
               <Chip label={policyDday} color={ddayColor(policyDday)} size="small" />
-              <Chip label={formatStatusLabel(policy.status)} size="small" variant="outlined" />
+              <Chip label={formatStatusLabel(policy.status, policy.applyEndDate)} size="small" variant="outlined" />
             </Box>
 
             <Divider />

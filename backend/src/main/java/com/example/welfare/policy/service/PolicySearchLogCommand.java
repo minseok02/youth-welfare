@@ -9,7 +9,7 @@ public record PolicySearchLogCommand(
         String keyword,
         long resultCount,
         String status,
-        Boolean includeClosed,
+        String statusFilter,
         String category,
         String sourceType,
         Boolean onlineApply,

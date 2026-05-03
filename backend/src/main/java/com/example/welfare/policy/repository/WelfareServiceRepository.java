@@ -212,14 +212,22 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
             Pageable pageable
     );
 
+    // statusFilter 값 의미 (검색·목록 쿼리 공통):
+    //   ACTIVE_ONLY(기본) : status IN (ACTIVE, UPCOMING) AND apply_end_date >= 오늘 or NULL
+    //   EXPIRED_ONLY      : status = CLOSED OR apply_end_date < 오늘
+    //                       온통청년처럼 DB status는 ACTIVE지만 신청 마감일이 지난 정책 포함
+    //   ALL               : 모든 상태
+    // status 파라미터가 직접 지정되면 statusFilter를 무시하고 status 단일 값으로 매칭
+
     // FULLTEXT + 필터 검색 (정렬: RELEVANCE / VIEWS / LATEST / NAME)
     // 지역 필터가 없는 일반 검색은 service_regions 조인을 피해서 DISTINCT/임시 테이블 비용을 줄인다.
     @Query(value = """
             SELECT ws.* FROM welfare_services ws
             WHERE (
                     (:status IS NULL AND (
-                        (:includeClosed = 1 AND ws.status IN ('ACTIVE', 'UPCOMING', 'CLOSED'))
-                        OR (:includeClosed = 0 AND ws.status IN ('ACTIVE', 'UPCOMING'))
+                        (:statusFilter = 'ALL' AND ws.status IN ('ACTIVE', 'UPCOMING', 'CLOSED'))
+                        OR (:statusFilter = 'EXPIRED_ONLY' AND (ws.status = 'CLOSED' OR (ws.apply_end_date IS NOT NULL AND ws.apply_end_date < CURDATE())))
+                        OR ((:statusFilter IS NULL OR :statusFilter = 'ACTIVE_ONLY') AND ws.status IN ('ACTIVE', 'UPCOMING') AND (ws.apply_end_date IS NULL OR ws.apply_end_date >= CURDATE()))
                     ))
                     OR (:status IS NOT NULL AND ws.status = :status)
                   )
@@ -254,8 +262,9 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
             SELECT COUNT(*) FROM welfare_services ws
             WHERE (
                     (:status IS NULL AND (
-                        (:includeClosed = 1 AND ws.status IN ('ACTIVE', 'UPCOMING', 'CLOSED'))
-                        OR (:includeClosed = 0 AND ws.status IN ('ACTIVE', 'UPCOMING'))
+                        (:statusFilter = 'ALL' AND ws.status IN ('ACTIVE', 'UPCOMING', 'CLOSED'))
+                        OR (:statusFilter = 'EXPIRED_ONLY' AND (ws.status = 'CLOSED' OR (ws.apply_end_date IS NOT NULL AND ws.apply_end_date < CURDATE())))
+                        OR ((:statusFilter IS NULL OR :statusFilter = 'ACTIVE_ONLY') AND ws.status IN ('ACTIVE', 'UPCOMING') AND (ws.apply_end_date IS NULL OR ws.apply_end_date >= CURDATE()))
                     ))
                     OR (:status IS NOT NULL AND ws.status = :status)
                   )
@@ -268,7 +277,7 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
             """, nativeQuery = true)
     Page<WelfareService> searchByKeywordWithFiltersNoRegion(@Param("keyword") String keyword,
                                                             @Param("status") String status,
-                                                            @Param("includeClosed") Integer includeClosed,
+                                                            @Param("statusFilter") String statusFilter,
                                                             @Param("category") String category,
                                                             @Param("sourceType") String sourceType,
                                                             @Param("onlineApply") Integer onlineApply,
@@ -279,8 +288,9 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
             SELECT ws.* FROM welfare_services ws
             WHERE (
                     (:status IS NULL AND (
-                        (:includeClosed = 1 AND ws.status IN ('ACTIVE', 'UPCOMING', 'CLOSED'))
-                        OR (:includeClosed = 0 AND ws.status IN ('ACTIVE', 'UPCOMING'))
+                        (:statusFilter = 'ALL' AND ws.status IN ('ACTIVE', 'UPCOMING', 'CLOSED'))
+                        OR (:statusFilter = 'EXPIRED_ONLY' AND (ws.status = 'CLOSED' OR (ws.apply_end_date IS NOT NULL AND ws.apply_end_date < CURDATE())))
+                        OR ((:statusFilter IS NULL OR :statusFilter = 'ACTIVE_ONLY') AND ws.status IN ('ACTIVE', 'UPCOMING') AND (ws.apply_end_date IS NULL OR ws.apply_end_date >= CURDATE()))
                     ))
                     OR (:status IS NOT NULL AND ws.status = :status)
                   )
@@ -326,8 +336,9 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
             SELECT COUNT(*) FROM welfare_services ws
             WHERE (
                     (:status IS NULL AND (
-                        (:includeClosed = 1 AND ws.status IN ('ACTIVE', 'UPCOMING', 'CLOSED'))
-                        OR (:includeClosed = 0 AND ws.status IN ('ACTIVE', 'UPCOMING'))
+                        (:statusFilter = 'ALL' AND ws.status IN ('ACTIVE', 'UPCOMING', 'CLOSED'))
+                        OR (:statusFilter = 'EXPIRED_ONLY' AND (ws.status = 'CLOSED' OR (ws.apply_end_date IS NOT NULL AND ws.apply_end_date < CURDATE())))
+                        OR ((:statusFilter IS NULL OR :statusFilter = 'ACTIVE_ONLY') AND ws.status IN ('ACTIVE', 'UPCOMING') AND (ws.apply_end_date IS NULL OR ws.apply_end_date >= CURDATE()))
                     ))
                     OR (:status IS NOT NULL AND ws.status = :status)
                   )
@@ -351,7 +362,7 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
             """, nativeQuery = true)
     Page<WelfareService> searchByKeywordWithFiltersWithSido(@Param("keyword") String keyword,
                                                             @Param("status") String status,
-                                                            @Param("includeClosed") Integer includeClosed,
+                                                            @Param("statusFilter") String statusFilter,
                                                             @Param("category") String category,
                                                             @Param("sourceType") String sourceType,
                                                             @Param("onlineApply") Integer onlineApply,
@@ -363,8 +374,9 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
             SELECT ws.* FROM welfare_services ws
             WHERE (
                     (:status IS NULL AND (
-                        (:includeClosed = 1 AND ws.status IN ('ACTIVE', 'UPCOMING', 'CLOSED'))
-                        OR (:includeClosed = 0 AND ws.status IN ('ACTIVE', 'UPCOMING'))
+                        (:statusFilter = 'ALL' AND ws.status IN ('ACTIVE', 'UPCOMING', 'CLOSED'))
+                        OR (:statusFilter = 'EXPIRED_ONLY' AND (ws.status = 'CLOSED' OR (ws.apply_end_date IS NOT NULL AND ws.apply_end_date < CURDATE())))
+                        OR ((:statusFilter IS NULL OR :statusFilter = 'ACTIVE_ONLY') AND ws.status IN ('ACTIVE', 'UPCOMING') AND (ws.apply_end_date IS NULL OR ws.apply_end_date >= CURDATE()))
                     ))
                     OR (:status IS NOT NULL AND ws.status = :status)
                   )
@@ -411,8 +423,9 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
             SELECT COUNT(*) FROM welfare_services ws
             WHERE (
                     (:status IS NULL AND (
-                        (:includeClosed = 1 AND ws.status IN ('ACTIVE', 'UPCOMING', 'CLOSED'))
-                        OR (:includeClosed = 0 AND ws.status IN ('ACTIVE', 'UPCOMING'))
+                        (:statusFilter = 'ALL' AND ws.status IN ('ACTIVE', 'UPCOMING', 'CLOSED'))
+                        OR (:statusFilter = 'EXPIRED_ONLY' AND (ws.status = 'CLOSED' OR (ws.apply_end_date IS NOT NULL AND ws.apply_end_date < CURDATE())))
+                        OR ((:statusFilter IS NULL OR :statusFilter = 'ACTIVE_ONLY') AND ws.status IN ('ACTIVE', 'UPCOMING') AND (ws.apply_end_date IS NULL OR ws.apply_end_date >= CURDATE()))
                     ))
                     OR (:status IS NOT NULL AND ws.status = :status)
                   )
@@ -437,7 +450,7 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
             """, nativeQuery = true)
     Page<WelfareService> searchByKeywordWithFiltersWithSidoSgg(@Param("keyword") String keyword,
                                                                @Param("status") String status,
-                                                               @Param("includeClosed") Integer includeClosed,
+                                                               @Param("statusFilter") String statusFilter,
                                                                @Param("category") String category,
                                                                @Param("sourceType") String sourceType,
                                                                @Param("onlineApply") Integer onlineApply,
@@ -452,12 +465,14 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
             List<WelfareService.ServiceStatus> statuses,
             Pageable pageable);
 
+    // 목록 조회 JPQL (statusFilter 값 의미는 위 searchByKeyword 블록 주석 참조)
     @Query(value = """
             SELECT ws FROM WelfareService ws
             WHERE (
                     (:status IS NULL AND (
-                        (:includeClosed = 1 AND ws.status IN ('ACTIVE', 'UPCOMING', 'CLOSED'))
-                        OR (:includeClosed = 0 AND ws.status IN ('ACTIVE', 'UPCOMING'))
+                        (:statusFilter = 'ALL' AND ws.status IN ('ACTIVE', 'UPCOMING', 'CLOSED'))
+                        OR (:statusFilter = 'EXPIRED_ONLY' AND (ws.status = 'CLOSED' OR (ws.applyEndDate IS NOT NULL AND ws.applyEndDate < CURRENT_DATE)))
+                        OR ((:statusFilter IS NULL OR :statusFilter = 'ACTIVE_ONLY') AND ws.status IN ('ACTIVE', 'UPCOMING') AND (ws.applyEndDate IS NULL OR ws.applyEndDate >= CURRENT_DATE))
                     ))
                     OR (:status IS NOT NULL AND ws.status = :status)
                   )
@@ -489,8 +504,9 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
             SELECT COUNT(ws) FROM WelfareService ws
             WHERE (
                     (:status IS NULL AND (
-                        (:includeClosed = 1 AND ws.status IN ('ACTIVE', 'UPCOMING', 'CLOSED'))
-                        OR (:includeClosed = 0 AND ws.status IN ('ACTIVE', 'UPCOMING'))
+                        (:statusFilter = 'ALL' AND ws.status IN ('ACTIVE', 'UPCOMING', 'CLOSED'))
+                        OR (:statusFilter = 'EXPIRED_ONLY' AND (ws.status = 'CLOSED' OR (ws.applyEndDate IS NOT NULL AND ws.applyEndDate < CURRENT_DATE)))
+                        OR ((:statusFilter IS NULL OR :statusFilter = 'ACTIVE_ONLY') AND ws.status IN ('ACTIVE', 'UPCOMING') AND (ws.applyEndDate IS NULL OR ws.applyEndDate >= CURRENT_DATE))
                     ))
                     OR (:status IS NOT NULL AND ws.status = :status)
                   )
@@ -521,7 +537,7 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
     Page<WelfareService> findListWithFilters(@Param("category") String category,
                                              @Param("sourceType") WelfareService.SourceType sourceType,
                                              @Param("status") WelfareService.ServiceStatus status,
-                                             @Param("includeClosed") int includeClosed,
+                                             @Param("statusFilter") String statusFilter,
                                              @Param("sido") String sido,
                                              @Param("sgg") String sgg,
                                              // 온통청년 시도 필터: sido 앞 2자리 행정코드 (예: "11"), null이면 regionCode 경로 비활성

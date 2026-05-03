@@ -5,7 +5,7 @@ import {
   Card, CardContent, Chip, Pagination,
   Select, MenuItem, FormControl, IconButton,
   Snackbar, Alert, CircularProgress,
-  Collapse, Radio, RadioGroup, FormControlLabel, Switch,
+  Collapse, Radio, RadioGroup, FormControlLabel,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import BookmarkBorderIcon from "@mui/icons-material/BookmarkBorder";
@@ -122,7 +122,8 @@ export default function PoliciesPage() {
   const [income, setIncome] = useState(searchParams.get("income") || "전체");
   const [incomeOpen, setIncomeOpen] = useState(false);
   const [employ, setEmploy] = useState(searchParams.get("employ") || "전체");
-  const [includeExpired, setIncludeExpired] = useState(searchParams.get("includeExpired") === "true");
+  const [sourceType, setSourceType] = useState(searchParams.get("sourceType") || "전체");
+  const [statusFilter, setStatusFilter] = useState(searchParams.get("statusFilter") || "신청가능");
   const [sort, setSort] = useState(searchParams.get("sort") || "views");
   const [pageSize, setPageSize] = useState(Number(searchParams.get("pageSize")) || 10);
   const [cols, setCols] = useState(1);
@@ -141,12 +142,13 @@ export default function PoliciesPage() {
     if (subRegion !== "전체") params.subRegion = subRegion;
     if (income !== "전체") params.income = income;
     if (employ !== "전체") params.employ = employ;
-    if (includeExpired) params.includeExpired = "true";
+    if (sourceType !== "전체") params.sourceType = sourceType;
+    if (statusFilter !== "신청가능") params.statusFilter = statusFilter;
     if (sort !== "views") params.sort = sort;
     if (page !== 1) params.page = String(page);
     if (pageSize !== 10) params.pageSize = String(pageSize);
     setSearchParams(params, { replace: true });
-  }, [search, selectedCat, region, subRegion, income, employ, includeExpired, sort, page, pageSize, setSearchParams]);
+  }, [search, selectedCat, region, subRegion, income, employ, statusFilter, sort, page, pageSize, setSearchParams]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -154,18 +156,28 @@ export default function PoliciesPage() {
     const fetchPolicies = async () => {
       setLoading(true);
       try {
+        const SOURCE_TYPE_MAP = {
+          "온통청년": "YOUTH",
+          "복지로 중앙": "BOKJIRO_CENTRAL",
+          "복지로 지자체": "BOKJIRO_LOCAL",
+        };
         const commonParams = {
           category: selectedCat || undefined,
           sido: region === "전체" ? undefined : region,
           sgg: subRegion === "전체" ? undefined : subRegion,
+          sourceType: sourceType === "전체" ? undefined : SOURCE_TYPE_MAP[sourceType],
           sort: SORT_MAP[sort] ?? "LATEST",
           page: page - 1,
           size: pageSize,
         };
 
+        // "마감"(EXPIRED_ONLY)은 DB status=CLOSED뿐 아니라 온통청년처럼 applyEndDate만 지난 정책도 포함
+        const STATUS_FILTER_MAP = { "신청가능": "ACTIVE_ONLY", "마감": "EXPIRED_ONLY", "전부표기": "ALL" };
+        const apiStatusFilter = STATUS_FILTER_MAP[statusFilter] ?? "ACTIVE_ONLY";
+
         if (search.trim()) {
           const { data } = await api.get("/api/policies/search", {
-            params: { ...commonParams, keyword: search.trim(), includeClosed: includeExpired },
+            params: { ...commonParams, keyword: search.trim(), statusFilter: apiStatusFilter },
             signal: controller.signal,
           });
           const pageData = data.data ?? {};
@@ -176,7 +188,7 @@ export default function PoliciesPage() {
         }
 
         const { data } = await api.get("/api/policies", {
-          params: { ...commonParams, includeClosed: includeExpired },
+          params: { ...commonParams, statusFilter: apiStatusFilter },
           signal: controller.signal,
         });
         const pageData = data.data ?? {};
@@ -196,7 +208,7 @@ export default function PoliciesPage() {
 
     fetchPolicies();
     return () => controller.abort();
-  }, [includeExpired, page, pageSize, region, search, selectedCat, sort, subRegion]);
+  }, [statusFilter, page, pageSize, region, search, selectedCat, sort, sourceType, subRegion]);
 
   const handleBookmark = async (id, event) => {
     event.stopPropagation();
@@ -230,7 +242,8 @@ export default function PoliciesPage() {
     setSubRegion("전체");
     setIncome("전체");
     setEmploy("전체");
-    setIncludeExpired(false);
+    setSourceType("전체");
+    setStatusFilter("신청가능");
     setPage(1);
   };
 
@@ -375,6 +388,21 @@ export default function PoliciesPage() {
                   </Collapse>
                 </Box>
 
+                {/* 데이터 출처 */}
+                <Box>
+                  <Typography variant="caption" fontWeight={700} mb={0.5} display="block">데이터 출처</Typography>
+                  <RadioGroup row value={sourceType} onChange={(e) => setSourceType(e.target.value)}>
+                    {["전체", "온통청년", "복지로 중앙", "복지로 지자체"].map((o) => (
+                      <FormControlLabel
+                        key={o} value={o}
+                        control={<Radio size="small" sx={{ py: 0.3 }} />}
+                        label={<Typography variant="caption">{o}</Typography>}
+                        sx={{ mx: 0, mr: 1 }}
+                      />
+                    ))}
+                  </RadioGroup>
+                </Box>
+
                 {/* 취업상태 */}
                 <Box>
                   <Typography variant="caption" fontWeight={700} mb={0.5} display="block">취업상태</Typography>
@@ -390,11 +418,15 @@ export default function PoliciesPage() {
                   </RadioGroup>
                 </Box>
 
-                {/* 종료 정책 + 버튼 */}
+                {/* 신청 상태 필터 + 버튼 */}
                 <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mt: "auto", pt: 1 }}>
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                    <Typography variant="caption" fontWeight={700}>종료된 정책 보기</Typography>
-                    <Switch size="small" checked={includeExpired} onChange={(e) => setIncludeExpired(e.target.checked)} color="primary" />
+                  <Box>
+                    <Typography variant="caption" fontWeight={700} mb={0.5} display="block">신청 상태</Typography>
+                    <RadioGroup row value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}>
+                      {["신청가능", "마감", "전부표기"].map((o) => (
+                        <FormControlLabel key={o} value={o} control={<Radio size="small" />} label={<Typography variant="caption">{o}</Typography>} sx={{ mr: 0.5 }} />
+                      ))}
+                    </RadioGroup>
                   </Box>
                   <Box sx={{ display: "flex", gap: 1 }}>
                     <Button variant="contained" size="small" onClick={handleApplyFilter}>필터 적용</Button>
