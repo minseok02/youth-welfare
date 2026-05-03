@@ -3,7 +3,7 @@ package com.example.welfare.recommend.service;
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.policy.entity.WelfareService;
-import com.example.welfare.policy.repository.WelfareServiceRepository;
+import com.example.welfare.policy.service.PolicyLookupService;
 import com.example.welfare.recommend.entity.UserRecommendation;
 import com.example.welfare.recommend.repository.UserRecommendationRepository;
 import com.example.welfare.user.service.UserKeyLookupService;
@@ -21,7 +21,7 @@ public class RecommendationBookmarkCommandService {
 
     private final UserRecommendationRepository userRecommendationRepository;
     private final UserKeyLookupService userKeyLookupService;
-    private final WelfareServiceRepository welfareServiceRepository;
+    private final PolicyLookupService policyLookupService;
 
     @Transactional
     public void toggleRecommendationBookmark(Long userId, Long recommendationId) {
@@ -46,8 +46,7 @@ public class RecommendationBookmarkCommandService {
     }
 
     private UserRecommendation createBookmarkPlaceholder(String userKey, Long serviceId) {
-        WelfareService service = welfareServiceRepository.findById(serviceId)
-                .orElseThrow(() -> new CustomException(ErrorCode.POLICY_NOT_FOUND));
+        WelfareService service = policyLookupService.getRequiredService(serviceId);
 
         UserRecommendation placeholder = UserRecommendation.builder()
                 .userKey(userKey)

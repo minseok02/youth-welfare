@@ -3,7 +3,7 @@ package com.example.welfare.recommend.service;
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.policy.entity.WelfareService;
-import com.example.welfare.policy.repository.WelfareServiceRepository;
+import com.example.welfare.policy.service.PolicyLookupService;
 import com.example.welfare.recommend.entity.UserRecommendation;
 import com.example.welfare.recommend.repository.UserRecommendationRepository;
 import com.example.welfare.user.service.UserKeyLookupService;
@@ -32,7 +32,7 @@ class RecommendationBookmarkCommandServiceTest {
     @Mock
     private UserKeyLookupService userKeyLookupService;
     @Mock
-    private WelfareServiceRepository welfareServiceRepository;
+    private PolicyLookupService policyLookupService;
 
     @InjectMocks
     private RecommendationBookmarkCommandService recommendationBookmarkCommandService;
@@ -67,7 +67,7 @@ class RecommendationBookmarkCommandServiceTest {
         given(userKeyLookupService.findRequired(7L)).willReturn("user-key-7");
         given(userRecommendationRepository.findTopByUserKeyAndServiceIdOrderByRecommendedAtDesc("user-key-7", 11L))
                 .willReturn(Optional.empty());
-        given(welfareServiceRepository.findById(11L)).willReturn(Optional.of(service));
+        given(policyLookupService.getRequiredService(11L)).willReturn(service);
         given(userRecommendationRepository.save(any(UserRecommendation.class)))
                 .willAnswer(invocation -> invocation.getArgument(0, UserRecommendation.class));
 

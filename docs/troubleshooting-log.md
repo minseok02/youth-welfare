@@ -2616,3 +2616,8 @@
 - 문제: 북마크 목록 조회는 active user 해석 뒤 `UserRecommendationRepository.findLatestBookmarkedByUserKey(...)` 와 `CanonicalRecommendationReadModelRepository.findByServiceIds(...)` 를 직접 호출하고 있었다. 이 상태에서는 user 도메인이 recommendation summary 조립 방식을 알아야 한다.
 - 해결: `RecommendationReadFacade` 에 `findBookmarkedPolicySummaries(...)` 를 추가하고, `UserBookmarkReadService` 는 active user 해석 후 facade 위임만 하게 정리했다.
 - 이유: 북마크 목록은 user 기능이지만, 실제 summary 조립은 recommendation 저장 모델과 canonical projection을 아는 recommendation 경계에 두는 편이 도메인 분리와 변경 파급도 관리에 더 낫다.
+
+## 476) `RecommendationBookmarkCommandService` 가 북마크 placeholder 생성을 위해 `WelfareServiceRepository.findById(...)` 를 직접 호출하면, recommendation command가 policy 저장소 선택까지 같이 떠안는다
+- 문제: 정책 북마크 이력이 없을 때 placeholder 추천을 만드는 경로는 `WelfareServiceRepository.findById(...)` 로 정책 엔티티를 직접 조회하고 있었다. 이 상태에서는 recommendation command가 북마크 규칙뿐 아니라 policy entity lookup 구현도 알아야 한다.
+- 해결: `PolicyLookupService` 를 추가하고, `RecommendationBookmarkCommandService` 는 `getRequiredService(...)` 로 정책 엔티티 조회를 위임하게 정리했다.
+- 이유: placeholder 추천 생성에 정책 엔티티가 필요하더라도, entity lookup은 policy 경계에 두는 편이 cross-domain 저장소 결합을 줄이고 recommendation command의 책임을 북마크 규칙에 집중시키기에 더 낫다.
