@@ -727,7 +727,6 @@ public class AdminDashboardReadRepository {
                 """.formatted(limit),
                 new MapSqlParameterSource("windowAgo", windowAgo),
                 (rs, rowNum) -> new SearchRetryGroupRow(
-                (rs, rowNum) -> new SearchRetryGroupRow(
                         rs.getString("actor_type"),
                         rs.getString("actor_key"),
                         rs.getString("keyword"),
