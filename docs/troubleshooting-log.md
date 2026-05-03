@@ -2452,3 +2452,8 @@
 - 문제: quick/full/skip-replay 까지 생겨도, 단일 단계만 실행하려면 `RUN_AUTH_SESSION_SMOKE=false ...` 같은 override를 여전히 외워야 했다.
 - 해결: wrapper에 `--only auth-session|click|dashboard|replay` 를 추가했다. `--print-plan` 과 조합하면 실제 실행 없이 단일 단계 계획도 바로 확인할 수 있다.
 - 이유: 자주 쓰는 로컬 도구는 “전체 실행”뿐 아니라 “특정 단계만 다시 보기”가 빨라야 한다. 단일 단계 shortcut이 있어야 디버깅 중 반복 입력이 줄어든다.
+
+## 443) 단일 단계 실행이 들어간 뒤에도 상위 출력이 기존 booleans만 보여주면, “왜 auth=false click=false 인지”를 다시 역해석해야 한다
+- 문제: `--only dashboard` 같은 실행은 내부적으로 다른 단계를 false로 바꾸므로, plan 출력이 booleans만 있으면 단일 단계 의도를 사람이 다시 역으로 읽어야 했다.
+- 해결: plan 출력과 failure 출력에 `only_step=...` 를 같이 노출하게 했다.
+- 이유: 상위 wrapper는 내부 상태를 사람이 다시 추론하게 만들기보다, 사용자가 준 고수준 의도(`only_step`)를 그대로 드러내는 편이 읽기 쉽다.

@@ -128,6 +128,8 @@ deploy/smoke/run-local-validation-suite.sh --only dashboard --print-plan
 deploy/smoke/run-local-validation-suite.sh --only replay
 ```
 
+`--only` 를 쓰면 plan/failure 출력에도 `only_step=...` 가 같이 찍혀서 단일 단계 실행 의도가 바로 보입니다.
+
 전제:
 
 - 앱 base URL은 `APP_BASE_URL` 로 둡니다.
