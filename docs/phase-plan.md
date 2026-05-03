@@ -1124,6 +1124,9 @@ cd backend
 - 2026-05-03 collect streak 집계 정확도 보정
   - `collect-failures` 의 `jobStreaks` 계산을 summary window 안쪽으로 자르지 않고, job별 최신 실행 이력 전체 기준 current streak로 계산
   - 대시보드 window는 failed/partial 총량/샘플용으로만 쓰고, streak는 “현재 연속 상태”를 보여주도록 의미를 분리
+- 2026-05-03 collect runtime status 경계 정리
+  - `CollectRuntimeStatusService` 추가
+  - `AdminDashboardService` 가 `BokjiroLocalClient` 구현을 직접 알지 않고 collect runtime status 전용 서비스만 보도록 정리
 
 ## 남은 1차 작업
 

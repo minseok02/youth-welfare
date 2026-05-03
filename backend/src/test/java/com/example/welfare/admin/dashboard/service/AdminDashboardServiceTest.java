@@ -5,7 +5,7 @@ import com.example.welfare.admin.dashboard.dto.AdminRecommendationBreakdownRespo
 import com.example.welfare.admin.dashboard.dto.AdminSearchFailureResponse;
 import com.example.welfare.admin.dashboard.dto.AdminDashboardResponse;
 import com.example.welfare.admin.dashboard.repository.AdminDashboardReadRepository;
-import com.example.welfare.collect.gateway.BokjiroLocalClient;
+import com.example.welfare.collect.service.CollectRuntimeStatusService;
 import com.example.welfare.recommend.entity.ScoreWeight;
 import com.example.welfare.recommend.service.ScoreWeightService;
 import com.example.welfare.user.dto.response.UserPiiSyncStatusResponse;
@@ -39,7 +39,7 @@ class AdminDashboardServiceTest {
     private ScoreWeightService scoreWeightService;
 
     @Mock
-    private BokjiroLocalClient bokjiroLocalClient;
+    private CollectRuntimeStatusService collectRuntimeStatusService;
 
     @InjectMocks
     private AdminDashboardService adminDashboardService;
@@ -620,12 +620,13 @@ class AdminDashboardServiceTest {
                         1
                 )
         ));
-        given(bokjiroLocalClient.getRateLimitCircuitStatus())
-                .willReturn(new BokjiroLocalClient.RateLimitCircuitStatus(
+        given(collectRuntimeStatusService.getCircuitStatuses())
+                .willReturn(List.of(new CollectRuntimeStatusService.CircuitStatusSnapshot(
+                        "BOKJIRO_LOCAL",
                         true,
                         60000L,
                         LocalDateTime.of(2026, 5, 3, 10, 0)
-                ));
+                )));
 
         AdminCollectFailureResponse response = adminDashboardService.getCollectFailures(14, 3);
 

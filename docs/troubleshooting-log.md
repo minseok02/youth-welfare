@@ -2546,3 +2546,8 @@
 - 문제: `jobStreaks` 계산이 `summaryWindowAgo` 이후 실행만 읽고 있었기 때문에, 예를 들어 7일보다 더 오래 이어진 실패 streak는 대시보드에서 잘린 값으로 보였다. 이 상태에서는 운영자가 “현재 연속 실패 길이”를 실제보다 작게 읽을 수 있었다.
 - 해결: `fetchRecentCollectJobRuns(...)` 를 job별 최신 N건 전체 이력 기준으로 바꾸고, `collect-failures` 서비스는 summary window와 별개로 current streak를 계산하게 수정했다.
 - 이유: summary window는 분포/샘플 범위를 제한하는 용도이고, streak는 현재 상태를 보여주는 지표다. 두 의미를 섞으면 운영 해석이 틀어진다.
+
+## 462) admin dashboard가 `BokjiroLocalClient` 구현을 직접 보면, collect 운영 관측 계층이 특정 gateway 구현 세부사항에 묶인다
+- 문제: `AdminDashboardService` 가 `BokjiroLocalClient.getRateLimitCircuitStatus()` 를 직접 호출하고 있었다. 이 구조에서는 admin dashboard가 collect runtime status 자체가 아니라 특정 source gateway 구현과 그 내부 상태 표현을 직접 알아야 했다.
+- 해결: `CollectRuntimeStatusService` 를 추가하고, dashboard는 collect runtime status 전용 서비스가 반환하는 snapshot만 읽도록 바꿨다.
+- 이유: 운영 관측 계층은 개별 gateway 구현보다 “현재 수집 런타임 상태”라는 응용 계층 개념에 의존하는 편이 경계가 더 명확하고, 이후 source가 늘어나도 dashboard 수정 범위를 줄일 수 있다.
