@@ -2422,3 +2422,8 @@
 - 문제: auth/session, recommendation click, admin dashboard, replay smoke가 각각 분리돼 있으면 한 번에 로컬 기준선을 다시 확인할 때 순서를 사람이 기억해야 한다. 특히 replay는 DB/app 재기동을 건드릴 수 있어 앞쪽 smoke와 병렬 또는 잘못된 순서로 돌리면 거짓 실패를 만든다.
 - 해결: `run-local-validation-suite.sh` 를 추가해 `auth/session -> recommendation click -> admin dashboard -> replay` 순서를 상위 wrapper로 고정했다. 문서도 이 wrapper를 로컬 검증 기본 진입점으로 연결했다.
 - 이유: 반복 검증 루프는 “어떤 스크립트가 있나”보다 “실패 없이 어떤 순서로 다시 태울 수 있나”가 더 중요하다. 상위 wrapper가 있어야 검증 순서가 개인 기억이 아니라 repo contract가 된다.
+
+## 437) 전체 로컬 검증 wrapper가 replay까지 기본 포함하면 빠른 회귀 확인 때 다시 무거워진다
+- 문제: `run-local-validation-suite.sh` 는 순서를 고정해 주지만, 기본이 replay 포함인 full run 하나뿐이면 자잘한 회귀 확인에도 DB 재기동과 긴 replay를 매번 감수해야 한다. 결국 wrapper가 생겨도 짧은 피드백 루프에서는 다시 부분 실행 env를 외워야 했다.
+- 해결: wrapper에 `VALIDATION_PROFILE=quick|full` 을 추가했다. `quick` 은 `auth/session -> recommendation click -> admin dashboard` 만 돌고, `full` 은 기존처럼 replay까지 포함한다. 개별 `RUN_*` override는 그대로 유지해 필요 시 더 세밀하게 조절할 수 있다.
+- 이유: 상위 wrapper는 순서만 고정하는 것으로 끝나지 않고, 빠른 루프와 전체 루프를 둘 다 제공해야 실제로 자주 쓰인다. `quick/full` 프로필이 있어야 반복 검증이 가벼워지고 replay는 정말 필요할 때만 태우게 된다.

@@ -96,6 +96,15 @@ deploy/smoke/run-local-validation-suite.sh
 - replay smoke는 DB/app 재기동이 섞일 수 있어 항상 마지막에 둡니다.
 - local Docker app에서 admin 검증이 필요하면 `SECURITY_ADMIN_EMAILS=admin@example.com` 상태로 app이 떠 있어야 합니다.
 
+빠른 재검증만 할 때는 `quick` 프로필을 사용합니다.
+
+```bash
+VALIDATION_PROFILE=quick deploy/smoke/run-local-validation-suite.sh
+```
+
+`quick` 은 `auth/session -> recommendation click -> admin dashboard` 까지만 돌고 replay는 건너뜁니다.
+기본 `full` 프로필은 replay까지 포함합니다.
+
 전제:
 
 - 앱 base URL은 `APP_BASE_URL` 로 둡니다.
