@@ -68,6 +68,38 @@ public class AdminDashboardReadRepository {
         );
     }
 
+    public List<CollectFailureSnapshotRow> fetchLatestCollectFailures(LocalDateTime weekAgo) {
+        return jdbcTemplate.query("""
+                select job_name,
+                       status,
+                       started_at,
+                       finished_at,
+                       error_code,
+                       error_message,
+                       requested_count,
+                       saved_count,
+                       failed_count
+                  from api_sync_logs
+                 where started_at >= :weekAgo
+                   and status = 'FAILED'
+              order by started_at desc, id desc
+                 limit 5
+                """,
+                new MapSqlParameterSource("weekAgo", weekAgo),
+                (rs, rowNum) -> new CollectFailureSnapshotRow(
+                        rs.getString("job_name"),
+                        rs.getString("status"),
+                        getLocalDateTime(rs, "started_at"),
+                        getLocalDateTime(rs, "finished_at"),
+                        rs.getString("error_code"),
+                        rs.getString("error_message"),
+                        rs.getInt("requested_count"),
+                        rs.getInt("saved_count"),
+                        rs.getInt("failed_count")
+                )
+        );
+    }
+
     public RecommendationSummaryRow fetchRecommendationSummary(LocalDateTime dayAgo, LocalDateTime weekAgo) {
         return jdbcTemplate.queryForObject("""
                 select count(*) as total_logs,
@@ -142,6 +174,7 @@ public class AdminDashboardReadRepository {
         return jdbcTemplate.queryForObject("""
                 select coalesce(sum(case when searched_at >= :dayAgo then 1 else 0 end), 0) as searches_last_24h,
                        coalesce(sum(case when searched_at >= :weekAgo then 1 else 0 end), 0) as searches_last_7d,
+                       coalesce(sum(case when searched_at >= :weekAgo and result_count = 0 then 1 else 0 end), 0) as zero_result_searches_last_7d,
                        coalesce(count(distinct case when searched_at >= :weekAgo then client_fingerprint end), 0) as unique_fingerprints_last_7d,
                        coalesce(avg(case when searched_at >= :weekAgo then result_count end), 0) as avg_result_count_last_7d
                   from search_logs
@@ -152,6 +185,7 @@ public class AdminDashboardReadRepository {
                 (rs, rowNum) -> new SearchSummaryRow(
                         rs.getLong("searches_last_24h"),
                         rs.getLong("searches_last_7d"),
+                        rs.getLong("zero_result_searches_last_7d"),
                         rs.getLong("unique_fingerprints_last_7d"),
                         rs.getBigDecimal("avg_result_count_last_7d")
                 )
@@ -202,6 +236,19 @@ public class AdminDashboardReadRepository {
     ) {
     }
 
+    public record CollectFailureSnapshotRow(
+            String jobName,
+            String status,
+            LocalDateTime startedAt,
+            LocalDateTime finishedAt,
+            String errorCode,
+            String errorMessage,
+            int requestedCount,
+            int savedCount,
+            int failedCount
+    ) {
+    }
+
     public record RecommendationSummaryRow(
             long totalLogs,
             long sentLast24h,
@@ -231,6 +278,7 @@ public class AdminDashboardReadRepository {
     public record SearchSummaryRow(
             long searchesLast24h,
             long searchesLast7d,
+            long zeroResultSearchesLast7d,
             long uniqueFingerprintsLast7d,
             BigDecimal averageResultCountLast7d
     ) {

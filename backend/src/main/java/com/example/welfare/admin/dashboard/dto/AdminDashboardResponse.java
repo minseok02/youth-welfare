@@ -18,7 +18,8 @@ public record AdminDashboardResponse(
             long successJobsLast24h,
             long partialSuccessJobsLast24h,
             long failedJobsLast24h,
-            List<CollectJobSnapshot> latestJobs
+            List<CollectJobSnapshot> latestJobs,
+            List<CollectFailureSnapshot> latestFailuresLast7d
     ) {
     }
 
@@ -27,6 +28,19 @@ public record AdminDashboardResponse(
             String status,
             LocalDateTime startedAt,
             LocalDateTime finishedAt,
+            int requestedCount,
+            int savedCount,
+            int failedCount
+    ) {
+    }
+
+    public record CollectFailureSnapshot(
+            String jobName,
+            String status,
+            LocalDateTime startedAt,
+            LocalDateTime finishedAt,
+            String errorCode,
+            String errorMessage,
             int requestedCount,
             int savedCount,
             int failedCount
@@ -68,6 +82,7 @@ public record AdminDashboardResponse(
     public record SearchSection(
             long searchesLast24h,
             long searchesLast7d,
+            long zeroResultSearchesLast7d,
             long uniqueFingerprintsLast7d,
             BigDecimal averageResultCountLast7d,
             List<SearchKeywordSnapshot> topKeywordsLast7d
