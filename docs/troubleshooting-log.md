@@ -2606,3 +2606,8 @@
 - 문제: `SearchYouthRelevanceService.backfillAll()` 은 전체 정책을 직접 조회한 뒤 tag를 묶고 청년 검색 relevance를 재계산하고 있었다. 이 상태에서는 “어떤 정책이 backfill 대상인가”라는 조회 규칙이 서비스 코드에 묻어난다.
 - 해결: `SearchYouthRelevanceReadRepository` 를 추가하고, `backfillAll()` 은 `findBackfillTargetServices()` 로 전체 대상만 받게 정리했다.
 - 이유: relevance 계산 서비스는 청년 검색 relevance 규칙과 집계에 집중하고, 대상 조회 범위/선택은 read 계층으로 숨기는 편이 SRP와 후속 backfill 범위 변경 대응에 더 낫다.
+
+## 474) `UserBookmarkReadService` 가 recommendation 저장소와 canonical read model을 직접 읽으면, user 도메인이 recommendation persistence와 projection 조립까지 같이 떠안는다
+- 문제: `UserBookmarkReadService` 는 active user 해석 뒤 `UserRecommendationRepository.findLatestBookmarkedByUserKey(...)` 와 `CanonicalRecommendationReadModelRepository.findByServiceIds(...)` 를 직접 호출해 북마크 정책 요약을 조립하고 있었다. 이 상태에서는 user 도메인이 recommendation read-model 조립 방식까지 알아야 한다.
+- 해결: `RecommendationReadFacade` 에 `findBookmarkedPolicySummaries(...)` 를 추가하고, `UserBookmarkReadService` 는 active user 해석 후 facade 위임만 하게 정리했다.
+- 이유: 북마크 목록은 user 화면에서 소비되더라도, 실제 조립 책임은 recommendation 저장 모델과 canonical projection을 아는 recommendation 경계에 두는 편이 도메인 분리와 변경 파급도 관리에 더 낫다.

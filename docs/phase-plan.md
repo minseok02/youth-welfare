@@ -1164,6 +1164,10 @@ cd backend
   - `SearchYouthRelevanceService.backfillAll()` 이 `WelfareServiceRepository.findAll()` 을 직접 호출하지 않도록 변경
   - 전체 정책 조회는 `SearchYouthRelevanceReadRepository.findBackfillTargetServices()` 로 위임
   - 서비스는 청년 검색 relevance 재계산 규칙에 집중하고, backfill 대상 조회 규칙은 read 계층으로 이동
+- 2026-05-04 bookmark read 경계 정리
+  - `UserBookmarkReadService` 가 `UserRecommendationRepository` 와 canonical read model을 직접 조립하지 않도록 변경
+  - 북마크 정책 요약 조회는 `RecommendationReadFacade.findBookmarkedPolicySummaries(...)` 로 이동
+  - user 도메인은 active user 해석과 위임만 맡고 recommendation persistence/read-model 조립은 recommendation 경계로 이동
 
 ## 남은 1차 작업
 
