@@ -10,7 +10,6 @@ import com.example.welfare.user.entity.User;
 import com.example.welfare.user.entity.UserProfile;
 import com.example.welfare.user.repository.AuthUserRepository;
 import com.example.welfare.user.repository.NotificationTargetAggregateReadModel;
-import com.example.welfare.user.repository.NotificationPiiReadRepository;
 import com.example.welfare.user.repository.NotificationTargetReadRepository;
 import com.example.welfare.user.repository.RecommendationUserReadModel;
 import com.example.welfare.user.repository.RecommendationUserReadRepository;
@@ -43,7 +42,6 @@ class UserReadServiceTest {
     @Mock private UserProfileReadRepository userProfileReadRepository;
     @Mock private RecommendationUserReadRepository recommendationUserReadRepository;
     @Mock private UserPiiReadWriteRepository userPiiReadWriteRepository;
-    @Mock private NotificationPiiReadRepository notificationPiiReadRepository;
     @Mock private NotificationTargetReadRepository notificationTargetReadRepository;
     @Mock private AesEncryptUtil aesEncryptUtil;
     @Mock private UserKeyLookupService userKeyLookupService;
@@ -58,7 +56,6 @@ class UserReadServiceTest {
                 userProfileReadRepository,
                 recommendationUserReadRepository,
                 userPiiReadWriteRepository,
-                notificationPiiReadRepository,
                 notificationTargetReadRepository,
                 aesEncryptUtil,
                 userKeyLookupService
@@ -106,7 +103,6 @@ class UserReadServiceTest {
                 userProfileReadRepository,
                 recommendationUserReadRepository,
                 userPiiReadWriteRepository,
-                notificationPiiReadRepository,
                 notificationTargetReadRepository,
                 aesEncryptUtil,
                 userKeyLookupService
@@ -140,7 +136,6 @@ class UserReadServiceTest {
                 userProfileReadRepository,
                 recommendationUserReadRepository,
                 userPiiReadWriteRepository,
-                notificationPiiReadRepository,
                 notificationTargetReadRepository,
                 aesEncryptUtil,
                 userKeyLookupService
@@ -152,14 +147,14 @@ class UserReadServiceTest {
                 .build();
 
         when(authUserRepository.findByUserKey("user-key-1")).thenReturn(Optional.of(authUser));
-        when(notificationPiiReadRepository.findEncryptedEmailByUserKey("user-key-1"))
+        when(notificationTargetReadRepository.findEncryptedEmailByUserKey("user-key-1"))
                 .thenReturn(Optional.of("encrypted-email"));
         when(aesEncryptUtil.decrypt("encrypted-email")).thenReturn("user@example.com");
 
         String email = userReadService.getNotificationEmailByUserKey("user-key-1");
 
         assertThat(email).isEqualTo("user@example.com");
-        verify(notificationPiiReadRepository).findEncryptedEmailByUserKey("user-key-1");
+        verify(notificationTargetReadRepository).findEncryptedEmailByUserKey("user-key-1");
     }
 
     @Test
@@ -172,7 +167,6 @@ class UserReadServiceTest {
                 userProfileReadRepository,
                 recommendationUserReadRepository,
                 userPiiReadWriteRepository,
-                notificationPiiReadRepository,
                 notificationTargetReadRepository,
                 aesEncryptUtil,
                 userKeyLookupService
@@ -184,7 +178,7 @@ class UserReadServiceTest {
                 .build();
 
         when(authUserRepository.findByUserKey("user-key-1")).thenReturn(Optional.of(authUser));
-        when(notificationPiiReadRepository.findEncryptedEmailByUserKey("user-key-1"))
+        when(notificationTargetReadRepository.findEncryptedEmailByUserKey("user-key-1"))
                 .thenReturn(Optional.of("encrypted-email"));
         when(aesEncryptUtil.decrypt("encrypted-email")).thenReturn("");
 
@@ -202,7 +196,6 @@ class UserReadServiceTest {
                 userProfileReadRepository,
                 recommendationUserReadRepository,
                 userPiiReadWriteRepository,
-                notificationPiiReadRepository,
                 notificationTargetReadRepository,
                 aesEncryptUtil,
                 userKeyLookupService
@@ -260,7 +253,6 @@ class UserReadServiceTest {
                 userProfileReadRepository,
                 recommendationUserReadRepository,
                 userPiiReadWriteRepository,
-                notificationPiiReadRepository,
                 notificationTargetReadRepository,
                 aesEncryptUtil,
                 userKeyLookupService
@@ -288,7 +280,6 @@ class UserReadServiceTest {
                 userProfileReadRepository,
                 recommendationUserReadRepository,
                 userPiiReadWriteRepository,
-                notificationPiiReadRepository,
                 notificationTargetReadRepository,
                 aesEncryptUtil,
                 userKeyLookupService
@@ -314,7 +305,6 @@ class UserReadServiceTest {
                 userProfileReadRepository,
                 recommendationUserReadRepository,
                 userPiiReadWriteRepository,
-                notificationPiiReadRepository,
                 notificationTargetReadRepository,
                 aesEncryptUtil,
                 userKeyLookupService
@@ -343,7 +333,6 @@ class UserReadServiceTest {
                 userProfileReadRepository,
                 recommendationUserReadRepository,
                 userPiiReadWriteRepository,
-                notificationPiiReadRepository,
                 notificationTargetReadRepository,
                 aesEncryptUtil,
                 userKeyLookupService

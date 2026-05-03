@@ -13,7 +13,6 @@ import com.example.welfare.user.entity.UserAttribute;
 import com.example.welfare.user.entity.UserProfile;
 import com.example.welfare.user.repository.AuthUserRepository;
 import com.example.welfare.user.repository.NotificationTargetAggregateReadModel;
-import com.example.welfare.user.repository.NotificationPiiReadRepository;
 import com.example.welfare.user.repository.NotificationTargetReadRepository;
 import com.example.welfare.user.repository.RecommendationUserReadRepository;
 import com.example.welfare.user.repository.UserAttributeReadModel;
@@ -42,7 +41,6 @@ public class UserReadService {
     private final UserProfileReadRepository userProfileReadRepository;
     private final RecommendationUserReadRepository recommendationUserReadRepository;
     private final UserPiiReadWriteRepository userPiiReadWriteRepository;
-    private final NotificationPiiReadRepository notificationPiiReadRepository;
     private final NotificationTargetReadRepository notificationTargetReadRepository;
     private final AesEncryptUtil aesEncryptUtil;
     private final UserKeyLookupService userKeyLookupService;
@@ -155,7 +153,7 @@ public class UserReadService {
     @Transactional(readOnly = true)
     public String getNotificationEmailByUserKey(String userKey) {
         resolveActiveUserKey(userKey);
-        String email = decryptNullable(notificationPiiReadRepository.findEncryptedEmailByUserKey(userKey)
+        String email = decryptNullable(notificationTargetReadRepository.findEncryptedEmailByUserKey(userKey)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND)));
         if (!StringUtils.hasText(email)) {
             throw new CustomException(ErrorCode.NOTIFICATION_SEND_FAILED);

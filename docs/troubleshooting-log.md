@@ -2711,3 +2711,8 @@
 - 문제: period별 알림 대상 조회는 `UserProfileRepository.findNotificationTargetsByPeriod(...)` 와 `NotificationPiiReadRepository.findEncryptedEmailsByUserKeys(...)` 를 service 본문에서 직접 묶어 aggregate 를 만들고 있었다.
 - 해결: `NotificationTargetReadRepository` 와 `NotificationTargetAggregateReadModel` 을 추가하고, bulk notification target read 조합을 이 repository 경계로 이동했다.
 - 이유: 사용자 읽기 서비스는 active-user 검증과 응답 변환에 집중하고, 알림 대상 row/email 조합은 별도 read repository 로 내려야 notification read 경계가 더 일관되고 재사용도 쉬워진다.
+
+## 495) `UserReadService.getNotificationEmailByUserKey(...)` 가 단건 encrypted email lookup만 따로 `NotificationPiiReadRepository` 를 직접 보면, 같은 notification read 규칙이 bulk/단건 경로로 다시 찢어진다
+- 문제: bulk 알림 대상 조회는 이미 `NotificationTargetReadRepository` 뒤로 옮겼는데, 단건 이메일 조회는 여전히 `NotificationPiiReadRepository.findEncryptedEmailByUserKey(...)` 를 service 본문에서 직접 호출하고 있었다.
+- 해결: `NotificationTargetReadRepository` 에 `findEncryptedEmailByUserKey(...)` 를 추가하고, 단건 notification email read 도 같은 경계로 통일했다.
+- 이유: 알림 대상 row/email read 규칙은 bulk/단건을 같은 read repository 에 모아야 notification read policy 변경 시 영향 범위가 작고 일관성도 유지된다.

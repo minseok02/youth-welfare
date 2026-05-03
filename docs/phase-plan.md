@@ -1218,6 +1218,7 @@ cd backend
 - `UserPiiBackfillService` 의 missing state/legacy source 조회는 `UserPiiBackfillReadRepository` 뒤로 이동해 PII 백필 서비스가 `UserRepository` 와 `UserPiiReadWriteRepository` read 조합을 직접 들지 않도록 정리
 - `UserMetadataUserKeyBackfillService` 의 attribute/priority count/update 조합도 `UserMetadataBackfillRepository` 뒤로 이동해 metadata 백필 서비스가 저장소 2개를 직접 병렬 조합하지 않도록 정리
 - `UserReadService.getNotificationTargets(...)` 의 notification target row + encrypted email bulk lookup 도 `NotificationTargetReadRepository` 뒤로 이동해 알림 대상 read 조합 책임을 사용자 읽기 서비스 밖으로 분리
+- `UserReadService.getNotificationEmailByUserKey(...)` 의 단건 encrypted email 조회도 같은 `NotificationTargetReadRepository` 로 통일해 notification read 경계를 한 곳으로 모음
 - `UserPiiSyncProcessor` / `UserPiiSyncReplayService` 의 queue row lookup 도 `UserPiiSyncQueueService` 로 모아 user pii sync 흐름의 queue access 경계를 단일화
 - `UserCoreSyncService` 는 orchestration만 남기고 auth/profile projection upsert 는 `UserCoreProjectionSyncService` 로 분리
 - `PasswordResetService` 의 reset 메일 수신자 조회는 `UserReadService` 로 모아 user PII 저장소 직접 의존 제거

@@ -6,6 +6,7 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @Repository
 @RequiredArgsConstructor
@@ -32,5 +33,10 @@ public class NotificationTargetReadRepositoryImpl implements NotificationTargetR
                         emailByUserKey.get(row.getUserKey())
                 ))
                 .toList();
+    }
+
+    @Override
+    public Optional<String> findEncryptedEmailByUserKey(String userKey) {
+        return notificationPiiReadRepository.findEncryptedEmailByUserKey(userKey);
     }
 }
