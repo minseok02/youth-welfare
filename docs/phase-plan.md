@@ -1112,6 +1112,7 @@ cd backend
 - `--quick`, `--full`, `--skip-replay` CLI shortcut 지원
 - `--only auth-session|click|dashboard|replay` 단일 단계 실행 shortcut 지원
 - `--only` 사용 시 plan/실패 출력에도 `only_step=...` 노출
+- replay 디버깅용 `--keep-artifacts` shortcut 지원
 
 ## 2차로 분리된 항목
 

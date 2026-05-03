@@ -2457,3 +2457,8 @@
 - 문제: `--only dashboard` 같은 실행은 내부적으로 다른 단계를 false로 바꾸므로, plan 출력이 booleans만 있으면 단일 단계 의도를 사람이 다시 역으로 읽어야 했다.
 - 해결: plan 출력과 failure 출력에 `only_step=...` 를 같이 노출하게 했다.
 - 이유: 상위 wrapper는 내부 상태를 사람이 다시 추론하게 만들기보다, 사용자가 준 고수준 의도(`only_step`)를 그대로 드러내는 편이 읽기 쉽다.
+
+## 444) replay artifact 보존이 자주 필요한데 상위 wrapper에서 이 의도를 못 받으면, 하위 스크립트 env를 또 따로 기억해야 한다
+- 문제: replay 디버깅 때는 `KEEP_ARTIFACTS=true` 가 자주 필요하지만, 상위 wrapper가 이 intent를 직접 받지 못하면 사용자가 다시 하위 replay 스크립트 전용 env를 떠올려야 했다.
+- 해결: wrapper에 `--keep-artifacts` 를 추가하고, plan 출력에도 `keep_artifacts=true` 를 노출한 뒤 replay 하위 스크립트로 그대로 전달하게 했다.
+- 이유: 상위 오케스트레이터가 자주 쓰는 디버깅 의도까지 같이 받아줘야 실제 반복 루프가 짧아진다.
