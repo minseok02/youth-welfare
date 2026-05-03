@@ -264,4 +264,59 @@ class UserReadServiceTest {
         assertThat(snapshot.sido()).isEqualTo("서울특별시");
         assertThat(snapshot.regionCode()).isEqualTo("11620");
     }
+
+    @Test
+    @DisplayName("active user context 조회는 user와 resolved userKey를 함께 반환한다")
+    void getActiveUserContextReturnsUserAndUserKey() {
+        UserReadService userReadService = new UserReadService(
+                userRepository,
+                authUserRepository,
+                userProfileRepository,
+                userPiiReadWriteRepository,
+                notificationPiiReadRepository,
+                userAttributeRepository,
+                userPriorityRepository,
+                aesEncryptUtil,
+                userKeyLookupService
+        );
+        User user = User.builder()
+                .id(9L)
+                .userKey("user-key-9")
+                .build();
+
+        when(userRepository.findById(9L)).thenReturn(Optional.of(user));
+
+        UserReadService.ActiveUserContext context = userReadService.getActiveUserContext(9L);
+
+        assertThat(context.user()).isEqualTo(user);
+        assertThat(context.userKey()).isEqualTo("user-key-9");
+    }
+
+    @Test
+    @DisplayName("active user by userKey 조회는 탈퇴 사용자를 거부한다")
+    void getActiveUserByUserKeyRejectsWithdrawnUser() {
+        UserReadService userReadService = new UserReadService(
+                userRepository,
+                authUserRepository,
+                userProfileRepository,
+                userPiiReadWriteRepository,
+                notificationPiiReadRepository,
+                userAttributeRepository,
+                userPriorityRepository,
+                aesEncryptUtil,
+                userKeyLookupService
+        );
+        User withdrawnUser = User.builder()
+                .id(10L)
+                .userKey("user-key-10")
+                .isActive(false)
+                .build();
+
+        when(userRepository.findByUserKey("user-key-10")).thenReturn(Optional.of(withdrawnUser));
+
+        assertThatThrownBy(() -> userReadService.getActiveUserByUserKey("user-key-10"))
+                .isInstanceOf(CustomException.class)
+                .extracting("errorCode")
+                .isEqualTo(com.example.welfare.global.exception.ErrorCode.WITHDRAWN_USER);
+    }
 }

@@ -7,7 +7,6 @@ import com.example.welfare.recommend.service.RecommendationRefreshCacheService;
 import com.example.welfare.user.entity.User;
 import com.example.welfare.user.repository.UserAttributeRepository;
 import com.example.welfare.user.repository.UserPriorityRepository;
-import com.example.welfare.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -21,7 +20,7 @@ public class UserAccountCommandService {
 
     private static final String REFRESH_TOKEN_PREFIX = "refresh:";
 
-    private final UserRepository userRepository;
+    private final UserReadService userReadService;
     private final UserAttributeRepository userAttributeRepository;
     private final UserPriorityRepository userPriorityRepository;
     private final PasswordEncoder passwordEncoder;
@@ -30,11 +29,10 @@ public class UserAccountCommandService {
     private final ChatSessionCleanupService chatSessionCleanupService;
     private final UserCoreSyncService userCoreSyncService;
     private final RecommendationRefreshCacheService recommendationRefreshCacheService;
-    private final UserKeyLookupService userKeyLookupService;
 
     @Transactional
     public void changePassword(Long userId, String currentPassword, String newPassword) {
-        User user = findActiveUser(userId);
+        User user = userReadService.getActiveUserContext(userId).user();
         if (!passwordEncoder.matches(currentPassword, user.getPasswordHash())) {
             throw new CustomException(ErrorCode.INVALID_CREDENTIALS);
         }
@@ -44,8 +42,9 @@ public class UserAccountCommandService {
 
     @Transactional
     public void withdraw(Long userId, String password, String accessToken) {
-        User user = findActiveUser(userId);
-        String userKey = user.getUserKey() != null ? user.getUserKey() : userKeyLookupService.findRequired(userId);
+        UserReadService.ActiveUserContext activeUserContext = userReadService.getActiveUserContext(userId);
+        User user = activeUserContext.user();
+        String userKey = activeUserContext.userKey();
         recommendationRefreshCacheService.evict(userKey);
 
         if (!passwordEncoder.matches(password, user.getPasswordHash())) {
@@ -63,25 +62,15 @@ public class UserAccountCommandService {
 
     @Transactional
     public void unsubscribeNotifications(Long userId) {
-        User user = findActiveUser(userId);
+        User user = userReadService.getActiveUserContext(userId).user();
         user.unsubscribeNotifications();
         userCoreSyncService.syncFromUser(user);
     }
 
     @Transactional
     public void unsubscribeNotificationsByUserKey(String userKey) {
-        Long userId = userRepository.findIdByUserKey(userKey)
-                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
-        unsubscribeNotifications(userId);
-    }
-
-    private User findActiveUser(Long userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
-        if (!user.isActive()) {
-            throw new CustomException(ErrorCode.WITHDRAWN_USER);
-        }
-        return user;
+        User user = userReadService.getActiveUserByUserKey(userKey);
+        unsubscribeNotifications(user.getId());
     }
 
     private void revokePresentedAccessToken(String accessToken) {

@@ -1148,6 +1148,10 @@ cd backend
 - 2026-05-03 shared user key lookup 잔여 직접 조회 제거
   - `RecommendationBookmarkCommandService`, `RecommendationFacade`, `UserCoreSyncService` 도 `UserKeyLookupService` 로 전환
   - 운영 코드 기준 직접 `findUserKeyById(...)` 호출은 이제 lookup 서비스 내부와 repository 자체 정의로만 남김
+- 2026-05-03 active user lookup 경계 정리
+  - `UserReadService` 에 `getActiveUserContext(...)`, `getActiveUserByUserKey(...)` 추가
+  - `ChatMessageService`, `ChatSessionService`, `NotificationService`, `UserBookmarkReadService`, `UserProfileCommandService`, `UserAccountCommandService`, `AuthTokenService` 가 각자 `findActiveUser(...)` 나 `findByUserKey(...)` 를 직접 들지 않도록 정리
+  - user + userKey 를 같이 써야 하는 command/orchestration 경로는 `ActiveUserContext` 로 한 번에 전달
 
 ## 남은 1차 작업
 

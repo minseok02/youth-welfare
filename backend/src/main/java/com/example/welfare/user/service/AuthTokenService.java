@@ -6,7 +6,6 @@ import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.global.util.JwtUtil;
 import com.example.welfare.user.dto.response.TokenResponse;
 import com.example.welfare.user.entity.User;
-import com.example.welfare.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -27,7 +26,7 @@ public class AuthTokenService {
 
     private final JwtUtil jwtUtil;
     private final RedisTemplate<String, String> redisTemplate;
-    private final UserRepository userRepository;
+    private final UserReadService userReadService;
     private final AccessTokenRevocationService accessTokenRevocationService;
     private final ChatSessionCleanupService chatSessionCleanupService;
     private final UserKeyLookupService userKeyLookupService;
@@ -45,12 +44,7 @@ public class AuthTokenService {
 
         String userKey = resolveTokenUserKey(refreshToken);
         Long userId = jwtUtil.getUserId(refreshToken);
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
-        if (!user.isActive()) {
-            invalidateRefreshToken(userKey);
-            throw new CustomException(ErrorCode.WITHDRAWN_USER);
-        }
+        User user = getRefreshableUser(userKey, userId);
 
         String stored = redisTemplate.opsForValue().get(refreshTokenKey(userKey));
         if (stored == null || !stored.equals(refreshToken)) {
@@ -121,5 +115,16 @@ public class AuthTokenService {
 
     private String refreshTokenKey(String userKey) {
         return REFRESH_TOKEN_PREFIX + userKey;
+    }
+
+    private User getRefreshableUser(String userKey, Long userId) {
+        try {
+            return userReadService.getActiveUserContext(userId).user();
+        } catch (CustomException e) {
+            if (e.getErrorCode() == ErrorCode.WITHDRAWN_USER) {
+                invalidateRefreshToken(userKey);
+            }
+            throw e;
+        }
     }
 }

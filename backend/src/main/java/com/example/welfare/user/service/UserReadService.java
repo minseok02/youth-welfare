@@ -73,10 +73,31 @@ public class UserReadService {
     }
 
     @Transactional(readOnly = true)
-    public RecommendationReadContext getRecommendationContext(Long userId) {
+    public ActiveUserContext getActiveUserContext(Long userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
-        String userKey = resolveActiveUserKey(user.getUserKey());
+        if (!user.isActive()) {
+            throw new CustomException(ErrorCode.WITHDRAWN_USER);
+        }
+        String userKey = user.getUserKey() != null ? user.getUserKey() : userKeyLookupService.findRequired(userId);
+        return new ActiveUserContext(user, userKey);
+    }
+
+    @Transactional(readOnly = true)
+    public User getActiveUserByUserKey(String userKey) {
+        User user = userRepository.findByUserKey(userKey)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+        if (!user.isActive()) {
+            throw new CustomException(ErrorCode.WITHDRAWN_USER);
+        }
+        return user;
+    }
+
+    @Transactional(readOnly = true)
+    public RecommendationReadContext getRecommendationContext(Long userId) {
+        ActiveUserContext activeUserContext = getActiveUserContext(userId);
+        User user = activeUserContext.user();
+        String userKey = resolveActiveUserKey(activeUserContext.userKey());
         UserProfile profile = userProfileRepository.findByUserKey(userKey)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
         List<UserAttributeReadModel> attributes = userAttributeRepository.findReadModelsByUserKey(userKey);
@@ -190,6 +211,12 @@ public class UserReadService {
     public record RecommendationReadContext(
             User user,
             RecommendationUserSnapshot snapshot
+    ) {
+    }
+
+    public record ActiveUserContext(
+            User user,
+            String userKey
     ) {
     }
 }
