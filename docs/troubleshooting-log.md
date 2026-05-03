@@ -25,6 +25,11 @@
 - 해결: notification 섹션도 `windowDays`, `sentInWindow`, `failedInWindow` 로 바꾸고 `fetchNotificationSummary` SQL alias도 같은 window semantics로 맞췄다. 이로써 `/api/admin/dashboard/summary` 의 모든 summary 섹션이 같은 기간 파라미터 해석을 따르게 됐다
 - 이유: 운영 대시보드는 특정 기간 창을 맞춰 놓고 섹션 간 비교를 해야 의미가 있다. notification만 별도 고정 기간이면 해석 비용이 다시 생긴다
 
+## 300) recommendation 섹션에 active weight와 클릭 수는 있었지만 “다음 단계까지 얼마나 남았는지”가 없어 CTR/가중치 튜닝 readiness를 한 번에 읽기 어려웠음
+- 문제: `/api/admin/dashboard/summary` recommendation 섹션은 이미 `activeWeightKey`, `totalLogs`, `clickedInWindow`, `weightBucketsInWindow` 를 내려주고 있었지만, 운영자가 지금 단계가 `GROWTH` 인지 아는 것과 “그럼 `STABLE` 까지 몇 로그가 더 필요한지”를 아는 것은 별개였다. 결국 `score_weights.min_log_count` 를 다시 떠올리거나 DB를 조회해야 했다
+- 해결: `ScoreWeightService` 에 진행도 계산을 추가하고, recommendation 섹션에 `nextWeightKey`, `nextWeightMinLogCount`, `remainingLogsUntilNextWeight`, `topWeightStage` 를 노출했다. dashboard는 이제 score weight 규칙을 직접 재해석하지 않고 도메인 서비스가 계산한 진행도만 읽는다
+- 이유: CTR/가중치 재조정 판단은 “최근 클릭 수”와 “현재 추천 로그 총량”이 같이 보여야 한다. 다음 단계까지 남은 로그 수를 바로 보여 주면 표본 부족과 weight stage 부족을 같은 화면에서 구분할 수 있다
+
 ## 294) broad-suite self-heal cleanup이 안정화됐지만 user-prefix integration 테스트들에 거의 같은 정리 코드가 복제돼 다시 drift할 가능성이 있었음
 - 문제: `AuthRedisIntegrationTest`, `AdminSecurityIntegrationTest`, `UserCoreDualWriteIntegrationTest`, `UserMetadataUserKeyBackfillIntegrationTest`, `UserPiiBackfillIntegrationTest`, `UserPiiSyncReplayIntegrationTest`, `UserPiiSyncRetrySchedulerIntegrationTest`, `RecommendationFlowIntegrationTest` 는 모두 “email prefix로 user를 찾고 userKey 파생 cleanup 후 user delete” 구조가 거의 같았는데, 세부 차이가 조금씩 있어 다음 hardening 때 일부 클래스만 갱신될 위험이 있었음
 - 해결: test 전용 `IntegrationCleanupSupport` 를 추가하고 user-prefix cleanup, service-prefix cleanup 진입점을 공통화했다. 각 클래스는 이제 “무슨 추가 정리가 필요한가”만 람다로 넘기고, 사용자 탐색/삭제 흐름 자체는 한 곳에서 처리한다

@@ -164,6 +164,10 @@ class AdminSecurityWebMvcTest {
                                 "GROWTH",
                                 java.math.BigDecimal.valueOf(0.60),
                                 java.math.BigDecimal.valueOf(0.40),
+                                "STABLE",
+                                500,
+                                250L,
+                                false,
                                 250,
                                 2,
                                 7,
@@ -235,6 +239,8 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.data.collect.failureWindowDays").value(7))
                 .andExpect(jsonPath("$.data.collect.latestFailuresInWindow[0].jobName").value("BOKJIRO_LOCAL"))
                 .andExpect(jsonPath("$.data.recommendation.windowDays").value(7))
+                .andExpect(jsonPath("$.data.recommendation.nextWeightKey").value("STABLE"))
+                .andExpect(jsonPath("$.data.recommendation.remainingLogsUntilNextWeight").value(250))
                 .andExpect(jsonPath("$.data.recommendation.sentInWindow").value(8))
                 .andExpect(jsonPath("$.data.notification.windowDays").value(7))
                 .andExpect(jsonPath("$.data.notification.sentInWindow").value(5))
@@ -267,6 +273,10 @@ class AdminSecurityWebMvcTest {
                                 "GROWTH",
                                 java.math.BigDecimal.valueOf(0.60),
                                 java.math.BigDecimal.valueOf(0.40),
+                                "STABLE",
+                                500,
+                                490L,
+                                false,
                                 10,
                                 1,
                                 14,
@@ -321,6 +331,7 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.data.trend.collect[0].windowDays").value(3))
                 .andExpect(jsonPath("$.data.trend.collect[1].windowDays").value(14))
                 .andExpect(jsonPath("$.data.recommendation.windowDays").value(14))
+                .andExpect(jsonPath("$.data.recommendation.nextWeightMinLogCount").value(500))
                 .andExpect(jsonPath("$.data.notification.windowDays").value(14))
                 .andExpect(jsonPath("$.data.trend.recommendation[1].fallbackRate").value(0.5000))
                 .andExpect(jsonPath("$.data.search.windowDays").value(14))

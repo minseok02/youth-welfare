@@ -49,7 +49,9 @@ public class AdminDashboardService {
                 adminDashboardReadRepository.fetchCollectSummary(dayAgo);
         AdminDashboardReadRepository.RecommendationSummaryRow recommendationSummary =
                 adminDashboardReadRepository.fetchRecommendationSummary(dayAgo, summaryWindowAgo);
-        ScoreWeight activeWeight = scoreWeightService.getActiveWeight();
+        ScoreWeightService.ScoreWeightProgress weightProgress =
+                scoreWeightService.getProgress(recommendationSummary.totalLogs());
+        ScoreWeight activeWeight = weightProgress.activeWeight();
         AdminDashboardReadRepository.NotificationSummaryRow notificationSummary =
                 adminDashboardReadRepository.fetchNotificationSummary(dayAgo, summaryWindowAgo);
         AdminDashboardReadRepository.SearchSummaryRow searchSummary =
@@ -93,6 +95,10 @@ public class AdminDashboardService {
                         activeWeight.getWeightKey(),
                         activeWeight.getRuleWeight(),
                         activeWeight.getAiWeight(),
+                        weightProgress.nextWeightKey(),
+                        weightProgress.nextWeightMinLogCount(),
+                        weightProgress.remainingLogsUntilNextWeight(),
+                        weightProgress.topWeightStage(),
                         recommendationSummary.totalLogs(),
                         recommendationSummary.sentLast24h(),
                         summaryWindowDays,
