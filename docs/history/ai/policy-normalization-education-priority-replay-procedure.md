@@ -85,11 +85,12 @@ deploy/smoke/run-local-education-priority-replay.sh
 14. boot log에서 `[RealtimeAiGateway][replay-trace]`, `[RealtimeAiGateway][replay-trace-response]` 라인을 추출해 `edu-a/b-*-ai-trace.log`, `edu-a/b-*-ai-response-trace.log`, `ai-trace-*.log`, `ai-trace-response-*.log` 로 남기고 `candidateIds` / `candidateRuleScores` / `promptSha256` / `replaySeed` / `systemFingerprint` / `responseId` 를 비교
 15. summary stdout에도 `A_FINGERPRINT ... same|different`, `B_FINGERPRINT ... same|different` 를 같이 출력해 artifact를 열기 전에도 `backend churn` 여부를 바로 볼 수 있게 한다
 16. summary stdout의 `SUMMARY_METRIC` 한 줄에서 `A/B_top10_target` 뿐 아니라 `A/B_best_target_rank`, `A/B_best_target_score`, `A/B_target_total`, `A/B_fp` 를 같이 보고 pass/warn 판단을 시작한다
-17. summary stdout의 `SUMMARY_REASON_METRIC` 한 줄에서 `A_reason_changed`, `A_reason_text_changed`, `A_reason_membership_changed`, `B_*` 를 먼저 확인하고, 세부 내용이 필요하면 `edu-a/b-ai-reason-diff.tsv` 를 연다
-18. summary stdout의 `SUMMARY_REASON_PATTERN` 한 줄에서 sample A/B별 상위 phrase를 먼저 보고, 더 자세한 count가 필요하면 `ai-reason-pattern-summary.tsv` 를 연다
-19. summary stdout의 `SUMMARY_SLOT_METRIC` 은 이제 `slot_services_*` 뿐 아니라 `slot_rows_*` 도 같이 출력하므로,
+17. `rule-only-invalid-key` 모드에서 sample A는 기본적으로 `top10_target_count` 증가 또는 `best_target_rank` 개선이 있어야 pass 한다. 다만 OFF 단계부터 이미 `best_target_rank<=2` 또는 `top10_target_count>=5` 인 포화 snapshot이면, OFF/ON이 동일해도 hard fail로 보지 않는다.
+18. summary stdout의 `SUMMARY_REASON_METRIC` 한 줄에서 `A_reason_changed`, `A_reason_text_changed`, `A_reason_membership_changed`, `B_*` 를 먼저 확인하고, 세부 내용이 필요하면 `edu-a/b-ai-reason-diff.tsv` 를 연다
+19. summary stdout의 `SUMMARY_REASON_PATTERN` 한 줄에서 sample A/B별 상위 phrase를 먼저 보고, 더 자세한 count가 필요하면 `ai-reason-pattern-summary.tsv` 를 연다
+20. summary stdout의 `SUMMARY_SLOT_METRIC` 은 이제 `slot_services_*` 뿐 아니라 `slot_rows_*` 도 같이 출력하므로,
     distinct service density와 raw row density를 apply 출력과 같은 축으로 바로 대조한다
-20. nightly summary file에 append 할 때도 같은 축을 유지하고,
+21. nightly summary file에 append 할 때도 같은 축을 유지하고,
     최소 필드는 `ts`, `mode`, `A_top10_target`, `B_top10_target`,
     `A_best_target_rank`, `B_best_target_rank`,
     `A_best_target_score`, `B_best_target_score`,

@@ -978,9 +978,21 @@ def improved_target_rank(off_summary, on_summary):
         return False
     return on_rank < off_rank
 
+def strong_target_visibility(summary):
+    rank = summary["best_target_rank"]
+    top10_count = summary["top10_target_count"]
+    if rank is not None and rank <= 2:
+        return True
+    return top10_count >= 5
+
 sample_a_improved = (
     a_on["top10_target_count"] > a_off["top10_target_count"]
     or improved_target_rank(a_off, a_on)
+    or (
+        a_on["top10_target_count"] == a_off["top10_target_count"]
+        and a_on["best_target_rank"] == a_off["best_target_rank"]
+        and strong_target_visibility(a_off)
+    )
 )
 sample_b_regressed = (
     b_on["top10_target_count"] > b_off["top10_target_count"]
