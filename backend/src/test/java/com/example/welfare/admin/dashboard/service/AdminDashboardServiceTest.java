@@ -160,6 +160,9 @@ class AdminDashboardServiceTest {
                 .containsExactly(1, 7, 30);
         assertThat(response.trend().recommendation().get(1).clickThroughRate()).isEqualByComparingTo("0.3000");
         assertThat(response.notification().failedLast24h()).isEqualTo(1);
+        assertThat(response.notification().windowDays()).isEqualTo(7);
+        assertThat(response.notification().sentInWindow()).isEqualTo(14);
+        assertThat(response.notification().failedInWindow()).isEqualTo(2);
         assertThat(response.search().windowDays()).isEqualTo(7);
         assertThat(response.search().searchesInWindow()).isEqualTo(88);
         assertThat(response.search().zeroResultSearchesInWindow()).isEqualTo(13);
@@ -230,6 +233,7 @@ class AdminDashboardServiceTest {
         assertThat(response.trend().collect()).extracting(AdminDashboardResponse.CollectTrendPoint::windowDays)
                 .containsExactly(3, 14);
         assertThat(response.recommendation().windowDays()).isEqualTo(14);
+        assertThat(response.notification().windowDays()).isEqualTo(14);
         assertThat(response.trend().recommendation()).extracting(AdminDashboardResponse.RecommendationTrendPoint::windowDays)
                 .containsExactly(3, 14);
         assertThat(response.search().windowDays()).isEqualTo(14);

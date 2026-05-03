@@ -186,8 +186,8 @@ public class AdminDashboardReadRepository {
         return jdbcTemplate.queryForObject("""
                 select coalesce(sum(case when status = 'SENT' and sent_at >= :dayAgo then 1 else 0 end), 0) as sent_last_24h,
                        coalesce(sum(case when status = 'FAILED' and created_at >= :dayAgo then 1 else 0 end), 0) as failed_last_24h,
-                       coalesce(sum(case when status = 'SENT' and sent_at >= :weekAgo then 1 else 0 end), 0) as sent_last_7d,
-                       coalesce(sum(case when status = 'FAILED' and created_at >= :weekAgo then 1 else 0 end), 0) as failed_last_7d
+                       coalesce(sum(case when status = 'SENT' and sent_at >= :weekAgo then 1 else 0 end), 0) as sent_in_window,
+                       coalesce(sum(case when status = 'FAILED' and created_at >= :weekAgo then 1 else 0 end), 0) as failed_in_window
                   from notifications
                 """,
                 new MapSqlParameterSource()
@@ -196,8 +196,8 @@ public class AdminDashboardReadRepository {
                 (rs, rowNum) -> new NotificationSummaryRow(
                         rs.getLong("sent_last_24h"),
                         rs.getLong("failed_last_24h"),
-                        rs.getLong("sent_last_7d"),
-                        rs.getLong("failed_last_7d")
+                        rs.getLong("sent_in_window"),
+                        rs.getLong("failed_in_window")
                 )
         );
     }
@@ -330,8 +330,8 @@ public class AdminDashboardReadRepository {
     public record NotificationSummaryRow(
             long sentLast24h,
             long failedLast24h,
-            long sentLast7d,
-            long failedLast7d
+            long sentInWindow,
+            long failedInWindow
     ) {
     }
 
