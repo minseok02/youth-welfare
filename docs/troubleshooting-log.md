@@ -2477,8 +2477,6 @@
 - 문제: `zeroResultKeywordsInWindow` 는 “무슨 단어가 실패하나”까지는 보여주지만, 실제 triage 단계에서는 `sido/sgg`, `status_filter`, `category`, `source_type`, `online_apply`, `include_closed`, `sort_key` 같은 조건 조합과 최근 샘플을 같이 봐야 원인을 더 빨리 좁힐 수 있다.
 - 해결: `/api/admin/dashboard/search-failures` 를 추가해 summary window 기준 zero-result keyword/region/filter pattern/recent sample 상세를 별도 admin API로 분리했다.
 - 이유: 요약 대시보드는 가볍게 유지하고, 검색 실패 triage는 별도 상세 endpoint에서 읽게 분리하는 편이 책임이 명확하고 후속 확장도 쉽다.
-
-<<<<<<< HEAD
 ## 448) recommendation summary에 source/category/weight 분포와 최근 샘플만 있으면, 같은 사용자에게 같은 정책이 반복 노출되는 패턴은 다시 raw `recommendation_logs` 를 `user_key + service_id` 기준으로 group by 해야 한다
 - 문제: 추천 triage에서 자주 필요한 것은 “같은 사용자에게 같은 정책이 몇 번 반복 노출되었는가”인데, 상세 응답에 재노출 그룹이 없으면 결국 `recommendation_logs` 를 다시 수동 group by 해야 한다.
 - 해결: `recommendation-breakdowns` 응답에 repeat exposure group을 추가해 `user_key + service_id` 기준 노출 횟수, click/fallback 누적, 첫/마지막 노출 시각을 같이 반환하게 했다.
