@@ -27,6 +27,10 @@ public class SearchYouthRelevanceService {
         return recommendationYouthRelevanceSupport.isYouthRelevant(service, tags != null ? tags : Collections.emptyList());
     }
 
+    public void refreshForService(WelfareService service) {
+        refreshForService(service, searchYouthRelevanceReadRepository.findTagsByServiceId(service.getId()));
+    }
+
     public void refreshForService(WelfareService service, List<ServiceTag> tags) {
         service.updateSearchYouthRelevant(compute(service, tags));
     }

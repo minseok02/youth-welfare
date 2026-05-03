@@ -164,7 +164,6 @@ class BokjiroSidecarMergeIntegrationTest {
             BokjiroDetailCollectService detailCollectService = new BokjiroDetailCollectService(
                     isolatedRepository,
                     welfareServiceDetailRepository,
-                    serviceTagRepository,
                     detailClient,
                     rawApiPayloadService,
                     searchYouthRelevanceService,

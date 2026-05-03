@@ -9,5 +9,7 @@ public interface SearchYouthRelevanceReadRepository {
 
     List<WelfareService> findBackfillTargetServices();
 
+    List<ServiceTag> findTagsByServiceId(Long serviceId);
+
     List<ServiceTag> findTagsByServiceIds(List<Long> serviceIds);
 }

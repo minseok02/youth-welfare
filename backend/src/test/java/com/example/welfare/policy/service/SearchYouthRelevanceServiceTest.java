@@ -91,4 +91,34 @@ class SearchYouthRelevanceServiceTest {
 
         assertThat(policy.isSearchYouthRelevant()).isFalse();
     }
+
+    @Test
+    @DisplayName("단건 재계산은 read 경계에서 태그를 읽어 검색용 청년 플래그를 갱신할 수 있다")
+    void refreshForServiceLoadsTagsThroughReadRepository() {
+        SearchYouthRelevanceService service = new SearchYouthRelevanceService(
+                searchYouthRelevanceReadRepository,
+                recommendationYouthRelevanceSupport
+        );
+
+        WelfareService policy = WelfareService.builder()
+                .id(2L)
+                .sourceType(WelfareService.SourceType.YOUTH)
+                .sourceId("Y-2")
+                .title("청년 정책")
+                .searchYouthRelevant(false)
+                .build();
+        List<ServiceTag> tags = List.of(ServiceTag.builder()
+                .id(11L)
+                .service(policy)
+                .tagType(ServiceTag.TagType.KEYWORD)
+                .tagValue("청년")
+                .build());
+
+        given(searchYouthRelevanceReadRepository.findTagsByServiceId(2L)).willReturn(tags);
+        given(recommendationYouthRelevanceSupport.isYouthRelevant(policy, tags)).willReturn(true);
+
+        service.refreshForService(policy);
+
+        assertThat(policy.isSearchYouthRelevant()).isTrue();
+    }
 }

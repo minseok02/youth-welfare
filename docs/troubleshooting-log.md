@@ -2666,3 +2666,8 @@
 - 문제: 정책 상세 aggregate 조회, 추천 후보 후처리, rule scoring 후보 태그 로딩이 모두 `ServiceTagRepository.findByServiceId...` 를 직접 호출하고 있었다.
 - 해결: `PolicyTagReadRepository` 를 추가하고, policy/recommend read 경로의 태그 조회를 이 경계 뒤로 이동했다.
 - 이유: collect 쪽은 tag write를 그대로 유지하되, 태그 read 구현 선택은 별도 read repository 에 모아야 policy/recommend 서비스가 JPA 저장소 선택과 grouping 세부사항을 직접 들지 않게 된다.
+
+## 486) `BokjiroDetailCollectService` 가 detail 저장 후 relevance refresh 를 위해 `ServiceTagRepository` 로 태그를 다시 읽으면, collect 서비스가 저장 이후 read 구현까지 떠안게 된다
+- 문제: 상세 저장이 끝난 뒤 `searchYouthRelevanceService.refreshForService(service, serviceTagRepository.findByServiceId(...))` 형태로 collect 서비스가 태그 조회까지 직접 수행하고 있었다.
+- 해결: `SearchYouthRelevanceReadRepository` 에 단건 태그 조회를 추가하고, `SearchYouthRelevanceService.refreshForService(service)` 가 내부에서 태그를 읽어 재계산하도록 정리했다.
+- 이유: collect 서비스는 detail 저장 orchestration 에 집중하고, youth relevance 재계산에 필요한 태그 read 규칙은 relevance 경계 안에 두는 편이 read/write 책임이 더 분명하다.

@@ -20,6 +20,11 @@ public class SearchYouthRelevanceReadRepositoryImpl implements SearchYouthReleva
     }
 
     @Override
+    public List<ServiceTag> findTagsByServiceId(Long serviceId) {
+        return serviceTagRepository.findByServiceId(serviceId);
+    }
+
+    @Override
     public List<ServiceTag> findTagsByServiceIds(List<Long> serviceIds) {
         if (serviceIds == null || serviceIds.isEmpty()) {
             return List.of();

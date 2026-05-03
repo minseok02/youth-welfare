@@ -10,7 +10,6 @@ import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.entity.WelfareServiceDetail;
-import com.example.welfare.policy.repository.ServiceTagRepository;
 import com.example.welfare.policy.repository.WelfareServiceDetailRepository;
 import com.example.welfare.policy.repository.WelfareServiceRepository;
 import com.example.welfare.policy.service.SearchYouthRelevanceService;
@@ -38,7 +37,6 @@ public class BokjiroDetailCollectService {
 
     private final WelfareServiceRepository welfareServiceRepository;
     private final WelfareServiceDetailRepository detailRepository;
-    private final ServiceTagRepository serviceTagRepository;
     private final BokjiroDetailClient detailClient;
     private final RawApiPayloadService rawApiPayloadService;
     private final SearchYouthRelevanceService searchYouthRelevanceService;
@@ -50,7 +48,6 @@ public class BokjiroDetailCollectService {
 
     public BokjiroDetailCollectService(WelfareServiceRepository welfareServiceRepository,
                                        WelfareServiceDetailRepository detailRepository,
-                                       ServiceTagRepository serviceTagRepository,
                                        BokjiroDetailClient detailClient,
                                        RawApiPayloadService rawApiPayloadService,
                                        SearchYouthRelevanceService searchYouthRelevanceService,
@@ -58,7 +55,6 @@ public class BokjiroDetailCollectService {
                                        NormalizedPolicySidecarWriter normalizedPolicySidecarWriter) {
         this.welfareServiceRepository = welfareServiceRepository;
         this.detailRepository = detailRepository;
-        this.serviceTagRepository = serviceTagRepository;
         this.detailClient = detailClient;
         this.rawApiPayloadService = rawApiPayloadService;
         this.searchYouthRelevanceService = searchYouthRelevanceService;
@@ -259,7 +255,7 @@ public class BokjiroDetailCollectService {
                 detailRepository.save(persistenceSupport.mergeDetail(service, existing, aggregate));
                 persistenceSupport.applyFallbacksToService(service, aggregate);
                 normalizedPolicySidecarWriter.upsert(service, aggregate);
-                searchYouthRelevanceService.refreshForService(service, serviceTagRepository.findByServiceId(service.getId()));
+                searchYouthRelevanceService.refreshForService(service);
                 saved++;
             } catch (Exception e) {
                 log.warn("[BokjiroDetailCollectService] 상세 저장 실패 serviceId={} sourceType={} refreshExisting={} err={}",

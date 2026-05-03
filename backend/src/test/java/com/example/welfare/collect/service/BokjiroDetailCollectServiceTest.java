@@ -8,7 +8,6 @@ import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.policy.entity.ServiceTag;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.entity.WelfareServiceDetail;
-import com.example.welfare.policy.repository.ServiceTagRepository;
 import com.example.welfare.policy.repository.WelfareServiceDetailRepository;
 import com.example.welfare.policy.repository.WelfareServiceRepository;
 import com.example.welfare.policy.service.SearchYouthRelevanceService;
@@ -44,8 +43,6 @@ class BokjiroDetailCollectServiceTest {
     @Mock
     private WelfareServiceDetailRepository detailRepository;
     @Mock
-    private ServiceTagRepository serviceTagRepository;
-    @Mock
     private BokjiroDetailClient detailClient;
     @Mock
     private RawApiPayloadService rawApiPayloadService;
@@ -62,7 +59,6 @@ class BokjiroDetailCollectServiceTest {
         service = new BokjiroDetailCollectService(
                 welfareServiceRepository,
                 detailRepository,
-                serviceTagRepository,
                 detailClient,
                 rawApiPayloadService,
                 searchYouthRelevanceService,
@@ -117,18 +113,11 @@ class BokjiroDetailCollectServiceTest {
                 .supportCycle("MONTHLY")
                 .provisionType("CASH")
                 .build();
-        List<ServiceTag> tags = List.of(ServiceTag.builder()
-                .service(central)
-                .tagType(ServiceTag.TagType.KEYWORD)
-                .tagValue("청년")
-                .build());
-
         given(welfareServiceRepository.findBySourceType(WelfareService.SourceType.BOKJIRO_CENTRAL))
                 .willReturn(List.of(central));
         given(detailRepository.findByServiceId(11L)).willReturn(Optional.of(existing));
         given(detailClient.fetchCentralWithStatus("CENTRAL-2"))
                 .willReturn(BokjiroDetailClient.FetchResult.success(payload));
-        given(serviceTagRepository.findByServiceId(11L)).willReturn(tags);
 
         CollectResult result = service.collectBokjiroDetailsRefreshResult(1);
 
@@ -158,7 +147,7 @@ class BokjiroDetailCollectServiceTest {
                         && aggregate.facts().stream().anyMatch(fact -> "BK_AGE_ELIGIBILITY".equals(fact.factMergeKey()))
                         && aggregate.facts().stream().anyMatch(fact -> "BK_APPLY_END_DATE".equals(fact.factMergeKey()))
         ));
-        verify(searchYouthRelevanceService).refreshForService(eq(central), eq(tags));
+        verify(searchYouthRelevanceService).refreshForService(eq(central));
     }
 
     @Test
@@ -177,8 +166,6 @@ class BokjiroDetailCollectServiceTest {
         given(detailRepository.existsByServiceId(12L)).willReturn(false);
         given(detailClient.fetchLocalWithStatus("LOCAL-1"))
                 .willReturn(BokjiroDetailClient.FetchResult.success(payload));
-        given(serviceTagRepository.findByServiceId(12L)).willReturn(List.of());
-
         CollectResult result = service.collectBokjiroDetailsResult(1);
 
         assertThat(result.requestedCount()).isEqualTo(1);
@@ -210,8 +197,6 @@ class BokjiroDetailCollectServiceTest {
         given(detailRepository.existsByServiceId(14L)).willReturn(false);
         given(detailClient.fetchLocalWithStatus("LOCAL-2"))
                 .willReturn(BokjiroDetailClient.FetchResult.success(payload));
-        given(serviceTagRepository.findByServiceId(14L)).willReturn(List.of());
-
         CollectResult result = service.collectBokjiroDetailsResult(1);
 
         assertThat(result.requestedCount()).isEqualTo(1);
@@ -244,9 +229,6 @@ class BokjiroDetailCollectServiceTest {
                 .willReturn(BokjiroDetailClient.FetchResult.success(payload));
         given(detailClient.fetchLocalWithStatus("LOCAL-18"))
                 .willReturn(BokjiroDetailClient.FetchResult.success(payload));
-        given(serviceTagRepository.findByServiceId(17L)).willReturn(List.of());
-        given(serviceTagRepository.findByServiceId(18L)).willReturn(List.of());
-
         BokjiroDetailCollectService.GapFillResult result = service.collectBokjiroDetailGapFillResult(3, 1);
 
         assertThat(result.roundsRequested()).isEqualTo(3);
@@ -323,8 +305,6 @@ class BokjiroDetailCollectServiceTest {
                 .willReturn(BokjiroDetailClient.FetchResult.success(emptyPayload));
         given(detailClient.fetchCentralWithStatus("CENTRAL-32"))
                 .willReturn(BokjiroDetailClient.FetchResult.success(validPayload));
-        given(serviceTagRepository.findByServiceId(32L)).willReturn(List.of());
-
         CollectResult result = service.collectBokjiroDetailsResult(2);
 
         assertThat(result.requestedCount()).isEqualTo(2);
@@ -359,8 +339,6 @@ class BokjiroDetailCollectServiceTest {
         willThrow(new IllegalStateException("save failed"))
                 .given(detailRepository)
                 .save(argThat(detail -> detail.getService().equals(failingService)));
-        given(serviceTagRepository.findByServiceId(42L)).willReturn(List.of());
-
         CollectResult result = service.collectBokjiroDetailsResult(2);
 
         assertThat(result.requestedCount()).isEqualTo(2);
@@ -370,8 +348,8 @@ class BokjiroDetailCollectServiceTest {
                 .saveBokjiroDetail(WelfareService.SourceType.BOKJIRO_CENTRAL, "CENTRAL-41", failingPayload);
         verify(rawApiPayloadService)
                 .saveBokjiroDetail(WelfareService.SourceType.BOKJIRO_CENTRAL, "CENTRAL-42", succeedingPayload);
-        verify(searchYouthRelevanceService, never()).refreshForService(eq(failingService), any());
-        verify(searchYouthRelevanceService).refreshForService(eq(succeedingService), eq(List.of()));
+        verify(searchYouthRelevanceService, never()).refreshForService(eq(failingService));
+        verify(searchYouthRelevanceService).refreshForService(eq(succeedingService));
     }
 
     private WelfareService welfareService(Long id, WelfareService.SourceType sourceType, String sourceId) {
