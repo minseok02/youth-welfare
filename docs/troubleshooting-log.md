@@ -2651,3 +2651,8 @@
 - 문제: `UserPiiSyncProcessor.process(...)` 와 `UserPiiSyncReplayService.replaySingle(...)` 는 queue row 존재 확인을 위해 `UserPiiSyncQueueRepository.findByUserKey(...)` 를 직접 호출하고 있었다.
 - 해결: `UserPiiSyncQueueService` 에 `findOptional(...)`, `exists(...)` 를 추가하고, processor/replay는 queue lookup도 같은 service 경계로 위임하게 정리했다.
 - 이유: enqueue와 queue lookup 규칙을 같은 service로 모아야 user pii sync 흐름에서 queue row access 책임이 한 곳에 남고, replay/processor 간 존재 확인 정책 drift를 줄일 수 있다.
+
+## 483) `UserCoreSyncService` 가 auth/profile projection upsert 구현까지 직접 들고 있으면, core sync orchestration 서비스가 projection 저장 세부사항까지 같이 떠안는다
+- 문제: `UserCoreSyncService.syncFromUser(...)` 는 userKey 해석 뒤 `AuthUserRepository.findByUserKey(...)`, `UserProfileRepository.findByUserKey(...)`, save 호출을 모두 직접 처리하고 있었다.
+- 해결: auth/profile projection upsert 를 `UserCoreProjectionSyncService` 로 옮기고, `UserCoreSyncService` 는 age 계산과 sync orchestration, pii queue 적재만 맡게 정리했다.
+- 이유: core sync는 어떤 projection을 언제 갱신할지만 결정하고, projection별 upsert 구현은 별도 write 경계에 두는 편이 SRP와 후속 변경 파급도 관리에 낫다.

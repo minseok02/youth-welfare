@@ -1209,6 +1209,7 @@ cd backend
 - `RetrievalService` 도 canonical projection read-model 직접 조회를 제거하고 `RecommendationReadFacade` 를 통해 projection map 을 받도록 정리
 - `SearchYouthRelevanceService` 의 backfill 대상 태그 조회도 `SearchYouthRelevanceReadRepository` 로 이동해 백필 서비스가 read 구현을 직접 고르지 않도록 정리
 - `UserPiiSyncProcessor` / `UserPiiSyncReplayService` 의 queue row lookup 도 `UserPiiSyncQueueService` 로 모아 user pii sync 흐름의 queue access 경계를 단일화
+- `UserCoreSyncService` 는 orchestration만 남기고 auth/profile projection upsert 는 `UserCoreProjectionSyncService` 로 분리
 
 ## 2차로 분리된 항목
 
