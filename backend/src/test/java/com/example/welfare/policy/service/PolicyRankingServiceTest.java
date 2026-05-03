@@ -2,8 +2,8 @@ package com.example.welfare.policy.service;
 
 import com.example.welfare.policy.dto.PolicyRankingResponse;
 import com.example.welfare.policy.entity.WelfareService;
+import com.example.welfare.policy.repository.PolicyRankingReadRepository;
 import com.example.welfare.policy.repository.ServiceViewLogRepository;
-import com.example.welfare.policy.repository.WelfareServiceRepository;
 import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
 import com.example.welfare.recommend.repository.CanonicalRecommendationReadModelRepository;
 import org.junit.jupiter.api.DisplayName;
@@ -25,7 +25,7 @@ import static org.mockito.BDDMockito.given;
 class PolicyRankingServiceTest {
 
     @Mock
-    private WelfareServiceRepository welfareServiceRepository;
+    private PolicyRankingReadRepository policyRankingReadRepository;
     @Mock
     private ServiceViewLogRepository serviceViewLogRepository;
     @Mock
@@ -48,7 +48,7 @@ class PolicyRankingServiceTest {
                 .registeredAt(LocalDateTime.now().minusDays(2))
                 .build();
 
-        given(welfareServiceRepository.findByStatusIn(any())).willReturn(List.of(service));
+        given(policyRankingReadRepository.findRankableServices()).willReturn(List.of(service));
         given(serviceViewLogRepository.findUniqueViewCountsSince(anyCollection(), any()))
                 .willReturn(List.of(uniqueCount(1L, 7L)));
         given(canonicalRecommendationReadModelRepository.findByServiceIds(List.of(1L)))
@@ -117,7 +117,7 @@ class PolicyRankingServiceTest {
                 .build();
 
         List<WelfareService> services = List.of(oldHighScore, oldLowScore, recentNew);
-        given(welfareServiceRepository.findByStatusIn(any())).willReturn(services);
+        given(policyRankingReadRepository.findRankableServices()).willReturn(services);
         given(serviceViewLogRepository.findUniqueViewCountsSince(anyCollection(), any()))
                 .willReturn(List.of(
                         uniqueCount(1L, 50L),
