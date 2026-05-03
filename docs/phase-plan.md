@@ -54,7 +54,7 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 같은 pre-28 migrated DB에 최신 Spring 앱을 직접 붙여도 `ddl-auto: validate` 가 통과하고, 회원가입 -> 로그인 -> 프로필 수정 -> `user_pii_sync_queue` `SYNCED` -> 회원탈퇴 cleanup end-to-end smoke가 그대로 유지되는지 추가로 확인했습니다.
 
 같은 조합에서 admin allowlist + DB row를 맞춘 계정으로 `GET /api/admin/users/pii-sync-status`, `POST /api/admin/users/pii-sync-replay` 도 호출해 queue 모니터링/수동 재처리 경로까지 로컬 smoke를 마쳤습니다.
-남은 작업은 운영 배포/운영성 검증(운영 서버 Docker Compose, 기존 운영 DB 계정 생성 SQL 적용 및 datasource 전환, 운영 `.env` / secret store의 `APP_PII_DB_URL` / `NOTIFICATION_PII_DB_URL` 를 `youth_welfare_pii` 기준으로 전환, HTTPS/Nginx, 운영 DB에 `V2026_04_28_02__add_user_pii_sync_queue.sql` / `V2026_04_28_01__drop_runtime_legacy_user_id.sql` 적용 후 smoke 검증, 기존 운영 DB에 `app_core_rw` 의 `youth_welfare_pii.user_pii` revoke SQL 실제 적용과 보조 datasource smoke 검증, CTR 표본 확충 후 재분석)과 2차 확장 기능(개인 캐시 회귀 검증/튜닝, 사용자 규모 확대 시 군집 캐시 재검토, 카카오 알림톡 blocked)입니다.
+남은 작업은 운영 배포/운영성 검증(운영 서버 Docker Compose, 기존 운영 DB 계정 생성 SQL 적용 및 datasource 전환, 운영 `.env` / secret store의 `APP_PII_DB_URL` / `NOTIFICATION_PII_DB_URL` 를 `youth_welfare_pii` 기준으로 전환, HTTPS/Nginx, 운영 DB에 `V2026_04_28_02__add_user_pii_sync_queue.sql` / `V2026_04_28_01__drop_runtime_legacy_user_id.sql` 적용 후 smoke 검증, 기존 운영 DB에 `app_core_rw` 의 `youth_welfare_pii.user_pii` revoke SQL 실제 적용과 보조 datasource smoke 검증, CTR 표본 확충 후 재분석)과 2차 확장 기능(개인 캐시 회귀 검증/튜닝, 사용자 규모 확대 시 군집 캐시 재검토, 카카오 알림톡 blocked)입니다. 클릭 추적 경계 자체는 `serviceId + logId` local smoke로 다시 확인됐고, 현재 CTR 조정이 막힌 이유는 instrumentation이 아니라 표본 부족입니다.
 
 ## 완료된 백엔드 1차 범위
 
@@ -1092,6 +1092,7 @@ cd backend
 - 기존 운영 DB 계정 생성 SQL 적용 및 앱 datasource 전환
 - 기존 운영 DB에 `app_core_rw` 의 `user_pii` revoke SQL 실제 적용 및 보조 datasource smoke 검증
 - CTR 표본 추가 확보 후 rule/AI 가중치 및 프롬프트 재분석
+- 추천 클릭 smoke 반복 검증(`deploy/smoke/run-local-recommendation-click-smoke.sh`) 유지
 
 ## 2차로 분리된 항목
 
