@@ -97,6 +97,16 @@ assert isinstance(data["collect"]["failedJobsLast24h"], int), "collect.failedJob
 assert isinstance(data["recommendation"]["totalLogs"], int), "recommendation.totalLogs must be int"
 assert data["collect"]["failureWindowDays"] == expected_summary_window, "unexpected collect failureWindowDays"
 assert data["recommendation"]["windowDays"] == expected_summary_window, "unexpected recommendation windowDays"
+assert isinstance(data["recommendation"]["topWeightStage"], bool), "recommendation.topWeightStage must be bool"
+if data["recommendation"]["topWeightStage"]:
+    assert data["recommendation"]["nextWeightKey"] is None, "top stage should not have nextWeightKey"
+    assert data["recommendation"]["nextWeightMinLogCount"] is None, "top stage should not have nextWeightMinLogCount"
+    assert data["recommendation"]["remainingLogsUntilNextWeight"] is None, "top stage should not have remaining logs"
+else:
+    assert isinstance(data["recommendation"]["nextWeightKey"], str) and data["recommendation"]["nextWeightKey"], "nextWeightKey missing"
+    assert isinstance(data["recommendation"]["nextWeightMinLogCount"], int), "nextWeightMinLogCount must be int"
+    assert isinstance(data["recommendation"]["remainingLogsUntilNextWeight"], int), "remainingLogsUntilNextWeight must be int"
+    assert data["recommendation"]["remainingLogsUntilNextWeight"] >= 0, "remainingLogsUntilNextWeight must be >= 0"
 assert data["notification"]["windowDays"] == expected_summary_window, "unexpected notification windowDays"
 assert data["search"]["windowDays"] == expected_summary_window, "unexpected search windowDays"
 assert isinstance(data["notification"]["sentInWindow"], int), "notification.sentInWindow must be int"
@@ -113,6 +123,8 @@ assert search_windows == expected_trend_windows, f"unexpected search trend windo
 print(data["generatedAt"])
 print(data["collect"]["failedJobsLast24h"])
 print(data["recommendation"]["totalLogs"])
+print(data["recommendation"]["nextWeightKey"] or "")
+print("" if data["recommendation"]["remainingLogsUntilNextWeight"] is None else data["recommendation"]["remainingLogsUntilNextWeight"])
 print(data["notification"]["sentInWindow"])
 print(data["search"]["zeroResultSearchesInWindow"])
 print(data["collect"]["failureWindowDays"])
@@ -198,10 +210,12 @@ echo "admin_roles=${ADMIN_ROLES}"
 echo "generated_at=${DASHBOARD_VALUES[0]}"
 echo "collect_failed_jobs_last24h=${DASHBOARD_VALUES[1]}"
 echo "recommendation_total_logs=${DASHBOARD_VALUES[2]}"
-echo "notification_sent_in_window=${DASHBOARD_VALUES[3]}"
-echo "search_zero_result_searches_in_window=${DASHBOARD_VALUES[4]}"
-echo "summary_window_days=${DASHBOARD_VALUES[5]}"
-echo "collect_trend_windows=${DASHBOARD_VALUES[6]}"
+echo "recommendation_next_weight_key=${DASHBOARD_VALUES[3]}"
+echo "recommendation_remaining_logs_until_next_weight=${DASHBOARD_VALUES[4]}"
+echo "notification_sent_in_window=${DASHBOARD_VALUES[5]}"
+echo "search_zero_result_searches_in_window=${DASHBOARD_VALUES[6]}"
+echo "summary_window_days=${DASHBOARD_VALUES[7]}"
+echo "collect_trend_windows=${DASHBOARD_VALUES[8]}"
 echo "requested_summary_window_days=${SUMMARY_WINDOW_DAYS}"
 echo "requested_trend_window_days=${TREND_WINDOW_DAYS_CSV}"
 if [[ -n "${CONTAINER_ADMIN_ALLOWLIST}" ]]; then

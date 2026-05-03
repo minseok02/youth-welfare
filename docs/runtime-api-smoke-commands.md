@@ -43,7 +43,7 @@ admin dashboard 반복 검증은 아래 스크립트를 우선 사용합니다.
 deploy/smoke/run-local-admin-dashboard-smoke.sh
 ```
 
-이 스크립트는 `admin login -> ROLE_ADMIN 확인 -> /api/admin/dashboard/summary -> summary window + trend window 계약` 을 한 번에 확인합니다.
+이 스크립트는 `admin login -> ROLE_ADMIN 확인 -> /api/admin/dashboard/summary -> summary window + trend window + recommendation weight progress 계약` 을 한 번에 확인합니다.
 로컬 Docker app이 `SECURITY_ADMIN_EMAILS` 없이 떠 있으면 `admin@example.com` 이 `ROLE_ADMIN` 없이 로그인될 수 있으므로, 이 경우에는 아래처럼 다시 띄웁니다.
 
 ```bash
