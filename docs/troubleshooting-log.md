@@ -2427,3 +2427,8 @@
 - 문제: `run-local-validation-suite.sh` 는 순서를 고정해 주지만, 기본이 replay 포함인 full run 하나뿐이면 자잘한 회귀 확인에도 DB 재기동과 긴 replay를 매번 감수해야 한다. 결국 wrapper가 생겨도 짧은 피드백 루프에서는 다시 부분 실행 env를 외워야 했다.
 - 해결: wrapper에 `VALIDATION_PROFILE=quick|full` 을 추가했다. `quick` 은 `auth/session -> recommendation click -> admin dashboard` 만 돌고, `full` 은 기존처럼 replay까지 포함한다. 개별 `RUN_*` override는 그대로 유지해 필요 시 더 세밀하게 조절할 수 있다.
 - 이유: 상위 wrapper는 순서만 고정하는 것으로 끝나지 않고, 빠른 루프와 전체 루프를 둘 다 제공해야 실제로 자주 쓰인다. `quick/full` 프로필이 있어야 반복 검증이 가벼워지고 replay는 정말 필요할 때만 태우게 된다.
+
+## 438) 로컬 검증 wrapper가 성공/실패만 알려주면 어떤 단계가 느린지 다시 체감으로만 추정하게 된다
+- 문제: `run-local-validation-suite.sh` 가 상위 순서와 quick/full 프로필을 제공해도, 끝났을 때 각 단계가 몇 초 걸렸는지 정보가 없으면 병목이 auth/session 인지 click 인지 replay 인지를 다시 출력 감으로만 추정해야 했다.
+- 해결: wrapper 종료 시 `suite_duration_seconds` 와 `step_duration_seconds=<label>|<seconds>` 요약을 같이 찍도록 보강했다.
+- 이유: 반복 검증 도구는 성공 여부뿐 아니라 비용도 바로 보여줘야 실제 루프 최적화에 쓸 수 있다. 단계별 duration이 있으면 “quick면 충분한지”, “replay가 얼마나 무거운지”를 바로 읽을 수 있다.
