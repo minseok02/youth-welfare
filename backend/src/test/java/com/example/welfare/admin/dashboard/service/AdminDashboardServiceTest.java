@@ -85,14 +85,22 @@ class AdminDashboardServiceTest {
                 6,
                 LocalDateTime.of(2026, 5, 2, 8, 45)
         ));
-        given(scoreWeightService.getActiveWeight())
-                .willReturn(ScoreWeight.builder()
+        ScoreWeight activeWeight = ScoreWeight.builder()
                         .weightKey("GROWTH")
                         .ruleWeight(new BigDecimal("0.60"))
                         .aiWeight(new BigDecimal("0.40"))
                         .minLogCount(100)
                         .isActive(true)
-                        .build());
+                        .build();
+        given(scoreWeightService.getProgress(250))
+                .willReturn(new ScoreWeightService.ScoreWeightProgress(
+                        activeWeight,
+                        250,
+                        "STABLE",
+                        500,
+                        250L,
+                        false
+                ));
         given(adminDashboardReadRepository.fetchRecommendationWeightBuckets(org.mockito.ArgumentMatchers.any()))
                 .willReturn(List.of(
                         new AdminDashboardReadRepository.RecommendationWeightSnapshotRow("GROWTH", new BigDecimal("0.60"), new BigDecimal("0.40"), 18),
@@ -148,6 +156,10 @@ class AdminDashboardServiceTest {
         assertThat(response.recommendation().activeWeightKey()).isEqualTo("GROWTH");
         assertThat(response.recommendation().activeRuleWeight()).isEqualByComparingTo("0.60");
         assertThat(response.recommendation().activeAiWeight()).isEqualByComparingTo("0.40");
+        assertThat(response.recommendation().nextWeightKey()).isEqualTo("STABLE");
+        assertThat(response.recommendation().nextWeightMinLogCount()).isEqualTo(500);
+        assertThat(response.recommendation().remainingLogsUntilNextWeight()).isEqualTo(250L);
+        assertThat(response.recommendation().topWeightStage()).isFalse();
         assertThat(response.recommendation().totalLogs()).isEqualTo(250);
         assertThat(response.recommendation().windowDays()).isEqualTo(7);
         assertThat(response.recommendation().sentInWindow()).isEqualTo(30);
@@ -188,14 +200,22 @@ class AdminDashboardServiceTest {
         )).willReturn(new AdminDashboardReadRepository.RecommendationSummaryRow(
                 0, 0, 0, 0, 0, null
         ));
-        given(scoreWeightService.getActiveWeight())
-                .willReturn(ScoreWeight.builder()
+        ScoreWeight activeWeight = ScoreWeight.builder()
                         .weightKey("GROWTH")
                         .ruleWeight(new BigDecimal("0.60"))
                         .aiWeight(new BigDecimal("0.40"))
                         .minLogCount(100)
                         .isActive(true)
-                        .build());
+                        .build();
+        given(scoreWeightService.getProgress(0))
+                .willReturn(new ScoreWeightService.ScoreWeightProgress(
+                        activeWeight,
+                        0,
+                        "GROWTH",
+                        100,
+                        100L,
+                        false
+                ));
         given(adminDashboardReadRepository.fetchRecommendationWeightBuckets(org.mockito.ArgumentMatchers.any()))
                 .willReturn(List.of());
         given(adminDashboardReadRepository.fetchNotificationSummary(
@@ -233,6 +253,7 @@ class AdminDashboardServiceTest {
         assertThat(response.trend().collect()).extracting(AdminDashboardResponse.CollectTrendPoint::windowDays)
                 .containsExactly(3, 14);
         assertThat(response.recommendation().windowDays()).isEqualTo(14);
+        assertThat(response.recommendation().nextWeightKey()).isEqualTo("GROWTH");
         assertThat(response.notification().windowDays()).isEqualTo(14);
         assertThat(response.trend().recommendation()).extracting(AdminDashboardResponse.RecommendationTrendPoint::windowDays)
                 .containsExactly(3, 14);
