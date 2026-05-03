@@ -1,5 +1,6 @@
 package com.example.welfare.recommend.facade;
 
+import com.example.welfare.policy.dto.PolicySummaryResponse;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
 import com.example.welfare.recommend.entity.UserRecommendation;
@@ -47,5 +48,14 @@ public class RecommendationReadFacade {
                 .map(rec -> rec.getService().getId())
                 .toList();
         return canonicalRecommendationReadModelRepository.findByServiceIds(serviceIds);
+    }
+
+    public List<PolicySummaryResponse> findBookmarkedPolicySummaries(String userKey) {
+        List<UserRecommendation> bookmarks = userRecommendationRepository.findLatestBookmarkedByUserKey(userKey);
+        Map<Long, RecommendationCandidateProjection> projections = findCandidateProjections(bookmarks);
+        return bookmarks.stream()
+                .map(UserRecommendation::getService)
+                .map(service -> PolicySummaryResponse.from(service, true, projections.get(service.getId())))
+                .toList();
     }
 }
