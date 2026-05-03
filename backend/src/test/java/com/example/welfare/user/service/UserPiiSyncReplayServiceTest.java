@@ -1,21 +1,16 @@
 package com.example.welfare.user.service;
 
 import com.example.welfare.user.dto.response.UserPiiSyncReplayResponse;
-import com.example.welfare.user.entity.UserPiiSyncQueue;
 import com.example.welfare.user.entity.UserPiiSyncQueueStatus;
-import com.example.welfare.user.repository.UserPiiSyncQueueRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.domain.Pageable;
 
 import java.util.List;
-import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 
@@ -26,35 +21,20 @@ class UserPiiSyncReplayServiceTest {
     private UserPiiSyncQueueService userPiiSyncQueueService;
 
     @Mock
-    private UserPiiSyncQueueRepository userPiiSyncQueueRepository;
-
-    @Mock
     private UserPiiSyncProcessor userPiiSyncProcessor;
 
     @Test
     @DisplayName("bulk replay는 failed를 우선 재처리하고 남는 limit만큼 pending을 이어서 처리한다")
     void replayBulkPrioritizesFailedThenPending() {
-        UserPiiSyncQueue failed = UserPiiSyncQueue.builder()
-                .userKey("failed-user")
-                .status(UserPiiSyncQueueStatus.FAILED)
-                .build();
-        UserPiiSyncQueue pending = UserPiiSyncQueue.builder()
-                .userKey("pending-user")
-                .status(UserPiiSyncQueueStatus.PENDING)
-                .build();
-
-        given(userPiiSyncQueueRepository.findByStatusOrderByLastAttemptAtAscIdAsc(
-                UserPiiSyncQueueStatus.FAILED, Pageable.ofSize(2)))
-                .willReturn(List.of(failed));
-        given(userPiiSyncQueueRepository.findByStatusOrderByLastEnqueuedAtAscIdAsc(
-                UserPiiSyncQueueStatus.PENDING, Pageable.ofSize(1)))
-                .willReturn(List.of(pending));
+        given(userPiiSyncQueueService.findReplayFailedUserKeys(2))
+                .willReturn(List.of("failed-user"));
+        given(userPiiSyncQueueService.findReplayPendingUserKeys(1))
+                .willReturn(List.of("pending-user"));
         given(userPiiSyncProcessor.process("failed-user")).willReturn(UserPiiSyncQueueStatus.SYNCED);
         given(userPiiSyncProcessor.process("pending-user")).willReturn(UserPiiSyncQueueStatus.FAILED);
 
         UserPiiSyncReplayService service = new UserPiiSyncReplayService(
                 userPiiSyncQueueService,
-                userPiiSyncQueueRepository,
                 userPiiSyncProcessor
         );
 
@@ -75,7 +55,6 @@ class UserPiiSyncReplayServiceTest {
 
         UserPiiSyncReplayService service = new UserPiiSyncReplayService(
                 userPiiSyncQueueService,
-                userPiiSyncQueueRepository,
                 userPiiSyncProcessor
         );
 
@@ -91,15 +70,11 @@ class UserPiiSyncReplayServiceTest {
     @Test
     @DisplayName("single replay는 processor의 최종 상태를 그대로 집계한다")
     void replaySingleCountsProcessorResult() {
-        UserPiiSyncQueue queue = UserPiiSyncQueue.builder()
-                .userKey("user-key-1")
-                .build();
         given(userPiiSyncQueueService.exists("user-key-1")).willReturn(true);
         given(userPiiSyncProcessor.process("user-key-1")).willReturn(UserPiiSyncQueueStatus.SYNCED);
 
         UserPiiSyncReplayService service = new UserPiiSyncReplayService(
                 userPiiSyncQueueService,
-                userPiiSyncQueueRepository,
                 userPiiSyncProcessor
         );
 

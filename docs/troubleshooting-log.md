@@ -2676,3 +2676,8 @@
 - 문제: `getAggregate(serviceId)` 는 `WelfareServiceDetailRepository`, `ServiceRegionRepository`, `PolicyTagReadRepository` 를 서비스 본문에서 직접 호출해 aggregate 를 만들고 있었다.
 - 해결: `PolicyDetailReadRepository` 를 추가하고, 상세 aggregate 조립을 repository 구현으로 이동했다.
 - 이유: 서비스는 상세 응답 orchestration 에 집중하고, 여러 저장소를 묶는 read 조합 책임은 별도 read repository 에 두는 편이 policy read 경계를 더 일관되게 유지한다.
+
+## 488) `UserPiiSyncStatusService`, `UserPiiSyncReplayService` 가 queue 상태 조회와 replay 대상 선정을 위해 `UserPiiSyncQueueRepository` 를 직접 보면, queue access 경계가 다시 status/replay 서비스로 퍼진다
+- 문제: 상태 집계(count/oldest/latest/failed samples)와 replay 대상 조회(failed 우선, pending 보충)를 각 서비스가 저장소 질의 형태로 직접 알고 있었다.
+- 해결: `UserPiiSyncQueueService` 에 count/status snapshot/failed sample/replay user key 조회 메서드를 추가하고, status/replay 서비스는 이 경계로만 읽게 정리했다.
+- 이유: queue row 생성뿐 아니라 queue 상태 read 정책도 같은 service 경계에 모아야 user pii sync 흐름의 저장소 접근 규칙을 한 곳에서 유지하기 쉽다.
