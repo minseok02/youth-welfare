@@ -2551,3 +2551,8 @@
 - 문제: `AdminDashboardService` 가 `BokjiroLocalClient.getRateLimitCircuitStatus()` 를 직접 호출하고 있었다. 이 구조에서는 admin dashboard가 collect runtime status 자체가 아니라 특정 source gateway 구현과 그 내부 상태 표현을 직접 알아야 했다.
 - 해결: `CollectRuntimeStatusService` 를 추가하고, dashboard는 collect runtime status 전용 서비스가 반환하는 snapshot만 읽도록 바꿨다.
 - 이유: 운영 관측 계층은 개별 gateway 구현보다 “현재 수집 런타임 상태”라는 응용 계층 개념에 의존하는 편이 경계가 더 명확하고, 이후 source가 늘어나도 dashboard 수정 범위를 줄일 수 있다.
+
+## 463) `RetrievalService` 가 지역/최신 조합마다 `WelfareServiceRepository` 메서드를 직접 고르면, 추천 후보 조회 규칙이 서비스 코드와 persistence 분기 로직에 같이 퍼진다
+- 문제: `RetrievalService` 가 `findCandidatesWithRegionCode`, `findCandidatesWithSido`, `findLatestCandidatesWithRegionCode`, `findLatestCandidatesWithSido`, `findCandidates`, `findLatestCandidates` 를 직접 선택하고 있었다. 이 상태에서는 추천 후보 조회 조합이 바뀔 때 retrieval 서비스와 repository 분기가 함께 수정된다.
+- 해결: `RecommendationCandidateReadCondition`, `RecommendationCandidateReadRepository` 를 추가하고, `RetrievalService` 는 추천 후보 조회 의도만 condition으로 넘기게 바꿨다. 실제 조합식 repository 선택은 전용 read repository 구현으로 이동시켰다.
+- 이유: 추천 파이프라인 서비스는 “어떤 후보를 읽고 싶은가”에 집중하고, 지역/최신 조합식 persistence 선택은 read 계층으로 숨기는 편이 SRP와 변경 파급도 관리에 더 낫다.

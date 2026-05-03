@@ -1127,6 +1127,9 @@ cd backend
 - 2026-05-03 collect runtime status 경계 정리
   - `CollectRuntimeStatusService` 추가
   - `AdminDashboardService` 가 `BokjiroLocalClient` 구현을 직접 알지 않고 collect runtime status 전용 서비스만 보도록 정리
+- 2026-05-03 recommendation retrieval 조합식 조회 경계 정리
+  - `RecommendationCandidateReadCondition`, `RecommendationCandidateReadRepository` 추가
+  - `RetrievalService` 가 `findCandidates...` / `findLatestCandidates...` 조합 메서드를 직접 고르지 않고 추천 후보 전용 read repository로 위임
 
 ## 남은 1차 작업
 
