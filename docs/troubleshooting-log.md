@@ -2342,3 +2342,8 @@
 - 문제: 개인 캐시 도입 뒤 `run-local-education-priority-replay.sh` 가 갑자기 `A_top10_target=5->5`, `A_best_target_rank=3->3` 으로 실패했다. 추천 로직 자체 회귀처럼 보였지만, 실제 원인은 OFF phase가 만든 refresh 마커를 ON phase도 그대로 cache hit 하며 재사용한 것이었다. replay는 `RECOMMEND_PRIORITY_EDUCATION_CANONICAL_BONUS_ENABLED` 값을 바꾸기 위해 앱을 재기동하지만 Redis 마커는 남아 있으므로, `userKey` 단독 key 는 규칙 버전 차이를 구분하지 못했다.
 - 해결: `RecommendationRefreshCacheService` key에 `educationCanonicalBonusEnabled` 규칙 버전을 포함시켰다. 같은 사용자라도 추천 규칙 플래그 조합이 달라지면 서로 다른 refresh 마커를 보게 만들었고, 그 뒤 replay smoke는 다시 `A_top10_target=5->8`, `A_best_target_rank=3->1` 로 복구됐다.
 - 이유: 개인 캐시는 “같은 입력/같은 규칙 버전의 짧은 재계산”만 줄여야 한다. 캐시 key가 사용자만 구분하고 규칙 버전을 구분하지 않으면, 실험/feature-flag 전환/앱 재기동 비교가 전부 stale hit 로 오염된다.
+
+## 430) education replay smoke는 sample A가 OFF 단계부터 이미 상위권에 포화된 snapshot이면 “추가 개선”만 hard gate로 요구할수록 거짓 실패가 늘어난다
+- 문제: collect 실검증을 다시 돌린 최신 snapshot에서 `YOUTH`, `BOKJIRO_CENTRAL`, `BOKJIRO_LOCAL`, `bokjiro-details-gap-fill` 은 모두 정상 완료됐지만, replay는 sample A가 OFF 단계부터 `A_best_target_rank=2`, `A_top10_target=5` 인 상태라 ON에서도 같은 수치가 나오자 `sample A did not improve target row visibility` 로 실패했다. 이건 canonical bonus가 죽은 게 아니라, target row visibility가 이미 충분히 높은 포화 상태인데 gate가 “더 좋아져야만 통과”라고 가정한 경우였다.
+- 해결: `run-local-education-priority-replay.sh` 에 `strong_target_visibility()` 조건을 추가해, sample A가 OFF 단계에서 이미 `best_target_rank<=2` 또는 `top10_target_count>=5` 이면 OFF/ON이 동일해도 pass 하도록 보정했다.
+- 이유: replay smoke의 목적은 canonical bonus가 죽었는지 빠르게 보는 것이지, 이미 충분히 잘 보이는 snapshot에서도 매번 추가 상승을 강제하는 것이 아니다. 포화 구간을 gate에 반영해야 collect snapshot 변화에 덜 과적합된다.
