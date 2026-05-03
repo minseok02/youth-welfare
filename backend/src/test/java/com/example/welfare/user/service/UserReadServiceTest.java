@@ -344,4 +344,24 @@ class UserReadServiceTest {
                 .extracting("errorCode")
                 .isEqualTo(com.example.welfare.global.exception.ErrorCode.USER_NOT_FOUND);
     }
+
+    @Test
+    @DisplayName("existing user id by userKey 조회는 userId를 반환한다")
+    void requireExistingUserIdByUserKeyReturnsUserId() {
+        UserReadService userReadService = new UserReadService(
+                userRepository,
+                authUserRepository,
+                userProfileRepository,
+                userPiiReadWriteRepository,
+                notificationPiiReadRepository,
+                userAttributeRepository,
+                userPriorityRepository,
+                aesEncryptUtil,
+                userKeyLookupService
+        );
+
+        when(userRepository.findIdByUserKey("user-key-11")).thenReturn(Optional.of(11L));
+
+        assertThat(userReadService.requireExistingUserIdByUserKey("user-key-11")).isEqualTo(11L);
+    }
 }

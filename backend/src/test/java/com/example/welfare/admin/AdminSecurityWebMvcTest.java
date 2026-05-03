@@ -23,9 +23,9 @@ import com.example.welfare.user.dto.response.UserMetadataUserKeyBackfillResponse
 import com.example.welfare.user.dto.response.UserPiiBackfillResponse;
 import com.example.welfare.user.dto.response.UserPiiSyncReplayResponse;
 import com.example.welfare.user.dto.response.UserPiiSyncStatusResponse;
-import com.example.welfare.user.repository.UserRepository;
 import com.example.welfare.user.service.UserMetadataUserKeyBackfillService;
 import com.example.welfare.user.service.UserPiiBackfillService;
+import com.example.welfare.user.service.UserReadService;
 import com.example.welfare.user.service.UserPiiSyncReplayService;
 import com.example.welfare.user.service.UserPiiSyncStatusService;
 import com.example.welfare.user.service.UserSessionRevocationService;
@@ -79,7 +79,7 @@ class AdminSecurityWebMvcTest {
     @MockBean
     private UserSessionRevocationService userSessionRevocationService;
     @MockBean
-    private UserRepository userRepository;
+    private UserReadService userReadService;
     @MockBean
     private AdminDashboardService adminDashboardService;
     @MockBean
@@ -807,7 +807,7 @@ class AdminSecurityWebMvcTest {
                 new SimpleGrantedAuthority("ROLE_USER"),
                 new SimpleGrantedAuthority("ROLE_ADMIN")
         ));
-        given(userRepository.findIdByUserKey("user-key-1")).willReturn(java.util.Optional.of(1L));
+        given(userReadService.requireExistingUserIdByUserKey("user-key-1")).willReturn(1L);
 
         mockMvc.perform(post("/api/admin/users/forced-logout")
                         .contentType("application/json")
@@ -853,7 +853,8 @@ class AdminSecurityWebMvcTest {
                 new SimpleGrantedAuthority("ROLE_USER"),
                 new SimpleGrantedAuthority("ROLE_ADMIN")
         ));
-        given(userRepository.findIdByUserKey("missing-user")).willReturn(java.util.Optional.empty());
+        given(userReadService.requireExistingUserIdByUserKey("missing-user"))
+                .willThrow(new CustomException(ErrorCode.USER_NOT_FOUND));
 
         mockMvc.perform(post("/api/admin/users/forced-logout")
                         .contentType("application/json")

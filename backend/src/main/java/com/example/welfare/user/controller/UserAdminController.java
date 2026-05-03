@@ -7,9 +7,9 @@ import com.example.welfare.user.dto.response.UserMetadataUserKeyBackfillResponse
 import com.example.welfare.user.dto.response.UserPiiBackfillResponse;
 import com.example.welfare.user.dto.response.UserPiiSyncReplayResponse;
 import com.example.welfare.user.dto.response.UserPiiSyncStatusResponse;
-import com.example.welfare.user.repository.UserRepository;
 import com.example.welfare.user.service.UserMetadataUserKeyBackfillService;
 import com.example.welfare.user.service.UserPiiBackfillService;
+import com.example.welfare.user.service.UserReadService;
 import com.example.welfare.user.service.UserPiiSyncReplayService;
 import com.example.welfare.user.service.UserPiiSyncStatusService;
 import com.example.welfare.user.service.UserSessionRevocationService;
@@ -35,7 +35,7 @@ public class UserAdminController {
     private final UserPiiSyncReplayService userPiiSyncReplayService;
     private final UserPiiSyncStatusService userPiiSyncStatusService;
     private final UserSessionRevocationService userSessionRevocationService;
-    private final UserRepository userRepository;
+    private final UserReadService userReadService;
 
     @PostMapping("/metadata-user-key-backfill")
     public ResponseEntity<ApiResponse<UserMetadataUserKeyBackfillResponse>> backfillUserMetadataUserKeys() {
@@ -57,8 +57,7 @@ public class UserAdminController {
         if (!StringUtils.hasText(userKey)) {
             throw new CustomException(ErrorCode.INVALID_INPUT);
         }
-        userRepository.findIdByUserKey(userKey)
-                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+        userReadService.requireExistingUserIdByUserKey(userKey);
 
         long cutoffMillis = System.currentTimeMillis();
         userSessionRevocationService.revokeUserSessions(userKey, cutoffMillis);
