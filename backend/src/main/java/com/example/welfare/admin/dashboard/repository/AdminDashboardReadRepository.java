@@ -120,9 +120,9 @@ public class AdminDashboardReadRepository {
         return jdbcTemplate.queryForObject("""
                 select count(*) as total_logs,
                        coalesce(sum(case when sent_at >= :dayAgo then 1 else 0 end), 0) as sent_last_24h,
-                       coalesce(sum(case when sent_at >= :weekAgo then 1 else 0 end), 0) as sent_last_7d,
-                       coalesce(sum(case when is_clicked = true and clicked_at >= :weekAgo then 1 else 0 end), 0) as clicked_last_7d,
-                       coalesce(sum(case when is_fallback = true and sent_at >= :weekAgo then 1 else 0 end), 0) as fallback_last_7d,
+                       coalesce(sum(case when sent_at >= :weekAgo then 1 else 0 end), 0) as sent_in_window,
+                       coalesce(sum(case when is_clicked = true and clicked_at >= :weekAgo then 1 else 0 end), 0) as clicked_in_window,
+                       coalesce(sum(case when is_fallback = true and sent_at >= :weekAgo then 1 else 0 end), 0) as fallback_in_window,
                        max(clicked_at) as latest_clicked_at
                   from recommendation_logs
                 """,
@@ -132,9 +132,9 @@ public class AdminDashboardReadRepository {
                 (rs, rowNum) -> new RecommendationSummaryRow(
                         rs.getLong("total_logs"),
                         rs.getLong("sent_last_24h"),
-                        rs.getLong("sent_last_7d"),
-                        rs.getLong("clicked_last_7d"),
-                        rs.getLong("fallback_last_7d"),
+                        rs.getLong("sent_in_window"),
+                        rs.getLong("clicked_in_window"),
+                        rs.getLong("fallback_in_window"),
                         getLocalDateTime(rs, "latest_clicked_at")
                 )
         );
@@ -205,10 +205,10 @@ public class AdminDashboardReadRepository {
     public SearchSummaryRow fetchSearchSummary(LocalDateTime dayAgo, LocalDateTime weekAgo) {
         return jdbcTemplate.queryForObject("""
                 select coalesce(sum(case when searched_at >= :dayAgo then 1 else 0 end), 0) as searches_last_24h,
-                       coalesce(sum(case when searched_at >= :weekAgo then 1 else 0 end), 0) as searches_last_7d,
-                       coalesce(sum(case when searched_at >= :weekAgo and result_count = 0 then 1 else 0 end), 0) as zero_result_searches_last_7d,
-                       coalesce(count(distinct case when searched_at >= :weekAgo then client_fingerprint end), 0) as unique_fingerprints_last_7d,
-                       coalesce(avg(case when searched_at >= :weekAgo then result_count end), 0) as avg_result_count_last_7d
+                       coalesce(sum(case when searched_at >= :weekAgo then 1 else 0 end), 0) as searches_in_window,
+                       coalesce(sum(case when searched_at >= :weekAgo and result_count = 0 then 1 else 0 end), 0) as zero_result_searches_in_window,
+                       coalesce(count(distinct case when searched_at >= :weekAgo then client_fingerprint end), 0) as unique_fingerprints_in_window,
+                       coalesce(avg(case when searched_at >= :weekAgo then result_count end), 0) as avg_result_count_in_window
                   from search_logs
                 """,
                 new MapSqlParameterSource()
@@ -216,10 +216,10 @@ public class AdminDashboardReadRepository {
                         .addValue("weekAgo", weekAgo),
                 (rs, rowNum) -> new SearchSummaryRow(
                         rs.getLong("searches_last_24h"),
-                        rs.getLong("searches_last_7d"),
-                        rs.getLong("zero_result_searches_last_7d"),
-                        rs.getLong("unique_fingerprints_last_7d"),
-                        rs.getBigDecimal("avg_result_count_last_7d")
+                        rs.getLong("searches_in_window"),
+                        rs.getLong("zero_result_searches_in_window"),
+                        rs.getLong("unique_fingerprints_in_window"),
+                        rs.getBigDecimal("avg_result_count_in_window")
                 )
         );
     }
@@ -305,9 +305,9 @@ public class AdminDashboardReadRepository {
     public record RecommendationSummaryRow(
             long totalLogs,
             long sentLast24h,
-            long sentLast7d,
-            long clickedLast7d,
-            long fallbackLast7d,
+            long sentInWindow,
+            long clickedInWindow,
+            long fallbackInWindow,
             LocalDateTime latestClickedAt
     ) {
     }
@@ -337,10 +337,10 @@ public class AdminDashboardReadRepository {
 
     public record SearchSummaryRow(
             long searchesLast24h,
-            long searchesLast7d,
-            long zeroResultSearchesLast7d,
-            long uniqueFingerprintsLast7d,
-            BigDecimal averageResultCountLast7d
+            long searchesInWindow,
+            long zeroResultSearchesInWindow,
+            long uniqueFingerprintsInWindow,
+            BigDecimal averageResultCountInWindow
     ) {
     }
 

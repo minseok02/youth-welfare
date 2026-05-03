@@ -23,9 +23,10 @@ public class AdminDashboardController {
 
     @GetMapping("/summary")
     public ResponseEntity<ApiResponse<AdminDashboardResponse>> getSummary(
+            @RequestParam(name = "summaryWindowDays", required = false) Integer summaryWindowDays,
             @RequestParam(name = "trendWindowDays", required = false) List<Integer> trendWindowDays
     ) {
-        log.info("[Admin] dashboard summary 조회 trendWindowDays={}", trendWindowDays);
-        return ResponseEntity.ok(ApiResponse.success(adminDashboardService.getSummary(trendWindowDays)));
+        log.info("[Admin] dashboard summary 조회 summaryWindowDays={} trendWindowDays={}", summaryWindowDays, trendWindowDays);
+        return ResponseEntity.ok(ApiResponse.success(adminDashboardService.getSummary(summaryWindowDays, trendWindowDays)));
     }
 }

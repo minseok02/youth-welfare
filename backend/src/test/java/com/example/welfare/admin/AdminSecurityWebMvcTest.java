@@ -133,7 +133,10 @@ class AdminSecurityWebMvcTest {
                 new SimpleGrantedAuthority("ROLE_USER"),
                 new SimpleGrantedAuthority("ROLE_ADMIN")
         ));
-        given(adminDashboardService.getSummary(null))
+        given(adminDashboardService.getSummary(
+                org.mockito.ArgumentMatchers.isNull(),
+                org.mockito.ArgumentMatchers.any()
+        ))
                 .willReturn(new AdminDashboardResponse(
                         LocalDateTime.of(2026, 5, 2, 10, 0),
                         new AdminDashboardResponse.CollectSection(
@@ -141,6 +144,7 @@ class AdminSecurityWebMvcTest {
                                 3,
                                 1,
                                 0,
+                                7,
                                 List.of(),
                                 List.of(
                                         new AdminDashboardResponse.CollectFailureSnapshot(
@@ -162,6 +166,7 @@ class AdminSecurityWebMvcTest {
                                 java.math.BigDecimal.valueOf(0.40),
                                 250,
                                 2,
+                                7,
                                 8,
                                 3,
                                 1,
@@ -178,7 +183,7 @@ class AdminSecurityWebMvcTest {
                                 )
                         ),
                         new AdminDashboardResponse.NotificationSection(1, 0, 5, 1),
-                        new AdminDashboardResponse.SearchSection(4, 12, 2, 7, java.math.BigDecimal.valueOf(5.25), List.of(
+                        new AdminDashboardResponse.SearchSection(4, 7, 12, 2, 7, java.math.BigDecimal.valueOf(5.25), List.of(
                                 new AdminDashboardResponse.SearchKeywordSnapshot("월세", 5)
                         )),
                         new AdminDashboardResponse.UserPiiSyncSection(0, 1, 12, LocalDateTime.of(2026, 5, 2, 9, 30)),
@@ -227,16 +232,22 @@ class AdminSecurityWebMvcTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.collect.successJobsLast24h").value(3))
-                .andExpect(jsonPath("$.data.collect.latestFailuresLast7d[0].jobName").value("BOKJIRO_LOCAL"))
-                .andExpect(jsonPath("$.data.recommendation.sentLast7d").value(8))
-                .andExpect(jsonPath("$.data.search.zeroResultSearchesLast7d").value(2))
+                .andExpect(jsonPath("$.data.collect.failureWindowDays").value(7))
+                .andExpect(jsonPath("$.data.collect.latestFailuresInWindow[0].jobName").value("BOKJIRO_LOCAL"))
+                .andExpect(jsonPath("$.data.recommendation.windowDays").value(7))
+                .andExpect(jsonPath("$.data.recommendation.sentInWindow").value(8))
+                .andExpect(jsonPath("$.data.search.windowDays").value(7))
+                .andExpect(jsonPath("$.data.search.zeroResultSearchesInWindow").value(2))
                 .andExpect(jsonPath("$.data.trend.collect[1].windowDays").value(7))
                 .andExpect(jsonPath("$.data.trend.recommendation[1].clickThroughRate").value(0.3000))
                 .andExpect(jsonPath("$.data.trend.search[2].zeroResultSearches").value(7))
-                .andExpect(jsonPath("$.data.search.topKeywordsLast7d[0].keyword").value("월세"))
+                .andExpect(jsonPath("$.data.search.topKeywordsInWindow[0].keyword").value("월세"))
                 .andExpect(jsonPath("$.data.userPiiSync.failedCount").value(1));
 
-        then(adminDashboardService).should().getSummary(null);
+        then(adminDashboardService).should().getSummary(
+                org.mockito.ArgumentMatchers.isNull(),
+                org.mockito.ArgumentMatchers.any()
+        );
     }
 
     @Test
@@ -246,16 +257,17 @@ class AdminSecurityWebMvcTest {
                 new SimpleGrantedAuthority("ROLE_USER"),
                 new SimpleGrantedAuthority("ROLE_ADMIN")
         ));
-        given(adminDashboardService.getSummary(List.of(3, 14)))
+        given(adminDashboardService.getSummary(14, List.of(3, 14)))
                 .willReturn(new AdminDashboardResponse(
                         LocalDateTime.of(2026, 5, 3, 14, 0),
-                        new AdminDashboardResponse.CollectSection(0, 0, 0, 0, List.of(), List.of()),
+                        new AdminDashboardResponse.CollectSection(0, 0, 0, 0, 14, List.of(), List.of()),
                         new AdminDashboardResponse.RecommendationSection(
                                 "GROWTH",
                                 java.math.BigDecimal.valueOf(0.60),
                                 java.math.BigDecimal.valueOf(0.40),
                                 10,
                                 1,
+                                14,
                                 2,
                                 1,
                                 0,
@@ -265,7 +277,7 @@ class AdminSecurityWebMvcTest {
                                 List.of()
                         ),
                         new AdminDashboardResponse.NotificationSection(0, 0, 0, 0),
-                        new AdminDashboardResponse.SearchSection(0, 0, 0, 0, java.math.BigDecimal.ZERO, List.of()),
+                        new AdminDashboardResponse.SearchSection(0, 14, 0, 0, 0, java.math.BigDecimal.ZERO, List.of()),
                         new AdminDashboardResponse.UserPiiSyncSection(0, 0, 0, null),
                         new AdminDashboardResponse.TrendSection(
                                 List.of(
@@ -298,16 +310,20 @@ class AdminSecurityWebMvcTest {
                 ));
 
         mockMvc.perform(get("/api/admin/dashboard/summary")
+                        .param("summaryWindowDays", "14")
                         .param("trendWindowDays", "3", "14")
                         .header("Authorization", "Bearer admin-token"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.collect.failureWindowDays").value(14))
                 .andExpect(jsonPath("$.data.trend.collect[0].windowDays").value(3))
                 .andExpect(jsonPath("$.data.trend.collect[1].windowDays").value(14))
+                .andExpect(jsonPath("$.data.recommendation.windowDays").value(14))
                 .andExpect(jsonPath("$.data.trend.recommendation[1].fallbackRate").value(0.5000))
+                .andExpect(jsonPath("$.data.search.windowDays").value(14))
                 .andExpect(jsonPath("$.data.trend.search[1].windowDays").value(14));
 
-        then(adminDashboardService).should().getSummary(List.of(3, 14));
+        then(adminDashboardService).should().getSummary(14, List.of(3, 14));
     }
 
     @Test

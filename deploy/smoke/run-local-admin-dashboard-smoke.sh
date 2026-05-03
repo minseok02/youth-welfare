@@ -7,6 +7,7 @@ APP_CONTAINER_NAME="${APP_CONTAINER_NAME:-youth-welfare-app}"
 
 ADMIN_EMAIL="${ADMIN_EMAIL:-admin@example.com}"
 ADMIN_PASSWORD="${ADMIN_PASSWORD:-password123!}"
+SUMMARY_WINDOW_DAYS="${SUMMARY_WINDOW_DAYS:-7}"
 TREND_WINDOW_DAYS_CSV="${TREND_WINDOW_DAYS_CSV:-1,7,30}"
 
 ARTIFACT_DIR="${ARTIFACT_DIR:-$(mktemp -d)}"
@@ -78,8 +79,9 @@ extract_container_admin_allowlist() {
 
 assert_dashboard_contract() {
   local response_file="$1"
-  local expected_windows_csv="$2"
-  python3 - "$response_file" "$expected_windows_csv" <<'PY'
+  local expected_summary_window_days="$2"
+  local expected_trend_windows_csv="$3"
+  python3 - "$response_file" "$expected_summary_window_days" "$expected_trend_windows_csv" <<'PY'
 import json
 import sys
 
@@ -87,25 +89,30 @@ with open(sys.argv[1], "r", encoding="utf-8") as fp:
     payload = json.load(fp)
 
 data = payload["data"]
-expected_windows = [int(value) for value in sys.argv[2].split(",") if value]
+expected_summary_window = int(sys.argv[2])
+expected_trend_windows = [int(value) for value in sys.argv[3].split(",") if value]
 
 assert data["generatedAt"], "generatedAt missing"
 assert isinstance(data["collect"]["failedJobsLast24h"], int), "collect.failedJobsLast24h must be int"
 assert isinstance(data["recommendation"]["totalLogs"], int), "recommendation.totalLogs must be int"
-assert isinstance(data["search"]["zeroResultSearchesLast7d"], int), "search.zeroResultSearchesLast7d must be int"
+assert data["collect"]["failureWindowDays"] == expected_summary_window, "unexpected collect failureWindowDays"
+assert data["recommendation"]["windowDays"] == expected_summary_window, "unexpected recommendation windowDays"
+assert data["search"]["windowDays"] == expected_summary_window, "unexpected search windowDays"
+assert isinstance(data["search"]["zeroResultSearchesInWindow"], int), "search.zeroResultSearchesInWindow must be int"
 
 collect_windows = [point["windowDays"] for point in data["trend"]["collect"]]
 recommendation_windows = [point["windowDays"] for point in data["trend"]["recommendation"]]
 search_windows = [point["windowDays"] for point in data["trend"]["search"]]
 
-assert collect_windows == expected_windows, f"unexpected collect trend windows: {collect_windows}"
-assert recommendation_windows == expected_windows, f"unexpected recommendation trend windows: {recommendation_windows}"
-assert search_windows == expected_windows, f"unexpected search trend windows: {search_windows}"
+assert collect_windows == expected_trend_windows, f"unexpected collect trend windows: {collect_windows}"
+assert recommendation_windows == expected_trend_windows, f"unexpected recommendation trend windows: {recommendation_windows}"
+assert search_windows == expected_trend_windows, f"unexpected search trend windows: {search_windows}"
 
 print(data["generatedAt"])
 print(data["collect"]["failedJobsLast24h"])
 print(data["recommendation"]["totalLogs"])
-print(data["search"]["zeroResultSearchesLast7d"])
+print(data["search"]["zeroResultSearchesInWindow"])
+print(data["collect"]["failureWindowDays"])
 print(",".join(str(v) for v in collect_windows))
 PY
 }
@@ -170,12 +177,12 @@ print(urlencode([("trendWindowDays", value) for value in values]))
 PY
 )"
 DASHBOARD_STATUS="$(
-  http_status GET "${APP_BASE_URL}/api/admin/dashboard/summary?${TREND_QUERY_STRING}" "${DASHBOARD_RESPONSE}" \
+  http_status GET "${APP_BASE_URL}/api/admin/dashboard/summary?summaryWindowDays=${SUMMARY_WINDOW_DAYS}&${TREND_QUERY_STRING}" "${DASHBOARD_RESPONSE}" \
     -H "Authorization: Bearer ${ADMIN_TOKEN}"
 )"
 assert_status 200 "${DASHBOARD_STATUS}" "dashboard summary" "${DASHBOARD_RESPONSE}"
 
-mapfile -t DASHBOARD_VALUES < <(assert_dashboard_contract "${DASHBOARD_RESPONSE}" "${TREND_WINDOW_DAYS_CSV}")
+mapfile -t DASHBOARD_VALUES < <(assert_dashboard_contract "${DASHBOARD_RESPONSE}" "${SUMMARY_WINDOW_DAYS}" "${TREND_WINDOW_DAYS_CSV}")
 
 echo
 echo "admin dashboard smoke passed"
@@ -185,8 +192,10 @@ echo "admin_roles=${ADMIN_ROLES}"
 echo "generated_at=${DASHBOARD_VALUES[0]}"
 echo "collect_failed_jobs_last24h=${DASHBOARD_VALUES[1]}"
 echo "recommendation_total_logs=${DASHBOARD_VALUES[2]}"
-echo "search_zero_result_searches_last7d=${DASHBOARD_VALUES[3]}"
-echo "collect_trend_windows=${DASHBOARD_VALUES[4]}"
+echo "search_zero_result_searches_in_window=${DASHBOARD_VALUES[3]}"
+echo "summary_window_days=${DASHBOARD_VALUES[4]}"
+echo "collect_trend_windows=${DASHBOARD_VALUES[5]}"
+echo "requested_summary_window_days=${SUMMARY_WINDOW_DAYS}"
 echo "requested_trend_window_days=${TREND_WINDOW_DAYS_CSV}"
 if [[ -n "${CONTAINER_ADMIN_ALLOWLIST}" ]]; then
   echo "container_security_admin_emails=${CONTAINER_ADMIN_ALLOWLIST}"
