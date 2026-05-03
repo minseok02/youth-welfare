@@ -11,6 +11,7 @@ RUN_ADMIN_DASHBOARD_SMOKE="${RUN_ADMIN_DASHBOARD_SMOKE:-}"
 RUN_REPLAY_SMOKE="${RUN_REPLAY_SMOKE:-}"
 SUITE_START_EPOCH="$(date +%s)"
 STEP_SUMMARY_LINES=()
+CURRENT_STEP_LABEL=""
 
 normalize_flag() {
   local value="${1,,}"
@@ -56,13 +57,28 @@ run_step() {
   local step_end
   local step_duration
 
+  CURRENT_STEP_LABEL="${label}"
   smoke_print_step "${label}"
   step_start="$(date +%s)"
   bash "${script_path}"
   step_end="$(date +%s)"
   step_duration="$((step_end - step_start))"
   STEP_SUMMARY_LINES+=("${label}|${step_duration}")
+  CURRENT_STEP_LABEL=""
 }
+
+on_error() {
+  local failed_at_epoch
+  failed_at_epoch="$(date +%s)"
+  echo
+  echo "local validation suite failed" >&2
+  if [[ -n "${CURRENT_STEP_LABEL}" ]]; then
+    echo "failed_step=${CURRENT_STEP_LABEL}" >&2
+  fi
+  echo "elapsed_before_failure_seconds=$((failed_at_epoch - SUITE_START_EPOCH))" >&2
+}
+
+trap on_error ERR
 
 resolve_profile_defaults
 
