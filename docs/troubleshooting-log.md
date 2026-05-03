@@ -2716,3 +2716,8 @@
 - 문제: bulk 알림 대상 조회는 이미 `NotificationTargetReadRepository` 뒤로 옮겼는데, 단건 이메일 조회는 여전히 `NotificationPiiReadRepository.findEncryptedEmailByUserKey(...)` 를 service 본문에서 직접 호출하고 있었다.
 - 해결: `NotificationTargetReadRepository` 에 `findEncryptedEmailByUserKey(...)` 를 추가하고, 단건 notification email read 도 같은 경계로 통일했다.
 - 이유: 알림 대상 row/email read 규칙은 bulk/단건을 같은 read repository 에 모아야 notification read policy 변경 시 영향 범위가 작고 일관성도 유지된다.
+
+## 496) `UserProfileCommandService` 와 `UserAccountCommandService` 가 attribute/priority 저장소를 직접 조합하면, metadata write 규칙이 profile 수정/우선순위 저장/탈퇴 경로마다 다시 퍼진다
+- 문제: 프로필 수정은 관심분야/대상유형 교체 저장을 직접 처리하고, 우선순위 저장은 priority delete+save 를 직접 수행했으며, 탈퇴도 attribute/priority 삭제를 각각 직접 호출하고 있었다.
+- 해결: `UserMetadataCommandRepository` 를 추가하고, attribute replace / priority replace / metadata delete-all / 관심분야 존재 확인을 같은 write 경계로 모았다.
+- 이유: metadata 조작 규칙은 profile/account command 서비스에서 중복으로 들고 있기보다, 별도 command repository 에 모아야 변경 영향 범위가 줄고 테스트도 단순해진다.

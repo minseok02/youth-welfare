@@ -3,8 +3,7 @@ package com.example.welfare.user.service;
 import com.example.welfare.chat.service.ChatSessionCleanupService;
 import com.example.welfare.recommend.service.RecommendationRefreshCacheService;
 import com.example.welfare.user.entity.User;
-import com.example.welfare.user.repository.UserAttributeRepository;
-import com.example.welfare.user.repository.UserPriorityRepository;
+import com.example.welfare.user.repository.UserMetadataCommandRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -23,8 +22,7 @@ import static org.mockito.Mockito.when;
 class UserAccountCommandServiceTest {
 
     @Mock private UserReadService userReadService;
-    @Mock private UserAttributeRepository userAttributeRepository;
-    @Mock private UserPriorityRepository userPriorityRepository;
+    @Mock private UserMetadataCommandRepository userMetadataCommandRepository;
     @Mock private PasswordEncoder passwordEncoder;
     @Mock private RedisTemplate<String, String> redisTemplate;
     @Mock private AccessTokenRevocationService accessTokenRevocationService;
@@ -37,8 +35,7 @@ class UserAccountCommandServiceTest {
     void withdrawDeletesChatSessionsRefreshTokenAndRevokesAccessToken() {
         UserAccountCommandService service = new UserAccountCommandService(
                 userReadService,
-                userAttributeRepository,
-                userPriorityRepository,
+                userMetadataCommandRepository,
                 passwordEncoder,
                 redisTemplate,
                 accessTokenRevocationService,
@@ -60,8 +57,7 @@ class UserAccountCommandServiceTest {
         service.withdraw(1L, "password123", "access-token-value");
 
         verify(recommendationRefreshCacheService).evict("user-key-1");
-        verify(userAttributeRepository).deleteByUserKey("user-key-1");
-        verify(userPriorityRepository).deleteByUserKey("user-key-1");
+        verify(userMetadataCommandRepository).deleteAllByUserKey("user-key-1");
         verify(chatSessionCleanupService).deleteAllByUserKey(user.getUserKey());
         verify(redisTemplate).delete("refresh:user-key-1");
         verify(accessTokenRevocationService).revoke("access-token-value");

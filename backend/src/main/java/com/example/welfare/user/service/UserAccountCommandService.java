@@ -5,8 +5,7 @@ import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.recommend.service.RecommendationRefreshCacheService;
 import com.example.welfare.user.entity.User;
-import com.example.welfare.user.repository.UserAttributeRepository;
-import com.example.welfare.user.repository.UserPriorityRepository;
+import com.example.welfare.user.repository.UserMetadataCommandRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -21,8 +20,7 @@ public class UserAccountCommandService {
     private static final String REFRESH_TOKEN_PREFIX = "refresh:";
 
     private final UserReadService userReadService;
-    private final UserAttributeRepository userAttributeRepository;
-    private final UserPriorityRepository userPriorityRepository;
+    private final UserMetadataCommandRepository userMetadataCommandRepository;
     private final PasswordEncoder passwordEncoder;
     private final RedisTemplate<String, String> redisTemplate;
     private final AccessTokenRevocationService accessTokenRevocationService;
@@ -51,8 +49,7 @@ public class UserAccountCommandService {
             throw new CustomException(ErrorCode.INVALID_CREDENTIALS);
         }
 
-        userAttributeRepository.deleteByUserKey(userKey);
-        userPriorityRepository.deleteByUserKey(userKey);
+        userMetadataCommandRepository.deleteAllByUserKey(userKey);
         chatSessionCleanupService.deleteAllByUserKey(userKey);
         redisTemplate.delete(REFRESH_TOKEN_PREFIX + userKey);
         revokePresentedAccessToken(accessToken);

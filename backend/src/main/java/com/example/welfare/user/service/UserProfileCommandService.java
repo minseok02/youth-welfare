@@ -10,8 +10,7 @@ import com.example.welfare.user.entity.User;
 import com.example.welfare.user.entity.UserAttribute;
 import com.example.welfare.user.entity.UserPriority;
 import com.example.welfare.user.repository.PriorityOptionRepository;
-import com.example.welfare.user.repository.UserAttributeRepository;
-import com.example.welfare.user.repository.UserPriorityRepository;
+import com.example.welfare.user.repository.UserMetadataCommandRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,8 +25,7 @@ import java.util.Set;
 public class UserProfileCommandService {
 
     private final UserReadService userReadService;
-    private final UserAttributeRepository userAttributeRepository;
-    private final UserPriorityRepository userPriorityRepository;
+    private final UserMetadataCommandRepository userMetadataCommandRepository;
     private final PriorityOptionRepository priorityOptionRepository;
     private final PriorityWeightPolicy priorityWeightPolicy;
     private final UserCoreSyncService userCoreSyncService;
@@ -67,26 +65,20 @@ public class UserProfileCommandService {
         }
 
         if (request.getInterestFields() != null) {
-            userAttributeRepository.deleteByUserKeyAndAttrType(userKey, UserAttribute.AttrType.INTEREST_FIELD.name());
-            request.getInterestFields().forEach(field ->
-                    userAttributeRepository.save(UserAttribute.builder()
-                            .userId(userId)
-                            .userKey(userKey)
-                            .attrType(UserAttribute.AttrType.INTEREST_FIELD.name())
-                            .attrValue(field)
-                            .build())
+            userMetadataCommandRepository.replaceAttributes(
+                    userId,
+                    userKey,
+                    UserAttribute.AttrType.INTEREST_FIELD.name(),
+                    request.getInterestFields()
             );
         }
 
         if (request.getTargetTypes() != null) {
-            userAttributeRepository.deleteByUserKeyAndAttrType(userKey, UserAttribute.AttrType.TARGET_TYPE.name());
-            request.getTargetTypes().forEach(targetType ->
-                    userAttributeRepository.save(UserAttribute.builder()
-                            .userId(userId)
-                            .userKey(userKey)
-                            .attrType(UserAttribute.AttrType.TARGET_TYPE.name())
-                            .attrValue(targetType)
-                            .build())
+            userMetadataCommandRepository.replaceAttributes(
+                    userId,
+                    userKey,
+                    UserAttribute.AttrType.TARGET_TYPE.name(),
+                    request.getTargetTypes()
             );
         }
 
@@ -109,13 +101,12 @@ public class UserProfileCommandService {
             throw new CustomException(ErrorCode.INVALID_INPUT);
         }
 
-        userPriorityRepository.deleteByUserKey(userKey);
-
+        List<UserPriority> priorities = new java.util.ArrayList<>();
         for (int i = 0; i < codes.size(); i++) {
             PriorityOption option = priorityOptionRepository.findByCode(codes.get(i))
                     .orElseThrow(() -> new CustomException(ErrorCode.INVALID_INPUT));
 
-            userPriorityRepository.save(UserPriority.builder()
+            priorities.add(UserPriority.builder()
                     .userId(userId)
                     .userKey(userKey)
                     .priorityOption(option)
@@ -123,6 +114,7 @@ public class UserProfileCommandService {
                     .weight(priorityWeightPolicy.weightForRank(i + 1))
                     .build());
         }
+        userMetadataCommandRepository.replacePriorities(userKey, priorities);
     }
 
     private int calculateCompleteness(String userKey, User user, UpdateProfileRequest request) {
@@ -135,7 +127,7 @@ public class UserProfileCommandService {
         if (user.getHouseholdType() != null) score += 10;
         boolean hasInterestFields = request.getInterestFields() != null
                 ? !request.getInterestFields().isEmpty()
-                : !userAttributeRepository.findByUserKeyAndAttrType(userKey, UserAttribute.AttrType.INTEREST_FIELD.name()).isEmpty();
+                : userMetadataCommandRepository.hasAttributeValues(userKey, UserAttribute.AttrType.INTEREST_FIELD.name());
         if (hasInterestFields) score += 10;
         return Math.min(score, 100);
     }
