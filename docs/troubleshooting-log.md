@@ -2611,3 +2611,8 @@
 - 문제: 추천 목록/갱신 API는 `UserRecommendation` 목록을 받은 뒤 컨트롤러 내부 `toResponses(...)` 에서 `CanonicalRecommendationReadModelRepository.findByServiceIds(...)` 를 직접 호출하고 있었다. 이 상태에서는 recommendation 응답 조립 규칙이 controller 레벨에 묻어난다.
 - 해결: `RecommendationReadFacade` 에 `findCandidateProjections(...)` 를 추가하고, 컨트롤러는 facade를 통해 projection map만 받아 응답 조립하게 정리했다.
 - 이유: 웹 계층은 요청/응답 orchestration에 집중하고, recommendation read-model 선택은 recommendation 경계로 숨기는 편이 controller 단 책임과 후속 projection 변경 파급도 관리에 더 낫다.
+
+## 475) `UserBookmarkReadService` 가 recommendation 저장소와 canonical projection을 직접 읽으면, user 도메인이 recommendation persistence와 summary 조립 책임까지 같이 떠안는다
+- 문제: 북마크 목록 조회는 active user 해석 뒤 `UserRecommendationRepository.findLatestBookmarkedByUserKey(...)` 와 `CanonicalRecommendationReadModelRepository.findByServiceIds(...)` 를 직접 호출하고 있었다. 이 상태에서는 user 도메인이 recommendation summary 조립 방식을 알아야 한다.
+- 해결: `RecommendationReadFacade` 에 `findBookmarkedPolicySummaries(...)` 를 추가하고, `UserBookmarkReadService` 는 active user 해석 후 facade 위임만 하게 정리했다.
+- 이유: 북마크 목록은 user 기능이지만, 실제 summary 조립은 recommendation 저장 모델과 canonical projection을 아는 recommendation 경계에 두는 편이 도메인 분리와 변경 파급도 관리에 더 낫다.

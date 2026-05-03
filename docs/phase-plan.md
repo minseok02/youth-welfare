@@ -1168,6 +1168,10 @@ cd backend
   - `RecommendationController` 가 `CanonicalRecommendationReadModelRepository` 를 직접 들지 않도록 변경
   - 추천 응답용 projection 조회는 `RecommendationReadFacade.findCandidateProjections(...)` 로 이동
   - 컨트롤러는 요청/응답 orchestration에 집중하고 recommendation read-model 선택은 facade 경계로 이동
+- 2026-05-04 bookmark summary read 경계 정리
+  - `UserBookmarkReadService` 가 recommendation 저장소와 canonical projection 조립을 직접 들지 않도록 변경
+  - 북마크 정책 요약 조회는 `RecommendationReadFacade.findBookmarkedPolicySummaries(...)` 로 이동
+  - user 도메인은 active user 해석과 위임에 집중하고 북마크 summary 조립은 recommendation read 경계로 이동
 
 ## 남은 1차 작업
 
