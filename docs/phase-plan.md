@@ -1092,6 +1092,10 @@ cd backend
   - 기존에는 `saved=0 skipped=198 stoppedAfterNoSaves=true` 로 `200 success` 처럼 보였음
   - `BokjiroDetailCollectService` 가 rate-limit abort 여부를 내부 결과로 들고 가고, `0-save + rate-limited abort` 라운드는 `COL001` 로 surface 하도록 수정
   - 단위/WebMvc 회귀 후 Docker app 재기동 + `SECURITY_ADMIN_EMAILS=admin@example.com` override 상태에서 실제 `POST /api/admin/collect/bokjiro-details-gap-fill?rounds=1&maxCallsPerRound=95` 가 `500 / COL001` 반환 확인
+- 2026-05-03 전화번호는 제품/API 범위에서는 미수집 상태로 다시 고정
+  - `SignupRequest` 는 원래 phone 필드가 없었고, 이번에 `UpdateProfileRequest` 와 `ProfileResponse` 에서도 phone 계약 제거
+  - `UserService.updateProfile()` 는 더 이상 `phone_enc` 를 갱신하지 않고, 프로필 완성도 점수도 전화번호 가산점 없이 계산
+  - DB의 `phone_enc` 컬럼과 PII 경계는 future 확장성 때문에 남겨 두되, 현재 제품 범위에서는 dormant 상태로 유지
 
 ## 남은 1차 작업
 

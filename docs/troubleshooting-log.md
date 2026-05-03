@@ -2506,3 +2506,8 @@
 - 문제: 검색 triage에서 중요한 건 반복 실패 자체뿐 아니라, 같은 `user_key` 또는 `client_fingerprint` 가 같은 검색을 나중에 성공으로 회복했는지 여부다. 이 정보가 없으면 “계속 막혀 있는 수요”와 “일시 실패 후 해소된 수요”를 분리하기 어렵다.
 - 해결: `search-failures` 응답에 recovered search group을 추가해 같은 actor/query 조합에서 zero-result 이후 non-zero result가 붙은 패턴을 같이 반환하게 했다.
 - 이유: 회복 그룹이 있으면 검색 품질 문제가 영구적인지, 재시도나 데이터 갱신으로 해소되는 성격인지를 더 빨리 판단할 수 있다.
+
+## 454) 전화번호를 “지금은 안 받는다”고 결정했으면, 프론트에서만 숨기는 걸로 끝내지 말고 프로필 API 계약과 저장 경로도 같이 닫아야 한다
+- 문제: 회원가입은 이미 전화번호를 받지 않는데, `UpdateProfileRequest` 와 `ProfileResponse` 에는 여전히 `phone` 필드가 남아 있었고 `UserService.updateProfile()` 도 요청이 오면 `phone_enc` 를 갱신했다. 이 상태에서는 프론트 UI만 숨겨도 다른 클라이언트가 phone을 보내면 제품 정책과 다르게 수집이 계속될 수 있었다.
+- 해결: `UpdateProfileRequest` 와 `ProfileResponse` 에서 `phone` 계약을 제거하고, `UserService.updateProfile()` 의 `phone_enc` 갱신도 중단했다. 동시에 프로필 완성도 계산에서 전화번호 가산점을 빼서 “미수집 정책”과 점수 기준도 맞췄다.
+- 이유: 개인정보 최소 수집 정책은 UI가 아니라 API 계약에서 닫혀 있어야 안정적이다. DB 컬럼과 PII 경계는 future 확장성 때문에 남겨 두더라도, 현재 제품 범위에서는 dormant 상태로 두는 편이 맞다.

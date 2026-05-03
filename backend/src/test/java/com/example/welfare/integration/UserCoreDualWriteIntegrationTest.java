@@ -167,7 +167,6 @@ class UserCoreDualWriteIntegrationTest {
                                 {
                                   "name": "After Update",
                                   "birthDate": "1996-05-20",
-                                  "phone": "01012345678",
                                   "sido": "부산광역시",
                                   "sgg": "해운대구",
                                   "regionCode": "26000",
@@ -198,13 +197,13 @@ class UserCoreDualWriteIntegrationTest {
         assertThat(userProfile.getNotificationMinScore()).isEqualTo(0.7);
         assertThat(userProfile.getDisplayCount()).isEqualTo(12);
         assertThat(userProfile.getAgeBand()).isEqualTo("25_29");
-        assertThat(userProfile.isHasPhone()).isTrue();
+        assertThat(userProfile.isHasPhone()).isFalse();
         assertThat(aesEncryptUtil.decrypt(userPii.nameEnc())).isEqualTo("After Update");
         assertThat(aesEncryptUtil.decrypt(userPii.birthDateEnc())).isEqualTo("1996-05-20");
-        assertThat(aesEncryptUtil.decrypt(userPii.phoneEnc())).isEqualTo("01012345678");
+        assertThat(userPii.phoneEnc()).isNull();
         assertThat(syncQueue.getStatus()).isEqualTo(UserPiiSyncQueueStatus.SYNCED);
         assertThat(syncQueue.getAttemptCount()).isGreaterThanOrEqualTo(2);
-        assertThat(syncQueue.getPhoneEnc()).isEqualTo(userPii.phoneEnc());
+        assertThat(syncQueue.getPhoneEnc()).isNull();
     }
 
     @Test
@@ -256,7 +255,6 @@ class UserCoreDualWriteIntegrationTest {
                 .andExpect(jsonPath("$.data.email").value("split-read@example.com"))
                 .andExpect(jsonPath("$.data.name").value("Split Name"))
                 .andExpect(jsonPath("$.data.birthDate").value("2001-03-15"))
-                .andExpect(jsonPath("$.data.phone").value("01099998888"))
                 .andExpect(jsonPath("$.data.sido").value("제주특별자치도"))
                 .andExpect(jsonPath("$.data.sgg").value("제주시"))
                 .andExpect(jsonPath("$.data.regionCode").value("50000"))

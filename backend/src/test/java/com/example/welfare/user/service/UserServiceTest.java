@@ -1,7 +1,6 @@
 package com.example.welfare.user.service;
 
 import com.example.welfare.chat.service.ChatSessionCleanupService;
-import com.example.welfare.global.util.AesEncryptUtil;
 import com.example.welfare.policy.dto.PolicySummaryResponse;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
@@ -49,7 +48,6 @@ class UserServiceTest {
     @Mock private UserPriorityRepository userPriorityRepository;
     @Mock private PriorityOptionRepository priorityOptionRepository;
     @Mock private PriorityWeightPolicy priorityWeightPolicy;
-    @Mock private AesEncryptUtil aesEncryptUtil;
     @Mock private PasswordEncoder passwordEncoder;
     @Mock private UserRecommendationRepository userRecommendationRepository;
     @Mock private RedisTemplate<String, String> redisTemplate;
@@ -70,7 +68,6 @@ class UserServiceTest {
                 userPriorityRepository,
                 priorityOptionRepository,
                 priorityWeightPolicy,
-                aesEncryptUtil,
                 passwordEncoder,
                 userRecommendationRepository,
                 redisTemplate,
@@ -185,7 +182,7 @@ class UserServiceTest {
 
         verify(recommendationRefreshCacheService).evict("user-key-1");
         verify(userCoreSyncService).syncFromUser(user);
-        assertThat(user.getProfileCompleteness()).isEqualTo(100);
+        assertThat(user.getProfileCompleteness()).isEqualTo(90);
     }
 
     @Test
