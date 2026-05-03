@@ -136,6 +136,12 @@ public class AdminDashboardService {
                                         row.keyword(),
                                         row.searchCount()
                                 ))
+                                .toList(),
+                        adminDashboardReadRepository.fetchTopZeroResultSearchKeywords(summaryWindowAgo).stream()
+                                .map(row -> new AdminDashboardResponse.SearchKeywordSnapshot(
+                                        row.keyword(),
+                                        row.searchCount()
+                                ))
                                 .toList()
                 ),
                 new AdminDashboardResponse.UserPiiSyncSection(

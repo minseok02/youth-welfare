@@ -131,6 +131,11 @@ class AdminDashboardServiceTest {
                         new AdminDashboardReadRepository.SearchKeywordSnapshotRow("월세", 17),
                         new AdminDashboardReadRepository.SearchKeywordSnapshotRow("주거", 9)
                 ));
+        given(adminDashboardReadRepository.fetchTopZeroResultSearchKeywords(org.mockito.ArgumentMatchers.any()))
+                .willReturn(List.of(
+                        new AdminDashboardReadRepository.SearchKeywordSnapshotRow("대출", 4),
+                        new AdminDashboardReadRepository.SearchKeywordSnapshotRow("월세", 2)
+                ));
         given(userPiiSyncStatusService.getStatus(5))
                 .willReturn(new UserPiiSyncStatusResponse(
                         2,
@@ -181,6 +186,8 @@ class AdminDashboardServiceTest {
         assertThat(response.search().averageResultCountInWindow()).isEqualByComparingTo("6.38");
         assertThat(response.search().topKeywordsInWindow()).extracting(AdminDashboardResponse.SearchKeywordSnapshot::keyword)
                 .containsExactly("월세", "주거");
+        assertThat(response.search().zeroResultKeywordsInWindow()).extracting(AdminDashboardResponse.SearchKeywordSnapshot::keyword)
+                .containsExactly("대출", "월세");
         assertThat(response.trend().search()).extracting(AdminDashboardResponse.SearchTrendPoint::windowDays)
                 .containsExactly(1, 7, 30);
         assertThat(response.userPiiSync().failedCount()).isEqualTo(1);
@@ -227,6 +234,8 @@ class AdminDashboardServiceTest {
                 org.mockito.ArgumentMatchers.any()
         )).willReturn(new AdminDashboardReadRepository.SearchSummaryRow(0, 0, 0, 0, BigDecimal.ZERO));
         given(adminDashboardReadRepository.fetchTopSearchKeywords(org.mockito.ArgumentMatchers.any()))
+                .willReturn(List.of());
+        given(adminDashboardReadRepository.fetchTopZeroResultSearchKeywords(org.mockito.ArgumentMatchers.any()))
                 .willReturn(List.of());
         given(userPiiSyncStatusService.getStatus(5))
                 .willReturn(new UserPiiSyncStatusResponse(0, 0, 0, null, null, null, null, null, List.of()));
