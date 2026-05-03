@@ -2626,3 +2626,8 @@
 - 문제: 정책 목록/상세/검색 응답은 `CanonicalRecommendationReadModelRepository.findByServiceIds(...)` 를 직접 호출해 summary projection 을 조립하고 있었다. 이 상태에서는 policy 서비스가 recommendation read-model 선택과 projection 조회 규칙까지 같이 떠안는다.
 - 해결: `RecommendationReadFacade.findCandidateProjectionsByServices(...)` 를 추가하고, `PolicyService` 와 `PolicySearchService` 는 정책 목록만 넘겨 projection map 을 받도록 정리했다.
 - 이유: policy 서비스는 정책 필터링과 응답 조립에 집중하고, recommendation canonical projection 조회는 recommendation read 경계에 모아야 projection 저장 구조 변경의 파급 범위를 줄일 수 있다.
+
+## 478) `PolicyRankingService` 가 canonical recommendation read-model 을 직접 조회하면, ranking 계산 서비스가 projection 저장소 선택까지 같이 떠안는다
+- 문제: 정책 랭킹 응답은 rankable policy 목록을 구한 뒤 `CanonicalRecommendationReadModelRepository.findByServiceIds(...)` 를 직접 호출해 summary projection 을 조립하고 있었다. 이 상태에서는 ranking 서비스가 점수 계산뿐 아니라 recommendation projection 조회 구현까지 알아야 한다.
+- 해결: `PolicyRankingService` 도 `RecommendationReadFacade.findCandidateProjectionsByServices(...)` 를 사용하게 정리했다.
+- 이유: 목록/검색/랭킹 모두 정책 summary projection 조회 규칙은 동일한 recommendation read 경계로 모으는 편이 이후 projection 저장 구조나 조립 규칙이 바뀔 때 영향 범위를 줄인다.

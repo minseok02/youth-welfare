@@ -5,7 +5,7 @@ import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.repository.PolicyRankingReadRepository;
 import com.example.welfare.policy.repository.ServiceViewLogRepository;
 import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
-import com.example.welfare.recommend.repository.CanonicalRecommendationReadModelRepository;
+import com.example.welfare.recommend.facade.RecommendationReadFacade;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,7 +33,7 @@ public class PolicyRankingService {
 
     private final PolicyRankingReadRepository policyRankingReadRepository;
     private final ServiceViewLogRepository serviceViewLogRepository;
-    private final CanonicalRecommendationReadModelRepository canonicalRecommendationReadModelRepository;
+    private final RecommendationReadFacade recommendationReadFacade;
 
     @Transactional(readOnly = true)
     public List<PolicyRankingResponse> getRanking(int size) {
@@ -52,7 +52,7 @@ public class PolicyRankingService {
                         row -> safeLong(row.getUniqueViewCount())
                 ));
         Map<Long, RecommendationCandidateProjection> projections =
-                canonicalRecommendationReadModelRepository.findByServiceIds(serviceIds);
+                recommendationReadFacade.findCandidateProjectionsByServices(services);
 
         double maxUniqueRaw = services.stream()
                 .mapToDouble(s -> log1p(uniqueViewsByServiceId.getOrDefault(s.getId(), 0L)))

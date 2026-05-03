@@ -5,7 +5,7 @@ import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.repository.PolicyRankingReadRepository;
 import com.example.welfare.policy.repository.ServiceViewLogRepository;
 import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
-import com.example.welfare.recommend.repository.CanonicalRecommendationReadModelRepository;
+import com.example.welfare.recommend.facade.RecommendationReadFacade;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -29,7 +29,7 @@ class PolicyRankingServiceTest {
     @Mock
     private ServiceViewLogRepository serviceViewLogRepository;
     @Mock
-    private CanonicalRecommendationReadModelRepository canonicalRecommendationReadModelRepository;
+    private RecommendationReadFacade recommendationReadFacade;
 
     @InjectMocks
     private PolicyRankingService policyRankingService;
@@ -51,7 +51,7 @@ class PolicyRankingServiceTest {
         given(policyRankingReadRepository.findRankableServices()).willReturn(List.of(service));
         given(serviceViewLogRepository.findUniqueViewCountsSince(anyCollection(), any()))
                 .willReturn(List.of(uniqueCount(1L, 7L)));
-        given(canonicalRecommendationReadModelRepository.findByServiceIds(List.of(1L)))
+        given(recommendationReadFacade.findCandidateProjectionsByServices(List.of(service)))
                 .willReturn(java.util.Map.of(
                         1L,
                         RecommendationCandidateProjection.builder()
@@ -124,7 +124,7 @@ class PolicyRankingServiceTest {
                         uniqueCount(2L, 1L),
                         uniqueCount(3L, 0L)
                 ));
-        given(canonicalRecommendationReadModelRepository.findByServiceIds(List.of(1L, 2L, 3L)))
+        given(recommendationReadFacade.findCandidateProjectionsByServices(services))
                 .willReturn(java.util.Map.of());
 
         List<PolicyRankingResponse> ranking = policyRankingService.getRanking(10);
