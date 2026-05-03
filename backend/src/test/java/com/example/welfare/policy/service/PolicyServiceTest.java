@@ -12,10 +12,8 @@ import com.example.welfare.policy.repository.WelfareServiceDetailRepository;
 import com.example.welfare.policy.repository.WelfareServiceRepository;
 import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
 import com.example.welfare.recommend.facade.RecommendationReadFacade;
-import com.example.welfare.recommend.entity.UserRecommendation;
 import com.example.welfare.recommend.repository.CanonicalRecommendationReadModelRepository;
-import com.example.welfare.recommend.repository.UserRecommendationRepository;
-import com.example.welfare.user.repository.UserRepository;
+import com.example.welfare.recommend.service.RecommendationBookmarkCommandService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -27,7 +25,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.Optional;
 import java.util.List;
 import java.util.Set;
 
@@ -55,9 +52,7 @@ class PolicyServiceTest {
     @Mock
     private RecommendationReadFacade recommendationReadFacade;
     @Mock
-    private UserRecommendationRepository userRecommendationRepository;
-    @Mock
-    private UserRepository userRepository;
+    private RecommendationBookmarkCommandService recommendationBookmarkCommandService;
     @Mock
     private CanonicalRecommendationReadModelRepository canonicalRecommendationReadModelRepository;
 
@@ -180,57 +175,25 @@ class PolicyServiceTest {
     @Test
     @DisplayName("기존 추천 이력이 있으면 북마크 상태를 토글한다")
     void toggleBookmarkOnExistingRecommendation() {
-        UserRecommendation recommendation = UserRecommendation.builder()
-                .id(1L)
-                .userKey("user-key-7")
-                .isBookmarked(false)
-                .build();
-        given(userRepository.findUserKeyById(7L)).willReturn(Optional.of("user-key-7"));
-        given(userRecommendationRepository.findTopByUserKeyAndServiceIdOrderByRecommendedAtDesc("user-key-7", 11L))
-                .willReturn(Optional.of(recommendation));
-
         policyService.toggleBookmark(7L, 11L);
 
-        assertTrue(recommendation.isBookmarked());
+        verify(recommendationBookmarkCommandService).togglePolicyBookmark(7L, 11L);
     }
 
     @Test
     @DisplayName("추천 이력이 없어도 북마크 요청 시 placeholder 추천을 생성한다")
     void toggleBookmarkCreatesPlaceholderWhenMissing() {
-        WelfareService service = WelfareService.builder()
-                .id(11L)
-                .sourceType(WelfareService.SourceType.YOUTH)
-                .sourceId("SRC-11")
-                .title("청년 정책")
-                .build();
-
-        given(userRepository.findUserKeyById(7L)).willReturn(Optional.of("user-key-7"));
-        given(userRecommendationRepository.findTopByUserKeyAndServiceIdOrderByRecommendedAtDesc("user-key-7", 11L))
-                .willReturn(Optional.empty());
-        given(welfareServiceRepository.findById(11L)).willReturn(Optional.of(service));
-        given(userRecommendationRepository.save(any(UserRecommendation.class)))
-                .willAnswer(invocation -> invocation.getArgument(0, UserRecommendation.class));
-
         policyService.toggleBookmark(7L, 11L);
 
-        ArgumentCaptor<UserRecommendation> captor = ArgumentCaptor.forClass(UserRecommendation.class);
-        verify(userRecommendationRepository).save(captor.capture());
-        assertTrue(captor.getValue().isBookmarked());
-        assertEquals("user-key-7", captor.getValue().getUserKey());
+        verify(recommendationBookmarkCommandService).togglePolicyBookmark(7L, 11L);
     }
 
     @Test
     @DisplayName("북마크가 이미 200건이면 추가 북마크를 막는다")
     void toggleBookmarkRejectsWhenLimitExceeded() {
-        UserRecommendation recommendation = UserRecommendation.builder()
-                .id(1L)
-                .userKey("user-key-7")
-                .isBookmarked(false)
-                .build();
-        given(userRepository.findUserKeyById(7L)).willReturn(Optional.of("user-key-7"));
-        given(userRecommendationRepository.findTopByUserKeyAndServiceIdOrderByRecommendedAtDesc("user-key-7", 11L))
-                .willReturn(Optional.of(recommendation));
-        given(userRecommendationRepository.countByUserKeyAndIsBookmarkedTrue("user-key-7")).willReturn(200L);
+        org.mockito.BDDMockito.willThrow(new CustomException(ErrorCode.BOOKMARK_LIMIT_EXCEEDED))
+                .given(recommendationBookmarkCommandService)
+                .togglePolicyBookmark(7L, 11L);
 
         CustomException exception = assertThrows(CustomException.class, () -> policyService.toggleBookmark(7L, 11L));
 

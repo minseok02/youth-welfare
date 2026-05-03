@@ -2561,3 +2561,8 @@
 - 문제: `ChatPolicyService` 가 `searchChatCandidates(...)` 와 `findBySearchYouthRelevantTrueAndStatusInOrderByViewCountDescCreatedAtDesc(...)` 를 직접 고르고 있었다. 이 상태에서는 챗봇 후보 조회 규칙이 바뀔 때 질문 해석 서비스와 persistence 분기를 함께 수정해야 했다.
 - 해결: `ChatPolicyReadCondition`, `ChatPolicyReadRepository` 를 추가하고, `ChatPolicyService` 는 질문에서 만든 fulltext keyword 와 limit만 조건 객체로 넘기게 바꿨다. 검색 우선/fallback 인기 정책 조회 선택은 전용 read repository 구현으로 이동시켰다.
 - 이유: 챗 도메인 서비스는 질문 해석과 limit 정규화에 집중하고, 후보 조회 구현 분기는 read 계층으로 숨기는 편이 SRP와 도메인 경계 분리에 더 낫다.
+
+## 465) policy 상세/목록의 북마크 토글이 recommendation 저장소와 `userKey` 조회를 직접 들고 있으면, policy 도메인이 recommendation command 규칙과 저장 모델 변경에 같이 묶인다
+- 문제: `PolicyService.toggleBookmark(...)` 가 `UserRecommendationRepository`, `UserRepository`, `WelfareServiceRepository` 를 직접 사용해 `userKey` 조회, 기존 추천 이력 조회, placeholder 추천 생성, 북마크 한도 검사까지 모두 처리하고 있었다. 동시에 `RecommendationFacade.toggleBookmark(...)` 도 별도 방식으로 북마크 토글을 들고 있어 command 규칙이 두 군데로 갈라져 있었다.
+- 해결: `RecommendationBookmarkCommandService` 를 추가해 recommendation ID 기준 토글과 policy service ID 기준 토글을 한 경계로 모으고, `PolicyService` 와 `RecommendationFacade` 는 북마크 command 서비스로만 위임하게 바꿨다.
+- 이유: 북마크 토글은 recommendation 저장 모델과 userKey 해석 규칙에 가까운 command다. policy/read 진입점과 recommendation API 진입점이 같은 규칙을 공유하도록 recommendation 도메인 안으로 모으는 편이 경계와 변경 파급도 관리에 더 낫다.

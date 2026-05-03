@@ -18,10 +18,7 @@ import com.example.welfare.policy.support.WelfareSourceTypeSupport;
 import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
 import com.example.welfare.recommend.facade.RecommendationReadFacade;
 import com.example.welfare.recommend.repository.CanonicalRecommendationReadModelRepository;
-import com.example.welfare.recommend.entity.UserRecommendation;
-import com.example.welfare.recommend.repository.UserRecommendationRepository;
-import com.example.welfare.user.entity.User;
-import com.example.welfare.user.repository.UserRepository;
+import com.example.welfare.recommend.service.RecommendationBookmarkCommandService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Page;
@@ -30,7 +27,6 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Set;
 
@@ -38,16 +34,13 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class PolicyService {
 
-    private static final long MAX_BOOKMARKS = 200;
-
     private final WelfareServiceReadRepository welfareServiceReadRepository;
     private final WelfareServiceRepository welfareServiceRepository;
     private final WelfareServiceDetailRepository detailRepository;
     private final ServiceRegionRepository regionRepository;
     private final ServiceTagRepository tagRepository;
     private final RecommendationReadFacade recommendationReadFacade;
-    private final UserRecommendationRepository userRecommendationRepository;
-    private final UserRepository userRepository;
+    private final RecommendationBookmarkCommandService recommendationBookmarkCommandService;
     private final CanonicalRecommendationReadModelRepository canonicalRecommendationReadModelRepository;
 
     @Transactional(readOnly = true)
@@ -104,28 +97,7 @@ public class PolicyService {
 
     @Transactional
     public void toggleBookmark(Long userId, Long serviceId) {
-        String userKey = resolveUserKey(userId);
-        UserRecommendation recommendation = userRecommendationRepository
-                .findTopByUserKeyAndServiceIdOrderByRecommendedAtDesc(userKey, serviceId)
-                .orElseGet(() -> createBookmarkPlaceholder(userId, userKey, serviceId));
-
-        if (!recommendation.isBookmarked()
-                && userRecommendationRepository.countByUserKeyAndIsBookmarkedTrue(userKey) >= MAX_BOOKMARKS) {
-            throw new CustomException(ErrorCode.BOOKMARK_LIMIT_EXCEEDED);
-        }
-        recommendation.toggleBookmark();
-    }
-
-    private UserRecommendation createBookmarkPlaceholder(Long userId, String userKey, Long serviceId) {
-        WelfareService service = welfareServiceRepository.findById(serviceId)
-                .orElseThrow(() -> new CustomException(ErrorCode.POLICY_NOT_FOUND));
-
-        UserRecommendation placeholder = UserRecommendation.builder()
-                .userKey(userKey)
-                .service(service)
-                .recommendedAt(LocalDateTime.now())
-                .build();
-        return userRecommendationRepository.save(placeholder);
+        recommendationBookmarkCommandService.togglePolicyBookmark(userId, serviceId);
     }
 
     private java.util.Map<Long, RecommendationCandidateProjection> loadProjections(List<WelfareService> services) {
@@ -135,11 +107,6 @@ public class PolicyService {
         return canonicalRecommendationReadModelRepository.findByServiceIds(
                 services.stream().map(WelfareService::getId).toList()
         );
-    }
-
-    private String resolveUserKey(Long userId) {
-        return userRepository.findUserKeyById(userId)
-                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
     }
 
     private Pageable buildPageable(Pageable pageable, String sort) {

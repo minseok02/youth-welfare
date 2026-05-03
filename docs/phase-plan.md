@@ -1133,6 +1133,9 @@ cd backend
 - 2026-05-03 chat policy 조회 경계 정리
   - `ChatPolicyReadCondition`, `ChatPolicyReadRepository` 추가
   - `ChatPolicyService` 가 `searchChatCandidates` / fallback 인기 정책 조회 메서드를 직접 고르지 않고 챗봇 후보 전용 read repository로 위임
+- 2026-05-03 recommendation bookmark command 경계 정리
+  - `RecommendationBookmarkCommandService` 추가
+  - `PolicyService` 와 `RecommendationFacade` 가 북마크 토글 규칙과 userKey 해석, placeholder 생성 로직을 recommendation command 서비스로 위임
 
 ## 남은 1차 작업
 
