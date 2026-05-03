@@ -181,7 +181,45 @@ class AdminSecurityWebMvcTest {
                         new AdminDashboardResponse.SearchSection(4, 12, 2, 7, java.math.BigDecimal.valueOf(5.25), List.of(
                                 new AdminDashboardResponse.SearchKeywordSnapshot("월세", 5)
                         )),
-                        new AdminDashboardResponse.UserPiiSyncSection(0, 1, 12, LocalDateTime.of(2026, 5, 2, 9, 30))
+                        new AdminDashboardResponse.UserPiiSyncSection(0, 1, 12, LocalDateTime.of(2026, 5, 2, 9, 30)),
+                        new AdminDashboardResponse.TrendSection(
+                                List.of(
+                                        new AdminDashboardResponse.CollectTrendPoint(1, 3, 1, 0),
+                                        new AdminDashboardResponse.CollectTrendPoint(7, 9, 2, 1),
+                                        new AdminDashboardResponse.CollectTrendPoint(30, 18, 4, 2)
+                                ),
+                                List.of(
+                                        new AdminDashboardResponse.RecommendationTrendPoint(
+                                                1,
+                                                8,
+                                                3,
+                                                1,
+                                                java.math.BigDecimal.valueOf(0.3750),
+                                                java.math.BigDecimal.valueOf(0.1250)
+                                        ),
+                                        new AdminDashboardResponse.RecommendationTrendPoint(
+                                                7,
+                                                30,
+                                                9,
+                                                6,
+                                                java.math.BigDecimal.valueOf(0.3000),
+                                                java.math.BigDecimal.valueOf(0.2000)
+                                        ),
+                                        new AdminDashboardResponse.RecommendationTrendPoint(
+                                                30,
+                                                90,
+                                                18,
+                                                20,
+                                                java.math.BigDecimal.valueOf(0.2000),
+                                                java.math.BigDecimal.valueOf(0.2222)
+                                        )
+                                ),
+                                List.of(
+                                        new AdminDashboardResponse.SearchTrendPoint(1, 4, 1),
+                                        new AdminDashboardResponse.SearchTrendPoint(7, 12, 2),
+                                        new AdminDashboardResponse.SearchTrendPoint(30, 40, 7)
+                                )
+                        )
                 ));
 
         mockMvc.perform(get("/api/admin/dashboard/summary")
@@ -192,6 +230,9 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.data.collect.latestFailuresLast7d[0].jobName").value("BOKJIRO_LOCAL"))
                 .andExpect(jsonPath("$.data.recommendation.sentLast7d").value(8))
                 .andExpect(jsonPath("$.data.search.zeroResultSearchesLast7d").value(2))
+                .andExpect(jsonPath("$.data.trend.collect[1].windowDays").value(7))
+                .andExpect(jsonPath("$.data.trend.recommendation[1].clickThroughRate").value(0.3000))
+                .andExpect(jsonPath("$.data.trend.search[2].zeroResultSearches").value(7))
                 .andExpect(jsonPath("$.data.search.topKeywordsLast7d[0].keyword").value("월세"))
                 .andExpect(jsonPath("$.data.userPiiSync.failedCount").value(1));
 

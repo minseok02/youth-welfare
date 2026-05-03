@@ -10,7 +10,8 @@ public record AdminDashboardResponse(
         RecommendationSection recommendation,
         NotificationSection notification,
         SearchSection search,
-        UserPiiSyncSection userPiiSync
+        UserPiiSyncSection userPiiSync,
+        TrendSection trend
 ) {
 
     public record CollectSection(
@@ -100,6 +101,38 @@ public record AdminDashboardResponse(
             long failedCount,
             long syncedCount,
             LocalDateTime latestSyncedAt
+    ) {
+    }
+
+    public record TrendSection(
+            List<CollectTrendPoint> collect,
+            List<RecommendationTrendPoint> recommendation,
+            List<SearchTrendPoint> search
+    ) {
+    }
+
+    public record CollectTrendPoint(
+            int windowDays,
+            long successJobs,
+            long partialSuccessJobs,
+            long failedJobs
+    ) {
+    }
+
+    public record RecommendationTrendPoint(
+            int windowDays,
+            long sentCount,
+            long clickedCount,
+            long fallbackCount,
+            BigDecimal clickThroughRate,
+            BigDecimal fallbackRate
+    ) {
+    }
+
+    public record SearchTrendPoint(
+            int windowDays,
+            long searches,
+            long zeroResultSearches
     ) {
     }
 }

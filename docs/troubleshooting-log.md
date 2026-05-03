@@ -2367,3 +2367,8 @@
 - 문제: 기존 대시보드는 collect 쪽에서 `failedJobsLast24h` count 만 보여 줬고, search 쪽도 총 검색 수와 평균 결과 수만 보여 줬다. 이 상태로는 최근 어떤 collect run이 왜 실패했는지, 검색 결과 0건이 최근 얼마나 자주 나왔는지를 운영자가 다시 `api_sync_logs` / `search_logs` 로 내려가서 따로 봐야 했다.
 - 해결: collect 섹션에 `latestFailuresLast7d` 를 추가해 최근 실패 run의 `jobName/status/errorCode/errorMessage/requested/saved/failed` 를 같이 보여 주고, search 섹션에는 `zeroResultSearchesLast7d` 를 추가했다. 집계/리스트 SQL은 계속 `AdminDashboardReadRepository` 안에만 두어 admin read-model 경계를 유지했다.
 - 이유: 운영 summary는 count만 보는 화면이 아니라 다음 액션을 바로 정할 수 있어야 한다. 최근 실패 run 세부와 0건 검색 빈도는 운영자가 추가 DB 쿼리 없이도 collect 안정화와 검색 품질 문제를 즉시 분리하게 해 주는 최소한의 맥락이다.
+
+## 435) 운영 지표가 “현재 수치”만 있으면 단기 이상치와 30일 누적 흐름을 한 번에 비교하기 어렵다
+- 문제: dashboard summary가 현재 시점 count와 최근 7일 중심 수치만 보여 주면, collect/recommendation/search가 오늘만 튄 건지, 최근 일주일 내내 같은 패턴인지, 30일 누적 기준으로도 비슷한지까지는 다시 쿼리를 나눠 봐야 했다.
+- 해결: `trend` 섹션을 추가해 collect/recommendation/search 각각 1일/7일/30일 window point를 함께 반환하게 했다. 기존 summary contract는 유지하고, 추세 비교는 별도 list로만 확장해 API 호환성과 운영 가독성을 같이 유지했다.
+- 이유: 운영 판단은 절대값보다 기울기를 같이 봐야 정확해진다. 1/7/30일 추세를 한 응답에 같이 실어 두면, 당일 이상치인지 구조적 추세인지 훨씬 빨리 구분할 수 있다.

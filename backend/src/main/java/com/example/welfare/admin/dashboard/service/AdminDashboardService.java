@@ -20,6 +20,7 @@ import java.time.LocalDateTime;
 public class AdminDashboardService {
 
     private static final int FAILED_SAMPLE_LIMIT = 5;
+    private static final int[] TREND_WINDOWS_DAYS = {1, 7, 30};
 
     private final AdminDashboardReadRepository adminDashboardReadRepository;
     private final UserPiiSyncStatusService userPiiSyncStatusService;
@@ -118,8 +119,59 @@ public class AdminDashboardService {
                         userPiiSyncStatus.failedCount(),
                         userPiiSyncStatus.syncedCount(),
                         userPiiSyncStatus.latestSyncedAt()
+                ),
+                new AdminDashboardResponse.TrendSection(
+                        buildCollectTrends(now),
+                        buildRecommendationTrends(now),
+                        buildSearchTrends(now)
                 )
         );
+    }
+
+    private java.util.List<AdminDashboardResponse.CollectTrendPoint> buildCollectTrends(LocalDateTime now) {
+        java.util.List<AdminDashboardResponse.CollectTrendPoint> points = new java.util.ArrayList<>();
+        for (int windowDays : TREND_WINDOWS_DAYS) {
+            AdminDashboardReadRepository.CollectTrendRow row =
+                    adminDashboardReadRepository.fetchCollectTrend(now.minusDays(windowDays));
+            points.add(new AdminDashboardResponse.CollectTrendPoint(
+                    windowDays,
+                    row.successJobs(),
+                    row.partialSuccessJobs(),
+                    row.failedJobs()
+            ));
+        }
+        return points;
+    }
+
+    private java.util.List<AdminDashboardResponse.RecommendationTrendPoint> buildRecommendationTrends(LocalDateTime now) {
+        java.util.List<AdminDashboardResponse.RecommendationTrendPoint> points = new java.util.ArrayList<>();
+        for (int windowDays : TREND_WINDOWS_DAYS) {
+            AdminDashboardReadRepository.RecommendationTrendRow row =
+                    adminDashboardReadRepository.fetchRecommendationTrend(now.minusDays(windowDays));
+            points.add(new AdminDashboardResponse.RecommendationTrendPoint(
+                    windowDays,
+                    row.sentCount(),
+                    row.clickedCount(),
+                    row.fallbackCount(),
+                    ratio(row.clickedCount(), row.sentCount()),
+                    ratio(row.fallbackCount(), row.sentCount())
+            ));
+        }
+        return points;
+    }
+
+    private java.util.List<AdminDashboardResponse.SearchTrendPoint> buildSearchTrends(LocalDateTime now) {
+        java.util.List<AdminDashboardResponse.SearchTrendPoint> points = new java.util.ArrayList<>();
+        for (int windowDays : TREND_WINDOWS_DAYS) {
+            AdminDashboardReadRepository.SearchTrendRow row =
+                    adminDashboardReadRepository.fetchSearchTrend(now.minusDays(windowDays));
+            points.add(new AdminDashboardResponse.SearchTrendPoint(
+                    windowDays,
+                    row.searches(),
+                    row.zeroResultSearches()
+            ));
+        }
+        return points;
     }
 
     private BigDecimal ratio(long numerator, long denominator) {
