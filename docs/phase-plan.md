@@ -1105,6 +1105,7 @@ cd backend
 - CTR 표본 추가 확보 후 rule/AI 가중치 및 프롬프트 재분석
 - 추천 클릭 smoke 반복 검증(`deploy/smoke/run-local-recommendation-click-smoke.sh`) 유지
 - 로컬 기준선 전체 재검증 진입점은 `deploy/smoke/run-local-validation-suite.sh`
+- 빠른 반복 검증은 `VALIDATION_PROFILE=quick deploy/smoke/run-local-validation-suite.sh`
 
 ## 2차로 분리된 항목
 
