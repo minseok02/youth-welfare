@@ -3,8 +3,8 @@ package com.example.welfare.policy.service;
 import com.example.welfare.policy.dto.SearchYouthRelevanceBackfillResponse;
 import com.example.welfare.policy.entity.ServiceTag;
 import com.example.welfare.policy.entity.WelfareService;
+import com.example.welfare.policy.repository.SearchYouthRelevanceReadRepository;
 import com.example.welfare.policy.repository.ServiceTagRepository;
-import com.example.welfare.policy.repository.WelfareServiceRepository;
 import com.example.welfare.recommend.support.RecommendationYouthRelevanceSupport;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,7 +21,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class SearchYouthRelevanceService {
 
-    private final WelfareServiceRepository welfareServiceRepository;
+    private final SearchYouthRelevanceReadRepository searchYouthRelevanceReadRepository;
     private final ServiceTagRepository serviceTagRepository;
     private final RecommendationYouthRelevanceSupport recommendationYouthRelevanceSupport;
 
@@ -35,7 +35,7 @@ public class SearchYouthRelevanceService {
 
     @Transactional
     public SearchYouthRelevanceBackfillResponse backfillAll() {
-        List<WelfareService> services = welfareServiceRepository.findAll();
+        List<WelfareService> services = searchYouthRelevanceReadRepository.findBackfillTargetServices();
         if (services.isEmpty()) {
             return new SearchYouthRelevanceBackfillResponse(0, 0, 0, 0);
         }

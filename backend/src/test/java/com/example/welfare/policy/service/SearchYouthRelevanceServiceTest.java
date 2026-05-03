@@ -3,8 +3,8 @@ package com.example.welfare.policy.service;
 import com.example.welfare.policy.dto.SearchYouthRelevanceBackfillResponse;
 import com.example.welfare.policy.entity.ServiceTag;
 import com.example.welfare.policy.entity.WelfareService;
+import com.example.welfare.policy.repository.SearchYouthRelevanceReadRepository;
 import com.example.welfare.policy.repository.ServiceTagRepository;
-import com.example.welfare.policy.repository.WelfareServiceRepository;
 import com.example.welfare.recommend.support.RecommendationYouthRelevanceSupport;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -21,7 +21,7 @@ import static org.mockito.BDDMockito.given;
 class SearchYouthRelevanceServiceTest {
 
     @Mock
-    private WelfareServiceRepository welfareServiceRepository;
+    private SearchYouthRelevanceReadRepository searchYouthRelevanceReadRepository;
 
     @Mock
     private ServiceTagRepository serviceTagRepository;
@@ -33,7 +33,7 @@ class SearchYouthRelevanceServiceTest {
     @DisplayName("백필은 현재 규칙으로 검색용 청년 플래그를 다시 계산한다")
     void backfillAllRefreshesFlags() {
         SearchYouthRelevanceService service = new SearchYouthRelevanceService(
-                welfareServiceRepository,
+                searchYouthRelevanceReadRepository,
                 serviceTagRepository,
                 recommendationYouthRelevanceSupport
         );
@@ -53,7 +53,7 @@ class SearchYouthRelevanceServiceTest {
                 .searchYouthRelevant(true)
                 .build();
 
-        given(welfareServiceRepository.findAll()).willReturn(List.of(youth, excluded));
+        given(searchYouthRelevanceReadRepository.findBackfillTargetServices()).willReturn(List.of(youth, excluded));
         given(serviceTagRepository.findByServiceIdIn(List.of(1L, 2L))).willReturn(List.of());
         given(recommendationYouthRelevanceSupport.isYouthRelevant(youth, List.of())).willReturn(true);
         given(recommendationYouthRelevanceSupport.isYouthRelevant(excluded, List.of())).willReturn(false);
@@ -72,7 +72,7 @@ class SearchYouthRelevanceServiceTest {
     @DisplayName("단건 재계산은 전달된 태그 기준으로 검색용 청년 플래그를 갱신한다")
     void refreshForServiceUpdatesFlag() {
         SearchYouthRelevanceService service = new SearchYouthRelevanceService(
-                welfareServiceRepository,
+                searchYouthRelevanceReadRepository,
                 serviceTagRepository,
                 recommendationYouthRelevanceSupport
         );
