@@ -12,7 +12,6 @@ public class UpdateProfileRequest {
 
     private String name;
     private LocalDate birthDate;
-    private String phone;
     private String sido;
     private String sgg;
     private String regionCode;

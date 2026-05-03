@@ -85,14 +85,12 @@ class UserReadServiceTest {
         when(aesEncryptUtil.decrypt("enc-email")).thenReturn("user@example.com");
         when(aesEncryptUtil.decrypt("enc-name")).thenReturn("홍길동");
         when(aesEncryptUtil.decrypt("enc-birth")).thenReturn("1999-01-10");
-        when(aesEncryptUtil.decrypt("enc-phone")).thenReturn("01012345678");
 
         ProfileResponse response = userReadService.getProfile(1L);
 
         assertThat(response.getEmail()).isEqualTo("user@example.com");
         assertThat(response.getName()).isEqualTo("홍길동");
         assertThat(response.getBirthDate()).isEqualTo(java.time.LocalDate.of(1999, 1, 10));
-        assertThat(response.getPhone()).isEqualTo("01012345678");
         verify(userPiiReadWriteRepository).findByUserKey("user-key-1");
     }
 

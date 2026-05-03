@@ -60,7 +60,6 @@ public class UserReadService {
                 decryptNullable(pii.emailEnc()),
                 decryptNullable(pii.nameEnc()),
                 parseBirthDate(pii.birthDateEnc()),
-                decryptNullable(pii.phoneEnc()),
                 profile,
                 attributes,
                 priorities

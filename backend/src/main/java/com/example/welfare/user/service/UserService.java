@@ -3,7 +3,6 @@ package com.example.welfare.user.service;
 import com.example.welfare.chat.service.ChatSessionCleanupService;
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
-import com.example.welfare.global.util.AesEncryptUtil;
 import com.example.welfare.policy.dto.PolicySummaryResponse;
 import com.example.welfare.recommend.repository.CanonicalRecommendationReadModelRepository;
 import com.example.welfare.recommend.entity.UserRecommendation;
@@ -43,7 +42,6 @@ public class UserService {
     private final UserPriorityRepository userPriorityRepository;
     private final PriorityOptionRepository priorityOptionRepository;
     private final PriorityWeightPolicy priorityWeightPolicy;
-    private final AesEncryptUtil aesEncryptUtil;
     private final PasswordEncoder passwordEncoder;
     private final UserRecommendationRepository userRecommendationRepository;
     private final RedisTemplate<String, String> redisTemplate;
@@ -90,10 +88,6 @@ public class UserService {
                 request.getEmploymentStatus() != null ? request.getEmploymentStatus() : user.getEmploymentStatus(),
                 request.getDisplayCount() != null ? request.getDisplayCount() : user.getDisplayCount()
         );
-
-        if (request.getPhone() != null) {
-            user.updatePhone(aesEncryptUtil.encrypt(request.getPhone()));
-        }
 
         if (request.getNotificationYn() != null || request.getNotificationPeriod() != null || request.getNotificationMinScore() != null) {
             boolean notificationYn = request.getNotificationYn() != null ? request.getNotificationYn() : user.isNotificationYn();
@@ -244,7 +238,6 @@ public class UserService {
         if (user.getIncomeLevel() != null) score += 10;
         if (user.getEmploymentStatus() != null) score += 10;
         if (user.getHouseholdType() != null) score += 10;
-        if (user.getPhoneEnc() != null) score += 10;
         boolean hasInterestFields = request.getInterestFields() != null
                 ? !request.getInterestFields().isEmpty()
                 : !userAttributeRepository.findByUserKeyAndAttrType(userKey, UserAttribute.AttrType.INTEREST_FIELD.name()).isEmpty();

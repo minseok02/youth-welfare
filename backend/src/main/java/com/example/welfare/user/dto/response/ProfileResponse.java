@@ -21,7 +21,6 @@ public class ProfileResponse {
     private String email;
     private String name;
     private LocalDate birthDate;
-    private String phone;
     private String sido;
     private String sgg;
     private String regionCode;
@@ -46,7 +45,7 @@ public class ProfileResponse {
     }
 
     public static ProfileResponse of(User user, List<UserAttribute> attributes,
-                                      List<UserPriority> priorities, String phone) {
+                                      List<UserPriority> priorities) {
         List<String> interestFields = attributes.stream()
                 .filter(a -> UserAttribute.AttrType.INTEREST_FIELD.name().equals(a.getAttrType()))
                 .map(UserAttribute::getAttrValue)
@@ -69,7 +68,6 @@ public class ProfileResponse {
                 .email(user.getEmail())
                 .name(user.getName())
                 .birthDate(user.getBirthDate())
-                .phone(phone)
                 .sido(user.getSido())
                 .sgg(user.getSgg())
                 .regionCode(user.getRegionCode())
@@ -88,7 +86,7 @@ public class ProfileResponse {
     }
 
     public static ProfileResponse of(Long userId, String email, String name, LocalDate birthDate,
-                                     String phone, UserProfile profile,
+                                     UserProfile profile,
                                      List<UserAttributeReadModel> attributes,
                                      List<UserPriorityReadModel> priorities) {
         List<String> interestFields = attributes.stream()
@@ -113,7 +111,6 @@ public class ProfileResponse {
                 .email(email)
                 .name(name)
                 .birthDate(birthDate)
-                .phone(phone)
                 .sido(profile.getSido())
                 .sgg(profile.getSgg())
                 .regionCode(profile.getRegionCode())
