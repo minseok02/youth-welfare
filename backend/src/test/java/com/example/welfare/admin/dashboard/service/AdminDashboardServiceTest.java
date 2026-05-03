@@ -140,28 +140,31 @@ class AdminDashboardServiceTest {
 
         assertThat(response.collect().runningJobs()).isEqualTo(1);
         assertThat(response.collect().latestJobs()).hasSize(1);
-        assertThat(response.collect().latestFailuresLast7d()).hasSize(1);
-        assertThat(response.collect().latestFailuresLast7d().get(0).jobName()).isEqualTo("BOKJIRO_LOCAL");
+        assertThat(response.collect().failureWindowDays()).isEqualTo(7);
+        assertThat(response.collect().latestFailuresInWindow()).hasSize(1);
+        assertThat(response.collect().latestFailuresInWindow().get(0).jobName()).isEqualTo("BOKJIRO_LOCAL");
         assertThat(response.trend().collect()).extracting(AdminDashboardResponse.CollectTrendPoint::windowDays)
                 .containsExactly(1, 7, 30);
         assertThat(response.recommendation().activeWeightKey()).isEqualTo("GROWTH");
         assertThat(response.recommendation().activeRuleWeight()).isEqualByComparingTo("0.60");
         assertThat(response.recommendation().activeAiWeight()).isEqualByComparingTo("0.40");
         assertThat(response.recommendation().totalLogs()).isEqualTo(250);
-        assertThat(response.recommendation().sentLast7d()).isEqualTo(30);
+        assertThat(response.recommendation().windowDays()).isEqualTo(7);
+        assertThat(response.recommendation().sentInWindow()).isEqualTo(30);
         assertThat(response.recommendation().latestClickedAt()).isEqualTo(LocalDateTime.of(2026, 5, 2, 8, 45));
-        assertThat(response.recommendation().clickThroughRateLast7d()).isEqualByComparingTo("0.3000");
-        assertThat(response.recommendation().fallbackRateLast7d()).isEqualByComparingTo("0.2000");
-        assertThat(response.recommendation().weightBucketsLast7d()).extracting(AdminDashboardResponse.RecommendationWeightSnapshot::weightKey)
+        assertThat(response.recommendation().clickThroughRateInWindow()).isEqualByComparingTo("0.3000");
+        assertThat(response.recommendation().fallbackRateInWindow()).isEqualByComparingTo("0.2000");
+        assertThat(response.recommendation().weightBucketsInWindow()).extracting(AdminDashboardResponse.RecommendationWeightSnapshot::weightKey)
                 .containsExactly("GROWTH", "COLD_START");
         assertThat(response.trend().recommendation()).extracting(AdminDashboardResponse.RecommendationTrendPoint::windowDays)
                 .containsExactly(1, 7, 30);
         assertThat(response.trend().recommendation().get(1).clickThroughRate()).isEqualByComparingTo("0.3000");
         assertThat(response.notification().failedLast24h()).isEqualTo(1);
-        assertThat(response.search().searchesLast7d()).isEqualTo(88);
-        assertThat(response.search().zeroResultSearchesLast7d()).isEqualTo(13);
-        assertThat(response.search().averageResultCountLast7d()).isEqualByComparingTo("6.38");
-        assertThat(response.search().topKeywordsLast7d()).extracting(AdminDashboardResponse.SearchKeywordSnapshot::keyword)
+        assertThat(response.search().windowDays()).isEqualTo(7);
+        assertThat(response.search().searchesInWindow()).isEqualTo(88);
+        assertThat(response.search().zeroResultSearchesInWindow()).isEqualTo(13);
+        assertThat(response.search().averageResultCountInWindow()).isEqualByComparingTo("6.38");
+        assertThat(response.search().topKeywordsInWindow()).extracting(AdminDashboardResponse.SearchKeywordSnapshot::keyword)
                 .containsExactly("월세", "주거");
         assertThat(response.trend().search()).extracting(AdminDashboardResponse.SearchTrendPoint::windowDays)
                 .containsExactly(1, 7, 30);
@@ -221,12 +224,15 @@ class AdminDashboardServiceTest {
                         new AdminDashboardReadRepository.SearchTrendRow(6, 2)
                 );
 
-        AdminDashboardResponse response = adminDashboardService.getSummary(List.of(3, 14, 14, -1, 400));
+        AdminDashboardResponse response = adminDashboardService.getSummary(14, List.of(3, 14, 14, -1, 400));
 
+        assertThat(response.collect().failureWindowDays()).isEqualTo(14);
         assertThat(response.trend().collect()).extracting(AdminDashboardResponse.CollectTrendPoint::windowDays)
                 .containsExactly(3, 14);
+        assertThat(response.recommendation().windowDays()).isEqualTo(14);
         assertThat(response.trend().recommendation()).extracting(AdminDashboardResponse.RecommendationTrendPoint::windowDays)
                 .containsExactly(3, 14);
+        assertThat(response.search().windowDays()).isEqualTo(14);
         assertThat(response.trend().search()).extracting(AdminDashboardResponse.SearchTrendPoint::windowDays)
                 .containsExactly(3, 14);
 

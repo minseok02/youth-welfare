@@ -15,6 +15,11 @@
 - 해결: `trendWindowDays` query param을 추가해 요청이 들어온 기간 창만 계산하게 했고, `run-local-admin-dashboard-smoke.sh` 도 `TREND_WINDOW_DAYS_CSV` 를 받아 custom window 계약을 같이 검증하도록 맞췄다
 - 이유: summary 계약 기본값은 유지하되, 운영/로컬 관측이 필요할 때만 창을 좁혀 보는 편이 cross-domain dashboard 구조를 흔들지 않고도 실용성이 높다
 
+## 298) 대시보드의 일부 collect/search/recommendation 필드는 여전히 7일 고정이라 trend만 가변이고 summary는 고정이라는 어색한 계약이 남아 있었음
+- 문제: `trendWindowDays` 는 커스터마이즈할 수 있게 됐지만, `collect.latestFailuresLast7d`, `recommendation.sentLast7d/clickedLast7d/fallbackLast7d/weightBucketsLast7d`, `search.zeroResultSearchesLast7d/topKeywordsLast7d` 는 여전히 7일 고정이었다. 그래서 같은 응답 안에서 trend는 `3/14일`로 보면서 summary는 항상 `7일`로 읽어야 하는 계약 불일치가 생겼다
+- 해결: `summaryWindowDays` query param을 추가해 collect/search/recommendation summary window를 함께 제어하게 바꿨다. DTO 필드도 `latestFailuresInWindow`, `sentInWindow`, `zeroResultSearchesInWindow`, `weightBucketsInWindow` 같은 형태로 일반화했고, `run-local-admin-dashboard-smoke.sh` 도 `SUMMARY_WINDOW_DAYS` 를 받아 summary/trend 계약을 같이 검증하도록 확장했다
+- 이유: 대시보드 응답은 “현재 요약 + 기간별 추세”를 같이 보여 주는 용도이므로, summary 기간 자체도 요청자가 선택 가능해야 trend와 함께 해석하기 쉽다
+
 ## 294) broad-suite self-heal cleanup이 안정화됐지만 user-prefix integration 테스트들에 거의 같은 정리 코드가 복제돼 다시 drift할 가능성이 있었음
 - 문제: `AuthRedisIntegrationTest`, `AdminSecurityIntegrationTest`, `UserCoreDualWriteIntegrationTest`, `UserMetadataUserKeyBackfillIntegrationTest`, `UserPiiBackfillIntegrationTest`, `UserPiiSyncReplayIntegrationTest`, `UserPiiSyncRetrySchedulerIntegrationTest`, `RecommendationFlowIntegrationTest` 는 모두 “email prefix로 user를 찾고 userKey 파생 cleanup 후 user delete” 구조가 거의 같았는데, 세부 차이가 조금씩 있어 다음 hardening 때 일부 클래스만 갱신될 위험이 있었음
 - 해결: test 전용 `IntegrationCleanupSupport` 를 추가하고 user-prefix cleanup, service-prefix cleanup 진입점을 공통화했다. 각 클래스는 이제 “무슨 추가 정리가 필요한가”만 람다로 넘기고, 사용자 탐색/삭제 흐름 자체는 한 곳에서 처리한다

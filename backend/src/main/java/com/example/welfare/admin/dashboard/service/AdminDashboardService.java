@@ -22,32 +22,38 @@ import java.util.List;
 public class AdminDashboardService {
 
     private static final int FAILED_SAMPLE_LIMIT = 5;
+    private static final int DEFAULT_SUMMARY_WINDOW_DAYS = 7;
     private static final List<Integer> DEFAULT_TREND_WINDOWS_DAYS = List.of(1, 7, 30);
-    private static final int MAX_TREND_WINDOW_DAYS = 365;
+    private static final int MAX_WINDOW_DAYS = 365;
 
     private final AdminDashboardReadRepository adminDashboardReadRepository;
     private final UserPiiSyncStatusService userPiiSyncStatusService;
     private final ScoreWeightService scoreWeightService;
 
     public AdminDashboardResponse getSummary() {
-        return getSummary(DEFAULT_TREND_WINDOWS_DAYS);
+        return getSummary(null, null);
     }
 
     public AdminDashboardResponse getSummary(List<Integer> requestedTrendWindows) {
+        return getSummary(null, requestedTrendWindows);
+    }
+
+    public AdminDashboardResponse getSummary(Integer requestedSummaryWindowDays, List<Integer> requestedTrendWindows) {
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime dayAgo = now.minusDays(1);
-        LocalDateTime weekAgo = now.minusDays(7);
+        int summaryWindowDays = resolveSummaryWindowDays(requestedSummaryWindowDays);
+        LocalDateTime summaryWindowAgo = now.minusDays(summaryWindowDays);
         List<Integer> trendWindows = resolveTrendWindows(requestedTrendWindows);
 
         AdminDashboardReadRepository.CollectSummaryRow collectSummary =
                 adminDashboardReadRepository.fetchCollectSummary(dayAgo);
         AdminDashboardReadRepository.RecommendationSummaryRow recommendationSummary =
-                adminDashboardReadRepository.fetchRecommendationSummary(dayAgo, weekAgo);
+                adminDashboardReadRepository.fetchRecommendationSummary(dayAgo, summaryWindowAgo);
         ScoreWeight activeWeight = scoreWeightService.getActiveWeight();
         AdminDashboardReadRepository.NotificationSummaryRow notificationSummary =
-                adminDashboardReadRepository.fetchNotificationSummary(dayAgo, weekAgo);
+                adminDashboardReadRepository.fetchNotificationSummary(dayAgo, summaryWindowAgo);
         AdminDashboardReadRepository.SearchSummaryRow searchSummary =
-                adminDashboardReadRepository.fetchSearchSummary(dayAgo, weekAgo);
+                adminDashboardReadRepository.fetchSearchSummary(dayAgo, summaryWindowAgo);
         UserPiiSyncStatusResponse userPiiSyncStatus = userPiiSyncStatusService.getStatus(FAILED_SAMPLE_LIMIT);
 
         return new AdminDashboardResponse(
@@ -57,6 +63,7 @@ public class AdminDashboardService {
                         collectSummary.successJobsLast24h(),
                         collectSummary.partialSuccessJobsLast24h(),
                         collectSummary.failedJobsLast24h(),
+                        summaryWindowDays,
                         adminDashboardReadRepository.fetchLatestCollectJobs().stream()
                                 .map(row -> new AdminDashboardResponse.CollectJobSnapshot(
                                         row.jobName(),
@@ -68,7 +75,7 @@ public class AdminDashboardService {
                                         row.failedCount()
                                 ))
                                 .toList(),
-                        adminDashboardReadRepository.fetchLatestCollectFailures(weekAgo).stream()
+                        adminDashboardReadRepository.fetchLatestCollectFailures(summaryWindowAgo).stream()
                                 .map(row -> new AdminDashboardResponse.CollectFailureSnapshot(
                                         row.jobName(),
                                         row.status(),
@@ -88,13 +95,14 @@ public class AdminDashboardService {
                         activeWeight.getAiWeight(),
                         recommendationSummary.totalLogs(),
                         recommendationSummary.sentLast24h(),
-                        recommendationSummary.sentLast7d(),
-                        recommendationSummary.clickedLast7d(),
-                        recommendationSummary.fallbackLast7d(),
+                        summaryWindowDays,
+                        recommendationSummary.sentInWindow(),
+                        recommendationSummary.clickedInWindow(),
+                        recommendationSummary.fallbackInWindow(),
                         recommendationSummary.latestClickedAt(),
-                        ratio(recommendationSummary.clickedLast7d(), recommendationSummary.sentLast7d()),
-                        ratio(recommendationSummary.fallbackLast7d(), recommendationSummary.sentLast7d()),
-                        adminDashboardReadRepository.fetchRecommendationWeightBuckets(weekAgo).stream()
+                        ratio(recommendationSummary.clickedInWindow(), recommendationSummary.sentInWindow()),
+                        ratio(recommendationSummary.fallbackInWindow(), recommendationSummary.sentInWindow()),
+                        adminDashboardReadRepository.fetchRecommendationWeightBuckets(summaryWindowAgo).stream()
                                 .map(row -> new AdminDashboardResponse.RecommendationWeightSnapshot(
                                         row.weightKey(),
                                         row.ruleWeight(),
@@ -111,11 +119,12 @@ public class AdminDashboardService {
                 ),
                 new AdminDashboardResponse.SearchSection(
                         searchSummary.searchesLast24h(),
-                        searchSummary.searchesLast7d(),
-                        searchSummary.zeroResultSearchesLast7d(),
-                        searchSummary.uniqueFingerprintsLast7d(),
-                        searchSummary.averageResultCountLast7d().setScale(2, RoundingMode.HALF_UP),
-                        adminDashboardReadRepository.fetchTopSearchKeywords(weekAgo).stream()
+                        summaryWindowDays,
+                        searchSummary.searchesInWindow(),
+                        searchSummary.zeroResultSearchesInWindow(),
+                        searchSummary.uniqueFingerprintsInWindow(),
+                        searchSummary.averageResultCountInWindow().setScale(2, RoundingMode.HALF_UP),
+                        adminDashboardReadRepository.fetchTopSearchKeywords(summaryWindowAgo).stream()
                                 .map(row -> new AdminDashboardResponse.SearchKeywordSnapshot(
                                         row.keyword(),
                                         row.searchCount()
@@ -136,6 +145,18 @@ public class AdminDashboardService {
         );
     }
 
+    private int resolveSummaryWindowDays(Integer requestedSummaryWindowDays) {
+        if (requestedSummaryWindowDays == null) {
+            return DEFAULT_SUMMARY_WINDOW_DAYS;
+        }
+
+        if (requestedSummaryWindowDays <= 0 || requestedSummaryWindowDays > MAX_WINDOW_DAYS) {
+            return DEFAULT_SUMMARY_WINDOW_DAYS;
+        }
+
+        return requestedSummaryWindowDays;
+    }
+
     private List<Integer> resolveTrendWindows(List<Integer> requestedTrendWindows) {
         if (requestedTrendWindows == null || requestedTrendWindows.isEmpty()) {
             return DEFAULT_TREND_WINDOWS_DAYS;
@@ -143,7 +164,7 @@ public class AdminDashboardService {
 
         List<Integer> normalized = requestedTrendWindows.stream()
                 .filter(java.util.Objects::nonNull)
-                .filter(windowDays -> windowDays > 0 && windowDays <= MAX_TREND_WINDOW_DAYS)
+                .filter(windowDays -> windowDays > 0 && windowDays <= MAX_WINDOW_DAYS)
                 .collect(java.util.stream.Collectors.collectingAndThen(
                         java.util.stream.Collectors.toCollection(LinkedHashSet::new),
                         List::copyOf

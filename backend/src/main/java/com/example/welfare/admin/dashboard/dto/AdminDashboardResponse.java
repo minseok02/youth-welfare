@@ -19,8 +19,9 @@ public record AdminDashboardResponse(
             long successJobsLast24h,
             long partialSuccessJobsLast24h,
             long failedJobsLast24h,
+            int failureWindowDays,
             List<CollectJobSnapshot> latestJobs,
-            List<CollectFailureSnapshot> latestFailuresLast7d
+            List<CollectFailureSnapshot> latestFailuresInWindow
     ) {
     }
 
@@ -54,13 +55,14 @@ public record AdminDashboardResponse(
             BigDecimal activeAiWeight,
             long totalLogs,
             long sentLast24h,
-            long sentLast7d,
-            long clickedLast7d,
-            long fallbackLast7d,
+            int windowDays,
+            long sentInWindow,
+            long clickedInWindow,
+            long fallbackInWindow,
             LocalDateTime latestClickedAt,
-            BigDecimal clickThroughRateLast7d,
-            BigDecimal fallbackRateLast7d,
-            List<RecommendationWeightSnapshot> weightBucketsLast7d
+            BigDecimal clickThroughRateInWindow,
+            BigDecimal fallbackRateInWindow,
+            List<RecommendationWeightSnapshot> weightBucketsInWindow
     ) {
     }
 
@@ -82,11 +84,12 @@ public record AdminDashboardResponse(
 
     public record SearchSection(
             long searchesLast24h,
-            long searchesLast7d,
-            long zeroResultSearchesLast7d,
-            long uniqueFingerprintsLast7d,
-            BigDecimal averageResultCountLast7d,
-            List<SearchKeywordSnapshot> topKeywordsLast7d
+            int windowDays,
+            long searchesInWindow,
+            long zeroResultSearchesInWindow,
+            long uniqueFingerprintsInWindow,
+            BigDecimal averageResultCountInWindow,
+            List<SearchKeywordSnapshot> topKeywordsInWindow
     ) {
     }
 

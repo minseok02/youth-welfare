@@ -43,17 +43,17 @@ admin dashboard 반복 검증은 아래 스크립트를 우선 사용합니다.
 deploy/smoke/run-local-admin-dashboard-smoke.sh
 ```
 
-이 스크립트는 `admin login -> ROLE_ADMIN 확인 -> /api/admin/dashboard/summary -> trend window(1/7/30)` 를 한 번에 확인합니다.
+이 스크립트는 `admin login -> ROLE_ADMIN 확인 -> /api/admin/dashboard/summary -> summary window + trend window 계약` 을 한 번에 확인합니다.
 로컬 Docker app이 `SECURITY_ADMIN_EMAILS` 없이 떠 있으면 `admin@example.com` 이 `ROLE_ADMIN` 없이 로그인될 수 있으므로, 이 경우에는 아래처럼 다시 띄웁니다.
 
 ```bash
 SECURITY_ADMIN_EMAILS=admin@example.com docker compose up -d --force-recreate app
 ```
 
-기본 trend window는 `1,7,30` 이고, 다른 기간을 보고 싶으면 `TREND_WINDOW_DAYS_CSV` 로 덮어씁니다.
+기본 summary window는 `7`, 기본 trend window는 `1,7,30` 입니다. 다른 기간을 보고 싶으면 `SUMMARY_WINDOW_DAYS`, `TREND_WINDOW_DAYS_CSV` 로 덮어씁니다.
 
 ```bash
-TREND_WINDOW_DAYS_CSV=3,14 deploy/smoke/run-local-admin-dashboard-smoke.sh
+SUMMARY_WINDOW_DAYS=14 TREND_WINDOW_DAYS_CSV=3,14 deploy/smoke/run-local-admin-dashboard-smoke.sh
 ```
 
 auth/session revoke 세 개를 연속으로 돌릴 때는 아래 wrapper를 우선 사용합니다.
