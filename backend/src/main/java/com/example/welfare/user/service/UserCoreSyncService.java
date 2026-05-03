@@ -7,7 +7,6 @@ import com.example.welfare.user.entity.UserProfile;
 import com.example.welfare.user.event.UserPiiSyncRequestedEvent;
 import com.example.welfare.user.repository.AuthUserRepository;
 import com.example.welfare.user.repository.UserProfileRepository;
-import com.example.welfare.user.repository.UserRepository;
 import com.example.welfare.user.util.EmailLookupKeyGenerator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
@@ -22,7 +21,7 @@ import java.time.Period;
 @RequiredArgsConstructor
 public class UserCoreSyncService {
 
-    private final UserRepository userRepository;
+    private final UserKeyLookupService userKeyLookupService;
     private final AuthUserRepository authUserRepository;
     private final UserProfileRepository userProfileRepository;
     private final UserPiiSyncQueueService userPiiSyncQueueService;
@@ -31,8 +30,7 @@ public class UserCoreSyncService {
 
     @Transactional
     public void syncFromUser(User user) {
-        String userKey = userRepository.findUserKeyById(user.getId())
-                .orElseThrow(() -> new IllegalStateException("user_key not found for user id=" + user.getId()));
+        String userKey = userKeyLookupService.findRequired(user.getId());
 
         syncAuthUser(user, userKey);
         syncUserProfile(user, userKey);

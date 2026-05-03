@@ -7,7 +7,6 @@ import com.example.welfare.user.entity.UserProfile;
 import com.example.welfare.user.event.UserPiiSyncRequestedEvent;
 import com.example.welfare.user.repository.AuthUserRepository;
 import com.example.welfare.user.repository.UserProfileRepository;
-import com.example.welfare.user.repository.UserRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -27,7 +26,7 @@ import static org.mockito.BDDMockito.then;
 class UserCoreSyncServiceTest {
 
     @Mock
-    private UserRepository userRepository;
+    private UserKeyLookupService userKeyLookupService;
 
     @Mock
     private AuthUserRepository authUserRepository;
@@ -61,7 +60,7 @@ class UserCoreSyncServiceTest {
                 .householdType("SINGLE")
                 .build();
 
-        given(userRepository.findUserKeyById(1L)).willReturn(Optional.of("user-key-1"));
+        given(userKeyLookupService.findRequired(1L)).willReturn("user-key-1");
         given(authUserRepository.findByUserKey("user-key-1")).willReturn(Optional.empty());
         given(userProfileRepository.findByUserKey("user-key-1")).willReturn(Optional.empty());
         given(aesEncryptUtil.encrypt("user@example.com")).willReturn("enc-email");
@@ -69,7 +68,7 @@ class UserCoreSyncServiceTest {
         given(aesEncryptUtil.encrypt("1998-01-10")).willReturn("enc-birth");
 
         UserCoreSyncService service = new UserCoreSyncService(
-                userRepository,
+                userKeyLookupService,
                 authUserRepository,
                 userProfileRepository,
                 userPiiSyncQueueService,

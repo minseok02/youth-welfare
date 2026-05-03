@@ -1145,6 +1145,9 @@ cd backend
 - 2026-05-03 shared user key lookup 확장
   - `RecommendationReadFacade`, `RecommendationLogService`, `UserBookmarkReadService`, `UserProfileCommandService`, `UserAccountCommandService`, `UserReadService`, `AuthTokenService` 도 `UserKeyLookupService` 를 사용하도록 정리
   - user/recommend 경계에서 `findUserKeyById(...)` 중복 해석을 줄이고 nullable/required lookup 규칙을 한 곳으로 모음
+- 2026-05-03 shared user key lookup 잔여 직접 조회 제거
+  - `RecommendationBookmarkCommandService`, `RecommendationFacade`, `UserCoreSyncService` 도 `UserKeyLookupService` 로 전환
+  - 운영 코드 기준 직접 `findUserKeyById(...)` 호출은 이제 lookup 서비스 내부와 repository 자체 정의로만 남김
 
 ## 남은 1차 작업
 
