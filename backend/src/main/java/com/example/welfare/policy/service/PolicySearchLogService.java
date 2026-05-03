@@ -2,7 +2,7 @@ package com.example.welfare.policy.service;
 
 import com.example.welfare.policy.entity.SearchLog;
 import com.example.welfare.policy.repository.SearchLogRepository;
-import com.example.welfare.user.repository.UserRepository;
+import com.example.welfare.user.service.UserKeyLookupService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -14,7 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class PolicySearchLogService {
 
     private final SearchLogRepository searchLogRepository;
-    private final UserRepository userRepository;
+    private final UserKeyLookupService userKeyLookupService;
 
     @Transactional
     public void record(PolicySearchLogCommand command) {
@@ -24,7 +24,7 @@ public class PolicySearchLogService {
 
         try {
             searchLogRepository.save(SearchLog.builder()
-                    .userKey(resolveUserKey(command.userId()))
+                    .userKey(userKeyLookupService.findNullable(command.userId()))
                     .clientFingerprint(normalizeClientFingerprint(command.clientFingerprint()))
                     .keyword(command.keyword().trim())
                     .resultCount(command.resultCount())
@@ -47,13 +47,6 @@ public class PolicySearchLogService {
                     command.size(),
                     e);
         }
-    }
-
-    private String resolveUserKey(Long userId) {
-        if (userId == null) {
-            return null;
-        }
-        return userRepository.findUserKeyById(userId).orElse(null);
     }
 
     private String normalizeClientFingerprint(String clientFingerprint) {

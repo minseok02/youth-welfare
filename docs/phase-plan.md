@@ -1139,6 +1139,9 @@ cd backend
 - 2026-05-03 policy ranking 조회 경계 정리
   - `PolicyRankingReadRepository` 추가
   - `PolicyRankingService` 가 `findByStatusIn(...)` 를 직접 호출하지 않고 랭킹 대상 정책 조회를 전용 read repository로 위임
+- 2026-05-03 user key lookup 경계 정리
+  - `UserKeyLookupService` 추가
+  - `PolicyViewLogService`, `PolicySearchLogService` 가 `UserRepository.findUserKeyById(...)` 를 직접 호출하지 않고 nullable userKey 해석을 전용 서비스로 위임
 
 ## 남은 1차 작업
 
