@@ -2556,3 +2556,8 @@
 - 문제: `RetrievalService` 가 `findCandidatesWithRegionCode`, `findCandidatesWithSido`, `findLatestCandidatesWithRegionCode`, `findLatestCandidatesWithSido`, `findCandidates`, `findLatestCandidates` 를 직접 선택하고 있었다. 이 상태에서는 추천 후보 조회 조합이 바뀔 때 retrieval 서비스와 repository 분기가 함께 수정된다.
 - 해결: `RecommendationCandidateReadCondition`, `RecommendationCandidateReadRepository` 를 추가하고, `RetrievalService` 는 추천 후보 조회 의도만 condition으로 넘기게 바꿨다. 실제 조합식 repository 선택은 전용 read repository 구현으로 이동시켰다.
 - 이유: 추천 파이프라인 서비스는 “어떤 후보를 읽고 싶은가”에 집중하고, 지역/최신 조합식 persistence 선택은 read 계층으로 숨기는 편이 SRP와 변경 파급도 관리에 더 낫다.
+
+## 464) `ChatPolicyService` 가 챗봇 후보 검색과 fallback 인기 정책 조회를 위해 `WelfareServiceRepository` 메서드 조합을 직접 고르면, 챗 도메인이 policy persistence 분기까지 같이 떠안게 된다
+- 문제: `ChatPolicyService` 가 `searchChatCandidates(...)` 와 `findBySearchYouthRelevantTrueAndStatusInOrderByViewCountDescCreatedAtDesc(...)` 를 직접 고르고 있었다. 이 상태에서는 챗봇 후보 조회 규칙이 바뀔 때 질문 해석 서비스와 persistence 분기를 함께 수정해야 했다.
+- 해결: `ChatPolicyReadCondition`, `ChatPolicyReadRepository` 를 추가하고, `ChatPolicyService` 는 질문에서 만든 fulltext keyword 와 limit만 조건 객체로 넘기게 바꿨다. 검색 우선/fallback 인기 정책 조회 선택은 전용 read repository 구현으로 이동시켰다.
+- 이유: 챗 도메인 서비스는 질문 해석과 limit 정규화에 집중하고, 후보 조회 구현 분기는 read 계층으로 숨기는 편이 SRP와 도메인 경계 분리에 더 낫다.

@@ -1,17 +1,17 @@
 package com.example.welfare.chat.service;
 
 import com.example.welfare.chat.dto.ChatPolicyCandidate;
+import com.example.welfare.chat.repository.ChatPolicyReadCondition;
+import com.example.welfare.chat.repository.ChatPolicyReadRepository;
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.policy.entity.WelfareService;
-import com.example.welfare.policy.repository.WelfareServiceRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.domain.PageRequest;
 
 import java.util.List;
 
@@ -23,20 +23,20 @@ import static org.mockito.Mockito.when;
 class ChatPolicyServiceTest {
 
     @Mock
-    private WelfareServiceRepository welfareServiceRepository;
+    private ChatPolicyReadRepository chatPolicyReadRepository;
 
     private ChatPolicyService chatPolicyService;
 
     @BeforeEach
     void setUp() {
-        chatPolicyService = new ChatPolicyService(welfareServiceRepository);
+        chatPolicyService = new ChatPolicyService(chatPolicyReadRepository);
     }
 
     @Test
     @DisplayName("질문 키워드로 챗봇 정책 후보를 조회한다")
     void findCandidatesSearchesByQuestionKeyword() {
         WelfareService service = createService(1829L, "청년월세 한시 특별지원");
-        when(welfareServiceRepository.searchChatCandidates("+서울 +월세", 5))
+        when(chatPolicyReadRepository.findCandidates(new ChatPolicyReadCondition("+서울 +월세", 5)))
                 .thenReturn(List.of(service));
 
         List<ChatPolicyCandidate> candidates = chatPolicyService.findCandidates("서울 월세");
@@ -50,11 +50,7 @@ class ChatPolicyServiceTest {
     @DisplayName("검색 결과가 없으면 인기 청년 정책 후보로 fallback 한다")
     void findCandidatesFallsBackWhenSearchHasNoResult() {
         WelfareService fallbackService = createService(2451L, "국민취업지원제도");
-        when(welfareServiceRepository.searchChatCandidates("+취업 +지원", 3))
-                .thenReturn(List.of());
-        when(welfareServiceRepository.findBySearchYouthRelevantTrueAndStatusInOrderByViewCountDescCreatedAtDesc(
-                List.of(WelfareService.ServiceStatus.ACTIVE, WelfareService.ServiceStatus.UPCOMING),
-                PageRequest.of(0, 3)))
+        when(chatPolicyReadRepository.findCandidates(new ChatPolicyReadCondition("+취업 +지원", 3)))
                 .thenReturn(List.of(fallbackService));
 
         List<ChatPolicyCandidate> candidates = chatPolicyService.findCandidates("취업 지원", 3);
@@ -67,9 +63,7 @@ class ChatPolicyServiceTest {
     @DisplayName("질문이 기호만 있으면 검색 대신 fallback 후보를 조회한다")
     void findCandidatesFallsBackWhenQuestionHasNoSearchableToken() {
         WelfareService fallbackService = createService(3001L, "청년 도약 지원");
-        when(welfareServiceRepository.findBySearchYouthRelevantTrueAndStatusInOrderByViewCountDescCreatedAtDesc(
-                List.of(WelfareService.ServiceStatus.ACTIVE, WelfareService.ServiceStatus.UPCOMING),
-                PageRequest.of(0, 5)))
+        when(chatPolicyReadRepository.findCandidates(new ChatPolicyReadCondition("", 5)))
                 .thenReturn(List.of(fallbackService));
 
         List<ChatPolicyCandidate> candidates = chatPolicyService.findCandidates("!!! ???");
@@ -90,11 +84,7 @@ class ChatPolicyServiceTest {
     @Test
     @DisplayName("후보 수 제한은 최대 10건으로 정규화한다")
     void findCandidatesNormalizesLimit() {
-        when(welfareServiceRepository.searchChatCandidates("+서울 +월세", 10))
-                .thenReturn(List.of());
-        when(welfareServiceRepository.findBySearchYouthRelevantTrueAndStatusInOrderByViewCountDescCreatedAtDesc(
-                List.of(WelfareService.ServiceStatus.ACTIVE, WelfareService.ServiceStatus.UPCOMING),
-                PageRequest.of(0, 10)))
+        when(chatPolicyReadRepository.findCandidates(new ChatPolicyReadCondition("+서울 +월세", 10)))
                 .thenReturn(List.of(createService(1829L, "청년월세 한시 특별지원")));
 
         List<ChatPolicyCandidate> candidates = chatPolicyService.findCandidates("서울 월세", 99);
