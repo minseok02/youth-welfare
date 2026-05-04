@@ -15,23 +15,34 @@ import java.util.List;
 @RequiredArgsConstructor
 public class NotificationScheduleService {
 
+    static final String DAILY_LOCK_NAME = "notification-daily";
+    static final String WEEKLY_LOCK_NAME = "notification-weekly";
+    static final String RETRY_LOCK_NAME = "notification-retry";
+
     private final UserNotificationReadService userNotificationReadService;
     private final NotificationDispatchService notificationDispatchService;
     private final NotificationRetryService notificationRetryService;
+    private final NotificationExecutionGuard notificationExecutionGuard;
 
     @Scheduled(cron = "0 0 8 * * *", zone = "Asia/Seoul")
     public void sendDailyNotifications() {
-        sendNotifications(NotificationPeriod.DAILY, "일간");
+        notificationExecutionGuard.runIfAvailable(
+                DAILY_LOCK_NAME,
+                () -> sendNotifications(NotificationPeriod.DAILY, "일간")
+        );
     }
 
     @Scheduled(cron = "0 0 8 * * MON", zone = "Asia/Seoul")
     public void sendWeeklyNotifications() {
-        sendNotifications(NotificationPeriod.WEEKLY, "주간");
+        notificationExecutionGuard.runIfAvailable(
+                WEEKLY_LOCK_NAME,
+                () -> sendNotifications(NotificationPeriod.WEEKLY, "주간")
+        );
     }
 
     @Scheduled(cron = "0 */30 * * * *", zone = "Asia/Seoul")
     public void retryFailedNotifications() {
-        notificationRetryService.retryFailedNotifications();
+        notificationExecutionGuard.runIfAvailable(RETRY_LOCK_NAME, notificationRetryService::retryFailedNotifications);
     }
 
     private void sendNotifications(NotificationPeriod period, String label) {

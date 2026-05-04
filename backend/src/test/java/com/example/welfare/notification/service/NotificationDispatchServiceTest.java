@@ -32,6 +32,8 @@ class NotificationDispatchServiceTest {
     @Mock
     private NotificationRecommendationService notificationRecommendationService;
     @Mock
+    private NotificationDispatchWindowReadService notificationDispatchWindowReadService;
+    @Mock
     private NotificationMessageService notificationMessageService;
     @Mock
     private NotificationGateway notificationGateway;
@@ -46,6 +48,8 @@ class NotificationDispatchServiceTest {
     void sendTopRecommendationsSkipsWhenPlanMissing() {
         NotificationTarget target = new NotificationTarget(1L, "user-key-1", "test@example.com",
                 User.NotificationPeriod.DAILY, 0.8, 10);
+        given(notificationDispatchWindowReadService.hasDispatchHistoryInCurrentWindow("user-key-1", NotificationPeriodType.DAILY))
+                .willReturn(false);
         given(notificationRecommendationService.prepareDispatch(target)).willReturn(Optional.empty());
 
         notificationDispatchService.sendTopRecommendations(target);
@@ -70,6 +74,8 @@ class NotificationDispatchServiceTest {
                         List.of(log)
                 );
 
+        given(notificationDispatchWindowReadService.hasDispatchHistoryInCurrentWindow("user-key-1", NotificationPeriodType.DAILY))
+                .willReturn(false);
         given(notificationRecommendationService.prepareDispatch(target)).willReturn(Optional.of(plan));
         given(notificationMessageService.buildRecommendationMessage("user-key-1", 1L, List.of(recommendation), List.of(log)))
                 .willReturn("body");
@@ -88,6 +94,21 @@ class NotificationDispatchServiceTest {
                 eq(List.of(log)),
                 eq("notification gateway returned false")
         );
+    }
+
+    @Test
+    @DisplayName("현재 dispatch window 에 이미 이력이 있으면 중복 발송을 건너뛴다")
+    void sendTopRecommendationsSkipsWhenWindowAlreadyDispatched() {
+        NotificationTarget target = new NotificationTarget(1L, "user-key-1", "test@example.com",
+                User.NotificationPeriod.DAILY, 0.8, 10);
+        given(notificationDispatchWindowReadService.hasDispatchHistoryInCurrentWindow("user-key-1", NotificationPeriodType.DAILY))
+                .willReturn(true);
+
+        notificationDispatchService.sendTopRecommendations(target);
+
+        verify(notificationRecommendationService, never()).prepareDispatch(any());
+        verify(notificationGateway, never()).send(any(), any(), any());
+        verify(notificationHistoryService, never()).saveResult(any(), any(), any(), any(), any(), any(), any(), any(), any());
     }
 
     private User sampleUser() {

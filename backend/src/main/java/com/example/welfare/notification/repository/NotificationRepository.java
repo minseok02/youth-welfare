@@ -9,4 +9,11 @@ import java.util.List;
 public interface NotificationRepository extends JpaRepository<Notification, Long> {
 
     List<Notification> findByStatusAndNextRetryAtBefore(Notification.NotificationStatus status, LocalDateTime at);
+
+    boolean existsByUserKeyAndPeriodTypeAndCreatedAtGreaterThanEqualAndCreatedAtLessThan(
+            String userKey,
+            Notification.NotificationPeriodType periodType,
+            LocalDateTime createdAtFrom,
+            LocalDateTime createdAtTo
+    );
 }

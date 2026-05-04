@@ -21,11 +21,21 @@ public class NotificationDispatchService {
     static final String RECOMMEND_SUBJECT = "[청년복지] 맞춤 정책 추천";
 
     private final NotificationRecommendationService notificationRecommendationService;
+    private final NotificationDispatchWindowReadService notificationDispatchWindowReadService;
     private final NotificationMessageService notificationMessageService;
     private final NotificationGateway notificationGateway;
     private final NotificationHistoryService notificationHistoryService;
 
     public void sendTopRecommendations(NotificationTarget target) {
+        if (notificationDispatchWindowReadService.hasDispatchHistoryInCurrentWindow(
+                target.userKey(),
+                toPeriodType(target.notificationPeriod())
+        )) {
+            log.info("[NotificationDispatchService] 현재 dispatch window 에 이미 이력이 있어 중복 발송을 건너뜁니다. userKey={} period={}",
+                    target.userKey(), target.notificationPeriod());
+            return;
+        }
+
         NotificationRecommendationService.NotificationDispatchPlan plan =
                 notificationRecommendationService.prepareDispatch(target).orElse(null);
         if (plan == null) {
@@ -82,5 +92,13 @@ public class NotificationDispatchService {
             }
             log.error("[NotificationDispatchService] 알림 발송 실패 userId={}: {}", user.getId(), e.getMessage());
         }
+    }
+
+    private com.example.welfare.notification.entity.Notification.NotificationPeriodType toPeriodType(User.NotificationPeriod period) {
+        return switch (period) {
+            case DAILY -> com.example.welfare.notification.entity.Notification.NotificationPeriodType.DAILY;
+            case WEEKLY -> com.example.welfare.notification.entity.Notification.NotificationPeriodType.WEEKLY;
+            case NONE -> com.example.welfare.notification.entity.Notification.NotificationPeriodType.MANUAL;
+        };
     }
 }
