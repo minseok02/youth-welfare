@@ -4,8 +4,7 @@ import com.example.welfare.policy.dto.PolicySummaryResponse;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
 import com.example.welfare.recommend.entity.UserRecommendation;
-import com.example.welfare.recommend.repository.CanonicalRecommendationReadModelRepository;
-import com.example.welfare.recommend.repository.UserRecommendationRepository;
+import com.example.welfare.recommend.repository.RecommendationSummaryReadRepository;
 import com.example.welfare.user.service.UserKeyLookupService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -20,8 +19,7 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class RecommendationReadFacade {
 
-    private final UserRecommendationRepository userRecommendationRepository;
-    private final CanonicalRecommendationReadModelRepository canonicalRecommendationReadModelRepository;
+    private final RecommendationSummaryReadRepository recommendationSummaryReadRepository;
     private final UserKeyLookupService userKeyLookupService;
 
     public Set<Long> findBookmarkedServiceIds(Long userId, List<WelfareService> services) {
@@ -37,7 +35,7 @@ public class RecommendationReadFacade {
                 .map(WelfareService::getId)
                 .toList();
 
-        return new HashSet<>(userRecommendationRepository.findLatestBookmarkedServiceIdsByUserKey(userKey, serviceIds));
+        return new HashSet<>(recommendationSummaryReadRepository.findLatestBookmarkedServiceIds(userKey, serviceIds));
     }
 
     public Map<Long, RecommendationCandidateProjection> findCandidateProjections(List<UserRecommendation> recommendations) {
@@ -64,11 +62,11 @@ public class RecommendationReadFacade {
         if (serviceIds == null || serviceIds.isEmpty()) {
             return Map.of();
         }
-        return canonicalRecommendationReadModelRepository.findByServiceIds(serviceIds);
+        return recommendationSummaryReadRepository.findCandidateProjections(serviceIds);
     }
 
     public List<PolicySummaryResponse> findBookmarkedPolicySummaries(String userKey) {
-        List<UserRecommendation> bookmarks = userRecommendationRepository.findLatestBookmarkedByUserKey(userKey);
+        List<UserRecommendation> bookmarks = recommendationSummaryReadRepository.findLatestBookmarkedRecommendations(userKey);
         Map<Long, RecommendationCandidateProjection> projections = findCandidateProjections(bookmarks);
         return bookmarks.stream()
                 .map(UserRecommendation::getService)

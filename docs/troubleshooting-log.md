@@ -2786,3 +2786,8 @@
 - 문제: 세션 서비스는 최근 세션 목록 조회, 소유 세션 확인, 신규 세션 저장, 삭제를 직접 수행했고, cleanup 서비스도 userKey 기준 전체 삭제를 저장소에 직접 호출하고 있었다. 이 상태면 세션 persistence 조합이 바뀔 때 서비스 둘을 다시 열어야 한다.
 - 해결: `ChatSessionReadRepository` / `ChatSessionReadRepositoryImpl`, `ChatSessionCommandRepository` / `ChatSessionCommandRepositoryImpl` 을 추가하고, 세션 목록/소유 확인은 read repository로, 세션 생성/삭제/cleanup delete 는 command repository로 이동했다.
 - 이유: chat session 서비스는 active user 검증과 제목 정규화 같은 orchestration 에 집중하고, 세션 persistence 세부사항은 read/command 경계로 분리해야 책임이 더 선명해진다.
+
+## 510) `RecommendationReadFacade` 가 북마크 최신 조회와 canonical projection 조회를 `UserRecommendationRepository`, `CanonicalRecommendationReadModelRepository` 에 직접 걸치면, recommendation summary read 조합이 facade 본문에 남는다
+- 문제: recommendation read facade는 북마크 service id 조회, canonical projection 조회, 최신 북마크 recommendation 조회를 서로 다른 저장소에 직접 걸쳐 조합하고 있었다. 이 상태면 summary projection/북마크 read 조합이 바뀔 때 facade 본문을 다시 열어야 한다.
+- 해결: `RecommendationSummaryReadRepository` / `RecommendationSummaryReadRepositoryImpl` 을 추가하고, 북마크 service id 조회, canonical projection 조회, 최신 북마크 recommendation 조회를 이 read 경계 뒤로 이동했다.
+- 이유: recommendation read facade는 userKey 해석과 summary 응답 조립에 집중하고, recommendation summary read 조합은 별도 repository로 내려야 facade 책임이 더 선명해진다.

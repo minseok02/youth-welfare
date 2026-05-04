@@ -4,8 +4,7 @@ import com.example.welfare.policy.dto.PolicySummaryResponse;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
 import com.example.welfare.recommend.entity.UserRecommendation;
-import com.example.welfare.recommend.repository.CanonicalRecommendationReadModelRepository;
-import com.example.welfare.recommend.repository.UserRecommendationRepository;
+import com.example.welfare.recommend.repository.RecommendationSummaryReadRepository;
 import com.example.welfare.user.service.UserKeyLookupService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -24,16 +23,14 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class RecommendationReadFacadeTest {
 
-    @Mock private UserRecommendationRepository userRecommendationRepository;
-    @Mock private CanonicalRecommendationReadModelRepository canonicalRecommendationReadModelRepository;
+    @Mock private RecommendationSummaryReadRepository recommendationSummaryReadRepository;
     @Mock private UserKeyLookupService userKeyLookupService;
 
     @Test
     @DisplayName("북마크 서비스 id 조회는 nullable userKey와 최신 북마크 기준으로 반환한다")
     void findBookmarkedServiceIdsReturnsLatestBookmarks() {
         RecommendationReadFacade facade = new RecommendationReadFacade(
-                userRecommendationRepository,
-                canonicalRecommendationReadModelRepository,
+                recommendationSummaryReadRepository,
                 userKeyLookupService
         );
         WelfareService service = WelfareService.builder()
@@ -44,7 +41,7 @@ class RecommendationReadFacadeTest {
                 .build();
 
         when(userKeyLookupService.findNullable(1L)).thenReturn("user-key-1");
-        when(userRecommendationRepository.findLatestBookmarkedServiceIdsByUserKey("user-key-1", List.of(11L)))
+        when(recommendationSummaryReadRepository.findLatestBookmarkedServiceIds("user-key-1", List.of(11L)))
                 .thenReturn(List.of(11L));
 
         Set<Long> bookmarkedIds = facade.findBookmarkedServiceIds(1L, List.of(service));
@@ -56,8 +53,7 @@ class RecommendationReadFacadeTest {
     @DisplayName("추천 projection 조회는 recommendation 목록의 service id를 canonical read model에 위임한다")
     void findCandidateProjectionsDelegatesToCanonicalReadModelRepository() {
         RecommendationReadFacade facade = new RecommendationReadFacade(
-                userRecommendationRepository,
-                canonicalRecommendationReadModelRepository,
+                recommendationSummaryReadRepository,
                 userKeyLookupService
         );
         WelfareService service = WelfareService.builder()
@@ -76,22 +72,21 @@ class RecommendationReadFacadeTest {
                 .unifiedCategoryCompat("주거")
                 .build();
 
-        when(canonicalRecommendationReadModelRepository.findByServiceIds(List.of(11L)))
+        when(recommendationSummaryReadRepository.findCandidateProjections(List.of(11L)))
                 .thenReturn(Map.of(11L, projection));
 
         Map<Long, RecommendationCandidateProjection> result =
                 facade.findCandidateProjections(List.of(recommendation));
 
         assertThat(result).containsEntry(11L, projection);
-        verify(canonicalRecommendationReadModelRepository).findByServiceIds(List.of(11L));
+        verify(recommendationSummaryReadRepository).findCandidateProjections(List.of(11L));
     }
 
     @Test
     @DisplayName("정책 서비스 projection 조회는 정책 목록의 service id를 canonical read model에 위임한다")
     void findCandidateProjectionsByServicesDelegatesToCanonicalReadModelRepository() {
         RecommendationReadFacade facade = new RecommendationReadFacade(
-                userRecommendationRepository,
-                canonicalRecommendationReadModelRepository,
+                recommendationSummaryReadRepository,
                 userKeyLookupService
         );
         WelfareService service = WelfareService.builder()
@@ -105,22 +100,21 @@ class RecommendationReadFacadeTest {
                 .unifiedCategoryCompat("주거")
                 .build();
 
-        when(canonicalRecommendationReadModelRepository.findByServiceIds(List.of(11L)))
+        when(recommendationSummaryReadRepository.findCandidateProjections(List.of(11L)))
                 .thenReturn(Map.of(11L, projection));
 
         Map<Long, RecommendationCandidateProjection> result =
                 facade.findCandidateProjectionsByServices(List.of(service));
 
         assertThat(result).containsEntry(11L, projection);
-        verify(canonicalRecommendationReadModelRepository).findByServiceIds(List.of(11L));
+        verify(recommendationSummaryReadRepository).findCandidateProjections(List.of(11L));
     }
 
     @Test
     @DisplayName("service id projection 조회는 canonical read model 저장소에 위임한다")
     void findCandidateProjectionsByServiceIdsDelegatesToCanonicalReadModelRepository() {
         RecommendationReadFacade facade = new RecommendationReadFacade(
-                userRecommendationRepository,
-                canonicalRecommendationReadModelRepository,
+                recommendationSummaryReadRepository,
                 userKeyLookupService
         );
         RecommendationCandidateProjection projection = RecommendationCandidateProjection.builder()
@@ -128,22 +122,21 @@ class RecommendationReadFacadeTest {
                 .unifiedCategoryCompat("주거")
                 .build();
 
-        when(canonicalRecommendationReadModelRepository.findByServiceIds(List.of(11L)))
+        when(recommendationSummaryReadRepository.findCandidateProjections(List.of(11L)))
                 .thenReturn(Map.of(11L, projection));
 
         Map<Long, RecommendationCandidateProjection> result =
                 facade.findCandidateProjectionsByServiceIds(List.of(11L));
 
         assertThat(result).containsEntry(11L, projection);
-        verify(canonicalRecommendationReadModelRepository).findByServiceIds(List.of(11L));
+        verify(recommendationSummaryReadRepository).findCandidateProjections(List.of(11L));
     }
 
     @Test
     @DisplayName("북마크 정책 요약 조회는 recommendation read 경계 안에서 summary 응답으로 조립한다")
     void findBookmarkedPolicySummariesReturnsPolicySummaries() {
         RecommendationReadFacade facade = new RecommendationReadFacade(
-                userRecommendationRepository,
-                canonicalRecommendationReadModelRepository,
+                recommendationSummaryReadRepository,
                 userKeyLookupService
         );
         WelfareService policy = WelfareService.builder()
@@ -156,14 +149,14 @@ class RecommendationReadFacadeTest {
                 .status(WelfareService.ServiceStatus.ACTIVE)
                 .build();
 
-        when(userRecommendationRepository.findLatestBookmarkedByUserKey("user-key-1"))
+        when(recommendationSummaryReadRepository.findLatestBookmarkedRecommendations("user-key-1"))
                 .thenReturn(List.of(UserRecommendation.builder()
                         .id(100L)
                         .userKey("user-key-1")
                         .service(policy)
                         .isBookmarked(true)
                         .build()));
-        when(canonicalRecommendationReadModelRepository.findByServiceIds(List.of(11L)))
+        when(recommendationSummaryReadRepository.findCandidateProjections(List.of(11L)))
                 .thenReturn(Map.of(
                         11L,
                         RecommendationCandidateProjection.builder()
