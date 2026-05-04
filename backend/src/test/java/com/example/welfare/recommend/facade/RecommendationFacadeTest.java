@@ -6,7 +6,7 @@ import com.example.welfare.recommend.dto.RetrievedRecommendationCandidates;
 import com.example.welfare.recommend.dto.ScoredCandidate;
 import com.example.welfare.recommend.entity.ScoreWeight;
 import com.example.welfare.recommend.entity.UserRecommendation;
-import com.example.welfare.recommend.repository.UserRecommendationRepository;
+import com.example.welfare.recommend.repository.RecommendationResultReadRepository;
 import com.example.welfare.recommend.service.AiScoringService;
 import com.example.welfare.recommend.service.ClusterService;
 import com.example.welfare.recommend.service.ReRankingService;
@@ -54,7 +54,7 @@ class RecommendationFacadeTest {
     @Mock private RecommendationLogService recommendationLogService;
     @Mock private RecommendationRefreshCacheService recommendationRefreshCacheService;
     @Mock private RecommendationBookmarkCommandService recommendationBookmarkCommandService;
-    @Mock private UserRecommendationRepository userRecommendationRepository;
+    @Mock private RecommendationResultReadRepository recommendationResultReadRepository;
 
     private RecommendationFacade recommendationFacade;
 
@@ -73,7 +73,7 @@ class RecommendationFacadeTest {
                 recommendationLogService,
                 recommendationRefreshCacheService,
                 recommendationBookmarkCommandService,
-                userRecommendationRepository
+                recommendationResultReadRepository
         );
     }
 
@@ -95,7 +95,7 @@ class RecommendationFacadeTest {
         when(userReadService.getRecommendationContext(1L))
                 .thenReturn(new UserReadService.RecommendationReadContext(user, snapshot));
         when(recommendationRefreshCacheService.canReuse("user-key-1")).thenReturn(true);
-        when(userRecommendationRepository.findLatestByUserKeyOrderByFinalScoreDesc("user-key-1"))
+        when(recommendationResultReadRepository.findLatestSavedRecommendations("user-key-1"))
                 .thenReturn(List.of(cached));
 
         List<UserRecommendation> result = recommendationFacade.recommend(1L, false);
@@ -148,7 +148,7 @@ class RecommendationFacadeTest {
         when(userReadService.getRecommendationContext(1L))
                 .thenReturn(new UserReadService.RecommendationReadContext(user, snapshot));
         when(recommendationRefreshCacheService.canReuse("user-key-1")).thenReturn(true);
-        when(userRecommendationRepository.findLatestByUserKeyOrderByFinalScoreDesc("user-key-1"))
+        when(recommendationResultReadRepository.findLatestSavedRecommendations("user-key-1"))
                 .thenReturn(List.of());
         when(clusterService.assignCluster(snapshot)).thenReturn("youth_all");
         when(retrievalService.retrieve("youth_all", snapshot)).thenReturn(retrieved);
@@ -220,6 +220,20 @@ class RecommendationFacadeTest {
         verify(clusterService, never()).assignCluster(snapshot);
         verify(retrievalService).retrieve("youth_all", snapshot);
         verify(recommendationRefreshCacheService, never()).markReusable(anyString());
+    }
+
+    @Test
+    @DisplayName("저장된 추천 목록 조회는 결과 read repository에 위임한다")
+    void getRecommendationsDelegatesToReadRepository() {
+        UserRecommendation saved = sampleRecommendation(404L);
+        when(userKeyLookupService.findRequired(1L)).thenReturn("user-key-1");
+        when(recommendationResultReadRepository.findTopRecommendations("user-key-1", 5))
+                .thenReturn(List.of(saved));
+
+        List<UserRecommendation> result = recommendationFacade.getRecommendations(1L, 5);
+
+        assertThat(result).containsExactly(saved);
+        verify(recommendationResultReadRepository).findTopRecommendations("user-key-1", 5);
     }
 
     private UserRecommendation sampleRecommendation(Long id) {

@@ -6,14 +6,13 @@ import com.example.welfare.recommend.dto.RetrievedRecommendationCandidates;
 import com.example.welfare.recommend.dto.ScoredCandidate;
 import com.example.welfare.recommend.entity.ScoreWeight;
 import com.example.welfare.recommend.entity.UserRecommendation;
-import com.example.welfare.recommend.repository.UserRecommendationRepository;
+import com.example.welfare.recommend.repository.RecommendationResultReadRepository;
 import com.example.welfare.recommend.service.*;
 import com.example.welfare.user.entity.User;
 import com.example.welfare.user.service.UserKeyLookupService;
 import com.example.welfare.user.service.UserReadService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -48,7 +47,7 @@ public class RecommendationFacade {
     private final RecommendationLogService recommendationLogService;
     private final RecommendationRefreshCacheService recommendationRefreshCacheService;
     private final RecommendationBookmarkCommandService recommendationBookmarkCommandService;
-    private final UserRecommendationRepository userRecommendationRepository;
+    private final RecommendationResultReadRepository recommendationResultReadRepository;
 
     /**
      * 추천 생성 및 저장 — 로그인 시 또는 명시적 갱신 요청 시 실행
@@ -69,7 +68,7 @@ public class RecommendationFacade {
         if (personal) {
             recommendationRefreshCacheService.evict(userKey);
         } else if (recommendationRefreshCacheService.canReuse(userKey)) {
-            List<UserRecommendation> cached = userRecommendationRepository.findLatestByUserKeyOrderByFinalScoreDesc(userKey);
+            List<UserRecommendation> cached = recommendationResultReadRepository.findLatestSavedRecommendations(userKey);
             if (!cached.isEmpty()) {
                 log.info("[RecommendationFacade] refresh cache hit userId={} userKey={}", userId, userKey);
                 return cached;
@@ -124,7 +123,7 @@ public class RecommendationFacade {
     @Transactional(readOnly = true)
     public List<UserRecommendation> getRecommendations(Long userId, int size) {
         String userKey = resolveUserKey(userId);
-        return userRecommendationRepository.findTopByUserKey(userKey, PageRequest.of(0, size));
+        return recommendationResultReadRepository.findTopRecommendations(userKey, size);
     }
 
     /**

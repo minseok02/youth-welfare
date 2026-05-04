@@ -1238,6 +1238,7 @@ cd backend
 - `ChatMessageService` 와 `ChatMessageCommandService` 의 세션 소유 확인 / 메시지 read / append write 도 `ChatMessageReadRepository`, `ChatMessageCommandRepository` 뒤로 이동해 chat session-message persistence 조합을 서비스 밖으로 분리
 - `ChatSessionService` 와 `ChatSessionCleanupService` 의 세션 목록/소유 확인 read, 세션 생성/삭제/cleanup write 도 `ChatSessionReadRepository`, `ChatSessionCommandRepository` 뒤로 이동해 chat session persistence 경계를 분리
 - `RecommendationReadFacade` 의 북마크 최신 조회와 canonical projection 조회도 `RecommendationSummaryReadRepository` 뒤로 이동해 recommendation summary read 조합을 facade 밖으로 분리
+- `RecommendationFacade` 의 refresh cache 재사용용 최신 저장 추천 조회와 top recommendation 목록 조회도 `RecommendationResultReadRepository` 뒤로 이동해 결과 목록 read 규칙을 facade 밖으로 분리
 
 ## 2차로 분리된 항목
 

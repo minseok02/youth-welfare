@@ -2791,3 +2791,8 @@
 - 문제: recommendation read facade는 북마크 service id 조회, canonical projection 조회, 최신 북마크 recommendation 조회를 서로 다른 저장소에 직접 걸쳐 조합하고 있었다. 이 상태면 summary projection/북마크 read 조합이 바뀔 때 facade 본문을 다시 열어야 한다.
 - 해결: `RecommendationSummaryReadRepository` / `RecommendationSummaryReadRepositoryImpl` 을 추가하고, 북마크 service id 조회, canonical projection 조회, 최신 북마크 recommendation 조회를 이 read 경계 뒤로 이동했다.
 - 이유: recommendation read facade는 userKey 해석과 summary 응답 조립에 집중하고, recommendation summary read 조합은 별도 repository로 내려야 facade 책임이 더 선명해진다.
+
+## 511) `RecommendationFacade` 가 refresh cache 재사용용 최신 저장 추천 조회와 API 응답용 top recommendation 조회를 `UserRecommendationRepository` 에 직접 걸치면, 결과 목록 read 규칙이 파이프라인 facade 본문에 남는다
+- 문제: recommendation facade는 refresh cache hit 시 최신 저장 추천을 직접 읽고, `getRecommendations(...)` 도 top recommendation 목록을 저장소에서 직접 읽고 있었다. 이 상태면 추천 파이프라인 자체를 바꾸지 않아도 결과 목록 read 규칙이 달라질 때 facade 본문을 다시 열어야 한다.
+- 해결: `RecommendationResultReadRepository` / `RecommendationResultReadRepositoryImpl` 을 추가하고, 최신 저장 추천 조회와 top recommendation 목록 조회를 이 read 경계 뒤로 이동했다.
+- 이유: recommendation facade는 refresh cache reuse 판단과 추천 파이프라인 orchestration에 집중하고, 결과 목록 read 조합은 별도 repository로 내려야 facade 책임이 더 선명해진다.
