@@ -200,8 +200,12 @@ class DeferredNormalizedPolicySidecarWriterTest {
                 .doesNotThrowAnyException();
 
         verify(deferredNormalizedPolicySidecarCommandRepository).upsertTaxonomySummary(service, aggregate);
-        verify(jdbcTemplate).update(org.mockito.ArgumentMatchers.contains("DELETE FROM service_taxonomy_terms"), any(Object[].class));
-        verify(namedParameterJdbcTemplate).update(org.mockito.ArgumentMatchers.contains("INSERT INTO service_taxonomy_terms"), any(org.springframework.jdbc.core.namedparam.SqlParameterSource.class));
+        verify(deferredNormalizedPolicySidecarCommandRepository).replaceTaxonomyTerms(
+                org.mockito.ArgumentMatchers.eq(10L),
+                org.mockito.ArgumentMatchers.eq(aggregate.taxonomyTerms()),
+                any(List.class),
+                any(List.class)
+        );
         verify(namedParameterJdbcTemplate).update(org.mockito.ArgumentMatchers.contains("INSERT INTO service_facts"), any(org.springframework.jdbc.core.namedparam.SqlParameterSource.class));
     }
 
@@ -388,7 +392,12 @@ class DeferredNormalizedPolicySidecarWriterTest {
         assertThatCode(() -> writer.upsert(service, aggregate))
                 .doesNotThrowAnyException();
 
-        verify(jdbcTemplate, never()).update(org.mockito.ArgumentMatchers.contains("DELETE FROM service_taxonomy_terms"), any(Object[].class));
+        verify(deferredNormalizedPolicySidecarCommandRepository, never()).replaceTaxonomyTerms(
+                anyLong(),
+                any(List.class),
+                any(List.class),
+                any(List.class)
+        );
         verify(deferredNormalizedPolicySidecarCommandRepository).upsertTaxonomySummary(service, aggregate);
         verify(namedParameterJdbcTemplate).update(org.mockito.ArgumentMatchers.contains("INSERT INTO service_facts"), any(org.springframework.jdbc.core.namedparam.SqlParameterSource.class));
     }
@@ -428,15 +437,16 @@ class DeferredNormalizedPolicySidecarWriterTest {
         assertThatCode(() -> writer.upsert(service, aggregate))
                 .doesNotThrowAnyException();
 
-        ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
-        ArgumentCaptor<Object[]> argsCaptor = ArgumentCaptor.forClass(Object[].class);
-        verify(jdbcTemplate).update(sqlCaptor.capture(), argsCaptor.capture());
-
-        assertThat(sqlCaptor.getValue()).contains("term_group = ? AND source_field = ?");
-        assertThat(argsCaptor.getValue()).containsExactly(
-                30L,
-                "TARGET_GROUP",
-                "targetDetail/selectionCriteria"
+        ArgumentCaptor<List<String>> groupsCaptor = ArgumentCaptor.forClass(List.class);
+        ArgumentCaptor<List<String>> fieldsCaptor = ArgumentCaptor.forClass(List.class);
+        verify(deferredNormalizedPolicySidecarCommandRepository).replaceTaxonomyTerms(
+                org.mockito.ArgumentMatchers.eq(30L),
+                org.mockito.ArgumentMatchers.eq(aggregate.taxonomyTerms()),
+                groupsCaptor.capture(),
+                fieldsCaptor.capture()
         );
+
+        assertThat(groupsCaptor.getValue()).containsExactly("TARGET_GROUP");
+        assertThat(fieldsCaptor.getValue()).containsExactly("targetDetail/selectionCriteria");
     }
 }

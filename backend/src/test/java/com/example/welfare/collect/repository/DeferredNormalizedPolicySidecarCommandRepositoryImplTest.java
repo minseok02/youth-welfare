@@ -253,4 +253,62 @@ class DeferredNormalizedPolicySidecarCommandRepositoryImplTest {
         verify(namedParameterJdbcTemplate, never())
                 .update(org.mockito.ArgumentMatchers.contains("INSERT INTO service_taxonomy_summary_slots"), any(SqlParameterSource.class));
     }
+
+    @Test
+    @DisplayName("sidecar command repository는 taxonomy term delete scope와 insert를 위임한다")
+    void replaceTaxonomyTermsDelegates() {
+        NormalizedPolicyAggregate.TaxonomyTerm term = NormalizedPolicyAggregate.TaxonomyTerm.builder()
+                .termGroup("TARGET_GROUP")
+                .codeSetKey("TARGET_GROUP")
+                .termCode("LOW_INCOME")
+                .termLabel("기초생활수급자")
+                .sourceField("targetDetail/selectionCriteria")
+                .authority(NormalizedPolicyAggregate.Authority.SYSTEM_DERIVED)
+                .sortOrder(0)
+                .build();
+
+        deferredNormalizedPolicySidecarCommandRepository.replaceTaxonomyTerms(
+                30L,
+                List.of(term),
+                List.of("TARGET_GROUP"),
+                List.of("targetDetail/selectionCriteria")
+        );
+
+        ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<Object[]> argsCaptor = ArgumentCaptor.forClass(Object[].class);
+        verify(jdbcTemplate).update(sqlCaptor.capture(), argsCaptor.capture());
+        assertThat(sqlCaptor.getValue()).contains("term_group = ? AND source_field = ?");
+        assertThat(argsCaptor.getValue()).containsExactly(
+                30L,
+                "TARGET_GROUP",
+                "targetDetail/selectionCriteria"
+        );
+
+        ArgumentCaptor<SqlParameterSource> paramsCaptor = ArgumentCaptor.forClass(SqlParameterSource.class);
+        verify(namedParameterJdbcTemplate).update(org.mockito.ArgumentMatchers.contains("INSERT INTO service_taxonomy_terms"), paramsCaptor.capture());
+        assertThat(paramsCaptor.getValue().getValue("serviceId")).isEqualTo(30L);
+        assertThat(paramsCaptor.getValue().getValue("termGroup")).isEqualTo("TARGET_GROUP");
+        assertThat(paramsCaptor.getValue().getValue("sourceField")).isEqualTo("targetDetail/selectionCriteria");
+    }
+
+    @Test
+    @DisplayName("sidecar command repository는 refresh scope가 비어 있어도 term insert는 수행한다")
+    void replaceTaxonomyTermsSkipsDeleteWhenScopesEmpty() {
+        NormalizedPolicyAggregate.TaxonomyTerm term = NormalizedPolicyAggregate.TaxonomyTerm.builder()
+                .termGroup("YOUTH_MID")
+                .termLabel("전월세 및 주거급여 지원")
+                .authority(NormalizedPolicyAggregate.Authority.OFFICIAL)
+                .sortOrder(0)
+                .build();
+
+        deferredNormalizedPolicySidecarCommandRepository.replaceTaxonomyTerms(
+                12L,
+                List.of(term),
+                List.of(),
+                List.of()
+        );
+
+        verify(jdbcTemplate, never()).update(org.mockito.ArgumentMatchers.contains("DELETE FROM service_taxonomy_terms"), any(Object[].class));
+        verify(namedParameterJdbcTemplate).update(org.mockito.ArgumentMatchers.contains("INSERT INTO service_taxonomy_terms"), any(SqlParameterSource.class));
+    }
 }

@@ -115,54 +115,12 @@ public class DeferredNormalizedPolicySidecarWriter implements NormalizedPolicySi
         }
 
         List<TermRefreshScope> refreshScopes = refreshableTermScopes(aggregate);
-        if (!refreshScopes.isEmpty()) {
-            jdbcTemplate.update("""
-                    DELETE FROM service_taxonomy_terms
-                    WHERE service_id = ?
-                      AND (%s)
-                    """.formatted(String.join(" OR ",
-                            refreshScopes.stream()
-                                    .map(scope -> "(term_group = ? AND source_field = ?)")
-                                    .toList())),
-                    buildDeleteArgs(service.getId(), refreshScopes));
-        }
-
-        for (NormalizedPolicyAggregate.TaxonomyTerm term : aggregate.taxonomyTerms()) {
-            namedParameterJdbcTemplate.update("""
-                    INSERT INTO service_taxonomy_terms (
-                        service_id,
-                        term_group,
-                        code_set_key,
-                        term_code,
-                        term_label,
-                        source_field,
-                        authority,
-                        sort_order
-                    ) VALUES (
-                        :serviceId,
-                        :termGroup,
-                        :codeSetKey,
-                        :termCode,
-                        :termLabel,
-                        :sourceField,
-                        :authority,
-                        :sortOrder
-                    )
-                    ON DUPLICATE KEY UPDATE
-                        code_set_key = VALUES(code_set_key),
-                        source_field = VALUES(source_field),
-                        sort_order = VALUES(sort_order)
-                    """,
-                    new MapSqlParameterSource()
-                            .addValue("serviceId", service.getId())
-                            .addValue("termGroup", term.termGroup())
-                            .addValue("codeSetKey", term.codeSetKey())
-                            .addValue("termCode", normalizeBlankCode(term.termCode()))
-                            .addValue("termLabel", term.termLabel())
-                            .addValue("sourceField", normalizeBlankString(term.sourceField()))
-                            .addValue("authority", term.authority().name())
-                            .addValue("sortOrder", term.sortOrder() == null ? 0 : term.sortOrder()));
-        }
+        deferredNormalizedPolicySidecarCommandRepository.replaceTaxonomyTerms(
+                service.getId(),
+                aggregate.taxonomyTerms(),
+                refreshScopes.stream().map(TermRefreshScope::termGroup).toList(),
+                refreshScopes.stream().map(TermRefreshScope::sourceField).toList()
+        );
     }
 
     private void upsertMergedFacts(WelfareService service, NormalizedPolicyAggregate aggregate) {
@@ -269,16 +227,6 @@ public class DeferredNormalizedPolicySidecarWriter implements NormalizedPolicySi
         }
     }
 
-    private Object[] buildDeleteArgs(Long serviceId, List<TermRefreshScope> refreshScopes) {
-        List<Object> args = new ArrayList<>();
-        args.add(serviceId);
-        for (TermRefreshScope scope : refreshScopes) {
-            args.add(scope.termGroup());
-            args.add(scope.sourceField());
-        }
-        return args.toArray();
-    }
-
     private List<TermRefreshScope> refreshableTermScopes(NormalizedPolicyAggregate aggregate) {
         return aggregate.taxonomyTerms().stream()
                 .flatMap(term -> refreshScopeGroups(term.termGroup()).stream()
@@ -289,10 +237,6 @@ public class DeferredNormalizedPolicySidecarWriter implements NormalizedPolicySi
 
     private List<String> refreshScopeGroups(String termGroup) {
         return NormalizationKeySupport.refreshScopeGroups(termGroup);
-    }
-
-    private String normalizeBlankCode(String value) {
-        return value == null ? "" : value;
     }
 
     private String normalizeBlankString(String value) {

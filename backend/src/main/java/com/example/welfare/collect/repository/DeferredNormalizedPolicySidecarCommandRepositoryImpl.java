@@ -160,6 +160,61 @@ public class DeferredNormalizedPolicySidecarCommandRepositoryImpl
         }
     }
 
+    @Override
+    public void replaceTaxonomyTerms(Long serviceId,
+                                     List<NormalizedPolicyAggregate.TaxonomyTerm> taxonomyTerms,
+                                     List<String> refreshScopeGroups,
+                                     List<String> refreshScopeSourceFields) {
+        if (!refreshScopeGroups.isEmpty()) {
+            jdbcTemplate.update("""
+                    DELETE FROM service_taxonomy_terms
+                    WHERE service_id = ?
+                      AND (%s)
+                    """.formatted(String.join(" OR ",
+                            refreshScopeGroups.stream()
+                                    .map(group -> "(term_group = ? AND source_field = ?)")
+                                    .toList())),
+                    buildDeleteArgs(serviceId, refreshScopeGroups, refreshScopeSourceFields));
+        }
+
+        for (NormalizedPolicyAggregate.TaxonomyTerm term : taxonomyTerms) {
+            namedParameterJdbcTemplate.update("""
+                    INSERT INTO service_taxonomy_terms (
+                        service_id,
+                        term_group,
+                        code_set_key,
+                        term_code,
+                        term_label,
+                        source_field,
+                        authority,
+                        sort_order
+                    ) VALUES (
+                        :serviceId,
+                        :termGroup,
+                        :codeSetKey,
+                        :termCode,
+                        :termLabel,
+                        :sourceField,
+                        :authority,
+                        :sortOrder
+                    )
+                    ON DUPLICATE KEY UPDATE
+                        code_set_key = VALUES(code_set_key),
+                        source_field = VALUES(source_field),
+                        sort_order = VALUES(sort_order)
+                    """,
+                    new MapSqlParameterSource()
+                            .addValue("serviceId", serviceId)
+                            .addValue("termGroup", term.termGroup())
+                            .addValue("codeSetKey", term.codeSetKey())
+                            .addValue("termCode", normalizeBlankCode(term.termCode()))
+                            .addValue("termLabel", term.termLabel())
+                            .addValue("sourceField", normalizeBlankString(term.sourceField()))
+                            .addValue("authority", term.authority().name())
+                            .addValue("sortOrder", term.sortOrder() == null ? 0 : term.sortOrder()));
+        }
+    }
+
     private Object[] buildSummarySlotDeleteArgs(Long serviceId) {
         List<Object> args = new ArrayList<>();
         args.add(serviceId);
@@ -167,7 +222,23 @@ public class DeferredNormalizedPolicySidecarCommandRepositoryImpl
         return args.toArray();
     }
 
+    private Object[] buildDeleteArgs(Long serviceId,
+                                     List<String> refreshScopeGroups,
+                                     List<String> refreshScopeSourceFields) {
+        List<Object> args = new ArrayList<>();
+        args.add(serviceId);
+        for (int i = 0; i < refreshScopeGroups.size(); i++) {
+            args.add(refreshScopeGroups.get(i));
+            args.add(refreshScopeSourceFields.get(i));
+        }
+        return args.toArray();
+    }
+
     private String normalizeBlankCode(String value) {
+        return value == null ? "" : value;
+    }
+
+    private String normalizeBlankString(String value) {
         return value == null ? "" : value;
     }
 }

@@ -2916,3 +2916,8 @@
 - 문제: sidecar writer 는 taxonomy/fact/term orchestration을 맡으면서도 `service_taxonomies` upsert 와 `service_taxonomy_summary_slots` delete/insert SQL 을 직접 들고 있었다. 이 상태면 summary persistence 규칙이나 slot dual-write 세부사항이 바뀔 때 writer 본문을 다시 열어야 한다.
 - 해결: `DeferredNormalizedPolicySidecarCommandRepository` / `DeferredNormalizedPolicySidecarCommandRepositoryImpl` 을 추가하고, taxonomy summary 와 summary slot write 를 command 경계 뒤로 이동했다.
 - 이유: `DeferredNormalizedPolicySidecarWriter` 는 sidecar upsert 순서와 조건 판단 orchestration에 집중하고, summary persistence write 세부사항은 별도 command repository 로 내려야 책임이 더 선명하다.
+
+## 536) `DeferredNormalizedPolicySidecarWriter` 가 taxonomy term delete/insert SQL까지 직접 들고 있으면, sidecar write orchestration과 taxonomy term persistence 규칙이 다시 한 클래스에 섞인다
+- 문제: sidecar writer 는 refresh scope 계산과 fact merge orchestration을 맡으면서도 `service_taxonomy_terms` delete/insert SQL 을 직접 들고 있었다. 이 상태면 taxonomy term persistence 규칙이나 delete scope SQL 이 바뀔 때 writer 본문을 다시 열어야 한다.
+- 해결: `DeferredNormalizedPolicySidecarCommandRepository` / `DeferredNormalizedPolicySidecarCommandRepositoryImpl` 에 taxonomy term 전체 교체 write 를 추가하고, writer 는 refresh scope 계산 후 command 경계에 위임만 하도록 정리했다.
+- 이유: `DeferredNormalizedPolicySidecarWriter` 는 sidecar upsert 순서와 delete scope 계산 orchestration에 집중하고, taxonomy term persistence write 세부사항은 같은 command repository 로 내려야 책임이 더 선명하다.
