@@ -13,7 +13,7 @@ import java.util.List;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class NotificationService {
+public class NotificationScheduleService {
 
     private final UserNotificationReadService userNotificationReadService;
     private final NotificationDispatchService notificationDispatchService;
@@ -34,13 +34,9 @@ public class NotificationService {
         notificationRetryService.retryFailedNotifications();
     }
 
-    public void sendTopRecommendations(NotificationTarget target) {
-        notificationDispatchService.sendTopRecommendations(target);
-    }
-
     private void sendNotifications(NotificationPeriod period, String label) {
         List<NotificationTarget> targets = userNotificationReadService.getNotificationTargets(period);
-        log.info("[NotificationService] {} 알림 대상: {}명", label, targets.size());
+        log.info("[NotificationScheduleService] {} 알림 대상: {}명", label, targets.size());
         targets.forEach(notificationDispatchService::sendTopRecommendations);
     }
 }

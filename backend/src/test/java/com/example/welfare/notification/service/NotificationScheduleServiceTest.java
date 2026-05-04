@@ -16,7 +16,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
-class NotificationServiceTest {
+class NotificationScheduleServiceTest {
 
     @Mock
     private UserNotificationReadService userNotificationReadService;
@@ -28,7 +28,7 @@ class NotificationServiceTest {
     private NotificationRetryService notificationRetryService;
 
     @InjectMocks
-    private NotificationService notificationService;
+    private NotificationScheduleService notificationScheduleService;
 
     @Test
     @DisplayName("일간 스케줄은 DAILY 대상 목록을 읽어 dispatch service에 위임한다")
@@ -38,7 +38,7 @@ class NotificationServiceTest {
         given(userNotificationReadService.getNotificationTargets(User.NotificationPeriod.DAILY))
                 .willReturn(List.of(target));
 
-        notificationService.sendDailyNotifications();
+        notificationScheduleService.sendDailyNotifications();
 
         verify(notificationDispatchService).sendTopRecommendations(target);
     }
@@ -51,7 +51,7 @@ class NotificationServiceTest {
         given(userNotificationReadService.getNotificationTargets(User.NotificationPeriod.WEEKLY))
                 .willReturn(List.of(target));
 
-        notificationService.sendWeeklyNotifications();
+        notificationScheduleService.sendWeeklyNotifications();
 
         verify(notificationDispatchService).sendTopRecommendations(target);
     }
@@ -59,19 +59,8 @@ class NotificationServiceTest {
     @Test
     @DisplayName("retry 스케줄은 retry service에 위임한다")
     void retryFailedNotificationsDelegatesToRetryService() {
-        notificationService.retryFailedNotifications();
+        notificationScheduleService.retryFailedNotifications();
 
         verify(notificationRetryService).retryFailedNotifications();
-    }
-
-    @Test
-    @DisplayName("직접 발송 호출도 dispatch service에 위임한다")
-    void sendTopRecommendationsDelegatesToDispatchService() {
-        NotificationTarget target = new NotificationTarget(1L, "user-key-1", "test@example.com",
-                User.NotificationPeriod.DAILY, 0.8, 10);
-
-        notificationService.sendTopRecommendations(target);
-
-        verify(notificationDispatchService).sendTopRecommendations(target);
     }
 }

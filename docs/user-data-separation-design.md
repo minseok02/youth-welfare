@@ -286,7 +286,8 @@
   - [RuleScoringService](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/recommend/service/RuleScoringService.java:24)
   - `UserRecommendation`, `RecommendationLog`
 - 알림
-  - [NotificationService](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/notification/service/NotificationService.java:35)
+  - [NotificationScheduleService](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/notification/service/NotificationScheduleService.java:14)
+  - [NotificationDispatchService](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/notification/service/NotificationDispatchService.java:18)
   - `Notification`
 - 프로필/관심사
   - `UserAttribute`, `UserPriority`
@@ -326,7 +327,7 @@
 
 ### 3. 알림은 이메일 원문을 직접 조인하지 말고 배치 조회
 
-현재 `NotificationService`는 `User` 엔티티에서 이메일과 알림 설정을 같이 본다. 분리 후에는 이렇게 바꾼다.
+현재 알림 경로는 `NotificationScheduleService` / `NotificationDispatchService` 로 나뉘었고, 더 이상 `User` 엔티티 하나에서 이메일과 알림 설정을 같이 보지 않게 정리하는 방향으로 간다. 분리 후에는 이렇게 바꾼다.
 
 1. `youth_welfare.user_profiles` 에서 발송 대상 `user_key` 목록 조회
 2. `youth_welfare_pii.user_pii` 에서 해당 `user_key` 의 `email_enc`만 배치 조회 후 복호화

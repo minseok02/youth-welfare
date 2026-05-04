@@ -109,11 +109,12 @@ CollectAdminController / Scheduler
 ### 알림
 
 ```text
-NotificationService
-  -> NotificationRecommendationService
-  -> NotificationMessageService
+NotificationScheduleService
   -> NotificationDispatchService
   -> NotificationRetryService
+NotificationDispatchService
+  -> NotificationRecommendationService
+  -> NotificationMessageService
 ```
 
 ## 주요 설계 원칙
