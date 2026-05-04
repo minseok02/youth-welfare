@@ -1,7 +1,7 @@
 package com.example.welfare.integration;
 
 import com.example.welfare.collect.service.CollectSource;
-import com.example.welfare.collect.service.CollectService;
+import com.example.welfare.collect.service.CollectAdminService;
 import com.example.welfare.global.util.JwtUtil;
 import com.example.welfare.user.entity.User;
 import com.example.welfare.user.repository.AuthUserRepository;
@@ -93,7 +93,7 @@ class AdminSecurityIntegrationTest {
     private AuthAdminRoleService authAdminRoleService;
 
     @MockBean
-    private CollectService collectService;
+    private CollectAdminService collectAdminService;
 
     @BeforeEach
     void setup() {
@@ -140,7 +140,7 @@ class AdminSecurityIntegrationTest {
     @Test
     @DisplayName("일반 사용자는 관리자 API를 호출할 수 없고 관리자는 재발급 후에도 호출할 수 있다")
     void adminApiRequiresAdminRoleAcrossRefresh() throws Exception {
-        doNothing().when(collectService).collect(CollectSource.YOUTH);
+        doNothing().when(collectAdminService).collect(CollectSource.YOUTH);
 
         User normalUser = createUser(TEST_EMAIL_PREFIX + UUID.randomUUID() + "@example.com");
         User adminUser = createUser(ADMIN_EMAIL);
@@ -172,13 +172,13 @@ class AdminSecurityIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true));
 
-        then(collectService).should(org.mockito.Mockito.times(2)).collect(CollectSource.YOUTH);
+        then(collectAdminService).should(org.mockito.Mockito.times(2)).collect(CollectSource.YOUTH);
     }
 
     @Test
     @DisplayName("로그아웃에 사용한 access token은 즉시 관리자 API에서 차단된다")
     void logoutRevokesPresentedAccessTokenImmediately() throws Exception {
-        doNothing().when(collectService).collect(CollectSource.YOUTH);
+        doNothing().when(collectAdminService).collect(CollectSource.YOUTH);
         User adminUser = createUser(ADMIN_EMAIL);
 
         String adminAccessToken = loginAndExtractAccessToken(adminUser.getEmail(), TEST_PASSWORD);
@@ -207,7 +207,7 @@ class AdminSecurityIntegrationTest {
     @Test
     @DisplayName("allowlist 제거 후 old admin access token은 유지되지만 refresh로 발급된 새 token부터 ROLE_ADMIN이 빠진다")
     void allowlistRemovalKeepsOldAccessTokenButRefreshDropsAdminRole() throws Exception {
-        doNothing().when(collectService).collect(CollectSource.YOUTH);
+        doNothing().when(collectAdminService).collect(CollectSource.YOUTH);
         User adminUser = createUser(ADMIN_EMAIL);
 
         String adminAccessToken = loginAndExtractAccessToken(adminUser.getEmail(), TEST_PASSWORD);
@@ -243,7 +243,7 @@ class AdminSecurityIntegrationTest {
     @Test
     @DisplayName("forced logout API 이후 old admin access token은 차단되고 재로그인 access token은 통과한다")
     void forcedLogoutApiBlocksOldAdminAccessTokenButAllowsRelogin() throws Exception {
-        doNothing().when(collectService).collect(CollectSource.YOUTH);
+        doNothing().when(collectAdminService).collect(CollectSource.YOUTH);
         User adminUser = createUser(ADMIN_EMAIL);
 
         String oldAdminAccessToken = loginAndExtractAccessToken(adminUser.getEmail(), TEST_PASSWORD);
@@ -288,7 +288,7 @@ class AdminSecurityIntegrationTest {
     @Test
     @DisplayName("iatm 없는 legacy admin access token은 forced logout 보호 경계에서 401 A006으로 차단된다")
     void legacyAdminAccessTokenWithoutIatmFailsWithA006AfterForcedLogout() throws Exception {
-        doNothing().when(collectService).collect(CollectSource.YOUTH);
+        doNothing().when(collectAdminService).collect(CollectSource.YOUTH);
         User adminUser = createUser(ADMIN_EMAIL);
         String adminUserKey = userRepository.findUserKeyById(adminUser.getId()).orElseThrow();
 

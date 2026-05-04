@@ -87,7 +87,8 @@ RecommendationController
 
 ```text
 CollectAdminController / Scheduler
-  -> CollectService
+  -> CollectBatchService / CollectAdminService
+      -> CollectSourceExecutionService
       -> YouthApiClient
       -> BokjiroCentralClient
       -> BokjiroLocalClient

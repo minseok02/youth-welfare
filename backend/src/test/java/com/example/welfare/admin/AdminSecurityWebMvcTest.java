@@ -8,8 +8,9 @@ import com.example.welfare.admin.dashboard.dto.AdminDashboardResponse;
 import com.example.welfare.admin.dashboard.service.AdminDashboardService;
 import com.example.welfare.collect.controller.CollectAdminController;
 import com.example.welfare.collect.normalization.NormalizedPolicySidecarBackfillService;
+import com.example.welfare.collect.service.CollectAdminService;
+import com.example.welfare.collect.service.CollectBatchService;
 import com.example.welfare.collect.service.CollectSource;
-import com.example.welfare.collect.service.CollectService;
 import com.example.welfare.global.auth.AuthenticatedUser;
 import com.example.welfare.global.config.JacksonConfig;
 import com.example.welfare.global.config.SecurityConfig;
@@ -63,7 +64,9 @@ class AdminSecurityWebMvcTest {
     private MockMvc mockMvc;
 
     @MockBean
-    private CollectService collectService;
+    private CollectBatchService collectBatchService;
+    @MockBean
+    private CollectAdminService collectAdminService;
     @MockBean
     private NormalizedPolicySidecarBackfillService normalizedPolicySidecarBackfillService;
     @MockBean
@@ -115,7 +118,7 @@ class AdminSecurityWebMvcTest {
                 new SimpleGrantedAuthority("ROLE_USER"),
                 new SimpleGrantedAuthority("ROLE_ADMIN")
         ));
-        doNothing().when(collectService).collect(CollectSource.YOUTH);
+        doNothing().when(collectAdminService).collect(CollectSource.YOUTH);
 
         mockMvc.perform(post("/api/admin/collect/youth")
                         .header("Authorization", "Bearer admin-token"))
@@ -123,7 +126,7 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data").value("온통청년 수집 완료"));
 
-        then(collectService).should().collect(CollectSource.YOUTH);
+        then(collectAdminService).should().collect(CollectSource.YOUTH);
     }
 
     @Test
@@ -646,7 +649,7 @@ class AdminSecurityWebMvcTest {
                 new SimpleGrantedAuthority("ROLE_USER"),
                 new SimpleGrantedAuthority("ROLE_ADMIN")
         ));
-        doNothing().when(collectService).collect(CollectSource.BOKJIRO_DETAIL_REFRESH);
+        doNothing().when(collectAdminService).collect(CollectSource.BOKJIRO_DETAIL_REFRESH);
 
         mockMvc.perform(post("/api/admin/collect/bokjiro-details-refresh")
                         .header("Authorization", "Bearer admin-token"))
@@ -654,7 +657,7 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data").value("복지로 상세 refresh 완료"));
 
-        then(collectService).should().collect(CollectSource.BOKJIRO_DETAIL_REFRESH);
+        then(collectAdminService).should().collect(CollectSource.BOKJIRO_DETAIL_REFRESH);
     }
 
     @Test
@@ -721,7 +724,7 @@ class AdminSecurityWebMvcTest {
                 new SimpleGrantedAuthority("ROLE_USER"),
                 new SimpleGrantedAuthority("ROLE_ADMIN")
         ));
-        given(collectService.collectBokjiroDetailGapFill(4, 190))
+        given(collectAdminService.collectBokjiroDetailGapFill(4, 190))
                 .willReturn(new com.example.welfare.collect.service.BokjiroDetailCollectService.GapFillResult(
                         4, 3, 190, 150, 120, 30, 0, true
                 ));
@@ -741,7 +744,7 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.data.failedCount").value(0))
                 .andExpect(jsonPath("$.data.stoppedAfterNoSaves").value(true));
 
-        then(collectService).should().collectBokjiroDetailGapFill(4, 190);
+        then(collectAdminService).should().collectBokjiroDetailGapFill(4, 190);
     }
 
     @Test
@@ -767,7 +770,7 @@ class AdminSecurityWebMvcTest {
                 new SimpleGrantedAuthority("ROLE_USER"),
                 new SimpleGrantedAuthority("ROLE_ADMIN")
         ));
-        given(collectService.collectBokjiroDetailGapFill(1, 95))
+        given(collectAdminService.collectBokjiroDetailGapFill(1, 95))
                 .willThrow(new CustomException(ErrorCode.COLLECT_API_FAILED));
 
         mockMvc.perform(post("/api/admin/collect/bokjiro-details-gap-fill")
