@@ -4,16 +4,12 @@ import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.util.AesEncryptUtil;
 import com.example.welfare.recommend.dto.RecommendationUserSnapshot;
 import com.example.welfare.user.dto.response.ProfileResponse;
-import com.example.welfare.user.entity.AuthUser;
 import com.example.welfare.user.entity.User;
 import com.example.welfare.user.entity.UserProfile;
-import com.example.welfare.user.repository.AuthUserRepository;
 import com.example.welfare.user.repository.RecommendationUserReadModel;
 import com.example.welfare.user.repository.RecommendationUserReadRepository;
 import com.example.welfare.user.repository.UserProfileAggregateReadModel;
 import com.example.welfare.user.repository.UserPiiReadModel;
-import com.example.welfare.user.repository.UserPiiReadWriteRepository;
-import com.example.welfare.user.repository.UserProfileRepository;
 import com.example.welfare.user.repository.UserProfileReadRepository;
 import com.example.welfare.user.repository.UserRepository;
 import org.junit.jupiter.api.DisplayName;
@@ -34,32 +30,23 @@ import static org.mockito.Mockito.when;
 class UserReadServiceTest {
 
     @Mock private UserRepository userRepository;
-    @Mock private AuthUserRepository authUserRepository;
-    @Mock private UserProfileRepository userProfileRepository;
     @Mock private UserProfileReadRepository userProfileReadRepository;
     @Mock private RecommendationUserReadRepository recommendationUserReadRepository;
-    @Mock private UserPiiReadWriteRepository userPiiReadWriteRepository;
     @Mock private AesEncryptUtil aesEncryptUtil;
     @Mock private UserKeyLookupService userKeyLookupService;
+    @Mock private AuthIdentityReadService authIdentityReadService;
 
     @Test
     @DisplayName("프로필 조회는 app_pii_rw 저장소에서 PII 암호문을 읽는다")
     void getProfileLoadsPiiFromAppPiiReadWriteRepository() {
         UserReadService userReadService = new UserReadService(
                 userRepository,
-                authUserRepository,
-                userProfileRepository,
                 userProfileReadRepository,
                 recommendationUserReadRepository,
-                userPiiReadWriteRepository,
                 aesEncryptUtil,
-                userKeyLookupService
+                userKeyLookupService,
+                authIdentityReadService
         );
-
-        AuthUser authUser = AuthUser.builder()
-                .userKey("user-key-1")
-                .isActive(true)
-                .build();
         UserProfile profile = UserProfile.builder()
                 .userKey("user-key-1")
                 .sido("서울특별시")
@@ -68,7 +55,7 @@ class UserReadServiceTest {
                 .build();
 
         when(userKeyLookupService.findRequired(1L)).thenReturn("user-key-1");
-        when(authUserRepository.findByUserKey("user-key-1")).thenReturn(Optional.of(authUser));
+        when(authIdentityReadService.requireActiveUserKey("user-key-1")).thenReturn("user-key-1");
         when(userProfileReadRepository.findProfileAggregateByUserKey("user-key-1"))
                 .thenReturn(Optional.of(new UserProfileAggregateReadModel(
                         profile,
@@ -93,23 +80,17 @@ class UserReadServiceTest {
     void getRecommendationContextReturnsUserAndSnapshot() {
         UserReadService userReadService = new UserReadService(
                 userRepository,
-                authUserRepository,
-                userProfileRepository,
                 userProfileReadRepository,
                 recommendationUserReadRepository,
-                userPiiReadWriteRepository,
                 aesEncryptUtil,
-                userKeyLookupService
+                userKeyLookupService,
+                authIdentityReadService
         );
 
         User user = User.builder()
                 .id(7L)
                 .userKey("user-key-7")
                 .notificationPeriod(User.NotificationPeriod.DAILY)
-                .build();
-        AuthUser authUser = AuthUser.builder()
-                .userKey("user-key-7")
-                .isActive(true)
                 .build();
         UserProfile profile = UserProfile.builder()
                 .userKey("user-key-7")
@@ -126,7 +107,7 @@ class UserReadServiceTest {
                 .build();
 
         when(userRepository.findById(7L)).thenReturn(Optional.of(user));
-        when(authUserRepository.findByUserKey("user-key-7")).thenReturn(Optional.of(authUser));
+        when(authIdentityReadService.requireActiveUserKey("user-key-7")).thenReturn("user-key-7");
         when(recommendationUserReadRepository.findByUserKey("user-key-7"))
                 .thenReturn(Optional.of(new RecommendationUserReadModel(
                         profile,
@@ -149,13 +130,11 @@ class UserReadServiceTest {
     void getActiveUserContextReturnsUserAndUserKey() {
         UserReadService userReadService = new UserReadService(
                 userRepository,
-                authUserRepository,
-                userProfileRepository,
                 userProfileReadRepository,
                 recommendationUserReadRepository,
-                userPiiReadWriteRepository,
                 aesEncryptUtil,
-                userKeyLookupService
+                userKeyLookupService,
+                authIdentityReadService
         );
         User user = User.builder()
                 .id(9L)
@@ -175,13 +154,11 @@ class UserReadServiceTest {
     void findOptionalActiveUserByUserKeyExcludesWithdrawnUser() {
         UserReadService userReadService = new UserReadService(
                 userRepository,
-                authUserRepository,
-                userProfileRepository,
                 userProfileReadRepository,
                 recommendationUserReadRepository,
-                userPiiReadWriteRepository,
                 aesEncryptUtil,
-                userKeyLookupService
+                userKeyLookupService,
+                authIdentityReadService
         );
         User withdrawnUser = User.builder()
                 .id(10L)
@@ -199,13 +176,11 @@ class UserReadServiceTest {
     void getActiveUserByUserKeyRejectsWithdrawnUser() {
         UserReadService userReadService = new UserReadService(
                 userRepository,
-                authUserRepository,
-                userProfileRepository,
                 userProfileReadRepository,
                 recommendationUserReadRepository,
-                userPiiReadWriteRepository,
                 aesEncryptUtil,
-                userKeyLookupService
+                userKeyLookupService,
+                authIdentityReadService
         );
         User withdrawnUser = User.builder()
                 .id(10L)
@@ -226,13 +201,11 @@ class UserReadServiceTest {
     void requireExistingUserIdByUserKeyReturnsUserId() {
         UserReadService userReadService = new UserReadService(
                 userRepository,
-                authUserRepository,
-                userProfileRepository,
                 userProfileReadRepository,
                 recommendationUserReadRepository,
-                userPiiReadWriteRepository,
                 aesEncryptUtil,
-                userKeyLookupService
+                userKeyLookupService,
+                authIdentityReadService
         );
 
         when(userRepository.findIdByUserKey("user-key-11")).thenReturn(Optional.of(11L));

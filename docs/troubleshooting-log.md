@@ -2731,3 +2731,8 @@
 - 문제: 이메일 중복 확인, 로그인 대상 lookup 은 `auth_users` lookup hash 규칙에 묶여 있고, 회원가입은 신규 `User` 저장과 `UserCoreSyncService` 호출까지 같이 들고 있었다. 이 상태면 이메일 식별 규칙이나 signup 저장 흐름이 바뀔 때 `AuthService` 자체를 계속 수정해야 한다.
 - 해결: `AuthIdentityReadService` 를 추가해 `existsByEmail(...)`, `findByEmail(...)` 로 auth identity read 규칙을 모으고, `UserRegistrationService` 를 추가해 신규 사용자 저장과 core sync 를 별도 command 경계로 이동했다. `PasswordResetService` 의 auth_users 이메일 lookup 도 같은 read 경계로 통일했다.
 - 이유: 인증 서비스는 admin email 정책, 비밀번호 검증, 토큰 발급 같은 orchestration 에 집중하고, auth identity 조회/hash 규칙과 signup write 는 별도 경계로 내리는 편이 SRP와 테스트 격리에 더 낫다.
+
+## 499) `UserReadService` 가 auth_users active 상태 검증까지 직접 들면, 사용자 일반 read 와 auth identity read 책임이 다시 섞인다
+- 문제: `UserReadService` 는 active userKey 검증을 위해 `AuthUserRepository.findByUserKey(...)` 를 직접 호출하고 있었고, 이미 aggregate read를 read repository 뒤로 옮긴 뒤에도 auth projection read 세부사항이 서비스 안에 남아 있었다. 게다가 이전 구조 변경 뒤에는 실제로 쓰지 않는 `UserProfileRepository`, `UserPiiReadWriteRepository` 직접 의존도 그대로 남아 있었다.
+- 해결: `AuthIdentityReadService.requireActiveUserKey(...)` 를 추가하고, `UserReadService.resolveActiveUserKey(...)` 를 이 read 경계로 교체했다. 함께 남아 있던 불필요한 `AuthUserRepository`, `UserProfileRepository`, `UserPiiReadWriteRepository` 직접 의존도 제거했다.
+- 이유: 사용자 읽기 서비스는 active user orchestration과 응답 조립에 집중하고, auth projection 조회/활성 상태 검증은 auth identity read 경계로 모아야 read 책임이 더 일관되고 생성자 의존도도 줄어든다.

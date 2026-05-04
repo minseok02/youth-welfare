@@ -6,15 +6,11 @@ import com.example.welfare.global.util.AesEncryptUtil;
 import com.example.welfare.recommend.dto.PriorityPreference;
 import com.example.welfare.recommend.dto.RecommendationUserSnapshot;
 import com.example.welfare.user.dto.response.ProfileResponse;
-import com.example.welfare.user.entity.AuthUser;
 import com.example.welfare.user.entity.User;
 import com.example.welfare.user.entity.UserAttribute;
 import com.example.welfare.user.entity.UserProfile;
-import com.example.welfare.user.repository.AuthUserRepository;
 import com.example.welfare.user.repository.RecommendationUserReadRepository;
 import com.example.welfare.user.repository.UserAttributeReadModel;
-import com.example.welfare.user.repository.UserPiiReadWriteRepository;
-import com.example.welfare.user.repository.UserProfileRepository;
 import com.example.welfare.user.repository.UserProfileReadRepository;
 import com.example.welfare.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -33,13 +29,11 @@ import java.util.Optional;
 public class UserReadService {
 
     private final UserRepository userRepository;
-    private final AuthUserRepository authUserRepository;
-    private final UserProfileRepository userProfileRepository;
     private final UserProfileReadRepository userProfileReadRepository;
     private final RecommendationUserReadRepository recommendationUserReadRepository;
-    private final UserPiiReadWriteRepository userPiiReadWriteRepository;
     private final AesEncryptUtil aesEncryptUtil;
     private final UserKeyLookupService userKeyLookupService;
+    private final AuthIdentityReadService authIdentityReadService;
 
     @Transactional(readOnly = true)
     public ProfileResponse getProfile(Long userId) {
@@ -138,12 +132,7 @@ public class UserReadService {
     }
 
     private String resolveActiveUserKey(String userKey) {
-        AuthUser authUser = authUserRepository.findByUserKey(userKey)
-                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
-        if (!authUser.isActive()) {
-            throw new CustomException(ErrorCode.WITHDRAWN_USER);
-        }
-        return userKey;
+        return authIdentityReadService.requireActiveUserKey(userKey);
     }
 
     private String decryptNullable(String encryptedValue) {
