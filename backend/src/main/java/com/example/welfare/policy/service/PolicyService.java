@@ -8,10 +8,7 @@ import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.repository.PolicyListReadCondition;
 import com.example.welfare.policy.repository.WelfareServiceReadRepository;
 import com.example.welfare.policy.support.WelfareSourceTypeSupport;
-import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
-import com.example.welfare.recommend.service.RecommendationBookmarkReadService;
 import com.example.welfare.recommend.service.RecommendationBookmarkCommandService;
-import com.example.welfare.recommend.service.RecommendationProjectionReadService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Page;
@@ -20,9 +17,6 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
-import java.util.Set;
-
 @Service
 @RequiredArgsConstructor
 public class PolicyService {
@@ -30,8 +24,7 @@ public class PolicyService {
     private final WelfareServiceReadRepository welfareServiceReadRepository;
     private final PolicyLookupService policyLookupService;
     private final PolicyDetailReadService policyDetailReadService;
-    private final RecommendationBookmarkReadService recommendationBookmarkReadService;
-    private final RecommendationProjectionReadService recommendationProjectionReadService;
+    private final PolicyPresentationReadService policyPresentationReadService;
     private final RecommendationBookmarkCommandService recommendationBookmarkCommandService;
 
     @Transactional(readOnly = true)
@@ -58,13 +51,7 @@ public class PolicyService {
                 buildPageable(pageable, sort)
         );
 
-        Set<Long> bookmarkedServiceIds = recommendationBookmarkReadService.findBookmarkedServiceIds(userId, page.getContent());
-        java.util.Map<Long, RecommendationCandidateProjection> projections = loadProjections(page.getContent());
-        return page.map(service -> PolicySummaryResponse.from(
-                service,
-                bookmarkedServiceIds.contains(service.getId()),
-                projections.get(service.getId())
-        ));
+        return policyPresentationReadService.buildSummaryPage(userId, page);
     }
 
     @Transactional
@@ -75,18 +62,16 @@ public class PolicyService {
         }
 
         PolicyDetailReadService.PolicyDetailAggregate detailAggregate = policyDetailReadService.getAggregate(serviceId);
-        boolean bookmarked = recommendationBookmarkReadService.findBookmarkedServiceIds(userId, List.of(ws)).contains(serviceId);
-        RecommendationCandidateProjection projection = recommendationProjectionReadService
-                .findCandidateProjectionsByServices(List.of(ws))
-                .get(serviceId);
+        PolicyPresentationReadService.PolicyDetailPresentation presentation =
+                policyPresentationReadService.buildDetailPresentation(userId, ws);
 
         return PolicyDetailResponse.of(
                 ws,
                 detailAggregate.detail(),
                 detailAggregate.regions(),
                 detailAggregate.tags(),
-                bookmarked,
-                projection
+                presentation.bookmarked(),
+                presentation.projection()
         );
     }
 
@@ -94,14 +79,6 @@ public class PolicyService {
     public void toggleBookmark(Long userId, Long serviceId) {
         recommendationBookmarkCommandService.togglePolicyBookmark(userId, serviceId);
     }
-
-    private java.util.Map<Long, RecommendationCandidateProjection> loadProjections(List<WelfareService> services) {
-        if (services == null || services.isEmpty()) {
-            return java.util.Map.of();
-        }
-        return recommendationProjectionReadService.findCandidateProjectionsByServices(services);
-    }
-
     private Pageable buildPageable(Pageable pageable, String sort) {
         Sort resolvedSort = switch (normalizeSort(sort)) {
             case "VIEWS" -> Sort.by(Sort.Order.desc("viewCount"), Sort.Order.desc("createdAt"));

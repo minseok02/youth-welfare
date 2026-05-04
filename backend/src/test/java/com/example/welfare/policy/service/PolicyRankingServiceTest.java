@@ -4,7 +4,6 @@ import com.example.welfare.policy.dto.PolicyRankingResponse;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.repository.PolicyRankingReadRepository;
 import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
-import com.example.welfare.recommend.service.RecommendationProjectionReadService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -26,7 +25,7 @@ class PolicyRankingServiceTest {
     @Mock
     private PolicyRankingReadRepository policyRankingReadRepository;
     @Mock
-    private RecommendationProjectionReadService recommendationProjectionReadService;
+    private PolicyPresentationReadService policyPresentationReadService;
 
     @InjectMocks
     private PolicyRankingService policyRankingService;
@@ -48,7 +47,7 @@ class PolicyRankingServiceTest {
         given(policyRankingReadRepository.findRankableServices()).willReturn(List.of(service));
         given(policyRankingReadRepository.findUniqueViewCountsSince(anyCollection(), any()))
                 .willReturn(List.of(uniqueCount(1L, 7L)));
-        given(recommendationProjectionReadService.findCandidateProjectionsByServices(List.of(service)))
+        given(policyPresentationReadService.findProjections(List.of(service)))
                 .willReturn(java.util.Map.of(
                         1L,
                         RecommendationCandidateProjection.builder()
@@ -121,7 +120,7 @@ class PolicyRankingServiceTest {
                         uniqueCount(2L, 1L),
                         uniqueCount(3L, 0L)
                 ));
-        given(recommendationProjectionReadService.findCandidateProjectionsByServices(services))
+        given(policyPresentationReadService.findProjections(services))
                 .willReturn(java.util.Map.of());
 
         List<PolicyRankingResponse> ranking = policyRankingService.getRanking(10);
