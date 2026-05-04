@@ -5,6 +5,7 @@ import com.example.welfare.collect.mapper.WelfareServiceMapper;
 import com.example.welfare.collect.normalization.NormalizedPolicyAggregate;
 import com.example.welfare.collect.normalization.NormalizedPolicySidecarWriter;
 import com.example.welfare.collect.repository.CollectItemCommandRepository;
+import com.example.welfare.collect.repository.CollectItemRegionCommandRepository;
 import com.example.welfare.collect.repository.CollectItemReadRepository;
 import com.example.welfare.collect.repository.CollectItemTagCommandRepository;
 import com.example.welfare.collect.support.ListCollectSourceBinding;
@@ -20,7 +21,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.transaction.PlatformTransactionManager;
 
@@ -46,11 +46,11 @@ class CollectItemSaverTest {
     @Mock
     private CollectItemCommandRepository collectItemCommandRepository;
     @Mock
+    private CollectItemRegionCommandRepository collectItemRegionCommandRepository;
+    @Mock
     private CollectItemTagCommandRepository collectItemTagCommandRepository;
     @Mock
     private PlatformTransactionManager transactionManager;
-    @Mock
-    private JdbcTemplate jdbcTemplate;
     @Mock
     private SearchYouthRelevanceService searchYouthRelevanceService;
     @Mock
@@ -64,9 +64,9 @@ class CollectItemSaverTest {
                 mapper,
                 collectItemReadRepository,
                 collectItemCommandRepository,
+                collectItemRegionCommandRepository,
                 collectItemTagCommandRepository,
                 transactionManager,
-                jdbcTemplate,
                 searchYouthRelevanceService,
                 normalizedPolicySidecarWriter
         );

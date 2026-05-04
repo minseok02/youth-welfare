@@ -4,6 +4,7 @@ import com.example.welfare.collect.mapper.WelfareServiceMapper;
 import com.example.welfare.collect.normalization.NormalizedPolicyAggregate;
 import com.example.welfare.collect.normalization.NormalizedPolicySidecarWriter;
 import com.example.welfare.collect.repository.CollectItemCommandRepository;
+import com.example.welfare.collect.repository.CollectItemRegionCommandRepository;
 import com.example.welfare.collect.repository.CollectItemReadRepository;
 import com.example.welfare.collect.repository.CollectItemTagCommandRepository;
 import com.example.welfare.collect.support.ListCollectSourceBinding;
@@ -16,15 +17,12 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.CannotAcquireLockException;
 import org.springframework.dao.DeadlockLoserDataAccessException;
 import org.springframework.dao.PessimisticLockingFailureException;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionTemplate;
 
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -44,9 +42,9 @@ public class CollectItemSaver {
     private final WelfareServiceMapper mapper;
     private final CollectItemReadRepository collectItemReadRepository;
     private final CollectItemCommandRepository collectItemCommandRepository;
+    private final CollectItemRegionCommandRepository collectItemRegionCommandRepository;
     private final CollectItemTagCommandRepository collectItemTagCommandRepository;
     private final PlatformTransactionManager transactionManager;
-    private final JdbcTemplate jdbcTemplate;
     private final SearchYouthRelevanceService searchYouthRelevanceService;
     private final NormalizedPolicySidecarWriter normalizedPolicySidecarWriter;
 
@@ -127,22 +125,7 @@ public class CollectItemSaver {
     }
 
     private void upsertRegions(WelfareService service, List<ServiceRegion> regions) {
-        jdbcTemplate.update("DELETE FROM service_regions WHERE service_id = ?", service.getId());
-        if (regions.isEmpty()) return;
-
-        jdbcTemplate.batchUpdate(
-                "INSERT INTO service_regions (service_id, region_code, sido_name, sgg_name) VALUES (?, ?, ?, ?)",
-                regions,
-                200,
-                this::bindRegion
-        );
-    }
-
-    private void bindRegion(PreparedStatement ps, ServiceRegion region) throws SQLException {
-        ps.setLong(1, region.getService().getId());
-        ps.setString(2, region.getRegionCode());
-        ps.setString(3, region.getSidoName());
-        ps.setString(4, region.getSggName());
+        collectItemRegionCommandRepository.replaceAll(service.getId(), regions);
     }
 
     private List<ServiceTag> replaceTags(WelfareService service, List<ServiceTag> tags) {

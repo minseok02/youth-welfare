@@ -1260,6 +1260,7 @@ cd backend
 - `NormalizedPolicySidecarBackfillService` 의 sourceType/sourceId 기준 정책 lookup도 `NormalizedPolicySidecarBackfillReadRepository` 뒤로 이동해 sidecar backfill orchestration과 서비스 매칭 read 규칙을 분리
 - `CollectItemSaver` 의 기존 정책 lookup과 신규 정책 저장도 `CollectItemReadRepository`, `CollectItemCommandRepository` 뒤로 이동해 item save orchestration과 정책 upsert read/write 규칙을 분리
 - `CollectItemSaver` 의 tag delete/saveAll 도 `CollectItemTagCommandRepository` 뒤로 이동해 item save orchestration과 tag write 규칙을 분리
+- `CollectItemSaver` 의 service region delete/batch insert도 `CollectItemRegionCommandRepository` 뒤로 이동해 item save orchestration과 region write 규칙을 분리
 
 ## 2차로 분리된 항목
 

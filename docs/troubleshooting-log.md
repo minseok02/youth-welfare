@@ -2901,3 +2901,8 @@
 - 문제: item save 서비스는 normalized tag 집합 계산 뒤 `ServiceTagRepository.deleteByServiceId(...)`, `flush()`, `saveAll(...)` 을 직접 호출하고 있었다. 이 상태면 tag write 규칙이 바뀔 때 orchestration 서비스 본문을 다시 열어야 한다.
 - 해결: `CollectItemTagCommandRepository` / `CollectItemTagCommandRepositoryImpl` 을 추가하고, tag 전체 교체 write 를 command 경계 뒤로 이동했다.
 - 이유: `CollectItemSaver` 는 item-level aggregate/region/tag save orchestration에 집중하고, tag persistence write 세부사항은 별도 command repository 로 내려야 책임이 더 선명하다.
+
+## 533) `CollectItemSaver` 가 service region delete/batch insert를 직접 `JdbcTemplate` 으로 다루면, item save orchestration과 region write 규칙이 다시 한 서비스에 섞인다
+- 문제: item save 서비스는 region 집합 계산 뒤 `service_regions` delete 와 batch insert SQL 을 직접 들고 있었다. 이 상태면 region persistence write 규칙이나 SQL 튜닝이 바뀔 때 orchestration 서비스 본문을 다시 열어야 한다.
+- 해결: `CollectItemRegionCommandRepository` / `CollectItemRegionCommandRepositoryImpl` 을 추가하고, service region 전체 교체 write 를 command 경계 뒤로 이동했다.
+- 이유: `CollectItemSaver` 는 item-level aggregate/region/tag save orchestration에 집중하고, region persistence write 세부사항은 별도 command repository 로 내려야 책임이 더 선명하다.
