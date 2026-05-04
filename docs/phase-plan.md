@@ -1251,6 +1251,7 @@ cd backend
 - active-user consumer들(`chat`, `notification`, `auth`, `user profile/account/bookmark`)은 더 이상 `UserReadService` 의 wrapper를 거치지 않고 `ActiveUserReadService` 를 직접 사용하도록 정리해, `UserReadService` 는 admin용 `userKey -> userId` 조회 facade만 남김
 - admin forced-logout 경로도 `UserKeyLookupService.requireExistingUserIdByUserKey(...)` 로 직접 정리해 `UserReadService` 래퍼를 제거
 - `NotificationService` 의 재시도 대상 조회도 `NotificationRetryReadRepository` 뒤로 이동해 알림 재시도 orchestration과 persistence read 규칙을 분리
+- `NotificationHistoryService` 의 notification header/item 저장도 `NotificationHistoryCommandRepository` 뒤로 이동해 알림 이력 orchestration과 persistence write 규칙을 분리
 
 ## 2차로 분리된 항목
 

@@ -2856,3 +2856,8 @@
 - 문제: 알림 서비스는 발송 orchestration을 맡으면서도 `FAILED + nextRetryAtBefore(now)` 조회를 위해 `NotificationRepository` 를 직접 호출하고 있었다. 이 상태면 retry polling 기준이 바뀔 때 발송 서비스 본문을 다시 열어야 한다.
 - 해결: `NotificationRetryReadRepository` / `NotificationRetryReadRepositoryImpl` 을 추가하고, 재시도 대상 조회를 이 read 경계 뒤로 이동했다.
 - 이유: `NotificationService` 는 대상 발송과 재시도 scheduling orchestration에 집중하고, retry polling read 규칙은 별도 repository 로 내려야 책임이 더 선명하다.
+
+## 524) `NotificationHistoryService` 가 notification header 저장과 item 저장을 저장소 두 개에 직접 걸치면, 알림 이력 orchestration과 write 규칙이 다시 한 서비스에 섞인다
+- 문제: 알림 이력 서비스는 상태/retry 초기화가 반영된 notification header 저장과 recommendation item saveAll 을 위해 `NotificationRepository`, `NotificationServiceItemRepository` 를 직접 호출하고 있었다. 이 상태면 이력 저장 규칙이 바뀔 때 서비스 본문을 다시 열어야 한다.
+- 해결: `NotificationHistoryCommandRepository` / `NotificationHistoryCommandRepositoryImpl` 을 추가하고, notification header 저장과 item 저장을 이 command 경계 뒤로 이동했다.
+- 이유: `NotificationHistoryService` 는 실패/성공 이력 orchestration과 item 조립에 집중하고, notification persistence write 세부사항은 별도 command repository 로 내려야 책임이 더 선명하다.
