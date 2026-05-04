@@ -1,6 +1,6 @@
 package com.example.welfare.user.service;
 
-import com.example.welfare.user.repository.UserPiiReadWriteRepository;
+import com.example.welfare.user.repository.UserPiiCommandRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -14,7 +14,7 @@ import static org.mockito.BDDMockito.then;
 class UserPiiCommandServiceTest {
 
     @Mock
-    private UserPiiReadWriteRepository userPiiReadWriteRepository;
+    private UserPiiCommandRepository userPiiCommandRepository;
 
     @InjectMocks
     private UserPiiCommandService userPiiCommandService;
@@ -24,7 +24,7 @@ class UserPiiCommandServiceTest {
     void backfillDelegates() {
         userPiiCommandService.backfillEncryptedFields("user-key-1", "enc-email", "enc-name", "enc-birth");
 
-        then(userPiiReadWriteRepository).should()
+        then(userPiiCommandRepository).should()
                 .backfillEncryptedFields("user-key-1", "enc-email", "enc-name", "enc-birth");
     }
 
@@ -33,7 +33,7 @@ class UserPiiCommandServiceTest {
     void upsertDelegates() {
         userPiiCommandService.upsertUserPii("user-key-1", "enc-email", "enc-name", "enc-birth", "enc-phone");
 
-        then(userPiiReadWriteRepository).should()
+        then(userPiiCommandRepository).should()
                 .upsertUserPii("user-key-1", "enc-email", "enc-name", "enc-birth", "enc-phone");
     }
 
@@ -42,6 +42,6 @@ class UserPiiCommandServiceTest {
     void deleteDelegates() {
         userPiiCommandService.deleteByUserKey("user-key-1");
 
-        then(userPiiReadWriteRepository).should().deleteByUserKey("user-key-1");
+        then(userPiiCommandRepository).should().deleteByUserKey("user-key-1");
     }
 }

@@ -2816,3 +2816,8 @@
 - 문제: identity read 서비스는 이메일 중복 확인, 이메일 lookup hash 조회, userKey 조회를 위해 `AuthUserRepository` 를 직접 호출하고 있었다. 이 상태면 auth identity lookup 규칙이 바뀔 때 service 본문을 다시 열어야 한다.
 - 해결: `AuthIdentityReadRepository` / `AuthIdentityReadRepositoryImpl` 을 추가하고, email lookup hash 존재/조회와 userKey 조회를 이 read 경계 뒤로 이동했다.
 - 이유: `AuthIdentityReadService` 는 raw email 정규화와 active 상태 검증 같은 identity read orchestration 에 집중하고, auth identity persistence 세부사항은 별도 read repository 로 내려야 책임이 더 선명해진다.
+
+## 516) `UserPiiCommandService` 가 app PII backfill/upsert/delete write를 `UserPiiReadWriteRepository` 에 직접 걸치면, PII write 규칙이 service 본문에 다시 남는다
+- 문제: user pii command 서비스는 이미 backfill/sync/withdraw 경로의 write 진입점 역할을 하면서도, 실제 app PII backfill/upsert/delete 를 위해 `UserPiiReadWriteRepository` 를 직접 호출하고 있었다. 이 상태면 PII write 규칙이 바뀔 때 service 본문을 다시 열어야 한다.
+- 해결: `UserPiiCommandRepository` / `UserPiiCommandRepositoryImpl` 을 추가하고, app PII backfill/upsert/delete write를 이 command 경계 뒤로 이동했다.
+- 이유: `UserPiiCommandService` 는 PII write orchestration 에 집중하고, JDBC 기반 app PII persistence 세부사항은 별도 command repository 로 내려야 책임이 더 선명해진다.
