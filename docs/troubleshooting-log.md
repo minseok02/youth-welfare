@@ -2806,3 +2806,8 @@
 - 문제: 프로필 command 서비스는 관심분야/대상유형/우선순위 저장 orchestration을 맡으면서도, 우선순위 code 검증을 위해 `PriorityOptionRepository.findByCode(...)` 를 직접 호출하고 있었다. 이 상태면 우선순위 옵션 read 규칙이 바뀔 때 command 서비스 본문을 다시 열어야 한다.
 - 해결: `PriorityOptionReadRepository` / `PriorityOptionReadRepositoryImpl` 을 추가하고, 우선순위 option code lookup을 이 read 경계 뒤로 이동했다.
 - 이유: profile command 서비스는 active user 검증, refresh cache evict, priority row 조립에 집중하고, option validation read 규칙은 별도 repository로 내려야 책임이 더 선명해진다.
+
+## 514) `UserPiiSyncQueueService` 가 queue 저장과 상태/재처리 대상 조회를 모두 `UserPiiSyncQueueRepository` 하나에 직접 걸치면, user pii sync queue의 read/write 규칙이 한 서비스 안에 다시 섞인다
+- 문제: queue 서비스는 enqueue 저장, 상태별 count, oldest/latest snapshot, failed sample, replay 대상 userKey 조회를 모두 하나의 JPA 저장소에 직접 걸고 있었다. 이 상태면 queue 저장 규칙과 read 정렬/샘플링 규칙이 바뀔 때 같은 서비스 본문을 함께 다시 열어야 한다.
+- 해결: `UserPiiSyncQueueReadRepository` / `UserPiiSyncQueueReadRepositoryImpl`, `UserPiiSyncQueueCommandRepository` / `UserPiiSyncQueueCommandRepositoryImpl` 을 추가하고, queue 저장은 command repository로, 상태/재처리 대상 조회는 read repository로 이동했다.
+- 이유: `UserPiiSyncQueueService` 는 enqueue orchestration과 queue API 표면 유지에 집중하고, queue persistence 세부사항은 read/write 경계로 분리해야 책임이 더 선명해진다.
