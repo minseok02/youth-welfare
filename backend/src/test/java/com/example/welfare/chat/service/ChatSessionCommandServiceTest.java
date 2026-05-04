@@ -26,32 +26,30 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-class ChatSessionServiceTest {
+class ChatSessionCommandServiceTest {
 
     @Mock
     private ChatSessionReadRepository chatSessionReadRepository;
     @Mock
     private ChatSessionCommandRepository chatSessionCommandRepository;
-
     @Mock
     private ActiveUserReadService activeUserReadService;
 
-    private ChatSessionService chatSessionService;
+    private ChatSessionCommandService chatSessionCommandService;
 
     @BeforeEach
     void setUp() {
-        chatSessionService = new ChatSessionService(chatSessionReadRepository, chatSessionCommandRepository, activeUserReadService);
+        chatSessionCommandService = new ChatSessionCommandService(
+                chatSessionReadRepository,
+                chatSessionCommandRepository,
+                activeUserReadService
+        );
     }
 
     @Test
     @DisplayName("세션 생성은 공백 제목을 null로 정규화한다")
     void createSessionNormalizesBlankTitleToNull() {
-        User user = User.builder()
-                .id(1L)
-                .userKey("user-key-1")
-                .email("chat@example.com")
-                .passwordHash("hash")
-                .build();
+        User user = User.builder().id(1L).userKey("user-key-1").email("chat@example.com").passwordHash("hash").build();
         CreateChatSessionRequest request = new CreateChatSessionRequest();
         ReflectionTestUtils.setField(request, "title", "   ");
 
@@ -63,7 +61,7 @@ class ChatSessionServiceTest {
             return session;
         });
 
-        var response = chatSessionService.createSession(1L, request);
+        var response = chatSessionCommandService.createSession(1L, request);
 
         ArgumentCaptor<ChatSession> captor = ArgumentCaptor.forClass(ChatSession.class);
         verify(chatSessionCommandRepository).save(captor.capture());
@@ -75,18 +73,13 @@ class ChatSessionServiceTest {
     @Test
     @DisplayName("다른 사용자의 세션 삭제 요청은 챗 세션 없음 오류를 반환한다")
     void deleteSessionThrowsWhenSessionNotOwned() {
-        User user = User.builder()
-                .id(1L)
-                .userKey("user-key-1")
-                .email("chat@example.com")
-                .passwordHash("hash")
-                .build();
+        User user = User.builder().id(1L).userKey("user-key-1").email("chat@example.com").passwordHash("hash").build();
 
         when(activeUserReadService.getActiveUserContext(1L))
                 .thenReturn(new ActiveUserReadService.ActiveUserContext(user, "user-key-1"));
         when(chatSessionReadRepository.findOwnedSession(99L, "user-key-1")).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> chatSessionService.deleteSession(1L, 99L))
+        assertThatThrownBy(() -> chatSessionCommandService.deleteSession(1L, 99L))
                 .isInstanceOf(CustomException.class)
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.CHAT_SESSION_NOT_FOUND);

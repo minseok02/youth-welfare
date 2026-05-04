@@ -13,13 +13,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
-import java.util.List;
-
 @Service
 @RequiredArgsConstructor
-public class ChatSessionService {
-
-    private static final int RECENT_SESSION_LIMIT = 20;
+public class ChatSessionCommandService {
 
     private final ChatSessionReadRepository chatSessionReadRepository;
     private final ChatSessionCommandRepository chatSessionCommandRepository;
@@ -33,15 +29,6 @@ public class ChatSessionService {
                 .title(normalizeTitle(request != null ? request.getTitle() : null))
                 .build());
         return ChatSessionResponse.from(session);
-    }
-
-    @Transactional(readOnly = true)
-    public List<ChatSessionResponse> getSessions(Long userId) {
-        ActiveUserReadService.ActiveUserContext activeUserContext = activeUserReadService.getActiveUserContext(userId);
-        return chatSessionReadRepository.findRecentSessions(activeUserContext.userKey(), RECENT_SESSION_LIMIT)
-                .stream()
-                .map(ChatSessionResponse::from)
-                .toList();
     }
 
     @Transactional

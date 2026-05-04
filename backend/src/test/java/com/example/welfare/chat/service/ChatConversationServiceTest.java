@@ -1,9 +1,9 @@
 package com.example.welfare.chat.service;
 
+import com.example.welfare.chat.dto.ChatAiResult;
 import com.example.welfare.chat.dto.ChatPolicyCandidate;
 import com.example.welfare.chat.dto.request.SendChatMessageRequest;
 import com.example.welfare.chat.dto.response.ChatReferenceResponse;
-import com.example.welfare.chat.dto.ChatAiResult;
 import com.example.welfare.chat.entity.ChatMessage;
 import com.example.welfare.chat.entity.ChatMessageRole;
 import com.example.welfare.chat.entity.ChatSession;
@@ -34,48 +34,41 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-class ChatMessageServiceTest {
+class ChatConversationServiceTest {
 
     @Mock
     private ChatMessageReadRepository chatMessageReadRepository;
-
     @Mock
     private ChatPolicyService chatPolicyService;
-
     @Mock
     private ChatAiGateway chatAiGateway;
-
     @Mock
     private ChatRateLimitService chatRateLimitService;
-
     @Mock
     private ChatMessageCommandService chatMessageCommandService;
-
     @Mock
     private ActiveUserReadService activeUserReadService;
 
-    private ChatMessageService chatMessageService;
+    private ChatConversationService chatConversationService;
 
     @BeforeEach
     void setUp() {
-        chatMessageService = new ChatMessageService(
+        chatConversationService = new ChatConversationService(
                 chatMessageReadRepository,
                 chatPolicyService,
                 chatAiGateway,
                 chatRateLimitService,
                 chatMessageCommandService,
                 activeUserReadService,
-                new ObjectMapper());
+                new ObjectMapper()
+        );
     }
 
     @Test
     @DisplayName("메시지 전송은 USER와 ASSISTANT 메시지를 저장하고 참조 정책을 응답한다")
     void sendMessageStoresMessagesAndBuildsAnswer() {
         User user = createUser(1L);
-        ChatSession session = ChatSession.builder()
-                .id(10L)
-                .userKey("user-key-1")
-                .build();
+        ChatSession session = ChatSession.builder().id(10L).userKey("user-key-1").build();
         SendChatMessageRequest request = new SendChatMessageRequest();
         ReflectionTestUtils.setField(request, "content", "서울 월세 지원 알려줘");
 
@@ -83,38 +76,25 @@ class ChatMessageServiceTest {
                 .thenReturn(new ActiveUserReadService.ActiveUserContext(user, "user-key-1"));
         when(chatMessageReadRepository.findOwnedSession(10L, "user-key-1")).thenReturn(Optional.of(session));
         when(chatPolicyService.findCandidates("서울 월세 지원 알려줘", 3)).thenReturn(List.of(
-                ChatPolicyCandidate.builder()
-                        .serviceId(1829L)
-                        .title("청년월세 한시 특별지원")
-                        .supportContent("서울 청년의 주거비 부담 완화와 직접 연결됩니다.")
-                        .build(),
-                ChatPolicyCandidate.builder()
-                        .serviceId(2451L)
-                        .title("청년전세임대")
-                        .description("청년 전세 주거 안정을 지원합니다.")
-                        .build()
+                ChatPolicyCandidate.builder().serviceId(1829L).title("청년월세 한시 특별지원")
+                        .supportContent("서울 청년의 주거비 부담 완화와 직접 연결됩니다.").build(),
+                ChatPolicyCandidate.builder().serviceId(2451L).title("청년전세임대")
+                        .description("청년 전세 주거 안정을 지원합니다.").build()
         ));
         when(chatAiGateway.generateAnswer(any(User.class), any(String.class), any(List.class), any(List.class)))
                 .thenReturn(ChatAiResult.builder()
                         .answer("청년월세 한시 특별지원과 청년전세임대를 먼저 확인해보세요.")
                         .needsClarification(false)
                         .references(List.of(
-                                ChatReferenceResponse.builder()
-                                        .serviceId(1829L)
-                                        .title("청년월세 한시 특별지원")
-                                        .reason("주거비 부담 완화와 연결됩니다.")
-                                        .build(),
-                                ChatReferenceResponse.builder()
-                                        .serviceId(2451L)
-                                        .title("청년전세임대")
-                                        .reason("전세 주거 안정을 지원합니다.")
-                                        .build()
+                                ChatReferenceResponse.builder().serviceId(1829L).title("청년월세 한시 특별지원")
+                                        .reason("주거비 부담 완화와 연결됩니다.").build(),
+                                ChatReferenceResponse.builder().serviceId(2451L).title("청년전세임대")
+                                        .reason("전세 주거 안정을 지원합니다.").build()
                         ))
                         .build());
-        when(chatMessageReadRepository.findRecentMessages(10L, 6))
-                .thenReturn(List.of());
+        when(chatMessageReadRepository.findRecentMessages(10L, 6)).thenReturn(List.of());
 
-        var response = chatMessageService.sendMessage(1L, 10L, request);
+        var response = chatConversationService.sendMessage(1L, 10L, request);
 
         assertThat(response.getSessionId()).isEqualTo(10L);
         assertThat(response.isNeedsClarification()).isFalse();
@@ -129,11 +109,7 @@ class ChatMessageServiceTest {
     @DisplayName("정책 후보가 없으면 clarification 응답과 빈 참조 목록을 저장한다")
     void sendMessageReturnsClarificationWhenNoCandidate() {
         User user = createUser(1L);
-        ChatSession session = ChatSession.builder()
-                .id(10L)
-                .userKey("user-key-1")
-                .title("기존 제목")
-                .build();
+        ChatSession session = ChatSession.builder().id(10L).userKey("user-key-1").title("기존 제목").build();
         SendChatMessageRequest request = new SendChatMessageRequest();
         ReflectionTestUtils.setField(request, "content", "조건을 모르겠어");
 
@@ -142,7 +118,7 @@ class ChatMessageServiceTest {
         when(chatMessageReadRepository.findOwnedSession(10L, "user-key-1")).thenReturn(Optional.of(session));
         when(chatPolicyService.findCandidates("조건을 모르겠어", 3)).thenReturn(List.of());
 
-        var response = chatMessageService.sendMessage(1L, 10L, request);
+        var response = chatConversationService.sendMessage(1L, 10L, request);
 
         assertThat(response.isNeedsClarification()).isTrue();
         assertThat(response.getReferences()).isEmpty();
@@ -155,10 +131,7 @@ class ChatMessageServiceTest {
     @DisplayName("AI 호출이 실패하면 정책 후보 기반 fallback 답변을 사용한다")
     void sendMessageFallsBackWhenAiGatewayReturnsNull() {
         User user = createUser(1L);
-        ChatSession session = ChatSession.builder()
-                .id(10L)
-                .userKey("user-key-1")
-                .build();
+        ChatSession session = ChatSession.builder().id(10L).userKey("user-key-1").build();
         SendChatMessageRequest request = new SendChatMessageRequest();
         ReflectionTestUtils.setField(request, "content", "서울 월세 지원 알려줘");
 
@@ -166,18 +139,14 @@ class ChatMessageServiceTest {
                 .thenReturn(new ActiveUserReadService.ActiveUserContext(user, "user-key-1"));
         when(chatMessageReadRepository.findOwnedSession(10L, "user-key-1")).thenReturn(Optional.of(session));
         when(chatPolicyService.findCandidates("서울 월세 지원 알려줘", 3)).thenReturn(List.of(
-                ChatPolicyCandidate.builder()
-                        .serviceId(1829L)
-                        .title("청년월세 한시 특별지원")
-                        .supportContent("서울 청년의 주거비 부담 완화와 직접 연결됩니다.")
-                        .build()
+                ChatPolicyCandidate.builder().serviceId(1829L).title("청년월세 한시 특별지원")
+                        .supportContent("서울 청년의 주거비 부담 완화와 직접 연결됩니다.").build()
         ));
         when(chatAiGateway.generateAnswer(any(User.class), any(String.class), any(List.class), any(List.class)))
                 .thenReturn(null);
-        when(chatMessageReadRepository.findRecentMessages(10L, 6))
-                .thenReturn(List.of());
+        when(chatMessageReadRepository.findRecentMessages(10L, 6)).thenReturn(List.of());
 
-        var response = chatMessageService.sendMessage(1L, 10L, request);
+        var response = chatConversationService.sendMessage(1L, 10L, request);
 
         assertThat(response.isNeedsClarification()).isFalse();
         assertThat(response.getAnswer()).isEqualTo("청년월세 한시 특별지원 정책을 먼저 확인해보세요.");
@@ -198,7 +167,7 @@ class ChatMessageServiceTest {
         org.mockito.Mockito.doThrow(new CustomException(ErrorCode.CHAT_RATE_LIMIT_EXCEEDED))
                 .when(chatRateLimitService).checkMessageSendLimit(1L);
 
-        assertThatThrownBy(() -> chatMessageService.sendMessage(1L, 10L, request))
+        assertThatThrownBy(() -> chatConversationService.sendMessage(1L, 10L, request))
                 .isInstanceOf(CustomException.class)
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.CHAT_RATE_LIMIT_EXCEEDED);
@@ -211,32 +180,17 @@ class ChatMessageServiceTest {
     @DisplayName("메시지 조회는 JSON 참조 정책 ID를 리스트로 변환한다")
     void getMessagesParsesReferencedServiceIds() {
         User user = createUser(1L);
-        ChatSession session = ChatSession.builder()
-                .id(10L)
-                .userKey("user-key-1")
-                .title("주거 상담")
-                .build();
-        ChatMessage userMessage = ChatMessage.builder()
-                .id(100L)
-                .session(session)
-                .role(ChatMessageRole.USER)
-                .content("월세 지원 있어?")
-                .build();
-        ChatMessage assistantMessage = ChatMessage.builder()
-                .id(101L)
-                .session(session)
-                .role(ChatMessageRole.ASSISTANT)
-                .content("청년월세지원이 있습니다.")
-                .referencedServiceIds("[1829,2451]")
-                .build();
+        ChatSession session = ChatSession.builder().id(10L).userKey("user-key-1").title("주거 상담").build();
+        ChatMessage userMessage = ChatMessage.builder().id(100L).session(session).role(ChatMessageRole.USER).content("월세 지원 있어?").build();
+        ChatMessage assistantMessage = ChatMessage.builder().id(101L).session(session).role(ChatMessageRole.ASSISTANT)
+                .content("청년월세지원이 있습니다.").referencedServiceIds("[1829,2451]").build();
 
         when(activeUserReadService.getActiveUserContext(1L))
                 .thenReturn(new ActiveUserReadService.ActiveUserContext(user, "user-key-1"));
         when(chatMessageReadRepository.findOwnedSession(10L, "user-key-1")).thenReturn(Optional.of(session));
-        when(chatMessageReadRepository.findMessages(10L))
-                .thenReturn(List.of(userMessage, assistantMessage));
+        when(chatMessageReadRepository.findMessages(10L)).thenReturn(List.of(userMessage, assistantMessage));
 
-        var responses = chatMessageService.getMessages(1L, 10L);
+        var responses = chatConversationService.getMessages(1L, 10L);
 
         assertThat(responses).hasSize(2);
         assertThat(responses.get(0).getReferencedServiceIds()).isEmpty();
@@ -252,18 +206,13 @@ class ChatMessageServiceTest {
                 .thenReturn(new ActiveUserReadService.ActiveUserContext(user, "user-key-1"));
         when(chatMessageReadRepository.findOwnedSession(99L, "user-key-1")).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> chatMessageService.getMessages(1L, 99L))
+        assertThatThrownBy(() -> chatConversationService.getMessages(1L, 99L))
                 .isInstanceOf(CustomException.class)
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.CHAT_SESSION_NOT_FOUND);
     }
 
     private User createUser(Long userId) {
-        return User.builder()
-                .id(userId)
-                .userKey("user-key-" + userId)
-                .email("chat@example.com")
-                .passwordHash("hash")
-                .build();
+        return User.builder().id(userId).userKey("user-key-" + userId).email("chat@example.com").passwordHash("hash").build();
     }
 }

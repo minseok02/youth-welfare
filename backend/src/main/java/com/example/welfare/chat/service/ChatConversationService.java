@@ -7,7 +7,6 @@ import com.example.welfare.chat.dto.response.ChatAnswerResponse;
 import com.example.welfare.chat.dto.response.ChatMessageResponse;
 import com.example.welfare.chat.dto.response.ChatReferenceResponse;
 import com.example.welfare.chat.entity.ChatMessage;
-import com.example.welfare.chat.entity.ChatMessageRole;
 import com.example.welfare.chat.entity.ChatSession;
 import com.example.welfare.chat.gateway.ChatAiGateway;
 import com.example.welfare.chat.repository.ChatMessageReadRepository;
@@ -32,7 +31,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
-public class ChatMessageService {
+public class ChatConversationService {
 
     private static final int REFERENCE_LIMIT = 3;
     private static final int SESSION_TITLE_LIMIT = 100;
@@ -210,5 +209,4 @@ public class ChatMessageService {
         }
         return value.substring(0, maxLength);
     }
-
 }
