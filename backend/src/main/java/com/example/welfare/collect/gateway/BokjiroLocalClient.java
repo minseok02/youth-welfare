@@ -1,6 +1,8 @@
 package com.example.welfare.collect.gateway;
 
 import com.example.welfare.collect.dto.BokjiroLocalDto;
+import com.example.welfare.collect.gateway.CollectHttpRetryExecutor.ExecutionResult;
+import com.example.welfare.collect.gateway.CollectHttpRetryExecutor.HttpFailureAction;
 import com.example.welfare.collect.service.CollectRuntimeStatusCommandService;
 import com.example.welfare.collect.service.CollectRuntimeStatusService;
 import com.example.welfare.global.exception.CustomException;
@@ -11,7 +13,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
-import org.springframework.web.reactive.function.client.WebClientResponseException;
 
 import java.net.URI;
 import java.net.URLEncoder;
@@ -20,7 +21,6 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.ThreadLocalRandom;
 
 @Slf4j
 @Component
@@ -29,6 +29,7 @@ public class BokjiroLocalClient {
 
     private final WebClient webClient;
     private final XmlMapper xmlMapper;
+    private final CollectHttpRetryExecutor collectHttpRetryExecutor;
 
     @Value("${bokjiro.api-key}")
     private String apiKey;
@@ -45,9 +46,9 @@ public class BokjiroLocalClient {
     @Value("${collect.list.local-rate-limit-open-circuit-ms:1800000}")
     private long localRateLimitOpenCircuitMs;
 
-    private static final int PAGE_SIZE = 100;
     private final CollectRuntimeStatusService collectRuntimeStatusService;
     private final CollectRuntimeStatusCommandService collectRuntimeStatusCommandService;
+    private static final int PAGE_SIZE = 100;
 
     /**
      * 복지로 지자체 서비스 전체 수집 (XML, 페이징)
@@ -103,42 +104,40 @@ public class BokjiroLocalClient {
                 + "&pageNo=" + pageNo
                 + "&numOfRows=" + numOfRows;
 
-        for (int attempt = 1; attempt <= retryMaxAttempts; attempt++) {
-            try {
-                String xml = webClient.get()
+        ExecutionResult<String> result = collectHttpRetryExecutor.execute(
+                "BokjiroLocalClient",
+                "page=" + pageNo,
+                retryMaxAttempts,
+                retryBaseBackoffMs,
+                status -> {
+                    if (status == 429) {
+                        return HttpFailureAction.RATE_LIMITED;
+                    }
+                    if (status >= 500) {
+                        return HttpFailureAction.RETRYABLE;
+                    }
+                    return HttpFailureAction.FAIL_FAST;
+                },
+                () -> webClient.get()
                         .uri(URI.create(url))
                         .retrieve()
                         .bodyToMono(String.class)
-                        .block(Duration.ofSeconds(20));
-
-                if (xml == null || xml.isBlank()) {
-                    return PageFetchResult.success(null);
-                }
-
-                return PageFetchResult.success(xmlMapper.readValue(xml, BokjiroLocalDto.class));
-            } catch (WebClientResponseException e) {
-                int status = e.getStatusCode().value();
-                if (status == 429) {
-                    if (attempt >= retryMaxAttempts) {
-                        return PageFetchResult.rateLimited();
-                    }
-
-                    long waitMs = retryBaseBackoffMs * attempt + ThreadLocalRandom.current().nextLong(100, 400);
-                    log.warn("[BokjiroLocalClient] 429 재시도 page={} attempt={}/{} waitMs={}",
-                            pageNo, attempt, retryMaxAttempts, waitMs);
-                    sleepQuietly(waitMs);
-                    continue;
-                }
-
-                log.error("[BokjiroLocalClient] 수집 실패 page={} status={}: {}", pageNo, status, e.getMessage(), e);
-                throw new CustomException(ErrorCode.COLLECT_API_FAILED);
-            } catch (Exception e) {
-                log.error("[BokjiroLocalClient] 수집 실패 page={}: {}", pageNo, e.getMessage(), e);
-                throw new CustomException(ErrorCode.COLLECT_API_FAILED);
-            }
+                        .block(Duration.ofSeconds(20))
+        );
+        if (result.rateLimited()) {
+            return PageFetchResult.rateLimited();
         }
 
-        return PageFetchResult.rateLimited();
+        String xml = result.payload();
+        if (xml == null || xml.isBlank()) {
+            return PageFetchResult.success(null);
+        }
+        try {
+            return PageFetchResult.success(xmlMapper.readValue(xml, BokjiroLocalDto.class));
+        } catch (Exception e) {
+            log.error("[BokjiroLocalClient] 수집 실패 page={} parseErr={}", pageNo, e.getMessage(), e);
+            throw new CustomException(ErrorCode.COLLECT_API_FAILED);
+        }
     }
 
     private void ensureRateLimitCircuitClosed() {

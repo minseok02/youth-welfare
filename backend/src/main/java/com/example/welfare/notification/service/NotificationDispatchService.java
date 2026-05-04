@@ -12,6 +12,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Optional;
 
 @Slf4j
 @Service
@@ -43,6 +44,22 @@ public class NotificationDispatchService {
         }
 
         User user = plan.user();
+        String dispatchKey = dispatchKey(user.getUserKey(), plan.periodType());
+        Optional<com.example.welfare.notification.entity.Notification> reserved =
+                notificationHistoryService.reserveDispatch(
+                        user,
+                        plan.periodType(),
+                        NotificationChannel.EMAIL,
+                        dispatchKey,
+                        RECOMMEND_SUBJECT
+                );
+        if (reserved.isEmpty()) {
+            log.info("[NotificationDispatchService] dispatch reservation conflict 로 중복 발송을 건너뜁니다. userKey={} period={}",
+                    user.getUserKey(), plan.periodType());
+            return;
+        }
+
+        com.example.welfare.notification.entity.Notification notification = reserved.get();
         List<UserRecommendation> recommendations = plan.recommendations();
         List<RecommendationLog> logs = plan.logs();
         String messageText = null;
@@ -59,11 +76,8 @@ public class NotificationDispatchService {
             String errorMessage = sent ? null : "notification gateway returned false";
 
             notificationHistoryService.saveResult(
-                    user,
-                    plan.periodType(),
-                    NotificationChannel.EMAIL,
+                    notification,
                     status,
-                    RECOMMEND_SUBJECT,
                     messageText,
                     recommendations,
                     logs,
@@ -76,11 +90,8 @@ public class NotificationDispatchService {
         } catch (Exception e) {
             try {
                 notificationHistoryService.saveResult(
-                        user,
-                        plan.periodType(),
-                        NotificationChannel.EMAIL,
+                        notification,
                         NotificationStatus.FAILED,
-                        RECOMMEND_SUBJECT,
                         messageText,
                         recommendations,
                         logs,
@@ -100,5 +111,16 @@ public class NotificationDispatchService {
             case WEEKLY -> com.example.welfare.notification.entity.Notification.NotificationPeriodType.WEEKLY;
             case NONE -> com.example.welfare.notification.entity.Notification.NotificationPeriodType.MANUAL;
         };
+    }
+
+    private String dispatchKey(String userKey,
+                               com.example.welfare.notification.entity.Notification.NotificationPeriodType periodType) {
+        NotificationDispatchWindowReadService.Window window =
+                notificationDispatchWindowReadService.currentWindow(periodType, java.time.LocalDate.now());
+        return "%s:%s:%s".formatted(
+                periodType.name().toLowerCase(),
+                userKey,
+                window.start().toLocalDate()
+        );
     }
 }

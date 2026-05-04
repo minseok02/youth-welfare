@@ -42,6 +42,8 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
             @Param("claimUntil") LocalDateTime claimUntil
     );
 
+    Optional<Notification> findByDispatchKey(String dispatchKey);
+
     boolean existsByUserKeyAndPeriodTypeAndCreatedAtGreaterThanEqualAndCreatedAtLessThan(
             String userKey,
             Notification.NotificationPeriodType periodType,

@@ -9,7 +9,8 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "notifications", indexes = {
         @Index(name = "idx_noti_user_key_created", columnList = "user_key, created_at"),
-        @Index(name = "idx_noti_status_created", columnList = "status, created_at")
+        @Index(name = "idx_noti_status_created", columnList = "status, created_at"),
+        @Index(name = "uq_noti_dispatch_key", columnList = "dispatch_key", unique = true)
 })
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -23,6 +24,9 @@ public class Notification extends BaseTimeEntity {
 
     @Column(name = "user_key", nullable = false, length = 32, columnDefinition = "CHAR(32)")
     private String userKey;
+
+    @Column(name = "dispatch_key", length = 80, unique = true)
+    private String dispatchKey;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
@@ -57,6 +61,16 @@ public class Notification extends BaseTimeEntity {
 
     private LocalDateTime nextRetryAt;
 
+    public void reserveDispatch() {
+        this.status = NotificationStatus.PENDING;
+        this.sentAt = null;
+        this.errorMessage = null;
+        this.retryCount = 0;
+        this.nextRetryAt = null;
+        this.totalServices = 0;
+        this.messageText = null;
+    }
+
     public void markSent() {
         this.status = NotificationStatus.SENT;
         this.sentAt = LocalDateTime.now();
@@ -76,6 +90,11 @@ public class Notification extends BaseTimeEntity {
         this.retryCount = 0;
         this.nextRetryAt = nextRetryAt;
         this.errorMessage = errorMessage;
+    }
+
+    public void updateDispatchPayload(String messageText, int totalServices) {
+        this.messageText = messageText;
+        this.totalServices = totalServices;
     }
 
     public enum NotificationChannel {
@@ -98,9 +117,11 @@ public class Notification extends BaseTimeEntity {
     }
 
     public enum NotificationStatus {
+        pending,
         sent,
         failed;
 
+        public static final NotificationStatus PENDING = pending;
         public static final NotificationStatus SENT = sent;
         public static final NotificationStatus FAILED = failed;
     }

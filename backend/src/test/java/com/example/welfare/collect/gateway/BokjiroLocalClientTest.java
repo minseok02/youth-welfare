@@ -31,6 +31,9 @@ class BokjiroLocalClientTest {
     private XmlMapper xmlMapper;
 
     @Mock
+    private CollectHttpRetryExecutor collectHttpRetryExecutor;
+
+    @Mock
     private com.example.welfare.collect.service.CollectRuntimeStatusService collectRuntimeStatusService;
 
     @Mock
@@ -43,6 +46,7 @@ class BokjiroLocalClientTest {
         client = new BokjiroLocalClient(
                 webClient,
                 xmlMapper,
+                collectHttpRetryExecutor,
                 collectRuntimeStatusService,
                 collectRuntimeStatusCommandService
         );

@@ -431,9 +431,10 @@ CREATE TABLE IF NOT EXISTS search_logs (
 CREATE TABLE IF NOT EXISTS notifications (
     id             BIGINT       NOT NULL AUTO_INCREMENT,
     user_key       CHAR(32)     NOT NULL,
+    dispatch_key   VARCHAR(80),
     channel        ENUM('email','kakao') NOT NULL,
     period_type    ENUM('daily','weekly','manual') NOT NULL,
-    status         ENUM('sent','failed') NOT NULL,
+    status         ENUM('pending','sent','failed') NOT NULL,
     subject        VARCHAR(200) NOT NULL,
     message_text   TEXT,
     total_services INT          NOT NULL DEFAULT 0,
@@ -444,6 +445,7 @@ CREATE TABLE IF NOT EXISTS notifications (
     created_at     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
+    UNIQUE KEY uq_noti_dispatch_key (dispatch_key),
     KEY idx_noti_user_key_created (user_key, created_at),
     KEY idx_noti_status_created (status, created_at),
     KEY idx_noti_retry (status, next_retry_at)

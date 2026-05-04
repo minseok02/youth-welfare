@@ -1,6 +1,7 @@
 package com.example.welfare.notification.service;
 
 import com.example.welfare.notification.dto.NotificationTarget;
+import com.example.welfare.notification.entity.Notification;
 import com.example.welfare.notification.entity.Notification.NotificationChannel;
 import com.example.welfare.notification.entity.Notification.NotificationPeriodType;
 import com.example.welfare.notification.entity.Notification.NotificationStatus;
@@ -17,6 +18,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -55,7 +57,8 @@ class NotificationDispatchServiceTest {
         notificationDispatchService.sendTopRecommendations(target);
 
         verify(notificationGateway, never()).send(any(), any(), any());
-        verify(notificationHistoryService, never()).saveResult(any(), any(), any(), any(), any(), any(), any(), any(), any());
+        verify(notificationHistoryService, never()).reserveDispatch(any(), any(), any(), any(), any());
+        verify(notificationHistoryService, never()).saveResult(any(), any(), any(), any(), any(), any());
     }
 
     @Test
@@ -76,7 +79,27 @@ class NotificationDispatchServiceTest {
 
         given(notificationDispatchWindowReadService.hasDispatchHistoryInCurrentWindow("user-key-1", NotificationPeriodType.DAILY))
                 .willReturn(false);
+        given(notificationDispatchWindowReadService.currentWindow(NotificationPeriodType.DAILY, LocalDate.now()))
+                .willReturn(new NotificationDispatchWindowReadService.Window(
+                        LocalDate.now().atStartOfDay(),
+                        LocalDate.now().plusDays(1).atStartOfDay()
+                ));
         given(notificationRecommendationService.prepareDispatch(target)).willReturn(Optional.of(plan));
+        given(notificationHistoryService.reserveDispatch(
+                eq(user),
+                eq(NotificationPeriodType.DAILY),
+                eq(NotificationChannel.EMAIL),
+                eq("daily:user-key-1:" + java.time.LocalDate.now()),
+                eq("[청년복지] 맞춤 정책 추천")
+        )).willReturn(Optional.of(Notification.builder()
+                .id(1L)
+                .userKey("user-key-1")
+                .dispatchKey("daily:user-key-1:" + java.time.LocalDate.now())
+                .periodType(NotificationPeriodType.DAILY)
+                .channel(NotificationChannel.EMAIL)
+                .status(NotificationStatus.PENDING)
+                .subject("[청년복지] 맞춤 정책 추천")
+                .build()));
         given(notificationMessageService.buildRecommendationMessage("user-key-1", 1L, List.of(recommendation), List.of(log)))
                 .willReturn("body");
         given(notificationGateway.send("test@example.com", "[청년복지] 맞춤 정책 추천", "body")).willReturn(false);
@@ -84,11 +107,8 @@ class NotificationDispatchServiceTest {
         notificationDispatchService.sendTopRecommendations(target);
 
         verify(notificationHistoryService).saveResult(
-                eq(user),
-                eq(NotificationPeriodType.DAILY),
-                eq(NotificationChannel.EMAIL),
+                any(Notification.class),
                 eq(NotificationStatus.FAILED),
-                eq("[청년복지] 맞춤 정책 추천"),
                 eq("body"),
                 eq(List.of(recommendation)),
                 eq(List.of(log)),
@@ -108,7 +128,40 @@ class NotificationDispatchServiceTest {
 
         verify(notificationRecommendationService, never()).prepareDispatch(any());
         verify(notificationGateway, never()).send(any(), any(), any());
-        verify(notificationHistoryService, never()).saveResult(any(), any(), any(), any(), any(), any(), any(), any(), any());
+        verify(notificationHistoryService, never()).reserveDispatch(any(), any(), any(), any(), any());
+        verify(notificationHistoryService, never()).saveResult(any(), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("reservation 충돌이면 중복 발송을 건너뛴다")
+    void sendTopRecommendationsSkipsWhenReservationConflicts() {
+        User user = sampleUser();
+        UserRecommendation recommendation = sampleRecommendation();
+        RecommendationLog log = RecommendationLog.builder().id(100L).build();
+        NotificationTarget target = new NotificationTarget(1L, "user-key-1", "test@example.com",
+                User.NotificationPeriod.DAILY, 0.8, 10);
+        NotificationRecommendationService.NotificationDispatchPlan plan =
+                new NotificationRecommendationService.NotificationDispatchPlan(
+                        user,
+                        NotificationPeriodType.DAILY,
+                        List.of(recommendation),
+                        List.of(log)
+                );
+        given(notificationDispatchWindowReadService.hasDispatchHistoryInCurrentWindow("user-key-1", NotificationPeriodType.DAILY))
+                .willReturn(false);
+        given(notificationDispatchWindowReadService.currentWindow(NotificationPeriodType.DAILY, LocalDate.now()))
+                .willReturn(new NotificationDispatchWindowReadService.Window(
+                        LocalDate.now().atStartOfDay(),
+                        LocalDate.now().plusDays(1).atStartOfDay()
+                ));
+        given(notificationRecommendationService.prepareDispatch(target)).willReturn(Optional.of(plan));
+        given(notificationHistoryService.reserveDispatch(any(), any(), any(), any(), any()))
+                .willReturn(Optional.empty());
+
+        notificationDispatchService.sendTopRecommendations(target);
+
+        verify(notificationGateway, never()).send(any(), any(), any());
+        verify(notificationHistoryService, never()).saveResult(any(), any(), any(), any(), any(), any());
     }
 
     private User sampleUser() {
