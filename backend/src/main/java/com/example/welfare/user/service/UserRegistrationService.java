@@ -2,7 +2,7 @@ package com.example.welfare.user.service;
 
 import com.example.welfare.user.dto.request.SignupRequest;
 import com.example.welfare.user.entity.User;
-import com.example.welfare.user.repository.UserRepository;
+import com.example.welfare.user.repository.UserRegistrationCommandRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -11,7 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class UserRegistrationService {
 
-    private final UserRepository userRepository;
+    private final UserRegistrationCommandRepository userRegistrationCommandRepository;
     private final UserCoreSyncService userCoreSyncService;
 
     @Transactional
@@ -28,7 +28,7 @@ public class UserRegistrationService {
                 .householdType(request.getHouseholdType())
                 .build();
 
-        userRepository.save(user);
+        userRegistrationCommandRepository.save(user);
         userCoreSyncService.syncFromUser(user);
     }
 }

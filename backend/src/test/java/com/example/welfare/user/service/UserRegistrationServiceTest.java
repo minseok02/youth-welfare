@@ -2,7 +2,7 @@ package com.example.welfare.user.service;
 
 import com.example.welfare.user.dto.request.SignupRequest;
 import com.example.welfare.user.entity.User;
-import com.example.welfare.user.repository.UserRepository;
+import com.example.welfare.user.repository.UserRegistrationCommandRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -19,7 +19,7 @@ import static org.mockito.Mockito.verify;
 class UserRegistrationServiceTest {
 
     @Mock
-    private UserRepository userRepository;
+    private UserRegistrationCommandRepository userRegistrationCommandRepository;
     @Mock
     private UserCoreSyncService userCoreSyncService;
 
@@ -36,7 +36,7 @@ class UserRegistrationServiceTest {
         userRegistrationService.register(request, "encoded-password");
 
         ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
-        verify(userRepository).save(userCaptor.capture());
+        verify(userRegistrationCommandRepository).save(userCaptor.capture());
         verify(userCoreSyncService).syncFromUser(userCaptor.getValue());
         assertThat(userCaptor.getValue().getEmail()).isEqualTo("user@example.com");
         assertThat(userCaptor.getValue().getPasswordHash()).isEqualTo("encoded-password");

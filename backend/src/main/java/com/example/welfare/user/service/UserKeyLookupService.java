@@ -6,6 +6,8 @@ import com.example.welfare.user.repository.UserKeyReadRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.Optional;
+
 @Service
 @RequiredArgsConstructor
 public class UserKeyLookupService {
@@ -25,5 +27,9 @@ public class UserKeyLookupService {
         }
         return userKeyReadRepository.findUserKeyById(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+    }
+
+    public Optional<Long> findRequiredUserId(String userKey) {
+        return userKeyReadRepository.findIdByUserKey(userKey);
     }
 }

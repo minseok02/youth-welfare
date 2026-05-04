@@ -10,9 +10,9 @@ import com.example.welfare.user.entity.User;
 import com.example.welfare.user.entity.UserAttribute;
 import com.example.welfare.user.entity.UserProfile;
 import com.example.welfare.user.repository.RecommendationUserReadRepository;
+import com.example.welfare.user.repository.UserAccountReadRepository;
 import com.example.welfare.user.repository.UserAttributeReadModel;
 import com.example.welfare.user.repository.UserProfileReadRepository;
-import com.example.welfare.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -28,7 +28,7 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class UserReadService {
 
-    private final UserRepository userRepository;
+    private final UserAccountReadRepository userAccountReadRepository;
     private final UserProfileReadRepository userProfileReadRepository;
     private final RecommendationUserReadRepository recommendationUserReadRepository;
     private final AesEncryptUtil aesEncryptUtil;
@@ -59,7 +59,7 @@ public class UserReadService {
 
     @Transactional(readOnly = true)
     public ActiveUserContext getActiveUserContext(Long userId) {
-        User user = userRepository.findById(userId)
+        User user = userAccountReadRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
         if (!user.isActive()) {
             throw new CustomException(ErrorCode.WITHDRAWN_USER);
@@ -76,13 +76,13 @@ public class UserReadService {
 
     @Transactional(readOnly = true)
     public Optional<User> findOptionalActiveUserByUserKey(String userKey) {
-        return userRepository.findByUserKey(userKey)
+        return userAccountReadRepository.findByUserKey(userKey)
                 .filter(User::isActive);
     }
 
     @Transactional(readOnly = true)
     public Long requireExistingUserIdByUserKey(String userKey) {
-        return userRepository.findIdByUserKey(userKey)
+        return userKeyLookupService.findRequiredUserId(userKey)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
     }
 

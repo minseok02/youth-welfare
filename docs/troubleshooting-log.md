@@ -2751,3 +2751,8 @@
 - 문제: `UserKeyLookupService` 는 `UserRepository.findUserKeyById(...)` 를, `PolicyLookupService` 는 `WelfareServiceRepository.findById(...)` 를 직접 호출하고 있었다. 지금은 단순 조회처럼 보여도 lookup 규칙이 바뀌면 서비스 본문을 수정해야 하고, 얇은 서비스여도 저장소 결합이 그대로 남는다.
 - 해결: `UserKeyReadRepository` / `UserKeyReadRepositoryImpl`, `PolicyLookupReadRepository` / `PolicyLookupReadRepositoryImpl` 을 추가하고, 두 lookup 서비스가 이 read repository 뒤로만 의존하게 정리했다.
 - 이유: 단건 lookup도 read policy의 일부이므로, 얇은 서비스라도 repository 직접 의존을 줄여 두면 service는 예외 정책에만 집중하고 lookup 구현은 별도 경계에서 관리할 수 있다.
+
+## 503) `UserReadService` 와 `UserRegistrationService` 가 `UserRepository` 를 직접 들면, active user read 와 신규 사용자 저장 규칙이 service 본문에 다시 남는다
+- 문제: `UserReadService` 는 active user entity 조회를 위해 `findById(...)`, `findByUserKey(...)` 를 직접 호출했고, `UserRegistrationService` 는 신규 `User` 저장을 위해 `save(...)` 를 직접 호출하고 있었다. 다른 lookup/read/write 경계를 분리한 뒤에도 users 테이블 접근 규칙 일부가 서비스 본문에 남아 있었다.
+- 해결: `UserAccountReadRepository` / `UserAccountReadRepositoryImpl`, `UserRegistrationCommandRepository` / `UserRegistrationCommandRepositoryImpl` 을 추가하고, `UserReadService` 와 `UserRegistrationService` 가 이 경계들에만 의존하도록 정리했다.
+- 이유: active user 조회와 신규 저장도 users 테이블 접근 policy의 일부이므로, service는 활성 상태 검증과 registration orchestration에 집중하고 실제 저장소 호출은 별도 경계로 내리는 편이 일관된다.

@@ -6,6 +6,7 @@ import com.example.welfare.recommend.dto.RecommendationUserSnapshot;
 import com.example.welfare.user.dto.response.ProfileResponse;
 import com.example.welfare.user.entity.User;
 import com.example.welfare.user.entity.UserProfile;
+import com.example.welfare.user.repository.UserAccountReadRepository;
 import com.example.welfare.user.repository.RecommendationUserReadModel;
 import com.example.welfare.user.repository.RecommendationUserReadRepository;
 import com.example.welfare.user.repository.UserProfileAggregateReadModel;
@@ -29,7 +30,7 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class UserReadServiceTest {
 
-    @Mock private UserRepository userRepository;
+    @Mock private UserAccountReadRepository userAccountReadRepository;
     @Mock private UserProfileReadRepository userProfileReadRepository;
     @Mock private RecommendationUserReadRepository recommendationUserReadRepository;
     @Mock private AesEncryptUtil aesEncryptUtil;
@@ -40,7 +41,7 @@ class UserReadServiceTest {
     @DisplayName("프로필 조회는 app_pii_rw 저장소에서 PII 암호문을 읽는다")
     void getProfileLoadsPiiFromAppPiiReadWriteRepository() {
         UserReadService userReadService = new UserReadService(
-                userRepository,
+                userAccountReadRepository,
                 userProfileReadRepository,
                 recommendationUserReadRepository,
                 aesEncryptUtil,
@@ -79,7 +80,7 @@ class UserReadServiceTest {
     @DisplayName("추천 컨텍스트 조회는 active user 검증 후 user entity 와 snapshot 을 함께 반환한다")
     void getRecommendationContextReturnsUserAndSnapshot() {
         UserReadService userReadService = new UserReadService(
-                userRepository,
+                userAccountReadRepository,
                 userProfileReadRepository,
                 recommendationUserReadRepository,
                 aesEncryptUtil,
@@ -106,7 +107,7 @@ class UserReadServiceTest {
                 .notificationMinScore(0.7)
                 .build();
 
-        when(userRepository.findById(7L)).thenReturn(Optional.of(user));
+        when(userAccountReadRepository.findById(7L)).thenReturn(Optional.of(user));
         when(authIdentityReadService.requireActiveUserKey("user-key-7")).thenReturn("user-key-7");
         when(recommendationUserReadRepository.findByUserKey("user-key-7"))
                 .thenReturn(Optional.of(new RecommendationUserReadModel(
@@ -129,7 +130,7 @@ class UserReadServiceTest {
     @DisplayName("active user context 조회는 user와 resolved userKey를 함께 반환한다")
     void getActiveUserContextReturnsUserAndUserKey() {
         UserReadService userReadService = new UserReadService(
-                userRepository,
+                userAccountReadRepository,
                 userProfileReadRepository,
                 recommendationUserReadRepository,
                 aesEncryptUtil,
@@ -141,7 +142,7 @@ class UserReadServiceTest {
                 .userKey("user-key-9")
                 .build();
 
-        when(userRepository.findById(9L)).thenReturn(Optional.of(user));
+        when(userAccountReadRepository.findById(9L)).thenReturn(Optional.of(user));
 
         UserReadService.ActiveUserContext context = userReadService.getActiveUserContext(9L);
 
@@ -153,7 +154,7 @@ class UserReadServiceTest {
     @DisplayName("optional active user by userKey 조회는 탈퇴 사용자를 제외한다")
     void findOptionalActiveUserByUserKeyExcludesWithdrawnUser() {
         UserReadService userReadService = new UserReadService(
-                userRepository,
+                userAccountReadRepository,
                 userProfileReadRepository,
                 recommendationUserReadRepository,
                 aesEncryptUtil,
@@ -166,7 +167,7 @@ class UserReadServiceTest {
                 .isActive(false)
                 .build();
 
-        when(userRepository.findByUserKey("user-key-10")).thenReturn(Optional.of(withdrawnUser));
+        when(userAccountReadRepository.findByUserKey("user-key-10")).thenReturn(Optional.of(withdrawnUser));
 
         assertThat(userReadService.findOptionalActiveUserByUserKey("user-key-10")).isEmpty();
     }
@@ -175,7 +176,7 @@ class UserReadServiceTest {
     @DisplayName("required active user by userKey 조회는 탈퇴 사용자를 찾지 못한 것으로 처리한다")
     void getActiveUserByUserKeyRejectsWithdrawnUser() {
         UserReadService userReadService = new UserReadService(
-                userRepository,
+                userAccountReadRepository,
                 userProfileReadRepository,
                 recommendationUserReadRepository,
                 aesEncryptUtil,
@@ -188,7 +189,7 @@ class UserReadServiceTest {
                 .isActive(false)
                 .build();
 
-        when(userRepository.findByUserKey("user-key-10")).thenReturn(Optional.of(withdrawnUser));
+        when(userAccountReadRepository.findByUserKey("user-key-10")).thenReturn(Optional.of(withdrawnUser));
 
         assertThatThrownBy(() -> userReadService.getActiveUserByUserKey("user-key-10"))
                 .isInstanceOf(CustomException.class)
@@ -200,7 +201,7 @@ class UserReadServiceTest {
     @DisplayName("existing user id by userKey 조회는 userId를 반환한다")
     void requireExistingUserIdByUserKeyReturnsUserId() {
         UserReadService userReadService = new UserReadService(
-                userRepository,
+                userAccountReadRepository,
                 userProfileReadRepository,
                 recommendationUserReadRepository,
                 aesEncryptUtil,
@@ -208,7 +209,7 @@ class UserReadServiceTest {
                 authIdentityReadService
         );
 
-        when(userRepository.findIdByUserKey("user-key-11")).thenReturn(Optional.of(11L));
+        when(userKeyLookupService.findRequiredUserId("user-key-11")).thenReturn(Optional.of(11L));
 
         assertThat(userReadService.requireExistingUserIdByUserKey("user-key-11")).isEqualTo(11L);
     }

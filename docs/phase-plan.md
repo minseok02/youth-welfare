@@ -1230,6 +1230,7 @@ cd backend
 - `UserPiiBackfillService`, `UserPiiSyncProcessor` 의 app PII write 도 `UserPiiCommandService` 로 모아 backfill/sync 경로가 `UserPiiReadWriteRepository` 를 직접 두드리지 않도록 정리
 - `UserCoreProjectionSyncService` 의 auth/profile projection upsert도 `UserCoreProjectionCommandRepository` 뒤로 이동해 projection sync 서비스가 저장소 2개를 직접 조합하지 않도록 정리
 - `UserKeyLookupService`, `PolicyLookupService` 의 단건 lookup도 각각 `UserKeyReadRepository`, `PolicyLookupReadRepository` 뒤로 이동해 lookup 규칙을 service 본문 밖으로 분리
+- `UserReadService` 의 active user entity 조회는 `UserAccountReadRepository` 뒤로, `UserRegistrationService` 의 신규 사용자 저장은 `UserRegistrationCommandRepository` 뒤로 이동해 `UserRepository` 직접 의존을 더 축소
 
 ## 2차로 분리된 항목
 
