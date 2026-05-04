@@ -10,8 +10,7 @@ import com.example.welfare.chat.entity.ChatMessage;
 import com.example.welfare.chat.entity.ChatMessageRole;
 import com.example.welfare.chat.entity.ChatSession;
 import com.example.welfare.chat.gateway.ChatAiGateway;
-import com.example.welfare.chat.repository.ChatMessageRepository;
-import com.example.welfare.chat.repository.ChatSessionRepository;
+import com.example.welfare.chat.repository.ChatMessageReadRepository;
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.user.entity.User;
@@ -40,8 +39,7 @@ public class ChatMessageService {
     private static final String CLARIFICATION_ANSWER =
             "질문과 바로 연결되는 정책을 아직 좁히지 못했습니다. 지역, 상황, 관심 분야를 조금 더 구체적으로 알려주세요.";
 
-    private final ChatSessionRepository chatSessionRepository;
-    private final ChatMessageRepository chatMessageRepository;
+    private final ChatMessageReadRepository chatMessageReadRepository;
     private final ChatPolicyService chatPolicyService;
     private final ChatAiGateway chatAiGateway;
     private final ChatRateLimitService chatRateLimitService;
@@ -52,10 +50,10 @@ public class ChatMessageService {
     @Transactional(readOnly = true)
     public List<ChatMessageResponse> getMessages(Long userId, Long sessionId) {
         UserReadService.ActiveUserContext activeUserContext = userReadService.getActiveUserContext(userId);
-        chatSessionRepository.findByIdAndUserKey(sessionId, activeUserContext.userKey())
+        chatMessageReadRepository.findOwnedSession(sessionId, activeUserContext.userKey())
                 .orElseThrow(() -> new CustomException(ErrorCode.CHAT_SESSION_NOT_FOUND));
 
-        return chatMessageRepository.findBySessionIdOrderByCreatedAtAsc(sessionId).stream()
+        return chatMessageReadRepository.findMessages(sessionId).stream()
                 .map(this::toResponse)
                 .toList();
     }
@@ -64,7 +62,7 @@ public class ChatMessageService {
         UserReadService.ActiveUserContext activeUserContext = userReadService.getActiveUserContext(userId);
         User user = activeUserContext.user();
         chatRateLimitService.checkMessageSendLimit(userId);
-        ChatSession session = chatSessionRepository.findByIdAndUserKey(sessionId, activeUserContext.userKey())
+        ChatSession session = chatMessageReadRepository.findOwnedSession(sessionId, activeUserContext.userKey())
                 .orElseThrow(() -> new CustomException(ErrorCode.CHAT_SESSION_NOT_FOUND));
 
         String content = request.getContent().trim();
@@ -118,10 +116,7 @@ public class ChatMessageService {
     }
 
     private List<ChatMessage> getRecentMessages(Long sessionId) {
-        List<ChatMessage> messages = new ArrayList<>(chatMessageRepository.findBySessionIdOrderByCreatedAtDesc(
-                sessionId,
-                org.springframework.data.domain.PageRequest.of(0, 6)
-        ));
+        List<ChatMessage> messages = new ArrayList<>(chatMessageReadRepository.findRecentMessages(sessionId, 6));
         Collections.reverse(messages);
         messages.sort(Comparator.comparing(ChatMessage::getCreatedAt, Comparator.nullsLast(Comparator.naturalOrder())));
         return messages;

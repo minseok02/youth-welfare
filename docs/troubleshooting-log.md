@@ -2776,3 +2776,8 @@
 - 문제: recommendation log 서비스는 미클릭 로그 삭제, 로그 저장, 단건 조회, 최신 logId 매핑 조회를 직접 수행했고, score weight 서비스는 전체 로그 수를 저장소에서 직접 읽고 있었다. 이 상태면 로그 저장/조회 정책이나 cold-start 기준 read 규칙이 바뀔 때 서비스 둘을 함께 다시 열어야 한다.
 - 해결: `RecommendationLogCommandRepository` / `RecommendationLogCommandRepositoryImpl`, `RecommendationLogReadRepository` / `RecommendationLogReadRepositoryImpl` 을 추가하고, recommendation log write/read 를 각각 이 경계 뒤로 이동했다.
 - 이유: recommendation log 서비스는 로그 조립과 click 처리 orchestration 에 집중하고, cold-start/logId mapping/log deletion 같은 persistence 세부사항은 read/command 경계로 분리해야 recommendation log 책임이 더 선명해진다.
+
+## 508) `ChatMessageService` 와 `ChatMessageCommandService` 가 세션 소유 확인, 메시지 목록/최근 조회, append write를 각각 `ChatSessionRepository` 와 `ChatMessageRepository` 에 직접 걸치면, chat read/write 규칙이 서비스 둘에 다시 퍼진다
+- 문제: 메시지 조회 서비스는 소유 세션 확인과 메시지 목록/최근 메시지 조회를 직접 수행했고, command 서비스는 세션 조회, 제목 갱신, assistant append, lastMessageAt touch 를 직접 처리하고 있었다. 이 상태면 chat session/message persistence 조합이 바뀔 때 서비스 둘을 함께 다시 열어야 한다.
+- 해결: `ChatMessageReadRepository` / `ChatMessageReadRepositoryImpl`, `ChatMessageCommandRepository` / `ChatMessageCommandRepositoryImpl` 을 추가하고, 세션 소유 확인과 메시지 read 는 read repository로, append write 와 session touch 는 command repository로 이동했다.
+- 이유: chat 서비스는 rate limit, AI orchestration, response composition 에 집중하고, session/message persistence 조합은 read/command 경계로 분리해야 chat 책임이 더 선명해진다.

@@ -8,8 +8,7 @@ import com.example.welfare.chat.entity.ChatMessage;
 import com.example.welfare.chat.entity.ChatMessageRole;
 import com.example.welfare.chat.entity.ChatSession;
 import com.example.welfare.chat.gateway.ChatAiGateway;
-import com.example.welfare.chat.repository.ChatMessageRepository;
-import com.example.welfare.chat.repository.ChatSessionRepository;
+import com.example.welfare.chat.repository.ChatMessageReadRepository;
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.user.entity.User;
@@ -38,10 +37,7 @@ import static org.mockito.Mockito.when;
 class ChatMessageServiceTest {
 
     @Mock
-    private ChatSessionRepository chatSessionRepository;
-
-    @Mock
-    private ChatMessageRepository chatMessageRepository;
+    private ChatMessageReadRepository chatMessageReadRepository;
 
     @Mock
     private ChatPolicyService chatPolicyService;
@@ -63,8 +59,7 @@ class ChatMessageServiceTest {
     @BeforeEach
     void setUp() {
         chatMessageService = new ChatMessageService(
-                chatSessionRepository,
-                chatMessageRepository,
+                chatMessageReadRepository,
                 chatPolicyService,
                 chatAiGateway,
                 chatRateLimitService,
@@ -86,7 +81,7 @@ class ChatMessageServiceTest {
 
         when(userReadService.getActiveUserContext(1L))
                 .thenReturn(new UserReadService.ActiveUserContext(user, "user-key-1"));
-        when(chatSessionRepository.findByIdAndUserKey(10L, "user-key-1")).thenReturn(Optional.of(session));
+        when(chatMessageReadRepository.findOwnedSession(10L, "user-key-1")).thenReturn(Optional.of(session));
         when(chatPolicyService.findCandidates("서울 월세 지원 알려줘", 3)).thenReturn(List.of(
                 ChatPolicyCandidate.builder()
                         .serviceId(1829L)
@@ -116,7 +111,7 @@ class ChatMessageServiceTest {
                                         .build()
                         ))
                         .build());
-        when(chatMessageRepository.findBySessionIdOrderByCreatedAtDesc(any(Long.class), any(org.springframework.data.domain.Pageable.class)))
+        when(chatMessageReadRepository.findRecentMessages(10L, 6))
                 .thenReturn(List.of());
 
         var response = chatMessageService.sendMessage(1L, 10L, request);
@@ -144,7 +139,7 @@ class ChatMessageServiceTest {
 
         when(userReadService.getActiveUserContext(1L))
                 .thenReturn(new UserReadService.ActiveUserContext(user, "user-key-1"));
-        when(chatSessionRepository.findByIdAndUserKey(10L, "user-key-1")).thenReturn(Optional.of(session));
+        when(chatMessageReadRepository.findOwnedSession(10L, "user-key-1")).thenReturn(Optional.of(session));
         when(chatPolicyService.findCandidates("조건을 모르겠어", 3)).thenReturn(List.of());
 
         var response = chatMessageService.sendMessage(1L, 10L, request);
@@ -169,7 +164,7 @@ class ChatMessageServiceTest {
 
         when(userReadService.getActiveUserContext(1L))
                 .thenReturn(new UserReadService.ActiveUserContext(user, "user-key-1"));
-        when(chatSessionRepository.findByIdAndUserKey(10L, "user-key-1")).thenReturn(Optional.of(session));
+        when(chatMessageReadRepository.findOwnedSession(10L, "user-key-1")).thenReturn(Optional.of(session));
         when(chatPolicyService.findCandidates("서울 월세 지원 알려줘", 3)).thenReturn(List.of(
                 ChatPolicyCandidate.builder()
                         .serviceId(1829L)
@@ -179,7 +174,7 @@ class ChatMessageServiceTest {
         ));
         when(chatAiGateway.generateAnswer(any(User.class), any(String.class), any(List.class), any(List.class)))
                 .thenReturn(null);
-        when(chatMessageRepository.findBySessionIdOrderByCreatedAtDesc(any(Long.class), any(org.springframework.data.domain.Pageable.class)))
+        when(chatMessageReadRepository.findRecentMessages(10L, 6))
                 .thenReturn(List.of());
 
         var response = chatMessageService.sendMessage(1L, 10L, request);
@@ -208,7 +203,7 @@ class ChatMessageServiceTest {
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.CHAT_RATE_LIMIT_EXCEEDED);
 
-        verify(chatSessionRepository, never()).findByIdAndUserKey(10L, "user-key-1");
+        verify(chatMessageReadRepository, never()).findOwnedSession(10L, "user-key-1");
         verify(chatMessageCommandService, never()).appendUserMessage(any(), any(), any());
     }
 
@@ -237,8 +232,8 @@ class ChatMessageServiceTest {
 
         when(userReadService.getActiveUserContext(1L))
                 .thenReturn(new UserReadService.ActiveUserContext(user, "user-key-1"));
-        when(chatSessionRepository.findByIdAndUserKey(10L, "user-key-1")).thenReturn(Optional.of(session));
-        when(chatMessageRepository.findBySessionIdOrderByCreatedAtAsc(10L))
+        when(chatMessageReadRepository.findOwnedSession(10L, "user-key-1")).thenReturn(Optional.of(session));
+        when(chatMessageReadRepository.findMessages(10L))
                 .thenReturn(List.of(userMessage, assistantMessage));
 
         var responses = chatMessageService.getMessages(1L, 10L);
@@ -255,7 +250,7 @@ class ChatMessageServiceTest {
 
         when(userReadService.getActiveUserContext(1L))
                 .thenReturn(new UserReadService.ActiveUserContext(user, "user-key-1"));
-        when(chatSessionRepository.findByIdAndUserKey(99L, "user-key-1")).thenReturn(Optional.empty());
+        when(chatMessageReadRepository.findOwnedSession(99L, "user-key-1")).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> chatMessageService.getMessages(1L, 99L))
                 .isInstanceOf(CustomException.class)
