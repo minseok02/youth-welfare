@@ -18,7 +18,9 @@ import com.example.welfare.policy.service.PolicyViewLogService;
 import com.example.welfare.recommend.controller.RecommendationController;
 import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
 import com.example.welfare.recommend.entity.UserRecommendation;
-import com.example.welfare.recommend.facade.RecommendationFacade;
+import com.example.welfare.recommend.service.RecommendationAccessService;
+import com.example.welfare.recommend.service.RecommendationBookmarkCommandService;
+import com.example.welfare.recommend.service.RecommendationGenerationService;
 import com.example.welfare.recommend.service.RecommendationLogReadService;
 import com.example.welfare.recommend.service.RecommendationLogService;
 import com.example.welfare.recommend.service.RecommendationProjectionReadService;
@@ -57,7 +59,11 @@ class RecommendationPolicyFlowWebMvcTest {
     private MockMvc mockMvc;
 
     @MockBean
-    private RecommendationFacade recommendationFacade;
+    private RecommendationAccessService recommendationAccessService;
+    @MockBean
+    private RecommendationGenerationService recommendationGenerationService;
+    @MockBean
+    private RecommendationBookmarkCommandService recommendationBookmarkCommandService;
     @MockBean
     private JpaMetamodelMappingContext jpaMetamodelMappingContext;
     @MockBean
@@ -129,7 +135,7 @@ class RecommendationPolicyFlowWebMvcTest {
                 .bookmarked(true)
                 .build();
 
-        given(recommendationFacade.recommend(isNull(), eq(false))).willReturn(List.of(recommendation));
+        given(recommendationGenerationService.recommend(isNull(), eq(false))).willReturn(List.of(recommendation));
         given(recommendationLogReadService.findLatestLogIdMap(isNull(), org.mockito.ArgumentMatchers.anyList()))
                 .willReturn(java.util.Map.of(11L, 9001L));
         given(recommendationProjectionReadService.findCandidateProjections(org.mockito.ArgumentMatchers.anyList()))
@@ -214,7 +220,7 @@ class RecommendationPolicyFlowWebMvcTest {
                 .andExpect(jsonPath("$.data.totalPages").value(1))
                 .andExpect(jsonPath("$.data.hasNext").value(false));
 
-        verify(recommendationFacade).recommend(isNull(), eq(false));
+        verify(recommendationGenerationService).recommend(isNull(), eq(false));
         verify(policyRankingService).getRanking(5);
         verify(policySearchService).search(isNull(), eq("월세"), eq("ACTIVE"), isNull(), eq("HOUSING"), eq("YOUTH"), eq(true), isNull(), isNull(), eq("RELEVANCE"), eq(0), eq(10));
         verify(policySearchLogService).record(any());
@@ -233,7 +239,7 @@ class RecommendationPolicyFlowWebMvcTest {
                 .recommendedAt(LocalDateTime.of(2026, 4, 16, 8, 0))
                 .build();
 
-        given(recommendationFacade.getRecommendations(isNull(), eq(10))).willReturn(List.of(recommendation));
+        given(recommendationAccessService.getRecommendations(isNull(), eq(10))).willReturn(List.of(recommendation));
         given(recommendationLogReadService.findLatestLogIdMap(isNull(), org.mockito.ArgumentMatchers.anyList()))
                 .willReturn(java.util.Map.of(11L, 9001L));
         given(recommendationProjectionReadService.findCandidateProjections(org.mockito.ArgumentMatchers.anyList()))
@@ -271,7 +277,7 @@ class RecommendationPolicyFlowWebMvcTest {
                 .andExpect(jsonPath("$.data[0].gov24UserTypeLabel").value("청년"))
                 .andExpect(jsonPath("$.data[0].gov24BenefitTypeLabel").value("서비스"));
 
-        verify(recommendationFacade).getRecommendations(isNull(), eq(10));
+        verify(recommendationAccessService).getRecommendations(isNull(), eq(10));
     }
 
     @Test

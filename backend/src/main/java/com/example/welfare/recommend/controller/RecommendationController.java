@@ -5,7 +5,9 @@ import com.example.welfare.global.response.ApiResponse;
 import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
 import com.example.welfare.recommend.dto.RecommendationResponse;
 import com.example.welfare.recommend.entity.UserRecommendation;
-import com.example.welfare.recommend.facade.RecommendationFacade;
+import com.example.welfare.recommend.service.RecommendationAccessService;
+import com.example.welfare.recommend.service.RecommendationBookmarkCommandService;
+import com.example.welfare.recommend.service.RecommendationGenerationService;
 import com.example.welfare.recommend.service.RecommendationLogReadService;
 import com.example.welfare.recommend.service.RecommendationProjectionReadService;
 import lombok.RequiredArgsConstructor;
@@ -22,7 +24,9 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class RecommendationController {
 
-    private final RecommendationFacade recommendationFacade;
+    private final RecommendationAccessService recommendationAccessService;
+    private final RecommendationGenerationService recommendationGenerationService;
+    private final RecommendationBookmarkCommandService recommendationBookmarkCommandService;
     private final RecommendationProjectionReadService recommendationProjectionReadService;
     private final RecommendationLogReadService recommendationLogReadService;
 
@@ -32,7 +36,7 @@ public class RecommendationController {
             @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
             @RequestParam(defaultValue = "10") int size) {
         Long userId = resolveUserId(authenticatedUser);
-        List<UserRecommendation> recs = recommendationFacade.getRecommendations(userId, size);
+        List<UserRecommendation> recs = recommendationAccessService.getRecommendations(userId, size);
 
         List<Long> serviceIds = recs.stream().map(r -> r.getService().getId()).toList();
         Map<Long, Long> serviceLogMap = recommendationLogReadService.findLatestLogIdMap(userId, serviceIds);
@@ -47,7 +51,7 @@ public class RecommendationController {
             @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
             @RequestParam(defaultValue = "false") boolean personal) {
         Long userId = resolveUserId(authenticatedUser);
-        List<UserRecommendation> recs = recommendationFacade.recommend(userId, personal);
+        List<UserRecommendation> recs = recommendationGenerationService.recommend(userId, personal);
 
         // 방금 생성된 CTR 로그에서 serviceId → logId 매핑 조회
         List<Long> serviceIds = recs.stream().map(r -> r.getService().getId()).toList();
@@ -61,7 +65,7 @@ public class RecommendationController {
     public ResponseEntity<ApiResponse<Void>> toggleBookmark(
             @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
             @PathVariable Long id) {
-        recommendationFacade.toggleBookmark(resolveUserId(authenticatedUser), id);
+        recommendationBookmarkCommandService.toggleRecommendationBookmark(resolveUserId(authenticatedUser), id);
         return ResponseEntity.ok(ApiResponse.success(null));
     }
 
