@@ -25,7 +25,7 @@ import com.example.welfare.user.dto.response.UserPiiSyncReplayResponse;
 import com.example.welfare.user.dto.response.UserPiiSyncStatusResponse;
 import com.example.welfare.user.service.UserMetadataUserKeyBackfillService;
 import com.example.welfare.user.service.UserPiiBackfillService;
-import com.example.welfare.user.service.UserReadService;
+import com.example.welfare.user.service.UserKeyLookupService;
 import com.example.welfare.user.service.UserPiiSyncReplayService;
 import com.example.welfare.user.service.UserPiiSyncStatusService;
 import com.example.welfare.user.service.UserSessionRevocationService;
@@ -79,7 +79,7 @@ class AdminSecurityWebMvcTest {
     @MockBean
     private UserSessionRevocationService userSessionRevocationService;
     @MockBean
-    private UserReadService userReadService;
+    private UserKeyLookupService userKeyLookupService;
     @MockBean
     private AdminDashboardService adminDashboardService;
     @MockBean
@@ -807,7 +807,7 @@ class AdminSecurityWebMvcTest {
                 new SimpleGrantedAuthority("ROLE_USER"),
                 new SimpleGrantedAuthority("ROLE_ADMIN")
         ));
-        given(userReadService.requireExistingUserIdByUserKey("user-key-1")).willReturn(1L);
+        given(userKeyLookupService.requireExistingUserIdByUserKey("user-key-1")).willReturn(1L);
 
         mockMvc.perform(post("/api/admin/users/forced-logout")
                         .contentType("application/json")
@@ -853,7 +853,7 @@ class AdminSecurityWebMvcTest {
                 new SimpleGrantedAuthority("ROLE_USER"),
                 new SimpleGrantedAuthority("ROLE_ADMIN")
         ));
-        given(userReadService.requireExistingUserIdByUserKey("missing-user"))
+        given(userKeyLookupService.requireExistingUserIdByUserKey("missing-user"))
                 .willThrow(new CustomException(ErrorCode.USER_NOT_FOUND));
 
         mockMvc.perform(post("/api/admin/users/forced-logout")

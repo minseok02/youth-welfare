@@ -2846,3 +2846,8 @@
 - 문제: `ActiveUserReadService` 를 만든 뒤에도 chat, notification, auth, user profile/account/bookmark 쪽 서비스들은 여전히 `UserReadService.getActiveUserContext(...)`, `getActiveUserByUserKey(...)`, `findOptionalActiveUserByUserKey(...)` 를 통해 active user 조회를 우회 호출하고 있었다. 이 상태면 active user read 규칙이 바뀔 때 wrapper와 소비자 의존이 함께 남아 분리 효과가 약해진다.
 - 해결: active-user 메서드만 쓰던 소비자들을 `ActiveUserReadService` 직접 의존으로 전환하고, `UserReadService` 는 admin 강제 로그아웃에서 쓰는 `requireExistingUserIdByUserKey(...)` 만 남기는 얇은 facade로 축소했다.
 - 이유: active user 검증/조회는 `ActiveUserReadService` 에 바로 모아야 read 경계가 실제로 드러나고, `UserReadService` 는 일반 lookup facade 역할만 유지하는 편이 책임이 더 선명하다.
+
+## 522) `UserReadService` 가 결국 admin forced-logout용 `userKey -> userId` 래퍼만 남으면, 별도 서비스로 유지할 이유가 없다
+- 문제: active-user consumer를 모두 `ActiveUserReadService` 로 옮긴 뒤 `UserReadService` 에 남은 책임은 `requireExistingUserIdByUserKey(...)` 하나뿐이었다. 이 상태면 controller가 한 단계 더 우회 호출만 하게 되고, 테스트도 쓸모없는 래퍼 mock을 계속 유지해야 한다.
+- 해결: `UserKeyLookupService` 에 `requireExistingUserIdByUserKey(...)` 를 직접 추가하고, `UserAdminController` 와 `AdminSecurityWebMvcTest` 를 이 경계로 전환했다. 그 뒤 `UserReadService` 와 전용 테스트는 삭제했다.
+- 이유: `userKey -> userId` 존재 검증은 lookup service 하나면 충분하고, 의미 없는 wrapper를 남기지 않는 편이 경계가 더 선명하다.

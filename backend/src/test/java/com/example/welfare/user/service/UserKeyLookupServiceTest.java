@@ -55,4 +55,12 @@ class UserKeyLookupServiceTest {
 
         assertThat(userKeyLookupService.findRequired(7L)).isEqualTo("user-key-7");
     }
+
+    @Test
+    @DisplayName("required user id by userKey 조회는 read repository 결과를 반환한다")
+    void requireExistingUserIdByUserKeyDelegates() {
+        given(userKeyReadRepository.findIdByUserKey("user-key-11")).willReturn(Optional.of(11L));
+
+        assertThat(userKeyLookupService.requireExistingUserIdByUserKey("user-key-11")).isEqualTo(11L);
+    }
 }

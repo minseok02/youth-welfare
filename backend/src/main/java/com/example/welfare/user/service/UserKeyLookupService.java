@@ -32,4 +32,9 @@ public class UserKeyLookupService {
     public Optional<Long> findRequiredUserId(String userKey) {
         return userKeyReadRepository.findIdByUserKey(userKey);
     }
+
+    public Long requireExistingUserIdByUserKey(String userKey) {
+        return findRequiredUserId(userKey)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+    }
 }
