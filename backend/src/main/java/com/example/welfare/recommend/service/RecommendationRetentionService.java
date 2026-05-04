@@ -1,6 +1,6 @@
 package com.example.welfare.recommend.service;
 
-import com.example.welfare.recommend.repository.UserRecommendationRepository;
+import com.example.welfare.recommend.repository.RecommendationPersistenceCommandRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -14,13 +14,13 @@ import java.time.LocalDateTime;
 @RequiredArgsConstructor
 public class RecommendationRetentionService {
 
-    private final UserRecommendationRepository userRecommendationRepository;
+    private final RecommendationPersistenceCommandRepository recommendationPersistenceCommandRepository;
 
     @Transactional
     @Scheduled(cron = "0 30 3 * * *", zone = "Asia/Seoul")
     public void cleanupOldUnbookmarkedRecommendations() {
         LocalDateTime before = LocalDateTime.now().minusDays(30);
-        userRecommendationRepository.deleteOldUnbookmarked(before);
+        recommendationPersistenceCommandRepository.deleteOldUnbookmarked(before);
         log.info("[RecommendationRetentionService] 30일 경과 미북마크 추천 정리 완료 before={}", before);
     }
 }

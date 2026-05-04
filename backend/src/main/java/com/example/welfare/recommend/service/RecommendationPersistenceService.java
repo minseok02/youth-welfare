@@ -3,7 +3,7 @@ package com.example.welfare.recommend.service;
 import com.example.welfare.recommend.dto.ScoredCandidate;
 import com.example.welfare.recommend.entity.ScoreWeight;
 import com.example.welfare.recommend.entity.UserRecommendation;
-import com.example.welfare.recommend.repository.UserRecommendationRepository;
+import com.example.welfare.recommend.repository.RecommendationPersistenceCommandRepository;
 import com.example.welfare.user.entity.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -24,12 +24,12 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class RecommendationPersistenceService {
 
-    private final UserRecommendationRepository userRecommendationRepository;
+    private final RecommendationPersistenceCommandRepository recommendationPersistenceCommandRepository;
 
     @Transactional
     public List<UserRecommendation> save(User user, List<ScoredCandidate> candidates, ScoreWeight weight) {
         // 북마크 상태를 먼저 보존 (serviceId → bookmarked)
-        Map<Long, Boolean> bookmarkStateByServiceId = userRecommendationRepository
+        Map<Long, Boolean> bookmarkStateByServiceId = recommendationPersistenceCommandRepository
                 .findLatestByUserKey(user.getUserKey())
                 .stream()
                 .collect(Collectors.toMap(
@@ -37,9 +37,6 @@ public class RecommendationPersistenceService {
                         UserRecommendation::isBookmarked,
                         (left, right) -> left  // 먼저 조회된 최신 상태 유지
                 ));
-
-        // 기존 추천 전체 삭제 (북마크 포함) — 새 행에 북마크 상태 이전
-        userRecommendationRepository.deleteAllByUserKey(user.getUserKey());
 
         LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
 
@@ -59,6 +56,6 @@ public class RecommendationPersistenceService {
                         .build())
                 .toList();
 
-        return userRecommendationRepository.saveAll(recommendations);
+        return recommendationPersistenceCommandRepository.replaceAllForUser(user.getUserKey(), recommendations);
     }
 }

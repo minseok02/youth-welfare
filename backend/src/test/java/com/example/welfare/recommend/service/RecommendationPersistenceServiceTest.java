@@ -4,7 +4,7 @@ import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.recommend.dto.ScoredCandidate;
 import com.example.welfare.recommend.entity.ScoreWeight;
 import com.example.welfare.recommend.entity.UserRecommendation;
-import com.example.welfare.recommend.repository.UserRecommendationRepository;
+import com.example.welfare.recommend.repository.RecommendationPersistenceCommandRepository;
 import com.example.welfare.user.entity.User;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -27,7 +27,7 @@ import static org.mockito.Mockito.when;
 class RecommendationPersistenceServiceTest {
 
     @Mock
-    private UserRecommendationRepository userRecommendationRepository;
+    private RecommendationPersistenceCommandRepository recommendationPersistenceCommandRepository;
 
     @InjectMocks
     private RecommendationPersistenceService recommendationPersistenceService;
@@ -60,15 +60,15 @@ class RecommendationPersistenceServiceTest {
                 .isActive(true)
                 .build();
 
-        when(userRecommendationRepository.findLatestByUserKey("user-key-7")).thenReturn(List.of());
-        when(userRecommendationRepository.saveAll(anyList())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(recommendationPersistenceCommandRepository.findLatestByUserKey("user-key-7")).thenReturn(List.of());
+        when(recommendationPersistenceCommandRepository.replaceAllForUser(org.mockito.ArgumentMatchers.eq("user-key-7"), anyList()))
+                .thenAnswer(invocation -> invocation.getArgument(1));
 
         recommendationPersistenceService.save(user, List.of(candidate), weight);
 
-        verify(userRecommendationRepository).findLatestByUserKey("user-key-7");
-        verify(userRecommendationRepository).deleteAllByUserKey("user-key-7");
+        verify(recommendationPersistenceCommandRepository).findLatestByUserKey("user-key-7");
         ArgumentCaptor<List> captor = ArgumentCaptor.forClass(List.class);
-        verify(userRecommendationRepository).saveAll(captor.capture());
+        verify(recommendationPersistenceCommandRepository).replaceAllForUser(org.mockito.ArgumentMatchers.eq("user-key-7"), captor.capture());
         assertThat(captor.getValue()).hasSize(1);
     }
 
@@ -105,8 +105,10 @@ class RecommendationPersistenceServiceTest {
                 .isActive(true)
                 .build();
 
-        when(userRecommendationRepository.findLatestByUserKey("user-key-7")).thenReturn(List.of(latestRecommendation));
-        when(userRecommendationRepository.saveAll(anyList())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(recommendationPersistenceCommandRepository.findLatestByUserKey("user-key-7"))
+                .thenReturn(List.of(latestRecommendation));
+        when(recommendationPersistenceCommandRepository.replaceAllForUser(org.mockito.ArgumentMatchers.eq("user-key-7"), anyList()))
+                .thenAnswer(invocation -> invocation.getArgument(1));
 
         List<UserRecommendation> saved = recommendationPersistenceService.save(user, List.of(candidate), weight);
 

@@ -2766,3 +2766,8 @@
 - 문제: 북마크 토글 서비스는 소유 추천 조회, 서비스별 최신 추천 조회, 북마크 수 제한 확인, placeholder 저장을 모두 `UserRecommendationRepository` 로 직접 수행하고 있었다. 이 상태면 북마크 command 규칙은 바꾸지 않아도 추천 row lookup/save 방식이 달라질 때 서비스 본문을 다시 열어야 한다.
 - 해결: `RecommendationBookmarkCommandRepository` / `RecommendationBookmarkCommandRepositoryImpl` 을 추가하고, owned recommendation lookup, latest recommendation lookup, bookmark count, placeholder save 를 command 경계 뒤로 이동했다.
 - 이유: 북마크 command 서비스는 userKey 해석, limit enforcement, placeholder 필요 여부 같은 orchestration 에 집중하고, 추천 row 조회/저장 세부사항은 별도 command repository 로 내려야 recommendation command 경계가 더 선명해진다.
+
+## 506) `RecommendationPersistenceService` 와 `RecommendationRetentionService` 가 추천 row 교체 저장/정리 삭제를 `UserRecommendationRepository` 에 직접 묶어 두면, 추천 저장 orchestration 과 persistence 교체 규칙이 다시 한 서비스 안에 섞인다
+- 문제: 추천 저장 서비스는 기존 최신 추천 조회, 북마크 상태 보존 뒤 전체 삭제, 새 추천 일괄 저장을 직접 수행했고, retention 서비스도 만료 미북마크 삭제를 저장소에 직접 호출하고 있었다. 이 상태면 추천 저장/정리 규칙이 바뀔 때 서비스 본문을 다시 열어야 한다.
+- 해결: `RecommendationPersistenceCommandRepository` / `RecommendationPersistenceCommandRepositoryImpl` 을 추가하고, latest recommendation lookup, user별 전체 교체 저장, retention 삭제를 command 경계 뒤로 이동했다.
+- 이유: 추천 저장 서비스는 북마크 상태 이전과 recommendation row 구성 같은 orchestration 에 집중하고, 교체 저장/정리 삭제 세부사항은 별도 command repository 로 내려야 recommendation write 경계가 더 일관된다.
