@@ -79,14 +79,29 @@ public class Notification extends BaseTimeEntity {
     }
 
     public enum NotificationChannel {
-        EMAIL, KAKAO
+        // Existing MySQL enum columns store lowercase literals.
+        email,
+        kakao;
+
+        public static final NotificationChannel EMAIL = email;
+        public static final NotificationChannel KAKAO = kakao;
     }
 
     public enum NotificationPeriodType {
-        DAILY, WEEKLY, MANUAL
+        daily,
+        weekly,
+        manual;
+
+        public static final NotificationPeriodType DAILY = daily;
+        public static final NotificationPeriodType WEEKLY = weekly;
+        public static final NotificationPeriodType MANUAL = manual;
     }
 
     public enum NotificationStatus {
-        SENT, FAILED
+        sent,
+        failed;
+
+        public static final NotificationStatus SENT = sent;
+        public static final NotificationStatus FAILED = failed;
     }
 }
