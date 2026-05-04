@@ -2871,3 +2871,8 @@
 - 문제: 상태 업데이트 스케줄러는 CLOSED/ACTIVE 전이 규칙만 처리하면 되는데도, `WelfareServiceRepository.findByStatus(...)` 를 직접 호출하며 ACTIVE/UPCOMING 대상 조회 규칙까지 함께 들고 있었다. 이 상태면 상태 전이 대상 조회 기준이 바뀔 때 스케줄러 본문을 다시 열어야 한다.
 - 해결: `StatusUpdateReadRepository` / `StatusUpdateReadRepositoryImpl` 을 추가하고, ACTIVE/UPCOMING 정책 조회를 이 read 경계 뒤로 이동했다.
 - 이유: `StatusUpdateService` 는 날짜 기준 상태 전이와 cluster AI cache TTL cleanup orchestration에 집중하고, 정책 조회 규칙은 별도 read repository 로 내려야 책임이 더 선명하다.
+
+## 527) `ApiSyncLogService` 가 `ApiSyncLogRepository` 를 직접 걸치면, collect log orchestration과 stale RUNNING 복구/save write 규칙이 다시 한 서비스에 섞인다
+- 문제: 수집 로그 서비스는 stale RUNNING auto-close, start log save, success/failure update save를 모두 직접 저장소에 보내고 있었다. 이 상태면 collect log write 규칙이 바뀔 때 orchestration 서비스 본문을 다시 열어야 한다.
+- 해결: `ApiSyncLogCommandRepository` / `ApiSyncLogCommandRepositoryImpl` 을 추가하고, stale RUNNING 복구와 log save를 command 경계 뒤로 이동했다.
+- 이유: `ApiSyncLogService` 는 collect task 실행과 success/failure 상태 전환 orchestration에 집중하고, collect log persistence write 세부사항은 별도 command repository 로 내려야 책임이 더 선명하다.

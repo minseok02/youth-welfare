@@ -1,7 +1,7 @@
 package com.example.welfare.collect.service;
 
 import com.example.welfare.collect.entity.ApiSyncLog;
-import com.example.welfare.collect.repository.ApiSyncLogRepository;
+import com.example.welfare.collect.repository.ApiSyncLogCommandRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -25,7 +25,7 @@ import static org.mockito.Mockito.verify;
 class ApiSyncLogServiceTest {
 
     @Mock
-    private ApiSyncLogRepository apiSyncLogRepository;
+    private ApiSyncLogCommandRepository apiSyncLogCommandRepository;
 
     @InjectMocks
     private ApiSyncLogService apiSyncLogService;
@@ -33,9 +33,9 @@ class ApiSyncLogServiceTest {
     @Test
     @DisplayName("수집 작업이 성공하면 SUCCESS 로그를 저장한다")
     void runWithLogStoresSuccess() {
-        given(apiSyncLogRepository.failStaleRunningLogs(anyString(), any(), anyString(), anyString()))
+        given(apiSyncLogCommandRepository.failStaleRunningLogs(anyString(), any(), anyString(), anyString()))
                 .willReturn(0);
-        given(apiSyncLogRepository.save(any(ApiSyncLog.class)))
+        given(apiSyncLogCommandRepository.save(any(ApiSyncLog.class)))
                 .willAnswer(invocation -> invocation.getArgument(0));
 
         CollectResult result = apiSyncLogService.runWithLog(
@@ -46,7 +46,7 @@ class ApiSyncLogServiceTest {
         assertThat(result.savedCount()).isEqualTo(8);
 
         ArgumentCaptor<ApiSyncLog> captor = ArgumentCaptor.forClass(ApiSyncLog.class);
-        verify(apiSyncLogRepository, org.mockito.Mockito.times(2)).save(captor.capture());
+        verify(apiSyncLogCommandRepository, org.mockito.Mockito.times(2)).save(captor.capture());
         List<ApiSyncLog> savedLogs = captor.getAllValues();
         assertThat(savedLogs.get(1).getStatus()).isEqualTo(ApiSyncLog.SyncStatus.SUCCESS);
         assertThat(savedLogs.get(1).getRequestedCount()).isEqualTo(10);
@@ -58,9 +58,9 @@ class ApiSyncLogServiceTest {
     @Test
     @DisplayName("수집 작업에 저장 실패가 있으면 PARTIAL_SUCCESS 로그를 저장한다")
     void runWithLogStoresPartialSuccess() {
-        given(apiSyncLogRepository.failStaleRunningLogs(anyString(), any(), anyString(), anyString()))
+        given(apiSyncLogCommandRepository.failStaleRunningLogs(anyString(), any(), anyString(), anyString()))
                 .willReturn(0);
-        given(apiSyncLogRepository.save(any(ApiSyncLog.class)))
+        given(apiSyncLogCommandRepository.save(any(ApiSyncLog.class)))
                 .willAnswer(invocation -> invocation.getArgument(0));
 
         apiSyncLogService.runWithLog(
@@ -69,7 +69,7 @@ class ApiSyncLogServiceTest {
         );
 
         ArgumentCaptor<ApiSyncLog> captor = ArgumentCaptor.forClass(ApiSyncLog.class);
-        verify(apiSyncLogRepository, org.mockito.Mockito.times(2)).save(captor.capture());
+        verify(apiSyncLogCommandRepository, org.mockito.Mockito.times(2)).save(captor.capture());
         ApiSyncLog completed = captor.getAllValues().get(1);
         assertThat(completed.getStatus()).isEqualTo(ApiSyncLog.SyncStatus.PARTIAL_SUCCESS);
         assertThat(completed.getFailedCount()).isEqualTo(1);
@@ -79,9 +79,9 @@ class ApiSyncLogServiceTest {
     @Test
     @DisplayName("수집 작업이 예외로 중단되면 FAILED 로그를 저장하고 예외를 다시 던진다")
     void runWithLogStoresFailureAndRethrows() {
-        given(apiSyncLogRepository.failStaleRunningLogs(anyString(), any(), anyString(), anyString()))
+        given(apiSyncLogCommandRepository.failStaleRunningLogs(anyString(), any(), anyString(), anyString()))
                 .willReturn(0);
-        given(apiSyncLogRepository.save(any(ApiSyncLog.class)))
+        given(apiSyncLogCommandRepository.save(any(ApiSyncLog.class)))
                 .willAnswer(invocation -> invocation.getArgument(0));
 
         assertThatThrownBy(() -> apiSyncLogService.runWithLog("YOUTH", () -> {
@@ -89,7 +89,7 @@ class ApiSyncLogServiceTest {
         })).isInstanceOf(IllegalStateException.class);
 
         ArgumentCaptor<ApiSyncLog> captor = ArgumentCaptor.forClass(ApiSyncLog.class);
-        verify(apiSyncLogRepository, org.mockito.Mockito.times(2)).save(captor.capture());
+        verify(apiSyncLogCommandRepository, org.mockito.Mockito.times(2)).save(captor.capture());
         ApiSyncLog failed = captor.getAllValues().get(1);
         assertThat(failed.getStatus()).isEqualTo(ApiSyncLog.SyncStatus.FAILED);
         assertThat(failed.getErrorCode()).isEqualTo("IllegalStateException");
@@ -100,9 +100,9 @@ class ApiSyncLogServiceTest {
     @Test
     @DisplayName("같은 job의 stale RUNNING 로그가 있으면 새 수집 시작 전에 FAILED로 정리한다")
     void runWithLogClosesStaleRunningLogsBeforeStartingNewLog() {
-        given(apiSyncLogRepository.failStaleRunningLogs(anyString(), any(), anyString(), anyString()))
+        given(apiSyncLogCommandRepository.failStaleRunningLogs(anyString(), any(), anyString(), anyString()))
                 .willReturn(2);
-        given(apiSyncLogRepository.save(any(ApiSyncLog.class)))
+        given(apiSyncLogCommandRepository.save(any(ApiSyncLog.class)))
                 .willAnswer(invocation -> invocation.getArgument(0));
 
         apiSyncLogService.runWithLog(
@@ -110,12 +110,12 @@ class ApiSyncLogServiceTest {
                 () -> CollectResult.of(5, 5, 0, 0, 0)
         );
 
-        verify(apiSyncLogRepository).failStaleRunningLogs(
+        verify(apiSyncLogCommandRepository).failStaleRunningLogs(
                 eq("YOUTH"),
                 any(),
                 eq("InterruptedRun"),
                 contains("auto-closed")
         );
-        verify(apiSyncLogRepository, org.mockito.Mockito.times(2)).save(any(ApiSyncLog.class));
+        verify(apiSyncLogCommandRepository, org.mockito.Mockito.times(2)).save(any(ApiSyncLog.class));
     }
 }

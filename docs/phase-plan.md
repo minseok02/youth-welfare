@@ -1254,6 +1254,7 @@ cd backend
 - `NotificationHistoryService` 의 notification header/item 저장도 `NotificationHistoryCommandRepository` 뒤로 이동해 알림 이력 orchestration과 persistence write 규칙을 분리
 - `RawApiPayloadService` 저장과 `NormalizedPolicySidecarBackfillService` 조회도 `RawApiPayloadCommandRepository`, `RawApiPayloadReadRepository` 뒤로 이동해 raw payload persistence read/write 규칙을 분리
 - `StatusUpdateService` 의 ACTIVE/UPCOMING 정책 조회도 `StatusUpdateReadRepository` 뒤로 이동해 상태 전이 orchestration과 정책 조회 규칙을 분리
+- `ApiSyncLogService` 의 stale RUNNING 복구와 collect log 저장도 `ApiSyncLogCommandRepository` 뒤로 이동해 수집 로그 orchestration과 persistence write 규칙을 분리
 
 ## 2차로 분리된 항목
 
