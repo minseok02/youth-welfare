@@ -117,6 +117,17 @@ NotificationDispatchService
   -> NotificationMessageService
 ```
 
+### 관리자 대시보드
+
+```text
+AdminDashboardController
+  -> AdminDashboardSummaryService
+  -> AdminDashboardSearchService
+  -> AdminDashboardRecommendationService
+  -> AdminDashboardCollectService
+      -> AdminDashboard*ReadRepository
+```
+
 ## 주요 설계 원칙
 
 - Controller는 도메인 Service 또는 Facade만 호출합니다.
