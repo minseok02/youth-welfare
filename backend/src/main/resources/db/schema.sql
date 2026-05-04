@@ -260,6 +260,14 @@ CREATE TABLE IF NOT EXISTS api_sync_logs (
     KEY idx_api_sync_status_started (status, started_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+CREATE TABLE IF NOT EXISTS collect_runtime_statuses (
+    circuit_key VARCHAR(50) NOT NULL,
+    open_until  DATETIME,
+    created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (circuit_key)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 -- 6. welfare_service_details (1:1)
 CREATE TABLE IF NOT EXISTS welfare_service_details (
     id                  BIGINT NOT NULL AUTO_INCREMENT,

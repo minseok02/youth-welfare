@@ -1,6 +1,8 @@
 package com.example.welfare.collect.gateway;
 
 import com.example.welfare.collect.dto.BokjiroLocalDto;
+import com.example.welfare.collect.service.CollectRuntimeStatusCommandService;
+import com.example.welfare.collect.service.CollectRuntimeStatusService;
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
 import com.fasterxml.jackson.dataformat.xml.XmlMapper;
@@ -15,10 +17,10 @@ import java.net.URI;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
-import java.util.concurrent.atomic.AtomicLong;
 
 @Slf4j
 @Component
@@ -44,7 +46,8 @@ public class BokjiroLocalClient {
     private long localRateLimitOpenCircuitMs;
 
     private static final int PAGE_SIZE = 100;
-    private final AtomicLong rateLimitCircuitOpenUntilEpochMs = new AtomicLong(0);
+    private final CollectRuntimeStatusService collectRuntimeStatusService;
+    private final CollectRuntimeStatusCommandService collectRuntimeStatusCommandService;
 
     /**
      * 복지로 지자체 서비스 전체 수집 (XML, 페이징)
@@ -139,33 +142,34 @@ public class BokjiroLocalClient {
     }
 
     private void ensureRateLimitCircuitClosed() {
-        long openUntil = rateLimitCircuitOpenUntilEpochMs.get();
-        long now = System.currentTimeMillis();
-        if (openUntil <= now) {
+        CollectRuntimeStatusService.CircuitStatusSnapshot status =
+                collectRuntimeStatusService.getCircuitStatus(
+                        CollectRuntimeStatusService.BOKJIRO_LOCAL_CIRCUIT_KEY,
+                        LocalDateTime.now()
+                );
+        if (!status.open()) {
             return;
         }
 
-        long remainingMs = openUntil - now;
-        log.warn("[BokjiroLocalClient] 최근 연속 429로 수집 회로가 열려 있어 즉시 중단 remainingMs={}", remainingMs);
+        log.warn("[BokjiroLocalClient] 최근 연속 429로 수집 회로가 열려 있어 즉시 중단 remainingMs={}", status.remainingMs());
         throw new CustomException(ErrorCode.COLLECT_API_FAILED);
     }
 
     private void openRateLimitCircuit() {
-        long openUntil = System.currentTimeMillis() + Math.max(localRateLimitOpenCircuitMs, 0L);
-        rateLimitCircuitOpenUntilEpochMs.set(openUntil);
+        LocalDateTime openUntil = LocalDateTime.now().plusNanos(Math.max(localRateLimitOpenCircuitMs, 0L) * 1_000_000L);
+        collectRuntimeStatusCommandService.openCircuit(
+                CollectRuntimeStatusService.BOKJIRO_LOCAL_CIRCUIT_KEY,
+                openUntil
+        );
     }
 
     public RateLimitCircuitStatus getRateLimitCircuitStatus() {
-        long openUntilEpochMs = rateLimitCircuitOpenUntilEpochMs.get();
-        long now = System.currentTimeMillis();
-        boolean open = openUntilEpochMs > now;
-        long remainingMs = open ? openUntilEpochMs - now : 0L;
-        java.time.LocalDateTime openUntil = open
-                ? java.time.Instant.ofEpochMilli(openUntilEpochMs)
-                .atZone(java.time.ZoneId.systemDefault())
-                .toLocalDateTime()
-                : null;
-        return new RateLimitCircuitStatus(open, remainingMs, openUntil);
+        CollectRuntimeStatusService.CircuitStatusSnapshot status =
+                collectRuntimeStatusService.getCircuitStatus(
+                        CollectRuntimeStatusService.BOKJIRO_LOCAL_CIRCUIT_KEY,
+                        LocalDateTime.now()
+                );
+        return new RateLimitCircuitStatus(status.open(), status.remainingMs(), status.openUntil());
     }
 
     private void sleepQuietly(long millis) {
