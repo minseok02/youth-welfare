@@ -1,7 +1,8 @@
 package com.example.welfare.admin.dashboard.service;
 
 import com.example.welfare.admin.dashboard.dto.AdminRecommendationBreakdownResponse;
-import com.example.welfare.admin.dashboard.repository.AdminDashboardReadRepository;
+import com.example.welfare.admin.dashboard.repository.AdminDashboardReadRows;
+import com.example.welfare.admin.dashboard.repository.AdminDashboardRecommendationReadRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -11,7 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class AdminDashboardRecommendationService {
 
-    private final AdminDashboardReadRepository adminDashboardReadRepository;
+    private final AdminDashboardRecommendationReadRepository adminDashboardRecommendationReadRepository;
 
     public AdminRecommendationBreakdownResponse getRecommendationBreakdowns(
             Integer requestedSummaryWindowDays,
@@ -23,8 +24,8 @@ public class AdminDashboardRecommendationService {
         int breakdownLimit = AdminDashboardQueryPolicy.resolveRecommendationBreakdownLimit(requestedLimit);
         java.time.LocalDateTime summaryWindowAgo = now.minusDays(summaryWindowDays);
 
-        AdminDashboardReadRepository.RecommendationSummaryRow recommendationSummary =
-                adminDashboardReadRepository.fetchRecommendationSummary(dayAgo, summaryWindowAgo);
+        AdminDashboardReadRows.RecommendationSummaryRow recommendationSummary =
+                adminDashboardRecommendationReadRepository.fetchRecommendationSummary(dayAgo, summaryWindowAgo);
 
         return new AdminRecommendationBreakdownResponse(
                 now,
@@ -32,7 +33,7 @@ public class AdminDashboardRecommendationService {
                 recommendationSummary.sentInWindow(),
                 recommendationSummary.clickedInWindow(),
                 recommendationSummary.fallbackInWindow(),
-                adminDashboardReadRepository.fetchRecommendationSourceBreakdowns(summaryWindowAgo, breakdownLimit).stream()
+                adminDashboardRecommendationReadRepository.fetchRecommendationSourceBreakdowns(summaryWindowAgo, breakdownLimit).stream()
                         .map(row -> new AdminRecommendationBreakdownResponse.SourceBreakdown(
                                 row.sourceType(),
                                 row.sentCount(),
@@ -42,7 +43,7 @@ public class AdminDashboardRecommendationService {
                                 AdminDashboardQueryPolicy.ratio(row.fallbackCount(), row.sentCount())
                         ))
                         .toList(),
-                adminDashboardReadRepository.fetchRecommendationCategoryBreakdowns(summaryWindowAgo, breakdownLimit).stream()
+                adminDashboardRecommendationReadRepository.fetchRecommendationCategoryBreakdowns(summaryWindowAgo, breakdownLimit).stream()
                         .map(row -> new AdminRecommendationBreakdownResponse.CategoryBreakdown(
                                 row.category(),
                                 row.sentCount(),
@@ -52,7 +53,7 @@ public class AdminDashboardRecommendationService {
                                 AdminDashboardQueryPolicy.ratio(row.fallbackCount(), row.sentCount())
                         ))
                         .toList(),
-                adminDashboardReadRepository.fetchRecommendationWeightBreakdowns(summaryWindowAgo, breakdownLimit).stream()
+                adminDashboardRecommendationReadRepository.fetchRecommendationWeightBreakdowns(summaryWindowAgo, breakdownLimit).stream()
                         .map(row -> new AdminRecommendationBreakdownResponse.WeightBreakdown(
                                 row.weightKey(),
                                 row.ruleWeight(),
@@ -64,7 +65,7 @@ public class AdminDashboardRecommendationService {
                                 AdminDashboardQueryPolicy.ratio(row.fallbackCount(), row.sentCount())
                         ))
                         .toList(),
-                adminDashboardReadRepository.fetchRecentFallbackRecommendationSamples(summaryWindowAgo, breakdownLimit).stream()
+                adminDashboardRecommendationReadRepository.fetchRecentFallbackRecommendationSamples(summaryWindowAgo, breakdownLimit).stream()
                         .map(row -> new AdminRecommendationBreakdownResponse.RecommendationSample(
                                 row.logId(),
                                 row.serviceId(),
@@ -78,7 +79,7 @@ public class AdminDashboardRecommendationService {
                                 row.clickedAt()
                         ))
                         .toList(),
-                adminDashboardReadRepository.fetchRecentClickedRecommendationSamples(summaryWindowAgo, breakdownLimit).stream()
+                adminDashboardRecommendationReadRepository.fetchRecentClickedRecommendationSamples(summaryWindowAgo, breakdownLimit).stream()
                         .map(row -> new AdminRecommendationBreakdownResponse.RecommendationSample(
                                 row.logId(),
                                 row.serviceId(),
@@ -92,7 +93,7 @@ public class AdminDashboardRecommendationService {
                                 row.clickedAt()
                         ))
                         .toList(),
-                adminDashboardReadRepository.fetchRecommendationRepeatExposureGroups(summaryWindowAgo, breakdownLimit).stream()
+                adminDashboardRecommendationReadRepository.fetchRecommendationRepeatExposureGroups(summaryWindowAgo, breakdownLimit).stream()
                         .map(row -> new AdminRecommendationBreakdownResponse.RepeatExposureGroup(
                                 row.userKey(),
                                 row.serviceId(),

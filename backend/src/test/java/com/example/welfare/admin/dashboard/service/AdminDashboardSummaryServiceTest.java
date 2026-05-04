@@ -1,7 +1,11 @@
 package com.example.welfare.admin.dashboard.service;
 
 import com.example.welfare.admin.dashboard.dto.AdminDashboardResponse;
-import com.example.welfare.admin.dashboard.repository.AdminDashboardReadRepository;
+import com.example.welfare.admin.dashboard.repository.AdminDashboardCollectReadRepository;
+import com.example.welfare.admin.dashboard.repository.AdminDashboardNotificationReadRepository;
+import com.example.welfare.admin.dashboard.repository.AdminDashboardReadRows;
+import com.example.welfare.admin.dashboard.repository.AdminDashboardRecommendationReadRepository;
+import com.example.welfare.admin.dashboard.repository.AdminDashboardSearchReadRepository;
 import com.example.welfare.recommend.entity.ScoreWeight;
 import com.example.welfare.recommend.service.ScoreWeightService;
 import com.example.welfare.user.dto.response.UserPiiSyncStatusResponse;
@@ -26,7 +30,16 @@ import static org.mockito.Mockito.verify;
 class AdminDashboardSummaryServiceTest {
 
     @Mock
-    private AdminDashboardReadRepository adminDashboardReadRepository;
+    private AdminDashboardCollectReadRepository adminDashboardCollectReadRepository;
+
+    @Mock
+    private AdminDashboardRecommendationReadRepository adminDashboardRecommendationReadRepository;
+
+    @Mock
+    private AdminDashboardNotificationReadRepository adminDashboardNotificationReadRepository;
+
+    @Mock
+    private AdminDashboardSearchReadRepository adminDashboardSearchReadRepository;
 
     @Mock
     private UserPiiSyncStatusService userPiiSyncStatusService;
@@ -40,11 +53,11 @@ class AdminDashboardSummaryServiceTest {
     @Test
     @DisplayName("대시보드 요약은 collect/recommendation/search/notification/user sync 지표를 조합한다")
     void getSummaryBuildsDashboardResponse() {
-        given(adminDashboardReadRepository.fetchCollectSummary(org.mockito.ArgumentMatchers.any()))
-                .willReturn(new AdminDashboardReadRepository.CollectSummaryRow(1, 3, 1, 2));
-        given(adminDashboardReadRepository.fetchLatestCollectJobs())
+        given(adminDashboardCollectReadRepository.fetchCollectSummary(org.mockito.ArgumentMatchers.any()))
+                .willReturn(new AdminDashboardReadRows.CollectSummaryRow(1, 3, 1, 2));
+        given(adminDashboardCollectReadRepository.fetchLatestCollectJobs())
                 .willReturn(List.of(
-                        new AdminDashboardReadRepository.CollectJobSnapshotRow(
+                        new AdminDashboardReadRows.CollectJobSnapshotRow(
                                 "YOUTH",
                                 "SUCCESS",
                                 LocalDateTime.of(2026, 5, 2, 8, 0),
@@ -54,9 +67,9 @@ class AdminDashboardSummaryServiceTest {
                                 0
                         )
                 ));
-        given(adminDashboardReadRepository.fetchLatestCollectFailures(org.mockito.ArgumentMatchers.any()))
+        given(adminDashboardCollectReadRepository.fetchLatestCollectFailures(org.mockito.ArgumentMatchers.any()))
                 .willReturn(List.of(
-                        new AdminDashboardReadRepository.CollectFailureSnapshotRow(
+                        new AdminDashboardReadRows.CollectFailureSnapshotRow(
                                 "BOKJIRO_LOCAL",
                                 "FAILED",
                                 LocalDateTime.of(2026, 5, 2, 7, 0),
@@ -68,16 +81,16 @@ class AdminDashboardSummaryServiceTest {
                                 1
                         )
                 ));
-        given(adminDashboardReadRepository.fetchCollectTrend(org.mockito.ArgumentMatchers.any()))
+        given(adminDashboardCollectReadRepository.fetchCollectTrend(org.mockito.ArgumentMatchers.any()))
                 .willReturn(
-                        new AdminDashboardReadRepository.CollectTrendRow(3, 1, 0),
-                        new AdminDashboardReadRepository.CollectTrendRow(9, 2, 1),
-                        new AdminDashboardReadRepository.CollectTrendRow(18, 4, 2)
+                        new AdminDashboardReadRows.CollectTrendRow(3, 1, 0),
+                        new AdminDashboardReadRows.CollectTrendRow(9, 2, 1),
+                        new AdminDashboardReadRows.CollectTrendRow(18, 4, 2)
                 );
-        given(adminDashboardReadRepository.fetchRecommendationSummary(
+        given(adminDashboardRecommendationReadRepository.fetchRecommendationSummary(
                 org.mockito.ArgumentMatchers.any(),
                 org.mockito.ArgumentMatchers.any()
-        )).willReturn(new AdminDashboardReadRepository.RecommendationSummaryRow(
+        )).willReturn(new AdminDashboardReadRows.RecommendationSummaryRow(
                 250,
                 12,
                 30,
@@ -101,40 +114,40 @@ class AdminDashboardSummaryServiceTest {
                         250L,
                         false
                 ));
-        given(adminDashboardReadRepository.fetchRecommendationWeightBuckets(org.mockito.ArgumentMatchers.any()))
+        given(adminDashboardRecommendationReadRepository.fetchRecommendationWeightBuckets(org.mockito.ArgumentMatchers.any()))
                 .willReturn(List.of(
-                        new AdminDashboardReadRepository.RecommendationWeightSnapshotRow("GROWTH", new BigDecimal("0.60"), new BigDecimal("0.40"), 18),
-                        new AdminDashboardReadRepository.RecommendationWeightSnapshotRow("COLD_START", new BigDecimal("0.80"), new BigDecimal("0.20"), 12)
+                        new AdminDashboardReadRows.RecommendationWeightSnapshotRow("GROWTH", new BigDecimal("0.60"), new BigDecimal("0.40"), 18),
+                        new AdminDashboardReadRows.RecommendationWeightSnapshotRow("COLD_START", new BigDecimal("0.80"), new BigDecimal("0.20"), 12)
                 ));
-        given(adminDashboardReadRepository.fetchRecommendationTrend(org.mockito.ArgumentMatchers.any()))
+        given(adminDashboardRecommendationReadRepository.fetchRecommendationTrend(org.mockito.ArgumentMatchers.any()))
                 .willReturn(
-                        new AdminDashboardReadRepository.RecommendationTrendRow(8, 3, 1),
-                        new AdminDashboardReadRepository.RecommendationTrendRow(30, 9, 6),
-                        new AdminDashboardReadRepository.RecommendationTrendRow(90, 18, 20)
+                        new AdminDashboardReadRows.RecommendationTrendRow(8, 3, 1),
+                        new AdminDashboardReadRows.RecommendationTrendRow(30, 9, 6),
+                        new AdminDashboardReadRows.RecommendationTrendRow(90, 18, 20)
                 );
-        given(adminDashboardReadRepository.fetchNotificationSummary(
+        given(adminDashboardNotificationReadRepository.fetchNotificationSummary(
                 org.mockito.ArgumentMatchers.any(),
                 org.mockito.ArgumentMatchers.any()
-        )).willReturn(new AdminDashboardReadRepository.NotificationSummaryRow(4, 1, 14, 2));
-        given(adminDashboardReadRepository.fetchSearchSummary(
+        )).willReturn(new AdminDashboardReadRows.NotificationSummaryRow(4, 1, 14, 2));
+        given(adminDashboardSearchReadRepository.fetchSearchSummary(
                 org.mockito.ArgumentMatchers.any(),
                 org.mockito.ArgumentMatchers.any()
-        )).willReturn(new AdminDashboardReadRepository.SearchSummaryRow(21, 88, 13, 43, new BigDecimal("6.375")));
-        given(adminDashboardReadRepository.fetchSearchTrend(org.mockito.ArgumentMatchers.any()))
+        )).willReturn(new AdminDashboardReadRows.SearchSummaryRow(21, 88, 13, 43, new BigDecimal("6.375")));
+        given(adminDashboardSearchReadRepository.fetchSearchTrend(org.mockito.ArgumentMatchers.any()))
                 .willReturn(
-                        new AdminDashboardReadRepository.SearchTrendRow(12, 2),
-                        new AdminDashboardReadRepository.SearchTrendRow(88, 13),
-                        new AdminDashboardReadRepository.SearchTrendRow(240, 31)
+                        new AdminDashboardReadRows.SearchTrendRow(12, 2),
+                        new AdminDashboardReadRows.SearchTrendRow(88, 13),
+                        new AdminDashboardReadRows.SearchTrendRow(240, 31)
                 );
-        given(adminDashboardReadRepository.fetchTopSearchKeywords(org.mockito.ArgumentMatchers.any()))
+        given(adminDashboardSearchReadRepository.fetchTopSearchKeywords(org.mockito.ArgumentMatchers.any()))
                 .willReturn(List.of(
-                        new AdminDashboardReadRepository.SearchKeywordSnapshotRow("월세", 17),
-                        new AdminDashboardReadRepository.SearchKeywordSnapshotRow("주거", 9)
+                        new AdminDashboardReadRows.SearchKeywordSnapshotRow("월세", 17),
+                        new AdminDashboardReadRows.SearchKeywordSnapshotRow("주거", 9)
                 ));
-        given(adminDashboardReadRepository.fetchTopZeroResultSearchKeywords(org.mockito.ArgumentMatchers.any()))
+        given(adminDashboardSearchReadRepository.fetchTopZeroResultSearchKeywords(org.mockito.ArgumentMatchers.any()))
                 .willReturn(List.of(
-                        new AdminDashboardReadRepository.SearchKeywordSnapshotRow("대출", 4),
-                        new AdminDashboardReadRepository.SearchKeywordSnapshotRow("월세", 2)
+                        new AdminDashboardReadRows.SearchKeywordSnapshotRow("대출", 4),
+                        new AdminDashboardReadRows.SearchKeywordSnapshotRow("월세", 2)
                 ));
         given(userPiiSyncStatusService.getStatus(5))
                 .willReturn(new UserPiiSyncStatusResponse(
@@ -197,14 +210,14 @@ class AdminDashboardSummaryServiceTest {
     @Test
     @DisplayName("대시보드 요약은 요청한 trend window days만 사용한다")
     void getSummaryUsesRequestedTrendWindows() {
-        given(adminDashboardReadRepository.fetchCollectSummary(org.mockito.ArgumentMatchers.any()))
-                .willReturn(new AdminDashboardReadRepository.CollectSummaryRow(0, 0, 0, 0));
-        given(adminDashboardReadRepository.fetchLatestCollectJobs()).willReturn(List.of());
-        given(adminDashboardReadRepository.fetchLatestCollectFailures(org.mockito.ArgumentMatchers.any())).willReturn(List.of());
-        given(adminDashboardReadRepository.fetchRecommendationSummary(
+        given(adminDashboardCollectReadRepository.fetchCollectSummary(org.mockito.ArgumentMatchers.any()))
+                .willReturn(new AdminDashboardReadRows.CollectSummaryRow(0, 0, 0, 0));
+        given(adminDashboardCollectReadRepository.fetchLatestCollectJobs()).willReturn(List.of());
+        given(adminDashboardCollectReadRepository.fetchLatestCollectFailures(org.mockito.ArgumentMatchers.any())).willReturn(List.of());
+        given(adminDashboardRecommendationReadRepository.fetchRecommendationSummary(
                 org.mockito.ArgumentMatchers.any(),
                 org.mockito.ArgumentMatchers.any()
-        )).willReturn(new AdminDashboardReadRepository.RecommendationSummaryRow(0, 0, 0, 0, 0, null));
+        )).willReturn(new AdminDashboardReadRows.RecommendationSummaryRow(0, 0, 0, 0, 0, null));
         ScoreWeight activeWeight = ScoreWeight.builder()
                 .weightKey("GROWTH")
                 .ruleWeight(new BigDecimal("0.60"))
@@ -221,37 +234,37 @@ class AdminDashboardSummaryServiceTest {
                         100L,
                         false
                 ));
-        given(adminDashboardReadRepository.fetchRecommendationWeightBuckets(org.mockito.ArgumentMatchers.any()))
+        given(adminDashboardRecommendationReadRepository.fetchRecommendationWeightBuckets(org.mockito.ArgumentMatchers.any()))
                 .willReturn(List.of());
-        given(adminDashboardReadRepository.fetchNotificationSummary(
+        given(adminDashboardNotificationReadRepository.fetchNotificationSummary(
                 org.mockito.ArgumentMatchers.any(),
                 org.mockito.ArgumentMatchers.any()
-        )).willReturn(new AdminDashboardReadRepository.NotificationSummaryRow(0, 0, 0, 0));
-        given(adminDashboardReadRepository.fetchSearchSummary(
+        )).willReturn(new AdminDashboardReadRows.NotificationSummaryRow(0, 0, 0, 0));
+        given(adminDashboardSearchReadRepository.fetchSearchSummary(
                 org.mockito.ArgumentMatchers.any(),
                 org.mockito.ArgumentMatchers.any()
-        )).willReturn(new AdminDashboardReadRepository.SearchSummaryRow(0, 0, 0, 0, BigDecimal.ZERO));
-        given(adminDashboardReadRepository.fetchTopSearchKeywords(org.mockito.ArgumentMatchers.any()))
+        )).willReturn(new AdminDashboardReadRows.SearchSummaryRow(0, 0, 0, 0, BigDecimal.ZERO));
+        given(adminDashboardSearchReadRepository.fetchTopSearchKeywords(org.mockito.ArgumentMatchers.any()))
                 .willReturn(List.of());
-        given(adminDashboardReadRepository.fetchTopZeroResultSearchKeywords(org.mockito.ArgumentMatchers.any()))
+        given(adminDashboardSearchReadRepository.fetchTopZeroResultSearchKeywords(org.mockito.ArgumentMatchers.any()))
                 .willReturn(List.of());
         given(userPiiSyncStatusService.getStatus(5))
                 .willReturn(new UserPiiSyncStatusResponse(0, 0, 0, null, null, null, null, null, List.of()));
 
-        given(adminDashboardReadRepository.fetchCollectTrend(org.mockito.ArgumentMatchers.any()))
+        given(adminDashboardCollectReadRepository.fetchCollectTrend(org.mockito.ArgumentMatchers.any()))
                 .willReturn(
-                        new AdminDashboardReadRepository.CollectTrendRow(1, 0, 0),
-                        new AdminDashboardReadRepository.CollectTrendRow(2, 0, 0)
+                        new AdminDashboardReadRows.CollectTrendRow(1, 0, 0),
+                        new AdminDashboardReadRows.CollectTrendRow(2, 0, 0)
                 );
-        given(adminDashboardReadRepository.fetchRecommendationTrend(org.mockito.ArgumentMatchers.any()))
+        given(adminDashboardRecommendationReadRepository.fetchRecommendationTrend(org.mockito.ArgumentMatchers.any()))
                 .willReturn(
-                        new AdminDashboardReadRepository.RecommendationTrendRow(3, 1, 0),
-                        new AdminDashboardReadRepository.RecommendationTrendRow(4, 2, 0)
+                        new AdminDashboardReadRows.RecommendationTrendRow(3, 1, 0),
+                        new AdminDashboardReadRows.RecommendationTrendRow(4, 2, 0)
                 );
-        given(adminDashboardReadRepository.fetchSearchTrend(org.mockito.ArgumentMatchers.any()))
+        given(adminDashboardSearchReadRepository.fetchSearchTrend(org.mockito.ArgumentMatchers.any()))
                 .willReturn(
-                        new AdminDashboardReadRepository.SearchTrendRow(5, 1),
-                        new AdminDashboardReadRepository.SearchTrendRow(6, 2)
+                        new AdminDashboardReadRows.SearchTrendRow(5, 1),
+                        new AdminDashboardReadRows.SearchTrendRow(6, 2)
                 );
 
         AdminDashboardResponse response = adminDashboardSummaryService.getSummary(14, List.of(3, 14, 14, -1, 400));
@@ -268,8 +281,8 @@ class AdminDashboardSummaryServiceTest {
         assertThat(response.trend().search()).extracting(AdminDashboardResponse.SearchTrendPoint::windowDays)
                 .containsExactly(3, 14);
 
-        verify(adminDashboardReadRepository, times(2)).fetchCollectTrend(org.mockito.ArgumentMatchers.any());
-        verify(adminDashboardReadRepository, times(2)).fetchRecommendationTrend(org.mockito.ArgumentMatchers.any());
-        verify(adminDashboardReadRepository, times(2)).fetchSearchTrend(org.mockito.ArgumentMatchers.any());
+        verify(adminDashboardCollectReadRepository, times(2)).fetchCollectTrend(org.mockito.ArgumentMatchers.any());
+        verify(adminDashboardRecommendationReadRepository, times(2)).fetchRecommendationTrend(org.mockito.ArgumentMatchers.any());
+        verify(adminDashboardSearchReadRepository, times(2)).fetchSearchTrend(org.mockito.ArgumentMatchers.any());
     }
 }

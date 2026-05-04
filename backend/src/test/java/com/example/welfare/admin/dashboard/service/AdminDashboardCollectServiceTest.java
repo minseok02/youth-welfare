@@ -1,7 +1,8 @@
 package com.example.welfare.admin.dashboard.service;
 
 import com.example.welfare.admin.dashboard.dto.AdminCollectFailureResponse;
-import com.example.welfare.admin.dashboard.repository.AdminDashboardReadRepository;
+import com.example.welfare.admin.dashboard.repository.AdminDashboardCollectReadRepository;
+import com.example.welfare.admin.dashboard.repository.AdminDashboardReadRows;
 import com.example.welfare.collect.service.CollectRuntimeStatusService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -20,7 +21,7 @@ import static org.mockito.BDDMockito.given;
 class AdminDashboardCollectServiceTest {
 
     @Mock
-    private AdminDashboardReadRepository adminDashboardReadRepository;
+    private AdminDashboardCollectReadRepository adminDashboardCollectReadRepository;
 
     @Mock
     private CollectRuntimeStatusService collectRuntimeStatusService;
@@ -31,54 +32,54 @@ class AdminDashboardCollectServiceTest {
     @Test
     @DisplayName("collect 실패 상세는 failed/partial 총량, job 분포, error code 분포, 최근 샘플을 조합한다")
     void getCollectFailuresBuildsResponse() {
-        given(adminDashboardReadRepository.fetchCollectFailureSummary(org.mockito.ArgumentMatchers.any()))
-                .willReturn(new AdminDashboardReadRepository.CollectFailureSummaryRow(6, 2));
-        given(adminDashboardReadRepository.fetchCollectFailureJobBreakdowns(
+        given(adminDashboardCollectReadRepository.fetchCollectFailureSummary(org.mockito.ArgumentMatchers.any()))
+                .willReturn(new AdminDashboardReadRows.CollectFailureSummaryRow(6, 2));
+        given(adminDashboardCollectReadRepository.fetchCollectFailureJobBreakdowns(
                 org.mockito.ArgumentMatchers.any(),
                 org.mockito.ArgumentMatchers.eq(3)
         )).willReturn(List.of(
-                new AdminDashboardReadRepository.CollectFailureJobBreakdownRow(
+                new AdminDashboardReadRows.CollectFailureJobBreakdownRow(
                         "BOKJIRO_LOCAL",
                         4,
                         1,
                         LocalDateTime.of(2026, 5, 3, 9, 0)
                 )
         ));
-        given(adminDashboardReadRepository.fetchRecentCollectJobRuns(
+        given(adminDashboardCollectReadRepository.fetchRecentCollectJobRuns(
                 org.mockito.ArgumentMatchers.eq(20)
         )).willReturn(List.of(
-                new AdminDashboardReadRepository.CollectJobRunRow(
+                new AdminDashboardReadRows.CollectJobRunRow(
                         "BOKJIRO_LOCAL",
                         "FAILED",
                         LocalDateTime.of(2026, 5, 3, 9, 0)
                 ),
-                new AdminDashboardReadRepository.CollectJobRunRow(
+                new AdminDashboardReadRows.CollectJobRunRow(
                         "BOKJIRO_LOCAL",
                         "FAILED",
                         LocalDateTime.of(2026, 5, 2, 9, 0)
                 ),
-                new AdminDashboardReadRepository.CollectJobRunRow(
+                new AdminDashboardReadRows.CollectJobRunRow(
                         "BOKJIRO_LOCAL",
                         "FAILED",
                         LocalDateTime.of(2026, 4, 1, 9, 0)
                 ),
-                new AdminDashboardReadRepository.CollectJobRunRow(
+                new AdminDashboardReadRows.CollectJobRunRow(
                         "BOKJIRO_LOCAL",
                         "SUCCESS",
                         LocalDateTime.of(2026, 5, 1, 9, 0)
                 )
         ));
-        given(adminDashboardReadRepository.fetchCollectFailureErrorCodeBreakdowns(
+        given(adminDashboardCollectReadRepository.fetchCollectFailureErrorCodeBreakdowns(
                 org.mockito.ArgumentMatchers.any(),
                 org.mockito.ArgumentMatchers.eq(3)
         )).willReturn(List.of(
-                new AdminDashboardReadRepository.CollectFailureErrorCodeBreakdownRow("COL001", 5)
+                new AdminDashboardReadRows.CollectFailureErrorCodeBreakdownRow("COL001", 5)
         ));
-        given(adminDashboardReadRepository.fetchRecentCollectFailureSamples(
+        given(adminDashboardCollectReadRepository.fetchRecentCollectFailureSamples(
                 org.mockito.ArgumentMatchers.any(),
                 org.mockito.ArgumentMatchers.eq(3)
         )).willReturn(List.of(
-                new AdminDashboardReadRepository.CollectFailureSampleRow(
+                new AdminDashboardReadRows.CollectFailureSampleRow(
                         "BOKJIRO_LOCAL",
                         "FAILED",
                         "COL001",

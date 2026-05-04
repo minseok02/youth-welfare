@@ -1,7 +1,8 @@
 package com.example.welfare.admin.dashboard.service;
 
 import com.example.welfare.admin.dashboard.dto.AdminSearchFailureResponse;
-import com.example.welfare.admin.dashboard.repository.AdminDashboardReadRepository;
+import com.example.welfare.admin.dashboard.repository.AdminDashboardReadRows;
+import com.example.welfare.admin.dashboard.repository.AdminDashboardSearchReadRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -20,7 +21,7 @@ import static org.mockito.BDDMockito.given;
 class AdminDashboardSearchServiceTest {
 
     @Mock
-    private AdminDashboardReadRepository adminDashboardReadRepository;
+    private AdminDashboardSearchReadRepository adminDashboardSearchReadRepository;
 
     @InjectMocks
     private AdminDashboardSearchService adminDashboardSearchService;
@@ -28,28 +29,28 @@ class AdminDashboardSearchServiceTest {
     @Test
     @DisplayName("검색 실패 상세는 zero-result 키워드/지역/필터 패턴/샘플을 조합한다")
     void getSearchFailuresBuildsResponse() {
-        given(adminDashboardReadRepository.fetchSearchSummary(
+        given(adminDashboardSearchReadRepository.fetchSearchSummary(
                 org.mockito.ArgumentMatchers.any(),
                 org.mockito.ArgumentMatchers.any()
-        )).willReturn(new AdminDashboardReadRepository.SearchSummaryRow(21, 88, 13, 43, new BigDecimal("6.375")));
-        given(adminDashboardReadRepository.fetchTopZeroResultSearchKeywords(
+        )).willReturn(new AdminDashboardReadRows.SearchSummaryRow(21, 88, 13, 43, new BigDecimal("6.375")));
+        given(adminDashboardSearchReadRepository.fetchTopZeroResultSearchKeywords(
                 org.mockito.ArgumentMatchers.any(),
                 org.mockito.ArgumentMatchers.eq(3)
         )).willReturn(List.of(
-                new AdminDashboardReadRepository.SearchKeywordSnapshotRow("대출", 4),
-                new AdminDashboardReadRepository.SearchKeywordSnapshotRow("월세", 2)
+                new AdminDashboardReadRows.SearchKeywordSnapshotRow("대출", 4),
+                new AdminDashboardReadRows.SearchKeywordSnapshotRow("월세", 2)
         ));
-        given(adminDashboardReadRepository.fetchTopZeroResultRegions(
+        given(adminDashboardSearchReadRepository.fetchTopZeroResultRegions(
                 org.mockito.ArgumentMatchers.any(),
                 org.mockito.ArgumentMatchers.eq(3)
         )).willReturn(List.of(
-                new AdminDashboardReadRepository.SearchRegionSnapshotRow("서울", "관악구", 3)
+                new AdminDashboardReadRows.SearchRegionSnapshotRow("서울", "관악구", 3)
         ));
-        given(adminDashboardReadRepository.fetchTopZeroResultFilterPatterns(
+        given(adminDashboardSearchReadRepository.fetchTopZeroResultFilterPatterns(
                 org.mockito.ArgumentMatchers.any(),
                 org.mockito.ArgumentMatchers.eq(3)
         )).willReturn(List.of(
-                new AdminDashboardReadRepository.SearchFilterPatternSnapshotRow(
+                new AdminDashboardReadRows.SearchFilterPatternSnapshotRow(
                         "UNEMPLOYED",
                         "HOUSING",
                         "YOUTH",
@@ -59,11 +60,11 @@ class AdminDashboardSearchServiceTest {
                         5
                 )
         ));
-        given(adminDashboardReadRepository.fetchRecentZeroResultSearchSamples(
+        given(adminDashboardSearchReadRepository.fetchRecentZeroResultSearchSamples(
                 org.mockito.ArgumentMatchers.any(),
                 org.mockito.ArgumentMatchers.eq(3)
         )).willReturn(List.of(
-                new AdminDashboardReadRepository.SearchFailureSampleRow(
+                new AdminDashboardReadRows.SearchFailureSampleRow(
                         "대출",
                         "서울",
                         "관악구",
@@ -76,11 +77,11 @@ class AdminDashboardSearchServiceTest {
                         LocalDateTime.of(2026, 5, 3, 9, 15)
                 )
         ));
-        given(adminDashboardReadRepository.fetchZeroResultRetryGroups(
+        given(adminDashboardSearchReadRepository.fetchZeroResultRetryGroups(
                 org.mockito.ArgumentMatchers.any(),
                 org.mockito.ArgumentMatchers.eq(3)
         )).willReturn(List.of(
-                new AdminDashboardReadRepository.SearchRetryGroupRow(
+                new AdminDashboardReadRows.SearchRetryGroupRow(
                         "USER_KEY",
                         "user-key-1",
                         "대출",
@@ -97,11 +98,11 @@ class AdminDashboardSearchServiceTest {
                         LocalDateTime.of(2026, 5, 3, 9, 15)
                 )
         ));
-        given(adminDashboardReadRepository.fetchRecoveredSearchGroups(
+        given(adminDashboardSearchReadRepository.fetchRecoveredSearchGroups(
                 org.mockito.ArgumentMatchers.any(),
                 org.mockito.ArgumentMatchers.eq(3)
         )).willReturn(List.of(
-                new AdminDashboardReadRepository.RecoveredSearchGroupRow(
+                new AdminDashboardReadRows.RecoveredSearchGroupRow(
                         "USER_KEY",
                         "user-key-1",
                         "대출",

@@ -1,7 +1,11 @@
 package com.example.welfare.admin.dashboard.service;
 
 import com.example.welfare.admin.dashboard.dto.AdminDashboardResponse;
-import com.example.welfare.admin.dashboard.repository.AdminDashboardReadRepository;
+import com.example.welfare.admin.dashboard.repository.AdminDashboardCollectReadRepository;
+import com.example.welfare.admin.dashboard.repository.AdminDashboardNotificationReadRepository;
+import com.example.welfare.admin.dashboard.repository.AdminDashboardReadRows;
+import com.example.welfare.admin.dashboard.repository.AdminDashboardRecommendationReadRepository;
+import com.example.welfare.admin.dashboard.repository.AdminDashboardSearchReadRepository;
 import com.example.welfare.recommend.entity.ScoreWeight;
 import com.example.welfare.recommend.service.ScoreWeightService;
 import com.example.welfare.user.dto.response.UserPiiSyncStatusResponse;
@@ -18,7 +22,10 @@ import java.util.List;
 @Transactional(readOnly = true)
 public class AdminDashboardSummaryService {
 
-    private final AdminDashboardReadRepository adminDashboardReadRepository;
+    private final AdminDashboardCollectReadRepository adminDashboardCollectReadRepository;
+    private final AdminDashboardRecommendationReadRepository adminDashboardRecommendationReadRepository;
+    private final AdminDashboardNotificationReadRepository adminDashboardNotificationReadRepository;
+    private final AdminDashboardSearchReadRepository adminDashboardSearchReadRepository;
     private final UserPiiSyncStatusService userPiiSyncStatusService;
     private final ScoreWeightService scoreWeightService;
 
@@ -29,17 +36,17 @@ public class AdminDashboardSummaryService {
         java.time.LocalDateTime summaryWindowAgo = now.minusDays(summaryWindowDays);
         List<Integer> trendWindows = AdminDashboardQueryPolicy.resolveTrendWindows(requestedTrendWindows);
 
-        AdminDashboardReadRepository.CollectSummaryRow collectSummary =
-                adminDashboardReadRepository.fetchCollectSummary(dayAgo);
-        AdminDashboardReadRepository.RecommendationSummaryRow recommendationSummary =
-                adminDashboardReadRepository.fetchRecommendationSummary(dayAgo, summaryWindowAgo);
+        AdminDashboardReadRows.CollectSummaryRow collectSummary =
+                adminDashboardCollectReadRepository.fetchCollectSummary(dayAgo);
+        AdminDashboardReadRows.RecommendationSummaryRow recommendationSummary =
+                adminDashboardRecommendationReadRepository.fetchRecommendationSummary(dayAgo, summaryWindowAgo);
         ScoreWeightService.ScoreWeightProgress weightProgress =
                 scoreWeightService.getProgress(recommendationSummary.totalLogs());
         ScoreWeight activeWeight = weightProgress.activeWeight();
-        AdminDashboardReadRepository.NotificationSummaryRow notificationSummary =
-                adminDashboardReadRepository.fetchNotificationSummary(dayAgo, summaryWindowAgo);
-        AdminDashboardReadRepository.SearchSummaryRow searchSummary =
-                adminDashboardReadRepository.fetchSearchSummary(dayAgo, summaryWindowAgo);
+        AdminDashboardReadRows.NotificationSummaryRow notificationSummary =
+                adminDashboardNotificationReadRepository.fetchNotificationSummary(dayAgo, summaryWindowAgo);
+        AdminDashboardReadRows.SearchSummaryRow searchSummary =
+                adminDashboardSearchReadRepository.fetchSearchSummary(dayAgo, summaryWindowAgo);
         UserPiiSyncStatusResponse userPiiSyncStatus =
                 userPiiSyncStatusService.getStatus(AdminDashboardQueryPolicy.FAILED_SAMPLE_LIMIT);
 
@@ -51,7 +58,7 @@ public class AdminDashboardSummaryService {
                         collectSummary.partialSuccessJobsLast24h(),
                         collectSummary.failedJobsLast24h(),
                         summaryWindowDays,
-                        adminDashboardReadRepository.fetchLatestCollectJobs().stream()
+                        adminDashboardCollectReadRepository.fetchLatestCollectJobs().stream()
                                 .map(row -> new AdminDashboardResponse.CollectJobSnapshot(
                                         row.jobName(),
                                         row.status(),
@@ -62,7 +69,7 @@ public class AdminDashboardSummaryService {
                                         row.failedCount()
                                 ))
                                 .toList(),
-                        adminDashboardReadRepository.fetchLatestCollectFailures(summaryWindowAgo).stream()
+                        adminDashboardCollectReadRepository.fetchLatestCollectFailures(summaryWindowAgo).stream()
                                 .map(row -> new AdminDashboardResponse.CollectFailureSnapshot(
                                         row.jobName(),
                                         row.status(),
@@ -99,7 +106,7 @@ public class AdminDashboardSummaryService {
                                 recommendationSummary.fallbackInWindow(),
                                 recommendationSummary.sentInWindow()
                         ),
-                        adminDashboardReadRepository.fetchRecommendationWeightBuckets(summaryWindowAgo).stream()
+                        adminDashboardRecommendationReadRepository.fetchRecommendationWeightBuckets(summaryWindowAgo).stream()
                                 .map(row -> new AdminDashboardResponse.RecommendationWeightSnapshot(
                                         row.weightKey(),
                                         row.ruleWeight(),
@@ -122,13 +129,13 @@ public class AdminDashboardSummaryService {
                         searchSummary.zeroResultSearchesInWindow(),
                         searchSummary.uniqueFingerprintsInWindow(),
                         searchSummary.averageResultCountInWindow().setScale(2, java.math.RoundingMode.HALF_UP),
-                        adminDashboardReadRepository.fetchTopSearchKeywords(summaryWindowAgo).stream()
+                        adminDashboardSearchReadRepository.fetchTopSearchKeywords(summaryWindowAgo).stream()
                                 .map(row -> new AdminDashboardResponse.SearchKeywordSnapshot(
                                         row.keyword(),
                                         row.searchCount()
                                 ))
                                 .toList(),
-                        adminDashboardReadRepository.fetchTopZeroResultSearchKeywords(summaryWindowAgo).stream()
+                        adminDashboardSearchReadRepository.fetchTopZeroResultSearchKeywords(summaryWindowAgo).stream()
                                 .map(row -> new AdminDashboardResponse.SearchKeywordSnapshot(
                                         row.keyword(),
                                         row.searchCount()
@@ -155,8 +162,8 @@ public class AdminDashboardSummaryService {
     ) {
         List<AdminDashboardResponse.CollectTrendPoint> points = new ArrayList<>();
         for (int windowDays : trendWindows) {
-            AdminDashboardReadRepository.CollectTrendRow row =
-                    adminDashboardReadRepository.fetchCollectTrend(now.minusDays(windowDays));
+            AdminDashboardReadRows.CollectTrendRow row =
+                    adminDashboardCollectReadRepository.fetchCollectTrend(now.minusDays(windowDays));
             points.add(new AdminDashboardResponse.CollectTrendPoint(
                     windowDays,
                     row.successJobs(),
@@ -173,8 +180,8 @@ public class AdminDashboardSummaryService {
     ) {
         List<AdminDashboardResponse.RecommendationTrendPoint> points = new ArrayList<>();
         for (int windowDays : trendWindows) {
-            AdminDashboardReadRepository.RecommendationTrendRow row =
-                    adminDashboardReadRepository.fetchRecommendationTrend(now.minusDays(windowDays));
+            AdminDashboardReadRows.RecommendationTrendRow row =
+                    adminDashboardRecommendationReadRepository.fetchRecommendationTrend(now.minusDays(windowDays));
             points.add(new AdminDashboardResponse.RecommendationTrendPoint(
                     windowDays,
                     row.sentCount(),
@@ -193,8 +200,8 @@ public class AdminDashboardSummaryService {
     ) {
         List<AdminDashboardResponse.SearchTrendPoint> points = new ArrayList<>();
         for (int windowDays : trendWindows) {
-            AdminDashboardReadRepository.SearchTrendRow row =
-                    adminDashboardReadRepository.fetchSearchTrend(now.minusDays(windowDays));
+            AdminDashboardReadRows.SearchTrendRow row =
+                    adminDashboardSearchReadRepository.fetchSearchTrend(now.minusDays(windowDays));
             points.add(new AdminDashboardResponse.SearchTrendPoint(
                     windowDays,
                     row.searches(),

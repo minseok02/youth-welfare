@@ -1,7 +1,8 @@
 package com.example.welfare.admin.dashboard.service;
 
 import com.example.welfare.admin.dashboard.dto.AdminRecommendationBreakdownResponse;
-import com.example.welfare.admin.dashboard.repository.AdminDashboardReadRepository;
+import com.example.welfare.admin.dashboard.repository.AdminDashboardReadRows;
+import com.example.welfare.admin.dashboard.repository.AdminDashboardRecommendationReadRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -20,7 +21,7 @@ import static org.mockito.BDDMockito.given;
 class AdminDashboardRecommendationServiceTest {
 
     @Mock
-    private AdminDashboardReadRepository adminDashboardReadRepository;
+    private AdminDashboardRecommendationReadRepository adminDashboardRecommendationReadRepository;
 
     @InjectMocks
     private AdminDashboardRecommendationService adminDashboardRecommendationService;
@@ -28,10 +29,10 @@ class AdminDashboardRecommendationServiceTest {
     @Test
     @DisplayName("추천 breakdown은 source/category/weight/fallback sample/clicked sample을 조합한다")
     void getRecommendationBreakdownsBuildsResponse() {
-        given(adminDashboardReadRepository.fetchRecommendationSummary(
+        given(adminDashboardRecommendationReadRepository.fetchRecommendationSummary(
                 org.mockito.ArgumentMatchers.any(),
                 org.mockito.ArgumentMatchers.any()
-        )).willReturn(new AdminDashboardReadRepository.RecommendationSummaryRow(
+        )).willReturn(new AdminDashboardReadRows.RecommendationSummaryRow(
                 250,
                 12,
                 30,
@@ -39,23 +40,23 @@ class AdminDashboardRecommendationServiceTest {
                 6,
                 LocalDateTime.of(2026, 5, 2, 8, 45)
         ));
-        given(adminDashboardReadRepository.fetchRecommendationSourceBreakdowns(
+        given(adminDashboardRecommendationReadRepository.fetchRecommendationSourceBreakdowns(
                 org.mockito.ArgumentMatchers.any(),
                 org.mockito.ArgumentMatchers.eq(3)
         )).willReturn(List.of(
-                new AdminDashboardReadRepository.RecommendationSourceBreakdownRow("YOUTH", 18, 6, 3)
+                new AdminDashboardReadRows.RecommendationSourceBreakdownRow("YOUTH", 18, 6, 3)
         ));
-        given(adminDashboardReadRepository.fetchRecommendationCategoryBreakdowns(
+        given(adminDashboardRecommendationReadRepository.fetchRecommendationCategoryBreakdowns(
                 org.mockito.ArgumentMatchers.any(),
                 org.mockito.ArgumentMatchers.eq(3)
         )).willReturn(List.of(
-                new AdminDashboardReadRepository.RecommendationCategoryBreakdownRow("HOUSING", 10, 4, 1)
+                new AdminDashboardReadRows.RecommendationCategoryBreakdownRow("HOUSING", 10, 4, 1)
         ));
-        given(adminDashboardReadRepository.fetchRecommendationWeightBreakdowns(
+        given(adminDashboardRecommendationReadRepository.fetchRecommendationWeightBreakdowns(
                 org.mockito.ArgumentMatchers.any(),
                 org.mockito.ArgumentMatchers.eq(3)
         )).willReturn(List.of(
-                new AdminDashboardReadRepository.RecommendationWeightBreakdownRow(
+                new AdminDashboardReadRows.RecommendationWeightBreakdownRow(
                         "GROWTH",
                         new BigDecimal("0.60"),
                         new BigDecimal("0.40"),
@@ -64,11 +65,11 @@ class AdminDashboardRecommendationServiceTest {
                         2
                 )
         ));
-        given(adminDashboardReadRepository.fetchRecentFallbackRecommendationSamples(
+        given(adminDashboardRecommendationReadRepository.fetchRecentFallbackRecommendationSamples(
                 org.mockito.ArgumentMatchers.any(),
                 org.mockito.ArgumentMatchers.eq(3)
         )).willReturn(List.of(
-                new AdminDashboardReadRepository.RecommendationSampleRow(
+                new AdminDashboardReadRows.RecommendationSampleRow(
                         101L,
                         501L,
                         "청년 월세 지원",
@@ -81,11 +82,11 @@ class AdminDashboardRecommendationServiceTest {
                         null
                 )
         ));
-        given(adminDashboardReadRepository.fetchRecentClickedRecommendationSamples(
+        given(adminDashboardRecommendationReadRepository.fetchRecentClickedRecommendationSamples(
                 org.mockito.ArgumentMatchers.any(),
                 org.mockito.ArgumentMatchers.eq(3)
         )).willReturn(List.of(
-                new AdminDashboardReadRepository.RecommendationSampleRow(
+                new AdminDashboardReadRows.RecommendationSampleRow(
                         102L,
                         502L,
                         "청년 전세 지원",
@@ -98,11 +99,11 @@ class AdminDashboardRecommendationServiceTest {
                         LocalDateTime.of(2026, 5, 3, 8, 30)
                 )
         ));
-        given(adminDashboardReadRepository.fetchRecommendationRepeatExposureGroups(
+        given(adminDashboardRecommendationReadRepository.fetchRecommendationRepeatExposureGroups(
                 org.mockito.ArgumentMatchers.any(),
                 org.mockito.ArgumentMatchers.eq(3)
         )).willReturn(List.of(
-                new AdminDashboardReadRepository.RecommendationRepeatExposureGroupRow(
+                new AdminDashboardReadRows.RecommendationRepeatExposureGroupRow(
                         "user-key-1",
                         501L,
                         "청년 월세 지원",

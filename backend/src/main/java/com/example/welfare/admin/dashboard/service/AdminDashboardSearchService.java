@@ -1,7 +1,8 @@
 package com.example.welfare.admin.dashboard.service;
 
 import com.example.welfare.admin.dashboard.dto.AdminSearchFailureResponse;
-import com.example.welfare.admin.dashboard.repository.AdminDashboardReadRepository;
+import com.example.welfare.admin.dashboard.repository.AdminDashboardReadRows;
+import com.example.welfare.admin.dashboard.repository.AdminDashboardSearchReadRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -11,7 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class AdminDashboardSearchService {
 
-    private final AdminDashboardReadRepository adminDashboardReadRepository;
+    private final AdminDashboardSearchReadRepository adminDashboardSearchReadRepository;
 
     public AdminSearchFailureResponse getSearchFailures(Integer requestedSummaryWindowDays, Integer requestedLimit) {
         java.time.LocalDateTime now = java.time.LocalDateTime.now();
@@ -20,27 +21,27 @@ public class AdminDashboardSearchService {
         int patternLimit = AdminDashboardQueryPolicy.resolveSearchFailurePatternLimit(requestedLimit);
         java.time.LocalDateTime summaryWindowAgo = now.minusDays(summaryWindowDays);
 
-        AdminDashboardReadRepository.SearchSummaryRow searchSummary =
-                adminDashboardReadRepository.fetchSearchSummary(dayAgo, summaryWindowAgo);
+        AdminDashboardReadRows.SearchSummaryRow searchSummary =
+                adminDashboardSearchReadRepository.fetchSearchSummary(dayAgo, summaryWindowAgo);
 
         return new AdminSearchFailureResponse(
                 now,
                 summaryWindowDays,
                 searchSummary.zeroResultSearchesInWindow(),
-                adminDashboardReadRepository.fetchTopZeroResultSearchKeywords(summaryWindowAgo, patternLimit).stream()
+                adminDashboardSearchReadRepository.fetchTopZeroResultSearchKeywords(summaryWindowAgo, patternLimit).stream()
                         .map(row -> new AdminSearchFailureResponse.KeywordCount(
                                 row.keyword(),
                                 row.searchCount()
                         ))
                         .toList(),
-                adminDashboardReadRepository.fetchTopZeroResultRegions(summaryWindowAgo, patternLimit).stream()
+                adminDashboardSearchReadRepository.fetchTopZeroResultRegions(summaryWindowAgo, patternLimit).stream()
                         .map(row -> new AdminSearchFailureResponse.RegionCount(
                                 row.sido(),
                                 row.sgg(),
                                 row.searchCount()
                         ))
                         .toList(),
-                adminDashboardReadRepository.fetchTopZeroResultFilterPatterns(summaryWindowAgo, patternLimit).stream()
+                adminDashboardSearchReadRepository.fetchTopZeroResultFilterPatterns(summaryWindowAgo, patternLimit).stream()
                         .map(row -> new AdminSearchFailureResponse.FilterPatternCount(
                                 row.statusFilter(),
                                 row.category(),
@@ -51,7 +52,7 @@ public class AdminDashboardSearchService {
                                 row.searchCount()
                         ))
                         .toList(),
-                adminDashboardReadRepository.fetchRecentZeroResultSearchSamples(summaryWindowAgo, patternLimit).stream()
+                adminDashboardSearchReadRepository.fetchRecentZeroResultSearchSamples(summaryWindowAgo, patternLimit).stream()
                         .map(row -> new AdminSearchFailureResponse.SearchFailureSample(
                                 row.keyword(),
                                 row.sido(),
@@ -65,7 +66,7 @@ public class AdminDashboardSearchService {
                                 row.searchedAt()
                         ))
                         .toList(),
-                adminDashboardReadRepository.fetchZeroResultRetryGroups(summaryWindowAgo, patternLimit).stream()
+                adminDashboardSearchReadRepository.fetchZeroResultRetryGroups(summaryWindowAgo, patternLimit).stream()
                         .map(row -> new AdminSearchFailureResponse.RetryGroup(
                                 row.actorType(),
                                 row.actorKey(),
@@ -83,7 +84,7 @@ public class AdminDashboardSearchService {
                                 row.latestSearchedAt()
                         ))
                         .toList(),
-                adminDashboardReadRepository.fetchRecoveredSearchGroups(summaryWindowAgo, patternLimit).stream()
+                adminDashboardSearchReadRepository.fetchRecoveredSearchGroups(summaryWindowAgo, patternLimit).stream()
                         .map(row -> new AdminSearchFailureResponse.RecoveredSearchGroup(
                                 row.actorType(),
                                 row.actorKey(),
