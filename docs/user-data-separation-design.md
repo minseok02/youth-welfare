@@ -19,7 +19,7 @@
 
 현재 코드 기준으로도 `User`는 너무 많은 책임을 가지고 있다.
 
-- 인증과 회원가입은 [AuthService](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/user/service/AuthService.java:25) 에서 `UserRepository` 하나로 처리한다.
+- 인증과 회원가입은 [AuthLoginService](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/user/service/AuthLoginService.java:22), [AuthSignupService](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/user/service/AuthSignupService.java:13), [AuthSessionService](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/user/service/AuthSessionService.java:10) 로 나뉘었지만, 여전히 최종 상태 저장은 `User` 엔티티 하나를 기준으로 sync된다.
 - 프로필 수정과 전화번호 복호화, 알림 설정, 회원탈퇴는 [UserProfileCommandService](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/user/service/UserProfileCommandService.java:23), [UserProfileReadService](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/user/service/UserProfileReadService.java:16), [UserAccountCommandService](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/user/service/UserAccountCommandService.java:17) 로 나뉘었지만, 여전히 `User` 엔티티 하나에 인증/프로필/알림 설정 상태가 함께 모여 있다.
 - 추천 파이프라인은 [RecommendationFacade](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/recommend/facade/RecommendationFacade.java:36) 에서 `User` 전체를 읽어 사용한다.
 - 실제 `User` 엔티티도 [User](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/user/entity/User.java:16) 한 클래스에 인증, PII, 추천 프로필, 알림 설정이 함께 있다.

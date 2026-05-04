@@ -9,7 +9,7 @@ import com.example.welfare.user.repository.UserPiiReadWriteRepository;
 import com.example.welfare.user.repository.UserPiiSyncQueueRepository;
 import com.example.welfare.user.repository.UserProfileRepository;
 import com.example.welfare.user.repository.UserRepository;
-import com.example.welfare.user.service.AuthService;
+import com.example.welfare.user.service.AuthAdminRoleService;
 import com.example.welfare.user.service.UserCoreSyncService;
 import com.example.welfare.user.util.EmailLookupKeyGenerator;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -90,7 +90,7 @@ class AdminSecurityIntegrationTest {
     private ObjectMapper objectMapper;
 
     @Autowired
-    private AuthService authService;
+    private AuthAdminRoleService authAdminRoleService;
 
     @MockBean
     private CollectService collectService;
@@ -102,8 +102,8 @@ class AdminSecurityIntegrationTest {
 
     @AfterEach
     void cleanup() {
-        ReflectionTestUtils.setField(authService, "adminEmailsProperty", ADMIN_EMAIL);
-        ReflectionTestUtils.invokeMethod(authService, "initAdminEmails");
+        ReflectionTestUtils.setField(authAdminRoleService, "adminEmailsProperty", ADMIN_EMAIL);
+        ReflectionTestUtils.invokeMethod(authAdminRoleService, "initAdminEmails");
         IntegrationCleanupSupport.cleanupUsers(
                 userRepository,
                 user -> ADMIN_EMAIL.equals(user.getEmail())
@@ -222,8 +222,8 @@ class AdminSecurityIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true));
 
-        ReflectionTestUtils.setField(authService, "adminEmailsProperty", "");
-        ReflectionTestUtils.invokeMethod(authService, "initAdminEmails");
+        ReflectionTestUtils.setField(authAdminRoleService, "adminEmailsProperty", "");
+        ReflectionTestUtils.invokeMethod(authAdminRoleService, "initAdminEmails");
 
         mockMvc.perform(post("/api/admin/collect/youth")
                         .header("Authorization", "Bearer " + adminAccessToken))

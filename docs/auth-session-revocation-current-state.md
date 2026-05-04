@@ -4,7 +4,8 @@
 
 관련 코드:
 
-- [AuthService.java](../backend/src/main/java/com/example/welfare/user/service/AuthService.java)
+- [AuthSessionService.java](../backend/src/main/java/com/example/welfare/user/service/AuthSessionService.java)
+- [AuthAdminRoleService.java](../backend/src/main/java/com/example/welfare/user/service/AuthAdminRoleService.java)
 - [UserAccountCommandService.java](../backend/src/main/java/com/example/welfare/user/service/UserAccountCommandService.java)
 - [AccessTokenRevocationService.java](../backend/src/main/java/com/example/welfare/user/service/AccessTokenRevocationService.java)
 - [UserSessionRevocationService.java](../backend/src/main/java/com/example/welfare/user/service/UserSessionRevocationService.java)
@@ -49,9 +50,9 @@
 
 구현 위치:
 
-- `AuthService.logout(...)`
-- `AuthService.logoutByUserKey(...)`
-- `AuthService.logoutByRefreshToken(...)`
+- `AuthSessionService.logout(...)`
+- `AuthSessionService.logoutByUserKey(...)`
+- `AuthSessionService.logoutByRefreshToken(...)`
 - `AccessTokenRevocationService.revoke(...)`
 
 에러/후속 동작:
@@ -108,8 +109,8 @@
 
 관련 코드 경계:
 
-- `AuthService.resolveRoles(...)`
-- `AuthService.initAdminEmails()`
+- `AuthAdminRoleService.resolveRoles(...)`
+- `AuthAdminRoleService.initAdminEmails()`
 
 ## 4. admin forced logout
 

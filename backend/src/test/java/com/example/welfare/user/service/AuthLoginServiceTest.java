@@ -2,7 +2,6 @@ package com.example.welfare.user.service;
 
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
-import com.example.welfare.user.dto.request.SignupRequest;
 import com.example.welfare.user.dto.request.LoginRequest;
 import com.example.welfare.user.dto.response.TokenResponse;
 import com.example.welfare.user.entity.AuthUser;
@@ -18,72 +17,47 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
 import java.util.Optional;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyList;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-class AuthServiceTest {
+class AuthLoginServiceTest {
 
     @Mock
     private AuthIdentityReadService authIdentityReadService;
     @Mock
     private PasswordEncoder passwordEncoder;
     @Mock
-    private UserRegistrationService userRegistrationService;
+    private ActiveUserReadService activeUserReadService;
     @Mock
     private UserCoreSyncService userCoreSyncService;
     @Mock
     private AuthTokenService authTokenService;
-    @Mock
-    private PasswordResetService passwordResetService;
-    @Mock
-    private ActiveUserReadService activeUserReadService;
 
-    private AuthService authService;
+    private AuthAdminRoleService authAdminRoleService;
+
+    private AuthLoginService authLoginService;
 
     @BeforeEach
     void setUp() {
-        authService = new AuthService(
+        authAdminRoleService = new AuthAdminRoleService();
+        ReflectionTestUtils.setField(authAdminRoleService, "adminEmailsProperty", "admin@example.com");
+        ReflectionTestUtils.invokeMethod(authAdminRoleService, "initAdminEmails");
+        authLoginService = new AuthLoginService(
                 authIdentityReadService,
                 passwordEncoder,
-                userRegistrationService,
+                activeUserReadService,
                 userCoreSyncService,
                 authTokenService,
-                passwordResetService,
-                activeUserReadService
+                authAdminRoleService
         );
-        ReflectionTestUtils.setField(authService, "adminEmailsProperty", "admin@example.com");
-        authService.initAdminEmails();
-    }
-
-    @Test
-    @DisplayName("이메일 중복확인은 대소문자를 무시한 auth_users lookup hash 기준으로 판단한다")
-    void checkEmailAvailabilityUsesLookupHash() {
-        when(authIdentityReadService.existsByEmail(" USER@example.com ")).thenReturn(true);
-
-        assertThat(authService.checkEmailAvailability(" USER@example.com ").available()).isFalse();
-    }
-
-    @Test
-    @DisplayName("회원가입은 중복이 아니면 registration service에 저장을 위임한다")
-    void signupDelegatesRegistration() {
-        SignupRequest request = new SignupRequest();
-        ReflectionTestUtils.setField(request, "email", "user@example.com");
-        ReflectionTestUtils.setField(request, "password", "password123!");
-        ReflectionTestUtils.setField(request, "name", "홍길동");
-
-        when(authIdentityReadService.existsByEmail("user@example.com")).thenReturn(false);
-        when(passwordEncoder.encode("password123!")).thenReturn("encoded-password");
-
-        authService.signup(request);
-
-        verify(userRegistrationService).register(request, "encoded-password");
     }
 
     @Test
@@ -105,38 +79,16 @@ class AuthServiceTest {
                 .passwordHash("encoded")
                 .build();
 
-        when(authIdentityReadService.findByEmail(anyString()))
-                .thenReturn(Optional.of(authUser));
+        when(authIdentityReadService.findByEmail(anyString())).thenReturn(Optional.of(authUser));
         when(activeUserReadService.getActiveUserByUserKey("user-key-1")).thenReturn(user);
         when(passwordEncoder.matches("password123!", "encoded")).thenReturn(true);
         when(authTokenService.issueTokens(eq("user-key-1"), eq(1L), anyList()))
                 .thenReturn(TokenResponse.of("access", "refresh"));
 
-        TokenResponse response = authService.login(request);
+        TokenResponse response = authLoginService.login(request);
 
         assertThat(response.getAccessToken()).isEqualTo("access");
         verify(authTokenService).issueTokens("user-key-1", 1L, List.of("ROLE_USER", "ROLE_ADMIN"));
-    }
-
-    @Test
-    @DisplayName("비밀번호 재설정 요청은 PasswordResetService에 위임한다")
-    void requestPasswordResetDelegates() {
-        authService.requestPasswordReset("user@example.com");
-        verify(passwordResetService).requestPasswordReset("user@example.com");
-    }
-
-    @Test
-    @DisplayName("비밀번호 재설정 확인은 PasswordResetService에 위임한다")
-    void confirmPasswordResetDelegates() {
-        authService.confirmPasswordReset("reset-token", "new-password123");
-        verify(passwordResetService).confirmPasswordReset("reset-token", "new-password123");
-    }
-
-    @Test
-    @DisplayName("로그아웃은 AuthTokenService에 위임한다")
-    void logoutByUserKeyDelegates() {
-        authService.logoutByUserKey("user-key-7", "access-token-value");
-        verify(authTokenService).logoutByUserKey("user-key-7", "access-token-value");
     }
 
     @Test
@@ -158,12 +110,11 @@ class AuthServiceTest {
                 .passwordHash("encoded")
                 .build();
 
-        when(authIdentityReadService.findByEmail("user@example.com"))
-                .thenReturn(Optional.of(authUser));
+        when(authIdentityReadService.findByEmail("user@example.com")).thenReturn(Optional.of(authUser));
         when(activeUserReadService.getActiveUserByUserKey("user-key-1")).thenReturn(user);
         when(passwordEncoder.matches("wrong-password", "encoded")).thenReturn(false);
 
-        assertThatThrownBy(() -> authService.login(request))
+        assertThatThrownBy(() -> authLoginService.login(request))
                 .isInstanceOf(CustomException.class)
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.INVALID_CREDENTIALS);
