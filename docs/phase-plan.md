@@ -1227,6 +1227,7 @@ cd backend
 - `AuthService` 의 auth_users lookup hash read는 `AuthIdentityReadService` 로, 회원가입 저장+core sync 는 `UserRegistrationService` 로 분리해 인증 orchestration 과 auth identity read / signup write 경계를 분리
 - `PasswordResetService` 의 auth_users 이메일 lookup 도 같은 `AuthIdentityReadService` 로 통일
 - `UserReadService` 의 auth_users active 상태 검증도 `AuthIdentityReadService.requireActiveUserKey(...)` 로 이동하고, 더 이상 쓰지 않는 `AuthUserRepository` / profile/pii 저장소 직접 의존을 제거
+- `UserPiiBackfillService`, `UserPiiSyncProcessor` 의 app PII write 도 `UserPiiCommandService` 로 모아 backfill/sync 경로가 `UserPiiReadWriteRepository` 를 직접 두드리지 않도록 정리
 
 ## 2차로 분리된 항목
 

@@ -2,7 +2,6 @@ package com.example.welfare.user.service;
 
 import com.example.welfare.user.entity.UserPiiSyncQueue;
 import com.example.welfare.user.entity.UserPiiSyncQueueStatus;
-import com.example.welfare.user.repository.UserPiiReadWriteRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -22,7 +21,7 @@ class UserPiiSyncProcessorTest {
     private UserPiiSyncQueueService userPiiSyncQueueService;
 
     @Mock
-    private UserPiiReadWriteRepository userPiiReadWriteRepository;
+    private UserPiiCommandService userPiiCommandService;
 
     @Test
     @DisplayName("processor는 queue payload를 app_pii로 upsert하고 synced 상태로 마킹한다")
@@ -34,11 +33,11 @@ class UserPiiSyncProcessorTest {
 
         given(userPiiSyncQueueService.findOptional("user-key-1")).willReturn(Optional.of(queue));
 
-        UserPiiSyncProcessor processor = new UserPiiSyncProcessor(userPiiSyncQueueService, userPiiReadWriteRepository);
+        UserPiiSyncProcessor processor = new UserPiiSyncProcessor(userPiiSyncQueueService, userPiiCommandService);
 
         processor.process("user-key-1");
 
-        then(userPiiReadWriteRepository).should()
+        then(userPiiCommandService).should()
                 .upsertUserPii("user-key-1", "enc-email", "enc-name", "enc-birth", "enc-phone");
         assertThat(queue.getStatus()).isEqualTo(UserPiiSyncQueueStatus.SYNCED);
         assertThat(queue.getAttemptCount()).isEqualTo(1);
@@ -56,10 +55,11 @@ class UserPiiSyncProcessorTest {
         queue.enqueue("enc-email", "enc-name", "enc-birth", "enc-phone");
 
         given(userPiiSyncQueueService.findOptional("user-key-2")).willReturn(Optional.of(queue));
-        given(userPiiReadWriteRepository.upsertUserPii("user-key-2", "enc-email", "enc-name", "enc-birth", "enc-phone"))
-                .willThrow(new RuntimeException("app pii unavailable"));
+        org.mockito.BDDMockito.willThrow(new RuntimeException("app pii unavailable"))
+                .given(userPiiCommandService)
+                .upsertUserPii("user-key-2", "enc-email", "enc-name", "enc-birth", "enc-phone");
 
-        UserPiiSyncProcessor processor = new UserPiiSyncProcessor(userPiiSyncQueueService, userPiiReadWriteRepository);
+        UserPiiSyncProcessor processor = new UserPiiSyncProcessor(userPiiSyncQueueService, userPiiCommandService);
 
         processor.process("user-key-2");
 

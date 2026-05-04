@@ -5,7 +5,6 @@ import com.example.welfare.user.dto.response.UserPiiBackfillResponse;
 import com.example.welfare.user.repository.UserLegacyPiiSourceReadModel;
 import com.example.welfare.user.repository.UserPiiBackfillReadRepository;
 import com.example.welfare.user.repository.UserPiiBackfillStateReadModel;
-import com.example.welfare.user.repository.UserPiiReadWriteRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -19,7 +18,7 @@ import java.util.Map;
 public class UserPiiBackfillService {
 
     private final UserPiiBackfillReadRepository userPiiBackfillReadRepository;
-    private final UserPiiReadWriteRepository userPiiReadWriteRepository;
+    private final UserPiiCommandService userPiiCommandService;
     private final AesEncryptUtil aesEncryptUtil;
 
     public UserPiiBackfillResponse backfillMissingEncryptedFields() {
@@ -55,7 +54,7 @@ public class UserPiiBackfillService {
                 continue;
             }
 
-            userPiiReadWriteRepository.backfillEncryptedFields(state.userKey(), emailEnc, nameEnc, birthDateEnc);
+            userPiiCommandService.backfillEncryptedFields(state.userKey(), emailEnc, nameEnc, birthDateEnc);
             updatedUserCount++;
 
             if (emailEnc != null) {

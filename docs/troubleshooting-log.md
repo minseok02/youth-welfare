@@ -2736,3 +2736,8 @@
 - 문제: `UserReadService` 는 active userKey 검증을 위해 `AuthUserRepository.findByUserKey(...)` 를 직접 호출하고 있었고, 이미 aggregate read를 read repository 뒤로 옮긴 뒤에도 auth projection read 세부사항이 서비스 안에 남아 있었다. 게다가 이전 구조 변경 뒤에는 실제로 쓰지 않는 `UserProfileRepository`, `UserPiiReadWriteRepository` 직접 의존도 그대로 남아 있었다.
 - 해결: `AuthIdentityReadService.requireActiveUserKey(...)` 를 추가하고, `UserReadService.resolveActiveUserKey(...)` 를 이 read 경계로 교체했다. 함께 남아 있던 불필요한 `AuthUserRepository`, `UserProfileRepository`, `UserPiiReadWriteRepository` 직접 의존도 제거했다.
 - 이유: 사용자 읽기 서비스는 active user orchestration과 응답 조립에 집중하고, auth projection 조회/활성 상태 검증은 auth identity read 경계로 모아야 read 책임이 더 일관되고 생성자 의존도도 줄어든다.
+
+## 500) `UserPiiBackfillService` 와 `UserPiiSyncProcessor` 가 같은 `UserPiiReadWriteRepository` write를 직접 두드리면, app PII 쓰기 규칙이 backfill/sync 경로마다 다시 퍼진다
+- 문제: 백필 서비스는 `backfillEncryptedFields(...)` 를, sync processor는 `upsertUserPii(...)` 를 각각 직접 호출하고 있었다. 같은 `user_pii` write라도 경로마다 저장소 직접 의존이 남아 있어 write 정책을 공통 경계로 다루기 어려웠다.
+- 해결: `UserPiiCommandService` 를 추가하고, app PII upsert/backfill/delete write를 이 서비스로 모았다. `UserPiiBackfillService`, `UserPiiSyncProcessor` 는 이제 write 구현 대신 user pii command 경계에만 의존한다.
+- 이유: backfill/sync 같은 별도 작업 서비스는 암호화/큐 상태/집계에 집중하고, app PII write는 한 command 경계로 모아야 변경 영향 범위가 줄고 테스트도 단순해진다.
