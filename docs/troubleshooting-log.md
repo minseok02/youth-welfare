@@ -2796,3 +2796,8 @@
 - 문제: recommendation facade는 refresh cache hit 시 최신 저장 추천을 직접 읽고, `getRecommendations(...)` 도 top recommendation 목록을 저장소에서 직접 읽고 있었다. 이 상태면 추천 파이프라인 자체를 바꾸지 않아도 결과 목록 read 규칙이 달라질 때 facade 본문을 다시 열어야 한다.
 - 해결: `RecommendationResultReadRepository` / `RecommendationResultReadRepositoryImpl` 을 추가하고, 최신 저장 추천 조회와 top recommendation 목록 조회를 이 read 경계 뒤로 이동했다.
 - 이유: recommendation facade는 refresh cache reuse 판단과 추천 파이프라인 orchestration에 집중하고, 결과 목록 read 조합은 별도 repository로 내려야 facade 책임이 더 선명해진다.
+
+## 512) `ScoreWeightService` 가 `score_weights` 조회를 `ScoreWeightRepository` 에 직접 걸치면, cold-start stage 계산과 가중치 설정 read 규칙이 한 서비스 안에 다시 섞인다
+- 문제: score weight 서비스는 recommendation log 수 읽기는 이미 read repository로 뺐지만, 활성 가중치 목록 조회는 여전히 `ScoreWeightRepository.findByIsActiveTrueOrderByMinLogCountAsc()` 를 직접 호출하고 있었다. 이 상태면 cold-start stage 계산 자체를 바꾸지 않아도 가중치 설정 read 규칙이 달라질 때 서비스 본문을 다시 열어야 한다.
+- 해결: `ScoreWeightReadRepository` / `ScoreWeightReadRepositoryImpl` 을 추가하고, 활성 가중치 목록 조회를 이 read 경계 뒤로 이동했다.
+- 이유: score weight 서비스는 stage 계산과 progress resolution에 집중하고, 가중치 설정 read 규칙은 별도 repository로 내려야 책임이 더 선명해진다.

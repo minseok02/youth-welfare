@@ -4,7 +4,7 @@ import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.recommend.entity.ScoreWeight;
 import com.example.welfare.recommend.repository.RecommendationLogReadRepository;
-import com.example.welfare.recommend.repository.ScoreWeightRepository;
+import com.example.welfare.recommend.repository.ScoreWeightReadRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,7 +22,7 @@ import java.util.List;
 public class ScoreWeightService {
 
     private final RecommendationLogReadRepository recommendationLogReadRepository;
-    private final ScoreWeightRepository scoreWeightRepository;
+    private final ScoreWeightReadRepository scoreWeightReadRepository;
 
     @Transactional(readOnly = true)
     public ScoreWeight getActiveWeight() {
@@ -50,7 +50,7 @@ public class ScoreWeightService {
     }
 
     private List<ScoreWeight> getConfiguredActiveWeights() {
-        List<ScoreWeight> activeWeights = scoreWeightRepository.findByIsActiveTrueOrderByMinLogCountAsc();
+        List<ScoreWeight> activeWeights = scoreWeightReadRepository.findConfiguredActiveWeights();
         if (activeWeights.isEmpty()) {
             throw new CustomException(ErrorCode.SCORE_WEIGHT_NOT_CONFIGURED);
         }
