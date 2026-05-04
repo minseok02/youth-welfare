@@ -17,7 +17,14 @@ const router = createBrowserRouter([
   { path: "/reset-password", element: <ResetPasswordPage /> },
   { path: "/policies", element: <PoliciesPage /> },
   { path: "/policies/:id", element: <PolicyDetailPage /> },
-  { path: "/mypage", element: <MyPage /> },
+  {
+    path: "/mypage",
+    element: (
+      <RequireLogin>
+        <MyPage />
+      </RequireLogin>
+    ),
+  },
   {
     path: "/chat",
     element: (

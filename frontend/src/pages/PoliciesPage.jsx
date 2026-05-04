@@ -16,6 +16,7 @@ import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import Header from "../components/Header";
 import FloatingNav from "../components/FloatingNav";
+import IncomeCalculatorModal from "../components/IncomeCalculatorModal";
 import api from "../lib/axios";
 import { useAuthStore } from "../store/authStore";
 
@@ -68,7 +69,7 @@ const INCOME_ROWS = [
 
 const EMPLOY_OPTIONS = ["전체", "재직중", "구직중", "학생", "기타"];
 
-const SORT_MAP = { views: "VIEWS", latest: "LATEST", name: "NAME" };
+const SORT_MAP = { views: "VIEWS", latest: "LATEST", deadline: "DEADLINE" };
 
 const statusLabel = (status) => {
   if (status === "ACTIVE") return "진행중";
@@ -104,7 +105,8 @@ const mapPolicySummary = (policy) => ({
   title: policy.title,
   category: policy.unifiedCategory || "기타",
   dday: formatDday(policy.applyEndDate, policy.status) || statusLabel(policy.status),
-  source: policy.hostOrg || policy.applyMethodName || statusLabel(policy.status),
+  // source 우선순위: 주관기관 → 지역(복지로 지자체만 sido 있음) → 신청방법
+  source: policy.hostOrg || policy.sido || policy.applyMethodName || statusLabel(policy.status),
   summary: policy.description || "정책 설명 정보가 없습니다.",
   bookmarked: Boolean(policy.bookmarked),
 });
@@ -124,7 +126,7 @@ export default function PoliciesPage() {
   const [employ, setEmploy] = useState(searchParams.get("employ") || "전체");
   const [sourceType, setSourceType] = useState(searchParams.get("sourceType") || "전체");
   const [statusFilter, setStatusFilter] = useState(searchParams.get("statusFilter") || "신청가능");
-  const [sort, setSort] = useState(searchParams.get("sort") || "views");
+  const [sort, setSort] = useState(["views", "latest", "deadline"].includes(searchParams.get("sort")) ? searchParams.get("sort") : "views");
   const [pageSize, setPageSize] = useState(Number(searchParams.get("pageSize")) || 10);
   const [cols, setCols] = useState(1);
   const [page, setPage] = useState(Number(searchParams.get("page")) || 1);
@@ -133,6 +135,7 @@ export default function PoliciesPage() {
   const [loading, setLoading] = useState(false);
   const [totalCount, setTotalCount] = useState(0);
   const [toast, setToast] = useState({ open: false, msg: "", severity: "info" });
+  const [incomeCalcOpen, setIncomeCalcOpen] = useState(false);
 
   useEffect(() => {
     const params = {};
@@ -244,6 +247,7 @@ export default function PoliciesPage() {
     setEmploy("전체");
     setSourceType("전체");
     setStatusFilter("신청가능");
+    setSort("views");
     setPage(1);
   };
 
@@ -257,43 +261,44 @@ export default function PoliciesPage() {
           청년을 위한 복지정책을 찾아드려요
         </Typography>
 
-        {/* 검색창 */}
-        <Box sx={{ maxWidth: 640, mx: "auto", display: "flex", alignItems: "center", bgcolor: "white", borderRadius: 2, overflow: "hidden", boxShadow: 3, height: 48 }}>
-          <SearchIcon color="action" sx={{ ml: 1.5, flexShrink: 0 }} />
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter") setPage(1); }}
-            placeholder="검색어를 입력하세요"
-            style={{ flex: 1, border: "none", outline: "none", fontSize: 14, padding: "0 12px", height: "100%", background: "transparent" }}
-          />
-          <Button
-            variant="contained"
-            disableElevation
-            onClick={() => setPage(1)}
-            sx={{ borderRadius: 0, px: 3, height: "100%", fontSize: 14, flexShrink: 0 }}
-          >
-            검색
-          </Button>
-        </Box>
-
-        {/* 카테고리 선택 버튼 */}
-        <Box sx={{ maxWidth: 640, mx: "auto", mt: 1.5 }}>
-          <Button
-            size="small"
-            onClick={() => setFilterOpen((v) => !v)}
-            endIcon={filterOpen ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-            sx={{ color: "rgba(255,255,255,0.85)", border: "1px solid rgba(255,255,255,0.4)", borderRadius: 2, fontSize: 13 }}
-          >
-            카테고리 선택
-            {selectedCat && (
-              <Chip
-                label={CATEGORIES.find((c) => c.value === selectedCat)?.label}
-                size="small"
-                sx={{ ml: 1, height: 18, fontSize: 11, bgcolor: "rgba(255,255,255,0.25)", color: "white" }}
-              />
-            )}
-          </Button>
+        {/* 검색창 + 카테고리 — 하나의 흰 박스 */}
+        <Box sx={{ maxWidth: 640, mx: "auto", bgcolor: "white", borderRadius: 2, overflow: "hidden", boxShadow: 3 }}>
+          <Box sx={{ display: "flex", alignItems: "center", height: 48, borderBottom: "1px solid #f0f0f0" }}>
+            <SearchIcon color="action" sx={{ ml: 1.5, flexShrink: 0 }} />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") setPage(1); }}
+              placeholder="검색어를 입력하세요"
+              style={{ flex: 1, border: "none", outline: "none", fontSize: 14, padding: "0 12px", height: "100%", background: "transparent" }}
+            />
+            <Button
+              variant="contained"
+              disableElevation
+              onClick={() => setPage(1)}
+              sx={{ borderRadius: 0, px: 3, height: "100%", fontSize: 14, flexShrink: 0 }}
+            >
+              검색
+            </Button>
+          </Box>
+          <Box sx={{ px: 1.5, py: 0.75, bgcolor: "#f5f5f5", borderTop: "1px solid #e0e0e0", textAlign: "left" }}>
+            <Button
+              size="small"
+              onClick={() => setFilterOpen((v) => !v)}
+              endIcon={filterOpen ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+              sx={{ color: selectedCat ? "primary.main" : "text.secondary", fontWeight: selectedCat ? 700 : 400, fontSize: 13 }}
+            >
+              상세조건 선택
+              {selectedCat && (
+                <Chip
+                  label={CATEGORIES.find((c) => c.value === selectedCat)?.label}
+                  size="small"
+                  color="primary"
+                  sx={{ ml: 1, height: 18, fontSize: 11 }}
+                />
+              )}
+            </Button>
+          </Box>
         </Box>
 
         {/* 필터 패널 */}
@@ -324,7 +329,7 @@ export default function PoliciesPage() {
                   <Typography variant="caption" fontWeight={700} mb={0.5} display="block">지역</Typography>
                   <Box sx={{ display: "flex", gap: 1 }}>
                     <FormControl size="small" sx={{ flex: 1 }}>
-                      <Select value={region} onChange={(e) => { setRegion(e.target.value); setSubRegion("전체"); }}>
+                      <Select value={region} onChange={(e) => { const r = e.target.value; setRegion(r); setSubRegion("전체"); setSort(r !== "전체" ? "latest" : "views"); setPage(1); }}>
                         {REGIONS.map((r) => <MenuItem key={r} value={r}>{r}</MenuItem>)}
                       </Select>
                     </FormControl>
@@ -386,22 +391,32 @@ export default function PoliciesPage() {
                       ))}
                     </Box>
                   </Collapse>
+                  <Typography
+                    variant="caption"
+                    color="primary"
+                    sx={{ mt: 0.75, display: "block", cursor: "pointer", "&:hover": { textDecoration: "underline" } }}
+                    onClick={() => setIncomeCalcOpen(true)}
+                  >
+                    소득분위 확인하기
+                  </Typography>
                 </Box>
 
-                {/* 데이터 출처 */}
-                <Box>
-                  <Typography variant="caption" fontWeight={700} mb={0.5} display="block">데이터 출처</Typography>
-                  <RadioGroup row value={sourceType} onChange={(e) => setSourceType(e.target.value)}>
-                    {["전체", "온통청년", "복지로 중앙", "복지로 지자체"].map((o) => (
-                      <FormControlLabel
-                        key={o} value={o}
-                        control={<Radio size="small" sx={{ py: 0.3 }} />}
-                        label={<Typography variant="caption">{o}</Typography>}
-                        sx={{ mx: 0, mr: 1 }}
-                      />
-                    ))}
-                  </RadioGroup>
-                </Box>
+                {/* 데이터 출처 — 로그인 사용자만 */}
+                {isLoggedIn && (
+                  <Box>
+                    <Typography variant="caption" fontWeight={700} mb={0.5} display="block">데이터 출처</Typography>
+                    <RadioGroup row value={sourceType} onChange={(e) => setSourceType(e.target.value)}>
+                      {["전체", "온통청년", "복지로 중앙", "복지로 지자체"].map((o) => (
+                        <FormControlLabel
+                          key={o} value={o}
+                          control={<Radio size="small" sx={{ py: 0.3 }} />}
+                          label={<Typography variant="caption">{o}</Typography>}
+                          sx={{ mx: 0, mr: 1 }}
+                        />
+                      ))}
+                    </RadioGroup>
+                  </Box>
+                )}
 
                 {/* 취업상태 */}
                 <Box>
@@ -418,16 +433,20 @@ export default function PoliciesPage() {
                   </RadioGroup>
                 </Box>
 
-                {/* 신청 상태 필터 + 버튼 */}
+                {/* 신청 상태 필터 + 버튼 — 로그인 사용자만 */}
                 <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mt: "auto", pt: 1 }}>
-                  <Box>
-                    <Typography variant="caption" fontWeight={700} mb={0.5} display="block">신청 상태</Typography>
-                    <RadioGroup row value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}>
-                      {["신청가능", "마감", "전부표기"].map((o) => (
-                        <FormControlLabel key={o} value={o} control={<Radio size="small" />} label={<Typography variant="caption">{o}</Typography>} sx={{ mr: 0.5 }} />
-                      ))}
-                    </RadioGroup>
-                  </Box>
+                  {isLoggedIn ? (
+                    <Box>
+                      <Typography variant="caption" fontWeight={700} mb={0.5} display="block">신청 상태</Typography>
+                      <RadioGroup row value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}>
+                        {["신청가능", "마감", "전부표기"].map((o) => (
+                          <FormControlLabel key={o} value={o} control={<Radio size="small" />} label={<Typography variant="caption">{o}</Typography>} sx={{ mr: 0.5 }} />
+                        ))}
+                      </RadioGroup>
+                    </Box>
+                  ) : (
+                    <Box />
+                  )}
                   <Box sx={{ display: "flex", gap: 1 }}>
                     <Button variant="contained" size="small" onClick={handleApplyFilter}>필터 적용</Button>
                     <Button variant="outlined" size="small" onClick={handleResetFilter}>초기화</Button>
@@ -450,7 +469,7 @@ export default function PoliciesPage() {
             <Select value={sort} onChange={(e) => { setSort(e.target.value); setPage(1); }} sx={{ fontSize: 13 }}>
               <MenuItem value="views">조회수순</MenuItem>
               <MenuItem value="latest">최신순</MenuItem>
-              <MenuItem value="name">이름순</MenuItem>
+              <MenuItem value="deadline">마감임박순</MenuItem>
             </Select>
           </FormControl>
           <Typography variant="body2" color="text.secondary">표시:</Typography>
@@ -554,6 +573,11 @@ export default function PoliciesPage() {
         )}
       </Container>
 
+      <IncomeCalculatorModal
+        open={incomeCalcOpen}
+        onClose={() => setIncomeCalcOpen(false)}
+        onSelect={(value) => { setIncome(value); setIncomeOpen(false); }}
+      />
       <Snackbar
         open={toast.open}
         autoHideDuration={3000}

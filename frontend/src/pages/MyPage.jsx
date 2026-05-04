@@ -13,6 +13,7 @@ import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
 import BookmarkIcon from "@mui/icons-material/Bookmark";
 import Header from "../components/Header";
 import FloatingNav from "../components/FloatingNav";
+import IncomeCalculatorModal from "../components/IncomeCalculatorModal";
 import api from "../lib/axios";
 import { performServerLogout } from "../lib/session";
 import { useAuthStore } from "../store/authStore";
@@ -184,6 +185,7 @@ export default function MyPage() {
   // 필터 기본값
   const [filterIncludeExpired, setFilterIncludeExpired] = useState(filterSettings?.includeExpired ?? false);
   const [filterSources, setFilterSources] = useState({ 온통청년: true, "복지로 중앙": true, "복지로 지자체": true });
+  const [incomeCalcOpen, setIncomeCalcOpen] = useState(false);
 
   // 계정 탭
   const [currPw, setCurrPw] = useState("");
@@ -451,6 +453,14 @@ export default function MyPage() {
                   </Box>
                 ))}
               </Box>
+              <Typography
+                variant="caption"
+                color="primary"
+                sx={{ mt: 0.75, display: "block", cursor: "pointer", "&:hover": { textDecoration: "underline" } }}
+                onClick={() => setIncomeCalcOpen(true)}
+              >
+                소득분위 확인하기
+              </Typography>
             </Box>
 
             {/* 취업상태 */}
@@ -724,6 +734,15 @@ export default function MyPage() {
           </Box>
         )}
       </Container>
+
+      <IncomeCalculatorModal
+        open={incomeCalcOpen}
+        onClose={() => setIncomeCalcOpen(false)}
+        onSelect={(value) => {
+          setMyInfo((prev) => ({ ...prev, income: value }));
+          setEditing(true);
+        }}
+      />
 
       {/* 재로그인 모달 */}
       <Dialog open={reloginModal} onClose={() => setReloginModal(false)} maxWidth="xs" fullWidth>

@@ -4,6 +4,7 @@ import com.example.welfare.global.util.RegionCodeUtil;
 import com.example.welfare.policy.entity.WelfareService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
 
@@ -16,20 +17,23 @@ public class WelfareServiceReadRepositoryImpl implements WelfareServiceReadRepos
     @Override
     public Page<WelfareService> findList(PolicyListReadCondition condition, Pageable pageable) {
         String sido = condition.sido();
-        // 온통청년은 sido_name/sgg_name이 NULL이고 region_code만 저장되므로 행정코드 경로도 함께 전달
         String sidoCode = RegionCodeUtil.getSidoCode(sido);
         String regionCode = RegionCodeUtil.getRegionCode(sido, condition.sgg());
+        Integer onlineApplyInt = condition.onlineApply() == null ? null : (condition.onlineApply() ? 1 : 0);
+        // native query handles ORDER BY — pass unsorted pageable for page/size only
+        Pageable unsorted = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize());
         return welfareServiceRepository.findListWithFilters(
                 condition.category(),
-                condition.sourceType(),
-                condition.status(),
+                condition.sourceType() != null ? condition.sourceType().name() : null,
+                condition.status() != null ? condition.status().name() : null,
                 condition.statusFilter(),
                 sido,
                 condition.sgg(),
                 sidoCode,
                 regionCode,
-                condition.onlineApply(),
-                pageable
+                onlineApplyInt,
+                condition.sort(),
+                unsorted
         );
     }
 

@@ -527,6 +527,7 @@ public void resetAiScoreForClosed() {
   - `unifiedCategory`
   - `status`
   - `hostOrg`
+  - `sido` (nullable — BOKJIRO_LOCAL만 값 있음, YOUTH·BOKJIRO_CENTRAL은 null)
   - `applyMethodName`
   - `youthMajorLabel` (nullable, canonical summary)
   - `youthMidLabel` (nullable, canonical summary)
@@ -541,6 +542,11 @@ public void resetAiScoreForClosed() {
 - `bookmarked`
   - 로그인 사용자면 최신 북마크 상태 기준
   - 비로그인이면 항상 `false`
+- `sido` 추가 배경 (2026-05-04)
+  - 카드 source 필드가 hostOrg 없을 때 applyMethodName("방문, 인터넷")으로 폴백해 의미 없는 값을 표시하던 문제
+  - 상세 API는 service_regions 테이블을 JOIN해 지역명이 나오지만 목록 API는 포함하지 않았음
+  - BOKJIRO_LOCAL 1,223개 정책이 sido_name 있고 hostOrg 없음 → 해당 정책의 카드에만 실효
+  - 프론트 source 폴백 순서: hostOrg → sido → applyMethodName
 
 ### `GET /api/policies/search`
 

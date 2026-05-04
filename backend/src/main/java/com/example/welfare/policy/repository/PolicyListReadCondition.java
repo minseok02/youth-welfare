@@ -10,6 +10,8 @@ public record PolicyListReadCondition(
         String statusFilter,
         String sido,
         String sgg,
-        Boolean onlineApply
+        Boolean onlineApply,
+        // LATEST / VIEWS / NAME
+        String sort
 ) {
 }

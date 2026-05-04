@@ -20,14 +20,13 @@ import com.example.welfare.recommend.facade.RecommendationReadFacade;
 import com.example.welfare.recommend.repository.CanonicalRecommendationReadModelRepository;
 import com.example.welfare.recommend.service.RecommendationBookmarkCommandService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 @Service
@@ -54,7 +53,7 @@ public class PolicyService {
                                                Boolean onlineApply,
                                                String sort,
                                                Pageable pageable) {
-        // sidoCode/regionCode 계산은 WelfareServiceReadRepositoryImpl에서 처리
+        // sidoCode/regionCode 계산 및 sort는 WelfareServiceReadRepositoryImpl에서 처리
         Page<WelfareService> page = welfareServiceReadRepository.findList(
                 new PolicyListReadCondition(
                         normalizeNullable(category),
@@ -63,17 +62,20 @@ public class PolicyService {
                         normalizeStatusFilter(statusFilter),
                         normalizeNullable(sido),
                         normalizeNullable(sgg),
-                        onlineApply
+                        onlineApply,
+                        normalizeSort(sort)
                 ),
-                buildPageable(pageable, sort)
+                pageable
         );
 
         Set<Long> bookmarkedServiceIds = recommendationReadFacade.findBookmarkedServiceIds(userId, page.getContent());
         java.util.Map<Long, RecommendationCandidateProjection> projections = loadProjections(page.getContent());
+        Map<Long, String> sidoMap = buildSidoMap(page.getContent());
         return page.map(service -> PolicySummaryResponse.from(
                 service,
                 bookmarkedServiceIds.contains(service.getId()),
-                projections.get(service.getId())
+                projections.get(service.getId()),
+                sidoMap.get(service.getId())
         ));
     }
 
@@ -110,21 +112,26 @@ public class PolicyService {
         );
     }
 
-    private Pageable buildPageable(Pageable pageable, String sort) {
-        Sort resolvedSort = switch (normalizeSort(sort)) {
-            case "VIEWS" -> Sort.by(Sort.Order.desc("viewCount"), Sort.Order.desc("createdAt"));
-            case "NAME" -> Sort.by(Sort.Order.asc("title"), Sort.Order.desc("createdAt"));
-            default -> Sort.by(Sort.Order.desc("createdAt"));
-        };
-
-        return PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), resolvedSort);
+    // 카드 source 표시: hostOrg 없는 복지로 지자체 정책에 sido 제공 (B안)
+    // BOKJIRO_LOCAL만 sido_name이 있고, YOUTH는 region_code만 있어 sido_name=NULL → 이 맵에 안 잡힘
+    private Map<Long, String> buildSidoMap(List<WelfareService> services) {
+        if (services == null || services.isEmpty()) return Map.of();
+        List<Long> ids = services.stream().map(WelfareService::getId).toList();
+        return regionRepository.findFirstSidoByServiceIds(ids).stream()
+                .collect(java.util.stream.Collectors.toMap(
+                        row -> ((Number) row[0]).longValue(),
+                        row -> (String) row[1],
+                        (a, b) -> a
+                ));
     }
 
     private String normalizeSort(String sort) {
         if (sort == null || sort.isBlank()) return "LATEST";
         String upper = sort.trim().toUpperCase();
         return switch (upper) {
-            case "LATEST", "VIEWS", "NAME" -> upper;
+            case "LATEST", "VIEWS", "DEADLINE" -> upper;
+            // NAME: UI 정렬 옵션에서는 제거됐지만 코드는 유지 (API 호환성)
+            case "NAME" -> upper;
             default -> throw new CustomException(ErrorCode.INVALID_INPUT);
         };
     }
