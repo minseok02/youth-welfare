@@ -24,7 +24,12 @@ public abstract class AbstractListCollectSourceAdapter<T> implements CollectSour
 
         for (T item : items) {
             try {
-                saveRawPayload(item);
+                if (!saveRawPayload(item)) {
+                    failed++;
+                    log.warn("[CollectSourceAdapter][{}] raw 저장 실패 {}={}",
+                            source().jobName(), failureIdLabel(), itemId(item));
+                    continue;
+                }
                 if (!isValid(item)) {
                     skipped++;
                     continue;
@@ -51,7 +56,7 @@ public abstract class AbstractListCollectSourceAdapter<T> implements CollectSour
 
     protected abstract void recordStats(List<T> items, FieldQualityStats stats);
 
-    protected abstract void saveRawPayload(T item);
+    protected abstract boolean saveRawPayload(T item);
 
     protected abstract boolean isValid(T item);
 

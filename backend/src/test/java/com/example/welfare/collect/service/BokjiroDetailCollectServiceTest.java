@@ -23,6 +23,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.lenient;
@@ -63,6 +64,8 @@ class BokjiroDetailCollectServiceTest {
                 .thenReturn(List.of());
         lenient().when(bokjiroDetailReadRepository.findTargetsBySourceType(WelfareService.SourceType.BOKJIRO_LOCAL))
                 .thenReturn(List.of());
+        lenient().when(rawApiPayloadService.saveBokjiroDetail(any(), anyString(), any()))
+                .thenReturn(true);
     }
 
     @Test
@@ -317,6 +320,39 @@ class BokjiroDetailCollectServiceTest {
         verify(rawApiPayloadService)
                 .saveBokjiroDetail(WelfareService.SourceType.BOKJIRO_CENTRAL, "CENTRAL-42", succeedingPayload);
         verify(collectPolicyAggregateApplyService).applyCollectedDetail(eq(failingService), eq(null), any());
+        verify(collectPolicyAggregateApplyService).applyCollectedDetail(eq(succeedingService), any(), any());
+    }
+
+    @Test
+    @DisplayName("detail raw 저장 실패도 failed count 로 집계하고 다음 정책은 계속 처리한다")
+    void collectBokjiroDetailsContinuesAfterRawSaveFailure() {
+        WelfareService failingService = welfareService(51L, WelfareService.SourceType.BOKJIRO_CENTRAL, "CENTRAL-51");
+        WelfareService succeedingService = welfareService(52L, WelfareService.SourceType.BOKJIRO_CENTRAL, "CENTRAL-52");
+        BokjiroDetailClient.DetailPayload failingPayload = BokjiroDetailClient.DetailPayload.builder()
+                .supportDetail("실패 raw")
+                .build();
+        BokjiroDetailClient.DetailPayload succeedingPayload = BokjiroDetailClient.DetailPayload.builder()
+                .supportDetail("성공 raw")
+                .build();
+
+        given(bokjiroDetailReadRepository.findTargetsBySourceType(WelfareService.SourceType.BOKJIRO_CENTRAL))
+                .willReturn(List.of(failingService, succeedingService));
+        given(bokjiroDetailReadRepository.existsDetailByServiceId(any())).willReturn(false);
+        given(detailClient.fetchCentralWithStatus("CENTRAL-51"))
+                .willReturn(BokjiroDetailClient.FetchResult.success(failingPayload));
+        given(detailClient.fetchCentralWithStatus("CENTRAL-52"))
+                .willReturn(BokjiroDetailClient.FetchResult.success(succeedingPayload));
+        given(rawApiPayloadService.saveBokjiroDetail(WelfareService.SourceType.BOKJIRO_CENTRAL, "CENTRAL-51", failingPayload))
+                .willReturn(false);
+        given(rawApiPayloadService.saveBokjiroDetail(WelfareService.SourceType.BOKJIRO_CENTRAL, "CENTRAL-52", succeedingPayload))
+                .willReturn(true);
+
+        CollectResult result = service.collectBokjiroDetailsResult(2);
+
+        assertThat(result.requestedCount()).isEqualTo(2);
+        assertThat(result.savedCount()).isEqualTo(1);
+        assertThat(result.failedCount()).isEqualTo(1);
+        verify(collectPolicyAggregateApplyService, never()).applyCollectedDetail(eq(failingService), any(), any());
         verify(collectPolicyAggregateApplyService).applyCollectedDetail(eq(succeedingService), any(), any());
     }
 

@@ -183,6 +183,40 @@ class RecommendationGenerationServiceTest {
     }
 
     @Test
+    @DisplayName("저장 후 로그 후처리가 실패해도 저장 추천은 그대로 반환하고 refresh 마커는 유지한다")
+    void recommendReturnsSavedRecommendationsWhenLogRefreshFails() {
+        User user = sampleUser();
+        RecommendationUserSnapshot snapshot = sampleSnapshot();
+        WelfareService service = sampleService();
+        RetrievedRecommendationCandidates retrieved = new RetrievedRecommendationCandidates(List.of(service), null);
+        ScoredCandidate scored = sampleScoredCandidate(service);
+        ScoreWeight weight = sampleWeight();
+        UserRecommendation saved = sampleRecommendation(404L);
+
+        when(userRecommendationReadService.getRecommendationContext(1L))
+                .thenReturn(new UserRecommendationReadService.RecommendationReadContext(user, snapshot));
+        when(recommendationExecutionGuard.runForUser(eq("user-key-1"), any(), any()))
+                .thenAnswer(invocation -> invocation.<java.util.function.Supplier<List<UserRecommendation>>>getArgument(1).get());
+        when(recommendationRefreshCacheService.findReusableRecommendedAt("user-key-1"))
+                .thenReturn(Optional.empty());
+        when(clusterService.assignCluster(snapshot)).thenReturn("youth_all");
+        when(retrievalService.retrieve("youth_all", snapshot)).thenReturn(retrieved);
+        when(ruleScoringService.score(retrieved, snapshot)).thenReturn(List.of(scored));
+        when(recommendationPostScoringFilterService.filterSpecialTargetMismatches(List.of(scored))).thenReturn(List.of(scored));
+        when(aiScoringService.score("youth_all", List.of(scored), snapshot)).thenReturn(List.of(scored));
+        when(reRankingService.rerank(List.of(scored))).thenReturn(List.of(scored));
+        when(reRankingService.getCurrentWeight()).thenReturn(weight);
+        when(recommendationPersistenceService.save(user, List.of(scored), weight)).thenReturn(List.of(saved));
+        org.mockito.Mockito.doThrow(new IllegalStateException("log failed"))
+                .when(recommendationLogService).refreshLogs(user, List.of(saved), weight);
+
+        List<UserRecommendation> result = recommendationGenerationService.recommend(1L, false);
+
+        assertThat(result).containsExactly(saved);
+        verify(recommendationRefreshCacheService).markReusable("user-key-1", saved.getRecommendedAt());
+    }
+
+    @Test
     @DisplayName("같은 사용자 추천 생성이 진행 중이고 저장 결과도 없으면 R003 을 던진다")
     void recommendThrowsWhenExecutionBusyAndNoFallbackResult() {
         User user = sampleUser();

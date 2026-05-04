@@ -20,6 +20,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -50,8 +51,9 @@ class RawApiPayloadServiceTest {
         ReflectionTestUtils.setField(item, "servId", "WLF00000060");
         ReflectionTestUtils.setField(item, "servNm", "청년내일저축계좌");
 
-        rawApiPayloadService.saveList(binding, item);
+        boolean saved = rawApiPayloadService.saveList(binding, item);
 
+        assertThat(saved).isTrue();
         verify(rawApiPayloadCommandRepository).upsert(
                 org.mockito.Mockito.eq(WelfareService.SourceType.BOKJIRO_CENTRAL),
                 org.mockito.Mockito.eq("WLF00000060"),
@@ -68,8 +70,9 @@ class RawApiPayloadServiceTest {
         ListCollectSourceBinding<BokjiroCentralDto.Item> binding = ListCollectSourceBindings.bokjiroCentral(welfareServiceMapper);
         ReflectionTestUtils.setField(item, "servNm", "이름만 있는 정책");
 
-        rawApiPayloadService.saveList(binding, item);
+        boolean saved = rawApiPayloadService.saveList(binding, item);
 
+        assertThat(saved).isFalse();
         verifyNoInteractions(rawApiPayloadCommandRepository);
     }
 
@@ -93,8 +96,9 @@ class RawApiPayloadServiceTest {
                 ignored -> NormalizedPolicyAggregate.builder().build()
         );
 
-        rawApiPayloadService.saveList(binding, item);
+        boolean saved = rawApiPayloadService.saveList(binding, item);
 
+        assertThat(saved).isTrue();
         verify(rawApiPayloadCommandRepository).upsert(
                 org.mockito.Mockito.eq(WelfareService.SourceType.YOUTH),
                 org.mockito.Mockito.eq("Y-SYN-RAW-1"),
@@ -103,6 +107,27 @@ class RawApiPayloadServiceTest {
                 any(String.class),
                 any(java.time.LocalDateTime.class)
         );
+    }
+
+    @Test
+    @DisplayName("upsert 실패는 false 를 반환해 호출자가 partial failure 로 집계할 수 있게 한다")
+    void saveReturnsFalseWhenUpsertFails() {
+        BokjiroCentralDto.Item item = new BokjiroCentralDto.Item();
+        ListCollectSourceBinding<BokjiroCentralDto.Item> binding = ListCollectSourceBindings.bokjiroCentral(welfareServiceMapper);
+        ReflectionTestUtils.setField(item, "servId", "WLF00000061");
+        ReflectionTestUtils.setField(item, "servNm", "청년적금");
+        given(rawApiPayloadCommandRepository.upsert(
+                org.mockito.Mockito.eq(WelfareService.SourceType.BOKJIRO_CENTRAL),
+                org.mockito.Mockito.eq("WLF00000061"),
+                org.mockito.Mockito.eq(com.example.welfare.collect.entity.RawApiPayload.ApiCategory.LIST),
+                any(String.class),
+                any(String.class),
+                any(java.time.LocalDateTime.class)
+        )).willThrow(new IllegalStateException("upsert failed"));
+
+        boolean saved = rawApiPayloadService.saveList(binding, item);
+
+        assertThat(saved).isFalse();
     }
 
     private record SyntheticItem(String sourceId, String title) {

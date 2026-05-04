@@ -43,8 +43,8 @@ public class YouthCollectSourceAdapter extends AbstractListCollectSourceAdapter<
     }
 
     @Override
-    protected void saveRawPayload(YouthApiDto.Item item) {
-        rawApiPayloadService.saveList(binding(), item);
+    protected boolean saveRawPayload(YouthApiDto.Item item) {
+        return rawApiPayloadService.saveList(binding(), item);
     }
 
     @Override

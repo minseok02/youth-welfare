@@ -224,7 +224,13 @@ public class BokjiroDetailCollectService {
                 continue;
             }
 
-            rawApiPayloadService.saveBokjiroDetail(service.getSourceType(), service.getSourceId(), payload);
+            boolean rawSaved = rawApiPayloadService.saveBokjiroDetail(service.getSourceType(), service.getSourceId(), payload);
+            if (!rawSaved) {
+                failed++;
+                log.warn("[BokjiroDetailCollectService] raw detail 저장 실패 serviceId={} sourceType={} refreshExisting={}",
+                        service.getId(), service.getSourceType(), refreshExisting);
+                continue;
+            }
 
             try {
                 NormalizedPolicyAggregate aggregate = capability.toAggregate(service, payload);

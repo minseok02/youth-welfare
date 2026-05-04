@@ -45,8 +45,8 @@ public class BokjiroLocalCollectSourceAdapter extends AbstractListCollectSourceA
     }
 
     @Override
-    protected void saveRawPayload(BokjiroLocalDto.Item item) {
-        rawApiPayloadService.saveList(binding(), item);
+    protected boolean saveRawPayload(BokjiroLocalDto.Item item) {
+        return rawApiPayloadService.saveList(binding(), item);
     }
 
     @Override

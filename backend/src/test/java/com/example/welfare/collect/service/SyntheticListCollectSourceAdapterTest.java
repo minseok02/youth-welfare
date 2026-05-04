@@ -12,10 +12,10 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.same;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 class SyntheticListCollectSourceAdapterTest {
 
@@ -52,6 +52,7 @@ class SyntheticListCollectSourceAdapterTest {
                 saver,
                 rawApiPayloadService
         );
+        when(rawApiPayloadService.saveList(same(binding), same(item))).thenReturn(true);
 
         CollectResult result = adapter.collect();
 
@@ -98,8 +99,8 @@ class SyntheticListCollectSourceAdapterTest {
                 saver,
                 rawApiPayloadService
         );
-        doThrow(new IllegalStateException("raw payload failed"))
-                .when(rawApiPayloadService).saveList(same(binding), same(failedItem));
+        when(rawApiPayloadService.saveList(same(binding), same(failedItem))).thenReturn(false);
+        when(rawApiPayloadService.saveList(same(binding), same(successItem))).thenReturn(true);
 
         CollectResult result = adapter.collect();
 
@@ -145,8 +146,8 @@ class SyntheticListCollectSourceAdapterTest {
         }
 
         @Override
-        protected void saveRawPayload(SyntheticItem item) {
-            rawApiPayloadService.saveList(binding, item);
+        protected boolean saveRawPayload(SyntheticItem item) {
+            return rawApiPayloadService.saveList(binding, item);
         }
 
         @Override

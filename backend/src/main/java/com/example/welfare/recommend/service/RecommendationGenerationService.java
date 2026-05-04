@@ -87,9 +87,19 @@ public class RecommendationGenerationService {
         ScoreWeight weight = reRankingService.getCurrentWeight();
         List<UserRecommendation> saved = recommendationPersistenceService.save(user, reranked, weight);
 
-        recommendationLogService.refreshLogs(user, saved, weight);
+        if (saved.isEmpty()) {
+            log.warn("[RecommendationGenerationService] 저장 결과가 비어 후처리를 생략합니다. userKey={}", userKey);
+            recommendationRefreshCacheService.evict(userKey);
+            return saved;
+        }
+
+        try {
+            recommendationLogService.refreshLogs(user, saved, weight);
+        } catch (Exception e) {
+            log.warn("[RecommendationGenerationService] 로그 후처리 실패 userKey={} err={}", userKey, e.getMessage());
+        }
         if (!personal) {
-            recommendationRefreshCacheService.markReusable(userKey, saved.isEmpty() ? null : saved.get(0).getRecommendedAt());
+            recommendationRefreshCacheService.markReusable(userKey, saved.get(0).getRecommendedAt());
         }
         return saved;
     }

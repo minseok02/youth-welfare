@@ -19,8 +19,10 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -118,6 +120,25 @@ class RecommendationPersistenceServiceTest {
         assertThat(saved).hasSize(1);
         assertThat(saved.get(0).isBookmarked()).isTrue();
         assertThat(saved.get(0).getUserKey()).isEqualTo("user-key-7");
+    }
+
+    @Test
+    @DisplayName("빈 추천 입력이면 기존 추천을 지우지 않고 빈 결과를 반환한다")
+    void saveSkipsReplaceWhenCandidatesEmpty() {
+        User user = User.builder().id(7L).userKey("user-key-7").build();
+        ScoreWeight weight = ScoreWeight.builder()
+                .weightKey("COLD_START")
+                .ruleWeight(BigDecimal.valueOf(0.8))
+                .aiWeight(BigDecimal.valueOf(0.2))
+                .minLogCount(0)
+                .isActive(true)
+                .build();
+
+        List<UserRecommendation> saved = recommendationPersistenceService.save(user, List.of(), weight);
+
+        assertThat(saved).isEmpty();
+        verify(recommendationBookmarkStateReadService, never()).findLatestBookmarkStateByServiceId(any());
+        verify(recommendationPersistenceCommandRepository, never()).replaceAllForUser(any(), anyList());
     }
 
 }
