@@ -383,7 +383,19 @@ CREATE TABLE IF NOT EXISTS service_view_logs (
     CONSTRAINT fk_svl_service FOREIGN KEY (service_id) REFERENCES welfare_services(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- 13. search_logs (검색 로그)
+-- 13. collect_execution_locks (멀티 인스턴스 수집 중복 방지)
+CREATE TABLE IF NOT EXISTS collect_execution_locks (
+    lock_name    VARCHAR(100) NOT NULL,
+    owner_token  VARCHAR(64)  NOT NULL,
+    locked_until DATETIME     NOT NULL,
+    acquired_at  DATETIME     NOT NULL,
+    created_at   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (lock_name),
+    KEY idx_cel_locked_until (locked_until)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 14. search_logs (검색 로그)
 CREATE TABLE IF NOT EXISTS search_logs (
     id                 BIGINT       NOT NULL AUTO_INCREMENT,
     user_key           CHAR(32),
@@ -407,7 +419,7 @@ CREATE TABLE IF NOT EXISTS search_logs (
     KEY idx_sl_keyword_searched (keyword, searched_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- 14. notifications (알림 발송 이력 헤더)
+-- 15. notifications (알림 발송 이력 헤더)
 CREATE TABLE IF NOT EXISTS notifications (
     id             BIGINT       NOT NULL AUTO_INCREMENT,
     user_key       CHAR(32)     NOT NULL,
@@ -429,7 +441,7 @@ CREATE TABLE IF NOT EXISTS notifications (
     KEY idx_noti_retry (status, next_retry_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- 15. notification_services (알림-정책 매핑)
+-- 16. notification_services (알림-정책 매핑)
 CREATE TABLE IF NOT EXISTS notification_services (
     id                    BIGINT       NOT NULL AUTO_INCREMENT,
     notification_id       BIGINT       NOT NULL,
@@ -449,7 +461,7 @@ CREATE TABLE IF NOT EXISTS notification_services (
     CONSTRAINT fk_ns_log FOREIGN KEY (recommendation_log_id) REFERENCES recommendation_logs(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- 16. cluster_ai_results (군집별 AI 점수 캐시 — 2차)
+-- 17. cluster_ai_results (군집별 AI 점수 캐시 — 2차)
 CREATE TABLE IF NOT EXISTS cluster_ai_results (
     id            BIGINT          NOT NULL AUTO_INCREMENT,
     cluster_id    VARCHAR(50)     NOT NULL,
@@ -463,7 +475,7 @@ CREATE TABLE IF NOT EXISTS cluster_ai_results (
     CONSTRAINT fk_car_service FOREIGN KEY (service_id) REFERENCES welfare_services(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- 17. chat_sessions (챗 세션 헤더)
+-- 18. chat_sessions (챗 세션 헤더)
 CREATE TABLE IF NOT EXISTS chat_sessions (
     id              BIGINT       NOT NULL AUTO_INCREMENT,
     user_key        CHAR(32)     NOT NULL,
@@ -476,7 +488,7 @@ CREATE TABLE IF NOT EXISTS chat_sessions (
     KEY idx_cs_user_key_created (user_key, created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- 18. chat_messages (챗 세션 메시지)
+-- 19. chat_messages (챗 세션 메시지)
 CREATE TABLE IF NOT EXISTS chat_messages (
     id                     BIGINT       NOT NULL AUTO_INCREMENT,
     session_id             BIGINT       NOT NULL,
