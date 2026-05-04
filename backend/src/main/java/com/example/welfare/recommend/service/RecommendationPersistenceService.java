@@ -4,6 +4,7 @@ import com.example.welfare.recommend.dto.ScoredCandidate;
 import com.example.welfare.recommend.entity.ScoreWeight;
 import com.example.welfare.recommend.entity.UserRecommendation;
 import com.example.welfare.recommend.repository.RecommendationPersistenceCommandRepository;
+import com.example.welfare.recommend.repository.RecommendationResultReadRepository;
 import com.example.welfare.user.entity.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -25,12 +26,13 @@ import java.util.stream.Collectors;
 public class RecommendationPersistenceService {
 
     private final RecommendationPersistenceCommandRepository recommendationPersistenceCommandRepository;
+    private final RecommendationResultReadRepository recommendationResultReadRepository;
 
     @Transactional
     public List<UserRecommendation> save(User user, List<ScoredCandidate> candidates, ScoreWeight weight) {
         // 북마크 상태를 먼저 보존 (serviceId → bookmarked)
-        Map<Long, Boolean> bookmarkStateByServiceId = recommendationPersistenceCommandRepository
-                .findLatestByUserKey(user.getUserKey())
+        Map<Long, Boolean> bookmarkStateByServiceId = recommendationResultReadRepository
+                .findLatestRecommendationRows(user.getUserKey())
                 .stream()
                 .collect(Collectors.toMap(
                         rec -> rec.getService().getId(),

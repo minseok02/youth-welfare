@@ -6,6 +6,8 @@ import java.util.List;
 
 public interface RecommendationResultReadRepository {
 
+    List<UserRecommendation> findLatestRecommendationRows(String userKey);
+
     List<UserRecommendation> findLatestSavedRecommendations(String userKey);
 
     List<UserRecommendation> findTopRecommendations(String userKey, int size);

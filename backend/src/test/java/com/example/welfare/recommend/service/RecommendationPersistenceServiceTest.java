@@ -5,6 +5,7 @@ import com.example.welfare.recommend.dto.ScoredCandidate;
 import com.example.welfare.recommend.entity.ScoreWeight;
 import com.example.welfare.recommend.entity.UserRecommendation;
 import com.example.welfare.recommend.repository.RecommendationPersistenceCommandRepository;
+import com.example.welfare.recommend.repository.RecommendationResultReadRepository;
 import com.example.welfare.user.entity.User;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -28,6 +29,8 @@ class RecommendationPersistenceServiceTest {
 
     @Mock
     private RecommendationPersistenceCommandRepository recommendationPersistenceCommandRepository;
+    @Mock
+    private RecommendationResultReadRepository recommendationResultReadRepository;
 
     @InjectMocks
     private RecommendationPersistenceService recommendationPersistenceService;
@@ -60,13 +63,13 @@ class RecommendationPersistenceServiceTest {
                 .isActive(true)
                 .build();
 
-        when(recommendationPersistenceCommandRepository.findLatestByUserKey("user-key-7")).thenReturn(List.of());
+        when(recommendationResultReadRepository.findLatestRecommendationRows("user-key-7")).thenReturn(List.of());
         when(recommendationPersistenceCommandRepository.replaceAllForUser(org.mockito.ArgumentMatchers.eq("user-key-7"), anyList()))
                 .thenAnswer(invocation -> invocation.getArgument(1));
 
         recommendationPersistenceService.save(user, List.of(candidate), weight);
 
-        verify(recommendationPersistenceCommandRepository).findLatestByUserKey("user-key-7");
+        verify(recommendationResultReadRepository).findLatestRecommendationRows("user-key-7");
         ArgumentCaptor<List> captor = ArgumentCaptor.forClass(List.class);
         verify(recommendationPersistenceCommandRepository).replaceAllForUser(org.mockito.ArgumentMatchers.eq("user-key-7"), captor.capture());
         assertThat(captor.getValue()).hasSize(1);
@@ -105,7 +108,7 @@ class RecommendationPersistenceServiceTest {
                 .isActive(true)
                 .build();
 
-        when(recommendationPersistenceCommandRepository.findLatestByUserKey("user-key-7"))
+        when(recommendationResultReadRepository.findLatestRecommendationRows("user-key-7"))
                 .thenReturn(List.of(latestRecommendation));
         when(recommendationPersistenceCommandRepository.replaceAllForUser(org.mockito.ArgumentMatchers.eq("user-key-7"), anyList()))
                 .thenAnswer(invocation -> invocation.getArgument(1));

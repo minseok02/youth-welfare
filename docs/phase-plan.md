@@ -1281,3 +1281,4 @@ cd backend
 - `2026-05-04`: `UserProfileCommandService` 가 `PriorityOptionReadRepository` 를 직접 보지 않도록 `PriorityOptionReadService` 를 추가하고, 우선순위 코드 조회/예외 매핑을 read service 경계로 분리했다.
 - `2026-05-04`: `ScoreWeightService` 가 추천 로그 총건수 조회와 활성 가중치 설정 조회를 직접 조합하던 부분을 `ScoreWeightProgressReadService` 로 분리했다.
 - `2026-05-04`: `RecommendationLogService` 에서 최신 logId 맵 조회를 `RecommendationLogReadService` 로 분리하고, 추천 컨트롤러는 조회 전용 service를 사용하도록 정리했다.
+- `2026-05-04`: `RecommendationPersistenceService` 가 과거 북마크 상태 조회를 command repo로 읽지 않도록 정리하고, 기존 추천 row 조회를 `RecommendationResultReadRepository` 경계로 옮겼다.

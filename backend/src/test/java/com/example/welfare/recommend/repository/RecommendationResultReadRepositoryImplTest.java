@@ -26,6 +26,17 @@ class RecommendationResultReadRepositoryImplTest {
     private RecommendationResultReadRepositoryImpl recommendationResultReadRepository;
 
     @Test
+    @DisplayName("recommendation result read repository는 최신 추천 row 조회를 위임한다")
+    void findLatestRecommendationRowsDelegates() {
+        UserRecommendation recommendation = UserRecommendation.builder().id(1L).userKey("user-key-1").build();
+        given(userRecommendationRepository.findLatestByUserKey("user-key-1"))
+                .willReturn(List.of(recommendation));
+
+        assertThat(recommendationResultReadRepository.findLatestRecommendationRows("user-key-1"))
+                .containsExactly(recommendation);
+    }
+
+    @Test
     @DisplayName("recommendation result read repository는 최신 저장 추천 조회를 위임한다")
     void findLatestSavedRecommendationsDelegates() {
         UserRecommendation recommendation = UserRecommendation.builder().id(1L).userKey("user-key-1").build();

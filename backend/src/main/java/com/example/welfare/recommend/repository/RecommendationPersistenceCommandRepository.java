@@ -7,8 +7,6 @@ import java.util.List;
 
 public interface RecommendationPersistenceCommandRepository {
 
-    List<UserRecommendation> findLatestByUserKey(String userKey);
-
     List<UserRecommendation> replaceAllForUser(String userKey, List<UserRecommendation> recommendations);
 
     void deleteOldUnbookmarked(LocalDateTime before);

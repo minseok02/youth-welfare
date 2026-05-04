@@ -11,8 +11,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.time.LocalDateTime;
 import java.util.List;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 
 @ExtendWith(MockitoExtension.class)
@@ -23,16 +21,6 @@ class RecommendationPersistenceCommandRepositoryImplTest {
 
     @InjectMocks
     private RecommendationPersistenceCommandRepositoryImpl recommendationPersistenceCommandRepository;
-
-    @Test
-    @DisplayName("recommendation persistence command repository는 최신 추천 조회를 위임한다")
-    void findLatestByUserKeyDelegates() {
-        UserRecommendation recommendation = UserRecommendation.builder().id(1L).userKey("user-key-1").build();
-        given(userRecommendationRepository.findLatestByUserKey("user-key-1")).willReturn(List.of(recommendation));
-
-        assertThat(recommendationPersistenceCommandRepository.findLatestByUserKey("user-key-1"))
-                .containsExactly(recommendation);
-    }
 
     @Test
     @DisplayName("recommendation persistence command repository는 추천 전체 교체 저장을 수행한다")

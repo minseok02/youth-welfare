@@ -14,6 +14,11 @@ public class RecommendationResultReadRepositoryImpl implements RecommendationRes
     private final UserRecommendationRepository userRecommendationRepository;
 
     @Override
+    public List<UserRecommendation> findLatestRecommendationRows(String userKey) {
+        return userRecommendationRepository.findLatestByUserKey(userKey);
+    }
+
+    @Override
     public List<UserRecommendation> findLatestSavedRecommendations(String userKey) {
         return userRecommendationRepository.findLatestByUserKeyOrderByFinalScoreDesc(userKey);
     }

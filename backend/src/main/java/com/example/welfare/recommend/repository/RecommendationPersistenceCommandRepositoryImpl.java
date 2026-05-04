@@ -14,11 +14,6 @@ public class RecommendationPersistenceCommandRepositoryImpl implements Recommend
     private final UserRecommendationRepository userRecommendationRepository;
 
     @Override
-    public List<UserRecommendation> findLatestByUserKey(String userKey) {
-        return userRecommendationRepository.findLatestByUserKey(userKey);
-    }
-
-    @Override
     public List<UserRecommendation> replaceAllForUser(String userKey, List<UserRecommendation> recommendations) {
         userRecommendationRepository.deleteAllByUserKey(userKey);
         return userRecommendationRepository.saveAll(recommendations);
