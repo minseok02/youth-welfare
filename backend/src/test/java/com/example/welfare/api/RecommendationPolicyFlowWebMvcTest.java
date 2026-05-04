@@ -8,10 +8,12 @@ import com.example.welfare.policy.dto.PolicyRankingResponse;
 import com.example.welfare.policy.dto.PolicySearchResponse;
 import com.example.welfare.policy.dto.PolicySummaryResponse;
 import com.example.welfare.policy.entity.WelfareService;
+import com.example.welfare.policy.service.PolicyBookmarkCommandService;
+import com.example.welfare.policy.service.PolicyDetailService;
+import com.example.welfare.policy.service.PolicyListService;
 import com.example.welfare.policy.service.PolicyRankingService;
 import com.example.welfare.policy.service.PolicySearchLogService;
 import com.example.welfare.policy.service.PolicySearchService;
-import com.example.welfare.policy.service.PolicyService;
 import com.example.welfare.policy.service.PolicyViewLogService;
 import com.example.welfare.recommend.controller.RecommendationController;
 import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
@@ -59,7 +61,11 @@ class RecommendationPolicyFlowWebMvcTest {
     @MockBean
     private JpaMetamodelMappingContext jpaMetamodelMappingContext;
     @MockBean
-    private PolicyService policyService;
+    private PolicyListService policyListService;
+    @MockBean
+    private PolicyDetailService policyDetailService;
+    @MockBean
+    private PolicyBookmarkCommandService policyBookmarkCommandService;
     @MockBean
     private PolicyRankingService policyRankingService;
     @MockBean
@@ -285,7 +291,7 @@ class RecommendationPolicyFlowWebMvcTest {
                 .build();
         given(clientFingerprintService.build(org.mockito.ArgumentMatchers.any())).willReturn("fp");
         given(policyViewLogService.registerViewIfFirstInWindow(eq(11L), isNull(), eq("fp"))).willReturn(true);
-        given(policyService.getDetail(isNull(), eq(11L), eq(true))).willReturn(detail);
+        given(policyDetailService.getDetail(isNull(), eq(11L), eq(true))).willReturn(detail);
 
         mockMvc.perform(get("/api/policies/{id}", 11L)
                         .param("logId", "9001"))
@@ -300,13 +306,13 @@ class RecommendationPolicyFlowWebMvcTest {
                 .andExpect(jsonPath("$.data.gov24UserTypeLabel").value("청년"))
                 .andExpect(jsonPath("$.data.gov24BenefitTypeLabel").value("서비스"));
 
-        verify(policyService).getDetail(isNull(), eq(11L), eq(true));
+        verify(policyDetailService).getDetail(isNull(), eq(11L), eq(true));
         verify(recommendationLogService).markClicked(9001L);
     }
 
     @Test
-    @DisplayName("정책 북마크 API는 정책 서비스에 토글을 위임한다")
-    void policyBookmarkDelegatesToPolicyService() throws Exception {
+    @DisplayName("정책 북마크 API는 정책 북마크 command service에 토글을 위임한다")
+    void policyBookmarkDelegatesToPolicyBookmarkCommandService() throws Exception {
         mockMvc.perform(post("/api/policies/{id}/bookmark", 11L)
                         .with(authentication(new UsernamePasswordAuthenticationToken(
                                 new AuthenticatedUser(1L, "user-key-1"),
@@ -316,7 +322,7 @@ class RecommendationPolicyFlowWebMvcTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true));
 
-        verify(policyService).toggleBookmark(isNull(), eq(11L));
+        verify(policyBookmarkCommandService).toggleBookmark(isNull(), eq(11L));
     }
 
     private WelfareService sampleService(Long id, String title) {

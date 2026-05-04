@@ -53,18 +53,22 @@ EC2 1대
 
 ```text
 AuthController
-  -> AuthService
-      -> UserRepository
-      -> Redis refresh token
+  -> AuthAvailabilityService / AuthSignupService / AuthLoginService / AuthSessionService
+      -> AuthIdentityReadService
+      -> UserRegistrationService
+      -> AuthTokenService
 ```
 
 ### 정책 조회
 
 ```text
 PolicyController
-  -> PolicyService / PolicySearchService / PolicyRankingService
-      -> WelfareServiceRepository
-      -> ServiceViewLogRepository
+  -> PolicyListService / PolicyDetailService / PolicyBookmarkCommandService
+  -> PolicySearchService / PolicyRankingService
+      -> WelfareServiceReadRepository
+      -> PolicyPresentationReadService
+      -> PolicyDetailReadService
+      -> PolicyLookupService
 ```
 
 ### 추천
@@ -104,9 +108,10 @@ CollectAdminController / Scheduler
 
 ```text
 NotificationService
-  -> RecommendationFacade
-  -> NotificationGateway
-  -> NotificationHistoryService
+  -> NotificationRecommendationService
+  -> NotificationMessageService
+  -> NotificationDispatchService
+  -> NotificationRetryService
 ```
 
 ## 주요 설계 원칙
