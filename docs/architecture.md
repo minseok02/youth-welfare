@@ -130,7 +130,7 @@ AdminDashboardController
 
 ## 주요 설계 원칙
 
-- Controller는 도메인 Service 또는 Facade만 호출합니다.
+- Controller는 전용 application service만 직접 호출합니다.
 - 외부 API 호출은 gateway/client 계층에 둡니다.
 - 추천 API 상단은 생성/조회/북마크 command service로 나누고, 계산 세부 로직은 recommendation 서비스들 아래에 둡니다.
 - 수집은 source별 부분 성공을 허용하고, 실행 결과는 `api_sync_logs`에 남깁니다.

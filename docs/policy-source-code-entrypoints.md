@@ -255,7 +255,7 @@ listing형이면:
 
 ## 10. 요약
 
-1. collect 시작점은 [CollectAdminController.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/collect/controller/CollectAdminController.java), [CollectService.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/collect/service/CollectService.java) 입니다.
+1. collect 시작점은 [CollectAdminController.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/collect/controller/CollectAdminController.java), [CollectAdminService.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/collect/service/CollectAdminService.java), [CollectBatchService.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/collect/service/CollectBatchService.java), [CollectSourceExecutionService.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/collect/service/CollectSourceExecutionService.java) 입니다.
 2. raw payload 경계는 [RawApiPayloadService.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/collect/service/RawApiPayloadService.java) 입니다.
 3. `welfare_services` 저장 경계는 [CollectItemSaver.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/collect/service/CollectItemSaver.java) 입니다.
 4. canonical sidecar 경계는 [DeferredNormalizedPolicySidecarWriter.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/collect/normalization/DeferredNormalizedPolicySidecarWriter.java) 입니다.

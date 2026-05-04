@@ -277,8 +277,11 @@
 실제 cut-over 시 바로 영향받는 코드는 아래다.
 
 - 인증/계정
-  - [AuthService](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/user/service/AuthService.java:33)
-  - [UserService](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/user/service/UserService.java:25)
+  - [AuthSignupService](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/user/service/AuthSignupService.java:18)
+  - [AuthLoginService](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/user/service/AuthLoginService.java:21)
+  - [AuthSessionService](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/user/service/AuthSessionService.java:24)
+  - [UserProfileCommandService](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/user/service/UserProfileCommandService.java:34)
+  - [UserAccountCommandService](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/user/service/UserAccountCommandService.java:24)
   - [User](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/user/entity/User.java:16)
 - 추천
   - [RecommendationGenerationService](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/recommend/service/RecommendationGenerationService.java:18)
@@ -618,16 +621,21 @@ secondary datasource URL도 권한 모델과 같이 맞춰야 한다. `APP_PII_D
 - `auth`
   - `AuthUserEntity`
   - `AuthUserRepository`
-  - `AuthService`
+  - `AuthAvailabilityService`
+  - `AuthSignupService`
+  - `AuthLoginService`
+  - `AuthSessionService`
 - `profile`
   - `UserProfileEntity`
   - `UserAttributeEntity`
   - `UserPriorityEntity`
-  - `ProfileService`
+  - `UserProfileReadService`
+  - `UserProfileCommandService`
+  - `UserAccountCommandService`
 - `privateinfo`
   - `UserPiiEntity`
-  - `PrivateProfileRepository`
-  - `PrivateProfileService`
+  - `UserNotificationReadService`
+  - `UserPiiCommandService`
 
 현재 `user` 패키지는 너무 넓기 때문에 유지하면 다시 결합된다.
 
@@ -702,7 +710,7 @@ secondary datasource URL도 권한 모델과 같이 맞춰야 한다. `APP_PII_D
 - 프로필 조회 API는 `user_profiles + user_pii` 조합 DTO로 응답
 - 추천은 `RecommendationUserSnapshot` 을 `user_profiles + user_attributes + user_priorities` 기준으로 조회
 - 알림 발송은 대상 조회는 `user_profiles`, 이메일 조회는 `user_pii` 로 분리
-- `NotificationService` 와 추천 관련 서비스에서 `User` 전체 엔티티 직접 의존 제거
+- `NotificationScheduleService` / `NotificationDispatchService` 와 추천 관련 서비스에서 `User` 전체 엔티티 직접 의존 제거
 
 현재 상태:
 
@@ -771,20 +779,20 @@ secondary datasource URL도 권한 모델과 같이 맞춰야 한다. `APP_PII_D
 ### Release B
 
 - `auth_users`, `user_profiles`, `user_pii` schema/migration
-- `AuthService`, `UserService` dual-write
+- `AuthSignupService`, `UserProfileCommandService`, `UserAccountCommandService` dual-write
 - `ProfileResponse` 조합 DTO 경로 준비
 - 기존 `users.email/name/birth_date` -> `user_pii.email_enc/name_enc/birth_date_enc` 앱 레벨 암호화 backfill
 
 ### Release C
 
 - 추천/알림/프로필 read path 전환
-- `NotificationService` 이메일 조회 분리
+- `NotificationScheduleService` / `NotificationDispatchService` 이메일 조회 분리
 - 나이 파생값 배치 또는 저장 시 재계산 로직
 
 현재 상태:
 
 - 프로필 조회/추천/알림 read path 전환 완료
-- `NotificationService` 이메일 조회 분리 완료
+- `NotificationScheduleService` / `NotificationDispatchService` 이메일 조회 분리 완료
 - 나이 파생값은 `UserCoreSyncService` 저장 시 재계산 경로로 반영 중
 - `user_attributes/user_priorities.user_key` write sync/backfill 까지 완료
 
