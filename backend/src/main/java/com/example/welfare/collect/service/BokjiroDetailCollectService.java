@@ -3,6 +3,7 @@ package com.example.welfare.collect.service;
 import com.example.welfare.collect.gateway.BokjiroDetailClient;
 import com.example.welfare.collect.mapper.WelfareServiceMapper;
 import com.example.welfare.collect.normalization.NormalizedPolicyAggregate;
+import com.example.welfare.collect.repository.BokjiroDetailReadRepository;
 import com.example.welfare.collect.normalization.NormalizedPolicySidecarWriter;
 import com.example.welfare.collect.support.CollectSourceRegistry;
 import com.example.welfare.collect.validation.RawFieldValidator;
@@ -11,7 +12,6 @@ import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.entity.WelfareServiceDetail;
 import com.example.welfare.policy.repository.WelfareServiceDetailRepository;
-import com.example.welfare.policy.repository.WelfareServiceRepository;
 import com.example.welfare.policy.service.SearchYouthRelevanceService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -35,7 +35,7 @@ import java.util.stream.Collectors;
 @Service
 public class BokjiroDetailCollectService {
 
-    private final WelfareServiceRepository welfareServiceRepository;
+    private final BokjiroDetailReadRepository bokjiroDetailReadRepository;
     private final WelfareServiceDetailRepository detailRepository;
     private final BokjiroDetailClient detailClient;
     private final RawApiPayloadService rawApiPayloadService;
@@ -46,14 +46,14 @@ public class BokjiroDetailCollectService {
     private final BokjiroDetailBudgetAllocator budgetAllocator;
     private final BokjiroDetailPersistenceSupport persistenceSupport;
 
-    public BokjiroDetailCollectService(WelfareServiceRepository welfareServiceRepository,
+    public BokjiroDetailCollectService(BokjiroDetailReadRepository bokjiroDetailReadRepository,
                                        WelfareServiceDetailRepository detailRepository,
                                        BokjiroDetailClient detailClient,
                                        RawApiPayloadService rawApiPayloadService,
                                        SearchYouthRelevanceService searchYouthRelevanceService,
                                        WelfareServiceMapper welfareServiceMapper,
                                        NormalizedPolicySidecarWriter normalizedPolicySidecarWriter) {
-        this.welfareServiceRepository = welfareServiceRepository;
+        this.bokjiroDetailReadRepository = bokjiroDetailReadRepository;
         this.detailRepository = detailRepository;
         this.detailClient = detailClient;
         this.rawApiPayloadService = rawApiPayloadService;
@@ -215,7 +215,7 @@ public class BokjiroDetailCollectService {
 
         for (WelfareService service : targets) {
             if (calls >= callBudget) break;
-            if (!refreshExisting && detailRepository.existsByServiceId(service.getId())) {
+            if (!refreshExisting && bokjiroDetailReadRepository.existsDetailByServiceId(service.getId())) {
                 skipped++;
                 continue;
             }
@@ -251,7 +251,7 @@ public class BokjiroDetailCollectService {
 
             try {
                 NormalizedPolicyAggregate aggregate = capability.toAggregate(service, payload);
-                WelfareServiceDetail existing = detailRepository.findByServiceId(service.getId()).orElse(null);
+                WelfareServiceDetail existing = bokjiroDetailReadRepository.findDetailByServiceId(service.getId()).orElse(null);
                 detailRepository.save(persistenceSupport.mergeDetail(service, existing, aggregate));
                 persistenceSupport.applyFallbacksToService(service, aggregate);
                 normalizedPolicySidecarWriter.upsert(service, aggregate);
@@ -274,7 +274,7 @@ public class BokjiroDetailCollectService {
         for (WelfareService.SourceType sourceType : detailCapabilities.keySet()) {
             targetsBySource.put(
                     sourceType,
-                    new ArrayList<>(welfareServiceRepository.findBySourceType(sourceType))
+                    new ArrayList<>(bokjiroDetailReadRepository.findTargetsBySourceType(sourceType))
             );
         }
         return targetsBySource;

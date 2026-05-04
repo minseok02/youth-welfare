@@ -2876,3 +2876,8 @@
 - 문제: 수집 로그 서비스는 stale RUNNING auto-close, start log save, success/failure update save를 모두 직접 저장소에 보내고 있었다. 이 상태면 collect log write 규칙이 바뀔 때 orchestration 서비스 본문을 다시 열어야 한다.
 - 해결: `ApiSyncLogCommandRepository` / `ApiSyncLogCommandRepositoryImpl` 을 추가하고, stale RUNNING 복구와 log save를 command 경계 뒤로 이동했다.
 - 이유: `ApiSyncLogService` 는 collect task 실행과 success/failure 상태 전환 orchestration에 집중하고, collect log persistence write 세부사항은 별도 command repository 로 내려야 책임이 더 선명하다.
+
+## 528) `BokjiroDetailCollectService` 가 대상 정책 목록 조회와 기존 detail 존재/조회까지 직접 저장소를 걸치면, 상세 수집 orchestration과 read 규칙이 다시 한 서비스에 섞인다
+- 문제: 복지로 상세 수집 서비스는 source별 대상 정책 목록 조회, 기존 detail 존재 확인, 기존 detail row 조회를 직접 저장소에 요청하고 있었다. 이 상태면 상세 수집 대상 선정이나 existing-detail read 규칙이 바뀔 때 orchestration 서비스 본문을 다시 열어야 한다.
+- 해결: `BokjiroDetailReadRepository` / `BokjiroDetailReadRepositoryImpl` 을 추가하고, source별 대상 정책 목록 조회와 기존 detail 존재/조회 규칙을 이 read 경계 뒤로 이동했다.
+- 이유: `BokjiroDetailCollectService` 는 budget allocation, rate-limit/retry, aggregate/persistence orchestration에 집중하고, 대상 정책/detail read 규칙은 별도 read repository 로 내려야 책임이 더 선명하다.

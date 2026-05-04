@@ -4,12 +4,12 @@ import com.example.welfare.collect.gateway.BokjiroDetailClient;
 import com.example.welfare.collect.mapper.WelfareServiceMapper;
 import com.example.welfare.collect.normalization.NormalizedPolicyAggregate;
 import com.example.welfare.collect.normalization.NormalizedPolicySidecarWriter;
+import com.example.welfare.collect.repository.BokjiroDetailReadRepository;
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.policy.entity.ServiceTag;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.entity.WelfareServiceDetail;
 import com.example.welfare.policy.repository.WelfareServiceDetailRepository;
-import com.example.welfare.policy.repository.WelfareServiceRepository;
 import com.example.welfare.policy.service.SearchYouthRelevanceService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -39,7 +39,7 @@ import static org.mockito.Mockito.times;
 class BokjiroDetailCollectServiceTest {
 
     @Mock
-    private WelfareServiceRepository welfareServiceRepository;
+    private BokjiroDetailReadRepository bokjiroDetailReadRepository;
     @Mock
     private WelfareServiceDetailRepository detailRepository;
     @Mock
@@ -57,7 +57,7 @@ class BokjiroDetailCollectServiceTest {
     @BeforeEach
     void setUp() {
         service = new BokjiroDetailCollectService(
-                welfareServiceRepository,
+                bokjiroDetailReadRepository,
                 detailRepository,
                 detailClient,
                 rawApiPayloadService,
@@ -70,9 +70,9 @@ class BokjiroDetailCollectServiceTest {
         ReflectionTestUtils.setField(service, "retryMaxAttempts", 1);
         ReflectionTestUtils.setField(service, "retryBaseBackoffMs", 0L);
         ReflectionTestUtils.setField(service, "maxConsecutiveRateLimitHits", 5);
-        lenient().when(welfareServiceRepository.findBySourceType(WelfareService.SourceType.BOKJIRO_CENTRAL))
+        lenient().when(bokjiroDetailReadRepository.findTargetsBySourceType(WelfareService.SourceType.BOKJIRO_CENTRAL))
                 .thenReturn(List.of());
-        lenient().when(welfareServiceRepository.findBySourceType(WelfareService.SourceType.BOKJIRO_LOCAL))
+        lenient().when(bokjiroDetailReadRepository.findTargetsBySourceType(WelfareService.SourceType.BOKJIRO_LOCAL))
                 .thenReturn(List.of());
     }
 
@@ -81,9 +81,9 @@ class BokjiroDetailCollectServiceTest {
     void collectBokjiroDetailsSkipsExistingRows() {
         WelfareService central = welfareService(10L, WelfareService.SourceType.BOKJIRO_CENTRAL, "CENTRAL-1");
 
-        given(welfareServiceRepository.findBySourceType(WelfareService.SourceType.BOKJIRO_CENTRAL))
+        given(bokjiroDetailReadRepository.findTargetsBySourceType(WelfareService.SourceType.BOKJIRO_CENTRAL))
                 .willReturn(List.of(central));
-        given(detailRepository.existsByServiceId(10L)).willReturn(true);
+        given(bokjiroDetailReadRepository.existsDetailByServiceId(10L)).willReturn(true);
 
         CollectResult result = service.collectBokjiroDetailsResult(1);
 
@@ -113,9 +113,9 @@ class BokjiroDetailCollectServiceTest {
                 .supportCycle("MONTHLY")
                 .provisionType("CASH")
                 .build();
-        given(welfareServiceRepository.findBySourceType(WelfareService.SourceType.BOKJIRO_CENTRAL))
+        given(bokjiroDetailReadRepository.findTargetsBySourceType(WelfareService.SourceType.BOKJIRO_CENTRAL))
                 .willReturn(List.of(central));
-        given(detailRepository.findByServiceId(11L)).willReturn(Optional.of(existing));
+        given(bokjiroDetailReadRepository.findDetailByServiceId(11L)).willReturn(Optional.of(existing));
         given(detailClient.fetchCentralWithStatus("CENTRAL-2"))
                 .willReturn(BokjiroDetailClient.FetchResult.success(payload));
 
@@ -159,11 +159,11 @@ class BokjiroDetailCollectServiceTest {
                 .applyMethodDetail("온라인 신청")
                 .build();
 
-        given(welfareServiceRepository.findBySourceType(WelfareService.SourceType.BOKJIRO_CENTRAL))
+        given(bokjiroDetailReadRepository.findTargetsBySourceType(WelfareService.SourceType.BOKJIRO_CENTRAL))
                 .willReturn(List.of());
-        given(welfareServiceRepository.findBySourceType(WelfareService.SourceType.BOKJIRO_LOCAL))
+        given(bokjiroDetailReadRepository.findTargetsBySourceType(WelfareService.SourceType.BOKJIRO_LOCAL))
                 .willReturn(List.of(local));
-        given(detailRepository.existsByServiceId(12L)).willReturn(false);
+        given(bokjiroDetailReadRepository.existsDetailByServiceId(12L)).willReturn(false);
         given(detailClient.fetchLocalWithStatus("LOCAL-1"))
                 .willReturn(BokjiroDetailClient.FetchResult.success(payload));
         CollectResult result = service.collectBokjiroDetailsResult(1);
@@ -190,11 +190,11 @@ class BokjiroDetailCollectServiceTest {
                 .applyMethodDetail("온라인 신청")
                 .build();
 
-        given(welfareServiceRepository.findBySourceType(WelfareService.SourceType.BOKJIRO_CENTRAL))
+        given(bokjiroDetailReadRepository.findTargetsBySourceType(WelfareService.SourceType.BOKJIRO_CENTRAL))
                 .willReturn(List.of(central));
-        given(welfareServiceRepository.findBySourceType(WelfareService.SourceType.BOKJIRO_LOCAL))
+        given(bokjiroDetailReadRepository.findTargetsBySourceType(WelfareService.SourceType.BOKJIRO_LOCAL))
                 .willReturn(List.of(local1, local2, local3));
-        given(detailRepository.existsByServiceId(14L)).willReturn(false);
+        given(bokjiroDetailReadRepository.existsDetailByServiceId(14L)).willReturn(false);
         given(detailClient.fetchLocalWithStatus("LOCAL-2"))
                 .willReturn(BokjiroDetailClient.FetchResult.success(payload));
         CollectResult result = service.collectBokjiroDetailsResult(1);
@@ -219,12 +219,12 @@ class BokjiroDetailCollectServiceTest {
                 .applyMethodDetail("온라인 신청")
                 .build();
 
-        given(welfareServiceRepository.findBySourceType(WelfareService.SourceType.BOKJIRO_CENTRAL))
+        given(bokjiroDetailReadRepository.findTargetsBySourceType(WelfareService.SourceType.BOKJIRO_CENTRAL))
                 .willReturn(List.of(), List.of(), List.of());
-        given(welfareServiceRepository.findBySourceType(WelfareService.SourceType.BOKJIRO_LOCAL))
+        given(bokjiroDetailReadRepository.findTargetsBySourceType(WelfareService.SourceType.BOKJIRO_LOCAL))
                 .willReturn(List.of(first, second), List.of(first, second), List.of(first, second));
-        given(detailRepository.existsByServiceId(17L)).willReturn(false, true, true);
-        given(detailRepository.existsByServiceId(18L)).willReturn(false, true);
+        given(bokjiroDetailReadRepository.existsDetailByServiceId(17L)).willReturn(false, true, true);
+        given(bokjiroDetailReadRepository.existsDetailByServiceId(18L)).willReturn(false, true);
         given(detailClient.fetchLocalWithStatus("LOCAL-17"))
                 .willReturn(BokjiroDetailClient.FetchResult.success(payload));
         given(detailClient.fetchLocalWithStatus("LOCAL-18"))
@@ -248,11 +248,11 @@ class BokjiroDetailCollectServiceTest {
         WelfareService local = welfareService(19L, WelfareService.SourceType.BOKJIRO_LOCAL, "LOCAL-19");
 
         ReflectionTestUtils.setField(service, "maxConsecutiveRateLimitHits", 1);
-        given(welfareServiceRepository.findBySourceType(WelfareService.SourceType.BOKJIRO_CENTRAL))
+        given(bokjiroDetailReadRepository.findTargetsBySourceType(WelfareService.SourceType.BOKJIRO_CENTRAL))
                 .willReturn(List.of());
-        given(welfareServiceRepository.findBySourceType(WelfareService.SourceType.BOKJIRO_LOCAL))
+        given(bokjiroDetailReadRepository.findTargetsBySourceType(WelfareService.SourceType.BOKJIRO_LOCAL))
                 .willReturn(List.of(local));
-        given(detailRepository.existsByServiceId(19L)).willReturn(false);
+        given(bokjiroDetailReadRepository.existsDetailByServiceId(19L)).willReturn(false);
         given(detailClient.fetchLocalWithStatus("LOCAL-19"))
                 .willReturn(BokjiroDetailClient.FetchResult.failure(false, true, 429));
 
@@ -269,9 +269,9 @@ class BokjiroDetailCollectServiceTest {
         WelfareService third = welfareService(23L, WelfareService.SourceType.BOKJIRO_CENTRAL, "CENTRAL-23");
 
         ReflectionTestUtils.setField(service, "maxConsecutiveRateLimitHits", 2);
-        given(welfareServiceRepository.findBySourceType(WelfareService.SourceType.BOKJIRO_CENTRAL))
+        given(bokjiroDetailReadRepository.findTargetsBySourceType(WelfareService.SourceType.BOKJIRO_CENTRAL))
                 .willReturn(List.of(first, second, third));
-        given(detailRepository.existsByServiceId(any())).willReturn(false);
+        given(bokjiroDetailReadRepository.existsDetailByServiceId(any())).willReturn(false);
         given(detailClient.fetchCentralWithStatus("CENTRAL-21"))
                 .willReturn(BokjiroDetailClient.FetchResult.failure(false, true, 429));
         given(detailClient.fetchCentralWithStatus("CENTRAL-22"))
@@ -298,9 +298,9 @@ class BokjiroDetailCollectServiceTest {
                 .applyMethodDetail("온라인 신청")
                 .build();
 
-        given(welfareServiceRepository.findBySourceType(WelfareService.SourceType.BOKJIRO_CENTRAL))
+        given(bokjiroDetailReadRepository.findTargetsBySourceType(WelfareService.SourceType.BOKJIRO_CENTRAL))
                 .willReturn(List.of(emptyPayloadService, savedService));
-        given(detailRepository.existsByServiceId(any())).willReturn(false);
+        given(bokjiroDetailReadRepository.existsDetailByServiceId(any())).willReturn(false);
         given(detailClient.fetchCentralWithStatus("CENTRAL-31"))
                 .willReturn(BokjiroDetailClient.FetchResult.success(emptyPayload));
         given(detailClient.fetchCentralWithStatus("CENTRAL-32"))
@@ -329,9 +329,9 @@ class BokjiroDetailCollectServiceTest {
                 .supportDetail("성공 payload")
                 .build();
 
-        given(welfareServiceRepository.findBySourceType(WelfareService.SourceType.BOKJIRO_CENTRAL))
+        given(bokjiroDetailReadRepository.findTargetsBySourceType(WelfareService.SourceType.BOKJIRO_CENTRAL))
                 .willReturn(List.of(failingService, succeedingService));
-        given(detailRepository.existsByServiceId(any())).willReturn(false);
+        given(bokjiroDetailReadRepository.existsDetailByServiceId(any())).willReturn(false);
         given(detailClient.fetchCentralWithStatus("CENTRAL-41"))
                 .willReturn(BokjiroDetailClient.FetchResult.success(failingPayload));
         given(detailClient.fetchCentralWithStatus("CENTRAL-42"))
