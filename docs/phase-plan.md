@@ -1262,6 +1262,7 @@ cd backend
 - `CollectItemSaver` 의 tag delete/saveAll 도 `CollectItemTagCommandRepository` 뒤로 이동해 item save orchestration과 tag write 규칙을 분리
 - `CollectItemSaver` 의 service region delete/batch insert도 `CollectItemRegionCommandRepository` 뒤로 이동해 item save orchestration과 region write 규칙을 분리
 - `DeferredNormalizedPolicySidecarWriter` 의 sidecar table readiness 확인과 기존 fact 조회도 `DeferredNormalizedPolicySidecarReadRepository` 뒤로 이동해 sidecar write orchestration과 read SQL 규칙을 분리
+- `DeferredNormalizedPolicySidecarWriter` 의 taxonomy summary / summary slot write도 `DeferredNormalizedPolicySidecarCommandRepository` 뒤로 이동해 sidecar write orchestration과 summary persistence 규칙을 분리
 
 ## 2차로 분리된 항목
 

@@ -1,5 +1,6 @@
 package com.example.welfare.collect.normalization;
 
+import com.example.welfare.collect.repository.DeferredNormalizedPolicySidecarCommandRepository;
 import com.example.welfare.collect.repository.DeferredNormalizedPolicySidecarReadRepository;
 import com.example.welfare.policy.entity.WelfareService;
 import org.junit.jupiter.api.BeforeEach;
@@ -9,7 +10,6 @@ import org.mockito.Mock;
 import org.mockito.ArgumentCaptor;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.core.namedparam.SqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 
 import java.math.BigDecimal;
@@ -22,10 +22,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.lenient;
-import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
@@ -38,6 +36,8 @@ class DeferredNormalizedPolicySidecarWriterTest {
     private NamedParameterJdbcTemplate namedParameterJdbcTemplate;
     @Mock
     private DeferredNormalizedPolicySidecarReadRepository deferredNormalizedPolicySidecarReadRepository;
+    @Mock
+    private DeferredNormalizedPolicySidecarCommandRepository deferredNormalizedPolicySidecarCommandRepository;
 
     private DeferredNormalizedPolicySidecarWriter writer;
 
@@ -47,6 +47,7 @@ class DeferredNormalizedPolicySidecarWriterTest {
                 jdbcTemplate,
                 namedParameterJdbcTemplate,
                 deferredNormalizedPolicySidecarReadRepository,
+                deferredNormalizedPolicySidecarCommandRepository,
                 new NormalizedFactMergeSupport()
         );
         lenient().when(deferredNormalizedPolicySidecarReadRepository.findExistingFacts(anyLong()))
@@ -198,7 +199,7 @@ class DeferredNormalizedPolicySidecarWriterTest {
         assertThatCode(() -> writer.upsert(service, aggregate))
                 .doesNotThrowAnyException();
 
-        verify(namedParameterJdbcTemplate).update(org.mockito.ArgumentMatchers.contains("INSERT INTO service_taxonomies"), any(org.springframework.jdbc.core.namedparam.SqlParameterSource.class));
+        verify(deferredNormalizedPolicySidecarCommandRepository).upsertTaxonomySummary(service, aggregate);
         verify(jdbcTemplate).update(org.mockito.ArgumentMatchers.contains("DELETE FROM service_taxonomy_terms"), any(Object[].class));
         verify(namedParameterJdbcTemplate).update(org.mockito.ArgumentMatchers.contains("INSERT INTO service_taxonomy_terms"), any(org.springframework.jdbc.core.namedparam.SqlParameterSource.class));
         verify(namedParameterJdbcTemplate).update(org.mockito.ArgumentMatchers.contains("INSERT INTO service_facts"), any(org.springframework.jdbc.core.namedparam.SqlParameterSource.class));
@@ -247,21 +248,7 @@ class DeferredNormalizedPolicySidecarWriterTest {
         assertThatCode(() -> writer.upsert(service, aggregate))
                 .doesNotThrowAnyException();
 
-        verify(jdbcTemplate).update(org.mockito.ArgumentMatchers.contains("DELETE FROM service_taxonomy_summary_slots"), any(Object[].class));
-
-        ArgumentCaptor<SqlParameterSource> slotParamsCaptor = ArgumentCaptor.forClass(SqlParameterSource.class);
-        verify(namedParameterJdbcTemplate, atLeastOnce())
-                .update(org.mockito.ArgumentMatchers.contains("INSERT INTO service_taxonomy_summary_slots"), slotParamsCaptor.capture());
-
-        assertThat(slotParamsCaptor.getAllValues())
-                .extracting(params -> params.getValue("slotKey"),
-                        params -> params.getValue("slotCode"),
-                        params -> params.getValue("slotLabel"))
-                .contains(
-                        org.assertj.core.groups.Tuple.tuple("YOUTH_MAJOR", "HOUSING", "주거"),
-                        org.assertj.core.groups.Tuple.tuple("YOUTH_MID", "", "전월세 및 주거급여 지원"),
-                        org.assertj.core.groups.Tuple.tuple("PROVISION_METHOD", "", "온라인")
-                );
+        verify(deferredNormalizedPolicySidecarCommandRepository).replaceTaxonomySummarySlots(service, aggregate);
     }
 
     @Test
@@ -293,11 +280,7 @@ class DeferredNormalizedPolicySidecarWriterTest {
         assertThatCode(() -> writer.upsert(service, aggregate))
                 .doesNotThrowAnyException();
 
-        ArgumentCaptor<SqlParameterSource> paramsCaptor = ArgumentCaptor.forClass(SqlParameterSource.class);
-        verify(namedParameterJdbcTemplate).update(org.mockito.ArgumentMatchers.contains("INSERT INTO service_taxonomies"), paramsCaptor.capture());
-
-        assertThat(paramsCaptor.getValue().getValue("youthMajorCode")).isEqualTo("WELFARE_CULTURE");
-        assertThat(paramsCaptor.getValue().getValue("youthMajorLabel")).isEqualTo("복지문화");
+        verify(deferredNormalizedPolicySidecarCommandRepository).upsertTaxonomySummary(service, aggregate);
     }
 
     @Test
@@ -329,11 +312,7 @@ class DeferredNormalizedPolicySidecarWriterTest {
         assertThatCode(() -> writer.upsert(service, aggregate))
                 .doesNotThrowAnyException();
 
-        ArgumentCaptor<SqlParameterSource> paramsCaptor = ArgumentCaptor.forClass(SqlParameterSource.class);
-        verify(namedParameterJdbcTemplate).update(org.mockito.ArgumentMatchers.contains("INSERT INTO service_taxonomies"), paramsCaptor.capture());
-
-        assertThat(paramsCaptor.getValue().getValue("youthMajorCode")).isEqualTo("HOUSING");
-        assertThat(paramsCaptor.getValue().getValue("youthMajorLabel")).isEqualTo("주거");
+        verify(deferredNormalizedPolicySidecarCommandRepository).upsertTaxonomySummary(service, aggregate);
     }
 
     @Test
@@ -365,11 +344,7 @@ class DeferredNormalizedPolicySidecarWriterTest {
         assertThatCode(() -> writer.upsert(service, aggregate))
                 .doesNotThrowAnyException();
 
-        ArgumentCaptor<SqlParameterSource> paramsCaptor = ArgumentCaptor.forClass(SqlParameterSource.class);
-        verify(namedParameterJdbcTemplate).update(org.mockito.ArgumentMatchers.contains("INSERT INTO service_taxonomies"), paramsCaptor.capture());
-
-        assertThat(paramsCaptor.getValue().getValue("youthMajorCode")).isNull();
-        assertThat(paramsCaptor.getValue().getValue("youthMajorLabel")).isNull();
+        verify(deferredNormalizedPolicySidecarCommandRepository).upsertTaxonomySummary(service, aggregate);
     }
 
     @Test
@@ -414,7 +389,7 @@ class DeferredNormalizedPolicySidecarWriterTest {
                 .doesNotThrowAnyException();
 
         verify(jdbcTemplate, never()).update(org.mockito.ArgumentMatchers.contains("DELETE FROM service_taxonomy_terms"), any(Object[].class));
-        verify(namedParameterJdbcTemplate).update(org.mockito.ArgumentMatchers.contains("INSERT INTO service_taxonomies"), any(org.springframework.jdbc.core.namedparam.SqlParameterSource.class));
+        verify(deferredNormalizedPolicySidecarCommandRepository).upsertTaxonomySummary(service, aggregate);
         verify(namedParameterJdbcTemplate).update(org.mockito.ArgumentMatchers.contains("INSERT INTO service_facts"), any(org.springframework.jdbc.core.namedparam.SqlParameterSource.class));
     }
 
