@@ -2,7 +2,6 @@ package com.example.welfare.user.service;
 
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.user.entity.User;
-import com.example.welfare.user.repository.UserAccountReadRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -20,14 +19,14 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class UserReadServiceTest {
 
-    @Mock private UserAccountReadRepository userAccountReadRepository;
+    @Mock private ActiveUserReadService activeUserReadService;
     @Mock private UserKeyLookupService userKeyLookupService;
 
     @Test
-    @DisplayName("active user context 조회는 user와 resolved userKey를 함께 반환한다")
-    void getActiveUserContextReturnsUserAndUserKey() {
+    @DisplayName("active user context 조회는 active user read service에 위임한다")
+    void getActiveUserContextDelegates() {
         UserReadService userReadService = new UserReadService(
-                userAccountReadRepository,
+                activeUserReadService,
                 userKeyLookupService
         );
         User user = User.builder()
@@ -35,7 +34,8 @@ class UserReadServiceTest {
                 .userKey("user-key-9")
                 .build();
 
-        when(userAccountReadRepository.findById(9L)).thenReturn(Optional.of(user));
+        when(activeUserReadService.getActiveUserContext(9L))
+                .thenReturn(new ActiveUserReadService.ActiveUserContext(user, "user-key-9"));
 
         UserReadService.ActiveUserContext context = userReadService.getActiveUserContext(9L);
 
@@ -44,49 +44,38 @@ class UserReadServiceTest {
     }
 
     @Test
-    @DisplayName("optional active user by userKey 조회는 탈퇴 사용자를 제외한다")
-    void findOptionalActiveUserByUserKeyExcludesWithdrawnUser() {
+    @DisplayName("optional active user by userKey 조회는 active user read service에 위임한다")
+    void findOptionalActiveUserByUserKeyDelegates() {
         UserReadService userReadService = new UserReadService(
-                userAccountReadRepository,
+                activeUserReadService,
                 userKeyLookupService
         );
-        User withdrawnUser = User.builder()
-                .id(10L)
-                .userKey("user-key-10")
-                .isActive(false)
-                .build();
+        User user = User.builder().id(10L).userKey("user-key-10").build();
 
-        when(userAccountReadRepository.findByUserKey("user-key-10")).thenReturn(Optional.of(withdrawnUser));
+        when(activeUserReadService.findOptionalActiveUserByUserKey("user-key-10")).thenReturn(Optional.of(user));
 
-        assertThat(userReadService.findOptionalActiveUserByUserKey("user-key-10")).isEmpty();
+        assertThat(userReadService.findOptionalActiveUserByUserKey("user-key-10")).contains(user);
     }
 
     @Test
-    @DisplayName("required active user by userKey 조회는 탈퇴 사용자를 찾지 못한 것으로 처리한다")
-    void getActiveUserByUserKeyRejectsWithdrawnUser() {
+    @DisplayName("required active user by userKey 조회는 active user read service에 위임한다")
+    void getActiveUserByUserKeyDelegates() {
         UserReadService userReadService = new UserReadService(
-                userAccountReadRepository,
+                activeUserReadService,
                 userKeyLookupService
         );
-        User withdrawnUser = User.builder()
-                .id(10L)
-                .userKey("user-key-10")
-                .isActive(false)
-                .build();
+        User user = User.builder().id(10L).userKey("user-key-10").build();
 
-        when(userAccountReadRepository.findByUserKey("user-key-10")).thenReturn(Optional.of(withdrawnUser));
+        when(activeUserReadService.getActiveUserByUserKey("user-key-10")).thenReturn(user);
 
-        assertThatThrownBy(() -> userReadService.getActiveUserByUserKey("user-key-10"))
-                .isInstanceOf(CustomException.class)
-                .extracting("errorCode")
-                .isEqualTo(com.example.welfare.global.exception.ErrorCode.USER_NOT_FOUND);
+        assertThat(userReadService.getActiveUserByUserKey("user-key-10")).isEqualTo(user);
     }
 
     @Test
     @DisplayName("existing user id by userKey 조회는 userId를 반환한다")
     void requireExistingUserIdByUserKeyReturnsUserId() {
         UserReadService userReadService = new UserReadService(
-                userAccountReadRepository,
+                activeUserReadService,
                 userKeyLookupService
         );
 

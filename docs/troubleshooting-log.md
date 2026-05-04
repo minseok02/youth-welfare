@@ -2836,3 +2836,8 @@
 - 문제: profile read를 분리한 뒤에도 `UserReadService` 는 여전히 active user/account 조회와 함께 recommendation snapshot 조합, target/interest/priority projection 변환을 직접 수행하고 있었다. 이 상태면 추천용 snapshot 규칙이 바뀔 때도 일반 사용자 read 서비스 본문을 다시 열어야 한다.
 - 해결: `UserRecommendationReadService` 를 추가하고, recommendation snapshot 조합과 `RecommendationReadContext` 생성을 이 전용 read 서비스로 이동했다. `RecommendationFacade` 도 새 recommendation read 경계를 직접 사용하도록 정리했다.
 - 이유: `UserReadService` 는 active user/account 조회와 userKey 해석에 집중하고, 추천용 aggregate read/변환은 별도 read service 로 분리해야 책임이 더 선명해진다.
+
+## 520) `UserReadService` 가 active user/account 조회까지 계속 직접 들면, 일반 user lookup 과 active user 검증 책임이 다시 한 서비스에 섞인다
+- 문제: recommendation/profile read를 분리한 뒤에도 `UserReadService` 는 여전히 `UserAccountReadRepository` 를 직접 들고 active user entity 조회, active userKey 보정, userKey 기준 active user 검증을 직접 수행하고 있었다. 이 상태면 active user/account 조회 규칙이 바뀔 때도 일반 user read 서비스 본문을 다시 열어야 한다.
+- 해결: `ActiveUserReadService` 를 추가하고, active user entity 조회와 active userKey 보정, userKey 기준 active user 검증을 이 전용 read 서비스로 이동했다. `UserReadService` 는 기존 API 표면을 유지하되 새 active read 경계에 위임만 하도록 축소했다.
+- 이유: `UserReadService` 는 기존 호출부 호환과 userKey 존재 확인 같은 얇은 facade 역할에 집중하고, active user/account 조회는 별도 read service 로 분리해야 책임이 더 선명해진다.
