@@ -1265,6 +1265,7 @@ cd backend
 - `DeferredNormalizedPolicySidecarWriter` 의 taxonomy summary / summary slot write도 `DeferredNormalizedPolicySidecarCommandRepository` 뒤로 이동해 sidecar write orchestration과 summary persistence 규칙을 분리
 - `DeferredNormalizedPolicySidecarWriter` 의 taxonomy term delete/insert도 `DeferredNormalizedPolicySidecarCommandRepository` 뒤로 이동해 sidecar write orchestration과 taxonomy term persistence 규칙을 분리
 - `DeferredNormalizedPolicySidecarWriter` 의 merged fact upsert도 `DeferredNormalizedPolicySidecarCommandRepository` 뒤로 이동해 sidecar write orchestration과 fact persistence 규칙을 분리
+- `NormalizedPolicySidecarBackfillService` 의 raw payload 조회와 sourceType/sourceId 매칭도 `NormalizedPolicySidecarBackfillReadRepository` 한 경계로 묶어 backfill orchestration과 read 조립 규칙을 분리
 
 ## 2차로 분리된 항목
 

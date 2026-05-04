@@ -5,7 +5,7 @@ import com.example.welfare.collect.entity.RawApiPayload;
 import com.example.welfare.collect.gateway.BokjiroDetailClient;
 import com.example.welfare.collect.mapper.WelfareServiceMapper;
 import com.example.welfare.collect.repository.NormalizedPolicySidecarBackfillReadRepository;
-import com.example.welfare.collect.repository.RawApiPayloadReadRepository;
+import com.example.welfare.collect.repository.NormalizedPolicySidecarBackfillTarget;
 import com.example.welfare.policy.entity.WelfareService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -19,8 +19,6 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -31,8 +29,6 @@ import static org.mockito.Mockito.verify;
 @ExtendWith(MockitoExtension.class)
 class NormalizedPolicySidecarBackfillServiceTest {
 
-    @Mock
-    private RawApiPayloadReadRepository rawApiPayloadReadRepository;
     @Mock
     private NormalizedPolicySidecarBackfillReadRepository normalizedPolicySidecarBackfillReadRepository;
     @Mock
@@ -46,7 +42,6 @@ class NormalizedPolicySidecarBackfillServiceTest {
     @BeforeEach
     void setUp() {
         service = new NormalizedPolicySidecarBackfillService(
-                rawApiPayloadReadRepository,
                 normalizedPolicySidecarBackfillReadRepository,
                 welfareServiceMapper,
                 normalizedPolicySidecarWriter,
@@ -86,16 +81,16 @@ class NormalizedPolicySidecarBackfillServiceTest {
                 .status(WelfareService.ServiceStatus.ACTIVE)
                 .build();
 
-        given(rawApiPayloadReadRepository.findAllBySourceTypeAndApiCategoryOrderByFetchedAtAsc(
+        given(normalizedPolicySidecarBackfillReadRepository.findTargetsBySourceTypeAndApiCategoryOrderByFetchedAtAsc(
                 WelfareService.SourceType.BOKJIRO_CENTRAL,
-                RawApiPayload.ApiCategory.LIST
+                RawApiPayload.ApiCategory.LIST,
+                10
         )).willReturn(List.of());
-        given(rawApiPayloadReadRepository.findAllBySourceTypeAndApiCategoryOrderByFetchedAtAsc(
+        given(normalizedPolicySidecarBackfillReadRepository.findTargetsBySourceTypeAndApiCategoryOrderByFetchedAtAsc(
                 WelfareService.SourceType.BOKJIRO_LOCAL,
-                RawApiPayload.ApiCategory.LIST
-        )).willReturn(List.of(raw));
-        given(normalizedPolicySidecarBackfillReadRepository.findServiceBySourceTypeAndSourceId(WelfareService.SourceType.BOKJIRO_LOCAL, "LOCAL-1"))
-                .willReturn(Optional.of(saved));
+                RawApiPayload.ApiCategory.LIST,
+                10
+        )).willReturn(List.of(new NormalizedPolicySidecarBackfillTarget(raw, saved)));
 
         NormalizedPolicySidecarBackfillService.BackfillResult result = service.backfillBokjiroListSidecars(10);
 
@@ -149,16 +144,16 @@ class NormalizedPolicySidecarBackfillServiceTest {
                 .status(WelfareService.ServiceStatus.ACTIVE)
                 .build();
 
-        given(rawApiPayloadReadRepository.findAllBySourceTypeAndApiCategoryOrderByFetchedAtAsc(
+        given(normalizedPolicySidecarBackfillReadRepository.findTargetsBySourceTypeAndApiCategoryOrderByFetchedAtAsc(
                 WelfareService.SourceType.BOKJIRO_CENTRAL,
-                RawApiPayload.ApiCategory.DETAIL
+                RawApiPayload.ApiCategory.DETAIL,
+                10
         )).willReturn(List.of());
-        given(rawApiPayloadReadRepository.findAllBySourceTypeAndApiCategoryOrderByFetchedAtAsc(
+        given(normalizedPolicySidecarBackfillReadRepository.findTargetsBySourceTypeAndApiCategoryOrderByFetchedAtAsc(
                 WelfareService.SourceType.BOKJIRO_LOCAL,
-                RawApiPayload.ApiCategory.DETAIL
-        )).willReturn(List.of(raw));
-        given(normalizedPolicySidecarBackfillReadRepository.findServiceBySourceTypeAndSourceId(WelfareService.SourceType.BOKJIRO_LOCAL, "LOCAL-2"))
-                .willReturn(Optional.of(saved));
+                RawApiPayload.ApiCategory.DETAIL,
+                10
+        )).willReturn(List.of(new NormalizedPolicySidecarBackfillTarget(raw, saved)));
 
         NormalizedPolicySidecarBackfillService.BackfillResult result = service.backfillBokjiroDetailSidecars(10);
 
@@ -189,16 +184,16 @@ class NormalizedPolicySidecarBackfillServiceTest {
                 .fetchedAt(LocalDateTime.now())
                 .build();
 
-        given(rawApiPayloadReadRepository.findAllBySourceTypeAndApiCategoryOrderByFetchedAtAsc(
+        given(normalizedPolicySidecarBackfillReadRepository.findTargetsBySourceTypeAndApiCategoryOrderByFetchedAtAsc(
                 WelfareService.SourceType.BOKJIRO_CENTRAL,
-                RawApiPayload.ApiCategory.DETAIL
-        )).willReturn(List.of(raw));
-        given(rawApiPayloadReadRepository.findAllBySourceTypeAndApiCategoryOrderByFetchedAtAsc(
+                RawApiPayload.ApiCategory.DETAIL,
+                10
+        )).willReturn(List.of(new NormalizedPolicySidecarBackfillTarget(raw, null)));
+        given(normalizedPolicySidecarBackfillReadRepository.findTargetsBySourceTypeAndApiCategoryOrderByFetchedAtAsc(
                 WelfareService.SourceType.BOKJIRO_LOCAL,
-                RawApiPayload.ApiCategory.DETAIL
+                RawApiPayload.ApiCategory.DETAIL,
+                10
         )).willReturn(List.of());
-        given(normalizedPolicySidecarBackfillReadRepository.findServiceBySourceTypeAndSourceId(WelfareService.SourceType.BOKJIRO_CENTRAL, "CENTRAL-1"))
-                .willReturn(Optional.empty());
 
         NormalizedPolicySidecarBackfillService.BackfillResult result = service.backfillBokjiroDetailSidecars(10);
 
@@ -228,16 +223,16 @@ class NormalizedPolicySidecarBackfillServiceTest {
                 .status(WelfareService.ServiceStatus.ACTIVE)
                 .build();
 
-        given(rawApiPayloadReadRepository.findAllBySourceTypeAndApiCategoryOrderByFetchedAtAsc(
+        given(normalizedPolicySidecarBackfillReadRepository.findTargetsBySourceTypeAndApiCategoryOrderByFetchedAtAsc(
                 WelfareService.SourceType.BOKJIRO_CENTRAL,
-                RawApiPayload.ApiCategory.LIST
+                RawApiPayload.ApiCategory.LIST,
+                10
         )).willReturn(List.of());
-        given(rawApiPayloadReadRepository.findAllBySourceTypeAndApiCategoryOrderByFetchedAtAsc(
+        given(normalizedPolicySidecarBackfillReadRepository.findTargetsBySourceTypeAndApiCategoryOrderByFetchedAtAsc(
                 WelfareService.SourceType.BOKJIRO_LOCAL,
-                RawApiPayload.ApiCategory.LIST
-        )).willReturn(List.of(raw));
-        given(normalizedPolicySidecarBackfillReadRepository.findServiceBySourceTypeAndSourceId(WelfareService.SourceType.BOKJIRO_LOCAL, "LOCAL-BAD"))
-                .willReturn(Optional.of(saved));
+                RawApiPayload.ApiCategory.LIST,
+                10
+        )).willReturn(List.of(new NormalizedPolicySidecarBackfillTarget(raw, saved)));
 
         NormalizedPolicySidecarBackfillService.BackfillResult result = service.backfillBokjiroListSidecars(10);
 

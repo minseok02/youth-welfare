@@ -2926,3 +2926,8 @@
 - 문제: sidecar writer 는 기존 fact read 후 merge 결과를 계산하는 orchestration을 맡으면서도 `service_facts` upsert SQL 을 직접 들고 있었다. 이 상태면 fact persistence 규칙이나 SQL 세부사항이 바뀔 때 writer 본문을 다시 열어야 한다.
 - 해결: `DeferredNormalizedPolicySidecarCommandRepository` / `DeferredNormalizedPolicySidecarCommandRepositoryImpl` 에 merged fact upsert 를 추가하고, writer 는 merge 결과를 계산한 뒤 command 경계에 위임만 하도록 정리했다.
 - 이유: `DeferredNormalizedPolicySidecarWriter` 는 read + merge + write 순서 orchestration에 집중하고, fact persistence write 세부사항은 같은 command repository 로 내려야 책임이 더 선명하다.
+
+## 538) `NormalizedPolicySidecarBackfillService` 가 raw payload 조회와 sourceType/sourceId 매칭을 각각 다른 read 경계로 직접 조합하면, backfill orchestration과 read 조립 규칙이 다시 한 서비스에 섞인다
+- 문제: sidecar backfill 서비스는 source별 payload 순회와 aggregate 재생성만 맡으면 되는데도, raw payload 목록 조회와 sourceType/sourceId 기준 서비스 매칭을 서비스 본문에서 직접 조합하고 있었다. 이 상태면 backfill 대상 read 조립 규칙이 바뀔 때 orchestration 서비스 본문을 다시 열어야 한다.
+- 해결: `NormalizedPolicySidecarBackfillTarget` 모델과 `findTargetsBySourceTypeAndApiCategoryOrderByFetchedAtAsc(...)` 를 `NormalizedPolicySidecarBackfillReadRepository` 에 추가하고, payload + matched service 조합을 이 read 경계 뒤로 이동했다.
+- 이유: `NormalizedPolicySidecarBackfillService` 는 source별 backfill orchestration과 aggregate 재생성에 집중하고, payload/service read 조립 규칙은 별도 read repository 로 내려야 책임이 더 선명하다.
