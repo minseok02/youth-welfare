@@ -3,7 +3,8 @@ package com.example.welfare.collect.service;
 import com.example.welfare.collect.dto.BokjiroCentralDto;
 import com.example.welfare.collect.entity.RawApiPayload;
 import com.example.welfare.collect.mapper.WelfareServiceMapper;
-import com.example.welfare.collect.repository.RawApiPayloadRepository;
+import com.example.welfare.collect.repository.RawApiPayloadCommandRepository;
+import com.example.welfare.collect.repository.RawApiPayloadReadRepository;
 import com.example.welfare.collect.support.ListCollectSourceBinding;
 import com.example.welfare.collect.support.ListCollectSourceBindings;
 import com.example.welfare.collect.normalization.NormalizedPolicyAggregate;
@@ -31,7 +32,9 @@ import static org.mockito.Mockito.verify;
 class RawApiPayloadServiceTest {
 
     @Mock
-    private RawApiPayloadRepository rawApiPayloadRepository;
+    private RawApiPayloadReadRepository rawApiPayloadReadRepository;
+    @Mock
+    private RawApiPayloadCommandRepository rawApiPayloadCommandRepository;
     @Mock
     private WelfareServiceMapper welfareServiceMapper;
 
@@ -39,7 +42,11 @@ class RawApiPayloadServiceTest {
 
     @BeforeEach
     void setUp() {
-        rawApiPayloadService = new RawApiPayloadService(rawApiPayloadRepository, new ObjectMapper());
+        rawApiPayloadService = new RawApiPayloadService(
+                rawApiPayloadReadRepository,
+                rawApiPayloadCommandRepository,
+                new ObjectMapper()
+        );
     }
 
     @Test
@@ -49,7 +56,7 @@ class RawApiPayloadServiceTest {
         ReflectionTestUtils.setField(item, "servId", "WLF00000060");
         ReflectionTestUtils.setField(item, "servNm", "청년내일저축계좌");
 
-        given(rawApiPayloadRepository.findBySourceTypeAndSourceIdAndApiCategory(
+        given(rawApiPayloadReadRepository.findBySourceTypeAndSourceIdAndApiCategory(
                 WelfareService.SourceType.BOKJIRO_CENTRAL,
                 "WLF00000060",
                 RawApiPayload.ApiCategory.LIST
@@ -57,7 +64,7 @@ class RawApiPayloadServiceTest {
 
         rawApiPayloadService.saveList(binding, item);
 
-        verify(rawApiPayloadRepository).save(any(RawApiPayload.class));
+        verify(rawApiPayloadCommandRepository).save(any(RawApiPayload.class));
     }
 
     @Test
@@ -68,7 +75,7 @@ class RawApiPayloadServiceTest {
 
         rawApiPayloadService.saveList(binding, item);
 
-        verifyNoInteractions(rawApiPayloadRepository);
+        verifyNoInteractions(rawApiPayloadReadRepository, rawApiPayloadCommandRepository);
     }
 
     @Test
@@ -91,7 +98,7 @@ class RawApiPayloadServiceTest {
                 ignored -> NormalizedPolicyAggregate.builder().build()
         );
 
-        given(rawApiPayloadRepository.findBySourceTypeAndSourceIdAndApiCategory(
+        given(rawApiPayloadReadRepository.findBySourceTypeAndSourceIdAndApiCategory(
                 WelfareService.SourceType.YOUTH,
                 "Y-SYN-RAW-1",
                 RawApiPayload.ApiCategory.LIST
@@ -99,7 +106,7 @@ class RawApiPayloadServiceTest {
 
         rawApiPayloadService.saveList(binding, item);
 
-        verify(rawApiPayloadRepository).save(any(RawApiPayload.class));
+        verify(rawApiPayloadCommandRepository).save(any(RawApiPayload.class));
     }
 
     private record SyntheticItem(String sourceId, String title) {

@@ -2861,3 +2861,8 @@
 - 문제: 알림 이력 서비스는 상태/retry 초기화가 반영된 notification header 저장과 recommendation item saveAll 을 위해 `NotificationRepository`, `NotificationServiceItemRepository` 를 직접 호출하고 있었다. 이 상태면 이력 저장 규칙이 바뀔 때 서비스 본문을 다시 열어야 한다.
 - 해결: `NotificationHistoryCommandRepository` / `NotificationHistoryCommandRepositoryImpl` 을 추가하고, notification header 저장과 item 저장을 이 command 경계 뒤로 이동했다.
 - 이유: `NotificationHistoryService` 는 실패/성공 이력 orchestration과 item 조립에 집중하고, notification persistence write 세부사항은 별도 command repository 로 내려야 책임이 더 선명하다.
+
+## 525) `RawApiPayloadService` 와 `NormalizedPolicySidecarBackfillService` 가 같은 `RawApiPayloadRepository` 를 직접 걸치면, raw payload 저장 규칙과 backfill read 규칙이 다시 퍼진다
+- 문제: raw payload 저장 서비스는 source/apiCategory 단건 조회 후 upsert save 를 직접 수행했고, sidecar backfill 서비스는 source/apiCategory 목록 조회를 위해 같은 저장소를 직접 호출하고 있었다. 이 상태면 raw payload persistence 규칙이 바뀔 때 저장/백필 서비스 둘을 함께 다시 열어야 한다.
+- 해결: `RawApiPayloadReadRepository` / `RawApiPayloadReadRepositoryImpl`, `RawApiPayloadCommandRepository` / `RawApiPayloadCommandRepositoryImpl` 을 추가하고, 저장은 command 경계로, source/apiCategory 단건/목록 조회는 read 경계로 이동했다.
+- 이유: `RawApiPayloadService` 는 직렬화/hash/upsert orchestration에, `NormalizedPolicySidecarBackfillService` 는 payload 순회와 aggregate writer 호출에 집중하고, raw payload persistence 세부사항은 read/write 경계로 분리해야 책임이 더 선명하다.

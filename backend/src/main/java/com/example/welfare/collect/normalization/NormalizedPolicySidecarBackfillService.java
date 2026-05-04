@@ -2,7 +2,7 @@ package com.example.welfare.collect.normalization;
 
 import com.example.welfare.collect.entity.RawApiPayload;
 import com.example.welfare.collect.mapper.WelfareServiceMapper;
-import com.example.welfare.collect.repository.RawApiPayloadRepository;
+import com.example.welfare.collect.repository.RawApiPayloadReadRepository;
 import com.example.welfare.collect.support.CollectSourceRegistry;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.repository.WelfareServiceRepository;
@@ -20,19 +20,19 @@ import java.util.Map;
 @Service
 public class NormalizedPolicySidecarBackfillService {
 
-    private final RawApiPayloadRepository rawApiPayloadRepository;
+    private final RawApiPayloadReadRepository rawApiPayloadReadRepository;
     private final WelfareServiceRepository welfareServiceRepository;
     private final WelfareServiceMapper welfareServiceMapper;
     private final NormalizedPolicySidecarWriter normalizedPolicySidecarWriter;
     private final ObjectMapper objectMapper;
     private final Map<WelfareService.SourceType, SidecarBackfillCapability> backfillCapabilities;
 
-    public NormalizedPolicySidecarBackfillService(RawApiPayloadRepository rawApiPayloadRepository,
+    public NormalizedPolicySidecarBackfillService(RawApiPayloadReadRepository rawApiPayloadReadRepository,
                                                   WelfareServiceRepository welfareServiceRepository,
                                                   WelfareServiceMapper welfareServiceMapper,
                                                   NormalizedPolicySidecarWriter normalizedPolicySidecarWriter,
                                                   ObjectMapper objectMapper) {
-        this.rawApiPayloadRepository = rawApiPayloadRepository;
+        this.rawApiPayloadReadRepository = rawApiPayloadReadRepository;
         this.welfareServiceRepository = welfareServiceRepository;
         this.welfareServiceMapper = welfareServiceMapper;
         this.normalizedPolicySidecarWriter = normalizedPolicySidecarWriter;
@@ -74,7 +74,7 @@ public class NormalizedPolicySidecarBackfillService {
             return BackfillResult.empty();
         }
 
-        List<RawApiPayload> payloads = rawApiPayloadRepository
+        List<RawApiPayload> payloads = rawApiPayloadReadRepository
                 .findAllBySourceTypeAndApiCategoryOrderByFetchedAtAsc(sourceType, RawApiPayload.ApiCategory.LIST);
 
         int scanned = 0;
@@ -112,7 +112,7 @@ public class NormalizedPolicySidecarBackfillService {
             return BackfillResult.empty();
         }
 
-        List<RawApiPayload> payloads = rawApiPayloadRepository
+        List<RawApiPayload> payloads = rawApiPayloadReadRepository
                 .findAllBySourceTypeAndApiCategoryOrderByFetchedAtAsc(sourceType, RawApiPayload.ApiCategory.DETAIL);
 
         int scanned = 0;

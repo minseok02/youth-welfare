@@ -1252,6 +1252,7 @@ cd backend
 - admin forced-logout 경로도 `UserKeyLookupService.requireExistingUserIdByUserKey(...)` 로 직접 정리해 `UserReadService` 래퍼를 제거
 - `NotificationService` 의 재시도 대상 조회도 `NotificationRetryReadRepository` 뒤로 이동해 알림 재시도 orchestration과 persistence read 규칙을 분리
 - `NotificationHistoryService` 의 notification header/item 저장도 `NotificationHistoryCommandRepository` 뒤로 이동해 알림 이력 orchestration과 persistence write 규칙을 분리
+- `RawApiPayloadService` 저장과 `NormalizedPolicySidecarBackfillService` 조회도 `RawApiPayloadCommandRepository`, `RawApiPayloadReadRepository` 뒤로 이동해 raw payload persistence read/write 규칙을 분리
 
 ## 2차로 분리된 항목
 
