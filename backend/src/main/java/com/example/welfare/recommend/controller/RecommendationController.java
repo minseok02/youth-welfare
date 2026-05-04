@@ -6,8 +6,8 @@ import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
 import com.example.welfare.recommend.dto.RecommendationResponse;
 import com.example.welfare.recommend.entity.UserRecommendation;
 import com.example.welfare.recommend.facade.RecommendationFacade;
-import com.example.welfare.recommend.facade.RecommendationReadFacade;
 import com.example.welfare.recommend.service.RecommendationLogReadService;
+import com.example.welfare.recommend.service.RecommendationProjectionReadService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -23,7 +23,7 @@ import java.util.stream.Collectors;
 public class RecommendationController {
 
     private final RecommendationFacade recommendationFacade;
-    private final RecommendationReadFacade recommendationReadFacade;
+    private final RecommendationProjectionReadService recommendationProjectionReadService;
     private final RecommendationLogReadService recommendationLogReadService;
 
     // 추천 목록 조회 (저장된 결과 반환 — 실시간 AI 추가 호출 없음)
@@ -72,7 +72,7 @@ public class RecommendationController {
     private List<RecommendationResponse> toResponses(List<UserRecommendation> recs,
                                                      Map<Long, Long> serviceLogMap) {
         Map<Long, RecommendationCandidateProjection> projections =
-                recommendationReadFacade.findCandidateProjections(recs);
+                recommendationProjectionReadService.findCandidateProjections(recs);
 
         return recs.stream()
                 .map(rec -> RecommendationResponse.from(

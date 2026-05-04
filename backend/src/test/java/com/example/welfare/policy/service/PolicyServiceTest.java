@@ -11,8 +11,9 @@ import com.example.welfare.policy.entity.WelfareServiceDetail;
 import com.example.welfare.policy.repository.PolicyListReadCondition;
 import com.example.welfare.policy.repository.WelfareServiceReadRepository;
 import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
-import com.example.welfare.recommend.facade.RecommendationReadFacade;
+import com.example.welfare.recommend.service.RecommendationBookmarkReadService;
 import com.example.welfare.recommend.service.RecommendationBookmarkCommandService;
+import com.example.welfare.recommend.service.RecommendationProjectionReadService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -45,7 +46,9 @@ class PolicyServiceTest {
     @Mock
     private PolicyDetailReadService policyDetailReadService;
     @Mock
-    private RecommendationReadFacade recommendationReadFacade;
+    private RecommendationBookmarkReadService recommendationBookmarkReadService;
+    @Mock
+    private RecommendationProjectionReadService recommendationProjectionReadService;
     @Mock
     private RecommendationBookmarkCommandService recommendationBookmarkCommandService;
 
@@ -76,7 +79,7 @@ class PolicyServiceTest {
                 )),
                 any(PageRequest.class)
         )).willReturn(page);
-        given(recommendationReadFacade.findCandidateProjectionsByServices(List.of(service)))
+        given(recommendationProjectionReadService.findCandidateProjectionsByServices(List.of(service)))
                 .willReturn(java.util.Map.of());
 
         Page<?> result = policyService.getList(
@@ -125,7 +128,7 @@ class PolicyServiceTest {
                 eq(new PolicyListReadCondition(null, null, null, false, null, null, null)),
                 any(PageRequest.class)
         )).willReturn(page);
-        given(recommendationReadFacade.findCandidateProjectionsByServices(List.of(service)))
+        given(recommendationProjectionReadService.findCandidateProjectionsByServices(List.of(service)))
                 .willReturn(java.util.Map.of(
                         11L,
                         RecommendationCandidateProjection.builder()
@@ -139,7 +142,7 @@ class PolicyServiceTest {
                                 .gov24BenefitTypeLabel("서비스")
                                 .build()
                 ));
-        given(recommendationReadFacade.findBookmarkedServiceIds(7L, List.of(service)))
+        given(recommendationBookmarkReadService.findBookmarkedServiceIds(7L, List.of(service)))
                 .willReturn(Set.of(11L));
 
         Page<PolicySummaryResponse> result = policyService.getList(
@@ -198,9 +201,9 @@ class PolicyServiceTest {
                         List.of(region),
                         List.of(tag)
                 ));
-        given(recommendationReadFacade.findBookmarkedServiceIds(7L, List.of(service)))
+        given(recommendationBookmarkReadService.findBookmarkedServiceIds(7L, List.of(service)))
                 .willReturn(Set.of(11L));
-        given(recommendationReadFacade.findCandidateProjectionsByServices(List.of(service)))
+        given(recommendationProjectionReadService.findCandidateProjectionsByServices(List.of(service)))
                 .willReturn(java.util.Map.of(
                         11L,
                         RecommendationCandidateProjection.builder()

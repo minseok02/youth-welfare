@@ -9,8 +9,9 @@ import com.example.welfare.policy.repository.PolicyListReadCondition;
 import com.example.welfare.policy.repository.WelfareServiceReadRepository;
 import com.example.welfare.policy.support.WelfareSourceTypeSupport;
 import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
-import com.example.welfare.recommend.facade.RecommendationReadFacade;
+import com.example.welfare.recommend.service.RecommendationBookmarkReadService;
 import com.example.welfare.recommend.service.RecommendationBookmarkCommandService;
+import com.example.welfare.recommend.service.RecommendationProjectionReadService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Page;
@@ -29,7 +30,8 @@ public class PolicyService {
     private final WelfareServiceReadRepository welfareServiceReadRepository;
     private final PolicyLookupService policyLookupService;
     private final PolicyDetailReadService policyDetailReadService;
-    private final RecommendationReadFacade recommendationReadFacade;
+    private final RecommendationBookmarkReadService recommendationBookmarkReadService;
+    private final RecommendationProjectionReadService recommendationProjectionReadService;
     private final RecommendationBookmarkCommandService recommendationBookmarkCommandService;
 
     @Transactional(readOnly = true)
@@ -56,7 +58,7 @@ public class PolicyService {
                 buildPageable(pageable, sort)
         );
 
-        Set<Long> bookmarkedServiceIds = recommendationReadFacade.findBookmarkedServiceIds(userId, page.getContent());
+        Set<Long> bookmarkedServiceIds = recommendationBookmarkReadService.findBookmarkedServiceIds(userId, page.getContent());
         java.util.Map<Long, RecommendationCandidateProjection> projections = loadProjections(page.getContent());
         return page.map(service -> PolicySummaryResponse.from(
                 service,
@@ -73,8 +75,8 @@ public class PolicyService {
         }
 
         PolicyDetailReadService.PolicyDetailAggregate detailAggregate = policyDetailReadService.getAggregate(serviceId);
-        boolean bookmarked = recommendationReadFacade.findBookmarkedServiceIds(userId, List.of(ws)).contains(serviceId);
-        RecommendationCandidateProjection projection = recommendationReadFacade
+        boolean bookmarked = recommendationBookmarkReadService.findBookmarkedServiceIds(userId, List.of(ws)).contains(serviceId);
+        RecommendationCandidateProjection projection = recommendationProjectionReadService
                 .findCandidateProjectionsByServices(List.of(ws))
                 .get(serviceId);
 
@@ -97,7 +99,7 @@ public class PolicyService {
         if (services == null || services.isEmpty()) {
             return java.util.Map.of();
         }
-        return recommendationReadFacade.findCandidateProjectionsByServices(services);
+        return recommendationProjectionReadService.findCandidateProjectionsByServices(services);
     }
 
     private Pageable buildPageable(Pageable pageable, String sort) {

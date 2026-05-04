@@ -9,7 +9,8 @@ import com.example.welfare.policy.repository.PolicySearchReadCondition;
 import com.example.welfare.policy.repository.WelfareServiceReadRepository;
 import com.example.welfare.policy.support.WelfareSourceTypeSupport;
 import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
-import com.example.welfare.recommend.facade.RecommendationReadFacade;
+import com.example.welfare.recommend.service.RecommendationBookmarkReadService;
+import com.example.welfare.recommend.service.RecommendationProjectionReadService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -31,7 +32,8 @@ public class PolicySearchService {
     private static final long SEARCH_WARN_DURATION_MS = 500L;
 
     private final WelfareServiceReadRepository welfareServiceReadRepository;
-    private final RecommendationReadFacade recommendationReadFacade;
+    private final RecommendationBookmarkReadService recommendationBookmarkReadService;
+    private final RecommendationProjectionReadService recommendationProjectionReadService;
 
     @Transactional(readOnly = true)
     public PolicySearchResponse search(Long userId, String keyword, int page) {
@@ -81,7 +83,7 @@ public class PolicySearchService {
                 PageRequest.of(pageNumber, limit)
         );
 
-        Set<Long> bookmarkedServiceIds = recommendationReadFacade.findBookmarkedServiceIds(userId, resultPage.getContent());
+        Set<Long> bookmarkedServiceIds = recommendationBookmarkReadService.findBookmarkedServiceIds(userId, resultPage.getContent());
         java.util.Map<Long, RecommendationCandidateProjection> projections = loadProjections(resultPage.getContent());
         List<PolicySummaryResponse> content = resultPage.getContent().stream()
                 .map(service -> PolicySummaryResponse.from(
@@ -161,7 +163,7 @@ public class PolicySearchService {
         if (services == null || services.isEmpty()) {
             return java.util.Map.of();
         }
-        return recommendationReadFacade.findCandidateProjectionsByServices(services);
+        return recommendationProjectionReadService.findCandidateProjectionsByServices(services);
     }
 
     // Boolean Mode 검색어 구성: 공백 분리 후 각 단어에 + 접두사

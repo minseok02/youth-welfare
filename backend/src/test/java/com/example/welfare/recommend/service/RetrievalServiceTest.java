@@ -4,7 +4,6 @@ import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
 import com.example.welfare.recommend.dto.RetrievedRecommendationCandidates;
 import com.example.welfare.recommend.dto.RecommendationUserSnapshot;
-import com.example.welfare.recommend.facade.RecommendationReadFacade;
 import com.example.welfare.recommend.repository.RecommendationCandidateReadCondition;
 import com.example.welfare.recommend.repository.RecommendationCandidateReadRepository;
 import com.example.welfare.recommend.support.RecommendationYouthRelevanceSupport;
@@ -36,7 +35,7 @@ class RetrievalServiceTest {
     private RecommendationYouthRelevanceSupport recommendationYouthRelevanceSupport;
 
     @Mock
-    private RecommendationReadFacade recommendationReadFacade;
+    private RecommendationProjectionReadService recommendationProjectionReadService;
 
     @Test
     @DisplayName("regionCode가 있으면 regionCode 추천 쿼리를 사용한다")
@@ -44,7 +43,7 @@ class RetrievalServiceTest {
         RetrievalService service = new RetrievalService(
                 recommendationCandidateReadRepository,
                 recommendationYouthRelevanceSupport,
-                recommendationReadFacade
+                recommendationProjectionReadService
         );
 
         RecommendationUserSnapshot user = user("서울특별시", "11680");
@@ -58,7 +57,7 @@ class RetrievalServiceTest {
         ))
                 .willReturn(List.of());
         given(recommendationCandidateReadRepository.findTagsByServiceIds(any())).willReturn(Collections.emptyMap());
-        given(recommendationReadFacade.findCandidateProjectionsByServiceIds(any()))
+        given(recommendationProjectionReadService.findCandidateProjectionsByServiceIds(any()))
                 .willReturn(Map.of(1L, projection(1L, true)));
 
         RetrievedRecommendationCandidates results = service.retrieve("youth_all", user);
@@ -70,7 +69,7 @@ class RetrievalServiceTest {
         verify(recommendationCandidateReadRepository).findLatestCandidates(
                 new RecommendationCandidateReadCondition(26, 5, "서울특별시", "11680", 150, 20)
         );
-        verify(recommendationReadFacade).findCandidateProjectionsByServiceIds(argThat(ids -> ids.equals(List.of(1L))));
+        verify(recommendationProjectionReadService).findCandidateProjectionsByServiceIds(argThat(ids -> ids.equals(List.of(1L))));
     }
 
     @Test
@@ -79,7 +78,7 @@ class RetrievalServiceTest {
         RetrievalService service = new RetrievalService(
                 recommendationCandidateReadRepository,
                 recommendationYouthRelevanceSupport,
-                recommendationReadFacade
+                recommendationProjectionReadService
         );
 
         RecommendationUserSnapshot user = user("서울특별시", null);
@@ -93,7 +92,7 @@ class RetrievalServiceTest {
         ))
                 .willReturn(List.of());
         given(recommendationCandidateReadRepository.findTagsByServiceIds(any())).willReturn(Collections.emptyMap());
-        given(recommendationReadFacade.findCandidateProjectionsByServiceIds(any()))
+        given(recommendationProjectionReadService.findCandidateProjectionsByServiceIds(any()))
                 .willReturn(Map.of(2L, projection(2L, true)));
 
         RetrievedRecommendationCandidates results = service.retrieve("youth_all", user);
@@ -105,7 +104,7 @@ class RetrievalServiceTest {
         verify(recommendationCandidateReadRepository).findLatestCandidates(
                 new RecommendationCandidateReadCondition(26, 5, "서울특별시", null, 150, 20)
         );
-        verify(recommendationReadFacade).findCandidateProjectionsByServiceIds(argThat(ids -> ids.equals(List.of(2L))));
+        verify(recommendationProjectionReadService).findCandidateProjectionsByServiceIds(argThat(ids -> ids.equals(List.of(2L))));
     }
 
     @Test
@@ -114,7 +113,7 @@ class RetrievalServiceTest {
         RetrievalService service = new RetrievalService(
                 recommendationCandidateReadRepository,
                 recommendationYouthRelevanceSupport,
-                recommendationReadFacade
+                recommendationProjectionReadService
         );
 
         RecommendationUserSnapshot user = user("서울특별시", "11680");
@@ -128,7 +127,7 @@ class RetrievalServiceTest {
         ))
                 .willReturn(List.of());
         given(recommendationCandidateReadRepository.findTagsByServiceIds(any())).willReturn(Collections.emptyMap());
-        given(recommendationReadFacade.findCandidateProjectionsByServiceIds(any()))
+        given(recommendationProjectionReadService.findCandidateProjectionsByServiceIds(any()))
                 .willReturn(Map.of(3L, projection(3L, false)));
 
         RetrievedRecommendationCandidates results = service.retrieve("youth_all", user);

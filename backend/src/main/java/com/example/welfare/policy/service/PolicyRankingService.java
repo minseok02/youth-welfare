@@ -4,7 +4,7 @@ import com.example.welfare.policy.dto.PolicyRankingResponse;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.repository.PolicyRankingReadRepository;
 import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
-import com.example.welfare.recommend.facade.RecommendationReadFacade;
+import com.example.welfare.recommend.service.RecommendationProjectionReadService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,7 +31,7 @@ public class PolicyRankingService {
     private static final int EXPLORE_WINDOW_DAYS = 14;
 
     private final PolicyRankingReadRepository policyRankingReadRepository;
-    private final RecommendationReadFacade recommendationReadFacade;
+    private final RecommendationProjectionReadService recommendationProjectionReadService;
 
     @Transactional(readOnly = true)
     public List<PolicyRankingResponse> getRanking(int size) {
@@ -50,7 +50,7 @@ public class PolicyRankingService {
                         row -> safeLong(row.getUniqueViewCount())
                 ));
         Map<Long, RecommendationCandidateProjection> projections =
-                recommendationReadFacade.findCandidateProjectionsByServices(services);
+                recommendationProjectionReadService.findCandidateProjectionsByServices(services);
 
         double maxUniqueRaw = services.stream()
                 .mapToDouble(s -> log1p(uniqueViewsByServiceId.getOrDefault(s.getId(), 0L)))

@@ -5,7 +5,8 @@ import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.repository.PolicySearchReadCondition;
 import com.example.welfare.policy.repository.WelfareServiceReadRepository;
 import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
-import com.example.welfare.recommend.facade.RecommendationReadFacade;
+import com.example.welfare.recommend.service.RecommendationBookmarkReadService;
+import com.example.welfare.recommend.service.RecommendationProjectionReadService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -30,14 +31,17 @@ class PolicySearchServiceTest {
     @Mock
     private WelfareServiceReadRepository welfareServiceReadRepository;
     @Mock
-    private RecommendationReadFacade recommendationReadFacade;
+    private RecommendationBookmarkReadService recommendationBookmarkReadService;
+    @Mock
+    private RecommendationProjectionReadService recommendationProjectionReadService;
 
     @Test
     @DisplayName("검색은 SQL 레벨 청년 플래그 필터 결과를 페이지 메타데이터와 함께 반환한다")
     void searchReturnsPagedResponse() {
         PolicySearchService service = new PolicySearchService(
                 welfareServiceReadRepository,
-                recommendationReadFacade
+                recommendationBookmarkReadService,
+                recommendationProjectionReadService
         );
 
         WelfareService youthService = welfareService(1L, "청년 정책");
@@ -47,7 +51,7 @@ class PolicySearchServiceTest {
                 )),
                 any(PageRequest.class)
         )).willReturn(new PageImpl<>(List.of(youthService), PageRequest.of(0, 10), 21));
-        given(recommendationReadFacade.findCandidateProjectionsByServices(List.of(youthService)))
+        given(recommendationProjectionReadService.findCandidateProjectionsByServices(List.of(youthService)))
                 .willReturn(java.util.Map.of(
                         1L,
                         RecommendationCandidateProjection.builder()
@@ -80,7 +84,8 @@ class PolicySearchServiceTest {
     void searchWithSidoAndSggUsesRegionQuery() {
         PolicySearchService service = new PolicySearchService(
                 welfareServiceReadRepository,
-                recommendationReadFacade
+                recommendationBookmarkReadService,
+                recommendationProjectionReadService
         );
 
         WelfareService youthService = welfareService(2L, "서울 청년 정책");
@@ -90,7 +95,7 @@ class PolicySearchServiceTest {
                 )),
                 any(PageRequest.class)
         )).willReturn(new PageImpl<>(List.of(youthService), PageRequest.of(0, 10), 1));
-        given(recommendationReadFacade.findCandidateProjectionsByServices(List.of(youthService)))
+        given(recommendationProjectionReadService.findCandidateProjectionsByServices(List.of(youthService)))
                 .willReturn(java.util.Map.of());
 
         PolicySearchResponse results = service.search(
@@ -122,7 +127,8 @@ class PolicySearchServiceTest {
     void searchWithSidoOnlyUsesSidoQuery() {
         PolicySearchService service = new PolicySearchService(
                 welfareServiceReadRepository,
-                recommendationReadFacade
+                recommendationBookmarkReadService,
+                recommendationProjectionReadService
         );
 
         WelfareService youthService = welfareService(3L, "서울 전체 청년 정책");
@@ -132,7 +138,7 @@ class PolicySearchServiceTest {
                 )),
                 any(PageRequest.class)
         )).willReturn(new PageImpl<>(List.of(youthService), PageRequest.of(0, 10), 1));
-        given(recommendationReadFacade.findCandidateProjectionsByServices(List.of(youthService)))
+        given(recommendationProjectionReadService.findCandidateProjectionsByServices(List.of(youthService)))
                 .willReturn(java.util.Map.of());
 
         PolicySearchResponse results = service.search(
