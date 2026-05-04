@@ -3,9 +3,7 @@ package com.example.welfare.policy.service;
 import com.example.welfare.policy.dto.PolicyRankingResponse;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.repository.PolicyRankingReadRepository;
-import com.example.welfare.policy.repository.ServiceViewLogRepository;
 import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
-import com.example.welfare.recommend.repository.CanonicalRecommendationReadModelRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -27,9 +25,7 @@ class PolicyRankingServiceTest {
     @Mock
     private PolicyRankingReadRepository policyRankingReadRepository;
     @Mock
-    private ServiceViewLogRepository serviceViewLogRepository;
-    @Mock
-    private CanonicalRecommendationReadModelRepository canonicalRecommendationReadModelRepository;
+    private PolicyPresentationReadService policyPresentationReadService;
 
     @InjectMocks
     private PolicyRankingService policyRankingService;
@@ -49,9 +45,9 @@ class PolicyRankingServiceTest {
                 .build();
 
         given(policyRankingReadRepository.findRankableServices()).willReturn(List.of(service));
-        given(serviceViewLogRepository.findUniqueViewCountsSince(anyCollection(), any()))
+        given(policyRankingReadRepository.findUniqueViewCountsSince(anyCollection(), any()))
                 .willReturn(List.of(uniqueCount(1L, 7L)));
-        given(canonicalRecommendationReadModelRepository.findByServiceIds(List.of(1L)))
+        given(policyPresentationReadService.findProjections(List.of(service)))
                 .willReturn(java.util.Map.of(
                         1L,
                         RecommendationCandidateProjection.builder()
@@ -118,13 +114,13 @@ class PolicyRankingServiceTest {
 
         List<WelfareService> services = List.of(oldHighScore, oldLowScore, recentNew);
         given(policyRankingReadRepository.findRankableServices()).willReturn(services);
-        given(serviceViewLogRepository.findUniqueViewCountsSince(anyCollection(), any()))
+        given(policyRankingReadRepository.findUniqueViewCountsSince(anyCollection(), any()))
                 .willReturn(List.of(
                         uniqueCount(1L, 50L),
                         uniqueCount(2L, 1L),
                         uniqueCount(3L, 0L)
                 ));
-        given(canonicalRecommendationReadModelRepository.findByServiceIds(List.of(1L, 2L, 3L)))
+        given(policyPresentationReadService.findProjections(services))
                 .willReturn(java.util.Map.of());
 
         List<PolicyRankingResponse> ranking = policyRankingService.getRanking(10);
@@ -135,8 +131,8 @@ class PolicyRankingServiceTest {
         assertEquals(true, ids.contains(3L));
     }
 
-    private ServiceViewLogRepository.ServiceUniqueViewCount uniqueCount(Long serviceId, Long uniqueCount) {
-        return new ServiceViewLogRepository.ServiceUniqueViewCount() {
+    private PolicyRankingReadRepository.ServiceUniqueViewCount uniqueCount(Long serviceId, Long uniqueCount) {
+        return new PolicyRankingReadRepository.ServiceUniqueViewCount() {
             @Override
             public Long getServiceId() {
                 return serviceId;

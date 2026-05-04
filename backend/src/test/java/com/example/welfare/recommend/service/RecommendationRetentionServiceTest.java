@@ -1,6 +1,6 @@
 package com.example.welfare.recommend.service;
 
-import com.example.welfare.recommend.repository.UserRecommendationRepository;
+import com.example.welfare.recommend.repository.RecommendationPersistenceCommandRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -15,7 +15,7 @@ import static org.mockito.Mockito.verify;
 class RecommendationRetentionServiceTest {
 
     @Mock
-    private UserRecommendationRepository userRecommendationRepository;
+    private RecommendationPersistenceCommandRepository recommendationPersistenceCommandRepository;
 
     @InjectMocks
     private RecommendationRetentionService recommendationRetentionService;
@@ -25,6 +25,6 @@ class RecommendationRetentionServiceTest {
     void cleanupOldUnbookmarkedRecommendations() {
         recommendationRetentionService.cleanupOldUnbookmarkedRecommendations();
 
-        verify(userRecommendationRepository).deleteOldUnbookmarked(any());
+        verify(recommendationPersistenceCommandRepository).deleteOldUnbookmarked(any());
     }
 }

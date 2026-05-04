@@ -26,7 +26,7 @@
 
 정기 진입:
 
-- `CollectService.collectAll()`
+- `CollectBatchService.collectAll()`
 - 매일 새벽 2시 실행
 
 ## 현재 source dispatch 구조
@@ -35,7 +35,8 @@
 
 1. `CollectSource`
 2. `CollectSourceAdapter`
-3. `CollectService`
+3. `CollectSourceExecutionService`
+4. `CollectBatchService` / `CollectAdminService`
 
 registry dispatch 구조로 동작합니다.
 

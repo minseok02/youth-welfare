@@ -2,10 +2,11 @@ package com.example.welfare.collect.normalization;
 
 import com.example.welfare.collect.entity.RawApiPayload;
 import com.example.welfare.collect.mapper.WelfareServiceMapper;
-import com.example.welfare.collect.repository.RawApiPayloadRepository;
+import com.example.welfare.collect.repository.NormalizedPolicySidecarBackfillReadRepository;
+import com.example.welfare.collect.repository.NormalizedPolicySidecarBackfillTarget;
+import com.example.welfare.collect.service.CollectPolicyAggregateApplyService;
 import com.example.welfare.collect.support.CollectSourceRegistry;
 import com.example.welfare.policy.entity.WelfareService;
-import com.example.welfare.policy.repository.WelfareServiceRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -20,22 +21,19 @@ import java.util.Map;
 @Service
 public class NormalizedPolicySidecarBackfillService {
 
-    private final RawApiPayloadRepository rawApiPayloadRepository;
-    private final WelfareServiceRepository welfareServiceRepository;
+    private final NormalizedPolicySidecarBackfillReadRepository normalizedPolicySidecarBackfillReadRepository;
     private final WelfareServiceMapper welfareServiceMapper;
-    private final NormalizedPolicySidecarWriter normalizedPolicySidecarWriter;
+    private final CollectPolicyAggregateApplyService collectPolicyAggregateApplyService;
     private final ObjectMapper objectMapper;
     private final Map<WelfareService.SourceType, SidecarBackfillCapability> backfillCapabilities;
 
-    public NormalizedPolicySidecarBackfillService(RawApiPayloadRepository rawApiPayloadRepository,
-                                                  WelfareServiceRepository welfareServiceRepository,
+    public NormalizedPolicySidecarBackfillService(NormalizedPolicySidecarBackfillReadRepository normalizedPolicySidecarBackfillReadRepository,
                                                   WelfareServiceMapper welfareServiceMapper,
-                                                  NormalizedPolicySidecarWriter normalizedPolicySidecarWriter,
+                                                  CollectPolicyAggregateApplyService collectPolicyAggregateApplyService,
                                                   ObjectMapper objectMapper) {
-        this.rawApiPayloadRepository = rawApiPayloadRepository;
-        this.welfareServiceRepository = welfareServiceRepository;
+        this.normalizedPolicySidecarBackfillReadRepository = normalizedPolicySidecarBackfillReadRepository;
         this.welfareServiceMapper = welfareServiceMapper;
-        this.normalizedPolicySidecarWriter = normalizedPolicySidecarWriter;
+        this.collectPolicyAggregateApplyService = collectPolicyAggregateApplyService;
         this.objectMapper = objectMapper;
         this.backfillCapabilities = buildBackfillCapabilities(welfareServiceMapper, objectMapper);
     }
@@ -74,19 +72,22 @@ public class NormalizedPolicySidecarBackfillService {
             return BackfillResult.empty();
         }
 
-        List<RawApiPayload> payloads = rawApiPayloadRepository
-                .findAllBySourceTypeAndApiCategoryOrderByFetchedAtAsc(sourceType, RawApiPayload.ApiCategory.LIST);
+        List<NormalizedPolicySidecarBackfillTarget> targets = normalizedPolicySidecarBackfillReadRepository
+                .findTargetsBySourceTypeAndApiCategoryOrderByFetchedAtAsc(
+                        sourceType,
+                        RawApiPayload.ApiCategory.LIST,
+                        limitPerSource
+                );
 
         int scanned = 0;
         int upserted = 0;
         int missingService = 0;
         int failed = 0;
 
-        for (RawApiPayload raw : limit(payloads, limitPerSource)) {
+        for (NormalizedPolicySidecarBackfillTarget target : targets) {
             scanned++;
-            WelfareService service = welfareServiceRepository
-                    .findBySourceTypeAndSourceId(raw.getSourceType(), raw.getSourceId())
-                    .orElse(null);
+            RawApiPayload raw = target.rawApiPayload();
+            WelfareService service = target.matchedService();
             if (service == null) {
                 missingService++;
                 continue;
@@ -94,7 +95,7 @@ public class NormalizedPolicySidecarBackfillService {
 
             try {
                 NormalizedPolicyAggregate aggregate = capability.toListAggregate(raw);
-                normalizedPolicySidecarWriter.upsert(service, aggregate);
+                collectPolicyAggregateApplyService.applySidecarBackfill(service, aggregate);
                 upserted++;
             } catch (Exception e) {
                 failed++;
@@ -112,19 +113,22 @@ public class NormalizedPolicySidecarBackfillService {
             return BackfillResult.empty();
         }
 
-        List<RawApiPayload> payloads = rawApiPayloadRepository
-                .findAllBySourceTypeAndApiCategoryOrderByFetchedAtAsc(sourceType, RawApiPayload.ApiCategory.DETAIL);
+        List<NormalizedPolicySidecarBackfillTarget> targets = normalizedPolicySidecarBackfillReadRepository
+                .findTargetsBySourceTypeAndApiCategoryOrderByFetchedAtAsc(
+                        sourceType,
+                        RawApiPayload.ApiCategory.DETAIL,
+                        limitPerSource
+                );
 
         int scanned = 0;
         int upserted = 0;
         int missingService = 0;
         int failed = 0;
 
-        for (RawApiPayload raw : limit(payloads, limitPerSource)) {
+        for (NormalizedPolicySidecarBackfillTarget target : targets) {
             scanned++;
-            WelfareService service = welfareServiceRepository
-                    .findBySourceTypeAndSourceId(raw.getSourceType(), raw.getSourceId())
-                    .orElse(null);
+            RawApiPayload raw = target.rawApiPayload();
+            WelfareService service = target.matchedService();
             if (service == null) {
                 missingService++;
                 continue;
@@ -132,7 +136,7 @@ public class NormalizedPolicySidecarBackfillService {
 
             try {
                 NormalizedPolicyAggregate aggregate = capability.toDetailAggregate(service, raw);
-                normalizedPolicySidecarWriter.upsert(service, aggregate);
+                collectPolicyAggregateApplyService.applySidecarBackfill(service, aggregate);
                 upserted++;
             } catch (Exception e) {
                 failed++;
@@ -142,13 +146,6 @@ public class NormalizedPolicySidecarBackfillService {
         }
 
         return new BackfillResult(scanned, upserted, missingService, failed);
-    }
-
-    private List<RawApiPayload> limit(List<RawApiPayload> payloads, int limitPerSource) {
-        if (limitPerSource <= 0 || payloads.size() <= limitPerSource) {
-            return payloads;
-        }
-        return payloads.subList(0, limitPerSource);
     }
 
     private List<WelfareService.SourceType> configuredSourceTypes(java.util.function.Predicate<SidecarBackfillCapability> predicate) {

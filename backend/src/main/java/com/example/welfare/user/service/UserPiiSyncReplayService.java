@@ -1,12 +1,9 @@
 package com.example.welfare.user.service;
 
 import com.example.welfare.user.dto.response.UserPiiSyncReplayResponse;
-import com.example.welfare.user.entity.UserPiiSyncQueue;
 import com.example.welfare.user.entity.UserPiiSyncQueueStatus;
-import com.example.welfare.user.repository.UserPiiSyncQueueRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -21,7 +18,7 @@ public class UserPiiSyncReplayService {
     private static final int DEFAULT_LIMIT = 100;
     private static final int MAX_LIMIT = 1000;
 
-    private final UserPiiSyncQueueRepository userPiiSyncQueueRepository;
+    private final UserPiiSyncQueueService userPiiSyncQueueService;
     private final UserPiiSyncProcessor userPiiSyncProcessor;
 
     public UserPiiSyncReplayResponse replay(String userKey, int limit) {
@@ -32,7 +29,7 @@ public class UserPiiSyncReplayService {
     }
 
     private UserPiiSyncReplayResponse replaySingle(String userKey) {
-        if (userPiiSyncQueueRepository.findByUserKey(userKey).isEmpty()) {
+        if (!userPiiSyncQueueService.exists(userKey)) {
             log.warn("[UserPiiSyncReplayService] queue row missing for manual replay userKey={}", userKey);
             return new UserPiiSyncReplayResponse(0, 0, 0, 1);
         }
@@ -50,21 +47,10 @@ public class UserPiiSyncReplayService {
 
     private UserPiiSyncReplayResponse replayBulk(int rawLimit) {
         int limit = normalizeLimit(rawLimit);
-        List<String> userKeys = new ArrayList<>();
-        userKeys.addAll(userPiiSyncQueueRepository.findByStatusOrderByLastAttemptAtAscIdAsc(
-                        UserPiiSyncQueueStatus.FAILED,
-                        PageRequest.of(0, limit))
-                .stream()
-                .map(UserPiiSyncQueue::getUserKey)
-                .toList());
+        List<String> userKeys = new ArrayList<>(userPiiSyncQueueService.findReplayFailedUserKeys(limit));
 
         if (userKeys.size() < limit) {
-            userKeys.addAll(userPiiSyncQueueRepository.findByStatusOrderByLastEnqueuedAtAscIdAsc(
-                            UserPiiSyncQueueStatus.PENDING,
-                            PageRequest.of(0, limit - userKeys.size()))
-                    .stream()
-                    .map(UserPiiSyncQueue::getUserKey)
-                    .toList());
+            userKeys.addAll(userPiiSyncQueueService.findReplayPendingUserKeys(limit - userKeys.size()));
         }
 
         List<UserPiiSyncQueueStatus> results = userKeys.stream()

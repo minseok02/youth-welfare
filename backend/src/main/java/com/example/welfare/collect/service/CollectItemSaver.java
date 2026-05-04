@@ -2,28 +2,26 @@ package com.example.welfare.collect.service;
 
 import com.example.welfare.collect.mapper.WelfareServiceMapper;
 import com.example.welfare.collect.normalization.NormalizedPolicyAggregate;
-import com.example.welfare.collect.normalization.NormalizedPolicySidecarWriter;
+import com.example.welfare.collect.repository.CollectItemCommandRepository;
+import com.example.welfare.collect.repository.CollectItemRegionCommandRepository;
+import com.example.welfare.collect.repository.CollectItemReadRepository;
+import com.example.welfare.collect.repository.CollectItemTagCommandRepository;
 import com.example.welfare.collect.support.ListCollectSourceBinding;
 import com.example.welfare.policy.entity.ServiceRegion;
 import com.example.welfare.policy.entity.ServiceTag;
 import com.example.welfare.policy.entity.WelfareService;
-import com.example.welfare.policy.repository.ServiceTagRepository;
-import com.example.welfare.policy.repository.WelfareServiceRepository;
 import com.example.welfare.policy.service.SearchYouthRelevanceService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.CannotAcquireLockException;
 import org.springframework.dao.DeadlockLoserDataAccessException;
 import org.springframework.dao.PessimisticLockingFailureException;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionTemplate;
 
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -41,12 +39,12 @@ import java.util.function.Function;
 public class CollectItemSaver {
 
     private final WelfareServiceMapper mapper;
-    private final WelfareServiceRepository welfareServiceRepository;
-    private final ServiceTagRepository tagRepository;
+    private final CollectItemReadRepository collectItemReadRepository;
+    private final CollectItemCommandRepository collectItemCommandRepository;
+    private final CollectItemRegionCommandRepository collectItemRegionCommandRepository;
+    private final CollectItemTagCommandRepository collectItemTagCommandRepository;
     private final PlatformTransactionManager transactionManager;
-    private final JdbcTemplate jdbcTemplate;
-    private final SearchYouthRelevanceService searchYouthRelevanceService;
-    private final NormalizedPolicySidecarWriter normalizedPolicySidecarWriter;
+    private final CollectPolicyAggregateApplyService collectPolicyAggregateApplyService;
 
     private static final int MAX_SAVE_ATTEMPTS = 3;
     private static final long BASE_BACKOFF_MS = 200L;
@@ -103,56 +101,33 @@ public class CollectItemSaver {
 
         if (command.aggregate() != null) {
             validateAggregate(command.aggregate(), command.sourceType(), command.sourceId());
-            normalizedPolicySidecarWriter.upsert(entity, command.aggregate());
         }
 
         upsertRegions(entity, command.regions().apply(entity));
         List<ServiceTag> tags = replaceTags(entity, command.tags().apply(entity));
-        searchYouthRelevanceService.refreshForService(entity, tags);
+        collectPolicyAggregateApplyService.applyCollectedItem(entity, command.aggregate(), tags);
     }
 
     private WelfareService upsertService(WelfareService.SourceType sourceType,
                                           String sourceId, WelfareService incoming) {
-        Optional<WelfareService> existing = welfareServiceRepository
-                .findBySourceTypeAndSourceId(sourceType, sourceId);
+        Optional<WelfareService> existing = collectItemReadRepository
+                .findServiceBySourceTypeAndSourceId(sourceType, sourceId);
         if (existing.isPresent()) {
             WelfareService ws = existing.get();
             ws.updateFromCollect(incoming);
             return ws;
         } else {
-            return welfareServiceRepository.saveAndFlush(incoming);
+            return collectItemCommandRepository.saveAndFlush(incoming);
         }
     }
 
     private void upsertRegions(WelfareService service, List<ServiceRegion> regions) {
-        jdbcTemplate.update("DELETE FROM service_regions WHERE service_id = ?", service.getId());
-        if (regions.isEmpty()) return;
-
-        jdbcTemplate.batchUpdate(
-                "INSERT INTO service_regions (service_id, region_code, sido_name, sgg_name) VALUES (?, ?, ?, ?)",
-                regions,
-                200,
-                this::bindRegion
-        );
-    }
-
-    private void bindRegion(PreparedStatement ps, ServiceRegion region) throws SQLException {
-        ps.setLong(1, region.getService().getId());
-        ps.setString(2, region.getRegionCode());
-        ps.setString(3, region.getSidoName());
-        ps.setString(4, region.getSggName());
+        collectItemRegionCommandRepository.replaceAll(service.getId(), regions);
     }
 
     private List<ServiceTag> replaceTags(WelfareService service, List<ServiceTag> tags) {
-        tagRepository.deleteByServiceId(service.getId());
-        tagRepository.flush();
-
         List<ServiceTag> normalizedTags = normalizeTags(service, tags);
-        if (normalizedTags.isEmpty()) {
-            return normalizedTags;
-        }
-
-        tagRepository.saveAll(normalizedTags);
+        collectItemTagCommandRepository.replaceAll(service.getId(), normalizedTags);
         return normalizedTags;
     }
 
@@ -273,11 +248,6 @@ public class CollectItemSaver {
             throw new IllegalArgumentException("normalized aggregate source identity 가 item 과 일치하지 않습니다.");
         }
     }
-
-    private WelfareService.SourceType toLegacySourceType(NormalizedPolicyAggregate.SourceType sourceType) {
-        return WelfareService.SourceType.valueOf(sourceType.name());
-    }
-
     private void validateCommand(SaveCommand command) {
         if (command == null) {
             throw new IllegalArgumentException("save command 는 필수입니다.");

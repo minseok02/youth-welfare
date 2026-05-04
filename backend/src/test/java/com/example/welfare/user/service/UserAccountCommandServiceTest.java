@@ -3,8 +3,7 @@ package com.example.welfare.user.service;
 import com.example.welfare.chat.service.ChatSessionCleanupService;
 import com.example.welfare.recommend.service.RecommendationRefreshCacheService;
 import com.example.welfare.user.entity.User;
-import com.example.welfare.user.repository.UserAttributeRepository;
-import com.example.welfare.user.repository.UserPriorityRepository;
+import com.example.welfare.user.repository.UserMetadataCommandRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -22,9 +21,8 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class UserAccountCommandServiceTest {
 
-    @Mock private UserReadService userReadService;
-    @Mock private UserAttributeRepository userAttributeRepository;
-    @Mock private UserPriorityRepository userPriorityRepository;
+    @Mock private ActiveUserReadService activeUserReadService;
+    @Mock private UserMetadataCommandRepository userMetadataCommandRepository;
     @Mock private PasswordEncoder passwordEncoder;
     @Mock private RedisTemplate<String, String> redisTemplate;
     @Mock private AccessTokenRevocationService accessTokenRevocationService;
@@ -36,9 +34,8 @@ class UserAccountCommandServiceTest {
     @DisplayName("회원탈퇴는 refresh token 삭제와 현재 access token revoke까지 함께 수행한다")
     void withdrawDeletesChatSessionsRefreshTokenAndRevokesAccessToken() {
         UserAccountCommandService service = new UserAccountCommandService(
-                userReadService,
-                userAttributeRepository,
-                userPriorityRepository,
+                activeUserReadService,
+                userMetadataCommandRepository,
                 passwordEncoder,
                 redisTemplate,
                 accessTokenRevocationService,
@@ -53,15 +50,14 @@ class UserAccountCommandServiceTest {
                 .passwordHash("encoded-password")
                 .name("tester")
                 .build();
-        when(userReadService.getActiveUserContext(1L))
-                .thenReturn(new UserReadService.ActiveUserContext(user, "user-key-1"));
+        when(activeUserReadService.getActiveUserContext(1L))
+                .thenReturn(new ActiveUserReadService.ActiveUserContext(user, "user-key-1"));
         when(passwordEncoder.matches("password123", "encoded-password")).thenReturn(true);
 
         service.withdraw(1L, "password123", "access-token-value");
 
         verify(recommendationRefreshCacheService).evict("user-key-1");
-        verify(userAttributeRepository).deleteByUserKey("user-key-1");
-        verify(userPriorityRepository).deleteByUserKey("user-key-1");
+        verify(userMetadataCommandRepository).deleteAllByUserKey("user-key-1");
         verify(chatSessionCleanupService).deleteAllByUserKey(user.getUserKey());
         verify(redisTemplate).delete("refresh:user-key-1");
         verify(accessTokenRevocationService).revoke("access-token-value");

@@ -28,7 +28,7 @@
 현재 기준 신규 정책형 source의 코드는 아래 순서로 이어집니다.
 
 1. admin/manual collect 진입
-2. `CollectService` adapter dispatch
+2. `CollectBatchService` / `CollectAdminService` -> `CollectSourceExecutionService` dispatch
 3. source adapter / source client 호출
 4. raw payload 저장
 5. `CollectItemSaver` 로 `welfare_services` 저장
@@ -53,22 +53,25 @@
 
 - `CollectSource`
 - `CollectSourceAdapter`
-- `CollectService`
+- `CollectAdminService`
+- `CollectBatchService`
+- `CollectSourceExecutionService`
 - `CollectAdminController`
 
 경계를 같이 봅니다.
 
 ### scheduled/batch entry
 
-- [CollectService.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/collect/service/CollectService.java)
+- [CollectBatchService.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/collect/service/CollectBatchService.java)
+- [CollectSourceExecutionService.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/collect/service/CollectSourceExecutionService.java)
 
 핵심:
 
 - `collectAll()` 은 새벽 2시 배치
-- `collect(source)` 는 source별 단일 실행
-- adapter registry 기반 dispatch
+- source별 단일 실행은 `CollectAdminService.collect(source)`
+- adapter registry 기반 dispatch 는 `CollectSourceExecutionService`
 
-즉 새 source는 `CollectService` 본문에 case를 늘리는 구조가 아니라,
+즉 새 source는 상단 service 본문에 case를 늘리는 구조가 아니라,
 `CollectSourceAdapter` 추가로 연결하는 구조입니다.
 
 ## 2. source adapter registry
@@ -252,7 +255,7 @@ listing형이면:
 
 ## 10. 요약
 
-1. collect 시작점은 [CollectAdminController.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/collect/controller/CollectAdminController.java), [CollectService.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/collect/service/CollectService.java) 입니다.
+1. collect 시작점은 [CollectAdminController.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/collect/controller/CollectAdminController.java), [CollectAdminService.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/collect/service/CollectAdminService.java), [CollectBatchService.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/collect/service/CollectBatchService.java), [CollectSourceExecutionService.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/collect/service/CollectSourceExecutionService.java) 입니다.
 2. raw payload 경계는 [RawApiPayloadService.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/collect/service/RawApiPayloadService.java) 입니다.
 3. `welfare_services` 저장 경계는 [CollectItemSaver.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/collect/service/CollectItemSaver.java) 입니다.
 4. canonical sidecar 경계는 [DeferredNormalizedPolicySidecarWriter.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/collect/normalization/DeferredNormalizedPolicySidecarWriter.java) 입니다.

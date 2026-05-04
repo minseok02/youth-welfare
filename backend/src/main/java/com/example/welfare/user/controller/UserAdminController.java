@@ -9,7 +9,7 @@ import com.example.welfare.user.dto.response.UserPiiSyncReplayResponse;
 import com.example.welfare.user.dto.response.UserPiiSyncStatusResponse;
 import com.example.welfare.user.service.UserMetadataUserKeyBackfillService;
 import com.example.welfare.user.service.UserPiiBackfillService;
-import com.example.welfare.user.service.UserReadService;
+import com.example.welfare.user.service.UserKeyLookupService;
 import com.example.welfare.user.service.UserPiiSyncReplayService;
 import com.example.welfare.user.service.UserPiiSyncStatusService;
 import com.example.welfare.user.service.UserSessionRevocationService;
@@ -35,7 +35,7 @@ public class UserAdminController {
     private final UserPiiSyncReplayService userPiiSyncReplayService;
     private final UserPiiSyncStatusService userPiiSyncStatusService;
     private final UserSessionRevocationService userSessionRevocationService;
-    private final UserReadService userReadService;
+    private final UserKeyLookupService userKeyLookupService;
 
     @PostMapping("/metadata-user-key-backfill")
     public ResponseEntity<ApiResponse<UserMetadataUserKeyBackfillResponse>> backfillUserMetadataUserKeys() {
@@ -57,7 +57,7 @@ public class UserAdminController {
         if (!StringUtils.hasText(userKey)) {
             throw new CustomException(ErrorCode.INVALID_INPUT);
         }
-        userReadService.requireExistingUserIdByUserKey(userKey);
+        userKeyLookupService.requireExistingUserIdByUserKey(userKey);
 
         long cutoffMillis = System.currentTimeMillis();
         userSessionRevocationService.revokeUserSessions(userKey, cutoffMillis);

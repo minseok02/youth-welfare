@@ -7,11 +7,13 @@ import com.example.welfare.policy.dto.PolicyDetailResponse;
 import com.example.welfare.policy.dto.PolicyRankingResponse;
 import com.example.welfare.policy.dto.PolicySearchResponse;
 import com.example.welfare.policy.dto.PolicySummaryResponse;
+import com.example.welfare.policy.service.PolicyBookmarkCommandService;
+import com.example.welfare.policy.service.PolicyDetailService;
+import com.example.welfare.policy.service.PolicyListService;
 import com.example.welfare.policy.service.PolicySearchLogCommand;
 import com.example.welfare.policy.service.PolicySearchLogService;
 import com.example.welfare.policy.service.PolicyRankingService;
 import com.example.welfare.policy.service.PolicySearchService;
-import com.example.welfare.policy.service.PolicyService;
 import com.example.welfare.policy.service.PolicyViewLogService;
 import com.example.welfare.recommend.service.RecommendationLogService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -31,7 +33,9 @@ import java.util.List;
 @RequiredArgsConstructor
 public class PolicyController {
 
-    private final PolicyService policyService;
+    private final PolicyListService policyListService;
+    private final PolicyDetailService policyDetailService;
+    private final PolicyBookmarkCommandService policyBookmarkCommandService;
     private final PolicyRankingService policyRankingService;
     private final PolicySearchService policySearchService;
     private final RecommendationLogService recommendationLogService;
@@ -53,7 +57,7 @@ public class PolicyController {
             @RequestParam(required = false) String sort,
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
         return ResponseEntity.ok(ApiResponse.success(
-                policyService.getList(resolveUserId(authenticatedUser), category, sourceType, status, statusFilter, sido, sgg, onlineApply, sort, pageable)
+                policyListService.getList(resolveUserId(authenticatedUser), category, sourceType, status, statusFilter, sido, sgg, onlineApply, sort, pageable)
         ));
     }
 
@@ -70,7 +74,7 @@ public class PolicyController {
         String clientFingerprint = clientFingerprintService.build(request);
         Long userId = resolveUserId(authenticatedUser);
         boolean increaseViewCount = policyViewLogService.registerViewIfFirstInWindow(id, userId, clientFingerprint);
-        return ResponseEntity.ok(ApiResponse.success(policyService.getDetail(userId, id, increaseViewCount)));
+        return ResponseEntity.ok(ApiResponse.success(policyDetailService.getDetail(userId, id, increaseViewCount)));
     }
 
     // 정책 검색 (FULLTEXT)
@@ -135,7 +139,7 @@ public class PolicyController {
     public ResponseEntity<ApiResponse<Void>> toggleBookmark(
             @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
             @PathVariable Long id) {
-        policyService.toggleBookmark(resolveUserId(authenticatedUser), id);
+        policyBookmarkCommandService.toggleBookmark(resolveUserId(authenticatedUser), id);
         return ResponseEntity.ok(ApiResponse.success(null));
     }
 

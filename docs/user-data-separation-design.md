@@ -19,9 +19,9 @@
 
 현재 코드 기준으로도 `User`는 너무 많은 책임을 가지고 있다.
 
-- 인증과 회원가입은 [AuthService](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/user/service/AuthService.java:25) 에서 `UserRepository` 하나로 처리한다.
-- 프로필 수정과 전화번호 복호화, 알림 설정, 회원탈퇴는 [UserService](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/user/service/UserService.java:32) 에서 한 엔티티에 몰려 있다.
-- 추천 파이프라인은 [RecommendationFacade](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/recommend/facade/RecommendationFacade.java:36) 에서 `User` 전체를 읽어 사용한다.
+- 인증과 회원가입은 [AuthLoginService](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/user/service/AuthLoginService.java:22), [AuthSignupService](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/user/service/AuthSignupService.java:13), [AuthSessionService](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/user/service/AuthSessionService.java:10) 로 나뉘었지만, 여전히 최종 상태 저장은 `User` 엔티티 하나를 기준으로 sync된다.
+- 프로필 수정과 전화번호 복호화, 알림 설정, 회원탈퇴는 [UserProfileCommandService](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/user/service/UserProfileCommandService.java:23), [UserProfileReadService](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/user/service/UserProfileReadService.java:16), [UserAccountCommandService](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/user/service/UserAccountCommandService.java:17) 로 나뉘었지만, 여전히 `User` 엔티티 하나에 인증/프로필/알림 설정 상태가 함께 모여 있다.
+- 추천 파이프라인은 [RecommendationGenerationService](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/recommend/service/RecommendationGenerationService.java:18) 에서 `User` 와 추천 snapshot을 함께 읽어 사용한다.
 - 실제 `User` 엔티티도 [User](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/user/entity/User.java:16) 한 클래스에 인증, PII, 추천 프로필, 알림 설정이 함께 있다.
 
 ## 목표
@@ -277,15 +277,20 @@
 실제 cut-over 시 바로 영향받는 코드는 아래다.
 
 - 인증/계정
-  - [AuthService](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/user/service/AuthService.java:33)
-  - [UserService](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/user/service/UserService.java:25)
+  - [AuthSignupService](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/user/service/AuthSignupService.java:18)
+  - [AuthLoginService](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/user/service/AuthLoginService.java:21)
+  - [AuthSessionService](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/user/service/AuthSessionService.java:24)
+  - [UserProfileCommandService](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/user/service/UserProfileCommandService.java:34)
+  - [UserAccountCommandService](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/user/service/UserAccountCommandService.java:24)
   - [User](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/user/entity/User.java:16)
 - 추천
-  - [RecommendationFacade](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/recommend/facade/RecommendationFacade.java:23)
+  - [RecommendationGenerationService](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/recommend/service/RecommendationGenerationService.java:18)
+  - [RecommendationAccessService](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/recommend/service/RecommendationAccessService.java:13)
   - [RuleScoringService](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/recommend/service/RuleScoringService.java:24)
   - `UserRecommendation`, `RecommendationLog`
 - 알림
-  - [NotificationService](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/notification/service/NotificationService.java:35)
+  - [NotificationScheduleService](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/notification/service/NotificationScheduleService.java:14)
+  - [NotificationDispatchService](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/notification/service/NotificationDispatchService.java:18)
   - `Notification`
 - 프로필/관심사
   - `UserAttribute`, `UserPriority`
@@ -325,7 +330,7 @@
 
 ### 3. 알림은 이메일 원문을 직접 조인하지 말고 배치 조회
 
-현재 `NotificationService`는 `User` 엔티티에서 이메일과 알림 설정을 같이 본다. 분리 후에는 이렇게 바꾼다.
+현재 알림 경로는 `NotificationScheduleService` / `NotificationDispatchService` 로 나뉘었고, 더 이상 `User` 엔티티 하나에서 이메일과 알림 설정을 같이 보지 않게 정리하는 방향으로 간다. 분리 후에는 이렇게 바꾼다.
 
 1. `youth_welfare.user_profiles` 에서 발송 대상 `user_key` 목록 조회
 2. `youth_welfare_pii.user_pii` 에서 해당 `user_key` 의 `email_enc`만 배치 조회 후 복호화
@@ -616,16 +621,21 @@ secondary datasource URL도 권한 모델과 같이 맞춰야 한다. `APP_PII_D
 - `auth`
   - `AuthUserEntity`
   - `AuthUserRepository`
-  - `AuthService`
+  - `AuthAvailabilityService`
+  - `AuthSignupService`
+  - `AuthLoginService`
+  - `AuthSessionService`
 - `profile`
   - `UserProfileEntity`
   - `UserAttributeEntity`
   - `UserPriorityEntity`
-  - `ProfileService`
+  - `UserProfileReadService`
+  - `UserProfileCommandService`
+  - `UserAccountCommandService`
 - `privateinfo`
   - `UserPiiEntity`
-  - `PrivateProfileRepository`
-  - `PrivateProfileService`
+  - `UserNotificationReadService`
+  - `UserPiiCommandService`
 
 현재 `user` 패키지는 너무 넓기 때문에 유지하면 다시 결합된다.
 
@@ -700,7 +710,7 @@ secondary datasource URL도 권한 모델과 같이 맞춰야 한다. `APP_PII_D
 - 프로필 조회 API는 `user_profiles + user_pii` 조합 DTO로 응답
 - 추천은 `RecommendationUserSnapshot` 을 `user_profiles + user_attributes + user_priorities` 기준으로 조회
 - 알림 발송은 대상 조회는 `user_profiles`, 이메일 조회는 `user_pii` 로 분리
-- `NotificationService` 와 추천 관련 서비스에서 `User` 전체 엔티티 직접 의존 제거
+- `NotificationScheduleService` / `NotificationDispatchService` 와 추천 관련 서비스에서 `User` 전체 엔티티 직접 의존 제거
 
 현재 상태:
 
@@ -769,20 +779,20 @@ secondary datasource URL도 권한 모델과 같이 맞춰야 한다. `APP_PII_D
 ### Release B
 
 - `auth_users`, `user_profiles`, `user_pii` schema/migration
-- `AuthService`, `UserService` dual-write
+- `AuthSignupService`, `UserProfileCommandService`, `UserAccountCommandService` dual-write
 - `ProfileResponse` 조합 DTO 경로 준비
 - 기존 `users.email/name/birth_date` -> `user_pii.email_enc/name_enc/birth_date_enc` 앱 레벨 암호화 backfill
 
 ### Release C
 
 - 추천/알림/프로필 read path 전환
-- `NotificationService` 이메일 조회 분리
+- `NotificationScheduleService` / `NotificationDispatchService` 이메일 조회 분리
 - 나이 파생값 배치 또는 저장 시 재계산 로직
 
 현재 상태:
 
 - 프로필 조회/추천/알림 read path 전환 완료
-- `NotificationService` 이메일 조회 분리 완료
+- `NotificationScheduleService` / `NotificationDispatchService` 이메일 조회 분리 완료
 - 나이 파생값은 `UserCoreSyncService` 저장 시 재계산 경로로 반영 중
 - `user_attributes/user_priorities.user_key` write sync/backfill 까지 완료
 

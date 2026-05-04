@@ -32,7 +32,7 @@ class AuthTokenServiceTest {
 
     @Mock private JwtUtil jwtUtil;
     @Mock private RedisTemplate<String, String> redisTemplate;
-    @Mock private UserReadService userReadService;
+    @Mock private ActiveUserReadService activeUserReadService;
     @Mock private AccessTokenRevocationService accessTokenRevocationService;
     @Mock private ChatSessionCleanupService chatSessionCleanupService;
     @Mock private UserKeyLookupService userKeyLookupService;
@@ -45,7 +45,7 @@ class AuthTokenServiceTest {
         authTokenService = new AuthTokenService(
                 jwtUtil,
                 redisTemplate,
-                userReadService,
+                activeUserReadService,
                 accessTokenRevocationService,
                 chatSessionCleanupService,
                 userKeyLookupService
@@ -72,8 +72,8 @@ class AuthTokenServiceTest {
                 .email("user@example.com")
                 .passwordHash("hash")
                 .build();
-        when(userReadService.getActiveUserContext(7L))
-                .thenReturn(new UserReadService.ActiveUserContext(user, "user-key-7"));
+        when(activeUserReadService.getActiveUserContext(7L))
+                .thenReturn(new ActiveUserReadService.ActiveUserContext(user, "user-key-7"));
         when(valueOperations.get("refresh:user-key-7")).thenReturn("refresh-token");
         when(jwtUtil.getSubject("refresh-token")).thenReturn("user-key-7");
         when(jwtUtil.getUserId("refresh-token")).thenReturn(7L);
@@ -96,8 +96,8 @@ class AuthTokenServiceTest {
                 .email("user@example.com")
                 .passwordHash("hash")
                 .build();
-        when(userReadService.getActiveUserContext(7L))
-                .thenReturn(new UserReadService.ActiveUserContext(user, "user-key-7"));
+        when(activeUserReadService.getActiveUserContext(7L))
+                .thenReturn(new ActiveUserReadService.ActiveUserContext(user, "user-key-7"));
         when(valueOperations.get("refresh:user-key-7")).thenReturn("different-refresh-token");
         when(jwtUtil.getSubject("refresh-token")).thenReturn("user-key-7");
         when(jwtUtil.getUserId("refresh-token")).thenReturn(7L);

@@ -1,7 +1,7 @@
 package com.example.welfare.policy.service;
 
 import com.example.welfare.policy.entity.SearchLog;
-import com.example.welfare.policy.repository.SearchLogRepository;
+import com.example.welfare.policy.repository.PolicySearchLogCommandRepository;
 import com.example.welfare.user.service.UserKeyLookupService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -13,7 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 public class PolicySearchLogService {
 
-    private final SearchLogRepository searchLogRepository;
+    private final PolicySearchLogCommandRepository policySearchLogCommandRepository;
     private final UserKeyLookupService userKeyLookupService;
 
     @Transactional
@@ -23,7 +23,7 @@ public class PolicySearchLogService {
         }
 
         try {
-            searchLogRepository.save(SearchLog.builder()
+            policySearchLogCommandRepository.save(SearchLog.builder()
                     .userKey(userKeyLookupService.findNullable(command.userId()))
                     .clientFingerprint(normalizeClientFingerprint(command.clientFingerprint()))
                     .keyword(command.keyword().trim())

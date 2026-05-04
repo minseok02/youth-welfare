@@ -1,7 +1,7 @@
 package com.example.welfare.notification.controller;
 
 import com.example.welfare.global.util.JwtUtil;
-import com.example.welfare.user.service.UserService;
+import com.example.welfare.user.service.UserAccountCommandService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,7 +27,7 @@ class NotificationControllerWebMvcTest {
     @MockBean
     private JwtUtil jwtUtil;
     @MockBean
-    private UserService userService;
+    private UserAccountCommandService userAccountCommandService;
     @MockBean
     private JpaMetamodelMappingContext jpaMetamodelMappingContext;
 
@@ -41,6 +41,6 @@ class NotificationControllerWebMvcTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true));
 
-        then(userService).should().unsubscribeNotificationsByUserKey("user-key-7");
+        then(userAccountCommandService).should().unsubscribeNotificationsByUserKey("user-key-7");
     }
 }

@@ -3,9 +3,8 @@ package com.example.welfare.user.service;
 import com.example.welfare.global.util.AesEncryptUtil;
 import com.example.welfare.user.dto.response.UserPiiBackfillResponse;
 import com.example.welfare.user.repository.UserLegacyPiiSourceReadModel;
+import com.example.welfare.user.repository.UserPiiBackfillReadRepository;
 import com.example.welfare.user.repository.UserPiiBackfillStateReadModel;
-import com.example.welfare.user.repository.UserPiiReadWriteRepository;
-import com.example.welfare.user.repository.UserRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -14,6 +13,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -25,10 +25,10 @@ import static org.mockito.Mockito.never;
 class UserPiiBackfillServiceTest {
 
     @Mock
-    private UserRepository userRepository;
+    private UserPiiBackfillReadRepository userPiiBackfillReadRepository;
 
     @Mock
-    private UserPiiReadWriteRepository userPiiReadWriteRepository;
+    private UserPiiCommandService userPiiCommandService;
 
     @Mock
     private AesEncryptUtil aesEncryptUtil;
@@ -36,7 +36,7 @@ class UserPiiBackfillServiceTest {
     @Test
     @DisplayName("백필은 비어 있는 암호화 필드만 앱 레벨 암호화로 채운다")
     void backfillMissingEncryptedFields() {
-        UserPiiBackfillService service = new UserPiiBackfillService(userRepository, userPiiReadWriteRepository, aesEncryptUtil);
+        UserPiiBackfillService service = new UserPiiBackfillService(userPiiBackfillReadRepository, userPiiCommandService, aesEncryptUtil);
 
         UserPiiBackfillStateReadModel state = new UserPiiBackfillStateReadModel(
                 "user-key-1",
@@ -51,8 +51,9 @@ class UserPiiBackfillServiceTest {
                 LocalDate.of(1998, 1, 10)
         );
 
-        given(userPiiReadWriteRepository.findMissingEncryptedFields()).willReturn(List.of(state));
-        given(userRepository.findPiiBackfillSourcesByUserKeys(List.of("user-key-1"))).willReturn(List.of(source));
+        given(userPiiBackfillReadRepository.findMissingEncryptedFields()).willReturn(List.of(state));
+        given(userPiiBackfillReadRepository.findLegacySourceByUserKeys(List.of("user-key-1")))
+                .willReturn(Map.of("user-key-1", source));
         given(aesEncryptUtil.encrypt("user@example.com")).willReturn("enc-email");
         given(aesEncryptUtil.encrypt("홍길동")).willReturn("enc-name");
         given(aesEncryptUtil.encrypt("1998-01-10")).willReturn("enc-birth");
@@ -65,14 +66,14 @@ class UserPiiBackfillServiceTest {
         assertThat(result.nameBackfilledCount()).isEqualTo(1);
         assertThat(result.birthDateBackfilledCount()).isEqualTo(1);
         assertThat(result.skippedCount()).isZero();
-        then(userPiiReadWriteRepository).should()
+        then(userPiiCommandService).should()
                 .backfillEncryptedFields("user-key-1", "enc-email", "enc-name", "enc-birth");
     }
 
     @Test
     @DisplayName("원본 값이 이미 scrub 된 사용자는 건너뛴다")
     void skipWhenLegacySourceAlreadyScrubbed() {
-        UserPiiBackfillService service = new UserPiiBackfillService(userRepository, userPiiReadWriteRepository, aesEncryptUtil);
+        UserPiiBackfillService service = new UserPiiBackfillService(userPiiBackfillReadRepository, userPiiCommandService, aesEncryptUtil);
 
         UserPiiBackfillStateReadModel state = new UserPiiBackfillStateReadModel(
                 "user-key-2",
@@ -87,16 +88,17 @@ class UserPiiBackfillServiceTest {
                 null
         );
 
-        given(userPiiReadWriteRepository.findMissingEncryptedFields()).willReturn(List.of(state));
-        given(userRepository.findPiiBackfillSourcesByUserKeys(List.of("user-key-2"))).willReturn(List.of(source));
+        given(userPiiBackfillReadRepository.findMissingEncryptedFields()).willReturn(List.of(state));
+        given(userPiiBackfillReadRepository.findLegacySourceByUserKeys(List.of("user-key-2")))
+                .willReturn(Map.of("user-key-2", source));
 
         UserPiiBackfillResponse result = service.backfillMissingEncryptedFields();
 
         assertThat(result.processedCount()).isEqualTo(1);
         assertThat(result.updatedUserCount()).isZero();
         assertThat(result.skippedCount()).isEqualTo(1);
-        then(userPiiReadWriteRepository).should().findMissingEncryptedFields();
-        then(userPiiReadWriteRepository).should(never())
+        then(userPiiBackfillReadRepository).should().findMissingEncryptedFields();
+        then(userPiiCommandService).should(never())
                 .backfillEncryptedFields(anyString(), anyString(), anyString(), anyString());
     }
 

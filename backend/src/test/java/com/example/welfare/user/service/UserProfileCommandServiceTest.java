@@ -7,9 +7,7 @@ import com.example.welfare.user.entity.PriorityOption;
 import com.example.welfare.user.entity.User;
 import com.example.welfare.user.entity.UserAttribute;
 import com.example.welfare.user.entity.UserPriority;
-import com.example.welfare.user.repository.PriorityOptionRepository;
-import com.example.welfare.user.repository.UserAttributeRepository;
-import com.example.welfare.user.repository.UserPriorityRepository;
+import com.example.welfare.user.repository.UserMetadataCommandRepository;
 import org.assertj.core.groups.Tuple;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -32,10 +30,9 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class UserProfileCommandServiceTest {
 
-    @Mock private UserReadService userReadService;
-    @Mock private UserAttributeRepository userAttributeRepository;
-    @Mock private UserPriorityRepository userPriorityRepository;
-    @Mock private PriorityOptionRepository priorityOptionRepository;
+    @Mock private ActiveUserReadService activeUserReadService;
+    @Mock private UserMetadataCommandRepository userMetadataCommandRepository;
+    @Mock private PriorityOptionReadService priorityOptionReadService;
     @Mock private PriorityWeightPolicy priorityWeightPolicy;
     @Mock private UserCoreSyncService userCoreSyncService;
     @Mock private RecommendationRefreshCacheService recommendationRefreshCacheService;
@@ -44,10 +41,9 @@ class UserProfileCommandServiceTest {
     @DisplayName("프로필 수정 시 관심분야와 특수대상을 각각 교체 저장한다")
     void updateProfileReplacesInterestFieldsAndTargetTypesSeparately() {
         UserProfileCommandService service = new UserProfileCommandService(
-                userReadService,
-                userAttributeRepository,
-                userPriorityRepository,
-                priorityOptionRepository,
+                activeUserReadService,
+                userMetadataCommandRepository,
+                priorityOptionReadService,
                 priorityWeightPolicy,
                 userCoreSyncService,
                 recommendationRefreshCacheService
@@ -59,8 +55,8 @@ class UserProfileCommandServiceTest {
                 .name("tester")
                 .birthDate(LocalDate.of(1998, 1, 1))
                 .build();
-        when(userReadService.getActiveUserContext(1L))
-                .thenReturn(new UserReadService.ActiveUserContext(user, "user-key-1"));
+        when(activeUserReadService.getActiveUserContext(1L))
+                .thenReturn(new ActiveUserReadService.ActiveUserContext(user, "user-key-1"));
 
         UpdateProfileRequest request = new UpdateProfileRequest();
         ReflectionTestUtils.setField(request, "interestFields", List.of("주거", "취업"));
@@ -70,29 +66,19 @@ class UserProfileCommandServiceTest {
 
         verify(recommendationRefreshCacheService).evict("user-key-1");
         verify(userCoreSyncService).syncFromUser(user);
-        verify(userAttributeRepository).deleteByUserKeyAndAttrType("user-key-1", UserAttribute.AttrType.INTEREST_FIELD.name());
-        verify(userAttributeRepository).deleteByUserKeyAndAttrType("user-key-1", UserAttribute.AttrType.TARGET_TYPE.name());
-
-        ArgumentCaptor<UserAttribute> captor = ArgumentCaptor.forClass(UserAttribute.class);
-        verify(userAttributeRepository, times(4)).save(captor.capture());
-        assertThat(captor.getAllValues())
-                .extracting(UserAttribute::getUserId, UserAttribute::getUserKey, UserAttribute::getAttrType, UserAttribute::getAttrValue)
-                .containsExactlyInAnyOrder(
-                        Tuple.tuple(1L, "user-key-1", UserAttribute.AttrType.INTEREST_FIELD.name(), "주거"),
-                        Tuple.tuple(1L, "user-key-1", UserAttribute.AttrType.INTEREST_FIELD.name(), "취업"),
-                        Tuple.tuple(1L, "user-key-1", UserAttribute.AttrType.TARGET_TYPE.name(), "농어촌"),
-                        Tuple.tuple(1L, "user-key-1", UserAttribute.AttrType.TARGET_TYPE.name(), "자립준비청년")
-                );
+        verify(userMetadataCommandRepository).replaceAttributes(1L, "user-key-1",
+                UserAttribute.AttrType.INTEREST_FIELD.name(), List.of("주거", "취업"));
+        verify(userMetadataCommandRepository).replaceAttributes(1L, "user-key-1",
+                UserAttribute.AttrType.TARGET_TYPE.name(), List.of("농어촌", "자립준비청년"));
     }
 
     @Test
     @DisplayName("우선순위 저장 시 각 row에 user_key를 함께 기록한다")
     void updatePrioritiesWritesUserKey() {
         UserProfileCommandService service = new UserProfileCommandService(
-                userReadService,
-                userAttributeRepository,
-                userPriorityRepository,
-                priorityOptionRepository,
+                activeUserReadService,
+                userMetadataCommandRepository,
+                priorityOptionReadService,
                 priorityWeightPolicy,
                 userCoreSyncService,
                 recommendationRefreshCacheService
@@ -105,13 +91,13 @@ class UserProfileCommandServiceTest {
         PriorityOption housing = mock(PriorityOption.class);
         PriorityOption job = mock(PriorityOption.class);
 
-        when(userReadService.getActiveUserContext(1L))
-                .thenReturn(new UserReadService.ActiveUserContext(user, "user-key-1"));
+        when(activeUserReadService.getActiveUserContext(1L))
+                .thenReturn(new ActiveUserReadService.ActiveUserContext(user, "user-key-1"));
         when(priorityWeightPolicy.maxRank()).thenReturn(5);
         when(priorityWeightPolicy.weightForRank(1)).thenReturn(2.0);
         when(priorityWeightPolicy.weightForRank(2)).thenReturn(1.6);
-        when(priorityOptionRepository.findByCode("HOUSING")).thenReturn(Optional.of(housing));
-        when(priorityOptionRepository.findByCode("JOB")).thenReturn(Optional.of(job));
+        when(priorityOptionReadService.requireByCode("HOUSING")).thenReturn(housing);
+        when(priorityOptionReadService.requireByCode("JOB")).thenReturn(job);
 
         UpdatePrioritiesRequest request = new UpdatePrioritiesRequest();
         ReflectionTestUtils.setField(request, "priorityCodes", List.of("HOUSING", "JOB"));
@@ -119,10 +105,9 @@ class UserProfileCommandServiceTest {
         service.updatePriorities(1L, request);
 
         verify(recommendationRefreshCacheService).evict("user-key-1");
-        verify(userPriorityRepository).deleteByUserKey("user-key-1");
-        ArgumentCaptor<UserPriority> captor = ArgumentCaptor.forClass(UserPriority.class);
-        verify(userPriorityRepository, times(2)).save(captor.capture());
-        assertThat(captor.getAllValues())
+        ArgumentCaptor<List<UserPriority>> captor = ArgumentCaptor.forClass(List.class);
+        verify(userMetadataCommandRepository).replacePriorities(org.mockito.Mockito.eq("user-key-1"), captor.capture());
+        assertThat(captor.getValue())
                 .extracting(UserPriority::getUserId, UserPriority::getUserKey, UserPriority::getPriorityRank, UserPriority::getWeight)
                 .containsExactly(
                         Tuple.tuple(1L, "user-key-1", 1, 2.0),
@@ -134,10 +119,9 @@ class UserProfileCommandServiceTest {
     @DisplayName("프로필 수정 시 관심분야 요청이 없어도 기존 관심분야가 있으면 완성도 점수를 유지한다")
     void updateProfileKeepsCompletenessWhenInterestFieldsNotProvided() {
         UserProfileCommandService service = new UserProfileCommandService(
-                userReadService,
-                userAttributeRepository,
-                userPriorityRepository,
-                priorityOptionRepository,
+                activeUserReadService,
+                userMetadataCommandRepository,
+                priorityOptionReadService,
                 priorityWeightPolicy,
                 userCoreSyncService,
                 recommendationRefreshCacheService
@@ -154,15 +138,10 @@ class UserProfileCommandServiceTest {
                 .householdType("ONE_PERSON")
                 .phoneEnc("enc")
                 .build();
-        when(userReadService.getActiveUserContext(1L))
-                .thenReturn(new UserReadService.ActiveUserContext(user, "user-key-1"));
-        when(userAttributeRepository.findByUserKeyAndAttrType("user-key-1", UserAttribute.AttrType.INTEREST_FIELD.name()))
-                .thenReturn(List.of(UserAttribute.builder()
-                        .userId(1L)
-                        .userKey("user-key-1")
-                        .attrType(UserAttribute.AttrType.INTEREST_FIELD.name())
-                        .attrValue("주거")
-                        .build()));
+        when(activeUserReadService.getActiveUserContext(1L))
+                .thenReturn(new ActiveUserReadService.ActiveUserContext(user, "user-key-1"));
+        when(userMetadataCommandRepository.hasAttributeValues("user-key-1", UserAttribute.AttrType.INTEREST_FIELD.name()))
+                .thenReturn(true);
 
         UpdateProfileRequest request = new UpdateProfileRequest();
         service.updateProfile(1L, request);

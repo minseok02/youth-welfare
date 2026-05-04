@@ -5,11 +5,15 @@ import com.example.welfare.admin.dashboard.dto.AdminCollectFailureResponse;
 import com.example.welfare.admin.dashboard.dto.AdminRecommendationBreakdownResponse;
 import com.example.welfare.admin.dashboard.dto.AdminSearchFailureResponse;
 import com.example.welfare.admin.dashboard.dto.AdminDashboardResponse;
-import com.example.welfare.admin.dashboard.service.AdminDashboardService;
+import com.example.welfare.admin.dashboard.service.AdminDashboardCollectService;
+import com.example.welfare.admin.dashboard.service.AdminDashboardRecommendationService;
+import com.example.welfare.admin.dashboard.service.AdminDashboardSearchService;
+import com.example.welfare.admin.dashboard.service.AdminDashboardSummaryService;
 import com.example.welfare.collect.controller.CollectAdminController;
 import com.example.welfare.collect.normalization.NormalizedPolicySidecarBackfillService;
+import com.example.welfare.collect.service.CollectAdminService;
+import com.example.welfare.collect.service.CollectBatchService;
 import com.example.welfare.collect.service.CollectSource;
-import com.example.welfare.collect.service.CollectService;
 import com.example.welfare.global.auth.AuthenticatedUser;
 import com.example.welfare.global.config.JacksonConfig;
 import com.example.welfare.global.config.SecurityConfig;
@@ -25,7 +29,7 @@ import com.example.welfare.user.dto.response.UserPiiSyncReplayResponse;
 import com.example.welfare.user.dto.response.UserPiiSyncStatusResponse;
 import com.example.welfare.user.service.UserMetadataUserKeyBackfillService;
 import com.example.welfare.user.service.UserPiiBackfillService;
-import com.example.welfare.user.service.UserReadService;
+import com.example.welfare.user.service.UserKeyLookupService;
 import com.example.welfare.user.service.UserPiiSyncReplayService;
 import com.example.welfare.user.service.UserPiiSyncStatusService;
 import com.example.welfare.user.service.UserSessionRevocationService;
@@ -63,7 +67,9 @@ class AdminSecurityWebMvcTest {
     private MockMvc mockMvc;
 
     @MockBean
-    private CollectService collectService;
+    private CollectBatchService collectBatchService;
+    @MockBean
+    private CollectAdminService collectAdminService;
     @MockBean
     private NormalizedPolicySidecarBackfillService normalizedPolicySidecarBackfillService;
     @MockBean
@@ -79,9 +85,15 @@ class AdminSecurityWebMvcTest {
     @MockBean
     private UserSessionRevocationService userSessionRevocationService;
     @MockBean
-    private UserReadService userReadService;
+    private UserKeyLookupService userKeyLookupService;
     @MockBean
-    private AdminDashboardService adminDashboardService;
+    private AdminDashboardSummaryService adminDashboardSummaryService;
+    @MockBean
+    private AdminDashboardSearchService adminDashboardSearchService;
+    @MockBean
+    private AdminDashboardRecommendationService adminDashboardRecommendationService;
+    @MockBean
+    private AdminDashboardCollectService adminDashboardCollectService;
     @MockBean
     private JwtUtil jwtUtil;
     @MockBean
@@ -115,7 +127,7 @@ class AdminSecurityWebMvcTest {
                 new SimpleGrantedAuthority("ROLE_USER"),
                 new SimpleGrantedAuthority("ROLE_ADMIN")
         ));
-        doNothing().when(collectService).collect(CollectSource.YOUTH);
+        doNothing().when(collectAdminService).collect(CollectSource.YOUTH);
 
         mockMvc.perform(post("/api/admin/collect/youth")
                         .header("Authorization", "Bearer admin-token"))
@@ -123,7 +135,7 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data").value("온통청년 수집 완료"));
 
-        then(collectService).should().collect(CollectSource.YOUTH);
+        then(collectAdminService).should().collect(CollectSource.YOUTH);
     }
 
     @Test
@@ -133,7 +145,7 @@ class AdminSecurityWebMvcTest {
                 new SimpleGrantedAuthority("ROLE_USER"),
                 new SimpleGrantedAuthority("ROLE_ADMIN")
         ));
-        given(adminDashboardService.getSummary(
+        given(adminDashboardSummaryService.getSummary(
                 org.mockito.ArgumentMatchers.isNull(),
                 org.mockito.ArgumentMatchers.any()
         ))
@@ -255,7 +267,7 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.data.search.zeroResultKeywordsInWindow[0].keyword").value("대출"))
                 .andExpect(jsonPath("$.data.userPiiSync.failedCount").value(1));
 
-        then(adminDashboardService).should().getSummary(
+        then(adminDashboardSummaryService).should().getSummary(
                 org.mockito.ArgumentMatchers.isNull(),
                 org.mockito.ArgumentMatchers.any()
         );
@@ -268,7 +280,7 @@ class AdminSecurityWebMvcTest {
                 new SimpleGrantedAuthority("ROLE_USER"),
                 new SimpleGrantedAuthority("ROLE_ADMIN")
         ));
-        given(adminDashboardService.getSummary(14, List.of(3, 14)))
+        given(adminDashboardSummaryService.getSummary(14, List.of(3, 14)))
                 .willReturn(new AdminDashboardResponse(
                         LocalDateTime.of(2026, 5, 3, 14, 0),
                         new AdminDashboardResponse.CollectSection(0, 0, 0, 0, 14, List.of(), List.of()),
@@ -340,7 +352,7 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.data.search.windowDays").value(14))
                 .andExpect(jsonPath("$.data.trend.search[1].windowDays").value(14));
 
-        then(adminDashboardService).should().getSummary(14, List.of(3, 14));
+        then(adminDashboardSummaryService).should().getSummary(14, List.of(3, 14));
     }
 
     @Test
@@ -350,7 +362,7 @@ class AdminSecurityWebMvcTest {
                 new SimpleGrantedAuthority("ROLE_USER"),
                 new SimpleGrantedAuthority("ROLE_ADMIN")
         ));
-        given(adminDashboardService.getSearchFailures(14, 3))
+        given(adminDashboardSearchService.getSearchFailures(14, 3))
                 .willReturn(new AdminSearchFailureResponse(
                         LocalDateTime.of(2026, 5, 3, 15, 0),
                         14,
@@ -447,7 +459,7 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.data.recoveredSearchGroups[0].zeroResultCount").value(2))
                 .andExpect(jsonPath("$.data.recoveredSearchGroups[0].recoveredResultCount").value(1));
 
-        then(adminDashboardService).should().getSearchFailures(14, 3);
+        then(adminDashboardSearchService).should().getSearchFailures(14, 3);
     }
 
     @Test
@@ -457,7 +469,7 @@ class AdminSecurityWebMvcTest {
                 new SimpleGrantedAuthority("ROLE_USER"),
                 new SimpleGrantedAuthority("ROLE_ADMIN")
         ));
-        given(adminDashboardService.getRecommendationBreakdowns(14, 3))
+        given(adminDashboardRecommendationService.getRecommendationBreakdowns(14, 3))
                 .willReturn(new AdminRecommendationBreakdownResponse(
                         LocalDateTime.of(2026, 5, 3, 16, 0),
                         14,
@@ -560,7 +572,7 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.data.repeatExposureGroups[0].serviceId").value(501))
                 .andExpect(jsonPath("$.data.repeatExposureGroups[0].exposureCount").value(3));
 
-        then(adminDashboardService).should().getRecommendationBreakdowns(14, 3);
+        then(adminDashboardRecommendationService).should().getRecommendationBreakdowns(14, 3);
     }
 
     @Test
@@ -570,7 +582,7 @@ class AdminSecurityWebMvcTest {
                 new SimpleGrantedAuthority("ROLE_USER"),
                 new SimpleGrantedAuthority("ROLE_ADMIN")
         ));
-        given(adminDashboardService.getCollectFailures(14, 3))
+        given(adminDashboardCollectService.getCollectFailures(14, 3))
                 .willReturn(new AdminCollectFailureResponse(
                         LocalDateTime.of(2026, 5, 3, 16, 30),
                         14,
@@ -636,7 +648,7 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.data.circuitStatuses[0].open").value(true))
                 .andExpect(jsonPath("$.data.circuitStatuses[0].remainingMs").value(60000));
 
-        then(adminDashboardService).should().getCollectFailures(14, 3);
+        then(adminDashboardCollectService).should().getCollectFailures(14, 3);
     }
 
     @Test
@@ -646,7 +658,7 @@ class AdminSecurityWebMvcTest {
                 new SimpleGrantedAuthority("ROLE_USER"),
                 new SimpleGrantedAuthority("ROLE_ADMIN")
         ));
-        doNothing().when(collectService).collect(CollectSource.BOKJIRO_DETAIL_REFRESH);
+        doNothing().when(collectAdminService).collect(CollectSource.BOKJIRO_DETAIL_REFRESH);
 
         mockMvc.perform(post("/api/admin/collect/bokjiro-details-refresh")
                         .header("Authorization", "Bearer admin-token"))
@@ -654,7 +666,7 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data").value("복지로 상세 refresh 완료"));
 
-        then(collectService).should().collect(CollectSource.BOKJIRO_DETAIL_REFRESH);
+        then(collectAdminService).should().collect(CollectSource.BOKJIRO_DETAIL_REFRESH);
     }
 
     @Test
@@ -721,7 +733,7 @@ class AdminSecurityWebMvcTest {
                 new SimpleGrantedAuthority("ROLE_USER"),
                 new SimpleGrantedAuthority("ROLE_ADMIN")
         ));
-        given(collectService.collectBokjiroDetailGapFill(4, 190))
+        given(collectAdminService.collectBokjiroDetailGapFill(4, 190))
                 .willReturn(new com.example.welfare.collect.service.BokjiroDetailCollectService.GapFillResult(
                         4, 3, 190, 150, 120, 30, 0, true
                 ));
@@ -741,7 +753,7 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.data.failedCount").value(0))
                 .andExpect(jsonPath("$.data.stoppedAfterNoSaves").value(true));
 
-        then(collectService).should().collectBokjiroDetailGapFill(4, 190);
+        then(collectAdminService).should().collectBokjiroDetailGapFill(4, 190);
     }
 
     @Test
@@ -767,7 +779,7 @@ class AdminSecurityWebMvcTest {
                 new SimpleGrantedAuthority("ROLE_USER"),
                 new SimpleGrantedAuthority("ROLE_ADMIN")
         ));
-        given(collectService.collectBokjiroDetailGapFill(1, 95))
+        given(collectAdminService.collectBokjiroDetailGapFill(1, 95))
                 .willThrow(new CustomException(ErrorCode.COLLECT_API_FAILED));
 
         mockMvc.perform(post("/api/admin/collect/bokjiro-details-gap-fill")
@@ -807,7 +819,7 @@ class AdminSecurityWebMvcTest {
                 new SimpleGrantedAuthority("ROLE_USER"),
                 new SimpleGrantedAuthority("ROLE_ADMIN")
         ));
-        given(userReadService.requireExistingUserIdByUserKey("user-key-1")).willReturn(1L);
+        given(userKeyLookupService.requireExistingUserIdByUserKey("user-key-1")).willReturn(1L);
 
         mockMvc.perform(post("/api/admin/users/forced-logout")
                         .contentType("application/json")
@@ -853,7 +865,7 @@ class AdminSecurityWebMvcTest {
                 new SimpleGrantedAuthority("ROLE_USER"),
                 new SimpleGrantedAuthority("ROLE_ADMIN")
         ));
-        given(userReadService.requireExistingUserIdByUserKey("missing-user"))
+        given(userKeyLookupService.requireExistingUserIdByUserKey("missing-user"))
                 .willThrow(new CustomException(ErrorCode.USER_NOT_FOUND));
 
         mockMvc.perform(post("/api/admin/users/forced-logout")

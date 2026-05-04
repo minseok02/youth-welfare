@@ -1,20 +1,17 @@
 package com.example.welfare.recommend.service;
 
 import com.example.welfare.policy.entity.WelfareService;
-import com.example.welfare.policy.repository.ServiceTagRepository;
 import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
 import com.example.welfare.recommend.dto.RetrievedRecommendationCandidates;
 import com.example.welfare.recommend.dto.RecommendationUserSnapshot;
 import com.example.welfare.recommend.repository.RecommendationCandidateReadCondition;
 import com.example.welfare.recommend.repository.RecommendationCandidateReadRepository;
-import com.example.welfare.recommend.repository.CanonicalRecommendationReadModelRepository;
 import com.example.welfare.recommend.support.RecommendationYouthRelevanceSupport;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.domain.PageRequest;
 
 import java.util.Collections;
 import java.util.List;
@@ -35,22 +32,18 @@ class RetrievalServiceTest {
     private RecommendationCandidateReadRepository recommendationCandidateReadRepository;
 
     @Mock
-    private ServiceTagRepository serviceTagRepository;
-
-    @Mock
     private RecommendationYouthRelevanceSupport recommendationYouthRelevanceSupport;
 
     @Mock
-    private CanonicalRecommendationReadModelRepository canonicalRecommendationReadModelRepository;
+    private RecommendationProjectionReadService recommendationProjectionReadService;
 
     @Test
     @DisplayName("regionCode가 있으면 regionCode 추천 쿼리를 사용한다")
     void retrieveUsesRegionCodeQueriesWhenRegionCodeExists() {
         RetrievalService service = new RetrievalService(
                 recommendationCandidateReadRepository,
-                serviceTagRepository,
                 recommendationYouthRelevanceSupport,
-                canonicalRecommendationReadModelRepository
+                recommendationProjectionReadService
         );
 
         RecommendationUserSnapshot user = user("서울특별시", "11680");
@@ -63,8 +56,8 @@ class RetrievalServiceTest {
                 new RecommendationCandidateReadCondition(26, 5, "서울특별시", "11680", 150, 20)
         ))
                 .willReturn(List.of());
-        given(serviceTagRepository.findByServiceIdIn(any())).willReturn(Collections.emptyList());
-        given(canonicalRecommendationReadModelRepository.findByServiceIds(any()))
+        given(recommendationCandidateReadRepository.findTagsByServiceIds(any())).willReturn(Collections.emptyMap());
+        given(recommendationProjectionReadService.findCandidateProjectionsByServiceIds(any()))
                 .willReturn(Map.of(1L, projection(1L, true)));
 
         RetrievedRecommendationCandidates results = service.retrieve("youth_all", user);
@@ -76,7 +69,7 @@ class RetrievalServiceTest {
         verify(recommendationCandidateReadRepository).findLatestCandidates(
                 new RecommendationCandidateReadCondition(26, 5, "서울특별시", "11680", 150, 20)
         );
-        verify(canonicalRecommendationReadModelRepository).findByServiceIds(argThat(ids -> ids.equals(List.of(1L))));
+        verify(recommendationProjectionReadService).findCandidateProjectionsByServiceIds(argThat(ids -> ids.equals(List.of(1L))));
     }
 
     @Test
@@ -84,9 +77,8 @@ class RetrievalServiceTest {
     void retrieveUsesSidoQueriesWhenRegionCodeMissing() {
         RetrievalService service = new RetrievalService(
                 recommendationCandidateReadRepository,
-                serviceTagRepository,
                 recommendationYouthRelevanceSupport,
-                canonicalRecommendationReadModelRepository
+                recommendationProjectionReadService
         );
 
         RecommendationUserSnapshot user = user("서울특별시", null);
@@ -99,8 +91,8 @@ class RetrievalServiceTest {
                 new RecommendationCandidateReadCondition(26, 5, "서울특별시", null, 150, 20)
         ))
                 .willReturn(List.of());
-        given(serviceTagRepository.findByServiceIdIn(any())).willReturn(Collections.emptyList());
-        given(canonicalRecommendationReadModelRepository.findByServiceIds(any()))
+        given(recommendationCandidateReadRepository.findTagsByServiceIds(any())).willReturn(Collections.emptyMap());
+        given(recommendationProjectionReadService.findCandidateProjectionsByServiceIds(any()))
                 .willReturn(Map.of(2L, projection(2L, true)));
 
         RetrievedRecommendationCandidates results = service.retrieve("youth_all", user);
@@ -112,7 +104,7 @@ class RetrievalServiceTest {
         verify(recommendationCandidateReadRepository).findLatestCandidates(
                 new RecommendationCandidateReadCondition(26, 5, "서울특별시", null, 150, 20)
         );
-        verify(canonicalRecommendationReadModelRepository).findByServiceIds(argThat(ids -> ids.equals(List.of(2L))));
+        verify(recommendationProjectionReadService).findCandidateProjectionsByServiceIds(argThat(ids -> ids.equals(List.of(2L))));
     }
 
     @Test
@@ -120,9 +112,8 @@ class RetrievalServiceTest {
     void retrieveUsesProjectionYouthRelevanceBeforeFallbackHeuristic() {
         RetrievalService service = new RetrievalService(
                 recommendationCandidateReadRepository,
-                serviceTagRepository,
                 recommendationYouthRelevanceSupport,
-                canonicalRecommendationReadModelRepository
+                recommendationProjectionReadService
         );
 
         RecommendationUserSnapshot user = user("서울특별시", "11680");
@@ -135,8 +126,8 @@ class RetrievalServiceTest {
                 new RecommendationCandidateReadCondition(26, 5, "서울특별시", "11680", 150, 20)
         ))
                 .willReturn(List.of());
-        given(serviceTagRepository.findByServiceIdIn(any())).willReturn(Collections.emptyList());
-        given(canonicalRecommendationReadModelRepository.findByServiceIds(any()))
+        given(recommendationCandidateReadRepository.findTagsByServiceIds(any())).willReturn(Collections.emptyMap());
+        given(recommendationProjectionReadService.findCandidateProjectionsByServiceIds(any()))
                 .willReturn(Map.of(3L, projection(3L, false)));
 
         RetrievedRecommendationCandidates results = service.retrieve("youth_all", user);

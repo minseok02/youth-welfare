@@ -53,25 +53,31 @@ EC2 1대
 
 ```text
 AuthController
-  -> AuthService
-      -> UserRepository
-      -> Redis refresh token
+  -> AuthAvailabilityService / AuthSignupService / AuthLoginService / AuthSessionService
+      -> AuthIdentityReadService
+      -> UserRegistrationService
+      -> AuthTokenService
 ```
 
 ### 정책 조회
 
 ```text
 PolicyController
-  -> PolicyService / PolicySearchService / PolicyRankingService
-      -> WelfareServiceRepository
-      -> ServiceViewLogRepository
+  -> PolicyListService / PolicyDetailService / PolicyBookmarkCommandService
+  -> PolicySearchService / PolicyRankingService
+      -> WelfareServiceReadRepository
+      -> PolicyPresentationReadService
+      -> PolicyDetailReadService
+      -> PolicyLookupService
 ```
 
 ### 추천
 
 ```text
 RecommendationController
-  -> RecommendationFacade
+  -> RecommendationGenerationService
+  -> RecommendationAccessService
+  -> RecommendationBookmarkCommandService
       -> ClusterService
       -> RetrievalService
       -> RuleScoringService
@@ -87,7 +93,8 @@ RecommendationController
 
 ```text
 CollectAdminController / Scheduler
-  -> CollectService
+  -> CollectBatchService / CollectAdminService
+      -> CollectSourceExecutionService
       -> YouthApiClient
       -> BokjiroCentralClient
       -> BokjiroLocalClient
@@ -102,17 +109,30 @@ CollectAdminController / Scheduler
 ### 알림
 
 ```text
-NotificationService
-  -> RecommendationFacade
-  -> NotificationGateway
-  -> NotificationHistoryService
+NotificationScheduleService
+  -> NotificationDispatchService
+  -> NotificationRetryService
+NotificationDispatchService
+  -> NotificationRecommendationService
+  -> NotificationMessageService
+```
+
+### 관리자 대시보드
+
+```text
+AdminDashboardController
+  -> AdminDashboardSummaryService
+  -> AdminDashboardSearchService
+  -> AdminDashboardRecommendationService
+  -> AdminDashboardCollectService
+      -> AdminDashboard*ReadRepository
 ```
 
 ## 주요 설계 원칙
 
-- Controller는 도메인 Service 또는 Facade만 호출합니다.
+- Controller는 전용 application service만 직접 호출합니다.
 - 외부 API 호출은 gateway/client 계층에 둡니다.
-- 추천 계산 세부 로직은 `RecommendationFacade` 아래 서비스들에 둡니다.
+- 추천 API 상단은 생성/조회/북마크 command service로 나누고, 계산 세부 로직은 recommendation 서비스들 아래에 둡니다.
 - 수집은 source별 부분 성공을 허용하고, 실행 결과는 `api_sync_logs`에 남깁니다.
 - 2차 기능은 1차 구현체를 직접 흔들지 않고 내부 구현체 교체로 붙입니다.
 

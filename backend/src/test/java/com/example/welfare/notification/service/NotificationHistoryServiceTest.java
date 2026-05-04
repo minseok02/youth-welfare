@@ -4,8 +4,7 @@ import com.example.welfare.notification.entity.Notification;
 import com.example.welfare.notification.entity.Notification.NotificationChannel;
 import com.example.welfare.notification.entity.Notification.NotificationPeriodType;
 import com.example.welfare.notification.entity.Notification.NotificationStatus;
-import com.example.welfare.notification.repository.NotificationRepository;
-import com.example.welfare.notification.repository.NotificationServiceItemRepository;
+import com.example.welfare.notification.repository.NotificationHistoryCommandRepository;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.recommend.entity.RecommendationLog;
 import com.example.welfare.recommend.entity.UserRecommendation;
@@ -32,9 +31,7 @@ import static org.mockito.Mockito.verify;
 class NotificationHistoryServiceTest {
 
     @Mock
-    private NotificationRepository notificationRepository;
-    @Mock
-    private NotificationServiceItemRepository notificationServiceItemRepository;
+    private NotificationHistoryCommandRepository notificationHistoryCommandRepository;
 
     @InjectMocks
     private NotificationHistoryService notificationHistoryService;
@@ -55,7 +52,7 @@ class NotificationHistoryServiceTest {
                 .build();
         RecommendationLog log = RecommendationLog.builder().id(55L).build();
 
-        given(notificationRepository.save(any(Notification.class)))
+        given(notificationHistoryCommandRepository.saveNotification(any(Notification.class)))
                 .willAnswer(invocation -> {
                     Notification arg = invocation.getArgument(0, Notification.class);
                     return Notification.builder()
@@ -85,7 +82,7 @@ class NotificationHistoryServiceTest {
         );
 
         ArgumentCaptor<List> captor = ArgumentCaptor.forClass(List.class);
-        verify(notificationServiceItemRepository).saveAll(captor.capture());
+        verify(notificationHistoryCommandRepository).saveNotificationItems(captor.capture());
         List savedItems = captor.getValue();
         assertEquals(1, savedItems.size());
     }
@@ -95,7 +92,7 @@ class NotificationHistoryServiceTest {
     void saveResultSchedulesInitialRetryForFailure() {
         User user = User.builder().id(7L).userKey("user-key-7").email("test@example.com").passwordHash("pw").build();
 
-        given(notificationRepository.save(any(Notification.class)))
+        given(notificationHistoryCommandRepository.saveNotification(any(Notification.class)))
                 .willAnswer(invocation -> invocation.getArgument(0, Notification.class));
 
         LocalDateTime before = LocalDateTime.now();

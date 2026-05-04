@@ -3,31 +3,24 @@ package com.example.welfare.user.service;
 import com.example.welfare.user.dto.response.UserPiiSyncStatusResponse;
 import com.example.welfare.user.entity.UserPiiSyncQueue;
 import com.example.welfare.user.entity.UserPiiSyncQueueStatus;
-import com.example.welfare.user.repository.UserPiiSyncQueueRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.domain.Pageable;
 
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.BDDMockito.then;
-import static org.mockito.Mockito.times;
 
 @ExtendWith(MockitoExtension.class)
 class UserPiiSyncStatusServiceTest {
 
     @Mock
-    private UserPiiSyncQueueRepository userPiiSyncQueueRepository;
+    private UserPiiSyncQueueService userPiiSyncQueueService;
 
     @Test
     @DisplayName("queue status는 count와 oldest/latest snapshot, failed sample을 함께 반환한다")
@@ -51,20 +44,15 @@ class UserPiiSyncStatusServiceTest {
                 .lastSyncedAt(now.minusMinutes(1))
                 .build();
 
-        given(userPiiSyncQueueRepository.countByStatus(UserPiiSyncQueueStatus.PENDING)).willReturn(2L);
-        given(userPiiSyncQueueRepository.countByStatus(UserPiiSyncQueueStatus.FAILED)).willReturn(1L);
-        given(userPiiSyncQueueRepository.countByStatus(UserPiiSyncQueueStatus.SYNCED)).willReturn(7L);
-        given(userPiiSyncQueueRepository.findFirstByStatusOrderByLastEnqueuedAtAscIdAsc(UserPiiSyncQueueStatus.PENDING))
-                .willReturn(Optional.of(pending));
-        given(userPiiSyncQueueRepository.findFirstByStatusOrderByLastAttemptAtAscIdAsc(UserPiiSyncQueueStatus.FAILED))
-                .willReturn(Optional.of(failed));
-        given(userPiiSyncQueueRepository.findFirstByStatusOrderByLastSyncedAtDescIdDesc(UserPiiSyncQueueStatus.SYNCED))
-                .willReturn(Optional.of(synced));
-        given(userPiiSyncQueueRepository.findByStatusOrderByAttemptCountDescLastAttemptAtDescIdDesc(
-                any(), any(Pageable.class)))
-                .willReturn(List.of(failed));
+        given(userPiiSyncQueueService.countByStatus(UserPiiSyncQueueStatus.PENDING)).willReturn(2L);
+        given(userPiiSyncQueueService.countByStatus(UserPiiSyncQueueStatus.FAILED)).willReturn(1L);
+        given(userPiiSyncQueueService.countByStatus(UserPiiSyncQueueStatus.SYNCED)).willReturn(7L);
+        given(userPiiSyncQueueService.findOldestPending()).willReturn(Optional.of(pending));
+        given(userPiiSyncQueueService.findOldestFailed()).willReturn(Optional.of(failed));
+        given(userPiiSyncQueueService.findLatestSynced()).willReturn(Optional.of(synced));
+        given(userPiiSyncQueueService.findFailedSamples(5)).willReturn(List.of(failed));
 
-        UserPiiSyncStatusService service = new UserPiiSyncStatusService(userPiiSyncQueueRepository);
+        UserPiiSyncStatusService service = new UserPiiSyncStatusService(userPiiSyncQueueService);
 
         UserPiiSyncStatusResponse response = service.getStatus(5);
 
@@ -84,26 +72,15 @@ class UserPiiSyncStatusServiceTest {
     @Test
     @DisplayName("failed sample limit은 과도한 조회를 막기 위해 1 이상 20 이하로 고정한다")
     void getStatusClampsFailedSampleLimit() {
-        given(userPiiSyncQueueRepository.countByStatus(any(UserPiiSyncQueueStatus.class))).willReturn(0L);
-        given(userPiiSyncQueueRepository.findFirstByStatusOrderByLastEnqueuedAtAscIdAsc(any())).willReturn(Optional.empty());
-        given(userPiiSyncQueueRepository.findFirstByStatusOrderByLastAttemptAtAscIdAsc(any())).willReturn(Optional.empty());
-        given(userPiiSyncQueueRepository.findFirstByStatusOrderByLastSyncedAtDescIdDesc(any())).willReturn(Optional.empty());
-        given(userPiiSyncQueueRepository.findByStatusOrderByAttemptCountDescLastAttemptAtDescIdDesc(
-                any(), any(Pageable.class)))
-                .willReturn(List.of());
+        given(userPiiSyncQueueService.countByStatus(org.mockito.ArgumentMatchers.any(UserPiiSyncQueueStatus.class))).willReturn(0L);
+        given(userPiiSyncQueueService.findOldestPending()).willReturn(Optional.empty());
+        given(userPiiSyncQueueService.findOldestFailed()).willReturn(Optional.empty());
+        given(userPiiSyncQueueService.findLatestSynced()).willReturn(Optional.empty());
+        given(userPiiSyncQueueService.findFailedSamples(1)).willReturn(List.of());
+        given(userPiiSyncQueueService.findFailedSamples(20)).willReturn(List.of());
 
-        UserPiiSyncStatusService service = new UserPiiSyncStatusService(userPiiSyncQueueRepository);
+        UserPiiSyncStatusService service = new UserPiiSyncStatusService(userPiiSyncQueueService);
         service.getStatus(0);
         service.getStatus(999);
-
-        ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
-        then(userPiiSyncQueueRepository).should(times(2))
-                .findByStatusOrderByAttemptCountDescLastAttemptAtDescIdDesc(
-                        eq(UserPiiSyncQueueStatus.FAILED),
-                        pageableCaptor.capture()
-                );
-
-        assertThat(pageableCaptor.getAllValues()).extracting(Pageable::getPageSize)
-                .containsExactly(1, 20);
     }
 }

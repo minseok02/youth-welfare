@@ -1,7 +1,7 @@
 package com.example.welfare.collect.service;
 
 import com.example.welfare.collect.entity.ApiSyncLog;
-import com.example.welfare.collect.repository.ApiSyncLogRepository;
+import com.example.welfare.collect.repository.ApiSyncLogCommandRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -16,15 +16,15 @@ public class ApiSyncLogService {
     private static final String STALE_RUNNING_ERROR_CODE = "InterruptedRun";
     private static final String STALE_RUNNING_ERROR_MESSAGE = "previous running log was auto-closed before a new collect run";
 
-    private final ApiSyncLogRepository apiSyncLogRepository;
+    private final ApiSyncLogCommandRepository apiSyncLogCommandRepository;
 
     public CollectResult runWithLog(String jobName, CollectTask task) {
         closeStaleRunningLogs(jobName);
-        ApiSyncLog syncLog = apiSyncLogRepository.save(ApiSyncLog.start(jobName));
+        ApiSyncLog syncLog = apiSyncLogCommandRepository.save(ApiSyncLog.start(jobName));
         try {
             CollectResult result = task.run();
             syncLog.complete(result);
-            apiSyncLogRepository.save(syncLog);
+            apiSyncLogCommandRepository.save(syncLog);
             log.info("[ApiSyncLogService] 수집 로그 저장 job={} status={} requested={} saved={} skipped={} filtered={} failed={}",
                     jobName,
                     syncLog.getStatus(),
@@ -36,17 +36,17 @@ public class ApiSyncLogService {
             return result;
         } catch (RuntimeException e) {
             syncLog.fail(e);
-            apiSyncLogRepository.save(syncLog);
+            apiSyncLogCommandRepository.save(syncLog);
             throw e;
         } catch (Exception e) {
             syncLog.fail(e);
-            apiSyncLogRepository.save(syncLog);
+            apiSyncLogCommandRepository.save(syncLog);
             throw new IllegalStateException(e);
         }
     }
 
     private void closeStaleRunningLogs(String jobName) {
-        int healedCount = apiSyncLogRepository.failStaleRunningLogs(
+        int healedCount = apiSyncLogCommandRepository.failStaleRunningLogs(
                 jobName,
                 LocalDateTime.now(),
                 STALE_RUNNING_ERROR_CODE,

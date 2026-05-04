@@ -1,10 +1,6 @@
 package com.example.welfare.recommend.service;
 
-import com.example.welfare.global.exception.CustomException;
-import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.recommend.entity.ScoreWeight;
-import com.example.welfare.recommend.repository.RecommendationLogRepository;
-import com.example.welfare.recommend.repository.ScoreWeightRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,18 +17,21 @@ import java.util.List;
 @RequiredArgsConstructor
 public class ScoreWeightService {
 
-    private final RecommendationLogRepository logRepository;
-    private final ScoreWeightRepository scoreWeightRepository;
+    private final ScoreWeightProgressReadService scoreWeightProgressReadService;
 
     @Transactional(readOnly = true)
     public ScoreWeight getActiveWeight() {
-        long totalLogCount = logRepository.count();
-        return getProgress(totalLogCount).activeWeight();
+        ScoreWeightProgressReadService.ScoreWeightProgressSnapshot snapshot =
+                scoreWeightProgressReadService.loadSnapshot();
+        return getProgress(snapshot.totalLogCount(), snapshot.activeWeights()).activeWeight();
     }
 
     @Transactional(readOnly = true)
     public ScoreWeightProgress getProgress(long totalLogCount) {
-        List<ScoreWeight> activeWeights = getConfiguredActiveWeights();
+        return getProgress(totalLogCount, scoreWeightProgressReadService.loadSnapshot().activeWeights());
+    }
+
+    private ScoreWeightProgress getProgress(long totalLogCount, List<ScoreWeight> activeWeights) {
         ScoreWeight activeWeight = resolveActiveWeight(activeWeights, totalLogCount);
         ScoreWeight nextWeight = activeWeights.stream()
                 .filter(weight -> weight.getMinLogCount() > totalLogCount)
@@ -47,14 +46,6 @@ public class ScoreWeightService {
                 nextWeight != null ? (long) nextWeight.getMinLogCount() - totalLogCount : null,
                 nextWeight == null
         );
-    }
-
-    private List<ScoreWeight> getConfiguredActiveWeights() {
-        List<ScoreWeight> activeWeights = scoreWeightRepository.findByIsActiveTrueOrderByMinLogCountAsc();
-        if (activeWeights.isEmpty()) {
-            throw new CustomException(ErrorCode.SCORE_WEIGHT_NOT_CONFIGURED);
-        }
-        return activeWeights;
     }
 
     private ScoreWeight resolveActiveWeight(List<ScoreWeight> activeWeights, long totalLogCount) {

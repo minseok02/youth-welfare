@@ -4,7 +4,10 @@ import com.example.welfare.admin.dashboard.dto.AdminCollectFailureResponse;
 import com.example.welfare.admin.dashboard.dto.AdminRecommendationBreakdownResponse;
 import com.example.welfare.admin.dashboard.dto.AdminSearchFailureResponse;
 import com.example.welfare.admin.dashboard.dto.AdminDashboardResponse;
-import com.example.welfare.admin.dashboard.service.AdminDashboardService;
+import com.example.welfare.admin.dashboard.service.AdminDashboardCollectService;
+import com.example.welfare.admin.dashboard.service.AdminDashboardRecommendationService;
+import com.example.welfare.admin.dashboard.service.AdminDashboardSearchService;
+import com.example.welfare.admin.dashboard.service.AdminDashboardSummaryService;
 import com.example.welfare.global.response.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,7 +25,10 @@ import java.util.List;
 @RequiredArgsConstructor
 public class AdminDashboardController {
 
-    private final AdminDashboardService adminDashboardService;
+    private final AdminDashboardSummaryService adminDashboardSummaryService;
+    private final AdminDashboardSearchService adminDashboardSearchService;
+    private final AdminDashboardRecommendationService adminDashboardRecommendationService;
+    private final AdminDashboardCollectService adminDashboardCollectService;
 
     @GetMapping("/summary")
     public ResponseEntity<ApiResponse<AdminDashboardResponse>> getSummary(
@@ -30,7 +36,9 @@ public class AdminDashboardController {
             @RequestParam(name = "trendWindowDays", required = false) List<Integer> trendWindowDays
     ) {
         log.info("[Admin] dashboard summary 조회 summaryWindowDays={} trendWindowDays={}", summaryWindowDays, trendWindowDays);
-        return ResponseEntity.ok(ApiResponse.success(adminDashboardService.getSummary(summaryWindowDays, trendWindowDays)));
+        return ResponseEntity.ok(ApiResponse.success(
+                adminDashboardSummaryService.getSummary(summaryWindowDays, trendWindowDays)
+        ));
     }
 
     @GetMapping("/search-failures")
@@ -39,7 +47,9 @@ public class AdminDashboardController {
             @RequestParam(name = "limit", required = false) Integer limit
     ) {
         log.info("[Admin] dashboard search failures 조회 summaryWindowDays={} limit={}", summaryWindowDays, limit);
-        return ResponseEntity.ok(ApiResponse.success(adminDashboardService.getSearchFailures(summaryWindowDays, limit)));
+        return ResponseEntity.ok(ApiResponse.success(
+                adminDashboardSearchService.getSearchFailures(summaryWindowDays, limit)
+        ));
     }
 
     @GetMapping("/recommendation-breakdowns")
@@ -48,7 +58,9 @@ public class AdminDashboardController {
             @RequestParam(name = "limit", required = false) Integer limit
     ) {
         log.info("[Admin] dashboard recommendation breakdowns 조회 summaryWindowDays={} limit={}", summaryWindowDays, limit);
-        return ResponseEntity.ok(ApiResponse.success(adminDashboardService.getRecommendationBreakdowns(summaryWindowDays, limit)));
+        return ResponseEntity.ok(ApiResponse.success(
+                adminDashboardRecommendationService.getRecommendationBreakdowns(summaryWindowDays, limit)
+        ));
     }
 
     @GetMapping("/collect-failures")
@@ -57,6 +69,8 @@ public class AdminDashboardController {
             @RequestParam(name = "limit", required = false) Integer limit
     ) {
         log.info("[Admin] dashboard collect failures 조회 summaryWindowDays={} limit={}", summaryWindowDays, limit);
-        return ResponseEntity.ok(ApiResponse.success(adminDashboardService.getCollectFailures(summaryWindowDays, limit)));
+        return ResponseEntity.ok(ApiResponse.success(
+                adminDashboardCollectService.getCollectFailures(summaryWindowDays, limit)
+        ));
     }
 }

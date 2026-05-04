@@ -1,8 +1,9 @@
 package com.example.welfare.collect.controller;
 
 import com.example.welfare.collect.normalization.NormalizedPolicySidecarBackfillService;
+import com.example.welfare.collect.service.CollectAdminService;
+import com.example.welfare.collect.service.CollectBatchService;
 import com.example.welfare.collect.service.CollectSource;
-import com.example.welfare.collect.service.CollectService;
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.global.response.ApiResponse;
@@ -26,13 +27,14 @@ import java.util.Locale;
 @RequiredArgsConstructor
 public class CollectAdminController {
 
-    private final CollectService collectService;
+    private final CollectBatchService collectBatchService;
+    private final CollectAdminService collectAdminService;
     private final NormalizedPolicySidecarBackfillService normalizedPolicySidecarBackfillService;
 
     @PostMapping("/all")
     public ResponseEntity<ApiResponse<String>> collectAll() {
         log.info("[Admin] 전체 수집 수동 트리거");
-        collectService.collectAll();
+        collectBatchService.collectAllNow();
         return ResponseEntity.ok(ApiResponse.success("수집 완료"));
     }
 
@@ -40,7 +42,7 @@ public class CollectAdminController {
     public ResponseEntity<ApiResponse<String>> collectSource(@PathVariable String sourceKey) {
         CollectSource source = CollectSource.fromPathKey(sourceKey);
         log.info("[Admin] {} 수집 수동 트리거", source.triggerLabel());
-        collectService.collect(source);
+        collectAdminService.collect(source);
         return ResponseEntity.ok(ApiResponse.success(source.successMessage()));
     }
 
@@ -85,7 +87,7 @@ public class CollectAdminController {
         }
 
         GapFillResult result =
-                GapFillResult.from(collectService.collectBokjiroDetailGapFill(rounds, maxCallsPerRound));
+                GapFillResult.from(collectAdminService.collectBokjiroDetailGapFill(rounds, maxCallsPerRound));
 
         log.info("[Admin] 복지로 detail gap fill 수동 트리거 rounds={} maxCallsPerRound={} roundsExecuted={} requested={} saved={} skipped={} failed={} stoppedAfterNoSaves={}",
                 rounds,

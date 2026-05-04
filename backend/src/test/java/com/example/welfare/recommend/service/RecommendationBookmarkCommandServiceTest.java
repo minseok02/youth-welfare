@@ -3,9 +3,9 @@ package com.example.welfare.recommend.service;
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.policy.entity.WelfareService;
-import com.example.welfare.policy.repository.WelfareServiceRepository;
+import com.example.welfare.policy.service.PolicyLookupService;
 import com.example.welfare.recommend.entity.UserRecommendation;
-import com.example.welfare.recommend.repository.UserRecommendationRepository;
+import com.example.welfare.recommend.repository.RecommendationBookmarkCommandRepository;
 import com.example.welfare.user.service.UserKeyLookupService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -28,11 +28,11 @@ import static org.mockito.Mockito.verify;
 class RecommendationBookmarkCommandServiceTest {
 
     @Mock
-    private UserRecommendationRepository userRecommendationRepository;
+    private RecommendationBookmarkCommandRepository recommendationBookmarkCommandRepository;
     @Mock
     private UserKeyLookupService userKeyLookupService;
     @Mock
-    private WelfareServiceRepository welfareServiceRepository;
+    private PolicyLookupService policyLookupService;
 
     @InjectMocks
     private RecommendationBookmarkCommandService recommendationBookmarkCommandService;
@@ -46,7 +46,7 @@ class RecommendationBookmarkCommandServiceTest {
                 .isBookmarked(false)
                 .build();
         given(userKeyLookupService.findRequired(7L)).willReturn("user-key-7");
-        given(userRecommendationRepository.findTopByUserKeyAndServiceIdOrderByRecommendedAtDesc("user-key-7", 11L))
+        given(recommendationBookmarkCommandRepository.findLatestRecommendation("user-key-7", 11L))
                 .willReturn(Optional.of(recommendation));
 
         recommendationBookmarkCommandService.togglePolicyBookmark(7L, 11L);
@@ -65,16 +65,16 @@ class RecommendationBookmarkCommandServiceTest {
                 .build();
 
         given(userKeyLookupService.findRequired(7L)).willReturn("user-key-7");
-        given(userRecommendationRepository.findTopByUserKeyAndServiceIdOrderByRecommendedAtDesc("user-key-7", 11L))
+        given(recommendationBookmarkCommandRepository.findLatestRecommendation("user-key-7", 11L))
                 .willReturn(Optional.empty());
-        given(welfareServiceRepository.findById(11L)).willReturn(Optional.of(service));
-        given(userRecommendationRepository.save(any(UserRecommendation.class)))
+        given(policyLookupService.getRequiredService(11L)).willReturn(service);
+        given(recommendationBookmarkCommandRepository.save(any(UserRecommendation.class)))
                 .willAnswer(invocation -> invocation.getArgument(0, UserRecommendation.class));
 
         recommendationBookmarkCommandService.togglePolicyBookmark(7L, 11L);
 
         ArgumentCaptor<UserRecommendation> captor = ArgumentCaptor.forClass(UserRecommendation.class);
-        verify(userRecommendationRepository).save(captor.capture());
+        verify(recommendationBookmarkCommandRepository).save(captor.capture());
         assertTrue(captor.getValue().isBookmarked());
         assertEquals("user-key-7", captor.getValue().getUserKey());
     }
@@ -88,13 +88,30 @@ class RecommendationBookmarkCommandServiceTest {
                 .isBookmarked(false)
                 .build();
         given(userKeyLookupService.findRequired(7L)).willReturn("user-key-7");
-        given(userRecommendationRepository.findTopByUserKeyAndServiceIdOrderByRecommendedAtDesc("user-key-7", 11L))
+        given(recommendationBookmarkCommandRepository.findLatestRecommendation("user-key-7", 11L))
                 .willReturn(Optional.of(recommendation));
-        given(userRecommendationRepository.countByUserKeyAndIsBookmarkedTrue("user-key-7")).willReturn(200L);
+        given(recommendationBookmarkCommandRepository.countBookmarked("user-key-7")).willReturn(200L);
 
         CustomException exception = assertThrows(CustomException.class,
                 () -> recommendationBookmarkCommandService.togglePolicyBookmark(7L, 11L));
 
         assertEquals(ErrorCode.BOOKMARK_LIMIT_EXCEEDED, exception.getErrorCode());
+    }
+
+    @Test
+    @DisplayName("추천 북마크 토글은 소유한 추천 이력이 있으면 상태를 뒤집는다")
+    void toggleRecommendationBookmarkOnOwnedRecommendation() {
+        UserRecommendation recommendation = UserRecommendation.builder()
+                .id(5L)
+                .userKey("user-key-7")
+                .isBookmarked(false)
+                .build();
+        given(userKeyLookupService.findRequired(7L)).willReturn("user-key-7");
+        given(recommendationBookmarkCommandRepository.findOwnedRecommendation(5L, "user-key-7"))
+                .willReturn(Optional.of(recommendation));
+
+        recommendationBookmarkCommandService.toggleRecommendationBookmark(7L, 5L);
+
+        assertTrue(recommendation.isBookmarked());
     }
 }
