@@ -18,6 +18,7 @@ import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
 import com.example.welfare.recommend.entity.UserRecommendation;
 import com.example.welfare.recommend.facade.RecommendationFacade;
 import com.example.welfare.recommend.facade.RecommendationReadFacade;
+import com.example.welfare.recommend.service.RecommendationLogReadService;
 import com.example.welfare.recommend.service.RecommendationLogService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -67,6 +68,8 @@ class RecommendationPolicyFlowWebMvcTest {
     private PolicySearchLogService policySearchLogService;
     @MockBean
     private RecommendationLogService recommendationLogService;
+    @MockBean
+    private RecommendationLogReadService recommendationLogReadService;
     @MockBean
     private RecommendationReadFacade recommendationReadFacade;
     @MockBean
@@ -121,7 +124,7 @@ class RecommendationPolicyFlowWebMvcTest {
                 .build();
 
         given(recommendationFacade.recommend(isNull(), eq(false))).willReturn(List.of(recommendation));
-        given(recommendationLogService.findLatestLogIdMap(isNull(), org.mockito.ArgumentMatchers.anyList()))
+        given(recommendationLogReadService.findLatestLogIdMap(isNull(), org.mockito.ArgumentMatchers.anyList()))
                 .willReturn(java.util.Map.of(11L, 9001L));
         given(recommendationReadFacade.findCandidateProjections(org.mockito.ArgumentMatchers.anyList()))
                 .willReturn(java.util.Map.of(
@@ -225,7 +228,7 @@ class RecommendationPolicyFlowWebMvcTest {
                 .build();
 
         given(recommendationFacade.getRecommendations(isNull(), eq(10))).willReturn(List.of(recommendation));
-        given(recommendationLogService.findLatestLogIdMap(isNull(), org.mockito.ArgumentMatchers.anyList()))
+        given(recommendationLogReadService.findLatestLogIdMap(isNull(), org.mockito.ArgumentMatchers.anyList()))
                 .willReturn(java.util.Map.of(11L, 9001L));
         given(recommendationReadFacade.findCandidateProjections(org.mockito.ArgumentMatchers.anyList()))
                 .willReturn(java.util.Map.of(

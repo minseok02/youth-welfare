@@ -2936,3 +2936,4 @@
 541) `RuleScoringService` 는 추천 도메인 안에서 policy 태그 read 구현을 직접 알고 있었다. 이미 도입한 `RecommendationCandidateReadRepository.findTagsByServiceIds(...)` 를 재사용해 후보 태그 로딩 경계를 추천 도메인 안으로 통일했다.
 542) `UserProfileCommandService` 는 우선순위 row 저장 외에 option code 조회와 invalid input 예외 매핑까지 직접 맡고 있었다. `PriorityOptionReadService` 를 추가해 코드 조회 규칙을 분리하고, profile command service 는 row 조립과 저장에 집중하도록 정리했다.
 543) `ScoreWeightService` 는 단계 계산 외에 `recommendation_logs` 총건수와 `score_weights` 활성 설정 조회 규칙까지 직접 들고 있었다. `ScoreWeightProgressReadService` 를 추가해 읽기 조합과 미설정 예외를 분리하고, score weight service 는 단계 계산에만 집중하도록 정리했다.
+544) `RecommendationLogService` 는 로그 쓰기와 최신 logId 맵 조회를 함께 들고 있었다. `RecommendationLogReadService` 를 분리해 추천 컨트롤러는 조회 전용 service를 사용하게 하고, 기존 service는 command 책임에 더 집중하도록 정리했다.

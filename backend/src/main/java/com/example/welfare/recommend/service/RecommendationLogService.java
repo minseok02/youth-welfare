@@ -6,16 +6,12 @@ import com.example.welfare.recommend.entity.RecommendationLog;
 import com.example.welfare.recommend.entity.ScoreWeight;
 import com.example.welfare.recommend.entity.UserRecommendation;
 import com.example.welfare.recommend.repository.RecommendationLogCommandRepository;
-import com.example.welfare.recommend.repository.RecommendationLogReadRepository;
 import com.example.welfare.user.entity.User;
-import com.example.welfare.user.service.UserKeyLookupService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 /**
  * 알림 발송 시점에 recommendation_logs 기록
@@ -26,8 +22,6 @@ import java.util.stream.Collectors;
 public class RecommendationLogService {
 
     private final RecommendationLogCommandRepository recommendationLogCommandRepository;
-    private final RecommendationLogReadRepository recommendationLogReadRepository;
-    private final UserKeyLookupService userKeyLookupService;
 
     // refresh 시점 — 미클릭 이전 로그 제거 후 새 로그 생성
     @Transactional
@@ -54,21 +48,6 @@ public class RecommendationLogService {
                 .toList();
 
         return recommendationLogCommandRepository.saveAll(logs);
-    }
-
-    // serviceId 목록 기준 사용자의 최신 logId 맵 반환 (추천 refresh 응답 조합용)
-    @Transactional(readOnly = true)
-    public Map<Long, Long> findLatestLogIdMap(Long userId, List<Long> serviceIds) {
-        if (serviceIds.isEmpty()) return Map.of();
-        String userKey = userKeyLookupService.findNullable(userId);
-        if (userKey == null) return Map.of();
-        return recommendationLogReadRepository.findLatestByUserKeyAndServiceIds(userKey, serviceIds)
-                .stream()
-                .collect(Collectors.toMap(
-                        log -> log.getService().getId(),
-                        RecommendationLog::getId,
-                        (a, b) -> b
-                ));
     }
 
     @Transactional
