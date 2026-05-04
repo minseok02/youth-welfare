@@ -5,11 +5,11 @@ import com.example.welfare.collect.normalization.NormalizedPolicyAggregate;
 import com.example.welfare.collect.normalization.NormalizedPolicySidecarWriter;
 import com.example.welfare.collect.repository.CollectItemCommandRepository;
 import com.example.welfare.collect.repository.CollectItemReadRepository;
+import com.example.welfare.collect.repository.CollectItemTagCommandRepository;
 import com.example.welfare.collect.support.ListCollectSourceBinding;
 import com.example.welfare.policy.entity.ServiceRegion;
 import com.example.welfare.policy.entity.ServiceTag;
 import com.example.welfare.policy.entity.WelfareService;
-import com.example.welfare.policy.repository.ServiceTagRepository;
 import com.example.welfare.policy.service.SearchYouthRelevanceService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -44,7 +44,7 @@ public class CollectItemSaver {
     private final WelfareServiceMapper mapper;
     private final CollectItemReadRepository collectItemReadRepository;
     private final CollectItemCommandRepository collectItemCommandRepository;
-    private final ServiceTagRepository tagRepository;
+    private final CollectItemTagCommandRepository collectItemTagCommandRepository;
     private final PlatformTransactionManager transactionManager;
     private final JdbcTemplate jdbcTemplate;
     private final SearchYouthRelevanceService searchYouthRelevanceService;
@@ -146,15 +146,8 @@ public class CollectItemSaver {
     }
 
     private List<ServiceTag> replaceTags(WelfareService service, List<ServiceTag> tags) {
-        tagRepository.deleteByServiceId(service.getId());
-        tagRepository.flush();
-
         List<ServiceTag> normalizedTags = normalizeTags(service, tags);
-        if (normalizedTags.isEmpty()) {
-            return normalizedTags;
-        }
-
-        tagRepository.saveAll(normalizedTags);
+        collectItemTagCommandRepository.replaceAll(service.getId(), normalizedTags);
         return normalizedTags;
     }
 

@@ -6,12 +6,12 @@ import com.example.welfare.collect.normalization.NormalizedPolicyAggregate;
 import com.example.welfare.collect.normalization.NormalizedPolicySidecarWriter;
 import com.example.welfare.collect.repository.CollectItemCommandRepository;
 import com.example.welfare.collect.repository.CollectItemReadRepository;
+import com.example.welfare.collect.repository.CollectItemTagCommandRepository;
 import com.example.welfare.collect.support.ListCollectSourceBinding;
 import com.example.welfare.collect.support.ListCollectSourceBindings;
 import com.example.welfare.policy.entity.ServiceRegion;
 import com.example.welfare.policy.entity.ServiceTag;
 import com.example.welfare.policy.entity.WelfareService;
-import com.example.welfare.policy.repository.ServiceTagRepository;
 import com.example.welfare.policy.service.SearchYouthRelevanceService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -46,7 +46,7 @@ class CollectItemSaverTest {
     @Mock
     private CollectItemCommandRepository collectItemCommandRepository;
     @Mock
-    private ServiceTagRepository tagRepository;
+    private CollectItemTagCommandRepository collectItemTagCommandRepository;
     @Mock
     private PlatformTransactionManager transactionManager;
     @Mock
@@ -64,7 +64,7 @@ class CollectItemSaverTest {
                 mapper,
                 collectItemReadRepository,
                 collectItemCommandRepository,
-                tagRepository,
+                collectItemTagCommandRepository,
                 transactionManager,
                 jdbcTemplate,
                 searchYouthRelevanceService,
@@ -115,10 +115,8 @@ class CollectItemSaverTest {
 
         saver.saveOnce(binding, item);
 
-        verify(tagRepository).deleteByServiceId(11L);
-
         ArgumentCaptor<List<ServiceTag>> tagsCaptor = ArgumentCaptor.forClass(List.class);
-        verify(tagRepository).saveAll(tagsCaptor.capture());
+        verify(collectItemTagCommandRepository).replaceAll(eq(11L), tagsCaptor.capture());
         List<ServiceTag> savedTags = tagsCaptor.getValue();
         assertThat(savedTags).hasSize(2);
         assertThat(savedTags)
@@ -159,8 +157,7 @@ class CollectItemSaverTest {
 
         saver.saveOnce(binding, item);
 
-        verify(tagRepository).deleteByServiceId(22L);
-        verify(tagRepository, never()).saveAll(any());
+        verify(collectItemTagCommandRepository).replaceAll(22L, List.of());
         verify(searchYouthRelevanceService).refreshForService(eq(existing), eq(List.of()));
     }
 
@@ -253,8 +250,7 @@ class CollectItemSaverTest {
         saver.saveOnce(binding.toSaveCommand(item));
 
         verify(normalizedPolicySidecarWriter).upsert(existing, aggregate);
-        verify(tagRepository).deleteByServiceId(55L);
-        verify(tagRepository).saveAll(any());
+        verify(collectItemTagCommandRepository).replaceAll(eq(55L), any());
         verify(searchYouthRelevanceService).refreshForService(eq(existing), any());
     }
 

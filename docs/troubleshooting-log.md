@@ -2896,3 +2896,8 @@
 - 문제: item save 서비스는 aggregate/region/tag orchestration을 맡으면서도 `WelfareServiceRepository.findBySourceTypeAndSourceId(...)`, `saveAndFlush(...)` 를 직접 호출해 기존 정책 조회와 신규 정책 저장 규칙까지 함께 들고 있었다. 이 상태면 정책 upsert read/write 규칙이 바뀔 때 orchestration 서비스 본문을 다시 열어야 한다.
 - 해결: `CollectItemReadRepository` / `CollectItemReadRepositoryImpl`, `CollectItemCommandRepository` / `CollectItemCommandRepositoryImpl` 을 추가하고, 기존 정책 lookup과 신규 정책 저장을 이 read/write 경계 뒤로 이동했다.
 - 이유: `CollectItemSaver` 는 item-level aggregate/region/tag save orchestration에 집중하고, 정책 upsert read/write 세부사항은 별도 repository 경계로 내려야 책임이 더 선명하다.
+
+## 532) `CollectItemSaver` 가 tag delete/saveAll 을 직접 저장소에 걸치면, item save orchestration과 tag write 규칙이 다시 한 서비스에 섞인다
+- 문제: item save 서비스는 normalized tag 집합 계산 뒤 `ServiceTagRepository.deleteByServiceId(...)`, `flush()`, `saveAll(...)` 을 직접 호출하고 있었다. 이 상태면 tag write 규칙이 바뀔 때 orchestration 서비스 본문을 다시 열어야 한다.
+- 해결: `CollectItemTagCommandRepository` / `CollectItemTagCommandRepositoryImpl` 을 추가하고, tag 전체 교체 write 를 command 경계 뒤로 이동했다.
+- 이유: `CollectItemSaver` 는 item-level aggregate/region/tag save orchestration에 집중하고, tag persistence write 세부사항은 별도 command repository 로 내려야 책임이 더 선명하다.
