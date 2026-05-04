@@ -5,7 +5,7 @@
 관련 코드:
 
 - [AuthService.java](../backend/src/main/java/com/example/welfare/user/service/AuthService.java)
-- [UserService.java](../backend/src/main/java/com/example/welfare/user/service/UserService.java)
+- [UserAccountCommandService.java](../backend/src/main/java/com/example/welfare/user/service/UserAccountCommandService.java)
 - [AccessTokenRevocationService.java](../backend/src/main/java/com/example/welfare/user/service/AccessTokenRevocationService.java)
 - [UserSessionRevocationService.java](../backend/src/main/java/com/example/welfare/user/service/UserSessionRevocationService.java)
 - [JwtAuthenticationFilter.java](../backend/src/main/java/com/example/welfare/global/config/JwtAuthenticationFilter.java)
@@ -74,7 +74,7 @@
 
 구현 위치:
 
-- `UserService.withdraw(...)`
+- `UserAccountCommandService.withdraw(...)`
 
 에러/후속 동작:
 
