@@ -1258,6 +1258,7 @@ cd backend
 - `BokjiroDetailCollectService` 의 대상 정책 목록 조회와 기존 detail 존재/조회도 `BokjiroDetailReadRepository` 뒤로 이동해 상세 수집 orchestration과 read 규칙을 분리
 - `BokjiroDetailCollectService` 의 detail row 저장도 `BokjiroDetailCommandRepository` 뒤로 이동해 상세 수집 orchestration과 persistence write 규칙을 분리
 - `NormalizedPolicySidecarBackfillService` 의 sourceType/sourceId 기준 정책 lookup도 `NormalizedPolicySidecarBackfillReadRepository` 뒤로 이동해 sidecar backfill orchestration과 서비스 매칭 read 규칙을 분리
+- `CollectItemSaver` 의 기존 정책 lookup과 신규 정책 저장도 `CollectItemReadRepository`, `CollectItemCommandRepository` 뒤로 이동해 item save orchestration과 정책 upsert read/write 규칙을 분리
 
 ## 2차로 분리된 항목
 

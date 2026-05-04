@@ -3,12 +3,13 @@ package com.example.welfare.collect.service;
 import com.example.welfare.collect.mapper.WelfareServiceMapper;
 import com.example.welfare.collect.normalization.NormalizedPolicyAggregate;
 import com.example.welfare.collect.normalization.NormalizedPolicySidecarWriter;
+import com.example.welfare.collect.repository.CollectItemCommandRepository;
+import com.example.welfare.collect.repository.CollectItemReadRepository;
 import com.example.welfare.collect.support.ListCollectSourceBinding;
 import com.example.welfare.policy.entity.ServiceRegion;
 import com.example.welfare.policy.entity.ServiceTag;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.repository.ServiceTagRepository;
-import com.example.welfare.policy.repository.WelfareServiceRepository;
 import com.example.welfare.policy.service.SearchYouthRelevanceService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -41,7 +42,8 @@ import java.util.function.Function;
 public class CollectItemSaver {
 
     private final WelfareServiceMapper mapper;
-    private final WelfareServiceRepository welfareServiceRepository;
+    private final CollectItemReadRepository collectItemReadRepository;
+    private final CollectItemCommandRepository collectItemCommandRepository;
     private final ServiceTagRepository tagRepository;
     private final PlatformTransactionManager transactionManager;
     private final JdbcTemplate jdbcTemplate;
@@ -113,14 +115,14 @@ public class CollectItemSaver {
 
     private WelfareService upsertService(WelfareService.SourceType sourceType,
                                           String sourceId, WelfareService incoming) {
-        Optional<WelfareService> existing = welfareServiceRepository
-                .findBySourceTypeAndSourceId(sourceType, sourceId);
+        Optional<WelfareService> existing = collectItemReadRepository
+                .findServiceBySourceTypeAndSourceId(sourceType, sourceId);
         if (existing.isPresent()) {
             WelfareService ws = existing.get();
             ws.updateFromCollect(incoming);
             return ws;
         } else {
-            return welfareServiceRepository.saveAndFlush(incoming);
+            return collectItemCommandRepository.saveAndFlush(incoming);
         }
     }
 
