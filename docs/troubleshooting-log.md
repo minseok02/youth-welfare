@@ -2906,3 +2906,8 @@
 - 문제: item save 서비스는 region 집합 계산 뒤 `service_regions` delete 와 batch insert SQL 을 직접 들고 있었다. 이 상태면 region persistence write 규칙이나 SQL 튜닝이 바뀔 때 orchestration 서비스 본문을 다시 열어야 한다.
 - 해결: `CollectItemRegionCommandRepository` / `CollectItemRegionCommandRepositoryImpl` 을 추가하고, service region 전체 교체 write 를 command 경계 뒤로 이동했다.
 - 이유: `CollectItemSaver` 는 item-level aggregate/region/tag save orchestration에 집중하고, region persistence write 세부사항은 별도 command repository 로 내려야 책임이 더 선명하다.
+
+## 534) `DeferredNormalizedPolicySidecarWriter` 가 sidecar table readiness 확인과 기존 fact 조회를 직접 SQL로 들고 있으면, sidecar write orchestration과 read SQL 규칙이 다시 한 클래스에 섞인다
+- 문제: sidecar writer 는 taxonomy/fact upsert 를 orchestrate 하면서도 필수 sidecar 테이블 준비 여부 확인, summary slot 테이블 존재 확인, 기존 fact 조회 SQL 까지 직접 들고 있었다. 이 상태면 read SQL 규칙이나 readiness 판정이 바뀔 때 writer 본문을 다시 열어야 한다.
+- 해결: `DeferredNormalizedPolicySidecarReadRepository` / `DeferredNormalizedPolicySidecarReadRepositoryImpl` 을 추가하고, sidecar readiness 확인과 기존 fact 조회를 이 read 경계 뒤로 이동했다.
+- 이유: `DeferredNormalizedPolicySidecarWriter` 는 taxonomy/terms/facts upsert orchestration에 집중하고, sidecar read SQL 세부사항은 별도 read repository 로 내려야 책임이 더 선명하다.

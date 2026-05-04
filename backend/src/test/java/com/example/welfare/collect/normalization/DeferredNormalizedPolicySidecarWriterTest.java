@@ -1,5 +1,6 @@
 package com.example.welfare.collect.normalization;
 
+import com.example.welfare.collect.repository.DeferredNormalizedPolicySidecarReadRepository;
 import com.example.welfare.policy.entity.WelfareService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -8,7 +9,6 @@ import org.mockito.Mock;
 import org.mockito.ArgumentCaptor;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.SqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 
@@ -20,10 +20,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.contains;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -35,6 +36,8 @@ class DeferredNormalizedPolicySidecarWriterTest {
     private JdbcTemplate jdbcTemplate;
     @Mock
     private NamedParameterJdbcTemplate namedParameterJdbcTemplate;
+    @Mock
+    private DeferredNormalizedPolicySidecarReadRepository deferredNormalizedPolicySidecarReadRepository;
 
     private DeferredNormalizedPolicySidecarWriter writer;
 
@@ -43,8 +46,11 @@ class DeferredNormalizedPolicySidecarWriterTest {
         writer = new DeferredNormalizedPolicySidecarWriter(
                 jdbcTemplate,
                 namedParameterJdbcTemplate,
+                deferredNormalizedPolicySidecarReadRepository,
                 new NormalizedFactMergeSupport()
         );
+        lenient().when(deferredNormalizedPolicySidecarReadRepository.findExistingFacts(anyLong()))
+                .thenReturn(List.of());
     }
 
     @Test
@@ -85,7 +91,7 @@ class DeferredNormalizedPolicySidecarWriterTest {
                 .facts(List.of())
                 .build();
 
-        given(jdbcTemplate.queryForObject(anyString(), eq(Integer.class))).willReturn(0);
+        given(deferredNormalizedPolicySidecarReadRepository.sidecarTablesReady()).willReturn(false);
 
         assertThatCode(() -> writer.upsert(service, aggregate))
                 .doesNotThrowAnyException();
@@ -188,7 +194,7 @@ class DeferredNormalizedPolicySidecarWriterTest {
                 ))
                 .build();
 
-        given(jdbcTemplate.queryForObject(anyString(), eq(Integer.class))).willReturn(4);
+        given(deferredNormalizedPolicySidecarReadRepository.sidecarTablesReady()).willReturn(true);
         assertThatCode(() -> writer.upsert(service, aggregate))
                 .doesNotThrowAnyException();
 
@@ -235,9 +241,8 @@ class DeferredNormalizedPolicySidecarWriterTest {
                 .facts(List.of())
                 .build();
 
-        given(jdbcTemplate.queryForObject(contains("table_name IN"), eq(Integer.class))).willReturn(4);
-        given(jdbcTemplate.queryForObject(contains("table_name = ?"), eq(Integer.class), eq("service_taxonomy_summary_slots")))
-                .willReturn(1);
+        given(deferredNormalizedPolicySidecarReadRepository.sidecarTablesReady()).willReturn(true);
+        given(deferredNormalizedPolicySidecarReadRepository.summarySlotTableReady()).willReturn(true);
 
         assertThatCode(() -> writer.upsert(service, aggregate))
                 .doesNotThrowAnyException();
@@ -283,7 +288,7 @@ class DeferredNormalizedPolicySidecarWriterTest {
                 .facts(List.of())
                 .build();
 
-        given(jdbcTemplate.queryForObject(anyString(), eq(Integer.class))).willReturn(4);
+        given(deferredNormalizedPolicySidecarReadRepository.sidecarTablesReady()).willReturn(true);
 
         assertThatCode(() -> writer.upsert(service, aggregate))
                 .doesNotThrowAnyException();
@@ -319,7 +324,7 @@ class DeferredNormalizedPolicySidecarWriterTest {
                 .facts(List.of())
                 .build();
 
-        given(jdbcTemplate.queryForObject(anyString(), eq(Integer.class))).willReturn(4);
+        given(deferredNormalizedPolicySidecarReadRepository.sidecarTablesReady()).willReturn(true);
 
         assertThatCode(() -> writer.upsert(service, aggregate))
                 .doesNotThrowAnyException();
@@ -355,7 +360,7 @@ class DeferredNormalizedPolicySidecarWriterTest {
                 .facts(List.of())
                 .build();
 
-        given(jdbcTemplate.queryForObject(anyString(), eq(Integer.class))).willReturn(4);
+        given(deferredNormalizedPolicySidecarReadRepository.sidecarTablesReady()).willReturn(true);
 
         assertThatCode(() -> writer.upsert(service, aggregate))
                 .doesNotThrowAnyException();
@@ -404,7 +409,7 @@ class DeferredNormalizedPolicySidecarWriterTest {
                 ))
                 .build();
 
-        given(jdbcTemplate.queryForObject(anyString(), eq(Integer.class))).willReturn(4);
+        given(deferredNormalizedPolicySidecarReadRepository.sidecarTablesReady()).willReturn(true);
         assertThatCode(() -> writer.upsert(service, aggregate))
                 .doesNotThrowAnyException();
 
@@ -444,7 +449,7 @@ class DeferredNormalizedPolicySidecarWriterTest {
                 .facts(List.of())
                 .build();
 
-        given(jdbcTemplate.queryForObject(anyString(), eq(Integer.class))).willReturn(4);
+        given(deferredNormalizedPolicySidecarReadRepository.sidecarTablesReady()).willReturn(true);
         assertThatCode(() -> writer.upsert(service, aggregate))
                 .doesNotThrowAnyException();
 

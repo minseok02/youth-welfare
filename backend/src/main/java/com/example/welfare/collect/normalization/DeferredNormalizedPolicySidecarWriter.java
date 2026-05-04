@@ -1,5 +1,6 @@
 package com.example.welfare.collect.normalization;
 
+import com.example.welfare.collect.repository.DeferredNormalizedPolicySidecarReadRepository;
 import com.example.welfare.policy.support.WelfareSourceTypeSupport;
 import com.example.welfare.policy.support.CompatCategorySupport;
 import com.example.welfare.collect.support.NormalizationKeySupport;
@@ -7,17 +8,14 @@ import com.example.welfare.policy.entity.WelfareService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.sql.Date;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
-import java.util.Set;
 
 /**
  * sidecar 테이블이 적용된 환경에서는 canonical aggregate 를 실제 DB sidecar 로 저장한다.
@@ -29,15 +27,9 @@ import java.util.Set;
 @Transactional
 public class DeferredNormalizedPolicySidecarWriter implements NormalizedPolicySidecarWriter {
 
-    private static final Set<String> REQUIRED_TABLES = Set.of(
-            "normalization_code_sets",
-            "service_taxonomies",
-            "service_taxonomy_terms",
-            "service_facts"
-    );
-    private static final String SUMMARY_SLOT_TABLE = "service_taxonomy_summary_slots";
     private final JdbcTemplate jdbcTemplate;
     private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
+    private final DeferredNormalizedPolicySidecarReadRepository deferredNormalizedPolicySidecarReadRepository;
     private final NormalizedFactMergeSupport normalizedFactMergeSupport;
     private volatile boolean sidecarTablesReady;
     private volatile Boolean summarySlotTableReady;
@@ -94,13 +86,7 @@ public class DeferredNormalizedPolicySidecarWriter implements NormalizedPolicySi
         if (sidecarTablesReady) {
             return true;
         }
-        Integer count = jdbcTemplate.queryForObject("""
-                SELECT COUNT(*)
-                FROM information_schema.tables
-                WHERE table_schema = DATABASE()
-                  AND table_name IN ('normalization_code_sets', 'service_taxonomies', 'service_taxonomy_terms', 'service_facts')
-                """, Integer.class);
-        sidecarTablesReady = count != null && count == REQUIRED_TABLES.size();
+        sidecarTablesReady = deferredNormalizedPolicySidecarReadRepository.sidecarTablesReady();
         return sidecarTablesReady;
     }
 
@@ -108,13 +94,7 @@ public class DeferredNormalizedPolicySidecarWriter implements NormalizedPolicySi
         if (summarySlotTableReady != null) {
             return summarySlotTableReady;
         }
-        Integer count = jdbcTemplate.queryForObject("""
-                SELECT COUNT(*)
-                FROM information_schema.tables
-                WHERE table_schema = DATABASE()
-                  AND table_name = ?
-                """, Integer.class, SUMMARY_SLOT_TABLE);
-        summarySlotTableReady = count != null && count > 0;
+        summarySlotTableReady = deferredNormalizedPolicySidecarReadRepository.summarySlotTableReady();
         return summarySlotTableReady;
     }
 
@@ -318,7 +298,10 @@ public class DeferredNormalizedPolicySidecarWriter implements NormalizedPolicySi
         }
 
         List<NormalizedPolicyAggregate.Fact> mergedFacts =
-                normalizedFactMergeSupport.merge(fetchExistingFacts(service.getId()), aggregate.facts());
+                normalizedFactMergeSupport.merge(
+                        deferredNormalizedPolicySidecarReadRepository.findExistingFacts(service.getId()),
+                        aggregate.facts()
+                );
 
         for (NormalizedPolicyAggregate.Fact fact : mergedFacts) {
             namedParameterJdbcTemplate.update("""
@@ -411,63 +394,6 @@ public class DeferredNormalizedPolicySidecarWriter implements NormalizedPolicySi
                             .addValue("rawValue", fact.rawValue())
                             .addValue("evidenceText", fact.evidenceText()));
         }
-    }
-
-    private List<NormalizedPolicyAggregate.Fact> fetchExistingFacts(Long serviceId) {
-        return namedParameterJdbcTemplate.query("""
-                        SELECT
-                            fact_group,
-                            fact_code_set_key,
-                            fact_code,
-                            fact_merge_key,
-                            fact_label,
-                            operator,
-                            value_type,
-                            bool_value,
-                            int_value,
-                            decimal_value,
-                            text_value,
-                            date_value,
-                            range_min_int,
-                            range_max_int,
-                            unit,
-                            source_field,
-                            authority,
-                            confidence,
-                            raw_value,
-                            evidence_text
-                        FROM service_facts
-                        WHERE service_id = :serviceId
-                        """,
-                new MapSqlParameterSource("serviceId", serviceId),
-                factRowMapper());
-    }
-
-    private RowMapper<NormalizedPolicyAggregate.Fact> factRowMapper() {
-        return (rs, rowNum) -> NormalizedPolicyAggregate.Fact.builder()
-                .factGroup(rs.getString("fact_group"))
-                .factCodeSetKey(rs.getString("fact_code_set_key"))
-                .factCode(rs.getString("fact_code"))
-                .factMergeKey(rs.getString("fact_merge_key"))
-                .factLabel(rs.getString("fact_label"))
-                .operator(NormalizedPolicyAggregate.Operator.valueOf(rs.getString("operator")))
-                .valueType(NormalizedPolicyAggregate.ValueType.valueOf(rs.getString("value_type")))
-                .boolValue((Boolean) rs.getObject("bool_value"))
-                .intValue((Integer) rs.getObject("int_value"))
-                .decimalValue(rs.getBigDecimal("decimal_value"))
-                .textValue(rs.getString("text_value"))
-                .dateValue(rs.getObject("date_value", Date.class) == null
-                        ? null
-                        : rs.getObject("date_value", Date.class).toLocalDate())
-                .rangeMinInt((Integer) rs.getObject("range_min_int"))
-                .rangeMaxInt((Integer) rs.getObject("range_max_int"))
-                .unit(rs.getString("unit"))
-                .sourceField(rs.getString("source_field"))
-                .authority(NormalizedPolicyAggregate.Authority.valueOf(rs.getString("authority")))
-                .confidence(rs.getBigDecimal("confidence"))
-                .rawValue(rs.getString("raw_value"))
-                .evidenceText(rs.getString("evidence_text"))
-                .build();
     }
 
     private Object[] buildDeleteArgs(Long serviceId, List<TermRefreshScope> refreshScopes) {
