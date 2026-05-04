@@ -1275,3 +1275,4 @@ cd backend
 - 나이대 x 소득분위 군집화 / 군집 캐시 (사용자 규모 확대 시 재검토)
 - p5~p95 정규화
 - 카카오 알림톡
+- `2026-05-04`: `RetrievalService` 가 `PolicyTagReadRepository` 를 직접 보지 않도록 정리하고, 추천 후보 + 후보 태그 read를 `RecommendationCandidateReadRepository` 경계로 모았다.

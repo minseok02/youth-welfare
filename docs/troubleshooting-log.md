@@ -2931,3 +2931,4 @@
 - 문제: sidecar backfill 서비스는 source별 payload 순회와 aggregate 재생성만 맡으면 되는데도, raw payload 목록 조회와 sourceType/sourceId 기준 서비스 매칭을 서비스 본문에서 직접 조합하고 있었다. 이 상태면 backfill 대상 read 조립 규칙이 바뀔 때 orchestration 서비스 본문을 다시 열어야 한다.
 - 해결: `NormalizedPolicySidecarBackfillTarget` 모델과 `findTargetsBySourceTypeAndApiCategoryOrderByFetchedAtAsc(...)` 를 `NormalizedPolicySidecarBackfillReadRepository` 에 추가하고, payload + matched service 조합을 이 read 경계 뒤로 이동했다.
 - 이유: `NormalizedPolicySidecarBackfillService` 는 source별 backfill orchestration과 aggregate 재생성에 집중하고, payload/service read 조립 규칙은 별도 read repository 로 내려야 책임이 더 선명하다.
+539) `RetrievalService` 가 추천 후보 조회와 태그 read를 서로 다른 read 경계로 직접 조합하던 구조를 줄이기 위해 `RecommendationCandidateReadRepository.findTagsByServiceIds(...)` 를 추가했다. 서비스는 추천 후보 필터 orchestration만 맡고, 태그 조회 구현은 추천 도메인 read boundary 뒤로 이동시켰다.

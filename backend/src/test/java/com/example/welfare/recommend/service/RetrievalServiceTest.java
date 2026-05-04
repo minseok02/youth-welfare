@@ -1,7 +1,6 @@
 package com.example.welfare.recommend.service;
 
 import com.example.welfare.policy.entity.WelfareService;
-import com.example.welfare.policy.repository.PolicyTagReadRepository;
 import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
 import com.example.welfare.recommend.dto.RetrievedRecommendationCandidates;
 import com.example.welfare.recommend.dto.RecommendationUserSnapshot;
@@ -14,7 +13,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.domain.PageRequest;
 
 import java.util.Collections;
 import java.util.List;
@@ -35,9 +33,6 @@ class RetrievalServiceTest {
     private RecommendationCandidateReadRepository recommendationCandidateReadRepository;
 
     @Mock
-    private PolicyTagReadRepository policyTagReadRepository;
-
-    @Mock
     private RecommendationYouthRelevanceSupport recommendationYouthRelevanceSupport;
 
     @Mock
@@ -48,7 +43,6 @@ class RetrievalServiceTest {
     void retrieveUsesRegionCodeQueriesWhenRegionCodeExists() {
         RetrievalService service = new RetrievalService(
                 recommendationCandidateReadRepository,
-                policyTagReadRepository,
                 recommendationYouthRelevanceSupport,
                 recommendationReadFacade
         );
@@ -63,7 +57,7 @@ class RetrievalServiceTest {
                 new RecommendationCandidateReadCondition(26, 5, "서울특별시", "11680", 150, 20)
         ))
                 .willReturn(List.of());
-        given(policyTagReadRepository.findByServiceIds(any())).willReturn(Collections.emptyMap());
+        given(recommendationCandidateReadRepository.findTagsByServiceIds(any())).willReturn(Collections.emptyMap());
         given(recommendationReadFacade.findCandidateProjectionsByServiceIds(any()))
                 .willReturn(Map.of(1L, projection(1L, true)));
 
@@ -84,7 +78,6 @@ class RetrievalServiceTest {
     void retrieveUsesSidoQueriesWhenRegionCodeMissing() {
         RetrievalService service = new RetrievalService(
                 recommendationCandidateReadRepository,
-                policyTagReadRepository,
                 recommendationYouthRelevanceSupport,
                 recommendationReadFacade
         );
@@ -99,7 +92,7 @@ class RetrievalServiceTest {
                 new RecommendationCandidateReadCondition(26, 5, "서울특별시", null, 150, 20)
         ))
                 .willReturn(List.of());
-        given(policyTagReadRepository.findByServiceIds(any())).willReturn(Collections.emptyMap());
+        given(recommendationCandidateReadRepository.findTagsByServiceIds(any())).willReturn(Collections.emptyMap());
         given(recommendationReadFacade.findCandidateProjectionsByServiceIds(any()))
                 .willReturn(Map.of(2L, projection(2L, true)));
 
@@ -120,7 +113,6 @@ class RetrievalServiceTest {
     void retrieveUsesProjectionYouthRelevanceBeforeFallbackHeuristic() {
         RetrievalService service = new RetrievalService(
                 recommendationCandidateReadRepository,
-                policyTagReadRepository,
                 recommendationYouthRelevanceSupport,
                 recommendationReadFacade
         );
@@ -135,7 +127,7 @@ class RetrievalServiceTest {
                 new RecommendationCandidateReadCondition(26, 5, "서울특별시", "11680", 150, 20)
         ))
                 .willReturn(List.of());
-        given(policyTagReadRepository.findByServiceIds(any())).willReturn(Collections.emptyMap());
+        given(recommendationCandidateReadRepository.findTagsByServiceIds(any())).willReturn(Collections.emptyMap());
         given(recommendationReadFacade.findCandidateProjectionsByServiceIds(any()))
                 .willReturn(Map.of(3L, projection(3L, false)));
 
