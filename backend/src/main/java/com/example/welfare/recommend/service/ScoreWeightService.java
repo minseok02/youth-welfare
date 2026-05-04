@@ -3,7 +3,7 @@ package com.example.welfare.recommend.service;
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.recommend.entity.ScoreWeight;
-import com.example.welfare.recommend.repository.RecommendationLogRepository;
+import com.example.welfare.recommend.repository.RecommendationLogReadRepository;
 import com.example.welfare.recommend.repository.ScoreWeightRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -21,12 +21,12 @@ import java.util.List;
 @RequiredArgsConstructor
 public class ScoreWeightService {
 
-    private final RecommendationLogRepository logRepository;
+    private final RecommendationLogReadRepository recommendationLogReadRepository;
     private final ScoreWeightRepository scoreWeightRepository;
 
     @Transactional(readOnly = true)
     public ScoreWeight getActiveWeight() {
-        long totalLogCount = logRepository.count();
+        long totalLogCount = recommendationLogReadRepository.countAll();
         return getProgress(totalLogCount).activeWeight();
     }
 

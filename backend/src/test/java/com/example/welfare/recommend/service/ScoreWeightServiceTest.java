@@ -3,7 +3,7 @@ package com.example.welfare.recommend.service;
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.recommend.entity.ScoreWeight;
-import com.example.welfare.recommend.repository.RecommendationLogRepository;
+import com.example.welfare.recommend.repository.RecommendationLogReadRepository;
 import com.example.welfare.recommend.repository.ScoreWeightRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -23,7 +23,7 @@ import static org.mockito.BDDMockito.given;
 class ScoreWeightServiceTest {
 
     @Mock
-    private RecommendationLogRepository recommendationLogRepository;
+    private RecommendationLogReadRepository recommendationLogReadRepository;
 
     @Mock
     private ScoreWeightRepository scoreWeightRepository;
@@ -34,7 +34,7 @@ class ScoreWeightServiceTest {
     @Test
     @DisplayName("추천 로그가 100건 미만이면 COLD_START 가중치를 선택한다")
     void getActiveWeightReturnsColdStart() {
-        given(recommendationLogRepository.count()).willReturn(99L);
+        given(recommendationLogReadRepository.countAll()).willReturn(99L);
         given(scoreWeightRepository.findByIsActiveTrueOrderByMinLogCountAsc()).willReturn(defaultWeights());
 
         ScoreWeight weight = scoreWeightService.getActiveWeight();
@@ -47,7 +47,7 @@ class ScoreWeightServiceTest {
     @Test
     @DisplayName("추천 로그가 100건 이상 500건 미만이면 GROWTH 가중치를 선택한다")
     void getActiveWeightReturnsGrowth() {
-        given(recommendationLogRepository.count()).willReturn(100L);
+        given(recommendationLogReadRepository.countAll()).willReturn(100L);
         given(scoreWeightRepository.findByIsActiveTrueOrderByMinLogCountAsc()).willReturn(defaultWeights());
 
         ScoreWeight weight = scoreWeightService.getActiveWeight();
@@ -60,7 +60,7 @@ class ScoreWeightServiceTest {
     @Test
     @DisplayName("추천 로그가 500건 이상이면 STABLE 가중치를 선택한다")
     void getActiveWeightReturnsStable() {
-        given(recommendationLogRepository.count()).willReturn(500L);
+        given(recommendationLogReadRepository.countAll()).willReturn(500L);
         given(scoreWeightRepository.findByIsActiveTrueOrderByMinLogCountAsc()).willReturn(defaultWeights());
 
         ScoreWeight weight = scoreWeightService.getActiveWeight();
@@ -73,7 +73,7 @@ class ScoreWeightServiceTest {
     @Test
     @DisplayName("활성 가중치 설정이 없으면 명시적 예외를 던진다")
     void getActiveWeightThrowsWhenNoActiveWeights() {
-        given(recommendationLogRepository.count()).willReturn(0L);
+        given(recommendationLogReadRepository.countAll()).willReturn(0L);
         given(scoreWeightRepository.findByIsActiveTrueOrderByMinLogCountAsc()).willReturn(List.of());
 
         assertThatThrownBy(() -> scoreWeightService.getActiveWeight())

@@ -2771,3 +2771,8 @@
 - 문제: 추천 저장 서비스는 기존 최신 추천 조회, 북마크 상태 보존 뒤 전체 삭제, 새 추천 일괄 저장을 직접 수행했고, retention 서비스도 만료 미북마크 삭제를 저장소에 직접 호출하고 있었다. 이 상태면 추천 저장/정리 규칙이 바뀔 때 서비스 본문을 다시 열어야 한다.
 - 해결: `RecommendationPersistenceCommandRepository` / `RecommendationPersistenceCommandRepositoryImpl` 을 추가하고, latest recommendation lookup, user별 전체 교체 저장, retention 삭제를 command 경계 뒤로 이동했다.
 - 이유: 추천 저장 서비스는 북마크 상태 이전과 recommendation row 구성 같은 orchestration 에 집중하고, 교체 저장/정리 삭제 세부사항은 별도 command repository 로 내려야 recommendation write 경계가 더 일관된다.
+
+## 507) `RecommendationLogService` 와 `ScoreWeightService` 가 recommendation log 저장소를 직접 나눠 쓰면, 알림 로그 write 규칙과 cold-start read 규칙이 서비스 본문에 다시 퍼진다
+- 문제: recommendation log 서비스는 미클릭 로그 삭제, 로그 저장, 단건 조회, 최신 logId 매핑 조회를 직접 수행했고, score weight 서비스는 전체 로그 수를 저장소에서 직접 읽고 있었다. 이 상태면 로그 저장/조회 정책이나 cold-start 기준 read 규칙이 바뀔 때 서비스 둘을 함께 다시 열어야 한다.
+- 해결: `RecommendationLogCommandRepository` / `RecommendationLogCommandRepositoryImpl`, `RecommendationLogReadRepository` / `RecommendationLogReadRepositoryImpl` 을 추가하고, recommendation log write/read 를 각각 이 경계 뒤로 이동했다.
+- 이유: recommendation log 서비스는 로그 조립과 click 처리 orchestration 에 집중하고, cold-start/logId mapping/log deletion 같은 persistence 세부사항은 read/command 경계로 분리해야 recommendation log 책임이 더 선명해진다.
