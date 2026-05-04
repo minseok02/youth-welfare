@@ -2826,3 +2826,8 @@
 - 문제: 추천 cache 서비스는 clusterId 기준 cache row 조회와 신규 row 저장을 직접 수행했고, 상태 업데이트 서비스는 만료 cluster cache 삭제를 같은 저장소에 직접 호출하고 있었다. 이 상태면 군집 AI cache persistence 규칙이 바뀔 때 추천/수집 서비스 둘을 함께 다시 열어야 한다.
 - 해결: `ClusterAiResultReadRepository` / `ClusterAiResultReadRepositoryImpl`, `ClusterAiResultCommandRepository` / `ClusterAiResultCommandRepositoryImpl` 을 추가하고, cache row 조회는 read repository로, 신규 row 저장과 만료 cache 삭제는 command repository로 이동했다.
 - 이유: `JpaClusterAiScoreCache` 는 score map 조립과 upsert orchestration에, `StatusUpdateService` 는 상태 전이와 TTL cleanup orchestration에 집중하고, cluster cache persistence 세부사항은 read/write 경계로 분리해야 책임이 더 선명해진다.
+
+## 518) `UserReadService` 가 profile aggregate read, PII 복호화, recommendation snapshot read, active user 조회를 함께 들면, 일반 사용자 읽기 책임이 다시 넓어진다
+- 문제: 사용자 읽기 서비스는 profile aggregate 조회와 PII 복호화까지 직접 처리하면서, 동시에 recommendation snapshot 조합과 active user/account 조회도 함께 맡고 있었다. 이 상태면 프로필 응답 조립 규칙이 바뀔 때도 `UserReadService` 본문을 다시 열어야 한다.
+- 해결: `UserProfileReadService` 를 추가하고, profile aggregate read와 PII 복호화를 이 전용 서비스로 이동했다. `UserService.getProfile(...)` 도 새 profile read 경계를 직접 사용하도록 정리했다.
+- 이유: `UserReadService` 는 active user/account 조회와 recommendation context read에 집중하고, profile 응답 조립과 복호화는 별도 read service 로 분리해야 책임이 더 선명해진다.

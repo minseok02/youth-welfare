@@ -14,14 +14,14 @@ import java.util.List;
 @RequiredArgsConstructor
 public class UserService {
 
-    private final UserReadService userReadService;
+    private final UserProfileReadService userProfileReadService;
     private final UserBookmarkReadService userBookmarkReadService;
     private final UserProfileCommandService userProfileCommandService;
     private final UserAccountCommandService userAccountCommandService;
 
     @Transactional(readOnly = true)
     public ProfileResponse getProfile(Long userId) {
-        return userReadService.getProfile(userId);
+        return userProfileReadService.getProfile(userId);
     }
 
     @Transactional(readOnly = true)

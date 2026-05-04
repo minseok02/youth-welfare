@@ -1245,6 +1245,7 @@ cd backend
 - `AuthIdentityReadService` 의 email lookup hash / userKey 조회도 `AuthIdentityReadRepository` 뒤로 이동해 auth identity read 규칙을 service 본문 밖으로 분리
 - `UserPiiCommandService` 의 app PII backfill/upsert/delete write 도 `UserPiiCommandRepository` 뒤로 이동해 PII write 경계를 service 본문 밖으로 분리
 - `JpaClusterAiScoreCache` 와 `StatusUpdateService` 의 `cluster_ai_results` read/write 도 `ClusterAiResultReadRepository`, `ClusterAiResultCommandRepository` 뒤로 이동해 군집 AI 캐시 경계를 read/write 로 분리
+- `UserReadService` 의 profile aggregate read/복호화는 `UserProfileReadService` 로 분리해 일반 사용자 읽기와 profile 응답 조립 책임을 나눔
 
 ## 2차로 분리된 항목
 

@@ -20,7 +20,7 @@ import static org.mockito.BDDMockito.then;
 @ExtendWith(MockitoExtension.class)
 class UserServiceTest {
 
-    @Mock private UserReadService userReadService;
+    @Mock private UserProfileReadService userProfileReadService;
     @Mock private UserBookmarkReadService userBookmarkReadService;
     @Mock private UserProfileCommandService userProfileCommandService;
     @Mock private UserAccountCommandService userAccountCommandService;
@@ -29,15 +29,15 @@ class UserServiceTest {
     private UserService userService;
 
     @Test
-    @DisplayName("프로필 조회는 UserReadService에 위임한다")
+    @DisplayName("프로필 조회는 UserProfileReadService에 위임한다")
     void getProfileDelegatesToReadService() {
         ProfileResponse response = ProfileResponse.builder().id(1L).build();
-        given(userReadService.getProfile(1L)).willReturn(response);
+        given(userProfileReadService.getProfile(1L)).willReturn(response);
 
         ProfileResponse result = userService.getProfile(1L);
 
         assertThat(result).isSameAs(response);
-        then(userReadService).should().getProfile(1L);
+        then(userProfileReadService).should().getProfile(1L);
     }
 
     @Test
