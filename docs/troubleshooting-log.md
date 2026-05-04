@@ -2811,3 +2811,8 @@
 - 문제: queue 서비스는 enqueue 저장, 상태별 count, oldest/latest snapshot, failed sample, replay 대상 userKey 조회를 모두 하나의 JPA 저장소에 직접 걸고 있었다. 이 상태면 queue 저장 규칙과 read 정렬/샘플링 규칙이 바뀔 때 같은 서비스 본문을 함께 다시 열어야 한다.
 - 해결: `UserPiiSyncQueueReadRepository` / `UserPiiSyncQueueReadRepositoryImpl`, `UserPiiSyncQueueCommandRepository` / `UserPiiSyncQueueCommandRepositoryImpl` 을 추가하고, queue 저장은 command repository로, 상태/재처리 대상 조회는 read repository로 이동했다.
 - 이유: `UserPiiSyncQueueService` 는 enqueue orchestration과 queue API 표면 유지에 집중하고, queue persistence 세부사항은 read/write 경계로 분리해야 책임이 더 선명해진다.
+
+## 515) `AuthIdentityReadService` 가 auth user email lookup hash 조회와 userKey 조회를 `AuthUserRepository` 에 직접 걸치면, auth identity read 규칙이 서비스 본문에 다시 남는다
+- 문제: identity read 서비스는 이메일 중복 확인, 이메일 lookup hash 조회, userKey 조회를 위해 `AuthUserRepository` 를 직접 호출하고 있었다. 이 상태면 auth identity lookup 규칙이 바뀔 때 service 본문을 다시 열어야 한다.
+- 해결: `AuthIdentityReadRepository` / `AuthIdentityReadRepositoryImpl` 을 추가하고, email lookup hash 존재/조회와 userKey 조회를 이 read 경계 뒤로 이동했다.
+- 이유: `AuthIdentityReadService` 는 raw email 정규화와 active 상태 검증 같은 identity read orchestration 에 집중하고, auth identity persistence 세부사항은 별도 read repository 로 내려야 책임이 더 선명해진다.

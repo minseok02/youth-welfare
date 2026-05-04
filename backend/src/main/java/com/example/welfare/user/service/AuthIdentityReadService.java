@@ -3,7 +3,7 @@ package com.example.welfare.user.service;
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.user.entity.AuthUser;
-import com.example.welfare.user.repository.AuthUserRepository;
+import com.example.welfare.user.repository.AuthIdentityReadRepository;
 import com.example.welfare.user.util.EmailLookupKeyGenerator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -15,21 +15,21 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class AuthIdentityReadService {
 
-    private final AuthUserRepository authUserRepository;
+    private final AuthIdentityReadRepository authIdentityReadRepository;
 
     @Transactional(readOnly = true)
     public boolean existsByEmail(String rawEmail) {
-        return authUserRepository.existsByEmailLookupHash(EmailLookupKeyGenerator.hash(rawEmail));
+        return authIdentityReadRepository.existsByEmailLookupHash(EmailLookupKeyGenerator.hash(rawEmail));
     }
 
     @Transactional(readOnly = true)
     public Optional<AuthUser> findByEmail(String rawEmail) {
-        return authUserRepository.findByEmailLookupHash(EmailLookupKeyGenerator.hash(rawEmail));
+        return authIdentityReadRepository.findByEmailLookupHash(EmailLookupKeyGenerator.hash(rawEmail));
     }
 
     @Transactional(readOnly = true)
     public Optional<AuthUser> findByUserKey(String userKey) {
-        return authUserRepository.findByUserKey(userKey);
+        return authIdentityReadRepository.findByUserKey(userKey);
     }
 
     @Transactional(readOnly = true)
