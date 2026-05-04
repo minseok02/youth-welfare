@@ -20,7 +20,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class UserNotificationReadService {
 
-    private final UserReadService userReadService;
+    private final ActiveUserReadService activeUserReadService;
     private final NotificationTargetReadRepository notificationTargetReadRepository;
     private final AesEncryptUtil aesEncryptUtil;
 
@@ -34,13 +34,13 @@ public class UserNotificationReadService {
 
     @Transactional(readOnly = true)
     public String getNotificationEmail(Long userId) {
-        String userKey = userReadService.getActiveUserContext(userId).userKey();
+        String userKey = activeUserReadService.getActiveUserContext(userId).userKey();
         return getNotificationEmailByUserKey(userKey);
     }
 
     @Transactional(readOnly = true)
     public String getNotificationEmailByUserKey(String userKey) {
-        userReadService.getActiveUserByUserKey(userKey);
+        activeUserReadService.getActiveUserByUserKey(userKey);
         String email = decryptNullable(notificationTargetReadRepository.findEncryptedEmailByUserKey(userKey)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND)));
         if (!StringUtils.hasText(email)) {

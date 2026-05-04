@@ -32,7 +32,7 @@ public class PasswordResetService {
     private final EmailClient emailClient;
     private final UserCoreSyncService userCoreSyncService;
     private final AuthTokenService authTokenService;
-    private final UserReadService userReadService;
+    private final ActiveUserReadService activeUserReadService;
     private final UserNotificationReadService userNotificationReadService;
 
     @Value("${auth.password-reset.expiration-minutes:30}")
@@ -46,7 +46,7 @@ public class PasswordResetService {
         String email = EmailLookupKeyGenerator.normalize(rawEmail);
         authIdentityReadService.findByEmail(email)
                 .filter(AuthUser::isActive)
-                .flatMap(authUser -> userReadService.findOptionalActiveUserByUserKey(authUser.getUserKey())
+                .flatMap(authUser -> activeUserReadService.findOptionalActiveUserByUserKey(authUser.getUserKey())
                         .map(user -> authUser.getUserKey()))
                 .ifPresent(userKey -> {
                     String recipientEmail = userNotificationReadService.getNotificationEmailByUserKey(userKey);
@@ -77,7 +77,7 @@ public class PasswordResetService {
             throw new CustomException(ErrorCode.PASSWORD_RESET_TOKEN_INVALID);
         }
 
-        var user = userReadService.findOptionalActiveUserByUserKey(userKey)
+        var user = activeUserReadService.findOptionalActiveUserByUserKey(userKey)
                 .orElseThrow(() -> new CustomException(ErrorCode.PASSWORD_RESET_TOKEN_INVALID));
 
         String latestToken = redisTemplate.opsForValue().get(passwordResetUserKey(userKey));

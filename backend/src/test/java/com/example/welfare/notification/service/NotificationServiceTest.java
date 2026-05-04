@@ -17,7 +17,7 @@ import com.example.welfare.recommend.service.RecommendationLogService;
 import com.example.welfare.recommend.service.ScoreWeightService;
 import com.example.welfare.user.entity.User;
 import com.example.welfare.user.service.UserNotificationReadService;
-import com.example.welfare.user.service.UserReadService;
+import com.example.welfare.user.service.ActiveUserReadService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -45,7 +45,7 @@ import static org.mockito.Mockito.never;
 class NotificationServiceTest {
 
     @Mock
-    private UserReadService userReadService;
+    private ActiveUserReadService activeUserReadService;
     @Mock
     private UserNotificationReadService userNotificationReadService;
     @Mock
@@ -110,7 +110,7 @@ class NotificationServiceTest {
         NotificationTarget target = new NotificationTarget(1L, "user-key-1", "test@example.com",
                 User.NotificationPeriod.DAILY, 0.8, 10);
 
-        given(userReadService.getActiveUserByUserKey("user-key-1")).willReturn(user);
+        given(activeUserReadService.getActiveUserByUserKey("user-key-1")).willReturn(user);
         given(recommendationFacade.getRecommendations(1L, 50)).willReturn(List.of(pass, fail));
         given(notificationSlotSelector.selectCandidates(List.of(pass, fail), 0.8)).willReturn(List.of(pass));
         given(scoreWeightService.getActiveWeight()).willReturn(weight);
@@ -154,7 +154,7 @@ class NotificationServiceTest {
         NotificationTarget target = new NotificationTarget(1L, "user-key-1", "test@example.com",
                 User.NotificationPeriod.DAILY, 0.95, 10);
 
-        given(userReadService.getActiveUserByUserKey("user-key-1")).willReturn(user);
+        given(activeUserReadService.getActiveUserByUserKey("user-key-1")).willReturn(user);
         given(recommendationFacade.getRecommendations(1L, 50)).willReturn(List.of(fail));
         given(notificationSlotSelector.selectCandidates(List.of(fail), 0.95)).willReturn(List.of());
 
@@ -196,7 +196,7 @@ class NotificationServiceTest {
         NotificationTarget target = new NotificationTarget(1L, "user-key-1", "test@example.com",
                 User.NotificationPeriod.DAILY, 0.8, 10);
 
-        given(userReadService.getActiveUserByUserKey("user-key-1")).willReturn(user);
+        given(activeUserReadService.getActiveUserByUserKey("user-key-1")).willReturn(user);
         given(recommendationFacade.getRecommendations(1L, 50)).willReturn(List.of(recommendation));
         given(notificationSlotSelector.selectCandidates(List.of(recommendation), 0.8)).willReturn(List.of(recommendation));
         given(scoreWeightService.getActiveWeight()).willReturn(weight);
@@ -275,7 +275,7 @@ class NotificationServiceTest {
         NotificationTarget target = new NotificationTarget(1L, "user-key-1", "test@example.com",
                 User.NotificationPeriod.DAILY, 0.8, 10);
 
-        given(userReadService.getActiveUserByUserKey("user-key-1")).willReturn(user);
+        given(activeUserReadService.getActiveUserByUserKey("user-key-1")).willReturn(user);
         given(recommendationFacade.getRecommendations(1L, 50)).willReturn(List.of(a1, a2, b1));
         given(notificationSlotSelector.selectCandidates(List.of(a1, a2, b1), 0.8)).willReturn(List.of(a1, a2, b1));
         given(scoreWeightService.getActiveWeight()).willReturn(weight);

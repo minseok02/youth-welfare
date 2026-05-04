@@ -24,7 +24,7 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class UserProfileCommandService {
 
-    private final UserReadService userReadService;
+    private final ActiveUserReadService activeUserReadService;
     private final UserMetadataCommandRepository userMetadataCommandRepository;
     private final PriorityOptionReadRepository priorityOptionReadRepository;
     private final PriorityWeightPolicy priorityWeightPolicy;
@@ -33,7 +33,7 @@ public class UserProfileCommandService {
 
     @Transactional
     public void updateProfile(Long userId, UpdateProfileRequest request) {
-        UserReadService.ActiveUserContext activeUserContext = userReadService.getActiveUserContext(userId);
+        ActiveUserReadService.ActiveUserContext activeUserContext = activeUserReadService.getActiveUserContext(userId);
         User user = activeUserContext.user();
         String userKey = activeUserContext.userKey();
         recommendationRefreshCacheService.evict(userKey);
@@ -88,7 +88,7 @@ public class UserProfileCommandService {
 
     @Transactional
     public void updatePriorities(Long userId, UpdatePrioritiesRequest request) {
-        String userKey = userReadService.getActiveUserContext(userId).userKey();
+        String userKey = activeUserReadService.getActiveUserContext(userId).userKey();
         recommendationRefreshCacheService.evict(userKey);
         List<String> codes = request.getPriorityCodes();
 

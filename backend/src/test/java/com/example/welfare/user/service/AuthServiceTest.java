@@ -43,7 +43,7 @@ class AuthServiceTest {
     @Mock
     private PasswordResetService passwordResetService;
     @Mock
-    private UserReadService userReadService;
+    private ActiveUserReadService activeUserReadService;
 
     private AuthService authService;
 
@@ -56,7 +56,7 @@ class AuthServiceTest {
                 userCoreSyncService,
                 authTokenService,
                 passwordResetService,
-                userReadService
+                activeUserReadService
         );
         ReflectionTestUtils.setField(authService, "adminEmailsProperty", "admin@example.com");
         authService.initAdminEmails();
@@ -107,7 +107,7 @@ class AuthServiceTest {
 
         when(authIdentityReadService.findByEmail(anyString()))
                 .thenReturn(Optional.of(authUser));
-        when(userReadService.getActiveUserByUserKey("user-key-1")).thenReturn(user);
+        when(activeUserReadService.getActiveUserByUserKey("user-key-1")).thenReturn(user);
         when(passwordEncoder.matches("password123!", "encoded")).thenReturn(true);
         when(authTokenService.issueTokens(eq("user-key-1"), eq(1L), anyList()))
                 .thenReturn(TokenResponse.of("access", "refresh"));
@@ -160,7 +160,7 @@ class AuthServiceTest {
 
         when(authIdentityReadService.findByEmail("user@example.com"))
                 .thenReturn(Optional.of(authUser));
-        when(userReadService.getActiveUserByUserKey("user-key-1")).thenReturn(user);
+        when(activeUserReadService.getActiveUserByUserKey("user-key-1")).thenReturn(user);
         when(passwordEncoder.matches("wrong-password", "encoded")).thenReturn(false);
 
         assertThatThrownBy(() -> authService.login(request))

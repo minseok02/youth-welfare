@@ -20,7 +20,7 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class UserRecommendationReadServiceTest {
 
-    @Mock private UserReadService userReadService;
+    @Mock private ActiveUserReadService activeUserReadService;
     @Mock private AuthIdentityReadService authIdentityReadService;
     @Mock private RecommendationUserReadRepository recommendationUserReadRepository;
 
@@ -28,7 +28,7 @@ class UserRecommendationReadServiceTest {
     @DisplayName("추천 컨텍스트 조회는 active user 검증 후 user entity 와 snapshot 을 함께 반환한다")
     void getRecommendationContextReturnsUserAndSnapshot() {
         UserRecommendationReadService userRecommendationReadService = new UserRecommendationReadService(
-                userReadService,
+                activeUserReadService,
                 authIdentityReadService,
                 recommendationUserReadRepository
         );
@@ -52,8 +52,8 @@ class UserRecommendationReadServiceTest {
                 .notificationMinScore(0.7)
                 .build();
 
-        when(userReadService.getActiveUserContext(7L))
-                .thenReturn(new UserReadService.ActiveUserContext(user, "user-key-7"));
+        when(activeUserReadService.getActiveUserContext(7L))
+                .thenReturn(new ActiveUserReadService.ActiveUserContext(user, "user-key-7"));
         when(authIdentityReadService.requireActiveUserKey("user-key-7")).thenReturn("user-key-7");
         when(recommendationUserReadRepository.findByUserKey("user-key-7"))
                 .thenReturn(Optional.of(new RecommendationUserReadModel(

@@ -14,7 +14,7 @@ import com.example.welfare.chat.repository.ChatMessageReadRepository;
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.user.entity.User;
-import com.example.welfare.user.service.UserReadService;
+import com.example.welfare.user.service.ActiveUserReadService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -44,12 +44,12 @@ public class ChatMessageService {
     private final ChatAiGateway chatAiGateway;
     private final ChatRateLimitService chatRateLimitService;
     private final ChatMessageCommandService chatMessageCommandService;
-    private final UserReadService userReadService;
+    private final ActiveUserReadService activeUserReadService;
     private final ObjectMapper objectMapper;
 
     @Transactional(readOnly = true)
     public List<ChatMessageResponse> getMessages(Long userId, Long sessionId) {
-        UserReadService.ActiveUserContext activeUserContext = userReadService.getActiveUserContext(userId);
+        ActiveUserReadService.ActiveUserContext activeUserContext = activeUserReadService.getActiveUserContext(userId);
         chatMessageReadRepository.findOwnedSession(sessionId, activeUserContext.userKey())
                 .orElseThrow(() -> new CustomException(ErrorCode.CHAT_SESSION_NOT_FOUND));
 
@@ -59,7 +59,7 @@ public class ChatMessageService {
     }
 
     public ChatAnswerResponse sendMessage(Long userId, Long sessionId, SendChatMessageRequest request) {
-        UserReadService.ActiveUserContext activeUserContext = userReadService.getActiveUserContext(userId);
+        ActiveUserReadService.ActiveUserContext activeUserContext = activeUserReadService.getActiveUserContext(userId);
         User user = activeUserContext.user();
         chatRateLimitService.checkMessageSendLimit(userId);
         ChatSession session = chatMessageReadRepository.findOwnedSession(sessionId, activeUserContext.userKey())

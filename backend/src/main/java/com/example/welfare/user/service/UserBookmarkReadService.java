@@ -12,12 +12,12 @@ import java.util.List;
 @RequiredArgsConstructor
 public class UserBookmarkReadService {
 
-    private final UserReadService userReadService;
+    private final ActiveUserReadService activeUserReadService;
     private final RecommendationReadFacade recommendationReadFacade;
 
     @Transactional(readOnly = true)
     public List<PolicySummaryResponse> getBookmarks(Long userId) {
-        String userKey = userReadService.getActiveUserContext(userId).userKey();
+        String userKey = activeUserReadService.getActiveUserContext(userId).userKey();
         return recommendationReadFacade.findBookmarkedPolicySummaries(userKey);
     }
 }

@@ -12,7 +12,7 @@ import com.example.welfare.chat.repository.ChatMessageReadRepository;
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.user.entity.User;
-import com.example.welfare.user.service.UserReadService;
+import com.example.welfare.user.service.ActiveUserReadService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -52,7 +52,7 @@ class ChatMessageServiceTest {
     private ChatMessageCommandService chatMessageCommandService;
 
     @Mock
-    private UserReadService userReadService;
+    private ActiveUserReadService activeUserReadService;
 
     private ChatMessageService chatMessageService;
 
@@ -64,7 +64,7 @@ class ChatMessageServiceTest {
                 chatAiGateway,
                 chatRateLimitService,
                 chatMessageCommandService,
-                userReadService,
+                activeUserReadService,
                 new ObjectMapper());
     }
 
@@ -79,8 +79,8 @@ class ChatMessageServiceTest {
         SendChatMessageRequest request = new SendChatMessageRequest();
         ReflectionTestUtils.setField(request, "content", "서울 월세 지원 알려줘");
 
-        when(userReadService.getActiveUserContext(1L))
-                .thenReturn(new UserReadService.ActiveUserContext(user, "user-key-1"));
+        when(activeUserReadService.getActiveUserContext(1L))
+                .thenReturn(new ActiveUserReadService.ActiveUserContext(user, "user-key-1"));
         when(chatMessageReadRepository.findOwnedSession(10L, "user-key-1")).thenReturn(Optional.of(session));
         when(chatPolicyService.findCandidates("서울 월세 지원 알려줘", 3)).thenReturn(List.of(
                 ChatPolicyCandidate.builder()
@@ -137,8 +137,8 @@ class ChatMessageServiceTest {
         SendChatMessageRequest request = new SendChatMessageRequest();
         ReflectionTestUtils.setField(request, "content", "조건을 모르겠어");
 
-        when(userReadService.getActiveUserContext(1L))
-                .thenReturn(new UserReadService.ActiveUserContext(user, "user-key-1"));
+        when(activeUserReadService.getActiveUserContext(1L))
+                .thenReturn(new ActiveUserReadService.ActiveUserContext(user, "user-key-1"));
         when(chatMessageReadRepository.findOwnedSession(10L, "user-key-1")).thenReturn(Optional.of(session));
         when(chatPolicyService.findCandidates("조건을 모르겠어", 3)).thenReturn(List.of());
 
@@ -162,8 +162,8 @@ class ChatMessageServiceTest {
         SendChatMessageRequest request = new SendChatMessageRequest();
         ReflectionTestUtils.setField(request, "content", "서울 월세 지원 알려줘");
 
-        when(userReadService.getActiveUserContext(1L))
-                .thenReturn(new UserReadService.ActiveUserContext(user, "user-key-1"));
+        when(activeUserReadService.getActiveUserContext(1L))
+                .thenReturn(new ActiveUserReadService.ActiveUserContext(user, "user-key-1"));
         when(chatMessageReadRepository.findOwnedSession(10L, "user-key-1")).thenReturn(Optional.of(session));
         when(chatPolicyService.findCandidates("서울 월세 지원 알려줘", 3)).thenReturn(List.of(
                 ChatPolicyCandidate.builder()
@@ -193,8 +193,8 @@ class ChatMessageServiceTest {
         SendChatMessageRequest request = new SendChatMessageRequest();
         ReflectionTestUtils.setField(request, "content", "서울 월세 지원 알려줘");
 
-        when(userReadService.getActiveUserContext(1L))
-                .thenReturn(new UserReadService.ActiveUserContext(user, "user-key-1"));
+        when(activeUserReadService.getActiveUserContext(1L))
+                .thenReturn(new ActiveUserReadService.ActiveUserContext(user, "user-key-1"));
         org.mockito.Mockito.doThrow(new CustomException(ErrorCode.CHAT_RATE_LIMIT_EXCEEDED))
                 .when(chatRateLimitService).checkMessageSendLimit(1L);
 
@@ -230,8 +230,8 @@ class ChatMessageServiceTest {
                 .referencedServiceIds("[1829,2451]")
                 .build();
 
-        when(userReadService.getActiveUserContext(1L))
-                .thenReturn(new UserReadService.ActiveUserContext(user, "user-key-1"));
+        when(activeUserReadService.getActiveUserContext(1L))
+                .thenReturn(new ActiveUserReadService.ActiveUserContext(user, "user-key-1"));
         when(chatMessageReadRepository.findOwnedSession(10L, "user-key-1")).thenReturn(Optional.of(session));
         when(chatMessageReadRepository.findMessages(10L))
                 .thenReturn(List.of(userMessage, assistantMessage));
@@ -248,8 +248,8 @@ class ChatMessageServiceTest {
     void getMessagesThrowsWhenSessionNotOwned() {
         User user = createUser(1L);
 
-        when(userReadService.getActiveUserContext(1L))
-                .thenReturn(new UserReadService.ActiveUserContext(user, "user-key-1"));
+        when(activeUserReadService.getActiveUserContext(1L))
+                .thenReturn(new ActiveUserReadService.ActiveUserContext(user, "user-key-1"));
         when(chatMessageReadRepository.findOwnedSession(99L, "user-key-1")).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> chatMessageService.getMessages(1L, 99L))

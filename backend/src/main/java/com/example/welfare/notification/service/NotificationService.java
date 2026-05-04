@@ -15,9 +15,9 @@ import com.example.welfare.global.util.JwtUtil;
 import com.example.welfare.notification.entity.Notification;
 import com.example.welfare.user.entity.User.NotificationPeriod;
 import com.example.welfare.user.entity.User;
+import com.example.welfare.user.service.ActiveUserReadService;
 import com.example.welfare.user.service.UserNotificationReadService;
 import com.example.welfare.notification.repository.NotificationRepository;
-import com.example.welfare.user.service.UserReadService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -37,7 +37,7 @@ import java.time.LocalDateTime;
 @RequiredArgsConstructor
 public class NotificationService {
 
-    private final UserReadService userReadService;
+    private final ActiveUserReadService activeUserReadService;
     private final UserNotificationReadService userNotificationReadService;
     private final RecommendationFacade recommendationFacade;
     private final RecommendationLogService logService;
@@ -86,7 +86,7 @@ public class NotificationService {
 
     @Transactional
     public void sendTopRecommendations(NotificationTarget target) {
-        User user = userReadService.getActiveUserByUserKey(target.userKey());
+        User user = activeUserReadService.getActiveUserByUserKey(target.userKey());
         double minScore = target.notificationMinScore() != null ? target.notificationMinScore() : 0.0;
         List<UserRecommendation> recs = List.of();
         List<RecommendationLog> logs = List.of();

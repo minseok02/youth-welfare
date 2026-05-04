@@ -7,7 +7,7 @@ import com.example.welfare.chat.repository.ChatSessionReadRepository;
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.user.entity.User;
-import com.example.welfare.user.service.UserReadService;
+import com.example.welfare.user.service.ActiveUserReadService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -34,13 +34,13 @@ class ChatSessionServiceTest {
     private ChatSessionCommandRepository chatSessionCommandRepository;
 
     @Mock
-    private UserReadService userReadService;
+    private ActiveUserReadService activeUserReadService;
 
     private ChatSessionService chatSessionService;
 
     @BeforeEach
     void setUp() {
-        chatSessionService = new ChatSessionService(chatSessionReadRepository, chatSessionCommandRepository, userReadService);
+        chatSessionService = new ChatSessionService(chatSessionReadRepository, chatSessionCommandRepository, activeUserReadService);
     }
 
     @Test
@@ -55,8 +55,8 @@ class ChatSessionServiceTest {
         CreateChatSessionRequest request = new CreateChatSessionRequest();
         ReflectionTestUtils.setField(request, "title", "   ");
 
-        when(userReadService.getActiveUserContext(1L))
-                .thenReturn(new UserReadService.ActiveUserContext(user, "user-key-1"));
+        when(activeUserReadService.getActiveUserContext(1L))
+                .thenReturn(new ActiveUserReadService.ActiveUserContext(user, "user-key-1"));
         when(chatSessionCommandRepository.save(any(ChatSession.class))).thenAnswer(invocation -> {
             ChatSession session = invocation.getArgument(0);
             ReflectionTestUtils.setField(session, "id", 10L);
@@ -82,8 +82,8 @@ class ChatSessionServiceTest {
                 .passwordHash("hash")
                 .build();
 
-        when(userReadService.getActiveUserContext(1L))
-                .thenReturn(new UserReadService.ActiveUserContext(user, "user-key-1"));
+        when(activeUserReadService.getActiveUserContext(1L))
+                .thenReturn(new ActiveUserReadService.ActiveUserContext(user, "user-key-1"));
         when(chatSessionReadRepository.findOwnedSession(99L, "user-key-1")).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> chatSessionService.deleteSession(1L, 99L))

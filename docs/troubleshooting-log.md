@@ -2841,3 +2841,8 @@
 - 문제: recommendation/profile read를 분리한 뒤에도 `UserReadService` 는 여전히 `UserAccountReadRepository` 를 직접 들고 active user entity 조회, active userKey 보정, userKey 기준 active user 검증을 직접 수행하고 있었다. 이 상태면 active user/account 조회 규칙이 바뀔 때도 일반 user read 서비스 본문을 다시 열어야 한다.
 - 해결: `ActiveUserReadService` 를 추가하고, active user entity 조회와 active userKey 보정, userKey 기준 active user 검증을 이 전용 read 서비스로 이동했다. `UserReadService` 는 기존 API 표면을 유지하되 새 active read 경계에 위임만 하도록 축소했다.
 - 이유: `UserReadService` 는 기존 호출부 호환과 userKey 존재 확인 같은 얇은 facade 역할에 집중하고, active user/account 조회는 별도 read service 로 분리해야 책임이 더 선명해진다.
+
+## 521) active-user consumer들이 계속 `UserReadService` wrapper를 거치면, 실제 active user read 경계를 분리해도 호출부 결합은 그대로 남는다
+- 문제: `ActiveUserReadService` 를 만든 뒤에도 chat, notification, auth, user profile/account/bookmark 쪽 서비스들은 여전히 `UserReadService.getActiveUserContext(...)`, `getActiveUserByUserKey(...)`, `findOptionalActiveUserByUserKey(...)` 를 통해 active user 조회를 우회 호출하고 있었다. 이 상태면 active user read 규칙이 바뀔 때 wrapper와 소비자 의존이 함께 남아 분리 효과가 약해진다.
+- 해결: active-user 메서드만 쓰던 소비자들을 `ActiveUserReadService` 직접 의존으로 전환하고, `UserReadService` 는 admin 강제 로그아웃에서 쓰는 `requireExistingUserIdByUserKey(...)` 만 남기는 얇은 facade로 축소했다.
+- 이유: active user 검증/조회는 `ActiveUserReadService` 에 바로 모아야 read 경계가 실제로 드러나고, `UserReadService` 는 일반 lookup facade 역할만 유지하는 편이 책임이 더 선명하다.

@@ -18,14 +18,14 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class UserBookmarkReadServiceTest {
 
-    @Mock private UserReadService userReadService;
+    @Mock private ActiveUserReadService activeUserReadService;
     @Mock private RecommendationReadFacade recommendationReadFacade;
 
     @Test
     @DisplayName("북마크 목록 조회는 recommendation read facade 결과를 그대로 반환한다")
     void getBookmarksReturnsPolicySummaries() {
         UserBookmarkReadService service = new UserBookmarkReadService(
-                userReadService,
+                activeUserReadService,
                 recommendationReadFacade
         );
         User user = User.builder()
@@ -42,8 +42,8 @@ class UserBookmarkReadServiceTest {
                 .unifiedCategory("HOUSING")
                 .status(WelfareService.ServiceStatus.ACTIVE)
                 .build();
-        when(userReadService.getActiveUserContext(1L))
-                .thenReturn(new UserReadService.ActiveUserContext(user, "user-key-1"));
+        when(activeUserReadService.getActiveUserContext(1L))
+                .thenReturn(new ActiveUserReadService.ActiveUserContext(user, "user-key-1"));
         when(recommendationReadFacade.findBookmarkedPolicySummaries("user-key-1"))
                 .thenReturn(List.of(PolicySummaryResponse.from(policy, true)));
 

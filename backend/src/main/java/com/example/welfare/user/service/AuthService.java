@@ -40,7 +40,7 @@ public class AuthService {
     private final UserCoreSyncService userCoreSyncService;
     private final AuthTokenService authTokenService;
     private final PasswordResetService passwordResetService;
-    private final UserReadService userReadService;
+    private final ActiveUserReadService activeUserReadService;
 
     @Value("${security.admin-emails:}")
     private String adminEmailsProperty;
@@ -84,7 +84,7 @@ public class AuthService {
             throw new CustomException(ErrorCode.WITHDRAWN_USER);
         }
 
-        User user = userReadService.getActiveUserByUserKey(authUser.getUserKey());
+        User user = activeUserReadService.getActiveUserByUserKey(authUser.getUserKey());
 
         if (authUser.getLockedUntil() != null && LocalDateTime.now().isBefore(authUser.getLockedUntil())) {
             throw new CustomException(ErrorCode.ACCOUNT_LOCKED);

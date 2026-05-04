@@ -1248,6 +1248,7 @@ cd backend
 - `UserReadService` 의 profile aggregate read/복호화는 `UserProfileReadService` 로 분리해 일반 사용자 읽기와 profile 응답 조립 책임을 나눔
 - `UserReadService` 의 recommendation snapshot 조합은 `UserRecommendationReadService` 로 분리해 active user/account 조회와 추천용 snapshot read 책임을 나눔
 - `UserReadService` 의 active user/account 조회는 `ActiveUserReadService` 로 분리해 일반 user lookup 과 active user 검증 책임을 나눔
+- active-user consumer들(`chat`, `notification`, `auth`, `user profile/account/bookmark`)은 더 이상 `UserReadService` 의 wrapper를 거치지 않고 `ActiveUserReadService` 를 직접 사용하도록 정리해, `UserReadService` 는 admin용 `userKey -> userId` 조회 facade만 남김
 
 ## 2차로 분리된 항목
 

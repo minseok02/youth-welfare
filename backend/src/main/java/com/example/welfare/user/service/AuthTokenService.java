@@ -26,7 +26,7 @@ public class AuthTokenService {
 
     private final JwtUtil jwtUtil;
     private final RedisTemplate<String, String> redisTemplate;
-    private final UserReadService userReadService;
+    private final ActiveUserReadService activeUserReadService;
     private final AccessTokenRevocationService accessTokenRevocationService;
     private final ChatSessionCleanupService chatSessionCleanupService;
     private final UserKeyLookupService userKeyLookupService;
@@ -119,7 +119,7 @@ public class AuthTokenService {
 
     private User getRefreshableUser(String userKey, Long userId) {
         try {
-            return userReadService.getActiveUserContext(userId).user();
+            return activeUserReadService.getActiveUserContext(userId).user();
         } catch (CustomException e) {
             if (e.getErrorCode() == ErrorCode.WITHDRAWN_USER) {
                 invalidateRefreshToken(userKey);

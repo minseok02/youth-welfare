@@ -7,7 +7,7 @@ import com.example.welfare.chat.repository.ChatSessionCommandRepository;
 import com.example.welfare.chat.repository.ChatSessionReadRepository;
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
-import com.example.welfare.user.service.UserReadService;
+import com.example.welfare.user.service.ActiveUserReadService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,11 +23,11 @@ public class ChatSessionService {
 
     private final ChatSessionReadRepository chatSessionReadRepository;
     private final ChatSessionCommandRepository chatSessionCommandRepository;
-    private final UserReadService userReadService;
+    private final ActiveUserReadService activeUserReadService;
 
     @Transactional
     public ChatSessionResponse createSession(Long userId, CreateChatSessionRequest request) {
-        UserReadService.ActiveUserContext activeUserContext = userReadService.getActiveUserContext(userId);
+        ActiveUserReadService.ActiveUserContext activeUserContext = activeUserReadService.getActiveUserContext(userId);
         ChatSession session = chatSessionCommandRepository.save(ChatSession.builder()
                 .userKey(activeUserContext.userKey())
                 .title(normalizeTitle(request != null ? request.getTitle() : null))
@@ -37,7 +37,7 @@ public class ChatSessionService {
 
     @Transactional(readOnly = true)
     public List<ChatSessionResponse> getSessions(Long userId) {
-        UserReadService.ActiveUserContext activeUserContext = userReadService.getActiveUserContext(userId);
+        ActiveUserReadService.ActiveUserContext activeUserContext = activeUserReadService.getActiveUserContext(userId);
         return chatSessionReadRepository.findRecentSessions(activeUserContext.userKey(), RECENT_SESSION_LIMIT)
                 .stream()
                 .map(ChatSessionResponse::from)
@@ -46,7 +46,7 @@ public class ChatSessionService {
 
     @Transactional
     public void deleteSession(Long userId, Long sessionId) {
-        UserReadService.ActiveUserContext activeUserContext = userReadService.getActiveUserContext(userId);
+        ActiveUserReadService.ActiveUserContext activeUserContext = activeUserReadService.getActiveUserContext(userId);
         ChatSession session = chatSessionReadRepository.findOwnedSession(sessionId, activeUserContext.userKey())
                 .orElseThrow(() -> new CustomException(ErrorCode.CHAT_SESSION_NOT_FOUND));
         chatSessionCommandRepository.delete(session);

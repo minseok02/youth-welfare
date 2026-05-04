@@ -2,47 +2,19 @@ package com.example.welfare.user.service;
 
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
-import com.example.welfare.user.entity.User;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Optional;
-
-@Slf4j
 @Service
 @RequiredArgsConstructor
 public class UserReadService {
 
-    private final ActiveUserReadService activeUserReadService;
     private final UserKeyLookupService userKeyLookupService;
-
-    @Transactional(readOnly = true)
-    public ActiveUserContext getActiveUserContext(Long userId) {
-        ActiveUserReadService.ActiveUserContext context = activeUserReadService.getActiveUserContext(userId);
-        return new ActiveUserContext(context.user(), context.userKey());
-    }
-
-    @Transactional(readOnly = true)
-    public User getActiveUserByUserKey(String userKey) {
-        return activeUserReadService.getActiveUserByUserKey(userKey);
-    }
-
-    @Transactional(readOnly = true)
-    public Optional<User> findOptionalActiveUserByUserKey(String userKey) {
-        return activeUserReadService.findOptionalActiveUserByUserKey(userKey);
-    }
 
     @Transactional(readOnly = true)
     public Long requireExistingUserIdByUserKey(String userKey) {
         return userKeyLookupService.findRequiredUserId(userKey)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
-    }
-
-    public record ActiveUserContext(
-            User user,
-            String userKey
-    ) {
     }
 }

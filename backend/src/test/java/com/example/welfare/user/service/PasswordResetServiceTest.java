@@ -36,7 +36,7 @@ class PasswordResetServiceTest {
     @Mock private EmailClient emailClient;
     @Mock private UserCoreSyncService userCoreSyncService;
     @Mock private AuthTokenService authTokenService;
-    @Mock private UserReadService userReadService;
+    @Mock private ActiveUserReadService activeUserReadService;
     @Mock private UserNotificationReadService userNotificationReadService;
     @Mock private ValueOperations<String, String> valueOperations;
 
@@ -51,7 +51,7 @@ class PasswordResetServiceTest {
                 emailClient,
                 userCoreSyncService,
                 authTokenService,
-                userReadService,
+                activeUserReadService,
                 userNotificationReadService
         );
         ReflectionTestUtils.setField(passwordResetService, "passwordResetExpirationMinutes", 30L);
@@ -74,7 +74,7 @@ class PasswordResetServiceTest {
                 .build();
         when(authIdentityReadService.findByEmail("user@example.com"))
                 .thenReturn(Optional.of(authUser));
-        when(userReadService.findOptionalActiveUserByUserKey("user-key-7")).thenReturn(Optional.of(user));
+        when(activeUserReadService.findOptionalActiveUserByUserKey("user-key-7")).thenReturn(Optional.of(user));
         when(userNotificationReadService.getNotificationEmailByUserKey("user-key-7")).thenReturn("pii@example.com");
         when(valueOperations.get("password-reset:user:user-key-7")).thenReturn(null);
         when(emailClient.send(eq("pii@example.com"), eq("[청년복지] 비밀번호 재설정 안내"), any(String.class)))
@@ -114,7 +114,7 @@ class PasswordResetServiceTest {
                 .build();
         when(authIdentityReadService.findByEmail("user@example.com"))
                 .thenReturn(Optional.of(authUser));
-        when(userReadService.findOptionalActiveUserByUserKey("user-key-7")).thenReturn(Optional.of(user));
+        when(activeUserReadService.findOptionalActiveUserByUserKey("user-key-7")).thenReturn(Optional.of(user));
         when(userNotificationReadService.getNotificationEmailByUserKey("user-key-7"))
                 .thenThrow(new CustomException(ErrorCode.PASSWORD_RESET_EMAIL_SEND_FAILED));
 
@@ -138,7 +138,7 @@ class PasswordResetServiceTest {
                 .loginFailCount(3)
                 .build();
         when(valueOperations.get("password-reset:reset-token")).thenReturn("user-key-7");
-        when(userReadService.findOptionalActiveUserByUserKey("user-key-7")).thenReturn(Optional.of(user));
+        when(activeUserReadService.findOptionalActiveUserByUserKey("user-key-7")).thenReturn(Optional.of(user));
         when(valueOperations.get("password-reset:user:user-key-7")).thenReturn("reset-token");
         when(passwordEncoder.encode("new-password123")).thenReturn("encoded-password");
 
@@ -162,7 +162,7 @@ class PasswordResetServiceTest {
                 .passwordHash("old-hash")
                 .build();
         when(valueOperations.get("password-reset:old-token")).thenReturn("user-key-7");
-        when(userReadService.findOptionalActiveUserByUserKey("user-key-7")).thenReturn(Optional.of(user));
+        when(activeUserReadService.findOptionalActiveUserByUserKey("user-key-7")).thenReturn(Optional.of(user));
         when(valueOperations.get("password-reset:user:user-key-7")).thenReturn("new-token");
 
         assertThatThrownBy(() -> passwordResetService.confirmPasswordReset("old-token", "new-password123"))

@@ -19,7 +19,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class UserRecommendationReadService {
 
-    private final UserReadService userReadService;
+    private final ActiveUserReadService activeUserReadService;
     private final AuthIdentityReadService authIdentityReadService;
     private final RecommendationUserReadRepository recommendationUserReadRepository;
 
@@ -30,7 +30,7 @@ public class UserRecommendationReadService {
 
     @Transactional(readOnly = true)
     public RecommendationReadContext getRecommendationContext(Long userId) {
-        UserReadService.ActiveUserContext activeUserContext = userReadService.getActiveUserContext(userId);
+        ActiveUserReadService.ActiveUserContext activeUserContext = activeUserReadService.getActiveUserContext(userId);
         User user = activeUserContext.user();
         String userKey = authIdentityReadService.requireActiveUserKey(activeUserContext.userKey());
         var aggregate = recommendationUserReadRepository.findByUserKey(userKey)
