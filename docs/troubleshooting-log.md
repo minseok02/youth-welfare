@@ -2821,3 +2821,8 @@
 - 문제: user pii command 서비스는 이미 backfill/sync/withdraw 경로의 write 진입점 역할을 하면서도, 실제 app PII backfill/upsert/delete 를 위해 `UserPiiReadWriteRepository` 를 직접 호출하고 있었다. 이 상태면 PII write 규칙이 바뀔 때 service 본문을 다시 열어야 한다.
 - 해결: `UserPiiCommandRepository` / `UserPiiCommandRepositoryImpl` 을 추가하고, app PII backfill/upsert/delete write를 이 command 경계 뒤로 이동했다.
 - 이유: `UserPiiCommandService` 는 PII write orchestration 에 집중하고, JDBC 기반 app PII persistence 세부사항은 별도 command repository 로 내려야 책임이 더 선명해진다.
+
+## 517) `JpaClusterAiScoreCache` 와 `StatusUpdateService` 가 `ClusterAiResultRepository` 를 직접 걸치면, cluster AI cache read/write 규칙이 서비스 둘에 다시 퍼진다
+- 문제: 추천 cache 서비스는 clusterId 기준 cache row 조회와 신규 row 저장을 직접 수행했고, 상태 업데이트 서비스는 만료 cluster cache 삭제를 같은 저장소에 직접 호출하고 있었다. 이 상태면 군집 AI cache persistence 규칙이 바뀔 때 추천/수집 서비스 둘을 함께 다시 열어야 한다.
+- 해결: `ClusterAiResultReadRepository` / `ClusterAiResultReadRepositoryImpl`, `ClusterAiResultCommandRepository` / `ClusterAiResultCommandRepositoryImpl` 을 추가하고, cache row 조회는 read repository로, 신규 row 저장과 만료 cache 삭제는 command repository로 이동했다.
+- 이유: `JpaClusterAiScoreCache` 는 score map 조립과 upsert orchestration에, `StatusUpdateService` 는 상태 전이와 TTL cleanup orchestration에 집중하고, cluster cache persistence 세부사항은 read/write 경계로 분리해야 책임이 더 선명해진다.
