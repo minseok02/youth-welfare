@@ -14,6 +14,7 @@ public class NotificationRetryService {
 
     static final int MAX_RETRY_COUNT = 2;
     private static final long RETRY_DELAY_MINUTES = 120L;
+    private static final long RETRY_CLAIM_MINUTES = 30L;
 
     private final NotificationRetryReadService notificationRetryReadService;
     private final NotificationRetryCommandService notificationRetryCommandService;
@@ -21,9 +22,23 @@ public class NotificationRetryService {
     private final NotificationGateway notificationGateway;
 
     public void retryFailedNotifications() {
-        notificationRetryReadService.findRetryableFailedNotifications(LocalDateTime.now()).stream()
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime claimUntil = now.plusMinutes(RETRY_CLAIM_MINUTES);
+        notificationRetryReadService.findRetryableFailedNotificationIds(now).stream()
+                .map(notificationId -> claimNotification(notificationId, now, claimUntil))
+                .flatMap(java.util.Optional::stream)
                 .filter(notification -> notification.getRetryCount() < MAX_RETRY_COUNT)
                 .forEach(this::retryNotification);
+    }
+
+    private java.util.Optional<Notification> claimNotification(Long notificationId,
+                                                               LocalDateTime at,
+                                                               LocalDateTime claimUntil) {
+        boolean claimed = notificationRetryCommandService.claimForRetry(notificationId, at, claimUntil);
+        if (!claimed) {
+            return java.util.Optional.empty();
+        }
+        return notificationRetryReadService.findById(notificationId);
     }
 
     private void retryNotification(Notification notification) {

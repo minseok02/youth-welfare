@@ -51,6 +51,25 @@ public class CollectExecutionLockRepositoryImpl implements CollectExecutionLockR
     }
 
     @Override
+    public boolean refresh(String lockName, String ownerToken, LocalDateTime now, LocalDateTime lockedUntil) {
+        int updated = jdbcTemplate.update("""
+                update collect_execution_locks
+                   set locked_until = ?,
+                       updated_at = ?
+                 where lock_name = ?
+                   and owner_token = ?
+                   and locked_until >= ?
+                """,
+                Timestamp.valueOf(lockedUntil),
+                Timestamp.valueOf(now),
+                lockName,
+                ownerToken,
+                Timestamp.valueOf(now)
+        );
+        return updated == 1;
+    }
+
+    @Override
     public boolean release(String lockName, String ownerToken) {
         int deleted = jdbcTemplate.update("""
                 delete from collect_execution_locks

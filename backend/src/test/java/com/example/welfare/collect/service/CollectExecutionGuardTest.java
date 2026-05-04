@@ -24,7 +24,7 @@ class CollectExecutionGuardTest {
         CollectExecutionLockRepository repository = mock(CollectExecutionLockRepository.class);
         when(repository.tryAcquire(eq(CollectExecutionGuard.GLOBAL_LOCK_NAME), any(), any(), any())).thenReturn(true);
         when(repository.release(eq(CollectExecutionGuard.GLOBAL_LOCK_NAME), any())).thenReturn(true);
-        CollectExecutionGuard guard = new CollectExecutionGuard(repository, 360L);
+        CollectExecutionGuard guard = new CollectExecutionGuard(repository, 15L, 60L);
         AtomicBoolean executed = new AtomicBoolean(false);
 
         guard.runExclusive("collect-all", () -> executed.set(true));
@@ -39,11 +39,32 @@ class CollectExecutionGuardTest {
     void runExclusiveThrowsWhenLockBusy() {
         CollectExecutionLockRepository repository = mock(CollectExecutionLockRepository.class);
         when(repository.tryAcquire(eq(CollectExecutionGuard.GLOBAL_LOCK_NAME), any(), any(), any())).thenReturn(false);
-        CollectExecutionGuard guard = new CollectExecutionGuard(repository, 360L);
+        CollectExecutionGuard guard = new CollectExecutionGuard(repository, 15L, 60L);
 
         assertThatThrownBy(() -> guard.runExclusive("collect-all", () -> {}))
                 .isInstanceOf(CustomException.class)
                 .satisfies(exception -> assertThat(((CustomException) exception).getErrorCode())
                         .isEqualTo(ErrorCode.COLLECT_ALREADY_RUNNING));
+    }
+
+    @Test
+    @DisplayName("수집 실행 중 heartbeat 는 lock lease 를 주기적으로 갱신한다")
+    void runExclusiveRefreshesLockLeaseWhileRunning() throws InterruptedException {
+        CollectExecutionLockRepository repository = mock(CollectExecutionLockRepository.class);
+        when(repository.tryAcquire(eq(CollectExecutionGuard.GLOBAL_LOCK_NAME), any(), any(), any())).thenReturn(true);
+        when(repository.refresh(eq(CollectExecutionGuard.GLOBAL_LOCK_NAME), any(), any(), any())).thenReturn(true);
+        when(repository.release(eq(CollectExecutionGuard.GLOBAL_LOCK_NAME), any())).thenReturn(true);
+        CollectExecutionGuard guard = new CollectExecutionGuard(repository, 15L, 1L);
+
+        guard.runExclusive("collect-all", () -> {
+            try {
+                Thread.sleep(1_200L);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new IllegalStateException(e);
+            }
+        });
+
+        verify(repository).refresh(eq(CollectExecutionGuard.GLOBAL_LOCK_NAME), any(), any(), any());
     }
 }

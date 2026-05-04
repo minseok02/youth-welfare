@@ -17,8 +17,11 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
 class NotificationRetryServiceTest {
@@ -40,8 +43,11 @@ class NotificationRetryServiceTest {
     void retryFailedNotificationsMarksSentOnSuccess() {
         Notification notification = sampleFailedNotification(1);
 
-        given(notificationRetryReadService.findRetryableFailedNotifications(any(LocalDateTime.class)))
-                .willReturn(List.of(notification));
+        given(notificationRetryReadService.findRetryableFailedNotificationIds(any(LocalDateTime.class)))
+                .willReturn(List.of(1L));
+        given(notificationRetryCommandService.claimForRetry(anyLong(), any(LocalDateTime.class), any(LocalDateTime.class)))
+                .willReturn(true);
+        given(notificationRetryReadService.findById(1L)).willReturn(java.util.Optional.of(notification));
         given(userNotificationReadService.getNotificationEmailByUserKey("user-key-1")).willReturn("test@example.com");
         given(notificationGateway.send("test@example.com", "[청년복지] 맞춤 정책 추천", "body"))
                 .willReturn(true);
@@ -60,8 +66,11 @@ class NotificationRetryServiceTest {
     void retryFailedNotificationsSchedulesTwoHourDelayAfterFirstRetryFailure() {
         Notification notification = sampleFailedNotification(0);
 
-        given(notificationRetryReadService.findRetryableFailedNotifications(any(LocalDateTime.class)))
-                .willReturn(List.of(notification));
+        given(notificationRetryReadService.findRetryableFailedNotificationIds(any(LocalDateTime.class)))
+                .willReturn(List.of(1L));
+        given(notificationRetryCommandService.claimForRetry(anyLong(), any(LocalDateTime.class), any(LocalDateTime.class)))
+                .willReturn(true);
+        given(notificationRetryReadService.findById(1L)).willReturn(java.util.Optional.of(notification));
         given(userNotificationReadService.getNotificationEmailByUserKey("user-key-1")).willReturn("test@example.com");
         given(notificationGateway.send("test@example.com", "[청년복지] 맞춤 정책 추천", "body"))
                 .willReturn(false);
@@ -82,8 +91,11 @@ class NotificationRetryServiceTest {
     void retryFailedNotificationsStopsSchedulingAfterMaxRetry() {
         Notification notification = sampleFailedNotification(1);
 
-        given(notificationRetryReadService.findRetryableFailedNotifications(any(LocalDateTime.class)))
-                .willReturn(List.of(notification));
+        given(notificationRetryReadService.findRetryableFailedNotificationIds(any(LocalDateTime.class)))
+                .willReturn(List.of(1L));
+        given(notificationRetryCommandService.claimForRetry(anyLong(), any(LocalDateTime.class), any(LocalDateTime.class)))
+                .willReturn(true);
+        given(notificationRetryReadService.findById(1L)).willReturn(java.util.Optional.of(notification));
         given(userNotificationReadService.getNotificationEmailByUserKey("user-key-1")).willReturn("test@example.com");
         given(notificationGateway.send("test@example.com", "[청년복지] 맞춤 정책 추천", "body"))
                 .willReturn(false);
@@ -95,6 +107,20 @@ class NotificationRetryServiceTest {
         assertThat(notification.getNextRetryAt()).isNull();
         assertThat(notification.getErrorMessage()).isEqualTo("notification gateway returned false");
         org.mockito.Mockito.verify(notificationRetryCommandService).save(notification);
+    }
+
+    @Test
+    @DisplayName("retry claim 에 실패한 row 는 발송하지 않는다")
+    void retryFailedNotificationsSkipsWhenClaimFails() {
+        given(notificationRetryReadService.findRetryableFailedNotificationIds(any(LocalDateTime.class)))
+                .willReturn(List.of(1L));
+        given(notificationRetryCommandService.claimForRetry(anyLong(), any(LocalDateTime.class), any(LocalDateTime.class)))
+                .willReturn(false);
+
+        notificationRetryService.retryFailedNotifications();
+
+        verify(notificationGateway, never()).send(any(), any(), any());
+        verify(notificationRetryCommandService, never()).save(any());
     }
 
     private Notification sampleFailedNotification(int retryCount) {

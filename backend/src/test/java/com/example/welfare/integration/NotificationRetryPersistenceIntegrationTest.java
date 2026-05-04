@@ -151,6 +151,33 @@ class NotificationRetryPersistenceIntegrationTest {
         assertThat(reloaded.getErrorMessage()).isEqualTo("notification gateway returned false");
     }
 
+    @Test
+    @DisplayName("retry 대상은 먼저 claim 되어 즉시 재실행에서 중복 발송되지 않는다")
+    void retryClaimPreventsImmediateDuplicateRetry() {
+        Notification notification = notificationRepository.save(Notification.builder()
+                .userKey(randomUserKey())
+                .channel(NotificationChannel.EMAIL)
+                .periodType(NotificationPeriodType.DAILY)
+                .status(NotificationStatus.FAILED)
+                .subject(TEST_SUBJECT_PREFIX + "claim")
+                .messageText("retry body")
+                .retryCount(0)
+                .nextRetryAt(LocalDateTime.now().minusMinutes(5))
+                .errorMessage("temporary failure")
+                .build());
+
+        given(userNotificationReadService.getNotificationEmailByUserKey(notification.getUserKey()))
+                .willThrow(new IllegalStateException("lookup failed after claim"));
+
+        notificationRetryService.retryFailedNotifications();
+
+        Notification reloaded = notificationRepository.findById(notification.getId()).orElseThrow();
+        assertThat(reloaded.getStatus()).isEqualTo(NotificationStatus.FAILED);
+        assertThat(reloaded.getRetryCount()).isEqualTo(1);
+        assertThat(reloaded.getNextRetryAt()).isAfter(LocalDateTime.now().plusMinutes(100));
+        assertThat(reloaded.getErrorMessage()).contains("lookup failed after claim");
+    }
+
     private void cleanup() {
         jdbcTemplate.update("delete from notification_services where notification_id in (select id from notifications where subject like ?)",
                 TEST_SUBJECT_PREFIX + "%");
