@@ -3,6 +3,7 @@ package com.example.welfare.collect.service;
 import com.example.welfare.collect.gateway.BokjiroDetailClient;
 import com.example.welfare.collect.mapper.WelfareServiceMapper;
 import com.example.welfare.collect.normalization.NormalizedPolicyAggregate;
+import com.example.welfare.collect.repository.BokjiroDetailCommandRepository;
 import com.example.welfare.collect.repository.BokjiroDetailReadRepository;
 import com.example.welfare.collect.normalization.NormalizedPolicySidecarWriter;
 import com.example.welfare.collect.support.CollectSourceRegistry;
@@ -11,7 +12,6 @@ import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.entity.WelfareServiceDetail;
-import com.example.welfare.policy.repository.WelfareServiceDetailRepository;
 import com.example.welfare.policy.service.SearchYouthRelevanceService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -36,7 +36,7 @@ import java.util.stream.Collectors;
 public class BokjiroDetailCollectService {
 
     private final BokjiroDetailReadRepository bokjiroDetailReadRepository;
-    private final WelfareServiceDetailRepository detailRepository;
+    private final BokjiroDetailCommandRepository bokjiroDetailCommandRepository;
     private final BokjiroDetailClient detailClient;
     private final RawApiPayloadService rawApiPayloadService;
     private final SearchYouthRelevanceService searchYouthRelevanceService;
@@ -47,14 +47,14 @@ public class BokjiroDetailCollectService {
     private final BokjiroDetailPersistenceSupport persistenceSupport;
 
     public BokjiroDetailCollectService(BokjiroDetailReadRepository bokjiroDetailReadRepository,
-                                       WelfareServiceDetailRepository detailRepository,
+                                       BokjiroDetailCommandRepository bokjiroDetailCommandRepository,
                                        BokjiroDetailClient detailClient,
                                        RawApiPayloadService rawApiPayloadService,
                                        SearchYouthRelevanceService searchYouthRelevanceService,
                                        WelfareServiceMapper welfareServiceMapper,
                                        NormalizedPolicySidecarWriter normalizedPolicySidecarWriter) {
         this.bokjiroDetailReadRepository = bokjiroDetailReadRepository;
-        this.detailRepository = detailRepository;
+        this.bokjiroDetailCommandRepository = bokjiroDetailCommandRepository;
         this.detailClient = detailClient;
         this.rawApiPayloadService = rawApiPayloadService;
         this.searchYouthRelevanceService = searchYouthRelevanceService;
@@ -252,7 +252,7 @@ public class BokjiroDetailCollectService {
             try {
                 NormalizedPolicyAggregate aggregate = capability.toAggregate(service, payload);
                 WelfareServiceDetail existing = bokjiroDetailReadRepository.findDetailByServiceId(service.getId()).orElse(null);
-                detailRepository.save(persistenceSupport.mergeDetail(service, existing, aggregate));
+                bokjiroDetailCommandRepository.save(persistenceSupport.mergeDetail(service, existing, aggregate));
                 persistenceSupport.applyFallbacksToService(service, aggregate);
                 normalizedPolicySidecarWriter.upsert(service, aggregate);
                 searchYouthRelevanceService.refreshForService(service);

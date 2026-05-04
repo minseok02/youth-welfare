@@ -4,6 +4,7 @@ import com.example.welfare.collect.dto.BokjiroLocalDto;
 import com.example.welfare.collect.gateway.BokjiroDetailClient;
 import com.example.welfare.collect.mapper.WelfareServiceMapper;
 import com.example.welfare.collect.normalization.NormalizedPolicyAggregate;
+import com.example.welfare.collect.repository.BokjiroDetailCommandRepositoryImpl;
 import com.example.welfare.collect.repository.BokjiroDetailReadRepository;
 import com.example.welfare.collect.repository.BokjiroDetailReadRepositoryImpl;
 import com.example.welfare.collect.normalization.NormalizedPolicySidecarWriter;
@@ -164,10 +165,12 @@ class BokjiroSidecarMergeIntegrationTest {
                     .willReturn(List.of(managed));
             BokjiroDetailReadRepository isolatedReadRepository =
                     new BokjiroDetailReadRepositoryImpl(isolatedRepository, welfareServiceDetailRepository);
+            BokjiroDetailCommandRepositoryImpl isolatedCommandRepository =
+                    new BokjiroDetailCommandRepositoryImpl(welfareServiceDetailRepository);
 
             BokjiroDetailCollectService detailCollectService = new BokjiroDetailCollectService(
                     isolatedReadRepository,
-                    welfareServiceDetailRepository,
+                    isolatedCommandRepository,
                     detailClient,
                     rawApiPayloadService,
                     searchYouthRelevanceService,

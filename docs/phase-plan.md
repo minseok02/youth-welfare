@@ -1256,6 +1256,7 @@ cd backend
 - `StatusUpdateService` 의 ACTIVE/UPCOMING 정책 조회도 `StatusUpdateReadRepository` 뒤로 이동해 상태 전이 orchestration과 정책 조회 규칙을 분리
 - `ApiSyncLogService` 의 stale RUNNING 복구와 collect log 저장도 `ApiSyncLogCommandRepository` 뒤로 이동해 수집 로그 orchestration과 persistence write 규칙을 분리
 - `BokjiroDetailCollectService` 의 대상 정책 목록 조회와 기존 detail 존재/조회도 `BokjiroDetailReadRepository` 뒤로 이동해 상세 수집 orchestration과 read 규칙을 분리
+- `BokjiroDetailCollectService` 의 detail row 저장도 `BokjiroDetailCommandRepository` 뒤로 이동해 상세 수집 orchestration과 persistence write 규칙을 분리
 
 ## 2차로 분리된 항목
 

@@ -4,12 +4,12 @@ import com.example.welfare.collect.gateway.BokjiroDetailClient;
 import com.example.welfare.collect.mapper.WelfareServiceMapper;
 import com.example.welfare.collect.normalization.NormalizedPolicyAggregate;
 import com.example.welfare.collect.normalization.NormalizedPolicySidecarWriter;
+import com.example.welfare.collect.repository.BokjiroDetailCommandRepository;
 import com.example.welfare.collect.repository.BokjiroDetailReadRepository;
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.policy.entity.ServiceTag;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.entity.WelfareServiceDetail;
-import com.example.welfare.policy.repository.WelfareServiceDetailRepository;
 import com.example.welfare.policy.service.SearchYouthRelevanceService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -41,7 +41,7 @@ class BokjiroDetailCollectServiceTest {
     @Mock
     private BokjiroDetailReadRepository bokjiroDetailReadRepository;
     @Mock
-    private WelfareServiceDetailRepository detailRepository;
+    private BokjiroDetailCommandRepository bokjiroDetailCommandRepository;
     @Mock
     private BokjiroDetailClient detailClient;
     @Mock
@@ -58,7 +58,7 @@ class BokjiroDetailCollectServiceTest {
     void setUp() {
         service = new BokjiroDetailCollectService(
                 bokjiroDetailReadRepository,
-                detailRepository,
+                bokjiroDetailCommandRepository,
                 detailClient,
                 rawApiPayloadService,
                 searchYouthRelevanceService,
@@ -91,7 +91,7 @@ class BokjiroDetailCollectServiceTest {
         assertThat(result.savedCount()).isZero();
         assertThat(result.skippedCount()).isEqualTo(1);
         verify(detailClient, never()).fetchCentralWithStatus(any());
-        verify(detailRepository, never()).save(any());
+        verify(bokjiroDetailCommandRepository, never()).save(any());
     }
 
     @Test
@@ -127,7 +127,7 @@ class BokjiroDetailCollectServiceTest {
         assertThat(result.metadataJson()).contains("\"refreshExisting\":true");
 
         ArgumentCaptor<WelfareServiceDetail> detailCaptor = ArgumentCaptor.forClass(WelfareServiceDetail.class);
-        verify(detailRepository).save(detailCaptor.capture());
+        verify(bokjiroDetailCommandRepository).save(detailCaptor.capture());
         WelfareServiceDetail saved = detailCaptor.getValue();
         assertThat(saved.getId()).isEqualTo(101L);
         assertThat(saved.getService()).isEqualTo(central);
@@ -284,7 +284,7 @@ class BokjiroDetailCollectServiceTest {
         assertThat(result.skippedCount()).isZero();
         assertThat(result.failedCount()).isZero();
         verify(detailClient, never()).fetchCentralWithStatus("CENTRAL-23");
-        verify(detailRepository, never()).save(any());
+        verify(bokjiroDetailCommandRepository, never()).save(any());
     }
 
     @Test
@@ -314,7 +314,7 @@ class BokjiroDetailCollectServiceTest {
                 .saveBokjiroDetail(WelfareService.SourceType.BOKJIRO_CENTRAL, "CENTRAL-31", emptyPayload);
         verify(rawApiPayloadService)
                 .saveBokjiroDetail(WelfareService.SourceType.BOKJIRO_CENTRAL, "CENTRAL-32", validPayload);
-        verify(detailRepository, times(1)).save(any(WelfareServiceDetail.class));
+        verify(bokjiroDetailCommandRepository, times(1)).save(any(WelfareServiceDetail.class));
     }
 
     @Test
@@ -337,7 +337,7 @@ class BokjiroDetailCollectServiceTest {
         given(detailClient.fetchCentralWithStatus("CENTRAL-42"))
                 .willReturn(BokjiroDetailClient.FetchResult.success(succeedingPayload));
         willThrow(new IllegalStateException("save failed"))
-                .given(detailRepository)
+                .given(bokjiroDetailCommandRepository)
                 .save(argThat(detail -> detail.getService().equals(failingService)));
         CollectResult result = service.collectBokjiroDetailsResult(2);
 
