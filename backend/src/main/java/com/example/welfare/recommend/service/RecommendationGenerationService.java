@@ -13,6 +13,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Optional;
 
 @Slf4j
 @Service
@@ -50,13 +51,19 @@ public class RecommendationGenerationService {
         String userKey = snapshot.userKey();
         if (personal) {
             recommendationRefreshCacheService.evict(userKey);
-        } else if (recommendationRefreshCacheService.canReuse(userKey)) {
-            List<UserRecommendation> cached = recommendationResultReadService.findLatestSavedRecommendations(userKey);
-            if (!cached.isEmpty()) {
-                log.info("[RecommendationGenerationService] refresh cache hit userKey={}", userKey);
-                return cached;
+        } else {
+            Optional<java.time.LocalDateTime> reusableRecommendedAt =
+                    recommendationRefreshCacheService.findReusableRecommendedAt(userKey);
+            if (reusableRecommendedAt.isPresent()) {
+                List<UserRecommendation> cached = recommendationResultReadService
+                        .findSavedRecommendationsForBatch(userKey, reusableRecommendedAt.get());
+                if (!cached.isEmpty()) {
+                    log.info("[RecommendationGenerationService] refresh cache hit userKey={} recommendedAt={}",
+                            userKey, reusableRecommendedAt.get());
+                    return cached;
+                }
+                recommendationRefreshCacheService.evict(userKey);
             }
-            recommendationRefreshCacheService.evict(userKey);
         }
 
         String clusterId = personal ? "youth_all" : clusterService.assignCluster(snapshot);
@@ -82,7 +89,7 @@ public class RecommendationGenerationService {
 
         recommendationLogService.refreshLogs(user, saved, weight);
         if (!personal) {
-            recommendationRefreshCacheService.markReusable(userKey);
+            recommendationRefreshCacheService.markReusable(userKey, saved.isEmpty() ? null : saved.get(0).getRecommendedAt());
         }
         return saved;
     }

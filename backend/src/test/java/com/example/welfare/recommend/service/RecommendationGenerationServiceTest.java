@@ -20,6 +20,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -76,8 +77,9 @@ class RecommendationGenerationServiceTest {
                 .thenReturn(new UserRecommendationReadService.RecommendationReadContext(user, snapshot));
         when(recommendationExecutionGuard.runForUser(eq("user-key-1"), any(), any()))
                 .thenAnswer(invocation -> invocation.<java.util.function.Supplier<List<UserRecommendation>>>getArgument(1).get());
-        when(recommendationRefreshCacheService.canReuse("user-key-1")).thenReturn(true);
-        when(recommendationResultReadService.findLatestSavedRecommendations("user-key-1"))
+        when(recommendationRefreshCacheService.findReusableRecommendedAt("user-key-1"))
+                .thenReturn(Optional.of(LocalDateTime.of(2026, 5, 3, 12, 0)));
+        when(recommendationResultReadService.findSavedRecommendationsForBatch("user-key-1", LocalDateTime.of(2026, 5, 3, 12, 0)))
                 .thenReturn(List.of(cached));
 
         List<UserRecommendation> result = recommendationGenerationService.recommend(1L, false);
@@ -88,7 +90,7 @@ class RecommendationGenerationServiceTest {
         verify(aiScoringService, never()).score(any(), any(), any());
         verify(recommendationPersistenceService, never()).save(any(), any(), any());
         verify(recommendationLogService, never()).refreshLogs(any(), any(), any());
-        verify(recommendationRefreshCacheService, never()).markReusable(anyString());
+        verify(recommendationRefreshCacheService, never()).markReusable(anyString(), any());
     }
 
     @Test
@@ -106,8 +108,9 @@ class RecommendationGenerationServiceTest {
                 .thenReturn(new UserRecommendationReadService.RecommendationReadContext(user, snapshot));
         when(recommendationExecutionGuard.runForUser(eq("user-key-1"), any(), any()))
                 .thenAnswer(invocation -> invocation.<java.util.function.Supplier<List<UserRecommendation>>>getArgument(1).get());
-        when(recommendationRefreshCacheService.canReuse("user-key-1")).thenReturn(true);
-        when(recommendationResultReadService.findLatestSavedRecommendations("user-key-1"))
+        when(recommendationRefreshCacheService.findReusableRecommendedAt("user-key-1"))
+                .thenReturn(Optional.of(LocalDateTime.of(2026, 5, 3, 12, 0)));
+        when(recommendationResultReadService.findSavedRecommendationsForBatch("user-key-1", LocalDateTime.of(2026, 5, 3, 12, 0)))
                 .thenReturn(List.of());
         when(clusterService.assignCluster(snapshot)).thenReturn("youth_all");
         when(retrievalService.retrieve("youth_all", snapshot)).thenReturn(retrieved);
@@ -123,7 +126,7 @@ class RecommendationGenerationServiceTest {
         assertThat(result).containsExactly(saved);
         verify(recommendationRefreshCacheService).evict("user-key-1");
         verify(recommendationLogService).refreshLogs(user, List.of(saved), weight);
-        verify(recommendationRefreshCacheService).markReusable("user-key-1");
+        verify(recommendationRefreshCacheService).markReusable("user-key-1", saved.getRecommendedAt());
     }
 
     @Test
@@ -155,7 +158,7 @@ class RecommendationGenerationServiceTest {
         verify(recommendationRefreshCacheService).evict("user-key-1");
         verify(clusterService, never()).assignCluster(snapshot);
         verify(retrievalService).retrieve("youth_all", snapshot);
-        verify(recommendationRefreshCacheService, never()).markReusable(anyString());
+        verify(recommendationRefreshCacheService, never()).markReusable(anyString(), any());
     }
 
     @Test

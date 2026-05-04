@@ -9,6 +9,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Pageable;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -40,10 +41,22 @@ class RecommendationResultReadRepositoryImplTest {
     @DisplayName("recommendation result read repository는 최신 저장 추천 조회를 위임한다")
     void findLatestSavedRecommendationsDelegates() {
         UserRecommendation recommendation = UserRecommendation.builder().id(1L).userKey("user-key-1").build();
-        given(userRecommendationRepository.findLatestByUserKeyOrderByFinalScoreDesc("user-key-1"))
+        given(userRecommendationRepository.findLatestBatchByUserKeyOrderByFinalScoreDesc("user-key-1"))
                 .willReturn(List.of(recommendation));
 
         assertThat(recommendationResultReadRepository.findLatestSavedRecommendations("user-key-1"))
+                .containsExactly(recommendation);
+    }
+
+    @Test
+    @DisplayName("recommendation result read repository는 특정 batch 저장 추천 조회를 위임한다")
+    void findSavedRecommendationsForBatchDelegates() {
+        UserRecommendation recommendation = UserRecommendation.builder().id(1L).userKey("user-key-1").build();
+        LocalDateTime recommendedAt = LocalDateTime.of(2026, 5, 4, 12, 0);
+        given(userRecommendationRepository.findByUserKeyAndRecommendedAtOrderByFinalScoreDesc("user-key-1", recommendedAt))
+                .willReturn(List.of(recommendation));
+
+        assertThat(recommendationResultReadRepository.findSavedRecommendationsForBatch("user-key-1", recommendedAt))
                 .containsExactly(recommendation);
     }
 

@@ -1305,3 +1305,5 @@ cd backend
 - `2026-05-04`: `NotificationRetryService` 는 retry 대상 ID를 먼저 읽고 claim window 를 원자적으로 선점한 뒤에만 발송하도록 바꿨다. 이제 failed notification 재시도 중 크래시/재진입이 있어도 같은 row를 즉시 다시 잡는 중복 retry 가능성이 크게 줄어든다.
 - `2026-05-04`: `AbstractListCollectSourceAdapter` 에서 raw payload 저장 예외도 item-level partial failure 로 흡수하도록 바꿨다. 이제 list source 하나의 raw payload 저장 실패가 source 전체 FAILED로 번지지 않고, collect 로그는 `PARTIAL_SUCCESS` 로 더 정확히 남는다.
 - `2026-05-04`: `RecommendationBookmarkCommandService` 도 `RecommendationExecutionGuard` 의 사용자별 락 아래에서 실행되게 바꿨다. 이제 같은 userKey 에 대해 recommendation refresh/save 와 bookmark toggle 이 서로 직렬화되어, refresh 중간 북마크 토글로 최신 북마크 상태가 덮어써지는 리스크를 줄였다.
+- `2026-05-05`: `CollectListResponsePolicy` 를 추가해 `YOUTH`, `BOKJIRO_CENTRAL`, `BOKJIRO_LOCAL` list source의 빈 응답을 공통 규칙으로 처리한다. 이제 suspicious empty response는 성공 0건으로 지나가지 않고 `COLLECT_API_FAILED` 로 승격되어 collect 로그와 운영 알람이 더 정확해진다.
+- `2026-05-05`: recommendation refresh cache 마커를 단순 존재 플래그에서 `recommendedAt` batch token으로 바꿨다. `RecommendationResultReadRepository` 도 exact batch 조회를 지원하게 바꿔, non-personal refresh cache hit과 concurrent generation fallback 이 언제나 동일 recommendation batch만 재사용하도록 정리했다.

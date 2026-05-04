@@ -20,7 +20,12 @@ public class RecommendationResultReadRepositoryImpl implements RecommendationRes
 
     @Override
     public List<UserRecommendation> findLatestSavedRecommendations(String userKey) {
-        return userRecommendationRepository.findLatestByUserKeyOrderByFinalScoreDesc(userKey);
+        return userRecommendationRepository.findLatestBatchByUserKeyOrderByFinalScoreDesc(userKey);
+    }
+
+    @Override
+    public List<UserRecommendation> findSavedRecommendationsForBatch(String userKey, java.time.LocalDateTime recommendedAt) {
+        return userRecommendationRepository.findByUserKeyAndRecommendedAtOrderByFinalScoreDesc(userKey, recommendedAt);
     }
 
     @Override

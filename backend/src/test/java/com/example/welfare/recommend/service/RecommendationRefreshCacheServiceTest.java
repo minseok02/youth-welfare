@@ -9,6 +9,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 
+import java.time.LocalDateTime;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -34,19 +36,21 @@ class RecommendationRefreshCacheServiceTest {
     }
 
     @Test
-    @DisplayName("userKey 마커가 있으면 refresh 결과를 재사용할 수 있다")
-    void canReuseReturnsTrueWhenMarkerExists() {
-        when(redisTemplate.hasKey("recommend:refresh:user:user-key-1:education-bonus:false")).thenReturn(true);
+    @DisplayName("userKey 마커가 있으면 recommendedAt token 을 복원한다")
+    void findReusableRecommendedAtReturnsTokenWhenMarkerExists() {
+        when(valueOperations.get("recommend:refresh:user:user-key-1:education-bonus:false"))
+                .thenReturn("2026-05-04T12:00:00");
 
-        assertThat(cacheService.canReuse("user-key-1")).isTrue();
+        assertThat(cacheService.findReusableRecommendedAt("user-key-1"))
+                .contains(LocalDateTime.of(2026, 5, 4, 12, 0));
     }
 
     @Test
     @DisplayName("refresh 재사용 마커는 분 단위 TTL로 저장한다")
     void markReusableStoresTtlMarker() {
-        cacheService.markReusable("user-key-1");
+        cacheService.markReusable("user-key-1", LocalDateTime.of(2026, 5, 4, 12, 0));
 
-        verify(valueOperations).set("recommend:refresh:user:user-key-1:education-bonus:false", "1", 15, TimeUnit.MINUTES);
+        verify(valueOperations).set("recommend:refresh:user:user-key-1:education-bonus:false", "2026-05-04T12:00", 15, TimeUnit.MINUTES);
     }
 
     @Test
@@ -65,5 +69,17 @@ class RecommendationRefreshCacheServiceTest {
 
         assertThat(enabledCacheService.cacheKey("user-key-1"))
                 .isEqualTo("recommend:refresh:user:user-key-1:education-bonus:true");
+    }
+
+    @Test
+    @DisplayName("refresh token 형식이 깨져 있으면 마커를 제거하고 empty 를 반환한다")
+    void findReusableRecommendedAtEvictsBrokenToken() {
+        when(valueOperations.get("recommend:refresh:user:user-key-1:education-bonus:false"))
+                .thenReturn("broken-token");
+
+        Optional<LocalDateTime> result = cacheService.findReusableRecommendedAt("user-key-1");
+
+        assertThat(result).isEmpty();
+        verify(redisTemplate).delete("recommend:refresh:user:user-key-1:education-bonus:false");
     }
 }
