@@ -2746,3 +2746,8 @@
 - 문제: `UserCoreProjectionSyncService` 는 `AuthUserRepository`, `UserProfileRepository` 를 직접 들고 `find-or-create + syncFrom + save` 패턴을 각각 수행하고 있었다. 이 상태면 core sync 흐름을 바꾸지 않아도 projection 저장 규칙이 바뀔 때 서비스 본문을 다시 열어야 한다.
 - 해결: `UserCoreProjectionCommandRepository` / `UserCoreProjectionCommandRepositoryImpl` 을 추가하고, auth/profile projection upsert 조합을 이 command repository 뒤로 이동했다. `UserCoreProjectionSyncService` 는 email hash 계산과 projection sync orchestration만 남겼다.
 - 이유: core sync 서비스는 age 계산과 projection sync 흐름에 집중하고, 여러 저장소를 묶는 projection upsert 조합은 별도 command repository 로 내려야 책임이 더 선명하고 테스트도 분리하기 쉽다.
+
+## 502) `UserKeyLookupService` 와 `PolicyLookupService` 같은 얇은 lookup 서비스가 저장소를 직접 들면, lookup 규칙 자체를 별도 read 경계로 독립시키기 어렵다
+- 문제: `UserKeyLookupService` 는 `UserRepository.findUserKeyById(...)` 를, `PolicyLookupService` 는 `WelfareServiceRepository.findById(...)` 를 직접 호출하고 있었다. 지금은 단순 조회처럼 보여도 lookup 규칙이 바뀌면 서비스 본문을 수정해야 하고, 얇은 서비스여도 저장소 결합이 그대로 남는다.
+- 해결: `UserKeyReadRepository` / `UserKeyReadRepositoryImpl`, `PolicyLookupReadRepository` / `PolicyLookupReadRepositoryImpl` 을 추가하고, 두 lookup 서비스가 이 read repository 뒤로만 의존하게 정리했다.
+- 이유: 단건 lookup도 read policy의 일부이므로, 얇은 서비스라도 repository 직접 의존을 줄여 두면 service는 예외 정책에만 집중하고 lookup 구현은 별도 경계에서 관리할 수 있다.

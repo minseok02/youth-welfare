@@ -1229,6 +1229,7 @@ cd backend
 - `UserReadService` 의 auth_users active 상태 검증도 `AuthIdentityReadService.requireActiveUserKey(...)` 로 이동하고, 더 이상 쓰지 않는 `AuthUserRepository` / profile/pii 저장소 직접 의존을 제거
 - `UserPiiBackfillService`, `UserPiiSyncProcessor` 의 app PII write 도 `UserPiiCommandService` 로 모아 backfill/sync 경로가 `UserPiiReadWriteRepository` 를 직접 두드리지 않도록 정리
 - `UserCoreProjectionSyncService` 의 auth/profile projection upsert도 `UserCoreProjectionCommandRepository` 뒤로 이동해 projection sync 서비스가 저장소 2개를 직접 조합하지 않도록 정리
+- `UserKeyLookupService`, `PolicyLookupService` 의 단건 lookup도 각각 `UserKeyReadRepository`, `PolicyLookupReadRepository` 뒤로 이동해 lookup 규칙을 service 본문 밖으로 분리
 
 ## 2차로 분리된 항목
 
