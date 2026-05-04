@@ -2741,3 +2741,8 @@
 - 문제: 백필 서비스는 `backfillEncryptedFields(...)` 를, sync processor는 `upsertUserPii(...)` 를 각각 직접 호출하고 있었다. 같은 `user_pii` write라도 경로마다 저장소 직접 의존이 남아 있어 write 정책을 공통 경계로 다루기 어려웠다.
 - 해결: `UserPiiCommandService` 를 추가하고, app PII upsert/backfill/delete write를 이 서비스로 모았다. `UserPiiBackfillService`, `UserPiiSyncProcessor` 는 이제 write 구현 대신 user pii command 경계에만 의존한다.
 - 이유: backfill/sync 같은 별도 작업 서비스는 암호화/큐 상태/집계에 집중하고, app PII write는 한 command 경계로 모아야 변경 영향 범위가 줄고 테스트도 단순해진다.
+
+## 501) `UserCoreProjectionSyncService` 가 auth/profile projection 저장소 둘을 직접 들고 있으면, core sync orchestration과 projection upsert 조합 책임이 다시 한 서비스에 섞인다
+- 문제: `UserCoreProjectionSyncService` 는 `AuthUserRepository`, `UserProfileRepository` 를 직접 들고 `find-or-create + syncFrom + save` 패턴을 각각 수행하고 있었다. 이 상태면 core sync 흐름을 바꾸지 않아도 projection 저장 규칙이 바뀔 때 서비스 본문을 다시 열어야 한다.
+- 해결: `UserCoreProjectionCommandRepository` / `UserCoreProjectionCommandRepositoryImpl` 을 추가하고, auth/profile projection upsert 조합을 이 command repository 뒤로 이동했다. `UserCoreProjectionSyncService` 는 email hash 계산과 projection sync orchestration만 남겼다.
+- 이유: core sync 서비스는 age 계산과 projection sync 흐름에 집중하고, 여러 저장소를 묶는 projection upsert 조합은 별도 command repository 로 내려야 책임이 더 선명하고 테스트도 분리하기 쉽다.

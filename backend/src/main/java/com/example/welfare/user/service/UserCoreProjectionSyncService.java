@@ -1,10 +1,7 @@
 package com.example.welfare.user.service;
 
-import com.example.welfare.user.entity.AuthUser;
 import com.example.welfare.user.entity.User;
-import com.example.welfare.user.entity.UserProfile;
-import com.example.welfare.user.repository.AuthUserRepository;
-import com.example.welfare.user.repository.UserProfileRepository;
+import com.example.welfare.user.repository.UserCoreProjectionCommandRepository;
 import com.example.welfare.user.util.EmailLookupKeyGenerator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -16,17 +13,15 @@ import java.time.LocalDateTime;
 @RequiredArgsConstructor
 public class UserCoreProjectionSyncService {
 
-    private final AuthUserRepository authUserRepository;
-    private final UserProfileRepository userProfileRepository;
+    private final UserCoreProjectionCommandRepository userCoreProjectionCommandRepository;
 
     @Transactional
     public void syncAuthUser(User user, String userKey) {
-        AuthUser authUser = authUserRepository.findByUserKey(userKey)
-                .orElse(AuthUser.builder()
-                        .userKey(userKey)
-                        .build());
-        authUser.syncFrom(user, EmailLookupKeyGenerator.hash(user.getEmail()));
-        authUserRepository.save(authUser);
+        userCoreProjectionCommandRepository.upsertAuthProjection(
+                user,
+                userKey,
+                EmailLookupKeyGenerator.hash(user.getEmail())
+        );
     }
 
     @Transactional
@@ -35,11 +30,12 @@ public class UserCoreProjectionSyncService {
                                 Integer age,
                                 String ageBand,
                                 LocalDateTime ageCalculatedAt) {
-        UserProfile userProfile = userProfileRepository.findByUserKey(userKey)
-                .orElse(UserProfile.builder()
-                        .userKey(userKey)
-                        .build());
-        userProfile.syncFrom(user, age, ageBand, ageCalculatedAt);
-        userProfileRepository.save(userProfile);
+        userCoreProjectionCommandRepository.upsertUserProfileProjection(
+                user,
+                userKey,
+                age,
+                ageBand,
+                ageCalculatedAt
+        );
     }
 }

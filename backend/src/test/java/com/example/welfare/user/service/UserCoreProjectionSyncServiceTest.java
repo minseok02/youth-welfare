@@ -1,33 +1,24 @@
 package com.example.welfare.user.service;
 
-import com.example.welfare.user.entity.AuthUser;
 import com.example.welfare.user.entity.User;
-import com.example.welfare.user.entity.UserProfile;
-import com.example.welfare.user.repository.AuthUserRepository;
-import com.example.welfare.user.repository.UserProfileRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.Optional;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.same;
 
 @ExtendWith(MockitoExtension.class)
 class UserCoreProjectionSyncServiceTest {
 
     @Mock
-    private AuthUserRepository authUserRepository;
-
-    @Mock
-    private UserProfileRepository userProfileRepository;
+    private com.example.welfare.user.repository.UserCoreProjectionCommandRepository userCoreProjectionCommandRepository;
 
     @Test
     @DisplayName("auth sync는 userKey 기준 auth_user projection을 upsert한다")
@@ -40,19 +31,18 @@ class UserCoreProjectionSyncServiceTest {
                 .name("Queue User")
                 .birthDate(LocalDate.of(1998, 1, 10))
                 .build();
-        given(authUserRepository.findByUserKey("user-key-1")).willReturn(Optional.empty());
-
         UserCoreProjectionSyncService service = new UserCoreProjectionSyncService(
-                authUserRepository,
-                userProfileRepository
+                userCoreProjectionCommandRepository
         );
 
         service.syncAuthUser(user, "user-key-1");
 
-        ArgumentCaptor<AuthUser> captor = ArgumentCaptor.forClass(AuthUser.class);
-        then(authUserRepository).should().save(captor.capture());
-        assertThat(captor.getValue().getUserKey()).isEqualTo("user-key-1");
-        assertThat(captor.getValue().getPasswordHash()).isEqualTo("pw-hash");
+        then(userCoreProjectionCommandRepository).should()
+                .upsertAuthProjection(
+                        same(user),
+                        eq("user-key-1"),
+                        eq("b4c9a289323b21a01c3e940f150eb9b8c542587f1abfd8f0e1cc1ffc5e475514")
+                );
     }
 
     @Test
@@ -68,21 +58,19 @@ class UserCoreProjectionSyncServiceTest {
                 .sgg("강남구")
                 .phoneEnc("enc-phone")
                 .build();
-        given(userProfileRepository.findByUserKey("user-key-1")).willReturn(Optional.empty());
-
         UserCoreProjectionSyncService service = new UserCoreProjectionSyncService(
-                authUserRepository,
-                userProfileRepository
+                userCoreProjectionCommandRepository
         );
 
         service.syncUserProfile(user, "user-key-1", 28, "25_29", LocalDateTime.of(2026, 5, 4, 1, 0));
 
-        ArgumentCaptor<UserProfile> captor = ArgumentCaptor.forClass(UserProfile.class);
-        then(userProfileRepository).should().save(captor.capture());
-        assertThat(captor.getValue().getUserKey()).isEqualTo("user-key-1");
-        assertThat(captor.getValue().getSido()).isEqualTo("서울특별시");
-        assertThat(captor.getValue().isHasName()).isTrue();
-        assertThat(captor.getValue().isHasBirthDate()).isTrue();
-        assertThat(captor.getValue().isHasPhone()).isTrue();
+        then(userCoreProjectionCommandRepository).should()
+                .upsertUserProfileProjection(
+                        same(user),
+                        eq("user-key-1"),
+                        eq(28),
+                        eq("25_29"),
+                        eq(LocalDateTime.of(2026, 5, 4, 1, 0))
+                );
     }
 }
