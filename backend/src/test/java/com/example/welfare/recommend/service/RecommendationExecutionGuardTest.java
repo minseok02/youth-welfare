@@ -73,4 +73,24 @@ class RecommendationExecutionGuardTest {
                 .isInstanceOf(CustomException.class)
                 .satisfies(ex -> assertThat(((CustomException) ex).getErrorCode()).isEqualTo(ErrorCode.RECOMMENDATION_ALREADY_RUNNING));
     }
+
+    @Test
+    @DisplayName("추천 command 는 lock 이 풀릴 때까지 기다렸다가 실행한다")
+    void runCommandForUserWaitsUntilLockAvailable() {
+        RedisTemplate<String, String> redisTemplate = mock(RedisTemplate.class);
+        @SuppressWarnings("unchecked")
+        ValueOperations<String, String> valueOperations = mock(ValueOperations.class);
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.setIfAbsent(eq("recommend:lock:user:user-key-1"), any(), eq(30L), eq(TimeUnit.MINUTES)))
+                .thenReturn(false)
+                .thenReturn(true);
+        when(redisTemplate.execute(any(), eq(List.of("recommend:lock:user:user-key-1")), any())).thenReturn(1L);
+        RecommendationExecutionGuard guard = new RecommendationExecutionGuard(redisTemplate, 30L, 20L, 1L);
+        AtomicBoolean executed = new AtomicBoolean(false);
+
+        guard.runCommandForUser("user-key-1", () -> executed.set(true));
+
+        assertThat(executed).isTrue();
+        verify(redisTemplate).execute(any(), eq(List.of("recommend:lock:user:user-key-1")), any());
+    }
 }

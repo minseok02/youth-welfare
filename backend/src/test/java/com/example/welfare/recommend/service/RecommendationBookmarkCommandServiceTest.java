@@ -22,11 +22,14 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
 class RecommendationBookmarkCommandServiceTest {
 
+    @Mock
+    private RecommendationExecutionGuard recommendationExecutionGuard;
     @Mock
     private RecommendationBookmarkCommandRepository recommendationBookmarkCommandRepository;
     @Mock
@@ -45,6 +48,7 @@ class RecommendationBookmarkCommandServiceTest {
                 .userKey("user-key-7")
                 .isBookmarked(false)
                 .build();
+        doRunCommandImmediately();
         given(userKeyLookupService.findRequired(7L)).willReturn("user-key-7");
         given(recommendationBookmarkCommandRepository.findLatestRecommendation("user-key-7", 11L))
                 .willReturn(Optional.of(recommendation));
@@ -64,6 +68,7 @@ class RecommendationBookmarkCommandServiceTest {
                 .title("청년 정책")
                 .build();
 
+        doRunCommandImmediately();
         given(userKeyLookupService.findRequired(7L)).willReturn("user-key-7");
         given(recommendationBookmarkCommandRepository.findLatestRecommendation("user-key-7", 11L))
                 .willReturn(Optional.empty());
@@ -87,6 +92,7 @@ class RecommendationBookmarkCommandServiceTest {
                 .userKey("user-key-7")
                 .isBookmarked(false)
                 .build();
+        doRunCommandImmediately();
         given(userKeyLookupService.findRequired(7L)).willReturn("user-key-7");
         given(recommendationBookmarkCommandRepository.findLatestRecommendation("user-key-7", 11L))
                 .willReturn(Optional.of(recommendation));
@@ -106,6 +112,7 @@ class RecommendationBookmarkCommandServiceTest {
                 .userKey("user-key-7")
                 .isBookmarked(false)
                 .build();
+        doRunCommandImmediately();
         given(userKeyLookupService.findRequired(7L)).willReturn("user-key-7");
         given(recommendationBookmarkCommandRepository.findOwnedRecommendation(5L, "user-key-7"))
                 .willReturn(Optional.of(recommendation));
@@ -113,5 +120,12 @@ class RecommendationBookmarkCommandServiceTest {
         recommendationBookmarkCommandService.toggleRecommendationBookmark(7L, 5L);
 
         assertTrue(recommendation.isBookmarked());
+    }
+
+    private void doRunCommandImmediately() {
+        doAnswer(invocation -> {
+            invocation.<Runnable>getArgument(1).run();
+            return null;
+        }).when(recommendationExecutionGuard).runCommandForUser(any(), any());
     }
 }

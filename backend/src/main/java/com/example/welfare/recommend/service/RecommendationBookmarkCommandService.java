@@ -19,6 +19,7 @@ public class RecommendationBookmarkCommandService {
 
     private static final long MAX_BOOKMARKS = 200;
 
+    private final RecommendationExecutionGuard recommendationExecutionGuard;
     private final RecommendationBookmarkCommandRepository recommendationBookmarkCommandRepository;
     private final UserKeyLookupService userKeyLookupService;
     private final PolicyLookupService policyLookupService;
@@ -26,24 +27,28 @@ public class RecommendationBookmarkCommandService {
     @Transactional
     public void toggleRecommendationBookmark(Long userId, Long recommendationId) {
         String userKey = resolveUserKey(userId);
-        UserRecommendation recommendation = recommendationBookmarkCommandRepository
-                .findOwnedRecommendation(recommendationId, userKey)
-                .orElseThrow(() -> new CustomException(ErrorCode.RECOMMENDATION_NOT_FOUND));
-        recommendation.toggleBookmark();
+        recommendationExecutionGuard.runCommandForUser(userKey, () -> {
+            UserRecommendation recommendation = recommendationBookmarkCommandRepository
+                    .findOwnedRecommendation(recommendationId, userKey)
+                    .orElseThrow(() -> new CustomException(ErrorCode.RECOMMENDATION_NOT_FOUND));
+            recommendation.toggleBookmark();
+        });
     }
 
     @Transactional
     public void togglePolicyBookmark(Long userId, Long serviceId) {
         String userKey = resolveUserKey(userId);
-        UserRecommendation recommendation = recommendationBookmarkCommandRepository
-                .findLatestRecommendation(userKey, serviceId)
-                .orElseGet(() -> createBookmarkPlaceholder(userKey, serviceId));
+        recommendationExecutionGuard.runCommandForUser(userKey, () -> {
+            UserRecommendation recommendation = recommendationBookmarkCommandRepository
+                    .findLatestRecommendation(userKey, serviceId)
+                    .orElseGet(() -> createBookmarkPlaceholder(userKey, serviceId));
 
-        if (!recommendation.isBookmarked()
-                && recommendationBookmarkCommandRepository.countBookmarked(userKey) >= MAX_BOOKMARKS) {
-            throw new CustomException(ErrorCode.BOOKMARK_LIMIT_EXCEEDED);
-        }
-        recommendation.toggleBookmark();
+            if (!recommendation.isBookmarked()
+                    && recommendationBookmarkCommandRepository.countBookmarked(userKey) >= MAX_BOOKMARKS) {
+                throw new CustomException(ErrorCode.BOOKMARK_LIMIT_EXCEEDED);
+            }
+            recommendation.toggleBookmark();
+        });
     }
 
     private UserRecommendation createBookmarkPlaceholder(String userKey, Long serviceId) {

@@ -23,16 +23,16 @@ public abstract class AbstractListCollectSourceAdapter<T> implements CollectSour
         int failed = 0;
 
         for (T item : items) {
-            saveRawPayload(item);
-            if (!isValid(item)) {
-                skipped++;
-                continue;
-            }
-            if (!shouldCollect(item)) {
-                filteredOut++;
-                continue;
-            }
             try {
+                saveRawPayload(item);
+                if (!isValid(item)) {
+                    skipped++;
+                    continue;
+                }
+                if (!shouldCollect(item)) {
+                    filteredOut++;
+                    continue;
+                }
                 saveItem(item);
                 saved++;
             } catch (Exception e) {

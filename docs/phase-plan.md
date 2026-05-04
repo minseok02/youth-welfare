@@ -1303,3 +1303,5 @@ cd backend
 - `2026-05-04`: current-state 문서군도 새 진입점 기준으로 동기화했다. `architecture.md`, `policy-source-code-entrypoints.md`, `user-data-separation-design.md` 에서 제거된 facade(`AuthService`, `UserService`, `CollectService` 등) 참조를 걷어내고, 실제 상단 entrypoint/service 묶음을 `Auth*Service`, `User*Service`, `Collect*Service` 기준으로 다시 맞췄다.
 - `2026-05-04`: `CollectExecutionGuard` 를 긴 고정 lease 에서 짧은 lease + heartbeat 갱신 방식으로 바꿔, collect 프로세스 크래시 후 전역 락이 장시간 남아 다음 수집을 막는 리스크를 줄였다.
 - `2026-05-04`: `NotificationRetryService` 는 retry 대상 ID를 먼저 읽고 claim window 를 원자적으로 선점한 뒤에만 발송하도록 바꿨다. 이제 failed notification 재시도 중 크래시/재진입이 있어도 같은 row를 즉시 다시 잡는 중복 retry 가능성이 크게 줄어든다.
+- `2026-05-04`: `AbstractListCollectSourceAdapter` 에서 raw payload 저장 예외도 item-level partial failure 로 흡수하도록 바꿨다. 이제 list source 하나의 raw payload 저장 실패가 source 전체 FAILED로 번지지 않고, collect 로그는 `PARTIAL_SUCCESS` 로 더 정확히 남는다.
+- `2026-05-04`: `RecommendationBookmarkCommandService` 도 `RecommendationExecutionGuard` 의 사용자별 락 아래에서 실행되게 바꿨다. 이제 같은 userKey 에 대해 recommendation refresh/save 와 bookmark toggle 이 서로 직렬화되어, refresh 중간 북마크 토글로 최신 북마크 상태가 덮어써지는 리스크를 줄였다.

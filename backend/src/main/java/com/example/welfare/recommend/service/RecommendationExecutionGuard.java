@@ -47,15 +47,8 @@ public class RecommendationExecutionGuard {
     }
 
     public <T> T runForUser(String userKey, Supplier<T> task, Supplier<T> fallback) {
-        String lockKey = lockKey(userKey);
-        String ownerToken = UUID.randomUUID().toString();
-        Boolean acquired = redisTemplate.opsForValue().setIfAbsent(
-                lockKey,
-                ownerToken,
-                lockLeaseMinutes,
-                TimeUnit.MINUTES
-        );
-        if (!Boolean.TRUE.equals(acquired)) {
+        LockHandle lockHandle = tryAcquire(userKey);
+        if (!lockHandle.acquired()) {
             log.warn("[RecommendationExecutionGuard] 추천 생성이 이미 진행 중입니다. userKey={}", userKey);
             return awaitFallback(userKey, fallback);
         }
@@ -64,11 +57,51 @@ public class RecommendationExecutionGuard {
             log.info("[RecommendationExecutionGuard] 추천 생성 시작 userKey={}", userKey);
             return task.get();
         } finally {
-            Long released = redisTemplate.execute(releaseIfOwnedScript, List.of(lockKey), ownerToken);
-            if (!Long.valueOf(1L).equals(released)) {
-                log.warn("[RecommendationExecutionGuard] 추천 생성 lock 해제 확인 실패 userKey={} ownerToken={}", userKey, ownerToken);
-            }
+            release(userKey, lockHandle.ownerToken());
             log.info("[RecommendationExecutionGuard] 추천 생성 종료 userKey={}", userKey);
+        }
+    }
+
+    public void runCommandForUser(String userKey, Runnable task) {
+        LockHandle lockHandle = awaitAcquire(userKey);
+        try {
+            log.info("[RecommendationExecutionGuard] 추천 command 실행 시작 userKey={}", userKey);
+            task.run();
+        } finally {
+            release(userKey, lockHandle.ownerToken());
+            log.info("[RecommendationExecutionGuard] 추천 command 실행 종료 userKey={}", userKey);
+        }
+    }
+
+    private LockHandle awaitAcquire(String userKey) {
+        long deadline = System.currentTimeMillis() + Math.max(fallbackWaitMillis, 0L);
+        while (true) {
+            LockHandle lockHandle = tryAcquire(userKey);
+            if (lockHandle.acquired()) {
+                return lockHandle;
+            }
+            if (System.currentTimeMillis() >= deadline) {
+                throw new CustomException(ErrorCode.RECOMMENDATION_ALREADY_RUNNING);
+            }
+            sleepQuietly(fallbackPollMillis);
+        }
+    }
+
+    private LockHandle tryAcquire(String userKey) {
+        String ownerToken = UUID.randomUUID().toString();
+        Boolean acquired = redisTemplate.opsForValue().setIfAbsent(
+                lockKey(userKey),
+                ownerToken,
+                lockLeaseMinutes,
+                TimeUnit.MINUTES
+        );
+        return new LockHandle(ownerToken, Boolean.TRUE.equals(acquired));
+    }
+
+    private void release(String userKey, String ownerToken) {
+        Long released = redisTemplate.execute(releaseIfOwnedScript, List.of(lockKey(userKey)), ownerToken);
+        if (!Long.valueOf(1L).equals(released)) {
+            log.warn("[RecommendationExecutionGuard] 추천 lock 해제 확인 실패 userKey={} ownerToken={}", userKey, ownerToken);
         }
     }
 
@@ -110,5 +143,8 @@ public class RecommendationExecutionGuard {
 
     String lockKey(String userKey) {
         return LOCK_KEY_PREFIX + userKey;
+    }
+
+    private record LockHandle(String ownerToken, boolean acquired) {
     }
 }
