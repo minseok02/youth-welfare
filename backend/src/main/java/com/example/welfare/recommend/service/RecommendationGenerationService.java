@@ -30,6 +30,7 @@ public class RecommendationGenerationService {
     private final RecommendationRefreshCacheService recommendationRefreshCacheService;
     private final RecommendationResultReadService recommendationResultReadService;
     private final UserRecommendationReadService userRecommendationReadService;
+    private final RecommendationExecutionGuard recommendationExecutionGuard;
 
     public List<UserRecommendation> recommend(Long userId, boolean personal) {
         UserRecommendationReadService.RecommendationReadContext context =
@@ -38,12 +39,21 @@ public class RecommendationGenerationService {
         User user = context.user();
         String userKey = snapshot.userKey();
 
+        return recommendationExecutionGuard.runForUser(
+                userKey,
+                () -> doRecommend(user, snapshot, personal),
+                () -> recommendationResultReadService.findLatestSavedRecommendations(userKey)
+        );
+    }
+
+    private List<UserRecommendation> doRecommend(User user, RecommendationUserSnapshot snapshot, boolean personal) {
+        String userKey = snapshot.userKey();
         if (personal) {
             recommendationRefreshCacheService.evict(userKey);
         } else if (recommendationRefreshCacheService.canReuse(userKey)) {
             List<UserRecommendation> cached = recommendationResultReadService.findLatestSavedRecommendations(userKey);
             if (!cached.isEmpty()) {
-                log.info("[RecommendationGenerationService] refresh cache hit userId={} userKey={}", userId, userKey);
+                log.info("[RecommendationGenerationService] refresh cache hit userKey={}", userKey);
                 return cached;
             }
             recommendationRefreshCacheService.evict(userKey);
@@ -53,14 +63,14 @@ public class RecommendationGenerationService {
 
         RetrievedRecommendationCandidates retrieved = retrievalService.retrieve(clusterId, snapshot);
         if (retrieved.isEmpty()) {
-            log.info("[RecommendationGenerationService] 후보 없음 userId={}", userId);
+            log.info("[RecommendationGenerationService] 후보 없음 userKey={}", userKey);
             return List.of();
         }
 
         List<ScoredCandidate> scored = ruleScoringService.score(retrieved, snapshot);
         scored = recommendationPostScoringFilterService.filterSpecialTargetMismatches(scored);
         if (scored.isEmpty()) {
-            log.info("[RecommendationGenerationService] 필터 후 후보 없음 userId={}", userId);
+            log.info("[RecommendationGenerationService] 필터 후 후보 없음 userKey={}", userKey);
             return List.of();
         }
 
