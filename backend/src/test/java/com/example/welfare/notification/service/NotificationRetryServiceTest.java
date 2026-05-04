@@ -26,6 +26,8 @@ class NotificationRetryServiceTest {
     @Mock
     private NotificationRetryReadService notificationRetryReadService;
     @Mock
+    private NotificationRetryCommandService notificationRetryCommandService;
+    @Mock
     private UserNotificationReadService userNotificationReadService;
     @Mock
     private NotificationGateway notificationGateway;
@@ -50,6 +52,7 @@ class NotificationRetryServiceTest {
         assertThat(notification.getSentAt()).isNotNull();
         assertThat(notification.getNextRetryAt()).isNull();
         assertThat(notification.getErrorMessage()).isNull();
+        org.mockito.Mockito.verify(notificationRetryCommandService).save(notification);
     }
 
     @Test
@@ -71,6 +74,7 @@ class NotificationRetryServiceTest {
         assertThat(notification.getRetryCount()).isEqualTo(1);
         assertThat(notification.getErrorMessage()).isEqualTo("notification gateway returned false");
         assertThat(notification.getNextRetryAt()).isBetween(before.plusMinutes(120), after.plusMinutes(120));
+        org.mockito.Mockito.verify(notificationRetryCommandService).save(notification);
     }
 
     @Test
@@ -90,6 +94,7 @@ class NotificationRetryServiceTest {
         assertThat(notification.getRetryCount()).isEqualTo(2);
         assertThat(notification.getNextRetryAt()).isNull();
         assertThat(notification.getErrorMessage()).isEqualTo("notification gateway returned false");
+        org.mockito.Mockito.verify(notificationRetryCommandService).save(notification);
     }
 
     private Notification sampleFailedNotification(int retryCount) {

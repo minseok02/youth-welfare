@@ -16,6 +16,7 @@ public class NotificationRetryService {
     private static final long RETRY_DELAY_MINUTES = 120L;
 
     private final NotificationRetryReadService notificationRetryReadService;
+    private final NotificationRetryCommandService notificationRetryCommandService;
     private final UserNotificationReadService userNotificationReadService;
     private final NotificationGateway notificationGateway;
 
@@ -34,6 +35,7 @@ public class NotificationRetryService {
             );
             if (sent) {
                 notification.markSent();
+                notificationRetryCommandService.save(notification);
                 return;
             }
             scheduleNextRetry(notification, "notification gateway returned false");
@@ -45,9 +47,11 @@ public class NotificationRetryService {
     private void scheduleNextRetry(Notification notification, String errorMessage) {
         if (notification.getRetryCount() + 1 >= MAX_RETRY_COUNT) {
             notification.scheduleRetry(null, errorMessage);
+            notificationRetryCommandService.save(notification);
             return;
         }
         notification.scheduleRetry(LocalDateTime.now().plusMinutes(RETRY_DELAY_MINUTES), errorMessage);
+        notificationRetryCommandService.save(notification);
     }
 
     private String resolveNotificationEmail(Notification notification) {

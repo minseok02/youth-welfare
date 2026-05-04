@@ -3,7 +3,6 @@ package com.example.welfare.collect.service;
 import com.example.welfare.collect.gateway.BokjiroDetailClient;
 import com.example.welfare.collect.mapper.WelfareServiceMapper;
 import com.example.welfare.collect.normalization.NormalizedPolicyAggregate;
-import com.example.welfare.collect.repository.BokjiroDetailCommandRepository;
 import com.example.welfare.collect.repository.BokjiroDetailReadRepository;
 import com.example.welfare.collect.support.CollectSourceRegistry;
 import com.example.welfare.collect.validation.RawFieldValidator;
@@ -13,7 +12,6 @@ import com.example.welfare.policy.entity.WelfareService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.EnumMap;
@@ -33,7 +31,6 @@ import java.util.stream.Collectors;
 public class BokjiroDetailCollectService {
 
     private final BokjiroDetailReadRepository bokjiroDetailReadRepository;
-    private final BokjiroDetailCommandRepository bokjiroDetailCommandRepository;
     private final BokjiroDetailClient detailClient;
     private final RawApiPayloadService rawApiPayloadService;
     private final WelfareServiceMapper welfareServiceMapper;
@@ -42,13 +39,11 @@ public class BokjiroDetailCollectService {
     private final BokjiroDetailBudgetAllocator budgetAllocator;
 
     public BokjiroDetailCollectService(BokjiroDetailReadRepository bokjiroDetailReadRepository,
-                                       BokjiroDetailCommandRepository bokjiroDetailCommandRepository,
                                        BokjiroDetailClient detailClient,
                                        RawApiPayloadService rawApiPayloadService,
                                        WelfareServiceMapper welfareServiceMapper,
                                        CollectPolicyAggregateApplyService collectPolicyAggregateApplyService) {
         this.bokjiroDetailReadRepository = bokjiroDetailReadRepository;
-        this.bokjiroDetailCommandRepository = bokjiroDetailCommandRepository;
         this.detailClient = detailClient;
         this.rawApiPayloadService = rawApiPayloadService;
         this.welfareServiceMapper = welfareServiceMapper;
@@ -70,47 +65,38 @@ public class BokjiroDetailCollectService {
     @Value("${collect.detail.max-consecutive-rate-limit-hits:5}")
     private int maxConsecutiveRateLimitHits;
 
-    @Transactional
     public int collectBokjiroDetails() {
         return collectBokjiroDetailsResult().savedCount();
     }
 
-    @Transactional
     public int collectBokjiroDetails(int maxCalls) {
         return collectBokjiroDetailsResult(maxCalls).savedCount();
     }
 
-    @Transactional
     public CollectResult collectBokjiroDetailsResult() {
         return collectBokjiroDetailsRun(maxCallsPerRun, false).collectResult();
     }
 
-    @Transactional
     public CollectResult collectBokjiroDetailsResult(int maxCalls) {
         return collectBokjiroDetailsRun(maxCalls, false).collectResult();
     }
 
-    @Transactional
     public int collectBokjiroDetailsRefresh() {
         return collectBokjiroDetailsRefreshResult().savedCount();
     }
 
-    @Transactional
     public int collectBokjiroDetailsRefresh(int maxCalls) {
         return collectBokjiroDetailsRefreshResult(maxCalls).savedCount();
     }
 
-    @Transactional
     public CollectResult collectBokjiroDetailsRefreshResult() {
         return collectBokjiroDetailsRun(maxCallsPerRun, true).collectResult();
     }
 
-    @Transactional
     public CollectResult collectBokjiroDetailsRefreshResult(int maxCalls) {
         return collectBokjiroDetailsRun(maxCalls, true).collectResult();
     }
 
-    @Transactional
     public GapFillResult collectBokjiroDetailGapFillResult(int rounds, int maxCallsPerRound) {
         int requested = 0;
         int saved = 0;
@@ -152,7 +138,6 @@ public class BokjiroDetailCollectService {
         );
     }
 
-    @Transactional
     private DetailCollectRunResult collectBokjiroDetailsRun(int maxCalls, boolean refreshExisting) {
         Map<WelfareService.SourceType, List<WelfareService>> targetsBySource = loadTargetsBySource();
         BokjiroDetailBudgetAllocator.BudgetAllocation budgetAllocation = budgetAllocator.allocate(

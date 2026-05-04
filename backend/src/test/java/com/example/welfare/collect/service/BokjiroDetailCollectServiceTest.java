@@ -3,7 +3,6 @@ package com.example.welfare.collect.service;
 import com.example.welfare.collect.gateway.BokjiroDetailClient;
 import com.example.welfare.collect.mapper.WelfareServiceMapper;
 import com.example.welfare.collect.normalization.NormalizedPolicyAggregate;
-import com.example.welfare.collect.repository.BokjiroDetailCommandRepository;
 import com.example.welfare.collect.repository.BokjiroDetailReadRepository;
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.policy.entity.WelfareService;
@@ -37,8 +36,6 @@ class BokjiroDetailCollectServiceTest {
     @Mock
     private BokjiroDetailReadRepository bokjiroDetailReadRepository;
     @Mock
-    private BokjiroDetailCommandRepository bokjiroDetailCommandRepository;
-    @Mock
     private BokjiroDetailClient detailClient;
     @Mock
     private RawApiPayloadService rawApiPayloadService;
@@ -52,7 +49,6 @@ class BokjiroDetailCollectServiceTest {
     void setUp() {
         service = new BokjiroDetailCollectService(
                 bokjiroDetailReadRepository,
-                bokjiroDetailCommandRepository,
                 detailClient,
                 rawApiPayloadService,
                 welfareServiceMapper,
@@ -257,7 +253,6 @@ class BokjiroDetailCollectServiceTest {
         assertThat(result.skippedCount()).isZero();
         assertThat(result.failedCount()).isZero();
         verify(detailClient, never()).fetchCentralWithStatus("CENTRAL-23");
-        verify(bokjiroDetailCommandRepository, never()).save(any());
     }
 
     @Test

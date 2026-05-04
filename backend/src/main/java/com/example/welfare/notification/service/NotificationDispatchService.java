@@ -10,7 +10,6 @@ import com.example.welfare.user.entity.User;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -26,7 +25,6 @@ public class NotificationDispatchService {
     private final NotificationGateway notificationGateway;
     private final NotificationHistoryService notificationHistoryService;
 
-    @Transactional
     public void sendTopRecommendations(NotificationTarget target) {
         NotificationRecommendationService.NotificationDispatchPlan plan =
                 notificationRecommendationService.prepareDispatch(target).orElse(null);

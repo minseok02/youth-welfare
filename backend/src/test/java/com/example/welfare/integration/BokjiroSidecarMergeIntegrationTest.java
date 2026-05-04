@@ -15,6 +15,7 @@ import com.example.welfare.collect.service.CollectResult;
 import com.example.welfare.collect.service.RawApiPayloadService;
 import com.example.welfare.collect.support.ListCollectSourceBindings;
 import com.example.welfare.policy.entity.WelfareService;
+import com.example.welfare.policy.repository.PolicyLookupReadRepositoryImpl;
 import com.example.welfare.policy.repository.ServiceTagRepository;
 import com.example.welfare.policy.repository.WelfareServiceDetailRepository;
 import com.example.welfare.policy.repository.WelfareServiceRepository;
@@ -171,13 +172,13 @@ class BokjiroSidecarMergeIntegrationTest {
             CollectPolicyAggregateApplyService aggregateApplyService =
                     new CollectPolicyAggregateApplyService(
                             isolatedCommandRepository,
+                            new PolicyLookupReadRepositoryImpl(welfareServiceRepository),
                             searchYouthRelevanceService,
                             normalizedPolicySidecarWriter
                     );
 
             BokjiroDetailCollectService detailCollectService = new BokjiroDetailCollectService(
                     isolatedReadRepository,
-                    isolatedCommandRepository,
                     detailClient,
                     rawApiPayloadService,
                     welfareServiceMapper,
