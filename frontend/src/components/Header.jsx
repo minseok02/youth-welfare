@@ -82,6 +82,14 @@ export default function Header() {
               <>
                 <Button
                   color="inherit"
+                  size="small"
+                  onClick={() => navigate("/policies")}
+                  sx={{ fontSize: 13, color: "rgba(255,255,255,0.9)" }}
+                >
+                  정책 목록
+                </Button>
+                <Button
+                  color="inherit"
                   endIcon={<KeyboardArrowDownIcon />}
                   onClick={handleUserMenu}
                   sx={{

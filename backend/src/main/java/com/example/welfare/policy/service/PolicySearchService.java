@@ -38,7 +38,7 @@ public class PolicySearchService {
     public PolicySearchResponse search(Long userId,
                                        String keyword,
                                        String status,
-                                       Boolean includeClosed,
+                                       String statusFilter,
                                        String category,
                                        String sourceType,
                                        Boolean onlineApply,
@@ -55,18 +55,20 @@ public class PolicySearchService {
         int limit = normalizeSize(size);
         int pageNumber = Math.max(0, page);
         String normalizedStatus = normalizeStatus(status);
-        Integer normalizedIncludeClosed = normalizeIncludeClosed(includeClosed);
+        String normalizedStatusFilter = normalizeStatusFilter(statusFilter);
         String normalizedSourceType = normalizeSourceType(sourceType);
         String normalizedCategory = normalizeNullable(category);
         String normalizedSido = normalizeNullable(sido);
         String normalizedSgg = normalizeNullable(sgg);
         Integer onlineApplyFlag = onlineApply == null ? null : (onlineApply ? 1 : 0);
         String normalizedSort = normalizeSort(sort);
+
+        // 지역 분기 및 sido/sgg → regionCode 변환은 WelfareServiceReadRepositoryImpl에서 처리
         Page<WelfareService> resultPage = welfareServiceReadRepository.search(
                 new PolicySearchReadCondition(
                         ftKeyword,
                         normalizedStatus,
-                        normalizedIncludeClosed,
+                        normalizedStatusFilter,
                         normalizedCategory,
                         normalizedSourceType,
                         onlineApplyFlag,
@@ -94,7 +96,7 @@ public class PolicySearchService {
                 response,
                 keyword,
                 normalizedStatus,
-                normalizedIncludeClosed,
+                normalizedStatusFilter,
                 normalizedCategory,
                 normalizedSourceType,
                 normalizedSort,
@@ -106,7 +108,7 @@ public class PolicySearchService {
     private void logSearchObservation(PolicySearchResponse response,
                                       String keyword,
                                       String status,
-                                      Integer includeClosed,
+                                      String statusFilter,
                                       String category,
                                       String sourceType,
                                       String sort,
@@ -116,13 +118,13 @@ public class PolicySearchService {
         boolean warn = elapsedMs >= SEARCH_WARN_DURATION_MS;
 
         if (warn) {
-            log.warn("[PolicySearchService] 검색 응답 경고 elapsedMs={} total={} page={} size={} hasNext={} includeClosed={} status={} category={} sourceType={} sort={} keywordTokens={}",
+            log.warn("[PolicySearchService] 검색 응답 경고 elapsedMs={} total={} page={} size={} hasNext={} statusFilter={} status={} category={} sourceType={} sort={} keywordTokens={}",
                     elapsedMs,
                     response.getTotalElements(),
                     response.getPageNumber(),
                     response.getPageSize(),
                     response.isHasNext(),
-                    includeClosed == 1,
+                    statusFilter,
                     status,
                     category,
                     sourceType,
@@ -132,13 +134,13 @@ public class PolicySearchService {
         }
 
         if (elapsedMs >= 150L || response.getTotalElements() >= 500) {
-            log.info("[PolicySearchService] 검색 응답 관측 elapsedMs={} total={} page={} size={} hasNext={} includeClosed={} status={} category={} sourceType={} sort={} keywordTokens={}",
+            log.info("[PolicySearchService] 검색 응답 관측 elapsedMs={} total={} page={} size={} hasNext={} statusFilter={} status={} category={} sourceType={} sort={} keywordTokens={}",
                     elapsedMs,
                     response.getTotalElements(),
                     response.getPageNumber(),
                     response.getPageSize(),
                     response.isHasNext(),
-                    includeClosed == 1,
+                    statusFilter,
                     status,
                     category,
                     sourceType,
@@ -167,7 +169,9 @@ public class PolicySearchService {
         if (sort == null || sort.isBlank()) return "RELEVANCE";
         String upper = sort.trim().toUpperCase();
         return switch (upper) {
-            case "RELEVANCE", "VIEWS", "LATEST", "NAME" -> upper;
+            case "RELEVANCE", "VIEWS", "LATEST", "DEADLINE" -> upper;
+            // NAME: UI 정렬 옵션에서는 제거됐지만 코드는 유지 (API 호환성)
+            case "NAME" -> upper;
             default -> throw new CustomException(ErrorCode.INVALID_INPUT);
         };
     }
@@ -181,8 +185,16 @@ public class PolicySearchService {
         };
     }
 
-    private Integer normalizeIncludeClosed(Boolean includeClosed) {
-        return includeClosed != null && includeClosed ? 1 : 0;
+    // ACTIVE_ONLY(기본): 신청가능·예정, 마감일 미도래
+    // EXPIRED_ONLY: CLOSED 또는 applyEndDate 지남 (온통청년처럼 DB status=ACTIVE이지만 마감된 경우 포함)
+    // ALL: 모든 상태
+    private String normalizeStatusFilter(String statusFilter) {
+        if (statusFilter == null || statusFilter.isBlank()) return "ACTIVE_ONLY";
+        return switch (statusFilter.trim().toUpperCase()) {
+            case "ALL" -> "ALL";
+            case "EXPIRED_ONLY" -> "EXPIRED_ONLY";
+            default -> "ACTIVE_ONLY";
+        };
     }
 
     private String normalizeSourceType(String sourceType) {

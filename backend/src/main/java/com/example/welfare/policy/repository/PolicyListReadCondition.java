@@ -6,9 +6,12 @@ public record PolicyListReadCondition(
         String category,
         WelfareService.SourceType sourceType,
         WelfareService.ServiceStatus status,
-        boolean includeClosed,
+        // ACTIVE_ONLY / EXPIRED_ONLY / ALL (상세 의미는 WelfareServiceRepository 주석 참조)
+        String statusFilter,
         String sido,
         String sgg,
-        Boolean onlineApply
+        Boolean onlineApply,
+        // LATEST / VIEWS / NAME
+        String sort
 ) {
 }

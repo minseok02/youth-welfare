@@ -50,14 +50,14 @@ public class PolicyController {
             @RequestParam(required = false) String category,
             @RequestParam(required = false) String sourceType,
             @RequestParam(required = false) String status,
-            @RequestParam(required = false) Boolean includeClosed,
+            @RequestParam(required = false) String statusFilter,
             @RequestParam(required = false) String sido,
             @RequestParam(required = false) String sgg,
             @RequestParam(required = false) Boolean onlineApply,
             @RequestParam(required = false) String sort,
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
         return ResponseEntity.ok(ApiResponse.success(
-                policyListService.getList(resolveUserId(authenticatedUser), category, sourceType, status, includeClosed, sido, sgg, onlineApply, sort, pageable)
+                policyListService.getList(resolveUserId(authenticatedUser), category, sourceType, status, statusFilter, sido, sgg, onlineApply, sort, pageable)
         ));
     }
 
@@ -83,7 +83,7 @@ public class PolicyController {
             @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
             @RequestParam String keyword,
             @RequestParam(required = false) String status,
-            @RequestParam(required = false) Boolean includeClosed,
+            @RequestParam(required = false) String statusFilter,
             @RequestParam(required = false) String category,
             @RequestParam(required = false) String sourceType,
             @RequestParam(required = false) Boolean onlineApply,
@@ -99,7 +99,7 @@ public class PolicyController {
                 userId,
                 trimmedKeyword,
                 status,
-                includeClosed,
+                statusFilter,
                 category,
                 sourceType,
                 onlineApply,
@@ -115,7 +115,7 @@ public class PolicyController {
                 .keyword(trimmedKeyword)
                 .resultCount(response.getTotalElements())
                 .status(status)
-                .includeClosed(includeClosed)
+                .statusFilter(statusFilter)
                 .category(category)
                 .sourceType(sourceType)
                 .onlineApply(onlineApply)

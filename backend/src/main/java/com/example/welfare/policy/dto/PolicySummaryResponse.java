@@ -17,6 +17,8 @@ public class PolicySummaryResponse {
     private String unifiedCategory;
     private String status;
     private String hostOrg;
+    // 복지로 지자체 정책 중 hostOrg가 없는 경우 카드 source 표시에 사용 (service_regions.sido_name)
+    private String sido;
     private Integer minAge;
     private Integer maxAge;
     private String applyMethodName;
@@ -32,12 +34,19 @@ public class PolicySummaryResponse {
     private boolean bookmarked;
 
     public static PolicySummaryResponse from(WelfareService ws, boolean bookmarked) {
-        return from(ws, bookmarked, null);
+        return from(ws, bookmarked, null, null);
     }
 
     public static PolicySummaryResponse from(WelfareService ws,
                                              boolean bookmarked,
                                              RecommendationCandidateProjection projection) {
+        return from(ws, bookmarked, projection, null);
+    }
+
+    public static PolicySummaryResponse from(WelfareService ws,
+                                             boolean bookmarked,
+                                             RecommendationCandidateProjection projection,
+                                             String sido) {
         return PolicySummaryResponse.builder()
                 .id(ws.getId())
                 .title(ws.getTitle())
@@ -45,6 +54,7 @@ public class PolicySummaryResponse {
                 .unifiedCategory(resolveUnifiedCategory(ws, projection))
                 .status(ws.getStatus().name())
                 .hostOrg(ws.getHostOrg())
+                .sido(sido)
                 .minAge(ws.getMinAge())
                 .maxAge(ws.getMaxAge())
                 .applyMethodName(ws.getApplyMethodName())

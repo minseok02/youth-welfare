@@ -212,14 +212,22 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
             Pageable pageable
     );
 
+    // statusFilter 값 의미 (검색·목록 쿼리 공통):
+    //   ACTIVE_ONLY(기본) : status IN (ACTIVE, UPCOMING) AND apply_end_date >= 오늘 or NULL
+    //   EXPIRED_ONLY      : status = CLOSED OR apply_end_date < 오늘
+    //                       온통청년처럼 DB status는 ACTIVE지만 신청 마감일이 지난 정책 포함
+    //   ALL               : 모든 상태
+    // status 파라미터가 직접 지정되면 statusFilter를 무시하고 status 단일 값으로 매칭
+
     // FULLTEXT + 필터 검색 (정렬: RELEVANCE / VIEWS / LATEST / NAME)
     // 지역 필터가 없는 일반 검색은 service_regions 조인을 피해서 DISTINCT/임시 테이블 비용을 줄인다.
     @Query(value = """
             SELECT ws.* FROM welfare_services ws
             WHERE (
                     (:status IS NULL AND (
-                        (:includeClosed = 1 AND ws.status IN ('ACTIVE', 'UPCOMING', 'CLOSED'))
-                        OR (:includeClosed = 0 AND ws.status IN ('ACTIVE', 'UPCOMING'))
+                        (:statusFilter = 'ALL' AND ws.status IN ('ACTIVE', 'UPCOMING', 'CLOSED'))
+                        OR (:statusFilter = 'EXPIRED_ONLY' AND (ws.status = 'CLOSED' OR (ws.apply_end_date IS NOT NULL AND ws.apply_end_date < CURDATE())))
+                        OR ((:statusFilter IS NULL OR :statusFilter = 'ACTIVE_ONLY') AND ws.status IN ('ACTIVE', 'UPCOMING') AND (ws.apply_end_date IS NULL OR ws.apply_end_date >= CURDATE()))
                     ))
                     OR (:status IS NOT NULL AND ws.status = :status)
                   )
@@ -238,8 +246,14 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                     WHEN :sort = 'LATEST' THEN ws.created_at
                     ELSE NULL
                 END DESC,
+                -- NAME: UI 정렬 옵션에서 제거됐지만 API 호환성 유지 목적으로 보존
                 CASE
                     WHEN :sort = 'NAME' THEN ws.title
+                    ELSE NULL
+                END ASC,
+                -- DEADLINE: 프론트 마감임박순 기능을 위해 추가 — apply_end_date 빠른 순, NULL이면 맨 뒤
+                CASE
+                    WHEN :sort = 'DEADLINE' THEN COALESCE(ws.apply_end_date, '9999-12-31')
                     ELSE NULL
                 END ASC,
                 CASE
@@ -254,8 +268,9 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
             SELECT COUNT(*) FROM welfare_services ws
             WHERE (
                     (:status IS NULL AND (
-                        (:includeClosed = 1 AND ws.status IN ('ACTIVE', 'UPCOMING', 'CLOSED'))
-                        OR (:includeClosed = 0 AND ws.status IN ('ACTIVE', 'UPCOMING'))
+                        (:statusFilter = 'ALL' AND ws.status IN ('ACTIVE', 'UPCOMING', 'CLOSED'))
+                        OR (:statusFilter = 'EXPIRED_ONLY' AND (ws.status = 'CLOSED' OR (ws.apply_end_date IS NOT NULL AND ws.apply_end_date < CURDATE())))
+                        OR ((:statusFilter IS NULL OR :statusFilter = 'ACTIVE_ONLY') AND ws.status IN ('ACTIVE', 'UPCOMING') AND (ws.apply_end_date IS NULL OR ws.apply_end_date >= CURDATE()))
                     ))
                     OR (:status IS NOT NULL AND ws.status = :status)
                   )
@@ -268,7 +283,7 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
             """, nativeQuery = true)
     Page<WelfareService> searchByKeywordWithFiltersNoRegion(@Param("keyword") String keyword,
                                                             @Param("status") String status,
-                                                            @Param("includeClosed") Integer includeClosed,
+                                                            @Param("statusFilter") String statusFilter,
                                                             @Param("category") String category,
                                                             @Param("sourceType") String sourceType,
                                                             @Param("onlineApply") Integer onlineApply,
@@ -279,8 +294,9 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
             SELECT ws.* FROM welfare_services ws
             WHERE (
                     (:status IS NULL AND (
-                        (:includeClosed = 1 AND ws.status IN ('ACTIVE', 'UPCOMING', 'CLOSED'))
-                        OR (:includeClosed = 0 AND ws.status IN ('ACTIVE', 'UPCOMING'))
+                        (:statusFilter = 'ALL' AND ws.status IN ('ACTIVE', 'UPCOMING', 'CLOSED'))
+                        OR (:statusFilter = 'EXPIRED_ONLY' AND (ws.status = 'CLOSED' OR (ws.apply_end_date IS NOT NULL AND ws.apply_end_date < CURDATE())))
+                        OR ((:statusFilter IS NULL OR :statusFilter = 'ACTIVE_ONLY') AND ws.status IN ('ACTIVE', 'UPCOMING') AND (ws.apply_end_date IS NULL OR ws.apply_end_date >= CURDATE()))
                     ))
                     OR (:status IS NOT NULL AND ws.status = :status)
                   )
@@ -302,6 +318,15 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
               AND MATCH(ws.title, ws.description, ws.support_content, ws.keyword)
                   AGAINST (:keyword IN BOOLEAN MODE)
             ORDER BY
+                -- B안: LATEST일 때만 지역이 1순위 그룹
+                CASE
+                    WHEN :sort = 'LATEST' AND EXISTS (
+                        SELECT 1 FROM service_regions sr_ord
+                        WHERE sr_ord.service_id = ws.id AND sr_ord.sido_name = :sido
+                    ) THEN 0
+                    WHEN :sort = 'LATEST' THEN 1
+                    ELSE 0
+                END ASC,
                 CASE
                     WHEN :sort = 'VIEWS' THEN ws.view_count
                     ELSE NULL
@@ -310,9 +335,23 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                     WHEN :sort = 'LATEST' THEN ws.created_at
                     ELSE NULL
                 END DESC,
+                -- NAME: UI 정렬 옵션에서 제거됐지만 API 호환성 유지 목적으로 보존
                 CASE
                     WHEN :sort = 'NAME' THEN ws.title
                     ELSE NULL
+                END ASC,
+                -- DEADLINE: 프론트 마감임박순 기능을 위해 추가 — apply_end_date 빠른 순, NULL이면 맨 뒤
+                CASE
+                    WHEN :sort = 'DEADLINE' THEN COALESCE(ws.apply_end_date, '9999-12-31')
+                    ELSE NULL
+                END ASC,
+                -- 공통 tiebreaker: 동점일 때 지역 정책 우선
+                CASE
+                    WHEN EXISTS (
+                        SELECT 1 FROM service_regions sr_ord2
+                        WHERE sr_ord2.service_id = ws.id AND sr_ord2.sido_name = :sido
+                    ) THEN 0
+                    ELSE 1
                 END ASC,
                 CASE
                     WHEN :sort = 'RELEVANCE' THEN MATCH(ws.title, ws.description, ws.support_content, ws.keyword)
@@ -326,8 +365,9 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
             SELECT COUNT(*) FROM welfare_services ws
             WHERE (
                     (:status IS NULL AND (
-                        (:includeClosed = 1 AND ws.status IN ('ACTIVE', 'UPCOMING', 'CLOSED'))
-                        OR (:includeClosed = 0 AND ws.status IN ('ACTIVE', 'UPCOMING'))
+                        (:statusFilter = 'ALL' AND ws.status IN ('ACTIVE', 'UPCOMING', 'CLOSED'))
+                        OR (:statusFilter = 'EXPIRED_ONLY' AND (ws.status = 'CLOSED' OR (ws.apply_end_date IS NOT NULL AND ws.apply_end_date < CURDATE())))
+                        OR ((:statusFilter IS NULL OR :statusFilter = 'ACTIVE_ONLY') AND ws.status IN ('ACTIVE', 'UPCOMING') AND (ws.apply_end_date IS NULL OR ws.apply_end_date >= CURDATE()))
                     ))
                     OR (:status IS NOT NULL AND ws.status = :status)
                   )
@@ -351,7 +391,7 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
             """, nativeQuery = true)
     Page<WelfareService> searchByKeywordWithFiltersWithSido(@Param("keyword") String keyword,
                                                             @Param("status") String status,
-                                                            @Param("includeClosed") Integer includeClosed,
+                                                            @Param("statusFilter") String statusFilter,
                                                             @Param("category") String category,
                                                             @Param("sourceType") String sourceType,
                                                             @Param("onlineApply") Integer onlineApply,
@@ -363,8 +403,9 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
             SELECT ws.* FROM welfare_services ws
             WHERE (
                     (:status IS NULL AND (
-                        (:includeClosed = 1 AND ws.status IN ('ACTIVE', 'UPCOMING', 'CLOSED'))
-                        OR (:includeClosed = 0 AND ws.status IN ('ACTIVE', 'UPCOMING'))
+                        (:statusFilter = 'ALL' AND ws.status IN ('ACTIVE', 'UPCOMING', 'CLOSED'))
+                        OR (:statusFilter = 'EXPIRED_ONLY' AND (ws.status = 'CLOSED' OR (ws.apply_end_date IS NOT NULL AND ws.apply_end_date < CURDATE())))
+                        OR ((:statusFilter IS NULL OR :statusFilter = 'ACTIVE_ONLY') AND ws.status IN ('ACTIVE', 'UPCOMING') AND (ws.apply_end_date IS NULL OR ws.apply_end_date >= CURDATE()))
                     ))
                     OR (:status IS NOT NULL AND ws.status = :status)
                   )
@@ -387,6 +428,17 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
               AND MATCH(ws.title, ws.description, ws.support_content, ws.keyword)
                   AGAINST (:keyword IN BOOLEAN MODE)
             ORDER BY
+                -- B안: LATEST일 때만 지역이 1순위 그룹
+                CASE
+                    WHEN :sort = 'LATEST' AND EXISTS (
+                        SELECT 1 FROM service_regions sr_ord
+                        WHERE sr_ord.service_id = ws.id
+                          AND sr_ord.sido_name = :sido
+                          AND sr_ord.sgg_name = :sgg
+                    ) THEN 0
+                    WHEN :sort = 'LATEST' THEN 1
+                    ELSE 0
+                END ASC,
                 CASE
                     WHEN :sort = 'VIEWS' THEN ws.view_count
                     ELSE NULL
@@ -395,9 +447,25 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                     WHEN :sort = 'LATEST' THEN ws.created_at
                     ELSE NULL
                 END DESC,
+                -- NAME: UI 정렬 옵션에서 제거됐지만 API 호환성 유지 목적으로 보존
                 CASE
                     WHEN :sort = 'NAME' THEN ws.title
                     ELSE NULL
+                END ASC,
+                -- DEADLINE: 프론트 마감임박순 기능을 위해 추가 — apply_end_date 빠른 순, NULL이면 맨 뒤
+                CASE
+                    WHEN :sort = 'DEADLINE' THEN COALESCE(ws.apply_end_date, '9999-12-31')
+                    ELSE NULL
+                END ASC,
+                -- 공통 tiebreaker: 동점일 때 지역 정책 우선
+                CASE
+                    WHEN EXISTS (
+                        SELECT 1 FROM service_regions sr_ord2
+                        WHERE sr_ord2.service_id = ws.id
+                          AND sr_ord2.sido_name = :sido
+                          AND sr_ord2.sgg_name = :sgg
+                    ) THEN 0
+                    ELSE 1
                 END ASC,
                 CASE
                     WHEN :sort = 'RELEVANCE' THEN MATCH(ws.title, ws.description, ws.support_content, ws.keyword)
@@ -411,8 +479,9 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
             SELECT COUNT(*) FROM welfare_services ws
             WHERE (
                     (:status IS NULL AND (
-                        (:includeClosed = 1 AND ws.status IN ('ACTIVE', 'UPCOMING', 'CLOSED'))
-                        OR (:includeClosed = 0 AND ws.status IN ('ACTIVE', 'UPCOMING'))
+                        (:statusFilter = 'ALL' AND ws.status IN ('ACTIVE', 'UPCOMING', 'CLOSED'))
+                        OR (:statusFilter = 'EXPIRED_ONLY' AND (ws.status = 'CLOSED' OR (ws.apply_end_date IS NOT NULL AND ws.apply_end_date < CURDATE())))
+                        OR ((:statusFilter IS NULL OR :statusFilter = 'ACTIVE_ONLY') AND ws.status IN ('ACTIVE', 'UPCOMING') AND (ws.apply_end_date IS NULL OR ws.apply_end_date >= CURDATE()))
                     ))
                     OR (:status IS NOT NULL AND ws.status = :status)
                   )
@@ -437,7 +506,7 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
             """, nativeQuery = true)
     Page<WelfareService> searchByKeywordWithFiltersWithSidoSgg(@Param("keyword") String keyword,
                                                                @Param("status") String status,
-                                                               @Param("includeClosed") Integer includeClosed,
+                                                               @Param("statusFilter") String statusFilter,
                                                                @Param("category") String category,
                                                                @Param("sourceType") String sourceType,
                                                                @Param("onlineApply") Integer onlineApply,
@@ -452,65 +521,131 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
             List<WelfareService.ServiceStatus> statuses,
             Pageable pageable);
 
+    // 목록 조회 native SQL — 지역 선택 시 해당 지역 정책을 먼저 표시 후 전국 정책 표시 (region-first)
     @Query(value = """
-            SELECT ws FROM WelfareService ws
+            SELECT ws.* FROM welfare_services ws
             WHERE (
-                    (:status IS NULL AND (
-                        (:includeClosed = true AND ws.status IN ('ACTIVE', 'UPCOMING', 'CLOSED'))
-                        OR (:includeClosed = false AND ws.status IN ('ACTIVE', 'UPCOMING'))
-                    ))
+                    (
+                        :status IS NULL AND (
+                            (:statusFilter = 'ALL' AND ws.status IN ('ACTIVE', 'UPCOMING', 'CLOSED'))
+                            OR (:statusFilter = 'EXPIRED_ONLY' AND (ws.status = 'CLOSED' OR (ws.apply_end_date IS NOT NULL AND ws.apply_end_date < CURDATE())))
+                            OR ((:statusFilter IS NULL OR :statusFilter = 'ACTIVE_ONLY') AND ws.status IN ('ACTIVE', 'UPCOMING') AND (ws.apply_end_date IS NULL OR ws.apply_end_date >= CURDATE()))
+                        )
+                    )
                     OR (:status IS NOT NULL AND ws.status = :status)
                   )
-              AND (:category IS NULL OR ws.unifiedCategory = :category)
-              AND (:sourceType IS NULL OR ws.sourceType = :sourceType)
-              AND (:onlineApply IS NULL OR ws.isOnlineApply = :onlineApply)
+              AND (:category IS NULL OR ws.unified_category = :category)
+              AND (:sourceType IS NULL OR ws.source_type = :sourceType)
+              AND (:onlineApply IS NULL OR ws.is_online_apply = :onlineApply)
               AND (
                     :sido IS NULL
                     OR NOT EXISTS (
-                        SELECT sr1.id FROM ServiceRegion sr1
-                        WHERE sr1.service = ws
+                        SELECT 1 FROM service_regions sr1
+                        WHERE sr1.service_id = ws.id
                     )
                     OR EXISTS (
-                        SELECT sr2.id FROM ServiceRegion sr2
-                        WHERE sr2.service = ws
-                          AND sr2.sidoName = :sido
-                          AND (:sgg IS NULL OR sr2.sggName = :sgg)
+                        SELECT 1 FROM service_regions sr2
+                        WHERE sr2.service_id = ws.id
+                          AND (
+                              sr2.sido_name = :sido
+                              OR (:sidoCode IS NOT NULL AND sr2.region_code LIKE CONCAT(:sidoCode, '%'))
+                          )
+                          AND (
+                              :sgg IS NULL
+                              OR sr2.sgg_name = :sgg
+                              OR (:regionCode IS NOT NULL AND sr2.region_code = :regionCode)
+                          )
                     )
                   )
+            ORDER BY
+                -- B안: LATEST일 때만 지역이 1순위 그룹 (지역 정책 먼저 → 전국 정책)
+                CASE
+                    WHEN :sort = 'LATEST' AND :sido IS NOT NULL AND EXISTS (
+                        SELECT 1 FROM service_regions sr3
+                        WHERE sr3.service_id = ws.id
+                          AND (
+                              sr3.sido_name = :sido
+                              OR (:sidoCode IS NOT NULL AND sr3.region_code LIKE CONCAT(:sidoCode, '%'))
+                          )
+                          AND (
+                              :sgg IS NULL
+                              OR sr3.sgg_name = :sgg
+                              OR (:regionCode IS NOT NULL AND sr3.region_code = :regionCode)
+                          )
+                    ) THEN 0
+                    WHEN :sort = 'LATEST' THEN 1
+                    ELSE 0
+                END ASC,
+                CASE WHEN :sort = 'VIEWS' THEN ws.view_count ELSE NULL END DESC,
+                -- NAME: UI 정렬 옵션에서 제거됐지만 API 호환성 유지 목적으로 보존
+                CASE WHEN :sort = 'NAME' THEN ws.title ELSE NULL END ASC,
+                -- DEADLINE: 프론트 마감임박순 기능을 위해 추가 — apply_end_date 빠른 순, NULL이면 맨 뒤
+                CASE WHEN :sort = 'DEADLINE' THEN COALESCE(ws.apply_end_date, '9999-12-31') ELSE NULL END ASC,
+                -- 공통 tiebreaker: 동점일 때 지역 정책 우선 (VIEWS/DEADLINE은 여기서 지역 우선 결정)
+                CASE
+                    WHEN :sido IS NOT NULL AND EXISTS (
+                        SELECT 1 FROM service_regions sr4
+                        WHERE sr4.service_id = ws.id
+                          AND (
+                              sr4.sido_name = :sido
+                              OR (:sidoCode IS NOT NULL AND sr4.region_code LIKE CONCAT(:sidoCode, '%'))
+                          )
+                          AND (
+                              :sgg IS NULL
+                              OR sr4.sgg_name = :sgg
+                              OR (:regionCode IS NOT NULL AND sr4.region_code = :regionCode)
+                          )
+                    ) THEN 0
+                    ELSE 1
+                END ASC,
+                ws.created_at DESC
             """,
             countQuery = """
-            SELECT COUNT(ws) FROM WelfareService ws
+            SELECT COUNT(*) FROM welfare_services ws
             WHERE (
-                    (:status IS NULL AND (
-                        (:includeClosed = true AND ws.status IN ('ACTIVE', 'UPCOMING', 'CLOSED'))
-                        OR (:includeClosed = false AND ws.status IN ('ACTIVE', 'UPCOMING'))
-                    ))
+                    (
+                        :status IS NULL AND (
+                            (:statusFilter = 'ALL' AND ws.status IN ('ACTIVE', 'UPCOMING', 'CLOSED'))
+                            OR (:statusFilter = 'EXPIRED_ONLY' AND (ws.status = 'CLOSED' OR (ws.apply_end_date IS NOT NULL AND ws.apply_end_date < CURDATE())))
+                            OR ((:statusFilter IS NULL OR :statusFilter = 'ACTIVE_ONLY') AND ws.status IN ('ACTIVE', 'UPCOMING') AND (ws.apply_end_date IS NULL OR ws.apply_end_date >= CURDATE()))
+                        )
+                    )
                     OR (:status IS NOT NULL AND ws.status = :status)
                   )
-              AND (:category IS NULL OR ws.unifiedCategory = :category)
-              AND (:sourceType IS NULL OR ws.sourceType = :sourceType)
-              AND (:onlineApply IS NULL OR ws.isOnlineApply = :onlineApply)
+              AND (:category IS NULL OR ws.unified_category = :category)
+              AND (:sourceType IS NULL OR ws.source_type = :sourceType)
+              AND (:onlineApply IS NULL OR ws.is_online_apply = :onlineApply)
               AND (
                     :sido IS NULL
                     OR NOT EXISTS (
-                        SELECT sr1.id FROM ServiceRegion sr1
-                        WHERE sr1.service = ws
+                        SELECT 1 FROM service_regions sr1
+                        WHERE sr1.service_id = ws.id
                     )
                     OR EXISTS (
-                        SELECT sr2.id FROM ServiceRegion sr2
-                        WHERE sr2.service = ws
-                          AND sr2.sidoName = :sido
-                          AND (:sgg IS NULL OR sr2.sggName = :sgg)
+                        SELECT 1 FROM service_regions sr2
+                        WHERE sr2.service_id = ws.id
+                          AND (
+                              sr2.sido_name = :sido
+                              OR (:sidoCode IS NOT NULL AND sr2.region_code LIKE CONCAT(:sidoCode, '%'))
+                          )
+                          AND (
+                              :sgg IS NULL
+                              OR sr2.sgg_name = :sgg
+                              OR (:regionCode IS NOT NULL AND sr2.region_code = :regionCode)
+                          )
                     )
                   )
-            """)
+            """, nativeQuery = true)
     Page<WelfareService> findListWithFilters(@Param("category") String category,
-                                             @Param("sourceType") WelfareService.SourceType sourceType,
-                                             @Param("status") WelfareService.ServiceStatus status,
-                                             @Param("includeClosed") boolean includeClosed,
+                                             @Param("sourceType") String sourceType,
+                                             @Param("status") String status,
+                                             @Param("statusFilter") String statusFilter,
                                              @Param("sido") String sido,
                                              @Param("sgg") String sgg,
-                                             @Param("onlineApply") Boolean onlineApply,
+                                             @Param("sidoCode") String sidoCode,
+                                             @Param("regionCode") String regionCode,
+                                             @Param("onlineApply") Integer onlineApply,
+                                             @Param("sort") String sort,
                                              Pageable pageable);
 
     // 상태별 전체 조회 (StatusUpdateService 용)

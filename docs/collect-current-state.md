@@ -151,6 +151,40 @@ collect 이후 저장되는 축은 아래입니다.
 4. `service_taxonomies` / `service_facts` row 수
 5. 필요 시 replay/downstream smoke
 
+## 온통청년 지역 코드 처리 방식 (2026-05-03 수정)
+
+### 배경
+
+온통청년 API는 “전국 노출” 설정 정책에 255개 시군구 코드를 모두 `zipCd` 필드에 부여한다.
+이 데이터를 그대로 저장하면 서산시 정책이 서울 지역 필터에도 노출되는 문제가 발생했다.
+
+### 수정 내용
+
+**`WelfareServiceMapper.regionsFromYouth()`**
+
+`zipCd`에 포함된 시도 수가 15개 이상이면 전국 마커로 판단하고,
+`zipCd` 코드 대신 `host_org`(주관기관명)으로 실제 운영 지역을 추정한다.
+
+**`RegionCodeUtil.inferFromHostOrg()`**
+
+host_org에서 지역 코드를 추정하는 순서:
+
+1. 전국 고유 시군구명 포함 → 해당 5자리 코드 반환 (예: “서산시청” → 44210)
+2. 시도명 포함 → 해당 시도 전체 코드 반환 (예: “충청남도청” → 충남 전체)
+3. 매핑 불가 → 빈 리스트 → `service_regions` 행 없음 → NOT EXISTS로 전국 노출
+
+### 한계
+
+- **중앙부처 주관 + 지역 한정 정책**: host_org가 “고용노동부” 등 중앙부처면 추정 불가 → 전국 노출로 처리됨
+- 온통청년 API 자체에 명확한 지역 구분 필드가 없어 현재로서는 이 방식이 최선
+
+### 적용 방법
+
+코드 수정 후 `POST /api/admin/collect/youth`로 재수집하면 반영된다.
+기존 DB 데이터(이전 수집분)는 재수집 시 `source_id` 기준 upsert로 자동 교정된다.
+
+---
+
 ## 요약
 
 1. collect는 adapter registry 기반으로 돈다.

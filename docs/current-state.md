@@ -26,6 +26,74 @@
 - 신규 source 구조: [policy-source-onboarding-architecture.md](./policy-source-onboarding-architecture.md)
 - API 응답 contract: [api-mapping.md](./api-mapping.md)
 
+## 정책 목록 정렬 변경 이력 (2026-05-04)
+
+### 현재 지원 sort 값 (`?sort=`)
+
+| 값 | 설명 | UI 노출 |
+|----|------|---------|
+| `LATEST` | 최신순 (기본값) | ✅ |
+| `VIEWS` | 조회수순 | ✅ |
+| `DEADLINE` | 마감임박순 — apply_end_date 빠른 순, NULL(상시)은 맨 뒤 | ✅ |
+| `NAME` | 이름순 | ❌ UI에서 제거됨, API 코드는 유지 |
+| `RELEVANCE` | 관련도순 (검색 전용) | — |
+
+### 변경 이유
+
+- **DEADLINE 추가**: 프론트엔드 마감임박순 UI 기능 지원을 위해 백엔드 normalizeSort()와 SQL ORDER BY에 추가
+- **NAME 제거 (UI)**: 프론트 정렬 Select에서 이름순 옵션 제거. 백엔드 코드(normalizeSort, SQL)는 API 호환성을 위해 그대로 유지
+
+### 지역 우선 정렬 (region-first, B안)
+
+지역 필터(sido/sgg)가 선택된 경우 sort 값에 따라 다르게 적용 (B안):
+
+| sort | 지역 처리 |
+|------|-----------|
+| `LATEST` | 지역 일치 정책이 무조건 먼저 (strict region-first 그룹) |
+| `VIEWS`, `DEADLINE` | 품질/긴급도 우선, 동점일 때만 지역 일치 정책 앞 (tiebreaker) |
+
+프론트엔드 auto-sort: 지역 Select에서 전체 외 값 선택 시 sort를 `latest`로 자동 전환, 전체 복귀 시 `views`로 복귀.
+
+- 관련 파일: `PolicyListService.java`, `PolicySearchService.java`, `WelfareServiceRepository.java`, `PolicyListReadCondition.java`, `PoliciesPage.jsx`
+- 설계 배경: [policy-listing-sort-region-strategy.md](./history/policy/policy-listing-sort-region-strategy.md)
+
+## 정책 카드 source 필드 변경 이력 (2026-05-04)
+
+### 변경 전 → 후
+
+프론트 `mapPolicySummary`의 source 폴백 순서:
+
+| 전 | 후 |
+|----|-----|
+| `hostOrg → applyMethodName` | `hostOrg → sido → applyMethodName` |
+
+### 변경 이유
+
+- hostOrg가 null인 정책에서 카드 source 자리에 "방문, 인터넷"(applyMethodName)이 표시됨
+- 상세 API에는 service_regions JOIN으로 지역명("경기")이 나오지만 목록 API에는 지역 정보가 없었음
+- BOKJIRO_LOCAL 1,223개 정책이 hostOrg=null, sido_name=값 있음 → 이 정책들만 "경기" 등으로 표시됨
+- YOUTH는 sido_name=null(region_code만 존재), BOKJIRO_CENTRAL은 service_regions 행 자체 없음 → 변화 없음
+
+### 구현 위치
+
+- `ServiceRegionRepository.java` — `findFirstSidoByServiceIds()` 추가
+- `PolicySummaryResponse.java` — `sido` 필드 추가, `from()` 4-arg 오버로드 추가
+- `PolicyPresentationReadService.java` — `buildSidoMap()` 추가 (목록·검색 공통 적용)
+- `PoliciesPage.jsx` — `mapPolicySummary` source 폴백에 `sido` 삽입
+
+## 정책 서비스 구조 변경 이력 (2026-05-05, main merge)
+
+`PolicyService.java`가 역할별로 분리됨 (main branch, 2026-05-05 merge):
+
+| 이전 | 이후 |
+|------|------|
+| `PolicyService.getList()` | `PolicyListService.getList()` |
+| `PolicyService.getDetail()` | `PolicyDetailService.getDetail()` |
+| `PolicyService.toggleBookmark()` | `PolicyBookmarkCommandService.toggleBookmark()` |
+| (분산) 북마크·projection 조회 | `PolicyPresentationReadService.buildSummaryPage()` |
+
+sido 로직(`buildSidoMap`)은 `PolicyPresentationReadService`에 통합되어 목록·검색 공통 적용.
+
 ## 진행/기록
 
 - 진행 상황: [phase-plan.md](./phase-plan.md)
