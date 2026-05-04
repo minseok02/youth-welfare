@@ -3,15 +3,13 @@ package com.example.welfare.user.service;
 import com.example.welfare.global.util.AesEncryptUtil;
 import com.example.welfare.user.dto.response.UserPiiBackfillResponse;
 import com.example.welfare.user.repository.UserLegacyPiiSourceReadModel;
+import com.example.welfare.user.repository.UserPiiBackfillReadRepository;
 import com.example.welfare.user.repository.UserPiiBackfillStateReadModel;
-import com.example.welfare.user.repository.UserPiiReadWriteRepository;
-import com.example.welfare.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
-import java.util.LinkedHashMap;
 import java.util.Map;
 
 @Slf4j
@@ -19,12 +17,12 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class UserPiiBackfillService {
 
-    private final UserRepository userRepository;
-    private final UserPiiReadWriteRepository userPiiReadWriteRepository;
+    private final UserPiiBackfillReadRepository userPiiBackfillReadRepository;
+    private final UserPiiCommandService userPiiCommandService;
     private final AesEncryptUtil aesEncryptUtil;
 
     public UserPiiBackfillResponse backfillMissingEncryptedFields() {
-        var backfillStates = userPiiReadWriteRepository.findMissingEncryptedFields();
+        var backfillStates = userPiiBackfillReadRepository.findMissingEncryptedFields();
         Map<String, UserLegacyPiiSourceReadModel> sourceByUserKey = loadLegacySourceByUserKey(backfillStates);
 
         int updatedUserCount = 0;
@@ -56,7 +54,7 @@ public class UserPiiBackfillService {
                 continue;
             }
 
-            userPiiReadWriteRepository.backfillEncryptedFields(state.userKey(), emailEnc, nameEnc, birthDateEnc);
+            userPiiCommandService.backfillEncryptedFields(state.userKey(), emailEnc, nameEnc, birthDateEnc);
             updatedUserCount++;
 
             if (emailEnc != null) {
@@ -95,10 +93,6 @@ public class UserPiiBackfillService {
         if (userKeys.isEmpty()) {
             return Map.of();
         }
-
-        return userRepository.findPiiBackfillSourcesByUserKeys(userKeys).stream()
-                .collect(LinkedHashMap::new,
-                        (map, source) -> map.put(source.getUserKey(), source),
-                        Map::putAll);
+        return userPiiBackfillReadRepository.findLegacySourceByUserKeys(userKeys);
     }
 }

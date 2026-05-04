@@ -1,5 +1,7 @@
 package com.example.welfare.recommend.repository;
 
+import com.example.welfare.policy.entity.ServiceTag;
+import com.example.welfare.policy.repository.PolicyTagReadRepository;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.repository.WelfareServiceRepository;
 import lombok.RequiredArgsConstructor;
@@ -8,12 +10,14 @@ import org.springframework.stereotype.Repository;
 import org.springframework.util.StringUtils;
 
 import java.util.List;
+import java.util.Map;
 
 @Repository
 @RequiredArgsConstructor
 public class RecommendationCandidateReadRepositoryImpl implements RecommendationCandidateReadRepository {
 
     private final WelfareServiceRepository welfareServiceRepository;
+    private final PolicyTagReadRepository policyTagReadRepository;
 
     @Override
     public List<WelfareService> findBaseCandidates(RecommendationCandidateReadCondition condition) {
@@ -63,5 +67,10 @@ public class RecommendationCandidateReadRepositoryImpl implements Recommendation
                 condition.incomeLevel(),
                 PageRequest.of(0, condition.latestFetchSize())
         );
+    }
+
+    @Override
+    public Map<Long, List<ServiceTag>> findTagsByServiceIds(List<Long> serviceIds) {
+        return policyTagReadRepository.findByServiceIds(serviceIds);
     }
 }

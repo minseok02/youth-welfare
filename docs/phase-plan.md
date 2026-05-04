@@ -1172,6 +1172,10 @@ cd backend
   - `UserBookmarkReadService` 가 recommendation 저장소와 canonical projection 조립을 직접 들지 않도록 변경
   - 북마크 정책 요약 조회는 `RecommendationReadFacade.findBookmarkedPolicySummaries(...)` 로 이동
   - user 도메인은 active user 해석과 위임에 집중하고 북마크 summary 조립은 recommendation read 경계로 이동
+- 2026-05-04 bookmark command policy lookup 경계 정리
+  - `RecommendationBookmarkCommandService` 가 `WelfareServiceRepository.findById(...)` 를 직접 들지 않도록 변경
+  - 북마크 placeholder 생성용 정책 조회는 `PolicyLookupService.getRequiredService(...)` 로 이동
+  - recommendation command는 북마크 규칙에 집중하고 정책 엔티티 lookup은 policy 경계로 이동
 
 ## 남은 1차 작업
 
@@ -1199,6 +1203,69 @@ cd backend
 - `collect-failures` 상세에서는 최근 연속 실패/partial streak 과 `BOKJIRO_LOCAL` open-circuit 상태까지 같이 확인 가능
 - 같은 `userKey` 또는 `clientFingerprint` 가 같은 zero-result 검색을 반복한 경우, `search-failures` 응답에서 retry group으로 바로 확인 가능
 - `search-failures` 상세에서는 같은 actor가 반복 실패했다가 나중에 회복된 검색 그룹도 같이 확인 가능
+- policy 목록/검색 서비스는 canonical projection read-model을 직접 조회하지 않고 `RecommendationReadFacade` 를 통해 summary projection 을 받도록 정리
+- policy ranking 서비스도 canonical projection read-model 직접 조회를 제거하고 `RecommendationReadFacade` 로 summary projection 을 받도록 정리
+- `PolicyService.getDetail(...)` 의 상세/지역/태그 조회는 `PolicyDetailReadService` 로 분리해 서비스 본문이 detail aggregate orchestration만 하도록 정리
+- `RetrievalService` 도 canonical projection read-model 직접 조회를 제거하고 `RecommendationReadFacade` 를 통해 projection map 을 받도록 정리
+- `SearchYouthRelevanceService` 의 backfill 대상 태그 조회도 `SearchYouthRelevanceReadRepository` 로 이동해 백필 서비스가 read 구현을 직접 고르지 않도록 정리
+- `PolicyDetailReadService`, `RetrievalService`, `RuleScoringService` 의 태그 조회는 `PolicyTagReadRepository` 뒤로 모아 `ServiceTagRepository` 직접 read 결합 축소
+- `BokjiroDetailCollectService` 의 search youth relevance refresh 는 `SearchYouthRelevanceService.refreshForService(service)` 로 위임해 collect 서비스의 tag read 의존 제거
+- `PolicyDetailReadService` 의 detail/region/tag aggregate 조회는 `PolicyDetailReadRepository` 뒤로 이동해 서비스가 저장소 3개를 직접 조합하지 않도록 정리
+- `UserPiiSyncStatusService`, `UserPiiSyncReplayService` 의 queue 상태/재처리 대상 조회도 `UserPiiSyncQueueService` 로 모아 queue repository 직접 read 결합 제거
+- `PolicyRankingService` 의 unique view 집계 조회도 `PolicyRankingReadRepository` 로 이동해 랭킹 서비스가 ranking read 경계 밖의 view log 저장소를 직접 보지 않도록 정리
+- `UserReadService.getProfile(...)` 의 profile/pii/attribute/priority aggregate 조회는 `UserProfileReadRepository` 뒤로 이동해 사용자 읽기 서비스가 저장소 4개를 직접 조합하지 않도록 정리
+- `UserReadService.getRecommendationContext(...)` 의 profile/attribute/priority snapshot 조회도 `RecommendationUserReadRepository` 뒤로 이동해 추천용 사용자 aggregate 읽기 조합 책임을 서비스 밖으로 분리
+- `UserPiiBackfillService` 의 missing state/legacy source 조회는 `UserPiiBackfillReadRepository` 뒤로 이동해 PII 백필 서비스가 `UserRepository` 와 `UserPiiReadWriteRepository` read 조합을 직접 들지 않도록 정리
+- `UserMetadataUserKeyBackfillService` 의 attribute/priority count/update 조합도 `UserMetadataBackfillRepository` 뒤로 이동해 metadata 백필 서비스가 저장소 2개를 직접 병렬 조합하지 않도록 정리
+- `UserReadService.getNotificationTargets(...)` 의 notification target row + encrypted email bulk lookup 도 `NotificationTargetReadRepository` 뒤로 이동해 알림 대상 read 조합 책임을 사용자 읽기 서비스 밖으로 분리
+- `UserReadService.getNotificationEmailByUserKey(...)` 의 단건 encrypted email 조회도 같은 `NotificationTargetReadRepository` 로 통일해 notification read 경계를 한 곳으로 모음
+- `UserProfileCommandService` 와 `UserAccountCommandService` 가 attribute/priority 저장소를 직접 조합하던 write 경계는 `UserMetadataCommandRepository` 로 모아 profile 수정/우선순위 저장/탈퇴 시 metadata 조작 규칙을 한 곳에 정리
+- 알림 대상/알림 이메일 read 메서드는 `UserReadService` 에서 분리해 `UserNotificationReadService` 로 이동하고, `NotificationService` 와 `PasswordResetService` 도 이 전용 읽기 경계를 사용하도록 정리
+- `UserPiiSyncProcessor` / `UserPiiSyncReplayService` 의 queue row lookup 도 `UserPiiSyncQueueService` 로 모아 user pii sync 흐름의 queue access 경계를 단일화
+- `UserCoreSyncService` 는 orchestration만 남기고 auth/profile projection upsert 는 `UserCoreProjectionSyncService` 로 분리
+- `PasswordResetService` 의 reset 메일 수신자 조회는 `UserReadService` 로 모아 user PII 저장소 직접 의존 제거
+- `AuthService` 의 auth_users lookup hash read는 `AuthIdentityReadService` 로, 회원가입 저장+core sync 는 `UserRegistrationService` 로 분리해 인증 orchestration 과 auth identity read / signup write 경계를 분리
+- `PasswordResetService` 의 auth_users 이메일 lookup 도 같은 `AuthIdentityReadService` 로 통일
+- `UserReadService` 의 auth_users active 상태 검증도 `AuthIdentityReadService.requireActiveUserKey(...)` 로 이동하고, 더 이상 쓰지 않는 `AuthUserRepository` / profile/pii 저장소 직접 의존을 제거
+- `UserPiiBackfillService`, `UserPiiSyncProcessor` 의 app PII write 도 `UserPiiCommandService` 로 모아 backfill/sync 경로가 `UserPiiReadWriteRepository` 를 직접 두드리지 않도록 정리
+- `UserCoreProjectionSyncService` 의 auth/profile projection upsert도 `UserCoreProjectionCommandRepository` 뒤로 이동해 projection sync 서비스가 저장소 2개를 직접 조합하지 않도록 정리
+- `UserKeyLookupService`, `PolicyLookupService` 의 단건 lookup도 각각 `UserKeyReadRepository`, `PolicyLookupReadRepository` 뒤로 이동해 lookup 규칙을 service 본문 밖으로 분리
+- `UserReadService` 의 active user entity 조회는 `UserAccountReadRepository` 뒤로, `UserRegistrationService` 의 신규 사용자 저장은 `UserRegistrationCommandRepository` 뒤로 이동해 `UserRepository` 직접 의존을 더 축소
+- `PolicyViewLogService`, `PolicySearchLogService` 의 로그 저장도 `PolicyViewLogCommandRepository`, `PolicySearchLogCommandRepository` 뒤로 이동해 policy 서비스가 로그 저장소/EntityManager를 직접 두드리지 않도록 정리
+- `RecommendationBookmarkCommandService` 의 추천 row 조회·북마크 count·placeholder 저장도 `RecommendationBookmarkCommandRepository` 뒤로 이동해 북마크 command 서비스가 `UserRecommendationRepository` 를 직접 두드리지 않도록 정리
+- `RecommendationPersistenceService` 와 `RecommendationRetentionService` 의 latest read / 전체 교체 저장 / retention 삭제도 `RecommendationPersistenceCommandRepository` 뒤로 이동해 추천 저장/정리 경계를 별도 command repository 로 정리
+- `RecommendationLogService` 와 `ScoreWeightService` 의 recommendation log 저장/조회도 `RecommendationLogCommandRepository`, `RecommendationLogReadRepository` 뒤로 이동해 알림 로그 write 와 cold-start read 경계를 분리
+- `ChatMessageService` 와 `ChatMessageCommandService` 의 세션 소유 확인 / 메시지 read / append write 도 `ChatMessageReadRepository`, `ChatMessageCommandRepository` 뒤로 이동해 chat session-message persistence 조합을 서비스 밖으로 분리
+- `ChatSessionService` 와 `ChatSessionCleanupService` 의 세션 목록/소유 확인 read, 세션 생성/삭제/cleanup write 도 `ChatSessionReadRepository`, `ChatSessionCommandRepository` 뒤로 이동해 chat session persistence 경계를 분리
+- `RecommendationReadFacade` 의 북마크 최신 조회와 canonical projection 조회도 `RecommendationSummaryReadRepository` 뒤로 이동해 recommendation summary read 조합을 facade 밖으로 분리
+- `RecommendationFacade` 의 refresh cache 재사용용 최신 저장 추천 조회와 top recommendation 목록 조회도 `RecommendationResultReadRepository` 뒤로 이동해 결과 목록 read 규칙을 facade 밖으로 분리
+- `ScoreWeightService` 의 활성 가중치 목록 조회도 `ScoreWeightReadRepository` 뒤로 이동해 cold-start stage 계산과 설정 read 규칙을 분리
+- `UserProfileCommandService` 의 우선순위 option code lookup도 `PriorityOptionReadRepository` 뒤로 이동해 profile command와 option validation read 규칙을 분리
+- `UserPiiSyncQueueService` 의 queue 저장과 상태/재처리 대상 조회도 `UserPiiSyncQueueCommandRepository`, `UserPiiSyncQueueReadRepository` 뒤로 이동해 user pii sync queue 경계를 read/write 로 분리
+- `AuthIdentityReadService` 의 email lookup hash / userKey 조회도 `AuthIdentityReadRepository` 뒤로 이동해 auth identity read 규칙을 service 본문 밖으로 분리
+- `UserPiiCommandService` 의 app PII backfill/upsert/delete write 도 `UserPiiCommandRepository` 뒤로 이동해 PII write 경계를 service 본문 밖으로 분리
+- `JpaClusterAiScoreCache` 와 `StatusUpdateService` 의 `cluster_ai_results` read/write 도 `ClusterAiResultReadRepository`, `ClusterAiResultCommandRepository` 뒤로 이동해 군집 AI 캐시 경계를 read/write 로 분리
+- `UserReadService` 의 profile aggregate read/복호화는 `UserProfileReadService` 로 분리해 일반 사용자 읽기와 profile 응답 조립 책임을 나눔
+- `UserReadService` 의 recommendation snapshot 조합은 `UserRecommendationReadService` 로 분리해 active user/account 조회와 추천용 snapshot read 책임을 나눔
+- `UserReadService` 의 active user/account 조회는 `ActiveUserReadService` 로 분리해 일반 user lookup 과 active user 검증 책임을 나눔
+- active-user consumer들(`chat`, `notification`, `auth`, `user profile/account/bookmark`)은 더 이상 `UserReadService` 의 wrapper를 거치지 않고 `ActiveUserReadService` 를 직접 사용하도록 정리해, `UserReadService` 는 admin용 `userKey -> userId` 조회 facade만 남김
+- admin forced-logout 경로도 `UserKeyLookupService.requireExistingUserIdByUserKey(...)` 로 직접 정리해 `UserReadService` 래퍼를 제거
+- `NotificationService` 의 재시도 대상 조회도 `NotificationRetryReadRepository` 뒤로 이동해 알림 재시도 orchestration과 persistence read 규칙을 분리
+- `NotificationHistoryService` 의 notification header/item 저장도 `NotificationHistoryCommandRepository` 뒤로 이동해 알림 이력 orchestration과 persistence write 규칙을 분리
+- `RawApiPayloadService` 저장과 `NormalizedPolicySidecarBackfillService` 조회도 `RawApiPayloadCommandRepository`, `RawApiPayloadReadRepository` 뒤로 이동해 raw payload persistence read/write 규칙을 분리
+- `StatusUpdateService` 의 ACTIVE/UPCOMING 정책 조회도 `StatusUpdateReadRepository` 뒤로 이동해 상태 전이 orchestration과 정책 조회 규칙을 분리
+- `ApiSyncLogService` 의 stale RUNNING 복구와 collect log 저장도 `ApiSyncLogCommandRepository` 뒤로 이동해 수집 로그 orchestration과 persistence write 규칙을 분리
+- `BokjiroDetailCollectService` 의 대상 정책 목록 조회와 기존 detail 존재/조회도 `BokjiroDetailReadRepository` 뒤로 이동해 상세 수집 orchestration과 read 규칙을 분리
+- `BokjiroDetailCollectService` 의 detail row 저장도 `BokjiroDetailCommandRepository` 뒤로 이동해 상세 수집 orchestration과 persistence write 규칙을 분리
+- `NormalizedPolicySidecarBackfillService` 의 sourceType/sourceId 기준 정책 lookup도 `NormalizedPolicySidecarBackfillReadRepository` 뒤로 이동해 sidecar backfill orchestration과 서비스 매칭 read 규칙을 분리
+- `CollectItemSaver` 의 기존 정책 lookup과 신규 정책 저장도 `CollectItemReadRepository`, `CollectItemCommandRepository` 뒤로 이동해 item save orchestration과 정책 upsert read/write 규칙을 분리
+- `CollectItemSaver` 의 tag delete/saveAll 도 `CollectItemTagCommandRepository` 뒤로 이동해 item save orchestration과 tag write 규칙을 분리
+- `CollectItemSaver` 의 service region delete/batch insert도 `CollectItemRegionCommandRepository` 뒤로 이동해 item save orchestration과 region write 규칙을 분리
+- `DeferredNormalizedPolicySidecarWriter` 의 sidecar table readiness 확인과 기존 fact 조회도 `DeferredNormalizedPolicySidecarReadRepository` 뒤로 이동해 sidecar write orchestration과 read SQL 규칙을 분리
+- `DeferredNormalizedPolicySidecarWriter` 의 taxonomy summary / summary slot write도 `DeferredNormalizedPolicySidecarCommandRepository` 뒤로 이동해 sidecar write orchestration과 summary persistence 규칙을 분리
+- `DeferredNormalizedPolicySidecarWriter` 의 taxonomy term delete/insert도 `DeferredNormalizedPolicySidecarCommandRepository` 뒤로 이동해 sidecar write orchestration과 taxonomy term persistence 규칙을 분리
+- `DeferredNormalizedPolicySidecarWriter` 의 merged fact upsert도 `DeferredNormalizedPolicySidecarCommandRepository` 뒤로 이동해 sidecar write orchestration과 fact persistence 규칙을 분리
+- `NormalizedPolicySidecarBackfillService` 의 raw payload 조회와 sourceType/sourceId 매칭도 `NormalizedPolicySidecarBackfillReadRepository` 한 경계로 묶어 backfill orchestration과 read 조립 규칙을 분리
 
 ## 2차로 분리된 항목
 
@@ -1208,3 +1275,29 @@ cd backend
 - 나이대 x 소득분위 군집화 / 군집 캐시 (사용자 규모 확대 시 재검토)
 - p5~p95 정규화
 - 카카오 알림톡
+- `2026-05-04`: `RetrievalService` 가 `PolicyTagReadRepository` 를 직접 보지 않도록 정리하고, 추천 후보 + 후보 태그 read를 `RecommendationCandidateReadRepository` 경계로 모았다.
+- `2026-05-04`: `NotificationService` 가 retry 대상 조회 repository를 직접 보지 않도록 `NotificationRetryReadService` 를 추가해 재시도 대상 조회 규칙을 read service 경계로 분리했다.
+- `2026-05-04`: `RuleScoringService` 가 `PolicyTagReadRepository` 를 직접 보지 않도록 정리하고, 점수 계산용 후보 태그 조회도 `RecommendationCandidateReadRepository` 경계로 통일했다.
+- `2026-05-04`: `UserProfileCommandService` 가 `PriorityOptionReadRepository` 를 직접 보지 않도록 `PriorityOptionReadService` 를 추가하고, 우선순위 코드 조회/예외 매핑을 read service 경계로 분리했다.
+- `2026-05-04`: `ScoreWeightService` 가 추천 로그 총건수 조회와 활성 가중치 설정 조회를 직접 조합하던 부분을 `ScoreWeightProgressReadService` 로 분리했다.
+- `2026-05-04`: `RecommendationLogService` 에서 최신 logId 맵 조회를 `RecommendationLogReadService` 로 분리하고, 추천 컨트롤러는 조회 전용 service를 사용하도록 정리했다.
+- `2026-05-04`: `RecommendationPersistenceService` 가 과거 북마크 상태 조회를 command repo로 읽지 않도록 정리하고, 기존 추천 row 조회를 `RecommendationResultReadRepository` 경계로 옮겼다.
+- `2026-05-04`: `RawApiPayloadService` 가 기존 row 조회 후 upsert 판단까지 직접 하던 부분을 `RawApiPayloadCommandRepository.upsert(...)` 뒤로 이동시켰다.
+- `2026-05-04`: `RecommendationPersistenceService` 에서 기존 북마크 상태 맵 계산을 `RecommendationBookmarkStateReadService` 로 분리해 저장 서비스가 추천 row 조립과 교체 저장에 더 집중하게 했다.
+- `2026-05-04`: `RecommendationFacade` 가 refresh-cache hit 조회와 저장 추천 목록 조회를 직접 들지 않도록 `RecommendationResultReadService` 를 추가해 저장 추천 read 규칙을 facade 밖으로 분리했다.
+- `2026-05-04`: `RecommendationReadFacade` 를 제거하고, 북마크 조회와 projection 조회를 각각 `RecommendationBookmarkReadService`, `RecommendationProjectionReadService` 로 분리했다. policy list/search/ranking/detail, recommendation controller, retrieval, user bookmark read 사용처를 한 번에 전환해 추천 read 책임을 더 선명하게 정리했다.
+- `2026-05-04`: policy 모듈 안에 `PolicyPresentationReadService` 를 추가해 목록/검색/랭킹/상세에서 공통으로 쓰이던 북마크 상태 + projection additive field 조립 책임을 policy 경계로 끌어올렸다. 이제 policy 서비스들은 recommendation read service를 직접 모르고 policy presentation 경계만 사용한다.
+- `2026-05-04`: collect 모듈 안에 `CollectPolicyAggregateApplyService` 를 추가해 list save, detail collect, sidecar backfill이 공유하던 sidecar upsert / detail fallback 적용 / youth relevance refresh 후처리를 한 경계로 모았다. 이제 `CollectItemSaver`, `BokjiroDetailCollectService`, `NormalizedPolicySidecarBackfillService` 는 수집 orchestration에 더 집중한다.
+- `2026-05-04`: admin dashboard 영역을 `AdminDashboardSummaryService`, `AdminDashboardSearchService`, `AdminDashboardRecommendationService`, `AdminDashboardCollectService` 로 분리하고, `AdminDashboardService` 는 thin facade 로 축소했다. 공통 query normalization 과 ratio 계산은 `AdminDashboardQueryPolicy` 로 옮겨 summary/search/recommend/collect read orchestration 이 한 서비스에 다시 뭉치지 않게 정리했다.
+- `2026-05-04`: admin dashboard JDBC read도 `AdminDashboardCollectReadRepository`, `AdminDashboardRecommendationReadRepository`, `AdminDashboardSearchReadRepository`, `AdminDashboardNotificationReadRepository` 로 분리하고, 공통 row 모델은 `AdminDashboardReadRows` 로 이동했다. 이제 summary/search/recommend/collect 서비스는 각자 필요한 read 경계만 주입받는다.
+- `2026-05-04`: recommendation 영역에서 `RecommendationFacade` 가 직접 들고 있던 생성 파이프라인 orchestration 을 `RecommendationGenerationService` 로, 저장 추천 조회를 `RecommendationAccessService` 로 분리했다. 이제 facade 는 API 진입점 위임과 북마크 토글만 맡고, 추천 생성/조회 책임은 별도 서비스로 선명하게 나뉜다.
+- `2026-05-04`: notification 영역을 스케줄 facade(`NotificationService`), 추천 준비(`NotificationRecommendationService`), 본문 생성(`NotificationMessageService`), 발송 실행(`NotificationDispatchService`), 재시도 실행(`NotificationRetryService`)으로 분리했다. 이제 알림 스케줄링, 추천 선정, 발송/이력 저장, 재시도 규칙이 한 서비스에 다시 뭉치지 않는다.
+- `2026-05-04`: `UserService` facade를 제거하고 `UserController`, `NotificationController` 가 각각 `UserProfileReadService`, `UserBookmarkReadService`, `UserProfileCommandService`, `UserAccountCommandService` 를 직접 사용하도록 전환했다. 이제 사용자/알림 API 상단에 의미 없는 중간 facade가 남지 않는다.
+- `2026-05-04`: `AuthService` facade를 제거하고 인증 상단 흐름을 `AuthAvailabilityService`, `AuthSignupService`, `AuthLoginService`, `AuthSessionService`, `AuthAdminRoleService` 로 분리했다. `AuthController` 는 이제 이메일 중복확인/회원가입/로그인/세션 처리/비밀번호 재설정을 각 전용 서비스에 직접 연결하고, 관리자 allowlist/role 해석 규칙도 별도 경계로 분리했다.
+- `2026-05-04`: `CollectService` facade를 제거하고 수집 상단 흐름을 `CollectBatchService`, `CollectAdminService`, `CollectSourceExecutionService` 로 분리했다. 이제 정기 배치, 관리자 수동 실행, source adapter dispatch / `api_sync_logs` 기록이 각각 별도 경계로 나뉘고, `CollectAdminController` 와 관리자 보안 테스트도 새 경계에 직접 연결된다.
+- `2026-05-04`: `PolicyService` facade를 제거하고 정책 상단 흐름을 `PolicyListService`, `PolicyDetailService`, `PolicyBookmarkCommandService` 로 분리했다. `PolicyController` 는 목록/상세/북마크 요청을 각 전용 서비스에 직접 연결하고, policy 모듈의 상단 API에도 의미 없는 중간 facade가 남지 않도록 정리했다.
+- `2026-05-04`: `RecommendationFacade` 를 제거하고 추천 상단 흐름을 `RecommendationGenerationService`, `RecommendationAccessService`, `RecommendationBookmarkCommandService` 로 분리했다. `RecommendationController` 는 이제 추천 생성/목록 조회/북마크 토글을 각 전용 서비스에 직접 연결하고, recommendation API 상단에도 의미 없는 중간 facade가 남지 않도록 정리했다.
+- `2026-05-04`: `NotificationService` facade를 제거하고 알림 상단 흐름을 `NotificationScheduleService`, `NotificationDispatchService`, `NotificationRetryService` 로 명확히 분리했다. 이제 스케줄 진입점은 대상 조회와 스케줄 실행만 맡고, 실제 추천 준비/본문 생성/발송/이력 저장은 dispatch 경계 아래로 정리된다.
+- `2026-05-04`: `AdminDashboardService` facade를 제거하고 관리자 대시보드 상단 흐름을 `AdminDashboardSummaryService`, `AdminDashboardSearchService`, `AdminDashboardRecommendationService`, `AdminDashboardCollectService` 로 직접 연결했다. `AdminDashboardController` 와 관리자 WebMvc 테스트도 각 전용 서비스에 바로 붙도록 전환해, admin dashboard API 상단에도 의미 없는 중간 facade가 남지 않게 정리했다.
+- `2026-05-04`: chat 상단 흐름을 `ChatConversationService`, `ChatSessionQueryService`, `ChatSessionCommandService` 로 재편했다. `ChatSessionController` 는 이제 세션 조회/세션 command/대화 실행을 각 전용 서비스에 직접 연결하고, 기존 `ChatMessageService` / `ChatSessionService` 가 함께 들고 있던 상단 API 책임을 분리했다.
+- `2026-05-04`: current-state 문서군도 새 진입점 기준으로 동기화했다. `architecture.md`, `policy-source-code-entrypoints.md`, `user-data-separation-design.md` 에서 제거된 facade(`AuthService`, `UserService`, `CollectService` 등) 참조를 걷어내고, 실제 상단 entrypoint/service 묶음을 `Auth*Service`, `User*Service`, `Collect*Service` 기준으로 다시 맞췄다.

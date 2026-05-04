@@ -1,12 +1,11 @@
 package com.example.welfare.policy.service;
 
 import com.example.welfare.policy.dto.PolicySearchResponse;
+import com.example.welfare.policy.dto.PolicySummaryResponse;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.repository.PolicySearchReadCondition;
 import com.example.welfare.policy.repository.WelfareServiceReadRepository;
 import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
-import com.example.welfare.recommend.facade.RecommendationReadFacade;
-import com.example.welfare.recommend.repository.CanonicalRecommendationReadModelRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -31,17 +30,14 @@ class PolicySearchServiceTest {
     @Mock
     private WelfareServiceReadRepository welfareServiceReadRepository;
     @Mock
-    private RecommendationReadFacade recommendationReadFacade;
-    @Mock
-    private CanonicalRecommendationReadModelRepository canonicalRecommendationReadModelRepository;
+    private PolicyPresentationReadService policyPresentationReadService;
 
     @Test
     @DisplayName("검색은 SQL 레벨 청년 플래그 필터 결과를 페이지 메타데이터와 함께 반환한다")
     void searchReturnsPagedResponse() {
         PolicySearchService service = new PolicySearchService(
                 welfareServiceReadRepository,
-                recommendationReadFacade,
-                canonicalRecommendationReadModelRepository
+                policyPresentationReadService
         );
 
         WelfareService youthService = welfareService(1L, "청년 정책");
@@ -51,13 +47,18 @@ class PolicySearchServiceTest {
                 )),
                 any(PageRequest.class)
         )).willReturn(new PageImpl<>(List.of(youthService), PageRequest.of(0, 10), 21));
-        given(canonicalRecommendationReadModelRepository.findByServiceIds(List.of(1L)))
-                .willReturn(java.util.Map.of(
-                        1L,
-                        RecommendationCandidateProjection.builder()
-                                .serviceId(1L)
-                                .unifiedCategoryCompat("주거")
-                                .build()
+        given(policyPresentationReadService.buildSummaryPage(eq(null), any(org.springframework.data.domain.Page.class)))
+                .willReturn(new PageImpl<>(
+                        List.of(PolicySummaryResponse.from(
+                                youthService,
+                                false,
+                                RecommendationCandidateProjection.builder()
+                                        .serviceId(1L)
+                                        .unifiedCategoryCompat("주거")
+                                        .build()
+                        )),
+                        PageRequest.of(0, 10),
+                        21
                 ));
 
         PolicySearchResponse results = service.search(null, "청년", null, null, null, null, null, null, null, null, 0, 10);
@@ -84,8 +85,7 @@ class PolicySearchServiceTest {
     void searchWithSidoAndSggUsesRegionQuery() {
         PolicySearchService service = new PolicySearchService(
                 welfareServiceReadRepository,
-                recommendationReadFacade,
-                canonicalRecommendationReadModelRepository
+                policyPresentationReadService
         );
 
         WelfareService youthService = welfareService(2L, "서울 청년 정책");
@@ -95,8 +95,8 @@ class PolicySearchServiceTest {
                 )),
                 any(PageRequest.class)
         )).willReturn(new PageImpl<>(List.of(youthService), PageRequest.of(0, 10), 1));
-        given(canonicalRecommendationReadModelRepository.findByServiceIds(List.of(2L)))
-                .willReturn(java.util.Map.of());
+        given(policyPresentationReadService.buildSummaryPage(eq(null), any(org.springframework.data.domain.Page.class)))
+                .willReturn(new PageImpl<>(List.of(PolicySummaryResponse.from(youthService, false)), PageRequest.of(0, 10), 1));
 
         PolicySearchResponse results = service.search(
                 null,
@@ -127,8 +127,7 @@ class PolicySearchServiceTest {
     void searchWithSidoOnlyUsesSidoQuery() {
         PolicySearchService service = new PolicySearchService(
                 welfareServiceReadRepository,
-                recommendationReadFacade,
-                canonicalRecommendationReadModelRepository
+                policyPresentationReadService
         );
 
         WelfareService youthService = welfareService(3L, "서울 전체 청년 정책");
@@ -138,8 +137,8 @@ class PolicySearchServiceTest {
                 )),
                 any(PageRequest.class)
         )).willReturn(new PageImpl<>(List.of(youthService), PageRequest.of(0, 10), 1));
-        given(canonicalRecommendationReadModelRepository.findByServiceIds(List.of(3L)))
-                .willReturn(java.util.Map.of());
+        given(policyPresentationReadService.buildSummaryPage(eq(null), any(org.springframework.data.domain.Page.class)))
+                .willReturn(new PageImpl<>(List.of(PolicySummaryResponse.from(youthService, false)), PageRequest.of(0, 10), 1));
 
         PolicySearchResponse results = service.search(
                 null,

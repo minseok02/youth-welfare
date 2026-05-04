@@ -5,8 +5,7 @@ import com.example.welfare.notification.entity.Notification.NotificationChannel;
 import com.example.welfare.notification.entity.Notification.NotificationPeriodType;
 import com.example.welfare.notification.entity.Notification.NotificationStatus;
 import com.example.welfare.notification.entity.NotificationServiceItem;
-import com.example.welfare.notification.repository.NotificationRepository;
-import com.example.welfare.notification.repository.NotificationServiceItemRepository;
+import com.example.welfare.notification.repository.NotificationHistoryCommandRepository;
 import com.example.welfare.recommend.entity.RecommendationLog;
 import com.example.welfare.recommend.entity.UserRecommendation;
 import com.example.welfare.user.entity.User;
@@ -22,8 +21,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class NotificationHistoryService {
 
-    private final NotificationRepository notificationRepository;
-    private final NotificationServiceItemRepository notificationServiceItemRepository;
+    private final NotificationHistoryCommandRepository notificationHistoryCommandRepository;
 
     @Transactional
     public Notification saveResult(User user,
@@ -48,7 +46,7 @@ public class NotificationHistoryService {
         if (status == NotificationStatus.FAILED) {
             notification.failInitially(LocalDateTime.now().plusMinutes(30), errorMessage);
         }
-        notification = notificationRepository.save(notification);
+        notification = notificationHistoryCommandRepository.saveNotification(notification);
 
         if (recommendations.isEmpty()) {
             return notification;
@@ -67,7 +65,7 @@ public class NotificationHistoryService {
                     .serviceTitle(rec.getService().getTitle())
                     .build());
         }
-        notificationServiceItemRepository.saveAll(items);
+        notificationHistoryCommandRepository.saveNotificationItems(items);
         return notification;
     }
 }

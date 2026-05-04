@@ -8,7 +8,10 @@ import com.example.welfare.user.dto.request.UpdatePrioritiesRequest;
 import com.example.welfare.user.dto.request.UpdateProfileRequest;
 import com.example.welfare.user.dto.request.WithdrawRequest;
 import com.example.welfare.user.dto.response.ProfileResponse;
-import com.example.welfare.user.service.UserService;
+import com.example.welfare.user.service.UserAccountCommandService;
+import com.example.welfare.user.service.UserBookmarkReadService;
+import com.example.welfare.user.service.UserProfileCommandService;
+import com.example.welfare.user.service.UserProfileReadService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
@@ -24,25 +27,28 @@ import java.util.List;
 @RequiredArgsConstructor
 public class UserController {
 
-    private final UserService userService;
+    private final UserProfileReadService userProfileReadService;
+    private final UserBookmarkReadService userBookmarkReadService;
+    private final UserProfileCommandService userProfileCommandService;
+    private final UserAccountCommandService userAccountCommandService;
 
     @GetMapping
     public ResponseEntity<ApiResponse<ProfileResponse>> getProfile(
             @AuthenticationPrincipal AuthenticatedUser authenticatedUser) {
-        return ResponseEntity.ok(ApiResponse.success(userService.getProfile(resolveUserId(authenticatedUser))));
+        return ResponseEntity.ok(ApiResponse.success(userProfileReadService.getProfile(resolveUserId(authenticatedUser))));
     }
 
     @GetMapping("/bookmarks")
     public ResponseEntity<ApiResponse<List<PolicySummaryResponse>>> getBookmarks(
             @AuthenticationPrincipal AuthenticatedUser authenticatedUser) {
-        return ResponseEntity.ok(ApiResponse.success(userService.getBookmarks(resolveUserId(authenticatedUser))));
+        return ResponseEntity.ok(ApiResponse.success(userBookmarkReadService.getBookmarks(resolveUserId(authenticatedUser))));
     }
 
     @PutMapping
     public ResponseEntity<ApiResponse<Void>> updateProfile(
             @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
             @Valid @RequestBody UpdateProfileRequest request) {
-        userService.updateProfile(resolveUserId(authenticatedUser), request);
+        userProfileCommandService.updateProfile(resolveUserId(authenticatedUser), request);
         return ResponseEntity.ok(ApiResponse.success(null));
     }
 
@@ -50,7 +56,7 @@ public class UserController {
     public ResponseEntity<ApiResponse<Void>> updatePriorities(
             @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
             @Valid @RequestBody UpdatePrioritiesRequest request) {
-        userService.updatePriorities(resolveUserId(authenticatedUser), request);
+        userProfileCommandService.updatePriorities(resolveUserId(authenticatedUser), request);
         return ResponseEntity.ok(ApiResponse.success(null));
     }
 
@@ -58,14 +64,18 @@ public class UserController {
     public ResponseEntity<ApiResponse<Void>> changePassword(
             @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
             @Valid @RequestBody ChangePasswordRequest request) {
-        userService.changePassword(resolveUserId(authenticatedUser), request.getCurrentPassword(), request.getNewPassword());
+        userAccountCommandService.changePassword(
+                resolveUserId(authenticatedUser),
+                request.getCurrentPassword(),
+                request.getNewPassword()
+        );
         return ResponseEntity.ok(ApiResponse.success(null));
     }
 
     @PostMapping("/notifications/unsubscribe")
     public ResponseEntity<ApiResponse<Void>> unsubscribeNotifications(
             @AuthenticationPrincipal AuthenticatedUser authenticatedUser) {
-        userService.unsubscribeNotifications(resolveUserId(authenticatedUser));
+        userAccountCommandService.unsubscribeNotifications(resolveUserId(authenticatedUser));
         return ResponseEntity.ok(ApiResponse.success(null));
     }
 
@@ -74,7 +84,11 @@ public class UserController {
             @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
             @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorizationHeader,
             @Valid @RequestBody WithdrawRequest request) {
-        userService.withdraw(resolveUserId(authenticatedUser), request.getPassword(), extractBearerToken(authorizationHeader));
+        userAccountCommandService.withdraw(
+                resolveUserId(authenticatedUser),
+                request.getPassword(),
+                extractBearerToken(authorizationHeader)
+        );
         return ResponseEntity.ok(ApiResponse.success(null));
     }
 

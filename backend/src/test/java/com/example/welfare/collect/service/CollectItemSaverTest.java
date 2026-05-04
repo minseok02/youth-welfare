@@ -3,15 +3,15 @@ package com.example.welfare.collect.service;
 import com.example.welfare.collect.dto.YouthApiDto;
 import com.example.welfare.collect.mapper.WelfareServiceMapper;
 import com.example.welfare.collect.normalization.NormalizedPolicyAggregate;
-import com.example.welfare.collect.normalization.NormalizedPolicySidecarWriter;
+import com.example.welfare.collect.repository.CollectItemCommandRepository;
+import com.example.welfare.collect.repository.CollectItemRegionCommandRepository;
+import com.example.welfare.collect.repository.CollectItemReadRepository;
+import com.example.welfare.collect.repository.CollectItemTagCommandRepository;
 import com.example.welfare.collect.support.ListCollectSourceBinding;
 import com.example.welfare.collect.support.ListCollectSourceBindings;
 import com.example.welfare.policy.entity.ServiceRegion;
 import com.example.welfare.policy.entity.ServiceTag;
 import com.example.welfare.policy.entity.WelfareService;
-import com.example.welfare.policy.repository.ServiceTagRepository;
-import com.example.welfare.policy.repository.WelfareServiceRepository;
-import com.example.welfare.policy.service.SearchYouthRelevanceService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -19,7 +19,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.transaction.PlatformTransactionManager;
 
@@ -41,17 +40,17 @@ class CollectItemSaverTest {
     @Mock
     private WelfareServiceMapper mapper;
     @Mock
-    private WelfareServiceRepository welfareServiceRepository;
+    private CollectItemReadRepository collectItemReadRepository;
     @Mock
-    private ServiceTagRepository tagRepository;
+    private CollectItemCommandRepository collectItemCommandRepository;
+    @Mock
+    private CollectItemRegionCommandRepository collectItemRegionCommandRepository;
+    @Mock
+    private CollectItemTagCommandRepository collectItemTagCommandRepository;
     @Mock
     private PlatformTransactionManager transactionManager;
     @Mock
-    private JdbcTemplate jdbcTemplate;
-    @Mock
-    private SearchYouthRelevanceService searchYouthRelevanceService;
-    @Mock
-    private NormalizedPolicySidecarWriter normalizedPolicySidecarWriter;
+    private CollectPolicyAggregateApplyService collectPolicyAggregateApplyService;
 
     private CollectItemSaver saver;
 
@@ -59,12 +58,12 @@ class CollectItemSaverTest {
     void setUp() {
         saver = new CollectItemSaver(
                 mapper,
-                welfareServiceRepository,
-                tagRepository,
+                collectItemReadRepository,
+                collectItemCommandRepository,
+                collectItemRegionCommandRepository,
+                collectItemTagCommandRepository,
                 transactionManager,
-                jdbcTemplate,
-                searchYouthRelevanceService,
-                normalizedPolicySidecarWriter
+                collectPolicyAggregateApplyService
         );
     }
 
@@ -103,7 +102,7 @@ class CollectItemSaverTest {
                 .tagValue("대학생")
                 .build();
 
-        given(welfareServiceRepository.findBySourceTypeAndSourceId(WelfareService.SourceType.YOUTH, "Y-1"))
+        given(collectItemReadRepository.findServiceBySourceTypeAndSourceId(WelfareService.SourceType.YOUTH, "Y-1"))
                 .willReturn(Optional.of(existing));
         given(mapper.fromYouth(item)).willReturn(incoming);
         given(mapper.regionsFromYouth(item, existing)).willReturn(List.<ServiceRegion>of());
@@ -111,10 +110,8 @@ class CollectItemSaverTest {
 
         saver.saveOnce(binding, item);
 
-        verify(tagRepository).deleteByServiceId(11L);
-
         ArgumentCaptor<List<ServiceTag>> tagsCaptor = ArgumentCaptor.forClass(List.class);
-        verify(tagRepository).saveAll(tagsCaptor.capture());
+        verify(collectItemTagCommandRepository).replaceAll(eq(11L), tagsCaptor.capture());
         List<ServiceTag> savedTags = tagsCaptor.getValue();
         assertThat(savedTags).hasSize(2);
         assertThat(savedTags)
@@ -125,7 +122,7 @@ class CollectItemSaverTest {
                 );
         assertThat(savedTags).allMatch(tag -> tag.getService() == existing);
 
-        verify(searchYouthRelevanceService).refreshForService(eq(existing), eq(savedTags));
+        verify(collectPolicyAggregateApplyService).applyCollectedItem(existing, null, savedTags);
     }
 
     @Test
@@ -147,7 +144,7 @@ class CollectItemSaverTest {
                 .status(WelfareService.ServiceStatus.ACTIVE)
                 .build();
 
-        given(welfareServiceRepository.findBySourceTypeAndSourceId(WelfareService.SourceType.YOUTH, "Y-2"))
+        given(collectItemReadRepository.findServiceBySourceTypeAndSourceId(WelfareService.SourceType.YOUTH, "Y-2"))
                 .willReturn(Optional.of(existing));
         given(mapper.fromYouth(item)).willReturn(incoming);
         given(mapper.regionsFromYouth(item, existing)).willReturn(List.<ServiceRegion>of());
@@ -155,9 +152,8 @@ class CollectItemSaverTest {
 
         saver.saveOnce(binding, item);
 
-        verify(tagRepository).deleteByServiceId(22L);
-        verify(tagRepository, never()).saveAll(any());
-        verify(searchYouthRelevanceService).refreshForService(eq(existing), eq(List.of()));
+        verify(collectItemTagCommandRepository).replaceAll(22L, List.of());
+        verify(collectPolicyAggregateApplyService).applyCollectedItem(existing, null, List.of());
     }
 
     @Test
@@ -199,7 +195,7 @@ class CollectItemSaverTest {
                 .build();
         NormalizedPolicyAggregate aggregate = normalizedAggregate("Y-4");
 
-        given(welfareServiceRepository.findBySourceTypeAndSourceId(WelfareService.SourceType.YOUTH, "Y-4"))
+        given(collectItemReadRepository.findServiceBySourceTypeAndSourceId(WelfareService.SourceType.YOUTH, "Y-4"))
                 .willReturn(Optional.of(existing));
         given(mapper.fromYouth(item)).willReturn(incoming);
         given(mapper.regionsFromYouth(item, existing)).willReturn(List.of());
@@ -207,7 +203,7 @@ class CollectItemSaverTest {
 
         saver.saveOnce(binding, item, aggregate);
 
-        verify(normalizedPolicySidecarWriter).upsert(existing, aggregate);
+        verify(collectPolicyAggregateApplyService).applyCollectedItem(existing, aggregate, List.of());
     }
 
     @Test
@@ -243,15 +239,13 @@ class CollectItemSaverTest {
                 ignored -> aggregate
         );
 
-        given(welfareServiceRepository.findBySourceTypeAndSourceId(WelfareService.SourceType.YOUTH, item.sourceId()))
+        given(collectItemReadRepository.findServiceBySourceTypeAndSourceId(WelfareService.SourceType.YOUTH, item.sourceId()))
                 .willReturn(Optional.of(existing));
 
         saver.saveOnce(binding.toSaveCommand(item));
 
-        verify(normalizedPolicySidecarWriter).upsert(existing, aggregate);
-        verify(tagRepository).deleteByServiceId(55L);
-        verify(tagRepository).saveAll(any());
-        verify(searchYouthRelevanceService).refreshForService(eq(existing), any());
+        verify(collectPolicyAggregateApplyService).applyCollectedItem(eq(existing), eq(aggregate), any());
+        verify(collectItemTagCommandRepository).replaceAll(eq(55L), any());
     }
 
     private YouthApiDto.Item youthItem(String plcyNo) {

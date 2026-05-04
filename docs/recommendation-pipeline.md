@@ -268,7 +268,7 @@ GROUP BY rule_weight_used, ai_weight_used;
 현재 구현 위치:
 
 - `NotificationSlotSelector`
-- `NotificationService.sendTopRecommendations()`
+- `NotificationDispatchService.sendTopRecommendations()`
 
 즉 추천 저장/정렬 로직은 그대로 두고, 알림 발송 시점에만 후보 3건을 별도 규칙으로 다시 고릅니다.
 

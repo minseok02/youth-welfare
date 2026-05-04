@@ -8,9 +8,6 @@ import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.repository.PolicySearchReadCondition;
 import com.example.welfare.policy.repository.WelfareServiceReadRepository;
 import com.example.welfare.policy.support.WelfareSourceTypeSupport;
-import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
-import com.example.welfare.recommend.facade.RecommendationReadFacade;
-import com.example.welfare.recommend.repository.CanonicalRecommendationReadModelRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -19,8 +16,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -32,8 +27,7 @@ public class PolicySearchService {
     private static final long SEARCH_WARN_DURATION_MS = 500L;
 
     private final WelfareServiceReadRepository welfareServiceReadRepository;
-    private final RecommendationReadFacade recommendationReadFacade;
-    private final CanonicalRecommendationReadModelRepository canonicalRecommendationReadModelRepository;
+    private final PolicyPresentationReadService policyPresentationReadService;
 
     @Transactional(readOnly = true)
     public PolicySearchResponse search(Long userId, String keyword, int page) {
@@ -83,15 +77,9 @@ public class PolicySearchService {
                 PageRequest.of(pageNumber, limit)
         );
 
-        Set<Long> bookmarkedServiceIds = recommendationReadFacade.findBookmarkedServiceIds(userId, resultPage.getContent());
-        java.util.Map<Long, RecommendationCandidateProjection> projections = loadProjections(resultPage.getContent());
-        List<PolicySummaryResponse> content = resultPage.getContent().stream()
-                .map(service -> PolicySummaryResponse.from(
-                        service,
-                        bookmarkedServiceIds.contains(service.getId()),
-                        projections.get(service.getId())
-                ))
-                .collect(Collectors.toList());
+        List<PolicySummaryResponse> content = policyPresentationReadService
+                .buildSummaryPage(userId, resultPage)
+                .getContent();
 
         PolicySearchResponse response = PolicySearchResponse.builder()
                 .content(content)
@@ -158,16 +146,6 @@ public class PolicySearchService {
                     keywordTokenCount);
         }
     }
-
-    private java.util.Map<Long, RecommendationCandidateProjection> loadProjections(List<WelfareService> services) {
-        if (services == null || services.isEmpty()) {
-            return java.util.Map.of();
-        }
-        return canonicalRecommendationReadModelRepository.findByServiceIds(
-                services.stream().map(WelfareService::getId).toList()
-        );
-    }
-
     // Boolean Mode 검색어 구성: 공백 분리 후 각 단어에 + 접두사
     private String buildFulltextKeyword(String keyword) {
         String[] words = keyword.trim().split("\\s+");

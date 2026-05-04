@@ -2,7 +2,7 @@ package com.example.welfare.collect.service;
 
 import com.example.welfare.collect.entity.RawApiPayload;
 import com.example.welfare.collect.gateway.BokjiroDetailClient;
-import com.example.welfare.collect.repository.RawApiPayloadRepository;
+import com.example.welfare.collect.repository.RawApiPayloadCommandRepository;
 import com.example.welfare.collect.support.ListCollectSourceBinding;
 import com.example.welfare.collect.validation.RawFieldValidator;
 import com.example.welfare.policy.entity.WelfareService;
@@ -22,7 +22,7 @@ import java.util.HexFormat;
 @RequiredArgsConstructor
 public class RawApiPayloadService {
 
-    private final RawApiPayloadRepository rawApiPayloadRepository;
+    private final RawApiPayloadCommandRepository rawApiPayloadCommandRepository;
     private final ObjectMapper objectMapper;
 
     @Transactional
@@ -67,19 +67,14 @@ public class RawApiPayloadService {
             String payloadHash = sha256(payloadJson);
             LocalDateTime fetchedAt = LocalDateTime.now();
 
-            RawApiPayload entity = rawApiPayloadRepository
-                    .findBySourceTypeAndSourceIdAndApiCategory(sourceType, sourceId, apiCategory)
-                    .orElseGet(() -> RawApiPayload.builder()
-                            .sourceType(sourceType)
-                            .sourceId(sourceId)
-                            .apiCategory(apiCategory)
-                            .payloadJson(payloadJson)
-                            .payloadHash(payloadHash)
-                            .fetchedAt(fetchedAt)
-                            .build());
-
-            entity.updatePayload(payloadJson, payloadHash, fetchedAt);
-            rawApiPayloadRepository.save(entity);
+            rawApiPayloadCommandRepository.upsert(
+                    sourceType,
+                    sourceId,
+                    apiCategory,
+                    payloadJson,
+                    payloadHash,
+                    fetchedAt
+            );
         } catch (Exception e) {
             log.warn("[RawApiPayloadService] raw 저장 실패 sourceType={} sourceId={} apiCategory={} err={}",
                     sourceType, sourceId, apiCategory, e.getMessage());

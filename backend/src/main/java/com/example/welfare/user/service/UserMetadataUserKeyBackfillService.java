@@ -1,8 +1,7 @@
 package com.example.welfare.user.service;
 
 import com.example.welfare.user.dto.response.UserMetadataUserKeyBackfillResponse;
-import com.example.welfare.user.repository.UserAttributeRepository;
-import com.example.welfare.user.repository.UserPriorityRepository;
+import com.example.welfare.user.repository.UserMetadataBackfillRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -13,27 +12,26 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class UserMetadataUserKeyBackfillService {
 
-    private final UserAttributeRepository userAttributeRepository;
-    private final UserPriorityRepository userPriorityRepository;
+    private final UserMetadataBackfillRepository userMetadataBackfillRepository;
 
     @Transactional
     public UserMetadataUserKeyBackfillResponse backfillMissingUserKeys() {
-        int attributeMissingCount = userAttributeRepository.countMissingUserKeys();
-        int priorityMissingCount = userPriorityRepository.countMissingUserKeys();
+        UserMetadataBackfillRepository.BackfillCounts missingCounts =
+                userMetadataBackfillRepository.countMissingUserKeys();
+        UserMetadataBackfillRepository.BackfillCounts updatedCounts =
+                userMetadataBackfillRepository.backfillMissingUserKeys();
 
-        int attributeUpdatedCount = userAttributeRepository.backfillMissingUserKeys();
-        int priorityUpdatedCount = userPriorityRepository.backfillMissingUserKeys();
-        int processedCount = attributeMissingCount + priorityMissingCount;
-        int updatedRowCount = attributeUpdatedCount + priorityUpdatedCount;
+        int processedCount = missingCounts.attributeCount() + missingCounts.priorityCount();
+        int updatedRowCount = updatedCounts.attributeCount() + updatedCounts.priorityCount();
 
         log.info("[UserMetadataUserKeyBackfillService] user metadata user_key 백필 완료 processed={} updated={} attrs={} priorities={}",
-                processedCount, updatedRowCount, attributeUpdatedCount, priorityUpdatedCount);
+                processedCount, updatedRowCount, updatedCounts.attributeCount(), updatedCounts.priorityCount());
 
         return new UserMetadataUserKeyBackfillResponse(
                 processedCount,
                 updatedRowCount,
-                attributeUpdatedCount,
-                priorityUpdatedCount
+                updatedCounts.attributeCount(),
+                updatedCounts.priorityCount()
         );
     }
 }

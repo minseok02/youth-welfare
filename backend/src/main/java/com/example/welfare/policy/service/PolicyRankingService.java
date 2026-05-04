@@ -3,9 +3,7 @@ package com.example.welfare.policy.service;
 import com.example.welfare.policy.dto.PolicyRankingResponse;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.repository.PolicyRankingReadRepository;
-import com.example.welfare.policy.repository.ServiceViewLogRepository;
 import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
-import com.example.welfare.recommend.repository.CanonicalRecommendationReadModelRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,8 +30,7 @@ public class PolicyRankingService {
     private static final int EXPLORE_WINDOW_DAYS = 14;
 
     private final PolicyRankingReadRepository policyRankingReadRepository;
-    private final ServiceViewLogRepository serviceViewLogRepository;
-    private final CanonicalRecommendationReadModelRepository canonicalRecommendationReadModelRepository;
+    private final PolicyPresentationReadService policyPresentationReadService;
 
     @Transactional(readOnly = true)
     public List<PolicyRankingResponse> getRanking(int size) {
@@ -45,14 +42,14 @@ public class PolicyRankingService {
                 .map(WelfareService::getId)
                 .toList();
         LocalDateTime uniqueCutoff = LocalDateTime.now().minusDays(UNIQUE_VIEW_WINDOW_DAYS);
-        Map<Long, Long> uniqueViewsByServiceId = serviceViewLogRepository.findUniqueViewCountsSince(serviceIds, uniqueCutoff)
+        Map<Long, Long> uniqueViewsByServiceId = policyRankingReadRepository.findUniqueViewCountsSince(serviceIds, uniqueCutoff)
                 .stream()
                 .collect(Collectors.toMap(
-                        ServiceViewLogRepository.ServiceUniqueViewCount::getServiceId,
+                        PolicyRankingReadRepository.ServiceUniqueViewCount::getServiceId,
                         row -> safeLong(row.getUniqueViewCount())
                 ));
         Map<Long, RecommendationCandidateProjection> projections =
-                canonicalRecommendationReadModelRepository.findByServiceIds(serviceIds);
+                policyPresentationReadService.findProjections(services);
 
         double maxUniqueRaw = services.stream()
                 .mapToDouble(s -> log1p(uniqueViewsByServiceId.getOrDefault(s.getId(), 0L)))

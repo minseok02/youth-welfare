@@ -10,7 +10,11 @@ import com.example.welfare.user.dto.request.PasswordResetRequest;
 import com.example.welfare.user.dto.request.SignupRequest;
 import com.example.welfare.user.dto.response.EmailAvailabilityResponse;
 import com.example.welfare.user.dto.response.TokenResponse;
-import com.example.welfare.user.service.AuthService;
+import com.example.welfare.user.service.AuthAvailabilityService;
+import com.example.welfare.user.service.AuthLoginService;
+import com.example.welfare.user.service.AuthSessionService;
+import com.example.welfare.user.service.AuthSignupService;
+import com.example.welfare.user.service.PasswordResetService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -27,38 +31,42 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
 
     private static final String REFRESH_COOKIE_NAME = "refresh_token";
-    private final AuthService authService;
+    private final AuthAvailabilityService authAvailabilityService;
+    private final AuthSignupService authSignupService;
+    private final AuthLoginService authLoginService;
+    private final AuthSessionService authSessionService;
+    private final PasswordResetService passwordResetService;
 
     @Value("${auth.refresh.cookie-secure:false}")
     private boolean cookieSecure;
 
     @GetMapping("/check-email")
     public ResponseEntity<ApiResponse<EmailAvailabilityResponse>> checkEmailAvailability(@RequestParam String email) {
-        return ResponseEntity.ok(ApiResponse.success(authService.checkEmailAvailability(email)));
+        return ResponseEntity.ok(ApiResponse.success(authAvailabilityService.checkEmailAvailability(email)));
     }
 
     @PostMapping("/signup")
     public ResponseEntity<ApiResponse<Void>> signup(@Valid @RequestBody SignupRequest request) {
-        authService.signup(request);
+        authSignupService.signup(request);
         return ResponseEntity.ok(ApiResponse.success(null));
     }
 
     @PostMapping("/password-reset/request")
     public ResponseEntity<ApiResponse<Void>> requestPasswordReset(@Valid @RequestBody PasswordResetRequest request) {
-        authService.requestPasswordReset(request.getEmail());
+        passwordResetService.requestPasswordReset(request.getEmail());
         return ResponseEntity.ok(ApiResponse.success(null));
     }
 
     @PostMapping("/password-reset/confirm")
     public ResponseEntity<ApiResponse<Void>> confirmPasswordReset(
             @Valid @RequestBody PasswordResetConfirmRequest request) {
-        authService.confirmPasswordReset(request.getToken(), request.getNewPassword());
+        passwordResetService.confirmPasswordReset(request.getToken(), request.getNewPassword());
         return ResponseEntity.ok(ApiResponse.success(null));
     }
 
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<TokenResponse>> login(@Valid @RequestBody LoginRequest request) {
-        TokenResponse token = authService.login(request);
+        TokenResponse token = authLoginService.login(request);
 
         ResponseCookie refreshCookie = buildRefreshCookie(token.getRefreshToken(), 7 * 24 * 60 * 60L);
         TokenResponse body = TokenResponse.of(token.getAccessToken(), null);
@@ -78,7 +86,7 @@ public class AuthController {
             throw new CustomException(ErrorCode.INVALID_TOKEN);
         }
 
-        TokenResponse token = authService.refresh(refreshToken);
+        TokenResponse token = authSessionService.refresh(refreshToken);
 
         ResponseCookie refreshCookie = buildRefreshCookie(token.getRefreshToken(), 7 * 24 * 60 * 60L);
         TokenResponse body = TokenResponse.of(token.getAccessToken(), null);
@@ -98,11 +106,11 @@ public class AuthController {
         String accessToken = extractBearerToken(authorizationHeader);
 
         if (StringUtils.hasText(refreshToken)) {
-            authService.logoutByRefreshToken(refreshToken, accessToken);
+            authSessionService.logoutByRefreshToken(refreshToken, accessToken);
         } else if (authenticatedUser != null && authenticatedUser.hasUserKey()) {
-            authService.logoutByUserKey(authenticatedUser.userKey(), accessToken);
+            authSessionService.logoutByUserKey(authenticatedUser.userKey(), accessToken);
         } else if (authenticatedUser != null && authenticatedUser.hasUserId()) {
-            authService.logout(authenticatedUser.userId(), accessToken);
+            authSessionService.logout(authenticatedUser.userId(), accessToken);
         }
 
         ResponseCookie clearCookie = buildRefreshCookie("", 0);

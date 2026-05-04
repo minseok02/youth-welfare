@@ -2,8 +2,6 @@ package com.example.welfare.user.service;
 
 import com.example.welfare.user.entity.UserPiiSyncQueue;
 import com.example.welfare.user.entity.UserPiiSyncQueueStatus;
-import com.example.welfare.user.repository.UserPiiReadWriteRepository;
-import com.example.welfare.user.repository.UserPiiSyncQueueRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -17,12 +15,12 @@ public class UserPiiSyncProcessor {
 
     private static final int MAX_ERROR_LENGTH = 500;
 
-    private final UserPiiSyncQueueRepository userPiiSyncQueueRepository;
-    private final UserPiiReadWriteRepository userPiiReadWriteRepository;
+    private final UserPiiSyncQueueService userPiiSyncQueueService;
+    private final UserPiiCommandService userPiiCommandService;
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public UserPiiSyncQueueStatus process(String userKey) {
-        UserPiiSyncQueue queue = userPiiSyncQueueRepository.findByUserKey(userKey)
+        UserPiiSyncQueue queue = userPiiSyncQueueService.findOptional(userKey)
                 .orElse(null);
         if (queue == null) {
             log.warn("[UserPiiSyncProcessor] queue row not found userKey={}", userKey);
@@ -30,7 +28,7 @@ public class UserPiiSyncProcessor {
         }
 
         try {
-            userPiiReadWriteRepository.upsertUserPii(
+            userPiiCommandService.upsertUserPii(
                     queue.getUserKey(),
                     queue.getEmailEnc(),
                     queue.getNameEnc(),

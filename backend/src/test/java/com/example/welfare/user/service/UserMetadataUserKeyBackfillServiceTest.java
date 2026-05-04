@@ -1,8 +1,7 @@
 package com.example.welfare.user.service;
 
 import com.example.welfare.user.dto.response.UserMetadataUserKeyBackfillResponse;
-import com.example.welfare.user.repository.UserAttributeRepository;
-import com.example.welfare.user.repository.UserPriorityRepository;
+import com.example.welfare.user.repository.UserMetadataBackfillRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -17,10 +16,7 @@ import static org.mockito.BDDMockito.given;
 class UserMetadataUserKeyBackfillServiceTest {
 
     @Mock
-    private UserAttributeRepository userAttributeRepository;
-
-    @Mock
-    private UserPriorityRepository userPriorityRepository;
+    private UserMetadataBackfillRepository userMetadataBackfillRepository;
 
     @InjectMocks
     private UserMetadataUserKeyBackfillService userMetadataUserKeyBackfillService;
@@ -28,10 +24,10 @@ class UserMetadataUserKeyBackfillServiceTest {
     @Test
     @DisplayName("metadata user_key 백필은 attribute와 priority 누락 row를 함께 채운다")
     void backfillMissingUserKeys() {
-        given(userAttributeRepository.countMissingUserKeys()).willReturn(3);
-        given(userPriorityRepository.countMissingUserKeys()).willReturn(2);
-        given(userAttributeRepository.backfillMissingUserKeys()).willReturn(3);
-        given(userPriorityRepository.backfillMissingUserKeys()).willReturn(2);
+        given(userMetadataBackfillRepository.countMissingUserKeys())
+                .willReturn(new UserMetadataBackfillRepository.BackfillCounts(3, 2));
+        given(userMetadataBackfillRepository.backfillMissingUserKeys())
+                .willReturn(new UserMetadataBackfillRepository.BackfillCounts(3, 2));
 
         UserMetadataUserKeyBackfillResponse response = userMetadataUserKeyBackfillService.backfillMissingUserKeys();
 

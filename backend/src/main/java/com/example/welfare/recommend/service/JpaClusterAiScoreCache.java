@@ -1,7 +1,8 @@
 package com.example.welfare.recommend.service;
 
 import com.example.welfare.recommend.entity.ClusterAiResult;
-import com.example.welfare.recommend.repository.ClusterAiResultRepository;
+import com.example.welfare.recommend.repository.ClusterAiResultCommandRepository;
+import com.example.welfare.recommend.repository.ClusterAiResultReadRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,12 +16,13 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class JpaClusterAiScoreCache implements ClusterAiScoreCache {
 
-    private final ClusterAiResultRepository clusterAiResultRepository;
+    private final ClusterAiResultReadRepository clusterAiResultReadRepository;
+    private final ClusterAiResultCommandRepository clusterAiResultCommandRepository;
 
     @Override
     @Transactional(readOnly = true)
     public Map<Long, CachedClusterAiScore> findByClusterId(String clusterId) {
-        return clusterAiResultRepository.findByClusterId(clusterId).stream()
+        return clusterAiResultReadRepository.findByClusterId(clusterId).stream()
                 .collect(Collectors.toMap(
                         result -> result.getService().getId(),
                         result -> new CachedClusterAiScore(
@@ -40,7 +42,7 @@ public class JpaClusterAiScoreCache implements ClusterAiScoreCache {
             return;
         }
 
-        Map<Long, ClusterAiResult> existingByServiceId = clusterAiResultRepository.findByClusterId(clusterId).stream()
+        Map<Long, ClusterAiResult> existingByServiceId = clusterAiResultReadRepository.findByClusterId(clusterId).stream()
                 .collect(Collectors.toMap(result -> result.getService().getId(), result -> result));
 
         for (ClusterAiScoreWrite write : writes) {
@@ -49,7 +51,7 @@ public class JpaClusterAiScoreCache implements ClusterAiScoreCache {
                 existing.update(write.aiScore(), write.aiReason());
                 continue;
             }
-            clusterAiResultRepository.save(ClusterAiResult.builder()
+            clusterAiResultCommandRepository.save(ClusterAiResult.builder()
                     .clusterId(clusterId)
                     .service(write.service())
                     .aiScore(write.aiScore())

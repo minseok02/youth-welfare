@@ -4,7 +4,6 @@ import com.example.welfare.policy.dto.SearchYouthRelevanceBackfillResponse;
 import com.example.welfare.policy.entity.ServiceTag;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.repository.SearchYouthRelevanceReadRepository;
-import com.example.welfare.policy.repository.ServiceTagRepository;
 import com.example.welfare.recommend.support.RecommendationYouthRelevanceSupport;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,11 +21,14 @@ import java.util.stream.Collectors;
 public class SearchYouthRelevanceService {
 
     private final SearchYouthRelevanceReadRepository searchYouthRelevanceReadRepository;
-    private final ServiceTagRepository serviceTagRepository;
     private final RecommendationYouthRelevanceSupport recommendationYouthRelevanceSupport;
 
     public boolean compute(WelfareService service, List<ServiceTag> tags) {
         return recommendationYouthRelevanceSupport.isYouthRelevant(service, tags != null ? tags : Collections.emptyList());
+    }
+
+    public void refreshForService(WelfareService service) {
+        refreshForService(service, searchYouthRelevanceReadRepository.findTagsByServiceId(service.getId()));
     }
 
     public void refreshForService(WelfareService service, List<ServiceTag> tags) {
@@ -43,7 +45,7 @@ public class SearchYouthRelevanceService {
         List<Long> serviceIds = services.stream()
                 .map(WelfareService::getId)
                 .toList();
-        Map<Long, List<ServiceTag>> tagsByServiceId = serviceTagRepository.findByServiceIdIn(serviceIds).stream()
+        Map<Long, List<ServiceTag>> tagsByServiceId = searchYouthRelevanceReadRepository.findTagsByServiceIds(serviceIds).stream()
                 .collect(Collectors.groupingBy(tag -> tag.getService().getId()));
 
         int updatedCount = 0;

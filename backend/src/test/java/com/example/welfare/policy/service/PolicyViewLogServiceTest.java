@@ -1,9 +1,7 @@
 package com.example.welfare.policy.service;
 
-import com.example.welfare.policy.entity.WelfareService;
-import com.example.welfare.policy.repository.ServiceViewLogRepository;
+import com.example.welfare.policy.repository.PolicyViewLogCommandRepository;
 import com.example.welfare.user.service.UserKeyLookupService;
-import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -22,11 +20,9 @@ import static org.mockito.Mockito.verify;
 class PolicyViewLogServiceTest {
 
     @Mock
-    private ServiceViewLogRepository serviceViewLogRepository;
+    private PolicyViewLogCommandRepository policyViewLogCommandRepository;
     @Mock
     private UserKeyLookupService userKeyLookupService;
-    @Mock
-    private EntityManager entityManager;
 
     @InjectMocks
     private PolicyViewLogService policyViewLogService;
@@ -35,39 +31,37 @@ class PolicyViewLogServiceTest {
     @DisplayName("같은 사용자의 24시간 내 중복 조회는 카운트하지 않는다")
     void duplicateUserViewInWindow() {
         given(userKeyLookupService.findNullable(1L)).willReturn("user-key-1");
-        given(serviceViewLogRepository.existsByServiceIdAndUserKeyAndViewedAtAfter(eq(10L), eq("user-key-1"), any()))
+        given(policyViewLogCommandRepository.existsDuplicateUserView(eq(10L), eq("user-key-1"), any()))
                 .willReturn(true);
 
         boolean increase = policyViewLogService.registerViewIfFirstInWindow(10L, 1L, "fp");
 
         assertFalse(increase);
-        verify(serviceViewLogRepository, never()).save(any());
+        verify(policyViewLogCommandRepository, never()).saveView(anyLong(), any(), any());
     }
 
     @Test
     @DisplayName("중복이 아니면 조회 로그를 남기고 카운트한다")
     void firstViewInWindow() {
         given(userKeyLookupService.findNullable(1L)).willReturn("user-key-1");
-        given(serviceViewLogRepository.existsByServiceIdAndUserKeyAndViewedAtAfter(eq(10L), eq("user-key-1"), any()))
+        given(policyViewLogCommandRepository.existsDuplicateUserView(eq(10L), eq("user-key-1"), any()))
                 .willReturn(false);
-        given(entityManager.getReference(eq(WelfareService.class), eq(10L)))
-                .willReturn(WelfareService.builder().id(10L).build());
 
         boolean increase = policyViewLogService.registerViewIfFirstInWindow(10L, 1L, "fp");
 
         assertTrue(increase);
-        verify(serviceViewLogRepository).save(any());
+        verify(policyViewLogCommandRepository).saveView(10L, "user-key-1", "fp");
     }
 
     @Test
     @DisplayName("비로그인 식별자도 24시간 내 중복이면 카운트하지 않는다")
     void duplicateAnonymousViewInWindow() {
-        given(serviceViewLogRepository.existsByServiceIdAndClientFingerprintAndViewedAtAfter(eq(10L), eq("fp"), any()))
+        given(policyViewLogCommandRepository.existsDuplicateAnonymousView(eq(10L), eq("fp"), any()))
                 .willReturn(true);
 
         boolean increase = policyViewLogService.registerViewIfFirstInWindow(10L, null, "fp");
 
         assertFalse(increase);
-        verify(serviceViewLogRepository, never()).save(any());
+        verify(policyViewLogCommandRepository, never()).saveView(anyLong(), any(), any());
     }
 }

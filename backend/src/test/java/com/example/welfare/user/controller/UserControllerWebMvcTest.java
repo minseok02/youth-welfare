@@ -2,7 +2,10 @@ package com.example.welfare.user.controller;
 
 import com.example.welfare.global.auth.AuthenticatedUser;
 import com.example.welfare.policy.dto.PolicySummaryResponse;
-import com.example.welfare.user.service.UserService;
+import com.example.welfare.user.service.UserAccountCommandService;
+import com.example.welfare.user.service.UserBookmarkReadService;
+import com.example.welfare.user.service.UserProfileCommandService;
+import com.example.welfare.user.service.UserProfileReadService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,14 +35,20 @@ class UserControllerWebMvcTest {
     private MockMvc mockMvc;
 
     @MockBean
-    private UserService userService;
+    private UserProfileReadService userProfileReadService;
+    @MockBean
+    private UserBookmarkReadService userBookmarkReadService;
+    @MockBean
+    private UserProfileCommandService userProfileCommandService;
+    @MockBean
+    private UserAccountCommandService userAccountCommandService;
     @MockBean
     private JpaMetamodelMappingContext jpaMetamodelMappingContext;
 
     @Test
     @DisplayName("마이페이지 북마크 목록 조회는 성공 응답을 반환한다")
     void getBookmarksReturnsSuccessResponse() throws Exception {
-        given(userService.getBookmarks(isNull())).willReturn(List.of(
+        given(userBookmarkReadService.getBookmarks(isNull())).willReturn(List.of(
                 PolicySummaryResponse.builder()
                         .id(11L)
                         .title("청년 월세 지원")
@@ -72,6 +81,6 @@ class UserControllerWebMvcTest {
                 .andExpect(jsonPath("$.data[0].gov24UserTypeLabel").value("청년"))
                 .andExpect(jsonPath("$.data[0].gov24BenefitTypeLabel").value("서비스"));
 
-        then(userService).should().getBookmarks(isNull());
+        then(userBookmarkReadService).should().getBookmarks(isNull());
     }
 }

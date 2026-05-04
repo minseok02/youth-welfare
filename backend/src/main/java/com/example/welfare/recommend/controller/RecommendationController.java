@@ -5,9 +5,11 @@ import com.example.welfare.global.response.ApiResponse;
 import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
 import com.example.welfare.recommend.dto.RecommendationResponse;
 import com.example.welfare.recommend.entity.UserRecommendation;
-import com.example.welfare.recommend.facade.RecommendationFacade;
-import com.example.welfare.recommend.facade.RecommendationReadFacade;
-import com.example.welfare.recommend.service.RecommendationLogService;
+import com.example.welfare.recommend.service.RecommendationAccessService;
+import com.example.welfare.recommend.service.RecommendationBookmarkCommandService;
+import com.example.welfare.recommend.service.RecommendationGenerationService;
+import com.example.welfare.recommend.service.RecommendationLogReadService;
+import com.example.welfare.recommend.service.RecommendationProjectionReadService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -22,9 +24,11 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class RecommendationController {
 
-    private final RecommendationFacade recommendationFacade;
-    private final RecommendationReadFacade recommendationReadFacade;
-    private final RecommendationLogService recommendationLogService;
+    private final RecommendationAccessService recommendationAccessService;
+    private final RecommendationGenerationService recommendationGenerationService;
+    private final RecommendationBookmarkCommandService recommendationBookmarkCommandService;
+    private final RecommendationProjectionReadService recommendationProjectionReadService;
+    private final RecommendationLogReadService recommendationLogReadService;
 
     // 추천 목록 조회 (저장된 결과 반환 — 실시간 AI 추가 호출 없음)
     @GetMapping
@@ -32,10 +36,10 @@ public class RecommendationController {
             @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
             @RequestParam(defaultValue = "10") int size) {
         Long userId = resolveUserId(authenticatedUser);
-        List<UserRecommendation> recs = recommendationFacade.getRecommendations(userId, size);
+        List<UserRecommendation> recs = recommendationAccessService.getRecommendations(userId, size);
 
         List<Long> serviceIds = recs.stream().map(r -> r.getService().getId()).toList();
-        Map<Long, Long> serviceLogMap = recommendationLogService.findLatestLogIdMap(userId, serviceIds);
+        Map<Long, Long> serviceLogMap = recommendationLogReadService.findLatestLogIdMap(userId, serviceIds);
         List<RecommendationResponse> response = toResponses(recs, serviceLogMap);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
@@ -47,11 +51,11 @@ public class RecommendationController {
             @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
             @RequestParam(defaultValue = "false") boolean personal) {
         Long userId = resolveUserId(authenticatedUser);
-        List<UserRecommendation> recs = recommendationFacade.recommend(userId, personal);
+        List<UserRecommendation> recs = recommendationGenerationService.recommend(userId, personal);
 
         // 방금 생성된 CTR 로그에서 serviceId → logId 매핑 조회
         List<Long> serviceIds = recs.stream().map(r -> r.getService().getId()).toList();
-        Map<Long, Long> serviceLogMap = recommendationLogService.findLatestLogIdMap(userId, serviceIds);
+        Map<Long, Long> serviceLogMap = recommendationLogReadService.findLatestLogIdMap(userId, serviceIds);
         List<RecommendationResponse> response = toResponses(recs, serviceLogMap);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
@@ -61,7 +65,7 @@ public class RecommendationController {
     public ResponseEntity<ApiResponse<Void>> toggleBookmark(
             @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
             @PathVariable Long id) {
-        recommendationFacade.toggleBookmark(resolveUserId(authenticatedUser), id);
+        recommendationBookmarkCommandService.toggleRecommendationBookmark(resolveUserId(authenticatedUser), id);
         return ResponseEntity.ok(ApiResponse.success(null));
     }
 
@@ -72,7 +76,7 @@ public class RecommendationController {
     private List<RecommendationResponse> toResponses(List<UserRecommendation> recs,
                                                      Map<Long, Long> serviceLogMap) {
         Map<Long, RecommendationCandidateProjection> projections =
-                recommendationReadFacade.findCandidateProjections(recs);
+                recommendationProjectionReadService.findCandidateProjections(recs);
 
         return recs.stream()
                 .map(rec -> RecommendationResponse.from(

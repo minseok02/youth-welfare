@@ -1,6 +1,10 @@
 package com.example.welfare.user.controller;
 
-import com.example.welfare.user.service.AuthService;
+import com.example.welfare.user.service.AuthAvailabilityService;
+import com.example.welfare.user.service.AuthLoginService;
+import com.example.welfare.user.service.AuthSessionService;
+import com.example.welfare.user.service.AuthSignupService;
+import com.example.welfare.user.service.PasswordResetService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,14 +31,22 @@ class AuthControllerWebMvcTest {
     private MockMvc mockMvc;
 
     @MockBean
-    private AuthService authService;
+    private AuthAvailabilityService authAvailabilityService;
+    @MockBean
+    private AuthSignupService authSignupService;
+    @MockBean
+    private AuthLoginService authLoginService;
+    @MockBean
+    private AuthSessionService authSessionService;
+    @MockBean
+    private PasswordResetService passwordResetService;
     @MockBean
     private JpaMetamodelMappingContext jpaMetamodelMappingContext;
 
     @Test
     @DisplayName("이메일 중복확인은 인증 없이도 사용 가능 여부를 반환한다")
     void checkEmailAvailability() throws Exception {
-        given(authService.checkEmailAvailability("new@example.com"))
+        given(authAvailabilityService.checkEmailAvailability("new@example.com"))
                 .willReturn(new com.example.welfare.user.dto.response.EmailAvailabilityResponse(true));
 
         mockMvc.perform(get("/api/auth/check-email")
@@ -43,7 +55,7 @@ class AuthControllerWebMvcTest {
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.available").value(true));
 
-        then(authService).should().checkEmailAvailability("new@example.com");
+        then(authAvailabilityService).should().checkEmailAvailability("new@example.com");
     }
 
     @Test
@@ -57,7 +69,7 @@ class AuthControllerWebMvcTest {
                 .andExpect(header().string(HttpHeaders.SET_COOKIE,
                         org.hamcrest.Matchers.containsString("refresh_token=")));
 
-        then(authService).should().logoutByRefreshToken("refresh-token-value", "access-token-value");
+        then(authSessionService).should().logoutByRefreshToken("refresh-token-value", "access-token-value");
     }
 
     @Test
@@ -73,7 +85,7 @@ class AuthControllerWebMvcTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true));
 
-        then(authService).should().requestPasswordReset("user@example.com");
+        then(passwordResetService).should().requestPasswordReset("user@example.com");
     }
 
     @Test
@@ -90,6 +102,6 @@ class AuthControllerWebMvcTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true));
 
-        then(authService).should().confirmPasswordReset("reset-token", "new-password123");
+        then(passwordResetService).should().confirmPasswordReset("reset-token", "new-password123");
     }
 }

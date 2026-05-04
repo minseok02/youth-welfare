@@ -8,17 +8,22 @@ import com.example.welfare.policy.dto.PolicyRankingResponse;
 import com.example.welfare.policy.dto.PolicySearchResponse;
 import com.example.welfare.policy.dto.PolicySummaryResponse;
 import com.example.welfare.policy.entity.WelfareService;
+import com.example.welfare.policy.service.PolicyBookmarkCommandService;
+import com.example.welfare.policy.service.PolicyDetailService;
+import com.example.welfare.policy.service.PolicyListService;
 import com.example.welfare.policy.service.PolicyRankingService;
 import com.example.welfare.policy.service.PolicySearchLogService;
 import com.example.welfare.policy.service.PolicySearchService;
-import com.example.welfare.policy.service.PolicyService;
 import com.example.welfare.policy.service.PolicyViewLogService;
 import com.example.welfare.recommend.controller.RecommendationController;
 import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
 import com.example.welfare.recommend.entity.UserRecommendation;
-import com.example.welfare.recommend.facade.RecommendationFacade;
-import com.example.welfare.recommend.facade.RecommendationReadFacade;
+import com.example.welfare.recommend.service.RecommendationAccessService;
+import com.example.welfare.recommend.service.RecommendationBookmarkCommandService;
+import com.example.welfare.recommend.service.RecommendationGenerationService;
+import com.example.welfare.recommend.service.RecommendationLogReadService;
 import com.example.welfare.recommend.service.RecommendationLogService;
+import com.example.welfare.recommend.service.RecommendationProjectionReadService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -54,11 +59,19 @@ class RecommendationPolicyFlowWebMvcTest {
     private MockMvc mockMvc;
 
     @MockBean
-    private RecommendationFacade recommendationFacade;
+    private RecommendationAccessService recommendationAccessService;
+    @MockBean
+    private RecommendationGenerationService recommendationGenerationService;
+    @MockBean
+    private RecommendationBookmarkCommandService recommendationBookmarkCommandService;
     @MockBean
     private JpaMetamodelMappingContext jpaMetamodelMappingContext;
     @MockBean
-    private PolicyService policyService;
+    private PolicyListService policyListService;
+    @MockBean
+    private PolicyDetailService policyDetailService;
+    @MockBean
+    private PolicyBookmarkCommandService policyBookmarkCommandService;
     @MockBean
     private PolicyRankingService policyRankingService;
     @MockBean
@@ -68,7 +81,9 @@ class RecommendationPolicyFlowWebMvcTest {
     @MockBean
     private RecommendationLogService recommendationLogService;
     @MockBean
-    private RecommendationReadFacade recommendationReadFacade;
+    private RecommendationLogReadService recommendationLogReadService;
+    @MockBean
+    private RecommendationProjectionReadService recommendationProjectionReadService;
     @MockBean
     private PolicyViewLogService policyViewLogService;
     @MockBean
@@ -120,10 +135,10 @@ class RecommendationPolicyFlowWebMvcTest {
                 .bookmarked(true)
                 .build();
 
-        given(recommendationFacade.recommend(isNull(), eq(false))).willReturn(List.of(recommendation));
-        given(recommendationLogService.findLatestLogIdMap(isNull(), org.mockito.ArgumentMatchers.anyList()))
+        given(recommendationGenerationService.recommend(isNull(), eq(false))).willReturn(List.of(recommendation));
+        given(recommendationLogReadService.findLatestLogIdMap(isNull(), org.mockito.ArgumentMatchers.anyList()))
                 .willReturn(java.util.Map.of(11L, 9001L));
-        given(recommendationReadFacade.findCandidateProjections(org.mockito.ArgumentMatchers.anyList()))
+        given(recommendationProjectionReadService.findCandidateProjections(org.mockito.ArgumentMatchers.anyList()))
                 .willReturn(java.util.Map.of(
                         11L,
                         RecommendationCandidateProjection.builder()
@@ -205,7 +220,7 @@ class RecommendationPolicyFlowWebMvcTest {
                 .andExpect(jsonPath("$.data.totalPages").value(1))
                 .andExpect(jsonPath("$.data.hasNext").value(false));
 
-        verify(recommendationFacade).recommend(isNull(), eq(false));
+        verify(recommendationGenerationService).recommend(isNull(), eq(false));
         verify(policyRankingService).getRanking(5);
         verify(policySearchService).search(isNull(), eq("월세"), eq("ACTIVE"), isNull(), eq("HOUSING"), eq("YOUTH"), eq(true), isNull(), isNull(), eq("RELEVANCE"), eq(0), eq(10));
         verify(policySearchLogService).record(any());
@@ -224,10 +239,10 @@ class RecommendationPolicyFlowWebMvcTest {
                 .recommendedAt(LocalDateTime.of(2026, 4, 16, 8, 0))
                 .build();
 
-        given(recommendationFacade.getRecommendations(isNull(), eq(10))).willReturn(List.of(recommendation));
-        given(recommendationLogService.findLatestLogIdMap(isNull(), org.mockito.ArgumentMatchers.anyList()))
+        given(recommendationAccessService.getRecommendations(isNull(), eq(10))).willReturn(List.of(recommendation));
+        given(recommendationLogReadService.findLatestLogIdMap(isNull(), org.mockito.ArgumentMatchers.anyList()))
                 .willReturn(java.util.Map.of(11L, 9001L));
-        given(recommendationReadFacade.findCandidateProjections(org.mockito.ArgumentMatchers.anyList()))
+        given(recommendationProjectionReadService.findCandidateProjections(org.mockito.ArgumentMatchers.anyList()))
                 .willReturn(java.util.Map.of(
                         11L,
                         RecommendationCandidateProjection.builder()
@@ -262,7 +277,7 @@ class RecommendationPolicyFlowWebMvcTest {
                 .andExpect(jsonPath("$.data[0].gov24UserTypeLabel").value("청년"))
                 .andExpect(jsonPath("$.data[0].gov24BenefitTypeLabel").value("서비스"));
 
-        verify(recommendationFacade).getRecommendations(isNull(), eq(10));
+        verify(recommendationAccessService).getRecommendations(isNull(), eq(10));
     }
 
     @Test
@@ -282,7 +297,7 @@ class RecommendationPolicyFlowWebMvcTest {
                 .build();
         given(clientFingerprintService.build(org.mockito.ArgumentMatchers.any())).willReturn("fp");
         given(policyViewLogService.registerViewIfFirstInWindow(eq(11L), isNull(), eq("fp"))).willReturn(true);
-        given(policyService.getDetail(isNull(), eq(11L), eq(true))).willReturn(detail);
+        given(policyDetailService.getDetail(isNull(), eq(11L), eq(true))).willReturn(detail);
 
         mockMvc.perform(get("/api/policies/{id}", 11L)
                         .param("logId", "9001"))
@@ -297,13 +312,13 @@ class RecommendationPolicyFlowWebMvcTest {
                 .andExpect(jsonPath("$.data.gov24UserTypeLabel").value("청년"))
                 .andExpect(jsonPath("$.data.gov24BenefitTypeLabel").value("서비스"));
 
-        verify(policyService).getDetail(isNull(), eq(11L), eq(true));
+        verify(policyDetailService).getDetail(isNull(), eq(11L), eq(true));
         verify(recommendationLogService).markClicked(9001L);
     }
 
     @Test
-    @DisplayName("정책 북마크 API는 정책 서비스에 토글을 위임한다")
-    void policyBookmarkDelegatesToPolicyService() throws Exception {
+    @DisplayName("정책 북마크 API는 정책 북마크 command service에 토글을 위임한다")
+    void policyBookmarkDelegatesToPolicyBookmarkCommandService() throws Exception {
         mockMvc.perform(post("/api/policies/{id}/bookmark", 11L)
                         .with(authentication(new UsernamePasswordAuthenticationToken(
                                 new AuthenticatedUser(1L, "user-key-1"),
@@ -313,7 +328,7 @@ class RecommendationPolicyFlowWebMvcTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true));
 
-        verify(policyService).toggleBookmark(isNull(), eq(11L));
+        verify(policyBookmarkCommandService).toggleBookmark(isNull(), eq(11L));
     }
 
     private WelfareService sampleService(Long id, String title) {

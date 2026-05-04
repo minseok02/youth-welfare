@@ -1,7 +1,7 @@
 package com.example.welfare.user.service;
 
 import com.example.welfare.policy.dto.PolicySummaryResponse;
-import com.example.welfare.recommend.facade.RecommendationReadFacade;
+import com.example.welfare.recommend.service.RecommendationBookmarkReadService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -12,12 +12,12 @@ import java.util.List;
 @RequiredArgsConstructor
 public class UserBookmarkReadService {
 
-    private final UserReadService userReadService;
-    private final RecommendationReadFacade recommendationReadFacade;
+    private final ActiveUserReadService activeUserReadService;
+    private final RecommendationBookmarkReadService recommendationBookmarkReadService;
 
     @Transactional(readOnly = true)
     public List<PolicySummaryResponse> getBookmarks(Long userId) {
-        String userKey = userReadService.getActiveUserContext(userId).userKey();
-        return recommendationReadFacade.findBookmarkedPolicySummaries(userKey);
+        String userKey = activeUserReadService.getActiveUserContext(userId).userKey();
+        return recommendationBookmarkReadService.findBookmarkedPolicySummaries(userKey);
     }
 }

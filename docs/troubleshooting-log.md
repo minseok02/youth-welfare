@@ -2616,3 +2616,344 @@
 - 문제: 북마크 목록 조회는 active user 해석 뒤 `UserRecommendationRepository.findLatestBookmarkedByUserKey(...)` 와 `CanonicalRecommendationReadModelRepository.findByServiceIds(...)` 를 직접 호출하고 있었다. 이 상태에서는 user 도메인이 recommendation summary 조립 방식을 알아야 한다.
 - 해결: `RecommendationReadFacade` 에 `findBookmarkedPolicySummaries(...)` 를 추가하고, `UserBookmarkReadService` 는 active user 해석 후 facade 위임만 하게 정리했다.
 - 이유: 북마크 목록은 user 기능이지만, 실제 summary 조립은 recommendation 저장 모델과 canonical projection을 아는 recommendation 경계에 두는 편이 도메인 분리와 변경 파급도 관리에 더 낫다.
+
+## 476) `RecommendationBookmarkCommandService` 가 북마크 placeholder 생성을 위해 `WelfareServiceRepository.findById(...)` 를 직접 호출하면, recommendation command가 policy 저장소 선택까지 같이 떠안는다
+- 문제: 정책 북마크 이력이 없을 때 placeholder 추천을 만드는 경로는 `WelfareServiceRepository.findById(...)` 로 정책 엔티티를 직접 조회하고 있었다. 이 상태에서는 recommendation command가 북마크 규칙뿐 아니라 policy entity lookup 구현도 알아야 한다.
+- 해결: `PolicyLookupService` 를 추가하고, `RecommendationBookmarkCommandService` 는 `getRequiredService(...)` 로 정책 엔티티 조회를 위임하게 정리했다.
+- 이유: placeholder 추천 생성에 정책 엔티티가 필요하더라도, entity lookup은 policy 경계에 두는 편이 cross-domain 저장소 결합을 줄이고 recommendation command의 책임을 북마크 규칙에 집중시키기에 더 낫다.
+
+## 477) `PolicyService` 와 `PolicySearchService` 가 canonical recommendation read-model 을 직접 조회하면, policy 도메인이 recommendation projection 저장 구조를 계속 알아야 한다
+- 문제: 정책 목록/상세/검색 응답은 `CanonicalRecommendationReadModelRepository.findByServiceIds(...)` 를 직접 호출해 summary projection 을 조립하고 있었다. 이 상태에서는 policy 서비스가 recommendation read-model 선택과 projection 조회 규칙까지 같이 떠안는다.
+- 해결: `RecommendationReadFacade.findCandidateProjectionsByServices(...)` 를 추가하고, `PolicyService` 와 `PolicySearchService` 는 정책 목록만 넘겨 projection map 을 받도록 정리했다.
+- 이유: policy 서비스는 정책 필터링과 응답 조립에 집중하고, recommendation canonical projection 조회는 recommendation read 경계에 모아야 projection 저장 구조 변경의 파급 범위를 줄일 수 있다.
+
+## 478) `PolicyRankingService` 가 canonical recommendation read-model 을 직접 조회하면, ranking 계산 서비스가 projection 저장소 선택까지 같이 떠안는다
+- 문제: 정책 랭킹 응답은 rankable policy 목록을 구한 뒤 `CanonicalRecommendationReadModelRepository.findByServiceIds(...)` 를 직접 호출해 summary projection 을 조립하고 있었다. 이 상태에서는 ranking 서비스가 점수 계산뿐 아니라 recommendation projection 조회 구현까지 알아야 한다.
+- 해결: `PolicyRankingService` 도 `RecommendationReadFacade.findCandidateProjectionsByServices(...)` 를 사용하게 정리했다.
+- 이유: 목록/검색/랭킹 모두 정책 summary projection 조회 규칙은 동일한 recommendation read 경계로 모으는 편이 이후 projection 저장 구조나 조립 규칙이 바뀔 때 영향 범위를 줄인다.
+
+## 479) `PolicyService.getDetail(...)` 가 정책 엔티티 조회와 상세/지역/태그 조회를 모두 직접 들고 있으면, 정책 상세 orchestration 서비스가 detail aggregate read 구현까지 같이 떠안는다
+- 문제: `PolicyService.getDetail(...)` 는 `WelfareServiceRepository.findById(...)`, `WelfareServiceDetailRepository.findByServiceId(...)`, `ServiceRegionRepository.findByServiceId(...)`, `ServiceTagRepository.findByServiceId(...)` 를 한 메서드 안에서 직접 호출하고 있었다.
+- 해결: 정책 엔티티 조회는 `PolicyLookupService`, 상세/지역/태그 묶음 조회는 `PolicyDetailReadService.getAggregate(...)` 로 이동했다.
+- 이유: `PolicyService` 는 상세 응답 orchestration과 bookmark/projection 결합만 맡고, detail aggregate read 구현은 별도 read 서비스에 두는 편이 책임 분리가 더 선명하다.
+
+## 480) `RetrievalService` 가 canonical recommendation read-model 저장소를 직접 조회하면, 추천 후보 조회 서비스가 projection 저장 구조까지 같이 떠안는다
+- 문제: base/latest 후보를 고른 뒤 `CanonicalRecommendationReadModelRepository.findByServiceIds(...)` 로 projection map 을 직접 조회하고 있었다. 이 상태에서는 retrieval 서비스가 후보 조회 조건뿐 아니라 canonical projection read-model 선택까지 알아야 한다.
+- 해결: `RecommendationReadFacade.findCandidateProjectionsByServiceIds(...)` 를 추가하고, `RetrievalService` 는 service id 목록만 넘겨 projection map 을 받도록 정리했다.
+- 이유: retrieval 은 후보 selection/filtering 에 집중하고, canonical projection 조회 규칙은 recommendation read 경계에 모으는 편이 projection 저장 구조 변경의 파급을 줄인다.
+
+## 481) `SearchYouthRelevanceService` 가 backfill 대상 조회는 read 경계 뒤로 넘겼는데 태그 조회는 여전히 `ServiceTagRepository` 를 직접 들고 있으면, 백필 서비스가 read 구현을 절반만 숨긴 상태로 남는다
+- 문제: `backfillAll()` 은 대상 정책 목록은 `SearchYouthRelevanceReadRepository.findBackfillTargetServices()` 로 읽으면서도, 태그는 다시 `ServiceTagRepository.findByServiceIdIn(...)` 를 직접 호출하고 있었다.
+- 해결: `SearchYouthRelevanceReadRepository.findTagsByServiceIds(...)` 를 추가하고, backfill 서비스는 태그 로딩도 같은 read 경계로 받게 정리했다.
+- 이유: 백필 서비스는 relevance 재계산 규칙에 집중하고, 대상/태그 읽기 구현은 같은 read 경계 안에 두는 편이 저장소 선택 책임을 한 곳으로 모으기에 낫다.
+
+## 482) `UserPiiSyncQueueService` 가 enqueue만 감싸고 queue row lookup은 processor/replay가 각자 `findByUserKey(...)` 를 직접 호출하면, user pii sync 흐름의 queue access 규칙이 다시 분산된다
+- 문제: `UserPiiSyncProcessor.process(...)` 와 `UserPiiSyncReplayService.replaySingle(...)` 는 queue row 존재 확인을 위해 `UserPiiSyncQueueRepository.findByUserKey(...)` 를 직접 호출하고 있었다.
+- 해결: `UserPiiSyncQueueService` 에 `findOptional(...)`, `exists(...)` 를 추가하고, processor/replay는 queue lookup도 같은 service 경계로 위임하게 정리했다.
+- 이유: enqueue와 queue lookup 규칙을 같은 service로 모아야 user pii sync 흐름에서 queue row access 책임이 한 곳에 남고, replay/processor 간 존재 확인 정책 drift를 줄일 수 있다.
+
+## 483) `UserCoreSyncService` 가 auth/profile projection upsert 구현까지 직접 들고 있으면, core sync orchestration 서비스가 projection 저장 세부사항까지 같이 떠안는다
+- 문제: `UserCoreSyncService.syncFromUser(...)` 는 userKey 해석 뒤 `AuthUserRepository.findByUserKey(...)`, `UserProfileRepository.findByUserKey(...)`, save 호출을 모두 직접 처리하고 있었다.
+- 해결: auth/profile projection upsert 를 `UserCoreProjectionSyncService` 로 옮기고, `UserCoreSyncService` 는 age 계산과 sync orchestration, pii queue 적재만 맡게 정리했다.
+- 이유: core sync는 어떤 projection을 언제 갱신할지만 결정하고, projection별 upsert 구현은 별도 write 경계에 두는 편이 SRP와 후속 변경 파급도 관리에 낫다.
+
+## 484) `PasswordResetService` 가 reset 메일 수신자 조회를 위해 user pii 저장소와 복호화를 직접 들고 있으면, reset flow 서비스가 user read 경계 밖의 PII read 구현까지 떠안는다
+- 문제: `requestPasswordReset(...)` 는 userKey를 찾은 뒤 `UserPiiReadWriteRepository.findByUserKey(...)` 와 `AesEncryptUtil.decrypt(...)` 를 직접 호출해 메일 수신자를 만들고 있었다.
+- 해결: reset 메일 수신자 조회를 `UserReadService.getNotificationEmailByUserKey(...)` 로 위임하고, `PasswordResetService` 에서 user pii 저장소와 복호화 의존을 제거했다.
+- 이유: 비밀번호 재설정 흐름은 토큰 발급과 검증에 집중하고, 활성 사용자 이메일 read 규칙은 user read 경계에 모아두는 편이 PII 접근 규칙을 한 곳에서 유지하기 쉽다.
+
+## 485) `PolicyDetailReadService`, `RetrievalService`, `RuleScoringService` 가 태그 조회를 위해 각자 `ServiceTagRepository` 를 직접 보면, tag read 규칙이 policy/recommend 경계에 다시 흩어진다
+- 문제: 정책 상세 aggregate 조회, 추천 후보 후처리, rule scoring 후보 태그 로딩이 모두 `ServiceTagRepository.findByServiceId...` 를 직접 호출하고 있었다.
+- 해결: `PolicyTagReadRepository` 를 추가하고, policy/recommend read 경로의 태그 조회를 이 경계 뒤로 이동했다.
+- 이유: collect 쪽은 tag write를 그대로 유지하되, 태그 read 구현 선택은 별도 read repository 에 모아야 policy/recommend 서비스가 JPA 저장소 선택과 grouping 세부사항을 직접 들지 않게 된다.
+
+## 486) `BokjiroDetailCollectService` 가 detail 저장 후 relevance refresh 를 위해 `ServiceTagRepository` 로 태그를 다시 읽으면, collect 서비스가 저장 이후 read 구현까지 떠안게 된다
+- 문제: 상세 저장이 끝난 뒤 `searchYouthRelevanceService.refreshForService(service, serviceTagRepository.findByServiceId(...))` 형태로 collect 서비스가 태그 조회까지 직접 수행하고 있었다.
+- 해결: `SearchYouthRelevanceReadRepository` 에 단건 태그 조회를 추가하고, `SearchYouthRelevanceService.refreshForService(service)` 가 내부에서 태그를 읽어 재계산하도록 정리했다.
+- 이유: collect 서비스는 detail 저장 orchestration 에 집중하고, youth relevance 재계산에 필요한 태그 read 규칙은 relevance 경계 안에 두는 편이 read/write 책임이 더 분명하다.
+
+## 487) `PolicyDetailReadService` 가 detail/region/tag 저장소 3개를 직접 조합하면, 정책 상세 aggregate read 경계가 서비스 안에 묻혀 저장소 조합 책임이 다시 분산된다
+- 문제: `getAggregate(serviceId)` 는 `WelfareServiceDetailRepository`, `ServiceRegionRepository`, `PolicyTagReadRepository` 를 서비스 본문에서 직접 호출해 aggregate 를 만들고 있었다.
+- 해결: `PolicyDetailReadRepository` 를 추가하고, 상세 aggregate 조립을 repository 구현으로 이동했다.
+- 이유: 서비스는 상세 응답 orchestration 에 집중하고, 여러 저장소를 묶는 read 조합 책임은 별도 read repository 에 두는 편이 policy read 경계를 더 일관되게 유지한다.
+
+## 488) `UserPiiSyncStatusService`, `UserPiiSyncReplayService` 가 queue 상태 조회와 replay 대상 선정을 위해 `UserPiiSyncQueueRepository` 를 직접 보면, queue access 경계가 다시 status/replay 서비스로 퍼진다
+- 문제: 상태 집계(count/oldest/latest/failed samples)와 replay 대상 조회(failed 우선, pending 보충)를 각 서비스가 저장소 질의 형태로 직접 알고 있었다.
+- 해결: `UserPiiSyncQueueService` 에 count/status snapshot/failed sample/replay user key 조회 메서드를 추가하고, status/replay 서비스는 이 경계로만 읽게 정리했다.
+- 이유: queue row 생성뿐 아니라 queue 상태 read 정책도 같은 service 경계에 모아야 user pii sync 흐름의 저장소 접근 규칙을 한 곳에서 유지하기 쉽다.
+
+## 489) `PolicyRankingService` 가 rankable policy 목록은 read repository를 쓰면서 unique view 집계는 `ServiceViewLogRepository` 를 직접 보면, 랭킹 read 경계가 절반만 묶인 상태로 남는다
+- 문제: `getRanking(...)` 은 랭킹 대상 정책은 `PolicyRankingReadRepository` 로 읽으면서도, 7일 고유 조회수 집계는 별도 `ServiceViewLogRepository.findUniqueViewCountsSince(...)` 를 직접 호출하고 있었다.
+- 해결: unique view 집계 조회를 `PolicyRankingReadRepository.findUniqueViewCountsSince(...)` 로 이동하고, 랭킹 서비스는 같은 read 경계만 사용하게 정리했다.
+- 이유: 랭킹 계산 서비스는 score 계산과 exploration slot 전략에 집중하고, 랭킹에 필요한 persistence 조합은 같은 read repository 안에 두는 편이 경계가 더 일관된다.
+
+## 490) `UserReadService.getProfile(...)` 가 profile/pii/attribute/priority 저장소를 직접 조합하면, 사용자 프로필 aggregate read 규칙이 service 본문에 묻혀 책임이 너무 넓어진다
+- 문제: 프로필 조회는 `UserProfileRepository`, `UserPiiReadWriteRepository`, `UserAttributeRepository`, `UserPriorityRepository` 를 service 본문에서 직접 호출해 aggregate 를 만들고 있었다.
+- 해결: `UserProfileReadRepository` 와 `UserProfileAggregateReadModel` 을 추가하고, `getProfile(...)` 의 aggregate 조회를 이 read 경계로 이동했다.
+- 이유: 사용자 읽기 서비스는 active user 검증과 응답 조립에 집중하고, 여러 저장소를 묶는 프로필 aggregate read 조합은 별도 read repository 에 두는 편이 SRP와 read 경계 일관성에 낫다.
+
+## 491) `UserReadService.getRecommendationContext(...)` 가 profile/attribute/priority 저장소를 직접 조합하면, 추천용 사용자 snapshot read 규칙도 service 본문에 묻혀 read 결합이 다시 넓어진다
+- 문제: 추천 snapshot 조회는 `UserProfileRepository`, `UserAttributeRepository`, `UserPriorityRepository` 를 service 본문에서 직접 호출해 `RecommendationUserSnapshot` 입력 aggregate 를 조합하고 있었다.
+- 해결: `RecommendationUserReadRepository` 와 `RecommendationUserReadModel` 을 추가하고, `getRecommendationContext(...)` 의 추천용 aggregate 조회를 이 read 경계로 이동했다.
+- 이유: 사용자 읽기 서비스는 active user 검증과 snapshot 조립에 집중하고, 추천용 profile/attribute/priority read 조합은 별도 repository 로 내려야 read 경계가 더 일관되고 테스트도 단순해진다.
+
+## 492) `UserPiiBackfillService` 가 missing state 조회와 legacy source 조회를 서로 다른 저장소에서 직접 조합하면, PII 백필 read 규칙이 service 본문에 남아 책임이 다시 넓어진다
+- 문제: 백필 서비스는 `UserPiiReadWriteRepository.findMissingEncryptedFields()` 와 `UserRepository.findPiiBackfillSourcesByUserKeys(...)` 를 직접 묶어 state/source 조합을 만들고 있었다.
+- 해결: `UserPiiBackfillReadRepository` 를 추가하고, missing state 조회와 legacy source lookup 을 이 read 경계로 이동했다.
+- 이유: PII 백필 서비스는 암호화/backfill 정책과 결과 집계에 집중하고, 여러 저장소를 묶는 read 조합은 별도 repository 로 내리는 편이 user backfill 경계를 더 일관되게 유지한다.
+
+## 493) `UserMetadataUserKeyBackfillService` 가 attribute/priority 저장소의 count/update 를 service 본문에서 직접 병렬 조합하면, metadata 백필 write 규칙이 service 안에 남아 책임이 다시 넓어진다
+- 문제: metadata user_key 백필은 `UserAttributeRepository`, `UserPriorityRepository` 의 count/update 메서드를 service 본문에서 직접 각각 호출하고 있었다.
+- 해결: `UserMetadataBackfillRepository` 를 추가하고, missing count 와 backfill update 조합을 이 repository 경계로 이동했다.
+- 이유: metadata 백필 서비스는 처리량 집계와 로깅에 집중하고, attribute/priority 저장소를 함께 다루는 backfill 규칙은 별도 repository 로 내리는 편이 user backfill 경계를 더 일관되게 유지한다.
+
+## 494) `UserReadService.getNotificationTargets(...)` 가 notification target row 조회와 encrypted email bulk lookup 을 service 본문에서 직접 조합하면, 알림 대상 read 규칙이 사용자 읽기 서비스 안에 남아 책임이 다시 넓어진다
+- 문제: period별 알림 대상 조회는 `UserProfileRepository.findNotificationTargetsByPeriod(...)` 와 `NotificationPiiReadRepository.findEncryptedEmailsByUserKeys(...)` 를 service 본문에서 직접 묶어 aggregate 를 만들고 있었다.
+- 해결: `NotificationTargetReadRepository` 와 `NotificationTargetAggregateReadModel` 을 추가하고, bulk notification target read 조합을 이 repository 경계로 이동했다.
+- 이유: 사용자 읽기 서비스는 active-user 검증과 응답 변환에 집중하고, 알림 대상 row/email 조합은 별도 read repository 로 내려야 notification read 경계가 더 일관되고 재사용도 쉬워진다.
+
+## 495) `UserReadService.getNotificationEmailByUserKey(...)` 가 단건 encrypted email lookup만 따로 `NotificationPiiReadRepository` 를 직접 보면, 같은 notification read 규칙이 bulk/단건 경로로 다시 찢어진다
+- 문제: bulk 알림 대상 조회는 이미 `NotificationTargetReadRepository` 뒤로 옮겼는데, 단건 이메일 조회는 여전히 `NotificationPiiReadRepository.findEncryptedEmailByUserKey(...)` 를 service 본문에서 직접 호출하고 있었다.
+- 해결: `NotificationTargetReadRepository` 에 `findEncryptedEmailByUserKey(...)` 를 추가하고, 단건 notification email read 도 같은 경계로 통일했다.
+- 이유: 알림 대상 row/email read 규칙은 bulk/단건을 같은 read repository 에 모아야 notification read policy 변경 시 영향 범위가 작고 일관성도 유지된다.
+
+## 496) `UserProfileCommandService` 와 `UserAccountCommandService` 가 attribute/priority 저장소를 직접 조합하면, metadata write 규칙이 profile 수정/우선순위 저장/탈퇴 경로마다 다시 퍼진다
+- 문제: 프로필 수정은 관심분야/대상유형 교체 저장을 직접 처리하고, 우선순위 저장은 priority delete+save 를 직접 수행했으며, 탈퇴도 attribute/priority 삭제를 각각 직접 호출하고 있었다.
+- 해결: `UserMetadataCommandRepository` 를 추가하고, attribute replace / priority replace / metadata delete-all / 관심분야 존재 확인을 같은 write 경계로 모았다.
+- 이유: metadata 조작 규칙은 profile/account command 서비스에서 중복으로 들고 있기보다, 별도 command repository 에 모아야 변경 영향 범위가 줄고 테스트도 단순해진다.
+
+## 497) `UserReadService` 가 알림 대상 조회와 알림 이메일 조회까지 함께 들고 있으면, 사용자 일반 read 와 notification read 책임이 한 서비스에 다시 섞인다
+- 문제: `UserReadService` 는 profile/snapshot/active-user read 외에 `getNotificationTargets(...)`, `getNotificationEmailByUserKey(...)` 같은 notification read 메서드도 같이 갖고 있었고, `NotificationService`, `PasswordResetService` 가 이를 직접 사용하고 있었다.
+- 해결: `UserNotificationReadService` 를 추가하고, 알림 대상/알림 이메일 read 메서드를 이 서비스로 이동했다. `NotificationService`, `PasswordResetService` 도 전용 읽기 경계로 교체했다.
+- 이유: active-user/profile/snapshot 읽기와 notification target/email 읽기는 바뀌는 이유가 다르므로, 분리해야 `UserReadService` 책임이 가벼워지고 notification read 정책 변경도 독립적으로 다루기 쉽다.
+
+## 498) `AuthService` 가 auth identity read 와 signup write 를 같이 들면, 인증 orchestration 과 lookup hash 규칙/신규 사용자 저장 규칙이 한 서비스에 다시 섞인다
+- 문제: 이메일 중복 확인, 로그인 대상 lookup 은 `auth_users` lookup hash 규칙에 묶여 있고, 회원가입은 신규 `User` 저장과 `UserCoreSyncService` 호출까지 같이 들고 있었다. 이 상태면 이메일 식별 규칙이나 signup 저장 흐름이 바뀔 때 `AuthService` 자체를 계속 수정해야 한다.
+- 해결: `AuthIdentityReadService` 를 추가해 `existsByEmail(...)`, `findByEmail(...)` 로 auth identity read 규칙을 모으고, `UserRegistrationService` 를 추가해 신규 사용자 저장과 core sync 를 별도 command 경계로 이동했다. `PasswordResetService` 의 auth_users 이메일 lookup 도 같은 read 경계로 통일했다.
+- 이유: 인증 서비스는 admin email 정책, 비밀번호 검증, 토큰 발급 같은 orchestration 에 집중하고, auth identity 조회/hash 규칙과 signup write 는 별도 경계로 내리는 편이 SRP와 테스트 격리에 더 낫다.
+
+## 499) `UserReadService` 가 auth_users active 상태 검증까지 직접 들면, 사용자 일반 read 와 auth identity read 책임이 다시 섞인다
+- 문제: `UserReadService` 는 active userKey 검증을 위해 `AuthUserRepository.findByUserKey(...)` 를 직접 호출하고 있었고, 이미 aggregate read를 read repository 뒤로 옮긴 뒤에도 auth projection read 세부사항이 서비스 안에 남아 있었다. 게다가 이전 구조 변경 뒤에는 실제로 쓰지 않는 `UserProfileRepository`, `UserPiiReadWriteRepository` 직접 의존도 그대로 남아 있었다.
+- 해결: `AuthIdentityReadService.requireActiveUserKey(...)` 를 추가하고, `UserReadService.resolveActiveUserKey(...)` 를 이 read 경계로 교체했다. 함께 남아 있던 불필요한 `AuthUserRepository`, `UserProfileRepository`, `UserPiiReadWriteRepository` 직접 의존도 제거했다.
+- 이유: 사용자 읽기 서비스는 active user orchestration과 응답 조립에 집중하고, auth projection 조회/활성 상태 검증은 auth identity read 경계로 모아야 read 책임이 더 일관되고 생성자 의존도도 줄어든다.
+
+## 500) `UserPiiBackfillService` 와 `UserPiiSyncProcessor` 가 같은 `UserPiiReadWriteRepository` write를 직접 두드리면, app PII 쓰기 규칙이 backfill/sync 경로마다 다시 퍼진다
+- 문제: 백필 서비스는 `backfillEncryptedFields(...)` 를, sync processor는 `upsertUserPii(...)` 를 각각 직접 호출하고 있었다. 같은 `user_pii` write라도 경로마다 저장소 직접 의존이 남아 있어 write 정책을 공통 경계로 다루기 어려웠다.
+- 해결: `UserPiiCommandService` 를 추가하고, app PII upsert/backfill/delete write를 이 서비스로 모았다. `UserPiiBackfillService`, `UserPiiSyncProcessor` 는 이제 write 구현 대신 user pii command 경계에만 의존한다.
+- 이유: backfill/sync 같은 별도 작업 서비스는 암호화/큐 상태/집계에 집중하고, app PII write는 한 command 경계로 모아야 변경 영향 범위가 줄고 테스트도 단순해진다.
+
+## 501) `UserCoreProjectionSyncService` 가 auth/profile projection 저장소 둘을 직접 들고 있으면, core sync orchestration과 projection upsert 조합 책임이 다시 한 서비스에 섞인다
+- 문제: `UserCoreProjectionSyncService` 는 `AuthUserRepository`, `UserProfileRepository` 를 직접 들고 `find-or-create + syncFrom + save` 패턴을 각각 수행하고 있었다. 이 상태면 core sync 흐름을 바꾸지 않아도 projection 저장 규칙이 바뀔 때 서비스 본문을 다시 열어야 한다.
+- 해결: `UserCoreProjectionCommandRepository` / `UserCoreProjectionCommandRepositoryImpl` 을 추가하고, auth/profile projection upsert 조합을 이 command repository 뒤로 이동했다. `UserCoreProjectionSyncService` 는 email hash 계산과 projection sync orchestration만 남겼다.
+- 이유: core sync 서비스는 age 계산과 projection sync 흐름에 집중하고, 여러 저장소를 묶는 projection upsert 조합은 별도 command repository 로 내려야 책임이 더 선명하고 테스트도 분리하기 쉽다.
+
+## 502) `UserKeyLookupService` 와 `PolicyLookupService` 같은 얇은 lookup 서비스가 저장소를 직접 들면, lookup 규칙 자체를 별도 read 경계로 독립시키기 어렵다
+- 문제: `UserKeyLookupService` 는 `UserRepository.findUserKeyById(...)` 를, `PolicyLookupService` 는 `WelfareServiceRepository.findById(...)` 를 직접 호출하고 있었다. 지금은 단순 조회처럼 보여도 lookup 규칙이 바뀌면 서비스 본문을 수정해야 하고, 얇은 서비스여도 저장소 결합이 그대로 남는다.
+- 해결: `UserKeyReadRepository` / `UserKeyReadRepositoryImpl`, `PolicyLookupReadRepository` / `PolicyLookupReadRepositoryImpl` 을 추가하고, 두 lookup 서비스가 이 read repository 뒤로만 의존하게 정리했다.
+- 이유: 단건 lookup도 read policy의 일부이므로, 얇은 서비스라도 repository 직접 의존을 줄여 두면 service는 예외 정책에만 집중하고 lookup 구현은 별도 경계에서 관리할 수 있다.
+
+## 503) `UserReadService` 와 `UserRegistrationService` 가 `UserRepository` 를 직접 들면, active user read 와 신규 사용자 저장 규칙이 service 본문에 다시 남는다
+- 문제: `UserReadService` 는 active user entity 조회를 위해 `findById(...)`, `findByUserKey(...)` 를 직접 호출했고, `UserRegistrationService` 는 신규 `User` 저장을 위해 `save(...)` 를 직접 호출하고 있었다. 다른 lookup/read/write 경계를 분리한 뒤에도 users 테이블 접근 규칙 일부가 서비스 본문에 남아 있었다.
+- 해결: `UserAccountReadRepository` / `UserAccountReadRepositoryImpl`, `UserRegistrationCommandRepository` / `UserRegistrationCommandRepositoryImpl` 을 추가하고, `UserReadService` 와 `UserRegistrationService` 가 이 경계들에만 의존하도록 정리했다.
+- 이유: active user 조회와 신규 저장도 users 테이블 접근 policy의 일부이므로, service는 활성 상태 검증과 registration orchestration에 집중하고 실제 저장소 호출은 별도 경계로 내리는 편이 일관된다.
+
+## 504) `PolicyViewLogService` 와 `PolicySearchLogService` 가 로그 저장소를 직접 두드리면, policy 서비스 안에 dedup/save 조합과 JPA reference 생성 같은 저장 세부사항이 다시 남는다
+- 문제: 조회 로그 서비스는 dedup exists 조회와 `EntityManager.getReference(...) + save(...)` 를 직접 수행했고, 검색 로그 서비스도 `SearchLogRepository.save(...)` 를 직접 호출하고 있었다. 이 상태면 로그 저장 규칙이나 저장 방식이 바뀔 때 policy 서비스 본문을 다시 열어야 한다.
+- 해결: `PolicyViewLogCommandRepository` / `PolicyViewLogCommandRepositoryImpl`, `PolicySearchLogCommandRepository` / `PolicySearchLogCommandRepositoryImpl` 을 추가하고, 두 서비스가 로그 저장/dedup 구현을 command repository 뒤로 위임하게 정리했다.
+- 이유: policy 서비스는 userKey 해석, dedup 정책, 예외 처리 같은 orchestration 에 집중하고, 로그 저장 구현은 별도 command 경계로 내려야 책임이 더 선명하고 테스트도 분리하기 쉽다.
+
+## 505) `RecommendationBookmarkCommandService` 가 추천 row 조회·count·placeholder 저장을 `UserRecommendationRepository` 에 직접 묶어 두면, 북마크 규칙과 persistence 조합 책임이 다시 한 서비스에 섞인다
+- 문제: 북마크 토글 서비스는 소유 추천 조회, 서비스별 최신 추천 조회, 북마크 수 제한 확인, placeholder 저장을 모두 `UserRecommendationRepository` 로 직접 수행하고 있었다. 이 상태면 북마크 command 규칙은 바꾸지 않아도 추천 row lookup/save 방식이 달라질 때 서비스 본문을 다시 열어야 한다.
+- 해결: `RecommendationBookmarkCommandRepository` / `RecommendationBookmarkCommandRepositoryImpl` 을 추가하고, owned recommendation lookup, latest recommendation lookup, bookmark count, placeholder save 를 command 경계 뒤로 이동했다.
+- 이유: 북마크 command 서비스는 userKey 해석, limit enforcement, placeholder 필요 여부 같은 orchestration 에 집중하고, 추천 row 조회/저장 세부사항은 별도 command repository 로 내려야 recommendation command 경계가 더 선명해진다.
+
+## 506) `RecommendationPersistenceService` 와 `RecommendationRetentionService` 가 추천 row 교체 저장/정리 삭제를 `UserRecommendationRepository` 에 직접 묶어 두면, 추천 저장 orchestration 과 persistence 교체 규칙이 다시 한 서비스 안에 섞인다
+- 문제: 추천 저장 서비스는 기존 최신 추천 조회, 북마크 상태 보존 뒤 전체 삭제, 새 추천 일괄 저장을 직접 수행했고, retention 서비스도 만료 미북마크 삭제를 저장소에 직접 호출하고 있었다. 이 상태면 추천 저장/정리 규칙이 바뀔 때 서비스 본문을 다시 열어야 한다.
+- 해결: `RecommendationPersistenceCommandRepository` / `RecommendationPersistenceCommandRepositoryImpl` 을 추가하고, latest recommendation lookup, user별 전체 교체 저장, retention 삭제를 command 경계 뒤로 이동했다.
+- 이유: 추천 저장 서비스는 북마크 상태 이전과 recommendation row 구성 같은 orchestration 에 집중하고, 교체 저장/정리 삭제 세부사항은 별도 command repository 로 내려야 recommendation write 경계가 더 일관된다.
+
+## 507) `RecommendationLogService` 와 `ScoreWeightService` 가 recommendation log 저장소를 직접 나눠 쓰면, 알림 로그 write 규칙과 cold-start read 규칙이 서비스 본문에 다시 퍼진다
+- 문제: recommendation log 서비스는 미클릭 로그 삭제, 로그 저장, 단건 조회, 최신 logId 매핑 조회를 직접 수행했고, score weight 서비스는 전체 로그 수를 저장소에서 직접 읽고 있었다. 이 상태면 로그 저장/조회 정책이나 cold-start 기준 read 규칙이 바뀔 때 서비스 둘을 함께 다시 열어야 한다.
+- 해결: `RecommendationLogCommandRepository` / `RecommendationLogCommandRepositoryImpl`, `RecommendationLogReadRepository` / `RecommendationLogReadRepositoryImpl` 을 추가하고, recommendation log write/read 를 각각 이 경계 뒤로 이동했다.
+- 이유: recommendation log 서비스는 로그 조립과 click 처리 orchestration 에 집중하고, cold-start/logId mapping/log deletion 같은 persistence 세부사항은 read/command 경계로 분리해야 recommendation log 책임이 더 선명해진다.
+
+## 508) `ChatMessageService` 와 `ChatMessageCommandService` 가 세션 소유 확인, 메시지 목록/최근 조회, append write를 각각 `ChatSessionRepository` 와 `ChatMessageRepository` 에 직접 걸치면, chat read/write 규칙이 서비스 둘에 다시 퍼진다
+- 문제: 메시지 조회 서비스는 소유 세션 확인과 메시지 목록/최근 메시지 조회를 직접 수행했고, command 서비스는 세션 조회, 제목 갱신, assistant append, lastMessageAt touch 를 직접 처리하고 있었다. 이 상태면 chat session/message persistence 조합이 바뀔 때 서비스 둘을 함께 다시 열어야 한다.
+- 해결: `ChatMessageReadRepository` / `ChatMessageReadRepositoryImpl`, `ChatMessageCommandRepository` / `ChatMessageCommandRepositoryImpl` 을 추가하고, 세션 소유 확인과 메시지 read 는 read repository로, append write 와 session touch 는 command repository로 이동했다.
+- 이유: chat 서비스는 rate limit, AI orchestration, response composition 에 집중하고, session/message persistence 조합은 read/command 경계로 분리해야 chat 책임이 더 선명해진다.
+
+## 509) `ChatSessionService` 와 `ChatSessionCleanupService` 가 세션 목록/소유 확인/생성/삭제를 `ChatSessionRepository` 에 직접 걸치면, 세션 read/write 규칙이 서비스 본문에 다시 남는다
+- 문제: 세션 서비스는 최근 세션 목록 조회, 소유 세션 확인, 신규 세션 저장, 삭제를 직접 수행했고, cleanup 서비스도 userKey 기준 전체 삭제를 저장소에 직접 호출하고 있었다. 이 상태면 세션 persistence 조합이 바뀔 때 서비스 둘을 다시 열어야 한다.
+- 해결: `ChatSessionReadRepository` / `ChatSessionReadRepositoryImpl`, `ChatSessionCommandRepository` / `ChatSessionCommandRepositoryImpl` 을 추가하고, 세션 목록/소유 확인은 read repository로, 세션 생성/삭제/cleanup delete 는 command repository로 이동했다.
+- 이유: chat session 서비스는 active user 검증과 제목 정규화 같은 orchestration 에 집중하고, 세션 persistence 세부사항은 read/command 경계로 분리해야 책임이 더 선명해진다.
+
+## 510) `RecommendationReadFacade` 가 북마크 최신 조회와 canonical projection 조회를 `UserRecommendationRepository`, `CanonicalRecommendationReadModelRepository` 에 직접 걸치면, recommendation summary read 조합이 facade 본문에 남는다
+- 문제: recommendation read facade는 북마크 service id 조회, canonical projection 조회, 최신 북마크 recommendation 조회를 서로 다른 저장소에 직접 걸쳐 조합하고 있었다. 이 상태면 summary projection/북마크 read 조합이 바뀔 때 facade 본문을 다시 열어야 한다.
+- 해결: `RecommendationSummaryReadRepository` / `RecommendationSummaryReadRepositoryImpl` 을 추가하고, 북마크 service id 조회, canonical projection 조회, 최신 북마크 recommendation 조회를 이 read 경계 뒤로 이동했다.
+- 이유: recommendation read facade는 userKey 해석과 summary 응답 조립에 집중하고, recommendation summary read 조합은 별도 repository로 내려야 facade 책임이 더 선명해진다.
+
+## 511) `RecommendationFacade` 가 refresh cache 재사용용 최신 저장 추천 조회와 API 응답용 top recommendation 조회를 `UserRecommendationRepository` 에 직접 걸치면, 결과 목록 read 규칙이 파이프라인 facade 본문에 남는다
+- 문제: recommendation facade는 refresh cache hit 시 최신 저장 추천을 직접 읽고, `getRecommendations(...)` 도 top recommendation 목록을 저장소에서 직접 읽고 있었다. 이 상태면 추천 파이프라인 자체를 바꾸지 않아도 결과 목록 read 규칙이 달라질 때 facade 본문을 다시 열어야 한다.
+- 해결: `RecommendationResultReadRepository` / `RecommendationResultReadRepositoryImpl` 을 추가하고, 최신 저장 추천 조회와 top recommendation 목록 조회를 이 read 경계 뒤로 이동했다.
+- 이유: recommendation facade는 refresh cache reuse 판단과 추천 파이프라인 orchestration에 집중하고, 결과 목록 read 조합은 별도 repository로 내려야 facade 책임이 더 선명해진다.
+
+## 512) `ScoreWeightService` 가 `score_weights` 조회를 `ScoreWeightRepository` 에 직접 걸치면, cold-start stage 계산과 가중치 설정 read 규칙이 한 서비스 안에 다시 섞인다
+- 문제: score weight 서비스는 recommendation log 수 읽기는 이미 read repository로 뺐지만, 활성 가중치 목록 조회는 여전히 `ScoreWeightRepository.findByIsActiveTrueOrderByMinLogCountAsc()` 를 직접 호출하고 있었다. 이 상태면 cold-start stage 계산 자체를 바꾸지 않아도 가중치 설정 read 규칙이 달라질 때 서비스 본문을 다시 열어야 한다.
+- 해결: `ScoreWeightReadRepository` / `ScoreWeightReadRepositoryImpl` 을 추가하고, 활성 가중치 목록 조회를 이 read 경계 뒤로 이동했다.
+- 이유: score weight 서비스는 stage 계산과 progress resolution에 집중하고, 가중치 설정 read 규칙은 별도 repository로 내려야 책임이 더 선명해진다.
+
+## 513) `UserProfileCommandService` 가 우선순위 옵션 code lookup을 `PriorityOptionRepository` 에 직접 걸치면, profile command와 option validation read 규칙이 한 서비스 안에 다시 섞인다
+- 문제: 프로필 command 서비스는 관심분야/대상유형/우선순위 저장 orchestration을 맡으면서도, 우선순위 code 검증을 위해 `PriorityOptionRepository.findByCode(...)` 를 직접 호출하고 있었다. 이 상태면 우선순위 옵션 read 규칙이 바뀔 때 command 서비스 본문을 다시 열어야 한다.
+- 해결: `PriorityOptionReadRepository` / `PriorityOptionReadRepositoryImpl` 을 추가하고, 우선순위 option code lookup을 이 read 경계 뒤로 이동했다.
+- 이유: profile command 서비스는 active user 검증, refresh cache evict, priority row 조립에 집중하고, option validation read 규칙은 별도 repository로 내려야 책임이 더 선명해진다.
+
+## 514) `UserPiiSyncQueueService` 가 queue 저장과 상태/재처리 대상 조회를 모두 `UserPiiSyncQueueRepository` 하나에 직접 걸치면, user pii sync queue의 read/write 규칙이 한 서비스 안에 다시 섞인다
+- 문제: queue 서비스는 enqueue 저장, 상태별 count, oldest/latest snapshot, failed sample, replay 대상 userKey 조회를 모두 하나의 JPA 저장소에 직접 걸고 있었다. 이 상태면 queue 저장 규칙과 read 정렬/샘플링 규칙이 바뀔 때 같은 서비스 본문을 함께 다시 열어야 한다.
+- 해결: `UserPiiSyncQueueReadRepository` / `UserPiiSyncQueueReadRepositoryImpl`, `UserPiiSyncQueueCommandRepository` / `UserPiiSyncQueueCommandRepositoryImpl` 을 추가하고, queue 저장은 command repository로, 상태/재처리 대상 조회는 read repository로 이동했다.
+- 이유: `UserPiiSyncQueueService` 는 enqueue orchestration과 queue API 표면 유지에 집중하고, queue persistence 세부사항은 read/write 경계로 분리해야 책임이 더 선명해진다.
+
+## 515) `AuthIdentityReadService` 가 auth user email lookup hash 조회와 userKey 조회를 `AuthUserRepository` 에 직접 걸치면, auth identity read 규칙이 서비스 본문에 다시 남는다
+- 문제: identity read 서비스는 이메일 중복 확인, 이메일 lookup hash 조회, userKey 조회를 위해 `AuthUserRepository` 를 직접 호출하고 있었다. 이 상태면 auth identity lookup 규칙이 바뀔 때 service 본문을 다시 열어야 한다.
+- 해결: `AuthIdentityReadRepository` / `AuthIdentityReadRepositoryImpl` 을 추가하고, email lookup hash 존재/조회와 userKey 조회를 이 read 경계 뒤로 이동했다.
+- 이유: `AuthIdentityReadService` 는 raw email 정규화와 active 상태 검증 같은 identity read orchestration 에 집중하고, auth identity persistence 세부사항은 별도 read repository 로 내려야 책임이 더 선명해진다.
+
+## 516) `UserPiiCommandService` 가 app PII backfill/upsert/delete write를 `UserPiiReadWriteRepository` 에 직접 걸치면, PII write 규칙이 service 본문에 다시 남는다
+- 문제: user pii command 서비스는 이미 backfill/sync/withdraw 경로의 write 진입점 역할을 하면서도, 실제 app PII backfill/upsert/delete 를 위해 `UserPiiReadWriteRepository` 를 직접 호출하고 있었다. 이 상태면 PII write 규칙이 바뀔 때 service 본문을 다시 열어야 한다.
+- 해결: `UserPiiCommandRepository` / `UserPiiCommandRepositoryImpl` 을 추가하고, app PII backfill/upsert/delete write를 이 command 경계 뒤로 이동했다.
+- 이유: `UserPiiCommandService` 는 PII write orchestration 에 집중하고, JDBC 기반 app PII persistence 세부사항은 별도 command repository 로 내려야 책임이 더 선명해진다.
+
+## 517) `JpaClusterAiScoreCache` 와 `StatusUpdateService` 가 `ClusterAiResultRepository` 를 직접 걸치면, cluster AI cache read/write 규칙이 서비스 둘에 다시 퍼진다
+- 문제: 추천 cache 서비스는 clusterId 기준 cache row 조회와 신규 row 저장을 직접 수행했고, 상태 업데이트 서비스는 만료 cluster cache 삭제를 같은 저장소에 직접 호출하고 있었다. 이 상태면 군집 AI cache persistence 규칙이 바뀔 때 추천/수집 서비스 둘을 함께 다시 열어야 한다.
+- 해결: `ClusterAiResultReadRepository` / `ClusterAiResultReadRepositoryImpl`, `ClusterAiResultCommandRepository` / `ClusterAiResultCommandRepositoryImpl` 을 추가하고, cache row 조회는 read repository로, 신규 row 저장과 만료 cache 삭제는 command repository로 이동했다.
+- 이유: `JpaClusterAiScoreCache` 는 score map 조립과 upsert orchestration에, `StatusUpdateService` 는 상태 전이와 TTL cleanup orchestration에 집중하고, cluster cache persistence 세부사항은 read/write 경계로 분리해야 책임이 더 선명해진다.
+
+## 518) `UserReadService` 가 profile aggregate read, PII 복호화, recommendation snapshot read, active user 조회를 함께 들면, 일반 사용자 읽기 책임이 다시 넓어진다
+- 문제: 사용자 읽기 서비스는 profile aggregate 조회와 PII 복호화까지 직접 처리하면서, 동시에 recommendation snapshot 조합과 active user/account 조회도 함께 맡고 있었다. 이 상태면 프로필 응답 조립 규칙이 바뀔 때도 `UserReadService` 본문을 다시 열어야 한다.
+- 해결: `UserProfileReadService` 를 추가하고, profile aggregate read와 PII 복호화를 이 전용 서비스로 이동했다. `UserService.getProfile(...)` 도 새 profile read 경계를 직접 사용하도록 정리했다.
+- 이유: `UserReadService` 는 active user/account 조회와 recommendation context read에 집중하고, profile 응답 조립과 복호화는 별도 read service 로 분리해야 책임이 더 선명해진다.
+
+## 519) `UserReadService` 가 recommendation snapshot 조합까지 계속 들면, active user/account 조회와 추천용 aggregate read 규칙이 다시 한 서비스에 섞인다
+- 문제: profile read를 분리한 뒤에도 `UserReadService` 는 여전히 active user/account 조회와 함께 recommendation snapshot 조합, target/interest/priority projection 변환을 직접 수행하고 있었다. 이 상태면 추천용 snapshot 규칙이 바뀔 때도 일반 사용자 read 서비스 본문을 다시 열어야 한다.
+- 해결: `UserRecommendationReadService` 를 추가하고, recommendation snapshot 조합과 `RecommendationReadContext` 생성을 이 전용 read 서비스로 이동했다. `RecommendationFacade` 도 새 recommendation read 경계를 직접 사용하도록 정리했다.
+- 이유: `UserReadService` 는 active user/account 조회와 userKey 해석에 집중하고, 추천용 aggregate read/변환은 별도 read service 로 분리해야 책임이 더 선명해진다.
+
+## 520) `UserReadService` 가 active user/account 조회까지 계속 직접 들면, 일반 user lookup 과 active user 검증 책임이 다시 한 서비스에 섞인다
+- 문제: recommendation/profile read를 분리한 뒤에도 `UserReadService` 는 여전히 `UserAccountReadRepository` 를 직접 들고 active user entity 조회, active userKey 보정, userKey 기준 active user 검증을 직접 수행하고 있었다. 이 상태면 active user/account 조회 규칙이 바뀔 때도 일반 user read 서비스 본문을 다시 열어야 한다.
+- 해결: `ActiveUserReadService` 를 추가하고, active user entity 조회와 active userKey 보정, userKey 기준 active user 검증을 이 전용 read 서비스로 이동했다. `UserReadService` 는 기존 API 표면을 유지하되 새 active read 경계에 위임만 하도록 축소했다.
+- 이유: `UserReadService` 는 기존 호출부 호환과 userKey 존재 확인 같은 얇은 facade 역할에 집중하고, active user/account 조회는 별도 read service 로 분리해야 책임이 더 선명해진다.
+
+## 521) active-user consumer들이 계속 `UserReadService` wrapper를 거치면, 실제 active user read 경계를 분리해도 호출부 결합은 그대로 남는다
+- 문제: `ActiveUserReadService` 를 만든 뒤에도 chat, notification, auth, user profile/account/bookmark 쪽 서비스들은 여전히 `UserReadService.getActiveUserContext(...)`, `getActiveUserByUserKey(...)`, `findOptionalActiveUserByUserKey(...)` 를 통해 active user 조회를 우회 호출하고 있었다. 이 상태면 active user read 규칙이 바뀔 때 wrapper와 소비자 의존이 함께 남아 분리 효과가 약해진다.
+- 해결: active-user 메서드만 쓰던 소비자들을 `ActiveUserReadService` 직접 의존으로 전환하고, `UserReadService` 는 admin 강제 로그아웃에서 쓰는 `requireExistingUserIdByUserKey(...)` 만 남기는 얇은 facade로 축소했다.
+- 이유: active user 검증/조회는 `ActiveUserReadService` 에 바로 모아야 read 경계가 실제로 드러나고, `UserReadService` 는 일반 lookup facade 역할만 유지하는 편이 책임이 더 선명하다.
+
+## 522) `UserReadService` 가 결국 admin forced-logout용 `userKey -> userId` 래퍼만 남으면, 별도 서비스로 유지할 이유가 없다
+- 문제: active-user consumer를 모두 `ActiveUserReadService` 로 옮긴 뒤 `UserReadService` 에 남은 책임은 `requireExistingUserIdByUserKey(...)` 하나뿐이었다. 이 상태면 controller가 한 단계 더 우회 호출만 하게 되고, 테스트도 쓸모없는 래퍼 mock을 계속 유지해야 한다.
+- 해결: `UserKeyLookupService` 에 `requireExistingUserIdByUserKey(...)` 를 직접 추가하고, `UserAdminController` 와 `AdminSecurityWebMvcTest` 를 이 경계로 전환했다. 그 뒤 `UserReadService` 와 전용 테스트는 삭제했다.
+- 이유: `userKey -> userId` 존재 검증은 lookup service 하나면 충분하고, 의미 없는 wrapper를 남기지 않는 편이 경계가 더 선명하다.
+
+## 523) `NotificationService` 가 재시도 대상 조회를 `NotificationRepository` 에 직접 걸치면, 알림 발송 orchestration과 retry read 규칙이 다시 한 서비스에 섞인다
+- 문제: 알림 서비스는 발송 orchestration을 맡으면서도 `FAILED + nextRetryAtBefore(now)` 조회를 위해 `NotificationRepository` 를 직접 호출하고 있었다. 이 상태면 retry polling 기준이 바뀔 때 발송 서비스 본문을 다시 열어야 한다.
+- 해결: `NotificationRetryReadRepository` / `NotificationRetryReadRepositoryImpl` 을 추가하고, 재시도 대상 조회를 이 read 경계 뒤로 이동했다.
+- 이유: `NotificationService` 는 대상 발송과 재시도 scheduling orchestration에 집중하고, retry polling read 규칙은 별도 repository 로 내려야 책임이 더 선명하다.
+
+## 524) `NotificationHistoryService` 가 notification header 저장과 item 저장을 저장소 두 개에 직접 걸치면, 알림 이력 orchestration과 write 규칙이 다시 한 서비스에 섞인다
+- 문제: 알림 이력 서비스는 상태/retry 초기화가 반영된 notification header 저장과 recommendation item saveAll 을 위해 `NotificationRepository`, `NotificationServiceItemRepository` 를 직접 호출하고 있었다. 이 상태면 이력 저장 규칙이 바뀔 때 서비스 본문을 다시 열어야 한다.
+- 해결: `NotificationHistoryCommandRepository` / `NotificationHistoryCommandRepositoryImpl` 을 추가하고, notification header 저장과 item 저장을 이 command 경계 뒤로 이동했다.
+- 이유: `NotificationHistoryService` 는 실패/성공 이력 orchestration과 item 조립에 집중하고, notification persistence write 세부사항은 별도 command repository 로 내려야 책임이 더 선명하다.
+
+## 525) `RawApiPayloadService` 와 `NormalizedPolicySidecarBackfillService` 가 같은 `RawApiPayloadRepository` 를 직접 걸치면, raw payload 저장 규칙과 backfill read 규칙이 다시 퍼진다
+- 문제: raw payload 저장 서비스는 source/apiCategory 단건 조회 후 upsert save 를 직접 수행했고, sidecar backfill 서비스는 source/apiCategory 목록 조회를 위해 같은 저장소를 직접 호출하고 있었다. 이 상태면 raw payload persistence 규칙이 바뀔 때 저장/백필 서비스 둘을 함께 다시 열어야 한다.
+- 해결: `RawApiPayloadReadRepository` / `RawApiPayloadReadRepositoryImpl`, `RawApiPayloadCommandRepository` / `RawApiPayloadCommandRepositoryImpl` 을 추가하고, 저장은 command 경계로, source/apiCategory 단건/목록 조회는 read 경계로 이동했다.
+- 이유: `RawApiPayloadService` 는 직렬화/hash/upsert orchestration에, `NormalizedPolicySidecarBackfillService` 는 payload 순회와 aggregate writer 호출에 집중하고, raw payload persistence 세부사항은 read/write 경계로 분리해야 책임이 더 선명하다.
+
+## 526) `StatusUpdateService` 가 `WelfareServiceRepository` 를 직접 걸치면, 상태 전이 orchestration과 ACTIVE/UPCOMING 정책 조회 규칙이 다시 한 서비스에 섞인다
+- 문제: 상태 업데이트 스케줄러는 CLOSED/ACTIVE 전이 규칙만 처리하면 되는데도, `WelfareServiceRepository.findByStatus(...)` 를 직접 호출하며 ACTIVE/UPCOMING 대상 조회 규칙까지 함께 들고 있었다. 이 상태면 상태 전이 대상 조회 기준이 바뀔 때 스케줄러 본문을 다시 열어야 한다.
+- 해결: `StatusUpdateReadRepository` / `StatusUpdateReadRepositoryImpl` 을 추가하고, ACTIVE/UPCOMING 정책 조회를 이 read 경계 뒤로 이동했다.
+- 이유: `StatusUpdateService` 는 날짜 기준 상태 전이와 cluster AI cache TTL cleanup orchestration에 집중하고, 정책 조회 규칙은 별도 read repository 로 내려야 책임이 더 선명하다.
+
+## 527) `ApiSyncLogService` 가 `ApiSyncLogRepository` 를 직접 걸치면, collect log orchestration과 stale RUNNING 복구/save write 규칙이 다시 한 서비스에 섞인다
+- 문제: 수집 로그 서비스는 stale RUNNING auto-close, start log save, success/failure update save를 모두 직접 저장소에 보내고 있었다. 이 상태면 collect log write 규칙이 바뀔 때 orchestration 서비스 본문을 다시 열어야 한다.
+- 해결: `ApiSyncLogCommandRepository` / `ApiSyncLogCommandRepositoryImpl` 을 추가하고, stale RUNNING 복구와 log save를 command 경계 뒤로 이동했다.
+- 이유: `ApiSyncLogService` 는 collect task 실행과 success/failure 상태 전환 orchestration에 집중하고, collect log persistence write 세부사항은 별도 command repository 로 내려야 책임이 더 선명하다.
+
+## 528) `BokjiroDetailCollectService` 가 대상 정책 목록 조회와 기존 detail 존재/조회까지 직접 저장소를 걸치면, 상세 수집 orchestration과 read 규칙이 다시 한 서비스에 섞인다
+- 문제: 복지로 상세 수집 서비스는 source별 대상 정책 목록 조회, 기존 detail 존재 확인, 기존 detail row 조회를 직접 저장소에 요청하고 있었다. 이 상태면 상세 수집 대상 선정이나 existing-detail read 규칙이 바뀔 때 orchestration 서비스 본문을 다시 열어야 한다.
+- 해결: `BokjiroDetailReadRepository` / `BokjiroDetailReadRepositoryImpl` 을 추가하고, source별 대상 정책 목록 조회와 기존 detail 존재/조회 규칙을 이 read 경계 뒤로 이동했다.
+- 이유: `BokjiroDetailCollectService` 는 budget allocation, rate-limit/retry, aggregate/persistence orchestration에 집중하고, 대상 정책/detail read 규칙은 별도 read repository 로 내려야 책임이 더 선명하다.
+
+## 529) `BokjiroDetailCollectService` 가 detail row 저장까지 직접 저장소를 걸치면, 상세 수집 orchestration과 persistence write 규칙이 다시 한 서비스에 섞인다
+- 문제: 복지로 상세 수집 서비스는 aggregate 변환 후 merged detail row 저장을 직접 `WelfareServiceDetailRepository.save(...)` 로 호출하고 있었다. 이 상태면 detail persistence write 규칙이 바뀔 때 orchestration 서비스 본문을 다시 열어야 한다.
+- 해결: `BokjiroDetailCommandRepository` / `BokjiroDetailCommandRepositoryImpl` 을 추가하고, detail row 저장을 command 경계 뒤로 이동했다.
+- 이유: `BokjiroDetailCollectService` 는 budget allocation, rate-limit/retry, aggregate/persistence orchestration에 집중하고, detail persistence write 세부사항은 별도 command repository 로 내려야 책임이 더 선명하다.
+
+## 530) `NormalizedPolicySidecarBackfillService` 가 sourceType/sourceId 기준 정책 lookup을 직접 저장소에 걸치면, sidecar backfill orchestration과 서비스 매칭 read 규칙이 다시 한 서비스에 섞인다
+- 문제: sidecar backfill 서비스는 raw payload 순회와 aggregate 재생성만 맡으면 되는데도, 각 payload마다 `WelfareServiceRepository.findBySourceTypeAndSourceId(...)` 를 직접 호출하며 서비스 매칭 read 규칙까지 함께 들고 있었다. 이 상태면 backfill 대상 매칭 기준이 바뀔 때 orchestration 서비스 본문을 다시 열어야 한다.
+- 해결: `NormalizedPolicySidecarBackfillReadRepository` / `NormalizedPolicySidecarBackfillReadRepositoryImpl` 을 추가하고, sourceType/sourceId 기준 정책 lookup을 이 read 경계 뒤로 이동했다.
+- 이유: `NormalizedPolicySidecarBackfillService` 는 payload 순회와 aggregate upsert orchestration에 집중하고, 서비스 매칭 read 규칙은 별도 read repository 로 내려야 책임이 더 선명하다.
+
+## 531) `CollectItemSaver` 가 기존 정책 lookup과 신규 정책 저장을 직접 저장소에 걸치면, item save orchestration과 정책 upsert read/write 규칙이 다시 한 서비스에 섞인다
+- 문제: item save 서비스는 aggregate/region/tag orchestration을 맡으면서도 `WelfareServiceRepository.findBySourceTypeAndSourceId(...)`, `saveAndFlush(...)` 를 직접 호출해 기존 정책 조회와 신규 정책 저장 규칙까지 함께 들고 있었다. 이 상태면 정책 upsert read/write 규칙이 바뀔 때 orchestration 서비스 본문을 다시 열어야 한다.
+- 해결: `CollectItemReadRepository` / `CollectItemReadRepositoryImpl`, `CollectItemCommandRepository` / `CollectItemCommandRepositoryImpl` 을 추가하고, 기존 정책 lookup과 신규 정책 저장을 이 read/write 경계 뒤로 이동했다.
+- 이유: `CollectItemSaver` 는 item-level aggregate/region/tag save orchestration에 집중하고, 정책 upsert read/write 세부사항은 별도 repository 경계로 내려야 책임이 더 선명하다.
+
+## 532) `CollectItemSaver` 가 tag delete/saveAll 을 직접 저장소에 걸치면, item save orchestration과 tag write 규칙이 다시 한 서비스에 섞인다
+- 문제: item save 서비스는 normalized tag 집합 계산 뒤 `ServiceTagRepository.deleteByServiceId(...)`, `flush()`, `saveAll(...)` 을 직접 호출하고 있었다. 이 상태면 tag write 규칙이 바뀔 때 orchestration 서비스 본문을 다시 열어야 한다.
+- 해결: `CollectItemTagCommandRepository` / `CollectItemTagCommandRepositoryImpl` 을 추가하고, tag 전체 교체 write 를 command 경계 뒤로 이동했다.
+- 이유: `CollectItemSaver` 는 item-level aggregate/region/tag save orchestration에 집중하고, tag persistence write 세부사항은 별도 command repository 로 내려야 책임이 더 선명하다.
+
+## 533) `CollectItemSaver` 가 service region delete/batch insert를 직접 `JdbcTemplate` 으로 다루면, item save orchestration과 region write 규칙이 다시 한 서비스에 섞인다
+- 문제: item save 서비스는 region 집합 계산 뒤 `service_regions` delete 와 batch insert SQL 을 직접 들고 있었다. 이 상태면 region persistence write 규칙이나 SQL 튜닝이 바뀔 때 orchestration 서비스 본문을 다시 열어야 한다.
+- 해결: `CollectItemRegionCommandRepository` / `CollectItemRegionCommandRepositoryImpl` 을 추가하고, service region 전체 교체 write 를 command 경계 뒤로 이동했다.
+- 이유: `CollectItemSaver` 는 item-level aggregate/region/tag save orchestration에 집중하고, region persistence write 세부사항은 별도 command repository 로 내려야 책임이 더 선명하다.
+
+## 534) `DeferredNormalizedPolicySidecarWriter` 가 sidecar table readiness 확인과 기존 fact 조회를 직접 SQL로 들고 있으면, sidecar write orchestration과 read SQL 규칙이 다시 한 클래스에 섞인다
+- 문제: sidecar writer 는 taxonomy/fact upsert 를 orchestrate 하면서도 필수 sidecar 테이블 준비 여부 확인, summary slot 테이블 존재 확인, 기존 fact 조회 SQL 까지 직접 들고 있었다. 이 상태면 read SQL 규칙이나 readiness 판정이 바뀔 때 writer 본문을 다시 열어야 한다.
+- 해결: `DeferredNormalizedPolicySidecarReadRepository` / `DeferredNormalizedPolicySidecarReadRepositoryImpl` 을 추가하고, sidecar readiness 확인과 기존 fact 조회를 이 read 경계 뒤로 이동했다.
+- 이유: `DeferredNormalizedPolicySidecarWriter` 는 taxonomy/terms/facts upsert orchestration에 집중하고, sidecar read SQL 세부사항은 별도 read repository 로 내려야 책임이 더 선명하다.
+
+## 535) `DeferredNormalizedPolicySidecarWriter` 가 taxonomy summary / summary slot write SQL까지 직접 들고 있으면, sidecar write orchestration과 summary persistence 규칙이 다시 한 클래스에 섞인다
+- 문제: sidecar writer 는 taxonomy/fact/term orchestration을 맡으면서도 `service_taxonomies` upsert 와 `service_taxonomy_summary_slots` delete/insert SQL 을 직접 들고 있었다. 이 상태면 summary persistence 규칙이나 slot dual-write 세부사항이 바뀔 때 writer 본문을 다시 열어야 한다.
+- 해결: `DeferredNormalizedPolicySidecarCommandRepository` / `DeferredNormalizedPolicySidecarCommandRepositoryImpl` 을 추가하고, taxonomy summary 와 summary slot write 를 command 경계 뒤로 이동했다.
+- 이유: `DeferredNormalizedPolicySidecarWriter` 는 sidecar upsert 순서와 조건 판단 orchestration에 집중하고, summary persistence write 세부사항은 별도 command repository 로 내려야 책임이 더 선명하다.
+
+## 536) `DeferredNormalizedPolicySidecarWriter` 가 taxonomy term delete/insert SQL까지 직접 들고 있으면, sidecar write orchestration과 taxonomy term persistence 규칙이 다시 한 클래스에 섞인다
+- 문제: sidecar writer 는 refresh scope 계산과 fact merge orchestration을 맡으면서도 `service_taxonomy_terms` delete/insert SQL 을 직접 들고 있었다. 이 상태면 taxonomy term persistence 규칙이나 delete scope SQL 이 바뀔 때 writer 본문을 다시 열어야 한다.
+- 해결: `DeferredNormalizedPolicySidecarCommandRepository` / `DeferredNormalizedPolicySidecarCommandRepositoryImpl` 에 taxonomy term 전체 교체 write 를 추가하고, writer 는 refresh scope 계산 후 command 경계에 위임만 하도록 정리했다.
+- 이유: `DeferredNormalizedPolicySidecarWriter` 는 sidecar upsert 순서와 delete scope 계산 orchestration에 집중하고, taxonomy term persistence write 세부사항은 같은 command repository 로 내려야 책임이 더 선명하다.
+
+## 537) `DeferredNormalizedPolicySidecarWriter` 가 merged fact upsert SQL까지 직접 들고 있으면, sidecar write orchestration과 fact persistence 규칙이 다시 한 클래스에 섞인다
+- 문제: sidecar writer 는 기존 fact read 후 merge 결과를 계산하는 orchestration을 맡으면서도 `service_facts` upsert SQL 을 직접 들고 있었다. 이 상태면 fact persistence 규칙이나 SQL 세부사항이 바뀔 때 writer 본문을 다시 열어야 한다.
+- 해결: `DeferredNormalizedPolicySidecarCommandRepository` / `DeferredNormalizedPolicySidecarCommandRepositoryImpl` 에 merged fact upsert 를 추가하고, writer 는 merge 결과를 계산한 뒤 command 경계에 위임만 하도록 정리했다.
+- 이유: `DeferredNormalizedPolicySidecarWriter` 는 read + merge + write 순서 orchestration에 집중하고, fact persistence write 세부사항은 같은 command repository 로 내려야 책임이 더 선명하다.
+
+## 538) `NormalizedPolicySidecarBackfillService` 가 raw payload 조회와 sourceType/sourceId 매칭을 각각 다른 read 경계로 직접 조합하면, backfill orchestration과 read 조립 규칙이 다시 한 서비스에 섞인다
+- 문제: sidecar backfill 서비스는 source별 payload 순회와 aggregate 재생성만 맡으면 되는데도, raw payload 목록 조회와 sourceType/sourceId 기준 서비스 매칭을 서비스 본문에서 직접 조합하고 있었다. 이 상태면 backfill 대상 read 조립 규칙이 바뀔 때 orchestration 서비스 본문을 다시 열어야 한다.
+- 해결: `NormalizedPolicySidecarBackfillTarget` 모델과 `findTargetsBySourceTypeAndApiCategoryOrderByFetchedAtAsc(...)` 를 `NormalizedPolicySidecarBackfillReadRepository` 에 추가하고, payload + matched service 조합을 이 read 경계 뒤로 이동했다.
+- 이유: `NormalizedPolicySidecarBackfillService` 는 source별 backfill orchestration과 aggregate 재생성에 집중하고, payload/service read 조립 규칙은 별도 read repository 로 내려야 책임이 더 선명하다.
+539) `RetrievalService` 가 추천 후보 조회와 태그 read를 서로 다른 read 경계로 직접 조합하던 구조를 줄이기 위해 `RecommendationCandidateReadRepository.findTagsByServiceIds(...)` 를 추가했다. 서비스는 추천 후보 필터 orchestration만 맡고, 태그 조회 구현은 추천 도메인 read boundary 뒤로 이동시켰다.
+540) `NotificationService` 는 발송 orchestration 외에 retry 대상 조회 규칙까지 직접 들고 있었다. `NotificationRetryReadService` 를 추가해 `FAILED + nextRetryAt` 조회를 service 바깥으로 이동시키고, 알림 서비스는 재시도 처리 흐름에만 집중하도록 정리했다.
+541) `RuleScoringService` 는 추천 도메인 안에서 policy 태그 read 구현을 직접 알고 있었다. 이미 도입한 `RecommendationCandidateReadRepository.findTagsByServiceIds(...)` 를 재사용해 후보 태그 로딩 경계를 추천 도메인 안으로 통일했다.
+542) `UserProfileCommandService` 는 우선순위 row 저장 외에 option code 조회와 invalid input 예외 매핑까지 직접 맡고 있었다. `PriorityOptionReadService` 를 추가해 코드 조회 규칙을 분리하고, profile command service 는 row 조립과 저장에 집중하도록 정리했다.
+543) `ScoreWeightService` 는 단계 계산 외에 `recommendation_logs` 총건수와 `score_weights` 활성 설정 조회 규칙까지 직접 들고 있었다. `ScoreWeightProgressReadService` 를 추가해 읽기 조합과 미설정 예외를 분리하고, score weight service 는 단계 계산에만 집중하도록 정리했다.
+544) `RecommendationLogService` 는 로그 쓰기와 최신 logId 맵 조회를 함께 들고 있었다. `RecommendationLogReadService` 를 분리해 추천 컨트롤러는 조회 전용 service를 사용하게 하고, 기존 service는 command 책임에 더 집중하도록 정리했다.
+545) `RecommendationPersistenceService` 는 새 추천 저장 전에 과거 북마크 상태를 `RecommendationPersistenceCommandRepository` 로 읽고 있었다. 읽기/쓰기를 뒤섞지 않기 위해 기존 추천 row 조회를 `RecommendationResultReadRepository` 로 옮기고, command repo에서는 읽기 메서드를 제거했다.
+546) `RawApiPayloadService` 는 raw JSON 직렬화 외에 기존 row 조회, 신규 생성, payload 갱신까지 직접 수행하고 있었다. `RawApiPayloadCommandRepository.upsert(...)` 를 추가해 저장 규칙을 command 경계 뒤로 내리고, raw payload service 는 직렬화와 해시 계산에 집중하도록 정리했다.
+547) `RecommendationPersistenceService` 는 기존 추천 row를 읽은 뒤 `serviceId -> bookmarked` 맵을 직접 계산하고 있었다. 이 read-side 규칙을 `RecommendationBookmarkStateReadService` 로 분리해 저장 서비스는 row 조립과 replace 저장 orchestration에 집중하도록 정리했다.
+548) `RecommendationFacade` 는 refresh-cache hit 시의 저장 추천 조회와 `/recommendations` 목록 조회를 `RecommendationResultReadRepository` 로 직접 처리하고 있었다. facade 가 파이프라인 orchestration 외에 저장 추천 read 규칙까지 들고 있던 셈이라, `RecommendationResultReadService` 를 추가해 조회를 위임하고 facade 는 refresh-cache reuse 판단과 파이프라인 orchestration 에만 집중하도록 정리했다.
+549) `RecommendationReadFacade` 는 북마크 상태 조회, canonical projection 조회, 북마크 summary 조립을 한 클래스에 함께 들고 있어서 policy/recommend/user 여러 경계가 같은 facade에 결합돼 있었다. `RecommendationBookmarkReadService` 와 `RecommendationProjectionReadService` 로 역할을 나누고, policy list/search/ranking/detail, recommendation controller, retrieval, user bookmark read 사용처를 직접 전환해 read 책임을 더 분명하게 분리했다.
+550) policy 목록/검색/랭킹/상세 서비스는 recommendation 도메인의 북마크 상태 조회와 projection additive field 조립을 직접 알고 있었다. `PolicyPresentationReadService` 를 추가해 이 공통 조립 책임을 policy 경계로 끌어올리고, policy 서비스들은 목록/검색/랭킹/상세 orchestration에만 집중하도록 정리했다.
+551) collect 경로에서는 `CollectItemSaver`, `BokjiroDetailCollectService`, `NormalizedPolicySidecarBackfillService` 가 각각 sidecar upsert, detail fallback 적용, youth relevance refresh 후처리를 직접 들고 있었다. `CollectPolicyAggregateApplyService` 를 추가해 이 aggregate 적용 규칙을 한 경계로 모으고, collect 서비스들은 payload fetch/save/backfill orchestration 에만 집중하도록 정리했다.
+552) `AdminDashboardService` 는 summary, search failures, recommendation breakdowns, collect failures, trend/window normalization, streak 계산까지 한 클래스에 몰려 있었다. `AdminDashboardSummaryService`, `AdminDashboardSearchService`, `AdminDashboardRecommendationService`, `AdminDashboardCollectService` 로 축을 나누고, 공통 window/limit/ratio 규칙은 `AdminDashboardQueryPolicy` 로 옮겨 admin dashboard read orchestration 을 관심사별로 분리했다.
+553) admin dashboard JDBC read 는 여전히 `AdminDashboardReadRepository` 하나에 collect/search/recommendation/notification SQL과 row 모델이 몰려 있었다. `AdminDashboardCollectReadRepository`, `AdminDashboardRecommendationReadRepository`, `AdminDashboardSearchReadRepository`, `AdminDashboardNotificationReadRepository` 로 분리하고, 공통 row record 는 `AdminDashboardReadRows` 로 이동해 각 서비스가 필요한 read 경계만 알도록 정리했다.
+554) `RecommendationFacade` 는 refresh cache reuse, cluster assignment, retrieval, scoring, reranking, persistence, CTR log refresh, 저장 추천 조회까지 직접 들고 있었다. `RecommendationGenerationService` 와 `RecommendationAccessService` 를 추가해 생성 파이프라인과 조회 경로를 facade 밖으로 분리하고, facade 는 API 진입점 위임과 북마크 토글만 남기도록 정리했다.
+555) `NotificationService` 는 대상 조회, 추천 선정, 본문 생성, 발송 결과 이력 저장, 재시도 규칙까지 모두 직접 들고 있었다. `NotificationRecommendationService`, `NotificationMessageService`, `NotificationDispatchService`, `NotificationRetryService` 로 역할을 나누고, `NotificationService` 는 스케줄 facade 로만 남겨 알림 orchestration 축을 분리했다.
+556) `UserService` 는 이미 프로필 조회, 북마크 조회, 프로필/우선순위 수정, 비밀번호 변경, 탈퇴, 알림 수신 거부를 모두 전용 service에 위임하는 얇은 wrapper만 남아 있었다. `UserController` 와 `NotificationController` 가 `UserService` 를 계속 거치면 상단 API 경계에 의미 없는 한 단계가 유지되므로, facade를 제거하고 `UserProfileReadService`, `UserBookmarkReadService`, `UserProfileCommandService`, `UserAccountCommandService` 를 직접 주입하도록 전환했다.
+557) `AuthService` 는 이미 token lifecycle은 `AuthTokenService`, 비밀번호 재설정은 `PasswordResetService`, identity lookup은 `AuthIdentityReadService`, signup 저장은 `UserRegistrationService` 로 위임하고 있었지만, 여전히 이메일 중복확인/회원가입/로그인/refresh/logout/admin allowlist 규칙을 한 facade에 모으고 있었다. `AuthAvailabilityService`, `AuthSignupService`, `AuthLoginService`, `AuthSessionService`, `AuthAdminRoleService` 로 역할을 나누고 `AuthController` 와 `AdminSecurityIntegrationTest` 를 직접 전환해, 인증 상단 API와 관리자 allowlist 정책도 facade 없이 각 경계로 연결되게 정리했다.
+558) `CollectService` 는 정기 배치, 관리자 수동 source 실행, `bokjiro-details-gap-fill`, source adapter registry dispatch, `api_sync_logs` 경계를 한 facade에 함께 들고 있었다. `CollectBatchService`, `CollectAdminService`, `CollectSourceExecutionService` 로 역할을 나누고 `CollectAdminController`, `AdminSecurityWebMvcTest`, `AdminSecurityIntegrationTest`, collect 단위 테스트를 직접 전환해, 수집 상단 진입점과 source dispatch 경계도 facade 없이 분리했다.
+559) `PolicyService` 는 이미 목록 read, 상세 aggregate read, 북마크 command 대부분을 전용 경계로 위임하고 있었지만, 여전히 정책 목록/상세/북마크 API 상단을 한 facade에 묶고 있었다. `PolicyListService`, `PolicyDetailService`, `PolicyBookmarkCommandService` 로 역할을 나누고 `PolicyController`, 정책 단위 테스트, policy/recommendation WebMvc 경로를 직접 전환해, policy 상단 API도 facade 없이 각 경계로 바로 연결되게 정리했다.
+560) `RecommendationFacade` 는 이미 추천 생성은 `RecommendationGenerationService`, 저장 추천 조회는 `RecommendationAccessService`, 북마크 토글은 `RecommendationBookmarkCommandService` 로 위임하고 있었지만, 여전히 추천 API 상단을 한 facade에 묶고 있었다. `RecommendationController`, recommendation WebMvc 테스트, 관련 문서를 직접 전환하고 facade 자체를 제거해, recommendation 상단 API도 facade 없이 생성/조회/북마크 경계에 바로 연결되게 정리했다.
+561) `NotificationService` 는 이미 추천 준비, 본문 생성, 발송 실행, 재시도 규칙을 하위 서비스로 분리한 뒤에도 여전히 스케줄 진입점과 직접 발송 위임을 한 facade에 묶고 있었다. `NotificationScheduleService` 를 추가하고 facade 자체를 제거해, 알림 상단은 스케줄 트리거와 retry 진입점만 맡고 실제 발송 orchestration은 `NotificationDispatchService` 아래에만 남도록 정리했다.
+562) `AdminDashboardService` 는 이미 summary/search/recommendation/collect 축을 전용 서비스로 위임하는 thin wrapper만 남아 있었지만, 여전히 관리자 대시보드 API 상단을 한 facade에 묶고 있었다. `AdminDashboardController` 와 `AdminSecurityWebMvcTest` 를 `AdminDashboardSummaryService`, `AdminDashboardSearchService`, `AdminDashboardRecommendationService`, `AdminDashboardCollectService` 에 직접 연결하고 facade 자체를 제거해, admin dashboard 상단 API도 facade 없이 각 read orchestration 경계에 바로 연결되게 정리했다.
+563) `ChatMessageService` 와 `ChatSessionService` 는 이미 read/write repository 경계와 command service를 분리한 뒤에도, 세션 조회/세션 command/대화 실행이라는 서로 다른 API 상단 책임을 두 클래스에 섞어 들고 있었다. `ChatConversationService`, `ChatSessionQueryService`, `ChatSessionCommandService` 로 역할을 다시 나누고 `ChatSessionController` 를 직접 전환해, chat API 상단도 facade 없이 대화 실행과 세션 read/command 경계에 바로 연결되게 정리했다.
+564) facade 제거가 끝난 뒤에도 current-state 문서 일부가 예전 상단 진입점 이름을 계속 가리키고 있었다. `architecture.md`, `policy-source-code-entrypoints.md`, `user-data-separation-design.md` 를 현재 코드 기준으로 다시 맞춰 `AuthService`, `UserService`, `CollectService` 같은 제거된 facade 참조를 걷어내고, 실제 진입점인 `Auth*Service`, `User*Service`, `Collect*Service` 묶음으로 동기화했다.
