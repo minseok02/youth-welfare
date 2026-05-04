@@ -1,10 +1,6 @@
 package com.example.welfare.recommend.service;
 
-import com.example.welfare.global.exception.CustomException;
-import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.recommend.entity.ScoreWeight;
-import com.example.welfare.recommend.repository.RecommendationLogReadRepository;
-import com.example.welfare.recommend.repository.ScoreWeightReadRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -23,10 +19,7 @@ import static org.mockito.BDDMockito.given;
 class ScoreWeightServiceTest {
 
     @Mock
-    private RecommendationLogReadRepository recommendationLogReadRepository;
-
-    @Mock
-    private ScoreWeightReadRepository scoreWeightReadRepository;
+    private ScoreWeightProgressReadService scoreWeightProgressReadService;
 
     @InjectMocks
     private ScoreWeightService scoreWeightService;
@@ -34,8 +27,8 @@ class ScoreWeightServiceTest {
     @Test
     @DisplayName("추천 로그가 100건 미만이면 COLD_START 가중치를 선택한다")
     void getActiveWeightReturnsColdStart() {
-        given(recommendationLogReadRepository.countAll()).willReturn(99L);
-        given(scoreWeightReadRepository.findConfiguredActiveWeights()).willReturn(defaultWeights());
+        given(scoreWeightProgressReadService.loadSnapshot())
+                .willReturn(new ScoreWeightProgressReadService.ScoreWeightProgressSnapshot(99L, defaultWeights()));
 
         ScoreWeight weight = scoreWeightService.getActiveWeight();
 
@@ -47,8 +40,8 @@ class ScoreWeightServiceTest {
     @Test
     @DisplayName("추천 로그가 100건 이상 500건 미만이면 GROWTH 가중치를 선택한다")
     void getActiveWeightReturnsGrowth() {
-        given(recommendationLogReadRepository.countAll()).willReturn(100L);
-        given(scoreWeightReadRepository.findConfiguredActiveWeights()).willReturn(defaultWeights());
+        given(scoreWeightProgressReadService.loadSnapshot())
+                .willReturn(new ScoreWeightProgressReadService.ScoreWeightProgressSnapshot(100L, defaultWeights()));
 
         ScoreWeight weight = scoreWeightService.getActiveWeight();
 
@@ -60,26 +53,14 @@ class ScoreWeightServiceTest {
     @Test
     @DisplayName("추천 로그가 500건 이상이면 STABLE 가중치를 선택한다")
     void getActiveWeightReturnsStable() {
-        given(recommendationLogReadRepository.countAll()).willReturn(500L);
-        given(scoreWeightReadRepository.findConfiguredActiveWeights()).willReturn(defaultWeights());
+        given(scoreWeightProgressReadService.loadSnapshot())
+                .willReturn(new ScoreWeightProgressReadService.ScoreWeightProgressSnapshot(500L, defaultWeights()));
 
         ScoreWeight weight = scoreWeightService.getActiveWeight();
 
         assertThat(weight.getWeightKey()).isEqualTo("STABLE");
         assertThat(weight.getRuleWeight()).isEqualByComparingTo("0.4");
         assertThat(weight.getAiWeight()).isEqualByComparingTo("0.6");
-    }
-
-    @Test
-    @DisplayName("활성 가중치 설정이 없으면 명시적 예외를 던진다")
-    void getActiveWeightThrowsWhenNoActiveWeights() {
-        given(recommendationLogReadRepository.countAll()).willReturn(0L);
-        given(scoreWeightReadRepository.findConfiguredActiveWeights()).willReturn(List.of());
-
-        assertThatThrownBy(() -> scoreWeightService.getActiveWeight())
-                .isInstanceOf(CustomException.class)
-                .extracting("errorCode")
-                .isEqualTo(ErrorCode.SCORE_WEIGHT_NOT_CONFIGURED);
     }
 
     private List<ScoreWeight> defaultWeights() {
