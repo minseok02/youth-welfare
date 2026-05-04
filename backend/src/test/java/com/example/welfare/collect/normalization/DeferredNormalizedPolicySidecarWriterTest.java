@@ -9,8 +9,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.ArgumentCaptor;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -31,10 +29,6 @@ import static org.mockito.Mockito.verify;
 class DeferredNormalizedPolicySidecarWriterTest {
 
     @Mock
-    private JdbcTemplate jdbcTemplate;
-    @Mock
-    private NamedParameterJdbcTemplate namedParameterJdbcTemplate;
-    @Mock
     private DeferredNormalizedPolicySidecarReadRepository deferredNormalizedPolicySidecarReadRepository;
     @Mock
     private DeferredNormalizedPolicySidecarCommandRepository deferredNormalizedPolicySidecarCommandRepository;
@@ -44,8 +38,6 @@ class DeferredNormalizedPolicySidecarWriterTest {
     @BeforeEach
     void setUp() {
         writer = new DeferredNormalizedPolicySidecarWriter(
-                jdbcTemplate,
-                namedParameterJdbcTemplate,
                 deferredNormalizedPolicySidecarReadRepository,
                 deferredNormalizedPolicySidecarCommandRepository,
                 new NormalizedFactMergeSupport()
@@ -96,7 +88,7 @@ class DeferredNormalizedPolicySidecarWriterTest {
 
         assertThatCode(() -> writer.upsert(service, aggregate))
                 .doesNotThrowAnyException();
-        verify(namedParameterJdbcTemplate, never()).update(anyString(), any(org.springframework.jdbc.core.namedparam.SqlParameterSource.class));
+        verify(deferredNormalizedPolicySidecarCommandRepository, never()).upsertTaxonomySummary(any(), any());
     }
 
     @Test
@@ -206,7 +198,10 @@ class DeferredNormalizedPolicySidecarWriterTest {
                 any(List.class),
                 any(List.class)
         );
-        verify(namedParameterJdbcTemplate).update(org.mockito.ArgumentMatchers.contains("INSERT INTO service_facts"), any(org.springframework.jdbc.core.namedparam.SqlParameterSource.class));
+        verify(deferredNormalizedPolicySidecarCommandRepository).upsertMergedFacts(
+                org.mockito.ArgumentMatchers.eq(10L),
+                any(List.class)
+        );
     }
 
     @Test
@@ -399,7 +394,10 @@ class DeferredNormalizedPolicySidecarWriterTest {
                 any(List.class)
         );
         verify(deferredNormalizedPolicySidecarCommandRepository).upsertTaxonomySummary(service, aggregate);
-        verify(namedParameterJdbcTemplate).update(org.mockito.ArgumentMatchers.contains("INSERT INTO service_facts"), any(org.springframework.jdbc.core.namedparam.SqlParameterSource.class));
+        verify(deferredNormalizedPolicySidecarCommandRepository).upsertMergedFacts(
+                org.mockito.ArgumentMatchers.eq(20L),
+                any(List.class)
+        );
     }
 
     @Test

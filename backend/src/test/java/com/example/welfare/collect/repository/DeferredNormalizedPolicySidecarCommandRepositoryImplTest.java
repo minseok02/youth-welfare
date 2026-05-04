@@ -311,4 +311,31 @@ class DeferredNormalizedPolicySidecarCommandRepositoryImplTest {
         verify(jdbcTemplate, never()).update(org.mockito.ArgumentMatchers.contains("DELETE FROM service_taxonomy_terms"), any(Object[].class));
         verify(namedParameterJdbcTemplate).update(org.mockito.ArgumentMatchers.contains("INSERT INTO service_taxonomy_terms"), any(SqlParameterSource.class));
     }
+
+    @Test
+    @DisplayName("sidecar command repository는 merged fact upsert를 위임한다")
+    void upsertMergedFactsDelegates() {
+        NormalizedPolicyAggregate.Fact fact = NormalizedPolicyAggregate.Fact.builder()
+                .factGroup("AGE")
+                .factCodeSetKey("AGE")
+                .factCode("YOUTH_AGE")
+                .factMergeKey("AGE_RANGE")
+                .factLabel("지원 연령")
+                .operator(NormalizedPolicyAggregate.Operator.RANGE)
+                .valueType(NormalizedPolicyAggregate.ValueType.INTEGER)
+                .rangeMinInt(19)
+                .rangeMaxInt(34)
+                .sourceField("eligibility")
+                .authority(NormalizedPolicyAggregate.Authority.OFFICIAL)
+                .confidence(BigDecimal.ONE)
+                .build();
+
+        deferredNormalizedPolicySidecarCommandRepository.upsertMergedFacts(40L, List.of(fact));
+
+        ArgumentCaptor<SqlParameterSource> paramsCaptor = ArgumentCaptor.forClass(SqlParameterSource.class);
+        verify(namedParameterJdbcTemplate).update(org.mockito.ArgumentMatchers.contains("INSERT INTO service_facts"), paramsCaptor.capture());
+        assertThat(paramsCaptor.getValue().getValue("serviceId")).isEqualTo(40L);
+        assertThat(paramsCaptor.getValue().getValue("factGroup")).isEqualTo("AGE");
+        assertThat(paramsCaptor.getValue().getValue("sourceField")).isEqualTo("eligibility");
+    }
 }

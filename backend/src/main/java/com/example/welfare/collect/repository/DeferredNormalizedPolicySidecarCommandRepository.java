@@ -15,4 +15,6 @@ public interface DeferredNormalizedPolicySidecarCommandRepository {
                               List<NormalizedPolicyAggregate.TaxonomyTerm> taxonomyTerms,
                               List<String> refreshScopeGroups,
                               List<String> refreshScopeSourceFields);
+
+    void upsertMergedFacts(Long serviceId, List<NormalizedPolicyAggregate.Fact> mergedFacts);
 }

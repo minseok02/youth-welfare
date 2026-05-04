@@ -2921,3 +2921,8 @@
 - 문제: sidecar writer 는 refresh scope 계산과 fact merge orchestration을 맡으면서도 `service_taxonomy_terms` delete/insert SQL 을 직접 들고 있었다. 이 상태면 taxonomy term persistence 규칙이나 delete scope SQL 이 바뀔 때 writer 본문을 다시 열어야 한다.
 - 해결: `DeferredNormalizedPolicySidecarCommandRepository` / `DeferredNormalizedPolicySidecarCommandRepositoryImpl` 에 taxonomy term 전체 교체 write 를 추가하고, writer 는 refresh scope 계산 후 command 경계에 위임만 하도록 정리했다.
 - 이유: `DeferredNormalizedPolicySidecarWriter` 는 sidecar upsert 순서와 delete scope 계산 orchestration에 집중하고, taxonomy term persistence write 세부사항은 같은 command repository 로 내려야 책임이 더 선명하다.
+
+## 537) `DeferredNormalizedPolicySidecarWriter` 가 merged fact upsert SQL까지 직접 들고 있으면, sidecar write orchestration과 fact persistence 규칙이 다시 한 클래스에 섞인다
+- 문제: sidecar writer 는 기존 fact read 후 merge 결과를 계산하는 orchestration을 맡으면서도 `service_facts` upsert SQL 을 직접 들고 있었다. 이 상태면 fact persistence 규칙이나 SQL 세부사항이 바뀔 때 writer 본문을 다시 열어야 한다.
+- 해결: `DeferredNormalizedPolicySidecarCommandRepository` / `DeferredNormalizedPolicySidecarCommandRepositoryImpl` 에 merged fact upsert 를 추가하고, writer 는 merge 결과를 계산한 뒤 command 경계에 위임만 하도록 정리했다.
+- 이유: `DeferredNormalizedPolicySidecarWriter` 는 read + merge + write 순서 orchestration에 집중하고, fact persistence write 세부사항은 같은 command repository 로 내려야 책임이 더 선명하다.

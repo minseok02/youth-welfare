@@ -215,6 +215,101 @@ public class DeferredNormalizedPolicySidecarCommandRepositoryImpl
         }
     }
 
+    @Override
+    public void upsertMergedFacts(Long serviceId, List<NormalizedPolicyAggregate.Fact> mergedFacts) {
+        for (NormalizedPolicyAggregate.Fact fact : mergedFacts) {
+            namedParameterJdbcTemplate.update("""
+                    INSERT INTO service_facts (
+                        service_id,
+                        fact_group,
+                        fact_code_set_key,
+                        fact_code,
+                        fact_merge_key,
+                        fact_label,
+                        operator,
+                        value_type,
+                        bool_value,
+                        int_value,
+                        decimal_value,
+                        text_value,
+                        date_value,
+                        range_min_int,
+                        range_max_int,
+                        unit,
+                        source_field,
+                        authority,
+                        confidence,
+                        raw_value,
+                        evidence_text
+                    ) VALUES (
+                        :serviceId,
+                        :factGroup,
+                        :factCodeSetKey,
+                        :factCode,
+                        :factMergeKey,
+                        :factLabel,
+                        :operator,
+                        :valueType,
+                        :boolValue,
+                        :intValue,
+                        :decimalValue,
+                        :textValue,
+                        :dateValue,
+                        :rangeMinInt,
+                        :rangeMaxInt,
+                        :unit,
+                        :sourceField,
+                        :authority,
+                        :confidence,
+                        :rawValue,
+                        :evidenceText
+                    )
+                    ON DUPLICATE KEY UPDATE
+                        fact_group = VALUES(fact_group),
+                        fact_code_set_key = VALUES(fact_code_set_key),
+                        fact_code = VALUES(fact_code),
+                        fact_label = VALUES(fact_label),
+                        operator = VALUES(operator),
+                        value_type = VALUES(value_type),
+                        bool_value = VALUES(bool_value),
+                        int_value = VALUES(int_value),
+                        decimal_value = VALUES(decimal_value),
+                        text_value = VALUES(text_value),
+                        date_value = VALUES(date_value),
+                        range_min_int = VALUES(range_min_int),
+                        range_max_int = VALUES(range_max_int),
+                        unit = VALUES(unit),
+                        source_field = VALUES(source_field),
+                        authority = VALUES(authority),
+                        confidence = VALUES(confidence),
+                        raw_value = VALUES(raw_value),
+                        evidence_text = VALUES(evidence_text)
+                    """,
+                    new MapSqlParameterSource()
+                            .addValue("serviceId", serviceId)
+                            .addValue("factGroup", fact.factGroup())
+                            .addValue("factCodeSetKey", fact.factCodeSetKey())
+                            .addValue("factCode", fact.factCode())
+                            .addValue("factMergeKey", fact.factMergeKey())
+                            .addValue("factLabel", fact.factLabel())
+                            .addValue("operator", fact.operator().name())
+                            .addValue("valueType", fact.valueType().name())
+                            .addValue("boolValue", fact.boolValue())
+                            .addValue("intValue", fact.intValue())
+                            .addValue("decimalValue", fact.decimalValue())
+                            .addValue("textValue", fact.textValue())
+                            .addValue("dateValue", fact.dateValue())
+                            .addValue("rangeMinInt", fact.rangeMinInt())
+                            .addValue("rangeMaxInt", fact.rangeMaxInt())
+                            .addValue("unit", fact.unit())
+                            .addValue("sourceField", normalizeBlankString(fact.sourceField()))
+                            .addValue("authority", fact.authority().name())
+                            .addValue("confidence", fact.confidence())
+                            .addValue("rawValue", fact.rawValue())
+                            .addValue("evidenceText", fact.evidenceText()));
+        }
+    }
+
     private Object[] buildSummarySlotDeleteArgs(Long serviceId) {
         List<Object> args = new ArrayList<>();
         args.add(serviceId);
