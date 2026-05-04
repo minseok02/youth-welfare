@@ -1,7 +1,7 @@
 package com.example.welfare.collect.service;
 
+import com.example.welfare.collect.repository.StatusUpdateReadRepository;
 import com.example.welfare.policy.entity.WelfareService;
-import com.example.welfare.policy.repository.WelfareServiceRepository;
 import com.example.welfare.recommend.repository.ClusterAiResultCommandRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -21,7 +21,7 @@ import static org.mockito.BDDMockito.then;
 class StatusUpdateServiceTest {
 
     @Mock
-    private WelfareServiceRepository welfareServiceRepository;
+    private StatusUpdateReadRepository statusUpdateReadRepository;
 
     @Mock
     private ClusterAiResultCommandRepository clusterAiResultCommandRepository;
@@ -32,8 +32,8 @@ class StatusUpdateServiceTest {
     @Test
     @DisplayName("status update는 상태 갱신 후 만료된 cluster ai cache 삭제를 command repository로 위임한다")
     void updateStatusesDeletesExpiredClusterAiCache() {
-        given(welfareServiceRepository.findByStatus(WelfareService.ServiceStatus.ACTIVE)).willReturn(List.of());
-        given(welfareServiceRepository.findByStatus(WelfareService.ServiceStatus.UPCOMING)).willReturn(List.of());
+        given(statusUpdateReadRepository.findActiveServices()).willReturn(List.of());
+        given(statusUpdateReadRepository.findUpcomingServices()).willReturn(List.of());
 
         statusUpdateService.updateStatuses();
 

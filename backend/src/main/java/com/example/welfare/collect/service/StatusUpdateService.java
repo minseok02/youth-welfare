@@ -1,7 +1,7 @@
 package com.example.welfare.collect.service;
 
+import com.example.welfare.collect.repository.StatusUpdateReadRepository;
 import com.example.welfare.policy.entity.WelfareService;
-import com.example.welfare.policy.repository.WelfareServiceRepository;
 import com.example.welfare.recommend.repository.ClusterAiResultCommandRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -18,7 +18,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class StatusUpdateService {
 
-    private final WelfareServiceRepository welfareServiceRepository;
+    private final StatusUpdateReadRepository statusUpdateReadRepository;
     private final ClusterAiResultCommandRepository clusterAiResultCommandRepository;
 
     /**
@@ -35,8 +35,7 @@ public class StatusUpdateService {
         int activatedCount = 0;
 
         // ACTIVE → CLOSED: endDate 또는 applyEndDate가 어제 이전
-        List<WelfareService> actives = welfareServiceRepository.findByStatus(
-                WelfareService.ServiceStatus.ACTIVE);
+        List<WelfareService> actives = statusUpdateReadRepository.findActiveServices();
         for (WelfareService ws : actives) {
             if (isClosed(ws, today)) {
                 ws.updateStatus(WelfareService.ServiceStatus.CLOSED);
@@ -45,8 +44,7 @@ public class StatusUpdateService {
         }
 
         // UPCOMING → ACTIVE: startDate 또는 applyStartDate가 오늘 이전
-        List<WelfareService> upcomings = welfareServiceRepository.findByStatus(
-                WelfareService.ServiceStatus.UPCOMING);
+        List<WelfareService> upcomings = statusUpdateReadRepository.findUpcomingServices();
         for (WelfareService ws : upcomings) {
             if (isNowActive(ws, today)) {
                 ws.updateStatus(WelfareService.ServiceStatus.ACTIVE);
