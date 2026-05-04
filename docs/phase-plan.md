@@ -1224,6 +1224,8 @@ cd backend
 - `UserPiiSyncProcessor` / `UserPiiSyncReplayService` 의 queue row lookup 도 `UserPiiSyncQueueService` 로 모아 user pii sync 흐름의 queue access 경계를 단일화
 - `UserCoreSyncService` 는 orchestration만 남기고 auth/profile projection upsert 는 `UserCoreProjectionSyncService` 로 분리
 - `PasswordResetService` 의 reset 메일 수신자 조회는 `UserReadService` 로 모아 user PII 저장소 직접 의존 제거
+- `AuthService` 의 auth_users lookup hash read는 `AuthIdentityReadService` 로, 회원가입 저장+core sync 는 `UserRegistrationService` 로 분리해 인증 orchestration 과 auth identity read / signup write 경계를 분리
+- `PasswordResetService` 의 auth_users 이메일 lookup 도 같은 `AuthIdentityReadService` 로 통일
 
 ## 2차로 분리된 항목
 

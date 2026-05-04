@@ -2726,3 +2726,8 @@
 - 문제: `UserReadService` 는 profile/snapshot/active-user read 외에 `getNotificationTargets(...)`, `getNotificationEmailByUserKey(...)` 같은 notification read 메서드도 같이 갖고 있었고, `NotificationService`, `PasswordResetService` 가 이를 직접 사용하고 있었다.
 - 해결: `UserNotificationReadService` 를 추가하고, 알림 대상/알림 이메일 read 메서드를 이 서비스로 이동했다. `NotificationService`, `PasswordResetService` 도 전용 읽기 경계로 교체했다.
 - 이유: active-user/profile/snapshot 읽기와 notification target/email 읽기는 바뀌는 이유가 다르므로, 분리해야 `UserReadService` 책임이 가벼워지고 notification read 정책 변경도 독립적으로 다루기 쉽다.
+
+## 498) `AuthService` 가 auth identity read 와 signup write 를 같이 들면, 인증 orchestration 과 lookup hash 규칙/신규 사용자 저장 규칙이 한 서비스에 다시 섞인다
+- 문제: 이메일 중복 확인, 로그인 대상 lookup 은 `auth_users` lookup hash 규칙에 묶여 있고, 회원가입은 신규 `User` 저장과 `UserCoreSyncService` 호출까지 같이 들고 있었다. 이 상태면 이메일 식별 규칙이나 signup 저장 흐름이 바뀔 때 `AuthService` 자체를 계속 수정해야 한다.
+- 해결: `AuthIdentityReadService` 를 추가해 `existsByEmail(...)`, `findByEmail(...)` 로 auth identity read 규칙을 모으고, `UserRegistrationService` 를 추가해 신규 사용자 저장과 core sync 를 별도 command 경계로 이동했다. `PasswordResetService` 의 auth_users 이메일 lookup 도 같은 read 경계로 통일했다.
+- 이유: 인증 서비스는 admin email 정책, 비밀번호 검증, 토큰 발급 같은 orchestration 에 집중하고, auth identity 조회/hash 규칙과 signup write 는 별도 경계로 내리는 편이 SRP와 테스트 격리에 더 낫다.

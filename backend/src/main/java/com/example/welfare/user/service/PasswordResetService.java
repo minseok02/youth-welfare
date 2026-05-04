@@ -4,7 +4,6 @@ import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.notification.gateway.EmailClient;
 import com.example.welfare.user.entity.AuthUser;
-import com.example.welfare.user.repository.AuthUserRepository;
 import com.example.welfare.user.util.EmailLookupKeyGenerator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -27,7 +26,7 @@ public class PasswordResetService {
     private static final String PASSWORD_RESET_USER_PREFIX = "password-reset:user:";
     private static final String PASSWORD_RESET_SUBJECT = "[청년복지] 비밀번호 재설정 안내";
 
-    private final AuthUserRepository authUserRepository;
+    private final AuthIdentityReadService authIdentityReadService;
     private final PasswordEncoder passwordEncoder;
     private final RedisTemplate<String, String> redisTemplate;
     private final EmailClient emailClient;
@@ -45,7 +44,7 @@ public class PasswordResetService {
     @Transactional
     public void requestPasswordReset(String rawEmail) {
         String email = EmailLookupKeyGenerator.normalize(rawEmail);
-        authUserRepository.findByEmailLookupHash(EmailLookupKeyGenerator.hash(email))
+        authIdentityReadService.findByEmail(email)
                 .filter(AuthUser::isActive)
                 .flatMap(authUser -> userReadService.findOptionalActiveUserByUserKey(authUser.getUserKey())
                         .map(user -> authUser.getUserKey()))

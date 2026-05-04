@@ -9,8 +9,6 @@ import com.example.welfare.user.dto.response.EmailAvailabilityResponse;
 import com.example.welfare.user.dto.response.TokenResponse;
 import com.example.welfare.user.entity.AuthUser;
 import com.example.welfare.user.entity.User;
-import com.example.welfare.user.repository.AuthUserRepository;
-import com.example.welfare.user.repository.UserRepository;
 import com.example.welfare.user.util.EmailLookupKeyGenerator;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
@@ -36,9 +34,9 @@ public class AuthService {
     private static final int MAX_LOGIN_FAIL = 5;
     private static final int LOCK_MINUTES = 30;
 
-    private final AuthUserRepository authUserRepository;
-    private final UserRepository userRepository;
+    private final AuthIdentityReadService authIdentityReadService;
     private final PasswordEncoder passwordEncoder;
+    private final UserRegistrationService userRegistrationService;
     private final UserCoreSyncService userCoreSyncService;
     private final AuthTokenService authTokenService;
     private final PasswordResetService passwordResetService;
@@ -60,7 +58,7 @@ public class AuthService {
 
     @Transactional(readOnly = true)
     public EmailAvailabilityResponse checkEmailAvailability(String email) {
-        return new EmailAvailabilityResponse(!authUserRepository.existsByEmailLookupHash(EmailLookupKeyGenerator.hash(email)));
+        return new EmailAvailabilityResponse(!authIdentityReadService.existsByEmail(email));
     }
 
     @Transactional
@@ -69,30 +67,17 @@ public class AuthService {
             throw new CustomException(ErrorCode.ADMIN_EMAIL_SIGNUP_FORBIDDEN);
         }
 
-        if (authUserRepository.existsByEmailLookupHash(EmailLookupKeyGenerator.hash(request.getEmail()))) {
+        if (authIdentityReadService.existsByEmail(request.getEmail())) {
             throw new CustomException(ErrorCode.DUPLICATE_EMAIL);
         }
 
-        User user = User.builder()
-                .email(request.getEmail())
-                .passwordHash(passwordEncoder.encode(request.getPassword()))
-                .name(request.getName())
-                .birthDate(request.getBirthDate())
-                .sido(request.getSido())
-                .sgg(request.getSgg())
-                .incomeLevel(request.getIncomeLevel())
-                .employmentStatus(request.getEmploymentStatus())
-                .householdType(request.getHouseholdType())
-                .build();
-
-        userRepository.save(user);
-        userCoreSyncService.syncFromUser(user);
+        userRegistrationService.register(request, passwordEncoder.encode(request.getPassword()));
     }
 
     @Transactional
     public TokenResponse login(LoginRequest request) {
         String normalizedEmail = EmailLookupKeyGenerator.normalize(request.getEmail());
-        AuthUser authUser = authUserRepository.findByEmailLookupHash(EmailLookupKeyGenerator.hash(normalizedEmail))
+        AuthUser authUser = authIdentityReadService.findByEmail(normalizedEmail)
                 .orElseThrow(() -> new CustomException(ErrorCode.INVALID_CREDENTIALS));
 
         if (!authUser.isActive()) {

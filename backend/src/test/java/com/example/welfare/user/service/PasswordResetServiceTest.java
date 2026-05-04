@@ -5,7 +5,6 @@ import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.notification.gateway.EmailClient;
 import com.example.welfare.user.entity.AuthUser;
 import com.example.welfare.user.entity.User;
-import com.example.welfare.user.repository.AuthUserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -31,7 +30,7 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class PasswordResetServiceTest {
 
-    @Mock private AuthUserRepository authUserRepository;
+    @Mock private AuthIdentityReadService authIdentityReadService;
     @Mock private PasswordEncoder passwordEncoder;
     @Mock private RedisTemplate<String, String> redisTemplate;
     @Mock private EmailClient emailClient;
@@ -46,7 +45,7 @@ class PasswordResetServiceTest {
     @BeforeEach
     void setUp() {
         passwordResetService = new PasswordResetService(
-                authUserRepository,
+                authIdentityReadService,
                 passwordEncoder,
                 redisTemplate,
                 emailClient,
@@ -73,7 +72,7 @@ class PasswordResetServiceTest {
                 .email("legacy@example.com")
                 .passwordHash("hash")
                 .build();
-        when(authUserRepository.findByEmailLookupHash("b4c9a289323b21a01c3e940f150eb9b8c542587f1abfd8f0e1cc1ffc5e475514"))
+        when(authIdentityReadService.findByEmail("user@example.com"))
                 .thenReturn(Optional.of(authUser));
         when(userReadService.findOptionalActiveUserByUserKey("user-key-7")).thenReturn(Optional.of(user));
         when(userNotificationReadService.getNotificationEmailByUserKey("user-key-7")).thenReturn("pii@example.com");
@@ -91,7 +90,7 @@ class PasswordResetServiceTest {
     @Test
     @DisplayName("비밀번호 재설정 요청은 없는 이메일이어도 동일 성공으로 끝나며 메일을 보내지 않는다")
     void requestPasswordResetIgnoresUnknownEmail() {
-        when(authUserRepository.findByEmailLookupHash("62065901fb8d47d884b2737489920faedfdf935aa5cd9e0c34cad99b99a6a91b"))
+        when(authIdentityReadService.findByEmail("missing@example.com"))
                 .thenReturn(Optional.empty());
 
         passwordResetService.requestPasswordReset("missing@example.com");
@@ -113,7 +112,7 @@ class PasswordResetServiceTest {
                 .email("legacy@example.com")
                 .passwordHash("hash")
                 .build();
-        when(authUserRepository.findByEmailLookupHash("b4c9a289323b21a01c3e940f150eb9b8c542587f1abfd8f0e1cc1ffc5e475514"))
+        when(authIdentityReadService.findByEmail("user@example.com"))
                 .thenReturn(Optional.of(authUser));
         when(userReadService.findOptionalActiveUserByUserKey("user-key-7")).thenReturn(Optional.of(user));
         when(userNotificationReadService.getNotificationEmailByUserKey("user-key-7"))

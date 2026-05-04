@@ -2,12 +2,11 @@ package com.example.welfare.user.service;
 
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
+import com.example.welfare.user.dto.request.SignupRequest;
 import com.example.welfare.user.dto.request.LoginRequest;
 import com.example.welfare.user.dto.response.TokenResponse;
 import com.example.welfare.user.entity.AuthUser;
 import com.example.welfare.user.entity.User;
-import com.example.welfare.user.repository.AuthUserRepository;
-import com.example.welfare.user.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -32,11 +31,11 @@ import static org.mockito.Mockito.when;
 class AuthServiceTest {
 
     @Mock
-    private AuthUserRepository authUserRepository;
-    @Mock
-    private UserRepository userRepository;
+    private AuthIdentityReadService authIdentityReadService;
     @Mock
     private PasswordEncoder passwordEncoder;
+    @Mock
+    private UserRegistrationService userRegistrationService;
     @Mock
     private UserCoreSyncService userCoreSyncService;
     @Mock
@@ -51,9 +50,9 @@ class AuthServiceTest {
     @BeforeEach
     void setUp() {
         authService = new AuthService(
-                authUserRepository,
-                userRepository,
+                authIdentityReadService,
                 passwordEncoder,
+                userRegistrationService,
                 userCoreSyncService,
                 authTokenService,
                 passwordResetService,
@@ -66,10 +65,25 @@ class AuthServiceTest {
     @Test
     @DisplayName("이메일 중복확인은 대소문자를 무시한 auth_users lookup hash 기준으로 판단한다")
     void checkEmailAvailabilityUsesLookupHash() {
-        when(authUserRepository.existsByEmailLookupHash("b4c9a289323b21a01c3e940f150eb9b8c542587f1abfd8f0e1cc1ffc5e475514"))
-                .thenReturn(true);
+        when(authIdentityReadService.existsByEmail(" USER@example.com ")).thenReturn(true);
 
         assertThat(authService.checkEmailAvailability(" USER@example.com ").available()).isFalse();
+    }
+
+    @Test
+    @DisplayName("회원가입은 중복이 아니면 registration service에 저장을 위임한다")
+    void signupDelegatesRegistration() {
+        SignupRequest request = new SignupRequest();
+        ReflectionTestUtils.setField(request, "email", "user@example.com");
+        ReflectionTestUtils.setField(request, "password", "password123!");
+        ReflectionTestUtils.setField(request, "name", "홍길동");
+
+        when(authIdentityReadService.existsByEmail("user@example.com")).thenReturn(false);
+        when(passwordEncoder.encode("password123!")).thenReturn("encoded-password");
+
+        authService.signup(request);
+
+        verify(userRegistrationService).register(request, "encoded-password");
     }
 
     @Test
@@ -91,7 +105,7 @@ class AuthServiceTest {
                 .passwordHash("encoded")
                 .build();
 
-        when(authUserRepository.findByEmailLookupHash(anyString()))
+        when(authIdentityReadService.findByEmail(anyString()))
                 .thenReturn(Optional.of(authUser));
         when(userReadService.getActiveUserByUserKey("user-key-1")).thenReturn(user);
         when(passwordEncoder.matches("password123!", "encoded")).thenReturn(true);
@@ -144,7 +158,7 @@ class AuthServiceTest {
                 .passwordHash("encoded")
                 .build();
 
-        when(authUserRepository.findByEmailLookupHash("b4c9a289323b21a01c3e940f150eb9b8c542587f1abfd8f0e1cc1ffc5e475514"))
+        when(authIdentityReadService.findByEmail("user@example.com"))
                 .thenReturn(Optional.of(authUser));
         when(userReadService.getActiveUserByUserKey("user-key-1")).thenReturn(user);
         when(passwordEncoder.matches("wrong-password", "encoded")).thenReturn(false);
