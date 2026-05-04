@@ -1240,6 +1240,7 @@ cd backend
 - `RecommendationReadFacade` 의 북마크 최신 조회와 canonical projection 조회도 `RecommendationSummaryReadRepository` 뒤로 이동해 recommendation summary read 조합을 facade 밖으로 분리
 - `RecommendationFacade` 의 refresh cache 재사용용 최신 저장 추천 조회와 top recommendation 목록 조회도 `RecommendationResultReadRepository` 뒤로 이동해 결과 목록 read 규칙을 facade 밖으로 분리
 - `ScoreWeightService` 의 활성 가중치 목록 조회도 `ScoreWeightReadRepository` 뒤로 이동해 cold-start stage 계산과 설정 read 규칙을 분리
+- `UserProfileCommandService` 의 우선순위 option code lookup도 `PriorityOptionReadRepository` 뒤로 이동해 profile command와 option validation read 규칙을 분리
 
 ## 2차로 분리된 항목
 

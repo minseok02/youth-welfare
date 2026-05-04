@@ -9,7 +9,7 @@ import com.example.welfare.user.entity.PriorityOption;
 import com.example.welfare.user.entity.User;
 import com.example.welfare.user.entity.UserAttribute;
 import com.example.welfare.user.entity.UserPriority;
-import com.example.welfare.user.repository.PriorityOptionRepository;
+import com.example.welfare.user.repository.PriorityOptionReadRepository;
 import com.example.welfare.user.repository.UserMetadataCommandRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -26,7 +26,7 @@ public class UserProfileCommandService {
 
     private final UserReadService userReadService;
     private final UserMetadataCommandRepository userMetadataCommandRepository;
-    private final PriorityOptionRepository priorityOptionRepository;
+    private final PriorityOptionReadRepository priorityOptionReadRepository;
     private final PriorityWeightPolicy priorityWeightPolicy;
     private final UserCoreSyncService userCoreSyncService;
     private final RecommendationRefreshCacheService recommendationRefreshCacheService;
@@ -103,7 +103,7 @@ public class UserProfileCommandService {
 
         List<UserPriority> priorities = new java.util.ArrayList<>();
         for (int i = 0; i < codes.size(); i++) {
-            PriorityOption option = priorityOptionRepository.findByCode(codes.get(i))
+            PriorityOption option = priorityOptionReadRepository.findByCode(codes.get(i))
                     .orElseThrow(() -> new CustomException(ErrorCode.INVALID_INPUT));
 
             priorities.add(UserPriority.builder()

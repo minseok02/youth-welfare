@@ -7,7 +7,7 @@ import com.example.welfare.user.entity.PriorityOption;
 import com.example.welfare.user.entity.User;
 import com.example.welfare.user.entity.UserAttribute;
 import com.example.welfare.user.entity.UserPriority;
-import com.example.welfare.user.repository.PriorityOptionRepository;
+import com.example.welfare.user.repository.PriorityOptionReadRepository;
 import com.example.welfare.user.repository.UserMetadataCommandRepository;
 import org.assertj.core.groups.Tuple;
 import org.junit.jupiter.api.DisplayName;
@@ -33,7 +33,7 @@ class UserProfileCommandServiceTest {
 
     @Mock private UserReadService userReadService;
     @Mock private UserMetadataCommandRepository userMetadataCommandRepository;
-    @Mock private PriorityOptionRepository priorityOptionRepository;
+    @Mock private PriorityOptionReadRepository priorityOptionReadRepository;
     @Mock private PriorityWeightPolicy priorityWeightPolicy;
     @Mock private UserCoreSyncService userCoreSyncService;
     @Mock private RecommendationRefreshCacheService recommendationRefreshCacheService;
@@ -44,7 +44,7 @@ class UserProfileCommandServiceTest {
         UserProfileCommandService service = new UserProfileCommandService(
                 userReadService,
                 userMetadataCommandRepository,
-                priorityOptionRepository,
+                priorityOptionReadRepository,
                 priorityWeightPolicy,
                 userCoreSyncService,
                 recommendationRefreshCacheService
@@ -79,7 +79,7 @@ class UserProfileCommandServiceTest {
         UserProfileCommandService service = new UserProfileCommandService(
                 userReadService,
                 userMetadataCommandRepository,
-                priorityOptionRepository,
+                priorityOptionReadRepository,
                 priorityWeightPolicy,
                 userCoreSyncService,
                 recommendationRefreshCacheService
@@ -97,8 +97,8 @@ class UserProfileCommandServiceTest {
         when(priorityWeightPolicy.maxRank()).thenReturn(5);
         when(priorityWeightPolicy.weightForRank(1)).thenReturn(2.0);
         when(priorityWeightPolicy.weightForRank(2)).thenReturn(1.6);
-        when(priorityOptionRepository.findByCode("HOUSING")).thenReturn(Optional.of(housing));
-        when(priorityOptionRepository.findByCode("JOB")).thenReturn(Optional.of(job));
+        when(priorityOptionReadRepository.findByCode("HOUSING")).thenReturn(Optional.of(housing));
+        when(priorityOptionReadRepository.findByCode("JOB")).thenReturn(Optional.of(job));
 
         UpdatePrioritiesRequest request = new UpdatePrioritiesRequest();
         ReflectionTestUtils.setField(request, "priorityCodes", List.of("HOUSING", "JOB"));
@@ -122,7 +122,7 @@ class UserProfileCommandServiceTest {
         UserProfileCommandService service = new UserProfileCommandService(
                 userReadService,
                 userMetadataCommandRepository,
-                priorityOptionRepository,
+                priorityOptionReadRepository,
                 priorityWeightPolicy,
                 userCoreSyncService,
                 recommendationRefreshCacheService
