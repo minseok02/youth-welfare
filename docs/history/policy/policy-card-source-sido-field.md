@@ -50,7 +50,9 @@ sido_name은 전부 NULL이라 이 변경에 영향 없음.
 
 - `ServiceRegionRepository.findFirstSidoByServiceIds()` — sido_name이 있는 행만 service_id당 하나(MIN) 반환
 - `PolicySummaryResponse.sido` 필드 추가, `from()` 4-arg 오버로드
-- `PolicyService.buildSidoMap()`, `PolicySearchService.buildSidoMap()` — 페이지 단위 배치 조회 (쿼리 1회)
+- `PolicyPresentationReadService.buildSidoMap()` — 페이지 단위 배치 조회 (쿼리 1회)
+  - `PolicyListService`, `PolicySearchService` 양쪽이 `buildSummaryPage()`를 통해 공통 적용
+  - 최초에는 `PolicyService`/`PolicySearchService` 각각에 구현했으나, main merge 시 `PolicyService` → `PolicyListService`/`PolicyPresentationReadService` 분리가 적용되어 `PolicyPresentationReadService`로 통합
 - `PoliciesPage.jsx mapPolicySummary` — `hostOrg || sido || applyMethodName`
 
 ## 검토했으나 채택하지 않은 방안

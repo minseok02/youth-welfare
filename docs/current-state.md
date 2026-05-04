@@ -54,7 +54,7 @@
 
 프론트엔드 auto-sort: 지역 Select에서 전체 외 값 선택 시 sort를 `latest`로 자동 전환, 전체 복귀 시 `views`로 복귀.
 
-- 관련 파일: `PolicyService.java`, `PolicySearchService.java`, `WelfareServiceRepository.java`, `PolicyListReadCondition.java`, `PoliciesPage.jsx`
+- 관련 파일: `PolicyListService.java`, `PolicySearchService.java`, `WelfareServiceRepository.java`, `PolicyListReadCondition.java`, `PoliciesPage.jsx`
 - 설계 배경: [policy-listing-sort-region-strategy.md](./history/policy/policy-listing-sort-region-strategy.md)
 
 ## 정책 카드 source 필드 변경 이력 (2026-05-04)
@@ -78,8 +78,21 @@
 
 - `ServiceRegionRepository.java` — `findFirstSidoByServiceIds()` 추가
 - `PolicySummaryResponse.java` — `sido` 필드 추가, `from()` 4-arg 오버로드 추가
-- `PolicyService.java`, `PolicySearchService.java` — `buildSidoMap()` 추가
+- `PolicyPresentationReadService.java` — `buildSidoMap()` 추가 (목록·검색 공통 적용)
 - `PoliciesPage.jsx` — `mapPolicySummary` source 폴백에 `sido` 삽입
+
+## 정책 서비스 구조 변경 이력 (2026-05-05, main merge)
+
+`PolicyService.java`가 역할별로 분리됨 (main branch, 2026-05-05 merge):
+
+| 이전 | 이후 |
+|------|------|
+| `PolicyService.getList()` | `PolicyListService.getList()` |
+| `PolicyService.getDetail()` | `PolicyDetailService.getDetail()` |
+| `PolicyService.toggleBookmark()` | `PolicyBookmarkCommandService.toggleBookmark()` |
+| (분산) 북마크·projection 조회 | `PolicyPresentationReadService.buildSummaryPage()` |
+
+sido 로직(`buildSidoMap`)은 `PolicyPresentationReadService`에 통합되어 목록·검색 공통 적용.
 
 ## 진행/기록
 
