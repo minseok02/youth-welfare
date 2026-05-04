@@ -2,12 +2,12 @@ package com.example.welfare.recommend.service;
 
 import com.example.welfare.policy.entity.ServiceTag;
 import com.example.welfare.policy.entity.WelfareService;
-import com.example.welfare.policy.repository.PolicyTagReadRepository;
 import com.example.welfare.recommend.dto.PriorityPreference;
 import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
 import com.example.welfare.recommend.dto.RecommendationUserSnapshot;
 import com.example.welfare.recommend.dto.RetrievedRecommendationCandidates;
 import com.example.welfare.recommend.dto.ScoredCandidate;
+import com.example.welfare.recommend.repository.RecommendationCandidateReadRepository;
 import com.example.welfare.recommend.support.RecommendationProjectionHeuristicSupport;
 import com.example.welfare.recommend.support.RecommendationYouthRelevanceSupport;
 import org.junit.jupiter.api.BeforeEach;
@@ -30,7 +30,7 @@ import static org.mockito.Mockito.when;
 class RuleScoringServiceTest {
 
     @Mock
-    private PolicyTagReadRepository policyTagReadRepository;
+    private RecommendationCandidateReadRepository recommendationCandidateReadRepository;
 
     @Mock
     private PriorityMatcher priorityMatcher;
@@ -40,7 +40,7 @@ class RuleScoringServiceTest {
     @BeforeEach
     void setUp() {
         ruleScoringService = new RuleScoringService(
-                policyTagReadRepository,
+                recommendationCandidateReadRepository,
                 priorityMatcher,
                 new RecommendationYouthRelevanceSupport()
         );
@@ -70,7 +70,7 @@ class RuleScoringServiceTest {
                 .maxAge(34)
                 .build();
 
-        when(policyTagReadRepository.findByServiceIds(anyList())).thenReturn(tagsByServiceId(
+        when(recommendationCandidateReadRepository.findTagsByServiceIds(anyList())).thenReturn(tagsByServiceId(
                 ServiceTag.builder()
                         .service(explicitYouth)
                         .tagType(ServiceTag.TagType.TARGET_GROUP)
@@ -106,7 +106,7 @@ class RuleScoringServiceTest {
                 .status(WelfareService.ServiceStatus.ACTIVE)
                 .build();
 
-        when(policyTagReadRepository.findByServiceIds(anyList())).thenReturn(tagsByServiceId(
+        when(recommendationCandidateReadRepository.findTagsByServiceIds(anyList())).thenReturn(tagsByServiceId(
                 ServiceTag.builder()
                         .service(openYouth)
                         .tagType(ServiceTag.TagType.KEYWORD)
@@ -141,7 +141,7 @@ class RuleScoringServiceTest {
                 .status(WelfareService.ServiceStatus.ACTIVE)
                 .build();
 
-        when(policyTagReadRepository.findByServiceIds(anyList())).thenReturn(Map.of());
+        when(recommendationCandidateReadRepository.findTagsByServiceIds(anyList())).thenReturn(Map.of());
 
         List<ScoredCandidate> scored = ruleScoringService.score(
                 new RetrievedRecommendationCandidates(
@@ -171,7 +171,7 @@ class RuleScoringServiceTest {
         WelfareService baseline = welfareService(70L, "일반 지원");
         WelfareService projected = welfareService(71L, "주거 생활 지원");
 
-        when(policyTagReadRepository.findByServiceIds(anyList())).thenReturn(Map.of());
+        when(recommendationCandidateReadRepository.findTagsByServiceIds(anyList())).thenReturn(Map.of());
 
         List<ScoredCandidate> scored = ruleScoringService.score(
                 new RetrievedRecommendationCandidates(
@@ -199,7 +199,7 @@ class RuleScoringServiceTest {
         WelfareService baseline = welfareService(80L, "기본 지원");
         WelfareService projected = welfareService(81L, "생활 지원");
 
-        when(policyTagReadRepository.findByServiceIds(anyList())).thenReturn(Map.of());
+        when(recommendationCandidateReadRepository.findTagsByServiceIds(anyList())).thenReturn(Map.of());
 
         List<ScoredCandidate> scored = ruleScoringService.score(
                 new RetrievedRecommendationCandidates(
@@ -227,7 +227,7 @@ class RuleScoringServiceTest {
         WelfareService baseline = welfareService(82L, "기본 지원");
         WelfareService projected = welfareService(83L, "일반 지원");
 
-        when(policyTagReadRepository.findByServiceIds(anyList())).thenReturn(Map.of());
+        when(recommendationCandidateReadRepository.findTagsByServiceIds(anyList())).thenReturn(Map.of());
 
         List<ScoredCandidate> scored = ruleScoringService.score(
                 new RetrievedRecommendationCandidates(
@@ -255,7 +255,7 @@ class RuleScoringServiceTest {
         WelfareService baseline = welfareService(84L, "일반 지원");
         WelfareService projected = welfareService(85L, "일반 지원");
 
-        when(policyTagReadRepository.findByServiceIds(anyList())).thenReturn(Map.of());
+        when(recommendationCandidateReadRepository.findTagsByServiceIds(anyList())).thenReturn(Map.of());
 
         List<ScoredCandidate> scored = ruleScoringService.score(
                 new RetrievedRecommendationCandidates(
@@ -284,7 +284,7 @@ class RuleScoringServiceTest {
         WelfareService baseline = welfareService(90L, "마감 임박 지원", java.time.LocalDate.now().plusDays(3));
         WelfareService projected = welfareService(91L, "canonical 마감 지원", java.time.LocalDate.now().plusDays(3));
 
-        when(policyTagReadRepository.findByServiceIds(anyList())).thenReturn(Map.of());
+        when(recommendationCandidateReadRepository.findTagsByServiceIds(anyList())).thenReturn(Map.of());
 
         List<ScoredCandidate> scored = ruleScoringService.score(
                 new RetrievedRecommendationCandidates(
@@ -320,7 +320,7 @@ class RuleScoringServiceTest {
         WelfareService baseline = welfareService(100L, "일반 교육 지원", java.time.LocalDate.now().plusDays(3));
         WelfareService projected = welfareService(101L, "교육 실험 대상", java.time.LocalDate.now().plusDays(3));
 
-        when(policyTagReadRepository.findByServiceIds(anyList())).thenReturn(Map.of());
+        when(recommendationCandidateReadRepository.findTagsByServiceIds(anyList())).thenReturn(Map.of());
         when(priorityMatcher.matches(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
                 .thenReturn(false);
 
@@ -357,7 +357,7 @@ class RuleScoringServiceTest {
 
         WelfareService service = welfareService(110L, "참여 실험 제외", java.time.LocalDate.now().plusDays(3));
 
-        when(policyTagReadRepository.findByServiceIds(anyList())).thenReturn(Map.of());
+        when(recommendationCandidateReadRepository.findTagsByServiceIds(anyList())).thenReturn(Map.of());
         when(priorityMatcher.matches(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
                 .thenReturn(false);
 

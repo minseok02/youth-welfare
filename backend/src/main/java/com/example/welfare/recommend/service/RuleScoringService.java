@@ -2,12 +2,12 @@ package com.example.welfare.recommend.service;
 
 import com.example.welfare.policy.entity.ServiceTag;
 import com.example.welfare.policy.entity.WelfareService;
-import com.example.welfare.policy.repository.PolicyTagReadRepository;
 import com.example.welfare.recommend.dto.PriorityPreference;
 import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
 import com.example.welfare.recommend.dto.RecommendationUserSnapshot;
 import com.example.welfare.recommend.dto.RetrievedRecommendationCandidates;
 import com.example.welfare.recommend.dto.ScoredCandidate;
+import com.example.welfare.recommend.repository.RecommendationCandidateReadRepository;
 import com.example.welfare.recommend.support.RecommendationMatchingSupport;
 import com.example.welfare.recommend.support.RecommendationYouthRelevanceSupport;
 import com.example.welfare.recommend.support.RecommendationRuntimeSupport;
@@ -36,7 +36,7 @@ public class RuleScoringService {
     private static final double SPECIAL_TARGET_MATCH_BONUS = 12.0;
     private static final double SPECIAL_TARGET_MISMATCH_PENALTY = 8.0;
 
-    private final PolicyTagReadRepository policyTagReadRepository;
+    private final RecommendationCandidateReadRepository recommendationCandidateReadRepository;
     private final PriorityMatcher priorityMatcher;
     private final RecommendationYouthRelevanceSupport recommendationYouthRelevanceSupport;
 
@@ -61,7 +61,7 @@ public class RuleScoringService {
         List<Long> serviceIds = candidates.stream()
                 .map(WelfareService::getId)
                 .collect(Collectors.toList());
-        Map<Long, List<ServiceTag>> tagsByServiceId = policyTagReadRepository.findByServiceIds(serviceIds);
+        Map<Long, List<ServiceTag>> tagsByServiceId = recommendationCandidateReadRepository.findTagsByServiceIds(serviceIds);
 
         return candidates.stream()
                 .map(service -> {
