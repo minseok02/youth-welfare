@@ -2,7 +2,8 @@ package com.example.welfare.chat.service;
 
 import com.example.welfare.chat.dto.request.CreateChatSessionRequest;
 import com.example.welfare.chat.entity.ChatSession;
-import com.example.welfare.chat.repository.ChatSessionRepository;
+import com.example.welfare.chat.repository.ChatSessionCommandRepository;
+import com.example.welfare.chat.repository.ChatSessionReadRepository;
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.user.entity.User;
@@ -28,7 +29,9 @@ import static org.mockito.Mockito.when;
 class ChatSessionServiceTest {
 
     @Mock
-    private ChatSessionRepository chatSessionRepository;
+    private ChatSessionReadRepository chatSessionReadRepository;
+    @Mock
+    private ChatSessionCommandRepository chatSessionCommandRepository;
 
     @Mock
     private UserReadService userReadService;
@@ -37,7 +40,7 @@ class ChatSessionServiceTest {
 
     @BeforeEach
     void setUp() {
-        chatSessionService = new ChatSessionService(chatSessionRepository, userReadService);
+        chatSessionService = new ChatSessionService(chatSessionReadRepository, chatSessionCommandRepository, userReadService);
     }
 
     @Test
@@ -54,7 +57,7 @@ class ChatSessionServiceTest {
 
         when(userReadService.getActiveUserContext(1L))
                 .thenReturn(new UserReadService.ActiveUserContext(user, "user-key-1"));
-        when(chatSessionRepository.save(any(ChatSession.class))).thenAnswer(invocation -> {
+        when(chatSessionCommandRepository.save(any(ChatSession.class))).thenAnswer(invocation -> {
             ChatSession session = invocation.getArgument(0);
             ReflectionTestUtils.setField(session, "id", 10L);
             return session;
@@ -63,7 +66,7 @@ class ChatSessionServiceTest {
         var response = chatSessionService.createSession(1L, request);
 
         ArgumentCaptor<ChatSession> captor = ArgumentCaptor.forClass(ChatSession.class);
-        verify(chatSessionRepository).save(captor.capture());
+        verify(chatSessionCommandRepository).save(captor.capture());
         assertThat(captor.getValue().getTitle()).isNull();
         assertThat(response.getSessionId()).isEqualTo(10L);
         assertThat(response.getTitle()).isNull();
@@ -81,7 +84,7 @@ class ChatSessionServiceTest {
 
         when(userReadService.getActiveUserContext(1L))
                 .thenReturn(new UserReadService.ActiveUserContext(user, "user-key-1"));
-        when(chatSessionRepository.findByIdAndUserKey(99L, "user-key-1")).thenReturn(Optional.empty());
+        when(chatSessionReadRepository.findOwnedSession(99L, "user-key-1")).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> chatSessionService.deleteSession(1L, 99L))
                 .isInstanceOf(CustomException.class)

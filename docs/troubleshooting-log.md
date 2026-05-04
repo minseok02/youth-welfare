@@ -2781,3 +2781,8 @@
 - 문제: 메시지 조회 서비스는 소유 세션 확인과 메시지 목록/최근 메시지 조회를 직접 수행했고, command 서비스는 세션 조회, 제목 갱신, assistant append, lastMessageAt touch 를 직접 처리하고 있었다. 이 상태면 chat session/message persistence 조합이 바뀔 때 서비스 둘을 함께 다시 열어야 한다.
 - 해결: `ChatMessageReadRepository` / `ChatMessageReadRepositoryImpl`, `ChatMessageCommandRepository` / `ChatMessageCommandRepositoryImpl` 을 추가하고, 세션 소유 확인과 메시지 read 는 read repository로, append write 와 session touch 는 command repository로 이동했다.
 - 이유: chat 서비스는 rate limit, AI orchestration, response composition 에 집중하고, session/message persistence 조합은 read/command 경계로 분리해야 chat 책임이 더 선명해진다.
+
+## 509) `ChatSessionService` 와 `ChatSessionCleanupService` 가 세션 목록/소유 확인/생성/삭제를 `ChatSessionRepository` 에 직접 걸치면, 세션 read/write 규칙이 서비스 본문에 다시 남는다
+- 문제: 세션 서비스는 최근 세션 목록 조회, 소유 세션 확인, 신규 세션 저장, 삭제를 직접 수행했고, cleanup 서비스도 userKey 기준 전체 삭제를 저장소에 직접 호출하고 있었다. 이 상태면 세션 persistence 조합이 바뀔 때 서비스 둘을 다시 열어야 한다.
+- 해결: `ChatSessionReadRepository` / `ChatSessionReadRepositoryImpl`, `ChatSessionCommandRepository` / `ChatSessionCommandRepositoryImpl` 을 추가하고, 세션 목록/소유 확인은 read repository로, 세션 생성/삭제/cleanup delete 는 command repository로 이동했다.
+- 이유: chat session 서비스는 active user 검증과 제목 정규화 같은 orchestration 에 집중하고, 세션 persistence 세부사항은 read/command 경계로 분리해야 책임이 더 선명해진다.

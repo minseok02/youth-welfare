@@ -1236,6 +1236,7 @@ cd backend
 - `RecommendationPersistenceService` 와 `RecommendationRetentionService` 의 latest read / 전체 교체 저장 / retention 삭제도 `RecommendationPersistenceCommandRepository` 뒤로 이동해 추천 저장/정리 경계를 별도 command repository 로 정리
 - `RecommendationLogService` 와 `ScoreWeightService` 의 recommendation log 저장/조회도 `RecommendationLogCommandRepository`, `RecommendationLogReadRepository` 뒤로 이동해 알림 로그 write 와 cold-start read 경계를 분리
 - `ChatMessageService` 와 `ChatMessageCommandService` 의 세션 소유 확인 / 메시지 read / append write 도 `ChatMessageReadRepository`, `ChatMessageCommandRepository` 뒤로 이동해 chat session-message persistence 조합을 서비스 밖으로 분리
+- `ChatSessionService` 와 `ChatSessionCleanupService` 의 세션 목록/소유 확인 read, 세션 생성/삭제/cleanup write 도 `ChatSessionReadRepository`, `ChatSessionCommandRepository` 뒤로 이동해 chat session persistence 경계를 분리
 
 ## 2차로 분리된 항목
 

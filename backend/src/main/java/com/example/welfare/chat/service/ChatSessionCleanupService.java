@@ -1,6 +1,6 @@
 package com.example.welfare.chat.service;
 
-import com.example.welfare.chat.repository.ChatSessionRepository;
+import com.example.welfare.chat.repository.ChatSessionCommandRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -9,13 +9,13 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class ChatSessionCleanupService {
 
-    private final ChatSessionRepository chatSessionRepository;
+    private final ChatSessionCommandRepository chatSessionCommandRepository;
 
     @Transactional
     public void deleteAllByUserKey(String userKey) {
         if (userKey == null || userKey.isBlank()) {
             return;
         }
-        chatSessionRepository.deleteByUserKey(userKey);
+        chatSessionCommandRepository.deleteByUserKey(userKey);
     }
 }
