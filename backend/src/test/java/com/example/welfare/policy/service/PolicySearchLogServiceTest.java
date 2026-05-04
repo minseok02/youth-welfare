@@ -1,7 +1,7 @@
 package com.example.welfare.policy.service;
 
 import com.example.welfare.policy.entity.SearchLog;
-import com.example.welfare.policy.repository.SearchLogRepository;
+import com.example.welfare.policy.repository.PolicySearchLogCommandRepository;
 import com.example.welfare.user.service.UserKeyLookupService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -20,7 +20,7 @@ import static org.mockito.BDDMockito.given;
 class PolicySearchLogServiceTest {
 
     @Mock
-    private SearchLogRepository searchLogRepository;
+    private PolicySearchLogCommandRepository policySearchLogCommandRepository;
 
     @Mock
     private UserKeyLookupService userKeyLookupService;
@@ -51,7 +51,7 @@ class PolicySearchLogServiceTest {
                 .build());
 
         ArgumentCaptor<SearchLog> captor = ArgumentCaptor.forClass(SearchLog.class);
-        verify(searchLogRepository).save(captor.capture());
+        verify(policySearchLogCommandRepository).save(captor.capture());
         SearchLog saved = captor.getValue();
         assertThat(saved.getUserKey()).isEqualTo("user-key-7");
         assertThat(saved.getClientFingerprint()).isEqualTo("fp-1");
@@ -77,6 +77,6 @@ class PolicySearchLogServiceTest {
                 .size(20)
                 .build());
 
-        verify(searchLogRepository, never()).save(org.mockito.ArgumentMatchers.any());
+        verify(policySearchLogCommandRepository, never()).save(org.mockito.ArgumentMatchers.any());
     }
 }

@@ -2756,3 +2756,8 @@
 - 문제: `UserReadService` 는 active user entity 조회를 위해 `findById(...)`, `findByUserKey(...)` 를 직접 호출했고, `UserRegistrationService` 는 신규 `User` 저장을 위해 `save(...)` 를 직접 호출하고 있었다. 다른 lookup/read/write 경계를 분리한 뒤에도 users 테이블 접근 규칙 일부가 서비스 본문에 남아 있었다.
 - 해결: `UserAccountReadRepository` / `UserAccountReadRepositoryImpl`, `UserRegistrationCommandRepository` / `UserRegistrationCommandRepositoryImpl` 을 추가하고, `UserReadService` 와 `UserRegistrationService` 가 이 경계들에만 의존하도록 정리했다.
 - 이유: active user 조회와 신규 저장도 users 테이블 접근 policy의 일부이므로, service는 활성 상태 검증과 registration orchestration에 집중하고 실제 저장소 호출은 별도 경계로 내리는 편이 일관된다.
+
+## 504) `PolicyViewLogService` 와 `PolicySearchLogService` 가 로그 저장소를 직접 두드리면, policy 서비스 안에 dedup/save 조합과 JPA reference 생성 같은 저장 세부사항이 다시 남는다
+- 문제: 조회 로그 서비스는 dedup exists 조회와 `EntityManager.getReference(...) + save(...)` 를 직접 수행했고, 검색 로그 서비스도 `SearchLogRepository.save(...)` 를 직접 호출하고 있었다. 이 상태면 로그 저장 규칙이나 저장 방식이 바뀔 때 policy 서비스 본문을 다시 열어야 한다.
+- 해결: `PolicyViewLogCommandRepository` / `PolicyViewLogCommandRepositoryImpl`, `PolicySearchLogCommandRepository` / `PolicySearchLogCommandRepositoryImpl` 을 추가하고, 두 서비스가 로그 저장/dedup 구현을 command repository 뒤로 위임하게 정리했다.
+- 이유: policy 서비스는 userKey 해석, dedup 정책, 예외 처리 같은 orchestration 에 집중하고, 로그 저장 구현은 별도 command 경계로 내려야 책임이 더 선명하고 테스트도 분리하기 쉽다.
