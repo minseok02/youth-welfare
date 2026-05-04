@@ -6,7 +6,6 @@ import com.example.welfare.recommend.dto.RetrievedRecommendationCandidates;
 import com.example.welfare.recommend.dto.ScoredCandidate;
 import com.example.welfare.recommend.entity.ScoreWeight;
 import com.example.welfare.recommend.entity.UserRecommendation;
-import com.example.welfare.recommend.repository.RecommendationResultReadRepository;
 import com.example.welfare.recommend.service.*;
 import com.example.welfare.user.entity.User;
 import com.example.welfare.user.service.UserKeyLookupService;
@@ -46,7 +45,7 @@ public class RecommendationFacade {
     private final RecommendationLogService recommendationLogService;
     private final RecommendationRefreshCacheService recommendationRefreshCacheService;
     private final RecommendationBookmarkCommandService recommendationBookmarkCommandService;
-    private final RecommendationResultReadRepository recommendationResultReadRepository;
+    private final RecommendationResultReadService recommendationResultReadService;
     private final UserRecommendationReadService userRecommendationReadService;
 
     /**
@@ -69,7 +68,7 @@ public class RecommendationFacade {
         if (personal) {
             recommendationRefreshCacheService.evict(userKey);
         } else if (recommendationRefreshCacheService.canReuse(userKey)) {
-            List<UserRecommendation> cached = recommendationResultReadRepository.findLatestSavedRecommendations(userKey);
+            List<UserRecommendation> cached = recommendationResultReadService.findLatestSavedRecommendations(userKey);
             if (!cached.isEmpty()) {
                 log.info("[RecommendationFacade] refresh cache hit userId={} userKey={}", userId, userKey);
                 return cached;
@@ -124,7 +123,7 @@ public class RecommendationFacade {
     @Transactional(readOnly = true)
     public List<UserRecommendation> getRecommendations(Long userId, int size) {
         String userKey = resolveUserKey(userId);
-        return recommendationResultReadRepository.findTopRecommendations(userKey, size);
+        return recommendationResultReadService.findTopRecommendations(userKey, size);
     }
 
     /**

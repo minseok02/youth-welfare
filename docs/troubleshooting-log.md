@@ -2940,3 +2940,4 @@
 545) `RecommendationPersistenceService` 는 새 추천 저장 전에 과거 북마크 상태를 `RecommendationPersistenceCommandRepository` 로 읽고 있었다. 읽기/쓰기를 뒤섞지 않기 위해 기존 추천 row 조회를 `RecommendationResultReadRepository` 로 옮기고, command repo에서는 읽기 메서드를 제거했다.
 546) `RawApiPayloadService` 는 raw JSON 직렬화 외에 기존 row 조회, 신규 생성, payload 갱신까지 직접 수행하고 있었다. `RawApiPayloadCommandRepository.upsert(...)` 를 추가해 저장 규칙을 command 경계 뒤로 내리고, raw payload service 는 직렬화와 해시 계산에 집중하도록 정리했다.
 547) `RecommendationPersistenceService` 는 기존 추천 row를 읽은 뒤 `serviceId -> bookmarked` 맵을 직접 계산하고 있었다. 이 read-side 규칙을 `RecommendationBookmarkStateReadService` 로 분리해 저장 서비스는 row 조립과 replace 저장 orchestration에 집중하도록 정리했다.
+548) `RecommendationFacade` 는 refresh-cache hit 시의 저장 추천 조회와 `/recommendations` 목록 조회를 `RecommendationResultReadRepository` 로 직접 처리하고 있었다. facade 가 파이프라인 orchestration 외에 저장 추천 read 규칙까지 들고 있던 셈이라, `RecommendationResultReadService` 를 추가해 조회를 위임하고 facade 는 refresh-cache reuse 판단과 파이프라인 orchestration 에만 집중하도록 정리했다.

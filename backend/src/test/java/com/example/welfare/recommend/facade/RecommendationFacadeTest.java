@@ -6,11 +6,11 @@ import com.example.welfare.recommend.dto.RetrievedRecommendationCandidates;
 import com.example.welfare.recommend.dto.ScoredCandidate;
 import com.example.welfare.recommend.entity.ScoreWeight;
 import com.example.welfare.recommend.entity.UserRecommendation;
-import com.example.welfare.recommend.repository.RecommendationResultReadRepository;
 import com.example.welfare.recommend.service.AiScoringService;
 import com.example.welfare.recommend.service.ClusterService;
 import com.example.welfare.recommend.service.ReRankingService;
 import com.example.welfare.recommend.service.RecommendationLogService;
+import com.example.welfare.recommend.service.RecommendationResultReadService;
 import com.example.welfare.recommend.service.RecommendationBookmarkCommandService;
 import com.example.welfare.recommend.service.RecommendationPersistenceService;
 import com.example.welfare.recommend.service.RecommendationPostScoringFilterService;
@@ -54,7 +54,7 @@ class RecommendationFacadeTest {
     @Mock private RecommendationLogService recommendationLogService;
     @Mock private RecommendationRefreshCacheService recommendationRefreshCacheService;
     @Mock private RecommendationBookmarkCommandService recommendationBookmarkCommandService;
-    @Mock private RecommendationResultReadRepository recommendationResultReadRepository;
+    @Mock private RecommendationResultReadService recommendationResultReadService;
 
     private RecommendationFacade recommendationFacade;
 
@@ -72,7 +72,7 @@ class RecommendationFacadeTest {
                 recommendationLogService,
                 recommendationRefreshCacheService,
                 recommendationBookmarkCommandService,
-                recommendationResultReadRepository,
+                recommendationResultReadService,
                 userRecommendationReadService
         );
     }
@@ -95,7 +95,7 @@ class RecommendationFacadeTest {
         when(userRecommendationReadService.getRecommendationContext(1L))
                 .thenReturn(new UserRecommendationReadService.RecommendationReadContext(user, snapshot));
         when(recommendationRefreshCacheService.canReuse("user-key-1")).thenReturn(true);
-        when(recommendationResultReadRepository.findLatestSavedRecommendations("user-key-1"))
+        when(recommendationResultReadService.findLatestSavedRecommendations("user-key-1"))
                 .thenReturn(List.of(cached));
 
         List<UserRecommendation> result = recommendationFacade.recommend(1L, false);
@@ -148,7 +148,7 @@ class RecommendationFacadeTest {
         when(userRecommendationReadService.getRecommendationContext(1L))
                 .thenReturn(new UserRecommendationReadService.RecommendationReadContext(user, snapshot));
         when(recommendationRefreshCacheService.canReuse("user-key-1")).thenReturn(true);
-        when(recommendationResultReadRepository.findLatestSavedRecommendations("user-key-1"))
+        when(recommendationResultReadService.findLatestSavedRecommendations("user-key-1"))
                 .thenReturn(List.of());
         when(clusterService.assignCluster(snapshot)).thenReturn("youth_all");
         when(retrievalService.retrieve("youth_all", snapshot)).thenReturn(retrieved);
@@ -227,13 +227,13 @@ class RecommendationFacadeTest {
     void getRecommendationsDelegatesToReadRepository() {
         UserRecommendation saved = sampleRecommendation(404L);
         when(userKeyLookupService.findRequired(1L)).thenReturn("user-key-1");
-        when(recommendationResultReadRepository.findTopRecommendations("user-key-1", 5))
+        when(recommendationResultReadService.findTopRecommendations("user-key-1", 5))
                 .thenReturn(List.of(saved));
 
         List<UserRecommendation> result = recommendationFacade.getRecommendations(1L, 5);
 
         assertThat(result).containsExactly(saved);
-        verify(recommendationResultReadRepository).findTopRecommendations("user-key-1", 5);
+        verify(recommendationResultReadService).findTopRecommendations("user-key-1", 5);
     }
 
     private UserRecommendation sampleRecommendation(Long id) {
