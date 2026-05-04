@@ -1246,6 +1246,7 @@ cd backend
 - `UserPiiCommandService` 의 app PII backfill/upsert/delete write 도 `UserPiiCommandRepository` 뒤로 이동해 PII write 경계를 service 본문 밖으로 분리
 - `JpaClusterAiScoreCache` 와 `StatusUpdateService` 의 `cluster_ai_results` read/write 도 `ClusterAiResultReadRepository`, `ClusterAiResultCommandRepository` 뒤로 이동해 군집 AI 캐시 경계를 read/write 로 분리
 - `UserReadService` 의 profile aggregate read/복호화는 `UserProfileReadService` 로 분리해 일반 사용자 읽기와 profile 응답 조립 책임을 나눔
+- `UserReadService` 의 recommendation snapshot 조합은 `UserRecommendationReadService` 로 분리해 active user/account 조회와 추천용 snapshot read 책임을 나눔
 
 ## 2차로 분리된 항목
 

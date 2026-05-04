@@ -2831,3 +2831,8 @@
 - 문제: 사용자 읽기 서비스는 profile aggregate 조회와 PII 복호화까지 직접 처리하면서, 동시에 recommendation snapshot 조합과 active user/account 조회도 함께 맡고 있었다. 이 상태면 프로필 응답 조립 규칙이 바뀔 때도 `UserReadService` 본문을 다시 열어야 한다.
 - 해결: `UserProfileReadService` 를 추가하고, profile aggregate read와 PII 복호화를 이 전용 서비스로 이동했다. `UserService.getProfile(...)` 도 새 profile read 경계를 직접 사용하도록 정리했다.
 - 이유: `UserReadService` 는 active user/account 조회와 recommendation context read에 집중하고, profile 응답 조립과 복호화는 별도 read service 로 분리해야 책임이 더 선명해진다.
+
+## 519) `UserReadService` 가 recommendation snapshot 조합까지 계속 들면, active user/account 조회와 추천용 aggregate read 규칙이 다시 한 서비스에 섞인다
+- 문제: profile read를 분리한 뒤에도 `UserReadService` 는 여전히 active user/account 조회와 함께 recommendation snapshot 조합, target/interest/priority projection 변환을 직접 수행하고 있었다. 이 상태면 추천용 snapshot 규칙이 바뀔 때도 일반 사용자 read 서비스 본문을 다시 열어야 한다.
+- 해결: `UserRecommendationReadService` 를 추가하고, recommendation snapshot 조합과 `RecommendationReadContext` 생성을 이 전용 read 서비스로 이동했다. `RecommendationFacade` 도 새 recommendation read 경계를 직접 사용하도록 정리했다.
+- 이유: `UserReadService` 는 active user/account 조회와 userKey 해석에 집중하고, 추천용 aggregate read/변환은 별도 read service 로 분리해야 책임이 더 선명해진다.

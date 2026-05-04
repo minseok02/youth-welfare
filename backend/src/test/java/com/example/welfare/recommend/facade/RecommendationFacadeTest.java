@@ -19,7 +19,7 @@ import com.example.welfare.recommend.service.RetrievalService;
 import com.example.welfare.recommend.service.RuleScoringService;
 import com.example.welfare.user.entity.User;
 import com.example.welfare.user.service.UserKeyLookupService;
-import com.example.welfare.user.service.UserReadService;
+import com.example.welfare.user.service.UserRecommendationReadService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -43,7 +43,7 @@ import static org.mockito.Mockito.when;
 class RecommendationFacadeTest {
 
     @Mock private UserKeyLookupService userKeyLookupService;
-    @Mock private UserReadService userReadService;
+    @Mock private UserRecommendationReadService userRecommendationReadService;
     @Mock private ClusterService clusterService;
     @Mock private RetrievalService retrievalService;
     @Mock private RuleScoringService ruleScoringService;
@@ -62,7 +62,6 @@ class RecommendationFacadeTest {
     void setUp() {
         recommendationFacade = new RecommendationFacade(
                 userKeyLookupService,
-                userReadService,
                 clusterService,
                 retrievalService,
                 ruleScoringService,
@@ -73,7 +72,8 @@ class RecommendationFacadeTest {
                 recommendationLogService,
                 recommendationRefreshCacheService,
                 recommendationBookmarkCommandService,
-                recommendationResultReadRepository
+                recommendationResultReadRepository,
+                userRecommendationReadService
         );
     }
 
@@ -92,8 +92,8 @@ class RecommendationFacadeTest {
         );
         UserRecommendation cached = sampleRecommendation(101L);
 
-        when(userReadService.getRecommendationContext(1L))
-                .thenReturn(new UserReadService.RecommendationReadContext(user, snapshot));
+        when(userRecommendationReadService.getRecommendationContext(1L))
+                .thenReturn(new UserRecommendationReadService.RecommendationReadContext(user, snapshot));
         when(recommendationRefreshCacheService.canReuse("user-key-1")).thenReturn(true);
         when(recommendationResultReadRepository.findLatestSavedRecommendations("user-key-1"))
                 .thenReturn(List.of(cached));
@@ -145,8 +145,8 @@ class RecommendationFacadeTest {
                 .build();
         UserRecommendation saved = sampleRecommendation(202L);
 
-        when(userReadService.getRecommendationContext(1L))
-                .thenReturn(new UserReadService.RecommendationReadContext(user, snapshot));
+        when(userRecommendationReadService.getRecommendationContext(1L))
+                .thenReturn(new UserRecommendationReadService.RecommendationReadContext(user, snapshot));
         when(recommendationRefreshCacheService.canReuse("user-key-1")).thenReturn(true);
         when(recommendationResultReadRepository.findLatestSavedRecommendations("user-key-1"))
                 .thenReturn(List.of());
@@ -203,8 +203,8 @@ class RecommendationFacadeTest {
                 .build();
         UserRecommendation saved = sampleRecommendation(303L);
 
-        when(userReadService.getRecommendationContext(1L))
-                .thenReturn(new UserReadService.RecommendationReadContext(user, snapshot));
+        when(userRecommendationReadService.getRecommendationContext(1L))
+                .thenReturn(new UserRecommendationReadService.RecommendationReadContext(user, snapshot));
         when(retrievalService.retrieve("youth_all", snapshot)).thenReturn(retrieved);
         when(ruleScoringService.score(retrieved, snapshot)).thenReturn(List.of(scored));
         when(recommendationPostScoringFilterService.filterSpecialTargetMismatches(List.of(scored))).thenReturn(List.of(scored));

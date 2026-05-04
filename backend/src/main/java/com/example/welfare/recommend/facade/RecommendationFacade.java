@@ -10,7 +10,7 @@ import com.example.welfare.recommend.repository.RecommendationResultReadReposito
 import com.example.welfare.recommend.service.*;
 import com.example.welfare.user.entity.User;
 import com.example.welfare.user.service.UserKeyLookupService;
-import com.example.welfare.user.service.UserReadService;
+import com.example.welfare.user.service.UserRecommendationReadService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -36,7 +36,6 @@ import java.util.List;
 public class RecommendationFacade {
 
     private final UserKeyLookupService userKeyLookupService;
-    private final UserReadService userReadService;
     private final ClusterService clusterService;
     private final RetrievalService retrievalService;
     private final RuleScoringService ruleScoringService;
@@ -48,6 +47,7 @@ public class RecommendationFacade {
     private final RecommendationRefreshCacheService recommendationRefreshCacheService;
     private final RecommendationBookmarkCommandService recommendationBookmarkCommandService;
     private final RecommendationResultReadRepository recommendationResultReadRepository;
+    private final UserRecommendationReadService userRecommendationReadService;
 
     /**
      * 추천 생성 및 저장 — 로그인 시 또는 명시적 갱신 요청 시 실행
@@ -60,7 +60,8 @@ public class RecommendationFacade {
     // personal=true: 군집 캐시 무시, 개인 프로필 기반 실시간 AI 호출
     @Transactional
     public List<UserRecommendation> recommend(Long userId, boolean personal) {
-        UserReadService.RecommendationReadContext context = userReadService.getRecommendationContext(userId);
+        UserRecommendationReadService.RecommendationReadContext context =
+                userRecommendationReadService.getRecommendationContext(userId);
         RecommendationUserSnapshot snapshot = context.snapshot();
         User user = context.user();
         String userKey = snapshot.userKey();
