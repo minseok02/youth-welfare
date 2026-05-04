@@ -1276,3 +1276,4 @@ cd backend
 - p5~p95 정규화
 - 카카오 알림톡
 - `2026-05-04`: `RetrievalService` 가 `PolicyTagReadRepository` 를 직접 보지 않도록 정리하고, 추천 후보 + 후보 태그 read를 `RecommendationCandidateReadRepository` 경계로 모았다.
+- `2026-05-04`: `NotificationService` 가 retry 대상 조회 repository를 직접 보지 않도록 `NotificationRetryReadService` 를 추가해 재시도 대상 조회 규칙을 read service 경계로 분리했다.

@@ -2932,3 +2932,4 @@
 - 해결: `NormalizedPolicySidecarBackfillTarget` 모델과 `findTargetsBySourceTypeAndApiCategoryOrderByFetchedAtAsc(...)` 를 `NormalizedPolicySidecarBackfillReadRepository` 에 추가하고, payload + matched service 조합을 이 read 경계 뒤로 이동했다.
 - 이유: `NormalizedPolicySidecarBackfillService` 는 source별 backfill orchestration과 aggregate 재생성에 집중하고, payload/service read 조립 규칙은 별도 read repository 로 내려야 책임이 더 선명하다.
 539) `RetrievalService` 가 추천 후보 조회와 태그 read를 서로 다른 read 경계로 직접 조합하던 구조를 줄이기 위해 `RecommendationCandidateReadRepository.findTagsByServiceIds(...)` 를 추가했다. 서비스는 추천 후보 필터 orchestration만 맡고, 태그 조회 구현은 추천 도메인 read boundary 뒤로 이동시켰다.
+540) `NotificationService` 는 발송 orchestration 외에 retry 대상 조회 규칙까지 직접 들고 있었다. `NotificationRetryReadService` 를 추가해 `FAILED + nextRetryAt` 조회를 service 바깥으로 이동시키고, 알림 서비스는 재시도 처리 흐름에만 집중하도록 정리했다.

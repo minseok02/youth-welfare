@@ -7,7 +7,6 @@ import com.example.welfare.notification.entity.Notification.NotificationPeriodTy
 import com.example.welfare.notification.entity.Notification.NotificationStatus;
 import com.example.welfare.notification.dto.NotificationTarget;
 import com.example.welfare.notification.gateway.NotificationGateway;
-import com.example.welfare.notification.repository.NotificationRetryReadRepository;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.recommend.entity.RecommendationLog;
 import com.example.welfare.recommend.entity.ScoreWeight;
@@ -61,7 +60,7 @@ class NotificationServiceTest {
     @Mock
     private NotificationHistoryService notificationHistoryService;
     @Mock
-    private NotificationRetryReadRepository notificationRetryReadRepository;
+    private NotificationRetryReadService notificationRetryReadService;
     @Mock
     private JwtUtil jwtUtil;
 
@@ -312,7 +311,7 @@ class NotificationServiceTest {
                 .errorMessage("temporary failure")
                 .build();
 
-        given(notificationRetryReadRepository.findRetryableFailedNotifications(any(LocalDateTime.class)))
+        given(notificationRetryReadService.findRetryableFailedNotifications(any(LocalDateTime.class)))
                 .willReturn(List.of(notification));
         given(userNotificationReadService.getNotificationEmailByUserKey("user-key-1")).willReturn("test@example.com");
         given(notificationGateway.send("test@example.com", "[청년복지] 맞춤 정책 추천", "body"))
@@ -346,7 +345,7 @@ class NotificationServiceTest {
                 .nextRetryAt(LocalDateTime.now().minusMinutes(1))
                 .build();
 
-        given(notificationRetryReadRepository.findRetryableFailedNotifications(any(LocalDateTime.class)))
+        given(notificationRetryReadService.findRetryableFailedNotifications(any(LocalDateTime.class)))
                 .willReturn(List.of(notification));
         given(userNotificationReadService.getNotificationEmailByUserKey("user-key-1")).willReturn("test@example.com");
         given(notificationGateway.send("test@example.com", "[청년복지] 맞춤 정책 추천", "body"))
@@ -382,7 +381,7 @@ class NotificationServiceTest {
                 .nextRetryAt(LocalDateTime.now().minusMinutes(1))
                 .build();
 
-        given(notificationRetryReadRepository.findRetryableFailedNotifications(any(LocalDateTime.class)))
+        given(notificationRetryReadService.findRetryableFailedNotifications(any(LocalDateTime.class)))
                 .willReturn(List.of(notification));
         given(userNotificationReadService.getNotificationEmailByUserKey("user-key-1")).willReturn("test@example.com");
         given(notificationGateway.send("test@example.com", "[청년복지] 맞춤 정책 추천", "body"))
