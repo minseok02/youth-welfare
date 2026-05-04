@@ -5,7 +5,7 @@ import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.service.PolicyLookupService;
 import com.example.welfare.recommend.entity.UserRecommendation;
-import com.example.welfare.recommend.repository.UserRecommendationRepository;
+import com.example.welfare.recommend.repository.RecommendationBookmarkCommandRepository;
 import com.example.welfare.user.service.UserKeyLookupService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -19,14 +19,15 @@ public class RecommendationBookmarkCommandService {
 
     private static final long MAX_BOOKMARKS = 200;
 
-    private final UserRecommendationRepository userRecommendationRepository;
+    private final RecommendationBookmarkCommandRepository recommendationBookmarkCommandRepository;
     private final UserKeyLookupService userKeyLookupService;
     private final PolicyLookupService policyLookupService;
 
     @Transactional
     public void toggleRecommendationBookmark(Long userId, Long recommendationId) {
         String userKey = resolveUserKey(userId);
-        UserRecommendation recommendation = userRecommendationRepository.findByIdAndUserKey(recommendationId, userKey)
+        UserRecommendation recommendation = recommendationBookmarkCommandRepository
+                .findOwnedRecommendation(recommendationId, userKey)
                 .orElseThrow(() -> new CustomException(ErrorCode.RECOMMENDATION_NOT_FOUND));
         recommendation.toggleBookmark();
     }
@@ -34,12 +35,12 @@ public class RecommendationBookmarkCommandService {
     @Transactional
     public void togglePolicyBookmark(Long userId, Long serviceId) {
         String userKey = resolveUserKey(userId);
-        UserRecommendation recommendation = userRecommendationRepository
-                .findTopByUserKeyAndServiceIdOrderByRecommendedAtDesc(userKey, serviceId)
+        UserRecommendation recommendation = recommendationBookmarkCommandRepository
+                .findLatestRecommendation(userKey, serviceId)
                 .orElseGet(() -> createBookmarkPlaceholder(userKey, serviceId));
 
         if (!recommendation.isBookmarked()
-                && userRecommendationRepository.countByUserKeyAndIsBookmarkedTrue(userKey) >= MAX_BOOKMARKS) {
+                && recommendationBookmarkCommandRepository.countBookmarked(userKey) >= MAX_BOOKMARKS) {
             throw new CustomException(ErrorCode.BOOKMARK_LIMIT_EXCEEDED);
         }
         recommendation.toggleBookmark();
@@ -53,7 +54,7 @@ public class RecommendationBookmarkCommandService {
                 .service(service)
                 .recommendedAt(LocalDateTime.now())
                 .build();
-        return userRecommendationRepository.save(placeholder);
+        return recommendationBookmarkCommandRepository.save(placeholder);
     }
 
     private String resolveUserKey(Long userId) {

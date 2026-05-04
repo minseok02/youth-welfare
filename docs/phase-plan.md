@@ -1232,6 +1232,7 @@ cd backend
 - `UserKeyLookupService`, `PolicyLookupService` 의 단건 lookup도 각각 `UserKeyReadRepository`, `PolicyLookupReadRepository` 뒤로 이동해 lookup 규칙을 service 본문 밖으로 분리
 - `UserReadService` 의 active user entity 조회는 `UserAccountReadRepository` 뒤로, `UserRegistrationService` 의 신규 사용자 저장은 `UserRegistrationCommandRepository` 뒤로 이동해 `UserRepository` 직접 의존을 더 축소
 - `PolicyViewLogService`, `PolicySearchLogService` 의 로그 저장도 `PolicyViewLogCommandRepository`, `PolicySearchLogCommandRepository` 뒤로 이동해 policy 서비스가 로그 저장소/EntityManager를 직접 두드리지 않도록 정리
+- `RecommendationBookmarkCommandService` 의 추천 row 조회·북마크 count·placeholder 저장도 `RecommendationBookmarkCommandRepository` 뒤로 이동해 북마크 command 서비스가 `UserRecommendationRepository` 를 직접 두드리지 않도록 정리
 
 ## 2차로 분리된 항목
 

@@ -2761,3 +2761,8 @@
 - 문제: 조회 로그 서비스는 dedup exists 조회와 `EntityManager.getReference(...) + save(...)` 를 직접 수행했고, 검색 로그 서비스도 `SearchLogRepository.save(...)` 를 직접 호출하고 있었다. 이 상태면 로그 저장 규칙이나 저장 방식이 바뀔 때 policy 서비스 본문을 다시 열어야 한다.
 - 해결: `PolicyViewLogCommandRepository` / `PolicyViewLogCommandRepositoryImpl`, `PolicySearchLogCommandRepository` / `PolicySearchLogCommandRepositoryImpl` 을 추가하고, 두 서비스가 로그 저장/dedup 구현을 command repository 뒤로 위임하게 정리했다.
 - 이유: policy 서비스는 userKey 해석, dedup 정책, 예외 처리 같은 orchestration 에 집중하고, 로그 저장 구현은 별도 command 경계로 내려야 책임이 더 선명하고 테스트도 분리하기 쉽다.
+
+## 505) `RecommendationBookmarkCommandService` 가 추천 row 조회·count·placeholder 저장을 `UserRecommendationRepository` 에 직접 묶어 두면, 북마크 규칙과 persistence 조합 책임이 다시 한 서비스에 섞인다
+- 문제: 북마크 토글 서비스는 소유 추천 조회, 서비스별 최신 추천 조회, 북마크 수 제한 확인, placeholder 저장을 모두 `UserRecommendationRepository` 로 직접 수행하고 있었다. 이 상태면 북마크 command 규칙은 바꾸지 않아도 추천 row lookup/save 방식이 달라질 때 서비스 본문을 다시 열어야 한다.
+- 해결: `RecommendationBookmarkCommandRepository` / `RecommendationBookmarkCommandRepositoryImpl` 을 추가하고, owned recommendation lookup, latest recommendation lookup, bookmark count, placeholder save 를 command 경계 뒤로 이동했다.
+- 이유: 북마크 command 서비스는 userKey 해석, limit enforcement, placeholder 필요 여부 같은 orchestration 에 집중하고, 추천 row 조회/저장 세부사항은 별도 command repository 로 내려야 recommendation command 경계가 더 선명해진다.
