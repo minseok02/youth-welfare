@@ -20,7 +20,7 @@
 
 ### 1. 로그인 필요 경로
 
-- `/chat` 은 [RequireLogin.jsx](../frontend/src/components/RequireLogin.jsx) 로 보호됩니다.
+- `/chat`, `/mypage` 는 [RequireLogin.jsx](../frontend/src/components/RequireLogin.jsx) 로 보호됩니다.
 - 비로그인 접근 시 `/login` 으로 이동하며 `reason=login-required`, `from=원래 위치` 가 `location.state` 로 전달됩니다.
 - [LoginPage.jsx](../frontend/src/pages/LoginPage.jsx) 는 로그인 성공 후 `state.from` 으로 다시 복귀합니다.
 
@@ -90,6 +90,7 @@
 - 상세 진입 후 복귀, 새로고침, 직접 URL 접근에서 기대 상태 유지 여부를 수동 확인해야 합니다.
 - `statusFilter`, `sort`, `page`, `pageSize`, `category`, `region`, `subRegion`, `sourceType`은 URL query에 동기화됩니다.
   단 기본값(statusFilter="신청가능" 등)은 URL에 포함되지 않으므로, 새로고침 후 기본값으로 복귀하는 건 정상입니다.
+- 지역 Select 변경 시 sort가 자동 전환됩니다: 지역 선택 → `latest`, 전체 복귀 → `views`.
 
 ### 3. 챗봇/추천의 외부 지연
 

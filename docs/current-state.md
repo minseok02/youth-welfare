@@ -43,12 +43,19 @@
 - **DEADLINE 추가**: 프론트엔드 마감임박순 UI 기능 지원을 위해 백엔드 normalizeSort()와 SQL ORDER BY에 추가
 - **NAME 제거 (UI)**: 프론트 정렬 Select에서 이름순 옵션 제거. 백엔드 코드(normalizeSort, SQL)는 API 호환성을 위해 그대로 유지
 
-### 지역 우선 정렬 (region-first)
+### 지역 우선 정렬 (region-first, B안)
 
-지역 필터(sido/sgg)가 선택된 경우 ORDER BY 1순위로 `CASE WHEN 지역일치 THEN 0 ELSE 1 END ASC` 적용.
-선택한 sort(VIEWS 등)는 지역 그룹 내 2순위로 적용됨.
+지역 필터(sido/sgg)가 선택된 경우 sort 값에 따라 다르게 적용 (B안):
 
-- 관련 파일: `PolicyService.java`, `PolicySearchService.java`, `WelfareServiceRepository.java`, `PolicyListReadCondition.java`
+| sort | 지역 처리 |
+|------|-----------|
+| `LATEST` | 지역 일치 정책이 무조건 먼저 (strict region-first 그룹) |
+| `VIEWS`, `DEADLINE` | 품질/긴급도 우선, 동점일 때만 지역 일치 정책 앞 (tiebreaker) |
+
+프론트엔드 auto-sort: 지역 Select에서 전체 외 값 선택 시 sort를 `latest`로 자동 전환, 전체 복귀 시 `views`로 복귀.
+
+- 관련 파일: `PolicyService.java`, `PolicySearchService.java`, `WelfareServiceRepository.java`, `PolicyListReadCondition.java`, `PoliciesPage.jsx`
+- 설계 배경: [policy-listing-sort-region-strategy.md](./history/policy/policy-listing-sort-region-strategy.md)
 
 ## 정책 카드 source 필드 변경 이력 (2026-05-04)
 

@@ -52,6 +52,11 @@
 - `YOUTH_MID` inventory
 - 복지로 detail/gap-fill 조사
 
+#### 정책 목록 UI 관련 결정 (2026-05-04 추가)
+
+- [policy-listing-sort-region-strategy.md](./history/policy/policy-listing-sort-region-strategy.md) — 정렬 B안 채택 (LATEST strict region-first, VIEWS/DEADLINE tiebreaker), A안 대안 포함
+- [policy-card-source-sido-field.md](./history/policy/policy-card-source-sido-field.md) — 카드 source 필드 sido 추가 결정 (BOKJIRO_LOCAL 1,223개 대상, DB 조사 결과 포함)
+
 ### 3. AI / replay design history
 
 - `docs/history/ai/*`

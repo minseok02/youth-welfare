@@ -552,8 +552,8 @@ public void resetAiScoreForClosed() {
 
 - 현재 지원 파라미터
   - `keyword` (필수)
-  - `status`, `includeClosed`, `category`, `sourceType`, `onlineApply`
-  - `sort` = `RELEVANCE|VIEWS|LATEST|NAME`
+  - `status`, `statusFilter`, `category`, `sourceType`, `onlineApply`, `sido`, `sgg`
+  - `sort` = `RELEVANCE|VIEWS|LATEST|DEADLINE` (NAME은 API 코드만 유지, UI 노출 없음)
   - `page`, `size`
 - 현재 응답 형식
   - `data.content`
@@ -563,13 +563,15 @@ public void resetAiScoreForClosed() {
   - `data.pageSize`
   - `data.hasNext`
 - 상태 규칙
-  - `status`를 직접 주면 해당 상태만 조회
-  - `status`가 없고 `includeClosed=true`면 `ACTIVE`, `UPCOMING`, `CLOSED` 포함
-  - `status`가 없고 `includeClosed`가 없거나 `false`면 `ACTIVE`, `UPCOMING`만 포함
+  - `status`를 직접 주면 해당 DB status(`ACTIVE|UPCOMING|CLOSED`)만 조회
+  - `statusFilter` = `ACTIVE_ONLY`(기본): 신청가능·예정 + 마감일 미도래
+  - `statusFilter` = `EXPIRED_ONLY`: CLOSED 또는 applyEndDate 지남 (온통청년 마감 포함)
+  - `statusFilter` = `ALL`: 모든 상태
 - 기타
   - 각 항목의 `bookmarked`는 로그인 사용자면 최신 북마크 상태 기준, 비로그인이면 `false`
   - `totalElements`는 청년 후처리 필터가 적용된 최종 결과 기준
   - `youthMajorLabel`, `youthMidLabel`, `provisionMethodLabel`, `gov24ServiceFieldLabel`, `gov24UserTypeLabel`, `gov24BenefitTypeLabel` 은 additive field이며, canonical projection이 있으면 그 값을 우선 사용
+  - 검색 기본 sort는 `RELEVANCE` (목록 기본 `LATEST`와 다름)
 
 ### `GET /api/policies/{id}`
 
