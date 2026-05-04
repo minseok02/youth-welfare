@@ -13,11 +13,11 @@ import com.example.welfare.recommend.service.RecommendationLogService;
 import com.example.welfare.recommend.service.ScoreWeightService;
 import com.example.welfare.global.util.JwtUtil;
 import com.example.welfare.notification.entity.Notification;
+import com.example.welfare.notification.repository.NotificationRetryReadRepository;
 import com.example.welfare.user.entity.User.NotificationPeriod;
 import com.example.welfare.user.entity.User;
 import com.example.welfare.user.service.ActiveUserReadService;
 import com.example.welfare.user.service.UserNotificationReadService;
-import com.example.welfare.notification.repository.NotificationRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -45,7 +45,7 @@ public class NotificationService {
     private final NotificationSlotSelector notificationSlotSelector;
     private final NotificationGateway notificationGateway;
     private final NotificationHistoryService notificationHistoryService;
-    private final NotificationRepository notificationRepository;
+    private final NotificationRetryReadRepository notificationRetryReadRepository;
     private final JwtUtil jwtUtil;
 
     private static final int TOP_N = 3;
@@ -77,8 +77,7 @@ public class NotificationService {
 
     @Scheduled(cron = "0 */30 * * * *", zone = "Asia/Seoul")
     public void retryFailedNotifications() {
-        List<Notification> failedNotifications = notificationRepository.findByStatusAndNextRetryAtBefore(
-                NotificationStatus.FAILED, LocalDateTime.now());
+        List<Notification> failedNotifications = notificationRetryReadRepository.findRetryableFailedNotifications(LocalDateTime.now());
         failedNotifications.stream()
                 .filter(notification -> notification.getRetryCount() < MAX_RETRY_COUNT)
                 .forEach(this::retryNotification);

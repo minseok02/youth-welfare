@@ -2851,3 +2851,8 @@
 - 문제: active-user consumer를 모두 `ActiveUserReadService` 로 옮긴 뒤 `UserReadService` 에 남은 책임은 `requireExistingUserIdByUserKey(...)` 하나뿐이었다. 이 상태면 controller가 한 단계 더 우회 호출만 하게 되고, 테스트도 쓸모없는 래퍼 mock을 계속 유지해야 한다.
 - 해결: `UserKeyLookupService` 에 `requireExistingUserIdByUserKey(...)` 를 직접 추가하고, `UserAdminController` 와 `AdminSecurityWebMvcTest` 를 이 경계로 전환했다. 그 뒤 `UserReadService` 와 전용 테스트는 삭제했다.
 - 이유: `userKey -> userId` 존재 검증은 lookup service 하나면 충분하고, 의미 없는 wrapper를 남기지 않는 편이 경계가 더 선명하다.
+
+## 523) `NotificationService` 가 재시도 대상 조회를 `NotificationRepository` 에 직접 걸치면, 알림 발송 orchestration과 retry read 규칙이 다시 한 서비스에 섞인다
+- 문제: 알림 서비스는 발송 orchestration을 맡으면서도 `FAILED + nextRetryAtBefore(now)` 조회를 위해 `NotificationRepository` 를 직접 호출하고 있었다. 이 상태면 retry polling 기준이 바뀔 때 발송 서비스 본문을 다시 열어야 한다.
+- 해결: `NotificationRetryReadRepository` / `NotificationRetryReadRepositoryImpl` 을 추가하고, 재시도 대상 조회를 이 read 경계 뒤로 이동했다.
+- 이유: `NotificationService` 는 대상 발송과 재시도 scheduling orchestration에 집중하고, retry polling read 규칙은 별도 repository 로 내려야 책임이 더 선명하다.
