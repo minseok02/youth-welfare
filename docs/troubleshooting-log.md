@@ -2886,3 +2886,8 @@
 - 문제: 복지로 상세 수집 서비스는 aggregate 변환 후 merged detail row 저장을 직접 `WelfareServiceDetailRepository.save(...)` 로 호출하고 있었다. 이 상태면 detail persistence write 규칙이 바뀔 때 orchestration 서비스 본문을 다시 열어야 한다.
 - 해결: `BokjiroDetailCommandRepository` / `BokjiroDetailCommandRepositoryImpl` 을 추가하고, detail row 저장을 command 경계 뒤로 이동했다.
 - 이유: `BokjiroDetailCollectService` 는 budget allocation, rate-limit/retry, aggregate/persistence orchestration에 집중하고, detail persistence write 세부사항은 별도 command repository 로 내려야 책임이 더 선명하다.
+
+## 530) `NormalizedPolicySidecarBackfillService` 가 sourceType/sourceId 기준 정책 lookup을 직접 저장소에 걸치면, sidecar backfill orchestration과 서비스 매칭 read 규칙이 다시 한 서비스에 섞인다
+- 문제: sidecar backfill 서비스는 raw payload 순회와 aggregate 재생성만 맡으면 되는데도, 각 payload마다 `WelfareServiceRepository.findBySourceTypeAndSourceId(...)` 를 직접 호출하며 서비스 매칭 read 규칙까지 함께 들고 있었다. 이 상태면 backfill 대상 매칭 기준이 바뀔 때 orchestration 서비스 본문을 다시 열어야 한다.
+- 해결: `NormalizedPolicySidecarBackfillReadRepository` / `NormalizedPolicySidecarBackfillReadRepositoryImpl` 을 추가하고, sourceType/sourceId 기준 정책 lookup을 이 read 경계 뒤로 이동했다.
+- 이유: `NormalizedPolicySidecarBackfillService` 는 payload 순회와 aggregate upsert orchestration에 집중하고, 서비스 매칭 read 규칙은 별도 read repository 로 내려야 책임이 더 선명하다.

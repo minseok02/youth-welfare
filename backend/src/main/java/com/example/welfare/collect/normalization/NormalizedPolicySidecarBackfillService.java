@@ -2,10 +2,10 @@ package com.example.welfare.collect.normalization;
 
 import com.example.welfare.collect.entity.RawApiPayload;
 import com.example.welfare.collect.mapper.WelfareServiceMapper;
+import com.example.welfare.collect.repository.NormalizedPolicySidecarBackfillReadRepository;
 import com.example.welfare.collect.repository.RawApiPayloadReadRepository;
 import com.example.welfare.collect.support.CollectSourceRegistry;
 import com.example.welfare.policy.entity.WelfareService;
-import com.example.welfare.policy.repository.WelfareServiceRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -21,19 +21,19 @@ import java.util.Map;
 public class NormalizedPolicySidecarBackfillService {
 
     private final RawApiPayloadReadRepository rawApiPayloadReadRepository;
-    private final WelfareServiceRepository welfareServiceRepository;
+    private final NormalizedPolicySidecarBackfillReadRepository normalizedPolicySidecarBackfillReadRepository;
     private final WelfareServiceMapper welfareServiceMapper;
     private final NormalizedPolicySidecarWriter normalizedPolicySidecarWriter;
     private final ObjectMapper objectMapper;
     private final Map<WelfareService.SourceType, SidecarBackfillCapability> backfillCapabilities;
 
     public NormalizedPolicySidecarBackfillService(RawApiPayloadReadRepository rawApiPayloadReadRepository,
-                                                  WelfareServiceRepository welfareServiceRepository,
+                                                  NormalizedPolicySidecarBackfillReadRepository normalizedPolicySidecarBackfillReadRepository,
                                                   WelfareServiceMapper welfareServiceMapper,
                                                   NormalizedPolicySidecarWriter normalizedPolicySidecarWriter,
                                                   ObjectMapper objectMapper) {
         this.rawApiPayloadReadRepository = rawApiPayloadReadRepository;
-        this.welfareServiceRepository = welfareServiceRepository;
+        this.normalizedPolicySidecarBackfillReadRepository = normalizedPolicySidecarBackfillReadRepository;
         this.welfareServiceMapper = welfareServiceMapper;
         this.normalizedPolicySidecarWriter = normalizedPolicySidecarWriter;
         this.objectMapper = objectMapper;
@@ -84,8 +84,8 @@ public class NormalizedPolicySidecarBackfillService {
 
         for (RawApiPayload raw : limit(payloads, limitPerSource)) {
             scanned++;
-            WelfareService service = welfareServiceRepository
-                    .findBySourceTypeAndSourceId(raw.getSourceType(), raw.getSourceId())
+            WelfareService service = normalizedPolicySidecarBackfillReadRepository
+                    .findServiceBySourceTypeAndSourceId(raw.getSourceType(), raw.getSourceId())
                     .orElse(null);
             if (service == null) {
                 missingService++;
@@ -122,8 +122,8 @@ public class NormalizedPolicySidecarBackfillService {
 
         for (RawApiPayload raw : limit(payloads, limitPerSource)) {
             scanned++;
-            WelfareService service = welfareServiceRepository
-                    .findBySourceTypeAndSourceId(raw.getSourceType(), raw.getSourceId())
+            WelfareService service = normalizedPolicySidecarBackfillReadRepository
+                    .findServiceBySourceTypeAndSourceId(raw.getSourceType(), raw.getSourceId())
                     .orElse(null);
             if (service == null) {
                 missingService++;

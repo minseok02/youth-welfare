@@ -4,9 +4,9 @@ import com.example.welfare.collect.dto.BokjiroLocalDto;
 import com.example.welfare.collect.entity.RawApiPayload;
 import com.example.welfare.collect.gateway.BokjiroDetailClient;
 import com.example.welfare.collect.mapper.WelfareServiceMapper;
+import com.example.welfare.collect.repository.NormalizedPolicySidecarBackfillReadRepository;
 import com.example.welfare.collect.repository.RawApiPayloadReadRepository;
 import com.example.welfare.policy.entity.WelfareService;
-import com.example.welfare.policy.repository.WelfareServiceRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -34,7 +34,7 @@ class NormalizedPolicySidecarBackfillServiceTest {
     @Mock
     private RawApiPayloadReadRepository rawApiPayloadReadRepository;
     @Mock
-    private WelfareServiceRepository welfareServiceRepository;
+    private NormalizedPolicySidecarBackfillReadRepository normalizedPolicySidecarBackfillReadRepository;
     @Mock
     private NormalizedPolicySidecarWriter normalizedPolicySidecarWriter;
 
@@ -47,7 +47,7 @@ class NormalizedPolicySidecarBackfillServiceTest {
     void setUp() {
         service = new NormalizedPolicySidecarBackfillService(
                 rawApiPayloadReadRepository,
-                welfareServiceRepository,
+                normalizedPolicySidecarBackfillReadRepository,
                 welfareServiceMapper,
                 normalizedPolicySidecarWriter,
                 objectMapper
@@ -94,7 +94,7 @@ class NormalizedPolicySidecarBackfillServiceTest {
                 WelfareService.SourceType.BOKJIRO_LOCAL,
                 RawApiPayload.ApiCategory.LIST
         )).willReturn(List.of(raw));
-        given(welfareServiceRepository.findBySourceTypeAndSourceId(WelfareService.SourceType.BOKJIRO_LOCAL, "LOCAL-1"))
+        given(normalizedPolicySidecarBackfillReadRepository.findServiceBySourceTypeAndSourceId(WelfareService.SourceType.BOKJIRO_LOCAL, "LOCAL-1"))
                 .willReturn(Optional.of(saved));
 
         NormalizedPolicySidecarBackfillService.BackfillResult result = service.backfillBokjiroListSidecars(10);
@@ -157,7 +157,7 @@ class NormalizedPolicySidecarBackfillServiceTest {
                 WelfareService.SourceType.BOKJIRO_LOCAL,
                 RawApiPayload.ApiCategory.DETAIL
         )).willReturn(List.of(raw));
-        given(welfareServiceRepository.findBySourceTypeAndSourceId(WelfareService.SourceType.BOKJIRO_LOCAL, "LOCAL-2"))
+        given(normalizedPolicySidecarBackfillReadRepository.findServiceBySourceTypeAndSourceId(WelfareService.SourceType.BOKJIRO_LOCAL, "LOCAL-2"))
                 .willReturn(Optional.of(saved));
 
         NormalizedPolicySidecarBackfillService.BackfillResult result = service.backfillBokjiroDetailSidecars(10);
@@ -197,7 +197,7 @@ class NormalizedPolicySidecarBackfillServiceTest {
                 WelfareService.SourceType.BOKJIRO_LOCAL,
                 RawApiPayload.ApiCategory.DETAIL
         )).willReturn(List.of());
-        given(welfareServiceRepository.findBySourceTypeAndSourceId(WelfareService.SourceType.BOKJIRO_CENTRAL, "CENTRAL-1"))
+        given(normalizedPolicySidecarBackfillReadRepository.findServiceBySourceTypeAndSourceId(WelfareService.SourceType.BOKJIRO_CENTRAL, "CENTRAL-1"))
                 .willReturn(Optional.empty());
 
         NormalizedPolicySidecarBackfillService.BackfillResult result = service.backfillBokjiroDetailSidecars(10);
@@ -236,7 +236,7 @@ class NormalizedPolicySidecarBackfillServiceTest {
                 WelfareService.SourceType.BOKJIRO_LOCAL,
                 RawApiPayload.ApiCategory.LIST
         )).willReturn(List.of(raw));
-        given(welfareServiceRepository.findBySourceTypeAndSourceId(WelfareService.SourceType.BOKJIRO_LOCAL, "LOCAL-BAD"))
+        given(normalizedPolicySidecarBackfillReadRepository.findServiceBySourceTypeAndSourceId(WelfareService.SourceType.BOKJIRO_LOCAL, "LOCAL-BAD"))
                 .willReturn(Optional.of(saved));
 
         NormalizedPolicySidecarBackfillService.BackfillResult result = service.backfillBokjiroListSidecars(10);
