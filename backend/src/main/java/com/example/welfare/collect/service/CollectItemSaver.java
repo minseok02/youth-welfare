@@ -2,7 +2,6 @@ package com.example.welfare.collect.service;
 
 import com.example.welfare.collect.mapper.WelfareServiceMapper;
 import com.example.welfare.collect.normalization.NormalizedPolicyAggregate;
-import com.example.welfare.collect.normalization.NormalizedPolicySidecarWriter;
 import com.example.welfare.collect.repository.CollectItemCommandRepository;
 import com.example.welfare.collect.repository.CollectItemRegionCommandRepository;
 import com.example.welfare.collect.repository.CollectItemReadRepository;
@@ -45,8 +44,7 @@ public class CollectItemSaver {
     private final CollectItemRegionCommandRepository collectItemRegionCommandRepository;
     private final CollectItemTagCommandRepository collectItemTagCommandRepository;
     private final PlatformTransactionManager transactionManager;
-    private final SearchYouthRelevanceService searchYouthRelevanceService;
-    private final NormalizedPolicySidecarWriter normalizedPolicySidecarWriter;
+    private final CollectPolicyAggregateApplyService collectPolicyAggregateApplyService;
 
     private static final int MAX_SAVE_ATTEMPTS = 3;
     private static final long BASE_BACKOFF_MS = 200L;
@@ -103,12 +101,11 @@ public class CollectItemSaver {
 
         if (command.aggregate() != null) {
             validateAggregate(command.aggregate(), command.sourceType(), command.sourceId());
-            normalizedPolicySidecarWriter.upsert(entity, command.aggregate());
         }
 
         upsertRegions(entity, command.regions().apply(entity));
         List<ServiceTag> tags = replaceTags(entity, command.tags().apply(entity));
-        searchYouthRelevanceService.refreshForService(entity, tags);
+        collectPolicyAggregateApplyService.applyCollectedItem(entity, command.aggregate(), tags);
     }
 
     private WelfareService upsertService(WelfareService.SourceType sourceType,
@@ -251,11 +248,6 @@ public class CollectItemSaver {
             throw new IllegalArgumentException("normalized aggregate source identity 가 item 과 일치하지 않습니다.");
         }
     }
-
-    private WelfareService.SourceType toLegacySourceType(NormalizedPolicyAggregate.SourceType sourceType) {
-        return WelfareService.SourceType.valueOf(sourceType.name());
-    }
-
     private void validateCommand(SaveCommand command) {
         if (command == null) {
             throw new IllegalArgumentException("save command 는 필수입니다.");

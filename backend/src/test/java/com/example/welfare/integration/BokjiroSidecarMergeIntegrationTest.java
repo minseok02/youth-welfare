@@ -10,6 +10,7 @@ import com.example.welfare.collect.repository.BokjiroDetailReadRepositoryImpl;
 import com.example.welfare.collect.normalization.NormalizedPolicySidecarWriter;
 import com.example.welfare.collect.service.BokjiroDetailCollectService;
 import com.example.welfare.collect.service.CollectItemSaver;
+import com.example.welfare.collect.service.CollectPolicyAggregateApplyService;
 import com.example.welfare.collect.service.CollectResult;
 import com.example.welfare.collect.service.RawApiPayloadService;
 import com.example.welfare.collect.support.ListCollectSourceBindings;
@@ -167,15 +168,20 @@ class BokjiroSidecarMergeIntegrationTest {
                     new BokjiroDetailReadRepositoryImpl(isolatedRepository, welfareServiceDetailRepository);
             BokjiroDetailCommandRepositoryImpl isolatedCommandRepository =
                     new BokjiroDetailCommandRepositoryImpl(welfareServiceDetailRepository);
+            CollectPolicyAggregateApplyService aggregateApplyService =
+                    new CollectPolicyAggregateApplyService(
+                            isolatedCommandRepository,
+                            searchYouthRelevanceService,
+                            normalizedPolicySidecarWriter
+                    );
 
             BokjiroDetailCollectService detailCollectService = new BokjiroDetailCollectService(
                     isolatedReadRepository,
                     isolatedCommandRepository,
                     detailClient,
                     rawApiPayloadService,
-                    searchYouthRelevanceService,
                     welfareServiceMapper,
-                    normalizedPolicySidecarWriter
+                    aggregateApplyService
             );
             ReflectionTestUtils.setField(detailCollectService, "maxCallsPerApiPerRun", 1);
             ReflectionTestUtils.setField(detailCollectService, "requestIntervalMs", 0L);

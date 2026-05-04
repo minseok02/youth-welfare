@@ -4,6 +4,7 @@ import com.example.welfare.collect.entity.RawApiPayload;
 import com.example.welfare.collect.mapper.WelfareServiceMapper;
 import com.example.welfare.collect.repository.NormalizedPolicySidecarBackfillReadRepository;
 import com.example.welfare.collect.repository.NormalizedPolicySidecarBackfillTarget;
+import com.example.welfare.collect.service.CollectPolicyAggregateApplyService;
 import com.example.welfare.collect.support.CollectSourceRegistry;
 import com.example.welfare.policy.entity.WelfareService;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -22,17 +23,17 @@ public class NormalizedPolicySidecarBackfillService {
 
     private final NormalizedPolicySidecarBackfillReadRepository normalizedPolicySidecarBackfillReadRepository;
     private final WelfareServiceMapper welfareServiceMapper;
-    private final NormalizedPolicySidecarWriter normalizedPolicySidecarWriter;
+    private final CollectPolicyAggregateApplyService collectPolicyAggregateApplyService;
     private final ObjectMapper objectMapper;
     private final Map<WelfareService.SourceType, SidecarBackfillCapability> backfillCapabilities;
 
     public NormalizedPolicySidecarBackfillService(NormalizedPolicySidecarBackfillReadRepository normalizedPolicySidecarBackfillReadRepository,
                                                   WelfareServiceMapper welfareServiceMapper,
-                                                  NormalizedPolicySidecarWriter normalizedPolicySidecarWriter,
+                                                  CollectPolicyAggregateApplyService collectPolicyAggregateApplyService,
                                                   ObjectMapper objectMapper) {
         this.normalizedPolicySidecarBackfillReadRepository = normalizedPolicySidecarBackfillReadRepository;
         this.welfareServiceMapper = welfareServiceMapper;
-        this.normalizedPolicySidecarWriter = normalizedPolicySidecarWriter;
+        this.collectPolicyAggregateApplyService = collectPolicyAggregateApplyService;
         this.objectMapper = objectMapper;
         this.backfillCapabilities = buildBackfillCapabilities(welfareServiceMapper, objectMapper);
     }
@@ -94,7 +95,7 @@ public class NormalizedPolicySidecarBackfillService {
 
             try {
                 NormalizedPolicyAggregate aggregate = capability.toListAggregate(raw);
-                normalizedPolicySidecarWriter.upsert(service, aggregate);
+                collectPolicyAggregateApplyService.applySidecarBackfill(service, aggregate);
                 upserted++;
             } catch (Exception e) {
                 failed++;
@@ -135,7 +136,7 @@ public class NormalizedPolicySidecarBackfillService {
 
             try {
                 NormalizedPolicyAggregate aggregate = capability.toDetailAggregate(service, raw);
-                normalizedPolicySidecarWriter.upsert(service, aggregate);
+                collectPolicyAggregateApplyService.applySidecarBackfill(service, aggregate);
                 upserted++;
             } catch (Exception e) {
                 failed++;

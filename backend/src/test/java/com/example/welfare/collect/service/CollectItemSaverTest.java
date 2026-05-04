@@ -3,7 +3,6 @@ package com.example.welfare.collect.service;
 import com.example.welfare.collect.dto.YouthApiDto;
 import com.example.welfare.collect.mapper.WelfareServiceMapper;
 import com.example.welfare.collect.normalization.NormalizedPolicyAggregate;
-import com.example.welfare.collect.normalization.NormalizedPolicySidecarWriter;
 import com.example.welfare.collect.repository.CollectItemCommandRepository;
 import com.example.welfare.collect.repository.CollectItemRegionCommandRepository;
 import com.example.welfare.collect.repository.CollectItemReadRepository;
@@ -13,7 +12,6 @@ import com.example.welfare.collect.support.ListCollectSourceBindings;
 import com.example.welfare.policy.entity.ServiceRegion;
 import com.example.welfare.policy.entity.ServiceTag;
 import com.example.welfare.policy.entity.WelfareService;
-import com.example.welfare.policy.service.SearchYouthRelevanceService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -52,9 +50,7 @@ class CollectItemSaverTest {
     @Mock
     private PlatformTransactionManager transactionManager;
     @Mock
-    private SearchYouthRelevanceService searchYouthRelevanceService;
-    @Mock
-    private NormalizedPolicySidecarWriter normalizedPolicySidecarWriter;
+    private CollectPolicyAggregateApplyService collectPolicyAggregateApplyService;
 
     private CollectItemSaver saver;
 
@@ -67,8 +63,7 @@ class CollectItemSaverTest {
                 collectItemRegionCommandRepository,
                 collectItemTagCommandRepository,
                 transactionManager,
-                searchYouthRelevanceService,
-                normalizedPolicySidecarWriter
+                collectPolicyAggregateApplyService
         );
     }
 
@@ -127,7 +122,7 @@ class CollectItemSaverTest {
                 );
         assertThat(savedTags).allMatch(tag -> tag.getService() == existing);
 
-        verify(searchYouthRelevanceService).refreshForService(eq(existing), eq(savedTags));
+        verify(collectPolicyAggregateApplyService).applyCollectedItem(existing, null, savedTags);
     }
 
     @Test
@@ -158,7 +153,7 @@ class CollectItemSaverTest {
         saver.saveOnce(binding, item);
 
         verify(collectItemTagCommandRepository).replaceAll(22L, List.of());
-        verify(searchYouthRelevanceService).refreshForService(eq(existing), eq(List.of()));
+        verify(collectPolicyAggregateApplyService).applyCollectedItem(existing, null, List.of());
     }
 
     @Test
@@ -208,7 +203,7 @@ class CollectItemSaverTest {
 
         saver.saveOnce(binding, item, aggregate);
 
-        verify(normalizedPolicySidecarWriter).upsert(existing, aggregate);
+        verify(collectPolicyAggregateApplyService).applyCollectedItem(existing, aggregate, List.of());
     }
 
     @Test
@@ -249,9 +244,8 @@ class CollectItemSaverTest {
 
         saver.saveOnce(binding.toSaveCommand(item));
 
-        verify(normalizedPolicySidecarWriter).upsert(existing, aggregate);
+        verify(collectPolicyAggregateApplyService).applyCollectedItem(eq(existing), eq(aggregate), any());
         verify(collectItemTagCommandRepository).replaceAll(eq(55L), any());
-        verify(searchYouthRelevanceService).refreshForService(eq(existing), any());
     }
 
     private YouthApiDto.Item youthItem(String plcyNo) {

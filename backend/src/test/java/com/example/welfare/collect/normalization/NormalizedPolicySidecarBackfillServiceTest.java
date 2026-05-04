@@ -6,6 +6,7 @@ import com.example.welfare.collect.gateway.BokjiroDetailClient;
 import com.example.welfare.collect.mapper.WelfareServiceMapper;
 import com.example.welfare.collect.repository.NormalizedPolicySidecarBackfillReadRepository;
 import com.example.welfare.collect.repository.NormalizedPolicySidecarBackfillTarget;
+import com.example.welfare.collect.service.CollectPolicyAggregateApplyService;
 import com.example.welfare.policy.entity.WelfareService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -32,7 +33,7 @@ class NormalizedPolicySidecarBackfillServiceTest {
     @Mock
     private NormalizedPolicySidecarBackfillReadRepository normalizedPolicySidecarBackfillReadRepository;
     @Mock
-    private NormalizedPolicySidecarWriter normalizedPolicySidecarWriter;
+    private CollectPolicyAggregateApplyService collectPolicyAggregateApplyService;
 
     private final WelfareServiceMapper welfareServiceMapper = new WelfareServiceMapper();
     private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
@@ -44,7 +45,7 @@ class NormalizedPolicySidecarBackfillServiceTest {
         service = new NormalizedPolicySidecarBackfillService(
                 normalizedPolicySidecarBackfillReadRepository,
                 welfareServiceMapper,
-                normalizedPolicySidecarWriter,
+                collectPolicyAggregateApplyService,
                 objectMapper
         );
     }
@@ -100,7 +101,7 @@ class NormalizedPolicySidecarBackfillServiceTest {
         assertThat(result.failedCount()).isZero();
 
         ArgumentCaptor<NormalizedPolicyAggregate> aggregateCaptor = ArgumentCaptor.forClass(NormalizedPolicyAggregate.class);
-        verify(normalizedPolicySidecarWriter).upsert(eq(saved), aggregateCaptor.capture());
+        verify(collectPolicyAggregateApplyService).applySidecarBackfill(eq(saved), aggregateCaptor.capture());
         assertThat(aggregateCaptor.getValue().taxonomyTerms())
                 .extracting(NormalizedPolicyAggregate.TaxonomyTerm::termGroup,
                         NormalizedPolicyAggregate.TaxonomyTerm::termLabel)
@@ -163,7 +164,7 @@ class NormalizedPolicySidecarBackfillServiceTest {
         assertThat(result.failedCount()).isZero();
 
         ArgumentCaptor<NormalizedPolicyAggregate> aggregateCaptor = ArgumentCaptor.forClass(NormalizedPolicyAggregate.class);
-        verify(normalizedPolicySidecarWriter).upsert(eq(saved), aggregateCaptor.capture());
+        verify(collectPolicyAggregateApplyService).applySidecarBackfill(eq(saved), aggregateCaptor.capture());
         assertThat(aggregateCaptor.getValue().facts())
                 .extracting(NormalizedPolicyAggregate.Fact::factMergeKey)
                 .containsExactlyInAnyOrder("BK_AGE_ELIGIBILITY", "BK_APPLY_END_DATE");
@@ -201,7 +202,7 @@ class NormalizedPolicySidecarBackfillServiceTest {
         assertThat(result.upsertedCount()).isZero();
         assertThat(result.missingServiceCount()).isEqualTo(1);
         assertThat(result.failedCount()).isZero();
-        verify(normalizedPolicySidecarWriter, never()).upsert(any(), any());
+        verify(collectPolicyAggregateApplyService, never()).applySidecarBackfill(any(), any());
     }
 
     @Test
@@ -240,6 +241,6 @@ class NormalizedPolicySidecarBackfillServiceTest {
         assertThat(result.upsertedCount()).isZero();
         assertThat(result.missingServiceCount()).isZero();
         assertThat(result.failedCount()).isEqualTo(1);
-        verify(normalizedPolicySidecarWriter, never()).upsert(any(), any());
+        verify(collectPolicyAggregateApplyService, never()).applySidecarBackfill(any(), any());
     }
 }
