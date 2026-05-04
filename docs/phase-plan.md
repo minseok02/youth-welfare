@@ -1283,3 +1283,4 @@ cd backend
 - `2026-05-04`: `RecommendationLogService` 에서 최신 logId 맵 조회를 `RecommendationLogReadService` 로 분리하고, 추천 컨트롤러는 조회 전용 service를 사용하도록 정리했다.
 - `2026-05-04`: `RecommendationPersistenceService` 가 과거 북마크 상태 조회를 command repo로 읽지 않도록 정리하고, 기존 추천 row 조회를 `RecommendationResultReadRepository` 경계로 옮겼다.
 - `2026-05-04`: `RawApiPayloadService` 가 기존 row 조회 후 upsert 판단까지 직접 하던 부분을 `RawApiPayloadCommandRepository.upsert(...)` 뒤로 이동시켰다.
+- `2026-05-04`: `RecommendationPersistenceService` 에서 기존 북마크 상태 맵 계산을 `RecommendationBookmarkStateReadService` 로 분리해 저장 서비스가 추천 row 조립과 교체 저장에 더 집중하게 했다.

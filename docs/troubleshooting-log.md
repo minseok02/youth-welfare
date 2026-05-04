@@ -2939,3 +2939,4 @@
 544) `RecommendationLogService` 는 로그 쓰기와 최신 logId 맵 조회를 함께 들고 있었다. `RecommendationLogReadService` 를 분리해 추천 컨트롤러는 조회 전용 service를 사용하게 하고, 기존 service는 command 책임에 더 집중하도록 정리했다.
 545) `RecommendationPersistenceService` 는 새 추천 저장 전에 과거 북마크 상태를 `RecommendationPersistenceCommandRepository` 로 읽고 있었다. 읽기/쓰기를 뒤섞지 않기 위해 기존 추천 row 조회를 `RecommendationResultReadRepository` 로 옮기고, command repo에서는 읽기 메서드를 제거했다.
 546) `RawApiPayloadService` 는 raw JSON 직렬화 외에 기존 row 조회, 신규 생성, payload 갱신까지 직접 수행하고 있었다. `RawApiPayloadCommandRepository.upsert(...)` 를 추가해 저장 규칙을 command 경계 뒤로 내리고, raw payload service 는 직렬화와 해시 계산에 집중하도록 정리했다.
+547) `RecommendationPersistenceService` 는 기존 추천 row를 읽은 뒤 `serviceId -> bookmarked` 맵을 직접 계산하고 있었다. 이 read-side 규칙을 `RecommendationBookmarkStateReadService` 로 분리해 저장 서비스는 row 조립과 replace 저장 orchestration에 집중하도록 정리했다.
