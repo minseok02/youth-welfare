@@ -53,10 +53,11 @@ class PolicyListServiceTest {
                         "HOUSING",
                         WelfareService.SourceType.YOUTH,
                         WelfareService.ServiceStatus.ACTIVE,
-                        false,
+                        "ACTIVE_ONLY",
                         "서울특별시",
                         "강남구",
-                        true
+                        true,
+                        "VIEWS"
                 )),
                 any(PageRequest.class)
         )).willReturn(page);
@@ -68,7 +69,7 @@ class PolicyListServiceTest {
                 "HOUSING",
                 "YOUTH",
                 "ACTIVE",
-                false,
+                null,
                 "서울특별시",
                 "강남구",
                 true,
@@ -83,14 +84,16 @@ class PolicyListServiceTest {
                         "HOUSING",
                         WelfareService.SourceType.YOUTH,
                         WelfareService.ServiceStatus.ACTIVE,
-                        false,
+                        "ACTIVE_ONLY",
                         "서울특별시",
                         "강남구",
-                        true
+                        true,
+                        "VIEWS"
                 )),
                 captor.capture()
         );
-        assertEquals("viewCount: DESC", captor.getValue().getSort().getOrderFor("viewCount").toString());
+        assertEquals(0, captor.getValue().getPageNumber());
+        assertEquals(20, captor.getValue().getPageSize());
     }
 
     @Test
@@ -106,7 +109,7 @@ class PolicyListServiceTest {
         Page<WelfareService> page = new PageImpl<>(List.of(service));
 
         given(welfareServiceReadRepository.findList(
-                eq(new PolicyListReadCondition(null, null, null, false, null, null, null)),
+                eq(new PolicyListReadCondition(null, null, null, "ACTIVE_ONLY", null, null, null, "LATEST")),
                 any(PageRequest.class)
         )).willReturn(page);
         given(policyPresentationReadService.buildSummaryPage(eq(7L), any(Page.class)))
@@ -130,7 +133,7 @@ class PolicyListServiceTest {
                 null,
                 null,
                 null,
-                false,
+                null,
                 null,
                 null,
                 null,

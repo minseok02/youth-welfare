@@ -2,6 +2,7 @@ package com.example.welfare.policy.service;
 
 import com.example.welfare.policy.dto.PolicySummaryResponse;
 import com.example.welfare.policy.entity.WelfareService;
+import com.example.welfare.policy.repository.ServiceRegionRepository;
 import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
 import com.example.welfare.recommend.service.RecommendationBookmarkReadService;
 import com.example.welfare.recommend.service.RecommendationProjectionReadService;
@@ -28,13 +29,16 @@ class PolicyPresentationReadServiceTest {
 
     @Mock
     private RecommendationProjectionReadService recommendationProjectionReadService;
+    @Mock
+    private ServiceRegionRepository serviceRegionRepository;
 
     @Test
     @DisplayName("정책 목록 페이지는 북마크와 projection additive field를 합쳐 summary 응답으로 조립한다")
     void buildSummaryPageBuildsSummaries() {
         PolicyPresentationReadService service = new PolicyPresentationReadService(
                 recommendationBookmarkReadService,
-                recommendationProjectionReadService
+                recommendationProjectionReadService,
+                serviceRegionRepository
         );
         WelfareService policy = WelfareService.builder()
                 .id(11L)
@@ -58,6 +62,7 @@ class PolicyPresentationReadServiceTest {
                                 .youthMajorLabel("주거")
                                 .build()
                 ));
+        when(serviceRegionRepository.findFirstSidoByServiceIds(List.of(11L))).thenReturn(List.of());
 
         Page<PolicySummaryResponse> result = service.buildSummaryPage(7L, page);
 
@@ -72,7 +77,8 @@ class PolicyPresentationReadServiceTest {
     void buildDetailPresentationBuildsDetailPresentation() {
         PolicyPresentationReadService service = new PolicyPresentationReadService(
                 recommendationBookmarkReadService,
-                recommendationProjectionReadService
+                recommendationProjectionReadService,
+                serviceRegionRepository
         );
         WelfareService policy = WelfareService.builder()
                 .id(11L)

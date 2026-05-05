@@ -1,5 +1,6 @@
 package com.example.welfare.integration;
 
+import com.example.welfare.global.util.RegionCodeUtil;
 import com.example.welfare.policy.entity.ServiceRegion;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.repository.ServiceRegionRepository;
@@ -80,12 +81,15 @@ class PolicySearchRegionQueryIntegrationTest {
 
         Page<WelfareService> result = welfareServiceRepository.findListWithFilters(
                 TEST_CATEGORY,
-                WelfareService.SourceType.YOUTH,
+                WelfareService.SourceType.YOUTH.name(),
                 null,
-                false,
+                "ACTIVE_ONLY",
                 "서울특별시",
                 "강남구",
+                RegionCodeUtil.getSidoCode("서울특별시"),
+                RegionCodeUtil.getRegionCode("서울특별시", "강남구"),
                 null,
+                "LATEST",
                 PageRequest.of(0, 100)
         );
 
@@ -118,12 +122,15 @@ class PolicySearchRegionQueryIntegrationTest {
 
         Page<WelfareService> result = welfareServiceRepository.findListWithFilters(
                 TEST_CATEGORY,
-                WelfareService.SourceType.YOUTH,
+                WelfareService.SourceType.YOUTH.name(),
                 null,
-                false,
+                "ACTIVE_ONLY",
                 "서울특별시",
                 null,
+                RegionCodeUtil.getSidoCode("서울특별시"),
                 null,
+                null,
+                "LATEST",
                 PageRequest.of(0, 100)
         );
 
