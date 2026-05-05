@@ -31,6 +31,8 @@ const CATEGORIES = [
   { label: "가족·돌봄", value: "가족·돌봄" },
   { label: "안전·위기", value: "안전·위기" },
   { label: "참여·기회", value: "참여·기회" },
+  // 임시: 미분류(기타) 정책 점검용. 복지로 로컬 카테고리 매핑 정비 후 제거 예정
+  { label: "분류없음", value: "기타" },
 ];
 
 const REGIONS = [
