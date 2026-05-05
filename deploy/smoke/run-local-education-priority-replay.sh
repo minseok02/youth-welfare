@@ -893,6 +893,7 @@ a_fp_relation = "same" if a_off_fp == a_on_fp else "different"
 b_fp_relation = "same" if b_off_fp == b_on_fp else "different"
 mode = Path(openai_mode_file).read_text(encoding="utf-8").strip() or "unknown"
 ts_value = replay_summary_ts or datetime.now().astimezone().isoformat(timespec="seconds")
+effective_strict_control_assert = strict_control_assert.lower() == "true" or mode == "rule-only-invalid-key"
 
 print("A_FINGERPRINT", a_off_fp, a_on_fp, a_fp_relation)
 print("B_FINGERPRINT", b_off_fp, b_on_fp, b_fp_relation)
@@ -1035,7 +1036,7 @@ if sample_b_regressed:
         f"(top10 {b_off['top10_target_count']} -> {b_on['top10_target_count']}, "
         f"best_rank {b_off['best_target_rank']} -> {b_on['best_target_rank']})"
     )
-    if strict_control_assert.lower() == "true":
+    if effective_strict_control_assert:
         raise SystemExit(message)
     print(f"WARNING: {message}")
 
