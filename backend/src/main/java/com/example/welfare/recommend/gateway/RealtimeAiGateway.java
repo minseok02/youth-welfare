@@ -29,6 +29,7 @@ import java.util.stream.Collectors;
 @Component
 @RequiredArgsConstructor
 public class RealtimeAiGateway implements AiRecommendationGateway {
+    static final String RULE_ONLY_INVALID_KEY = "invalid-for-rule-only-replay";
 
     private final WebClient webClient;
     private final ObjectMapper objectMapper;
@@ -45,6 +46,9 @@ public class RealtimeAiGateway implements AiRecommendationGateway {
     @Value("${recommend.ai.replay-seed:}")
     private String replaySeedValue;
 
+    @Value("${recommend.ai.force-rule-only:false}")
+    private boolean forceRuleOnly;
+
     private static final int AI_TOP_N = 15; // 상위 N건만 AI 호출 (비용 절감 + 누락 방지)
 
     @Override
@@ -59,6 +63,12 @@ public class RealtimeAiGateway implements AiRecommendationGateway {
             String prompt = buildUserPrompt(topCandidates, user);
             Long replaySeed = replaySeedOrNull();
             logReplayTrace(clusterId, topCandidates, user, prompt, replaySeed);
+            if (shouldBypassOpenAi(apiKey, forceRuleOnly)) {
+                log.info("[RealtimeAiGateway] OpenAI 호출을 건너뛰고 rule-only fallback을 사용합니다. keyMode={}",
+                        forceRuleOnly ? "force-rule-only" : (apiKey == null || apiKey.isBlank() ? "blank" : "rule-only-sentinel"));
+                logReplayTraceResponse(clusterId, prompt, AiCallResult.empty());
+                return candidates;
+            }
             AiCallResult callResult = callOpenAi(prompt, replaySeed);
             logReplayTraceResponse(clusterId, prompt, callResult);
             AiResponse response = callResult.aiResponse();
@@ -82,6 +92,13 @@ public class RealtimeAiGateway implements AiRecommendationGateway {
         }
 
         return candidates;
+    }
+
+    static boolean shouldBypassOpenAi(String apiKey, boolean forceRuleOnly) {
+        return forceRuleOnly
+                || apiKey == null
+                || apiKey.isBlank()
+                || RULE_ONLY_INVALID_KEY.equals(apiKey.trim());
     }
 
     void logReplayTrace(String clusterId, List<ScoredCandidate> topCandidates, RecommendationUserSnapshot user, String prompt, Long replaySeed) {

@@ -60,6 +60,15 @@ class RealtimeAiGatewayTest {
     }
 
     @Test
+    void shouldBypassOpenAiForBlankOrRuleOnlySentinelKey() {
+        assertThat(RealtimeAiGateway.shouldBypassOpenAi(null, false)).isTrue();
+        assertThat(RealtimeAiGateway.shouldBypassOpenAi("   ", false)).isTrue();
+        assertThat(RealtimeAiGateway.shouldBypassOpenAi(RealtimeAiGateway.RULE_ONLY_INVALID_KEY, false)).isTrue();
+        assertThat(RealtimeAiGateway.shouldBypassOpenAi("sk-test-real-key", false)).isFalse();
+        assertThat(RealtimeAiGateway.shouldBypassOpenAi("sk-test-real-key", true)).isTrue();
+    }
+
+    @Test
     void parseAiCallResultCapturesResponseMetadata() throws Exception {
         ObjectMapper objectMapper = new ObjectMapper();
         String responseBody = """

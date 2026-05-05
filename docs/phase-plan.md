@@ -1,5 +1,7 @@
 # 구현 현황
 
+- 2026-05-05: `run-local-education-priority-replay.sh` 의 `rule-only-invalid-key` 모드가 실제로는 OpenAI 응답을 계속 받아 sample B control 해석을 오염시키던 문제를 정리했다. `RealtimeAiGateway` 에 `recommend.ai.force-rule-only` 우회 스위치를 추가하고 replay script가 rule-only 모드에서 이를 강제로 켜게 바꿔, 이제 bootrun trace에도 `responseId=none / resultsCount=0` 이 찍히는 진짜 rule-only replay만 수행한다.
+- 2026-05-05: 위 보정 뒤 replay를 다시 실행해 sample A는 `A_top10_target=5->8`, `A_best_target_rank=3->1` 로 개선되고 sample B는 `B_top10_target=2->2`, `B_best_target_rank=8->8` 로 고정되는 것을 확인했다. artifact는 `/tmp/tmp.nmd9dtZnkf` 에 남겼다.
 - 2026-05-05: `BokjiroDetailCollectService` gap fill 이 앞 라운드의 raw/detail 저장 실패 row를 계속 다시 잡아 뒤 backlog 소진이 막히던 문제를 보정했다. 라운드별 실패 `serviceId` 를 모아 다음 라운드에서 제외하고, `saved=0` 이어도 `failed>0` 이면 즉시 종료하지 않게 바꿔 뒤쪽 대기 row를 계속 진행하도록 정리했다.
 - 2026-05-05: `NotificationRetryService` 가 retry 실행 결과를 `RetryRunResult` 로 집계하고, `NotificationScheduleService` 가 due/claim/sent/rescheduled/terminal-failed 카운트를 스케줄 로그에 남기도록 보강했다. claim skip 과 terminal failure 도 실행 단위에서 바로 읽을 수 있게 정리했다.
 - 2026-05-05: 위 두 변경 후 `backend` 에서 `./gradlew test --no-daemon --tests com.example.welfare.collect.service.BokjiroDetailCollectServiceTest --tests com.example.welfare.notification.service.NotificationRetryServiceTest --tests com.example.welfare.notification.service.NotificationScheduleServiceTest --tests com.example.welfare.integration.NotificationRetryPersistenceIntegrationTest` 를 다시 통과시켰다.

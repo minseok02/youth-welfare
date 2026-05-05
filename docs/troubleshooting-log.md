@@ -2977,3 +2977,8 @@
 - 문제: retry scheduler 는 전역 락 아래에서 돌아도 실제 실행 결과가 발송 성공/재예약/최종 실패/claim 충돌 중 어디로 흘렀는지 집계하지 않았다. 이 상태면 “왜 backlog 가 안 줄었는가”를 운영 로그에서 바로 읽기 어렵고, claim window 도입 후에는 skip 증가 여부도 따로 보이지 않는다.
 - 해결: `NotificationRetryService.retryFailedNotifications()` 가 `RetryRunResult` 를 반환하도록 바꾸고, `NotificationScheduleService` 가 `due/claimed/skippedClaim/sent/rescheduled/terminalFailed` 카운트를 한 줄 로그로 남기게 했다. 단위/통합 테스트도 각 결과 카운트를 직접 검증하도록 맞췄다.
 - 이유: background retry 는 단순 성공/실패만으로는 충분히 관측되지 않는다. claim 기반 중복 방지까지 들어간 경로에서는 실행 단위 집계를 남겨야 실제 병목이 due backlog 인지, claim 충돌인지, terminal failure 누적인지 빠르게 구분할 수 있다.
+
+## 577) `rule-only-invalid-key` replay 가 실제 OpenAI 호출을 계속 타면, education experiment control sample 해석이 AI 변동에 오염된다
+- 문제: `run-local-education-priority-replay.sh` 는 rule-only 모드에서 `OPENAI_API_KEY=invalid-for-rule-only-replay` 를 넘겨 “AI 호출 실패 후 rule-only fallback” 을 기대하고 있었지만, 실제 런타임에서는 여전히 `RealtimeAiGateway` 가 OpenAI 응답을 받아 `responseId=chatcmpl-*` 를 남기고 있었다. 이 상태에서는 sample B control row 이동이 canonical bonus 회귀인지, AI 응답 변동인지 분리할 수 없다.
+- 해결: `RealtimeAiGateway` 에 `recommend.ai.force-rule-only` 우회 스위치를 추가하고, replay script가 `USE_REAL_OPENAI_FOR_REPLAY != true` 일 때 `RECOMMEND_AI_FORCE_RULE_ONLY=true` 를 강제로 넘기도록 바꿨다. 이제 rule-only replay의 bootrun trace는 `responseId=none`, `systemFingerprint=none`, `resultsCount=0` 으로 남고 OpenAI를 실제로 건너뛴다.
+- 이유: replay의 목적이 “education canonical bonus가 rule score 경계에서 control 대비 어떻게 바뀌는가”를 보는 것이라면, AI 계층은 환경/키 상태와 무관하게 명시적으로 차단돼야 한다. invalid key 실패에 기대는 방식은 실제 property source나 런타임 경로에 따라 흔들릴 수 있다.
