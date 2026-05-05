@@ -695,11 +695,24 @@ for line in Path(slot_metrics_path).read_text(encoding="utf-8").splitlines():
     slot_metrics[key] = int(value)
 
 fp_pattern = re.compile(r"systemFingerprint=([^ ]+)")
+response_id_pattern = re.compile(r"responseId=([^ ]+)")
+results_count_pattern = re.compile(r"resultsCount=([0-9]+)")
 
 def fingerprint_of(path):
     text = Path(path).read_text(encoding="utf-8")
     match = fp_pattern.search(text)
     return match.group(1) if match else "missing"
+
+def response_metadata_of(path):
+    text = Path(path).read_text(encoding="utf-8")
+    response_id_match = response_id_pattern.search(text)
+    fingerprint_match = fp_pattern.search(text)
+    results_count_match = results_count_pattern.search(text)
+    return {
+        "response_id": response_id_match.group(1) if response_id_match else "missing",
+        "system_fingerprint": fingerprint_match.group(1) if fingerprint_match else "missing",
+        "results_count": int(results_count_match.group(1)) if results_count_match else -1,
+    }
 
 def summarize(label, rows):
     target_positions = []
@@ -872,6 +885,10 @@ a_off_fp = fingerprint_of(trace_a_off)
 a_on_fp = fingerprint_of(trace_a_on)
 b_off_fp = fingerprint_of(trace_b_off)
 b_on_fp = fingerprint_of(trace_b_on)
+a_off_response = response_metadata_of(trace_a_off)
+a_on_response = response_metadata_of(trace_a_on)
+b_off_response = response_metadata_of(trace_b_off)
+b_on_response = response_metadata_of(trace_b_on)
 a_fp_relation = "same" if a_off_fp == a_on_fp else "different"
 b_fp_relation = "same" if b_off_fp == b_on_fp else "different"
 mode = Path(openai_mode_file).read_text(encoding="utf-8").strip() or "unknown"
@@ -1021,6 +1038,19 @@ if sample_b_regressed:
     if strict_control_assert.lower() == "true":
         raise SystemExit(message)
     print(f"WARNING: {message}")
+
+if mode == "rule-only-invalid-key":
+    for label, metadata in (
+        ("A_OFF", a_off_response),
+        ("A_ON", a_on_response),
+        ("B_OFF", b_off_response),
+        ("B_ON", b_on_response),
+    ):
+        if metadata["response_id"] != "none" or metadata["system_fingerprint"] != "none" or metadata["results_count"] != 0:
+            raise SystemExit(
+                f"{label} rule-only replay unexpectedly received AI response "
+                f"(responseId={metadata['response_id']}, systemFingerprint={metadata['system_fingerprint']}, resultsCount={metadata['results_count']})"
+            )
 PY
 }
 
