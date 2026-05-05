@@ -215,6 +215,43 @@ class BokjiroDetailCollectServiceTest {
     }
 
     @Test
+    @DisplayName("gap fill 은 앞 라운드 실패 row 를 제외하고 다음 라운드에서 뒤 backlog 를 계속 소진한다")
+    void collectBokjiroDetailGapFillSkipsPreviouslyFailedRowsAcrossRounds() {
+        WelfareService failing = welfareService(61L, WelfareService.SourceType.BOKJIRO_LOCAL, "LOCAL-61");
+        WelfareService succeeding = welfareService(62L, WelfareService.SourceType.BOKJIRO_LOCAL, "LOCAL-62");
+        BokjiroDetailClient.DetailPayload payload = BokjiroDetailClient.DetailPayload.builder()
+                .supportDetail("지원 내용")
+                .applyMethodDetail("온라인 신청")
+                .build();
+
+        given(bokjiroDetailReadRepository.findTargetsBySourceType(WelfareService.SourceType.BOKJIRO_CENTRAL))
+                .willReturn(List.of(), List.of(), List.of());
+        given(bokjiroDetailReadRepository.findTargetsBySourceType(WelfareService.SourceType.BOKJIRO_LOCAL))
+                .willReturn(List.of(failing, succeeding), List.of(failing, succeeding), List.of(failing, succeeding));
+        given(bokjiroDetailReadRepository.existsDetailByServiceId(61L)).willReturn(false);
+        given(bokjiroDetailReadRepository.existsDetailByServiceId(62L)).willReturn(false, true);
+        given(detailClient.fetchLocalWithStatus("LOCAL-61"))
+                .willReturn(BokjiroDetailClient.FetchResult.success(payload));
+        given(detailClient.fetchLocalWithStatus("LOCAL-62"))
+                .willReturn(BokjiroDetailClient.FetchResult.success(payload));
+        given(rawApiPayloadService.saveBokjiroDetail(WelfareService.SourceType.BOKJIRO_LOCAL, "LOCAL-61", payload))
+                .willReturn(false);
+        given(rawApiPayloadService.saveBokjiroDetail(WelfareService.SourceType.BOKJIRO_LOCAL, "LOCAL-62", payload))
+                .willReturn(true);
+
+        BokjiroDetailCollectService.GapFillResult result = service.collectBokjiroDetailGapFillResult(3, 1);
+
+        assertThat(result.roundsRequested()).isEqualTo(3);
+        assertThat(result.roundsExecuted()).isEqualTo(3);
+        assertThat(result.requestedCount()).isEqualTo(2);
+        assertThat(result.savedCount()).isEqualTo(1);
+        assertThat(result.failedCount()).isEqualTo(1);
+        assertThat(result.stoppedAfterNoSaves()).isTrue();
+        verify(detailClient, times(1)).fetchLocalWithStatus("LOCAL-61");
+        verify(detailClient, times(1)).fetchLocalWithStatus("LOCAL-62");
+    }
+
+    @Test
     @DisplayName("detail gap fill 이 연속 429로 한 건도 저장하지 못하면 COL001 로 surface 한다")
     void collectBokjiroDetailGapFillFailsWhenRateLimitedWithoutProgress() {
         WelfareService local = welfareService(19L, WelfareService.SourceType.BOKJIRO_LOCAL, "LOCAL-19");

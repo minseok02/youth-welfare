@@ -21,14 +21,39 @@ public class NotificationRetryService {
     private final UserNotificationReadService userNotificationReadService;
     private final NotificationGateway notificationGateway;
 
-    public void retryFailedNotifications() {
+    public RetryRunResult retryFailedNotifications() {
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime claimUntil = now.plusMinutes(RETRY_CLAIM_MINUTES);
-        notificationRetryReadService.findRetryableFailedNotificationIds(now).stream()
-                .map(notificationId -> claimNotification(notificationId, now, claimUntil))
-                .flatMap(java.util.Optional::stream)
-                .filter(notification -> notification.getRetryCount() < MAX_RETRY_COUNT)
-                .forEach(this::retryNotification);
+        java.util.List<Long> dueIds = notificationRetryReadService.findRetryableFailedNotificationIds(now);
+        int claimedCount = 0;
+        int skippedClaimCount = 0;
+        int sentCount = 0;
+        int rescheduledCount = 0;
+        int terminalFailureCount = 0;
+
+        for (Long notificationId : dueIds) {
+            java.util.Optional<Notification> claimed = claimNotification(notificationId, now, claimUntil);
+            if (claimed.isEmpty()) {
+                skippedClaimCount++;
+                continue;
+            }
+            claimedCount++;
+            RetryOutcome outcome = retryNotification(claimed.orElseThrow());
+            switch (outcome) {
+                case SENT -> sentCount++;
+                case RESCHEDULED -> rescheduledCount++;
+                case TERMINAL_FAILED -> terminalFailureCount++;
+            }
+        }
+
+        return new RetryRunResult(
+                dueIds.size(),
+                claimedCount,
+                skippedClaimCount,
+                sentCount,
+                rescheduledCount,
+                terminalFailureCount
+        );
     }
 
     private java.util.Optional<Notification> claimNotification(Long notificationId,
@@ -41,7 +66,7 @@ public class NotificationRetryService {
         return notificationRetryReadService.findById(notificationId);
     }
 
-    private void retryNotification(Notification notification) {
+    private RetryOutcome retryNotification(Notification notification) {
         try {
             boolean sent = notificationGateway.send(
                     resolveNotificationEmail(notification),
@@ -51,22 +76,23 @@ public class NotificationRetryService {
             if (sent) {
                 notification.markSent();
                 notificationRetryCommandService.save(notification);
-                return;
+                return RetryOutcome.SENT;
             }
-            scheduleNextRetry(notification, "notification gateway returned false");
+            return scheduleNextRetry(notification, "notification gateway returned false");
         } catch (Exception e) {
-            scheduleNextRetry(notification, e.getMessage());
+            return scheduleNextRetry(notification, e.getMessage());
         }
     }
 
-    private void scheduleNextRetry(Notification notification, String errorMessage) {
+    private RetryOutcome scheduleNextRetry(Notification notification, String errorMessage) {
         if (notification.getRetryCount() + 1 >= MAX_RETRY_COUNT) {
             notification.scheduleRetry(null, errorMessage);
             notificationRetryCommandService.save(notification);
-            return;
+            return RetryOutcome.TERMINAL_FAILED;
         }
         notification.scheduleRetry(LocalDateTime.now().plusMinutes(RETRY_DELAY_MINUTES), errorMessage);
         notificationRetryCommandService.save(notification);
+        return RetryOutcome.RESCHEDULED;
     }
 
     private String resolveNotificationEmail(Notification notification) {
@@ -74,5 +100,21 @@ public class NotificationRetryService {
             throw new IllegalStateException("Notification user_key is required for retry");
         }
         return userNotificationReadService.getNotificationEmailByUserKey(notification.getUserKey());
+    }
+
+    enum RetryOutcome {
+        SENT,
+        RESCHEDULED,
+        TERMINAL_FAILED
+    }
+
+    public record RetryRunResult(
+            int dueCount,
+            int claimedCount,
+            int skippedClaimCount,
+            int sentCount,
+            int rescheduledCount,
+            int terminalFailureCount
+    ) {
     }
 }

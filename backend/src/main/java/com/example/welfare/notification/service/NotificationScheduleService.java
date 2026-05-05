@@ -42,7 +42,16 @@ public class NotificationScheduleService {
 
     @Scheduled(cron = "0 */30 * * * *", zone = "Asia/Seoul")
     public void retryFailedNotifications() {
-        notificationExecutionGuard.runIfAvailable(RETRY_LOCK_NAME, notificationRetryService::retryFailedNotifications);
+        notificationExecutionGuard.runIfAvailable(RETRY_LOCK_NAME, () -> {
+            NotificationRetryService.RetryRunResult result = notificationRetryService.retryFailedNotifications();
+            log.info("[NotificationScheduleService] retry 실행 due={} claimed={} skippedClaim={} sent={} rescheduled={} terminalFailed={}",
+                    result.dueCount(),
+                    result.claimedCount(),
+                    result.skippedClaimCount(),
+                    result.sentCount(),
+                    result.rescheduledCount(),
+                    result.terminalFailureCount());
+        });
     }
 
     private void sendNotifications(NotificationPeriod period, String label) {

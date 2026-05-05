@@ -83,6 +83,8 @@ class NotificationScheduleServiceTest {
                     runnable.run();
                     return true;
                 });
+        given(notificationRetryService.retryFailedNotifications())
+                .willReturn(new NotificationRetryService.RetryRunResult(3, 2, 1, 1, 1, 0));
 
         notificationScheduleService.retryFailedNotifications();
 

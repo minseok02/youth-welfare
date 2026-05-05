@@ -2967,3 +2967,13 @@
 572) `NotificationDispatchService` 는 발송 성공 후에만 `notifications` row 를 저장해서, 메일 전송 직후 프로세스가 죽으면 같은 일간/주간 window 에서 다시 발송될 수 있었다. `dispatch_key` unique reservation row와 `pending` 상태를 도입해 발송 전에 window별 row를 먼저 선점하고, 이후 성공/실패 결과를 같은 row에 finalize 하도록 바꿔 crash 이후 중복 발송 창구를 줄였다.
 573) `RawApiPayloadService` 는 raw payload 저장 실패를 내부에서 로그만 남기고 삼켜서, list collect 와 detail collect 가 raw snapshot 없이도 saved 로 집계될 수 있었다. 저장 메서드가 성공 여부를 반환하게 바꾸고, `AbstractListCollectSourceAdapter` 와 `BokjiroDetailCollectService` 가 raw 저장 실패를 `failedCount` 로 반영한 뒤 다음 item 으로 진행하게 정리했다.
 574) `RecommendationGenerationService` 는 추천 저장이 성공한 뒤 `refreshLogs(...)` 후처리가 실패하면 전체 추천 호출이 예외로 끝나 사용자 입장에서는 실패지만 DB에는 새 추천 row가 이미 남는 불일치가 있었다. 로그 후처리를 best-effort 로 낮추고, 추천 저장 결과가 비어 있으면 기존 추천을 지우지 않도록 `RecommendationPersistenceService` 에 빈 입력 guard 를 추가해 저장 batch 일관성을 보강했다.
+
+## 575) `BokjiroDetailCollectService` gap fill 이 앞 라운드 실패 row를 계속 다시 잡으면, 뒤에 남은 backlog 가 있어도 `saved=0` 조건만으로 조기 종료해 false exhaustion 이 생길 수 있다
+- 문제: detail gap fill 은 round 단위로 같은 target 목록을 다시 읽는데, 앞쪽 service 하나가 raw 저장 실패나 detail 저장 실패를 내면 다음 round 에서도 그 row를 다시 먼저 시도한다. call budget 이 작을 때는 뒤 backlog 까지 도달하지 못한 채 `saved=0` 라운드가 반복되고, 실제로는 남은 대상이 있어도 “더 저장할 게 없다”고 오판할 수 있다.
+- 해결: `BokjiroDetailCollectService` 가 round별 실패 `serviceId` 를 모아 이후 round target 순회에서 제외하고, `saved=0` 이어도 `failedCount>0` 인 경우에는 즉시 종료하지 않게 바꿨다. `BokjiroDetailCollectServiceTest` 에 앞 라운드 실패 row를 건너뛰고 뒤 backlog 를 계속 소진하는 회귀 케이스를 추가했다.
+- 이유: gap fill 의 종료 신호는 “진짜 backlog exhaustion” 이어야지 “같은 실패 row 재시도” 여야 하면 안 된다. 실패 row를 일단 제외해야 남은 healthy backlog 를 끝까지 진행하면서도 false green / false exhaustion 을 줄일 수 있다.
+
+## 576) `NotificationRetryService` 가 claim 이후 실행 결과를 남기지 않으면, 스케줄 로그만으로는 due backlog 와 claim skip, terminal failure 를 구분하기 어렵다
+- 문제: retry scheduler 는 전역 락 아래에서 돌아도 실제 실행 결과가 발송 성공/재예약/최종 실패/claim 충돌 중 어디로 흘렀는지 집계하지 않았다. 이 상태면 “왜 backlog 가 안 줄었는가”를 운영 로그에서 바로 읽기 어렵고, claim window 도입 후에는 skip 증가 여부도 따로 보이지 않는다.
+- 해결: `NotificationRetryService.retryFailedNotifications()` 가 `RetryRunResult` 를 반환하도록 바꾸고, `NotificationScheduleService` 가 `due/claimed/skippedClaim/sent/rescheduled/terminalFailed` 카운트를 한 줄 로그로 남기게 했다. 단위/통합 테스트도 각 결과 카운트를 직접 검증하도록 맞췄다.
+- 이유: background retry 는 단순 성공/실패만으로는 충분히 관측되지 않는다. claim 기반 중복 방지까지 들어간 경로에서는 실행 단위 집계를 남겨야 실제 병목이 due backlog 인지, claim 충돌인지, terminal failure 누적인지 빠르게 구분할 수 있다.

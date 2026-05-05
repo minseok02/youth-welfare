@@ -1,5 +1,8 @@
 # 구현 현황
 
+- 2026-05-05: `BokjiroDetailCollectService` gap fill 이 앞 라운드의 raw/detail 저장 실패 row를 계속 다시 잡아 뒤 backlog 소진이 막히던 문제를 보정했다. 라운드별 실패 `serviceId` 를 모아 다음 라운드에서 제외하고, `saved=0` 이어도 `failed>0` 이면 즉시 종료하지 않게 바꿔 뒤쪽 대기 row를 계속 진행하도록 정리했다.
+- 2026-05-05: `NotificationRetryService` 가 retry 실행 결과를 `RetryRunResult` 로 집계하고, `NotificationScheduleService` 가 due/claim/sent/rescheduled/terminal-failed 카운트를 스케줄 로그에 남기도록 보강했다. claim skip 과 terminal failure 도 실행 단위에서 바로 읽을 수 있게 정리했다.
+- 2026-05-05: 위 두 변경 후 `backend` 에서 `./gradlew test --no-daemon --tests com.example.welfare.collect.service.BokjiroDetailCollectServiceTest --tests com.example.welfare.notification.service.NotificationRetryServiceTest --tests com.example.welfare.notification.service.NotificationScheduleServiceTest --tests com.example.welfare.integration.NotificationRetryPersistenceIntegrationTest` 를 다시 통과시켰다.
 - 2026-05-03: 로컬 검증 루프에서 auth/session smoke와 replay smoke는 **병렬로 돌리면 안 된다**는 점을 다시 확인했다. replay 스크립트가 DB 컨테이너를 재기동하므로, 같은 시점에 runtime/auth smoke를 같이 돌리면 `500/C002`, `Connection is closed` 같은 거짓 실패가 날 수 있다. 검증 기준은 `auth/session -> recommendation click -> replay` 순차 실행으로 다시 고정했다.
 - 2026-05-03: `/api/admin/dashboard/summary` 실검증도 별도 smoke로 묶었다. `run-local-admin-dashboard-smoke.sh` 는 `admin login -> ROLE_ADMIN 확인 -> dashboard summary -> summary/trend window 계약` 을 한 번에 검사하고, 로컬 Docker app이 `SECURITY_ADMIN_EMAILS` 없이 떠 있어 `admin@example.com` 에 `ROLE_ADMIN` 이 빠진 경우까지 바로 드러내게 했다.
 - 2026-05-03: admin dashboard summary는 이제 `summaryWindowDays`, `trendWindowDays` query param을 같이 받는다. 기본은 `summary=7`, `trend=1,7,30` 유지지만, 로컬에서는 `summaryWindowDays=14&trendWindowDays=3&trendWindowDays=14` 같은 식으로 다른 기간 창도 바로 비교할 수 있다. smoke 스크립트도 `SUMMARY_WINDOW_DAYS`, `TREND_WINDOW_DAYS_CSV` 로 같은 계약을 검증하도록 맞췄다.

@@ -77,7 +77,7 @@ class NotificationRetryPersistenceIntegrationTest {
         given(notificationGateway.send("retry-success@example.com", notification.getSubject(), "retry body"))
                 .willReturn(true);
 
-        notificationRetryService.retryFailedNotifications();
+        NotificationRetryService.RetryRunResult result = notificationRetryService.retryFailedNotifications();
 
         Notification reloaded = notificationRepository.findById(notification.getId()).orElseThrow();
         assertThat(reloaded.getStatus()).isEqualTo(NotificationStatus.SENT);
@@ -85,6 +85,7 @@ class NotificationRetryPersistenceIntegrationTest {
         assertThat(reloaded.getNextRetryAt()).isNull();
         assertThat(reloaded.getErrorMessage()).isNull();
         assertThat(reloaded.getRetryCount()).isEqualTo(1);
+        assertThat(result.sentCount()).isEqualTo(1);
     }
 
     @Test
@@ -108,7 +109,7 @@ class NotificationRetryPersistenceIntegrationTest {
                 .willReturn(false);
 
         LocalDateTime before = LocalDateTime.now();
-        notificationRetryService.retryFailedNotifications();
+        NotificationRetryService.RetryRunResult result = notificationRetryService.retryFailedNotifications();
         LocalDateTime after = LocalDateTime.now();
 
         Notification reloaded = notificationRepository.findById(notification.getId()).orElseThrow();
@@ -120,6 +121,7 @@ class NotificationRetryPersistenceIntegrationTest {
                 after.plusMinutes(120).plusSeconds(1)
         );
         assertThat(reloaded.getSentAt()).isNull();
+        assertThat(result.rescheduledCount()).isEqualTo(1);
     }
 
     @Test
@@ -142,13 +144,14 @@ class NotificationRetryPersistenceIntegrationTest {
         given(notificationGateway.send("retry-terminal@example.com", notification.getSubject(), "retry body"))
                 .willReturn(false);
 
-        notificationRetryService.retryFailedNotifications();
+        NotificationRetryService.RetryRunResult result = notificationRetryService.retryFailedNotifications();
 
         Notification reloaded = notificationRepository.findById(notification.getId()).orElseThrow();
         assertThat(reloaded.getStatus()).isEqualTo(NotificationStatus.FAILED);
         assertThat(reloaded.getRetryCount()).isEqualTo(2);
         assertThat(reloaded.getNextRetryAt()).isNull();
         assertThat(reloaded.getErrorMessage()).isEqualTo("notification gateway returned false");
+        assertThat(result.terminalFailureCount()).isEqualTo(1);
     }
 
     @Test
@@ -169,13 +172,14 @@ class NotificationRetryPersistenceIntegrationTest {
         given(userNotificationReadService.getNotificationEmailByUserKey(notification.getUserKey()))
                 .willThrow(new IllegalStateException("lookup failed after claim"));
 
-        notificationRetryService.retryFailedNotifications();
+        NotificationRetryService.RetryRunResult result = notificationRetryService.retryFailedNotifications();
 
         Notification reloaded = notificationRepository.findById(notification.getId()).orElseThrow();
         assertThat(reloaded.getStatus()).isEqualTo(NotificationStatus.FAILED);
         assertThat(reloaded.getRetryCount()).isEqualTo(1);
         assertThat(reloaded.getNextRetryAt()).isAfter(LocalDateTime.now().plusMinutes(100));
         assertThat(reloaded.getErrorMessage()).contains("lookup failed after claim");
+        assertThat(result.rescheduledCount()).isEqualTo(1);
     }
 
     private void cleanup() {
