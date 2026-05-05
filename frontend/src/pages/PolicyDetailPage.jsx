@@ -179,6 +179,18 @@ export default function PolicyDetailPage() {
   }, [id, searchParams]);
 
   const contacts = useMemo(() => parseContacts(policy?.contactList), [policy?.contactList]);
+  const visibleTags = useMemo(() => {
+    if (!policy?.tags?.length) return [];
+
+    const seen = new Set();
+    return policy.tags
+      .map((tag) => tag?.tagValue?.trim())
+      .filter((tagValue) => {
+        if (!tagValue || seen.has(tagValue)) return false;
+        seen.add(tagValue);
+        return true;
+      });
+  }, [policy?.tags]);
 
   const summaryChips = useMemo(() => {
     if (!policy) return [];
@@ -347,15 +359,15 @@ export default function PolicyDetailPage() {
               </Typography>
             )}
 
-            {!!policy.tags?.length && (
+            {!!visibleTags.length && (
               <>
                 <SectionTitle>관련 태그</SectionTitle>
                 <Divider sx={{ mb: 1.5 }} />
                 <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
-                  {policy.tags.map((tag) => (
+                  {visibleTags.map((tagValue) => (
                     <Chip
-                      key={`${tag.tagType}-${tag.tagValue}`}
-                      label={`${tag.tagType}: ${tag.tagValue}`}
+                      key={tagValue}
+                      label={tagValue}
                       size="small"
                       variant="outlined"
                     />
