@@ -37,13 +37,26 @@
 - `MainPage -> Detail`, `PoliciesPage -> Detail`, `MyPage bookmarks -> Detail` 경로는 모두 브라우저 history 기반 복귀 동작을 수동 확인해야 합니다.
 - 특히 [PoliciesPage.jsx](../frontend/src/pages/PoliciesPage.jsx) 의 검색어/필터/페이지 상태는 URL query가 아니라 컴포넌트 local state 중심이라, 뒤로가기/새로고침에서 기대와 다르게 초기화될 가능성이 있습니다.
 
-### 4. 정책 상태 뱃지 (PolicyDetailPage)
+### 4. 정책 상세 태그 필터링 (PolicyDetailPage)
 
-- 2026-05-03 이후 `formatStatusLabel`이 `applyEndDate`도 함께 확인합니다.
+- `visibleTags`는 `tagValue`가 전부 대문자/숫자/언더스코어로만 이루어진 내부 조건 코드(`COND_AGE_MAX_39`, `COND_INCOME_PCT_LE_100` 등)를 화면에서 제외합니다.
+- 정규식 `/^[A-Z0-9_]+$/` 에 매칭되는 값은 렌더링하지 않습니다.
+- 중복 태그 값도 `Set`으로 제거합니다.
+
+### 5. 정책 상태 뱃지 (PolicyDetailPage)
+
+- `formatStatusLabel`이 `applyEndDate`도 함께 확인합니다.
 - 온통청년 정책은 DB `status=ACTIVE`지만 `applyEndDate`가 지난 경우 뱃지를 "종료"로 표시합니다.
 - 수동 확인: 온통청년 출처 정책 중 마감일이 지난 항목이 "진행중"/"종료" 이중 뱃지 없이 "종료"만 표시되는지 확인해야 합니다.
 
-### 4. 북마크 경계
+### 6. 분류없음 필터 (PoliciesPage) — 임시
+
+- [PoliciesPage.jsx](../frontend/src/pages/PoliciesPage.jsx) `CATEGORIES` 목록 맨 아래에 `{ label: "분류없음", value: "기타" }` 항목이 추가되어 있습니다.
+- `unified_category = '기타'` 인 미분류 정책을 점검하기 위한 임시 항목입니다.
+- 현황 (2026-05-06 기준): 미분류 1,037건 — BOKJIRO_LOCAL 1,020건, BOKJIRO_CENTRAL 16건, YOUTH 1건 (모두 원본 API에서 카테고리 값이 없는 케이스).
+- 복지로 로컬 카테고리 매핑 정비 후 제거 예정.
+
+### 7. 북마크 경계
 
 - [MainPage.jsx](../frontend/src/pages/MainPage.jsx)
   - 추천 카드: `/api/recommendations/{recommendationId}/bookmark`
@@ -55,7 +68,7 @@
 - [MyPage.jsx](../frontend/src/pages/MyPage.jsx)
   - `/api/users/me/bookmarks` 로 최종 북마크 목록 확인
 
-### 5. 마이페이지 경계
+### 8. 마이페이지 경계
 
 - [MyPage.jsx](../frontend/src/pages/MyPage.jsx)
   - 비로그인 시 `/login` 이동

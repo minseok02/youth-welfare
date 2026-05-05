@@ -37,18 +37,26 @@ public final class CollectCategorySupport {
     private CollectCategorySupport() {
     }
 
+    // 외형상 같아 보이는 중점 유니코드 변형(･ U+FF65, · U+00B7, · U+22C5 등)을 표준 중점으로 통일
+    private static String normalizeMiddleDot(String s) {
+        return s.replace('･', '·')  // 반각 가타카나 중점
+                .replace('⋅', '·')  // dot operator
+                .replace('‧', '·'); // hyphenation point
+    }
+
     public static String mapYouthCompatCategory(String rawYouthMajor) {
         if (rawYouthMajor == null || rawYouthMajor.isBlank()) {
             return COMPAT_OTHER;
         }
-        return YOUTH_COMPAT_CATEGORIES.getOrDefault(rawYouthMajor.strip(), COMPAT_OTHER);
+        String firstLabel = normalizeMiddleDot(rawYouthMajor.split(",")[0].trim());
+        return YOUTH_COMPAT_CATEGORIES.getOrDefault(firstLabel, COMPAT_OTHER);
     }
 
     public static String mapBokjiroCompatCategory(String rawInterestThemesCsv) {
         if (rawInterestThemesCsv == null || rawInterestThemesCsv.isBlank()) {
             return COMPAT_OTHER;
         }
-        String firstLabel = rawInterestThemesCsv.split(",")[0].trim();
+        String firstLabel = normalizeMiddleDot(rawInterestThemesCsv.split(",")[0].trim());
         return BOKJIRO_COMPAT_CATEGORIES.getOrDefault(firstLabel, COMPAT_OTHER);
     }
 }

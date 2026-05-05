@@ -187,6 +187,7 @@ export default function PolicyDetailPage() {
       .map((tag) => tag?.tagValue?.trim())
       .filter((tagValue) => {
         if (!tagValue || seen.has(tagValue)) return false;
+        if (/^[A-Z0-9_]+$/.test(tagValue)) return false; // COND_AGE_MAX_39 등 내부 조건 코드 제외
         seen.add(tagValue);
         return true;
       });
