@@ -17,6 +17,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import static org.mockito.BDDMockito.then;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.never;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -103,5 +104,26 @@ class AuthControllerWebMvcTest {
                 .andExpect(jsonPath("$.success").value(true));
 
         then(passwordResetService).should().confirmPasswordReset("reset-token", "new-password123");
+    }
+
+    @Test
+    @DisplayName("회원가입 JSON 파싱 오류는 500 대신 400 invalid input 을 반환한다")
+    void signupMalformedJsonReturnsBadRequest() throws Exception {
+        mockMvc.perform(post("/api/auth/signup")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "email": "bad@example.com",
+                                  "password": "password123!",
+                                  "nickname": "잘못된필드",
+                                  "birthDate": "2001-01-01"
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("C001"))
+                .andExpect(jsonPath("$.message").value("입력값이 올바르지 않습니다."));
+
+        then(authSignupService).should(never()).signup(org.mockito.ArgumentMatchers.any());
     }
 }

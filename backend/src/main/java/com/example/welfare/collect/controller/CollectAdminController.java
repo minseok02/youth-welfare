@@ -3,6 +3,7 @@ package com.example.welfare.collect.controller;
 import com.example.welfare.collect.normalization.NormalizedPolicySidecarBackfillService;
 import com.example.welfare.collect.service.CollectAdminService;
 import com.example.welfare.collect.service.CollectBatchService;
+import com.example.welfare.collect.service.CollectBatchRunResult;
 import com.example.welfare.collect.service.CollectSource;
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
@@ -32,10 +33,10 @@ public class CollectAdminController {
     private final NormalizedPolicySidecarBackfillService normalizedPolicySidecarBackfillService;
 
     @PostMapping("/all")
-    public ResponseEntity<ApiResponse<String>> collectAll() {
+    public ResponseEntity<ApiResponse<CollectAllResponse>> collectAll() {
         log.info("[Admin] 전체 수집 수동 트리거");
-        collectBatchService.collectAllNow();
-        return ResponseEntity.ok(ApiResponse.success("수집 완료"));
+        CollectBatchRunResult result = collectBatchService.collectAllNow();
+        return ResponseEntity.ok(ApiResponse.success(CollectAllResponse.from(result)));
     }
 
     @PostMapping("/{sourceKey}")
@@ -131,6 +132,56 @@ public class CollectAdminController {
             int failedCount,
             boolean stoppedAfterNoSaves
     ) {
+    }
+
+    public record CollectAllResponse(
+            boolean completedWithFailures,
+            int requestedSourceCount,
+            int succeededSourceCount,
+            int failedSourceCount,
+            java.util.List<CollectSourceRunResponse> sourceResults
+    ) {
+        static CollectAllResponse from(CollectBatchRunResult result) {
+            return new CollectAllResponse(
+                    result.completedWithFailures(),
+                    result.requestedSourceCount(),
+                    result.succeededSourceCount(),
+                    result.failedSourceCount(),
+                    result.sourceResults().stream()
+                            .map(CollectSourceRunResponse::from)
+                            .toList()
+            );
+        }
+    }
+
+    public record CollectSourceRunResponse(
+            String sourceKey,
+            String jobName,
+            String triggerLabel,
+            boolean success,
+            int requestedCount,
+            int savedCount,
+            int skippedCount,
+            int filteredCount,
+            int failedCount,
+            String errorCode,
+            String errorMessage
+    ) {
+        static CollectSourceRunResponse from(CollectBatchRunResult.SourceRunResult result) {
+            return new CollectSourceRunResponse(
+                    result.source().pathKey(),
+                    result.source().jobName(),
+                    result.source().triggerLabel(),
+                    result.success(),
+                    result.result().requestedCount(),
+                    result.result().savedCount(),
+                    result.result().skippedCount(),
+                    result.result().filteredCount(),
+                    result.result().failedCount(),
+                    result.errorCode(),
+                    result.errorMessage()
+            );
+        }
     }
 
     private record GapFillResult(
