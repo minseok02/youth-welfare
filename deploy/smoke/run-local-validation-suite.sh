@@ -10,6 +10,7 @@ RUN_RECOMMENDATION_CLICK_SMOKE="${RUN_RECOMMENDATION_CLICK_SMOKE:-}"
 RUN_ADMIN_DASHBOARD_SMOKE="${RUN_ADMIN_DASHBOARD_SMOKE:-}"
 RUN_REPLAY_SMOKE="${RUN_REPLAY_SMOKE:-}"
 ONLY_STEP="${ONLY_STEP:-}"
+KEEP_ARTIFACTS="${KEEP_ARTIFACTS:-false}"
 SUITE_START_EPOCH="$(date +%s)"
 STEP_SUMMARY_LINES=()
 CURRENT_STEP_LABEL=""
@@ -27,7 +28,7 @@ normalize_flag() {
 
 print_usage() {
   cat <<'EOF'
-usage: deploy/smoke/run-local-validation-suite.sh [--help] [--print-plan] [--quick|--full] [--skip-replay] [--only STEP]
+usage: deploy/smoke/run-local-validation-suite.sh [--help] [--print-plan] [--quick|--full] [--skip-replay] [--keep-artifacts] [--only STEP]
 
 Profiles:
   VALIDATION_PROFILE=full   auth/session + click + admin dashboard + replay
@@ -37,6 +38,7 @@ CLI shortcuts:
   --quick        set VALIDATION_PROFILE=quick
   --full         set VALIDATION_PROFILE=full
   --skip-replay  force RUN_REPLAY_SMOKE=false
+  --keep-artifacts  force KEEP_ARTIFACTS=true for replay debugging
   --only STEP    run only one step: auth-session | click | dashboard | replay
 
 Optional overrides:
@@ -45,6 +47,7 @@ Optional overrides:
   RUN_ADMIN_DASHBOARD_SMOKE=true|false
   RUN_REPLAY_SMOKE=true|false
   ONLY_STEP=auth-session|click|dashboard|replay
+  KEEP_ARTIFACTS=true|false
 
 Examples:
   deploy/smoke/run-local-validation-suite.sh
@@ -52,6 +55,7 @@ Examples:
   RUN_REPLAY_SMOKE=false deploy/smoke/run-local-validation-suite.sh
   deploy/smoke/run-local-validation-suite.sh --quick --print-plan
   deploy/smoke/run-local-validation-suite.sh --full --skip-replay
+  deploy/smoke/run-local-validation-suite.sh --only replay --keep-artifacts
   deploy/smoke/run-local-validation-suite.sh --only dashboard --print-plan
   deploy/smoke/run-local-validation-suite.sh --print-plan
 EOF
@@ -116,6 +120,7 @@ resolve_profile_defaults() {
   RUN_RECOMMENDATION_CLICK_SMOKE="$(normalize_flag "${RUN_RECOMMENDATION_CLICK_SMOKE}")"
   RUN_ADMIN_DASHBOARD_SMOKE="$(normalize_flag "${RUN_ADMIN_DASHBOARD_SMOKE}")"
   RUN_REPLAY_SMOKE="$(normalize_flag "${RUN_REPLAY_SMOKE}")"
+  KEEP_ARTIFACTS="$(normalize_flag "${KEEP_ARTIFACTS}")"
 }
 
 run_step() {
@@ -170,6 +175,9 @@ while [[ $# -gt 0 ]]; do
     --skip-replay)
       RUN_REPLAY_SMOKE="false"
       ;;
+    --keep-artifacts)
+      KEEP_ARTIFACTS="true"
+      ;;
     --only)
       if [[ $# -lt 2 ]]; then
         echo "--only requires a step name" >&2
@@ -205,6 +213,10 @@ if [[ -n "${ONLY_STEP}" ]]; then
   printf ' only_step=%s' "${ONLY_STEP}"
 fi
 
+if [[ "${KEEP_ARTIFACTS}" == "true" ]]; then
+  printf ' keep_artifacts=true'
+fi
+
 printf '\n'
 
 if [[ "${PRINT_PLAN_ONLY}" == "true" ]]; then
@@ -232,7 +244,7 @@ fi
 if [[ "${RUN_REPLAY_SMOKE}" == "true" ]]; then
   run_step \
     "education priority replay smoke (run last; may restart DB/app dependencies)" \
-    "${ROOT_DIR}/deploy/smoke/run-local-education-priority-replay.sh"
+    <(printf '#!/usr/bin/env bash\nset -euo pipefail\nKEEP_ARTIFACTS=%q bash %q\n' "${KEEP_ARTIFACTS}" "${ROOT_DIR}/deploy/smoke/run-local-education-priority-replay.sh")
 fi
 
 SUITE_END_EPOCH="$(date +%s)"
