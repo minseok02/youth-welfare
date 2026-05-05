@@ -24,6 +24,7 @@ public class BokjiroCentralCollectSourceAdapter extends AbstractListCollectSourc
     private final CollectItemSaver saver;
     private final BokjiroYouthFilter bokjiroYouthFilter;
     private final RawApiPayloadService rawApiPayloadService;
+    private final CollectListResponsePolicy collectListResponsePolicy;
     private ListCollectSourceBinding<BokjiroCentralDto.Item> binding() {
         return CollectSourceRegistry.BOKJIRO_CENTRAL.listBinding(welfareServiceMapper);
     }
@@ -44,8 +45,8 @@ public class BokjiroCentralCollectSourceAdapter extends AbstractListCollectSourc
     }
 
     @Override
-    protected void saveRawPayload(BokjiroCentralDto.Item item) {
-        rawApiPayloadService.saveList(binding(), item);
+    protected boolean saveRawPayload(BokjiroCentralDto.Item item) {
+        return rawApiPayloadService.saveList(binding(), item);
     }
 
     @Override
@@ -75,9 +76,6 @@ public class BokjiroCentralCollectSourceAdapter extends AbstractListCollectSourc
 
     @Override
     protected void handleEmptyItems(List<BokjiroCentralDto.Item> items) {
-        if (items.isEmpty()) {
-            log.warn("[CollectSourceAdapter][{}] 수집 결과 0건입니다. 외부 API 제한 또는 일시 장애 가능성이 있어 기존 적재 데이터는 유지합니다.",
-                    source().jobName());
-        }
+        collectListResponsePolicy.ensureNonEmpty(source(), items);
     }
 }

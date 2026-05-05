@@ -12,7 +12,10 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
@@ -27,6 +30,9 @@ class NotificationScheduleServiceTest {
     @Mock
     private NotificationRetryService notificationRetryService;
 
+    @Mock
+    private NotificationExecutionGuard notificationExecutionGuard;
+
     @InjectMocks
     private NotificationScheduleService notificationScheduleService;
 
@@ -35,6 +41,12 @@ class NotificationScheduleServiceTest {
     void sendDailyNotificationsDelegatesToDispatchService() {
         NotificationTarget target = new NotificationTarget(1L, "user-key-1", "test@example.com",
                 User.NotificationPeriod.DAILY, 0.8, 10);
+        given(notificationExecutionGuard.runIfAvailable(eq(NotificationScheduleService.DAILY_LOCK_NAME), any()))
+                .willAnswer(invocation -> {
+                    Runnable runnable = invocation.getArgument(1);
+                    runnable.run();
+                    return true;
+                });
         given(userNotificationReadService.getNotificationTargets(User.NotificationPeriod.DAILY))
                 .willReturn(List.of(target));
 
@@ -48,6 +60,12 @@ class NotificationScheduleServiceTest {
     void sendWeeklyNotificationsDelegatesToDispatchService() {
         NotificationTarget target = new NotificationTarget(1L, "user-key-1", "test@example.com",
                 User.NotificationPeriod.WEEKLY, 0.8, 10);
+        given(notificationExecutionGuard.runIfAvailable(eq(NotificationScheduleService.WEEKLY_LOCK_NAME), any()))
+                .willAnswer(invocation -> {
+                    Runnable runnable = invocation.getArgument(1);
+                    runnable.run();
+                    return true;
+                });
         given(userNotificationReadService.getNotificationTargets(User.NotificationPeriod.WEEKLY))
                 .willReturn(List.of(target));
 
@@ -59,8 +77,29 @@ class NotificationScheduleServiceTest {
     @Test
     @DisplayName("retry 스케줄은 retry service에 위임한다")
     void retryFailedNotificationsDelegatesToRetryService() {
+        given(notificationExecutionGuard.runIfAvailable(eq(NotificationScheduleService.RETRY_LOCK_NAME), any()))
+                .willAnswer(invocation -> {
+                    Runnable runnable = invocation.getArgument(1);
+                    runnable.run();
+                    return true;
+                });
+        given(notificationRetryService.retryFailedNotifications())
+                .willReturn(new NotificationRetryService.RetryRunResult(3, 2, 1, 1, 1, 0));
+
         notificationScheduleService.retryFailedNotifications();
 
         verify(notificationRetryService).retryFailedNotifications();
+    }
+
+    @Test
+    @DisplayName("스케줄 lock 을 획득하지 못하면 알림 실행을 건너뛴다")
+    void sendDailyNotificationsSkipsWhenLockBusy() {
+        given(notificationExecutionGuard.runIfAvailable(eq(NotificationScheduleService.DAILY_LOCK_NAME), any()))
+                .willReturn(false);
+
+        notificationScheduleService.sendDailyNotifications();
+
+        verify(userNotificationReadService, never()).getNotificationTargets(User.NotificationPeriod.DAILY);
+        verify(notificationDispatchService, never()).sendTopRecommendations(any());
     }
 }

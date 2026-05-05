@@ -203,29 +203,51 @@ public class AdminDashboardCollectReadRepository {
         );
     }
 
-    public List<AdminDashboardReadRows.CollectJobRunRow> fetchRecentCollectJobRuns(int perJobLimit) {
+    public List<AdminDashboardReadRows.CollectJobStreakRow> fetchCurrentCollectJobStreaks(int limit) {
         return jdbcTemplate.query("""
-                select ranked.job_name,
-                       ranked.status,
-                       ranked.started_at
-                  from (
-                        select log.job_name,
-                               log.status,
-                               log.started_at,
-                               row_number() over (
-                                   partition by log.job_name
-                                   order by log.started_at desc, log.id desc
-                               ) as rn
-                          from api_sync_logs log
-                  ) ranked
-                 where ranked.rn <= :perJobLimit
-              order by ranked.job_name asc, ranked.started_at desc
-                """,
-                new MapSqlParameterSource().addValue("perJobLimit", perJobLimit),
-                (rs, rowNum) -> new AdminDashboardReadRows.CollectJobRunRow(
+                with base as (
+                    select log.job_name,
+                           log.status,
+                           log.started_at,
+                           log.id,
+                           row_number() over (
+                               partition by log.job_name
+                               order by log.started_at desc, log.id desc
+                           ) as rn,
+                           first_value(log.status) over (
+                               partition by log.job_name
+                               order by log.started_at desc, log.id desc
+                           ) as latest_status
+                      from api_sync_logs log
+                ),
+                streaks as (
+                    select base.job_name,
+                           base.status,
+                           base.started_at,
+                           base.latest_status,
+                           sum(case when base.status <> base.latest_status then 1 else 0 end) over (
+                               partition by base.job_name
+                               order by base.rn
+                               rows between unbounded preceding and current row
+                           ) as change_seen
+                      from base
+                )
+                select job_name,
+                       latest_status as streak_status,
+                       count(*) as streak_count,
+                       max(started_at) as latest_started_at
+                  from streaks
+                 where latest_status in ('FAILED', 'PARTIAL_SUCCESS')
+                   and change_seen = 0
+              group by job_name, latest_status
+              order by streak_count desc, latest_started_at desc, job_name asc
+                 limit %d
+                """.formatted(limit),
+                (rs, rowNum) -> new AdminDashboardReadRows.CollectJobStreakRow(
                         rs.getString("job_name"),
-                        rs.getString("status"),
-                        AdminDashboardJdbcSupport.getLocalDateTime(rs, "started_at")
+                        rs.getString("streak_status"),
+                        rs.getLong("streak_count"),
+                        AdminDashboardJdbcSupport.getLocalDateTime(rs, "latest_started_at")
                 )
         );
     }

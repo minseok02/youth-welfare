@@ -6,7 +6,6 @@ import com.example.welfare.recommend.gateway.AiRecommendationGateway;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -25,7 +24,6 @@ public class AiScoringService {
     private final AiRecommendationGateway aiRecommendationGateway;
     private final ClusterAiScoreCache clusterAiScoreCache;
 
-    @Transactional
     public List<ScoredCandidate> score(String clusterId, List<ScoredCandidate> candidates, RecommendationUserSnapshot user) {
         // youth_all은 개인 프로필 기반 실시간 호출 (캐시 미사용)
         if ("youth_all".equals(clusterId)) {

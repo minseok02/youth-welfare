@@ -39,7 +39,7 @@ class PolicySearchLogServiceTest {
                 .keyword("월세 지원")
                 .resultCount(12L)
                 .status("active")
-                .includeClosed(false)
+                .statusFilter("ACTIVE_ONLY")
                 .category("housing")
                 .sourceType("youth")
                 .onlineApply(true)

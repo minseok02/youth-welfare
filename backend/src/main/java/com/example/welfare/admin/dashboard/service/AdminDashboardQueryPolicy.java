@@ -11,7 +11,6 @@ final class AdminDashboardQueryPolicy {
 
     static final int FAILED_SAMPLE_LIMIT = 5;
     static final int COLLECT_FAILURE_PATTERN_LIMIT = 5;
-    static final int COLLECT_STREAK_RUN_LIMIT = 20;
     static final int SEARCH_FAILURE_PATTERN_LIMIT = 5;
     static final int RECOMMENDATION_BREAKDOWN_LIMIT = 5;
     static final int DEFAULT_SUMMARY_WINDOW_DAYS = 7;

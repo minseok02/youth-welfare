@@ -6,6 +6,7 @@ import com.example.welfare.collect.repository.BokjiroDetailCommandRepository;
 import com.example.welfare.policy.entity.ServiceTag;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.entity.WelfareServiceDetail;
+import com.example.welfare.policy.repository.PolicyLookupReadRepository;
 import com.example.welfare.policy.service.SearchYouthRelevanceService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -18,6 +19,7 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
@@ -26,6 +28,8 @@ class CollectPolicyAggregateApplyServiceTest {
 
     @Mock
     private BokjiroDetailCommandRepository bokjiroDetailCommandRepository;
+    @Mock
+    private PolicyLookupReadRepository policyLookupReadRepository;
     @Mock
     private SearchYouthRelevanceService searchYouthRelevanceService;
     @Mock
@@ -36,6 +40,7 @@ class CollectPolicyAggregateApplyServiceTest {
     void applyCollectedItemWithAggregate() {
         CollectPolicyAggregateApplyService service = new CollectPolicyAggregateApplyService(
                 bokjiroDetailCommandRepository,
+                policyLookupReadRepository,
                 searchYouthRelevanceService,
                 normalizedPolicySidecarWriter
         );
@@ -63,6 +68,7 @@ class CollectPolicyAggregateApplyServiceTest {
     void applyCollectedItemWithoutAggregate() {
         CollectPolicyAggregateApplyService service = new CollectPolicyAggregateApplyService(
                 bokjiroDetailCommandRepository,
+                policyLookupReadRepository,
                 searchYouthRelevanceService,
                 normalizedPolicySidecarWriter
         );
@@ -84,6 +90,7 @@ class CollectPolicyAggregateApplyServiceTest {
     void applyCollectedDetail() {
         CollectPolicyAggregateApplyService service = new CollectPolicyAggregateApplyService(
                 bokjiroDetailCommandRepository,
+                policyLookupReadRepository,
                 searchYouthRelevanceService,
                 normalizedPolicySidecarWriter
         );
@@ -100,6 +107,7 @@ class CollectPolicyAggregateApplyServiceTest {
                 .supportDetail("old")
                 .build();
         NormalizedPolicyAggregate aggregate = normalizedDetailAggregate("CENTRAL-13");
+        given(policyLookupReadRepository.findById(13L)).willReturn(java.util.Optional.of(welfareService));
 
         service.applyCollectedDetail(welfareService, existing, aggregate);
 
@@ -120,6 +128,7 @@ class CollectPolicyAggregateApplyServiceTest {
     void applySidecarBackfill() {
         CollectPolicyAggregateApplyService service = new CollectPolicyAggregateApplyService(
                 bokjiroDetailCommandRepository,
+                policyLookupReadRepository,
                 searchYouthRelevanceService,
                 normalizedPolicySidecarWriter
         );

@@ -1,6 +1,8 @@
 package com.example.welfare.collect.gateway;
 
 import com.example.welfare.collect.dto.YouthApiDto;
+import com.example.welfare.collect.gateway.CollectHttpRetryExecutor.ExecutionResult;
+import com.example.welfare.collect.gateway.CollectHttpRetryExecutor.HttpFailureAction;
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -8,12 +10,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
-import org.springframework.web.reactive.function.client.WebClientResponseException;
 
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.ThreadLocalRandom;
 
 @Slf4j
 @Component
@@ -21,6 +21,7 @@ import java.util.concurrent.ThreadLocalRandom;
 public class YouthApiClient {
 
     private final WebClient webClient;
+    private final CollectHttpRetryExecutor collectHttpRetryExecutor;
 
     @Value("${youth-api.api-key}")
     private String apiKey;
@@ -70,9 +71,13 @@ public class YouthApiClient {
     }
 
     private YouthApiDto fetchPage(int pageNum, int pageSize) {
-        for (int attempt = 1; attempt <= retryMaxAttempts; attempt++) {
-            try {
-                return webClient.get()
+        ExecutionResult<YouthApiDto> result = collectHttpRetryExecutor.execute(
+                "YouthApiClient",
+                "page=" + pageNum,
+                retryMaxAttempts,
+                retryBaseBackoffMs,
+                status -> isRetryableStatus(status) ? HttpFailureAction.RETRYABLE : HttpFailureAction.FAIL_FAST,
+                () -> webClient.get()
                         .uri(uriBuilder -> uriBuilder
                                 .scheme("https")
                                 .host("www.youthcenter.go.kr")
@@ -83,34 +88,12 @@ public class YouthApiClient {
                                 .build())
                         .retrieve()
                         .bodyToMono(YouthApiDto.class)
-                        .block(Duration.ofSeconds(20));
-            } catch (WebClientResponseException e) {
-                int status = e.getStatusCode().value();
-                if (isRetryableStatus(status) && attempt < retryMaxAttempts) {
-                    long waitMs = retryBaseBackoffMs * attempt + ThreadLocalRandom.current().nextLong(100, 400);
-                    log.warn("[YouthApiClient] 수집 재시도 page={} status={} attempt={}/{} waitMs={}",
-                            pageNum, status, attempt, retryMaxAttempts, waitMs);
-                    sleepQuietly(waitMs);
-                    continue;
-                }
-
-                log.error("[YouthApiClient] 수집 실패 page={} status={}: {}", pageNum, status, e.getMessage());
-                throw new CustomException(ErrorCode.COLLECT_API_FAILED);
-            } catch (Exception e) {
-                if (attempt < retryMaxAttempts) {
-                    long waitMs = retryBaseBackoffMs * attempt + ThreadLocalRandom.current().nextLong(100, 400);
-                    log.warn("[YouthApiClient] 수집 재시도 page={} attempt={}/{} waitMs={} err={}",
-                            pageNum, attempt, retryMaxAttempts, waitMs, e.getMessage());
-                    sleepQuietly(waitMs);
-                    continue;
-                }
-
-                log.error("[YouthApiClient] 수집 실패 page={}: {}", pageNum, e.getMessage());
-                throw new CustomException(ErrorCode.COLLECT_API_FAILED);
-            }
+                        .block(Duration.ofSeconds(20))
+        );
+        if (result.rateLimited()) {
+            throw new CustomException(ErrorCode.COLLECT_API_FAILED);
         }
-
-        throw new CustomException(ErrorCode.COLLECT_API_FAILED);
+        return result.payload();
     }
 
     private boolean isRetryableStatus(int status) {

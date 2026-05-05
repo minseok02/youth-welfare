@@ -1,6 +1,8 @@
 package com.example.welfare.api;
 
 import com.example.welfare.global.auth.AuthenticatedUser;
+import com.example.welfare.global.exception.CustomException;
+import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.global.web.ClientFingerprintService;
 import com.example.welfare.policy.controller.PolicyController;
 import com.example.welfare.policy.dto.PolicyDetailResponse;
@@ -278,6 +280,24 @@ class RecommendationPolicyFlowWebMvcTest {
                 .andExpect(jsonPath("$.data[0].gov24BenefitTypeLabel").value("서비스"));
 
         verify(recommendationAccessService).getRecommendations(isNull(), eq(10));
+    }
+
+    @Test
+    @DisplayName("추천 갱신이 이미 진행 중이면 409 R003 을 반환한다")
+    void refreshReturnsConflictWhenRecommendationAlreadyRunning() throws Exception {
+        given(recommendationGenerationService.recommend(isNull(), eq(false)))
+                .willThrow(new CustomException(ErrorCode.RECOMMENDATION_ALREADY_RUNNING));
+
+        mockMvc.perform(post("/api/recommendations/refresh")
+                        .with(authentication(new UsernamePasswordAuthenticationToken(
+                                new AuthenticatedUser(1L, "user-key-1"),
+                                null,
+                                Collections.emptyList()
+                        )))
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("R003"));
     }
 
     @Test

@@ -41,7 +41,6 @@ public class PasswordResetService {
     @Value("${app.base-url:http://localhost:5173}")
     private String appBaseUrl;
 
-    @Transactional
     public void requestPasswordReset(String rawEmail) {
         String email = EmailLookupKeyGenerator.normalize(rawEmail);
         authIdentityReadService.findByEmail(email)

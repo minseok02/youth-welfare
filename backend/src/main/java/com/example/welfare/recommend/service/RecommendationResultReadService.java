@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -17,6 +18,11 @@ public class RecommendationResultReadService {
     @Transactional(readOnly = true)
     public List<UserRecommendation> findLatestSavedRecommendations(String userKey) {
         return recommendationResultReadRepository.findLatestSavedRecommendations(userKey);
+    }
+
+    @Transactional(readOnly = true)
+    public List<UserRecommendation> findSavedRecommendationsForBatch(String userKey, LocalDateTime recommendedAt) {
+        return recommendationResultReadRepository.findSavedRecommendationsForBatch(userKey, recommendedAt);
     }
 
     @Transactional(readOnly = true)

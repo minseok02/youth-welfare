@@ -8,10 +8,12 @@ import com.example.welfare.collect.support.ListCollectSourceBinding;
 import com.example.welfare.collect.validation.FieldQualityStats;
 import com.example.welfare.collect.validation.RawFieldValidator;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class YouthCollectSourceAdapter extends AbstractListCollectSourceAdapter<YouthApiDto.Item> {
@@ -20,6 +22,7 @@ public class YouthCollectSourceAdapter extends AbstractListCollectSourceAdapter<
     private final WelfareServiceMapper welfareServiceMapper;
     private final CollectItemSaver saver;
     private final RawApiPayloadService rawApiPayloadService;
+    private final CollectListResponsePolicy collectListResponsePolicy;
     private ListCollectSourceBinding<YouthApiDto.Item> binding() {
         return CollectSourceRegistry.YOUTH.listBinding(welfareServiceMapper);
     }
@@ -40,8 +43,8 @@ public class YouthCollectSourceAdapter extends AbstractListCollectSourceAdapter<
     }
 
     @Override
-    protected void saveRawPayload(YouthApiDto.Item item) {
-        rawApiPayloadService.saveList(binding(), item);
+    protected boolean saveRawPayload(YouthApiDto.Item item) {
+        return rawApiPayloadService.saveList(binding(), item);
     }
 
     @Override
@@ -62,5 +65,10 @@ public class YouthCollectSourceAdapter extends AbstractListCollectSourceAdapter<
     @Override
     protected String failureIdLabel() {
         return "plcyNo";
+    }
+
+    @Override
+    protected void handleEmptyItems(List<YouthApiDto.Item> items) {
+        collectListResponsePolicy.ensureNonEmpty(source(), items);
     }
 }

@@ -26,15 +26,15 @@ public class RawApiPayloadService {
     private final ObjectMapper objectMapper;
 
     @Transactional
-    public <T> void saveList(ListCollectSourceBinding<T> binding, T item) {
-        saveList(binding.sourceType(), binding.sourceId(item), item);
+    public <T> boolean saveList(ListCollectSourceBinding<T> binding, T item) {
+        return saveList(binding.sourceType(), binding.sourceId(item), item);
     }
 
     @Transactional
-    public void saveList(WelfareService.SourceType sourceType,
-                         String sourceId,
-                         Object payload) {
-        save(
+    public boolean saveList(WelfareService.SourceType sourceType,
+                            String sourceId,
+                            Object payload) {
+        return save(
                 sourceType,
                 RawFieldValidator.normalize(sourceId),
                 RawApiPayload.ApiCategory.LIST,
@@ -43,10 +43,10 @@ public class RawApiPayloadService {
     }
 
     @Transactional
-    public void saveBokjiroDetail(WelfareService.SourceType sourceType,
-                                  String sourceId,
-                                  BokjiroDetailClient.DetailPayload payload) {
-        save(
+    public boolean saveBokjiroDetail(WelfareService.SourceType sourceType,
+                                     String sourceId,
+                                     BokjiroDetailClient.DetailPayload payload) {
+        return save(
                 sourceType,
                 RawFieldValidator.normalize(sourceId),
                 RawApiPayload.ApiCategory.DETAIL,
@@ -54,12 +54,12 @@ public class RawApiPayloadService {
         );
     }
 
-    private void save(WelfareService.SourceType sourceType,
-                      String sourceId,
-                      RawApiPayload.ApiCategory apiCategory,
-                      Object payload) {
+    private boolean save(WelfareService.SourceType sourceType,
+                         String sourceId,
+                         RawApiPayload.ApiCategory apiCategory,
+                         Object payload) {
         if (sourceType == null || sourceId == null || payload == null) {
-            return;
+            return false;
         }
 
         try {
@@ -75,9 +75,11 @@ public class RawApiPayloadService {
                     payloadHash,
                     fetchedAt
             );
+            return true;
         } catch (Exception e) {
             log.warn("[RawApiPayloadService] raw 저장 실패 sourceType={} sourceId={} apiCategory={} err={}",
                     sourceType, sourceId, apiCategory, e.getMessage());
+            return false;
         }
     }
 

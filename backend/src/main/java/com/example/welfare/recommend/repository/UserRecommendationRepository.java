@@ -23,6 +23,29 @@ public interface UserRecommendationRepository extends JpaRepository<UserRecommen
                     SELECT MAX(ur2.recommendedAt)
                     FROM UserRecommendation ur2
                     WHERE ur2.userKey = :userKey
+              )
+            ORDER BY ur.finalScore DESC
+            """)
+    List<UserRecommendation> findLatestBatchByUserKeyOrderByFinalScoreDesc(@Param("userKey") String userKey);
+
+    @Query("""
+            SELECT ur FROM UserRecommendation ur
+            JOIN FETCH ur.service
+            WHERE ur.userKey = :userKey
+              AND ur.recommendedAt = :recommendedAt
+            ORDER BY ur.finalScore DESC
+            """)
+    List<UserRecommendation> findByUserKeyAndRecommendedAtOrderByFinalScoreDesc(@Param("userKey") String userKey,
+                                                                                @Param("recommendedAt") LocalDateTime recommendedAt);
+
+    @Query("""
+            SELECT ur FROM UserRecommendation ur
+            JOIN FETCH ur.service
+            WHERE ur.userKey = :userKey
+              AND ur.recommendedAt = (
+                    SELECT MAX(ur2.recommendedAt)
+                    FROM UserRecommendation ur2
+                    WHERE ur2.userKey = :userKey
                       AND ur2.service.id = ur.service.id
               )
             ORDER BY ur.finalScore DESC

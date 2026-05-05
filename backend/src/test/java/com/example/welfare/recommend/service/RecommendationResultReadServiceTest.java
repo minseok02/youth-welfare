@@ -45,6 +45,21 @@ class RecommendationResultReadServiceTest {
     }
 
     @Test
+    @DisplayName("특정 recommendation batch 조회를 read repository에 위임한다")
+    void findSavedRecommendationsForBatchDelegatesToRepository() {
+        UserRecommendation recommendation = sampleRecommendation(303L);
+        LocalDateTime recommendedAt = LocalDateTime.of(2026, 5, 4, 12, 0);
+        when(recommendationResultReadRepository.findSavedRecommendationsForBatch("user-key-1", recommendedAt))
+                .thenReturn(List.of(recommendation));
+
+        List<UserRecommendation> result =
+                recommendationResultReadService.findSavedRecommendationsForBatch("user-key-1", recommendedAt);
+
+        assertThat(result).containsExactly(recommendation);
+        verify(recommendationResultReadRepository).findSavedRecommendationsForBatch("user-key-1", recommendedAt);
+    }
+
+    @Test
     @DisplayName("top recommendations 조회를 read repository에 위임한다")
     void findTopRecommendationsDelegatesToRepository() {
         UserRecommendation recommendation = sampleRecommendation(202L);

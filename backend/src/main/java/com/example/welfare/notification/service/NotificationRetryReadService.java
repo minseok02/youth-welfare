@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -16,5 +17,13 @@ public class NotificationRetryReadService {
 
     public List<Notification> findRetryableFailedNotifications(LocalDateTime at) {
         return notificationRetryReadRepository.findRetryableFailedNotifications(at);
+    }
+
+    public List<Long> findRetryableFailedNotificationIds(LocalDateTime at) {
+        return notificationRetryReadRepository.findRetryableFailedNotificationIds(at);
+    }
+
+    public Optional<Notification> findById(Long notificationId) {
+        return notificationRetryReadRepository.findById(notificationId);
     }
 }

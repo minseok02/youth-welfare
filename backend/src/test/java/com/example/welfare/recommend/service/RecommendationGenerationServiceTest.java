@@ -8,6 +8,8 @@ import com.example.welfare.recommend.entity.ScoreWeight;
 import com.example.welfare.recommend.entity.UserRecommendation;
 import com.example.welfare.user.entity.User;
 import com.example.welfare.user.service.UserRecommendationReadService;
+import com.example.welfare.global.exception.CustomException;
+import com.example.welfare.global.exception.ErrorCode;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -18,6 +20,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -41,6 +44,7 @@ class RecommendationGenerationServiceTest {
     @Mock private RecommendationRefreshCacheService recommendationRefreshCacheService;
     @Mock private RecommendationResultReadService recommendationResultReadService;
     @Mock private UserRecommendationReadService userRecommendationReadService;
+    @Mock private RecommendationExecutionGuard recommendationExecutionGuard;
 
     private RecommendationGenerationService recommendationGenerationService;
 
@@ -57,7 +61,8 @@ class RecommendationGenerationServiceTest {
                 recommendationLogService,
                 recommendationRefreshCacheService,
                 recommendationResultReadService,
-                userRecommendationReadService
+                userRecommendationReadService,
+                recommendationExecutionGuard
         );
     }
 
@@ -70,8 +75,11 @@ class RecommendationGenerationServiceTest {
 
         when(userRecommendationReadService.getRecommendationContext(1L))
                 .thenReturn(new UserRecommendationReadService.RecommendationReadContext(user, snapshot));
-        when(recommendationRefreshCacheService.canReuse("user-key-1")).thenReturn(true);
-        when(recommendationResultReadService.findLatestSavedRecommendations("user-key-1"))
+        when(recommendationExecutionGuard.runForUser(eq("user-key-1"), any(), any()))
+                .thenAnswer(invocation -> invocation.<java.util.function.Supplier<List<UserRecommendation>>>getArgument(1).get());
+        when(recommendationRefreshCacheService.findReusableRecommendedAt("user-key-1"))
+                .thenReturn(Optional.of(LocalDateTime.of(2026, 5, 3, 12, 0)));
+        when(recommendationResultReadService.findSavedRecommendationsForBatch("user-key-1", LocalDateTime.of(2026, 5, 3, 12, 0)))
                 .thenReturn(List.of(cached));
 
         List<UserRecommendation> result = recommendationGenerationService.recommend(1L, false);
@@ -82,7 +90,7 @@ class RecommendationGenerationServiceTest {
         verify(aiScoringService, never()).score(any(), any(), any());
         verify(recommendationPersistenceService, never()).save(any(), any(), any());
         verify(recommendationLogService, never()).refreshLogs(any(), any(), any());
-        verify(recommendationRefreshCacheService, never()).markReusable(anyString());
+        verify(recommendationRefreshCacheService, never()).markReusable(anyString(), any());
     }
 
     @Test
@@ -98,8 +106,11 @@ class RecommendationGenerationServiceTest {
 
         when(userRecommendationReadService.getRecommendationContext(1L))
                 .thenReturn(new UserRecommendationReadService.RecommendationReadContext(user, snapshot));
-        when(recommendationRefreshCacheService.canReuse("user-key-1")).thenReturn(true);
-        when(recommendationResultReadService.findLatestSavedRecommendations("user-key-1"))
+        when(recommendationExecutionGuard.runForUser(eq("user-key-1"), any(), any()))
+                .thenAnswer(invocation -> invocation.<java.util.function.Supplier<List<UserRecommendation>>>getArgument(1).get());
+        when(recommendationRefreshCacheService.findReusableRecommendedAt("user-key-1"))
+                .thenReturn(Optional.of(LocalDateTime.of(2026, 5, 3, 12, 0)));
+        when(recommendationResultReadService.findSavedRecommendationsForBatch("user-key-1", LocalDateTime.of(2026, 5, 3, 12, 0)))
                 .thenReturn(List.of());
         when(clusterService.assignCluster(snapshot)).thenReturn("youth_all");
         when(retrievalService.retrieve("youth_all", snapshot)).thenReturn(retrieved);
@@ -115,7 +126,7 @@ class RecommendationGenerationServiceTest {
         assertThat(result).containsExactly(saved);
         verify(recommendationRefreshCacheService).evict("user-key-1");
         verify(recommendationLogService).refreshLogs(user, List.of(saved), weight);
-        verify(recommendationRefreshCacheService).markReusable("user-key-1");
+        verify(recommendationRefreshCacheService).markReusable("user-key-1", saved.getRecommendedAt());
     }
 
     @Test
@@ -131,6 +142,8 @@ class RecommendationGenerationServiceTest {
 
         when(userRecommendationReadService.getRecommendationContext(1L))
                 .thenReturn(new UserRecommendationReadService.RecommendationReadContext(user, snapshot));
+        when(recommendationExecutionGuard.runForUser(eq("user-key-1"), any(), any()))
+                .thenAnswer(invocation -> invocation.<java.util.function.Supplier<List<UserRecommendation>>>getArgument(1).get());
         when(retrievalService.retrieve("youth_all", snapshot)).thenReturn(retrieved);
         when(ruleScoringService.score(retrieved, snapshot)).thenReturn(List.of(scored));
         when(recommendationPostScoringFilterService.filterSpecialTargetMismatches(List.of(scored))).thenReturn(List.of(scored));
@@ -145,7 +158,78 @@ class RecommendationGenerationServiceTest {
         verify(recommendationRefreshCacheService).evict("user-key-1");
         verify(clusterService, never()).assignCluster(snapshot);
         verify(retrievalService).retrieve("youth_all", snapshot);
-        verify(recommendationRefreshCacheService, never()).markReusable(anyString());
+        verify(recommendationRefreshCacheService, never()).markReusable(anyString(), any());
+    }
+
+    @Test
+    @DisplayName("같은 사용자 추천 생성이 이미 진행 중이면 최신 저장 추천으로 폴백한다")
+    void recommendReturnsLatestSavedRecommendationsWhenExecutionBusy() {
+        User user = sampleUser();
+        RecommendationUserSnapshot snapshot = sampleSnapshot();
+        UserRecommendation saved = sampleRecommendation(909L);
+
+        when(userRecommendationReadService.getRecommendationContext(1L))
+                .thenReturn(new UserRecommendationReadService.RecommendationReadContext(user, snapshot));
+        when(recommendationExecutionGuard.runForUser(eq("user-key-1"), any(), any()))
+                .thenAnswer(invocation -> invocation.<java.util.function.Supplier<List<UserRecommendation>>>getArgument(2).get());
+        when(recommendationResultReadService.findLatestSavedRecommendations("user-key-1"))
+                .thenReturn(List.of(saved));
+
+        List<UserRecommendation> result = recommendationGenerationService.recommend(1L, false);
+
+        assertThat(result).containsExactly(saved);
+        verify(retrievalService, never()).retrieve(any(), any());
+        verify(recommendationPersistenceService, never()).save(any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("저장 후 로그 후처리가 실패해도 저장 추천은 그대로 반환하고 refresh 마커는 유지한다")
+    void recommendReturnsSavedRecommendationsWhenLogRefreshFails() {
+        User user = sampleUser();
+        RecommendationUserSnapshot snapshot = sampleSnapshot();
+        WelfareService service = sampleService();
+        RetrievedRecommendationCandidates retrieved = new RetrievedRecommendationCandidates(List.of(service), null);
+        ScoredCandidate scored = sampleScoredCandidate(service);
+        ScoreWeight weight = sampleWeight();
+        UserRecommendation saved = sampleRecommendation(404L);
+
+        when(userRecommendationReadService.getRecommendationContext(1L))
+                .thenReturn(new UserRecommendationReadService.RecommendationReadContext(user, snapshot));
+        when(recommendationExecutionGuard.runForUser(eq("user-key-1"), any(), any()))
+                .thenAnswer(invocation -> invocation.<java.util.function.Supplier<List<UserRecommendation>>>getArgument(1).get());
+        when(recommendationRefreshCacheService.findReusableRecommendedAt("user-key-1"))
+                .thenReturn(Optional.empty());
+        when(clusterService.assignCluster(snapshot)).thenReturn("youth_all");
+        when(retrievalService.retrieve("youth_all", snapshot)).thenReturn(retrieved);
+        when(ruleScoringService.score(retrieved, snapshot)).thenReturn(List.of(scored));
+        when(recommendationPostScoringFilterService.filterSpecialTargetMismatches(List.of(scored))).thenReturn(List.of(scored));
+        when(aiScoringService.score("youth_all", List.of(scored), snapshot)).thenReturn(List.of(scored));
+        when(reRankingService.rerank(List.of(scored))).thenReturn(List.of(scored));
+        when(reRankingService.getCurrentWeight()).thenReturn(weight);
+        when(recommendationPersistenceService.save(user, List.of(scored), weight)).thenReturn(List.of(saved));
+        org.mockito.Mockito.doThrow(new IllegalStateException("log failed"))
+                .when(recommendationLogService).refreshLogs(user, List.of(saved), weight);
+
+        List<UserRecommendation> result = recommendationGenerationService.recommend(1L, false);
+
+        assertThat(result).containsExactly(saved);
+        verify(recommendationRefreshCacheService).markReusable("user-key-1", saved.getRecommendedAt());
+    }
+
+    @Test
+    @DisplayName("같은 사용자 추천 생성이 진행 중이고 저장 결과도 없으면 R003 을 던진다")
+    void recommendThrowsWhenExecutionBusyAndNoFallbackResult() {
+        User user = sampleUser();
+        RecommendationUserSnapshot snapshot = sampleSnapshot();
+
+        when(userRecommendationReadService.getRecommendationContext(1L))
+                .thenReturn(new UserRecommendationReadService.RecommendationReadContext(user, snapshot));
+        when(recommendationExecutionGuard.runForUser(eq("user-key-1"), any(), any()))
+                .thenThrow(new CustomException(ErrorCode.RECOMMENDATION_ALREADY_RUNNING));
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> recommendationGenerationService.recommend(1L, false))
+                .isInstanceOf(CustomException.class)
+                .satisfies(ex -> assertThat(((CustomException) ex).getErrorCode()).isEqualTo(ErrorCode.RECOMMENDATION_ALREADY_RUNNING));
     }
 
     private User sampleUser() {

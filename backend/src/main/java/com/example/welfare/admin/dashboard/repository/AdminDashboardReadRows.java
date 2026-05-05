@@ -87,6 +87,14 @@ public final class AdminDashboardReadRows {
     ) {
     }
 
+    public record CollectJobStreakRow(
+            String jobName,
+            String streakStatus,
+            long streakCount,
+            LocalDateTime latestStartedAt
+    ) {
+    }
+
     public record RecommendationSummaryRow(
             long totalLogs,
             long sentLast24h,

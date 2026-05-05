@@ -43,7 +43,7 @@ class PolicySearchServiceTest {
         WelfareService youthService = welfareService(1L, "청년 정책");
         given(welfareServiceReadRepository.search(
                 eq(new PolicySearchReadCondition(
-                        "+청년", null, 0, null, null, null, null, null, "RELEVANCE"
+                        "+청년", null, "ACTIVE_ONLY", null, null, null, null, null, "RELEVANCE"
                 )),
                 any(PageRequest.class)
         )).willReturn(new PageImpl<>(List.of(youthService), PageRequest.of(0, 10), 21));
@@ -72,7 +72,7 @@ class PolicySearchServiceTest {
         ArgumentCaptor<PageRequest> captor = ArgumentCaptor.forClass(PageRequest.class);
         verify(welfareServiceReadRepository).search(
                 eq(new PolicySearchReadCondition(
-                        "+청년", null, 0, null, null, null, null, null, "RELEVANCE"
+                        "+청년", null, "ACTIVE_ONLY", null, null, null, null, null, "RELEVANCE"
                 )),
                 captor.capture()
         );
@@ -91,7 +91,7 @@ class PolicySearchServiceTest {
         WelfareService youthService = welfareService(2L, "서울 청년 정책");
         given(welfareServiceReadRepository.search(
                 eq(new PolicySearchReadCondition(
-                        "+청년", null, 0, null, null, null, "서울특별시", "관악구", "RELEVANCE"
+                        "+청년", null, "ACTIVE_ONLY", null, null, null, "서울특별시", "관악구", "RELEVANCE"
                 )),
                 any(PageRequest.class)
         )).willReturn(new PageImpl<>(List.of(youthService), PageRequest.of(0, 10), 1));
@@ -116,7 +116,7 @@ class PolicySearchServiceTest {
         assertThat(results.getContent()).hasSize(1);
         verify(welfareServiceReadRepository).search(
                 eq(new PolicySearchReadCondition(
-                        "+청년", null, 0, null, null, null, "서울특별시", "관악구", "RELEVANCE"
+                        "+청년", null, "ACTIVE_ONLY", null, null, null, "서울특별시", "관악구", "RELEVANCE"
                 )),
                 any(PageRequest.class)
         );
@@ -133,7 +133,7 @@ class PolicySearchServiceTest {
         WelfareService youthService = welfareService(3L, "서울 전체 청년 정책");
         given(welfareServiceReadRepository.search(
                 eq(new PolicySearchReadCondition(
-                        "+청년", null, 0, null, null, null, "서울특별시", null, "RELEVANCE"
+                        "+청년", null, "ACTIVE_ONLY", null, null, null, "서울특별시", null, "RELEVANCE"
                 )),
                 any(PageRequest.class)
         )).willReturn(new PageImpl<>(List.of(youthService), PageRequest.of(0, 10), 1));
@@ -158,7 +158,7 @@ class PolicySearchServiceTest {
         assertThat(results.getContent()).hasSize(1);
         verify(welfareServiceReadRepository).search(
                 eq(new PolicySearchReadCondition(
-                        "+청년", null, 0, null, null, null, "서울특별시", null, "RELEVANCE"
+                        "+청년", null, "ACTIVE_ONLY", null, null, null, "서울특별시", null, "RELEVANCE"
                 )),
                 any(PageRequest.class)
         );

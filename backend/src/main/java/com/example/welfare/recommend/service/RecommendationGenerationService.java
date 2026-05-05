@@ -11,9 +11,9 @@ import com.example.welfare.user.service.UserRecommendationReadService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
 
 @Slf4j
 @Service
@@ -31,8 +31,8 @@ public class RecommendationGenerationService {
     private final RecommendationRefreshCacheService recommendationRefreshCacheService;
     private final RecommendationResultReadService recommendationResultReadService;
     private final UserRecommendationReadService userRecommendationReadService;
+    private final RecommendationExecutionGuard recommendationExecutionGuard;
 
-    @Transactional
     public List<UserRecommendation> recommend(Long userId, boolean personal) {
         UserRecommendationReadService.RecommendationReadContext context =
                 userRecommendationReadService.getRecommendationContext(userId);
@@ -40,29 +40,44 @@ public class RecommendationGenerationService {
         User user = context.user();
         String userKey = snapshot.userKey();
 
+        return recommendationExecutionGuard.runForUser(
+                userKey,
+                () -> doRecommend(user, snapshot, personal),
+                () -> recommendationResultReadService.findLatestSavedRecommendations(userKey)
+        );
+    }
+
+    private List<UserRecommendation> doRecommend(User user, RecommendationUserSnapshot snapshot, boolean personal) {
+        String userKey = snapshot.userKey();
         if (personal) {
             recommendationRefreshCacheService.evict(userKey);
-        } else if (recommendationRefreshCacheService.canReuse(userKey)) {
-            List<UserRecommendation> cached = recommendationResultReadService.findLatestSavedRecommendations(userKey);
-            if (!cached.isEmpty()) {
-                log.info("[RecommendationGenerationService] refresh cache hit userId={} userKey={}", userId, userKey);
-                return cached;
+        } else {
+            Optional<java.time.LocalDateTime> reusableRecommendedAt =
+                    recommendationRefreshCacheService.findReusableRecommendedAt(userKey);
+            if (reusableRecommendedAt.isPresent()) {
+                List<UserRecommendation> cached = recommendationResultReadService
+                        .findSavedRecommendationsForBatch(userKey, reusableRecommendedAt.get());
+                if (!cached.isEmpty()) {
+                    log.info("[RecommendationGenerationService] refresh cache hit userKey={} recommendedAt={}",
+                            userKey, reusableRecommendedAt.get());
+                    return cached;
+                }
+                recommendationRefreshCacheService.evict(userKey);
             }
-            recommendationRefreshCacheService.evict(userKey);
         }
 
         String clusterId = personal ? "youth_all" : clusterService.assignCluster(snapshot);
 
         RetrievedRecommendationCandidates retrieved = retrievalService.retrieve(clusterId, snapshot);
         if (retrieved.isEmpty()) {
-            log.info("[RecommendationGenerationService] 후보 없음 userId={}", userId);
+            log.info("[RecommendationGenerationService] 후보 없음 userKey={}", userKey);
             return List.of();
         }
 
         List<ScoredCandidate> scored = ruleScoringService.score(retrieved, snapshot);
         scored = recommendationPostScoringFilterService.filterSpecialTargetMismatches(scored);
         if (scored.isEmpty()) {
-            log.info("[RecommendationGenerationService] 필터 후 후보 없음 userId={}", userId);
+            log.info("[RecommendationGenerationService] 필터 후 후보 없음 userKey={}", userKey);
             return List.of();
         }
 
@@ -72,9 +87,19 @@ public class RecommendationGenerationService {
         ScoreWeight weight = reRankingService.getCurrentWeight();
         List<UserRecommendation> saved = recommendationPersistenceService.save(user, reranked, weight);
 
-        recommendationLogService.refreshLogs(user, saved, weight);
+        if (saved.isEmpty()) {
+            log.warn("[RecommendationGenerationService] 저장 결과가 비어 후처리를 생략합니다. userKey={}", userKey);
+            recommendationRefreshCacheService.evict(userKey);
+            return saved;
+        }
+
+        try {
+            recommendationLogService.refreshLogs(user, saved, weight);
+        } catch (Exception e) {
+            log.warn("[RecommendationGenerationService] 로그 후처리 실패 userKey={} err={}", userKey, e.getMessage());
+        }
         if (!personal) {
-            recommendationRefreshCacheService.markReusable(userKey);
+            recommendationRefreshCacheService.markReusable(userKey, saved.get(0).getRecommendedAt());
         }
         return saved;
     }

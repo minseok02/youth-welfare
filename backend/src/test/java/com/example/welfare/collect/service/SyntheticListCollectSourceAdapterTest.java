@@ -15,6 +15,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.same;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 class SyntheticListCollectSourceAdapterTest {
 
@@ -51,6 +52,7 @@ class SyntheticListCollectSourceAdapterTest {
                 saver,
                 rawApiPayloadService
         );
+        when(rawApiPayloadService.saveList(same(binding), same(item))).thenReturn(true);
 
         CollectResult result = adapter.collect();
 
@@ -61,6 +63,51 @@ class SyntheticListCollectSourceAdapterTest {
         assertThat(result.failedCount()).isZero();
         verify(rawApiPayloadService).saveList(same(binding), same(item));
         verify(saver).save(same(binding), same(item));
+    }
+
+    @Test
+    @DisplayName("raw payload 저장 실패도 failed count로 집계하고 다음 item 처리를 계속한다")
+    void syntheticAdapterCountsRawPayloadFailureAsFailed() {
+        CollectItemSaver saver = mock(CollectItemSaver.class);
+        RawApiPayloadService rawApiPayloadService = mock(RawApiPayloadService.class);
+        SyntheticItem failedItem = new SyntheticItem("Y-SYN-FAIL-1", "실패 item", true);
+        SyntheticItem successItem = new SyntheticItem("Y-SYN-OK-2", "성공 item", true);
+        ListCollectSourceBinding<SyntheticItem> binding = new ListCollectSourceBinding<>(
+                WelfareService.SourceType.YOUTH,
+                SyntheticItem::sourceId,
+                (items, stats) -> stats.record("syntheticId", items.isEmpty() ? null : items.get(0).sourceId()),
+                current -> WelfareService.builder()
+                        .sourceType(WelfareService.SourceType.YOUTH)
+                        .sourceId(current.sourceId())
+                        .title(current.title())
+                        .status(WelfareService.ServiceStatus.ACTIVE)
+                        .build(),
+                (current, entity) -> List.<ServiceRegion>of(),
+                (current, entity) -> List.<ServiceTag>of(),
+                current -> NormalizedPolicyAggregate.builder()
+                        .core(NormalizedPolicyAggregate.Core.builder()
+                                .sourceType(NormalizedPolicyAggregate.SourceType.YOUTH)
+                                .sourceId(current.sourceId())
+                                .title(current.title())
+                                .status(NormalizedPolicyAggregate.ServiceStatus.ACTIVE)
+                                .build())
+                        .build()
+        );
+        SyntheticListCollectSourceAdapter adapter = new SyntheticListCollectSourceAdapter(
+                List.of(failedItem, successItem),
+                binding,
+                saver,
+                rawApiPayloadService
+        );
+        when(rawApiPayloadService.saveList(same(binding), same(failedItem))).thenReturn(false);
+        when(rawApiPayloadService.saveList(same(binding), same(successItem))).thenReturn(true);
+
+        CollectResult result = adapter.collect();
+
+        assertThat(result.requestedCount()).isEqualTo(2);
+        assertThat(result.savedCount()).isEqualTo(1);
+        assertThat(result.failedCount()).isEqualTo(1);
+        verify(saver).save(same(binding), same(successItem));
     }
 
     private record SyntheticItem(String sourceId, String title, boolean valid) {
@@ -99,8 +146,8 @@ class SyntheticListCollectSourceAdapterTest {
         }
 
         @Override
-        protected void saveRawPayload(SyntheticItem item) {
-            rawApiPayloadService.saveList(binding, item);
+        protected boolean saveRawPayload(SyntheticItem item) {
+            return rawApiPayloadService.saveList(binding, item);
         }
 
         @Override

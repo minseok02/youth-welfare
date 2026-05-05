@@ -28,6 +28,10 @@ public class RecommendationPersistenceService {
 
     @Transactional
     public List<UserRecommendation> save(User user, List<ScoredCandidate> candidates, ScoreWeight weight) {
+        if (candidates == null || candidates.isEmpty()) {
+            return List.of();
+        }
+
         Map<Long, Boolean> bookmarkStateByServiceId =
                 recommendationBookmarkStateReadService.findLatestBookmarkStateByServiceId(user.getUserKey());
 

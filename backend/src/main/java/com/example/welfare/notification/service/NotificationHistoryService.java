@@ -16,40 +16,63 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
 public class NotificationHistoryService {
 
+    private static final long INITIAL_RETRY_DELAY_MINUTES = 30L;
+
     private final NotificationHistoryCommandRepository notificationHistoryCommandRepository;
 
     @Transactional
-    public Notification saveResult(User user,
-                                   NotificationPeriodType periodType,
-                                   NotificationChannel channel,
+    public Optional<Notification> reserveDispatch(User user,
+                                                  NotificationPeriodType periodType,
+                                                  NotificationChannel channel,
+                                                  String dispatchKey,
+                                                  String subject) {
+        Notification notification = Notification.builder()
+                .userKey(user.getUserKey())
+                .dispatchKey(dispatchKey)
+                .periodType(periodType)
+                .channel(channel)
+                .subject(subject)
+                .status(NotificationStatus.PENDING)
+                .build();
+        notification.reserveDispatch();
+        return notificationHistoryCommandRepository.reserveNotification(notification);
+    }
+
+    @Transactional
+    public Notification saveResult(Notification notification,
                                    NotificationStatus status,
-                                   String subject,
                                    String messageText,
                                    List<UserRecommendation> recommendations,
                                    List<RecommendationLog> logs,
                                    String errorMessage) {
-        Notification notification = Notification.builder()
-                .userKey(user.getUserKey())
-                .periodType(periodType)
-                .channel(channel)
-                .status(status)
-                .subject(subject)
-                .messageText(messageText)
-                .totalServices(recommendations.size())
-                .sentAt(status == NotificationStatus.SENT ? LocalDateTime.now() : null)
-                .build();
-        if (status == NotificationStatus.FAILED) {
-            notification.failInitially(LocalDateTime.now().plusMinutes(30), errorMessage);
+        notification.updateDispatchPayload(messageText, recommendations.size());
+        if (status == NotificationStatus.SENT) {
+            notification.markSent();
+        } else if (status == NotificationStatus.FAILED) {
+            notification.failInitially(LocalDateTime.now().plusMinutes(INITIAL_RETRY_DELAY_MINUTES), errorMessage);
+        } else {
+            notification.reserveDispatch();
         }
-        notification = notificationHistoryCommandRepository.saveNotification(notification);
 
+        Notification saved = notificationHistoryCommandRepository.saveNotification(notification);
+        notificationHistoryCommandRepository.replaceNotificationItems(
+                saved.getId(),
+                buildItems(saved, recommendations, logs)
+        );
+        return saved;
+    }
+
+    private List<NotificationServiceItem> buildItems(Notification notification,
+                                                     List<UserRecommendation> recommendations,
+                                                     List<RecommendationLog> logs) {
         if (recommendations.isEmpty()) {
-            return notification;
+            return List.of();
         }
 
         List<NotificationServiceItem> items = new ArrayList<>(recommendations.size());
@@ -65,7 +88,6 @@ public class NotificationHistoryService {
                     .serviceTitle(rec.getService().getTitle())
                     .build());
         }
-        notificationHistoryCommandRepository.saveNotificationItems(items);
-        return notification;
+        return items;
     }
 }

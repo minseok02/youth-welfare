@@ -20,9 +20,10 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
@@ -37,9 +38,37 @@ class NotificationHistoryServiceTest {
     private NotificationHistoryService notificationHistoryService;
 
     @Test
-    @DisplayName("알림 발송 이력 저장 시 헤더와 매핑 아이템이 함께 저장된다")
-    void saveResultStoresHeaderAndItems() {
+    @DisplayName("dispatch reservation 은 pending row 를 저장한다")
+    void reserveDispatchStoresPendingRow() {
         User user = User.builder().id(7L).userKey("user-key-7").email("test@example.com").passwordHash("pw").build();
+        given(notificationHistoryCommandRepository.reserveNotification(any(Notification.class)))
+                .willAnswer(invocation -> Optional.of(invocation.getArgument(0, Notification.class)));
+
+        Optional<Notification> reserved = notificationHistoryService.reserveDispatch(
+                user,
+                NotificationPeriodType.DAILY,
+                NotificationChannel.EMAIL,
+                "daily:user-key-7:2026-05-05",
+                "subject"
+        );
+
+        assertThat(reserved).isPresent();
+        assertThat(reserved.orElseThrow().getStatus()).isEqualTo(NotificationStatus.PENDING);
+        assertThat(reserved.orElseThrow().getDispatchKey()).isEqualTo("daily:user-key-7:2026-05-05");
+    }
+
+    @Test
+    @DisplayName("알림 발송 이력 저장 시 헤더와 매핑 아이템이 함께 교체 저장된다")
+    void saveResultStoresHeaderAndItems() {
+        Notification reserved = Notification.builder()
+                .id(1L)
+                .userKey("user-key-7")
+                .dispatchKey("daily:user-key-7:2026-05-05")
+                .channel(NotificationChannel.EMAIL)
+                .periodType(NotificationPeriodType.DAILY)
+                .status(NotificationStatus.PENDING)
+                .subject("subject")
+                .build();
         WelfareService ws = WelfareService.builder()
                 .id(100L)
                 .sourceType(WelfareService.SourceType.YOUTH)
@@ -53,55 +82,45 @@ class NotificationHistoryServiceTest {
         RecommendationLog log = RecommendationLog.builder().id(55L).build();
 
         given(notificationHistoryCommandRepository.saveNotification(any(Notification.class)))
-                .willAnswer(invocation -> {
-                    Notification arg = invocation.getArgument(0, Notification.class);
-                    return Notification.builder()
-                            .id(1L)
-                            .userKey(arg.getUserKey())
-                            .channel(arg.getChannel())
-                            .periodType(arg.getPeriodType())
-                            .status(arg.getStatus())
-                            .subject(arg.getSubject())
-                            .messageText(arg.getMessageText())
-                            .totalServices(arg.getTotalServices())
-                            .sentAt(arg.getSentAt())
-                            .errorMessage(arg.getErrorMessage())
-                            .build();
-                });
+                .willAnswer(invocation -> invocation.getArgument(0, Notification.class));
 
-        notificationHistoryService.saveResult(
-                user,
-                NotificationPeriodType.DAILY,
-                NotificationChannel.EMAIL,
+        Notification saved = notificationHistoryService.saveResult(
+                reserved,
                 NotificationStatus.SENT,
-                "subject",
                 "body",
                 List.of(rec),
                 List.of(log),
                 null
         );
 
+        assertThat(saved.getStatus()).isEqualTo(NotificationStatus.SENT);
+        assertThat(saved.getMessageText()).isEqualTo("body");
+        assertThat(saved.getTotalServices()).isEqualTo(1);
+
         ArgumentCaptor<List> captor = ArgumentCaptor.forClass(List.class);
-        verify(notificationHistoryCommandRepository).saveNotificationItems(captor.capture());
-        List savedItems = captor.getValue();
-        assertEquals(1, savedItems.size());
+        verify(notificationHistoryCommandRepository).replaceNotificationItems(eq(1L), captor.capture());
+        assertThat(captor.getValue()).hasSize(1);
     }
 
     @Test
     @DisplayName("실패 이력 저장 시 최초 재시도 시간을 30분 뒤로 설정한다")
     void saveResultSchedulesInitialRetryForFailure() {
-        User user = User.builder().id(7L).userKey("user-key-7").email("test@example.com").passwordHash("pw").build();
-
+        Notification reserved = Notification.builder()
+                .id(1L)
+                .userKey("user-key-7")
+                .dispatchKey("daily:user-key-7:2026-05-05")
+                .channel(NotificationChannel.EMAIL)
+                .periodType(NotificationPeriodType.DAILY)
+                .status(NotificationStatus.PENDING)
+                .subject("subject")
+                .build();
         given(notificationHistoryCommandRepository.saveNotification(any(Notification.class)))
                 .willAnswer(invocation -> invocation.getArgument(0, Notification.class));
 
         LocalDateTime before = LocalDateTime.now();
         Notification saved = notificationHistoryService.saveResult(
-                user,
-                NotificationPeriodType.DAILY,
-                NotificationChannel.EMAIL,
+                reserved,
                 NotificationStatus.FAILED,
-                "subject",
                 "body",
                 List.of(),
                 List.of(),

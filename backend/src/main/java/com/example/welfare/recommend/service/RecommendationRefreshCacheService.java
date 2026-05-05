@@ -6,6 +6,9 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import java.time.LocalDateTime;
+import java.time.format.DateTimeParseException;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -32,20 +35,35 @@ public class RecommendationRefreshCacheService {
         this.educationCanonicalBonusEnabled = educationCanonicalBonusEnabled;
     }
 
-    public boolean canReuse(String userKey) {
+    public Optional<LocalDateTime> findReusableRecommendedAt(String userKey) {
         if (!StringUtils.hasText(userKey)) {
-            return false;
+            return Optional.empty();
         }
-        return Boolean.TRUE.equals(redisTemplate.hasKey(cacheKey(userKey)));
+        String value = redisTemplate.opsForValue().get(cacheKey(userKey));
+        if (!StringUtils.hasText(value)) {
+            return Optional.empty();
+        }
+        try {
+            return Optional.of(LocalDateTime.parse(value));
+        } catch (DateTimeParseException e) {
+            log.warn("[RecommendationRefreshCacheService] 잘못된 refresh cache token 형식으로 재사용 마커를 제거합니다. userKey={} value={}",
+                    userKey, value);
+            evict(userKey);
+            return Optional.empty();
+        }
     }
 
-    public void markReusable(String userKey) {
+    public void markReusable(String userKey, LocalDateTime recommendedAt) {
         if (!StringUtils.hasText(userKey)) {
+            return;
+        }
+        if (recommendedAt == null) {
+            evict(userKey);
             return;
         }
         redisTemplate.opsForValue().set(
                 cacheKey(userKey),
-                "1",
+                recommendedAt.toString(),
                 ttlMinutes,
                 TimeUnit.MINUTES
         );
