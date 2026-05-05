@@ -43,7 +43,9 @@ public class SecurityConfig {
         CorsConfiguration config = new CorsConfiguration();
         // 프론트엔드 로컬 개발 서버 + 추후 배포 도메인 허용
         config.setAllowedOrigins(List.of(
+                "http://127.0.0.1:3000",
                 "http://localhost:3000",
+                "http://127.0.0.1:5173",
                 "http://localhost:5173"  // Vite 기본 포트
         ));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));

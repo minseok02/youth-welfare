@@ -48,9 +48,20 @@ class CollectBatchServiceTest {
             return CollectResult.of(0, 0, 0, 0, 0);
         }).when(collectSourceExecutionService).collectSource(any());
 
-        collectBatchService.collectAllNow();
+        CollectBatchRunResult result = collectBatchService.collectAllNow();
 
         assertThat(adapterCalls).containsExactly("YOUTH", "BOKJIRO_CENTRAL", "BOKJIRO_LOCAL", "BOKJIRO_DETAIL");
+        assertThat(result.completedWithFailures()).isTrue();
+        assertThat(result.succeededSourceCount()).isEqualTo(3);
+        assertThat(result.failedSourceCount()).isEqualTo(1);
+        assertThat(result.sourceResults())
+                .extracting(sourceResult -> sourceResult.source().name(), CollectBatchRunResult.SourceRunResult::success)
+                .containsExactly(
+                        org.assertj.core.groups.Tuple.tuple("YOUTH", true),
+                        org.assertj.core.groups.Tuple.tuple("BOKJIRO_CENTRAL", false),
+                        org.assertj.core.groups.Tuple.tuple("BOKJIRO_LOCAL", true),
+                        org.assertj.core.groups.Tuple.tuple("BOKJIRO_DETAIL", true)
+                );
         verify(collectExecutionGuard).runExclusive(eq("collect-all"), any(Runnable.class));
     }
 }

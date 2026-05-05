@@ -13,6 +13,8 @@ import com.example.welfare.collect.controller.CollectAdminController;
 import com.example.welfare.collect.normalization.NormalizedPolicySidecarBackfillService;
 import com.example.welfare.collect.service.CollectAdminService;
 import com.example.welfare.collect.service.CollectBatchService;
+import com.example.welfare.collect.service.CollectBatchRunResult;
+import com.example.welfare.collect.service.CollectResult;
 import com.example.welfare.collect.service.CollectSource;
 import com.example.welfare.global.auth.AuthenticatedUser;
 import com.example.welfare.global.config.JacksonConfig;
@@ -49,10 +51,12 @@ import java.util.List;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.doNothing;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 
 @WebMvcTest(controllers = {
         CollectAdminController.class,
@@ -136,6 +140,41 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.data").value("온통청년 수집 완료"));
 
         then(collectAdminService).should().collect(CollectSource.YOUTH);
+    }
+
+    @Test
+    @DisplayName("관리자 전체 수집 API는 부분 실패를 구조화된 결과로 노출한다")
+    void collectAllEndpointExposesPartialFailures() throws Exception {
+        mockAuthenticatedToken("admin-token", List.of(
+                new SimpleGrantedAuthority("ROLE_USER"),
+                new SimpleGrantedAuthority("ROLE_ADMIN")
+        ));
+        given(collectBatchService.collectAllNow()).willReturn(new CollectBatchRunResult(List.of(
+                CollectBatchRunResult.SourceRunResult.success(CollectSource.YOUTH, CollectResult.of(10, 10, 0, 0, 0)),
+                CollectBatchRunResult.SourceRunResult.failure(CollectSource.BOKJIRO_LOCAL, new CustomException(ErrorCode.COLLECT_API_FAILED))
+        )));
+
+        mockMvc.perform(post("/api/admin/collect/all")
+                        .header("Authorization", "Bearer admin-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.completedWithFailures").value(true))
+                .andExpect(jsonPath("$.data.requestedSourceCount").value(2))
+                .andExpect(jsonPath("$.data.failedSourceCount").value(1))
+                .andExpect(jsonPath("$.data.sourceResults[1].sourceKey").value("bokjiro-local"))
+                .andExpect(jsonPath("$.data.sourceResults[1].success").value(false))
+                .andExpect(jsonPath("$.data.sourceResults[1].errorCode").value("COL001"));
+    }
+
+    @Test
+    @DisplayName("127.0.0.1 Vite origin 도 CORS preflight 를 통과한다")
+    void corsAllows127001ViteOrigin() throws Exception {
+        mockMvc.perform(options("/api/admin/collect/youth")
+                        .header("Origin", "http://127.0.0.1:5173")
+                        .header("Access-Control-Request-Method", "POST")
+                        .header("Access-Control-Request-Headers", "authorization,content-type"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Access-Control-Allow-Origin", "http://127.0.0.1:5173"));
     }
 
     @Test
