@@ -25,7 +25,7 @@ const CATEGORIES = [
   { label: "주거", value: "주거" },
   { label: "일자리", value: "일자리" },
   { label: "교육·직업훈련", value: "교육·직업훈련" },
-  { label: "금융·생활", value: "금융·생활지원" },
+  { label: "금융·생활지원", value: "금융·생활지원" },
   { label: "문화·여가", value: "문화·여가" },
   { label: "건강·의료", value: "건강·의료" },
   { label: "가족·돌봄", value: "가족·돌봄" },

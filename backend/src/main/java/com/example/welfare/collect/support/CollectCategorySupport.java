@@ -24,6 +24,7 @@ public final class CollectCategorySupport {
             Map.entry("주거", "주거"),
             Map.entry("교육", "교육·직업훈련"),
             Map.entry("민간금융", "금융·생활지원"),
+            Map.entry("서민금융", "금융·생활지원"), // 복지로 API 실제 응답값. 민간금융과 동일 계열이나 별도 키로 전달됨
             Map.entry("생활지원", "금융·생활지원"),
             Map.entry("문화·여가", "문화·여가"),
             Map.entry("신체건강", "건강·의료"),
@@ -31,6 +32,7 @@ public final class CollectCategorySupport {
             Map.entry("보육", "가족·돌봄"),
             Map.entry("보호·돌봄", "가족·돌봄"),
             Map.entry("임신·출산", "가족·돌봄"),
+            Map.entry("입양·위탁", "가족·돌봄"),  // 복지로 API 실제 응답값. 맵 누락으로 기타 분류되던 것 추가
             Map.entry("안전·위기", "안전·위기")
     );
 

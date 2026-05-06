@@ -53,8 +53,10 @@
 
 - [PoliciesPage.jsx](../frontend/src/pages/PoliciesPage.jsx) `CATEGORIES` 목록 맨 아래에 `{ label: "분류없음", value: "기타" }` 항목이 추가되어 있습니다.
 - `unified_category = '기타'` 인 미분류 정책을 점검하기 위한 임시 항목입니다.
-- 현황 (2026-05-06 기준): 미분류 1,037건 — BOKJIRO_LOCAL 1,020건, BOKJIRO_CENTRAL 16건, YOUTH 1건 (모두 원본 API에서 카테고리 값이 없는 케이스).
-- 복지로 로컬 카테고리 매핑 정비 후 제거 예정.
+- 현황 (2026-05-06 기준): 미분류 288건 — BOKJIRO_LOCAL 271건, BOKJIRO_CENTRAL 16건, YOUTH 1건.
+  - BOKJIRO_LOCAL 기존 1,020건 중 794건은 `서민금융`(731건), `입양·위탁`(63건) 매핑 추가로 해소됨.
+  - 잔여 271건은 원본 API에서 `intrsThemaNmArray` 필드 자체가 없는 케이스로 코드로 해결 불가.
+- 전체 미분류 정리 완료 후 제거 예정.
 
 ### 7. 북마크 경계
 
