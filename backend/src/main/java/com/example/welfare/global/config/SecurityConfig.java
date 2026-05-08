@@ -6,6 +6,7 @@ import com.example.welfare.global.util.JwtUtil;
 import com.example.welfare.user.service.UserSessionRevocationService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.MediaType;
@@ -22,7 +23,9 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Configuration
 @EnableWebSecurity
@@ -32,6 +35,8 @@ public class SecurityConfig {
     private final JwtUtil jwtUtil;
     private final UserSessionRevocationService userSessionRevocationService;
     private final ObjectMapper objectMapper;
+    @Value("${security.cors.allowed-origins:http://127.0.0.1:3000,http://localhost:3000,http://127.0.0.1:5173,http://localhost:5173}")
+    private String corsAllowedOrigins;
 
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -41,13 +46,7 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        // 프론트엔드 로컬 개발 서버 + 추후 배포 도메인 허용
-        config.setAllowedOrigins(List.of(
-                "http://127.0.0.1:3000",
-                "http://localhost:3000",
-                "http://127.0.0.1:5173",
-                "http://localhost:5173"  // Vite 기본 포트
-        ));
+        config.setAllowedOrigins(parseAllowedOrigins());
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true); // HttpOnly 쿠키 전송 허용
@@ -71,7 +70,6 @@ public class SecurityConfig {
                                 writeSecurityError(response, ErrorCode.ACCESS_DENIED))
                 )
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(HttpMethod.GET, "/api/auth/check-email").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/signup", "/api/auth/login").permitAll()
                         .requestMatchers(HttpMethod.POST,
                                 "/api/auth/password-reset/request",
@@ -94,13 +92,21 @@ public class SecurityConfig {
                                 "/swagger-ui/**",
                                 "/swagger-ui.html",
                                 "/v3/api-docs/**"
-                        ).permitAll()
+                        ).hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/auth/check-email").permitAll()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(new JwtAuthenticationFilter(jwtUtil, userSessionRevocationService),
                         UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
+    }
+
+    private List<String> parseAllowedOrigins() {
+        return Arrays.stream(corsAllowedOrigins.split(","))
+                .map(String::trim)
+                .filter(origin -> !origin.isEmpty())
+                .collect(Collectors.toList());
     }
 
     private void writeSecurityError(jakarta.servlet.http.HttpServletResponse response, ErrorCode errorCode)

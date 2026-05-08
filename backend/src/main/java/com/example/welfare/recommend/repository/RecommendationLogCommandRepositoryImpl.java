@@ -27,4 +27,9 @@ public class RecommendationLogCommandRepositoryImpl implements RecommendationLog
     public Optional<RecommendationLog> findById(Long logId) {
         return recommendationLogRepository.findById(logId);
     }
+
+    @Override
+    public Optional<RecommendationLog> findByIdAndUserKey(Long logId, String userKey) {
+        return recommendationLogRepository.findByIdAndUserKey(logId, userKey);
+    }
 }

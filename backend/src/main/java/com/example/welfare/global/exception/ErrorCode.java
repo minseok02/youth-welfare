@@ -30,6 +30,7 @@ public enum ErrorCode {
     // 정책
     POLICY_NOT_FOUND(HttpStatus.NOT_FOUND, "P001", "존재하지 않는 정책입니다."),
     BOOKMARK_LIMIT_EXCEEDED(HttpStatus.BAD_REQUEST, "P002", "북마크는 최대 200건까지 저장할 수 있습니다."),
+    POLICY_RATE_LIMIT_EXCEEDED(HttpStatus.TOO_MANY_REQUESTS, "P003", "요청이 너무 많습니다. 잠시 후 다시 시도하세요."),
 
     // 추천
     RECOMMENDATION_NOT_FOUND(HttpStatus.NOT_FOUND, "R001", "추천 정보를 찾을 수 없습니다."),

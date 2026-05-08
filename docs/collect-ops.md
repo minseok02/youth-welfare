@@ -51,6 +51,16 @@
   - stored detail payload coverage 가 낮아 sidecar density가 detail raw 개수에 묶여 있을 때만 gap fill 경로를 써서 여러 라운드 backlog 를 메운다.
   - 기존 raw payload 로 sidecar를 다시 채우거나 density를 재측정할 때만 backfill 경로를 쓴다.
 
+### 5-1. 현재 복지로 detail 은 quota 제한 하의 점진 채움을 기본으로 본다
+
+- 현재 개발 계정 기준으로 복지로 detail 트래픽 한도는 `100` 수준이라, 하루 안에 전체 backlog 를 다 메우는 운영 기준을 세우지 않는다.
+- 현재 단계의 목표는:
+  - list snapshot 확보
+  - detail raw 일부 선적재
+  - 서버 오픈 전 최소 동작 검증
+- 따라서 detail coverage 부족분 자체만으로 장애 판정을 내리지 않는다.
+- 운영 계정/증설 quota 확보 뒤에야 full gap fill / refresh 를 다시 운영 작업으로 올린다.
+
 ### 6. 복지로 상세 호출 budget 은 source backlog 비율을 먼저 본다
 
 - `collectBokjiroDetailsResult(maxCalls, ...)` 는 중앙/지자체 상세 대상을 먼저 집계한 뒤, `maxCallsPerApiPerRun` cap 안에서 backlog 비율대로 budget을 나눈다.
@@ -70,6 +80,7 @@
 - 상세 수집 중 일부 429 발생
 - 일부 정책 저장 실패
 - 일부 상세 저장 실패
+- 개발 계정 quota 때문에 복지로 detail backlog 가 남아 있음
 
 ### 실제 장애로 판단
 
@@ -138,3 +149,4 @@ LIMIT 20;
 - Redis 기반 분산 락으로 멀티 인스턴스 대응
 - 429 발생 시 다음 실행 시점까지 source 단위 쿨다운
 - 소스별 마지막 성공 시각/마지막 성공 건수 대시보드화
+- 운영 계정 확보 뒤 복지로 detail quota 상향 및 gap fill / refresh 재검증

@@ -102,8 +102,8 @@ class AuthRedisIntegrationTest {
     }
 
     @Test
-    @DisplayName("이메일 중복확인은 가입 전후 상태를 반영한다")
-    void checkEmailAvailabilityReflectsSignupState() throws Exception {
+    @DisplayName("이메일 확인은 가입 전후와 무관하게 계정 존재를 노출하지 않는다")
+    void checkEmailAvailabilityDoesNotRevealSignupState() throws Exception {
         String email = TEST_EMAIL_PREFIX + UUID.randomUUID() + "@example.com";
 
         mockMvc.perform(get("/api/auth/check-email")
@@ -131,11 +131,11 @@ class AuthRedisIntegrationTest {
                         .param("email", email))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data.available").value(false));
+                .andExpect(jsonPath("$.data.available").value(true));
     }
 
     @Test
-    @DisplayName("로그인과 이메일 중복확인은 이메일 대소문자 차이를 무시한다")
+    @DisplayName("로그인은 이메일 대소문자 차이를 무시하고 이메일 확인은 계정 존재를 숨긴다")
     void loginAndEmailAvailabilityIgnoreEmailCase() throws Exception {
         String email = TEST_EMAIL_PREFIX + UUID.randomUUID() + "@example.com";
 
@@ -156,7 +156,7 @@ class AuthRedisIntegrationTest {
                         .param("email", email.toUpperCase()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data.available").value(false));
+                .andExpect(jsonPath("$.data.available").value(true));
 
         mockMvc.perform(post("/api/auth/login")
                         .contentType("application/json")
@@ -169,6 +169,62 @@ class AuthRedisIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.accessToken").isNotEmpty());
+    }
+
+    @Test
+    @DisplayName("동일 이메일 회원가입 반복 요청은 외부 응답을 일반화하고 기존 계정을 유지한다")
+    void duplicateSignupReturnsGenericSuccess() throws Exception {
+        String email = TEST_EMAIL_PREFIX + UUID.randomUUID() + "@example.com";
+
+        mockMvc.perform(post("/api/auth/signup")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "email": "%s",
+                                  "password": "password123",
+                                  "name": "First User",
+                                  "birthDate": "%s"
+                                }
+                                """.formatted(email, LocalDate.of(1998, 1, 10))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
+        mockMvc.perform(post("/api/auth/signup")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "email": "%s",
+                                  "password": "different-password123",
+                                  "name": "Second User",
+                                  "birthDate": "%s"
+                                }
+                                """.formatted(email, LocalDate.of(1999, 2, 20))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
+        assertThat(userRepository.findByEmail(email)).isPresent();
+
+        mockMvc.perform(post("/api/auth/login")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "email": "%s",
+                                  "password": "password123"
+                                }
+                                """.formatted(email)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
+        mockMvc.perform(post("/api/auth/login")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "email": "%s",
+                                  "password": "different-password123"
+                                }
+                                """.formatted(email)))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.errorCode").value("A004"));
     }
 
     @Test

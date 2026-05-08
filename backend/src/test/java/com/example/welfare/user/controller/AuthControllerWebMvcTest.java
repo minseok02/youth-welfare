@@ -45,7 +45,7 @@ class AuthControllerWebMvcTest {
     private JpaMetamodelMappingContext jpaMetamodelMappingContext;
 
     @Test
-    @DisplayName("이메일 중복확인은 인증 없이도 사용 가능 여부를 반환한다")
+    @DisplayName("이메일 확인은 인증 없이도 계정 존재를 숨긴 응답을 반환한다")
     void checkEmailAvailability() throws Exception {
         given(authAvailabilityService.checkEmailAvailability("new@example.com"))
                 .willReturn(new com.example.welfare.user.dto.response.EmailAvailabilityResponse(true));

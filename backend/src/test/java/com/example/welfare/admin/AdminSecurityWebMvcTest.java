@@ -113,6 +113,15 @@ class AdminSecurityWebMvcTest {
     }
 
     @Test
+    @DisplayName("Swagger 문서 경로는 인증 없이 호출하면 401을 반환한다")
+    void swaggerEndpointRequiresAuthentication() throws Exception {
+        mockMvc.perform(get("/v3/api-docs"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("A006"));
+    }
+
+    @Test
     @DisplayName("일반 사용자 토큰으로 관리자 API를 호출하면 403을 반환한다")
     void adminEndpointRejectsNonAdminUser() throws Exception {
         mockAuthenticatedToken("user-token", List.of(new SimpleGrantedAuthority("ROLE_USER")));

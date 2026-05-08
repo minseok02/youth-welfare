@@ -16,6 +16,7 @@ import com.example.welfare.policy.service.PolicyListService;
 import com.example.welfare.policy.service.PolicyRankingService;
 import com.example.welfare.policy.service.PolicySearchLogService;
 import com.example.welfare.policy.service.PolicySearchService;
+import com.example.welfare.policy.service.PolicyTrafficRateLimitService;
 import com.example.welfare.policy.service.PolicyViewLogService;
 import com.example.welfare.recommend.controller.RecommendationController;
 import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
@@ -80,6 +81,8 @@ class RecommendationPolicyFlowWebMvcTest {
     private PolicySearchService policySearchService;
     @MockBean
     private PolicySearchLogService policySearchLogService;
+    @MockBean
+    private PolicyTrafficRateLimitService policyTrafficRateLimitService;
     @MockBean
     private RecommendationLogService recommendationLogService;
     @MockBean
@@ -229,6 +232,35 @@ class RecommendationPolicyFlowWebMvcTest {
     }
 
     @Test
+    @DisplayName("정책 검색 rate limit 초과 시 429를 반환한다")
+    void searchReturnsTooManyRequestsWhenRateLimitExceeded() throws Exception {
+        given(clientFingerprintService.build(any())).willReturn("fp-search");
+        org.mockito.BDDMockito.willThrow(new CustomException(ErrorCode.POLICY_RATE_LIMIT_EXCEEDED))
+                .given(policyTrafficRateLimitService)
+                .checkSearchLimit("fp:fp-search");
+
+        mockMvc.perform(get("/api/policies/search")
+                        .param("keyword", "월세"))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("P003"));
+    }
+
+    @Test
+    @DisplayName("정책 상세 rate limit 초과 시 429를 반환한다")
+    void detailReturnsTooManyRequestsWhenRateLimitExceeded() throws Exception {
+        given(clientFingerprintService.build(any())).willReturn("fp-detail");
+        org.mockito.BDDMockito.willThrow(new CustomException(ErrorCode.POLICY_RATE_LIMIT_EXCEEDED))
+                .given(policyTrafficRateLimitService)
+                .checkDetailLimit("fp:fp-detail", 11L);
+
+        mockMvc.perform(get("/api/policies/{id}", 11L))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("P003"));
+    }
+
+    @Test
     @DisplayName("저장된 추천 목록 조회는 canonical summary additive field를 함께 반환한다")
     void recommendationListIncludesCanonicalSummaryFields() throws Exception {
         WelfareService service = sampleService(11L, "청년 월세 지원");
@@ -333,7 +365,7 @@ class RecommendationPolicyFlowWebMvcTest {
                 .andExpect(jsonPath("$.data.gov24BenefitTypeLabel").value("서비스"));
 
         verify(policyDetailService).getDetail(isNull(), eq(11L), eq(true));
-        verify(recommendationLogService).markClicked(9001L);
+        verify(recommendationLogService).markClicked(9001L, null);
     }
 
     @Test

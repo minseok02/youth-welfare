@@ -9,7 +9,6 @@ import {
 import HomeIcon from "@mui/icons-material/Home";
 import CloseIcon from "@mui/icons-material/Close";
 import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
-import { useAuthStore } from "../store/authStore";
 import api from "../lib/axios";
 
 const STEPS = ["기본 정보", "추천 정보", "우선순위"];
@@ -79,7 +78,6 @@ const DISTRICT_MAP = {
 
 export default function SignupPage() {
   const navigate = useNavigate();
-  const { login } = useAuthStore();
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState({ open: false, msg: "", severity: "info" });
@@ -114,7 +112,7 @@ export default function SignupPage() {
   const pwValid = pw.length >= 8 && /[a-zA-Z]/.test(pw) && /[0-9]/.test(pw);
   const pwMatch = pw === pwConfirm && pwConfirm.length > 0;
   const nameValid = nameRegex.test(name);
-  const step1Valid = nameValid && emailChecked && emailMsg.includes("가능") && pwValid && pwMatch;
+  const step1Valid = nameValid && emailChecked && pwValid && pwMatch;
   const birthDateComplete = birthYear && birthMonth && birthDay;
 
   const handleNameBlur = () => {
@@ -143,17 +141,12 @@ export default function SignupPage() {
     if (!email) return;
     if (!isValidEmail(email)) {
       setEmailFormatError("올바른 이메일 형식이 아닙니다");
+      setEmailChecked(false);
+      setEmailMsg("");
       return;
     }
-    try {
-      const { data } = await api.get(`/api/auth/check-email?email=${encodeURIComponent(email)}`);
-      const available = data?.data?.available === true;
-      setEmailMsg(available ? "✅ 사용 가능한 이메일입니다" : "❌ 이미 사용 중인 이메일입니다");
-      setEmailChecked(available);
-    } catch (err) {
-      setEmailMsg(err.response?.data?.message ?? "❌ 이메일 중복확인에 실패했습니다");
-      setEmailChecked(false);
-    }
+    setEmailChecked(true);
+    setEmailMsg("✅ 이메일 형식 확인 완료. 실제 가입 가능 여부는 가입 시 최종 확인됩니다");
   };
 
   const handleSignup = async () => {
@@ -170,28 +163,14 @@ export default function SignupPage() {
         ...(employ && { employmentStatus: employ }),
       };
       await api.post("/api/auth/signup", body);
-
-      const loginResponse = await api.post("/api/auth/login", { email, password: pw });
-      const accessToken = loginResponse?.data?.data?.accessToken;
-      if (!accessToken) {
-        throw new Error("회원가입 후 로그인 응답에 accessToken이 없습니다");
-      }
-
-      login(accessToken, { name, email });
-
-      const profileResponse = await api.get("/api/users/me");
-      const profile = profileResponse?.data?.data;
-      login(accessToken, {
-        name: profile?.name ?? name,
-        email: profile?.email ?? email,
+      navigate("/login", {
+        replace: true,
+        state: {
+          reason: "signup-complete",
+          email,
+          signupPriorities: priorities,
+        },
       });
-
-      if (priorities.length > 0) {
-        await api.put("/api/users/me/priorities", { priorityCodes: priorities });
-      }
-
-      showToast("가입 완료! 환영합니다 🎉", "success");
-      setTimeout(() => navigate("/"), 1200);
     } catch (err) {
       showToast(err.response?.data?.message ?? "회원가입 중 오류가 발생했어요", "error");
     } finally {
@@ -263,11 +242,11 @@ export default function SignupPage() {
                     fullWidth
                   />
                   <Button variant="outlined" onClick={handleCheckEmail} sx={{ minWidth: 90, whiteSpace: "nowrap" }}>
-                    중복확인
+                    형식확인
                   </Button>
                 </Box>
                 {emailMsg && (
-                  <Typography variant="caption" color={emailMsg.includes("가능") ? "success.main" : "error"} mt={0.5} display="block">
+                  <Typography variant="caption" color={emailChecked ? "success.main" : "error"} mt={0.5} display="block">
                     {emailMsg}
                   </Typography>
                 )}

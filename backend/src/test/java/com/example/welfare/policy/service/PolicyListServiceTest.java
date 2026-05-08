@@ -150,4 +150,35 @@ class PolicyListServiceTest {
         assertEquals("청년", result.getContent().get(0).getGov24UserTypeLabel());
         assertEquals("서비스", result.getContent().get(0).getGov24BenefitTypeLabel());
     }
+
+    @Test
+    @DisplayName("정책 목록 조회는 과도한 페이지 크기를 상한으로 제한한다")
+    void getListClampsOversizedPageSize() {
+        given(welfareServiceReadRepository.findList(
+                eq(new PolicyListReadCondition(null, null, null, "ACTIVE_ONLY", null, null, null, "LATEST")),
+                any(PageRequest.class)
+        )).willReturn(Page.empty());
+        given(policyPresentationReadService.buildSummaryPage(eq(null), any(Page.class)))
+                .willReturn(Page.empty());
+
+        policyListService.getList(
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                PageRequest.of(0, 10_000)
+        );
+
+        ArgumentCaptor<PageRequest> captor = ArgumentCaptor.forClass(PageRequest.class);
+        verify(welfareServiceReadRepository).findList(
+                eq(new PolicyListReadCondition(null, null, null, "ACTIVE_ONLY", null, null, null, "LATEST")),
+                captor.capture()
+        );
+        assertEquals(100, captor.getValue().getPageSize());
+    }
 }

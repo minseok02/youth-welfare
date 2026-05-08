@@ -17,6 +17,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -35,9 +36,9 @@ class PasswordResetServiceTest {
     @Mock private RedisTemplate<String, String> redisTemplate;
     @Mock private EmailClient emailClient;
     @Mock private UserCoreSyncService userCoreSyncService;
-    @Mock private AuthTokenService authTokenService;
     @Mock private ActiveUserReadService activeUserReadService;
     @Mock private UserNotificationReadService userNotificationReadService;
+    @Mock private UserSessionRevocationService userSessionRevocationService;
     @Mock private ValueOperations<String, String> valueOperations;
 
     private PasswordResetService passwordResetService;
@@ -50,11 +51,12 @@ class PasswordResetServiceTest {
                 redisTemplate,
                 emailClient,
                 userCoreSyncService,
-                authTokenService,
                 activeUserReadService,
-                userNotificationReadService
+                userNotificationReadService,
+                userSessionRevocationService
         );
         ReflectionTestUtils.setField(passwordResetService, "passwordResetExpirationMinutes", 30L);
+        ReflectionTestUtils.setField(passwordResetService, "passwordResetRequestCooldownSeconds", 60L);
         ReflectionTestUtils.setField(passwordResetService, "appBaseUrl", "http://localhost:5173");
         lenient().when(redisTemplate.opsForValue()).thenReturn(valueOperations);
     }
@@ -76,6 +78,8 @@ class PasswordResetServiceTest {
                 .thenReturn(Optional.of(authUser));
         when(activeUserReadService.findOptionalActiveUserByUserKey("user-key-7")).thenReturn(Optional.of(user));
         when(userNotificationReadService.getNotificationEmailByUserKey("user-key-7")).thenReturn("pii@example.com");
+        when(valueOperations.setIfAbsent(any(String.class), eq("1"), eq(60L), eq(TimeUnit.SECONDS)))
+                .thenReturn(true);
         when(valueOperations.get("password-reset:user:user-key-7")).thenReturn(null);
         when(emailClient.send(eq("pii@example.com"), eq("[청년복지] 비밀번호 재설정 안내"), any(String.class)))
                 .thenReturn(true);
@@ -85,6 +89,31 @@ class PasswordResetServiceTest {
         verify(valueOperations).set(eq("password-reset:user:user-key-7"), any(String.class), eq(30L), eq(java.util.concurrent.TimeUnit.MINUTES));
         verify(valueOperations).set(org.mockito.ArgumentMatchers.startsWith("password-reset:"), eq("user-key-7"), eq(30L), eq(java.util.concurrent.TimeUnit.MINUTES));
         verify(emailClient).send(eq("pii@example.com"), eq("[청년복지] 비밀번호 재설정 안내"), org.mockito.ArgumentMatchers.contains("/reset-password?token="));
+    }
+
+    @Test
+    @DisplayName("비밀번호 재설정 요청은 cooldown 동안 반복 메일을 보내지 않는다")
+    void requestPasswordResetSkipsRepeatedRequestsDuringCooldown() {
+        AuthUser authUser = AuthUser.builder()
+                .userKey("user-key-7")
+                .isActive(true)
+                .build();
+        User user = User.builder()
+                .id(7L)
+                .userKey("user-key-7")
+                .email("legacy@example.com")
+                .passwordHash("hash")
+                .build();
+        when(authIdentityReadService.findByEmail("user@example.com"))
+                .thenReturn(Optional.of(authUser));
+        when(activeUserReadService.findOptionalActiveUserByUserKey("user-key-7")).thenReturn(Optional.of(user));
+        when(valueOperations.setIfAbsent(any(String.class), eq("1"), eq(60L), eq(TimeUnit.SECONDS)))
+                .thenReturn(false);
+
+        passwordResetService.requestPasswordReset("user@example.com");
+
+        verify(emailClient, never()).send(any(), any(), any());
+        verify(valueOperations, never()).set(eq("password-reset:user:user-key-7"), any(String.class), any(Long.class), any());
     }
 
     @Test
@@ -115,6 +144,8 @@ class PasswordResetServiceTest {
         when(authIdentityReadService.findByEmail("user@example.com"))
                 .thenReturn(Optional.of(authUser));
         when(activeUserReadService.findOptionalActiveUserByUserKey("user-key-7")).thenReturn(Optional.of(user));
+        when(valueOperations.setIfAbsent(any(String.class), eq("1"), eq(60L), eq(TimeUnit.SECONDS)))
+                .thenReturn(true);
         when(userNotificationReadService.getNotificationEmailByUserKey("user-key-7"))
                 .thenThrow(new CustomException(ErrorCode.PASSWORD_RESET_EMAIL_SEND_FAILED));
 
@@ -128,7 +159,7 @@ class PasswordResetServiceTest {
     }
 
     @Test
-    @DisplayName("비밀번호 재설정 확인은 비밀번호를 바꾸고 토큰과 refresh 토큰을 폐기한다")
+    @DisplayName("비밀번호 재설정 확인은 비밀번호를 바꾸고 토큰과 사용자 세션을 폐기한다")
     void confirmPasswordResetUpdatesPasswordAndClearsTokens() {
         User user = User.builder()
                 .id(7L)
@@ -147,7 +178,7 @@ class PasswordResetServiceTest {
         verify(userCoreSyncService).syncFromUser(user);
         verify(redisTemplate).delete("password-reset:reset-token");
         verify(redisTemplate).delete("password-reset:user:user-key-7");
-        verify(authTokenService).invalidateRefreshToken("user-key-7");
+        verify(userSessionRevocationService).revokeUserSessions(eq("user-key-7"), any(Long.class));
         assertThat(user.getPasswordHash()).isEqualTo("encoded-password");
         assertThat(user.getLoginFailCount()).isZero();
     }
