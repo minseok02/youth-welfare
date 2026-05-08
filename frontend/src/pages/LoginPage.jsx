@@ -22,11 +22,18 @@ export default function LoginPage() {
 
   useEffect(() => {
     const reason = location.state?.reason;
+    const signupEmail = location.state?.email;
     if (reason === "login-required") {
       setToast({ open: true, msg: "챗봇은 로그인 후 이용 가능합니다." });
     }
     if (reason === "expired") {
       setToast({ open: true, msg: "로그인 상태가 만료되어 다시 로그인해야 합니다." });
+    }
+    if (reason === "signup-complete") {
+      setToast({ open: true, msg: "가입 요청이 처리되었습니다. 로그인하거나 비밀번호 재설정을 이용해주세요." });
+      if (typeof signupEmail === "string" && signupEmail.trim()) {
+        setEmail(signupEmail);
+      }
     }
   }, [location.state]);
 
@@ -55,6 +62,17 @@ export default function LoginPage() {
         });
       } catch {
         login(accessToken, { email });
+      }
+
+      const signupPriorities = Array.isArray(location.state?.signupPriorities)
+        ? location.state.signupPriorities
+        : [];
+      if (signupPriorities.length > 0) {
+        try {
+          await api.put("/api/users/me/priorities", { priorityCodes: signupPriorities });
+        } catch {
+          // 회원가입 직후 우선순위 저장 실패는 로그인 자체를 막지 않는다.
+        }
       }
 
       const from = location.state?.from;

@@ -98,6 +98,13 @@ collect 이후 저장되는 축은 아래입니다.
 - `0건` 은 외부 응답 품질 문제일 가능성을 먼저 봄
 - `429` 는 retry 후 현재까지 확보한 결과만 반영 가능
 
+### 4. 복지로 detail coverage 는 현재 quota 제한을 전제로 해석
+
+- 복지로 list API 는 현재 개발 계정 한도에서도 snapshot 확보가 가능한 편이다.
+- 반면 복지로 detail API 는 개발 계정 트래픽 한도(`100`) 때문에 하루 안에 full coverage 를 채우는 것을 현재 목표로 두지 않는다.
+- 따라서 detail backlog 는 현재 단계에서 “미완 수집 버그” 로 단정하지 않고, 운영 서버 오픈 전까지는 quota 제한 하의 점진 채움 상태로 본다.
+- 운영 계정/완화된 quota 확보 전에는 `bokjiro-details-gap-fill` 로 가능한 범위만 누적하고, coverage 완전성 평가는 운영 계정 전환 뒤 다시 연다.
+
 ### 4. collect 성공과 downstream 재현은 분리해서 본다
 
 - collect success
@@ -116,6 +123,7 @@ collect 이후 저장되는 축은 아래입니다.
 - 복지로 detail 일부 skip
 - `429` 발생 후 retry 또는 조기 종료
 - `0건` 반환이 한 번 발생했지만 기존 snapshot 유지
+- 복지로 detail coverage 가 quota 제한 때문에 backlog 를 남긴 채 유지
 
 ## 현재 장애로 보는 것
 
@@ -192,3 +200,4 @@ host_org에서 지역 코드를 추정하는 순서:
 3. 부분 성공과 외부 변동성은 정상 범주로 본다.
 4. 진짜 장애는 “로그 없음”, “반영 없음”, “연속 실패” 쪽이다.
 5. collect 성공과 downstream 재현은 분리해서 봐야 한다.
+6. 현재 복지로 detail coverage 부족분 일부는 코드 결함이 아니라 개발 계정 quota 제한에 따른 의도된 backlog 다.

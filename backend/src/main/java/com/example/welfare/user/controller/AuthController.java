@@ -37,7 +37,7 @@ public class AuthController {
     private final AuthSessionService authSessionService;
     private final PasswordResetService passwordResetService;
 
-    @Value("${auth.refresh.cookie-secure:false}")
+    @Value("${auth.refresh.cookie-secure:true}")
     private boolean cookieSecure;
 
     @GetMapping("/check-email")

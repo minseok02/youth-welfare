@@ -3,6 +3,7 @@ package com.example.welfare.user.service;
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.user.dto.request.SignupRequest;
+import org.springframework.dao.DataIntegrityViolationException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -22,9 +23,16 @@ public class AuthSignupService {
         authAdminRoleService.validatePublicSignupEmail(request.getEmail());
 
         if (authIdentityReadService.existsByEmail(request.getEmail())) {
-            throw new CustomException(ErrorCode.DUPLICATE_EMAIL);
+            return;
         }
 
-        userRegistrationService.register(request, passwordEncoder.encode(request.getPassword()));
+        try {
+            userRegistrationService.register(request, passwordEncoder.encode(request.getPassword()));
+        } catch (DataIntegrityViolationException e) {
+            if (authIdentityReadService.existsByEmail(request.getEmail())) {
+                return;
+            }
+            throw e;
+        }
     }
 }

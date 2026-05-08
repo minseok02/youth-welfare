@@ -12,4 +12,6 @@ public interface RecommendationLogCommandRepository {
     List<RecommendationLog> saveAll(List<RecommendationLog> logs);
 
     Optional<RecommendationLog> findById(Long logId);
+
+    Optional<RecommendationLog> findByIdAndUserKey(Long logId, String userKey);
 }

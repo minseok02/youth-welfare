@@ -3,6 +3,9 @@ spring:
     url: jdbc:mysql://127.0.0.1:3307/youth_welfare?useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=UTF-8&serverTimezone=Asia/Seoul
     username: app_core_rw
     password: welfare1234!
+    hikari:
+      maximum-pool-size: 2
+      minimum-idle: 0
   data:
     redis:
       host: 127.0.0.1
@@ -52,10 +55,16 @@ app:
       url: jdbc:mysql://127.0.0.1:3307/youth_welfare_pii?useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=UTF-8&serverTimezone=Asia/Seoul
       username: app_pii_rw
       password: welfare1234!
+      hikari:
+        maximum-pool-size: 2
+        minimum-idle: 0
     notification-pii-ro:
       url: jdbc:mysql://127.0.0.1:3307/youth_welfare_pii?useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=UTF-8&serverTimezone=Asia/Seoul
       username: notification_pii_ro
       password: welfare1234!
+      hikari:
+        maximum-pool-size: 2
+        minimum-idle: 0
 
 auth:
   refresh:

@@ -8,6 +8,7 @@ import com.example.welfare.recommend.entity.ScoreWeight;
 import com.example.welfare.recommend.entity.UserRecommendation;
 import com.example.welfare.recommend.repository.RecommendationLogCommandRepository;
 import com.example.welfare.user.entity.User;
+import com.example.welfare.user.service.UserKeyLookupService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -31,6 +32,8 @@ class RecommendationLogServiceTest {
 
     @Mock
     private RecommendationLogCommandRepository recommendationLogCommandRepository;
+    @Mock
+    private UserKeyLookupService userKeyLookupService;
 
     @InjectMocks
     private RecommendationLogService recommendationLogService;
@@ -58,12 +61,14 @@ class RecommendationLogServiceTest {
     }
 
     @Test
-    @DisplayName("markClicked는 로그를 찾아 클릭 처리한다")
+    @DisplayName("markClicked는 현재 사용자의 로그만 찾아 클릭 처리한다")
     void markClickedUpdatesLog() {
         RecommendationLog log = RecommendationLog.builder().id(100L).isClicked(false).build();
-        given(recommendationLogCommandRepository.findById(100L)).willReturn(Optional.of(log));
+        given(userKeyLookupService.findNullable(1L)).willReturn("user-key-1");
+        given(recommendationLogCommandRepository.findByIdAndUserKey(100L, "user-key-1"))
+                .willReturn(Optional.of(log));
 
-        recommendationLogService.markClicked(100L);
+        recommendationLogService.markClicked(100L, 1L);
 
         assertThat(log.isClicked()).isTrue();
     }
@@ -71,12 +76,23 @@ class RecommendationLogServiceTest {
     @Test
     @DisplayName("markClicked는 로그가 없으면 예외를 던진다")
     void markClickedThrowsWhenMissing() {
-        given(recommendationLogCommandRepository.findById(100L)).willReturn(Optional.empty());
+        given(userKeyLookupService.findNullable(1L)).willReturn("user-key-1");
+        given(recommendationLogCommandRepository.findByIdAndUserKey(100L, "user-key-1"))
+                .willReturn(Optional.empty());
 
-        assertThatThrownBy(() -> recommendationLogService.markClicked(100L))
+        assertThatThrownBy(() -> recommendationLogService.markClicked(100L, 1L))
                 .isInstanceOf(CustomException.class)
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.RECOMMENDATION_NOT_FOUND);
+    }
+
+    @Test
+    @DisplayName("markClicked는 인증 사용자가 아니면 로그를 갱신하지 않는다")
+    void markClickedSkipsAnonymousUser() {
+        recommendationLogService.markClicked(100L, null);
+
+        then(userKeyLookupService).should().findNullable(null);
+        then(recommendationLogCommandRepository).shouldHaveNoInteractions();
     }
 
     @Test

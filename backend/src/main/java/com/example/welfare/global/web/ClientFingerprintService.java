@@ -11,10 +11,7 @@ import java.security.NoSuchAlgorithmException;
 public class ClientFingerprintService {
 
     public String build(HttpServletRequest request) {
-        String forwardedFor = request.getHeader("X-Forwarded-For");
-        String ip = (forwardedFor != null && !forwardedFor.isBlank())
-                ? forwardedFor.split(",")[0].trim()
-                : request.getRemoteAddr();
+        String ip = request.getRemoteAddr();
         String userAgent = request.getHeader("User-Agent");
         return sha256((ip == null ? "" : ip) + "|" + (userAgent == null ? "" : userAgent));
     }

@@ -24,6 +24,7 @@ public class PasswordResetService {
 
     private static final String PASSWORD_RESET_TOKEN_PREFIX = "password-reset:";
     private static final String PASSWORD_RESET_USER_PREFIX = "password-reset:user:";
+    private static final String PASSWORD_RESET_REQUEST_COOLDOWN_PREFIX = "password-reset:cooldown:";
     private static final String PASSWORD_RESET_SUBJECT = "[청년복지] 비밀번호 재설정 안내";
 
     private final AuthIdentityReadService authIdentityReadService;
@@ -31,12 +32,15 @@ public class PasswordResetService {
     private final RedisTemplate<String, String> redisTemplate;
     private final EmailClient emailClient;
     private final UserCoreSyncService userCoreSyncService;
-    private final AuthTokenService authTokenService;
     private final ActiveUserReadService activeUserReadService;
     private final UserNotificationReadService userNotificationReadService;
+    private final UserSessionRevocationService userSessionRevocationService;
 
     @Value("${auth.password-reset.expiration-minutes:30}")
     private long passwordResetExpirationMinutes;
+
+    @Value("${auth.password-reset.request-cooldown-seconds:60}")
+    private long passwordResetRequestCooldownSeconds;
 
     @Value("${app.base-url:http://localhost:5173}")
     private String appBaseUrl;
@@ -48,6 +52,10 @@ public class PasswordResetService {
                 .flatMap(authUser -> activeUserReadService.findOptionalActiveUserByUserKey(authUser.getUserKey())
                         .map(user -> authUser.getUserKey()))
                 .ifPresent(userKey -> {
+                    if (!acquireResetRequestCooldown(email)) {
+                        return;
+                    }
+
                     String recipientEmail = userNotificationReadService.getNotificationEmailByUserKey(userKey);
                     String token = UUID.randomUUID().toString();
                     savePasswordResetToken(userKey, token);
@@ -59,6 +67,7 @@ public class PasswordResetService {
                     );
                     if (!sent) {
                         clearPasswordResetToken(userKey, token);
+                        clearResetRequestCooldown(email);
                         throw new CustomException(ErrorCode.PASSWORD_RESET_EMAIL_SEND_FAILED);
                     }
                 });
@@ -88,7 +97,7 @@ public class PasswordResetService {
         user.resetLoginFail();
         userCoreSyncService.syncFromUser(user);
         clearPasswordResetToken(userKey, resetToken);
-        authTokenService.invalidateRefreshToken(userKey);
+        userSessionRevocationService.revokeUserSessions(userKey, System.currentTimeMillis());
     }
 
     private void savePasswordResetToken(String userKey, String token) {
@@ -135,5 +144,23 @@ public class PasswordResetService {
 
     private String passwordResetUserKey(String userKey) {
         return PASSWORD_RESET_USER_PREFIX + userKey;
+    }
+
+    private boolean acquireResetRequestCooldown(String email) {
+        Boolean acquired = redisTemplate.opsForValue().setIfAbsent(
+                passwordResetRequestCooldownKey(email),
+                "1",
+                passwordResetRequestCooldownSeconds,
+                TimeUnit.SECONDS
+        );
+        return Boolean.TRUE.equals(acquired);
+    }
+
+    private void clearResetRequestCooldown(String email) {
+        redisTemplate.delete(passwordResetRequestCooldownKey(email));
+    }
+
+    private String passwordResetRequestCooldownKey(String email) {
+        return PASSWORD_RESET_REQUEST_COOLDOWN_PREFIX + EmailLookupKeyGenerator.hash(email);
     }
 }

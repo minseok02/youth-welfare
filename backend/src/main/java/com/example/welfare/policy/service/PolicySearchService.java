@@ -24,6 +24,8 @@ public class PolicySearchService {
 
     private static final int DEFAULT_SEARCH_LIMIT = 20;
     private static final int MAX_SEARCH_LIMIT = 100;
+    private static final int MAX_KEYWORD_LENGTH = 100;
+    private static final int MAX_KEYWORD_TOKENS = 10;
     private static final long SEARCH_WARN_DURATION_MS = 500L;
 
     private final WelfareServiceReadRepository welfareServiceReadRepository;
@@ -49,9 +51,9 @@ public class PolicySearchService {
                                        int size) {
         long startedAt = System.nanoTime();
 
+        String normalizedKeyword = normalizeKeyword(keyword);
         // MySQL FULLTEXT 검색 (ngram 파서)
-        // keyword는 Controller에서 trim 처리 후 전달됨
-        String ftKeyword = buildFulltextKeyword(keyword);
+        String ftKeyword = buildFulltextKeyword(normalizedKeyword);
         int limit = normalizeSize(size);
         int pageNumber = Math.max(0, page);
         String normalizedStatus = normalizeStatus(status);
@@ -94,7 +96,7 @@ public class PolicySearchService {
 
         logSearchObservation(
                 response,
-                keyword,
+                normalizedKeyword,
                 normalizedStatus,
                 normalizedStatusFilter,
                 normalizedCategory,
@@ -158,6 +160,21 @@ public class PolicySearchService {
             }
         }
         return sb.toString().trim();
+    }
+
+    private String normalizeKeyword(String keyword) {
+        if (keyword == null) {
+            throw new CustomException(ErrorCode.INVALID_INPUT);
+        }
+        String trimmed = keyword.trim();
+        if (trimmed.isEmpty() || trimmed.length() > MAX_KEYWORD_LENGTH) {
+            throw new CustomException(ErrorCode.INVALID_INPUT);
+        }
+        int tokenCount = trimmed.split("\\s+").length;
+        if (tokenCount > MAX_KEYWORD_TOKENS) {
+            throw new CustomException(ErrorCode.INVALID_INPUT);
+        }
+        return trimmed;
     }
 
     private int normalizeSize(int size) {

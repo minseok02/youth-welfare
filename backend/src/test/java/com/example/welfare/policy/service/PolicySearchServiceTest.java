@@ -1,5 +1,7 @@
 package com.example.welfare.policy.service;
 
+import com.example.welfare.global.exception.CustomException;
+import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.policy.dto.PolicySearchResponse;
 import com.example.welfare.policy.dto.PolicySummaryResponse;
 import com.example.welfare.policy.entity.WelfareService;
@@ -17,6 +19,7 @@ import org.springframework.data.domain.PageRequest;
 
 import java.util.List;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -162,6 +165,38 @@ class PolicySearchServiceTest {
                 )),
                 any(PageRequest.class)
         );
+    }
+
+    @Test
+    @DisplayName("검색은 과도하게 긴 키워드를 거부한다")
+    void searchRejectsTooLongKeyword() {
+        PolicySearchService service = new PolicySearchService(
+                welfareServiceReadRepository,
+                policyPresentationReadService
+        );
+
+        String longKeyword = "a".repeat(101);
+
+        assertThatThrownBy(() -> service.search(null, longKeyword, null, null, null, null, null, null, null, null, 0, 10))
+                .isInstanceOf(CustomException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.INVALID_INPUT);
+    }
+
+    @Test
+    @DisplayName("검색은 과도하게 많은 토큰을 거부한다")
+    void searchRejectsTooManyTokens() {
+        PolicySearchService service = new PolicySearchService(
+                welfareServiceReadRepository,
+                policyPresentationReadService
+        );
+
+        String manyTokens = "a b c d e f g h i j k";
+
+        assertThatThrownBy(() -> service.search(null, manyTokens, null, null, null, null, null, null, null, null, 0, 10))
+                .isInstanceOf(CustomException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.INVALID_INPUT);
     }
 
     private WelfareService welfareService(Long id, String title) {

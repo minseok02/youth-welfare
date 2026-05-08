@@ -9,6 +9,7 @@ import com.example.welfare.policy.repository.WelfareServiceReadRepository;
 import com.example.welfare.policy.support.WelfareSourceTypeSupport;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,6 +17,9 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 public class PolicyListService {
+
+    private static final int DEFAULT_PAGE_SIZE = 20;
+    private static final int MAX_PAGE_SIZE = 100;
 
     private final WelfareServiceReadRepository welfareServiceReadRepository;
     private final PolicyPresentationReadService policyPresentationReadService;
@@ -43,7 +47,7 @@ public class PolicyListService {
                         onlineApply,
                         normalizeSort(sort)
                 ),
-                pageable
+                normalizePageable(pageable)
         );
 
         return policyPresentationReadService.buildSummaryPage(userId, page);
@@ -96,5 +100,12 @@ public class PolicyListService {
         if (value == null) return null;
         String trimmed = value.trim();
         return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private Pageable normalizePageable(Pageable pageable) {
+        int pageNumber = pageable == null ? 0 : Math.max(0, pageable.getPageNumber());
+        int requestedSize = pageable == null ? DEFAULT_PAGE_SIZE : pageable.getPageSize();
+        int pageSize = requestedSize <= 0 ? DEFAULT_PAGE_SIZE : Math.min(requestedSize, MAX_PAGE_SIZE);
+        return PageRequest.of(pageNumber, pageSize);
     }
 }
