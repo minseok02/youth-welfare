@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 
-# ARM Graviton2 (t4g.large) 호환 멀티스테이지 빌드
+# x86_64 기본 배포 기준 멀티스테이지 빌드
 FROM eclipse-temurin:17-jdk-jammy AS build
 WORKDIR /app
 
