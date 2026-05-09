@@ -1,0 +1,40 @@
+server:
+  forward-headers-strategy: framework
+
+spring:
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration
+
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+
+  jpa:
+    open-in-view: false
+
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT}
+
+  mail:
+    username: ${GMAIL_USERNAME}
+    password: ${GMAIL_PASSWORD}
+
+app:
+  base-url: ${APP_BASE_URL}
+  datasource:
+    pii-rw:
+      url: ${APP_PII_DB_URL}
+      username: ${DB_APP_PII_USERNAME}
+      password: ${DB_APP_PII_PASSWORD}
+    notification-pii-ro:
+      url: ${NOTIFICATION_PII_DB_URL}
+      username: ${DB_NOTIFICATION_PII_RO_USERNAME}
+      password: ${DB_NOTIFICATION_PII_RO_PASSWORD}
+
+security:
+  cors:
+    allowed-origins: ${SECURITY_CORS_ALLOWED_ORIGINS}

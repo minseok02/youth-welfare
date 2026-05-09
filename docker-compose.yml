@@ -5,7 +5,7 @@ services:
       dockerfile: Dockerfile
     container_name: youth-welfare-app
     ports:
-      - "8082:8080"
+      - "127.0.0.1:8082:8080"
     env_file:
       - .env
     environment:
@@ -29,7 +29,7 @@ services:
       SECURITY_ADMIN_EMAILS: ${SECURITY_ADMIN_EMAILS:-}
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      APP_BASE_URL: ${APP_BASE_URL:-https://youth-welfare.kr}
+      APP_BASE_URL: ${APP_BASE_URL:-https://youthmoa.kr}
     depends_on:
       db:
         condition: service_healthy
@@ -41,7 +41,7 @@ services:
     image: redis:7-alpine
     container_name: youth-welfare-redis
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -53,7 +53,7 @@ services:
     image: mysql:8.0
     container_name: youth-welfare-db
     ports:
-      - "3307:3306"
+      - "127.0.0.1:3307:3306"
     environment:
       MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
       MYSQL_DATABASE: youth_welfare

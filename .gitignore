@@ -65,6 +65,7 @@ release.properties
 # Spring Boot
 application-local.yml
 application-prod.yml
+!backend/src/main/resources/application-prod.yml
 
 # 환경변수 (API 키 절대 커밋 금지)
 .env
