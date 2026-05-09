@@ -1,5 +1,6 @@
 # 구현 현황
 
+- 2026-05-09: 운영 서버 기본 권장안을 ARM `t4g` 계열에서 x86_64 `t3` 계열 기준으로 다시 정리했다. active 문서(`architecture`, `demo-scenario`, `srs-v2.10`)의 최소 사양/데모 인프라 표기를 `t3.medium` 기준으로 맞추고 Dockerfile 주석도 x86 기본 배포 기준으로 교정했다.
 - 2026-05-05: 복지로 collect 운영 기준을 다시 정리했다. 현재 개발 계정으로는 복지로 list snapshot 은 계속 확보할 수 있지만, detail API 는 트래픽 한도(`100`) 때문에 하루 안에 full coverage 를 채우는 것을 목표로 두지 않는다. 서버 오픈 전까지는 `bokjiro-details-gap-fill` 로 가능한 범위만 점진 채움하고, 운영 계정/완화된 quota 확보 뒤에 full gap fill / refresh 를 다시 연다.
 - 2026-05-05: `run-local-education-priority-replay.sh` 의 `rule-only-invalid-key` 모드가 실제로는 OpenAI 응답을 계속 받아 sample B control 해석을 오염시키던 문제를 정리했다. `RealtimeAiGateway` 에 `recommend.ai.force-rule-only` 우회 스위치를 추가하고 replay script가 rule-only 모드에서 이를 강제로 켜게 바꿔, 이제 bootrun trace에도 `responseId=none / resultsCount=0` 이 찍히는 진짜 rule-only replay만 수행한다.
 - 2026-05-05: 위 보정 뒤 replay를 다시 실행해 sample A는 `A_top10_target=5->8`, `A_best_target_rank=3->1` 로 개선되고 sample B는 `B_top10_target=2->2`, `B_best_target_rank=8->8` 로 고정되는 것을 확인했다. artifact는 `/tmp/tmp.nmd9dtZnkf` 에 남겼다.
