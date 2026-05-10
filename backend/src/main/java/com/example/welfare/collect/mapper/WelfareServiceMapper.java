@@ -47,6 +47,7 @@ public class WelfareServiceMapper {
         // aplyYmd: "20260101 ~ 20261231" 형식에서 시작/종료일 파싱
         LocalDate applyStart = parseApplyStartFromRange(item.getAplyYmd());
         LocalDate applyEnd   = parseApplyEndFromRange(item.getAplyYmd());
+        String detailUrl = firstNormalizedUrl(item.getAplyUrlAddr(), item.getRefUrlAddr1(), item.getRefUrlAddr2());
         boolean onlineApply = inferOnlineApply(item.getAplyUrlAddr(), item.getPlcyAplyMthdCn(), item.getAplyYmd());
 
         return WelfareService.builder()
@@ -71,7 +72,7 @@ public class WelfareServiceMapper {
                 .applyEndDate(applyEnd)
                 .applyMethodName(RawFieldValidator.normalize(item.getPlcyAplyMthdCn()))
                 .isOnlineApply(onlineApply)
-                .detailUrl(RawFieldValidator.normalize(item.getAplyUrlAddr()))
+                .detailUrl(detailUrl)
                 .apiViewCount(item.getInqCnt())
                 .registeredAt(parseDateTimeLoose(item.getFrstRegDt()))
                 .lastModifiedAt(parseDateTimeLoose(item.getLastMdfcnDt()))
@@ -442,6 +443,23 @@ public class WelfareServiceMapper {
             if (normalized != null) {
                 return normalized;
             }
+        }
+        return null;
+    }
+
+    private String firstNormalizedUrl(String... values) {
+        if (values == null) {
+            return null;
+        }
+        for (String value : values) {
+            String normalized = RawFieldValidator.normalize(value);
+            if (normalized == null) {
+                continue;
+            }
+            if (normalized.regionMatches(true, 0, "www.", 0, 4)) {
+                return "https://" + normalized;
+            }
+            return normalized;
         }
         return null;
     }

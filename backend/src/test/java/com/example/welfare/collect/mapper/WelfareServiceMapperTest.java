@@ -4,6 +4,7 @@ import com.example.welfare.collect.dto.BokjiroCentralDto;
 import com.example.welfare.collect.dto.BokjiroLocalDto;
 import com.example.welfare.collect.dto.YouthApiDto;
 import com.example.welfare.policy.entity.WelfareService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Field;
@@ -28,6 +29,91 @@ class WelfareServiceMapperTest {
         WelfareService service = mapper.fromYouth(item);
 
         assertThat(service.getIsOnlineApply()).isTrue();
+    }
+
+    @Test
+    void fromYouth_prefersApplyUrlOverReferenceUrls() throws Exception {
+        YouthApiDto.Item item = new YouthApiDto.Item();
+        setField(item, "plcyNo", "Y002");
+        setField(item, "plcyNm", "청년 센터 운영");
+        setField(item, "lclsfNm", "참여권리");
+        setField(item, "aplyUrlAddr", "https://apply.example.com");
+        setField(item, "refUrlAddr1", "https://reference-one.example.com");
+        setField(item, "refUrlAddr2", "https://reference-two.example.com");
+
+        WelfareService service = mapper.fromYouth(item);
+
+        assertThat(service.getDetailUrl()).isEqualTo("https://apply.example.com");
+    }
+
+    @Test
+    void fromYouth_fallsBackToFirstReferenceUrlWhenApplyUrlMissing() throws Exception {
+        YouthApiDto.Item item = new YouthApiDto.Item();
+        setField(item, "plcyNo", "Y003");
+        setField(item, "plcyNm", "청년 센터 운영");
+        setField(item, "lclsfNm", "참여권리");
+        setField(item, "aplyUrlAddr", " ");
+        setField(item, "refUrlAddr1", "https://reference-one.example.com");
+        setField(item, "refUrlAddr2", "https://reference-two.example.com");
+
+        WelfareService service = mapper.fromYouth(item);
+
+        assertThat(service.getDetailUrl()).isEqualTo("https://reference-one.example.com");
+    }
+
+    @Test
+    void fromYouth_fallsBackToSecondReferenceUrlWhenHigherPriorityUrlsMissing() throws Exception {
+        YouthApiDto.Item item = new YouthApiDto.Item();
+        setField(item, "plcyNo", "Y004");
+        setField(item, "plcyNm", "청년 센터 운영");
+        setField(item, "lclsfNm", "참여권리");
+        setField(item, "aplyUrlAddr", null);
+        setField(item, "refUrlAddr1", " ");
+        setField(item, "refUrlAddr2", "https://reference-two.example.com");
+
+        WelfareService service = mapper.fromYouth(item);
+
+        assertThat(service.getDetailUrl()).isEqualTo("https://reference-two.example.com");
+    }
+
+    @Test
+    void fromYouth_prefixesHttpsWhenReferenceUrlStartsWithWww() throws Exception {
+        YouthApiDto.Item item = new YouthApiDto.Item();
+        setField(item, "plcyNo", "Y005");
+        setField(item, "plcyNm", "청년 취업 정보");
+        setField(item, "lclsfNm", "일자리");
+        setField(item, "refUrlAddr1", "www.work.go.kr");
+
+        WelfareService service = mapper.fromYouth(item);
+
+        assertThat(service.getDetailUrl()).isEqualTo("https://www.work.go.kr");
+    }
+
+    @Test
+    void youthDto_deserializesReferenceUrls() throws Exception {
+        ObjectMapper objectMapper = new ObjectMapper();
+
+        YouthApiDto dto = objectMapper.readValue("""
+                {
+                  "result": {
+                    "youthPolicyList": [
+                      {
+                        "plcyNo": "Y006",
+                        "plcyNm": "청년 정책",
+                        "refUrlAddr1": "https://reference-one.example.com",
+                        "refUrlAddr2": "https://reference-two.example.com"
+                      }
+                    ],
+                    "pagging": {
+                      "totCount": 1
+                    }
+                  }
+                }
+                """, YouthApiDto.class);
+
+        YouthApiDto.Item item = dto.getResult().getYouthPolicyList().get(0);
+        assertThat(item.getRefUrlAddr1()).isEqualTo("https://reference-one.example.com");
+        assertThat(item.getRefUrlAddr2()).isEqualTo("https://reference-two.example.com");
     }
 
     @Test

@@ -1,6 +1,7 @@
 package com.example.welfare.collect.service;
 
 import com.example.welfare.collect.dto.BokjiroCentralDto;
+import com.example.welfare.collect.dto.YouthApiDto;
 import com.example.welfare.collect.mapper.WelfareServiceMapper;
 import com.example.welfare.collect.repository.RawApiPayloadCommandRepository;
 import com.example.welfare.collect.support.ListCollectSourceBinding;
@@ -22,6 +23,7 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verify;
@@ -107,6 +109,31 @@ class RawApiPayloadServiceTest {
                 any(String.class),
                 any(java.time.LocalDateTime.class)
         );
+    }
+
+    @Test
+    void saveYouthListPreservesReferenceUrlsInRawPayload() {
+        YouthApiDto.Item item = new YouthApiDto.Item();
+        ListCollectSourceBinding<YouthApiDto.Item> binding = ListCollectSourceBindings.youth(welfareServiceMapper);
+        ReflectionTestUtils.setField(item, "plcyNo", "Y-RAW-1");
+        ReflectionTestUtils.setField(item, "plcyNm", "청년 센터 운영");
+        ReflectionTestUtils.setField(item, "refUrlAddr1", "https://reference-one.example.com");
+        ReflectionTestUtils.setField(item, "refUrlAddr2", "https://reference-two.example.com");
+
+        boolean saved = rawApiPayloadService.saveList(binding, item);
+
+        assertThat(saved).isTrue();
+        org.mockito.ArgumentCaptor<String> payloadJsonCaptor = org.mockito.ArgumentCaptor.forClass(String.class);
+        verify(rawApiPayloadCommandRepository).upsert(
+                eq(WelfareService.SourceType.YOUTH),
+                eq("Y-RAW-1"),
+                eq(com.example.welfare.collect.entity.RawApiPayload.ApiCategory.LIST),
+                payloadJsonCaptor.capture(),
+                any(String.class),
+                any(java.time.LocalDateTime.class)
+        );
+        assertThat(payloadJsonCaptor.getValue()).contains("\"refUrlAddr1\":\"https://reference-one.example.com\"");
+        assertThat(payloadJsonCaptor.getValue()).contains("\"refUrlAddr2\":\"https://reference-two.example.com\"");
     }
 
     @Test

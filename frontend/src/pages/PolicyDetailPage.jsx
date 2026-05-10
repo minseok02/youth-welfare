@@ -412,7 +412,7 @@ export default function PolicyDetailPage() {
           onClick={() => policy?.detailUrl && window.open(policy.detailUrl, "_blank")}
           sx={{ flex: 1, maxWidth: 200 }}
         >
-          {policy?.detailUrl ? "원문 보러가기" : "원문 링크 없음"}
+          {policy?.detailUrl ? "관련 사이트 보기" : "링크 없음"}
         </Button>
       </Box>
 
