@@ -102,6 +102,7 @@ bokjiro:
 collect:
   list:
     request-interval-ms: 300
+    max-items-per-run: ${COLLECT_LIST_MAX_ITEMS_PER_RUN:10000}
     max-consecutive-rate-limit-hits: 3
     rate-limit-cooldown-ms: 10000
     local-rate-limit-open-circuit-ms: 1800000
@@ -109,10 +110,12 @@ collect:
       max-attempts: 3
       base-backoff-ms: 1000
   detail:
-    max-calls-per-run: 900  # 트래픽 제한 1,000 가정 시 여유값
-    max-calls-per-api-per-run: 95  # API 기능별 일일 100 제한 기준(여유 5)
-    request-interval-ms: 1000
-    max-consecutive-rate-limit-hits: 1
+    central:
+      max-calls-per-run: ${COLLECT_DETAIL_CENTRAL_MAX_CALLS_PER_RUN:10000}  # 복지로 중앙 detail 1회 실행 안전 상한
+    local:
+      max-calls-per-run: ${COLLECT_DETAIL_LOCAL_MAX_CALLS_PER_RUN:10000}  # 복지로 지자체 detail 1회 실행 안전 상한
+    request-interval-ms: ${COLLECT_DETAIL_REQUEST_INTERVAL_MS:300}
+    max-consecutive-rate-limit-hits: ${COLLECT_DETAIL_MAX_CONSECUTIVE_RATE_LIMIT_HITS:2}
     retry:
       max-attempts: 3
       base-backoff-ms: 1500

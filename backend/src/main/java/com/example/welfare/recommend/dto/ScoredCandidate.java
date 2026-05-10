@@ -26,6 +26,12 @@ public class ScoredCandidate {
 
     private final boolean aiFallback; // true = AI 없이 rule만 사용
 
+    private final boolean hasInterestMismatch; // true = 관심분야 불일치 페널티 적용됨
+
+    private final boolean hasPriorityMismatch; // true = 우선순위 버킷 불일치 페널티 적용됨
+
+    private final Integer matchedPriorityRank; // null = 카테고리 우선순위 매칭 없음
+
     private final boolean hasSpecialTargetMismatch; // true = 특수 대상 불일치 페널티 적용됨
 
     public ScoredCandidate withAiResult(Double updatedAiScore, String updatedAiReason) {

@@ -81,7 +81,7 @@ public class CollectAdminController {
     @PostMapping("/bokjiro-details-gap-fill")
     public ResponseEntity<ApiResponse<DetailGapFillResponse>> fillBokjiroDetailGaps(
             @RequestParam(defaultValue = "1") int rounds,
-            @RequestParam(defaultValue = "190") int maxCallsPerRound
+            @RequestParam(defaultValue = "10000") int maxCallsPerRound
     ) {
         if (rounds <= 0 || maxCallsPerRound <= 0) {
             throw new CustomException(ErrorCode.INVALID_INPUT);

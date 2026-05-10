@@ -23,7 +23,7 @@
 
 - 복지로 목록 수집은 `429 Too Many Requests`가 발생하면 짧은 backoff로 최대 3회 재시도한다.
 - 재시도 후에도 계속 429이면 해당 실행은 현재까지 확보한 결과까지만 반영하고 종료한다.
-- 상세 수집도 429를 감지하면 즉시 폭주하지 않고 중단 조건에 따라 종료한다.
+- 상세 수집은 기본 `300ms` pacing 으로 호출하고, 연속 `429` `2회`를 넘기면 해당 source를 중단 조건으로 처리한다.
 
 ### 3. 수집 결과가 0건이면 기존 적재 데이터 유지
 
@@ -43,7 +43,7 @@
 
 - `/api/admin/collect/bokjiro-details` 는 detail row가 없는 정책 위주로 채우는 기본 경로다.
 - `/api/admin/collect/bokjiro-details-refresh` 는 기존 detail row가 있어도 다시 fetch/merge 하는 refresh 전용 수동 경로다.
-- `/api/admin/collect/bokjiro-details-gap-fill` 는 기본 detail 경로를 여러 라운드로 반복 호출해, `95/API` cap은 유지하면서 missing detail backlog 를 점진적으로 더 채우는 coverage 확장 전용 수동 경로다.
+- `/api/admin/collect/bokjiro-details-gap-fill` 는 기본 detail 경로를 여러 라운드로 반복 호출해, 현재 운영 기본값 기준 `중앙 detail round당 10,000 calls + 지자체 detail round당 10,000 calls` 안전 상한 안에서 missing detail backlog 를 더 채우는 coverage 확장 전용 수동 경로다.
 - `/api/admin/collect/bokjiro-sidecars-backfill` 는 외부 API를 다시 호출하지 않고, 이미 저장된 `raw_api_payloads` 를 canonical sidecar(`service_taxonomies`, `service_taxonomy_terms`, `service_facts`) 로 재적재하는 replay 전용 경로다.
 - 운영 해석:
   - 일반 배치는 기본 경로를 유지해 호출량을 억제한다.
@@ -51,24 +51,28 @@
   - stored detail payload coverage 가 낮아 sidecar density가 detail raw 개수에 묶여 있을 때만 gap fill 경로를 써서 여러 라운드 backlog 를 메운다.
   - 기존 raw payload 로 sidecar를 다시 채우거나 density를 재측정할 때만 backfill 경로를 쓴다.
 
-### 5-1. 현재 복지로 detail 은 quota 제한 하의 점진 채움을 기본으로 본다
+### 5-1. 현재 복지로는 4개 독립 quota 기준으로 coverage 확장을 다시 기본 작업으로 본다
 
-- 현재 개발 계정 기준으로 복지로 detail 트래픽 한도는 `100` 수준이라, 하루 안에 전체 backlog 를 다 메우는 운영 기준을 세우지 않는다.
-- 현재 단계의 목표는:
-  - list snapshot 확보
-  - detail raw 일부 선적재
-  - 서버 오픈 전 최소 동작 검증
-- 따라서 detail coverage 부족분 자체만으로 장애 판정을 내리지 않는다.
-- 운영 계정/증설 quota 확보 뒤에야 full gap fill / refresh 를 다시 운영 작업으로 올린다.
+- 2026-05-10 기준 복지로 운영 계정을 확보했고, `중앙 list`, `중앙 detail`, `지자체 list`, `지자체 detail` 이 각각 일일 `100,000` quota를 사용한다.
+- 기본 수집 안전 상한은 현재 코드 기본값 기준:
+  - 중앙 list `1회 10,000 items`
+  - 지자체 list `1회 10,000 items`
+  - 중앙 detail `1회 10,000 calls`
+  - 지자체 detail `1회 10,000 calls`
+- 따라서 detail coverage 부족분은 더 이상 개발 계정 quota만으로 설명하지 않고, backlog drain 속도와 저장 품질을 함께 본다.
+- 운영 해석:
+  - 기본 수집은 missing detail backlog 를 빠르게 줄이는 경로다.
+  - refresh 는 기존 row 재동기화가 필요할 때 다시 연다.
+  - gap fill 은 남은 backlog 를 라운드 단위로 밀어내는 coverage 확장 경로다.
 
-### 6. 복지로 상세 호출 budget 은 source backlog 비율을 먼저 본다
+### 6. 복지로 상세 호출 budget 은 source별로 독립 cap 을 가진다
 
-- `collectBokjiroDetailsResult(maxCalls, ...)` 는 중앙/지자체 상세 대상을 먼저 집계한 뒤, `maxCallsPerApiPerRun` cap 안에서 backlog 비율대로 budget을 나눈다.
-- 한쪽 source에 target이 없으면 남은 source가 전체 budget을 가져간다.
-- low `maxCalls` 에서도 중앙 source를 무조건 먼저 소진하지 않는다.
+- `collectBokjiroDetailsResult()` 는 중앙/지자체 상세를 shared pool로 나누지 않고, source별 독립 상한으로 돈다.
+- 현재 코드 기본값은 `중앙 detail 10,000 calls`, `지자체 detail 10,000 calls` 이다.
+- `collectBokjiroDetailsResult(maxCalls)` / `collectBokjiroDetailGapFillResult(rounds, maxCallsPerRound)` 의 `maxCalls*` 값도 total budget이 아니라 source별 override 로 해석한다.
 - 이유:
-  - canonical sidecar merge/backfill 검증은 local source만 따로 태우는 경우가 많다.
-  - 중앙에 target이 있거나 개수가 적어도, local backlog가 더 크면 local path가 0 budget으로 굳지 않도록 해야 한다.
+  - 공공데이터포털 운영 계정 quota가 `중앙 detail` 과 `지자체 detail` 에서 서로 독립이기 때문이다.
+  - one source backlog가 커도 다른 source quota를 같이 깎아 먹지 않게 해야 한다.
 
 ---
 
@@ -80,7 +84,7 @@
 - 상세 수집 중 일부 429 발생
 - 일부 정책 저장 실패
 - 일부 상세 저장 실패
-- 개발 계정 quota 때문에 복지로 detail backlog 가 남아 있음
+- 운영 계정 quota 상향 뒤에도 복지로 detail backlog 가 비정상적으로 줄지 않음
 
 ### 실제 장애로 판단
 
@@ -149,4 +153,4 @@ LIMIT 20;
 - Redis 기반 분산 락으로 멀티 인스턴스 대응
 - 429 발생 시 다음 실행 시점까지 source 단위 쿨다운
 - 소스별 마지막 성공 시각/마지막 성공 건수 대시보드화
-- 운영 계정 확보 뒤 복지로 detail quota 상향 및 gap fill / refresh 재검증
+- 운영 계정 quota(`중앙/지자체 각각 100,000`) 기준 복지로 detail gap fill / refresh 실표본 재검증

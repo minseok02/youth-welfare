@@ -39,14 +39,19 @@ public class ReRankingService {
 
                     if (candidate.getAiScore() != null) {
                         double normAi = normalizer.normalize(candidate.getAiScore(), 0.0, 100.0);
-                        finalScore = normRule * weight.getRuleWeight().doubleValue()
-                                + normAi * weight.getAiWeight().doubleValue();
+                        double adjustedAiWeight = adjustedAiWeight(weight, candidate);
+                        double adjustedRuleWeight = weight.getRuleWeight().doubleValue()
+                                + (weight.getAiWeight().doubleValue() - adjustedAiWeight);
+                        finalScore = normRule * adjustedRuleWeight
+                                + normAi * adjustedAiWeight;
                         fallback = false;
                     } else {
                         // ai_score NULL → rule만 사용
                         finalScore = normRule;
                         fallback = true;
                     }
+
+                    finalScore = finalScore * priorityRankAdjustmentMultiplier(candidate);
 
                     return candidate.withFinalScore(finalScore, fallback);
                 })
@@ -56,6 +61,38 @@ public class ReRankingService {
 
     public ScoreWeight getCurrentWeight() {
         return scoreWeightService.getActiveWeight();
+    }
+
+    private double adjustedAiWeight(ScoreWeight weight, ScoredCandidate candidate) {
+        double multiplier = aiWeightTrustMultiplier(candidate);
+        return weight.getAiWeight().doubleValue() * multiplier;
+    }
+
+    private double aiWeightTrustMultiplier(ScoredCandidate candidate) {
+        if (candidate.isHasPriorityMismatch() && candidate.isHasInterestMismatch()) {
+            return 0.2;
+        }
+        if (candidate.isHasPriorityMismatch()) {
+            return 0.35;
+        }
+        if (candidate.isHasInterestMismatch()) {
+            return 0.6;
+        }
+        return 1.0;
+    }
+
+    private double priorityRankAdjustmentMultiplier(ScoredCandidate candidate) {
+        Integer rank = candidate.getMatchedPriorityRank();
+        if (rank == null) {
+            return 1.0;
+        }
+        return switch (rank) {
+            case 1 -> 1.12;
+            case 2 -> 0.72;
+            case 3 -> 0.58;
+            case 4 -> 0.50;
+            default -> 0.45;
+        };
     }
 
     private Comparator<ScoredCandidate> recommendationComparator() {

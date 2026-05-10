@@ -184,7 +184,8 @@ class BokjiroSidecarMergeIntegrationTest {
                     welfareServiceMapper,
                     aggregateApplyService
             );
-            ReflectionTestUtils.setField(detailCollectService, "maxCallsPerApiPerRun", 1);
+            ReflectionTestUtils.setField(detailCollectService, "centralMaxCallsPerRun", 1);
+            ReflectionTestUtils.setField(detailCollectService, "localMaxCallsPerRun", 1);
             ReflectionTestUtils.setField(detailCollectService, "requestIntervalMs", 0L);
             ReflectionTestUtils.setField(detailCollectService, "retryMaxAttempts", 1);
             ReflectionTestUtils.setField(detailCollectService, "retryBaseBackoffMs", 0L);

@@ -40,6 +40,8 @@ public class BokjiroCentralClient {
     private int maxConsecutiveRateLimitHits;
     @Value("${collect.list.rate-limit-cooldown-ms:10000}")
     private long rateLimitCooldownMs;
+    @Value("${collect.list.max-items-per-run:10000}")
+    private int maxItemsPerRun;
 
     private static final int PAGE_SIZE = 100;
 
@@ -54,6 +56,11 @@ public class BokjiroCentralClient {
         int rateLimitHits = 0;
 
         while (true) {
+            if (result.size() >= maxItemsPerRun) {
+                log.warn("[BokjiroCentralClient] max-items-per-run 상한 도달 collected={} maxItemsPerRun={}",
+                        result.size(), maxItemsPerRun);
+                break;
+            }
             sleepQuietly(requestIntervalMs);
             PageFetchResult<BokjiroCentralDto> fetchResult = fetchPage(pageNo, PAGE_SIZE);
             if (fetchResult.isRateLimited()) {
@@ -74,6 +81,20 @@ public class BokjiroCentralClient {
                 break;
             }
             rateLimitHits = 0;
+
+            int remainingSlots = Math.max(maxItemsPerRun - result.size(), 0);
+            if (remainingSlots <= 0) {
+                log.warn("[BokjiroCentralClient] max-items-per-run 상한 도달 collected={} maxItemsPerRun={}",
+                        result.size(), maxItemsPerRun);
+                break;
+            }
+
+            if (response.getItems().size() > remainingSlots) {
+                result.addAll(response.getItems().subList(0, remainingSlots));
+                log.warn("[BokjiroCentralClient] max-items-per-run 상한으로 조기 종료 page={} collected={} maxItemsPerRun={}",
+                        pageNo, result.size(), maxItemsPerRun);
+                break;
+            }
 
             result.addAll(response.getItems());
 

@@ -55,7 +55,8 @@ class BokjiroDetailCollectServiceTest {
                 welfareServiceMapper,
                 collectPolicyAggregateApplyService
         );
-        ReflectionTestUtils.setField(service, "maxCallsPerApiPerRun", 95);
+        ReflectionTestUtils.setField(service, "centralMaxCallsPerRun", 95);
+        ReflectionTestUtils.setField(service, "localMaxCallsPerRun", 95);
         ReflectionTestUtils.setField(service, "requestIntervalMs", 0L);
         ReflectionTestUtils.setField(service, "retryMaxAttempts", 1);
         ReflectionTestUtils.setField(service, "retryBaseBackoffMs", 0L);
@@ -151,13 +152,15 @@ class BokjiroDetailCollectServiceTest {
     }
 
     @Test
-    @DisplayName("low maxCalls 에서 local backlog 비중이 더 크면 local source 도 budget 을 받는다")
-    void collectBokjiroDetailsAllocatesBudgetToLocalWhenLocalBacklogIsLarger() {
+    @DisplayName("maxCalls 는 source별 상한으로 해석되어 central/local 이 각각 같은 안전 상한을 사용한다")
+    void collectBokjiroDetailsUsesIndependentPerSourceBudgets() {
         WelfareService central = welfareService(13L, WelfareService.SourceType.BOKJIRO_CENTRAL, "CENTRAL-3");
         WelfareService local1 = welfareService(14L, WelfareService.SourceType.BOKJIRO_LOCAL, "LOCAL-2");
-        WelfareService local2 = welfareService(15L, WelfareService.SourceType.BOKJIRO_LOCAL, "LOCAL-3");
-        WelfareService local3 = welfareService(16L, WelfareService.SourceType.BOKJIRO_LOCAL, "LOCAL-4");
-        BokjiroDetailClient.DetailPayload payload = BokjiroDetailClient.DetailPayload.builder()
+        BokjiroDetailClient.DetailPayload centralPayload = BokjiroDetailClient.DetailPayload.builder()
+                .supportDetail("central support")
+                .applyMethodDetail("온라인 신청")
+                .build();
+        BokjiroDetailClient.DetailPayload localPayload = BokjiroDetailClient.DetailPayload.builder()
                 .supportDetail("local support")
                 .applyMethodDetail("온라인 신청")
                 .build();
@@ -165,19 +168,22 @@ class BokjiroDetailCollectServiceTest {
         given(bokjiroDetailReadRepository.findTargetsBySourceType(WelfareService.SourceType.BOKJIRO_CENTRAL))
                 .willReturn(List.of(central));
         given(bokjiroDetailReadRepository.findTargetsBySourceType(WelfareService.SourceType.BOKJIRO_LOCAL))
-                .willReturn(List.of(local1, local2, local3));
+                .willReturn(List.of(local1));
+        given(bokjiroDetailReadRepository.existsDetailByServiceId(13L)).willReturn(false);
         given(bokjiroDetailReadRepository.existsDetailByServiceId(14L)).willReturn(false);
+        given(detailClient.fetchCentralWithStatus("CENTRAL-3"))
+                .willReturn(BokjiroDetailClient.FetchResult.success(centralPayload));
         given(detailClient.fetchLocalWithStatus("LOCAL-2"))
-                .willReturn(BokjiroDetailClient.FetchResult.success(payload));
+                .willReturn(BokjiroDetailClient.FetchResult.success(localPayload));
         CollectResult result = service.collectBokjiroDetailsResult(1);
 
-        assertThat(result.requestedCount()).isEqualTo(1);
-        assertThat(result.savedCount()).isEqualTo(1);
+        assertThat(result.requestedCount()).isEqualTo(2);
+        assertThat(result.savedCount()).isEqualTo(2);
         assertThat(result.metadataJson()).contains("\"sourceBudgets\":{");
-        assertThat(result.metadataJson()).contains("\"BOKJIRO_CENTRAL\":0");
+        assertThat(result.metadataJson()).contains("\"BOKJIRO_CENTRAL\":1");
         assertThat(result.metadataJson()).contains("\"BOKJIRO_LOCAL\":1");
         assertThat(result.metadataJson()).contains("\"sourceCalls\":{");
-        verify(detailClient, never()).fetchCentralWithStatus(any());
+        verify(detailClient).fetchCentralWithStatus("CENTRAL-3");
         verify(detailClient).fetchLocalWithStatus("LOCAL-2");
     }
 

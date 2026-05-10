@@ -1,5 +1,6 @@
 # 구현 현황
 
+- 2026-05-10: 복지로 운영 계정을 확보했고, `중앙 list`, `중앙 detail`, `지자체 list`, `지자체 detail` 을 각각 일일 `100,000` quota 기준으로 다시 열었다. active 문서의 개발 계정 `100건` 전제를 걷어내고, 코드 기본값도 복지로 list source별 `1회 10,000 items`, detail source별 `1회 10,000 calls`, `bokjiro-details-gap-fill` 기본 `maxCallsPerRound=10000` 안전 상한으로 정리했다. detail pacing 은 `300ms`, 연속 `429` 임계치는 `2회`로 완화했다.
 - 2026-05-09: 운영 서버 기본 권장안을 ARM `t4g` 계열에서 x86_64 `t3` 계열 기준으로 다시 정리했다. active 문서(`architecture`, `demo-scenario`, `srs-v2.10`)의 최소 사양/데모 인프라 표기를 `t3.medium` 기준으로 맞추고 Dockerfile 주석도 x86 기본 배포 기준으로 교정했다.
 - 2026-05-05: 복지로 collect 운영 기준을 다시 정리했다. 현재 개발 계정으로는 복지로 list snapshot 은 계속 확보할 수 있지만, detail API 는 트래픽 한도(`100`) 때문에 하루 안에 full coverage 를 채우는 것을 목표로 두지 않는다. 서버 오픈 전까지는 `bokjiro-details-gap-fill` 로 가능한 범위만 점진 채움하고, 운영 계정/완화된 quota 확보 뒤에 full gap fill / refresh 를 다시 연다.
 - 2026-05-05: `run-local-education-priority-replay.sh` 의 `rule-only-invalid-key` 모드가 실제로는 OpenAI 응답을 계속 받아 sample B control 해석을 오염시키던 문제를 정리했다. `RealtimeAiGateway` 에 `recommend.ai.force-rule-only` 우회 스위치를 추가하고 replay script가 rule-only 모드에서 이를 강제로 켜게 바꿔, 이제 bootrun trace에도 `responseId=none / resultsCount=0` 이 찍히는 진짜 rule-only replay만 수행한다.
@@ -72,7 +73,7 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 같은 pre-28 migrated DB에 최신 Spring 앱을 직접 붙여도 `ddl-auto: validate` 가 통과하고, 회원가입 -> 로그인 -> 프로필 수정 -> `user_pii_sync_queue` `SYNCED` -> 회원탈퇴 cleanup end-to-end smoke가 그대로 유지되는지 추가로 확인했습니다.
 
 같은 조합에서 admin allowlist + DB row를 맞춘 계정으로 `GET /api/admin/users/pii-sync-status`, `POST /api/admin/users/pii-sync-replay` 도 호출해 queue 모니터링/수동 재처리 경로까지 로컬 smoke를 마쳤습니다.
-남은 작업은 운영 배포/운영성 검증(운영 서버 Docker Compose, 기존 운영 DB 계정 생성 SQL 적용 및 datasource 전환, 운영 `.env` / secret store의 `APP_PII_DB_URL` / `NOTIFICATION_PII_DB_URL` 를 `youth_welfare_pii` 기준으로 전환, HTTPS/Nginx, 운영 DB에 `V2026_04_28_02__add_user_pii_sync_queue.sql` / `V2026_04_28_01__drop_runtime_legacy_user_id.sql` 적용 후 smoke 검증, 기존 운영 DB에 `app_core_rw` 의 `youth_welfare_pii.user_pii` revoke SQL 실제 적용과 보조 datasource smoke 검증, 복지로 운영 계정 확보 뒤 detail quota 상향 확인 및 gap fill / refresh 재검증, CTR 표본 확충 후 재분석)과 2차 확장 기능(개인 캐시 회귀 검증/튜닝, 사용자 규모 확대 시 군집 캐시 재검토, 카카오 알림톡 blocked)입니다. 클릭 추적 경계 자체는 `serviceId + logId` local smoke로 다시 확인됐고, 현재 CTR 조정이 막힌 이유는 instrumentation이 아니라 표본 부족입니다.
+남은 작업은 운영 배포/운영성 검증(운영 서버 Docker Compose, 기존 운영 DB 계정 생성 SQL 적용 및 datasource 전환, 운영 `.env` / secret store의 `APP_PII_DB_URL` / `NOTIFICATION_PII_DB_URL` 를 `youth_welfare_pii` 기준으로 전환, HTTPS/Nginx, 운영 DB에 `V2026_04_28_02__add_user_pii_sync_queue.sql` / `V2026_04_28_01__drop_runtime_legacy_user_id.sql` 적용 후 smoke 검증, 기존 운영 DB에 `app_core_rw` 의 `youth_welfare_pii.user_pii` revoke SQL 실제 적용과 보조 datasource smoke 검증, 복지로 운영 계정 4개 quota(`중앙 list/detail`, `지자체 list/detail` 각각 100,000) 기준 gap fill / refresh 실표본 재검증, CTR 표본 확충 후 재분석)과 2차 확장 기능(개인 캐시 회귀 검증/튜닝, 사용자 규모 확대 시 군집 캐시 재검토, 카카오 알림톡 blocked)입니다. 클릭 추적 경계 자체는 `serviceId + logId` local smoke로 다시 확인됐고, 현재 CTR 조정이 막힌 이유는 instrumentation이 아니라 표본 부족입니다.
 
 ## 완료된 백엔드 1차 범위
 

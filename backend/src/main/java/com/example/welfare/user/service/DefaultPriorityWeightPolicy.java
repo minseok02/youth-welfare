@@ -7,7 +7,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class DefaultPriorityWeightPolicy implements PriorityWeightPolicy {
 
-    private static final double[] WEIGHTS = {2.0, 1.6, 1.3, 1.1, 1.0};
+    private static final double[] WEIGHTS = {3.0, 2.2, 1.6, 1.2, 1.0};
 
     @Override
     public double weightForRank(int rank) {
@@ -22,4 +22,3 @@ public class DefaultPriorityWeightPolicy implements PriorityWeightPolicy {
         return WEIGHTS.length;
     }
 }
-

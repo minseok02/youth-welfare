@@ -220,6 +220,108 @@ class RuleScoringServiceTest {
     }
 
     @Test
+    @DisplayName("projection 관심사 신호가 있는데 사용자 관심분야와 어긋나면 mismatch penalty를 준다")
+    void projectionInterestSignalAppliesMismatchPenalty() {
+        RecommendationUserSnapshot user = snapshot(List.of("주거"), List.of(), (byte) 5, null, null);
+
+        WelfareService baseline = welfareService(81_1L, "기본 지원");
+        WelfareService projected = welfareService(81_2L, "금융 지원");
+
+        when(recommendationCandidateReadRepository.findTagsByServiceIds(anyList())).thenReturn(Map.of());
+
+        List<ScoredCandidate> scored = ruleScoringService.score(
+                new RetrievedRecommendationCandidates(
+                        List.of(baseline, projected),
+                        Map.of(
+                                projected.getId(),
+                                RecommendationCandidateProjection.builder()
+                                        .serviceId(projected.getId())
+                                        .interestThemes(Set.of("금융"))
+                                        .build()
+                        )
+                ),
+                user
+        );
+
+        assertThat(findByServiceId(scored, 81_2L).getRuleBaseScore())
+                .isEqualTo(findByServiceId(scored, 81_1L).getRuleBaseScore() - 6.0);
+    }
+
+    @Test
+    @DisplayName("category priority signal이 있는데 사용자 우선순위와 어긋나면 mismatch penalty를 준다")
+    void categoryPrioritySignalAppliesMismatchPenalty() {
+        RecommendationUserSnapshot user = snapshotWithPriorities(
+                List.of(),
+                List.of(),
+                (byte) 5,
+                null,
+                null,
+                List.of(new PriorityPreference(1, "HOUSING", 2.0))
+        );
+
+        WelfareService baseline = welfareService(81_3L, "기본 지원");
+        WelfareService projected = welfareService(81_4L, "금융 지원");
+
+        when(recommendationCandidateReadRepository.findTagsByServiceIds(anyList())).thenReturn(Map.of());
+
+        List<ScoredCandidate> scored = ruleScoringService.score(
+                new RetrievedRecommendationCandidates(
+                        List.of(baseline, projected),
+                        Map.of(
+                                projected.getId(),
+                                RecommendationCandidateProjection.builder()
+                                        .serviceId(projected.getId())
+                                        .priorityBuckets(Set.of("FINANCE"))
+                                        .build()
+                        )
+                ),
+                user
+        );
+
+        assertThat(findByServiceId(scored, 81_4L).getRuleBaseScore())
+                .isEqualTo(findByServiceId(scored, 81_3L).getRuleBaseScore() - 10.0);
+    }
+
+    @Test
+    @DisplayName("category priority match가 있으면 가장 높은 우선순위 rank를 후보에 기록한다")
+    void storesBestMatchedPriorityRank() {
+        RecommendationUserSnapshot user = snapshotWithPriorities(
+                List.of(),
+                List.of(),
+                (byte) 5,
+                null,
+                null,
+                List.of(
+                        new PriorityPreference(1, "EDUCATION", 3.0),
+                        new PriorityPreference(2, "JOB", 2.2)
+                )
+        );
+
+        WelfareService projected = welfareService(81_5L, "일자리 지원");
+
+        when(recommendationCandidateReadRepository.findTagsByServiceIds(anyList())).thenReturn(Map.of());
+        when(priorityMatcher.matches(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.eq(projected), org.mockito.ArgumentMatchers.any()))
+                .thenAnswer(invocation -> "JOB".equals(((PriorityPreference) invocation.getArgument(0)).code()));
+
+        List<ScoredCandidate> scored = ruleScoringService.score(
+                new RetrievedRecommendationCandidates(
+                        List.of(projected),
+                        Map.of(
+                                projected.getId(),
+                                RecommendationCandidateProjection.builder()
+                                        .serviceId(projected.getId())
+                                        .priorityBuckets(Set.of("JOB"))
+                                        .build()
+                        )
+                ),
+                user
+        );
+
+        assertThat(findByServiceId(scored, 81_5L).getMatchedPriorityRank()).isEqualTo(2);
+        assertThat(findByServiceId(scored, 81_5L).isHasPriorityMismatch()).isFalse();
+    }
+
+    @Test
     @DisplayName("projection audience relevance bonus는 legacy youth heuristic 없이도 rule base score에 반영된다")
     void projectionAudienceBonusAddsYouthRelevanceWithoutLegacySignals() {
         RecommendationUserSnapshot user = snapshot(List.of(), List.of(), (byte) 5, null, null);

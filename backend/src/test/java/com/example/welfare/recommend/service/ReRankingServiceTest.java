@@ -51,13 +51,81 @@ class ReRankingServiceTest {
                 .containsExactly(2L, 1L);
     }
 
-    private ScoredCandidate candidate(WelfareService service, double ruleWeightedScore, Double aiScore) {
+    @Test
+    @DisplayName("우선순위 불일치 후보는 AI 점수가 높아도 AI 가중치를 낮춰 aligned 후보 뒤로 보낸다")
+    void rerankDownweightsAiForPriorityMismatch() {
+        ReRankingService reRankingService = new ReRankingService(new ScoreNormalizer(), scoreWeightService);
+
+        when(scoreWeightService.getActiveWeight()).thenReturn(ScoreWeight.builder()
+                .weightKey("STABLE")
+                .ruleWeight(BigDecimal.valueOf(0.6))
+                .aiWeight(BigDecimal.valueOf(0.4))
+                .minLogCount(100)
+                .isActive(true)
+                .build());
+
+        ScoredCandidate aligned = candidate(
+                service(10L, LocalDate.now().plusDays(20), 100, 1000L, LocalDateTime.of(2026, 1, 1, 0, 0)),
+                100.0, 60.0, false, false, null
+        );
+        ScoredCandidate mismatch = candidate(
+                service(11L, LocalDate.now().plusDays(20), 100, 1000L, LocalDateTime.of(2026, 1, 1, 0, 0)),
+                80.0, 100.0, false, true, null
+        );
+
+        List<ScoredCandidate> ranked = reRankingService.rerank(List.of(mismatch, aligned));
+
+        assertThat(ranked).extracting(c -> c.getService().getId())
+                .containsExactly(10L, 11L);
+    }
+
+    @Test
+    @DisplayName("1순위 매칭 후보는 2순위 매칭 후보보다 final score 보정을 더 크게 받는다")
+    void rerankPrefersFirstPriorityOverSecondPriority() {
+        ReRankingService reRankingService = new ReRankingService(new ScoreNormalizer(), scoreWeightService);
+
+        when(scoreWeightService.getActiveWeight()).thenReturn(ScoreWeight.builder()
+                .weightKey("STABLE")
+                .ruleWeight(BigDecimal.valueOf(0.6))
+                .aiWeight(BigDecimal.valueOf(0.4))
+                .minLogCount(100)
+                .isActive(true)
+                .build());
+
+        ScoredCandidate firstPriority = candidate(
+                service(20L, LocalDate.now().plusDays(20), 100, 1000L, LocalDateTime.of(2026, 1, 1, 0, 0)),
+                70.0, 60.0, false, false, 1
+        );
+        ScoredCandidate secondPriority = candidate(
+                service(21L, LocalDate.now().plusDays(20), 100, 1000L, LocalDateTime.of(2026, 1, 1, 0, 0)),
+                85.0, 80.0, false, false, 2
+        );
+
+        List<ScoredCandidate> ranked = reRankingService.rerank(List.of(secondPriority, firstPriority));
+
+        assertThat(ranked).extracting(c -> c.getService().getId())
+                .containsExactly(20L, 21L);
+    }
+
+    private ScoredCandidate candidate(WelfareService service,
+                                      double ruleWeightedScore,
+                                      Double aiScore,
+                                      boolean hasInterestMismatch,
+                                      boolean hasPriorityMismatch,
+                                      Integer matchedPriorityRank) {
         return ScoredCandidate.builder()
                 .service(service)
                 .ruleBaseScore(ruleWeightedScore)
                 .ruleWeightedScore(ruleWeightedScore)
                 .aiScore(aiScore)
+                .hasInterestMismatch(hasInterestMismatch)
+                .hasPriorityMismatch(hasPriorityMismatch)
+                .matchedPriorityRank(matchedPriorityRank)
                 .build();
+    }
+
+    private ScoredCandidate candidate(WelfareService service, double ruleWeightedScore, Double aiScore) {
+        return candidate(service, ruleWeightedScore, aiScore, false, false, null);
     }
 
     private WelfareService service(Long id,

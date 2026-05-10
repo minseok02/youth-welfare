@@ -390,7 +390,7 @@
 
 | # | 제약 |
 |---|------|
-| C-01 | 공공 API 일일 1,000건 제한 |
+| C-01 | 공공 API quota는 source별로 다르며, 복지로 운영 계정은 중앙 list/detail, 지자체 list/detail 각각 일일 100,000건 |
 | C-02 | 복지로 API XML만 지원 |
 | C-03 | 현재 Compose 단일 서버 운영 기준 권장 최소 사양은 EC2 t3.medium RAM 4GB (x86_64) |
 | C-04 | 개발 13주, 2명 |
