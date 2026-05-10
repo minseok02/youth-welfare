@@ -59,7 +59,7 @@ class BokjiroNormalizationSupportTest {
         BokjiroDetailClient.DetailPayload payload = BokjiroDetailClient.DetailPayload.builder()
                 .targetDetail("만 20세 이상 34세 이하 미취업 청년")
                 .selectionCriteria("소득 심사")
-                .applyMethodDetail("온라인 신청, 2026.12.31 까지")
+                .applyMethodDetail("온라인 신청, 2026.5.1 까지")
                 .supportDetail("직무교육 제공")
                 .build();
 
@@ -81,7 +81,7 @@ class BokjiroNormalizationSupportTest {
         assertThat(BokjiroNormalizationSupport.detailFacts(payload))
                 .filteredOn(fact -> "APPLY_END_DATE".equals(fact.factGroup()))
                 .singleElement()
-                .satisfies(fact -> assertThat(fact.dateValue()).isEqualTo(LocalDate.of(2026, 12, 31)));
+                .satisfies(fact -> assertThat(fact.dateValue()).isEqualTo(LocalDate.of(2026, 5, 1)));
     }
 
     @Test

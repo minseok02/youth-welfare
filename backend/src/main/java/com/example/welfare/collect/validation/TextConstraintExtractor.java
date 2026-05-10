@@ -35,10 +35,16 @@ public final class TextConstraintExtractor {
             Pattern.compile("(?:연\\s*소득|가구\\s*소득|소득인정액|소득)[^\\n\\r]{0,12}?(\\d{2,5})\\s*만원\\s*이하");
     private static final Pattern RENT_WON =
             Pattern.compile("(?:월세|임차료|임대료)[^\\n\\r]{0,10}?(\\d{1,4})\\s*만원\\s*이하");
+    private static final String DATE_TOKEN =
+            "(?:"
+                    + "(?:19|20)\\d{2}[./-](?:0?[1-9]|1[0-2])[./-](?:0?[1-9]|[12]\\d|3[01])"
+                    + "|"
+                    + "(?:19|20)\\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\\d|3[01])"
+                    + ")";
     private static final Pattern DATE_RANGE =
-            Pattern.compile("((?:19|20)\\d{2}[./-]?(?:0[1-9]|1[0-2])[./-]?(?:0[1-9]|[12]\\d|3[01]))\\s*(?:~|\\-|–|부터)\\s*((?:19|20)\\d{2}[./-]?(?:0[1-9]|1[0-2])[./-]?(?:0[1-9]|[12]\\d|3[01]))");
+            Pattern.compile("(" + DATE_TOKEN + ")\\s*(?:~|\\-|–|부터)\\s*(" + DATE_TOKEN + ")");
     private static final Pattern DATE_UNTIL =
-            Pattern.compile("((?:19|20)\\d{2}[./-]?(?:0[1-9]|1[0-2])[./-]?(?:0[1-9]|[12]\\d|3[01]))\\s*까지");
+            Pattern.compile("(" + DATE_TOKEN + ")\\s*까지");
 
     public record ConstraintSummary(
             Integer minAge,
@@ -192,10 +198,28 @@ public final class TextConstraintExtractor {
 
     private static LocalDate parseLooseDate(String raw) {
         if (raw == null) return null;
-        String digits = raw.replaceAll("[^0-9]", "");
-        if (digits.length() < 8) return null;
+        String normalized = raw.trim();
+        if (normalized.contains(".") || normalized.contains("-") || normalized.contains("/")) {
+            String[] parts = normalized.split("[./-]");
+            if (parts.length < 3) {
+                return null;
+            }
+            try {
+                int year = Integer.parseInt(parts[0]);
+                int month = Integer.parseInt(parts[1]);
+                int day = Integer.parseInt(parts[2]);
+                return LocalDate.of(year, month, day);
+            } catch (Exception ignored) {
+                return null;
+            }
+        }
+
+        String digits = normalized.replaceAll("[^0-9]", "");
+        if (digits.length() != 8) {
+            return null;
+        }
         try {
-            return LocalDate.parse(digits.substring(0, 8), DateTimeFormatter.ofPattern("yyyyMMdd"));
+            return LocalDate.parse(digits, DateTimeFormatter.ofPattern("yyyyMMdd"));
         } catch (Exception ignored) {
             return null;
         }

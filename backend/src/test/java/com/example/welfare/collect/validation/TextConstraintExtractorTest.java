@@ -3,6 +3,7 @@ package com.example.welfare.collect.validation;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.time.LocalDate;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -47,5 +48,15 @@ class TextConstraintExtractorTest {
         );
 
         assertThat(tokens).contains("COND_AGE_MIN_15", "COND_AGE_MAX_40");
+    }
+
+    @Test
+    @DisplayName("한 자리 월/일이 포함된 복지로 신청 마감 문구도 apply end date로 추출한다")
+    void extractApplyEndDateFromSingleDigitMonthDay() {
+        LocalDate applyEndDate = TextConstraintExtractor.extractApplyEndDate(
+                "온라인 신청, 2026.5.1 까지 접수"
+        );
+
+        assertThat(applyEndDate).isEqualTo(LocalDate.of(2026, 5, 1));
     }
 }

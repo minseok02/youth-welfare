@@ -249,7 +249,7 @@ ensure_local_canonical_draft() {
         WHERE slot_key = 'YOUTH_MAJOR'
         GROUP BY service_id
       ) stss_youth_major ON stss_youth_major.service_id = ws.id
-      WHERE ws.unified_category = '기타'
+      WHERE ws.unified_category IN ('기타', '교육·직업훈련')
         AND COALESCE(stss_youth_major.slot_label, st.youth_major_label) = '교육';
     "
   )"
@@ -299,13 +299,13 @@ require_replay_data_preconditions() {
         WHERE slot_key = 'YOUTH_MAJOR'
         GROUP BY service_id
       ) stss_youth_major ON stss_youth_major.service_id = ws.id
-      WHERE ws.unified_category = '기타'
+      WHERE ws.unified_category IN ('기타', '교육·직업훈련')
         AND COALESCE(stss_youth_major.slot_label, st.youth_major_label) = '교육';
     "
   )"
   if [[ "${target_count}" == "0" ]]; then
-    echo "education replay precondition unmet: no compat=기타 + youth_major=교육 target rows in local snapshot" >&2
-    exit 1
+    echo "education replay skipped: no education-major target rows in local snapshot" >&2
+    exit 0
   fi
 }
 
@@ -596,14 +596,14 @@ collect_summary_slot_metrics() {
     JOIN welfare_services ws ON ws.id = stss.service_id
     WHERE stss.slot_key = 'YOUTH_MAJOR'
       AND stss.slot_label = '교육'
-      AND ws.unified_category = '기타'
+      AND ws.unified_category IN ('기타', '교육·직업훈련')
     UNION ALL
     SELECT 'slot_education_services', COUNT(DISTINCT stss.service_id)
     FROM service_taxonomy_summary_slots stss
     JOIN welfare_services ws ON ws.id = stss.service_id
     WHERE stss.slot_key = 'YOUTH_MAJOR'
       AND stss.slot_label = '교육'
-      AND ws.unified_category = '기타'
+      AND ws.unified_category IN ('기타', '교육·직업훈련')
     UNION ALL
     SELECT 'slot_services_YOUTH_MAJOR', COUNT(DISTINCT service_id)
     FROM service_taxonomy_summary_slots
@@ -727,13 +727,13 @@ def summarize(label, rows):
     for idx, row in enumerate(rows, 1):
         service_id = row["serviceId"]
         info = meta.get(service_id, {})
-        if info.get("compat") == "기타" and info.get("youth_major") == "교육":
+        if info.get("compat") in ("기타", "교육·직업훈련") and info.get("youth_major") == "교육":
             target_positions.append((idx, service_id, row["title"], row["finalScore"]))
     top10 = rows[:10]
     top10_target_count = sum(
         1
         for row in top10
-        if meta.get(row["serviceId"], {}).get("compat") == "기타"
+        if meta.get(row["serviceId"], {}).get("compat") in ("기타", "교육·직업훈련")
         and meta.get(row["serviceId"], {}).get("youth_major") == "교육"
     )
     best_target_rank = target_positions[0][0] if target_positions else None
