@@ -69,12 +69,12 @@ const DISTRICT_MAP = {
 
 const formatDday = (dateText, status) => {
   if (status === "CLOSED") return "종료";
-  if (!dateText) return "상시";
+  if (!dateText) return status === "UPCOMING" ? "예정" : "상시/문의";
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const endDate = new Date(`${dateText}T00:00:00`);
-  if (Number.isNaN(endDate.getTime())) return "상시";
+  if (Number.isNaN(endDate.getTime())) return "상시/문의";
 
   const diff = Math.ceil((endDate - today) / 86400000);
   if (diff < 0) return "종료";
@@ -303,7 +303,7 @@ export default function MyPage() {
 
   const ddayColor = (dday) => {
     if (dday === "종료") return "default";
-    if (dday === "상시") return "success";
+    if (dday === "상시/문의") return "success";
     if (dday === "D-Day") return "error";
     const n = parseInt(dday.replace("D-", ""));
     return n <= 14 ? "error" : "primary";

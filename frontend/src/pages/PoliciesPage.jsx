@@ -168,7 +168,7 @@ export default function PoliciesPage() {
     if (page !== 1) params.page = String(page);
     if (pageSize !== 10) params.pageSize = String(pageSize);
     setSearchParams(params, { replace: true });
-  }, [search, selectedCat, region, subRegion, income, employ, statusFilter, sort, page, pageSize, setSearchParams]);
+  }, [search, selectedCat, region, subRegion, income, employ, sourceType, statusFilter, sort, page, pageSize, setSearchParams]);
 
   useEffect(() => {
     const defaultSort = search.trim() ? "relevance" : "latest";

@@ -9,7 +9,7 @@ const C = {
 
 export default function PolicyCard({ policy }) {
   const ddayColor =
-    policy.dday === "상시"
+    policy.dday === "상시" || policy.dday === "상시/문의"
       ? C.teal2
       : parseInt(policy.dday.replace("D-", "")) <= 14
       ? "#E53E3E"

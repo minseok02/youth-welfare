@@ -97,12 +97,12 @@ const formatStatusLabel = (status, applyEndDate) => {
 
 const formatDday = (endDate, status) => {
   if (status === "CLOSED") return "종료";
-  if (!endDate) return "상시";
+  if (!endDate) return status === "UPCOMING" ? "예정" : "상시/문의";
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const target = new Date(`${endDate}T00:00:00`);
-  if (Number.isNaN(target.getTime())) return "상시";
+  if (Number.isNaN(target.getTime())) return "상시/문의";
 
   const diff = Math.ceil((target - today) / 86400000);
   if (diff < 0) return "종료";
@@ -111,7 +111,7 @@ const formatDday = (endDate, status) => {
 };
 
 const ddayColor = (dday) => {
-  if (dday === "상시") return "success";
+  if (dday === "상시/문의") return "success";
   if (dday === "종료") return "default";
   if (dday === "D-Day") return "error";
   const n = Number.parseInt(String(dday).replace("D-", ""), 10);
@@ -241,7 +241,7 @@ export default function PolicyDetailPage() {
     }
   };
 
-  const policyDday = policy ? formatDday(policy.applyEndDate, policy.status) : "상시";
+  const policyDday = policy ? formatDday(policy.applyEndDate, policy.status) : "상시/문의";
 
   return (
     <Box sx={{ minHeight: "100vh", bgcolor: "background.default", pb: 10 }}>

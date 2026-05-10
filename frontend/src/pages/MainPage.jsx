@@ -21,7 +21,7 @@ const statusLabel = (status) => {
 
 const ddayColor = (dday) => {
   if (dday === "종료") return "default";
-  if (dday === "상시" || dday === "진행중") return "success";
+  if (dday === "상시" || dday === "상시/문의" || dday === "진행중") return "success";
   if (dday === "예정") return "info";
   if (dday === "D-Day") return "error";
   const n = Number.parseInt(String(dday).replace("D-", ""), 10);
@@ -344,7 +344,7 @@ export default function MainPage() {
                       label={rec.dday}
                       size="small"
                       color={ddayColor(rec.dday)}
-                      variant={rec.dday === "상시" || rec.dday === "진행중" ? "outlined" : "filled"}
+                      variant={rec.dday === "상시" || rec.dday === "상시/문의" || rec.dday === "진행중" ? "outlined" : "filled"}
                     />
                   </Box>
                   <Typography variant="subtitle2" fontWeight={700} mb={0.3} sx={{ lineHeight: 1.4 }}>
