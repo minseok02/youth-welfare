@@ -29,7 +29,7 @@ public class ChatPolicyReadRepositoryImpl implements ChatPolicyReadRepository {
         if (!candidates.isEmpty()) {
             return candidates;
         }
-        return welfareServiceRepository.findBySearchYouthRelevantTrueAndStatusInOrderByViewCountDescCreatedAtDesc(
+        return welfareServiceRepository.findBySearchYouthRelevantTrueAndStatusInOrderByApiViewCountDescViewCountDescCreatedAtDesc(
                 SEARCHABLE_STATUSES,
                 PageRequest.of(0, condition.limit())
         );

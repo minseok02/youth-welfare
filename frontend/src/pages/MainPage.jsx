@@ -101,7 +101,7 @@ export default function MainPage() {
         const results = await Promise.all(
           TEASER_CATEGORIES.map((cat) =>
             api.get("/api/policies", {
-              params: { category: cat.value, sort: "VIEWS", size: 3, page: 0 },
+              params: { category: cat.value, sort: "LATEST", size: 3, page: 0 },
               signal: controller.signal,
             })
           )

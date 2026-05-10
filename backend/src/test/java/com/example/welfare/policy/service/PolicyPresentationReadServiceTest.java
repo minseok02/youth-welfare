@@ -13,7 +13,9 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
+import org.springframework.test.util.ReflectionTestUtils;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -48,7 +50,12 @@ class PolicyPresentationReadServiceTest {
                 .description("월세 부담 완화")
                 .unifiedCategory("HOUSING")
                 .status(WelfareService.ServiceStatus.ACTIVE)
+                .apiViewCount(120L)
+                .viewCount(3)
+                .registeredAt(LocalDateTime.of(2026, 5, 1, 10, 0))
+                .lastModifiedAt(LocalDateTime.of(2026, 5, 5, 9, 30))
                 .build();
+        ReflectionTestUtils.setField(policy, "createdAt", LocalDateTime.of(2026, 4, 30, 8, 0));
         Page<WelfareService> page = new PageImpl<>(List.of(policy));
 
         when(recommendationBookmarkReadService.findBookmarkedServiceIds(7L, List.of(policy)))
@@ -70,6 +77,11 @@ class PolicyPresentationReadServiceTest {
         assertThat(result.getContent().get(0).isBookmarked()).isTrue();
         assertThat(result.getContent().get(0).getUnifiedCategory()).isEqualTo("주거");
         assertThat(result.getContent().get(0).getYouthMajorLabel()).isEqualTo("주거");
+        assertThat(result.getContent().get(0).getApiViewCount()).isEqualTo(120L);
+        assertThat(result.getContent().get(0).getViewCount()).isEqualTo(3);
+        assertThat(result.getContent().get(0).getCreatedAt()).isEqualTo(LocalDateTime.of(2026, 4, 30, 8, 0));
+        assertThat(result.getContent().get(0).getRegisteredAt()).isEqualTo(LocalDateTime.of(2026, 5, 1, 10, 0));
+        assertThat(result.getContent().get(0).getLastModifiedAt()).isEqualTo(LocalDateTime.of(2026, 5, 5, 9, 30));
     }
 
     @Test

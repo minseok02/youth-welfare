@@ -6,6 +6,7 @@ import lombok.Builder;
 import lombok.Getter;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Getter
 @Builder
@@ -31,6 +32,11 @@ public class PolicySummaryResponse {
     private LocalDate applyStartDate;
     private LocalDate applyEndDate;
     private Boolean isOnlineApply;
+    private Long apiViewCount;
+    private Integer viewCount;
+    private LocalDateTime createdAt;
+    private LocalDateTime registeredAt;
+    private LocalDateTime lastModifiedAt;
     private boolean bookmarked;
 
     public static PolicySummaryResponse from(WelfareService ws, boolean bookmarked) {
@@ -67,6 +73,11 @@ public class PolicySummaryResponse {
                 .applyStartDate(ws.getApplyStartDate())
                 .applyEndDate(ws.getApplyEndDate())
                 .isOnlineApply(ws.getIsOnlineApply())
+                .apiViewCount(ws.getApiViewCount())
+                .viewCount(ws.getViewCount())
+                .createdAt(ws.getCreatedAt())
+                .registeredAt(ws.getRegisteredAt())
+                .lastModifiedAt(ws.getLastModifiedAt())
                 .bookmarked(bookmarked)
                 .build();
     }

@@ -71,7 +71,7 @@ const INCOME_ROWS = [
 
 const EMPLOY_OPTIONS = ["전체", "재직중", "구직중", "학생", "기타"];
 
-const SORT_MAP = { views: "VIEWS", latest: "LATEST", deadline: "DEADLINE" };
+const SORT_MAP = { relevance: "RELEVANCE", views: "VIEWS", latest: "LATEST", deadline: "DEADLINE" };
 
 const statusLabel = (status) => {
   if (status === "ACTIVE") return "진행중";
@@ -82,11 +82,11 @@ const statusLabel = (status) => {
 
 const formatDday = (dateText, status) => {
   if (status === "CLOSED") return "종료";
-  if (!dateText) return "상시";
+  if (!dateText) return status === "UPCOMING" ? "예정" : "상시/문의";
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const endDate = new Date(`${dateText}T00:00:00`);
-  if (Number.isNaN(endDate.getTime())) return "상시";
+  if (Number.isNaN(endDate.getTime())) return "상시/문의";
   const diff = Math.ceil((endDate - today) / 86400000);
   if (diff < 0) return "종료";
   if (diff === 0) return "D-Day";
@@ -95,7 +95,7 @@ const formatDday = (dateText, status) => {
 
 const ddayColor = (dday) => {
   if (dday === "종료") return "default";
-  if (dday === "상시" || dday === "진행중") return "success";
+  if (dday === "상시/문의" || dday === "진행중") return "success";
   if (dday === "예정") return "info";
   if (dday === "D-Day") return "error";
   const n = Number.parseInt(String(dday).replace("D-", ""), 10);
@@ -111,7 +111,21 @@ const mapPolicySummary = (policy) => ({
   source: policy.hostOrg || policy.sido || policy.applyMethodName || statusLabel(policy.status),
   summary: policy.description || "정책 설명 정보가 없습니다.",
   bookmarked: Boolean(policy.bookmarked),
+  apiViewCount: policy.apiViewCount ?? 0,
+  viewCount: policy.viewCount ?? 0,
+  createdAt: policy.createdAt ?? null,
+  registeredAt: policy.registeredAt ?? null,
+  lastModifiedAt: policy.lastModifiedAt ?? null,
 });
+
+const resolveInitialSort = (paramsSearch, paramsSort) => {
+  const hasSearch = Boolean(paramsSearch?.trim());
+  const allowed = hasSearch
+    ? ["relevance", "views", "latest", "deadline"]
+    : ["views", "latest", "deadline"];
+  if (allowed.includes(paramsSort)) return paramsSort;
+  return hasSearch ? "relevance" : "latest";
+};
 
 export default function PoliciesPage() {
   const navigate = useNavigate();
@@ -128,7 +142,7 @@ export default function PoliciesPage() {
   const [employ, setEmploy] = useState(searchParams.get("employ") || "전체");
   const [sourceType, setSourceType] = useState(searchParams.get("sourceType") || "전체");
   const [statusFilter, setStatusFilter] = useState(searchParams.get("statusFilter") || "신청가능");
-  const [sort, setSort] = useState(["views", "latest", "deadline"].includes(searchParams.get("sort")) ? searchParams.get("sort") : "views");
+  const [sort, setSort] = useState(resolveInitialSort(searchParams.get("search") || "", searchParams.get("sort")));
   const [pageSize, setPageSize] = useState(Number(searchParams.get("pageSize")) || 10);
   const [cols, setCols] = useState(1);
   const [page, setPage] = useState(Number(searchParams.get("page")) || 1);
@@ -149,11 +163,23 @@ export default function PoliciesPage() {
     if (employ !== "전체") params.employ = employ;
     if (sourceType !== "전체") params.sourceType = sourceType;
     if (statusFilter !== "신청가능") params.statusFilter = statusFilter;
-    if (sort !== "views") params.sort = sort;
+    const defaultSort = search.trim() ? "relevance" : "latest";
+    if (sort !== defaultSort) params.sort = sort;
     if (page !== 1) params.page = String(page);
     if (pageSize !== 10) params.pageSize = String(pageSize);
     setSearchParams(params, { replace: true });
   }, [search, selectedCat, region, subRegion, income, employ, statusFilter, sort, page, pageSize, setSearchParams]);
+
+  useEffect(() => {
+    const defaultSort = search.trim() ? "relevance" : "latest";
+    if (!search.trim() && sort === "relevance") {
+      setSort("latest");
+      return;
+    }
+    if (search.trim() && !searchParams.get("sort") && sort !== defaultSort) {
+      setSort(defaultSort);
+    }
+  }, [search, sort, searchParams]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -171,7 +197,9 @@ export default function PoliciesPage() {
           sido: region === "전체" ? undefined : region,
           sgg: subRegion === "전체" ? undefined : subRegion,
           sourceType: sourceType === "전체" ? undefined : SOURCE_TYPE_MAP[sourceType],
-          sort: SORT_MAP[sort] ?? "LATEST",
+          sort: search.trim()
+            ? (SORT_MAP[sort] ?? "RELEVANCE")
+            : (sort === "relevance" ? "LATEST" : (SORT_MAP[sort] ?? "LATEST")),
           page: page - 1,
           size: pageSize,
         };
@@ -249,7 +277,7 @@ export default function PoliciesPage() {
     setEmploy("전체");
     setSourceType("전체");
     setStatusFilter("신청가능");
-    setSort("views");
+    setSort(search.trim() ? "relevance" : "latest");
     setPage(1);
   };
 
@@ -270,14 +298,26 @@ export default function PoliciesPage() {
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") setPage(1); }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  if (search.trim() && !searchParams.get("sort")) {
+                    setSort("relevance");
+                  }
+                  setPage(1);
+                }
+              }}
               placeholder="검색어를 입력하세요"
               style={{ flex: 1, border: "none", outline: "none", fontSize: 14, padding: "0 12px", height: "100%", background: "transparent" }}
             />
             <Button
               variant="contained"
               disableElevation
-              onClick={() => setPage(1)}
+              onClick={() => {
+                if (search.trim() && !searchParams.get("sort")) {
+                  setSort("relevance");
+                }
+                setPage(1);
+              }}
               sx={{ borderRadius: 0, px: 3, height: "100%", fontSize: 14, flexShrink: 0 }}
             >
               검색
@@ -331,7 +371,7 @@ export default function PoliciesPage() {
                   <Typography variant="caption" fontWeight={700} mb={0.5} display="block">지역</Typography>
                   <Box sx={{ display: "flex", gap: 1 }}>
                     <FormControl size="small" sx={{ flex: 1 }}>
-                      <Select value={region} onChange={(e) => { const r = e.target.value; setRegion(r); setSubRegion("전체"); setSort(r !== "전체" ? "latest" : "views"); setPage(1); }}>
+                      <Select value={region} onChange={(e) => { const r = e.target.value; setRegion(r); setSubRegion("전체"); setSort("latest"); setPage(1); }}>
                         {REGIONS.map((r) => <MenuItem key={r} value={r}>{r}</MenuItem>)}
                       </Select>
                     </FormControl>
@@ -469,7 +509,8 @@ export default function PoliciesPage() {
           <Typography variant="body2" color="text.secondary">정렬:</Typography>
           <FormControl size="small">
             <Select value={sort} onChange={(e) => { setSort(e.target.value); setPage(1); }} sx={{ fontSize: 13 }}>
-              <MenuItem value="views">조회수순</MenuItem>
+              {search.trim() && <MenuItem value="relevance">관련도순</MenuItem>}
+              <MenuItem value="views">인기순</MenuItem>
               <MenuItem value="latest">최신순</MenuItem>
               <MenuItem value="deadline">마감임박순</MenuItem>
             </Select>
@@ -512,7 +553,7 @@ export default function PoliciesPage() {
                     <Box sx={{ flex: 1, minWidth: 0 }}>
                       <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.5, flexWrap: "wrap" }}>
                         <Chip label={p.category} size="small" color="primary" variant="outlined" />
-                        <Chip label={p.dday} size="small" color={ddayColor(p.dday)} variant={p.dday === "상시" || p.dday === "진행중" ? "outlined" : "filled"} />
+                        <Chip label={p.dday} size="small" color={ddayColor(p.dday)} variant={p.dday === "상시/문의" || p.dday === "진행중" ? "outlined" : "filled"} />
                       </Box>
                       <Typography variant="subtitle2" fontWeight={700} mb={0.3} sx={{ lineHeight: 1.4 }}>
                         {p.title}
@@ -542,7 +583,7 @@ export default function PoliciesPage() {
                   <CardContent>
                     <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
                       <Chip label={p.category} size="small" color="primary" variant="outlined" />
-                      <Chip label={p.dday} size="small" color={ddayColor(p.dday)} variant={p.dday === "상시" || p.dday === "진행중" ? "outlined" : "filled"} />
+                      <Chip label={p.dday} size="small" color={ddayColor(p.dday)} variant={p.dday === "상시/문의" || p.dday === "진행중" ? "outlined" : "filled"} />
                     </Box>
                     <Typography variant="subtitle2" fontWeight={700} mb={0.5} sx={{ lineHeight: 1.4 }}>
                       {p.title}

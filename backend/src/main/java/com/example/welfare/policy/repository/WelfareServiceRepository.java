@@ -200,14 +200,16 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
               AND search_youth_relevant = 1
               AND MATCH(title, description, support_content, keyword) AGAINST (:keyword IN BOOLEAN MODE)
             ORDER BY MATCH(title, description, support_content, keyword) AGAINST (:keyword IN BOOLEAN MODE) DESC,
-                     view_count DESC,
-                     created_at DESC
+                     COALESCE(api_view_count, 0) DESC,
+                     COALESCE(view_count, 0) DESC,
+                     COALESCE(last_modified_at, registered_at, created_at) DESC,
+                     id DESC
             LIMIT :limit
             """, nativeQuery = true)
     List<WelfareService> searchChatCandidates(@Param("keyword") String keyword,
                                               @Param("limit") int limit);
 
-    List<WelfareService> findBySearchYouthRelevantTrueAndStatusInOrderByViewCountDescCreatedAtDesc(
+    List<WelfareService> findBySearchYouthRelevantTrueAndStatusInOrderByApiViewCountDescViewCountDescCreatedAtDesc(
             List<WelfareService.ServiceStatus> statuses,
             Pageable pageable
     );
@@ -239,11 +241,15 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                   AGAINST (:keyword IN BOOLEAN MODE)
             ORDER BY
                 CASE
-                    WHEN :sort = 'VIEWS' THEN ws.view_count
+                    WHEN :sort = 'VIEWS' THEN COALESCE(ws.api_view_count, 0)
                     ELSE NULL
                 END DESC,
                 CASE
-                    WHEN :sort = 'LATEST' THEN ws.created_at
+                    WHEN :sort = 'VIEWS' THEN COALESCE(ws.view_count, 0)
+                    ELSE NULL
+                END DESC,
+                CASE
+                    WHEN :sort = 'LATEST' THEN COALESCE(ws.last_modified_at, ws.registered_at, ws.created_at)
                     ELSE NULL
                 END DESC,
                 -- NAME: UI 정렬 옵션에서 제거됐지만 API 호환성 유지 목적으로 보존
@@ -261,8 +267,8 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                         AGAINST (:keyword IN BOOLEAN MODE)
                     ELSE NULL
                 END DESC,
-                ws.view_count DESC,
-                ws.created_at DESC
+                COALESCE(ws.last_modified_at, ws.registered_at, ws.created_at) DESC,
+                ws.id DESC
             """,
             countQuery = """
             SELECT COUNT(*) FROM welfare_services ws
@@ -328,11 +334,15 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                     ELSE 0
                 END ASC,
                 CASE
-                    WHEN :sort = 'VIEWS' THEN ws.view_count
+                    WHEN :sort = 'VIEWS' THEN COALESCE(ws.api_view_count, 0)
                     ELSE NULL
                 END DESC,
                 CASE
-                    WHEN :sort = 'LATEST' THEN ws.created_at
+                    WHEN :sort = 'VIEWS' THEN COALESCE(ws.view_count, 0)
+                    ELSE NULL
+                END DESC,
+                CASE
+                    WHEN :sort = 'LATEST' THEN COALESCE(ws.last_modified_at, ws.registered_at, ws.created_at)
                     ELSE NULL
                 END DESC,
                 -- NAME: UI 정렬 옵션에서 제거됐지만 API 호환성 유지 목적으로 보존
@@ -358,8 +368,8 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                         AGAINST (:keyword IN BOOLEAN MODE)
                     ELSE NULL
                 END DESC,
-                ws.view_count DESC,
-                ws.created_at DESC
+                COALESCE(ws.last_modified_at, ws.registered_at, ws.created_at) DESC,
+                ws.id DESC
             """,
             countQuery = """
             SELECT COUNT(*) FROM welfare_services ws
@@ -440,11 +450,15 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                     ELSE 0
                 END ASC,
                 CASE
-                    WHEN :sort = 'VIEWS' THEN ws.view_count
+                    WHEN :sort = 'VIEWS' THEN COALESCE(ws.api_view_count, 0)
                     ELSE NULL
                 END DESC,
                 CASE
-                    WHEN :sort = 'LATEST' THEN ws.created_at
+                    WHEN :sort = 'VIEWS' THEN COALESCE(ws.view_count, 0)
+                    ELSE NULL
+                END DESC,
+                CASE
+                    WHEN :sort = 'LATEST' THEN COALESCE(ws.last_modified_at, ws.registered_at, ws.created_at)
                     ELSE NULL
                 END DESC,
                 -- NAME: UI 정렬 옵션에서 제거됐지만 API 호환성 유지 목적으로 보존
@@ -472,8 +486,8 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                         AGAINST (:keyword IN BOOLEAN MODE)
                     ELSE NULL
                 END DESC,
-                ws.view_count DESC,
-                ws.created_at DESC
+                COALESCE(ws.last_modified_at, ws.registered_at, ws.created_at) DESC,
+                ws.id DESC
             """,
             countQuery = """
             SELECT COUNT(*) FROM welfare_services ws
@@ -576,7 +590,9 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                     WHEN :sort = 'LATEST' THEN 1
                     ELSE 0
                 END ASC,
-                CASE WHEN :sort = 'VIEWS' THEN ws.view_count ELSE NULL END DESC,
+                CASE WHEN :sort = 'VIEWS' THEN COALESCE(ws.api_view_count, 0) ELSE NULL END DESC,
+                CASE WHEN :sort = 'VIEWS' THEN COALESCE(ws.view_count, 0) ELSE NULL END DESC,
+                CASE WHEN :sort = 'LATEST' THEN COALESCE(ws.last_modified_at, ws.registered_at, ws.created_at) ELSE NULL END DESC,
                 -- NAME: UI 정렬 옵션에서 제거됐지만 API 호환성 유지 목적으로 보존
                 CASE WHEN :sort = 'NAME' THEN ws.title ELSE NULL END ASC,
                 -- DEADLINE: 프론트 마감임박순 기능을 위해 추가 — apply_end_date 빠른 순, NULL이면 맨 뒤
@@ -598,7 +614,8 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                     ) THEN 0
                     ELSE 1
                 END ASC,
-                ws.created_at DESC
+                COALESCE(ws.last_modified_at, ws.registered_at, ws.created_at) DESC,
+                ws.id DESC
             """,
             countQuery = """
             SELECT COUNT(*) FROM welfare_services ws
