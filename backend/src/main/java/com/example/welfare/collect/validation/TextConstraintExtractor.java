@@ -35,14 +35,22 @@ public final class TextConstraintExtractor {
             Pattern.compile("(?:연\\s*소득|가구\\s*소득|소득인정액|소득)[^\\n\\r]{0,12}?(\\d{2,5})\\s*만원\\s*이하");
     private static final Pattern RENT_WON =
             Pattern.compile("(?:월세|임차료|임대료)[^\\n\\r]{0,10}?(\\d{1,4})\\s*만원\\s*이하");
+    private static final String MONTH_TOKEN = "(?:0?[1-9]|1[0-2])";
+    private static final String DAY_TOKEN = "(?:3[01]|[12]\\d|0?[1-9])";
+    private static final String FULL_SEPARATED_DATE =
+            "(?:19|20)\\d{2}[./-]" + MONTH_TOKEN + "[./-]" + DAY_TOKEN;
     private static final String DATE_TOKEN =
             "(?:"
-                    + "(?:19|20)\\d{2}[./-](?:0?[1-9]|1[0-2])[./-](?:0?[1-9]|[12]\\d|3[01])"
+                    + FULL_SEPARATED_DATE
                     + "|"
-                    + "(?:19|20)\\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\\d|3[01])"
+                    + "(?:19|20)\\d{2}(?:0[1-9]|1[0-2])(?:3[01]|[12]\\d|0[1-9])"
                     + ")";
+    private static final String PARTIAL_DATE_TOKEN =
+            "(?:" + MONTH_TOKEN + "[./-]" + DAY_TOKEN + "|" + DAY_TOKEN + ")";
     private static final Pattern DATE_RANGE =
-            Pattern.compile("(" + DATE_TOKEN + ")\\s*(?:~|\\-|–|부터)\\s*(" + DATE_TOKEN + ")");
+            Pattern.compile("(" + DATE_TOKEN + ")\\.?\\s*(?:~|\\-|–|부터)\\s*(" + DATE_TOKEN + ")");
+    private static final Pattern DATE_RANGE_PARTIAL_END =
+            Pattern.compile("(" + FULL_SEPARATED_DATE + ")\\.?\\s*(?:~|\\-|–|부터)\\s*(" + PARTIAL_DATE_TOKEN + ")\\.?");
     private static final Pattern DATE_UNTIL =
             Pattern.compile("(" + DATE_TOKEN + ")\\s*까지");
 
@@ -121,23 +129,31 @@ public final class TextConstraintExtractor {
 
     public static LocalDate extractApplyEndDate(String... texts) {
         if (texts == null) return null;
+        LocalDate latest = null;
         for (String text : texts) {
             if (text == null || text.isBlank()) continue;
             String normalized = text.replace('\u00A0', ' ');
 
             Matcher rangeMatcher = DATE_RANGE.matcher(normalized);
-            if (rangeMatcher.find()) {
+            while (rangeMatcher.find()) {
                 LocalDate end = parseLooseDate(rangeMatcher.group(2));
-                if (end != null) return end;
+                latest = max(latest, end);
+            }
+
+            Matcher partialRangeMatcher = DATE_RANGE_PARTIAL_END.matcher(normalized);
+            while (partialRangeMatcher.find()) {
+                LocalDate start = parseLooseDate(partialRangeMatcher.group(1));
+                LocalDate end = parsePartialEndDate(start, partialRangeMatcher.group(2));
+                latest = max(latest, end);
             }
 
             Matcher untilMatcher = DATE_UNTIL.matcher(normalized);
-            if (untilMatcher.find()) {
+            while (untilMatcher.find()) {
                 LocalDate end = parseLooseDate(untilMatcher.group(1));
-                if (end != null) return end;
+                latest = max(latest, end);
             }
         }
-        return null;
+        return latest;
     }
 
     private static void extractAge(String text, Set<String> out) {
@@ -223,5 +239,31 @@ public final class TextConstraintExtractor {
         } catch (Exception ignored) {
             return null;
         }
+    }
+
+    private static LocalDate parsePartialEndDate(LocalDate start, String rawEnd) {
+        if (start == null || rawEnd == null) return null;
+        String normalized = rawEnd.trim().replaceAll("\\.+$", "");
+        try {
+            LocalDate end;
+            if (normalized.contains(".") || normalized.contains("-") || normalized.contains("/")) {
+                String[] parts = normalized.split("[./-]");
+                if (parts.length != 2) {
+                    return null;
+                }
+                end = LocalDate.of(start.getYear(), Integer.parseInt(parts[0]), Integer.parseInt(parts[1]));
+            } else {
+                end = LocalDate.of(start.getYear(), start.getMonthValue(), Integer.parseInt(normalized));
+            }
+            return end.isBefore(start) ? end.plusYears(1) : end;
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private static LocalDate max(LocalDate current, LocalDate candidate) {
+        if (candidate == null) return current;
+        if (current == null || candidate.isAfter(current)) return candidate;
+        return current;
     }
 }

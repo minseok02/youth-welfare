@@ -59,4 +59,18 @@ class TextConstraintExtractorTest {
 
         assertThat(applyEndDate).isEqualTo(LocalDate.of(2026, 5, 1));
     }
+
+    @Test
+    @DisplayName("복수 접수기간의 종료일이 월/일 또는 일만 쓰인 경우 가장 늦은 종료일로 추출한다")
+    void extractLatestApplyEndDateFromPartialRangeEnds() {
+        LocalDate applyEndDate = TextConstraintExtractor.extractApplyEndDate(
+                """
+                1단계 접수기간 : 2024.12.20.~30.
+                2단계 접수기간 : 2025.4.1.~4.10.
+                3단계 접수기간 : 2025.7.21.~7.30.
+                """
+        );
+
+        assertThat(applyEndDate).isEqualTo(LocalDate.of(2025, 7, 30));
+    }
 }

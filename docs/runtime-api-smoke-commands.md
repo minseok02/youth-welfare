@@ -84,6 +84,18 @@ deploy/smoke/run-local-auth-session-smoke.sh
 deploy/smoke/run-local-validation-suite.sh
 ```
 
+서버나 개인 로컬의 `.env` 값이 기본 smoke 값과 다를 때는 실제 값을 명령줄에 직접 반복해서 쓰지 말고,
+아래 wrapper를 우선 사용합니다. 이 wrapper는 `.env`를 읽어 `DB_QUERY_PASSWORD`,
+`DB_ROOT_PASSWORD`, `ADMIN_EMAIL` 등 검증용 override만 현재 shell에 주입하고 값은 출력하지 않습니다.
+로컬 admin smoke 계정 파일(`/tmp/youth-welfare-admin-smoke-email`,
+`/tmp/youth-welfare-admin-smoke-password`)이 있으면 해당 값을 우선 사용합니다.
+
+```bash
+deploy/smoke/run-local-validation-from-env.sh --quick
+deploy/smoke/run-local-validation-from-env.sh --full --skip-replay
+deploy/smoke/run-local-validation-from-env.sh --only dashboard
+```
+
 기본 순서:
 
 1. auth/session smoke wrapper

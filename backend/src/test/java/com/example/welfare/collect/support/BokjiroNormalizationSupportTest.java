@@ -85,6 +85,23 @@ class BokjiroNormalizationSupportTest {
     }
 
     @Test
+    @DisplayName("복지로 상세 fact는 접수기간 종료일의 연도 생략 포맷도 신청 종료일로 복원한다")
+    void buildsDetailApplyEndDateFactFromPartialRangeEnd() {
+        BokjiroDetailClient.DetailPayload payload = BokjiroDetailClient.DetailPayload.builder()
+                .applyMethodDetail("""
+                        1단계 접수기간 : 2024.12.20.~30.
+                        2단계 접수기간 : 2025.4.1.~4.10.
+                        3단계 접수기간 : 2025.7.21.~7.30.
+                        """)
+                .build();
+
+        assertThat(BokjiroNormalizationSupport.detailFacts(payload))
+                .filteredOn(fact -> "APPLY_END_DATE".equals(fact.factGroup()))
+                .singleElement()
+                .satisfies(fact -> assertThat(fact.dateValue()).isEqualTo(LocalDate.of(2025, 7, 30)));
+    }
+
+    @Test
     @DisplayName("복지로 목록 기반 derived fact 조립을 support에서 공통 처리한다")
     void buildsDerivedFacts() {
         WelfareService service = WelfareService.builder()
