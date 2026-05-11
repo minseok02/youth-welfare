@@ -108,10 +108,13 @@ public class YouthApiDto {
         private String aplyUrlAddr;         // 신청URL → detail_url
 
         @JsonProperty("refUrlAddr1")
-        private String refUrlAddr1;         // 참고URL 1 → detail_url fallback
+        private String refUrlAddr1;         // 참고URL1 → aplyUrlAddr 없을 때 폴백
 
         @JsonProperty("refUrlAddr2")
-        private String refUrlAddr2;         // 참고URL 2 → detail_url fallback
+        private String refUrlAddr2;         // 참고URL2 → refUrlAddr1도 없을 때 폴백
+
+        @JsonProperty("sbizCd")
+        private String sbizCd;             // 정책특화요건코드
 
         @JsonProperty("zipCd")
         private String zipCd;               // 지역코드 (콤마 구분) → service_regions

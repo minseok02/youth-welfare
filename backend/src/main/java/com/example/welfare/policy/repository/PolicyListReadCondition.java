@@ -12,6 +12,10 @@ public record PolicyListReadCondition(
         String sgg,
         Boolean onlineApply,
         // LATEST / VIEWS / NAME
-        String sort
+        String sort,
+        // 소득분위 → 변환된 연소득 상한 (만원 단위), null이면 미선택
+        Integer incomeMaxWon,
+        // 특화조건 태그값 (장애인 / 한부모·조손 / 다문화·탈북민 / 보훈대상자 / 다자녀), null이면 미선택
+        String targetGroup
 ) {
 }

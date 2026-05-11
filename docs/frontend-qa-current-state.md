@@ -103,9 +103,22 @@
 
 - `PoliciesPage` 검색/필터/페이지 상태는 대부분 URL이 아니라 컴포넌트 state에 있습니다.
 - 상세 진입 후 복귀, 새로고침, 직접 URL 접근에서 기대 상태 유지 여부를 수동 확인해야 합니다.
-- `statusFilter`, `sort`, `page`, `pageSize`, `category`, `region`, `subRegion`, `sourceType`은 URL query에 동기화됩니다.
+- `statusFilter`, `sort`, `page`, `pageSize`, `category`, `region`, `subRegion`, `sourceType`, `income`, `targetGroup`은 URL query에 동기화됩니다.
   단 기본값(statusFilter="신청가능" 등)은 URL에 포함되지 않으므로, 새로고침 후 기본값으로 복귀하는 건 정상입니다.
 - 지역 Select 변경 시 sort가 자동 전환됩니다: 지역 선택 → `latest`, 전체 복귀 → `views`.
+
+### 9. 소득분위 필터 + 특화조건 칩 (PoliciesPage)
+
+- **소득분위 필터**: 소득수준 선택 시 `incomeLevel` 파라미터로 전달. 백엔드에서 선택 분위보다 낮은 분위 전용 정책을 WHERE로 제외 (하드 필터).
+  - 예: 7분위 선택 → `max_income ≤ 9,285만원`인 정책 숨김 (1~5분위 전용 정책 제외)
+  - 적용 기준: YOUTH 데이터 `max_income` 필드 (총 24건에만 실제 값 있음, 3,500~10,000만원 범위)
+  - 복지로는 `max_income` 데이터 없음 → 필터 대상 아님 (항상 표시)
+  - 1분위 또는 미선택 → null 전달 → 필터 없음 (전체 표시)
+- **소득수준 UI**: `1~2분위 (하위 20%)` ~ `9~10분위 (상위 20%)` 5단계, 분위 기준만 표시 (소득금액 병기 제거)
+- **특화조건 칩**: 장애인 / 한부모·조손 / 다문화·탈북민 / 보훈대상자 / 다자녀 — `targetGroup` 파라미터로 전달. TARGET_GROUP 태그가 일치하는 정책만 WHERE 필터로 표시 (하드 필터).
+  - 복지로 `trgterIndvdlNmArray` 기반 태그 756건에만 적용 (YOUTH는 TARGET_GROUP 태그 없음)
+  - 군인은 복지로/YOUTH 모두 구조화 데이터 없어 칩 미제공
+- 소득분위·특화조건 모두 기존 카테고리/지역/상태 필터와 AND 결합 (하드 필터)
 
 ### 3. 챗봇/추천의 외부 지연
 

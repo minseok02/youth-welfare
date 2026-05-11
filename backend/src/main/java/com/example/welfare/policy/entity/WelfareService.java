@@ -127,7 +127,8 @@ public class WelfareService extends BaseTimeEntity {
                                      Integer minAge,
                                      Integer maxAge,
                                      LocalDate applyEndDate,
-                                     Boolean isOnlineApply) {
+                                     Boolean isOnlineApply,
+                                     String detailUrl) {
         if ((this.supportContent == null || this.supportContent.isBlank()) && supportContent != null && !supportContent.isBlank()) {
             this.supportContent = supportContent;
         }
@@ -145,6 +146,9 @@ public class WelfareService extends BaseTimeEntity {
         }
         if (this.isOnlineApply == null && isOnlineApply != null) {
             this.isOnlineApply = isOnlineApply;
+        }
+        if ((this.detailUrl == null || this.detailUrl.isBlank()) && detailUrl != null && !detailUrl.isBlank()) {
+            this.detailUrl = detailUrl;
         }
     }
 

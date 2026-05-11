@@ -237,6 +237,11 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
               AND (:category IS NULL OR ws.unified_category = :category)
               AND (:sourceType IS NULL OR ws.source_type = :sourceType)
               AND (:onlineApply IS NULL OR ws.is_online_apply = :onlineApply)
+              AND (:targetGroup IS NULL OR EXISTS (
+                    SELECT 1 FROM service_tags st
+                    WHERE st.service_id = ws.id AND st.tag_type = 'TARGET_GROUP' AND st.tag_value = :targetGroup
+                  ))
+              AND (:incomeMaxWon IS NULL OR ws.max_income IS NULL OR ws.max_income = 0 OR ws.max_income > :incomeMaxWon)
               AND MATCH(ws.title, ws.description, ws.support_content, ws.keyword)
                   AGAINST (:keyword IN BOOLEAN MODE)
             ORDER BY
@@ -284,6 +289,11 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
               AND (:category IS NULL OR ws.unified_category = :category)
               AND (:sourceType IS NULL OR ws.source_type = :sourceType)
               AND (:onlineApply IS NULL OR ws.is_online_apply = :onlineApply)
+              AND (:targetGroup IS NULL OR EXISTS (
+                    SELECT 1 FROM service_tags st
+                    WHERE st.service_id = ws.id AND st.tag_type = 'TARGET_GROUP' AND st.tag_value = :targetGroup
+                  ))
+              AND (:incomeMaxWon IS NULL OR ws.max_income IS NULL OR ws.max_income = 0 OR ws.max_income > :incomeMaxWon)
               AND MATCH(ws.title, ws.description, ws.support_content, ws.keyword)
                   AGAINST (:keyword IN BOOLEAN MODE)
             """, nativeQuery = true)
@@ -294,6 +304,8 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                                                             @Param("sourceType") String sourceType,
                                                             @Param("onlineApply") Integer onlineApply,
                                                             @Param("sort") String sort,
+                                                            @Param("incomeMaxWon") Integer incomeMaxWon,
+                                                            @Param("targetGroup") String targetGroup,
                                                             Pageable pageable);
 
     @Query(value = """
@@ -310,6 +322,11 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
               AND (:category IS NULL OR ws.unified_category = :category)
               AND (:sourceType IS NULL OR ws.source_type = :sourceType)
               AND (:onlineApply IS NULL OR ws.is_online_apply = :onlineApply)
+              AND (:targetGroup IS NULL OR EXISTS (
+                    SELECT 1 FROM service_tags st
+                    WHERE st.service_id = ws.id AND st.tag_type = 'TARGET_GROUP' AND st.tag_value = :targetGroup
+                  ))
+              AND (:incomeMaxWon IS NULL OR ws.max_income IS NULL OR ws.max_income = 0 OR ws.max_income > :incomeMaxWon)
               AND (
                     NOT EXISTS (
                         SELECT 1 FROM service_regions sr1
@@ -385,6 +402,11 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
               AND (:category IS NULL OR ws.unified_category = :category)
               AND (:sourceType IS NULL OR ws.source_type = :sourceType)
               AND (:onlineApply IS NULL OR ws.is_online_apply = :onlineApply)
+              AND (:targetGroup IS NULL OR EXISTS (
+                    SELECT 1 FROM service_tags st
+                    WHERE st.service_id = ws.id AND st.tag_type = 'TARGET_GROUP' AND st.tag_value = :targetGroup
+                  ))
+              AND (:incomeMaxWon IS NULL OR ws.max_income IS NULL OR ws.max_income = 0 OR ws.max_income > :incomeMaxWon)
               AND (
                     NOT EXISTS (
                         SELECT 1 FROM service_regions sr1
@@ -407,6 +429,8 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                                                             @Param("onlineApply") Integer onlineApply,
                                                             @Param("sido") String sido,
                                                             @Param("sort") String sort,
+                                                            @Param("incomeMaxWon") Integer incomeMaxWon,
+                                                            @Param("targetGroup") String targetGroup,
                                                             Pageable pageable);
 
     @Query(value = """
@@ -423,6 +447,10 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
               AND (:category IS NULL OR ws.unified_category = :category)
               AND (:sourceType IS NULL OR ws.source_type = :sourceType)
               AND (:onlineApply IS NULL OR ws.is_online_apply = :onlineApply)
+              AND (:targetGroup IS NULL OR EXISTS (
+                    SELECT 1 FROM service_tags st
+                    WHERE st.service_id = ws.id AND st.tag_type = 'TARGET_GROUP' AND st.tag_value = :targetGroup
+                  ))
               AND (
                     NOT EXISTS (
                         SELECT 1 FROM service_regions sr1
@@ -438,6 +466,8 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
               AND MATCH(ws.title, ws.description, ws.support_content, ws.keyword)
                   AGAINST (:keyword IN BOOLEAN MODE)
             ORDER BY
+                -- 소득분위 부스팅
+                CASE WHEN :incomeMaxWon IS NOT NULL AND ws.max_income > 0 AND ws.max_income <= :incomeMaxWon THEN 0 ELSE 1 END ASC,
                 -- B안: LATEST일 때만 지역이 1순위 그룹
                 CASE
                     WHEN :sort = 'LATEST' AND EXISTS (
@@ -503,6 +533,10 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
               AND (:category IS NULL OR ws.unified_category = :category)
               AND (:sourceType IS NULL OR ws.source_type = :sourceType)
               AND (:onlineApply IS NULL OR ws.is_online_apply = :onlineApply)
+              AND (:targetGroup IS NULL OR EXISTS (
+                    SELECT 1 FROM service_tags st
+                    WHERE st.service_id = ws.id AND st.tag_type = 'TARGET_GROUP' AND st.tag_value = :targetGroup
+                  ))
               AND (
                     NOT EXISTS (
                         SELECT 1 FROM service_regions sr1
@@ -527,6 +561,8 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                                                                @Param("sido") String sido,
                                                                @Param("sgg") String sgg,
                                                                @Param("sort") String sort,
+                                                               @Param("incomeMaxWon") Integer incomeMaxWon,
+                                                               @Param("targetGroup") String targetGroup,
                                                                Pageable pageable);
 
     // 카테고리 필터 조회
@@ -551,6 +587,11 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
               AND (:category IS NULL OR ws.unified_category = :category)
               AND (:sourceType IS NULL OR ws.source_type = :sourceType)
               AND (:onlineApply IS NULL OR ws.is_online_apply = :onlineApply)
+              AND (:targetGroup IS NULL OR EXISTS (
+                    SELECT 1 FROM service_tags st
+                    WHERE st.service_id = ws.id AND st.tag_type = 'TARGET_GROUP' AND st.tag_value = :targetGroup
+                  ))
+              AND (:incomeMaxWon IS NULL OR ws.max_income IS NULL OR ws.max_income = 0 OR ws.max_income > :incomeMaxWon)
               AND (
                     :sido IS NULL
                     OR NOT EXISTS (
@@ -632,6 +673,11 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
               AND (:category IS NULL OR ws.unified_category = :category)
               AND (:sourceType IS NULL OR ws.source_type = :sourceType)
               AND (:onlineApply IS NULL OR ws.is_online_apply = :onlineApply)
+              AND (:targetGroup IS NULL OR EXISTS (
+                    SELECT 1 FROM service_tags st
+                    WHERE st.service_id = ws.id AND st.tag_type = 'TARGET_GROUP' AND st.tag_value = :targetGroup
+                  ))
+              AND (:incomeMaxWon IS NULL OR ws.max_income IS NULL OR ws.max_income = 0 OR ws.max_income > :incomeMaxWon)
               AND (
                     :sido IS NULL
                     OR NOT EXISTS (
@@ -663,6 +709,8 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                                              @Param("regionCode") String regionCode,
                                              @Param("onlineApply") Integer onlineApply,
                                              @Param("sort") String sort,
+                                             @Param("incomeMaxWon") Integer incomeMaxWon,
+                                             @Param("targetGroup") String targetGroup,
                                              Pageable pageable);
 
     // 상태별 전체 조회 (StatusUpdateService 용)

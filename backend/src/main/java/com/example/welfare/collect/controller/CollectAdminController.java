@@ -4,6 +4,7 @@ import com.example.welfare.collect.normalization.NormalizedPolicySidecarBackfill
 import com.example.welfare.collect.service.CollectAdminService;
 import com.example.welfare.collect.service.CollectBatchService;
 import com.example.welfare.collect.service.CollectBatchRunResult;
+import com.example.welfare.collect.service.CollectResult;
 import com.example.welfare.collect.service.CollectSource;
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
@@ -31,6 +32,7 @@ public class CollectAdminController {
     private final CollectBatchService collectBatchService;
     private final CollectAdminService collectAdminService;
     private final NormalizedPolicySidecarBackfillService normalizedPolicySidecarBackfillService;
+    private final com.example.welfare.collect.service.YouthDetailCollectService youthDetailCollectService;
 
     @PostMapping("/all")
     public ResponseEntity<ApiResponse<CollectAllResponse>> collectAll() {
@@ -45,6 +47,16 @@ public class CollectAdminController {
         log.info("[Admin] {} 수집 수동 트리거", source.triggerLabel());
         collectAdminService.collect(source);
         return ResponseEntity.ok(ApiResponse.success(source.successMessage()));
+    }
+
+    @PostMapping("/youth-details")
+    public ResponseEntity<ApiResponse<String>> collectYouthDetails() {
+        log.info("[Admin] 온통청년 DETAIL 수집 수동 트리거");
+        CollectResult result = youthDetailCollectService.collectYouthDetails();
+        return ResponseEntity.ok(ApiResponse.success(
+                "온통청년 DETAIL 수집 완료 requested=%d saved=%d skipped=%d failed=%d"
+                        .formatted(result.requestedCount(), result.savedCount(), result.skippedCount(), result.failedCount())
+        ));
     }
 
     @PostMapping("/bokjiro-sidecars-backfill")

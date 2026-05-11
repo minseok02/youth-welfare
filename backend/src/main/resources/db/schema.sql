@@ -192,7 +192,7 @@ CREATE TABLE IF NOT EXISTS welfare_services (
     host_org          VARCHAR(200),
     operating_org     VARCHAR(200),
     contact           VARCHAR(100),
-    detail_url        VARCHAR(500),
+    detail_url        VARCHAR(2048),
     unified_category  VARCHAR(50),
     is_youth_specific TINYINT(1)  NOT NULL DEFAULT 0,
     search_youth_relevant TINYINT(1) NOT NULL DEFAULT 1,

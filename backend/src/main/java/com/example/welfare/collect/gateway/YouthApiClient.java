@@ -70,6 +70,37 @@ public class YouthApiClient {
         return result;
     }
 
+    public YouthApiDto.Item fetchDetail(String plcyNo) {
+        ExecutionResult<YouthApiDto> result = collectHttpRetryExecutor.execute(
+                "YouthApiClient",
+                "detail=" + plcyNo,
+                retryMaxAttempts,
+                retryBaseBackoffMs,
+                status -> isRetryableStatus(status) ? HttpFailureAction.RETRYABLE : HttpFailureAction.FAIL_FAST,
+                () -> webClient.get()
+                        .uri(uriBuilder -> uriBuilder
+                                .scheme("https")
+                                .host("www.youthcenter.go.kr")
+                                .path("/go/ythip/getPlcy")
+                                .queryParam("apiKeyNm", apiKey)
+                                .queryParam("pageType", "2")
+                                .queryParam("plcyNo", plcyNo)
+                                .queryParam("rtnType", "json")
+                                .build())
+                        .retrieve()
+                        .bodyToMono(YouthApiDto.class)
+                        .block(Duration.ofSeconds(20))
+        );
+        if (result.rateLimited()) return null;
+        YouthApiDto dto = result.payload();
+        if (dto == null || dto.getResult() == null
+                || dto.getResult().getYouthPolicyList() == null
+                || dto.getResult().getYouthPolicyList().isEmpty()) {
+            return null;
+        }
+        return dto.getResult().getYouthPolicyList().get(0);
+    }
+
     private YouthApiDto fetchPage(int pageNum, int pageSize) {
         ExecutionResult<YouthApiDto> result = collectHttpRetryExecutor.execute(
                 "YouthApiClient",

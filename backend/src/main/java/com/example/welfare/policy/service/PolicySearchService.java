@@ -33,8 +33,13 @@ public class PolicySearchService {
 
     @Transactional(readOnly = true)
     public PolicySearchResponse search(Long userId, String keyword, int page) {
-        return search(userId, keyword, null, null, null, null, null, null, null, null, page, DEFAULT_SEARCH_LIMIT);
+        return search(userId, keyword, null, null, null, null, null, null, null, null, null, null, page, DEFAULT_SEARCH_LIMIT);
     }
+
+    // 소득분위(1~9) → 연소득 상한 (만원) — PolicyListService와 동일 기준
+    private static final int[] INCOME_THRESHOLDS = {
+        0, 2228, 3714, 5570, 7428, 9285, 11142, 13000, 15000, 20000
+    };
 
     @Transactional(readOnly = true)
     public PolicySearchResponse search(Long userId,
@@ -47,6 +52,8 @@ public class PolicySearchService {
                                        String sido,
                                        String sgg,
                                        String sort,
+                                       Integer incomeLevel,
+                                       String targetGroup,
                                        int page,
                                        int size) {
         long startedAt = System.nanoTime();
@@ -65,6 +72,9 @@ public class PolicySearchService {
         Integer onlineApplyFlag = onlineApply == null ? null : (onlineApply ? 1 : 0);
         String normalizedSort = normalizeSort(sort);
 
+        Integer incomeMaxWon = resolveIncomeMaxWon(incomeLevel);
+        String normalizedTargetGroup = normalizeNullable(targetGroup);
+
         // 지역 분기 및 sido/sgg → regionCode 변환은 WelfareServiceReadRepositoryImpl에서 처리
         Page<WelfareService> resultPage = welfareServiceReadRepository.search(
                 new PolicySearchReadCondition(
@@ -76,7 +86,9 @@ public class PolicySearchService {
                         onlineApplyFlag,
                         normalizedSido,
                         normalizedSgg,
-                        normalizedSort
+                        normalizedSort,
+                        incomeMaxWon,
+                        normalizedTargetGroup
                 ),
                 PageRequest.of(pageNumber, limit)
         );
@@ -226,5 +238,12 @@ public class PolicySearchService {
         if (text == null) return null;
         String trimmed = text.trim();
         return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private Integer resolveIncomeMaxWon(Integer incomeLevel) {
+        if (incomeLevel == null || incomeLevel <= 1) return null;
+        int prevLevel = incomeLevel - 2;
+        if (prevLevel <= 0) return null;
+        return INCOME_THRESHOLDS[prevLevel];
     }
 }
