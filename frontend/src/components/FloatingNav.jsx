@@ -31,12 +31,17 @@ export default function FloatingNav() {
     navigate(item.path);
   };
 
+  const isChat = location.pathname.startsWith("/chat");
+  const rightPos = isChat
+    ? "max(8px, calc((100vw - 1536px) / 2 - 80px))"
+    : "max(8px, calc((100vw - 1200px) / 2 - 110px))";
+
   return (
     <Box
       sx={{
         position: "fixed",
         top: "50%",
-        right: "max(8px, calc((100vw - 1200px) / 2 - 110px))",
+        right: rightPos,
         transform: "translateY(-50%)",
         zIndex: 1200,
         display: { xs: "none", lg: "flex" },

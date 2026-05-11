@@ -1,24 +1,20 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
-  Box, Container, Typography, Button,
-  Card, CardContent, Chip, Pagination,
-  Select, MenuItem, FormControl, IconButton,
-  Snackbar, Alert, CircularProgress,
-  Collapse, Radio, RadioGroup, FormControlLabel,
+  Snackbar, Alert, Pagination, CircularProgress,
 } from "@mui/material";
-import SearchIcon from "@mui/icons-material/Search";
 import BookmarkBorderIcon from "@mui/icons-material/BookmarkBorder";
 import BookmarkIcon from "@mui/icons-material/Bookmark";
+import SearchIcon from "@mui/icons-material/Search";
 import ViewListIcon from "@mui/icons-material/ViewList";
 import GridViewIcon from "@mui/icons-material/GridView";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import Header from "../components/Header";
 import FloatingNav from "../components/FloatingNav";
 import IncomeCalculatorModal from "../components/IncomeCalculatorModal";
 import api from "../lib/axios";
 import { useAuthStore } from "../store/authStore";
+
+// ── 상수 ──────────────────────────────────────────────────────────────────────
 
 const CATEGORIES = [
   { label: "전체", value: "" },
@@ -31,7 +27,6 @@ const CATEGORIES = [
   { label: "가족·돌봄", value: "가족·돌봄" },
   { label: "안전·위기", value: "안전·위기" },
   { label: "참여·기회", value: "참여·기회" },
-  // 임시: 미분류(기타) 정책 점검용. 복지로 로컬 카테고리 매핑 정비 후 제거 예정
   { label: "분류없음", value: "기타" },
 ];
 
@@ -62,16 +57,42 @@ const DISTRICT_MAP = {
 };
 
 const INCOME_ROWS = [
-  { value: "1", left: "1~2분위 (하위 20%)", right: "기초생활수급자" },
-  { value: "3", left: "3~4분위 (하위 40%)", right: "차상위계층" },
-  { value: "5", left: "5~6분위 (중간)", right: "소득 하위 50% 이하" },
-  { value: "7", left: "7~8분위 (상위 40%)", right: "소득 중간 (50~100%)" },
-  { value: "9", left: "9~10분위 (상위 20%)", right: "소득 상위 (100% 초과)" },
+  { value: "1", label: "1~2분위 (하위 20%)" },
+  { value: "3", label: "3~4분위 (하위 40%)" },
+  { value: "5", label: "5~6분위 (중간 40%)" },
+  { value: "7", label: "7~8분위 (상위 40%)" },
+  { value: "9", label: "9~10분위 (상위 20%)" },
 ];
 
 const EMPLOY_OPTIONS = ["전체", "재직중", "구직중", "학생", "기타"];
 
+const TARGET_GROUPS = [
+  { label: "장애인", value: "장애인" },
+  { label: "한부모·조손", value: "한부모·조손" },
+  { label: "다문화·탈북민", value: "다문화·탈북민" },
+  { label: "보훈대상자", value: "보훈대상자" },
+  { label: "다자녀", value: "다자녀" },
+];
+
 const SORT_MAP = { relevance: "RELEVANCE", views: "VIEWS", latest: "LATEST", deadline: "DEADLINE" };
+
+const TRENDING = ["월세 지원", "국민취업제도", "도약계좌", "창업캠프", "자격증 응시료", "대학생 생활안정"];
+
+// ── 디자인 상수 ───────────────────────────────────────────────────────────────
+const A = "#2563eb";
+const A7 = "#1d4ed8";
+const AS = "#e8efff";
+const AI = "#1e3a8a";
+const INK = "#11131a";
+const INK2 = "#4a4f5c";
+const INK3 = "#8b91a0";
+const LINE = "#e7e9ef";
+const LINE2 = "#f0f2f7";
+const WARN = "#ef4444";
+const OK = "#047857";
+const OK_BG = "#ecfdf5";
+
+// ── 헬퍼 ──────────────────────────────────────────────────────────────────────
 
 const statusLabel = (status) => {
   if (status === "ACTIVE") return "진행중";
@@ -93,22 +114,14 @@ const formatDday = (dateText, status) => {
   return `D-${diff}`;
 };
 
-const ddayColor = (dday) => {
-  if (dday === "종료") return "default";
-  if (dday === "상시/문의" || dday === "진행중") return "success";
-  if (dday === "예정") return "info";
-  if (dday === "D-Day") return "error";
-  const n = Number.parseInt(String(dday).replace("D-", ""), 10);
-  return Number.isNaN(n) ? "default" : n <= 14 ? "error" : "primary";
-};
-
 const mapPolicySummary = (policy) => ({
   id: policy.id,
   title: policy.title,
   category: policy.unifiedCategory || "기타",
   dday: formatDday(policy.applyEndDate, policy.status) || statusLabel(policy.status),
-  // source 우선순위: 주관기관 → 지역(복지로 지자체만 sido 있음) → 신청방법
   source: policy.hostOrg || policy.sido || policy.applyMethodName || statusLabel(policy.status),
+  orgName: policy.hostOrg || policy.operatingOrg || "",
+  regionText: policy.sido || "",
   summary: policy.description || "정책 설명 정보가 없습니다.",
   bookmarked: Boolean(policy.bookmarked),
   apiViewCount: policy.apiViewCount ?? 0,
@@ -120,12 +133,123 @@ const mapPolicySummary = (policy) => ({
 
 const resolveInitialSort = (paramsSearch, paramsSort) => {
   const hasSearch = Boolean(paramsSearch?.trim());
-  const allowed = hasSearch
-    ? ["relevance", "views", "latest", "deadline"]
-    : ["views", "latest", "deadline"];
+  const allowed = hasSearch ? ["relevance", "views", "latest", "deadline"] : ["views", "latest", "deadline"];
   if (allowed.includes(paramsSort)) return paramsSort;
   return hasSearch ? "relevance" : "latest";
 };
+
+const ddayStyle = (dday) => {
+  if (dday === "종료") return { background: LINE2, color: INK3 };
+  if (dday === "상시/문의" || dday === "진행중" || dday === "상시") return { background: OK_BG, color: OK };
+  if (dday === "예정") return { background: "#eff6ff", color: "#1d4ed8" };
+  if (dday === "D-Day") return { background: "#fef2f2", color: WARN };
+  const n = parseInt(String(dday).replace("D-", ""), 10);
+  if (!Number.isNaN(n) && n <= 14) return { background: "#fef2f2", color: WARN };
+  return { background: AS, color: A };
+};
+
+// ── 필터 사이드바 섹션 ─────────────────────────────────────────────────────────
+
+function FilterSection({ title, defaultOpen = true, children }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div style={{ borderBottom: `1px solid ${LINE2}`, padding: "14px 0" }}>
+      <div
+        onClick={() => setOpen(!open)}
+        style={{ display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer", marginBottom: open ? 10 : 0 }}
+      >
+        <span style={{ fontSize: 14, fontWeight: 700, color: INK }}>{title}</span>
+        <span style={{ fontSize: 12, color: INK3 }}>{open ? "−" : "+"}</span>
+      </div>
+      {open && children}
+    </div>
+  );
+}
+
+function RadioItem({ label, checked, onChange }) {
+  return (
+    <label onClick={onChange} style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", padding: "4px 0" }}>
+      <span style={{
+        width: 16, height: 16, borderRadius: "50%", border: `1.5px solid ${checked ? A : LINE}`,
+        background: checked ? A : "white", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+      }}>
+        {checked && <span style={{ width: 6, height: 6, borderRadius: "50%", background: "white" }} />}
+      </span>
+      <span style={{ fontSize: 13, color: checked ? INK : INK2, fontWeight: checked ? 700 : 400 }}>{label}</span>
+    </label>
+  );
+}
+
+// ── 정책 카드 ─────────────────────────────────────────────────────────────────
+
+function PolicyRow({ p, onNavigate, onBookmark }) {
+  const ds = ddayStyle(p.dday);
+  const isUrgent = p.dday.startsWith("D-") && parseInt(p.dday.replace("D-", "")) <= 14;
+  return (
+    <div
+      style={{ background: "white", border: `1px solid ${isUrgent ? "#fecaca" : LINE}`, borderRadius: 14, padding: "18px 20px", cursor: "pointer", transition: "border-color .15s, box-shadow .15s", display: "flex", gap: 16 }}
+      onClick={() => onNavigate(p.id)}
+      onMouseEnter={e => { e.currentTarget.style.borderColor = isUrgent ? "#fca5a5" : A; e.currentTarget.style.boxShadow = "0 4px 16px rgba(37,99,235,0.08)"; }}
+      onMouseLeave={e => { e.currentTarget.style.borderColor = isUrgent ? "#fecaca" : LINE; e.currentTarget.style.boxShadow = ""; }}
+    >
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 10, flexWrap: "wrap" }}>
+          <span style={{ display: "inline-flex", fontSize: 12, padding: "3px 10px", borderRadius: 99, fontWeight: 600, background: AS, color: AI }}>
+            {p.category}
+          </span>
+          <span style={{ display: "inline-flex", fontSize: 12, padding: "3px 10px", borderRadius: 99, fontWeight: 600, ...ds }}>
+            {p.dday}
+          </span>
+        </div>
+        <div style={{ fontSize: 16, fontWeight: 700, letterSpacing: "-0.01em", lineHeight: 1.35, color: INK }}>{p.title}</div>
+        <div style={{ fontSize: 13, color: INK2, marginTop: 6, lineHeight: 1.55, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 1, WebkitBoxOrient: "vertical" }}>
+          {p.summary}
+        </div>
+        <div style={{ display: "flex", gap: 14, marginTop: 10, fontSize: 12, color: INK3, flexWrap: "wrap" }}>
+          {p.orgName && <span>🏢 {p.orgName}</span>}
+          {p.regionText && <span>📍 {p.regionText}</span>}
+          {!p.orgName && p.source && <span>🏢 {p.source}</span>}
+        </div>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", flexShrink: 0, gap: 4 }}>
+        <button
+          onClick={(e) => { e.stopPropagation(); onBookmark(p.id, e); }}
+          style={{ width: 36, height: 36, borderRadius: 10, border: `1px solid ${LINE}`, display: "flex", alignItems: "center", justifyContent: "center", background: "white", cursor: "pointer", color: p.bookmarked ? "#f59e0b" : INK3 }}
+        >
+          {p.bookmarked ? <BookmarkIcon style={{ fontSize: 18 }} /> : <BookmarkBorderIcon style={{ fontSize: 18 }} />}
+        </button>
+        <span style={{ fontSize: 10, color: INK3 }}>저장</span>
+      </div>
+    </div>
+  );
+}
+
+function PolicyCard({ p, onNavigate, onBookmark }) {
+  const ds = ddayStyle(p.dday);
+  return (
+    <div
+      style={{ background: "white", border: `1px solid ${LINE}`, borderRadius: 14, padding: 18, cursor: "pointer", transition: "box-shadow .15s" }}
+      onClick={() => onNavigate(p.id)}
+      onMouseEnter={e => { e.currentTarget.style.boxShadow = "0 4px 16px rgba(37,99,235,0.1)"; }}
+      onMouseLeave={e => { e.currentTarget.style.boxShadow = ""; }}
+    >
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          <span style={{ display: "inline-flex", fontSize: 12, padding: "3px 10px", borderRadius: 99, fontWeight: 600, background: AS, color: AI }}>{p.category}</span>
+          <span style={{ display: "inline-flex", fontSize: 12, padding: "3px 10px", borderRadius: 99, fontWeight: 600, ...ds }}>{p.dday}</span>
+        </div>
+        <button onClick={(e) => { e.stopPropagation(); onBookmark(p.id, e); }} style={{ background: "none", border: "none", cursor: "pointer", color: p.bookmarked ? "#f59e0b" : INK3, padding: 0 }}>
+          {p.bookmarked ? <BookmarkIcon style={{ fontSize: 18 }} /> : <BookmarkBorderIcon style={{ fontSize: 18 }} />}
+        </button>
+      </div>
+      <div style={{ fontSize: 15, fontWeight: 700, lineHeight: 1.4, color: INK, marginBottom: 6 }}>{p.title}</div>
+      <div style={{ fontSize: 12, color: INK2, lineHeight: 1.5, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{p.summary}</div>
+      {p.source && <div style={{ fontSize: 12, color: INK3, marginTop: 8 }}>🏢 {p.source}</div>}
+    </div>
+  );
+}
+
+// ── 메인 컴포넌트 ─────────────────────────────────────────────────────────────
 
 export default function PoliciesPage() {
   const navigate = useNavigate();
@@ -134,12 +258,12 @@ export default function PoliciesPage() {
 
   const [search, setSearch] = useState(searchParams.get("search") || "");
   const [selectedCat, setSelectedCat] = useState(searchParams.get("category") || "");
-  const [filterOpen, setFilterOpen] = useState(false);
   const [region, setRegion] = useState(searchParams.get("region") || "전체");
   const [subRegion, setSubRegion] = useState(searchParams.get("subRegion") || "전체");
   const [income, setIncome] = useState(searchParams.get("income") || "전체");
   const [incomeOpen, setIncomeOpen] = useState(false);
   const [employ, setEmploy] = useState(searchParams.get("employ") || "전체");
+  const [targetGroup, setTargetGroup] = useState(searchParams.get("targetGroup") || "");
   const [sourceType, setSourceType] = useState(searchParams.get("sourceType") || "전체");
   const [statusFilter, setStatusFilter] = useState(searchParams.get("statusFilter") || "신청가능");
   const [sort, setSort] = useState(resolveInitialSort(searchParams.get("search") || "", searchParams.get("sort")));
@@ -153,6 +277,7 @@ export default function PoliciesPage() {
   const [toast, setToast] = useState({ open: false, msg: "", severity: "info" });
   const [incomeCalcOpen, setIncomeCalcOpen] = useState(false);
 
+  // ── URL 파라미터 동기화 ──────────────────────────────────────────────────────
   useEffect(() => {
     const params = {};
     if (search) params.search = search;
@@ -161,6 +286,7 @@ export default function PoliciesPage() {
     if (subRegion !== "전체") params.subRegion = subRegion;
     if (income !== "전체") params.income = income;
     if (employ !== "전체") params.employ = employ;
+    if (targetGroup) params.targetGroup = targetGroup;
     if (sourceType !== "전체") params.sourceType = sourceType;
     if (statusFilter !== "신청가능") params.statusFilter = statusFilter;
     const defaultSort = search.trim() ? "relevance" : "latest";
@@ -168,470 +294,344 @@ export default function PoliciesPage() {
     if (page !== 1) params.page = String(page);
     if (pageSize !== 10) params.pageSize = String(pageSize);
     setSearchParams(params, { replace: true });
-  }, [search, selectedCat, region, subRegion, income, employ, sourceType, statusFilter, sort, page, pageSize, setSearchParams]);
+  }, [search, selectedCat, region, subRegion, income, employ, targetGroup, sourceType, statusFilter, sort, page, pageSize, setSearchParams]);
 
   useEffect(() => {
-    const defaultSort = search.trim() ? "relevance" : "latest";
-    if (!search.trim() && sort === "relevance") {
-      setSort("latest");
-      return;
-    }
-    if (search.trim() && !searchParams.get("sort") && sort !== defaultSort) {
-      setSort(defaultSort);
-    }
-  }, [search, sort, searchParams]);
+    if (!search.trim() && sort === "relevance") { setSort("latest"); return; }
+    if (search.trim() && !searchParams.get("sort") && sort !== "relevance") setSort("relevance");
+  }, [search]); // eslint-disable-line
 
+  // ── 정책 fetch ───────────────────────────────────────────────────────────────
   useEffect(() => {
     const controller = new AbortController();
-
     const fetchPolicies = async () => {
       setLoading(true);
       try {
-        const SOURCE_TYPE_MAP = {
-          "온통청년": "YOUTH",
-          "복지로 중앙": "BOKJIRO_CENTRAL",
-          "복지로 지자체": "BOKJIRO_LOCAL",
-        };
+        const SOURCE_TYPE_MAP = { "온통청년": "YOUTH", "복지로 중앙": "BOKJIRO_CENTRAL", "복지로 지자체": "BOKJIRO_LOCAL" };
         const commonParams = {
           category: selectedCat || undefined,
           sido: region === "전체" ? undefined : region,
           sgg: subRegion === "전체" ? undefined : subRegion,
           sourceType: sourceType === "전체" ? undefined : SOURCE_TYPE_MAP[sourceType],
-          sort: search.trim()
-            ? (SORT_MAP[sort] ?? "RELEVANCE")
-            : (sort === "relevance" ? "LATEST" : (SORT_MAP[sort] ?? "LATEST")),
+          sort: search.trim() ? (SORT_MAP[sort] ?? "RELEVANCE") : (sort === "relevance" ? "LATEST" : (SORT_MAP[sort] ?? "LATEST")),
+          incomeLevel: income === "전체" ? undefined : Number(income),
+          targetGroup: targetGroup || undefined,
           page: page - 1,
           size: pageSize,
         };
-
-        // "마감"(EXPIRED_ONLY)은 DB status=CLOSED뿐 아니라 온통청년처럼 applyEndDate만 지난 정책도 포함
         const STATUS_FILTER_MAP = { "신청가능": "ACTIVE_ONLY", "마감": "EXPIRED_ONLY", "전부표기": "ALL" };
         const apiStatusFilter = STATUS_FILTER_MAP[statusFilter] ?? "ACTIVE_ONLY";
 
-        if (search.trim()) {
-          const { data } = await api.get("/api/policies/search", {
-            params: { ...commonParams, keyword: search.trim(), statusFilter: apiStatusFilter },
-            signal: controller.signal,
-          });
-          const pageData = data.data ?? {};
-          setPolicies((pageData.content ?? []).map(mapPolicySummary));
-          setTotalCount(pageData.totalElements ?? 0);
-          setTotalPages(Math.max(pageData.totalPages ?? 1, 1));
-          return;
-        }
-
-        const { data } = await api.get("/api/policies", {
-          params: { ...commonParams, statusFilter: apiStatusFilter },
-          signal: controller.signal,
-        });
+        const endpoint = search.trim() ? "/api/policies/search" : "/api/policies";
+        const reqParams = search.trim() ? { ...commonParams, keyword: search.trim(), statusFilter: apiStatusFilter } : { ...commonParams, statusFilter: apiStatusFilter };
+        const { data } = await api.get(endpoint, { params: reqParams, signal: controller.signal });
         const pageData = data.data ?? {};
         setPolicies((pageData.content ?? []).map(mapPolicySummary));
         setTotalCount(pageData.totalElements ?? 0);
         setTotalPages(Math.max(pageData.totalPages ?? 1, 1));
       } catch (error) {
         if (error.name === "CanceledError" || error.code === "ERR_CANCELED") return;
-        setPolicies([]);
-        setTotalPages(1);
-        setTotalCount(0);
+        setPolicies([]); setTotalPages(1); setTotalCount(0);
         setToast({ open: true, msg: "정책 목록을 불러오지 못했습니다", severity: "error" });
       } finally {
         if (!controller.signal.aborted) setLoading(false);
       }
     };
-
     fetchPolicies();
     return () => controller.abort();
-  }, [statusFilter, page, pageSize, region, search, selectedCat, sort, sourceType, subRegion]);
+  }, [statusFilter, page, pageSize, region, search, selectedCat, sort, sourceType, subRegion, income, targetGroup]);
 
+  // ── 핸들러 ───────────────────────────────────────────────────────────────────
   const handleBookmark = async (id, event) => {
     event.stopPropagation();
-    if (!isLoggedIn) {
-      setToast({ open: true, msg: "로그인 후 이용 가능해요", severity: "info" });
-      return;
-    }
+    if (!isLoggedIn) { setToast({ open: true, msg: "로그인 후 이용 가능해요", severity: "info" }); return; }
     try {
       await api.post(`/api/policies/${id}/bookmark`);
-      setPolicies((prev) =>
-        prev.map((p) => (p.id === id ? { ...p, bookmarked: !p.bookmarked } : p))
-      );
-    } catch {
-      setToast({ open: true, msg: "북마크 처리에 실패했습니다", severity: "error" });
-    }
+      setPolicies((prev) => prev.map((p) => (p.id === id ? { ...p, bookmarked: !p.bookmarked } : p)));
+    } catch { setToast({ open: true, msg: "북마크 처리에 실패했습니다", severity: "error" }); }
   };
 
-  const handleCategorySelect = (val) => {
-    setSelectedCat(val);
-    setPage(1);
-  };
-
-  const handleApplyFilter = () => {
-    setPage(1);
-    setFilterOpen(false);
-  };
-
+  const handleCategorySelect = (val) => { setSelectedCat(val); setPage(1); };
+  const handleApplyFilter = () => { setPage(1); };
   const handleResetFilter = () => {
-    setSelectedCat("");
-    setRegion("전체");
-    setSubRegion("전체");
-    setIncome("전체");
-    setEmploy("전체");
-    setSourceType("전체");
-    setStatusFilter("신청가능");
-    setSort(search.trim() ? "relevance" : "latest");
+    setSelectedCat(""); setRegion("전체"); setSubRegion("전체"); setIncome("전체");
+    setEmploy("전체"); setTargetGroup(""); setSourceType("전체"); setStatusFilter("신청가능");
+    setSort(search.trim() ? "relevance" : "latest"); setPage(1);
+  };
+
+  const handleSearch = () => {
+    if (search.trim()) setSort("relevance");
     setPage(1);
   };
+
+  // ── 활성 필터 칩 목록 ────────────────────────────────────────────────────────
+  const activeFilters = [
+    selectedCat && { key: "cat", label: CATEGORIES.find(c => c.value === selectedCat)?.label || selectedCat, clear: () => setSelectedCat("") },
+    region !== "전체" && { key: "region", label: subRegion !== "전체" ? `${region} ${subRegion}` : region, clear: () => { setRegion("전체"); setSubRegion("전체"); } },
+    income !== "전체" && { key: "income", label: INCOME_ROWS.find(r => r.value === income)?.label, clear: () => setIncome("전체") },
+    employ !== "전체" && { key: "employ", label: employ, clear: () => setEmploy("전체") },
+    targetGroup && { key: "tg", label: targetGroup, clear: () => setTargetGroup("") },
+    sourceType !== "전체" && { key: "src", label: sourceType, clear: () => setSourceType("전체") },
+    statusFilter !== "신청가능" && { key: "status", label: statusFilter, clear: () => setStatusFilter("신청가능") },
+  ].filter(Boolean);
 
   return (
-    <Box sx={{ minHeight: "100vh", bgcolor: "background.default" }}>
+    <div style={{ minHeight: "100vh", background: "#f7f8fc" }}>
       <Header />
 
-      {/* 히어로 검색 + 필터 */}
-      <Box sx={{ background: "linear-gradient(135deg, #016070 0%, #00A896 100%)", pt: 5, pb: 3, px: 2, textAlign: "center" }}>
-        <Typography variant="h5" fontWeight={700} color="white" mb={2}>
-          청년을 위한 복지정책을 찾아드려요
-        </Typography>
-
-        {/* 검색창 + 카테고리 — 하나의 흰 박스 */}
-        <Box sx={{ maxWidth: 640, mx: "auto", bgcolor: "white", borderRadius: 2, overflow: "hidden", boxShadow: 3 }}>
-          <Box sx={{ display: "flex", alignItems: "center", height: 48, borderBottom: "1px solid #f0f0f0" }}>
-            <SearchIcon color="action" sx={{ ml: 1.5, flexShrink: 0 }} />
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  if (search.trim() && !searchParams.get("sort")) {
-                    setSort("relevance");
-                  }
-                  setPage(1);
-                }
-              }}
-              placeholder="검색어를 입력하세요"
-              style={{ flex: 1, border: "none", outline: "none", fontSize: 14, padding: "0 12px", height: "100%", background: "transparent" }}
-            />
-            <Button
-              variant="contained"
-              disableElevation
-              onClick={() => {
-                if (search.trim() && !searchParams.get("sort")) {
-                  setSort("relevance");
-                }
-                setPage(1);
-              }}
-              sx={{ borderRadius: 0, px: 3, height: "100%", fontSize: 14, flexShrink: 0 }}
+      {/* 검색 히어로 */}
+      <div style={{ background: "white", borderBottom: `1px solid ${LINE}`, padding: "32px 24px 24px" }}>
+        <div style={{ maxWidth: 1240, margin: "0 auto" }}>
+          <div style={{ fontSize: 26, fontWeight: 800, letterSpacing: "-0.02em", color: INK }}>청년을 위한 복지정책을 찾아드려요</div>
+          <div style={{ fontSize: 14, color: INK3, marginTop: 6 }}>
+            {totalCount > 0 ? `${totalCount.toLocaleString()}개 정책 중에서 내 조건에 맞는 정책만 골라보세요.` : "조건에 맞는 정책을 검색해보세요."}
+          </div>
+          <div style={{ marginTop: 20, display: "flex", gap: 10, background: "white", border: `1px solid ${LINE}`, borderRadius: 14, padding: 8, boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
+            <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 10, padding: "0 12px" }}>
+              <SearchIcon style={{ color: INK3, fontSize: 20 }} />
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") handleSearch(); }}
+                placeholder="정책명, 키워드를 검색해보세요 (예: 월세, 창업)"
+                style={{ border: 0, outline: 0, flex: 1, fontSize: 15, padding: "12px 0", background: "transparent", fontFamily: "inherit", color: INK }}
+              />
+            </div>
+            <button
+              onClick={handleSearch}
+              style={{ padding: "0 22px", background: A, color: "white", border: 0, borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: "pointer" }}
             >
               검색
-            </Button>
-          </Box>
-          <Box sx={{ px: 1.5, py: 0.75, bgcolor: "#f5f5f5", borderTop: "1px solid #e0e0e0", textAlign: "left" }}>
-            <Button
-              size="small"
-              onClick={() => setFilterOpen((v) => !v)}
-              endIcon={filterOpen ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-              sx={{ color: selectedCat ? "primary.main" : "text.secondary", fontWeight: selectedCat ? 700 : 400, fontSize: 13 }}
-            >
-              상세조건 선택
-              {selectedCat && (
-                <Chip
-                  label={CATEGORIES.find((c) => c.value === selectedCat)?.label}
-                  size="small"
-                  color="primary"
-                  sx={{ ml: 1, height: 18, fontSize: 11 }}
+            </button>
+          </div>
+          {/* 인기 검색어 */}
+          <div style={{ marginTop: 12, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+            <span style={{ fontSize: 12, color: INK3, fontWeight: 700 }}>인기 검색어</span>
+            {TRENDING.map((t, i) => (
+              <button
+                key={i}
+                onClick={() => { setSearch(t); setTimeout(handleSearch, 0); }}
+                style={{ fontSize: 12, color: INK2, padding: "4px 10px", background: "white", border: `1px solid ${LINE}`, borderRadius: 99, cursor: "pointer" }}
+              >
+                <span style={{ color: A, fontWeight: 700, marginRight: 4 }}>{i + 1}</span>{t}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* 콘텐츠 영역 */}
+      <div style={{ maxWidth: 1240, margin: "0 auto", padding: "28px 24px 80px", display: "grid", gridTemplateColumns: "280px 1fr", gap: 28, alignItems: "flex-start" }}>
+
+        {/* ── 필터 사이드바 ── */}
+        <aside style={{ background: "white", border: `1px solid ${LINE}`, borderRadius: 16, padding: "6px 20px 18px", position: "sticky", top: 80 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 0 8px", borderBottom: `1px solid ${LINE2}` }}>
+            <span style={{ fontSize: 15, fontWeight: 800, color: INK }}>상세 필터</span>
+            <button onClick={handleResetFilter} style={{ background: "none", border: "none", fontSize: 12, color: INK3, cursor: "pointer" }}>초기화</button>
+          </div>
+
+          {/* 카테고리 */}
+          <FilterSection title="카테고리">
+            <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              {CATEGORIES.map((c) => (
+                <RadioItem
+                  key={c.value}
+                  label={c.label}
+                  checked={selectedCat === c.value}
+                  onChange={() => handleCategorySelect(c.value)}
                 />
+              ))}
+            </div>
+          </FilterSection>
+
+          {/* 지역 */}
+          <FilterSection title="지역">
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <select
+                value={region}
+                onChange={(e) => { setRegion(e.target.value); setSubRegion("전체"); setPage(1); }}
+                style={{ width: "100%", padding: "9px 12px", border: `1px solid ${LINE}`, borderRadius: 8, fontSize: 13, background: "white", fontFamily: "inherit", color: INK }}
+              >
+                {REGIONS.map((r) => <option key={r} value={r}>{r}</option>)}
+              </select>
+              {(DISTRICT_MAP[region]?.length ?? 0) > 0 && (
+                <select
+                  value={subRegion}
+                  onChange={(e) => { setSubRegion(e.target.value); setPage(1); }}
+                  style={{ width: "100%", padding: "9px 12px", border: `1px solid ${LINE}`, borderRadius: 8, fontSize: 13, background: "white", fontFamily: "inherit", color: INK }}
+                >
+                  {DISTRICT_MAP[region].map((d) => <option key={d} value={d}>{d}</option>)}
+                </select>
               )}
-            </Button>
-          </Box>
-        </Box>
+            </div>
+          </FilterSection>
 
-        {/* 필터 패널 */}
-        <Collapse in={filterOpen}>
-          <Box sx={{ maxWidth: 640, mx: "auto", mt: 1, bgcolor: "white", borderRadius: 2, overflow: "hidden", boxShadow: 3, textAlign: "left" }}>
-            <Box sx={{ display: "flex" }}>
-
-              {/* 왼쪽: 카테고리 */}
-              <Box sx={{ width: 160, borderRight: "1px solid #f0f0f0", py: 1, flexShrink: 0 }}>
-                <RadioGroup value={selectedCat} onChange={(e) => handleCategorySelect(e.target.value)}>
-                  {CATEGORIES.map((cat) => (
-                    <FormControlLabel
-                      key={cat.value}
-                      value={cat.value}
-                      control={<Radio size="small" sx={{ py: 0.3 }} />}
-                      label={cat.label}
-                      sx={{ mx: 0, px: 1.5, "& .MuiFormControlLabel-label": { fontSize: 13 } }}
-                    />
-                  ))}
-                </RadioGroup>
-              </Box>
-
-              {/* 오른쪽: 상세 필터 */}
-              <Box sx={{ flex: 1, p: 2, display: "flex", flexDirection: "column", gap: 1.5, overflowY: "auto", maxHeight: 440 }}>
-
-                {/* 지역 */}
-                <Box>
-                  <Typography variant="caption" fontWeight={700} mb={0.5} display="block">지역</Typography>
-                  <Box sx={{ display: "flex", gap: 1 }}>
-                    <FormControl size="small" sx={{ flex: 1 }}>
-                      <Select value={region} onChange={(e) => { const r = e.target.value; setRegion(r); setSubRegion("전체"); setSort("latest"); setPage(1); }}>
-                        {REGIONS.map((r) => <MenuItem key={r} value={r}>{r}</MenuItem>)}
-                      </Select>
-                    </FormControl>
-                    {(DISTRICT_MAP[region]?.length ?? 0) > 0 && (
-                      <FormControl size="small" sx={{ flex: 1 }}>
-                        <Select value={subRegion} onChange={(e) => setSubRegion(e.target.value)}>
-                          {DISTRICT_MAP[region].map((d) => <MenuItem key={d} value={d}>{d}</MenuItem>)}
-                        </Select>
-                      </FormControl>
-                    )}
-                  </Box>
-                </Box>
-
-                {/* 소득수준 */}
-                <Box>
-                  <Typography variant="caption" fontWeight={700} mb={0.5} display="block">소득수준</Typography>
-                  <Box
-                    onClick={() => setIncomeOpen((v) => !v)}
-                    sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", border: "1px solid #c4c4c4", borderRadius: 1, px: 1.5, py: 0.75, cursor: "pointer", bgcolor: "white", "&:hover": { borderColor: "text.primary" } }}
-                  >
-                    <Typography variant="caption" color={income === "전체" ? "text.secondary" : "text.primary"}>
-                      {income === "전체" ? "전체"
-                        : income === "1" ? "기초생활수급자"
-                        : income === "3" ? "차상위계층"
-                        : income === "5" ? "소득 하위 50% 이하"
-                        : income === "7" ? "소득 중간 (50~100%)"
-                        : "소득 상위 (100% 초과)"}
-                    </Typography>
-                    {incomeOpen ? <ExpandLessIcon sx={{ fontSize: 18, color: "text.secondary" }} /> : <ExpandMoreIcon sx={{ fontSize: 18, color: "text.secondary" }} />}
-                  </Box>
-                  <Collapse in={incomeOpen}>
-                    <Box sx={{ border: "1px solid #e0e0e0", borderTop: "none", borderRadius: "0 0 4px 4px", overflow: "hidden" }}>
-                      <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", borderBottom: "1px solid #e0e0e0" }}>
-                        <Typography variant="caption" sx={{ p: 0.75, bgcolor: "#f9f9f9", fontWeight: 700, textAlign: "center" }}>분위 기준</Typography>
-                        <Typography variant="caption" sx={{ p: 0.75, bgcolor: "#f9f9f9", fontWeight: 700, textAlign: "center", borderLeft: "1px solid #e0e0e0" }}>보기 쉬운 기준</Typography>
-                      </Box>
-                      <Box
-                        onClick={(e) => { e.stopPropagation(); setIncome("전체"); setIncomeOpen(false); }}
-                        sx={{ display: "flex", alignItems: "center", p: 0.75, gap: 0.5, cursor: "pointer", bgcolor: income === "전체" ? "rgba(2,128,144,0.1)" : "transparent", "&:hover": { bgcolor: "#f5fafa" }, borderBottom: "1px solid #f0f0f0" }}
-                      >
-                        <Radio size="small" checked={income === "전체"} readOnly sx={{ p: 0.5 }} />
-                        <Typography variant="caption">전체</Typography>
-                      </Box>
-                      {INCOME_ROWS.map((row) => (
-                        <Box
-                          key={row.value}
-                          onClick={(e) => { e.stopPropagation(); setIncome(row.value); setIncomeOpen(false); }}
-                          sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", cursor: "pointer", bgcolor: income === row.value ? "rgba(2,128,144,0.1)" : "transparent", "&:hover": { bgcolor: "#f5fafa" }, borderBottom: "1px solid #f0f0f0" }}
-                        >
-                          <Box sx={{ display: "flex", alignItems: "center", p: 0.75, gap: 0.5 }}>
-                            <Radio size="small" checked={income === row.value} readOnly sx={{ p: 0.5 }} />
-                            <Typography variant="caption">{row.left}</Typography>
-                          </Box>
-                          <Box sx={{ display: "flex", alignItems: "center", p: 0.75, gap: 0.5, borderLeft: "1px solid #e0e0e0" }}>
-                            <Radio size="small" checked={income === row.value} readOnly sx={{ p: 0.5 }} />
-                            <Typography variant="caption">{row.right}</Typography>
-                          </Box>
-                        </Box>
-                      ))}
-                    </Box>
-                  </Collapse>
-                  <Typography
-                    variant="caption"
-                    color="primary"
-                    sx={{ mt: 0.75, display: "block", cursor: "pointer", "&:hover": { textDecoration: "underline" } }}
-                    onClick={() => setIncomeCalcOpen(true)}
-                  >
-                    소득분위 확인하기
-                  </Typography>
-                </Box>
-
-                {/* 데이터 출처 — 로그인 사용자만 */}
-                {isLoggedIn && (
-                  <Box>
-                    <Typography variant="caption" fontWeight={700} mb={0.5} display="block">데이터 출처</Typography>
-                    <RadioGroup row value={sourceType} onChange={(e) => setSourceType(e.target.value)}>
-                      {["전체", "온통청년", "복지로 중앙", "복지로 지자체"].map((o) => (
-                        <FormControlLabel
-                          key={o} value={o}
-                          control={<Radio size="small" sx={{ py: 0.3 }} />}
-                          label={<Typography variant="caption">{o}</Typography>}
-                          sx={{ mx: 0, mr: 1 }}
-                        />
-                      ))}
-                    </RadioGroup>
-                  </Box>
-                )}
-
-                {/* 취업상태 */}
-                <Box>
-                  <Typography variant="caption" fontWeight={700} mb={0.5} display="block">취업상태</Typography>
-                  <RadioGroup row value={employ} onChange={(e) => setEmploy(e.target.value)}>
-                    {EMPLOY_OPTIONS.map((o) => (
-                      <FormControlLabel
-                        key={o} value={o}
-                        control={<Radio size="small" sx={{ py: 0.3 }} />}
-                        label={<Typography variant="caption">{o}</Typography>}
-                        sx={{ mx: 0, mr: 1 }}
-                      />
-                    ))}
-                  </RadioGroup>
-                </Box>
-
-                {/* 신청 상태 필터 + 버튼 — 로그인 사용자만 */}
-                <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mt: "auto", pt: 1 }}>
-                  {isLoggedIn ? (
-                    <Box>
-                      <Typography variant="caption" fontWeight={700} mb={0.5} display="block">신청 상태</Typography>
-                      <RadioGroup row value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}>
-                        {["신청가능", "마감", "전부표기"].map((o) => (
-                          <FormControlLabel key={o} value={o} control={<Radio size="small" />} label={<Typography variant="caption">{o}</Typography>} sx={{ mr: 0.5 }} />
-                        ))}
-                      </RadioGroup>
-                    </Box>
-                  ) : (
-                    <Box />
-                  )}
-                  <Box sx={{ display: "flex", gap: 1 }}>
-                    <Button variant="contained" size="small" onClick={handleApplyFilter}>필터 적용</Button>
-                    <Button variant="outlined" size="small" onClick={handleResetFilter}>초기화</Button>
-                  </Box>
-                </Box>
-
-              </Box>
-            </Box>
-          </Box>
-        </Collapse>
-      </Box>
-
-      {/* 정책 목록 */}
-      <Container maxWidth="lg" sx={{ py: 3 }}>
-
-        {/* 정렬 + 표시 개수 + 열 토글 */}
-        <Box sx={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 1, mb: 2 }}>
-          <Typography variant="body2" color="text.secondary">정렬:</Typography>
-          <FormControl size="small">
-            <Select value={sort} onChange={(e) => { setSort(e.target.value); setPage(1); }} sx={{ fontSize: 13 }}>
-              {search.trim() && <MenuItem value="relevance">관련도순</MenuItem>}
-              <MenuItem value="views">인기순</MenuItem>
-              <MenuItem value="latest">최신순</MenuItem>
-              <MenuItem value="deadline">마감임박순</MenuItem>
-            </Select>
-          </FormControl>
-          <Typography variant="body2" color="text.secondary">표시:</Typography>
-          <FormControl size="small">
-            <Select value={pageSize} onChange={(e) => { setPageSize(e.target.value); setPage(1); }} sx={{ fontSize: 13 }}>
-              <MenuItem value={10}>10개</MenuItem>
-              <MenuItem value={30}>30개</MenuItem>
-            </Select>
-          </FormControl>
-          <Box sx={{ display: "flex", border: "1px solid #e0e0e0", borderRadius: 1, overflow: "hidden" }}>
-            <IconButton size="small" onClick={() => setCols(1)} sx={{ borderRadius: 0, bgcolor: cols === 1 ? "primary.main" : "transparent", color: cols === 1 ? "white" : "text.secondary", "&:hover": { bgcolor: cols === 1 ? "primary.dark" : "#f5f5f5" }, px: 1 }}>
-              <ViewListIcon fontSize="small" />
-            </IconButton>
-            <IconButton size="small" onClick={() => setCols(2)} sx={{ borderRadius: 0, bgcolor: cols === 2 ? "primary.main" : "transparent", color: cols === 2 ? "white" : "text.secondary", "&:hover": { bgcolor: cols === 2 ? "primary.dark" : "#f5f5f5" }, px: 1 }}>
-              <GridViewIcon fontSize="small" />
-            </IconButton>
-          </Box>
-        </Box>
-
-        <Typography variant="body2" color="text.secondary" mb={2}>
-          총 {totalCount}개의 정책
-        </Typography>
-
-        {loading ? (
-          <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
-            <CircularProgress />
-          </Box>
-        ) : policies.length > 0 ? (
-          cols === 1 ? (
-            <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
-              {policies.map((p) => (
-                <Card
-                  key={p.id}
-                  sx={{ cursor: "pointer", transition: "all 0.2s", "&:hover": { transform: "translateY(-2px)", boxShadow: "0 8px 24px rgba(2,128,144,0.15)" } }}
-                  onClick={() => navigate(`/policies/${p.id}`)}
-                >
-                  <CardContent sx={{ display: "flex", alignItems: "flex-start", gap: 2, py: "14px !important" }}>
-                    <Box sx={{ flex: 1, minWidth: 0 }}>
-                      <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.5, flexWrap: "wrap" }}>
-                        <Chip label={p.category} size="small" color="primary" variant="outlined" />
-                        <Chip label={p.dday} size="small" color={ddayColor(p.dday)} variant={p.dday === "상시/문의" || p.dday === "진행중" ? "outlined" : "filled"} />
-                      </Box>
-                      <Typography variant="subtitle2" fontWeight={700} mb={0.3} sx={{ lineHeight: 1.4 }}>
-                        {p.title}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary" sx={{ fontSize: 12 }}>
-                        {p.summary.length > 120 ? `${p.summary.slice(0, 120)}...` : p.summary}
-                      </Typography>
-                      <Typography variant="caption" color="text.disabled" mt={0.5} display="block">
-                        {p.source}
-                      </Typography>
-                    </Box>
-                    <IconButton size="small" onClick={(e) => handleBookmark(p.id, e)} sx={{ color: p.bookmarked ? "#f59e0b" : "text.disabled", flexShrink: 0 }}>
-                      {p.bookmarked ? <BookmarkIcon fontSize="small" /> : <BookmarkBorderIcon fontSize="small" />}
-                    </IconButton>
-                  </CardContent>
-                </Card>
+          {/* 소득수준 */}
+          <FilterSection title="소득수준" defaultOpen={false}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              <RadioItem label="전체" checked={income === "전체"} onChange={() => setIncome("전체")} />
+              {INCOME_ROWS.map((r) => (
+                <RadioItem key={r.value} label={r.label} checked={income === r.value} onChange={() => setIncome(r.value)} />
               ))}
-            </Box>
+            </div>
+            <button
+              onClick={() => setIncomeCalcOpen(true)}
+              style={{ marginTop: 8, background: "none", border: "none", fontSize: 12, color: A, cursor: "pointer", fontWeight: 600, padding: 0 }}
+            >
+              🔗 소득분위 확인하기
+            </button>
+          </FilterSection>
+
+          {/* 취업상태 */}
+          <FilterSection title="취업상태" defaultOpen={false}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              {EMPLOY_OPTIONS.map((o) => (
+                <RadioItem key={o} label={o} checked={employ === o} onChange={() => { setEmploy(o); setPage(1); }} />
+              ))}
+            </div>
+          </FilterSection>
+
+          {/* 특화조건 */}
+          <FilterSection title="특화조건" defaultOpen={false}>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+              {TARGET_GROUPS.map((tg) => {
+                const active = targetGroup === tg.value;
+                return (
+                  <button
+                    key={tg.value}
+                    onClick={() => { setTargetGroup(active ? "" : tg.value); setPage(1); }}
+                    style={{ fontSize: 12, padding: "5px 12px", borderRadius: 99, border: `1.5px solid ${active ? A : LINE}`, background: active ? AS : "white", color: active ? AI : INK2, fontWeight: active ? 700 : 400, cursor: "pointer" }}
+                  >
+                    {tg.label}
+                  </button>
+                );
+              })}
+            </div>
+          </FilterSection>
+
+          <button
+            onClick={handleApplyFilter}
+            style={{ width: "100%", marginTop: 16, padding: "12px 0", background: A, color: "white", border: 0, borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: "pointer" }}
+          >
+            {totalCount > 0 ? `${totalCount.toLocaleString()}개 정책 보기` : "정책 보기"}
+          </button>
+        </aside>
+
+        {/* ── 결과 영역 ── */}
+        <div>
+          {/* 활성 필터 칩 */}
+          {activeFilters.length > 0 && (
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
+              <span style={{ fontSize: 12, color: INK3 }}>선택된 조건:</span>
+              {activeFilters.map((f) => (
+                <span
+                  key={f.key}
+                  style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, padding: "5px 10px 5px 12px", background: AS, color: AI, borderRadius: 99, fontWeight: 600 }}
+                >
+                  {f.label}
+                  <button onClick={f.clear} style={{ background: "none", border: "none", cursor: "pointer", color: AI, fontSize: 14, padding: 0, lineHeight: 1 }}>×</button>
+                </span>
+              ))}
+              <button onClick={handleResetFilter} style={{ fontSize: 12, color: A, fontWeight: 600, background: "none", border: "none", cursor: "pointer" }}>
+                모두 해제
+              </button>
+            </div>
+          )}
+
+          {/* 결과 수 + 정렬 + 뷰 토글 */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+            <div style={{ fontSize: 13, color: INK2 }}>
+              총 <strong style={{ color: INK }}>{totalCount.toLocaleString()}</strong>개의 정책
+              {loading && <span style={{ marginLeft: 8, color: INK3 }}>· 로딩 중</span>}
+            </div>
+            <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+              <select
+                value={sort}
+                onChange={(e) => { setSort(e.target.value); setPage(1); }}
+                style={{ border: `1px solid ${LINE}`, borderRadius: 8, padding: "6px 10px", fontSize: 12, background: "white", fontFamily: "inherit", color: INK2 }}
+              >
+                {search.trim() && <option value="relevance">관련도순</option>}
+                <option value="views">인기순</option>
+                <option value="latest">최신순</option>
+                <option value="deadline">마감임박순</option>
+              </select>
+              <select
+                value={pageSize}
+                onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }}
+                style={{ border: `1px solid ${LINE}`, borderRadius: 8, padding: "6px 10px", fontSize: 12, background: "white", fontFamily: "inherit", color: INK2 }}
+              >
+                <option value={10}>10개씩</option>
+                <option value={20}>20개씩</option>
+                <option value={50}>50개씩</option>
+              </select>
+              <div style={{ display: "flex", border: `1px solid ${LINE}`, borderRadius: 8, overflow: "hidden" }}>
+                <button
+                  onClick={() => setCols(1)}
+                  style={{ padding: "6px 10px", background: cols === 1 ? INK : "white", color: cols === 1 ? "white" : INK3, border: 0, cursor: "pointer", display: "flex", alignItems: "center" }}
+                >
+                  <ViewListIcon style={{ fontSize: 16 }} />
+                </button>
+                <button
+                  onClick={() => setCols(2)}
+                  style={{ padding: "6px 10px", background: cols === 2 ? INK : "white", color: cols === 2 ? "white" : INK3, border: 0, cursor: "pointer", display: "flex", alignItems: "center" }}
+                >
+                  <GridViewIcon style={{ fontSize: 16 }} />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* 목록 */}
+          {loading ? (
+            <div style={{ display: "flex", justifyContent: "center", padding: "64px 0" }}>
+              <CircularProgress size={36} sx={{ color: A }} />
+            </div>
+          ) : policies.length > 0 ? (
+            cols === 1 ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                {policies.map((p) => (
+                  <PolicyRow key={p.id} p={p} onNavigate={(id) => navigate(`/policies/${id}`)} onBookmark={handleBookmark} />
+                ))}
+              </div>
+            ) : (
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                {policies.map((p) => (
+                  <PolicyCard key={p.id} p={p} onNavigate={(id) => navigate(`/policies/${id}`)} onBookmark={handleBookmark} />
+                ))}
+              </div>
+            )
           ) : (
-            <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 2 }}>
-              {policies.map((p) => (
-                <Card
-                  key={p.id}
-                  sx={{ cursor: "pointer", transition: "all 0.2s", "&:hover": { transform: "translateY(-2px)", boxShadow: "0 8px 24px rgba(2,128,144,0.15)" } }}
-                  onClick={() => navigate(`/policies/${p.id}`)}
-                >
-                  <CardContent>
-                    <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
-                      <Chip label={p.category} size="small" color="primary" variant="outlined" />
-                      <Chip label={p.dday} size="small" color={ddayColor(p.dday)} variant={p.dday === "상시/문의" || p.dday === "진행중" ? "outlined" : "filled"} />
-                    </Box>
-                    <Typography variant="subtitle2" fontWeight={700} mb={0.5} sx={{ lineHeight: 1.4 }}>
-                      {p.title}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary" mb={1} sx={{ fontSize: 12 }}>
-                      {p.summary.length > 80 ? `${p.summary.slice(0, 80)}...` : p.summary}
-                    </Typography>
-                    <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <Typography variant="caption" color="text.secondary">{p.source}</Typography>
-                      <IconButton size="small" onClick={(e) => handleBookmark(p.id, e)} sx={{ color: p.bookmarked ? "#f59e0b" : "text.disabled" }}>
-                        {p.bookmarked ? <BookmarkIcon fontSize="small" /> : <BookmarkBorderIcon fontSize="small" />}
-                      </IconButton>
-                    </Box>
-                  </CardContent>
-                </Card>
-              ))}
-            </Box>
-          )
-        ) : (
-          <Box sx={{ textAlign: "center", py: 8, color: "text.secondary" }}>
-            <Typography fontSize={40}>🔍</Typography>
-            <Typography mt={1}>검색 결과가 없습니다</Typography>
-          </Box>
-        )}
+            <div style={{ textAlign: "center", padding: "64px 24px", background: "white", borderRadius: 16, border: `1px solid ${LINE}` }}>
+              <div style={{ fontSize: 40 }}>🔍</div>
+              <div style={{ marginTop: 12, fontSize: 15, color: INK2 }}>검색 결과가 없습니다</div>
+              <div style={{ marginTop: 6, fontSize: 13, color: INK3 }}>다른 키워드나 조건으로 검색해보세요</div>
+            </div>
+          )}
 
-        {totalPages > 1 && (
-          <Box sx={{ display: "flex", justifyContent: "center", mt: 4 }}>
-            <Pagination count={totalPages} page={page} onChange={(_, v) => setPage(v)} color="primary" />
-          </Box>
-        )}
-      </Container>
+          {/* 페이지네이션 */}
+          {totalPages > 1 && (
+            <div style={{ display: "flex", justifyContent: "center", marginTop: 28, gap: 4 }}>
+              <Pagination
+                count={totalPages}
+                page={page}
+                onChange={(_, v) => setPage(v)}
+                color="primary"
+                sx={{
+                  "& .MuiPaginationItem-root": { borderRadius: 2 },
+                  "& .Mui-selected": { background: A, color: "white" },
+                }}
+              />
+            </div>
+          )}
+        </div>
+      </div>
 
-      <IncomeCalculatorModal
-        open={incomeCalcOpen}
-        onClose={() => setIncomeCalcOpen(false)}
-        onSelect={(value) => { setIncome(value); setIncomeOpen(false); }}
-      />
-      <Snackbar
-        open={toast.open}
-        autoHideDuration={3000}
-        onClose={() => setToast((prev) => ({ ...prev, open: false }))}
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
-      >
-        <Alert severity={toast.severity} onClose={() => setToast((prev) => ({ ...prev, open: false }))}>
-          {toast.msg}
-        </Alert>
+      <IncomeCalculatorModal open={incomeCalcOpen} onClose={() => setIncomeCalcOpen(false)} onSelect={(value) => { setIncome(value); setIncomeOpen(false); }} />
+
+      <Snackbar open={toast.open} autoHideDuration={3000} onClose={() => setToast((p) => ({ ...p, open: false }))} anchorOrigin={{ vertical: "bottom", horizontal: "center" }}>
+        <Alert severity={toast.severity} onClose={() => setToast((p) => ({ ...p, open: false }))}>{toast.msg}</Alert>
       </Snackbar>
       <FloatingNav />
-    </Box>
+    </div>
   );
 }

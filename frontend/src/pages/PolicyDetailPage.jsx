@@ -1,27 +1,23 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import {
-  Box,
-  Container,
-  Typography,
-  Chip,
-  Button,
-  Divider,
-  IconButton,
-  Snackbar,
-  Alert,
-  Paper,
-  CircularProgress,
-} from "@mui/material";
-import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import BookmarkBorderIcon from "@mui/icons-material/BookmarkBorder";
-import BookmarkIcon from "@mui/icons-material/Bookmark";
-import OpenInNewIcon from "@mui/icons-material/OpenInNew";
+import { Snackbar, Alert } from "@mui/material";
 import Header from "../components/Header";
 import FloatingNav from "../components/FloatingNav";
 import api from "../lib/axios";
 import { useAuthStore } from "../store/authStore";
 
+const A = "#2563eb";
+const A7 = "#1d4ed8";
+const AS = "#e8efff";
+const AI = "#1e3a8a";
+const WARN = "#ef4444";
+const BG = "#f7f8fc";
+const WHITE = "#fff";
+const INK = "#11131a";
+const INK2 = "#4a4f5c";
+const INK3 = "#6b7280";
+const LINE = "#e5e7eb";
+const LINE2 = "#f3f4f6";
 const NO_DATA = "원문에서 확인해주세요.";
 
 const HTML_ENTITIES = {
@@ -31,46 +27,28 @@ const HTML_ENTITIES = {
 };
 const decodeHtml = (text) => {
   if (!text) return text;
-  return text.replace(/&[a-zA-Z0-9#]+;/g, (entity) => HTML_ENTITIES[entity] ?? entity);
+  return text.replace(/&[a-zA-Z0-9#]+;/g, (e) => HTML_ENTITIES[e] ?? e);
 };
-
-function SectionTitle({ children }) {
-  return (
-    <Typography variant="subtitle1" fontWeight={700} color="primary" mt={3} mb={1}>
-      {children}
-    </Typography>
-  );
-}
 
 const formatDate = (value) => {
   if (!value) return null;
-  const date = new Date(`${value}T00:00:00`);
-  if (Number.isNaN(date.getTime())) return null;
-  return `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, "0")}.${String(
-    date.getDate()
-  ).padStart(2, "0")}`;
+  const d = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return null;
+  return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
 };
 
 const formatPeriod = (start, end) => {
-  const formattedStart = formatDate(start);
-  const formattedEnd = formatDate(end);
-  if (formattedStart && formattedEnd) return `${formattedStart} ~ ${formattedEnd}`;
-  if (formattedStart) return `${formattedStart} ~`;
-  if (formattedEnd) return `~ ${formattedEnd}`;
+  const s = formatDate(start), e = formatDate(end);
+  if (s && e) return `${s} ~ ${e}`;
+  if (s) return `${s} ~`;
+  if (e) return `~ ${e}`;
   return null;
 };
 
-const formatAgeRange = (minAge, maxAge) => {
-  if (minAge && maxAge) return `만 ${minAge}~${maxAge}세`;
-  if (minAge) return `만 ${minAge}세 이상`;
-  if (maxAge) return `만 ${maxAge}세 이하`;
-  return null;
-};
-
-const formatIncome = (minIncome, maxIncome) => {
-  if (minIncome && maxIncome) return `소득 ${minIncome} ~ ${maxIncome}`;
-  if (minIncome) return `소득 ${minIncome} 이상`;
-  if (maxIncome) return `소득 ${maxIncome} 이하`;
+const formatAgeRange = (min, max) => {
+  if (min && max) return `만 ${min}~${max}세`;
+  if (min) return `만 ${min}세 이상`;
+  if (max) return `만 ${max}세 이하`;
   return null;
 };
 
@@ -81,13 +59,10 @@ const formatSource = (sourceType) => {
   return sourceType || "출처 정보 없음";
 };
 
-// DB status만 보면 온통청년 정책이 ACTIVE인데도 신청 마감인 경우가 있어
-// applyEndDate도 함께 확인한다.
 const formatStatusLabel = (status, applyEndDate) => {
   if (status === "CLOSED") return "종료";
   if (applyEndDate) {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const today = new Date(); today.setHours(0, 0, 0, 0);
     if (new Date(`${applyEndDate}T00:00:00`) < today) return "종료";
   }
   if (status === "ACTIVE") return "진행중";
@@ -98,24 +73,13 @@ const formatStatusLabel = (status, applyEndDate) => {
 const formatDday = (endDate, status) => {
   if (status === "CLOSED") return "종료";
   if (!endDate) return status === "UPCOMING" ? "예정" : "상시/문의";
-
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const today = new Date(); today.setHours(0, 0, 0, 0);
   const target = new Date(`${endDate}T00:00:00`);
   if (Number.isNaN(target.getTime())) return "상시/문의";
-
   const diff = Math.ceil((target - today) / 86400000);
   if (diff < 0) return "종료";
   if (diff === 0) return "D-Day";
   return `D-${diff}`;
-};
-
-const ddayColor = (dday) => {
-  if (dday === "상시/문의") return "success";
-  if (dday === "종료") return "default";
-  if (dday === "D-Day") return "error";
-  const n = Number.parseInt(String(dday).replace("D-", ""), 10);
-  return Number.isNaN(n) ? "default" : n <= 14 ? "error" : "primary";
 };
 
 const parseContacts = (raw) => {
@@ -131,14 +95,59 @@ const parseContacts = (raw) => {
         .filter((item) => item.name || item.phone);
     }
   } catch {
-    return raw
-      .split(/\n+/)
-      .map((line) => line.trim())
-      .filter(Boolean)
-      .map((line) => ({ name: line, phone: "" }));
+    return raw.split(/\n+/).map(l => l.trim()).filter(Boolean).map(l => ({ name: l, phone: "" }));
   }
   return [];
 };
+
+const TAB_SECTIONS = [
+  { id: "intro", label: "소개" },
+  { id: "support", label: "지원내용" },
+  { id: "target", label: "신청대상" },
+  { id: "method", label: "신청방법" },
+  { id: "contact", label: "문의처" },
+];
+
+function Tag({ children, color, bg, border }) {
+  return (
+    <span style={{
+      display: "inline-flex", alignItems: "center",
+      padding: "3px 10px", borderRadius: 99,
+      fontSize: 12, fontWeight: 600, lineHeight: 1.5,
+      color: color ?? INK2,
+      background: bg ?? LINE2,
+      border: `1px solid ${border ?? "transparent"}`,
+    }}>
+      {children}
+    </span>
+  );
+}
+
+function ContentSection({ id, title, children }) {
+  return (
+    <section id={id} style={{ padding: "32px 0", borderBottom: `1px solid ${LINE}` }}>
+      <h2 style={{ fontSize: 20, fontWeight: 800, letterSpacing: "-0.01em", margin: "0 0 14px", color: INK }}>
+        {title}
+      </h2>
+      <div style={{ fontSize: 15, color: INK2, lineHeight: 1.75 }}>
+        {children}
+      </div>
+    </section>
+  );
+}
+
+function Spinner() {
+  return (
+    <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: 400 }}>
+      <div style={{
+        width: 40, height: 40, borderRadius: "50%",
+        border: `3px solid ${AS}`, borderTopColor: A,
+        animation: "spin 0.8s linear infinite",
+      }} />
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+    </div>
+  );
+}
 
 export default function PolicyDetailPage() {
   const navigate = useNavigate();
@@ -149,19 +158,18 @@ export default function PolicyDetailPage() {
   const [policy, setPolicy] = useState(null);
   const [bookmarked, setBookmarked] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [related, setRelated] = useState([]);
+  const [activeTab, setActiveTab] = useState("intro");
   const [toast, setToast] = useState({ open: false, msg: "", severity: "info" });
 
   useEffect(() => {
     const controller = new AbortController();
-
     const fetchPolicy = async () => {
       setLoading(true);
       try {
         const logId = searchParams.get("log_id");
         const { data } = await api.get(`/api/policies/${id}`, {
-          params: {
-            logId: logId || undefined,
-          },
+          params: { logId: logId || undefined },
           signal: controller.signal,
         });
         setPolicy(data.data);
@@ -173,258 +181,404 @@ export default function PolicyDetailPage() {
         if (!controller.signal.aborted) setLoading(false);
       }
     };
-
     fetchPolicy();
     return () => controller.abort();
   }, [id, searchParams]);
 
+  useEffect(() => {
+    if (!policy?.unifiedCategory) return;
+    api.get("/api/policies", {
+      params: { category: policy.unifiedCategory, size: 6, statusFilter: "ACTIVE_ONLY" },
+    }).then(res => {
+      const items = (res.data?.data?.content ?? [])
+        .filter(p => String(p.id) !== String(id))
+        .slice(0, 3);
+      setRelated(items);
+    }).catch(() => {});
+  }, [policy?.unifiedCategory, id]);
+
   const contacts = useMemo(() => parseContacts(policy?.contactList), [policy?.contactList]);
+
   const visibleTags = useMemo(() => {
     if (!policy?.tags?.length) return [];
-
     const seen = new Set();
     return policy.tags
-      .map((tag) => tag?.tagValue?.trim())
-      .filter((tagValue) => {
-        if (!tagValue || seen.has(tagValue)) return false;
-        if (/^[A-Z0-9_]+$/.test(tagValue)) return false; // COND_AGE_MAX_39 등 내부 조건 코드 제외
-        seen.add(tagValue);
+      .map(tag => tag?.tagValue?.trim())
+      .filter(v => {
+        if (!v || seen.has(v)) return false;
+        if (/^[A-Z0-9_]+$/.test(v)) return false;
+        seen.add(v);
         return true;
       });
   }, [policy?.tags]);
 
-  const summaryChips = useMemo(() => {
-    if (!policy) return [];
-    const chips = [];
-    const readableRegions = policy.regions?.filter(r => !/^\d+$/.test(r));
-    if (readableRegions?.length) chips.push({ label: readableRegions.join(", "), icon: "📍" });
+  const ddayInfo = useMemo(() => {
+    if (!policy) return null;
+    const { applyEndDate: end, applyStartDate: start, status } = policy;
+    if (status === "CLOSED") return { label: "종료", daysLeft: -1, progress: 100 };
+    if (!end) return { label: status === "UPCOMING" ? "예정" : "상시", daysLeft: null, progress: 0 };
 
-    const ageRange = formatAgeRange(policy.minAge, policy.maxAge);
-    if (ageRange) chips.push({ label: ageRange, icon: "👤" });
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const endD = new Date(`${end}T00:00:00`);
+    const daysLeft = Math.ceil((endD - today) / 86400000);
+    if (daysLeft < 0) return { label: "종료", daysLeft: -1, progress: 100 };
 
-    const income = formatIncome(policy.minIncome, policy.maxIncome);
-    if (income) chips.push({ label: income, icon: "💰" });
-
-    if (policy.isOnlineApply) chips.push({ label: "온라인 가능", icon: "🖥️", color: "primary" });
-
-    const organizer = policy.hostOrg || policy.operatingOrg;
-    if (organizer) chips.push({ label: organizer, icon: "🏛️" });
-
-    const period =
-      formatPeriod(policy.applyStartDate, policy.applyEndDate) ||
-      formatPeriod(policy.startDate, policy.endDate);
-    if (period) chips.push({ label: `신청기간: ${period}`, icon: "🗓️" });
-
-    if (policy.lifeStage) chips.push({ label: policy.lifeStage, icon: "🌱" });
-
-    return chips;
+    let progress = 0, totalDays = 0, elapsedDays = 0;
+    if (start) {
+      const startD = new Date(`${start}T00:00:00`);
+      totalDays = Math.max(1, Math.ceil((endD - startD) / 86400000));
+      elapsedDays = Math.max(0, Math.ceil((today - startD) / 86400000));
+      progress = Math.min(100, Math.max(0, (elapsedDays / totalDays) * 100));
+    }
+    return {
+      label: daysLeft === 0 ? "D-Day" : `D-${daysLeft}`,
+      daysLeft, progress, totalDays, elapsedDays,
+      startDate: formatDate(start),
+      endDate: formatDate(end),
+    };
   }, [policy]);
+
+  const summaryRows = useMemo(() => {
+    if (!policy) return [];
+    const period = formatPeriod(policy.applyStartDate, policy.applyEndDate)
+      || formatPeriod(policy.startDate, policy.endDate) || "상시/문의";
+    const ageRange = formatAgeRange(policy.minAge, policy.maxAge);
+    return [
+      { ico: "💻", label: "신청방법", value: policy.applyMethodName || (policy.isOnlineApply ? "온라인 신청 가능" : NO_DATA) },
+      { ico: "👤", label: "신청대상", value: ageRange || NO_DATA },
+      { ico: "🏢", label: "소관부처", value: policy.hostOrg || policy.operatingOrg || NO_DATA },
+      { ico: "📅", label: "신청기간", value: period },
+      { ico: "💰", label: "지원내용", value: policy.provisionType || policy.supportCycle || NO_DATA },
+      { ico: "🎯", label: "키워드", value: visibleTags.slice(0, 4).join(" · ") || NO_DATA },
+    ];
+  }, [policy, visibleTags]);
 
   const handleBookmark = async () => {
     if (!isLoggedIn) {
       setToast({ open: true, msg: "로그인 후 이용 가능해요", severity: "info" });
       return;
     }
-
     try {
       await api.post(`/api/policies/${id}/bookmark`);
-      const nextBookmarked = !bookmarked;
-      setBookmarked(nextBookmarked);
-      setPolicy((current) => (current ? { ...current, bookmarked: nextBookmarked } : current));
-      setToast({
-        open: true,
-        msg: nextBookmarked ? "북마크에 저장했어요" : "북마크를 해제했어요",
-        severity: "success",
-      });
+      const next = !bookmarked;
+      setBookmarked(next);
+      setPolicy(cur => cur ? { ...cur, bookmarked: next } : cur);
+      setToast({ open: true, msg: next ? "북마크에 저장했어요" : "북마크를 해제했어요", severity: "success" });
     } catch {
       setToast({ open: true, msg: "북마크 처리에 실패했습니다", severity: "error" });
     }
   };
 
-  const policyDday = policy ? formatDday(policy.applyEndDate, policy.status) : "상시/문의";
+  const scrollToSection = (sectionId) => {
+    setActiveTab(sectionId);
+    const el = document.getElementById(sectionId);
+    if (el) {
+      const top = el.getBoundingClientRect().top + window.scrollY - 130;
+      window.scrollTo({ top, behavior: "smooth" });
+    }
+  };
+
+  const statusLabel = policy ? formatStatusLabel(policy.status, policy.applyEndDate) : "";
+  const regionText = policy?.sido
+    || policy?.regions?.filter(r => !/^\d+$/.test(r))?.join(", ")
+    || "";
 
   return (
-    <Box sx={{ minHeight: "100vh", bgcolor: "background.default", pb: 10 }}>
+    <div style={{ minHeight: "100vh", background: BG }}>
       <Header />
+      <div style={{ maxWidth: 1240, margin: "0 auto", padding: "0 24px 64px" }}>
+        {/* Breadcrumb */}
+        <nav style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: INK3, padding: "20px 0 8px", flexWrap: "wrap" }}>
+          <span style={{ cursor: "pointer" }} onClick={() => navigate("/")}>홈</span>
+          <span>›</span>
+          <span style={{ cursor: "pointer" }} onClick={() => navigate("/policies")}>정책검색</span>
+          {policy?.unifiedCategory && (
+            <>
+              <span>›</span>
+              <span style={{ cursor: "pointer" }} onClick={() => navigate(`/policies?category=${encodeURIComponent(policy.unifiedCategory)}`)}>{policy.unifiedCategory}</span>
+            </>
+          )}
+          {policy?.title && (
+            <>
+              <span>›</span>
+              <span style={{ color: INK2, maxWidth: 300, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{policy.title}</span>
+            </>
+          )}
+        </nav>
 
-      <Container maxWidth="md" sx={{ py: 3 }}>
-        <Box sx={{ display: "flex", justifyContent: "space-between", mb: 2 }}>
-          <Button startIcon={<ArrowBackIcon />} onClick={() => navigate(-1)} color="inherit">
-            뒤로가기
-          </Button>
-          <IconButton
-            onClick={handleBookmark}
-            sx={{ color: bookmarked ? "#f59e0b" : "text.secondary" }}
-          >
-            {bookmarked ? <BookmarkIcon /> : <BookmarkBorderIcon />}
-          </IconButton>
-        </Box>
-
-        {loading ? (
-          <Paper
-            elevation={0}
-            sx={{
-              p: 6,
-              borderRadius: 3,
-              border: "1px solid #E8F4F5",
-              display: "flex",
-              justifyContent: "center",
-            }}
-          >
-            <CircularProgress />
-          </Paper>
-        ) : !policy ? (
-          <Paper elevation={0} sx={{ p: 4, borderRadius: 3, border: "1px solid #E8F4F5" }}>
-            <Typography variant="h6" fontWeight={700} mb={1}>
-              정책 정보를 찾지 못했습니다
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              목록으로 돌아가 다른 정책을 선택해주세요.
-            </Typography>
-          </Paper>
+        {loading ? <Spinner /> : !policy ? (
+          <div style={{ textAlign: "center", padding: "80px 0", color: INK3 }}>
+            <div style={{ fontSize: 48, marginBottom: 16 }}>😢</div>
+            <div style={{ fontSize: 20, fontWeight: 700, color: INK, marginBottom: 8 }}>정책 정보를 찾지 못했습니다</div>
+            <div style={{ fontSize: 14 }}>목록으로 돌아가 다른 정책을 선택해주세요.</div>
+            <button onClick={() => navigate("/policies")} style={{ marginTop: 24, padding: "10px 24px", borderRadius: 8, background: A, color: WHITE, border: 0, fontSize: 14, fontWeight: 600, cursor: "pointer" }}>
+              목록으로
+            </button>
+          </div>
         ) : (
-          <Paper elevation={0} sx={{ p: 3, borderRadius: 3, border: "1px solid #E8F4F5" }}>
-            <Box sx={{ display: "flex", gap: 1, mb: 1.5, flexWrap: "wrap" }}>
-              <Chip label={policy.unifiedCategory || "기타"} color="primary" size="small" />
-              <Chip label={formatSource(policy.sourceType)} variant="outlined" size="small" />
-              {policy.supportCycle && (
-                <Chip label={policy.supportCycle} variant="outlined" size="small" />
-              )}
-              {policy.provisionType && (
-                <Chip label={policy.provisionType} variant="outlined" size="small" />
-              )}
-            </Box>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: 36, alignItems: "flex-start" }}>
+            <main>
+              {/* Detail Header */}
+              <header style={{ padding: "12px 0 28px", borderBottom: `1px solid ${LINE}` }}>
+                <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
+                  {policy.unifiedCategory && <Tag bg={AS} color={AI} border={`${A}44`}>{policy.unifiedCategory}</Tag>}
+                  <Tag>{formatSource(policy.sourceType)}</Tag>
+                  <Tag
+                    bg={statusLabel === "진행중" ? "#dcfce7" : statusLabel === "종료" ? LINE2 : "#fef9c3"}
+                    color={statusLabel === "진행중" ? "#166534" : statusLabel === "종료" ? INK3 : "#854d0e"}
+                    border={statusLabel === "진행중" ? "#bbf7d0" : statusLabel === "종료" ? LINE : "#fde68a"}
+                  >
+                    {statusLabel}
+                  </Tag>
+                </div>
+                <h1 style={{ margin: "0 0 16px", fontSize: 34, fontWeight: 800, letterSpacing: "-0.025em", lineHeight: 1.2, color: INK }}>
+                  {policy.title}
+                </h1>
+                <div style={{ display: "flex", gap: 18, fontSize: 13, color: INK3, flexWrap: "wrap" }}>
+                  {(policy.hostOrg || policy.operatingOrg) && <span>🏢 {policy.hostOrg || policy.operatingOrg}</span>}
+                  {regionText && <span>📍 {regionText}</span>}
+                  {policy.viewCount != null && <span>👀 {policy.viewCount.toLocaleString()}명이 봤어요</span>}
+                  {policy.bookmarkCount != null && <span>♡ {policy.bookmarkCount.toLocaleString()}명이 저장</span>}
+                </div>
+              </header>
 
-            <Typography variant="h5" fontWeight={700} mb={1.5} sx={{ lineHeight: 1.4 }}>
-              {policy.title}
-            </Typography>
-
-            <Box sx={{ display: "flex", gap: 1, mb: 2, flexWrap: "wrap" }}>
-              <Chip label={policyDday} color={ddayColor(policyDday)} size="small" />
-              <Chip label={formatStatusLabel(policy.status, policy.applyEndDate)} size="small" variant="outlined" />
-            </Box>
-
-            <Divider />
-
-            <SectionTitle>요약 정보</SectionTitle>
-            <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
-              {summaryChips.map((item) => (
-                <Chip
-                  key={`${item.icon}-${item.label}`}
-                  icon={<span>{item.icon}</span>}
-                  label={item.label}
-                  size="small"
-                  variant="outlined"
-                  color={item.color || "default"}
-                />
-              ))}
-            </Box>
-
-            <SectionTitle>정책 소개</SectionTitle>
-            <Divider sx={{ mb: 1.5 }} />
-            <Typography variant="body2" sx={{ whiteSpace: "pre-line", lineHeight: 1.8 }}>
-              {decodeHtml(policy.description) || `정책 소개 정보가 없습니다. ${NO_DATA}`}
-            </Typography>
-
-            <SectionTitle>지원내용</SectionTitle>
-            <Divider sx={{ mb: 1.5 }} />
-            <Typography variant="body2" sx={{ whiteSpace: "pre-line", lineHeight: 1.8 }}>
-              {decodeHtml(policy.supportDetail || policy.supportContent) || `지원 내용 정보가 없습니다. ${NO_DATA}`}
-            </Typography>
-
-            <SectionTitle>신청대상</SectionTitle>
-            <Divider sx={{ mb: 1.5 }} />
-            <Typography variant="body2" sx={{ whiteSpace: "pre-line", lineHeight: 1.8 }}>
-              {decodeHtml(policy.targetDetail) || `신청 대상 정보가 없습니다. ${NO_DATA}`}
-            </Typography>
-
-            <SectionTitle>신청방법</SectionTitle>
-            <Divider sx={{ mb: 1.5 }} />
-            <Typography variant="body2" sx={{ whiteSpace: "pre-line", lineHeight: 1.8 }}>
-              {decodeHtml(policy.applyMethodDetail || policy.applyMethodName) ||
-                `신청 방법 정보가 없습니다. ${NO_DATA}`}
-            </Typography>
-
-            <SectionTitle>문의처</SectionTitle>
-            <Divider sx={{ mb: 1.5 }} />
-            {contacts.length > 0 ? (
-              contacts.map((contact, index) => (
-                <Typography key={`${contact.name}-${index}`} variant="body2" mb={0.5}>
-                  📞 {contact.name}
-                  {contact.phone ? `  ${contact.phone}` : ""}
-                </Typography>
-              ))
-            ) : (
-              <Typography variant="body2" color="text.secondary">
-                문의처 정보가 없습니다.
-              </Typography>
-            )}
-
-            {!!visibleTags.length && (
-              <>
-                <SectionTitle>관련 태그</SectionTitle>
-                <Divider sx={{ mb: 1.5 }} />
-                <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
-                  {visibleTags.map((tagValue) => (
-                    <Chip
-                      key={tagValue}
-                      label={tagValue}
-                      size="small"
-                      variant="outlined"
-                    />
+              {/* Summary grid */}
+              <section style={{ padding: "28px 0", borderBottom: `1px solid ${LINE}` }}>
+                <div style={{ fontSize: 18, fontWeight: 800, letterSpacing: "-0.01em", marginBottom: 16, color: INK }}>요약 정보</div>
+                <div style={{ background: AS, borderRadius: 16, padding: 24, display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "20px 32px" }}>
+                  {summaryRows.map((r) => (
+                    <div key={r.label} style={{ display: "flex", gap: 14, alignItems: "flex-start" }}>
+                      <div style={{ width: 40, height: 40, borderRadius: 10, background: WHITE, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0, boxShadow: "0 1px 4px rgba(37,99,235,0.1)" }}>
+                        {r.ico}
+                      </div>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontSize: 11, fontWeight: 600, color: INK3 }}>{r.label}</div>
+                        <div style={{ fontSize: 13, fontWeight: 700, marginTop: 2, color: INK, wordBreak: "keep-all" }}>{r.value}</div>
+                      </div>
+                    </div>
                   ))}
-                </Box>
-              </>
-            )}
-          </Paper>
-        )}
-      </Container>
+                </div>
+              </section>
 
-      <Box
-        sx={{
-          position: "fixed",
-          bottom: 0,
-          left: 0,
-          right: 0,
-          bgcolor: "white",
-          borderTop: "1px solid #E8F4F5",
-          px: 2,
-          py: 1.5,
-          display: "flex",
-          gap: 1,
-          justifyContent: "center",
-          maxWidth: 768,
-          mx: "auto",
-        }}
-      >
-        <Button
-          variant={bookmarked ? "contained" : "outlined"}
-          startIcon={bookmarked ? <BookmarkIcon /> : <BookmarkBorderIcon />}
-          onClick={handleBookmark}
-          sx={{ flex: 1, maxWidth: 200 }}
-        >
-          {bookmarked ? "북마크됨" : "북마크"}
-        </Button>
-        <Button
-          variant="contained"
-          endIcon={<OpenInNewIcon />}
-          disabled={!policy?.detailUrl}
-          onClick={() => policy?.detailUrl && window.open(policy.detailUrl, "_blank")}
-          sx={{ flex: 1, maxWidth: 200 }}
-        >
-          {policy?.detailUrl ? "관련 사이트 보기" : "링크 없음"}
-        </Button>
-      </Box>
+              {/* Tab bar */}
+              <div style={{ display: "flex", gap: 4, borderBottom: `1px solid ${LINE}`, position: "sticky", top: 60, background: BG, zIndex: 10, padding: "8px 0 0" }}>
+                {TAB_SECTIONS.map(t => (
+                  <button key={t.id} onClick={() => scrollToSection(t.id)} style={{
+                    padding: "14px 22px", background: "transparent", border: 0,
+                    borderBottom: `2px solid ${activeTab === t.id ? A : "transparent"}`,
+                    color: activeTab === t.id ? INK : INK3,
+                    fontSize: 14, fontWeight: activeTab === t.id ? 700 : 500,
+                    marginBottom: -1, cursor: "pointer",
+                  }}>
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+
+              <ContentSection id="intro" title="정책 소개">
+                <p style={{ whiteSpace: "pre-line", margin: 0 }}>
+                  {decodeHtml(policy.description) || `정책 소개 정보가 없습니다. ${NO_DATA}`}
+                </p>
+              </ContentSection>
+
+              <ContentSection id="support" title="지원 내용">
+                <p style={{ whiteSpace: "pre-line", margin: 0 }}>
+                  {decodeHtml(policy.supportDetail || policy.supportContent) || `지원 내용 정보가 없습니다. ${NO_DATA}`}
+                </p>
+              </ContentSection>
+
+              <ContentSection id="target" title="신청 대상">
+                <p style={{ whiteSpace: "pre-line", margin: 0 }}>
+                  {decodeHtml(policy.targetDetail) || `신청 대상 정보가 없습니다. ${NO_DATA}`}
+                </p>
+              </ContentSection>
+
+              <ContentSection id="method" title="신청 방법">
+                <p style={{ whiteSpace: "pre-line", margin: 0 }}>
+                  {decodeHtml(policy.applyMethodDetail || policy.applyMethodName) || `신청 방법 정보가 없습니다. ${NO_DATA}`}
+                </p>
+              </ContentSection>
+
+              <ContentSection id="contact" title="문의처">
+                {contacts.length > 0 ? (
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12 }}>
+                    {contacts.map((c, i) => (
+                      <div key={i} style={{ background: WHITE, border: `1px solid ${LINE}`, borderRadius: 10, padding: "12px 14px" }}>
+                        {c.name && <div style={{ fontSize: 13, fontWeight: 700, color: INK }}>{c.name}</div>}
+                        {c.phone && <div style={{ fontSize: 13, color: INK3, marginTop: 2 }}>📞 {c.phone}</div>}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p style={{ color: INK3, margin: 0 }}>문의처 정보가 없습니다.</p>
+                )}
+              </ContentSection>
+
+              {visibleTags.length > 0 && (
+                <section style={{ padding: "32px 0", borderBottom: `1px solid ${LINE}` }}>
+                  <h2 style={{ fontSize: 20, fontWeight: 800, letterSpacing: "-0.01em", margin: "0 0 14px", color: INK }}>관련 태그</h2>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    {visibleTags.map(t => <Tag key={t} bg={WHITE} border={LINE}># {t}</Tag>)}
+                  </div>
+                </section>
+              )}
+
+              {related.length > 0 && (
+                <section style={{ padding: "32px 0 56px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+                    <div style={{ fontSize: 18, fontWeight: 800, color: INK }}>비슷한 정책</div>
+                    <span style={{ fontSize: 13, color: A, cursor: "pointer", fontWeight: 600 }} onClick={() => navigate(`/policies?category=${encodeURIComponent(policy.unifiedCategory)}`)}>
+                      더 보기 →
+                    </span>
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14 }}>
+                    {related.map(p => {
+                      const dday = formatDday(p.applyEndDate, p.status);
+                      const urgent = dday !== "종료" && dday !== "상시/문의" && dday !== "예정"
+                        && (dday === "D-Day" || Number(dday.slice(2)) <= 14);
+                      return (
+                        <div key={p.id}
+                          style={{ background: WHITE, border: `1px solid ${LINE}`, borderRadius: 14, padding: 18, cursor: "pointer" }}
+                          onClick={() => navigate(`/policies/${p.id}`)}
+                          onMouseEnter={e => { e.currentTarget.style.boxShadow = "0 4px 16px rgba(37,99,235,0.12)"; e.currentTarget.style.borderColor = `${A}44`; }}
+                          onMouseLeave={e => { e.currentTarget.style.boxShadow = "none"; e.currentTarget.style.borderColor = LINE; }}
+                        >
+                          <div style={{ display: "flex", gap: 6, marginBottom: 12, flexWrap: "wrap" }}>
+                            <Tag bg={AS} color={AI} border={`${A}33`}>{p.unifiedCategory || "기타"}</Tag>
+                            <Tag
+                              bg={dday === "종료" ? LINE2 : dday === "상시/문의" ? "#dcfce7" : urgent ? "#fee2e2" : AS}
+                              color={dday === "종료" ? INK3 : dday === "상시/문의" ? "#166534" : urgent ? "#991b1b" : AI}
+                            >
+                              {dday}
+                            </Tag>
+                          </div>
+                          <div style={{ fontSize: 15, fontWeight: 700, letterSpacing: "-0.01em", color: INK, lineHeight: 1.4, marginBottom: 8 }}>{p.title}</div>
+                          <div style={{ fontSize: 12, color: INK3 }}>자세히 보기 →</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </section>
+              )}
+            </main>
+
+            {/* Sidebar */}
+            <aside style={{ position: "sticky", top: 76 }}>
+              <div style={{ background: WHITE, border: `1px solid ${LINE}`, borderRadius: 16, padding: 24, boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}>
+                {ddayInfo && ddayInfo.daysLeft !== null && ddayInfo.daysLeft >= 0 ? (
+                  <>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: INK3 }}>신청 마감까지</div>
+                    <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginTop: 4 }}>
+                      <span style={{ fontSize: 32, fontWeight: 800, color: ddayInfo.daysLeft <= 7 ? WARN : A, letterSpacing: "-0.02em" }}>
+                        {ddayInfo.daysLeft === 0 ? "오늘" : ddayInfo.daysLeft}
+                      </span>
+                      {ddayInfo.daysLeft > 0 && (
+                        <span style={{ fontSize: 14, color: INK2, fontWeight: 600 }}>일 남음</span>
+                      )}
+                    </div>
+                    {ddayInfo.totalDays > 0 && (
+                      <>
+                        <div style={{ height: 6, background: LINE2, borderRadius: 99, marginTop: 12, overflow: "hidden" }}>
+                          <div style={{
+                            height: "100%", width: `${ddayInfo.progress}%`,
+                            background: ddayInfo.progress > 80
+                              ? `linear-gradient(90deg,${WARN},#f97316)`
+                              : `linear-gradient(90deg,${A},#60a5fa)`,
+                          }} />
+                        </div>
+                        <div style={{ fontSize: 11, color: INK3, marginTop: 6 }}>
+                          {ddayInfo.startDate} ~ {ddayInfo.endDate} ({ddayInfo.totalDays}일 중 {ddayInfo.elapsedDays}일 경과)
+                        </div>
+                      </>
+                    )}
+                  </>
+                ) : (
+                  <div style={{ textAlign: "center", padding: "8px 0" }}>
+                    <div style={{ fontSize: 24, fontWeight: 800, color: ddayInfo?.label === "종료" ? INK3 : A }}>
+                      {ddayInfo?.label || "상시/문의"}
+                    </div>
+                    <div style={{ fontSize: 12, color: INK3, marginTop: 4 }}>
+                      {ddayInfo?.label === "종료" ? "신청이 종료된 정책입니다" : "상시 신청 가능 또는 별도 문의"}
+                    </div>
+                  </div>
+                )}
+
+                <hr style={{ border: 0, borderTop: `1px solid ${LINE}`, margin: "20px 0" }} />
+
+                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                  <button
+                    onClick={() => policy?.detailUrl && window.open(policy.detailUrl, "_blank")}
+                    disabled={!policy?.detailUrl}
+                    style={{
+                      padding: "14px 0", fontSize: 14, fontWeight: 700,
+                      background: policy?.detailUrl ? A : LINE2,
+                      color: policy?.detailUrl ? WHITE : INK3,
+                      border: 0, borderRadius: 10,
+                      cursor: policy?.detailUrl ? "pointer" : "not-allowed",
+                      display: "flex", justifyContent: "center", alignItems: "center", gap: 6,
+                    }}
+                    onMouseEnter={e => { if (policy?.detailUrl) e.currentTarget.style.background = A7; }}
+                    onMouseLeave={e => { if (policy?.detailUrl) e.currentTarget.style.background = A; }}
+                  >
+                    {policy?.detailUrl ? "관련 사이트 보기 ↗" : "링크 없음"}
+                  </button>
+                  <button
+                    onClick={handleBookmark}
+                    style={{
+                      padding: "12px 0", fontSize: 13, fontWeight: 600,
+                      background: bookmarked ? "#fef3c7" : WHITE,
+                      color: bookmarked ? "#92400e" : INK2,
+                      border: `1px solid ${bookmarked ? "#fcd34d" : LINE}`,
+                      borderRadius: 10, cursor: "pointer",
+                      display: "flex", justifyContent: "center", alignItems: "center", gap: 6,
+                    }}
+                  >
+                    {bookmarked ? "★ 북마크됨" : "♡ 북마크에 저장"}
+                  </button>
+                </div>
+
+                <hr style={{ border: 0, borderTop: `1px solid ${LINE}`, margin: "20px 0" }} />
+
+                <div style={{ fontSize: 11, fontWeight: 700, color: INK3, marginBottom: 8 }}>공유하기</div>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(window.location.href);
+                    setToast({ open: true, msg: "링크를 복사했어요", severity: "success" });
+                  }}
+                  style={{ width: "100%", padding: "10px 0", borderRadius: 10, background: LINE2, color: INK2, fontSize: 12, fontWeight: 700, border: 0, cursor: "pointer" }}
+                >
+                  🔗 링크 복사
+                </button>
+              </div>
+
+              <div style={{ background: AS, border: `1px solid ${A}33`, borderRadius: 16, padding: 20, marginTop: 16 }}>
+                <div style={{ fontSize: 13, fontWeight: 800, color: AI }}>💡 내가 자격될까?</div>
+                <div style={{ fontSize: 13, color: INK2, marginTop: 6, lineHeight: 1.6 }}>
+                  {isLoggedIn
+                    ? "마이페이지에서 내 조건을 설정하면 자격 여부를 자동으로 확인해드려요."
+                    : "로그인하고 1분만에 내 정보를 등록하면 자격 여부를 자동으로 확인해드려요."}
+                </div>
+                <button
+                  onClick={() => navigate(isLoggedIn ? "/mypage" : "/login")}
+                  style={{ marginTop: 12, padding: "8px 14px", fontSize: 12, fontWeight: 700, background: A, color: WHITE, border: 0, borderRadius: 8, cursor: "pointer" }}
+                >
+                  자격 확인하기 →
+                </button>
+              </div>
+            </aside>
+          </div>
+        )}
+      </div>
 
       <Snackbar
         open={toast.open}
         autoHideDuration={2200}
-        onClose={() => setToast((prev) => ({ ...prev, open: false }))}
+        onClose={() => setToast(p => ({ ...p, open: false }))}
         anchorOrigin={{ vertical: "top", horizontal: "center" }}
       >
         <Alert severity={toast.severity}>{toast.msg}</Alert>
       </Snackbar>
       <FloatingNav />
-    </Box>
+    </div>
   );
 }

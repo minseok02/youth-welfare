@@ -1,395 +1,714 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  Box, Container, Typography, Button,
-  Card, CardContent, Chip,
-  Snackbar, Alert, CircularProgress, Divider,
-} from "@mui/material";
-import StarIcon from "@mui/icons-material/Star";
-import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
+import { Snackbar, Alert } from "@mui/material";
 import Header from "../components/Header";
-import FloatingNav from "../components/FloatingNav";
 import api from "../lib/axios";
 import { useAuthStore } from "../store/authStore";
 
-const statusLabel = (status) => {
-  if (status === "ACTIVE") return "진행중";
-  if (status === "UPCOMING") return "예정";
+// ── 헬퍼 ──────────────────────────────────────────────────────────────────────
+
+const formatDday = (dateText, status) => {
   if (status === "CLOSED") return "종료";
-  return "상시";
+  if (!dateText) return status === "UPCOMING" ? "예정" : "상시";
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const end = new Date(`${dateText}T00:00:00`);
+  if (Number.isNaN(end.getTime())) return "상시";
+  const diff = Math.ceil((end - today) / 86400000);
+  if (diff < 0) return "종료";
+  if (diff === 0) return "D-Day";
+  return `D-${diff}`;
 };
 
-const ddayColor = (dday) => {
-  if (dday === "종료") return "default";
-  if (dday === "상시" || dday === "상시/문의" || dday === "진행중") return "success";
-  if (dday === "예정") return "info";
-  if (dday === "D-Day") return "error";
-  const n = Number.parseInt(String(dday).replace("D-", ""), 10);
-  return Number.isNaN(n) ? "default" : n <= 14 ? "error" : "primary";
-};
-
-const mapRecommendation = (rec) => ({
-  id: rec.serviceId,
-  logId: rec.logId ?? null,
-  title: rec.title,
-  category: rec.unifiedCategory || "기타",
-  dday: statusLabel(rec.status),
-  summary: rec.description || "정책 설명 정보가 없습니다.",
-  aiReason: rec.aiReason,
+const mapRec = (r) => ({
+  id: r.serviceId,
+  logId: r.logId ?? null,
+  title: r.title,
+  category: r.unifiedCategory || "기타",
+  dday: r.status === "CLOSED" ? "종료" : r.status === "ACTIVE" ? "진행중" : "상시",
+  summary: r.description || "",
+  aiReason: r.aiReason,
 });
 
-const mapPolicy = (policy) => ({
-  id: policy.id,
-  title: policy.title,
-  category: policy.unifiedCategory || "기타",
-  summary: policy.description || "정책 설명 정보가 없습니다.",
-});
+// ── 디자인 상수 ───────────────────────────────────────────────────────────────
 
-const TEASER_CATEGORIES = [
-  { label: "일자리", value: "일자리" },
-  { label: "교육·직업훈련", value: "교육·직업훈련" },
-  { label: "주거", value: "주거" },
+const A = "#2563eb";
+const A7 = "#1d4ed8";
+const AS = "#e8efff";
+const AS2 = "#f0f5ff";
+const AI = "#1e3a8a";
+const INK = "#11131a";
+const INK2 = "#4a4f5c";
+const INK3 = "#8b91a0";
+const LINE = "#e7e9ef";
+const WARN = "#ef4444";
+const OK = "#047857";
+const OK_BG = "#ecfdf5";
+
+const CATEGORY_META = [
+  { value: "일자리",        label: "일자리",        emoji: "💼", bg: "#dbeafe" },
+  { value: "주거",          label: "주거",          emoji: "🏠", bg: "#fef3c7" },
+  { value: "교육·직업훈련", label: "교육·직업훈련", emoji: "🎓", bg: "#dcfce7" },
+  { value: "금융·생활지원", label: "금융·생활지원", emoji: "💰", bg: "#fce7f3" },
+  { value: "건강·의료",     label: "건강·의료",     emoji: "🩺", bg: "#e0e7ff" },
+  { value: "참여·기회",     label: "참여·기회",     emoji: "👥", bg: "#fed7aa" },
 ];
+
+const POPULAR_CATEGORIES = ["일자리", "교육·직업훈련", "금융·생활지원", "주거", "건강·의료", "참여·기회"];
+
+// ── 서브 컴포넌트 ─────────────────────────────────────────────────────────────
+
+function Tag({ children, style }) {
+  return (
+    <span style={{
+      display: "inline-flex", alignItems: "center", fontSize: 12,
+      padding: "3px 10px", borderRadius: 99, fontWeight: 600, ...style,
+    }}>
+      {children}
+    </span>
+  );
+}
+
+function HeroNonLogin({ totalPolicies, deadlineCount, firstDeadlinePolicy, secondDeadlinePolicy, navigate }) {
+  return (
+    <section style={{
+      background: "linear-gradient(135deg, #1e3a8a 0%, #2563eb 55%, #3b82f6 100%)",
+      borderRadius: 28, padding: "48px 56px", color: "white", marginTop: 24,
+      position: "relative", overflow: "hidden",
+    }}>
+      <div style={{ position: "absolute", right: -80, top: -80, width: 280, height: 280, borderRadius: "50%", background: "rgba(255,255,255,0.08)", pointerEvents: "none" }} />
+      <div style={{ position: "absolute", right: 120, bottom: -100, width: 200, height: 200, borderRadius: "50%", background: "rgba(255,255,255,0.06)", pointerEvents: "none" }} />
+
+      <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: 40, alignItems: "center", position: "relative", zIndex: 1 }}>
+        <div>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(255,255,255,0.15)", padding: "6px 14px", borderRadius: 99, fontSize: 13, fontWeight: 600 }}>
+            안녕하세요, 청년님
+          </span>
+          <h1 style={{ fontSize: 40, fontWeight: 800, letterSpacing: "-0.03em", lineHeight: 1.2, margin: "16px 0 14px", color: "white" }}>
+            나에게 딱 맞는<br />
+            <span style={{ background: "linear-gradient(180deg, transparent 65%, rgba(255,255,255,0.25) 65%)", padding: "0 4px" }}>
+              청년 복지정책
+            </span>을<br />
+            찾아드려요
+          </h1>
+          <p style={{ fontSize: 15, opacity: 0.85, margin: "0 0 24px", lineHeight: 1.6 }}>
+            지역·소득·관심사 입력 1분이면 끝.<br />
+            지금 자격되는 정책만 추려드립니다.
+          </p>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <button
+              onClick={() => navigate("/signup")}
+              style={{ padding: "14px 22px", background: "white", color: A7, border: 0, borderRadius: 12, fontSize: 14, fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 8, boxShadow: "0 4px 12px rgba(0,0,0,0.12)" }}
+            >
+              맞춤 추천 받기 →
+            </button>
+            <button
+              onClick={() => navigate("/policies")}
+              style={{ padding: "14px 22px", background: "rgba(255,255,255,0.12)", color: "white", border: "1px solid rgba(255,255,255,0.25)", borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: "pointer" }}
+            >
+              전체 둘러보기
+            </button>
+          </div>
+          <div style={{ display: "flex", gap: 24, marginTop: 28, fontSize: 13 }}>
+            <div>
+              <div style={{ fontSize: 22, fontWeight: 800 }}>{totalPolicies > 0 ? totalPolicies.toLocaleString() : "—"}</div>
+              <div style={{ opacity: 0.7, fontSize: 12, marginTop: 2 }}>전체 정책</div>
+            </div>
+            <div style={{ width: 1, background: "rgba(255,255,255,0.2)" }} />
+            <div>
+              <div style={{ fontSize: 22, fontWeight: 800 }}>{deadlineCount > 0 ? `${deadlineCount}건` : "—"}</div>
+              <div style={{ opacity: 0.7, fontSize: 12, marginTop: 2 }}>이번 주 마감</div>
+            </div>
+            <div style={{ width: 1, background: "rgba(255,255,255,0.2)" }} />
+            <div>
+              <div style={{ fontSize: 22, fontWeight: 800 }}>무료</div>
+              <div style={{ opacity: 0.7, fontSize: 12, marginTop: 2 }}>AI 추천 서비스</div>
+            </div>
+          </div>
+        </div>
+
+        {/* 플로팅 카드 */}
+        <div style={{ position: "relative", height: 270 }}>
+          {/* 카드 1: 마감임박 정책 */}
+          {firstDeadlinePolicy && (
+            <div style={{ position: "absolute", right: 30, top: 8, width: 190, background: "white", borderRadius: 14, padding: 16, color: INK, boxShadow: "0 12px 32px rgba(0,0,0,0.18)", transform: "rotate(-3deg)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <Tag style={{ background: "#fef2f2", color: WARN }}>마감임박</Tag>
+                <span style={{ fontSize: 18, fontWeight: 800, color: WARN }}>{firstDeadlinePolicy.dday}</span>
+              </div>
+              <div style={{ fontSize: 13, fontWeight: 700, marginTop: 10, lineHeight: 1.3, letterSpacing: "-0.01em" }}>
+                {firstDeadlinePolicy.title}
+              </div>
+              {firstDeadlinePolicy.source && (
+                <div style={{ fontSize: 11, color: INK3, marginTop: 5 }}>{firstDeadlinePolicy.source}</div>
+              )}
+            </div>
+          )}
+          {/* 카드 2: 두 번째 마감임박 정책 */}
+          {secondDeadlinePolicy && (
+            <div style={{ position: "absolute", right: 0, top: 140, width: 200, background: "white", borderRadius: 14, padding: 16, color: INK, boxShadow: "0 12px 32px rgba(0,0,0,0.22)", transform: "rotate(2.5deg)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <Tag style={{ background: AS, color: AI }}>{secondDeadlinePolicy.category}</Tag>
+                <span style={{ fontSize: 14, fontWeight: 800, color: WARN }}>{secondDeadlinePolicy.dday}</span>
+              </div>
+              <div style={{ fontSize: 13, fontWeight: 700, marginTop: 10, letterSpacing: "-0.01em", lineHeight: 1.3 }}>
+                {secondDeadlinePolicy.title}
+              </div>
+              {secondDeadlinePolicy.source && (
+                <div style={{ fontSize: 11, color: INK3, marginTop: 4 }}>{secondDeadlinePolicy.source}</div>
+              )}
+              <div style={{ marginTop: 8, paddingTop: 8, borderTop: "1px solid #f3f4f6", display: "flex", alignItems: "center", gap: 4 }}>
+                <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#22c55e", flexShrink: 0 }} />
+                <span style={{ fontSize: 10, color: INK3, fontWeight: 600 }}>실시간 업데이트</span>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function HeroLoggedIn({ user, navigate, onRefresh, onPersonalRefresh, refreshingRec, personalRefreshing, totalPolicies }) {
+  return (
+    <section style={{
+      background: "linear-gradient(135deg, #1e3a8a 0%, #2563eb 55%, #3b82f6 100%)",
+      borderRadius: 28, padding: "36px 48px", color: "white", marginTop: 24,
+      position: "relative", overflow: "hidden",
+    }}>
+      <div style={{ position: "absolute", right: -60, top: -60, width: 220, height: 220, borderRadius: "50%", background: "rgba(255,255,255,0.08)", pointerEvents: "none" }} />
+      <div style={{ position: "relative", zIndex: 1, display: "grid", gridTemplateColumns: "1fr auto", gap: 32, alignItems: "center" }}>
+        <div>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(255,255,255,0.15)", padding: "6px 14px", borderRadius: 99, fontSize: 13, fontWeight: 600 }}>
+            {user?.name ? `${user.name}님, 안녕하세요!` : "안녕하세요!"}
+          </span>
+          <div style={{ fontSize: 28, fontWeight: 800, marginTop: 14, lineHeight: 1.3, letterSpacing: "-0.02em" }}>
+            저희가 선별한 맞춤 정책을<br />확인해보세요
+          </div>
+          <div style={{ display: "flex", gap: 10, marginTop: 20, flexWrap: "wrap" }}>
+            <button
+              onClick={onPersonalRefresh}
+              disabled={personalRefreshing || refreshingRec}
+              style={{ padding: "12px 20px", background: "white", color: A7, border: 0, borderRadius: 12, fontSize: 14, fontWeight: 700, cursor: "pointer", boxShadow: "0 4px 12px rgba(0,0,0,0.12)", opacity: (personalRefreshing || refreshingRec) ? 0.7 : 1 }}
+            >
+              {personalRefreshing ? "분석 중..." : "맞춤 재추천"}
+            </button>
+            <button
+              onClick={onRefresh}
+              disabled={refreshingRec || personalRefreshing}
+              style={{ padding: "12px 20px", background: "rgba(255,255,255,0.15)", color: "white", border: "1px solid rgba(255,255,255,0.3)", borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: "pointer", opacity: (refreshingRec || personalRefreshing) ? 0.7 : 1 }}
+            >
+              {refreshingRec ? "갱신 중..." : "새로고침"}
+            </button>
+            <button
+              onClick={() => navigate("/policies")}
+              style={{ padding: "12px 20px", background: "rgba(255,255,255,0.1)", color: "white", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 12, fontSize: 14, fontWeight: 500, cursor: "pointer" }}
+            >
+              전체 정책 →
+            </button>
+          </div>
+        </div>
+        {totalPolicies > 0 && (
+          <div style={{ textAlign: "center" }}>
+            <div style={{ fontSize: 36, fontWeight: 800, lineHeight: 1 }}>{totalPolicies.toLocaleString()}</div>
+            <div style={{ fontSize: 13, opacity: 0.7, marginTop: 4 }}>전체 정책</div>
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function CategoryBar({ counts, navigate }) {
+  return (
+    <section style={{ marginTop: 32, display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 12 }}>
+      {CATEGORY_META.map((c) => (
+        <div
+          key={c.value}
+          onClick={() => navigate(`/policies?category=${encodeURIComponent(c.value)}`)}
+          style={{ background: "white", border: `1px solid ${LINE}`, borderRadius: 16, padding: "20px 16px", textAlign: "center", cursor: "pointer", transition: "transform .15s, box-shadow .15s" }}
+          onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-3px)"; e.currentTarget.style.boxShadow = "0 8px 24px rgba(37,99,235,0.12)"; }}
+          onMouseLeave={e => { e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = ""; }}
+        >
+          <div style={{ width: 52, height: 52, borderRadius: 16, background: c.bg, margin: "0 auto 10px" }} />
+          <div style={{ fontSize: 13, fontWeight: 700, color: INK }}>{c.label}</div>
+          {counts[c.value] > 0 && (
+            <div style={{ fontSize: 11, color: INK3, marginTop: 2 }}>{counts[c.value].toLocaleString()}개</div>
+          )}
+        </div>
+      ))}
+    </section>
+  );
+}
+
+function DeadlineRail({ policies, navigate }) {
+  if (!policies.length) return null;
+  return (
+    <section style={{ marginTop: 48 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 16 }}>
+        <div>
+          <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-0.02em", color: INK }}>마감임박 정책</div>
+          <div style={{ fontSize: 13, color: INK3, marginTop: 4 }}>곧 신청이 마감되는 정책이에요</div>
+        </div>
+        <button
+          onClick={() => navigate("/policies?sort=deadline&statusFilter=신청가능")}
+          style={{ background: "none", border: "none", fontSize: 13, color: INK3, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}
+          onMouseEnter={e => { e.currentTarget.style.color = A; }}
+          onMouseLeave={e => { e.currentTarget.style.color = INK3; }}
+        >
+          전체 보기 →
+        </button>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: `repeat(${policies.length}, 1fr)`, gap: 14 }}>
+        {policies.map((p) => (
+          <div
+            key={p.id}
+            onClick={() => navigate(`/policies/${p.id}`)}
+            style={{ background: "white", border: `1px solid ${LINE}`, borderRadius: 16, padding: 18, cursor: "pointer", transition: "box-shadow .15s" }}
+            onMouseEnter={e => { e.currentTarget.style.boxShadow = "0 4px 16px rgba(37,99,235,0.10)"; }}
+            onMouseLeave={e => { e.currentTarget.style.boxShadow = ""; }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <Tag style={{ background: "#fef2f2", color: WARN }}>{p.dday}</Tag>
+            </div>
+            <div style={{ fontSize: 14, fontWeight: 700, marginTop: 12, lineHeight: 1.4, letterSpacing: "-0.01em", color: INK }}>{p.title}</div>
+            {p.source && <div style={{ fontSize: 12, color: INK3, marginTop: 4 }}>{p.source}</div>}
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function PopularSection({ teaserPolicies, categoryCounts, navigate }) {
+  return (
+    <section style={{ marginTop: 56 }}>
+      <div style={{ marginBottom: 20 }}>
+        <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-0.02em", color: INK }}>지금 청년들이 많이 보는 정책</div>
+        <div style={{ fontSize: 13, color: INK3, marginTop: 4 }}>조회수 기준 인기 정책</div>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 28 }}>
+        {POPULAR_CATEGORIES.map((catValue) => {
+          const items = teaserPolicies[catValue] ?? [];
+          if (!items.length) return null;
+          return (
+            <div key={catValue} style={{ minWidth: 0 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 14 }}>
+                <div>
+                  <div style={{ fontSize: 17, fontWeight: 800, letterSpacing: "-0.01em", color: INK }}>
+                    {catValue}
+                  </div>
+                  {categoryCounts[catValue] > 0 && (
+                    <div style={{ fontSize: 12, color: INK3, marginTop: 2 }}>{categoryCounts[catValue].toLocaleString()}개 정책</div>
+                  )}
+                </div>
+                <button
+                  onClick={() => navigate(`/policies?category=${encodeURIComponent(catValue)}`)}
+                  style={{ background: "none", border: "none", fontSize: 13, color: INK3, cursor: "pointer" }}
+                  onMouseEnter={e => { e.currentTarget.style.color = A; }}
+                  onMouseLeave={e => { e.currentTarget.style.color = INK3; }}
+                >
+                  더보기 →
+                </button>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {items.map((p, i) => (
+                  <div
+                    key={p.id}
+                    onClick={() => navigate(`/policies/${p.id}`)}
+                    style={{ background: "white", border: `1px solid ${LINE}`, borderRadius: 12, padding: "14px 16px", display: "flex", alignItems: "center", gap: 14, cursor: "pointer", transition: "border-color .15s" }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = A; }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = LINE; }}
+                  >
+                    <div style={{ width: 38, height: 38, borderRadius: 10, background: AS, color: A7, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 13, flexShrink: 0 }}>
+                      {String(i + 1).padStart(2, "0")}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 14, fontWeight: 700, letterSpacing: "-0.01em", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: INK }}>
+                        {p.title}
+                      </div>
+                      <div style={{ fontSize: 12, color: INK3, marginTop: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {p.summary?.slice(0, 60)}
+                      </div>
+                    </div>
+                    <span style={{ color: INK3, fontSize: 14 }}>›</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+function RecCard({ rec, navigate }) {
+  const isUrgent = rec.dday.startsWith("D-") && parseInt(rec.dday.replace("D-", "")) <= 14;
+  const ddayStyle =
+    rec.dday === "종료" ? { background: "#f3f4f6", color: INK3 }
+    : rec.dday === "상시" || rec.dday === "진행중" ? { background: OK_BG, color: OK }
+    : isUrgent ? { background: "#fef2f2", color: WARN }
+    : { background: AS2, color: A };
+
+  return (
+    <div
+      onClick={() => navigate(`/policies/${rec.id}${rec.logId ? `?log_id=${rec.logId}` : ""}`)}
+      style={{ background: "white", border: `1px solid ${LINE}`, borderRadius: 14, padding: "18px 20px", cursor: "pointer", transition: "border-color .15s, box-shadow .15s" }}
+      onMouseEnter={e => { e.currentTarget.style.borderColor = A; e.currentTarget.style.boxShadow = "0 4px 16px rgba(37,99,235,0.08)"; }}
+      onMouseLeave={e => { e.currentTarget.style.borderColor = LINE; e.currentTarget.style.boxShadow = ""; }}
+    >
+      <div style={{ display: "flex", gap: 6, marginBottom: 10, flexWrap: "wrap" }}>
+        <Tag style={{ background: AS, color: AI }}>{rec.category}</Tag>
+        <Tag style={ddayStyle}>{rec.dday}</Tag>
+      </div>
+      <div style={{ fontSize: 16, fontWeight: 700, letterSpacing: "-0.01em", lineHeight: 1.35, color: INK }}>{rec.title}</div>
+      <div style={{ fontSize: 13, color: INK2, marginTop: 6, lineHeight: 1.55, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>
+        {rec.summary}
+      </div>
+      {rec.aiReason && (
+        <div style={{ marginTop: 8, fontSize: 12, color: A, fontStyle: "italic" }}>"{rec.aiReason}"</div>
+      )}
+    </div>
+  );
+}
+
+function CTASection({ navigate, teaserPolicies }) {
+  const previewItems = ["일자리", "금융·생활지원", "주거"]
+    .map(cat => {
+      const policy = (teaserPolicies ?? {})[cat]?.[0];
+      return policy ? { id: policy.id, title: policy.title, category: cat } : null;
+    })
+    .filter(Boolean);
+
+  return (
+    <section style={{ marginTop: 56, background: "white", border: `1px solid ${LINE}`, borderRadius: 24, padding: 36, display: "grid", gridTemplateColumns: previewItems.length ? "1.5fr 1fr" : "1fr", gap: 32, alignItems: "center" }}>
+      <div>
+        <Tag style={{ background: AS, color: AI }}>베타 서비스</Tag>
+        <div style={{ fontSize: 26, fontWeight: 800, letterSpacing: "-0.02em", marginTop: 14, lineHeight: 1.3, color: INK }}>
+          내 상황을 입력하면<br />정책을 추천해드려요
+        </div>
+        <div style={{ marginTop: 10, fontSize: 14, color: INK2, lineHeight: 1.6 }}>
+          지역, 나이, 소득, 관심사를 알려주시면 자격이 맞는 정책 위주로 골라드립니다.
+        </div>
+        <div style={{ display: "flex", gap: 8, marginTop: 20 }}>
+          <button
+            onClick={() => navigate("/signup")}
+            style={{ padding: "12px 18px", background: A, color: "white", border: 0, borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: "pointer" }}
+          >
+            1분만에 추천받기 →
+          </button>
+          <button
+            onClick={() => navigate("/login")}
+            style={{ padding: "12px 18px", background: "white", color: INK2, border: `1px solid ${LINE}`, borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: "pointer" }}
+          >
+            로그인
+          </button>
+        </div>
+      </div>
+      {previewItems.length > 0 && (
+        <div style={{ background: AS2, borderRadius: 16, padding: 22 }}>
+          <div style={{ fontSize: 11, color: INK3, fontWeight: 700, marginBottom: 10 }}>인기 정책</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {previewItems.map(item => (
+              <div
+                key={item.id}
+                onClick={() => navigate(`/policies/${item.id}`)}
+                style={{ background: "white", borderRadius: 10, padding: "10px 12px", display: "flex", alignItems: "center", gap: 10, fontSize: 13, cursor: "pointer" }}
+              >
+                <span style={{ fontWeight: 600, color: INK, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.title}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function Spinner() {
+  return (
+    <div style={{ display: "flex", justifyContent: "center", padding: "48px 0" }}>
+      <div style={{ width: 32, height: 32, border: `3px solid ${AS}`, borderTopColor: A, borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+    </div>
+  );
+}
+
+// ── 메인 컴포넌트 ─────────────────────────────────────────────────────────────
 
 export default function MainPage() {
   const navigate = useNavigate();
   const { isLoggedIn, user } = useAuthStore();
 
+  // AI 추천 (로그인)
   const [recommendations, setRecommendations] = useState([]);
   const [loadingRec, setLoadingRec] = useState(false);
   const [refreshingRec, setRefreshingRec] = useState(false);
   const [personalRefreshing, setPersonalRefreshing] = useState(false);
+
+  // 공통 데이터
+  const [totalPolicies, setTotalPolicies] = useState(0);
+  const [categoryCounts, setCategoryCounts] = useState({});
   const [teaserPolicies, setTeaserPolicies] = useState({});
-  const [loadingTeaser, setLoadingTeaser] = useState(false);
+  const [deadlinePolicies, setDeadlinePolicies] = useState([]);
+
   const [toast, setToast] = useState({ open: false, msg: "", severity: "info" });
+  const showToast = useCallback((msg, severity = "info") => setToast({ open: true, msg, severity }), []);
 
-  const showToast = useCallback((msg, severity = "info") => {
-    setToast({ open: true, msg, severity });
-  }, []);
-
+  // ── AI 추천 fetch ──────────────────────────────────────────────────────────
   useEffect(() => {
     if (!isLoggedIn) return;
     const controller = new AbortController();
-
-    const fetchRecommendations = async () => {
-      setLoadingRec(true);
-      try {
-        const { data } = await api.get("/api/recommendations", {
-          params: { size: 6 },
-          signal: controller.signal,
-        });
-        setRecommendations((data.data ?? []).map(mapRecommendation));
-      } catch (error) {
-        if (error.name === "CanceledError" || error.code === "ERR_CANCELED") return;
-        showToast("추천 정책을 불러오지 못했습니다", "error");
-      } finally {
-        if (!controller.signal.aborted) setLoadingRec(false);
-      }
-    };
-
-    fetchRecommendations();
+    setLoadingRec(true);
+    api.get("/api/recommendations", { params: { size: 6 }, signal: controller.signal })
+      .then(({ data }) => setRecommendations((data.data ?? []).map(mapRec)))
+      .catch((err) => { if (err.name !== "CanceledError" && err.code !== "ERR_CANCELED") showToast("추천 정책을 불러오지 못했습니다", "error"); })
+      .finally(() => { if (!controller.signal.aborted) setLoadingRec(false); });
     return () => controller.abort();
   }, [isLoggedIn, showToast]);
 
+  // ── 공통 데이터 fetch (전체 수, 카테고리별, 마감임박) ─────────────────────
   useEffect(() => {
-    if (isLoggedIn) return;
     const controller = new AbortController();
+    const sig = { signal: controller.signal };
 
-    const fetchTeaser = async () => {
-      setLoadingTeaser(true);
-      try {
-        const results = await Promise.all(
-          TEASER_CATEGORIES.map((cat) =>
-            api.get("/api/policies", {
-              params: { category: cat.value, sort: "LATEST", size: 3, page: 0 },
-              signal: controller.signal,
-            })
-          )
-        );
-        const mapped = {};
-        TEASER_CATEGORIES.forEach((cat, i) => {
-          const pageData = results[i].data.data ?? {};
-          mapped[cat.value] = (pageData.content ?? []).map(mapPolicy);
+    Promise.all([
+      api.get("/api/policies", { params: { size: 1, statusFilter: "ACTIVE_ONLY" }, ...sig }),
+      ...CATEGORY_META.map((c) =>
+        api.get("/api/policies", { params: { category: c.value, sort: "VIEWS", statusFilter: "ACTIVE_ONLY", size: 3, page: 0 }, ...sig })
+      ),
+      api.get("/api/policies", { params: { sort: "DEADLINE", statusFilter: "ACTIVE_ONLY", size: 4 }, ...sig }),
+    ])
+      .then(([totalRes, ...rest]) => {
+        const catResults = rest.slice(0, CATEGORY_META.length);
+        const deadlineRes = rest[CATEGORY_META.length];
+
+        setTotalPolicies(totalRes.data?.data?.totalElements ?? 0);
+
+        const counts = {};
+        const teaser = {};
+        CATEGORY_META.forEach((c, i) => {
+          const pd = catResults[i].data?.data ?? {};
+          counts[c.value] = pd.totalElements ?? 0;
+          teaser[c.value] = (pd.content ?? []).map((p) => ({
+            id: p.id,
+            title: p.title,
+            summary: p.description || "",
+          }));
         });
-        setTeaserPolicies(mapped);
-      } catch (error) {
-        if (error.name === "CanceledError" || error.code === "ERR_CANCELED") return;
-      } finally {
-        if (!controller.signal.aborted) setLoadingTeaser(false);
-      }
-    };
+        setCategoryCounts(counts);
+        setTeaserPolicies(teaser);
 
-    fetchTeaser();
+        const dl = (deadlineRes.data?.data?.content ?? [])
+          .map((p) => ({
+            id: p.id,
+            title: p.title,
+            dday: formatDday(p.applyEndDate, p.status),
+            source: p.hostOrg || p.sido || "",
+            category: p.unifiedCategory || "기타",
+          }))
+          .filter((p) => p.dday !== "종료" && p.dday !== "상시" && p.dday !== "예정");
+        setDeadlinePolicies(dl.slice(0, 4));
+      })
+      .catch(() => {});
+
     return () => controller.abort();
-  }, [isLoggedIn]);
+  }, []);
 
+  // ── 추천 갱신 핸들러 ──────────────────────────────────────────────────────
   const handleRefreshRecommendations = async () => {
-    if (!user?.hasPriorities) {
-      showToast("마이페이지에서 우선순위를 먼저 설정해주세요");
-      return;
-    }
+    if (!user?.hasPriorities) { showToast("마이페이지에서 우선순위를 먼저 설정해주세요"); return; }
     setRefreshingRec(true);
     try {
       const { data } = await api.post("/api/recommendations/refresh");
-      setRecommendations((data.data ?? []).map(mapRecommendation));
+      setRecommendations((data.data ?? []).map(mapRec));
       showToast("추천을 새로 불러왔습니다", "success");
-    } catch {
-      showToast("추천 갱신에 실패했습니다", "error");
-    } finally {
-      setRefreshingRec(false);
-    }
+    } catch { showToast("추천 갱신에 실패했습니다", "error"); }
+    finally { setRefreshingRec(false); }
   };
 
   const handlePersonalRefresh = async () => {
-    if (!user?.hasPriorities) {
-      showToast("마이페이지에서 우선순위를 먼저 설정해주세요");
-      return;
-    }
+    if (!user?.hasPriorities) { showToast("마이페이지에서 우선순위를 먼저 설정해주세요"); return; }
     setPersonalRefreshing(true);
     try {
       const { data } = await api.post("/api/recommendations/refresh?personal=true");
-      setRecommendations((data.data ?? []).map(mapRecommendation));
+      setRecommendations((data.data ?? []).map(mapRec));
       showToast("개인 맞춤 추천을 새로 받았습니다", "success");
-    } catch {
-      showToast("재추천에 실패했습니다", "error");
-    } finally {
-      setPersonalRefreshing(false);
-    }
+    } catch { showToast("재추천에 실패했습니다", "error"); }
+    finally { setPersonalRefreshing(false); }
   };
 
-  // 비로그인 뷰
-  if (!isLoggedIn) {
-    return (
-      <Box sx={{ minHeight: "100vh", bgcolor: "background.default" }}>
-        <Header />
-
-        <Box sx={{
-          background: "linear-gradient(135deg, #016070 0%, #00A896 100%)",
-          pt: 8, pb: 6, px: 2, textAlign: "center",
-        }}>
-          <Typography variant="h4" fontWeight={700} color="white" mb={1.5}>
-            나에게 딱 맞는 청년 복지정책
-          </Typography>
-          <Typography variant="body1" color="rgba(255,255,255,0.85)" mb={4}>
-            현재 내 상황에 맞는 정책을 추천해드려요
-          </Typography>
-          <Box sx={{ display: "flex", gap: 2, justifyContent: "center", flexWrap: "wrap" }}>
-            <Button
-              variant="contained"
-              size="large"
-              onClick={() => navigate("/login")}
-              sx={{ bgcolor: "white", color: "primary.main", fontWeight: 700, "&:hover": { bgcolor: "#f0f0f0" }, px: 4 }}
-            >
-              로그인하고 맞춤 추천 받기
-            </Button>
-            <Button
-              variant="outlined"
-              size="large"
-              onClick={() => navigate("/signup")}
-              sx={{ color: "white", borderColor: "rgba(255,255,255,0.7)", "&:hover": { borderColor: "white", bgcolor: "rgba(255,255,255,0.1)" }, px: 4 }}
-            >
-              회원가입
-            </Button>
-          </Box>
-        </Box>
-
-        <Container maxWidth="lg" sx={{ py: 5 }}>
-          <Typography variant="h6" fontWeight={700} mb={3} textAlign="center">
-            지금 청년들이 많이 보는 정책
-          </Typography>
-
-          {loadingTeaser ? (
-            <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}>
-              <CircularProgress />
-            </Box>
-          ) : (
-            TEASER_CATEGORIES.map((cat) => {
-              const items = teaserPolicies[cat.value] ?? [];
-              if (items.length === 0) return null;
-              return (
-                <Box key={cat.value} mb={5}>
-                  <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
-                    <Typography variant="subtitle1" fontWeight={700}>{cat.label}</Typography>
-                    <Button
-                      size="small"
-                      endIcon={<ArrowForwardIcon fontSize="small" />}
-                      onClick={() => navigate("/policies")}
-                      sx={{ fontSize: 13 }}
-                    >
-                      더 보기
-                    </Button>
-                  </Box>
-                  <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
-                    {items.map((policy) => (
-                      <Card
-                        key={policy.id}
-                        sx={{
-                          cursor: "pointer", transition: "all 0.2s",
-                          "&:hover": { transform: "translateY(-2px)", boxShadow: "0 8px 24px rgba(2,128,144,0.15)" },
-                        }}
-                        onClick={() => navigate(`/policies/${policy.id}`)}
-                      >
-                        <CardContent sx={{ py: "14px !important" }}>
-                          <Chip label={policy.category} size="small" color="primary" variant="outlined" sx={{ mb: 0.5 }} />
-                          <Typography variant="subtitle2" fontWeight={700} mb={0.3} sx={{ lineHeight: 1.4 }}>
-                            {policy.title}
-                          </Typography>
-                          <Typography variant="body2" color="text.secondary" sx={{ fontSize: 12 }}>
-                            {policy.summary.length > 120 ? `${policy.summary.slice(0, 120)}...` : policy.summary}
-                          </Typography>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </Box>
-                </Box>
-              );
-            })
-          )}
-
-          <Divider sx={{ my: 4 }} />
-          <Box sx={{ textAlign: "center", py: 4 }}>
-            <Typography variant="h6" fontWeight={700} mb={1}>
-              로그인하면 나에게 맞는 정책을 추천해드려요
-            </Typography>
-            <Typography variant="body2" color="text.secondary" mb={3}>
-              나이, 지역, 소득 수준에 맞춘 개인화 추천을 받아보세요
-            </Typography>
-            <Button
-              variant="contained"
-              size="large"
-              onClick={() => navigate("/login")}
-              sx={{ px: 5, py: 1.5, fontWeight: 700 }}
-            >
-              시작하기
-            </Button>
-          </Box>
-        </Container>
-      <FloatingNav />
-    </Box>
-    );
-  }
-
-  // 로그인 뷰
   return (
-    <Box sx={{ minHeight: "100vh", bgcolor: "background.default" }}>
+    <div style={{ minHeight: "100vh", background: "#f7f8fc" }}>
       <Header />
 
-      <Box sx={{
-        background: "linear-gradient(135deg, #016070 0%, #00A896 100%)",
-        pt: 5, pb: 4, px: 2, textAlign: "center",
-      }}>
-        <Typography variant="h5" fontWeight={700} color="white" mb={1}>
-          {user?.name ? `${user.name}님, 안녕하세요!` : "안녕하세요!"}
-        </Typography>
-        <Typography variant="body1" color="rgba(255,255,255,0.85)" mb={3}>
-          이 정책은 어떤가요?
-        </Typography>
-        <Box sx={{ display: "flex", gap: 1.5, justifyContent: "center", flexWrap: "wrap" }}>
-          <Button
-            variant="outlined"
-            size="small"
-            onClick={handleRefreshRecommendations}
-            disabled={refreshingRec || personalRefreshing}
-            sx={{ color: "white", borderColor: "rgba(255,255,255,0.7)", "&:hover": { borderColor: "white", bgcolor: "rgba(255,255,255,0.1)" } }}
-          >
-            {refreshingRec ? "갱신 중..." : "새로고침"}
-          </Button>
-          <Button
-            variant="contained"
-            size="small"
-            onClick={handlePersonalRefresh}
-            disabled={personalRefreshing || refreshingRec}
-            sx={{ bgcolor: "white", color: "primary.main", fontWeight: 700, "&:hover": { bgcolor: "#f0f0f0" } }}
-          >
-            {personalRefreshing ? "분석 중..." : "맞춤 재추천"}
-          </Button>
-        </Box>
-      </Box>
+      <div style={{ maxWidth: 1240, margin: "0 auto", padding: "0 24px 80px" }}>
 
-      <Container maxWidth="lg" sx={{ py: 3 }}>
-        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
-          <Typography variant="subtitle1" fontWeight={700} color="primary" sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-            <StarIcon fontSize="small" />
-            맞춤 추천 정책
-          </Typography>
-          <Button
-            size="small"
-            endIcon={<ArrowForwardIcon fontSize="small" />}
-            onClick={() => navigate("/policies")}
-            sx={{ fontSize: 13 }}
-          >
-            모든 정책 보기
-          </Button>
-        </Box>
-
-        {loadingRec ? (
-          <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
-            <CircularProgress />
-          </Box>
-        ) : recommendations.length > 0 ? (
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
-            {recommendations.map((rec) => (
-              <Card
-                key={rec.id}
-                sx={{
-                  cursor: "pointer", transition: "all 0.2s",
-                  "&:hover": { transform: "translateY(-2px)", boxShadow: "0 8px 24px rgba(2,128,144,0.15)" },
-                }}
-                onClick={() => navigate(`/policies/${rec.id}${rec.logId ? `?log_id=${rec.logId}` : ""}`)}
-              >
-                <CardContent sx={{ py: "14px !important" }}>
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.5, flexWrap: "wrap" }}>
-                    <Chip label={rec.category} size="small" color="primary" variant="outlined" />
-                    <Chip
-                      label={rec.dday}
-                      size="small"
-                      color={ddayColor(rec.dday)}
-                      variant={rec.dday === "상시" || rec.dday === "상시/문의" || rec.dday === "진행중" ? "outlined" : "filled"}
-                    />
-                  </Box>
-                  <Typography variant="subtitle2" fontWeight={700} mb={0.3} sx={{ lineHeight: 1.4 }}>
-                    {rec.title}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary" sx={{ fontSize: 12 }}>
-                    {rec.summary.length > 120 ? `${rec.summary.slice(0, 120)}...` : rec.summary}
-                  </Typography>
-                  {rec.aiReason && (
-                    <Typography variant="caption" color="primary" sx={{ fontStyle: "italic", display: "block", mt: 0.5 }}>
-                      "{rec.aiReason}"
-                    </Typography>
-                  )}
-                </CardContent>
-              </Card>
-            ))}
-          </Box>
+        {/* 히어로 */}
+        {isLoggedIn ? (
+          <HeroLoggedIn
+            user={user}
+            navigate={navigate}
+            onRefresh={handleRefreshRecommendations}
+            onPersonalRefresh={handlePersonalRefresh}
+            refreshingRec={refreshingRec}
+            personalRefreshing={personalRefreshing}
+            totalPolicies={totalPolicies}
+          />
         ) : (
-          <Box sx={{ textAlign: "center", py: 8, color: "text.secondary" }}>
-            <Typography fontSize={40}>🤖</Typography>
-            <Typography mt={1} mb={2}>
-              {user?.hasPriorities
-                ? "추천 정책을 불러오는 중 문제가 생겼어요"
-                : "마이페이지에서 우선순위를 설정하면 맞춤 추천을 받을 수 있어요"}
-            </Typography>
-            {!user?.hasPriorities && (
-              <Button variant="contained" onClick={() => navigate("/mypage")}>
-                우선순위 설정하러 가기
-              </Button>
-            )}
-          </Box>
+          <HeroNonLogin
+              totalPolicies={totalPolicies}
+              deadlineCount={deadlinePolicies.length}
+              firstDeadlinePolicy={deadlinePolicies[0]}
+              secondDeadlinePolicy={deadlinePolicies[1]}
+              navigate={navigate}
+            />
         )}
-      </Container>
+
+        {/* 카테고리 바 */}
+        <CategoryBar counts={categoryCounts} navigate={navigate} />
+
+        {/* AI 추천 (로그인) / 로그인 유도 (비로그인) */}
+        <section style={{ marginTop: 48 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 16 }}>
+            <div>
+              <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-0.02em", color: INK }}>맞춤 추천 정책</div>
+              <div style={{ fontSize: 13, color: INK3, marginTop: 4 }}>
+                {isLoggedIn ? "저희가 프로필을 분석해 선별했어요" : "로그인하면 나에게 맞는 정책을 추려드려요"}
+              </div>
+            </div>
+            {isLoggedIn && (
+              <button
+                onClick={() => navigate("/policies")}
+                style={{ background: "none", border: "none", fontSize: 13, color: INK3, cursor: "pointer" }}
+                onMouseEnter={e => { e.currentTarget.style.color = A; }}
+                onMouseLeave={e => { e.currentTarget.style.color = INK3; }}
+              >
+                모든 정책 보기 →
+              </button>
+            )}
+          </div>
+
+          {isLoggedIn ? (
+            loadingRec ? (
+              <Spinner />
+            ) : recommendations.length > 0 ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                {recommendations.map((rec) => <RecCard key={rec.id} rec={rec} navigate={navigate} />)}
+              </div>
+            ) : (
+              <div style={{ textAlign: "center", padding: "48px 24px", background: "white", borderRadius: 16, border: `1px solid ${LINE}` }}>
+                <div style={{ marginTop: 12, fontSize: 15, color: INK2 }}>
+                  {user?.hasPriorities
+                    ? "추천 정책을 불러오는 중 문제가 생겼어요"
+                    : "마이페이지에서 우선순위를 설정하면 맞춤 추천을 받을 수 있어요"}
+                </div>
+                {!user?.hasPriorities && (
+                  <button
+                    onClick={() => navigate("/mypage")}
+                    style={{ marginTop: 14, padding: "10px 20px", background: A, color: "white", border: 0, borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: "pointer" }}
+                  >
+                    우선순위 설정하러 가기
+                  </button>
+                )}
+              </div>
+            )
+          ) : (
+            <div style={{ background: "white", borderRadius: 20, border: `1px solid ${LINE}`, padding: "48px 40px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 32 }}>
+              <div>
+                <div style={{ fontSize: 28, fontWeight: 800, color: INK, letterSpacing: "-0.02em", lineHeight: 1.3 }}>
+                  로그인하여<br />맞춤 정책 찾아보기
+                </div>
+                <div style={{ fontSize: 14, color: INK3, marginTop: 10, lineHeight: 1.6 }}>
+                  나이·지역·소득 정보를 입력하면<br />저희가 준비한 자격되는 정책만 골라드려요.
+                </div>
+                <div style={{ display: "flex", gap: 10, marginTop: 24 }}>
+                  <button
+                    onClick={() => navigate("/login")}
+                    style={{ padding: "13px 24px", background: A, color: "white", border: 0, borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: "pointer", boxShadow: "0 4px 12px rgba(37,99,235,0.25)" }}
+                    onMouseEnter={e => { e.currentTarget.style.background = A7; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = A; }}
+                  >
+                    로그인하기
+                  </button>
+                  <button
+                    onClick={() => navigate("/signup")}
+                    style={{ padding: "13px 24px", background: "white", color: INK2, border: `1px solid ${LINE}`, borderRadius: 12, fontSize: 15, fontWeight: 600, cursor: "pointer" }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = A; e.currentTarget.style.color = A; }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = LINE; e.currentTarget.style.color = INK2; }}
+                  >
+                    회원가입
+                  </button>
+                </div>
+              </div>
+              {(() => {
+                const previewItems = ["일자리", "금융·생활지원", "주거"]
+                  .map(cat => {
+                    const meta = CATEGORY_META.find(c => c.value === cat);
+                    const policy = teaserPolicies[cat]?.[0];
+                    return policy ? { id: policy.id, title: policy.title, bg: meta?.bg, category: cat } : null;
+                  })
+                  .filter(Boolean);
+                if (!previewItems.length) return null;
+                return (
+                  <div style={{ flexShrink: 0, display: "flex", flexDirection: "column", gap: 10 }}>
+                    {previewItems.map(item => (
+                      <div
+                        key={item.id}
+                        onClick={() => navigate(`/policies/${item.id}`)}
+                        style={{ display: "flex", alignItems: "center", gap: 12, background: "#f7f8fc", borderRadius: 12, padding: "12px 16px", minWidth: 220, cursor: "pointer" }}
+                      >
+                        <div style={{ width: 36, height: 36, borderRadius: 10, background: item.bg, flexShrink: 0 }} />
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: INK, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 160 }}>{item.title}</div>
+                          <div style={{ fontSize: 12, color: A, fontWeight: 600, marginTop: 1 }}>{item.category}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+            </div>
+          )}
+        </section>
+
+        {/* 마감임박 */}
+        <DeadlineRail policies={deadlinePolicies} navigate={navigate} />
+
+        {/* 카테고리별 인기 정책 */}
+        <PopularSection teaserPolicies={teaserPolicies} categoryCounts={categoryCounts} navigate={navigate} />
+
+        {/* CTA (비로그인) */}
+        {!isLoggedIn && <CTASection navigate={navigate} teaserPolicies={teaserPolicies} />}
+
+        {/* 푸터 */}
+        <footer style={{ marginTop: 72, padding: "28px 0 0", borderTop: `1px solid ${LINE}`, color: INK3, fontSize: 12 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div>
+              <div style={{ fontSize: 14, color: INK2, fontWeight: 700 }}>청년복지플랫폼</div>
+              <div style={{ marginTop: 6 }}>© 2026 청년복지플랫폼. 정책 데이터는 온통청년·복지로에서 제공받습니다.</div>
+            </div>
+            <div style={{ display: "flex", gap: 18 }}>
+              <span>이용약관</span>
+              <span>개인정보처리방침</span>
+              <span>고객센터</span>
+            </div>
+          </div>
+        </footer>
+      </div>
+
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
 
       <Snackbar
         open={toast.open}
         autoHideDuration={3000}
-        onClose={() => setToast((prev) => ({ ...prev, open: false }))}
+        onClose={() => setToast((p) => ({ ...p, open: false }))}
         anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
       >
-        <Alert severity={toast.severity} onClose={() => setToast((prev) => ({ ...prev, open: false }))}>
+        <Alert severity={toast.severity} onClose={() => setToast((p) => ({ ...p, open: false }))}>
           {toast.msg}
         </Alert>
       </Snackbar>
-      <FloatingNav />
-    </Box>
+    </div>
   );
 }
