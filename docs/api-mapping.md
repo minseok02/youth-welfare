@@ -526,6 +526,11 @@ public void resetAiScoreForClosed() {
 
 ### `GET /api/policies`
 
+- 지원 파라미터
+  - `category`, `sourceType`, `status`, `statusFilter`, `sido`, `sgg`, `onlineApply`, `sort`
+  - `incomeLevel` (1~10 정수): 소득분위 → 연소득 상한 변환 후 `max_income` 해당 정책을 ORDER BY 우선 표시. YOUTH 데이터 24건에만 실제 값 있음. 10분위는 null 처리(부스팅 없음).
+  - `targetGroup` (문자열): 장애인 / 한부모·조손 / 다문화·탈북민 / 보훈대상자 / 다자녀. TARGET_GROUP 태그 일치 정책을 ORDER BY 우선 표시. 복지로 데이터 756건에만 적용.
+  - 두 파라미터 모두 하드 필터가 아닌 소프트 부스팅 (조건 미해당 정책도 뒤에 표시)
 - 응답 형식
   - Spring Page 형식의 `data.content`, `data.totalElements`, `data.totalPages`
 - `data.content[]` 주요 필드
@@ -562,6 +567,7 @@ public void resetAiScoreForClosed() {
   - `keyword` (필수)
   - `status`, `statusFilter`, `category`, `sourceType`, `onlineApply`, `sido`, `sgg`
   - `sort` = `RELEVANCE|VIEWS|LATEST|DEADLINE` (NAME은 API 코드만 유지, UI 노출 없음)
+  - `incomeLevel`, `targetGroup` — 목록 API와 동일한 소프트 부스팅 동작
   - `page`, `size`
 - 현재 응답 형식
   - `data.content`

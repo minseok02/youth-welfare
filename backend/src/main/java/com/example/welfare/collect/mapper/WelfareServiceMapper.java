@@ -155,6 +155,42 @@ public class WelfareServiceMapper {
         return regions;
     }
 
+    public NormalizedPolicyAggregate toYouthDetailAggregate(WelfareService service, YouthApiDto.Item detail) {
+        String resolvedUrl = firstNonBlank(detail.getAplyUrlAddr(), detail.getRefUrlAddr1(), detail.getRefUrlAddr2());
+        boolean onlineApply = inferOnlineApply(resolvedUrl, detail.getPlcyAplyMthdCn());
+        return NormalizedPolicyAggregate.builder()
+                .core(NormalizedPolicyAggregate.Core.builder()
+                        .sourceType(NormalizedPolicyAggregate.SourceType.valueOf(service.getSourceType().name()))
+                        .sourceId(service.getSourceId())
+                        .title(service.getTitle())
+                        .summary(firstNonBlank(service.getDescription(), service.getSupportContent()))
+                        .description(service.getDescription())
+                        .supportContent(service.getSupportContent())
+                        .hostOrg(service.getHostOrg())
+                        .operatingOrg(service.getOperatingOrg())
+                        .status(NormalizedPolicyAggregate.ServiceStatus.valueOf(service.getStatus().name()))
+                        .startDate(service.getStartDate())
+                        .endDate(service.getEndDate())
+                        .applyStartDate(service.getApplyStartDate())
+                        .applyEndDate(service.getApplyEndDate())
+                        .detailUrl(resolvedUrl)
+                        .onlineApply(onlineApply)
+                        .apiViewCount(service.getApiViewCount())
+                        .registeredAt(service.getRegisteredAt())
+                        .lastModifiedAt(service.getLastModifiedAt())
+                        .build())
+                .detail(NormalizedPolicyAggregate.Detail.builder()
+                        .applyMethodDetail(firstNonBlank(detail.getPlcyAplyMthdCn(), service.getApplyMethodName()))
+                        .onlineApplyUrl(onlineApply ? resolvedUrl : null)
+                        .build())
+                .taxonomy(NormalizedPolicyAggregate.TaxonomySummary.builder()
+                        .compatUnifiedCategory(service.getUnifiedCategory())
+                        .authority(NormalizedPolicyAggregate.Authority.OFFICIAL)
+                        .confidence(BigDecimal.ONE)
+                        .build())
+                .build();
+    }
+
     // ===== 복지로 중앙 =====
 
     public WelfareService fromBokjiroCentral(BokjiroCentralDto.Item item) {

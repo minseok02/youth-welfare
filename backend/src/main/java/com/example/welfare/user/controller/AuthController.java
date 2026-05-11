@@ -4,6 +4,7 @@ import com.example.welfare.global.auth.AuthenticatedUser;
 import com.example.welfare.global.response.ApiResponse;
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
+import com.example.welfare.global.web.ClientFingerprintService;
 import com.example.welfare.user.dto.request.LoginRequest;
 import com.example.welfare.user.dto.request.PasswordResetConfirmRequest;
 import com.example.welfare.user.dto.request.PasswordResetRequest;
@@ -12,9 +13,12 @@ import com.example.welfare.user.dto.response.EmailAvailabilityResponse;
 import com.example.welfare.user.dto.response.TokenResponse;
 import com.example.welfare.user.service.AuthAvailabilityService;
 import com.example.welfare.user.service.AuthLoginService;
+import com.example.welfare.user.service.AuthRateLimitService;
 import com.example.welfare.user.service.AuthSessionService;
 import com.example.welfare.user.service.AuthSignupService;
+import com.example.welfare.user.service.EmailVerificationService;
 import com.example.welfare.user.service.PasswordResetService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -32,6 +36,9 @@ public class AuthController {
 
     private static final String REFRESH_COOKIE_NAME = "refresh_token";
     private final AuthAvailabilityService authAvailabilityService;
+    private final AuthRateLimitService authRateLimitService;
+    private final ClientFingerprintService clientFingerprintService;
+    private final EmailVerificationService emailVerificationService;
     private final AuthSignupService authSignupService;
     private final AuthLoginService authLoginService;
     private final AuthSessionService authSessionService;
@@ -41,8 +48,26 @@ public class AuthController {
     private boolean cookieSecure;
 
     @GetMapping("/check-email")
-    public ResponseEntity<ApiResponse<EmailAvailabilityResponse>> checkEmailAvailability(@RequestParam String email) {
+    public ResponseEntity<ApiResponse<EmailAvailabilityResponse>> checkEmailAvailability(
+            @RequestParam String email,
+            HttpServletRequest request) {
+        authRateLimitService.checkEmailCheckLimit(clientFingerprintService.build(request));
         return ResponseEntity.ok(ApiResponse.success(authAvailabilityService.checkEmailAvailability(email)));
+    }
+
+    @PostMapping("/email-verification/send")
+    public ResponseEntity<ApiResponse<Void>> sendEmailVerificationCode(
+            @RequestParam String email) {
+        emailVerificationService.sendCode(email);
+        return ResponseEntity.ok(ApiResponse.success(null));
+    }
+
+    @PostMapping("/email-verification/verify")
+    public ResponseEntity<ApiResponse<Void>> verifyEmailCode(
+            @RequestParam String email,
+            @RequestParam String code) {
+        emailVerificationService.verifyCode(email, code);
+        return ResponseEntity.ok(ApiResponse.success(null));
     }
 
     @PostMapping("/signup")

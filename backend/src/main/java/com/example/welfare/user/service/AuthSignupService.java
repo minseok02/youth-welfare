@@ -17,10 +17,15 @@ public class AuthSignupService {
     private final PasswordEncoder passwordEncoder;
     private final UserRegistrationService userRegistrationService;
     private final AuthAdminRoleService authAdminRoleService;
+    private final EmailVerificationService emailVerificationService;
 
     @Transactional
     public void signup(SignupRequest request) {
         authAdminRoleService.validatePublicSignupEmail(request.getEmail());
+
+        if (!emailVerificationService.isVerified(request.getEmail())) {
+            throw new CustomException(ErrorCode.EMAIL_VERIFICATION_REQUIRED);
+        }
 
         if (authIdentityReadService.existsByEmail(request.getEmail())) {
             return;
@@ -28,6 +33,7 @@ public class AuthSignupService {
 
         try {
             userRegistrationService.register(request, passwordEncoder.encode(request.getPassword()));
+            emailVerificationService.clearVerified(request.getEmail());
         } catch (DataIntegrityViolationException e) {
             if (authIdentityReadService.existsByEmail(request.getEmail())) {
                 return;

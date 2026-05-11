@@ -94,6 +94,10 @@ public class SecurityConfig {
                                 "/v3/api-docs/**"
                         ).hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/auth/check-email").permitAll()
+                        .requestMatchers(HttpMethod.POST,
+                                "/api/auth/email-verification/send",
+                                "/api/auth/email-verification/verify"
+                        ).permitAll()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(new JwtAuthenticationFilter(jwtUtil, userSessionRevocationService),

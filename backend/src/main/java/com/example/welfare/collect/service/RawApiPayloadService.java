@@ -1,5 +1,6 @@
 package com.example.welfare.collect.service;
 
+import com.example.welfare.collect.dto.YouthApiDto;
 import com.example.welfare.collect.entity.RawApiPayload;
 import com.example.welfare.collect.gateway.BokjiroDetailClient;
 import com.example.welfare.collect.repository.RawApiPayloadCommandRepository;
@@ -51,6 +52,16 @@ public class RawApiPayloadService {
                 RawFieldValidator.normalize(sourceId),
                 RawApiPayload.ApiCategory.DETAIL,
                 payload
+        );
+    }
+
+    @Transactional
+    public boolean saveYouthDetail(String sourceId, YouthApiDto.Item detail) {
+        return save(
+                WelfareService.SourceType.YOUTH,
+                RawFieldValidator.normalize(sourceId),
+                RawApiPayload.ApiCategory.DETAIL,
+                detail
         );
     }
 

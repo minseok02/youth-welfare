@@ -33,6 +33,8 @@ public class WelfareServiceReadRepositoryImpl implements WelfareServiceReadRepos
                 regionCode,
                 onlineApplyInt,
                 condition.sort(),
+                condition.incomeMaxWon(),
+                condition.targetGroup(),
                 unsorted
         );
     }
@@ -48,6 +50,8 @@ public class WelfareServiceReadRepositoryImpl implements WelfareServiceReadRepos
                     condition.sourceType(),
                     condition.onlineApply(),
                     condition.sort(),
+                    condition.incomeMaxWon(),
+                    condition.targetGroup(),
                     pageable
             );
         }
@@ -61,6 +65,8 @@ public class WelfareServiceReadRepositoryImpl implements WelfareServiceReadRepos
                     condition.onlineApply(),
                     condition.sido(),
                     condition.sort(),
+                    condition.incomeMaxWon(),
+                    condition.targetGroup(),
                     pageable
             );
         }
@@ -74,6 +80,8 @@ public class WelfareServiceReadRepositoryImpl implements WelfareServiceReadRepos
                 condition.sido(),
                 condition.sgg(),
                 condition.sort(),
+                condition.incomeMaxWon(),
+                condition.targetGroup(),
                 pageable
         );
     }

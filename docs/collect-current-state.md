@@ -160,6 +160,51 @@ collect 이후 저장되는 축은 아래입니다.
 4. `service_taxonomies` / `service_facts` row 수
 5. 필요 시 replay/downstream smoke
 
+## 온통청년 DETAIL 수집 분리 운영
+
+### 배경
+
+온통청년 LIST API(`pageType=1`)는 `refUrlAddr1`, `refUrlAddr2` 필드를 응답에 포함하지 않는다.
+해당 필드는 DETAIL API(`pageType=2`)에서만 반환된다.
+
+LIST API 응답 필드: `aplyUrlAddr` 포함, `refUrlAddr1`/`refUrlAddr2`/`sbizCd` **없음**
+DETAIL API 응답 필드: `aplyUrlAddr` + `refUrlAddr1` + `refUrlAddr2` + `sbizCd` **있음**
+
+초기 수집(LIST만)에서 링크 없는 정책이 68%(1,754건)였던 원인이 여기에 있다.
+
+### refUrlAddr1/refUrlAddr2 주의사항
+
+이 필드는 API 명세상 "참고 URL"로 신청 URL이 아닐 수 있다.
+실제 데이터 기준으로 아래가 혼재한다:
+
+- 실제 신청/프로그램 상세 페이지 (유용)
+- 기관 메인 홈페이지
+- 뉴스 기사, SNS(인스타그램, 블로그) 등
+
+따라서 `detail_url`로 저장은 하되, 프론트에서 버튼 문구를 "신청하기"가 아닌 **"관련 사이트 보기"** 로 표기한다.
+URL 우선순위: `aplyUrlAddr` → `refUrlAddr1` → `refUrlAddr2`
+
+### 수집 구조
+
+- `YouthDetailCollectService.collectYouthDetails()`
+- `POST /api/admin/collect/youth-details` (수동 트리거)
+- `welfare_service_details` row가 없는 YOUTH 서비스만 대상으로 처리
+- raw payload는 `raw_api_payloads` (`api_category = DETAIL`)에 보존
+- 수집 간격: 500ms/건 (온통청년 API rate limit 고려)
+
+### 수집 결과 기준
+
+- DETAIL 수집 후 링크 있음: 2,012건 (78.3%, 2,570건 기준)
+- 링크 없는 558건은 DETAIL API에도 URL 필드가 없는 경우로 해결 불가
+
+### 한계
+
+- 403 등 API 오류 발생 시 해당 건만 skip하고 수집 계속 진행
+- 재수집 시 이미 `welfare_service_details`가 있는 건은 skip (중복 방지)
+- 558건은 온통청년 API 자체에 어떤 URL도 없어 현재로서는 불가
+
+---
+
 ## 온통청년 지역 코드 처리 방식 (2026-05-03 수정)
 
 ### 배경

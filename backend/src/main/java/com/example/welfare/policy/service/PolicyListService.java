@@ -21,6 +21,13 @@ public class PolicyListService {
     private static final int DEFAULT_PAGE_SIZE = 20;
     private static final int MAX_PAGE_SIZE = 100;
 
+    // 소득분위(1~9) → 연소득 상한 (만원), 2024년 기준 중위소득 1인 가구 기준
+    // 1분위(30%), 2분위(50%), 3분위(75%), 4분위(100%), 5분위(125%), 6분위(150%), 7~9분위 추정치
+    // 10분위는 상한 없음(null) — 선택해도 부스팅 대상 없음
+    private static final int[] INCOME_THRESHOLDS = {
+        0, 2228, 3714, 5570, 7428, 9285, 11142, 13000, 15000, 20000
+    };
+
     private final WelfareServiceReadRepository welfareServiceReadRepository;
     private final PolicyPresentationReadService policyPresentationReadService;
 
@@ -34,6 +41,8 @@ public class PolicyListService {
                                                String sgg,
                                                Boolean onlineApply,
                                                String sort,
+                                               Integer incomeLevel,
+                                               String targetGroup,
                                                Pageable pageable) {
         // sidoCode/regionCode 계산 및 sort는 WelfareServiceReadRepositoryImpl에서 처리
         Page<WelfareService> page = welfareServiceReadRepository.findList(
@@ -45,7 +54,9 @@ public class PolicyListService {
                         normalizeNullable(sido),
                         normalizeNullable(sgg),
                         onlineApply,
-                        normalizeSort(sort)
+                        normalizeSort(sort),
+                        resolveIncomeMaxWon(incomeLevel),
+                        normalizeNullable(targetGroup)
                 ),
                 normalizePageable(pageable)
         );
@@ -107,5 +118,15 @@ public class PolicyListService {
         int requestedSize = pageable == null ? DEFAULT_PAGE_SIZE : pageable.getPageSize();
         int pageSize = requestedSize <= 0 ? DEFAULT_PAGE_SIZE : Math.min(requestedSize, MAX_PAGE_SIZE);
         return PageRequest.of(pageNumber, pageSize);
+    }
+
+    // 선택 분위보다 낮은 분위 전용 정책을 숨기기 위한 임계값
+    // 7분위 선택 → INCOME_THRESHOLDS[5]=9285 → max_income<=9285 정책 제외
+    // 1분위 선택 → null (숨길 하위 분위 없음)
+    private Integer resolveIncomeMaxWon(Integer incomeLevel) {
+        if (incomeLevel == null || incomeLevel <= 1) return null;
+        int prevLevel = incomeLevel - 2;
+        if (prevLevel <= 0) return null;
+        return INCOME_THRESHOLDS[prevLevel];
     }
 }

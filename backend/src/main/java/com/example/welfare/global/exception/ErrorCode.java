@@ -21,6 +21,10 @@ public enum ErrorCode {
     ADMIN_EMAIL_SIGNUP_FORBIDDEN(HttpStatus.FORBIDDEN, "A007", "관리자 이메일은 공개 회원가입으로 생성할 수 없습니다."),
     PASSWORD_RESET_TOKEN_INVALID(HttpStatus.BAD_REQUEST, "A008", "유효하지 않거나 만료된 비밀번호 재설정 토큰입니다."),
     PASSWORD_RESET_EMAIL_SEND_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "A009", "비밀번호 재설정 메일 발송에 실패했습니다."),
+    AUTH_RATE_LIMIT_EXCEEDED(HttpStatus.TOO_MANY_REQUESTS, "A010", "요청이 너무 많습니다. 잠시 후 다시 시도하세요."),
+    EMAIL_VERIFICATION_CODE_INVALID(HttpStatus.BAD_REQUEST, "A011", "인증코드가 올바르지 않거나 만료되었습니다."),
+    EMAIL_VERIFICATION_REQUIRED(HttpStatus.BAD_REQUEST, "A012", "이메일 인증이 완료되지 않았습니다."),
+    EMAIL_VERIFICATION_SEND_LIMIT(HttpStatus.TOO_MANY_REQUESTS, "A013", "인증코드 요청이 너무 많습니다. 잠시 후 다시 시도하세요."),
 
     // 회원
     DUPLICATE_EMAIL(HttpStatus.CONFLICT, "U001", "이미 사용 중인 이메일입니다."),

@@ -34,13 +34,17 @@ final class BokjiroDetailPersistenceSupport {
         Integer maxAge = findAgeMax(aggregate);
         LocalDate applyEndDate = findApplyEndDate(aggregate);
         NormalizedPolicyAggregate.Detail detail = aggregate.detail();
+        NormalizedPolicyAggregate.Core core = aggregate.core();
+        String coreDetailUrl = core != null ? RawFieldValidator.normalize(core.detailUrl()) : null;
         service.applyDetailFallbacks(
                 RawFieldValidator.normalize(detail.supportDetail()),
                 RawFieldValidator.normalize(detail.applyMethodDetail()),
                 minAge,
                 maxAge,
                 applyEndDate,
-                inferOnlineApply(service.getDetailUrl(), detail.applyMethodDetail(), detail.supportDetail())
+                inferOnlineApply(service.getDetailUrl() != null ? service.getDetailUrl() : coreDetailUrl,
+                        detail.applyMethodDetail(), detail.supportDetail()),
+                coreDetailUrl
         );
     }
 
