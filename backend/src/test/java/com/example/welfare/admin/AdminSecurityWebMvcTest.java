@@ -16,6 +16,7 @@ import com.example.welfare.collect.service.CollectBatchService;
 import com.example.welfare.collect.service.CollectBatchRunResult;
 import com.example.welfare.collect.service.CollectResult;
 import com.example.welfare.collect.service.CollectSource;
+import com.example.welfare.collect.service.YouthDetailCollectService;
 import com.example.welfare.global.auth.AuthenticatedUser;
 import com.example.welfare.global.config.JacksonConfig;
 import com.example.welfare.global.config.SecurityConfig;
@@ -23,6 +24,16 @@ import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.global.util.JwtUtil;
 import com.example.welfare.policy.controller.PolicyAdminController;
+import com.example.welfare.policy.dto.PolicyCategoryAuditResponse;
+import com.example.welfare.policy.dto.PolicyEmbeddingRefreshResponse;
+import com.example.welfare.policy.dto.PolicyRetrievalEvaluationCompareResponse;
+import com.example.welfare.policy.dto.PolicyRetrievalEvaluationResponse;
+import com.example.welfare.policy.dto.PolicyRetrievalQualityGateResponse;
+import com.example.welfare.policy.service.PolicyCategoryAuditService;
+import com.example.welfare.policy.service.PolicyEmbeddingAdminService;
+import com.example.welfare.policy.service.PolicyRetrievalEvaluationExportService;
+import com.example.welfare.policy.service.PolicyRetrievalEvaluationService;
+import com.example.welfare.policy.service.PolicyRetrievalQualityGateService;
 import com.example.welfare.policy.service.SearchYouthRelevanceService;
 import com.example.welfare.user.controller.UserAdminController;
 import com.example.welfare.user.dto.response.UserMetadataUserKeyBackfillResponse;
@@ -77,7 +88,19 @@ class AdminSecurityWebMvcTest {
     @MockBean
     private NormalizedPolicySidecarBackfillService normalizedPolicySidecarBackfillService;
     @MockBean
+    private YouthDetailCollectService youthDetailCollectService;
+    @MockBean
     private SearchYouthRelevanceService searchYouthRelevanceService;
+    @MockBean
+    private PolicyEmbeddingAdminService policyEmbeddingAdminService;
+    @MockBean
+    private PolicyRetrievalEvaluationService policyRetrievalEvaluationService;
+    @MockBean
+    private PolicyRetrievalEvaluationExportService policyRetrievalEvaluationExportService;
+    @MockBean
+    private PolicyRetrievalQualityGateService policyRetrievalQualityGateService;
+    @MockBean
+    private PolicyCategoryAuditService policyCategoryAuditService;
     @MockBean
     private UserMetadataUserKeyBackfillService userMetadataUserKeyBackfillService;
     @MockBean
@@ -149,6 +172,269 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.data").value("온통청년 수집 완료"));
 
         then(collectAdminService).should().collect(CollectSource.YOUTH);
+    }
+
+    @Test
+    @DisplayName("관리자 토큰으로 정책 임베딩 재구축 API를 호출하면 embedding admin service를 실행한다")
+    void adminEndpointAllowsPolicyEmbeddingRebuild() throws Exception {
+        mockAuthenticatedToken("admin-token", List.of(
+                new SimpleGrantedAuthority("ROLE_USER"),
+                new SimpleGrantedAuthority("ROLE_ADMIN")
+        ));
+        given(policyEmbeddingAdminService.rebuildSearchablePolicyEmbeddings())
+                .willReturn(new PolicyEmbeddingRefreshResponse("searchable", 12, 48, 12));
+
+        mockMvc.perform(post("/api/admin/policies/embeddings/rebuild")
+                        .header("Authorization", "Bearer admin-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.scope").value("searchable"))
+                .andExpect(jsonPath("$.data.requestedServiceCount").value(12))
+                .andExpect(jsonPath("$.data.refreshedChunkCount").value(12));
+
+        then(policyEmbeddingAdminService).should().rebuildSearchablePolicyEmbeddings();
+    }
+
+    @Test
+    @DisplayName("관리자 토큰으로 retrieval evaluation API를 호출하면 evaluation service를 실행한다")
+    void adminEndpointAllowsRetrievalEvaluationRun() throws Exception {
+        mockAuthenticatedToken("admin-token", List.of(
+                new SimpleGrantedAuthority("ROLE_USER"),
+                new SimpleGrantedAuthority("ROLE_ADMIN")
+        ));
+        given(policyRetrievalEvaluationService.evaluateBaseline())
+                .willReturn(new PolicyRetrievalEvaluationResponse(
+                        "retrieval-baseline-v2",
+                        11,
+                        9,
+                        2,
+                        7,
+                        9,
+                        2,
+                        2,
+                        1,
+                        0,
+                        0.77,
+                        1.0,
+                        1.0,
+                        0.22,
+                        0.11,
+                        4.2,
+                        3.1,
+                        1.4,
+                        0.4,
+                        0.66,
+                        1.4,
+                        List.of()
+                ));
+
+        mockMvc.perform(post("/api/admin/policies/retrieval-evaluations/run")
+                        .header("Authorization", "Bearer admin-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.datasetKey").value("retrieval-baseline-v2"))
+                .andExpect(jsonPath("$.data.scenarioCount").value(11))
+                .andExpect(jsonPath("$.data.top3HitCount").value(9))
+                .andExpect(jsonPath("$.data.fallbackCount").value(2));
+
+        then(policyRetrievalEvaluationService).should().evaluateBaseline();
+    }
+
+    @Test
+    @DisplayName("관리자 토큰으로 retrieval quality gate API를 호출하면 gate 결과를 반환한다")
+    void adminEndpointAllowsRetrievalQualityGate() throws Exception {
+        mockAuthenticatedToken("admin-token", List.of(
+                new SimpleGrantedAuthority("ROLE_USER"),
+                new SimpleGrantedAuthority("ROLE_ADMIN")
+        ));
+        given(policyRetrievalQualityGateService.evaluateGate())
+                .willReturn(new PolicyRetrievalQualityGateResponse(
+                        true,
+                        "retrieval-baseline-v2",
+                        new PolicyRetrievalQualityGateResponse.Thresholds(0.9, 0.9, 1.0, 0),
+                        new PolicyRetrievalQualityGateResponse.ActualMetrics(1.0, 1.0, 1.0, 0),
+                        List.of()
+                ));
+
+        mockMvc.perform(post("/api/admin/policies/retrieval-evaluations/gate")
+                        .header("Authorization", "Bearer admin-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.passed").value(true))
+                .andExpect(jsonPath("$.data.datasetKey").value("retrieval-baseline-v2"))
+                .andExpect(jsonPath("$.data.actualMetrics.top1HitRate").value(1.0));
+
+        then(policyRetrievalQualityGateService).should().evaluateGate();
+    }
+
+    @Test
+    @DisplayName("관리자 토큰으로 retrieval evaluation compare API를 호출하면 baseline 과 candidate 비교를 반환한다")
+    void adminEndpointAllowsRetrievalEvaluationCompare() throws Exception {
+        mockAuthenticatedToken("admin-token", List.of(
+                new SimpleGrantedAuthority("ROLE_USER"),
+                new SimpleGrantedAuthority("ROLE_ADMIN")
+        ));
+        given(policyRetrievalEvaluationService.compareBaseline(org.mockito.ArgumentMatchers.any()))
+                .willReturn(new PolicyRetrievalEvaluationCompareResponse(
+                        new PolicyRetrievalEvaluationCompareResponse.RetrievalTuning(3, 2, 3, 3),
+                        new PolicyRetrievalEvaluationCompareResponse.RetrievalTuning(1, 1, 1, 2),
+                        new PolicyRetrievalEvaluationResponse(
+                                "retrieval-baseline-v2", 11, 9, 2, 7, 9, 2, 2, 1, 0,
+                                0.77, 1.0, 1.0, 0.22, 0.11, 4.2, 3.1, 1.4, 0.4, 0.66, 1.4, List.of()
+                        ),
+                        new PolicyRetrievalEvaluationResponse(
+                                "retrieval-compare-v2-min1-blend1-sem1-terms2", 11, 9, 2, 8, 9, 2, 1, 2, 0,
+                                0.88, 1.0, 1.0, 0.11, 0.22, 3.6, 3.0, 1.1, 0.2, 0.66, 1.0, List.of()
+                        ),
+                        new PolicyRetrievalEvaluationCompareResponse.Delta(1, 0, -1, 1, 0.11, 0.0, -0.11, 0.11, -0.6, -0.2, -0.4)
+                ));
+
+        mockMvc.perform(post("/api/admin/policies/retrieval-evaluations/compare")
+                        .header("Authorization", "Bearer admin-token")
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "minResultCount": 1,
+                                  "semanticBlendLimit": 1,
+                                  "semanticOnlyLimit": 1,
+                                  "maxPreferredTermsInSearchKeyword": 2
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.baseline.datasetKey").value("retrieval-baseline-v2"))
+                .andExpect(jsonPath("$.data.candidate.datasetKey").value("retrieval-compare-v2-min1-blend1-sem1-terms2"))
+                .andExpect(jsonPath("$.data.delta.fallbackCountDelta").value(-1));
+
+        then(policyRetrievalEvaluationService).should().compareBaseline(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    @DisplayName("관리자 토큰으로 retrieval evaluation compare export API를 호출하면 비교 csv를 반환한다")
+    void adminEndpointAllowsRetrievalEvaluationCompareExport() throws Exception {
+        mockAuthenticatedToken("admin-token", List.of(
+                new SimpleGrantedAuthority("ROLE_USER"),
+                new SimpleGrantedAuthority("ROLE_ADMIN")
+        ));
+        PolicyRetrievalEvaluationCompareResponse response = new PolicyRetrievalEvaluationCompareResponse(
+                new PolicyRetrievalEvaluationCompareResponse.RetrievalTuning(3, 2, 3, 3),
+                new PolicyRetrievalEvaluationCompareResponse.RetrievalTuning(1, 1, 1, 2),
+                new PolicyRetrievalEvaluationResponse(
+                        "retrieval-baseline-v2", 11, 9, 2, 7, 9, 2, 2, 1, 0,
+                        0.77, 1.0, 1.0, 0.22, 0.11, 4.2, 3.1, 1.4, 0.4, 0.66, 1.4, List.of()
+                ),
+                new PolicyRetrievalEvaluationResponse(
+                        "retrieval-compare-v2-min1-blend1-sem1-terms2", 11, 9, 2, 8, 9, 2, 1, 2, 0,
+                        0.88, 1.0, 1.0, 0.11, 0.22, 3.6, 3.0, 1.1, 0.2, 0.66, 1.0, List.of()
+                ),
+                new PolicyRetrievalEvaluationCompareResponse.Delta(1, 0, -1, 1, 0.11, 0.0, -0.11, 0.11, -0.6, -0.2, -0.4)
+        );
+        given(policyRetrievalEvaluationService.compareBaseline(org.mockito.ArgumentMatchers.any())).willReturn(response);
+        given(policyRetrievalEvaluationExportService.toCsv(response))
+                .willReturn("profile,datasetKey\n\"baseline\",\"retrieval-baseline-v2\"\n");
+
+        mockMvc.perform(post("/api/admin/policies/retrieval-evaluations/compare/export")
+                        .header("Authorization", "Bearer admin-token")
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "minResultCount": 1,
+                                  "semanticBlendLimit": 1,
+                                  "semanticOnlyLimit": 1,
+                                  "maxPreferredTermsInSearchKeyword": 2
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
+                        .contentTypeCompatibleWith("text/csv"))
+                .andExpect(header().string("Content-Disposition",
+                        "attachment; filename=\"retrieval-compare-v2-min1-blend1-sem1-terms2-compare.csv\""))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
+                        .string("profile,datasetKey\n\"baseline\",\"retrieval-baseline-v2\"\n"));
+
+        then(policyRetrievalEvaluationService).should().compareBaseline(org.mockito.ArgumentMatchers.any());
+        then(policyRetrievalEvaluationExportService).should().toCsv(response);
+    }
+
+    @Test
+    @DisplayName("관리자 토큰으로 retrieval evaluation export API를 호출하면 csv를 반환한다")
+    void adminEndpointAllowsRetrievalEvaluationExport() throws Exception {
+        mockAuthenticatedToken("admin-token", List.of(
+                new SimpleGrantedAuthority("ROLE_USER"),
+                new SimpleGrantedAuthority("ROLE_ADMIN")
+        ));
+        PolicyRetrievalEvaluationResponse response = new PolicyRetrievalEvaluationResponse(
+                "retrieval-baseline-v2",
+                11,
+                9,
+                2,
+                7,
+                9,
+                2,
+                2,
+                1,
+                0,
+                0.77,
+                1.0,
+                1.0,
+                0.22,
+                0.11,
+                4.2,
+                3.1,
+                1.4,
+                0.4,
+                0.66,
+                1.4,
+                List.of()
+        );
+        given(policyRetrievalEvaluationService.evaluateBaseline()).willReturn(response);
+        given(policyRetrievalEvaluationExportService.toCsv(response))
+                .willReturn("datasetKey,scenarioCount\n\"retrieval-baseline-v2\",11\n");
+
+        mockMvc.perform(get("/api/admin/policies/retrieval-evaluations/export")
+                        .header("Authorization", "Bearer admin-token"))
+                .andExpect(status().isOk())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
+                        .contentTypeCompatibleWith("text/csv"))
+                .andExpect(header().string("Content-Disposition", "attachment; filename=\"retrieval-baseline-v2.csv\""))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
+                        .string("datasetKey,scenarioCount\n\"retrieval-baseline-v2\",11\n"));
+
+        then(policyRetrievalEvaluationService).should().evaluateBaseline();
+        then(policyRetrievalEvaluationExportService).should().toCsv(response);
+    }
+
+    @Test
+    @DisplayName("관리자 토큰으로 category audit API를 호출하면 카테고리 집계를 반환한다")
+    void adminEndpointAllowsCategoryAudit() throws Exception {
+        mockAuthenticatedToken("admin-token", List.of(
+                new SimpleGrantedAuthority("ROLE_USER"),
+                new SimpleGrantedAuthority("ROLE_ADMIN")
+        ));
+        given(policyCategoryAuditService.readAudit())
+                .willReturn(new PolicyCategoryAuditResponse(
+                        3925L,
+                        2544L,
+                        List.of(
+                                new PolicyCategoryAuditResponse.CategoryCount("일자리", 903L, 903L),
+                                new PolicyCategoryAuditResponse.CategoryCount("건강·의료", 142L, 142L)
+                        ),
+                        List.of(
+                                new PolicyCategoryAuditResponse.SourceCategoryMappingCount("복지문화", "문화·여가", 49L),
+                                new PolicyCategoryAuditResponse.SourceCategoryMappingCount("금융·복지·문화", "건강·의료", 11L)
+                        )
+                ));
+
+        mockMvc.perform(get("/api/admin/policies/category-audit")
+                        .header("Authorization", "Bearer admin-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.totalPolicyCount").value(3925))
+                .andExpect(jsonPath("$.data.searchablePolicyCount").value(2544))
+                .andExpect(jsonPath("$.data.unifiedCategoryCounts[0].unifiedCategory").value("일자리"))
+                .andExpect(jsonPath("$.data.youthBroadCategoryMappings[0].sourceCategory").value("복지문화"));
+
+        then(policyCategoryAuditService).should().readAudit();
     }
 
     @Test
