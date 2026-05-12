@@ -102,11 +102,11 @@ public class UserPiiReadWriteRepository {
                             :birthDateEnc,
                             :phoneEnc
                         )
-                        on duplicate key update
-                            email_enc = values(email_enc),
-                            name_enc = values(name_enc),
-                            birth_date_enc = values(birth_date_enc),
-                            phone_enc = values(phone_enc)
+                        on conflict (user_key) do update
+                        set email_enc = excluded.email_enc,
+                            name_enc = excluded.name_enc,
+                            birth_date_enc = excluded.birth_date_enc,
+                            phone_enc = excluded.phone_enc
                         """,
                 new MapSqlParameterSource()
                         .addValue("userKey", userKey)

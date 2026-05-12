@@ -32,8 +32,8 @@ class NormalizedPolicySidecarBeneficiaryTermDensityIntegrationTest {
                 WHERE source_type IN ('BOKJIRO_CENTRAL', 'BOKJIRO_LOCAL')
                   AND api_category = 'DETAIL'
                   AND (
-                        JSON_UNQUOTE(JSON_EXTRACT(payload_json, '$.targetDetail')) REGEXP '국민기초생활보장수급자|기초생활수급자|생계급여 수급자|의료급여 수급자|주거급여 수급자|교육급여 수급자|수급권자|차상위'
-                     OR JSON_UNQUOTE(JSON_EXTRACT(payload_json, '$.selectionCriteria')) REGEXP '국민기초생활보장수급자|기초생활수급자|생계급여 수급자|의료급여 수급자|주거급여 수급자|교육급여 수급자|수급권자|차상위'
+                        COALESCE(payload_json, '')::json ->> 'targetDetail' ~ '국민기초생활보장수급자|기초생활수급자|생계급여 수급자|의료급여 수급자|주거급여 수급자|교육급여 수급자|수급권자|차상위'
+                     OR COALESCE(payload_json, '')::json ->> 'selectionCriteria' ~ '국민기초생활보장수급자|기초생활수급자|생계급여 수급자|의료급여 수급자|주거급여 수급자|교육급여 수급자|수급권자|차상위'
                   )
                 """);
 
@@ -80,7 +80,7 @@ class NormalizedPolicySidecarBeneficiaryTermDensityIntegrationTest {
         Integer count = jdbcTemplate.queryForObject("""
                 SELECT COUNT(*)
                 FROM information_schema.tables
-                WHERE table_schema = DATABASE()
+                WHERE table_schema = current_schema()
                   AND table_name = ?
                 """, Integer.class, tableName);
         return count != null && count > 0;

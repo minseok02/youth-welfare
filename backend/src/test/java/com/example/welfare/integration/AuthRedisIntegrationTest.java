@@ -11,6 +11,7 @@ import com.example.welfare.user.entity.User;
 import com.example.welfare.user.repository.UserPiiReadWriteRepository;
 import com.example.welfare.user.repository.UserPiiSyncQueueRepository;
 import com.example.welfare.user.repository.UserRepository;
+import com.example.welfare.user.util.EmailLookupKeyGenerator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
@@ -116,10 +117,11 @@ class AuthRedisIntegrationTest {
                 {
                   "email": "%s",
                   "password": "password123",
-                  "name": "Integration User",
+                  "name": "홍길동",
                   "birthDate": "%s"
                 }
                 """.formatted(email, LocalDate.of(1998, 1, 10));
+        markEmailVerified(email);
 
         mockMvc.perform(post("/api/auth/signup")
                         .contentType("application/json")
@@ -131,13 +133,14 @@ class AuthRedisIntegrationTest {
                         .param("email", email))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data.available").value(true));
+                .andExpect(jsonPath("$.data.available").value(false));
     }
 
     @Test
     @DisplayName("로그인은 이메일 대소문자 차이를 무시하고 이메일 확인은 계정 존재를 숨긴다")
     void loginAndEmailAvailabilityIgnoreEmailCase() throws Exception {
         String email = TEST_EMAIL_PREFIX + UUID.randomUUID() + "@example.com";
+        markEmailVerified(email);
 
         mockMvc.perform(post("/api/auth/signup")
                         .contentType("application/json")
@@ -145,7 +148,7 @@ class AuthRedisIntegrationTest {
                                 {
                                   "email": "%s",
                                   "password": "password123",
-                                  "name": "Case User",
+                                  "name": "홍길동",
                                   "birthDate": "%s"
                                 }
                                 """.formatted(email, LocalDate.of(1998, 1, 10))))
@@ -156,7 +159,7 @@ class AuthRedisIntegrationTest {
                         .param("email", email.toUpperCase()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data.available").value(true));
+                .andExpect(jsonPath("$.data.available").value(false));
 
         mockMvc.perform(post("/api/auth/login")
                         .contentType("application/json")
@@ -175,6 +178,7 @@ class AuthRedisIntegrationTest {
     @DisplayName("동일 이메일 회원가입 반복 요청은 외부 응답을 일반화하고 기존 계정을 유지한다")
     void duplicateSignupReturnsGenericSuccess() throws Exception {
         String email = TEST_EMAIL_PREFIX + UUID.randomUUID() + "@example.com";
+        markEmailVerified(email);
 
         mockMvc.perform(post("/api/auth/signup")
                         .contentType("application/json")
@@ -182,20 +186,21 @@ class AuthRedisIntegrationTest {
                                 {
                                   "email": "%s",
                                   "password": "password123",
-                                  "name": "First User",
+                                  "name": "홍길동",
                                   "birthDate": "%s"
                                 }
                                 """.formatted(email, LocalDate.of(1998, 1, 10))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true));
 
+        markEmailVerified(email);
         mockMvc.perform(post("/api/auth/signup")
                         .contentType("application/json")
                         .content("""
                                 {
                                   "email": "%s",
                                   "password": "different-password123",
-                                  "name": "Second User",
+                                  "name": "김철수",
                                   "birthDate": "%s"
                                 }
                                 """.formatted(email, LocalDate.of(1999, 2, 20))))
@@ -237,7 +242,7 @@ class AuthRedisIntegrationTest {
                 {
                   "email": "%s",
                   "password": "password123",
-                  "name": "Integration User",
+                  "name": "홍길동",
                   "birthDate": "%s",
                   "sido": "서울특별시",
                   "sgg": "강남구",
@@ -246,6 +251,7 @@ class AuthRedisIntegrationTest {
                   "householdType": "SINGLE"
                 }
                 """.formatted(email, LocalDate.of(1998, 1, 10));
+        markEmailVerified(email);
 
         mockMvc.perform(post("/api/auth/signup")
                         .contentType("application/json")
@@ -314,11 +320,12 @@ class AuthRedisIntegrationTest {
                 {
                   "email": "%s",
                   "password": "password123",
-                  "name": "Reset User",
+                  "name": "홍길동",
                   "birthDate": "%s"
                 }
                 """.formatted(email, LocalDate.of(1998, 1, 10));
         given(emailClient.send(anyString(), anyString(), anyString())).willReturn(true);
+        markEmailVerified(email);
 
         mockMvc.perform(post("/api/auth/signup")
                         .contentType("application/json")
@@ -390,5 +397,12 @@ class AuthRedisIntegrationTest {
         Matcher matcher = RESET_TOKEN_PATTERN.matcher(body);
         assertThat(matcher.find()).isTrue();
         return java.net.URLDecoder.decode(matcher.group(1), java.nio.charset.StandardCharsets.UTF_8);
+    }
+
+    private void markEmailVerified(String email) {
+        redisTemplate.opsForValue().set(
+                "email-verify:verified:" + EmailLookupKeyGenerator.hash(email),
+                "1"
+        );
     }
 }

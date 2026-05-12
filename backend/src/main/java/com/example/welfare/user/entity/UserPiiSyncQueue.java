@@ -21,7 +21,7 @@ public class UserPiiSyncQueue extends BaseTimeEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true, length = 32, columnDefinition = "CHAR(32)")
+    @Column(nullable = false, unique = true, length = 32)
     private String userKey;
 
     private String emailEnc;

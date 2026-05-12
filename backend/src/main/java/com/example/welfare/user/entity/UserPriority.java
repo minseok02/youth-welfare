@@ -19,7 +19,7 @@ public class UserPriority extends BaseTimeEntity {
     @Column(name = "user_id", nullable = false)
     private Long userId;
 
-    @Column(name = "user_key", length = 32, columnDefinition = "CHAR(32)")
+    @Column(name = "user_key", length = 32)
     private String userKey;
 
     @ManyToOne(fetch = FetchType.LAZY)

@@ -33,9 +33,10 @@ public interface UserPriorityRepository extends JpaRepository<UserPriority, Long
     @Modifying
     @Query(value = """
             update user_priorities up
-            join users u on u.id = up.user_id
-            set up.user_key = u.user_key
-            where up.user_key is null or up.user_key = ''
+            set user_key = u.user_key
+            from users u
+            where u.id = up.user_id
+              and (up.user_key is null or up.user_key = '')
             """, nativeQuery = true)
     int backfillMissingUserKeys();
 

@@ -20,7 +20,7 @@ public class UserAttribute {
     @Column(name = "user_id", nullable = false)
     private Long userId;
 
-    @Column(name = "user_key", length = 32, columnDefinition = "CHAR(32)")
+    @Column(name = "user_key", length = 32)
     private String userKey;
 
     // VARCHAR(30), ENUM 아님. 유효성 검증은 AttrType enum으로 애플리케이션 레이어에서 처리.

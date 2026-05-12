@@ -172,7 +172,7 @@ public class CanonicalRecommendationReadModelRepository {
         Integer count = jdbcTemplate.queryForObject("""
                 SELECT COUNT(*)
                 FROM information_schema.tables
-                WHERE table_schema = DATABASE()
+                WHERE table_schema = current_schema()
                   AND table_name = ?
                 """, Integer.class, SUMMARY_SLOT_TABLE);
         summarySlotTableReady = count != null && count > 0;

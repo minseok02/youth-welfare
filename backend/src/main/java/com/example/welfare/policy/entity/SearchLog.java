@@ -21,7 +21,7 @@ public class SearchLog {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "user_key", length = 32, columnDefinition = "CHAR(32)")
+    @Column(name = "user_key", length = 32)
     private String userKey;
 
     @Column(name = "client_fingerprint", nullable = false, length = 64)

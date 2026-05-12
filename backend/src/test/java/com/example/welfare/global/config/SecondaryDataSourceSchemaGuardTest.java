@@ -11,8 +11,8 @@ class SecondaryDataSourceSchemaGuardTest {
     @Test
     void allowsPiiSchemaUrls() throws Exception {
         SecondaryDataSourceSchemaGuard guard = new SecondaryDataSourceSchemaGuard(
-                properties("jdbc:mysql://127.0.0.1:3307/youth_welfare_pii?useSSL=false"),
-                properties("jdbc:mysql://127.0.0.1:3307/youth_welfare_pii?useSSL=false")
+                properties("jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable&currentSchema=youth_welfare_pii"),
+                properties("jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable&currentSchema=youth_welfare_pii")
         );
 
         guard.afterPropertiesSet();
@@ -21,8 +21,8 @@ class SecondaryDataSourceSchemaGuardTest {
     @Test
     void rejectsCoreSchemaUrl() {
         SecondaryDataSourceSchemaGuard guard = new SecondaryDataSourceSchemaGuard(
-                properties("jdbc:mysql://127.0.0.1:3307/youth_welfare?useSSL=false"),
-                properties("jdbc:mysql://127.0.0.1:3307/youth_welfare_pii?useSSL=false")
+                properties("jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable&currentSchema=public"),
+                properties("jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable&currentSchema=youth_welfare_pii")
         );
 
         assertThatThrownBy(guard::afterPropertiesSet)
@@ -36,7 +36,7 @@ class SecondaryDataSourceSchemaGuardTest {
     void extractsDatabaseNameFromJdbcUrl() {
         assertThat(SecondaryDataSourceSchemaGuard.extractDatabaseName(
                 "app.datasource.pii-rw.url",
-                "jdbc:mysql://db:3306/youth_welfare_pii?characterEncoding=UTF-8"
+                "jdbc:postgresql://db:5432/youth_welfare?sslmode=require&currentSchema=youth_welfare_pii"
         )).isEqualTo("youth_welfare_pii");
     }
 

@@ -23,7 +23,7 @@ public class RecommendationLog {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "user_key", nullable = false, length = 32, columnDefinition = "CHAR(32)")
+    @Column(name = "user_key", nullable = false, length = 32)
     private String userKey;
 
     @ManyToOne(fetch = FetchType.LAZY)

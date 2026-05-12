@@ -66,7 +66,7 @@ class NormalizedPolicySidecarPersistenceIntegrationTest {
     }
 
     @Test
-    @DisplayName("local MySQL draft sidecar tables 에 collect save path 가 taxonomy/facts upsert 를 실제로 반영한다")
+    @DisplayName("local PostgreSQL sidecar tables 에 collect save path 가 taxonomy/facts upsert 를 실제로 반영한다")
     void saveYouthOncePersistsAndRefreshesSidecars() {
         sourceId = TEST_SOURCE_PREFIX + UUID.randomUUID();
 
@@ -136,7 +136,7 @@ class NormalizedPolicySidecarPersistenceIntegrationTest {
 
         List<Map<String, Object>> facts = jdbcTemplate.queryForList("""
                 SELECT fact_merge_key, operator, int_value, range_min_int, range_max_int,
-                       DATE_FORMAT(date_value, '%Y-%m-%d') AS date_value
+                       TO_CHAR(date_value, 'YYYY-MM-DD') AS date_value
                 FROM service_facts
                 WHERE service_id = ?
                 ORDER BY fact_merge_key
