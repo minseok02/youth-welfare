@@ -3,7 +3,9 @@ package com.example.welfare.integration;
 import com.example.welfare.global.util.RegionCodeUtil;
 import com.example.welfare.policy.entity.ServiceRegion;
 import com.example.welfare.policy.entity.WelfareService;
+import com.example.welfare.policy.repository.PolicySearchReadCondition;
 import com.example.welfare.policy.repository.ServiceRegionRepository;
+import com.example.welfare.policy.repository.WelfareServiceReadRepository;
 import com.example.welfare.policy.repository.WelfareServiceRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.AfterEach;
@@ -32,6 +34,8 @@ class PolicySearchRegionQueryIntegrationTest {
 
     @Autowired
     private ServiceRegionRepository serviceRegionRepository;
+    @Autowired
+    private WelfareServiceReadRepository welfareServiceReadRepository;
 
     @BeforeEach
     void setup() {
@@ -90,12 +94,58 @@ class PolicySearchRegionQueryIntegrationTest {
                 RegionCodeUtil.getRegionCode("서울특별시", "강남구"),
                 null,
                 "LATEST",
+                null,
+                null,
                 PageRequest.of(0, 100)
         );
 
         assertThat(result.getContent())
                 .extracting(WelfareService::getId)
                 .containsExactlyInAnyOrder(nationwide.getId(), seoul.getId());
+    }
+
+    @Test
+    @DisplayName("정책 검색은 시도+시군구 조건에서 전국 정책과 매칭 지역 정책만 반환하고 지역 정책을 먼저 노출한다")
+    void keywordSearchWithSidoAndSggReturnsMatchingPoliciesFirst() {
+        String token = "itsearch" + UUID.randomUUID().toString().replace("-", "").substring(0, 8);
+        WelfareService nationwide = saveSearchService("nationwide-search", token);
+        WelfareService seoul = saveSearchService("seoul-search", token);
+        WelfareService busan = saveSearchService("busan-search", token);
+
+        serviceRegionRepository.saveAll(List.of(
+                ServiceRegion.builder()
+                        .service(seoul)
+                        .sidoName("서울특별시")
+                        .sggName("강남구")
+                        .build(),
+                ServiceRegion.builder()
+                        .service(busan)
+                        .sidoName("부산광역시")
+                        .sggName("해운대구")
+                        .build()
+        ));
+        serviceRegionRepository.flush();
+
+        Page<WelfareService> result = welfareServiceReadRepository.search(
+                new PolicySearchReadCondition(
+                        token,
+                        null,
+                        "ACTIVE_ONLY",
+                        TEST_CATEGORY,
+                        WelfareService.SourceType.YOUTH.name(),
+                        null,
+                        "서울특별시",
+                        "강남구",
+                        "LATEST",
+                        null,
+                        null
+                ),
+                PageRequest.of(0, 100)
+        );
+
+        assertThat(result.getContent())
+                .extracting(WelfareService::getId)
+                .containsExactly(seoul.getId(), nationwide.getId());
     }
 
     @Test
@@ -131,6 +181,8 @@ class PolicySearchRegionQueryIntegrationTest {
                 null,
                 null,
                 "LATEST",
+                null,
+                null,
                 PageRequest.of(0, 100)
         );
 

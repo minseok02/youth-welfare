@@ -15,6 +15,14 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
     Optional<WelfareService> findBySourceTypeAndSourceId(
             WelfareService.SourceType sourceType, String sourceId);
 
+    @Query("""
+            SELECT ws.id FROM WelfareService ws
+            WHERE ws.searchYouthRelevant = true
+              AND ws.status IN :statuses
+            ORDER BY ws.id ASC
+            """)
+    List<Long> findIdsBySearchYouthRelevantTrueAndStatusIn(@Param("statuses") List<WelfareService.ServiceStatus> statuses);
+
     // 추천 후보 조회: 나이·소득 필터 + ACTIVE/UPCOMING 상태
     @Query("""
             SELECT ws FROM WelfareService ws
@@ -181,36 +189,14 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                                                       @Param("sidoName") String sidoName,
                                                       Pageable pageable);
 
-    // FULLTEXT 검색 (Native Query — MySQL ngram)
-    // ft_ws_search 인덱스: title, description, support_content, keyword 4개 컬럼 — 반드시 동일하게 지정
-    @Query(value = """
-            SELECT * FROM welfare_services
-            WHERE status IN ('ACTIVE', 'UPCOMING')
-              AND MATCH(title, description, support_content, keyword) AGAINST (:keyword IN BOOLEAN MODE)
-            ORDER BY MATCH(title, description, support_content, keyword) AGAINST (:keyword IN BOOLEAN MODE) DESC
-            LIMIT :limit OFFSET :offset
-            """, nativeQuery = true)
-    List<WelfareService> searchByKeyword(@Param("keyword") String keyword,
-                                         @Param("limit") int limit,
-                                         @Param("offset") int offset);
-
-    @Query(value = """
-            SELECT * FROM welfare_services
-            WHERE status IN ('ACTIVE', 'UPCOMING')
-              AND search_youth_relevant = 1
-              AND MATCH(title, description, support_content, keyword) AGAINST (:keyword IN BOOLEAN MODE)
-            ORDER BY MATCH(title, description, support_content, keyword) AGAINST (:keyword IN BOOLEAN MODE) DESC,
-                     COALESCE(api_view_count, 0) DESC,
-                     COALESCE(view_count, 0) DESC,
-                     COALESCE(last_modified_at, registered_at, created_at) DESC,
-                     id DESC
-            LIMIT :limit
-            """, nativeQuery = true)
-    List<WelfareService> searchChatCandidates(@Param("keyword") String keyword,
-                                              @Param("limit") int limit);
-
     List<WelfareService> findBySearchYouthRelevantTrueAndStatusInOrderByApiViewCountDescViewCountDescCreatedAtDesc(
             List<WelfareService.ServiceStatus> statuses,
+            Pageable pageable
+    );
+
+    List<WelfareService> findBySearchYouthRelevantTrueAndStatusInAndUnifiedCategoryOrderByApiViewCountDescViewCountDescCreatedAtDesc(
+            List<WelfareService.ServiceStatus> statuses,
+            String unifiedCategory,
             Pageable pageable
     );
 
@@ -220,350 +206,6 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
     //                       온통청년처럼 DB status는 ACTIVE지만 신청 마감일이 지난 정책 포함
     //   ALL               : 모든 상태
     // status 파라미터가 직접 지정되면 statusFilter를 무시하고 status 단일 값으로 매칭
-
-    // FULLTEXT + 필터 검색 (정렬: RELEVANCE / VIEWS / LATEST / NAME)
-    // 지역 필터가 없는 일반 검색은 service_regions 조인을 피해서 DISTINCT/임시 테이블 비용을 줄인다.
-    @Query(value = """
-            SELECT ws.* FROM welfare_services ws
-            WHERE (
-                    (:status IS NULL AND (
-                        (:statusFilter = 'ALL' AND ws.status IN ('ACTIVE', 'UPCOMING', 'CLOSED'))
-                        OR (:statusFilter = 'EXPIRED_ONLY' AND (ws.status = 'CLOSED' OR (ws.apply_end_date IS NOT NULL AND ws.apply_end_date < CURDATE())))
-                        OR ((:statusFilter IS NULL OR :statusFilter = 'ACTIVE_ONLY') AND ws.status IN ('ACTIVE', 'UPCOMING') AND (ws.apply_end_date IS NULL OR ws.apply_end_date >= CURDATE()))
-                    ))
-                    OR (:status IS NOT NULL AND ws.status = :status)
-                  )
-              AND ws.search_youth_relevant = 1
-              AND (:category IS NULL OR ws.unified_category = :category)
-              AND (:sourceType IS NULL OR ws.source_type = :sourceType)
-              AND (:onlineApply IS NULL OR ws.is_online_apply = :onlineApply)
-              AND (:targetGroup IS NULL OR EXISTS (
-                    SELECT 1 FROM service_tags st
-                    WHERE st.service_id = ws.id AND st.tag_type = 'TARGET_GROUP' AND st.tag_value = :targetGroup
-                  ))
-              AND (:incomeMaxWon IS NULL OR ws.max_income IS NULL OR ws.max_income = 0 OR ws.max_income > :incomeMaxWon)
-              AND MATCH(ws.title, ws.description, ws.support_content, ws.keyword)
-                  AGAINST (:keyword IN BOOLEAN MODE)
-            ORDER BY
-                CASE
-                    WHEN :sort = 'VIEWS' THEN COALESCE(ws.api_view_count, 0)
-                    ELSE NULL
-                END DESC,
-                CASE
-                    WHEN :sort = 'VIEWS' THEN COALESCE(ws.view_count, 0)
-                    ELSE NULL
-                END DESC,
-                CASE
-                    WHEN :sort = 'LATEST' THEN COALESCE(ws.last_modified_at, ws.registered_at, ws.created_at)
-                    ELSE NULL
-                END DESC,
-                -- NAME: UI 정렬 옵션에서 제거됐지만 API 호환성 유지 목적으로 보존
-                CASE
-                    WHEN :sort = 'NAME' THEN ws.title
-                    ELSE NULL
-                END ASC,
-                -- DEADLINE: 프론트 마감임박순 기능을 위해 추가 — apply_end_date 빠른 순, NULL이면 맨 뒤
-                CASE
-                    WHEN :sort = 'DEADLINE' THEN COALESCE(ws.apply_end_date, '9999-12-31')
-                    ELSE NULL
-                END ASC,
-                CASE
-                    WHEN :sort = 'RELEVANCE' THEN MATCH(ws.title, ws.description, ws.support_content, ws.keyword)
-                        AGAINST (:keyword IN BOOLEAN MODE)
-                    ELSE NULL
-                END DESC,
-                COALESCE(ws.last_modified_at, ws.registered_at, ws.created_at) DESC,
-                ws.id DESC
-            """,
-            countQuery = """
-            SELECT COUNT(*) FROM welfare_services ws
-            WHERE (
-                    (:status IS NULL AND (
-                        (:statusFilter = 'ALL' AND ws.status IN ('ACTIVE', 'UPCOMING', 'CLOSED'))
-                        OR (:statusFilter = 'EXPIRED_ONLY' AND (ws.status = 'CLOSED' OR (ws.apply_end_date IS NOT NULL AND ws.apply_end_date < CURDATE())))
-                        OR ((:statusFilter IS NULL OR :statusFilter = 'ACTIVE_ONLY') AND ws.status IN ('ACTIVE', 'UPCOMING') AND (ws.apply_end_date IS NULL OR ws.apply_end_date >= CURDATE()))
-                    ))
-                    OR (:status IS NOT NULL AND ws.status = :status)
-                  )
-              AND ws.search_youth_relevant = 1
-              AND (:category IS NULL OR ws.unified_category = :category)
-              AND (:sourceType IS NULL OR ws.source_type = :sourceType)
-              AND (:onlineApply IS NULL OR ws.is_online_apply = :onlineApply)
-              AND (:targetGroup IS NULL OR EXISTS (
-                    SELECT 1 FROM service_tags st
-                    WHERE st.service_id = ws.id AND st.tag_type = 'TARGET_GROUP' AND st.tag_value = :targetGroup
-                  ))
-              AND (:incomeMaxWon IS NULL OR ws.max_income IS NULL OR ws.max_income = 0 OR ws.max_income > :incomeMaxWon)
-              AND MATCH(ws.title, ws.description, ws.support_content, ws.keyword)
-                  AGAINST (:keyword IN BOOLEAN MODE)
-            """, nativeQuery = true)
-    Page<WelfareService> searchByKeywordWithFiltersNoRegion(@Param("keyword") String keyword,
-                                                            @Param("status") String status,
-                                                            @Param("statusFilter") String statusFilter,
-                                                            @Param("category") String category,
-                                                            @Param("sourceType") String sourceType,
-                                                            @Param("onlineApply") Integer onlineApply,
-                                                            @Param("sort") String sort,
-                                                            @Param("incomeMaxWon") Integer incomeMaxWon,
-                                                            @Param("targetGroup") String targetGroup,
-                                                            Pageable pageable);
-
-    @Query(value = """
-            SELECT ws.* FROM welfare_services ws
-            WHERE (
-                    (:status IS NULL AND (
-                        (:statusFilter = 'ALL' AND ws.status IN ('ACTIVE', 'UPCOMING', 'CLOSED'))
-                        OR (:statusFilter = 'EXPIRED_ONLY' AND (ws.status = 'CLOSED' OR (ws.apply_end_date IS NOT NULL AND ws.apply_end_date < CURDATE())))
-                        OR ((:statusFilter IS NULL OR :statusFilter = 'ACTIVE_ONLY') AND ws.status IN ('ACTIVE', 'UPCOMING') AND (ws.apply_end_date IS NULL OR ws.apply_end_date >= CURDATE()))
-                    ))
-                    OR (:status IS NOT NULL AND ws.status = :status)
-                  )
-              AND ws.search_youth_relevant = 1
-              AND (:category IS NULL OR ws.unified_category = :category)
-              AND (:sourceType IS NULL OR ws.source_type = :sourceType)
-              AND (:onlineApply IS NULL OR ws.is_online_apply = :onlineApply)
-              AND (:targetGroup IS NULL OR EXISTS (
-                    SELECT 1 FROM service_tags st
-                    WHERE st.service_id = ws.id AND st.tag_type = 'TARGET_GROUP' AND st.tag_value = :targetGroup
-                  ))
-              AND (:incomeMaxWon IS NULL OR ws.max_income IS NULL OR ws.max_income = 0 OR ws.max_income > :incomeMaxWon)
-              AND (
-                    NOT EXISTS (
-                        SELECT 1 FROM service_regions sr1
-                        WHERE sr1.service_id = ws.id
-                    )
-                    OR EXISTS (
-                        SELECT 1 FROM service_regions sr2
-                        WHERE sr2.service_id = ws.id
-                          AND sr2.sido_name = :sido
-                    )
-                  )
-              AND MATCH(ws.title, ws.description, ws.support_content, ws.keyword)
-                  AGAINST (:keyword IN BOOLEAN MODE)
-            ORDER BY
-                -- B안: LATEST일 때만 지역이 1순위 그룹
-                CASE
-                    WHEN :sort = 'LATEST' AND EXISTS (
-                        SELECT 1 FROM service_regions sr_ord
-                        WHERE sr_ord.service_id = ws.id AND sr_ord.sido_name = :sido
-                    ) THEN 0
-                    WHEN :sort = 'LATEST' THEN 1
-                    ELSE 0
-                END ASC,
-                CASE
-                    WHEN :sort = 'VIEWS' THEN COALESCE(ws.api_view_count, 0)
-                    ELSE NULL
-                END DESC,
-                CASE
-                    WHEN :sort = 'VIEWS' THEN COALESCE(ws.view_count, 0)
-                    ELSE NULL
-                END DESC,
-                CASE
-                    WHEN :sort = 'LATEST' THEN COALESCE(ws.last_modified_at, ws.registered_at, ws.created_at)
-                    ELSE NULL
-                END DESC,
-                -- NAME: UI 정렬 옵션에서 제거됐지만 API 호환성 유지 목적으로 보존
-                CASE
-                    WHEN :sort = 'NAME' THEN ws.title
-                    ELSE NULL
-                END ASC,
-                -- DEADLINE: 프론트 마감임박순 기능을 위해 추가 — apply_end_date 빠른 순, NULL이면 맨 뒤
-                CASE
-                    WHEN :sort = 'DEADLINE' THEN COALESCE(ws.apply_end_date, '9999-12-31')
-                    ELSE NULL
-                END ASC,
-                -- 공통 tiebreaker: 동점일 때 지역 정책 우선
-                CASE
-                    WHEN EXISTS (
-                        SELECT 1 FROM service_regions sr_ord2
-                        WHERE sr_ord2.service_id = ws.id AND sr_ord2.sido_name = :sido
-                    ) THEN 0
-                    ELSE 1
-                END ASC,
-                CASE
-                    WHEN :sort = 'RELEVANCE' THEN MATCH(ws.title, ws.description, ws.support_content, ws.keyword)
-                        AGAINST (:keyword IN BOOLEAN MODE)
-                    ELSE NULL
-                END DESC,
-                COALESCE(ws.last_modified_at, ws.registered_at, ws.created_at) DESC,
-                ws.id DESC
-            """,
-            countQuery = """
-            SELECT COUNT(*) FROM welfare_services ws
-            WHERE (
-                    (:status IS NULL AND (
-                        (:statusFilter = 'ALL' AND ws.status IN ('ACTIVE', 'UPCOMING', 'CLOSED'))
-                        OR (:statusFilter = 'EXPIRED_ONLY' AND (ws.status = 'CLOSED' OR (ws.apply_end_date IS NOT NULL AND ws.apply_end_date < CURDATE())))
-                        OR ((:statusFilter IS NULL OR :statusFilter = 'ACTIVE_ONLY') AND ws.status IN ('ACTIVE', 'UPCOMING') AND (ws.apply_end_date IS NULL OR ws.apply_end_date >= CURDATE()))
-                    ))
-                    OR (:status IS NOT NULL AND ws.status = :status)
-                  )
-              AND ws.search_youth_relevant = 1
-              AND (:category IS NULL OR ws.unified_category = :category)
-              AND (:sourceType IS NULL OR ws.source_type = :sourceType)
-              AND (:onlineApply IS NULL OR ws.is_online_apply = :onlineApply)
-              AND (:targetGroup IS NULL OR EXISTS (
-                    SELECT 1 FROM service_tags st
-                    WHERE st.service_id = ws.id AND st.tag_type = 'TARGET_GROUP' AND st.tag_value = :targetGroup
-                  ))
-              AND (:incomeMaxWon IS NULL OR ws.max_income IS NULL OR ws.max_income = 0 OR ws.max_income > :incomeMaxWon)
-              AND (
-                    NOT EXISTS (
-                        SELECT 1 FROM service_regions sr1
-                        WHERE sr1.service_id = ws.id
-                    )
-                    OR EXISTS (
-                        SELECT 1 FROM service_regions sr2
-                        WHERE sr2.service_id = ws.id
-                          AND sr2.sido_name = :sido
-                    )
-                  )
-              AND MATCH(ws.title, ws.description, ws.support_content, ws.keyword)
-                  AGAINST (:keyword IN BOOLEAN MODE)
-            """, nativeQuery = true)
-    Page<WelfareService> searchByKeywordWithFiltersWithSido(@Param("keyword") String keyword,
-                                                            @Param("status") String status,
-                                                            @Param("statusFilter") String statusFilter,
-                                                            @Param("category") String category,
-                                                            @Param("sourceType") String sourceType,
-                                                            @Param("onlineApply") Integer onlineApply,
-                                                            @Param("sido") String sido,
-                                                            @Param("sort") String sort,
-                                                            @Param("incomeMaxWon") Integer incomeMaxWon,
-                                                            @Param("targetGroup") String targetGroup,
-                                                            Pageable pageable);
-
-    @Query(value = """
-            SELECT ws.* FROM welfare_services ws
-            WHERE (
-                    (:status IS NULL AND (
-                        (:statusFilter = 'ALL' AND ws.status IN ('ACTIVE', 'UPCOMING', 'CLOSED'))
-                        OR (:statusFilter = 'EXPIRED_ONLY' AND (ws.status = 'CLOSED' OR (ws.apply_end_date IS NOT NULL AND ws.apply_end_date < CURDATE())))
-                        OR ((:statusFilter IS NULL OR :statusFilter = 'ACTIVE_ONLY') AND ws.status IN ('ACTIVE', 'UPCOMING') AND (ws.apply_end_date IS NULL OR ws.apply_end_date >= CURDATE()))
-                    ))
-                    OR (:status IS NOT NULL AND ws.status = :status)
-                  )
-              AND ws.search_youth_relevant = 1
-              AND (:category IS NULL OR ws.unified_category = :category)
-              AND (:sourceType IS NULL OR ws.source_type = :sourceType)
-              AND (:onlineApply IS NULL OR ws.is_online_apply = :onlineApply)
-              AND (:targetGroup IS NULL OR EXISTS (
-                    SELECT 1 FROM service_tags st
-                    WHERE st.service_id = ws.id AND st.tag_type = 'TARGET_GROUP' AND st.tag_value = :targetGroup
-                  ))
-              AND (
-                    NOT EXISTS (
-                        SELECT 1 FROM service_regions sr1
-                        WHERE sr1.service_id = ws.id
-                    )
-                    OR EXISTS (
-                        SELECT 1 FROM service_regions sr2
-                        WHERE sr2.service_id = ws.id
-                          AND sr2.sido_name = :sido
-                          AND sr2.sgg_name = :sgg
-                    )
-                  )
-              AND MATCH(ws.title, ws.description, ws.support_content, ws.keyword)
-                  AGAINST (:keyword IN BOOLEAN MODE)
-            ORDER BY
-                -- 소득분위 부스팅
-                CASE WHEN :incomeMaxWon IS NOT NULL AND ws.max_income > 0 AND ws.max_income <= :incomeMaxWon THEN 0 ELSE 1 END ASC,
-                -- B안: LATEST일 때만 지역이 1순위 그룹
-                CASE
-                    WHEN :sort = 'LATEST' AND EXISTS (
-                        SELECT 1 FROM service_regions sr_ord
-                        WHERE sr_ord.service_id = ws.id
-                          AND sr_ord.sido_name = :sido
-                          AND sr_ord.sgg_name = :sgg
-                    ) THEN 0
-                    WHEN :sort = 'LATEST' THEN 1
-                    ELSE 0
-                END ASC,
-                CASE
-                    WHEN :sort = 'VIEWS' THEN COALESCE(ws.api_view_count, 0)
-                    ELSE NULL
-                END DESC,
-                CASE
-                    WHEN :sort = 'VIEWS' THEN COALESCE(ws.view_count, 0)
-                    ELSE NULL
-                END DESC,
-                CASE
-                    WHEN :sort = 'LATEST' THEN COALESCE(ws.last_modified_at, ws.registered_at, ws.created_at)
-                    ELSE NULL
-                END DESC,
-                -- NAME: UI 정렬 옵션에서 제거됐지만 API 호환성 유지 목적으로 보존
-                CASE
-                    WHEN :sort = 'NAME' THEN ws.title
-                    ELSE NULL
-                END ASC,
-                -- DEADLINE: 프론트 마감임박순 기능을 위해 추가 — apply_end_date 빠른 순, NULL이면 맨 뒤
-                CASE
-                    WHEN :sort = 'DEADLINE' THEN COALESCE(ws.apply_end_date, '9999-12-31')
-                    ELSE NULL
-                END ASC,
-                -- 공통 tiebreaker: 동점일 때 지역 정책 우선
-                CASE
-                    WHEN EXISTS (
-                        SELECT 1 FROM service_regions sr_ord2
-                        WHERE sr_ord2.service_id = ws.id
-                          AND sr_ord2.sido_name = :sido
-                          AND sr_ord2.sgg_name = :sgg
-                    ) THEN 0
-                    ELSE 1
-                END ASC,
-                CASE
-                    WHEN :sort = 'RELEVANCE' THEN MATCH(ws.title, ws.description, ws.support_content, ws.keyword)
-                        AGAINST (:keyword IN BOOLEAN MODE)
-                    ELSE NULL
-                END DESC,
-                COALESCE(ws.last_modified_at, ws.registered_at, ws.created_at) DESC,
-                ws.id DESC
-            """,
-            countQuery = """
-            SELECT COUNT(*) FROM welfare_services ws
-            WHERE (
-                    (:status IS NULL AND (
-                        (:statusFilter = 'ALL' AND ws.status IN ('ACTIVE', 'UPCOMING', 'CLOSED'))
-                        OR (:statusFilter = 'EXPIRED_ONLY' AND (ws.status = 'CLOSED' OR (ws.apply_end_date IS NOT NULL AND ws.apply_end_date < CURDATE())))
-                        OR ((:statusFilter IS NULL OR :statusFilter = 'ACTIVE_ONLY') AND ws.status IN ('ACTIVE', 'UPCOMING') AND (ws.apply_end_date IS NULL OR ws.apply_end_date >= CURDATE()))
-                    ))
-                    OR (:status IS NOT NULL AND ws.status = :status)
-                  )
-              AND ws.search_youth_relevant = 1
-              AND (:category IS NULL OR ws.unified_category = :category)
-              AND (:sourceType IS NULL OR ws.source_type = :sourceType)
-              AND (:onlineApply IS NULL OR ws.is_online_apply = :onlineApply)
-              AND (:targetGroup IS NULL OR EXISTS (
-                    SELECT 1 FROM service_tags st
-                    WHERE st.service_id = ws.id AND st.tag_type = 'TARGET_GROUP' AND st.tag_value = :targetGroup
-                  ))
-              AND (
-                    NOT EXISTS (
-                        SELECT 1 FROM service_regions sr1
-                        WHERE sr1.service_id = ws.id
-                    )
-                    OR EXISTS (
-                        SELECT 1 FROM service_regions sr2
-                        WHERE sr2.service_id = ws.id
-                          AND sr2.sido_name = :sido
-                          AND sr2.sgg_name = :sgg
-                    )
-                  )
-              AND MATCH(ws.title, ws.description, ws.support_content, ws.keyword)
-                  AGAINST (:keyword IN BOOLEAN MODE)
-            """, nativeQuery = true)
-    Page<WelfareService> searchByKeywordWithFiltersWithSidoSgg(@Param("keyword") String keyword,
-                                                               @Param("status") String status,
-                                                               @Param("statusFilter") String statusFilter,
-                                                               @Param("category") String category,
-                                                               @Param("sourceType") String sourceType,
-                                                               @Param("onlineApply") Integer onlineApply,
-                                                               @Param("sido") String sido,
-                                                               @Param("sgg") String sgg,
-                                                               @Param("sort") String sort,
-                                                               @Param("incomeMaxWon") Integer incomeMaxWon,
-                                                               @Param("targetGroup") String targetGroup,
-                                                               Pageable pageable);
 
     // 카테고리 필터 조회
     Page<WelfareService> findByUnifiedCategoryAndStatusIn(
@@ -578,15 +220,15 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                     (
                         :status IS NULL AND (
                             (:statusFilter = 'ALL' AND ws.status IN ('ACTIVE', 'UPCOMING', 'CLOSED'))
-                            OR (:statusFilter = 'EXPIRED_ONLY' AND (ws.status = 'CLOSED' OR (ws.apply_end_date IS NOT NULL AND ws.apply_end_date < CURDATE())))
-                            OR ((:statusFilter IS NULL OR :statusFilter = 'ACTIVE_ONLY') AND ws.status IN ('ACTIVE', 'UPCOMING') AND (ws.apply_end_date IS NULL OR ws.apply_end_date >= CURDATE()))
+                            OR (:statusFilter = 'EXPIRED_ONLY' AND (ws.status = 'CLOSED' OR (ws.apply_end_date IS NOT NULL AND ws.apply_end_date < CURRENT_DATE)))
+                            OR ((:statusFilter IS NULL OR :statusFilter = 'ACTIVE_ONLY') AND ws.status IN ('ACTIVE', 'UPCOMING') AND (ws.apply_end_date IS NULL OR ws.apply_end_date >= CURRENT_DATE))
                         )
                     )
                     OR (:status IS NOT NULL AND ws.status = :status)
                   )
               AND (:category IS NULL OR ws.unified_category = :category)
               AND (:sourceType IS NULL OR ws.source_type = :sourceType)
-              AND (:onlineApply IS NULL OR ws.is_online_apply = :onlineApply)
+              AND (:onlineApply IS NULL OR ws.is_online_apply = CASE WHEN :onlineApply = 1 THEN TRUE ELSE FALSE END)
               AND (:targetGroup IS NULL OR EXISTS (
                     SELECT 1 FROM service_tags st
                     WHERE st.service_id = ws.id AND st.tag_type = 'TARGET_GROUP' AND st.tag_value = :targetGroup
@@ -664,15 +306,15 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                     (
                         :status IS NULL AND (
                             (:statusFilter = 'ALL' AND ws.status IN ('ACTIVE', 'UPCOMING', 'CLOSED'))
-                            OR (:statusFilter = 'EXPIRED_ONLY' AND (ws.status = 'CLOSED' OR (ws.apply_end_date IS NOT NULL AND ws.apply_end_date < CURDATE())))
-                            OR ((:statusFilter IS NULL OR :statusFilter = 'ACTIVE_ONLY') AND ws.status IN ('ACTIVE', 'UPCOMING') AND (ws.apply_end_date IS NULL OR ws.apply_end_date >= CURDATE()))
+                            OR (:statusFilter = 'EXPIRED_ONLY' AND (ws.status = 'CLOSED' OR (ws.apply_end_date IS NOT NULL AND ws.apply_end_date < CURRENT_DATE)))
+                            OR ((:statusFilter IS NULL OR :statusFilter = 'ACTIVE_ONLY') AND ws.status IN ('ACTIVE', 'UPCOMING') AND (ws.apply_end_date IS NULL OR ws.apply_end_date >= CURRENT_DATE))
                         )
                     )
                     OR (:status IS NOT NULL AND ws.status = :status)
                   )
               AND (:category IS NULL OR ws.unified_category = :category)
               AND (:sourceType IS NULL OR ws.source_type = :sourceType)
-              AND (:onlineApply IS NULL OR ws.is_online_apply = :onlineApply)
+              AND (:onlineApply IS NULL OR ws.is_online_apply = CASE WHEN :onlineApply = 1 THEN TRUE ELSE FALSE END)
               AND (:targetGroup IS NULL OR EXISTS (
                     SELECT 1 FROM service_tags st
                     WHERE st.service_id = ws.id AND st.tag_type = 'TARGET_GROUP' AND st.tag_value = :targetGroup
