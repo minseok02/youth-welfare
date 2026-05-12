@@ -161,6 +161,30 @@ class WelfareServiceMapperTest {
         assertThat(service.getApplyEndDate()).isEqualTo(LocalDate.of(2026, 12, 31));
     }
 
+    @Test
+    void fromYouth_reclassifiesBroadWelfareCultureToCultureOrHealth() throws Exception {
+        YouthApiDto.Item cultureItem = new YouthApiDto.Item();
+        setField(cultureItem, "plcyNo", "YC001");
+        setField(cultureItem, "plcyNm", "청년 문화예술인 활동 지원");
+        setField(cultureItem, "plcyExplnCn", "문화예술 프로그램 참여 지원");
+        setField(cultureItem, "lclsfNm", "복지문화");
+        setField(cultureItem, "plcyKywdNm", "문화예술");
+
+        WelfareService cultureService = mapper.fromYouth(cultureItem);
+
+        YouthApiDto.Item healthItem = new YouthApiDto.Item();
+        setField(healthItem, "plcyNo", "YH001");
+        setField(healthItem, "plcyNm", "청년 정신건강 조기중재사업");
+        setField(healthItem, "plcyExplnCn", "정신건강 심리상담 및 치료 연계");
+        setField(healthItem, "lclsfNm", "금융·복지·문화");
+        setField(healthItem, "plcyKywdNm", "상담");
+
+        WelfareService healthService = mapper.fromYouth(healthItem);
+
+        assertThat(cultureService.getUnifiedCategory()).isEqualTo("문화·여가");
+        assertThat(healthService.getUnifiedCategory()).isEqualTo("건강·의료");
+    }
+
     private void setField(Object target, String name, Object value) throws Exception {
         Field field = target.getClass().getDeclaredField(name);
         field.setAccessible(true);

@@ -59,7 +59,12 @@ public class WelfareServiceMapper {
                 .categoryMain(RawFieldValidator.normalize(item.getLclsfNm()))
                 .categorySub(RawFieldValidator.normalize(item.getMclsfNm()))
                 .keyword(RawFieldValidator.normalize(item.getPlcyKywdNm()))
-                .unifiedCategory(CollectCategorySupport.mapYouthCompatCategory(item.getLclsfNm()))
+                .unifiedCategory(CollectCategorySupport.mapYouthCompatCategory(
+                        item.getLclsfNm(),
+                        item.getPlcyNm(),
+                        item.getPlcyExplnCn(),
+                        item.getPlcyKywdNm()
+                ))
                 .hostOrg(RawFieldValidator.normalize(item.getSprvsnInstCdNm()))
                 .operatingOrg(RawFieldValidator.normalize(item.getOperInstCdNm()))
                 .minAge(item.getSprtTrgtMinAge())

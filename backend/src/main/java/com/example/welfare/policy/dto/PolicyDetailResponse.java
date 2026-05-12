@@ -51,7 +51,11 @@ public class PolicyDetailResponse {
     private String targetDetail;
     private String supportDetail;
     private String applyMethodDetail;
+    private String selectionCriteria;
     private String contactList;
+    private String homepageUrl;
+    private String relatedLaw;
+    private String formFiles;
 
     // 관련 목록
     private List<String> regions;
@@ -125,7 +129,11 @@ public class PolicyDetailResponse {
                 .targetDetail(detail != null ? detail.getTargetDetail() : null)
                 .supportDetail(detail != null ? detail.getSupportDetail() : null)
                 .applyMethodDetail(detail != null ? detail.getApplyMethodDetail() : null)
+                .selectionCriteria(detail != null ? detail.getSelectionCriteria() : null)
                 .contactList(detail != null ? detail.getContactList() : null)
+                .homepageUrl(detail != null ? detail.getHomepageUrl() : null)
+                .relatedLaw(detail != null ? detail.getRelatedLaw() : null)
+                .formFiles(detail != null ? detail.getFormFiles() : null)
                 .regions(regionNames)
                 .tags(tagItems)
                 .build();

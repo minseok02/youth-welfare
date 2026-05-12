@@ -58,7 +58,11 @@ export default function LoginPage() {
       }
       const signupPriorities = Array.isArray(location.state?.signupPriorities) ? location.state.signupPriorities : [];
       if (signupPriorities.length > 0) {
-        try { await api.put("/api/users/me/priorities", { priorityCodes: signupPriorities }); } catch {}
+        try {
+          await api.put("/api/users/me/priorities", { priorityCodes: signupPriorities });
+        } catch {
+          // Priority save is best-effort here; login completion should still continue.
+        }
       }
       const from = location.state?.from;
       navigate(from?.pathname ? `${from.pathname}${from.search ?? ""}` : "/", { replace: true });

@@ -47,6 +47,11 @@ class PolicyDetailServiceTest {
                 .service(service)
                 .targetDetail("청년")
                 .supportDetail("월세")
+                .applyMethodDetail("온라인 접수")
+                .selectionCriteria("소득 심사")
+                .homepageUrl("https://apply.example.com")
+                .relatedLaw("청년기본법")
+                .formFiles("신청서, 주민등록등본")
                 .build();
         ServiceRegion region = ServiceRegion.builder()
                 .service(service)
@@ -76,6 +81,10 @@ class PolicyDetailServiceTest {
         assertEquals(11L, response.getId());
         assertTrue(response.isBookmarked());
         assertEquals("주거", response.getUnifiedCategory());
+        assertEquals("소득 심사", response.getSelectionCriteria());
+        assertEquals("https://apply.example.com", response.getHomepageUrl());
+        assertEquals("청년기본법", response.getRelatedLaw());
+        assertEquals("신청서, 주민등록등본", response.getFormFiles());
         assertEquals(List.of("서울특별시 강남구"), response.getRegions());
         verify(policyLookupService).getRequiredService(11L);
         verify(policyDetailReadService).getAggregate(11L);
