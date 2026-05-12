@@ -1,6 +1,7 @@
 package com.example.welfare.chat.service;
 
 import com.example.welfare.chat.dto.ChatAiResult;
+import com.example.welfare.chat.dto.ChatAnswerMode;
 import com.example.welfare.chat.dto.ChatPolicyCandidate;
 import com.example.welfare.chat.dto.request.SendChatMessageRequest;
 import com.example.welfare.chat.dto.response.ChatReferenceResponse;
@@ -23,12 +24,15 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -47,7 +51,11 @@ class ChatConversationServiceTest {
     @Mock
     private ChatMessageCommandService chatMessageCommandService;
     @Mock
+    private ChatRetrievalSnapshotService chatRetrievalSnapshotService;
+    @Mock
     private ActiveUserReadService activeUserReadService;
+    @Mock
+    private ChatGroundingService chatGroundingService;
 
     private ChatConversationService chatConversationService;
 
@@ -56,9 +64,12 @@ class ChatConversationServiceTest {
         chatConversationService = new ChatConversationService(
                 chatMessageReadRepository,
                 chatPolicyService,
+                new ChatBranchCatalog(),
+                chatGroundingService,
                 chatAiGateway,
                 chatRateLimitService,
                 chatMessageCommandService,
+                chatRetrievalSnapshotService,
                 activeUserReadService,
                 new ObjectMapper()
         );
@@ -75,21 +86,41 @@ class ChatConversationServiceTest {
         when(activeUserReadService.getActiveUserContext(1L))
                 .thenReturn(new ActiveUserReadService.ActiveUserContext(user, "user-key-1"));
         when(chatMessageReadRepository.findOwnedSession(10L, "user-key-1")).thenReturn(Optional.of(session));
-        when(chatPolicyService.findCandidates("서울 월세 지원 알려줘", 3)).thenReturn(List.of(
-                ChatPolicyCandidate.builder().serviceId(1829L).title("청년월세 한시 특별지원")
-                        .supportContent("서울 청년의 주거비 부담 완화와 직접 연결됩니다.").build(),
-                ChatPolicyCandidate.builder().serviceId(2451L).title("청년전세임대")
-                        .description("청년 전세 주거 안정을 지원합니다.").build()
-        ));
-        when(chatAiGateway.generateAnswer(any(User.class), any(String.class), any(List.class), any(List.class)))
+        ChatPolicyService.CandidateTrace trace = new ChatPolicyService.CandidateTrace(
+                "서울 월세 지원 알려줘",
+                "서울 월세 지원 알려줘",
+                null,
+                null,
+                List.of(),
+                "MERGED_RESULTS",
+                List.of(),
+                List.of(),
+                List.of(
+                        ChatPolicyCandidate.builder().serviceId(1829L).title("청년월세 한시 특별지원")
+                                .supportContent("서울 청년의 주거비 부담 완화와 직접 연결됩니다.").build(),
+                        ChatPolicyCandidate.builder().serviceId(2451L).title("청년전세임대")
+                                .description("청년 전세 주거 안정을 지원합니다.").build()
+                )
+        );
+        when(chatPolicyService.traceCandidates("서울 월세 지원 알려줘", null, 3)).thenReturn(trace);
+        when(chatGroundingService.loadEvidenceMap(any(List.class)))
+                .thenReturn(Map.of(
+                        1829L, "월세 부담을 낮추는 지원을 제공합니다.",
+                        2451L, "전세 주거 안정을 지원합니다."
+                ));
+        when(chatAiGateway.generateAnswer(any(User.class), any(String.class), any(List.class), any(List.class), any(Map.class)))
                 .thenReturn(ChatAiResult.builder()
                         .answer("청년월세 한시 특별지원과 청년전세임대를 먼저 확인해보세요.")
                         .needsClarification(false)
                         .references(List.of(
                                 ChatReferenceResponse.builder().serviceId(1829L).title("청년월세 한시 특별지원")
-                                        .reason("주거비 부담 완화와 연결됩니다.").build(),
+                                        .reason("주거비 부담 완화와 연결됩니다.")
+                                        .evidence("월세 부담을 낮추는 지원을 제공합니다.")
+                                        .build(),
                                 ChatReferenceResponse.builder().serviceId(2451L).title("청년전세임대")
-                                        .reason("전세 주거 안정을 지원합니다.").build()
+                                        .reason("전세 주거 안정을 지원합니다.")
+                                        .evidence("전세 주거 안정을 지원합니다.")
+                                        .build()
                         ))
                         .build());
         when(chatMessageReadRepository.findRecentMessages(10L, 6)).thenReturn(List.of());
@@ -98,11 +129,13 @@ class ChatConversationServiceTest {
 
         assertThat(response.getSessionId()).isEqualTo(10L);
         assertThat(response.isNeedsClarification()).isFalse();
+        assertThat(response.getAnswerMode()).isEqualTo(ChatAnswerMode.POLICY_GROUNDED);
         assertThat(response.getAnswer()).isEqualTo("청년월세 한시 특별지원과 청년전세임대를 먼저 확인해보세요.");
         assertThat(response.getReferences()).hasSize(2);
         verify(chatMessageCommandService).appendUserMessage(10L, "서울 월세 지원 알려줘", "서울 월세 지원 알려줘");
         verify(chatMessageCommandService).appendAssistantMessage(eq(10L), eq("청년월세 한시 특별지원과 청년전세임대를 먼저 확인해보세요."), eq("[1829,2451]"), any());
         verify(chatRateLimitService).checkMessageSendLimit(1L);
+        verify(chatRetrievalSnapshotService).recordInteractiveTrace(session, "서울 월세 지원 알려줘", trace);
     }
 
     @Test
@@ -116,15 +149,29 @@ class ChatConversationServiceTest {
         when(activeUserReadService.getActiveUserContext(1L))
                 .thenReturn(new ActiveUserReadService.ActiveUserContext(user, "user-key-1"));
         when(chatMessageReadRepository.findOwnedSession(10L, "user-key-1")).thenReturn(Optional.of(session));
-        when(chatPolicyService.findCandidates("조건을 모르겠어", 3)).thenReturn(List.of());
+        ChatPolicyService.CandidateTrace trace = new ChatPolicyService.CandidateTrace(
+                "조건을 모르겠어",
+                "조건을 모르겠어",
+                null,
+                null,
+                List.of(),
+                "POPULAR_FALLBACK",
+                List.of(),
+                List.of(),
+                List.of()
+        );
+        when(chatPolicyService.traceCandidates("조건을 모르겠어", null, 3)).thenReturn(trace);
+        when(chatGroundingService.loadEvidenceMap(any(List.class))).thenReturn(Map.of());
 
         var response = chatConversationService.sendMessage(1L, 10L, request);
 
         assertThat(response.isNeedsClarification()).isTrue();
+        assertThat(response.getAnswerMode()).isEqualTo(ChatAnswerMode.CLARIFICATION);
         assertThat(response.getReferences()).isEmpty();
         assertThat(response.getAnswer()).contains("조금 더 구체적으로");
         verify(chatMessageCommandService).appendUserMessage(10L, "조건을 모르겠어", null);
         verify(chatRateLimitService).checkMessageSendLimit(1L);
+        verify(chatRetrievalSnapshotService).recordInteractiveTrace(session, "조건을 모르겠어", trace);
     }
 
     @Test
@@ -138,21 +185,59 @@ class ChatConversationServiceTest {
         when(activeUserReadService.getActiveUserContext(1L))
                 .thenReturn(new ActiveUserReadService.ActiveUserContext(user, "user-key-1"));
         when(chatMessageReadRepository.findOwnedSession(10L, "user-key-1")).thenReturn(Optional.of(session));
-        when(chatPolicyService.findCandidates("서울 월세 지원 알려줘", 3)).thenReturn(List.of(
-                ChatPolicyCandidate.builder().serviceId(1829L).title("청년월세 한시 특별지원")
-                        .supportContent("서울 청년의 주거비 부담 완화와 직접 연결됩니다.").build()
-        ));
-        when(chatAiGateway.generateAnswer(any(User.class), any(String.class), any(List.class), any(List.class)))
+        ChatPolicyService.CandidateTrace trace = new ChatPolicyService.CandidateTrace(
+                "서울 월세 지원 알려줘",
+                "서울 월세 지원 알려줘",
+                null,
+                null,
+                List.of(),
+                "MERGED_RESULTS",
+                List.of(),
+                List.of(),
+                List.of(
+                        ChatPolicyCandidate.builder().serviceId(1829L).title("청년월세 한시 특별지원")
+                                .supportContent("서울 청년의 주거비 부담 완화와 직접 연결됩니다.").build()
+                )
+        );
+        when(chatPolicyService.traceCandidates("서울 월세 지원 알려줘", null, 3)).thenReturn(trace);
+        when(chatGroundingService.loadEvidenceMap(any(List.class)))
+                .thenReturn(Map.of(1829L, "월세 부담을 낮추는 지원을 제공합니다."));
+        when(chatAiGateway.generateAnswer(any(User.class), any(String.class), any(List.class), any(List.class), any(Map.class)))
                 .thenReturn(null);
         when(chatMessageReadRepository.findRecentMessages(10L, 6)).thenReturn(List.of());
 
         var response = chatConversationService.sendMessage(1L, 10L, request);
 
         assertThat(response.isNeedsClarification()).isFalse();
+        assertThat(response.getAnswerMode()).isEqualTo(ChatAnswerMode.POLICY_GROUNDED);
         assertThat(response.getAnswer()).isEqualTo("청년월세 한시 특별지원 정책을 먼저 확인해보세요.");
         assertThat(response.getReferences()).hasSize(1);
+        assertThat(response.getReferences().get(0).getEvidence()).isEqualTo("월세 부담을 낮추는 지원을 제공합니다.");
         verify(chatMessageCommandService).appendAssistantMessage(eq(10L), eq("청년월세 한시 특별지원 정책을 먼저 확인해보세요."), eq("[1829]"), any());
         verify(chatRateLimitService).checkMessageSendLimit(1L);
+        verify(chatRetrievalSnapshotService).recordInteractiveTrace(session, "서울 월세 지원 알려줘", trace);
+    }
+
+    @Test
+    @DisplayName("broad 질문이면 정책 검색 전에 branch suggestion을 반환한다")
+    void sendMessageReturnsBranchSuggestionsForBroadQuestion() {
+        User user = createUser(1L);
+        ChatSession session = ChatSession.builder().id(10L).userKey("user-key-1").build();
+        SendChatMessageRequest request = new SendChatMessageRequest();
+        ReflectionTestUtils.setField(request, "content", "주거 지원");
+
+        when(activeUserReadService.getActiveUserContext(1L))
+                .thenReturn(new ActiveUserReadService.ActiveUserContext(user, "user-key-1"));
+        when(chatMessageReadRepository.findOwnedSession(10L, "user-key-1")).thenReturn(Optional.of(session));
+
+        var response = chatConversationService.sendMessage(1L, 10L, request);
+
+        assertThat(response.getAnswerMode()).isEqualTo(ChatAnswerMode.BRANCH_SUGGESTION);
+        assertThat(response.getBranchSuggestions()).hasSize(3);
+        assertThat(response.getReferences()).isEmpty();
+        verify(chatPolicyService, never()).traceCandidates(any(String.class), isNull(), anyInt());
+        verify(chatMessageCommandService).appendAssistantMessage(eq(10L), any(String.class), eq("[]"), any());
+        verify(chatRetrievalSnapshotService).recordInteractiveBranchSuggestions(eq(session), eq("주거 지원"), isNull(), any(List.class));
     }
 
     @Test

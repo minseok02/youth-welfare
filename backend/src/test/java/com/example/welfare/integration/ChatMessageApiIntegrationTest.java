@@ -214,6 +214,7 @@ class ChatMessageApiIntegrationTest {
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.sessionId").value(session.getId()))
                 .andExpect(jsonPath("$.data.needsClarification").value(false))
+                .andExpect(jsonPath("$.data.answerMode").value("POLICY_GROUNDED"))
                 .andExpect(jsonPath("$.data.answer").isString())
                 .andExpect(jsonPath("$.data.references[*].title", hasItem(uniqueKeyword + " 월세 지원")));
 

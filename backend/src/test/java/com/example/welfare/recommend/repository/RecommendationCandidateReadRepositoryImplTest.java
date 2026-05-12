@@ -3,29 +3,25 @@ package com.example.welfare.recommend.repository;
 import com.example.welfare.policy.entity.ServiceTag;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.repository.PolicyTagReadRepository;
-import com.example.welfare.policy.repository.WelfareServiceRepository;
+import com.example.welfare.policy.service.PolicyExplorationService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.BDDMockito.then;
 
 @ExtendWith(MockitoExtension.class)
 class RecommendationCandidateReadRepositoryImplTest {
 
     @Mock
-    private WelfareServiceRepository welfareServiceRepository;
+    private PolicyExplorationService policyExplorationService;
 
     @Mock
     private PolicyTagReadRepository policyTagReadRepository;
@@ -39,13 +35,11 @@ class RecommendationCandidateReadRepositoryImplTest {
         WelfareService service = WelfareService.builder().id(1L).sourceId("SRC-1").title("청년 정책").build();
         RecommendationCandidateReadCondition condition =
                 new RecommendationCandidateReadCondition(26, 5, "서울특별시", null, 150, 20);
-        given(welfareServiceRepository.findCandidatesWithSido(eq(26), eq(5), eq("서울특별시"), any(Pageable.class)))
+        given(policyExplorationService.findRecommendationBaseCandidates(condition))
                 .willReturn(List.of(service));
 
         assertThat(recommendationCandidateReadRepository.findBaseCandidates(condition))
                 .containsExactly(service);
-        then(welfareServiceRepository).should()
-                .findCandidatesWithSido(eq(26), eq(5), eq("서울특별시"), any(Pageable.class));
     }
 
     @Test
@@ -54,13 +48,11 @@ class RecommendationCandidateReadRepositoryImplTest {
         WelfareService service = WelfareService.builder().id(2L).sourceId("SRC-2").title("최신 정책").build();
         RecommendationCandidateReadCondition condition =
                 new RecommendationCandidateReadCondition(26, 5, "서울특별시", "11680", 150, 20);
-        given(welfareServiceRepository.findLatestCandidatesWithRegionCode(eq(26), eq(5), eq("11680"), any(Pageable.class)))
+        given(policyExplorationService.findRecommendationLatestCandidates(condition))
                 .willReturn(List.of(service));
 
         assertThat(recommendationCandidateReadRepository.findLatestCandidates(condition))
                 .containsExactly(service);
-        then(welfareServiceRepository).should()
-                .findLatestCandidatesWithRegionCode(eq(26), eq(5), eq("11680"), any(Pageable.class));
     }
 
     @Test

@@ -7,6 +7,7 @@ import com.example.welfare.policy.entity.ServiceTag;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.entity.WelfareServiceDetail;
 import com.example.welfare.policy.repository.PolicyLookupReadRepository;
+import com.example.welfare.policy.service.PolicyEmbeddingRefreshRequestService;
 import com.example.welfare.policy.service.SearchYouthRelevanceService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -34,6 +35,8 @@ class CollectPolicyAggregateApplyServiceTest {
     private SearchYouthRelevanceService searchYouthRelevanceService;
     @Mock
     private NormalizedPolicySidecarWriter normalizedPolicySidecarWriter;
+    @Mock
+    private PolicyEmbeddingRefreshRequestService policyEmbeddingRefreshRequestService;
 
     @Test
     @DisplayName("list collect 후처리는 aggregate가 있으면 sidecar upsert와 relevance refresh를 함께 수행한다")
@@ -42,7 +45,8 @@ class CollectPolicyAggregateApplyServiceTest {
                 bokjiroDetailCommandRepository,
                 policyLookupReadRepository,
                 searchYouthRelevanceService,
-                normalizedPolicySidecarWriter
+                normalizedPolicySidecarWriter,
+                policyEmbeddingRefreshRequestService
         );
         WelfareService welfareService = WelfareService.builder()
                 .id(11L)
@@ -61,6 +65,7 @@ class CollectPolicyAggregateApplyServiceTest {
 
         verify(normalizedPolicySidecarWriter).upsert(welfareService, aggregate);
         verify(searchYouthRelevanceService).refreshForService(welfareService, tags);
+        verify(policyEmbeddingRefreshRequestService).request(11L);
     }
 
     @Test
@@ -70,7 +75,8 @@ class CollectPolicyAggregateApplyServiceTest {
                 bokjiroDetailCommandRepository,
                 policyLookupReadRepository,
                 searchYouthRelevanceService,
-                normalizedPolicySidecarWriter
+                normalizedPolicySidecarWriter,
+                policyEmbeddingRefreshRequestService
         );
         WelfareService welfareService = WelfareService.builder()
                 .id(12L)
@@ -83,6 +89,7 @@ class CollectPolicyAggregateApplyServiceTest {
 
         verify(normalizedPolicySidecarWriter, never()).upsert(eq(welfareService), org.mockito.ArgumentMatchers.any());
         verify(searchYouthRelevanceService).refreshForService(welfareService, List.of());
+        verify(policyEmbeddingRefreshRequestService).request(12L);
     }
 
     @Test
@@ -92,7 +99,8 @@ class CollectPolicyAggregateApplyServiceTest {
                 bokjiroDetailCommandRepository,
                 policyLookupReadRepository,
                 searchYouthRelevanceService,
-                normalizedPolicySidecarWriter
+                normalizedPolicySidecarWriter,
+                policyEmbeddingRefreshRequestService
         );
         WelfareService welfareService = WelfareService.builder()
                 .id(13L)
@@ -121,6 +129,7 @@ class CollectPolicyAggregateApplyServiceTest {
         assertThat(welfareService.getIsOnlineApply()).isTrue();
         verify(normalizedPolicySidecarWriter).upsert(welfareService, aggregate);
         verify(searchYouthRelevanceService).refreshForService(welfareService);
+        verify(policyEmbeddingRefreshRequestService).request(13L);
     }
 
     @Test
@@ -130,7 +139,8 @@ class CollectPolicyAggregateApplyServiceTest {
                 bokjiroDetailCommandRepository,
                 policyLookupReadRepository,
                 searchYouthRelevanceService,
-                normalizedPolicySidecarWriter
+                normalizedPolicySidecarWriter,
+                policyEmbeddingRefreshRequestService
         );
         WelfareService welfareService = WelfareService.builder()
                 .id(14L)
@@ -144,6 +154,7 @@ class CollectPolicyAggregateApplyServiceTest {
 
         verify(normalizedPolicySidecarWriter).upsert(welfareService, aggregate);
         verify(searchYouthRelevanceService, never()).refreshForService(eq(welfareService));
+        verify(policyEmbeddingRefreshRequestService, never()).request(org.mockito.ArgumentMatchers.anyLong());
         verify(bokjiroDetailCommandRepository, never()).save(org.mockito.ArgumentMatchers.any());
     }
 

@@ -1,5 +1,6 @@
 package com.example.welfare.collect.service;
 
+import com.example.welfare.policy.service.PolicyEmbeddingRefreshRequestService;
 import org.springframework.stereotype.Service;
 
 import java.util.concurrent.atomic.AtomicReference;
@@ -12,25 +13,32 @@ public class CollectSourceExecutionService {
 
     private final ApiSyncLogService apiSyncLogService;
     private final BokjiroDetailCollectService bokjiroDetailCollectService;
+    private final PolicyEmbeddingRefreshRequestService policyEmbeddingRefreshRequestService;
     private final Map<CollectSource, CollectSourceAdapter> adapters;
 
     public CollectSourceExecutionService(List<CollectSourceAdapter> adapters,
                                          ApiSyncLogService apiSyncLogService,
-                                         BokjiroDetailCollectService bokjiroDetailCollectService) {
+                                         BokjiroDetailCollectService bokjiroDetailCollectService,
+                                         PolicyEmbeddingRefreshRequestService policyEmbeddingRefreshRequestService) {
         this.apiSyncLogService = apiSyncLogService;
         this.bokjiroDetailCollectService = bokjiroDetailCollectService;
+        this.policyEmbeddingRefreshRequestService = policyEmbeddingRefreshRequestService;
         this.adapters = buildAdapterMap(adapters);
     }
 
     public CollectResult collectSource(CollectSource source) {
-        return apiSyncLogService.runWithLog(source.jobName(), adapter(source)::collect);
+        return apiSyncLogService.runWithLog(
+                source.jobName(),
+                () -> policyEmbeddingRefreshRequestService.runInBatch(adapter(source)::collect)
+        );
     }
 
     public BokjiroDetailCollectService.GapFillResult collectBokjiroDetailGapFill(int rounds, int maxCallsPerRound) {
         AtomicReference<BokjiroDetailCollectService.GapFillResult> resultRef = new AtomicReference<>();
         apiSyncLogService.runWithLog(CollectSource.BOKJIRO_DETAIL_GAP_FILL.jobName(), () -> {
-            BokjiroDetailCollectService.GapFillResult result =
-                    bokjiroDetailCollectService.collectBokjiroDetailGapFillResult(rounds, maxCallsPerRound);
+            BokjiroDetailCollectService.GapFillResult result = policyEmbeddingRefreshRequestService.runInBatch(
+                    () -> bokjiroDetailCollectService.collectBokjiroDetailGapFillResult(rounds, maxCallsPerRound)
+            );
             resultRef.set(result);
             return CollectResult.of(
                     result.requestedCount(),

@@ -1,5 +1,6 @@
 package com.example.welfare.collect.service;
 
+import com.example.welfare.policy.service.PolicyEmbeddingRefreshRequestService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -33,6 +34,8 @@ class CollectSourceExecutionServiceTest {
     private CollectSourceAdapter bokjiroDetailRefreshAdapter;
     @Mock
     private BokjiroDetailCollectService bokjiroDetailCollectService;
+    @Mock
+    private PolicyEmbeddingRefreshRequestService policyEmbeddingRefreshRequestService;
 
     private CollectSourceExecutionService collectSourceExecutionService;
 
@@ -47,7 +50,8 @@ class CollectSourceExecutionServiceTest {
         collectSourceExecutionService = new CollectSourceExecutionService(
                 List.of(bokjiroLocalAdapter, bokjiroDetailAdapter, bokjiroDetailRefreshAdapter, youthAdapter, bokjiroCentralAdapter),
                 apiSyncLogService,
-                bokjiroDetailCollectService
+                bokjiroDetailCollectService,
+                policyEmbeddingRefreshRequestService
         );
     }
 
@@ -58,12 +62,17 @@ class CollectSourceExecutionServiceTest {
             ApiSyncLogService.CollectTask task = invocation.getArgument(1);
             return task.run();
         });
+        when(policyEmbeddingRefreshRequestService.runInBatch(any(java.util.function.Supplier.class))).thenAnswer(invocation -> {
+            java.util.function.Supplier<?> supplier = invocation.getArgument(0);
+            return supplier.get();
+        });
         when(youthAdapter.collect()).thenReturn(CollectResult.of(1, 1, 0, 0, 0));
 
         CollectResult result = collectSourceExecutionService.collectSource(CollectSource.YOUTH);
 
         assertThat(result.savedCount()).isEqualTo(1);
         verify(apiSyncLogService).runWithLog(eq("YOUTH"), any());
+        verify(policyEmbeddingRefreshRequestService).runInBatch(any(java.util.function.Supplier.class));
         verify(youthAdapter).collect();
     }
 
@@ -78,6 +87,10 @@ class CollectSourceExecutionServiceTest {
             task.run();
             return CollectResult.of(0, 0, 0, 0, 0);
         });
+        when(policyEmbeddingRefreshRequestService.runInBatch(any(java.util.function.Supplier.class))).thenAnswer(invocation -> {
+            java.util.function.Supplier<?> supplier = invocation.getArgument(0);
+            return supplier.get();
+        });
         when(bokjiroDetailCollectService.collectBokjiroDetailGapFillResult(2, 95)).thenReturn(expected);
 
         BokjiroDetailCollectService.GapFillResult actual =
@@ -85,6 +98,7 @@ class CollectSourceExecutionServiceTest {
 
         assertThat(actual).isEqualTo(expected);
         verify(apiSyncLogService).runWithLog(eq("BOKJIRO_DETAIL_GAP_FILL"), any());
+        verify(policyEmbeddingRefreshRequestService).runInBatch(any(java.util.function.Supplier.class));
         verify(bokjiroDetailCollectService).collectBokjiroDetailGapFillResult(2, 95);
     }
 
@@ -94,7 +108,8 @@ class CollectSourceExecutionServiceTest {
         assertThatThrownBy(() -> new CollectSourceExecutionService(
                 List.of(bokjiroLocalAdapter, bokjiroDetailAdapter, youthAdapter, bokjiroCentralAdapter),
                 apiSyncLogService,
-                bokjiroDetailCollectService
+                bokjiroDetailCollectService,
+                policyEmbeddingRefreshRequestService
         )).isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("BOKJIRO_DETAIL_REFRESH");
     }
