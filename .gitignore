@@ -39,6 +39,7 @@ backend/gradle.properties
 # Local runtime/tooling artifacts
 .jdk/
 .codex
+.tmp/
 
 # Maven
 pom.xml.tag
