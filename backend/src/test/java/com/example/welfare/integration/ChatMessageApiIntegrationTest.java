@@ -151,6 +151,58 @@ class ChatMessageApiIntegrationTest {
     }
 
     @Test
+    @DisplayName("메시지 목록 조회는 snapshot의 clarification 메타를 복원한다")
+    void getMessagesRestoresClarificationMetadataFromSnapshot() throws Exception {
+        User user = createUser();
+        String userKey = userRepository.findUserKeyById(user.getId()).orElseThrow();
+        String accessToken = jwtUtil.generateAccessToken(userKey, user.getId());
+
+        ChatSession session = chatSessionRepository.save(ChatSession.builder()
+                .userKey(userKey)
+                .title("생활비 상담")
+                .build());
+
+        ChatMessage userMessage = chatMessageRepository.save(ChatMessage.builder()
+                .session(session)
+                .role(ChatMessageRole.USER)
+                .content("생활비 지원이 있긴 한데 제 상황에 맞는지 모르겠어요")
+                .build());
+        ChatMessage assistantMessage = chatMessageRepository.save(ChatMessage.builder()
+                .session(session)
+                .role(ChatMessageRole.ASSISTANT)
+                .content("먼저 상황을 조금 더 알려주시면 정확히 좁힐 수 있습니다.")
+                .referencedServiceIds("[1829]")
+                .referencesJson("[{\"serviceId\":1829,\"title\":\"청년월세 한시 특별지원\",\"reason\":\"주거비 지원\",\"evidence\":\"월세 지원\"}]")
+                .build());
+
+        jdbcTemplate.update("UPDATE chat_messages SET created_at = ? WHERE id = ?",
+                Timestamp.valueOf(LocalDateTime.of(2099, 4, 26, 9, 0, 0)), userMessage.getId());
+        jdbcTemplate.update("UPDATE chat_messages SET created_at = ? WHERE id = ?",
+                Timestamp.valueOf(LocalDateTime.of(2099, 4, 26, 9, 0, 5)), assistantMessage.getId());
+        jdbcTemplate.update("""
+                INSERT INTO chat_retrieval_snapshots (
+                    snapshot_type, session_id, user_key, question,
+                    needs_clarification, result_count, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                "INTERACTIVE",
+                session.getId(),
+                userKey,
+                "생활비 지원이 있긴 한데 제 상황에 맞는지 모르겠어요",
+                true,
+                1,
+                Timestamp.valueOf(LocalDateTime.of(2099, 4, 26, 9, 0, 0)),
+                Timestamp.valueOf(LocalDateTime.of(2099, 4, 26, 9, 0, 0)));
+
+        mockMvc.perform(get("/api/chat/sessions/{sessionId}/messages", session.getId())
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[1].answerMode").value("CLARIFICATION"))
+                .andExpect(jsonPath("$.data[1].needsClarification").value(true))
+                .andExpect(jsonPath("$.data[1].references[0].serviceId").value(1829));
+    }
+
+    @Test
     @DisplayName("다른 사용자의 세션 메시지 조회는 404를 반환한다")
     void getMessagesReturnsNotFoundForOtherUsersSession() throws Exception {
         User owner = createUser();

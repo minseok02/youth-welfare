@@ -3242,3 +3242,8 @@
 - 문제: user profile projection 은 `hasPhone` 으로 연락처 등록 여부를 이미 알고 있었지만, 프로필 응답이 이를 숨기고 있으면 마이페이지는 “왜 완성도가 덜 찼는지” 설명할 단서를 잃는다.
 - 해결: `ProfileResponse` 에 `hasPhone` 을 추가하고, 마이페이지 기본 정보 섹션에 연락처 등록 상태를 read-only 로 노출했다.
 - 이유: 직접 수정 경로가 아직 없더라도, 시스템이 이미 계산한 completeness 관련 상태는 최소한 읽을 수 있어야 사용자와 운영자가 현재 profile state 를 해석할 수 있다.
+
+## 630) 챗 `POST` 응답은 clarification 이었는데 `GET /messages` 가 `resultCount==0 && references empty` 로만 추론하면, 참조 정책이 함께 있는 clarification 이 새로고침 뒤 일반 grounded 답변처럼 보일 수 있다
+- 문제: AI 응답은 `needsClarification=true` 이면서도 참고 정책을 몇 개 같이 줄 수 있다. 그런데 세션 재조회가 clarification 여부를 `snapshot.resultCount==0` 과 빈 reference 만으로 추론하면, 이런 케이스는 answerMode 가 사라지고 추가 질문 유도 UI도 복원되지 않는다.
+- 해결: retrieval snapshot 에 `needsClarification` 을 명시적으로 저장하고, `GET /messages` 는 이 플래그를 우선 복원하게 바꿨다.
+- 이유: 챗의 상호작용 메타는 “결과 수” 같은 간접 신호로 다시 추론하기보다, 최초 응답 시점의 의도를 그대로 저장해 재사용하는 편이 계약이 강하다.

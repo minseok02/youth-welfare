@@ -65,6 +65,9 @@ public class ChatRetrievalSnapshot extends BaseTimeEntity {
     @Column(name = "fallback_strategy", length = 40)
     private String fallbackStrategy;
 
+    @Column(name = "needs_clarification")
+    private Boolean needsClarification;
+
     @Column(name = "result_count", nullable = false)
     private int resultCount;
 }
