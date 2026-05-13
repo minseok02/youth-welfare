@@ -2,6 +2,7 @@ package com.example.welfare.user.service;
 
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
+import com.example.welfare.global.util.RegionCodeUtil;
 import com.example.welfare.recommend.service.RecommendationRefreshCacheService;
 import com.example.welfare.user.dto.request.UpdatePrioritiesRequest;
 import com.example.welfare.user.dto.request.UpdateProfileRequest;
@@ -37,12 +38,16 @@ public class UserProfileCommandService {
         String userKey = activeUserContext.userKey();
         recommendationRefreshCacheService.evict(userKey);
 
+        String effectiveSido = request.getSido() != null ? request.getSido() : user.getSido();
+        String effectiveSgg = request.getSgg() != null ? request.getSgg() : user.getSgg();
+        String effectiveRegionCode = resolveRegionCode(request, user, effectiveSido, effectiveSgg);
+
         user.updateProfile(
                 request.getName() != null ? request.getName() : user.getName(),
                 request.getBirthDate() != null ? request.getBirthDate() : user.getBirthDate(),
-                request.getSido() != null ? request.getSido() : user.getSido(),
-                request.getSgg() != null ? request.getSgg() : user.getSgg(),
-                request.getRegionCode() != null ? request.getRegionCode() : user.getRegionCode(),
+                effectiveSido,
+                effectiveSgg,
+                effectiveRegionCode,
                 request.getIncomeLevel() != null ? request.getIncomeLevel() : user.getIncomeLevel(),
                 request.getHouseholdType() != null ? request.getHouseholdType() : user.getHouseholdType(),
                 request.getEmploymentStatus() != null ? request.getEmploymentStatus() : user.getEmploymentStatus(),
@@ -137,5 +142,18 @@ public class UserProfileCommandService {
         } catch (Exception e) {
             throw new CustomException(ErrorCode.INVALID_INPUT);
         }
+    }
+
+    private String resolveRegionCode(UpdateProfileRequest request,
+                                     User user,
+                                     String effectiveSido,
+                                     String effectiveSgg) {
+        if (request.getRegionCode() != null) {
+            return request.getRegionCode();
+        }
+        if (request.getSido() != null || request.getSgg() != null) {
+            return RegionCodeUtil.getRegionCode(effectiveSido, effectiveSgg);
+        }
+        return user.getRegionCode();
     }
 }

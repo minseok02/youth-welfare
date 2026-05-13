@@ -39,6 +39,16 @@ const PRIORITY_OPTIONS = [
 ];
 
 const REGIONS = ["서울","부산","대구","인천","광주","대전","울산","세종","경기","강원","충북","충남","전북","전남","경북","경남","제주"];
+const HOUSEHOLD_TYPES = ["1인가구", "한부모", "다자녀", "조손", "기타"];
+const INTEREST_FIELD_OPTIONS = ["주거", "취업", "교육", "금융", "문화", "건강", "가족돌봄", "참여"];
+const TARGET_TYPE_OPTIONS = ["농어촌", "자립준비청년", "가족돌봄", "다문화", "북한이탈", "한부모", "조손", "보훈", "장애", "병역"];
+const NOTIFICATION_SCORE_OPTIONS = [
+  { value: 0.3, label: "낮음 이상" },
+  { value: 0.5, label: "보통 이상" },
+  { value: 0.7, label: "높음 이상" },
+  { value: 0.9, label: "매우 높은 추천만" },
+];
+const DISPLAY_COUNT_OPTIONS = [5, 10, 20, 30];
 
 const SIDO_TO_REGION = {
   "서울특별시": "서울", "부산광역시": "부산", "대구광역시": "대구",
@@ -47,6 +57,15 @@ const SIDO_TO_REGION = {
   "강원특별자치도": "강원", "충청북도": "충북", "충청남도": "충남",
   "전북특별자치도": "전북", "전라남도": "전남", "경상북도": "경북",
   "경상남도": "경남", "제주특별자치도": "제주",
+};
+
+const REGION_TO_SIDO = {
+  "서울": "서울특별시", "부산": "부산광역시", "대구": "대구광역시",
+  "인천": "인천광역시", "광주": "광주광역시", "대전": "대전광역시",
+  "울산": "울산광역시", "세종": "세종특별자치시", "경기": "경기도",
+  "강원": "강원특별자치도", "충북": "충청북도", "충남": "충청남도",
+  "전북": "전북특별자치도", "전남": "전라남도", "경북": "경상북도",
+  "경남": "경상남도", "제주": "제주특별자치도",
 };
 
 const DISTRICT_MAP = {
@@ -296,7 +315,7 @@ export default function MyPage() {
   const [myInfo, setMyInfo] = useState({
     name: "", email: user?.email ?? "",
     birthYear: "", birthMonth: "", birthDay: "",
-    region: "", subRegion: "", income: "", employ: "",
+    region: "", subRegion: "", income: "", employ: "", householdType: "",
   });
   const [profileCompleteness, setProfileCompleteness] = useState(null);
   const [editing, setEditing] = useState(false);
@@ -307,6 +326,8 @@ export default function MyPage() {
   const [priorities, setPriorities] = useState([]);
   const [priorityLoading, setPriorityLoading] = useState(false);
   const [dragIdx, setDragIdx] = useState(null);
+  const [interestFields, setInterestFields] = useState([]);
+  const [targetTypes, setTargetTypes] = useState([]);
 
   const [bookmarks, setBookmarks] = useState([]);
   const [bookmarkLoading, setBookmarkLoading] = useState(false);
@@ -314,6 +335,8 @@ export default function MyPage() {
   const [notifOn, setNotifOn] = useState(false);
   const [notifFreq, setNotifFreq] = useState("DAILY");
   const [notifLoading, setNotifLoading] = useState(false);
+  const [notifMinScore, setNotifMinScore] = useState(0.5);
+  const [notifDisplayCount, setNotifDisplayCount] = useState(10);
   const [notifPush, setNotifPush] = useState(false);
   const [notifSms, setNotifSms] = useState(false);
   const [notifNewPolicy, setNotifNewPolicy] = useState(true);
@@ -371,11 +394,16 @@ export default function MyPage() {
           subRegion:  p.sgg ?? "",
           income:     p.incomeLevel != null ? String(p.incomeLevel) : "",
           employ:     p.employmentStatus ?? "",
+          householdType: p.householdType ?? "",
         });
         setProfileCompleteness(Number.isFinite(p.profileCompleteness) ? p.profileCompleteness : null);
         setNotifOn(p.notificationYn ?? false);
         setNotifFreq(p.notificationPeriod === "WEEKLY" ? "WEEKLY" : "DAILY");
+        setNotifMinScore(typeof p.notificationMinScore === "number" ? p.notificationMinScore : 0.5);
+        setNotifDisplayCount(Number.isFinite(p.displayCount) ? p.displayCount : 10);
         setPriorities((p.priorities ?? []).map(item => item.code));
+        setInterestFields(Array.isArray(p.interestFields) ? p.interestFields : []);
+        setTargetTypes(Array.isArray(p.targetTypes) ? p.targetTypes : []);
       } catch (err) {
         if (err.name === "CanceledError" || err.code === "ERR_CANCELED") return;
         showToast("프로필을 불러오지 못했습니다", "error");
@@ -418,9 +446,10 @@ export default function MyPage() {
       await api.put("/api/users/me", {
         name:             myInfo.name || undefined,
         birthDate,
-        sido:             myInfo.region || undefined,
+        sido:             myInfo.region ? (REGION_TO_SIDO[myInfo.region] ?? myInfo.region) : undefined,
         sgg:              myInfo.subRegion || undefined,
         incomeLevel:      myInfo.income ? parseInt(myInfo.income) : undefined,
+        householdType:    myInfo.householdType || undefined,
         employmentStatus: myInfo.employ || undefined,
       });
       setProfileCompleteness(null);
@@ -438,6 +467,12 @@ export default function MyPage() {
     else if (priorities.length < 5) setPriorities([...priorities, val]);
   };
   const removePriority = (val) => setPriorities(priorities.filter(p => p !== val));
+  const toggleInterestField = (value) => {
+    setInterestFields((prev) => prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]);
+  };
+  const toggleTargetType = (value) => {
+    setTargetTypes((prev) => prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]);
+  };
   const handleDragStart = (idx) => setDragIdx(idx);
   const handleDragOver = (e, idx) => {
     e.preventDefault();
@@ -453,8 +488,9 @@ export default function MyPage() {
   const handleSavePriorities = async () => {
     setPriorityLoading(true);
     try {
+      await api.put("/api/users/me", { interestFields, targetTypes });
       await api.put("/api/users/me/priorities", { priorityCodes: priorities });
-      showToast("우선순위가 저장되었습니다");
+      showToast("우선순위와 관심 설정이 저장되었습니다");
     } catch {
       showToast("우선순위 저장에 실패했습니다", "error");
     } finally {
@@ -468,6 +504,8 @@ export default function MyPage() {
       await api.put("/api/users/me", {
         notificationYn: notifOn,
         notificationPeriod: notifOn ? notifFreq : "NONE",
+        notificationMinScore: notifMinScore,
+        displayCount: notifDisplayCount,
       });
       showToast("알림 설정이 저장되었습니다");
     } catch {
@@ -654,6 +692,26 @@ export default function MyPage() {
                   </div>
                 </SectionCard>
 
+                <SectionCard title="가구 형태" desc="특화 대상 정책 매칭에 활용돼요">
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 10 }}>
+                    {HOUSEHOLD_TYPES.map(v => {
+                      const active = myInfo.householdType === v;
+                      return (
+                        <button key={v} onClick={() => editing && setMyInfo({ ...myInfo, householdType: v })} style={{
+                          padding: "14px 12px", borderRadius: 12,
+                          border: `1.5px solid ${active ? A : LINE}`,
+                          background: active ? AS : WHITE,
+                          color: active ? AI : INK2,
+                          fontSize: 14, fontWeight: 700, textAlign: "center", cursor: editing ? "pointer" : "default",
+                          opacity: editing ? 1 : 0.65,
+                        }}>
+                          {v}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </SectionCard>
+
                 <div style={{ display: "flex", gap: 12, marginBottom: 8 }}>
                   <button onClick={() => setEditing(!editing)} style={{
                     flex: 1, padding: "12px 0", borderRadius: 10,
@@ -732,6 +790,44 @@ export default function MyPage() {
                     </div>
                   </SectionCard>
                 )}
+
+                <SectionCard title="관심 분야" desc="정책 관심사와 맞는 후보를 더 우선해서 보여줘요">
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
+                    {INTEREST_FIELD_OPTIONS.map((value) => {
+                      const active = interestFields.includes(value);
+                      return (
+                        <button key={value} onClick={() => toggleInterestField(value)} style={{
+                          padding: "12px 10px", borderRadius: 12,
+                          border: `1.5px solid ${active ? A : LINE}`,
+                          background: active ? AS : WHITE,
+                          color: active ? AI : INK2,
+                          fontSize: 13, fontWeight: 700, cursor: "pointer",
+                        }}>
+                          {value}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </SectionCard>
+
+                <SectionCard title="특화 대상" desc="특수 대상 정책이 맞으면 bonus, 어긋나면 mismatch를 줄이는 기준이에요">
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 10 }}>
+                    {TARGET_TYPE_OPTIONS.map((value) => {
+                      const active = targetTypes.includes(value);
+                      return (
+                        <button key={value} onClick={() => toggleTargetType(value)} style={{
+                          padding: "12px 10px", borderRadius: 12,
+                          border: `1.5px solid ${active ? A : LINE}`,
+                          background: active ? AS : WHITE,
+                          color: active ? AI : INK2,
+                          fontSize: 13, fontWeight: 700, cursor: "pointer",
+                        }}>
+                          {value}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </SectionCard>
 
                 <SaveBar onSave={handleSavePriorities} loading={priorityLoading} />
               </>
@@ -855,6 +951,25 @@ export default function MyPage() {
                     <NotiRow title="북마크 마감 알림" desc="북마크한 정책의 마감 3일 전·당일 알림" on={notifBookmarkDeadline} onChange={() => setNotifBookmarkDeadline(v => !v)} />
                     <NotiRow title="주간 요약" desc="매주 월요일 오전 새 정책 요약" on={notifWeekly} onChange={() => setNotifWeekly(v => !v)} />
                     <NotiRow title="이벤트·공지" desc="플랫폼 소식과 캠페인 안내" on={notifMarketing} onChange={() => setNotifMarketing(v => !v)} />
+                  </SectionCard>
+
+                  <SectionCard title="알림 기준" desc="추천 점수와 발송 개수를 조절할 수 있어요">
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                      <Field label="최소 추천 점수">
+                        <select value={notifMinScore} onChange={(e) => setNotifMinScore(parseFloat(e.target.value))} style={selCss(false)}>
+                          {NOTIFICATION_SCORE_OPTIONS.map((option) => (
+                            <option key={option.value} value={option.value}>{option.label}</option>
+                          ))}
+                        </select>
+                      </Field>
+                      <Field label="한 번에 받을 정책 수">
+                        <select value={notifDisplayCount} onChange={(e) => setNotifDisplayCount(parseInt(e.target.value, 10))} style={selCss(false)}>
+                          {DISPLAY_COUNT_OPTIONS.map((count) => (
+                            <option key={count} value={count}>{count}개</option>
+                          ))}
+                        </select>
+                      </Field>
+                    </div>
                   </SectionCard>
 
                   <SectionCard>

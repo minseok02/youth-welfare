@@ -2,6 +2,8 @@ package com.example.welfare.recommend.controller;
 
 import com.example.welfare.global.auth.AuthenticatedUser;
 import com.example.welfare.global.response.ApiResponse;
+import com.example.welfare.policy.entity.WelfareService;
+import com.example.welfare.policy.repository.ServiceRegionRepository;
 import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
 import com.example.welfare.recommend.dto.RecommendationResponse;
 import com.example.welfare.recommend.entity.UserRecommendation;
@@ -29,6 +31,7 @@ public class RecommendationController {
     private final RecommendationBookmarkCommandService recommendationBookmarkCommandService;
     private final RecommendationProjectionReadService recommendationProjectionReadService;
     private final RecommendationLogReadService recommendationLogReadService;
+    private final ServiceRegionRepository serviceRegionRepository;
 
     // 추천 목록 조회 (저장된 결과 반환 — 실시간 AI 추가 호출 없음)
     @GetMapping
@@ -77,13 +80,32 @@ public class RecommendationController {
                                                      Map<Long, Long> serviceLogMap) {
         Map<Long, RecommendationCandidateProjection> projections =
                 recommendationProjectionReadService.findCandidateProjections(recs);
+        Map<Long, String> sidoMap = buildSidoMap(recs);
 
         return recs.stream()
                 .map(rec -> RecommendationResponse.from(
                         rec,
                         serviceLogMap.get(rec.getService().getId()),
-                        projections.get(rec.getService().getId())
+                        projections.get(rec.getService().getId()),
+                        sidoMap.get(rec.getService().getId())
                 ))
                 .collect(Collectors.toList());
+    }
+
+    private Map<Long, String> buildSidoMap(List<UserRecommendation> recs) {
+        if (recs == null || recs.isEmpty()) {
+            return Map.of();
+        }
+        List<Long> serviceIds = recs.stream()
+                .map(UserRecommendation::getService)
+                .map(WelfareService::getId)
+                .distinct()
+                .toList();
+        return serviceRegionRepository.findFirstSidoByServiceIds(serviceIds).stream()
+                .collect(Collectors.toMap(
+                        row -> ((Number) row[0]).longValue(),
+                        row -> (String) row[1],
+                        (left, right) -> left
+                ));
     }
 }

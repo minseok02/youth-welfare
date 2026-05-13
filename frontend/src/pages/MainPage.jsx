@@ -25,8 +25,9 @@ const mapRec = (r) => ({
   logId: r.logId ?? null,
   title: r.title,
   category: r.unifiedCategory || "기타",
-  dday: r.status === "CLOSED" ? "종료" : r.status === "ACTIVE" ? "진행중" : "상시",
+  dday: formatDday(r.applyEndDate, r.status),
   summary: r.description || "",
+  source: r.hostOrg || r.sido || r.operatingOrg || "",
   aiReason: r.aiReason,
 });
 
@@ -366,6 +367,11 @@ function RecCard({ rec, navigate }) {
       <div style={{ fontSize: 13, color: INK2, marginTop: 6, lineHeight: 1.55, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>
         {rec.summary}
       </div>
+      {rec.source && (
+        <div style={{ marginTop: 6, fontSize: 12, color: INK3 }}>
+          {rec.source}
+        </div>
+      )}
       {rec.aiReason && (
         <div style={{ marginTop: 8, fontSize: 12, color: A, fontStyle: "italic" }}>"{rec.aiReason}"</div>
       )}

@@ -10,6 +10,7 @@ import com.example.welfare.policy.dto.PolicyRankingResponse;
 import com.example.welfare.policy.dto.PolicySearchResponse;
 import com.example.welfare.policy.dto.PolicySummaryResponse;
 import com.example.welfare.policy.entity.WelfareService;
+import com.example.welfare.policy.repository.ServiceRegionRepository;
 import com.example.welfare.policy.service.PolicyBookmarkCommandService;
 import com.example.welfare.policy.service.PolicyDetailService;
 import com.example.welfare.policy.service.PolicyListService;
@@ -39,6 +40,7 @@ import org.springframework.data.jpa.mapping.JpaMetamodelMappingContext;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
@@ -93,6 +95,8 @@ class RecommendationPolicyFlowWebMvcTest {
     private PolicyViewLogService policyViewLogService;
     @MockBean
     private ClientFingerprintService clientFingerprintService;
+    @MockBean
+    private ServiceRegionRepository serviceRegionRepository;
 
     @Test
     @DisplayName("추천 갱신 -> 랭킹 조회 -> 검색 조회 핵심 흐름이 성공 응답을 반환한다")
@@ -157,6 +161,8 @@ class RecommendationPolicyFlowWebMvcTest {
                                 .gov24BenefitTypeLabel("서비스")
                                 .build()
                 ));
+        given(serviceRegionRepository.findFirstSidoByServiceIds(List.of(11L)))
+                .willReturn(List.<Object[]>of(new Object[]{11L, "서울"}));
         given(policyRankingService.getRanking(5)).willReturn(List.of(ranking));
         given(policySearchService.search(isNull(), eq("월세"), eq("ACTIVE"), isNull(), eq("HOUSING"), eq("YOUTH"), eq(true), isNull(), isNull(), eq("RELEVANCE"), isNull(), isNull(), eq(0), eq(10)))
                 .willReturn(PolicySearchResponse.builder()
@@ -186,7 +192,11 @@ class RecommendationPolicyFlowWebMvcTest {
                 .andExpect(jsonPath("$.data[0].provisionMethodLabel").value("온라인"))
                 .andExpect(jsonPath("$.data[0].gov24ServiceFieldLabel").value("보육"))
                 .andExpect(jsonPath("$.data[0].gov24UserTypeLabel").value("청년"))
-                .andExpect(jsonPath("$.data[0].gov24BenefitTypeLabel").value("서비스"));
+                .andExpect(jsonPath("$.data[0].gov24BenefitTypeLabel").value("서비스"))
+                .andExpect(jsonPath("$.data[0].hostOrg").value("서울시"))
+                .andExpect(jsonPath("$.data[0].operatingOrg").value("서울주거재단"))
+                .andExpect(jsonPath("$.data[0].sido").value("서울"))
+                .andExpect(jsonPath("$.data[0].applyEndDate").value("2026-12-31"));
 
         mockMvc.perform(get("/api/policies/ranking")
                         .param("size", "5"))
@@ -290,6 +300,8 @@ class RecommendationPolicyFlowWebMvcTest {
                                 .gov24BenefitTypeLabel("서비스")
                                 .build()
                 ));
+        given(serviceRegionRepository.findFirstSidoByServiceIds(List.of(11L)))
+                .willReturn(List.<Object[]>of(new Object[]{11L, "서울"}));
 
         mockMvc.perform(get("/api/recommendations")
                         .param("size", "10")
@@ -309,7 +321,11 @@ class RecommendationPolicyFlowWebMvcTest {
                 .andExpect(jsonPath("$.data[0].provisionMethodLabel").value("온라인"))
                 .andExpect(jsonPath("$.data[0].gov24ServiceFieldLabel").value("보육"))
                 .andExpect(jsonPath("$.data[0].gov24UserTypeLabel").value("청년"))
-                .andExpect(jsonPath("$.data[0].gov24BenefitTypeLabel").value("서비스"));
+                .andExpect(jsonPath("$.data[0].gov24BenefitTypeLabel").value("서비스"))
+                .andExpect(jsonPath("$.data[0].hostOrg").value("서울시"))
+                .andExpect(jsonPath("$.data[0].operatingOrg").value("서울주거재단"))
+                .andExpect(jsonPath("$.data[0].sido").value("서울"))
+                .andExpect(jsonPath("$.data[0].applyEndDate").value("2026-12-31"));
 
         verify(recommendationAccessService).getRecommendations(isNull(), eq(10));
     }
@@ -391,7 +407,10 @@ class RecommendationPolicyFlowWebMvcTest {
                 .title(title)
                 .description("설명")
                 .unifiedCategory("HOUSING")
+                .hostOrg("서울시")
+                .operatingOrg("서울주거재단")
                 .status(WelfareService.ServiceStatus.ACTIVE)
+                .applyEndDate(LocalDate.of(2026, 12, 31))
                 .isOnlineApply(true)
                 .build();
     }

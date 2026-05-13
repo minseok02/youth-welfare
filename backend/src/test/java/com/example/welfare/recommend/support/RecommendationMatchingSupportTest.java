@@ -53,6 +53,18 @@ class RecommendationMatchingSupportTest {
     }
 
     @Test
+    @DisplayName("target group fallback은 영어 household 코드도 한글 대상 그룹과 매칭한다")
+    void matchesTargetGroupFallbackForEnglishHouseholdCodes() {
+        RecommendationUserSnapshot user = snapshot((byte) 5, "ONE_PERSON", "EMPLOYED", List.of());
+
+        assertThat(RecommendationMatchingSupport.targetGroupMatches(
+                user,
+                List.of("1인가구"),
+                null
+        )).isTrue();
+    }
+
+    @Test
     @DisplayName("special target match는 projection bucket 기준으로 유저 target type을 매칭한다")
     void matchesSpecialTargetProjectionBuckets() {
         RecommendationUserSnapshot user = snapshot((byte) 5, null, null, List.of(RecommendationProjectionHeuristicSupport.SPECIAL_TARGET_RURAL));
