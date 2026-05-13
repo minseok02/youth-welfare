@@ -318,6 +318,8 @@ export default function MyPage() {
     region: "", subRegion: "", income: "", employ: "", householdType: "",
   });
   const [profileCompleteness, setProfileCompleteness] = useState(null);
+  const [profileAgeBand, setProfileAgeBand] = useState("");
+  const [hasPhone, setHasPhone] = useState(false);
   const [editing, setEditing] = useState(false);
   const [infoLoading, setInfoLoading] = useState(false);
   const [nameError, setNameError] = useState("");
@@ -337,6 +339,7 @@ export default function MyPage() {
   const [notifLoading, setNotifLoading] = useState(false);
   const [notifMinScore, setNotifMinScore] = useState(0.5);
   const [notifDisplayCount, setNotifDisplayCount] = useState(10);
+  const [notificationConsentAt, setNotificationConsentAt] = useState(null);
   const [filterIncludeExpired, setFilterIncludeExpired] = useState(filterSettings?.includeExpired ?? false);
 
   const [bookmarkSort, setBookmarkSort] = useState("latest");
@@ -396,10 +399,13 @@ export default function MyPage() {
           householdType: p.householdType ?? "",
         });
         setProfileCompleteness(Number.isFinite(p.profileCompleteness) ? p.profileCompleteness : null);
+        setProfileAgeBand(p.ageBand ?? "");
+        setHasPhone(Boolean(p.hasPhone));
         setNotifOn(p.notificationYn ?? false);
         setNotifFreq(p.notificationPeriod === "WEEKLY" ? "WEEKLY" : "DAILY");
         setNotifMinScore(typeof p.notificationMinScore === "number" ? p.notificationMinScore : 0.5);
         setNotifDisplayCount(Number.isFinite(p.displayCount) ? p.displayCount : 10);
+        setNotificationConsentAt(p.notificationConsentAt ?? null);
         setPriorities((p.priorities ?? []).map(item => item.code));
         setInterestFields(Array.isArray(p.interestFields) ? p.interestFields : []);
         setTargetTypes(Array.isArray(p.targetTypes) ? p.targetTypes : []);
@@ -555,6 +561,19 @@ export default function MyPage() {
     performServerLogout(logout).then(() => navigate("/login"));
   };
 
+  const formatConsentDateTime = (value) => {
+    if (!value) return "";
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return "";
+    return new Intl.DateTimeFormat("ko-KR", {
+      year: "numeric",
+      month: "numeric",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    }).format(parsed);
+  };
+
   const ddayUrgent = (dday) => dday !== "종료" && dday !== "상시/문의" && dday !== "예정"
     && (dday === "D-Day" || (dday.startsWith("D-") && Number(dday.slice(2)) <= 14));
 
@@ -616,6 +635,13 @@ export default function MyPage() {
                       <input style={iCss(false, true)} value={myInfo.email} disabled />
                     </Field>
                   </div>
+                  <div style={{ marginTop: 10, fontSize: 12, color: INK3 }}>
+                    연락처 등록 상태:{" "}
+                    <strong style={{ color: hasPhone ? "#166534" : INK2 }}>
+                      {hasPhone ? "등록됨" : "미등록"}
+                    </strong>
+                    {!hasPhone && " (현재 웹에서는 수정할 수 없어요)"}
+                  </div>
                 </SectionCard>
 
                 <SectionCard title="생년월일" desc="생년월일은 맞춤 연령 필터에 활용돼요">
@@ -633,6 +659,11 @@ export default function MyPage() {
                       {Array.from({ length: myInfo.birthYear && myInfo.birthMonth ? new Date(myInfo.birthYear, myInfo.birthMonth, 0).getDate() : 31 }, (_, i) => i + 1).map(d => <option key={d} value={String(d)}>{d}일</option>)}
                     </select>
                   </div>
+                  {profileAgeBand && (
+                    <div style={{ marginTop: 10, fontSize: 12, color: INK3 }}>
+                      현재 연령대 분류: <strong style={{ color: INK2 }}>{profileAgeBand}</strong>
+                    </div>
+                  )}
                 </SectionCard>
 
                 <SectionCard title="거주지" desc="지자체별 정책 추천에 사용돼요">
@@ -969,6 +1000,11 @@ export default function MyPage() {
                   <SectionCard>
                     <div style={{ padding: 16, background: AS, borderRadius: 12, fontSize: 13, color: INK2, lineHeight: 1.6 }}>
                       현재 알림 설정은 이메일 수신 여부, 발송 주기, 최소 추천 점수, 발송 개수만 저장됩니다.
+                      {notificationConsentAt && (
+                        <div style={{ marginTop: 8, color: INK3 }}>
+                          최근 수신 동의 시각: {formatConsentDateTime(notificationConsentAt)}
+                        </div>
+                      )}
                     </div>
                   </SectionCard>
 

@@ -510,7 +510,7 @@ export default function MainPage() {
             id: p.id,
             title: p.title,
             dday: formatDday(p.applyEndDate, p.status),
-            source: p.hostOrg || p.sido || "",
+            source: p.hostOrg || p.sido || p.operatingOrg || "",
             category: p.unifiedCategory || "기타",
           }))
           .filter((p) => p.dday !== "종료" && p.dday !== "상시" && p.dday !== "예정");

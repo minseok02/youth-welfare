@@ -3222,3 +3222,23 @@
 - 문제: `@RequestBody` 의 `MethodArgumentNotValidException` 은 400으로 잘 처리돼도, `@RequestParam`/method validation 은 `ConstraintViolationException` 으로 올라온다. 전역 예외 핸들러가 이걸 모르면 `limit=0`, `failedSampleLimit=21` 같은 단순 입력 오류가 `500/C002` 로 보인다.
 - 해결: `GlobalExceptionHandler` 에 `ConstraintViolationException -> 400/C001` 매핑을 추가했다.
 - 이유: request DTO 계약 점검에서 query param validation도 같은 축이다. body만 400이고 query는 500이면 API 소비자는 같은 종류의 입력 오류를 전혀 다르게 해석하게 된다.
+
+## 626) `welfare_service_details` 에 `supportCycle/provisionType` 를 저장해도 상세 DTO가 계속 `welfare_services` 값만 읽으면, detail 보강이 API에서 조용히 사라진다
+- 문제: 복지로 detail 수집은 `supportCycle`, `provisionType` 을 detail row에도 저장한다. 그런데 `PolicyDetailResponse` 가 이 필드를 `WelfareService` 쪽 값으로만 읽으면, service row가 비어 있거나 stale한 경우 detail에서 보강한 값이 상세 API에 전혀 나타나지 않는다.
+- 해결: 상세 DTO는 `detail.supportCycle/provisionType` 를 우선하고, 없을 때만 `service` 값으로 fallback 하게 바꿨다.
+- 이유: detail row를 따로 두는 목적은 원본 상세 보강을 보존하려는 것이다. 응답 조립 단계에서 다시 요약 row만 보면 그 목적이 무너진다.
+
+## 627) 같은 `PolicySummaryResponse` 를 메인 비로그인 카드와 추천 카드가 다르게 소비하면, 어떤 화면만 출처 줄이 빈다
+- 문제: 추천 카드는 이미 `hostOrg -> sido -> operatingOrg` fallback 을 쓰는데, 메인 비로그인 화면의 마감임박 카드만 `hostOrg -> sido` 까지만 보면 `operatingOrg` 만 있는 정책은 그 화면에서만 출처가 비어 보일 수 있다.
+- 해결: 메인 마감임박 카드도 `hostOrg -> sido -> operatingOrg` 순으로 source를 해석하게 맞췄다.
+- 이유: 같은 응답 필드를 여러 카드가 공유하면, 화면별 fallback 규칙 차이가 곧 “특정 화면만 이상한” 버그가 된다.
+
+## 628) `UserProfile` 에 이미 계산된 `ageBand` 와 `notificationConsentAt` 이 있어도 `ProfileResponse` 로 안 올리면, 마이페이지는 같은 정보를 다시 추정하거나 아예 못 보여준다
+- 문제: 프로필 read model은 연령대와 최근 알림 동의 시각을 이미 저장하고 있었지만, `ProfileResponse` 가 이 필드를 내리지 않으면 프론트는 생년월일만 보고 연령 관련 문맥을 다시 추정하거나, 알림 동의 이력을 전혀 보여줄 수 없다.
+- 해결: `ProfileResponse` 와 프로필 조회 테스트에 `ageBand`, `notificationConsentAt` 를 추가하고, 마이페이지에서 이를 읽기 전용 메타로 노출했다.
+- 이유: 파생값을 서버가 이미 계산해 저장한다면, 읽기 API도 그 값을 single source 로 노출하는 편이 맞다. 같은 정보를 프론트가 다시 유추하기 시작하면 계약이 약해지고 화면마다 표현이 어긋난다.
+
+## 629) `UserProfile.hasPhone` 이 projection 에 있어도 응답으로 안 올리면, 프로필 완성도에 영향을 주는 연락처 상태가 사용자에게는 보이지 않는다
+- 문제: user profile projection 은 `hasPhone` 으로 연락처 등록 여부를 이미 알고 있었지만, 프로필 응답이 이를 숨기고 있으면 마이페이지는 “왜 완성도가 덜 찼는지” 설명할 단서를 잃는다.
+- 해결: `ProfileResponse` 에 `hasPhone` 을 추가하고, 마이페이지 기본 정보 섹션에 연락처 등록 상태를 read-only 로 노출했다.
+- 이유: 직접 수정 경로가 아직 없더라도, 시스템이 이미 계산한 completeness 관련 상태는 최소한 읽을 수 있어야 사용자와 운영자가 현재 profile state 를 해석할 수 있다.
