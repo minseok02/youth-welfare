@@ -283,8 +283,8 @@ public class AdminDashboardSearchReadRepository {
                        online_apply,
                        include_closed,
                        sort_key
-                having zero_result_count > 0
-                   and recovered_result_count > 0
+                having coalesce(sum(case when result_count = 0 then 1 else 0 end), 0) > 0
+                   and coalesce(sum(case when result_count > 0 then 1 else 0 end), 0) > 0
               order by zero_result_count desc,
                        recovered_result_count desc,
                        latest_recovered_at desc,
