@@ -45,8 +45,9 @@ public class ChatRetrievalSnapshotService {
     @Transactional
     public void recordInteractiveTrace(ChatSession session,
                                        String question,
-                                       ChatPolicyService.CandidateTrace trace) {
-        persistSnapshot(toSnapshotBuilder("INTERACTIVE", null, question, trace)
+                                       ChatPolicyService.CandidateTrace trace,
+                                       boolean needsClarification) {
+        persistSnapshot(toSnapshotBuilder("INTERACTIVE", null, question, trace, needsClarification)
                 .sessionId(session.getId())
                 .userKey(session.getUserKey())
                 .build());
@@ -58,7 +59,7 @@ public class ChatRetrievalSnapshotService {
                                       List<ChatBranchOptionResponse> branchSuggestions,
                                       ChatPolicyService.CandidateTrace trace) {
         ChatRetrievalSnapshot.ChatRetrievalSnapshotBuilder builder =
-                toSnapshotBuilder("EVALUATION", scenarioKey, question, trace);
+                toSnapshotBuilder("EVALUATION", scenarioKey, question, trace, false);
         if (branchSuggestions != null && !branchSuggestions.isEmpty()) {
             builder.branchSuggestionKeysJson(writeJson(branchSuggestions.stream()
                     .map(ChatBranchOptionResponse::getBranchKey)
@@ -78,7 +79,8 @@ public class ChatRetrievalSnapshotService {
     private ChatRetrievalSnapshot.ChatRetrievalSnapshotBuilder toSnapshotBuilder(String snapshotType,
                                                                                  String scenarioKey,
                                                                                  String question,
-                                                                                 ChatPolicyService.CandidateTrace trace) {
+                                                                                 ChatPolicyService.CandidateTrace trace,
+                                                                                 Boolean needsClarification) {
         return ChatRetrievalSnapshot.builder()
                 .snapshotType(snapshotType)
                 .scenarioKey(normalizeNullable(scenarioKey))
@@ -92,6 +94,7 @@ public class ChatRetrievalSnapshotService {
                 .semanticServiceIdsJson(writeJson(serviceIds(trace.semanticCandidates())))
                 .mergedServiceIdsJson(writeJson(serviceIds(trace.finalCandidates())))
                 .fallbackStrategy(normalizeNullable(trace.fallbackStrategy()))
+                .needsClarification(needsClarification)
                 .resultCount(trace.finalCandidates().size());
     }
 

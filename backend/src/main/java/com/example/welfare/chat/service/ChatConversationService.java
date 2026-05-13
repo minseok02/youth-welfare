@@ -102,7 +102,6 @@ public class ChatConversationService {
         ChatPolicyService.CandidateTrace candidateTrace =
                 chatPolicyService.traceCandidates(content, request.getBranchKey(), REFERENCE_LIMIT);
         List<ChatPolicyCandidate> candidates = candidateTrace.finalCandidates();
-        chatRetrievalSnapshotService.recordInteractiveTrace(session, content, candidateTrace);
         Map<Long, String> evidenceByServiceId = chatGroundingService.loadEvidenceMap(candidates);
         List<ChatReferenceResponse> fallbackReferences = candidates.stream()
                 .map(candidate -> toReference(candidate, evidenceByServiceId))
@@ -123,6 +122,7 @@ public class ChatConversationService {
         boolean needsClarification = resolveNeedsClarification(aiResult, references);
         String answer = resolveAnswer(aiResult, references, needsClarification);
         ChatAnswerMode answerMode = resolveAnswerMode(needsClarification);
+        chatRetrievalSnapshotService.recordInteractiveTrace(session, content, candidateTrace, needsClarification);
 
         chatMessageCommandService.appendAssistantMessage(
                 session.getId(),
@@ -203,6 +203,15 @@ public class ChatConversationService {
                         ChatAnswerMode.BRANCH_SUGGESTION,
                         false,
                         chatBranchCatalog.toResponsesByKeys(branchKeys)
+                );
+            }
+            if (Boolean.TRUE.equals(snapshot.getNeedsClarification())) {
+                return new AssistantMessageMetadata(
+                        referencedServiceIds,
+                        references,
+                        ChatAnswerMode.CLARIFICATION,
+                        true,
+                        List.of()
                 );
             }
             if (referencedServiceIds.isEmpty() && snapshot.getResultCount() == 0) {

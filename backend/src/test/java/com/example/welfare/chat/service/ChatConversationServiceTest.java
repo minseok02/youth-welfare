@@ -146,7 +146,7 @@ class ChatConversationServiceTest {
                 any()
         );
         verify(chatRateLimitService).checkMessageSendLimit(1L);
-        verify(chatRetrievalSnapshotService).recordInteractiveTrace(session, "서울 월세 지원 알려줘", trace);
+        verify(chatRetrievalSnapshotService).recordInteractiveTrace(session, "서울 월세 지원 알려줘", trace, false);
     }
 
     @Test
@@ -182,7 +182,7 @@ class ChatConversationServiceTest {
         assertThat(response.getAnswer()).contains("조금 더 구체적으로");
         verify(chatMessageCommandService).appendUserMessage(10L, "조건을 모르겠어", null);
         verify(chatRateLimitService).checkMessageSendLimit(1L);
-        verify(chatRetrievalSnapshotService).recordInteractiveTrace(session, "조건을 모르겠어", trace);
+        verify(chatRetrievalSnapshotService).recordInteractiveTrace(session, "조건을 모르겠어", trace, true);
     }
 
     @Test
@@ -234,7 +234,7 @@ class ChatConversationServiceTest {
                 any()
         );
         verify(chatRateLimitService).checkMessageSendLimit(1L);
-        verify(chatRetrievalSnapshotService).recordInteractiveTrace(session, "서울 월세 지원 알려줘", trace);
+        verify(chatRetrievalSnapshotService).recordInteractiveTrace(session, "서울 월세 지원 알려줘", trace, false);
     }
 
     @Test
@@ -306,6 +306,52 @@ class ChatConversationServiceTest {
         assertThat(responses.get(1).getBranchSuggestions())
                 .extracting("branchKey")
                 .containsExactly("housing-stability", "housing-cash", "housing-subscription");
+    }
+
+    @Test
+    @DisplayName("메시지 재조회는 snapshot의 clarification 플래그를 우선 복원한다")
+    void getMessagesRestoresClarificationMetadataFromSnapshot() {
+        User user = createUser(1L);
+        ChatSession session = ChatSession.builder().id(10L).userKey("user-key-1").build();
+        ChatMessage userMessage = ChatMessage.builder()
+                .id(100L)
+                .session(session)
+                .role(ChatMessageRole.USER)
+                .content("지원은 있는데 제 상황에 맞는지 모르겠어")
+                .build();
+        ReflectionTestUtils.setField(userMessage, "createdAt", java.time.LocalDateTime.of(2026, 5, 14, 10, 0, 0));
+        ChatMessage assistantMessage = ChatMessage.builder()
+                .id(101L)
+                .session(session)
+                .role(ChatMessageRole.ASSISTANT)
+                .content("먼저 조건을 조금 더 알려주시면 정확히 좁힐 수 있습니다.")
+                .referencedServiceIds("[1829]")
+                .referencesJson("[{\"serviceId\":1829,\"title\":\"청년월세 한시 특별지원\",\"reason\":\"주거비 지원\",\"evidence\":\"월세 지원\"}]")
+                .build();
+        ReflectionTestUtils.setField(assistantMessage, "createdAt", java.time.LocalDateTime.of(2026, 5, 14, 10, 0, 1));
+        ChatRetrievalSnapshot snapshot = ChatRetrievalSnapshot.builder()
+                .id(16L)
+                .snapshotType("INTERACTIVE")
+                .sessionId(10L)
+                .userKey("user-key-1")
+                .question("지원은 있는데 제 상황에 맞는지 모르겠어")
+                .needsClarification(true)
+                .resultCount(1)
+                .build();
+        ReflectionTestUtils.setField(snapshot, "createdAt", java.time.LocalDateTime.of(2026, 5, 14, 10, 0, 0));
+
+        when(activeUserReadService.getActiveUserContext(1L))
+                .thenReturn(new ActiveUserReadService.ActiveUserContext(user, "user-key-1"));
+        when(chatMessageReadRepository.findOwnedSession(10L, "user-key-1")).thenReturn(Optional.of(session));
+        when(chatMessageReadRepository.findMessages(10L)).thenReturn(List.of(userMessage, assistantMessage));
+        when(chatRetrievalSnapshotService.findSessionSnapshots(10L)).thenReturn(List.of(snapshot));
+
+        var responses = chatConversationService.getMessages(1L, 10L);
+
+        assertThat(responses).hasSize(2);
+        assertThat(responses.get(1).getAnswerMode()).isEqualTo(ChatAnswerMode.CLARIFICATION);
+        assertThat(responses.get(1).isNeedsClarification()).isTrue();
+        assertThat(responses.get(1).getReferences()).hasSize(1);
     }
 
     @Test

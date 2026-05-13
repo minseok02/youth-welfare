@@ -672,6 +672,7 @@ CREATE TABLE IF NOT EXISTS chat_retrieval_snapshots (
     semantic_service_ids_json   TEXT,
     merged_service_ids_json     TEXT,
     fallback_strategy           VARCHAR(40),
+    needs_clarification         BOOLEAN,
     result_count                INTEGER NOT NULL DEFAULT 0,
     created_at                  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at                  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
