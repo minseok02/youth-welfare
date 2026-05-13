@@ -10,6 +10,7 @@ import lombok.Builder;
 import lombok.Getter;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -25,13 +26,16 @@ public class ProfileResponse {
     private String sgg;
     private String regionCode;
     private Byte incomeLevel;
+    private String ageBand;
     private String householdType;
     private String employmentStatus;
     private boolean notificationYn;
     private String notificationPeriod;
     private Double notificationMinScore;
+    private LocalDateTime notificationConsentAt;
     private int displayCount;
     private int profileCompleteness;
+    private boolean hasPhone;
     private List<String> interestFields;
     private List<String> targetTypes;
     private List<PriorityItem> priorities;
@@ -72,13 +76,16 @@ public class ProfileResponse {
                 .sgg(user.getSgg())
                 .regionCode(user.getRegionCode())
                 .incomeLevel(user.getIncomeLevel())
+                .ageBand(null)
                 .householdType(user.getHouseholdType())
                 .employmentStatus(user.getEmploymentStatus())
                 .notificationYn(user.isNotificationYn())
                 .notificationPeriod(user.getNotificationPeriod().name())
                 .notificationMinScore(user.getNotificationMinScore())
+                .notificationConsentAt(user.getNotificationConsentAt())
                 .displayCount(user.getDisplayCount())
                 .profileCompleteness(user.getProfileCompleteness())
+                .hasPhone(user.getPhoneEnc() != null && !user.getPhoneEnc().trim().isEmpty())
                 .interestFields(interestFields)
                 .targetTypes(targetTypes)
                 .priorities(priorityItems)
@@ -115,13 +122,16 @@ public class ProfileResponse {
                 .sgg(profile.getSgg())
                 .regionCode(profile.getRegionCode())
                 .incomeLevel(profile.getIncomeLevel())
+                .ageBand(profile.getAgeBand())
                 .householdType(profile.getHouseholdType())
                 .employmentStatus(profile.getEmploymentStatus())
                 .notificationYn(profile.isNotificationYn())
                 .notificationPeriod(profile.getNotificationPeriod() != null ? profile.getNotificationPeriod().name() : User.NotificationPeriod.NONE.name())
                 .notificationMinScore(profile.getNotificationMinScore())
+                .notificationConsentAt(profile.getNotificationConsentAt())
                 .displayCount(profile.getDisplayCount())
                 .profileCompleteness(profile.getProfileCompleteness())
+                .hasPhone(profile.isHasPhone())
                 .interestFields(interestFields)
                 .targetTypes(targetTypes)
                 .priorities(priorityItems)

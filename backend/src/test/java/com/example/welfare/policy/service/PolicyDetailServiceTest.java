@@ -50,6 +50,8 @@ class PolicyDetailServiceTest {
                 .supportDetail("월세")
                 .applyMethodDetail("온라인 접수")
                 .selectionCriteria("소득 심사")
+                .supportCycle("분기별")
+                .provisionType("바우처")
                 .homepageUrl("https://apply.example.com")
                 .relatedLaw("청년기본법")
                 .formFiles("신청서, 주민등록등본")
@@ -85,6 +87,8 @@ class PolicyDetailServiceTest {
         assertEquals("주거", response.getUnifiedCategory());
         assertEquals(8, response.getViewCount());
         assertEquals("소득 심사", response.getSelectionCriteria());
+        assertEquals("분기별", response.getSupportCycle());
+        assertEquals("바우처", response.getProvisionType());
         assertEquals("https://apply.example.com", response.getHomepageUrl());
         assertEquals("청년기본법", response.getRelatedLaw());
         assertEquals("신청서, 주민등록등본", response.getFormFiles());
