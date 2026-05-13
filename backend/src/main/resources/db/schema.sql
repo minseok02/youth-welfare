@@ -647,6 +647,7 @@ CREATE TABLE IF NOT EXISTS chat_messages (
     role                   VARCHAR(16) NOT NULL,
     content                TEXT NOT NULL,
     referenced_service_ids TEXT,
+    references_json        TEXT,
     created_at             TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at             TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_cm_session FOREIGN KEY (session_id) REFERENCES chat_sessions(id) ON DELETE CASCADE

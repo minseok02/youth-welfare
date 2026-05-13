@@ -86,6 +86,7 @@ public class ChatConversationService {
                     session.getId(),
                     answer,
                     "[]",
+                    "[]",
                     LocalDateTime.now()
             );
             return ChatAnswerResponse.builder()
@@ -127,6 +128,7 @@ public class ChatConversationService {
                 session.getId(),
                 answer,
                 writeReferencedServiceIds(references),
+                writeReferences(references),
                 LocalDateTime.now()
         );
 
@@ -151,6 +153,7 @@ public class ChatConversationService {
                 responses.add(ChatMessageResponse.from(
                         message,
                         parseReferencedServiceIds(message.getReferencedServiceIds()),
+                        List.of(),
                         null,
                         false,
                         List.of()
@@ -158,15 +161,24 @@ public class ChatConversationService {
                 continue;
             }
 
+            List<ChatReferenceResponse> references = parseReferences(message.getReferencesJson());
+            List<Long> referencedServiceIds = !references.isEmpty()
+                    ? references.stream()
+                    .map(ChatReferenceResponse::getServiceId)
+                    .filter(Objects::nonNull)
+                    .toList()
+                    : parseReferencedServiceIds(message.getReferencedServiceIds());
             AssistantMessageMetadata metadata = resolveAssistantMetadata(
                     message,
                     lastUserQuestion,
                     snapshots,
-                    parseReferencedServiceIds(message.getReferencedServiceIds())
+                    referencedServiceIds,
+                    references
             );
             responses.add(ChatMessageResponse.from(
                     message,
                     metadata.referencedServiceIds(),
+                    metadata.references(),
                     metadata.answerMode(),
                     metadata.needsClarification(),
                     metadata.branchSuggestions()
@@ -179,13 +191,15 @@ public class ChatConversationService {
     private AssistantMessageMetadata resolveAssistantMetadata(ChatMessage message,
                                                              String lastUserQuestion,
                                                              List<ChatRetrievalSnapshot> snapshots,
-                                                             List<Long> referencedServiceIds) {
+                                                             List<Long> referencedServiceIds,
+                                                             List<ChatReferenceResponse> references) {
         ChatRetrievalSnapshot snapshot = findMatchingSnapshot(lastUserQuestion, message.getCreatedAt(), snapshots);
         if (snapshot != null) {
             List<String> branchKeys = parseBranchSuggestionKeys(snapshot.getBranchSuggestionKeysJson());
             if (!branchKeys.isEmpty()) {
                 return new AssistantMessageMetadata(
                         referencedServiceIds,
+                        references,
                         ChatAnswerMode.BRANCH_SUGGESTION,
                         false,
                         chatBranchCatalog.toResponsesByKeys(branchKeys)
@@ -194,6 +208,7 @@ public class ChatConversationService {
             if (referencedServiceIds.isEmpty() && snapshot.getResultCount() == 0) {
                 return new AssistantMessageMetadata(
                         referencedServiceIds,
+                        references,
                         ChatAnswerMode.CLARIFICATION,
                         true,
                         List.of()
@@ -204,6 +219,7 @@ public class ChatConversationService {
         if (!referencedServiceIds.isEmpty()) {
             return new AssistantMessageMetadata(
                     referencedServiceIds,
+                    references,
                     ChatAnswerMode.POLICY_GROUNDED,
                     false,
                     List.of()
@@ -212,6 +228,7 @@ public class ChatConversationService {
 
         return new AssistantMessageMetadata(
                 referencedServiceIds,
+                references,
                 null,
                 false,
                 List.of()
@@ -292,11 +309,34 @@ public class ChatConversationService {
         }
     }
 
+    private List<ChatReferenceResponse> parseReferences(String rawReferencesJson) {
+        if (!StringUtils.hasText(rawReferencesJson)) {
+            return List.of();
+        }
+
+        try {
+            List<ChatReferenceResponse> references = objectMapper.readValue(
+                    rawReferencesJson, new TypeReference<List<ChatReferenceResponse>>() {
+                    });
+            return references != null ? references : List.of();
+        } catch (JsonProcessingException e) {
+            throw new CustomException(ErrorCode.INTERNAL_SERVER_ERROR);
+        }
+    }
+
     private String writeReferencedServiceIds(List<ChatReferenceResponse> references) {
         try {
             return objectMapper.writeValueAsString(references.stream()
                     .map(ChatReferenceResponse::getServiceId)
                     .toList());
+        } catch (JsonProcessingException e) {
+            throw new CustomException(ErrorCode.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    private String writeReferences(List<ChatReferenceResponse> references) {
+        try {
+            return objectMapper.writeValueAsString(references);
         } catch (JsonProcessingException e) {
             throw new CustomException(ErrorCode.INTERNAL_SERVER_ERROR);
         }
@@ -375,6 +415,7 @@ public class ChatConversationService {
 
     private record AssistantMessageMetadata(
             List<Long> referencedServiceIds,
+            List<ChatReferenceResponse> references,
             ChatAnswerMode answerMode,
             boolean needsClarification,
             List<ChatBranchOptionResponse> branchSuggestions

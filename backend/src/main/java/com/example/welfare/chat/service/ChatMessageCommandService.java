@@ -25,7 +25,11 @@ public class ChatMessageCommandService {
     }
 
     @Transactional
-    public void appendAssistantMessage(Long sessionId, String answer, String referencedServiceIds, LocalDateTime lastMessageAt) {
-        chatMessageCommandRepository.appendAssistantMessage(sessionId, answer, referencedServiceIds, lastMessageAt);
+    public void appendAssistantMessage(Long sessionId,
+                                       String answer,
+                                       String referencedServiceIds,
+                                       String referencesJson,
+                                       LocalDateTime lastMessageAt) {
+        chatMessageCommandRepository.appendAssistantMessage(sessionId, answer, referencedServiceIds, referencesJson, lastMessageAt);
     }
 }

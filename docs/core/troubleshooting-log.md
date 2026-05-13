@@ -3122,3 +3122,18 @@
 - 문제: `docs/core/db-migration.md` 에는 draft sidecar SQL, `mysql -h ...`, `docker exec ... mysql ...`, `SHOW TABLES`, `ANALYZE TABLE` 같은 예전 MySQL 예시가 많이 남아 있다. 이 문서를 현재 main 실행 문서처럼 읽으면 PostgreSQL integrated schema / admin rebuild 흐름과 충돌한다.
 - 해결: 문서 상단에 “현재 main은 PostgreSQL, 이 문서는 legacy MySQL migration history” 라는 경계를 명시하고, `current-state`, PostgreSQL playbook, `schema.sql`, local validation 문서로 먼저 보내도록 바꿨다. MySQL 예시 섹션도 `legacy MySQL only` 라벨을 붙였다.
 - 이유: 오래된 운영 문서는 코드보다 늦게 사고를 만든다. 실행 경로가 바뀐 뒤에는 문서가 스스로 현재 truth와 legacy history를 구분해야 한다.
+
+## 606) 챗봇 응답이 POST 직후에는 `references` 를 주는데 세션 재조회 DTO에는 ID만 남기면, 새로고침 뒤에는 근거 카드가 절반만 복원된다
+- 문제: `ChatAnswerResponse` 는 `references[serviceId,title,reason,evidence]` 를 내려주지만 `ChatMessageResponse` 가 `referencedServiceIds` 만 가지면, 프론트는 새로고침 뒤 reference title/reason/evidence 를 다시 받을 수 없다. 그 결과 첫 응답에서는 연결 정책 설명이 보이는데, 세션 재조회 후에는 같은 카드가 상세 조회 fallback 설명으로 후퇴한다.
+- 해결: assistant message 저장 시 `referencesJson` 도 같이 보존하고, `ChatMessageResponse` 에 `references` 필드를 추가해 `GET /messages` 가 POST와 같은 reference payload를 다시 주도록 맞췄다.
+- 이유: 대화형 UI에서 “처음 응답 계약”과 “세션 재조회 계약”이 다르면, 기능은 되는 것처럼 보여도 실제 상태 복원성은 깨진다.
+
+## 607) 같은 `PolicySummaryResponse` 를 써도 북마크 화면이 목록 화면보다 source fallback을 덜 쓰면, 특정 source 정책만 정보가 빈약해 보인다
+- 문제: 정책 목록은 `hostOrg -> sido -> applyMethodName` fallback을 쓰는데 북마크 화면은 `hostOrg -> applyMethodName` 만 보면, `BOKJIRO_LOCAL` 같이 `hostOrg` 가 비고 `sido/operatingOrg` 가 중요한 정책이 북마크 탭에서만 출처가 덜 보인다.
+- 해결: 북마크 `mapBookmark()` 도 `hostOrg -> sido -> operatingOrg -> applyMethodName` 순서로 source를 해석하게 맞췄다.
+- 이유: 같은 DTO를 여러 화면이 공유한다면, 화면마다 fallback 정책이 달라지는 순간 “API는 맞는데 어떤 화면만 이상한” 상태가 된다.
+
+## 608) 프로필 완성도를 프론트가 다시 추정하면, 백엔드가 이미 계산한 `profileCompleteness` 와 화면 표시가 어긋날 수 있다
+- 문제: 백엔드는 `ProfileResponse.profileCompleteness` 를 내려주는데 프론트가 birth/region/income/employ/priority 만 다시 세어 퍼센트를 계산하면, household type / interest field 같은 서버 기준이 바뀌었을 때 동일 사용자라도 화면 퍼센트가 서버와 다를 수 있다.
+- 해결: 마이페이지는 서버가 내려준 `profileCompleteness` 가 있으면 그 값을 우선 사용하고, 없을 때만 로컬 추정값으로 fallback 하게 바꿨다.
+- 이유: 파생값은 가능하면 계산한 쪽을 single source of truth로 삼는 편이 계약 불일치를 줄인다.

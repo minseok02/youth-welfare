@@ -60,7 +60,7 @@ class ChatMessageCommandRepositoryImplTest {
         LocalDateTime now = LocalDateTime.now();
         given(chatSessionRepository.findById(10L)).willReturn(Optional.of(session));
 
-        chatMessageCommandRepository.appendAssistantMessage(10L, "답변", "[1,2]", now);
+        chatMessageCommandRepository.appendAssistantMessage(10L, "답변", "[1,2]", "[{\"serviceId\":1}]", now);
 
         assertThat(session.getLastMessageAt()).isEqualTo(now);
         then(chatMessageRepository).should().save(any());

@@ -84,11 +84,19 @@ const mapBranchSuggestion = (option) => ({
   guideQuestion: option.guideQuestion,
 });
 
+const mapReference = (reference) => ({
+  serviceId: reference.serviceId,
+  title: reference.title,
+  reason: reference.reason,
+  evidence: reference.evidence,
+});
+
 const mapMessage = (message) => ({
   messageId: message.messageId,
   role: message.role,
   content: message.content,
   referencedServiceIds: message.referencedServiceIds ?? [],
+  references: (message.references ?? []).map(mapReference),
   answerMode: message.answerMode ?? null,
   needsClarification: Boolean(message.needsClarification),
   branchSuggestions: (message.branchSuggestions ?? []).map(mapBranchSuggestion),
@@ -213,7 +221,31 @@ export default function ChatPage() {
       const nextMessages = (data?.data ?? []).map(mapMessage);
       setMessages(nextMessages);
       setLatestAnswerMeta(extractLatestAnswerMeta(nextMessages));
-      const serviceIds = nextMessages.flatMap((message) => message.referencedServiceIds);
+      const referenceMeta = Object.fromEntries(
+        nextMessages
+          .flatMap((message) => message.references ?? [])
+          .filter((reference) => reference?.serviceId)
+          .map((reference) => [
+            reference.serviceId,
+            {
+              title: reference.title || `정책 #${reference.serviceId}`,
+              description: reference.reason || reference.evidence || "상세 페이지에서 조건과 신청 방법을 확인해보세요.",
+            },
+          ])
+      );
+      if (Object.keys(referenceMeta).length) {
+        setPolicyMeta((prev) => {
+          const merged = { ...prev, ...referenceMeta };
+          policyMetaRef.current = merged;
+          return merged;
+        });
+      }
+      const serviceIds = nextMessages.flatMap((message) => {
+        if (message.references?.length) {
+          return message.references.map((reference) => reference.serviceId);
+        }
+        return message.referencedServiceIds;
+      });
       if (serviceIds.length) {
         await enrichPolicyMeta(serviceIds);
       }
@@ -642,6 +674,7 @@ export default function ChatPage() {
                                     연결 정책
                                   </Typography>
                                   {message.referencedServiceIds.map((serviceId) => {
+                                    const reference = message.references?.find((item) => item.serviceId === serviceId);
                                     const meta = policyMeta[serviceId];
                                     return (
                                       <Paper
@@ -662,10 +695,10 @@ export default function ChatPage() {
                                         }}
                                       >
                                         <Typography fontWeight={700}>
-                                          {meta?.title ?? `정책 #${serviceId}`}
+                                          {reference?.title ?? meta?.title ?? `정책 #${serviceId}`}
                                         </Typography>
                                         <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                                          {meta?.description ?? "상세 페이지에서 조건과 신청 방법을 확인해보세요."}
+                                          {reference?.reason ?? reference?.evidence ?? meta?.description ?? "상세 페이지에서 조건과 신청 방법을 확인해보세요."}
                                         </Typography>
                                       </Paper>
                                     );
