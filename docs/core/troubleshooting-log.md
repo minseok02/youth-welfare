@@ -3027,3 +3027,8 @@
 - 문제: `PolicyReferenceUrlRebuildIntegrationTest` 를 추가한 뒤 처음 실행했을 때, 테스트 자체가 아니라 Spring context bootstrap 단계에서 `org.postgresql.util.PSQLException` / `java.net.ConnectException` 로 죽었다. 원인은 직전 turn에서 `docker compose down` 으로 `db`, `redis` 를 모두 내린 상태에서 `application-integration.yml` 이 여전히 `127.0.0.1:5433`, `127.0.0.1:6379` 를 기대하고 있었기 때문이다.
 - 해결: `docker compose up -d db redis` 로 integration 의존 서비스를 다시 올리고, health가 `healthy` 인 것을 확인한 뒤 테스트를 재실행했다. 이후 `PolicyReferenceUrlRebuildIntegrationTest` 는 정상 통과했다.
 - 이유: 이 프로젝트의 integration profile은 embedded DB가 아니라 로컬 Docker PostgreSQL/Redis를 전제로 한다. 따라서 테스트 실패 로그가 곧바로 코드 회귀를 의미하지는 않으며, `JDBCConnectionException` 이 먼저 보이면 서비스 기동 상태를 우선 확인하는 편이 빠르다.
+
+## 587) `POST /api/admin/collect/youth-details` 는 앱이 healthy여도 upstream DETAIL 500 재시도 때문에 수 분 이상 길어질 수 있으므로, 전체 기능 점검 루프에서는 bounded collect와 분리해 보는 편이 안전하다
+- 문제: 2026-05-13 로컬 런타임 점검에서 `collect/all`, `bokjiro-details-gap-fill`, 추천/검색/챗/정책 상세는 모두 빠르게 끝났지만, `POST /api/admin/collect/youth-details` 는 온통청년 DETAIL API의 간헐적 `500` 재시도(`CollectHttpRetryExecutor` warn) 때문에 응답이 오래 닫히지 않았다. 같은 동안 app `/actuator/health` 는 계속 `UP` 이었고, 다른 기능 호출도 정상 처리됐다.
+- 해결: 전체 기능 smoke에서는 `collect/all` 결과와 bounded admin 경로(`bokjiro-details-gap-fill`, `reference-urls/rebuild`, `category-audit`, `quality gate`)를 우선 확인하고, `youth-details` 는 별도 장시간 collect 관찰 대상으로 분리했다. 장시간 observation이 불필요할 때는 클라이언트 요청을 중단하고 app health와 로그만 확인한다.
+- 이유: 이 문제의 핵심은 앱 장애가 아니라 upstream DETAIL endpoint 변동성이다. 전체 기능 점검 루프에서 이 경로를 같은 timeout/기대시간으로 묶으면 다른 기능이 모두 정상이어도 검증 전체가 불필요하게 길어지거나 hanging처럼 보일 수 있다.
