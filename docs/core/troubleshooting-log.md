@@ -3202,3 +3202,23 @@
 - 문제: `브라우저 푸시`, `SMS`, `새 맞춤 정책`, `마감 D-7`, `이벤트·공지`, 기본 정렬/표시 방식/출처 같은 UI는 있었지만, 실제 request DTO나 저장 경로는 이 값을 전혀 받지 않았다. 화면만 보면 저장된 것처럼 보이지만 다음 진입이나 다른 기기에서는 그대로 사라진다.
 - 해결: 백엔드가 실제로 지원하는 필드(`notificationYn`, `notificationPeriod`, `notificationMinScore`, `displayCount`)만 남기고, 필터 탭도 현재 실제 저장되는 `includeExpired`만 노출하게 정리했다.
 - 이유: 미구현 기능을 “UI만 있는 상태”로 두면 버그보다 더 나쁘다. 사용자는 성공했다고 믿는데 시스템 state는 바뀌지 않기 때문이다.
+
+## 622) 챗 메시지 request DTO가 `2000자 이하`인데 프론트 입력창이 그 상한을 모르면, 사용자는 전송 버튼까지 누른 뒤에야 400을 맞는다
+- 문제: `SendChatMessageRequest.content` 는 2000자 상한을 갖고 있지만, 챗 화면 입력창은 길이 제한이나 카운터가 없어 긴 질문을 그대로 보낼 수 있었다. 이 경우 서버는 validation으로 막지만 사용자는 “입력은 됐는데 왜 실패했지” 상태가 된다.
+- 해결: 프론트 챗 입력창에 `maxLength=2000` 과 길이 카운터를 추가하고, 전송 직전에도 2000자 초과면 toast로 막게 했다.
+- 이유: 텍스트 입력 상한은 대표적인 request DTO 계약이다. 서버에서만 알고 프론트가 모르면 에러 처리는 맞아도 UX는 틀린 상태가 된다.
+
+## 623) 관리자 `forced-logout` 와 `pii-sync-replay/status` 입력을 느슨하게 받으면, 잘못된 `userKey/limit` 가 서비스 로직까지 흘러 들어간다
+- 문제: `user_key` 는 DB 기준 32자인데 관리자 API는 `forced-logout` body와 `pii-sync-replay` query param에서 길이 제한을 명시하지 않았고, replay/status limit도 범위 밖 값이 들어와도 서비스 내부에서 조용히 보정됐다.
+- 해결: 컨트롤러에서 `userKey <= 32`, `1 <= limit <= 1000`, `1 <= failedSampleLimit <= 20` 경계를 명시적으로 검증하고, 범위를 벗어나면 `C001` 로 바로 거절하게 했다.
+- 이유: 관리자 API라고 해서 입력 계약이 느슨하면 안 된다. 잘못된 값이 “어떻게든 돌아간다”는 상태는 smoke와 운영 스크립트가 실제 계약을 오해하게 만든다.
+
+## 624) 대시보드 query param 을 서비스에서 조용히 default로 되돌리기만 하면, 호출자는 자기 요청 값이 반영됐다고 착각할 수 있다
+- 문제: `summaryWindowDays`, `trendWindowDays`, `limit` 는 서비스 레이어에서 범위를 보정하고 있었지만, 컨트롤러는 잘못된 입력을 그대로 받았다. 예를 들어 `summaryWindowDays=366` 이나 `trendWindowDays=0` 도 200으로 응답할 수 있어 호출자는 자신의 값이 그대로 적용된 줄 알 수 있다.
+- 해결: 대시보드 컨트롤러에서 `1..365`, `1..20` 범위를 먼저 검증하고, 잘못된 값은 `C001` 로 실패시키게 바꿨다.
+- 이유: “default로 보정”은 내부 안전장치로는 유용하지만, 외부 API 계약까지 대신하면 안 된다. 요청이 잘못됐으면 우선 거절하고, 정상 요청만 서비스의 default 정책을 타게 해야 계약이 선명해진다.
+
+## 625) request body validation 만 400으로 매핑하고 `ConstraintViolationException` 을 놓치면, query param 계약 위반이 전부 500으로 새어 나온다
+- 문제: `@RequestBody` 의 `MethodArgumentNotValidException` 은 400으로 잘 처리돼도, `@RequestParam`/method validation 은 `ConstraintViolationException` 으로 올라온다. 전역 예외 핸들러가 이걸 모르면 `limit=0`, `failedSampleLimit=21` 같은 단순 입력 오류가 `500/C002` 로 보인다.
+- 해결: `GlobalExceptionHandler` 에 `ConstraintViolationException -> 400/C001` 매핑을 추가했다.
+- 이유: request DTO 계약 점검에서 query param validation도 같은 축이다. body만 400이고 query는 500이면 API 소비자는 같은 종류의 입력 오류를 전혀 다르게 해석하게 된다.

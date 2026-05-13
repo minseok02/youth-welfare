@@ -1,6 +1,7 @@
 package com.example.welfare.global.exception;
 
 import com.example.welfare.global.response.ApiResponse;
+import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
@@ -25,6 +26,17 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Void>> handleValidationException(MethodArgumentNotValidException e) {
         FieldError fieldError = e.getBindingResult().getFieldErrors().stream().findFirst().orElse(null);
         String message = fieldError != null ? fieldError.getDefaultMessage() : "입력값이 올바르지 않습니다.";
+        return ResponseEntity
+                .badRequest()
+                .body(ApiResponse.error(message, ErrorCode.INVALID_INPUT.getCode()));
+    }
+
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<ApiResponse<Void>> handleConstraintViolationException(ConstraintViolationException e) {
+        String message = e.getConstraintViolations().stream()
+                .findFirst()
+                .map(violation -> violation.getMessage())
+                .orElse("입력값이 올바르지 않습니다.");
         return ResponseEntity
                 .badRequest()
                 .body(ApiResponse.error(message, ErrorCode.INVALID_INPUT.getCode()));
