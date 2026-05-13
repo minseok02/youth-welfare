@@ -111,7 +111,11 @@ else
   export DB_MIGRATION_USERNAME
 fi
 export DB_MIGRATION_PASSWORD="${DB_MIGRATION_PASSWORD:-${DB_PASSWORD}}"
-export APP_PII_DB_URL="${APP_PII_DB_URL:-jdbc:mysql://db:3306/youth_welfare_pii?useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=UTF-8&serverTimezone=Asia/Seoul}"
+if [[ -z "${APP_PII_DB_URL:-}" || "${APP_PII_DB_URL}" == jdbc:mysql://* ]]; then
+  export APP_PII_DB_URL="jdbc:postgresql://db:5432/youth_welfare?sslmode=disable&currentSchema=youth_welfare_pii"
+else
+  export APP_PII_DB_URL
+fi
 export NOTIFICATION_PII_DB_URL="${NOTIFICATION_PII_DB_URL:-${APP_PII_DB_URL}}"
 if [[ -z "${DB_APP_PII_USERNAME_WAS_SET}" ]]; then
   export DB_APP_PII_USERNAME="app_pii_rw"
@@ -139,6 +143,10 @@ export USER_PII_SYNC_RETRY_INITIAL_DELAY_MS="${USER_PII_SYNC_RETRY_INITIAL_DELAY
 export USER_PII_SYNC_RETRY_FIXED_DELAY_MS="${USER_PII_SYNC_RETRY_FIXED_DELAY_MS:-300000}"
 export DB_QUERY_USERNAME="${DB_QUERY_USERNAME:-${DB_MIGRATION_USERNAME}}"
 export DB_QUERY_PASSWORD="${DB_QUERY_PASSWORD:-${DB_MIGRATION_PASSWORD}}"
+export DB_CONTAINER_NAME="${DB_CONTAINER_NAME:-youth-welfare-db}"
+export DB_HOST="${DB_HOST:-127.0.0.1}"
+export DB_PORT="${DB_PORT:-5433}"
+export DB_NAME="${DB_NAME:-youth_welfare}"
 
 cat <<EOF > "${OVERRIDE_COMPOSE_FILE}"
 services:

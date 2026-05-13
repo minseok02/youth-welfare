@@ -2,6 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+source "${ROOT_DIR}/deploy/smoke/smoke-common.sh"
 MIGRATION_FILE="${ROOT_DIR}/backend/src/main/resources/db/migration/V2026_04_28_02__add_user_pii_sync_queue.sql"
 ENV_FILE="${ENV_FILE:-}"
 
@@ -64,10 +65,11 @@ if [[ -n "${ENV_FILE}" ]]; then
 fi
 
 APP_BASE_URL="${APP_BASE_URL:-http://127.0.0.1:8082}"
-MYSQL_HOST="${MYSQL_HOST:-127.0.0.1}"
-MYSQL_PORT="${MYSQL_PORT:-3307}"
-MYSQL_DATABASE="${MYSQL_DATABASE:-youth_welfare}"
-MYSQL_CONTAINER_NAME="${MYSQL_CONTAINER_NAME:-youth-welfare-db}"
+DB_HOST="${DB_HOST:-127.0.0.1}"
+DB_PORT="${DB_PORT:-5433}"
+DB_NAME="${DB_NAME:-youth_welfare}"
+DB_CONTAINER_NAME="${DB_CONTAINER_NAME:-youth-welfare-db}"
+REDIS_CONTAINER_NAME="${REDIS_CONTAINER_NAME:-youth-welfare-redis}"
 APP_HEALTH_TIMEOUT_SECONDS="${APP_HEALTH_TIMEOUT_SECONDS:-45}"
 DB_MIGRATION_USERNAME="${DB_MIGRATION_USERNAME:-}"
 DB_MIGRATION_PASSWORD="${DB_MIGRATION_PASSWORD:-}"
@@ -77,8 +79,8 @@ APPLY_PII_SYNC_QUEUE_MIGRATION="${APPLY_PII_SYNC_QUEUE_MIGRATION:-false}"
 SMOKE_ADMIN_ACCESS_TOKEN="${SMOKE_ADMIN_ACCESS_TOKEN:-}"
 SMOKE_PASSWORD="${SMOKE_PASSWORD:-SmokePass123!}"
 SMOKE_EMAIL="${SMOKE_EMAIL:-codex.pii.sync.$(date +%s)@example.com}"
-SMOKE_NAME_BEFORE="${SMOKE_NAME_BEFORE:-PII Smoke Before}"
-SMOKE_NAME_AFTER="${SMOKE_NAME_AFTER:-PII Smoke After}"
+SMOKE_NAME_BEFORE="${SMOKE_NAME_BEFORE:-동기화전}"
+SMOKE_NAME_AFTER="${SMOKE_NAME_AFTER:-동기화후}"
 SMOKE_TIMEOUT_SECONDS="${SMOKE_TIMEOUT_SECONDS:-45}"
 
 COOKIE_FILE="$(mktemp)"
@@ -113,28 +115,10 @@ require_command python3
 require_non_empty DB_QUERY_USERNAME "${DB_QUERY_USERNAME}"
 require_non_empty DB_QUERY_PASSWORD "${DB_QUERY_PASSWORD}"
 
-mysql_exec() {
-  if command -v mysql >/dev/null 2>&1; then
-    MYSQL_PWD="${DB_QUERY_PASSWORD}" mysql \
-      --batch \
-      --skip-column-names \
-      -h "${MYSQL_HOST}" \
-      -P "${MYSQL_PORT}" \
-      -u "${DB_QUERY_USERNAME}" \
-      "${MYSQL_DATABASE}" \
-      -e "$1"
-    return 0
-  fi
-
-  if command -v docker >/dev/null 2>&1; then
-    docker exec -e MYSQL_PWD="${DB_QUERY_PASSWORD}" -i "${MYSQL_CONTAINER_NAME}" \
-      mysql --batch --skip-column-names \
-      -u"${DB_QUERY_USERNAME}" "${MYSQL_DATABASE}" -e "$1"
-    return 0
-  fi
-
-  echo "missing mysql client and docker fallback" >&2
-  exit 1
+db_exec() {
+  local sql="$1"
+  sql="${sql//SET NAMES utf8mb4;/}"
+  smoke_db_query "${sql}"
 }
 
 json_read() {
@@ -175,12 +159,12 @@ app_health_is_up() {
 }
 
 ensure_query_account_scope() {
-  if ! mysql_exec "SELECT 1 FROM users LIMIT 1;" >/dev/null 2>&1; then
+  if ! db_exec "SELECT 1 FROM users LIMIT 1;" >/dev/null 2>&1; then
     echo "DB_QUERY account cannot read youth_welfare.users; use migration_admin or an explicit cross-schema DB_QUERY account" >&2
     exit 1
   fi
 
-  if ! mysql_exec "SELECT 1 FROM youth_welfare_pii.user_pii LIMIT 1;" >/dev/null 2>&1; then
+  if ! db_exec "SELECT 1 FROM youth_welfare_pii.user_pii LIMIT 1;" >/dev/null 2>&1; then
     echo "DB_QUERY account cannot read youth_welfare_pii.user_pii; after app_core_rw grant shrink use migration_admin or explicit DB_QUERY_*" >&2
     exit 1
   fi
@@ -219,9 +203,9 @@ wait_for_synced_queue() {
 
   while (( waited < SMOKE_TIMEOUT_SECONDS )); do
     local status attempt_count last_error
-    status="$(mysql_exec "SELECT COALESCE(status, '') FROM user_pii_sync_queue WHERE user_key = '${user_key}' LIMIT 1;")"
-    attempt_count="$(mysql_exec "SELECT COALESCE(attempt_count, 0) FROM user_pii_sync_queue WHERE user_key = '${user_key}' LIMIT 1;")"
-    last_error="$(mysql_exec "SELECT COALESCE(last_error, '') FROM user_pii_sync_queue WHERE user_key = '${user_key}' LIMIT 1;")"
+    status="$(db_exec "SELECT COALESCE(status, '') FROM user_pii_sync_queue WHERE user_key = '${user_key}' LIMIT 1;")"
+    attempt_count="$(db_exec "SELECT COALESCE(attempt_count, 0) FROM user_pii_sync_queue WHERE user_key = '${user_key}' LIMIT 1;")"
+    last_error="$(db_exec "SELECT COALESCE(last_error, '') FROM user_pii_sync_queue WHERE user_key = '${user_key}' LIMIT 1;")"
 
     if [[ "${status}" == "SYNCED" ]]; then
       echo "queue synced: user_key=${user_key} attempt_count=${attempt_count}"
@@ -237,7 +221,7 @@ wait_for_synced_queue() {
   done
 
   echo "queue did not reach SYNCED within ${SMOKE_TIMEOUT_SECONDS}s for user_key=${user_key}" >&2
-  mysql_exec "SELECT user_key, status, attempt_count, last_enqueued_at, last_attempt_at, last_synced_at, last_error FROM user_pii_sync_queue WHERE user_key = '${user_key}'\G" >&2
+  db_exec "SELECT user_key, status, attempt_count, last_enqueued_at, last_attempt_at, last_synced_at, last_error FROM user_pii_sync_queue WHERE user_key = '${user_key}'" >&2
   exit 1
 }
 
@@ -268,19 +252,9 @@ if [[ "${APPLY_PII_SYNC_QUEUE_MIGRATION}" == "true" ]]; then
   require_non_empty DB_MIGRATION_USERNAME "${DB_MIGRATION_USERNAME}"
   require_non_empty DB_MIGRATION_PASSWORD "${DB_MIGRATION_PASSWORD}"
   echo "applying migration: ${MIGRATION_FILE}"
-  if command -v mysql >/dev/null 2>&1; then
-    MYSQL_PWD="${DB_MIGRATION_PASSWORD}" mysql \
-      -h "${MYSQL_HOST}" \
-      -P "${MYSQL_PORT}" \
-      -u "${DB_MIGRATION_USERNAME}" \
-      "${MYSQL_DATABASE}" < "${MIGRATION_FILE}"
-  elif command -v docker >/dev/null 2>&1; then
-    docker exec -e MYSQL_PWD="${DB_MIGRATION_PASSWORD}" -i "${MYSQL_CONTAINER_NAME}" \
-      mysql -u"${DB_MIGRATION_USERNAME}" "${MYSQL_DATABASE}" < "${MIGRATION_FILE}"
-  else
-    echo "missing mysql client and docker fallback for migration apply" >&2
-    exit 1
-  fi
+  DB_QUERY_USERNAME="${DB_MIGRATION_USERNAME}" \
+  DB_QUERY_PASSWORD="${DB_MIGRATION_PASSWORD}" \
+  smoke_db_apply_file "${MIGRATION_FILE}"
 fi
 
 echo "waiting for app health"
@@ -288,9 +262,10 @@ wait_for_app_health
 
 echo "verifying queue table exists"
 ensure_query_account_scope
-mysql_exec "SHOW TABLES LIKE 'user_pii_sync_queue';" | grep -qx "user_pii_sync_queue"
+db_exec "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'user_pii_sync_queue';" | grep -qx "user_pii_sync_queue"
 
 echo "signing up smoke user: ${SMOKE_EMAIL}"
+smoke_seed_verified_email "${SMOKE_EMAIL}"
 SIGNUP_STATUS="$(http_status POST "${APP_BASE_URL}/api/auth/signup" "${SIGNUP_FILE}" \
   -H "Content-Type: application/json" \
   -d "{
@@ -342,18 +317,18 @@ PROFILE_STATUS="$(http_status PUT "${APP_BASE_URL}/api/users/me" "${PROFILE_FILE
   }")"
 assert_http_ok "${PROFILE_STATUS}" "${PROFILE_FILE}"
 
-USER_KEY="$(mysql_exec "SELECT user_key FROM users WHERE email = '${SMOKE_EMAIL}' LIMIT 1;")"
+USER_KEY="$(db_exec "SELECT user_key FROM users WHERE email = '${SMOKE_EMAIL}' LIMIT 1;")"
 require_non_empty USER_KEY "${USER_KEY}"
 echo "resolved user_key=${USER_KEY}"
 
 wait_for_synced_queue "${USER_KEY}"
 
-AUTH_ROW_COUNT="$(mysql_exec "SELECT COUNT(*) FROM auth_users WHERE user_key = '${USER_KEY}';")"
-PROFILE_ROW_COUNT="$(mysql_exec "SELECT COUNT(*) FROM user_profiles WHERE user_key = '${USER_KEY}';")"
-PII_ROW_COUNT="$(mysql_exec "SELECT COUNT(*) FROM youth_welfare_pii.user_pii WHERE user_key = '${USER_KEY}';")"
-QUEUE_STATUS="$(mysql_exec "SELECT status FROM user_pii_sync_queue WHERE user_key = '${USER_KEY}' LIMIT 1;")"
-QUEUE_ATTEMPT_COUNT="$(mysql_exec "SELECT attempt_count FROM user_pii_sync_queue WHERE user_key = '${USER_KEY}' LIMIT 1;")"
-PII_MISSING_COUNT="$(mysql_exec "SELECT COUNT(*) FROM youth_welfare_pii.user_pii WHERE user_key = '${USER_KEY}' AND (email_enc IS NULL OR email_enc = '' OR name_enc IS NULL OR name_enc = '' OR birth_date_enc IS NULL OR birth_date_enc = '');")"
+AUTH_ROW_COUNT="$(db_exec "SELECT COUNT(*) FROM auth_users WHERE user_key = '${USER_KEY}';")"
+PROFILE_ROW_COUNT="$(db_exec "SELECT COUNT(*) FROM user_profiles WHERE user_key = '${USER_KEY}';")"
+PII_ROW_COUNT="$(db_exec "SELECT COUNT(*) FROM youth_welfare_pii.user_pii WHERE user_key = '${USER_KEY}';")"
+QUEUE_STATUS="$(db_exec "SELECT status FROM user_pii_sync_queue WHERE user_key = '${USER_KEY}' LIMIT 1;")"
+QUEUE_ATTEMPT_COUNT="$(db_exec "SELECT attempt_count FROM user_pii_sync_queue WHERE user_key = '${USER_KEY}' LIMIT 1;")"
+PII_MISSING_COUNT="$(db_exec "SELECT COUNT(*) FROM youth_welfare_pii.user_pii WHERE user_key = '${USER_KEY}' AND (email_enc IS NULL OR email_enc = '' OR name_enc IS NULL OR name_enc = '' OR birth_date_enc IS NULL OR birth_date_enc = '');")"
 
 if [[ "${AUTH_ROW_COUNT}" != "1" || "${PROFILE_ROW_COUNT}" != "1" || "${PII_ROW_COUNT}" != "1" ]]; then
   echo "split-table row count mismatch: auth=${AUTH_ROW_COUNT} profile=${PROFILE_ROW_COUNT} pii=${PII_ROW_COUNT}" >&2

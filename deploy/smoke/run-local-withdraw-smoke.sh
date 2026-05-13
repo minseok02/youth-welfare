@@ -6,11 +6,12 @@ source "${ROOT_DIR}/deploy/smoke/smoke-common.sh"
 
 APP_BASE_URL="${APP_BASE_URL:-http://127.0.0.1:8082}"
 APP_HEALTH_URL="${APP_HEALTH_URL:-${APP_BASE_URL}/actuator/health}"
-MYSQL_CONTAINER_NAME="${MYSQL_CONTAINER_NAME:-youth-welfare-db}"
+DB_CONTAINER_NAME="${DB_CONTAINER_NAME:-youth-welfare-db}"
+DB_NAME="${DB_NAME:-youth_welfare}"
 
 SMOKE_PASSWORD="${SMOKE_PASSWORD:-Password123!}"
 SMOKE_EMAIL_PREFIX="${SMOKE_EMAIL_PREFIX:-withdraw.smoke}"
-SMOKE_NAME="${SMOKE_NAME:-Withdraw Smoke}"
+SMOKE_NAME="${SMOKE_NAME:-탈퇴점검}"
 SMOKE_BIRTH_DATE="${SMOKE_BIRTH_DATE:-2001-04-30}"
 SMOKE_SIDO="${SMOKE_SIDO:-인천광역시}"
 SMOKE_SGG="${SMOKE_SGG:-중구}"
@@ -67,18 +68,12 @@ PY
 
 lookup_user_key_by_email() {
   local email="$1"
-  docker exec -e MYSQL_PWD="${DB_QUERY_PASSWORD}" "${MYSQL_CONTAINER_NAME}" \
-    mysql --default-character-set=utf8mb4 --batch --skip-column-names \
-    -u"${DB_QUERY_USERNAME}" youth_welfare \
-    -e "SELECT user_key FROM users WHERE email = '${email}' LIMIT 1;"
+  smoke_db_query "SELECT user_key FROM users WHERE email = '${email}' LIMIT 1;"
 }
 
 capture_user_state() {
   local user_key="$1"
-  docker exec -e MYSQL_PWD="${DB_QUERY_PASSWORD}" "${MYSQL_CONTAINER_NAME}" \
-    mysql --default-character-set=utf8mb4 --batch --skip-column-names \
-    -u"${DB_QUERY_USERNAME}" youth_welfare \
-    -e "SELECT id, email, is_active FROM users WHERE user_key = '${user_key}' LIMIT 1;"
+  smoke_db_query "SELECT id, email, is_active FROM users WHERE user_key = '${user_key}' LIMIT 1;"
 }
 
 smoke_require_command curl
@@ -92,6 +87,7 @@ HEALTH_STATUS="$(smoke_wait_for_health "${HEALTH_RETRY_COUNT}" "${HEALTH_RETRY_D
 smoke_assert_status 200 "${HEALTH_STATUS}" "health check" "${HEALTH_RESPONSE}"
 
 smoke_print_step "signup ${SMOKE_EMAIL}"
+smoke_seed_verified_email "${SMOKE_EMAIL}"
 SIGNUP_STATUS="$(
   smoke_http_status POST "${APP_BASE_URL}/api/auth/signup" "${SIGNUP_RESPONSE}" \
     -H 'Content-Type: application/json' \
@@ -190,7 +186,7 @@ if [[ "${USER_EMAIL_AFTER}" != "withdrawn_${USER_ID}" ]]; then
   echo "unexpected withdrawn email: ${USER_EMAIL_AFTER} (expected withdrawn_${USER_ID})" >&2
   exit 1
 fi
-if [[ "${USER_ACTIVE_AFTER}" != "0" ]]; then
+if [[ "${USER_ACTIVE_AFTER}" != "f" && "${USER_ACTIVE_AFTER}" != "false" ]]; then
   echo "unexpected withdrawn active flag: ${USER_ACTIVE_AFTER}" >&2
   exit 1
 fi

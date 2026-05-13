@@ -8,7 +8,7 @@ APP_BASE_URL="${APP_BASE_URL:-http://127.0.0.1:8082}"
 APP_HEALTH_URL="${APP_HEALTH_URL:-${APP_BASE_URL}/actuator/health}"
 SMOKE_PASSWORD="${SMOKE_PASSWORD:-Password123!}"
 SMOKE_EMAIL_PREFIX="${SMOKE_EMAIL_PREFIX:-runtime.api.smoke}"
-SMOKE_NAME="${SMOKE_NAME:-Runtime API Smoke}"
+SMOKE_NAME="${SMOKE_NAME:-런타임점검}"
 SMOKE_BIRTH_DATE="${SMOKE_BIRTH_DATE:-2001-04-30}"
 SMOKE_SIDO="${SMOKE_SIDO:-인천광역시}"
 SMOKE_SGG="${SMOKE_SGG:-중구}"
@@ -104,6 +104,7 @@ HEALTH_STATUS="$(smoke_wait_for_health "${HEALTH_RETRY_COUNT}" "${HEALTH_RETRY_D
 smoke_assert_status 200 "${HEALTH_STATUS}" "health check" "${HEALTH_RESPONSE}"
 
 smoke_print_step "signup ${SMOKE_EMAIL}"
+smoke_seed_verified_email "${SMOKE_EMAIL}"
 SIGNUP_STATUS="$(
   smoke_http_status POST "${APP_BASE_URL}/api/auth/signup" "${SIGNUP_RESPONSE}" \
     -H 'Content-Type: application/json' \

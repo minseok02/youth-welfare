@@ -2,6 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+source "${ROOT_DIR}/deploy/smoke/smoke-common.sh"
 BACKEND_DIR="${ROOT_DIR}/backend"
 REPO_ENV_FILE="${ROOT_DIR}/.env"
 RECONCILE_DB_SCRIPT="${ROOT_DIR}/deploy/mysql/reconcile-local-runtime-db-accounts.sh"
@@ -78,13 +79,13 @@ else
 fi
 APP_HEALTH_TIMEOUT_SECONDS="${APP_HEALTH_TIMEOUT_SECONDS:-120}"
 ENSURE_DOCKER_SERVICES="${ENSURE_DOCKER_SERVICES:-true}"
-MYSQL_CONTAINER_NAME="${MYSQL_CONTAINER_NAME:-youth-welfare-db}"
-RECONCILE_LOCAL_DB_ACCOUNTS="${RECONCILE_LOCAL_DB_ACCOUNTS:-true}"
-AUTO_APPLY_LOCAL_CANONICAL_DRAFT="${AUTO_APPLY_LOCAL_CANONICAL_DRAFT:-true}"
+DB_CONTAINER_NAME="${DB_CONTAINER_NAME:-youth-welfare-db}"
+RECONCILE_LOCAL_DB_ACCOUNTS="${RECONCILE_LOCAL_DB_ACCOUNTS:-false}"
+AUTO_APPLY_LOCAL_CANONICAL_DRAFT="${AUTO_APPLY_LOCAL_CANONICAL_DRAFT:-false}"
 CLEAR_CLUSTER_AI_CACHE_BEFORE_REPLAY="${CLEAR_CLUSTER_AI_CACHE_BEFORE_REPLAY:-false}"
 
-DB_URL="${DB_URL:-jdbc:mysql://127.0.0.1:3307/youth_welfare?useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=UTF-8&serverTimezone=Asia/Seoul}"
-APP_PII_DB_URL="${APP_PII_DB_URL:-jdbc:mysql://127.0.0.1:3307/youth_welfare_pii?useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=UTF-8&serverTimezone=Asia/Seoul}"
+DB_URL="${DB_URL:-jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable}"
+APP_PII_DB_URL="${APP_PII_DB_URL:-jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable&currentSchema=youth_welfare_pii}"
 NOTIFICATION_PII_DB_URL="${NOTIFICATION_PII_DB_URL:-${APP_PII_DB_URL}}"
 REDIS_HOST="${REDIS_HOST:-127.0.0.1}"
 REDIS_PORT="${REDIS_PORT:-6379}"
@@ -114,13 +115,13 @@ if [[ "${DB_QUERY_USERNAME}" == "root" ]]; then
   DB_QUERY_USERNAME="${DB_MIGRATION_USERNAME}"
 fi
 
-if [[ "${DB_URL}" == jdbc:mysql://db:* ]]; then
-  DB_URL="jdbc:mysql://127.0.0.1:3307/youth_welfare?useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=UTF-8&serverTimezone=Asia/Seoul"
+if [[ "${DB_URL}" == jdbc:mysql://* || "${DB_URL}" == jdbc:postgresql://db:* ]]; then
+  DB_URL="jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable"
 fi
-if [[ -z "${APP_PII_DB_URL}" || "${APP_PII_DB_URL}" == jdbc:mysql://db:* ]]; then
-  APP_PII_DB_URL="jdbc:mysql://127.0.0.1:3307/youth_welfare_pii?useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=UTF-8&serverTimezone=Asia/Seoul"
+if [[ -z "${APP_PII_DB_URL}" || "${APP_PII_DB_URL}" == jdbc:mysql://* || "${APP_PII_DB_URL}" == jdbc:postgresql://db:* ]]; then
+  APP_PII_DB_URL="jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable&currentSchema=youth_welfare_pii"
 fi
-if [[ -z "${NOTIFICATION_PII_DB_URL}" || "${NOTIFICATION_PII_DB_URL}" == jdbc:mysql://db:* ]]; then
+if [[ -z "${NOTIFICATION_PII_DB_URL}" || "${NOTIFICATION_PII_DB_URL}" == jdbc:mysql://* || "${NOTIFICATION_PII_DB_URL}" == jdbc:postgresql://db:* ]]; then
   NOTIFICATION_PII_DB_URL="${APP_PII_DB_URL}"
 fi
 if [[ "${REDIS_HOST}" == "redis" ]]; then
@@ -183,42 +184,24 @@ AI_RESPONSE_TRACE_B_OFF="${ARTIFACT_DIR}/edu-b-off-ai-response-trace.log"
 AI_RESPONSE_TRACE_A_ON="${ARTIFACT_DIR}/edu-a-on-ai-response-trace.log"
 AI_RESPONSE_TRACE_B_ON="${ARTIFACT_DIR}/edu-b-on-ai-response-trace.log"
 
-mysql_exec() {
+db_exec() {
   local sql="$1"
-  if command -v mysql >/dev/null 2>&1; then
-    MYSQL_PWD="${DB_QUERY_PASSWORD}" mysql \
-      --default-character-set=utf8mb4 \
-      --batch \
-      --skip-column-names \
-      -h 127.0.0.1 \
-      -P 3307 \
-      -u "${DB_QUERY_USERNAME}" \
-      youth_welfare \
-      -e "${sql}"
-    return 0
-  fi
-
-  docker exec -e MYSQL_PWD="${DB_QUERY_PASSWORD}" -i "${MYSQL_CONTAINER_NAME}" \
-    mysql --default-character-set=utf8mb4 --batch --skip-column-names \
-    -u"${DB_QUERY_USERNAME}" youth_welfare -e "${sql}"
+  sql="${sql//SET NAMES utf8mb4;/}"
+  smoke_db_query "${sql}"
 }
 
 clear_cluster_ai_cache() {
-  mysql_exec "
-    SET NAMES utf8mb4;
-    DELETE FROM cluster_ai_results;
-  " >/dev/null
+  db_exec "DELETE FROM cluster_ai_results;" >/dev/null
 }
 
 table_exists() {
   local table_name="$1"
   local result
   result="$(
-    mysql_exec "
-      SET NAMES utf8mb4;
+    db_exec "
       SELECT COUNT(*)
       FROM information_schema.tables
-      WHERE table_schema = 'youth_welfare'
+      WHERE table_schema = 'public'
         AND table_name = '${table_name}';
     "
   )"
@@ -238,8 +221,7 @@ ensure_local_canonical_draft() {
   fi
 
   target_count="$(
-    mysql_exec "
-      SET NAMES utf8mb4;
+    db_exec "
       SELECT COUNT(*)
       FROM welfare_services ws
       JOIN service_taxonomies st ON st.service_id = ws.id
@@ -249,8 +231,9 @@ ensure_local_canonical_draft() {
         WHERE slot_key = 'YOUTH_MAJOR'
         GROUP BY service_id
       ) stss_youth_major ON stss_youth_major.service_id = ws.id
-      WHERE ws.unified_category IN ('기타', '교육·직업훈련')
-        AND COALESCE(stss_youth_major.slot_label, st.youth_major_label) = '교육';
+      WHERE ws.unified_category = '교육·직업훈련'
+         OR (ws.unified_category = '기타'
+             AND COALESCE(stss_youth_major.slot_label, st.youth_major_label) = '교육');
     "
   )"
   if [[ "${target_count}" == "0" ]]; then
@@ -277,10 +260,7 @@ require_replay_data_preconditions() {
   fi
 
   welfare_service_count="$(
-    mysql_exec "
-      SET NAMES utf8mb4;
-      SELECT COUNT(*) FROM welfare_services;
-    "
+    db_exec "SELECT COUNT(*) FROM welfare_services;"
   )"
   if [[ "${welfare_service_count}" == "0" ]]; then
     echo "education replay precondition unmet: welfare_services is empty; load local policy snapshot before replay" >&2
@@ -288,8 +268,7 @@ require_replay_data_preconditions() {
   fi
 
   target_count="$(
-    mysql_exec "
-      SET NAMES utf8mb4;
+    db_exec "
       SELECT COUNT(*)
       FROM welfare_services ws
       JOIN service_taxonomies st ON st.service_id = ws.id
@@ -299,8 +278,9 @@ require_replay_data_preconditions() {
         WHERE slot_key = 'YOUTH_MAJOR'
         GROUP BY service_id
       ) stss_youth_major ON stss_youth_major.service_id = ws.id
-      WHERE ws.unified_category IN ('기타', '교육·직업훈련')
-        AND COALESCE(stss_youth_major.slot_label, st.youth_major_label) = '교육';
+      WHERE ws.unified_category = '교육·직업훈련'
+         OR (ws.unified_category = '기타'
+             AND COALESCE(stss_youth_major.slot_label, st.youth_major_label) = '교육');
     "
   )"
   if [[ "${target_count}" == "0" ]]; then
@@ -311,26 +291,19 @@ require_replay_data_preconditions() {
 
 lookup_user_key_by_email() {
   local email="$1"
-  mysql_exec "
-    SET NAMES utf8mb4;
-    SELECT user_key
-    FROM users
-    WHERE email = '${email}'
-    LIMIT 1;
-  "
+  db_exec "SELECT user_key FROM users WHERE email = '${email}' LIMIT 1;"
 }
 
 capture_recommendation_snapshot() {
   local user_key="$1"
   local output_file="$2"
-  mysql_exec "
-    SET NAMES utf8mb4;
+  db_exec "
     SELECT ur.service_id,
            ur.rule_weighted_score,
-           COALESCE(ur.ai_score, 'NULL'),
-           COALESCE(REPLACE(REPLACE(ur.ai_reason, '\t', ' '), '\n', ' '), 'NULL'),
-           COALESCE(ur.rule_weight_used, 'NULL'),
-           COALESCE(ur.ai_weight_used, 'NULL'),
+           COALESCE(ur.ai_score::text, 'NULL'),
+           COALESCE(REPLACE(REPLACE(ur.ai_reason, CHR(9), ' '), CHR(10), ' '), 'NULL'),
+           COALESCE(ur.rule_weight_used::text, 'NULL'),
+           COALESCE(ur.ai_weight_used::text, 'NULL'),
            ur.final_score,
            ws.title,
            ws.unified_category
@@ -464,6 +437,7 @@ signup_if_needed() {
   local email="$1"
   local name="$2"
   local status
+  smoke_seed_verified_email "${email}"
   status="$(curl -sS -o "${ARTIFACT_DIR}/signup.out" -w "%{http_code}" \
     -H "Content-Type: application/json" \
     -X POST "${APP_BASE_URL}/api/auth/signup" \
@@ -530,17 +504,16 @@ print(",".join(str(v) for v in uniq))
 PY
   )"
 
-  mysql_exec "
-    SET NAMES utf8mb4;
+  db_exec "
     SELECT ws.id,
-           REPLACE(REPLACE(REPLACE(ws.title, CHAR(9), ' '), CHAR(10), ' '), CHAR(13), ' '),
-           REPLACE(REPLACE(REPLACE(ws.unified_category, CHAR(9), ' '), CHAR(10), ' '), CHAR(13), ' '),
-           REPLACE(REPLACE(REPLACE(COALESCE(stss_youth_major.slot_label, st.youth_major_label, ''), CHAR(9), ' '), CHAR(10), ' '), CHAR(13), ' '),
-           REPLACE(REPLACE(REPLACE(COALESCE(stss_youth_mid.slot_label, st.youth_mid_label, ''), CHAR(9), ' '), CHAR(10), ' '), CHAR(13), ' '),
-           REPLACE(REPLACE(REPLACE(COALESCE(stss_provision_method.slot_label, st.provision_method_label, ws.apply_method_name, ''), CHAR(9), ' '), CHAR(10), ' '), CHAR(13), ' '),
-           REPLACE(REPLACE(REPLACE(COALESCE(stss_gov24_service_field.slot_label, st.gov24_service_field_label, ''), CHAR(9), ' '), CHAR(10), ' '), CHAR(13), ' '),
-           REPLACE(REPLACE(REPLACE(COALESCE(stss_gov24_user_type.slot_label, st.gov24_user_type_label, ''), CHAR(9), ' '), CHAR(10), ' '), CHAR(13), ' '),
-           REPLACE(REPLACE(REPLACE(COALESCE(stss_gov24_benefit_type.slot_label, st.gov24_benefit_type_label, ''), CHAR(9), ' '), CHAR(10), ' '), CHAR(13), ' ')
+           REPLACE(REPLACE(REPLACE(ws.title, CHR(9), ' '), CHR(10), ' '), CHR(13), ' '),
+           REPLACE(REPLACE(REPLACE(ws.unified_category, CHR(9), ' '), CHR(10), ' '), CHR(13), ' '),
+           REPLACE(REPLACE(REPLACE(COALESCE(stss_youth_major.slot_label, st.youth_major_label, ''), CHR(9), ' '), CHR(10), ' '), CHR(13), ' '),
+           REPLACE(REPLACE(REPLACE(COALESCE(stss_youth_mid.slot_label, st.youth_mid_label, ''), CHR(9), ' '), CHR(10), ' '), CHR(13), ' '),
+           REPLACE(REPLACE(REPLACE(COALESCE(stss_provision_method.slot_label, st.provision_method_label, ws.apply_method_name, ''), CHR(9), ' '), CHR(10), ' '), CHR(13), ' '),
+           REPLACE(REPLACE(REPLACE(COALESCE(stss_gov24_service_field.slot_label, st.gov24_service_field_label, ''), CHR(9), ' '), CHR(10), ' '), CHR(13), ' '),
+           REPLACE(REPLACE(REPLACE(COALESCE(stss_gov24_user_type.slot_label, st.gov24_user_type_label, ''), CHR(9), ' '), CHR(10), ' '), CHR(13), ' '),
+           REPLACE(REPLACE(REPLACE(COALESCE(stss_gov24_benefit_type.slot_label, st.gov24_benefit_type_label, ''), CHR(9), ' '), CHR(10), ' '), CHR(13), ' ')
     FROM welfare_services ws
     LEFT JOIN service_taxonomies st ON st.service_id = ws.id
     LEFT JOIN (
@@ -585,8 +558,7 @@ PY
 }
 
 collect_summary_slot_metrics() {
-  mysql_exec "
-    SET NAMES utf8mb4;
+  db_exec "
     SELECT 'slot_rows', COUNT(*) FROM service_taxonomy_summary_slots
     UNION ALL
     SELECT 'slot_services', COUNT(DISTINCT service_id) FROM service_taxonomy_summary_slots
@@ -723,19 +695,18 @@ def response_metadata_of(path):
     }
 
 def summarize(label, rows):
+    def is_target(row):
+        info = meta.get(row["serviceId"], {})
+        compat = info.get("compat") or row.get("unifiedCategory") or ""
+        youth_major = info.get("youth_major") or row.get("youthMajorLabel") or ""
+        return compat == "교육·직업훈련" or (compat == "기타" and youth_major == "교육")
+
     target_positions = []
     for idx, row in enumerate(rows, 1):
-        service_id = row["serviceId"]
-        info = meta.get(service_id, {})
-        if info.get("compat") in ("기타", "교육·직업훈련") and info.get("youth_major") == "교육":
-            target_positions.append((idx, service_id, row["title"], row["finalScore"]))
+        if is_target(row):
+            target_positions.append((idx, row["serviceId"], row["title"], row["finalScore"]))
     top10 = rows[:10]
-    top10_target_count = sum(
-        1
-        for row in top10
-        if meta.get(row["serviceId"], {}).get("compat") in ("기타", "교육·직업훈련")
-        and meta.get(row["serviceId"], {}).get("youth_major") == "교육"
-    )
+    top10_target_count = sum(1 for row in top10 if is_target(row))
     best_target_rank = target_positions[0][0] if target_positions else None
     best_target_score = target_positions[0][3] if target_positions else None
     print(
@@ -1084,8 +1055,8 @@ signup_or_prepare_samples() {
   if [[ "${CLEAR_CLUSTER_AI_CACHE_BEFORE_REPLAY}" == "true" ]] && table_exists "cluster_ai_results"; then
     clear_cluster_ai_cache
   fi
-  signup_if_needed "${SAMPLE_A_EMAIL}" "Education Replay Sample A"
-  signup_if_needed "${SAMPLE_B_EMAIL}" "Education Replay Sample B"
+  signup_if_needed "${SAMPLE_A_EMAIL}" "교육샘플가"
+  signup_if_needed "${SAMPLE_B_EMAIL}" "교육샘플나"
   token_a="$(login_and_token "${SAMPLE_A_EMAIL}" "${COOKIE_A}")"
   token_b="$(login_and_token "${SAMPLE_B_EMAIL}" "${COOKIE_B}")"
   user_key_a="$(lookup_user_key_by_email "${SAMPLE_A_EMAIL}")"

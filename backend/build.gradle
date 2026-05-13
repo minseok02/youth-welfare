@@ -77,8 +77,14 @@ bootRun {
     }
     // Docker 컨테이너 포트 로컬 매핑 (db:5432 → localhost:5433, redis → localhost)
     environment 'DB_URL', 'jdbc:postgresql://localhost:5433/youth_welfare?sslmode=disable'
+    environment 'DB_USERNAME', System.getenv('DB_USERNAME') ?: 'app_core_rw'
+    environment 'DB_PASSWORD', System.getenv('DB_PASSWORD') ?: ''
     environment 'APP_PII_DB_URL', 'jdbc:postgresql://localhost:5433/youth_welfare?sslmode=disable&currentSchema=youth_welfare_pii'
+    environment 'DB_APP_PII_USERNAME', System.getenv('DB_APP_PII_USERNAME') ?: 'app_pii_rw'
+    environment 'DB_APP_PII_PASSWORD', System.getenv('DB_APP_PII_PASSWORD') ?: (System.getenv('DB_PASSWORD') ?: '')
     environment 'NOTIFICATION_PII_DB_URL', 'jdbc:postgresql://localhost:5433/youth_welfare?sslmode=disable&currentSchema=youth_welfare_pii'
+    environment 'DB_NOTIFICATION_PII_RO_USERNAME', System.getenv('DB_NOTIFICATION_PII_RO_USERNAME') ?: 'notification_pii_ro'
+    environment 'DB_NOTIFICATION_PII_RO_PASSWORD', System.getenv('DB_NOTIFICATION_PII_RO_PASSWORD') ?: (System.getenv('DB_PASSWORD') ?: '')
     environment 'REDIS_HOST', 'localhost'
     environment 'REDIS_PORT', '6379'
 }
