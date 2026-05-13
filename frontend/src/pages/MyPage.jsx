@@ -102,7 +102,7 @@ const mapBookmark = (p) => ({
   id: p.id, title: p.title,
   category: p.unifiedCategory || "기타",
   dday: formatDday(p.applyEndDate, p.status),
-  source: p.hostOrg || p.applyMethodName || "",
+  source: p.hostOrg || p.sido || p.operatingOrg || p.applyMethodName || "",
   applyEndDate: p.applyEndDate,
   status: p.status,
 });
@@ -298,6 +298,7 @@ export default function MyPage() {
     birthYear: "", birthMonth: "", birthDay: "",
     region: "", subRegion: "", income: "", employ: "",
   });
+  const [profileCompleteness, setProfileCompleteness] = useState(null);
   const [editing, setEditing] = useState(false);
   const [infoLoading, setInfoLoading] = useState(false);
   const [nameError, setNameError] = useState("");
@@ -339,7 +340,8 @@ export default function MyPage() {
 
   // completion
   const completionFields = [myInfo.birthYear, myInfo.region, myInfo.income, myInfo.employ, priorities.length > 0];
-  const completionPct = Math.round((completionFields.filter(Boolean).length / completionFields.length) * 100);
+  const localCompletionPct = Math.round((completionFields.filter(Boolean).length / completionFields.length) * 100);
+  const completionPct = profileCompleteness ?? localCompletionPct;
   const missingLabels = [
     !myInfo.birthYear && "생년월일",
     !myInfo.region && "주소",
@@ -370,6 +372,7 @@ export default function MyPage() {
           income:     p.incomeLevel != null ? String(p.incomeLevel) : "",
           employ:     p.employmentStatus ?? "",
         });
+        setProfileCompleteness(Number.isFinite(p.profileCompleteness) ? p.profileCompleteness : null);
         setNotifOn(p.notificationYn ?? false);
         setNotifFreq(p.notificationPeriod === "WEEKLY" ? "WEEKLY" : "DAILY");
         setPriorities((p.priorities ?? []).map(item => item.code));
@@ -420,6 +423,7 @@ export default function MyPage() {
         incomeLevel:      myInfo.income ? parseInt(myInfo.income) : undefined,
         employmentStatus: myInfo.employ || undefined,
       });
+      setProfileCompleteness(null);
       setEditing(false);
       showToast("저장되었습니다");
     } catch {

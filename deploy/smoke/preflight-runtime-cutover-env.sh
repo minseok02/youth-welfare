@@ -85,20 +85,39 @@ assert_equals() {
   fi
 }
 
-extract_database_name() {
+extract_jdbc_kind() {
   local name="$1"
   local jdbc_url="$2"
-  local remainder database_name
 
   if [[ -z "${jdbc_url}" ]]; then
     echo "${name} must not be blank" >&2
     exit 1
   fi
 
-  remainder="${jdbc_url#jdbc:mysql://}"
-  if [[ "${remainder}" == "${jdbc_url}" ]]; then
-    echo "${name} must be a jdbc:mysql:// URL: ${jdbc_url}" >&2
-    exit 1
+  if [[ "${jdbc_url}" == jdbc:mysql://* ]]; then
+    printf "mysql\n"
+    return 0
+  fi
+
+  if [[ "${jdbc_url}" == jdbc:postgresql://* ]]; then
+    printf "postgresql\n"
+    return 0
+  fi
+
+  echo "${name} must be a jdbc:mysql:// or jdbc:postgresql:// URL: ${jdbc_url}" >&2
+  exit 1
+}
+
+extract_database_name() {
+  local name="$1"
+  local jdbc_url="$2"
+  local remainder database_name jdbc_kind
+
+  jdbc_kind="$(extract_jdbc_kind "${name}" "${jdbc_url}")"
+  if [[ "${jdbc_kind}" == "mysql" ]]; then
+    remainder="${jdbc_url#jdbc:mysql://}"
+  else
+    remainder="${jdbc_url#jdbc:postgresql://}"
   fi
 
   if [[ "${remainder}" != */* ]]; then
@@ -121,17 +140,13 @@ extract_database_name() {
 extract_host_port() {
   local name="$1"
   local jdbc_url="$2"
-  local remainder host_port
+  local remainder host_port jdbc_kind
 
-  if [[ -z "${jdbc_url}" ]]; then
-    echo "${name} must not be blank" >&2
-    exit 1
-  fi
-
-  remainder="${jdbc_url#jdbc:mysql://}"
-  if [[ "${remainder}" == "${jdbc_url}" ]]; then
-    echo "${name} must be a jdbc:mysql:// URL: ${jdbc_url}" >&2
-    exit 1
+  jdbc_kind="$(extract_jdbc_kind "${name}" "${jdbc_url}")"
+  if [[ "${jdbc_kind}" == "mysql" ]]; then
+    remainder="${jdbc_url#jdbc:mysql://}"
+  else
+    remainder="${jdbc_url#jdbc:postgresql://}"
   fi
 
   if [[ "${remainder}" != */* ]]; then
@@ -148,15 +163,65 @@ extract_host_port() {
   printf "%s\n" "${host_port}"
 }
 
-assert_database_name() {
+extract_postgres_current_schema() {
+  local jdbc_url="$1"
+  local query_string current_schema
+
+  query_string="${jdbc_url#*\?}"
+  if [[ "${query_string}" == "${jdbc_url}" ]]; then
+    printf "\n"
+    return 0
+  fi
+
+  current_schema="$(printf "%s" "${query_string}" | tr '&' '\n' | awk -F= '$1=="currentSchema" {print $2; exit}')"
+  printf "%s\n" "${current_schema}"
+}
+
+assert_runtime_core_target() {
   local name="$1"
   local jdbc_url="$2"
-  local expected="$3"
-  local actual
+  local jdbc_kind database_name current_schema
 
-  actual="$(extract_database_name "${name}" "${jdbc_url}")"
-  if [[ "${actual}" != "${expected}" ]]; then
-    echo "${name} must point to '${expected}' but was '${actual}': ${jdbc_url}" >&2
+  jdbc_kind="$(extract_jdbc_kind "${name}" "${jdbc_url}")"
+  database_name="$(extract_database_name "${name}" "${jdbc_url}")"
+  if [[ "${database_name}" != "youth_welfare" ]]; then
+    echo "${name} must point to 'youth_welfare' but was '${database_name}': ${jdbc_url}" >&2
+    exit 1
+  fi
+
+  if [[ "${jdbc_kind}" == "postgresql" ]]; then
+    current_schema="$(extract_postgres_current_schema "${jdbc_url}")"
+    if [[ -n "${current_schema}" && "${current_schema}" != "public" ]]; then
+      echo "${name} must target the runtime public schema (no currentSchema or currentSchema=public) but was '${current_schema}': ${jdbc_url}" >&2
+      exit 1
+    fi
+  fi
+}
+
+assert_runtime_pii_target() {
+  local name="$1"
+  local jdbc_url="$2"
+  local jdbc_kind database_name current_schema
+
+  jdbc_kind="$(extract_jdbc_kind "${name}" "${jdbc_url}")"
+  database_name="$(extract_database_name "${name}" "${jdbc_url}")"
+
+  if [[ "${jdbc_kind}" == "mysql" ]]; then
+    if [[ "${database_name}" != "youth_welfare_pii" ]]; then
+      echo "${name} must point to 'youth_welfare_pii' but was '${database_name}': ${jdbc_url}" >&2
+      exit 1
+    fi
+    return 0
+  fi
+
+  if [[ "${database_name}" != "youth_welfare" ]]; then
+    echo "${name} must point to 'youth_welfare' with currentSchema=youth_welfare_pii but was '${database_name}': ${jdbc_url}" >&2
+    exit 1
+  fi
+
+  current_schema="$(extract_postgres_current_schema "${jdbc_url}")"
+  if [[ "${current_schema}" != "youth_welfare_pii" ]]; then
+    echo "${name} must set currentSchema=youth_welfare_pii but was '${current_schema:-<missing>}': ${jdbc_url}" >&2
     exit 1
   fi
 }
@@ -189,9 +254,9 @@ validate_env() {
   assert_equals DB_APP_PII_USERNAME "${DB_APP_PII_USERNAME}" "app_pii_rw"
   assert_equals DB_NOTIFICATION_PII_RO_USERNAME "${DB_NOTIFICATION_PII_RO_USERNAME}" "notification_pii_ro"
 
-  assert_database_name DB_URL "${DB_URL}" "youth_welfare"
-  assert_database_name APP_PII_DB_URL "${APP_PII_DB_URL}" "youth_welfare_pii"
-  assert_database_name NOTIFICATION_PII_DB_URL "${NOTIFICATION_PII_DB_URL}" "youth_welfare_pii"
+  assert_runtime_core_target DB_URL "${DB_URL}"
+  assert_runtime_pii_target APP_PII_DB_URL "${APP_PII_DB_URL}"
+  assert_runtime_pii_target NOTIFICATION_PII_DB_URL "${NOTIFICATION_PII_DB_URL}"
 
   if [[ "${DB_USERNAME}" == "${DB_APP_PII_USERNAME}" || "${DB_USERNAME}" == "${DB_NOTIFICATION_PII_RO_USERNAME}" ]]; then
     echo "runtime secondary datasource usernames must not collapse to DB_USERNAME" >&2
@@ -199,9 +264,27 @@ validate_env() {
   fi
 
   if [[ "${APP_PII_DB_URL}" == "${DB_URL}" || "${NOTIFICATION_PII_DB_URL}" == "${DB_URL}" ]]; then
-    echo "secondary datasource URLs must not reuse DB_URL exactly; they must point to youth_welfare_pii" >&2
+    echo "secondary datasource URLs must not reuse DB_URL exactly; they must target the PII schema" >&2
     exit 1
   fi
+}
+
+describe_runtime_target() {
+  local name="$1"
+  local jdbc_url="$2"
+  local jdbc_kind host_port database_name current_schema
+
+  jdbc_kind="$(extract_jdbc_kind "${name}" "${jdbc_url}")"
+  host_port="$(extract_host_port "${name}" "${jdbc_url}")"
+  database_name="$(extract_database_name "${name}" "${jdbc_url}")"
+  if [[ "${jdbc_kind}" == "postgresql" ]]; then
+    current_schema="$(extract_postgres_current_schema "${jdbc_url}")"
+    if [[ -n "${current_schema}" ]]; then
+      printf "%s / %s / schema=%s\n" "${host_port}" "${database_name}" "${current_schema}"
+      return 0
+    fi
+  fi
+  printf "%s / %s\n" "${host_port}" "${database_name}"
 }
 
 validate_compose_config() {
@@ -243,9 +326,9 @@ print_summary() {
 runtime cutover env summary
 - env source: ${env_source}
 - compose config: ${COMPOSE_CONFIG_STATUS}
-- DB_URL target: $(extract_host_port DB_URL "${DB_URL}") / $(extract_database_name DB_URL "${DB_URL}")
-- APP_PII_DB_URL target: $(extract_host_port APP_PII_DB_URL "${APP_PII_DB_URL}") / $(extract_database_name APP_PII_DB_URL "${APP_PII_DB_URL}")
-- NOTIFICATION_PII_DB_URL target: $(extract_host_port NOTIFICATION_PII_DB_URL "${NOTIFICATION_PII_DB_URL}") / $(extract_database_name NOTIFICATION_PII_DB_URL "${NOTIFICATION_PII_DB_URL}")
+- DB_URL target: $(describe_runtime_target DB_URL "${DB_URL}")
+- APP_PII_DB_URL target: $(describe_runtime_target APP_PII_DB_URL "${APP_PII_DB_URL}")
+- NOTIFICATION_PII_DB_URL target: $(describe_runtime_target NOTIFICATION_PII_DB_URL "${NOTIFICATION_PII_DB_URL}")
 - DB_USERNAME: ${DB_USERNAME}
 - DB_MIGRATION_USERNAME: ${DB_MIGRATION_USERNAME}
 - DB_APP_PII_USERNAME: ${DB_APP_PII_USERNAME}

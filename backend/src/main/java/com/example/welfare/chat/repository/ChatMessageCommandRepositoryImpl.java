@@ -39,13 +39,18 @@ public class ChatMessageCommandRepositoryImpl implements ChatMessageCommandRepos
     }
 
     @Override
-    public void appendAssistantMessage(Long sessionId, String answer, String referencedServiceIds, LocalDateTime lastMessageAt) {
+    public void appendAssistantMessage(Long sessionId,
+                                       String answer,
+                                       String referencedServiceIds,
+                                       String referencesJson,
+                                       LocalDateTime lastMessageAt) {
         ChatSession session = requireSession(sessionId);
         chatMessageRepository.save(ChatMessage.builder()
                 .session(session)
                 .role(ChatMessageRole.ASSISTANT)
                 .content(answer)
                 .referencedServiceIds(referencedServiceIds)
+                .referencesJson(referencesJson)
                 .build());
         session.updateLastMessageAt(lastMessageAt);
     }

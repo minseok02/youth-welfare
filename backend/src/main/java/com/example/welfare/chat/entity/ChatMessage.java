@@ -31,4 +31,7 @@ public class ChatMessage extends BaseTimeEntity {
 
     @Column(columnDefinition = "TEXT")
     private String referencedServiceIds;
+
+    @Column(columnDefinition = "TEXT")
+    private String referencesJson;
 }

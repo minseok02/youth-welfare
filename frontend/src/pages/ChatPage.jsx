@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Alert,
@@ -84,11 +84,19 @@ const mapBranchSuggestion = (option) => ({
   guideQuestion: option.guideQuestion,
 });
 
+const mapReference = (reference) => ({
+  serviceId: reference.serviceId,
+  title: reference.title,
+  reason: reference.reason,
+  evidence: reference.evidence,
+});
+
 const mapMessage = (message) => ({
   messageId: message.messageId,
   role: message.role,
   content: message.content,
   referencedServiceIds: message.referencedServiceIds ?? [],
+  references: (message.references ?? []).map(mapReference),
   answerMode: message.answerMode ?? null,
   needsClarification: Boolean(message.needsClarification),
   branchSuggestions: (message.branchSuggestions ?? []).map(mapBranchSuggestion),
@@ -130,13 +138,14 @@ export default function ChatPage() {
   const [deletingSessionId, setDeletingSessionId] = useState(null);
   const [latestAnswerMeta, setLatestAnswerMeta] = useState(null);
   const [toast, setToast] = useState({ open: false, msg: "", severity: "info" });
+  const policyMetaRef = useRef({});
 
   const showToast = useCallback((msg, severity = "info") => {
     setToast({ open: true, msg, severity });
   }, []);
 
   const enrichPolicyMeta = useCallback(async (serviceIds) => {
-    const uniqueIds = [...new Set(serviceIds)].filter((serviceId) => !policyMeta[serviceId]);
+    const uniqueIds = [...new Set(serviceIds)].filter((serviceId) => !policyMetaRef.current[serviceId]);
     if (!uniqueIds.length) {
       return;
     }
@@ -164,9 +173,13 @@ export default function ChatPage() {
     });
 
     if (Object.keys(nextMeta).length) {
-      setPolicyMeta((prev) => ({ ...prev, ...nextMeta }));
+      setPolicyMeta((prev) => {
+        const merged = { ...prev, ...nextMeta };
+        policyMetaRef.current = merged;
+        return merged;
+      });
     }
-  }, [policyMeta]);
+  }, []);
 
   const loadSessions = useCallback(async (preferredSessionId = null) => {
     setLoadingSessions(true);
@@ -183,10 +196,12 @@ export default function ChatPage() {
       });
       if (!nextSessions.length) {
         setMessages([]);
+        setLatestAnswerMeta(null);
       }
     } catch {
       setSessions([]);
       setMessages([]);
+      setLatestAnswerMeta(null);
       showToast("대화 세션을 불러오지 못했습니다.", "error");
     } finally {
       setLoadingSessions(false);
@@ -196,6 +211,7 @@ export default function ChatPage() {
   const loadMessages = useCallback(async (sessionId) => {
     if (!sessionId) {
       setMessages([]);
+      setLatestAnswerMeta(null);
       return;
     }
 
@@ -205,12 +221,37 @@ export default function ChatPage() {
       const nextMessages = (data?.data ?? []).map(mapMessage);
       setMessages(nextMessages);
       setLatestAnswerMeta(extractLatestAnswerMeta(nextMessages));
-      const serviceIds = nextMessages.flatMap((message) => message.referencedServiceIds);
+      const referenceMeta = Object.fromEntries(
+        nextMessages
+          .flatMap((message) => message.references ?? [])
+          .filter((reference) => reference?.serviceId)
+          .map((reference) => [
+            reference.serviceId,
+            {
+              title: reference.title || `정책 #${reference.serviceId}`,
+              description: reference.reason || reference.evidence || "상세 페이지에서 조건과 신청 방법을 확인해보세요.",
+            },
+          ])
+      );
+      if (Object.keys(referenceMeta).length) {
+        setPolicyMeta((prev) => {
+          const merged = { ...prev, ...referenceMeta };
+          policyMetaRef.current = merged;
+          return merged;
+        });
+      }
+      const serviceIds = nextMessages.flatMap((message) => {
+        if (message.references?.length) {
+          return message.references.map((reference) => reference.serviceId);
+        }
+        return message.referencedServiceIds;
+      });
       if (serviceIds.length) {
         await enrichPolicyMeta(serviceIds);
       }
     } catch (error) {
       setMessages([]);
+      setLatestAnswerMeta(null);
       if (error.response?.data?.errorCode === "CH001") {
         showToast("선택한 대화 세션을 찾지 못했습니다. 목록을 새로고침했습니다.", "warning");
         await loadSessions();
@@ -262,6 +303,7 @@ export default function ChatPage() {
         if (!nextSessions.length) {
           setActiveSessionId(null);
           setMessages([]);
+          setLatestAnswerMeta(null);
           return [];
         }
 
@@ -632,6 +674,7 @@ export default function ChatPage() {
                                     연결 정책
                                   </Typography>
                                   {message.referencedServiceIds.map((serviceId) => {
+                                    const reference = message.references?.find((item) => item.serviceId === serviceId);
                                     const meta = policyMeta[serviceId];
                                     return (
                                       <Paper
@@ -652,10 +695,10 @@ export default function ChatPage() {
                                         }}
                                       >
                                         <Typography fontWeight={700}>
-                                          {meta?.title ?? `정책 #${serviceId}`}
+                                          {reference?.title ?? meta?.title ?? `정책 #${serviceId}`}
                                         </Typography>
                                         <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                                          {meta?.description ?? "상세 페이지에서 조건과 신청 방법을 확인해보세요."}
+                                          {reference?.reason ?? reference?.evidence ?? meta?.description ?? "상세 페이지에서 조건과 신청 방법을 확인해보세요."}
                                         </Typography>
                                       </Paper>
                                     );

@@ -3092,3 +3092,48 @@
 - 문제: `deploy/mysql/apply-local-policy-sidecar-draft.sh` 는 원래 MySQL 시절 draft sidecar DDL/backfill을 local DB에 덮어쓰던 스크립트다. 현재 메인라인은 PostgreSQL `schema.sql` 에 sidecar schema가 통합돼 있는데, 이 스크립트를 그대로 실행하면 `mysql` 전용 DDL/`ON DUPLICATE KEY UPDATE`/옛 포트 전제를 다시 타게 되어 현재 main 기준 검증과 어긋난다.
 - 해결: 스크립트가 PostgreSQL runtime을 감지하면 legacy MySQL draft SQL 재적용은 건너뛰고, 현재 integrated schema에 `service_taxonomies`, `service_taxonomy_summary_slots` 가 실제로 있는지만 검증하게 바꿨다. missing이면 “현행 PostgreSQL 부트스트랩/collect flow를 써야 한다”는 명시적 오류를 내도록 fail-fast 경계를 세웠다.
 - 이유: 전환 이후 가장 위험한 건 “낡은 복구 스크립트가 조용히 다시 실행되는 것”이다. 현재 메인라인에 이미 흡수된 draft 경로는 자동 적용보다 명시적 검증/차단이 안전하다.
+
+## 600) React callback이 state 객체를 dependency로 물고 있으면, 후속 state merge만으로도 같은 API를 다시 부르는 간접 루프가 생길 수 있다
+- 문제: 채팅 화면에서 `enrichPolicyMeta()` 가 `policyMeta` 를 dependency로 가진 상태에서 `loadMessages()` 가 그 callback에 의존하면, 정책 메타를 한 번 합칠 때마다 `loadMessages` 참조가 바뀌고 `useEffect(loadMessages(activeSessionId))` 가 다시 발동한다. 결과적으로 같은 세션 메시지를 불필요하게 반복 조회하는 간접 루프가 생긴다.
+- 해결: 메타 존재 여부 판단은 `useRef` 로 분리하고, 실제 state merge는 functional update로만 처리하게 바꿨다. 이렇게 하면 메타 캐시는 유지하면서도 callback identity는 안정적으로 고정된다.
+- 이유: 비동기 조회 결과를 같은 화면 state에 축적하는 구조에서는 “조회 중복 방지 cache” 와 “렌더링 state” 를 분리해야 한다. 둘을 같은 dependency 체인에 묶으면 API 재호출 루프가 숨어들기 쉽다.
+
+## 601) 세션/메시지 목록이 비어질 때 보조 UI 메타를 같이 초기화하지 않으면, 직전 대화의 branch/clarification alert가 빈 화면에 남는다
+- 문제: 채팅 세션이 삭제되거나 메시지 조회가 실패해도 `messages` 만 비우고 `latestAnswerMeta` 를 유지하면, 실제 대화가 없는 상태에서도 직전 assistant message의 branch suggestion 혹은 clarification alert가 입력창 상단에 계속 남을 수 있다.
+- 해결: `sessionId` 가 없을 때, 세션 목록 fetch 실패 시, 마지막 세션 삭제 시, 메시지 fetch 실패 시 모두 `latestAnswerMeta` 를 함께 `null` 로 초기화하도록 맞췄다.
+- 이유: 보조 UI 메타는 대화 메시지의 파생 상태다. 기반 데이터가 사라졌는데 파생 상태만 남기면 사용자는 “현재 세션의 상태”로 오해하게 된다.
+
+## 602) fallback용 container 이름을 새 변수로 정리했다면, 옛 변수 참조가 shell 한 군데만 남아 있어도 `set -u` 에서 바로 죽는다
+- 문제: draft apply script가 `DB_CONTAINER_NAME` 로 정리된 뒤에도 MySQL docker exec fallback 일부가 계속 `MYSQL_CONTAINER_NAME` 을 직접 읽고 있으면, PostgreSQL happy path 밖의 fallback 실행 시 `unbound variable` 로 바로 실패한다.
+- 해결: mysql fallback docker exec 도 전부 `DB_CONTAINER_NAME` 을 사용하도록 통일했다.
+- 이유: shell script는 `set -u` 아래에서 “거의 다 바뀐 변수명”이 가장 위험하다. 새 이름으로 표준화했다면 fallback branch까지 완전히 끊어야 한다.
+
+## 603) PostgreSQL main에서 replay smoke의 `RECONCILE_LOCAL_DB_ACCOUNTS=true` 를 그대로 켜면, 검증이 아니라 예전 MySQL 계정 복구 스크립트를 잘못 호출하게 된다
+- 문제: `run-local-education-priority-replay.sh` 는 기본값으론 PostgreSQL local URL/role을 쓰지만, 옵션 `RECONCILE_LOCAL_DB_ACCOUNTS=true` 가 켜지면 여전히 `deploy/mysql/reconcile-local-runtime-db-accounts.sh` 를 호출한다. 이 스크립트는 MySQL volume, `mysql:8.0`, `mysql` CLI, grant table 복구를 전제로 하므로 PostgreSQL main에서는 전혀 맞지 않는 경로다.
+- 해결: replay smoke는 `DB_URL` 이 PostgreSQL일 때 `RECONCILE_LOCAL_DB_ACCOUNTS=true` 를 즉시 실패시키고, 이 옵션이 legacy MySQL-only 경로라는 메시지를 명시적으로 출력하게 바꿨다.
+- 이유: 이런 옵션은 “지금은 안 쓰지만 혹시 필요할 수 있는 fallback” 으로 남아 있을수록 더 위험하다. 현재 mainline과 안 맞는 복구 경로는 조용히 시도하게 두는 것보다 early fail로 막는 편이 안전하다.
+
+## 604) runtime cutover preflight가 여전히 `jdbc:mysql://...` 만 허용하면, 현재 PostgreSQL main 기준의 정상 `.env` 도 잘못된 것으로 판정한다
+- 문제: `preflight-runtime-cutover-env.sh` 가 `DB_URL`, `APP_PII_DB_URL`, `NOTIFICATION_PII_DB_URL` 를 모두 `jdbc:mysql://...` 형태로만 파싱하면, 현재 main의 정상 PostgreSQL URL(`jdbc:postgresql://...`, `currentSchema=youth_welfare_pii`)을 넣어도 preflight가 실패한다.
+- 해결: preflight가 이제 `jdbc:mysql://` 와 `jdbc:postgresql://` 를 모두 파싱한다. core runtime은 `youth_welfare` DB/public schema를, PII runtime은 MySQL에서는 `youth_welfare_pii` DB를, PostgreSQL에서는 `youth_welfare` DB + `currentSchema=youth_welfare_pii` 를 요구하도록 정리했다. summary 출력도 PostgreSQL schema까지 같이 보여주게 바꿨다.
+- 이유: preflight는 현재 mainline을 기준으로 “정상 env인가”를 판정해야 한다. 메인라인이 바뀌었는데도 예전 JDBC 문법만 강제하면, 스크립트는 안전장치가 아니라 거짓 실패 생성기가 된다.
+
+## 605) MySQL 시절 migration 메모를 현재 실행 문서처럼 그대로 두면, PostgreSQL main에서 운영자가 legacy 절차를 따라가며 잘못된 수동 작업을 할 수 있다
+- 문제: `docs/core/db-migration.md` 에는 draft sidecar SQL, `mysql -h ...`, `docker exec ... mysql ...`, `SHOW TABLES`, `ANALYZE TABLE` 같은 예전 MySQL 예시가 많이 남아 있다. 이 문서를 현재 main 실행 문서처럼 읽으면 PostgreSQL integrated schema / admin rebuild 흐름과 충돌한다.
+- 해결: 문서 상단에 “현재 main은 PostgreSQL, 이 문서는 legacy MySQL migration history” 라는 경계를 명시하고, `current-state`, PostgreSQL playbook, `schema.sql`, local validation 문서로 먼저 보내도록 바꿨다. MySQL 예시 섹션도 `legacy MySQL only` 라벨을 붙였다.
+- 이유: 오래된 운영 문서는 코드보다 늦게 사고를 만든다. 실행 경로가 바뀐 뒤에는 문서가 스스로 현재 truth와 legacy history를 구분해야 한다.
+
+## 606) 챗봇 응답이 POST 직후에는 `references` 를 주는데 세션 재조회 DTO에는 ID만 남기면, 새로고침 뒤에는 근거 카드가 절반만 복원된다
+- 문제: `ChatAnswerResponse` 는 `references[serviceId,title,reason,evidence]` 를 내려주지만 `ChatMessageResponse` 가 `referencedServiceIds` 만 가지면, 프론트는 새로고침 뒤 reference title/reason/evidence 를 다시 받을 수 없다. 그 결과 첫 응답에서는 연결 정책 설명이 보이는데, 세션 재조회 후에는 같은 카드가 상세 조회 fallback 설명으로 후퇴한다.
+- 해결: assistant message 저장 시 `referencesJson` 도 같이 보존하고, `ChatMessageResponse` 에 `references` 필드를 추가해 `GET /messages` 가 POST와 같은 reference payload를 다시 주도록 맞췄다.
+- 이유: 대화형 UI에서 “처음 응답 계약”과 “세션 재조회 계약”이 다르면, 기능은 되는 것처럼 보여도 실제 상태 복원성은 깨진다.
+
+## 607) 같은 `PolicySummaryResponse` 를 써도 북마크 화면이 목록 화면보다 source fallback을 덜 쓰면, 특정 source 정책만 정보가 빈약해 보인다
+- 문제: 정책 목록은 `hostOrg -> sido -> applyMethodName` fallback을 쓰는데 북마크 화면은 `hostOrg -> applyMethodName` 만 보면, `BOKJIRO_LOCAL` 같이 `hostOrg` 가 비고 `sido/operatingOrg` 가 중요한 정책이 북마크 탭에서만 출처가 덜 보인다.
+- 해결: 북마크 `mapBookmark()` 도 `hostOrg -> sido -> operatingOrg -> applyMethodName` 순서로 source를 해석하게 맞췄다.
+- 이유: 같은 DTO를 여러 화면이 공유한다면, 화면마다 fallback 정책이 달라지는 순간 “API는 맞는데 어떤 화면만 이상한” 상태가 된다.
+
+## 608) 프로필 완성도를 프론트가 다시 추정하면, 백엔드가 이미 계산한 `profileCompleteness` 와 화면 표시가 어긋날 수 있다
+- 문제: 백엔드는 `ProfileResponse.profileCompleteness` 를 내려주는데 프론트가 birth/region/income/employ/priority 만 다시 세어 퍼센트를 계산하면, household type / interest field 같은 서버 기준이 바뀌었을 때 동일 사용자라도 화면 퍼센트가 서버와 다를 수 있다.
+- 해결: 마이페이지는 서버가 내려준 `profileCompleteness` 가 있으면 그 값을 우선 사용하고, 없을 때만 로컬 추정값으로 fallback 하게 바꿨다.
+- 이유: 파생값은 가능하면 계산한 쪽을 single source of truth로 삼는 편이 계약 불일치를 줄인다.

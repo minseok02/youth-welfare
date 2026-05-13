@@ -10,5 +10,9 @@ public interface ChatMessageCommandRepository {
 
     void appendUserMessage(Long sessionId, String content, String sessionTitle);
 
-    void appendAssistantMessage(Long sessionId, String answer, String referencedServiceIds, LocalDateTime lastMessageAt);
+    void appendAssistantMessage(Long sessionId,
+                                String answer,
+                                String referencedServiceIds,
+                                String referencesJson,
+                                LocalDateTime lastMessageAt);
 }

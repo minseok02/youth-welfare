@@ -1,10 +1,23 @@
 # DB Migration Guide
 
 전체 cross-cutting schema / migration 문서 진입점은 [system-docs-index.md](./system-docs-index.md)를 먼저 봅니다.
-현재 프로젝트는 신규 DB 초기화는 `backend/src/main/resources/db/schema.sql`로 처리하고, 기존 DB 갱신은 수동 마이그레이션 SQL로 처리한다.
-현재는 운영 서버가 없으므로, 이 문서는 로컬/테스트 DB 기준 migration 메모로만 본다.
+현재 프로젝트의 메인라인 런타임은 PostgreSQL입니다. 신규 DB 초기화는 `backend/src/main/resources/db/schema.sql` 로 처리하고, 기존 DB 갱신은 현재 active track 기준으로 admin backfill / rebuild / smoke 절차를 우선 사용합니다.
+이 문서는 **예전 MySQL 수동 migration / draft sidecar 적용 이력**을 보존하는 레거시 메모에 가깝습니다. 현재 PostgreSQL main에서 그대로 따라 하는 실행 문서가 아닙니다.
 
-## 대상
+## 현재 main 기준 먼저 볼 문서
+
+- 현재 기준선: [current-state.md](../current-state.md)
+- PostgreSQL 전환/챗 retrieval: [postgres-chat-refactor-playbook.md](../postgres/postgres-chat-refactor-playbook.md)
+- 로컬 validation / smoke: [local-validation-docs-index.md](./local-validation-docs-index.md)
+- 신규 DB bootstrap truth: [schema.sql](../../backend/src/main/resources/db/schema.sql)
+
+## 이 문서를 읽는 방법
+
+- 아래의 `mysql`, `SHOW TABLES`, `ANALYZE TABLE`, draft sidecar SQL 예시는 **legacy MySQL history** 로 봅니다.
+- 현재 PostgreSQL main에서 sidecar schema가 필요하면 legacy draft SQL을 다시 적용하지 말고, integrated `schema.sql` / collect flow / admin rebuild 경로를 사용합니다.
+- 현재 PostgreSQL main에서 계정/URL preflight는 [preflight-runtime-cutover-env.sh](../../deploy/smoke/preflight-runtime-cutover-env.sh) 기준으로 확인합니다.
+
+## legacy 대상
 
 - 이미 생성되어 데이터가 있는 MySQL
 - `schema.sql`이 컨테이너 최초 기동 시점에만 적용된 환경
@@ -63,9 +76,10 @@
   - 유니크 키에서 `slot_label` 을 제외하고 `(service_id, slot_key, slot_code, authority)` 로 재정의
   - 이유: `provision_method_label` 계열 장문 summary가 `slot_label` 길이 제한과 MySQL unique index 제약에 걸렸기 때문
 
-## 로컬 draft sidecar smoke
+## 로컬 draft sidecar smoke (legacy MySQL only)
 
-로컬 Docker MySQL에서 draft sidecar 스키마와 실제 writer 정합성을 확인할 때는 아래 순서로 검증한다.
+로컬 Docker MySQL에서 draft sidecar 스키마와 실제 writer 정합성을 확인하던 예전 절차다.
+현재 PostgreSQL main에서는 `deploy/mysql/apply-local-policy-sidecar-draft.sh` 가 MySQL draft SQL 재적용 대신 integrated schema 존재 여부만 검증한다.
 
 ```bash
 docker exec -e MYSQL_PWD="$DB_PASSWORD" -i youth-welfare-db mysql -uroot youth_welfare < backend/src/main/resources/db/migration-draft/V2026_04_30_01__create_policy_sidecars.sql
@@ -222,7 +236,7 @@ overlap service 는 `17`건이었고, 샘플은 `여성청소년 생리용품 �
 - 운영 DB에서 `user_key IS NULL` row 가 없는지 확인
 - 운영 DB에 `app_core_rw`, `app_pii_rw`, `notification_pii_ro`, `migration_admin` 계정과 권한이 준비됐는지 확인
 
-## 적용 후 검증 쿼리
+## 적용 후 검증 쿼리 (legacy MySQL examples)
 
 ```sql
 SHOW TABLES LIKE 'user_pii_sync_queue';
@@ -245,9 +259,9 @@ SHOW INDEX FROM chat_sessions WHERE Key_name IN ('idx_cs_user_key_last_message',
 SHOW INDEX FROM service_view_logs WHERE Key_name = 'idx_svl_user_key_service_viewed';
 ```
 
-## 적용 방법
+## 적용 방법 (legacy MySQL examples)
 
-최신 로컬 수동 리허설 기준으로, `V2026_04_28_01__drop_runtime_legacy_user_id.sql` 과 `V2026_04_28_02__add_user_pii_sync_queue.sql` 는 pre-28 schema 상태에서 `V2026_04_28_01 -> V2026_04_28_02` 순서로 적용/검증했다.
+최신 로컬 수동 리허설 기준으로, `V2026_04_28_01__drop_runtime_legacy_user_id.sql` 과 `V2026_04_28_02__add_user_pii_sync_queue.sql` 는 pre-28 **MySQL** schema 상태에서 `V2026_04_28_01 -> V2026_04_28_02` 순서로 적용/검증했다.
 
 ```bash
 mysql -h 127.0.0.1 -P 3307 -u "$DB_MIGRATION_USERNAME" -p"$DB_MIGRATION_PASSWORD" youth_welfare < backend/src/main/resources/db/migration/V2026_04_17_01__recent_schema_updates.sql

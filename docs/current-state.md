@@ -15,6 +15,7 @@
 - 2026-05-14 기준 챗 세션 재조회도 branch/clarification 메타를 다시 복원합니다. `chat_retrieval_snapshots` 를 이용해 `answerMode`, `needsClarification`, `branchSuggestions` 가 새로고침 뒤에도 유지되도록 맞췄습니다.
 - 2026-05-14 기준 정책 상세는 `referenceUrlsJson` 후보 링크를 실제 추가 링크/CTA로 사용합니다. 대표 `detailUrl` 이 비어도 fallback 링크가 있으면 화면에서 바로 열 수 있습니다.
 - 2026-05-14 기준 legacy `deploy/mysql/apply-local-policy-sidecar-draft.sh` 는 PostgreSQL main에서 더 이상 MySQL draft SQL을 재적용하지 않습니다. 현재 integrated schema 존재 여부만 검증하고, missing이면 PostgreSQL bootstrap/collect flow를 쓰도록 명시적으로 실패합니다.
+- 2026-05-14 기준 local replay smoke의 `RECONCILE_LOCAL_DB_ACCOUNTS` 는 PostgreSQL main에서 legacy MySQL 경로를 다시 타지 않도록 fail-fast 경계를 둡니다. `preflight-runtime-cutover-env.sh` 도 PostgreSQL JDBC + `currentSchema=youth_welfare_pii` 를 현재 기준으로 검증합니다.
 - 2026-05-13 기준 로컬 데이터 기준선은 `welfare_services=3925`, `search_youth_relevant=2544`, `welfare_service_details=1356`, `policy_chunks=14210`, embedded chunk `14210` 입니다.
 - 2026-05-13 기준 retrieval baseline 은 `top1HitRate=1.0`, `top3HitRate=1.0`, `branchSuggestionHitRate=1.0`, `emptyResultCount=0`, quality gate `passed=true` 입니다.
 

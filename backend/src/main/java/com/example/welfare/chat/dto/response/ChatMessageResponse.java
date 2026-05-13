@@ -16,6 +16,7 @@ public class ChatMessageResponse {
     private String role;
     private String content;
     private List<Long> referencedServiceIds;
+    private List<ChatReferenceResponse> references;
     private ChatAnswerMode answerMode;
     private boolean needsClarification;
     private List<ChatBranchOptionResponse> branchSuggestions;
@@ -23,6 +24,7 @@ public class ChatMessageResponse {
 
     public static ChatMessageResponse from(ChatMessage message,
                                            List<Long> referencedServiceIds,
+                                           List<ChatReferenceResponse> references,
                                            ChatAnswerMode answerMode,
                                            boolean needsClarification,
                                            List<ChatBranchOptionResponse> branchSuggestions) {
@@ -31,6 +33,7 @@ public class ChatMessageResponse {
                 .role(message.getRole().name())
                 .content(message.getContent())
                 .referencedServiceIds(referencedServiceIds)
+                .references(references)
                 .answerMode(answerMode)
                 .needsClarification(needsClarification)
                 .branchSuggestions(branchSuggestions)

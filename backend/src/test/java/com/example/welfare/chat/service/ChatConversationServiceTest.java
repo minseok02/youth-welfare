@@ -32,6 +32,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.never;
@@ -134,7 +135,16 @@ class ChatConversationServiceTest {
         assertThat(response.getAnswer()).isEqualTo("청년월세 한시 특별지원과 청년전세임대를 먼저 확인해보세요.");
         assertThat(response.getReferences()).hasSize(2);
         verify(chatMessageCommandService).appendUserMessage(10L, "서울 월세 지원 알려줘", "서울 월세 지원 알려줘");
-        verify(chatMessageCommandService).appendAssistantMessage(eq(10L), eq("청년월세 한시 특별지원과 청년전세임대를 먼저 확인해보세요."), eq("[1829,2451]"), any());
+        verify(chatMessageCommandService).appendAssistantMessage(
+                eq(10L),
+                eq("청년월세 한시 특별지원과 청년전세임대를 먼저 확인해보세요."),
+                eq("[1829,2451]"),
+                argThat(value -> value != null
+                        && value.contains("\"serviceId\":1829")
+                        && value.contains("\"serviceId\":2451")
+                        && value.contains("주거비 부담 완화와 연결됩니다.")),
+                any()
+        );
         verify(chatRateLimitService).checkMessageSendLimit(1L);
         verify(chatRetrievalSnapshotService).recordInteractiveTrace(session, "서울 월세 지원 알려줘", trace);
     }
@@ -214,7 +224,15 @@ class ChatConversationServiceTest {
         assertThat(response.getAnswer()).isEqualTo("청년월세 한시 특별지원 정책을 먼저 확인해보세요.");
         assertThat(response.getReferences()).hasSize(1);
         assertThat(response.getReferences().get(0).getEvidence()).isEqualTo("월세 부담을 낮추는 지원을 제공합니다.");
-        verify(chatMessageCommandService).appendAssistantMessage(eq(10L), eq("청년월세 한시 특별지원 정책을 먼저 확인해보세요."), eq("[1829]"), any());
+        verify(chatMessageCommandService).appendAssistantMessage(
+                eq(10L),
+                eq("청년월세 한시 특별지원 정책을 먼저 확인해보세요."),
+                eq("[1829]"),
+                argThat(value -> value != null
+                        && value.contains("\"serviceId\":1829")
+                        && value.contains("서울 청년의 주거비 부담 완화와 직접 연결됩니다.")),
+                any()
+        );
         verify(chatRateLimitService).checkMessageSendLimit(1L);
         verify(chatRetrievalSnapshotService).recordInteractiveTrace(session, "서울 월세 지원 알려줘", trace);
     }
@@ -237,7 +255,7 @@ class ChatConversationServiceTest {
         assertThat(response.getBranchSuggestions()).hasSize(3);
         assertThat(response.getReferences()).isEmpty();
         verify(chatPolicyService, never()).traceCandidates(any(String.class), isNull(), anyInt());
-        verify(chatMessageCommandService).appendAssistantMessage(eq(10L), any(String.class), eq("[]"), any());
+        verify(chatMessageCommandService).appendAssistantMessage(eq(10L), any(String.class), eq("[]"), eq("[]"), any());
         verify(chatRetrievalSnapshotService).recordInteractiveBranchSuggestions(eq(session), eq("주거 지원"), isNull(), any(List.class));
     }
 
@@ -284,6 +302,7 @@ class ChatConversationServiceTest {
         assertThat(responses).hasSize(2);
         assertThat(responses.get(1).getAnswerMode()).isEqualTo(ChatAnswerMode.BRANCH_SUGGESTION);
         assertThat(responses.get(1).isNeedsClarification()).isFalse();
+        assertThat(responses.get(1).getReferences()).isEmpty();
         assertThat(responses.get(1).getBranchSuggestions())
                 .extracting("branchKey")
                 .containsExactly("housing-stability", "housing-cash", "housing-subscription");
@@ -317,7 +336,10 @@ class ChatConversationServiceTest {
         ChatSession session = ChatSession.builder().id(10L).userKey("user-key-1").title("주거 상담").build();
         ChatMessage userMessage = ChatMessage.builder().id(100L).session(session).role(ChatMessageRole.USER).content("월세 지원 있어?").build();
         ChatMessage assistantMessage = ChatMessage.builder().id(101L).session(session).role(ChatMessageRole.ASSISTANT)
-                .content("청년월세지원이 있습니다.").referencedServiceIds("[1829,2451]").build();
+                .content("청년월세지원이 있습니다.")
+                .referencedServiceIds("[1829,2451]")
+                .referencesJson("[{\"serviceId\":1829,\"title\":\"청년월세 한시 특별지원\",\"reason\":\"주거비 지원\",\"evidence\":\"월세 지원\"},{\"serviceId\":2451,\"title\":\"청년전세임대\",\"reason\":\"전세 지원\",\"evidence\":\"전세 지원\"}]")
+                .build();
 
         when(activeUserReadService.getActiveUserContext(1L))
                 .thenReturn(new ActiveUserReadService.ActiveUserContext(user, "user-key-1"));
@@ -329,6 +351,8 @@ class ChatConversationServiceTest {
         assertThat(responses).hasSize(2);
         assertThat(responses.get(0).getReferencedServiceIds()).isEmpty();
         assertThat(responses.get(1).getReferencedServiceIds()).containsExactly(1829L, 2451L);
+        assertThat(responses.get(1).getReferences()).hasSize(2);
+        assertThat(responses.get(1).getReferences().get(0).getTitle()).isEqualTo("청년월세 한시 특별지원");
     }
 
     @Test
