@@ -149,6 +149,198 @@ deploy/smoke/run-local-validation-suite.sh --only replay --keep-artifacts
 - 로그인 계정은 일반 사용자 1개, admin 확인이 필요하면 관리자 계정 1개를 따로 준비합니다.
 - `python3` 는 로그인/refresh 응답에서 `accessToken` 을 뽑는 용도로 사용합니다.
 
+## referenceUrlsJson rebuild 런북
+
+`POST /api/admin/policies/reference-urls/rebuild` 는 기존 `raw_api_payloads` DETAIL snapshot을 다시 읽어
+`welfare_service_details.reference_urls_json` 을 메우는 admin 경로입니다.
+로컬 테스트 서비스 기준으로는 과거 적재 row를 재수집 없이 보강할 때 우선 사용합니다.
+
+기본 동작:
+
+- 기본 `missingOnly=true`
+- 이미 `reference_urls_json` 이 있는 row는 건너뜀
+- 대상 source: `YOUTH`, `BOKJIRO_CENTRAL`, `BOKJIRO_LOCAL`
+
+### 0. 사전 확인
+
+앱/DB/Redis 기동:
+
+```bash
+SECURITY_ADMIN_EMAILS=admin@example.com docker compose up -d db redis app
+```
+
+health 확인:
+
+```bash
+curl -sS http://127.0.0.1:8082/actuator/health
+```
+
+로컬 DB 현재 값 확인:
+
+```bash
+docker exec youth-welfare-db psql -U postgres -d youth_welfare -c "
+SELECT COUNT(*) AS total_details,
+       COUNT(reference_urls_json) AS filled_reference_urls
+FROM welfare_service_details;
+"
+```
+
+### 1. admin access token 준비
+
+이미 준비된 admin 계정이 있으면 로그인합니다.
+이 로컬 테스트 서비스는 실제 유저가 없으므로, email verification이나 admin allowlist 때문에 일반 signup이 막히면
+로컬 smoke용 admin row를 직접 seed해도 됩니다. 직접 seed가 필요했던 사례와 주의점은
+[troubleshooting-log.md](./troubleshooting-log.md) `585)` 를 봅니다.
+
+```bash
+export APP_BASE_URL="http://127.0.0.1:8082"
+export ADMIN_EMAIL="admin@example.com"
+export ADMIN_PASSWORD="Password123!"
+export ADMIN_LOGIN_RESPONSE="$(mktemp)"
+
+curl -sS \
+  -H 'Content-Type: application/json' \
+  -X POST "$APP_BASE_URL/api/auth/login" \
+  -d "{
+    \"email\": \"$ADMIN_EMAIL\",
+    \"password\": \"$ADMIN_PASSWORD\"
+  }" | tee "$ADMIN_LOGIN_RESPONSE"
+```
+
+```bash
+export ADMIN_ACCESS_TOKEN="$(python3 - "$ADMIN_LOGIN_RESPONSE" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], "r", encoding="utf-8") as fp:
+    data = json.load(fp)
+
+print(data["data"]["accessToken"])
+PY
+)"
+```
+
+### 2. 기본 안전 실행
+
+기본은 비어 있는 row만 채우는 실행입니다.
+
+```bash
+curl -sS \
+  -H "Authorization: Bearer $ADMIN_ACCESS_TOKEN" \
+  -X POST "$APP_BASE_URL/api/admin/policies/reference-urls/rebuild"
+```
+
+응답 확인 포인트:
+
+- `success=true`
+- `missingOnly=true`
+- `failedCount=0`
+- `updatedCount > 0` 또는 이미 채워진 상태라면 `skippedCount > 0`
+
+실제 로컬 기준선 예시:
+
+```json
+{
+  "success": true,
+  "data": {
+    "scope": "all-detail-sources",
+    "sourceTypes": ["YOUTH", "BOKJIRO_CENTRAL", "BOKJIRO_LOCAL"],
+    "limitPerSource": 0,
+    "missingOnly": true,
+    "scannedCount": 1356,
+    "skippedCount": 0,
+    "updatedCount": 1356,
+    "missingServiceCount": 0,
+    "failedCount": 0
+  }
+}
+```
+
+### 3. 선택 실행
+
+특정 source만 보고 싶으면:
+
+```bash
+curl -sS \
+  -H "Authorization: Bearer $ADMIN_ACCESS_TOKEN" \
+  -X POST "$APP_BASE_URL/api/admin/policies/reference-urls/rebuild?sourceType=YOUTH&sourceType=BOKJIRO_LOCAL"
+```
+
+일부만 샘플 실행하고 싶으면:
+
+```bash
+curl -sS \
+  -H "Authorization: Bearer $ADMIN_ACCESS_TOKEN" \
+  -X POST "$APP_BASE_URL/api/admin/policies/reference-urls/rebuild?limitPerSource=20"
+```
+
+이미 값이 있어도 전체 재적용을 강제로 보고 싶으면:
+
+```bash
+curl -sS \
+  -H "Authorization: Bearer $ADMIN_ACCESS_TOKEN" \
+  -X POST "$APP_BASE_URL/api/admin/policies/reference-urls/rebuild?missingOnly=false"
+```
+
+### 4. 실행 후 확인
+
+row count 재확인:
+
+```bash
+docker exec youth-welfare-db psql -U postgres -d youth_welfare -c "
+SELECT COUNT(*) AS total_details,
+       COUNT(reference_urls_json) AS filled_reference_urls
+FROM welfare_service_details;
+"
+```
+
+샘플 payload 확인:
+
+```bash
+docker exec youth-welfare-db psql -U postgres -d youth_welfare -c "
+SELECT service_id,
+       LEFT(reference_urls_json, 200) AS reference_urls_preview
+FROM welfare_service_details
+WHERE reference_urls_json IS NOT NULL
+LIMIT 5;
+"
+```
+
+확인 기준:
+
+- `filled_reference_urls` 가 증가했는지
+- preview 안에 `APPLY`, `REFERENCE`, `DETAIL`, `EXTRACTED_FROM_TEXT` 같은 타입이 실제로 들어가는지
+
+### 5. 실패 시 triage
+
+1. 앱이 부팅 직후 `reference_urls_json` missing column validation으로 죽었는지 확인
+   기존 Docker volume은 `schema.sql` 변경을 자동 재적용하지 않습니다. 이 경우엔 volume reset 또는
+   `ALTER TABLE` 이 필요합니다. 자세한 사례는 [troubleshooting-log.md](./troubleshooting-log.md) `584)` 를 봅니다.
+
+2. app/db 컨테이너 recreate 후에도 mount 에러가 나는지 확인
+   WSL/Docker Desktop stale bind mount 사례는 [troubleshooting-log.md](./troubleshooting-log.md) `583)` 를 봅니다.
+
+3. `failedCount > 0` 이면 raw payload 존재 여부 확인
+   `raw_api_payloads` 에 `payload_type='DETAIL'` row가 있는지와, 대상 `service_id` 의
+   `welfare_service_details` row가 실제로 있는지 같이 봅니다.
+
+```bash
+docker exec youth-welfare-db psql -U postgres -d youth_welfare -c "
+SELECT source_type, payload_type, COUNT(*)
+FROM raw_api_payloads
+WHERE payload_type = 'DETAIL'
+GROUP BY source_type, payload_type
+ORDER BY source_type;
+"
+```
+
+```bash
+docker exec youth-welfare-db psql -U postgres -d youth_welfare -c "
+SELECT COUNT(*)
+FROM welfare_service_details;
+"
+```
+
 ## 1. 공통 변수
 
 ```bash

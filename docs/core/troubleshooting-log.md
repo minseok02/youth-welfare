@@ -3007,3 +3007,23 @@
 - 문제: 정책 상세 URL 후보는 source마다 `apply/detail/reference` 필드가 비어 있을 수 있다. 이 상태에서 optional candidate를 `List.of(...)` 로 바로 만들면 null 이 하나만 있어도 `NullPointerException` 이 발생해, URL 후보 풀을 additive 필드로 붙이는 작업이 오히려 수집 정규화 경로를 깨뜨릴 수 있다.
 - 해결: URL 후보는 `referenceUrlCandidates(...)` 같은 null-filter helper로 먼저 정리한 뒤 JSON 후보 풀을 만들도록 바꿨다. direct candidate 와 본문 추출 candidate 모두 dedupe 전에 null-safe 하게 모으고, 테스트에서도 optional field 가 비어 있는 케이스를 같이 확인했다.
 - 이유: source payload 는 optional field 가 기본인 경우가 많다. additive 계약을 붙일수록 “필드가 없을 때도 안전하게 지나가야 한다”는 조건이 더 중요해지므로, optional candidate 집계는 생성 시점부터 null-safe 경계로 묶어야 한다.
+
+## 583) Docker Desktop/WSL 환경에서 오래된 컨테이너를 재사용하면 bind mount source 경로가 stale 상태로 남아 DB 컨테이너가 아예 안 뜰 수 있다
+- 문제: `docker compose up -d db app` 를 다시 올리는 과정에서 `youth-welfare-db` 가 `/docker-entrypoint-initdb.d/01-schema.sql` bind mount 에러로 시작조차 못 했다. 메시지는 `/run/desktop/mnt/host/wsl/docker-desktop-bind-mounts/... no such file or directory` 형태였고, 코드나 SQL 파일이 사라진 것이 아니라 컨테이너가 예전 mount source 경로를 잡고 있었다.
+- 해결: stale 컨테이너를 `docker rm -f youth-welfare-db youth-welfare-app` 로 제거한 뒤 `docker compose up -d db redis app` 로 다시 만들었다. volume 데이터는 유지하고 컨테이너만 새로 만들면 mount source 경로가 정상화된다.
+- 이유: 이 문제는 앱/DB 로직이 아니라 Docker Desktop + WSL bind mount 재사용 이슈다. init SQL을 수정하지 않았는데도 mount 에러가 먼저 나오면, 파일 내용보다 컨테이너 재생성을 먼저 의심하는 편이 빠르다.
+
+## 584) 기존 PostgreSQL volume은 `schema.sql` 변경을 자동 재적용하지 않으므로, 새 컬럼을 추가해도 app startup validation에서 뒤늦게 죽을 수 있다
+- 문제: `reference_urls_json` 을 `schema.sql` 과 엔티티에 추가한 뒤 app을 다시 띄웠지만, 기존 named volume을 쓰는 로컬 Postgres에는 컬럼이 없어 Hibernate validate가 `missing column [reference_urls_json] in table [welfare_service_details]` 로 부팅 직후 실패했다.
+- 해결: live DB 스키마를 직접 확인한 뒤 `ALTER TABLE welfare_service_details ADD COLUMN IF NOT EXISTS reference_urls_json TEXT;` 를 적용하고 app을 재기동했다. 이 로컬 테스트 서비스는 유저 데이터가 없으므로, 상황에 따라 `docker compose down -v` 후 전체 재초기화로 맞춰도 된다.
+- 이유: `docker-entrypoint-initdb.d` 의 `schema.sql` 은 최초 volume 초기화 때만 적용된다. 이후 스키마 변경은 migration, 명시적 `ALTER TABLE`, 또는 volume reset으로 반영해야 하며, 그렇지 않으면 코드/DDL은 맞아 보여도 런타임 validate에서 늦게 터진다.
+
+## 585) 로컬 테스트 서비스에서 admin smoke를 준비할 때 signup/verification 계약에 계속 막히면, 직접 DB seed를 하더라도 앱이 쓰는 BCrypt 구현으로 맞춰야 한다
+- 문제: `admin@example.com` 은 public signup에서 admin allowlist 정책 때문에 막히고, 일반 사용자는 email verification 없이는 회원가입이 되지 않아 runtime admin token을 바로 준비하기 어려웠다. 게다가 DB에 admin row를 직접 넣을 때 Python `bcrypt` 로 만든 hash는 형식상 맞아 보여도 실제 앱 login에서는 계속 `A004` 로 실패했다.
+- 해결: 이 로컬 테스트 서비스는 실제 유저가 없으므로 `users`, `auth_users` 에 admin row를 직접 seed해 smoke를 진행했다. 이때 password hash는 임의 구현이 아니라 Spring `BCryptPasswordEncoder` 로 생성한 값을 사용해야 login이 정상 동작했다.
+- 이유: 운영 경로라면 signup/verification 계약을 따르는 것이 맞지만, 지금 환경은 로컬 무유저 테스트 서비스다. 다만 직접 seed를 하더라도 “앱이 실제로 쓰는 암호화 구현과 같은지”가 중요하므로, bcrypt 계열이라는 이유만으로 다른 구현 hash를 섞으면 smoke 자체가 거짓 실패가 된다.
+
+## 586) `integrationTest` 는 코드 회귀가 없어도 로컬 PostgreSQL/Redis 컨테이너를 내려 둔 상태면 `JDBCConnectionException` 으로 바로 실패한다
+- 문제: `PolicyReferenceUrlRebuildIntegrationTest` 를 추가한 뒤 처음 실행했을 때, 테스트 자체가 아니라 Spring context bootstrap 단계에서 `org.postgresql.util.PSQLException` / `java.net.ConnectException` 로 죽었다. 원인은 직전 turn에서 `docker compose down` 으로 `db`, `redis` 를 모두 내린 상태에서 `application-integration.yml` 이 여전히 `127.0.0.1:5433`, `127.0.0.1:6379` 를 기대하고 있었기 때문이다.
+- 해결: `docker compose up -d db redis` 로 integration 의존 서비스를 다시 올리고, health가 `healthy` 인 것을 확인한 뒤 테스트를 재실행했다. 이후 `PolicyReferenceUrlRebuildIntegrationTest` 는 정상 통과했다.
+- 이유: 이 프로젝트의 integration profile은 embedded DB가 아니라 로컬 Docker PostgreSQL/Redis를 전제로 한다. 따라서 테스트 실패 로그가 곧바로 코드 회귀를 의미하지는 않으며, `JDBCConnectionException` 이 먼저 보이면 서비스 기동 상태를 우선 확인하는 편이 빠르다.

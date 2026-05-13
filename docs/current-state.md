@@ -10,6 +10,8 @@
 - 복지로 detail backlog 는 더 이상 개발 계정 quota 때문에 의도적으로 남겨 두는 상태로 보지 않고, `gap fill` / `refresh` 로 full coverage 를 다시 채우는 대상으로 봅니다.
 - 2026-05-13 기준 메인라인은 PostgreSQL 기반입니다. 정책 검색은 PostgreSQL FTS + `pg_trgm`, 챗봇 semantic retrieval은 `pgvector`, 추천/챗봇 탐색은 공통 exploration engine 기준으로 정리돼 있습니다.
 - 2026-05-13 기준 retrieval 운영 검증 경로도 붙어 있습니다. `retrieval evaluation`, `compare/export`, `quality gate`, `category audit`, `embeddings rebuild` 를 admin API로 실행할 수 있습니다.
+- 2026-05-13 기준 `reference-urls/rebuild` 런타임 검증도 끝냈습니다. 로컬 DB 기준 `welfare_service_details=1356` 에 대해 `scanned=1356`, `updated=1356`, `failed=0` 으로 `reference_urls_json` 을 모두 채웠습니다.
+- 2026-05-13 기준 `reference-urls/rebuild` integration 회귀 검증도 추가했습니다. `missingOnly=true` 채움, 기존 값 skip, `missingOnly=false` overwrite 를 실제 PostgreSQL 기준으로 고정했습니다.
 - 2026-05-13 기준 로컬 데이터 기준선은 `welfare_services=3925`, `search_youth_relevant=2544`, `welfare_service_details=1356`, `policy_chunks=14210`, embedded chunk `14210` 입니다.
 - 2026-05-13 기준 retrieval baseline 은 `top1HitRate=1.0`, `top3HitRate=1.0`, `branchSuggestionHitRate=1.0`, `emptyResultCount=0`, quality gate `passed=true` 입니다.
 
