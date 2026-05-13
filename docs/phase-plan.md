@@ -1,6 +1,8 @@
 # 구현 현황
 
 - 2026-05-13: `POST /api/admin/policies/reference-urls/rebuild` 를 추가했다. 기존 `raw_api_payloads` DETAIL snapshot을 다시 읽어 `referenceUrlsJson` 을 재구축하고, 청년 DETAIL raw와 복지로 DETAIL raw를 모두 대상으로 `WelfareServiceDetail` 을 재적용하게 정리했다. 기본은 `missingOnly=true` 로 두어 이미 URL 후보 풀이 있는 row는 건너뛰고, 로컬 테스트 서비스 기준으로 과거 적재 row도 재수집 없이 안전하게 메울 수 있다.
+- 2026-05-13: 위 rebuild 경로를 실제 로컬 런타임에서 검증했다. `welfare_service_details=1356` 기준 실행 전 `reference_urls_json` 채움 수는 `0` 이었고, admin 호출 후 `scanned=1356`, `updated=1356`, `failed=0` 으로 전 row가 채워졌다. 런북은 `docs/core/runtime-api-smoke-commands.md` 에 반영했다.
+- 2026-05-13: `PolicyReferenceUrlRebuildIntegrationTest` 를 추가해 `reference-urls/rebuild` 회귀를 integration 레벨로 고정했다. `missingOnly=true` 에서 비어 있는 row 채움, 기존 값 skip, `missingOnly=false` overwrite 를 실제 PostgreSQL과 raw detail payload 기준으로 검증한다.
 - 2026-05-13: retrieval/category audit 후속으로 `PolicyCategoryAuditResponse` 를 읽기 쉬운 요약 계약으로 보강했다. 전체 `searchablePolicyRatio`, 상위 unified category 의 `totalShare/searchableCoverage`, 청년 broad category 의 dominant mapping 을 함께 내려 운영자가 raw count 없이도 분포를 바로 읽게 정리했다.
 - 2026-05-13: 정책 상세/챗봇 프론트가 백엔드 additive field 를 실제로 쓰도록 연결했다. 정책 상세는 `selectionCriteria`, `homepageUrl`, `relatedLaw`, `formFiles` 를 노출하고, 챗봇은 `answerMode`, `needsClarification`, `branchSuggestions` 기반 분기/clarification UI 를 사용하도록 맞췄다.
 - 2026-05-13: 수집 detail 정규화에 `referenceUrlsJson` 을 추가해 대표 `detailUrl` 외 URL 후보 풀을 보존하게 했다. 온통청년의 `aplyUrlAddr/refUrlAddr1/refUrlAddr2` 와 detail 본문(`applyMethodDetail`, `supportDetail`, `selectionCriteria`, `targetDetail`) 안의 링크를 함께 저장해 canonical 단계에서 참고 URL을 잃지 않게 정리했다.
