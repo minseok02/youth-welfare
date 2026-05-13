@@ -59,6 +59,7 @@ public record NormalizedPolicyAggregate(
             String contactText,
             String legalBasisText,
             String onlineApplyUrl,
+            String referenceUrlsJson,
             String supportCycle,
             String provisionType
     ) {

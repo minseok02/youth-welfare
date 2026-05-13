@@ -26,6 +26,7 @@ class PolicyCategoryAuditServiceTest {
         ));
         given(repository.fetchYouthBroadCategoryMappings()).willReturn(List.of(
                 new PolicyCategoryAuditResponse.SourceCategoryMappingCount("복지문화", "문화·여가", 49L),
+                new PolicyCategoryAuditResponse.SourceCategoryMappingCount("복지문화", "건강·의료", 12L),
                 new PolicyCategoryAuditResponse.SourceCategoryMappingCount("금융·복지·문화", "건강·의료", 11L)
         ));
 
@@ -35,7 +36,16 @@ class PolicyCategoryAuditServiceTest {
 
         assertThat(response.totalPolicyCount()).isEqualTo(3925L);
         assertThat(response.searchablePolicyCount()).isEqualTo(2544L);
+        assertThat(response.searchablePolicyRatio()).isGreaterThan(0.64d).isLessThan(0.65d);
         assertThat(response.unifiedCategoryCounts()).hasSize(2);
-        assertThat(response.youthBroadCategoryMappings()).hasSize(2);
+        assertThat(response.topUnifiedCategorySummaries()).hasSize(2);
+        assertThat(response.topUnifiedCategorySummaries().get(0).unifiedCategory()).isEqualTo("일자리");
+        assertThat(response.topUnifiedCategorySummaries().get(0).searchableCoverage()).isEqualTo(1.0d);
+        assertThat(response.youthBroadCategoryMappings()).hasSize(3);
+        assertThat(response.youthBroadCategorySummaries()).hasSize(2);
+        assertThat(response.youthBroadCategorySummaries().get(0).sourceCategory()).isEqualTo("금융·복지·문화");
+        assertThat(response.youthBroadCategorySummaries().get(1).sourceCategory()).isEqualTo("복지문화");
+        assertThat(response.youthBroadCategorySummaries().get(1).dominantUnifiedCategory()).isEqualTo("문화·여가");
+        assertThat(response.youthBroadCategorySummaries().get(1).dominantShare()).isGreaterThan(0.80d);
     }
 }

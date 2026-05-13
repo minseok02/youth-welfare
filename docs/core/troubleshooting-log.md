@@ -3002,3 +3002,8 @@
 - 문제: `aplyUrlAddr`, `refUrlAddr1`, `refUrlAddr2` 같이 여러 URL 후보가 있는 source를 첫 non-blank 하나만 `detailUrl` 로 접으면, 신청 URL은 비어 있지만 참고 URL이나 본문 내 링크가 살아 있는 정책을 canonical 모델에서 복구하기 어려워진다. 이후 상세 페이지나 챗봇 CTA에서는 “URL 없음”으로 보이지만 raw payload에는 근거가 남아 있는 상태가 생긴다.
 - 해결: 당장은 raw payload를 보존해 backfill 가능성을 열어두고, 대표 URL과 별개로 보조 URL 후보 풀을 저장하는 방향을 다음 단계 설계로 분리했다. 상세 필드 노출도 `homepageUrl` 같은 보조 계약을 추가해 대표 URL 하나에만 의존하지 않도록 정리했다.
 - 이유: 수집 정규화에서 제일 위험한 손실은 “나중에 복구 가능한가” 여부다. 대표 필드 하나로 납작하게 만들기보다, canonical은 단순하게 유지하더라도 후보 풀이나 raw snapshot을 보존해야 후속 품질 보정이 가능하다.
+
+## 582) optional URL 후보를 `List.of(...)` 로 바로 묶으면 null 값이 하나만 섞여도 mapper 단계에서 즉시 예외가 난다
+- 문제: 정책 상세 URL 후보는 source마다 `apply/detail/reference` 필드가 비어 있을 수 있다. 이 상태에서 optional candidate를 `List.of(...)` 로 바로 만들면 null 이 하나만 있어도 `NullPointerException` 이 발생해, URL 후보 풀을 additive 필드로 붙이는 작업이 오히려 수집 정규화 경로를 깨뜨릴 수 있다.
+- 해결: URL 후보는 `referenceUrlCandidates(...)` 같은 null-filter helper로 먼저 정리한 뒤 JSON 후보 풀을 만들도록 바꿨다. direct candidate 와 본문 추출 candidate 모두 dedupe 전에 null-safe 하게 모으고, 테스트에서도 optional field 가 비어 있는 케이스를 같이 확인했다.
+- 이유: source payload 는 optional field 가 기본인 경우가 많다. additive 계약을 붙일수록 “필드가 없을 때도 안전하게 지나가야 한다”는 조건이 더 중요해지므로, optional candidate 집계는 생성 시점부터 null-safe 경계로 묶어야 한다.

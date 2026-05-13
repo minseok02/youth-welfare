@@ -117,6 +117,29 @@ class WelfareServiceMapperTest {
     }
 
     @Test
+    void toYouthDetailAggregate_preservesReferenceUrlCandidates() throws Exception {
+        YouthApiDto.Item detail = new YouthApiDto.Item();
+        setField(detail, "plcyNo", "Y007");
+        setField(detail, "plcyNm", "청년 정책");
+        setField(detail, "lclsfNm", "주거");
+        setField(detail, "aplyUrlAddr", "https://apply.example.com");
+        setField(detail, "refUrlAddr1", "www.reference-one.example.com");
+        setField(detail, "plcyAplyMthdCn", "온라인 신청은 https://guide.example.com 에서 진행");
+        setField(detail, "plcyExplnCn", "정책 안내");
+
+        WelfareService service = mapper.fromYouth(detail);
+        var aggregate = mapper.toYouthDetailAggregate(service, detail);
+        String json = aggregate.detail().referenceUrlsJson();
+
+        assertThat(json).contains("https://apply.example.com");
+        assertThat(json).contains("https://www.reference-one.example.com");
+        assertThat(json).contains("https://guide.example.com");
+        assertThat(json).contains("\"type\":\"APPLY\"");
+        assertThat(json).contains("\"type\":\"REFERENCE\"");
+        assertThat(json).contains("\"type\":\"EXTRACTED_FROM_TEXT\"");
+    }
+
+    @Test
     void fromBokjiroLocal_extractsAgeAndOnlineApplyFromText() throws Exception {
         BokjiroLocalDto.Item item = new BokjiroLocalDto.Item();
         setField(item, "servId", "L001");

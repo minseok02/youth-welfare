@@ -46,6 +46,10 @@
 - 추천/챗봇 공통 exploration engine 정리
 - retrieval snapshot / evaluation / compare / CSV export / quality gate / category audit 추가
 - 임베딩 refresh 운영 경로와 admin rebuild 경로 연결
+- category audit 응답에 `searchablePolicyRatio`, top unified category summary, 청년 broad category dominant mapping 요약 추가
+- 정책 상세/챗봇 UI가 `selectionCriteria`, `homepageUrl`, `relatedLaw`, `formFiles`, `answerMode`, `needsClarification`, `branchSuggestions` 를 실제로 사용하도록 반영
+- 수집 detail 단계에서 대표 URL 외 후보 URL 풀을 `referenceUrlsJson` 으로 보존하고, 본문 링크 추출도 함께 저장
+- 기존 raw detail payload 로 `referenceUrlsJson` 을 다시 채우는 admin rebuild 경로 추가
 
 ### 현재 검증 기준
 
@@ -55,14 +59,15 @@
 - 운영 성격 확인:
   - `POST /api/admin/policies/retrieval-evaluations/gate`
   - `GET /api/admin/policies/category-audit`
+  - `POST /api/admin/policies/reference-urls/rebuild` (`missingOnly=true` 기본)
   - 필요 시 `POST /api/admin/policies/embeddings/rebuild`
 
 ### 지금 남은 우선순위
 
-- retrieval/category audit 결과를 더 읽기 쉬운 리포트로 정리
-- 프론트에서 아직 안 쓰는 챗봇/정책 상세 필드 반영
-- URL 후보 풀 보존 같은 수집 품질 보강 설계
 - 운영 문서/런북 고정
+- `referenceUrlsJson` rebuild/backfill 운영 절차 문서화
+- category audit / retrieval evaluation 결과를 운영 보고서 관점에서 더 요약
+- 프론트 번들 경고와 retrieval/embedding 운영 모니터링 보강
 
 ## 정책 목록 정렬 변경 이력 (2026-05-04)
 

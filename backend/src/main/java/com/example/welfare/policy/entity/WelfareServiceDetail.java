@@ -42,4 +42,7 @@ public class WelfareServiceDetail extends BaseTimeEntity {
 
     @Column(columnDefinition = "TEXT")
     private String formFiles;
+
+    @Column(columnDefinition = "TEXT")
+    private String referenceUrlsJson;
 }

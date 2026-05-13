@@ -3,13 +3,16 @@ package com.example.welfare.policy.controller;
 import com.example.welfare.global.response.ApiResponse;
 import com.example.welfare.policy.dto.PolicyCategoryAuditResponse;
 import com.example.welfare.policy.dto.PolicyEmbeddingRefreshResponse;
+import com.example.welfare.policy.dto.PolicyReferenceUrlBackfillResponse;
 import com.example.welfare.policy.dto.PolicyRetrievalEvaluationCompareRequest;
 import com.example.welfare.policy.dto.PolicyRetrievalEvaluationCompareResponse;
 import com.example.welfare.policy.dto.PolicyRetrievalEvaluationResponse;
 import com.example.welfare.policy.dto.PolicyRetrievalQualityGateResponse;
+import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.service.PolicyCategoryAuditService;
 import com.example.welfare.policy.dto.SearchYouthRelevanceBackfillResponse;
 import com.example.welfare.policy.service.PolicyEmbeddingAdminService;
+import com.example.welfare.policy.service.PolicyReferenceUrlAdminService;
 import com.example.welfare.policy.service.PolicyRetrievalEvaluationExportService;
 import com.example.welfare.policy.service.PolicyRetrievalEvaluationService;
 import com.example.welfare.policy.service.PolicyRetrievalQualityGateService;
@@ -40,6 +43,7 @@ public class PolicyAdminController {
     private final PolicyRetrievalEvaluationExportService policyRetrievalEvaluationExportService;
     private final PolicyRetrievalQualityGateService policyRetrievalQualityGateService;
     private final PolicyCategoryAuditService policyCategoryAuditService;
+    private final PolicyReferenceUrlAdminService policyReferenceUrlAdminService;
 
     @PostMapping("/search-youth-relevance/rebuild")
     public ResponseEntity<ApiResponse<SearchYouthRelevanceBackfillResponse>> rebuildSearchYouthRelevance() {
@@ -59,6 +63,27 @@ public class PolicyAdminController {
                 response.requestedServiceCount(),
                 response.scannedChunkCount(),
                 response.refreshedChunkCount());
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    @PostMapping("/reference-urls/rebuild")
+    public ResponseEntity<ApiResponse<PolicyReferenceUrlBackfillResponse>> rebuildPolicyReferenceUrls(
+            @RequestParam(required = false) List<WelfareService.SourceType> sourceType,
+            @RequestParam(defaultValue = "0") int limitPerSource,
+            @RequestParam(defaultValue = "true") boolean missingOnly
+    ) {
+        PolicyReferenceUrlBackfillResponse response =
+                policyReferenceUrlAdminService.rebuildReferenceUrls(sourceType, limitPerSource, missingOnly);
+        log.info("[Admin] 정책 참고 URL 재구축 트리거 scope={} sourceTypes={} limitPerSource={} missingOnly={} scanned={} skipped={} updated={} missing={} failed={}",
+                response.scope(),
+                response.sourceTypes(),
+                response.limitPerSource(),
+                response.missingOnly(),
+                response.scannedCount(),
+                response.skippedCount(),
+                response.updatedCount(),
+                response.missingServiceCount(),
+                response.failedCount());
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
@@ -132,11 +157,13 @@ public class PolicyAdminController {
     @GetMapping("/category-audit")
     public ResponseEntity<ApiResponse<PolicyCategoryAuditResponse>> readCategoryAudit() {
         PolicyCategoryAuditResponse response = policyCategoryAuditService.readAudit();
-        log.info("[Admin] category audit 조회 totalPolicies={} searchablePolicies={} categories={} youthBroadMappings={}",
+        log.info("[Admin] category audit 조회 totalPolicies={} searchablePolicies={} searchableRatio={} categories={} youthBroadMappings={} youthBroadSummaries={}",
                 response.totalPolicyCount(),
                 response.searchablePolicyCount(),
+                response.searchablePolicyRatio(),
                 response.unifiedCategoryCounts().size(),
-                response.youthBroadCategoryMappings().size());
+                response.youthBroadCategoryMappings().size(),
+                response.youthBroadCategorySummaries().size());
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 }

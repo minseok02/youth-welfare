@@ -1,5 +1,9 @@
 # 구현 현황
 
+- 2026-05-13: `POST /api/admin/policies/reference-urls/rebuild` 를 추가했다. 기존 `raw_api_payloads` DETAIL snapshot을 다시 읽어 `referenceUrlsJson` 을 재구축하고, 청년 DETAIL raw와 복지로 DETAIL raw를 모두 대상으로 `WelfareServiceDetail` 을 재적용하게 정리했다. 기본은 `missingOnly=true` 로 두어 이미 URL 후보 풀이 있는 row는 건너뛰고, 로컬 테스트 서비스 기준으로 과거 적재 row도 재수집 없이 안전하게 메울 수 있다.
+- 2026-05-13: retrieval/category audit 후속으로 `PolicyCategoryAuditResponse` 를 읽기 쉬운 요약 계약으로 보강했다. 전체 `searchablePolicyRatio`, 상위 unified category 의 `totalShare/searchableCoverage`, 청년 broad category 의 dominant mapping 을 함께 내려 운영자가 raw count 없이도 분포를 바로 읽게 정리했다.
+- 2026-05-13: 정책 상세/챗봇 프론트가 백엔드 additive field 를 실제로 쓰도록 연결했다. 정책 상세는 `selectionCriteria`, `homepageUrl`, `relatedLaw`, `formFiles` 를 노출하고, 챗봇은 `answerMode`, `needsClarification`, `branchSuggestions` 기반 분기/clarification UI 를 사용하도록 맞췄다.
+- 2026-05-13: 수집 detail 정규화에 `referenceUrlsJson` 을 추가해 대표 `detailUrl` 외 URL 후보 풀을 보존하게 했다. 온통청년의 `aplyUrlAddr/refUrlAddr1/refUrlAddr2` 와 detail 본문(`applyMethodDetail`, `supportDetail`, `selectionCriteria`, `targetDetail`) 안의 링크를 함께 저장해 canonical 단계에서 참고 URL을 잃지 않게 정리했다.
 - 2026-05-13: PostgreSQL 기반 리팩토링을 `main` 기준으로 마무리했다. `MySQL -> PostgreSQL` 전환, PostgreSQL FTS/`pg_trgm` 검색 전환, 챗봇 retrieval foundation, `pgvector` 임베딩/semantic retrieval, 추천/챗봇 공통 탐색 엔진, retrieval evaluation/compare/export/gate/category audit 경로를 모두 연결했다.
 - 2026-05-13: 로컬 데이터 재적재와 retrieval baseline 재검증도 끝냈다. 현재 기준선은 `welfare_services=3925`, `search_youth_relevant=2544`, `welfare_service_details=1356`, `policy_chunks=14210`, embedded chunk `14210`, retrieval baseline `top1/top3/branch=1.0`, `emptyResultCount=0`, quality gate `passed=true` 이다.
 - 2026-05-13: 프론트/백엔드 계약도 현재 구현 기준으로 맞췄다. `operatingOrg`, `selectionCriteria`, `homepageUrl`, `relatedLaw`, `formFiles` 를 응답 계약에 복구했고, 프론트 lint/build blocker를 정리했다.

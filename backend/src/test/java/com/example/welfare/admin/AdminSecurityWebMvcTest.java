@@ -26,11 +26,13 @@ import com.example.welfare.global.util.JwtUtil;
 import com.example.welfare.policy.controller.PolicyAdminController;
 import com.example.welfare.policy.dto.PolicyCategoryAuditResponse;
 import com.example.welfare.policy.dto.PolicyEmbeddingRefreshResponse;
+import com.example.welfare.policy.dto.PolicyReferenceUrlBackfillResponse;
 import com.example.welfare.policy.dto.PolicyRetrievalEvaluationCompareResponse;
 import com.example.welfare.policy.dto.PolicyRetrievalEvaluationResponse;
 import com.example.welfare.policy.dto.PolicyRetrievalQualityGateResponse;
 import com.example.welfare.policy.service.PolicyCategoryAuditService;
 import com.example.welfare.policy.service.PolicyEmbeddingAdminService;
+import com.example.welfare.policy.service.PolicyReferenceUrlAdminService;
 import com.example.welfare.policy.service.PolicyRetrievalEvaluationExportService;
 import com.example.welfare.policy.service.PolicyRetrievalEvaluationService;
 import com.example.welfare.policy.service.PolicyRetrievalQualityGateService;
@@ -93,6 +95,8 @@ class AdminSecurityWebMvcTest {
     private SearchYouthRelevanceService searchYouthRelevanceService;
     @MockBean
     private PolicyEmbeddingAdminService policyEmbeddingAdminService;
+    @MockBean
+    private PolicyReferenceUrlAdminService policyReferenceUrlAdminService;
     @MockBean
     private PolicyRetrievalEvaluationService policyRetrievalEvaluationService;
     @MockBean
@@ -193,6 +197,53 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.data.refreshedChunkCount").value(12));
 
         then(policyEmbeddingAdminService).should().rebuildSearchablePolicyEmbeddings();
+    }
+
+    @Test
+    @DisplayName("관리자 토큰으로 정책 참고 URL 재구축 API를 호출하면 reference url admin service를 실행한다")
+    void adminEndpointAllowsPolicyReferenceUrlRebuild() throws Exception {
+        mockAuthenticatedToken("admin-token", List.of(
+                new SimpleGrantedAuthority("ROLE_USER"),
+                new SimpleGrantedAuthority("ROLE_ADMIN")
+        ));
+        given(policyReferenceUrlAdminService.rebuildReferenceUrls(List.of(
+                com.example.welfare.policy.entity.WelfareService.SourceType.YOUTH,
+                com.example.welfare.policy.entity.WelfareService.SourceType.BOKJIRO_LOCAL
+        ), 50, true)).willReturn(new PolicyReferenceUrlBackfillResponse(
+                "selected-detail-sources",
+                List.of(
+                        com.example.welfare.policy.entity.WelfareService.SourceType.YOUTH,
+                        com.example.welfare.policy.entity.WelfareService.SourceType.BOKJIRO_LOCAL
+                ),
+                50,
+                true,
+                30,
+                2,
+                28,
+                1,
+                1
+        ));
+
+        mockMvc.perform(post("/api/admin/policies/reference-urls/rebuild")
+                        .param("sourceType", "YOUTH", "BOKJIRO_LOCAL")
+                        .param("limitPerSource", "50")
+                        .param("missingOnly", "true")
+                        .header("Authorization", "Bearer admin-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.scope").value("selected-detail-sources"))
+                .andExpect(jsonPath("$.data.limitPerSource").value(50))
+                .andExpect(jsonPath("$.data.missingOnly").value(true))
+                .andExpect(jsonPath("$.data.scannedCount").value(30))
+                .andExpect(jsonPath("$.data.skippedCount").value(2))
+                .andExpect(jsonPath("$.data.updatedCount").value(28))
+                .andExpect(jsonPath("$.data.missingServiceCount").value(1))
+                .andExpect(jsonPath("$.data.failedCount").value(1));
+
+        then(policyReferenceUrlAdminService).should().rebuildReferenceUrls(List.of(
+                com.example.welfare.policy.entity.WelfareService.SourceType.YOUTH,
+                com.example.welfare.policy.entity.WelfareService.SourceType.BOKJIRO_LOCAL
+        ), 50, true);
     }
 
     @Test
@@ -415,13 +466,36 @@ class AdminSecurityWebMvcTest {
                 .willReturn(new PolicyCategoryAuditResponse(
                         3925L,
                         2544L,
+                        0.6481528662d,
                         List.of(
                                 new PolicyCategoryAuditResponse.CategoryCount("일자리", 903L, 903L),
                                 new PolicyCategoryAuditResponse.CategoryCount("건강·의료", 142L, 142L)
                         ),
                         List.of(
+                                new PolicyCategoryAuditResponse.CategorySummary("일자리", 903L, 903L, 0.23d, 1.0d),
+                                new PolicyCategoryAuditResponse.CategorySummary("건강·의료", 142L, 142L, 0.03d, 1.0d)
+                        ),
+                        List.of(
                                 new PolicyCategoryAuditResponse.SourceCategoryMappingCount("복지문화", "문화·여가", 49L),
                                 new PolicyCategoryAuditResponse.SourceCategoryMappingCount("금융·복지·문화", "건강·의료", 11L)
+                        ),
+                        List.of(
+                                new PolicyCategoryAuditResponse.SourceCategorySummary(
+                                        "금융·복지·문화",
+                                        11L,
+                                        "건강·의료",
+                                        11L,
+                                        1.0d,
+                                        List.of(new PolicyCategoryAuditResponse.SourceCategoryMappingCount("금융·복지·문화", "건강·의료", 11L))
+                                ),
+                                new PolicyCategoryAuditResponse.SourceCategorySummary(
+                                        "복지문화",
+                                        49L,
+                                        "문화·여가",
+                                        49L,
+                                        1.0d,
+                                        List.of(new PolicyCategoryAuditResponse.SourceCategoryMappingCount("복지문화", "문화·여가", 49L))
+                                )
                         )
                 ));
 
@@ -431,8 +505,11 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.totalPolicyCount").value(3925))
                 .andExpect(jsonPath("$.data.searchablePolicyCount").value(2544))
+                .andExpect(jsonPath("$.data.searchablePolicyRatio").value(0.6481528662d))
                 .andExpect(jsonPath("$.data.unifiedCategoryCounts[0].unifiedCategory").value("일자리"))
-                .andExpect(jsonPath("$.data.youthBroadCategoryMappings[0].sourceCategory").value("복지문화"));
+                .andExpect(jsonPath("$.data.topUnifiedCategorySummaries[0].unifiedCategory").value("일자리"))
+                .andExpect(jsonPath("$.data.youthBroadCategoryMappings[0].sourceCategory").value("복지문화"))
+                .andExpect(jsonPath("$.data.youthBroadCategorySummaries[1].sourceCategory").value("복지문화"));
 
         then(policyCategoryAuditService).should().readAudit();
     }

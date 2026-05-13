@@ -277,6 +277,7 @@ CREATE TABLE IF NOT EXISTS welfare_service_details (
     homepage_url        VARCHAR(500),
     related_law         VARCHAR(500),
     form_files          TEXT,
+    reference_urls_json TEXT,
     created_at          TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at          TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT uq_wsd_service UNIQUE (service_id),

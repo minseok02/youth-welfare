@@ -25,9 +25,12 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * 공공API 3종 DTO → WelfareService Entity 변환
@@ -41,6 +44,7 @@ public class WelfareServiceMapper {
     private static final String[] ONLINE_APPLY_KEYWORDS = {
             "온라인", "인터넷", "홈페이지", "웹", "모바일", "앱", "신청페이지", "누리집"
     };
+    private static final Pattern URL_PATTERN = Pattern.compile("https?://[^\\s\"'<>]+|www\\.[^\\s\"'<>]+");
     // ===== 온통청년 =====
 
     public WelfareService fromYouth(YouthApiDto.Item item) {
@@ -187,6 +191,11 @@ public class WelfareServiceMapper {
                 .detail(NormalizedPolicyAggregate.Detail.builder()
                         .applyMethodDetail(firstNonBlank(detail.getPlcyAplyMthdCn(), service.getApplyMethodName()))
                         .onlineApplyUrl(onlineApply ? resolvedUrl : null)
+                        .referenceUrlsJson(buildReferenceUrlsJson(referenceUrlCandidates(
+                                referenceUrlCandidate(detail.getAplyUrlAddr(), "APPLY", "aplyUrlAddr", "신청 URL", 1.0d),
+                                referenceUrlCandidate(detail.getRefUrlAddr1(), "REFERENCE", "refUrlAddr1", "참고 URL 1", 0.9d),
+                                referenceUrlCandidate(detail.getRefUrlAddr2(), "REFERENCE", "refUrlAddr2", "참고 URL 2", 0.9d)
+                        ), detail.getPlcyAplyMthdCn(), detail.getPlcySprtCn(), detail.getPlcyExplnCn()))
                         .build())
                 .taxonomy(NormalizedPolicyAggregate.TaxonomySummary.builder()
                         .compatUnifiedCategory(service.getUnifiedCategory())
@@ -565,6 +574,17 @@ public class WelfareServiceMapper {
                 .contactText(detailPayload == null ? null : RawFieldValidator.normalize(detailPayload.getContactList()))
                 .legalBasisText(null)
                 .onlineApplyUrl(service.getIsOnlineApply() != null && service.getIsOnlineApply() ? service.getDetailUrl() : null)
+                .referenceUrlsJson(buildReferenceUrlsJson(referenceUrlCandidates(
+                        referenceUrlCandidate(service.getDetailUrl(),
+                                service.getIsOnlineApply() != null && service.getIsOnlineApply() ? "APPLY" : "DETAIL",
+                                "detailUrl",
+                                service.getIsOnlineApply() != null && service.getIsOnlineApply() ? "대표 신청 링크" : "대표 상세 링크",
+                                0.95d)
+                ),
+                        detailPayload == null ? null : detailPayload.getApplyMethodDetail(),
+                        detailPayload == null ? null : detailPayload.getSupportDetail(),
+                        detailPayload == null ? null : detailPayload.getSelectionCriteria(),
+                        detailPayload == null ? null : detailPayload.getTargetDetail()))
                 .supportCycle(firstNonBlank(
                         detailPayload == null ? null : detailPayload.getSupportCycle(),
                         service.getSupportCycle()
@@ -574,6 +594,135 @@ public class WelfareServiceMapper {
                         service.getProvisionType()
                 ))
                 .build();
+    }
+
+    private String buildReferenceUrlsJson(List<ReferenceUrlCandidate> directCandidates, String... texts) {
+        LinkedHashSet<String> seen = new LinkedHashSet<>();
+        List<ReferenceUrlCandidate> collected = new ArrayList<>();
+
+        if (directCandidates != null) {
+            for (ReferenceUrlCandidate candidate : directCandidates) {
+                if (candidate == null || candidate.url() == null || !seen.add(candidate.url())) {
+                    continue;
+                }
+                collected.add(candidate);
+            }
+        }
+
+        if (texts != null) {
+            for (int i = 0; i < texts.length; i++) {
+                String sourceField = "textField" + i;
+                if (i == 0) {
+                    sourceField = "applyMethodDetail";
+                } else if (i == 1) {
+                    sourceField = "supportDetail";
+                } else if (i == 2) {
+                    sourceField = "selectionCriteria";
+                } else if (i == 3) {
+                    sourceField = "targetDetail";
+                }
+                addExtractedUrlCandidates(collected, seen, texts[i], sourceField);
+            }
+        }
+
+        if (collected.isEmpty()) {
+            return null;
+        }
+
+        StringBuilder json = new StringBuilder("[");
+        for (int i = 0; i < collected.size(); i++) {
+            ReferenceUrlCandidate candidate = collected.get(i);
+            if (i > 0) {
+                json.append(',');
+            }
+            json.append('{')
+                    .append("\"url\":\"").append(escapeJson(candidate.url())).append("\",")
+                    .append("\"type\":\"").append(escapeJson(candidate.type())).append("\",")
+                    .append("\"sourceField\":\"").append(escapeJson(candidate.sourceField())).append("\",")
+                    .append("\"label\":\"").append(escapeJson(candidate.label())).append("\",")
+                    .append("\"confidence\":").append(String.format(java.util.Locale.US, "%.2f", candidate.confidence()))
+                    .append('}');
+        }
+        json.append(']');
+        return json.toString();
+    }
+
+    private List<ReferenceUrlCandidate> referenceUrlCandidates(ReferenceUrlCandidate... candidates) {
+        List<ReferenceUrlCandidate> result = new ArrayList<>();
+        if (candidates == null) {
+            return result;
+        }
+        for (ReferenceUrlCandidate candidate : candidates) {
+            if (candidate != null) {
+                result.add(candidate);
+            }
+        }
+        return result;
+    }
+
+    private void addExtractedUrlCandidates(List<ReferenceUrlCandidate> collected,
+                                           LinkedHashSet<String> seen,
+                                           String text,
+                                           String sourceField) {
+        String normalizedText = RawFieldValidator.normalize(text);
+        if (normalizedText == null) {
+            return;
+        }
+
+        Matcher matcher = URL_PATTERN.matcher(normalizedText);
+        while (matcher.find()) {
+            String url = normalizeUrl(matcher.group());
+            if (url == null || !seen.add(url)) {
+                continue;
+            }
+            collected.add(new ReferenceUrlCandidate(
+                    url,
+                    "EXTRACTED_FROM_TEXT",
+                    sourceField,
+                    "본문 추출 링크",
+                    0.55d
+            ));
+        }
+    }
+
+    private ReferenceUrlCandidate referenceUrlCandidate(String rawUrl,
+                                                        String type,
+                                                        String sourceField,
+                                                        String label,
+                                                        double confidence) {
+        String url = normalizeUrl(rawUrl);
+        if (url == null) {
+            return null;
+        }
+        return new ReferenceUrlCandidate(url, type, sourceField, label, confidence);
+    }
+
+    private String normalizeUrl(String rawUrl) {
+        String normalized = RawFieldValidator.normalize(rawUrl);
+        if (normalized == null) {
+            return null;
+        }
+        if (normalized.regionMatches(true, 0, "www.", 0, 4)) {
+            return "https://" + normalized;
+        }
+        return normalized;
+    }
+
+    private String escapeJson(String value) {
+        return value
+                .replace("\\", "\\\\")
+                .replace("\"", "\\\"")
+                .replace("\n", "\\n")
+                .replace("\r", "\\r");
+    }
+
+    private record ReferenceUrlCandidate(
+            String url,
+            String type,
+            String sourceField,
+            String label,
+            double confidence
+    ) {
     }
 
 }
