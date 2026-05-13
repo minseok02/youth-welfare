@@ -86,6 +86,12 @@ const mapMessage = (message) => ({
   createdAt: message.createdAt,
 });
 
+const mapBranchSuggestion = (option) => ({
+  branchKey: option.branchKey,
+  label: option.label,
+  guideQuestion: option.guideQuestion,
+});
+
 export default function ChatPage() {
   const navigate = useNavigate();
   const [sessions, setSessions] = useState([]);
@@ -98,6 +104,7 @@ export default function ChatPage() {
   const [creatingSession, setCreatingSession] = useState(false);
   const [sending, setSending] = useState(false);
   const [deletingSessionId, setDeletingSessionId] = useState(null);
+  const [latestAnswerMeta, setLatestAnswerMeta] = useState(null);
   const [toast, setToast] = useState({ open: false, msg: "", severity: "info" });
 
   const showToast = useCallback((msg, severity = "info") => {
@@ -198,6 +205,10 @@ export default function ChatPage() {
     void loadMessages(activeSessionId);
   }, [activeSessionId, loadMessages]);
 
+  useEffect(() => {
+    setLatestAnswerMeta(null);
+  }, [activeSessionId]);
+
   const activeSession = useMemo(
     () => sessions.find((session) => session.sessionId === activeSessionId) ?? null,
     [activeSessionId, sessions]
@@ -211,6 +222,7 @@ export default function ChatPage() {
       setSessions((prev) => [createdSession, ...prev.filter((session) => session.sessionId !== createdSession.sessionId)]);
       setActiveSessionId(createdSession.sessionId);
       setMessages([]);
+      setLatestAnswerMeta(null);
       return createdSession.sessionId;
     } catch {
       showToast("새 대화를 시작하지 못했습니다.", "error");
@@ -246,14 +258,13 @@ export default function ChatPage() {
     }
   };
 
-  const handleSend = async (event) => {
-    event.preventDefault();
-    const content = draft.trim();
+  const sendMessage = useCallback(async (rawContent, branchKey = null) => {
+    const content = rawContent.trim();
     if (!content || sending) {
       return;
     }
 
-    setDraft("");
+    setDraft((current) => (current.trim() === content ? "" : current));
     setSending(true);
 
     let sessionId = activeSessionId;
@@ -288,8 +299,9 @@ export default function ChatPage() {
     ]);
 
     try {
-      const { data } = await api.post(`/api/chat/sessions/${sessionId}/messages`, { content });
-      const references = data?.data?.references ?? [];
+      const { data } = await api.post(`/api/chat/sessions/${sessionId}/messages`, { content, branchKey });
+      const payload = data?.data;
+      const references = payload?.references ?? [];
       if (references.length) {
         setPolicyMeta((prev) => ({
           ...prev,
@@ -304,6 +316,12 @@ export default function ChatPage() {
           ),
         }));
       }
+      setLatestAnswerMeta({
+        answer: payload?.answer ?? "",
+        answerMode: payload?.answerMode ?? null,
+        needsClarification: Boolean(payload?.needsClarification),
+        branchSuggestions: (payload?.branchSuggestions ?? []).map(mapBranchSuggestion),
+      });
 
       await Promise.all([loadSessions(sessionId), loadMessages(sessionId)]);
     } catch (error) {
@@ -324,6 +342,16 @@ export default function ChatPage() {
     } finally {
       setSending(false);
     }
+  }, [activeSessionId, createSession, loadMessages, loadSessions, sending, showToast]);
+
+  const handleSend = async (event) => {
+    event.preventDefault();
+    await sendMessage(draft);
+  };
+
+  const handleSelectBranch = async (option) => {
+    const branchQuestion = option.guideQuestion?.trim() || `${option.label} 관련 정책으로 좁혀서 보여주세요.`;
+    await sendMessage(branchQuestion, option.branchKey);
   };
 
   return (
@@ -452,6 +480,7 @@ export default function ChatPage() {
                                 {session.title}
                               </Typography>
                             }
+                            secondaryTypographyProps={{ component: "div" }}
                             secondary={
                               <Stack spacing={0.5} sx={{ mt: 0.5 }}>
                                 <Typography variant="caption" color="text.secondary" noWrap>
@@ -668,6 +697,40 @@ export default function ChatPage() {
 
                 <Box component="form" onSubmit={handleSend} sx={{ p: { xs: 1.5, md: 2 } }}>
                   <Stack spacing={1.25}>
+                    {latestAnswerMeta?.answerMode === "BRANCH_SUGGESTION" && latestAnswerMeta.branchSuggestions.length > 0 ? (
+                      <Alert severity="info" sx={{ alignItems: "flex-start" }}>
+                        <Stack spacing={1}>
+                          <Typography fontWeight={700}>
+                            {latestAnswerMeta.answer || "원하는 방향을 고르면 그 기준으로 정책을 더 좁혀서 보여드립니다."}
+                          </Typography>
+                          <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+                            {latestAnswerMeta.branchSuggestions.map((option) => (
+                              <Chip
+                                key={option.branchKey}
+                                label={option.label}
+                                onClick={() => void handleSelectBranch(option)}
+                                color="primary"
+                                variant="outlined"
+                                disabled={sending}
+                              />
+                            ))}
+                          </Stack>
+                        </Stack>
+                      </Alert>
+                    ) : null}
+
+                    {latestAnswerMeta?.needsClarification && latestAnswerMeta.answerMode === "CLARIFICATION" ? (
+                      <Alert severity="warning">
+                        {latestAnswerMeta.answer || "질문 범위가 넓어서 지역, 나이, 상황을 조금만 더 적어주시면 더 정확하게 좁힐 수 있습니다."}
+                      </Alert>
+                    ) : null}
+
+                    {latestAnswerMeta?.answerMode === "POLICY_GROUNDED" && !latestAnswerMeta.needsClarification ? (
+                      <Alert severity="success">
+                        답변에 연결된 정책 카드를 함께 확인하세요. 신청 조건과 마감일은 상세 페이지에서 다시 확인하는 기준입니다.
+                      </Alert>
+                    ) : null}
+
                     <TextField
                       fullWidth
                       multiline
