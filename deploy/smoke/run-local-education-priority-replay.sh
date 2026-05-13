@@ -118,6 +118,11 @@ normalize_local_pg_username() {
   printf "%s" "${current_value}"
 }
 
+is_postgres_jdbc_url() {
+  local jdbc_url="$1"
+  [[ "${jdbc_url}" == jdbc:postgresql://* ]]
+}
+
 DB_USERNAME="$(normalize_local_pg_username "${DB_USERNAME}" "app_core_rw")"
 DB_MIGRATION_USERNAME="$(normalize_local_pg_username "${DB_MIGRATION_USERNAME}" "migration_admin")"
 DB_APP_PII_USERNAME="$(normalize_local_pg_username "${DB_APP_PII_USERNAME}" "app_pii_rw")"
@@ -1078,6 +1083,10 @@ write_openai_mode
 if [[ "${ENSURE_DOCKER_SERVICES}" == "true" ]]; then
   require_command docker
   if [[ "${RECONCILE_LOCAL_DB_ACCOUNTS}" == "true" ]]; then
+    if is_postgres_jdbc_url "${DB_URL}"; then
+      echo "RECONCILE_LOCAL_DB_ACCOUNTS=true is legacy MySQL-only and unsupported on PostgreSQL main; leave it false for local replay" >&2
+      exit 1
+    fi
     "${RECONCILE_DB_SCRIPT}" >/dev/null
   fi
   (cd "${ROOT_DIR}" && docker compose up -d db redis >/dev/null)

@@ -3107,3 +3107,18 @@
 - 문제: draft apply script가 `DB_CONTAINER_NAME` 로 정리된 뒤에도 MySQL docker exec fallback 일부가 계속 `MYSQL_CONTAINER_NAME` 을 직접 읽고 있으면, PostgreSQL happy path 밖의 fallback 실행 시 `unbound variable` 로 바로 실패한다.
 - 해결: mysql fallback docker exec 도 전부 `DB_CONTAINER_NAME` 을 사용하도록 통일했다.
 - 이유: shell script는 `set -u` 아래에서 “거의 다 바뀐 변수명”이 가장 위험하다. 새 이름으로 표준화했다면 fallback branch까지 완전히 끊어야 한다.
+
+## 603) PostgreSQL main에서 replay smoke의 `RECONCILE_LOCAL_DB_ACCOUNTS=true` 를 그대로 켜면, 검증이 아니라 예전 MySQL 계정 복구 스크립트를 잘못 호출하게 된다
+- 문제: `run-local-education-priority-replay.sh` 는 기본값으론 PostgreSQL local URL/role을 쓰지만, 옵션 `RECONCILE_LOCAL_DB_ACCOUNTS=true` 가 켜지면 여전히 `deploy/mysql/reconcile-local-runtime-db-accounts.sh` 를 호출한다. 이 스크립트는 MySQL volume, `mysql:8.0`, `mysql` CLI, grant table 복구를 전제로 하므로 PostgreSQL main에서는 전혀 맞지 않는 경로다.
+- 해결: replay smoke는 `DB_URL` 이 PostgreSQL일 때 `RECONCILE_LOCAL_DB_ACCOUNTS=true` 를 즉시 실패시키고, 이 옵션이 legacy MySQL-only 경로라는 메시지를 명시적으로 출력하게 바꿨다.
+- 이유: 이런 옵션은 “지금은 안 쓰지만 혹시 필요할 수 있는 fallback” 으로 남아 있을수록 더 위험하다. 현재 mainline과 안 맞는 복구 경로는 조용히 시도하게 두는 것보다 early fail로 막는 편이 안전하다.
+
+## 604) runtime cutover preflight가 여전히 `jdbc:mysql://...` 만 허용하면, 현재 PostgreSQL main 기준의 정상 `.env` 도 잘못된 것으로 판정한다
+- 문제: `preflight-runtime-cutover-env.sh` 가 `DB_URL`, `APP_PII_DB_URL`, `NOTIFICATION_PII_DB_URL` 를 모두 `jdbc:mysql://...` 형태로만 파싱하면, 현재 main의 정상 PostgreSQL URL(`jdbc:postgresql://...`, `currentSchema=youth_welfare_pii`)을 넣어도 preflight가 실패한다.
+- 해결: preflight가 이제 `jdbc:mysql://` 와 `jdbc:postgresql://` 를 모두 파싱한다. core runtime은 `youth_welfare` DB/public schema를, PII runtime은 MySQL에서는 `youth_welfare_pii` DB를, PostgreSQL에서는 `youth_welfare` DB + `currentSchema=youth_welfare_pii` 를 요구하도록 정리했다. summary 출력도 PostgreSQL schema까지 같이 보여주게 바꿨다.
+- 이유: preflight는 현재 mainline을 기준으로 “정상 env인가”를 판정해야 한다. 메인라인이 바뀌었는데도 예전 JDBC 문법만 강제하면, 스크립트는 안전장치가 아니라 거짓 실패 생성기가 된다.
+
+## 605) MySQL 시절 migration 메모를 현재 실행 문서처럼 그대로 두면, PostgreSQL main에서 운영자가 legacy 절차를 따라가며 잘못된 수동 작업을 할 수 있다
+- 문제: `docs/core/db-migration.md` 에는 draft sidecar SQL, `mysql -h ...`, `docker exec ... mysql ...`, `SHOW TABLES`, `ANALYZE TABLE` 같은 예전 MySQL 예시가 많이 남아 있다. 이 문서를 현재 main 실행 문서처럼 읽으면 PostgreSQL integrated schema / admin rebuild 흐름과 충돌한다.
+- 해결: 문서 상단에 “현재 main은 PostgreSQL, 이 문서는 legacy MySQL migration history” 라는 경계를 명시하고, `current-state`, PostgreSQL playbook, `schema.sql`, local validation 문서로 먼저 보내도록 바꿨다. MySQL 예시 섹션도 `legacy MySQL only` 라벨을 붙였다.
+- 이유: 오래된 운영 문서는 코드보다 늦게 사고를 만든다. 실행 경로가 바뀐 뒤에는 문서가 스스로 현재 truth와 legacy history를 구분해야 한다.
