@@ -7,9 +7,9 @@ import java.util.List;
 public record AdminRecommendationBreakdownResponse(
         LocalDateTime generatedAt,
         int windowDays,
-        long totalLogs,
-        long clickedLogs,
-        long fallbackLogs,
+        long sentLogsInWindow,
+        long clickedLogsInWindow,
+        long fallbackLogsInWindow,
         List<SourceBreakdown> sourceBreakdowns,
         List<CategoryBreakdown> categoryBreakdowns,
         List<WeightBreakdown> weightBreakdowns,

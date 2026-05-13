@@ -88,15 +88,15 @@ class AdminDashboardCollectServiceTest {
         AdminCollectFailureResponse response = adminDashboardCollectService.getCollectFailures(14, 3);
 
         assertThat(response.windowDays()).isEqualTo(14);
-        assertThat(response.totalFailedJobs()).isEqualTo(6);
-        assertThat(response.totalPartialSuccessJobs()).isEqualTo(2);
+        assertThat(response.failedJobsInWindow()).isEqualTo(6);
+        assertThat(response.partialSuccessJobsInWindow()).isEqualTo(2);
         assertThat(response.jobBreakdowns()).singleElement().satisfies(job -> {
             assertThat(job.jobName()).isEqualTo("BOKJIRO_LOCAL");
             assertThat(job.failedCount()).isEqualTo(4);
             assertThat(job.partialSuccessCount()).isEqualTo(1);
             assertThat(job.latestStartedAt()).isEqualTo(LocalDateTime.of(2026, 5, 3, 9, 0));
         });
-        assertThat(response.jobStreaks()).singleElement().satisfies(streak -> {
+        assertThat(response.currentJobStreaks()).singleElement().satisfies(streak -> {
             assertThat(streak.jobName()).isEqualTo("BOKJIRO_LOCAL");
             assertThat(streak.streakStatus()).isEqualTo("FAILED");
             assertThat(streak.streakCount()).isEqualTo(24);

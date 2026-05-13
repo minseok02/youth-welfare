@@ -6,10 +6,10 @@ import java.util.List;
 public record AdminCollectFailureResponse(
         LocalDateTime generatedAt,
         int windowDays,
-        long totalFailedJobs,
-        long totalPartialSuccessJobs,
+        long failedJobsInWindow,
+        long partialSuccessJobsInWindow,
         List<JobBreakdown> jobBreakdowns,
-        List<JobStreak> jobStreaks,
+        List<JobStreak> currentJobStreaks,
         List<ErrorCodeBreakdown> errorCodeBreakdowns,
         List<FailureSample> recentSamples,
         List<CircuitStatus> circuitStatuses
