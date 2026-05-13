@@ -62,6 +62,7 @@ dependencies {
 
 bootRun {
     def envFile = file("../.env")
+    def envFileValues = [:]
     if (envFile.exists()) {
         envFile.readLines().each { line ->
             def trimmed = line.trim()
@@ -70,23 +71,49 @@ bootRun {
                 if (idx > 0) {
                     def key = trimmed.substring(0, idx).trim()
                     def value = trimmed.substring(idx + 1).trim()
+                    envFileValues[key] = value
                     environment(key, value)
                 }
             }
         }
     }
-    // Docker 컨테이너 포트 로컬 매핑 (db:5432 → localhost:5433, redis → localhost)
-    environment 'DB_URL', 'jdbc:postgresql://localhost:5433/youth_welfare?sslmode=disable'
-    environment 'DB_USERNAME', System.getenv('DB_USERNAME') ?: 'app_core_rw'
-    environment 'DB_PASSWORD', System.getenv('DB_PASSWORD') ?: ''
-    environment 'APP_PII_DB_URL', 'jdbc:postgresql://localhost:5433/youth_welfare?sslmode=disable&currentSchema=youth_welfare_pii'
-    environment 'DB_APP_PII_USERNAME', System.getenv('DB_APP_PII_USERNAME') ?: 'app_pii_rw'
-    environment 'DB_APP_PII_PASSWORD', System.getenv('DB_APP_PII_PASSWORD') ?: (System.getenv('DB_PASSWORD') ?: '')
-    environment 'NOTIFICATION_PII_DB_URL', 'jdbc:postgresql://localhost:5433/youth_welfare?sslmode=disable&currentSchema=youth_welfare_pii'
-    environment 'DB_NOTIFICATION_PII_RO_USERNAME', System.getenv('DB_NOTIFICATION_PII_RO_USERNAME') ?: 'notification_pii_ro'
-    environment 'DB_NOTIFICATION_PII_RO_PASSWORD', System.getenv('DB_NOTIFICATION_PII_RO_PASSWORD') ?: (System.getenv('DB_PASSWORD') ?: '')
-    environment 'REDIS_HOST', 'localhost'
-    environment 'REDIS_PORT', '6379'
+    def runtimeEnv = { String key ->
+        System.getenv(key) ?: envFileValues[key]
+    }
+    def sanitizedJdbcUrl = { String value, String fallback ->
+        if (!value || value.startsWith('jdbc:mysql://') || value.startsWith('jdbc:postgresql://db:')) {
+            return fallback
+        }
+        value
+    }
+    def sanitizedUsername = { String value, String fallback ->
+        if (!value || value == 'root') {
+            return fallback
+        }
+        value
+    }
+    def sanitizedRedisHost = { String value ->
+        if (!value || value == 'redis') {
+            return 'localhost'
+        }
+        value
+    }
+    def sanitizedRedisPort = { String value ->
+        value ?: '6379'
+    }
+
+    // Docker 컨테이너 포트 로컬 매핑 (db:5432 -> localhost:5433, redis -> localhost)
+    environment 'DB_URL', sanitizedJdbcUrl(runtimeEnv('DB_URL'), 'jdbc:postgresql://localhost:5433/youth_welfare?sslmode=disable')
+    environment 'DB_USERNAME', sanitizedUsername(runtimeEnv('DB_USERNAME'), 'app_core_rw')
+    environment 'DB_PASSWORD', runtimeEnv('DB_PASSWORD') ?: ''
+    environment 'APP_PII_DB_URL', sanitizedJdbcUrl(runtimeEnv('APP_PII_DB_URL'), 'jdbc:postgresql://localhost:5433/youth_welfare?sslmode=disable&currentSchema=youth_welfare_pii')
+    environment 'DB_APP_PII_USERNAME', sanitizedUsername(runtimeEnv('DB_APP_PII_USERNAME'), 'app_pii_rw')
+    environment 'DB_APP_PII_PASSWORD', runtimeEnv('DB_APP_PII_PASSWORD') ?: (runtimeEnv('DB_PASSWORD') ?: '')
+    environment 'NOTIFICATION_PII_DB_URL', sanitizedJdbcUrl(runtimeEnv('NOTIFICATION_PII_DB_URL'), 'jdbc:postgresql://localhost:5433/youth_welfare?sslmode=disable&currentSchema=youth_welfare_pii')
+    environment 'DB_NOTIFICATION_PII_RO_USERNAME', sanitizedUsername(runtimeEnv('DB_NOTIFICATION_PII_RO_USERNAME'), 'notification_pii_ro')
+    environment 'DB_NOTIFICATION_PII_RO_PASSWORD', runtimeEnv('DB_NOTIFICATION_PII_RO_PASSWORD') ?: (runtimeEnv('DB_PASSWORD') ?: '')
+    environment 'REDIS_HOST', sanitizedRedisHost(runtimeEnv('REDIS_HOST'))
+    environment 'REDIS_PORT', sanitizedRedisPort(runtimeEnv('REDIS_PORT'))
 }
 
 tasks.named('test') {
