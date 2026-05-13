@@ -5,6 +5,7 @@ import lombok.Builder;
 import lombok.Getter;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Getter
@@ -24,6 +25,10 @@ public class RecommendationResponse {
     private String gov24UserTypeLabel;
     private String gov24BenefitTypeLabel;
     private String status;
+    private String hostOrg;
+    private String operatingOrg;
+    private String sido;
+    private LocalDate applyEndDate;
     private BigDecimal finalScore;
     private BigDecimal aiScore;     // null 가능
     private String aiReason;        // null 가능
@@ -35,12 +40,19 @@ public class RecommendationResponse {
     }
 
     public static RecommendationResponse from(UserRecommendation rec, Long logId) {
-        return from(rec, logId, null);
+        return from(rec, logId, null, null);
     }
 
     public static RecommendationResponse from(UserRecommendation rec,
                                               Long logId,
                                               RecommendationCandidateProjection projection) {
+        return from(rec, logId, projection, null);
+    }
+
+    public static RecommendationResponse from(UserRecommendation rec,
+                                              Long logId,
+                                              RecommendationCandidateProjection projection,
+                                              String sido) {
         return RecommendationResponse.builder()
                 .id(rec.getId())
                 .serviceId(rec.getService().getId())
@@ -55,6 +67,10 @@ public class RecommendationResponse {
                 .gov24UserTypeLabel(resolveGov24UserTypeLabel(projection))
                 .gov24BenefitTypeLabel(resolveGov24BenefitTypeLabel(projection))
                 .status(rec.getService().getStatus().name())
+                .hostOrg(rec.getService().getHostOrg())
+                .operatingOrg(rec.getService().getOperatingOrg())
+                .sido(sido)
+                .applyEndDate(rec.getService().getApplyEndDate())
                 .finalScore(rec.getFinalScore())
                 .aiScore(rec.getAiScore())
                 .aiReason(rec.getAiReason())

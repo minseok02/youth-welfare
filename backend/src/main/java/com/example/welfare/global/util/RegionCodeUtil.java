@@ -226,7 +226,20 @@ public final class RegionCodeUtil {
      */
     public static String getSidoCode(String sido) {
         if (sido == null || sido.isBlank()) return null;
-        return SIDO_CODE_MAP.get(sido.trim());
+        String normalized = normalizeSido(sido);
+        return normalized != null ? SIDO_CODE_MAP.get(normalized) : null;
+    }
+
+    /**
+     * 시도 전체명/단축명을 추천/검색 내부에서 공통으로 쓰는 단축명으로 정규화.
+     * 예: "서울특별시" -> "서울", "경기도" -> "경기"
+     */
+    public static String normalizeSido(String sido) {
+        if (sido == null || sido.isBlank()) {
+            return null;
+        }
+        String trimmed = sido.trim();
+        return SIDO_ALIAS_MAP.getOrDefault(trimmed, trimmed);
     }
 
     /**
@@ -283,6 +296,10 @@ public final class RegionCodeUtil {
      */
     public static String getRegionCode(String sido, String sgg) {
         if (sido == null || sgg == null || sido.isBlank() || sgg.isBlank()) return null;
-        return SGG_CODE_MAP.get(sido.trim() + "/" + sgg.trim());
+        String normalizedSido = normalizeSido(sido);
+        if (normalizedSido == null || normalizedSido.isBlank()) {
+            return null;
+        }
+        return SGG_CODE_MAP.get(normalizedSido + "/" + sgg.trim());
     }
 }

@@ -13,6 +13,11 @@ import java.util.Set;
  */
 public final class RecommendationMatchingSupport {
 
+    private static final Set<String> SINGLE_PERSON_SIGNALS = Set.of("1인", "1인가구", "one_person", "single");
+    private static final Set<String> SINGLE_PARENT_SIGNALS = Set.of("한부모", "single_parent");
+    private static final Set<String> GRANDPARENT_SIGNALS = Set.of("조손", "grandparent");
+    private static final Set<String> MULTI_CHILD_SIGNALS = Set.of("다자녀", "multi_child", "large_family");
+
     private RecommendationMatchingSupport() {
     }
 
@@ -34,10 +39,10 @@ public final class RecommendationMatchingSupport {
             }
 
             if (user.householdType() != null) {
-                String household = user.householdType();
-                if (val.contains("1인가구") && household.contains("1인")) return true;
-                if (val.contains("한부모") && household.contains("한부모")) return true;
-                if (val.contains("다자녀") && household.contains("다자녀")) return true;
+                String household = normalize(user.householdType());
+                if (val.contains("1인가구") && containsAnySignal(household, SINGLE_PERSON_SIGNALS)) return true;
+                if (val.contains("한부모") && containsAnySignal(household, SINGLE_PARENT_SIGNALS)) return true;
+                if (val.contains("다자녀") && containsAnySignal(household, MULTI_CHILD_SIGNALS)) return true;
             }
 
             if (user.incomeLevel() != null) {
@@ -125,26 +130,37 @@ public final class RecommendationMatchingSupport {
             return true;
         }
         if (user.householdType() != null) {
-            String household = user.householdType();
+            String household = normalize(user.householdType());
             if (projection != null
-                    && household.contains(RecommendationProjectionHeuristicSupport.SPECIAL_TARGET_SINGLE_PARENT)
+                    && containsAnySignal(household, SINGLE_PARENT_SIGNALS)
                     && projection.specialTargetBuckets().contains(RecommendationProjectionHeuristicSupport.SPECIAL_TARGET_SINGLE_PARENT)) {
                 return true;
             }
             if (projection != null
-                    && household.contains(RecommendationProjectionHeuristicSupport.SPECIAL_TARGET_GRANDPARENT)
+                    && containsAnySignal(household, GRANDPARENT_SIGNALS)
                     && projection.specialTargetBuckets().contains(RecommendationProjectionHeuristicSupport.SPECIAL_TARGET_GRANDPARENT)) {
                 return true;
             }
-            if (household.contains(RecommendationProjectionHeuristicSupport.SPECIAL_TARGET_SINGLE_PARENT)
+            if (containsAnySignal(household, SINGLE_PARENT_SIGNALS)
                     && RecommendationRuntimeSupport.containsAnySignal(service, tags, RecommendationProjectionHeuristicSupport.SPECIAL_TARGET_SINGLE_PARENT)) {
                 return true;
             }
-            if (household.contains(RecommendationProjectionHeuristicSupport.SPECIAL_TARGET_GRANDPARENT)
+            if (containsAnySignal(household, GRANDPARENT_SIGNALS)
                     && RecommendationRuntimeSupport.containsAnySignal(service, tags, RecommendationProjectionHeuristicSupport.SPECIAL_TARGET_GRANDPARENT)) {
                 return true;
             }
         }
         return false;
+    }
+
+    private static boolean containsAnySignal(String normalizedHousehold, Set<String> signals) {
+        if (normalizedHousehold == null || normalizedHousehold.isBlank()) {
+            return false;
+        }
+        return signals.stream().anyMatch(normalizedHousehold::contains);
+    }
+
+    private static String normalize(String raw) {
+        return raw == null ? null : raw.trim().toLowerCase().replace(" ", "");
     }
 }

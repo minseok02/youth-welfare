@@ -150,4 +150,40 @@ class UserProfileCommandServiceTest {
         verify(userCoreSyncService).syncFromUser(user);
         assertThat(user.getProfileCompleteness()).isEqualTo(90);
     }
+
+    @Test
+    @DisplayName("regionCode 요청이 없어도 sido/sgg를 수정하면 행정구역 코드가 다시 계산된다")
+    void updateProfileDerivesRegionCodeFromSidoAndSgg() {
+        UserProfileCommandService service = new UserProfileCommandService(
+                activeUserReadService,
+                userMetadataCommandRepository,
+                priorityOptionReadService,
+                priorityWeightPolicy,
+                userCoreSyncService,
+                recommendationRefreshCacheService
+        );
+        User user = User.builder()
+                .id(1L)
+                .email("user@example.com")
+                .passwordHash("hash")
+                .name("tester")
+                .sido("서울특별시")
+                .sgg("강남구")
+                .regionCode("11680")
+                .build();
+        when(activeUserReadService.getActiveUserContext(1L))
+                .thenReturn(new ActiveUserReadService.ActiveUserContext(user, "user-key-1"));
+
+        UpdateProfileRequest request = new UpdateProfileRequest();
+        ReflectionTestUtils.setField(request, "sido", "부산광역시");
+        ReflectionTestUtils.setField(request, "sgg", "해운대구");
+
+        service.updateProfile(1L, request);
+
+        verify(recommendationRefreshCacheService).evict("user-key-1");
+        verify(userCoreSyncService).syncFromUser(user);
+        assertThat(user.getSido()).isEqualTo("부산광역시");
+        assertThat(user.getSgg()).isEqualTo("해운대구");
+        assertThat(user.getRegionCode()).isEqualTo("26350");
+    }
 }
