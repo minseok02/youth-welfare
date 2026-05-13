@@ -47,7 +47,6 @@ class PolicyPresentationReadServiceTest {
                 .sourceType(WelfareService.SourceType.YOUTH)
                 .sourceId("Y-11")
                 .title("청년 월세 지원")
-                .description("월세 부담 완화")
                 .unifiedCategory("HOUSING")
                 .operatingOrg("서울청년센터")
                 .status(WelfareService.ServiceStatus.ACTIVE)
@@ -67,6 +66,7 @@ class PolicyPresentationReadServiceTest {
                         RecommendationCandidateProjection.builder()
                                 .serviceId(11L)
                                 .unifiedCategoryCompat("주거")
+                                .summary("월세 부담을 낮추는 상세 지원 안내")
                                 .youthMajorLabel("주거")
                                 .build()
                 ));
@@ -76,6 +76,7 @@ class PolicyPresentationReadServiceTest {
 
         assertThat(result.getContent()).hasSize(1);
         assertThat(result.getContent().get(0).isBookmarked()).isTrue();
+        assertThat(result.getContent().get(0).getDescription()).isEqualTo("월세 부담을 낮추는 상세 지원 안내");
         assertThat(result.getContent().get(0).getUnifiedCategory()).isEqualTo("주거");
         assertThat(result.getContent().get(0).getOperatingOrg()).isEqualTo("서울청년센터");
         assertThat(result.getContent().get(0).getYouthMajorLabel()).isEqualTo("주거");

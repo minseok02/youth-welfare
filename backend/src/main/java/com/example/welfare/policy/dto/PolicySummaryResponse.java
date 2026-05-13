@@ -57,7 +57,7 @@ public class PolicySummaryResponse {
         return PolicySummaryResponse.builder()
                 .id(ws.getId())
                 .title(ws.getTitle())
-                .description(ws.getDescription())
+                .description(resolveDescription(ws, projection))
                 .unifiedCategory(resolveUnifiedCategory(ws, projection))
                 .status(ws.getStatus().name())
                 .hostOrg(ws.getHostOrg())
@@ -82,6 +82,17 @@ public class PolicySummaryResponse {
                 .lastModifiedAt(ws.getLastModifiedAt())
                 .bookmarked(bookmarked)
                 .build();
+    }
+
+    private static String resolveDescription(WelfareService ws,
+                                             RecommendationCandidateProjection projection) {
+        if (projection != null && projection.summary() != null && !projection.summary().isBlank()) {
+            return projection.summary();
+        }
+        if (ws.getSupportContent() != null && !ws.getSupportContent().isBlank()) {
+            return ws.getSupportContent();
+        }
+        return ws.getDescription();
     }
 
     private static String resolveUnifiedCategory(WelfareService ws,
