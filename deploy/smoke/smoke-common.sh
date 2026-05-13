@@ -15,6 +15,25 @@ smoke_http_status() {
   curl -sS -o "${output_file}" -w "%{http_code}" -X "${method}" "$url" "$@"
 }
 
+smoke_health_status_is_up() {
+  local health_response_file="$1"
+
+  smoke_require_command python3
+
+  python3 - "${health_response_file}" <<'PY'
+import json
+import sys
+
+try:
+    with open(sys.argv[1], "r", encoding="utf-8") as fp:
+        payload = json.load(fp)
+except Exception:
+    sys.exit(1)
+
+sys.exit(0 if payload.get("status") == "UP" else 1)
+PY
+}
+
 smoke_wait_for_health() {
   local retries="$1"
   local delay_seconds="$2"
@@ -26,7 +45,7 @@ smoke_wait_for_health() {
 
   while (( attempt <= retries )); do
     if status="$(smoke_http_status GET "${health_url}" "${health_response_file}" 2>"${health_stderr_file}")"; then
-      if [[ "${status}" == "200" ]]; then
+      if [[ "${status}" == "200" ]] && smoke_health_status_is_up "${health_response_file}"; then
         printf '%s' "${status}"
         return 0
       fi

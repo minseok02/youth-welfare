@@ -3032,3 +3032,43 @@
 - 문제: 2026-05-13 로컬 런타임 점검에서 `collect/all`, `bokjiro-details-gap-fill`, 추천/검색/챗/정책 상세는 모두 빠르게 끝났지만, `POST /api/admin/collect/youth-details` 는 온통청년 DETAIL API의 간헐적 `500` 재시도(`CollectHttpRetryExecutor` warn) 때문에 응답이 오래 닫히지 않았다. 같은 동안 app `/actuator/health` 는 계속 `UP` 이었고, 다른 기능 호출도 정상 처리됐다.
 - 해결: 전체 기능 smoke에서는 `collect/all` 결과와 bounded admin 경로(`bokjiro-details-gap-fill`, `reference-urls/rebuild`, `category-audit`, `quality gate`)를 우선 확인하고, `youth-details` 는 별도 장시간 collect 관찰 대상으로 분리했다. 장시간 observation이 불필요할 때는 클라이언트 요청을 중단하고 app health와 로그만 확인한다.
 - 이유: 이 문제의 핵심은 앱 장애가 아니라 upstream DETAIL endpoint 변동성이다. 전체 기능 점검 루프에서 이 경로를 같은 timeout/기대시간으로 묶으면 다른 기능이 모두 정상이어도 검증 전체가 불필요하게 길어지거나 hanging처럼 보일 수 있다.
+
+## 588) PostgreSQL/pgvector 로 Compose가 바뀐 뒤에도 local smoke가 MySQL CLI 검증을 그대로 들고 있으면, 앱 기능은 정상이어도 validation suite가 DB 확인 단계에서 계속 거짓 실패한다
+- 문제: `collect/all`, `reference-urls/rebuild`, `search-youth-relevance/rebuild`, `embeddings/rebuild`, `retrieval evaluation/gate`, runtime API smoke는 모두 통과했는데도, 일부 smoke 스크립트는 여전히 `docker exec ... mysql ... youth_welfare` 로 `recommendation_logs`, `users`, `user_pii_sync_queue` 를 직접 확인하고 있었다. PostgreSQL/pgvector Compose에서는 애플리케이션 경로는 정상이어도 이 DB 직접 조회 부분 때문에 validation suite가 끝까지 가지 못한다.
+- 해결: `deploy/smoke/smoke-common.sh` 에 PostgreSQL `psql -At` 기반 공통 query/apply helper를 추가하고, click/withdraw/admin-forced-logout/runtime/replay/pii-cutover smoke의 DB 확인 구간을 모두 이 helper로 전환했다. boolean 검증은 `1/0` 가 아니라 `true/false` 또는 `t/f`, click 검증은 `is_clicked = true` 와 `clicked_at IS NOT NULL` 기준으로 바꿨다.
+- 이유: smoke의 목적은 “현재 런타임 계약이 맞는가”를 보는 것이지, 예전 DB 종류를 전제로 한 관리 편의 명령을 유지하는 것이 아니다. Compose의 DB가 바뀐 뒤에도 DB 직접 확인 구간을 같이 옮기지 않으면, 앱이 정상이어도 검증 체인이 계속 오탐을 낸다.
+
+## 589) local smoke가 signup만 직접 치고 Redis email verification key를 넣지 않으면, 최신 인증 계약에서는 `A012` 때문에 auth/session 계열 점검이 전부 거짓 실패한다
+- 문제: 최신 앱은 `/api/auth/signup` 전에 `email-verify:verified:<sha256(normalizedEmail)>` Redis key가 있어야 한다. 그런데 local smoke 스크립트는 예전처럼 signup만 바로 호출하고 있어, runtime/click/withdraw/admin-forced-logout/replay/pii-cutover 경로가 모두 `400/A012` 로 막힐 수 있었다. 여기에 이름 검증까지 한글 2~10자 계약으로 강화돼 영어 기본값이면 `C001` 도 같이 나온다.
+- 해결: smoke 공통 helper에 verified-email seed 함수를 추가하고, signup 직전에 Redis `SETEX email-verify:verified:<hash> ... 1` 을 넣도록 바꿨다. 동시에 smoke 기본 이름도 한글 2~10자 값으로 정리해 최신 signup validation과 맞췄다.
+- 이유: 이 환경은 로컬 무유저 테스트 서비스라 운영 가입 절차를 끝까지 사람 손으로 따라가는 것이 목적이 아니다. smoke는 “현재 계약을 만족하는 최소 조건”을 자동으로 준비해야 하며, 그렇지 않으면 인증 정책 강화가 있을 때마다 모든 auth/session smoke가 거짓 실패로 오염된다.
+
+## 590) `backend/build.gradle` 의 `bootRun` 이 `.env` 값을 무조건 다시 주입하면, 로컬 replay smoke에서 스크립트가 올바른 PostgreSQL 계정을 넘겨도 `.env` 의 `DB_USERNAME=root` 가 덮어써져 앱이 부팅조차 못 할 수 있다
+- 문제: replay smoke는 local `bootRun` 으로 앱을 두 번 띄워 추천 결과를 비교한다. 스크립트 쪽에서는 `DB_USERNAME=app_core_rw`, `APP_PII_DB_URL=jdbc:postgresql://...` 를 명시적으로 넘겼지만, `backend/build.gradle` 의 `bootRun` 이 `../.env` 를 다시 읽어 `DB_USERNAME=root`, MySQL 시절 JDBC 값 등을 environment에 넣고 있어서 결과적으로 `FATAL: password authentication failed for user "root"` 로 부팅이 실패했다.
+- 해결: `bootRun` 에서 local Docker PostgreSQL 기준 값(`DB_URL`, `APP_PII_DB_URL`, `NOTIFICATION_PII_DB_URL`, `REDIS_HOST`)을 명시적으로 다시 주입하고, `DB_USERNAME`, `DB_PASSWORD`, `DB_APP_PII_USERNAME`, `DB_APP_PII_PASSWORD`, `DB_NOTIFICATION_PII_RO_USERNAME`, `DB_NOTIFICATION_PII_RO_PASSWORD` 도 `System.getenv(...)` 우선으로 override 하도록 정리했다. replay smoke wrapper도 `.env` 의 `jdbc:mysql://...` 값은 PostgreSQL local URL로 덮어쓰게 맞췄다.
+- 이유: smoke/replay는 보통 “스크립트가 넘긴 env가 최종값”이어야 한다. `bootRun` 이 편의상 `.env` 를 다시 읽더라도, 그 값이 현재 런타임 계정/DB 종류보다 우선하면 smoke가 코드 문제가 아닌 환경 오염 때문에 계속 실패한다.
+
+## 591) `npm audit` 는 node_modules가 아니라 lockfile 기준으로 판단하므로, 로컬 설치 트리에서 취약 버전이 사라졌어도 `package-lock.json` 이 stale하면 Git 기준으로는 여전히 취약하게 남는다
+- 문제: 로컬 `node_modules` 에는 `axios@1.16.0`, `follow-redirects@1.16.0`, `vite@8.0.12`, `postcss@8.5.14` 가 설치돼 있어도, `frontend/package-lock.json` 이 여전히 `axios@1.14.0`, `follow-redirects@1.15.11`, `vite@8.0.3`, `postcss@8.5.8` 을 가리키고 있으면 서버나 다른 개발자가 `npm audit` 를 다시 돌릴 때 취약하다고 판단한다. 설치 트리만 최신이고 lockfile이 그대로면 “내 로컬에서는 해결된 것처럼 보이는데 Git에는 반영되지 않은 상태”가 된다.
+- 해결: `main` 기준 lockfile 버전을 먼저 확인한 뒤 `frontend` 에서 `npm audit fix` 를 다시 실행해 `package-lock.json` 자체를 갱신하고, 그 상태에서 `npm run lint`, `npm run build`, `npm audit --omit=dev --audit-level=high`, `npm audit --audit-level=high` 를 다시 통과시키고 커밋했다. 실제 변경 파일은 `package-lock.json` 하나만 생길 수 있다는 점도 같이 확인했다.
+- 이유: npm 보안 작업의 진짜 산출물은 “현재 node_modules” 가 아니라 “다른 환경도 같은 안전 버전을 재현하게 만드는 lockfile” 이다. node_modules가 최신이라는 사실만 믿고 넘어가면, 서버나 CI에서는 여전히 오래된 lockfile을 기준으로 취약점이 재현된다.
+
+## 592) `bootRun` 이 caller env 보다 하드코딩 기본값을 우선하면, smoke가 넘긴 올바른 로컬 PostgreSQL/Redis 설정도 다시 무시된다
+- 문제: `backend/build.gradle` 의 `bootRun` 에서 PostgreSQL/Redis 기본값을 무조건 `environment(...)` 로 덮으면, smoke나 수동 실행이 다른 endpoint/schema/port를 넘겨도 child process에서는 항상 하드코딩 값만 보게 된다. 반대로 `.env` 에 MySQL/root 찌꺼기가 남아 있으면 그것도 caller env 보다 먼저 새어들 수 있다.
+- 해결: `bootRun` 이 `System.getenv(...) -> .env 값 -> sane default` 순서로 값을 해석하게 바꾸고, JDBC URL은 `jdbc:mysql://...`, `jdbc:postgresql://db:...` 같은 오래된 로컬값을 기본 PostgreSQL localhost URL로 정규화하도록 맞췄다. Redis host도 `redis` 같은 compose 내부 호스트가 남아 있으면 `localhost` 로 정규화한다.
+- 이유: local smoke/replay의 핵심 계약은 “스크립트가 넘긴 env가 최종값” 이다. build script 편의 기본값은 fallback이어야지, caller override를 다시 덮어쓰는 1차 source가 되면 안 된다.
+
+## 593) smoke health check가 HTTP 200만 보면, `/actuator/health` body 가 아직 `UP` 이 아닌 과도 상태를 정상 기동으로 오판할 수 있다
+- 문제: 일부 smoke helper는 `/actuator/health` 의 응답 코드만 200이면 기동 완료로 판단하고 다음 auth/recommendation 호출로 넘어갔다. 이 상태에서는 앱이 아직 `status=DOWN/OUT_OF_SERVICE` 이거나 비정상 JSON을 돌려도 이후 단계에서 엉뚱한 실패로 보일 수 있다.
+- 해결: 공통 `smoke_wait_for_health()` 가 200 응답 뒤에 JSON body를 파싱해 `status == "UP"` 일 때만 통과하도록 바꿨다.
+- 이유: smoke의 첫 관문은 “HTTP가 열렸는가”가 아니라 “앱이 실제로 ready 상태인가”다. actuator body까지 같이 보아야 이후 단계 실패를 readiness 문제와 분리할 수 있다.
+
+## 594) replay smoke에서 primary DB username만 `root` 방어하고 PII/query role은 그대로 두면, PostgreSQL 전환 뒤에도 일부 datasource만 부팅 실패한다
+- 문제: replay wrapper가 `DB_USERNAME` 만 `app_core_rw` 로 바꾸고 `DB_MIGRATION_USERNAME`, `DB_APP_PII_USERNAME`, `DB_NOTIFICATION_PII_RO_USERNAME` 는 그대로 두면, `.env` 나 셸에 남은 `root` 값 때문에 primary datasource는 살아도 migration/query/PII datasource만 따로 죽을 수 있다.
+- 해결: local replay script에 PostgreSQL role 정규화 helper를 추가해 `root` 또는 빈 값이면 각 역할의 기본 계정(`app_core_rw`, `migration_admin`, `app_pii_rw`, `notification_pii_ro`)으로 강제 치환하게 했다. `DB_QUERY_USERNAME` 도 정규화된 migration username을 따라가도록 맞췄다.
+- 이유: PostgreSQL 다중 datasource 환경에서는 primary role만 맞는다고 충분하지 않다. smoke가 role 계층 전체를 같은 규칙으로 정규화해야 `.env` 오염이 부분 부팅 실패로 번지지 않는다.
+
+## 595) replay 분석용 SQL이 추천 결과 0건 케이스를 `IN ()` 로 그대로 만들면, 실제 기능 실패 원인보다 SQL 문법 오류가 먼저 드러난다
+- 문제: 추천 응답에서 `serviceId` 를 한 건도 못 모았을 때 분석 SQL이 `WHERE ws.id IN ()` 를 만들어 버리면, 원래 보고 싶던 건 “왜 추천이 비었는가” 인데 smoke는 PostgreSQL syntax error로 먼저 죽는다.
+- 해결: replay script는 추천 결과에서 수집한 `service_ids` 가 비어 있으면 메타 TSV를 빈 파일로 만들고 바로 return 하도록 바꿨다. signup도 `409` 를 무조건 성공으로 보지 않고 `U001` 같은 진짜 duplicate case만 허용하게 같이 보강했다.
+- 이유: 진단 스크립트는 실패 시나리오를 더 잘 보여줘야 한다. 0건 추천 같은 경계 케이스를 별도 처리하지 않으면, 관찰용 SQL이 본래 문제를 가리는 2차 오류를 만든다.

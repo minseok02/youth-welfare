@@ -108,12 +108,21 @@ DB_NOTIFICATION_PII_RO_PASSWORD="${DB_NOTIFICATION_PII_RO_PASSWORD:-${DB_PASSWOR
 DB_QUERY_USERNAME="${DB_QUERY_USERNAME:-${DB_MIGRATION_USERNAME}}"
 DB_QUERY_PASSWORD="${DB_QUERY_PASSWORD:-${DB_MIGRATION_PASSWORD}}"
 
-if [[ "${DB_USERNAME}" == "root" ]]; then
-  DB_USERNAME="app_core_rw"
-fi
-if [[ "${DB_QUERY_USERNAME}" == "root" ]]; then
-  DB_QUERY_USERNAME="${DB_MIGRATION_USERNAME}"
-fi
+normalize_local_pg_username() {
+  local current_value="$1"
+  local fallback_value="$2"
+  if [[ -z "${current_value}" || "${current_value}" == "root" ]]; then
+    printf "%s" "${fallback_value}"
+    return 0
+  fi
+  printf "%s" "${current_value}"
+}
+
+DB_USERNAME="$(normalize_local_pg_username "${DB_USERNAME}" "app_core_rw")"
+DB_MIGRATION_USERNAME="$(normalize_local_pg_username "${DB_MIGRATION_USERNAME}" "migration_admin")"
+DB_APP_PII_USERNAME="$(normalize_local_pg_username "${DB_APP_PII_USERNAME}" "app_pii_rw")"
+DB_NOTIFICATION_PII_RO_USERNAME="$(normalize_local_pg_username "${DB_NOTIFICATION_PII_RO_USERNAME}" "notification_pii_ro")"
+DB_QUERY_USERNAME="$(normalize_local_pg_username "${DB_QUERY_USERNAME}" "${DB_MIGRATION_USERNAME}")"
 
 if [[ "${DB_URL}" == jdbc:mysql://* || "${DB_URL}" == jdbc:postgresql://db:* ]]; then
   DB_URL="jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable"
@@ -437,16 +446,38 @@ signup_if_needed() {
   local email="$1"
   local name="$2"
   local status
+  local error_code
   smoke_seed_verified_email "${email}"
   status="$(curl -sS -o "${ARTIFACT_DIR}/signup.out" -w "%{http_code}" \
     -H "Content-Type: application/json" \
     -X POST "${APP_BASE_URL}/api/auth/signup" \
     -d "{\"email\":\"${email}\",\"password\":\"${SAMPLE_PASSWORD}\",\"name\":\"${name}\",\"birthDate\":\"${SAMPLE_BIRTH_DATE}\",\"sido\":\"${SAMPLE_SIDO}\",\"sgg\":\"${SAMPLE_SGG}\",\"incomeLevel\":${SAMPLE_INCOME_LEVEL},\"employmentStatus\":\"${SAMPLE_EMPLOYMENT_STATUS}\",\"householdType\":\"${SAMPLE_HOUSEHOLD_TYPE}\"}")"
-  if [[ "${status}" != "200" && "${status}" != "409" ]]; then
-    echo "signup failed for ${email}: ${status}" >&2
-    cat "${ARTIFACT_DIR}/signup.out" >&2
-    exit 1
+  if [[ "${status}" == "200" ]]; then
+    return 0
   fi
+  if [[ "${status}" == "409" ]]; then
+    error_code="$(
+      python3 - "${ARTIFACT_DIR}/signup.out" <<'PY'
+import json
+import sys
+
+try:
+    with open(sys.argv[1], "r", encoding="utf-8") as fp:
+        payload = json.load(fp)
+except Exception:
+    print("")
+    sys.exit(0)
+
+print(payload.get("errorCode", ""))
+PY
+    )"
+    if [[ "${error_code}" == "U001" ]]; then
+      return 0
+    fi
+  fi
+  echo "signup failed for ${email}: ${status}" >&2
+  cat "${ARTIFACT_DIR}/signup.out" >&2
+  exit 1
 }
 
 login_and_token() {
@@ -503,6 +534,11 @@ uniq = sorted(set(ids))
 print(",".join(str(v) for v in uniq))
 PY
   )"
+
+  if [[ -z "${service_ids}" ]]; then
+    : > "${META_FILE}"
+    return 0
+  fi
 
   db_exec "
     SELECT ws.id,
