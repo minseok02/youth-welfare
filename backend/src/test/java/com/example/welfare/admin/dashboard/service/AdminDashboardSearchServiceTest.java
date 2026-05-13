@@ -123,7 +123,7 @@ class AdminDashboardSearchServiceTest {
         AdminSearchFailureResponse response = adminDashboardSearchService.getSearchFailures(14, 3);
 
         assertThat(response.windowDays()).isEqualTo(14);
-        assertThat(response.totalZeroResultSearches()).isEqualTo(13);
+        assertThat(response.zeroResultSearchesInWindow()).isEqualTo(13);
         assertThat(response.zeroResultKeywords()).extracting(AdminSearchFailureResponse.KeywordCount::keyword)
                 .containsExactly("대출", "월세");
         assertThat(response.zeroResultRegions()).extracting(AdminSearchFailureResponse.RegionCount::sido, AdminSearchFailureResponse.RegionCount::sgg)

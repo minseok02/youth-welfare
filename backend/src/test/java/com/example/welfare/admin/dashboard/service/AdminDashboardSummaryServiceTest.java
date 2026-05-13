@@ -166,7 +166,7 @@ class AdminDashboardSummaryServiceTest {
 
         assertThat(response.collect().runningJobs()).isEqualTo(1);
         assertThat(response.collect().latestJobs()).hasSize(1);
-        assertThat(response.collect().failureWindowDays()).isEqualTo(7);
+        assertThat(response.collect().windowDays()).isEqualTo(7);
         assertThat(response.collect().latestFailuresInWindow()).hasSize(1);
         assertThat(response.collect().latestFailuresInWindow().get(0).jobName()).isEqualTo("BOKJIRO_LOCAL");
         assertThat(response.trend().collect()).extracting(AdminDashboardResponse.CollectTrendPoint::windowDays)
@@ -269,7 +269,7 @@ class AdminDashboardSummaryServiceTest {
 
         AdminDashboardResponse response = adminDashboardSummaryService.getSummary(14, List.of(3, 14, 14, -1, 400));
 
-        assertThat(response.collect().failureWindowDays()).isEqualTo(14);
+        assertThat(response.collect().windowDays()).isEqualTo(14);
         assertThat(response.trend().collect()).extracting(AdminDashboardResponse.CollectTrendPoint::windowDays)
                 .containsExactly(3, 14);
         assertThat(response.recommendation().windowDays()).isEqualTo(14);

@@ -122,9 +122,9 @@ class AdminDashboardRecommendationServiceTest {
                 adminDashboardRecommendationService.getRecommendationBreakdowns(14, 3);
 
         assertThat(response.windowDays()).isEqualTo(14);
-        assertThat(response.totalLogs()).isEqualTo(30);
-        assertThat(response.clickedLogs()).isEqualTo(9);
-        assertThat(response.fallbackLogs()).isEqualTo(6);
+        assertThat(response.sentLogsInWindow()).isEqualTo(30);
+        assertThat(response.clickedLogsInWindow()).isEqualTo(9);
+        assertThat(response.fallbackLogsInWindow()).isEqualTo(6);
         assertThat(response.sourceBreakdowns()).singleElement().satisfies(source -> {
             assertThat(source.sourceType()).isEqualTo("YOUTH");
             assertThat(source.sentCount()).isEqualTo(18);

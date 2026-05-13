@@ -19,7 +19,7 @@ public record AdminDashboardResponse(
             long successJobsLast24h,
             long partialSuccessJobsLast24h,
             long failedJobsLast24h,
-            int failureWindowDays,
+            int windowDays,
             List<CollectJobSnapshot> latestJobs,
             List<CollectFailureSnapshot> latestFailuresInWindow
     ) {

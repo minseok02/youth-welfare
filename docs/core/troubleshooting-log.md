@@ -3157,3 +3157,23 @@
 - 문제: 백엔드는 관심 분야, 특화 대상, 알림 최소 점수, 발송 개수를 이미 저장/조회하지만 마이페이지가 이 필드를 전혀 노출하지 않으면 사용자는 값을 바꿀 수 없고, 추천/알림 로직은 결국 서버 기본값에만 묶인다.
 - 해결: 마이페이지 우선순위 탭에 `관심 분야`, `특화 대상` multi-select를 추가하고, 알림 탭에 `최소 추천 점수`, `한 번에 받을 정책 수` 설정을 추가해 `/api/users/me` 계약과 실제 UI를 연결했다.
 - 이유: DTO에만 있는 값은 “나중에 쓸 필드”가 아니라 거의 항상 죽은 계약이 된다. 추천과 알림처럼 사용자 조정이 핵심인 설정은 저장/조회와 수정 UI가 같이 있어야 의미가 있다.
+
+## 613) admin dashboard summary의 collect 섹션만 `failureWindowDays` 라는 별도 이름을 쓰면, 같은 `summaryWindowDays` 계약인데도 collect만 다른 의미처럼 읽히기 쉽다
+- 문제: recommendation/search/notification summary는 모두 `windowDays` 를 쓰는데 collect만 `failureWindowDays` 로 남아 있으면, 실제로는 같은 요청 파라미터(`summaryWindowDays`)를 쓰더라도 소비자는 collect만 별도 기간이나 실패 전용 기간처럼 오해할 수 있다.
+- 해결: collect summary DTO도 `windowDays` 로 통일하고, WebMvc 테스트와 admin dashboard smoke도 같은 이름을 검증하도록 맞췄다.
+- 이유: 값이 맞아도 이름이 다르면 계약은 반쯤 깨진 상태다. 특히 admin/read-model 응답은 소비자가 필드명만 보고 의미를 해석하므로, 같은 의미는 같은 이름을 써야 한다.
+
+## 614) `/api/admin/dashboard/recommendation-breakdowns` 의 `totalLogs/clickedLogs/fallbackLogs` 는 실제 window 집계인데 이름만 보면 전체 누적처럼 보인다
+- 문제: recommendation breakdown 서비스는 모두 `summaryWindowDays` 기준 집계를 반환하지만, DTO 필드가 `totalLogs`, `clickedLogs`, `fallbackLogs` 로만 되어 있으면 운영자가 전체 누적과 기간 집계를 혼동할 수 있다.
+- 해결: DTO를 `sentLogsInWindow`, `clickedLogsInWindow`, `fallbackLogsInWindow` 로 명시적으로 바꾸고, 관련 테스트도 같은 semantics 를 검증하게 맞췄다.
+- 이유: admin triage 응답은 수치 자체보다 “이 숫자가 어느 기간/분모를 뜻하는가”가 더 중요하다. 기간 의미가 이름에 드러나지 않으면 잘못된 운영 판단으로 이어질 수 있다.
+
+## 615) `/api/admin/dashboard/search-failures` 의 `totalZeroResultSearches` 는 실제로는 window 집계인데 이름만 보면 전역 누적처럼 읽힌다
+- 문제: search failure 응답은 `windowDays` 를 같이 주는데도 핵심 count 필드가 `totalZeroResultSearches` 로 되어 있으면, 소비자는 전체 누적 zero-result 횟수로 오해할 수 있다.
+- 해결: 해당 필드를 `zeroResultSearchesInWindow` 로 바꾸고 WebMvc/서비스 테스트도 같은 이름을 검증하게 맞췄다.
+- 이유: 실패 분석 응답에서 분모와 기간을 잘못 읽으면 triage 우선순위 자체가 흔들린다.
+
+## 616) `/api/admin/dashboard/collect-failures` 의 `jobStreaks` 는 window 집계가 아니라 current streak 인데, 이름만 보면 summary window 안의 streak로 오해하기 쉽다
+- 문제: `collect-failures` 응답은 `windowDays` 를 같이 주지만 `jobStreaks` 는 현재 연속 `FAILED/PARTIAL_SUCCESS` 상태를 window와 무관하게 계산한다. 이름만 보면 같은 기간 안의 streak처럼 읽혀 운영자가 최근 14일 streak라고 착각할 수 있다.
+- 해결: DTO를 `currentJobStreaks` 로 명시하고, window 집계 count도 `failedJobsInWindow`, `partialSuccessJobsInWindow` 로 맞춰 window 값과 current 상태 값을 구분했다.
+- 이유: 한 응답 안에 `window 집계`와 `현재 상태`가 섞일 때는 이름으로 경계를 강하게 드러내지 않으면, 수치는 맞아도 의미 해석이 틀어진다.

@@ -6,7 +6,7 @@ import java.util.List;
 public record AdminSearchFailureResponse(
         LocalDateTime generatedAt,
         int windowDays,
-        long totalZeroResultSearches,
+        long zeroResultSearchesInWindow,
         List<KeywordCount> zeroResultKeywords,
         List<RegionCount> zeroResultRegions,
         List<FilterPatternCount> zeroResultFilterPatterns,

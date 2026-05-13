@@ -85,7 +85,7 @@ expected_trend_windows = [int(value) for value in sys.argv[3].split(",") if valu
 assert data["generatedAt"], "generatedAt missing"
 assert isinstance(data["collect"]["failedJobsLast24h"], int), "collect.failedJobsLast24h must be int"
 assert isinstance(data["recommendation"]["totalLogs"], int), "recommendation.totalLogs must be int"
-assert data["collect"]["failureWindowDays"] == expected_summary_window, "unexpected collect failureWindowDays"
+assert data["collect"]["windowDays"] == expected_summary_window, "unexpected collect windowDays"
 assert data["recommendation"]["windowDays"] == expected_summary_window, "unexpected recommendation windowDays"
 assert isinstance(data["recommendation"]["topWeightStage"], bool), "recommendation.topWeightStage must be bool"
 if data["recommendation"]["topWeightStage"]:
@@ -117,7 +117,7 @@ print(data["recommendation"]["nextWeightKey"] or "")
 print("" if data["recommendation"]["remainingLogsUntilNextWeight"] is None else data["recommendation"]["remainingLogsUntilNextWeight"])
 print(data["notification"]["sentInWindow"])
 print(data["search"]["zeroResultSearchesInWindow"])
-print(data["collect"]["failureWindowDays"])
+print(data["collect"]["windowDays"])
 print(",".join(str(v) for v in collect_windows))
 PY
 }
