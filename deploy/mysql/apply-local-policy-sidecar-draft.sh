@@ -64,7 +64,7 @@ mysql_exec() {
     return 0
   fi
 
-  docker exec -e MYSQL_PWD="${DB_MIGRATION_PASSWORD}" -i "${MYSQL_CONTAINER_NAME}" \
+  docker exec -e MYSQL_PWD="${DB_MIGRATION_PASSWORD}" -i "${DB_CONTAINER_NAME}" \
     mysql --default-character-set=utf8mb4 --batch --skip-column-names \
     -u"${DB_MIGRATION_USERNAME}" "${DB_NAME}" -e "${sql}"
 }
@@ -81,7 +81,7 @@ apply_mysql_sql_file() {
     return 0
   fi
 
-  docker exec -e MYSQL_PWD="${DB_MIGRATION_PASSWORD}" -i "${MYSQL_CONTAINER_NAME}" \
+  docker exec -e MYSQL_PWD="${DB_MIGRATION_PASSWORD}" -i "${DB_CONTAINER_NAME}" \
     mysql --default-character-set=utf8mb4 -u"${DB_MIGRATION_USERNAME}" "${DB_NAME}" < "${file_path}"
 }
 

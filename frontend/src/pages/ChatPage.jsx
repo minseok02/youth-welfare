@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Alert,
@@ -130,13 +130,14 @@ export default function ChatPage() {
   const [deletingSessionId, setDeletingSessionId] = useState(null);
   const [latestAnswerMeta, setLatestAnswerMeta] = useState(null);
   const [toast, setToast] = useState({ open: false, msg: "", severity: "info" });
+  const policyMetaRef = useRef({});
 
   const showToast = useCallback((msg, severity = "info") => {
     setToast({ open: true, msg, severity });
   }, []);
 
   const enrichPolicyMeta = useCallback(async (serviceIds) => {
-    const uniqueIds = [...new Set(serviceIds)].filter((serviceId) => !policyMeta[serviceId]);
+    const uniqueIds = [...new Set(serviceIds)].filter((serviceId) => !policyMetaRef.current[serviceId]);
     if (!uniqueIds.length) {
       return;
     }
@@ -164,9 +165,13 @@ export default function ChatPage() {
     });
 
     if (Object.keys(nextMeta).length) {
-      setPolicyMeta((prev) => ({ ...prev, ...nextMeta }));
+      setPolicyMeta((prev) => {
+        const merged = { ...prev, ...nextMeta };
+        policyMetaRef.current = merged;
+        return merged;
+      });
     }
-  }, [policyMeta]);
+  }, []);
 
   const loadSessions = useCallback(async (preferredSessionId = null) => {
     setLoadingSessions(true);
@@ -183,10 +188,12 @@ export default function ChatPage() {
       });
       if (!nextSessions.length) {
         setMessages([]);
+        setLatestAnswerMeta(null);
       }
     } catch {
       setSessions([]);
       setMessages([]);
+      setLatestAnswerMeta(null);
       showToast("대화 세션을 불러오지 못했습니다.", "error");
     } finally {
       setLoadingSessions(false);
@@ -196,6 +203,7 @@ export default function ChatPage() {
   const loadMessages = useCallback(async (sessionId) => {
     if (!sessionId) {
       setMessages([]);
+      setLatestAnswerMeta(null);
       return;
     }
 
@@ -211,6 +219,7 @@ export default function ChatPage() {
       }
     } catch (error) {
       setMessages([]);
+      setLatestAnswerMeta(null);
       if (error.response?.data?.errorCode === "CH001") {
         showToast("선택한 대화 세션을 찾지 못했습니다. 목록을 새로고침했습니다.", "warning");
         await loadSessions();
@@ -262,6 +271,7 @@ export default function ChatPage() {
         if (!nextSessions.length) {
           setActiveSessionId(null);
           setMessages([]);
+          setLatestAnswerMeta(null);
           return [];
         }
 
