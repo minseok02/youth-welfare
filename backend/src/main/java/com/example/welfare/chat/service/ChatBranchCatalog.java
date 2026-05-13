@@ -7,6 +7,7 @@ import org.springframework.stereotype.Component;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @Component
 public class ChatBranchCatalog {
@@ -109,6 +110,21 @@ public class ChatBranchCatalog {
                         .guideQuestion(definition.guideQuestion())
                         .build())
                 .toList();
+    }
+
+    public List<ChatBranchOptionResponse> toResponsesByKeys(List<String> branchKeys) {
+        if (branchKeys == null || branchKeys.isEmpty()) {
+            return List.of();
+        }
+        return branchKeys.stream()
+                .map(this::findByKey)
+                .flatMap(Optional::stream)
+                .map(definition -> ChatBranchOptionResponse.builder()
+                        .branchKey(definition.branchKey())
+                        .label(definition.label())
+                        .guideQuestion(definition.guideQuestion())
+                        .build())
+                .collect(Collectors.toList());
     }
 
     private Optional<String> detectBroadTopLevel(List<String> tokens) {

@@ -12,6 +12,9 @@
 - 2026-05-13 기준 retrieval 운영 검증 경로도 붙어 있습니다. `retrieval evaluation`, `compare/export`, `quality gate`, `category audit`, `embeddings rebuild` 를 admin API로 실행할 수 있습니다.
 - 2026-05-13 기준 `reference-urls/rebuild` 런타임 검증도 끝냈습니다. 로컬 DB 기준 `welfare_service_details=1356` 에 대해 `scanned=1356`, `updated=1356`, `failed=0` 으로 `reference_urls_json` 을 모두 채웠습니다.
 - 2026-05-13 기준 `reference-urls/rebuild` integration 회귀 검증도 추가했습니다. `missingOnly=true` 채움, 기존 값 skip, `missingOnly=false` overwrite 를 실제 PostgreSQL 기준으로 고정했습니다.
+- 2026-05-14 기준 챗 세션 재조회도 branch/clarification 메타를 다시 복원합니다. `chat_retrieval_snapshots` 를 이용해 `answerMode`, `needsClarification`, `branchSuggestions` 가 새로고침 뒤에도 유지되도록 맞췄습니다.
+- 2026-05-14 기준 정책 상세는 `referenceUrlsJson` 후보 링크를 실제 추가 링크/CTA로 사용합니다. 대표 `detailUrl` 이 비어도 fallback 링크가 있으면 화면에서 바로 열 수 있습니다.
+- 2026-05-14 기준 legacy `deploy/mysql/apply-local-policy-sidecar-draft.sh` 는 PostgreSQL main에서 더 이상 MySQL draft SQL을 재적용하지 않습니다. 현재 integrated schema 존재 여부만 검증하고, missing이면 PostgreSQL bootstrap/collect flow를 쓰도록 명시적으로 실패합니다.
 - 2026-05-13 기준 로컬 데이터 기준선은 `welfare_services=3925`, `search_youth_relevant=2544`, `welfare_service_details=1356`, `policy_chunks=14210`, embedded chunk `14210` 입니다.
 - 2026-05-13 기준 retrieval baseline 은 `top1HitRate=1.0`, `top3HitRate=1.0`, `branchSuggestionHitRate=1.0`, `emptyResultCount=0`, quality gate `passed=true` 입니다.
 
@@ -70,6 +73,7 @@
 - `referenceUrlsJson` rebuild/backfill 운영 절차 문서화
 - category audit / retrieval evaluation 결과를 운영 보고서 관점에서 더 요약
 - 프론트 번들 경고와 retrieval/embedding 운영 모니터링 보강
+- `service_taxonomies` / `service_taxonomy_summary_slots` integrated schema를 기준으로 legacy draft 문서와 smoke 설명을 더 정리
 
 ## 정책 목록 정렬 변경 이력 (2026-05-04)
 

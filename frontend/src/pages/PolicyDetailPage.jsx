@@ -100,6 +100,38 @@ const parseContacts = (raw) => {
   return [];
 };
 
+const parseReferenceUrls = (raw) => {
+  if (!raw) return [];
+
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+
+    const seen = new Set();
+    return parsed
+      .map((item) => {
+        const url = typeof item?.url === "string" ? item.url.trim() : "";
+        if (!url) return null;
+        const normalizedUrl = /^https?:\/\//i.test(url) ? url : `https://${url}`;
+        return {
+          url: normalizedUrl,
+          displayUrl: url,
+          type: item?.type || "REFERENCE",
+          label: item?.label || "추가 링크",
+          sourceField: item?.sourceField || "",
+          confidence: item?.confidence ?? null,
+        };
+      })
+      .filter((item) => {
+        if (!item || seen.has(item.url)) return false;
+        seen.add(item.url);
+        return true;
+      });
+  } catch {
+    return [];
+  }
+};
+
 function Tag({ children, color, bg, border }) {
   return (
     <span style={{
@@ -190,7 +222,14 @@ export default function PolicyDetailPage() {
   }, [policy?.unifiedCategory, id]);
 
   const contacts = useMemo(() => parseContacts(policy?.contactList), [policy?.contactList]);
-  const hasExtraSection = Boolean(policy?.homepageUrl || policy?.relatedLaw || policy?.formFiles);
+  const referenceUrls = useMemo(() => parseReferenceUrls(policy?.referenceUrlsJson), [policy?.referenceUrlsJson]);
+  const primaryReferenceUrls = useMemo(
+    () => referenceUrls.filter((item) => item.url !== policy?.homepageUrl && item.url !== policy?.detailUrl),
+    [policy?.detailUrl, policy?.homepageUrl, referenceUrls]
+  );
+  const hasExtraSection = Boolean(
+    policy?.homepageUrl || policy?.relatedLaw || policy?.formFiles || primaryReferenceUrls.length
+  );
 
   const detailTabs = useMemo(() => {
     const tabs = [
@@ -360,7 +399,6 @@ export default function PolicyDetailPage() {
                   {(policy.hostOrg || policy.operatingOrg) && <span>🏢 {policy.hostOrg || policy.operatingOrg}</span>}
                   {regionText && <span>📍 {regionText}</span>}
                   {policy.viewCount != null && <span>👀 {policy.viewCount.toLocaleString()}명이 봤어요</span>}
-                  {policy.bookmarkCount != null && <span>♡ {policy.bookmarkCount.toLocaleString()}명이 저장</span>}
                 </div>
               </header>
 
@@ -450,7 +488,7 @@ export default function PolicyDetailPage() {
                     {policy.homepageUrl && (
                       <div>
                         <div style={{ fontSize: 13, fontWeight: 700, color: INK, marginBottom: 6 }}>
-                          참고 링크
+                          참고 홈페이지
                         </div>
                         <a
                           href={policy.homepageUrl}
@@ -460,6 +498,37 @@ export default function PolicyDetailPage() {
                         >
                           {policy.homepageUrl} ↗
                         </a>
+                      </div>
+                    )}
+                    {primaryReferenceUrls.length > 0 && (
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: INK, marginBottom: 8 }}>
+                          추가 링크
+                        </div>
+                        <div style={{ display: "grid", gap: 8 }}>
+                          {primaryReferenceUrls.map((item) => (
+                            <a
+                              key={`${item.type}-${item.url}`}
+                              href={item.url}
+                              target="_blank"
+                              rel="noreferrer"
+                              style={{
+                                color: A,
+                                fontWeight: 700,
+                                textDecoration: "none",
+                                wordBreak: "break-all",
+                                display: "flex",
+                                flexDirection: "column",
+                                gap: 2,
+                              }}
+                            >
+                              <span>{item.label || item.type} ↗</span>
+                              <span style={{ fontSize: 12, color: INK3, fontWeight: 500 }}>
+                                {item.displayUrl}
+                              </span>
+                            </a>
+                          ))}
+                        </div>
                       </div>
                     )}
                     {policy.relatedLaw && (
@@ -606,6 +675,20 @@ export default function PolicyDetailPage() {
                       }}
                     >
                       참고 홈페이지 ↗
+                    </button>
+                  )}
+                  {!policy?.homepageUrl && primaryReferenceUrls[0] && (
+                    <button
+                      onClick={() => window.open(primaryReferenceUrls[0].url, "_blank")}
+                      style={{
+                        padding: "12px 0", fontSize: 13, fontWeight: 700,
+                        background: WHITE,
+                        color: A,
+                        border: `1px solid ${A}33`,
+                        borderRadius: 10, cursor: "pointer",
+                      }}
+                    >
+                      추가 링크 보기 ↗
                     </button>
                   )}
                   <button

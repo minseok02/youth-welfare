@@ -3072,3 +3072,23 @@
 - 문제: 추천 응답에서 `serviceId` 를 한 건도 못 모았을 때 분석 SQL이 `WHERE ws.id IN ()` 를 만들어 버리면, 원래 보고 싶던 건 “왜 추천이 비었는가” 인데 smoke는 PostgreSQL syntax error로 먼저 죽는다.
 - 해결: replay script는 추천 결과에서 수집한 `service_ids` 가 비어 있으면 메타 TSV를 빈 파일로 만들고 바로 return 하도록 바꿨다. signup도 `409` 를 무조건 성공으로 보지 않고 `U001` 같은 진짜 duplicate case만 허용하게 같이 보강했다.
 - 이유: 진단 스크립트는 실패 시나리오를 더 잘 보여줘야 한다. 0건 추천 같은 경계 케이스를 별도 처리하지 않으면, 관찰용 SQL이 본래 문제를 가리는 2차 오류를 만든다.
+
+## 596) 복지로 지자체 정책은 단순 상세 링크만 있어도 `isOnlineApply=true` 로 잡히기 쉬워, “관련 사이트 있음”과 “온라인 신청 가능”을 혼동하면 정책 속성이 과대 분류된다
+- 문제: `BOKJIRO_LOCAL` 수집 경로에서 `servDtlLink` 같은 상세 URL 존재 여부를 그대로 `inferOnlineApply()` 에 넣으면, 실제로는 안내 페이지 링크만 있는 정책도 모두 “온라인 신청 가능”으로 저장된다. 중앙 복지로는 별도 온라인 가능 플래그를 보는데 지자체만 링크 존재 여부를 근거로 과대 판정되는 불균형이 생긴다.
+- 해결: 지자체 복지로는 상세 링크를 온라인 신청 판정 근거에서 제외하고, `aplyMtdNm` 텍스트에 있는 실제 신청 방식 신호만 기준으로 `isOnlineApply` 를 계산하게 바꿨다. 상세 링크는 그대로 `detailUrl` / `referenceUrlsJson` 으로 남기되, 신청 가능 여부 boolean과 분리했다.
+- 이유: 링크 존재는 탐색용 CTA 신호이고, 온라인 신청 가능은 자격/절차 신호다. 둘을 같은 판정 함수에 태우면 “열람 가능한 링크”와 “실제 온라인 접수 가능”이 섞여서 사용자에게 잘못된 기대를 준다.
+
+## 597) 챗봇 branch/clarification 메타를 POST 응답에만 두면, 세션 새로고침 뒤에는 같은 메시지가 평문으로만 돌아와 대화 UX가 복구되지 않는다
+- 문제: branch suggestion 과 clarification 상태가 `sendMessage()` 의 단발 응답에만 있고 `getMessages()` 재조회 DTO에는 없으면, 새로고침이나 세션 재선택 뒤에는 assistant message가 그냥 텍스트 한 줄로만 보인다. 그러면 branch chip, clarification 안내 같은 UI는 현재 세션 메모리에 남아 있을 때만 잠깐 동작하고, 실제 저장된 대화 기록에서는 재현되지 않는다.
+- 해결: `chat_retrieval_snapshots` 의 `question`, `branchSuggestionKeysJson`, `resultCount` 를 이용해 `getMessages()` 단계에서 assistant message 메타를 복원하도록 바꿨다. 프론트도 마지막 assistant message의 `answerMode`, `needsClarification`, `branchSuggestions` 를 다시 읽어, 세션 재조회 후에도 같은 분기/clarification UI를 재구성하게 맞췄다.
+- 이유: 대화형 retrieval UX는 “즉시 응답”뿐 아니라 “나중에 다시 열었을 때도 같은 상태를 복원할 수 있는가”가 중요하다. 메타가 저장 모델이나 복원 경로에 없으면 UI는 동작한 것처럼 보여도 실제 기록 재현성은 깨진다.
+
+## 598) `referenceUrlsJson` 을 저장만 하고 상세 화면에서 안 풀어 쓰면, backfill 성공 이후에도 사용자는 여전히 “링크 없음”으로 본다
+- 문제: 대표 `detailUrl` 이 비어 있고 후보 URL 풀만 살아 있는 정책은 backend에서 `referenceUrlsJson` 까지 내려줘도, 프론트가 `homepageUrl` 하나만 링크 버튼으로 쓰면 화면상으로는 계속 링크가 없는 정책처럼 보인다. 이 상태에서는 canonical 보존 작업을 했는데도 실제 사용자 체감은 변하지 않는다.
+- 해결: 상세 화면이 `referenceUrlsJson` 을 파싱해 dedupe된 추가 링크 목록을 `추가 정보`와 sidebar CTA로 노출하도록 연결했다. `homepageUrl` 이 없더라도 후보 URL이 있으면 최소 1개의 “추가 링크 보기” 버튼이 뜨게 맞췄다.
+- 이유: additive 필드는 “저장”과 “노출”이 같이 닫혀야 의미가 있다. 특히 URL 후보 풀은 대표 링크가 비어 있는 정책을 살리기 위한 보완 계약이므로, 화면에서 fallback CTA로 이어지지 않으면 백엔드 보존 가치가 반쯤 사라진다.
+
+## 599) PostgreSQL main에서 예전 MySQL draft apply 스크립트를 그대로 다시 태우면, integrated schema가 이미 있는데도 legacy SQL 때문에 잘못된 재적용 경로로 들어간다
+- 문제: `deploy/mysql/apply-local-policy-sidecar-draft.sh` 는 원래 MySQL 시절 draft sidecar DDL/backfill을 local DB에 덮어쓰던 스크립트다. 현재 메인라인은 PostgreSQL `schema.sql` 에 sidecar schema가 통합돼 있는데, 이 스크립트를 그대로 실행하면 `mysql` 전용 DDL/`ON DUPLICATE KEY UPDATE`/옛 포트 전제를 다시 타게 되어 현재 main 기준 검증과 어긋난다.
+- 해결: 스크립트가 PostgreSQL runtime을 감지하면 legacy MySQL draft SQL 재적용은 건너뛰고, 현재 integrated schema에 `service_taxonomies`, `service_taxonomy_summary_slots` 가 실제로 있는지만 검증하게 바꿨다. missing이면 “현행 PostgreSQL 부트스트랩/collect flow를 써야 한다”는 명시적 오류를 내도록 fail-fast 경계를 세웠다.
+- 이유: 전환 이후 가장 위험한 건 “낡은 복구 스크립트가 조용히 다시 실행되는 것”이다. 현재 메인라인에 이미 흡수된 draft 경로는 자동 적용보다 명시적 검증/차단이 안전하다.

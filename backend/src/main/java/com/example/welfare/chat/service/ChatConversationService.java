@@ -9,6 +9,8 @@ import com.example.welfare.chat.dto.response.ChatBranchOptionResponse;
 import com.example.welfare.chat.dto.response.ChatMessageResponse;
 import com.example.welfare.chat.dto.response.ChatReferenceResponse;
 import com.example.welfare.chat.entity.ChatMessage;
+import com.example.welfare.chat.entity.ChatMessageRole;
+import com.example.welfare.chat.entity.ChatRetrievalSnapshot;
 import com.example.welfare.chat.entity.ChatSession;
 import com.example.welfare.chat.gateway.ChatAiGateway;
 import com.example.welfare.chat.repository.ChatMessageReadRepository;
@@ -31,6 +33,7 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Service
@@ -59,9 +62,9 @@ public class ChatConversationService {
         chatMessageReadRepository.findOwnedSession(sessionId, activeUserContext.userKey())
                 .orElseThrow(() -> new CustomException(ErrorCode.CHAT_SESSION_NOT_FOUND));
 
-        return chatMessageReadRepository.findMessages(sessionId).stream()
-                .map(this::toResponse)
-                .toList();
+        List<ChatMessage> messages = chatMessageReadRepository.findMessages(sessionId);
+        List<ChatRetrievalSnapshot> snapshots = chatRetrievalSnapshotService.findSessionSnapshots(sessionId);
+        return toResponses(messages, snapshots);
     }
 
     public ChatAnswerResponse sendMessage(Long userId, Long sessionId, SendChatMessageRequest request) {
@@ -137,8 +140,118 @@ public class ChatConversationService {
                 .build();
     }
 
-    private ChatMessageResponse toResponse(ChatMessage message) {
-        return ChatMessageResponse.from(message, parseReferencedServiceIds(message.getReferencedServiceIds()));
+    private List<ChatMessageResponse> toResponses(List<ChatMessage> messages,
+                                                  List<ChatRetrievalSnapshot> snapshots) {
+        List<ChatMessageResponse> responses = new ArrayList<>();
+        String lastUserQuestion = null;
+
+        for (ChatMessage message : messages) {
+            if (message.getRole() == ChatMessageRole.USER) {
+                lastUserQuestion = message.getContent();
+                responses.add(ChatMessageResponse.from(
+                        message,
+                        parseReferencedServiceIds(message.getReferencedServiceIds()),
+                        null,
+                        false,
+                        List.of()
+                ));
+                continue;
+            }
+
+            AssistantMessageMetadata metadata = resolveAssistantMetadata(
+                    message,
+                    lastUserQuestion,
+                    snapshots,
+                    parseReferencedServiceIds(message.getReferencedServiceIds())
+            );
+            responses.add(ChatMessageResponse.from(
+                    message,
+                    metadata.referencedServiceIds(),
+                    metadata.answerMode(),
+                    metadata.needsClarification(),
+                    metadata.branchSuggestions()
+            ));
+        }
+
+        return responses;
+    }
+
+    private AssistantMessageMetadata resolveAssistantMetadata(ChatMessage message,
+                                                             String lastUserQuestion,
+                                                             List<ChatRetrievalSnapshot> snapshots,
+                                                             List<Long> referencedServiceIds) {
+        ChatRetrievalSnapshot snapshot = findMatchingSnapshot(lastUserQuestion, message.getCreatedAt(), snapshots);
+        if (snapshot != null) {
+            List<String> branchKeys = parseBranchSuggestionKeys(snapshot.getBranchSuggestionKeysJson());
+            if (!branchKeys.isEmpty()) {
+                return new AssistantMessageMetadata(
+                        referencedServiceIds,
+                        ChatAnswerMode.BRANCH_SUGGESTION,
+                        false,
+                        chatBranchCatalog.toResponsesByKeys(branchKeys)
+                );
+            }
+            if (referencedServiceIds.isEmpty() && snapshot.getResultCount() == 0) {
+                return new AssistantMessageMetadata(
+                        referencedServiceIds,
+                        ChatAnswerMode.CLARIFICATION,
+                        true,
+                        List.of()
+                );
+            }
+        }
+
+        if (!referencedServiceIds.isEmpty()) {
+            return new AssistantMessageMetadata(
+                    referencedServiceIds,
+                    ChatAnswerMode.POLICY_GROUNDED,
+                    false,
+                    List.of()
+            );
+        }
+
+        return new AssistantMessageMetadata(
+                referencedServiceIds,
+                null,
+                false,
+                List.of()
+        );
+    }
+
+    private ChatRetrievalSnapshot findMatchingSnapshot(String question,
+                                                      LocalDateTime assistantCreatedAt,
+                                                      List<ChatRetrievalSnapshot> snapshots) {
+        if (!StringUtils.hasText(question) || assistantCreatedAt == null || snapshots == null || snapshots.isEmpty()) {
+            return null;
+        }
+        ChatRetrievalSnapshot matched = null;
+        for (ChatRetrievalSnapshot snapshot : snapshots) {
+            if (!Objects.equals(normalizeQuestion(snapshot.getQuestion()), normalizeQuestion(question))) {
+                continue;
+            }
+            if (snapshot.getCreatedAt() != null && snapshot.getCreatedAt().isAfter(assistantCreatedAt)) {
+                break;
+            }
+            matched = snapshot;
+        }
+        return matched;
+    }
+
+    private List<String> parseBranchSuggestionKeys(String rawJson) {
+        if (!StringUtils.hasText(rawJson)) {
+            return List.of();
+        }
+        try {
+            List<String> keys = objectMapper.readValue(rawJson, new TypeReference<List<String>>() {
+            });
+            return keys != null ? keys : List.of();
+        } catch (JsonProcessingException e) {
+            throw new CustomException(ErrorCode.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    private String normalizeQuestion(String question) {
+        return question == null ? null : question.trim();
     }
 
     private ChatReferenceResponse toReference(ChatPolicyCandidate candidate, Map<Long, String> evidenceByServiceId) {
@@ -258,6 +371,14 @@ public class ChatConversationService {
 
     private String buildSessionTitle(String content) {
         return trimToLength(content, SESSION_TITLE_LIMIT);
+    }
+
+    private record AssistantMessageMetadata(
+            List<Long> referencedServiceIds,
+            ChatAnswerMode answerMode,
+            boolean needsClarification,
+            List<ChatBranchOptionResponse> branchSuggestions
+    ) {
     }
 
     private String trimToLength(String value, int maxLength) {

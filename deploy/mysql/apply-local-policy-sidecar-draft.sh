@@ -69,7 +69,7 @@ mysql_exec() {
     -u"${DB_MIGRATION_USERNAME}" "${DB_NAME}" -e "${sql}"
 }
 
-apply_sql_file() {
+apply_mysql_sql_file() {
   local file_path="$1"
   if command -v mysql >/dev/null 2>&1; then
     MYSQL_PWD="${DB_MIGRATION_PASSWORD}" mysql \
@@ -85,16 +85,69 @@ apply_sql_file() {
     mysql --default-character-set=utf8mb4 -u"${DB_MIGRATION_USERNAME}" "${DB_NAME}" < "${file_path}"
 }
 
+postgres_exec() {
+  local sql="$1"
+  if command -v psql >/dev/null 2>&1; then
+    PGPASSWORD="${DB_MIGRATION_PASSWORD}" psql \
+      -h "${DB_HOST}" \
+      -p "${DB_PORT}" \
+      -U "${DB_MIGRATION_USERNAME}" \
+      -d "${DB_NAME}" \
+      -At \
+      -c "${sql}"
+    return 0
+  fi
+
+  docker exec -e PGPASSWORD="${DB_MIGRATION_PASSWORD}" -i "${DB_CONTAINER_NAME}" \
+    psql -U "${DB_MIGRATION_USERNAME}" -d "${DB_NAME}" -At -c "${sql}"
+}
+
+db_exec() {
+  local sql="$1"
+  if [[ "${DB_FLAVOR}" == "postgres" ]]; then
+    postgres_exec "${sql}"
+    return 0
+  fi
+  mysql_exec "${sql}"
+}
+
 table_exists() {
   local table_name="$1"
+  if [[ "${DB_FLAVOR}" == "postgres" ]]; then
+    [[ "$(
+      db_exec "
+        SELECT COUNT(*)
+        FROM information_schema.tables
+        WHERE table_schema = 'public'
+          AND table_name = '${table_name}';
+      "
+    )" == "1" ]]
+    return 0
+  fi
+
   [[ "$(
-    mysql_exec "
+    db_exec "
       SELECT COUNT(*)
       FROM information_schema.tables
       WHERE table_schema = '${DB_NAME}'
         AND table_name = '${table_name}';
     "
   )" == "1" ]]
+}
+
+detect_db_flavor() {
+  if [[ "${DB_URL:-}" == jdbc:postgresql:* ]]; then
+    printf "%s" "postgres"
+    return 0
+  fi
+
+  if docker inspect "${DB_CONTAINER_NAME}" >/dev/null 2>&1 \
+    && docker exec "${DB_CONTAINER_NAME}" psql --version >/dev/null 2>&1; then
+    printf "%s" "postgres"
+    return 0
+  fi
+
+  printf "%s" "mysql"
 }
 
 load_env_file
@@ -104,50 +157,75 @@ DB_PORT="${DB_PORT:-3307}"
 DB_NAME="${DB_NAME:-youth_welfare}"
 DB_MIGRATION_USERNAME="${DB_MIGRATION_USERNAME:-migration_admin}"
 DB_MIGRATION_PASSWORD="${DB_MIGRATION_PASSWORD:-${DB_PASSWORD:-welfare1234!}}"
-MYSQL_CONTAINER_NAME="${MYSQL_CONTAINER_NAME:-youth-welfare-db}"
+DB_CONTAINER_NAME="${DB_CONTAINER_NAME:-${MYSQL_CONTAINER_NAME:-youth-welfare-db}}"
 APPLY_SEED_WHEN_EMPTY_ONLY="${APPLY_SEED_WHEN_EMPTY_ONLY:-true}"
+DB_FLAVOR="$(detect_db_flavor)"
 
-[[ -f "${CREATE_SIDECAR_SQL}" ]] || { echo "missing SQL file: ${CREATE_SIDECAR_SQL}" >&2; exit 1; }
-[[ -f "${SEED_NORMALIZATION_SQL}" ]] || { echo "missing SQL file: ${SEED_NORMALIZATION_SQL}" >&2; exit 1; }
-[[ -f "${CREATE_SUMMARY_SLOT_SQL}" ]] || { echo "missing SQL file: ${CREATE_SUMMARY_SLOT_SQL}" >&2; exit 1; }
-[[ -f "${BACKFILL_SUMMARY_SLOT_SQL}" ]] || { echo "missing SQL file: ${BACKFILL_SUMMARY_SLOT_SQL}" >&2; exit 1; }
-[[ -f "${WIDEN_SUMMARY_SLOT_SQL}" ]] || { echo "missing SQL file: ${WIDEN_SUMMARY_SLOT_SQL}" >&2; exit 1; }
+if [[ "${DB_FLAVOR}" == "postgres" ]]; then
+  if [[ "${DB_PORT}" == "3307" ]]; then
+    DB_PORT="5433"
+  fi
+fi
 
-apply_sql_file "${CREATE_SIDECAR_SQL}"
-apply_sql_file "${CREATE_SUMMARY_SLOT_SQL}"
-apply_sql_file "${WIDEN_SUMMARY_SLOT_SQL}"
+if [[ "${DB_FLAVOR}" != "postgres" ]]; then
+  [[ -f "${CREATE_SIDECAR_SQL}" ]] || { echo "missing SQL file: ${CREATE_SIDECAR_SQL}" >&2; exit 1; }
+  [[ -f "${SEED_NORMALIZATION_SQL}" ]] || { echo "missing SQL file: ${SEED_NORMALIZATION_SQL}" >&2; exit 1; }
+  [[ -f "${CREATE_SUMMARY_SLOT_SQL}" ]] || { echo "missing SQL file: ${CREATE_SUMMARY_SLOT_SQL}" >&2; exit 1; }
+  [[ -f "${BACKFILL_SUMMARY_SLOT_SQL}" ]] || { echo "missing SQL file: ${BACKFILL_SUMMARY_SLOT_SQL}" >&2; exit 1; }
+  [[ -f "${WIDEN_SUMMARY_SLOT_SQL}" ]] || { echo "missing SQL file: ${WIDEN_SUMMARY_SLOT_SQL}" >&2; exit 1; }
+fi
+
+if [[ "${DB_FLAVOR}" == "postgres" ]]; then
+  echo "postgres_runtime_detected=true"
+  echo "legacy_mysql_draft_apply_skipped=true"
+  echo "message=Current PostgreSQL main already integrates sidecar schema; legacy MySQL draft SQL is not re-applied."
+else
+  apply_mysql_sql_file "${CREATE_SIDECAR_SQL}"
+  apply_mysql_sql_file "${CREATE_SUMMARY_SLOT_SQL}"
+  apply_mysql_sql_file "${WIDEN_SUMMARY_SLOT_SQL}"
+fi
 
 if ! table_exists "service_taxonomies"; then
-  echo "service_taxonomies table still missing after sidecar create SQL" >&2
+  if [[ "${DB_FLAVOR}" == "postgres" ]]; then
+    echo "service_taxonomies table missing in PostgreSQL runtime; bootstrap current schema/collect flow instead of legacy draft apply" >&2
+  else
+    echo "service_taxonomies table still missing after sidecar create SQL" >&2
+  fi
   exit 1
 fi
 
 if ! table_exists "service_taxonomy_summary_slots"; then
-  echo "service_taxonomy_summary_slots table still missing after summary slot create SQL" >&2
+  if [[ "${DB_FLAVOR}" == "postgres" ]]; then
+    echo "service_taxonomy_summary_slots table missing in PostgreSQL runtime; bootstrap current schema/collect flow instead of legacy draft apply" >&2
+  else
+    echo "service_taxonomy_summary_slots table still missing after summary slot create SQL" >&2
+  fi
   exit 1
 fi
 
 taxonomy_count="$(
-  mysql_exec "
+  db_exec "
     SELECT COUNT(*)
     FROM service_taxonomies;
   "
 )"
 
-if [[ "${APPLY_SEED_WHEN_EMPTY_ONLY}" != "true" || "${taxonomy_count}" == "0" ]]; then
-  apply_sql_file "${SEED_NORMALIZATION_SQL}"
+if [[ "${DB_FLAVOR}" != "postgres" && ( "${APPLY_SEED_WHEN_EMPTY_ONLY}" != "true" || "${taxonomy_count}" == "0" ) ]]; then
+  apply_mysql_sql_file "${SEED_NORMALIZATION_SQL}"
 fi
 
-apply_sql_file "${BACKFILL_SUMMARY_SLOT_SQL}"
+if [[ "${DB_FLAVOR}" != "postgres" ]]; then
+  apply_mysql_sql_file "${BACKFILL_SUMMARY_SLOT_SQL}"
+fi
 
 taxonomy_count="$(
-  mysql_exec "
+  db_exec "
     SELECT COUNT(*)
     FROM service_taxonomies;
   "
 )"
 education_target_rows="$(
-  mysql_exec "
+  db_exec "
     SELECT COUNT(*)
     FROM welfare_services ws
     JOIN service_taxonomies st ON st.service_id = ws.id
@@ -162,13 +240,13 @@ education_target_rows="$(
   "
 )"
 summary_slot_count="$(
-  mysql_exec "
+  db_exec "
     SELECT COUNT(*)
     FROM service_taxonomy_summary_slots;
   "
 )"
 summary_slot_education_services="$(
-  mysql_exec "
+  db_exec "
     SELECT COUNT(DISTINCT stss.service_id)
     FROM service_taxonomy_summary_slots stss
     JOIN welfare_services ws ON ws.id = stss.service_id
@@ -178,7 +256,7 @@ summary_slot_education_services="$(
   "
 )"
 summary_slot_density="$(
-  mysql_exec "
+  db_exec "
     SELECT 'GOV24_BENEFIT_TYPE', COUNT(DISTINCT service_id)
     FROM service_taxonomy_summary_slots
     WHERE slot_key = 'GOV24_BENEFIT_TYPE'
@@ -205,7 +283,7 @@ summary_slot_density="$(
   "
 )"
 summary_slot_row_density="$(
-  mysql_exec "
+  db_exec "
     SELECT 'GOV24_BENEFIT_TYPE', COUNT(*)
     FROM service_taxonomy_summary_slots
     WHERE slot_key = 'GOV24_BENEFIT_TYPE'
