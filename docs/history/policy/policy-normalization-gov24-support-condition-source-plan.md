@@ -7,9 +7,9 @@
 - [policy-normalization-research.md](./policy-normalization-research.md)
 - [policy-normalization-sample-spike.md](./policy-normalization-sample-spike.md)
 - [policy-normalization-gov24-label-source-plan.md](./policy-normalization-gov24-label-source-plan.md)
-- [db-migration.md](../../db-migration.md)
+- [db-migration.md](../../core/db-migration.md)
 - [phase-plan.md](../../phase-plan.md)
-- [troubleshooting-log.md](../../troubleshooting-log.md)
+- [troubleshooting-log.md](../../core/troubleshooting-log.md)
 
 ## 현재 상태
 

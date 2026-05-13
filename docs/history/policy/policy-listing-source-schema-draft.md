@@ -2,9 +2,9 @@
 
 관련 문서:
 
-- [policy-source-onboarding-playbook.md](../../policy-source-onboarding-playbook.md)
+- [policy-source-onboarding-playbook.md](../../policy/policy-source-onboarding-playbook.md)
 - [policy-normalization-schema-draft.md](./policy-normalization-schema-draft.md)
-- [recommendation-pipeline.md](../../recommendation-pipeline.md)
+- [recommendation-pipeline.md](../../recommendation/recommendation-pipeline.md)
 - [phase-plan.md](../../phase-plan.md)
 
 ## 목적

@@ -100,14 +100,6 @@ const parseContacts = (raw) => {
   return [];
 };
 
-const TAB_SECTIONS = [
-  { id: "intro", label: "소개" },
-  { id: "support", label: "지원내용" },
-  { id: "target", label: "신청대상" },
-  { id: "method", label: "신청방법" },
-  { id: "contact", label: "문의처" },
-];
-
 function Tag({ children, color, bg, border }) {
   return (
     <span style={{
@@ -198,6 +190,30 @@ export default function PolicyDetailPage() {
   }, [policy?.unifiedCategory, id]);
 
   const contacts = useMemo(() => parseContacts(policy?.contactList), [policy?.contactList]);
+  const hasExtraSection = Boolean(policy?.homepageUrl || policy?.relatedLaw || policy?.formFiles);
+
+  const detailTabs = useMemo(() => {
+    const tabs = [
+      { id: "intro", label: "소개" },
+      { id: "support", label: "지원내용" },
+      { id: "target", label: "신청대상" },
+    ];
+
+    if (policy?.selectionCriteria) {
+      tabs.push({ id: "criteria", label: "선정 기준" });
+    }
+
+    tabs.push(
+      { id: "method", label: "신청방법" },
+      { id: "contact", label: "문의처" }
+    );
+
+    if (hasExtraSection) {
+      tabs.push({ id: "extra", label: "추가정보" });
+    }
+
+    return tabs;
+  }, [hasExtraSection, policy?.selectionCriteria]);
 
   const visibleTags = useMemo(() => {
     if (!policy?.tags?.length) return [];
@@ -211,6 +227,12 @@ export default function PolicyDetailPage() {
         return true;
       });
   }, [policy?.tags]);
+
+  useEffect(() => {
+    if (!detailTabs.some((tab) => tab.id === activeTab)) {
+      setActiveTab(detailTabs[0]?.id ?? "intro");
+    }
+  }, [activeTab, detailTabs]);
 
   const ddayInfo = useMemo(() => {
     if (!policy) return null;
@@ -362,7 +384,7 @@ export default function PolicyDetailPage() {
 
               {/* Tab bar */}
               <div style={{ display: "flex", gap: 4, borderBottom: `1px solid ${LINE}`, position: "sticky", top: 60, background: BG, zIndex: 10, padding: "8px 0 0" }}>
-                {TAB_SECTIONS.map(t => (
+                {detailTabs.map(t => (
                   <button key={t.id} onClick={() => scrollToSection(t.id)} style={{
                     padding: "14px 22px", background: "transparent", border: 0,
                     borderBottom: `2px solid ${activeTab === t.id ? A : "transparent"}`,
@@ -393,6 +415,14 @@ export default function PolicyDetailPage() {
                 </p>
               </ContentSection>
 
+              {policy.selectionCriteria && (
+                <ContentSection id="criteria" title="선정 기준">
+                  <p style={{ whiteSpace: "pre-line", margin: 0 }}>
+                    {decodeHtml(policy.selectionCriteria)}
+                  </p>
+                </ContentSection>
+              )}
+
               <ContentSection id="method" title="신청 방법">
                 <p style={{ whiteSpace: "pre-line", margin: 0 }}>
                   {decodeHtml(policy.applyMethodDetail || policy.applyMethodName) || `신청 방법 정보가 없습니다. ${NO_DATA}`}
@@ -413,6 +443,48 @@ export default function PolicyDetailPage() {
                   <p style={{ color: INK3, margin: 0 }}>문의처 정보가 없습니다.</p>
                 )}
               </ContentSection>
+
+              {hasExtraSection && (
+                <ContentSection id="extra" title="추가 정보">
+                  <div style={{ display: "grid", gap: 16 }}>
+                    {policy.homepageUrl && (
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: INK, marginBottom: 6 }}>
+                          참고 링크
+                        </div>
+                        <a
+                          href={policy.homepageUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          style={{ color: A, fontWeight: 700, textDecoration: "none", wordBreak: "break-all" }}
+                        >
+                          {policy.homepageUrl} ↗
+                        </a>
+                      </div>
+                    )}
+                    {policy.relatedLaw && (
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: INK, marginBottom: 6 }}>
+                          관련 법령
+                        </div>
+                        <p style={{ whiteSpace: "pre-line", margin: 0 }}>
+                          {decodeHtml(policy.relatedLaw)}
+                        </p>
+                      </div>
+                    )}
+                    {policy.formFiles && (
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: INK, marginBottom: 6 }}>
+                          제출 서류
+                        </div>
+                        <p style={{ whiteSpace: "pre-line", margin: 0 }}>
+                          {decodeHtml(policy.formFiles)}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </ContentSection>
+              )}
 
               {visibleTags.length > 0 && (
                 <section style={{ padding: "32px 0", borderBottom: `1px solid ${LINE}` }}>
@@ -522,6 +594,20 @@ export default function PolicyDetailPage() {
                   >
                     {policy?.detailUrl ? "관련 사이트 보기 ↗" : "링크 없음"}
                   </button>
+                  {policy?.homepageUrl && policy.homepageUrl !== policy.detailUrl && (
+                    <button
+                      onClick={() => window.open(policy.homepageUrl, "_blank")}
+                      style={{
+                        padding: "12px 0", fontSize: 13, fontWeight: 700,
+                        background: WHITE,
+                        color: A,
+                        border: `1px solid ${A}33`,
+                        borderRadius: 10, cursor: "pointer",
+                      }}
+                    >
+                      참고 홈페이지 ↗
+                    </button>
+                  )}
                   <button
                     onClick={handleBookmark}
                     style={{

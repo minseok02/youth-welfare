@@ -29,6 +29,7 @@ final class BokjiroDetailPersistenceSupport {
                 .homepageUrl(detail.onlineApplyUrl())
                 .relatedLaw(detail.legalBasisText())
                 .formFiles(detail.requiredDocuments())
+                .referenceUrlsJson(detail.referenceUrlsJson())
                 .build();
     }
 

@@ -4,17 +4,17 @@
 
 관련 내부 기준:
 
-- [api-mapping.md](../../api-mapping.md)
-- [collect-ops.md](../../collect-ops.md)
+- [api-mapping.md](../../core/api-mapping.md)
+- [collect-ops.md](../../collect/collect-ops.md)
 - [policy-normalization-schema-draft.md](./policy-normalization-schema-draft.md)
 - [policy-normalization-sample-spike.md](./policy-normalization-sample-spike.md)
-- [recommendation-pipeline.md](../../recommendation-pipeline.md)
+- [recommendation-pipeline.md](../../recommendation/recommendation-pipeline.md)
 - [phase-plan.md](../../phase-plan.md)
 
 ## 현재 구조 요약
 
 현재 백엔드의 정규화 중심 엔티티는 [WelfareService.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/policy/entity/WelfareService.java) 입니다.
-실제 매핑은 [WelfareServiceMapper.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/collect/mapper/WelfareServiceMapper.java) 에서 처리하고 있고, 문서 기준으로도 [api-mapping.md](../../api-mapping.md) 의 `DB 컬럼 ← API 필드 매핑표`가 사실상 기준입니다.
+실제 매핑은 [WelfareServiceMapper.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/collect/mapper/WelfareServiceMapper.java) 에서 처리하고 있고, 문서 기준으로도 [api-mapping.md](../../core/api-mapping.md) 의 `DB 컬럼 ← API 필드 매핑표`가 사실상 기준입니다.
 
 이 구조의 특징은 다음과 같습니다.
 

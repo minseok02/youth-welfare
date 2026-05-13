@@ -9,7 +9,7 @@
 3. 작업과 직접 관련된 `*-docs-index.md` 또는 current-state 문서
 4. 필요한 코드
 
-작업 이력이나 과거 판단이 더 필요할 때만 [troubleshooting-log.md](./troubleshooting-log.md) 또는 [documentation-map.md](./documentation-map.md)을 추가로 봅니다.
+작업 이력이나 과거 판단이 더 필요할 때만 [troubleshooting-log.md](core/troubleshooting-log.md) 또는 [documentation-map.md](./documentation-map.md)을 추가로 봅니다.
 
 ## 작업 원칙
 

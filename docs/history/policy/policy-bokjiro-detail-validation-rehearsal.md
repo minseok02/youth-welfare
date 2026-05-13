@@ -2,7 +2,7 @@
 
 관련 문서:
 
-- [db-migration.md](../../db-migration.md)
+- [db-migration.md](../../core/db-migration.md)
 - [policy-normalization-schema-draft.md](./policy-normalization-schema-draft.md)
 - [policy-normalization-income-threshold-soft-signal-policy.md](./policy-normalization-income-threshold-soft-signal-policy.md)
 - [phase-plan.md](../../phase-plan.md)

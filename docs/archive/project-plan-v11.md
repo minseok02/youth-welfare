@@ -274,7 +274,7 @@ service/
 
 - 단위/슬라이스 테스트: 정책 랭킹, 조회수 중복 방지, 알림 이력, 정책/추천 WebMvc 흐름 검증 완료
 - 통합 테스트: MySQL + Redis 기반 `AuthRedisIntegrationTest`, `PolicyBookmarkIntegrationTest` 추가 완료
-- 운영 반영 메모: 기존 DB는 `schema.sql`만으로 갱신되지 않으므로 [db-migration.md](../db-migration.md) 순서대로 수동 마이그레이션 적용 필요
+- 운영 반영 메모: 기존 DB는 `schema.sql`만으로 갱신되지 않으므로 [db-migration.md](../core/db-migration.md) 순서대로 수동 마이그레이션 적용 필요
 
 **설계 원칙**
 
@@ -376,7 +376,7 @@ service/
 - [ ] AWS EC2 배포 + HTTPS
 - [ ] 보안 항목 (Rotation, 잠금, 취약점 비식별화)
 - [ ] 통합 테스트 + 버그 수정
-- [x] 데모 시나리오 문서 (`docs/demo-scenario.md`, CTR 분석 쿼리 포함)
+- [x] 데모 시나리오 문서 (`docs/core/demo-scenario.md`, CTR 분석 쿼리 포함)
 
 ---
 

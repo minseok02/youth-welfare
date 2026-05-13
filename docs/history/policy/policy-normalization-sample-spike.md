@@ -10,8 +10,8 @@
 관련 내부 기준:
 
 - [policy-normalization-research.md](./policy-normalization-research.md)
-- [collect-ops.md](../../collect-ops.md)
-- [recommendation-pipeline.md](../../recommendation-pipeline.md)
+- [collect-ops.md](../../collect/collect-ops.md)
+- [recommendation-pipeline.md](../../recommendation/recommendation-pipeline.md)
 - [phase-plan.md](../../phase-plan.md)
 
 ## 검증 범위

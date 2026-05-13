@@ -1,8 +1,10 @@
 # 문서 시작점
 
+루트에는 작업 시작용 공통 문서만 두고, 주제 문서는 폴더별로 묶었습니다.
+
 처음에는 [start.md](./start.md) 부터 보면 됩니다.
 
-그 다음 필요한 파일로 내려가면 됩니다.
+그 다음 필요한 폴더나 파일로 내려가면 됩니다.
 
 - [start.md](./start.md)
   작업 시작용 메인 파일입니다.
@@ -24,43 +26,72 @@
 
 필요하면 아래 문서를 추가로 봅니다.
 
+## 폴더 구조
+
+- [core/README.md](core/README.md)
+  공통 구조, 검증, 요구사항, API smoke 문서입니다.
+
+- [auth/README.md](auth/README.md)
+  인증, 세션, 강제 로그아웃 문서입니다.
+
+- [collect/README.md](collect/README.md)
+  수집 실행, 운영, 장애 대응 문서입니다.
+
+- [recommendation/README.md](recommendation/README.md)
+  추천 파이프라인, 현재 상태, 검증 문서입니다.
+
+- [policy/README.md](policy/README.md)
+  정책 정규화, source 온보딩, 상태 관리 문서입니다.
+
+- [frontend/README.md](frontend/README.md)
+  프론트 QA와 검수 문서입니다.
+
+- [postgres/README.md](postgres/README.md)
+  PostgreSQL 전환 플레이북과 phase 스펙입니다.
+
+- [history-docs-index.md](./history-docs-index.md)
+  설계 배경과 과거 판단 문서 진입점입니다.
+
+- [archive/README.md](archive/README.md)
+  더 이상 active하지 않은 과거 계획 문서 보관 위치입니다.
+
 ## 기본 기준 문서
 
 - [architecture.md](./architecture.md)
-- [srs-v2.10.md](./srs-v2.10.md)
-- [testing.md](./testing.md)
-- [local-validation-docs-index.md](./local-validation-docs-index.md)
-- [system-docs-index.md](./system-docs-index.md)
+- [srs-v2.10.md](core/srs-v2.10.md)
+- [testing.md](core/testing.md)
+- [local-validation-docs-index.md](core/local-validation-docs-index.md)
+- [system-docs-index.md](core/system-docs-index.md)
 - [history-docs-index.md](./history-docs-index.md)
 
 ## 현재 상태 문서
 
-- [auth-docs-index.md](./auth-docs-index.md)
-- [collect-docs-index.md](./collect-docs-index.md)
-- [recommendation-docs-index.md](./recommendation-docs-index.md)
-- [frontend-qa-docs-index.md](./frontend-qa-docs-index.md)
-- [policy-docs-index.md](./policy-docs-index.md)
-- [local-validation-docs-index.md](./local-validation-docs-index.md)
-- [system-docs-index.md](./system-docs-index.md)
+- [auth-docs-index.md](auth/auth-docs-index.md)
+- [collect-docs-index.md](collect/collect-docs-index.md)
+- [recommendation-docs-index.md](recommendation/recommendation-docs-index.md)
+- [frontend-qa-docs-index.md](frontend/frontend-qa-docs-index.md)
+- [policy-docs-index.md](policy/policy-docs-index.md)
+- [local-validation-docs-index.md](core/local-validation-docs-index.md)
+- [system-docs-index.md](core/system-docs-index.md)
 - [history-docs-index.md](./history-docs-index.md)
-- [auth-session-revocation-current-state.md](./auth-session-revocation-current-state.md)
-- [collect-current-state.md](./collect-current-state.md)
-- [recommendation-current-state.md](./recommendation-current-state.md)
-- [policy-normalization-current-state.md](./policy-normalization-current-state.md)
-- [policy-next-active-track-priority.md](./policy-next-active-track-priority.md)
-- [policy-local-closeout-pending-inventory.md](./policy-local-closeout-pending-inventory.md)
-- [policy-gov24-blocked-track-status.md](./policy-gov24-blocked-track-status.md)
+- [auth-session-revocation-current-state.md](auth/auth-session-revocation-current-state.md)
+- [collect-current-state.md](collect/collect-current-state.md)
+- [recommendation-current-state.md](recommendation/recommendation-current-state.md)
+- [policy-normalization-current-state.md](policy/policy-normalization-current-state.md)
+- [policy-next-active-track-priority.md](policy/policy-next-active-track-priority.md)
+- [policy-local-closeout-pending-inventory.md](policy/policy-local-closeout-pending-inventory.md)
+- [policy-gov24-blocked-track-status.md](policy/policy-gov24-blocked-track-status.md)
 
 ## 작업용 문서
 
-- [api-mapping.md](./api-mapping.md)
-- [recommendation-pipeline.md](./recommendation-pipeline.md)
-- [policy-source-onboarding-architecture.md](./policy-source-onboarding-architecture.md)
-- [policy-source-onboarding-checklist.md](./policy-source-onboarding-checklist.md)
-- [policy-source-code-entrypoints.md](./policy-source-code-entrypoints.md)
-- [policy-source-onboarding-template.md](./policy-source-onboarding-template.md)
+- [api-mapping.md](core/api-mapping.md)
+- [recommendation-pipeline.md](recommendation/recommendation-pipeline.md)
+- [policy-source-onboarding-architecture.md](policy/policy-source-onboarding-architecture.md)
+- [policy-source-onboarding-checklist.md](policy/policy-source-onboarding-checklist.md)
+- [policy-source-code-entrypoints.md](policy/policy-source-code-entrypoints.md)
+- [policy-source-onboarding-template.md](policy/policy-source-onboarding-template.md)
 
 ## 기록 / 참고
 
-- [troubleshooting-log.md](./troubleshooting-log.md)
+- [troubleshooting-log.md](core/troubleshooting-log.md)
 - [documentation-map.md](./documentation-map.md)

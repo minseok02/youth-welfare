@@ -52,6 +52,7 @@ class PolicyDetailServiceTest {
                 .homepageUrl("https://apply.example.com")
                 .relatedLaw("청년기본법")
                 .formFiles("신청서, 주민등록등본")
+                .referenceUrlsJson("[{\"url\":\"https://apply.example.com\",\"type\":\"APPLY\"}]")
                 .build();
         ServiceRegion region = ServiceRegion.builder()
                 .service(service)
@@ -85,6 +86,7 @@ class PolicyDetailServiceTest {
         assertEquals("https://apply.example.com", response.getHomepageUrl());
         assertEquals("청년기본법", response.getRelatedLaw());
         assertEquals("신청서, 주민등록등본", response.getFormFiles());
+        assertEquals("[{\"url\":\"https://apply.example.com\",\"type\":\"APPLY\"}]", response.getReferenceUrlsJson());
         assertEquals(List.of("서울특별시 강남구"), response.getRegions());
         verify(policyLookupService).getRequiredService(11L);
         verify(policyDetailReadService).getAggregate(11L);

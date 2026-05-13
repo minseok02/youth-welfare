@@ -16,8 +16,8 @@
 - [policy-normalization-youth-mid-alias-rules.md](../../history/policy/policy-normalization-youth-mid-alias-rules.md)
 - [policy-normalization-research.md](./policy-normalization-research.md)
 - [policy-normalization-sample-spike.md](./policy-normalization-sample-spike.md)
-- [recommendation-pipeline.md](../../recommendation-pipeline.md)
-- [collect-ops.md](../../collect-ops.md)
+- [recommendation-pipeline.md](../../recommendation/recommendation-pipeline.md)
+- [collect-ops.md](../../collect/collect-ops.md)
 - [phase-plan.md](../../phase-plan.md)
 
 ## canonical decision

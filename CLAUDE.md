@@ -136,7 +136,7 @@ com.example.welfare
 | 알림 후보 | top 3 발송 | [A, A, B?] 슬롯 배치 |
 | 가중치 | score_weights 테이블 이미 존재 | 값만 튜닝 |
 
-> 추천 파이프라인 상세 → [`docs/recommendation-pipeline.md`](docs/recommendation-pipeline.md)
+> 추천 파이프라인 상세 → [`docs/recommendation/recommendation-pipeline.md`](docs/recommendation/recommendation-pipeline.md)
 
 ---
 
@@ -209,7 +209,7 @@ public abstract class BaseTimeEntity {
 | 문서 | 내용 |
 |------|------|
 | [`docs/architecture.md`](docs/architecture.md) | 서비스 클래스 역할·호출 흐름 |
-| [`docs/recommendation-pipeline.md`](docs/recommendation-pipeline.md) | 추천 파이프라인 단계별 상세 |
-| [`docs/api-mapping.md`](docs/api-mapping.md) | 공공API 3종 → DB 컬럼 매핑표 |
-| [`docs/srs-v2.10.md`](docs/srs-v2.10.md) | 전체 기능·비기능 요구사항 (FR/NFR) |
-| [`docs/project-plan-v11.md`](docs/project-plan-v11.md) | 13주 마일스톤·역할분담·1차/2차 전략·챗봇 모듈 설계 |
+| [`docs/recommendation/recommendation-pipeline.md`](docs/recommendation/recommendation-pipeline.md) | 추천 파이프라인 단계별 상세 |
+| [`docs/core/api-mapping.md`](docs/core/api-mapping.md) | 공공API 3종 → DB 컬럼 매핑표 |
+| [`docs/core/srs-v2.10.md`](docs/core/srs-v2.10.md) | 전체 기능·비기능 요구사항 (FR/NFR) |
+| [`docs/archive/project-plan-v11.md`](docs/archive/project-plan-v11.md) | 13주 마일스톤·역할분담·1차/2차 전략·챗봇 모듈 설계 |

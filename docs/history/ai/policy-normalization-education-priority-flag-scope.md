@@ -6,7 +6,7 @@
 관련 문서:
 
 - [policy-normalization-education-priority-experiment.md](./policy-normalization-education-priority-experiment.md)
-- [policy-normalization-recommendation-read-model.md](../../policy-normalization-recommendation-read-model.md)
+- [policy-normalization-recommendation-read-model.md](../../policy/policy-normalization-recommendation-read-model.md)
 - [policy-normalization-priority-bridge-table-policy.md](../policy/policy-normalization-priority-bridge-table-policy.md)
 - [policy-normalization-education-priority-config-boundary.md](./policy-normalization-education-priority-config-boundary.md)
 

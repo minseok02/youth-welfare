@@ -56,6 +56,7 @@ public class PolicyDetailResponse {
     private String homepageUrl;
     private String relatedLaw;
     private String formFiles;
+    private String referenceUrlsJson;
 
     // 관련 목록
     private List<String> regions;
@@ -134,6 +135,7 @@ public class PolicyDetailResponse {
                 .homepageUrl(detail != null ? detail.getHomepageUrl() : null)
                 .relatedLaw(detail != null ? detail.getRelatedLaw() : null)
                 .formFiles(detail != null ? detail.getFormFiles() : null)
+                .referenceUrlsJson(detail != null ? detail.getReferenceUrlsJson() : null)
                 .regions(regionNames)
                 .tags(tagItems)
                 .build();

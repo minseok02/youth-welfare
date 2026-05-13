@@ -5,7 +5,7 @@
 - [policy-normalization-youth-mid-stable-code-source-plan.md](../../history/policy/policy-normalization-youth-mid-stable-code-source-plan.md)
 - [policy-normalization-gov24-label-source-plan.md](../../history/policy/policy-normalization-gov24-label-source-plan.md)
 - [policy-normalization-gov24-support-condition-source-plan.md](../../history/policy/policy-normalization-gov24-support-condition-source-plan.md)
-- [policy-source-canonical-onboarding-priority.md](../../policy-source-canonical-onboarding-priority.md)
+- [policy-source-canonical-onboarding-priority.md](../../policy/policy-source-canonical-onboarding-priority.md)
 - [phase-plan.md](../../phase-plan.md)
 
 ## 목적

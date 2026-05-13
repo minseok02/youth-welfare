@@ -1,5 +1,14 @@
 # 구현 현황
 
+- 2026-05-13: `POST /api/admin/policies/reference-urls/rebuild` 를 추가했다. 기존 `raw_api_payloads` DETAIL snapshot을 다시 읽어 `referenceUrlsJson` 을 재구축하고, 청년 DETAIL raw와 복지로 DETAIL raw를 모두 대상으로 `WelfareServiceDetail` 을 재적용하게 정리했다. 기본은 `missingOnly=true` 로 두어 이미 URL 후보 풀이 있는 row는 건너뛰고, 로컬 테스트 서비스 기준으로 과거 적재 row도 재수집 없이 안전하게 메울 수 있다.
+- 2026-05-13: retrieval/category audit 후속으로 `PolicyCategoryAuditResponse` 를 읽기 쉬운 요약 계약으로 보강했다. 전체 `searchablePolicyRatio`, 상위 unified category 의 `totalShare/searchableCoverage`, 청년 broad category 의 dominant mapping 을 함께 내려 운영자가 raw count 없이도 분포를 바로 읽게 정리했다.
+- 2026-05-13: 정책 상세/챗봇 프론트가 백엔드 additive field 를 실제로 쓰도록 연결했다. 정책 상세는 `selectionCriteria`, `homepageUrl`, `relatedLaw`, `formFiles` 를 노출하고, 챗봇은 `answerMode`, `needsClarification`, `branchSuggestions` 기반 분기/clarification UI 를 사용하도록 맞췄다.
+- 2026-05-13: 수집 detail 정규화에 `referenceUrlsJson` 을 추가해 대표 `detailUrl` 외 URL 후보 풀을 보존하게 했다. 온통청년의 `aplyUrlAddr/refUrlAddr1/refUrlAddr2` 와 detail 본문(`applyMethodDetail`, `supportDetail`, `selectionCriteria`, `targetDetail`) 안의 링크를 함께 저장해 canonical 단계에서 참고 URL을 잃지 않게 정리했다.
+- 2026-05-13: PostgreSQL 기반 리팩토링을 `main` 기준으로 마무리했다. `MySQL -> PostgreSQL` 전환, PostgreSQL FTS/`pg_trgm` 검색 전환, 챗봇 retrieval foundation, `pgvector` 임베딩/semantic retrieval, 추천/챗봇 공통 탐색 엔진, retrieval evaluation/compare/export/gate/category audit 경로를 모두 연결했다.
+- 2026-05-13: 로컬 데이터 재적재와 retrieval baseline 재검증도 끝냈다. 현재 기준선은 `welfare_services=3925`, `search_youth_relevant=2544`, `welfare_service_details=1356`, `policy_chunks=14210`, embedded chunk `14210`, retrieval baseline `top1/top3/branch=1.0`, `emptyResultCount=0`, quality gate `passed=true` 이다.
+- 2026-05-13: 프론트/백엔드 계약도 현재 구현 기준으로 맞췄다. `operatingOrg`, `selectionCriteria`, `homepageUrl`, `relatedLaw`, `formFiles` 를 응답 계약에 복구했고, 프론트 lint/build blocker를 정리했다.
+- 2026-05-13: 최종 검증은 `cd backend && ./gradlew test --no-daemon`, `cd backend && ./gradlew integrationTest --no-daemon`, `cd frontend && npm run lint`, `cd frontend && npm run build` 까지 다시 통과시켰다. 브라우저 기반 로그인/챗/정책 검색 smoke도 별도로 확인했다.
+- 2026-05-13: 문서 구조도 정리했다. `docs/` 루트는 진입 문서 위주로 두고, 주제 문서는 `auth/`, `collect/`, `recommendation/`, `policy/`, `frontend/`, `postgres/`, `core/` 폴더로 재배치해 탐색 구조를 단순화했다.
 - 2026-05-10: 복지로 운영 계정을 확보했고, `중앙 list`, `중앙 detail`, `지자체 list`, `지자체 detail` 을 각각 일일 `100,000` quota 기준으로 다시 열었다. active 문서의 개발 계정 `100건` 전제를 걷어내고, 코드 기본값도 복지로 list source별 `1회 10,000 items`, detail source별 `1회 10,000 calls`, `bokjiro-details-gap-fill` 기본 `maxCallsPerRound=10000` 안전 상한으로 정리했다. detail pacing 은 `300ms`, 연속 `429` 임계치는 `2회`로 완화했다.
 - 2026-05-09: 운영 서버 기본 권장안을 ARM `t4g` 계열에서 x86_64 `t3` 계열 기준으로 다시 정리했다. active 문서(`architecture`, `demo-scenario`, `srs-v2.10`)의 최소 사양/데모 인프라 표기를 `t3.medium` 기준으로 맞추고 Dockerfile 주석도 x86 기본 배포 기준으로 교정했다.
 - 2026-05-05: 복지로 collect 운영 기준을 다시 정리했다. 현재 개발 계정으로는 복지로 list snapshot 은 계속 확보할 수 있지만, detail API 는 트래픽 한도(`100`) 때문에 하루 안에 full coverage 를 채우는 것을 목표로 두지 않는다. 서버 오픈 전까지는 `bokjiro-details-gap-fill` 로 가능한 범위만 점진 채움하고, 운영 계정/완화된 quota 확보 뒤에 full gap fill / refresh 를 다시 연다.
@@ -48,7 +57,7 @@
 - 2026-05-02: 알림 후보 선택을 단순 top 3에서 `NotificationSlotSelector` 기반 `[A, A, B?]` 슬롯 배치로 바꿨다. A 슬롯은 `final_score` 상위 2건, B 슬롯은 수집 후 24시간 이내 + `rule_base_score >= 0.5` 신규 정책 1건이며, B가 없으면 `[A, A, A]` fallback 한다. `NotificationSlotSelectorTest`, `NotificationServiceTest` 로 배치 규칙과 발송 wiring을 고정했다.
 
 이 문서는 현재 구현 상태와 남은 1차 작업을 확인하기 위한 현황판입니다.
-요구사항 원본은 [srs-v2.10.md](./srs-v2.10.md), 실행 방법은 [testing.md](./testing.md), 현재 문서 길찾기는 [documentation-map.md](./documentation-map.md)를 봅니다.
+요구사항 원본은 [srs-v2.10.md](core/srs-v2.10.md), 실행 방법은 [testing.md](core/testing.md), 현재 문서 길찾기는 [documentation-map.md](./documentation-map.md)를 봅니다.
 
 ## 현재 결론
 
@@ -187,7 +196,7 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - 2026-05-02 `run-local-education-priority-replay.sh` 의 `SUMMARY_SLOT_METRIC` / append summary도 `slot_rows_YOUTH_MAJOR`, `slot_rows_YOUTH_MID`, `slot_rows_PROVISION_METHOD`, `slot_rows_GOV24_*` 를 같이 출력하도록 확장한 뒤 `KEEP_ARTIFACTS=true deploy/smoke/run-local-education-priority-replay.sh` 재실행, artifact `/tmp/tmp.lP4I9NWUUU` 기준 `slot_services=2331`, `slot_rows=5674`, `slot_rows_YOUTH_MAJOR=2313`, `slot_rows_GOV24_* = 0` 재확인
 - 2026-05-02 replay 절차 문서도 `SUMMARY_SLOT_METRIC` 이 `slot_services_*` 와 `slot_rows_*` 를 같이 보는 기준이라는 점을 명시하고, apply/replay density vocabulary를 같은 축으로 읽도록 정리한 뒤 `git diff --check`
 - 2026-05-02 local DB를 직접 재확인해 current snapshot source 분포가 `YOUTH=2364`, `BOKJIRO_CENTRAL=119`, `BOKJIRO_LOCAL=1225` 뿐이고 `service_taxonomy_summary_slots` 도 `PROVISION_METHOD/YOUTH_MAJOR/YOUTH_MID` 만 채워져 있음을 확인, `GOV24_* = 0` 은 runtime collect 부재 + blocked import/backfill 트랙 결과라는 해석을 current-state에 반영
-- 2026-05-02 `Gov24` blocked 상태를 request package / reopen priority / 현재 inactive 이유 기준으로 한 장에서 보게 [policy-gov24-blocked-track-status.md](./policy-gov24-blocked-track-status.md) 를 추가하고, active-track / pending inventory entrypoint 에도 연결
+- 2026-05-02 `Gov24` blocked 상태를 request package / reopen priority / 현재 inactive 이유 기준으로 한 장에서 보게 [policy-gov24-blocked-track-status.md](policy/policy-gov24-blocked-track-status.md) 를 추가하고, active-track / pending inventory entrypoint 에도 연결
 - 2026-05-02 `policy-docs-index.md` 와 `documentation-map.md` 에도 `policy-gov24-blocked-track-status.md` 를 연결해 blocked entrypoint가 현재 policy 문서 진입 경로에서 바로 보이게 정리
 - 2026-05-02 `start.md`, `current-state.md`, `docs/README.md` 에도 `policy-gov24-blocked-track-status.md` 를 연결해 top-level 문서 진입점에서도 `Gov24` inactive/reopen 기준을 바로 찾게 정리
 - 2026-05-02 `documentation-map.md` 의 현재 구현 상태 요약과 새 작업 읽기 순서에도 `policy-gov24-blocked-track-status.md` 를 올려, policy index를 거치지 않고도 blocked 상태 판단 경로를 바로 타게 정리
@@ -236,7 +245,7 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - 2026-05-02 recommendation read-model projection에 `youthMidLabel`, `provisionMethodLabel` 을 추가하고 `YOUTH_MID` / `PROVISION_METHOD` 를 slot-first / legacy fallback 으로 hydrate 하도록 확장 후 `backend`에서 `./gradlew test --no-daemon --tests com.example.welfare.recommend.repository.CanonicalRecommendationReadModelRepositoryTest`
 - 2026-05-02 policy summary/detail/ranking 응답이 projection의 `youthMidLabel`, `provisionMethodLabel` 을 additive field로 노출하도록 연결 후 `backend`에서 `./gradlew test --no-daemon --tests com.example.welfare.policy.service.PolicyServiceTest --tests com.example.welfare.user.service.UserServiceTest --tests com.example.welfare.policy.service.PolicyRankingServiceTest --tests com.example.welfare.recommend.repository.CanonicalRecommendationReadModelRepositoryTest`
 - 2026-05-02 policy/ranking/bookmark WebMvc 응답 JSON에 `youthMidLabel`, `provisionMethodLabel` 직렬화 contract를 추가 후 `backend`에서 `./gradlew test --no-daemon --tests com.example.welfare.api.RecommendationPolicyFlowWebMvcTest --tests com.example.welfare.user.controller.UserControllerWebMvcTest --tests com.example.welfare.policy.service.PolicyServiceTest --tests com.example.welfare.user.service.UserServiceTest --tests com.example.welfare.policy.service.PolicyRankingServiceTest --tests com.example.welfare.recommend.repository.CanonicalRecommendationReadModelRepositoryTest`
-- 2026-05-02 프론트 연동 전 canonical summary additive response field를 `docs/api-mapping.md` 에 명시하고 `current-state.md` 에 API contract entrypoint를 연결 후 `git diff --check`
+- 2026-05-02 프론트 연동 전 canonical summary additive response field를 `docs/core/api-mapping.md` 에 명시하고 `current-state.md` 에 API contract entrypoint를 연결 후 `git diff --check`
 - 2026-05-02 recommendation 목록/refresh 응답도 `youthMidLabel`, `provisionMethodLabel` additive field를 노출하고 WebMvc contract를 추가 후 `backend`에서 `./gradlew test --no-daemon --tests com.example.welfare.api.RecommendationPolicyFlowWebMvcTest --tests com.example.welfare.recommend.repository.CanonicalRecommendationReadModelRepositoryTest`
 - 2026-05-02 `GET /api/recommendations` 저장 추천 조회도 canonical summary additive field contract를 고정 후 `backend`에서 `./gradlew test --no-daemon --tests com.example.welfare.api.RecommendationPolicyFlowWebMvcTest --tests com.example.welfare.recommend.repository.CanonicalRecommendationReadModelRepositoryTest`
 - 2026-05-02 recommendation/policy 응답 전반에 `youthMajorLabel` additive field를 추가하고 service/WebMvc/API 문서를 갱신 후 `backend`에서 `./gradlew test --no-daemon --tests com.example.welfare.api.RecommendationPolicyFlowWebMvcTest --tests com.example.welfare.user.controller.UserControllerWebMvcTest --tests com.example.welfare.policy.service.PolicyServiceTest --tests com.example.welfare.user.service.UserServiceTest --tests com.example.welfare.policy.service.PolicyRankingServiceTest --tests com.example.welfare.recommend.repository.CanonicalRecommendationReadModelRepositoryTest`
@@ -443,7 +452,7 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - 2026-04-24 Docker 앱 재빌드 후 가상 유저(`testuser@youth-welfare.dev`) end-to-end 검증
   - 회원가입 → 로그인 → 프로필 조회 → 우선순위 저장(HOUSING·JOB·EDUCATION·FINANCE·DEADLINE) → 추천 refresh(40건, AI reason 정상) → 북마크 토글 → 북마크 목록 조회 → 검색 결과 북마크 상태 확인 → Refresh Token 재발급 전 구간 정상
 - 2026-04-25 챗봇 설계 문서 추가 후 `docs` 링크 점검
-  - `docs/README.md`, `docs/chatbot-plan.md`, `docs/phase-plan.md` 상호 링크 확인
+  - `docs/README.md`, `docs/core/chatbot-plan.md`, `docs/phase-plan.md` 상호 링크 확인
 - 2026-04-25 `/chat` 자리표시자 문구 정리 후 `frontend`에서 `npm run lint`
 - 2026-04-25 `/chat` 자리표시자 문구 정리 후 `frontend`에서 `npm run build`
   - Vite 번들 크기 경고 발생. 빌드는 성공했으며 기능 실패는 아님.
@@ -533,7 +542,7 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
   - 가중치 구간은 전부 `rule_weight_used=0.80`, `ai_weight_used=0.20`
   - 표본이 하루치 2명 사용자(`user_id=83,90`) 중심이라 가중치/프롬프트 변경 판단은 보류하고 baseline 수치로만 기록
 - 2026-04-27 사용자 PII 분리 이행안 확정
-  - [user-data-separation-design.md](./user-data-separation-design.md) 기준 stale 보안 가정(`admin permitAll`)을 현재 코드와 일치하도록 수정
+  - [user-data-separation-design.md](core/user-data-separation-design.md) 기준 stale 보안 가정(`admin permitAll`)을 현재 코드와 일치하도록 수정
   - `2 schema`, `user_key` 선행, `dual-write -> read cut-over -> legacy 제거` 4단계 순서를 확정
   - `AuthService`, `UserService`, `NotificationService`, 추천/채팅/로그 테이블의 영향 범위와 릴리스별 산출물 정리
   - 문서 정합성 확인 후 `git diff --check`
@@ -564,14 +573,14 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - 2026-04-25 운영/설계 보조 문서 링크 및 작업 추적 정합성 점검
   - `docs/README.md`에 `db-search-recommend-ops-guide.md`, `user-data-separation-design.md` 링크 추가
   - `docs/phase-plan.md`의 완료/진행 예정/남은 작업 간 상태 충돌 정리
-  - `docs/troubleshooting-log.md`에 문서 추적 누락 재발 방지 기록 추가
+  - `docs/core/troubleshooting-log.md`에 문서 추적 누락 재발 방지 기록 추가
 - 2026-04-25 `/api/admin/**` 인증/권한 강화 후 `backend`에서 `./gradlew test --no-daemon`
   - `AdminSecurityWebMvcTest`로 비인증 401, 일반 사용자 403, 관리자 200 확인
 - 2026-04-25 `docker compose up -d db redis`
 - 2026-04-25 `/api/admin/**` 인증/권한 강화 후 `backend`에서 `./gradlew integrationTest --no-daemon`
   - `AdminSecurityIntegrationTest`로 관리자 예약 이메일 signup 차단, 관리자 로그인/refresh 후 관리자 API 200 확인
 - 2026-04-25 챗봇 응답 DTO/API 계약 초안 고정
-  - `docs/api-mapping.md`, `docs/chatbot-plan.md`에 세션/메시지/답변 필드 계약 반영
+  - `docs/core/api-mapping.md`, `docs/core/chatbot-plan.md`에 세션/메시지/답변 필드 계약 반영
   - `backend`에 `chat/dto` request/response 골격 추가
 - 2026-04-25 챗봇 응답 DTO/API 계약 고정 후 `backend`에서 `./gradlew test --no-daemon`
 - 2026-04-25 테스트 DB에 `V2026_04_25_01__add_chat_tables.sql` 적용
@@ -579,7 +588,7 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
   - `idx_cs_user_last_message`, `idx_cm_session_created`, FK cascade 확인
 - 2026-04-25 챗봇 DB migration 추가 후 `backend`에서 `./gradlew integrationTest --no-daemon`
 - 2026-04-25 챗봇 DB migration 추가
-  - `schema.sql`, `V2026_04_25_01__add_chat_tables.sql`, `docs/db-migration.md` 반영
+  - `schema.sql`, `V2026_04_25_01__add_chat_tables.sql`, `docs/core/db-migration.md` 반영
 - 2026-04-25 테스트 DB에 `V2026_04_25_01__add_chat_tables.sql` 적용
   - `chat_sessions`, `chat_messages` 테이블 및 인덱스 확인
 - 2026-04-25 챗봇 엔티티/리포지토리 골격 추가
@@ -667,8 +676,8 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - 2026-04-28 `user_recommendations` / 북마크 경로 전환 후 `backend`에서 `./gradlew test --no-daemon`
 - 2026-04-28 `user_recommendations` / 북마크 경로 전환 후 `backend`에서 `./gradlew integrationTest --no-daemon`
 - 2026-04-28 legacy `user_id` drop 대상 및 migration 순서 문서화
-  - `docs/user-data-separation-design.md`, `docs/db-migration.md` 에 즉시 drop 후보와 선행 전환 필요 대상을 분리해 반영
-  - `docs/api-mapping.md`, `docs/chatbot-plan.md` 의 남아 있던 `user_id` 기준 설명을 현재 `user_key` 계약에 맞게 정리
+  - `docs/core/user-data-separation-design.md`, `docs/core/db-migration.md` 에 즉시 drop 후보와 선행 전환 필요 대상을 분리해 반영
+  - `docs/core/api-mapping.md`, `docs/core/chatbot-plan.md` 의 남아 있던 `user_id` 기준 설명을 현재 `user_key` 계약에 맞게 정리
 - 2026-04-28 `user_attributes` / `user_priorities` 의 `user_key` 기준 write/delete 전환 및 `ManyToOne User` 제거
   - `UserAttribute`, `UserPriority` 엔티티를 `userId + userKey` 스칼라 필드 기준으로 전환
   - `UserService.updateProfile`, `updatePriorities`, `withdraw` 의 저장/삭제 경로를 `user_key` 기준 repository 호출로 정리
@@ -681,11 +690,11 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
   - `backend/src/main/resources/application.yml`, `.env.example`, `docker-compose.yml` 을 `app_core_rw` / `migration_admin` / `app_pii_rw` / `notification_pii_ro` 기준으로 정리
   - `deploy/mysql/init/z90-create-runtime-db-users.sh` 추가로 신규 볼륨 초기화 시 계정과 grant 자동 생성
   - fresh init smoke 중 드러난 `schema.sql` 말단 쉼표 2건을 수정해 신규 DB 부팅 실패를 제거
-  - `docs/deployment.md`, `docs/db-migration.md`, `docs/user-data-separation-design.md` 에 기존 운영 DB 수동 전환 기준과 남은 datasource 분리 범위를 반영
+  - `docs/deployment.md`, `docs/core/db-migration.md`, `docs/core/user-data-separation-design.md` 에 기존 운영 DB 수동 전환 기준과 남은 datasource 분리 범위를 반영
 - 2026-04-28 기존 운영 DB 계정 생성 SQL/runbook 및 앱 datasource 전환 체크리스트 정리
   - `deploy/mysql/runtime-db-accounts.sql.example` 추가로 기존 운영 DB용 idempotent 계정/권한 SQL 템플릿 작성
   - `docs/db-account-cutover-runbook.md` 에 적용 순서, `SHOW GRANTS` 검증, `.env` cutover, rollback 기준 정리
-  - `docs/README.md`, `docs/deployment.md`, `docs/db-migration.md` 에 신규 runbook 링크 반영
+  - `docs/README.md`, `docs/deployment.md`, `docs/core/db-migration.md` 에 신규 runbook 링크 반영
 - 2026-04-28 알림 대상 이메일 조회를 `notification_pii_ro` secondary datasource로 분리
   - `NotificationPiiReadDataSourceConfig`, `NotificationPiiReadRepository` 를 추가해 `user_pii(user_key, email_enc)` 읽기 전용 보조 datasource를 구성
   - `UserProfileRepository.findNotificationTargetsByPeriod` 에서 `user_pii` 조인을 제거하고, `UserReadService` 가 core 대상 조회와 PII 이메일 조회를 `user_key` 기준 2단계로 합치도록 변경
@@ -712,7 +721,7 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - 2026-04-28 `user_pii_sync_queue` status endpoint 및 운영 모니터링 기준 추가
   - `GET /api/admin/users/pii-sync-status` 로 `pending/failed/synced` count, oldest pending/failed timestamp, latest synced timestamp, failed sample 목록을 조회할 수 있게 추가
   - `UserPiiSyncStatusService` 가 failed sample limit을 `1..20` 으로 clamp 해 운영 조회가 과도한 read amplification으로 번지지 않게 고정
-  - `docs/deployment.md`, `docs/db-migration.md`, `docs/user-data-separation-design.md` 에 curl 예시와 warning 기준(`failedCount > 0`, oldest pending 5분 초과, oldest failed 10분 초과, failed sample attemptCount >= 5`)을 반영
+  - `docs/deployment.md`, `docs/core/db-migration.md`, `docs/core/user-data-separation-design.md` 에 curl 예시와 warning 기준(`failedCount > 0`, oldest pending 5분 초과, oldest failed 10분 초과, failed sample attemptCount >= 5`)을 반영
 - 2026-04-28 `user_pii_sync_queue` cut-over smoke 스크립트 추가
   - `deploy/smoke/user-pii-sync-cutover-smoke.sh` 로 회원가입 -> 로그인 -> 프로필 수정 -> `user_pii_sync_queue` `SYNCED` -> split-table row 존재 확인 -> 회원탈퇴 정리까지 one-shot smoke 경로를 추가
   - query 계정은 `DB_MIGRATION_* -> DB_USERNAME/DB_PASSWORD` 순서로 fallback 하고, `APPLY_PII_SYNC_QUEUE_MIGRATION=true` 로 `V2026_04_28_02` 적용까지 같이 실행할 수 있게 정리
@@ -729,7 +738,7 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - 2026-04-28 one-shot PII sync smoke의 `ENV_FILE` 직접 로드 지원 및 `source .env` 예시 제거
   - `deploy/smoke/user-pii-sync-cutover-smoke.sh` 가 `.env` 파일을 직접 파싱하도록 바꾸고, `ENV_FILE=.env ...` 형태로 same-process env를 안전하게 주입할 수 있게 정리
   - `deploy/smoke/user-pii-sync-cutover-smoke.sh`, `deploy/smoke/preflight-runtime-cutover-env.sh` 모두 caller가 앞에서 준 explicit env override를 파일 값보다 우선하도록 보강해, stale `.env` 가 있어도 `DB_QUERY_*` / `DB_MIGRATION_*` 로 안전하게 우회 가능하도록 수정
-  - `docs/deployment.md`, `docs/db-migration.md` 의 one-shot smoke 예시를 `ENV_FILE=.env ...` 기준으로 통일하고, `docs/testing.md` 는 Gmail smoke에서 `.env` 전체를 shell `source` 하지 않도록 수정
+  - `docs/deployment.md`, `docs/core/db-migration.md` 의 one-shot smoke 예시를 `ENV_FILE=.env ...` 기준으로 통일하고, `docs/core/testing.md` 는 Gmail smoke에서 `.env` 전체를 shell `source` 하지 않도록 수정
   - JDBC URL query string의 `&` 때문에 `source .env` 가 값을 잘라먹는 재발 가능성을 트러블슈팅과 문서에 반영
 - 2026-04-28 운영 cutover env preflight summary 출력 추가
   - `deploy/smoke/preflight-runtime-cutover-env.sh` 에 `PRINT_SUMMARY=true` 옵션을 추가해 pass/fail만이 아니라 실제로 검증된 target host/schema, split-account username, password set/missing 상태를 redacted summary로 같이 출력하도록 보강
@@ -744,7 +753,7 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
   - `docs/README.md`, `docs/deployment.md`, `docs/db-account-cutover-runbook.md`, `docs/runtime-cutover-checklist.md` 에서 새 템플릿을 바로 찾을 수 있게 링크를 연결
   - 운영 전환 후 증적이 터미널 출력, 채팅, 메모에 흩어지지 않도록 최소 보관 형식을 고정
 - 2026-04-28 운영 runtime API smoke 명령 모음 추가
-  - `docs/runtime-api-smoke-commands.md` 를 추가해 로그인, refresh, 추천 조회, 추천 북마크 토글, 북마크 목록, admin status, 로그아웃 curl 명령을 한 문서에 정리
+  - `docs/core/runtime-api-smoke-commands.md` 를 추가해 로그인, refresh, 추천 조회, 추천 북마크 토글, 북마크 목록, admin status, 로그아웃 curl 명령을 한 문서에 정리
   - `Authorization: Bearer` 헤더, `refresh_token` cookie jar, recommendation bookmark path가 recommendation `id` 를 받는다는 점까지 코드 기준으로 명시
   - `docs/README.md`, `docs/deployment.md`, `docs/runtime-cutover-checklist.md`, `docs/runtime-cutover-log-template.md` 에 링크를 연결해 운영자가 smoke 명령을 즉석에서 다시 만들지 않게 정리
 - 2026-04-28 운영 runtime cutover 실행 로그 sample 추가
@@ -759,7 +768,7 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
   - `28b5f67` 시점 `schema.sql` 을 임시 seed로 사용해 pre-28 schema 상태의 MySQL 8.0 컨테이너를 띄우고 `migration_admin` grant를 재확인
   - runtime 테이블에 `user_id` 가 남아 있고 `user_key` 가 nullable이며 `user_pii_sync_queue` 가 없는 pre-state를 확인한 뒤 `V2026_04_28_01` 을 먼저 적용
   - `SHOW COLUMNS ... LIKE 'user_id'`, `SHOW INDEX ...` 로 legacy `user_id` drop과 `user_key` 인덱스 재구성을 확인하고, 이어 `V2026_04_28_02` 적용 후 queue table 생성/컬럼 구성을 검증
-  - 이 결과를 기준으로 `docs/db-migration.md` 의 수동 적용 예시 순서를 dependency 기준으로 다시 정렬
+  - 이 결과를 기준으로 `docs/core/db-migration.md` 의 수동 적용 예시 순서를 dependency 기준으로 다시 정렬
 - 2026-04-28 pre-28 migrated DB에 최신 앱 직접 연결 후 end-to-end smoke
   - pre-28 migrated DB를 별도 `3308` 포트로 유지한 채 최신 Spring 앱을 `SERVER_PORT=18082` 로 직접 기동해, 최신 엔티티/스키마가 migration 결과와 실제로 맞물리는지 확인
   - 앱 health가 `UP` 인 것을 확인한 뒤 같은 `user-pii-sync-cutover-smoke.sh` 를 `APP_BASE_URL=18082`, `MYSQL_PORT=3308`, `migration_admin` query 계정 조합으로 재사용
@@ -773,7 +782,7 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 
 작업을 완료하면 이 섹션을 먼저 갱신합니다.
 완료한 항목은 `완료`로 옮기고, 새로 발견한 작업은 `진행 예정`에 추가합니다.
-작업 중 문제를 해결했거나 재발 가능성이 있는 판단을 했다면 [troubleshooting-log.md](./troubleshooting-log.md)에 `문제 / 해결 / 이유` 형식으로 추가합니다.
+작업 중 문제를 해결했거나 재발 가능성이 있는 판단을 했다면 [troubleshooting-log.md](core/troubleshooting-log.md)에 `문제 / 해결 / 이유` 형식으로 추가합니다.
 
 ### 진행 예정
 
@@ -821,7 +830,7 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
   - 검증: `cd backend && ./gradlew compileJava --no-daemon`, `cd backend && ./gradlew test --no-daemon --tests com.example.welfare.policy.support.WelfareSourceTypeSupportTest --tests com.example.welfare.policy.service.PolicyServiceTest --tests com.example.welfare.policy.service.PolicySearchServiceTest --tests com.example.welfare.collect.normalization.DeferredNormalizedPolicySidecarWriterTest`
 - [x] AI gateway prompt / education narrow experiment를 projection 우선 경계로 1차 이동
   - 목적: `RealtimeAiGateway` 가 prompt 조성에서 `service.getUnifiedCategory()` 를 직접 읽던 경계와 `RuleScoringService` 의 `education narrow experiment` 가 raw `compat=기타 + youth_major=교육` 조합을 직접 보던 경계를 projection-derived 입력으로 바꿔, recommendation read path의 마지막 entity direct read를 더 줄이기
-  - 반영: `backend/src/main/java/com/example/welfare/recommend/dto/RecommendationCandidateProjection.java`, `backend/src/main/java/com/example/welfare/recommend/dto/ScoredCandidate.java`, `backend/src/main/java/com/example/welfare/recommend/repository/CanonicalRecommendationReadModelRepository.java`, `backend/src/main/java/com/example/welfare/recommend/service/RuleScoringService.java`, `backend/src/main/java/com/example/welfare/recommend/gateway/RealtimeAiGateway.java`, `backend/src/test/java/com/example/welfare/recommend/gateway/RealtimeAiGatewayTest.java`, `backend/src/test/java/com/example/welfare/recommend/repository/CanonicalRecommendationReadModelRepositoryTest.java`, `backend/src/test/java/com/example/welfare/recommend/service/RuleScoringServiceTest.java`, `docs/recommendation-current-state.md`
+  - 반영: `backend/src/main/java/com/example/welfare/recommend/dto/RecommendationCandidateProjection.java`, `backend/src/main/java/com/example/welfare/recommend/dto/ScoredCandidate.java`, `backend/src/main/java/com/example/welfare/recommend/repository/CanonicalRecommendationReadModelRepository.java`, `backend/src/main/java/com/example/welfare/recommend/service/RuleScoringService.java`, `backend/src/main/java/com/example/welfare/recommend/gateway/RealtimeAiGateway.java`, `backend/src/test/java/com/example/welfare/recommend/gateway/RealtimeAiGatewayTest.java`, `backend/src/test/java/com/example/welfare/recommend/repository/CanonicalRecommendationReadModelRepositoryTest.java`, `backend/src/test/java/com/example/welfare/recommend/service/RuleScoringServiceTest.java`, `docs/recommendation/recommendation-current-state.md`
   - 검증: `cd backend && ./gradlew compileJava --no-daemon`, `cd backend && ./gradlew test --no-daemon --tests com.example.welfare.recommend.gateway.RealtimeAiGatewayTest --tests com.example.welfare.recommend.repository.CanonicalRecommendationReadModelRepositoryTest --tests com.example.welfare.recommend.service.RuleScoringServiceTest --tests com.example.welfare.recommend.service.DefaultPriorityMatcherTest --tests com.example.welfare.api.RecommendationPolicyFlowWebMvcTest`
 - [x] policy/search/detail/ranking/bookmark response의 compat category를 projection 우선 경계로 1차 이동
   - 목적: `PolicySummaryResponse` / `PolicyDetailResponse` / `PolicyRankingResponse` 와 bookmark 응답이 `WelfareService.unifiedCategory` 를 직접 읽던 경계를 canonical projection compat 우선으로 바꿔, recommendation 밖의 주요 읽기 API도 read-model을 1급 입력으로 사용하게 만들기
@@ -829,7 +838,7 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
   - 검증: `cd backend && ./gradlew compileJava --no-daemon`, `cd backend && ./gradlew test --no-daemon --tests com.example.welfare.policy.service.PolicyServiceTest --tests com.example.welfare.policy.service.PolicySearchServiceTest --tests com.example.welfare.policy.service.PolicyRankingServiceTest --tests com.example.welfare.user.service.UserServiceTest --tests com.example.welfare.api.RecommendationPolicyFlowWebMvcTest`
 - [x] recommendation priority matcher / response category를 projection 우선 경계로 1차 이동
   - 목적: `DefaultPriorityMatcher` 의 compat 문자열 switch와 `RecommendationResponse` 의 entity direct read를 canonical projection 우선 경계로 옮겨, 추천 priority/response path에서도 source-neutral read-model을 1급 입력으로 사용하게 만들기
-  - 반영: `backend/src/main/java/com/example/welfare/recommend/dto/RecommendationCandidateProjection.java`, `backend/src/main/java/com/example/welfare/recommend/repository/CanonicalRecommendationReadModelRepository.java`, `backend/src/main/java/com/example/welfare/recommend/service/DefaultPriorityMatcher.java`, `backend/src/main/java/com/example/welfare/recommend/dto/RecommendationResponse.java`, `backend/src/main/java/com/example/welfare/recommend/controller/RecommendationController.java`, `backend/src/test/java/com/example/welfare/recommend/service/DefaultPriorityMatcherTest.java`, `backend/src/test/java/com/example/welfare/api/RecommendationPolicyFlowWebMvcTest.java`, `docs/recommendation-current-state.md`
+  - 반영: `backend/src/main/java/com/example/welfare/recommend/dto/RecommendationCandidateProjection.java`, `backend/src/main/java/com/example/welfare/recommend/repository/CanonicalRecommendationReadModelRepository.java`, `backend/src/main/java/com/example/welfare/recommend/service/DefaultPriorityMatcher.java`, `backend/src/main/java/com/example/welfare/recommend/dto/RecommendationResponse.java`, `backend/src/main/java/com/example/welfare/recommend/controller/RecommendationController.java`, `backend/src/test/java/com/example/welfare/recommend/service/DefaultPriorityMatcherTest.java`, `backend/src/test/java/com/example/welfare/api/RecommendationPolicyFlowWebMvcTest.java`, `docs/recommendation/recommendation-current-state.md`
   - 검증: `cd backend && ./gradlew test --no-daemon --tests com.example.welfare.recommend.service.DefaultPriorityMatcherTest --tests com.example.welfare.api.RecommendationPolicyFlowWebMvcTest --tests com.example.welfare.recommend.repository.CanonicalRecommendationReadModelRepositoryTest --tests com.example.welfare.recommend.service.RuleScoringServiceTest`
 - [x] recommendation compat bridge 의미를 projection code/bucket으로 1차 고정
   - 목적: `CanonicalRecommendationReadModelRepository` 와 `DefaultPriorityMatcher`, `RecommendationProjectionHeuristicSupport` 가 projection이 있어도 다시 legacy compat label 문자열을 해석하던 경계를 줄여, recommendation 내부 판단은 projection이 실어준 compat code/priority bucket 의미를 우선 사용하게 만들기
@@ -837,11 +846,11 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
   - 검증: `cd backend && ./gradlew test --no-daemon --tests com.example.welfare.recommend.service.DefaultPriorityMatcherTest --tests com.example.welfare.recommend.repository.CanonicalRecommendationReadModelRepositoryTest --tests com.example.welfare.recommend.support.RecommendationProjectionHeuristicSupportTest --tests com.example.welfare.recommend.service.RuleScoringServiceTest --tests com.example.welfare.recommend.gateway.RealtimeAiGatewayTest`, `cd backend && ./gradlew test integrationTest --no-daemon`
 - [x] recommendation scoring의 audience/special-target heuristic을 projection 우선 경계로 1차 이동
   - 목적: `RuleScoringService` 가 `YouthPolicyFilter` 와 raw text scan에 직접 묶여 있던 audience relevance bonus / special-target mismatch 판단을 canonical projection 우선으로 읽게 만들어, 추천 hot path에서 source·문구 특례를 더 줄이기
-  - 반영: `backend/src/main/java/com/example/welfare/recommend/dto/RecommendationCandidateProjection.java`, `backend/src/main/java/com/example/welfare/recommend/repository/CanonicalRecommendationReadModelRepository.java`, `backend/src/main/java/com/example/welfare/recommend/service/RuleScoringService.java`, `backend/src/test/java/com/example/welfare/recommend/repository/CanonicalRecommendationReadModelRepositoryTest.java`, `backend/src/test/java/com/example/welfare/recommend/service/RuleScoringServiceTest.java`, `docs/recommendation-current-state.md`
+  - 반영: `backend/src/main/java/com/example/welfare/recommend/dto/RecommendationCandidateProjection.java`, `backend/src/main/java/com/example/welfare/recommend/repository/CanonicalRecommendationReadModelRepository.java`, `backend/src/main/java/com/example/welfare/recommend/service/RuleScoringService.java`, `backend/src/test/java/com/example/welfare/recommend/repository/CanonicalRecommendationReadModelRepositoryTest.java`, `backend/src/test/java/com/example/welfare/recommend/service/RuleScoringServiceTest.java`, `docs/recommendation/recommendation-current-state.md`
   - 검증: `cd backend && ./gradlew test --no-daemon --tests com.example.welfare.recommend.service.RuleScoringServiceTest --tests com.example.welfare.recommend.repository.CanonicalRecommendationReadModelRepositoryTest --tests com.example.welfare.recommend.service.RetrievalServiceTest`
 - [x] recommendation retrieval의 `0/0 income` / youth relevance source 특례 1차 축소
   - 목적: 후보 조회 SQL에서 `YOUTH` 이름을 직접 참조하던 `0/0 income pass-through` 특례를 source-neutral semantics로 바꾸고, retrieval 후처리는 `YouthPolicyFilter` 직접 호출 대신 canonical projection의 `youthRelevant` 를 우선 사용하게 만들어 recommendation 경계의 source 의존을 줄이기
-  - 반영: `backend/src/main/java/com/example/welfare/policy/repository/WelfareServiceRepository.java`, `backend/src/main/java/com/example/welfare/recommend/service/RetrievalService.java`, `backend/src/test/java/com/example/welfare/recommend/service/RetrievalServiceTest.java`, `backend/src/test/java/com/example/welfare/integration/RecommendationRegionQueryIntegrationTest.java`, `backend/src/test/java/com/example/welfare/integration/EducationPriorityTargetCandidateCompositionIntegrationTest.java`, `docs/recommendation-current-state.md`
+  - 반영: `backend/src/main/java/com/example/welfare/policy/repository/WelfareServiceRepository.java`, `backend/src/main/java/com/example/welfare/recommend/service/RetrievalService.java`, `backend/src/test/java/com/example/welfare/recommend/service/RetrievalServiceTest.java`, `backend/src/test/java/com/example/welfare/integration/RecommendationRegionQueryIntegrationTest.java`, `backend/src/test/java/com/example/welfare/integration/EducationPriorityTargetCandidateCompositionIntegrationTest.java`, `docs/recommendation/recommendation-current-state.md`
   - 검증: `cd backend && ./gradlew test --no-daemon --tests com.example.welfare.recommend.service.RetrievalServiceTest --tests com.example.welfare.integration.RecommendationRegionQueryIntegrationTest --tests com.example.welfare.integration.EducationPriorityTargetCandidateCompositionIntegrationTest`
 - [x] GitHub 문서에 `작은 task = 작은 커밋`, `큰 해결 단위 = PR` 원칙 명시
   - 목적: 작업을 잘게 나눌 때 매 task마다 바로 PR을 보내는 것이 아니라, 작은 task는 커밋으로 남기고 같은 문제를 닫는 커밋들을 묶어 PR로 보내는 기준을 문서로 고정하기
@@ -955,17 +964,17 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - [x] 챗봇 응답 DTO/API 계약 고정 (`sessionId`, `answer`, `references`, `needsClarification`)
 - [x] `/api/admin/**` JWT 권한 기반 보호 + 관리자 예약 이메일 공개 signup 차단
 - [x] 검색/추천 운영 가이드 `docs/db-search-recommend-ops-guide.md` 추가
-- [x] 사용자 데이터 분리 설계 `docs/user-data-separation-design.md` 추가
+- [x] 사용자 데이터 분리 설계 `docs/core/user-data-separation-design.md` 추가
 - [x] 문서 목차 `docs/README.md`에 운영/설계 보조 문서 링크 추가
 - [x] `docs/phase-plan.md` 작업 추적과 본문 상태 정합성 점검
-- [x] 챗봇 구현 설계 문서 `docs/chatbot-plan.md` 추가
+- [x] 챗봇 구현 설계 문서 `docs/core/chatbot-plan.md` 추가
 - [x] 문서 목차 `docs/README.md`에 챗봇 설계 문서 링크 추가
 - [x] 프론트 `/chat` 자리표시자 문구를 현재 계획(2차)과 일치하도록 정리
 - [x] 문서 목차 `docs/README.md` 추가
 - [x] 기본 테스트와 통합 테스트 태스크 분리
-- [x] 테스트 실행 기준 `docs/testing.md` 추가
+- [x] 테스트 실행 기준 `docs/core/testing.md` 추가
 - [x] 수집 실행 로그 `api_sync_logs` 추가
-- [x] 수집 운영 기준 `docs/collect-ops.md` 추가
+- [x] 수집 운영 기준 `docs/collect/collect-ops.md` 추가
 - [x] 문서 변경이력 제거 및 보관 문서 정리
 - [x] `phase-plan.md`를 현재 구현 현황판으로 정리
 - [x] 프론트 메인 페이지 더미 데이터 제거
