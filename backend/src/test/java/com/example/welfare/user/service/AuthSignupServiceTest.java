@@ -27,6 +27,8 @@ class AuthSignupServiceTest {
     private PasswordEncoder passwordEncoder;
     @Mock
     private UserRegistrationService userRegistrationService;
+    @Mock
+    private EmailVerificationService emailVerificationService;
 
     private AuthAdminRoleService authAdminRoleService;
 
@@ -41,7 +43,8 @@ class AuthSignupServiceTest {
                 authIdentityReadService,
                 passwordEncoder,
                 userRegistrationService,
-                authAdminRoleService
+                authAdminRoleService,
+                emailVerificationService
         );
     }
 
@@ -54,11 +57,13 @@ class AuthSignupServiceTest {
         ReflectionTestUtils.setField(request, "name", "홍길동");
 
         given(authIdentityReadService.existsByEmail("user@example.com")).willReturn(false);
+        given(emailVerificationService.isVerified("user@example.com")).willReturn(true);
         given(passwordEncoder.encode("password123!")).willReturn("encoded-password");
 
         authSignupService.signup(request);
 
         then(userRegistrationService).should().register(request, "encoded-password");
+        then(emailVerificationService).should().clearVerified("user@example.com");
     }
 
     @Test
@@ -68,6 +73,7 @@ class AuthSignupServiceTest {
         ReflectionTestUtils.setField(request, "email", "user@example.com");
         ReflectionTestUtils.setField(request, "password", "password123!");
 
+        given(emailVerificationService.isVerified("user@example.com")).willReturn(true);
         given(authIdentityReadService.existsByEmail("user@example.com")).willReturn(true);
 
         authSignupService.signup(request);
@@ -84,6 +90,7 @@ class AuthSignupServiceTest {
         ReflectionTestUtils.setField(request, "password", "password123!");
         ReflectionTestUtils.setField(request, "name", "홍길동");
 
+        given(emailVerificationService.isVerified("user@example.com")).willReturn(true);
         given(authIdentityReadService.existsByEmail("user@example.com")).willReturn(false, true);
         given(passwordEncoder.encode("password123!")).willReturn("encoded-password");
         org.mockito.BDDMockito.willThrow(new DataIntegrityViolationException("duplicate"))
@@ -93,6 +100,21 @@ class AuthSignupServiceTest {
         authSignupService.signup(request);
 
         then(userRegistrationService).should().register(request, "encoded-password");
+    }
+
+    @Test
+    @DisplayName("이메일 인증이 완료되지 않았으면 회원가입을 거절한다")
+    void signupRejectsWhenEmailNotVerified() {
+        SignupRequest request = new SignupRequest();
+        ReflectionTestUtils.setField(request, "email", "user@example.com");
+        ReflectionTestUtils.setField(request, "password", "password123!");
+
+        given(emailVerificationService.isVerified("user@example.com")).willReturn(false);
+
+        assertThatThrownBy(() -> authSignupService.signup(request))
+                .isInstanceOf(CustomException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.EMAIL_VERIFICATION_REQUIRED);
     }
 
     @Test

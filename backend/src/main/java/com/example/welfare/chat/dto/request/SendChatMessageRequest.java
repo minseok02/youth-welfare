@@ -10,4 +10,7 @@ public class SendChatMessageRequest {
     @NotBlank
     @Size(max = 2000, message = "메시지는 2000자 이하로 입력해야 합니다.")
     private String content;
+
+    @Size(max = 100, message = "branchKey는 100자 이하로 입력해야 합니다.")
+    private String branchKey;
 }

@@ -61,7 +61,7 @@ public class ApiSyncLog extends BaseTimeEntity {
     private String errorMessage;
 
     @Lob
-    @Column(name = "metadata_json", columnDefinition = "LONGTEXT")
+    @Column(name = "metadata_json", columnDefinition = "TEXT")
     private String metadataJson;
 
     public static ApiSyncLog start(String jobName) {

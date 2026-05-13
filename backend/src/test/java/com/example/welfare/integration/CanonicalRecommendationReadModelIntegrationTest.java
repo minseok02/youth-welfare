@@ -93,23 +93,27 @@ class CanonicalRecommendationReadModelIntegrationTest {
         jdbcTemplate.update("""
                 INSERT INTO service_taxonomies (
                     service_id,
+                    primary_source_system,
                     compat_unified_category_label,
                     youth_major_label,
                     youth_mid_label,
                     provision_method_label,
                     gov24_service_field_label,
                     gov24_user_type_label,
-                    gov24_benefit_type_label
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    gov24_benefit_type_label,
+                    authority
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 createdServiceId,
+                "BOKJIRO",
                 "주거",
                 "legacy-major",
                 "legacy-mid",
                 "legacy-provision",
                 "legacy-service-field",
                 "legacy-user-type",
-                "legacy-benefit-type");
+                "legacy-benefit-type",
+                "OFFICIAL");
 
         insertSummarySlot(createdServiceId, "YOUTH_MAJOR", "slot-major");
         insertSummarySlot(createdServiceId, "PROVISION_METHOD", "slot-provision");

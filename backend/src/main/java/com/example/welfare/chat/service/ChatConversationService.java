@@ -1,9 +1,11 @@
 package com.example.welfare.chat.service;
 
 import com.example.welfare.chat.dto.ChatAiResult;
+import com.example.welfare.chat.dto.ChatAnswerMode;
 import com.example.welfare.chat.dto.ChatPolicyCandidate;
 import com.example.welfare.chat.dto.request.SendChatMessageRequest;
 import com.example.welfare.chat.dto.response.ChatAnswerResponse;
+import com.example.welfare.chat.dto.response.ChatBranchOptionResponse;
 import com.example.welfare.chat.dto.response.ChatMessageResponse;
 import com.example.welfare.chat.dto.response.ChatReferenceResponse;
 import com.example.welfare.chat.entity.ChatMessage;
@@ -26,7 +28,9 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -40,9 +44,12 @@ public class ChatConversationService {
 
     private final ChatMessageReadRepository chatMessageReadRepository;
     private final ChatPolicyService chatPolicyService;
+    private final ChatBranchCatalog chatBranchCatalog;
+    private final ChatGroundingService chatGroundingService;
     private final ChatAiGateway chatAiGateway;
     private final ChatRateLimitService chatRateLimitService;
     private final ChatMessageCommandService chatMessageCommandService;
+    private final ChatRetrievalSnapshotService chatRetrievalSnapshotService;
     private final ActiveUserReadService activeUserReadService;
     private final ObjectMapper objectMapper;
 
@@ -68,9 +75,33 @@ public class ChatConversationService {
         String sessionTitle = StringUtils.hasText(session.getTitle()) ? null : buildSessionTitle(content);
         chatMessageCommandService.appendUserMessage(session.getId(), content, sessionTitle);
 
-        List<ChatPolicyCandidate> candidates = chatPolicyService.findCandidates(content, REFERENCE_LIMIT);
+        List<ChatBranchOptionResponse> branchSuggestions = resolveBranchSuggestions(content, request.getBranchKey());
+        if (!branchSuggestions.isEmpty()) {
+            chatRetrievalSnapshotService.recordInteractiveBranchSuggestions(session, content, request.getBranchKey(), branchSuggestions);
+            String answer = buildBranchSuggestionAnswer(branchSuggestions);
+            chatMessageCommandService.appendAssistantMessage(
+                    session.getId(),
+                    answer,
+                    "[]",
+                    LocalDateTime.now()
+            );
+            return ChatAnswerResponse.builder()
+                    .sessionId(session.getId())
+                    .answer(answer)
+                    .needsClarification(false)
+                    .answerMode(ChatAnswerMode.BRANCH_SUGGESTION)
+                    .branchSuggestions(branchSuggestions)
+                    .references(List.of())
+                    .build();
+        }
+
+        ChatPolicyService.CandidateTrace candidateTrace =
+                chatPolicyService.traceCandidates(content, request.getBranchKey(), REFERENCE_LIMIT);
+        List<ChatPolicyCandidate> candidates = candidateTrace.finalCandidates();
+        chatRetrievalSnapshotService.recordInteractiveTrace(session, content, candidateTrace);
+        Map<Long, String> evidenceByServiceId = chatGroundingService.loadEvidenceMap(candidates);
         List<ChatReferenceResponse> fallbackReferences = candidates.stream()
-                .map(this::toReference)
+                .map(candidate -> toReference(candidate, evidenceByServiceId))
                 .toList();
 
         ChatAiResult aiResult = null;
@@ -79,13 +110,15 @@ public class ChatConversationService {
                     user,
                     content,
                     getRecentMessages(session.getId()),
-                    candidates
+                    candidates,
+                    evidenceByServiceId
             );
         }
 
         List<ChatReferenceResponse> references = resolveReferences(aiResult, fallbackReferences);
         boolean needsClarification = resolveNeedsClarification(aiResult, references);
         String answer = resolveAnswer(aiResult, references, needsClarification);
+        ChatAnswerMode answerMode = resolveAnswerMode(needsClarification);
 
         chatMessageCommandService.appendAssistantMessage(
                 session.getId(),
@@ -98,6 +131,8 @@ public class ChatConversationService {
                 .sessionId(session.getId())
                 .answer(answer)
                 .needsClarification(needsClarification)
+                .answerMode(answerMode)
+                .branchSuggestions(List.of())
                 .references(references)
                 .build();
     }
@@ -106,12 +141,20 @@ public class ChatConversationService {
         return ChatMessageResponse.from(message, parseReferencedServiceIds(message.getReferencedServiceIds()));
     }
 
-    private ChatReferenceResponse toReference(ChatPolicyCandidate candidate) {
+    private ChatReferenceResponse toReference(ChatPolicyCandidate candidate, Map<Long, String> evidenceByServiceId) {
         return ChatReferenceResponse.builder()
                 .serviceId(candidate.getServiceId())
                 .title(candidate.getTitle())
                 .reason(buildReason(candidate))
+                .evidence(evidenceByServiceId.get(candidate.getServiceId()))
                 .build();
+    }
+
+    private List<ChatBranchOptionResponse> resolveBranchSuggestions(String content, String branchKey) {
+        if (StringUtils.hasText(branchKey)) {
+            return List.of();
+        }
+        return chatBranchCatalog.toResponses(chatBranchCatalog.suggestBranches(content));
     }
 
     private List<ChatMessage> getRecentMessages(Long sessionId) {
@@ -153,6 +196,13 @@ public class ChatConversationService {
         return titles + " 정책을 먼저 확인해보세요.";
     }
 
+    private String buildBranchSuggestionAnswer(List<ChatBranchOptionResponse> branchSuggestions) {
+        String labels = branchSuggestions.stream()
+                .map(ChatBranchOptionResponse::getLabel)
+                .collect(Collectors.joining(", "));
+        return labels + " 중에서 어느 방향으로 찾을지 골라주시면 그 기준으로 정책을 좁혀서 보여드리겠습니다.";
+    }
+
     private List<ChatReferenceResponse> resolveReferences(
             ChatAiResult aiResult,
             List<ChatReferenceResponse> fallbackReferences) {
@@ -167,6 +217,13 @@ public class ChatConversationService {
             return aiResult.isNeedsClarification();
         }
         return references.isEmpty();
+    }
+
+    private ChatAnswerMode resolveAnswerMode(boolean needsClarification) {
+        if (needsClarification) {
+            return ChatAnswerMode.CLARIFICATION;
+        }
+        return ChatAnswerMode.POLICY_GROUNDED;
     }
 
     private String resolveAnswer(

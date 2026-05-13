@@ -32,9 +32,14 @@ public class WelfareServiceDetail extends BaseTimeEntity {
     @Column(columnDefinition = "TEXT")
     private String selectionCriteria; // 선정 기준 상세
 
-    @Column(columnDefinition = "JSON")
+    @Column(columnDefinition = "TEXT")
     private String contactList;     // 문의처 JSON
 
     private String supportCycle;
     private String provisionType;
+    private String homepageUrl;
+    private String relatedLaw;
+
+    @Column(columnDefinition = "TEXT")
+    private String formFiles;
 }

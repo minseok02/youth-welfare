@@ -2,6 +2,7 @@ package com.example.welfare.policy.service;
 
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
+import com.example.welfare.global.util.SearchKeywordSupport;
 import com.example.welfare.policy.dto.PolicySearchResponse;
 import com.example.welfare.policy.dto.PolicySummaryResponse;
 import com.example.welfare.policy.entity.WelfareService;
@@ -59,8 +60,6 @@ public class PolicySearchService {
         long startedAt = System.nanoTime();
 
         String normalizedKeyword = normalizeKeyword(keyword);
-        // MySQL FULLTEXT 검색 (ngram 파서)
-        String ftKeyword = buildFulltextKeyword(normalizedKeyword);
         int limit = normalizeSize(size);
         int pageNumber = Math.max(0, page);
         String normalizedStatus = normalizeStatus(status);
@@ -78,7 +77,7 @@ public class PolicySearchService {
         // 지역 분기 및 sido/sgg → regionCode 변환은 WelfareServiceReadRepositoryImpl에서 처리
         Page<WelfareService> resultPage = welfareServiceReadRepository.search(
                 new PolicySearchReadCondition(
-                        ftKeyword,
+                        normalizedKeyword,
                         normalizedStatus,
                         normalizedStatusFilter,
                         normalizedCategory,
@@ -128,7 +127,7 @@ public class PolicySearchService {
                                       String sort,
                                       long elapsedNanos) {
         long elapsedMs = elapsedNanos / 1_000_000L;
-        int keywordTokenCount = keyword.trim().isEmpty() ? 0 : keyword.trim().split("\\s+").length;
+        int keywordTokenCount = SearchKeywordSupport.extractTokens(keyword).size();
         boolean warn = elapsedMs >= SEARCH_WARN_DURATION_MS;
 
         if (warn) {
@@ -162,18 +161,6 @@ public class PolicySearchService {
                     keywordTokenCount);
         }
     }
-    // Boolean Mode 검색어 구성: 공백 분리 후 각 단어에 + 접두사
-    private String buildFulltextKeyword(String keyword) {
-        String[] words = keyword.trim().split("\\s+");
-        StringBuilder sb = new StringBuilder();
-        for (String word : words) {
-            if (!word.isEmpty()) {
-                sb.append("+").append(word).append(" ");
-            }
-        }
-        return sb.toString().trim();
-    }
-
     private String normalizeKeyword(String keyword) {
         if (keyword == null) {
             throw new CustomException(ErrorCode.INVALID_INPUT);
@@ -182,11 +169,15 @@ public class PolicySearchService {
         if (trimmed.isEmpty() || trimmed.length() > MAX_KEYWORD_LENGTH) {
             throw new CustomException(ErrorCode.INVALID_INPUT);
         }
-        int tokenCount = trimmed.split("\\s+").length;
+        String normalized = SearchKeywordSupport.normalizeText(trimmed);
+        int tokenCount = SearchKeywordSupport.extractTokens(trimmed).size();
+        if (normalized.isBlank()) {
+            throw new CustomException(ErrorCode.INVALID_INPUT);
+        }
         if (tokenCount > MAX_KEYWORD_TOKENS) {
             throw new CustomException(ErrorCode.INVALID_INPUT);
         }
-        return trimmed;
+        return normalized;
     }
 
     private int normalizeSize(int size) {

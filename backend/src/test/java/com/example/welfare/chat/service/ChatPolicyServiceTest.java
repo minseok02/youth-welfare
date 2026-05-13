@@ -29,15 +29,25 @@ class ChatPolicyServiceTest {
 
     @BeforeEach
     void setUp() {
-        chatPolicyService = new ChatPolicyService(chatPolicyReadRepository);
+        chatPolicyService = new ChatPolicyService(
+                chatPolicyReadRepository,
+                new ChatBranchCatalog(),
+                new ChatCategoryHintCatalog()
+        );
     }
 
     @Test
     @DisplayName("질문 키워드로 챗봇 정책 후보를 조회한다")
     void findCandidatesSearchesByQuestionKeyword() {
         WelfareService service = createService(1829L, "청년월세 한시 특별지원");
-        when(chatPolicyReadRepository.findCandidates(new ChatPolicyReadCondition("+서울 +월세", 5)))
-                .thenReturn(List.of(service));
+        when(chatPolicyReadRepository.traceCandidates(new ChatPolicyReadCondition("서울 월세", 5)))
+                .thenReturn(new com.example.welfare.policy.service.PolicyExplorationService.ChatExplorationTrace(
+                        "서울 월세",
+                        "MERGED_RESULTS",
+                        List.of(service),
+                        List.of(),
+                        List.of(service)
+                ));
 
         List<ChatPolicyCandidate> candidates = chatPolicyService.findCandidates("서울 월세");
 
@@ -50,8 +60,14 @@ class ChatPolicyServiceTest {
     @DisplayName("검색 결과가 없으면 인기 청년 정책 후보로 fallback 한다")
     void findCandidatesFallsBackWhenSearchHasNoResult() {
         WelfareService fallbackService = createService(2451L, "국민취업지원제도");
-        when(chatPolicyReadRepository.findCandidates(new ChatPolicyReadCondition("+취업 +지원", 3)))
-                .thenReturn(List.of(fallbackService));
+        when(chatPolicyReadRepository.traceCandidates(new ChatPolicyReadCondition("취업 지원", 3)))
+                .thenReturn(new com.example.welfare.policy.service.PolicyExplorationService.ChatExplorationTrace(
+                        "취업 지원",
+                        "POPULAR_FALLBACK",
+                        List.of(),
+                        List.of(),
+                        List.of(fallbackService)
+                ));
 
         List<ChatPolicyCandidate> candidates = chatPolicyService.findCandidates("취업 지원", 3);
 
@@ -63,8 +79,14 @@ class ChatPolicyServiceTest {
     @DisplayName("질문이 기호만 있으면 검색 대신 fallback 후보를 조회한다")
     void findCandidatesFallsBackWhenQuestionHasNoSearchableToken() {
         WelfareService fallbackService = createService(3001L, "청년 도약 지원");
-        when(chatPolicyReadRepository.findCandidates(new ChatPolicyReadCondition("", 5)))
-                .thenReturn(List.of(fallbackService));
+        when(chatPolicyReadRepository.traceCandidates(new ChatPolicyReadCondition("", 5)))
+                .thenReturn(new com.example.welfare.policy.service.PolicyExplorationService.ChatExplorationTrace(
+                        "",
+                        "POPULAR_FALLBACK",
+                        List.of(),
+                        List.of(),
+                        List.of(fallbackService)
+                ));
 
         List<ChatPolicyCandidate> candidates = chatPolicyService.findCandidates("!!! ???");
 
@@ -84,12 +106,95 @@ class ChatPolicyServiceTest {
     @Test
     @DisplayName("후보 수 제한은 최대 10건으로 정규화한다")
     void findCandidatesNormalizesLimit() {
-        when(chatPolicyReadRepository.findCandidates(new ChatPolicyReadCondition("+서울 +월세", 10)))
-                .thenReturn(List.of(createService(1829L, "청년월세 한시 특별지원")));
+        WelfareService service = createService(1829L, "청년월세 한시 특별지원");
+        when(chatPolicyReadRepository.traceCandidates(new ChatPolicyReadCondition("서울 월세", 10)))
+                .thenReturn(new com.example.welfare.policy.service.PolicyExplorationService.ChatExplorationTrace(
+                        "서울 월세",
+                        "MERGED_RESULTS",
+                        List.of(service),
+                        List.of(),
+                        List.of(service)
+                ));
 
         List<ChatPolicyCandidate> candidates = chatPolicyService.findCandidates("서울 월세", 99);
 
         assertThat(candidates).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("branchKey가 있으면 branch 조건을 포함해 후보를 조회한다")
+    void findCandidatesSearchesByBranchCondition() {
+        WelfareService service = createService(1829L, "청년월세 한시 특별지원");
+        when(chatPolicyReadRepository.traceCandidates(new ChatPolicyReadCondition(
+                "주거",
+                3,
+                "housing-cash",
+                "주거",
+                List.of("월세", "주거비", "지원금")
+        ))).thenReturn(new com.example.welfare.policy.service.PolicyExplorationService.ChatExplorationTrace(
+                "주거 월세 주거비 지원금",
+                "MERGED_RESULTS",
+                List.of(service),
+                List.of(),
+                List.of(service)
+        ));
+
+        List<ChatPolicyCandidate> candidates = chatPolicyService.findCandidates("주거", "housing-cash", 3);
+
+        assertThat(candidates).hasSize(1);
+        assertThat(candidates.get(0).getServiceId()).isEqualTo(1829L);
+    }
+
+    @Test
+    @DisplayName("trace 조회는 정규화 키워드와 검색 조건을 함께 반환한다")
+    void traceCandidatesReturnsMetadata() {
+        WelfareService service = createService(77L, "청년 창업 자금");
+        when(chatPolicyReadRepository.traceCandidates(new ChatPolicyReadCondition(
+                "창업 지원",
+                4,
+                "job-startup",
+                "일자리",
+                List.of("창업", "금융", "사업", "자금")
+        ))).thenReturn(new com.example.welfare.policy.service.PolicyExplorationService.ChatExplorationTrace(
+                "창업 지원 창업 금융 사업 자금",
+                "MERGED_RESULTS",
+                List.of(),
+                List.of(service),
+                List.of(service)
+        ));
+
+        ChatPolicyService.CandidateTrace trace = chatPolicyService.traceCandidates("창업 지원", "job-startup", 4);
+
+        assertThat(trace.normalizedKeyword()).isEqualTo("창업 지원");
+        assertThat(trace.searchKeyword()).contains("창업");
+        assertThat(trace.branchKey()).isEqualTo("job-startup");
+        assertThat(trace.preferredCategory()).isEqualTo("일자리");
+        assertThat(trace.semanticCandidates()).hasSize(1);
+        assertThat(trace.finalCandidates()).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("branch가 없어도 금융/생활비 질문은 카테고리 힌트를 붙여 조회한다")
+    void findCandidatesAppliesCategoryHintWithoutBranch() {
+        WelfareService service = createService(88L, "청년 생활안정 지원금");
+        when(chatPolicyReadRepository.traceCandidates(new ChatPolicyReadCondition(
+                "청년 생활비나 금융 지원이 있나요",
+                5,
+                null,
+                "금융·생활지원",
+                List.of("금융", "생활비", "대출", "지원금")
+        ))).thenReturn(new com.example.welfare.policy.service.PolicyExplorationService.ChatExplorationTrace(
+                "청년 생활비나 금융 지원이 있나요 금융 생활비 대출 지원금",
+                "MERGED_RESULTS",
+                List.of(service),
+                List.of(),
+                List.of(service)
+        ));
+
+        List<ChatPolicyCandidate> candidates = chatPolicyService.findCandidates("청년 생활비나 금융 지원이 있나요");
+
+        assertThat(candidates).hasSize(1);
+        assertThat(candidates.get(0).getServiceId()).isEqualTo(88L);
     }
 
     private WelfareService createService(Long serviceId, String title) {

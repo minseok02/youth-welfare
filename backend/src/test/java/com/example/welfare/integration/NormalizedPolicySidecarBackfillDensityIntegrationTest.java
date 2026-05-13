@@ -70,8 +70,8 @@ class NormalizedPolicySidecarBackfillDensityIntegrationTest {
                 FROM raw_api_payloads
                 WHERE source_type IN ('BOKJIRO_CENTRAL', 'BOKJIRO_LOCAL')
                   AND api_category = 'DETAIL'
-                  AND JSON_UNQUOTE(JSON_EXTRACT(payload_json, '$.applyMethodDetail'))
-                      REGEXP '[0-9]{4}[.-][0-9]{1,2}[.-][0-9]{1,2}|[0-9]{8}'
+                  AND COALESCE(payload_json, '')::json ->> 'applyMethodDetail'
+                      ~ '[0-9]{4}[.-][0-9]{1,2}[.-][0-9]{1,2}|[0-9]{8}'
                 """);
 
         assertThat(listResult.scannedCount()).isGreaterThan(0);
@@ -91,7 +91,7 @@ class NormalizedPolicySidecarBackfillDensityIntegrationTest {
         Integer count = jdbcTemplate.queryForObject("""
                 SELECT COUNT(*)
                 FROM information_schema.tables
-                WHERE table_schema = DATABASE()
+                WHERE table_schema = current_schema()
                   AND table_name = ?
                 """, Integer.class, tableName);
         return count != null && count > 0;

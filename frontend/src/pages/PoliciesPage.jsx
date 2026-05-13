@@ -261,7 +261,6 @@ export default function PoliciesPage() {
   const [region, setRegion] = useState(searchParams.get("region") || "전체");
   const [subRegion, setSubRegion] = useState(searchParams.get("subRegion") || "전체");
   const [income, setIncome] = useState(searchParams.get("income") || "전체");
-  const [incomeOpen, setIncomeOpen] = useState(false);
   const [employ, setEmploy] = useState(searchParams.get("employ") || "전체");
   const [targetGroup, setTargetGroup] = useState(searchParams.get("targetGroup") || "");
   const [sourceType, setSourceType] = useState(searchParams.get("sourceType") || "전체");
@@ -626,7 +625,7 @@ export default function PoliciesPage() {
         </div>
       </div>
 
-      <IncomeCalculatorModal open={incomeCalcOpen} onClose={() => setIncomeCalcOpen(false)} onSelect={(value) => { setIncome(value); setIncomeOpen(false); }} />
+      <IncomeCalculatorModal open={incomeCalcOpen} onClose={() => setIncomeCalcOpen(false)} onSelect={(value) => { setIncome(value); setIncomeCalcOpen(false); }} />
 
       <Snackbar open={toast.open} autoHideDuration={3000} onClose={() => setToast((p) => ({ ...p, open: false }))} anchorOrigin={{ vertical: "bottom", horizontal: "center" }}>
         <Alert severity={toast.severity} onClose={() => setToast((p) => ({ ...p, open: false }))}>{toast.msg}</Alert>

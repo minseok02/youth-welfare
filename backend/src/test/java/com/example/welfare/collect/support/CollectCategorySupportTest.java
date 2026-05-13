@@ -16,6 +16,24 @@ class CollectCategorySupportTest {
     }
 
     @Test
+    @DisplayName("온통청년 복지문화 계열은 title/description/keyword 힌트로 문화와 건강 카테고리를 보정한다")
+    void mapsYouthBroadWelfareCultureByHeuristics() {
+        assertThat(CollectCategorySupport.mapYouthCompatCategory(
+                "복지문화",
+                "청년 문화예술인 활동 지원",
+                "지역 문화예술 프로그램 참여 지원",
+                "문화예술"
+        )).isEqualTo("문화·여가");
+
+        assertThat(CollectCategorySupport.mapYouthCompatCategory(
+                "금융·복지·문화",
+                "청년 정신건강 조기중재사업",
+                "정신건강 심리상담 및 치료 연계",
+                "상담"
+        )).isEqualTo("건강·의료");
+    }
+
+    @Test
     @DisplayName("복지로 관심주제 csv의 첫 label만 compat category로 사용한다")
     void mapsBokjiroCompatCategoryFromFirstTheme() {
         assertThat(CollectCategorySupport.mapBokjiroCompatCategory("민간금융,주거")).isEqualTo("금융·생활지원");

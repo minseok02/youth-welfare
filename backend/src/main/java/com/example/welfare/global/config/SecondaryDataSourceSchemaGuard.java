@@ -5,6 +5,8 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.jdbc.DataSourceProperties;
 import org.springframework.stereotype.Component;
 
+import java.util.Arrays;
+
 @Component
 public class SecondaryDataSourceSchemaGuard implements InitializingBean {
 
@@ -43,8 +45,16 @@ public class SecondaryDataSourceSchemaGuard implements InitializingBean {
             throw new IllegalStateException(propertyName + " must not be blank");
         }
 
+        if (jdbcUrl.startsWith("jdbc:postgresql:")) {
+            String schemaName = extractCurrentSchema(jdbcUrl);
+            if (schemaName == null || schemaName.isBlank()) {
+                throw new IllegalStateException(propertyName + " must declare currentSchema for PostgreSQL URLs: " + jdbcUrl);
+            }
+            return schemaName;
+        }
+
         if (!jdbcUrl.startsWith("jdbc:mysql:")) {
-            throw new IllegalStateException(propertyName + " must be a MySQL JDBC URL: " + jdbcUrl);
+            throw new IllegalStateException(propertyName + " must be a supported JDBC URL: " + jdbcUrl);
         }
 
         int hostStart = jdbcUrl.indexOf("//");
@@ -67,5 +77,21 @@ public class SecondaryDataSourceSchemaGuard implements InitializingBean {
         }
 
         return databaseName;
+    }
+
+    private static String extractCurrentSchema(String jdbcUrl) {
+        int queryStart = jdbcUrl.indexOf('?');
+        if (queryStart < 0 || queryStart == jdbcUrl.length() - 1) {
+            return null;
+        }
+
+        return Arrays.stream(jdbcUrl.substring(queryStart + 1).split("&"))
+                .map(param -> param.split("=", 2))
+                .filter(parts -> parts.length == 2 && parts[0].equals("currentSchema"))
+                .map(parts -> parts[1])
+                .filter(value -> !value.isBlank())
+                .map(value -> value.split(",", 2)[0])
+                .findFirst()
+                .orElse(null);
     }
 }

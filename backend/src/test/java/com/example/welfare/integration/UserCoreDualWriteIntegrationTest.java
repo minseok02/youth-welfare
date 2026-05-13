@@ -12,6 +12,7 @@ import com.example.welfare.user.repository.UserPiiReadWriteRepository;
 import com.example.welfare.user.repository.UserPiiSyncQueueRepository;
 import com.example.welfare.user.repository.UserProfileRepository;
 import com.example.welfare.user.repository.UserRepository;
+import com.example.welfare.user.util.EmailLookupKeyGenerator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
@@ -20,6 +21,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
@@ -71,6 +73,9 @@ class UserCoreDualWriteIntegrationTest {
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
+    @Autowired
+    private RedisTemplate<String, String> redisTemplate;
+
     @BeforeEach
     void setup() {
         cleanup();
@@ -95,6 +100,7 @@ class UserCoreDualWriteIntegrationTest {
     @DisplayName("회원가입은 legacy users와 core split tables에 동시에 반영된다")
     void signupDualWritesCoreTables() throws Exception {
         String email = TEST_EMAIL_PREFIX + UUID.randomUUID() + "@example.com";
+        markEmailVerified(email);
 
         mockMvc.perform(post("/api/auth/signup")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -102,7 +108,7 @@ class UserCoreDualWriteIntegrationTest {
                                 {
                                   "email": "%s",
                                   "password": "password123",
-                                  "name": "Dual Write User",
+                                  "name": "홍길동",
                                   "birthDate": "1998-01-10",
                                   "sido": "서울특별시",
                                   "sgg": "강남구",
@@ -132,7 +138,7 @@ class UserCoreDualWriteIntegrationTest {
         assertThat(userProfile.isHasBirthDate()).isTrue();
         assertThat(userProfile.isHasPhone()).isFalse();
         assertThat(aesEncryptUtil.decrypt(userPii.emailEnc())).isEqualTo(email);
-        assertThat(aesEncryptUtil.decrypt(userPii.nameEnc())).isEqualTo("Dual Write User");
+        assertThat(aesEncryptUtil.decrypt(userPii.nameEnc())).isEqualTo("홍길동");
         assertThat(aesEncryptUtil.decrypt(userPii.birthDateEnc())).isEqualTo("1998-01-10");
         assertThat(syncQueue.getStatus()).isEqualTo(UserPiiSyncQueueStatus.SYNCED);
         assertThat(syncQueue.getAttemptCount()).isEqualTo(1);
@@ -143,6 +149,7 @@ class UserCoreDualWriteIntegrationTest {
     @DisplayName("프로필 수정은 core split tables에도 동일하게 반영된다")
     void updateProfileDualWritesCoreTables() throws Exception {
         String email = TEST_EMAIL_PREFIX + UUID.randomUUID() + "@example.com";
+        markEmailVerified(email);
 
         mockMvc.perform(post("/api/auth/signup")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -150,7 +157,7 @@ class UserCoreDualWriteIntegrationTest {
                                 {
                                   "email": "%s",
                                   "password": "password123",
-                                  "name": "Before Update",
+                                  "name": "홍길동",
                                   "birthDate": "1998-01-10"
                                 }
                                 """.formatted(email)))
@@ -165,7 +172,7 @@ class UserCoreDualWriteIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
-                                  "name": "After Update",
+                                  "name": "김철수",
                                   "birthDate": "1996-05-20",
                                   "sido": "부산광역시",
                                   "sgg": "해운대구",
@@ -198,7 +205,7 @@ class UserCoreDualWriteIntegrationTest {
         assertThat(userProfile.getDisplayCount()).isEqualTo(12);
         assertThat(userProfile.getAgeBand()).isEqualTo("25_29");
         assertThat(userProfile.isHasPhone()).isFalse();
-        assertThat(aesEncryptUtil.decrypt(userPii.nameEnc())).isEqualTo("After Update");
+        assertThat(aesEncryptUtil.decrypt(userPii.nameEnc())).isEqualTo("김철수");
         assertThat(aesEncryptUtil.decrypt(userPii.birthDateEnc())).isEqualTo("1996-05-20");
         assertThat(userPii.phoneEnc()).isNull();
         assertThat(syncQueue.getStatus()).isEqualTo(UserPiiSyncQueueStatus.SYNCED);
@@ -210,6 +217,7 @@ class UserCoreDualWriteIntegrationTest {
     @DisplayName("프로필 조회는 user_profiles와 user_pii 값을 우선해서 반환한다")
     void getProfileReadsFromSplitTables() throws Exception {
         String email = TEST_EMAIL_PREFIX + UUID.randomUUID() + "@example.com";
+        markEmailVerified(email);
 
         mockMvc.perform(post("/api/auth/signup")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -217,7 +225,7 @@ class UserCoreDualWriteIntegrationTest {
                                 {
                                   "email": "%s",
                                   "password": "password123",
-                                  "name": "Legacy Name",
+                                  "name": "홍길동",
                                   "birthDate": "1999-01-10",
                                   "sido": "서울특별시",
                                   "sgg": "강남구",
@@ -265,6 +273,13 @@ class UserCoreDualWriteIntegrationTest {
                 .andExpect(jsonPath("$.data.notificationPeriod").value("DAILY"))
                 .andExpect(jsonPath("$.data.notificationMinScore").value(0.9))
                 .andExpect(jsonPath("$.data.displayCount").value(7));
+    }
+
+    private void markEmailVerified(String email) {
+        redisTemplate.opsForValue().set(
+                "email-verify:verified:" + EmailLookupKeyGenerator.hash(email),
+                "1"
+        );
     }
 
     private String sha256Hex(String value) {

@@ -10,4 +10,5 @@ public class ChatReferenceResponse {
     private Long serviceId;
     private String title;
     private String reason;
+    private String evidence;
 }

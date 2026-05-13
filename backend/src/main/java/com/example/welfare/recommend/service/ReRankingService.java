@@ -22,6 +22,7 @@ public class ReRankingService {
 
     private final ScoreNormalizer normalizer;
     private final ScoreWeightService scoreWeightService;
+    private final RecommendationDiversityService recommendationDiversityService;
 
     public List<ScoredCandidate> rerank(List<ScoredCandidate> candidates) {
         ScoreWeight weight = scoreWeightService.getActiveWeight();
@@ -30,7 +31,7 @@ public class ReRankingService {
         double ruleMax = normalizer.findMax(
                 candidates.stream().map(ScoredCandidate::getRuleWeightedScore).collect(Collectors.toList()));
 
-        return candidates.stream()
+        List<ScoredCandidate> scored = candidates.stream()
                 .map(candidate -> {
                     double normRule = normalizer.normalize(candidate.getRuleWeightedScore(), 0.0, ruleMax);
 
@@ -55,6 +56,12 @@ public class ReRankingService {
 
                     return candidate.withFinalScore(finalScore, fallback);
                 })
+                .toList();
+
+        List<ScoredCandidate> diversified = recommendationDiversityService.apply(
+                scored.stream().sorted(recommendationComparator()).toList()
+        );
+        return diversified.stream()
                 .sorted(recommendationComparator())
                 .toList();
     }

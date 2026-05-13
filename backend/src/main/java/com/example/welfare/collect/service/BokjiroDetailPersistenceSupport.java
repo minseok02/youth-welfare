@@ -26,6 +26,9 @@ final class BokjiroDetailPersistenceSupport {
                 .contactList(toJsonArray(detail.contactText()))
                 .supportCycle(detail.supportCycle())
                 .provisionType(detail.provisionType())
+                .homepageUrl(detail.onlineApplyUrl())
+                .relatedLaw(detail.legalBasisText())
+                .formFiles(detail.requiredDocuments())
                 .build();
     }
 

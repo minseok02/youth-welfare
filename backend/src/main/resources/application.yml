@@ -1,16 +1,16 @@
 spring:
   datasource:
-    url: ${DB_URL:jdbc:mysql://localhost:3306/youth_welfare?sslMode=VERIFY_IDENTITY&characterEncoding=UTF-8&serverTimezone=Asia/Seoul}
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/youth_welfare?sslmode=disable}
     username: ${DB_USERNAME:app_core_rw}
     password: ${DB_PASSWORD:}
-    driver-class-name: com.mysql.cj.jdbc.Driver
+    driver-class-name: org.postgresql.Driver
 
   jpa:
     hibernate:
       ddl-auto: validate
     properties:
       hibernate:
-        dialect: org.hibernate.dialect.MySQLDialect
+        dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
     show-sql: false
 
@@ -43,20 +43,25 @@ openai:
   api-key: ${OPENAI_API_KEY}
   model: gpt-4o-mini
   timeout: 30000
+  embedding:
+    model: ${OPENAI_EMBEDDING_MODEL:text-embedding-3-small}
+    dimensions: ${OPENAI_EMBEDDING_DIMENSIONS:256}
+    timeout: ${OPENAI_EMBEDDING_TIMEOUT:30000}
+    force-local-fallback: ${OPENAI_EMBEDDING_FORCE_LOCAL_FALLBACK:false}
 
 app:
   base-url: ${APP_BASE_URL:http://localhost:5173}
   datasource:
     pii-rw:
-      url: ${APP_PII_DB_URL:jdbc:mysql://localhost:3306/youth_welfare_pii?sslMode=VERIFY_IDENTITY&characterEncoding=UTF-8&serverTimezone=Asia/Seoul}
+      url: ${APP_PII_DB_URL:jdbc:postgresql://localhost:5432/youth_welfare?sslmode=disable&currentSchema=youth_welfare_pii}
       username: ${DB_APP_PII_USERNAME:app_pii_rw}
       password: ${DB_APP_PII_PASSWORD:${DB_PASSWORD:}}
-      driver-class-name: com.mysql.cj.jdbc.Driver
+      driver-class-name: org.postgresql.Driver
     notification-pii-ro:
-      url: ${NOTIFICATION_PII_DB_URL:${APP_PII_DB_URL:jdbc:mysql://localhost:3306/youth_welfare_pii?sslMode=VERIFY_IDENTITY&characterEncoding=UTF-8&serverTimezone=Asia/Seoul}}
+      url: ${NOTIFICATION_PII_DB_URL:${APP_PII_DB_URL:jdbc:postgresql://localhost:5432/youth_welfare?sslmode=disable&currentSchema=youth_welfare_pii}}
       username: ${DB_NOTIFICATION_PII_RO_USERNAME:notification_pii_ro}
       password: ${DB_NOTIFICATION_PII_RO_PASSWORD:${DB_PASSWORD:}}
-      driver-class-name: com.mysql.cj.jdbc.Driver
+      driver-class-name: org.postgresql.Driver
 
 auth:
   refresh:
@@ -69,6 +74,11 @@ chat:
   rate-limit:
     max-requests: ${CHAT_RATE_LIMIT_MAX_REQUESTS:5}
     window-seconds: ${CHAT_RATE_LIMIT_WINDOW_SECONDS:60}
+  retrieval:
+    min-result-count: ${CHAT_RETRIEVAL_MIN_RESULT_COUNT:3}
+    semantic-blend-limit: ${CHAT_RETRIEVAL_SEMANTIC_BLEND_LIMIT:2}
+    semantic-only-limit: ${CHAT_RETRIEVAL_SEMANTIC_ONLY_LIMIT:3}
+    max-preferred-terms-in-search-keyword: ${CHAT_RETRIEVAL_MAX_PREFERRED_TERMS_IN_SEARCH_KEYWORD:3}
 
 policy:
   rate-limit:
@@ -78,6 +88,12 @@ policy:
     detail:
       max-requests-per-service: ${POLICY_DETAIL_RATE_LIMIT_MAX_REQUESTS_PER_SERVICE:20}
       window-seconds: ${POLICY_DETAIL_RATE_LIMIT_WINDOW_SECONDS:60}
+  retrieval:
+    gate:
+      min-top1-hit-rate: ${POLICY_RETRIEVAL_GATE_MIN_TOP1_HIT_RATE:0.9}
+      min-top3-hit-rate: ${POLICY_RETRIEVAL_GATE_MIN_TOP3_HIT_RATE:0.9}
+      min-branch-suggestion-hit-rate: ${POLICY_RETRIEVAL_GATE_MIN_BRANCH_SUGGESTION_HIT_RATE:1.0}
+      max-empty-result-count: ${POLICY_RETRIEVAL_GATE_MAX_EMPTY_RESULT_COUNT:0}
 
 aes:
   secret-key: ${AES_SECRET_KEY}    # 32바이트 (AES-256)

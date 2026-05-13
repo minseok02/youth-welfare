@@ -10,14 +10,14 @@ services:
       - .env
     environment:
       SPRING_PROFILES_ACTIVE: prod
-      DB_URL: jdbc:mysql://db:3306/youth_welfare?useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=UTF-8&serverTimezone=Asia/Seoul
-      APP_PII_DB_URL: ${APP_PII_DB_URL:-jdbc:mysql://db:3306/youth_welfare_pii?useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=UTF-8&serverTimezone=Asia/Seoul}
-      NOTIFICATION_PII_DB_URL: ${NOTIFICATION_PII_DB_URL:-jdbc:mysql://db:3306/youth_welfare_pii?useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=UTF-8&serverTimezone=Asia/Seoul}
-      DB_USERNAME: ${DB_USERNAME:-app_core_rw}
+      DB_URL: jdbc:postgresql://db:5432/youth_welfare?sslmode=disable
+      APP_PII_DB_URL: jdbc:postgresql://db:5432/youth_welfare?sslmode=disable&currentSchema=youth_welfare_pii
+      NOTIFICATION_PII_DB_URL: jdbc:postgresql://db:5432/youth_welfare?sslmode=disable&currentSchema=youth_welfare_pii
+      DB_USERNAME: app_core_rw
       DB_PASSWORD: ${DB_PASSWORD}
-      DB_APP_PII_USERNAME: ${DB_APP_PII_USERNAME:-app_pii_rw}
+      DB_APP_PII_USERNAME: app_pii_rw
       DB_APP_PII_PASSWORD: ${DB_APP_PII_PASSWORD:-${DB_PASSWORD}}
-      DB_NOTIFICATION_PII_RO_USERNAME: ${DB_NOTIFICATION_PII_RO_USERNAME:-notification_pii_ro}
+      DB_NOTIFICATION_PII_RO_USERNAME: notification_pii_ro
       DB_NOTIFICATION_PII_RO_PASSWORD: ${DB_NOTIFICATION_PII_RO_PASSWORD:-${DB_PASSWORD}}
       JWT_SECRET: ${JWT_SECRET}
       AES_SECRET_KEY: ${AES_SECRET_KEY}
@@ -26,6 +26,8 @@ services:
       GMAIL_PASSWORD: ${GMAIL_PASSWORD}
       YOUTH_API_KEY: ${YOUTH_API_KEY}
       BOKJIRO_API_KEY: ${BOKJIRO_API_KEY}
+      COLLECT_DETAIL_REQUEST_INTERVAL_MS: 50
+      OPENAI_EMBEDDING_FORCE_LOCAL_FALLBACK: "true"
       SECURITY_ADMIN_EMAILS: ${SECURITY_ADMIN_EMAILS:-}
       REDIS_HOST: redis
       REDIS_PORT: 6379
@@ -50,37 +52,32 @@ services:
     restart: unless-stopped
 
   db:
-    image: mysql:8.0
+    image: pgvector/pgvector:pg16
     container_name: youth-welfare-db
     ports:
-      - "127.0.0.1:3307:3306"
+      - "127.0.0.1:5433:5432"
     environment:
-      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
-      MYSQL_DATABASE: youth_welfare
-      MYSQL_APP_USERNAME: ${MYSQL_APP_USERNAME:-app_core_rw}
-      MYSQL_APP_PASSWORD: ${DB_PASSWORD}
-      MYSQL_MIGRATION_USERNAME: ${DB_MIGRATION_USERNAME:-migration_admin}
-      MYSQL_MIGRATION_PASSWORD: ${DB_MIGRATION_PASSWORD:-${DB_PASSWORD}}
-      MYSQL_APP_PII_USERNAME: ${DB_APP_PII_USERNAME:-app_pii_rw}
-      MYSQL_APP_PII_PASSWORD: ${DB_APP_PII_PASSWORD:-${DB_PASSWORD}}
-      MYSQL_NOTIFICATION_PII_RO_USERNAME: ${DB_NOTIFICATION_PII_RO_USERNAME:-notification_pii_ro}
-      MYSQL_NOTIFICATION_PII_RO_PASSWORD: ${DB_NOTIFICATION_PII_RO_PASSWORD:-${DB_PASSWORD}}
-      MYSQL_CHARSET: utf8mb4
-      MYSQL_COLLATION: utf8mb4_unicode_ci
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: youth_welfare
+      DB_USERNAME: app_core_rw
+      DB_APP_PII_USERNAME: app_pii_rw
+      DB_NOTIFICATION_PII_RO_USERNAME: notification_pii_ro
+      DB_MIGRATION_USERNAME: migration_admin
+      DB_APP_PII_PASSWORD: ${DB_APP_PII_PASSWORD:-${DB_PASSWORD}}
+      DB_NOTIFICATION_PII_RO_PASSWORD: ${DB_NOTIFICATION_PII_RO_PASSWORD:-${DB_PASSWORD}}
+      DB_MIGRATION_PASSWORD: ${DB_MIGRATION_PASSWORD:-${DB_PASSWORD}}
+      DB_PASSWORD: ${DB_PASSWORD}
     volumes:
-      - mysql_data:/var/lib/mysql
-      - ./backend/src/main/resources/db/schema.sql:/docker-entrypoint-initdb.d/schema.sql
-      - ./deploy/mysql/init/z90-create-runtime-db-users.sh:/docker-entrypoint-initdb.d/z90-create-runtime-db-users.sh:ro
-    command: >
-      --character-set-server=utf8mb4
-      --collation-server=utf8mb4_unicode_ci
-      --ngram-token-size=2
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/src/main/resources/db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./deploy/postgres/init/z90-create-runtime-db-users.sh:/docker-entrypoint-initdb.d/z90-create-runtime-db-users.sh:ro
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_PASSWORD}"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d youth_welfare"]
       interval: 10s
       timeout: 5s
       retries: 5
     restart: unless-stopped
 
 volumes:
-  mysql_data:
+  postgres_data:

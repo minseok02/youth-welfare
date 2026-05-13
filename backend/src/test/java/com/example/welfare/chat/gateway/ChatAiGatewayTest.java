@@ -50,6 +50,36 @@ class ChatAiGatewayTest {
     }
 
     @Test
+    @DisplayName("AI 응답 파서는 grounding evidence를 참조 카드에 포함한다")
+    void parseContentIncludesEvidence() {
+        List<ChatPolicyCandidate> candidates = List.of(
+                ChatPolicyCandidate.builder()
+                        .serviceId(1829L)
+                        .title("청년월세 한시 특별지원")
+                        .build()
+        );
+
+        String content = """
+                {
+                  "answer": "청년월세 한시 특별지원을 먼저 확인해보세요.",
+                  "needs_clarification": false,
+                  "references": [
+                    {"service_id": 1829, "reason": "주거비 부담 완화와 연결됩니다."}
+                  ]
+                }
+                """;
+
+        ChatAiResult result = chatAiGateway.parseContent(
+                content,
+                candidates,
+                java.util.Map.of(1829L, "월세 부담을 낮추는 지원을 제공합니다.")
+        );
+
+        assertThat(result).isNotNull();
+        assertThat(result.getReferences().get(0).getEvidence()).isEqualTo("월세 부담을 낮추는 지원을 제공합니다.");
+    }
+
+    @Test
     @DisplayName("AI 응답 파서는 answer가 비어 있으면 무효로 처리한다")
     void parseContentReturnsNullWhenAnswerBlank() {
         List<ChatPolicyCandidate> candidates = List.of(

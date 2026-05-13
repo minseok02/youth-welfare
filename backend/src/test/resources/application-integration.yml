@@ -1,8 +1,9 @@
 spring:
   datasource:
-    url: jdbc:mysql://127.0.0.1:3307/youth_welfare?useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=UTF-8&serverTimezone=Asia/Seoul
+    url: jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable
     username: app_core_rw
     password: welfare1234!
+    driver-class-name: org.postgresql.Driver
     hikari:
       maximum-pool-size: 2
       minimum-idle: 0
@@ -36,11 +37,20 @@ user:
 openai:
   api-key: test-openai-key
   model: gpt-4o-mini
+  embedding:
+    model: text-embedding-3-small
+    dimensions: 256
+    force-local-fallback: true
 
 chat:
   rate-limit:
     max-requests: 5
     window-seconds: 60
+  retrieval:
+    min-result-count: 3
+    semantic-blend-limit: 2
+    semantic-only-limit: 3
+    max-preferred-terms-in-search-keyword: 3
 
 youth-api:
   api-key: test-youth-api-key
@@ -52,16 +62,18 @@ app:
   base-url: http://localhost:8082
   datasource:
     pii-rw:
-      url: jdbc:mysql://127.0.0.1:3307/youth_welfare_pii?useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=UTF-8&serverTimezone=Asia/Seoul
+      url: jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable&currentSchema=youth_welfare_pii
       username: app_pii_rw
       password: welfare1234!
+      driver-class-name: org.postgresql.Driver
       hikari:
         maximum-pool-size: 2
         minimum-idle: 0
     notification-pii-ro:
-      url: jdbc:mysql://127.0.0.1:3307/youth_welfare_pii?useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=UTF-8&serverTimezone=Asia/Seoul
+      url: jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable&currentSchema=youth_welfare_pii
       username: notification_pii_ro
       password: welfare1234!
+      driver-class-name: org.postgresql.Driver
       hikari:
         maximum-pool-size: 2
         minimum-idle: 0

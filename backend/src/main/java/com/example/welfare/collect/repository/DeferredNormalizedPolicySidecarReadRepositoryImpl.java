@@ -32,7 +32,7 @@ public class DeferredNormalizedPolicySidecarReadRepositoryImpl implements Deferr
         Integer count = jdbcTemplate.queryForObject("""
                 SELECT COUNT(*)
                 FROM information_schema.tables
-                WHERE table_schema = DATABASE()
+                WHERE table_schema = current_schema()
                   AND table_name IN ('normalization_code_sets', 'service_taxonomies', 'service_taxonomy_terms', 'service_facts')
                 """, Integer.class);
         return count != null && count == REQUIRED_TABLES.size();
@@ -43,7 +43,7 @@ public class DeferredNormalizedPolicySidecarReadRepositoryImpl implements Deferr
         Integer count = jdbcTemplate.queryForObject("""
                 SELECT COUNT(*)
                 FROM information_schema.tables
-                WHERE table_schema = DATABASE()
+                WHERE table_schema = current_schema()
                   AND table_name = ?
                 """, Integer.class, SUMMARY_SLOT_TABLE);
         return count != null && count > 0;

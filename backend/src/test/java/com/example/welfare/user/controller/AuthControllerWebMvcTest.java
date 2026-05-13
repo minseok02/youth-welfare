@@ -1,9 +1,12 @@
 package com.example.welfare.user.controller;
 
+import com.example.welfare.global.web.ClientFingerprintService;
 import com.example.welfare.user.service.AuthAvailabilityService;
 import com.example.welfare.user.service.AuthLoginService;
+import com.example.welfare.user.service.AuthRateLimitService;
 import com.example.welfare.user.service.AuthSessionService;
 import com.example.welfare.user.service.AuthSignupService;
+import com.example.welfare.user.service.EmailVerificationService;
 import com.example.welfare.user.service.PasswordResetService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -34,6 +37,12 @@ class AuthControllerWebMvcTest {
     @MockBean
     private AuthAvailabilityService authAvailabilityService;
     @MockBean
+    private AuthRateLimitService authRateLimitService;
+    @MockBean
+    private ClientFingerprintService clientFingerprintService;
+    @MockBean
+    private EmailVerificationService emailVerificationService;
+    @MockBean
     private AuthSignupService authSignupService;
     @MockBean
     private AuthLoginService authLoginService;
@@ -47,6 +56,7 @@ class AuthControllerWebMvcTest {
     @Test
     @DisplayName("이메일 확인은 인증 없이도 계정 존재를 숨긴 응답을 반환한다")
     void checkEmailAvailability() throws Exception {
+        given(clientFingerprintService.build(org.mockito.ArgumentMatchers.any())).willReturn("fp-auth");
         given(authAvailabilityService.checkEmailAvailability("new@example.com"))
                 .willReturn(new com.example.welfare.user.dto.response.EmailAvailabilityResponse(true));
 
@@ -57,6 +67,7 @@ class AuthControllerWebMvcTest {
                 .andExpect(jsonPath("$.data.available").value(true));
 
         then(authAvailabilityService).should().checkEmailAvailability("new@example.com");
+        then(authRateLimitService).should().checkEmailCheckLimit("fp-auth");
     }
 
     @Test

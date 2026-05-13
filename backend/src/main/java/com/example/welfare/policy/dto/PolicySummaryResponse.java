@@ -18,6 +18,7 @@ public class PolicySummaryResponse {
     private String unifiedCategory;
     private String status;
     private String hostOrg;
+    private String operatingOrg;
     // 복지로 지자체 정책 중 hostOrg가 없는 경우 카드 source 표시에 사용 (service_regions.sido_name)
     private String sido;
     private Integer minAge;
@@ -60,6 +61,7 @@ public class PolicySummaryResponse {
                 .unifiedCategory(resolveUnifiedCategory(ws, projection))
                 .status(ws.getStatus().name())
                 .hostOrg(ws.getHostOrg())
+                .operatingOrg(ws.getOperatingOrg())
                 .sido(sido)
                 .minAge(ws.getMinAge())
                 .maxAge(ws.getMaxAge())

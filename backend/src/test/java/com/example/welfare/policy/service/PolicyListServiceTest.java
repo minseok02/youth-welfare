@@ -57,7 +57,9 @@ class PolicyListServiceTest {
                         "서울특별시",
                         "강남구",
                         true,
-                        "VIEWS"
+                        "VIEWS",
+                        null,
+                        null
                 )),
                 any(PageRequest.class)
         )).willReturn(page);
@@ -74,6 +76,8 @@ class PolicyListServiceTest {
                 "강남구",
                 true,
                 "views",
+                null,
+                null,
                 PageRequest.of(0, 20)
         );
 
@@ -88,7 +92,9 @@ class PolicyListServiceTest {
                         "서울특별시",
                         "강남구",
                         true,
-                        "VIEWS"
+                        "VIEWS",
+                        null,
+                        null
                 )),
                 captor.capture()
         );
@@ -109,7 +115,7 @@ class PolicyListServiceTest {
         Page<WelfareService> page = new PageImpl<>(List.of(service));
 
         given(welfareServiceReadRepository.findList(
-                eq(new PolicyListReadCondition(null, null, null, "ACTIVE_ONLY", null, null, null, "LATEST")),
+                eq(new PolicyListReadCondition(null, null, null, "ACTIVE_ONLY", null, null, null, "LATEST", null, null)),
                 any(PageRequest.class)
         )).willReturn(page);
         given(policyPresentationReadService.buildSummaryPage(eq(7L), any(Page.class)))
@@ -138,6 +144,8 @@ class PolicyListServiceTest {
                 null,
                 null,
                 null,
+                null,
+                null,
                 PageRequest.of(0, 20)
         );
 
@@ -155,7 +163,7 @@ class PolicyListServiceTest {
     @DisplayName("정책 목록 조회는 과도한 페이지 크기를 상한으로 제한한다")
     void getListClampsOversizedPageSize() {
         given(welfareServiceReadRepository.findList(
-                eq(new PolicyListReadCondition(null, null, null, "ACTIVE_ONLY", null, null, null, "LATEST")),
+                eq(new PolicyListReadCondition(null, null, null, "ACTIVE_ONLY", null, null, null, "LATEST", null, null)),
                 any(PageRequest.class)
         )).willReturn(Page.empty());
         given(policyPresentationReadService.buildSummaryPage(eq(null), any(Page.class)))
@@ -171,12 +179,14 @@ class PolicyListServiceTest {
                 null,
                 null,
                 null,
+                null,
+                null,
                 PageRequest.of(0, 10_000)
         );
 
         ArgumentCaptor<PageRequest> captor = ArgumentCaptor.forClass(PageRequest.class);
         verify(welfareServiceReadRepository).findList(
-                eq(new PolicyListReadCondition(null, null, null, "ACTIVE_ONLY", null, null, null, "LATEST")),
+                eq(new PolicyListReadCondition(null, null, null, "ACTIVE_ONLY", null, null, null, "LATEST", null, null)),
                 captor.capture()
         );
         assertEquals(100, captor.getValue().getPageSize());

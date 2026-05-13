@@ -13,6 +13,7 @@ import org.springframework.stereotype.Repository;
 public class WelfareServiceReadRepositoryImpl implements WelfareServiceReadRepository {
 
     private final WelfareServiceRepository welfareServiceRepository;
+    private final WelfareServiceSearchRepository welfareServiceSearchRepository;
 
     @Override
     public Page<WelfareService> findList(PolicyListReadCondition condition, Pageable pageable) {
@@ -41,48 +42,6 @@ public class WelfareServiceReadRepositoryImpl implements WelfareServiceReadRepos
 
     @Override
     public Page<WelfareService> search(PolicySearchReadCondition condition, Pageable pageable) {
-        if (condition.sido() == null) {
-            return welfareServiceRepository.searchByKeywordWithFiltersNoRegion(
-                    condition.keyword(),
-                    condition.status(),
-                    condition.statusFilter(),
-                    condition.category(),
-                    condition.sourceType(),
-                    condition.onlineApply(),
-                    condition.sort(),
-                    condition.incomeMaxWon(),
-                    condition.targetGroup(),
-                    pageable
-            );
-        }
-        if (condition.sgg() == null) {
-            return welfareServiceRepository.searchByKeywordWithFiltersWithSido(
-                    condition.keyword(),
-                    condition.status(),
-                    condition.statusFilter(),
-                    condition.category(),
-                    condition.sourceType(),
-                    condition.onlineApply(),
-                    condition.sido(),
-                    condition.sort(),
-                    condition.incomeMaxWon(),
-                    condition.targetGroup(),
-                    pageable
-            );
-        }
-        return welfareServiceRepository.searchByKeywordWithFiltersWithSidoSgg(
-                condition.keyword(),
-                condition.status(),
-                condition.statusFilter(),
-                condition.category(),
-                condition.sourceType(),
-                condition.onlineApply(),
-                condition.sido(),
-                condition.sgg(),
-                condition.sort(),
-                condition.incomeMaxWon(),
-                condition.targetGroup(),
-                pageable
-        );
+        return welfareServiceSearchRepository.search(condition, pageable);
     }
 }

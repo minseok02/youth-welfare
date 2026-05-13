@@ -18,10 +18,10 @@ public class AuthUser extends BaseTimeEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true, length = 32, columnDefinition = "CHAR(32)")
+    @Column(nullable = false, unique = true, length = 32)
     private String userKey;
 
-    @Column(nullable = false, unique = true, length = 64, columnDefinition = "CHAR(64)")
+    @Column(nullable = false, unique = true, length = 64)
     private String emailLookupHash;
 
     @Column(nullable = false)

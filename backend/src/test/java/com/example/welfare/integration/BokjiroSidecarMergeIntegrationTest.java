@@ -19,6 +19,7 @@ import com.example.welfare.policy.repository.PolicyLookupReadRepositoryImpl;
 import com.example.welfare.policy.repository.ServiceTagRepository;
 import com.example.welfare.policy.repository.WelfareServiceDetailRepository;
 import com.example.welfare.policy.repository.WelfareServiceRepository;
+import com.example.welfare.policy.service.PolicyEmbeddingRefreshRequestService;
 import com.example.welfare.policy.service.SearchYouthRelevanceService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.AfterEach;
@@ -71,6 +72,9 @@ class BokjiroSidecarMergeIntegrationTest {
 
     @Autowired
     private NormalizedPolicySidecarWriter normalizedPolicySidecarWriter;
+
+    @Autowired
+    private PolicyEmbeddingRefreshRequestService policyEmbeddingRefreshRequestService;
 
     @Autowired
     private PlatformTransactionManager transactionManager;
@@ -174,7 +178,8 @@ class BokjiroSidecarMergeIntegrationTest {
                             isolatedCommandRepository,
                             new PolicyLookupReadRepositoryImpl(welfareServiceRepository),
                             searchYouthRelevanceService,
-                            normalizedPolicySidecarWriter
+                            normalizedPolicySidecarWriter,
+                            policyEmbeddingRefreshRequestService
                     );
 
             BokjiroDetailCollectService detailCollectService = new BokjiroDetailCollectService(
@@ -247,7 +252,7 @@ class BokjiroSidecarMergeIntegrationTest {
                        operator,
                        range_min_int,
                        range_max_int,
-                       DATE_FORMAT(date_value, '%Y-%m-%d') AS date_value
+                       TO_CHAR(date_value, 'YYYY-MM-DD') AS date_value
                 FROM service_facts
                 WHERE service_id = ?
                 ORDER BY fact_merge_key

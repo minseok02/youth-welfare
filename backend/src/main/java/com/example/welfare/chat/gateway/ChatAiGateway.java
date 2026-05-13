@@ -53,21 +53,34 @@ public class ChatAiGateway {
             User user,
             String question,
             List<ChatMessage> recentMessages,
-            List<ChatPolicyCandidate> candidates) {
+            List<ChatPolicyCandidate> candidates,
+            Map<Long, String> evidenceByServiceId) {
         if (!StringUtils.hasText(apiKey) || candidates.isEmpty()) {
             return null;
         }
 
         try {
-            String responseBody = callOpenAi(buildUserPrompt(user, question, recentMessages, candidates));
-            return parseResponse(responseBody, candidates);
+            String responseBody = callOpenAi(buildUserPrompt(user, question, recentMessages, candidates, evidenceByServiceId));
+            return parseResponse(responseBody, candidates, evidenceByServiceId);
         } catch (Exception e) {
             log.warn("[ChatAiGateway] OpenAI 호출 실패, fallback 사용: {}", e.getMessage());
             return null;
         }
     }
 
+    public ChatAiResult generateAnswer(
+            User user,
+            String question,
+            List<ChatMessage> recentMessages,
+            List<ChatPolicyCandidate> candidates) {
+        return generateAnswer(user, question, recentMessages, candidates, Map.of());
+    }
+
     ChatAiResult parseResponse(String responseBody, List<ChatPolicyCandidate> candidates) {
+        return parseResponse(responseBody, candidates, Map.of());
+    }
+
+    ChatAiResult parseResponse(String responseBody, List<ChatPolicyCandidate> candidates, Map<Long, String> evidenceByServiceId) {
         if (!StringUtils.hasText(responseBody)) {
             return null;
         }
@@ -85,7 +98,7 @@ public class ChatAiGateway {
             }
 
             String content = (String) message.get("content");
-            return parseContent(content, candidates);
+            return parseContent(content, candidates, evidenceByServiceId);
         } catch (Exception e) {
             log.warn("[ChatAiGateway] OpenAI 응답 파싱 실패: {}", e.getMessage());
             return null;
@@ -93,6 +106,10 @@ public class ChatAiGateway {
     }
 
     ChatAiResult parseContent(String content, List<ChatPolicyCandidate> candidates) {
+        return parseContent(content, candidates, Map.of());
+    }
+
+    ChatAiResult parseContent(String content, List<ChatPolicyCandidate> candidates, Map<Long, String> evidenceByServiceId) {
         if (!StringUtils.hasText(content)) {
             return null;
         }
@@ -114,7 +131,7 @@ public class ChatAiGateway {
             Map<Long, ChatReferenceResponse> referenceMap = new LinkedHashMap<>();
             if (payload.getReferences() != null) {
                 payload.getReferences().stream()
-                        .map(reference -> toReference(reference, candidateMap))
+                        .map(reference -> toReference(reference, candidateMap, evidenceByServiceId))
                         .filter(Objects::nonNull)
                         .forEach(reference -> referenceMap.putIfAbsent(reference.getServiceId(), reference));
             }
@@ -135,7 +152,8 @@ public class ChatAiGateway {
             User user,
             String question,
             List<ChatMessage> recentMessages,
-            List<ChatPolicyCandidate> candidates) {
+            List<ChatPolicyCandidate> candidates,
+            Map<Long, String> evidenceByServiceId) {
         String ageGroup = resolveAgeGroup(user);
         String region = buildRegion(user);
         String incomeRange = user.getIncomeLevel() != null ? user.getIncomeLevel() + "분위" : "미입력";
@@ -149,12 +167,13 @@ public class ChatAiGateway {
 
         String candidateBlock = candidates.stream()
                 .map(candidate -> String.format(
-                        "- service_id:%d | title:%s | host_org:%s | support:%s | description:%s",
+                        "- service_id:%d | title:%s | host_org:%s | support:%s | description:%s | evidence:%s",
                         candidate.getServiceId(),
                         candidate.getTitle(),
                         nullToPlaceholder(candidate.getHostOrg()),
                         nullToPlaceholder(trimToLength(candidate.getSupportContent(), 120)),
-                        nullToPlaceholder(trimToLength(candidate.getDescription(), 120))
+                        nullToPlaceholder(trimToLength(candidate.getDescription(), 120)),
+                        nullToPlaceholder(trimToLength(evidenceByServiceId.get(candidate.getServiceId()), 120))
                 ))
                 .collect(Collectors.joining("\n"));
 
@@ -223,7 +242,10 @@ public class ChatAiGateway {
                 .block(Duration.ofMillis(timeoutMillis));
     }
 
-    private ChatReferenceResponse toReference(AiReference reference, Map<Long, ChatPolicyCandidate> candidateMap) {
+    private ChatReferenceResponse toReference(
+            AiReference reference,
+            Map<Long, ChatPolicyCandidate> candidateMap,
+            Map<Long, String> evidenceByServiceId) {
         if (reference == null || reference.getServiceId() == null) {
             return null;
         }
@@ -241,6 +263,7 @@ public class ChatAiGateway {
                 .serviceId(candidate.getServiceId())
                 .title(candidate.getTitle())
                 .reason(reason)
+                .evidence(trimToLength(evidenceByServiceId.get(candidate.getServiceId()), 120))
                 .build();
     }
 

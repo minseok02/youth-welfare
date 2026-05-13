@@ -158,7 +158,7 @@ class RecommendationPolicyFlowWebMvcTest {
                                 .build()
                 ));
         given(policyRankingService.getRanking(5)).willReturn(List.of(ranking));
-        given(policySearchService.search(isNull(), eq("월세"), eq("ACTIVE"), isNull(), eq("HOUSING"), eq("YOUTH"), eq(true), isNull(), isNull(), eq("RELEVANCE"), eq(0), eq(10)))
+        given(policySearchService.search(isNull(), eq("월세"), eq("ACTIVE"), isNull(), eq("HOUSING"), eq("YOUTH"), eq(true), isNull(), isNull(), eq("RELEVANCE"), isNull(), isNull(), eq(0), eq(10)))
                 .willReturn(PolicySearchResponse.builder()
                         .content(List.of(searchHit))
                         .totalElements(1)
@@ -227,7 +227,7 @@ class RecommendationPolicyFlowWebMvcTest {
 
         verify(recommendationGenerationService).recommend(isNull(), eq(false));
         verify(policyRankingService).getRanking(5);
-        verify(policySearchService).search(isNull(), eq("월세"), eq("ACTIVE"), isNull(), eq("HOUSING"), eq("YOUTH"), eq(true), isNull(), isNull(), eq("RELEVANCE"), eq(0), eq(10));
+        verify(policySearchService).search(isNull(), eq("월세"), eq("ACTIVE"), isNull(), eq("HOUSING"), eq("YOUTH"), eq(true), isNull(), isNull(), eq("RELEVANCE"), isNull(), isNull(), eq(0), eq(10));
         verify(policySearchLogService).record(any());
     }
 

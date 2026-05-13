@@ -49,6 +49,7 @@ class PolicyPresentationReadServiceTest {
                 .title("청년 월세 지원")
                 .description("월세 부담 완화")
                 .unifiedCategory("HOUSING")
+                .operatingOrg("서울청년센터")
                 .status(WelfareService.ServiceStatus.ACTIVE)
                 .apiViewCount(120L)
                 .viewCount(3)
@@ -76,6 +77,7 @@ class PolicyPresentationReadServiceTest {
         assertThat(result.getContent()).hasSize(1);
         assertThat(result.getContent().get(0).isBookmarked()).isTrue();
         assertThat(result.getContent().get(0).getUnifiedCategory()).isEqualTo("주거");
+        assertThat(result.getContent().get(0).getOperatingOrg()).isEqualTo("서울청년센터");
         assertThat(result.getContent().get(0).getYouthMajorLabel()).isEqualTo("주거");
         assertThat(result.getContent().get(0).getApiViewCount()).isEqualTo(120L);
         assertThat(result.getContent().get(0).getViewCount()).isEqualTo(3);

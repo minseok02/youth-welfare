@@ -16,9 +16,10 @@ public class CollectExecutionLockRepositoryImpl implements CollectExecutionLockR
     @Override
     public boolean tryAcquire(String lockName, String ownerToken, LocalDateTime now, LocalDateTime lockedUntil) {
         int inserted = jdbcTemplate.update("""
-                insert ignore into collect_execution_locks
+                insert into collect_execution_locks
                     (lock_name, owner_token, locked_until, acquired_at, created_at, updated_at)
                 values (?, ?, ?, ?, ?, ?)
+                on conflict (lock_name) do nothing
                 """,
                 lockName,
                 ownerToken,

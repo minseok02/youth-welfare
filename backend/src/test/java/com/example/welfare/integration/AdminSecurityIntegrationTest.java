@@ -97,6 +97,8 @@ class AdminSecurityIntegrationTest {
 
     @BeforeEach
     void setup() {
+        ReflectionTestUtils.setField(authAdminRoleService, "adminEmailsProperty", ADMIN_EMAIL);
+        ReflectionTestUtils.invokeMethod(authAdminRoleService, "initAdminEmails");
         cleanup();
     }
 
@@ -124,7 +126,7 @@ class AdminSecurityIntegrationTest {
                 {
                   "email": "%s",
                   "password": "%s",
-                  "name": "Admin Reserved",
+                  "name": "관리자",
                   "birthDate": "%s"
                 }
                 """.formatted(ADMIN_EMAIL, TEST_PASSWORD, LocalDate.of(1998, 1, 10));

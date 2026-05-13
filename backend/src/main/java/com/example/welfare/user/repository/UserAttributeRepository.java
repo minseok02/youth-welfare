@@ -32,9 +32,10 @@ public interface UserAttributeRepository extends JpaRepository<UserAttribute, Lo
     @Modifying
     @Query(value = """
             update user_attributes ua
-            join users u on u.id = ua.user_id
-            set ua.user_key = u.user_key
-            where ua.user_key is null or ua.user_key = ''
+            set user_key = u.user_key
+            from users u
+            where u.id = ua.user_id
+              and (ua.user_key is null or ua.user_key = '')
             """, nativeQuery = true)
     int backfillMissingUserKeys();
 

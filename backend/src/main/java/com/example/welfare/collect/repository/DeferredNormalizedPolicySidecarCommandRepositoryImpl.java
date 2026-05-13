@@ -71,24 +71,24 @@ public class DeferredNormalizedPolicySidecarCommandRepositoryImpl
                     :authority,
                     :confidence
                 )
-                ON DUPLICATE KEY UPDATE
-                    primary_source_system = VALUES(primary_source_system),
-                    compat_unified_category_code = VALUES(compat_unified_category_code),
-                    compat_unified_category_label = VALUES(compat_unified_category_label),
-                    youth_major_code = VALUES(youth_major_code),
-                    youth_major_label = VALUES(youth_major_label),
-                    youth_mid_code = VALUES(youth_mid_code),
-                    youth_mid_label = VALUES(youth_mid_label),
-                    gov24_service_field_code = VALUES(gov24_service_field_code),
-                    gov24_service_field_label = VALUES(gov24_service_field_label),
-                    gov24_user_type_code = VALUES(gov24_user_type_code),
-                    gov24_user_type_label = VALUES(gov24_user_type_label),
-                    gov24_benefit_type_code = VALUES(gov24_benefit_type_code),
-                    gov24_benefit_type_label = VALUES(gov24_benefit_type_label),
-                    provision_method_code = VALUES(provision_method_code),
-                    provision_method_label = VALUES(provision_method_label),
-                    authority = VALUES(authority),
-                    confidence = VALUES(confidence)
+                ON CONFLICT (service_id) DO UPDATE SET
+                    primary_source_system = EXCLUDED.primary_source_system,
+                    compat_unified_category_code = EXCLUDED.compat_unified_category_code,
+                    compat_unified_category_label = EXCLUDED.compat_unified_category_label,
+                    youth_major_code = EXCLUDED.youth_major_code,
+                    youth_major_label = EXCLUDED.youth_major_label,
+                    youth_mid_code = EXCLUDED.youth_mid_code,
+                    youth_mid_label = EXCLUDED.youth_mid_label,
+                    gov24_service_field_code = EXCLUDED.gov24_service_field_code,
+                    gov24_service_field_label = EXCLUDED.gov24_service_field_label,
+                    gov24_user_type_code = EXCLUDED.gov24_user_type_code,
+                    gov24_user_type_label = EXCLUDED.gov24_user_type_label,
+                    gov24_benefit_type_code = EXCLUDED.gov24_benefit_type_code,
+                    gov24_benefit_type_label = EXCLUDED.gov24_benefit_type_label,
+                    provision_method_code = EXCLUDED.provision_method_code,
+                    provision_method_label = EXCLUDED.provision_method_label,
+                    authority = EXCLUDED.authority,
+                    confidence = EXCLUDED.confidence
                 """,
                 ServiceTaxonomyLegacySummaryBridge.apply(
                         new MapSqlParameterSource()
@@ -140,13 +140,11 @@ public class DeferredNormalizedPolicySidecarCommandRepositoryImpl
                         :authority,
                         :confidence
                     )
-                    ON DUPLICATE KEY UPDATE
-                        code_set_key = VALUES(code_set_key),
-                        slot_code = VALUES(slot_code),
-                        slot_label = VALUES(slot_label),
-                        source_field = VALUES(source_field),
-                        authority = VALUES(authority),
-                        confidence = VALUES(confidence)
+                    ON CONFLICT (service_id, slot_key, slot_code, authority) DO UPDATE SET
+                        code_set_key = EXCLUDED.code_set_key,
+                        slot_label = EXCLUDED.slot_label,
+                        source_field = EXCLUDED.source_field,
+                        confidence = EXCLUDED.confidence
                     """,
                     new MapSqlParameterSource()
                             .addValue("serviceId", service.getId())
@@ -198,10 +196,10 @@ public class DeferredNormalizedPolicySidecarCommandRepositoryImpl
                         :authority,
                         :sortOrder
                     )
-                    ON DUPLICATE KEY UPDATE
-                        code_set_key = VALUES(code_set_key),
-                        source_field = VALUES(source_field),
-                        sort_order = VALUES(sort_order)
+                    ON CONFLICT (service_id, term_group, term_code, term_label, authority) DO UPDATE SET
+                        code_set_key = EXCLUDED.code_set_key,
+                        source_field = EXCLUDED.source_field,
+                        sort_order = EXCLUDED.sort_order
                     """,
                     new MapSqlParameterSource()
                             .addValue("serviceId", serviceId)
@@ -264,26 +262,26 @@ public class DeferredNormalizedPolicySidecarCommandRepositoryImpl
                         :rawValue,
                         :evidenceText
                     )
-                    ON DUPLICATE KEY UPDATE
-                        fact_group = VALUES(fact_group),
-                        fact_code_set_key = VALUES(fact_code_set_key),
-                        fact_code = VALUES(fact_code),
-                        fact_label = VALUES(fact_label),
-                        operator = VALUES(operator),
-                        value_type = VALUES(value_type),
-                        bool_value = VALUES(bool_value),
-                        int_value = VALUES(int_value),
-                        decimal_value = VALUES(decimal_value),
-                        text_value = VALUES(text_value),
-                        date_value = VALUES(date_value),
-                        range_min_int = VALUES(range_min_int),
-                        range_max_int = VALUES(range_max_int),
-                        unit = VALUES(unit),
-                        source_field = VALUES(source_field),
-                        authority = VALUES(authority),
-                        confidence = VALUES(confidence),
-                        raw_value = VALUES(raw_value),
-                        evidence_text = VALUES(evidence_text)
+                    ON CONFLICT (service_id, fact_merge_key) DO UPDATE SET
+                        fact_group = EXCLUDED.fact_group,
+                        fact_code_set_key = EXCLUDED.fact_code_set_key,
+                        fact_code = EXCLUDED.fact_code,
+                        fact_label = EXCLUDED.fact_label,
+                        operator = EXCLUDED.operator,
+                        value_type = EXCLUDED.value_type,
+                        bool_value = EXCLUDED.bool_value,
+                        int_value = EXCLUDED.int_value,
+                        decimal_value = EXCLUDED.decimal_value,
+                        text_value = EXCLUDED.text_value,
+                        date_value = EXCLUDED.date_value,
+                        range_min_int = EXCLUDED.range_min_int,
+                        range_max_int = EXCLUDED.range_max_int,
+                        unit = EXCLUDED.unit,
+                        source_field = EXCLUDED.source_field,
+                        authority = EXCLUDED.authority,
+                        confidence = EXCLUDED.confidence,
+                        raw_value = EXCLUDED.raw_value,
+                        evidence_text = EXCLUDED.evidence_text
                     """,
                     new MapSqlParameterSource()
                             .addValue("serviceId", serviceId)
