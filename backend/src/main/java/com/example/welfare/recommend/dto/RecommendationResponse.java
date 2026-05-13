@@ -58,7 +58,7 @@ public class RecommendationResponse {
                 .serviceId(rec.getService().getId())
                 .logId(logId)
                 .title(rec.getService().getTitle())
-                .description(rec.getService().getDescription())
+                .description(resolveDescription(rec, projection))
                 .unifiedCategory(resolveUnifiedCategory(rec, projection))
                 .youthMajorLabel(resolveYouthMajorLabel(projection))
                 .youthMidLabel(resolveYouthMidLabel(projection))
@@ -77,6 +77,17 @@ public class RecommendationResponse {
                 .isBookmarked(rec.isBookmarked())
                 .recommendedAt(rec.getRecommendedAt())
                 .build();
+    }
+
+    private static String resolveDescription(UserRecommendation rec,
+                                             RecommendationCandidateProjection projection) {
+        if (projection != null && projection.summary() != null && !projection.summary().isBlank()) {
+            return projection.summary();
+        }
+        if (rec.getService().getSupportContent() != null && !rec.getService().getSupportContent().isBlank()) {
+            return rec.getService().getSupportContent();
+        }
+        return rec.getService().getDescription();
     }
 
     private static String resolveUnifiedCategory(UserRecommendation rec,
