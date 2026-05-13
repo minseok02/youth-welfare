@@ -7,9 +7,9 @@
 - [policy-normalization-youth-mid-live-inventory.md](./policy-normalization-youth-mid-live-inventory.md)
 - [policy-normalization-youth-mid-alias-rules.md](./policy-normalization-youth-mid-alias-rules.md)
 - [policy-normalization-schema-draft.md](./policy-normalization-schema-draft.md)
-- [db-migration.md](../../db-migration.md)
+- [db-migration.md](../../core/db-migration.md)
 - [phase-plan.md](../../phase-plan.md)
-- [troubleshooting-log.md](../../troubleshooting-log.md)
+- [troubleshooting-log.md](../../core/troubleshooting-log.md)
 
 ## 현재 상태
 

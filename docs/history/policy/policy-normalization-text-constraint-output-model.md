@@ -16,7 +16,7 @@
 - [policy-normalization-bridge-rules.md](./policy-normalization-bridge-rules.md)
 - [policy-normalization-fact-merge-rules.md](./policy-normalization-fact-merge-rules.md)
 - [policy-normalization-schema-draft.md](./policy-normalization-schema-draft.md)
-- [db-migration.md](../../db-migration.md)
+- [db-migration.md](../../core/db-migration.md)
 
 ## 현재 상태
 

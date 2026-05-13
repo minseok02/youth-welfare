@@ -2,7 +2,7 @@
 
 관련 문서:
 
-- [collect-ops.md](../../collect-ops.md)
+- [collect-ops.md](../../collect/collect-ops.md)
 - [policy-bokjiro-detail-validation-rehearsal.md](./policy-bokjiro-detail-validation-rehearsal.md)
 - [phase-plan.md](../../phase-plan.md)
 

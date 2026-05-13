@@ -10,9 +10,9 @@
 관련 문서:
 
 - [policy-normalization-compat-storage-policy.md](./policy-normalization-compat-storage-policy.md)
-- [policy-normalization-recommendation-read-model.md](../../policy-normalization-recommendation-read-model.md)
+- [policy-normalization-recommendation-read-model.md](../../policy/policy-normalization-recommendation-read-model.md)
 - [policy-normalization-compat-other-youth-major-policy.md](./policy-normalization-compat-other-youth-major-policy.md)
-- [recommendation-pipeline.md](../../recommendation-pipeline.md)
+- [recommendation-pipeline.md](../../recommendation/recommendation-pipeline.md)
 
 ## 현재 응답 경계
 

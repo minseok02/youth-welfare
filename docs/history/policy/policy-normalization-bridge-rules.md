@@ -12,7 +12,7 @@
 - [policy-normalization-research.md](./policy-normalization-research.md)
 - [policy-normalization-sample-spike.md](./policy-normalization-sample-spike.md)
 - [policy-normalization-schema-draft.md](./policy-normalization-schema-draft.md)
-- [recommendation-pipeline.md](../../recommendation-pipeline.md)
+- [recommendation-pipeline.md](../../recommendation/recommendation-pipeline.md)
 
 ## 1. 기본 원칙
 

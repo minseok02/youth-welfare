@@ -12,7 +12,7 @@
 - [policy-normalization-compat-other-youth-major-policy.md](./policy-normalization-compat-other-youth-major-policy.md)
 - [policy-normalization-compat-other-youth-major-inventory.md](./policy-normalization-compat-other-youth-major-inventory.md)
 - [policy-normalization-compat-other-youth-major-bridge-review.md](./policy-normalization-compat-other-youth-major-bridge-review.md)
-- [policy-normalization-recommendation-read-model.md](../../policy-normalization-recommendation-read-model.md)
+- [policy-normalization-recommendation-read-model.md](../../policy/policy-normalization-recommendation-read-model.md)
 
 ## 결론
 

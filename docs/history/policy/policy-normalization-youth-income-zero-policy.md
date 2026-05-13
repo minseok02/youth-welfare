@@ -6,8 +6,8 @@
 관련 문서:
 
 - [policy-normalization-education-target-sample-inventory.md](../../history/ai/policy-normalization-education-target-sample-inventory.md)
-- [recommendation-pipeline.md](../../recommendation-pipeline.md)
-- [user-data-separation-design.md](../../user-data-separation-design.md)
+- [recommendation-pipeline.md](../../recommendation/recommendation-pipeline.md)
+- [user-data-separation-design.md](../../core/user-data-separation-design.md)
 
 ## 결론
 

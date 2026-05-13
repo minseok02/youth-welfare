@@ -1,8 +1,8 @@
 # 아키텍처
 
 이 문서는 모듈 구조와 의존 방향을 빠르게 확인하기 위한 문서입니다.
-전체 cross-cutting 구조 문서 진입점은 [system-docs-index.md](./system-docs-index.md)를 봅니다.
-추천 점수 계산의 세부 흐름은 [recommendation-pipeline.md](./recommendation-pipeline.md)를 봅니다.
+전체 cross-cutting 구조 문서 진입점은 [system-docs-index.md](core/system-docs-index.md)를 봅니다.
+추천 점수 계산의 세부 흐름은 [recommendation-pipeline.md](recommendation/recommendation-pipeline.md)를 봅니다.
 
 ## 전체 구조
 
@@ -87,7 +87,7 @@ RecommendationController
       -> RecommendationPersistenceService
 ```
 
-세부 계산 규칙은 [recommendation-pipeline.md](./recommendation-pipeline.md)에 둡니다.
+세부 계산 규칙은 [recommendation-pipeline.md](recommendation/recommendation-pipeline.md)에 둡니다.
 
 ### 수집
 
@@ -104,7 +104,7 @@ CollectAdminController / Scheduler
       -> ApiSyncLogService
 ```
 
-수집 운영 기준은 [collect-ops.md](./collect-ops.md)에 둡니다.
+수집 운영 기준은 [collect-ops.md](collect/collect-ops.md)에 둡니다.
 
 ### 알림
 

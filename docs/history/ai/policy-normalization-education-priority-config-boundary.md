@@ -7,7 +7,7 @@
 
 - [policy-normalization-education-priority-experiment.md](./policy-normalization-education-priority-experiment.md)
 - [policy-normalization-education-priority-flag-scope.md](./policy-normalization-education-priority-flag-scope.md)
-- [policy-normalization-recommendation-read-model.md](../../policy-normalization-recommendation-read-model.md)
+- [policy-normalization-recommendation-read-model.md](../../policy/policy-normalization-recommendation-read-model.md)
 - [policy-normalization-education-priority-implementation-slot.md](./policy-normalization-education-priority-implementation-slot.md)
 
 ## 결론

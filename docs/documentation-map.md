@@ -23,48 +23,48 @@
 - [current-state.md](./current-state.md)
 - [work-guide.md](./work-guide.md)
 - [architecture.md](./architecture.md)
-- [api-mapping.md](./api-mapping.md)
-- [recommendation-pipeline.md](./recommendation-pipeline.md)
-- [local-validation-docs-index.md](./local-validation-docs-index.md)
-- [system-docs-index.md](./system-docs-index.md)
+- [api-mapping.md](core/api-mapping.md)
+- [recommendation-pipeline.md](recommendation/recommendation-pipeline.md)
+- [local-validation-docs-index.md](core/local-validation-docs-index.md)
+- [system-docs-index.md](core/system-docs-index.md)
 - [history-docs-index.md](./history-docs-index.md)
 - [phase-plan.md](./phase-plan.md)
 
 ### 현재 구현 상태 요약
 
-- [auth-docs-index.md](./auth-docs-index.md)
-- [auth-session-revocation-current-state.md](./auth-session-revocation-current-state.md)
-- [auth-operation-checklist.md](./auth-operation-checklist.md)
-- [collect-docs-index.md](./collect-docs-index.md)
-- [recommendation-docs-index.md](./recommendation-docs-index.md)
-- [frontend-qa-docs-index.md](./frontend-qa-docs-index.md)
-- [policy-docs-index.md](./policy-docs-index.md)
-- [policy-normalization-current-state.md](./policy-normalization-current-state.md)
-- [policy-gov24-blocked-track-status.md](./policy-gov24-blocked-track-status.md)
-- [policy-source-onboarding-architecture.md](./policy-source-onboarding-architecture.md)
-- [policy-source-onboarding-checklist.md](./policy-source-onboarding-checklist.md)
-- [policy-source-code-entrypoints.md](./policy-source-code-entrypoints.md)
-- [policy-source-onboarding-template.md](./policy-source-onboarding-template.md)
-- [policy-local-closeout-pending-inventory.md](./policy-local-closeout-pending-inventory.md)
-- [policy-post-local-closeout-track-split.md](./policy-post-local-closeout-track-split.md)
+- [auth-docs-index.md](auth/auth-docs-index.md)
+- [auth-session-revocation-current-state.md](auth/auth-session-revocation-current-state.md)
+- [auth-operation-checklist.md](auth/auth-operation-checklist.md)
+- [collect-docs-index.md](collect/collect-docs-index.md)
+- [recommendation-docs-index.md](recommendation/recommendation-docs-index.md)
+- [frontend-qa-docs-index.md](frontend/frontend-qa-docs-index.md)
+- [policy-docs-index.md](policy/policy-docs-index.md)
+- [policy-normalization-current-state.md](policy/policy-normalization-current-state.md)
+- [policy-gov24-blocked-track-status.md](policy/policy-gov24-blocked-track-status.md)
+- [policy-source-onboarding-architecture.md](policy/policy-source-onboarding-architecture.md)
+- [policy-source-onboarding-checklist.md](policy/policy-source-onboarding-checklist.md)
+- [policy-source-code-entrypoints.md](policy/policy-source-code-entrypoints.md)
+- [policy-source-onboarding-template.md](policy/policy-source-onboarding-template.md)
+- [policy-local-closeout-pending-inventory.md](policy/policy-local-closeout-pending-inventory.md)
+- [policy-post-local-closeout-track-split.md](policy/policy-post-local-closeout-track-split.md)
 
 ### 로컬 검증 절차
 
-- [collect-docs-index.md](./collect-docs-index.md)
-- [collect-current-state.md](./collect-current-state.md)
-- [collect-operation-checklist.md](./collect-operation-checklist.md)
-- [recommendation-docs-index.md](./recommendation-docs-index.md)
-- [recommendation-current-state.md](./recommendation-current-state.md)
-- [recommendation-operation-checklist.md](./recommendation-operation-checklist.md)
-- [auth-operation-checklist.md](./auth-operation-checklist.md)
-- [frontend-qa-docs-index.md](./frontend-qa-docs-index.md)
-- [frontend-qa-current-state.md](./frontend-qa-current-state.md)
-- [frontend-qa-checklist.md](./frontend-qa-checklist.md)
-- [frontend-qa-template.md](./frontend-qa-template.md)
-- [local-validation-docs-index.md](./local-validation-docs-index.md)
-- [runtime-api-smoke-commands.md](./runtime-api-smoke-commands.md)
-- [testing.md](./testing.md)
-- [collect-ops.md](./collect-ops.md)
+- [collect-docs-index.md](collect/collect-docs-index.md)
+- [collect-current-state.md](collect/collect-current-state.md)
+- [collect-operation-checklist.md](collect/collect-operation-checklist.md)
+- [recommendation-docs-index.md](recommendation/recommendation-docs-index.md)
+- [recommendation-current-state.md](recommendation/recommendation-current-state.md)
+- [recommendation-operation-checklist.md](recommendation/recommendation-operation-checklist.md)
+- [auth-operation-checklist.md](auth/auth-operation-checklist.md)
+- [frontend-qa-docs-index.md](frontend/frontend-qa-docs-index.md)
+- [frontend-qa-current-state.md](frontend/frontend-qa-current-state.md)
+- [frontend-qa-checklist.md](frontend/frontend-qa-checklist.md)
+- [frontend-qa-template.md](frontend/frontend-qa-template.md)
+- [local-validation-docs-index.md](core/local-validation-docs-index.md)
+- [runtime-api-smoke-commands.md](core/runtime-api-smoke-commands.md)
+- [testing.md](core/testing.md)
+- [collect-ops.md](collect/collect-ops.md)
 
 현재 우선순위:
 
@@ -87,8 +87,8 @@
 
 읽는 법:
 
-- 전체 auth 묶음은 [auth-docs-index.md](./auth-docs-index.md)
-- 현재 계약 확인은 [auth-session-revocation-current-state.md](./auth-session-revocation-current-state.md)
+- 전체 auth 묶음은 [auth-docs-index.md](auth/auth-docs-index.md)
+- 현재 계약 확인은 [auth-session-revocation-current-state.md](auth/auth-session-revocation-current-state.md)
 - 왜 그렇게 됐는지는 개별 design history 문서
 
 ### 교육 replay / OpenAI replay cluster
@@ -98,7 +98,7 @@
 
 읽는 법:
 
-- 현재 local closeout 여부는 [policy-local-closeout-pending-inventory.md](./policy-local-closeout-pending-inventory.md)
+- 현재 local closeout 여부는 [policy-local-closeout-pending-inventory.md](policy/policy-local-closeout-pending-inventory.md)
 - 세부 실험 배경은 개별 문서
 
 ### canonical normalization decision cluster
@@ -107,22 +107,22 @@
 
 읽는 법:
 
-- 전체 policy 묶음은 [policy-docs-index.md](./policy-docs-index.md)
-- current big picture 는 [policy-normalization-current-state.md](./policy-normalization-current-state.md),
-  [policy-source-onboarding-architecture.md](./policy-source-onboarding-architecture.md),
-  [policy-source-onboarding-checklist.md](./policy-source-onboarding-checklist.md),
-  [policy-source-code-entrypoints.md](./policy-source-code-entrypoints.md),
-  [policy-source-onboarding-template.md](./policy-source-onboarding-template.md),
-  [policy-source-onboarding-playbook.md](./policy-source-onboarding-playbook.md),
-  [policy-normalization-recommendation-read-model.md](./policy-normalization-recommendation-read-model.md),
-  [policy-normalization-recommendation-migration-order.md](./policy-normalization-recommendation-migration-order.md)
+- 전체 policy 묶음은 [policy-docs-index.md](policy/policy-docs-index.md)
+- current big picture 는 [policy-normalization-current-state.md](policy/policy-normalization-current-state.md),
+  [policy-source-onboarding-architecture.md](policy/policy-source-onboarding-architecture.md),
+  [policy-source-onboarding-checklist.md](policy/policy-source-onboarding-checklist.md),
+  [policy-source-code-entrypoints.md](policy/policy-source-code-entrypoints.md),
+  [policy-source-onboarding-template.md](policy/policy-source-onboarding-template.md),
+  [policy-source-onboarding-playbook.md](policy/policy-source-onboarding-playbook.md),
+  [policy-normalization-recommendation-read-model.md](policy/policy-normalization-recommendation-read-model.md),
+  [policy-normalization-recommendation-migration-order.md](policy/policy-normalization-recommendation-migration-order.md)
 - 세부 drift/inventory/bridge 판단은 개별 문서
 
 ## 3. external blocked 트랙
 
 현재 바로 구현으로 못 가는 문서들입니다.
 
-- [policy-gov24-blocked-track-status.md](./policy-gov24-blocked-track-status.md)
+- [policy-gov24-blocked-track-status.md](policy/policy-gov24-blocked-track-status.md)
 - `GOV24_*` codebook / inventory / request template
 - `YOUTH_MID` stable code source / request spec
 - CTR sample / 카카오 알림톡 2차
@@ -147,15 +147,15 @@
 ### 코드와 문서 불일치가 걱정될 때
 
 1. 실제 코드
-2. [auth-session-revocation-current-state.md](./auth-session-revocation-current-state.md) 또는 현재 상태 요약 문서
+2. [auth-session-revocation-current-state.md](auth/auth-session-revocation-current-state.md) 또는 현재 상태 요약 문서
 3. [phase-plan.md](./phase-plan.md)
 4. 필요하면 개별 design history
 
 ### 새 작업을 열 때
 
-1. [policy-next-active-track-priority.md](./policy-next-active-track-priority.md)
-2. [policy-post-local-closeout-track-split.md](./policy-post-local-closeout-track-split.md)
-3. `Gov24` inactive/reopen 판단이 필요하면 [policy-gov24-blocked-track-status.md](./policy-gov24-blocked-track-status.md)
+1. [policy-next-active-track-priority.md](policy/policy-next-active-track-priority.md)
+2. [policy-post-local-closeout-track-split.md](policy/policy-post-local-closeout-track-split.md)
+3. `Gov24` inactive/reopen 판단이 필요하면 [policy-gov24-blocked-track-status.md](policy/policy-gov24-blocked-track-status.md)
 4. 현재 active 트랙의 current-state 문서
 
 ## 6. 요약
@@ -164,5 +164,5 @@
 2. 현재 계약 확인은 `current state` 문서와 실제 코드가 우선입니다.
 3. 쪼개진 `policy` / `auth-admin-forced-logout-*` 문서는 대부분 design history 로 읽습니다.
 4. `auth-docs-index.md`, `collect-docs-index.md`, `recommendation-docs-index.md`, `frontend-qa-docs-index.md`, `policy-docs-index.md`, `local-validation-docs-index.md`, `system-docs-index.md`, `history-docs-index.md` 가 각 문서군의 1차 진입점입니다.
-5. `Gov24` 같은 blocked 트랙은 [policy-gov24-blocked-track-status.md](./policy-gov24-blocked-track-status.md) 에서 inactive 이유와 reopen 조건을 먼저 확인합니다.
+5. `Gov24` 같은 blocked 트랙은 [policy-gov24-blocked-track-status.md](policy/policy-gov24-blocked-track-status.md) 에서 inactive 이유와 reopen 조건을 먼저 확인합니다.
 6. 지금 기준에서 pure ops/runbook 문서는 삭제했고, 서버가 생기기 전까지는 local-only 문서만 유지합니다.

@@ -9,7 +9,7 @@
 
 관련 문서:
 
-- [policy-normalization-recommendation-read-model.md](../../policy-normalization-recommendation-read-model.md)
+- [policy-normalization-recommendation-read-model.md](../../policy/policy-normalization-recommendation-read-model.md)
 - [policy-normalization-bridge-rules.md](./policy-normalization-bridge-rules.md)
 - [policy-normalization-compat-category-drift-inventory.md](./policy-normalization-compat-category-drift-inventory.md)
 - [policy-normalization-compat-other-youth-major-policy.md](./policy-normalization-compat-other-youth-major-policy.md)

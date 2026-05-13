@@ -5,9 +5,9 @@
 관련 문서:
 
 - [policy-normalization-schema-draft.md](./policy-normalization-schema-draft.md)
-- [db-migration.md](../../db-migration.md)
+- [db-migration.md](../../core/db-migration.md)
 - [phase-plan.md](../../phase-plan.md)
-- [troubleshooting-log.md](../../troubleshooting-log.md)
+- [troubleshooting-log.md](../../core/troubleshooting-log.md)
 
 ## 목적
 

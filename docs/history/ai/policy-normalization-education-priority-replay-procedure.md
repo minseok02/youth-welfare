@@ -8,7 +8,7 @@ local 환경에서 `flag off` / `flag on` 결과를 같은 조건으로 비교�
 - [policy-normalization-education-priority-validation-criteria.md](./policy-normalization-education-priority-validation-criteria.md)
 - [policy-normalization-education-priority-flag-scope.md](./policy-normalization-education-priority-flag-scope.md)
 - [policy-normalization-education-priority-implementation-slot.md](./policy-normalization-education-priority-implementation-slot.md)
-- [runtime-api-smoke-commands.md](../../runtime-api-smoke-commands.md)
+- [runtime-api-smoke-commands.md](../../core/runtime-api-smoke-commands.md)
 
 자동 replay 초안:
 

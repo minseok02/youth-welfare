@@ -5,7 +5,7 @@
 - [policy-bokjiro-gap-fill-budget-strategy.md](./policy-bokjiro-gap-fill-budget-strategy.md)
 - [policy-bokjiro-detail-validation-rehearsal.md](./policy-bokjiro-detail-validation-rehearsal.md)
 - [policy-bokjiro-detail-budget-observability-policy.md](./policy-bokjiro-detail-budget-observability-policy.md)
-- [db-migration.md](../../db-migration.md)
+- [db-migration.md](../../core/db-migration.md)
 - [phase-plan.md](../../phase-plan.md)
 
 ## 목적

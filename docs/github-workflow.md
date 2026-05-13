@@ -1,6 +1,6 @@
 # GitHub 작업 규칙
 
-문서군 진입점: [system-docs-index.md](./system-docs-index.md)
+문서군 진입점: [system-docs-index.md](core/system-docs-index.md)
 
 2명이 프론트엔드와 백엔드를 나눠 작업하는 기준이다.
 
@@ -164,4 +164,4 @@ PR 범위가 커졌다면 왜 커졌는지 본문에 적는다.
 - 새로 발견한 작업은 `진행 예정`에 추가한다.
 - 검증 결과를 반영한다.
 
-문제가 발생했거나 재발 가능성이 있는 판단을 했다면 `docs/troubleshooting-log.md`에 `문제 / 해결 / 이유` 형식으로 남긴다.
+문제가 발생했거나 재발 가능성이 있는 판단을 했다면 `docs/core/troubleshooting-log.md`에 `문제 / 해결 / 이유` 형식으로 남긴다.

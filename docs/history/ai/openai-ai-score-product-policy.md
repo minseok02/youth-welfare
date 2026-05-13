@@ -8,7 +8,7 @@ same `promptSha256` + same `replaySeed` + same `systemFingerprint`
 
 - [openai-replay-validation-policy.md](../../history/ai/openai-replay-validation-policy.md)
 - [openai-replay-allowed-drift-metrics.md](../../history/ai/openai-replay-allowed-drift-metrics.md)
-- [recommendation-pipeline.md](../../recommendation-pipeline.md)
+- [recommendation-pipeline.md](../../recommendation/recommendation-pipeline.md)
 
 ## 결론
 

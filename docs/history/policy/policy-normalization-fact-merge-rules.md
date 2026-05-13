@@ -7,7 +7,7 @@
 - [policy-normalization-schema-draft.md](./policy-normalization-schema-draft.md)
 - [policy-normalization-bridge-rules.md](./policy-normalization-bridge-rules.md)
 - [policy-normalization-research.md](./policy-normalization-research.md)
-- [collect-ops.md](../../collect-ops.md)
+- [collect-ops.md](../../collect/collect-ops.md)
 
 ## 1. 목표
 

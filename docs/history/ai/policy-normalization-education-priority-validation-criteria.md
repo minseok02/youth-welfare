@@ -8,7 +8,7 @@ sample top-N 과 explanation 관점에서 무엇을 통과 기준으로 볼지 �
 - [policy-normalization-education-priority-experiment.md](./policy-normalization-education-priority-experiment.md)
 - [policy-normalization-education-priority-flag-scope.md](./policy-normalization-education-priority-flag-scope.md)
 - [policy-normalization-education-priority-config-boundary.md](./policy-normalization-education-priority-config-boundary.md)
-- [recommendation-pipeline.md](../../recommendation-pipeline.md)
+- [recommendation-pipeline.md](../../recommendation/recommendation-pipeline.md)
 
 ## 목적
 

@@ -18,13 +18,13 @@
 
 먼저 아래 current-state / index 문서를 봅니다.
 
-- [auth-docs-index.md](./auth-docs-index.md)
-- [collect-docs-index.md](./collect-docs-index.md)
-- [recommendation-docs-index.md](./recommendation-docs-index.md)
-- [frontend-qa-docs-index.md](./frontend-qa-docs-index.md)
-- [policy-docs-index.md](./policy-docs-index.md)
-- [local-validation-docs-index.md](./local-validation-docs-index.md)
-- [system-docs-index.md](./system-docs-index.md)
+- [auth-docs-index.md](auth/auth-docs-index.md)
+- [collect-docs-index.md](collect/collect-docs-index.md)
+- [recommendation-docs-index.md](recommendation/recommendation-docs-index.md)
+- [frontend-qa-docs-index.md](frontend/frontend-qa-docs-index.md)
+- [policy-docs-index.md](policy/policy-docs-index.md)
+- [local-validation-docs-index.md](core/local-validation-docs-index.md)
+- [system-docs-index.md](core/system-docs-index.md)
 
 그 다음 설계 배경이 필요할 때만 `history/` 로 내려갑니다.
 
@@ -83,12 +83,12 @@
 
 ### 외부 blocked 근거를 찾을 때
 
-1. [policy-gov24-blocked-track-status.md](./policy-gov24-blocked-track-status.md)
+1. [policy-gov24-blocked-track-status.md](policy/policy-gov24-blocked-track-status.md)
 2. 필요하면 `docs/history/policy/policy-normalization-gov24-*`
 
 ### OpenAI / replay 배경을 찾을 때
 
-1. [recommendation-docs-index.md](./recommendation-docs-index.md)
+1. [recommendation-docs-index.md](recommendation/recommendation-docs-index.md)
 2. 필요하면 `docs/history/ai/*`
 
 ## 요약
