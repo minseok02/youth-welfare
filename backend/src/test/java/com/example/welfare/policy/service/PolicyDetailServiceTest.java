@@ -42,6 +42,7 @@ class PolicyDetailServiceTest {
                 .sourceId("SRC-11")
                 .title("청년 월세 지원")
                 .status(WelfareService.ServiceStatus.ACTIVE)
+                .viewCount(7)
                 .build();
         WelfareServiceDetail detail = WelfareServiceDetail.builder()
                 .service(service)
@@ -82,6 +83,7 @@ class PolicyDetailServiceTest {
         assertEquals(11L, response.getId());
         assertTrue(response.isBookmarked());
         assertEquals("주거", response.getUnifiedCategory());
+        assertEquals(8, response.getViewCount());
         assertEquals("소득 심사", response.getSelectionCriteria());
         assertEquals("https://apply.example.com", response.getHomepageUrl());
         assertEquals("청년기본법", response.getRelatedLaw());

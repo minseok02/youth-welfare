@@ -295,7 +295,7 @@ public class WelfareServiceMapper {
                 .supportCycle(RawFieldValidator.normalize(item.getSprtCycNm()))
                 .provisionType(RawFieldValidator.normalize(item.getSrvPvsnNm()))
                 .applyMethodName(RawFieldValidator.normalize(item.getAplyMtdNm()))
-                .isOnlineApply(inferOnlineApply(item.getServDtlLink(), item.getAplyMtdNm()))
+                .isOnlineApply(inferOnlineApply(null, item.getAplyMtdNm()))
                 .detailUrl(RawFieldValidator.normalize(item.getServDtlLink()))
                 .apiViewCount(item.getInqNum())
                 .startDate(parseDate(item.getEnfcBgngYmd()))

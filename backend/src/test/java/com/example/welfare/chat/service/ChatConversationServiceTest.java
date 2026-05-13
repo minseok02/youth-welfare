@@ -7,6 +7,7 @@ import com.example.welfare.chat.dto.request.SendChatMessageRequest;
 import com.example.welfare.chat.dto.response.ChatReferenceResponse;
 import com.example.welfare.chat.entity.ChatMessage;
 import com.example.welfare.chat.entity.ChatMessageRole;
+import com.example.welfare.chat.entity.ChatRetrievalSnapshot;
 import com.example.welfare.chat.entity.ChatSession;
 import com.example.welfare.chat.gateway.ChatAiGateway;
 import com.example.welfare.chat.repository.ChatMessageReadRepository;
@@ -238,6 +239,54 @@ class ChatConversationServiceTest {
         verify(chatPolicyService, never()).traceCandidates(any(String.class), isNull(), anyInt());
         verify(chatMessageCommandService).appendAssistantMessage(eq(10L), any(String.class), eq("[]"), any());
         verify(chatRetrievalSnapshotService).recordInteractiveBranchSuggestions(eq(session), eq("주거 지원"), isNull(), any(List.class));
+    }
+
+    @Test
+    @DisplayName("메시지 재조회는 snapshot 기준으로 branch suggestion 메타를 복원한다")
+    void getMessagesRestoresBranchSuggestionMetadata() {
+        User user = createUser(1L);
+        ChatSession session = ChatSession.builder().id(10L).userKey("user-key-1").build();
+        ChatMessage userMessage = ChatMessage.builder()
+                .id(100L)
+                .session(session)
+                .role(ChatMessageRole.USER)
+                .content("주거 지원")
+                .referencedServiceIds(null)
+                .build();
+        ReflectionTestUtils.setField(userMessage, "createdAt", java.time.LocalDateTime.of(2026, 5, 14, 10, 0, 0));
+        ChatMessage assistantMessage = ChatMessage.builder()
+                .id(101L)
+                .session(session)
+                .role(ChatMessageRole.ASSISTANT)
+                .content("주거 안정, 전월세 지원, 긴급 주거 지원 중에서 어느 방향으로 찾을지 골라주시면 그 기준으로 정책을 좁혀서 보여드리겠습니다.")
+                .referencedServiceIds("[]")
+                .build();
+        ReflectionTestUtils.setField(assistantMessage, "createdAt", java.time.LocalDateTime.of(2026, 5, 14, 10, 0, 1));
+        ChatRetrievalSnapshot snapshot = ChatRetrievalSnapshot.builder()
+                .id(15L)
+                .snapshotType("INTERACTIVE")
+                .sessionId(10L)
+                .userKey("user-key-1")
+                .question("주거 지원")
+                .branchSuggestionKeysJson("[\"housing-stability\",\"housing-cash\",\"housing-subscription\"]")
+                .resultCount(0)
+                .build();
+        ReflectionTestUtils.setField(snapshot, "createdAt", java.time.LocalDateTime.of(2026, 5, 14, 10, 0, 0));
+
+        when(activeUserReadService.getActiveUserContext(1L))
+                .thenReturn(new ActiveUserReadService.ActiveUserContext(user, "user-key-1"));
+        when(chatMessageReadRepository.findOwnedSession(10L, "user-key-1")).thenReturn(Optional.of(session));
+        when(chatMessageReadRepository.findMessages(10L)).thenReturn(List.of(userMessage, assistantMessage));
+        when(chatRetrievalSnapshotService.findSessionSnapshots(10L)).thenReturn(List.of(snapshot));
+
+        var responses = chatConversationService.getMessages(1L, 10L);
+
+        assertThat(responses).hasSize(2);
+        assertThat(responses.get(1).getAnswerMode()).isEqualTo(ChatAnswerMode.BRANCH_SUGGESTION);
+        assertThat(responses.get(1).isNeedsClarification()).isFalse();
+        assertThat(responses.get(1).getBranchSuggestions())
+                .extracting("branchKey")
+                .containsExactly("housing-stability", "housing-cash", "housing-subscription");
     }
 
     @Test

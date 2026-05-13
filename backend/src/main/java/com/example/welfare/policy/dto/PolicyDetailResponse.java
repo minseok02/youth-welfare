@@ -45,6 +45,7 @@ public class PolicyDetailResponse {
     private String supportCycle;
     private String provisionType;
     private Boolean isOnlineApply;
+    private Integer viewCount;
     private boolean bookmarked;
 
     // 상세 정보
@@ -83,13 +84,13 @@ public class PolicyDetailResponse {
                                           List<ServiceTag> tags,
                                           boolean bookmarked,
                                           RecommendationCandidateProjection projection) {
-        List<String> regionNames = regions.stream()
+        List<String> regionNames = (regions != null ? regions : List.<ServiceRegion>of()).stream()
                 .map(r -> r.getSidoName() != null
                         ? r.getSidoName() + (r.getSggName() != null ? " " + r.getSggName() : "")
                         : r.getRegionCode())
                 .collect(Collectors.toList());
 
-        List<TagItem> tagItems = tags.stream()
+        List<TagItem> tagItems = (tags != null ? tags : List.<ServiceTag>of()).stream()
                 .map(t -> TagItem.builder()
                         .tagType(t.getTagType().name())
                         .tagValue(t.getTagValue())
@@ -126,6 +127,7 @@ public class PolicyDetailResponse {
                 .supportCycle(ws.getSupportCycle())
                 .provisionType(ws.getProvisionType())
                 .isOnlineApply(ws.getIsOnlineApply())
+                .viewCount(ws.getViewCount())
                 .bookmarked(bookmarked)
                 .targetDetail(detail != null ? detail.getTargetDetail() : null)
                 .supportDetail(detail != null ? detail.getSupportDetail() : null)

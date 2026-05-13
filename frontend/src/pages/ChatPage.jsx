@@ -78,19 +78,43 @@ const mapSession = (session) => ({
   createdAt: session.createdAt,
 });
 
-const mapMessage = (message) => ({
-  messageId: message.messageId,
-  role: message.role,
-  content: message.content,
-  referencedServiceIds: message.referencedServiceIds ?? [],
-  createdAt: message.createdAt,
-});
-
 const mapBranchSuggestion = (option) => ({
   branchKey: option.branchKey,
   label: option.label,
   guideQuestion: option.guideQuestion,
 });
+
+const mapMessage = (message) => ({
+  messageId: message.messageId,
+  role: message.role,
+  content: message.content,
+  referencedServiceIds: message.referencedServiceIds ?? [],
+  answerMode: message.answerMode ?? null,
+  needsClarification: Boolean(message.needsClarification),
+  branchSuggestions: (message.branchSuggestions ?? []).map(mapBranchSuggestion),
+  createdAt: message.createdAt,
+});
+
+const extractLatestAnswerMeta = (messages) => {
+  const latestAssistant = [...messages].reverse().find((message) => message.role === "ASSISTANT");
+  if (!latestAssistant) {
+    return null;
+  }
+
+  const hasStructuredMeta = latestAssistant.answerMode
+    || latestAssistant.needsClarification
+    || latestAssistant.branchSuggestions.length > 0;
+  if (!hasStructuredMeta) {
+    return null;
+  }
+
+  return {
+    answer: latestAssistant.content ?? "",
+    answerMode: latestAssistant.answerMode ?? null,
+    needsClarification: Boolean(latestAssistant.needsClarification),
+    branchSuggestions: latestAssistant.branchSuggestions,
+  };
+};
 
 export default function ChatPage() {
   const navigate = useNavigate();
@@ -180,6 +204,7 @@ export default function ChatPage() {
       const { data } = await api.get(`/api/chat/sessions/${sessionId}/messages`);
       const nextMessages = (data?.data ?? []).map(mapMessage);
       setMessages(nextMessages);
+      setLatestAnswerMeta(extractLatestAnswerMeta(nextMessages));
       const serviceIds = nextMessages.flatMap((message) => message.referencedServiceIds);
       if (serviceIds.length) {
         await enrichPolicyMeta(serviceIds);
@@ -204,10 +229,6 @@ export default function ChatPage() {
   useEffect(() => {
     void loadMessages(activeSessionId);
   }, [activeSessionId, loadMessages]);
-
-  useEffect(() => {
-    setLatestAnswerMeta(null);
-  }, [activeSessionId]);
 
   const activeSession = useMemo(
     () => sessions.find((session) => session.sessionId === activeSessionId) ?? null,

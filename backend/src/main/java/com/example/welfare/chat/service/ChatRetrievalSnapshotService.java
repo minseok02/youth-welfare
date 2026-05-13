@@ -67,6 +67,14 @@ public class ChatRetrievalSnapshotService {
         persistSnapshot(builder.build());
     }
 
+    @Transactional(readOnly = true)
+    public List<ChatRetrievalSnapshot> findSessionSnapshots(Long sessionId) {
+        if (sessionId == null) {
+            return List.of();
+        }
+        return chatRetrievalSnapshotRepository.findBySessionIdOrderByCreatedAtAsc(sessionId);
+    }
+
     private ChatRetrievalSnapshot.ChatRetrievalSnapshotBuilder toSnapshotBuilder(String snapshotType,
                                                                                  String scenarioKey,
                                                                                  String question,

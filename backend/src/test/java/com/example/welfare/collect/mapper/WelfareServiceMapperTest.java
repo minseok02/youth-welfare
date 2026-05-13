@@ -156,6 +156,22 @@ class WelfareServiceMapperTest {
     }
 
     @Test
+    void fromBokjiroLocal_detailUrlAloneDoesNotMarkOnlineApply() throws Exception {
+        BokjiroLocalDto.Item item = new BokjiroLocalDto.Item();
+        setField(item, "servId", "L001-A");
+        setField(item, "servNm", "청년 센터 안내");
+        setField(item, "servDgst", "오프라인 창구에서 신청");
+        setField(item, "intrsThemaNmArray", "참여·기회");
+        setField(item, "aplyMtdNm", "방문 신청");
+        setField(item, "servDtlLink", "https://www.bokjiro.go.kr/detail");
+
+        WelfareService service = mapper.fromBokjiroLocal(item);
+
+        assertThat(service.getDetailUrl()).isEqualTo("https://www.bokjiro.go.kr/detail");
+        assertThat(service.getIsOnlineApply()).isFalse();
+    }
+
+    @Test
     void fromBokjiroCentral_extractsAgeFromDescription() throws Exception {
         BokjiroCentralDto.Item item = new BokjiroCentralDto.Item();
         setField(item, "servId", "C001");

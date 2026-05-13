@@ -1,5 +1,10 @@
 # 구현 현황
 
+- 2026-05-14: `BOKJIRO_LOCAL` 수집에서 단순 `servDtlLink` 존재만으로 `isOnlineApply=true` 가 되지 않게 판정 경계를 수정했다. 지자체 복지로는 신청 방식 텍스트만 온라인 가능 근거로 쓰고, 상세 링크는 `detailUrl` / `referenceUrlsJson` 보존 신호로만 분리했다.
+- 2026-05-14: `ChatConversationService.getMessages()` 가 `chat_retrieval_snapshots` 를 이용해 assistant message의 `answerMode`, `needsClarification`, `branchSuggestions` 를 복원하도록 바꿨다. 프론트 `ChatPage` 도 마지막 assistant message 메타를 다시 읽어 세션 재조회 뒤 branch/clarification UI가 유지되게 맞췄다.
+- 2026-05-14: 정책 상세 응답에 `viewCount` 를 복구하고 프론트 상세에서 dead `bookmarkCount` 표시는 제거했다. 동시에 `referenceUrlsJson` 을 실제 추가 링크 목록과 sidebar fallback CTA로 렌더링해 backfill된 후보 URL이 화면에 드러나도록 연결했다.
+- 2026-05-14: legacy `deploy/mysql/apply-local-policy-sidecar-draft.sh` 를 PostgreSQL main 기준으로 안전하게 만들었다. PostgreSQL runtime이 감지되면 MySQL draft SQL 재적용은 건너뛰고 현재 integrated schema 존재 여부만 검증하도록 fail-fast/no-op 경계를 넣었다.
+- 2026-05-14: 회귀 검증으로 `bash -n deploy/mysql/apply-local-policy-sidecar-draft.sh`, `cd backend && ./gradlew test --tests 'com.example.welfare.collect.mapper.WelfareServiceMapperTest' --tests 'com.example.welfare.chat.service.ChatConversationServiceTest' --tests 'com.example.welfare.policy.service.PolicyDetailServiceTest' --no-daemon`, `cd frontend && npm run lint`, `cd frontend && npm run build` 를 다시 통과시켰다.
 - 2026-05-13: `POST /api/admin/policies/reference-urls/rebuild` 를 추가했다. 기존 `raw_api_payloads` DETAIL snapshot을 다시 읽어 `referenceUrlsJson` 을 재구축하고, 청년 DETAIL raw와 복지로 DETAIL raw를 모두 대상으로 `WelfareServiceDetail` 을 재적용하게 정리했다. 기본은 `missingOnly=true` 로 두어 이미 URL 후보 풀이 있는 row는 건너뛰고, 로컬 테스트 서비스 기준으로 과거 적재 row도 재수집 없이 안전하게 메울 수 있다.
 - 2026-05-13: 위 rebuild 경로를 실제 로컬 런타임에서 검증했다. `welfare_service_details=1356` 기준 실행 전 `reference_urls_json` 채움 수는 `0` 이었고, admin 호출 후 `scanned=1356`, `updated=1356`, `failed=0` 으로 전 row가 채워졌다. 런북은 `docs/core/runtime-api-smoke-commands.md` 에 반영했다.
 - 2026-05-13: `PolicyReferenceUrlRebuildIntegrationTest` 를 추가해 `reference-urls/rebuild` 회귀를 integration 레벨로 고정했다. `missingOnly=true` 에서 비어 있는 row 채움, 기존 값 skip, `missingOnly=false` overwrite 를 실제 PostgreSQL과 raw detail payload 기준으로 검증한다.
