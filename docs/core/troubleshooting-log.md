@@ -3252,3 +3252,8 @@
 - 문제: 추천 read model projection 은 `support_detail -> support_content -> description` 순으로 요약 문구를 이미 만들고 있었다. 그런데 `RecommendationResponse` 가 여전히 `service.description` 만 사용하면, 서비스 요약 컬럼이 비어 있는 정책은 메인 추천 카드에서 설명이 사라진다.
 - 해결: 추천 DTO는 projection 이 있으면 그 `summary` 를 우선 사용하고, 없을 때만 `supportContent`, `description` 순으로 fallback 하게 바꿨다.
 - 이유: projection 을 읽는 목적은 저장된 보강 정보를 응답까지 끌어오는 데 있다. DTO 조립이 다시 base entity 필드만 보면 read model 보강이 화면 직전에서 사라진다.
+
+## 632) 정책 목록/검색 DTO가 canonical projection `summary` 를 무시하면, 추천은 설명이 보이는데 일반 정책 카드만 비는 화면 차이가 생긴다
+- 문제: `PolicySummaryResponse` 도 recommendation 과 같은 projection 을 이미 받고 있었지만, 설명은 계속 `welfare_services.description` 만 사용했다. 이 상태에서는 메인 추천 카드 설명은 보이는데 `/policies` 목록과 검색 결과 카드만 설명이 비는 불일치가 생긴다.
+- 해결: 정책 summary DTO도 `projection.summary -> supportContent -> description` 순으로 설명을 조립하게 바꿨다.
+- 이유: 같은 canonical projection 을 공유하는 응답이라면, 추천과 목록이 서로 다른 요약 필드 선택 규칙을 가지면 안 된다. 화면별 카드 품질 차이는 대개 이런 DTO 조립 차이에서 나온다.
