@@ -8,15 +8,17 @@ APP_BASE_URL="${APP_BASE_URL:-http://127.0.0.1:8082}"
 APP_HEALTH_URL="${APP_HEALTH_URL:-${APP_BASE_URL}/actuator/health}"
 SMOKE_PASSWORD="${SMOKE_PASSWORD:-Password123!}"
 SMOKE_EMAIL_PREFIX="${SMOKE_EMAIL_PREFIX:-recommend.click.smoke}"
-SMOKE_NAME="${SMOKE_NAME:-Recommendation Click Smoke}"
+SMOKE_NAME="${SMOKE_NAME:-추천클릭점검}"
 SMOKE_BIRTH_DATE="${SMOKE_BIRTH_DATE:-2001-04-30}"
 SMOKE_SIDO="${SMOKE_SIDO:-인천광역시}"
 SMOKE_SGG="${SMOKE_SGG:-중구}"
 SMOKE_INCOME_LEVEL="${SMOKE_INCOME_LEVEL:-5}"
 SMOKE_EMPLOYMENT_STATUS="${SMOKE_EMPLOYMENT_STATUS:-미취업}"
 SMOKE_HOUSEHOLD_TYPE="${SMOKE_HOUSEHOLD_TYPE:-1인 가구}"
-DB_CONTAINER="${DB_CONTAINER:-youth-welfare-db}"
-DB_ROOT_PASSWORD="${DB_ROOT_PASSWORD:-welfare1234!}"
+DB_CONTAINER_NAME="${DB_CONTAINER_NAME:-youth-welfare-db}"
+DB_NAME="${DB_NAME:-youth_welfare}"
+DB_QUERY_USERNAME="${DB_QUERY_USERNAME:-migration_admin}"
+DB_QUERY_PASSWORD="${DB_QUERY_PASSWORD:-welfare1234!}"
 HEALTH_RETRY_COUNT="${HEALTH_RETRY_COUNT:-15}"
 HEALTH_RETRY_DELAY_SECONDS="${HEALTH_RETRY_DELAY_SECONDS:-1}"
 
@@ -93,6 +95,7 @@ HEALTH_STATUS="$(smoke_wait_for_health "${HEALTH_RETRY_COUNT}" "${HEALTH_RETRY_D
 smoke_assert_status 200 "${HEALTH_STATUS}" "health check" "${HEALTH_RESPONSE}"
 
 smoke_print_step "signup ${SMOKE_EMAIL}"
+smoke_seed_verified_email "${SMOKE_EMAIL}"
 SIGNUP_STATUS="$(
   smoke_http_status POST "${APP_BASE_URL}/api/auth/signup" "${SIGNUP_RESPONSE}" \
     -H 'Content-Type: application/json' \
@@ -149,13 +152,21 @@ POLICY_STATUS="$(
 smoke_assert_status 200 "${POLICY_STATUS}" "policy detail click trace" "${POLICY_RESPONSE}"
 
 smoke_print_step "verify recommendation_logs click mark"
-docker exec "${DB_CONTAINER}" mysql -uroot "-p${DB_ROOT_PASSWORD}" -N -e \
-  "SELECT id, service_id, is_clicked, IFNULL(DATE_FORMAT(clicked_at, '%Y-%m-%d %H:%i:%s'),'NULL') FROM youth_welfare.recommendation_logs WHERE id = ${LOG_ID};" \
+smoke_db_query \
+  "SELECT id, service_id, is_clicked, COALESCE(to_char(clicked_at, 'YYYY-MM-DD HH24:MI:SS'), 'NULL')
+   FROM recommendation_logs
+   WHERE id = ${LOG_ID};" \
   > "${DB_ROW_RESPONSE}"
 
 DB_CLICKED="$(awk 'NR==1 {print $3}' "${DB_ROW_RESPONSE}")"
-if [[ "${DB_CLICKED}" != "1" ]]; then
+DB_CLICKED_AT="$(awk 'NR==1 {print $4}' "${DB_ROW_RESPONSE}")"
+if [[ "${DB_CLICKED}" != "t" && "${DB_CLICKED}" != "true" ]]; then
   echo "recommendation log click mark missing for log_id=${LOG_ID}" >&2
+  cat "${DB_ROW_RESPONSE}" >&2
+  exit 1
+fi
+if [[ "${DB_CLICKED_AT}" == "NULL" ]]; then
+  echo "recommendation log clicked_at missing for log_id=${LOG_ID}" >&2
   cat "${DB_ROW_RESPONSE}" >&2
   exit 1
 fi
