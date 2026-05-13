@@ -32,6 +32,7 @@ const PRIORITY_OPTIONS = [
 ];
 
 const REGIONS = ["서울","부산","대구","인천","광주","대전","울산","세종","경기","강원","충북","충남","전북","전남","경북","경남","제주"];
+const HOUSEHOLD_TYPES = ["1인가구", "한부모", "다자녀", "조손", "기타"];
 
 const REGION_TO_SIDO = {
   "서울": "서울특별시", "부산": "부산광역시", "대구": "대구광역시",
@@ -114,6 +115,7 @@ export default function SignupPage() {
   const [subRegion, setSubRegion] = useState("");
   const [income, setIncome] = useState("");
   const [employ, setEmploy] = useState("");
+  const [householdType, setHouseholdType] = useState("");
 
   // Step 3
   const [priorities, setPriorities] = useState([]);
@@ -126,7 +128,7 @@ export default function SignupPage() {
   const emailRegex2 = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
   const isValidEmail = (v) => emailRegex1.test(v) && emailRegex2.test(v);
 
-  const pwValid = pw.length >= 8 && /[a-zA-Z]/.test(pw) && /[0-9]/.test(pw);
+  const pwValid = pw.length >= 8 && pw.length <= 100 && /[a-zA-Z]/.test(pw) && /[0-9]/.test(pw);
   const pwMatch = pw === pwConfirm && pwConfirm.length > 0;
   const nameValid = nameRegex.test(name);
   const step1Valid = nameValid && emailVerified && pwValid && pwMatch;
@@ -175,6 +177,7 @@ export default function SignupPage() {
         ...(region && { sido: REGION_TO_SIDO[region] ?? region }),
         ...(subRegion && { sgg: subRegion }),
         ...(income && { incomeLevel: parseInt(income, 10) }),
+        ...(householdType && { householdType }),
         ...(employ && { employmentStatus: employ }),
       });
       navigate("/login", { replace: true, state: { reason: "signup-complete", email, signupPriorities: priorities } });
@@ -299,7 +302,7 @@ export default function SignupPage() {
               </Field>
 
               <Field label="비밀번호 *" hint="8자 이상, 영문+숫자 조합"
-                error={pw.length > 0 && !pwValid ? "8자 이상, 영문+숫자 조합으로 입력해주세요" : ""}>
+                error={pw.length > 0 && !pwValid ? "8~100자, 영문+숫자 조합으로 입력해주세요" : ""}>
                 <input style={iCss(pw.length > 0 && !pwValid)} type="password" value={pw} onChange={e => setPw(e.target.value)} placeholder="비밀번호 입력" />
               </Field>
 
@@ -388,6 +391,24 @@ export default function SignupPage() {
                     const active = employ === v;
                     return (
                       <button key={v} onClick={() => setEmploy(v)} style={{
+                        padding: "11px 8px", borderRadius: 10,
+                        border: `1.5px solid ${active ? A : LINE}`,
+                        background: active ? AS : WHITE, color: active ? AI : INK2,
+                        fontSize: 13, fontWeight: 700, cursor: "pointer",
+                      }}>
+                        {v}
+                      </button>
+                    );
+                  })}
+                </div>
+              </Field>
+
+              <Field label="가구 형태">
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 8 }}>
+                  {HOUSEHOLD_TYPES.map(v => {
+                    const active = householdType === v;
+                    return (
+                      <button key={v} onClick={() => setHouseholdType(v)} style={{
                         padding: "11px 8px", borderRadius: 10,
                         border: `1.5px solid ${active ? A : LINE}`,
                         background: active ? AS : WHITE, color: active ? AI : INK2,

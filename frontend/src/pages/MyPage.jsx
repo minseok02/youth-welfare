@@ -337,18 +337,7 @@ export default function MyPage() {
   const [notifLoading, setNotifLoading] = useState(false);
   const [notifMinScore, setNotifMinScore] = useState(0.5);
   const [notifDisplayCount, setNotifDisplayCount] = useState(10);
-  const [notifPush, setNotifPush] = useState(false);
-  const [notifSms, setNotifSms] = useState(false);
-  const [notifNewPolicy, setNotifNewPolicy] = useState(true);
-  const [notifDeadline, setNotifDeadline] = useState(true);
-  const [notifBookmarkDeadline, setNotifBookmarkDeadline] = useState(true);
-  const [notifWeekly, setNotifWeekly] = useState(false);
-  const [notifMarketing, setNotifMarketing] = useState(false);
-
   const [filterIncludeExpired, setFilterIncludeExpired] = useState(filterSettings?.includeExpired ?? false);
-  const [filterSources, setFilterSources] = useState({ 온통청년: true, "복지로 중앙": true, "복지로 지자체": true });
-  const [filterDefaultSort, setFilterDefaultSort] = useState("latest");
-  const [filterDefaultView, setFilterDefaultView] = useState("list");
 
   const [bookmarkSort, setBookmarkSort] = useState("latest");
   const [bookmarkView, setBookmarkView] = useState("list");
@@ -362,15 +351,25 @@ export default function MyPage() {
   const [withdrawPw, setWithdrawPw] = useState("");
 
   // completion
-  const completionFields = [myInfo.birthYear, myInfo.region, myInfo.income, myInfo.employ, priorities.length > 0];
-  const localCompletionPct = Math.round((completionFields.filter(Boolean).length / completionFields.length) * 100);
+  const localCompletionScore = [
+    myInfo.name ? 20 : 0,
+    myInfo.birthYear ? 20 : 0,
+    myInfo.region ? 10 : 0,
+    myInfo.income ? 10 : 0,
+    myInfo.employ ? 10 : 0,
+    myInfo.householdType ? 10 : 0,
+    interestFields.length > 0 ? 10 : 0,
+  ].reduce((sum, score) => sum + score, 0);
+  const localCompletionPct = Math.min(localCompletionScore, 100);
   const completionPct = profileCompleteness ?? localCompletionPct;
   const missingLabels = [
+    !myInfo.name && "이름",
     !myInfo.birthYear && "생년월일",
     !myInfo.region && "주소",
     !myInfo.income && "소득수준",
     !myInfo.employ && "취업상태",
-    priorities.length === 0 && "우선순위",
+    !myInfo.householdType && "가구 형태",
+    interestFields.length === 0 && "관심 분야",
   ].filter(Boolean);
 
   // ── Data fetch ───────────────────────────────────────────────────────────
@@ -486,6 +485,10 @@ export default function MyPage() {
   const handleDragEnd = () => setDragIdx(null);
 
   const handleSavePriorities = async () => {
+    if (priorities.length === 0) {
+      showToast("우선순위는 최소 1개 이상 선택해주세요", "error");
+      return;
+    }
     setPriorityLoading(true);
     try {
       await api.put("/api/users/me", { interestFields, targetTypes });
@@ -518,6 +521,7 @@ export default function MyPage() {
   const handlePasswordChange = async () => {
     if (!currPw || !newPw || newPw !== newPwConfirm) { showToast("입력값을 확인해주세요", "error"); return; }
     if (newPw.length < 8) { showToast("새 비밀번호는 8자 이상이어야 합니다", "error"); return; }
+    if (newPw.length > 100) { showToast("새 비밀번호는 100자 이하여야 합니다", "error"); return; }
     setPwLoading(true);
     try {
       await api.patch("/api/users/me/password", { currentPassword: currPw, newPassword: newPw });
@@ -941,16 +945,6 @@ export default function MyPage() {
                 <>
                   <SectionCard title="수신 채널" desc="어떤 방법으로 알림을 받을지 선택하세요">
                     <NotiRow title="이메일 수신" desc={`${user?.email || myInfo.email || "이메일"} 으로 발송`} on={notifOn} onChange={() => setNotifOn(v => !v)} />
-                    <NotiRow title="브라우저 푸시" desc="이 기기에서만 수신" on={notifPush} onChange={() => setNotifPush(v => !v)} />
-                    <NotiRow title="SMS 수신" desc="건당 발송 (야간 제한)" on={notifSms} onChange={() => setNotifSms(v => !v)} />
-                  </SectionCard>
-
-                  <SectionCard title="알림 항목" desc="어떤 알림을 받을지 선택하세요">
-                    <NotiRow title="새 맞춤 정책" desc="내 프로필에 맞는 정책이 등록되면 알려드려요" on={notifNewPolicy} onChange={() => setNotifNewPolicy(v => !v)} />
-                    <NotiRow title="마감 D-7 알림" desc="신청 마감 7일 전 알림" on={notifDeadline} onChange={() => setNotifDeadline(v => !v)} />
-                    <NotiRow title="북마크 마감 알림" desc="북마크한 정책의 마감 3일 전·당일 알림" on={notifBookmarkDeadline} onChange={() => setNotifBookmarkDeadline(v => !v)} />
-                    <NotiRow title="주간 요약" desc="매주 월요일 오전 새 정책 요약" on={notifWeekly} onChange={() => setNotifWeekly(v => !v)} />
-                    <NotiRow title="이벤트·공지" desc="플랫폼 소식과 캠페인 안내" on={notifMarketing} onChange={() => setNotifMarketing(v => !v)} />
                   </SectionCard>
 
                   <SectionCard title="알림 기준" desc="추천 점수와 발송 개수를 조절할 수 있어요">
@@ -974,7 +968,7 @@ export default function MyPage() {
 
                   <SectionCard>
                     <div style={{ padding: 16, background: AS, borderRadius: 12, fontSize: 13, color: INK2, lineHeight: 1.6 }}>
-                      수신 거부는 발송된 이메일 하단의 링크로도 가능해요. SMS는 야간(21:00 ~ 익일 08:00) 발송이 제한됩니다.
+                      현재 알림 설정은 이메일 수신 여부, 발송 주기, 최소 추천 점수, 발송 개수만 저장됩니다.
                     </div>
                   </SectionCard>
 
@@ -986,7 +980,7 @@ export default function MyPage() {
             {/* ── 필터 기본값 ── */}
             {activeTab === "filter" && (
               <>
-                <SectionCard title="기본 표시 설정" desc="메인 페이지 접속 시 기본으로 적용되는 값이에요">
+                <SectionCard title="기본 표시 설정" desc="현재는 종료된 정책 포함 여부만 로컬에 저장됩니다">
                   <div style={{ display: "flex", alignItems: "center", padding: "14px 0", borderBottom: `1px solid ${LINE2}` }}>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: 14, fontWeight: 700, color: INK }}>종료된 정책 보기</div>
@@ -994,50 +988,6 @@ export default function MyPage() {
                     </div>
                     <Toggle on={filterIncludeExpired} onChange={() => setFilterIncludeExpired(v => !v)} />
                   </div>
-
-                  <div style={{ padding: "18px 0", borderBottom: `1px solid ${LINE2}` }}>
-                    <div style={{ fontSize: 14, fontWeight: 700, color: INK, marginBottom: 12 }}>기본 정렬</div>
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
-                      {[{ id: "latest", l: "최신순" }, { id: "deadline", l: "마감임박순" }, { id: "popular", l: "인기순" }].map(o => {
-                        const active = filterDefaultSort === o.id;
-                        return (
-                          <button key={o.id} onClick={() => setFilterDefaultSort(o.id)} style={{ padding: 12, borderRadius: 10, border: `1.5px solid ${active ? A : LINE}`, background: active ? AS : WHITE, color: active ? AI : INK2, fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
-                            {o.l}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  <div style={{ padding: "18px 0" }}>
-                    <div style={{ fontSize: 14, fontWeight: 700, color: INK, marginBottom: 12 }}>기본 표시 방식</div>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                      {[{ id: "list", l: "☰ 리스트" }, { id: "grid", l: "▦ 카드" }].map(o => {
-                        const active = filterDefaultView === o.id;
-                        return (
-                          <button key={o.id} onClick={() => setFilterDefaultView(o.id)} style={{ padding: 12, borderRadius: 10, border: `1.5px solid ${active ? A : LINE}`, background: active ? AS : WHITE, color: active ? AI : INK2, fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
-                            {o.l}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </SectionCard>
-
-                <SectionCard title="출처 기본값" desc="어디서 모은 정책을 기본으로 보여줄지 선택하세요">
-                  {[
-                    { k: "온통청년",    d: "온통청년 포털 수집" },
-                    { k: "복지로 중앙", d: "중앙부처 정책" },
-                    { k: "복지로 지자체", d: "지자체 정책" },
-                  ].map(s => (
-                    <label key={s.k} style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 0", borderBottom: `1px solid ${LINE2}`, cursor: "pointer" }}>
-                      <input type="checkbox" checked={filterSources[s.k]} onChange={() => setFilterSources(v => ({ ...v, [s.k]: !v[s.k] }))} style={{ width: 18, height: 18, accentColor: A }} />
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 14, fontWeight: 700, color: INK }}>{s.k}</div>
-                        <div style={{ fontSize: 12, color: INK3, marginTop: 2 }}>{s.d}</div>
-                      </div>
-                    </label>
-                  ))}
                 </SectionCard>
 
                 <SaveBar

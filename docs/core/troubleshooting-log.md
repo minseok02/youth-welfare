@@ -3177,3 +3177,28 @@
 - 문제: `collect-failures` 응답은 `windowDays` 를 같이 주지만 `jobStreaks` 는 현재 연속 `FAILED/PARTIAL_SUCCESS` 상태를 window와 무관하게 계산한다. 이름만 보면 같은 기간 안의 streak처럼 읽혀 운영자가 최근 14일 streak라고 착각할 수 있다.
 - 해결: DTO를 `currentJobStreaks` 로 명시하고, window 집계 count도 `failedJobsInWindow`, `partialSuccessJobsInWindow` 로 맞춰 window 값과 current 상태 값을 구분했다.
 - 이유: 한 응답 안에 `window 집계`와 `현재 상태`가 섞일 때는 이름으로 경계를 강하게 드러내지 않으면, 수치는 맞아도 의미 해석이 틀어진다.
+
+## 617) 프론트가 우선순위를 전부 지운 뒤 저장을 허용하면, 백엔드 `UpdatePrioritiesRequest` 의 `@Size(min = 1)` 와 바로 충돌한다
+- 문제: 마이페이지는 우선순위 chip을 모두 제거할 수 있었고 저장 버튼도 그대로 눌릴 수 있었다. 하지만 `/api/users/me/priorities` 는 `priorityCodes` 를 1~5개로만 허용하므로, 이 상태에서는 사용자가 조용히 400만 맞게 된다.
+- 해결: 프론트 저장 전에 `priorities.length === 0` 을 막고, WebMvc 테스트로도 빈 리스트가 400이라는 계약을 고정했다.
+- 이유: 이런 종류는 백엔드 validation이 틀린 게 아니라, 프론트가 그 계약을 모르고 있어서 생기는 전형적인 request DTO 불일치다.
+
+## 618) 비밀번호 최대 길이 계약이 `signup / change / reset` 경로마다 다르면, 같은 사용자가 어떤 화면에서는 성공하고 어떤 화면에서는 400을 맞는다
+- 문제: 회원가입은 최대 길이 제한이 없고, 비밀번호 변경은 64자, 재설정은 100자로 달라져 있었다. 이 상태에서는 80자 비밀번호가 가입 후엔 저장되지만, 이후 마이페이지 변경에서는 거부되는 식의 경로별 불일치가 생긴다.
+- 해결: `SignupRequest`, `ChangePasswordRequest`, `PasswordResetConfirmRequest` 를 모두 `8~100자`로 맞추고, 프론트 회원가입/재설정/비밀번호 변경 화면도 같은 상한을 사전에 검사하게 정리했다.
+- 이유: 인증 계층 입력 제약은 경로가 달라도 하나의 계약으로 움직여야 한다. 비밀번호 정책이 화면마다 다르면 UX도 깨지고 운영 support 비용도 커진다.
+
+## 619) `SignupRequest` 에 `householdType` 가 있어도 회원가입 화면이 그 값을 전혀 받지 않으면, 초기 추천 프로필은 절반만 채워진 상태로 시작한다
+- 문제: 백엔드 회원가입 DTO와 저장 경로는 `householdType` 를 이미 지원했지만, 회원가입 UI는 생년월일/지역/소득/취업상태만 받고 가구 형태는 마이페이지에 가서야 수정할 수 있었다.
+- 해결: 회원가입 2단계에 `가구 형태` 선택 UI를 추가하고, `SignupRequest.householdType` 로 실제 전송되게 연결했다.
+- 이유: 입력 DTO에 이미 있는 사용자 프로필 축이면, 최소한 초기 가입에서 수집할지 명시적으로 포기할지 결정돼 있어야 한다. 지금처럼 DTO만 열려 있으면 초기 추천 품질이 조용히 낮아진다.
+
+## 620) 마이페이지의 로컬 profile completion fallback이 서버 계산식과 다르면, 저장 직후 퍼센트가 잠깐 다른 값으로 보일 수 있다
+- 문제: 화면은 평소엔 서버 `profileCompleteness` 를 쓰지만, 저장 직후 이를 비우면 로컬 fallback으로 내려간다. 그런데 그 fallback이 `우선순위` 를 포함하고 `householdType/interestFields` 를 빼고 있으면 서버 계산과 다른 퍼센트와 미완성 항목을 보여줄 수 있다.
+- 해결: 로컬 fallback도 `name/birthDate/sido/incomeLevel/employmentStatus/householdType/interestFields` 기준과 같은 가중치로 맞추고, 누락 라벨도 같은 축을 보게 정리했다.
+- 이유: 파생값은 가능하면 서버 값을 single source로 삼아야 하지만, fallback이 필요하다면 최소한 같은 계산식을 복제해야 저장 직후 깜빡이는 정합성 오류를 줄일 수 있다.
+
+## 621) 마이페이지 알림/필터 탭에 서버가 모르는 토글을 그대로 두면, 사용자는 “저장됐다”고 믿지만 실제로는 어디에도 반영되지 않는다
+- 문제: `브라우저 푸시`, `SMS`, `새 맞춤 정책`, `마감 D-7`, `이벤트·공지`, 기본 정렬/표시 방식/출처 같은 UI는 있었지만, 실제 request DTO나 저장 경로는 이 값을 전혀 받지 않았다. 화면만 보면 저장된 것처럼 보이지만 다음 진입이나 다른 기기에서는 그대로 사라진다.
+- 해결: 백엔드가 실제로 지원하는 필드(`notificationYn`, `notificationPeriod`, `notificationMinScore`, `displayCount`)만 남기고, 필터 탭도 현재 실제 저장되는 `includeExpired`만 노출하게 정리했다.
+- 이유: 미구현 기능을 “UI만 있는 상태”로 두면 버그보다 더 나쁘다. 사용자는 성공했다고 믿는데 시스템 state는 바뀌지 않기 때문이다.

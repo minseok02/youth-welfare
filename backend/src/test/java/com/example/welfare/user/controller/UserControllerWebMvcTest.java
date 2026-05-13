@@ -24,6 +24,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -82,5 +83,24 @@ class UserControllerWebMvcTest {
                 .andExpect(jsonPath("$.data[0].gov24BenefitTypeLabel").value("서비스"));
 
         then(userBookmarkReadService).should().getBookmarks(isNull());
+    }
+
+    @Test
+    @DisplayName("우선순위는 최소 1개 이상이어야 한다")
+    void updatePrioritiesRejectsEmptyList() throws Exception {
+        mockMvc.perform(put("/api/users/me/priorities")
+                        .with(authentication(new UsernamePasswordAuthenticationToken(
+                                new AuthenticatedUser(1L, "user-key-1"),
+                                null,
+                                Collections.emptyList()
+                        )))
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "priorityCodes": []
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false));
     }
 }

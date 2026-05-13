@@ -51,6 +51,10 @@ export default function ResetPasswordPage() {
     e.preventDefault();
     if (!newPassword || !confirmPassword) return;
     if (newPassword !== confirmPassword) { setError("새 비밀번호 확인이 일치하지 않습니다."); return; }
+    if (newPassword.length < 8 || newPassword.length > 100) {
+      setError("새 비밀번호는 8자 이상 100자 이하여야 합니다.");
+      return;
+    }
     setLoading(true);
     setError("");
     try {

@@ -11,6 +11,6 @@ public class ChangePasswordRequest {
     private String currentPassword;
 
     @NotBlank
-    @Size(min = 8, max = 64)
+    @Size(min = 8, max = 100, message = "새 비밀번호는 8자 이상 100자 이하여야 합니다.")
     private String newPassword;
 }

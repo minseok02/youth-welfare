@@ -137,4 +137,25 @@ class AuthControllerWebMvcTest {
 
         then(authSignupService).should(never()).signup(org.mockito.ArgumentMatchers.any());
     }
+
+    @Test
+    @DisplayName("회원가입은 100자를 넘는 비밀번호를 거부한다")
+    void signupRejectsTooLongPassword() throws Exception {
+        String longPassword = "a".repeat(101);
+
+        mockMvc.perform(post("/api/auth/signup")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "email": "user@example.com",
+                                  "password": "%s",
+                                  "name": "홍길동",
+                                  "birthDate": "2001-01-01"
+                                }
+                                """.formatted(longPassword)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false));
+
+        then(authSignupService).should(never()).signup(org.mockito.ArgumentMatchers.any());
+    }
 }
