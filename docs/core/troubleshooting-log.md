@@ -3247,3 +3247,8 @@
 - 문제: AI 응답은 `needsClarification=true` 이면서도 참고 정책을 몇 개 같이 줄 수 있다. 그런데 세션 재조회가 clarification 여부를 `snapshot.resultCount==0` 과 빈 reference 만으로 추론하면, 이런 케이스는 answerMode 가 사라지고 추가 질문 유도 UI도 복원되지 않는다.
 - 해결: retrieval snapshot 에 `needsClarification` 을 명시적으로 저장하고, `GET /messages` 는 이 플래그를 우선 복원하게 바꿨다.
 - 이유: 챗의 상호작용 메타는 “결과 수” 같은 간접 신호로 다시 추론하기보다, 최초 응답 시점의 의도를 그대로 저장해 재사용하는 편이 계약이 강하다.
+
+## 631) 추천 응답이 canonical projection 의 `summary` 를 무시하고 `welfare_services.description` 만 내려주면, detail 보강이 있어도 메인 추천 카드 설명이 비게 된다
+- 문제: 추천 read model projection 은 `support_detail -> support_content -> description` 순으로 요약 문구를 이미 만들고 있었다. 그런데 `RecommendationResponse` 가 여전히 `service.description` 만 사용하면, 서비스 요약 컬럼이 비어 있는 정책은 메인 추천 카드에서 설명이 사라진다.
+- 해결: 추천 DTO는 projection 이 있으면 그 `summary` 를 우선 사용하고, 없을 때만 `supportContent`, `description` 순으로 fallback 하게 바꿨다.
+- 이유: projection 을 읽는 목적은 저장된 보강 정보를 응답까지 끌어오는 데 있다. DTO 조립이 다시 base entity 필드만 보면 read model 보강이 화면 직전에서 사라진다.
