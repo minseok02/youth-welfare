@@ -1293,6 +1293,27 @@ class AdminSecurityWebMvcTest {
     }
 
     @Test
+    @DisplayName("forced logout API는 32자를 넘는 userKey에 400을 반환한다")
+    void adminEndpointRejectsTooLongForcedLogoutUserKey() throws Exception {
+        mockAuthenticatedToken("admin-token", List.of(
+                new SimpleGrantedAuthority("ROLE_USER"),
+                new SimpleGrantedAuthority("ROLE_ADMIN")
+        ));
+
+        mockMvc.perform(post("/api/admin/users/forced-logout")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "userKey": "123456789012345678901234567890123"
+                                }
+                                """)
+                        .header("Authorization", "Bearer admin-token"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("C001"));
+    }
+
+    @Test
     @DisplayName("관리자 토큰으로 metadata user_key 백필 API를 호출하면 백필 서비스를 실행한다")
     void adminEndpointAllowsMetadataUserKeyBackfill() throws Exception {
         mockAuthenticatedToken("admin-token", List.of(
@@ -1339,6 +1360,22 @@ class AdminSecurityWebMvcTest {
     }
 
     @Test
+    @DisplayName("pii sync replay API는 범위를 벗어난 limit에 400을 반환한다")
+    void adminEndpointRejectsInvalidPiiSyncReplayLimit() throws Exception {
+        mockAuthenticatedToken("admin-token", List.of(
+                new SimpleGrantedAuthority("ROLE_USER"),
+                new SimpleGrantedAuthority("ROLE_ADMIN")
+        ));
+
+        mockMvc.perform(post("/api/admin/users/pii-sync-replay")
+                        .param("limit", "0")
+                        .header("Authorization", "Bearer admin-token"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("C001"));
+    }
+
+    @Test
     @DisplayName("관리자 토큰으로 pii sync status API를 호출하면 queue 상태 요약을 반환한다")
     void adminEndpointAllowsPiiSyncStatus() throws Exception {
         mockAuthenticatedToken("admin-token", List.of(
@@ -1370,6 +1407,39 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.data.failedSamples").isArray());
 
         then(userPiiSyncStatusService).should().getStatus(3);
+    }
+
+    @Test
+    @DisplayName("pii sync status API는 범위를 벗어난 failedSampleLimit에 400을 반환한다")
+    void adminEndpointRejectsInvalidPiiSyncStatusLimit() throws Exception {
+        mockAuthenticatedToken("admin-token", List.of(
+                new SimpleGrantedAuthority("ROLE_USER"),
+                new SimpleGrantedAuthority("ROLE_ADMIN")
+        ));
+
+        mockMvc.perform(get("/api/admin/users/pii-sync-status")
+                        .param("failedSampleLimit", "21")
+                        .header("Authorization", "Bearer admin-token"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("C001"));
+    }
+
+    @Test
+    @DisplayName("대시보드 요약 API는 범위를 벗어난 summaryWindowDays와 trendWindowDays에 400을 반환한다")
+    void adminEndpointRejectsInvalidDashboardWindowParams() throws Exception {
+        mockAuthenticatedToken("admin-token", List.of(
+                new SimpleGrantedAuthority("ROLE_USER"),
+                new SimpleGrantedAuthority("ROLE_ADMIN")
+        ));
+
+        mockMvc.perform(get("/api/admin/dashboard/summary")
+                        .param("summaryWindowDays", "366")
+                        .param("trendWindowDays", "0", "30")
+                        .header("Authorization", "Bearer admin-token"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("C001"));
     }
 
     private void mockAuthenticatedToken(String token,

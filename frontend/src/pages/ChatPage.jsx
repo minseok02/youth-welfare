@@ -34,6 +34,7 @@ const SUGGESTED_PROMPTS = [
   "취업 준비 중인데 교육비나 훈련비 지원이 있나요?",
   "지금 바로 신청 가능한 생활비 지원 정책을 알려주세요.",
 ];
+const MAX_CHAT_MESSAGE_LENGTH = 2000;
 
 const formatSessionTitle = (title) => title?.trim() || "새 대화";
 
@@ -324,6 +325,10 @@ export default function ChatPage() {
   const sendMessage = useCallback(async (rawContent, branchKey = null) => {
     const content = rawContent.trim();
     if (!content || sending) {
+      return;
+    }
+    if (content.length > MAX_CHAT_MESSAGE_LENGTH) {
+      showToast(`질문은 ${MAX_CHAT_MESSAGE_LENGTH}자 이하로 입력해주세요.`, "warning");
       return;
     }
 
@@ -804,6 +809,9 @@ export default function ChatPage() {
                       value={draft}
                       onChange={(event) => setDraft(event.target.value)}
                       disabled={sending}
+                      inputProps={{ maxLength: MAX_CHAT_MESSAGE_LENGTH }}
+                      helperText={`${draft.length}/${MAX_CHAT_MESSAGE_LENGTH}`}
+                      error={draft.length > MAX_CHAT_MESSAGE_LENGTH}
                     />
                     <Stack
                       direction={{ xs: "column", sm: "row" }}
