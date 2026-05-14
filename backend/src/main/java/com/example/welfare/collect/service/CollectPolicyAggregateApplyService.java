@@ -54,4 +54,15 @@ public class CollectPolicyAggregateApplyService {
     public void applySidecarBackfill(WelfareService service, NormalizedPolicyAggregate aggregate) {
         normalizedPolicySidecarWriter.upsert(service, aggregate);
     }
+
+    @Transactional
+    public void replaceFactCodeSet(WelfareService service,
+                                   String factCodeSetKey,
+                                   NormalizedPolicyAggregate aggregate) {
+        normalizedPolicySidecarWriter.replaceFactsByCodeSet(
+                service,
+                factCodeSetKey,
+                aggregate == null ? List.of() : aggregate.facts()
+        );
+    }
 }

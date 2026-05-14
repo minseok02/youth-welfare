@@ -35,7 +35,6 @@ public class RawApiPayload extends BaseTimeEntity {
     @Column(nullable = false, length = 20)
     private ApiCategory apiCategory;
 
-    @Lob
     @Column(nullable = false, columnDefinition = "TEXT")
     private String payloadJson;
 
@@ -53,6 +52,7 @@ public class RawApiPayload extends BaseTimeEntity {
 
     public enum ApiCategory {
         LIST,
-        DETAIL
+        DETAIL,
+        SUPPORT
     }
 }

@@ -13,15 +13,21 @@ public class CollectSourceExecutionService {
 
     private final ApiSyncLogService apiSyncLogService;
     private final BokjiroDetailCollectService bokjiroDetailCollectService;
+    private final Gov24DetailCollectService gov24DetailCollectService;
+    private final Gov24SupportConditionsCollectService gov24SupportConditionsCollectService;
     private final PolicyEmbeddingRefreshRequestService policyEmbeddingRefreshRequestService;
     private final Map<CollectSource, CollectSourceAdapter> adapters;
 
     public CollectSourceExecutionService(List<CollectSourceAdapter> adapters,
                                          ApiSyncLogService apiSyncLogService,
                                          BokjiroDetailCollectService bokjiroDetailCollectService,
+                                         Gov24DetailCollectService gov24DetailCollectService,
+                                         Gov24SupportConditionsCollectService gov24SupportConditionsCollectService,
                                          PolicyEmbeddingRefreshRequestService policyEmbeddingRefreshRequestService) {
         this.apiSyncLogService = apiSyncLogService;
         this.bokjiroDetailCollectService = bokjiroDetailCollectService;
+        this.gov24DetailCollectService = gov24DetailCollectService;
+        this.gov24SupportConditionsCollectService = gov24SupportConditionsCollectService;
         this.policyEmbeddingRefreshRequestService = policyEmbeddingRefreshRequestService;
         this.adapters = buildAdapterMap(adapters);
     }
@@ -47,6 +53,54 @@ public class CollectSourceExecutionService {
                     0,
                     result.failedCount()
             );
+        });
+        return resultRef.get();
+    }
+
+    public CollectResult collectGov24Details(int maxCallsPerRun) {
+        AtomicReference<CollectResult> resultRef = new AtomicReference<>();
+        apiSyncLogService.runWithLog(CollectSource.GOV24_DETAIL.jobName(), () -> {
+            CollectResult result = policyEmbeddingRefreshRequestService.runInBatch(
+                    () -> gov24DetailCollectService.collectGov24Details(maxCallsPerRun)
+            );
+            resultRef.set(result);
+            return result;
+        });
+        return resultRef.get();
+    }
+
+    public CollectResult collectGov24DetailsForSourceId(String sourceId) {
+        AtomicReference<CollectResult> resultRef = new AtomicReference<>();
+        apiSyncLogService.runWithLog(CollectSource.GOV24_DETAIL.jobName(), () -> {
+            CollectResult result = policyEmbeddingRefreshRequestService.runInBatch(
+                    () -> gov24DetailCollectService.collectGov24DetailsForSourceId(sourceId)
+            );
+            resultRef.set(result);
+            return result;
+        });
+        return resultRef.get();
+    }
+
+    public CollectResult collectGov24SupportConditions(int maxCallsPerRun) {
+        AtomicReference<CollectResult> resultRef = new AtomicReference<>();
+        apiSyncLogService.runWithLog(CollectSource.GOV24_SUPPORT_CONDITIONS.jobName(), () -> {
+            CollectResult result = policyEmbeddingRefreshRequestService.runInBatch(
+                    () -> gov24SupportConditionsCollectService.collectGov24SupportConditions(maxCallsPerRun)
+            );
+            resultRef.set(result);
+            return result;
+        });
+        return resultRef.get();
+    }
+
+    public CollectResult collectGov24SupportConditionsForSourceId(String sourceId) {
+        AtomicReference<CollectResult> resultRef = new AtomicReference<>();
+        apiSyncLogService.runWithLog(CollectSource.GOV24_SUPPORT_CONDITIONS.jobName(), () -> {
+            CollectResult result = policyEmbeddingRefreshRequestService.runInBatch(
+                    () -> gov24SupportConditionsCollectService.collectGov24SupportConditionsForSourceId(sourceId)
+            );
+            resultRef.set(result);
+            return result;
         });
         return resultRef.get();
     }

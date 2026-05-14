@@ -35,6 +35,10 @@ class CollectSourceExecutionServiceTest {
     @Mock
     private BokjiroDetailCollectService bokjiroDetailCollectService;
     @Mock
+    private Gov24DetailCollectService gov24DetailCollectService;
+    @Mock
+    private Gov24SupportConditionsCollectService gov24SupportConditionsCollectService;
+    @Mock
     private PolicyEmbeddingRefreshRequestService policyEmbeddingRefreshRequestService;
 
     private CollectSourceExecutionService collectSourceExecutionService;
@@ -51,6 +55,8 @@ class CollectSourceExecutionServiceTest {
                 List.of(bokjiroLocalAdapter, bokjiroDetailAdapter, bokjiroDetailRefreshAdapter, youthAdapter, bokjiroCentralAdapter),
                 apiSyncLogService,
                 bokjiroDetailCollectService,
+                gov24DetailCollectService,
+                gov24SupportConditionsCollectService,
                 policyEmbeddingRefreshRequestService
         );
     }
@@ -109,6 +115,8 @@ class CollectSourceExecutionServiceTest {
                 List.of(bokjiroLocalAdapter, bokjiroDetailAdapter, youthAdapter, bokjiroCentralAdapter),
                 apiSyncLogService,
                 bokjiroDetailCollectService,
+                gov24DetailCollectService,
+                gov24SupportConditionsCollectService,
                 policyEmbeddingRefreshRequestService
         )).isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("BOKJIRO_DETAIL_REFRESH");

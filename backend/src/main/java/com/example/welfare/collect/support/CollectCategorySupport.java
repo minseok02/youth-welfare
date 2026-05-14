@@ -104,6 +104,40 @@ public final class CollectCategorySupport {
         return BOKJIRO_COMPAT_CATEGORIES.getOrDefault(firstLabel, COMPAT_OTHER);
     }
 
+    public static String mapGov24CompatCategory(String rawServiceField,
+                                                String title,
+                                                String description,
+                                                String supportType) {
+        String normalizedField = normalizeMiddleDot(rawServiceField == null ? "" : rawServiceField).trim();
+        String heuristicText = combinedNormalizedText(normalizedField, title, description, supportType);
+
+        if (normalizedField.contains("일자리") || normalizedField.contains("고용") || heuristicText.contains("취업")) {
+            return "일자리";
+        }
+        if (normalizedField.contains("주거") || normalizedField.contains("주택")) {
+            return "주거";
+        }
+        if (normalizedField.contains("교육") || normalizedField.contains("훈련")) {
+            return "교육·직업훈련";
+        }
+        if (normalizedField.contains("문화") || normalizedField.contains("여가") || containsAny(heuristicText, CULTURE_HINTS)) {
+            return COMPAT_CULTURE;
+        }
+        if (normalizedField.contains("건강") || normalizedField.contains("의료") || containsAny(heuristicText, HEALTH_HINTS)) {
+            return COMPAT_HEALTH;
+        }
+        if (normalizedField.contains("가족") || normalizedField.contains("돌봄") || containsAny(heuristicText, FAMILY_HINTS)) {
+            return COMPAT_FAMILY;
+        }
+        if (normalizedField.contains("금융") || normalizedField.contains("생활") || normalizedField.contains("복지")) {
+            return COMPAT_FINANCE_LIFE;
+        }
+        if (normalizedField.contains("안전") || normalizedField.contains("위기")) {
+            return "안전·위기";
+        }
+        return COMPAT_OTHER;
+    }
+
     private static String combinedNormalizedText(String... values) {
         Set<String> segments = new LinkedHashSet<>();
         for (String value : values) {

@@ -2,6 +2,7 @@ package com.example.welfare.collect.support;
 
 import com.example.welfare.collect.dto.BokjiroCentralDto;
 import com.example.welfare.collect.dto.BokjiroLocalDto;
+import com.example.welfare.collect.dto.Gov24ServiceListDto;
 import com.example.welfare.collect.dto.YouthApiDto;
 import com.example.welfare.collect.entity.RawApiPayload;
 import com.example.welfare.collect.gateway.BokjiroDetailClient;
@@ -85,6 +86,20 @@ public enum CollectSourceRegistry {
                     objectMapper.readValue(raw.getPayloadJson(), BokjiroLocalDto.Item.class),
                     null
             );
+        }
+    },
+    GOV24(WelfareService.SourceType.GOV24, false, false) {
+        @Override
+        public <T> ListCollectSourceBinding<T> listBinding(WelfareServiceMapper mapper) {
+            return cast(new ListCollectSourceBinding<>(
+                    sourceType(),
+                    Gov24ServiceListDto.Item::getServiceId,
+                    RawFieldValidator::recordStatsGov24,
+                    mapper::fromGov24,
+                    mapper::regionsFromGov24,
+                    mapper::tagsFromGov24,
+                    mapper::toNormalizedGov24
+            ));
         }
     };
 

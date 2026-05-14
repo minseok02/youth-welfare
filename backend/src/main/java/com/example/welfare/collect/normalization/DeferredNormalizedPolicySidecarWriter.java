@@ -52,6 +52,25 @@ public class DeferredNormalizedPolicySidecarWriter implements NormalizedPolicySi
                 aggregate.taxonomyTerms().size());
     }
 
+    @Override
+    public void replaceFactsByCodeSet(WelfareService service,
+                                      String factCodeSetKey,
+                                      List<NormalizedPolicyAggregate.Fact> facts) {
+        if (service == null || service.getId() == null || factCodeSetKey == null || factCodeSetKey.isBlank()) {
+            throw new IllegalArgumentException("service.id/factCodeSetKey 는 필수입니다.");
+        }
+        if (!sidecarTablesReady()) {
+            log.debug("[DeferredNormalizedPolicySidecarWriter] sidecar tables not ready; replace facts skip serviceId={} sourceType={} factCodeSetKey={}",
+                    service.getId(), service.getSourceType(), factCodeSetKey);
+            return;
+        }
+        deferredNormalizedPolicySidecarCommandRepository.replaceFactsByCodeSet(
+                service.getId(),
+                factCodeSetKey,
+                facts == null ? List.of() : facts
+        );
+    }
+
     private void validateYouthMidAliasContract(NormalizedPolicyAggregate aggregate) {
         boolean hasYouthMidRawAlias = aggregate.taxonomyTerms().stream()
                 .anyMatch(term -> NormalizationKeySupport.TERM_GROUP_YOUTH_MID_RAW_ALIAS.equals(term.termGroup()));

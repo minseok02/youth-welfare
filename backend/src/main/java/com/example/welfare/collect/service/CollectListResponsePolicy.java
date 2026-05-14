@@ -15,7 +15,8 @@ public class CollectListResponsePolicy {
     private static final Set<CollectSource> FAIL_ON_EMPTY_SOURCES = Set.of(
             CollectSource.YOUTH,
             CollectSource.BOKJIRO_CENTRAL,
-            CollectSource.BOKJIRO_LOCAL
+            CollectSource.BOKJIRO_LOCAL,
+            CollectSource.GOV24
     );
 
     public void ensureNonEmpty(CollectSource source, List<?> items) {

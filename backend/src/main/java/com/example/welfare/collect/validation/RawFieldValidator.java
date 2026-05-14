@@ -2,6 +2,7 @@ package com.example.welfare.collect.validation;
 
 import com.example.welfare.collect.dto.BokjiroCentralDto;
 import com.example.welfare.collect.dto.BokjiroLocalDto;
+import com.example.welfare.collect.dto.Gov24ServiceListDto;
 import com.example.welfare.collect.dto.YouthApiDto;
 import lombok.extern.slf4j.Slf4j;
 
@@ -71,6 +72,19 @@ public final class RawFieldValidator {
         }
         if (isBlank(item.getServNm())) {
             log.warn("[Validator][BOKJIRO_LOCAL] title(servNm) 없음 servId={} — skip", item.getServId());
+            return false;
+        }
+        return true;
+    }
+
+    public static boolean isValidGov24(Gov24ServiceListDto.Item item) {
+        if (item == null) return false;
+        if (isBlank(item.getServiceId())) {
+            log.warn("[Validator][GOV24] serviceId 없음 — skip");
+            return false;
+        }
+        if (isBlank(item.getServiceName())) {
+            log.warn("[Validator][GOV24] title(serviceName) 없음 serviceId={} — skip", item.getServiceId());
             return false;
         }
         return true;
@@ -179,6 +193,31 @@ public final class RawFieldValidator {
             if (!isDateSane(item.getLastModYmd()))    stats.recordParseFail("lastModYmd");
             if (!isDateSane(item.getEnfcBgngYmd()))   stats.recordParseFail("enfcBgngYmd");
             if (!isDateSane(item.getEnfcEndYmd()))    stats.recordParseFail("enfcEndYmd");
+        }
+    }
+
+    public static void recordStatsGov24(List<Gov24ServiceListDto.Item> items, FieldQualityStats stats) {
+        for (Gov24ServiceListDto.Item item : items) {
+            stats.record("serviceId",          item.getServiceId());
+            stats.record("title",              item.getServiceName());
+            stats.record("servicePurpose",     item.getServicePurposeSummary());
+            stats.record("supportTarget",      item.getSupportTarget());
+            stats.record("selectionCriteria",  item.getSelectionCriteria());
+            stats.record("supportContent",     item.getSupportContent());
+            stats.record("applyMethod",        item.getApplyMethod());
+            stats.record("applyDeadline",      item.getApplyDeadline());
+            stats.record("detailUrl",          item.getDetailUrl());
+            stats.record("hostOrg",            item.getManagingOrganizationName());
+            stats.record("departmentName",     item.getDepartmentName());
+            stats.record("supportType",        item.getSupportType());
+            stats.record("userType",           item.getUserType());
+            stats.record("serviceField",       item.getServiceField());
+            stats.record("viewCount",          item.getViewCount());
+            stats.record("registeredAt",       item.getRegisteredAt());
+            stats.record("modifiedAt",         item.getModifiedAt());
+
+            if (!isDateSane(item.getRegisteredAt())) stats.recordParseFail("registeredAt");
+            if (!isDateSane(item.getModifiedAt()))   stats.recordParseFail("modifiedAt");
         }
     }
 

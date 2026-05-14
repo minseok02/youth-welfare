@@ -42,9 +42,41 @@ public class CollectAdminController {
     }
 
     @PostMapping("/{sourceKey}")
-    public ResponseEntity<ApiResponse<String>> collectSource(@PathVariable String sourceKey) {
+    public ResponseEntity<ApiResponse<String>> collectSource(@PathVariable String sourceKey,
+                                                             @RequestParam(required = false) Integer maxCallsPerRun,
+                                                             @RequestParam(required = false) String sourceId) {
         CollectSource source = CollectSource.fromPathKey(sourceKey);
         log.info("[Admin] {} 수집 수동 트리거", source.triggerLabel());
+        if (sourceId != null && !sourceId.isBlank()) {
+            CollectResult result = collectAdminService.collect(source, sourceId);
+            return ResponseEntity.ok(ApiResponse.success(
+                    "%s requested=%d saved=%d skipped=%d failed=%d"
+                            .formatted(
+                                    source.successMessage(),
+                                    result.requestedCount(),
+                                    result.savedCount(),
+                                    result.skippedCount(),
+                                    result.failedCount()
+                            )
+            ));
+        }
+        if (maxCallsPerRun != null) {
+            if (maxCallsPerRun <= 0) {
+                throw new CustomException(ErrorCode.INVALID_INPUT);
+            }
+            CollectResult result = collectAdminService.collect(source, maxCallsPerRun);
+            return ResponseEntity.ok(ApiResponse.success(
+                    "%s requested=%d saved=%d skipped=%d failed=%d"
+                            .formatted(
+                                    source.successMessage(),
+                                    result.requestedCount(),
+                                    result.savedCount(),
+                                    result.skippedCount(),
+                                    result.failedCount()
+                            )
+            ));
+        }
+
         collectAdminService.collect(source);
         return ResponseEntity.ok(ApiResponse.success(source.successMessage()));
     }

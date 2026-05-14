@@ -17,4 +17,8 @@ public interface DeferredNormalizedPolicySidecarCommandRepository {
                               List<String> refreshScopeSourceFields);
 
     void upsertMergedFacts(Long serviceId, List<NormalizedPolicyAggregate.Fact> mergedFacts);
+
+    void replaceFactsByCodeSet(Long serviceId,
+                               String factCodeSetKey,
+                               List<NormalizedPolicyAggregate.Fact> facts);
 }

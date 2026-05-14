@@ -1,9 +1,12 @@
 package com.example.welfare.collect.service;
 
+import com.example.welfare.collect.dto.Gov24ServiceDetailDto;
+import com.example.welfare.collect.dto.Gov24SupportConditionsDto;
 import com.example.welfare.collect.dto.YouthApiDto;
 import com.example.welfare.collect.entity.RawApiPayload;
 import com.example.welfare.collect.gateway.BokjiroDetailClient;
 import com.example.welfare.collect.repository.RawApiPayloadCommandRepository;
+import com.example.welfare.collect.repository.RawApiPayloadReadRepository;
 import com.example.welfare.collect.support.ListCollectSourceBinding;
 import com.example.welfare.collect.validation.RawFieldValidator;
 import com.example.welfare.policy.entity.WelfareService;
@@ -16,7 +19,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
 import java.util.HexFormat;
+import java.util.Map;
 
 @Slf4j
 @Service
@@ -24,6 +29,7 @@ import java.util.HexFormat;
 public class RawApiPayloadService {
 
     private final RawApiPayloadCommandRepository rawApiPayloadCommandRepository;
+    private final RawApiPayloadReadRepository rawApiPayloadReadRepository;
     private final ObjectMapper objectMapper;
 
     @Transactional
@@ -63,6 +69,39 @@ public class RawApiPayloadService {
                 RawApiPayload.ApiCategory.DETAIL,
                 detail
         );
+    }
+
+    @Transactional
+    public boolean saveGov24Detail(String sourceId, Gov24ServiceDetailDto.Item detail) {
+        return save(
+                WelfareService.SourceType.GOV24,
+                RawFieldValidator.normalize(sourceId),
+                RawApiPayload.ApiCategory.DETAIL,
+                detail
+        );
+    }
+
+    @Transactional
+    public boolean saveGov24SupportConditions(String sourceId, Gov24SupportConditionsDto.Item detail) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("서비스ID", detail.getServiceId());
+        payload.put("서비스명", detail.getServiceName());
+        payload.put("conditions", new LinkedHashMap<>(detail.getConditions()));
+        return save(
+                WelfareService.SourceType.GOV24,
+                RawFieldValidator.normalize(sourceId),
+                RawApiPayload.ApiCategory.SUPPORT,
+                payload
+        );
+    }
+
+    @Transactional(readOnly = true)
+    public boolean existsGov24SupportConditions(String sourceId) {
+        return rawApiPayloadReadRepository.findBySourceTypeAndSourceIdAndApiCategory(
+                WelfareService.SourceType.GOV24,
+                RawFieldValidator.normalize(sourceId),
+                RawApiPayload.ApiCategory.SUPPORT
+        ).isPresent();
     }
 
     private boolean save(WelfareService.SourceType sourceType,

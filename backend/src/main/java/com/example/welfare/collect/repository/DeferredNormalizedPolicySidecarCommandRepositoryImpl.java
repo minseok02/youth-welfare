@@ -308,6 +308,18 @@ public class DeferredNormalizedPolicySidecarCommandRepositoryImpl
         }
     }
 
+    @Override
+    public void replaceFactsByCodeSet(Long serviceId,
+                                      String factCodeSetKey,
+                                      List<NormalizedPolicyAggregate.Fact> facts) {
+        jdbcTemplate.update("""
+                DELETE FROM service_facts
+                WHERE service_id = ?
+                  AND fact_code_set_key = ?
+                """, serviceId, factCodeSetKey);
+        upsertMergedFacts(serviceId, facts);
+    }
+
     private Object[] buildSummarySlotDeleteArgs(Long serviceId) {
         List<Object> args = new ArrayList<>();
         args.add(serviceId);

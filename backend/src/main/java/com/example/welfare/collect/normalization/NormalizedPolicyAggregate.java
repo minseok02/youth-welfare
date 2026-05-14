@@ -132,7 +132,8 @@ public record NormalizedPolicyAggregate(
     public enum SourceType {
         YOUTH,
         BOKJIRO_CENTRAL,
-        BOKJIRO_LOCAL
+        BOKJIRO_LOCAL,
+        GOV24
     }
 
     public enum ServiceStatus {

@@ -2,6 +2,9 @@ package com.example.welfare.collect.mapper;
 
 import com.example.welfare.collect.dto.BokjiroCentralDto;
 import com.example.welfare.collect.dto.BokjiroLocalDto;
+import com.example.welfare.collect.dto.Gov24ServiceDetailDto;
+import com.example.welfare.collect.dto.Gov24ServiceListDto;
+import com.example.welfare.collect.dto.Gov24SupportConditionsDto;
 import com.example.welfare.collect.dto.YouthApiDto;
 import com.example.welfare.global.util.RegionCodeUtil;
 import com.example.welfare.collect.gateway.BokjiroDetailClient;
@@ -9,6 +12,7 @@ import com.example.welfare.collect.normalization.NormalizedPolicyAggregate;
 import com.example.welfare.collect.support.BokjiroNormalizationSupport;
 import com.example.welfare.collect.support.CollectCategorySupport;
 import com.example.welfare.collect.support.YouthNormalizationSupport;
+import com.example.welfare.collect.support.NormalizationKeySupport;
 import com.example.welfare.collect.validation.RawFieldValidator;
 import com.example.welfare.collect.validation.TextConstraintExtractor;
 import com.example.welfare.policy.entity.ServiceRegion;
@@ -364,6 +368,194 @@ public class WelfareServiceMapper {
                 .build());
     }
 
+    // ===== Gov24 =====
+
+    public WelfareService fromGov24(Gov24ServiceListDto.Item item) {
+        TextConstraintExtractor.ConstraintSummary constraints = TextConstraintExtractor.summarize(
+                item.getSupportTarget(),
+                item.getSelectionCriteria(),
+                item.getApplyDeadline()
+        );
+        String detailUrl = firstNormalizedUrl(item.getDetailUrl());
+        return WelfareService.builder()
+                .sourceType(WelfareService.SourceType.GOV24)
+                .sourceId(RawFieldValidator.normalize(item.getServiceId()))
+                .title(stripAndNormalize(item.getServiceName()))
+                .description(stripAndNormalize(item.getServicePurposeSummary()))
+                .supportContent(firstNonBlank(
+                        stripAndNormalize(item.getSupportContent()),
+                        stripAndNormalize(item.getServicePurposeSummary())
+                ))
+                .categoryMain(RawFieldValidator.normalize(item.getServiceField()))
+                .categorySub(RawFieldValidator.normalize(item.getUserType()))
+                .keyword(RawFieldValidator.normalize(item.getSupportType()))
+                .unifiedCategory(CollectCategorySupport.mapGov24CompatCategory(
+                        item.getServiceField(),
+                        item.getServiceName(),
+                        item.getServicePurposeSummary(),
+                        item.getSupportType()
+                ))
+                .hostOrg(RawFieldValidator.normalize(item.getManagingOrganizationName()))
+                .operatingOrg(firstNonBlank(item.getDepartmentName(), item.getReceptionOrganization()))
+                .minAge(constraints.minAge())
+                .maxAge(constraints.maxAge())
+                .applyEndDate(constraints.applyEndDate())
+                .supportCycle(null)
+                .provisionType(RawFieldValidator.normalize(item.getSupportType()))
+                .applyMethodName(RawFieldValidator.normalize(item.getApplyMethod()))
+                .isOnlineApply(inferOnlineApply(detailUrl, item.getApplyMethod()))
+                .detailUrl(detailUrl)
+                .apiViewCount(item.getViewCount() != null ? item.getViewCount() : 0L)
+                .registeredAt(parseDateTimeLoose(item.getRegisteredAt()))
+                .lastModifiedAt(parseDateTimeLoose(item.getModifiedAt()))
+                .status(WelfareService.ServiceStatus.ACTIVE)
+                .build();
+    }
+
+    public NormalizedPolicyAggregate toNormalizedGov24(Gov24ServiceListDto.Item item) {
+        WelfareService service = fromGov24(item);
+        return NormalizedPolicyAggregate.builder()
+                .core(buildCore(service))
+                .detail(buildDetail(service, null))
+                .taxonomy(NormalizedPolicyAggregate.TaxonomySummary.builder()
+                        .compatUnifiedCategory(service.getUnifiedCategory())
+                        .provisionMethod(service.getApplyMethodName())
+                        .summaryLabels(summaryLabels(
+                                NormalizationKeySupport.SUMMARY_KEY_GOV24_SERVICE_FIELD, item.getServiceField(),
+                                NormalizationKeySupport.SUMMARY_KEY_GOV24_USER_TYPE, item.getUserType(),
+                                NormalizationKeySupport.SUMMARY_KEY_GOV24_BENEFIT_TYPE, item.getSupportType()
+                        ))
+                        .authority(NormalizedPolicyAggregate.Authority.OFFICIAL)
+                        .confidence(BigDecimal.ONE)
+                        .build())
+                .build();
+    }
+
+    public NormalizedPolicyAggregate toGov24DetailAggregate(WelfareService service, Gov24ServiceDetailDto.Item detail) {
+        String onlineApplyUrl = normalizeUrl(detail.getOnlineApplySiteUrl());
+        String detailUrl = firstNonBlank(service.getDetailUrl(), onlineApplyUrl);
+        boolean onlineApply = onlineApplyUrl != null || inferOnlineApply(detailUrl, detail.getApplyMethod());
+        return NormalizedPolicyAggregate.builder()
+                .core(NormalizedPolicyAggregate.Core.builder()
+                        .sourceType(NormalizedPolicyAggregate.SourceType.valueOf(service.getSourceType().name()))
+                        .sourceId(service.getSourceId())
+                        .title(service.getTitle())
+                        .summary(firstNonBlank(service.getDescription(), service.getSupportContent(), detail.getServicePurpose()))
+                        .description(firstNonBlank(
+                                stripAndNormalize(detail.getServicePurpose()),
+                                service.getDescription()
+                        ))
+                        .supportContent(firstNonBlank(
+                                stripAndNormalize(detail.getSupportContent()),
+                                service.getSupportContent()
+                        ))
+                        .hostOrg(firstNonBlank(
+                                RawFieldValidator.normalize(detail.getManagingOrganizationName()),
+                                service.getHostOrg()
+                        ))
+                        .operatingOrg(firstNonBlank(
+                                RawFieldValidator.normalize(detail.getReceptionOrganizationName()),
+                                service.getOperatingOrg()
+                        ))
+                        .status(NormalizedPolicyAggregate.ServiceStatus.valueOf(service.getStatus().name()))
+                        .startDate(service.getStartDate())
+                        .endDate(service.getEndDate())
+                        .applyStartDate(service.getApplyStartDate())
+                        .applyEndDate(service.getApplyEndDate())
+                        .detailUrl(detailUrl)
+                        .onlineApply(onlineApply)
+                        .apiViewCount(service.getApiViewCount())
+                        .registeredAt(service.getRegisteredAt())
+                        .lastModifiedAt(firstNonBlankDateTime(
+                                parseDateTimeLoose(detail.getModifiedAt()),
+                                service.getLastModifiedAt()
+                        ))
+                        .build())
+                .detail(NormalizedPolicyAggregate.Detail.builder()
+                        .targetDetail(firstNonBlank(
+                                RawFieldValidator.normalize(detail.getSupportTarget()),
+                                service.getDescription()
+                        ))
+                        .supportDetail(firstNonBlank(
+                                stripAndNormalize(detail.getSupportContent()),
+                                service.getSupportContent()
+                        ))
+                        .applyMethodDetail(firstNonBlank(
+                                stripAndNormalize(detail.getApplyMethod()),
+                                service.getApplyMethodName()
+                        ))
+                        .selectionCriteria(RawFieldValidator.normalize(detail.getSelectionCriteria()))
+                        .requiredDocuments(joinLabeledLines(
+                                "구비서류", detail.getRequiredDocuments(),
+                                "공무원확인구비서류", detail.getPublicOfficerVerifiedDocuments(),
+                                "본인확인필요구비서류", detail.getIdentityVerificationDocuments()
+                        ))
+                        .contactText(RawFieldValidator.normalize(detail.getContact()))
+                        .legalBasisText(joinLabeledLines(
+                                "행정규칙", detail.getAdministrativeRule(),
+                                "자치법규", detail.getLocalRegulation(),
+                                "법령", detail.getLaw()
+                        ))
+                        .onlineApplyUrl(onlineApplyUrl)
+                        .referenceUrlsJson(buildReferenceUrlsJson(referenceUrlCandidates(
+                                        referenceUrlCandidate(service.getDetailUrl(), "DETAIL", "detailUrl", "대표 상세 링크", 0.95d),
+                                        referenceUrlCandidate(detail.getOnlineApplySiteUrl(), "APPLY", "onlineApplySiteUrl", "온라인 신청 사이트", 1.0d)
+                                ),
+                                detail.getApplyMethod(),
+                                detail.getSupportContent(),
+                                detail.getSelectionCriteria(),
+                                detail.getSupportTarget(),
+                                detail.getRequiredDocuments(),
+                                detail.getAdministrativeRule(),
+                                detail.getLocalRegulation(),
+                                detail.getLaw()))
+                        .supportCycle(service.getSupportCycle())
+                        .provisionType(firstNonBlank(
+                                RawFieldValidator.normalize(detail.getSupportType()),
+                                service.getProvisionType()
+                        ))
+                        .build())
+                .taxonomy(NormalizedPolicyAggregate.TaxonomySummary.builder()
+                        .compatUnifiedCategory(service.getUnifiedCategory())
+                        .authority(NormalizedPolicyAggregate.Authority.OFFICIAL)
+                        .confidence(BigDecimal.ONE)
+                        .build())
+                .build();
+    }
+
+    public NormalizedPolicyAggregate toGov24SupportConditionsAggregate(WelfareService service, Gov24SupportConditionsDto.Item item) {
+        return NormalizedPolicyAggregate.builder()
+                .core(buildCore(service))
+                .facts(gov24SupportConditionFacts(item))
+                .build();
+    }
+
+    public List<ServiceTag> tagsFromGov24(Gov24ServiceListDto.Item item, WelfareService service) {
+        List<ServiceTag> tags = new ArrayList<>();
+        String serviceField = RawFieldValidator.normalize(item.getServiceField());
+        if (serviceField != null) {
+            tags.add(buildTag(service, ServiceTag.TagType.INTEREST_THEME, serviceField));
+        }
+        String userType = RawFieldValidator.normalize(item.getUserType());
+        if (userType != null) {
+            tags.add(buildTag(service, ServiceTag.TagType.TARGET_GROUP, userType));
+        }
+        String supportType = RawFieldValidator.normalize(item.getSupportType());
+        if (supportType != null) {
+            tags.add(buildTag(service, ServiceTag.TagType.KEYWORD, supportType));
+        }
+        addConstraintKeywordTags(tags, service,
+                item.getSupportTarget(),
+                item.getSelectionCriteria(),
+                item.getSupportContent(),
+                item.getApplyMethod());
+        return tags;
+    }
+
+    public List<ServiceRegion> regionsFromGov24(Gov24ServiceListDto.Item item, WelfareService service) {
+        return List.of();
+    }
+
     // ===== 공통 유틸 =====
 
     /** Jsoup으로 HTML 태그 제거 후 RawFieldValidator로 null/blank 정규화 */
@@ -557,6 +749,10 @@ public class WelfareServiceMapper {
                 .build();
     }
 
+    private LocalDateTime firstNonBlankDateTime(LocalDateTime preferred, LocalDateTime fallback) {
+        return preferred != null ? preferred : fallback;
+    }
+
     private NormalizedPolicyAggregate.Detail buildDetail(WelfareService service,
                                                          BokjiroDetailClient.DetailPayload detailPayload) {
         return NormalizedPolicyAggregate.Detail.builder()
@@ -714,6 +910,162 @@ public class WelfareServiceMapper {
                 .replace("\"", "\\\"")
                 .replace("\n", "\\n")
                 .replace("\r", "\\r");
+    }
+
+    private String joinLabeledLines(String... labeledValues) {
+        if (labeledValues == null || labeledValues.length == 0) {
+            return null;
+        }
+        StringBuilder builder = new StringBuilder();
+        for (int i = 0; i + 1 < labeledValues.length; i += 2) {
+            String label = labeledValues[i];
+            String value = RawFieldValidator.normalize(labeledValues[i + 1]);
+            if (label == null || value == null) {
+                continue;
+            }
+            if (!builder.isEmpty()) {
+                builder.append('\n');
+            }
+            builder.append(label).append(": ").append(value);
+        }
+        return builder.isEmpty() ? null : builder.toString();
+    }
+
+    private List<NormalizedPolicyAggregate.Fact> gov24SupportConditionFacts(Gov24SupportConditionsDto.Item item) {
+        List<NormalizedPolicyAggregate.Fact> facts = new ArrayList<>();
+        Map<String, Object> conditions = item.getConditions();
+        if (conditions == null || conditions.isEmpty()) {
+            return facts;
+        }
+
+        Integer minAge = parseIntegerObject(conditions.get("JA0110"));
+        Integer maxAge = parseIntegerObject(conditions.get("JA0111"));
+        if (minAge != null || maxAge != null) {
+            facts.add(NormalizedPolicyAggregate.Fact.builder()
+                    .factGroup(NormalizationKeySupport.FACT_GROUP_AGE)
+                    .factCodeSetKey("GOV24_SUPPORT_CONDITION")
+                    .factCode("GOV24_SUPPORT_CONDITION_AGE")
+                    .factMergeKey("GOV24_AGE_ELIGIBILITY")
+                    .factLabel("지원 연령")
+                    .operator(NormalizedPolicyAggregate.Operator.RANGE)
+                    .valueType(NormalizedPolicyAggregate.ValueType.INTEGER)
+                    .rangeMinInt(minAge)
+                    .rangeMaxInt(maxAge)
+                    .sourceField("JA0110/JA0111")
+                    .authority(NormalizedPolicyAggregate.Authority.OFFICIAL)
+                    .confidence(BigDecimal.ONE)
+                    .rawValue(joinRawValues(conditions.get("JA0110"), conditions.get("JA0111")))
+                    .evidenceText(item.getServiceName())
+                    .build());
+        }
+
+        gov24FlagFact(facts, conditions, "JA0101", "GENDER", "남성", "GOV24_GENDER:MALE");
+        gov24FlagFact(facts, conditions, "JA0102", "GENDER", "여성", "GOV24_GENDER:FEMALE");
+
+        gov24FlagFact(facts, conditions, "JA0201", "INCOME", "중위소득 0~50%", "GOV24_INCOME:JA0201");
+        gov24FlagFact(facts, conditions, "JA0202", "INCOME", "중위소득 51~75%", "GOV24_INCOME:JA0202");
+        gov24FlagFact(facts, conditions, "JA0203", "INCOME", "중위소득 76~100%", "GOV24_INCOME:JA0203");
+        gov24FlagFact(facts, conditions, "JA0204", "INCOME", "중위소득 101~200%", "GOV24_INCOME:JA0204");
+        gov24FlagFact(facts, conditions, "JA0205", "INCOME", "중위소득 200% 초과", "GOV24_INCOME:JA0205");
+
+        gov24FlagFact(facts, conditions, "JA0317", "EDUCATION", "초등학생", "GOV24_EDUCATION:JA0317");
+        gov24FlagFact(facts, conditions, "JA0318", "EDUCATION", "중학생", "GOV24_EDUCATION:JA0318");
+        gov24FlagFact(facts, conditions, "JA0319", "EDUCATION", "고등학생", "GOV24_EDUCATION:JA0319");
+        gov24FlagFact(facts, conditions, "JA0320", "EDUCATION", "대학생/대학원생", "GOV24_EDUCATION:JA0320");
+
+        gov24FlagFact(facts, conditions, "JA0326", "EMPLOYMENT", "근로자/직장인", "GOV24_EMPLOYMENT:JA0326");
+        gov24FlagFact(facts, conditions, "JA0327", "EMPLOYMENT", "구직자/실업자", "GOV24_EMPLOYMENT:JA0327");
+
+        gov24FlagFact(facts, conditions, "JA0401", "HOUSEHOLD", "다문화가족", "GOV24_HOUSEHOLD:JA0401");
+        gov24FlagFact(facts, conditions, "JA0402", "HOUSEHOLD", "북한이탈주민", "GOV24_HOUSEHOLD:JA0402");
+        gov24FlagFact(facts, conditions, "JA0403", "HOUSEHOLD", "한부모가정/조손가정", "GOV24_HOUSEHOLD:JA0403");
+        gov24FlagFact(facts, conditions, "JA0404", "HOUSEHOLD", "1인가구", "GOV24_HOUSEHOLD:JA0404");
+        gov24FlagFact(facts, conditions, "JA0411", "HOUSEHOLD", "다자녀가구", "GOV24_HOUSEHOLD:JA0411");
+        gov24FlagFact(facts, conditions, "JA0412", "HOUSEHOLD", "무주택세대", "GOV24_HOUSEHOLD:JA0412");
+        gov24FlagFact(facts, conditions, "JA0413", "HOUSEHOLD", "신규전입", "GOV24_HOUSEHOLD:JA0413");
+        gov24FlagFact(facts, conditions, "JA0414", "HOUSEHOLD", "확대가족", "GOV24_HOUSEHOLD:JA0414");
+
+        gov24FlagFact(facts, conditions, "JA0328", "SPECIAL_GROUP", "장애인", "GOV24_SPECIAL:JA0328");
+        gov24FlagFact(facts, conditions, "JA0329", "SPECIAL_GROUP", "국가보훈대상자", "GOV24_SPECIAL:JA0329");
+        gov24FlagFact(facts, conditions, "JA0330", "SPECIAL_GROUP", "질병/질환자", "GOV24_SPECIAL:JA0330");
+
+        return facts;
+    }
+
+    private void gov24FlagFact(List<NormalizedPolicyAggregate.Fact> facts,
+                               Map<String, Object> conditions,
+                               String code,
+                               String factGroup,
+                               String label,
+                               String mergeKey) {
+        Object raw = conditions.get(code);
+        if (!isEnabledSupportCondition(raw)) {
+            return;
+        }
+        facts.add(NormalizedPolicyAggregate.Fact.builder()
+                .factGroup(factGroup)
+                .factCodeSetKey("GOV24_SUPPORT_CONDITION")
+                .factCode(code)
+                .factMergeKey(mergeKey)
+                .factLabel(label)
+                .operator(NormalizedPolicyAggregate.Operator.FLAG)
+                .valueType(NormalizedPolicyAggregate.ValueType.BOOLEAN)
+                .boolValue(Boolean.TRUE)
+                .sourceField(code)
+                .authority(NormalizedPolicyAggregate.Authority.OFFICIAL)
+                .confidence(BigDecimal.ONE)
+                .rawValue(String.valueOf(raw))
+                .evidenceText(label)
+                .build());
+    }
+
+    private Integer parseIntegerObject(Object raw) {
+        if (raw == null) {
+            return null;
+        }
+        if (raw instanceof Number number) {
+            int value = number.intValue();
+            return value > 0 ? value : null;
+        }
+        String normalized = RawFieldValidator.normalize(String.valueOf(raw));
+        if (normalized == null) {
+            return null;
+        }
+        try {
+            int value = Integer.parseInt(normalized);
+            return value > 0 ? value : null;
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    private boolean isEnabledSupportCondition(Object raw) {
+        if (raw == null) {
+            return false;
+        }
+        if (raw instanceof Number number) {
+            return number.intValue() != 0;
+        }
+        String normalized = RawFieldValidator.normalize(String.valueOf(raw));
+        if (normalized == null) {
+            return false;
+        }
+        String lower = normalized.toLowerCase(java.util.Locale.ROOT);
+        return !("0".equals(lower) || "n".equals(lower) || "false".equals(lower) || "해당사항없음".equals(normalized));
+    }
+
+    private String joinRawValues(Object left, Object right) {
+        StringBuilder builder = new StringBuilder();
+        if (left != null) {
+            builder.append("min=").append(left);
+        }
+        if (right != null) {
+            if (!builder.isEmpty()) {
+                builder.append(", ");
+            }
+            builder.append("max=").append(right);
+        }
+        return builder.isEmpty() ? null : builder.toString();
     }
 
     private record ReferenceUrlCandidate(

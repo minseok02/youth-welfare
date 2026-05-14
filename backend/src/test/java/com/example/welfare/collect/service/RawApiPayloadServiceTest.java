@@ -1,9 +1,14 @@
 package com.example.welfare.collect.service;
 
 import com.example.welfare.collect.dto.BokjiroCentralDto;
+import com.example.welfare.collect.dto.Gov24ServiceDetailDto;
+import com.example.welfare.collect.dto.Gov24ServiceListDto;
+import com.example.welfare.collect.dto.Gov24SupportConditionsDto;
 import com.example.welfare.collect.dto.YouthApiDto;
 import com.example.welfare.collect.mapper.WelfareServiceMapper;
 import com.example.welfare.collect.repository.RawApiPayloadCommandRepository;
+import com.example.welfare.collect.repository.RawApiPayloadReadRepository;
+import com.example.welfare.collect.support.CollectSourceRegistry;
 import com.example.welfare.collect.support.ListCollectSourceBinding;
 import com.example.welfare.collect.support.ListCollectSourceBindings;
 import com.example.welfare.collect.normalization.NormalizedPolicyAggregate;
@@ -34,6 +39,8 @@ class RawApiPayloadServiceTest {
     @Mock
     private RawApiPayloadCommandRepository rawApiPayloadCommandRepository;
     @Mock
+    private RawApiPayloadReadRepository rawApiPayloadReadRepository;
+    @Mock
     private WelfareServiceMapper welfareServiceMapper;
 
     private RawApiPayloadService rawApiPayloadService;
@@ -42,6 +49,7 @@ class RawApiPayloadServiceTest {
     void setUp() {
         rawApiPayloadService = new RawApiPayloadService(
                 rawApiPayloadCommandRepository,
+                rawApiPayloadReadRepository,
                 new ObjectMapper()
         );
     }
@@ -134,6 +142,84 @@ class RawApiPayloadServiceTest {
         );
         assertThat(payloadJsonCaptor.getValue()).contains("\"refUrlAddr1\":\"https://reference-one.example.com\"");
         assertThat(payloadJsonCaptor.getValue()).contains("\"refUrlAddr2\":\"https://reference-two.example.com\"");
+    }
+
+    @Test
+    void saveGov24ListStoresJsonObjectPayload() {
+        Gov24ServiceListDto.Item item = new Gov24ServiceListDto.Item();
+        ListCollectSourceBinding<Gov24ServiceListDto.Item> binding = CollectSourceRegistry.GOV24.listBinding(welfareServiceMapper);
+        ReflectionTestUtils.setField(item, "serviceId", "351050000109");
+        ReflectionTestUtils.setField(item, "serviceName", "저소득주민 국민건강보험료 지원");
+        ReflectionTestUtils.setField(item, "viewCount", 90430L);
+
+        boolean saved = rawApiPayloadService.saveList(binding, item);
+
+        assertThat(saved).isTrue();
+        org.mockito.ArgumentCaptor<String> payloadJsonCaptor = org.mockito.ArgumentCaptor.forClass(String.class);
+        verify(rawApiPayloadCommandRepository).upsert(
+                eq(WelfareService.SourceType.GOV24),
+                eq("351050000109"),
+                eq(com.example.welfare.collect.entity.RawApiPayload.ApiCategory.LIST),
+                payloadJsonCaptor.capture(),
+                any(String.class),
+                any(java.time.LocalDateTime.class)
+        );
+        assertThat(payloadJsonCaptor.getValue()).contains("\"서비스ID\":\"351050000109\"");
+        assertThat(payloadJsonCaptor.getValue()).contains("\"서비스명\":\"저소득주민 국민건강보험료 지원\"");
+        assertThat(payloadJsonCaptor.getValue()).contains("\"조회수\":90430");
+    }
+
+    @Test
+    void saveGov24DetailStoresJsonObjectPayload() {
+        Gov24ServiceDetailDto.Item item = new Gov24ServiceDetailDto.Item();
+        ReflectionTestUtils.setField(item, "serviceId", "351050000109");
+        ReflectionTestUtils.setField(item, "serviceName", "저소득주민 국민건강보험료 지원");
+        ReflectionTestUtils.setField(item, "servicePurpose", "상세 내용");
+
+        boolean saved = rawApiPayloadService.saveGov24Detail("351050000109", item);
+
+        assertThat(saved).isTrue();
+        org.mockito.ArgumentCaptor<String> payloadJsonCaptor = org.mockito.ArgumentCaptor.forClass(String.class);
+        verify(rawApiPayloadCommandRepository).upsert(
+                eq(WelfareService.SourceType.GOV24),
+                eq("351050000109"),
+                eq(com.example.welfare.collect.entity.RawApiPayload.ApiCategory.DETAIL),
+                payloadJsonCaptor.capture(),
+                any(String.class),
+                any(java.time.LocalDateTime.class)
+        );
+        assertThat(payloadJsonCaptor.getValue()).contains("\"서비스ID\":\"351050000109\"");
+        assertThat(payloadJsonCaptor.getValue()).contains("\"서비스명\":\"저소득주민 국민건강보험료 지원\"");
+        assertThat(payloadJsonCaptor.getValue()).contains("\"서비스목적\":\"상세 내용\"");
+    }
+
+    @Test
+    void saveGov24SupportConditionsStoresJsonObjectPayload() {
+        Gov24SupportConditionsDto.Item item = new Gov24SupportConditionsDto.Item();
+        ReflectionTestUtils.setField(item, "serviceId", "351050000109");
+        ReflectionTestUtils.setField(item, "serviceName", "저소득주민 국민건강보험료 지원");
+        @SuppressWarnings("unchecked")
+        java.util.Map<String, Object> conditions = (java.util.Map<String, Object>) ReflectionTestUtils.getField(item, "conditions");
+        conditions.put("JA0101", "Y");
+        conditions.put("JA0111", 120);
+
+        boolean saved = rawApiPayloadService.saveGov24SupportConditions("351050000109", item);
+
+        assertThat(saved).isTrue();
+        org.mockito.ArgumentCaptor<String> payloadJsonCaptor = org.mockito.ArgumentCaptor.forClass(String.class);
+        verify(rawApiPayloadCommandRepository).upsert(
+                eq(WelfareService.SourceType.GOV24),
+                eq("351050000109"),
+                eq(com.example.welfare.collect.entity.RawApiPayload.ApiCategory.SUPPORT),
+                payloadJsonCaptor.capture(),
+                any(String.class),
+                any(java.time.LocalDateTime.class)
+        );
+        assertThat(payloadJsonCaptor.getValue()).contains("\"서비스ID\":\"351050000109\"");
+        assertThat(payloadJsonCaptor.getValue()).contains("\"서비스명\":\"저소득주민 국민건강보험료 지원\"");
+        assertThat(payloadJsonCaptor.getValue()).contains("\"conditions\":{");
+        assertThat(payloadJsonCaptor.getValue()).contains("\"JA0101\":\"Y\"");
+        assertThat(payloadJsonCaptor.getValue()).contains("\"JA0111\":120");
     }
 
     @Test
