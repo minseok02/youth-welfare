@@ -6,11 +6,14 @@ source "${ROOT_DIR}/deploy/smoke/smoke-common.sh"
 
 VALIDATION_PROFILE="${VALIDATION_PROFILE:-full}"
 RUN_AUTH_SESSION_SMOKE="${RUN_AUTH_SESSION_SMOKE:-}"
+RUN_PUBLIC_PROFILE_CHAT_SMOKE="${RUN_PUBLIC_PROFILE_CHAT_SMOKE:-}"
+RUN_BOOKMARK_CONSISTENCY_SMOKE="${RUN_BOOKMARK_CONSISTENCY_SMOKE:-}"
 RUN_RECOMMENDATION_CLICK_SMOKE="${RUN_RECOMMENDATION_CLICK_SMOKE:-}"
 RUN_ADMIN_DASHBOARD_SMOKE="${RUN_ADMIN_DASHBOARD_SMOKE:-}"
 RUN_REPLAY_SMOKE="${RUN_REPLAY_SMOKE:-}"
 ONLY_STEP="${ONLY_STEP:-}"
 KEEP_ARTIFACTS="${KEEP_ARTIFACTS:-false}"
+REPLAY_APP_BASE_URL="${REPLAY_APP_BASE_URL:-}"
 SUITE_START_EPOCH="$(date +%s)"
 STEP_SUMMARY_LINES=()
 CURRENT_STEP_LABEL=""
@@ -31,22 +34,25 @@ print_usage() {
 usage: deploy/smoke/run-local-validation-suite.sh [--help] [--print-plan] [--quick|--full] [--skip-replay] [--keep-artifacts] [--only STEP]
 
 Profiles:
-  VALIDATION_PROFILE=full   auth/session + click + admin dashboard + replay
-  VALIDATION_PROFILE=quick  auth/session + click + admin dashboard
+  VALIDATION_PROFILE=full   auth/session + public/profile/chat + bookmark + click + admin dashboard + replay
+  VALIDATION_PROFILE=quick  auth/session + public/profile/chat + bookmark + click + admin dashboard
 
 CLI shortcuts:
   --quick        set VALIDATION_PROFILE=quick
   --full         set VALIDATION_PROFILE=full
   --skip-replay  force RUN_REPLAY_SMOKE=false
   --keep-artifacts  force KEEP_ARTIFACTS=true for replay debugging
-  --only STEP    run only one step: auth-session | click | dashboard | replay
+  --only STEP    run only one step: auth-session | public-chat | bookmark | click | dashboard | replay
 
 Optional overrides:
   RUN_AUTH_SESSION_SMOKE=true|false
+  RUN_PUBLIC_PROFILE_CHAT_SMOKE=true|false
+  RUN_BOOKMARK_CONSISTENCY_SMOKE=true|false
   RUN_RECOMMENDATION_CLICK_SMOKE=true|false
   RUN_ADMIN_DASHBOARD_SMOKE=true|false
   RUN_REPLAY_SMOKE=true|false
-  ONLY_STEP=auth-session|click|dashboard|replay
+  REPLAY_APP_BASE_URL=http://127.0.0.1:18082
+  ONLY_STEP=auth-session|public-chat|bookmark|click|dashboard|replay
   KEEP_ARTIFACTS=true|false
 
 Examples:
@@ -67,30 +73,53 @@ apply_only_step() {
       ;;
     auth-session)
       RUN_AUTH_SESSION_SMOKE="true"
+      RUN_PUBLIC_PROFILE_CHAT_SMOKE="false"
+      RUN_RECOMMENDATION_CLICK_SMOKE="false"
+      RUN_ADMIN_DASHBOARD_SMOKE="false"
+      RUN_REPLAY_SMOKE="false"
+      ;;
+    public-chat)
+      RUN_AUTH_SESSION_SMOKE="false"
+      RUN_PUBLIC_PROFILE_CHAT_SMOKE="true"
+      RUN_BOOKMARK_CONSISTENCY_SMOKE="false"
+      RUN_RECOMMENDATION_CLICK_SMOKE="false"
+      RUN_ADMIN_DASHBOARD_SMOKE="false"
+      RUN_REPLAY_SMOKE="false"
+      ;;
+    bookmark)
+      RUN_AUTH_SESSION_SMOKE="false"
+      RUN_PUBLIC_PROFILE_CHAT_SMOKE="false"
+      RUN_BOOKMARK_CONSISTENCY_SMOKE="true"
       RUN_RECOMMENDATION_CLICK_SMOKE="false"
       RUN_ADMIN_DASHBOARD_SMOKE="false"
       RUN_REPLAY_SMOKE="false"
       ;;
     click)
       RUN_AUTH_SESSION_SMOKE="false"
+      RUN_PUBLIC_PROFILE_CHAT_SMOKE="false"
+      RUN_BOOKMARK_CONSISTENCY_SMOKE="false"
       RUN_RECOMMENDATION_CLICK_SMOKE="true"
       RUN_ADMIN_DASHBOARD_SMOKE="false"
       RUN_REPLAY_SMOKE="false"
       ;;
     dashboard)
       RUN_AUTH_SESSION_SMOKE="false"
+      RUN_PUBLIC_PROFILE_CHAT_SMOKE="false"
+      RUN_BOOKMARK_CONSISTENCY_SMOKE="false"
       RUN_RECOMMENDATION_CLICK_SMOKE="false"
       RUN_ADMIN_DASHBOARD_SMOKE="true"
       RUN_REPLAY_SMOKE="false"
       ;;
     replay)
       RUN_AUTH_SESSION_SMOKE="false"
+      RUN_PUBLIC_PROFILE_CHAT_SMOKE="false"
+      RUN_BOOKMARK_CONSISTENCY_SMOKE="false"
       RUN_RECOMMENDATION_CLICK_SMOKE="false"
       RUN_ADMIN_DASHBOARD_SMOKE="false"
       RUN_REPLAY_SMOKE="true"
       ;;
     *)
-      echo "unsupported ONLY_STEP: ${ONLY_STEP} (expected auth-session, click, dashboard, or replay)" >&2
+      echo "unsupported ONLY_STEP: ${ONLY_STEP} (expected auth-session, public-chat, bookmark, click, dashboard, or replay)" >&2
       exit 1
       ;;
   esac
@@ -100,12 +129,16 @@ resolve_profile_defaults() {
   case "${VALIDATION_PROFILE}" in
     quick)
       RUN_AUTH_SESSION_SMOKE="${RUN_AUTH_SESSION_SMOKE:-true}"
+      RUN_PUBLIC_PROFILE_CHAT_SMOKE="${RUN_PUBLIC_PROFILE_CHAT_SMOKE:-true}"
+      RUN_BOOKMARK_CONSISTENCY_SMOKE="${RUN_BOOKMARK_CONSISTENCY_SMOKE:-true}"
       RUN_RECOMMENDATION_CLICK_SMOKE="${RUN_RECOMMENDATION_CLICK_SMOKE:-true}"
       RUN_ADMIN_DASHBOARD_SMOKE="${RUN_ADMIN_DASHBOARD_SMOKE:-true}"
       RUN_REPLAY_SMOKE="${RUN_REPLAY_SMOKE:-false}"
       ;;
     full)
       RUN_AUTH_SESSION_SMOKE="${RUN_AUTH_SESSION_SMOKE:-true}"
+      RUN_PUBLIC_PROFILE_CHAT_SMOKE="${RUN_PUBLIC_PROFILE_CHAT_SMOKE:-true}"
+      RUN_BOOKMARK_CONSISTENCY_SMOKE="${RUN_BOOKMARK_CONSISTENCY_SMOKE:-true}"
       RUN_RECOMMENDATION_CLICK_SMOKE="${RUN_RECOMMENDATION_CLICK_SMOKE:-true}"
       RUN_ADMIN_DASHBOARD_SMOKE="${RUN_ADMIN_DASHBOARD_SMOKE:-true}"
       RUN_REPLAY_SMOKE="${RUN_REPLAY_SMOKE:-true}"
@@ -117,6 +150,8 @@ resolve_profile_defaults() {
   esac
 
   RUN_AUTH_SESSION_SMOKE="$(normalize_flag "${RUN_AUTH_SESSION_SMOKE}")"
+  RUN_PUBLIC_PROFILE_CHAT_SMOKE="$(normalize_flag "${RUN_PUBLIC_PROFILE_CHAT_SMOKE}")"
+  RUN_BOOKMARK_CONSISTENCY_SMOKE="$(normalize_flag "${RUN_BOOKMARK_CONSISTENCY_SMOKE}")"
   RUN_RECOMMENDATION_CLICK_SMOKE="$(normalize_flag "${RUN_RECOMMENDATION_CLICK_SMOKE}")"
   RUN_ADMIN_DASHBOARD_SMOKE="$(normalize_flag "${RUN_ADMIN_DASHBOARD_SMOKE}")"
   RUN_REPLAY_SMOKE="$(normalize_flag "${RUN_REPLAY_SMOKE}")"
@@ -202,9 +237,11 @@ done
 resolve_profile_defaults
 apply_only_step
 
-printf 'validation_profile=%s auth=%s click=%s dashboard=%s replay=%s' \
+printf 'validation_profile=%s auth=%s public_chat=%s bookmark=%s click=%s dashboard=%s replay=%s' \
   "${VALIDATION_PROFILE}" \
   "${RUN_AUTH_SESSION_SMOKE}" \
+  "${RUN_PUBLIC_PROFILE_CHAT_SMOKE}" \
+  "${RUN_BOOKMARK_CONSISTENCY_SMOKE}" \
   "${RUN_RECOMMENDATION_CLICK_SMOKE}" \
   "${RUN_ADMIN_DASHBOARD_SMOKE}" \
   "${RUN_REPLAY_SMOKE}"
@@ -229,6 +266,18 @@ if [[ "${RUN_AUTH_SESSION_SMOKE}" == "true" ]]; then
     "${ROOT_DIR}/deploy/smoke/run-local-auth-session-smoke.sh"
 fi
 
+if [[ "${RUN_PUBLIC_PROFILE_CHAT_SMOKE}" == "true" ]]; then
+  run_step \
+    "public policy + profile/priorities + chat smoke" \
+    "${ROOT_DIR}/deploy/smoke/run-local-public-profile-chat-smoke.sh"
+fi
+
+if [[ "${RUN_BOOKMARK_CONSISTENCY_SMOKE}" == "true" ]]; then
+  run_step \
+    "bookmark consistency smoke" \
+    "${ROOT_DIR}/deploy/smoke/run-local-bookmark-consistency-smoke.sh"
+fi
+
 if [[ "${RUN_RECOMMENDATION_CLICK_SMOKE}" == "true" ]]; then
   run_step \
     "recommendation click smoke" \
@@ -242,9 +291,13 @@ if [[ "${RUN_ADMIN_DASHBOARD_SMOKE}" == "true" ]]; then
 fi
 
 if [[ "${RUN_REPLAY_SMOKE}" == "true" ]]; then
+  replay_env_prefix='unset APP_BASE_URL APP_HEALTH_URL;'
+  if [[ -n "${REPLAY_APP_BASE_URL}" ]]; then
+    replay_env_prefix=$(printf 'export APP_BASE_URL=%q; unset APP_HEALTH_URL;' "${REPLAY_APP_BASE_URL}")
+  fi
   run_step \
     "education priority replay smoke (run last; may restart DB/app dependencies)" \
-    <(printf '#!/usr/bin/env bash\nset -euo pipefail\nKEEP_ARTIFACTS=%q bash %q\n' "${KEEP_ARTIFACTS}" "${ROOT_DIR}/deploy/smoke/run-local-education-priority-replay.sh")
+    <(printf '#!/usr/bin/env bash\nset -euo pipefail\n%s\nKEEP_ARTIFACTS=%q bash %q\n' "${replay_env_prefix}" "${KEEP_ARTIFACTS}" "${ROOT_DIR}/deploy/smoke/run-local-education-priority-replay.sh")
 fi
 
 SUITE_END_EPOCH="$(date +%s)"

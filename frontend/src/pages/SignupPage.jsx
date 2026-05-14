@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Snackbar, Alert, CircularProgress } from "@mui/material";
 import api from "../lib/axios";
 
@@ -89,6 +89,7 @@ function Field({ label, error, hint, children }) {
 
 export default function SignupPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState({ open: false, msg: "", severity: "info" });
@@ -180,7 +181,17 @@ export default function SignupPage() {
         ...(householdType && { householdType }),
         ...(employ && { employmentStatus: employ }),
       });
-      navigate("/login", { replace: true, state: { reason: "signup-complete", email, signupPriorities: priorities } });
+      navigate("/login", {
+        replace: true,
+        state: {
+          reason: "signup-complete",
+          email,
+          signupPriorities: priorities,
+          from: location.state?.from,
+          chatFrom: location.state?.chatFrom,
+          postLoginAction: location.state?.postLoginAction,
+        },
+      });
     } catch (err) {
       showToast(err.response?.data?.message ?? "회원가입 중 오류가 발생했어요", "error");
     } finally {
@@ -316,7 +327,12 @@ export default function SignupPage() {
                 다음 →
               </button>
               <div style={{ textAlign: "center" }}>
-                <button onClick={() => navigate("/login")} style={{ background: "transparent", border: 0, color: INK3, fontSize: 13, cursor: "pointer" }}>
+                <button onClick={() => navigate("/login", {
+                  state: {
+                    from: location.state?.from,
+                    email,
+                  },
+                })} style={{ background: "transparent", border: 0, color: INK3, fontSize: 13, cursor: "pointer" }}>
                   이미 계정이 있으신가요? <span style={{ color: A, fontWeight: 700 }}>로그인</span>
                 </button>
               </div>

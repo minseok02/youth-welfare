@@ -20,7 +20,7 @@ const iCss = (err) => ({
 export default function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { login } = useAuthStore();
+  const { login, setUser } = useAuthStore();
 
   const [email, setEmail] = useState("");
   const [pw, setPw] = useState("");
@@ -31,8 +31,17 @@ export default function LoginPage() {
   useEffect(() => {
     const reason = location.state?.reason;
     const signupEmail = location.state?.email;
-    if (reason === "login-required") setToast({ open: true, msg: "챗봇은 로그인 후 이용 가능합니다." });
+    if (reason === "login-required") {
+      const fromPath = location.state?.from?.pathname;
+      const loginRequiredMessage = fromPath === "/chat"
+        ? "챗봇은 로그인 후 이용 가능합니다."
+        : fromPath === "/mypage"
+          ? "마이페이지는 로그인 후 이용 가능합니다."
+          : "로그인 후 이용 가능한 기능입니다.";
+      setToast({ open: true, msg: loginRequiredMessage });
+    }
     if (reason === "expired") setToast({ open: true, msg: "로그인 상태가 만료되어 다시 로그인해야 합니다." });
+    if (reason === "password-reset-complete") setToast({ open: true, msg: "비밀번호가 변경되었습니다. 새 비밀번호로 로그인해주세요." });
     if (reason === "signup-complete") {
       setToast({ open: true, msg: "가입 요청이 처리되었습니다. 로그인하거나 비밀번호 재설정을 이용해주세요." });
       if (typeof signupEmail === "string" && signupEmail.trim()) setEmail(signupEmail);
@@ -52,7 +61,11 @@ export default function LoginPage() {
       try {
         const profileResponse = await api.get("/api/users/me");
         const profile = profileResponse?.data?.data;
-        login(accessToken, { name: profile?.name ?? "", email: profile?.email ?? email });
+        login(accessToken, {
+          name: profile?.name ?? "",
+          email: profile?.email ?? email,
+          hasPriorities: Array.isArray(profile?.priorities) && profile.priorities.length > 0,
+        });
       } catch {
         login(accessToken, { email });
       }
@@ -60,12 +73,23 @@ export default function LoginPage() {
       if (signupPriorities.length > 0) {
         try {
           await api.put("/api/users/me/priorities", { priorityCodes: signupPriorities });
+          setUser({ hasPriorities: true });
         } catch {
           // Priority save is best-effort here; login completion should still continue.
         }
       }
       const from = location.state?.from;
-      navigate(from?.pathname ? `${from.pathname}${from.search ?? ""}` : "/", { replace: true });
+      const postLoginAction = location.state?.postLoginAction;
+      const chatFrom = location.state?.chatFrom;
+      navigate(from?.pathname ? `${from.pathname}${from.search ?? ""}` : "/", {
+        replace: true,
+        state: postLoginAction || chatFrom
+          ? {
+              ...(postLoginAction ? { postLoginAction } : {}),
+              ...(chatFrom ? { chatFrom } : {}),
+            }
+          : undefined,
+      });
     } catch (err) {
       setError(err.response?.data?.message ?? "로그인 중 오류가 발생했습니다");
     } finally {
@@ -136,11 +160,24 @@ export default function LoginPage() {
           </form>
 
           <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 16, marginTop: 24 }}>
-            <button onClick={() => navigate("/signup")} style={{ background: "transparent", border: 0, color: A, fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
+            <button onClick={() => navigate("/signup", {
+              state: {
+                from: location.state?.from,
+                chatFrom: location.state?.chatFrom,
+                postLoginAction: location.state?.postLoginAction,
+              },
+            })} style={{ background: "transparent", border: 0, color: A, fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
               회원가입
             </button>
             <div style={{ width: 1, height: 12, background: LINE }} />
-            <button onClick={() => navigate("/reset-password")} style={{ background: "transparent", border: 0, color: INK3, fontSize: 14, cursor: "pointer" }}>
+            <button onClick={() => navigate("/reset-password", {
+              state: {
+                from: location.state?.from,
+                chatFrom: location.state?.chatFrom,
+                email,
+                postLoginAction: location.state?.postLoginAction,
+              },
+            })} style={{ background: "transparent", border: 0, color: INK3, fontSize: 14, cursor: "pointer" }}>
               비밀번호 찾기
             </button>
           </div>

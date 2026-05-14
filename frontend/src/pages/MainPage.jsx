@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Snackbar, Alert } from "@mui/material";
 import Header from "../components/Header";
 import api from "../lib/axios";
@@ -29,6 +29,7 @@ const mapRec = (r) => ({
   summary: r.description || "",
   source: r.hostOrg || r.sido || r.operatingOrg || "",
   aiReason: r.aiReason,
+  bookmarked: Boolean(r.isBookmarked),
 });
 
 // ── 디자인 상수 ───────────────────────────────────────────────────────────────
@@ -70,7 +71,7 @@ function Tag({ children, style }) {
   );
 }
 
-function HeroNonLogin({ totalPolicies, deadlineCount, firstDeadlinePolicy, secondDeadlinePolicy, navigate }) {
+function HeroNonLogin({ totalPolicies, deadlineCount, firstDeadlinePolicy, secondDeadlinePolicy, navigate, authState }) {
   return (
     <section style={{
       background: "linear-gradient(135deg, #1e3a8a 0%, #2563eb 55%, #3b82f6 100%)",
@@ -98,7 +99,7 @@ function HeroNonLogin({ totalPolicies, deadlineCount, firstDeadlinePolicy, secon
           </p>
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
             <button
-              onClick={() => navigate("/signup")}
+              onClick={() => navigate("/signup", { state: authState })}
               style={{ padding: "14px 22px", background: "white", color: A7, border: 0, borderRadius: 12, fontSize: 14, fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 8, boxShadow: "0 4px 12px rgba(0,0,0,0.12)" }}
             >
               맞춤 추천 받기 →
@@ -242,7 +243,7 @@ function CategoryBar({ counts, navigate }) {
   );
 }
 
-function DeadlineRail({ policies, navigate }) {
+function DeadlineRail({ policies, navigate, onPolicyNavigate }) {
   if (!policies.length) return null;
   return (
     <section style={{ marginTop: 48 }}>
@@ -264,7 +265,7 @@ function DeadlineRail({ policies, navigate }) {
         {policies.map((p) => (
           <div
             key={p.id}
-            onClick={() => navigate(`/policies/${p.id}`)}
+            onClick={() => onPolicyNavigate(p.id)}
             style={{ background: "white", border: `1px solid ${LINE}`, borderRadius: 16, padding: 18, cursor: "pointer", transition: "box-shadow .15s" }}
             onMouseEnter={e => { e.currentTarget.style.boxShadow = "0 4px 16px rgba(37,99,235,0.10)"; }}
             onMouseLeave={e => { e.currentTarget.style.boxShadow = ""; }}
@@ -281,7 +282,7 @@ function DeadlineRail({ policies, navigate }) {
   );
 }
 
-function PopularSection({ teaserPolicies, categoryCounts, navigate }) {
+function PopularSection({ teaserPolicies, categoryCounts, navigate, onPolicyNavigate }) {
   return (
     <section style={{ marginTop: 56 }}>
       <div style={{ marginBottom: 20 }}>
@@ -316,7 +317,7 @@ function PopularSection({ teaserPolicies, categoryCounts, navigate }) {
                 {items.map((p, i) => (
                   <div
                     key={p.id}
-                    onClick={() => navigate(`/policies/${p.id}`)}
+                    onClick={() => onPolicyNavigate(p.id)}
                     style={{ background: "white", border: `1px solid ${LINE}`, borderRadius: 12, padding: "14px 16px", display: "flex", alignItems: "center", gap: 14, cursor: "pointer", transition: "border-color .15s" }}
                     onMouseEnter={e => { e.currentTarget.style.borderColor = A; }}
                     onMouseLeave={e => { e.currentTarget.style.borderColor = LINE; }}
@@ -344,7 +345,7 @@ function PopularSection({ teaserPolicies, categoryCounts, navigate }) {
   );
 }
 
-function RecCard({ rec, navigate }) {
+function RecCard({ rec, onPolicyNavigate, onBookmarkToggle }) {
   const isUrgent = rec.dday.startsWith("D-") && parseInt(rec.dday.replace("D-", "")) <= 14;
   const ddayStyle =
     rec.dday === "종료" ? { background: "#f3f4f6", color: INK3 }
@@ -354,14 +355,35 @@ function RecCard({ rec, navigate }) {
 
   return (
     <div
-      onClick={() => navigate(`/policies/${rec.id}${rec.logId ? `?log_id=${rec.logId}` : ""}`)}
+      onClick={() => onPolicyNavigate(rec.id, rec.logId)}
       style={{ background: "white", border: `1px solid ${LINE}`, borderRadius: 14, padding: "18px 20px", cursor: "pointer", transition: "border-color .15s, box-shadow .15s" }}
       onMouseEnter={e => { e.currentTarget.style.borderColor = A; e.currentTarget.style.boxShadow = "0 4px 16px rgba(37,99,235,0.08)"; }}
       onMouseLeave={e => { e.currentTarget.style.borderColor = LINE; e.currentTarget.style.boxShadow = ""; }}
     >
-      <div style={{ display: "flex", gap: 6, marginBottom: 10, flexWrap: "wrap" }}>
-        <Tag style={{ background: AS, color: AI }}>{rec.category}</Tag>
-        <Tag style={ddayStyle}>{rec.dday}</Tag>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, marginBottom: 10 }}>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          <Tag style={{ background: AS, color: AI }}>{rec.category}</Tag>
+          <Tag style={ddayStyle}>{rec.dday}</Tag>
+        </div>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onBookmarkToggle(rec.id);
+          }}
+          style={{
+            background: rec.bookmarked ? "#fef3c7" : "white",
+            color: rec.bookmarked ? "#92400e" : INK3,
+            border: `1px solid ${rec.bookmarked ? "#fcd34d" : LINE}`,
+            borderRadius: 999,
+            padding: "6px 10px",
+            fontSize: 12,
+            fontWeight: 700,
+            cursor: "pointer",
+            flexShrink: 0,
+          }}
+        >
+          {rec.bookmarked ? "★ 저장됨" : "☆ 저장"}
+        </button>
       </div>
       <div style={{ fontSize: 16, fontWeight: 700, letterSpacing: "-0.01em", lineHeight: 1.35, color: INK }}>{rec.title}</div>
       <div style={{ fontSize: 13, color: INK2, marginTop: 6, lineHeight: 1.55, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>
@@ -379,7 +401,7 @@ function RecCard({ rec, navigate }) {
   );
 }
 
-function CTASection({ navigate, teaserPolicies }) {
+function CTASection({ navigate, teaserPolicies, onPolicyNavigate, authState }) {
   const previewItems = ["일자리", "금융·생활지원", "주거"]
     .map(cat => {
       const policy = (teaserPolicies ?? {})[cat]?.[0];
@@ -399,13 +421,13 @@ function CTASection({ navigate, teaserPolicies }) {
         </div>
         <div style={{ display: "flex", gap: 8, marginTop: 20 }}>
           <button
-            onClick={() => navigate("/signup")}
+            onClick={() => navigate("/signup", { state: authState })}
             style={{ padding: "12px 18px", background: A, color: "white", border: 0, borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: "pointer" }}
           >
             1분만에 추천받기 →
           </button>
           <button
-            onClick={() => navigate("/login")}
+            onClick={() => navigate("/login", { state: authState })}
             style={{ padding: "12px 18px", background: "white", color: INK2, border: `1px solid ${LINE}`, borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: "pointer" }}
           >
             로그인
@@ -419,7 +441,7 @@ function CTASection({ navigate, teaserPolicies }) {
             {previewItems.map(item => (
               <div
                 key={item.id}
-                onClick={() => navigate(`/policies/${item.id}`)}
+                onClick={() => onPolicyNavigate(item.id)}
                 style={{ background: "white", borderRadius: 10, padding: "10px 12px", display: "flex", alignItems: "center", gap: 10, fontSize: 13, cursor: "pointer" }}
               >
                 <span style={{ fontWeight: 600, color: INK, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.title}</span>
@@ -444,7 +466,8 @@ function Spinner() {
 
 export default function MainPage() {
   const navigate = useNavigate();
-  const { isLoggedIn, user } = useAuthStore();
+  const location = useLocation();
+  const { isLoggedIn, user, setUser } = useAuthStore();
 
   // AI 추천 (로그인)
   const [recommendations, setRecommendations] = useState([]);
@@ -460,18 +483,51 @@ export default function MainPage() {
 
   const [toast, setToast] = useState({ open: false, msg: "", severity: "info" });
   const showToast = useCallback((msg, severity = "info") => setToast({ open: true, msg, severity }), []);
+  const authState = {
+    from: {
+      pathname: location.pathname,
+      search: location.search,
+    },
+  };
+  const navigateToPolicyDetail = useCallback((policyId, logId = null) => {
+    navigate(`/policies/${policyId}${logId ? `?log_id=${logId}` : ""}`, {
+      state: {
+        from: {
+          pathname: location.pathname,
+          search: location.search,
+        },
+      },
+    });
+  }, [location.pathname, location.search, navigate]);
 
   // ── AI 추천 fetch ──────────────────────────────────────────────────────────
   useEffect(() => {
     if (!isLoggedIn) return;
     const controller = new AbortController();
+    api.get("/api/users/me", { signal: controller.signal })
+      .then(({ data }) => {
+        const profile = data?.data;
+        if (!profile) {
+          return;
+        }
+        setUser({
+          ...(profile.name ? { name: profile.name } : {}),
+          ...(profile.email ? { email: profile.email } : {}),
+          hasPriorities: Array.isArray(profile.priorities) && profile.priorities.length > 0,
+        });
+      })
+      .catch((err) => {
+        if (err.name === "CanceledError" || err.code === "ERR_CANCELED") {
+          return;
+        }
+      });
     setLoadingRec(true);
     api.get("/api/recommendations", { params: { size: 6 }, signal: controller.signal })
       .then(({ data }) => setRecommendations((data.data ?? []).map(mapRec)))
       .catch((err) => { if (err.name !== "CanceledError" && err.code !== "ERR_CANCELED") showToast("추천 정책을 불러오지 못했습니다", "error"); })
       .finally(() => { if (!controller.signal.aborted) setLoadingRec(false); });
     return () => controller.abort();
-  }, [isLoggedIn, showToast]);
+  }, [isLoggedIn, setUser, showToast]);
 
   // ── 공통 데이터 fetch (전체 수, 카테고리별, 마감임박) ─────────────────────
   useEffect(() => {
@@ -523,7 +579,11 @@ export default function MainPage() {
 
   // ── 추천 갱신 핸들러 ──────────────────────────────────────────────────────
   const handleRefreshRecommendations = async () => {
-    if (!user?.hasPriorities) { showToast("마이페이지에서 우선순위를 먼저 설정해주세요"); return; }
+    if (!user?.hasPriorities) {
+      showToast("마이페이지 우선순위 탭으로 이동합니다.", "info");
+      navigate("/mypage?tab=1");
+      return;
+    }
     setRefreshingRec(true);
     try {
       const { data } = await api.post("/api/recommendations/refresh");
@@ -534,7 +594,11 @@ export default function MainPage() {
   };
 
   const handlePersonalRefresh = async () => {
-    if (!user?.hasPriorities) { showToast("마이페이지에서 우선순위를 먼저 설정해주세요"); return; }
+    if (!user?.hasPriorities) {
+      showToast("마이페이지 우선순위 탭으로 이동합니다.", "info");
+      navigate("/mypage?tab=1");
+      return;
+    }
     setPersonalRefreshing(true);
     try {
       const { data } = await api.post("/api/recommendations/refresh?personal=true");
@@ -542,6 +606,20 @@ export default function MainPage() {
       showToast("개인 맞춤 추천을 새로 받았습니다", "success");
     } catch { showToast("재추천에 실패했습니다", "error"); }
     finally { setPersonalRefreshing(false); }
+  };
+
+  const handleRecommendationBookmarkToggle = async (serviceId) => {
+    try {
+      await api.post(`/api/policies/${serviceId}/bookmark`);
+      const current = recommendations.find((rec) => rec.id === serviceId);
+      const nextBookmarked = !current?.bookmarked;
+      setRecommendations((prev) =>
+        prev.map((rec) => (rec.id === serviceId ? { ...rec, bookmarked: nextBookmarked } : rec))
+      );
+      showToast(nextBookmarked ? "북마크에 저장했어요" : "북마크를 해제했어요", "success");
+    } catch {
+      showToast("북마크 처리에 실패했습니다", "error");
+    }
   };
 
   return (
@@ -568,6 +646,7 @@ export default function MainPage() {
               firstDeadlinePolicy={deadlinePolicies[0]}
               secondDeadlinePolicy={deadlinePolicies[1]}
               navigate={navigate}
+              authState={authState}
             />
         )}
 
@@ -600,7 +679,14 @@ export default function MainPage() {
               <Spinner />
             ) : recommendations.length > 0 ? (
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                {recommendations.map((rec) => <RecCard key={rec.id} rec={rec} navigate={navigate} />)}
+                {recommendations.map((rec) => (
+                  <RecCard
+                    key={rec.id}
+                    rec={rec}
+                    onPolicyNavigate={navigateToPolicyDetail}
+                    onBookmarkToggle={handleRecommendationBookmarkToggle}
+                  />
+                ))}
               </div>
             ) : (
               <div style={{ textAlign: "center", padding: "48px 24px", background: "white", borderRadius: 16, border: `1px solid ${LINE}` }}>
@@ -611,7 +697,7 @@ export default function MainPage() {
                 </div>
                 {!user?.hasPriorities && (
                   <button
-                    onClick={() => navigate("/mypage")}
+                    onClick={() => navigate("/mypage?tab=1")}
                     style={{ marginTop: 14, padding: "10px 20px", background: A, color: "white", border: 0, borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: "pointer" }}
                   >
                     우선순위 설정하러 가기
@@ -630,7 +716,7 @@ export default function MainPage() {
                 </div>
                 <div style={{ display: "flex", gap: 10, marginTop: 24 }}>
                   <button
-                    onClick={() => navigate("/login")}
+                    onClick={() => navigate("/login", { state: authState })}
                     style={{ padding: "13px 24px", background: A, color: "white", border: 0, borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: "pointer", boxShadow: "0 4px 12px rgba(37,99,235,0.25)" }}
                     onMouseEnter={e => { e.currentTarget.style.background = A7; }}
                     onMouseLeave={e => { e.currentTarget.style.background = A; }}
@@ -638,7 +724,7 @@ export default function MainPage() {
                     로그인하기
                   </button>
                   <button
-                    onClick={() => navigate("/signup")}
+                    onClick={() => navigate("/signup", { state: authState })}
                     style={{ padding: "13px 24px", background: "white", color: INK2, border: `1px solid ${LINE}`, borderRadius: 12, fontSize: 15, fontWeight: 600, cursor: "pointer" }}
                     onMouseEnter={e => { e.currentTarget.style.borderColor = A; e.currentTarget.style.color = A; }}
                     onMouseLeave={e => { e.currentTarget.style.borderColor = LINE; e.currentTarget.style.color = INK2; }}
@@ -661,7 +747,7 @@ export default function MainPage() {
                     {previewItems.map(item => (
                       <div
                         key={item.id}
-                        onClick={() => navigate(`/policies/${item.id}`)}
+                        onClick={() => navigateToPolicyDetail(item.id)}
                         style={{ display: "flex", alignItems: "center", gap: 12, background: "#f7f8fc", borderRadius: 12, padding: "12px 16px", minWidth: 220, cursor: "pointer" }}
                       >
                         <div style={{ width: 36, height: 36, borderRadius: 10, background: item.bg, flexShrink: 0 }} />
@@ -679,13 +765,13 @@ export default function MainPage() {
         </section>
 
         {/* 마감임박 */}
-        <DeadlineRail policies={deadlinePolicies} navigate={navigate} />
+        <DeadlineRail policies={deadlinePolicies} navigate={navigate} onPolicyNavigate={navigateToPolicyDetail} />
 
         {/* 카테고리별 인기 정책 */}
-        <PopularSection teaserPolicies={teaserPolicies} categoryCounts={categoryCounts} navigate={navigate} />
+        <PopularSection teaserPolicies={teaserPolicies} categoryCounts={categoryCounts} navigate={navigate} onPolicyNavigate={navigateToPolicyDetail} />
 
         {/* CTA (비로그인) */}
-        {!isLoggedIn && <CTASection navigate={navigate} teaserPolicies={teaserPolicies} />}
+        {!isLoggedIn && <CTASection navigate={navigate} teaserPolicies={teaserPolicies} onPolicyNavigate={navigateToPolicyDetail} authState={authState} />}
 
         {/* 푸터 */}
         <footer style={{ marginTop: 72, padding: "28px 0 0", borderTop: `1px solid ${LINE}`, color: INK3, fontSize: 12 }}>

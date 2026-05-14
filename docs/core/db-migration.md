@@ -10,12 +10,14 @@
 - PostgreSQL 전환/챗 retrieval: [postgres-chat-refactor-playbook.md](../postgres/postgres-chat-refactor-playbook.md)
 - 로컬 validation / smoke: [local-validation-docs-index.md](./local-validation-docs-index.md)
 - 신규 DB bootstrap truth: [schema.sql](../../backend/src/main/resources/db/schema.sql)
+- 기존 로컬 PostgreSQL 볼륨 drift patch: `deploy/postgres/apply-local-runtime-schema-patch.sh`
 
 ## 이 문서를 읽는 방법
 
 - 아래의 `mysql`, `SHOW TABLES`, `ANALYZE TABLE`, draft sidecar SQL 예시는 **legacy MySQL history** 로 봅니다.
 - 현재 PostgreSQL main에서 sidecar schema가 필요하면 legacy draft SQL을 다시 적용하지 말고, integrated `schema.sql` / collect flow / admin rebuild 경로를 사용합니다.
 - 현재 PostgreSQL main에서 계정/URL preflight는 [preflight-runtime-cutover-env.sh](../../deploy/smoke/preflight-runtime-cutover-env.sh) 기준으로 확인합니다.
+- 기존 로컬 PostgreSQL 볼륨이 최신 `schema.sql` 보다 뒤처졌다면 `deploy/postgres/patches/*.sql` 과 `deploy/postgres/apply-local-runtime-schema-patch.sh` 로 drift를 먼저 맞춘 뒤 integration/runtime smoke를 다시 실행합니다.
 
 ## legacy 대상
 

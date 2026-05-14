@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   AppBar, Toolbar, Typography, Button, IconButton,
   Menu, MenuItem, Divider, Snackbar, Alert,
@@ -11,6 +11,7 @@ import { useAuthStore } from "../store/authStore";
 import { performServerLogout } from "../lib/session";
 
 export default function Header() {
+  const location = useLocation();
   const navigate = useNavigate();
   const { isLoggedIn, user, logout } = useAuthStore();
   const [anchorEl, setAnchorEl] = useState(null);
@@ -18,23 +19,84 @@ export default function Header() {
 
   const handleUserMenu = (e) => setAnchorEl(e.currentTarget);
   const handleClose = () => setAnchorEl(null);
+  const authFromState = {
+    from: {
+      pathname: location.pathname,
+      search: location.search,
+    },
+  };
+  const mypageTarget = location.pathname === "/mypage"
+    ? {
+        pathname: "/mypage",
+        search: location.search,
+      }
+    : location.state?.from?.pathname === "/mypage"
+      ? {
+          pathname: "/mypage",
+          search: location.state.from.search ?? "",
+        }
+      : {
+          pathname: "/mypage",
+          search: "",
+        };
+  const policiesTarget = location.pathname === "/policies"
+    ? {
+        pathname: "/policies",
+        search: location.search,
+      }
+    : location.state?.from?.pathname === "/policies"
+      ? {
+          pathname: "/policies",
+          search: location.state.from.search ?? "",
+        }
+      : {
+          pathname: "/policies",
+          search: "",
+        };
+  const chatOriginTarget = location.state?.chatFrom?.pathname === "/chat"
+    ? {
+        pathname: "/chat",
+        search: location.state.chatFrom.search ?? "",
+      }
+    : location.state?.from?.pathname === "/chat"
+      ? {
+          pathname: "/chat",
+          search: location.state.from.search ?? "",
+        }
+      : null;
+  const chatTarget = location.pathname === "/chat"
+    ? {
+        pathname: "/chat",
+        search: location.search,
+      }
+    : chatOriginTarget
+      ? chatOriginTarget
+      : {
+          pathname: "/chat",
+          search: "",
+        };
 
   const handleMypage = () => {
     if (!isLoggedIn) {
       setToast(true);
-      setTimeout(() => navigate("/login"), 1500);
+      setTimeout(() => navigate("/login", {
+        state: {
+          from: mypageTarget,
+          reason: "login-required",
+        },
+      }), 1500);
     } else {
-      navigate("/mypage");
+      navigate(`${mypageTarget.pathname}${mypageTarget.search ?? ""}`);
     }
   };
 
   const handleChat = () => {
     if (!isLoggedIn) {
       setToast(true);
-      setTimeout(() => navigate("/login", { state: { from: { pathname: "/chat" }, reason: "login-required" } }), 1500);
+      setTimeout(() => navigate("/login", { state: { from: chatTarget, reason: "login-required" } }), 1500);
       return;
     }
-    navigate("/chat");
+    navigate(`${chatTarget.pathname}${chatTarget.search ?? ""}`);
   };
 
   const handleLogout = async () => {
@@ -83,7 +145,7 @@ export default function Header() {
                 <Button
                   color="inherit"
                   size="small"
-                  onClick={() => navigate("/policies")}
+                  onClick={() => navigate(`${policiesTarget.pathname}${policiesTarget.search ?? ""}`)}
                   sx={{ fontSize: 13, color: "rgba(255,255,255,0.9)" }}
                 >
                   정책 목록
@@ -123,7 +185,7 @@ export default function Header() {
                   variant="outlined"
                   color="inherit"
                   size="small"
-                  onClick={() => navigate("/mypage")}
+                  onClick={() => navigate(`${mypageTarget.pathname}${mypageTarget.search ?? ""}`)}
                   sx={{ borderColor: "rgba(255,255,255,0.6)", borderRadius: 2, fontSize: 13 }}
                 >
                   마이페이지
@@ -134,7 +196,7 @@ export default function Header() {
                 <Button
                   variant="contained"
                   size="small"
-                  onClick={() => navigate("/login")}
+                  onClick={() => navigate("/login", { state: authFromState })}
                   sx={{
                     bgcolor: "white",
                     color: "primary.main",

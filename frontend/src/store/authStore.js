@@ -13,6 +13,8 @@ export const useAuthStore = create(
         localStorage.setItem("token", token);
         set({ user, isLoggedIn: true });
       },
+      setUser: (nextUser) =>
+        set((state) => ({ user: { ...(state.user ?? {}), ...(nextUser ?? {}) } })),
       logout: () => {
         localStorage.removeItem("token");
         set({ user: null, isLoggedIn: false, filterSettings: { includeExpired: false } });

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Snackbar, Alert } from "@mui/material";
 import Header from "../components/Header";
 import FloatingNav from "../components/FloatingNav";
@@ -175,6 +175,7 @@ function Spinner() {
 
 export default function PolicyDetailPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { id } = useParams();
   const [searchParams] = useSearchParams();
   const { isLoggedIn } = useAuthStore();
@@ -207,7 +208,7 @@ export default function PolicyDetailPage() {
     };
     fetchPolicy();
     return () => controller.abort();
-  }, [id, searchParams]);
+  }, [id, isLoggedIn, searchParams]);
 
   useEffect(() => {
     if (!policy?.unifiedCategory) return;
@@ -316,7 +317,19 @@ export default function PolicyDetailPage() {
 
   const handleBookmark = async () => {
     if (!isLoggedIn) {
-      setToast({ open: true, msg: "로그인 후 이용 가능해요", severity: "info" });
+      navigate("/login", {
+        state: {
+          from: {
+            pathname: location.pathname,
+            search: location.search,
+          },
+          reason: "login-required",
+          postLoginAction: {
+            type: "toggle-bookmark",
+            policyId: id,
+          },
+        },
+      });
       return;
     }
     try {
@@ -343,20 +356,132 @@ export default function PolicyDetailPage() {
   const regionText = policy?.sido
     || policy?.regions?.filter(r => !/^\d+$/.test(r))?.join(", ")
     || "";
+  const backTarget = location.state?.from;
+  const chatFromTarget = location.state?.chatFrom?.pathname === "/chat"
+    ? location.state.chatFrom
+    : backTarget?.pathname === "/chat"
+      ? backTarget
+      : undefined;
+  const listBackTarget = useMemo(() => {
+    if (backTarget?.pathname === "/policies") {
+      return backTarget;
+    }
+
+    return {
+      pathname: "/policies",
+      search: policy?.unifiedCategory ? `?category=${encodeURIComponent(policy.unifiedCategory)}` : "",
+    };
+  }, [backTarget, policy?.unifiedCategory]);
+  const categoryListTarget = useMemo(() => {
+    if (!policy?.unifiedCategory) {
+      return listBackTarget;
+    }
+
+    const params = new URLSearchParams(backTarget?.pathname === "/policies" ? (backTarget.search ?? "") : "");
+    params.set("category", policy.unifiedCategory);
+    params.delete("page");
+
+    return {
+      pathname: "/policies",
+      search: params.toString() ? `?${params.toString()}` : "",
+    };
+  }, [backTarget, listBackTarget, policy?.unifiedCategory]);
+  const inheritedBackTarget = backTarget?.pathname
+    ? backTarget
+    : {
+        pathname: location.pathname,
+        search: location.search,
+      };
+
+  const handleBack = () => {
+    if (backTarget?.pathname) {
+      navigate(`${backTarget.pathname}${backTarget.search ?? ""}`);
+      return;
+    }
+    navigate(`${listBackTarget.pathname}${listBackTarget.search ?? ""}`);
+  };
+
+  useEffect(() => {
+    const postLoginAction = location.state?.postLoginAction;
+    if (!isLoggedIn || loading || postLoginAction?.type !== "toggle-bookmark" || String(postLoginAction.policyId) !== String(id)) {
+      return;
+    }
+
+    const clearPostLoginAction = () => {
+      const nextState = { ...(location.state ?? {}) };
+      delete nextState.postLoginAction;
+      navigate(`${location.pathname}${location.search}`, {
+        replace: true,
+        state: Object.keys(nextState).length ? nextState : undefined,
+      });
+    };
+
+    let cancelled = false;
+    const runPostLoginAction = async () => {
+      try {
+        await api.post(`/api/policies/${id}/bookmark`);
+        if (cancelled) {
+          return;
+        }
+        const nextBookmarked = !bookmarked;
+        setBookmarked(nextBookmarked);
+        setPolicy((current) => (current ? { ...current, bookmarked: nextBookmarked } : current));
+        setToast({
+          open: true,
+          msg: nextBookmarked ? "북마크에 저장했어요" : "북마크를 해제했어요",
+          severity: "success",
+        });
+      } catch {
+        if (!cancelled) {
+          setToast({ open: true, msg: "북마크 처리에 실패했습니다", severity: "error" });
+        }
+      } finally {
+        if (!cancelled) {
+          clearPostLoginAction();
+        }
+      }
+    };
+
+    void runPostLoginAction();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [bookmarked, id, isLoggedIn, loading, location.pathname, location.search, location.state, navigate]);
 
   return (
     <div style={{ minHeight: "100vh", background: BG }}>
       <Header />
       <div style={{ maxWidth: 1240, margin: "0 auto", padding: "0 24px 64px" }}>
+        <div style={{ paddingTop: 20 }}>
+          <button
+            onClick={handleBack}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              padding: "8px 14px",
+              borderRadius: 999,
+              border: `1px solid ${LINE}`,
+              background: WHITE,
+              color: INK2,
+              fontSize: 13,
+              fontWeight: 700,
+              cursor: "pointer",
+            }}
+          >
+            ← 뒤로가기
+          </button>
+        </div>
         {/* Breadcrumb */}
         <nav style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: INK3, padding: "20px 0 8px", flexWrap: "wrap" }}>
           <span style={{ cursor: "pointer" }} onClick={() => navigate("/")}>홈</span>
           <span>›</span>
-          <span style={{ cursor: "pointer" }} onClick={() => navigate("/policies")}>정책검색</span>
+          <span style={{ cursor: "pointer" }} onClick={() => navigate(`${listBackTarget.pathname}${listBackTarget.search ?? ""}`)}>정책검색</span>
           {policy?.unifiedCategory && (
             <>
               <span>›</span>
-              <span style={{ cursor: "pointer" }} onClick={() => navigate(`/policies?category=${encodeURIComponent(policy.unifiedCategory)}`)}>{policy.unifiedCategory}</span>
+              <span style={{ cursor: "pointer" }} onClick={() => navigate(`${categoryListTarget.pathname}${categoryListTarget.search ?? ""}`)}>{policy.unifiedCategory}</span>
             </>
           )}
           {policy?.title && (
@@ -372,7 +497,7 @@ export default function PolicyDetailPage() {
             <div style={{ fontSize: 48, marginBottom: 16 }}>😢</div>
             <div style={{ fontSize: 20, fontWeight: 700, color: INK, marginBottom: 8 }}>정책 정보를 찾지 못했습니다</div>
             <div style={{ fontSize: 14 }}>목록으로 돌아가 다른 정책을 선택해주세요.</div>
-            <button onClick={() => navigate("/policies")} style={{ marginTop: 24, padding: "10px 24px", borderRadius: 8, background: A, color: WHITE, border: 0, fontSize: 14, fontWeight: 600, cursor: "pointer" }}>
+            <button onClick={() => navigate(`${listBackTarget.pathname}${listBackTarget.search ?? ""}`)} style={{ marginTop: 24, padding: "10px 24px", borderRadius: 8, background: A, color: WHITE, border: 0, fontSize: 14, fontWeight: 600, cursor: "pointer" }}>
               목록으로
             </button>
           </div>
@@ -568,7 +693,7 @@ export default function PolicyDetailPage() {
                 <section style={{ padding: "32px 0 56px" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
                     <div style={{ fontSize: 18, fontWeight: 800, color: INK }}>비슷한 정책</div>
-                    <span style={{ fontSize: 13, color: A, cursor: "pointer", fontWeight: 600 }} onClick={() => navigate(`/policies?category=${encodeURIComponent(policy.unifiedCategory)}`)}>
+                    <span style={{ fontSize: 13, color: A, cursor: "pointer", fontWeight: 600 }} onClick={() => navigate(`${categoryListTarget.pathname}${categoryListTarget.search ?? ""}`)}>
                       더 보기 →
                     </span>
                   </div>
@@ -580,7 +705,12 @@ export default function PolicyDetailPage() {
                       return (
                         <div key={p.id}
                           style={{ background: WHITE, border: `1px solid ${LINE}`, borderRadius: 14, padding: 18, cursor: "pointer" }}
-                          onClick={() => navigate(`/policies/${p.id}`)}
+                          onClick={() => navigate(`/policies/${p.id}`, {
+                            state: {
+                              from: inheritedBackTarget,
+                              chatFrom: chatFromTarget,
+                            },
+                          })}
                           onMouseEnter={e => { e.currentTarget.style.boxShadow = "0 4px 16px rgba(37,99,235,0.12)"; e.currentTarget.style.borderColor = `${A}44`; }}
                           onMouseLeave={e => { e.currentTarget.style.boxShadow = "none"; e.currentTarget.style.borderColor = LINE; }}
                         >
@@ -728,7 +858,21 @@ export default function PolicyDetailPage() {
                     : "로그인하고 1분만에 내 정보를 등록하면 자격 여부를 자동으로 확인해드려요."}
                 </div>
                 <button
-                  onClick={() => navigate(isLoggedIn ? "/mypage" : "/login")}
+                  onClick={() => navigate(
+                    isLoggedIn
+                      ? "/mypage"
+                      : "/login",
+                    {
+                      state: {
+                        from: {
+                          pathname: location.pathname,
+                          search: location.search,
+                        },
+                        ...(chatFromTarget ? { chatFrom: chatFromTarget } : {}),
+                        ...(!isLoggedIn ? { reason: "login-required" } : {}),
+                      },
+                    }
+                  )}
                   style={{ marginTop: 12, padding: "8px 14px", fontSize: 12, fontWeight: 700, background: A, color: WHITE, border: 0, borderRadius: 8, cursor: "pointer" }}
                 >
                   자격 확인하기 →

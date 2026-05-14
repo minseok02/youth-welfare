@@ -4,6 +4,9 @@ plugins {
     id 'io.spring.dependency-management' version '1.1.4'
 }
 
+import java.net.InetSocketAddress
+import java.net.Socket
+
 group = 'com.example'
 version = '0.0.1-SNAPSHOT'
 
@@ -121,6 +124,73 @@ tasks.named('test') {
     exclude '**/integration/**'
 }
 
+def integrationRuntimePreflightDisabled = {
+    def envValue = System.getenv('SKIP_INTEGRATION_RUNTIME_PREFLIGHT')
+    def propertyValue = findProperty('skipIntegrationRuntimePreflight')
+    return 'true'.equalsIgnoreCase(String.valueOf(envValue)) ||
+        'true'.equalsIgnoreCase(String.valueOf(propertyValue))
+}
+
+def canConnectToPort = { String host, int port, int timeoutMs ->
+    Socket socket = new Socket()
+    try {
+        socket.connect(new InetSocketAddress(host, port), timeoutMs)
+        return true
+    } catch (Exception ignored) {
+        return false
+    } finally {
+        try {
+            socket.close()
+        } catch (Exception ignored) {
+        }
+    }
+}
+
+tasks.register('integrationRuntimePreflight') {
+    description = 'Fails fast when the PostgreSQL/Redis runtime required by integration tests is not available.'
+    group = 'verification'
+
+    doLast {
+        if (integrationRuntimePreflightDisabled()) {
+            logger.lifecycle('integration runtime preflight skipped via SKIP_INTEGRATION_RUNTIME_PREFLIGHT or -PskipIntegrationRuntimePreflight=true')
+            return
+        }
+
+        def dbHost = '127.0.0.1'
+        def dbPort = 5433
+        def redisHost = '127.0.0.1'
+        def redisPort = 6379
+        def timeoutMs = 1000
+        def missingTargets = []
+
+        if (!canConnectToPort(dbHost, dbPort, timeoutMs)) {
+            missingTargets << "PostgreSQL ${dbHost}:${dbPort}"
+        }
+        if (!canConnectToPort(redisHost, redisPort, timeoutMs)) {
+            missingTargets << "Redis ${redisHost}:${redisPort}"
+        }
+
+        if (!missingTargets.isEmpty()) {
+            throw new GradleException(
+                """Integration runtime preflight failed.
+Missing: ${missingTargets.join(', ')}
+
+integrationTest uses backend/src/test/resources/application-integration.yml and expects:
+- PostgreSQL at ${dbHost}:${dbPort}
+- Redis at ${redisHost}:${redisPort}
+
+Start the local runtime first, for example:
+- repo root: docker compose up -d db redis
+
+If you are running inside WSL and use Docker Desktop, enable WSL integration first.
+If you intentionally want to bypass this check, use:
+- SKIP_INTEGRATION_RUNTIME_PREFLIGHT=true ./gradlew integrationTest
+- ./gradlew integrationTest -PskipIntegrationRuntimePreflight=true
+""".stripIndent())
+        }
+    }
+}
+
 tasks.register('integrationTest', Test) {
     description = 'Runs integration tests that require PostgreSQL and Redis.'
     group = 'verification'
@@ -130,4 +200,5 @@ tasks.register('integrationTest', Test) {
     classpath = sourceSets.test.runtimeClasspath
     include '**/integration/**'
     shouldRunAfter test
+    dependsOn tasks.named('integrationRuntimePreflight')
 }

@@ -208,8 +208,8 @@
 
 현재 관찰:
 
-- build는 통과하지만 번들 크기 경고가 있음
-- 이는 즉시 기능 실패가 아니라 후속 성능 개선 후보로 기록
+- `npm run build` 는 통과하고, route-level lazy loading + vendor chunk split 이후 기존 번들 크기 경고도 재현되지 않음
+- 브라우저 QA는 여전히 필요하지만, 현재 정적 기준선 자체는 green 상태로 본다
 
 ## 10. 기록
 

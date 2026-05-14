@@ -1,36 +1,47 @@
-import React from "react";
 import { createBrowserRouter } from "react-router-dom";
-import MainPage from "../pages/MainPage.jsx";
-import LoginPage from "../pages/LoginPage.jsx";
-import SignupPage from "../pages/SignupPage.jsx";
-import ResetPasswordPage from "../pages/ResetPasswordPage.jsx";
-import PoliciesPage from "../pages/PoliciesPage.jsx";
-import PolicyDetailPage from "../pages/PolicyDetailPage.jsx";
-import MyPage from "../pages/MyPage.jsx";
-import ChatPage from "../pages/ChatPage.jsx";
+import AuthExpiryHandler from "../components/AuthExpiryHandler.jsx";
 import RequireLogin from "../components/RequireLogin.jsx";
+import LazyRoute from "./LazyRoute.jsx";
+import {
+  ChatPage,
+  LoginPage,
+  MainPage,
+  MyPage,
+  PoliciesPage,
+  PolicyDetailPage,
+  ResetPasswordPage,
+  SignupPage,
+} from "./lazy-pages.jsx";
 
 const router = createBrowserRouter([
-  { path: "/", element: <MainPage /> },
-  { path: "/login", element: <LoginPage /> },
-  { path: "/signup", element: <SignupPage /> },
-  { path: "/reset-password", element: <ResetPasswordPage /> },
-  { path: "/policies", element: <PoliciesPage /> },
-  { path: "/policies/:id", element: <PolicyDetailPage /> },
+  { path: "/", element: <AuthExpiryHandler><LazyRoute><MainPage /></LazyRoute></AuthExpiryHandler> },
+  { path: "/login", element: <AuthExpiryHandler><LazyRoute><LoginPage /></LazyRoute></AuthExpiryHandler> },
+  { path: "/signup", element: <AuthExpiryHandler><LazyRoute><SignupPage /></LazyRoute></AuthExpiryHandler> },
+  { path: "/reset-password", element: <AuthExpiryHandler><LazyRoute><ResetPasswordPage /></LazyRoute></AuthExpiryHandler> },
+  { path: "/policies", element: <AuthExpiryHandler><LazyRoute><PoliciesPage /></LazyRoute></AuthExpiryHandler> },
+  { path: "/policies/:id", element: <AuthExpiryHandler><LazyRoute><PolicyDetailPage /></LazyRoute></AuthExpiryHandler> },
   {
     path: "/mypage",
     element: (
-      <RequireLogin>
-        <MyPage />
-      </RequireLogin>
+      <AuthExpiryHandler>
+        <LazyRoute>
+          <RequireLogin>
+            <MyPage />
+          </RequireLogin>
+        </LazyRoute>
+      </AuthExpiryHandler>
     ),
   },
   {
     path: "/chat",
     element: (
-      <RequireLogin>
-        <ChatPage />
-      </RequireLogin>
+      <AuthExpiryHandler>
+        <LazyRoute>
+          <RequireLogin>
+            <ChatPage />
+          </RequireLogin>
+        </LazyRoute>
+      </AuthExpiryHandler>
     ),
   },
 ]);

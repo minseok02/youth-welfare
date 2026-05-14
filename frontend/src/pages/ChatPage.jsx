@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import {
   Alert,
   Box,
@@ -92,17 +92,25 @@ const mapReference = (reference) => ({
   evidence: reference.evidence,
 });
 
-const mapMessage = (message) => ({
-  messageId: message.messageId,
-  role: message.role,
-  content: message.content,
-  referencedServiceIds: message.referencedServiceIds ?? [],
-  references: (message.references ?? []).map(mapReference),
-  answerMode: message.answerMode ?? null,
-  needsClarification: Boolean(message.needsClarification),
-  branchSuggestions: (message.branchSuggestions ?? []).map(mapBranchSuggestion),
-  createdAt: message.createdAt,
-});
+const mapMessage = (message) => {
+  const references = (message.references ?? []).map(mapReference);
+  const referencedServiceIds = (message.referencedServiceIds?.length
+    ? message.referencedServiceIds
+    : references.map((reference) => reference.serviceId)
+  ).filter(Boolean);
+
+  return {
+    messageId: message.messageId,
+    role: message.role,
+    content: message.content,
+    referencedServiceIds,
+    references,
+    answerMode: message.answerMode ?? null,
+    needsClarification: Boolean(message.needsClarification),
+    branchSuggestions: (message.branchSuggestions ?? []).map(mapBranchSuggestion),
+    createdAt: message.createdAt,
+  };
+};
 
 const extractLatestAnswerMeta = (messages) => {
   const latestAssistant = [...messages].reverse().find((message) => message.role === "ASSISTANT");
@@ -126,7 +134,10 @@ const extractLatestAnswerMeta = (messages) => {
 };
 
 export default function ChatPage() {
+  const location = useLocation();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const querySessionId = searchParams.get("session");
   const [sessions, setSessions] = useState([]);
   const [activeSessionId, setActiveSessionId] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -140,10 +151,37 @@ export default function ChatPage() {
   const [latestAnswerMeta, setLatestAnswerMeta] = useState(null);
   const [toast, setToast] = useState({ open: false, msg: "", severity: "info" });
   const policyMetaRef = useRef({});
+  const querySessionIdRef = useRef(querySessionId);
+  const invalidSessionQueryRef = useRef(null);
 
   const showToast = useCallback((msg, severity = "info") => {
     setToast({ open: true, msg, severity });
   }, []);
+
+  const chatReturnTarget = useMemo(() => ({
+    pathname: location.pathname,
+    search: activeSessionId ? `?session=${activeSessionId}` : location.search,
+  }), [activeSessionId, location.pathname, location.search]);
+
+  const replaceSessionQuery = useCallback((sessionId) => {
+    const nextParams = new URLSearchParams(searchParams);
+    if (sessionId) {
+      nextParams.set("session", String(sessionId));
+    } else {
+      nextParams.delete("session");
+    }
+    setSearchParams(nextParams, { replace: true });
+  }, [searchParams, setSearchParams]);
+
+  useEffect(() => {
+    querySessionIdRef.current = querySessionId;
+  }, [querySessionId]);
+
+  useEffect(() => {
+    if (!querySessionId) {
+      invalidSessionQueryRef.current = null;
+    }
+  }, [querySessionId]);
 
   const enrichPolicyMeta = useCallback(async (serviceIds) => {
     const uniqueIds = [...new Set(serviceIds)].filter((serviceId) => !policyMetaRef.current[serviceId]);
@@ -189,9 +227,12 @@ export default function ChatPage() {
       const nextSessions = (data?.data ?? []).map(mapSession);
       setSessions(nextSessions);
       setActiveSessionId((current) => {
-        const candidate = preferredSessionId ?? current;
-        if (candidate && nextSessions.some((session) => session.sessionId === candidate)) {
-          return candidate;
+        const candidate = preferredSessionId ?? querySessionIdRef.current ?? current;
+        const matchedSession = candidate
+          ? nextSessions.find((session) => String(session.sessionId) === String(candidate))
+          : null;
+        if (matchedSession) {
+          return matchedSession.sessionId;
         }
         return nextSessions[0]?.sessionId ?? null;
       });
@@ -272,6 +313,41 @@ export default function ChatPage() {
     void loadMessages(activeSessionId);
   }, [activeSessionId, loadMessages]);
 
+  useEffect(() => {
+    if (!activeSessionId) {
+      if (querySessionId) {
+        replaceSessionQuery(null);
+      }
+      return;
+    }
+
+    if (String(querySessionId) === String(activeSessionId)) {
+      return;
+    }
+
+    replaceSessionQuery(activeSessionId);
+  }, [activeSessionId, querySessionId, replaceSessionQuery]);
+
+  useEffect(() => {
+    if (!querySessionId || !sessions.length) {
+      return;
+    }
+
+    const matchedSession = sessions.find((session) => String(session.sessionId) === String(querySessionId));
+    if (matchedSession && String(activeSessionId) !== String(matchedSession.sessionId)) {
+      setActiveSessionId(matchedSession.sessionId);
+      invalidSessionQueryRef.current = null;
+      return;
+    }
+
+    if (matchedSession || loadingSessions || invalidSessionQueryRef.current === String(querySessionId)) {
+      return;
+    }
+
+    invalidSessionQueryRef.current = String(querySessionId);
+    showToast("선택한 대화 세션을 찾지 못해 가장 최근 대화로 이동했습니다.", "warning");
+  }, [activeSessionId, loadingSessions, querySessionId, sessions, showToast]);
+
   const activeSession = useMemo(
     () => sessions.find((session) => session.sessionId === activeSessionId) ?? null,
     [activeSessionId, sessions]
@@ -299,21 +375,24 @@ export default function ChatPage() {
     setDeletingSessionId(sessionId);
     try {
       await api.delete(`/api/chat/sessions/${sessionId}`);
-      setSessions((prev) => {
-        const nextSessions = prev.filter((session) => session.sessionId !== sessionId);
-        if (!nextSessions.length) {
-          setActiveSessionId(null);
-          setMessages([]);
-          setLatestAnswerMeta(null);
-          return [];
-        }
+      const nextSessions = sessions.filter((session) => session.sessionId !== sessionId);
+      setSessions(nextSessions);
 
-        if (sessionId === activeSessionId) {
-          setActiveSessionId(nextSessions[0].sessionId);
-        }
+      if (!nextSessions.length) {
+        setActiveSessionId(null);
+        querySessionIdRef.current = null;
+        invalidSessionQueryRef.current = null;
+        replaceSessionQuery(null);
+        setMessages([]);
+        setLatestAnswerMeta(null);
+      } else if (sessionId === activeSessionId) {
+        const fallbackSessionId = nextSessions[0].sessionId;
+        querySessionIdRef.current = String(fallbackSessionId);
+        invalidSessionQueryRef.current = null;
+        replaceSessionQuery(fallbackSessionId);
+        setActiveSessionId(fallbackSessionId);
+      }
 
-        return nextSessions;
-      });
       showToast("대화를 삭제했습니다.");
     } catch {
       showToast("대화를 삭제하지 못했습니다.", "error");
@@ -472,7 +551,12 @@ export default function ChatPage() {
                 </Button>
                 <Button
                   variant="contained"
-                  onClick={() => navigate("/policies")}
+                  onClick={() => navigate("/policies", {
+                    state: {
+                      from: chatReturnTarget,
+                      chatFrom: chatReturnTarget,
+                    },
+                  })}
                 >
                   정책 목록 보기
                 </Button>
@@ -685,7 +769,15 @@ export default function ChatPage() {
                                       <Paper
                                         key={serviceId}
                                         elevation={0}
-                                        onClick={() => navigate(`/policies/${serviceId}`)}
+                                        onClick={() => navigate(`/policies/${serviceId}`, {
+                                          state: {
+                                            from: {
+                                              pathname: chatReturnTarget.pathname,
+                                              search: chatReturnTarget.search,
+                                            },
+                                            chatFrom: chatReturnTarget,
+                                          },
+                                        })}
                                         sx={{
                                           p: 1.2,
                                           borderRadius: 2.5,

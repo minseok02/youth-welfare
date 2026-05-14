@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import {
   Dialog, DialogTitle, DialogContent, DialogActions,
   Snackbar, Alert, CircularProgress,
@@ -295,21 +295,62 @@ function SidebarNav({ active, onChange, bookmarkCount }) {
 // ── Main component ────────────────────────────────────────────────────────────
 export default function MyPage() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const { isLoggedIn, user, logout, filterSettings, setFilterSettings } = useAuthStore();
+  const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { isLoggedIn, user, logout, filterSettings, setFilterSettings, setUser } = useAuthStore();
 
   const initTab = TAB_IDS[parseInt(searchParams.get("tab") ?? "0")] ?? "info";
   const [activeTab, setActiveTab] = useState(initTab);
   const [toast, setToast] = useState({ open: false, msg: "", severity: "success" });
   const showToast = useCallback((msg, severity = "success") => setToast({ open: true, msg, severity }), []);
 
-  useEffect(() => { if (!isLoggedIn) navigate("/login"); }, [isLoggedIn, navigate]);
+  useEffect(() => {
+    if (!isLoggedIn) {
+      navigate("/login", {
+        replace: true,
+        state: {
+          from: {
+            pathname: location.pathname,
+            search: location.search,
+          },
+          reason: "login-required",
+        },
+      });
+    }
+  }, [isLoggedIn, location.pathname, location.search, navigate]);
+  useEffect(() => {
+    const tabFromUrl = TAB_IDS[parseInt(searchParams.get("tab") ?? "0")] ?? "info";
+    if (tabFromUrl !== activeTab) {
+      setActiveTab(tabFromUrl);
+    }
+  }, [activeTab, searchParams]);
+
+  useEffect(() => {
+    const nextTabIndex = String(Math.max(TAB_IDS.indexOf(activeTab), 0));
+    if (searchParams.get("tab") === nextTabIndex) {
+      return;
+    }
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.set("tab", nextTabIndex);
+    setSearchParams(nextParams, { replace: true });
+  }, [activeTab, searchParams, setSearchParams]);
 
   // expose logout to sidebar
   useEffect(() => {
     window._performLogout = () => performServerLogout(logout).then(() => navigate("/"));
     return () => { delete window._performLogout; };
   }, [logout, navigate]);
+
+  const navigateToPolicyDetail = useCallback((policyId) => {
+    navigate(`/policies/${policyId}`, {
+      state: {
+        from: {
+          pathname: location.pathname,
+          search: `?tab=${Math.max(TAB_IDS.indexOf(activeTab), 0)}`,
+        },
+      },
+    });
+  }, [activeTab, location.pathname, navigate]);
 
   // ── State ────────────────────────────────────────────────────────────────
   const [myInfo, setMyInfo] = useState({
@@ -323,7 +364,6 @@ export default function MyPage() {
   const [editing, setEditing] = useState(false);
   const [infoLoading, setInfoLoading] = useState(false);
   const [nameError, setNameError] = useState("");
-  const [reloginModal, setReloginModal] = useState(false);
 
   const [priorities, setPriorities] = useState([]);
   const [priorityLoading, setPriorityLoading] = useState(false);
@@ -409,6 +449,11 @@ export default function MyPage() {
         setPriorities((p.priorities ?? []).map(item => item.code));
         setInterestFields(Array.isArray(p.interestFields) ? p.interestFields : []);
         setTargetTypes(Array.isArray(p.targetTypes) ? p.targetTypes : []);
+        setUser({
+          ...(p.name ? { name: p.name } : {}),
+          ...(p.email ? { email: p.email } : {}),
+          hasPriorities: Array.isArray(p.priorities) && p.priorities.length > 0,
+        });
       } catch (err) {
         if (err.name === "CanceledError" || err.code === "ERR_CANCELED") return;
         showToast("프로필을 불러오지 못했습니다", "error");
@@ -432,7 +477,7 @@ export default function MyPage() {
     fetchProfile();
     fetchBookmarks();
     return () => controller.abort();
-  }, [isLoggedIn, showToast]);
+  }, [isLoggedIn, setUser, showToast]);
 
   // ── Handlers ─────────────────────────────────────────────────────────────
   const nameRegex = /^[가-힣]{2,10}$/;
@@ -499,6 +544,7 @@ export default function MyPage() {
     try {
       await api.put("/api/users/me", { interestFields, targetTypes });
       await api.put("/api/users/me/priorities", { priorityCodes: priorities });
+      setUser({ hasPriorities: true });
       showToast("우선순위와 관심 설정이 저장되었습니다");
     } catch {
       showToast("우선순위 저장에 실패했습니다", "error");
@@ -533,7 +579,16 @@ export default function MyPage() {
       await api.patch("/api/users/me/password", { currentPassword: currPw, newPassword: newPw });
       showToast("비밀번호가 변경되었습니다. 다시 로그인해주세요");
       setCurrPw(""); setNewPw(""); setNewPwConfirm("");
-      setTimeout(() => performServerLogout(logout).then(() => navigate("/login")), 1500);
+      setTimeout(() => performServerLogout(logout).then(() => navigate("/login", {
+        state: {
+          from: {
+            pathname: location.pathname,
+            search: `?tab=${Math.max(TAB_IDS.indexOf(activeTab), 0)}`,
+          },
+          reason: "password-reset-complete",
+          email: myInfo.email || user?.email || "",
+        },
+      })), 1500);
     } catch (err) {
       const code = err.response?.data?.errorCode;
       showToast(code === "A004" ? "현재 비밀번호가 올바르지 않습니다" : "비밀번호 변경에 실패했습니다", "error");
@@ -556,11 +611,6 @@ export default function MyPage() {
     }
   };
 
-  const handleRelogin = () => {
-    setReloginModal(false);
-    performServerLogout(logout).then(() => navigate("/login"));
-  };
-
   const formatConsentDateTime = (value) => {
     if (!value) return "";
     const parsed = new Date(value);
@@ -576,6 +626,31 @@ export default function MyPage() {
 
   const ddayUrgent = (dday) => dday !== "종료" && dday !== "상시/문의" && dday !== "예정"
     && (dday === "D-Day" || (dday.startsWith("D-") && Number(dday.slice(2)) <= 14));
+  const displayedBookmarks = [...bookmarks].sort((left, right) => {
+    if (bookmarkSort === "deadline") {
+      const leftDeadlineToday = left.dday === "D-Day" ? 0 : 1;
+      const rightDeadlineToday = right.dday === "D-Day" ? 0 : 1;
+      if (leftDeadlineToday !== rightDeadlineToday) {
+        return leftDeadlineToday - rightDeadlineToday;
+      }
+
+      const leftUrgent = ddayUrgent(left.dday) ? 0 : 1;
+      const rightUrgent = ddayUrgent(right.dday) ? 0 : 1;
+      if (leftUrgent !== rightUrgent) {
+        return leftUrgent - rightUrgent;
+      }
+
+      const leftDays = left.dday.startsWith("D-") ? Number(left.dday.slice(2)) : Number.POSITIVE_INFINITY;
+      const rightDays = right.dday.startsWith("D-") ? Number(right.dday.slice(2)) : Number.POSITIVE_INFINITY;
+      if (leftDays !== rightDays) {
+        return leftDays - rightDays;
+      }
+    }
+
+    const leftDate = left.applyEndDate ? new Date(`${left.applyEndDate}T00:00:00`).getTime() : 0;
+    const rightDate = right.applyEndDate ? new Date(`${right.applyEndDate}T00:00:00`).getTime() : 0;
+    return rightDate - leftDate;
+  });
 
   if (!isLoggedIn) return null;
 
@@ -901,9 +976,65 @@ export default function MyPage() {
                 </div>
                 {bookmarkLoading ? (
                   <div style={{ display: "flex", justifyContent: "center", padding: "40px 0" }}><CircularProgress /></div>
-                ) : bookmarks.length > 0 ? (
+                ) : displayedBookmarks.length > 0 ? (
+                  bookmarkView === "grid" ? (
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                      {displayedBookmarks.map(p => {
+                        const urgent = ddayUrgent(p.dday);
+                        const closed = p.dday === "종료";
+                        return (
+                          <div
+                            key={p.id}
+                            style={{
+                              display: "flex",
+                              flexDirection: "column",
+                              gap: 14,
+                              padding: "18px 20px",
+                              background: closed ? BG : WHITE,
+                              border: `1px solid ${urgent ? WARN : LINE}`,
+                              borderRadius: 14,
+                              opacity: closed ? 0.7 : 1,
+                              cursor: "pointer",
+                            }}
+                            onClick={() => navigateToPolicyDetail(p.id)}
+                          >
+                            <div>
+                              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
+                                <span style={{ padding: "3px 10px", borderRadius: 99, fontSize: 12, fontWeight: 600, background: AS, color: AI }}>{p.category}</span>
+                                <span style={{
+                                  padding: "3px 10px", borderRadius: 99, fontSize: 12, fontWeight: 600,
+                                  background: closed ? LINE2 : urgent ? "#fee2e2" : "#dcfce7",
+                                  color: closed ? INK3 : urgent ? "#991b1b" : "#166534",
+                                }}>{p.dday}</span>
+                              </div>
+                              <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 6, color: INK, lineHeight: 1.45 }}>{p.title}</div>
+                              {p.source && <div style={{ fontSize: 12, color: INK3 }}>{p.source}</div>}
+                            </div>
+                            <div style={{ display: "flex", gap: 8, marginTop: "auto" }}>
+                              <button style={{ flex: 1, padding: "8px 14px", borderRadius: 8, border: `1px solid ${LINE}`, background: WHITE, color: INK2, fontSize: 12, fontWeight: 600, cursor: "pointer" }}
+                                onClick={async e => {
+                                  e.stopPropagation();
+                                  try {
+                                    await api.post(`/api/policies/${p.id}/bookmark`);
+                                    setBookmarks(prev => prev.filter(b => b.id !== p.id));
+                                  } catch {
+                                    showToast("북마크 해제에 실패했습니다", "error");
+                                  }
+                                }}>
+                                해제
+                              </button>
+                              <button style={{ flex: 1, padding: "8px 14px", borderRadius: 8, border: 0, background: A, color: WHITE, fontSize: 12, fontWeight: 700, cursor: "pointer" }}
+                                onClick={e => { e.stopPropagation(); navigateToPolicyDetail(p.id); }}>
+                                상세 →
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
                   <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                    {bookmarks.map(p => {
+                    {displayedBookmarks.map(p => {
                       const urgent = ddayUrgent(p.dday);
                       const closed = p.dday === "종료";
                       return (
@@ -914,7 +1045,7 @@ export default function MyPage() {
                           borderRadius: 14, opacity: closed ? 0.7 : 1,
                           cursor: "pointer",
                         }}
-                          onClick={() => navigate(`/policies/${p.id}`)}>
+                          onClick={() => navigateToPolicyDetail(p.id)}>
                           <div>
                             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
                               <span style={{ padding: "3px 10px", borderRadius: 99, fontSize: 12, fontWeight: 600, background: AS, color: AI }}>{p.category}</span>
@@ -941,7 +1072,7 @@ export default function MyPage() {
                               해제
                             </button>
                             <button style={{ padding: "8px 14px", borderRadius: 8, border: 0, background: A, color: WHITE, fontSize: 12, fontWeight: 700, cursor: "pointer" }}
-                              onClick={e => { e.stopPropagation(); navigate(`/policies/${p.id}`); }}>
+                              onClick={e => { e.stopPropagation(); navigateToPolicyDetail(p.id); }}>
                               상세 →
                             </button>
                           </div>
@@ -949,6 +1080,7 @@ export default function MyPage() {
                       );
                     })}
                   </div>
+                  )
                 ) : (
                   <div style={{ textAlign: "center", padding: "60px 0", color: INK3 }}>
                     <div style={{ fontSize: 16, fontWeight: 700, color: INK, marginBottom: 6 }}>북마크한 정책이 없어요</div>
@@ -1055,7 +1187,7 @@ export default function MyPage() {
                   </button>
                 </SectionCard>
 
-                <SectionCard title="연결된 계정" desc="간편 로그인을 위해 연결할 수 있어요">
+                <SectionCard title="연결된 계정" desc="현재는 연결 상태만 안내하며, 소셜 계정 연동 기능은 준비 중이에요">
                   {[
                     { ico: "G", n: "Google", s: "연결 안 됨", bg: "#fff", color: INK2, linked: false },
                     { ico: "N", n: "네이버", s: "연결 안 됨", bg: "#03c75a", color: "#fff", linked: false },
@@ -1067,8 +1199,21 @@ export default function MyPage() {
                         <div style={{ fontSize: 14, fontWeight: 700, color: INK }}>{p.n}</div>
                         <div style={{ fontSize: 12, color: p.linked ? "#047857" : INK3, marginTop: 2 }}>{p.linked && "✓ "}{p.s}</div>
                       </div>
-                      <button style={{ padding: "8px 14px", borderRadius: 8, border: `1px solid ${LINE}`, background: WHITE, color: INK2, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
-                        {p.linked ? "연결 해제" : "연결하기"}
+                      <button
+                        disabled
+                        aria-disabled="true"
+                        style={{
+                          padding: "8px 14px",
+                          borderRadius: 8,
+                          border: `1px solid ${LINE}`,
+                          background: LINE2,
+                          color: INK3,
+                          fontSize: 12,
+                          fontWeight: 600,
+                          cursor: "not-allowed",
+                        }}
+                      >
+                        준비 중
                       </button>
                     </div>
                   ))}
@@ -1101,14 +1246,6 @@ export default function MyPage() {
       {/* Modals */}
       <IncomeCalculatorModal open={incomeCalcOpen} onClose={() => setIncomeCalcOpen(false)}
         onSelect={value => { setMyInfo(prev => ({ ...prev, income: value })); setEditing(true); }} />
-
-      <Dialog open={reloginModal} onClose={() => setReloginModal(false)} maxWidth="xs" fullWidth>
-        <DialogTitle>보안을 위해 다시 로그인해주세요</DialogTitle>
-        <DialogContent>변경사항이 저장되었습니다. 보안을 위해 다시 로그인이 필요합니다.</DialogContent>
-        <DialogActions>
-          <button onClick={handleRelogin} style={{ padding: "8px 20px", background: A, color: WHITE, border: 0, borderRadius: 8, fontWeight: 700, cursor: "pointer" }}>확인</button>
-        </DialogActions>
-      </Dialog>
 
       <Dialog open={withdrawModal} onClose={() => { setWithdrawModal(false); setWithdrawPw(""); }} maxWidth="xs" fullWidth>
         <DialogTitle>정말 탈퇴하시겠습니까?</DialogTitle>

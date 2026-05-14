@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import {
   Snackbar, Alert, Pagination, CircularProgress,
 } from "@mui/material";
@@ -63,8 +63,6 @@ const INCOME_ROWS = [
   { value: "7", label: "7~8분위 (상위 40%)" },
   { value: "9", label: "9~10분위 (상위 20%)" },
 ];
-
-const EMPLOY_OPTIONS = ["전체", "재직중", "구직중", "학생", "기타"];
 
 const TARGET_GROUPS = [
   { label: "장애인", value: "장애인" },
@@ -253,18 +251,19 @@ function PolicyCard({ p, onNavigate, onBookmark }) {
 
 export default function PoliciesPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { isLoggedIn } = useAuthStore();
+  const { isLoggedIn, filterSettings } = useAuthStore();
+  const defaultStatusFilter = filterSettings?.includeExpired ? "전부표기" : "신청가능";
 
   const [search, setSearch] = useState(searchParams.get("search") || "");
   const [selectedCat, setSelectedCat] = useState(searchParams.get("category") || "");
   const [region, setRegion] = useState(searchParams.get("region") || "전체");
   const [subRegion, setSubRegion] = useState(searchParams.get("subRegion") || "전체");
   const [income, setIncome] = useState(searchParams.get("income") || "전체");
-  const [employ, setEmploy] = useState(searchParams.get("employ") || "전체");
   const [targetGroup, setTargetGroup] = useState(searchParams.get("targetGroup") || "");
   const [sourceType, setSourceType] = useState(searchParams.get("sourceType") || "전체");
-  const [statusFilter, setStatusFilter] = useState(searchParams.get("statusFilter") || "신청가능");
+  const [statusFilter, setStatusFilter] = useState(searchParams.get("statusFilter") || defaultStatusFilter);
   const [sort, setSort] = useState(resolveInitialSort(searchParams.get("search") || "", searchParams.get("sort")));
   const [pageSize, setPageSize] = useState(Number(searchParams.get("pageSize")) || 10);
   const [cols, setCols] = useState(1);
@@ -284,16 +283,41 @@ export default function PoliciesPage() {
     if (region !== "전체") params.region = region;
     if (subRegion !== "전체") params.subRegion = subRegion;
     if (income !== "전체") params.income = income;
-    if (employ !== "전체") params.employ = employ;
     if (targetGroup) params.targetGroup = targetGroup;
     if (sourceType !== "전체") params.sourceType = sourceType;
-    if (statusFilter !== "신청가능") params.statusFilter = statusFilter;
+    if (statusFilter !== defaultStatusFilter) params.statusFilter = statusFilter;
     const defaultSort = search.trim() ? "relevance" : "latest";
     if (sort !== defaultSort) params.sort = sort;
     if (page !== 1) params.page = String(page);
     if (pageSize !== 10) params.pageSize = String(pageSize);
     setSearchParams(params, { replace: true });
-  }, [search, selectedCat, region, subRegion, income, employ, targetGroup, sourceType, statusFilter, sort, page, pageSize, setSearchParams]);
+  }, [search, selectedCat, region, subRegion, income, targetGroup, sourceType, statusFilter, sort, page, pageSize, defaultStatusFilter, setSearchParams]);
+
+  useEffect(() => {
+    const nextSearch = searchParams.get("search") || "";
+    const nextSelectedCat = searchParams.get("category") || "";
+    const nextRegion = searchParams.get("region") || "전체";
+    const nextSubRegion = searchParams.get("subRegion") || "전체";
+    const nextIncome = searchParams.get("income") || "전체";
+    const nextTargetGroup = searchParams.get("targetGroup") || "";
+    const nextSourceType = searchParams.get("sourceType") || "전체";
+    const nextStatusFilter = searchParams.get("statusFilter") || defaultStatusFilter;
+    const nextSort = resolveInitialSort(nextSearch, searchParams.get("sort"));
+    const nextPageSize = Number(searchParams.get("pageSize")) || 10;
+    const nextPage = Number(searchParams.get("page")) || 1;
+
+    setSearch((prev) => (prev === nextSearch ? prev : nextSearch));
+    setSelectedCat((prev) => (prev === nextSelectedCat ? prev : nextSelectedCat));
+    setRegion((prev) => (prev === nextRegion ? prev : nextRegion));
+    setSubRegion((prev) => (prev === nextSubRegion ? prev : nextSubRegion));
+    setIncome((prev) => (prev === nextIncome ? prev : nextIncome));
+    setTargetGroup((prev) => (prev === nextTargetGroup ? prev : nextTargetGroup));
+    setSourceType((prev) => (prev === nextSourceType ? prev : nextSourceType));
+    setStatusFilter((prev) => (prev === nextStatusFilter ? prev : nextStatusFilter));
+    setSort((prev) => (prev === nextSort ? prev : nextSort));
+    setPageSize((prev) => (prev === nextPageSize ? prev : nextPageSize));
+    setPage((prev) => (prev === nextPage ? prev : nextPage));
+  }, [defaultStatusFilter, searchParams]);
 
   useEffect(() => {
     if (!search.trim() && sort === "relevance") { setSort("latest"); return; }
@@ -338,12 +362,27 @@ export default function PoliciesPage() {
     };
     fetchPolicies();
     return () => controller.abort();
-  }, [statusFilter, page, pageSize, region, search, selectedCat, sort, sourceType, subRegion, income, targetGroup]);
+  }, [isLoggedIn, statusFilter, page, pageSize, region, search, selectedCat, sort, sourceType, subRegion, income, targetGroup]);
 
   // ── 핸들러 ───────────────────────────────────────────────────────────────────
   const handleBookmark = async (id, event) => {
     event.stopPropagation();
-    if (!isLoggedIn) { setToast({ open: true, msg: "로그인 후 이용 가능해요", severity: "info" }); return; }
+    if (!isLoggedIn) {
+      navigate("/login", {
+        state: {
+          from: {
+            pathname: location.pathname,
+            search: location.search,
+          },
+          reason: "login-required",
+          postLoginAction: {
+            type: "toggle-bookmark",
+            policyId: id,
+          },
+        },
+      });
+      return;
+    }
     try {
       await api.post(`/api/policies/${id}/bookmark`);
       setPolicies((prev) => prev.map((p) => (p.id === id ? { ...p, bookmarked: !p.bookmarked } : p)));
@@ -354,7 +393,7 @@ export default function PoliciesPage() {
   const handleApplyFilter = () => { setPage(1); };
   const handleResetFilter = () => {
     setSelectedCat(""); setRegion("전체"); setSubRegion("전체"); setIncome("전체");
-    setEmploy("전체"); setTargetGroup(""); setSourceType("전체"); setStatusFilter("신청가능");
+    setTargetGroup(""); setSourceType("전체"); setStatusFilter(defaultStatusFilter);
     setSort(search.trim() ? "relevance" : "latest"); setPage(1);
   };
 
@@ -362,17 +401,89 @@ export default function PoliciesPage() {
     if (search.trim()) setSort("relevance");
     setPage(1);
   };
+  const chatFromTarget = location.state?.chatFrom?.pathname === "/chat"
+    ? location.state.chatFrom
+    : location.state?.from?.pathname === "/chat"
+      ? location.state.from
+      : undefined;
+  const navigateToPolicyDetail = (policyId) => {
+    navigate(`/policies/${policyId}`, {
+      state: {
+        from: {
+          pathname: location.pathname,
+          search: location.search,
+        },
+        chatFrom: chatFromTarget,
+      },
+    });
+  };
 
   // ── 활성 필터 칩 목록 ────────────────────────────────────────────────────────
   const activeFilters = [
     selectedCat && { key: "cat", label: CATEGORIES.find(c => c.value === selectedCat)?.label || selectedCat, clear: () => setSelectedCat("") },
     region !== "전체" && { key: "region", label: subRegion !== "전체" ? `${region} ${subRegion}` : region, clear: () => { setRegion("전체"); setSubRegion("전체"); } },
     income !== "전체" && { key: "income", label: INCOME_ROWS.find(r => r.value === income)?.label, clear: () => setIncome("전체") },
-    employ !== "전체" && { key: "employ", label: employ, clear: () => setEmploy("전체") },
     targetGroup && { key: "tg", label: targetGroup, clear: () => setTargetGroup("") },
     sourceType !== "전체" && { key: "src", label: sourceType, clear: () => setSourceType("전체") },
-    statusFilter !== "신청가능" && { key: "status", label: statusFilter, clear: () => setStatusFilter("신청가능") },
+    statusFilter !== defaultStatusFilter && { key: "status", label: statusFilter, clear: () => setStatusFilter(defaultStatusFilter) },
   ].filter(Boolean);
+
+  useEffect(() => {
+    const postLoginAction = location.state?.postLoginAction;
+    if (!isLoggedIn || loading || postLoginAction?.type !== "toggle-bookmark") {
+      return;
+    }
+
+    const clearPostLoginAction = () => {
+      const nextState = { ...(location.state ?? {}) };
+      delete nextState.postLoginAction;
+      navigate(`${location.pathname}${location.search}`, {
+        replace: true,
+        state: Object.keys(nextState).length ? nextState : undefined,
+      });
+    };
+
+    const targetPolicy = policies.find((policy) => String(policy.id) === String(postLoginAction.policyId));
+    if (!targetPolicy) {
+      clearPostLoginAction();
+      return;
+    }
+
+    let cancelled = false;
+    const runPostLoginAction = async () => {
+      try {
+        await api.post(`/api/policies/${postLoginAction.policyId}/bookmark`);
+        if (cancelled) {
+          return;
+        }
+        const nextBookmarked = !targetPolicy.bookmarked;
+        setPolicies((prev) => prev.map((policy) => (
+          String(policy.id) === String(postLoginAction.policyId)
+            ? { ...policy, bookmarked: nextBookmarked }
+            : policy
+        )));
+        setToast({
+          open: true,
+          msg: nextBookmarked ? "북마크에 저장했어요" : "북마크를 해제했어요",
+          severity: "success",
+        });
+      } catch {
+        if (!cancelled) {
+          setToast({ open: true, msg: "북마크 처리에 실패했습니다", severity: "error" });
+        }
+      } finally {
+        if (!cancelled) {
+          clearPostLoginAction();
+        }
+      }
+    };
+
+    void runPostLoginAction();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isLoggedIn, loading, location.pathname, location.search, location.state, navigate, policies]);
 
   return (
     <div style={{ minHeight: "100vh", background: "#f7f8fc" }}>
@@ -481,15 +592,6 @@ export default function PoliciesPage() {
             </button>
           </FilterSection>
 
-          {/* 취업상태 */}
-          <FilterSection title="취업상태" defaultOpen={false}>
-            <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-              {EMPLOY_OPTIONS.map((o) => (
-                <RadioItem key={o} label={o} checked={employ === o} onChange={() => { setEmploy(o); setPage(1); }} />
-              ))}
-            </div>
-          </FilterSection>
-
           {/* 특화조건 */}
           <FilterSection title="특화조건" defaultOpen={false}>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
@@ -589,13 +691,13 @@ export default function PoliciesPage() {
             cols === 1 ? (
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                 {policies.map((p) => (
-                  <PolicyRow key={p.id} p={p} onNavigate={(id) => navigate(`/policies/${id}`)} onBookmark={handleBookmark} />
+                  <PolicyRow key={p.id} p={p} onNavigate={navigateToPolicyDetail} onBookmark={handleBookmark} />
                 ))}
               </div>
             ) : (
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                 {policies.map((p) => (
-                  <PolicyCard key={p.id} p={p} onNavigate={(id) => navigate(`/policies/${id}`)} onBookmark={handleBookmark} />
+                  <PolicyCard key={p.id} p={p} onNavigate={navigateToPolicyDetail} onBookmark={handleBookmark} />
                 ))}
               </div>
             )

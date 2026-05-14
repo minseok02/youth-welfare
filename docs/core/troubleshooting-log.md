@@ -1,5 +1,170 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 336) 챗 메시지에 `references` 는 있는데 `referencedServiceIds` 가 비어 있으면, 연결 정책 카드가 통째로 사라질 수 있다
+- 문제: `ChatPage` 는 연결 정책 카드 렌더링 조건을 `message.referencedServiceIds.length > 0` 에만 걸고 있었다. 그래서 레거시/부분 데이터처럼 `references` 배열은 존재하지만 `referencedServiceIds` 가 비어 있는 메시지가 오면, 제목/근거가 충분히 있어도 카드 섹션 자체가 렌더링되지 않을 수 있었다
+- 해결: `mapMessage()` 단계에서 `referencedServiceIds` 가 비어 있으면 `references[].serviceId` 를 fallback으로 채우도록 정리했다. 이제 메시지 응답이 두 필드 중 하나만 채워도 연결 정책 카드를 계속 렌더링할 수 있다. 이후 `cd frontend && npm run lint`, `cd frontend && npm run build` 를 다시 통과시켰다
+- 이유: 프론트는 같은 의미를 가진 중복 필드가 있을 때 더 풍부한 필드를 활용해 복원력을 가져야 한다. 특히 레거시 데이터나 부분 응답이 섞일 수 있는 대화 기록 화면은 엄격한 단일 필드 의존이 쉽게 UI 공백으로 이어진다
+
+## 335) 메인의 `맞춤 재추천`/`새로고침` 이 우선순위 없이 toast만 띄우고 끝나면, 사용자는 막힌 원인을 알아도 바로 해결 경로로 못 간다
+- 문제: `MainPage` 의 추천 갱신 액션은 `user?.hasPriorities` 가 없으면 `마이페이지에서 우선순위를 먼저 설정해주세요` toast만 띄우고 종료됐다. 하지만 이 버튼들은 해결 행동을 기대하고 누르는 액션이라, 원인을 알려주기만 하고 실제 해결 탭으로 보내지 않으면 흐름이 끊긴다
+- 해결: 두 액션 모두 우선순위가 없을 때 `마이페이지 우선순위 탭으로 이동합니다.` toast를 띄운 뒤 바로 `/mypage?tab=1` 로 이동하게 맞췄다. 이후 `cd frontend && npm run lint`, `cd frontend && npm run build` 를 다시 통과시켰다
+- 이유: 재시도/갱신 버튼은 사용자가 문제 해결을 기대하고 누르는 CTA다. 막힌 이유를 설명하는 것만으로는 부족하고, 즉시 해결 가능한 위치까지 연결해야 UX가 끊기지 않는다
+
+## 334) 메인 추천 카드의 북마크 toast가 이전 상태를 읽으면, 실제 토글 결과와 안내 문구가 반대로 뜰 수 있다
+- 문제: `MainPage` 의 추천 카드 북마크 토글은 `setRecommendations()` 로 상태를 뒤집은 뒤, toast 문구는 기존 `recommendations` 배열에서 같은 카드의 이전 `bookmarked` 값을 다시 읽고 있었다. 이 상태에서는 UI는 저장됐는데 toast는 `해제`, 또는 UI는 해제됐는데 toast는 `저장`이라고 말하는 역전이 생길 수 있었다
+- 해결: 토글 전에 현재 카드 상태를 읽어 `nextBookmarked` 를 계산하고, state 업데이트와 toast 문구가 모두 그 동일한 다음 상태를 기준으로 움직이게 맞췄다. 이후 `cd frontend && npm run lint`, `cd frontend && npm run build` 를 다시 통과시켰다
+- 이유: 상태 토글 후 안내 문구는 “이전 상태를 보고 추론”하면 쉽게 어긋난다. 사용자에게 보여주는 UI와 toast는 같은 next state를 단일 기준으로 공유해야 한다
+
+## 333) 메인 추천 empty state가 `우선순위 설정하러 가기` 라고 말하면서 기본 마이페이지 탭으로 보내면, 안내 문구와 실제 목적지가 다르다
+- 문제: `MainPage` 의 맞춤 추천 영역은 `user?.hasPriorities` 가 없을 때 `우선순위 설정하러 가기` 버튼을 보여주지만, 실제 이동 대상은 `/mypage` 기본 탭이었다. 이 상태에서는 사용자가 추천 부족 원인을 해결하려고 버튼을 눌러도 정작 필요한 `우선순위` 탭이 아니라 `내 정보` 탭부터 보게 된다
+- 해결: 해당 버튼의 이동 대상을 `/mypage?tab=1` 로 바꿔, 클릭 즉시 우선순위 탭으로 들어가도록 맞췄다. 이후 `cd frontend && npm run lint`, `cd frontend && npm run build` 를 다시 통과시켰다
+- 이유: 해결 행동을 유도하는 CTA는 사용자를 바로 해결 지점으로 데려가야 한다. 특히 추천 부족처럼 원인이 분명한 상태에서는 “비슷한 화면”이 아니라 정확한 탭까지 맞춰야 체감이 산다
+
+## 332) 챗에서 연결 정책 상세로 갔다가 돌아올 때 세션 id를 남기지 않으면, 같은 대화 문맥으로 복귀하지 못한다
+- 문제: `ChatPage` 의 연결 정책 카드는 상세 페이지로 이동할 때 `from` 을 전혀 넘기지 않았고, 챗 화면 자체도 현재 `activeSessionId` 를 URL에 남기지 않았다. 이 상태에서는 `챗 -> 연결 정책 상세 -> 뒤로가기` 흐름에서 정책 상세의 상단 복귀 버튼이 챗으로 돌아갈 기준이 없고, 브라우저 back으로 돌아와도 어떤 세션을 보던 중이었는지 잃을 수 있었다
+- 해결: `ChatPage` 가 현재 세션 id를 `?session=` query에 동기화하도록 맞추고, 연결 정책 카드에서 상세로 이동할 때 현재 `pathname` 과 `?session=${activeSessionId}` 를 `state.from` 으로 넘기게 정리했다. 이제 정책 상세에서 다시 챗으로 돌아와도 같은 세션을 복원할 수 있다. 이후 `cd frontend && npm run lint`, `cd frontend && npm run build` 를 다시 통과시켰다
+- 이유: 챗은 단순 목록 화면이 아니라 현재 대화 상태가 핵심인 화면이다. 이런 화면은 “어느 페이지에서 왔는지”보다 “어느 세션을 보고 있었는지”까지 복구해야 체감상 같은 작업을 이어가는 흐름이 된다
+
+## 331) 메인 `CTASection` 에서만 직접 로그인/회원가입 CTA가 옛 경로를 쓰면, 같은 화면 안에서도 인증 복귀 계약이 갈라진다
+- 문제: `MainPage` 의 주요 비로그인 CTA들은 이미 `authState.from` 을 들고 인증 화면으로 가도록 바뀌었지만, 하단 `CTASection` 의 `1분만에 추천받기` 와 `로그인` 버튼은 여전히 `/signup`, `/login` 으로만 이동했다. 이 상태에서는 같은 메인 화면 안에서도 어떤 CTA를 눌렀느냐에 따라 복귀 문맥 보존 여부가 달라졌다
+- 해결: `CTASection` 도 `authState` 를 받아 하단 `회원가입/로그인` 버튼이 현재 `pathname/search` 를 함께 들고 인증 화면으로 이동하게 맞췄다. 이후 `cd frontend && npm run lint`, `cd frontend && npm run build` 를 다시 통과시켰다
+- 이유: 같은 페이지에 있는 동등한 CTA들은 같은 계약을 따라야 한다. 일부만 최신 복귀 규칙을 쓰고 일부는 예전 규칙을 쓰면, 사용자는 버튼마다 결과가 달라지는 비일관성을 먼저 체감하게 된다
+
+## 330) `login-required` 안내가 모든 진입점을 `챗봇`으로만 설명하면, 사용자는 왜 로그인 화면에 왔는지 실제 문맥과 다르게 이해한다
+- 문제: `LoginPage` 는 `reason === "login-required"` 일 때 항상 `챗봇은 로그인 후 이용 가능합니다.` 라는 toast를 띄웠다. 하지만 실제 진입점은 `마이페이지`, 정책 상세의 자격 확인, 기타 보호 액션도 포함하고 있었기 때문에, 로그인 화면 안내 문구가 실제 목적지와 자주 어긋났다
+- 해결: `LoginPage` 가 `location.state.from.pathname` 을 읽어 `/chat` 은 챗봇 전용 문구, `/mypage` 는 마이페이지 전용 문구, 그 외는 일반 `로그인 후 이용 가능한 기능입니다.` 안내를 띄우게 정리했다. 이후 `cd frontend && npm run lint`, `cd frontend && npm run build` 를 다시 통과시켰다
+- 이유: 로그인 유도 문구는 사용자가 지금 무엇을 하려다가 막혔는지 정확히 설명해야 한다. 진입 문맥과 맞지 않는 고정 문구는 복귀 UX를 오히려 더 혼란스럽게 만든다
+
+## 329) 마이페이지가 비로그인 시 `/login` 으로만 떨어지면, 강제 로그인 후 원래 탭과 계정 복구 문맥이 끊긴다
+- 문제: `MyPage` 는 보호 페이지인데도 `isLoggedIn` 이 false가 되면 `navigate("/login")` 만 호출했다. 이 상태에서는 직접 `/mypage?tab=...` 로 들어오거나 비밀번호 변경 후 재로그인이 필요한 경우에도, 로그인 화면이 현재 마이페이지 탭 문맥을 잃고 일반 진입처럼 보이게 된다
+- 해결: 비로그인 강제 이동 시 현재 `pathname/search` 와 `reason: "login-required"` 를 함께 `/login` state로 넘기도록 맞췄고, 비밀번호 변경 후 재로그인도 현재 계정 탭을 `from` 으로 보존하면서 `reason: "password-reset-complete"` 와 이메일을 같이 전달하게 정리했다. 이후 `cd frontend && npm run lint`, `cd frontend && npm run build` 를 다시 통과시켰다
+- 이유: 보호 페이지와 계정 복구 플로우는 현재 위치를 가장 강하게 보존해야 하는 구간이다. 특히 탭형 화면은 어떤 탭에서 인증이 끊겼는지 잃어버리면 복귀 체감이 크게 나빠진다
+
+## 328) 메인 비로그인 CTA가 `/login`/`/signup` 으로만 이동하면, 자발적으로 인증을 시작한 사용자도 현재 탐색 문맥을 잃는다
+- 문제: `MainPage` 의 비로그인 히어로 `맞춤 추천 받기`, 추천 섹션의 `로그인하기`/`회원가입` 버튼은 모두 인증 화면으로 직접 이동했지만, 현재 메인 화면의 `pathname/search` 를 state로 넘기지 않았다. 이 상태에서는 사용자가 메인에서 로그인이나 회원가입을 시작해도 이후 복귀 흐름이 일반 direct entry와 구분되지 않았다
+- 해결: 메인 페이지에서 인증 화면으로 이동하는 비로그인 CTA들이 공통 `authState.from` 을 들고 가도록 바꿨다. 이제 로그인/회원가입을 거친 뒤에도 현재 탐색 세션을 같은 문맥으로 이어갈 수 있다. 이후 `cd frontend && npm run lint`, `cd frontend && npm run build` 를 다시 통과시켰다
+- 이유: 보호 기능 진입뿐 아니라 사용자가 스스로 시작한 인증 플로우도 결국 현재 세션 위에서 이어지는 행동이다. 인증 화면으로 들어가는 모든 CTA가 같은 복귀 계약을 따라야 동작 규칙이 예측 가능해진다
+
+## 327) 헤더의 직접 `로그인` 버튼이 현재 위치를 기억하지 않으면, 전역 네비게이션만 복귀 규칙이 다른 예외가 된다
+- 문제: `Header` 의 비로그인 `로그인` 버튼은 단순히 `/login` 으로만 이동했고, 같은 헤더 안의 `마이페이지`/`챗봇` 버튼은 이미 별도 `from` 계약을 갖고 있었다. 이 상태에서는 공개 페이지에서 헤더로 로그인한 사용자만 현재 화면 문맥을 잃는 예외가 생길 수 있었다
+- 해결: `Header` 가 현재 `location.pathname/search` 를 읽어 직접 `로그인` 버튼도 `state.from` 과 함께 `/login` 으로 이동하게 맞췄다. 이후 `cd frontend && npm run lint`, `cd frontend && npm run build` 를 다시 통과시켰다
+- 이유: 전역 헤더는 어느 화면에서나 같은 규칙으로 동작해야 한다. 어떤 진입점은 현재 페이지를 기억하고 어떤 진입점은 잃어버리면, 인증 복귀 UX가 화면마다 들쭉날쭉해진다
+
+## 326) 비밀번호 재설정 완료 후 `/login` 으로만 돌아가면, 원래 보호 페이지 복귀 문맥과 새 비밀번호 안내가 함께 끊긴다
+- 문제: `ResetPasswordPage` 는 로그인 화면에서 넘어온 이메일/`from` 문맥을 보존하지 않았고, 비밀번호 변경이 끝나도 단순히 `/login` 으로만 이동했다. 이 상태에서는 사용자가 특정 페이지 진입 도중 비밀번호 재설정을 거쳐도 원래 목적지 복귀가 끊기고, 로그인 화면도 일반 진입과 구분되지 않았다
+- 해결: `ResetPasswordPage` 가 `location.state.email` 로 이메일을 미리 채우고, `로그인으로 돌아가기` 및 비밀번호 변경 완료 후 `/login` 이동 시 `from`, `email`, `reason: "password-reset-complete"` 를 함께 넘기도록 정리했다. `LoginPage` 도 이 reason을 읽어 새 비밀번호 로그인 안내 toast를 보여주게 맞췄다. 이후 `cd frontend && npm run lint`, `cd frontend && npm run build` 를 다시 통과시켰다
+- 이유: 비밀번호 재설정은 인증 실패의 복구 절차이므로, 끝난 뒤 다시 일반 로그인 진입처럼 취급하면 사용자는 왜 여기로 왔는지 맥락을 잃는다. 복구 플로우도 원래 보호 페이지 복귀 계약 안에서 움직여야 한다
+
+## 325) 로그인 화면에서 회원가입으로 갔다가 돌아올 때 원래 `from` 을 잃으면, 가입 후 로그인해도 처음 보던 화면으로 못 돌아간다
+- 문제: `LoginPage` 의 `회원가입`/`비밀번호 찾기` 버튼은 현재 로그인 화면이 들고 있던 `from` 을 다음 화면으로 넘기지 않았고, `SignupPage` 도 가입 완료 후 `/login` 으로 돌아올 때 `reason`, `email`, `signupPriorities` 만 남기고 원래 목적지를 버렸다. 그래서 `정책 상세 -> 로그인 -> 회원가입 -> 로그인` 흐름에서는 가입이 끝난 뒤에도 원래 정책 문맥이 사라질 수 있었다
+- 해결: `LoginPage` 는 `회원가입`/`비밀번호 찾기` 이동 시 현재 `from` 을 전달하고, `SignupPage` 는 가입 완료 및 하단 `로그인` 이동 시 그 `from` 을 다시 `/login` state로 넘기도록 맞췄다. 이제 가입을 거친 뒤에도 로그인 완료 시 원래 목적지로 복귀할 수 있다. 이후 `cd frontend && npm run lint`, `cd frontend && npm run build` 를 다시 통과시켰다
+- 이유: 로그인은 인증 단계일 뿐이고, 회원가입은 그 전 단계일 뿐이다. 둘 사이를 오가는 동안 원래 탐색 목적지를 잃지 않아야 사용자가 긴 우회 플로우를 거쳐도 같은 작업을 이어갈 수 있다
+
+## 324) 정책 상세의 `자격 확인하기` CTA가 비로그인 사용자를 그냥 `/login` 으로만 보내면, 로그인 뒤 원래 보던 정책 문맥이 끊긴다
+- 문제: `PolicyDetailPage` 우측 사이드바의 `자격 확인하기` 버튼은 로그인 사용자를 `/mypage` 로 보내지만, 비로그인 사용자는 현재 상세 경로를 기억하지 않고 단순히 `/login` 으로만 이동시켰다. 이 상태에서는 사용자가 특정 정책을 보다가 자격 확인을 위해 로그인해도, 로그인 완료 후 원래 정책으로 복귀하지 못하고 홈으로 떨어질 수 있었다
+- 해결: 비로그인 상태에서 이 CTA를 누르면 현재 상세의 `pathname/search` 를 `from` 으로 넘기고 `reason: "login-required"` 도 함께 전달하게 바꿨다. 이제 로그인 후에는 원래 보던 정책 상세로 복귀한다. 이후 `cd frontend && npm run lint`, `cd frontend && npm run build` 를 다시 통과시켰다
+- 이유: 상세 페이지의 CTA는 현재 보고 있던 정책 맥락 안에서 이어지는 행동이다. 로그인은 그 흐름의 중간 단계여야지, 탐색 세션을 초기화하는 종착점이 되면 안 된다
+
+## 323) 헤더의 비로그인 `마이페이지` 버튼이 `/login` 으로만 가면, 로그인 후 사용자가 기대한 보호 페이지 복귀가 끊긴다
+- 문제: `Header` 의 비로그인 `마이페이지` 버튼은 안내 toast 뒤 `/login` 으로만 이동했다. 반면 `챗봇` 버튼과 `RequireLogin` 은 이미 `from` 과 `reason` 을 함께 넘기고 있었기 때문에, 헤더 안에서도 보호 기능별 로그인 복귀 계약이 서로 달랐다
+- 해결: 비로그인 `마이페이지` 이동도 `/login` 으로 보낼 때 `from: { pathname: "/mypage" }`, `reason: "login-required"` 를 같이 넘기도록 맞췄다. 이후 `cd frontend && npm run lint`, `cd frontend && npm run build` 를 다시 통과시켰다
+- 이유: 같은 전역 네비게이션 안에서는 보호 기능 진입 계약이 일관돼야 한다. 어떤 버튼은 로그인 후 원래 목적지로 돌아가고, 어떤 버튼은 홈으로 떨어지면 사용자는 동작 규칙을 신뢰하기 어렵다
+
+## 322) 정책 상세에서 연관 정책으로 연속 진입할 때 `from` 을 넘기지 않으면, 뒤로가기 기준이 원래 목록이 아니라 중간에 끊기거나 `/policies` 로 떨어진다
+- 문제: `PolicyDetailPage` 는 목록/메인/마이페이지에서 들어올 때는 `location.state.from` 을 받아 상단 `뒤로가기` 를 복원하지만, 상세 하단 `비슷한 정책` 카드는 다음 상세로 이동할 때 이 기준점을 다시 넘기지 않았다. 그래서 `목록 -> 상세 A -> 비슷한 정책 B` 흐름에서는 B 상세가 원래 목록 query를 잃고, direct entry detail에서는 이전 detail 체인도 복원되지 않았다
+- 해결: 연관 정책 이동 시 기존 `backTarget` 이 있으면 그대로 계승하고, 없으면 현재 상세의 `pathname/search` 를 fallback `from` 으로 넘기게 바꿨다. 이제 chained detail 이동에서도 `뒤로가기` 기준점이 유지된다. 이후 `cd frontend && npm run lint`, `cd frontend && npm run build` 를 다시 통과시켰다
+- 이유: 상세 간 이동은 새 화면 진입이지만 사용자는 여전히 같은 탐색 세션 안에 있다고 느낀다. 이런 경우 최초 복귀 기준점이나 직전 상세를 끊지 않고 계승해야 브라우저 체감과 맞는다
+
+## 321) 정책 검색이 query string은 쓰면서 브라우저 `back/forward` 로 바뀐 URL을 다시 읽지 않으면, 필터/정렬/페이지 복원이 깨진다
+- 문제: `PoliciesPage` 는 검색어, 카테고리, 지역, 정렬, 페이지를 URL query로 내보내고 있었지만, 컴포넌트 state는 최초 mount 때만 `searchParams` 를 읽었다. 이 상태에서는 같은 페이지 안에서 브라우저 `back/forward` 로 query가 바뀌어도 화면 state와 fetch 기준이 그대로 남아 `URL과 실제 목록/필터 UI가 어긋나는` 회귀가 생길 수 있었다
+- 해결: `PoliciesPage` 에 `searchParams -> local state` 동기화 effect를 추가해, URL이 바뀌면 검색어/필터/정렬/페이지/페이지 크기를 다시 읽어 로컬 state와 fetch 기준을 맞추도록 정리했다. 이후 `cd frontend && npm run lint`, `cd frontend && npm run build` 를 다시 통과시켰다
+- 이유: query string 을 공식 상태로 노출하는 화면은 write path만으로는 부족하다. 브라우저 history가 바꾼 URL도 같은 우선순위로 read 해야 뒤로가기/재진입 QA를 통과할 수 있다
+
+## 320) 마이페이지 `연결된 계정` 버튼이 실제 연동 경로 없이 `연결하기` 로 보이면, 사용자는 준비되지 않은 기능을 실제 액션으로 오해한다
+- 문제: `MyPage` 계정 탭은 Google/네이버/카카오 항목마다 `연결하기` 버튼을 렌더링했지만, 이 버튼에는 `onClick` 도 연동 API도 없었다. 즉 사용자는 눌러서 연결할 수 있다고 믿지만 실제로는 아무 반응도 없는 전형적인 fake action UI였다
+- 해결: `연결된 계정` 섹션 설명을 현재 계약에 맞게 `연결 상태만 안내, 연동 기능은 준비 중` 으로 바꾸고, 각 버튼도 `준비 중` 비활성 상태로 내려 실제 capability와 화면 표현을 맞췄다. 이후 `cd frontend && npm run lint`, `cd frontend && npm run build` 를 다시 통과시켰다
+- 이유: 아직 없는 기능은 감추거나 비활성화해야 한다. 빈 버튼을 남겨 두면 QA에서는 클릭 실패로 기록되고, 사용자 관점에서는 기능 고장과 준비 중 상태를 구분할 수 없게 된다
+
+## 319) 마이페이지 `reloginModal` 이 열리는 경로 없이 남아 있으면, 보안 UX처럼 보이지만 실제로는 도달 불가 dead UI다
+- 문제: `MyPage` 에는 `reloginModal` state, `handleRelogin()`, 재로그인 안내 `Dialog` 가 있었지만, 상태를 `true` 로 바꾸는 경로가 코드 어디에도 없었다. 비밀번호 변경은 이미 toast 후 logout redirect로 끝나므로, 이 모달은 수동 QA에서도 절대 볼 수 없는 죽은 분기였다
+- 해결: 사용되지 않는 `reloginModal` state, handler, dialog markup을 제거해 실제 세션 갱신 계약과 화면 코드를 일치시켰다. 이후 `cd frontend && npm run lint`, `cd frontend && npm run build` 를 다시 통과시켰다
+- 이유: 보안 관련 UI는 특히 “언젠가 쓰일 것 같은 잔여 코드”를 남기면 안 된다. 현재 계약이 즉시 로그아웃 복귀라면, 도달 불가 모달보다 명시적인 단일 흐름이 유지보수와 검증에 낫다
+
+## 318) 마이페이지 `필터 기본값` 이 store에만 저장되고 `/policies` 기본 상태가 그 값을 안 읽으면, “다음 접속부터 적용”이라는 안내가 거짓이 된다
+- 문제: `MyPage` 필터 탭은 `includeExpired` 를 로컬 store에 저장하고 “저장된 설정은 다음 접속부터 적용돼요”라고 안내하지만, `PoliciesPage` 는 초기 `statusFilter` 를 항상 `"신청가능"` 으로만 시작했다. 이 상태에서는 사용자가 `종료된 정책 보기` 를 켜고 저장해도 다음에 정책 검색에 들어가면 아무 변화가 없어, 저장 UI가 실제로는 dead write가 된다
+- 해결: `PoliciesPage` 가 `useAuthStore().filterSettings.includeExpired` 를 읽어, query param이 없을 때 기본 `statusFilter` 를 `전부표기` 또는 `신청가능` 으로 시작하게 연결했다. 필터 초기화도 같은 기본값을 따르게 맞췄고, 이후 `cd frontend && npm run lint`, `cd frontend && npm run build` 를 다시 통과시켰다
+- 이유: 로컬 설정은 서버 저장이 아니어도 괜찮지만, 최소한 실제 소비처 하나는 있어야 한다. 특히 “다음 접속부터 적용”처럼 사용자 기대를 만드는 UI는 read path가 연결되지 않으면 바로 신뢰를 잃는다
+
+## 317) 마이페이지 북마크의 정렬/보기 토글이 상태만 바꾸고 렌더링엔 반영되지 않으면, 사용자는 조작이 먹었다고 믿지만 화면은 그대로다
+- 문제: `MyPage` 북마크 탭에는 `최신순/마감임박순`, `list/grid` 컨트롤이 있었지만, 실제 렌더링은 항상 원본 `bookmarks` 배열을 같은 list 레이아웃으로만 그렸다. 이 상태에서는 UI가 반응해 보여도 결과 화면이 바뀌지 않아 설정이 저장되거나 적용된 것처럼 오해하기 쉽다
+- 해결: 북마크 표시용 `displayedBookmarks` 정렬 경로를 추가해 `마감임박순`일 때 `D-Day -> 긴급 D-n -> 나머지` 순으로 먼저 정렬하고, 기본은 applyEndDate 최신순으로 정리했다. 또 `bookmarkView === "grid"` 일 때는 실제 카드 grid 레이아웃으로 렌더링하도록 분기해 토글이 눈에 보이는 변화로 이어지게 맞췄다. 이후 `cd frontend && npm run lint`, `cd frontend && npm run build` 를 다시 통과시켰다
+- 이유: 사용자 설정 UI는 실제 표시 결과를 바꾸지 않으면 “고장난 기능”보다 더 나쁘다. 조작은 되는데 효과가 없으면 QA도 통과시키기 어렵고, 저장/복원 계약까지 흐릿해진다
+
+## 316) 정책 검색에 고용상태 필터 UI가 있는데 API 요청엔 안 들어가면, 사용자는 필터가 적용됐다고 믿고 전혀 다른 결과를 보게 된다
+- 문제: `PoliciesPage` 는 `취업상태` 필터를 state, URL query, active chip까지 모두 유지하고 있었지만, 실제 `/api/policies`, `/api/policies/search` 요청에는 이 값이 한 번도 전달되지 않았다. 즉 화면상으로는 필터가 걸린 것처럼 보여도 결과 목록은 그대로라서 전형적인 fake filter 상태였다
+- 해결: 현재 backend 목록/검색 계약이 지원하지 않는 `취업상태` 필터 UI와 관련 query param/state/chip 로직을 `PoliciesPage` 에서 제거했다. 이제 정책 검색 화면은 실제 API가 이해하는 필터만 노출하고, 사용자가 적용된 줄 착각하는 가짜 조건은 남지 않는다. 변경 후 `cd frontend && npm run lint`, `cd frontend && npm run build` 를 다시 통과시켰다
+- 이유: 지원하지 않는 필터를 “일단 UI만” 남겨두는 건 빈 화면보다 더 위험하다. 결과가 달라졌다고 사용자가 믿는 순간, 검색 품질 문제인지 UI 문제인지 구분도 어려워진다
+
+## 315) 북마크 일관성을 말로만 확인하면, `추천/검색/상세/마이페이지` 중 한 화면이 상태를 놓쳐도 다음 리팩토링에서 다시 새어 나간다
+- 문제: 북마크는 같은 serviceId 기준으로 메인 추천 카드, 정책 검색 목록, 정책 상세, 마이페이지 북마크 목록이 같은 상태를 보여야 한다. 하지만 기존 local validation suite에는 이 전파를 자동으로 보는 step이 없어서, 화면 하나가 `bookmarked` 필드를 놓쳐도 실제 회귀는 브라우저 수동 확인 전까지 드러나지 않을 수 있었다
+- 해결: `deploy/smoke/run-local-bookmark-consistency-smoke.sh` 를 추가해 `signup -> login -> priorities update -> recommendations refresh -> first recommendation bookmark on/off -> recommendations/search/detail/bookmarks` 를 한 번에 검증하게 만들고, `run-local-validation-suite.sh` quick/full 기본 프로필에도 `bookmark consistency smoke` 단계를 편입했다. 검증으로 `deploy/smoke/run-local-validation-from-env.sh --only bookmark`, `--quick` 를 다시 실행해 모두 통과했고, runtime smoke 문서도 현재 순서에 맞게 갱신했다
+- 이유: 북마크는 write는 한 번인데 read surface는 여러 곳이다. 이런 상태 전파는 UI 한 군데만 보고는 안전하지 않아서, serviceId 기준 계약을 smoke로 고정해 두는 편이 리팩토링 회귀를 가장 빨리 잡는다
+
+## 314) 메인 추천 카드가 backend의 `isBookmarked` 를 버리면, 추천 화면만 북마크 상태를 모르는 별도 세계가 된다
+- 문제: `RecommendationResponse` 는 이미 `isBookmarked` 를 내려주는데, `frontend/src/pages/MainPage.jsx` 의 `mapRec()` 는 이 필드를 버리고 있었다. 그 결과 메인 추천 카드에서는 같은 정책이 검색/상세/마이페이지에서 북마크된 상태여도 표시나 토글이 없어서, QA checklist의 `메인/목록/상세/마이페이지 일관성` 요구를 충족하지 못했다
+- 해결: 메인 추천 카드 모델에 `bookmarked` 를 포함시키고, 카드 우측에 북마크 토글 버튼을 추가했다. 토글은 `POST /api/policies/{serviceId}/bookmark` 를 사용해 다른 화면과 같은 command 경계를 타도록 맞췄고, 성공 시 로컬 추천 카드 상태도 즉시 뒤집히게 정리했다. 이후 `cd frontend && npm run lint`, `cd frontend && npm run build` 를 다시 통과시켰다
+- 이유: 같은 `serviceId` 를 여러 화면이 소비할 때 한 화면만 `bookmarked` 필드를 무시하면, 사용자는 "저장은 됐는데 왜 여기만 다르지?" 상태가 된다. 이런 경우는 backend보다 frontend projection 누락이 문제이므로, read model을 그대로 살려주는 편이 맞다
+
+## 313) `__authExpired` 핸들러를 보호 라우트에서만 설치하면, 공개 화면에서 북마크 같은 인증 호출이 만료될 때 로그인 복귀 없이 그냥 실패로 끝난다
+- 문제: `axios` refresh 실패 시 `window.__authExpired?.()` 를 호출하지만, 이 핸들러는 기존에 `RequireLogin` 안에서만 설치됐다. 그래서 `/policies`, `/policies/:id`, 메인처럼 공개 라우트에 머무르는 로그인 사용자가 북마크 등 인증 API를 호출하다 세션이 만료되면, local token만 지워지고 공개 페이지에 남은 채 "북마크 처리 실패"처럼 보일 수 있었다
+- 해결: `frontend/src/components/AuthExpiryHandler.jsx` 를 추가하고, `frontend/src/router/index.jsx` 의 모든 라우트 element를 이 전역 핸들러로 감쌌다. 이제 로그인 사용자는 공개/보호 라우트 구분 없이 refresh 실패 시 현재 위치를 `from` 으로 들고 `/login` 으로 이동하며, `reason: "expired"` toast도 같은 기준으로 노출된다. 변경 후 `cd frontend && npm run lint`, `cd frontend && npm run build` 를 다시 통과시켰다
+- 이유: 세션 만료 UX는 "보호 페이지에서만 맞는" 부분 구현으로 두면 안 된다. 로그인 상태에서 인증 API를 칠 수 있는 모든 화면이 같은 만료 계약을 따라야 사용자가 어디서든 동일하게 복구할 수 있다
+
+## 312) 정책 상세에 실제 뒤로가기 경로가 없고 마이페이지 탭 상태도 URL에 안 남으면, `목록/북마크 -> 상세 -> 복귀` 요구를 만족시킬 수 없다
+- 문제: `PolicyDetailPage` 에는 `navigate(-1)` 또는 원위치 복귀 버튼이 없었고, `MainPage`/`PoliciesPage`/`MyPage` 는 상세 진입 시 출발 위치를 넘기지 않았다. 특히 `MyPage` 는 active tab을 내부 state로만 들고 있어 `북마크 탭 -> 상세 -> 복귀`를 명시적으로 복원할 URL 기준점도 없었다
+- 해결: `MainPage`, `PoliciesPage`, `MyPage` 가 상세 진입 시 현재 `pathname/search` 를 `location.state.from` 으로 넘기도록 바꾸고, `PolicyDetailPage` 상단에 이 값을 사용하는 `뒤로가기` 버튼을 추가했다. 동시에 `MyPage` 는 활성 탭을 `?tab=` 쿼리와 양방향 동기화해 북마크 탭이 URL로도 유지되게 맞췄다. 이후 `cd frontend && npm run lint`, `cd frontend && npm run build` 를 다시 통과시켰다
+- 이유: 브라우저 back에만 기대면 앱 내부 CTA, 새 탭 진입, 마이페이지 탭 상태 복원 요구를 제대로 만족시키기 어렵다. 상세 페이지가 출발 위치를 알고 있어야 checklist 수준의 복귀 UX를 안정적으로 보장할 수 있다
+
+## 311) QA checklist엔 있는데 local validation suite엔 `공개 정책 탐색 / profile·priorities / chat CRUD` 가 빠져 있으면, 핵심 사용자 흐름이 다시 수동 검증으로만 남는다
+- 문제: 기존 `run-local-validation-suite.sh` 는 auth/session, recommendation click, admin dashboard, replay는 자동화했지만, 브라우저 QA 체크리스트의 핵심 구간인 공개 정책 list/search/detail, 프로필 조회/우선순위 저장, 챗 세션 생성/메시지 전송/삭제는 자동 검증에 포함하지 않았다. 이 상태면 리팩토링 뒤에도 가장 자주 만지는 화면 흐름 일부가 사람 손 회귀에만 의존하고, 체크리스트와 실제 validation baseline이 점점 어긋난다
+- 해결: `deploy/smoke/run-local-public-profile-chat-smoke.sh` 를 추가해 `public policies list -> public search -> public detail -> signup -> login -> profile get -> priorities update -> chat create/list/send/get/delete` 를 한 번에 검증하게 만들고, `run-local-validation-suite.sh` 의 기본 quick/full 프로필에 새 `public-chat` 단계를 편입했다. 이후 `deploy/smoke/run-local-validation-from-env.sh --only public-chat` 과 `--quick` 를 다시 실행해 둘 다 통과했고, `docs/core/runtime-api-smoke-commands.md`, `docs/frontend/frontend-qa-checklist.md` 도 현재 기준선에 맞게 동기화했다
+- 이유: 로컬 서비스 단계에서는 운영 트래픽보다 회귀 탐지 속도가 더 중요하다. 공개 탐색, 프로필, 챗은 프론트/백엔드 계약이 자주 만나는 경계라서, smoke 기준선에서 빠지면 리팩토링 안정성이 급격히 떨어진다
+
+## 310) 프론트 production build가 계속 단일 chunk 경고를 내면, 정적 검사는 green이어도 초기 로드 비용과 배포 기준선이 불안정하게 남는다
+- 문제: `cd frontend && npm run build` 는 통과했지만, 기존 구조에서는 주요 페이지가 `index` 번들에 한꺼번에 묶여 Vite의 chunk size warning이 남아 있었다. 로컬 validation과 smoke는 전부 통과한 상태였지만, 이 경고를 그대로 두면 리팩토링 이후에도 "정적 검사는 성공인데 배포 번들 기준선은 아직 미정리" 상태가 계속 남는다
+- 해결: `frontend/src/router/index.jsx` 의 페이지 진입점을 `React.lazy` 기반 route split 구조로 바꾸고, `frontend/src/router/LazyRoute.jsx`, `frontend/src/router/lazy-pages.jsx` 로 suspense/lazy 경계를 분리했다. 동시에 `frontend/vite.config.js` 에 `manualChunks` 를 추가해 `mui-vendor`, `react-vendor`, `data-vendor`, `vendor` 로 vendor 청크를 나눴다. 이후 `cd frontend && npm run lint`, `cd frontend && npm run build` 를 다시 돌려 lint/build 모두 통과했고, build output에서도 페이지별 청크와 vendor 분리가 확인되며 기존 chunk size warning이 사라졌다
+- 이유: 지금은 아직 유저 없는 로컬 서비스라 성능 미세튜닝보다 기능 검증이 우선이지만, 이미 경고가 재현되는 상태라면 리팩토링 검증 루프 안에서 같이 닫아 두는 편이 맞다. 라우트 단위 split과 vendor 분리는 기능 계약을 건드리지 않으면서도 초기 번들 리스크를 가장 직접적으로 줄인다
+
+## 309) full validation suite의 replay 단계가 상위 wrapper의 `APP_BASE_URL=8082` 를 물고 들어가 자기 전용 app 종료를 기다리다 멈췄음
+- 문제: `run-local-validation-from-env.sh --full` 은 quick 구간까지 통과했지만 replay 단계에서 `app did not shut down within 30s` 로 멈췄다. 원인은 `run-local-validation-from-env.sh` 가 validation용 API base URL로 `APP_BASE_URL=http://127.0.0.1:8082` 를 export 하고, `run-local-validation-suite.sh` 가 이 값을 replay 단계에도 그대로 넘긴 데 있었다. `run-local-education-priority-replay.sh` 는 원래 독립 `bootRun` 인스턴스를 `18082` 에 띄우도록 설계돼 있는데, preset `APP_BASE_URL` 이 있으면 그 값을 우선 사용하므로 기존 Docker app `8082` 와 자기 프로세스를 구분하지 못했다
+- 해결: `run-local-validation-suite.sh` 가 replay 단계 실행 전에 기본적으로 `APP_BASE_URL`, `APP_HEALTH_URL` 을 unset 하도록 바꿨다. 필요하면 `REPLAY_APP_BASE_URL` 로 replay 전용 URL만 별도 주입할 수 있게 했고, help와 runtime smoke 문서에도 이 계약을 반영했다. 이후 `run-local-validation-from-env.sh --only replay` 와 `--full` 을 다시 돌려 둘 다 통과했다
+- 이유: quick smoke와 replay smoke는 같은 “validation suite” 안에 있어도 런타임 전제가 다르다. quick는 이미 떠 있는 API app을 치고, replay는 자기 own app을 띄운다. 상위 wrapper가 하나의 `APP_BASE_URL` 을 전역으로 강제하면 두 실행 모델이 충돌한다
+
+## 308) admin dashboard smoke가 `windowDays` KeyError로 깨졌지만 실제 원인은 smoke 스크립트보다 오래된 Docker app 컨테이너였음
+- 문제: `run-local-validation-from-env.sh --quick` 에서 auth/session, recommendation click은 통과했지만 admin dashboard 단계가 `KeyError: 'windowDays'` 로 깨졌다. 저장소의 `AdminDashboardResponse` / `AdminDashboardSummaryService` 는 `collect.windowDays` 계약을 이미 쓰고 있었는데, 실제 `http://127.0.0.1:8082/api/admin/dashboard/summary` 응답은 `collect.failureWindowDays` 를 내려주고 있어 소스와 런타임이 어긋나 있었다
+- 해결: 로컬 Docker app 컨테이너가 이전 빌드로 떠 있던 것으로 보고 `docker compose up -d --build app` 으로 최신 소스를 다시 반영했다. 이후 `run-local-validation-from-env.sh --only dashboard` 와 `--quick` 이 모두 통과해 dashboard contract가 현재 소스 기준으로 다시 맞는 것을 확인했다
+- 이유: integration test는 로컬 Gradle 컨텍스트로 최신 코드를 직접 태우지만, runtime smoke는 `8082`의 Docker app을 본다. 백엔드 contract가 바뀐 뒤 app 이미지를 재기동하지 않으면 “코드는 맞는데 smoke만 틀리는” 가짜 회귀가 생긴다
+
+## 307) `.env` 의 `APP_BASE_URL` 이 프론트 origin일 때 `run-local-validation-from-env.sh` 가 smoke health check를 `5173/actuator/health` 로 보내고 있었음
+- 문제: 로컬 `.env` 에 `APP_BASE_URL=http://127.0.0.1:5173` 이 들어 있는데, `run-local-validation-from-env.sh` 가 이를 그대로 export 한 채 smoke wrapper를 실행했다. 그 결과 quick suite 첫 단계에서 health check가 백엔드 `8082` 가 아니라 프론트 dev origin `5173` 를 쳐 `curl: (7) Failed to connect` 로 바로 실패했다
+- 해결: wrapper가 시작 시 `APP_BASE_URL` preset 여부를 먼저 기억하고, 사용자가 명시적으로 주지 않은 경우에는 validation 전용 기본값 `http://127.0.0.1:8082` 또는 `VALIDATION_APP_BASE_URL` 을 `APP_BASE_URL` 로 다시 고정하게 바꿨다. `docs/core/runtime-api-smoke-commands.md` 에도 `.env`의 프론트 `APP_BASE_URL` 과 로컬 API smoke base URL 을 구분하는 기준을 추가했다
+- 이유: 앱 런타임에서 `APP_BASE_URL` 은 프론트 링크/redirect 용으로도 쓰이지만, smoke는 백엔드 API endpoint가 필요하다. `.env` 를 그대로 주입하면 두 의미가 충돌하므로 validation wrapper가 명시적으로 분리해야 한다
+
+## 306) 로컬 PostgreSQL 볼륨이 오래돼 chat schema 일부가 빠진 상태라 integration runtime이 살아 있어도 broad suite가 전부 막혔음
+- 문제: runtime preflight를 통과한 뒤 `./gradlew integrationTest --no-daemon` 를 다시 돌리자 연결 실패 대신 Hibernate schema validation 단계에서 전부 막혔다. 첫 원인은 `chat_messages.references_json` 누락이었고, 이를 맞춘 뒤에는 `chat_retrieval_snapshots.needs_clarification` 누락이 이어서 드러났다. 즉 현재 broad integration 실패는 코드 로직보다 “기존 Docker PostgreSQL 볼륨이 최신 `schema.sql` 이후 추가된 chat 컬럼을 아직 갖고 있지 않다”는 local schema drift였다
+- 해결: `deploy/postgres/patches/` 에 idempotent PostgreSQL patch SQL을 추가하고, `deploy/postgres/apply-local-runtime-schema-patch.sh` 로 로컬 `youth-welfare-db` 컨테이너에 순서대로 적용하게 정리했다. 이번 라운드에서는 `V2026_05_14_01__add_chat_message_references_json.sql`, `V2026_05_14_02__add_chat_retrieval_snapshot_needs_clarification.sql` 를 적용한 뒤 `./gradlew integrationTest --no-daemon` 가 다시 전체 통과했다
+- 이유: 현재 PostgreSQL main은 신규 초기화에 `schema.sql` 을 쓰지만, 이미 생성된 로컬 볼륨에는 그 변경이 자동 반영되지 않는다. broad suite를 살리려면 엔티티/`schema.sql`/기존 볼륨 drift를 함께 맞추는 로컬 patch 경로가 필요하다
+
+## 305) integration runtime 부재가 있을 때 `integrationTest` 가 62건 테스트 실패처럼 보여 원인 파악 비용이 너무 컸음
+- 문제: `backend`의 `integrationTest` 는 PostgreSQL/Redis runtime 전제 없이는 애플리케이션 컨텍스트가 뜨지 않는데도, 실행 초반에는 바로 막지 않고 auth/chat/recommendation/policy 전 영역 테스트가 연쇄 실패했다. 특히 WSL 세션에서 `docker` 명령 자체가 없거나 `127.0.0.1:5433`, `127.0.0.1:6379` 리스너가 비어 있을 때도 결과는 “62 tests failed” 로 보여 실제 코드 회귀처럼 읽히기 쉬웠다
+- 해결: `backend/build.gradle` 에 `integrationRuntimePreflight` 태스크를 추가하고 `integrationTest` 가 여기에 먼저 의존하게 바꿨다. 이 preflight 는 `backend/src/test/resources/application-integration.yml` 기준 기대 runtime(`PostgreSQL 127.0.0.1:5433`, `Redis 127.0.0.1:6379`)에 소켓 연결을 먼저 확인하고, 없으면 `docker compose up -d db redis`, WSL Docker Desktop integration, 우회 플래그(`SKIP_INTEGRATION_RUNTIME_PREFLIGHT`, `-PskipIntegrationRuntimePreflight=true`)까지 포함한 명확한 안내와 함께 즉시 실패한다. `docs/core/testing.md` 에도 현재 기준선을 반영했다
+- 이유: integration suite는 환경 전제 미충족과 실제 애플리케이션 회귀를 먼저 분리해야 한다. fail-fast 경계가 없으면 디버깅 시간이 전부 테스트 목록 정리에 소모되고, 같은 환경 실수를 반복하게 된다
+
+## 304) ordered validation 라운드에서 integration 전체 실패처럼 보였지만 실제 원인은 로컬 PostgreSQL/Redis runtime 부재였음
+- 문제: 리팩토링 후 검증 순서를 `backend test -> backend integrationTest -> frontend lint/build` 로 고정해 다시 돌렸더니 `./gradlew test --no-daemon` 은 통과했지만 `./gradlew integrationTest --no-daemon` 는 62건이 한 번에 실패했다. 실패 클래스는 auth/chat/recommendation/policy 전 영역에 퍼져 있었지만, 첫 원인은 모두 `jdbc:postgresql://127.0.0.1:5433/youth_welfare` 연결 단계의 `ConnectException` 이었다. 같은 세션에서 `docker` 명령 자체가 없었고, `postgres`/`pg_ctl`/`initdb`/`redis-server` 바이너리도 없었으며, `ss -ltn` 기준 `5433`, `6379` 리스너도 없었다
+- 해결: 이번 라운드에서는 mass failure를 코드 회귀로 오판하지 않고 환경 차단으로 분리했다. 기준선은 `backend test` green, `frontend npm run lint` green, `frontend npm run build` green으로 확보하고, integration은 “로컬 PostgreSQL/Redis runtime 제공 전까지 blocked” 상태로 기록했다. 다음 실행 전에는 Docker Desktop WSL integration 또는 동일 포트의 로컬 PostgreSQL/Redis 기동 여부를 먼저 preflight 해야 한다
+- 이유: integration suite는 도메인 폭이 넓어서 runtime이 없으면 전 영역이 동시에 붕괴한다. 이 상태를 애플리케이션 회귀로 읽으면 불필요한 코드 수정으로 이어지므로, 먼저 runtime availability를 고정해야 실제 리팩토링 문제를 구분할 수 있다
+
 ## 295) replay smoke와 auth/session smoke를 병렬로 돌리면 DB 재기동 간섭으로 거짓 `500/C002` 가 날 수 있었음
 - 문제: `run-local-education-priority-replay.sh` 는 내부에서 `youth-welfare-db` 컨테이너를 재기동한다. 이걸 `run-local-auth-session-smoke.sh` 와 같은 타이밍에 돌리면 앱 쪽에서 `Connection is closed`, `Unable to rollback against JDBC Connection` 이 튀고, 실제 추천/API 회귀가 없어도 auth smoke가 `500/C002` 로 깨질 수 있었음
 - 해결: 로컬 검증 기준을 `auth/session -> recommendation click -> replay` 순차 실행으로 다시 고정했다. 이후 순차 재실행에서는 auth/session smoke, recommendation click smoke, replay smoke가 모두 통과했다
@@ -3253,7 +3418,87 @@
 - 해결: 추천 DTO는 projection 이 있으면 그 `summary` 를 우선 사용하고, 없을 때만 `supportContent`, `description` 순으로 fallback 하게 바꿨다.
 - 이유: projection 을 읽는 목적은 저장된 보강 정보를 응답까지 끌어오는 데 있다. DTO 조립이 다시 base entity 필드만 보면 read model 보강이 화면 직전에서 사라진다.
 
+## 648) 챗에서 들어온 정책 상세가 로그인/마이페이지 CTA를 탈 때 `chatFrom` 을 안 넘기면, 인증이나 프로필 등록 뒤 전역 `챗봇` 이 원래 세션을 다시 못 연다
+- 문제: `PolicyDetailPage` 의 `자격 확인하기` CTA는 비로그인일 때 `/login`, 로그인 상태에서는 `/mypage` 로 보내지만, 둘 다 현재 상세의 `from` 만 싣고 챗 상위 문맥 `chatFrom` 은 넘기지 않았다. 동시에 `LoginPage` 는 로그인 성공 후 `postLoginAction` 만 원래 화면 state로 되돌려서, 챗에서 시작한 인증 플로우가 끝나면 전역 `챗봇` 이 더 이상 원래 `?session=` 세션을 알 수 없었다.
+- 해결: `PolicyDetailPage` 의 로그인/마이페이지 CTA가 모두 `chatFrom` 을 함께 넘기게 맞췄고, `LoginPage`, `SignupPage`, `ResetPasswordPage` 도 이 값을 인증 경로 사이와 로그인 완료 후 복귀 state까지 계속 보존하게 정리했다.
+- 이유: 챗 상위 문맥은 정책 화면 안에서만 유지돼서는 부족하다. 상세에서 로그인이나 마이페이지 같은 우회 경로를 타더라도 같은 세션으로 돌아갈 수 있어야 실제 사용자 동선에서 문맥 보존이 완성된다.
+
+## 647) 챗에서 정책 목록을 거쳐 상세로 들어갈 때 `from` 을 목록 경로로만 덮어쓰면, 뒤로가기는 맞아도 헤더/FloatingNav `챗봇` 이 원래 세션을 다시 못 연다
+- 문제: `ChatPage` 는 `/policies` 로 갈 때 `from=/chat?session=...` 을 넘기지만, `PoliciesPage` 가 상세로 이동할 때 이 값을 현재 `/policies?...` 로 덮어써 버리고 있었다. 그 결과 상세의 상단 뒤로가기는 목록으로 정상 복귀해도, 헤더나 `FloatingNav` 의 `챗봇` 버튼은 더 이상 원래 `?session=` 문맥을 복원할 수 없었다.
+- 해결: 챗 상위 복귀 문맥을 `chatFrom` 으로 분리해 `ChatPage -> PoliciesPage -> PolicyDetailPage` 와 관련 정책 연속 이동까지 함께 전달하도록 맞췄다. `Header`, `FloatingNav` 는 이제 `state.chatFrom` 을 우선 읽어 챗 target을 계산한다.
+- 이유: `from` 하나로 즉시 복귀 대상과 더 상위의 세션 문맥을 동시에 표현하면 중간 화면에서 쉽게 덮어써진다. 목록 복귀와 챗 세션 복귀는 목적이 다르므로 state도 분리하는 편이 안전하다.
+
+## 646) 챗에서 `정책 목록 보기` 가 현재 세션 문맥 없이 고정 `"/policies"` 로만 가면, 정책 탐색을 거친 뒤 다시 챗으로 돌아올 기준이 약해진다
+- 문제: `ChatPage` 의 연결 정책 카드는 이미 `from=/chat?session=...` 을 싣고 상세로 이동하지만, 상단 `정책 목록 보기` 버튼은 여전히 아무 state 없이 고정 `"/policies"` 로만 이동했다. 이 상태에서는 챗에서 정책 목록 탐색으로 넘어간 뒤 상세나 전역 이동을 거치면, 다시 챗으로 돌아올 세션 기준이 카드 클릭 경로보다 약해진다.
+- 해결: `ChatPage` 에 `chatReturnTarget` 을 두고 현재 `activeSessionId` 기반 `?session=` 복귀 target을 한 곳에서 계산하게 정리했다. 상단 `정책 목록 보기` 버튼과 연결 정책 카드 모두 이 target을 `state.from` 으로 사용하게 맞췄다.
+- 이유: 같은 화면에서 정책 영역으로 나가는 진입점은 모두 같은 복귀 기준을 써야 한다. 카드만 세션을 보존하고 목록 버튼은 보존하지 않으면, 사용자가 어떤 버튼을 눌렀는지에 따라 복귀 품질이 달라진다.
+
+## 644) 챗이 `?session=` deep link를 받았는데 해당 세션이 이미 없으면, 설명 없이 첫 세션으로 조용히 바뀌어 사용자가 다른 대화를 잘못 연 것으로 느낄 수 있다
+- 문제: `ChatPage` 는 세션 목록을 읽은 뒤 `preferredSessionId ?? querySessionId ?? current` 순으로 active 세션을 고른다. 그래서 `?session=123` 같은 deep link가 이미 삭제된 세션을 가리키면 실제로는 첫 세션으로 fallback되지만, 화면에는 별도 안내가 없어 사용자가 “왜 다른 대화가 열렸는지” 이해하기 어렵다.
+- 해결: `ChatPage` 에 invalid query guard ref를 두고, 세션 목록 로드가 끝난 뒤에도 `querySessionId` 와 일치하는 세션이 없으면 경고 toast를 한 번만 보여주게 맞췄다. 이후 active/query sync는 기존대로 가장 최근 유효 세션으로 정리된다.
+- 이유: fallback 자체보다 중요한 건 사용자가 현재 상태를 설명받는 것이다. 특히 deep link나 뒤로가기 query가 stale해질 수 있는 챗 세션은 “조용한 대체”보다 “유효한 세션으로 이동시켰다”는 피드백이 있어야 혼란이 적다.
+
+## 645) 현재 챗 세션을 삭제했을 때 URL 정리를 effect에만 맡기면, `?session=` 이 한 템포 늦게 바뀌며 복귀 링크나 전역 이동이 잠깐 삭제된 세션을 가리킬 수 있다
+- 문제: `ChatPage` 는 세션 삭제 후 `activeSessionId` 만 먼저 바꾸고, URL의 `?session=` 정리는 별도 sync effect가 다음 렌더에서 처리하고 있었다. 이 상태에서는 현재 세션 삭제 직후 아주 짧게라도 주소창과 `location.search` 가 예전 세션을 가리키고, 그 사이 다른 이동이 끼면 복귀 기준이 삭제된 세션으로 남을 수 있다.
+- 해결: `replaceSessionQuery()` helper로 챗 session query 정리 기준을 한 곳으로 모으고, 현재 세션 삭제 시에는 fallback 세션 또는 빈 상태를 삭제 handler 안에서 바로 URL과 ref에 반영하게 맞췄다. 이후 effect는 같은 helper를 써서 일반 sync만 유지한다.
+- 이유: `activeSessionId` 와 `?session=` 은 챗 화면의 단순 파생값이 아니라 다른 화면으로 넘기는 복귀 문맥이기도 하다. 삭제처럼 사용자가 상태 전환을 명확히 기대하는 이벤트는 다음 effect tick을 기다리기보다 같은 결정 시점에 URL과 state를 같이 정리하는 쪽이 더 안전하다.
+
 ## 632) 정책 목록/검색 DTO가 canonical projection `summary` 를 무시하면, 추천은 설명이 보이는데 일반 정책 카드만 비는 화면 차이가 생긴다
 - 문제: `PolicySummaryResponse` 도 recommendation 과 같은 projection 을 이미 받고 있었지만, 설명은 계속 `welfare_services.description` 만 사용했다. 이 상태에서는 메인 추천 카드 설명은 보이는데 `/policies` 목록과 검색 결과 카드만 설명이 비는 불일치가 생긴다.
 - 해결: 정책 summary DTO도 `projection.summary -> supportContent -> description` 순으로 설명을 조립하게 바꿨다.
 - 이유: 같은 canonical projection 을 공유하는 응답이라면, 추천과 목록이 서로 다른 요약 필드 선택 규칙을 가지면 안 된다. 화면별 카드 품질 차이는 대개 이런 DTO 조립 차이에서 나온다.
+
+## 633) 메인 추천이 `user.hasPriorities` 로 분기하는데 auth store가 그 값을 로그인/프로필 저장 경로에서 갱신하지 않으면, 추천 CTA와 empty state가 실제 우선순위 상태와 다르게 움직인다
+- 문제: `MainPage` 는 `user?.hasPriorities` 로 `맞춤 재추천`, `새로고침`, empty state CTA를 나눈다. 그런데 auth store의 `user` 는 로그인 직후 `email` 위주로만 채워지거나, 가입 후 우선순위를 곧바로 저장해도 그 결과를 다시 반영하지 않았다. 이 상태에서는 실제로 우선순위가 있어도 메인 화면은 계속 “우선순위를 설정하러 가기” 로 남을 수 있다.
+- 해결: auth store에 `setUser` merge setter를 두고, `LoginPage` 는 `/api/users/me` 조회와 가입 직후 우선순위 저장 결과를 `hasPriorities` 로 반영하게 맞췄다. `MainPage` 는 진입 시 프로필을 다시 읽어 `hasPriorities` 를 보정하고, `MyPage` 도 프로필 조회/우선순위 저장 성공 시 같은 플래그를 store에 동기화하게 정리했다.
+- 이유: 이런 플래그는 화면 로컬 state가 아니라 로그인 세션의 공통 read model에 가깝다. 추천 분기 기준을 한 화면만 알고 있으면 저장 직후나 재진입 시점에 쉽게 stale state가 생긴다.
+
+## 634) 공개 정책 화면의 북마크가 어떤 곳은 로그인으로 보내고 어떤 곳은 토스트만 띄우면, 같은 보호 기능인데도 해결 경로가 화면마다 달라진다
+- 문제: 헤더나 주요 CTA는 비로그인 상태에서 보호 기능을 누르면 `/login` 으로 보내고 복귀 문맥도 함께 넘긴다. 그런데 `PoliciesPage`, `PolicyDetailPage` 의 북마크 버튼은 같은 보호 기능인데도 "로그인 후 이용 가능" 토스트만 띄우고 끝나서, 사용자는 다시 직접 로그인 진입점을 찾아야 했다.
+- 해결: 공개 정책 목록과 상세의 북마크 버튼도 비로그인 상태에서는 현재 `pathname/search` 를 `from` 으로 들고 `/login` + `reason=login-required` 로 이동하게 맞췄다.
+- 이유: 인증이 필요한 action은 화면마다 해결 방식이 달라지면 안 된다. 특히 북마크처럼 반복 사용되는 액션은 “막힘”보다 “로그인 후 같은 자리로 돌아오는 일관된 동선”이 더 중요하다.
+
+## 635) 마이페이지에 저장한 기본 `statusFilter` 는 정책 목록이 읽어도, URL sync와 활성 필터 칩이 계속 `"신청가능"` 기준을 쓰면 저장값이 기본값처럼 보이지 않는다
+- 문제: `includeExpired=true` 사용자는 `/policies` 기본 상태가 `전부표기` 로 시작하도록 이미 맞춰져 있었다. 하지만 URL sync는 여전히 `"신청가능"` 일 때만 `statusFilter` query를 생략했고, 활성 필터 칩도 `"신청가능"` 과 다르면 항상 표시/clear 하도록 하드코딩돼 있었다. 그래서 저장된 기본값 `전부표기` 도 마치 사용자가 추가로 건 필터처럼 보이고, chip clear도 다시 `"신청가능"` 로 되돌려 버렸다.
+- 해결: `PoliciesPage` 는 `defaultStatusFilter` 를 URL sync 기준과 활성 필터 칩 기준에 같이 사용하도록 바꿨다. 이제 저장된 기본값은 query/chip에서 기본 상태로 취급하고, clear도 사용자의 저장 기본값으로 돌아간다.
+- 이유: “기본값을 저장한다”는 기능은 초기 렌더만 바꾸는 것으로 끝나면 안 된다. URL, active chip, reset/clear까지 모두 같은 기준을 써야 사용자 입장에서 진짜 기본값으로 보인다.
+
+## 636) 공개 목록/상세가 비로그인 상태에서 그려진 뒤 로그인으로 돌아와도 auth 상태를 dependency로 안 보면, bookmark 여부가 계속 비로그인 기준으로 남는다
+- 문제: `PoliciesPage`, `PolicyDetailPage` 는 정책 데이터를 처음 불러올 때 bookmark 상태도 함께 받는다. 그런데 fetch effect가 `isLoggedIn` 을 dependency로 보지 않으면, 공개 화면에서 로그인 페이지를 다녀와도 같은 pathname/search에서는 재조회가 일어나지 않아 bookmark 표시가 계속 false로 남을 수 있다.
+- 해결: 목록과 상세의 정책 fetch effect에 `isLoggedIn` dependency를 추가해, 로그인 상태가 바뀌면 같은 URL이라도 정책 데이터를 다시 읽게 맞췄다.
+- 이유: 공개/로그인 겸용 화면에서 auth 전환은 URL 못지않게 응답 shape를 바꾸는 입력이다. dependency에서 auth를 빼면 “로그인은 됐는데 화면은 옛 상태” 같은 stale read가 남는다.
+
+## 637) 로그인으로 보냈다고 끝내면, 사용자는 북마크처럼 방금 누른 액션을 로그인 후에 다시 한 번 반복해야 한다
+- 문제: 공개 정책 목록/상세에서 비로그인 사용자가 북마크를 누르면 이제 로그인으로는 보내지만, 로그인 후에는 같은 화면으로만 돌아오고 실제 북마크 토글은 다시 직접 눌러야 했다. 회원가입이나 비밀번호 재설정을 거쳐 로그인하는 경우에도 이 의도는 더 쉽게 끊겼다.
+- 해결: 로그인 진입 시 `postLoginAction` 으로 `toggle-bookmark` 의도를 함께 넘기고, `LoginPage` 는 성공 후 이 action을 원래 화면 state로 되돌리게 했다. `SignupPage`, `ResetPasswordPage` 도 이 action을 그대로 보존하고, `PoliciesPage`, `PolicyDetailPage` 는 로그인 후 돌아오면 이를 한 번만 실행한 뒤 state에서 제거하게 맞췄다.
+- 이유: 보호 기능의 UX는 “로그인 화면으로 보냈다”가 끝이 아니다. 사용자가 방금 시도한 intent까지 이어져야 같은 플로우로 체감된다. 그렇지 않으면 technically는 정상이어도 UX는 여전히 두 번 클릭해야 하는 broken flow다.
+
+## 638) 상세 화면이 이미 원래 목록 `from` 을 알고 있어도 브레드크럼과 fallback 버튼이 계속 고정 `"/policies"` 로 가면, 검색/필터 문맥이 다시 날아간다
+- 문제: `PolicyDetailPage` 는 상단 뒤로가기와 related policy 연속 이동에서는 이미 `from` 을 보존하고 있었다. 그런데 브레드크럼의 `정책검색`, 카테고리 링크, not found 상태의 `목록으로`, `비슷한 정책 > 더 보기` 는 여전히 고정 `"/policies"` 또는 단순 `?category=` 로 이동해서, 원래 목록의 검색어·지역·상태 필터 문맥을 다시 잃을 수 있었다.
+- 해결: 상세 화면에 `listBackTarget`, `categoryListTarget` 을 두고, 원래 `from.pathname === "/policies"` 인 경우에는 그 search를 우선 재사용하도록 맞췄다. 브레드크럼, fallback 목록 버튼, 카테고리/더 보기 링크도 같은 target을 쓰게 정리했다.
+- 이유: 복귀 문맥은 뒤로가기 버튼 하나만 맞아도 충분하지 않다. 같은 화면 안의 다른 “목록으로 가는” 진입점도 같은 기준을 써야 사용자가 어디를 눌러도 일관되게 느낀다.
+
+## 639) 챗 페이지가 `?session=` 으로 현재 세션을 보존해도, 전역 헤더 `챗봇` 버튼이 항상 고정 `"/chat"` 으로 가면 세션 복귀 문맥이 다시 끊긴다
+- 문제: `ChatPage` 자체는 `activeSessionId` 를 `?session=` query와 동기화하고, 연결 정책 상세로 이동할 때도 `from.search=?session=...` 를 넘기고 있었다. 그런데 다른 화면에서 헤더 `챗봇` 버튼을 누르면 로그인 여부와 상관없이 목표 경로를 항상 고정 `"/chat"` 로 계산해서, 방금 보던 세션 대신 챗 기본 화면으로 돌아갈 수 있었다.
+- 해결: `Header` 에 `chatTarget` 을 두고, 현재 위치가 `/chat` 이면 현재 search를, 현재 화면의 `location.state.from.pathname === "/chat"` 이면 그 search를 우선 재사용하게 맞췄다. 로그인 필요 리다이렉트와 로그인 후 직접 챗 이동도 같은 target을 쓰게 정리했다.
+- 이유: 세션 복귀는 챗 페이지 내부 state만으로는 완성되지 않는다. 전역 진입점도 같은 session target을 사용해야 `챗 -> 정책 상세 -> 헤더 챗봇` 같은 실제 이동이 자연스럽게 이어진다.
+
+## 640) 헤더만 챗 세션 target을 보존하고 `FloatingNav` 가 계속 고정 `"/chat"` 을 쓰면, 같은 전역 진입점인데도 한쪽만 세션을 잃는다
+- 문제: 헤더 `챗봇` 버튼은 이미 `?session=` 복귀 target을 재사용하게 맞췄지만, 우측 `FloatingNav` 의 `AI 챗봇` 은 여전히 `item.path === "/chat"` 만 보고 이동했다. 그래서 `챗 -> 정책 상세 -> FloatingNav AI 챗봇` 흐름에서는 헤더와 달리 세션 query를 다시 잃을 수 있었다.
+- 해결: `FloatingNav` 도 `chatTarget` 을 계산해 현재 `/chat` 의 search나 `location.state.from.pathname === "/chat"` 의 search를 우선 재사용하게 바꿨다. 비로그인 리다이렉트와 로그인 후 직접 이동도 같은 target을 쓰게 맞췄다.
+- 이유: 세션 복귀 같은 전역 문맥은 컴포넌트 하나만 맞아도 충분하지 않다. 동일한 역할의 전역 네비게이션은 모두 같은 target 계산 규칙을 써야 사용자 체감이 일관된다.
+
+## 641) 챗 페이지가 `?session=` 을 sync할 때마다 `loadSessions` callback까지 query dependency로 새로 만들어지면, 세션 선택만 해도 목록 API를 다시 치게 된다
+- 문제: `ChatPage` 는 `activeSessionId -> ?session=` 동기화를 위해 query를 자주 바꾼다. 그런데 `loadSessions` 가 `querySessionId` 를 dependency로 직접 잡고 있으면 callback identity도 같이 바뀌고, 이를 구독한 초기 `useEffect` 가 다시 돌면서 세션 클릭, 삭제 후 fallback, query 정리 같은 동작만으로도 `/api/chat/sessions` 를 재호출하게 된다.
+- 해결: `querySessionIdRef` 를 두고 최신 query 값을 ref로만 읽게 바꿨다. `loadSessions` callback은 더 이상 query에 직접 의존하지 않고, 실제 세션 목록을 새로 읽어야 할 때만 그대로 호출된다.
+- 이유: URL sync는 UI state 반영이고, 세션 목록 fetch는 서버 read다. 둘의 dependency를 직접 묶어두면 “query를 맞추는 것”과 “목록을 다시 읽는 것”이 불필요하게 결합돼 체감 성능과 로딩 안정성이 같이 나빠진다.
+
+## 642) 마이페이지가 `?tab=` 으로 현재 탭을 보존해도, 전역 `마이페이지` 버튼이 계속 고정 `"/mypage"` 로 가면 상세를 다녀온 뒤 다시 기본 탭으로 떨어진다
+- 문제: `MyPage` 는 이미 `?tab=` query로 활성 탭을 보존하고, 정책 상세로 이동할 때도 `from.search=?tab=...` 를 넘기고 있었다. 그런데 헤더와 `FloatingNav` 의 `마이페이지` 버튼은 로그인 여부와 상관없이 목표 경로를 계속 고정 `"/mypage"` 로 계산해서, `북마크 탭 -> 정책 상세 -> 전역 마이페이지` 같은 흐름에서 다시 기본 탭으로 돌아갈 수 있었다.
+- 해결: `Header`, `FloatingNav` 모두 `mypageTarget` 을 계산해 현재가 `/mypage` 이면 현재 search를, 현재 화면의 `location.state.from.pathname === "/mypage"` 이면 그 `?tab=` search를 우선 재사용하게 맞췄다. 로그인 필요 리다이렉트와 로그인 후 직접 이동도 같은 target을 쓰게 정리했다.
+- 이유: 탭 복귀도 챗 세션 복귀와 같은 종류의 문맥이다. 화면 내부에서 query를 보존하는 것만으로는 부족하고, 전역 진입점도 같은 target 계산을 따라야 사용자가 “같은 마이페이지로 돌아왔다”고 느낀다.
+
+## 643) 정책 목록이 URL로 검색/필터를 이미 보존해도, 전역 `정책 목록/정책검색` 버튼이 계속 고정 `"/policies"` 로 가면 상세를 다녀온 뒤 다시 빈 목록으로 떨어진다
+- 문제: `PoliciesPage` 와 `PolicyDetailPage` 는 이미 query 기반으로 검색어·카테고리·지역·상태 필터 문맥을 보존하고 있었다. 그런데 헤더와 `FloatingNav` 의 전역 `정책 목록/정책검색` 버튼은 목표 경로를 계속 고정 `"/policies"` 로 계산해서, `검색 결과/필터된 목록 -> 정책 상세 -> 전역 정책 목록` 흐름에서 원래 목록 문맥을 다시 잃을 수 있었다.
+- 해결: `Header`, `FloatingNav` 모두 `policiesTarget` 을 계산해 현재가 `/policies` 이면 현재 search를, 현재 화면의 `location.state.from.pathname === "/policies"` 이면 그 search를 우선 재사용하게 맞췄다.
+- 이유: 목록 복귀는 상세 화면 내부 브레드크럼만 맞춰서는 끝나지 않는다. 전역 네비게이션도 같은 search target을 써야 사용자가 어디서 목록으로 돌아가도 같은 결과 집합을 보게 된다.

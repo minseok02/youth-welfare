@@ -66,6 +66,23 @@ SUMMARY_WINDOW_DAYS=14 TREND_WINDOW_DAYS_CSV=3,14 deploy/smoke/run-local-admin-d
 HEALTH_RETRY_COUNT=30 HEALTH_RETRY_DELAY_SECONDS=1 deploy/smoke/run-local-admin-dashboard-smoke.sh
 ```
 
+공개 정책 탐색 + 프로필/우선순위 + 챗 CRUD 반복 검증은 아래 스크립트를 우선 사용합니다.
+
+```bash
+deploy/smoke/run-local-public-profile-chat-smoke.sh
+```
+
+이 스크립트는 `public policies list -> public search -> public detail -> signup -> login -> profile get -> priorities update -> chat create/list/send/get/delete` 를 한 번에 확인합니다.
+`PUBLIC_SEARCH_KEYWORD`, `CHAT_MESSAGE_CONTENT` 로 검색어와 챗 질문을 바꿀 수 있습니다.
+
+북마크 상태가 메인 추천/정책 검색/정책 상세/마이페이지 북마크 목록에서 같은 서비스 ID 기준으로 일관되게 보이는지 확인할 때는 아래 스크립트를 우선 사용합니다.
+
+```bash
+deploy/smoke/run-local-bookmark-consistency-smoke.sh
+```
+
+이 스크립트는 `signup -> login -> priorities update -> recommendations refresh -> first recommendation bookmark on/off -> recommendations/search/detail/bookmarks` 를 모두 재조회해 토글 전후 상태 일관성을 검증합니다.
+
 auth/session revoke 세 개를 연속으로 돌릴 때는 아래 wrapper를 우선 사용합니다.
 
 ```bash
@@ -87,6 +104,8 @@ deploy/smoke/run-local-validation-suite.sh
 서버나 개인 로컬의 `.env` 값이 기본 smoke 값과 다를 때는 실제 값을 명령줄에 직접 반복해서 쓰지 말고,
 아래 wrapper를 우선 사용합니다. 이 wrapper는 `.env`를 읽어 `DB_QUERY_PASSWORD`,
 `DB_ROOT_PASSWORD`, `ADMIN_EMAIL` 등 검증용 override만 현재 shell에 주입하고 값은 출력하지 않습니다.
+또한 `.env` 의 `APP_BASE_URL` 이 프론트 origin(`5173` 등)을 가리켜도, wrapper는 로컬 API smoke용 `APP_BASE_URL`
+을 기본 `http://127.0.0.1:8082` 로 다시 고정합니다. 다른 API endpoint를 쓰려면 `VALIDATION_APP_BASE_URL` 로 덮어씁니다.
 로컬 admin smoke 계정 파일(`/tmp/youth-welfare-admin-smoke-email`,
 `/tmp/youth-welfare-admin-smoke-password`)이 있으면 해당 값을 우선 사용합니다.
 
@@ -94,27 +113,33 @@ deploy/smoke/run-local-validation-suite.sh
 deploy/smoke/run-local-validation-from-env.sh --quick
 deploy/smoke/run-local-validation-from-env.sh --full --skip-replay
 deploy/smoke/run-local-validation-from-env.sh --only dashboard
+VALIDATION_APP_BASE_URL=http://127.0.0.1:8082 deploy/smoke/run-local-validation-from-env.sh --quick
 ```
 
 기본 순서:
 
 1. auth/session smoke wrapper
-2. recommendation click smoke
-3. admin dashboard smoke
-4. education priority replay smoke
+2. public policy + profile/priorities + chat smoke
+3. bookmark consistency smoke
+4. recommendation click smoke
+5. admin dashboard smoke
+6. education priority replay smoke
 
 주의:
 
 - replay smoke는 DB/app 재기동이 섞일 수 있어 항상 마지막에 둡니다.
+- replay smoke는 독립 `bootRun` 인스턴스를 기본 `18082` 포트로 띄우므로, 상위 wrapper가 `APP_BASE_URL=http://127.0.0.1:8082` 를 쓰더라도 replay 단계에서는 이를 넘기지 않습니다.
+- replay를 다른 포트/URL로 강제하려면 `REPLAY_APP_BASE_URL` 을 명시합니다.
 - local Docker app에서 admin 검증이 필요하면 `SECURITY_ADMIN_EMAILS=admin@example.com` 상태로 app이 떠 있어야 합니다.
 
 빠른 재검증만 할 때는 `quick` 프로필을 사용합니다.
 
 ```bash
 VALIDATION_PROFILE=quick deploy/smoke/run-local-validation-suite.sh
+REPLAY_APP_BASE_URL=http://127.0.0.1:18082 deploy/smoke/run-local-validation-suite.sh --full
 ```
 
-`quick` 은 `auth/session -> recommendation click -> admin dashboard` 까지만 돌고 replay는 건너뜁니다.
+`quick` 은 `auth/session -> public policy/profile/chat -> bookmark consistency -> recommendation click -> admin dashboard` 까지만 돌고 replay는 건너뜁니다.
 기본 `full` 프로필은 replay까지 포함합니다.
 wrapper 끝에는 `suite_duration_seconds`, `step_duration_seconds=<label>|<seconds>` 형태의 요약이 같이 출력됩니다.
 실패 시에는 `failed_step=<label>`, `elapsed_before_failure_seconds=<n>` 도 같이 출력됩니다.

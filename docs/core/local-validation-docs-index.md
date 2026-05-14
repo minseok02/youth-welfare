@@ -16,6 +16,7 @@
 
 - [testing.md](./testing.md)
 - [runtime-api-smoke-commands.md](./runtime-api-smoke-commands.md)
+- runtime preflight shell 진입점: `deploy/smoke/preflight-integration-runtime.sh`
 
 ### 같이 보면 좋은 문서
 

@@ -7,6 +7,7 @@ ENV_FILE="${ENV_FILE:-${ROOT_DIR}/.env}"
 SUITE_SCRIPT="${ROOT_DIR}/deploy/smoke/run-local-validation-suite.sh"
 ADMIN_EMAIL_FILE="${ADMIN_EMAIL_FILE:-/tmp/youth-welfare-admin-smoke-email}"
 ADMIN_PASSWORD_FILE="${ADMIN_PASSWORD_FILE:-/tmp/youth-welfare-admin-smoke-password}"
+APP_BASE_URL_WAS_PRESET="${APP_BASE_URL+x}"
 
 trim() {
   local value="$1"
@@ -96,6 +97,10 @@ if [[ -z "${ADMIN_EMAIL+x}" && -n "${SECURITY_ADMIN_EMAILS:-}" ]]; then
   export ADMIN_EMAIL="$(first_csv_value "${SECURITY_ADMIN_EMAILS}")"
 fi
 
+if [[ -z "${APP_BASE_URL_WAS_PRESET}" ]]; then
+  export APP_BASE_URL="${VALIDATION_APP_BASE_URL:-http://127.0.0.1:8082}"
+fi
+
 if [[ -z "${DB_QUERY_PASSWORD:-}" ]]; then
   echo "DB_QUERY_PASSWORD is empty; set DB_MIGRATION_PASSWORD or DB_PASSWORD in ${ENV_FILE}" >&2
   exit 1
@@ -109,6 +114,7 @@ fi
 echo "loaded validation env from ${ENV_FILE}"
 echo "db_query_username=${DB_QUERY_USERNAME}"
 echo "admin_email=${ADMIN_EMAIL:-<unset>}"
+echo "validation_app_base_url=${APP_BASE_URL}"
 echo "secret_values=masked"
 
 exec "${SUITE_SCRIPT}" "$@"

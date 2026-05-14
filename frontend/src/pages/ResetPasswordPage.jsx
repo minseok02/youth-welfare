@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { Alert, CircularProgress, Snackbar } from "@mui/material";
 import api from "../lib/axios";
 
@@ -18,11 +18,12 @@ const iCss = (err) => ({
 
 export default function ResetPasswordPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const token = searchParams.get("token") ?? "";
   const hasToken = useMemo(() => token.trim().length > 0, [token]);
 
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(location.state?.email ?? "");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -60,7 +61,15 @@ export default function ResetPasswordPage() {
     try {
       await api.post("/api/auth/password-reset/confirm", { token, newPassword });
       showToast("비밀번호가 변경되었습니다. 새 비밀번호로 다시 로그인해주세요.", "success");
-      setTimeout(() => navigate("/login"), 1200);
+      setTimeout(() => navigate("/login", {
+        state: {
+          from: location.state?.from,
+          chatFrom: location.state?.chatFrom,
+          reason: "password-reset-complete",
+          email: location.state?.email,
+          postLoginAction: location.state?.postLoginAction,
+        },
+      }), 1200);
     } catch (err) {
       const code = err.response?.data?.errorCode;
       setError(code === "A008"
@@ -137,7 +146,13 @@ export default function ResetPasswordPage() {
           </form>
 
           <div style={{ textAlign: "center", marginTop: 24 }}>
-            <button onClick={() => navigate("/login")} style={{ background: "transparent", border: 0, color: A, fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
+            <button onClick={() => navigate("/login", {
+              state: {
+                from: location.state?.from,
+                email,
+                postLoginAction: location.state?.postLoginAction,
+              },
+            })} style={{ background: "transparent", border: 0, color: A, fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
               ← 로그인으로 돌아가기
             </button>
           </div>

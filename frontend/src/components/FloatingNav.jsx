@@ -22,13 +22,70 @@ export default function FloatingNav() {
   const location = useLocation();
   const navigate = useNavigate();
   const { isLoggedIn } = useAuthStore();
+  const mypageTarget = location.pathname === "/mypage"
+    ? {
+        pathname: "/mypage",
+        search: location.search,
+      }
+    : location.state?.from?.pathname === "/mypage"
+      ? {
+          pathname: "/mypage",
+          search: location.state.from.search ?? "",
+        }
+      : {
+          pathname: "/mypage",
+          search: "",
+        };
+  const policiesTarget = location.pathname === "/policies"
+    ? {
+        pathname: "/policies",
+        search: location.search,
+      }
+    : location.state?.from?.pathname === "/policies"
+      ? {
+          pathname: "/policies",
+          search: location.state.from.search ?? "",
+        }
+      : {
+          pathname: "/policies",
+          search: "",
+        };
+  const chatOriginTarget = location.state?.chatFrom?.pathname === "/chat"
+    ? {
+        pathname: "/chat",
+        search: location.state.chatFrom.search ?? "",
+      }
+    : location.state?.from?.pathname === "/chat"
+      ? {
+          pathname: "/chat",
+          search: location.state.from.search ?? "",
+        }
+      : null;
+  const chatTarget = location.pathname === "/chat"
+    ? {
+        pathname: "/chat",
+        search: location.search,
+      }
+    : chatOriginTarget
+      ? chatOriginTarget
+      : {
+          pathname: "/chat",
+          search: "",
+        };
 
   const handleNavigate = (item) => {
+    const target = item.path === "/chat"
+      ? chatTarget
+      : item.path === "/mypage"
+        ? mypageTarget
+        : item.path === "/policies"
+          ? policiesTarget
+          : { pathname: item.path, search: "" };
     if (item.authRequired && !isLoggedIn) {
-      navigate("/login", { state: { from: { pathname: item.path }, reason: "login-required" } });
+      navigate("/login", { state: { from: target, reason: "login-required" } });
       return;
     }
-    navigate(item.path);
+    navigate(`${target.pathname}${target.search ?? ""}`);
   };
 
   const isChat = location.pathname.startsWith("/chat");
