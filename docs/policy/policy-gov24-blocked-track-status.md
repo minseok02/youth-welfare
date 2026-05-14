@@ -6,6 +6,7 @@
 
 - [policy-next-active-track-priority.md](./policy-next-active-track-priority.md)
 - [policy-local-closeout-pending-inventory.md](./policy-local-closeout-pending-inventory.md)
+- [policy-gov24-implementation-checklist.md](./policy-gov24-implementation-checklist.md)
 - [policy-normalization-blocked-sql-reopen-priority.md](../history/policy/policy-normalization-blocked-sql-reopen-priority.md)
 - [policy-normalization-gov24-request-package-checklist.md](../history/policy/policy-normalization-gov24-request-package-checklist.md)
 - [policy-normalization-gov24-codebook-request-template.md](../history/policy/policy-normalization-gov24-codebook-request-template.md)
@@ -24,32 +25,43 @@
 
 ## 현재 결론
 
-현재 `Gov24` 는 **active runtime collect/source 트랙이 아니라 blocked import/backfill 트랙** 입니다.
+현재 `Gov24` 는 **runtime collect/source 트랙은 active**, **hard import/backfill 트랙은 blocked** 상태입니다.
 
-즉 지금 당장 로컬에서 더 구현할 기본 축은 `Gov24` SQL 이 아니라
+즉 현재 로컬에서 이미 진행 가능한 축은
 
-1. 로컬 기능/구조 검증
-2. smoke/current-state closeout
-3. 프론트 연동 전 contract 정리
+1. `serviceList -> detail -> supportConditions` runtime collect 확장
+2. raw/detail/fact 적재 및 품질 점검
+3. collect runtime 안정화
+
+이고, 여전히 외부 자료가 필요한 축은
+
+1. `GOV24_SERVICE_FIELD`
+2. `GOV24_USER_TYPE`
+3. `GOV24_BENEFIT_TYPE`
+4. `GOV24_SUPPORT_CONDITION` full inventory import/backfill
 
 입니다.
 
-`Gov24` 쪽 다음 실제 액션은 내부 구현이 아니라
-**provider/operator 응답 수신 또는 current API schema/codebook 확보** 입니다.
+현재 `Gov24` practical next action 은 두 갈래입니다.
 
-## 지금 inactive 인 이유
+- runtime 쪽: detail/support backlog를 계속 확장하고 샘플 품질을 점검
+- normalization 쪽: provider/operator 응답 수신 또는 current API schema/codebook 확보
 
-### 1. local snapshot에 `Gov24` source row 자체가 없다
+## 지금 blocked 인 이유
 
-현재 local DB 기준 source 분포:
+### 1. runtime collect와 normalization reopen은 다른 문제다
 
-- `YOUTH=2364`
-- `BOKJIRO_CENTRAL=119`
-- `BOKJIRO_LOCAL=1225`
+현재 local DB 기준 `Gov24` runtime collect는 이미 active 입니다.
 
-즉 runtime collect 기준으로는 아직 `Gov24` source 적재가 없습니다.
+- `serviceList=10937`
+- `detail=10937`
+- `support raw=10937`
+- `support facts=163743`
+- `support fact service coverage=9959 / 10937 (91.1%)`
 
-그래서 현재
+따라서 `Gov24` 가 source row 자체가 없는 상태는 아닙니다.
+
+다만 summary slot / import-backfill 기준으로는 현재도
 
 - `slot_services_GOV24_SERVICE_FIELD=0`
 - `slot_services_GOV24_USER_TYPE=0`
@@ -58,10 +70,9 @@
 - `slot_rows_GOV24_USER_TYPE=0`
 - `slot_rows_GOV24_BENEFIT_TYPE=0`
 
-인 것은 현재 구조 버그라기보다,
-populate 할 source row 또는 별도 import/backfill 이 없는 상태를 반영한 결과입니다.
+이고, 이것은 runtime collect 부재가 아니라 **official code import/backfill을 아직 열지 않은 상태**를 반영합니다.
 
-### 2. source-of-truth 가 아직 외부 응답 경계에 있다
+### 2. source-of-truth 가 여전히 외부 응답 경계에 있다
 
 현재 blocked 축:
 
@@ -78,7 +89,7 @@ populate 할 source row 또는 별도 import/backfill 이 없는 상태를 반�
 
 자료가 있어야 import/backfill SQL 을 다시 열 수 있습니다.
 
-즉 지금은 코드보다 source-of-truth 확보가 먼저입니다.
+즉 runtime collect와 별개로, hard taxonomy/import-backfill 쪽은 여전히 코드보다 source-of-truth 확보가 먼저입니다.
 
 ## reopen 조건
 
@@ -133,16 +144,37 @@ populate 할 source row 또는 별도 import/backfill 이 없는 상태를 반�
 
 ## practical next action
 
-현재 practical next action 은 아래 둘 중 하나입니다.
+현재 practical next action 은 아래 셋 중 하나입니다.
 
 1. 실제 provider/operator 에 request package 발송
-2. 응답 수신 전까지는 local-first closeout 트랙 계속 진행
+2. 응답 수신 전까지 runtime collect + quality audit 계속 진행
+3. 응답 수신 전까지는 local-first closeout 트랙 계속 진행
 
 즉 내부 문서/코드만 더 쌓는 것으로는 unblock 되지 않습니다.
 
+단, `Gov24` runtime collect 자체를 검토/구현할 때는
+[policy-gov24-implementation-checklist.md](./policy-gov24-implementation-checklist.md)
+기준으로 `serviceList -> detail -> supportConditions` 범위를 분리해서 진행합니다.
+
+현재 local runtime 기준 practical status:
+
+- `serviceList` 는 `10937` 건까지 적재됨
+- `detail` raw/detail row 는 `10937` 건까지 적재됨
+- `supportConditions` raw 는 `10937` 건까지 적재됨
+- `supportConditions` fact 는 `163743` row, 서비스 기준 coverage는 `9959 / 10937 (91.1%)`
+- `.env` / `docker-compose` 는 `PUBLIC_DATA_PORTAL_API_KEY` 기준으로 통합됨
+- `detail/support` fetch에는 lightweight retry가 적용됨
+- `support raw` 는 모두 `{"서비스ID","서비스명","conditions":{...}}` shape로 통일됨
+- raw는 있지만 fact가 없는 나머지 `978`건은 현재 샘플 기준으로 `conditions` 값이 전부 `null` 인 payload가 주원인이다
+
+즉 current blocked 의미는 한 층으로 줄었습니다.
+
+1. hard import/backfill 트랙만 여전히 codebook/schema 기준으로 blocked
+
 ## 요약
 
-1. `Gov24` 는 현재 active source 구현 트랙이 아니라 blocked import/backfill 트랙이다.
-2. `GOV24_* = 0` 은 현재 로컬 snapshot에서 expected result 이다.
-3. 다시 열 조건은 current API 기준 codebook/schema 확보이다.
-4. 자료가 오면 label 3종을 먼저, `supportConditions` full inventory를 그다음 순서로 reopen 한다.
+1. `Gov24` runtime collect 트랙은 현재 active 다.
+2. 다만 `GOV24_*` hard import/backfill 은 여전히 blocked 상태다.
+3. `GOV24_* = 0` 은 현재 slot/import 기준에서는 expected result 이다.
+4. 다시 열 조건은 current API 기준 codebook/schema 확보이다.
+5. 자료가 오면 label 3종을 먼저, `supportConditions` full inventory를 그다음 순서로 reopen 한다.

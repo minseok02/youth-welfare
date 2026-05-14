@@ -162,7 +162,7 @@ overlap service 는 `17`건이었고, 샘플은 `여성청소년 생리용품 �
 
 추가 확인 결과 `targetDetail/supportDetail/selectionCriteria` 의 date-like token 수는 `4 / 1 / 1` 이었지만, 샘플은 출생연도 범위나 혜택 적용기간처럼 신청마감이 아닌 날짜가 대부분이었다. 따라서 현재 canonical collect path 에서는 `BK_APPLY_END_DATE` 를 optional fact 로 유지하고, `targetDetail/selectionCriteria` 까지 deadline fallback 을 넓히지 않는다.
 
-2026-04-30 live/detail 재확인에서도 이 판단을 유지했다. local DB에 저장된 복지로 `DETAIL` raw payload key는 `targetDetail`, `supportDetail`, `applyMethodDetail`, `selectionCriteria`, `contactList`, `supportCycle`, `provisionType` 뿐이었고, `applyEndDate`, `aplyEndDt`, `deadline`, `rcptEndDt` 같은 explicit deadline key는 `0`건이었다. 같은 날 `BOKJIRO_API_KEY` 로 중앙/지자체 live detail endpoint를 직접 다시 호출하려 했지만 두 endpoint 모두 `HTTP 429` 로 막혀 신규 raw field inventory는 확보하지 못했다. public data.go.kr 설명도 detail API를 `eligibility / selection criteria / application procedures` 수준으로만 설명하고 있어, 현재 단계에서는 `BK_APPLY_END_DATE` 를 계속 optional fact로 유지하는 쪽이 맞다.
+2026-04-30 live/detail 재확인에서도 이 판단을 유지했다. local DB에 저장된 복지로 `DETAIL` raw payload key는 `targetDetail`, `supportDetail`, `applyMethodDetail`, `selectionCriteria`, `contactList`, `supportCycle`, `provisionType` 뿐이었고, `applyEndDate`, `aplyEndDt`, `deadline`, `rcptEndDt` 같은 explicit deadline key는 `0`건이었다. 같은 날 당시 local runtime의 공공데이터포털 key로 중앙/지자체 live detail endpoint를 직접 다시 호출하려 했지만 두 endpoint 모두 `HTTP 429` 로 막혀 신규 raw field inventory는 확보하지 못했다. public data.go.kr 설명도 detail API를 `eligibility / selection criteria / application procedures` 수준으로만 설명하고 있어, 현재 단계에서는 `BK_APPLY_END_DATE` 를 계속 optional fact로 유지하는 쪽이 맞다.
 
 - 파일: [`backend/src/main/resources/db/migration/V2026_04_28_02__add_user_pii_sync_queue.sql`](../backend/src/main/resources/db/migration/V2026_04_28_02__add_user_pii_sync_queue.sql)
 - 포함 내용:

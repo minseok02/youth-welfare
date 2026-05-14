@@ -1625,7 +1625,7 @@
 
 ## 245) 복지로 신청마감은 live detail 재확인에서도 explicit field 증거가 없으면 계속 optional fact로 두는 편이 맞다
 - 문제: 이전 분석에서는 local stored raw payload 기준으로 `applyMethodDetail` 에 date-like token이 거의 없고 다른 필드의 날짜도 출생연도 범위/적용기간 성격이어서 `BK_APPLY_END_DATE` fallback 확대를 보류했다. 그래도 live endpoint에만 explicit deadline key가 새로 생겼을 가능성은 다시 확인할 필요가 있었다
-- 해결: 2026-04-30 기준 local DB의 복지로 `DETAIL` raw payload key를 다시 집계한 결과 `targetDetail`, `supportDetail`, `applyMethodDetail`, `selectionCriteria`, `contactList`, `supportCycle`, `provisionType` 외에 deadline 전용 key는 없었고, `applyEndDate/aplyEndDt/deadline/rcptEndDt` 류 key 존재 건수도 `0` 이었다. 같은 날 `BOKJIRO_API_KEY` 로 중앙/지자체 live detail endpoint를 직접 다시 호출했지만 둘 다 `HTTP 429` 로 막혀 신규 raw schema는 확보하지 못했다. 이 상태와 public data.go.kr 설명을 함께 근거로 `BK_APPLY_END_DATE` 는 계속 optional fact로 유지한다고 정리했다
+- 해결: 2026-04-30 기준 local DB의 복지로 `DETAIL` raw payload key를 다시 집계한 결과 `targetDetail`, `supportDetail`, `applyMethodDetail`, `selectionCriteria`, `contactList`, `supportCycle`, `provisionType` 외에 deadline 전용 key는 없었고, `applyEndDate/aplyEndDt/deadline/rcptEndDt` 류 key 존재 건수도 `0` 이었다. 같은 날 당시 local runtime의 공공데이터포털 key로 중앙/지자체 live detail endpoint를 직접 다시 호출했지만 둘 다 `HTTP 429` 로 막혀 신규 raw schema는 확보하지 못했다. 이 상태와 public data.go.kr 설명을 함께 근거로 `BK_APPLY_END_DATE` 는 계속 optional fact로 유지한다고 정리했다
 - 이유: explicit field 증거 없이 fallback 범위만 넓히면 출생연도/적용기간을 신청마감으로 오인할 위험이 계속 남는다. live 재확인에서도 확증이 없으면 보수적으로 optional fact를 유지하는 쪽이 더 안전하다
 
 ## 246) authenticated live 목록 응답에도 `srchPolyBizSecd` 가 직접 안 보인다면, broad code-like field를 억지로 `YOUTH_MID` stable code로 승격하면 안 된다
@@ -1910,7 +1910,7 @@
 
 ## 301) `docker-compose.yml` 에서 `env_file: .env` 만 쓰면 shell override가 컨테이너로 전달되지 않아, 로컬 smoke용 secret/runtime override가 필요한 경계에서 계속 base `.env` 값을 보게 된다
 - 문제: local runtime API smoke를 돌리려 `AES_SECRET_KEY`, `SECURITY_ADMIN_EMAILS`, `OPENAI_API_KEY` 등을 shell env로 덮어쓴 뒤 `docker compose up -d --force-recreate app` 를 실행했지만, app 컨테이너는 여전히 `.env` 의 빈 `AES_SECRET_KEY` 와 기본값만 들고 올라왔다. 그 결과 `POST /api/auth/signup` 이 `500 / C002` 로 계속 실패해, shell override 자체가 먹지 않는다는 사실을 먼저 분리해야 했다
-- 해결: `docker-compose.yml` 의 app `environment:` 블록에 `JWT_SECRET`, `AES_SECRET_KEY`, `OPENAI_API_KEY`, `GMAIL_USERNAME`, `GMAIL_PASSWORD`, `YOUTH_API_KEY`, `BOKJIRO_API_KEY`, `SECURITY_ADMIN_EMAILS` explicit pass-through 를 추가했다. 이후 같은 shell override로 app을 재생성하자 컨테이너 env가 실제로 바뀌었고, local runtime smoke가 정상 진행됐다
+- 해결: `docker-compose.yml` 의 app `environment:` 블록에 `JWT_SECRET`, `AES_SECRET_KEY`, `OPENAI_API_KEY`, `GMAIL_USERNAME`, `GMAIL_PASSWORD`, `PUBLIC_DATA_PORTAL_API_KEY`, `YOUTH_API_KEY`, `BOKJIRO_API_KEY`, `SECURITY_ADMIN_EMAILS` explicit pass-through 를 추가했다. 이후 같은 shell override로 app을 재생성하자 컨테이너 env가 실제로 바뀌었고, local runtime smoke가 정상 진행됐다
 - 이유: `env_file` 은 파일 내용을 그대로 컨테이너에 넣지만, shell env를 임시로 덮어쓸 수 있는 경계는 `environment:` interpolation 쪽이다. local-first closeout 에서는 smoke용 secret/runtime override가 자주 필요하므로, 이 pass-through가 없으면 실제 로컬 검증이 매번 base `.env` 상태에 묶인다
 
 ## 302) allowlist 기반 admin 계정은 공개 signup으로 만들 수 없으므로, 로컬 forced logout runtime smoke에서는 “먼저 일반 사용자 생성 -> allowlist 승격 -> 재로그인” 순서가 필요하다
@@ -3502,3 +3502,28 @@
 - 문제: `PoliciesPage` 와 `PolicyDetailPage` 는 이미 query 기반으로 검색어·카테고리·지역·상태 필터 문맥을 보존하고 있었다. 그런데 헤더와 `FloatingNav` 의 전역 `정책 목록/정책검색` 버튼은 목표 경로를 계속 고정 `"/policies"` 로 계산해서, `검색 결과/필터된 목록 -> 정책 상세 -> 전역 정책 목록` 흐름에서 원래 목록 문맥을 다시 잃을 수 있었다.
 - 해결: `Header`, `FloatingNav` 모두 `policiesTarget` 을 계산해 현재가 `/policies` 이면 현재 search를, 현재 화면의 `location.state.from.pathname === "/policies"` 이면 그 search를 우선 재사용하게 맞췄다.
 - 이유: 목록 복귀는 상세 화면 내부 브레드크럼만 맞춰서는 끝나지 않는다. 전역 네비게이션도 같은 search target을 써야 사용자가 어디서 목록으로 돌아가도 같은 결과 집합을 보게 된다.
+
+## 644) Gov24 detail/supportConditions가 `850/900` 건 이후 전부 실패한 건 source row 품질 문제가 아니라 현재 런타임의 Gov24 인증키 부재 때문이다
+- 문제: `Gov24` list는 이미 `10937` 건까지 적재됐고, detail/supportConditions도 각각 `850`, `900` 건까지는 쌓였지만, 그 다음 chunk(`maxCallsPerRun=1000`)부터는 `saved=0 failed=1000` 으로 멈췄다. 처음에는 일부 `서비스ID` 에만 detail/support endpoint가 없는 것처럼 보였지만, 단건 재현과 app log를 다시 보면 `CollectHttpRetryExecutor` 가 `request=detail=...` / `request=supportConditions=...` 에 대해 모두 `401 Unauthorized` 를 기록하고 있었다.
+- 해결: 직접 upstream endpoint를 확인해 `serviceKey` 없이 호출하면 `401 인증키는 필수`, 당시 local runtime에 실려 있던 key도 Gov24에서 `등록되지 않은 인증키` 로 거절된다는 점을 확인했다. 그 뒤 `.env`, `application.yml`, `docker-compose.yml` 기준을 `PUBLIC_DATA_PORTAL_API_KEY` 중심으로 다시 정리해 `복지로/Gov24` 가 같은 공공데이터포털 key를 기본으로 쓰게 맞췄다. 따라서 local Gov24 확장을 재개하려면 현재 통합 key의 Gov24 승인 상태를 다시 확인하거나, 필요 시 source override key를 별도로 주입하면 된다.
+- 이유: 이 상태를 source별 품질 문제로 오해하면 skip 정책이나 mapper를 잘못 손보게 된다. 현재 blocker는 taxonomy도 endpoint shape도 아니라, 런타임 인증키가 Gov24 provider에서 승인되지 않은 점이다.
+
+## 645) Gov24 detail의 `failed=1` 은 구조적 미지원이 아니라 transient upstream 실패일 수 있으므로 단건 재시도 경로가 있어야 진짜 실패를 분리할 수 있다
+- 문제: `Gov24 detail` 을 `maxCallsPerRun=1000` 으로 확장했을 때 `requested=1000 saved=999 failed=1` 이 한 번 발생했다. direct upstream으로 같은 `sourceId=394000000108` 을 다시 확인하면 `serviceList`, `serviceDetail`, `supportConditions` 모두 `200` 을 반환했기 때문에, 이를 바로 unsupported service로 분류하면 collect 품질을 과도하게 비관하게 된다.
+- 해결: `Gov24DetailCollectService` 에 `collectGov24DetailsForSourceId(...)` 를 추가하고, `CollectSourceExecutionService` / `CollectAdminService` 가 `/api/admin/collect/gov24-details?sourceId=...` 를 지원하게 맞췄다. 실제 재실행 결과 `requested=1 saved=1 skipped=0 failed=0` 으로 복구되어 transient upstream failure 로 분류할 수 있게 됐다.
+- 이유: backlog collect는 chunk 실패율만으로는 원인을 알기 어렵다. 단건 재시도 경로가 있어야 “구조적 미지원” 과 “일시적 upstream 오류” 를 분리할 수 있다.
+
+## 646) Gov24 detail/support fetch에 retry가 없으면 키 문제를 해결한 뒤에도 순간적인 upstream 예외 한 번이 그대로 failed row로 남는다
+- 문제: `PUBLIC_DATA_PORTAL_API_KEY` 를 바로잡은 뒤 `Gov24` 확장은 다시 진행됐지만, detail/support fetch는 당시 단순 1회 호출이었다. 이 상태면 일시적인 5xx, connection reset, null payload 같은 transient 오류도 그대로 `failedCount` 로 남아, chunk를 키울수록 작은 upstream 흔들림이 운영 지표를 거칠게 만든다.
+- 해결: `Gov24DetailCollectService`, `Gov24SupportConditionsCollectService` 에 기존 `collect.detail.retry.max-attempts`, `collect.detail.retry.base-backoff-ms` 를 재사용하는 lightweight retry를 넣었다. 그 뒤 `500`, `1000` 단위 확장을 다시 돌려 `detail/support` 모두 `failed=0` 기준을 확인했다.
+- 이유: Gov24는 external API이고, 현재 목표는 hard taxonomy 작업이 아니라 runtime backlog 확장이다. 이 단계에서는 Bokjiro detail처럼 무거운 상태 모델까지는 아니어도, transient fetch를 흡수하는 최소 retry는 있는 편이 운영적으로 안전하다.
+
+## 647) Gov24 support raw payload shape가 flat과 nested로 섞여 있으면 replay/backfill 기준선이 같은 source 안에서도 두 갈래가 된다
+- 문제: Gov24 `supportConditions` raw를 점검해 보니 일부 row는 `{"서비스ID","서비스명","JA0101":...}` flat shape, 일부는 `{"서비스ID","서비스명","conditions":{...}}` nested shape로 저장돼 있었다. 현재 fact 생성은 둘 다 읽어도, raw replay/audit 기준선이 source 내부에서 두 갈래면 이후 backfill이나 diff 확인이 불필요하게 복잡해진다.
+- 해결: `RawApiPayloadService.saveGov24SupportConditions()` 를 nested shape 고정 저장으로 바꾸고, 기존 flat `3721`건도 DB에서 `payload_json`, `payload_hash` 를 함께 재계산해 nested shape로 일괄 정규화했다. 단건 재수집까지 다시 확인한 결과 현재 `SUPPORT raw shape` 는 `nested=5120`, `flat=0` 이다.
+- 이유: raw snapshot은 replay/backfill의 single source of truth 역할을 해야 한다. 같은 source/category 안에서 payload shape가 둘 이상이면 downstream은 사소한 구조 차이를 계속 감안해야 하고, 그 비용이 점점 커진다.
+
+## 648) Gov24 runtime collect가 끝까지 닫힌 뒤에도 `support raw` 와 `support fact service coverage` 가 일치하지 않으면, 남은 차이가 저장 실패인지 all-null payload인지 구분해서 봐야 한다
+- 문제: Gov24 `serviceList/detail/support raw` 를 모두 `10937` 건까지 채운 뒤에도, `GOV24_SUPPORT_CONDITION` facts 가 붙은 서비스는 `9959`건으로 남아 있었다. 겉으로만 보면 support fact 생성 누락 버그처럼 보일 수 있다.
+- 해결: `support raw는 있지만 fact가 없는` 서비스를 따로 샘플링해 보니, 대표 케이스들은 `payload_json.conditions` 안의 `JA*` 값이 전부 `null` 이었다. 즉 현재 기준 이 차이는 writer 실패보다 “원 payload에 추출할 조건이 없음” 쪽 해석이 더 맞고, 이 상태를 실측 current-state로 남겼다.
+- 이유: coverage gap를 모두 코드 버그로 해석하면 unnecessary retry/backfill을 추가하게 된다. 현재처럼 raw는 정상인데 값 자체가 비어 있는 source가 섞인 경우에는, 남은 갭을 데이터 특성으로 분리해 두는 편이 이후 normalization 정책을 세우기 쉽다.
