@@ -153,7 +153,7 @@ public class WelfareService extends BaseTimeEntity {
     }
 
     public enum SourceType {
-        YOUTH, BOKJIRO_CENTRAL, BOKJIRO_LOCAL
+        YOUTH, BOKJIRO_CENTRAL, BOKJIRO_LOCAL, GOV24
     }
 
     public enum ServiceStatus {

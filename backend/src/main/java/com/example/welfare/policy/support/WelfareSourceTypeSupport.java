@@ -12,12 +12,14 @@ public final class WelfareSourceTypeSupport {
     private static final Map<String, WelfareService.SourceType> SOURCE_TYPES = Map.of(
             "YOUTH", WelfareService.SourceType.YOUTH,
             "BOKJIRO_CENTRAL", WelfareService.SourceType.BOKJIRO_CENTRAL,
-            "BOKJIRO_LOCAL", WelfareService.SourceType.BOKJIRO_LOCAL
+            "BOKJIRO_LOCAL", WelfareService.SourceType.BOKJIRO_LOCAL,
+            "GOV24", WelfareService.SourceType.GOV24
     );
     private static final Map<String, String> PRIMARY_SOURCE_SYSTEMS = Map.of(
             "YOUTH", "YOUTH",
             "BOKJIRO_CENTRAL", "BOKJIRO",
-            "BOKJIRO_LOCAL", "BOKJIRO"
+            "BOKJIRO_LOCAL", "BOKJIRO",
+            "GOV24", "GOV24"
     );
 
     private WelfareSourceTypeSupport() {
