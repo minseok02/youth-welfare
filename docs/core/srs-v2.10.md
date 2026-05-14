@@ -6,9 +6,9 @@
 
 | 항목 | 내용 |
 |------|------|
-| 문서 버전 | 2.14 |
+| 문서 버전 | 2.15 |
 | 작성일 | 2026-04-18 |
-| 마지막 정리일 | 2026-04-23 |
+| 마지막 정리일 | 2026-05-14 |
 | 프로젝트 유형 | 졸업 프로젝트 (2인) |
 | 문서 목적 | 현재 기준 요구사항과 1차/2차 범위 정의 |
 
@@ -62,9 +62,11 @@
 ### 2.1 아키텍처
 
 ```
-[React] ── [Spring Boot] ── [MySQL 8.0]
+[React] ── [Spring Boot] ── [PostgreSQL 16 + pgvector]
                 │ HTTPS
-    [OpenAI API (1차: 실시간 / 2차: Batch)]
+         [Redis 7]
+                │
+ [OpenAI API (실시간 + Embeddings / Batch 후보)]
                 │
           [Gmail SMTP]
 ```
@@ -76,12 +78,12 @@
 | Frontend | React + MUI | 모바일 퍼스트 |
 | 상태 관리 | React Query + Zustand | |
 | Backend | Spring Boot 3.x | API + 배치 + AI 연동 통합 |
-| Database | MySQL 8.0+ | FULLTEXT ngram |
+| Database | PostgreSQL 16 + `pgvector` | FTS + `pg_trgm`, semantic retrieval |
 | AI API | OpenAI GPT-4o-mini | 1차: 실시간 / 2차: Batch API (50% 저렴) |
 | HTTP 클라이언트 | Spring WebClient | |
 | 인증 | JWT + Spring Security | HttpOnly 쿠키 |
 | 알림 | Spring Mail + Gmail SMTP | |
-| 배포 | EC2 **t3.medium 이상** (2vCPU, 4GB+, x86_64) + Docker Compose | 컨테이너 3개(`app`, `db`, `redis`) |
+| 배포 | EC2 **t3.medium 이상** (2vCPU, 4GB+, x86_64) + Docker Compose | 현재 로컬 검증 기준 `app`, `db`, `redis`. 필요 시 `job` 온디맨드 컨테이너 추가 |
 | XML 파싱 | jackson-dataformat-xml | XXE 비활성화 |
 | HTML 정제 | Jsoup | XSS 방지 |
 
@@ -144,7 +146,7 @@
 | FR-04-01 | 목록 20건 페이징 | 필수 |
 | FR-04-02 | 기본: ACTIVE + UPCOMING만 표시 | 필수 |
 | FR-04-03 | "마감 포함" 토글 시 CLOSED 표시 | 필수 |
-| FR-04-04 | 키워드 검색: MySQL FULLTEXT(ngram) | 필수 |
+| FR-04-04 | 키워드 검색: PostgreSQL FTS + `pg_trgm` | 필수 |
 | FR-04-05 | 검색 결과: 관련도 + 조회수 정렬 | 필수 |
 | FR-04-06 | 검색 키워드·건수 `search_logs` 기록 (2차 구현) | 선택 |
 
@@ -274,7 +276,7 @@
 |----|---------|------|
 | NFR-01-01 | 정책 목록 조회 | 500ms |
 | NFR-01-02 | 정책 상세 조회 | 300ms |
-| NFR-01-03 | FULLTEXT 검색 | 500ms |
+| NFR-01-03 | PostgreSQL FTS / `pg_trgm` 검색 | 500ms |
 | NFR-01-04 | 추천 목록 조회 | 300ms |
 | NFR-01-05 | 수집 배치 전체 | 5분 |
 | NFR-01-06 | Re-ranking 계산 | 졸업 1분 / 1만 사용자 ~30분 |
@@ -290,7 +292,7 @@
 | NFR-02-05 | API 키 .env + .gitignore |
 | NFR-02-06 | CORS React origin만 허용 |
 | NFR-02-07 | XXE 비활성화 |
-| NFR-02-08 | MySQL 포트 Docker 내부만 |
+| NFR-02-08 | PostgreSQL/Redis 포트는 Docker 내부 또는 localhost 바인딩만 허용 |
 | NFR-02-09 | 개인정보 처리방침 페이지 |
 | NFR-02-10 | Refresh Token HttpOnly 쿠키 + Rotation + Reuse Detection |
 | NFR-02-11 | 로그인 실패 5회 30분 잠금 |
@@ -305,7 +307,7 @@
 | NFR-03-01 | 외부 API 장애 시 기존 DB로 서비스 유지 |
 | NFR-03-02 | ai_score NULL 시 rule_weighted_score만으로 추천 (NULL-safe) |
 | NFR-03-03 | 신규 정책을 점수 조정 없이 슬롯 배치로 노출 보장 |
-| NFR-03-04 | Docker 볼륨 마운트로 MySQL 데이터 유실 없음 |
+| NFR-03-04 | Docker 볼륨 또는 managed DB 백업 기준으로 PostgreSQL 데이터 유실 방지 |
 
 ---
 
@@ -324,23 +326,34 @@
 
 ### 6.1 테이블 목록
 
-#### 1차 구현 (11개) — 지금 바로 만들 것
+#### 현재 메인라인 핵심 테이블 — PostgreSQL 기준
 
-| # | 테이블 | 역할 | 주요 변경 |
+| # | 테이블 | 역할 | 비고 |
 |---|---|---|---|
-| 1 | `users` | 회원 기본정보 | |
-| 2 | `user_attributes` | 관심분야·대상 선택 | `attr_type` VARCHAR(30) — ENUM 제거 |
-| 3 | `user_priorities` | 우선순위 설정 | |
-| 4 | `priority_options` | 선택지 마스터 | |
-| 5 | `welfare_services` | 정책 통합 (FULLTEXT) | ai_score **제거**, `unified_category` 추가 |
-| 6 | `welfare_service_details` | 정책 상세 | |
-| 7 | `service_regions` | 정책-지역 다대다 | |
-| 8 | `service_tags` | 정책 태그 | **UNIQUE KEY uq_st** (service_id, tag_type, tag_value) 추가 |
-| 9 | `user_recommendations` | 추천 결과 | `recommended_at DATETIME`, `ai_score`, `ai_reason`, `rule/ai_weight_used` |
-| 10 | `recommendation_logs` | 추천 클릭 추적 | `rule/ai_weight_used` 추가 |
-| 11 | `score_weights` | Cold Start 가중치 설정 | **신규** |
+| 1 | `auth_users` | 인증 계정 해시/잠금 상태 | `user_key` 기준 |
+| 2 | `user_profiles` | 추천/알림용 파생 프로필 | PII 원문 제외 |
+| 3 | `user_pii` | 이메일/이름/생년월일/전화번호 암호문 | `youth_welfare_pii` schema |
+| 4 | `user_attributes` | 관심분야·대상 선택 | `user_key` 기준 |
+| 5 | `user_priorities` | 우선순위 설정 | `user_key` 기준 |
+| 6 | `priority_options` | 선택지 마스터 | |
+| 7 | `welfare_services` | 정책 통합 메타 | `unified_category`, FTS 검색 대상 |
+| 8 | `welfare_service_details` | 정책 상세/추가 링크 | `reference_urls_json` 포함 |
+| 9 | `service_regions` | 정책-지역 다대다 | |
+| 10 | `service_tags` | 정책 태그 | 중복 방지 unique 유지 |
+| 11 | `raw_api_payloads` | 수집 원문 보관 | LIST / DETAIL raw snapshot |
+| 12 | `api_sync_logs` | 수집 실행 이력 | source별 부분 성공 기록 |
+| 13 | `user_recommendations` | 추천 결과 | `final_score`, `ai_reason`, bookmark |
+| 14 | `recommendation_logs` | 추천 클릭/가중치 이력 | CTR 분석용 |
+| 15 | `score_weights` | Cold Start 가중치 설정 | |
+| 16 | `notifications` | 알림 헤더/재시도 상태 | |
+| 17 | `notification_services` | 알림-정책 매핑 | |
+| 18 | `chat_sessions` | 챗 세션 | `user_key` 기준 |
+| 19 | `chat_messages` | 챗 메시지 | `references_json` 포함 |
+| 20 | `chat_retrieval_snapshots` | 챗 메타 복원 | branch/clarification 복구용 |
+| 21 | `policy_chunks` | 챗/검색용 청크 | pgvector 임베딩 대상 |
+| 22 | `user_pii_sync_queue` | request dual-write/retry queue | PII sync/replay 상태 |
 
-#### 2차 확장 (11개) — 나중에 추가
+#### 후속/선택 확장
 
 | # | 테이블 | 역할 | 추가 시점 |
 |---|---|---|---|
@@ -348,13 +361,8 @@
 | 13 | `cluster_ai_results` | 군집×정책 AI 결과 (7일 TTL) | Batch AI 전환 시 |
 | 14 | `batch_jobs` | Batch 제출 이력·상태 | Batch AI 전환 시 |
 | 15 | `normalization_stats` | 배치별 p5·p95 | 정규화 고도화 시 |
-| 16 | `notifications` | 알림 헤더 | 알림 시스템 구현 시 |
-| 17 | `notification_services` | 알림-정책 매핑 | 알림 시스템 구현 시 |
-| 18 | `api_sync_logs` | 수집 배치 이력 | 배치 안정화 후 |
-| 19 | `search_logs` | 검색 키워드 | 검색 기능 안정화 후 |
-| 20 | `service_view_logs` | 조회수 중복 방지 | 조회수 정교화 시 |
-| 21 | `chat_sessions` | 챗봇 대화 세션 | 챗봇 모듈 구현 시 |
-| 22 | `chat_messages` | 챗봇 대화 메시지 | 챗봇 모듈 구현 시 |
+| 16 | `search_logs` | 검색 키워드 | 검색 기능 안정화 후 |
+| 17 | `service_view_logs` | 조회수 중복 방지 | 조회수 정교화 시 |
 
 ### 6.2 데이터 보존
 
@@ -395,7 +403,7 @@
 | C-03 | 현재 Compose 단일 서버 운영 기준 권장 최소 사양은 EC2 t3.medium RAM 4GB (x86_64) |
 | C-04 | 개발 13주, 2명 |
 | C-05 | Gmail SMTP 500건/일 |
-| C-06 | EC2 1대 = SPOF |
+| C-06 | 현재 Compose 단일 서버 토폴로지는 SPOF이며, HA가 필요하면 앱/DB를 별도 단계로 분리해야 함 |
 | C-07 | @Scheduled 단일 인스턴스 전용 |
 | C-08 | OpenAI Batch API 완료 최대 24시간 |
 
@@ -418,5 +426,5 @@
 | 슬롯 배치 | [A,A,B?] 3슬롯 하드코딩 | 사용자 피로도 감소. 동적 계산 제거로 버그 추적 용이 |
 | recommendation_logs | rule/ai_weight_used 포함 | 가중치 단계별 CTR 분석 → 포트폴리오 핵심 데이터 |
 | FastAPI | 제거 (Spring 단일화) | 딥러닝 서빙 없는 2인 졸업작품에서 불필요. Gateway 인터페이스로 분리 가능한 구조 유지 |
-| 챗봇 | 2차 구현 | 1차에서 구조만 잡아두고 시간 여유 시 구현. 로그인 전용, 로그아웃 시 세션 삭제. chat/ → welfare/ 허용, recommendation/ 금지 |
+| 챗봇 | 로그인 전용 정책 상담 기본 구현 완료 | branch suggestion, retrieval, grounded answer 운영 품질과 runbook 고도화 |
 | 알림 | Gmail SMTP 단독 | 카카오 알림톡은 운영 자격 blocked. 졸업 프로젝트 범위에서는 이메일 중심으로 운영하고, 추가 채널은 운영 자격·실사용 규모 충족 시 재검토 |

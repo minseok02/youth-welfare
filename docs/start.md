@@ -4,6 +4,13 @@
 
 주제 문서는 `docs/` 루트에 흩어두지 않고 `auth/`, `collect/`, `recommendation/`, `policy/`, `frontend/`, `postgres/`, `core/` 폴더로 정리했습니다.
 
+## active 문서와 legacy/history 문서 경계
+
+- 현재 작업 기준은 `project-spec.md`, `current-state.md`, `work-guide.md`, `phase-plan.md`, 그리고 각 문서군의 `*-current-state.md` 입니다.
+- `history-docs-index.md`, `history/`, `archive/` 문서는 설계 배경과 과거 판단 기록입니다.
+- 문서끼리 충돌하면 active 문서와 실제 코드를 우선합니다.
+- 특히 실행 순서, 검증 방법, 현재 계약은 history 문서가 아니라 active 문서에서 확인합니다.
+
 ## 먼저 볼 파일
 
 - [project-spec.md](./project-spec.md)
@@ -30,6 +37,8 @@
 - [system-docs-index.md](core/system-docs-index.md)
 - [history-docs-index.md](./history-docs-index.md)
 - [documentation-map.md](./documentation-map.md)
+
+`history-docs-index.md` 는 배경이 필요할 때만 추가로 봅니다.
 - [auth-docs-index.md](auth/auth-docs-index.md)
 - [collect-docs-index.md](collect/collect-docs-index.md)
 - [recommendation-docs-index.md](recommendation/recommendation-docs-index.md)
@@ -55,7 +64,6 @@
 - 정책 문서군 진입점: [policy-docs-index.md](policy/policy-docs-index.md)
 - 공통 로컬 검증 문서군 진입점: [local-validation-docs-index.md](core/local-validation-docs-index.md)
 - 시스템 문서군 진입점: [system-docs-index.md](core/system-docs-index.md)
-- 히스토리 문서군 진입점: [history-docs-index.md](./history-docs-index.md)
 - 인증/세션: [auth-session-revocation-current-state.md](auth/auth-session-revocation-current-state.md)
 - 수집: [collect-current-state.md](collect/collect-current-state.md)
 - 추천: [recommendation-current-state.md](recommendation/recommendation-current-state.md)
@@ -64,3 +72,7 @@
 - 로컬 closeout pending: [policy-local-closeout-pending-inventory.md](policy/policy-local-closeout-pending-inventory.md)
 - `Gov24` blocked 상태: [policy-gov24-blocked-track-status.md](policy/policy-gov24-blocked-track-status.md)
 - 신규 source 구조: [policy-source-onboarding-architecture.md](policy/policy-source-onboarding-architecture.md)
+
+배경 이력이 필요할 때만:
+
+- 히스토리 문서군 진입점: [history-docs-index.md](./history-docs-index.md)

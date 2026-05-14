@@ -29,9 +29,10 @@
 
 ### Data / Infra
 
-- MySQL 8
+- PostgreSQL 16 + `pgvector`
 - Redis
 - Docker Compose
+- `youth_welfare` / `youth_welfare_pii` 2 schema 분리
 
 ## 로컬 개발 환경 기준
 

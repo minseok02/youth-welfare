@@ -19,6 +19,13 @@
 - 2026-05-13 기준 로컬 데이터 기준선은 `welfare_services=3925`, `search_youth_relevant=2544`, `welfare_service_details=1356`, `policy_chunks=14210`, embedded chunk `14210` 입니다.
 - 2026-05-13 기준 retrieval baseline 은 `top1HitRate=1.0`, `top3HitRate=1.0`, `branchSuggestionHitRate=1.0`, `emptyResultCount=0`, quality gate `passed=true` 입니다.
 
+## 이 문서 읽는 법
+
+- 이 문서의 상단 현재 상태, 아래 `지금 먼저 볼 문서`, `PostgreSQL 리팩토링 기준선` 은 active 기준선입니다.
+- 실행 순서, 검증 기준, 현재 계약은 이 문서 상단과 연결된 current-state/testing/validation 문서를 우선합니다.
+- 이 문서 아래쪽의 `변경 이력` 섹션들은 배경과 회귀 추적을 위한 기록입니다.
+- 상단 active 기준선과 아래 이력 섹션이 충돌하면 상단 active 기준선과 실제 코드를 우선합니다.
+
 ## 지금 먼저 볼 문서
 
 - 인증 문서군 진입점: [auth-docs-index.md](auth/auth-docs-index.md)
@@ -75,6 +82,11 @@
 - category audit / retrieval evaluation 결과를 운영 보고서 관점에서 더 요약
 - 프론트 번들 경고와 retrieval/embedding 운영 모니터링 보강
 - `service_taxonomies` / `service_taxonomy_summary_slots` integrated schema를 기준으로 legacy draft 문서와 smoke 설명을 더 정리
+
+## 아래부터는 이력 / 참고
+
+아래 섹션들은 현재 active 기준선을 덮어쓰지 않습니다.
+특정 변경의 배경, 회귀 추적, 예전 판단 경로가 필요할 때만 참고합니다.
 
 ## 정책 목록 정렬 변경 이력 (2026-05-04)
 

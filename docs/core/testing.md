@@ -15,7 +15,7 @@ cd backend
 
 ## 통합 테스트
 
-MySQL과 Redis까지 포함한 실제 흐름을 확인할 때 실행합니다.
+PostgreSQL과 Redis까지 포함한 실제 흐름을 확인할 때 실행합니다.
 
 ```bash
 deploy/smoke/preflight-integration-runtime.sh
@@ -32,21 +32,21 @@ cd backend
 WSL에서 Docker Desktop을 쓰는 경우 `docker` 명령이 안 보이면 먼저 Docker Desktop의 WSL integration을 켜야 합니다.
 실행 전에 shell 기준 진단만 빠르게 보고 싶으면 `deploy/smoke/preflight-integration-runtime.sh` 를 먼저 실행합니다.
 
-로컬 Docker DB 볼륨을 오래 재사용해 `Access denied for user 'app_core_rw'` 같은 split-account 인증 실패가 나면,
-볼륨을 지우기 전에 아래 복구 스크립트로 계정을 현재 `.env` 기준으로 다시 맞춥니다.
+로컬 Docker PostgreSQL 볼륨을 오래 재사용해 `schema-validation` 실패나 누락 컬럼 문제처럼
+현재 `schema.sql` 과 drift 된 상태가 보이면, 볼륨을 지우기 전에 아래 patch 스크립트로 현재 기준선을 먼저 맞춥니다.
 
 ```bash
-ENV_FILE=.env deploy/mysql/reconcile-local-runtime-db-accounts.sh
+deploy/postgres/apply-local-runtime-schema-patch.sh
 docker compose up -d db redis
 
 cd backend
 ./gradlew integrationTest
 ```
 
-이 스크립트는 기존 `mysql_data` volume을 지우지 않고, recovery MySQL을 `--skip-grant-tables` 로 잠깐 띄워
-`root`, `app_core_rw`, `app_pii_rw`, `notification_pii_ro`, `migration_admin` 계정과 grant를 현재 split-account 기본값으로 재정렬합니다.
-현재 로컬 `.env` 가 아직 `DB_USERNAME=root` 여도, 이 스크립트는 대상 계정을 고정된 split-account 이름으로 맞춥니다.
-`.env` 를 shell `source` 하지 않고 직접 파싱하므로 JDBC URL의 `&` 때문에 깨지지 않습니다.
+이 스크립트는 기존 PostgreSQL volume을 지우지 않고, 현재 main 기준에서 확인된 drift patch
+(`chat_messages.references_json`, `chat_retrieval_snapshots.needs_clarification` 등)를 재적용합니다.
+현재 main 기준 로컬 계정/권한은 Docker Compose init 경로에서 맞춰지므로,
+`deploy/mysql/**` 아래 계정 복구 스크립트는 legacy MySQL history로만 봅니다.
 
 ## Gmail SMTP smoke test
 

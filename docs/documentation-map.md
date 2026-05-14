@@ -13,6 +13,13 @@
 
 으로 나눠서 길을 줄입니다.
 
+문서가 서로 충돌하면 우선순위는 아래 순서로 해석합니다.
+
+1. 실제 코드
+2. `current-state` / `phase-plan` / 현재 검증 문서
+3. 설계 배경 문서
+4. `history/`, `archive/`, legacy 메모
+
 ## 1. 지금 바로 볼 문서
 
 ### 제품/구조
@@ -27,8 +34,12 @@
 - [recommendation-pipeline.md](recommendation/recommendation-pipeline.md)
 - [local-validation-docs-index.md](core/local-validation-docs-index.md)
 - [system-docs-index.md](core/system-docs-index.md)
-- [history-docs-index.md](./history-docs-index.md)
 - [phase-plan.md](./phase-plan.md)
+
+읽는 법:
+
+- 이 묶음이 현재 구현/검증/작업 기준입니다.
+- `history-docs-index.md`, `history/`, `archive/` 는 여기와 같은 우선순위로 읽지 않습니다.
 
 ### 현재 구현 상태 요약
 
@@ -80,6 +91,11 @@
 아래는 현재 구현의 배경을 남긴 문서입니다.
 
 먼저 entrypoint가 필요하면 [history-docs-index.md](./history-docs-index.md) 를 봅니다.
+
+해석:
+
+- 이 문서군은 "왜 이렇게 됐는지"를 설명합니다.
+- 현재 실행 기준이나 계약 확인은 active 문서와 코드에서 다시 확인합니다.
 
 ### auth forced logout cluster
 
@@ -163,6 +179,6 @@
 1. 모든 문서를 같은 우선순위로 읽지 않습니다.
 2. 현재 계약 확인은 `current state` 문서와 실제 코드가 우선입니다.
 3. 쪼개진 `policy` / `auth-admin-forced-logout-*` 문서는 대부분 design history 로 읽습니다.
-4. `auth-docs-index.md`, `collect-docs-index.md`, `recommendation-docs-index.md`, `frontend-qa-docs-index.md`, `policy-docs-index.md`, `local-validation-docs-index.md`, `system-docs-index.md`, `history-docs-index.md` 가 각 문서군의 1차 진입점입니다.
+4. `auth-docs-index.md`, `collect-docs-index.md`, `recommendation-docs-index.md`, `frontend-qa-docs-index.md`, `policy-docs-index.md`, `local-validation-docs-index.md`, `system-docs-index.md` 가 active 문서군의 1차 진입점이고, `history-docs-index.md` 는 배경 문서군의 진입점입니다.
 5. `Gov24` 같은 blocked 트랙은 [policy-gov24-blocked-track-status.md](policy/policy-gov24-blocked-track-status.md) 에서 inactive 이유와 reopen 조건을 먼저 확인합니다.
 6. 지금 기준에서 pure ops/runbook 문서는 삭제했고, 서버가 생기기 전까지는 local-only 문서만 유지합니다.

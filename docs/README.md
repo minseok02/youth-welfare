@@ -6,6 +6,12 @@
 
 그 다음 필요한 폴더나 파일로 내려가면 됩니다.
 
+## active 문서와 legacy/history 문서 경계
+
+- 현재 구현/검증/운영 판단의 기준은 `start.md`, `current-state.md`, `phase-plan.md`, 각 문서군의 `*-current-state.md`, 그리고 실제 코드입니다.
+- `history-docs-index.md`, `history/`, `archive/` 아래 문서는 설계 배경과 과거 판단을 남긴 참고 자료입니다.
+- active 문서와 legacy/history 문서가 충돌하면 active 문서와 실제 코드를 우선합니다.
+
 - [start.md](./start.md)
   작업 시작용 메인 파일입니다.
 
@@ -50,7 +56,7 @@
   PostgreSQL 전환 플레이북과 phase 스펙입니다.
 
 - [history-docs-index.md](./history-docs-index.md)
-  설계 배경과 과거 판단 문서 진입점입니다.
+  설계 배경과 과거 판단 문서 진입점입니다. 현재 실행 기준 문서는 아닙니다.
 
 - [archive/README.md](archive/README.md)
   더 이상 active하지 않은 과거 계획 문서 보관 위치입니다.
@@ -62,6 +68,9 @@
 - [testing.md](core/testing.md)
 - [local-validation-docs-index.md](core/local-validation-docs-index.md)
 - [system-docs-index.md](core/system-docs-index.md)
+
+필요하면 설계 배경은 아래에서 따로 봅니다.
+
 - [history-docs-index.md](./history-docs-index.md)
 
 ## 현재 상태 문서
@@ -73,7 +82,6 @@
 - [policy-docs-index.md](policy/policy-docs-index.md)
 - [local-validation-docs-index.md](core/local-validation-docs-index.md)
 - [system-docs-index.md](core/system-docs-index.md)
-- [history-docs-index.md](./history-docs-index.md)
 - [auth-session-revocation-current-state.md](auth/auth-session-revocation-current-state.md)
 - [collect-current-state.md](collect/collect-current-state.md)
 - [recommendation-current-state.md](recommendation/recommendation-current-state.md)
@@ -95,3 +103,4 @@
 
 - [troubleshooting-log.md](core/troubleshooting-log.md)
 - [documentation-map.md](./documentation-map.md)
+- [history-docs-index.md](./history-docs-index.md)

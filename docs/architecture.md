@@ -9,7 +9,7 @@
 ```text
 React
   -> Spring Boot API
-      -> MySQL
+      -> PostgreSQL + pgvector
       -> Redis
       -> 공공 API
       -> OpenAI API
@@ -18,7 +18,7 @@ React
 
 ## 배포 토폴로지
 
-현재 기본 운영 토폴로지는 아래와 같다.
+현재 로컬 검증/저비용 운영 기준 토폴로지는 아래와 같다.
 
 ```text
 EC2 1대
@@ -35,6 +35,8 @@ EC2 1대
 - 2026-04-25 로컬 Docker 실측에서 조회 부하 + 수집 배치 구간 기준 `app`은 약 `1.12GiB`, `db`는 약 `498MiB`까지 관측됨
 - `t3.small`은 DB까지 같은 호스트에 둘 때 메모리 여유가 부족하므로 비권장
 - DB를 RDS로 분리한 `app-only` 구조라면 더 작은 인스턴스를 다시 검토할 수 있음
+- 현재 메인라인은 PostgreSQL 기반이며, `db` 컨테이너는 `pgvector/pgvector:pg16` 를 사용한다
+- 현재 앱은 `youth_welfare` / `youth_welfare_pii` 2 schema와 `app_core_rw`, `app_pii_rw`, `notification_pii_ro`, `migration_admin` 계정 경계를 전제로 한다
 
 ## 백엔드 모듈
 
@@ -144,4 +146,4 @@ AdminDashboardController
 | AI 호출 | 실시간 호출 | Batch API |
 | 정규화 | 단순 min-max | p5~p95 클리핑 |
 | 알림 | 이메일 `[A, A, B?]` 슬롯 발송 | 추가 채널은 운영 자격/규모 충족 시 재검토. 카카오 알림톡은 현재 blocked |
-| 챗봇 | 제외 | 별도 모듈 |
+| 챗봇 | 로그인 전용 정책 상담 기본 흐름 활성화 | retrieval/운영 모니터링과 grounded answer 품질 고도화 |
