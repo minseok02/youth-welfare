@@ -26,11 +26,13 @@ export default function FloatingNav() {
     ? {
         pathname: "/mypage",
         search: location.search,
+        state: location.state,
       }
     : location.state?.from?.pathname === "/mypage"
       ? {
           pathname: "/mypage",
           search: location.state.from.search ?? "",
+          state: location.state.from.state,
         }
       : {
           pathname: "/mypage",
@@ -40,11 +42,13 @@ export default function FloatingNav() {
     ? {
         pathname: "/policies",
         search: location.search,
+        state: location.state,
       }
     : location.state?.from?.pathname === "/policies"
       ? {
           pathname: "/policies",
           search: location.state.from.search ?? "",
+          state: location.state.from.state,
         }
       : {
           pathname: "/policies",
@@ -54,17 +58,20 @@ export default function FloatingNav() {
     ? {
         pathname: "/chat",
         search: location.state.chatFrom.search ?? "",
+        state: location.state.chatFrom.state,
       }
     : location.state?.from?.pathname === "/chat"
       ? {
           pathname: "/chat",
           search: location.state.from.search ?? "",
+          state: location.state.from.state,
         }
       : null;
   const chatTarget = location.pathname === "/chat"
     ? {
         pathname: "/chat",
         search: location.search,
+        state: location.state,
       }
     : chatOriginTarget
       ? chatOriginTarget
@@ -85,7 +92,9 @@ export default function FloatingNav() {
       navigate("/login", { state: { from: target, reason: "login-required" } });
       return;
     }
-    navigate(`${target.pathname}${target.search ?? ""}`);
+    navigate(`${target.pathname}${target.search ?? ""}`, {
+      state: target.state,
+    });
   };
 
   const isChat = location.pathname.startsWith("/chat");

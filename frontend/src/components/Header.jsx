@@ -20,20 +20,19 @@ export default function Header() {
   const handleUserMenu = (e) => setAnchorEl(e.currentTarget);
   const handleClose = () => setAnchorEl(null);
   const authFromState = {
-    from: {
-      pathname: location.pathname,
-      search: location.search,
-    },
+    from: location,
   };
   const mypageTarget = location.pathname === "/mypage"
     ? {
         pathname: "/mypage",
         search: location.search,
+        state: location.state,
       }
     : location.state?.from?.pathname === "/mypage"
       ? {
           pathname: "/mypage",
           search: location.state.from.search ?? "",
+          state: location.state.from.state,
         }
       : {
           pathname: "/mypage",
@@ -43,11 +42,13 @@ export default function Header() {
     ? {
         pathname: "/policies",
         search: location.search,
+        state: location.state,
       }
     : location.state?.from?.pathname === "/policies"
       ? {
           pathname: "/policies",
           search: location.state.from.search ?? "",
+          state: location.state.from.state,
         }
       : {
           pathname: "/policies",
@@ -57,17 +58,20 @@ export default function Header() {
     ? {
         pathname: "/chat",
         search: location.state.chatFrom.search ?? "",
+        state: location.state.chatFrom.state,
       }
     : location.state?.from?.pathname === "/chat"
       ? {
           pathname: "/chat",
           search: location.state.from.search ?? "",
+          state: location.state.from.state,
         }
       : null;
   const chatTarget = location.pathname === "/chat"
     ? {
         pathname: "/chat",
         search: location.search,
+        state: location.state,
       }
     : chatOriginTarget
       ? chatOriginTarget
@@ -86,7 +90,9 @@ export default function Header() {
         },
       }), 1500);
     } else {
-      navigate(`${mypageTarget.pathname}${mypageTarget.search ?? ""}`);
+      navigate(`${mypageTarget.pathname}${mypageTarget.search ?? ""}`, {
+        state: mypageTarget.state,
+      });
     }
   };
 
@@ -96,7 +102,9 @@ export default function Header() {
       setTimeout(() => navigate("/login", { state: { from: chatTarget, reason: "login-required" } }), 1500);
       return;
     }
-    navigate(`${chatTarget.pathname}${chatTarget.search ?? ""}`);
+    navigate(`${chatTarget.pathname}${chatTarget.search ?? ""}`, {
+      state: chatTarget.state,
+    });
   };
 
   const handleLogout = async () => {
@@ -145,7 +153,9 @@ export default function Header() {
                 <Button
                   color="inherit"
                   size="small"
-                  onClick={() => navigate(`${policiesTarget.pathname}${policiesTarget.search ?? ""}`)}
+                  onClick={() => navigate(`${policiesTarget.pathname}${policiesTarget.search ?? ""}`, {
+                    state: policiesTarget.state,
+                  })}
                   sx={{ fontSize: 13, color: "rgba(255,255,255,0.9)" }}
                 >
                   정책 목록
@@ -185,7 +195,9 @@ export default function Header() {
                   variant="outlined"
                   color="inherit"
                   size="small"
-                  onClick={() => navigate(`${mypageTarget.pathname}${mypageTarget.search ?? ""}`)}
+                  onClick={() => navigate(`${mypageTarget.pathname}${mypageTarget.search ?? ""}`, {
+                    state: mypageTarget.state,
+                  })}
                   sx={{ borderColor: "rgba(255,255,255,0.6)", borderRadius: 2, fontSize: 13 }}
                 >
                   마이페이지

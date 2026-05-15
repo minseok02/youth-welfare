@@ -3997,3 +3997,8 @@
 - 문제: `RequireLogin` 은 이미 `state={{ from: location, reason: ... }}` 로 전체 `location` 객체를 보냈지만, `AuthExpiryHandler` 와 `MyPage` 자체의 비로그인 리다이렉트는 `pathname/search` 만 새로 조립해 넘기고 있었다. 이 상태에선 `/mypage?tab=2` 나 챗에서 진입한 상세/마이페이지가 세션 만료 또는 직접 보호 페이지 진입을 만나면, URL query는 일부 살아도 `location.state` 안의 `chatFrom`, 복귀용 `from`, 기타 nested 문맥은 잃어버릴 수 있었다.
 - 해결: `AuthExpiryHandler` 와 `MyPage` 의 로그인 유도 경로 모두 `from: location` 을 그대로 넘기도록 맞췄다. 의존성도 `location.pathname/search` 쪼개기 대신 `location` 전체 기준으로 정리했다. 이후 `frontend lint/build` 를 다시 통과시켰다.
 - 이유: 지금 프론트 복귀 계약은 `pathname/search` 와 `state` 를 함께 쓴다. 개별 페이지만 nested fallback을 복원해도, 공통 리다이렉트 레이어가 state를 잘라내면 실제 브라우저 체감에선 탭 복원이나 챗 복귀가 다시 불안정해진다.
+
+## 743) Header/FloatingNav도 target 이동이나 login-required 유도 시 `state` 를 같이 싣지 않으면, 상단/플로팅 네비게이션을 한 번 거친 뒤 복귀 문맥이 다시 얇아진다
+- 문제: `Header` 와 `FloatingNav` 는 `mypageTarget`, `policiesTarget`, `chatTarget` 을 만들 때 대부분 `pathname/search` 만 보존하고 있었고, 현재 페이지의 `location.state` 나 이미 저장된 `from.state` / `chatFrom.state` 는 target에 싣지 않았다. 이 상태에선 상세/챗/탭 화면에서 상단이나 플로팅 네비게이션을 통해 이동하거나 로그인 유도를 만나면, URL은 맞아도 nested 복귀 문맥이 다시 사라질 수 있었다.
+- 해결: 두 컴포넌트 모두 target 객체에 가능한 `state` 를 함께 싣도록 바꾸고, 실제 `navigate(...)` 호출도 `state: target.state` 를 같이 넘기게 맞췄다. 로그인 버튼의 기본 `authFromState` 역시 `from: location` 전체를 쓰도록 통일했다. 이후 `frontend lint/build` 를 다시 통과시켰다.
+- 이유: 복귀 문맥 보존은 페이지 내부 핸들러만으로 닫히지 않는다. 사용자가 실제로 많이 누르는 Header/FloatingNav가 얇은 target만 만들면, 앞에서 고친 nested fallback 계약이 navigation 레이어에서 다시 약해진다.
