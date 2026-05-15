@@ -3752,3 +3752,8 @@
 - 문제: `policy-post-local-closeout-track-split.md` 는 2026-05-01 기준 local closeout 세트를 설명하던 문서라, 현재 practical track에서 반복적으로 돌리고 있는 `policy quality summary`, `Gov24 runtime audit`, `policy admin runtime`, `CTR readiness` 같은 bounded runtime baseline 유지 작업이 별도 active 축으로 보이지 않았다.
 - 해결: 문서 기준 시점을 2026-05-15로 올리고, closeout 이후 남은 active track을 `local feature / structure verification` 과 `bounded runtime baseline 유지` 로 다시 나눴다.
 - 이유: 지금 실제 active 작업은 단순 구현/회귀 확인만이 아니라, 이미 붙은 runtime baseline이 재실행해도 같은 truth를 유지하는지 반복 검증하는 것이다. 이 축이 문서에서 빠지면 현재 작업 흐름이 다시 2026-05-01 시점으로 축소돼 보이게 된다.
+
+## 694) `policy-normalization-current-state` 의 experimental replay/AI reason 숫자를 current baseline처럼 읽히게 두면, normalization 실험 메모와 recommendation broad-suite truth가 다시 섞인다
+- 문제: `policy-normalization-current-state.md` 에는 canonical summary prompt 영향 실험을 설명하는 `SUMMARY_REASON_METRIC`, `real-openai artifact` 값이 남아 있는데, 별도 가드레일이 없으면 이 값들이 지금 recommendation broad-suite current baseline처럼 읽힐 수 있었다.
+- 해결: 해당 구간 앞에 이 값들은 **실험/diagnostic slice** 이고, 현재 broad-suite current baseline은 `recommendation-current-state` / `recommendation-operation-checklist` 의 `A_top10_target=9->9`, `B_top10_target=1->1`, `A_fp/B_fp=same`, `reason_changed=0` 쪽을 우선한다는 설명을 추가했다.
+- 이유: policy normalization current-state는 canonical 실험과 현재 운영 해석이 같이 들어 있는 문서다. 둘을 구분하지 않으면 experimental replay artifact가 현재 정상 판단 기준처럼 받아들여질 수 있다.

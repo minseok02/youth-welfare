@@ -165,7 +165,16 @@ projection이 현재 담는 대표값:
 `youthMajorLabel`, `youthMidLabel`, `provisionMethodLabel`, `gov24ServiceFieldLabel`, `gov24UserTypeLabel`, `gov24BenefitTypeLabel`
 을 같이 실어
 AI 재평가 입력에서 canonical summary를 직접 소비합니다.
-latest local replay(`rule-only-invalid-key`) 기준으로는
+
+아래 `SUMMARY_REASON_METRIC` / `real-openai artifact` 값은
+**canonical summary prompt 영향도를 보던 실험/diagnostic slice** 로 읽습니다.
+현재 broad-suite current baseline 자체는
+[recommendation-current-state.md](../recommendation/recommendation-current-state.md),
+[recommendation-operation-checklist.md](../recommendation/recommendation-operation-checklist.md)
+쪽의 `A_top10_target=9->9`, `B_top10_target=1->1`, `A_fp/B_fp=same`, `reason_changed=0`
+기준을 우선합니다.
+
+그 위에서, latest local replay(`rule-only-invalid-key`) 기준으로는
 `SUMMARY_REASON_METRIC A_reason_changed=8 B_reason_changed=0`
 `A_reason_text_changed=0 B_reason_text_changed=0`
 `A_reason_membership_changed=8 B_reason_membership_changed=0`
