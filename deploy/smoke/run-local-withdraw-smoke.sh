@@ -80,7 +80,7 @@ smoke_require_command curl
 smoke_require_command python3
 smoke_require_command docker
 
-SMOKE_EMAIL="${SMOKE_EMAIL_PREFIX}.$(date +%s)@example.com"
+SMOKE_EMAIL="$(smoke_build_email "${SMOKE_EMAIL_PREFIX}")"
 
 smoke_print_step "health check"
 HEALTH_STATUS="$(smoke_wait_for_health "${HEALTH_RETRY_COUNT}" "${HEALTH_RETRY_DELAY_SECONDS}" "${APP_HEALTH_URL}" "${HEALTH_RESPONSE}" "${ARTIFACT_DIR}/health.stderr")"

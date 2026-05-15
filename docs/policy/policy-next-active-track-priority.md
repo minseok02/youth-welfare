@@ -51,7 +51,7 @@
 - CTR 관련 다음 액션은 여전히 `CTR readiness audit` 를 기준으로 표본이 실제 튜닝 가능한 상태인지 재확인하고, 충분한 click sample이 쌓인 뒤에만 추천 품질 가중치를 다시 조정하는 쪽이다.
 - 군집 캐시는 실제 사용자 수와 요청 패턴이 충분히 커졌을 때 hit-rate / stale / invalidation 비용을 다시 계산하며 재검토하는 것이 맞다.
 - `카카오 알림톡` 은 비즈니스 채널/발신 프로필/템플릿 심사와 사업자 증빙이 먼저라, 코드보다 운영 자격이 선행 조건이다.
-- `2026-05-15` local CTR audit 기준 total logs는 `1702` 이지만 clicked logs는 `16`, overall CTR은 `0.94%`, fallback clicked는 `0`, clicked service는 `2`개뿐이라 현재 readiness 판정은 `DEFERRED_CLICK_SAMPLE_THIN` 이다.
+- `2026-05-15` local CTR audit 기준 total logs는 `1872` 이지만 clicked logs는 `18`, overall CTR은 `0.96%`, fallback clicked는 `0`, clicked service는 `2`개뿐이라 현재 readiness 판정은 `DEFERRED_CLICK_SAMPLE_THIN` 이다.
 - 따라서 현재 phase에서 더 진행할 실용적 후보는 `CTR readiness audit + 표본 확충` 이고, 실제 weight tuning은 readiness가 올라간 뒤에만 연다. 군집 캐시는 장래 확장 포인트로 남긴다.
 
 반면 아래는 계속 blocked/backlog 또는 deferred 로 둡니다.

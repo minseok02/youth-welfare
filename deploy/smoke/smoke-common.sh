@@ -131,3 +131,32 @@ PY
   docker exec "${redis_container_name}" \
     redis-cli SETEX "email-verify:verified:${hash}" "${verified_ttl_seconds}" 1 >/dev/null
 }
+
+smoke_unique_suffix() {
+  smoke_require_command python3
+
+  python3 <<'PY'
+import uuid
+
+print(uuid.uuid4().hex[:14])
+PY
+}
+
+smoke_build_email() {
+  local email_prefix="$1"
+  smoke_require_command python3
+
+  python3 - "${email_prefix}" "$(smoke_unique_suffix)" <<'PY'
+import re
+import sys
+
+prefix = sys.argv[1].strip().lower()
+suffix = sys.argv[2].strip().lower()
+
+safe_prefix = re.sub(r"[^a-z0-9]+", ".", prefix)
+safe_prefix = re.sub(r"\.+", ".", safe_prefix).strip(".") or "smoke"
+safe_prefix = safe_prefix[:12].rstrip(".") or "smoke"
+
+print(f"{safe_prefix}.{suffix}@example.com")
+PY
+}

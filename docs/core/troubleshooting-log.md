@@ -3922,3 +3922,13 @@
 - 문제: `recommendation-replay-template.md` 는 실행 정보와 top10/target_total 정도는 남길 수 있었지만, 현재 replay 판단에서 중요한 `wrapper / replay app base URL`, `reason_changed`, `fingerprint relation`, `baseline과 달라진 점`, `current broad-suite baseline(9->9 / 1->1 / same / reason_changed=0)과 비교` 칸이 없었다.
 - 해결: 템플릿에 위 항목들을 추가해 현재 broad-suite truth와 직접 비교 가능한 형태로 보강했다.
 - 이유: replay 기록은 단순 summary metric만 남기면 예전 rescue snapshot과 현재 broad-suite baseline을 다시 섞어 읽기 쉽다. 최신 기준과의 비교 칸이 있어야 현재 단계의 비회귀/diagnostic 판정을 재사용할 수 있다.
+
+## 728) smoke script가 signup 이메일을 `$(date +%s)` 만으로 만들면, 병렬 검증을 같은 초에 태웠을 때 정상 로직도 duplicate email로 깨진다
+- 문제: `run-local-validation-from-env.sh --quick` 와 `run-local-auth-session-smoke.sh` 를 같은 라운드에서 태우자 둘 다 내부에서 `run-local-runtime-api-smoke.sh` 를 즉시 호출했고, signup 이메일이 둘 다 `runtime.api.smoke.<초>@example.com` 으로 겹쳤다. 실제 app log에는 `uq_users_email` duplicate key 위반과 그 뒤 Hibernate flush assertion failure가 남았고, 겉으로는 signup `500/C002` 로만 보였다.
+- 해결: `deploy/smoke/smoke-common.sh` 에 `smoke_unique_suffix()` / `smoke_build_email()` helper를 추가하고, signup 이메일을 만드는 smoke script들이 더 이상 초 단위 timestamp를 직접 쓰지 않도록 바꿨다. 이후 `run-local-runtime-api-smoke.sh`, `run-local-auth-session-smoke.sh` 를 병렬 재실행해도 각자 다른 이메일로 signup부터 통과함을 확인했다.
+- 이유: 이 문제는 코드 회귀가 아니라 smoke 격리 버그였지만, local baseline wrapper를 병렬 또는 연속 재실행할 때 충분히 다시 밟을 수 있는 failure mode였다. signup identity는 최소한 wrapper 단위로 충돌하지 않게 생성돼야 smoke 실패를 실제 제품 회귀와 분리할 수 있다.
+
+## 729) smoke 이메일 suffix를 너무 길게 늘리면, 이번에는 email 형식/길이 제약 때문에 정상 signup도 `400/C001` 로 오판된다
+- 문제: 처음에는 충돌만 막으려고 `time_ns.pid.uuid.hostname` 형태의 긴 suffix를 붙였더니, 일부 smoke 특히 `bookmark.consistency.smoke` 같은 긴 prefix와 합쳐져 signup이 `400/C001 (must be a well-formed email address)` 로 실패했다. 즉 충돌은 해결됐지만 local part 길이/형식 제약을 다시 건드린 셈이다.
+- 해결: `smoke_build_email()` 이 prefix를 소문자 영숫자 기준으로 정규화하고 12자까지만 유지한 뒤, 14자리 UUID suffix만 붙이도록 다시 축약했다. 그 뒤 `run-local-bookmark-consistency-smoke.sh` 와 `run-local-validation-from-env.sh --quick` 가 모두 통과했다.
+- 이유: smoke identity 생성은 “충분히 유일”하기만 하면 되는 게 아니라, 현재 signup validation이 받아들이는 형식과 길이 안에도 들어와야 한다. helper를 공통화할 때 이 두 조건을 같이 보지 않으면, collision bug를 고친 뒤 바로 형식 bug로 넘어가게 된다.
