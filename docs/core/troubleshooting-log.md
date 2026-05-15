@@ -3787,3 +3787,8 @@
 - 문제: 이번 문서 정리는 `MySQL/draft sidecar`, `Gov24 layered truth`, replay/CTR baseline, bounded runtime wording drift를 여러 차례 나눠 고쳤기 때문에, 마지막에 다시 전수 검색하지 않으면 historical guardrail과 현재 truth hit까지 전부 “아직 남은 문제”처럼 보일 수 있었다.
 - 해결: active 문서군만 대상으로 최종 sweep을 한 번 더 돌려, 남은 검색 hit가 intentional historical guardrail 또는 현재 truth 숫자/용어뿐이라는 점을 확인하고 `phase-plan.md` 에 closeout 상태를 기록했다.
 - 이유: 문서 정리 작업은 구현처럼 테스트가 자동으로 “끝남”을 말해주지 않는다. 마지막 전수 확인 없이 계속 소규모 패치를 이어가면, 이미 정리된 항목도 반복해서 다시 보는 루프에 빠지기 쉽다.
+
+## 701) admin runtime 수동 재검증은 login cookie만으로는 안 되고, `data.accessToken` bearer와 response wrapper shape를 같이 봐야 한다
+- 문제: bounded admin runtime을 ad hoc으로 다시 확인할 때 login은 성공했지만, refresh cookie만 들고 admin endpoint를 치면 `401/A006` 이 나와 마치 runtime drift처럼 보일 수 있었다. 또 admin endpoint 응답은 top-level 필드가 아니라 `{\"success\":true,\"data\":{...}}` wrapper shape라, `data.*` 를 안 읽으면 값이 전부 `None` 처럼 보일 수 있다.
+- 해결: 같은 라운드에서 `policy-admin-runtime-runbook.md` 가 안내하는 방식대로 `data.accessToken` 을 꺼내 `Authorization: Bearer <token>` 으로 다시 호출했고, `reference-urls`, `search-youth-relevance`, `embeddings` baseline이 모두 기존 수치와 같음을 재확인했다.
+- 이유: 이건 코드/문서 drift라기보다 수동 재검증 때 자주 생길 수 있는 해석 오류다. bounded runtime baseline을 다시 확인하는 단계에서 인증 방식이나 response wrapper를 잘못 읽으면, 실제로는 정상인 경로를 regression처럼 오판하기 쉽다.
