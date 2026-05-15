@@ -4097,3 +4097,8 @@
 - 문제: 후속 서버 검증에서 카드 경고도 없이 `POST /api/notifications/push-subscriptions = 0회`, `active=false`, `installing=null`, `waiting=null` 인 registration이 관찰됐다. 이 경우 기존 코드는 registration 상태를 너무 이르게 해석해 subscribe 전 단계에서 멈출 수 있고, 여전히 실패 위치가 모호하게 남는다.
 - 해결: `getReadyServiceWorkerRegistration()` 은 이제 `register("/sw.js")` 결과에서 `active/installing/waiting` 가 모두 비어 있어도 곧바로 registration을 반환한다. 대신 `pushManager.getSubscription()` 과 `pushManager.subscribe()` 를 각각 5초 timeout으로 감싸, 실제로 멈추는 단계가 `구독 상태 확인` 인지 `구독 생성` 인지를 메시지로 드러내게 했다.
 - 이유: 이 단계의 핵심은 성공보다 실패 위치를 좁히는 것이다. registration 상태만으로 중단하면 브라우저/preview 환경에서 왜 `POST 0회` 인지 끝까지 안 보인다.
+
+## 763) preview 새 페이지에서 service worker가 즉시 control하지 않으면 `ready timeout` 과 `active=false` 가 길게 남을 수 있으므로, `skipWaiting()` / `clients.claim()` 을 명시해야 한다
+- 문제: 서버 실브라우저 검증에서 `navigator.serviceWorker.ready timeout`, `registration=null`, `active=false` 패턴이 반복됐다. 현재 `sw.js` 는 `push`/`notificationclick` 만 있고 `install`/`activate` 단계에서 즉시 활성화 전략이 없어서, preview에서 새로 등록한 worker가 현재 페이지를 바로 control하지 못할 수 있다.
+- 해결: `public/sw.js` 에 `install -> self.skipWaiting()`, `activate -> self.clients.claim()` 을 추가했다.
+- 이유: 웹푸시 연결은 결국 active service worker가 있어야 한다. 특히 preview 기반 수동 검증에서는 페이지를 새로 띄운 직후 바로 구독을 시도하므로, worker가 즉시 활성화되도록 강제하는 편이 맞다.
