@@ -247,9 +247,9 @@
 
 | ID | 요구사항 | 우선순위 |
 |----|---------|:--------:|
-| FR-10-01 | 매일 새벽 2시 3개 공공 API 수집 | 필수 |
-| FR-10-02 | 온통청년 JSON, 복지로 XML (XXE 비활성화) | 필수 |
-| FR-10-03 | API별 DTO 3종 → WelfareServiceMapper 공통 Entity | 필수 |
+| FR-10-01 | 매일 새벽 2시 공공 API 수집 (`온통청년`, `복지로`, `Gov24`) | 필수 |
+| FR-10-02 | 온통청년 JSON, 복지로 XML (XXE 비활성화), Gov24 JSON | 필수 |
+| FR-10-03 | source별 DTO → `WelfareServiceMapper` 공통 Entity | 필수 |
 | FR-10-04 | "청년 포함" 필터 + `isYouthRelevant()` 2차 검증 | 필수 |
 | FR-10-05 | UPSERT(source_type + source_id) 중복 방지 | 필수 |
 | FR-10-06 | Jsoup HTML strip 후 저장 | 필수 |

@@ -3672,3 +3672,8 @@
 - 문제: `project-spec.md`, `architecture.md`, `srs-v2.10.md` 는 외부 연동과 수집 범위를 여전히 `온통청년 + 복지로` 중심으로만 설명하고 있었다. 하지만 현재 로컬 기준 `Gov24` 는 runtime collect/runtime audit closeout까지 끝난 active source다.
 - 해결: `project-spec.md` 외부 연동 목록에 `Gov24 API` 를 추가하고, `architecture.md` 수집 흐름에 `Gov24Client`, `Gov24DetailCollectService`, `Gov24SupportConditionsCollectService` 를 반영했다. `srs-v2.10.md` 의 프로젝트 범위 설명도 `Gov24 공공서비스(혜택) API` 를 포함하도록 고쳤다.
 - 이유: project spec, architecture, SRS는 가장 먼저 읽는 메타 문서다. 여기에 source truth가 빠져 있으면, 실제로 이미 붙은 public source가 여전히 실험적 또는 비공식 추가물처럼 보이게 된다.
+
+## 678) SRS 수집 요구사항 표가 아직 `3개 공공 API`, `DTO 3종` 으로 남아 있으면, 범위 문서와 실제 source truth가 다시 어긋난다
+- 문제: `srs-v2.10.md` 의 FR-10 수집 표는 여전히 `매일 새벽 2시 3개 공공 API 수집`, `API별 DTO 3종` 같은 예전 표현을 쓰고 있었다. 하지만 현재 수집 범위에는 `Gov24` 가 포함되고, 구현도 source별 DTO/client 경계로 확장돼 있다.
+- 해결: FR-10-01 을 `온통청년`, `복지로`, `Gov24` 수집 기준으로, FR-10-02 를 `Gov24 JSON` 포함 기준으로, FR-10-03 을 `source별 DTO -> WelfareServiceMapper` 기준으로 갱신했다.
+- 이유: SRS는 현재 범위를 요약하는 상위 요구사항 문서다. 표 한 줄이 예전 수치에 묶여 있으면 메타 문서를 다 고쳐도 수집 범위 해석이 다시 뒤틀린다.
