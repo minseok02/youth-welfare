@@ -1,0 +1,124 @@
+# policy quality summary runbook
+
+문서군 진입점: [policy-docs-index.md](./policy-docs-index.md)
+
+## 목적
+
+`retrieval evaluation`, `quality gate`, `category audit` 는 각각 useful 하지만, 운영자가 지금 당장 알고 싶은 건 보통 아래 셋입니다.
+
+1. retrieval baseline이 아직 유지되는가
+2. gate가 현재 통과 상태인가
+3. category distribution이 대략 어떤 모양인가
+
+이 문서는 그 세 가지를 **한 번의 요약 실행**으로 확인하는 절차입니다.
+
+## 실행
+
+```bash
+bash deploy/smoke/run-local-policy-quality-summary.sh
+```
+
+## 포함 범위
+
+이 스크립트는 아래 admin 경로를 순서대로 호출합니다.
+
+1. `POST /api/admin/policies/retrieval-evaluations/run`
+2. `POST /api/admin/policies/retrieval-evaluations/gate`
+3. `GET /api/admin/policies/category-audit`
+
+## 출력 항목
+
+- `dataset_key`
+- `scenario_count`
+- `top1_hit_rate`
+- `top3_hit_rate`
+- `branch_suggestion_hit_rate`
+- `fallback_count`
+- `empty_result_count`
+- `quality_gate_passed`
+- `quality_gate_failure_reasons`
+- `category_total_policies`
+- `category_searchable_policies`
+- `category_searchable_ratio`
+- `category_unified_count`
+- `category_top_unified`
+- `category_top_unified_total_share`
+- `category_top_unified_searchable_coverage`
+- `youth_broad_top_source`
+- `youth_broad_top_dominant_unified`
+- `youth_broad_top_dominant_share`
+
+## 현재 기준선 (2026-05-15)
+
+이 기준선은 실행 환경 snapshot에 따라 약간 바뀔 수 있지만, 현재 local mainline에선 아래 축을 우선 봅니다.
+
+- retrieval
+  - `top1_hit_rate=1.0`
+  - `top3_hit_rate=1.0`
+  - `branch_suggestion_hit_rate=1.0`
+  - `empty_result_count=0`
+- gate
+  - `quality_gate_passed=true`
+- category
+  - `category_searchable_ratio` 가 비정상적으로 떨어지지 않는지
+  - top unified category가 한쪽으로 급격히 쏠리지 않는지
+  - youth broad dominant mapping이 기존 기대에서 크게 흔들리지 않는지
+
+## 해석 순서
+
+### 1. retrieval 먼저 본다
+
+빠른 go/no-go:
+
+- `top1_hit_rate`
+- `top3_hit_rate`
+- `branch_suggestion_hit_rate`
+- `empty_result_count`
+
+여기서 깨지면 category 분포보다 retrieval 쪽을 먼저 봅니다.
+
+### 2. gate로 통과/미통과를 본다
+
+- `quality_gate_passed=true` 면 baseline은 통과
+- `quality_gate_failure_reasons` 가 비어 있지 않으면 어떤 축이 미달인지 바로 확인
+
+### 3. category는 분포를 읽는다
+
+category audit는 pass/fail command가 아니라 분포 read 경로입니다.
+
+특히 볼 것:
+
+- `category_searchable_ratio`
+- `category_top_unified`
+- `category_top_unified_total_share`
+- `youth_broad_top_source`
+- `youth_broad_top_dominant_unified`
+- `youth_broad_top_dominant_share`
+
+## 언제 이 경로를 먼저 여나
+
+### 검색/챗 retrieval이 의심될 때
+
+이 스크립트를 먼저 돌립니다.
+
+이유:
+
+- evaluation
+- gate
+- category distribution
+
+세 축을 한 번에 봐야, retrieval regression인지 category drift인지 빨리 구분됩니다.
+
+### embeddings rebuild 뒤 확인할 때
+
+`embeddings/rebuild` 후에는 이 스크립트로 baseline 회복 여부를 바로 봅니다.
+
+### category audit 결과를 운영 보고서처럼 요약해 보고 싶을 때
+
+raw JSON 대신 이 스크립트 출력만 기록해도 첫 triage는 충분합니다.
+
+## 관련 문서
+
+- bounded admin 절차 전체: [policy-admin-runtime-runbook.md](./policy-admin-runtime-runbook.md)
+- Gov24 runtime collect/audit: [policy-gov24-runtime-audit-runbook.md](./policy-gov24-runtime-audit-runbook.md)
+- 현재 전체 기준선: [current-state.md](../current-state.md)

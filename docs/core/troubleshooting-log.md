@@ -3557,3 +3557,8 @@
 - 문제: `clicked_logs=13` 이라는 숫자만으로도 이미 표본이 얇지만, 추가로 실제 클릭은 `clicked_users=13`, `clicked_services=2` 로 두 개 서비스에만 집중돼 있었다. 이 상태에서 bucket CTR 차이만 보고 가중치를 조정하면, 특정 인기 서비스 1~2개가 만든 편향을 전체 추천 품질 신호처럼 오해할 수 있다.
 - 해결: CTR readiness audit에 `ctr_clicked_users`, `ctr_clicked_services`, `[top_clicked_services]`, `[top_clicked_users]` 를 추가했다. 현재 baseline은 `2622=7 clicks (53.85%)`, `3688=6 clicks (46.15%)` 로 사실상 전 클릭이 두 서비스에 몰려 있다는 점을 같이 기록했다.
 - 이유: tuning reopen 판단은 “충분한 클릭 수”와 “충분한 클릭 분산”이 둘 다 필요하다. 현재처럼 서비스 다양성이 거의 없는 상태에서는 log 총량이나 bucket 수만으로 readiness를 선언하면 잘못된 결론이 나온다.
+
+## 655) retrieval/category admin 경로가 각각 useful해도 운영자가 매번 raw JSON을 직접 읽게 하면 baseline 판단 속도가 느리다
+- 문제: `retrieval-evaluations/run`, `retrieval-evaluations/gate`, `category-audit` 는 모두 현재 bounded admin 경로로 붙어 있었지만, 운영자가 baseline을 다시 확인하려면 각 응답의 raw JSON에서 핵심 숫자를 따로 골라 읽어야 했다. 이 상태에서는 runtime은 정상이어도 “지금 baseline이 유지되는가”를 빠르게 판정하기 어렵다.
+- 해결: `run-local-policy-quality-summary.sh` 와 `policy-quality-summary-runbook.md` 를 추가해 세 경로를 한 번에 호출하고 핵심 summary만 출력하게 했다. 현재 local baseline은 `datasetKey=retrieval-baseline-v2`, `scenarioCount=11`, `top1/top3/branch=1.0`, `fallbackCount=5`, `emptyResultCount=0`, gate `passed=true`, category `searchablePolicyRatio=0.2399`, top unified `일자리`, top youth broad `복지문화 -> 금융·생활지원 (0.3703)` 으로 고정했다.
+- 이유: 지금 필요한 건 새로운 기능이 아니라 반복 가능한 운영 판정 경로다. bounded admin 경로를 계속 raw JSON으로 읽게 두기보다, summary smoke 한 번으로 baseline을 읽게 만드는 편이 실제 triage 속도와 재현성을 높인다.

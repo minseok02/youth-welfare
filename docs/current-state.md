@@ -46,6 +46,7 @@
 - 로컬 closeout pending: [policy-local-closeout-pending-inventory.md](policy/policy-local-closeout-pending-inventory.md)
 - `Gov24` blocked 상태: [policy-gov24-blocked-track-status.md](policy/policy-gov24-blocked-track-status.md)
 - 정책 admin runtime 런북: [policy-admin-runtime-runbook.md](policy/policy-admin-runtime-runbook.md)
+- 정책 quality summary 런북: [policy-quality-summary-runbook.md](policy/policy-quality-summary-runbook.md)
 - 신규 source 구조: [policy-source-onboarding-architecture.md](policy/policy-source-onboarding-architecture.md)
 - API 응답 contract: [api-mapping.md](core/api-mapping.md)
 
@@ -83,7 +84,7 @@
 - `Gov24` support unmapped inventory는 기준선으로 유지하되, 사업체/업종/창업 상태 code fact 승격은 현재 단계에서 deferred 유지
 - `referenceUrlsJson` rebuild/backfill 운영 절차 문서화
 - bounded policy admin runtime 경로(`reference-urls/rebuild`, `embeddings/rebuild`, `retrieval-evaluations/gate`, `category-audit`) one-page runbook 정리
-- category audit / retrieval evaluation 결과를 운영 보고서 관점에서 더 요약
+- retrieval/category 상태를 one-shot summary smoke로 재확인하는 경로 고정 (`retrieval-baseline-v2`, gate `passed=true`, top unified `일자리`, searchable ratio `0.2399`)
 - 프론트 번들 경고와 retrieval/embedding 운영 모니터링 보강
 - `service_taxonomies` / `service_taxonomy_summary_slots` integrated schema를 기준으로 legacy draft 문서와 smoke 설명을 더 정리
 
