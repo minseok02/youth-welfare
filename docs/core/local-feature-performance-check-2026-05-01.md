@@ -13,6 +13,21 @@
 
 를 한 문서에 남깁니다.
 
+## 읽는 기준
+
+이 문서는 이름 그대로 `2026-05-01` 시점의 로컬 기능 시험 / 시간 측정 기록입니다.
+
+- 아래 수치와 실패/복구 메모는 **당시 관찰값**으로 읽습니다.
+- 현재 active precondition / replay / integrated schema 기준은
+  - [testing.md](./testing.md)
+  - [recommendation-current-state.md](../recommendation/recommendation-current-state.md)
+  - [collect-current-state.md](../collect/collect-current-state.md)
+  - [current-state.md](../current-state.md)
+  를 우선 봅니다.
+
+특히 아래의 `fresh reset 뒤 draft schema`, `runtime bootstrap 공백`, `MySQL 8 문법` 메모는
+현재 PostgreSQL integrated schema mainline 이전의 historical troubleshooting 기록으로 읽습니다.
+
 ## 환경
 
 - 날짜: 2026-05-01
@@ -140,8 +155,8 @@ collect snapshot 적재 후 anonymous/public 호출 기준:
 확인 시점 snapshot:
 
 - `welfare_services=2363`
-- 이후 fresh-reset 상태에서는 sidecar draft schema가 자동 bootstrap 되지 않아, collect 성공 직후 `service_taxonomies`/`service_facts` 확인은 따로 복구가 필요했다.
-- 현재는 [deploy/mysql/apply-local-policy-sidecar-draft.sh](../deploy/mysql/apply-local-policy-sidecar-draft.sh) 와 [run-local-education-priority-replay.sh](../deploy/smoke/run-local-education-priority-replay.sh) 의 auto-apply 경계로 인해, replay smoke 쪽은 missing `service_taxonomies` 또는 zero education target row를 만나면 local draft schema/backfill을 먼저 다시 적용한 뒤 진행한다.
+- 당시 fresh-reset 상태에서는 sidecar draft schema가 자동 bootstrap 되지 않아, collect 성공 직후 `service_taxonomies`/`service_facts` 확인은 따로 복구가 필요했다.
+- 현재 기준으로는 위 관찰을 그대로 active truth로 읽지 않는다. replay/collect 해석은 integrated schema 존재 여부와 canonical read-model precondition 기준으로 [testing.md](./testing.md), [recommendation-current-state.md](../recommendation/recommendation-current-state.md), [collect-current-state.md](../collect/collect-current-state.md) 를 우선 본다.
 
 즉시 재실행:
 
@@ -169,8 +184,8 @@ deploy/smoke/run-local-education-priority-replay.sh
 
 실패 원인:
 
-1. fresh reset 뒤 canonical sidecar draft schema가 자동으로 올라오지 않았다.
-2. 수동 단순 backfill로는 `education target row` 가 충분히 복구되지 않았다.
+1. 당시 fresh reset 뒤 canonical sidecar draft schema가 자동으로 올라오지 않았다.
+2. 당시 수동 단순 backfill로는 `education target row` 가 충분히 복구되지 않았다.
 
 ### 수정
 
@@ -196,8 +211,8 @@ deploy/smoke/run-local-education-priority-replay.sh
 ### 해석
 
 - replay 자체는 현재 로컬에서 다시 정상이다.
-- fresh reset 뒤 canonical draft schema/backfill이 비어 있어도, replay script는 이제 local draft sidecar create/seed SQL을 먼저 재적용해 self-heal 할 수 있다.
-- 다만 이 복구는 local smoke 편의 경계이고, draft sidecar가 runtime bootstrap에 자동 편입된 것은 아니다.
+- 위 self-heal 메모는 당시 local smoke 편의 경계에 대한 기록이다.
+- 현재 active 해석은 `draft sidecar auto-apply 여부` 자체보다, integrated schema가 이미 존재한다는 전제 아래 collect/replay가 기대하는 canonical read-model / target row precondition을 만족하는지에 둔다.
 
 ## 7. 광역 회귀
 
@@ -226,7 +241,7 @@ cd backend
 - 상태:
   이번 작업에서 수정 완료
 
-### 문제 2. fresh local reset 뒤 canonical sidecar draft schema는 runtime bootstrap 되지 않음
+### 문제 2. 2026-05-01 당시 fresh local reset 뒤 canonical sidecar draft schema는 runtime bootstrap 되지 않았음
 
 - 증상:
   `collect` 는 성공해도 `service_taxonomies` / `service_facts` 가 바로 보장되지 않음
@@ -235,7 +250,7 @@ cd backend
 - 조치:
   [deploy/mysql/apply-local-policy-sidecar-draft.sh](../deploy/mysql/apply-local-policy-sidecar-draft.sh) 를 추가했고, [run-local-education-priority-replay.sh](../deploy/smoke/run-local-education-priority-replay.sh) 가 replay 전에 missing sidecar schema 또는 zero target row를 감지하면 local draft create/seed SQL을 자동 재적용하도록 연결했다
 - 상태:
-  runtime bootstrap 공백 자체는 그대로지만, local replay smoke 기준으로는 self-heal 가능
+  당시에는 local replay smoke 기준 self-heal 가능 상태까지 복구했다. 현재 active 해석은 이 historical 복구 경로보다 integrated schema + replay precondition 문서를 우선한다.
 
 ### 문제 3. 온통청년 실제 collect 재실행은 upstream 403 영향을 받음
 

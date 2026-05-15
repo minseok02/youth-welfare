@@ -3692,3 +3692,8 @@
 - 문제: `mvp-grow-when-needed-playbook.md` 는 상단 기본 전략과 검색/추천 기준은 이미 PostgreSQL/개인 캐시 기준으로 고쳤지만, 하단 `현재 결론` 문장에는 여전히 `1개 도메인 + 1대 서버 + app/mysql/redis 동거` 가 남아 있었다.
 - 해결: 하단 결론 문장도 현재 truth인 `app/postgres/redis 동거` 로 교정했다.
 - 이유: 이런 잔여 문장은 메타 문서를 빠르게 훑는 사람이 가장 먼저 보는 결론 구간에 남는다. 상단 설명은 맞고 마지막 한 줄이 틀리면 실제 구조 판단은 다시 예전 baseline으로 끌려간다.
+
+## 682) 날짜가 박힌 local 측정 문서에 old draft/bootstrap 메모가 그대로 남아 있으면, historical observation이 현재 active precondition처럼 읽힌다
+- 문제: `local-feature-performance-check-2026-05-01.md` 는 원래 당시의 로컬 시험/시간 측정 기록인데, 중간 설명과 문제 정리에는 `fresh reset 뒤 draft schema`, `runtime bootstrap 공백`, `MySQL 8 문법` 메모가 현재 truth처럼 이어져 있었다.
+- 해결: 문서 상단에 `historical observation` 가드레일을 추가하고, 관련 section의 해석 문장을 `당시 관찰` 과 `현재 active 해석은 testing/current-state/recommendation-current-state/collect-current-state 우선` 으로 분리했다.
+- 이유: 날짜가 박힌 측정 문서는 수치를 보존하는 게 중요하지만, 그 안의 옛 원인 해석까지 현재 기준으로 읽히면 local validation precondition을 다시 과거 draft schema 문제로 오해하게 된다.
