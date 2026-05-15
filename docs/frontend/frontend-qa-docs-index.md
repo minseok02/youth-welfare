@@ -58,8 +58,10 @@
 ### 3. 결과 기록 템플릿
 
 - [frontend-qa-template.md](./frontend-qa-template.md)
+- [frontend-qa-session-2026-05-15.md](./frontend-qa-session-2026-05-15.md)
 
 브라우저 QA 결과를 남길 때 복사해서 쓰는 템플릿입니다.
+`frontend-qa-session-2026-05-15.md` 는 오늘 기준 high-risk 동선과 baseline을 미리 채워 둔 세션 시트입니다.
 
 ## 읽는 순서
 
@@ -78,6 +80,7 @@
 ### 결과를 남길 때
 
 1. [frontend-qa-template.md](./frontend-qa-template.md)
+2. 바로 실행을 시작하려면 [frontend-qa-session-2026-05-15.md](./frontend-qa-session-2026-05-15.md) 를 사용합니다.
 2. 재현 URL, query/state, `reason`, `state.from`, `?session=`/`?tab=` 같은 증거를 먼저 채웁니다.
 3. 이슈가 재현되면 [troubleshooting-log.md](../core/troubleshooting-log.md)
 4. 실행 결과를 active 기준선에 반영할 필요가 있을 때만 [phase-plan.md](../phase-plan.md)

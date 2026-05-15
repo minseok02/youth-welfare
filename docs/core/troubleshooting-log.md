@@ -3942,3 +3942,8 @@
 - 문제: `frontend-qa-checklist.md` 는 현재 증거 기록 형식은 잘 갖췄지만, 실행 순서는 공개 탐색부터 회원탈퇴까지 거의 평평하게 나열돼 있었다. 이 상태에선 실제 브라우저 검증 시간이 짧을 때 `searchParams`, `state.from`, `chatFrom`, `postLoginAction`, `?session=`, `?tab=` 가 동시에 걸린 고위험 동선을 뒤로 미루고, 상대적으로 단순한 공개 탐색부터 오래 볼 수 있다.
 - 해결: checklist에 `권장 실행 순서` 를 추가해 1차 고위험 동선을 `정책 목록 -> 상세 -> 뒤로가기`, `비로그인 /chat -> login -> 복귀`, `/mypage?tab= -> 상세 -> 복귀`, 북마크 일관성, 세션 만료 흐름 순서로 먼저 보게 했다. docs index에도 시간이 제한되면 이 다섯 개부터 돌리라고 명시했다.
 - 이유: 프론트 체감 회귀는 단순 API 성공보다 URL/query/state 문맥이 끊기는 형태로 더 자주 나온다. 수동 QA는 특히 시간이 제한되므로, 가장 위험한 복귀/문맥 흐름을 먼저 밟게 하는 우선순위가 필요하다.
+
+## 732) 브라우저 자동화가 없는 상태에서 template만 남아 있으면, 실제 QA 라운드마다 baseline/commit/high-risk 동선을 다시 손으로 조합해야 해서 증거 기록 시작점 자체가 느리다
+- 문제: `frontend-qa-template.md` 와 checklist/current-state는 잘 갖춰졌지만, 실제로 오늘 라운드를 시작할 때는 `현재 commit`, `관련 smoke baseline`, `고위험 동선 5개`, 각 동선의 기대 URL/query/state를 다시 사람이 조합해야 했다. 이 단계가 느리면 수동 QA는 종종 “나중에 적자”로 밀리기 쉽다.
+- 해결: `frontend-qa-session-2026-05-15.md` 를 추가해 오늘 기준 local baseline, commit, 고위험 동선, 기대 URL/query/state를 미리 채운 세션 시트를 만들고 docs index에도 연결했다.
+- 이유: 브라우저 자동화가 없을수록 수동 QA의 마찰을 낮추는 것이 중요하다. 템플릿과 checklist만 있는 것보다, 당장 복사 없이 시작할 수 있는 session sheet가 있어야 evidence-first 방식이 실제로 작동한다.
