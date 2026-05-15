@@ -4127,3 +4127,8 @@
 - 문제: 서버에서 `WEB_PUSH_PUBLIC_KEY / PRIVATE_KEY / SUBJECT` 를 넣고 실제 digest 발송을 시도했더니, `PushService` 초기화 단계에서 `NoClassDefFoundError: org/bouncycastle/jce/spec/ECParameterSpec` 로 죽었다. 이 에러는 web-push HTTP 요청 전에 발생하므로 응답 status는 없고, 기존 catch 범위가 `Exception` 계열에만 좁아 `web_push_subscriptions.last_error_message` 도 비어 있었다.
 - 해결: backend에 `org.bouncycastle:bcprov-jdk18on`, `org.bouncycastle:bcpkix-jdk18on` 을 추가했다. 동시에 `WebPushSenderClientImpl` 과 `WebPushDispatchService` 가 `RuntimeException | LinkageError` 도 실패 결과로 흡수해 `lastErrorAt`, `lastErrorMessage` 를 남기도록 보강했다.
 - 이유: 웹푸시 2차부터는 브라우저 연결 성공만으로 충분하지 않다. 실제 발송은 crypto/provider 런타임까지 요구하므로, 초기화 실패가 나더라도 subscription row에 실패 흔적이 남아야 서버 검증과 운영 추적이 가능하다.
+
+## 769) BouncyCastle JAR을 classpath에 넣는 것만으로는 부족하고, `BC` provider도 JVM에 등록해야 한다
+- 문제: 위 의존성을 추가한 뒤에도 서버 실발송에서는 `last_error_message=no such provider: BC` 가 남고 실제 푸시가 가지 않았다. 즉 클래스는 보이지만 `PushService` 가 기대하는 `BC` provider가 `Security` registry에 올라오지 않은 상태였다.
+- 해결: `WebPushSenderClientImpl` 의 `@PostConstruct` 에서 `Security.getProvider("BC")` 를 확인하고, 없으면 `Security.addProvider(new BouncyCastleProvider())` 로 등록하게 했다.
+- 이유: 웹푸시 라이브러리는 provider 이름 `BC` 로 crypto provider를 찾는다. 런타임 classpath와 JVM provider registry는 별개라서, JAR 추가만으로는 끝나지 않는다.
