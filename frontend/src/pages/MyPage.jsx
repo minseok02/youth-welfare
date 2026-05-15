@@ -329,8 +329,8 @@ export default function MyPage() {
     }
     const nextParams = new URLSearchParams(searchParams);
     nextParams.set("tab", nextTabIndex);
-    setSearchParams(nextParams, { replace: true });
-  }, [activeTab, searchParams, setSearchParams]);
+    setSearchParams(nextParams, { replace: true, state: location.state });
+  }, [activeTab, location.state, searchParams, setSearchParams]);
 
   // expose logout to sidebar
   useEffect(() => {

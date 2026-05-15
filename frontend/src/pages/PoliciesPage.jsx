@@ -317,8 +317,8 @@ export default function PoliciesPage() {
     if (sort !== defaultSort) params.sort = sort;
     if (page !== 1) params.page = String(page);
     if (pageSize !== 10) params.pageSize = String(pageSize);
-    setSearchParams(params, { replace: true });
-  }, [search, selectedCat, region, subRegion, income, targetGroup, sourceType, statusFilter, sort, page, pageSize, defaultStatusFilter, setSearchParams]);
+    setSearchParams(params, { replace: true, state: location.state });
+  }, [defaultStatusFilter, income, location.state, page, pageSize, region, search, selectedCat, setSearchParams, sort, sourceType, statusFilter, subRegion, targetGroup]);
 
   useEffect(() => {
     const nextSearch = searchParams.get("search") || "";

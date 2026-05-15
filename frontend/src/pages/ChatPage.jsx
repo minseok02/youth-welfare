@@ -170,8 +170,8 @@ export default function ChatPage() {
     } else {
       nextParams.delete("session");
     }
-    setSearchParams(nextParams, { replace: true });
-  }, [searchParams, setSearchParams]);
+    setSearchParams(nextParams, { replace: true, state: location.state });
+  }, [location.state, searchParams, setSearchParams]);
 
   useEffect(() => {
     querySessionIdRef.current = querySessionId;
