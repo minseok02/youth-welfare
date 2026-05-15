@@ -101,43 +101,43 @@ profile|users
 profile|title|source_type|category|users
 ```
 
-## 현재 기준선 (2026-05-15, Gov24 manual follow-up closeout 이후 local snapshot)
+## 현재 기준선 (2026-05-15, no-priority retrieval/rerank diversification 이후 local snapshot)
 
 ```text
-latest_batch_rows=1974
-latest_batch_users=62
+latest_batch_rows=2394
+latest_batch_users=132
 latest_batch_distinct_services=113
 latest_batch_priority_users=20
-latest_batch_no_priority_users=42
+latest_batch_no_priority_users=112
 top1_leader_service_id=2622
 top1_leader_title=청년월세 지원사업
 top1_leader_source=BOKJIRO_CENTRAL
 top1_leader_category=주거
-top1_leader_users=37
-top1_leader_share_pct=59.68
-avg_recommendations_per_user=31.84
-avg_distinct_services_per_user=31.84
-avg_distinct_categories_per_user=5.82
-avg_distinct_sources_per_user=3.32
+top1_leader_users=75
+top1_leader_share_pct=56.82
+avg_recommendations_per_user=18.14
+avg_distinct_services_per_user=18.14
+avg_distinct_categories_per_user=4.33
+avg_distinct_sources_per_user=3.15
 ```
 
 latest source distribution:
 
 ```text
 YOUTH|1352|62
-BOKJIRO_LOCAL|287|59
-BOKJIRO_CENTRAL|173|57
-GOV24|162|28
+BOKJIRO_LOCAL|427|129
+BOKJIRO_CENTRAL|313|127
+GOV24|302|98
 ```
 
 latest category distribution:
 
 ```text
+금융·생활지원|736|132
 일자리|676|62
-금융·생활지원|526|62
-교육·직업훈련|304|62
+교육·직업훈련|374|132
+주거|323|132
 참여·기회|190|36
-주거|183|62
 기타|59|59
 문화·여가|36|18
 ```
@@ -145,22 +145,26 @@ latest category distribution:
 top repeated services:
 
 ```text
+2571|청년내일저축계좌|BOKJIRO_CENTRAL|금융·생활지원|127|127
+2622|청년월세 지원사업|BOKJIRO_CENTRAL|주거|127|127
+3605|나만의 결혼식 지원|BOKJIRO_LOCAL|금융·생활지원|124|124
+3611|청년 웰컴페이(이사비) 지원사업|BOKJIRO_LOCAL|금융·생활지원|124|124
+5728|주택금융공사 월세자금보증|GOV24|주거|98|98
+6790|지역인재육성을 위한 장학금 지원|GOV24|교육·직업훈련|98|98
 969|에너지차세대리더육성|YOUTH|교육·직업훈련|62|62
 978|중남미 지역기구 인턴 파견|YOUTH|일자리|62|62
 979|지방청년인재 재외공관 파견|YOUTH|일자리|62|62
 985|산림산업 창업지원_청년 산림창업 마중물 지원|YOUTH|일자리|62|62
-2571|청년내일저축계좌|BOKJIRO_CENTRAL|금융·생활지원|57|57
-2589|우수학생 국가장학금 지원|BOKJIRO_CENTRAL|금융·생활지원|57|57
-2622|청년월세 지원사업|BOKJIRO_CENTRAL|주거|57|57
-3688|드림나래(인천청년 면접복장 지원)|BOKJIRO_LOCAL|기타|54|54
 ```
 
 top1 by priority state:
 
 ```text
-NO_PRIORITY|청년월세 지원사업|BOKJIRO_CENTRAL|주거|35
+NO_PRIORITY|청년월세 지원사업|BOKJIRO_CENTRAL|주거|73
+NO_PRIORITY|청년 웰컴페이(이사비) 지원사업|BOKJIRO_LOCAL|금융·생활지원|32
 HAS_PRIORITY|드림나래(인천청년 면접복장 지원)|BOKJIRO_LOCAL|기타|12
 HAS_PRIORITY|청년월세 지원사업|YOUTH|주거|5
+NO_PRIORITY|드림나래(인천청년 면접복장 지원)|BOKJIRO_LOCAL|기타|5
 ```
 
 priority profile counts:
@@ -220,15 +224,15 @@ CONCENTRATED_TOP1
 `2026-05-15` local snapshot 기준 판단은:
 
 1. 우선순위는 코드와 데이터에서 **일부 반영된다**
-2. 하지만 저장 추천 결과는 여전히 **강하게 집중**된다
-3. 특히 `NO_PRIORITY` 사용자가 많고, 이 구간에서 `청년월세 지원사업(2622)` 으로 강하게 몰린다
-4. 따라서 지금 병목은 “priority 미반영”보다 **diversity / fallback / balancing 약함** 쪽이다
+2. 최근 no-priority retrieval/rerank 보강 뒤, 신규 no-priority 사용자 표본에서는 `2622` 일변도에서 벗어나 `3611` 이 함께 top1로 올라온다
+3. 하지만 저장 추천 결과 전체로 보면 여전히 **강하게 집중**되어 있고, top1 leader share도 아직 `56.82%` 수준이다
+4. 따라서 지금 병목은 “priority 미반영”보다 **diversity / fallback / balancing 약함** 쪽이며, 상태는 계속 `CONCENTRATED_TOP1` 으로 본다
 
 즉 지금 practical next step은
 
-- audit 추가 자체가 아니라
-- diversity/fallback 로직 수정
-- 수정 뒤 같은 wrapper로 전/후 비교
+- 최신 완화 로직이 신규 사용자에선 실제로 먹는지 계속 확인하고
+- 같은 wrapper로 전/후 비교를 유지하면서
+- top1 leader share를 더 낮출 추가 조정이 필요한지 판단
 
 입니다.
 

@@ -3967,3 +3967,8 @@
 - 문제: CTR audit는 현재 로그 표본과 click readiness를 보는 데는 충분하지만, 실제 저장 추천 결과가 같은 서비스 몇 개로 반복 노출되는지까지는 직접 보여 주지 않는다. 이번 local snapshot에서는 clicked service가 `2`개뿐이라 체감상 쏠림이 이미 강했는데, latest `user_recommendations` batch를 다시 보니 top1 leader `2622` 가 `37 / 62 users (59.68%)` 를 차지하고, `979/969/985/978` 같은 YOUTH 정책은 `62 / 62 users` 전원에게 반복 노출되고 있었다.
 - 해결: `run-local-recommendation-concentration-audit.sh` 와 `recommendation-concentration-audit-runbook.md` 를 추가해 latest batch의 `top1 leader share`, `top repeated services`, `source/category distribution`, `HAS_PRIORITY / NO_PRIORITY`, `priority_profile_top1` 을 한 번에 보게 했다. 현재 baseline은 `latest_batch_rows=1974`, `latest_batch_users=62`, `distinct_services=113`, `top1 leader 2622 = 37 users`, `HAS_PRIORITY=20`, `NO_PRIORITY=42`, readiness는 `CONCENTRATED_TOP1` 이다.
 - 이유: 추천 품질을 손볼 때는 “우선순위가 아예 안 먹는지”와 “먹고도 여전히 같은 정책으로 수렴하는지”를 분리해서 봐야 한다. CTR readiness는 클릭 표본 준비도를 재는 도구이고, concentration audit는 저장 추천 결과 자체의 편중을 재는 도구다. 둘을 분리해야 로직 수정 전/후 비교가 가능하다.
+
+## 737) no-priority 추천 편중 완화는 “신규 사용자 분산”과 “전체 배치 집중도”를 분리해서 읽어야 한다
+- 문제: no-priority fallback/rerank를 보강한 뒤 신규 사용자 표본에서는 top1이 `2622` 일변도에서 `3611` 쪽으로 실제로 갈라졌지만, 기존 저장 추천 batch까지 합친 전체 concentration audit는 여전히 `CONCENTRATED_TOP1` 이었다. 신규 샘플 효과만 보고 “해결됐다”고 쓰거나, 반대로 전체 leader share만 보고 “아무 효과 없다”고 쓰면 둘 다 과장이다.
+- 해결: concentration baseline을 최신 snapshot(`2394 rows / 132 users / 113 services`, `top1 leader 2622 = 75 users / 56.82%`, `NO_PRIORITY 112`, `3611 top1=32`)으로 갱신하고, runbook/current-state에 “신규 no-priority 사용자에서는 분산이 보이지만 overall 판정은 아직 concentrated” 라는 이중 해석을 함께 남겼다.
+- 이유: 추천 편중 완화는 저장 배치가 누적된 상태에선 항상 반영 속도가 다르다. 신규 refresh 사용자 효과와 전체 batch 집중도를 같이 봐야 다음 조정을 과장 없이 판단할 수 있다.

@@ -55,7 +55,7 @@
 - `카카오 알림톡` 은 비즈니스 채널/발신 프로필/템플릿 심사와 사업자 증빙이 먼저라, 코드보다 운영 자격이 선행 조건이다.
 - `2026-05-15` local CTR audit 기준 total logs는 `1923` 이지만 clicked logs는 `19`, overall CTR은 `0.99%`, fallback clicked는 `0`, clicked service는 `2`개뿐이라 현재 readiness 판정은 `DEFERRED_CLICK_SAMPLE_THIN` 이다.
 - 따라서 현재 phase에서 더 진행할 실용적 후보는 `CTR readiness audit + 표본 확충` 이고, 실제 weight tuning은 readiness가 올라간 뒤에만 연다. 군집 캐시는 장래 확장 포인트로 남긴다.
-- 별도로 `2026-05-15` local recommendation concentration audit 기준 latest batch는 `1974 rows / 62 users / 113 services`, top1 leader `2622` 가 `37 / 62 users (59.68%)` 를 차지한다. `HAS_PRIORITY` / `NO_PRIORITY` 의 top1 차이는 일부 보이므로 priority가 완전히 무시되는 상태는 아니지만, 현재 병목은 `priority 미반영` 보다는 `diversity / fallback / balancing 약함` 쪽으로 보는 편이 맞다.
+- 별도로 `2026-05-15` local recommendation concentration audit 기준 latest batch는 `2394 rows / 132 users / 113 services`, top1 leader `2622` 가 `75 / 132 users (56.82%)` 를 차지한다. 최근 no-priority retrieval/rerank 보강 뒤 `3611` 이 top1로 올라오는 비중이 커졌지만, overall 판정은 아직 `CONCENTRATED_TOP1` 이다. 즉 priority가 완전히 무시되는 상태는 아니고, 현재 병목은 여전히 `priority 미반영` 보다는 `diversity / fallback / balancing 약함` 쪽으로 보는 편이 맞다.
 
 반면 아래는 계속 blocked/backlog 또는 deferred 로 둡니다.
 

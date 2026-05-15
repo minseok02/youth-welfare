@@ -201,30 +201,32 @@ CTR readiness와 별개로, 최신 `user_recommendations` batch 자체도 현재
 
 `2026-05-15` local concentration audit 기준:
 
-- latest batch `1974 rows / 62 users / 113 distinct services`
+- latest batch `2394 rows / 132 users / 113 distinct services`
 - top1 leader:
   - `2622 청년월세 지원사업`
-  - `37 / 62 users`
-  - `59.68%`
+  - `75 / 132 users`
+  - `56.82%`
 - latest source distribution:
   - `YOUTH 1352`
-  - `BOKJIRO_LOCAL 287`
-  - `BOKJIRO_CENTRAL 173`
-  - `GOV24 162`
+  - `BOKJIRO_LOCAL 427`
+  - `BOKJIRO_CENTRAL 313`
+  - `GOV24 302`
 - latest category distribution:
+  - `금융·생활지원 736`
   - `일자리 676`
-  - `금융·생활지원 526`
-  - `교육·직업훈련 304`
-  - `주거 183`
+  - `교육·직업훈련 374`
+  - `주거 323`
 
 우선순위가 완전히 무시되는 상태는 아닙니다.
 
 - `HAS_PRIORITY` 사용자 `20`
-- `NO_PRIORITY` 사용자 `42`
-- `NO_PRIORITY` top1 대표는 `청년월세 지원사업(2622)` `35명`
+- `NO_PRIORITY` 사용자 `112`
+- `NO_PRIORITY` top1 대표는 `청년월세 지원사업(2622)` `73명`
+- 같은 `NO_PRIORITY` 구간에서 `청년 웰컴페이(이사비) 지원사업(3611)` 도 `32명`의 top1까지 올라와, 최근 완화 로직이 신규/최근 refresh 사용자에선 실제로 분산을 만들고 있습니다.
 - `HAS_PRIORITY` 쪽에서는 `드림나래(3688)` `12명`, `청년월세 지원사업(YOUTH 1411)` `5명` 등 일부 차이가 보입니다.
 
 즉 현재 병목은 `priority 미반영` 보다는 **diversity / fallback / balancing 약함** 쪽으로 해석하는 편이 맞습니다.
+최근 no-priority retrieval pool 재배열과 top-band rotation 이후에도 overall 판정은 아직 `CONCENTRATED_TOP1` 이므로, 효과는 “분산 시작” 수준으로 보고 추가 보정 여부를 계속 판단해야 합니다.
 
 ### 5. fresh reset 뒤 collect/replay 전제
 
