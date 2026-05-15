@@ -220,7 +220,7 @@ FROM welfare_service_details;
 ```bash
 export APP_BASE_URL="http://127.0.0.1:8082"
 export ADMIN_EMAIL="admin@example.com"
-export ADMIN_PASSWORD="Password123!"
+export ADMIN_PASSWORD="password123!"
 export ADMIN_LOGIN_RESPONSE="$(mktemp)"
 
 curl -sS \
@@ -244,6 +244,9 @@ print(data["data"]["accessToken"])
 PY
 )"
 ```
+
+현재 local smoke baseline에서는 admin runtime 검증용 비밀번호 예시를 `password123!` 로 둡니다.
+다만 shell의 `ADMIN_PASSWORD` 나 `run-local-validation-from-env.sh` 가 읽는 `/tmp/youth-welfare-admin-smoke-password` 파일이 있으면 그 값을 우선합니다.
 
 ### 2. 기본 안전 실행
 

@@ -47,7 +47,7 @@ admin token 준비:
 ```bash
 export APP_BASE_URL="http://127.0.0.1:8082"
 export ADMIN_EMAIL="admin@example.com"
-export ADMIN_PASSWORD="Password123!"
+export ADMIN_PASSWORD="password123!"
 export ADMIN_LOGIN_RESPONSE="$(mktemp)"
 
 curl -sS \
@@ -58,6 +58,9 @@ curl -sS \
     \"password\": \"$ADMIN_PASSWORD\"
   }" | tee "$ADMIN_LOGIN_RESPONSE"
 ```
+
+현재 local smoke baseline에서는 admin runtime 검증용 비밀번호 예시를 `password123!` 로 맞춥니다.
+다만 shell에 이미 `ADMIN_PASSWORD` 가 있거나 validation wrapper가 `/tmp/youth-welfare-admin-smoke-password` 를 만들어 둔 경우에는 그 값을 우선 사용합니다.
 
 ```bash
 export ADMIN_ACCESS_TOKEN="$(python3 - "$ADMIN_LOGIN_RESPONSE" <<'PY'

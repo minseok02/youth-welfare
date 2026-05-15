@@ -3582,3 +3582,8 @@
 - 문제: `run-local-validation-from-env.sh --full` 은 quick 단계 전부에 `education priority replay` 까지 포함한다. replay 자체는 recommendation click을 늘리지 않지만, full suite 앞단의 refresh/click smoke가 한 번 더 돌면서 `recommendation_logs` baseline이 다시 움직인다. quick suite 기준 숫자(`1583/14/0.88%`)를 그대로 두면 full-suite 이후 current DB 상태와 또 어긋난다.
 - 해결: full suite를 실제로 다시 돌려 `suite_duration_seconds=105`, replay summary `A_top10_target=9->9`, `B_top10_target=1->1`, `A_fp=same`, `B_fp=same`, `A_reason_changed=0`, `B_reason_changed=0` 를 확인한 뒤, 곧바로 `run-local-ctr-readiness-audit.sh` 를 재실행해 최신 baseline을 `total_logs=1634`, `clicked_logs=15`, `ctr=0.92%`, `clicked_services=2`, readiness `DEFERRED_CLICK_SAMPLE_THIN` 으로 갱신했다.
 - 이유: 지금 단계에서는 replay와 CTR 둘 다 quality baseline 문서에 묶여 있다. full suite가 replay quality는 건드리지 않아도 recommendation log는 조금씩 늘리므로, final validation까지 다시 돌린 뒤에는 CTR audit 최신값으로 문서를 다시 덮어써야 current truth가 유지된다.
+
+## 660) admin runtime runbook의 로그인 예시는 실제 smoke baseline 자격 증명과 맞아야 한다
+- 문제: bounded admin runtime 재검증 과정에서 `policy-admin-runtime-runbook.md`, `runtime-api-smoke-commands.md` 는 여전히 `ADMIN_PASSWORD=\"Password123!\"` 예시를 쓰고 있었지만, 실제 로컬 admin smoke 스크립트 기본값은 `password123!` 였다. 이 상태에서는 endpoint 자체는 정상이어도 문서 예시 그대로 복붙하면 `A004` 를 만나게 된다.
+- 해결: 두 문서의 admin login 예시를 현재 local smoke baseline인 `password123!` 로 교정하고, shell env에 이미 `ADMIN_PASSWORD` 가 있거나 `run-local-validation-from-env.sh` 가 `/tmp/youth-welfare-admin-smoke-password` 파일을 준비한 경우에는 그 값을 우선하도록 설명을 보강했다.
+- 이유: 지금 phase의 작업은 새 기능보다 반복 가능한 local runtime 검증 유지다. admin runbook의 예시 자격 증명이 실제 smoke baseline과 어긋나면, 같은 엔드포인트를 두고도 문서만 따라 한 사용자는 불필요한 auth 오류를 보게 된다.
