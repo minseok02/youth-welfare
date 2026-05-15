@@ -4032,3 +4032,8 @@
 - 문제: 알림 채널 확장을 보려면 이메일 외 채널이 필요하지만, 현재 `notifications` 는 `dispatchKey`, `channel`, `status`, `retryCount`, `nextRetryAt`, `notification_services` 를 중심으로 동작하는 발송 이력/재시도 테이블이다. 이 상태에서 읽음/숨김/deeplink 같은 사용자 알림함 상태를 바로 얹으면, 발송 결과와 사용자 읽음 상태가 한 row에 섞여 수명과 의미가 꼬이기 쉽다. 또한 현재 이벤트 소스도 `NotificationScheduleService -> NotificationDispatchService -> NotificationRecommendationService` 로 이어지는 추천 digest 1종에 가깝고, deadline reminder 같은 별도 알림은 아직 존재하지 않는다.
 - 해결: `notification-channel-expansion-plan`/`checklist` 를 추가해 1차 범위를 "현재 추천 digest를 인앱 알림함으로 확장"으로 고정하고, `user_alerts` 테이블과 최소 백엔드 API를 따로 추가했다. 현재 구현은 추천 digest 저장 시 `user_alerts` 를 함께 만들고, `/api/notifications/me`, `/api/notifications/me/unread-count`, `PATCH /api/notifications/{id}/read`, `PATCH /api/notifications/{id}/hide` 로 읽음함 경계를 연다. 반면 `notifications` 는 계속 발송 이력/재시도 용도로 유지한다.
 - 이유: 현재 프로젝트 단계는 로컬 기능/구조 검증 단계이고, 알림 1차도 문서상 이메일 발송/재시도/수신거부까지다. 이 상태에서 바로 웹푸시나 deadline reminder까지 같이 열기보다, 기존 추천 digest 이벤트를 별도 읽음함 모델로 분리해 놓는 편이 이후 웹푸시나 채널 확장을 붙일 때도 훨씬 안전하다.
+
+## 750) 인앱 알림함 1차 UI는 새 알림센터를 별도 화면으로 만들기보다, 현재 `MyPage` 의 알림 탭 안에 녹이는 편이 기존 구조와 톤에 맞다
+- 문제: `user_alerts` 백엔드만 추가하면 실제 사용자는 아직 아무 변화도 못 느낀다. 반대로 헤더 bell/dropdown/전용 알림센터까지 한 번에 열면 현재 단계에서 프론트 범위가 커지고, 기존 마이페이지의 "알림 설정" 탭과 UI 계약도 겹친다. 지금 프론트는 이미 `MyPage` 탭 구조, `SectionCard`, 토스트, deep link navigate 패턴이 잘 정리돼 있으므로, 1차 인앱 알림함은 여기에 붙이는 편이 안전하다.
+- 해결: `MyPage` 의 `noti` 탭 안에 최근 알림 목록, unread count, 읽음, 숨김, deep link 열기 UI를 추가했다. 기존 카드/버튼 톤을 그대로 재사용하고, unread count 는 같은 페이지의 사이드바 `알림 설정` 탭에만 badge 로 노출했다. 헤더 global unread badge 는 다음 단계로 남기고, 현재는 추천 digest 기반 알림함이라는 안내 문구를 같이 보여 준다.
+- 이유: 현재 프로젝트 단계는 "새 채널을 빠르게 usable 하게 만드는 것"이 목표다. `MyPage` 알림 탭은 이미 사용자 설정 문맥이 있고 보호 페이지도 정리돼 있으므로, 여기서 먼저 인앱 알림함을 보여 주는 편이 구현 범위가 작고 기존 UI 언어와도 자연스럽게 맞는다.
