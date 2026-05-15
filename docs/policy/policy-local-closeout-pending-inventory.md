@@ -33,6 +33,13 @@ local-first closeout 기준의 실제 다음 액션을 고정합니다.
 지금 로컬에서 할 수 있는 핵심은
 이미 만든 기능/스크립트/경계의 **최종 closeout 검증** 입니다.
 
+`Gov24` 도 같은 분류로 정리됩니다.
+
+- runtime collect closeout: 완료
+- runtime audit / unmapped inventory: 완료
+- 남은 `supportConditions` gap: 현재 제품 경계 기준 `deferred`
+- hard taxonomy/import-backfill: external blocked
+
 ## 1. external blocked 항목
 
 아래는 로컬에서 문서만 더 쌓아도 unblock 되지 않습니다.
@@ -42,6 +49,10 @@ local-first closeout 기준의 실제 다음 액션을 고정합니다.
 - `YOUTH_MID` stable code mapping SQL 초안 작성
 
 이들은 current source/codebook 응답이 와야만 다시 열 수 있습니다.
+
+추가로 `Gov24 supportConditions` 의 사업체/업종/창업 상태 code 승격은
+external blocked 는 아니지만, 현재 제품 입력/추천 matcher가 개인 eligibility 축 중심이므로
+**deferred** 로 둡니다.
 
 ## 2. future infra/deploy memo
 
@@ -137,6 +148,9 @@ local-first closeout 기준의 실제 다음 액션을 고정합니다.
 3. education replay smoke(rule-only)
 4. 필요 시 local runtime API smoke
 
+`Gov24` 기준으로는 위 closeout 검증 세트 밖에 남은 active 작업이 없고,
+남은 건 `deferred` 또는 `external blocked` 로 분리된 상태입니다.
+
 ## 현재 상태
 
 2026-05-02 현재 로컬 기준선은 다시 복구됐다.
@@ -171,4 +185,4 @@ known-positive replay가 다시 `A_top10_target=0->1`, `B_top10_target=0->0` 으
 
 1. 현재 미완 항목 대부분은 external blocked 또는 future infra memo 이다.
 2. closeout 검증 세트(auth/session, PII cutover, education replay, runtime smoke, broad backend suite)는 current 워크트리 기준으로 다시 모두 통과했다.
-3. 따라서 지금 남은 일은 blocked source 응답이나 운영 환경이 필요할 때만 다시 열리는 트랙들이다.
+3. 따라서 지금 남은 일은 blocked source 응답, deferred Gov24 business-code 판단 재개, 또는 운영 환경이 생겼을 때만 다시 열리는 트랙들이다.

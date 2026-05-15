@@ -48,10 +48,11 @@
 - `카카오 알림톡` 은 비즈니스 채널/발신 프로필/템플릿 심사와 사업자 증빙이 먼저라, 코드보다 운영 자격이 선행 조건이다.
 - 따라서 현재 phase에서 더 진행할 실용적 후보는 `개인 캐시 회귀 검증 + CTR 기반 품질 튜닝` 이고, 군집 캐시는 장래 확장 포인트로 남긴다.
 
-반면 아래는 계속 blocked/backlog 로 둡니다.
+반면 아래는 계속 blocked/backlog 또는 deferred 로 둡니다.
 
 - `GOV24_SERVICE_FIELD / USER_TYPE / BENEFIT_TYPE` import/backfill SQL
 - `GOV24_SUPPORT_CONDITION` full inventory/backfill
+- `Gov24 supportConditions` 의 사업체/업종/창업 상태 code(`JA210*`, `JA220*/JA120*/JA1299/JA2299`, `JA110*`) fact 승격
 - `YOUTH_MID` stable code mapping SQL
 
 아래는 **현재 단계에서는 active track으로 보지 않습니다.**
@@ -64,7 +65,7 @@
 
 ## 이유
 
-## 1. `Gov24` 문서 트랙은 현재 external response boundary까지 이미 내려왔다
+## 1. `Gov24` 는 runtime closeout은 끝났고, 남은 것은 external blocked 또는 deferred 판단이다
 
 지금까지 아래는 모두 닫혔다.
 
@@ -73,12 +74,15 @@
 - label 3종 요청 템플릿
 - `supportConditions` 요청 템플릿
 - request package checklist
+- runtime collect closeout (`list/detail/support raw=10937`)
+- runtime audit / unmapped inventory 정리
 
-즉 이제 `Gov24` 쪽 다음 액션은
-내부 문서 추가가 아니라
-**provider/operator 발송 또는 응답 수신 대기** 이다.
+즉 이제 `Gov24` 쪽 남은 액션은 두 갈래다.
 
-문서만 더 쌓아도 실제 unblock은 일어나지 않는다.
+1. hard import/backfill 쪽은 **provider/operator 발송 또는 응답 수신 대기**
+2. runtime support gap 쪽은 **현재 제품이 사업체/업종 축을 실제로 소비하기 전까지 deferred 유지**
+
+추가 문서가 바로 unblock을 만들지는 않지만, 현재 deferred 판단과 reopen 조건은 이미 active 문서에 고정해 두는 편이 맞다.
 
 ## 2. future infra/deploy 메모는 지금 active track이 아니다
 
@@ -98,7 +102,7 @@ deploy/infra 메모는 “나중에 서버가 생기면 다시 만들 주제”�
 reopen 조건이 충족되지는 않는다.
 
 따라서 practical next action 기준으로는
-blocked SQL 보다 먼저
+blocked SQL 과 deferred Gov24 business-code 승격보다 먼저
 **로컬에서 끝낼 수 있는 검증/수정 트랙** 을 우선해야 한다.
 
 ## 현재 phase의 local-first 우선순위
@@ -139,6 +143,6 @@ blocked SQL 보다 먼저
 
 ## 요약
 
-1. `Gov24` 문서 트랙은 지금 단계에서 external response boundary까지 이미 내려왔다.
+1. `Gov24` 는 runtime closeout과 audit 기준선까지 닫혔고, 남은 것은 external blocked 또는 deferred 판단이다.
 2. 지금 단계의 active main track은 local 기능/구조 검증과 그에 따른 수정이다.
 3. 프론트 연동 검증이 끝나기 전 deploy/infra 는 current 작업 기준에서 제외한다.
