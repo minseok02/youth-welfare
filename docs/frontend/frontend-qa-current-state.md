@@ -88,6 +88,15 @@
 - `cd frontend && npm run build` 통과
 - `cd frontend && npm run lint` 통과
 
+같은 날짜의 production build/preview Chromium 수동 검증 기준선:
+
+- `/chat?session=...` 비로그인 접근 -> `/login` -> 로그인 후 원 세션 복귀
+- `/mypage?tab=2` 비로그인 접근 -> `/login` -> 로그인 후 원 탭 복귀
+- `/policies?search=청년&sourceType=GOV24&sort=latest` -> 상세 -> 브라우저 back 후 query 유지
+- 비로그인 목록/상세 북마크 -> 로그인 후 bookmark `POST` 정확히 1회, 최종 bookmarks 반영
+- Header/FloatingNav의 `/chat`, `/mypage`, `/policies` 이동 시 `state.from` / `chatFrom` 문맥 유지
+- 세션 만료는 URL query가 아니라 router `state.reason=expired` 기준
+
 추가 관찰:
 
 - 현재 정적 기준선에서는 route-level lazy loading + vendor chunk split 이후 기존 번들 크기 경고가 재현되지 않습니다.
