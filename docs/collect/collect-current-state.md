@@ -14,6 +14,7 @@
 무엇이 정상이고 무엇이 장애인지 빠르게 확인하는 current-state 문서입니다.
 
 실행 체크리스트나 장애 기록 양식은 별도 문서를 봅니다.
+현재 collect 문서 해석도 `phase-plan` 의 긴 전환 로그보다 이 문서와 `collect-operation-checklist`, `collect-ops` 를 우선합니다.
 
 ## 현재 collect entry
 

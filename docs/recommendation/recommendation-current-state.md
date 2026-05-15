@@ -190,6 +190,7 @@ recommendation/replay 는 collect와 sidecar snapshot 품질에 직접 의존합
   - `0.80:0.20` -> `147 sent / 0 clicked / 0.00%`
 
 즉 total log 수는 이미 top stage를 넘겼지만, 클릭 표본은 아직 얇아서 현재 readiness 판정은 `DEFERRED_CLICK_SAMPLE_THIN` 입니다. 게다가 클릭이 현재 `2`개 서비스(`2622`, `3688`)에만 몰려 있어 sample diversity도 부족합니다.
+따라서 recommendation 쪽의 다음 active 작업은 지금 당장 weight tuning을 여는 것이 아니라, readiness baseline을 유지한 채 표본이 더 쌓일 때까지 bounded runtime/quality smoke 결과를 계속 관찰하는 것입니다.
 
 ### 3. fresh reset 뒤 sidecar 공백
 
