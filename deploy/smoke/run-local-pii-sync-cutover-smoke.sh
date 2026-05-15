@@ -116,7 +116,11 @@ if [[ -z "${APP_PII_DB_URL:-}" || "${APP_PII_DB_URL}" == jdbc:mysql://* ]]; then
 else
   export APP_PII_DB_URL
 fi
-export NOTIFICATION_PII_DB_URL="${NOTIFICATION_PII_DB_URL:-${APP_PII_DB_URL}}"
+if [[ -z "${NOTIFICATION_PII_DB_URL:-}" || "${NOTIFICATION_PII_DB_URL}" == jdbc:mysql://* ]]; then
+  export NOTIFICATION_PII_DB_URL="${APP_PII_DB_URL}"
+else
+  export NOTIFICATION_PII_DB_URL
+fi
 if [[ -z "${DB_APP_PII_USERNAME_WAS_SET}" ]]; then
   export DB_APP_PII_USERNAME="app_pii_rw"
 else

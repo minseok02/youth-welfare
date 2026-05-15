@@ -5,6 +5,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 source "${ROOT_DIR}/deploy/smoke/smoke-common.sh"
 MIGRATION_FILE="${ROOT_DIR}/backend/src/main/resources/db/migration/V2026_04_28_02__add_user_pii_sync_queue.sql"
 ENV_FILE="${ENV_FILE:-}"
+QUEUE_BOOTSTRAP_SQL_FILE="$(mktemp)"
 
 trim() {
   local value="$1"
@@ -90,7 +91,7 @@ PROFILE_FILE="$(mktemp)"
 STATUS_FILE="$(mktemp)"
 
 cleanup() {
-  rm -f "${COOKIE_FILE}" "${SIGNUP_FILE}" "${LOGIN_FILE}" "${PROFILE_FILE}" "${STATUS_FILE}"
+  rm -f "${COOKIE_FILE}" "${SIGNUP_FILE}" "${LOGIN_FILE}" "${PROFILE_FILE}" "${STATUS_FILE}" "${QUEUE_BOOTSTRAP_SQL_FILE}"
 }
 trap cleanup EXIT
 
@@ -248,13 +249,42 @@ wait_for_app_health() {
   exit 1
 }
 
+queue_table_exists() {
+  [[ "$(db_exec "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'user_pii_sync_queue';")" == "1" ]]
+}
+
 if [[ "${APPLY_PII_SYNC_QUEUE_MIGRATION}" == "true" ]]; then
   require_non_empty DB_MIGRATION_USERNAME "${DB_MIGRATION_USERNAME}"
   require_non_empty DB_MIGRATION_PASSWORD "${DB_MIGRATION_PASSWORD}"
-  echo "applying migration: ${MIGRATION_FILE}"
-  DB_QUERY_USERNAME="${DB_MIGRATION_USERNAME}" \
-  DB_QUERY_PASSWORD="${DB_MIGRATION_PASSWORD}" \
-  smoke_db_apply_file "${MIGRATION_FILE}"
+  if queue_table_exists; then
+    echo "queue table already exists; skip legacy migration replay: ${MIGRATION_FILE}"
+  else
+    cat <<'SQL' > "${QUEUE_BOOTSTRAP_SQL_FILE}"
+CREATE TABLE IF NOT EXISTS user_pii_sync_queue (
+    id               BIGSERIAL PRIMARY KEY,
+    user_key         VARCHAR(32) NOT NULL,
+    email_enc        VARCHAR(512),
+    name_enc         VARCHAR(512),
+    birth_date_enc   VARCHAR(128),
+    phone_enc        VARCHAR(512),
+    status           VARCHAR(16) NOT NULL DEFAULT 'PENDING',
+    attempt_count    INTEGER NOT NULL DEFAULT 0,
+    last_enqueued_at TIMESTAMP,
+    last_attempt_at  TIMESTAMP,
+    last_synced_at   TIMESTAMP,
+    last_error       VARCHAR(500),
+    created_at       TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at       TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uq_upsq_user_key UNIQUE (user_key)
+);
+
+CREATE INDEX IF NOT EXISTS idx_upsq_status_enqueued ON user_pii_sync_queue (status, last_enqueued_at);
+SQL
+    echo "applying PostgreSQL queue bootstrap: ${QUEUE_BOOTSTRAP_SQL_FILE}"
+    DB_QUERY_USERNAME="${DB_MIGRATION_USERNAME}" \
+    DB_QUERY_PASSWORD="${DB_MIGRATION_PASSWORD}" \
+    smoke_db_apply_file "${QUEUE_BOOTSTRAP_SQL_FILE}"
+  fi
 fi
 
 echo "waiting for app health"
