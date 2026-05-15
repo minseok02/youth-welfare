@@ -3722,3 +3722,8 @@
 - 문제: `policy-normalization-current-state.md` 의 `local validation 현재 상태` 섹션은 여전히 `A_top10_target=4->8`, `B_top10_target=3->3` 를 replay summary로 적고 있었다. 하지만 현재 로컬 broad-suite 기준선은 `A_top10_target=9->9`, `B_top10_target=1->1`, `A_fp/B_fp=same`, `reason_changed=0` 이다.
 - 해결: normalization current-state 의 local validation 요약도 최신 broad-suite 기준선으로 갱신했다.
 - 이유: policy normalization current-state는 recommendation current-state와 같이 읽는 active 문서다. 둘 중 하나만 오래된 replay 숫자에 남아 있으면 normalization 쪽만 따로 읽은 사람이 현재는 regression 없는 상태를 예전 improvement snapshot으로 오해하게 된다.
+
+## 688) `policy-local-closeout-pending-inventory` 의 현재 상태 섹션에 예전 replay 복구 메모가 남아 있으면, closeout 완료 기준이 최신 broad-suite baseline이 아니라 오래된 rescue snapshot처럼 읽힌다
+- 문제: `policy-local-closeout-pending-inventory.md` 는 current closeout 상태를 설명하는 문서인데도, 하단에는 여전히 `known-positive replay가 0->1 / 0->0 으로 복구` 같은 예전 rescue snapshot 메모가 남아 있었다. 또 helper script 설명도 자칫 예전 draft SQL auto-apply처럼 읽힐 여지가 있었다.
+- 해결: helper script는 integrated schema/precondition 확인용 보조 경계라는 점을 다시 명시하고, 현재 replay closeout 기준선을 최신 broad-suite baseline(`A_top10_target=9->9`, `B_top10_target=1->1`, `A_fp/B_fp=same`, `reason_changed=0`)으로 교체했다.
+- 이유: local closeout inventory는 “지금 무엇이 끝났는가”를 보는 문서다. 여기서 현재 정상 판단 기준이 오래된 복구 스냅샷에 묶여 있으면, 이미 regression 없는 상태도 아직 rescue 단계처럼 읽히게 된다.

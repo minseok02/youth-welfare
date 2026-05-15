@@ -167,12 +167,21 @@ external blocked 는 아니지만, 현재 제품 입력/추천 matcher가 개인
 추가로 fresh reset 뒤 local canonical read-model schema가 비어 있어 replay가 곧바로 막히던 공백은
 [deploy/mysql/apply-local-policy-sidecar-draft.sh](../deploy/mysql/apply-local-policy-sidecar-draft.sh)
 와 replay script preflight 경계로 로컬 smoke 수준에서는 더 일찍 감지되도록 보강했다.
+이 helper는 현재 PostgreSQL integrated schema 존재 여부와 replay precondition을 확인하는 보조 경계로 읽고,
+예전 MySQL draft SQL을 다시 auto-apply 하는 경로로 해석하지 않는다.
 
-추가로 `education replay` 복구 과정에서
-`service_taxonomies.provision_method_label VARCHAR(100)` 이
-온통청년 live payload 기준으로 너무 짧아 canonical sidecar collect를 깨뜨리는 문제를 확인했고,
-legacy draft DDL 폭을 `TEXT` 로 보정한 뒤
-known-positive replay가 다시 `A_top10_target=0->1`, `B_top10_target=0->0` 으로 복구되는 것까지 확인했다.
+현재 broad-suite 기준 replay baseline은
+
+- `A_top10_target=9->9`
+- `B_top10_target=1->1`
+- `A_fp=same`
+- `B_fp=same`
+- `reason_changed=0`
+
+이다.
+
+즉 이 문서에서 replay를 현재 closeout 완료로 판단하는 기준은 예전 `known-positive replay 복구(0->1 / 0->0)` 메모가 아니라,
+최신 local broad-suite 재검증에서 target visibility regression이 없고 fingerprint/reason membership도 안정적이라는 점이다.
 
 ## local closeout 완료 조건
 
