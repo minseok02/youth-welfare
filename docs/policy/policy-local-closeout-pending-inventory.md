@@ -122,8 +122,9 @@ external blocked 는 아니지만, 현재 제품 입력/추천 matcher가 개인
 현재 주의:
 
 - 이 smoke는 local policy snapshot과 canonical read-model schema(`service_taxonomies`)가 적재된 DB를 전제로 한다.
-- `SMOKE_RESET_DB=true` 직후에도 replay script는 이제 [apply-local-policy-sidecar-draft.sh](../deploy/mysql/apply-local-policy-sidecar-draft.sh) 를 통해 local draft sidecar schema/backfill을 auto-apply 할 수 있다.
-- 다만 이 복구는 local smoke 편의 경계이고, fresh reset 뒤 `welfare_services` snapshot 자체가 비어 있으면 collect 또는 snapshot restore는 여전히 선행되어야 한다.
+- `SMOKE_RESET_DB=true` 직후 replay script는 [apply-local-policy-sidecar-draft.sh](../deploy/mysql/apply-local-policy-sidecar-draft.sh) 를 먼저 호출해 현재 PostgreSQL integrated schema 존재 여부를 preflight로 확인한다.
+- 이 스크립트는 이제 예전 MySQL draft SQL을 다시 auto-apply 하는 경로가 아니다. schema가 비어 있으면 PostgreSQL bootstrap/collect flow 또는 snapshot restore가 필요하다고 명시적으로 실패한다.
+- 즉 replay smoke는 integrated schema와 local policy snapshot이 이미 채워져 있다는 전제 위에서만 self-heal 되고, fresh reset 뒤 `welfare_services` snapshot 자체가 비어 있으면 collect 또는 snapshot restore는 여전히 선행되어야 한다.
 
 ### D. admin/runtime local smoke
 
@@ -153,22 +154,24 @@ external blocked 는 아니지만, 현재 제품 입력/추천 matcher가 개인
 
 ## 현재 상태
 
-2026-05-02 현재 로컬 기준선은 다시 복구됐다.
+2026-05-15 현재 로컬 기준선은 다시 닫힌 상태다.
 
 1. auth/session revoke regression: 통과
 2. PII split-account local smoke: 통과
 3. education replay smoke(rule-only): 통과
 4. runtime API smoke(signup -> login -> refresh -> recommendations -> logout -> refresh invalidation / presented access revoke): 통과
 5. broad backend regression (`./gradlew test integrationTest --no-daemon`): 통과
+6. personal refresh-cache regression validation(`collect/replay/broad-suite`): 통과
+7. `Gov24` runtime collect / runtime audit closeout: 통과
 
-추가로 fresh reset 뒤 local canonical sidecar draft schema가 비어 있어 replay가 곧바로 막히던 공백은
+추가로 fresh reset 뒤 local canonical read-model schema가 비어 있어 replay가 곧바로 막히던 공백은
 [deploy/mysql/apply-local-policy-sidecar-draft.sh](../deploy/mysql/apply-local-policy-sidecar-draft.sh)
-와 replay script auto-apply 경계로 로컬 smoke 수준에서는 self-heal 되도록 보강했다.
+와 replay script preflight 경계로 로컬 smoke 수준에서는 더 일찍 감지되도록 보강했다.
 
 추가로 `education replay` 복구 과정에서
 `service_taxonomies.provision_method_label VARCHAR(100)` 이
 온통청년 live payload 기준으로 너무 짧아 canonical sidecar collect를 깨뜨리는 문제를 확인했고,
-draft sidecar DDL을 `TEXT` 로 보정한 뒤
+legacy draft DDL 폭을 `TEXT` 로 보정한 뒤
 known-positive replay가 다시 `A_top10_target=0->1`, `B_top10_target=0->0` 으로 복구되는 것까지 확인했다.
 
 ## local closeout 완료 조건
