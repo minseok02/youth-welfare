@@ -3667,3 +3667,8 @@
 - 문제: `mvp-grow-when-needed-playbook.md` 는 검색 기본 전략을 아직 `MySQL FULLTEXT`, 추천 기본 전략을 `군집 캐시와 결과 재사용`, 확인용 서버 구조를 `app/mysql/redis`, 인프라 기본 전략도 `MySQL + Redis` 로 적고 있었다. 하지만 현재 메인라인은 PostgreSQL FTS + `pg_trgm`, 개인 캐시(refresh marker) 우선, `app + postgres + redis` 구성이 기준이다.
 - 해결: playbook의 현재 기본 전략과 확인용 서버 구조를 모두 현재 truth에 맞춰 `PostgreSQL FTS + pg_trgm`, `개인 캐시 우선`, `app/postgres/redis` 기준으로 교정했다.
 - 이유: 이 문서는 “문제 신호가 보이면 무엇을 붙일 것인가”를 판단하는 기준 문서다. 현재 baseline 자체가 예전 MySQL/군집 캐시 상태로 남아 있으면 확장 판단도 잘못된 전제를 따라가게 된다.
+
+## 677) 기본 메타/구조 문서에 `Gov24` 가 빠져 있으면, 이미 붙여서 closeout한 source가 여전히 비공식 추가물처럼 보인다
+- 문제: `project-spec.md`, `architecture.md`, `srs-v2.10.md` 는 외부 연동과 수집 범위를 여전히 `온통청년 + 복지로` 중심으로만 설명하고 있었다. 하지만 현재 로컬 기준 `Gov24` 는 runtime collect/runtime audit closeout까지 끝난 active source다.
+- 해결: `project-spec.md` 외부 연동 목록에 `Gov24 API` 를 추가하고, `architecture.md` 수집 흐름에 `Gov24Client`, `Gov24DetailCollectService`, `Gov24SupportConditionsCollectService` 를 반영했다. `srs-v2.10.md` 의 프로젝트 범위 설명도 `Gov24 공공서비스(혜택) API` 를 포함하도록 고쳤다.
+- 이유: project spec, architecture, SRS는 가장 먼저 읽는 메타 문서다. 여기에 source truth가 빠져 있으면, 실제로 이미 붙은 public source가 여전히 실험적 또는 비공식 추가물처럼 보이게 된다.

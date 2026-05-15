@@ -101,6 +101,9 @@ CollectAdminController / Scheduler
       -> BokjiroCentralClient
       -> BokjiroLocalClient
       -> BokjiroDetailCollectService
+      -> Gov24Client
+      -> Gov24DetailCollectService
+      -> Gov24SupportConditionsCollectService
       -> CollectItemSaver
       -> RawApiPayloadService
       -> ApiSyncLogService

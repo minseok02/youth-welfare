@@ -46,6 +46,7 @@
 - OpenAI API
 - 온통청년 API
 - 복지로 API
+- Gov24 API
 - Gmail SMTP
 
 ## 참고 문서
