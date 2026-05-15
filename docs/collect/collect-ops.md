@@ -14,7 +14,7 @@
 ### 1. 수집은 한 번에 하나만 실행
 
 - `collect/all` 과 `collect/{sourceKey}` 수동 경로는 동시 실행하지 않는다.
-- 현재 `sourceKey` 는 `youth`, `bokjiro-central`, `bokjiro-local`, `bokjiro-details`, `bokjiro-details-refresh` 를 지원한다.
+- 현재 `sourceKey` 는 `youth`, `bokjiro-central`, `bokjiro-local`, `gov24`, `gov24-details`, `gov24-support-conditions`, `bokjiro-details`, `bokjiro-details-refresh` 를 지원한다.
 - canonical sidecar replay 전용 수동 경로 `POST /api/admin/collect/bokjiro-sidecars-backfill?scope=all|list|detail&limitPerSource=0` 도 같은 시간대에 일반 collect 수동 실행과 겹치지 않게 사용한다.
 - 이미 다른 수집 작업이 실행 중이면 새 요청은 `409 Conflict (COL002)`로 거절한다.
 - 이유: 중복 실행 시 `service_tags` 저장 경합과 deadlock 위험이 커진다.
@@ -51,7 +51,22 @@
   - stored detail payload coverage 가 낮아 sidecar density가 detail raw 개수에 묶여 있을 때만 gap fill 경로를 써서 여러 라운드 backlog 를 메운다.
   - 기존 raw payload 로 sidecar를 다시 채우거나 density를 재측정할 때만 backfill 경로를 쓴다.
 
-### 5-1. 현재 복지로는 4개 독립 quota 기준으로 coverage 확장을 다시 기본 작업으로 본다
+### 5-1. Gov24는 list/detail/support 수동 경로를 분리해서 본다
+
+- `/api/admin/collect/gov24` 는 Gov24 목록(list) 수집 경로다.
+- `/api/admin/collect/gov24-details` 는 Gov24 상세(detail) 수집 경로다.
+- `/api/admin/collect/gov24-support-conditions` 는 Gov24 지원조건(supportConditions) 수집 경로다.
+- `gov24-details`, `gov24-support-conditions` 는 둘 다
+  - `?maxCallsPerRun=<N>` 으로 chunk 크기를 조절할 수 있고
+  - `?sourceId=<서비스ID>` 로 단건 재시도를 할 수 있다.
+- 운영 해석:
+  - 목록 closeout은 `gov24`
+  - 상세 coverage 확장은 `gov24-details`
+  - 지원조건/fact coverage 확장은 `gov24-support-conditions`
+  로 분리해서 본다.
+  - 상세나 지원조건의 transient upstream 실패를 재확인할 때만 `sourceId` 단건 경로를 쓴다.
+
+### 5-2. 현재 복지로는 4개 독립 quota 기준으로 coverage 확장을 다시 기본 작업으로 본다
 
 - 2026-05-10 기준 복지로 운영 계정을 확보했고, `중앙 list`, `중앙 detail`, `지자체 list`, `지자체 detail` 이 각각 일일 `100,000` quota를 사용한다.
 - 기본 수집 안전 상한은 현재 코드 기본값 기준:

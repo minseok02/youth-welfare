@@ -3682,3 +3682,8 @@
 - 문제: `api-mapping.md` 는 제목부터 `공공API 3종` 기준이었고, `welfare_service_details` 섹션도 복지로만 상세 API를 제공한다고 적고 있었다. 게다가 수집 시 주의사항 예시 SQL은 여전히 MySQL `ON DUPLICATE KEY UPDATE` 를 사용하고 있었다. 하지만 현재는 `Gov24` list/detail/supportConditions까지 active source로 붙어 있고, persistence baseline도 PostgreSQL `ON CONFLICT` 기준이다.
 - 해결: 문서 제목을 `공공 API -> DB 컬럼 매핑` 으로 바꾸고, 메인 매핑표에 `Gov24` 열을 추가했다. `welfare_service_details` 섹션도 `Gov24` 상세 필드 매핑을 포함하도록 확장했고, `supportConditions -> service_facts` 현재 active/deferred scope를 따로 정리했다. 예시 SQL도 PostgreSQL `ON CONFLICT` 기준으로 교체했다.
 - 이유: `api-mapping` 은 프론트/백엔드/외부 연동이 같이 보는 contract 문서다. 여기서 source 범위, detail 지원 범위, upsert 문법이 예전 기준에 묶여 있으면 현재 코드와 검증 결과를 함께 잘못 해석하게 된다.
+
+## 680) `collect-ops` 가 아직 Gov24 manual collect lane을 빼고 있으면, 이미 붙여서 closeout한 source가 운영 문서상 invisible 하게 남는다
+- 문제: `collect-ops.md` 는 현재 `sourceKey` 를 `youth`, `bokjiro-central`, `bokjiro-local`, `bokjiro-details`, `bokjiro-details-refresh` 만 지원한다고 적고 있었다. 하지만 실제 코드는 `gov24`, `gov24-details`, `gov24-support-conditions` 도 이미 `/api/admin/collect/{sourceKey}` 로 지원하고, `maxCallsPerRun`, `sourceId` override도 같이 받는다.
+- 해결: `collect-ops.md` 의 sourceKey 목록에 `Gov24` list/detail/support 경로를 추가하고, `gov24-details`, `gov24-support-conditions` 가 chunk 실행과 단건 재시도(`sourceId`)를 지원한다는 점을 별도 운영 규칙으로 정리했다.
+- 이유: collect runbook은 운영자가 수동 collect 진입점을 바로 복사해 쓰는 문서다. 여기서 Gov24 lane이 빠져 있으면 runtime closeout이 끝난 source도 여전히 “문서 밖의 임시 경로”처럼 남게 된다.
