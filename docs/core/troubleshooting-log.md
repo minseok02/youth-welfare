@@ -3532,3 +3532,8 @@
 - 문제: closeout 직후 초기 샘플만 보면 `support raw는 있지만 fact가 없는` 나머지 케이스를 all-null payload로 넓게 묶기 쉽다. 하지만 실제로는 `JA2101`, `JA2202` 같은 official code가 들어와도 현재 extractor가 읽는 support fact 집합에 포함되지 않으면 fact가 비어 있을 수 있다.
 - 해결: `deploy/smoke/run-local-gov24-quality-audit.sh` 와 `policy-gov24-runtime-audit-runbook.md` 를 추가해 missing fact gap를 `no raw / all-null / unmapped-only / mapped-signal anomaly` 로 분해하게 했다. 현재 local audit 결과는 `missing_no_support_raw=0`, `missing_all_null_payload=0`, `missing_unmapped_only_payload=978`, `missing_mapped_signal_payload=0` 이고, 대표 sample들도 `effective_signal_count=2`, `mapped_signal_count=0` 으로 확인된다.
 - 이유: 이 분해가 있어야 남은 작업을 retry/backfill이 아니라 “현재 fact extractor가 승격하지 않는 official support condition code 범위를 어떻게 다룰지” 문제로 정확히 옮길 수 있다.
+
+## 650) Gov24 unmapped support code inventory를 바로 fact scope로 올리기보다, 현재 제품이 실제로 그 축을 소비하는지 먼저 따져야 fact drift를 막을 수 있다
+- 문제: 남은 `978`건 gap의 중심 code를 뽑아 보니 `JA210*` 사업체 유형, `JA220*/JA120*/JA1299/JA2299` 업종, `JA110*` 창업/사업 단계가 대부분이었다. 이 분포만 보면 곧바로 `GOV24_SUPPORT_CONDITION` fact scope를 넓히고 싶어질 수 있다.
+- 해결: `policy-gov24-support-unmapped-inventory.md` 에 현재 top code 분포를 정리하고, 현재 사용자 프로필/추천 matcher가 `연령`, `소득`, `가구`, `고용`, `교육`, `특수대상` 같은 개인 eligibility 축 중심이라는 점을 같이 적어 두었다. 그 결과 현재 단계 판단은 `deferred` 로 유지하고, 사업체/업종 축을 실제로 제품이 소비하기 시작할 때만 다시 active 검토하는 쪽으로 고정했다.
+- 이유: official code가 있다는 사실만으로 fact를 늘리면 제품 의미가 불명확한 signal이 쌓인다. 현재 제품이 실제로 쓰지 않는 사업자/업종 축은 inventory로만 남기고, user input / matcher / scoring 이 그 축을 요구할 때 다시 여는 편이 drift를 줄인다.

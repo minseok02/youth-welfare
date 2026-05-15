@@ -79,6 +79,7 @@
 
 - 운영 문서/런북 고정
 - `Gov24` runtime audit runbook 고정 및 반복 점검 경로 유지
+- `Gov24` support unmapped inventory는 기준선으로 유지하되, 사업체/업종/창업 상태 code fact 승격은 현재 단계에서 deferred 유지
 - `referenceUrlsJson` rebuild/backfill 운영 절차 문서화
 - category audit / retrieval evaluation 결과를 운영 보고서 관점에서 더 요약
 - 프론트 번들 경고와 retrieval/embedding 운영 모니터링 보강

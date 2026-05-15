@@ -8,6 +8,7 @@
 - [policy-local-closeout-pending-inventory.md](./policy-local-closeout-pending-inventory.md)
 - [policy-gov24-implementation-checklist.md](./policy-gov24-implementation-checklist.md)
 - [policy-gov24-runtime-audit-runbook.md](./policy-gov24-runtime-audit-runbook.md)
+- [policy-gov24-support-unmapped-inventory.md](./policy-gov24-support-unmapped-inventory.md)
 - [policy-normalization-blocked-sql-reopen-priority.md](../history/policy/policy-normalization-blocked-sql-reopen-priority.md)
 - [policy-normalization-gov24-request-package-checklist.md](../history/policy/policy-normalization-gov24-request-package-checklist.md)
 - [policy-normalization-gov24-codebook-request-template.md](../history/policy/policy-normalization-gov24-codebook-request-template.md)
@@ -43,9 +44,10 @@
 
 입니다.
 
-현재 `Gov24` practical next action 은 두 갈래입니다.
+현재 `Gov24` practical next action 은 세 갈래입니다.
 
-- runtime 쪽: detail/support backlog를 계속 확장하고 샘플 품질을 점검
+- runtime 쪽: backlog closeout 기준을 유지하고 샘플 품질을 점검
+- support fact gap 쪽: unmapped official support code inventory를 기준으로 deferred 판단 유지
 - normalization 쪽: provider/operator 응답 수신 또는 current API schema/codebook 확보
 
 ## 지금 blocked 인 이유
@@ -174,6 +176,9 @@ runtime collect가 이미 붙은 뒤 coverage/shape/null-heavy sample을 다시 
   - 현재 local audit 기준 `missing_no_support_raw=0`, `missing_all_null_payload=0`
   - `missing_unmapped_only_payload=978`, `missing_mapped_signal_payload=0`
   - 즉 지금 남은 갭은 저장 실패보다 `현재 extractor가 아직 읽지 않는 official support code-only payload` 로 해석하는 편이 맞다
+- `JA210*`, `JA220*`, `JA120*`, `JA1299/JA2299`, `JA110*` 중심 unmapped inventory는
+  [policy-gov24-support-unmapped-inventory.md](./policy-gov24-support-unmapped-inventory.md)
+  에 따로 정리했고, 현재 제품 경계 기준 판단은 `deferred` 다
 
 즉 current blocked 의미는 한 층으로 줄었습니다.
 
@@ -184,5 +189,6 @@ runtime collect가 이미 붙은 뒤 coverage/shape/null-heavy sample을 다시 
 1. `Gov24` runtime collect 트랙은 현재 active 다.
 2. 다만 `GOV24_*` hard import/backfill 은 여전히 blocked 상태다.
 3. `GOV24_* = 0` 은 현재 slot/import 기준에서는 expected result 이다.
-4. 다시 열 조건은 current API 기준 codebook/schema 확보이다.
-5. 자료가 오면 label 3종을 먼저, `supportConditions` full inventory를 그다음 순서로 reopen 한다.
+4. `supportConditions` gap의 중심인 사업체/업종/창업 상태 code는 현재 제품 경계 기준으로 `deferred` 다.
+5. 다시 열 조건은 current API 기준 codebook/schema 확보 또는 제품이 사업체/업종 축을 실제로 소비하기 시작하는 것이다.
+6. 자료가 오면 label 3종을 먼저, `supportConditions` full inventory를 그다음 순서로 reopen 한다.
