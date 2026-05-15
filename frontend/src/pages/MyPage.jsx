@@ -397,6 +397,7 @@ export default function MyPage() {
   const [pushSubscriptions, setPushSubscriptions] = useState([]);
   const [currentPushEndpoint, setCurrentPushEndpoint] = useState("");
   const [pushLoading, setPushLoading] = useState(false);
+  const [pushStatusLoaded, setPushStatusLoaded] = useState(false);
   const [pushActionLoading, setPushActionLoading] = useState(false);
   const [pushStatusError, setPushStatusError] = useState("");
   const [pushActionError, setPushActionError] = useState("");
@@ -689,11 +690,13 @@ export default function MyPage() {
       setCurrentPushEndpoint("");
       setPushPublicKey("");
       setPushStatusError("");
+      setPushStatusLoaded(true);
       return;
     }
 
     setPushSupported(true);
     setPushPermission(Notification.permission);
+    setPushStatusLoaded(false);
     setPushLoading(true);
     try {
       const [publicKey, subscriptions] = await Promise.all([
@@ -719,6 +722,7 @@ export default function MyPage() {
       throw new Error("push status unavailable");
     } finally {
       setPushLoading(false);
+      setPushStatusLoaded(true);
     }
   }, []);
 
@@ -844,7 +848,9 @@ export default function MyPage() {
 
   const browserPushConnected = currentPushEndpoint
     && pushSubscriptions.some((subscription) => subscription.endpoint === currentPushEndpoint);
-  const pushConnectDisabled = pushActionLoading
+  const pushConnectDisabled = pushLoading
+    || !pushStatusLoaded
+    || pushActionLoading
     || !pushSupported
     || pushPermission === "denied"
     || Boolean(pushStatusError);
@@ -860,6 +866,10 @@ export default function MyPage() {
     }
     if (pushStatusError) {
       showToast("웹푸시 준비 API가 아직 열려 있지 않습니다. 최신 백엔드를 먼저 배포해주세요", "error");
+      return;
+    }
+    if (pushLoading || !pushStatusLoaded) {
+      showToast("브라우저 푸시 상태를 아직 확인하는 중입니다. 잠시 후 다시 시도해주세요", "info");
       return;
     }
     if (!pushPublicKey) {
@@ -1544,7 +1554,11 @@ export default function MyPage() {
                             disabled={pushConnectDisabled}
                             style={{ padding: "9px 14px", borderRadius: 10, border: 0, background: A, color: WHITE, fontSize: 12, fontWeight: 700, cursor: pushConnectDisabled ? "not-allowed" : "pointer", opacity: pushConnectDisabled ? 0.7 : 1 }}
                           >
-                            {pushPermission === "denied" ? "권한 허용 필요" : "현재 브라우저 연결"}
+                            {pushLoading || !pushStatusLoaded
+                              ? "상태 확인 중"
+                              : pushPermission === "denied"
+                                ? "권한 허용 필요"
+                                : "현재 브라우저 연결"}
                           </button>
                         )}
                       </div>

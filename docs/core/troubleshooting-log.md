@@ -4112,3 +4112,8 @@
 - 문제: 서버 실검증에서 `/api/notifications/push-public-key`, `/api/notifications/push-subscriptions/me` 는 200인데도 화면 state의 `pushPublicKey` 가 비어 있어, 버튼 클릭 직후 `웹푸시 공개키가 아직 설정되지 않았습니다` toast로 빠지는 경계가 남아 있었다. 기존 `fetchPushStatus()` 는 `fetchPushPublicKey()`, `fetchMyPushSubscriptions()`, `getCurrentPushSubscription()` 을 한 `Promise.all` 로 묶고 있어, 마지막 one-browser 조회가 지연되면 앞의 성공 응답도 전부 폐기한다.
 - 해결: `fetchPushStatus()` 는 이제 backend 공개키/목록을 먼저 받아 state에 넣고, `getCurrentPushSubscription()` 은 별도 try/catch 로 분리했다. 또한 `getCurrentPushSubscription()` 도 `navigator.serviceWorker.ready` 의 무기한 대기를 쓰지 않고 `getRegistration()` / `pushManager.getSubscription()` 자체를 각각 timeout으로 감싼다.
 - 이유: 현재 단계의 핵심은 backend 공개키와 saved subscription 목록을 화면에서 안정적으로 보이게 하는 것이다. current browser endpoint는 부가 정보이므로, 그 조회 실패 때문에 공개키 state까지 비우면 잘못된 “키 미설정” 오판을 만든다.
+
+## 766) 웹푸시 연결 버튼은 status fetch가 끝나기 전에는 열리면 안 된다
+- 문제: 서버 브라우저 재현을 다시 코드와 대조해보니, `handleConnectBrowserPush()` 가 단계 문구 없이 곧바로 `웹푸시 공개키가 아직 설정되지 않았습니다` toast로 빠지는 패턴은 `pushPublicKey` 자체보다 timing 문제와 더 잘 맞았다. `MyPage` 의 connect button disabled 조건은 `pushActionLoading`, `pushSupported`, `pushPermission`, `pushStatusError` 만 보고 있어, `fetchPushStatus()` 가 아직 끝나기 전에도 버튼이 잠깐 활성화될 수 있었다. 이 시점엔 backend `GET /push-public-key` 가 이미 200이어도 화면 state는 아직 기본값 `""` 이라 early return으로 빠진다.
+- 해결: `pushStatusLoaded` 상태를 추가하고, `pushConnectDisabled` 가 이제 `pushLoading || !pushStatusLoaded` 일 때도 막히게 했다. 버튼 라벨도 이 구간에는 `상태 확인 중` 으로 바꾸고, 혹시 강제로 눌러도 `브라우저 푸시 상태를 아직 확인하는 중입니다. 잠시 후 다시 시도해주세요` 로 종료하게 정리했다.
+- 이유: 이건 웹푸시 subscribe/service worker 원인 규명보다 먼저 막아야 하는 전형적인 race condition이다. status fetch가 끝나기 전 connect를 허용하면, 실제 root cause와 무관한 `공개키 미설정` 오판이 계속 섞여 디버깅이 흐려진다.
