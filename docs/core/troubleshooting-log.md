@@ -3977,3 +3977,8 @@
 - 문제: `PoliciesPage` 는 `sourceType` query를 그대로 상태에 넣고, API 요청 시에만 한글 라벨(`온통청년`, `복지로 중앙`, `Gov24`)을 enum으로 바꾸고 있었다. 그래서 프론트가 생성한 legacy 링크(`sourceType=Gov24`)는 동작하지만, backend/controller/current-state 기준 canonical 값인 `?sourceType=GOV24` 로 직접 재진입하거나 공유 링크를 열면 UI 상태가 `GOV24` 가 되어 `SOURCE_TYPE_MAP[GOV24]` 가 `undefined` 로 떨어지고 source filter가 조용히 풀린다.
 - 해결: `PoliciesPage` 에 `normalizeSourceTypeParam()` / `serializeSourceTypeParam()` 을 추가해 URL에서는 canonical enum(`YOUTH`, `BOKJIRO_CENTRAL`, `BOKJIRO_LOCAL`, `GOV24`)을 쓰고, 프론트 상태는 계속 사용자 라벨로 유지하게 정리했다. 동시에 legacy 한글 라벨 query도 계속 읽어 backward compatibility를 유지했다. 변경 뒤 `frontend lint/build` 를 다시 통과시켰다.
 - 이유: 이 경계는 smoke로 잘 안 잡히지만, 실제 사용자 체감에선 “필터가 걸린 링크를 다시 열었더니 source 필터가 풀린다”는 형태로 드러난다. 화면 라벨과 URL canonical contract를 분리해 두어야 브라우저 복귀/공유/수동 주소 입력 모두에서 같은 filter state를 재현할 수 있다.
+
+## 739) 로그인 복귀는 top-level state만 보지 말고 nested `from.state` 안의 chat/bookmark 문맥도 다시 꺼내야, 세션 만료 뒤 상세 화면에서 챗 복귀 문맥이 사라지지 않는다
+- 문제: `AuthExpiryHandler` / `RequireLogin` 은 세션 만료나 보호 페이지 접근 시 `state: { from: location, reason: ... }` 로 로그인 화면으로 보낸다. 이때 `location` 자체에는 이미 `chatFrom` 나 `postLoginAction` 이 들어 있을 수 있는데, `LoginPage` 는 성공 후 top-level `location.state.chatFrom` / `postLoginAction` 만 다시 전달하고 `from.state` 안의 nested 문맥은 보지 않았다. 그래서 `/policies/:id` 상세를 챗에서 열어둔 채 세션이 만료되면, 재로그인 뒤 상세 페이지에는 돌아와도 “다시 챗으로” 이어지는 문맥이 사라질 수 있었다.
+- 해결: `LoginPage` 에서 성공 후 복귀 시 `location.state.from?.state?.chatFrom` / `postLoginAction` 도 fallback으로 읽게 했고, 회원가입/비밀번호 재설정 화면으로 이동할 때도 같은 nested 문맥을 함께 넘기게 정리했다. 변경 뒤 `frontend lint/build` 를 다시 통과시켰다.
+- 이유: 이 문제는 API smoke로는 잘 안 드러나지만, 실제 브라우저 체감에선 “세션 만료 후 로그인하면 돌아오긴 하는데, 이전에 어디서 왔는지 일부 문맥이 사라진다”는 식으로 나타난다. 복귀 경로를 `pathname/search` 와 `state` 두 층으로 본다는 현재 구조에 맞춰 nested state도 함께 이어줘야 한다.

@@ -79,8 +79,9 @@ export default function LoginPage() {
         }
       }
       const from = location.state?.from;
-      const postLoginAction = location.state?.postLoginAction;
-      const chatFrom = location.state?.chatFrom;
+      const nestedFromState = from?.state ?? {};
+      const postLoginAction = location.state?.postLoginAction ?? nestedFromState.postLoginAction;
+      const chatFrom = location.state?.chatFrom ?? nestedFromState.chatFrom;
       navigate(from?.pathname ? `${from.pathname}${from.search ?? ""}` : "/", {
         replace: true,
         state: postLoginAction || chatFrom
@@ -163,8 +164,8 @@ export default function LoginPage() {
             <button onClick={() => navigate("/signup", {
               state: {
                 from: location.state?.from,
-                chatFrom: location.state?.chatFrom,
-                postLoginAction: location.state?.postLoginAction,
+                chatFrom: location.state?.chatFrom ?? location.state?.from?.state?.chatFrom,
+                postLoginAction: location.state?.postLoginAction ?? location.state?.from?.state?.postLoginAction,
               },
             })} style={{ background: "transparent", border: 0, color: A, fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
               회원가입
@@ -173,9 +174,9 @@ export default function LoginPage() {
             <button onClick={() => navigate("/reset-password", {
               state: {
                 from: location.state?.from,
-                chatFrom: location.state?.chatFrom,
+                chatFrom: location.state?.chatFrom ?? location.state?.from?.state?.chatFrom,
                 email,
-                postLoginAction: location.state?.postLoginAction,
+                postLoginAction: location.state?.postLoginAction ?? location.state?.from?.state?.postLoginAction,
               },
             })} style={{ background: "transparent", border: 0, color: INK3, fontSize: 14, cursor: "pointer" }}>
               비밀번호 찾기
