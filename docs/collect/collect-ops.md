@@ -25,13 +25,18 @@
 - 재시도 후에도 계속 429이면 해당 실행은 현재까지 확보한 결과까지만 반영하고 종료한다.
 - 상세 수집은 기본 `300ms` pacing 으로 호출하고, 연속 `429` `2회`를 넘기면 해당 source를 중단 조건으로 처리한다.
 
-### 3. 수집 결과가 0건이면 기존 적재 데이터 유지
+### 3. 목록 source에서 수집 결과가 0건이면 기존 적재 데이터 유지
 
-- 복지로 목록 수집에서 0건이 반환되더라도 기존 DB 데이터를 삭제하거나 비우지 않는다.
+- `youth`, `bokjiro-central`, `bokjiro-local`, `gov24` 같은 목록(list) source에서 0건이 반환되더라도 기존 DB 데이터를 삭제하거나 비우지 않는다.
 - 현재 구조는 수집된 아이템만 upsert하는 방식이므로, 0건이면 실제 저장 루프가 돌지 않아 기존 데이터가 그대로 남는다.
 - 운영 해석:
-  - `0건`은 "정상적으로 데이터가 하나도 없다"보다
+  - 목록 source의 `0건`은 "정상적으로 데이터가 하나도 없다"보다
   - "외부 API 제한, 일시 장애, 응답 품질 저하"로 보는 것이 안전하다.
+  - 반대로 backlog가 이미 닫힌 `gov24-details`, `gov24-support-conditions`, `bokjiro-details-gap-fill` 재실행에서
+    - `requested=0`
+    - `saved=0`
+    - `skipped_count` 증가
+    가 함께 보이면 이상 징후가 아니라 closeout rerun일 수 있다.
 
 ### 4. 부분 성공을 허용
 
@@ -95,7 +100,7 @@
 
 ### 경고로 처리
 
-- 복지로 목록 수집 결과가 0건
+- 목록 source(`youth`, `bokjiro-central`, `bokjiro-local`, `gov24`) 수집 결과가 0건
 - 상세 수집 중 일부 429 발생
 - 일부 정책 저장 실패
 - 일부 상세 저장 실패
@@ -104,9 +109,14 @@
 ### 실제 장애로 판단
 
 - 앱이 수집 요청 자체를 처리하지 못함
-- 온통청년/복지로 수집이 연속해서 여러 배치 동안 0건
+- 목록 source(`youth`, `bokjiro-central`, `bokjiro-local`, `gov24`) 수집이 연속해서 여러 배치 동안 0건
 - 수집 API 응답은 200인데 DB 반영이 전혀 일어나지 않음
 - 전체 수집이 반복적으로 중간 종료되며 로그가 남지 않음
+- `gov24-details`, `gov24-support-conditions`, `bokjiro-details-gap-fill` 같은 closeout lane이 backlog 미종료 상태인데도 반복적으로
+  - `requested=0`
+  - `saved=0`
+  - `skipped_count` 증가 없음
+  으로 멈춤
 
 ---
 
@@ -116,9 +126,10 @@
 - `source별 수집 완료 건수`
 - `FieldQuality`
 - `saved / skip / filtered`
+- `requested / failed / skipped_count`
 - `429 재시도 로그`
 - `429로 수집 중단 로그`
-- `수집 결과 0건, 기존 데이터 유지` 경고
+- `목록 source 수집 결과 0건, 기존 데이터 유지` 경고
 
 ## DB에 저장되는 수집 실행 로그
 

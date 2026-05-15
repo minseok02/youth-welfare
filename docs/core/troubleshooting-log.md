@@ -3832,3 +3832,13 @@
 - 문제: `testing.md` 는 integration preflight 설명에서 `개별 테스트 62건` 이라는 고정 숫자를 쓰고 있었다. 이 숫자는 테스트 추가/삭제 뒤 쉽게 drift 되고, 문서를 읽는 사람이 현재 suite 규모를 잘못된 기준선처럼 받아들일 수 있다.
 - 해결: 고정 숫자를 지우고, preflight가 “개별 통합 테스트가 연쇄로 쏟아지기 전에 즉시 실패한다”는 의미만 남겼다.
 - 이유: testing 문서의 목적은 현재 suite count를 기록하는 것이 아니라 실행/판정 계약을 설명하는 것이다. 고정 개수는 현재 truth보다 빨리 낡으므로 verification 문서에는 불필요한 오차원을 만든다.
+
+## 710) frontend QA template이 결과만 짧게 적는 형식이면 현재 복귀/query 계약이 깨져도 재현 URL, `reason`, `state.from`, preserved query 같은 핵심 증거가 남지 않는다
+- 문제: `frontend-qa-template.md` 는 홈/목록/로그인/세션 만료/북마크/추천/챗봇 결과를 한 줄씩 적는 형식이라, 현재 프론트의 핵심 계약인 `PoliciesPage query 복원`, `/login` 이동 시 `reason/state.from`, `?session=`/`?tab=` 복귀 문맥이 실제로 유지됐는지 증거를 남기기 어려웠다. 이렇게 되면 QA 기록은 “됐다/안 됐다” 수준으로만 남고, regression 재현이나 사후 비교에 필요한 URL/query/context가 빠진다.
+- 해결: 템플릿에 각 시나리오별 `진입 URL`, `복귀 URL`, `query/state 복원`, `reason/state.from`, `post-login action`, `네트워크/콘솔 이상`, `로그/스크린샷/캡처 위치` 칸을 추가해 현재 복귀 계약을 실제로 기록 가능하게 바꿨다.
+- 이유: 지금 프론트 QA의 실효성은 단순 pass/fail보다 “어떤 URL과 문맥이 유지됐는가”를 남기는 데 있다. evidence field가 없으면 현재 코드가 보장하는 복귀 계약이 깨져도 기록 문서가 이를 증명하지 못한다.
+
+## 711) collect 운영 문서가 목록 수집의 `0건` 규칙과 closeout rerun의 `requested=0/saved=0` 규칙을 분리하지 않으면, Gov24/detail/support lane을 현재 구조대로 해석할 수 없다
+- 문제: `collect-ops.md` 는 `수집 결과가 0건이면 기존 적재 데이터 유지` 를 복지로 목록 기준으로만 설명하고 있었고, 장애 판단도 `온통청년/복지로 수집이 여러 배치 동안 0건` 정도로만 적혀 있었다. 이 상태로는 현재 lane 구조인 `gov24`, `gov24-details`, `gov24-support-conditions`, `bokjiro-details-gap-fill` 을 볼 때, 목록 source의 `0건` 과 backlog closeout 재실행의 `requested=0/saved=0/skipped 증가` 를 같은 의미로 오해할 수 있다.
+- 해결: `collect-ops.md` 에서 규칙을 목록 source(`youth`, `bokjiro-central`, `bokjiro-local`, `gov24`) 기준으로 일반화하고, 반대로 detail/support/gap-fill closeout rerun에서는 `requested=0`, `saved=0`, `skipped_count` 증가가 함께 보이면 정상일 수 있다고 따로 적었다. 장애 판단도 목록 source 반복 0건과 closeout lane 정체를 분리해 기록했다.
+- 이유: collect 문서의 실효성은 “현재 source/lane 구조를 그대로 해석할 수 있는가”에 달려 있다. 목록과 closeout rerun을 같은 0건 규칙으로 묶어 두면, Gov24 추가 이후의 실제 운영 패턴을 문서가 잘못 판정하게 된다.
