@@ -2,9 +2,14 @@
 
 전체 cross-cutting 구조/데이터 문서 진입점은 [system-docs-index.md](./system-docs-index.md)를 먼저 봅니다.
 
-## 왜 지금 구조가 문제인가
+이 문서는 **사용자 데이터 분리 cut-over 설계와 당시 배경 문제를 보존하는 설계 문서**다.
+아래 `users` 중심 단일 구조 문제 진술은 split 이전 배경을 설명하는 부분이며,
+현재 runtime truth와 최종 반영 상태는 이 문서의 `현재 반영 상태` 섹션과
+[current-state.md](../current-state.md) 를 우선해서 읽는다.
 
-현재 프로젝트는 사용자 핵심 데이터가 `users` 한 테이블에 집중되어 있다.
+## 왜 당시 구조가 문제였나
+
+분리 작업 이전 프로젝트는 사용자 핵심 데이터가 `users` 한 테이블에 집중되어 있었다.
 
 - 인증 정보: `email`, `password_hash`, `login_fail_count`, `locked_until`
 - 고위험 개인정보: `name`, `birth_date`, `phone_enc`
@@ -17,7 +22,7 @@
 2. 추천과 알림 기능이 민감정보 원문을 직접 가진 `User` 엔티티에 의존한다.
 3. 같은 `user_id`를 기준으로 추천 로그, 알림 로그, 프로필이 쉽게 재결합된다.
 
-현재 코드 기준으로도 `User`는 너무 많은 책임을 가지고 있다.
+분리 작업 당시 코드 기준으로도 `User`는 너무 많은 책임을 가지고 있었다.
 
 - 인증과 회원가입은 [AuthLoginService](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/user/service/AuthLoginService.java:22), [AuthSignupService](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/user/service/AuthSignupService.java:13), [AuthSessionService](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/user/service/AuthSessionService.java:10) 로 나뉘었지만, 여전히 최종 상태 저장은 `User` 엔티티 하나를 기준으로 sync된다.
 - 프로필 수정과 전화번호 복호화, 알림 설정, 회원탈퇴는 [UserProfileCommandService](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/user/service/UserProfileCommandService.java:23), [UserProfileReadService](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/user/service/UserProfileReadService.java:16), [UserAccountCommandService](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/user/service/UserAccountCommandService.java:17) 로 나뉘었지만, 여전히 `User` 엔티티 하나에 인증/프로필/알림 설정 상태가 함께 모여 있다.
@@ -357,7 +362,7 @@
 
 ### 5. 최소권한 DB 계정 분리
 
-같은 MySQL 인스턴스 안에 schema만 나누고 앱이 root 권한으로 전부 붙으면 보안 이점이 거의 없다.
+같은 PostgreSQL 인스턴스 안에 schema만 나누고 앱이 broad 권한으로 전부 붙으면 보안 이점이 거의 없다.
 
 최소한 아래는 필요하다.
 

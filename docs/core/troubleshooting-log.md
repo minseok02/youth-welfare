@@ -3757,3 +3757,8 @@
 - 문제: `policy-normalization-current-state.md` 에는 canonical summary prompt 영향 실험을 설명하는 `SUMMARY_REASON_METRIC`, `real-openai artifact` 값이 남아 있는데, 별도 가드레일이 없으면 이 값들이 지금 recommendation broad-suite current baseline처럼 읽힐 수 있었다.
 - 해결: 해당 구간 앞에 이 값들은 **실험/diagnostic slice** 이고, 현재 broad-suite current baseline은 `recommendation-current-state` / `recommendation-operation-checklist` 의 `A_top10_target=9->9`, `B_top10_target=1->1`, `A_fp/B_fp=same`, `reason_changed=0` 쪽을 우선한다는 설명을 추가했다.
 - 이유: policy normalization current-state는 canonical 실험과 현재 운영 해석이 같이 들어 있는 문서다. 둘을 구분하지 않으면 experimental replay artifact가 현재 정상 판단 기준처럼 받아들여질 수 있다.
+
+## 695) `user-data-separation-design` 의 split 이전 문제 진술을 현재 runtime 설명처럼 두면, 이미 끝난 사용자 분리 cut-over와 예전 배경 문제가 다시 섞인다
+- 문제: `user-data-separation-design.md` 는 현재도 active 설계 문서처럼 읽히는데, 상단의 `users` 단일 테이블 문제 진술과 `User` 과대책임 설명이 split 이전 배경이라는 표시가 약했다. 여기에 `같은 MySQL 인스턴스` 라는 예전 표현도 남아 있어 현재 PostgreSQL mainline 기준과 어긋났다.
+- 해결: 문서 상단에 이 문서는 **사용자 데이터 분리 cut-over 설계와 당시 배경 문제를 보존하는 문서** 라는 가드레일을 추가하고, 문제 섹션 제목을 `왜 당시 구조가 문제였나` 로 바꿨다. 또 `같은 MySQL 인스턴스` 는 현재 truth에 맞게 `같은 PostgreSQL 인스턴스` 로 교정했다.
+- 이유: 이 문서는 보안/권한/PII 경계를 논의할 때 다시 참조되는 핵심 설계 문서다. split 이전 배경과 현재 반영 상태를 분리하지 않으면, 이미 `auth_users / user_profiles / user_pii` 기반으로 cut-over된 구조가 아직도 `users` 단일 테이블 중심인 것처럼 읽힐 수 있다.
