@@ -111,12 +111,12 @@ youth-api:
   base-url: https://www.youthcenter.go.kr/go/ythAct/getPlcyList.do
 
 bokjiro:
-  api-key: ${BOKJIRO_API_KEY:${PUBLIC_DATA_PORTAL_API_KEY:}}
+  api-key: ${PUBLIC_DATA_PORTAL_API_KEY:}
   central-base-url: https://www.bokjiro.go.kr/ssis-tbu/twataa/wlfareInfo/moveTWAT52011M.do
   local-base-url: https://www.bokjiro.go.kr/ssis-tbu/twatla/lwlfareInfo/moveTWAT52005M.do
 
 gov24:
-  api-key: ${GOV24_API_KEY:${PUBLIC_DATA_PORTAL_API_KEY:}}
+  api-key: ${PUBLIC_DATA_PORTAL_API_KEY:}
   base-url: https://api.odcloud.kr/api
   max-items-per-run: ${GOV24_COLLECT_MAX_ITEMS_PER_RUN:20000}
 

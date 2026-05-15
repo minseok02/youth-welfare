@@ -29,7 +29,7 @@ class BokjiroDetailGapFillDensityIntegrationTest {
     @Test
     @DisplayName("local live Bokjiro gap fill 실행 후 stored detail payload coverage 와 sidecar density 는 감소하지 않는다")
     void gapFillImprovesOrPreservesLocalCoverage() {
-        assumeTrue(hasLiveBokjiroApiKey(), "실제 PUBLIC_DATA_PORTAL_API_KEY 또는 BOKJIRO_API_KEY 가 있는 local 환경에서만 실행");
+        assumeTrue(hasLivePublicDataPortalApiKey(), "실제 PUBLIC_DATA_PORTAL_API_KEY 가 있는 local 환경에서만 실행");
         assumeTrue(tableExists("service_facts"), "draft sidecar migration 이 적용된 local DB 에서만 실행");
 
         long bokjiroServiceCount = count("""
@@ -94,23 +94,11 @@ class BokjiroDetailGapFillDensityIntegrationTest {
         }
     }
 
-    private boolean hasLiveBokjiroApiKey() {
-        String apiKey = firstNonBlank(
-                System.getenv("BOKJIRO_API_KEY"),
-                System.getenv("PUBLIC_DATA_PORTAL_API_KEY")
-        );
+    private boolean hasLivePublicDataPortalApiKey() {
+        String apiKey = System.getenv("PUBLIC_DATA_PORTAL_API_KEY");
         return apiKey != null
                 && !apiKey.isBlank()
                 && !"test-bokjiro-api-key".equals(apiKey);
-    }
-
-    private String firstNonBlank(String... values) {
-        for (String value : values) {
-            if (value != null && !value.isBlank()) {
-                return value;
-            }
-        }
-        return null;
     }
 
     private boolean tableExists(String tableName) {
