@@ -3627,3 +3627,8 @@
 - 문제: `documentation-map.md`, `start.md`, `current-state.md` 의 일부 진입점 표현은 `Gov24 blocked 상태`, `inactive/reopen 판단` 같은 예전 wording을 유지하고 있었다. 하지만 현재 truth는 `Gov24` 의 runtime collect/runtime audit은 이미 closeout 되었고, 남은 것은 hard import/backfill blocked와 일부 deferred code 승격 판단이다.
 - 해결: top-level 안내 문구를 `Gov24 runtime closeout / blocked track`, `runtime closeout 이후 남은 blocked/deferred 판단` 기준으로 교정했다.
 - 이유: entrypoint 문구는 실제 문서 내용을 읽기 전에 인상을 만든다. closeout이 끝난 소스를 여전히 단순 blocked/inactive처럼 소개하면, 현재 active 상태보다 과거 reopen 맥락이 먼저 떠오른다.
+
+## 669) `collect-current-state` 가 아직 `fresh reset 뒤 draft schema/bootstrap 공백` 을 현재 경계처럼 말하면, integrated schema mainline에서도 sidecar가 optional helper처럼 읽힌다
+- 문제: `collect-current-state.md` 의 canonical sidecar 설명에는 여전히 “fresh reset 뒤 draft schema/bootstrap 공백은 local helper로 보완” 같은 wording이 남아 있었다. 하지만 현재 PostgreSQL mainline에서는 `service_taxonomies`, `service_taxonomy_terms`, `service_facts` 가 integrated schema의 일부이고, helper/replay smoke는 draft schema를 다시 까는 용도가 아니다.
+- 해결: canonical sidecar 설명을 `fresh reset 뒤에도 존재해야 하는 integrated schema` 기준으로 교정하고, local helper/replay smoke는 draft schema auto-apply가 아니라 integrated schema 존재 여부와 collect/replay precondition을 확인하는 보조 경계라고 명시했다.
+- 이유: current-state 문서는 현재 계약을 직접 설명하는 문서다. 여기에 예전 draft-bootstrap 표현이 남아 있으면, sidecar가 여전히 optional 또는 임시 복구 대상처럼 읽혀 구조 이해를 흐린다.

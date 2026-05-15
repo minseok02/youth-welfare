@@ -71,7 +71,8 @@ collect 이후 저장되는 축은 아래입니다.
 주의:
 
 - 이 sidecar는 current runtime 기준으로도 실제 저장되지만
-- fresh reset 뒤 draft schema/bootstrap 공백은 local helper로 보완하는 경계가 남아 있습니다
+- fresh reset 뒤에도 현재 PostgreSQL integrated schema 기준으로 존재해야 하는 canonical sidecar입니다
+- local helper/replay smoke는 draft schema를 다시 auto-apply 하는 경계가 아니라 integrated schema 존재 여부와 collect/replay precondition을 확인하는 보조 경계로 읽습니다
 
 ### 4. sync log
 
