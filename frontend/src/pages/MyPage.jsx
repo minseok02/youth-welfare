@@ -703,11 +703,11 @@ export default function MyPage() {
       setPushSubscriptions(subscriptions);
       setCurrentPushEndpoint(currentSubscription?.endpoint ?? "");
       setPushStatusError("");
-    } catch {
+    } catch (error) {
       setPushPublicKey("");
       setPushSubscriptions([]);
       setCurrentPushEndpoint("");
-      setPushStatusError("웹푸시 준비 API가 아직 열려 있지 않거나 최신 백엔드가 배포되지 않았습니다.");
+      setPushStatusError(error?.response?.data?.message || "웹푸시 준비 API가 아직 열려 있지 않거나 최신 백엔드가 배포되지 않았습니다.");
       throw new Error("push status unavailable");
     } finally {
       setPushLoading(false);

@@ -1,11 +1,14 @@
 package com.example.welfare.notification.service;
 
+import com.example.welfare.global.exception.CustomException;
+import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.notification.dto.WebPushPublicKeyResponse;
 import com.example.welfare.notification.dto.WebPushSubscriptionResponse;
 import com.example.welfare.notification.repository.WebPushSubscriptionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import java.util.List;
 
@@ -19,7 +22,10 @@ public class WebPushSubscriptionReadService {
     private String webPushPublicKey;
 
     public WebPushPublicKeyResponse getPublicKey() {
-        return new WebPushPublicKeyResponse(webPushPublicKey == null ? "" : webPushPublicKey);
+        if (!StringUtils.hasText(webPushPublicKey)) {
+            throw new CustomException(ErrorCode.NOTIFICATION_PUSH_PUBLIC_KEY_NOT_CONFIGURED);
+        }
+        return new WebPushPublicKeyResponse(webPushPublicKey);
     }
 
     public List<WebPushSubscriptionResponse> getMySubscriptions(String userKey) {

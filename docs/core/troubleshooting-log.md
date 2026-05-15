@@ -4067,3 +4067,8 @@
 - 문제: production build/preview 실브라우저 검증에서 `secureContext=true`, `Notification/serviceWorker/PushManager=true` 인데도 `GET /api/notifications/push-public-key`, `GET /api/notifications/push-subscriptions/me` 가 500으로 떨어져 구독 목록/연결 플로우가 전부 막히는 케이스가 드러났다. 이때 기존 UI는 단순히 `현재 브라우저 연결` 버튼을 계속 보여 주고, `Notification.permission=denied` 상태도 "미연결"과 크게 다르지 않게 보여 줘 사용자가 잘못된 기대를 하게 만들었다.
 - 해결: `MyPage` 의 웹푸시 카드에 `pushStatusError` 상태를 추가해 backend 준비 실패를 별도 경고 박스로 보여 주고, API가 준비되지 않았거나 `Notification.permission === "denied"` 이면 연결 CTA를 비활성화하도록 바꿨다. 권한 거부 상태는 라벨 색상과 안내 문구도 별도로 노출해, 사용자가 브라우저 설정/백엔드 배포 문제를 구분할 수 있게 했다.
 - 이유: 웹푸시 1차는 아직 실제 send가 아니라 "현재 브라우저를 연결할 수 있는지"를 보여 주는 준비 단계다. 이 단계에서 backend가 최신 endpoint를 아직 라우팅하지 못하거나 브라우저 권한이 이미 거부된 상태를 명확히 드러내지 않으면, 사용자는 기능 회귀와 환경 미준비를 구분하지 못한다.
+
+## 757) `push-public-key` 는 200 + 빈 문자열보다 명시적 설정 오류로 실패해야, 웹푸시 연결 불가 원인을 운영자가 바로 읽을 수 있다
+- 문제: notification endpoint 라우팅 자체는 정상화된 뒤에도 `GET /api/notifications/push-public-key` 가 `200` 이면서 `publicKey=""` 로 응답하는 서버가 있었다. 프론트는 `!pushPublicKey` 조건으로 `현재 브라우저 연결` CTA를 막지만, 이 상태만 보면 backend 미배포, 권한 문제, 공개키 누락을 구분하기 어렵다. 특히 실브라우저 검증에서는 `Notification.permission=granted` 와 secure context가 모두 정상이었는데도 연결이 전혀 시작되지 않았다.
+- 해결: backend `WebPushSubscriptionReadService` 가 공개키가 비어 있으면 `CustomException(ErrorCode.NOTIFICATION_PUSH_PUBLIC_KEY_NOT_CONFIGURED)` 를 던져 `N004 / 503` 으로 실패하게 바꿨다. 프론트 `MyPage.fetchPushStatus()` 는 이제 backend error body의 `message` 를 그대로 읽어 카드 경고 문구로 보여 준다. `.env.example` 도 `WEB_PUSH_PUBLIC_KEY` 가 "있으면 좋음"이 아니라 웹푸시 연결 UI에 필요한 필수 설정이라는 주석을 추가했다.
+- 이유: 현재 단계의 웹푸시는 "브라우저 연결 준비"가 전부이므로, 연결이 막히는 이유를 가장 먼저 분명하게 드러내야 한다. 200 빈값은 UI 비활성화만 남기고 원인 분리를 어렵게 만든다.
