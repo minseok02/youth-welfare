@@ -3712,3 +3712,8 @@
 - 문제: `recommendation-ctr-readiness-runbook.md` 는 최근 full-suite 재검증 후 기준선이 `1634 / 15 / clicked_services=2` 로 올라갔는데도 여전히 `1532 / 13` baseline에 머물러 있었다. 동시에 `demo-scenario.md` 는 `0~99 / 100~499 / 500+` stage count만 보여 주고, 실제 tuning readiness는 별도 CTR audit 기준을 봐야 한다는 설명이 없었다.
 - 해결: CTR runbook의 현재 기준선을 최신 재검증 수치로 갱신하고, 데모 문서의 `CTR / Cold Start 확인 쿼리` 아래에 count stage는 힌트일 뿐이며 실제 weight tuning 가능 여부는 CTR readiness runbook 기준을 우선한다는 주의 문구를 추가했다.
 - 이유: 현재 recommendation 쪽의 핵심 판단은 `STABLE stage 도달` 자체가 아니라 `DEFERRED_CLICK_SAMPLE_THIN` 인지, 실제로 `READY_FOR_WEIGHT_REVIEW` 인지다. runbook 기준선과 데모 해석이 엇갈리면 다시 “로그 수가 500을 넘었으니 바로 튜닝 가능하다”는 잘못된 결론으로 돌아가기 쉽다.
+
+## 686) `recommendation-current-state` 의 대표 replay 결과가 예전 `4->8 / 2->2` 에 남아 있으면, 최신 broad-suite 기준선과 현재 정상 판단이 다시 어긋난다
+- 문제: `recommendation-current-state.md` 는 최근 개인 캐시 회귀 검증과 broad-suite 재확인 후 현재 기준선이 `A_top10_target=9->9`, `B_top10_target=1->1`, `A_fp/B_fp=same`, `reason_changed=0` 인데도 여전히 더 오래된 `4->8 / 2->2` 예시를 대표 replay 결과로 보여 주고 있었다.
+- 해결: current-state 의 대표 replay 결과를 최신 broad-suite 기준선으로 갱신하고, `recommendation-operation-checklist.md` 에도 같은 기준선을 짧게 추가했다.
+- 이유: recommendation current-state/runbook은 지금 정상 판단의 기준점 역할을 한다. 여기 수치가 오래돼 있으면 현재는 regression이 없는 상태인데도 예전 improvement snapshot을 기준선처럼 읽게 된다.

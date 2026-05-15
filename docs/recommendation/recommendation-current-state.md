@@ -140,8 +140,11 @@
 
 대표 replay 결과:
 
-- `A_top10_target=4->8`
-- `B_top10_target=2->2`
+- `A_top10_target=9->9`
+- `B_top10_target=1->1`
+- `A_fp=same`
+- `B_fp=same`
+- `reason_changed=0`
 
 즉 current local 기준으로는:
 

@@ -72,6 +72,17 @@ replay 전에 아래를 봅니다.
 - `A_target_total`
 - `B_target_total`
 
+현재 local broad-suite 기준선(2026-05-15)은 아래처럼 읽습니다.
+
+- `A_top10_target=9->9`
+- `B_top10_target=1->1`
+- `A_fp=same`
+- `B_fp=same`
+- `reason_changed=0`
+
+즉 현재 rule-only baseline에서는 target visibility regression이 없어야 하고,
+fingerprint나 reason membership도 불필요하게 흔들리지 않는 상태를 정상으로 봅니다.
+
 ## 5. real-openai replay
 
 이건 hard gate가 아니라 diagnostic 입니다.
