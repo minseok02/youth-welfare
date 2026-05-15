@@ -3772,3 +3772,8 @@
 - 문제: `runtime-api-smoke-commands.md` 와 `policy-quality-summary-runbook.md` 일부 문구는 여전히 `Gov24 closeout/gap audit`, `Gov24 runtime collect/audit` 정도로만 소개하고 있었다. 하지만 현재 Gov24 practical baseline은 단순 collect 확인을 넘어 `runtime closeout + deferred support-code inventory audit` 까지 포함한다.
 - 해결: 두 문서의 관련 runbook 소개 문구를 `Gov24 closeout/deferred inventory audit` 와 `Gov24 runtime closeout/deferred inventory audit` 으로 교정했다.
 - 이유: runtime wrapper 문서는 실제 반복 검증을 할 때 가장 먼저 열어보는 entrypoint다. 여기 표현이 예전 gap-audit 수준에 머물면, 이미 closeout된 Gov24의 현재 해석 층위가 다시 얕아진다.
+
+## 698) `collect-docs-index` 요약이 아직 `Gov24 runtime audit` 정도로만 적혀 있으면, collect closeout 이후 남은 deferred inventory 판단이 요약 단계에서 다시 빠진다
+- 문제: `collect-docs-index.md` 는 runbook 연결 자체는 맞췄지만, 요약 항목 4번이 여전히 `Gov24 runtime audit` 이라고만 적혀 있었다. 이 표현만 보면 현재 collect practical baseline이 `runtime closeout + deferred business-code inventory audit` 까지 포함한다는 점이 다시 흐려진다.
+- 해결: 요약 문구를 `Gov24 runtime closeout/deferred inventory audit` 으로 교정했다.
+- 이유: collect docs index는 collect 문서군의 가장 압축된 진입점이다. 이 레벨의 요약이 예전 audit 표현에 머물면, 아래쪽에서 어렵게 정리한 layered truth가 다시 한 줄 요약에서 축소되어 버린다.

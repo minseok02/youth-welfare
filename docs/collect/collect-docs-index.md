@@ -115,5 +115,5 @@
 1. 현재 동작은 [collect-current-state.md](./collect-current-state.md) 부터 봅니다.
 2. 실제 실행은 [collect-operation-checklist.md](./collect-operation-checklist.md) 기준으로 봅니다.
 3. 운영 해석은 [collect-ops.md](./collect-ops.md) 에 더 자세히 적혀 있습니다.
-4. collect closeout / quality baseline은 `Gov24 runtime audit` 과 `policy quality summary` runbook을 먼저 봅니다.
+4. collect closeout / quality baseline은 `Gov24 runtime closeout/deferred inventory audit` 과 `policy quality summary` runbook을 먼저 봅니다.
 5. 기록은 [collect-incident-template.md](./collect-incident-template.md) 를 기준으로 남기고, 오래된 전환 로그는 `phase-plan` 을 보조 참고로만 봅니다.
