@@ -17,12 +17,14 @@
 - [recommendation-current-state.md](./recommendation-current-state.md)
 - [recommendation-operation-checklist.md](./recommendation-operation-checklist.md)
 - [recommendation-ctr-readiness-runbook.md](./recommendation-ctr-readiness-runbook.md)
+- [recommendation-concentration-audit-runbook.md](./recommendation-concentration-audit-runbook.md)
 - [recommendation-pipeline.md](./recommendation-pipeline.md)
 
 현재 practical runtime wrapper:
 
 - `KEEP_ARTIFACTS=true deploy/smoke/run-local-education-priority-replay.sh`
 - `bash deploy/smoke/run-local-ctr-readiness-audit.sh`
+- `bash deploy/smoke/run-local-recommendation-concentration-audit.sh`
 
 ### 같이 보면 좋은 기준 문서
 
@@ -84,7 +86,20 @@
 
 를 한 번에 읽는 audit/runbook 입니다.
 
-### 5. replay 템플릿
+### 5. concentration audit runbook
+
+- [recommendation-concentration-audit-runbook.md](./recommendation-concentration-audit-runbook.md)
+
+이 문서는
+
+- 최신 저장 추천 batch의 top1 집중도
+- 같은 서비스 반복 노출
+- `HAS_PRIORITY` / `NO_PRIORITY` 차이
+- 우선순위 반영 여부와 편중이 동시에 어떤 상태인지
+
+를 한 번에 읽는 audit/runbook 입니다.
+
+### 6. replay 템플릿
 
 - [recommendation-replay-template.md](./recommendation-replay-template.md)
 
@@ -101,8 +116,9 @@
 
 1. [recommendation-operation-checklist.md](./recommendation-operation-checklist.md)
 2. [recommendation-ctr-readiness-runbook.md](./recommendation-ctr-readiness-runbook.md)
-3. [recommendation-pipeline.md](./recommendation-pipeline.md)
-4. 필요하면 [runtime-api-smoke-commands.md](../core/runtime-api-smoke-commands.md)
+3. [recommendation-concentration-audit-runbook.md](./recommendation-concentration-audit-runbook.md)
+4. [recommendation-pipeline.md](./recommendation-pipeline.md)
+5. 필요하면 [runtime-api-smoke-commands.md](../core/runtime-api-smoke-commands.md)
 
 ### 실험/비교 기록을 남길 때
 
@@ -116,5 +132,6 @@
 1. 현재 동작은 [recommendation-current-state.md](./recommendation-current-state.md) 부터 봅니다.
 2. 실제 실행은 [recommendation-operation-checklist.md](./recommendation-operation-checklist.md) 기준으로 봅니다.
 3. CTR 튜닝 readiness는 [recommendation-ctr-readiness-runbook.md](./recommendation-ctr-readiness-runbook.md) 로 먼저 판단합니다.
-4. 구조 설명은 [recommendation-pipeline.md](./recommendation-pipeline.md) 에 더 자세히 적혀 있습니다.
-5. replay/CTR 기록은 [recommendation-replay-template.md](./recommendation-replay-template.md) 또는 각 runbook의 최소 기록 항목을 기준으로 남기고, 요약 문서 갱신보다 evidence 기록을 먼저 합니다.
+4. 추천 편중과 우선순위 반영 상태는 [recommendation-concentration-audit-runbook.md](./recommendation-concentration-audit-runbook.md) 로 따로 확인합니다.
+5. 구조 설명은 [recommendation-pipeline.md](./recommendation-pipeline.md) 에 더 자세히 적혀 있습니다.
+6. replay/CTR/집중도 기록은 [recommendation-replay-template.md](./recommendation-replay-template.md) 또는 각 runbook의 최소 기록 항목을 기준으로 남기고, 요약 문서 갱신보다 evidence 기록을 먼저 합니다.

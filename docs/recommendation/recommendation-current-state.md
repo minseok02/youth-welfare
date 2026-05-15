@@ -195,7 +195,38 @@ recommendation/replay 는 collect와 sidecar snapshot 품질에 직접 의존합
 즉 total log 수는 이미 top stage를 넘겼지만, 클릭 표본은 아직 얇아서 현재 readiness 판정은 `DEFERRED_CLICK_SAMPLE_THIN` 입니다. 게다가 클릭이 현재 `2`개 서비스(`2622`, `3688`)에만 몰려 있어 sample diversity도 부족합니다.
 따라서 recommendation 쪽의 다음 active 작업은 지금 당장 weight tuning을 여는 것이 아니라, readiness baseline을 유지한 채 표본이 더 쌓일 때까지 bounded runtime/quality smoke 결과를 계속 관찰하는 것입니다.
 
-### 3. fresh reset 뒤 collect/replay 전제
+### 4. 저장 추천 편중
+
+CTR readiness와 별개로, 최신 `user_recommendations` batch 자체도 현재 꽤 집중되어 있습니다.
+
+`2026-05-15` local concentration audit 기준:
+
+- latest batch `1974 rows / 62 users / 113 distinct services`
+- top1 leader:
+  - `2622 청년월세 지원사업`
+  - `37 / 62 users`
+  - `59.68%`
+- latest source distribution:
+  - `YOUTH 1352`
+  - `BOKJIRO_LOCAL 287`
+  - `BOKJIRO_CENTRAL 173`
+  - `GOV24 162`
+- latest category distribution:
+  - `일자리 676`
+  - `금융·생활지원 526`
+  - `교육·직업훈련 304`
+  - `주거 183`
+
+우선순위가 완전히 무시되는 상태는 아닙니다.
+
+- `HAS_PRIORITY` 사용자 `20`
+- `NO_PRIORITY` 사용자 `42`
+- `NO_PRIORITY` top1 대표는 `청년월세 지원사업(2622)` `35명`
+- `HAS_PRIORITY` 쪽에서는 `드림나래(3688)` `12명`, `청년월세 지원사업(YOUTH 1411)` `5명` 등 일부 차이가 보입니다.
+
+즉 현재 병목은 `priority 미반영` 보다는 **diversity / fallback / balancing 약함** 쪽으로 해석하는 편이 맞습니다.
+
+### 5. fresh reset 뒤 collect/replay 전제
 
 current PostgreSQL mainline에서 canonical sidecar 자체는 integrated schema의 일부입니다.
 

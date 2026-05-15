@@ -37,10 +37,12 @@
 1. bounded policy admin runtime 경로 반복 검증과 one-shot summary smoke 기준선 유지
 2. broader local 기능/구조 검증에서 드러나는 drift나 dead runbook 설명 정리
 3. CTR readiness audit 재확인 + 클릭 표본 확충
-4. readiness가 `READY_FOR_WEIGHT_REVIEW` 로 바뀐 뒤 추천 품질 재조정
-5. 개인 캐시 운영 관측치가 더 쌓인 뒤 TTL/eviction 세부 튜닝
-6. 사용자 규모 증가 시 군집 캐시 재검토
-7. 카카오 알림톡 blocked 재검토
+4. recommendation concentration audit로 top1/service/source/category 편중을 baseline으로 고정
+5. readiness가 `READY_FOR_WEIGHT_REVIEW` 로 바뀌더라도, concentration audit가 계속 `CONCENTRATED_TOP1` 이면 diversity/fallback 로직을 먼저 보정
+6. 그 뒤 추천 품질 재조정
+7. 개인 캐시 운영 관측치가 더 쌓인 뒤 TTL/eviction 세부 튜닝
+8. 사용자 규모 증가 시 군집 캐시 재검토
+9. 카카오 알림톡 blocked 재검토
 
 이유:
 
@@ -53,6 +55,7 @@
 - `카카오 알림톡` 은 비즈니스 채널/발신 프로필/템플릿 심사와 사업자 증빙이 먼저라, 코드보다 운영 자격이 선행 조건이다.
 - `2026-05-15` local CTR audit 기준 total logs는 `1923` 이지만 clicked logs는 `19`, overall CTR은 `0.99%`, fallback clicked는 `0`, clicked service는 `2`개뿐이라 현재 readiness 판정은 `DEFERRED_CLICK_SAMPLE_THIN` 이다.
 - 따라서 현재 phase에서 더 진행할 실용적 후보는 `CTR readiness audit + 표본 확충` 이고, 실제 weight tuning은 readiness가 올라간 뒤에만 연다. 군집 캐시는 장래 확장 포인트로 남긴다.
+- 별도로 `2026-05-15` local recommendation concentration audit 기준 latest batch는 `1974 rows / 62 users / 113 services`, top1 leader `2622` 가 `37 / 62 users (59.68%)` 를 차지한다. `HAS_PRIORITY` / `NO_PRIORITY` 의 top1 차이는 일부 보이므로 priority가 완전히 무시되는 상태는 아니지만, 현재 병목은 `priority 미반영` 보다는 `diversity / fallback / balancing 약함` 쪽으로 보는 편이 맞다.
 
 반면 아래는 계속 blocked/backlog 또는 deferred 로 둡니다.
 
