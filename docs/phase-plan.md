@@ -1,5 +1,10 @@
 # 구현 현황
 
+- 이 문서의 상단 최신 항목은 현재 active 기준선과 최근 closeout 기록을 우선 보여 줍니다.
+- 아래로 내려갈수록 오래된 이력 로그가 섞여 있으며, `MySQL`, `draft sidecar`, `service_taxonomy_summary_slots` 관련 항목 상당수는 **과거 실험/전환 기록**입니다.
+- 현재 실행 기준이 충돌할 때는 이 문서의 최신 항목보다 [current-state.md](./current-state.md), [testing.md](./core/testing.md), [policy-local-closeout-pending-inventory.md](./policy/policy-local-closeout-pending-inventory.md) 같은 active 문서를 우선합니다.
+- 특히 `deploy/mysql/apply-local-policy-sidecar-draft.sh` 는 현재 PostgreSQL main에서 draft SQL 재적용기가 아니라 integrated schema preflight 경계로 읽습니다.
+
 - 2026-05-14: 정책 상세의 로그인/마이페이지 CTA도 챗 상위 세션 문맥을 잃지 않게 맞췄다. `PolicyDetailPage` 는 이제 `chatFrom` 을 함께 넘기고, `LoginPage`, `SignupPage`, `ResetPasswordPage` 는 이를 인증 경로 사이와 로그인 완료 후 복귀 state까지 계속 보존한다. 이후 `cd frontend && npm run lint`, `cd frontend && npm run build` 를 다시 통과시켰다.
 - 2026-05-14: 챗에서 정책 목록을 거쳐 상세로 들어갈 때도 상위 세션 문맥을 잃지 않게 맞췄다. `ChatPage`, `PoliciesPage`, `PolicyDetailPage` 는 이제 `chatFrom` 으로 원래 `/chat?session=...` target을 이어 주고, `Header`, `FloatingNav` 는 이를 우선 읽어 챗 복귀 target을 계산한다. 이후 `cd frontend && npm run lint`, `cd frontend && npm run build` 를 다시 통과시켰다.
 - 2026-05-14: 챗에서 정책 목록으로 나가는 전역 CTA도 현재 세션 복귀 기준을 싣게 맞췄다. `ChatPage` 는 이제 `chatReturnTarget` 으로 현재 `?session=` 문맥을 계산하고, 상단 `정책 목록 보기` 버튼과 연결 정책 카드가 모두 이를 `state.from` 으로 사용한다. 이후 `cd frontend && npm run lint`, `cd frontend && npm run build` 를 다시 통과시켰다.
