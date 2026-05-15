@@ -79,6 +79,9 @@ const SOURCE_TYPE_MAP = {
   "복지로 지자체": "BOKJIRO_LOCAL",
   "Gov24": "GOV24",
 };
+const SOURCE_LABEL_BY_TYPE = Object.fromEntries(
+  Object.entries(SOURCE_TYPE_MAP).map(([label, type]) => [type, label])
+);
 
 const SORT_MAP = { relevance: "RELEVANCE", views: "VIEWS", latest: "LATEST", deadline: "DEADLINE" };
 
@@ -142,6 +145,19 @@ const resolveInitialSort = (paramsSearch, paramsSort) => {
   const allowed = hasSearch ? ["relevance", "views", "latest", "deadline"] : ["views", "latest", "deadline"];
   if (allowed.includes(paramsSort)) return paramsSort;
   return hasSearch ? "relevance" : "latest";
+};
+
+const normalizeSourceTypeParam = (rawSourceType) => {
+  if (!rawSourceType?.trim()) return "전체";
+  const trimmed = rawSourceType.trim();
+  if (SOURCE_TYPE_MAP[trimmed]) return trimmed;
+  const normalized = trimmed.toUpperCase();
+  return SOURCE_LABEL_BY_TYPE[normalized] || "전체";
+};
+
+const serializeSourceTypeParam = (sourceLabel) => {
+  if (!sourceLabel || sourceLabel === "전체") return null;
+  return SOURCE_TYPE_MAP[sourceLabel] ?? null;
 };
 
 const ddayStyle = (dday) => {
@@ -270,7 +286,7 @@ export default function PoliciesPage() {
   const [subRegion, setSubRegion] = useState(searchParams.get("subRegion") || "전체");
   const [income, setIncome] = useState(searchParams.get("income") || "전체");
   const [targetGroup, setTargetGroup] = useState(searchParams.get("targetGroup") || "");
-  const [sourceType, setSourceType] = useState(searchParams.get("sourceType") || "전체");
+  const [sourceType, setSourceType] = useState(normalizeSourceTypeParam(searchParams.get("sourceType")));
   const [statusFilter, setStatusFilter] = useState(searchParams.get("statusFilter") || defaultStatusFilter);
   const [sort, setSort] = useState(resolveInitialSort(searchParams.get("search") || "", searchParams.get("sort")));
   const [pageSize, setPageSize] = useState(Number(searchParams.get("pageSize")) || 10);
@@ -292,7 +308,8 @@ export default function PoliciesPage() {
     if (subRegion !== "전체") params.subRegion = subRegion;
     if (income !== "전체") params.income = income;
     if (targetGroup) params.targetGroup = targetGroup;
-    if (sourceType !== "전체") params.sourceType = sourceType;
+    const sourceTypeParam = serializeSourceTypeParam(sourceType);
+    if (sourceTypeParam) params.sourceType = sourceTypeParam;
     if (statusFilter !== defaultStatusFilter) params.statusFilter = statusFilter;
     const defaultSort = search.trim() ? "relevance" : "latest";
     if (sort !== defaultSort) params.sort = sort;
@@ -308,7 +325,7 @@ export default function PoliciesPage() {
     const nextSubRegion = searchParams.get("subRegion") || "전체";
     const nextIncome = searchParams.get("income") || "전체";
     const nextTargetGroup = searchParams.get("targetGroup") || "";
-    const nextSourceType = searchParams.get("sourceType") || "전체";
+    const nextSourceType = normalizeSourceTypeParam(searchParams.get("sourceType"));
     const nextStatusFilter = searchParams.get("statusFilter") || defaultStatusFilter;
     const nextSort = resolveInitialSort(nextSearch, searchParams.get("sort"));
     const nextPageSize = Number(searchParams.get("pageSize")) || 10;

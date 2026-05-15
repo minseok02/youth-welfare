@@ -3972,3 +3972,8 @@
 - 문제: no-priority fallback/rerank를 보강한 뒤 신규 사용자 표본에서는 top1이 `2622` 일변도에서 `3611` 쪽으로 실제로 갈라졌지만, 기존 저장 추천 batch까지 합친 전체 concentration audit는 여전히 `CONCENTRATED_TOP1` 이었다. 신규 샘플 효과만 보고 “해결됐다”고 쓰거나, 반대로 전체 leader share만 보고 “아무 효과 없다”고 쓰면 둘 다 과장이다.
 - 해결: concentration baseline을 최신 snapshot(`2394 rows / 132 users / 113 services`, `top1 leader 2622 = 75 users / 56.82%`, `NO_PRIORITY 112`, `3611 top1=32`)으로 갱신하고, runbook/current-state에 “신규 no-priority 사용자에서는 분산이 보이지만 overall 판정은 아직 concentrated” 라는 이중 해석을 함께 남겼다.
 - 이유: 추천 편중 완화는 저장 배치가 누적된 상태에선 항상 반영 속도가 다르다. 신규 refresh 사용자 효과와 전체 batch 집중도를 같이 봐야 다음 조정을 과장 없이 판단할 수 있다.
+
+## 738) 프론트 목록 필터 query는 화면 라벨과 URL canonical 값을 분리해서 읽어야, enum 기준 링크 재진입에서도 source filter가 풀리지 않는다
+- 문제: `PoliciesPage` 는 `sourceType` query를 그대로 상태에 넣고, API 요청 시에만 한글 라벨(`온통청년`, `복지로 중앙`, `Gov24`)을 enum으로 바꾸고 있었다. 그래서 프론트가 생성한 legacy 링크(`sourceType=Gov24`)는 동작하지만, backend/controller/current-state 기준 canonical 값인 `?sourceType=GOV24` 로 직접 재진입하거나 공유 링크를 열면 UI 상태가 `GOV24` 가 되어 `SOURCE_TYPE_MAP[GOV24]` 가 `undefined` 로 떨어지고 source filter가 조용히 풀린다.
+- 해결: `PoliciesPage` 에 `normalizeSourceTypeParam()` / `serializeSourceTypeParam()` 을 추가해 URL에서는 canonical enum(`YOUTH`, `BOKJIRO_CENTRAL`, `BOKJIRO_LOCAL`, `GOV24`)을 쓰고, 프론트 상태는 계속 사용자 라벨로 유지하게 정리했다. 동시에 legacy 한글 라벨 query도 계속 읽어 backward compatibility를 유지했다. 변경 뒤 `frontend lint/build` 를 다시 통과시켰다.
+- 이유: 이 경계는 smoke로 잘 안 잡히지만, 실제 사용자 체감에선 “필터가 걸린 링크를 다시 열었더니 source 필터가 풀린다”는 형태로 드러난다. 화면 라벨과 URL canonical contract를 분리해 두어야 브라우저 복귀/공유/수동 주소 입력 모두에서 같은 filter state를 재현할 수 있다.
