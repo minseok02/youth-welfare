@@ -31,10 +31,19 @@ class WelfareSourceTypeSupportTest {
     }
 
     @Test
+    @DisplayName("추가된 source type 문자열도 canonical enum/name 으로 정규화한다")
+    void normalizesGov24SourceType() {
+        assertThat(WelfareSourceTypeSupport.parseNullable("gov24"))
+                .isEqualTo(WelfareService.SourceType.GOV24);
+        assertThat(WelfareSourceTypeSupport.normalizeNullable(" gov24 "))
+                .isEqualTo("GOV24");
+    }
+
+    @Test
     @DisplayName("지원하지 않는 source type 문자열은 예외를 던진다")
     void rejectsUnknownSourceType() {
-        assertThatThrownBy(() -> WelfareSourceTypeSupport.parseNullable("gov24"))
+        assertThatThrownBy(() -> WelfareSourceTypeSupport.parseNullable("unknown-source"))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("gov24");
+                .hasMessageContaining("unknown-source");
     }
 }

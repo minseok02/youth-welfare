@@ -3537,3 +3537,13 @@
 - 문제: 남은 `978`건 gap의 중심 code를 뽑아 보니 `JA210*` 사업체 유형, `JA220*/JA120*/JA1299/JA2299` 업종, `JA110*` 창업/사업 단계가 대부분이었다. 이 분포만 보면 곧바로 `GOV24_SUPPORT_CONDITION` fact scope를 넓히고 싶어질 수 있다.
 - 해결: `policy-gov24-support-unmapped-inventory.md` 에 현재 top code 분포를 정리하고, 현재 사용자 프로필/추천 matcher가 `연령`, `소득`, `가구`, `고용`, `교육`, `특수대상` 같은 개인 eligibility 축 중심이라는 점을 같이 적어 두었다. 그 결과 현재 단계 판단은 `deferred` 로 유지하고, 사업체/업종 축을 실제로 제품이 소비하기 시작할 때만 다시 active 검토하는 쪽으로 고정했다.
 - 이유: official code가 있다는 사실만으로 fact를 늘리면 제품 의미가 불명확한 signal이 쌓인다. 현재 제품이 실제로 쓰지 않는 사업자/업종 축은 inventory로만 남기고, user input / matcher / scoring 이 그 축을 요구할 때 다시 여는 편이 drift를 줄인다.
+
+## 651) 개인 캐시 회귀를 다시 검증하려면 recommendation 타깃 테스트뿐 아니라 Gov24 추가 뒤 바뀐 공통 source 계약 테스트도 함께 현재 truth로 맞춰야 한다
+- 문제: 개인 캐시 회귀 검증을 위해 recommendation 타깃 테스트와 broad suite를 다시 돌리자, 추천 자체가 아니라 `CollectSourceExecutionServiceTest`, `WelfareSourceTypeSupportTest` 가 먼저 깨졌다. 원인은 최근 `Gov24`, `GOV24_DETAIL`, `GOV24_SUPPORT_CONDITIONS` 가 필수 adapter/sourceType 집합에 추가됐는데, 테스트 fixture와 기대값이 아직 이전 source 집합에 머물러 있었기 때문이다.
+- 해결: `CollectSourceExecutionServiceTest` 는 `GOV24`, `GOV24_DETAIL`, `GOV24_SUPPORT_CONDITIONS` mock adapter를 포함한 현재 adapter map으로 갱신했고, manual-only source 검증도 그 상태에서 `BOKJIRO_DETAIL_REFRESH` 누락을 확인하도록 유지했다. `WelfareSourceTypeSupportTest` 는 `gov24` 를 정상 sourceType 으로 정규화하는 케이스를 추가하고, unknown source reject는 별도 문자열로 바꿨다.
+- 이유: 개인 캐시 회귀를 보려면 broad suite 전체가 현재 source 계약과 먼저 일치해야 한다. source 추가로 깨진 공통 테스트를 방치하면 recommendation 경계의 진짜 회귀와 unrelated expectation drift를 구분할 수 없다.
+
+## 652) 개인 캐시 회귀는 단위 테스트만으로 닫히지 않고, replay smoke와 broad suite에서 규칙 버전 전환/저장 추천 reuse가 그대로 유지되는지 같이 봐야 한다
+- 문제: `RecommendationRefreshCacheService` 는 Redis 마커 하나로 non-personal refresh 재계산을 줄이는 구조라, 단위 테스트만 통과해도 실제 replay의 OFF/ON phase 재기동, exact batch 조회, broad integration 재실행에서 stale hit가 다시 스며들 수 있다.
+- 해결: `RecommendationRefreshCacheServiceTest`, `RecommendationGenerationServiceTest`, `ClusterServiceTest`, `RecommendationResultReadServiceTest`, `RecommendationResultReadRepositoryImplTest`, `RecommendationFlowIntegrationTest`, `CanonicalRecommendationReadModelIntegrationTest` 를 다시 돌리고, `KEEP_ARTIFACTS=true deploy/smoke/run-local-education-priority-replay.sh`, 최종 `./gradlew test integrationTest --no-daemon` 까지 재통과를 확인했다. replay summary는 `A_top10_target=9->9`, `B_top10_target=1->1`, `A_fp=same`, `B_fp=same`, `A_reason_changed=0`, `B_reason_changed=0` 기준으로 안정적이었다.
+- 이유: 현재 개인 캐시의 핵심 위험은 “추천 품질이 조금 바뀌는 것”보다 “규칙 버전이 다른 phase가 같은 refresh marker를 stale reuse 하는 것”이다. 그래서 실제 replay smoke와 broad suite까지 같이 green이어야 `collect/replay/broad-suite` 기준으로 회귀가 없다고 볼 수 있다.

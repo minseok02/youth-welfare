@@ -34,8 +34,8 @@
 
 현재 2차 기능/구조 후보 중에서는 아래 순서를 권장한다.
 
-1. 개인 캐시 도입 뒤 collect/replay/broad-suite 회귀 검증
-2. CTR 표본 확충 후 추천 품질 재조정
+1. CTR 표본 확충 후 추천 품질 재조정
+2. 개인 캐시 운영 관측치가 더 쌓인 뒤 TTL/eviction 세부 튜닝
 3. 사용자 규모 증가 시 군집 캐시 재검토
 4. 카카오 알림톡 blocked 재검토
 
@@ -43,10 +43,11 @@
 
 - `검색 로그`, `대시보드`, `userKey` 기준 개인 refresh 캐시는 현재 로컬 코드/데이터만으로 구현을 끝냈다.
 - 개인 캐시는 recommendation payload 전체를 Redis에 넣는 대신, `non-personal refresh` 재계산을 잠시 억제하는 마커만 저장해 현재 persistence/log/bookmark 경계와 충돌을 줄였다.
-- 다음 practical task는 이 개인 캐시가 collect/replay/broad-suite 기준선에 회귀를 만들지 검증하고, CTR 표본이 더 쌓이면 품질 가중치를 다시 조정하는 것이다.
+- `2026-05-15` 기준 개인 캐시 회귀 검증은 `collect/replay/broad-suite` 기준선에서 다시 통과했다. 타깃 recommendation cache 테스트, `run-local-education-priority-replay.sh`, 전체 `./gradlew test integrationTest --no-daemon` 까지 모두 green이다.
+- 따라서 다음 practical task는 개인 캐시 자체의 구현 검증보다 CTR 표본이 더 쌓인 뒤 추천 품질 가중치를 다시 조정하는 쪽이다.
 - 군집 캐시는 실제 사용자 수와 요청 패턴이 충분히 커졌을 때 hit-rate / stale / invalidation 비용을 다시 계산하며 재검토하는 것이 맞다.
 - `카카오 알림톡` 은 비즈니스 채널/발신 프로필/템플릿 심사와 사업자 증빙이 먼저라, 코드보다 운영 자격이 선행 조건이다.
-- 따라서 현재 phase에서 더 진행할 실용적 후보는 `개인 캐시 회귀 검증 + CTR 기반 품질 튜닝` 이고, 군집 캐시는 장래 확장 포인트로 남긴다.
+- 따라서 현재 phase에서 더 진행할 실용적 후보는 `CTR 기반 품질 튜닝` 이고, 군집 캐시는 장래 확장 포인트로 남긴다.
 
 반면 아래는 계속 blocked/backlog 또는 deferred 로 둡니다.
 

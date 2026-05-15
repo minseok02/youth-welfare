@@ -29,6 +29,12 @@ class CollectSourceExecutionServiceTest {
     @Mock
     private CollectSourceAdapter bokjiroLocalAdapter;
     @Mock
+    private CollectSourceAdapter gov24Adapter;
+    @Mock
+    private CollectSourceAdapter gov24DetailAdapter;
+    @Mock
+    private CollectSourceAdapter gov24SupportConditionsAdapter;
+    @Mock
     private CollectSourceAdapter bokjiroDetailAdapter;
     @Mock
     private CollectSourceAdapter bokjiroDetailRefreshAdapter;
@@ -48,11 +54,23 @@ class CollectSourceExecutionServiceTest {
         when(youthAdapter.source()).thenReturn(CollectSource.YOUTH);
         when(bokjiroCentralAdapter.source()).thenReturn(CollectSource.BOKJIRO_CENTRAL);
         when(bokjiroLocalAdapter.source()).thenReturn(CollectSource.BOKJIRO_LOCAL);
+        when(gov24Adapter.source()).thenReturn(CollectSource.GOV24);
+        when(gov24DetailAdapter.source()).thenReturn(CollectSource.GOV24_DETAIL);
+        when(gov24SupportConditionsAdapter.source()).thenReturn(CollectSource.GOV24_SUPPORT_CONDITIONS);
         when(bokjiroDetailAdapter.source()).thenReturn(CollectSource.BOKJIRO_DETAIL);
         when(bokjiroDetailRefreshAdapter.source()).thenReturn(CollectSource.BOKJIRO_DETAIL_REFRESH);
 
         collectSourceExecutionService = new CollectSourceExecutionService(
-                List.of(bokjiroLocalAdapter, bokjiroDetailAdapter, bokjiroDetailRefreshAdapter, youthAdapter, bokjiroCentralAdapter),
+                List.of(
+                        bokjiroLocalAdapter,
+                        gov24Adapter,
+                        gov24DetailAdapter,
+                        gov24SupportConditionsAdapter,
+                        bokjiroDetailAdapter,
+                        bokjiroDetailRefreshAdapter,
+                        youthAdapter,
+                        bokjiroCentralAdapter
+                ),
                 apiSyncLogService,
                 bokjiroDetailCollectService,
                 gov24DetailCollectService,
@@ -112,7 +130,15 @@ class CollectSourceExecutionServiceTest {
     @DisplayName("manual-only source 도 adapter requirement 는 명시적으로 검증한다")
     void manualOnlySourceStillRequiresAdapter() {
         assertThatThrownBy(() -> new CollectSourceExecutionService(
-                List.of(bokjiroLocalAdapter, bokjiroDetailAdapter, youthAdapter, bokjiroCentralAdapter),
+                List.of(
+                        bokjiroLocalAdapter,
+                        gov24Adapter,
+                        gov24DetailAdapter,
+                        gov24SupportConditionsAdapter,
+                        bokjiroDetailAdapter,
+                        youthAdapter,
+                        bokjiroCentralAdapter
+                ),
                 apiSyncLogService,
                 bokjiroDetailCollectService,
                 gov24DetailCollectService,
