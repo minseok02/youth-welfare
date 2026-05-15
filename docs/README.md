@@ -9,6 +9,8 @@
 ## active 문서와 legacy/history 문서 경계
 
 - 현재 구현/검증/운영 판단의 기준은 `start.md`, `current-state.md`, `phase-plan.md`, 각 문서군의 `*-current-state.md`, 그리고 실제 코드입니다.
+- 다만 `phase-plan.md` 는 active 기준선과 긴 이력 로그가 함께 있는 문서라, 아래쪽 오래된 `MySQL`, `draft sidecar`, `service_taxonomy_summary_slots` 기록은 과거 실험/전환 이력으로 읽어야 합니다.
+- 현재 실행 순서나 계약이 헷갈리면 `current-state.md`, `testing.md`, 각 문서군의 `*-current-state.md`, 실제 코드를 `phase-plan.md` 보다 먼저 봅니다.
 - `history-docs-index.md`, `history/`, `archive/` 아래 문서는 설계 배경과 과거 판단을 남긴 참고 자료입니다.
 - active 문서와 legacy/history 문서가 충돌하면 active 문서와 실제 코드를 우선합니다.
 

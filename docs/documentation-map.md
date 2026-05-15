@@ -16,9 +16,15 @@
 문서가 서로 충돌하면 우선순위는 아래 순서로 해석합니다.
 
 1. 실제 코드
-2. `current-state` / `phase-plan` / 현재 검증 문서
-3. 설계 배경 문서
-4. `history/`, `archive/`, legacy 메모
+2. `current-state` / 각 문서군의 `*-current-state` / 현재 검증 문서
+3. `phase-plan` 의 최신 상단 항목
+4. 설계 배경 문서
+5. `history/`, `archive/`, legacy 메모
+
+보정:
+
+- `phase-plan.md` 는 active closeout 기록과 긴 이력 로그가 함께 있는 문서입니다.
+- 따라서 `phase-plan.md` 안에서도 최신 상단 항목을 우선 읽고, 아래쪽 오래된 `MySQL`, `draft sidecar`, `service_taxonomy_summary_slots` 기록은 과거 전환 이력으로 읽습니다.
 
 ## 1. 지금 바로 볼 문서
 
