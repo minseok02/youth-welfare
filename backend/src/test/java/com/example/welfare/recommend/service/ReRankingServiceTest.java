@@ -193,18 +193,18 @@ class ReRankingServiceTest {
         );
 
         RecommendationUserSnapshot userPrefersGov24 = noPrioritySnapshot("user-a");
-        RecommendationUserSnapshot userPrefersYouth = noPrioritySnapshot("user-b");
+        RecommendationUserSnapshot userKeepsTop = noPrioritySnapshot("user-c");
 
         List<ScoredCandidate> gov24First = reRankingService.rerank(
                 List.of(bokjiroTop, gov24Second, youthThird),
                 userPrefersGov24
         );
-        List<ScoredCandidate> youthFirst = reRankingService.rerank(
+        List<ScoredCandidate> topFirst = reRankingService.rerank(
                 List.of(bokjiroTop, gov24Second, youthThird),
-                userPrefersYouth
+                userKeepsTop
         );
 
-        assertThat(gov24First.get(0).getService().getId()).isNotEqualTo(youthFirst.get(0).getService().getId());
+        assertThat(gov24First.get(0).getService().getId()).isNotEqualTo(topFirst.get(0).getService().getId());
     }
 
     private ScoredCandidate candidate(WelfareService service,

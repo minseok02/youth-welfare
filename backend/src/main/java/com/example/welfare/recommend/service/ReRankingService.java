@@ -7,6 +7,7 @@ import com.example.welfare.policy.entity.WelfareService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -26,6 +27,7 @@ public class ReRankingService {
     private static final double NO_PRIORITY_PREFERRED_CANDIDATE_BONUS = 0.085d;
     private static final double NO_PRIORITY_SECONDARY_CANDIDATE_BONUS = 0.03d;
     private static final double NO_PRIORITY_NON_PREFERRED_TOP_PENALTY = 0.025d;
+    private static final int NO_PRIORITY_ROTATION_LIMIT = 4;
 
     private final ScoreNormalizer normalizer;
     private final ScoreWeightService scoreWeightService;
@@ -73,10 +75,10 @@ public class ReRankingService {
                 scored.stream().sorted(recommendationComparator()).toList()
         );
         diversified = applyNoPriorityTopBandDiversification(diversified, snapshot);
-
-        return diversified.stream()
+        List<ScoredCandidate> ranked = diversified.stream()
                 .sorted(recommendationComparator())
                 .toList();
+        return reorderNoPriorityTopBand(ranked, snapshot);
     }
 
     public ScoreWeight getCurrentWeight() {
@@ -159,6 +161,48 @@ public class ReRankingService {
                     return adjustedByServiceId.getOrDefault(serviceId, candidate);
                 })
                 .toList();
+    }
+
+    private List<ScoredCandidate> reorderNoPriorityTopBand(List<ScoredCandidate> scored,
+                                                           RecommendationUserSnapshot snapshot) {
+        if (snapshot == null
+                || !snapshot.priorities().isEmpty()
+                || scored == null
+                || scored.size() < 3
+                || snapshot.userKey() == null
+                || snapshot.userKey().isBlank()) {
+            return scored;
+        }
+
+        List<ScoredCandidate> ranked = scored.stream()
+                .sorted(recommendationComparator())
+                .toList();
+        double topScore = ranked.get(0).getFinalScore();
+        List<ScoredCandidate> eligible = ranked.stream()
+                .limit(NO_PRIORITY_ROTATION_LIMIT)
+                .filter(candidate -> topScore - candidate.getFinalScore() <= NO_PRIORITY_TOP_BAND)
+                .toList();
+        if (eligible.size() < 2) {
+            return scored;
+        }
+
+        int preferredIndex = Math.floorMod(snapshot.userKey().chars().sum(), eligible.size());
+        if (preferredIndex == 0) {
+            return ranked;
+        }
+
+        ScoredCandidate preferredCandidate = eligible.get(preferredIndex);
+        ArrayList<ScoredCandidate> reordered = new ArrayList<>(ranked.size());
+        reordered.add(preferredCandidate);
+        for (ScoredCandidate candidate : ranked) {
+            Long candidateId = candidate.getService().getId();
+            Long preferredId = preferredCandidate.getService().getId();
+            if (candidateId != null && candidateId.equals(preferredId)) {
+                continue;
+            }
+            reordered.add(candidate);
+        }
+        return List.copyOf(reordered);
     }
 
     private double adjustedAiWeight(ScoreWeight weight, ScoredCandidate candidate) {
