@@ -38,7 +38,7 @@
 
 #### 현재 기본 전략
 
-- MySQL FULLTEXT + 필터 조합으로 유지
+- PostgreSQL FTS + `pg_trgm` + 필터 조합으로 유지
 - 검색 API rate limit, 입력 길이 제한, 페이지 크기 제한으로 방어
 
 #### 붙일 후보
@@ -70,7 +70,7 @@
 #### 현재 기본 전략
 
 - 규칙 기반 + AI 보조 점수
-- 군집 캐시와 결과 재사용
+- 개인 캐시(refresh marker) 우선, 군집 캐시는 deferred
 
 #### 붙일 후보
 
@@ -269,19 +269,19 @@
 - 지금은 운영 서버 오픈 단계가 아니라 기능/구조 검증 단계다. [current-state.md](../current-state.md)
 - 프론트 라우트 수가 작고, 현재 핵심 변화 축은 프론트보다 백엔드/수집/추천/보안 쪽에 더 가깝다.
 - 관리자도 별도 웹 UI가 아니라 API 권한 중심이다.
-- 현재 저장소도 `docker-compose.yml` 기준으로 `app + mysql + redis`를 한 번에 띄우는 구조를 기본값으로 두고 있다.
+- 현재 저장소도 `docker-compose.yml` 기준으로 `app + postgres + redis`를 한 번에 띄우는 구조를 기본값으로 두고 있다.
 
 즉, 지금 확인용 서버의 목적은 `운영형 확장성 확보`가 아니라 `실제로 올려서 로그인/정책조회/추천/수집이 도는지 확인`하는 것이다.
 
 ### 현재 권장안
 
-`1개 도메인 + 1대 서버 + Nginx + app/mysql/redis 동거`
+`1개 도메인 + 1대 서버 + Nginx + app/postgres/redis 동거`
 
 예시:
 
 - `https://test.example.com/` -> 프론트 정적 파일
 - `https://test.example.com/api/*` -> Spring Boot
-- MySQL/Redis -> 같은 서버 내부 Docker 네트워크
+- PostgreSQL/Redis -> 같은 서버 내부 Docker 네트워크
 
 ### 왜 이렇게 잡는가
 
@@ -373,7 +373,7 @@
 
 #### 현재 기본 전략
 
-- 단일 앱 컨테이너 + MySQL + Redis
+- 단일 앱 컨테이너 + PostgreSQL + Redis
 
 #### 붙일 후보
 

@@ -3662,3 +3662,8 @@
 - 문제: `policy-source-onboarding-playbook.md` 는 `2026-04-29 실제 DB 스냅샷` 섹션에서 이를 그대로 `local Docker MySQL youth_welfare snapshot` 처럼 소개하고 있었다. playbook의 구조 판단 근거로는 유효하지만, 현재 PostgreSQL mainline의 최신 runtime count처럼 읽히면 active current-state와 혼선이 생긴다.
 - 해결: 해당 스냅샷이 source shape 판단을 만들 당시의 historical snapshot이라는 점을 먼저 명시하고, 현재 runtime truth/count는 `current-state.md`, `collect-current-state.md`, 관련 smoke/runbook을 우선 보라고 보강했다.
 - 이유: onboarding playbook은 active 문서군에 남아 있으므로, 역사적 증거와 현재 baseline의 위계를 문장 안에서 분명히 해야 한다.
+
+## 676) `mvp-grow-when-needed-playbook` 가 아직 MySQL/군집 캐시 기준으로 남아 있으면, 현재 확장 판단 자체가 예전 인프라/추천 전략에 끌려간다
+- 문제: `mvp-grow-when-needed-playbook.md` 는 검색 기본 전략을 아직 `MySQL FULLTEXT`, 추천 기본 전략을 `군집 캐시와 결과 재사용`, 확인용 서버 구조를 `app/mysql/redis`, 인프라 기본 전략도 `MySQL + Redis` 로 적고 있었다. 하지만 현재 메인라인은 PostgreSQL FTS + `pg_trgm`, 개인 캐시(refresh marker) 우선, `app + postgres + redis` 구성이 기준이다.
+- 해결: playbook의 현재 기본 전략과 확인용 서버 구조를 모두 현재 truth에 맞춰 `PostgreSQL FTS + pg_trgm`, `개인 캐시 우선`, `app/postgres/redis` 기준으로 교정했다.
+- 이유: 이 문서는 “문제 신호가 보이면 무엇을 붙일 것인가”를 판단하는 기준 문서다. 현재 baseline 자체가 예전 MySQL/군집 캐시 상태로 남아 있으면 확장 판단도 잘못된 전제를 따라가게 된다.
