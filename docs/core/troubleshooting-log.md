@@ -3702,3 +3702,8 @@
 - 문제: `local-validation-docs-index.md` 는 `testing`, `runtime-api-smoke-commands`, `demo-scenario` 중심으로는 잘 정리돼 있었지만, 지금 active baseline으로 반복 재검증하는 `policy quality summary`, `Gov24 runtime audit`, `policy admin runtime`, `CTR readiness` runbook은 인덱스에서 사실상 보이지 않았다.
 - 해결: 인덱스의 “같이 보면 좋은 문서”, “문서 역할”, “읽는 순서”, “요약”에 bounded runtime quality/audit runbook 4종을 명시적으로 추가했다.
 - 이유: 현재 local validation의 중요한 축은 단위/통합 테스트뿐 아니라 bounded runtime baseline 재확인이다. 이 진입점이 인덱스에 안 보이면 실제로 자주 쓰는 smoke/runbook도 여전히 주변 문서처럼 취급된다.
+
+## 684) `runtime-api-smoke-commands` 가 여전히 CRUD/auth 중심 wrapper만 보여 주면, bounded runtime quality/audit smoke는 “다른 문서 어딘가에 있는 추가 절차”처럼 남는다
+- 문제: `runtime-api-smoke-commands.md` 는 이미 auth/session, recommendation click, admin dashboard, full validation suite wrapper까지는 잘 안내하고 있었지만, 지금 실제로 baseline 재확인에 계속 쓰는 `policy quality summary`, `Gov24 runtime audit`, `CTR readiness` wrapper와 관련 runbook은 보이지 않았다.
+- 해결: validation suite 설명 아래에 bounded runtime quality/audit wrapper 3종과 대응 runbook 4종 링크를 추가했다.
+- 이유: 이 문서는 local에서 가장 자주 여는 smoke 명령 모음이다. 여기서 bounded runtime baseline 경로가 빠져 있으면, 현재 active 검증의 한 축이 여전히 “curl 문서 밖의 별도 지식”으로 남게 된다.

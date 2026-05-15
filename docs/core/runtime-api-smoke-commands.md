@@ -168,6 +168,19 @@ deploy/smoke/run-local-validation-suite.sh --only replay --keep-artifacts
 
 `--only` 를 쓰면 plan/failure 출력에도 `only_step=...` 가 같이 찍혀서 단일 단계 실행 의도가 바로 보입니다.
 
+bounded runtime quality/audit baseline을 다시 확인할 때는 curl 수동 조합보다 아래 wrapper/runbook을 먼저 봅니다.
+
+```bash
+deploy/smoke/run-local-policy-quality-summary.sh
+deploy/smoke/run-local-gov24-quality-audit.sh
+deploy/smoke/run-local-ctr-readiness-audit.sh
+```
+
+- policy retrieval/category baseline: [policy-quality-summary-runbook.md](../policy/policy-quality-summary-runbook.md)
+- Gov24 closeout/gap audit: [policy-gov24-runtime-audit-runbook.md](../policy/policy-gov24-runtime-audit-runbook.md)
+- bounded admin runtime baseline: [policy-admin-runtime-runbook.md](../policy/policy-admin-runtime-runbook.md)
+- recommendation CTR readiness baseline: [recommendation-ctr-readiness-runbook.md](../recommendation/recommendation-ctr-readiness-runbook.md)
+
 전제:
 
 - 앱 base URL은 `APP_BASE_URL` 로 둡니다.
