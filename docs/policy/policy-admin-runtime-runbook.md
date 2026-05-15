@@ -150,8 +150,17 @@ curl -sS \
 
 응답에서 볼 것:
 
-- scanned / updated / failed 비슷한 집계
-- `failed=0`
+- `processedCount`
+- `updatedCount`
+- `relevantCount`
+- `excludedCount`
+
+현재 local 재확인 기준:
+
+- `processedCount=14863`
+- `updatedCount=0`
+- `relevantCount=3566`
+- `excludedCount=11297`
 
 ## 3. embeddings rebuild
 
@@ -178,8 +187,17 @@ curl -sS \
 
 응답에서 볼 것:
 
-- scanned / refreshed / failed 계열 count
-- `failed=0`
+- `scope`
+- `requestedServiceCount`
+- `scannedChunkCount`
+- `refreshedChunkCount`
+
+선택 rebuild local 재확인 예시 (`serviceId=6790,2622`):
+
+- `scope=service_ids`
+- `requestedServiceCount=2`
+- `scannedChunkCount=7`
+- `refreshedChunkCount=0`
 
 ## 4. retrieval evaluation
 
