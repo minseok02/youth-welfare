@@ -3687,3 +3687,8 @@
 - 문제: `collect-ops.md` 는 현재 `sourceKey` 를 `youth`, `bokjiro-central`, `bokjiro-local`, `bokjiro-details`, `bokjiro-details-refresh` 만 지원한다고 적고 있었다. 하지만 실제 코드는 `gov24`, `gov24-details`, `gov24-support-conditions` 도 이미 `/api/admin/collect/{sourceKey}` 로 지원하고, `maxCallsPerRun`, `sourceId` override도 같이 받는다.
 - 해결: `collect-ops.md` 의 sourceKey 목록에 `Gov24` list/detail/support 경로를 추가하고, `gov24-details`, `gov24-support-conditions` 가 chunk 실행과 단건 재시도(`sourceId`)를 지원한다는 점을 별도 운영 규칙으로 정리했다.
 - 이유: collect runbook은 운영자가 수동 collect 진입점을 바로 복사해 쓰는 문서다. 여기서 Gov24 lane이 빠져 있으면 runtime closeout이 끝난 source도 여전히 “문서 밖의 임시 경로”처럼 남게 된다.
+
+## 681) baseline 문서를 고친 뒤 하단 결론 문장에 예전 `app/mysql/redis` 가 남아 있으면, 같은 문서 안에서도 현재 구조 판단이 다시 갈라진다
+- 문제: `mvp-grow-when-needed-playbook.md` 는 상단 기본 전략과 검색/추천 기준은 이미 PostgreSQL/개인 캐시 기준으로 고쳤지만, 하단 `현재 결론` 문장에는 여전히 `1개 도메인 + 1대 서버 + app/mysql/redis 동거` 가 남아 있었다.
+- 해결: 하단 결론 문장도 현재 truth인 `app/postgres/redis 동거` 로 교정했다.
+- 이유: 이런 잔여 문장은 메타 문서를 빠르게 훑는 사람이 가장 먼저 보는 결론 구간에 남는다. 상단 설명은 맞고 마지막 한 줄이 틀리면 실제 구조 판단은 다시 예전 baseline으로 끌려간다.
