@@ -149,6 +149,10 @@ collect:
 recommend:
   refresh-cache-ttl-minutes: ${RECOMMEND_REFRESH_CACHE_TTL_MINUTES:15}
 
+notification:
+  web-push:
+    public-key: ${WEB_PUSH_PUBLIC_KEY:}
+
 springdoc:
   api-docs:
     enabled: ${SPRINGDOC_API_DOCS_ENABLED:false}

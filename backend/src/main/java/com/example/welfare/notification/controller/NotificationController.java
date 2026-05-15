@@ -5,10 +5,16 @@ import com.example.welfare.global.util.JwtUtil;
 import com.example.welfare.global.auth.AuthenticatedUser;
 import com.example.welfare.notification.dto.UserAlertResponse;
 import com.example.welfare.notification.dto.UserAlertUnreadCountResponse;
+import com.example.welfare.notification.dto.WebPushPublicKeyResponse;
+import com.example.welfare.notification.dto.WebPushSubscriptionRequest;
+import com.example.welfare.notification.dto.WebPushSubscriptionResponse;
 import com.example.welfare.notification.service.UserAlertCommandService;
 import com.example.welfare.notification.service.UserAlertReadService;
+import com.example.welfare.notification.service.WebPushSubscriptionCommandService;
+import com.example.welfare.notification.service.WebPushSubscriptionReadService;
 import com.example.welfare.user.service.ActiveUserReadService;
 import com.example.welfare.user.service.UserAccountCommandService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -26,6 +32,8 @@ public class NotificationController {
     private final UserAccountCommandService userAccountCommandService;
     private final UserAlertReadService userAlertReadService;
     private final UserAlertCommandService userAlertCommandService;
+    private final WebPushSubscriptionReadService webPushSubscriptionReadService;
+    private final WebPushSubscriptionCommandService webPushSubscriptionCommandService;
     private final ActiveUserReadService activeUserReadService;
 
     @GetMapping("/unsubscribe")
@@ -49,6 +57,36 @@ public class NotificationController {
         return ResponseEntity.ok(ApiResponse.success(
                 userAlertReadService.getUnreadCount(resolveUserKey(authenticatedUser))
         ));
+    }
+
+    @GetMapping("/push-public-key")
+    public ResponseEntity<ApiResponse<WebPushPublicKeyResponse>> getWebPushPublicKey() {
+        return ResponseEntity.ok(ApiResponse.success(webPushSubscriptionReadService.getPublicKey()));
+    }
+
+    @GetMapping("/push-subscriptions/me")
+    public ResponseEntity<ApiResponse<List<WebPushSubscriptionResponse>>> getMyPushSubscriptions(
+            @AuthenticationPrincipal AuthenticatedUser authenticatedUser) {
+        return ResponseEntity.ok(ApiResponse.success(
+                webPushSubscriptionReadService.getMySubscriptions(resolveUserKey(authenticatedUser))
+        ));
+    }
+
+    @PostMapping("/push-subscriptions")
+    public ResponseEntity<ApiResponse<WebPushSubscriptionResponse>> registerPushSubscription(
+            @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
+            @Valid @RequestBody WebPushSubscriptionRequest request) {
+        return ResponseEntity.ok(ApiResponse.success(
+                webPushSubscriptionCommandService.register(resolveUserKey(authenticatedUser), request)
+        ));
+    }
+
+    @DeleteMapping("/push-subscriptions/{subscriptionId}")
+    public ResponseEntity<ApiResponse<Void>> deletePushSubscription(
+            @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
+            @PathVariable Long subscriptionId) {
+        webPushSubscriptionCommandService.delete(resolveUserKey(authenticatedUser), subscriptionId);
+        return ResponseEntity.ok(ApiResponse.success(null));
     }
 
     @PatchMapping("/{alertId}/read")

@@ -4052,3 +4052,8 @@
 - 문제: `MyPage` 알림함과 unread badge만으로는 사용자가 "지금 도착한 알림"을 바로 열어 보기 어렵다. 그렇다고 별도 알림 페이지나 큰 센터를 먼저 열면 현재 단계에서 UI 범위가 과도하게 커진다.
 - 해결: `Header` 에 bell 아이콘과 dropdown을 추가해 최근 알림 5개만 최소 노출하도록 했다. 내용은 kind badge, unread 표시, 상대 시간, 제목/본문 미리보기, deep link 이동, `마이페이지?tab=3` 전체 보기로 제한했고, unread 읽음 동기화는 기존 API와 React Query invalidate로 처리했다.
 - 이유: 지금 단계의 목표는 추천 digest 기반 인앱 알림을 기존 내비게이션 안에서 즉시 체감 가능하게 만드는 것이다. `Header` bell/dropdown은 현재 톤을 크게 깨지 않으면서도 가장 작은 범위로 그 목적을 달성한다.
+
+## 754) 웹푸시 1차는 발송보다 subscription 저장/API부터 여는 편이 현재 프로젝트 단계와 맞다
+- 문제: 알림 채널 확장의 다음 단계는 웹푸시지만, 현재 프로젝트는 아직 로컬 구조 검증 중심이고 운영 서버/HTTPS 전제도 완전히 고정되지 않았다. 이 상태에서 바로 service worker, VAPID 발송, 실제 push send까지 한 번에 열면 범위가 과도하게 커진다.
+- 해결: 먼저 `web_push_subscriptions` 테이블과 `GET /api/notifications/push-public-key`, `GET /api/notifications/push-subscriptions/me`, `POST /api/notifications/push-subscriptions`, `DELETE /api/notifications/push-subscriptions/{id}` API만 추가했다. 구독은 endpoint 기준 upsert, 삭제는 사용자 소유권 기준 hard delete로 두고, 실제 발송은 아직 보류한다.
+- 이유: 현재 단계에서 필요한 것은 "웹푸시를 쏜다"보다 "브라우저 구독 상태를 안전하게 저장/조회/해제할 수 있다"는 기반 계약이다. 이 계약을 먼저 닫아두면 이후 프론트 permission flow와 실제 발송 연결을 훨씬 안전하게 추가할 수 있다.
