@@ -46,6 +46,7 @@ public enum ErrorCode {
     NOTIFICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "N002", "존재하지 않는 알림입니다."),
     NOTIFICATION_PUSH_SUBSCRIPTION_NOT_FOUND(HttpStatus.NOT_FOUND, "N003", "존재하지 않는 웹푸시 구독입니다."),
     NOTIFICATION_PUSH_PUBLIC_KEY_NOT_CONFIGURED(HttpStatus.SERVICE_UNAVAILABLE, "N004", "웹푸시 공개키가 아직 설정되지 않았습니다."),
+    NOTIFICATION_PUSH_PUBLIC_KEY_INVALID(HttpStatus.SERVICE_UNAVAILABLE, "N005", "웹푸시 공개키 형식이 올바르지 않습니다."),
 
     // 챗봇
     CHAT_SESSION_NOT_FOUND(HttpStatus.NOT_FOUND, "CH001", "존재하지 않는 챗 세션입니다."),

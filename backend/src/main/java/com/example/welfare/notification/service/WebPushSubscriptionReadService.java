@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import java.util.Base64;
 import java.util.List;
 
 @Service
@@ -25,6 +26,9 @@ public class WebPushSubscriptionReadService {
         if (!StringUtils.hasText(webPushPublicKey)) {
             throw new CustomException(ErrorCode.NOTIFICATION_PUSH_PUBLIC_KEY_NOT_CONFIGURED);
         }
+        if (!isValidWebPushPublicKey(webPushPublicKey)) {
+            throw new CustomException(ErrorCode.NOTIFICATION_PUSH_PUBLIC_KEY_INVALID);
+        }
         return new WebPushPublicKeyResponse(webPushPublicKey);
     }
 
@@ -32,5 +36,14 @@ public class WebPushSubscriptionReadService {
         return webPushSubscriptionRepository.findByUserKeyAndEnabledTrueOrderByCreatedAtDesc(userKey).stream()
                 .map(WebPushSubscriptionResponse::from)
                 .toList();
+    }
+
+    private boolean isValidWebPushPublicKey(String publicKey) {
+        try {
+            byte[] decoded = Base64.getUrlDecoder().decode(publicKey);
+            return decoded.length == 65 && decoded[0] == 0x04;
+        } catch (IllegalArgumentException ex) {
+            return false;
+        }
     }
 }

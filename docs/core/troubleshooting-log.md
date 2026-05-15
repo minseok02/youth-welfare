@@ -4072,3 +4072,8 @@
 - 문제: notification endpoint 라우팅 자체는 정상화된 뒤에도 `GET /api/notifications/push-public-key` 가 `200` 이면서 `publicKey=""` 로 응답하는 서버가 있었다. 프론트는 `!pushPublicKey` 조건으로 `현재 브라우저 연결` CTA를 막지만, 이 상태만 보면 backend 미배포, 권한 문제, 공개키 누락을 구분하기 어렵다. 특히 실브라우저 검증에서는 `Notification.permission=granted` 와 secure context가 모두 정상이었는데도 연결이 전혀 시작되지 않았다.
 - 해결: backend `WebPushSubscriptionReadService` 가 공개키가 비어 있으면 `CustomException(ErrorCode.NOTIFICATION_PUSH_PUBLIC_KEY_NOT_CONFIGURED)` 를 던져 `N004 / 503` 으로 실패하게 바꿨다. 프론트 `MyPage.fetchPushStatus()` 는 이제 backend error body의 `message` 를 그대로 읽어 카드 경고 문구로 보여 준다. `.env.example` 도 `WEB_PUSH_PUBLIC_KEY` 가 "있으면 좋음"이 아니라 웹푸시 연결 UI에 필요한 필수 설정이라는 주석을 추가했다.
 - 이유: 현재 단계의 웹푸시는 "브라우저 연결 준비"가 전부이므로, 연결이 막히는 이유를 가장 먼저 분명하게 드러내야 한다. 200 빈값은 UI 비활성화만 남기고 원인 분리를 어렵게 만든다.
+
+## 758) `WEB_PUSH_PUBLIC_KEY` 는 비어 있지 않기만 해서는 부족하고, 실제 VAPID 공개키 형식 검증까지 해야 한다
+- 문제: 공개키 미설정은 `N004 / 503` 으로 정리된 뒤에도, 서버에 테스트용 값을 아무 문자열로 넣으면 `push-public-key` 는 200이 되고 프론트 연결 버튼도 열린다. 하지만 실브라우저 검증에서 이 상태는 `serviceWorker.register()` 까지는 지나도 `pushManager.subscribe()` 가 성사되지 않아 `POST /api/notifications/push-subscriptions` 가 0회로 끝났다. 사용자는 "버튼은 눌렸는데 연결이 안 된다"만 보게 된다.
+- 해결: backend `WebPushSubscriptionReadService` 가 `WEB_PUSH_PUBLIC_KEY` 를 URL-safe base64로 decode한 뒤 `65 bytes` 이고 첫 byte가 `0x04` 인지 검사하게 바꿨다. 이 형식을 만족하지 않으면 `N005 / 503`, 메시지 `웹푸시 공개키 형식이 올바르지 않습니다.` 로 실패한다.
+- 이유: 현재 웹푸시 1차는 실제 연결 가능 여부를 UI에서 확인하는 단계다. 잘못된 테스트 키로 버튼이 열리면 프론트/브라우저 버그처럼 보이므로, 서버가 형식 오류를 먼저 차단하는 편이 더 안전하다.
