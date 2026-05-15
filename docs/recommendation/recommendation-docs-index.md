@@ -25,7 +25,7 @@
 - [policy-local-closeout-pending-inventory.md](../policy/policy-local-closeout-pending-inventory.md)
 - [runtime-api-smoke-commands.md](../core/runtime-api-smoke-commands.md)
 - [testing.md](../core/testing.md)
-- [phase-plan.md](../phase-plan.md)
+- [phase-plan.md](../phase-plan.md) ← 최신 상단 closeout 기록만 참고, 현재 계약은 위 current-state/runbook 문서를 우선
 
 ## 문서 역할
 
@@ -111,4 +111,4 @@
 2. 실제 실행은 [recommendation-operation-checklist.md](./recommendation-operation-checklist.md) 기준으로 봅니다.
 3. CTR 튜닝 readiness는 [recommendation-ctr-readiness-runbook.md](./recommendation-ctr-readiness-runbook.md) 로 먼저 판단합니다.
 4. 구조 설명은 [recommendation-pipeline.md](./recommendation-pipeline.md) 에 더 자세히 적혀 있습니다.
-5. replay 기록은 [recommendation-replay-template.md](./recommendation-replay-template.md) 를 기준으로 남깁니다.
+5. replay 기록은 [recommendation-replay-template.md](./recommendation-replay-template.md) 를 기준으로 남기고, 오래된 실험 맥락은 `phase-plan`/`troubleshooting-log` 를 보조 참고로만 봅니다.

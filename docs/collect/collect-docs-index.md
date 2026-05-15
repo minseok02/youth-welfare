@@ -23,7 +23,7 @@
 - [runtime-api-smoke-commands.md](../core/runtime-api-smoke-commands.md)
 - [testing.md](../core/testing.md)
 - [policy-local-closeout-pending-inventory.md](../policy/policy-local-closeout-pending-inventory.md)
-- [phase-plan.md](../phase-plan.md)
+- [phase-plan.md](../phase-plan.md) ← 최신 상단 closeout 기록만 참고, 현재 collect 계약은 위 current-state/checklist를 우선
 
 ## 문서 역할
 
@@ -95,4 +95,4 @@
 1. 현재 동작은 [collect-current-state.md](./collect-current-state.md) 부터 봅니다.
 2. 실제 실행은 [collect-operation-checklist.md](./collect-operation-checklist.md) 기준으로 봅니다.
 3. 운영 해석은 [collect-ops.md](./collect-ops.md) 에 더 자세히 적혀 있습니다.
-4. 기록은 [collect-incident-template.md](./collect-incident-template.md) 를 기준으로 남깁니다.
+4. 기록은 [collect-incident-template.md](./collect-incident-template.md) 를 기준으로 남기고, 오래된 전환 로그는 `phase-plan` 을 보조 참고로만 봅니다.
