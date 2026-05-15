@@ -27,6 +27,7 @@
 - [policy-gov24-implementation-checklist.md](./policy-gov24-implementation-checklist.md)
 - [policy-gov24-runtime-audit-runbook.md](./policy-gov24-runtime-audit-runbook.md)
 - [policy-gov24-support-unmapped-inventory.md](./policy-gov24-support-unmapped-inventory.md)
+- [policy-admin-runtime-runbook.md](./policy-admin-runtime-runbook.md)
 - [policy-post-local-closeout-track-split.md](./policy-post-local-closeout-track-split.md)
 
 ### source onboarding 큰 그림
@@ -94,9 +95,10 @@
 3. `Gov24` 를 실제로 붙일 때는 [policy-gov24-implementation-checklist.md](./policy-gov24-implementation-checklist.md) 로 이번 턴 범위를 먼저 고정합니다.
 4. `Gov24` runtime collect가 붙은 뒤 coverage/shape/null-heavy 샘플을 다시 볼 때는 [policy-gov24-runtime-audit-runbook.md](./policy-gov24-runtime-audit-runbook.md) 을 먼저 봅니다.
 5. `Gov24` support fact gap이 어떤 code 군집 때문인지 볼 때는 [policy-gov24-support-unmapped-inventory.md](./policy-gov24-support-unmapped-inventory.md) 를 봅니다.
-6. 신규 API를 어떻게 꽂을지 큰 구조는 [policy-source-onboarding-architecture.md](./policy-source-onboarding-architecture.md)를 먼저 봅니다.
-7. 실제로 새 source를 받을 때는 [policy-source-onboarding-checklist.md](./policy-source-onboarding-checklist.md) 순서대로 판단합니다.
-8. 실제 코드에서 어디를 열지 찾으려면 [policy-source-code-entrypoints.md](./policy-source-code-entrypoints.md)를 봅니다.
-9. 실제 새 source note를 만들 때는 [policy-source-onboarding-template.md](./policy-source-onboarding-template.md)를 복사해서 씁니다.
-10. 개별 `policy-*` 문서는 대부분 design history, blocked 조사, 실험 배경입니다.
-11. `policy-*` 파일 수가 많은 이유는 문서가 과한 것보다, local-first로 잘게 검증한 흔적이 누적된 결과에 가깝습니다.
+6. 정책 admin bounded runtime 경로(`reference-urls/rebuild`, `embeddings/rebuild`, `retrieval-evaluations/gate`, `category-audit`)를 한 장에서 다시 열 때는 [policy-admin-runtime-runbook.md](./policy-admin-runtime-runbook.md) 을 먼저 봅니다.
+7. 신규 API를 어떻게 꽂을지 큰 구조는 [policy-source-onboarding-architecture.md](./policy-source-onboarding-architecture.md)를 먼저 봅니다.
+8. 실제로 새 source를 받을 때는 [policy-source-onboarding-checklist.md](./policy-source-onboarding-checklist.md) 순서대로 판단합니다.
+9. 실제 코드에서 어디를 열지 찾으려면 [policy-source-code-entrypoints.md](./policy-source-code-entrypoints.md)를 봅니다.
+10. 실제 새 source note를 만들 때는 [policy-source-onboarding-template.md](./policy-source-onboarding-template.md)를 복사해서 씁니다.
+11. 개별 `policy-*` 문서는 대부분 design history, blocked 조사, 실험 배경입니다.
+12. `policy-*` 파일 수가 많은 이유는 문서가 과한 것보다, local-first로 잘게 검증한 흔적이 누적된 결과에 가깝습니다.
