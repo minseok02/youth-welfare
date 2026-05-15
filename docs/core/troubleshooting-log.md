@@ -3677,3 +3677,8 @@
 - 문제: `srs-v2.10.md` 의 FR-10 수집 표는 여전히 `매일 새벽 2시 3개 공공 API 수집`, `API별 DTO 3종` 같은 예전 표현을 쓰고 있었다. 하지만 현재 수집 범위에는 `Gov24` 가 포함되고, 구현도 source별 DTO/client 경계로 확장돼 있다.
 - 해결: FR-10-01 을 `온통청년`, `복지로`, `Gov24` 수집 기준으로, FR-10-02 를 `Gov24 JSON` 포함 기준으로, FR-10-03 을 `source별 DTO -> WelfareServiceMapper` 기준으로 갱신했다.
 - 이유: SRS는 현재 범위를 요약하는 상위 요구사항 문서다. 표 한 줄이 예전 수치에 묶여 있으면 메타 문서를 다 고쳐도 수집 범위 해석이 다시 뒤틀린다.
+
+## 679) `api-mapping` 이 아직 `공공API 3종`, `복지로만 상세 API`, `ON DUPLICATE KEY UPDATE` 예시로 남아 있으면 현재 contract와 persistence 기준을 함께 잘못 읽게 된다
+- 문제: `api-mapping.md` 는 제목부터 `공공API 3종` 기준이었고, `welfare_service_details` 섹션도 복지로만 상세 API를 제공한다고 적고 있었다. 게다가 수집 시 주의사항 예시 SQL은 여전히 MySQL `ON DUPLICATE KEY UPDATE` 를 사용하고 있었다. 하지만 현재는 `Gov24` list/detail/supportConditions까지 active source로 붙어 있고, persistence baseline도 PostgreSQL `ON CONFLICT` 기준이다.
+- 해결: 문서 제목을 `공공 API -> DB 컬럼 매핑` 으로 바꾸고, 메인 매핑표에 `Gov24` 열을 추가했다. `welfare_service_details` 섹션도 `Gov24` 상세 필드 매핑을 포함하도록 확장했고, `supportConditions -> service_facts` 현재 active/deferred scope를 따로 정리했다. 예시 SQL도 PostgreSQL `ON CONFLICT` 기준으로 교체했다.
+- 이유: `api-mapping` 은 프론트/백엔드/외부 연동이 같이 보는 contract 문서다. 여기서 source 범위, detail 지원 범위, upsert 문법이 예전 기준에 묶여 있으면 현재 코드와 검증 결과를 함께 잘못 해석하게 된다.

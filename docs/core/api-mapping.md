@@ -1,4 +1,4 @@
-# 공공API 3종 → DB 컬럼 매핑
+# 공공 API → DB 컬럼 매핑
 
 API / 응답 contract 문서군 진입점은 [system-docs-index.md](./system-docs-index.md)를 먼저 봅니다.
 
@@ -274,65 +274,81 @@ API / 응답 contract 문서군 진입점은 [system-docs-index.md](./system-doc
 
 ## DB 컬럼 ← API 필드 매핑표
 
-| DB 컬럼 | 온통청년 | 복지로 중앙 | 복지로 지자체 |
-|---------|---------|------------|-------------|
-| `source_id` | `정책번호` | `servId` | `servId` |
-| `source_type` | `'YOUTH'` | `'BOKJIRO_CENTRAL'` | `'BOKJIRO_LOCAL'` |
-| `title` | `정책명` | `servNm` | `servNm` |
-| `description` | `정책소개내용` | `servDgst` | `servDgst` |
-| `support_content` | `정책지원내용` | — | — |
-| `category_main` | `정책대부류명` | — | — |
-| `category_sub` | `정책중부류명` | — | — |
-| `keyword` | `정책키워드명` | — | — |
-| `unified_category` | 대부류 → 매핑 | `intrsThema` → 매핑 | `intrsThema` → 매핑 |
-| `host_org` | `주관기관명` | `jurMnofNm` | — |
-| `operating_org` | `이행기관명` | `jurOrgNm` | `bizChrDeptNm` |
-| `life_stage` | — | `lifeArray` | `lifeNmArray` |
-| `support_cycle` | — | `sprtCycNm` | `sprtCycNm` |
-| `provision_type` | — | `srvPvsnNm` | `srvPvsnNm` |
-| `apply_method_name` | `신청방법` | — | `aplyMtdNm` |
-| `is_online_apply` | — | `onapPsbltYn` (Y→1) | — |
-| `contact` | — | `rprsCtadr` | — |
-| `detail_url` | — | `servDtlLink` | `servDtlLink` |
-| `min_age` | `최소나이` | — | — |
-| `max_age` | `최대나이` | — | — |
-| `min_income` | `최소소득` | — | — |
-| `max_income` | `최대소득` | — | — |
-| `apply_start_date` | `신청기간` (시작) | — | — |
-| `apply_end_date` | `신청기간` (종료) | — | — |
-| `start_date` | `사업시작일` | — | — |
-| `end_date` | `사업종료일` | — | — |
-| `api_view_count` | `조회수` | `inqNum` | `inqNum` |
-| `registered_at` | `등록일` | `svcfrstRegTs` | — |
-| `last_modified_at` | `수정일` | — | `lastModYmd` |
-| → `service_regions` | `지역코드` (콤마분해) | 전국 단위 (sido_name='전국' 1건) | `ctpvNm` + `sggNm` |
-| → `service_tags` (INTEREST_THEME) | — | `intrsThemaArray` | `intrsThemaNmArray` |
-| → `service_tags` (TARGET_GROUP) | — | `trgterIndvdlArray` | `trgterIndvdlNmArray` |
-| → `service_tags` (LIFE_STAGE) | — | `lifeArray` | `lifeNmArray` |
-| → `service_tags` (KEYWORD) | `정책키워드명` (콤마분해) | — | — |
+| DB 컬럼 | 온통청년 | 복지로 중앙 | 복지로 지자체 | Gov24 |
+|---------|---------|------------|-------------|-------|
+| `source_id` | `정책번호` | `servId` | `servId` | `서비스ID` |
+| `source_type` | `'YOUTH'` | `'BOKJIRO_CENTRAL'` | `'BOKJIRO_LOCAL'` | `'GOV24'` |
+| `title` | `정책명` | `servNm` | `servNm` | `서비스명` |
+| `description` | `정책소개내용` | `servDgst` | `servDgst` | `서비스목적요약` |
+| `support_content` | `정책지원내용` | — | — | `지원내용` |
+| `category_main` | `정책대부류명` | — | — | — |
+| `category_sub` | `정책중부류명` | — | — | — |
+| `keyword` | `정책키워드명` | — | — | — |
+| `unified_category` | 대부류 → 매핑 | `intrsThema` → 매핑 | `intrsThema` → 매핑 | label-based compat 매핑 |
+| `host_org` | `주관기관명` | `jurMnofNm` | — | `소관기관명` |
+| `operating_org` | `이행기관명` | `jurOrgNm` | `bizChrDeptNm` | `부서명` |
+| `life_stage` | — | `lifeArray` | `lifeNmArray` | — |
+| `support_cycle` | — | `sprtCycNm` | `sprtCycNm` | — |
+| `provision_type` | — | `srvPvsnNm` | `srvPvsnNm` | `지원유형` |
+| `apply_method_name` | `신청방법` | — | `aplyMtdNm` | `신청방법` |
+| `is_online_apply` | — | `onapPsbltYn` (Y→1) | — | — |
+| `contact` | — | `rprsCtadr` | — | `전화문의` |
+| `detail_url` | — | `servDtlLink` | `servDtlLink` | `상세조회URL` |
+| `min_age` | `최소나이` | — | — | — |
+| `max_age` | `최대나이` | — | — | — |
+| `min_income` | `최소소득` | — | — | — |
+| `max_income` | `최대소득` | — | — | — |
+| `apply_start_date` | `신청기간` (시작) | — | — | — |
+| `apply_end_date` | `신청기간` (종료) | — | — | — |
+| `start_date` | `사업시작일` | — | — | — |
+| `end_date` | `사업종료일` | — | — | — |
+| `api_view_count` | `조회수` | `inqNum` | `inqNum` | `조회수` |
+| `registered_at` | `등록일` | `svcfrstRegTs` | — | `등록일시` |
+| `last_modified_at` | `수정일` | — | `lastModYmd` | `수정일시` |
+| → `service_regions` | `지역코드` (콤마분해) | 전국 단위 (sido_name='전국' 1건) | `ctpvNm` + `sggNm` | — |
+| → `service_tags` (INTEREST_THEME) | — | `intrsThemaArray` | `intrsThemaNmArray` | — |
+| → `service_tags` (TARGET_GROUP) | — | `trgterIndvdlArray` | `trgterIndvdlNmArray` | — |
+| → `service_tags` (LIFE_STAGE) | — | `lifeArray` | `lifeNmArray` | — |
+| → `service_tags` (KEYWORD) | `정책키워드명` (콤마분해) | — | — | — |
 
 ---
 
 ## welfare_service_details ← 상세 API 필드
 
-> 상세 API는 복지로에서만 제공. 리스트와 중복되는 필드는 제외.
+> 상세 API는 현재 복지로와 Gov24에서 사용. 리스트와 중복되는 필드는 제외.
 
-| DB 컬럼 | 복지로 상세 API 필드 | 비고 |
-|---------|-------------------|------|
-| `target_detail` | `sprtTrgtCn` / `tgtrDtlCn` | 지원대상 상세 |
-| `support_detail` | `alwServCn` | 지원내용 상세 |
-| `apply_method_detail` | `aplyMtdCn` / `applmetList` | 신청방법 상세 |
-| `selection_criteria` | `slctCritCn` | 선정기준 (빈값 多) |
-| `contact_list` | `inqplCtadrList` | JSON 배열 [{name, phone}] |
-| `homepage_url` | `inqplHmpgReldList` | 첫 번째 항목 |
-| `related_law` | `baslawList` | 첫 번째 항목 |
-| `form_files` | `basfrmList` | JSON 배열 [{name, url}] |
+| DB 컬럼 | 복지로 상세 API 필드 | Gov24 상세 API 필드 | 비고 |
+|---------|-------------------|----------------------|------|
+| `target_detail` | `sprtTrgtCn` / `tgtrDtlCn` | `지원대상` | 지원대상 상세 |
+| `support_detail` | `alwServCn` | `지원내용` | 지원내용 상세 |
+| `apply_method_detail` | `aplyMtdCn` / `applmetList` | `신청방법` | 신청방법 상세 |
+| `selection_criteria` | `slctCritCn` | `선정기준` | 빈값 가능 |
+| `contact_list` | `inqplCtadrList` | `문의처` | JSON/문자열에서 contact list 추출 |
+| `homepage_url` | `inqplHmpgReldList` | `온라인신청사이트URL` | 대표 URL |
+| `related_law` | `baslawList` | `행정규칙` / `자치법규` / `법령` | 관련 법령/규정 요약 |
+| `form_files` | `basfrmList` | `구비서류` / `공무원확인구비서류` / `본인확인필요구비서류` | JSON 배열 또는 결합 문자열 |
+
+---
+
+## Gov24 supportConditions → service_facts
+
+> `Gov24` 는 별도 `supportConditions` endpoint를 통해 지원조건을 fact로 보강합니다.
+
+- source: `GET /gov24/v3/supportConditions`
+- fact code set: `GOV24_SUPPORT_CONDITION`
+- 현재 active runtime scope:
+  - 성별 `JA0101`, `JA0102`
+  - 연령 `JA0110`, `JA0111`
+  - 소득 `JA0201~JA0205`
+  - 개인/가구/특수대상 축 일부 (`JA03**`, `JA04**`)
+- 현재 deferred scope:
+  - 사업체/기관/업종/창업 상태 축 (`JA210*`, `JA220*`, `JA120*`, `JA1299`, `JA2299`, `JA110*`)
 
 ---
 
 ## unified_category 매핑 규칙
 
-> 3개 API의 서로 다른 분류 체계를 단일 카테고리로 통합.
+> 주요 공공 API의 서로 다른 분류 체계를 단일 카테고리로 통합.
 > `WelfareServiceMapper`에서 분기 처리.
 
 | unified_category | 온통청년 대부류 | 복지로 intrsThema |
@@ -374,12 +390,12 @@ public String mapUnifiedCategory(String sourceType, String rawCategory) {
 
 ### service_tags UPSERT (중복 삽입 금지)
 ```java
-// 반드시 INSERT IGNORE 또는 ON DUPLICATE KEY UPDATE 사용
+// PostgreSQL 기준 ON CONFLICT 사용
 // 중복 삽입 시 rule_base_score 이중합산 버그 발생
 String sql = """
     INSERT INTO service_tags (service_id, tag_type, tag_value)
     VALUES (?, ?, ?)
-    ON DUPLICATE KEY UPDATE tag_value = tag_value
+    ON CONFLICT (service_id, tag_type, tag_value) DO NOTHING
     """;
 ```
 
@@ -402,9 +418,9 @@ xmlMapper.configure(XMLInputFactory.SUPPORT_DTD, false);
 -- 중복 수집 방지
 INSERT INTO welfare_services (source_type, source_id, ...)
 VALUES (?, ?, ...)
-ON DUPLICATE KEY UPDATE
-    title = VALUES(title),
-    status = VALUES(status),
+ON CONFLICT (source_type, source_id) DO UPDATE SET
+    title = EXCLUDED.title,
+    status = EXCLUDED.status,
     updated_at = NOW();
 ```
 
