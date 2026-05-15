@@ -19,6 +19,30 @@
 - 각 단계에서 pass/fail만 보지 말고 `현재 URL`, `query/state`, `reason`, `state.from`, `?session=`/`?tab=` 복원 여부를 바로 기록합니다.
 - 이상 징후가 보이면 같은 단계 안에서 network/console 증거도 같이 남깁니다.
 
+## 권장 실행 순서
+
+브라우저 수동 QA는 아래 순서로 돌리는 것을 권장합니다.
+
+### 1차 고위험 동선
+
+1. `/policies` 검색/필터/페이지네이션 -> 상세 -> 상세 `뒤로가기` -> 브라우저 back
+2. `/chat` 비로그인 접근 -> `/login?reason=login-required` -> 로그인 후 `/chat?session=...` 복귀
+3. `/mypage?tab=` 진입 -> 상세 진입 -> 뒤로가기 -> `?tab=` 복원
+4. 메인/목록/상세/마이페이지 북마크 on/off 일관성
+5. 세션 만료 재현 -> `/login?reason=expired` -> 재로그인 후 복귀
+
+이 다섯 개는 현재 프론트 구조에서 `searchParams`, `state.from`, `chatFrom`, `postLoginAction`, `?session=`, `?tab=` 계약이 모두 걸려 있는 고위험 동선입니다.
+
+### 2차 보강 동선
+
+6. 공개 홈/정책 목록/검색 empty state
+7. 프로필/우선순위 저장 후 새로고침 유지
+8. 추천 refresh/loading/중복 클릭 방지
+9. 챗 세션 생성/메시지 전송/삭제와 `?session=` 정리
+10. 비밀번호 변경 / 회원탈퇴
+
+즉 시간이 제한되면 1차 고위험 동선부터 먼저 돌리고, 2차 보강 동선은 그 다음에 확인합니다.
+
 ## 1. 공개 탐색
 
 ### 홈

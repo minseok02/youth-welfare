@@ -3937,3 +3937,8 @@
 - 문제: 이메일 충돌과 형식 문제를 바로잡은 뒤 `run-local-runtime-api-smoke.sh` 와 `run-local-validation-from-env.sh --quick` 까지만 green이어도, replay를 포함한 full suite, PII cutover, bounded runtime wrappers가 같은 helper 변경에 부작용이 없는지는 아직 비어 있었다.
 - 해결: 수정 직후 `run-local-validation-from-env.sh --full`, `run-local-pii-sync-cutover-smoke.sh`, `run-local-policy-quality-summary.sh`, `run-local-gov24-quality-audit.sh`, `run-local-ctr-readiness-audit.sh` 를 순서대로 다시 실행했다. 결과는 full suite `101s` 통과, replay baseline `9->9 / 1->1 / same / reason_changed=0` 유지, PII queue `SYNCED attempt_count=3`, quality/category baseline 유지, Gov24 `10937 / 10937 / 10937 / 9959 / 978` 유지, CTR snapshot은 smoke traffic 증가만 반영한 `1923 / 19 / clicked_services=2 / DEFERRED_CLICK_SAMPLE_THIN` 으로 확인됐다.
 - 이유: smoke helper는 runtime/auth 쪽만 쓰는 게 아니라 bookmark, public-profile-chat, recommendation click, PII cutover까지 넓게 물고 있다. 로컬 회귀 수정이 진짜 닫혔는지 판단하려면 narrow smoke뿐 아니라 broader local baseline 전체를 다시 한 번 끝까지 통과시켜야 한다.
+
+## 731) frontend QA checklist가 모든 흐름을 평평하게 나열하면, 시간이 제한된 수동 검증에서 가장 위험한 복귀/query 문맥 동선을 먼저 못 밟을 수 있다
+- 문제: `frontend-qa-checklist.md` 는 현재 증거 기록 형식은 잘 갖췄지만, 실행 순서는 공개 탐색부터 회원탈퇴까지 거의 평평하게 나열돼 있었다. 이 상태에선 실제 브라우저 검증 시간이 짧을 때 `searchParams`, `state.from`, `chatFrom`, `postLoginAction`, `?session=`, `?tab=` 가 동시에 걸린 고위험 동선을 뒤로 미루고, 상대적으로 단순한 공개 탐색부터 오래 볼 수 있다.
+- 해결: checklist에 `권장 실행 순서` 를 추가해 1차 고위험 동선을 `정책 목록 -> 상세 -> 뒤로가기`, `비로그인 /chat -> login -> 복귀`, `/mypage?tab= -> 상세 -> 복귀`, 북마크 일관성, 세션 만료 흐름 순서로 먼저 보게 했다. docs index에도 시간이 제한되면 이 다섯 개부터 돌리라고 명시했다.
+- 이유: 프론트 체감 회귀는 단순 API 성공보다 URL/query/state 문맥이 끊기는 형태로 더 자주 나온다. 수동 QA는 특히 시간이 제한되므로, 가장 위험한 복귀/문맥 흐름을 먼저 밟게 하는 우선순위가 필요하다.

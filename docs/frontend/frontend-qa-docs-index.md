@@ -73,6 +73,7 @@
 1. [frontend-qa-checklist.md](./frontend-qa-checklist.md)
 2. [frontend-qa-current-state.md](./frontend-qa-current-state.md)
 3. 필요하면 [runtime-api-smoke-commands.md](../core/runtime-api-smoke-commands.md)
+4. 시간이 제한되면 checklist의 `권장 실행 순서 -> 1차 고위험 동선` 다섯 개를 먼저 돌립니다.
 
 ### 결과를 남길 때
 
