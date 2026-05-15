@@ -81,9 +81,14 @@
 - listing형 source 분리 스키마 초안
 - 장학금/참조행렬 모델 초안
 
-## blocked 로 봐야 하는 문서
+## blocked / deferred track 문서
 
-아래는 지금 바로 구현을 계속하는 문서가 아니라, 외부 source/codebook 응답이 와야 다시 여는 문서입니다.
+아래는 지금 바로 구현을 계속하는 문서가 아니라,
+
+- 외부 source/codebook 응답이 와야 다시 여는 blocked 문서
+- 또는 runtime closeout 뒤 남은 deferred 판단을 정리한 문서
+
+입니다.
 
 - [policy-gov24-blocked-track-status.md](./policy-gov24-blocked-track-status.md)
 - `policy-normalization-gov24-*`

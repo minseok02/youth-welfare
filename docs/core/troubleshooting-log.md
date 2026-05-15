@@ -3737,3 +3737,8 @@
 - 문제: `recommendation-pipeline.md` 의 `Cold Start 가중치 단계` 표는 현재 코드가 `recommendation_logs` 전체 건수 기준으로 어떤 `rule/ai weight` bucket을 고르는지 잘 설명하지만, 별도 주의 문구가 없으면 `500+ = STABLE = 지금 바로 tuning 가능` 으로 읽히기 쉽다.
 - 해결: stage 표 아래에 이 값은 **런타임 bucket 선택 규칙** 이고, 실제 운영에서 weight tuning을 다시 열 수 있는지 여부는 `recommendation-ctr-readiness-runbook.md` 의 클릭 표본/분산 기준을 따로 봐야 한다는 주의 문구를 추가했다.
 - 이유: 현재 recommendation 쪽에서 실제 deferred 판단은 `DEFERRED_CLICK_SAMPLE_THIN` 이다. bucket stage와 tuning readiness를 같은 것으로 읽으면, 지금도 여전히 클릭 표본이 얇은 상태에서 tuning을 열어야 한다는 잘못된 결론으로 돌아가기 쉽다.
+
+## 691) `policy-docs-index` 가 `policy-gov24-blocked-track-status` 를 여전히 단순 blocked 문서 묶음으로만 소개하면, runtime closeout까지 끝난 현재 층위가 다시 납작해진다
+- 문제: `policy-docs-index.md` 는 `policy-gov24-blocked-track-status.md` 를 `blocked 로 봐야 하는 문서` 묶음에 그대로 넣고 있었다. 하지만 현재 이 문서는 Gov24 전체가 막혀 있다는 뜻이 아니라, runtime collect/runtime audit closeout 위에서 남은 hard import/backfill blocked 와 business-code deferred 판단을 함께 설명하는 문서다.
+- 해결: 해당 섹션 제목과 설명을 `blocked / deferred track 문서` 로 바꾸고, 외부 응답이 있어야 다시 여는 blocked 문서와 runtime closeout 뒤 남은 deferred 판단 문서를 함께 읽는다는 뜻을 명시했다.
+- 이유: policy docs index는 주제 문서군 진입점이다. 여기 분류가 예전 단일 blocked 해석에 머물러 있으면, 이미 closeout된 Gov24도 다시 “전체가 막힌 트랙”처럼 읽히게 된다.
