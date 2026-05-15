@@ -21,6 +21,10 @@
 ### 같이 보면 좋은 문서
 
 - [demo-scenario.md](./demo-scenario.md)
+- [policy-quality-summary-runbook.md](../policy/policy-quality-summary-runbook.md)
+- [policy-gov24-runtime-audit-runbook.md](../policy/policy-gov24-runtime-audit-runbook.md)
+- [policy-admin-runtime-runbook.md](../policy/policy-admin-runtime-runbook.md)
+- [recommendation-ctr-readiness-runbook.md](../recommendation/recommendation-ctr-readiness-runbook.md)
 - [collect-docs-index.md](../collect/collect-docs-index.md)
 - [recommendation-docs-index.md](../recommendation/recommendation-docs-index.md)
 - [frontend-qa-docs-index.md](../frontend/frontend-qa-docs-index.md)
@@ -78,6 +82,22 @@
 
 을 발표/기능 검수 순서대로 따라가는 데모 시나리오입니다.
 
+### 4. bounded runtime quality / audit
+
+- [policy-quality-summary-runbook.md](../policy/policy-quality-summary-runbook.md)
+- [policy-gov24-runtime-audit-runbook.md](../policy/policy-gov24-runtime-audit-runbook.md)
+- [policy-admin-runtime-runbook.md](../policy/policy-admin-runtime-runbook.md)
+- [recommendation-ctr-readiness-runbook.md](../recommendation/recommendation-ctr-readiness-runbook.md)
+
+이 문서군은
+
+- retrieval/category quality baseline
+- Gov24 runtime closeout / gap audit
+- bounded admin runtime 응답 baseline
+- CTR readiness baseline
+
+을 one-shot smoke/runbook 기준으로 다시 확인할 때 먼저 봅니다.
+
 ## 읽는 순서
 
 ### 빠르게 빌드/테스트만 확인할 때
@@ -94,8 +114,16 @@
 1. [demo-scenario.md](./demo-scenario.md)
 2. 필요하면 [runtime-api-smoke-commands.md](./runtime-api-smoke-commands.md)
 
+### bounded runtime baseline을 다시 확인할 때
+
+1. [policy-quality-summary-runbook.md](../policy/policy-quality-summary-runbook.md)
+2. [policy-gov24-runtime-audit-runbook.md](../policy/policy-gov24-runtime-audit-runbook.md)
+3. [policy-admin-runtime-runbook.md](../policy/policy-admin-runtime-runbook.md)
+4. [recommendation-ctr-readiness-runbook.md](../recommendation/recommendation-ctr-readiness-runbook.md)
+
 ## 요약
 
 1. 단위/통합 테스트 실행 기준은 [testing.md](./testing.md) 부터 봅니다.
 2. curl 기반 API smoke는 [runtime-api-smoke-commands.md](./runtime-api-smoke-commands.md) 를 봅니다.
 3. 데모/검수 순서는 [demo-scenario.md](./demo-scenario.md) 를 기준으로 잡습니다.
+4. bounded runtime quality/audit baseline은 policy/recommendation runbook 4종을 먼저 봅니다.

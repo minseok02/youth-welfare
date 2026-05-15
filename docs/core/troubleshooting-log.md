@@ -3697,3 +3697,8 @@
 - 문제: `local-feature-performance-check-2026-05-01.md` 는 원래 당시의 로컬 시험/시간 측정 기록인데, 중간 설명과 문제 정리에는 `fresh reset 뒤 draft schema`, `runtime bootstrap 공백`, `MySQL 8 문법` 메모가 현재 truth처럼 이어져 있었다.
 - 해결: 문서 상단에 `historical observation` 가드레일을 추가하고, 관련 section의 해석 문장을 `당시 관찰` 과 `현재 active 해석은 testing/current-state/recommendation-current-state/collect-current-state 우선` 으로 분리했다.
 - 이유: 날짜가 박힌 측정 문서는 수치를 보존하는 게 중요하지만, 그 안의 옛 원인 해석까지 현재 기준으로 읽히면 local validation precondition을 다시 과거 draft schema 문제로 오해하게 된다.
+
+## 683) `local-validation-docs-index` 가 아직 테스트/curl/demo만 안내하면, 지금 실제로 반복 검증하는 bounded runtime smoke 진입점이 문서상 보조 지식처럼 숨어 버린다
+- 문제: `local-validation-docs-index.md` 는 `testing`, `runtime-api-smoke-commands`, `demo-scenario` 중심으로는 잘 정리돼 있었지만, 지금 active baseline으로 반복 재검증하는 `policy quality summary`, `Gov24 runtime audit`, `policy admin runtime`, `CTR readiness` runbook은 인덱스에서 사실상 보이지 않았다.
+- 해결: 인덱스의 “같이 보면 좋은 문서”, “문서 역할”, “읽는 순서”, “요약”에 bounded runtime quality/audit runbook 4종을 명시적으로 추가했다.
+- 이유: 현재 local validation의 중요한 축은 단위/통합 테스트뿐 아니라 bounded runtime baseline 재확인이다. 이 진입점이 인덱스에 안 보이면 실제로 자주 쓰는 smoke/runbook도 여전히 주변 문서처럼 취급된다.
