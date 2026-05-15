@@ -59,7 +59,8 @@ cross-cutting 문서가 흩어져 있어도
 
 - [db-migration.md](./db-migration.md)
 
-이 문서는 기존 DB 갱신, draft migration, split-account, sidecar schema 메모를 정리합니다.
+이 문서는 현재 PostgreSQL mainline 기준 schema/migration truth를 보조하는 **legacy migration / draft sidecar 메모** 를 정리합니다.
+현재 실행 판단은 `db-migration.md` 단독보다 `current-state.md`, `testing.md`, 관련 runbook을 먼저 봅니다.
 
 ### 5. 사용자 데이터 분리 설계
 

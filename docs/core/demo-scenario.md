@@ -3,7 +3,8 @@
 로컬 실행/검증 문서군 진입점은 [local-validation-docs-index.md](./local-validation-docs-index.md)를 먼저 봅니다.
 
 졸업 발표나 기능 검수 때 바로 따라갈 수 있는 백엔드 데모 순서다.
-기준 환경은 `Docker Compose + MySQL + Redis + Nginx(선택)`이다.
+기준 환경은 현재 `Docker Compose + PostgreSQL + Redis` 기준 로컬 앱이다.
+Nginx/HTTPS 같은 운영 reverse proxy 전제는 이 데모 문서의 범위가 아니다.
 발표용 단일 서버는 현재 실측 기준 `t3.medium` 이상을 권장한다.
 
 ## 1. 사전 확인

@@ -3647,3 +3647,13 @@
 - 문제: `collect-ops.md` 의 실행 로그 설명에는 `MySQL api_sync_logs.status` 컬럼이라는 표현이 남아 있었다. 현재 메인라인은 PostgreSQL 기준인데, 이 wording은 상태 저장값의 lowercase 관찰 포인트가 특정 DB vendor에만 묶여 있는 것처럼 읽히게 만든다.
 - 해결: 해당 문구를 `현재 PostgreSQL mainline에서도 api_sync_logs.status 저장값은 소문자(...)로 보일 수 있다` 로 교정했다.
 - 이유: 현재 active 운영 문서에서는 DB vendor보다 현재 관찰 사실이 우선이다. legacy DB 이름이 남아 있으면 같은 상태값을 보고도 “이건 예전 MySQL 얘기”로 오해할 수 있다.
+
+## 673) `demo-scenario` 가 아직 MySQL/Nginx 기준 환경을 현재 데모 전제처럼 말하면, local validation 문서군과 실제 runtime baseline이 어긋난다
+- 문제: `demo-scenario.md` 는 백엔드 데모 전제 환경을 여전히 `Docker Compose + MySQL + Redis + Nginx(선택)` 으로 적고 있었다. 하지만 현재 로컬 검증 기준선은 PostgreSQL mainline이고, 이 문서는 운영 reverse proxy 전제가 아니라 local validation 문서군에 묶여 있다.
+- 해결: 데모 기준 환경을 `Docker Compose + PostgreSQL + Redis` 로 교정하고, Nginx/HTTPS 같은 운영 reverse proxy 전제는 이 문서 범위가 아니라고 명시했다.
+- 이유: 데모 시나리오는 실제 발표/검수 직전에 바로 복사해 보는 문서다. 환경 설명이 오래돼 있으면 현재 smoke/current-state 기준과 어긋난 준비를 하게 된다.
+
+## 674) `system-docs-index` 가 `db-migration` 을 아직 active draft migration 메모처럼 소개하면, legacy migration inventory와 현재 PostgreSQL truth의 경계가 흐려진다
+- 문제: `system-docs-index.md` 는 `db-migration.md` 를 `기존 DB 갱신, draft migration, split-account, sidecar schema 메모` 정도로만 소개하고 있었다. 이 표현만 보면 현재 실행 판단도 그 문서 하나에 의존하는 것처럼 읽힐 수 있다.
+- 해결: `db-migration.md` 를 `legacy migration / draft sidecar 메모` 로 다시 소개하고, 현재 실행 판단은 `current-state.md`, `testing.md`, 관련 runbook을 먼저 보라고 보강했다.
+- 이유: system index는 DB/데이터 구조 판단을 위해 가장 먼저 여는 entrypoint 중 하나다. 여기서 legacy 메모와 current truth의 위계를 분명히 해야 active 문서 우선순위가 실제로 유지된다.
