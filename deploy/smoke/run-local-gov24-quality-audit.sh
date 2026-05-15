@@ -230,3 +230,46 @@ WHERE ws.source_type = 'GOV24'
 ORDER BY ws.source_id
 LIMIT 5;
 "
+
+section "unmapped_code_inventory"
+query "
+WITH mapped_codes AS (
+  SELECT unnest(ARRAY[
+    'JA0101','JA0102',
+    'JA0110','JA0111',
+    'JA0201','JA0202','JA0203','JA0204','JA0205',
+    'JA0317','JA0318','JA0319','JA0320',
+    'JA0326','JA0327',
+    'JA0328','JA0329','JA0330',
+    'JA0401','JA0402','JA0403','JA0404',
+    'JA0411','JA0412','JA0413','JA0414'
+  ]) AS code
+),
+missing_services AS (
+  SELECT ws.id, ws.source_id
+  FROM welfare_services ws
+  WHERE ws.source_type = 'GOV24'
+    AND NOT EXISTS (
+      SELECT 1
+      FROM service_facts sf
+      WHERE sf.service_id = ws.id
+        AND sf.fact_code_set_key = 'GOV24_SUPPORT_CONDITION'
+    )
+)
+SELECT kv.key, COUNT(*) AS service_count
+FROM missing_services ms
+JOIN raw_api_payloads rap
+  ON rap.source_type = 'GOV24'
+ AND rap.api_category = 'SUPPORT'
+ AND rap.source_id = ms.source_id
+CROSS JOIN LATERAL jsonb_each(COALESCE((rap.payload_json::jsonb)->'conditions', '{}'::jsonb)) kv
+LEFT JOIN mapped_codes mc ON mc.code = kv.key
+WHERE kv.value IS NOT NULL
+  AND kv.value <> 'null'::jsonb
+  AND btrim(trim(both '\"' from kv.value::text)) <> ''
+  AND kv.value::text <> '0'
+  AND mc.code IS NULL
+GROUP BY kv.key
+ORDER BY service_count DESC, kv.key
+LIMIT 15;
+"
