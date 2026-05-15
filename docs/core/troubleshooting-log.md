@@ -3657,3 +3657,8 @@
 - 문제: `system-docs-index.md` 는 `db-migration.md` 를 `기존 DB 갱신, draft migration, split-account, sidecar schema 메모` 정도로만 소개하고 있었다. 이 표현만 보면 현재 실행 판단도 그 문서 하나에 의존하는 것처럼 읽힐 수 있다.
 - 해결: `db-migration.md` 를 `legacy migration / draft sidecar 메모` 로 다시 소개하고, 현재 실행 판단은 `current-state.md`, `testing.md`, 관련 runbook을 먼저 보라고 보강했다.
 - 이유: system index는 DB/데이터 구조 판단을 위해 가장 먼저 여는 entrypoint 중 하나다. 여기서 legacy 메모와 current truth의 위계를 분명히 해야 active 문서 우선순위가 실제로 유지된다.
+
+## 675) source onboarding playbook의 과거 snapshot을 현재 runtime snapshot처럼 읽히게 두면, 구조 판단 근거와 현재 baseline count가 뒤섞인다
+- 문제: `policy-source-onboarding-playbook.md` 는 `2026-04-29 실제 DB 스냅샷` 섹션에서 이를 그대로 `local Docker MySQL youth_welfare snapshot` 처럼 소개하고 있었다. playbook의 구조 판단 근거로는 유효하지만, 현재 PostgreSQL mainline의 최신 runtime count처럼 읽히면 active current-state와 혼선이 생긴다.
+- 해결: 해당 스냅샷이 source shape 판단을 만들 당시의 historical snapshot이라는 점을 먼저 명시하고, 현재 runtime truth/count는 `current-state.md`, `collect-current-state.md`, 관련 smoke/runbook을 우선 보라고 보강했다.
+- 이유: onboarding playbook은 active 문서군에 남아 있으므로, 역사적 증거와 현재 baseline의 위계를 문장 안에서 분명히 해야 한다.

@@ -22,7 +22,10 @@
 
 ## 2026-04-29 실제 DB 스냅샷
 
-검증 시점 기준 local Docker MySQL `youth_welfare` 스냅샷은 아래와 같습니다.
+이 섹션은 **source shape 판단을 만들 당시의 historical snapshot** 입니다.
+현재 runtime truth/count는 `current-state.md`, `collect-current-state.md`, 관련 smoke/runbook을 우선합니다.
+
+당시 검증 시점 기준 local Docker `youth_welfare` 스냅샷은 아래와 같습니다.
 
 ### 정책 row 분포
 
