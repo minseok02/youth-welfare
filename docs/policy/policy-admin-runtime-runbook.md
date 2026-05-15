@@ -214,7 +214,7 @@ curl -sS \
 ```bash
 curl -sS \
   -H "Authorization: Bearer $ADMIN_ACCESS_TOKEN" \
-  -X POST "$APP_BASE_URL/api/admin/policies/retrieval-evaluations"
+  -X POST "$APP_BASE_URL/api/admin/policies/retrieval-evaluations/run"
 ```
 
 응답에서 볼 것:
@@ -280,10 +280,10 @@ curl -sS \
 
 ### 검색/챗 쪽 quality가 의심될 때
 
-1. `retrieval-evaluations`
+1. `retrieval-evaluations/run`
 2. `retrieval-evaluations/gate`
 3. 필요 시 `embeddings/rebuild`
-4. 다시 `retrieval-evaluations`
+4. 다시 `retrieval-evaluations/run`
 
 ### 상세 링크/신청 URL 쪽이 의심될 때
 

@@ -3807,3 +3807,8 @@
 - 문제: `run-local-validation-from-env.sh --full` 은 recommendation click smoke를 포함하므로 전체 suite를 다시 태운 뒤 `recommendation_logs` 와 clicked 로그 수가 소폭 증가한다. 이 숫자 변화만 따로 보면 regression 또는 tuning-ready 신호처럼 오해할 수 있다.
 - 해결: full validation 재검증 직후 `run-local-ctr-readiness-audit.sh` 를 다시 읽어 current baseline을 `1702 / 16 / clicked_services=2 / DEFERRED_CLICK_SAMPLE_THIN` 으로 갱신하고, 관련 recommendation current-state/runbook/priority 문서도 함께 최신 수치로 맞췄다.
 - 이유: 현재 recommendation truth는 여전히 “로그 총량은 충분하지만 클릭 표본과 서비스 분산이 얇다”는 점이다. synthetic smoke traffic으로 수치가 조금 움직여도 readiness 해석은 그대로 유지된다는 점을 함께 기록해야 current baseline이 흔들리지 않는다.
+
+## 705) verification runbook은 baseline 숫자와 설명이 맞아 보여도 endpoint suffix가 빠지면 그대로 실행 불가능해지므로, controller mapping과 curl 예시를 command-level로 대조해야 한다
+- 문제: `policy-admin-runtime-runbook.md` 의 retrieval evaluation 절차는 현재 controller mapping인 `POST /api/admin/policies/retrieval-evaluations/run` 대신 `POST /api/admin/policies/retrieval-evaluations` 로 적혀 있었다. 숫자 baseline과 주변 설명은 맞아 보여도, 현장에서 문서 curl을 그대로 복사하면 잘못된 경로를 치게 된다.
+- 해결: runbook의 기본 실행 경로와 triage 순서를 모두 `retrieval-evaluations/run` 으로 교정했다. 이후 active verification 문서 점검에서는 용어/수치 drift뿐 아니라 controller mapping과 curl snippet이 1:1로 맞는지까지 같이 확인한다.
+- 이유: verification 문서는 “무엇을 본다”보다 “어떻게 다시 실행한다”가 더 중요하다. 경로 suffix 하나가 빠진 채로 baseline 숫자만 최신이면, 문서는 최신처럼 보여도 실제 운영/재검증에선 바로 실패하는 거짓 기준선이 된다.
