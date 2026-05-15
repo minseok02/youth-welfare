@@ -4037,3 +4037,8 @@
 - 문제: `user_alerts` 백엔드만 추가하면 실제 사용자는 아직 아무 변화도 못 느낀다. 반대로 헤더 bell/dropdown/전용 알림센터까지 한 번에 열면 현재 단계에서 프론트 범위가 커지고, 기존 마이페이지의 "알림 설정" 탭과 UI 계약도 겹친다. 지금 프론트는 이미 `MyPage` 탭 구조, `SectionCard`, 토스트, deep link navigate 패턴이 잘 정리돼 있으므로, 1차 인앱 알림함은 여기에 붙이는 편이 안전하다.
 - 해결: `MyPage` 의 `noti` 탭 안에 최근 알림 목록, unread count, 읽음, 숨김, deep link 열기 UI를 추가했다. 기존 카드/버튼 톤을 그대로 재사용하고, unread count 는 같은 페이지의 사이드바 `알림 설정` 탭에만 badge 로 노출했다. 헤더 global unread badge 는 다음 단계로 남기고, 현재는 추천 digest 기반 알림함이라는 안내 문구를 같이 보여 준다.
 - 이유: 현재 프로젝트 단계는 "새 채널을 빠르게 usable 하게 만드는 것"이 목표다. `MyPage` 알림 탭은 이미 사용자 설정 문맥이 있고 보호 페이지도 정리돼 있으므로, 여기서 먼저 인앱 알림함을 보여 주는 편이 구현 범위가 작고 기존 UI 언어와도 자연스럽게 맞는다.
+
+## 751) 인앱 알림 2차는 별도 알림 bell보다 기존 `마이페이지` 진입점 badge를 먼저 붙이는 편이 현재 구조와 더 맞다
+- 문제: `MyPage` 알림함이 생겨도 사용자가 탭을 직접 열기 전까지 unread 존재를 놓치기 쉽다. 그렇다고 현재 단계에서 별도 알림센터나 bell dropdown을 먼저 열면 UI 범위가 갑자기 커지고, 현재 제품의 navigation 구조와도 어긋난다.
+- 해결: `GET /api/notifications/me/unread-count` 를 React Query 기반 `useUnreadAlertCount` 훅으로 감싸고, `Header` 와 `FloatingNav` 의 `마이페이지` entrypoint에만 최소 unread badge를 추가했다. 폴링은 `staleTime=30s`, `refetchInterval=60s` 로 두고, unread 수가 100을 넘으면 `99+` 로 캡한다.
+- 이유: 지금 단계의 목표는 추천 digest 기반 인앱 알림을 "눈에 띄게" 만드는 것이지, 완전한 전역 알림센터를 여는 것이 아니다. 기존 `마이페이지` 진입점에 badge를 얹는 편이 범위가 작고 현재 톤과도 자연스럽게 맞는다.

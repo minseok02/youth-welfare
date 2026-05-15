@@ -2,18 +2,20 @@ import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   AppBar, Toolbar, Typography, Button, IconButton,
-  Menu, MenuItem, Divider, Snackbar, Alert,
+  Menu, MenuItem, Divider, Snackbar, Alert, Badge,
 } from "@mui/material";
 import HomeIcon from "@mui/icons-material/Home";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import ForumOutlinedIcon from "@mui/icons-material/ForumOutlined";
 import { useAuthStore } from "../store/authStore";
 import { performServerLogout } from "../lib/session";
+import { useUnreadAlertCount } from "../lib/useUnreadAlertCount";
 
 export default function Header() {
   const location = useLocation();
   const navigate = useNavigate();
   const { isLoggedIn, user, logout } = useAuthStore();
+  const unreadAlertCount = useUnreadAlertCount(isLoggedIn);
   const [anchorEl, setAnchorEl] = useState(null);
   const [toast, setToast] = useState(false);
 
@@ -22,6 +24,7 @@ export default function Header() {
   const authFromState = {
     from: location,
   };
+  const unreadBadge = unreadAlertCount > 99 ? "99+" : unreadAlertCount;
   const mypageTarget = location.pathname === "/mypage"
     ? {
         pathname: "/mypage",
@@ -185,9 +188,11 @@ export default function Header() {
                   onClose={handleClose}
                   PaperProps={{ sx: { minWidth: 140, mt: 0.5, borderRadius: 2 } }}
                 >
-                  <MenuItem onClick={() => { handleClose(); navigate("/mypage?tab=0"); }}>
-                    회원정보
-                  </MenuItem>
+                <MenuItem onClick={() => { handleClose(); navigate("/mypage?tab=0"); }}>
+                    <Badge color="error" badgeContent={unreadBadge} invisible={unreadAlertCount <= 0} overlap="rectangular">
+                      <span>회원정보</span>
+                    </Badge>
+                </MenuItem>
                   <MenuItem onClick={() => { handleClose(); navigate("/mypage?tab=5"); }}>
                     비밀번호 변경
                   </MenuItem>
@@ -205,7 +210,9 @@ export default function Header() {
                   })}
                   sx={{ borderColor: "rgba(255,255,255,0.6)", borderRadius: 2, fontSize: 13 }}
                 >
-                  마이페이지
+                  <Badge color="error" badgeContent={unreadBadge} invisible={unreadAlertCount <= 0} overlap="rectangular">
+                    <span>마이페이지</span>
+                  </Badge>
                 </Button>
               </>
             ) : (

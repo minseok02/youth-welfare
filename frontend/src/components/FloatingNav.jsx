@@ -1,10 +1,11 @@
 import { useLocation, useNavigate } from "react-router-dom";
-import { Box, Paper, Tooltip, Typography } from "@mui/material";
+import { Badge, Box, Paper, Tooltip, Typography } from "@mui/material";
 import HomeIcon from "@mui/icons-material/Home";
 import SearchIcon from "@mui/icons-material/Search";
 import PersonIcon from "@mui/icons-material/Person";
 import ForumOutlinedIcon from "@mui/icons-material/ForumOutlined";
 import { useAuthStore } from "../store/authStore";
+import { useUnreadAlertCount } from "../lib/useUnreadAlertCount";
 
 const NAV_ITEMS = [
   { label: "맞춤정책", path: "/", icon: HomeIcon, authRequired: false },
@@ -22,6 +23,8 @@ export default function FloatingNav() {
   const location = useLocation();
   const navigate = useNavigate();
   const { isLoggedIn } = useAuthStore();
+  const unreadAlertCount = useUnreadAlertCount(isLoggedIn);
+  const unreadBadge = unreadAlertCount > 99 ? "99+" : unreadAlertCount;
   const mypageTarget = location.pathname === "/mypage"
     ? {
         pathname: "/mypage",
@@ -155,7 +158,13 @@ export default function FloatingNav() {
                   minWidth: 64,
                 }}
               >
-                <Icon fontSize="small" />
+                <Badge
+                  color="error"
+                  badgeContent={item.path === "/mypage" ? unreadBadge : 0}
+                  invisible={item.path !== "/mypage" || !isLoggedIn || unreadAlertCount <= 0}
+                >
+                  <Icon fontSize="small" />
+                </Badge>
                 <Typography
                   variant="caption"
                   fontWeight={active ? 700 : 400}

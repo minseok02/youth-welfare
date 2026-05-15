@@ -693,8 +693,6 @@ export default function MyPage() {
     return rightDate - leftDate;
   });
 
-  if (!isLoggedIn) return null;
-
   useEffect(() => {
     if (!isLoggedIn) return;
     const controller = new AbortController();
@@ -779,6 +777,8 @@ export default function MyPage() {
       // markAlertRead already surfaced the error.
     }
   }, [location, markAlertRead, navigate, showToast]);
+
+  if (!isLoggedIn) return null;
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
