@@ -25,6 +25,7 @@ public class NotificationHistoryService {
     private static final long INITIAL_RETRY_DELAY_MINUTES = 30L;
 
     private final NotificationHistoryCommandRepository notificationHistoryCommandRepository;
+    private final UserAlertCommandService userAlertCommandService;
 
     @Transactional
     public Optional<Notification> reserveDispatch(User user,
@@ -65,6 +66,7 @@ public class NotificationHistoryService {
                 saved.getId(),
                 buildItems(saved, recommendations, logs)
         );
+        userAlertCommandService.createRecommendationDigestAlert(saved, recommendations);
         return saved;
     }
 

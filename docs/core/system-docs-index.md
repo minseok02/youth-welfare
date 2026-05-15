@@ -27,6 +27,8 @@ cross-cutting 문서가 흩어져 있어도
 ### 후속 확장 메모
 
 - [chatbot-plan.md](./chatbot-plan.md)
+- [notification-channel-expansion-plan.md](./notification-channel-expansion-plan.md)
+- [notification-channel-expansion-checklist.md](./notification-channel-expansion-checklist.md)
 
 ## 문서 역할
 
@@ -74,6 +76,18 @@ cross-cutting 문서가 흩어져 있어도
 
 이 문서는 아직 active 구현은 아니지만, 챗봇 2차 기능을 어떤 구조로 붙일지 정리한 설계 메모입니다.
 
+### 7. 알림 채널 확장 설계
+
+- [notification-channel-expansion-plan.md](./notification-channel-expansion-plan.md)
+
+이 문서는 현재 이메일 중심 알림 구조를 기준으로 `인앱 알림함 + 웹푸시` 를 어떻게 붙일지 정리한 설계 메모입니다.
+
+### 8. 알림 채널 확장 체크리스트
+
+- [notification-channel-expansion-checklist.md](./notification-channel-expansion-checklist.md)
+
+이 문서는 알림 채널 확장 작업을 단계별로 어디까지 할지 짧게 고정하는 작업 체크리스트입니다.
+
 ## 읽는 순서
 
 ### 구조/계약을 빨리 확인할 때
@@ -90,10 +104,14 @@ cross-cutting 문서가 흩어져 있어도
 ### 후속 확장 메모를 볼 때
 
 1. [chatbot-plan.md](./chatbot-plan.md)
-2. 필요하면 [phase-plan.md](../phase-plan.md)
+2. [notification-channel-expansion-plan.md](./notification-channel-expansion-plan.md)
+3. [notification-channel-expansion-checklist.md](./notification-channel-expansion-checklist.md)
+4. 필요하면 [phase-plan.md](../phase-plan.md)
 
 ## 요약
 
 1. 구조와 contract는 [project-spec.md](../project-spec.md), [architecture.md](../architecture.md), [api-mapping.md](./api-mapping.md) 부터 봅니다.
 2. DB/schema 판단은 [db-migration.md](./db-migration.md) 과 [user-data-separation-design.md](./user-data-separation-design.md) 를 봅니다.
 3. 챗봇은 아직 active 구현이 아니라 [chatbot-plan.md](./chatbot-plan.md) 설계 메모로 봅니다.
+4. 알림 채널 확장은 [notification-channel-expansion-plan.md](./notification-channel-expansion-plan.md) 부터 봅니다.
+5. 실제 작업 범위는 [notification-channel-expansion-checklist.md](./notification-channel-expansion-checklist.md) 로 고정합니다.
