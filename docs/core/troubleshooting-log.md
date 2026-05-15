@@ -3812,3 +3812,13 @@
 - 문제: `policy-admin-runtime-runbook.md` 의 retrieval evaluation 절차는 현재 controller mapping인 `POST /api/admin/policies/retrieval-evaluations/run` 대신 `POST /api/admin/policies/retrieval-evaluations` 로 적혀 있었다. 숫자 baseline과 주변 설명은 맞아 보여도, 현장에서 문서 curl을 그대로 복사하면 잘못된 경로를 치게 된다.
 - 해결: runbook의 기본 실행 경로와 triage 순서를 모두 `retrieval-evaluations/run` 으로 교정했다. 이후 active verification 문서 점검에서는 용어/수치 drift뿐 아니라 controller mapping과 curl snippet이 1:1로 맞는지까지 같이 확인한다.
 - 이유: verification 문서는 “무엇을 본다”보다 “어떻게 다시 실행한다”가 더 중요하다. 경로 suffix 하나가 빠진 채로 baseline 숫자만 최신이면, 문서는 최신처럼 보여도 실제 운영/재검증에선 바로 실패하는 거짓 기준선이 된다.
+
+## 706) 검증 문서는 현재 코드보다 약한 기대 결과를 남겨 두면 회귀를 정상처럼 통과시킬 수 있으므로, “제한사항” 과 “실패 조건”을 현재 계약 기준으로 다시 못박아야 한다
+- 문제: `frontend-qa-current-state.md` 와 `frontend-qa-checklist.md` 는 여전히 `PoliciesPage` 상태 복원이 local state 중심이라 깨질 수 있고, 안 유지돼도 구조상 제한일 수 있다는 쪽으로 적혀 있었다. 하지만 현재 코드는 `searchParams` 동기화, `MyPage ?tab=`, `chatFrom/from` 복귀 문맥까지 이미 구현돼 있어, 이런 문구는 실제 회귀를 “원래 그런 것”처럼 통과시킬 수 있다.
+- 해결: 프론트 QA 문서를 현재 코드 기준으로 다시 맞춰 `PoliciesPage` query 복원, `MyPage` 탭 복원, `Header/FloatingNav` 문맥 복귀를 정상 계약으로 명시하고, 목록 상태가 유지되지 않으면 제한이 아니라 회귀/오류 후보로 기록하도록 바꿨다.
+- 이유: QA 문서의 실효성은 단순 설명이 아니라 pass/fail 경계를 얼마나 정확히 긋느냐에 달려 있다. 구현이 이미 고도화된 뒤에도 옛 “제한사항” 문구를 남겨 두면, 실제 regression이 검증 단계에서 묻힌다.
+
+## 707) runtime smoke 문서의 snapshot 숫자를 절대 기준처럼 남겨 두면 현재 데이터가 바뀐 뒤 정상 실행도 실패처럼 오판할 수 있으므로, 고정 수치와 판정 기준을 분리해야 한다
+- 문제: `runtime-api-smoke-commands.md` 의 `reference-urls/rebuild` 절차에는 `scannedCount=1356`, `updatedCount=1356` 같은 예시가 남아 있는데, 이런 숫자는 특정 local snapshot에서만 맞는다. 문서가 이걸 설명 없이 두면 검증자가 현재 데이터 증가나 collect 상태 변화 때문에 정상 결과를 오판할 수 있다.
+- 해결: 해당 블록을 `실행 예시` 로 명시하고, pass/fail 판단은 `failedCount=0`, `updatedCount 또는 skippedCount`, 실제 DB row 변화와 payload preview로 본다고 따로 적었다.
+- 이유: validation 문서에서 필요한 것은 “당시 몇 건이었는가”보다 “지금 무엇을 성공으로 볼 것인가”다. snapshot 예시와 판정 기준을 분리해야 데이터가 변해도 문서가 계속 유효하다.

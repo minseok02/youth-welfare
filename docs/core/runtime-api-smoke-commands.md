@@ -278,7 +278,7 @@ curl -sS \
 - `failedCount=0`
 - `updatedCount > 0` 또는 이미 채워진 상태라면 `skippedCount > 0`
 
-실제 로컬 기준선 예시:
+실행 예시:
 
 ```json
 {
@@ -349,8 +349,9 @@ LIMIT 5;
 
 확인 기준:
 
-- `filled_reference_urls` 가 증가했는지
+- `filled_reference_urls` 가 증가했는지 또는 이미 채워진 상태라면 유지되는지
 - preview 안에 `APPLY`, `REFERENCE`, `DETAIL`, `EXTRACTED_FROM_TEXT` 같은 타입이 실제로 들어가는지
+- 위 JSON 수치(`1356` 등)는 한 시점 local snapshot 예시일 뿐 pass/fail 고정값이 아닙니다. 현재 판단은 `failedCount=0`, `updatedCount 또는 skippedCount`, 그리고 실제 DB row 변화로 합니다.
 
 ### 5. 실패 시 triage
 

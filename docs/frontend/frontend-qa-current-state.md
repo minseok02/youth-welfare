@@ -33,9 +33,10 @@
 
 ### 3. 뒤로가기 경계
 
-- [PolicyDetailPage.jsx](../frontend/src/pages/PolicyDetailPage.jsx) 는 명시적으로 `navigate(-1)` 뒤로가기를 제공합니다.
-- `MainPage -> Detail`, `PoliciesPage -> Detail`, `MyPage bookmarks -> Detail` 경로는 모두 브라우저 history 기반 복귀 동작을 수동 확인해야 합니다.
-- 특히 [PoliciesPage.jsx](../frontend/src/pages/PoliciesPage.jsx) 의 검색어/필터/페이지 상태는 URL query가 아니라 컴포넌트 local state 중심이라, 뒤로가기/새로고침에서 기대와 다르게 초기화될 가능성이 있습니다.
+- [PolicyDetailPage.jsx](../frontend/src/pages/PolicyDetailPage.jsx) 는 `location.state.from` 과 목록 target fallback을 같이 사용해 `MainPage -> Detail`, `PoliciesPage -> Detail`, `MyPage bookmarks -> Detail` 복귀 문맥을 유지합니다.
+- [PoliciesPage.jsx](../frontend/src/pages/PoliciesPage.jsx) 는 검색어/필터/정렬/페이지를 `searchParams` 와 동기화하고, 같은 페이지 안의 브라우저 back/forward 에서도 다시 local state로 복원합니다.
+- [MyPage.jsx](../frontend/src/pages/MyPage.jsx) 는 활성 탭을 `?tab=` query와 동기화합니다.
+- [Header.jsx](../frontend/src/components/Header.jsx), [FloatingNav.jsx](../frontend/src/components/FloatingNav.jsx) 는 `chatFrom`, `from` 을 이용해 `/chat?session=...`, `/mypage?tab=...` 복귀 문맥을 재사용합니다.
 
 ### 4. 정책 상세 태그 필터링 (PolicyDetailPage)
 
@@ -101,8 +102,8 @@
 
 ### 2. 목록 필터 상태의 URL 비영속성
 
-- `PoliciesPage` 검색/필터/페이지 상태는 대부분 URL이 아니라 컴포넌트 state에 있습니다.
-- 상세 진입 후 복귀, 새로고침, 직접 URL 접근에서 기대 상태 유지 여부를 수동 확인해야 합니다.
+- `PoliciesPage` 검색/필터/정렬/페이지 상태는 현재 URL query와 동기화됩니다.
+- 따라서 상세 진입 후 복귀, 새로고침, 직접 URL 접근에서도 같은 query면 같은 상태가 복원되는 것을 기본 정상으로 봅니다.
 - `statusFilter`, `sort`, `page`, `pageSize`, `category`, `region`, `subRegion`, `sourceType`, `income`, `targetGroup`은 URL query에 동기화됩니다.
   단 기본값(statusFilter="신청가능" 등)은 URL에 포함되지 않으므로, 새로고침 후 기본값으로 복귀하는 건 정상입니다.
 - 지역 Select 변경 시 sort가 자동 전환됩니다: 지역 선택 → `latest`, 전체 복귀 → `views`.
