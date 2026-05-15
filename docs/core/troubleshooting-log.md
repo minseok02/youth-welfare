@@ -3822,3 +3822,13 @@
 - 문제: `runtime-api-smoke-commands.md` 의 `reference-urls/rebuild` 절차에는 `scannedCount=1356`, `updatedCount=1356` 같은 예시가 남아 있는데, 이런 숫자는 특정 local snapshot에서만 맞는다. 문서가 이걸 설명 없이 두면 검증자가 현재 데이터 증가나 collect 상태 변화 때문에 정상 결과를 오판할 수 있다.
 - 해결: 해당 블록을 `실행 예시` 로 명시하고, pass/fail 판단은 `failedCount=0`, `updatedCount 또는 skippedCount`, 실제 DB row 변화와 payload preview로 본다고 따로 적었다.
 - 이유: validation 문서에서 필요한 것은 “당시 몇 건이었는가”보다 “지금 무엇을 성공으로 볼 것인가”다. snapshot 예시와 판정 기준을 분리해야 데이터가 변해도 문서가 계속 유효하다.
+
+## 708) collect checklist가 `requested=0`, `saved=0` 을 무조건 이상으로 적으면, backlog가 이미 닫힌 detail/support 재실행까지 실패처럼 오판하게 된다
+- 문제: `collect-operation-checklist.md` 는 `requested=0 반복`, `saved=0 반복` 을 바로 원인 확인이 필요한 징후로 적고 있었다. 하지만 현재 구조에는 `gov24-details`, `gov24-support-conditions`, `bokjiro-details-gap-fill` 같은 backlog closeout lane이 있고, 이 경로는 재실행 시 `requested=0`, `saved=0`, `skipped_count 증가` 가 정상일 수 있다.
+- 해결: checklist에 현재 `sourceKey` 예시를 추가하고, `PARTIAL_SUCCESS`/`requested=0` 판단을 lane별로 다시 쪼갰다. 이제 `requested=0` 은 `collect/all` 이나 일반 목록 collect에서 반복될 때만 이상으로 보고, 이미 closeout된 detail/support/gap-fill 재실행은 `skipped_count` 맥락과 함께 정상 범주로 본다.
+- 이유: verification 문서가 현재 collect lane 구조를 반영하지 않으면, smoke와 운영 재검증이 오히려 정상 closeout 상태를 경고로 분류하게 된다. 수집 검증 문서는 “값이 얼마였는가”보다 “어떤 lane에서 어떤 결과를 정상으로 보는가”를 정확히 적어야 한다.
+
+## 709) testing 문서에 통합 테스트 개수를 고정 숫자로 적으면 suite 증감 뒤에도 실패 판단 근거처럼 오해되므로, preflight 의미만 남기는 편이 낫다
+- 문제: `testing.md` 는 integration preflight 설명에서 `개별 테스트 62건` 이라는 고정 숫자를 쓰고 있었다. 이 숫자는 테스트 추가/삭제 뒤 쉽게 drift 되고, 문서를 읽는 사람이 현재 suite 규모를 잘못된 기준선처럼 받아들일 수 있다.
+- 해결: 고정 숫자를 지우고, preflight가 “개별 통합 테스트가 연쇄로 쏟아지기 전에 즉시 실패한다”는 의미만 남겼다.
+- 이유: testing 문서의 목적은 현재 suite count를 기록하는 것이 아니라 실행/판정 계약을 설명하는 것이다. 고정 개수는 현재 truth보다 빨리 낡으므로 verification 문서에는 불필요한 오차원을 만든다.

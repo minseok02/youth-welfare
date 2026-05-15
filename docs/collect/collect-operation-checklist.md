@@ -29,6 +29,13 @@
 사용:
 
 - source 최신 snapshot 갱신
+- 현재 `sourceKey` 예:
+  - `youth`
+  - `bokjiro-central`
+  - `bokjiro-local`
+  - `gov24`
+  - `gov24-details`
+  - `gov24-support-conditions`
 
 ### B. 전체 collect
 
@@ -74,15 +81,23 @@
 ### 정상 범주
 
 - `SUCCESS`
-- `PARTIAL_SUCCESS`
+- `PARTIAL_SUCCESS` 이더라도
+  - `saved_count > 0`
+  - 실패 원인이 `429`/일부 upstream transient/부분 저장 실패로 설명 가능
+  - latest `api_sync_logs` 와 row count가 같은 방향으로 움직이는 경우
 - 일부 `429`
 - 일부 저장 실패
+- backlog가 이미 닫힌 `detail`/`support`/`gap-fill` 재실행에서
+  - `requested=0`
+  - `saved=0`
+  - `skipped_count` 증가
+  가 함께 보이는 경우
 
 ### 바로 원인 확인이 필요한 것
 
 - `FAILED`
-- `requested=0` 이 반복
-- `saved=0` 이 반복
+- `collect/all`, 일반 목록 collect, closeout 전 1차 실행인데 `requested=0` 이 반복
+- `saved=0` 이 반복되는데 `skipped_count` 증가나 backlog closeout 맥락으로 설명되지 않는 경우
 - `api_sync_logs` row 없음
 
 ## 5. collect 후 downstream 확인 여부
@@ -120,3 +135,4 @@
 2. 응답보다 `api_sync_logs` 를 먼저 봅니다.
 3. 필요하면 DB row count와 sidecar density를 같이 봅니다.
 4. collect 성공과 downstream 성공은 구분해서 확인합니다.
+5. `requested=0` 은 항상 장애가 아니라, 현재 lane이 backlog closeout 재실행인지부터 먼저 구분합니다.
