@@ -66,4 +66,29 @@ public class WebPushSubscription extends BaseTimeEntity {
         this.lastErrorAt = null;
         this.lastErrorMessage = null;
     }
+
+    public void markSent() {
+        this.enabled = true;
+        this.lastSentAt = LocalDateTime.now();
+        this.lastErrorAt = null;
+        this.lastErrorMessage = null;
+    }
+
+    public void markError(String errorMessage) {
+        this.lastErrorAt = LocalDateTime.now();
+        this.lastErrorMessage = trimErrorMessage(errorMessage);
+    }
+
+    public void disable(String errorMessage) {
+        this.enabled = false;
+        this.lastErrorAt = LocalDateTime.now();
+        this.lastErrorMessage = trimErrorMessage(errorMessage);
+    }
+
+    private String trimErrorMessage(String errorMessage) {
+        if (errorMessage == null) {
+            return null;
+        }
+        return errorMessage.length() > 500 ? errorMessage.substring(0, 500) : errorMessage;
+    }
 }

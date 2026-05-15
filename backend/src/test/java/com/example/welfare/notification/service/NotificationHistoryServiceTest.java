@@ -33,6 +33,8 @@ class NotificationHistoryServiceTest {
 
     @Mock
     private NotificationHistoryCommandRepository notificationHistoryCommandRepository;
+    @Mock
+    private UserAlertCommandService userAlertCommandService;
 
     @InjectMocks
     private NotificationHistoryService notificationHistoryService;
@@ -100,6 +102,7 @@ class NotificationHistoryServiceTest {
         ArgumentCaptor<List> captor = ArgumentCaptor.forClass(List.class);
         verify(notificationHistoryCommandRepository).replaceNotificationItems(eq(1L), captor.capture());
         assertThat(captor.getValue()).hasSize(1);
+        verify(userAlertCommandService).createRecommendationDigestAlert(eq(saved), eq(List.of(rec)));
     }
 
     @Test
@@ -132,5 +135,6 @@ class NotificationHistoryServiceTest {
         assertThat(saved.getRetryCount()).isZero();
         assertThat(saved.getErrorMessage()).isEqualTo("gateway failed");
         assertThat(saved.getNextRetryAt()).isBetween(before.plusMinutes(30), after.plusMinutes(30));
+        verify(userAlertCommandService).createRecommendationDigestAlert(eq(saved), eq(List.of()));
     }
 }

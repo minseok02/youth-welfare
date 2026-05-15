@@ -41,6 +41,8 @@ class NotificationDispatchServiceTest {
     private NotificationGateway notificationGateway;
     @Mock
     private NotificationHistoryService notificationHistoryService;
+    @Mock
+    private WebPushDispatchService webPushDispatchService;
 
     @InjectMocks
     private NotificationDispatchService notificationDispatchService;
@@ -59,6 +61,7 @@ class NotificationDispatchServiceTest {
         verify(notificationGateway, never()).send(any(), any(), any());
         verify(notificationHistoryService, never()).reserveDispatch(any(), any(), any(), any(), any());
         verify(notificationHistoryService, never()).saveResult(any(), any(), any(), any(), any(), any());
+        verify(webPushDispatchService, never()).sendRecommendationDigest(any(), any());
     }
 
     @Test
@@ -114,6 +117,7 @@ class NotificationDispatchServiceTest {
                 eq(List.of(log)),
                 eq("notification gateway returned false")
         );
+        verify(webPushDispatchService).sendRecommendationDigest("user-key-1", List.of(recommendation));
     }
 
     @Test
@@ -130,6 +134,7 @@ class NotificationDispatchServiceTest {
         verify(notificationGateway, never()).send(any(), any(), any());
         verify(notificationHistoryService, never()).reserveDispatch(any(), any(), any(), any(), any());
         verify(notificationHistoryService, never()).saveResult(any(), any(), any(), any(), any(), any());
+        verify(webPushDispatchService, never()).sendRecommendationDigest(any(), any());
     }
 
     @Test
@@ -162,6 +167,7 @@ class NotificationDispatchServiceTest {
 
         verify(notificationGateway, never()).send(any(), any(), any());
         verify(notificationHistoryService, never()).saveResult(any(), any(), any(), any(), any(), any());
+        verify(webPushDispatchService, never()).sendRecommendationDigest(any(), any());
     }
 
     private User sampleUser() {

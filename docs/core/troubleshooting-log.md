@@ -4117,3 +4117,8 @@
 - 문제: 서버 브라우저 재현을 다시 코드와 대조해보니, `handleConnectBrowserPush()` 가 단계 문구 없이 곧바로 `웹푸시 공개키가 아직 설정되지 않았습니다` toast로 빠지는 패턴은 `pushPublicKey` 자체보다 timing 문제와 더 잘 맞았다. `MyPage` 의 connect button disabled 조건은 `pushActionLoading`, `pushSupported`, `pushPermission`, `pushStatusError` 만 보고 있어, `fetchPushStatus()` 가 아직 끝나기 전에도 버튼이 잠깐 활성화될 수 있었다. 이 시점엔 backend `GET /push-public-key` 가 이미 200이어도 화면 state는 아직 기본값 `""` 이라 early return으로 빠진다.
 - 해결: `pushStatusLoaded` 상태를 추가하고, `pushConnectDisabled` 가 이제 `pushLoading || !pushStatusLoaded` 일 때도 막히게 했다. 버튼 라벨도 이 구간에는 `상태 확인 중` 으로 바꾸고, 혹시 강제로 눌러도 `브라우저 푸시 상태를 아직 확인하는 중입니다. 잠시 후 다시 시도해주세요` 로 종료하게 정리했다.
 - 이유: 이건 웹푸시 subscribe/service worker 원인 규명보다 먼저 막아야 하는 전형적인 race condition이다. status fetch가 끝나기 전 connect를 허용하면, 실제 root cause와 무관한 `공개키 미설정` 오판이 계속 섞여 디버깅이 흐려진다.
+
+## 767) 웹푸시 1차가 서버 실브라우저 기준으로 닫힌 뒤에는, 다음 단계는 subscription 저장이 아니라 실제 digest 발송 연결이다
+- 문제: 웹푸시 연결/해제와 current browser badge까지 닫힌 뒤에도, backend는 여전히 subscription 저장까지만 하고 실제 push send는 하지 않았다. 이 상태에선 사용자는 브라우저를 연결해도 추천 digest가 실제 푸시로 오는지 확인할 수 없고, 인앱 알림함과 이메일만 살아 있는 반쪽 채널이 된다.
+- 해결: `NotificationDispatchService` 에 `WebPushDispatchService` 를 추가해 현재 추천 digest dispatch 뒤 같은 사용자의 활성 `web_push_subscriptions` 로 웹푸시 payload를 보낸다. payload 본문/딥링크는 새 `RecommendationDigestContentService` 가 인앱 알림과 공유한다. sender는 `WEB_PUSH_PUBLIC_KEY`, `WEB_PUSH_PRIVATE_KEY`, `WEB_PUSH_SUBJECT` 가 모두 유효할 때만 동작하고, subscription별 `lastSentAt`, `lastErrorAt`, `lastErrorMessage`, `enabled` 상태를 갱신한다.
+- 이유: 지금 프로젝트의 알림 이벤트는 아직 추천 digest 중심이다. 그래서 새 채널을 붙일 때도 별도 deadline reminder부터 여는 것보다, 이미 검증된 digest 경로에 같은 본문/딥링크를 싣는 편이 가장 작은 범위로 실제 사용자 가치를 만든다.

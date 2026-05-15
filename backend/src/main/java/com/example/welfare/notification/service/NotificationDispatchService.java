@@ -26,6 +26,7 @@ public class NotificationDispatchService {
     private final NotificationMessageService notificationMessageService;
     private final NotificationGateway notificationGateway;
     private final NotificationHistoryService notificationHistoryService;
+    private final WebPushDispatchService webPushDispatchService;
 
     public void sendTopRecommendations(NotificationTarget target) {
         if (notificationDispatchWindowReadService.hasDispatchHistoryInCurrentWindow(
@@ -83,6 +84,7 @@ public class NotificationDispatchService {
                     logs,
                     errorMessage
             );
+            webPushDispatchService.sendRecommendationDigest(target.userKey(), recommendations);
 
             if (!sent) {
                 log.warn("[NotificationDispatchService] 알림 발송 실패(게이트웨이 false) userId={}", user.getId());

@@ -18,6 +18,7 @@ import java.util.List;
 public class WebPushSubscriptionReadService {
 
     private final WebPushSubscriptionRepository webPushSubscriptionRepository;
+    private final WebPushKeyValidator webPushKeyValidator;
 
     @Value("${notification.web-push.public-key:}")
     private String webPushPublicKey;
@@ -26,7 +27,7 @@ public class WebPushSubscriptionReadService {
         if (!StringUtils.hasText(webPushPublicKey)) {
             throw new CustomException(ErrorCode.NOTIFICATION_PUSH_PUBLIC_KEY_NOT_CONFIGURED);
         }
-        if (!isValidWebPushPublicKey(webPushPublicKey)) {
+        if (!webPushKeyValidator.isValidPublicKey(webPushPublicKey)) {
             throw new CustomException(ErrorCode.NOTIFICATION_PUSH_PUBLIC_KEY_INVALID);
         }
         return new WebPushPublicKeyResponse(webPushPublicKey);
@@ -36,14 +37,5 @@ public class WebPushSubscriptionReadService {
         return webPushSubscriptionRepository.findByUserKeyAndEnabledTrueOrderByCreatedAtDesc(userKey).stream()
                 .map(WebPushSubscriptionResponse::from)
                 .toList();
-    }
-
-    private boolean isValidWebPushPublicKey(String publicKey) {
-        try {
-            byte[] decoded = Base64.getUrlDecoder().decode(publicKey);
-            return decoded.length == 65 && decoded[0] == 0x04;
-        } catch (IllegalArgumentException ex) {
-            return false;
-        }
     }
 }

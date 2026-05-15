@@ -20,6 +20,7 @@ import java.util.stream.Collectors;
 public class UserAlertCommandService {
 
     private final UserAlertRepository userAlertRepository;
+    private final RecommendationDigestContentService recommendationDigestContentService;
 
     @Transactional
     public void createRecommendationDigestAlert(Notification notification, List<UserRecommendation> recommendations) {
@@ -29,14 +30,15 @@ public class UserAlertCommandService {
         if (userAlertRepository.findByEventKey(notification.getDispatchKey()).isPresent()) {
             return;
         }
+        RecommendationDigestContent content = recommendationDigestContentService.build(recommendations);
         userAlertRepository.save(UserAlert.builder()
                 .userKey(notification.getUserKey())
                 .eventKey(notification.getDispatchKey())
                 .kind(UserAlertKind.RECOMMENDATION_DIGEST)
                 .status(UserAlertStatus.UNREAD)
-                .title("맞춤 정책 추천이 도착했어요")
-                .body(buildDigestBody(recommendations))
-                .deeplinkUrl(buildDigestDeeplink(recommendations))
+                .title(content.title())
+                .body(content.body())
+                .deeplinkUrl(content.deeplinkUrl())
                 .metadataJson(buildMetadataJson(notification, recommendations))
                 .build());
     }
@@ -53,25 +55,6 @@ public class UserAlertCommandService {
         UserAlert alert = userAlertRepository.findByIdAndUserKey(alertId, userKey)
                 .orElseThrow(() -> new CustomException(ErrorCode.NOTIFICATION_NOT_FOUND));
         alert.hide();
-    }
-
-    private String buildDigestBody(List<UserRecommendation> recommendations) {
-        if (recommendations == null || recommendations.isEmpty()) {
-            return "새로운 추천 정책이 도착했습니다.";
-        }
-        String titles = recommendations.stream()
-                .limit(3)
-                .map(rec -> rec.getService().getTitle())
-                .collect(Collectors.joining(", "));
-        return "%d건 추천: %s".formatted(recommendations.size(), titles);
-    }
-
-    private String buildDigestDeeplink(List<UserRecommendation> recommendations) {
-        if (recommendations == null || recommendations.isEmpty()) {
-            return "/mypage?tab=3";
-        }
-        Long serviceId = recommendations.get(0).getService().getId();
-        return serviceId != null ? "/policies/" + serviceId : "/mypage?tab=3";
     }
 
     private String buildMetadataJson(Notification notification, List<UserRecommendation> recommendations) {
