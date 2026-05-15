@@ -3637,3 +3637,13 @@
 - 문제: `recommendation-current-state.md` 도 `fresh reset 뒤 sidecar 공백`, `runtime bootstrap이 자동으로 sidecar를 다 복구하는 건 아니다` 같은 표현을 유지하고 있었다. 하지만 현재 PostgreSQL mainline에서 sidecar schema 자체는 integrated이고, fresh reset 뒤 실제로 문제가 되는 건 replay가 기대하는 policy snapshot / canonical read-model 데이터 precondition 쪽이다.
 - 해결: 해당 블록을 `fresh reset 뒤 collect/replay 전제` 로 바꾸고, helper/replay smoke는 sidecar bootstrap을 대신하는 경계가 아니라 integrated schema 존재 여부와 collect/replay precondition을 먼저 확인하는 보조 경계라고 정리했다.
 - 이유: recommendation current-state는 현재 파이프라인과 검증 전제를 빠르게 읽는 문서다. 예전 sidecar bootstrap wording이 남아 있으면, 현재 구조 문제보다 과거 초기 bootstrap 이슈를 다시 먼저 떠올리게 된다.
+
+## 671) `recommendation-operation-checklist` 가 replay precondition을 여전히 `service_taxonomies 존재` 중심으로만 말하면, 현재 canonical read-model/data 전제를 너무 좁게 읽게 된다
+- 문제: `recommendation-operation-checklist.md` 는 replay 전 precondition을 `welfare_services`, `service_taxonomies`, `target row` 정도로만 적고, helper 경계도 `missing sidecar schema` 중심으로 설명하고 있었다. 하지만 현재 replay가 실제로 기대하는 것은 integrated schema 자체보다 canonical sidecar/read-model 데이터와 target row 존재 쪽이다.
+- 해결: precondition 설명을 `canonical sidecar / read-model 데이터 존재` 기준으로 넓히고, replay script는 integrated schema 존재 여부와 zero target row 같은 precondition을 먼저 확인하는 보조 경계라고 정리했다.
+- 이유: checklist는 실제 실행 직전 보는 문서라서, schema 이름 하나만 보면 현재 필요한 데이터 전제를 놓치기 쉽다. 현재 문제를 더 정확히 설명하는 쪽으로 맞춰야 한다.
+
+## 672) `collect-ops` 가 아직 `MySQL api_sync_logs.status` 라고 적고 있으면, 현재 PostgreSQL mainline에서도 로그 저장 표현이 다른 줄로 오해할 수 있다
+- 문제: `collect-ops.md` 의 실행 로그 설명에는 `MySQL api_sync_logs.status` 컬럼이라는 표현이 남아 있었다. 현재 메인라인은 PostgreSQL 기준인데, 이 wording은 상태 저장값의 lowercase 관찰 포인트가 특정 DB vendor에만 묶여 있는 것처럼 읽히게 만든다.
+- 해결: 해당 문구를 `현재 PostgreSQL mainline에서도 api_sync_logs.status 저장값은 소문자(...)로 보일 수 있다` 로 교정했다.
+- 이유: 현재 active 운영 문서에서는 DB vendor보다 현재 관찰 사실이 우선이다. legacy DB 이름이 남아 있으면 같은 상태값을 보고도 “이건 예전 MySQL 얘기”로 오해할 수 있다.

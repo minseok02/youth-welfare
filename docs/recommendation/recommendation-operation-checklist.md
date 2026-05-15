@@ -43,11 +43,11 @@
 replay 전에 아래를 봅니다.
 
 - `welfare_services` snapshot 존재
-- `service_taxonomies` 존재
+- canonical sidecar / read-model 데이터 존재
 - target row 존재
 
-현재는 replay script가 missing sidecar schema나 zero target row를 감지하면
-local helper로 self-heal 할 수 있습니다.
+현재는 replay script가 integrated schema 존재 여부와 zero target row 같은 precondition을 먼저 확인하고,
+필요한 local helper 경계를 태워 self-heal 할 수 있습니다.
 
 하지만:
 
