@@ -23,8 +23,9 @@ import java.util.stream.Collectors;
 public class ReRankingService {
     private static final int NO_PRIORITY_TOP_ELIGIBLE_LIMIT = 8;
     private static final double NO_PRIORITY_TOP_BAND = 0.07d;
-    private static final double NO_PRIORITY_PREFERRED_CANDIDATE_BONUS = 0.06d;
-    private static final double NO_PRIORITY_SECONDARY_CANDIDATE_BONUS = 0.02d;
+    private static final double NO_PRIORITY_PREFERRED_CANDIDATE_BONUS = 0.085d;
+    private static final double NO_PRIORITY_SECONDARY_CANDIDATE_BONUS = 0.03d;
+    private static final double NO_PRIORITY_NON_PREFERRED_TOP_PENALTY = 0.025d;
 
     private final ScoreNormalizer normalizer;
     private final ScoreWeightService scoreWeightService;
@@ -111,6 +112,7 @@ public class ReRankingService {
                 : -1;
 
         Map<Long, ScoredCandidate> adjustedByServiceId = new LinkedHashMap<>();
+        ScoredCandidate originalTopCandidate = eligible.get(0);
         ScoredCandidate preferredCandidate = eligible.get(preferredIndex);
         if (preferredCandidate.getService().getId() != null) {
             adjustedByServiceId.put(
@@ -133,6 +135,16 @@ public class ReRankingService {
                         )
                 );
             }
+        }
+        if (originalTopCandidate.getService().getId() != null
+                && !originalTopCandidate.getService().getId().equals(preferredCandidate.getService().getId())) {
+            adjustedByServiceId.put(
+                    originalTopCandidate.getService().getId(),
+                    originalTopCandidate.withFinalScore(
+                            Math.max(originalTopCandidate.getFinalScore() - NO_PRIORITY_NON_PREFERRED_TOP_PENALTY, 0d),
+                            originalTopCandidate.isAiFallback()
+                    )
+            );
         }
         if (adjustedByServiceId.isEmpty()) {
             return scored;
