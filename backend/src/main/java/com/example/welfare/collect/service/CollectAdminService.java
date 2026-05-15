@@ -13,7 +13,13 @@ public class CollectAdminService {
     private final CollectSourceExecutionService collectSourceExecutionService;
 
     public void collect(CollectSource source) {
-        collectExecutionGuard.runExclusive(source.lockName(), () -> collectSourceExecutionService.collectSource(source));
+        collectExecutionGuard.runExclusive(source.lockName(), () -> {
+            collectSourceExecutionService.collectSource(source);
+            if (source == CollectSource.GOV24) {
+                collectSourceExecutionService.collectGov24Details();
+                collectSourceExecutionService.collectGov24SupportConditions();
+            }
+        });
     }
 
     public CollectResult collect(CollectSource source, int maxCallsPerRun) {

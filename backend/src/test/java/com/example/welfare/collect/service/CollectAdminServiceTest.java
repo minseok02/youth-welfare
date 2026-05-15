@@ -7,6 +7,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import static org.mockito.Mockito.inOrder;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -38,6 +39,24 @@ class CollectAdminServiceTest {
 
         verify(collectExecutionGuard).runExclusive(eq("collect-youth"), any(Runnable.class));
         verify(collectSourceExecutionService).collectSource(CollectSource.YOUTH);
+    }
+
+    @Test
+    @DisplayName("수동 Gov24 수집은 list 뒤에 detail/support follow-up lane도 이어서 실행한다")
+    void collectGov24AlsoTriggersDetailAndSupportFollowUp() {
+        doAnswer(invocation -> {
+            Runnable task = invocation.getArgument(1);
+            task.run();
+            return null;
+        }).when(collectExecutionGuard).runExclusive(eq("collect-gov24"), any(Runnable.class));
+
+        collectAdminService.collect(CollectSource.GOV24);
+
+        verify(collectExecutionGuard).runExclusive(eq("collect-gov24"), any(Runnable.class));
+        var inOrder = inOrder(collectSourceExecutionService);
+        inOrder.verify(collectSourceExecutionService).collectSource(CollectSource.GOV24);
+        inOrder.verify(collectSourceExecutionService).collectGov24Details();
+        inOrder.verify(collectSourceExecutionService).collectGov24SupportConditions();
     }
 
     @Test

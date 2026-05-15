@@ -56,9 +56,10 @@
   - stored detail payload coverage 가 낮아 sidecar density가 detail raw 개수에 묶여 있을 때만 gap fill 경로를 써서 여러 라운드 backlog 를 메운다.
   - 기존 raw payload 로 sidecar를 다시 채우거나 density를 재측정할 때만 backfill 경로를 쓴다.
 
-### 5-1. Gov24는 list/detail/support 수동 경로를 분리해서 본다
+### 5-1. Gov24는 list/detail/support 수동 경로를 분리해서 보되, manual list는 새 backlog follow-up을 같이 태운다
 
 - `/api/admin/collect/gov24` 는 Gov24 목록(list) 수집 경로다.
+- 현재 manual `gov24` 경로는 목록 저장이 끝나면 같은 요청 안에서 `gov24-details`, `gov24-support-conditions` 를 기본 chunk 설정(`50`)으로 한 번씩 더 태워, 새로 들어온 Gov24 row의 detail/support backlog를 자동으로 좁힌다.
 - `/api/admin/collect/gov24-details` 는 Gov24 상세(detail) 수집 경로다.
 - `/api/admin/collect/gov24-support-conditions` 는 Gov24 지원조건(supportConditions) 수집 경로다.
 - `gov24-details`, `gov24-support-conditions` 는 둘 다
@@ -69,6 +70,7 @@
   - 상세 coverage 확장은 `gov24-details`
   - 지원조건/fact coverage 확장은 `gov24-support-conditions`
   로 분리해서 본다.
+  - 다만 manual `gov24` 는 새 list 유입 뒤 `detail/support` count가 바로 벌어지는 것을 줄이기 위해 follow-up 1라운드를 같이 돈다.
   - 상세나 지원조건의 transient upstream 실패를 재확인할 때만 `sourceId` 단건 경로를 쓴다.
 
 ### 5-2. 현재 복지로는 4개 독립 quota 기준으로 coverage 확장을 다시 기본 작업으로 본다

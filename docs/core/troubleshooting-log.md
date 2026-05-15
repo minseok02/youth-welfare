@@ -3947,3 +3947,8 @@
 - 문제: `frontend-qa-template.md` 와 checklist/current-state는 잘 갖춰졌지만, 실제로 오늘 라운드를 시작할 때는 `현재 commit`, `관련 smoke baseline`, `고위험 동선 5개`, 각 동선의 기대 URL/query/state를 다시 사람이 조합해야 했다. 이 단계가 느리면 수동 QA는 종종 “나중에 적자”로 밀리기 쉽다.
 - 해결: `frontend-qa-session-2026-05-15.md` 를 추가해 오늘 기준 local baseline, commit, 고위험 동선, 기대 URL/query/state를 미리 채운 세션 시트를 만들고 docs index에도 연결했다.
 - 이유: 브라우저 자동화가 없을수록 수동 QA의 마찰을 낮추는 것이 중요하다. 템플릿과 checklist만 있는 것보다, 당장 복사 없이 시작할 수 있는 session sheet가 있어야 evidence-first 방식이 실제로 작동한다.
+
+## 733) manual `gov24` 가 list만 채우고 끝나면, 서버 최신 list 재수집 뒤 새 Gov24 row의 `detail/support` count가 바로 벌어질 수 있다
+- 문제: 서버 최신 main 기준선을 로컬에 맞추는 과정에서 `POST /api/admin/collect/gov24` 후 `welfare_services` 는 `10942` 로 늘었지만, `welfare_service_details` 와 `raw_api_payloads(api_category=SUPPORT)` 는 여전히 `10937` 에 머물렀다. 즉 manual Gov24 list collect 자체는 정상인데, 새로 들어온 source row의 `detail/support` follow-up 을 운영자가 별도 `gov24-details` / `gov24-support-conditions` 로 다시 태워야만 count gap이 닫히는 구조였다.
+- 해결: manual `CollectAdminService.collect(GOV24)` 경로에서 list 저장 뒤 `collectGov24Details()`, `collectGov24SupportConditions()` 기본 chunk follow-up 을 자동으로 이어 태우도록 바꿨다. 단위 테스트로 `gov24 -> gov24-details -> gov24-support-conditions` 호출 순서를 고정했고, 로컬 runtime에서도 target `sourceId=641000000853` 의 `detail/support raw` 를 일부러 지운 뒤 같은 manual `gov24` 한 번으로 `detail=1`, `support raw=1` 이 다시 채워지는 것을 확인했다. 앱 로그에도 `Gov24DetailCollectService 완료 requested=1 saved=1 skipped=10941 failed=0`, `Gov24SupportConditionsCollectService 완료 requested=1 saved=1 skipped=10941 failed=0` 가 남는다.
+- 이유: Gov24는 list/detail/support lane을 분리해서 보는 구조가 맞지만, manual list closeout 뒤 새 row backlog를 그대로 남기면 count mismatch가 매번 반복된다. 기본 chunk follow-up 1라운드를 자동으로 붙이면 lane 의미는 유지하면서도 local/server revalidation에서 바로 드러나는 운영 불편을 줄일 수 있다.
