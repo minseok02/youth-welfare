@@ -4077,3 +4077,8 @@
 - 문제: 공개키 미설정은 `N004 / 503` 으로 정리된 뒤에도, 서버에 테스트용 값을 아무 문자열로 넣으면 `push-public-key` 는 200이 되고 프론트 연결 버튼도 열린다. 하지만 실브라우저 검증에서 이 상태는 `serviceWorker.register()` 까지는 지나도 `pushManager.subscribe()` 가 성사되지 않아 `POST /api/notifications/push-subscriptions` 가 0회로 끝났다. 사용자는 "버튼은 눌렸는데 연결이 안 된다"만 보게 된다.
 - 해결: backend `WebPushSubscriptionReadService` 가 `WEB_PUSH_PUBLIC_KEY` 를 URL-safe base64로 decode한 뒤 `65 bytes` 이고 첫 byte가 `0x04` 인지 검사하게 바꿨다. 이 형식을 만족하지 않으면 `N005 / 503`, 메시지 `웹푸시 공개키 형식이 올바르지 않습니다.` 로 실패한다.
 - 이유: 현재 웹푸시 1차는 실제 연결 가능 여부를 UI에서 확인하는 단계다. 잘못된 테스트 키로 버튼이 열리면 프론트/브라우저 버그처럼 보이므로, 서버가 형식 오류를 먼저 차단하는 편이 더 안전하다.
+
+## 759) 웹푸시 연결은 `serviceWorker.register()` 직후보다 `navigator.serviceWorker.ready` 이후에 시도하고, subscribe 실패 이유도 카드에 남겨야 한다
+- 문제: 서버에서 테스트용 공개키가 backend 형식 검사를 통과해 버튼이 열려도, 실제 브라우저 검증에서는 `POST /api/notifications/push-subscriptions` 가 여전히 0회인 케이스가 남았다. 이 경우 service worker registration 자체는 생기지만 아직 ready 전이거나, 브라우저가 subscribe 단계에서 키/구독 정보를 거부해도 프론트는 generic toast만 띄워 재현 정보를 잃는다.
+- 해결: `registerCurrentBrowserPush()` 는 이제 `navigator.serviceWorker.ready` 를 기다린 registration으로 subscribe를 시도하고, 브라우저 쪽에서도 `crypto.subtle.importKey` 로 공개키를 한 번 더 검증한다. subscribe 결과에 `endpoint`, `p256dh`, `auth` 가 없으면 명시적 오류를 던지고, `MyPage` 는 이 메시지를 `pushActionError` 경고 박스와 toast로 같이 노출한다.
+- 이유: 웹푸시 연결은 backend route가 살아 있는 것만으로 닫히지 않는다. 실제 브라우저가 service worker를 활성화했고, 같은 키로 구독 객체를 만들 수 있다는 증거가 필요하므로 실패 이유를 카드 수준에서 남겨야 다음 재검증이 가능하다.

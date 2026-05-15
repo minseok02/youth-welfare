@@ -399,6 +399,7 @@ export default function MyPage() {
   const [pushLoading, setPushLoading] = useState(false);
   const [pushActionLoading, setPushActionLoading] = useState(false);
   const [pushStatusError, setPushStatusError] = useState("");
+  const [pushActionError, setPushActionError] = useState("");
   const [filterIncludeExpired, setFilterIncludeExpired] = useState(filterSettings?.includeExpired ?? false);
 
   const [bookmarkSort, setBookmarkSort] = useState("latest");
@@ -703,6 +704,7 @@ export default function MyPage() {
       setPushSubscriptions(subscriptions);
       setCurrentPushEndpoint(currentSubscription?.endpoint ?? "");
       setPushStatusError("");
+      setPushActionError("");
     } catch (error) {
       setPushPublicKey("");
       setPushSubscriptions([]);
@@ -861,6 +863,7 @@ export default function MyPage() {
     }
 
     setPushActionLoading(true);
+    setPushActionError("");
     try {
       const deviceLabel = "현재 브라우저";
       const { permission } = await registerCurrentBrowserPush({ publicKey: pushPublicKey, deviceLabel });
@@ -871,8 +874,10 @@ export default function MyPage() {
       } else {
         showToast("브라우저 알림 권한이 허용되지 않았습니다", "info");
       }
-    } catch {
-      showToast("브라우저 푸시 연결에 실패했습니다", "error");
+    } catch (error) {
+      const message = error?.response?.data?.message || error?.message || "브라우저 푸시 연결에 실패했습니다";
+      setPushActionError(message);
+      showToast(message, "error");
     } finally {
       setPushActionLoading(false);
     }
@@ -880,6 +885,7 @@ export default function MyPage() {
 
   const handleDisconnectBrowserPush = async () => {
     setPushActionLoading(true);
+    setPushActionError("");
     try {
       const currentSubscription = await unsubscribeCurrentBrowserPush();
       const matched = pushSubscriptions.find((subscription) => subscription.endpoint === currentSubscription?.endpoint);
@@ -897,6 +903,7 @@ export default function MyPage() {
 
   const handleRemovePushSubscription = async (subscriptionId) => {
     setPushActionLoading(true);
+    setPushActionError("");
     try {
       const target = pushSubscriptions.find((subscription) => subscription.id === subscriptionId);
       await deletePushSubscription(subscriptionId);
@@ -1533,6 +1540,12 @@ export default function MyPage() {
                     {pushStatusError && (
                       <div style={{ padding: 12, borderRadius: 12, background: "#fef2f2", color: "#b91c1c", fontSize: 12, lineHeight: 1.6, marginBottom: 12 }}>
                         {pushStatusError}
+                      </div>
+                    )}
+
+                    {!pushStatusError && pushActionError && (
+                      <div style={{ padding: 12, borderRadius: 12, background: "#fef2f2", color: "#b91c1c", fontSize: 12, lineHeight: 1.6, marginBottom: 12 }}>
+                        {pushActionError}
                       </div>
                     )}
 
