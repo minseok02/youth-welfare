@@ -240,6 +240,10 @@ SELECT COUNT(*) AS total_logs FROM recommendation_logs;
 - `100~499`: GROWTH
 - `500+`: STABLE
 
+> 주의: 위 log count stage는 recommendation pipeline의 weight bucket 해석용 힌트일 뿐입니다.
+> 실제 weight tuning 가능 여부는 클릭 표본 수, clicked service 분산, fallback/AI 분포를 함께 보는
+> [recommendation-ctr-readiness-runbook.md](../recommendation/recommendation-ctr-readiness-runbook.md) 기준을 우선합니다.
+
 ## 12. 발표 멘트 포인트
 
 - 로그인 후 추천은 실시간 AI를 매번 다시 호출하지 않고 저장된 추천을 반환한다.

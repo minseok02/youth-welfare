@@ -3707,3 +3707,8 @@
 - 문제: `runtime-api-smoke-commands.md` 는 이미 auth/session, recommendation click, admin dashboard, full validation suite wrapper까지는 잘 안내하고 있었지만, 지금 실제로 baseline 재확인에 계속 쓰는 `policy quality summary`, `Gov24 runtime audit`, `CTR readiness` wrapper와 관련 runbook은 보이지 않았다.
 - 해결: validation suite 설명 아래에 bounded runtime quality/audit wrapper 3종과 대응 runbook 4종 링크를 추가했다.
 - 이유: 이 문서는 local에서 가장 자주 여는 smoke 명령 모음이다. 여기서 bounded runtime baseline 경로가 빠져 있으면, 현재 active 검증의 한 축이 여전히 “curl 문서 밖의 별도 지식”으로 남게 된다.
+
+## 685) `CTR readiness` runbook 기준선이 최근 재검증 수치보다 뒤쳐지고 데모 문서가 count stage만 보여 주면, tuning readiness 판단이 다시 단순 log count 쪽으로 기울어진다
+- 문제: `recommendation-ctr-readiness-runbook.md` 는 최근 full-suite 재검증 후 기준선이 `1634 / 15 / clicked_services=2` 로 올라갔는데도 여전히 `1532 / 13` baseline에 머물러 있었다. 동시에 `demo-scenario.md` 는 `0~99 / 100~499 / 500+` stage count만 보여 주고, 실제 tuning readiness는 별도 CTR audit 기준을 봐야 한다는 설명이 없었다.
+- 해결: CTR runbook의 현재 기준선을 최신 재검증 수치로 갱신하고, 데모 문서의 `CTR / Cold Start 확인 쿼리` 아래에 count stage는 힌트일 뿐이며 실제 weight tuning 가능 여부는 CTR readiness runbook 기준을 우선한다는 주의 문구를 추가했다.
+- 이유: 현재 recommendation 쪽의 핵심 판단은 `STABLE stage 도달` 자체가 아니라 `DEFERRED_CLICK_SAMPLE_THIN` 인지, 실제로 `READY_FOR_WEIGHT_REVIEW` 인지다. runbook 기준선과 데모 해석이 엇갈리면 다시 “로그 수가 500을 넘었으니 바로 튜닝 가능하다”는 잘못된 결론으로 돌아가기 쉽다.
