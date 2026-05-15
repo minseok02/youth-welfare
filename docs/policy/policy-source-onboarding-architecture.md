@@ -37,7 +37,7 @@
 2. row grain 분류
 3. canonical 승격 가능한 공식 필드 추출
 4. 부족한 부분만 rule-derived bridge 적용
-5. codebook/공식 inventory가 없으면 metadata-only 또는 blocked 상태로 멈춤
+5. codebook/공식 inventory가 없으면 metadata-only 또는 blocked/deferred track으로 멈춤
 
 ## source type 분류
 

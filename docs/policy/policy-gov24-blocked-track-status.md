@@ -187,7 +187,7 @@ runtime collect가 이미 붙은 뒤 coverage/shape/null-heavy sample을 다시 
 ## 요약
 
 1. `Gov24` runtime collect 트랙은 현재 active 다.
-2. 다만 `GOV24_*` hard import/backfill 은 여전히 blocked 상태다.
+2. 다만 `GOV24_*` hard import/backfill 은 여전히 blocked track이다.
 3. `GOV24_* = 0` 은 현재 slot/import 기준에서는 expected result 이다.
 4. `supportConditions` gap의 중심인 사업체/업종/창업 상태 code는 현재 제품 경계 기준으로 `deferred` 다.
 5. 다시 열 조건은 current API 기준 codebook/schema 확보 또는 제품이 사업체/업종 축을 실제로 소비하기 시작하는 것이다.

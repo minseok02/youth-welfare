@@ -3727,3 +3727,8 @@
 - 문제: `policy-local-closeout-pending-inventory.md` 는 current closeout 상태를 설명하는 문서인데도, 하단에는 여전히 `known-positive replay가 0->1 / 0->0 으로 복구` 같은 예전 rescue snapshot 메모가 남아 있었다. 또 helper script 설명도 자칫 예전 draft SQL auto-apply처럼 읽힐 여지가 있었다.
 - 해결: helper script는 integrated schema/precondition 확인용 보조 경계라는 점을 다시 명시하고, 현재 replay closeout 기준선을 최신 broad-suite baseline(`A_top10_target=9->9`, `B_top10_target=1->1`, `A_fp/B_fp=same`, `reason_changed=0`)으로 교체했다.
 - 이유: local closeout inventory는 “지금 무엇이 끝났는가”를 보는 문서다. 여기서 현재 정상 판단 기준이 오래된 복구 스냅샷에 묶여 있으면, 이미 regression 없는 상태도 아직 rescue 단계처럼 읽히게 된다.
+
+## 689) source onboarding/blocked 상태 문구가 아직 단일 `blocked 상태` 에 머물러 있으면, 현재 `Gov24 runtime closeout + blocked/deferred 분리` truth와 다시 엇갈린다
+- 문제: `policy-source-onboarding-architecture.md` 와 `policy-gov24-blocked-track-status.md` 일부 문장은 여전히 `blocked 상태` 식으로 적혀 있어, runtime collect는 이미 닫혔지만 hard import/backfill만 blocked 이고 business-code 승격은 deferred 인 현재 해석보다 더 납작하게 읽힐 수 있었다.
+- 해결: onboarding 구조 문서는 `metadata-only 또는 blocked/deferred track`, Gov24 상태 문서는 `hard import/backfill 은 blocked track` 이라고 다시 적어 현재 layered 해석과 맞췄다.
+- 이유: source onboarding 문서는 새 source를 붙일 때 바로 참조하는 기준 문서다. 여기 wording이 예전 단일 blocked 상태에 머물러 있으면, 이미 runtime closeout이 끝난 source도 다시 전부 막혀 있는 것처럼 해석되기 쉽다.
