@@ -398,6 +398,7 @@ export default function MyPage() {
   const [currentPushEndpoint, setCurrentPushEndpoint] = useState("");
   const [pushLoading, setPushLoading] = useState(false);
   const [pushActionLoading, setPushActionLoading] = useState(false);
+  const [pushStatusError, setPushStatusError] = useState("");
   const [filterIncludeExpired, setFilterIncludeExpired] = useState(filterSettings?.includeExpired ?? false);
 
   const [bookmarkSort, setBookmarkSort] = useState("latest");
@@ -685,6 +686,7 @@ export default function MyPage() {
       setPushSubscriptions([]);
       setCurrentPushEndpoint("");
       setPushPublicKey("");
+      setPushStatusError("");
       return;
     }
 
@@ -700,6 +702,13 @@ export default function MyPage() {
       setPushPublicKey(publicKey);
       setPushSubscriptions(subscriptions);
       setCurrentPushEndpoint(currentSubscription?.endpoint ?? "");
+      setPushStatusError("");
+    } catch {
+      setPushPublicKey("");
+      setPushSubscriptions([]);
+      setCurrentPushEndpoint("");
+      setPushStatusError("웹푸시 준비 API가 아직 열려 있지 않거나 최신 백엔드가 배포되지 않았습니다.");
+      throw new Error("push status unavailable");
     } finally {
       setPushLoading(false);
     }
@@ -827,10 +836,23 @@ export default function MyPage() {
 
   const browserPushConnected = currentPushEndpoint
     && pushSubscriptions.some((subscription) => subscription.endpoint === currentPushEndpoint);
+  const pushConnectDisabled = pushActionLoading
+    || !pushSupported
+    || pushPermission === "denied"
+    || Boolean(pushStatusError)
+    || !pushPublicKey;
 
   const handleConnectBrowserPush = async () => {
     if (!pushSupported) {
       showToast("이 브라우저에서는 웹푸시를 지원하지 않습니다", "error");
+      return;
+    }
+    if (pushPermission === "denied") {
+      showToast("브라우저 알림 권한이 거부되어 있습니다. 브라우저 설정에서 알림 권한을 먼저 허용해주세요", "error");
+      return;
+    }
+    if (pushStatusError) {
+      showToast("웹푸시 준비 API가 아직 열려 있지 않습니다. 최신 백엔드를 먼저 배포해주세요", "error");
       return;
     }
     if (!pushPublicKey) {
@@ -1477,7 +1499,7 @@ export default function MyPage() {
                       <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                         <div style={{ fontSize: 14, fontWeight: 700, color: INK }}>
                           현재 브라우저 상태:{" "}
-                          <span style={{ color: browserPushConnected ? "#166534" : INK2 }}>
+                          <span style={{ color: browserPushConnected ? "#166534" : pushPermission === "denied" ? "#b91c1c" : INK2 }}>
                             {browserPushConnected ? "연결됨" : pushPermission === "denied" ? "권한 거부" : "미연결"}
                           </span>
                         </div>
@@ -1499,14 +1521,26 @@ export default function MyPage() {
                         ) : (
                           <button
                             onClick={handleConnectBrowserPush}
-                            disabled={pushActionLoading || !pushSupported}
-                            style={{ padding: "9px 14px", borderRadius: 10, border: 0, background: A, color: WHITE, fontSize: 12, fontWeight: 700, cursor: pushActionLoading || !pushSupported ? "not-allowed" : "pointer", opacity: pushActionLoading || !pushSupported ? 0.7 : 1 }}
+                            disabled={pushConnectDisabled}
+                            style={{ padding: "9px 14px", borderRadius: 10, border: 0, background: A, color: WHITE, fontSize: 12, fontWeight: 700, cursor: pushConnectDisabled ? "not-allowed" : "pointer", opacity: pushConnectDisabled ? 0.7 : 1 }}
                           >
-                            현재 브라우저 연결
+                            {pushPermission === "denied" ? "권한 허용 필요" : "현재 브라우저 연결"}
                           </button>
                         )}
                       </div>
                     </div>
+
+                    {pushStatusError && (
+                      <div style={{ padding: 12, borderRadius: 12, background: "#fef2f2", color: "#b91c1c", fontSize: 12, lineHeight: 1.6, marginBottom: 12 }}>
+                        {pushStatusError}
+                      </div>
+                    )}
+
+                    {!pushStatusError && pushPermission === "denied" && (
+                      <div style={{ padding: 12, borderRadius: 12, background: "#fff7ed", color: "#c2410c", fontSize: 12, lineHeight: 1.6, marginBottom: 12 }}>
+                        브라우저 알림 권한이 거부된 상태입니다. 주소창 옆 브라우저 권한 설정에서 알림을 허용한 뒤 다시 시도해주세요.
+                      </div>
+                    )}
 
                     <div style={{ padding: 14, borderRadius: 12, background: BG, color: INK2, fontSize: 12, lineHeight: 1.65, marginBottom: 14 }}>
                       실제 웹푸시 발송은 아직 열지 않았습니다. 지금 단계에서는 브라우저 권한과 구독 저장만 준비합니다.

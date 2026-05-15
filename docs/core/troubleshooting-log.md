@@ -4062,3 +4062,8 @@
 - 문제: backend subscription API만 있으면 실제 사용자는 브라우저 권한/현재 기기 연결 상태를 확인할 수 없다. 그렇다고 service worker 권한 요청과 별도 설정 페이지를 한 번에 열면 현재 단계에서 UX 범위가 커진다.
 - 해결: `MyPage` 알림 탭 안에 `브라우저 푸시` 카드를 추가해 지원 여부, `Notification.permission`, 현재 브라우저 연결 상태, backend 저장 subscription 목록, `현재 브라우저 연결/해제`, 등록된 구독 제거를 제공했다. service worker 는 `public/sw.js` 로 최소 등록하고, 현재 단계에선 push send 없이 구독 저장까지만 지원한다.
 - 이유: 현재 프로젝트는 이미 `MyPage` 알림 탭에 인앱 알림함과 이메일 설정이 모여 있다. 웹푸시도 같은 문맥에서 현재 브라우저 연결 상태를 먼저 보여 주는 편이 사용자가 이해하기 쉽고 구현 범위도 가장 작다.
+
+## 756) 웹푸시 1차 UI는 브라우저 지원 여부만 보지 말고, backend push API 미준비와 `Notification.permission=denied` 도 별도 실패 상태로 보여 줘야 한다
+- 문제: production build/preview 실브라우저 검증에서 `secureContext=true`, `Notification/serviceWorker/PushManager=true` 인데도 `GET /api/notifications/push-public-key`, `GET /api/notifications/push-subscriptions/me` 가 500으로 떨어져 구독 목록/연결 플로우가 전부 막히는 케이스가 드러났다. 이때 기존 UI는 단순히 `현재 브라우저 연결` 버튼을 계속 보여 주고, `Notification.permission=denied` 상태도 "미연결"과 크게 다르지 않게 보여 줘 사용자가 잘못된 기대를 하게 만들었다.
+- 해결: `MyPage` 의 웹푸시 카드에 `pushStatusError` 상태를 추가해 backend 준비 실패를 별도 경고 박스로 보여 주고, API가 준비되지 않았거나 `Notification.permission === "denied"` 이면 연결 CTA를 비활성화하도록 바꿨다. 권한 거부 상태는 라벨 색상과 안내 문구도 별도로 노출해, 사용자가 브라우저 설정/백엔드 배포 문제를 구분할 수 있게 했다.
+- 이유: 웹푸시 1차는 아직 실제 send가 아니라 "현재 브라우저를 연결할 수 있는지"를 보여 주는 준비 단계다. 이 단계에서 backend가 최신 endpoint를 아직 라우팅하지 못하거나 브라우저 권한이 이미 거부된 상태를 명확히 드러내지 않으면, 사용자는 기능 회귀와 환경 미준비를 구분하지 못한다.
