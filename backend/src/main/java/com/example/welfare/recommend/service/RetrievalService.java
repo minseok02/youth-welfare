@@ -20,6 +20,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.OptionalInt;
+import java.util.ArrayList;
 import java.util.stream.Collectors;
 
 /**
@@ -56,11 +57,21 @@ public class RetrievalService {
 
         Map<Long, RecommendationCandidateProjection> projections = loadProjections(rawCandidates, latestCandidates);
 
-        List<WelfareService> filteredBase = applyRecommendationFilters(rawCandidates, projections, age).stream()
+        boolean noPriorityProfile = user.priorities() == null || user.priorities().isEmpty();
+
+        List<WelfareService> filteredBase = applyRecommendationFilters(rawCandidates, projections, age);
+        if (noPriorityProfile) {
+            filteredBase = rebalanceNoPriorityCandidates(filteredBase);
+        }
+        filteredBase = filteredBase.stream()
                 .limit(K)
                 .toList();
 
-        List<WelfareService> filteredLatest = applyRecommendationFilters(latestCandidates, projections, age).stream()
+        List<WelfareService> filteredLatest = applyRecommendationFilters(latestCandidates, projections, age);
+        if (noPriorityProfile) {
+            filteredLatest = rebalanceNoPriorityCandidates(filteredLatest);
+        }
+        filteredLatest = filteredLatest.stream()
                 .limit(M)
                 .toList();
 
@@ -186,5 +197,39 @@ public class RetrievalService {
         base.forEach(service -> merged.put(service.getId(), service));
         latest.forEach(service -> merged.putIfAbsent(service.getId(), service));
         return List.copyOf(merged.values());
+    }
+
+    /**
+     * priority가 비어 있는 사용자에게는 같은 source가 상위 구간을 독점하지 않도록
+     * source별 원래 순서를 유지한 채 round-robin으로 후보를 섞는다.
+     */
+    private List<WelfareService> rebalanceNoPriorityCandidates(List<WelfareService> candidates) {
+        if (candidates == null || candidates.size() < 4) {
+            return candidates;
+        }
+
+        LinkedHashMap<WelfareService.SourceType, List<WelfareService>> bySource = new LinkedHashMap<>();
+        for (WelfareService candidate : candidates) {
+            WelfareService.SourceType sourceType = candidate.getSourceType();
+            bySource.computeIfAbsent(sourceType, key -> new ArrayList<>()).add(candidate);
+        }
+        if (bySource.size() < 2) {
+            return candidates;
+        }
+
+        ArrayList<WelfareService> balanced = new ArrayList<>(candidates.size());
+        int offset = 0;
+        boolean appended;
+        do {
+            appended = false;
+            for (List<WelfareService> sourceCandidates : bySource.values()) {
+                if (offset < sourceCandidates.size()) {
+                    balanced.add(sourceCandidates.get(offset));
+                    appended = true;
+                }
+            }
+            offset++;
+        } while (appended);
+        return List.copyOf(balanced);
     }
 }

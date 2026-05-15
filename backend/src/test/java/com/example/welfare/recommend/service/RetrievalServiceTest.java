@@ -136,6 +136,47 @@ class RetrievalServiceTest {
         verify(recommendationYouthRelevanceSupport, never()).isYouthRelevant(same(candidate), any());
     }
 
+    @Test
+    @DisplayName("priority가 비어 있으면 base candidates를 source round-robin으로 섞어 상위 구간 독점을 완화한다")
+    void retrieveRebalancesSourceOrderForNoPriorityUsers() {
+        RetrievalService service = new RetrievalService(
+                recommendationCandidateReadRepository,
+                recommendationYouthRelevanceSupport,
+                recommendationProjectionReadService
+        );
+
+        RecommendationUserSnapshot user = user("서울특별시", "11680");
+        WelfareService youth1 = welfareService(11L, WelfareService.SourceType.YOUTH, "청년 정책 1");
+        WelfareService youth2 = welfareService(12L, WelfareService.SourceType.YOUTH, "청년 정책 2");
+        WelfareService bokjiro1 = welfareService(13L, WelfareService.SourceType.BOKJIRO_CENTRAL, "복지로 정책 1");
+        WelfareService bokjiro2 = welfareService(14L, WelfareService.SourceType.BOKJIRO_CENTRAL, "복지로 정책 2");
+        WelfareService gov241 = welfareService(15L, WelfareService.SourceType.GOV24, "Gov24 정책 1");
+
+        List<WelfareService> grouped = List.of(youth1, youth2, bokjiro1, bokjiro2, gov241);
+        given(recommendationCandidateReadRepository.findBaseCandidates(
+                new RecommendationCandidateReadCondition(26, 5, "서울특별시", "11680", 150, 20)
+        ))
+                .willReturn(grouped);
+        given(recommendationCandidateReadRepository.findLatestCandidates(
+                new RecommendationCandidateReadCondition(26, 5, "서울특별시", "11680", 150, 20)
+        ))
+                .willReturn(List.of());
+        given(recommendationCandidateReadRepository.findTagsByServiceIds(any())).willReturn(Collections.emptyMap());
+        given(recommendationProjectionReadService.findCandidateProjectionsByServiceIds(any()))
+                .willReturn(Map.of(
+                        11L, projection(11L, true),
+                        12L, projection(12L, true),
+                        13L, projection(13L, true),
+                        14L, projection(14L, true),
+                        15L, projection(15L, true)
+                ));
+
+        RetrievedRecommendationCandidates results = service.retrieve("youth_all", user);
+
+        assertThat(results.candidates()).extracting(WelfareService::getId)
+                .containsExactly(11L, 13L, 15L, 12L, 14L);
+    }
+
     private RecommendationUserSnapshot user(String sido, String regionCode) {
         return new RecommendationUserSnapshot(
                 1L,
@@ -157,9 +198,13 @@ class RetrievalServiceTest {
     }
 
     private WelfareService welfareService(Long id, String title) {
+        return welfareService(id, WelfareService.SourceType.YOUTH, title);
+    }
+
+    private WelfareService welfareService(Long id, WelfareService.SourceType sourceType, String title) {
         return WelfareService.builder()
                 .id(id)
-                .sourceType(WelfareService.SourceType.YOUTH)
+                .sourceType(sourceType)
                 .sourceId("R" + id)
                 .title(title)
                 .status(WelfareService.ServiceStatus.ACTIVE)
