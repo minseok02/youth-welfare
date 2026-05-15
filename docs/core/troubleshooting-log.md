@@ -4087,3 +4087,8 @@
 - 문제: 서버 실검증에서 `GET /api/notifications/push-public-key` 가 200이고 경고도 없는데 `Notification.permission=granted` 상태의 `현재 브라우저 연결` 버튼이 여전히 disabled 로 남는 케이스가 있었다. 현재 프론트 disabled 조건에는 `!pushPublicKey` 가 포함돼 있는데, 서버가 미설정(`N004`)과 형식 오류(`N005`)를 이미 명시적으로 거부하는 이상 이 체크는 중복이다.
 - 해결: `fetchPushPublicKey()` 와 `fetchPushStatus()` 에서 키를 trim하고, `pushConnectDisabled` 에서 `!pushPublicKey` 조건을 제거했다. 이제 버튼은 `pushSupported`, `Notification.permission`, `pushStatusError`, `pushActionLoading` 만으로 막힌다.
 - 이유: 지금 단계의 웹푸시 연결 플로우에서 "키 없음/형식 오류"는 서버 계약의 책임이고, 프론트는 그 결과 메시지를 보여 주면 된다. raw truthiness를 한 번 더 게이트하면 상태가 이미 정상인데도 버튼이 열리지 않는 애매한 경계가 생긴다.
+
+## 761) `navigator.serviceWorker.ready` 를 무기한 기다리면, 버튼은 눌리는데 POST 0회로 멈춘 원인을 카드에서 설명하지 못한다
+- 문제: 서버 재검증에서 올바른 VAPID 공개키와 `Notification.permission=granted` 상태에서도 `POST /api/notifications/push-subscriptions` 가 0회였고, 브라우저 쪽 관찰은 `navigator.serviceWorker.ready timeout` 이었다. 기존 구현은 `ready` 를 그대로 await 해서 실제론 subscribe 전에 멈출 수 있는데, 이 경우 콘솔/네트워크에 아무것도 안 남고 프론트도 generic failure만 띄울 수 있다.
+- 해결: `getReadyServiceWorkerRegistration()` 을 `ready` 직접 대기 대신 `register("/sw.js")` 결과의 `active/installing/waiting` worker state를 감시하는 방식으로 바꿨다. 이미 `active` 면 바로 진행하고, 아니면 `installing/waiting` 이 `activated` 될 때까지 최대 5초 기다린다. timeout이나 `redundant` 는 명시적 오류로 올려 카드 경고/토스트에 그대로 노출한다.
+- 이유: 웹푸시 연결 1차는 성공보다 실패 원인 가시성이 더 중요하다. subscribe로 못 가는 이유가 `service worker 준비 지연` 인지, 공개키인지, 브라우저 구독 키 누락인지 분리돼야 다음 서버 검증이 의미 있다.

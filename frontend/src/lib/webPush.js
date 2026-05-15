@@ -38,8 +38,38 @@ export async function validateWebPushPublicKey(publicKey) {
 
 async function getReadyServiceWorkerRegistration() {
   const registration = await navigator.serviceWorker.register("/sw.js");
-  const readyRegistration = await navigator.serviceWorker.ready;
-  return readyRegistration ?? registration;
+  if (registration.active) {
+    return registration;
+  }
+
+  const candidate = registration.installing ?? registration.waiting;
+  if (!candidate) {
+    throw new Error("service worker 활성화를 확인하지 못했습니다.");
+  }
+
+  await new Promise((resolve, reject) => {
+    const timeoutId = window.setTimeout(() => {
+      reject(new Error("service worker 준비가 지연되고 있습니다. 잠시 후 다시 시도해주세요."));
+    }, 5000);
+
+    const handleStateChange = () => {
+      if (candidate.state === "activated") {
+        window.clearTimeout(timeoutId);
+        candidate.removeEventListener("statechange", handleStateChange);
+        resolve();
+      }
+      if (candidate.state === "redundant") {
+        window.clearTimeout(timeoutId);
+        candidate.removeEventListener("statechange", handleStateChange);
+        reject(new Error("service worker 활성화에 실패했습니다."));
+      }
+    };
+
+    candidate.addEventListener("statechange", handleStateChange);
+    handleStateChange();
+  });
+
+  return registration;
 }
 
 export async function getCurrentPushSubscription() {
