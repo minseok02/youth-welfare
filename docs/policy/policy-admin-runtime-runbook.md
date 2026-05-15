@@ -75,6 +75,13 @@ PY
 )"
 ```
 
+가능하면 아래 bounded runtime wrapper로 baseline을 먼저 재확인하고,
+개별 endpoint는 그다음 triage/재현용으로 여는 것이 안전합니다.
+
+```bash
+bash deploy/smoke/run-local-policy-quality-summary.sh
+```
+
 ## 실행 순서
 
 현재 local/runtime에서 가장 안전한 기본 순서는 아래입니다.
@@ -111,6 +118,7 @@ curl -sS \
 - `missingOnly=true`
 - `failedCount=0`
 - `updatedCount > 0` 또는 이미 채워진 상태면 `skippedCount > 0`
+- 실행한 query(`missingOnly`, `limitPerSource`, `sourceType`)를 같이 기록
 
 샘플 실행:
 
@@ -157,6 +165,7 @@ curl -sS \
 - `updatedCount`
 - `relevantCount`
 - `excludedCount`
+- `success=true`, `data.*` wrapper shape 유지
 
 현재 local 재확인 기준:
 
@@ -194,6 +203,7 @@ curl -sS \
 - `requestedServiceCount`
 - `scannedChunkCount`
 - `refreshedChunkCount`
+- `serviceId` override 여부
 
 선택 rebuild local 재확인 예시 (`serviceId=6790,2622`):
 
@@ -223,6 +233,8 @@ curl -sS \
 - `top3HitRate`
 - `branchSuggestionHitRate`
 - `emptyResultCount`
+- `datasetKey`
+- `scenarioCount`
 
 현재 local baseline 문서 기준:
 
@@ -249,6 +261,7 @@ curl -sS \
 
 - `passed=true`
 - `failureReasons=[]`
+- gate 직전 run 결과와 같은 `datasetKey` 인지
 
 이 경로가 가장 빠른 go/no-go 판정입니다.
 
@@ -273,6 +286,7 @@ curl -sS \
 - `searchablePolicyRatio`
 - top unified category summary
 - youth broad dominant mapping
+- audit timestamp / summary snapshot
 
 이건 튜닝 명령이 아니라 **분포/왜곡을 읽는 read-only 진단 경로**로 봅니다.
 
@@ -302,3 +316,12 @@ curl -sS \
 3. `category-audit` 는 수정 command가 아니라 분포를 읽는 audit 경로입니다.
 4. `Gov24` 쪽은 이 문서가 아니라 [policy-gov24-runtime-audit-runbook.md](./policy-gov24-runtime-audit-runbook.md) 를 먼저 봅니다.
 5. blocked taxonomy/import-backfill은 이 문서 범위가 아닙니다.
+
+## 실행 후 남길 최소 기록
+
+- wrapper 또는 직접 command
+- auth 방식(`Bearer` / env source)
+- query override(`limitPerSource`, `sourceType`, `serviceId`)
+- `success=true` 여부와 `data.*` 핵심 필드
+- baseline과 달라진 숫자
+- follow-up 필요 여부

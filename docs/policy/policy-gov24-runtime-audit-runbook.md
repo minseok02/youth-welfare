@@ -59,6 +59,14 @@ bash deploy/smoke/run-local-gov24-quality-audit.sh
 - detail fill rate
 - `support raw는 있지만 fact가 없는` 샘플 5건과 `effective_signal_count / mapped_signal_count`
 
+기록할 때는 raw 숫자만 적지 말고 최소 아래를 같이 남깁니다.
+
+- wrapper 실행 시각
+- `gov24_total_services / gov24_detail_rows / gov24_support_raw`
+- `gov24_support_fact_services / gov24_support_missing_fact_services`
+- `gov24_missing_no_support_raw / all_null / unmapped_only / mapped_signal`
+- nested/flat shape
+
 ## 3. 결과 해석 순서
 
 ### A. 먼저 backlog closeout 확인
@@ -117,6 +125,12 @@ curl -sS -X POST "http://127.0.0.1:8082/api/admin/collect/gov24-support-conditio
 - transient upstream 실패 재현
 - missing sample 단건 점검
 
+기록:
+
+- 어떤 lane(`detail` / `support`)을 돌렸는지
+- `maxCallsPerRun` 또는 `sourceId`
+- 최신 `api_sync_logs` 의 `requested/saved/skipped/failed`
+
 ## 5. 샘플 감사 기준
 
 대표 샘플을 볼 때는 아래 순서로 봅니다.
@@ -149,3 +163,13 @@ hard taxonomy/import-backfill 은 여전히 blocked track 입니다.
 3. 마지막으로 `missing fact` 를 `all-null / unmapped-only / anomaly` 로 나눠 봅니다.
 4. all-null payload와 unmapped official code payload는 수집 실패와 분리해서 해석합니다.
 5. hard taxonomy/import-backfill 은 이 runbook 범위가 아닙니다.
+
+## 실행 후 남길 최소 기록
+
+- wrapper 또는 collect command
+- closeout coverage 3종(`list/detail/support raw`)
+- fact coverage / missing service count
+- nested/flat shape
+- missing fact 분해 4종
+- 샘플 sourceId 1~5건과 `effective_signal_count / mapped_signal_count`
+- follow-up이 blocked 인지 deferred 인지

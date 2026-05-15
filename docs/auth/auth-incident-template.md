@@ -27,7 +27,8 @@ auth/session revoke 실행 결과나 이상 동작을 기록할 때 복사해서
   - `withdraw`
   - `admin allowlist revoke`
   - `admin forced logout`
-- command / endpoint:
+- wrapper / command / endpoint:
+- app base URL:
 
 ## 2. 전제 상태
 
@@ -37,6 +38,7 @@ auth/session revoke 실행 결과나 이상 동작을 기록할 때 복사해서
   - `current`
   - `legacy(no iatm)`
 - refresh cookie/token 상태:
+- 관련 URL / query:
 
 ## 3. 결과 요약
 
@@ -44,12 +46,14 @@ auth/session revoke 실행 결과나 이상 동작을 기록할 때 복사해서
 - old access reuse result:
 - old refresh reuse result:
 - relogin result:
+- errorCode 요약:
 
 ## 4. 운영 증적
 
 - server log line:
 - redis key 확인:
 - cutoffMillis 확인 여부:
+- artifact / response file 위치:
 
 ## 5. 판정
 
@@ -70,6 +74,7 @@ auth/session revoke 실행 결과나 이상 동작을 기록할 때 복사해서
 - user-session cutoff 문제인지:
 - allowlist/role issue 인지:
 - 테스트 전제 혼동인지:
+- smoke baseline과 다른 점:
 
 ## 8. 다음 액션
 

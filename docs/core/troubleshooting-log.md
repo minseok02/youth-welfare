@@ -3872,3 +3872,18 @@
 - 문제: `demo-scenario.md` 는 정책 상세와 북마크 예시에 `/api/policies/1`, `/api/recommendations/1/bookmark` 같은 고정 ID를 그대로 두고 있었다. 하지만 현재 로컬 데이터/snapshot에서는 이 값이 언제나 의미 있는 정책/추천을 가리킨다고 보장할 수 없다. 그대로 복사하면 데모나 기능 검수 중 문서가 실제로는 “예시”인데 “고정 성공 기준”처럼 읽힌다.
 - 해결: 상세/북마크 예시를 앞 단계 응답에서 받은 실제 `serviceId` / `recommendationId` 를 이어서 쓰는 형태로 바꾸고, 이 문서가 baseline 판정 문서가 아니라 발표/기능 검수용 데모 문서라는 점과 baseline 확인은 smoke wrapper를 먼저 보라고 명시했다.
 - 이유: 데모 문서가 실행 예시를 제공하더라도, 현재 데이터에 종속적인 ID를 절대 기준처럼 두면 검수 실패 원인이 코드가 아니라 예시 drift인지 구분이 안 된다. 데모 문서는 실제 응답을 이어 쓰는 흐름을 보여 줘야 한다.
+
+## 718) auth incident template이 boundary만 적고 URL/토큰 조건, errorCode, artifact 위치를 남기지 않으면 같은 revoke 계약도 나중에 비교 가능한 증거가 부족하다
+- 문제: `auth-incident-template.md` 는 boundary와 결과 요약은 남길 수 있었지만, 현재 smoke baseline에서 중요하게 보는 `wrapper`, `app base URL`, `관련 URL/query`, `errorCode`, `artifact/response file 위치`, `smoke baseline과 다른 점` 같은 항목이 없었다. 이 상태에선 forced logout / withdraw / logout 차이를 설명해도, 실제 incident 기록이 smoke와 같은 수준의 증거를 보존하지 못한다.
+- 해결: 템플릿에 `wrapper / command / endpoint`, `app base URL`, `관련 URL / query`, `errorCode 요약`, `artifact / response file 위치`, `smoke baseline과 다른 점` 항목을 추가했다.
+- 이유: auth/session 검증은 결과 코드 자체보다 “어떤 조건에서 어떤 코드가 나왔는가”를 남기는 것이 중요하다. 기록 템플릿이 그 정보를 담지 못하면 current-state/checklist가 좋아도 incident 비교가 약해진다.
+
+## 719) policy admin runtime runbook이 baseline 숫자만 보여 주고 wrapper/query/data wrapper 기록을 요구하지 않으면, 같은 성공이라도 재현 경로와 응답 shape drift를 놓치기 쉽다
+- 문제: `policy-admin-runtime-runbook.md` 는 endpoint와 baseline 숫자는 잘 정리돼 있었지만, 실제로는 `run-local-policy-quality-summary.sh` 같은 bounded runtime wrapper를 먼저 태우는 게 안전하고, 개별 admin endpoint를 다시 열 때도 `limitPerSource`, `sourceType`, `serviceId`, `datasetKey`, `data.* wrapper` 를 같이 기록해야 한다. 이 항목이 없으면 endpoint는 성공해도 baseline drift나 잘못된 query override를 나중에 비교하기 어렵다.
+- 해결: runbook에 bounded runtime wrapper 우선 사용 원칙을 추가하고, `reference-urls`, `search-youth-relevance`, `embeddings`, `retrieval-evaluation`, `gate`, `category-audit` 각각에서 무엇을 함께 기록해야 하는지 명시했다. 마지막에는 실행 후 남길 최소 기록 블록도 추가했다.
+- 이유: admin runtime 문서는 “무엇을 실행하는가”만이 아니라 “성공했을 때 무엇을 남겨야 다음 비교가 가능한가”를 알려 줘야 실효성이 생긴다. 현재 구조는 동일 endpoint라도 query override와 wrapper/직접 호출에 따라 해석이 달라질 수 있다.
+
+## 720) Gov24 runtime audit runbook이 coverage 수치만 적고 missing breakdown / sample signal / collect lane 기록을 요구하지 않으면, deferred gap과 실제 anomaly를 다시 섞어 읽게 된다
+- 문제: `policy-gov24-runtime-audit-runbook.md` 는 closeout/deferred inventory 해석은 좋았지만, 실제 audit 실행 후 무엇을 꼭 기록해야 하는지는 약했다. 이 상태면 사용자가 `10937/10937/10937` 같은 coverage 숫자만 적고, `missing_all_null`, `missing_unmapped_only`, nested/flat shape, sample `effective_signal_count / mapped_signal_count`, collect lane의 `requested/saved/skipped/failed` 를 생략해 버릴 수 있다.
+- 해결: runbook에 wrapper 실행 후 남길 최소 metric 묶음과, detail/support 재수집 시 `lane`, `maxCallsPerRun`/`sourceId`, 최신 `api_sync_logs` 요약을 같이 남기도록 추가했다. 마지막에도 실행 후 남길 최소 기록 블록을 별도로 넣었다.
+- 이유: Gov24 current truth의 핵심은 단순 closeout 숫자가 아니라 `deferred inventory` 와 `anomaly` 를 구분하는 것이다. 기록 항목이 coverage 숫자만 남기면 이 구분이 다시 사라진다.
