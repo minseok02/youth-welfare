@@ -3932,3 +3932,8 @@
 - 문제: 처음에는 충돌만 막으려고 `time_ns.pid.uuid.hostname` 형태의 긴 suffix를 붙였더니, 일부 smoke 특히 `bookmark.consistency.smoke` 같은 긴 prefix와 합쳐져 signup이 `400/C001 (must be a well-formed email address)` 로 실패했다. 즉 충돌은 해결됐지만 local part 길이/형식 제약을 다시 건드린 셈이다.
 - 해결: `smoke_build_email()` 이 prefix를 소문자 영숫자 기준으로 정규화하고 12자까지만 유지한 뒤, 14자리 UUID suffix만 붙이도록 다시 축약했다. 그 뒤 `run-local-bookmark-consistency-smoke.sh` 와 `run-local-validation-from-env.sh --quick` 가 모두 통과했다.
 - 이유: smoke identity 생성은 “충분히 유일”하기만 하면 되는 게 아니라, 현재 signup validation이 받아들이는 형식과 길이 안에도 들어와야 한다. helper를 공통화할 때 이 두 조건을 같이 보지 않으면, collision bug를 고친 뒤 바로 형식 bug로 넘어가게 된다.
+
+## 730) smoke 격리 버그를 고친 뒤에는 quick만이 아니라 full / PII / bounded runtime까지 다시 끝까지 태워야 “helper가 다른 lane을 깨지 않았다”는 결론이 성립한다
+- 문제: 이메일 충돌과 형식 문제를 바로잡은 뒤 `run-local-runtime-api-smoke.sh` 와 `run-local-validation-from-env.sh --quick` 까지만 green이어도, replay를 포함한 full suite, PII cutover, bounded runtime wrappers가 같은 helper 변경에 부작용이 없는지는 아직 비어 있었다.
+- 해결: 수정 직후 `run-local-validation-from-env.sh --full`, `run-local-pii-sync-cutover-smoke.sh`, `run-local-policy-quality-summary.sh`, `run-local-gov24-quality-audit.sh`, `run-local-ctr-readiness-audit.sh` 를 순서대로 다시 실행했다. 결과는 full suite `101s` 통과, replay baseline `9->9 / 1->1 / same / reason_changed=0` 유지, PII queue `SYNCED attempt_count=3`, quality/category baseline 유지, Gov24 `10937 / 10937 / 10937 / 9959 / 978` 유지, CTR snapshot은 smoke traffic 증가만 반영한 `1923 / 19 / clicked_services=2 / DEFERRED_CLICK_SAMPLE_THIN` 으로 확인됐다.
+- 이유: smoke helper는 runtime/auth 쪽만 쓰는 게 아니라 bookmark, public-profile-chat, recommendation click, PII cutover까지 넓게 물고 있다. 로컬 회귀 수정이 진짜 닫혔는지 판단하려면 narrow smoke뿐 아니라 broader local baseline 전체를 다시 한 번 끝까지 통과시켜야 한다.
