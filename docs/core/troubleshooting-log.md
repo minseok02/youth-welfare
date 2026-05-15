@@ -3912,3 +3912,13 @@
 - 문제: `policy-docs-index.md` 와 `recommendation-docs-index.md` 는 현재 문서 우선순위는 잘 정리돼 있었지만, 지금 practical lane에서 실제로 자주 다시 여는 wrapper(`run-local-policy-quality-summary.sh`, `run-local-gov24-quality-audit.sh`, `run-local-education-priority-replay.sh`, `run-local-ctr-readiness-audit.sh`)와 evidence-first 기록 순서가 전면에 드러나지 않았다.
 - 해결: 두 인덱스 문서에 practical runtime wrapper를 직접 추가하고, 결과를 남길 때는 숫자 요약만 적지 말고 wrapper/command, query override, summary metric, fingerprint/concentration, `data.*` 핵심 필드, baseline과 달라진 점을 먼저 적으라고 보강했다.
 - 이유: 인덱스 문서는 결국 “어디부터 들어가야 덜 틀리나”를 정하는 문서다. current-state/runbook를 가리키는 것만으로는 부족하고, 실제로 어느 wrapper를 먼저 태우고 무엇을 증거로 남겨야 하는지까지 보여 줘야 검증 문서군 전체가 실효성을 가진다.
+
+## 726) runtime smoke 명령 모음이 여전히 raw suite를 기본처럼 보이게 하면, 이미 정리한 `from-env` wrapper 우선 원칙이 다시 무력화된다
+- 문제: `runtime-api-smoke-commands.md` 는 한동안 로컬 기준선 재확인 기본 진입점으로 `run-local-validation-suite.sh` 를 먼저 보여 주고 있었다. 하지만 현재 로컬 환경에서는 `.env`, admin smoke 계정 파일, API base URL을 같이 정규화하는 `run-local-validation-from-env.sh` 를 우선 써야 smoke 실패를 환경 drift와 더 잘 분리할 수 있다.
+- 해결: 문서에서 전체 baseline 기본 진입점을 `run-local-validation-from-env.sh` 로 다시 강조하고, `run-local-validation-suite.sh` 는 env가 이미 정규화된 경우에만 쓰는 보조 진입점으로 설명했다.
+- 이유: local-validation-docs-index만 고쳐도 실제 명령 모음 문서가 반대로 말하면 사용자는 다시 raw suite를 먼저 친다. wrapper 우선 원칙은 index와 command 문서 양쪽에서 같아야 효과가 있다.
+
+## 727) recommendation replay template이 `reason_changed`, wrapper, baseline 비교 항목 없이 남아 있으면, 최신 broad-suite truth와 직접 비교하기 어렵다
+- 문제: `recommendation-replay-template.md` 는 실행 정보와 top10/target_total 정도는 남길 수 있었지만, 현재 replay 판단에서 중요한 `wrapper / replay app base URL`, `reason_changed`, `fingerprint relation`, `baseline과 달라진 점`, `current broad-suite baseline(9->9 / 1->1 / same / reason_changed=0)과 비교` 칸이 없었다.
+- 해결: 템플릿에 위 항목들을 추가해 현재 broad-suite truth와 직접 비교 가능한 형태로 보강했다.
+- 이유: replay 기록은 단순 summary metric만 남기면 예전 rescue snapshot과 현재 broad-suite baseline을 다시 섞어 읽기 쉽다. 최신 기준과의 비교 칸이 있어야 현재 단계의 비회귀/diagnostic 판정을 재사용할 수 있다.

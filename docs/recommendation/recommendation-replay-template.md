@@ -25,7 +25,8 @@
 - mode:
   - `rule-only`
   - `real-openai`
-- command/script:
+- wrapper / command / script:
+- app base URL / replay app base URL:
 
 ## 2. 전제 상태
 
@@ -34,6 +35,7 @@
 - `service_facts` count:
 - target rows count:
 - collect/snapshot 상태:
+- helper/preflight self-heal 여부:
 
 ## 3. 결과 요약
 
@@ -41,7 +43,9 @@
 - `B_top10_target`:
 - `A_target_total`:
 - `B_target_total`:
+- `reason_changed`:
 - artifact dir:
+- baseline과 달라진 점:
 
 ## 4. trace 정보
 
@@ -49,6 +53,7 @@
 - response trace present:
 - `A_fp`:
 - `B_fp`:
+- fingerprint relation:
 
 ## 5. 판정
 
@@ -69,6 +74,7 @@
 - real-openai variability 범주인지:
 - sidecar/projection 문제인지:
 - collect snapshot 문제인지:
+- current broad-suite baseline(`9->9 / 1->1 / same / reason_changed=0`)과 비교:
 
 ## 8. 다음 액션
 

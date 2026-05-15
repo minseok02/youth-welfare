@@ -95,12 +95,6 @@ deploy/smoke/run-local-auth-session-smoke.sh
 2. withdraw smoke
 3. admin forced logout smoke
 
-로컬 기준선을 한 번에 다시 확인할 때는 아래 상위 wrapper를 우선 사용합니다.
-
-```bash
-deploy/smoke/run-local-validation-suite.sh
-```
-
 서버나 개인 로컬의 `.env` 값이 기본 smoke 값과 다를 때는 실제 값을 명령줄에 직접 반복해서 쓰지 말고,
 아래 wrapper를 우선 사용합니다. 이 wrapper는 `.env`를 읽어 `DB_QUERY_PASSWORD`,
 `DB_ROOT_PASSWORD`, `ADMIN_EMAIL` 등 검증용 override만 현재 shell에 주입하고 값은 출력하지 않습니다.
@@ -115,6 +109,14 @@ deploy/smoke/run-local-validation-from-env.sh --full --skip-replay
 deploy/smoke/run-local-validation-from-env.sh --only dashboard
 VALIDATION_APP_BASE_URL=http://127.0.0.1:8082 deploy/smoke/run-local-validation-from-env.sh --quick
 ```
+
+로컬 기준선을 한 번에 다시 확인할 때도 기본 진입점은 위 `run-local-validation-from-env.sh` 입니다.
+`.env`, local admin smoke 계정 파일, API base URL을 같이 정규화하므로 현재 로컬 환경에서 가장 덜 틀리게 재현됩니다.
+
+`run-local-validation-suite.sh` 는
+- env를 이미 명시적으로 정규화한 경우
+- wrapper 없이 raw suite를 호출해야 하는 경우
+의 보조 진입점으로 봅니다.
 
 기본 순서:
 
