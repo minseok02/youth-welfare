@@ -59,29 +59,29 @@ service_id|clicks|share_pct
 user_key|clicks
 ```
 
-## 현재 기준선 (2026-05-15)
+## 현재 기준선 (2026-05-15, full validation 재검증 후)
 
 ```text
-ctr_total_logs=1634
-ctr_clicked_logs=15
-ctr_pct=0.92
-ctr_total_logs_7d=1634
-ctr_clicked_logs_7d=15
-ctr_pct_7d=0.92
-ctr_distinct_users=42
+ctr_total_logs=1702
+ctr_clicked_logs=16
+ctr_pct=0.94
+ctr_total_logs_7d=1702
+ctr_clicked_logs_7d=16
+ctr_pct_7d=0.94
+ctr_distinct_users=46
 ctr_distinct_services=113
-ctr_clicked_users=15
+ctr_clicked_users=16
 ctr_clicked_services=2
-ctr_fallback_sent=1034
+ctr_fallback_sent=1042
 ctr_fallback_clicked=0
-ctr_ai_sent=600
-ctr_ai_clicked=15
+ctr_ai_sent=660
+ctr_ai_clicked=16
 ```
 
 weight bucket 분포:
 
 ```text
-0.40|0.60|1121|12|1.07
+0.40|0.60|1189|13|1.09
 0.60|0.40|366|3|0.82
 0.80|0.20|147|0|0.00
 ```
@@ -89,8 +89,8 @@ weight bucket 분포:
 clicked service concentration:
 
 ```text
-2622|9|60.00
-3688|6|40.00
+2622|10|62.50
+3688|6|37.50
 ```
 
 readiness 판정:
@@ -125,11 +125,11 @@ DEFERRED_CLICK_SAMPLE_THIN
 
 `2026-05-15` 기준 local 데이터는:
 
-- total logs는 `1634` 로 top stage까지 올라가 있음
-- 하지만 클릭은 `15` 건뿐임
-- clicked user는 `15` 명이지만 clicked service는 `2` 개뿐임
-- fallback `1034` 건은 클릭 `0`
-- AI `600` 건에서만 클릭 `15`
+- total logs는 `1702` 로 top stage까지 올라가 있음
+- 하지만 클릭은 `16` 건뿐임
+- clicked user는 `16` 명이지만 clicked service는 `2` 개뿐임
+- fallback `1042` 건은 클릭 `0`
+- AI `660` 건에서만 클릭 `16`
 - 클릭이 `2`개 서비스(`2622`, `3688`)에 사실상 전부 몰려 있어, 지금 단계에서 weight 조정을 열면 특정 서비스 편향을 전체 품질 신호로 오해할 위험이 큼
 
 즉 현재 병목은 **instrumentation bug** 가 아니라 **click sample 부족** 입니다.

@@ -3802,3 +3802,8 @@
 - 문제: broader local 검증으로 `run-local-pii-sync-cutover-smoke.sh` 를 다시 태우자 두 가지 drift가 드러났다. 첫째, wrapper는 `APP_PII_DB_URL` 만 MySQL 값을 PostgreSQL PII schema URL로 교정하고 `NOTIFICATION_PII_DB_URL` 은 기존 `.env` 의 MySQL 값을 그대로 넘겨 app health를 `DOWN` 으로 만들었다. 둘째, inner smoke는 `APPLY_PII_SYNC_QUEUE_MIGRATION=true` 일 때 legacy MySQL migration 파일 `V2026_04_28_02__add_user_pii_sync_queue.sql` 을 `psql` 로 그대로 실행해 `USE youth_welfare` 구문에서 실패했다.
 - 해결: wrapper는 `NOTIFICATION_PII_DB_URL` 도 비어 있거나 `jdbc:mysql://` 면 `APP_PII_DB_URL` 과 같은 PostgreSQL PII schema URL로 정규화하게 바꿨다. inner smoke는 `user_pii_sync_queue` 가 이미 있으면 legacy migration replay를 건너뛰고, 없을 때만 PostgreSQL-compatible queue bootstrap DDL을 직접 적용하도록 정리했다.
 - 이유: PII cutover smoke는 현재 broader local 기능/구조 검증에서 중요한 regression net이다. secondary datasource 한쪽만 예전 MySQL 값을 들고 있거나, integrated schema가 이미 있는 상태에서 legacy MySQL migration을 다시 태우면, 실제 cutover 로직 문제가 아니라 환경/스크립트 drift 때문에 smoke가 멈춰 버린다.
+
+## 704) broader local full validation은 synthetic smoke traffic 때문에 CTR 숫자를 조금 밀어 올릴 수 있으므로, 수치 갱신과 readiness 해석을 같이 기록해야 한다
+- 문제: `run-local-validation-from-env.sh --full` 은 recommendation click smoke를 포함하므로 전체 suite를 다시 태운 뒤 `recommendation_logs` 와 clicked 로그 수가 소폭 증가한다. 이 숫자 변화만 따로 보면 regression 또는 tuning-ready 신호처럼 오해할 수 있다.
+- 해결: full validation 재검증 직후 `run-local-ctr-readiness-audit.sh` 를 다시 읽어 current baseline을 `1702 / 16 / clicked_services=2 / DEFERRED_CLICK_SAMPLE_THIN` 으로 갱신하고, 관련 recommendation current-state/runbook/priority 문서도 함께 최신 수치로 맞췄다.
+- 이유: 현재 recommendation truth는 여전히 “로그 총량은 충분하지만 클릭 표본과 서비스 분산이 얇다”는 점이다. synthetic smoke traffic으로 수치가 조금 움직여도 readiness 해석은 그대로 유지된다는 점을 함께 기록해야 current baseline이 흔들리지 않는다.
