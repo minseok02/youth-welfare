@@ -177,7 +177,7 @@ deploy/smoke/run-local-ctr-readiness-audit.sh
 ```
 
 - policy retrieval/category baseline: [policy-quality-summary-runbook.md](../policy/policy-quality-summary-runbook.md)
-- Gov24 closeout/gap audit: [policy-gov24-runtime-audit-runbook.md](../policy/policy-gov24-runtime-audit-runbook.md)
+- Gov24 closeout/deferred inventory audit: [policy-gov24-runtime-audit-runbook.md](../policy/policy-gov24-runtime-audit-runbook.md)
 - bounded admin runtime baseline: [policy-admin-runtime-runbook.md](../policy/policy-admin-runtime-runbook.md)
 - recommendation CTR readiness baseline: [recommendation-ctr-readiness-runbook.md](../recommendation/recommendation-ctr-readiness-runbook.md)
 

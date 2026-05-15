@@ -3767,3 +3767,8 @@
 - 문제: `local-validation-docs-index.md` 는 bounded runtime 묶음을 소개하면서 `Gov24 runtime closeout / gap audit` 이라고만 적고 있었고, `policy-quality-summary-runbook.md` 의 관련 문서 목록도 `Gov24 runtime audit` 까지만 연결하고 있었다. 이 상태에선 현재 남은 practical 해석이 `978 unmapped-only payload = business-code deferred inventory` 라는 점이 진입점에서 드러나지 않았다.
 - 해결: `local-validation-docs-index.md` 의 소개 문구를 `Gov24 runtime closeout / deferred inventory audit` 으로 바꾸고, `policy-quality-summary-runbook.md` 에 `policy-gov24-support-unmapped-inventory.md` 링크를 추가했다.
 - 이유: 현재 `Gov24` 는 단순 수집 누락 점검 단계가 아니라 runtime closeout 위에서 deferred business-code inventory 를 해석하는 단계다. 인덱스/related docs가 여전히 `gap audit` 수준에 머물면 current layered truth보다 좁게 읽히게 된다.
+
+## 697) bounded runtime wrapper 문서가 `Gov24 gap audit` 같은 예전 요약어에 머물러 있으면, current closeout/deferred inventory 해석보다 다시 얕게 읽힌다
+- 문제: `runtime-api-smoke-commands.md` 와 `policy-quality-summary-runbook.md` 일부 문구는 여전히 `Gov24 closeout/gap audit`, `Gov24 runtime collect/audit` 정도로만 소개하고 있었다. 하지만 현재 Gov24 practical baseline은 단순 collect 확인을 넘어 `runtime closeout + deferred support-code inventory audit` 까지 포함한다.
+- 해결: 두 문서의 관련 runbook 소개 문구를 `Gov24 closeout/deferred inventory audit` 와 `Gov24 runtime closeout/deferred inventory audit` 으로 교정했다.
+- 이유: runtime wrapper 문서는 실제 반복 검증을 할 때 가장 먼저 열어보는 entrypoint다. 여기 표현이 예전 gap-audit 수준에 머물면, 이미 closeout된 Gov24의 현재 해석 층위가 다시 얕아진다.

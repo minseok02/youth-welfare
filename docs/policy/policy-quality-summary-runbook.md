@@ -120,6 +120,6 @@ raw JSON 대신 이 스크립트 출력만 기록해도 첫 triage는 충분합�
 ## 관련 문서
 
 - bounded admin 절차 전체: [policy-admin-runtime-runbook.md](./policy-admin-runtime-runbook.md)
-- Gov24 runtime collect/audit: [policy-gov24-runtime-audit-runbook.md](./policy-gov24-runtime-audit-runbook.md)
+- Gov24 runtime closeout/deferred inventory audit: [policy-gov24-runtime-audit-runbook.md](./policy-gov24-runtime-audit-runbook.md)
 - Gov24 deferred support-code inventory: [policy-gov24-support-unmapped-inventory.md](./policy-gov24-support-unmapped-inventory.md)
 - 현재 전체 기준선: [current-state.md](../current-state.md)
