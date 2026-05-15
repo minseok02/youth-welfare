@@ -3777,3 +3777,8 @@
 - 문제: `collect-docs-index.md` 는 runbook 연결 자체는 맞췄지만, 요약 항목 4번이 여전히 `Gov24 runtime audit` 이라고만 적혀 있었다. 이 표현만 보면 현재 collect practical baseline이 `runtime closeout + deferred business-code inventory audit` 까지 포함한다는 점이 다시 흐려진다.
 - 해결: 요약 문구를 `Gov24 runtime closeout/deferred inventory audit` 으로 교정했다.
 - 이유: collect docs index는 collect 문서군의 가장 압축된 진입점이다. 이 레벨의 요약이 예전 audit 표현에 머물면, 아래쪽에서 어렵게 정리한 layered truth가 다시 한 줄 요약에서 축소되어 버린다.
+
+## 699) top-level current-state/start 와 post-closeout split 이 아직 `Gov24 blocked track` 또는 `runtime audit` 정도로만 적혀 있으면, 현재 layered truth가 다시 상위 진입점에서 납작해진다
+- 문제: `current-state.md` 와 `start.md` 는 `Gov24 runtime closeout / blocked track` 이라고 적고 있었고, `policy-post-local-closeout-track-split.md` 의 active baseline 목록도 `Gov24 runtime audit` 이라고만 적고 있었다. 이 표현들은 현재 `runtime closeout + blocked/deferred track + deferred inventory audit` 층위를 충분히 드러내지 못했다.
+- 해결: `current-state.md`, `start.md` 는 `Gov24 runtime closeout / blocked-deferred track` 으로, `policy-post-local-closeout-track-split.md` 는 `Gov24 runtime closeout / deferred inventory audit` 으로 교정했다.
+- 이유: 상위 진입점 문서와 active track split 문서는 가장 압축된 현재 상태 요약 역할을 한다. 여기 wording이 예전 blocked/audit 표현에 머물면, 하위 runbook과 inventory에서 정리한 layered truth가 다시 상위 요약에서 축소되어 버린다.

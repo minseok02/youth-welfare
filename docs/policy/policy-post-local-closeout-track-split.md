@@ -61,7 +61,7 @@ closeout 이후 남은 항목은 아래 세 묶음으로 유지합니다.
 현재 active 로 보는 반복 검증은 아래입니다.
 
 - `policy quality summary`
-- `Gov24 runtime audit`
+- `Gov24 runtime closeout / deferred inventory audit`
 - `policy admin runtime`
 - `CTR readiness audit`
 
