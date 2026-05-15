@@ -3742,3 +3742,8 @@
 - 문제: `policy-docs-index.md` 는 `policy-gov24-blocked-track-status.md` 를 `blocked 로 봐야 하는 문서` 묶음에 그대로 넣고 있었다. 하지만 현재 이 문서는 Gov24 전체가 막혀 있다는 뜻이 아니라, runtime collect/runtime audit closeout 위에서 남은 hard import/backfill blocked 와 business-code deferred 판단을 함께 설명하는 문서다.
 - 해결: 해당 섹션 제목과 설명을 `blocked / deferred track 문서` 로 바꾸고, 외부 응답이 있어야 다시 여는 blocked 문서와 runtime closeout 뒤 남은 deferred 판단 문서를 함께 읽는다는 뜻을 명시했다.
 - 이유: policy docs index는 주제 문서군 진입점이다. 여기 분류가 예전 단일 blocked 해석에 머물러 있으면, 이미 closeout된 Gov24도 다시 “전체가 막힌 트랙”처럼 읽히게 된다.
+
+## 692) `collect-docs-index` 가 collect current-state/checklist/ops까지만 안내하면, 현재 자주 쓰는 collect closeout runbook이 policy 문서 안의 부가 자료처럼 숨어 버린다
+- 문제: `collect-docs-index.md` 는 collect 현재 동작과 실행 체크리스트는 잘 정리돼 있었지만, 실제로 collect closeout 이후 반복 점검에 자주 쓰는 `policy-gov24-runtime-audit-runbook.md` 와 `policy-quality-summary-runbook.md` 는 인덱스에서 보이지 않았다.
+- 해결: `collect-docs-index.md` 의 “같이 보면 좋은 기준 문서”, “문서 역할”, “읽는 순서”, “요약”에 두 runbook을 추가해 collect closeout/quality baseline 진입점으로 명시했다.
+- 이유: 현재 collect practical work는 단순 수집 실행보다 closeout coverage와 downstream quality baseline 재확인에 가깝다. 이 경로가 collect 인덱스에 안 보이면, 관련 runbook이 여전히 policy 문서군 안의 부가 자료처럼 남게 된다.

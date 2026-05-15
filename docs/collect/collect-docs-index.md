@@ -22,6 +22,8 @@
 
 - [runtime-api-smoke-commands.md](../core/runtime-api-smoke-commands.md)
 - [testing.md](../core/testing.md)
+- [policy-gov24-runtime-audit-runbook.md](../policy/policy-gov24-runtime-audit-runbook.md)
+- [policy-quality-summary-runbook.md](../policy/policy-quality-summary-runbook.md)
 - [policy-local-closeout-pending-inventory.md](../policy/policy-local-closeout-pending-inventory.md)
 - [phase-plan.md](../phase-plan.md) ← 최신 상단 closeout 기록만 참고, 현재 collect 계약은 위 current-state/checklist를 우선
 
@@ -71,6 +73,18 @@
 
 수집 실행이나 장애를 기록할 때 복사해서 쓰는 템플릿입니다.
 
+### 5. collect closeout / quality audit
+
+- [policy-gov24-runtime-audit-runbook.md](../policy/policy-gov24-runtime-audit-runbook.md)
+- [policy-quality-summary-runbook.md](../policy/policy-quality-summary-runbook.md)
+
+이 문서군은
+
+- `Gov24` collect closeout 뒤 coverage/raw shape/missing fact gap을 다시 볼 때
+- retrieval/category baseline까지 함께 one-shot summary로 확인할 때
+
+먼저 보는 bounded runtime runbook 입니다.
+
 ## 읽는 순서
 
 ### 현재 상태만 빨리 확인할 때
@@ -82,7 +96,13 @@
 
 1. [collect-operation-checklist.md](./collect-operation-checklist.md)
 2. [collect-ops.md](./collect-ops.md)
-3. 필요하면 [runtime-api-smoke-commands.md](../core/runtime-api-smoke-commands.md)
+3. [policy-gov24-runtime-audit-runbook.md](../policy/policy-gov24-runtime-audit-runbook.md)
+4. 필요하면 [runtime-api-smoke-commands.md](../core/runtime-api-smoke-commands.md)
+
+### collect closeout / quality baseline을 다시 확인할 때
+
+1. [policy-gov24-runtime-audit-runbook.md](../policy/policy-gov24-runtime-audit-runbook.md)
+2. [policy-quality-summary-runbook.md](../policy/policy-quality-summary-runbook.md)
 
 ### 기록을 남길 때
 
@@ -95,4 +115,5 @@
 1. 현재 동작은 [collect-current-state.md](./collect-current-state.md) 부터 봅니다.
 2. 실제 실행은 [collect-operation-checklist.md](./collect-operation-checklist.md) 기준으로 봅니다.
 3. 운영 해석은 [collect-ops.md](./collect-ops.md) 에 더 자세히 적혀 있습니다.
-4. 기록은 [collect-incident-template.md](./collect-incident-template.md) 를 기준으로 남기고, 오래된 전환 로그는 `phase-plan` 을 보조 참고로만 봅니다.
+4. collect closeout / quality baseline은 `Gov24 runtime audit` 과 `policy quality summary` runbook을 먼저 봅니다.
+5. 기록은 [collect-incident-template.md](./collect-incident-template.md) 를 기준으로 남기고, 오래된 전환 로그는 `phase-plan` 을 보조 참고로만 봅니다.
