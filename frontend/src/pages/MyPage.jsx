@@ -8,6 +8,15 @@ import Header from "../components/Header";
 import FloatingNav from "../components/FloatingNav";
 import IncomeCalculatorModal from "../components/IncomeCalculatorModal";
 import api from "../lib/axios";
+import {
+  deletePushSubscription,
+  fetchMyPushSubscriptions,
+  fetchPushPublicKey,
+  getCurrentPushSubscription,
+  isWebPushSupported,
+  registerCurrentBrowserPush,
+  unsubscribeCurrentBrowserPush,
+} from "../lib/webPush";
 import { performServerLogout } from "../lib/session";
 import { useAuthStore } from "../store/authStore";
 
@@ -382,6 +391,13 @@ export default function MyPage() {
   const [alertsLoaded, setAlertsLoaded] = useState(false);
   const [alertUnreadCount, setAlertUnreadCount] = useState(0);
   const [alertActionLoadingId, setAlertActionLoadingId] = useState(null);
+  const [pushSupported, setPushSupported] = useState(false);
+  const [pushPermission, setPushPermission] = useState("default");
+  const [pushPublicKey, setPushPublicKey] = useState("");
+  const [pushSubscriptions, setPushSubscriptions] = useState([]);
+  const [currentPushEndpoint, setCurrentPushEndpoint] = useState("");
+  const [pushLoading, setPushLoading] = useState(false);
+  const [pushActionLoading, setPushActionLoading] = useState(false);
   const [filterIncludeExpired, setFilterIncludeExpired] = useState(filterSettings?.includeExpired ?? false);
 
   const [bookmarkSort, setBookmarkSort] = useState("latest");
@@ -662,6 +678,33 @@ export default function MyPage() {
     }
   }, []);
 
+  const fetchPushStatus = useCallback(async () => {
+    if (!isWebPushSupported()) {
+      setPushSupported(false);
+      setPushPermission(typeof window !== "undefined" && "Notification" in window ? Notification.permission : "default");
+      setPushSubscriptions([]);
+      setCurrentPushEndpoint("");
+      setPushPublicKey("");
+      return;
+    }
+
+    setPushSupported(true);
+    setPushPermission(Notification.permission);
+    setPushLoading(true);
+    try {
+      const [publicKey, subscriptions, currentSubscription] = await Promise.all([
+        fetchPushPublicKey(),
+        fetchMyPushSubscriptions(),
+        getCurrentPushSubscription(),
+      ]);
+      setPushPublicKey(publicKey);
+      setPushSubscriptions(subscriptions);
+      setCurrentPushEndpoint(currentSubscription?.endpoint ?? "");
+    } finally {
+      setPushLoading(false);
+    }
+  }, []);
+
   const ddayUrgent = (dday) => dday !== "종료" && dday !== "상시/문의" && dday !== "예정"
     && (dday === "D-Day" || (dday.startsWith("D-") && Number(dday.slice(2)) <= 14));
   const displayedBookmarks = [...bookmarks].sort((left, right) => {
@@ -707,6 +750,13 @@ export default function MyPage() {
     });
     return () => controller.abort();
   }, [activeTab, alertsLoaded, fetchAlerts, isLoggedIn, showToast]);
+
+  useEffect(() => {
+    if (!isLoggedIn || activeTab !== "noti") return;
+    fetchPushStatus().catch(() => {
+      showToast("브라우저 푸시 상태를 불러오지 못했습니다", "error");
+    });
+  }, [activeTab, fetchPushStatus, isLoggedIn, showToast]);
 
   const syncAlertsAfterAction = useCallback(async () => {
     const controller = new AbortController();
@@ -774,6 +824,71 @@ export default function MyPage() {
       // markAlertRead already surfaced the error.
     }
   }, [location, markAlertRead, navigate, showToast]);
+
+  const browserPushConnected = currentPushEndpoint
+    && pushSubscriptions.some((subscription) => subscription.endpoint === currentPushEndpoint);
+
+  const handleConnectBrowserPush = async () => {
+    if (!pushSupported) {
+      showToast("이 브라우저에서는 웹푸시를 지원하지 않습니다", "error");
+      return;
+    }
+    if (!pushPublicKey) {
+      showToast("웹푸시 공개키가 아직 설정되지 않았습니다", "error");
+      return;
+    }
+
+    setPushActionLoading(true);
+    try {
+      const deviceLabel = "현재 브라우저";
+      const { permission } = await registerCurrentBrowserPush({ publicKey: pushPublicKey, deviceLabel });
+      setPushPermission(permission);
+      await fetchPushStatus();
+      if (permission === "granted") {
+        showToast("브라우저 푸시 연결이 완료되었습니다");
+      } else {
+        showToast("브라우저 알림 권한이 허용되지 않았습니다", "info");
+      }
+    } catch {
+      showToast("브라우저 푸시 연결에 실패했습니다", "error");
+    } finally {
+      setPushActionLoading(false);
+    }
+  };
+
+  const handleDisconnectBrowserPush = async () => {
+    setPushActionLoading(true);
+    try {
+      const currentSubscription = await unsubscribeCurrentBrowserPush();
+      const matched = pushSubscriptions.find((subscription) => subscription.endpoint === currentSubscription?.endpoint);
+      if (matched) {
+        await deletePushSubscription(matched.id);
+      }
+      await fetchPushStatus();
+      showToast("현재 브라우저 푸시 연결을 해제했습니다");
+    } catch {
+      showToast("브라우저 푸시 해제에 실패했습니다", "error");
+    } finally {
+      setPushActionLoading(false);
+    }
+  };
+
+  const handleRemovePushSubscription = async (subscriptionId) => {
+    setPushActionLoading(true);
+    try {
+      const target = pushSubscriptions.find((subscription) => subscription.id === subscriptionId);
+      await deletePushSubscription(subscriptionId);
+      if (target?.endpoint && target.endpoint === currentPushEndpoint) {
+        await unsubscribeCurrentBrowserPush();
+      }
+      await fetchPushStatus();
+      showToast("등록된 브라우저 푸시 연결을 제거했습니다");
+    } catch {
+      showToast("등록된 브라우저 푸시 제거에 실패했습니다", "error");
+    } finally {
+      setPushActionLoading(false);
+    }
+  };
 
   if (!isLoggedIn) return null;
 
@@ -1357,6 +1472,90 @@ export default function MyPage() {
                     <NotiRow title="이메일 수신" desc={`${user?.email || myInfo.email || "이메일"} 으로 발송`} on={notifOn} onChange={() => setNotifOn(v => !v)} />
                   </SectionCard>
 
+                  <SectionCard title="브라우저 푸시" desc="현재 브라우저를 연결하면 새 추천 알림을 즉시 받을 준비를 할 수 있어요">
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, marginBottom: 14 }}>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: INK }}>
+                          현재 브라우저 상태:{" "}
+                          <span style={{ color: browserPushConnected ? "#166534" : INK2 }}>
+                            {browserPushConnected ? "연결됨" : pushPermission === "denied" ? "권한 거부" : "미연결"}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: 12, color: INK3 }}>
+                          {pushSupported
+                            ? `브라우저 권한: ${pushPermission}`
+                            : "이 브라우저/환경에서는 웹푸시를 지원하지 않습니다."}
+                        </div>
+                      </div>
+                      <div style={{ display: "flex", gap: 8 }}>
+                        {browserPushConnected ? (
+                          <button
+                            onClick={handleDisconnectBrowserPush}
+                            disabled={pushActionLoading}
+                            style={{ padding: "9px 14px", borderRadius: 10, border: `1px solid ${LINE}`, background: WHITE, color: INK2, fontSize: 12, fontWeight: 700, cursor: pushActionLoading ? "wait" : "pointer", opacity: pushActionLoading ? 0.75 : 1 }}
+                          >
+                            연결 해제
+                          </button>
+                        ) : (
+                          <button
+                            onClick={handleConnectBrowserPush}
+                            disabled={pushActionLoading || !pushSupported}
+                            style={{ padding: "9px 14px", borderRadius: 10, border: 0, background: A, color: WHITE, fontSize: 12, fontWeight: 700, cursor: pushActionLoading || !pushSupported ? "not-allowed" : "pointer", opacity: pushActionLoading || !pushSupported ? 0.7 : 1 }}
+                          >
+                            현재 브라우저 연결
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    <div style={{ padding: 14, borderRadius: 12, background: BG, color: INK2, fontSize: 12, lineHeight: 1.65, marginBottom: 14 }}>
+                      실제 웹푸시 발송은 아직 열지 않았습니다. 지금 단계에서는 브라우저 권한과 구독 저장만 준비합니다.
+                    </div>
+
+                    {pushLoading ? (
+                      <div style={{ display: "flex", justifyContent: "center", padding: "20px 0" }}>
+                        <CircularProgress size={22} />
+                      </div>
+                    ) : pushSubscriptions.length > 0 ? (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                        {pushSubscriptions.map((subscription) => {
+                          const isCurrentBrowser = subscription.endpoint === currentPushEndpoint;
+                          return (
+                            <div key={subscription.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "14px 16px", border: `1px solid ${LINE}`, borderRadius: 12, background: WHITE }}>
+                              <div style={{ minWidth: 0 }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 4 }}>
+                                  <span style={{ fontSize: 13, fontWeight: 700, color: INK }}>
+                                    {subscription.deviceLabel || "브라우저 구독"}
+                                  </span>
+                                  {isCurrentBrowser && (
+                                    <span style={{ padding: "2px 8px", borderRadius: 999, fontSize: 11, fontWeight: 800, background: "#dbeafe", color: AI }}>
+                                      현재 브라우저
+                                    </span>
+                                  )}
+                                </div>
+                                <div style={{ fontSize: 12, color: INK3, overflow: "hidden", textOverflow: "ellipsis" }}>
+                                  {subscription.endpoint}
+                                </div>
+                              </div>
+                              <button
+                                onClick={() => handleRemovePushSubscription(subscription.id)}
+                                disabled={pushActionLoading}
+                                style={{ padding: "8px 12px", borderRadius: 10, border: `1px solid ${LINE}`, background: WHITE, color: INK3, fontSize: 12, fontWeight: 700, cursor: pushActionLoading ? "wait" : "pointer", whiteSpace: "nowrap" }}
+                              >
+                                제거
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div style={{ textAlign: "center", padding: "24px 0 8px", color: INK3 }}>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: INK, marginBottom: 6 }}>등록된 브라우저 푸시가 아직 없어요</div>
+                        <div style={{ fontSize: 12 }}>현재 브라우저 연결 버튼으로 구독을 먼저 저장할 수 있습니다.</div>
+                      </div>
+                    )}
+                  </SectionCard>
+
                   <SectionCard title="알림 기준" desc="추천 점수와 발송 개수를 조절할 수 있어요">
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
                       <Field label="최소 추천 점수">
@@ -1378,7 +1577,7 @@ export default function MyPage() {
 
                   <SectionCard>
                     <div style={{ padding: 16, background: AS, borderRadius: 12, fontSize: 13, color: INK2, lineHeight: 1.6 }}>
-                      현재 알림 설정은 이메일 수신 여부, 발송 주기, 최소 추천 점수, 발송 개수만 저장됩니다. 인앱 알림함은 추천 digest가 생성되면 자동으로 기록되고, 웹푸시는 아직 열지 않았습니다.
+                      현재 알림 설정은 이메일 수신 여부, 발송 주기, 최소 추천 점수, 발송 개수를 저장합니다. 인앱 알림함은 추천 digest가 생성되면 자동으로 기록되고, 웹푸시는 현재 브라우저 구독 저장까지만 지원합니다.
                       {notificationConsentAt && (
                         <div style={{ marginTop: 8, color: INK3 }}>
                           최근 수신 동의 시각: {formatConsentDateTime(notificationConsentAt)}

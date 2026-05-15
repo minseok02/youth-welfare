@@ -4057,3 +4057,8 @@
 - 문제: 알림 채널 확장의 다음 단계는 웹푸시지만, 현재 프로젝트는 아직 로컬 구조 검증 중심이고 운영 서버/HTTPS 전제도 완전히 고정되지 않았다. 이 상태에서 바로 service worker, VAPID 발송, 실제 push send까지 한 번에 열면 범위가 과도하게 커진다.
 - 해결: 먼저 `web_push_subscriptions` 테이블과 `GET /api/notifications/push-public-key`, `GET /api/notifications/push-subscriptions/me`, `POST /api/notifications/push-subscriptions`, `DELETE /api/notifications/push-subscriptions/{id}` API만 추가했다. 구독은 endpoint 기준 upsert, 삭제는 사용자 소유권 기준 hard delete로 두고, 실제 발송은 아직 보류한다.
 - 이유: 현재 단계에서 필요한 것은 "웹푸시를 쏜다"보다 "브라우저 구독 상태를 안전하게 저장/조회/해제할 수 있다"는 기반 계약이다. 이 계약을 먼저 닫아두면 이후 프론트 permission flow와 실제 발송 연결을 훨씬 안전하게 추가할 수 있다.
+
+## 755) 웹푸시 프론트 1차는 별도 설정 화면보다 기존 `MyPage` 알림 탭 안에서 현재 브라우저 연결 상태를 먼저 노출하는 편이 현재 구조와 맞다
+- 문제: backend subscription API만 있으면 실제 사용자는 브라우저 권한/현재 기기 연결 상태를 확인할 수 없다. 그렇다고 service worker 권한 요청과 별도 설정 페이지를 한 번에 열면 현재 단계에서 UX 범위가 커진다.
+- 해결: `MyPage` 알림 탭 안에 `브라우저 푸시` 카드를 추가해 지원 여부, `Notification.permission`, 현재 브라우저 연결 상태, backend 저장 subscription 목록, `현재 브라우저 연결/해제`, 등록된 구독 제거를 제공했다. service worker 는 `public/sw.js` 로 최소 등록하고, 현재 단계에선 push send 없이 구독 저장까지만 지원한다.
+- 이유: 현재 프로젝트는 이미 `MyPage` 알림 탭에 인앱 알림함과 이메일 설정이 모여 있다. 웹푸시도 같은 문맥에서 현재 브라우저 연결 상태를 먼저 보여 주는 편이 사용자가 이해하기 쉽고 구현 범위도 가장 작다.
