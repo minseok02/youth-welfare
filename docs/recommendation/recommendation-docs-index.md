@@ -16,6 +16,7 @@
 
 - [recommendation-current-state.md](./recommendation-current-state.md)
 - [recommendation-operation-checklist.md](./recommendation-operation-checklist.md)
+- [recommendation-ctr-readiness-runbook.md](./recommendation-ctr-readiness-runbook.md)
 - [recommendation-pipeline.md](./recommendation-pipeline.md)
 
 ### 같이 보면 좋은 기준 문서
@@ -66,7 +67,19 @@
 
 를 코드 기준으로 더 길게 설명한 구조 문서입니다.
 
-### 4. replay 템플릿
+### 4. CTR readiness runbook
+
+- [recommendation-ctr-readiness-runbook.md](./recommendation-ctr-readiness-runbook.md)
+
+이 문서는
+
+- 현재 CTR 표본이 실제 튜닝 가능한 수준인지
+- fallback/AI 클릭 분포가 어떤지
+- weight bucket 분산이 어느 정도인지
+
+를 한 번에 읽는 audit/runbook 입니다.
+
+### 5. replay 템플릿
 
 - [recommendation-replay-template.md](./recommendation-replay-template.md)
 
@@ -82,8 +95,9 @@
 ### 실제 refresh/get/replay 를 확인할 때
 
 1. [recommendation-operation-checklist.md](./recommendation-operation-checklist.md)
-2. [recommendation-pipeline.md](./recommendation-pipeline.md)
-3. 필요하면 [runtime-api-smoke-commands.md](../core/runtime-api-smoke-commands.md)
+2. [recommendation-ctr-readiness-runbook.md](./recommendation-ctr-readiness-runbook.md)
+3. [recommendation-pipeline.md](./recommendation-pipeline.md)
+4. 필요하면 [runtime-api-smoke-commands.md](../core/runtime-api-smoke-commands.md)
 
 ### 실험/비교 기록을 남길 때
 
@@ -95,5 +109,6 @@
 
 1. 현재 동작은 [recommendation-current-state.md](./recommendation-current-state.md) 부터 봅니다.
 2. 실제 실행은 [recommendation-operation-checklist.md](./recommendation-operation-checklist.md) 기준으로 봅니다.
-3. 구조 설명은 [recommendation-pipeline.md](./recommendation-pipeline.md) 에 더 자세히 적혀 있습니다.
-4. replay 기록은 [recommendation-replay-template.md](./recommendation-replay-template.md) 를 기준으로 남깁니다.
+3. CTR 튜닝 readiness는 [recommendation-ctr-readiness-runbook.md](./recommendation-ctr-readiness-runbook.md) 로 먼저 판단합니다.
+4. 구조 설명은 [recommendation-pipeline.md](./recommendation-pipeline.md) 에 더 자세히 적혀 있습니다.
+5. replay 기록은 [recommendation-replay-template.md](./recommendation-replay-template.md) 를 기준으로 남깁니다.

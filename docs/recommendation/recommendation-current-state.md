@@ -176,6 +176,20 @@ recommendation/replay 는 collect와 sidecar snapshot 품질에 직접 의존합
 
 즉 현재 병목은 click instrumentation이 아니라 실사용 클릭 표본 부족입니다.
 
+`2026-05-15` local audit 기준:
+
+- total recommendation logs: `1532`
+- clicked logs: `13`
+- overall CTR: `0.85%`
+- fallback sent/clicked: `1022 / 0`
+- AI sent/clicked: `510 / 13`
+- weight bucket:
+  - `0.40:0.60` -> `1019 sent / 10 clicked / 0.98%`
+  - `0.60:0.40` -> `366 sent / 3 clicked / 0.82%`
+  - `0.80:0.20` -> `147 sent / 0 clicked / 0.00%`
+
+즉 total log 수는 이미 top stage를 넘겼지만, 클릭 표본은 아직 얇아서 현재 readiness 판정은 `DEFERRED_CLICK_SAMPLE_THIN` 입니다.
+
 ### 3. fresh reset 뒤 sidecar 공백
 
 runtime bootstrap이 자동으로 sidecar를 다 복구하는 건 아닙니다.
@@ -208,4 +222,4 @@ runtime bootstrap이 자동으로 sidecar를 다 복구하는 건 아닙니다.
    recommendation 섹션에는 현재 active weight, 누적 recommendation log 수, latest clicked 시각, 최근 7일 weight bucket 분포가 포함됩니다.
    collect 섹션에는 최근 실패 run 목록, search 섹션에는 최근 7일 0건 검색 수가 포함됩니다.
    `trend` 섹션에는 collect/recommendation/search 의 1일/7일/30일 추세가 포함됩니다.
-7. 추천 가중치/프롬프트 재조정은 CTR 표본이 더 쌓인 뒤에만 reopen 합니다.
+7. 추천 가중치/프롬프트 재조정은 CTR readiness audit가 `READY_FOR_WEIGHT_REVIEW` 를 줄 때에만 reopen 합니다.
