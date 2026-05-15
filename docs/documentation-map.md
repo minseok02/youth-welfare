@@ -177,7 +177,7 @@
 
 1. [policy-next-active-track-priority.md](policy/policy-next-active-track-priority.md)
 2. [policy-post-local-closeout-track-split.md](policy/policy-post-local-closeout-track-split.md)
-3. `Gov24` inactive/reopen 판단이 필요하면 [policy-gov24-blocked-track-status.md](policy/policy-gov24-blocked-track-status.md)
+3. `Gov24` runtime closeout 이후 남은 blocked/deferred 판단이 필요하면 [policy-gov24-blocked-track-status.md](policy/policy-gov24-blocked-track-status.md)
 4. 현재 active 트랙의 current-state 문서
 
 ## 6. 요약
@@ -186,5 +186,5 @@
 2. 현재 계약 확인은 `current state` 문서와 실제 코드가 우선입니다.
 3. 쪼개진 `policy` / `auth-admin-forced-logout-*` 문서는 대부분 design history 로 읽습니다.
 4. `auth-docs-index.md`, `collect-docs-index.md`, `recommendation-docs-index.md`, `frontend-qa-docs-index.md`, `policy-docs-index.md`, `local-validation-docs-index.md`, `system-docs-index.md` 가 active 문서군의 1차 진입점이고, `history-docs-index.md` 는 배경 문서군의 진입점입니다.
-5. `Gov24` 같은 blocked 트랙은 [policy-gov24-blocked-track-status.md](policy/policy-gov24-blocked-track-status.md) 에서 inactive 이유와 reopen 조건을 먼저 확인합니다.
+5. `Gov24` 는 runtime collect/runtime audit까지는 이미 closeout 되었고, 남은 hard import/backfill과 deferred code 승격 판단은 [policy-gov24-blocked-track-status.md](policy/policy-gov24-blocked-track-status.md) 에서 먼저 확인합니다.
 6. 지금 기준에서 pure ops/runbook 문서는 삭제했고, 서버가 생기기 전까지는 local-only 문서만 유지합니다.

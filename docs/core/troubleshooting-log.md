@@ -3622,3 +3622,8 @@
 - 문제: `policy-admin-runtime-runbook.md` 와 일부 admin login 예시는 이미 `password123!` 로 교정했지만, `runtime-api-smoke-commands.md` 안의 공통 변수 블록에는 여전히 `SMOKE_PASSWORD="Password123!"` 가 남아 있었다. 이 상태면 문서상으로는 “교정 완료”처럼 보이는데, 실제로는 복붙 진입점 하나가 아직 실패 값을 유지한다.
 - 해결: `runtime-api-smoke-commands.md` 의 남은 공통 변수 블록도 현재 local smoke baseline인 `password123!` 로 맞췄다.
 - 이유: 예시 자격 증명 drift는 파일 단위가 아니라 블록 단위로 남는 경우가 많다. 하나의 runbook만 고치고 끝내면 같은 문서군의 다른 copy-paste 진입점이 계속 실패 값을 품고 있을 수 있다.
+
+## 668) top-level 진입점이 `Gov24` 를 여전히 단순 blocked/inactive처럼 부르면, runtime closeout 완료 사실보다 예전 reopen 맥락이 먼저 보인다
+- 문제: `documentation-map.md`, `start.md`, `current-state.md` 의 일부 진입점 표현은 `Gov24 blocked 상태`, `inactive/reopen 판단` 같은 예전 wording을 유지하고 있었다. 하지만 현재 truth는 `Gov24` 의 runtime collect/runtime audit은 이미 closeout 되었고, 남은 것은 hard import/backfill blocked와 일부 deferred code 승격 판단이다.
+- 해결: top-level 안내 문구를 `Gov24 runtime closeout / blocked track`, `runtime closeout 이후 남은 blocked/deferred 판단` 기준으로 교정했다.
+- 이유: entrypoint 문구는 실제 문서 내용을 읽기 전에 인상을 만든다. closeout이 끝난 소스를 여전히 단순 blocked/inactive처럼 소개하면, 현재 active 상태보다 과거 reopen 맥락이 먼저 떠오른다.

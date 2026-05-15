@@ -44,7 +44,7 @@
 - 웹 기능 접근표: [feature-access-matrix.md](core/feature-access-matrix.md)
 - 다음 active track 우선순위: [policy-next-active-track-priority.md](policy/policy-next-active-track-priority.md)
 - 로컬 closeout pending: [policy-local-closeout-pending-inventory.md](policy/policy-local-closeout-pending-inventory.md)
-- `Gov24` blocked 상태: [policy-gov24-blocked-track-status.md](policy/policy-gov24-blocked-track-status.md)
+- `Gov24` runtime closeout / blocked track: [policy-gov24-blocked-track-status.md](policy/policy-gov24-blocked-track-status.md)
 - 정책 admin runtime 런북: [policy-admin-runtime-runbook.md](policy/policy-admin-runtime-runbook.md)
 - 정책 quality summary 런북: [policy-quality-summary-runbook.md](policy/policy-quality-summary-runbook.md)
 - 신규 source 구조: [policy-source-onboarding-architecture.md](policy/policy-source-onboarding-architecture.md)
