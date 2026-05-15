@@ -34,7 +34,15 @@ public class WebPushDispatchService {
 
         RecommendationDigestContent content = recommendationDigestContentService.build(recommendations);
         for (WebPushSubscription subscription : subscriptions) {
-            WebPushSendResult result = webPushSenderClient.send(subscription, content);
+            WebPushSendResult result;
+            try {
+                result = webPushSenderClient.send(subscription, content);
+            } catch (RuntimeException | LinkageError e) {
+                log.warn("[WebPushDispatchService] unexpected web push send failure endpoint={}: {}",
+                        subscription.getEndpoint(), e.getMessage());
+                subscription.markError(e.getMessage());
+                continue;
+            }
             if (result.success()) {
                 subscription.markSent();
                 continue;

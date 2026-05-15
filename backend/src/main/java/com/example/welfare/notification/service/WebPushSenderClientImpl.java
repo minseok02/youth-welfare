@@ -78,6 +78,9 @@ public class WebPushSenderClientImpl implements WebPushSenderClient {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             return WebPushSendResult.failure(e.getMessage());
+        } catch (RuntimeException | LinkageError e) {
+            log.warn("[WebPushSenderClient] web push sender initialization failed endpoint={}: {}", subscription.getEndpoint(), e.getMessage());
+            return WebPushSendResult.failure(e.getMessage());
         }
     }
 }

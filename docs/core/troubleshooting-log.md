@@ -4122,3 +4122,8 @@
 - 문제: 웹푸시 연결/해제와 current browser badge까지 닫힌 뒤에도, backend는 여전히 subscription 저장까지만 하고 실제 push send는 하지 않았다. 이 상태에선 사용자는 브라우저를 연결해도 추천 digest가 실제 푸시로 오는지 확인할 수 없고, 인앱 알림함과 이메일만 살아 있는 반쪽 채널이 된다.
 - 해결: `NotificationDispatchService` 에 `WebPushDispatchService` 를 추가해 현재 추천 digest dispatch 뒤 같은 사용자의 활성 `web_push_subscriptions` 로 웹푸시 payload를 보낸다. payload 본문/딥링크는 새 `RecommendationDigestContentService` 가 인앱 알림과 공유한다. sender는 `WEB_PUSH_PUBLIC_KEY`, `WEB_PUSH_PRIVATE_KEY`, `WEB_PUSH_SUBJECT` 가 모두 유효할 때만 동작하고, subscription별 `lastSentAt`, `lastErrorAt`, `lastErrorMessage`, `enabled` 상태를 갱신한다.
 - 이유: 지금 프로젝트의 알림 이벤트는 아직 추천 digest 중심이다. 그래서 새 채널을 붙일 때도 별도 deadline reminder부터 여는 것보다, 이미 검증된 digest 경로에 같은 본문/딥링크를 싣는 편이 가장 작은 범위로 실제 사용자 가치를 만든다.
+
+## 768) 웹푸시 실제 발송은 subscription 저장과 별개의 문제이고, 런타임 의존성 누락이 있으면 DB에 실패 흔적조차 안 남을 수 있다
+- 문제: 서버에서 `WEB_PUSH_PUBLIC_KEY / PRIVATE_KEY / SUBJECT` 를 넣고 실제 digest 발송을 시도했더니, `PushService` 초기화 단계에서 `NoClassDefFoundError: org/bouncycastle/jce/spec/ECParameterSpec` 로 죽었다. 이 에러는 web-push HTTP 요청 전에 발생하므로 응답 status는 없고, 기존 catch 범위가 `Exception` 계열에만 좁아 `web_push_subscriptions.last_error_message` 도 비어 있었다.
+- 해결: backend에 `org.bouncycastle:bcprov-jdk18on`, `org.bouncycastle:bcpkix-jdk18on` 을 추가했다. 동시에 `WebPushSenderClientImpl` 과 `WebPushDispatchService` 가 `RuntimeException | LinkageError` 도 실패 결과로 흡수해 `lastErrorAt`, `lastErrorMessage` 를 남기도록 보강했다.
+- 이유: 웹푸시 2차부터는 브라우저 연결 성공만으로 충분하지 않다. 실제 발송은 crypto/provider 런타임까지 요구하므로, 초기화 실패가 나더라도 subscription row에 실패 흔적이 남아야 서버 검증과 운영 추적이 가능하다.

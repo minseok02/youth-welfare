@@ -96,6 +96,32 @@ class WebPushDispatchServiceTest {
         assertThat(subscription.getLastErrorMessage()).isEqualTo("expired");
     }
 
+    @Test
+    @DisplayName("sender가 runtime exception을 던져도 subscription에 error를 남긴다")
+    void sendRecommendationDigestMarksErrorWhenSenderThrowsRuntimeException() {
+        WebPushSubscription subscription = sampleSubscription();
+        UserRecommendation recommendation = sampleRecommendation();
+        RecommendationDigestContent content = new RecommendationDigestContent(
+                "title",
+                "body",
+                "/policies/1",
+                "https://example.com/policies/1"
+        );
+        given(webPushSubscriptionRepository.findByUserKeyAndEnabledTrueOrderByCreatedAtDesc("user-key-1"))
+                .willReturn(List.of(subscription));
+        given(webPushSenderClient.isConfigured()).willReturn(true);
+        given(recommendationDigestContentService.build(List.of(recommendation)))
+                .willReturn(content);
+        given(webPushSenderClient.send(subscription, content))
+                .willThrow(new RuntimeException("sender bootstrap failed"));
+
+        webPushDispatchService.sendRecommendationDigest("user-key-1", List.of(recommendation));
+
+        assertThat(subscription.isEnabled()).isTrue();
+        assertThat(subscription.getLastErrorAt()).isNotNull();
+        assertThat(subscription.getLastErrorMessage()).isEqualTo("sender bootstrap failed");
+    }
+
     private WebPushSubscription sampleSubscription() {
         return WebPushSubscription.builder()
                 .id(1L)
