@@ -4107,3 +4107,8 @@
 - 문제: `skipWaiting()` / `clients.claim()` 이후에도 서버 실검증에서는 `POST /api/notifications/push-subscriptions = 0회`, 카드 경고 없음, console error 없음 패턴이 남았다. 이 상태에선 실제로 버튼 핸들러가 어디까지 실행됐는지조차 알기 어렵다.
 - 해결: `registerCurrentBrowserPush()` 에 `onStep` 콜백을 추가해 `공개키 검증 중`, `브라우저 권한 확인 중`, `service worker 등록 중`, `기존 구독 조회 중`, `브라우저 구독 생성 중`, `서버 구독 저장 중` 단계를 카드에 그대로 보여 주도록 했다. 동시에 공개키 import, `Notification.requestPermission`, `pushManager.getSubscription`, `pushManager.subscribe` 를 모두 timeout으로 감쌌다.
 - 이유: 지금 단계에선 성공보다 실패 위치를 가시화하는 것이 먼저다. 서버 브라우저에서 어느 단계 문구에서 멈췄는지가 보이면, 그 다음 수정 대상이 service worker인지 subscribe인지 backend save인지 바로 좁혀진다.
+
+## 765) 현재 브라우저 service worker/구독 조회가 지연돼도, backend에서 이미 받은 공개키/목록 state까지 같이 막으면 안 된다
+- 문제: 서버 실검증에서 `/api/notifications/push-public-key`, `/api/notifications/push-subscriptions/me` 는 200인데도 화면 state의 `pushPublicKey` 가 비어 있어, 버튼 클릭 직후 `웹푸시 공개키가 아직 설정되지 않았습니다` toast로 빠지는 경계가 남아 있었다. 기존 `fetchPushStatus()` 는 `fetchPushPublicKey()`, `fetchMyPushSubscriptions()`, `getCurrentPushSubscription()` 을 한 `Promise.all` 로 묶고 있어, 마지막 one-browser 조회가 지연되면 앞의 성공 응답도 전부 폐기한다.
+- 해결: `fetchPushStatus()` 는 이제 backend 공개키/목록을 먼저 받아 state에 넣고, `getCurrentPushSubscription()` 은 별도 try/catch 로 분리했다. 또한 `getCurrentPushSubscription()` 도 `navigator.serviceWorker.ready` 의 무기한 대기를 쓰지 않고 `getRegistration()` / `pushManager.getSubscription()` 자체를 각각 timeout으로 감싼다.
+- 이유: 현재 단계의 핵심은 backend 공개키와 saved subscription 목록을 화면에서 안정적으로 보이게 하는 것이다. current browser endpoint는 부가 정보이므로, 그 조회 실패 때문에 공개키 state까지 비우면 잘못된 “키 미설정” 오판을 만든다.

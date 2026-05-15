@@ -696,14 +696,18 @@ export default function MyPage() {
     setPushPermission(Notification.permission);
     setPushLoading(true);
     try {
-      const [publicKey, subscriptions, currentSubscription] = await Promise.all([
+      const [publicKey, subscriptions] = await Promise.all([
         fetchPushPublicKey(),
         fetchMyPushSubscriptions(),
-        getCurrentPushSubscription(),
       ]);
       setPushPublicKey(publicKey.trim());
       setPushSubscriptions(subscriptions);
-      setCurrentPushEndpoint(currentSubscription?.endpoint ?? "");
+      try {
+        const currentSubscription = await getCurrentPushSubscription();
+        setCurrentPushEndpoint(currentSubscription?.endpoint ?? "");
+      } catch {
+        setCurrentPushEndpoint("");
+      }
       setPushStatusError("");
       setPushActionError("");
       setPushActionPhase("");

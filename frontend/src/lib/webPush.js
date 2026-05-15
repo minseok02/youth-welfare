@@ -87,10 +87,17 @@ async function getReadyServiceWorkerRegistration() {
 
 export async function getCurrentPushSubscription() {
   if (!isWebPushSupported()) return null;
-  const registration = await navigator.serviceWorker.getRegistration()
-    ?? await navigator.serviceWorker.ready.catch(() => null);
+  const registration = await withTimeout(
+    navigator.serviceWorker.getRegistration(),
+    3000,
+    "현재 브라우저 service worker 조회가 지연되고 있습니다.",
+  );
   if (!registration) return null;
-  return registration.pushManager.getSubscription();
+  return withTimeout(
+    registration.pushManager.getSubscription(),
+    3000,
+    "현재 브라우저 푸시 구독 조회가 지연되고 있습니다.",
+  );
 }
 
 export async function fetchPushPublicKey() {
