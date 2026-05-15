@@ -72,6 +72,14 @@ const TARGET_GROUPS = [
   { label: "다자녀", value: "다자녀" },
 ];
 
+const SOURCE_OPTIONS = ["전체", "온통청년", "복지로 중앙", "복지로 지자체", "Gov24"];
+const SOURCE_TYPE_MAP = {
+  "온통청년": "YOUTH",
+  "복지로 중앙": "BOKJIRO_CENTRAL",
+  "복지로 지자체": "BOKJIRO_LOCAL",
+  "Gov24": "GOV24",
+};
+
 const SORT_MAP = { relevance: "RELEVANCE", views: "VIEWS", latest: "LATEST", deadline: "DEADLINE" };
 
 const TRENDING = ["월세 지원", "국민취업제도", "도약계좌", "창업캠프", "자격증 응시료", "대학생 생활안정"];
@@ -330,7 +338,6 @@ export default function PoliciesPage() {
     const fetchPolicies = async () => {
       setLoading(true);
       try {
-        const SOURCE_TYPE_MAP = { "온통청년": "YOUTH", "복지로 중앙": "BOKJIRO_CENTRAL", "복지로 지자체": "BOKJIRO_LOCAL" };
         const commonParams = {
           category: selectedCat || undefined,
           sido: region === "전체" ? undefined : region,
@@ -607,6 +614,19 @@ export default function PoliciesPage() {
                   </button>
                 );
               })}
+            </div>
+          </FilterSection>
+
+          <FilterSection title="출처" defaultOpen={false}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              {SOURCE_OPTIONS.map((source) => (
+                <RadioItem
+                  key={source}
+                  label={source}
+                  checked={sourceType === source}
+                  onChange={() => { setSourceType(source); setPage(1); }}
+                />
+              ))}
             </div>
           </FilterSection>
 

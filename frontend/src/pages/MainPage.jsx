@@ -778,7 +778,7 @@ export default function MainPage() {
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div>
               <div style={{ fontSize: 14, color: INK2, fontWeight: 700 }}>청년복지플랫폼</div>
-              <div style={{ marginTop: 6 }}>© 2026 청년복지플랫폼. 정책 데이터는 온통청년·복지로에서 제공받습니다.</div>
+              <div style={{ marginTop: 6 }}>© 2026 청년복지플랫폼. 정책 데이터는 온통청년·복지로·Gov24에서 제공받습니다.</div>
             </div>
             <div style={{ display: "flex", gap: 18 }}>
               <span>이용약관</span>

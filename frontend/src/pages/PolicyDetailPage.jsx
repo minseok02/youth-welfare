@@ -56,6 +56,7 @@ const formatSource = (sourceType) => {
   if (sourceType === "YOUTH") return "온통청년";
   if (sourceType === "BOKJIRO_CENTRAL") return "복지로 중앙";
   if (sourceType === "BOKJIRO_LOCAL") return "복지로 지자체";
+  if (sourceType === "GOV24") return "Gov24";
   return sourceType || "출처 정보 없음";
 };
 

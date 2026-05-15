@@ -3957,3 +3957,8 @@
 - 문제: 서버 최신 main 기준선을 로컬에 맞추는 과정에서 Gov24 list 재수집 후 `welfare_services` 는 `10942` 로 늘었고, manual follow-up을 붙인 뒤 `detail/support raw` 도 `10942` 로 맞춰졌다. 하지만 active runbook/current-state 문서 다수는 여전히 이전 closeout 기준인 `10937 / 9959 / 978` 을 현재 truth처럼 보여 주고 있었다.
 - 해결: `run-local-gov24-quality-audit.sh` 를 다시 읽어 현재 baseline을 `list=10942`, `detail=10942`, `support raw=10942`, `support fact rows=163806`, `support fact services=9963`, `missing_unmapped_only_payload=979` 로 갱신하고, active 문서(`phase-plan`, `policy-next-active-track-priority`, `policy-gov24-blocked-track-status`, `policy-gov24-runtime-audit-runbook`, `policy-gov24-support-unmapped-inventory`)를 같은 수치로 맞췄다.
 - 이유: Gov24는 provider 데이터 증가와 local follow-up 경계 변화가 둘 다 baseline 숫자에 바로 영향을 준다. closeout 수치를 historical log처럼 남길 수는 있어도, active runbook/current-state가 예전 count에 머무르면 이후 서버/로컬 재검증에서 정상 변화를 drift처럼 오해하게 된다.
+
+## 735) Gov24 runtime closeout이 끝난 뒤에도 프론트가 여전히 3-source 기준이면, 백엔드 truth와 사용자 체감이 다시 어긋난다
+- 문제: 프론트/통합 체감 검증을 코드 기준으로 다시 읽어보니 `PoliciesPage` 의 source filter mapping과 `PolicyDetailPage` 의 출처 라벨, `MainPage` 푸터 문구가 모두 여전히 `온통청년 / 복지로 중앙 / 복지로 지자체` 3-source 기준에 머물러 있었다. 이 상태에선 Gov24 정책이 실제로 적재·노출되더라도, 상세 페이지에는 `GOV24` raw enum이 그대로 보이거나, 목록에서는 source filter로 Gov24만 따로 좁힐 수 없고, 메인 푸터도 현재 데이터 공급원을 잘못 설명하게 된다.
+- 해결: `PoliciesPage` 에 `Gov24` source option과 `GOV24` enum mapping을 추가하고, `PolicyDetailPage.formatSource()` 에 `GOV24 -> Gov24` 라벨을 보강했으며, `MainPage` 푸터도 `온통청년·복지로·Gov24` 기준으로 교정했다. 이후 `frontend lint/build` 를 다시 통과시켜 현재 프론트 source truth가 백엔드 closeout 상태와 맞는지 정적 기준선까지 재확인했다.
+- 이유: Gov24는 이미 runtime closeout과 audit까지 끝난 active source다. 프론트가 source truth를 갱신하지 않으면, 수집/운영 문서는 맞아도 실제 사용자 화면에서는 “안 붙은 source”처럼 보이는 틈이 남는다.
