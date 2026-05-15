@@ -153,6 +153,12 @@ recommendation_logs 전체 건수 (전역 기준):
   500건 이상  → STABLE:    rule 0.40 / ai 0.60
 ```
 
+> 주의: 위 stage는 현재 코드가 어떤 weight bucket을 고를지 설명하는 런타임 규칙입니다.
+> 운영에서 실제 weight tuning을 다시 열 수 있는지 여부는 별도 문제이며,
+> 현재는 클릭 표본 수 / clicked service 분산 / fallback/AI 분포를 같이 보는
+> [recommendation-ctr-readiness-runbook.md](./recommendation-ctr-readiness-runbook.md)
+> 기준을 우선합니다.
+
 ```java
 // ScoreWeightService
 public ScoreWeight getActiveWeight() {

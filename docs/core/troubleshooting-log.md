@@ -3732,3 +3732,8 @@
 - 문제: `policy-source-onboarding-architecture.md` 와 `policy-gov24-blocked-track-status.md` 일부 문장은 여전히 `blocked 상태` 식으로 적혀 있어, runtime collect는 이미 닫혔지만 hard import/backfill만 blocked 이고 business-code 승격은 deferred 인 현재 해석보다 더 납작하게 읽힐 수 있었다.
 - 해결: onboarding 구조 문서는 `metadata-only 또는 blocked/deferred track`, Gov24 상태 문서는 `hard import/backfill 은 blocked track` 이라고 다시 적어 현재 layered 해석과 맞췄다.
 - 이유: source onboarding 문서는 새 source를 붙일 때 바로 참조하는 기준 문서다. 여기 wording이 예전 단일 blocked 상태에 머물러 있으면, 이미 runtime closeout이 끝난 source도 다시 전부 막혀 있는 것처럼 해석되기 쉽다.
+
+## 690) `recommendation-pipeline` 의 stage weight 표만 따로 읽으면, 현재 코드의 bucket 규칙과 운영상 tuning readiness 판단을 같은 것으로 오해하기 쉽다
+- 문제: `recommendation-pipeline.md` 의 `Cold Start 가중치 단계` 표는 현재 코드가 `recommendation_logs` 전체 건수 기준으로 어떤 `rule/ai weight` bucket을 고르는지 잘 설명하지만, 별도 주의 문구가 없으면 `500+ = STABLE = 지금 바로 tuning 가능` 으로 읽히기 쉽다.
+- 해결: stage 표 아래에 이 값은 **런타임 bucket 선택 규칙** 이고, 실제 운영에서 weight tuning을 다시 열 수 있는지 여부는 `recommendation-ctr-readiness-runbook.md` 의 클릭 표본/분산 기준을 따로 봐야 한다는 주의 문구를 추가했다.
+- 이유: 현재 recommendation 쪽에서 실제 deferred 판단은 `DEFERRED_CLICK_SAMPLE_THIN` 이다. bucket stage와 tuning readiness를 같은 것으로 읽으면, 지금도 여전히 클릭 표본이 얇은 상태에서 tuning을 열어야 한다는 잘못된 결론으로 돌아가기 쉽다.
