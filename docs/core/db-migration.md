@@ -24,7 +24,14 @@
 - 이미 생성되어 데이터가 있는 MySQL
 - `schema.sql`이 컨테이너 최초 기동 시점에만 적용된 환경
 
-## 최신 마이그레이션
+## legacy draft inventory
+
+이 섹션은 현재 main에 다시 적용해야 하는 active migration 순서를 뜻하지 않습니다.
+아래 항목은 MySQL 시절 draft sidecar 실험과 초기 canonical schema 설계 이력을 보존하는 용도입니다.
+
+- 현재 PostgreSQL main에서 새 환경을 올릴 때는 `schema.sql` 을 기준으로 봅니다.
+- 기존 로컬 런타임 drift를 맞출 때는 `deploy/postgres/patches/*.sql` 과 `deploy/postgres/apply-local-runtime-schema-patch.sh` 를 먼저 봅니다.
+- `service_taxonomies` / `service_taxonomy_summary_slots` 운영 경계는 current-state, policy runbook, replay smoke 문서를 active truth로 봅니다.
 
 - draft 파일: [`backend/src/main/resources/db/migration-draft/V2026_04_30_01__create_policy_sidecars.sql`](../backend/src/main/resources/db/migration-draft/V2026_04_30_01__create_policy_sidecars.sql)
 - 포함 내용:
@@ -82,6 +89,7 @@
 
 로컬 Docker MySQL에서 draft sidecar 스키마와 실제 writer 정합성을 확인하던 예전 절차다.
 현재 PostgreSQL main에서는 `deploy/mysql/apply-local-policy-sidecar-draft.sh` 가 MySQL draft SQL 재적용 대신 integrated schema 존재 여부만 검증한다.
+즉 아래 커맨드는 active runtime 절차가 아니라 과거 실험 기준을 남겨 둔 참고 예시다.
 
 ```bash
 docker exec -e MYSQL_PWD="$DB_PASSWORD" -i youth-welfare-db mysql -uroot youth_welfare < backend/src/main/resources/db/migration-draft/V2026_04_30_01__create_policy_sidecars.sql
