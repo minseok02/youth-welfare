@@ -3632,3 +3632,8 @@
 - 문제: `collect-current-state.md` 의 canonical sidecar 설명에는 여전히 “fresh reset 뒤 draft schema/bootstrap 공백은 local helper로 보완” 같은 wording이 남아 있었다. 하지만 현재 PostgreSQL mainline에서는 `service_taxonomies`, `service_taxonomy_terms`, `service_facts` 가 integrated schema의 일부이고, helper/replay smoke는 draft schema를 다시 까는 용도가 아니다.
 - 해결: canonical sidecar 설명을 `fresh reset 뒤에도 존재해야 하는 integrated schema` 기준으로 교정하고, local helper/replay smoke는 draft schema auto-apply가 아니라 integrated schema 존재 여부와 collect/replay precondition을 확인하는 보조 경계라고 명시했다.
 - 이유: current-state 문서는 현재 계약을 직접 설명하는 문서다. 여기에 예전 draft-bootstrap 표현이 남아 있으면, sidecar가 여전히 optional 또는 임시 복구 대상처럼 읽혀 구조 이해를 흐린다.
+
+## 670) `recommendation-current-state` 가 여전히 `fresh reset 뒤 sidecar 공백` 을 말하면, 현재 문제의 핵심인 replay precondition보다 예전 bootstrap 오해가 먼저 남는다
+- 문제: `recommendation-current-state.md` 도 `fresh reset 뒤 sidecar 공백`, `runtime bootstrap이 자동으로 sidecar를 다 복구하는 건 아니다` 같은 표현을 유지하고 있었다. 하지만 현재 PostgreSQL mainline에서 sidecar schema 자체는 integrated이고, fresh reset 뒤 실제로 문제가 되는 건 replay가 기대하는 policy snapshot / canonical read-model 데이터 precondition 쪽이다.
+- 해결: 해당 블록을 `fresh reset 뒤 collect/replay 전제` 로 바꾸고, helper/replay smoke는 sidecar bootstrap을 대신하는 경계가 아니라 integrated schema 존재 여부와 collect/replay precondition을 먼저 확인하는 보조 경계라고 정리했다.
+- 이유: recommendation current-state는 현재 파이프라인과 검증 전제를 빠르게 읽는 문서다. 예전 sidecar bootstrap wording이 남아 있으면, 현재 구조 문제보다 과거 초기 bootstrap 이슈를 다시 먼저 떠올리게 된다.

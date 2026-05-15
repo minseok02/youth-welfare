@@ -192,11 +192,12 @@ recommendation/replay 는 collect와 sidecar snapshot 품질에 직접 의존합
 즉 total log 수는 이미 top stage를 넘겼지만, 클릭 표본은 아직 얇아서 현재 readiness 판정은 `DEFERRED_CLICK_SAMPLE_THIN` 입니다. 게다가 클릭이 현재 `2`개 서비스(`2622`, `3688`)에만 몰려 있어 sample diversity도 부족합니다.
 따라서 recommendation 쪽의 다음 active 작업은 지금 당장 weight tuning을 여는 것이 아니라, readiness baseline을 유지한 채 표본이 더 쌓일 때까지 bounded runtime/quality smoke 결과를 계속 관찰하는 것입니다.
 
-### 3. fresh reset 뒤 sidecar 공백
+### 3. fresh reset 뒤 collect/replay 전제
 
-runtime bootstrap이 자동으로 sidecar를 다 복구하는 건 아닙니다.
+current PostgreSQL mainline에서 canonical sidecar 자체는 integrated schema의 일부입니다.
 
-다만 local replay smoke는 helper로 self-heal 되게 보강돼 있습니다.
+다만 fresh reset 뒤에는 replay가 기대하는 policy snapshot이나 canonical read-model 데이터가 비어 있을 수 있으므로,
+local helper/replay smoke는 integrated schema 존재 여부와 collect/replay precondition을 먼저 확인하게 보강돼 있습니다.
 
 ## 지금 정상으로 보는 것
 
