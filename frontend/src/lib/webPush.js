@@ -1,5 +1,14 @@
 import api from "./axios";
 
+function withTimeout(promise, ms, message) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      window.setTimeout(() => reject(new Error(message)), ms);
+    }),
+  ]);
+}
+
 function urlBase64ToUint8Array(base64String) {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
   const base64 = `${base64String}${padding}`.replace(/-/g, "+").replace(/_/g, "/");
@@ -37,20 +46,24 @@ export async function validateWebPushPublicKey(publicKey) {
 }
 
 async function getReadyServiceWorkerRegistration() {
-  const registration = await navigator.serviceWorker.register("/sw.js");
+  const registration = await withTimeout(
+    navigator.serviceWorker.register("/sw.js"),
+    5000,
+    "service worker 등록이 지연되고 있습니다. 잠시 후 다시 시도해주세요.",
+  );
   if (registration.active) {
     return registration;
   }
 
   const candidate = registration.installing ?? registration.waiting;
   if (!candidate) {
-    throw new Error("service worker 활성화를 확인하지 못했습니다.");
+    return registration;
   }
 
-  await new Promise((resolve, reject) => {
+  await withTimeout(new Promise((resolve, reject) => {
     const timeoutId = window.setTimeout(() => {
       reject(new Error("service worker 준비가 지연되고 있습니다. 잠시 후 다시 시도해주세요."));
-    }, 5000);
+    }, 4000);
 
     const handleStateChange = () => {
       if (candidate.state === "activated") {
@@ -67,7 +80,7 @@ async function getReadyServiceWorkerRegistration() {
 
     candidate.addEventListener("statechange", handleStateChange);
     handleStateChange();
-  });
+  }), 5000, "service worker 준비가 지연되고 있습니다. 잠시 후 다시 시도해주세요.");
 
   return registration;
 }
@@ -102,12 +115,20 @@ export async function registerCurrentBrowserPush({ publicKey, deviceLabel }) {
   }
 
   const registration = await getReadyServiceWorkerRegistration();
-  let subscription = await registration.pushManager.getSubscription();
+  let subscription = await withTimeout(
+    registration.pushManager.getSubscription(),
+    5000,
+    "브라우저 푸시 구독 상태 확인이 지연되고 있습니다. 잠시 후 다시 시도해주세요.",
+  );
   if (!subscription) {
-    subscription = await registration.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(publicKey),
-    });
+    subscription = await withTimeout(
+      registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(publicKey),
+      }),
+      5000,
+      "브라우저 푸시 구독 생성이 지연되고 있습니다. 새로고침 후 다시 시도해주세요.",
+    );
   }
   if (!subscription?.endpoint) {
     throw new Error("브라우저 푸시 구독을 만들지 못했습니다.");

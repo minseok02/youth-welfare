@@ -4092,3 +4092,8 @@
 - 문제: 서버 재검증에서 올바른 VAPID 공개키와 `Notification.permission=granted` 상태에서도 `POST /api/notifications/push-subscriptions` 가 0회였고, 브라우저 쪽 관찰은 `navigator.serviceWorker.ready timeout` 이었다. 기존 구현은 `ready` 를 그대로 await 해서 실제론 subscribe 전에 멈출 수 있는데, 이 경우 콘솔/네트워크에 아무것도 안 남고 프론트도 generic failure만 띄울 수 있다.
 - 해결: `getReadyServiceWorkerRegistration()` 을 `ready` 직접 대기 대신 `register("/sw.js")` 결과의 `active/installing/waiting` worker state를 감시하는 방식으로 바꿨다. 이미 `active` 면 바로 진행하고, 아니면 `installing/waiting` 이 `activated` 될 때까지 최대 5초 기다린다. timeout이나 `redundant` 는 명시적 오류로 올려 카드 경고/토스트에 그대로 노출한다.
 - 이유: 웹푸시 연결 1차는 성공보다 실패 원인 가시성이 더 중요하다. subscribe로 못 가는 이유가 `service worker 준비 지연` 인지, 공개키인지, 브라우저 구독 키 누락인지 분리돼야 다음 서버 검증이 의미 있다.
+
+## 762) `active/installing/waiting` 가 모두 비어 있는 registration에서도, 실제로는 `pushManager.subscribe()` 를 시도해 봐야 어디서 멈추는지 알 수 있다
+- 문제: 후속 서버 검증에서 카드 경고도 없이 `POST /api/notifications/push-subscriptions = 0회`, `active=false`, `installing=null`, `waiting=null` 인 registration이 관찰됐다. 이 경우 기존 코드는 registration 상태를 너무 이르게 해석해 subscribe 전 단계에서 멈출 수 있고, 여전히 실패 위치가 모호하게 남는다.
+- 해결: `getReadyServiceWorkerRegistration()` 은 이제 `register("/sw.js")` 결과에서 `active/installing/waiting` 가 모두 비어 있어도 곧바로 registration을 반환한다. 대신 `pushManager.getSubscription()` 과 `pushManager.subscribe()` 를 각각 5초 timeout으로 감싸, 실제로 멈추는 단계가 `구독 상태 확인` 인지 `구독 생성` 인지를 메시지로 드러내게 했다.
+- 이유: 이 단계의 핵심은 성공보다 실패 위치를 좁히는 것이다. registration 상태만으로 중단하면 브라우저/preview 환경에서 왜 `POST 0회` 인지 끝까지 안 보인다.
