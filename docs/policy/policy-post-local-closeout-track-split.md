@@ -23,19 +23,20 @@
 
 ## 결론
 
-2026-05-01 현재 기준으로
-기본 local closeout 세트는 통과했지만,
-**기능/구조 추가 검증은 여전히 active pending** 으로 봅니다.
+2026-05-15 현재 기준으로
+기본 local closeout 세트와 bounded runtime baseline 재검증은 모두 통과했지만,
+**기능/구조 추가 검증과 그에 따른 drift 정리는 여전히 active pending** 으로 봅니다.
 
 closeout 이후 남은 항목은 아래 세 묶음으로 유지합니다.
 
 1. `local feature / structure verification`
-2. `external blocked`
-3. `future infra/deploy memo`
+2. `bounded runtime baseline 유지`
+3. `external blocked`
+4. `future infra/deploy memo`
 
 즉 지금 상태는
 “기본 회귀는 확인했지만,
-기능/구조 검증과 그에 따른 수정은 계속 진행하고,
+기능/구조 검증, bounded runtime baseline 유지, 그에 따른 수정은 계속 진행하고,
 외부 응답과 infra는 그 다음으로 미룬다”
 입니다.
 
@@ -54,6 +55,24 @@ closeout 이후 남은 항목은 아래 세 묶음으로 유지합니다.
 - 프론트 완성 전에도 backend/API 기준으로 충분히 검증 가능하다
 - 현재 가장 먼저 움직여야 하는 트랙이다
 입니다.
+
+## bounded runtime baseline 유지
+
+현재 active 로 보는 반복 검증은 아래입니다.
+
+- `policy quality summary`
+- `Gov24 runtime audit`
+- `policy admin runtime`
+- `CTR readiness audit`
+
+### 공통 성격
+
+- 현재 코드/데이터 기준선을 다시 태워도 같은 truth가 유지되는지 보는 작업이다
+- 새로운 기능 구현보다 drift 제거와 해석 기준 고정에 가깝다
+- 실제 local practical track에서 이미 반복적으로 쓰는 runbook/smoke 경계다
+
+즉 현재 단계에서는 단순 `local feature verification` 외에
+`bounded runtime baseline 유지` 도 별도 active track으로 본다.
 
 ## external blocked 트랙
 
@@ -135,9 +154,10 @@ closeout 이후 남은 항목은 아래 세 묶음으로 유지합니다.
 따라서 다음 액션은 아래 순서입니다.
 
 1. local feature / structure verification 계속 진행
-2. 검증 중 발견되는 수정/최적화/보안 정리
-3. 프론트 연동 후 통합 검증
-4. 그 다음 external blocked 또는 infra/deploy 재검토
+2. bounded runtime baseline 재확인과 drift 정리
+3. 검증 중 발견되는 수정/최적화/보안 정리
+4. 프론트 연동 후 통합 검증
+5. 그 다음 external blocked 또는 infra/deploy 재검토
 
 ## 하지 않는 것
 
@@ -149,6 +169,6 @@ closeout 이후 남은 항목은 아래 세 묶음으로 유지합니다.
 
 ## 요약
 
-1. 기본 local closeout 세트는 2026-05-01 기준으로 통과했다.
-2. 하지만 기능/구조 추가 검증은 아직 active pending 이다.
+1. 기본 local closeout 세트와 bounded runtime baseline은 2026-05-15 기준으로 다시 통과했다.
+2. 하지만 기능/구조 추가 검증과 drift 정리는 아직 active pending 이다.
 3. external blocked 와 future infra/deploy memo 는 그 다음 우선순위다.

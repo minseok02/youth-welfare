@@ -3747,3 +3747,8 @@
 - 문제: `collect-docs-index.md` 는 collect 현재 동작과 실행 체크리스트는 잘 정리돼 있었지만, 실제로 collect closeout 이후 반복 점검에 자주 쓰는 `policy-gov24-runtime-audit-runbook.md` 와 `policy-quality-summary-runbook.md` 는 인덱스에서 보이지 않았다.
 - 해결: `collect-docs-index.md` 의 “같이 보면 좋은 기준 문서”, “문서 역할”, “읽는 순서”, “요약”에 두 runbook을 추가해 collect closeout/quality baseline 진입점으로 명시했다.
 - 이유: 현재 collect practical work는 단순 수집 실행보다 closeout coverage와 downstream quality baseline 재확인에 가깝다. 이 경로가 collect 인덱스에 안 보이면, 관련 runbook이 여전히 policy 문서군 안의 부가 자료처럼 남게 된다.
+
+## 693) `policy-post-local-closeout-track-split` 이 아직 2026-05-01 closeout 프레임에 머물러 있으면, 현재는 이미 붙은 bounded runtime baseline 반복 검증 track이 문서상 빠져 버린다
+- 문제: `policy-post-local-closeout-track-split.md` 는 2026-05-01 기준 local closeout 세트를 설명하던 문서라, 현재 practical track에서 반복적으로 돌리고 있는 `policy quality summary`, `Gov24 runtime audit`, `policy admin runtime`, `CTR readiness` 같은 bounded runtime baseline 유지 작업이 별도 active 축으로 보이지 않았다.
+- 해결: 문서 기준 시점을 2026-05-15로 올리고, closeout 이후 남은 active track을 `local feature / structure verification` 과 `bounded runtime baseline 유지` 로 다시 나눴다.
+- 이유: 지금 실제 active 작업은 단순 구현/회귀 확인만이 아니라, 이미 붙은 runtime baseline이 재실행해도 같은 truth를 유지하는지 반복 검증하는 것이다. 이 축이 문서에서 빠지면 현재 작업 흐름이 다시 2026-05-01 시점으로 축소돼 보이게 된다.
