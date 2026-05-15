@@ -4047,3 +4047,8 @@
 - 문제: 인앱 알림함과 `MyPage` 북마크는 정책 상세로 이동할 때 `pathname/search` 만 축약해서 넘기거나, 상세의 뒤로가기에서 `backTarget.state` 를 다시 싣지 않는 경계가 남아 있었다. 이 상태에선 URL은 `/mypage?tab=3` 으로 돌아와도, `from.state` 기반 nested 문맥은 뒤로가기 시 사라질 수 있다.
 - 해결: `MyPage.navigateToPolicyDetail()` 는 이제 요약한 `{ pathname, search }` 대신 `from: location` 전체를 넘기고, `PolicyDetailPage.handleBack()` 은 `backTarget.state` 도 같이 실어 복귀하게 바꿨다.
 - 이유: 현재 프론트 복귀 계약은 query와 `location.state` 를 함께 쓰므로, 인앱 알림 deep link도 같은 수준으로 `from` 을 보존해야 한다. 그래야 `MyPage` 탭, 북마크/알림함 진입 문맥, 이후 auth 리다이렉트까지 한 흐름으로 이어진다.
+
+## 753) 전역 인앱 알림 노출은 새 전용 센터보다 `Header` bell/dropdown을 먼저 여는 편이 현재 제품 톤과 범위에 맞다
+- 문제: `MyPage` 알림함과 unread badge만으로는 사용자가 "지금 도착한 알림"을 바로 열어 보기 어렵다. 그렇다고 별도 알림 페이지나 큰 센터를 먼저 열면 현재 단계에서 UI 범위가 과도하게 커진다.
+- 해결: `Header` 에 bell 아이콘과 dropdown을 추가해 최근 알림 5개만 최소 노출하도록 했다. 내용은 kind badge, unread 표시, 상대 시간, 제목/본문 미리보기, deep link 이동, `마이페이지?tab=3` 전체 보기로 제한했고, unread 읽음 동기화는 기존 API와 React Query invalidate로 처리했다.
+- 이유: 지금 단계의 목표는 추천 digest 기반 인앱 알림을 기존 내비게이션 안에서 즉시 체감 가능하게 만드는 것이다. `Header` bell/dropdown은 현재 톤을 크게 깨지 않으면서도 가장 작은 범위로 그 목적을 달성한다.
