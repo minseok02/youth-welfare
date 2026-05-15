@@ -3717,3 +3717,8 @@
 - 문제: `recommendation-current-state.md` 는 최근 개인 캐시 회귀 검증과 broad-suite 재확인 후 현재 기준선이 `A_top10_target=9->9`, `B_top10_target=1->1`, `A_fp/B_fp=same`, `reason_changed=0` 인데도 여전히 더 오래된 `4->8 / 2->2` 예시를 대표 replay 결과로 보여 주고 있었다.
 - 해결: current-state 의 대표 replay 결과를 최신 broad-suite 기준선으로 갱신하고, `recommendation-operation-checklist.md` 에도 같은 기준선을 짧게 추가했다.
 - 이유: recommendation current-state/runbook은 지금 정상 판단의 기준점 역할을 한다. 여기 수치가 오래돼 있으면 현재는 regression이 없는 상태인데도 예전 improvement snapshot을 기준선처럼 읽게 된다.
+
+## 687) `policy-normalization-current-state` 의 local validation 요약이 아직 예전 replay 숫자에 머물러 있으면, normalization current-state만 따로 읽을 때도 현재 broad-suite truth와 어긋난다
+- 문제: `policy-normalization-current-state.md` 의 `local validation 현재 상태` 섹션은 여전히 `A_top10_target=4->8`, `B_top10_target=3->3` 를 replay summary로 적고 있었다. 하지만 현재 로컬 broad-suite 기준선은 `A_top10_target=9->9`, `B_top10_target=1->1`, `A_fp/B_fp=same`, `reason_changed=0` 이다.
+- 해결: normalization current-state 의 local validation 요약도 최신 broad-suite 기준선으로 갱신했다.
+- 이유: policy normalization current-state는 recommendation current-state와 같이 읽는 active 문서다. 둘 중 하나만 오래된 replay 숫자에 남아 있으면 normalization 쪽만 따로 읽은 사람이 현재는 regression 없는 상태를 예전 improvement snapshot으로 오해하게 된다.

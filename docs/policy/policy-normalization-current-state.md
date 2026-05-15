@@ -267,8 +267,11 @@ canonical taxonomy 대표값이 아니라
 - canonical sidecar row 저장 success
 - `deploy/smoke/run-local-education-priority-replay.sh` success
 - replay summary:
-  - `A_top10_target=4->8`
-  - `B_top10_target=3->3`
+  - `A_top10_target=9->9`
+  - `B_top10_target=1->1`
+  - `A_fp=same`
+  - `B_fp=same`
+  - `reason_changed=0`
 
 즉 normalization 은 “문서 설계” 수준이 아니라
 실제 collect -> sidecar -> recommendation downstream 까지 로컬 검증이 끝난 상태입니다.
