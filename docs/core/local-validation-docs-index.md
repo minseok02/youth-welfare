@@ -92,7 +92,7 @@
 이 문서군은
 
 - retrieval/category quality baseline
-- Gov24 runtime closeout / gap audit
+- Gov24 runtime closeout / deferred inventory audit
 - bounded admin runtime 응답 baseline
 - CTR readiness baseline
 

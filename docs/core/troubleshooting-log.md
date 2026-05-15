@@ -3762,3 +3762,8 @@
 - 문제: `user-data-separation-design.md` 는 현재도 active 설계 문서처럼 읽히는데, 상단의 `users` 단일 테이블 문제 진술과 `User` 과대책임 설명이 split 이전 배경이라는 표시가 약했다. 여기에 `같은 MySQL 인스턴스` 라는 예전 표현도 남아 있어 현재 PostgreSQL mainline 기준과 어긋났다.
 - 해결: 문서 상단에 이 문서는 **사용자 데이터 분리 cut-over 설계와 당시 배경 문제를 보존하는 문서** 라는 가드레일을 추가하고, 문제 섹션 제목을 `왜 당시 구조가 문제였나` 로 바꿨다. 또 `같은 MySQL 인스턴스` 는 현재 truth에 맞게 `같은 PostgreSQL 인스턴스` 로 교정했다.
 - 이유: 이 문서는 보안/권한/PII 경계를 논의할 때 다시 참조되는 핵심 설계 문서다. split 이전 배경과 현재 반영 상태를 분리하지 않으면, 이미 `auth_users / user_profiles / user_pii` 기반으로 cut-over된 구조가 아직도 `users` 단일 테이블 중심인 것처럼 읽힐 수 있다.
+
+## 696) `Gov24` bounded runtime 진입점이 아직 `gap audit` 정도로만 적혀 있으면, runtime closeout 뒤 남은 deferred inventory 판단까지 포함된 현재 층위가 다시 축소돼 보인다
+- 문제: `local-validation-docs-index.md` 는 bounded runtime 묶음을 소개하면서 `Gov24 runtime closeout / gap audit` 이라고만 적고 있었고, `policy-quality-summary-runbook.md` 의 관련 문서 목록도 `Gov24 runtime audit` 까지만 연결하고 있었다. 이 상태에선 현재 남은 practical 해석이 `978 unmapped-only payload = business-code deferred inventory` 라는 점이 진입점에서 드러나지 않았다.
+- 해결: `local-validation-docs-index.md` 의 소개 문구를 `Gov24 runtime closeout / deferred inventory audit` 으로 바꾸고, `policy-quality-summary-runbook.md` 에 `policy-gov24-support-unmapped-inventory.md` 링크를 추가했다.
+- 이유: 현재 `Gov24` 는 단순 수집 누락 점검 단계가 아니라 runtime closeout 위에서 deferred business-code inventory 를 해석하는 단계다. 인덱스/related docs가 여전히 `gap audit` 수준에 머물면 current layered truth보다 좁게 읽히게 된다.
