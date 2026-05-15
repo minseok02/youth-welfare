@@ -3792,3 +3792,8 @@
 - 문제: bounded admin runtime을 ad hoc으로 다시 확인할 때 login은 성공했지만, refresh cookie만 들고 admin endpoint를 치면 `401/A006` 이 나와 마치 runtime drift처럼 보일 수 있었다. 또 admin endpoint 응답은 top-level 필드가 아니라 `{\"success\":true,\"data\":{...}}` wrapper shape라, `data.*` 를 안 읽으면 값이 전부 `None` 처럼 보일 수 있다.
 - 해결: 같은 라운드에서 `policy-admin-runtime-runbook.md` 가 안내하는 방식대로 `data.accessToken` 을 꺼내 `Authorization: Bearer <token>` 으로 다시 호출했고, `reference-urls`, `search-youth-relevance`, `embeddings` baseline이 모두 기존 수치와 같음을 재확인했다.
 - 이유: 이건 코드/문서 drift라기보다 수동 재검증 때 자주 생길 수 있는 해석 오류다. bounded runtime baseline을 다시 확인하는 단계에서 인증 방식이나 response wrapper를 잘못 읽으면, 실제로는 정상인 경로를 regression처럼 오판하기 쉽다.
+
+## 702) broader local 기능/구조 검증은 bounded runtime만 다시 태우는 것으로 끝나지 않고, auth/session smoke 3종을 같이 확인해야 closeout 이후 회귀를 더 빨리 잡을 수 있다
+- 문제: bounded runtime baseline은 `policy quality summary`, `Gov24 audit`, `CTR readiness`, admin runtime 경로를 잘 덮지만, 실제 사용자 흐름 기준의 revoke/withdraw/logout/session 경계는 별도 auth smoke를 다시 태워야만 현재 closeout 이후 회귀를 바로 잡을 수 있다.
+- 해결: `run-local-admin-forced-logout-smoke.sh`, `run-local-withdraw-smoke.sh`, `run-local-runtime-api-smoke.sh` 를 같은 라운드에서 다시 실행해 baseline을 재확인했다. 결과는 `forced logout => old access 401/A006, old refresh 401/A003, relogin 200`, `withdraw => old access 401/A006, stale refresh 410/U003`, `runtime api => recommendation_count=17, presented token after logout 401/A006, older login token after logout 200` 이었다.
+- 이유: 현재 active next lane은 broader local 기능/구조 검증이다. auth/session smoke 3종은 실제 사용자 경로에 가까운 보호 API, logout/refresh revoke, 회원탈퇴 후 stale refresh 거부를 한 번에 덮기 때문에, bounded runtime 재검증 뒤 다음 practical regression net으로 가장 효율적이다.
