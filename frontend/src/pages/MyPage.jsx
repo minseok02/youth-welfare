@@ -309,15 +309,12 @@ export default function MyPage() {
       navigate("/login", {
         replace: true,
         state: {
-          from: {
-            pathname: location.pathname,
-            search: location.search,
-          },
+          from: location,
           reason: "login-required",
         },
       });
     }
-  }, [isLoggedIn, location.pathname, location.search, navigate]);
+  }, [isLoggedIn, location, navigate]);
   useEffect(() => {
     const tabFromUrl = TAB_IDS[parseInt(searchParams.get("tab") ?? "0")] ?? "info";
     if (tabFromUrl !== activeTab) {

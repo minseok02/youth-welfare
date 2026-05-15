@@ -20,10 +20,7 @@ export default function AuthExpiryHandler({ children }) {
       navigate("/login", {
         replace: true,
         state: {
-          from: {
-            pathname: location.pathname,
-            search: location.search,
-          },
+          from: location,
           reason: "expired",
         },
       });
@@ -36,7 +33,7 @@ export default function AuthExpiryHandler({ children }) {
         delete window.__authExpired;
       }
     };
-  }, [isLoggedIn, location.pathname, location.search, logout, navigate]);
+  }, [isLoggedIn, location, logout, navigate]);
 
   return children;
 }

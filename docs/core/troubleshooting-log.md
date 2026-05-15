@@ -3992,3 +3992,8 @@
 - 문제: `PoliciesPage` 와 `PolicyDetailPage` 의 비로그인 북마크 경로는 `/login` 으로 보낼 때 `from: { pathname, search }` 만 넘기고 있었다. 이 상태에선 로그인 후 북마크 `postLoginAction` 은 실행되더라도, 현재 페이지에 붙어 있던 `chatFrom`, 목록 복귀용 `from`, 카테고리/탭 같은 nested 문맥은 로그인 화면을 한 번 거치는 순간 다시 잘릴 수 있었다.
 - 해결: 두 페이지 모두 비로그인 북마크 리다이렉트 시 `from.state = location.state` 를 함께 넘기도록 바꿨다. 이제 로그인 화면은 이미 지원하는 nested `from.state` fallback을 통해 챗 복귀/목록 복귀 문맥을 같이 복원할 수 있다. 이후 `frontend lint/build` 를 다시 통과시켰다.
 - 이유: 로그인 유도는 단순히 같은 `pathname/search` 로 돌아가는 것만으로 충분하지 않다. 정책 상세/목록은 이미 `chatFrom`, `from`, `postLoginAction` 같은 보조 문맥을 state에 담아 쓰고 있으므로, login-required 리다이렉트도 같은 수준으로 state를 보존해야 실제 브라우저 체감 복귀가 자연스럽다.
+
+## 742) 공통 auth expiry / 마이페이지 login-required 리다이렉트도 `location` 전체를 넘겨야, 탭/챗/복귀 문맥이 세션 만료나 보호 페이지 진입에서 사라지지 않는다
+- 문제: `RequireLogin` 은 이미 `state={{ from: location, reason: ... }}` 로 전체 `location` 객체를 보냈지만, `AuthExpiryHandler` 와 `MyPage` 자체의 비로그인 리다이렉트는 `pathname/search` 만 새로 조립해 넘기고 있었다. 이 상태에선 `/mypage?tab=2` 나 챗에서 진입한 상세/마이페이지가 세션 만료 또는 직접 보호 페이지 진입을 만나면, URL query는 일부 살아도 `location.state` 안의 `chatFrom`, 복귀용 `from`, 기타 nested 문맥은 잃어버릴 수 있었다.
+- 해결: `AuthExpiryHandler` 와 `MyPage` 의 로그인 유도 경로 모두 `from: location` 을 그대로 넘기도록 맞췄다. 의존성도 `location.pathname/search` 쪼개기 대신 `location` 전체 기준으로 정리했다. 이후 `frontend lint/build` 를 다시 통과시켰다.
+- 이유: 지금 프론트 복귀 계약은 `pathname/search` 와 `state` 를 함께 쓴다. 개별 페이지만 nested fallback을 복원해도, 공통 리다이렉트 레이어가 state를 잘라내면 실제 브라우저 체감에선 탭 복원이나 챗 복귀가 다시 불안정해진다.
