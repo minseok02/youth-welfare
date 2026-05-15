@@ -400,6 +400,7 @@ export default function MyPage() {
   const [pushActionLoading, setPushActionLoading] = useState(false);
   const [pushStatusError, setPushStatusError] = useState("");
   const [pushActionError, setPushActionError] = useState("");
+  const [pushActionPhase, setPushActionPhase] = useState("");
   const [filterIncludeExpired, setFilterIncludeExpired] = useState(filterSettings?.includeExpired ?? false);
 
   const [bookmarkSort, setBookmarkSort] = useState("latest");
@@ -705,6 +706,7 @@ export default function MyPage() {
       setCurrentPushEndpoint(currentSubscription?.endpoint ?? "");
       setPushStatusError("");
       setPushActionError("");
+      setPushActionPhase("");
     } catch (error) {
       setPushPublicKey("");
       setPushSubscriptions([]);
@@ -863,11 +865,17 @@ export default function MyPage() {
 
     setPushActionLoading(true);
     setPushActionError("");
+    setPushActionPhase("");
     try {
       const deviceLabel = "현재 브라우저";
-      const { permission } = await registerCurrentBrowserPush({ publicKey: pushPublicKey, deviceLabel });
+      const { permission } = await registerCurrentBrowserPush({
+        publicKey: pushPublicKey,
+        deviceLabel,
+        onStep: setPushActionPhase,
+      });
       setPushPermission(permission);
       await fetchPushStatus();
+      setPushActionPhase("");
       if (permission === "granted") {
         showToast("브라우저 푸시 연결이 완료되었습니다");
       } else {
@@ -875,6 +883,7 @@ export default function MyPage() {
       }
     } catch (error) {
       const message = error?.response?.data?.message || error?.message || "브라우저 푸시 연결에 실패했습니다";
+      setPushActionPhase("");
       setPushActionError(message);
       showToast(message, "error");
     } finally {
@@ -885,6 +894,7 @@ export default function MyPage() {
   const handleDisconnectBrowserPush = async () => {
     setPushActionLoading(true);
     setPushActionError("");
+    setPushActionPhase("");
     try {
       const currentSubscription = await unsubscribeCurrentBrowserPush();
       const matched = pushSubscriptions.find((subscription) => subscription.endpoint === currentSubscription?.endpoint);
@@ -1545,6 +1555,12 @@ export default function MyPage() {
                     {!pushStatusError && pushActionError && (
                       <div style={{ padding: 12, borderRadius: 12, background: "#fef2f2", color: "#b91c1c", fontSize: 12, lineHeight: 1.6, marginBottom: 12 }}>
                         {pushActionError}
+                      </div>
+                    )}
+
+                    {!pushStatusError && !pushActionError && pushActionLoading && pushActionPhase && (
+                      <div style={{ padding: 12, borderRadius: 12, background: "#eff6ff", color: AI, fontSize: 12, lineHeight: 1.6, marginBottom: 12 }}>
+                        현재 단계: {pushActionPhase}
                       </div>
                     )}
 

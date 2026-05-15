@@ -4102,3 +4102,8 @@
 - 문제: 서버 실브라우저 검증에서 `navigator.serviceWorker.ready timeout`, `registration=null`, `active=false` 패턴이 반복됐다. 현재 `sw.js` 는 `push`/`notificationclick` 만 있고 `install`/`activate` 단계에서 즉시 활성화 전략이 없어서, preview에서 새로 등록한 worker가 현재 페이지를 바로 control하지 못할 수 있다.
 - 해결: `public/sw.js` 에 `install -> self.skipWaiting()`, `activate -> self.clients.claim()` 을 추가했다.
 - 이유: 웹푸시 연결은 결국 active service worker가 있어야 한다. 특히 preview 기반 수동 검증에서는 페이지를 새로 띄운 직후 바로 구독을 시도하므로, worker가 즉시 활성화되도록 강제하는 편이 맞다.
+
+## 764) 그래도 `POST 0회` 이고 카드 경고도 없으면, 웹푸시 연결 단계를 화면에 그대로 노출해 어느 단계에서 멈추는지 먼저 밝혀야 한다
+- 문제: `skipWaiting()` / `clients.claim()` 이후에도 서버 실검증에서는 `POST /api/notifications/push-subscriptions = 0회`, 카드 경고 없음, console error 없음 패턴이 남았다. 이 상태에선 실제로 버튼 핸들러가 어디까지 실행됐는지조차 알기 어렵다.
+- 해결: `registerCurrentBrowserPush()` 에 `onStep` 콜백을 추가해 `공개키 검증 중`, `브라우저 권한 확인 중`, `service worker 등록 중`, `기존 구독 조회 중`, `브라우저 구독 생성 중`, `서버 구독 저장 중` 단계를 카드에 그대로 보여 주도록 했다. 동시에 공개키 import, `Notification.requestPermission`, `pushManager.getSubscription`, `pushManager.subscribe` 를 모두 timeout으로 감쌌다.
+- 이유: 지금 단계에선 성공보다 실패 위치를 가시화하는 것이 먼저다. 서버 브라우저에서 어느 단계 문구에서 멈췄는지가 보이면, 그 다음 수정 대상이 service worker인지 subscribe인지 backend save인지 바로 좁혀진다.

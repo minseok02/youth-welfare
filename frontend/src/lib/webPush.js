@@ -27,22 +27,22 @@ export function isWebPushSupported() {
 }
 
 export async function validateWebPushPublicKey(publicKey) {
-  try {
-    const keyBytes = urlBase64ToUint8Array(publicKey);
-    if (keyBytes.length !== 65 || keyBytes[0] !== 0x04) return false;
-    if (window.crypto?.subtle?.importKey) {
-      await window.crypto.subtle.importKey(
+  const keyBytes = urlBase64ToUint8Array(publicKey);
+  if (keyBytes.length !== 65 || keyBytes[0] !== 0x04) return false;
+  if (window.crypto?.subtle?.importKey) {
+    await withTimeout(
+      window.crypto.subtle.importKey(
         "raw",
         keyBytes,
         { name: "ECDH", namedCurve: "P-256" },
         false,
         [],
-      );
-    }
-    return true;
-  } catch {
-    return false;
+      ),
+      3000,
+      "웹푸시 공개키 검증이 지연되고 있습니다.",
+    );
   }
+  return true;
 }
 
 async function getReadyServiceWorkerRegistration() {
@@ -103,24 +103,33 @@ export async function fetchMyPushSubscriptions() {
   return Array.isArray(data?.data) ? data.data : [];
 }
 
-export async function registerCurrentBrowserPush({ publicKey, deviceLabel }) {
+export async function registerCurrentBrowserPush({ publicKey, deviceLabel, onStep }) {
+  onStep?.("공개키 검증 중");
   const publicKeyValid = await validateWebPushPublicKey(publicKey);
   if (!publicKeyValid) {
     throw new Error("웹푸시 공개키 형식이 올바르지 않습니다.");
   }
 
-  const permission = await Notification.requestPermission();
+  onStep?.("브라우저 권한 확인 중");
+  const permission = await withTimeout(
+    Notification.requestPermission(),
+    3000,
+    "브라우저 알림 권한 확인이 지연되고 있습니다.",
+  );
   if (permission !== "granted") {
     return { permission, subscription: null };
   }
 
+  onStep?.("service worker 등록 중");
   const registration = await getReadyServiceWorkerRegistration();
+  onStep?.("기존 구독 조회 중");
   let subscription = await withTimeout(
     registration.pushManager.getSubscription(),
     5000,
     "브라우저 푸시 구독 상태 확인이 지연되고 있습니다. 잠시 후 다시 시도해주세요.",
   );
   if (!subscription) {
+    onStep?.("브라우저 구독 생성 중");
     subscription = await withTimeout(
       registration.pushManager.subscribe({
         userVisibleOnly: true,
@@ -138,6 +147,7 @@ export async function registerCurrentBrowserPush({ publicKey, deviceLabel }) {
   if (!payload.keys?.p256dh || !payload.keys?.auth) {
     throw new Error("브라우저 푸시 구독 키를 읽지 못했습니다.");
   }
+  onStep?.("서버 구독 저장 중");
   await api.post("/api/notifications/push-subscriptions", {
     endpoint: subscription.endpoint,
     p256dh: payload.keys?.p256dh,
