@@ -30,6 +30,13 @@
 - [runtime-api-smoke-commands.md](../core/runtime-api-smoke-commands.md)
 - [testing.md](../core/testing.md)
 
+현재 반복 검증 wrapper:
+
+- `deploy/smoke/run-local-auth-session-smoke.sh`
+- `deploy/smoke/run-local-runtime-api-smoke.sh`
+- `deploy/smoke/run-local-withdraw-smoke.sh`
+- `deploy/smoke/run-local-admin-forced-logout-smoke.sh`
+
 ## design history 로 읽을 문서
 
 ### forced logout cluster
@@ -58,6 +65,7 @@
 
 1. 현재 구현 확인은 개별 `auth-admin-forced-logout-*` 문서가 아니라 [auth-session-revocation-current-state.md](./auth-session-revocation-current-state.md)부터 봅니다.
 2. 실제 확인 순서는 [auth-operation-checklist.md](./auth-operation-checklist.md)를 따릅니다.
-3. 실행 결과 기록은 [auth-incident-template.md](./auth-incident-template.md)를 복사해서 씁니다.
-4. 개별 `auth-*` 문서는 대부분 판단 근거를 남긴 design history 입니다.
-5. 코드와 문서가 충돌하면 코드와 current-state 문서가 우선입니다.
+3. 가능하면 위 smoke wrapper로 baseline을 먼저 확인하고, 수동 확인은 같은 errorCode/증적 형식으로 맞춰 봅니다.
+4. 실행 결과 기록은 [auth-incident-template.md](./auth-incident-template.md)를 복사해서 쓰고, `old access`, `old refresh`, `relogin`, 관련 URL/토큰 조건을 같이 남깁니다.
+5. 개별 `auth-*` 문서는 대부분 판단 근거를 남긴 design history 입니다.
+6. 코드와 문서가 충돌하면 코드와 current-state 문서가 우선입니다.

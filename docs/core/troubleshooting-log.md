@@ -3857,3 +3857,18 @@
 - 문제: `frontend-qa-docs-index.md` 는 결과를 남길 때 `template -> phase-plan -> troubleshooting-log` 순으로 적고 있었다. 하지만 현재 프론트 QA의 핵심은 `reason`, `state.from`, `?session=`, `?tab=`, query 복원 같은 증거를 남기는 것이고, 이걸 건너뛰고 phase-plan 요약부터 적으면 검증은 했어도 재현 가능성이 약한 기록만 남는다.
 - 해결: 인덱스 문서에서 template에 URL/query/state 증거를 먼저 채우고, 이슈가 재현될 때 troubleshooting-log를 남기며, active 기준선 반영이 필요할 때만 phase-plan을 갱신한다고 순서를 바꿨다.
 - 이유: 프론트 QA는 현재 자동화보다 수동 증거 기록의 품질이 중요하다. 문서 진입점이 요약 문서 갱신을 먼저 유도하면, 실제 복귀/리다이렉트 계약을 증명할 핵심 데이터가 빠진 채 결과만 남게 된다.
+
+## 715) recommendation replay checklist가 여전히 “target row 증가”를 기본 정상처럼 쓰면, 현재 broad-suite baseline인 `9->9 / 1->1` 비회귀 상태를 실패처럼 오판하게 된다
+- 문제: `recommendation-operation-checklist.md` 는 rule-only replay 확인 항목과 정상 기준에서 `sample A target row top10 증가`, `target row 개선` 을 기본 정상처럼 적고 있었다. 하지만 현재 broad-suite current baseline은 이미 target visibility가 확보된 상태라, 이번 단계의 정상은 “계속 증가”가 아니라 “깨지지 않음”이다.
+- 해결: checklist에서 기준을 `target row visibility 유지 또는 개선` 으로 바꾸고, `KEEP_ARTIFACTS=true deploy/smoke/run-local-education-priority-replay.sh` wrapper를 기본 실행 경로로 추가했다. 또 broad-suite baseline이 예전 rescue snapshot처럼 `0->1` 개선을 매번 요구하는 단계가 아니라는 설명을 붙였다.
+- 이유: replay 문서는 현재 baseline이 무엇을 성공으로 보는지 정확히 적어야 한다. 이미 개선이 반영된 상태에서 “또 증가해야 정상”처럼 적으면, 실제 비회귀 상태를 문서가 오판하게 된다.
+
+## 716) auth docs index가 current-state와 history를 잘 나눠도 반복 검증 wrapper를 표면에 올리지 않으면, smoke baseline과 수동 재현 기록이 쉽게 분리된다
+- 문제: `auth-docs-index.md` 는 current-state 문서와 history 문서 경계는 잘 정리했지만, 실제 local/runtime baseline을 다시 확인할 때 어떤 smoke wrapper를 먼저 써야 하는지는 표면에 드러나지 않았다. 이 상태에선 사용자가 checklist만 읽고 수동으로 재현하다가 smoke가 이미 고정한 `old access`, `old refresh`, `relogin` baseline과 다른 형식으로 기록할 수 있다.
+- 해결: 인덱스에 `run-local-auth-session-smoke.sh`, `run-local-runtime-api-smoke.sh`, `run-local-withdraw-smoke.sh`, `run-local-admin-forced-logout-smoke.sh` 를 직접 드러내고, 수동 확인도 같은 errorCode/증적 형식으로 맞춰 보라고 명시했다.
+- 이유: 문서 분류가 아무리 좋아도 실제 반복 검증 진입점이 안 보이면 baseline 재검증이 분산된다. auth/session 문서는 특히 smoke와 수동 확인의 증거 형식을 맞춰야 비교가 쉬워진다.
+
+## 717) demo 문서가 고정 ID curl 예시를 그대로 두면, 현재 데이터를 기준으로는 정상인데도 “ID 1이 없다” 같은 이유로 실패처럼 오판할 수 있다
+- 문제: `demo-scenario.md` 는 정책 상세와 북마크 예시에 `/api/policies/1`, `/api/recommendations/1/bookmark` 같은 고정 ID를 그대로 두고 있었다. 하지만 현재 로컬 데이터/snapshot에서는 이 값이 언제나 의미 있는 정책/추천을 가리킨다고 보장할 수 없다. 그대로 복사하면 데모나 기능 검수 중 문서가 실제로는 “예시”인데 “고정 성공 기준”처럼 읽힌다.
+- 해결: 상세/북마크 예시를 앞 단계 응답에서 받은 실제 `serviceId` / `recommendationId` 를 이어서 쓰는 형태로 바꾸고, 이 문서가 baseline 판정 문서가 아니라 발표/기능 검수용 데모 문서라는 점과 baseline 확인은 smoke wrapper를 먼저 보라고 명시했다.
+- 이유: 데모 문서가 실행 예시를 제공하더라도, 현재 데이터에 종속적인 ID를 절대 기준처럼 두면 검수 실패 원인이 코드가 아니라 예시 drift인지 구분이 안 된다. 데모 문서는 실제 응답을 이어 쓰는 흐름을 보여 줘야 한다.

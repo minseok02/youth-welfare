@@ -58,9 +58,13 @@ replay 전에 아래를 봅니다.
 
 기본 검증선입니다.
 
+기본 실행 wrapper:
+
+- `KEEP_ARTIFACTS=true deploy/smoke/run-local-education-priority-replay.sh`
+
 확인:
 
-- sample A target row top10 증가
+- sample A target row visibility 유지 또는 개선
 - sample B control count 유지
 - artifact 생성
 - summary metric 확인
@@ -82,6 +86,8 @@ replay 전에 아래를 봅니다.
 
 즉 현재 rule-only baseline에서는 target visibility regression이 없어야 하고,
 fingerprint나 reason membership도 불필요하게 흔들리지 않는 상태를 정상으로 봅니다.
+현재 broad-suite current baseline은 예전 rescue snapshot처럼 `0->1` 개선을 매번 요구하는 단계가 아니라,
+이미 확보한 target visibility가 깨지지 않는지를 먼저 보는 단계입니다.
 
 ## 5. real-openai replay
 
@@ -105,12 +111,12 @@ fingerprint나 reason membership도 불필요하게 흔들리지 않는 상태�
 
 정상:
 
-- target row 개선
+- target row visibility 유지 또는 개선
 - control sample stable
 
 이상:
 
-- target 개선 사라짐
+- target visibility regression
 - control sample 이상 증가
 - sidecar/projection 문제
 
@@ -131,6 +137,7 @@ fingerprint나 reason membership도 불필요하게 흔들리지 않는 상태�
 ## 7. 실행 후 남길 최소 기록
 
 - mode: `rule-only` / `real-openai`
+- wrapper / command
 - summary metric
 - artifact dir
 - fingerprint relation

@@ -7,6 +7,12 @@
 Nginx/HTTPS 같은 운영 reverse proxy 전제는 이 데모 문서의 범위가 아니다.
 발표용 단일 서버는 현재 실측 기준 `t3.medium` 이상을 권장한다.
 
+> 주의:
+> 이 문서는 발표/기능 검수 순서를 보여 주는 데모 문서입니다.
+> 현재 baseline이 실제로 green 인지는 이 문서 단독 실행보다
+> `deploy/smoke/run-local-validation-from-env.sh --quick`
+> 또는 관련 bounded runtime wrapper로 먼저 확인하는 쪽이 안전합니다.
+
 ## 1. 사전 확인
 
 - 앱 기동: `http://127.0.0.1:8082/actuator/health`
@@ -129,9 +135,12 @@ curl -s "http://127.0.0.1:8082/api/policies/ranking?size=5" \
 상세:
 
 ```bash
-curl -s "http://127.0.0.1:8082/api/policies/1" \
+curl -s "http://127.0.0.1:8082/api/policies/<앞 단계에서 확인한 serviceId>" \
   -H "Authorization: Bearer ${ACCESS_TOKEN}"
 ```
+
+> 주의: `1` 같은 고정 ID를 기준으로 성공/실패를 판단하지 않습니다.
+> 목록/검색/추천 응답에서 실제로 받은 `serviceId` 를 이어서 씁니다.
 
 ## 7. 추천 생성 / 조회
 
@@ -162,14 +171,14 @@ curl -s "http://127.0.0.1:8082/api/recommendations?size=10" \
 정책 기준 북마크:
 
 ```bash
-curl -i -X POST http://127.0.0.1:8082/api/policies/1/bookmark \
+curl -i -X POST "http://127.0.0.1:8082/api/policies/<실제 serviceId>/bookmark" \
   -H "Authorization: Bearer ${ACCESS_TOKEN}"
 ```
 
 추천 기준 북마크:
 
 ```bash
-curl -i -X POST http://127.0.0.1:8082/api/recommendations/1/bookmark \
+curl -i -X POST "http://127.0.0.1:8082/api/recommendations/<실제 recommendationId>/bookmark" \
   -H "Authorization: Bearer ${ACCESS_TOKEN}"
 ```
 
