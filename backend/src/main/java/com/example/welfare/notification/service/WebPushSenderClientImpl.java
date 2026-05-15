@@ -1,13 +1,9 @@
 package com.example.welfare.notification.service;
 
 import com.example.welfare.notification.entity.WebPushSubscription;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import nl.martijndwars.webpush.PushService;
-import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.apache.http.HttpResponse;
 import org.jose4j.lang.JoseException;
 import org.springframework.beans.factory.annotation.Value;
@@ -16,7 +12,6 @@ import org.springframework.util.StringUtils;
 
 import java.io.IOException;
 import java.security.GeneralSecurityException;
-import java.security.Security;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
@@ -27,6 +22,7 @@ public class WebPushSenderClientImpl implements WebPushSenderClient {
 
     private final ObjectMapper objectMapper;
     private final WebPushKeyValidator webPushKeyValidator;
+    private final WebPushServiceFactory webPushServiceFactory;
 
     @Value("${notification.web-push.public-key:}")
     private String publicKey;
@@ -36,13 +32,6 @@ public class WebPushSenderClientImpl implements WebPushSenderClient {
 
     @Value("${notification.web-push.subject:}")
     private String subject;
-
-    @PostConstruct
-    void ensureBouncyCastleProvider() {
-        if (Security.getProvider(BouncyCastleProvider.PROVIDER_NAME) == null) {
-            Security.addProvider(new BouncyCastleProvider());
-        }
-    }
 
     @Override
     public boolean isConfigured() {
@@ -58,7 +47,8 @@ public class WebPushSenderClientImpl implements WebPushSenderClient {
         }
 
         try {
-            PushService pushService = new PushService(publicKey, privateKey, subject);
+            nl.martijndwars.webpush.PushService pushService =
+                    webPushServiceFactory.create(publicKey, privateKey, subject);
             String payload = objectMapper.writeValueAsString(Map.of(
                     "title", content.title(),
                     "body", content.body(),

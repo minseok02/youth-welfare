@@ -8,8 +8,11 @@ import com.example.welfare.notification.dto.UserAlertUnreadCountResponse;
 import com.example.welfare.notification.dto.WebPushPublicKeyResponse;
 import com.example.welfare.notification.dto.WebPushSubscriptionRequest;
 import com.example.welfare.notification.dto.WebPushSubscriptionResponse;
+import com.example.welfare.notification.dto.WebPushTestSendRequest;
+import com.example.welfare.notification.dto.WebPushTestSendResponse;
 import com.example.welfare.notification.service.UserAlertCommandService;
 import com.example.welfare.notification.service.UserAlertReadService;
+import com.example.welfare.notification.service.WebPushDispatchService;
 import com.example.welfare.notification.service.WebPushSubscriptionCommandService;
 import com.example.welfare.notification.service.WebPushSubscriptionReadService;
 import com.example.welfare.user.service.ActiveUserReadService;
@@ -34,6 +37,7 @@ public class NotificationController {
     private final UserAlertCommandService userAlertCommandService;
     private final WebPushSubscriptionReadService webPushSubscriptionReadService;
     private final WebPushSubscriptionCommandService webPushSubscriptionCommandService;
+    private final WebPushDispatchService webPushDispatchService;
     private final ActiveUserReadService activeUserReadService;
 
     @GetMapping("/unsubscribe")
@@ -87,6 +91,15 @@ public class NotificationController {
             @PathVariable Long subscriptionId) {
         webPushSubscriptionCommandService.delete(resolveUserKey(authenticatedUser), subscriptionId);
         return ResponseEntity.ok(ApiResponse.success(null));
+    }
+
+    @PostMapping("/push-test-send")
+    public ResponseEntity<ApiResponse<WebPushTestSendResponse>> sendPushTestMessage(
+            @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
+            @Valid @RequestBody WebPushTestSendRequest request) {
+        return ResponseEntity.ok(ApiResponse.success(
+                webPushDispatchService.sendTestMessage(resolveUserKey(authenticatedUser), request)
+        ));
     }
 
     @PatchMapping("/{alertId}/read")

@@ -4132,3 +4132,8 @@
 - 문제: 위 의존성을 추가한 뒤에도 서버 실발송에서는 `last_error_message=no such provider: BC` 가 남고 실제 푸시가 가지 않았다. 즉 클래스는 보이지만 `PushService` 가 기대하는 `BC` provider가 `Security` registry에 올라오지 않은 상태였다.
 - 해결: `WebPushSenderClientImpl` 의 `@PostConstruct` 에서 `Security.getProvider("BC")` 를 확인하고, 없으면 `Security.addProvider(new BouncyCastleProvider())` 로 등록하게 했다.
 - 이유: 웹푸시 라이브러리는 provider 이름 `BC` 로 crypto provider를 찾는다. 런타임 classpath와 JVM provider registry는 별개라서, JAR 추가만으로는 끝나지 않는다.
+
+## 770) 추천 digest 전체를 태우지 않고도 웹푸시 발송기 자체를 검증할 수 있어야 한다
+- 문제: 지금까지는 웹푸시가 실제로 되는지 보려면 추천 refresh -> 대상 선정 -> digest dispatch 전체를 다시 밟아야 했다. 이 구조에선 실패가 나도 원인이 발송기 자체인지, 추천 digest 상단 흐름인지 섞여 보였다.
+- 해결: `WebPushSenderClientImpl` 은 이제 `PushService` 생성을 `WebPushServiceFactory` 로 분리해 테스트 가능한 seam을 만들었다. 또 `NotificationController` 에 현재 로그인 사용자의 활성 subscription들로 직접 단건 푸시를 보내는 `POST /api/notifications/push-test-send` 를 추가했다. `WebPushDispatchService.sendTestMessage(...)` 는 `attempted/sent/disabled/failed` 집계를 반환하므로, 추천 digest 전체를 안 태우고도 sender 자체를 검증할 수 있다.
+- 이유: 웹푸시는 브라우저 subscription 저장과 실제 발송을 분리해서 봐야 한다. 단건 test send가 있어야 “추천 알림이 안 온다”를 바로 추천 로직 문제로 오판하지 않고, 발송기 자체를 먼저 닫을 수 있다.

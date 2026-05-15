@@ -122,6 +122,36 @@ class WebPushDispatchServiceTest {
         assertThat(subscription.getLastErrorMessage()).isEqualTo("sender bootstrap failed");
     }
 
+    @Test
+    @DisplayName("test send는 현재 사용자 활성 subscription에 대해 결과 집계를 반환한다")
+    void sendTestMessageReturnsCounts() {
+        WebPushSubscription success = sampleSubscription();
+        WebPushSubscription disabled = WebPushSubscription.builder()
+                .id(2L)
+                .userKey("user-key-1")
+                .endpoint("https://push.example/2")
+                .p256dh("p256dh2")
+                .authSecret("auth2")
+                .enabled(true)
+                .build();
+        given(webPushSubscriptionRepository.findByUserKeyAndEnabledTrueOrderByCreatedAtDesc("user-key-1"))
+                .willReturn(List.of(success, disabled));
+        given(webPushSenderClient.isConfigured()).willReturn(true);
+        given(webPushSenderClient.send(org.mockito.ArgumentMatchers.eq(success), org.mockito.ArgumentMatchers.any()))
+                .willReturn(WebPushSendResult.sent());
+        given(webPushSenderClient.send(org.mockito.ArgumentMatchers.eq(disabled), org.mockito.ArgumentMatchers.any()))
+                .willReturn(WebPushSendResult.disable("expired"));
+
+        var response = webPushDispatchService.sendTestMessage("user-key-1", request());
+
+        assertThat(response.attemptedCount()).isEqualTo(2);
+        assertThat(response.sentCount()).isEqualTo(1);
+        assertThat(response.disabledCount()).isEqualTo(1);
+        assertThat(response.failedCount()).isZero();
+        assertThat(success.getLastSentAt()).isNotNull();
+        assertThat(disabled.isEnabled()).isFalse();
+    }
+
     private WebPushSubscription sampleSubscription() {
         return WebPushSubscription.builder()
                 .id(1L)
@@ -142,5 +172,13 @@ class WebPushDispatchServiceTest {
                 .service(service)
                 .finalScore(new BigDecimal("0.91"))
                 .build();
+    }
+
+    private com.example.welfare.notification.dto.WebPushTestSendRequest request() {
+        var request = new com.example.welfare.notification.dto.WebPushTestSendRequest();
+        request.setTitle("test");
+        request.setBody("body");
+        request.setUrl("https://example.com/test");
+        return request;
     }
 }

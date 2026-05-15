@@ -1,6 +1,12 @@
 package com.example.welfare.notification.controller;
 
 import com.example.welfare.global.util.JwtUtil;
+import com.example.welfare.notification.service.UserAlertCommandService;
+import com.example.welfare.notification.service.UserAlertReadService;
+import com.example.welfare.notification.service.WebPushDispatchService;
+import com.example.welfare.notification.service.WebPushSubscriptionCommandService;
+import com.example.welfare.notification.service.WebPushSubscriptionReadService;
+import com.example.welfare.user.service.ActiveUserReadService;
 import com.example.welfare.user.service.UserAccountCommandService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -28,6 +34,18 @@ class NotificationControllerWebMvcTest {
     private JwtUtil jwtUtil;
     @MockBean
     private UserAccountCommandService userAccountCommandService;
+    @MockBean
+    private UserAlertReadService userAlertReadService;
+    @MockBean
+    private UserAlertCommandService userAlertCommandService;
+    @MockBean
+    private WebPushSubscriptionReadService webPushSubscriptionReadService;
+    @MockBean
+    private WebPushSubscriptionCommandService webPushSubscriptionCommandService;
+    @MockBean
+    private WebPushDispatchService webPushDispatchService;
+    @MockBean
+    private ActiveUserReadService activeUserReadService;
     @MockBean
     private JpaMetamodelMappingContext jpaMetamodelMappingContext;
 
