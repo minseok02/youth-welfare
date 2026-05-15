@@ -19,6 +19,9 @@ CTR 기반 추천 품질 조정 전에 아래를 빠르게 확인합니다.
 bash deploy/smoke/run-local-ctr-readiness-audit.sh
 ```
 
+이 스크립트는 현재 로컬 DB의 `recommendation_logs` 를 직접 읽습니다.
+즉 실시간 사용자 체감 테스트라기보다, 현재 로그 snapshot 기준으로 tuning readiness를 판정하는 audit wrapper입니다.
+
 ## 출력 항목
 
 - `ctr_total_logs`
@@ -139,3 +142,14 @@ DEFERRED_CLICK_SAMPLE_THIN
 1. weight 조정보다 표본 축적 유지
 2. dashboard / CTR audit로 readiness만 재확인
 3. `READY_FOR_WEIGHT_REVIEW` 가 나온 뒤에만 실제 튜닝 reopen
+
+## 실행 후 남길 최소 기록
+
+- wrapper 실행 시각
+- `ctr_total_logs`, `ctr_clicked_logs`, `ctr_pct`
+- `ctr_clicked_users`, `ctr_clicked_services`
+- fallback/AI sent/clicked
+- `[weight_bucket_ctr]` 상위 3줄
+- `[top_clicked_services]` 상위 2~5줄
+- readiness 값
+- baseline과 달라진 점 / tuning reopen 여부

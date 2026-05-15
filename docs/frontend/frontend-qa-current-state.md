@@ -83,22 +83,22 @@
 
 ## 현재 QA 기준선
 
-2026-05-01 기준 프론트엔드 정적 기준선은 아래와 같습니다.
+2026-05-15 기준 프론트엔드 정적 기준선은 아래와 같습니다.
 
 - `cd frontend && npm run build` 통과
 - `cd frontend && npm run lint` 통과
 
 추가 관찰:
 
-- Vite production build에서 `dist/assets/index-*.js` 가 `500 kB` 경고를 넘습니다.
-- 현재 이건 기능 실패가 아니라 성능/번들 분할 후보 신호로 봅니다.
+- 현재 정적 기준선에서는 route-level lazy loading + vendor chunk split 이후 기존 번들 크기 경고가 재현되지 않습니다.
+- 따라서 현재 프론트 QA에서 더 중요한 건 번들 warning 숫자보다 브라우저 복귀/query/state 계약이 실제로 유지되는지입니다.
 
 ## 현재 리스크
 
 ### 1. 브라우저 자동화 부재
 
 - 실제 뒤로가기, 새로고침, 탭 복귀, 세션 만료 타이밍은 자동 회귀로 잡히지 않습니다.
-- 따라서 지금은 수동 QA 체크리스트를 기준으로 확인해야 합니다.
+- 따라서 지금은 수동 QA 체크리스트와 QA template의 URL/query/state 증거 기록을 기준으로 확인해야 합니다.
 
 ### 2. 목록 필터 상태의 URL 비영속성
 

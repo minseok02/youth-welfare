@@ -18,6 +18,17 @@
 bash deploy/smoke/run-local-policy-quality-summary.sh
 ```
 
+이 wrapper는
+
+- app health
+- admin login
+- retrieval evaluation
+- retrieval gate
+- category audit
+
+를 현재 local smoke baseline 방식으로 한 번에 묶습니다.
+가능하면 개별 admin endpoint를 수동으로 다시 치기 전에 이 wrapper 출력부터 기록합니다.
+
 ## 포함 범위
 
 이 스크립트는 아래 admin 경로를 순서대로 호출합니다.
@@ -81,6 +92,7 @@ bash deploy/smoke/run-local-policy-quality-summary.sh
 
 - `quality_gate_passed=true` 면 baseline은 통과
 - `quality_gate_failure_reasons` 가 비어 있지 않으면 어떤 축이 미달인지 바로 확인
+- 가능하면 retrieval 단계의 `dataset_key`, `scenario_count` 와 같이 남깁니다.
 
 ### 3. category는 분포를 읽는다
 
@@ -94,6 +106,15 @@ category audit는 pass/fail command가 아니라 분포 read 경로입니다.
 - `youth_broad_top_source`
 - `youth_broad_top_dominant_unified`
 - `youth_broad_top_dominant_share`
+
+## 실행 후 남길 최소 기록
+
+- wrapper 실행 시각
+- `dataset_key`, `scenario_count`
+- retrieval 4종 (`top1/top3/branch/empty_result`)
+- `quality_gate_passed`, `quality_gate_failure_reasons`
+- category 핵심 6종
+- baseline과 달라진 숫자 / follow-up 필요 여부
 
 ## 언제 이 경로를 먼저 여나
 

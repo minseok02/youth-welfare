@@ -3887,3 +3887,18 @@
 - 문제: `policy-gov24-runtime-audit-runbook.md` 는 closeout/deferred inventory 해석은 좋았지만, 실제 audit 실행 후 무엇을 꼭 기록해야 하는지는 약했다. 이 상태면 사용자가 `10937/10937/10937` 같은 coverage 숫자만 적고, `missing_all_null`, `missing_unmapped_only`, nested/flat shape, sample `effective_signal_count / mapped_signal_count`, collect lane의 `requested/saved/skipped/failed` 를 생략해 버릴 수 있다.
 - 해결: runbook에 wrapper 실행 후 남길 최소 metric 묶음과, detail/support 재수집 시 `lane`, `maxCallsPerRun`/`sourceId`, 최신 `api_sync_logs` 요약을 같이 남기도록 추가했다. 마지막에도 실행 후 남길 최소 기록 블록을 별도로 넣었다.
 - 이유: Gov24 current truth의 핵심은 단순 closeout 숫자가 아니라 `deferred inventory` 와 `anomaly` 를 구분하는 것이다. 기록 항목이 coverage 숫자만 남기면 이 구분이 다시 사라진다.
+
+## 721) policy quality summary runbook이 baseline 숫자만 보여 주고 wrapper 성격과 최소 기록 항목을 안 적으면, 같은 3단계(admin runtime)라도 어떤 출력이 triage 핵심인지 흐려진다
+- 문제: `policy-quality-summary-runbook.md` 는 실행 명령과 baseline 숫자는 있었지만, 이 경로가 `admin login -> retrieval evaluation -> gate -> category audit` 를 묶는 wrapper라는 점과, 실행 후 `dataset_key`, `scenario_count`, retrieval 4종, gate 결과, category 핵심 분포를 함께 남겨야 한다는 점이 약했다.
+- 해결: wrapper가 실제로 무엇을 묶는지 설명하고, gate는 retrieval 단계의 `dataset_key/scenario_count` 와 함께 기록하라고 보강했다. 마지막에 최소 기록 항목도 별도로 추가했다.
+- 이유: quality summary의 실효성은 숫자 몇 개를 외우는 데 있지 않고, 같은 wrapper 실행 결과를 다음 라운드와 비교할 수 있게 남기는 데 있다. 최소 기록이 없으면 baseline이 맞아도 운영 메모는 금방 비교 불가능해진다.
+
+## 722) CTR readiness runbook이 로그 snapshot audit이라는 성격과 최소 기록 항목을 안 적으면, live UX 체감 테스트와 tuning readiness 판정을 다시 섞어 읽게 된다
+- 문제: `recommendation-ctr-readiness-runbook.md` 는 실행과 현재 baseline은 잘 정리했지만, 스크립트가 현재 DB의 `recommendation_logs` snapshot을 직접 읽는 audit wrapper라는 점과, 실행 후 `clicked_users`, `clicked_services`, top services, bucket 분포를 같이 남겨야 한다는 점이 약했다.
+- 해결: 문서 상단에 이 경로가 live UX test가 아니라 DB snapshot 기반 readiness audit이라는 점을 명시하고, 실행 후 남길 최소 기록으로 total/click/clicked_users/clicked_services/fallback-AI/bucket/top services/readiness 를 추가했다.
+- 이유: CTR 문서는 특히 “지금 눌러보니 어땠다”와 “현재 로그 기준 tuning을 열어도 되는가”를 구분해야 한다. audit 성격과 기록 항목을 못 박지 않으면 두 층위가 다시 섞인다.
+
+## 723) frontend QA current-state가 예전 번들 warning 관찰을 current baseline처럼 남겨 두면, 최신 체크리스트와 모순돼 정적 검증 pass/fail 판단을 흐린다
+- 문제: `frontend-qa-current-state.md` 는 여전히 `dist/assets/index-*.js` 500kB warning이 현재 관찰인 것처럼 적고 있었다. 하지만 최신 checklist/current baseline에서는 route-level lazy loading + vendor chunk split 이후 이 경고가 재현되지 않는다고 정리돼 있다. 이 모순은 현재 build가 정상인데도 문서 둘 중 하나는 실패 신호처럼 읽히게 만든다.
+- 해결: current-state의 정적 기준선을 `2026-05-15` 기준으로 갱신하고, 현재는 번들 warning 자체보다 브라우저 복귀/query/state 계약 유지가 더 중요한 QA 초점이라고 정리했다. 브라우저 자동화 부재 리스크도 template evidence 기록과 연결해 설명했다.
+- 이유: current-state와 checklist가 서로 다른 static baseline을 말하면, QA 문서군 전체의 pass/fail 기준이 다시 흔들린다. 특히 정적 warning은 해결된 뒤에도 오래 남기 쉬운 항목이라, 현재 truth와 맞춰 정리할 필요가 있다.
