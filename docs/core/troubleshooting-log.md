@@ -4002,3 +4002,8 @@
 - 문제: `Header` 와 `FloatingNav` 는 `mypageTarget`, `policiesTarget`, `chatTarget` 을 만들 때 대부분 `pathname/search` 만 보존하고 있었고, 현재 페이지의 `location.state` 나 이미 저장된 `from.state` / `chatFrom.state` 는 target에 싣지 않았다. 이 상태에선 상세/챗/탭 화면에서 상단이나 플로팅 네비게이션을 통해 이동하거나 로그인 유도를 만나면, URL은 맞아도 nested 복귀 문맥이 다시 사라질 수 있었다.
 - 해결: 두 컴포넌트 모두 target 객체에 가능한 `state` 를 함께 싣도록 바꾸고, 실제 `navigate(...)` 호출도 `state: target.state` 를 같이 넘기게 맞췄다. 로그인 버튼의 기본 `authFromState` 역시 `from: location` 전체를 쓰도록 통일했다. 이후 `frontend lint/build` 를 다시 통과시켰다.
 - 이유: 복귀 문맥 보존은 페이지 내부 핸들러만으로 닫히지 않는다. 사용자가 실제로 많이 누르는 Header/FloatingNav가 얇은 target만 만들면, 앞에서 고친 nested fallback 계약이 navigation 레이어에서 다시 약해진다.
+
+## 744) 메인 화면의 로그인 진입과 상세 이동도 `location` 전체를 넘겨야, 메인에서 시작한 복귀 흐름이 다른 페이지들과 같은 계약을 쓴다
+- 문제: `MainPage` 의 `authState` 와 `navigateToPolicyDetail()` 은 아직 `pathname/search` 만 새로 조립해서 넘기고 있었다. 메인 화면은 보통 단순한 진입점이지만, 현재 프론트 복귀 계약을 전반적으로 `from: location` 으로 통일하는 흐름에서 여기만 얇게 남아 있으면, 로그인/회원가입 후 복귀나 상세 -> 뒤로가기 체인이 페이지마다 다르게 동작할 수 있다.
+- 해결: `MainPage` 도 로그인/회원가입 진입용 `authState`, 정책 상세 이동용 `from` 모두 `location` 전체를 그대로 넘기도록 맞췄다. 이후 `frontend lint/build` 를 다시 통과시켰다.
+- 이유: 메인 화면은 query/state가 상대적으로 단순해 보여도, 복귀 경계는 페이지별 예외 없이 같은 규칙을 쓰는 편이 안전하다. 한 군데라도 `pathname/search` 위주 contract가 남아 있으면 이후 브라우저 체감 검증에서 예외 동작이 생기기 쉽다.

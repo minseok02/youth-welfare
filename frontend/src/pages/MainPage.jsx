@@ -484,21 +484,15 @@ export default function MainPage() {
   const [toast, setToast] = useState({ open: false, msg: "", severity: "info" });
   const showToast = useCallback((msg, severity = "info") => setToast({ open: true, msg, severity }), []);
   const authState = {
-    from: {
-      pathname: location.pathname,
-      search: location.search,
-    },
+    from: location,
   };
   const navigateToPolicyDetail = useCallback((policyId, logId = null) => {
     navigate(`/policies/${policyId}${logId ? `?log_id=${logId}` : ""}`, {
       state: {
-        from: {
-          pathname: location.pathname,
-          search: location.search,
-        },
+        from: location,
       },
     });
-  }, [location.pathname, location.search, navigate]);
+  }, [location, navigate]);
 
   // ── AI 추천 fetch ──────────────────────────────────────────────────────────
   useEffect(() => {
