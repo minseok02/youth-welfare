@@ -3782,3 +3782,8 @@
 - 문제: `current-state.md` 와 `start.md` 는 `Gov24 runtime closeout / blocked track` 이라고 적고 있었고, `policy-post-local-closeout-track-split.md` 의 active baseline 목록도 `Gov24 runtime audit` 이라고만 적고 있었다. 이 표현들은 현재 `runtime closeout + blocked/deferred track + deferred inventory audit` 층위를 충분히 드러내지 못했다.
 - 해결: `current-state.md`, `start.md` 는 `Gov24 runtime closeout / blocked-deferred track` 으로, `policy-post-local-closeout-track-split.md` 는 `Gov24 runtime closeout / deferred inventory audit` 으로 교정했다.
 - 이유: 상위 진입점 문서와 active track split 문서는 가장 압축된 현재 상태 요약 역할을 한다. 여기 wording이 예전 blocked/audit 표현에 머물면, 하위 runbook과 inventory에서 정리한 layered truth가 다시 상위 요약에서 축소되어 버린다.
+
+## 700) active 문서 sweep은 drift를 하나씩 고친 뒤에도 마지막에 “남은 hit가 진짜 drift인지”를 다시 닫아야 한다
+- 문제: 이번 문서 정리는 `MySQL/draft sidecar`, `Gov24 layered truth`, replay/CTR baseline, bounded runtime wording drift를 여러 차례 나눠 고쳤기 때문에, 마지막에 다시 전수 검색하지 않으면 historical guardrail과 현재 truth hit까지 전부 “아직 남은 문제”처럼 보일 수 있었다.
+- 해결: active 문서군만 대상으로 최종 sweep을 한 번 더 돌려, 남은 검색 hit가 intentional historical guardrail 또는 현재 truth 숫자/용어뿐이라는 점을 확인하고 `phase-plan.md` 에 closeout 상태를 기록했다.
+- 이유: 문서 정리 작업은 구현처럼 테스트가 자동으로 “끝남”을 말해주지 않는다. 마지막 전수 확인 없이 계속 소규모 패치를 이어가면, 이미 정리된 항목도 반복해서 다시 보는 루프에 빠지기 쉽다.
