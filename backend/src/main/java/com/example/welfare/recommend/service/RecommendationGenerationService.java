@@ -83,7 +83,7 @@ public class RecommendationGenerationService {
 
         scored = aiScoringService.score(clusterId, scored, snapshot);
 
-        List<ScoredCandidate> reranked = reRankingService.rerank(scored);
+        List<ScoredCandidate> reranked = reRankingService.rerank(scored, snapshot);
         ScoreWeight weight = reRankingService.getCurrentWeight();
         List<UserRecommendation> saved = recommendationPersistenceService.save(user, reranked, weight);
 

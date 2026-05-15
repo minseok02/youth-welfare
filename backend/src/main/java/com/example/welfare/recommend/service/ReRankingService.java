@@ -1,14 +1,16 @@
 package com.example.welfare.recommend.service;
 
 import com.example.welfare.recommend.dto.ScoredCandidate;
+import com.example.welfare.recommend.dto.RecommendationUserSnapshot;
 import com.example.welfare.recommend.entity.ScoreWeight;
 import com.example.welfare.policy.entity.WelfareService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-
 import java.time.LocalDate;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -19,12 +21,20 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class ReRankingService {
+    private static final int NO_PRIORITY_TOP_ELIGIBLE_LIMIT = 8;
+    private static final double NO_PRIORITY_TOP_BAND = 0.07d;
+    private static final double NO_PRIORITY_PREFERRED_CANDIDATE_BONUS = 0.06d;
+    private static final double NO_PRIORITY_SECONDARY_CANDIDATE_BONUS = 0.02d;
 
     private final ScoreNormalizer normalizer;
     private final ScoreWeightService scoreWeightService;
     private final RecommendationDiversityService recommendationDiversityService;
 
     public List<ScoredCandidate> rerank(List<ScoredCandidate> candidates) {
+        return rerank(candidates, null);
+    }
+
+    public List<ScoredCandidate> rerank(List<ScoredCandidate> candidates, RecommendationUserSnapshot snapshot) {
         ScoreWeight weight = scoreWeightService.getActiveWeight();
 
         // 하한을 0으로 고정: 최솟값 정책도 final_score=0이 되지 않도록
@@ -61,6 +71,8 @@ public class ReRankingService {
         List<ScoredCandidate> diversified = recommendationDiversityService.apply(
                 scored.stream().sorted(recommendationComparator()).toList()
         );
+        diversified = applyNoPriorityTopBandDiversification(diversified, snapshot);
+
         return diversified.stream()
                 .sorted(recommendationComparator())
                 .toList();
@@ -68,6 +80,73 @@ public class ReRankingService {
 
     public ScoreWeight getCurrentWeight() {
         return scoreWeightService.getActiveWeight();
+    }
+
+    private List<ScoredCandidate> applyNoPriorityTopBandDiversification(List<ScoredCandidate> scored,
+                                                                        RecommendationUserSnapshot snapshot) {
+        if (snapshot == null
+                || !snapshot.priorities().isEmpty()
+                || scored == null
+                || scored.size() < 3
+                || snapshot.userKey() == null
+                || snapshot.userKey().isBlank()) {
+            return scored;
+        }
+
+        List<ScoredCandidate> ranked = scored.stream()
+                .sorted(recommendationComparator())
+                .toList();
+        double topScore = ranked.get(0).getFinalScore();
+        List<ScoredCandidate> eligible = ranked.stream()
+                .limit(NO_PRIORITY_TOP_ELIGIBLE_LIMIT)
+                .filter(candidate -> topScore - candidate.getFinalScore() <= NO_PRIORITY_TOP_BAND)
+                .toList();
+        if (eligible.size() < 2) {
+            return scored;
+        }
+
+        int preferredIndex = Math.floorMod(snapshot.userKey().chars().sum(), eligible.size());
+        int secondaryIndex = eligible.size() > 2
+                ? (preferredIndex + 1) % eligible.size()
+                : -1;
+
+        Map<Long, ScoredCandidate> adjustedByServiceId = new LinkedHashMap<>();
+        ScoredCandidate preferredCandidate = eligible.get(preferredIndex);
+        if (preferredCandidate.getService().getId() != null) {
+            adjustedByServiceId.put(
+                    preferredCandidate.getService().getId(),
+                    preferredCandidate.withFinalScore(
+                            preferredCandidate.getFinalScore() + NO_PRIORITY_PREFERRED_CANDIDATE_BONUS,
+                            preferredCandidate.isAiFallback()
+                    )
+            );
+        }
+        if (secondaryIndex >= 0) {
+            ScoredCandidate secondaryCandidate = eligible.get(secondaryIndex);
+            if (secondaryCandidate.getService().getId() != null
+                    && !adjustedByServiceId.containsKey(secondaryCandidate.getService().getId())) {
+                adjustedByServiceId.put(
+                        secondaryCandidate.getService().getId(),
+                        secondaryCandidate.withFinalScore(
+                                secondaryCandidate.getFinalScore() + NO_PRIORITY_SECONDARY_CANDIDATE_BONUS,
+                                secondaryCandidate.isAiFallback()
+                        )
+                );
+            }
+        }
+        if (adjustedByServiceId.isEmpty()) {
+            return scored;
+        }
+
+        return scored.stream()
+                .map(candidate -> {
+                    Long serviceId = candidate.getService().getId();
+                    if (serviceId == null) {
+                        return candidate;
+                    }
+                    return adjustedByServiceId.getOrDefault(serviceId, candidate);
+                })
+                .toList();
     }
 
     private double adjustedAiWeight(ScoreWeight weight, ScoredCandidate candidate) {

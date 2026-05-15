@@ -1,6 +1,7 @@
 package com.example.welfare.recommend.service;
 
 import com.example.welfare.policy.entity.WelfareService;
+import com.example.welfare.recommend.dto.RecommendationUserSnapshot;
 import com.example.welfare.recommend.dto.ScoredCandidate;
 import com.example.welfare.recommend.entity.ScoreWeight;
 import org.junit.jupiter.api.DisplayName;
@@ -158,6 +159,54 @@ class ReRankingServiceTest {
                 .containsExactly(31L, 33L, 32L);
     }
 
+    @Test
+    @DisplayName("우선순위가 없는 사용자는 근접한 top band 안에서 fallback bonus로 top1 서비스를 분산한다")
+    void rerankDiversifiesTop1ServiceForNoPriorityUsers() {
+        ReRankingService reRankingService = new ReRankingService(
+                new ScoreNormalizer(),
+                scoreWeightService,
+                new RecommendationDiversityService()
+        );
+
+        when(scoreWeightService.getActiveWeight()).thenReturn(ScoreWeight.builder()
+                .weightKey("COLD_START")
+                .ruleWeight(BigDecimal.valueOf(0.8))
+                .aiWeight(BigDecimal.valueOf(0.2))
+                .minLogCount(0)
+                .isActive(true)
+                .build());
+
+        ScoredCandidate bokjiroTop = candidate(
+                service(41L, WelfareService.SourceType.BOKJIRO_CENTRAL, "주거", LocalDate.now().plusDays(20), 100, 1000L, LocalDateTime.of(2026, 1, 1, 0, 0)),
+                100.0,
+                null
+        );
+        ScoredCandidate gov24Second = candidate(
+                service(42L, WelfareService.SourceType.GOV24, "교육·직업훈련", LocalDate.now().plusDays(20), 100, 1000L, LocalDateTime.of(2026, 1, 1, 0, 0)),
+                97.0,
+                null
+        );
+        ScoredCandidate youthThird = candidate(
+                service(43L, WelfareService.SourceType.YOUTH, "일자리", LocalDate.now().plusDays(20), 100, 1000L, LocalDateTime.of(2026, 1, 1, 0, 0)),
+                96.0,
+                null
+        );
+
+        RecommendationUserSnapshot userPrefersGov24 = noPrioritySnapshot("user-a");
+        RecommendationUserSnapshot userPrefersYouth = noPrioritySnapshot("user-b");
+
+        List<ScoredCandidate> gov24First = reRankingService.rerank(
+                List.of(bokjiroTop, gov24Second, youthThird),
+                userPrefersGov24
+        );
+        List<ScoredCandidate> youthFirst = reRankingService.rerank(
+                List.of(bokjiroTop, gov24Second, youthThird),
+                userPrefersYouth
+        );
+
+        assertThat(gov24First.get(0).getService().getId()).isNotEqualTo(youthFirst.get(0).getService().getId());
+    }
+
     private ScoredCandidate candidate(WelfareService service,
                                       double ruleWeightedScore,
                                       Double aiScore,
@@ -180,6 +229,7 @@ class ReRankingServiceTest {
     }
 
     private WelfareService service(Long id,
+                                   WelfareService.SourceType sourceType,
                                    String unifiedCategory,
                                    LocalDate applyEndDate,
                                    Integer viewCount,
@@ -187,7 +237,7 @@ class ReRankingServiceTest {
                                    LocalDateTime registeredAt) {
         return WelfareService.builder()
                 .id(id)
-                .sourceType(WelfareService.SourceType.BOKJIRO_LOCAL)
+                .sourceType(sourceType)
                 .sourceId("S" + id)
                 .title("service-" + id)
                 .unifiedCategory(unifiedCategory)
@@ -200,10 +250,39 @@ class ReRankingServiceTest {
     }
 
     private WelfareService service(Long id,
+                                   String unifiedCategory,
+                                   LocalDate applyEndDate,
+                                   Integer viewCount,
+                                   Long apiViewCount,
+                                   LocalDateTime registeredAt) {
+        return service(id, WelfareService.SourceType.BOKJIRO_LOCAL, unifiedCategory, applyEndDate, viewCount, apiViewCount, registeredAt);
+    }
+
+    private WelfareService service(Long id,
                                    LocalDate applyEndDate,
                                    Integer viewCount,
                                    Long apiViewCount,
                                    LocalDateTime registeredAt) {
         return service(id, null, applyEndDate, viewCount, apiViewCount, registeredAt);
+    }
+
+    private RecommendationUserSnapshot noPrioritySnapshot(String userKey) {
+        return new RecommendationUserSnapshot(
+                1L,
+                userKey,
+                25,
+                "20S",
+                "서울",
+                "강남구",
+                "11680",
+                (byte) 5,
+                "ONE_PERSON",
+                "EMPLOYED",
+                10,
+                0.5,
+                List.of(),
+                List.of(),
+                List.of()
+        );
     }
 }

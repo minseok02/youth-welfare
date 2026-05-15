@@ -117,7 +117,7 @@ class RecommendationGenerationServiceTest {
         when(ruleScoringService.score(retrieved, snapshot)).thenReturn(List.of(scored));
         when(recommendationPostScoringFilterService.filterSpecialTargetMismatches(List.of(scored))).thenReturn(List.of(scored));
         when(aiScoringService.score("youth_all", List.of(scored), snapshot)).thenReturn(List.of(scored));
-        when(reRankingService.rerank(List.of(scored))).thenReturn(List.of(scored));
+        when(reRankingService.rerank(List.of(scored), snapshot)).thenReturn(List.of(scored));
         when(reRankingService.getCurrentWeight()).thenReturn(weight);
         when(recommendationPersistenceService.save(user, List.of(scored), weight)).thenReturn(List.of(saved));
 
@@ -148,7 +148,7 @@ class RecommendationGenerationServiceTest {
         when(ruleScoringService.score(retrieved, snapshot)).thenReturn(List.of(scored));
         when(recommendationPostScoringFilterService.filterSpecialTargetMismatches(List.of(scored))).thenReturn(List.of(scored));
         when(aiScoringService.score("youth_all", List.of(scored), snapshot)).thenReturn(List.of(scored));
-        when(reRankingService.rerank(List.of(scored))).thenReturn(List.of(scored));
+        when(reRankingService.rerank(List.of(scored), snapshot)).thenReturn(List.of(scored));
         when(reRankingService.getCurrentWeight()).thenReturn(weight);
         when(recommendationPersistenceService.save(user, List.of(scored), weight)).thenReturn(List.of(saved));
 
@@ -204,7 +204,7 @@ class RecommendationGenerationServiceTest {
         when(ruleScoringService.score(retrieved, snapshot)).thenReturn(List.of(scored));
         when(recommendationPostScoringFilterService.filterSpecialTargetMismatches(List.of(scored))).thenReturn(List.of(scored));
         when(aiScoringService.score("youth_all", List.of(scored), snapshot)).thenReturn(List.of(scored));
-        when(reRankingService.rerank(List.of(scored))).thenReturn(List.of(scored));
+        when(reRankingService.rerank(List.of(scored), snapshot)).thenReturn(List.of(scored));
         when(reRankingService.getCurrentWeight()).thenReturn(weight);
         when(recommendationPersistenceService.save(user, List.of(scored), weight)).thenReturn(List.of(saved));
         org.mockito.Mockito.doThrow(new IllegalStateException("log failed"))
