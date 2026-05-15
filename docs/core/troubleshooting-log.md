@@ -3617,3 +3617,8 @@
 - 문제: Gov24 closeout, bounded runtime smoke, CTR readiness baseline처럼 수치가 있는 작업은 `troubleshooting-log` 에 잘 남았지만, 그 이후에 진행한 active/legacy 경계 정리와 docs index 재정렬 같은 문서 가드레일 작업은 기록이 거의 없었다. 이 상태에서는 나중에 누군가 같은 문구를 다시 되돌려도 “왜 그 표현을 막았는지”를 추적하기 어렵다.
 - 해결: local closeout inventory truth 정리, db-migration/phase-plan guardrail, root/map 우선순위, 각 docs index active truth 정렬, next active priority 재정렬까지의 문서 작업을 이번 661~666 항목으로 분리해 기록했다.
 - 이유: 문서 정리는 코드보다 덜 눈에 띄지만, 현재 phase에서는 실제 작업 경로를 결정하는 운영 레일이다. 기록 없이 넘어가면 같은 active/history 혼선이 반복될 가능성이 높다.
+
+## 667) credential example drift는 한 문서 안의 한 섹션만 고치고 끝내면 같은 파일의 다른 예시 블록에서 다시 살아남는다
+- 문제: `policy-admin-runtime-runbook.md` 와 일부 admin login 예시는 이미 `password123!` 로 교정했지만, `runtime-api-smoke-commands.md` 안의 공통 변수 블록에는 여전히 `SMOKE_PASSWORD="Password123!"` 가 남아 있었다. 이 상태면 문서상으로는 “교정 완료”처럼 보이는데, 실제로는 복붙 진입점 하나가 아직 실패 값을 유지한다.
+- 해결: `runtime-api-smoke-commands.md` 의 남은 공통 변수 블록도 현재 local smoke baseline인 `password123!` 로 맞췄다.
+- 이유: 예시 자격 증명 drift는 파일 단위가 아니라 블록 단위로 남는 경우가 많다. 하나의 runbook만 고치고 끝내면 같은 문서군의 다른 copy-paste 진입점이 계속 실패 값을 품고 있을 수 있다.

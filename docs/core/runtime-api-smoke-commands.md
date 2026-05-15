@@ -374,7 +374,7 @@ FROM welfare_service_details;
 ```bash
 export APP_BASE_URL="http://127.0.0.1:8082"
 export SMOKE_EMAIL="user@example.com"
-export SMOKE_PASSWORD="Password123!"
+export SMOKE_PASSWORD="password123!"
 
 export COOKIE_JAR="$(mktemp)"
 export LOGIN_RESPONSE="$(mktemp)"
