@@ -36,7 +36,9 @@ recent AS (
 ),
 cardinality AS (
     SELECT COUNT(DISTINCT user_key) AS distinct_users,
-           COUNT(DISTINCT service_id) AS distinct_services
+           COUNT(DISTINCT service_id) AS distinct_services,
+           COUNT(DISTINCT user_key) FILTER (WHERE is_clicked) AS clicked_users,
+           COUNT(DISTINCT service_id) FILTER (WHERE is_clicked) AS clicked_services
     FROM recommendation_logs
 ),
 fallback AS (
@@ -68,6 +70,10 @@ SELECT 'ctr_distinct_users=' || cardinality.distinct_users FROM cardinality
 UNION ALL
 SELECT 'ctr_distinct_services=' || cardinality.distinct_services FROM cardinality
 UNION ALL
+SELECT 'ctr_clicked_users=' || cardinality.clicked_users FROM cardinality
+UNION ALL
+SELECT 'ctr_clicked_services=' || cardinality.clicked_services FROM cardinality
+UNION ALL
 SELECT 'ctr_fallback_sent=' || fallback.fallback_sent FROM fallback
 UNION ALL
 SELECT 'ctr_fallback_clicked=' || fallback.fallback_clicked FROM fallback
@@ -83,6 +89,39 @@ SELECT rule_weight_used || '|' || ai_weight_used || '|' || COUNT(*) || '|' ||
 FROM recommendation_logs
 GROUP BY rule_weight_used, ai_weight_used
 ORDER BY COUNT(*) DESC, rule_weight_used, ai_weight_used;
+
+SELECT '[top_clicked_services]';
+WITH clicked AS (
+    SELECT service_id,
+           COUNT(*) AS clicks
+    FROM recommendation_logs
+    WHERE is_clicked
+    GROUP BY service_id
+),
+total AS (
+    SELECT COUNT(*) AS clicked_logs
+    FROM recommendation_logs
+    WHERE is_clicked
+)
+SELECT clicked.service_id || '|' || clicked.clicks || '|' ||
+       ROUND(clicked.clicks * 100.0 / NULLIF(total.clicked_logs, 0), 2)
+FROM clicked
+CROSS JOIN total
+ORDER BY clicked.clicks DESC, clicked.service_id
+LIMIT 10;
+
+SELECT '[top_clicked_users]';
+WITH clicked AS (
+    SELECT user_key,
+           COUNT(*) AS clicks
+    FROM recommendation_logs
+    WHERE is_clicked
+    GROUP BY user_key
+)
+SELECT user_key || '|' || clicks
+FROM clicked
+ORDER BY clicks DESC, user_key
+LIMIT 10;
 
 SELECT '[weight_bucket_ctr_7d]';
 SELECT rule_weight_used || '|' || ai_weight_used || '|' || COUNT(*) || '|' ||

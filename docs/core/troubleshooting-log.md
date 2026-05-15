@@ -3552,3 +3552,8 @@
 - 문제: admin dashboard 기준 recommendation total logs는 이미 `1532` 로 top stage까지 올라가 있었고, weight bucket도 `0.80:0.20`, `0.60:0.40`, `0.40:0.60` 세 구간이 모두 존재했다. 이 숫자만 보면 바로 rule/AI weight tuning을 시작하고 싶어질 수 있다.
 - 해결: `run-local-ctr-readiness-audit.sh` 와 `recommendation-ctr-readiness-runbook.md` 를 추가해 total logs, clicked logs, fallback/AI clicked 분포, weight bucket CTR, readiness 판정을 한 번에 보게 했다. 현재 local audit 결과는 `total_logs=1532`, `clicked_logs=13`, `ctr=0.85%`, `fallback_sent/clicked=1022/0`, `ai_sent/clicked=510/13` 이고 readiness는 `DEFERRED_CLICK_SAMPLE_THIN` 이다.
 - 이유: stage progress와 tuning readiness는 같은 문제가 아니다. 현재처럼 로그 총량은 충분해도 클릭이 `13` 건뿐이면 weight를 건드릴 근거가 약하다. total log stage와 click sample readiness를 분리해서 읽어야 과도한 조정을 막을 수 있다.
+
+## 654) CTR readiness는 click 수만 아니라 click diversity도 같이 봐야 특정 서비스 편향을 전체 품질 신호로 오해하지 않는다
+- 문제: `clicked_logs=13` 이라는 숫자만으로도 이미 표본이 얇지만, 추가로 실제 클릭은 `clicked_users=13`, `clicked_services=2` 로 두 개 서비스에만 집중돼 있었다. 이 상태에서 bucket CTR 차이만 보고 가중치를 조정하면, 특정 인기 서비스 1~2개가 만든 편향을 전체 추천 품질 신호처럼 오해할 수 있다.
+- 해결: CTR readiness audit에 `ctr_clicked_users`, `ctr_clicked_services`, `[top_clicked_services]`, `[top_clicked_users]` 를 추가했다. 현재 baseline은 `2622=7 clicks (53.85%)`, `3688=6 clicks (46.15%)` 로 사실상 전 클릭이 두 서비스에 몰려 있다는 점을 같이 기록했다.
+- 이유: tuning reopen 판단은 “충분한 클릭 수”와 “충분한 클릭 분산”이 둘 다 필요하다. 현재처럼 서비스 다양성이 거의 없는 상태에서는 log 총량이나 bucket 수만으로 readiness를 선언하면 잘못된 결론이 나온다.

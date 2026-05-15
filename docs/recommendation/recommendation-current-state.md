@@ -181,6 +181,7 @@ recommendation/replay 는 collect와 sidecar snapshot 품질에 직접 의존합
 - total recommendation logs: `1532`
 - clicked logs: `13`
 - overall CTR: `0.85%`
+- clicked users / services: `13 / 2`
 - fallback sent/clicked: `1022 / 0`
 - AI sent/clicked: `510 / 13`
 - weight bucket:
@@ -188,7 +189,7 @@ recommendation/replay 는 collect와 sidecar snapshot 품질에 직접 의존합
   - `0.60:0.40` -> `366 sent / 3 clicked / 0.82%`
   - `0.80:0.20` -> `147 sent / 0 clicked / 0.00%`
 
-즉 total log 수는 이미 top stage를 넘겼지만, 클릭 표본은 아직 얇아서 현재 readiness 판정은 `DEFERRED_CLICK_SAMPLE_THIN` 입니다.
+즉 total log 수는 이미 top stage를 넘겼지만, 클릭 표본은 아직 얇아서 현재 readiness 판정은 `DEFERRED_CLICK_SAMPLE_THIN` 입니다. 게다가 클릭이 현재 `2`개 서비스(`2622`, `3688`)에만 몰려 있어 sample diversity도 부족합니다.
 
 ### 3. fresh reset 뒤 sidecar 공백
 
