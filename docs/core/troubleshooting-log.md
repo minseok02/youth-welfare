@@ -3527,3 +3527,8 @@
 - 문제: Gov24 `serviceList/detail/support raw` 를 모두 `10937` 건까지 채운 뒤에도, `GOV24_SUPPORT_CONDITION` facts 가 붙은 서비스는 `9959`건으로 남아 있었다. 겉으로만 보면 support fact 생성 누락 버그처럼 보일 수 있다.
 - 해결: `support raw는 있지만 fact가 없는` 서비스를 따로 샘플링해 보니, 대표 케이스들은 `payload_json.conditions` 안의 `JA*` 값이 전부 `null` 이었다. 즉 현재 기준 이 차이는 writer 실패보다 “원 payload에 추출할 조건이 없음” 쪽 해석이 더 맞고, 이 상태를 실측 current-state로 남겼다.
 - 이유: coverage gap를 모두 코드 버그로 해석하면 unnecessary retry/backfill을 추가하게 된다. 현재처럼 raw는 정상인데 값 자체가 비어 있는 source가 섞인 경우에는, 남은 갭을 데이터 특성으로 분리해 두는 편이 이후 normalization 정책을 세우기 쉽다.
+
+## 649) Gov24 `support fact` 미생성 978건은 최종 audit 기준 all-null 보다 `unmapped official support code-only payload` 로 보는 편이 더 정확하다
+- 문제: closeout 직후 초기 샘플만 보면 `support raw는 있지만 fact가 없는` 나머지 케이스를 all-null payload로 넓게 묶기 쉽다. 하지만 실제로는 `JA2101`, `JA2202` 같은 official code가 들어와도 현재 extractor가 읽는 support fact 집합에 포함되지 않으면 fact가 비어 있을 수 있다.
+- 해결: `deploy/smoke/run-local-gov24-quality-audit.sh` 와 `policy-gov24-runtime-audit-runbook.md` 를 추가해 missing fact gap를 `no raw / all-null / unmapped-only / mapped-signal anomaly` 로 분해하게 했다. 현재 local audit 결과는 `missing_no_support_raw=0`, `missing_all_null_payload=0`, `missing_unmapped_only_payload=978`, `missing_mapped_signal_payload=0` 이고, 대표 sample들도 `effective_signal_count=2`, `mapped_signal_count=0` 으로 확인된다.
+- 이유: 이 분해가 있어야 남은 작업을 retry/backfill이 아니라 “현재 fact extractor가 승격하지 않는 official support condition code 범위를 어떻게 다룰지” 문제로 정확히 옮길 수 있다.

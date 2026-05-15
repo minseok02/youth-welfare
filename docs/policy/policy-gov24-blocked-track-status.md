@@ -7,6 +7,7 @@
 - [policy-next-active-track-priority.md](./policy-next-active-track-priority.md)
 - [policy-local-closeout-pending-inventory.md](./policy-local-closeout-pending-inventory.md)
 - [policy-gov24-implementation-checklist.md](./policy-gov24-implementation-checklist.md)
+- [policy-gov24-runtime-audit-runbook.md](./policy-gov24-runtime-audit-runbook.md)
 - [policy-normalization-blocked-sql-reopen-priority.md](../history/policy/policy-normalization-blocked-sql-reopen-priority.md)
 - [policy-normalization-gov24-request-package-checklist.md](../history/policy/policy-normalization-gov24-request-package-checklist.md)
 - [policy-normalization-gov24-codebook-request-template.md](../history/policy/policy-normalization-gov24-codebook-request-template.md)
@@ -156,6 +157,10 @@
 [policy-gov24-implementation-checklist.md](./policy-gov24-implementation-checklist.md)
 기준으로 `serviceList -> detail -> supportConditions` 범위를 분리해서 진행합니다.
 
+runtime collect가 이미 붙은 뒤 coverage/shape/null-heavy sample을 다시 볼 때는
+[policy-gov24-runtime-audit-runbook.md](./policy-gov24-runtime-audit-runbook.md)
+기준으로 closeout, raw shape, missing fact sample 순서를 고정합니다.
+
 현재 local runtime 기준 practical status:
 
 - `serviceList` 는 `10937` 건까지 적재됨
@@ -165,7 +170,10 @@
 - `.env` / `docker-compose` 는 `PUBLIC_DATA_PORTAL_API_KEY` 기준으로 통합됨
 - `detail/support` fetch에는 lightweight retry가 적용됨
 - `support raw` 는 모두 `{"서비스ID","서비스명","conditions":{...}}` shape로 통일됨
-- raw는 있지만 fact가 없는 나머지 `978`건은 현재 샘플 기준으로 `conditions` 값이 전부 `null` 인 payload가 주원인이다
+- raw는 있지만 fact가 없는 나머지 `978`건은 `Gov24` runtime audit runbook 기준으로 다시 나눠서 본다.
+  - 현재 local audit 기준 `missing_no_support_raw=0`, `missing_all_null_payload=0`
+  - `missing_unmapped_only_payload=978`, `missing_mapped_signal_payload=0`
+  - 즉 지금 남은 갭은 저장 실패보다 `현재 extractor가 아직 읽지 않는 official support code-only payload` 로 해석하는 편이 맞다
 
 즉 current blocked 의미는 한 층으로 줄었습니다.
 
