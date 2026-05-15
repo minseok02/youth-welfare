@@ -4012,3 +4012,8 @@
 - 문제: `SignupPage` 는 회원가입 완료 후 로그인 이동에는 `chatFrom`, `postLoginAction` 을 함께 넘기도록 이미 고쳤지만, step 1 하단의 “이미 계정이 있으신가요? 로그인” 버튼은 여전히 `from` 과 `email` 만 보내고 있었다. 이 상태에선 보호 페이지나 챗/북마크 문맥에서 회원가입 화면으로 들어왔다가 “이미 계정이 있다”고 로그인 화면으로 갈 경우, 중간 버튼 한 번으로 nested 복귀 문맥이 다시 잘릴 수 있었다.
 - 해결: 해당 버튼도 `chatFrom`, `postLoginAction` 을 함께 `/login` 으로 넘기도록 맞췄다. 이후 `frontend lint/build` 를 다시 통과시켰다.
 - 이유: auth 보조 화면 안에서도 진입 버튼마다 복귀 contract가 다르면, 일부 경로만 예외적으로 문맥이 사라진다. 회원가입 완료 버튼과 일반 로그인 이동 버튼이 같은 복귀 정보를 싣는 편이 안전하다.
+
+## 746) 로그인 완료 후 `from.state` 자체를 다시 싣지 않으면, 상세 북마크 로그인 복귀에서 목록 문맥이 사라지고 post-login bookmark가 중복 실행될 수 있다
+- 문제: production build 브라우저 검증에서 목록 북마크 로그인 유도 후에는 `POST /bookmark` 가 아예 발생하지 않았고, 상세 북마크 로그인 유도 후에는 `POST /bookmark` 가 두 번 발생한 뒤 최종 북마크가 해제된 상태로 남았다. 코드상 원인은 두 갈래였다. 첫째, `LoginPage` 가 로그인 후 복귀 시 `postLoginAction`, `chatFrom` 만 새 state로 넘기고 `from.state` 안에 있던 원래 목록 복귀 문맥은 버리고 있었다. 그래서 상세 -> 로그인 -> 상세 복귀 뒤 `state.from` 이 사라졌다. 둘째, `PoliciesPage` 는 fetch 첫 렌더 이전 `policies=[]` 상태에서 `targetPolicy` 를 못 찾자 `postLoginAction` 을 바로 지워 버렸고, `PolicyDetailPage` 는 bookmark 상태 변경 리렌더 중 같은 `postLoginAction` 을 다시 읽어 중복 POST를 날릴 수 있었다.
+- 해결: `LoginPage` 는 로그인 후 `from.state` 전체를 기본으로 복원하고 그 위에 최신 `postLoginAction`, `chatFrom` 만 덮어쓰도록 바꿨다. `PoliciesPage` 는 `policiesLoaded` 가 true가 되기 전에는 post-login bookmark action을 평가하지 않게 하고, `bookmarkActionKeyRef` 로 같은 action의 중복 실행을 막았다. `PolicyDetailPage` 도 같은 ref guard를 추가해 상세 북마크 POST가 두 번 나가지 않게 했다. 이후 `frontend lint/build` 를 다시 통과시켰다.
+- 이유: 로그인 복귀는 단순히 목적 URL만 맞추는 게 아니라, 그 화면이 다시 사용할 nested `from` 문맥과 one-shot `postLoginAction` 의 수명까지 함께 맞춰야 한다. 그렇지 않으면 목록에선 action이 너무 빨리 사라지고, 상세에선 상태 변경 리렌더 사이에 같은 action이 한 번 더 실행될 수 있다.

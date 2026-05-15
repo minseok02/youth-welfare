@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Snackbar, Alert } from "@mui/material";
 import Header from "../components/Header";
@@ -187,6 +187,7 @@ export default function PolicyDetailPage() {
   const [related, setRelated] = useState([]);
   const [activeTab, setActiveTab] = useState("intro");
   const [toast, setToast] = useState({ open: false, msg: "", severity: "info" });
+  const bookmarkActionKeyRef = useRef(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -406,6 +407,9 @@ export default function PolicyDetailPage() {
   useEffect(() => {
     const postLoginAction = location.state?.postLoginAction;
     if (!isLoggedIn || loading || postLoginAction?.type !== "toggle-bookmark" || String(postLoginAction.policyId) !== String(id)) {
+      if (!postLoginAction) {
+        bookmarkActionKeyRef.current = null;
+      }
       return;
     }
 
@@ -419,7 +423,12 @@ export default function PolicyDetailPage() {
     };
 
     let cancelled = false;
+    const actionKey = `${postLoginAction.type}:${postLoginAction.policyId}`;
+    if (bookmarkActionKeyRef.current === actionKey) {
+      return;
+    }
     const runPostLoginAction = async () => {
+      bookmarkActionKeyRef.current = actionKey;
       try {
         await api.post(`/api/policies/${id}/bookmark`);
         if (cancelled) {
@@ -439,6 +448,7 @@ export default function PolicyDetailPage() {
         }
       } finally {
         if (!cancelled) {
+          bookmarkActionKeyRef.current = null;
           clearPostLoginAction();
         }
       }

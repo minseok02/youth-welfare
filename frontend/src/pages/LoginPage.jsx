@@ -82,14 +82,14 @@ export default function LoginPage() {
       const nestedFromState = from?.state ?? {};
       const postLoginAction = location.state?.postLoginAction ?? nestedFromState.postLoginAction;
       const chatFrom = location.state?.chatFrom ?? nestedFromState.chatFrom;
+      const restoredState = {
+        ...nestedFromState,
+        ...(postLoginAction ? { postLoginAction } : {}),
+        ...(chatFrom ? { chatFrom } : {}),
+      };
       navigate(from?.pathname ? `${from.pathname}${from.search ?? ""}` : "/", {
         replace: true,
-        state: postLoginAction || chatFrom
-          ? {
-              ...(postLoginAction ? { postLoginAction } : {}),
-              ...(chatFrom ? { chatFrom } : {}),
-            }
-          : undefined,
+        state: Object.keys(restoredState).length ? restoredState : undefined,
       });
     } catch (err) {
       setError(err.response?.data?.message ?? "로그인 중 오류가 발생했습니다");

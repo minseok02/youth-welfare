@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import {
   Snackbar, Alert, Pagination, CircularProgress,
@@ -295,9 +295,11 @@ export default function PoliciesPage() {
   const [policies, setPolicies] = useState([]);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [policiesLoaded, setPoliciesLoaded] = useState(false);
   const [totalCount, setTotalCount] = useState(0);
   const [toast, setToast] = useState({ open: false, msg: "", severity: "info" });
   const [incomeCalcOpen, setIncomeCalcOpen] = useState(false);
+  const bookmarkActionKeyRef = useRef(null);
 
   // ── URL 파라미터 동기화 ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -354,6 +356,7 @@ export default function PoliciesPage() {
     const controller = new AbortController();
     const fetchPolicies = async () => {
       setLoading(true);
+      setPoliciesLoaded(false);
       try {
         const commonParams = {
           category: selectedCat || undefined,
@@ -381,7 +384,10 @@ export default function PoliciesPage() {
         setPolicies([]); setTotalPages(1); setTotalCount(0);
         setToast({ open: true, msg: "정책 목록을 불러오지 못했습니다", severity: "error" });
       } finally {
-        if (!controller.signal.aborted) setLoading(false);
+        if (!controller.signal.aborted) {
+          setLoading(false);
+          setPoliciesLoaded(true);
+        }
       }
     };
     fetchPolicies();
@@ -456,6 +462,12 @@ export default function PoliciesPage() {
   useEffect(() => {
     const postLoginAction = location.state?.postLoginAction;
     if (!isLoggedIn || loading || postLoginAction?.type !== "toggle-bookmark") {
+      if (!postLoginAction) {
+        bookmarkActionKeyRef.current = null;
+      }
+      return;
+    }
+    if (!policiesLoaded) {
       return;
     }
 
@@ -468,6 +480,11 @@ export default function PoliciesPage() {
       });
     };
 
+    const actionKey = `${postLoginAction.type}:${postLoginAction.policyId}`;
+    if (bookmarkActionKeyRef.current === actionKey) {
+      return;
+    }
+
     const targetPolicy = policies.find((policy) => String(policy.id) === String(postLoginAction.policyId));
     if (!targetPolicy) {
       clearPostLoginAction();
@@ -476,6 +493,7 @@ export default function PoliciesPage() {
 
     let cancelled = false;
     const runPostLoginAction = async () => {
+      bookmarkActionKeyRef.current = actionKey;
       try {
         await api.post(`/api/policies/${postLoginAction.policyId}/bookmark`);
         if (cancelled) {
@@ -498,6 +516,7 @@ export default function PoliciesPage() {
         }
       } finally {
         if (!cancelled) {
+          bookmarkActionKeyRef.current = null;
           clearPostLoginAction();
         }
       }
@@ -508,7 +527,7 @@ export default function PoliciesPage() {
     return () => {
       cancelled = true;
     };
-  }, [isLoggedIn, loading, location.pathname, location.search, location.state, navigate, policies]);
+  }, [isLoggedIn, loading, location.pathname, location.search, location.state, navigate, policies, policiesLoaded]);
 
   return (
     <div style={{ minHeight: "100vh", background: "#f7f8fc" }}>
