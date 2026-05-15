@@ -25,24 +25,24 @@
 
 현재 local baseline:
 
-- `serviceList=10937`
-- `detail row=10937`
-- `support raw=10937`
-- `support fact rows=163743`
-- `support fact service coverage=9959 / 10937 (91.1%)`
+- `serviceList=10942`
+- `detail row=10942`
+- `support raw=10942`
+- `support fact rows=163806`
+- `support fact service coverage=9963 / 10942 (91.1%)`
 - `missing_no_support_raw=0`
 - `missing_all_null_payload=0`
-- `missing_unmapped_only_payload=978`
+- `missing_unmapped_only_payload=979`
 - `missing_mapped_signal_payload=0`
 
 해석:
 
-- `list/detail/support raw` 가 모두 `10937` 이면 runtime collect backlog는 닫힌 상태입니다.
-- `support fact service coverage` 가 `10937` 과 다르더라도, 남은 차이가 곧바로 버그는 아닙니다.
-- 남은 `978`건은 한 덩어리로 보지 않고 아래 둘로 나눠 해석합니다.
+- `list/detail/support raw` 가 모두 `10942` 이면 runtime collect backlog는 닫힌 상태입니다.
+- `support fact service coverage` 가 `10942` 과 다르더라도, 남은 차이가 곧바로 버그는 아닙니다.
+- 남은 `979`건은 한 덩어리로 보지 않고 아래 둘로 나눠 해석합니다.
   - `conditions` 값이 사실상 비어 있는 payload
   - official `supportConditions` 값은 있지만 현재 fact extractor가 아직 읽지 않는 code-only payload
-- 현재 local audit 기준으로는 남은 `978`건이 모두 두 번째 범주(`unmapped-only`)로 분류됩니다.
+- 현재 local audit 기준으로는 남은 `979`건이 모두 두 번째 범주(`unmapped-only`)로 분류됩니다.
 
 ## 2. 한 번에 보는 기본 명령
 
@@ -81,7 +81,7 @@ bash deploy/smoke/run-local-gov24-quality-audit.sh
 
 기대값:
 
-- `gov24_support_nested_shape = 10937`
+- `gov24_support_nested_shape = 10942`
 - `gov24_support_flat_shape = 0`
 
 `flat_shape > 0` 이면 raw shape drift가 다시 생긴 것입니다.

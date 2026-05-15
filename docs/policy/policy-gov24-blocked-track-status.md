@@ -56,11 +56,11 @@
 
 현재 local DB 기준 `Gov24` runtime collect는 이미 active 입니다.
 
-- `serviceList=10937`
-- `detail=10937`
-- `support raw=10937`
-- `support facts=163743`
-- `support fact service coverage=9959 / 10937 (91.1%)`
+- `serviceList=10942`
+- `detail=10942`
+- `support raw=10942`
+- `support facts=163806`
+- `support fact service coverage=9963 / 10942 (91.1%)`
 
 따라서 `Gov24` 가 source row 자체가 없는 상태는 아닙니다.
 
@@ -165,16 +165,16 @@ runtime collect가 이미 붙은 뒤 coverage/shape/null-heavy sample을 다시 
 
 현재 local runtime 기준 practical status:
 
-- `serviceList` 는 `10937` 건까지 적재됨
-- `detail` raw/detail row 는 `10937` 건까지 적재됨
-- `supportConditions` raw 는 `10937` 건까지 적재됨
-- `supportConditions` fact 는 `163743` row, 서비스 기준 coverage는 `9959 / 10937 (91.1%)`
+- `serviceList` 는 `10942` 건까지 적재됨
+- `detail` raw/detail row 는 `10942` 건까지 적재됨
+- `supportConditions` raw 는 `10942` 건까지 적재됨
+- `supportConditions` fact 는 `163806` row, 서비스 기준 coverage는 `9963 / 10942 (91.1%)`
 - `.env` / `docker-compose` 는 `PUBLIC_DATA_PORTAL_API_KEY` 기준으로 통합됨
 - `detail/support` fetch에는 lightweight retry가 적용됨
 - `support raw` 는 모두 `{"서비스ID","서비스명","conditions":{...}}` shape로 통일됨
-- raw는 있지만 fact가 없는 나머지 `978`건은 `Gov24` runtime audit runbook 기준으로 다시 나눠서 본다.
+- raw는 있지만 fact가 없는 나머지 `979`건은 `Gov24` runtime audit runbook 기준으로 다시 나눠서 본다.
   - 현재 local audit 기준 `missing_no_support_raw=0`, `missing_all_null_payload=0`
-  - `missing_unmapped_only_payload=978`, `missing_mapped_signal_payload=0`
+  - `missing_unmapped_only_payload=979`, `missing_mapped_signal_payload=0`
   - 즉 지금 남은 갭은 저장 실패보다 `현재 extractor가 아직 읽지 않는 official support code-only payload` 로 해석하는 편이 맞다
 - `JA210*`, `JA220*`, `JA120*`, `JA1299/JA2299`, `JA110*` 중심 unmapped inventory는
   [policy-gov24-support-unmapped-inventory.md](./policy-gov24-support-unmapped-inventory.md)

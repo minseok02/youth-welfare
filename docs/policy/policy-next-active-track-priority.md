@@ -80,7 +80,7 @@
 - label 3종 요청 템플릿
 - `supportConditions` 요청 템플릿
 - request package checklist
-- runtime collect closeout (`list/detail/support raw=10937`)
+- runtime collect closeout (`list/detail/support raw=10942`)
 - runtime audit / unmapped inventory 정리
 
 즉 이제 `Gov24` 쪽 남은 액션은 두 갈래다.

@@ -26,12 +26,12 @@ runtime audit 기준으로 정리합니다.
 
 현재 local audit baseline:
 
-- `Gov24 total services = 10937`
-- `support fact services = 9959`
-- `support missing fact services = 978`
+- `Gov24 total services = 10942`
+- `support fact services = 9963`
+- `support missing fact services = 979`
 - `missing_no_support_raw = 0`
 - `missing_all_null_payload = 0`
-- `missing_unmapped_only_payload = 978`
+- `missing_unmapped_only_payload = 979`
 - `missing_mapped_signal_payload = 0`
 
 즉 남은 gap은 수집 실패가 아니라,
@@ -60,10 +60,10 @@ runtime audit 기준으로 정리합니다.
 | `JA2299` | 381 | 기타업종 |
 | `JA2103` | 287 | 기관/단체 |
 | `JA2202` | 280 | 농업, 임업 및 어업 |
-| `JA1102` | 268 | 영업중 |
-| `JA1299` | 243 | 기타업종 |
-| `JA1201` | 238 | 음식업 |
-| `JA1202` | 232 | 제조업 |
+| `JA1102` | 269 | 영업중 |
+| `JA1299` | 244 | 기타업종 |
+| `JA1201` | 239 | 음식업 |
+| `JA1202` | 233 | 제조업 |
 | `JA2203` | 224 | 정보통신업 |
 | `JA2102` | 52 | 사회복지시설 |
 | `JA1101` | 46 | 예비창업자 |
@@ -83,7 +83,7 @@ runtime audit 기준으로 정리합니다.
 3. **창업/사업 단계**
    - `JA1101`, `JA1102`, `JA1103`
 
-즉 남은 `978`건은
+즉 남은 `979`건은
 현재 추천/정책 facts가 주로 보는 `개인 eligibility` 축보다,
 `사업자/업종/기관` 축이 중심인 payload가 대부분입니다.
 
