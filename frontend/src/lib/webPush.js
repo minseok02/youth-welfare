@@ -52,7 +52,7 @@ export async function getCurrentPushSubscription() {
 
 export async function fetchPushPublicKey() {
   const { data } = await api.get("/api/notifications/push-public-key");
-  return data?.data?.publicKey ?? "";
+  return data?.data?.publicKey?.trim?.() ?? "";
 }
 
 export async function fetchMyPushSubscriptions() {

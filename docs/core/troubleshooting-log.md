@@ -4082,3 +4082,8 @@
 - 문제: 서버에서 테스트용 공개키가 backend 형식 검사를 통과해 버튼이 열려도, 실제 브라우저 검증에서는 `POST /api/notifications/push-subscriptions` 가 여전히 0회인 케이스가 남았다. 이 경우 service worker registration 자체는 생기지만 아직 ready 전이거나, 브라우저가 subscribe 단계에서 키/구독 정보를 거부해도 프론트는 generic toast만 띄워 재현 정보를 잃는다.
 - 해결: `registerCurrentBrowserPush()` 는 이제 `navigator.serviceWorker.ready` 를 기다린 registration으로 subscribe를 시도하고, 브라우저 쪽에서도 `crypto.subtle.importKey` 로 공개키를 한 번 더 검증한다. subscribe 결과에 `endpoint`, `p256dh`, `auth` 가 없으면 명시적 오류를 던지고, `MyPage` 는 이 메시지를 `pushActionError` 경고 박스와 toast로 같이 노출한다.
 - 이유: 웹푸시 연결은 backend route가 살아 있는 것만으로 닫히지 않는다. 실제 브라우저가 service worker를 활성화했고, 같은 키로 구독 객체를 만들 수 있다는 증거가 필요하므로 실패 이유를 카드 수준에서 남겨야 다음 재검증이 가능하다.
+
+## 760) 서버가 미설정/형식 오류를 이미 `503` 으로 분리해 준 뒤에는, 프론트가 raw `pushPublicKey` truthiness까지 별도 disabled 조건으로 둘 필요가 없다
+- 문제: 서버 실검증에서 `GET /api/notifications/push-public-key` 가 200이고 경고도 없는데 `Notification.permission=granted` 상태의 `현재 브라우저 연결` 버튼이 여전히 disabled 로 남는 케이스가 있었다. 현재 프론트 disabled 조건에는 `!pushPublicKey` 가 포함돼 있는데, 서버가 미설정(`N004`)과 형식 오류(`N005`)를 이미 명시적으로 거부하는 이상 이 체크는 중복이다.
+- 해결: `fetchPushPublicKey()` 와 `fetchPushStatus()` 에서 키를 trim하고, `pushConnectDisabled` 에서 `!pushPublicKey` 조건을 제거했다. 이제 버튼은 `pushSupported`, `Notification.permission`, `pushStatusError`, `pushActionLoading` 만으로 막힌다.
+- 이유: 지금 단계의 웹푸시 연결 플로우에서 "키 없음/형식 오류"는 서버 계약의 책임이고, 프론트는 그 결과 메시지를 보여 주면 된다. raw truthiness를 한 번 더 게이트하면 상태가 이미 정상인데도 버튼이 열리지 않는 애매한 경계가 생긴다.

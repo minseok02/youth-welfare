@@ -700,7 +700,7 @@ export default function MyPage() {
         fetchMyPushSubscriptions(),
         getCurrentPushSubscription(),
       ]);
-      setPushPublicKey(publicKey);
+      setPushPublicKey(publicKey.trim());
       setPushSubscriptions(subscriptions);
       setCurrentPushEndpoint(currentSubscription?.endpoint ?? "");
       setPushStatusError("");
@@ -841,8 +841,7 @@ export default function MyPage() {
   const pushConnectDisabled = pushActionLoading
     || !pushSupported
     || pushPermission === "denied"
-    || Boolean(pushStatusError)
-    || !pushPublicKey;
+    || Boolean(pushStatusError);
 
   const handleConnectBrowserPush = async () => {
     if (!pushSupported) {
