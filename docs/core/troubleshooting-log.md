@@ -3587,3 +3587,33 @@
 - 문제: bounded admin runtime 재검증 과정에서 `policy-admin-runtime-runbook.md`, `runtime-api-smoke-commands.md` 는 여전히 `ADMIN_PASSWORD=\"Password123!\"` 예시를 쓰고 있었지만, 실제 로컬 admin smoke 스크립트 기본값은 `password123!` 였다. 이 상태에서는 endpoint 자체는 정상이어도 문서 예시 그대로 복붙하면 `A004` 를 만나게 된다.
 - 해결: 두 문서의 admin login 예시를 현재 local smoke baseline인 `password123!` 로 교정하고, shell env에 이미 `ADMIN_PASSWORD` 가 있거나 `run-local-validation-from-env.sh` 가 `/tmp/youth-welfare-admin-smoke-password` 파일을 준비한 경우에는 그 값을 우선하도록 설명을 보강했다.
 - 이유: 지금 phase의 작업은 새 기능보다 반복 가능한 local runtime 검증 유지다. admin runbook의 예시 자격 증명이 실제 smoke baseline과 어긋나면, 같은 엔드포인트를 두고도 문서만 따라 한 사용자는 불필요한 auth 오류를 보게 된다.
+
+## 661) local closeout inventory가 여전히 `draft schema/backfill auto-apply` 중심으로 읽히면, 현재 PostgreSQL integrated schema truth를 다시 과거 실험처럼 오해하게 된다
+- 문제: `policy-local-closeout-pending-inventory.md` 와 주변 설명은 오래된 `apply-local-policy-sidecar-draft.sh` 시절 서술이 강하게 남아 있어, replay smoke나 local closeout 절차가 아직도 MySQL draft schema를 다시 깔고 sidecar draft SQL을 재적용하는 것처럼 읽힐 여지가 있었다. 이 상태는 이미 PostgreSQL integrated schema로 정리된 현재 runtime truth와 충돌한다.
+- 해결: local closeout inventory 설명을 `draft schema/backfill auto-apply` 관점에서 떼어내고, `apply-local-policy-sidecar-draft.sh` 를 현재는 `PostgreSQL integrated schema preflight` 경계로 읽어야 한다고 명시했다. 동시에 personal refresh-cache regression validation 통과와 Gov24 runtime collect/runtime audit closeout도 현재 기준선에 맞게 inventory에 반영했다.
+- 이유: closeout 문서는 “지금 로컬에서 뭘 다시 확인해야 하는가”를 보는 문서다. 여기에 draft schema 시절 표현이 남아 있으면 이미 끝난 전환 작업과 현재 운영 경계를 계속 섞어 읽게 된다.
+
+## 662) `db-migration` 과 `phase-plan` 이 active runtime 절차와 과거 MySQL/draft 이력을 한 문서 안에 같이 담고 있으면, 상단 guardrail 없이 읽는 사람은 과거 절차를 현재 truth로 오해한다
+- 문제: `db-migration.md` 는 MySQL draft apply 예시와 migration memo가 길게 남아 있고, `phase-plan.md` 도 상단 active 기준선 아래에 MySQL, draft sidecar, `service_taxonomy_summary_slots` 같은 과거 전환 로그가 이어진다. 가드레일 없이 보면 오래된 이력이 현재 운영 절차처럼 보일 수 있었다.
+- 해결: `db-migration.md` 상단에 현재 active truth는 PostgreSQL mainline과 `current-state/testing` 계열 문서라고 못박고, MySQL draft apply 예시는 legacy reference라고 명시했다. `phase-plan.md` 도 문서 맨 위에 “상단 active 기준선 우선, 아래로 갈수록 오래된 이력”이라는 해석 가드레일을 추가해 `deploy/mysql/apply-local-policy-sidecar-draft.sh` 도 현재는 draft SQL 재적용기가 아니라 integrated schema preflight로 읽어야 한다고 정리했다.
+- 이유: migration/history 문서는 지우지 않더라도 읽는 규칙은 명확해야 한다. 그렇지 않으면 과거 실험 로그가 active 운영 절차보다 더 크게 보이는 문서 drift가 생긴다.
+
+## 663) root 문서와 documentation map이 `current-state`, `testing`, `*-current-state` 를 가장 먼저 보라고 못 박지 않으면, 사용자는 여전히 긴 `phase-plan` 이력부터 읽으며 active truth를 뒤늦게 찾게 된다
+- 문제: `README.md`, `documentation-map.md`, `start.md`, `current-state.md` 는 이미 active/history 경계를 나누기 시작했지만, 충돌 시 어떤 문서를 더 우선해서 읽어야 하는지와 `phase-plan` 을 어디까지 active로 해석해야 하는지가 충분히 강하게 적혀 있지 않았다. 그 결과 문서가 많을수록 오히려 오래된 이력 쪽으로 먼저 시선이 가는 문제가 남아 있었다.
+- 해결: root 문서와 map 문서에 “실제 코드 -> `current-state` / `testing` / 각 `*-current-state` -> runbook -> history/legacy” 순으로 읽으라는 우선순위를 명시했다. 또 `phase-plan` 은 최신 상단 closeout/active 기준선만 현재 절차로 읽고, 아래 MySQL/draft/slot 기록은 과거 전환 이력으로 읽으라는 보정도 추가했다.
+- 이유: 문서가 많을수록 정보가 아니라 탐색 비용이 문제가 된다. 우선순위 규칙이 명시돼야 active truth를 빠르게 찾고 과거 기록과 현재 계약을 섞어 읽지 않게 된다.
+
+## 664) 각 도메인 docs index가 여전히 `phase-plan` 이나 blocked 상태를 중심으로 소개하면, runtime closeout이 끝난 Gov24나 deferred CTR readiness를 현재 active coding task처럼 오해한다
+- 문제: `policy-docs-index.md`, `recommendation-docs-index.md`, `collect-docs-index.md` 에는 여전히 긴 phase-plan 이력이나 과거 blocked 상태를 먼저 떠올리게 하는 설명이 남아 있었다. 특히 Gov24는 runtime collect/runtime audit이 이미 닫혔는데도 단순 inactive처럼 읽힐 여지가 있었고, recommendation도 CTR tuning이 아직 deferred인데 active implementation 후보처럼 보일 수 있었다.
+- 해결: 세 index 모두 현재 truth는 각 `*-current-state`, operation checklist, runbook을 우선해서 읽으라고 정리했다. policy index에는 Gov24가 이제 runtime closeout 완료 상태이고 hard taxonomy/import-backfill만 external blocked라는 점을 반영했고, recommendation index에는 실제 계약은 `recommendation-current-state`, `operation-checklist`, `ctr-readiness-runbook` 이라고 못 박았다.
+- 이유: index 문서는 실제 작업 진입점이다. 이 문서가 현재 truth를 잘못 가리키면, 이미 닫힌 runtime lane을 다시 파거나 deferred 상태를 active feature work로 착각하게 된다.
+
+## 665) next active priority 문서가 CTR tuning을 여전히 바로 다음 practical task처럼 보이게 두면, 얇은 click sample 상태에서 잘못된 optimization 작업을 열게 된다
+- 문제: Gov24 closeout과 personal cache regression validation이 끝난 뒤에도 `policy-next-active-track-priority.md` 를 대충 읽으면 recommendation 쪽 다음 practical task가 곧바로 weight tuning인 것처럼 느껴질 수 있었다. 하지만 CTR readiness audit은 `clicked_logs` 가 매우 적고 `clicked_services=2` 로 click concentration도 심한 상태를 보여준다.
+- 해결: active priority 문서를 `bounded runtime checks` 와 broader local validation 반복 확인 중심으로 재정렬하고, CTR tuning은 readiness가 `DEFERRED_CLICK_SAMPLE_THIN` 인 동안은 active 구현 작업이 아니라는 점을 명시했다. recommendation current-state에도 다음 작업은 weight tuning이 아니라 readiness baseline 유지와 runtime/quality smoke 관찰이라고 추가했다.
+- 이유: priority 문서는 실제 다음 행동을 결정한다. sample이 충분하지 않은데도 tuning을 active lane처럼 적어두면, 품질이 아니라 noise를 최적화하는 쪽으로 팀이 움직이게 된다.
+
+## 666) active/runtime 문서 정리 작업도 트러블슈팅에 남겨두지 않으면, 나중에 “왜 이렇게 읽게 만들었는가”가 사라져 같은 문서 drift가 반복된다
+- 문제: Gov24 closeout, bounded runtime smoke, CTR readiness baseline처럼 수치가 있는 작업은 `troubleshooting-log` 에 잘 남았지만, 그 이후에 진행한 active/legacy 경계 정리와 docs index 재정렬 같은 문서 가드레일 작업은 기록이 거의 없었다. 이 상태에서는 나중에 누군가 같은 문구를 다시 되돌려도 “왜 그 표현을 막았는지”를 추적하기 어렵다.
+- 해결: local closeout inventory truth 정리, db-migration/phase-plan guardrail, root/map 우선순위, 각 docs index active truth 정렬, next active priority 재정렬까지의 문서 작업을 이번 661~666 항목으로 분리해 기록했다.
+- 이유: 문서 정리는 코드보다 덜 눈에 띄지만, 현재 phase에서는 실제 작업 경로를 결정하는 운영 레일이다. 기록 없이 넘어가면 같은 active/history 혼선이 반복될 가능성이 높다.
