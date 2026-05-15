@@ -485,12 +485,6 @@ export default function PoliciesPage() {
       return;
     }
 
-    const targetPolicy = policies.find((policy) => String(policy.id) === String(postLoginAction.policyId));
-    if (!targetPolicy) {
-      clearPostLoginAction();
-      return;
-    }
-
     let cancelled = false;
     const runPostLoginAction = async () => {
       bookmarkActionKeyRef.current = actionKey;
@@ -499,7 +493,8 @@ export default function PoliciesPage() {
         if (cancelled) {
           return;
         }
-        const nextBookmarked = !targetPolicy.bookmarked;
+        const targetPolicy = policies.find((policy) => String(policy.id) === String(postLoginAction.policyId));
+        const nextBookmarked = targetPolicy ? !targetPolicy.bookmarked : true;
         setPolicies((prev) => prev.map((policy) => (
           String(policy.id) === String(postLoginAction.policyId)
             ? { ...policy, bookmarked: nextBookmarked }
@@ -516,7 +511,6 @@ export default function PoliciesPage() {
         }
       } finally {
         if (!cancelled) {
-          bookmarkActionKeyRef.current = null;
           clearPostLoginAction();
         }
       }

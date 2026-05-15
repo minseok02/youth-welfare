@@ -448,7 +448,6 @@ export default function PolicyDetailPage() {
         }
       } finally {
         if (!cancelled) {
-          bookmarkActionKeyRef.current = null;
           clearPostLoginAction();
         }
       }

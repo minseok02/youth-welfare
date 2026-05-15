@@ -28,16 +28,14 @@ export default function FloatingNav() {
         search: location.search,
         state: location.state,
       }
-    : location.state?.from?.pathname === "/mypage"
-      ? {
-          pathname: "/mypage",
-          search: location.state.from.search ?? "",
-          state: location.state.from.state,
-        }
-      : {
-          pathname: "/mypage",
-          search: "",
-        };
+    : {
+        pathname: "/mypage",
+        search: location.state?.from?.pathname === "/mypage" ? (location.state.from.search ?? "") : "",
+        state: {
+          ...(location.state?.from?.pathname === "/mypage" ? (location.state.from.state ?? {}) : {}),
+          from: location,
+        },
+      };
   const policiesTarget = location.pathname === "/policies"
     ? {
         pathname: "/policies",
@@ -73,12 +71,19 @@ export default function FloatingNav() {
         search: location.search,
         state: location.state,
       }
-    : chatOriginTarget
-      ? chatOriginTarget
-      : {
-          pathname: "/chat",
-          search: "",
-        };
+    : {
+        pathname: "/chat",
+        search: chatOriginTarget?.search ?? "",
+        state: {
+          ...(chatOriginTarget?.state ?? {}),
+          from: location,
+          chatFrom: {
+            pathname: "/chat",
+            search: chatOriginTarget?.search ?? "",
+            state: chatOriginTarget?.state,
+          },
+        },
+      };
 
   const handleNavigate = (item) => {
     const target = item.path === "/chat"
