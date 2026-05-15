@@ -3987,3 +3987,8 @@
 - 문제: `LoginPage` 는 `from.state` 안의 nested `chatFrom` / `postLoginAction` 을 다시 꺼내도록 고쳤지만, `SignupPage` 와 `ResetPasswordPage` 는 여전히 top-level `location.state.chatFrom` / `postLoginAction` 만 `/login` 으로 되돌리고 있었다. 이 상태에선 세션 만료나 보호 페이지 리다이렉트에서 `state: { from: location, reason: ... }` 구조로 들어온 뒤 회원가입이나 비밀번호 재설정 화면을 경유하면, 로그인 화면으로 돌아오는 과정에서 nested 복귀 문맥이 다시 한번 잘릴 수 있었다.
 - 해결: `SignupPage` 와 `ResetPasswordPage` 모두 `location.state?.from?.state ?? {}` 를 읽어 nested fallback `chatFrom`, `postLoginAction` 을 계산하고, 회원가입 완료 후 로그인 이동, 비밀번호 재설정 완료 후 로그인 이동, “로그인으로 돌아가기” 버튼 모두 그 값을 함께 전달하도록 맞췄다. 이후 `frontend lint/build` 를 다시 통과시켰다.
 - 이유: 보호 페이지 -> 로그인 -> 회원가입/재설정 -> 로그인 -> 원위치 복귀 흐름은 브라우저 체감에서 충분히 나올 수 있다. 로그인 페이지만 nested state를 복원해도 중간 auth 보조 화면이 같은 규칙을 따르지 않으면 문맥 보존 체인이 끊긴다.
+
+## 741) 비로그인 북마크로 로그인 화면을 거칠 때는 현재 페이지의 `location.state` 도 함께 보존해야, 로그인 뒤 북마크 post-action 후 복귀 문맥이 살아 있다
+- 문제: `PoliciesPage` 와 `PolicyDetailPage` 의 비로그인 북마크 경로는 `/login` 으로 보낼 때 `from: { pathname, search }` 만 넘기고 있었다. 이 상태에선 로그인 후 북마크 `postLoginAction` 은 실행되더라도, 현재 페이지에 붙어 있던 `chatFrom`, 목록 복귀용 `from`, 카테고리/탭 같은 nested 문맥은 로그인 화면을 한 번 거치는 순간 다시 잘릴 수 있었다.
+- 해결: 두 페이지 모두 비로그인 북마크 리다이렉트 시 `from.state = location.state` 를 함께 넘기도록 바꿨다. 이제 로그인 화면은 이미 지원하는 nested `from.state` fallback을 통해 챗 복귀/목록 복귀 문맥을 같이 복원할 수 있다. 이후 `frontend lint/build` 를 다시 통과시켰다.
+- 이유: 로그인 유도는 단순히 같은 `pathname/search` 로 돌아가는 것만으로 충분하지 않다. 정책 상세/목록은 이미 `chatFrom`, `from`, `postLoginAction` 같은 보조 문맥을 state에 담아 쓰고 있으므로, login-required 리다이렉트도 같은 수준으로 state를 보존해야 실제 브라우저 체감 복귀가 자연스럽다.

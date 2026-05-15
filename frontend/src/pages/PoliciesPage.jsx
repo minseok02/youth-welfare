@@ -397,6 +397,7 @@ export default function PoliciesPage() {
           from: {
             pathname: location.pathname,
             search: location.search,
+            state: location.state,
           },
           reason: "login-required",
           postLoginAction: {
