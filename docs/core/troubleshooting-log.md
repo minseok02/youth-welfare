@@ -4042,3 +4042,8 @@
 - 문제: `MyPage` 알림함이 생겨도 사용자가 탭을 직접 열기 전까지 unread 존재를 놓치기 쉽다. 그렇다고 현재 단계에서 별도 알림센터나 bell dropdown을 먼저 열면 UI 범위가 갑자기 커지고, 현재 제품의 navigation 구조와도 어긋난다.
 - 해결: `GET /api/notifications/me/unread-count` 를 React Query 기반 `useUnreadAlertCount` 훅으로 감싸고, `Header` 와 `FloatingNav` 의 `마이페이지` entrypoint에만 최소 unread badge를 추가했다. 폴링은 `staleTime=30s`, `refetchInterval=60s` 로 두고, unread 수가 100을 넘으면 `99+` 로 캡한다.
 - 이유: 지금 단계의 목표는 추천 digest 기반 인앱 알림을 "눈에 띄게" 만드는 것이지, 완전한 전역 알림센터를 여는 것이 아니다. 기존 `마이페이지` 진입점에 badge를 얹는 편이 범위가 작고 현재 톤과도 자연스럽게 맞는다.
+
+## 752) 인앱 알림 deep link는 목적 URL만 맞추는 것보다 `from` 전체 location을 보존해야, `MyPage ?tab=` 와 nested state가 정책 상세 뒤로가기에서도 살아남는다
+- 문제: 인앱 알림함과 `MyPage` 북마크는 정책 상세로 이동할 때 `pathname/search` 만 축약해서 넘기거나, 상세의 뒤로가기에서 `backTarget.state` 를 다시 싣지 않는 경계가 남아 있었다. 이 상태에선 URL은 `/mypage?tab=3` 으로 돌아와도, `from.state` 기반 nested 문맥은 뒤로가기 시 사라질 수 있다.
+- 해결: `MyPage.navigateToPolicyDetail()` 는 이제 요약한 `{ pathname, search }` 대신 `from: location` 전체를 넘기고, `PolicyDetailPage.handleBack()` 은 `backTarget.state` 도 같이 실어 복귀하게 바꿨다.
+- 이유: 현재 프론트 복귀 계약은 query와 `location.state` 를 함께 쓰므로, 인앱 알림 deep link도 같은 수준으로 `from` 을 보존해야 한다. 그래야 `MyPage` 탭, 북마크/알림함 진입 문맥, 이후 auth 리다이렉트까지 한 흐름으로 이어진다.

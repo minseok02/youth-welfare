@@ -96,6 +96,7 @@
 - 비로그인 목록/상세 북마크 -> 로그인 후 bookmark `POST` 정확히 1회, 최종 bookmarks 반영
 - Header/FloatingNav의 `/chat`, `/mypage`, `/policies` 이동 시 `state.from` / `chatFrom` 문맥 유지
 - 세션 만료는 URL query가 아니라 router `state.reason=expired` 기준
+- `MyPage` 알림함/북마크에서 정책 상세 진입 후 뒤로가기 시 `?tab=` 와 `from.state` 문맥 유지
 
 추가 관찰:
 

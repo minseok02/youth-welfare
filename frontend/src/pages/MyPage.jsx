@@ -344,13 +344,10 @@ export default function MyPage() {
   const navigateToPolicyDetail = useCallback((policyId) => {
     navigate(`/policies/${policyId}`, {
       state: {
-        from: {
-          pathname: location.pathname,
-          search: `?tab=${Math.max(TAB_IDS.indexOf(activeTab), 0)}`,
-        },
+        from: location,
       },
     });
-  }, [activeTab, location.pathname, navigate]);
+  }, [location, navigate]);
 
   // ── State ────────────────────────────────────────────────────────────────
   const [myInfo, setMyInfo] = useState({

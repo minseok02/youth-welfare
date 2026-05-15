@@ -398,10 +398,14 @@ export default function PolicyDetailPage() {
 
   const handleBack = () => {
     if (backTarget?.pathname) {
-      navigate(`${backTarget.pathname}${backTarget.search ?? ""}`);
+      navigate(`${backTarget.pathname}${backTarget.search ?? ""}`, {
+        state: backTarget.state,
+      });
       return;
     }
-    navigate(`${listBackTarget.pathname}${listBackTarget.search ?? ""}`);
+    navigate(`${listBackTarget.pathname}${listBackTarget.search ?? ""}`, {
+      state: listBackTarget.state,
+    });
   };
 
   useEffect(() => {
