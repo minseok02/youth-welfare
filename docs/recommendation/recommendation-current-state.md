@@ -178,14 +178,14 @@ recommendation/replay 는 collect와 sidecar snapshot 품질에 직접 의존합
 
 `2026-05-15` local audit 기준:
 
-- total recommendation logs: `1583`
-- clicked logs: `14`
-- overall CTR: `0.88%`
-- clicked users / services: `14 / 2`
-- fallback sent/clicked: `1028 / 0`
-- AI sent/clicked: `555 / 14`
+- total recommendation logs: `1634`
+- clicked logs: `15`
+- overall CTR: `0.92%`
+- clicked users / services: `15 / 2`
+- fallback sent/clicked: `1034 / 0`
+- AI sent/clicked: `600 / 15`
 - weight bucket:
-  - `0.40:0.60` -> `1070 sent / 11 clicked / 1.03%`
+  - `0.40:0.60` -> `1121 sent / 12 clicked / 1.07%`
   - `0.60:0.40` -> `366 sent / 3 clicked / 0.82%`
   - `0.80:0.20` -> `147 sent / 0 clicked / 0.00%`
 
