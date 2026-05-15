@@ -3562,3 +3562,8 @@
 - 문제: `retrieval-evaluations/run`, `retrieval-evaluations/gate`, `category-audit` 는 모두 현재 bounded admin 경로로 붙어 있었지만, 운영자가 baseline을 다시 확인하려면 각 응답의 raw JSON에서 핵심 숫자를 따로 골라 읽어야 했다. 이 상태에서는 runtime은 정상이어도 “지금 baseline이 유지되는가”를 빠르게 판정하기 어렵다.
 - 해결: `run-local-policy-quality-summary.sh` 와 `policy-quality-summary-runbook.md` 를 추가해 세 경로를 한 번에 호출하고 핵심 summary만 출력하게 했다. 현재 local baseline은 `datasetKey=retrieval-baseline-v2`, `scenarioCount=11`, `top1/top3/branch=1.0`, `fallbackCount=5`, `emptyResultCount=0`, gate `passed=true`, category `searchablePolicyRatio=0.2399`, top unified `일자리`, top youth broad `복지문화 -> 금융·생활지원 (0.3703)` 으로 고정했다.
 - 이유: 지금 필요한 건 새로운 기능이 아니라 반복 가능한 운영 판정 경로다. bounded admin 경로를 계속 raw JSON으로 읽게 두기보다, summary smoke 한 번으로 baseline을 읽게 만드는 편이 실제 triage 속도와 재현성을 높인다.
+
+## 656) bounded runtime smoke는 한 번 붙였다고 끝나는 게 아니라, 재실행해도 baseline이 그대로인지 확인해야 “현재 truth” 로 믿을 수 있다
+- 문제: `run-local-policy-quality-summary.sh`, `run-local-gov24-quality-audit.sh`, `run-local-ctr-readiness-audit.sh` 를 이미 만들었더라도, 이후 코드/문서 정리나 source 추가가 섞이면 baseline drift가 조용히 들어왔는지 모른 채 문서만 믿게 될 수 있다.
+- 해결: 세 smoke를 다시 실제로 재실행해 baseline 유지 여부를 확인했다. 결과는 `retrieval-baseline-v2`, gate `passed=true`, category `searchablePolicyRatio=0.2399`, Gov24 `list/detail/support raw=10937`, `support_fact_services=9959`, `missing_unmapped_only_payload=978`, CTR `total_logs=1532`, `clicked_logs=13`, `clicked_services=2`, readiness `DEFERRED_CLICK_SAMPLE_THIN` 으로 모두 기존 값과 동일했다.
+- 이유: 지금 phase의 practical task는 새 기능보다 bounded runtime repeatability 유지다. 같은 smoke를 다시 돌려도 숫자가 그대로 나오는지 확인해야 current-state/runbook이 실제 runtime truth를 계속 반영한다고 볼 수 있다.
