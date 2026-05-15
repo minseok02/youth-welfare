@@ -14,6 +14,11 @@
 - 필요 시 admin 권한이 있는 사용자 1명
 - 브라우저 devtools network 확인 가능
 
+실행 원칙:
+
+- 각 단계에서 pass/fail만 보지 말고 `현재 URL`, `query/state`, `reason`, `state.from`, `?session=`/`?tab=` 복원 여부를 바로 기록합니다.
+- 이상 징후가 보이면 같은 단계 안에서 network/console 증거도 같이 남깁니다.
+
 ## 1. 공개 탐색
 
 ### 홈
@@ -56,6 +61,7 @@
 
 - `PoliciesPage` 에서 검색/필터/페이지 상태가 기대대로 유지되는지 확인
 - 현재 기준으로는 같은 URL query에서 같은 상태가 복원돼야 합니다. 유지되지 않으면 제한사항이 아니라 회귀/오류 후보로 기록합니다.
+- 이때 `뒤로가기 전 URL`, `복귀 후 URL`, `남은 query` 를 같이 적습니다.
 
 ### 마이페이지 북마크 -> 상세 -> 뒤로가기
 
@@ -77,6 +83,7 @@
 
 - `/login` 으로 이동
 - 로그인 화면 안내 메시지 표시
+- `reason=login-required`, `state.from` 이 실제로 남았는지 같이 확인
 
 ### 로그인 후 원래 위치 복귀
 
@@ -85,6 +92,7 @@
 기대 결과:
 
 - 다시 `/chat` 으로 복귀
+- 가능하면 로그인 직후 URL과 복귀 후 URL/query를 둘 다 기록
 
 ## 4. 세션 만료
 
@@ -102,6 +110,7 @@
 
 - local token 제거
 - 무한 refresh loop 없음
+- `/login` 이동 URL의 `reason=expired` 와 실제 toast/message를 같이 기록
 
 ## 5. 북마크
 
@@ -116,6 +125,7 @@
 
 - 같은 정책에 대해 화면 간 상태가 크게 어긋나지 않아야 함
 - 토글 실패 시 toast가 떠야 함
+- 비로그인 상태에서 시작했으면 로그인 후 자동 실행 여부까지 기록
 
 ## 6. 마이페이지
 
@@ -198,6 +208,7 @@
 
 - 세션/메시지 CRUD가 끊기지 않아야 함
 - 메시지 전송 중에는 중복 전송 UX가 없어야 함
+- 세션 생성/삭제 전후 `?session=` query 변화를 같이 기록
 
 ## 9. 정적 기준선
 
@@ -214,3 +225,4 @@
 ## 10. 기록
 
 결과 기록은 [frontend-qa-template.md](./frontend-qa-template.md) 를 사용합니다.
+요약만 남기지 말고 URL/query/state 증거를 먼저 채운 뒤, 필요할 때만 `phase-plan` / `troubleshooting-log` 로 올립니다.

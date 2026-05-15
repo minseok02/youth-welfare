@@ -3902,3 +3902,13 @@
 - 문제: `frontend-qa-current-state.md` 는 여전히 `dist/assets/index-*.js` 500kB warning이 현재 관찰인 것처럼 적고 있었다. 하지만 최신 checklist/current baseline에서는 route-level lazy loading + vendor chunk split 이후 이 경고가 재현되지 않는다고 정리돼 있다. 이 모순은 현재 build가 정상인데도 문서 둘 중 하나는 실패 신호처럼 읽히게 만든다.
 - 해결: current-state의 정적 기준선을 `2026-05-15` 기준으로 갱신하고, 현재는 번들 warning 자체보다 브라우저 복귀/query/state 계약 유지가 더 중요한 QA 초점이라고 정리했다. 브라우저 자동화 부재 리스크도 template evidence 기록과 연결해 설명했다.
 - 이유: current-state와 checklist가 서로 다른 static baseline을 말하면, QA 문서군 전체의 pass/fail 기준이 다시 흔들린다. 특히 정적 warning은 해결된 뒤에도 오래 남기 쉬운 항목이라, 현재 truth와 맞춰 정리할 필요가 있다.
+
+## 724) frontend QA checklist가 단계만 나열하고 URL/query/state를 바로 기록하라고 안 적으면, template가 좋아져도 실제 실행자는 pass/fail만 보고 끝내기 쉽다
+- 문제: `frontend-qa-template.md` 는 evidence field를 많이 보강했지만, 정작 `frontend-qa-checklist.md` 는 여전히 “확인한다 / 기대 결과” 위주라서 실행자가 단계 중간에 URL/query/state 증거를 바로 적어야 한다는 지시가 약했다. 이 상태에선 템플릿이 좋아도 실제 QA 수행자는 마지막에 요약만 채우고 끝낼 수 있다.
+- 해결: checklist 사전 조건에 `URL/query/state/reason/state.from/?session=?tab=` 를 각 단계에서 바로 기록하라는 실행 원칙을 추가하고, 뒤로가기/로그인/세션 만료/챗봇 등 주요 구간에 무엇을 같이 적어야 하는지 보강했다. 마지막 기록 섹션도 요약보다 증거를 먼저 남기라고 정리했다.
+- 이유: evidence-first QA는 템플릿만으로는 완성되지 않고, 실제 수행 runbook이 그 행동을 유도해야 한다. checklist가 여전히 pass/fail 위주면 수동 QA 기록의 품질이 다시 약해진다.
+
+## 725) policy/recommendation docs index가 current-state/runbook는 잘 가리켜도 wrapper와 evidence-first 기록 순서를 안 드러내면, 사용자가 다시 요약 문서만 갱신하고 실제 baseline 증거는 덜 남길 수 있다
+- 문제: `policy-docs-index.md` 와 `recommendation-docs-index.md` 는 현재 문서 우선순위는 잘 정리돼 있었지만, 지금 practical lane에서 실제로 자주 다시 여는 wrapper(`run-local-policy-quality-summary.sh`, `run-local-gov24-quality-audit.sh`, `run-local-education-priority-replay.sh`, `run-local-ctr-readiness-audit.sh`)와 evidence-first 기록 순서가 전면에 드러나지 않았다.
+- 해결: 두 인덱스 문서에 practical runtime wrapper를 직접 추가하고, 결과를 남길 때는 숫자 요약만 적지 말고 wrapper/command, query override, summary metric, fingerprint/concentration, `data.*` 핵심 필드, baseline과 달라진 점을 먼저 적으라고 보강했다.
+- 이유: 인덱스 문서는 결국 “어디부터 들어가야 덜 틀리나”를 정하는 문서다. current-state/runbook를 가리키는 것만으로는 부족하고, 실제로 어느 wrapper를 먼저 태우고 무엇을 증거로 남겨야 하는지까지 보여 줘야 검증 문서군 전체가 실효성을 가진다.

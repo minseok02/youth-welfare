@@ -19,6 +19,11 @@
 - [recommendation-ctr-readiness-runbook.md](./recommendation-ctr-readiness-runbook.md)
 - [recommendation-pipeline.md](./recommendation-pipeline.md)
 
+현재 practical runtime wrapper:
+
+- `KEEP_ARTIFACTS=true deploy/smoke/run-local-education-priority-replay.sh`
+- `bash deploy/smoke/run-local-ctr-readiness-audit.sh`
+
 ### 같이 보면 좋은 기준 문서
 
 - [policy-normalization-current-state.md](../policy/policy-normalization-current-state.md)
@@ -102,8 +107,9 @@
 ### 실험/비교 기록을 남길 때
 
 1. [recommendation-replay-template.md](./recommendation-replay-template.md)
-2. [phase-plan.md](../phase-plan.md)
-3. 필요하면 [troubleshooting-log.md](../core/troubleshooting-log.md)
+2. wrapper/command, summary metric, fingerprint relation, clicked service concentration 같은 증거를 먼저 채웁니다.
+3. active 기준선 반영이 필요할 때만 [phase-plan.md](../phase-plan.md)
+4. drift 원인까지 기록해야 할 때 [troubleshooting-log.md](../core/troubleshooting-log.md)
 
 ## 요약
 
@@ -111,4 +117,4 @@
 2. 실제 실행은 [recommendation-operation-checklist.md](./recommendation-operation-checklist.md) 기준으로 봅니다.
 3. CTR 튜닝 readiness는 [recommendation-ctr-readiness-runbook.md](./recommendation-ctr-readiness-runbook.md) 로 먼저 판단합니다.
 4. 구조 설명은 [recommendation-pipeline.md](./recommendation-pipeline.md) 에 더 자세히 적혀 있습니다.
-5. replay 기록은 [recommendation-replay-template.md](./recommendation-replay-template.md) 를 기준으로 남기고, 오래된 실험 맥락은 `phase-plan`/`troubleshooting-log` 를 보조 참고로만 봅니다.
+5. replay/CTR 기록은 [recommendation-replay-template.md](./recommendation-replay-template.md) 또는 각 runbook의 최소 기록 항목을 기준으로 남기고, 요약 문서 갱신보다 evidence 기록을 먼저 합니다.
