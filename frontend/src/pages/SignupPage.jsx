@@ -334,6 +334,8 @@ export default function SignupPage() {
                   state: {
                     from: location.state?.from,
                     email,
+                    chatFrom,
+                    postLoginAction,
                   },
                 })} style={{ background: "transparent", border: 0, color: INK3, fontSize: 13, cursor: "pointer" }}>
                   이미 계정이 있으신가요? <span style={{ color: A, fontWeight: 700 }}>로그인</span>
