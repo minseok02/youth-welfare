@@ -30,6 +30,10 @@
 
 - `POST /api/auth/logout`
 
+반복 검증 wrapper:
+
+- `deploy/smoke/run-local-runtime-api-smoke.sh`
+
 체크:
 
 - refresh cookie 삭제
@@ -50,6 +54,10 @@
 엔드포인트:
 
 - `DELETE /api/users/me`
+
+반복 검증 wrapper:
+
+- `deploy/smoke/run-local-withdraw-smoke.sh`
 
 체크:
 
@@ -91,6 +99,10 @@
 
 - `POST /api/admin/users/forced-logout`
 
+반복 검증 wrapper:
+
+- `deploy/smoke/run-local-admin-forced-logout-smoke.sh`
+
 체크:
 
 - `refresh:{userKey}` 삭제
@@ -103,7 +115,7 @@
 
 - API 응답 `success=true`
 - old access: `401 / A006`
-- old refresh: `401 / A003` 계열
+- old refresh: `401 / A003`
 - relogin 후 보호 API: `200`
 
 ## 6. legacy admin token 확인
@@ -140,10 +152,11 @@ forced logout 현재 증적:
 ## 9. 실행 후 남길 최소 기록
 
 - 어떤 경계를 본 것인지
-- endpoint / command
+- endpoint / command / wrapper
 - old access 결과
 - old refresh 결과
 - relogin 결과
+- 관련 URL / token 조건
 - 로그/Redis 증적
 - 다음 액션
 

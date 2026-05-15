@@ -3842,3 +3842,18 @@
 - 문제: `collect-ops.md` 는 `수집 결과가 0건이면 기존 적재 데이터 유지` 를 복지로 목록 기준으로만 설명하고 있었고, 장애 판단도 `온통청년/복지로 수집이 여러 배치 동안 0건` 정도로만 적혀 있었다. 이 상태로는 현재 lane 구조인 `gov24`, `gov24-details`, `gov24-support-conditions`, `bokjiro-details-gap-fill` 을 볼 때, 목록 source의 `0건` 과 backlog closeout 재실행의 `requested=0/saved=0/skipped 증가` 를 같은 의미로 오해할 수 있다.
 - 해결: `collect-ops.md` 에서 규칙을 목록 source(`youth`, `bokjiro-central`, `bokjiro-local`, `gov24`) 기준으로 일반화하고, 반대로 detail/support/gap-fill closeout rerun에서는 `requested=0`, `saved=0`, `skipped_count` 증가가 함께 보이면 정상일 수 있다고 따로 적었다. 장애 판단도 목록 source 반복 0건과 closeout lane 정체를 분리해 기록했다.
 - 이유: collect 문서의 실효성은 “현재 source/lane 구조를 그대로 해석할 수 있는가”에 달려 있다. 목록과 closeout rerun을 같은 0건 규칙으로 묶어 두면, Gov24 추가 이후의 실제 운영 패턴을 문서가 잘못 판정하게 된다.
+
+## 712) local validation 인덱스가 raw suite wrapper를 먼저 소개하면, `.env`/admin 계정/API base URL 정규화가 빠져 정상 환경에서도 smoke를 잘못 실패시킬 수 있다
+- 문제: `local-validation-docs-index.md` 는 전체 baseline 진입점으로 `run-local-validation-suite.sh` 를 먼저 적고 있었다. 하지만 현재 로컬 검증에서는 `.env`, local admin smoke 파일, `APP_BASE_URL` override를 같이 정규화하는 `run-local-validation-from-env.sh` 를 우선 써야 현재 환경 값을 덜 틀리게 재현할 수 있다.
+- 해결: 인덱스 문서에서 전체 baseline 기본 진입점을 `run-local-validation-from-env.sh` 로 교체하고, `run-local-validation-suite.sh` 는 env가 이미 정규화된 경우에만 쓰는 보조 진입점으로 설명했다.
+- 이유: 검증 문서의 실효성은 “올바른 wrapper를 먼저 쓰게 만드는가”에도 달려 있다. raw suite가 더 저수준이라는 사실을 문서가 숨기면, smoke 실패가 코드 문제가 아니라 env 주입 방식 문제인데도 회귀처럼 오판될 수 있다.
+
+## 713) auth checklist는 경계 설명만 있고 실제 wrapper/evidence 형식이 없으면, 같은 계약을 smoke와 수동 검증이 서로 다르게 기록하게 된다
+- 문제: `auth-operation-checklist.md` 는 logout/withdraw/forced logout의 의미는 잘 설명했지만, 실제 반복 검증 wrapper와 `old refresh=401/A003`, `relogin protected api=200` 같은 현재 smoke baseline, 그리고 실행 후 어떤 증거를 남겨야 하는지가 약했다.
+- 해결: logout/withdraw/forced logout에 대응되는 wrapper(`run-local-runtime-api-smoke.sh`, `run-local-withdraw-smoke.sh`, `run-local-admin-forced-logout-smoke.sh`)를 추가하고, forced logout old refresh 결과를 `A003 계열`이 아니라 현재 baseline인 `401/A003` 으로 좁혔다. 기록 항목도 `endpoint / command / wrapper`, `관련 URL / token 조건` 까지 남기게 보강했다.
+- 이유: auth/session 문서는 실패 코드 뜻만 설명하는 것으로 끝나면 안 되고, 수동 검증이 smoke baseline과 같은 증거를 남기도록 유도해야 한다. 그래야 결과를 나중에 비교하거나 replay하기 쉬워진다.
+
+## 714) frontend QA docs index가 결과 기록을 `phase-plan` 갱신 중심으로 설명하면, 실제 복귀/query 계약을 증명하는 증거보다 요약 기록이 먼저 남는다
+- 문제: `frontend-qa-docs-index.md` 는 결과를 남길 때 `template -> phase-plan -> troubleshooting-log` 순으로 적고 있었다. 하지만 현재 프론트 QA의 핵심은 `reason`, `state.from`, `?session=`, `?tab=`, query 복원 같은 증거를 남기는 것이고, 이걸 건너뛰고 phase-plan 요약부터 적으면 검증은 했어도 재현 가능성이 약한 기록만 남는다.
+- 해결: 인덱스 문서에서 template에 URL/query/state 증거를 먼저 채우고, 이슈가 재현될 때 troubleshooting-log를 남기며, active 기준선 반영이 필요할 때만 phase-plan을 갱신한다고 순서를 바꿨다.
+- 이유: 프론트 QA는 현재 자동화보다 수동 증거 기록의 품질이 중요하다. 문서 진입점이 요약 문서 갱신을 먼저 유도하면, 실제 복귀/리다이렉트 계약을 증명할 핵심 데이터가 빠진 채 결과만 남게 된다.

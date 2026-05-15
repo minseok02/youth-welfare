@@ -77,11 +77,12 @@
 ### 결과를 남길 때
 
 1. [frontend-qa-template.md](./frontend-qa-template.md)
-2. [phase-plan.md](../phase-plan.md)
-3. 필요하면 [troubleshooting-log.md](../core/troubleshooting-log.md)
+2. 재현 URL, query/state, `reason`, `state.from`, `?session=`/`?tab=` 같은 증거를 먼저 채웁니다.
+3. 이슈가 재현되면 [troubleshooting-log.md](../core/troubleshooting-log.md)
+4. 실행 결과를 active 기준선에 반영할 필요가 있을 때만 [phase-plan.md](../phase-plan.md)
 
 ## 요약
 
 1. 현재 프론트 QA 기준은 [frontend-qa-current-state.md](./frontend-qa-current-state.md) 부터 봅니다.
 2. 실제 브라우저 검증은 [frontend-qa-checklist.md](./frontend-qa-checklist.md) 기준으로 진행합니다.
-3. 결과 기록은 [frontend-qa-template.md](./frontend-qa-template.md) 를 기준으로 남깁니다.
+3. 결과 기록은 [frontend-qa-template.md](./frontend-qa-template.md) 를 기준으로 남기고, pass/fail보다 URL/query/state 증거를 먼저 적습니다.

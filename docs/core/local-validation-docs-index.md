@@ -62,10 +62,17 @@
 현재 auth/session revoke closeout의 기본 진입점은
 `deploy/smoke/run-local-auth-session-smoke.sh` 입니다.
 
-현재 로컬 검증 전체 기준선을 빠르게 다시 확인하는 기본 진입점은
-`deploy/smoke/run-local-validation-suite.sh` 입니다.
+현재 로컬 검증 전체 기준선을 다시 확인할 때는
+`deploy/smoke/run-local-validation-from-env.sh` 를 우선 사용합니다.
+이 wrapper는 `.env`, local admin smoke 계정 파일, API base URL override를 같이 정규화하므로
+직접 `run-local-validation-suite.sh` 를 치는 것보다 현재 로컬 환경에서 덜 틀리게 재현됩니다.
 
-짧은 재검증은 `VALIDATION_PROFILE=quick`, 전체 기준선은 기본 `full` 프로필을 사용합니다.
+`deploy/smoke/run-local-validation-suite.sh` 는
+- env를 이미 명시적으로 정규화한 경우
+- wrapper 없이 raw suite를 호출해야 하는 경우
+의 보조 진입점으로 봅니다.
+
+짧은 재검증은 `--quick`, 전체 기준선은 `--full` 을 사용합니다.
 
 ### 3. 데모 시나리오
 
@@ -107,7 +114,8 @@
 ### 런타임 API를 바로 찍어볼 때
 
 1. [runtime-api-smoke-commands.md](./runtime-api-smoke-commands.md)
-2. 필요하면 각 도메인 문서군 index
+2. 전체 baseline 재확인은 `deploy/smoke/run-local-validation-from-env.sh --quick|--full`
+3. 필요하면 각 도메인 문서군 index
 
 ### 발표/기능 검수 순서를 준비할 때
 
@@ -124,6 +132,6 @@
 ## 요약
 
 1. 단위/통합 테스트 실행 기준은 [testing.md](./testing.md) 부터 봅니다.
-2. curl 기반 API smoke는 [runtime-api-smoke-commands.md](./runtime-api-smoke-commands.md) 를 봅니다.
+2. curl 기반 API smoke는 [runtime-api-smoke-commands.md](./runtime-api-smoke-commands.md) 를 보고, 전체 baseline은 가능하면 `run-local-validation-from-env.sh` wrapper부터 사용합니다.
 3. 데모/검수 순서는 [demo-scenario.md](./demo-scenario.md) 를 기준으로 잡습니다.
 4. bounded runtime quality/audit baseline은 policy/recommendation runbook 4종을 먼저 봅니다.
