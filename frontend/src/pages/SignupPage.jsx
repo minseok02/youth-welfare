@@ -90,6 +90,9 @@ function Field({ label, error, hint, children }) {
 export default function SignupPage() {
   const navigate = useNavigate();
   const location = useLocation();
+  const nestedFromState = location.state?.from?.state ?? {};
+  const chatFrom = location.state?.chatFrom ?? nestedFromState.chatFrom;
+  const postLoginAction = location.state?.postLoginAction ?? nestedFromState.postLoginAction;
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState({ open: false, msg: "", severity: "info" });
@@ -188,8 +191,8 @@ export default function SignupPage() {
           email,
           signupPriorities: priorities,
           from: location.state?.from,
-          chatFrom: location.state?.chatFrom,
-          postLoginAction: location.state?.postLoginAction,
+          chatFrom,
+          postLoginAction,
         },
       });
     } catch (err) {

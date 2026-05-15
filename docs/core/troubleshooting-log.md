@@ -3982,3 +3982,8 @@
 - 문제: `AuthExpiryHandler` / `RequireLogin` 은 세션 만료나 보호 페이지 접근 시 `state: { from: location, reason: ... }` 로 로그인 화면으로 보낸다. 이때 `location` 자체에는 이미 `chatFrom` 나 `postLoginAction` 이 들어 있을 수 있는데, `LoginPage` 는 성공 후 top-level `location.state.chatFrom` / `postLoginAction` 만 다시 전달하고 `from.state` 안의 nested 문맥은 보지 않았다. 그래서 `/policies/:id` 상세를 챗에서 열어둔 채 세션이 만료되면, 재로그인 뒤 상세 페이지에는 돌아와도 “다시 챗으로” 이어지는 문맥이 사라질 수 있었다.
 - 해결: `LoginPage` 에서 성공 후 복귀 시 `location.state.from?.state?.chatFrom` / `postLoginAction` 도 fallback으로 읽게 했고, 회원가입/비밀번호 재설정 화면으로 이동할 때도 같은 nested 문맥을 함께 넘기게 정리했다. 변경 뒤 `frontend lint/build` 를 다시 통과시켰다.
 - 이유: 이 문제는 API smoke로는 잘 안 드러나지만, 실제 브라우저 체감에선 “세션 만료 후 로그인하면 돌아오긴 하는데, 이전에 어디서 왔는지 일부 문맥이 사라진다”는 식으로 나타난다. 복귀 경로를 `pathname/search` 와 `state` 두 층으로 본다는 현재 구조에 맞춰 nested state도 함께 이어줘야 한다.
+
+## 740) 회원가입/비밀번호 재설정 경유도 로그인과 같은 nested return state fallback을 써야, auth 보조 화면을 거친 뒤에도 복귀 문맥이 끊기지 않는다
+- 문제: `LoginPage` 는 `from.state` 안의 nested `chatFrom` / `postLoginAction` 을 다시 꺼내도록 고쳤지만, `SignupPage` 와 `ResetPasswordPage` 는 여전히 top-level `location.state.chatFrom` / `postLoginAction` 만 `/login` 으로 되돌리고 있었다. 이 상태에선 세션 만료나 보호 페이지 리다이렉트에서 `state: { from: location, reason: ... }` 구조로 들어온 뒤 회원가입이나 비밀번호 재설정 화면을 경유하면, 로그인 화면으로 돌아오는 과정에서 nested 복귀 문맥이 다시 한번 잘릴 수 있었다.
+- 해결: `SignupPage` 와 `ResetPasswordPage` 모두 `location.state?.from?.state ?? {}` 를 읽어 nested fallback `chatFrom`, `postLoginAction` 을 계산하고, 회원가입 완료 후 로그인 이동, 비밀번호 재설정 완료 후 로그인 이동, “로그인으로 돌아가기” 버튼 모두 그 값을 함께 전달하도록 맞췄다. 이후 `frontend lint/build` 를 다시 통과시켰다.
+- 이유: 보호 페이지 -> 로그인 -> 회원가입/재설정 -> 로그인 -> 원위치 복귀 흐름은 브라우저 체감에서 충분히 나올 수 있다. 로그인 페이지만 nested state를 복원해도 중간 auth 보조 화면이 같은 규칙을 따르지 않으면 문맥 보존 체인이 끊긴다.

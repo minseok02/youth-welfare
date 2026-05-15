@@ -19,6 +19,9 @@ const iCss = (err) => ({
 export default function ResetPasswordPage() {
   const navigate = useNavigate();
   const location = useLocation();
+  const nestedFromState = location.state?.from?.state ?? {};
+  const chatFrom = location.state?.chatFrom ?? nestedFromState.chatFrom;
+  const postLoginAction = location.state?.postLoginAction ?? nestedFromState.postLoginAction;
   const [searchParams] = useSearchParams();
   const token = searchParams.get("token") ?? "";
   const hasToken = useMemo(() => token.trim().length > 0, [token]);
@@ -64,10 +67,10 @@ export default function ResetPasswordPage() {
       setTimeout(() => navigate("/login", {
         state: {
           from: location.state?.from,
-          chatFrom: location.state?.chatFrom,
+          chatFrom,
           reason: "password-reset-complete",
           email: location.state?.email,
-          postLoginAction: location.state?.postLoginAction,
+          postLoginAction,
         },
       }), 1200);
     } catch (err) {
@@ -150,7 +153,8 @@ export default function ResetPasswordPage() {
               state: {
                 from: location.state?.from,
                 email,
-                postLoginAction: location.state?.postLoginAction,
+                chatFrom,
+                postLoginAction,
               },
             })} style={{ background: "transparent", border: 0, color: A, fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
               ← 로그인으로 돌아가기
