@@ -42,6 +42,7 @@
 - `bash deploy/smoke/run-local-gov24-housing-signal-smoke.sh`
 - `bash deploy/smoke/run-local-gov24-education-signal-smoke.sh`
 - `bash deploy/smoke/run-local-gov24-signal-suite.sh`
+- `bash deploy/smoke/run-local-gov24-recommendation-suite.sh`
 
 ### 같이 보면 좋은 기준 문서
 
@@ -123,6 +124,8 @@
 Gov24가 추천에 "안 보이는지"보다 "몇 위에서 어떤 서비스로 뜨는지"를 보려면 `bash deploy/smoke/run-local-gov24-recommend-surface-audit.sh` 로 top1/top3/top5/top10 Gov24 share, rank별 source 분포, Gov24 상위 서비스 concentration을 같이 봅니다.
 
 Gov24 추천 추적만 별도로 빠르게 따라가려면 [gov24-recommendation-audit-runbook.md](./gov24-recommendation-audit-runbook.md) 를 먼저 봅니다. 이 문서는 `surface -> score -> zero/null/ai_status -> fresh batch -> bounded signal suite` 순서를 한 번에 정리합니다.
+
+같은 순서를 local baseline으로 한 번에 재확인하려면 `bash deploy/smoke/run-local-gov24-recommendation-suite.sh` 를 씁니다. 이 wrapper는 `recommend-surface-audit`, `recommend-score-audit`, `ai-status-audit`, `signal-suite` 를 순차 실행하고 stdout에 prefix를 붙여 출력합니다.
 
 Gov24가 왜 top1/2에서 약한지 더 좁히려면 `bash deploy/smoke/run-local-gov24-recommend-score-audit.sh` 로 latest batch 기준 source별 `avg rule_weighted_score / avg ai_score / avg final_score` 를 top2/top10/rank별로 같이 봅니다.
 

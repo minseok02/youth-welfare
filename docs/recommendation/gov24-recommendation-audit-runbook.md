@@ -18,6 +18,17 @@
 2. `ai_score=0`, `ai_score is null`, `ai_status` 를 같은 의미로 취급하지 않습니다.
 3. source 전체 일반화보다 **개별 정책군 + 사용자 맥락** 해석을 우선합니다.
 
+빠른 local baseline 재확인용 wrapper:
+
+- `bash deploy/smoke/run-local-gov24-recommendation-suite.sh`
+
+이 wrapper는 아래 4개만 순차 실행합니다.
+
+- `run-local-gov24-recommend-surface-audit.sh`
+- `run-local-gov24-recommend-score-audit.sh`
+- `run-local-gov24-ai-status-audit.sh`
+- `run-local-gov24-signal-suite.sh`
+
 ## 1. Surface 먼저
 
 먼저 Gov24가 추천에 아예 안 뜨는지, 아니면 상위권에서만 약한지 봅니다.
@@ -157,4 +168,3 @@ source 전체 일반화 전에, 특정 맥락을 맞춰주면 Gov24가 실제로
 3. `4689` 류는 rule-side 약세, `7193` 류는 개별 정책 제약/지역·학생 맥락 때문에 AI-side 약세로 읽는 편이 맞습니다.
 4. bounded signal smoke까지 보면 Gov24 source 전체를 구조적으로 눌려 있다고 보긴 어렵습니다.
 5. 다음 reopen이 필요하면 source 일반론보다 **주거/월세보증**, **지역 장학금**, **창업/소상공인** 같은 정책군 단위로 보는 편이 맞습니다.
-

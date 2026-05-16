@@ -1471,3 +1471,9 @@ cd backend
   - `housing`: `gov24_top2_rows=1`, `5728` `rank2`
   - `education`: `gov24_top2_rows=1`, `6790` `rank1`
   으로 둘 다 green 이다.
+- `2026-05-17`: Gov24 추천 추적 핵심 baseline을 더 빠르게 재현하려고 `deploy/smoke/run-local-gov24-recommendation-suite.sh` 를 추가했다. 이 wrapper는 `recommend-surface-audit`, `recommend-score-audit`, `ai-status-audit`, `signal-suite` 를 순서대로 실행하고 stdout에 `[surface]`, `[score]`, `[ai-status]`, `[signal]` prefix를 붙여 한 번에 비교하게 한다. 최신 local 실행 기준
+  - `surface`: `top10_gov24_share_pct=30.75`, `top2_gov24_share_pct=0.60`
+  - `score`: `top2_source_score_summary` 에서 `GOV24:19:43.26:75.56:0.68787`
+  - `ai-status`: `gov24_ai_status_distribution=NOT_REQUESTED:38,SCORED:766`
+  - `signal`: `housing` / `education` 둘 다 green
+  으로 끝난다.

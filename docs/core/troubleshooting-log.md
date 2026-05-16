@@ -4320,3 +4320,8 @@
   - `[education] gov24_top2_rows=1`, `6790 rank1`
   으로 둘 다 green 이었다.
 - 이유: 이 정도면 Gov24 source 자체의 구조적 억압 여부를 빠르게 재검증하는 최소 bounded suite로 충분하다. 다음 reopen에서도 개별 smoke 둘을 따로 기억하기보다 이 wrapper 하나를 기준선으로 쓰는 편이 낫다.
+
+## 807) Gov24 추천 추적은 이제 개별 smoke보다 baseline suite wrapper 하나로 다시 보는 편이 안전하다
+- 문제: surface, score, ai-status, bounded signal까지 축이 늘어나면서 Gov24 추천 추적을 다시 확인하려면 4개 wrapper를 순서대로 직접 실행해야 했다. 이러면 같은 로컬 앱 상태에서 결과를 다시 모을 때 누락이나 순서 drift가 생기기 쉽다.
+- 해결: `deploy/smoke/run-local-gov24-recommendation-suite.sh` 를 추가했다. 이 wrapper는 `run-local-gov24-recommend-surface-audit.sh`, `run-local-gov24-recommend-score-audit.sh`, `run-local-gov24-ai-status-audit.sh`, `run-local-gov24-signal-suite.sh` 를 순차 실행하고 stdout에 `[surface]`, `[score]`, `[ai-status]`, `[signal]` prefix를 붙인다. 최신 local 기준으로 suite 전체가 green 이고, 마지막 `signal` 구간도 `housing/education` 각각 fresh user smoke까지 같이 통과한다.
+- 이유: 지금 Gov24 추천 트랙은 "새 가설 하나를 더 추가"하기보다, 이미 확보한 해석 baseline을 빠르게 재현할 수 있어야 한다. 이 wrapper 하나면 source visibility, score 구조, ai_status 분포, bounded context signal을 한 번에 다시 볼 수 있어서 reopen/회귀 확인에 적합하다.
