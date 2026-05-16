@@ -134,7 +134,52 @@ fingerprint나 reason membership도 불필요하게 흔들리지 않는 상태�
 - fingerprint churn 없이 대규모 구조 변화
 - target row visibility가 깨짐
 
-## 7. 실행 후 남길 최소 기록
+## 7. Gov24 bounded signal 확인
+
+Gov24 source 자체가 구조적으로 억눌리는지 빠르게 확인할 때는
+개별 정책 추적보다 bounded smoke를 먼저 봅니다.
+
+기본 wrapper:
+
+- `bash deploy/smoke/run-local-gov24-signal-suite.sh`
+
+이 wrapper는 아래 두 fresh smoke를 순차 실행합니다.
+
+- `run-local-gov24-housing-signal-smoke.sh`
+  - `주거` 관심 + `HOUSING` priority fresh user
+- `run-local-gov24-education-signal-smoke.sh`
+  - `교육·직업훈련` 관심 + `EDUCATION` priority + `경기도/안산시` fresh user
+
+확인:
+
+- `[housing] gov24_top2_rows`
+- `[education] gov24_top2_rows`
+- 각 bounded smoke의 `top2_source_distribution`
+- Gov24 상위 row의 `rule / ai / final`
+
+현재 local 기준선(2026-05-17):
+
+- `housing`
+  - `gov24_top2_rows=1`
+  - `5728 주택금융공사 월세자금보증`
+  - `rank2`, `rule=54`, `ai=70`, `final=0.63261`
+- `education`
+  - `gov24_top2_rows=1`
+  - `6790 지역인재육성을 위한 장학금 지원`
+  - `rank1`, `rule=27`, `ai=80`, `final=1.03936`
+
+읽는 법:
+
+- 두 bounded smoke가 모두 green이면
+  - Gov24 source 전체가 구조적으로 막혀 있다고 보긴 어렵습니다.
+- `housing` 만 약하면
+  - 주거/월세보증 계열 rule-side 신호를 더 봅니다.
+- `education` 만 약하면
+  - 지역/학생 장학금 계열의 AI/context 적합도를 더 봅니다.
+- 둘 다 약하면
+  - source 전체 retrieval/rule/AI 경계를 다시 봐야 합니다.
+
+## 8. 실행 후 남길 최소 기록
 
 - mode: `rule-only` / `real-openai`
 - wrapper / command
@@ -149,4 +194,5 @@ fingerprint나 reason membership도 불필요하게 흔들리지 않는 상태�
 1. replay는 먼저 precondition을 본다.
 2. `rule-only` 가 기본 검증선이다.
 3. `real-openai` 는 diagnostic 이다.
-4. exact score equality보다 target row visibility를 본다.
+4. Gov24 source 전체 구조 의심은 bounded signal suite로 먼저 가른다.
+5. exact score equality보다 target row visibility를 본다.
