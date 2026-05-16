@@ -4330,3 +4330,13 @@
 - 문제: `run-local-gov24-signal-suite.sh`, `run-local-gov24-recommendation-suite.sh` 를 로컬에서만 검증하면 wrapper 자체의 운영 가치가 반쪽이다. server latest batch는 local과 분포가 달랐고, 특히 `housing/education` fresh child smoke와 `surface/score/ai-status/signal` 4-prefix 연결이 실제 서버 runtime에서도 끝까지 이어지는지 확인이 필요했다.
 - 해결: 서버에서 `HEAD=7b274a0` 기준 wrapper 2개를 그대로 재실행했고 둘 다 PASS 했다. `signal suite` 는 `housing gov24_top2_rows=0`, `education gov24_top2_rows=2` 였고, `recommendation suite` 는 `[surface] top10_gov24_share_pct=13.93 / top2_gov24_share_pct=0.39`, `[score] GOV24 top2 avg rule/ai/final = 58.50 / 27.50 / 0.37954`, `[ai-status] NOT_REQUESTED:15,SCORED:118 / top2 ai-status=NOT_REQUESTED:8,SCORED:2` 를 출력한 뒤 마지막 pass line까지 도달했다. app 로그에도 `ERROR/Exception/WARN/C003` 는 없었다.
 - 이유: 이 결과로 Gov24 추천 트랙은 개별 audit, bounded signal smoke, wrapper suite, server baseline까지 한 묶음으로 닫혔다. 다음 reopen 때는 원인 추적보다 먼저 이 wrapper 두 개가 다시 green 인지만 보면 된다.
+
+## 809) `deadline reminder smoke` 는 host 날짜가 아니라 app/DB `CURRENT_DATE` 기준으로 `apply_end_date` 를 잡아야 한다
+- 문제: broader local 회귀를 다시 묶었더니 `run-local-deadline-reminder-smoke.sh` 만 `dispatchStatus=NO_CANDIDATES` 로 실패했다. DB를 확인해 보니 smoke가 북마크한 추천(`service_id=2622`) 자체와 `is_bookmarked=true`, 강제 `apply_end_date=2026-05-20` 업데이트는 정상 반영돼 있었지만, app/DB의 `CURRENT_DATE` 는 아직 `2026-05-16` 이라 host shell에서 계산한 `+3일` 과 하루 차이가 났다. `DeadlineReminderDispatchService` 는 `today ~ today+days` inclusive 필터를 쓰므로, host 기준 `2026-05-20` 은 app 기준으론 `+4일` 이 되어 후보에서 빠졌다.
+- 해결: `deploy/smoke/run-local-deadline-reminder-smoke.sh` 의 강제 `apply_end_date` 계산을 shell `date` 대신 `smoke_db_query "SELECT (CURRENT_DATE + days)::date"` 로 바꿨다. 이후 same smoke를 다시 돌려 `deadline reminder smoke passed`, `policy_count=1` 까지 재확인했다.
+- 이유: 이 smoke의 목적은 deadline dispatch 경계를 보는 것이지, host와 container 날짜 드리프트를 재현하는 게 아니다. 기준 날짜는 실제 필터가 도는 app/DB 쪽과 같아야 오탐이 줄어든다.
+
+## 810) broader local baseline은 admin password를 명시하면 다시 전부 green 으로 돌아왔다
+- 문제: `run-local-validation-from-env.sh --full` 는 `.env` 와 `/tmp` 에 admin password가 없을 때 fail-fast 하도록 바뀌어 있으므로, 이번 재검증에서 `ADMIN_PASSWORD is empty` 로 끊겼다. 이건 로직 회귀라기보다 smoke credential 주입이 빠진 상태였다.
+- 해결: 현재 local baseline인 `ADMIN_EMAIL=admin@example.com`, `ADMIN_PASSWORD=password123!` 를 명시해 full wrapper를 다시 실행했다. 결과는 `local validation suite passed`, `suite_duration_seconds=75` 였고, 하위 단계도 `auth/session`, `public policy + profile/priorities + chat`, `bookmark consistency`, `recommendation click`, `admin dashboard`, `education priority replay` 전부 green 으로 끝났다. 같은 라운드에서 `run-local-notification-channel-smoke.sh`, 수정된 `run-local-deadline-reminder-smoke.sh`, `run-local-gov24-recommendation-suite.sh` 도 모두 PASS 했다.
+- 이유: 이로써 알림/추천/Gov24 축 변경 이후 broader local baseline도 다시 회복됐다. 다음 broader 회귀는 admin credential만 명시하면 같은 묶음으로 재현 가능하다.

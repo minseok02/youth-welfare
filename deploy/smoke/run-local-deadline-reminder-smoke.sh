@@ -185,7 +185,7 @@ smoke_assert_status 200 "$(
     }"
 )" "save notification profile" "${PROFILE_RESPONSE}"
 
-TARGET_DATE="$(date -d "+${SMOKE_DEADLINE_DAYS} days" '+%Y-%m-%d')"
+TARGET_DATE="$(smoke_db_query "SELECT (CURRENT_DATE + ${SMOKE_DEADLINE_DAYS})::date;")"
 smoke_print_step "force bookmarked service apply_end_date=${TARGET_DATE}"
 smoke_db_query "UPDATE welfare_services SET apply_end_date = DATE '${TARGET_DATE}', status = 'ACTIVE' WHERE id = ${SERVICE_ID};" >/dev/null
 

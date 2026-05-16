@@ -1483,3 +1483,4 @@ cd backend
   - `recommendation suite score`: `GOV24 top2 avg rule/ai/final = 58.50 / 27.50 / 0.37954`
   - `recommendation suite ai-status`: `NOT_REQUESTED:15, SCORED:118`, `top2 ai-status = NOT_REQUESTED:8, SCORED:2`
   이고, app 로그에 `ERROR/Exception/WARN/C003` 는 없었다. 즉 이제 Gov24 추천 추적은 개별 audit뿐 아니라 server wrapper baseline까지 닫힌 상태다.
+- `2026-05-17`: broader local 회귀를 다시 묶어 `run-local-validation-from-env.sh --full`, `run-local-notification-channel-smoke.sh`, `run-local-deadline-reminder-smoke.sh`, `run-local-gov24-recommendation-suite.sh` 를 재실행했다. 결과는 전부 green 이고, `full validation suite_duration_seconds=75`, `notification channel smoke passed`, `deadline reminder smoke passed`, `gov24 recommendation suite passed` 기준으로 다시 닫혔다. 이때 `deadline reminder smoke` 는 host 날짜와 app/DB 날짜가 하루 어긋난 상태에서 shell `date +N days` 를 쓰면 `NO_CANDIDATES` 로 오판할 수 있어, `apply_end_date` 강제값도 DB `CURRENT_DATE + days` 기준으로 맞추도록 조정했다.
