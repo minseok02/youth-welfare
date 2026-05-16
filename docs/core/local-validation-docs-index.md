@@ -16,6 +16,7 @@
 
 - [testing.md](./testing.md)
 - [runtime-api-smoke-commands.md](./runtime-api-smoke-commands.md)
+- [server-runtime-drift-checklist.md](./server-runtime-drift-checklist.md)
 - runtime preflight shell 진입점: `deploy/smoke/preflight-integration-runtime.sh`
 
 ### 같이 보면 좋은 문서
@@ -58,6 +59,9 @@
 - logout
 
 을 curl 기준으로 바로 복사해 돌리는 최소 API smoke 모음입니다.
+
+서버/기존 volume에서 반복되는 migration/admin credential/date drift는
+[server-runtime-drift-checklist.md](./server-runtime-drift-checklist.md) 를 먼저 봅니다.
 
 현재 auth/session revoke closeout의 기본 진입점은
 `deploy/smoke/run-local-auth-session-smoke.sh` 입니다.
@@ -114,8 +118,9 @@
 ### 런타임 API를 바로 찍어볼 때
 
 1. [runtime-api-smoke-commands.md](./runtime-api-smoke-commands.md)
-2. 전체 baseline 재확인은 `deploy/smoke/run-local-validation-from-env.sh --quick|--full`
-3. 필요하면 각 도메인 문서군 index
+2. 서버 drift가 의심되면 [server-runtime-drift-checklist.md](./server-runtime-drift-checklist.md)
+3. 전체 baseline 재확인은 `deploy/smoke/run-local-validation-from-env.sh --quick|--full`
+4. 필요하면 각 도메인 문서군 index
 
 ### 발표/기능 검수 순서를 준비할 때
 

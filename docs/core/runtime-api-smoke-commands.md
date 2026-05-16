@@ -2,6 +2,8 @@
 
 문서군 진입점: [local-validation-docs-index.md](./local-validation-docs-index.md)
 
+서버/기존 volume drift만 따로 볼 때는 [server-runtime-drift-checklist.md](./server-runtime-drift-checklist.md) 를 먼저 봅니다.
+
 이 문서는 현재 로컬 런타임에서 바로 실행할 최소 API smoke 명령 모음입니다.
 운영 cutover 전제는 없고, `docker compose` 로 띄운 app/db/redis 또는 수동 로컬 기동 상태에서 그대로 복사해 쓸 수 있게 정리했습니다.
 
@@ -212,6 +214,7 @@ deploy/smoke/run-local-deadline-reminder-smoke.sh
 ```
 
 이 스크립트는 `signup -> login -> recommendations refresh -> first recommendation bookmark -> bookmarked service apply_end_date 강제 조정 -> deadline-test-dispatch -> notifications/user_alerts delta` 를 한 번에 검증합니다.
+현재는 host shell 날짜가 아니라 **DB `CURRENT_DATE + days`** 기준으로 `apply_end_date` 를 맞춥니다. app/DB 날짜와 host 날짜가 하루 어긋난 상태에서도 `NO_CANDIDATES` 오탐을 줄이기 위한 기준입니다.
 
 전제:
 
