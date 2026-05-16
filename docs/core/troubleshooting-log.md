@@ -4217,3 +4217,8 @@
 - 문제: `NO_PRIORITY_TOP_BAND=0.15` 이후에도 `24명` 표본은 `2622 14`, `2571 10`, leader share `58.33%` 였고, bonus/penalty를 더 키우는 실험은 `62.5%` 로 오히려 악화됐다. 이 상태에선 rerank 수치만 더 밀어도 `2622 -> 2571` 처럼 leader만 바뀌고 집중 자체는 남을 가능성이 컸다.
 - 해결: `deploy/smoke/run-local-no-priority-candidate-audit.sh` 를 추가해 no-priority 새 사용자 표본의 top5 source/category/rule/AI/final 분포를 같이 보게 했다. 현재 8명 기준 결과는 rank1/2 `BOKJIRO_CENTRAL`, rank3 `BOKJIRO_LOCAL`, rank4/5 `GOV24` 고정이며, 대표 서비스는 `2622(rule=23, ai=90, final=1.0365)`, `2571(rule=23, ai=77.5, final=0.974)`, `3689(rule=23, ai=5, final=0.7505)` 였다.
 - 이유: 같은 `ruleWeightedScore=23` peer가 이미 여러 source/category에 존재해도, 실제 top1은 그중 `AI 점수 차이` 로 거의 정해지고 있었다. 그래서 다음 단계는 회전 인덱스를 더 비트는 게 아니라 `왜 thin/no-priority에서 AI가 이 정도로 강하게 순서를 결정하는지`, 그리고 retrieval 상위 rank를 source/category 기준으로 어떻게 읽어야 하는지부터 보는 편이 맞다.
+
+## 787) no-priority top band를 category bucket으로 나눴더라도, 같은 bucket 안 대표 service를 고정해 두면 결국 `2571/2622` 두 정책으로만 갈라질 수 있다
+- 문제: candidate audit 이후에도 `24명` 표본 top1은 `2622 14 / 2571 10` 으로만 갈라졌고, `3689(BOKJIRO_LOCAL)` 는 same `금융·생활지원` bucket 안에 있어도 top1로는 한 번도 안 올라왔다. 원인은 `reorderNoPriorityTopBand()` 가 preferred bucket을 고른 뒤 그 bucket의 첫 candidate만 대표로 쓰고 있었기 때문이다.
+- 해결: preferred `category` bucket 안 candidate가 여러 개면, 그 안에서도 user key 기준으로 대표 service를 회전시키게 바꿨다. 같은 로컬 smoke `24명` 표본은 `2622 13 / 2571 11`, leader share `54.17%` 로 이전 `58.33%` 보다 소폭 낮아졌다.
+- 이유: 이건 `seed` 를 억지로 바꾸는 추측 실험보다, 실제 코드가 bucket 내부를 전혀 안 갈라주고 있었다는 명확한 구조 문제였다. 다만 결과가 보여주듯 이 변화만으로 `BOKJIRO_LOCAL` 후보가 top1까지 오르진 않았으므로, 현재 평가는 "집중 완화는 소폭 성공, source 다양화는 아직 미해결" 이다.

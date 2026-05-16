@@ -257,6 +257,54 @@ class ReRankingServiceTest {
                 .isEqualTo(51L);
     }
 
+    @Test
+    @DisplayName("같은 no-priority category bucket 안에 source가 여러 개면 bucket 대표도 user key 기준으로 회전시킨다")
+    void rerankRotatesRepresentativeInsideNoPriorityBucket() {
+        ReRankingService reRankingService = new ReRankingService(
+                new ScoreNormalizer(),
+                scoreWeightService,
+                new RecommendationDiversityService()
+        );
+
+        when(scoreWeightService.getActiveWeight()).thenReturn(ScoreWeight.builder()
+                .weightKey("COLD_START")
+                .ruleWeight(BigDecimal.valueOf(0.8))
+                .aiWeight(BigDecimal.valueOf(0.2))
+                .minLogCount(0)
+                .isActive(true)
+                .build());
+
+        ScoredCandidate housingTop = candidate(
+                service(61L, WelfareService.SourceType.BOKJIRO_CENTRAL, "주거", LocalDate.now().plusDays(20), 100, 1000L, LocalDateTime.of(2026, 1, 1, 0, 0)),
+                100.0,
+                null
+        );
+        ScoredCandidate financeCentral = candidate(
+                service(62L, WelfareService.SourceType.BOKJIRO_CENTRAL, "금융·생활지원", LocalDate.now().plusDays(20), 100, 1000L, LocalDateTime.of(2026, 1, 1, 0, 0)),
+                98.0,
+                null
+        );
+        ScoredCandidate financeLocal = candidate(
+                service(63L, WelfareService.SourceType.BOKJIRO_LOCAL, "금융·생활지원", LocalDate.now().plusDays(20), 100, 1000L, LocalDateTime.of(2026, 1, 1, 0, 0)),
+                97.0,
+                null
+        );
+
+        List<ScoredCandidate> rankedForUserB = reRankingService.rerank(
+                List.of(housingTop, financeCentral, financeLocal),
+                noPrioritySnapshot("user-b")
+        );
+        List<ScoredCandidate> rankedForUserD = reRankingService.rerank(
+                List.of(housingTop, financeCentral, financeLocal),
+                noPrioritySnapshot("user-d")
+        );
+
+        assertThat(rankedForUserB.get(0).getService().getId())
+                .isEqualTo(63L);
+        assertThat(rankedForUserD.get(0).getService().getId())
+                .isEqualTo(62L);
+    }
+
     private ScoredCandidate candidate(WelfareService service,
                                       double ruleWeightedScore,
                                       Double aiScore,

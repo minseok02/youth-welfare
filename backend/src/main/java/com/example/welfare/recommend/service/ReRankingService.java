@@ -194,7 +194,8 @@ public class ReRankingService {
         List<String> orderedBuckets = new ArrayList<>(buckets.keySet());
         int preferredBucketIndex = Math.floorMod(snapshot.userKey().chars().sum(), orderedBuckets.size());
         String preferredBucket = orderedBuckets.get(preferredBucketIndex);
-        ScoredCandidate preferredCandidate = buckets.get(preferredBucket).get(0);
+        List<ScoredCandidate> preferredBucketCandidates = buckets.get(preferredBucket);
+        ScoredCandidate preferredCandidate = selectPreferredBucketCandidate(preferredBucketCandidates, snapshot.userKey());
         Long topCandidateId = eligible.get(0).getService().getId();
         Long preferredId = preferredCandidate.getService().getId();
         if (preferredId != null && preferredId.equals(topCandidateId)) {
@@ -238,6 +239,17 @@ public class ReRankingService {
             return "기타";
         }
         return raw.trim();
+    }
+
+    private ScoredCandidate selectPreferredBucketCandidate(List<ScoredCandidate> bucketCandidates, String userKey) {
+        if (bucketCandidates == null || bucketCandidates.isEmpty()) {
+            throw new IllegalArgumentException("bucketCandidates must not be empty");
+        }
+        if (bucketCandidates.size() == 1) {
+            return bucketCandidates.get(0);
+        }
+        int preferredIndex = Math.floorMod(userKey.chars().sum(), bucketCandidates.size());
+        return bucketCandidates.get(preferredIndex);
     }
 
     private double adjustedAiWeight(ScoreWeight weight, ScoredCandidate candidate) {

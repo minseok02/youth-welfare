@@ -225,7 +225,13 @@ CTR readiness와 별개로, 최신 `user_recommendations` batch 자체도 현재
 - `2622 청년월세 지원사업` `4 / 8`
 - leader share `50.0%`
 
-즉 최근 no-priority top band 조정은 **새 refresh 표본에는 분산 효과가 보이기 시작했지만**, 저장 추천 전체 batch는 아직 `CONCENTRATED_TOP1` 상태로 읽는 것이 맞습니다.
+후속으로 같은 `금융·생활지원` bucket 안의 service 대표도 user key 기준으로 회전시키자, `24명` no-priority 표본은 아래처럼 다시 측정됐습니다.
+
+- `2622 청년월세 지원사업` `13 / 24`
+- `2571 청년내일저축계좌` `11 / 24`
+- leader share `54.17%`
+
+즉 최근 no-priority 조정은 **새 refresh 표본의 top1 집중을 조금씩 낮추고는 있지만**, 저장 추천 전체 batch는 아직 `CONCENTRATED_TOP1` 상태로 읽는 것이 맞습니다.
 
 - `HAS_PRIORITY` 사용자 `20`
 - `NO_PRIORITY` 사용자 `112`
@@ -233,7 +239,7 @@ CTR readiness와 별개로, 최신 `user_recommendations` batch 자체도 현재
 - 같은 `NO_PRIORITY` 구간에서 `청년 웰컴페이(이사비) 지원사업(3611)` 도 `32명`의 top1까지 올라와, 최근 완화 로직이 신규/최근 refresh 사용자에선 실제로 분산을 만들고 있습니다.
 - `HAS_PRIORITY` 쪽에서는 `드림나래(3688)` `12명`, `청년월세 지원사업(YOUTH 1411)` `5명` 등 일부 차이가 보입니다.
 
-즉 현재 병목은 `priority 미반영` 보다는 **diversity / fallback / balancing 약함** 쪽으로 해석하는 편이 맞습니다.
+다만 no-priority candidate audit 기준 top5 source rank는 아직 `BOKJIRO_CENTRAL -> BOKJIRO_CENTRAL -> BOKJIRO_LOCAL -> GOV24 -> GOV24` 로 고정되고, top1도 여전히 `2571/2622` 둘 사이에서만 갈라집니다. 즉 현재 병목은 `priority 미반영` 보다는 **same rule peer 안에서 AI 차이가 top1을 결정하고, 같은 category bucket 안 local/source 후보가 뒤로 밀리는 구조** 쪽으로 해석하는 편이 맞습니다.
 최근 no-priority retrieval pool 재배열과 top-band rotation 이후에도 overall 판정은 아직 `CONCENTRATED_TOP1` 이므로, 효과는 “분산 시작” 수준으로 보고 추가 보정 여부를 계속 판단해야 합니다.
 
 ### 5. fresh reset 뒤 collect/replay 전제
