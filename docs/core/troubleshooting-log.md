@@ -4187,3 +4187,8 @@
 - 문제: 서버에서 `sendDailyDeadlineReminders()` 를 직접 태워 보니, 기존 manual smoke 사용자의 `deadline:{userKey}:{date}:{days}` row가 이미 있을 때 `uq_noti_dispatch_key` 중복이 `UnexpectedRollbackException` 으로 전파됐다. runtime entry는 lock까지 정상 진입했지만, 첫 충돌 대상에서 loop 전체가 끊겨 summary log도 남지 않고 이번 테스트 사용자 dispatch까지 도달하지 못했다.
 - 해결: `NotificationHistoryCommandRepository.reserveNotification()` 를 `notificationRepository.save(...)` + 예외 catch 방식에서 Postgres native `insert into notifications ... on conflict (dispatch_key) do nothing` 경계로 바꿨다. insert row count가 `0` 이면 `Optional.empty()` 를 반환하고, `1` 이면 `findByDispatchKey(...)` 로 이어서 기존 `reservationConflict` 흐름을 그대로 탄다. `NotificationScheduleServiceTest` 에도 conflict 대상 뒤 다음 DAILY 대상까지 계속 처리하는 케이스를 추가했다.
 - 이유: scheduler/runtime 경계에서 duplicate dispatch는 "예외"가 아니라 "이미 보낸 대상이라 skip" 으로 처리돼야 한다. 그래야 기존 사용자의 과거 row 때문에 현재 대상 전체가 막히지 않고, manual baseline과 runtime baseline을 같은 dispatch key 규칙 아래에서 공존시킬 수 있다.
+
+## 781) 서버 runtime smoke에서 반복적으로 보이는 Hibernate dialect 경고는 기능 버그가 아니라 설정 drift이므로, explicit dialect를 제거해 로그 노이즈를 줄인다
+- 문제: `sendDailyDeadlineReminders()` 서버 검증은 통과했지만, 별도 invoker Spring context 부팅 중 `HHH90000025: PostgreSQLDialect does not need to be specified explicitly` WARN 이 매번 남았다. 기능 실패는 아니지만 runtime smoke 로그를 읽을 때 알림 관련 경고처럼 섞여 들어와 노이즈가 컸다.
+- 해결: `application.yml` 에서 `hibernate.dialect=org.hibernate.dialect.PostgreSQLDialect` 를 제거했다. 현재 드라이버/DB URL 조합이면 Hibernate 6가 dialect를 스스로 고르고, explicit 설정이 없어도 `ddl-auto=validate` 기준 동작은 유지된다.
+- 이유: 이런 종류의 framework deprecation WARN 은 실제 기능 회귀와 섞이면 smoke reading 비용만 높인다. 동작이 같다면 설정 drift를 먼저 걷어내는 편이 이후 서버/runtime 검증 신호대잡음을 높인다.
