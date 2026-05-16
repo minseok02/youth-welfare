@@ -26,6 +26,7 @@
 - `bash deploy/smoke/run-local-ctr-readiness-audit.sh`
 - `bash deploy/smoke/run-local-recommendation-concentration-audit.sh`
 - `bash deploy/smoke/run-local-no-priority-top1-sample.sh`
+- `bash deploy/smoke/run-local-no-priority-candidate-audit.sh`
 
 ### 같이 보면 좋은 기준 문서
 
@@ -101,6 +102,8 @@
 를 한 번에 읽는 audit/runbook 입니다.
 
 새 no-priority 코드 변경이 **다음 refresh 표본**에 실제로 먹는지 보려면 `bash deploy/smoke/run-local-no-priority-top1-sample.sh` 를 같이 봅니다.
+
+후보군 자체가 왜 `BOKJIRO_CENTRAL` / `GOV24` / `BOKJIRO_LOCAL` 순으로 들어오는지 보려면 `bash deploy/smoke/run-local-no-priority-candidate-audit.sh` 로 top5 source/category/rule/AI 분포를 먼저 봅니다.
 
 ### 6. replay 템플릿
 

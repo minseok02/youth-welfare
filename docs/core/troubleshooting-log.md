@@ -4212,3 +4212,8 @@
 - 문제: 새 no-priority 사용자 `8명` bounded smoke를 처음 다시 태우자 top1이 `2622 7/8 (87.5%)` 로 거의 그대로였다. DB에서 같은 표본의 상위 5개를 직접 보니 대표 패턴은 `2622=1.025`, `2571=0.880`, `6790=0.681` 같은 식이었고, 기존 `NO_PRIORITY_TOP_BAND=0.07` 에서는 `2622` 와 `2571` 차이 `0.12~0.145` 가 band 밖으로 밀려 top-band 회전 자체가 거의 안 걸렸다.
 - 해결: `ReRankingService` 의 `NO_PRIORITY_TOP_BAND` 를 `0.07 -> 0.15` 로 넓히고, 같은 smoke를 app 재기동 뒤 다시 실행했다. 새 표본 top1은 `2571 4/8`, `2622 4/8`, leader share `50.0%` 로 갈라졌고, `ReRankingServiceTest`, `RecommendationGenerationServiceTest` 도 다시 통과시켰다.
 - 이유: 이건 추측이 아니라 실제 후보 점수폭과 threshold 불일치 문제였다. retrieval pool을 더 건드리기 전에, 우선 rerank 분산 규칙이 현실적인 점수차 범위 안에서 발동하도록 band부터 맞추는 게 맞다.
+
+## 786) no-priority top1이 `2571/2622` 둘로만 갈라진다면, 더 만져야 할 곳은 회전 규칙보다 후보군 rank별 구성과 AI 차이 쪽이다
+- 문제: `NO_PRIORITY_TOP_BAND=0.15` 이후에도 `24명` 표본은 `2622 14`, `2571 10`, leader share `58.33%` 였고, bonus/penalty를 더 키우는 실험은 `62.5%` 로 오히려 악화됐다. 이 상태에선 rerank 수치만 더 밀어도 `2622 -> 2571` 처럼 leader만 바뀌고 집중 자체는 남을 가능성이 컸다.
+- 해결: `deploy/smoke/run-local-no-priority-candidate-audit.sh` 를 추가해 no-priority 새 사용자 표본의 top5 source/category/rule/AI/final 분포를 같이 보게 했다. 현재 8명 기준 결과는 rank1/2 `BOKJIRO_CENTRAL`, rank3 `BOKJIRO_LOCAL`, rank4/5 `GOV24` 고정이며, 대표 서비스는 `2622(rule=23, ai=90, final=1.0365)`, `2571(rule=23, ai=77.5, final=0.974)`, `3689(rule=23, ai=5, final=0.7505)` 였다.
+- 이유: 같은 `ruleWeightedScore=23` peer가 이미 여러 source/category에 존재해도, 실제 top1은 그중 `AI 점수 차이` 로 거의 정해지고 있었다. 그래서 다음 단계는 회전 인덱스를 더 비트는 게 아니라 `왜 thin/no-priority에서 AI가 이 정도로 강하게 순서를 결정하는지`, 그리고 retrieval 상위 rank를 source/category 기준으로 어떻게 읽어야 하는지부터 보는 편이 맞다.
