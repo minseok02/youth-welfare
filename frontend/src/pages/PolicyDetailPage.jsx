@@ -270,6 +270,20 @@ export default function PolicyDetailPage() {
       });
   }, [policy?.tags]);
 
+  const gov24MetaTags = useMemo(() => {
+    if (policy?.sourceType !== "GOV24") return [];
+    return [
+      policy?.gov24ServiceFieldLabel && `분야 ${policy.gov24ServiceFieldLabel}`,
+      policy?.gov24UserTypeLabel && `대상 ${policy.gov24UserTypeLabel}`,
+      policy?.gov24BenefitTypeLabel && `유형 ${policy.gov24BenefitTypeLabel}`,
+    ].filter(Boolean);
+  }, [
+    policy?.sourceType,
+    policy?.gov24BenefitTypeLabel,
+    policy?.gov24ServiceFieldLabel,
+    policy?.gov24UserTypeLabel,
+  ]);
+
   useEffect(() => {
     if (!detailTabs.some((tab) => tab.id === activeTab)) {
       setActiveTab(detailTabs[0]?.id ?? "intro");
@@ -540,6 +554,15 @@ export default function PolicyDetailPage() {
                   {regionText && <span>📍 {regionText}</span>}
                   {policy.viewCount != null && <span>👀 {policy.viewCount.toLocaleString()}명이 봤어요</span>}
                 </div>
+                {gov24MetaTags.length > 0 && (
+                  <div style={{ display: "flex", gap: 8, marginTop: 16, flexWrap: "wrap" }}>
+                    {gov24MetaTags.map((tag) => (
+                      <Tag key={tag} bg="#eef7f1" color="#166534" border="#bbf7d0">
+                        {tag}
+                      </Tag>
+                    ))}
+                  </div>
+                )}
               </header>
 
               {/* Summary grid */}

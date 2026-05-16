@@ -4247,3 +4247,8 @@
 - 문제: surface audit에서 fresh recommendation topN의 Gov24 비중은 보이지만, 그 수치만으로는 Gov24가 정말 약한지, 아니면 단지 상위 몇 위에서 밀리는지 해석하기 어렵다. 특히 `recommend_topn_gov24=1/10` 같은 단일 샘플은 latest batch 전체 분포를 대변하지 못한다.
 - 해결: `deploy/smoke/run-local-gov24-recommend-surface-audit.sh` 를 추가해 latest recommendation batch를 `final_score DESC` 기준 top10으로 다시 rank 계산하고, Gov24 share를 `top1/top2/top3/top5/top10`, rank별 source 분포, Gov24 상위 서비스 concentration, Gov24 rank별 category 분포로 함께 출력하게 했다. 현재 local baseline은 `top10_gov24_share_pct=30.60`, `top1_gov24_share_pct=0.13`, `top2_gov24_share_pct=0.35`, `top3_gov24_share_pct=7.05`, `top5_gov24_share_pct=25.54` 이고, 대표 Gov24 서비스는 `6790=331`, `5728=313` 이다.
 - 이유: 이 결과는 Gov24가 추천에 "아예 안 보인다"가 아니라, **latest batch 전체 top10에는 충분히 들어오지만 top1/2 경쟁에서는 거의 못 이기고 rank3~6에 몰린다**는 뜻이다. 그래서 다음 단계는 Gov24를 억지로 더 넣는 것보다, 왜 top1/2에서 `BOKJIRO_CENTRAL` 이 지속 우세한지 retrieval/rerank/AI 쪽을 같이 읽는 편이 맞다.
+
+## 793) Gov24 summary label이 detail 응답에만 있어도 화면 상단에 안 보이면, backfill이 먹었는지 사용자 기준으로는 체감이 약하다
+- 문제: `gov24ServiceFieldLabel/userTypeLabel/benefitTypeLabel` 은 detail 응답에 내려오지만, `PolicyDetailPage` 에서는 source badge만 있고 Gov24 전용 메타는 본문 아래나 원문을 뒤져야 확인할 수 있었다. 그래서 `gov24-sidecars-backfill` 로 slot gap을 메워도, 실제 화면에선 "달라진 게 없다"고 느끼기 쉬웠다.
+- 해결: `PolicyDetailPage` 상단 header에 Gov24 전용 badge 묶음을 추가해 `분야 {gov24ServiceFieldLabel}`, `대상 {gov24UserTypeLabel}`, `유형 {gov24BenefitTypeLabel}` 을 제목 바로 아래에 노출했다. Gov24가 아닌 source에는 아무 변화가 없고, 기존 lint/build도 그대로 통과시켰다.
+- 이유: 이번 Gov24 작업은 단순 수집 closeout이 아니라 사용자 화면 가시화까지 닫는 게 목적이었다. detail summary label이 채워졌다면 화면 최상단에서도 바로 보여야 backfill 효과를 검증하고 체감하기 쉽다.
