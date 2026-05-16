@@ -302,6 +302,10 @@ export default function PolicyDetailPage() {
     policy?.gov24ServiceFieldLabel,
     policy?.gov24UserTypeLabel,
   ]);
+  const statusLabel = policy ? formatStatusLabel(policy.status, policy.applyEndDate) : "";
+  const regionText = policy?.sido
+    || policy?.regions?.filter(r => !/^\d+$/.test(r))?.join(", ")
+    || "";
 
   useEffect(() => {
     if (!detailTabs.some((tab) => tab.id === activeTab)) {
@@ -436,10 +440,6 @@ export default function PolicyDetailPage() {
     }
   };
 
-  const statusLabel = policy ? formatStatusLabel(policy.status, policy.applyEndDate) : "";
-  const regionText = policy?.sido
-    || policy?.regions?.filter(r => !/^\d+$/.test(r))?.join(", ")
-    || "";
   const backTarget = location.state?.from;
   const chatFromTarget = location.state?.chatFrom?.pathname === "/chat"
     ? location.state.chatFrom
