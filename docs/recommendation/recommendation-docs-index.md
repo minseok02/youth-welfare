@@ -28,6 +28,7 @@
 - `bash deploy/smoke/run-local-no-priority-top1-sample.sh`
 - `bash deploy/smoke/run-local-no-priority-candidate-audit.sh`
 - `bash deploy/smoke/run-local-gov24-recommend-surface-audit.sh`
+- `bash deploy/smoke/run-local-gov24-recommend-score-audit.sh`
 
 ### 같이 보면 좋은 기준 문서
 
@@ -107,6 +108,8 @@
 후보군 자체가 왜 `BOKJIRO_CENTRAL` / `GOV24` / `BOKJIRO_LOCAL` 순으로 들어오는지 보려면 `bash deploy/smoke/run-local-no-priority-candidate-audit.sh` 로 top5 source/category/rule/AI 분포를 먼저 봅니다.
 
 Gov24가 추천에 "안 보이는지"보다 "몇 위에서 어떤 서비스로 뜨는지"를 보려면 `bash deploy/smoke/run-local-gov24-recommend-surface-audit.sh` 로 top1/top3/top5/top10 Gov24 share, rank별 source 분포, Gov24 상위 서비스 concentration을 같이 봅니다.
+
+Gov24가 왜 top1/2에서 약한지 더 좁히려면 `bash deploy/smoke/run-local-gov24-recommend-score-audit.sh` 로 latest batch 기준 source별 `avg rule_weighted_score / avg ai_score / avg final_score` 를 top2/top10/rank별로 같이 봅니다.
 
 ### 6. replay 템플릿
 

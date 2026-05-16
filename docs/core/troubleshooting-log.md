@@ -4252,3 +4252,8 @@
 - 문제: `gov24ServiceFieldLabel/userTypeLabel/benefitTypeLabel` 은 detail 응답에 내려오지만, `PolicyDetailPage` 에서는 source badge만 있고 Gov24 전용 메타는 본문 아래나 원문을 뒤져야 확인할 수 있었다. 그래서 `gov24-sidecars-backfill` 로 slot gap을 메워도, 실제 화면에선 "달라진 게 없다"고 느끼기 쉬웠다.
 - 해결: `PolicyDetailPage` 상단 header에 Gov24 전용 badge 묶음을 추가해 `분야 {gov24ServiceFieldLabel}`, `대상 {gov24UserTypeLabel}`, `유형 {gov24BenefitTypeLabel}` 을 제목 바로 아래에 노출했다. Gov24가 아닌 source에는 아무 변화가 없고, 기존 lint/build도 그대로 통과시켰다.
 - 이유: 이번 Gov24 작업은 단순 수집 closeout이 아니라 사용자 화면 가시화까지 닫는 게 목적이었다. detail summary label이 채워졌다면 화면 최상단에서도 바로 보여야 backfill 효과를 검증하고 체감하기 쉽다.
+
+## 794) Gov24 recommendation surface는 local과 server가 꽤 다를 수 있으므로, "안 뜨는지"와 "상위에서 못 이기는지"를 분리해서 읽어야 한다
+- 문제: local baseline에서는 Gov24가 latest batch `top10 share=30.60%` 로 꽤 많이 보였지만, 서버에서 같은 `run-local-gov24-recommend-surface-audit.sh` 를 돌리니 `top10_gov24_share_pct=12.91`, `top5=4.60`, `top3=0.88`, `top2=0.22` 로 훨씬 약했다. 이 상태를 "Gov24가 안 뜬다"고 읽으면 과장이고, 실제로는 `rank1=7`, `rank2=1`, `rank6=12`, `rank10=17` 처럼 후순위 슬롯에는 계속 나타난다.
+- 해결: server baseline을 문서에 따로 고정하고, 다음 단계용으로 `deploy/smoke/run-local-gov24-recommend-score-audit.sh` 를 추가해 latest batch의 source별 `avg rule_weighted_score / avg ai_score / avg final_score` 를 top2/top10/rank별로 같이 보게 했다.
+- 이유: Gov24 추천 병목은 visibility 부재가 아니라 rank competitiveness 문제에 가깝다. 그래서 다음 조사도 "더 넣자"가 아니라 "same latest batch에서 Gov24가 rule에서 지는지, AI에서 지는지, final score에서 지는지"를 읽는 식으로 가야 한다.
