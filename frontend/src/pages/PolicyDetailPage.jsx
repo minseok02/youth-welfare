@@ -598,7 +598,10 @@ export default function PolicyDetailPage() {
             </button>
           </div>
         ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: 36, alignItems: "flex-start" }}>
+          <div
+            className="policy-detail-layout"
+            style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 340px", gap: 36, alignItems: "flex-start" }}
+          >
             <main>
               {/* Detail Header */}
               <header style={{ padding: "12px 0 28px", borderBottom: `1px solid ${LINE}` }}>
@@ -660,7 +663,10 @@ export default function PolicyDetailPage() {
               </section>
 
               {/* Tab bar */}
-              <div style={{ display: "flex", gap: 4, borderBottom: `1px solid ${LINE}`, position: "sticky", top: 60, background: BG, zIndex: 10, padding: "8px 0 0" }}>
+              <div
+                className="policy-detail-tabbar"
+                style={{ display: "flex", gap: 4, borderBottom: `1px solid ${LINE}`, position: "sticky", top: 60, background: BG, zIndex: 10, padding: "8px 0 0" }}
+              >
                 {detailTabs.map(t => (
                   <button key={t.id} onClick={() => scrollToSection(t.id)} style={{
                     padding: "14px 22px", background: "transparent", border: 0,
@@ -724,7 +730,7 @@ export default function PolicyDetailPage() {
 
               <ContentSection id="contact" title="문의처">
                 {contacts.length > 0 ? (
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12 }}>
+                  <div className="policy-detail-contact-grid" style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12 }}>
                     {contacts.map((c, i) => (
                       <div key={i} style={{ background: WHITE, border: `1px solid ${LINE}`, borderRadius: 10, padding: "12px 14px" }}>
                         {c.name && <div style={{ fontSize: 13, fontWeight: 700, color: INK }}>{c.name}</div>}
@@ -827,7 +833,7 @@ export default function PolicyDetailPage() {
                       더 보기 →
                     </span>
                   </div>
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14 }}>
+                  <div className="policy-detail-related-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14 }}>
                     {related.map(p => {
                       const dday = formatDday(p.applyEndDate, p.status);
                       const urgent = dday !== "종료" && dday !== "상시/문의" && dday !== "예정"
@@ -864,7 +870,7 @@ export default function PolicyDetailPage() {
             </main>
 
             {/* Sidebar */}
-            <aside style={{ position: "sticky", top: 76 }}>
+            <aside className="policy-detail-aside" style={{ position: "sticky", top: 76 }}>
               <div style={{ background: WHITE, border: `1px solid ${LINE}`, borderRadius: 16, padding: 24, boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}>
                 {ddayInfo && ddayInfo.daysLeft !== null && ddayInfo.daysLeft >= 0 ? (
                   <>
@@ -1022,6 +1028,34 @@ export default function PolicyDetailPage() {
         <Alert severity={toast.severity}>{toast.msg}</Alert>
       </Snackbar>
       <FloatingNav />
+      <style>{`
+        @media (max-width: 980px) {
+          .policy-detail-layout {
+            grid-template-columns: minmax(0, 1fr) !important;
+          }
+
+          .policy-detail-aside {
+            position: static !important;
+            top: auto !important;
+          }
+
+          .policy-detail-related-grid,
+          .policy-detail-contact-grid {
+            grid-template-columns: 1fr !important;
+          }
+        }
+
+        @media (max-width: 640px) {
+          .policy-detail-tabbar {
+            overflow-x: auto;
+            scrollbar-width: none;
+          }
+
+          .policy-detail-tabbar::-webkit-scrollbar {
+            display: none;
+          }
+        }
+      `}</style>
     </div>
   );
 }
