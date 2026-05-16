@@ -4222,3 +4222,8 @@
 - 문제: candidate audit 이후에도 `24명` 표본 top1은 `2622 14 / 2571 10` 으로만 갈라졌고, `3689(BOKJIRO_LOCAL)` 는 same `금융·생활지원` bucket 안에 있어도 top1로는 한 번도 안 올라왔다. 원인은 `reorderNoPriorityTopBand()` 가 preferred bucket을 고른 뒤 그 bucket의 첫 candidate만 대표로 쓰고 있었기 때문이다.
 - 해결: preferred `category` bucket 안 candidate가 여러 개면, 그 안에서도 user key 기준으로 대표 service를 회전시키게 바꿨다. 같은 로컬 smoke `24명` 표본은 `2622 13 / 2571 11`, leader share `54.17%` 로 이전 `58.33%` 보다 소폭 낮아졌다.
 - 이유: 이건 `seed` 를 억지로 바꾸는 추측 실험보다, 실제 코드가 bucket 내부를 전혀 안 갈라주고 있었다는 명확한 구조 문제였다. 다만 결과가 보여주듯 이 변화만으로 `BOKJIRO_LOCAL` 후보가 top1까지 오르진 않았으므로, 현재 평가는 "집중 완화는 소폭 성공, source 다양화는 아직 미해결" 이다.
+
+## 788) 추천 실험 뒤 broader local 회귀를 같은 앱/DB에서 다시 묶어 돌려야, 알림 경계와 replay 경계가 서로 안 깨졌는지 확인할 수 있다
+- 문제: 이번 라운드에서 추천 편중 실험과 알림 기능이 모두 누적돼 있었기 때문에, 개별 smoke만 green이어도 `full validation`, 알림 채널 분기, deadline reminder 경계가 한 앱 상태에서 다시 붙는지 확인이 필요했다. 특히 추천 refresh/replay 경계와 알림 digest/deadline dispatch 경계는 같은 `user_recommendations`, `notifications`, `user_alerts` 를 같이 건드리므로 순차 실행 기준선이 중요했다.
+- 해결: `bash deploy/smoke/run-local-validation-from-env.sh --full` 을 다시 태워 `suite_duration_seconds=72` 로 통과시키고, 같은 앱 상태에서 `bash deploy/smoke/run-local-notification-channel-smoke.sh`, `bash deploy/smoke/run-local-deadline-reminder-smoke.sh` 를 연속 실행해 둘 다 green 임을 확인했다.
+- 이유: 이건 새 기능 추가가 아니라 회귀 확인이다. 추천 실험을 여러 번 반복한 뒤엔 "알림도 아직 붙어 있는가"를 같은 런타임에서 다시 보는 편이 안전하고, 지금 기준선은 `full validation green + notification channel smoke green + deadline reminder smoke green` 이다.
