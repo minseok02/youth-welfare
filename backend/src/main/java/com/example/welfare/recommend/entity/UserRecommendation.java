@@ -49,6 +49,11 @@ public class UserRecommendation extends BaseTimeEntity {
     @Column(length = 500)
     private String aiReason;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 30)
+    @Builder.Default
+    private AiScoreStatus aiStatus = AiScoreStatus.NOT_REQUESTED;
+
     private BigDecimal ruleWeightUsed;
     private BigDecimal aiWeightUsed;
 
@@ -60,9 +65,10 @@ public class UserRecommendation extends BaseTimeEntity {
     @Builder.Default
     private boolean isBookmarked = false;
 
-    public void updateAiScore(BigDecimal aiScore, String aiReason) {
+    public void updateAiScore(BigDecimal aiScore, String aiReason, AiScoreStatus aiStatus) {
         this.aiScore = aiScore;
         this.aiReason = aiReason;
+        this.aiStatus = aiStatus;
     }
 
     public void updateFinalScore(BigDecimal finalScore, BigDecimal ruleWeight, BigDecimal aiWeight) {

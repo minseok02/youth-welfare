@@ -32,6 +32,7 @@ public class RecommendationResponse {
     private LocalDate applyEndDate;
     private BigDecimal finalScore;
     private BigDecimal aiScore;     // null 가능
+    private String aiStatus;        // null 아님
     private String aiReason;        // null 가능
     private boolean isBookmarked;
     private LocalDateTime recommendedAt;
@@ -75,6 +76,7 @@ public class RecommendationResponse {
                 .applyEndDate(rec.getService().getApplyEndDate())
                 .finalScore(rec.getFinalScore())
                 .aiScore(rec.getAiScore())
+                .aiStatus(rec.getAiStatus().name())
                 .aiReason(rec.getAiReason())
                 .isBookmarked(rec.isBookmarked())
                 .recommendedAt(rec.getRecommendedAt())

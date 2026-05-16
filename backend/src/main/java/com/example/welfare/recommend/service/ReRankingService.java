@@ -2,6 +2,7 @@ package com.example.welfare.recommend.service;
 
 import com.example.welfare.recommend.dto.ScoredCandidate;
 import com.example.welfare.recommend.dto.RecommendationUserSnapshot;
+import com.example.welfare.recommend.entity.AiScoreStatus;
 import com.example.welfare.recommend.entity.ScoreWeight;
 import com.example.welfare.policy.entity.WelfareService;
 import lombok.RequiredArgsConstructor;
@@ -51,7 +52,7 @@ public class ReRankingService {
                     double finalScore;
                     boolean fallback;
 
-                    if (candidate.getAiScore() != null) {
+                    if (candidate.getAiStatus() == AiScoreStatus.SCORED && candidate.getAiScore() != null) {
                         double normAi = normalizer.normalize(candidate.getAiScore(), 0.0, 100.0);
                         double adjustedAiWeight = adjustedAiWeight(weight, candidate);
                         double adjustedRuleWeight = weight.getRuleWeight().doubleValue()

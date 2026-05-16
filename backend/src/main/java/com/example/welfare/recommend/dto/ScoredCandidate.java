@@ -1,5 +1,6 @@
 package com.example.welfare.recommend.dto;
 
+import com.example.welfare.recommend.entity.AiScoreStatus;
 import com.example.welfare.policy.entity.WelfareService;
 import lombok.Builder;
 import lombok.Getter;
@@ -20,6 +21,9 @@ public class ScoredCandidate {
 
     private final Double aiScore;     // NULL 가능 (AI 미실행 또는 실패)
 
+    @Builder.Default
+    private final AiScoreStatus aiStatus = AiScoreStatus.NOT_REQUESTED;
+
     private final String aiReason;
 
     private final double finalScore;
@@ -34,10 +38,17 @@ public class ScoredCandidate {
 
     private final boolean hasSpecialTargetMismatch; // true = 특수 대상 불일치 페널티 적용됨
 
-    public ScoredCandidate withAiResult(Double updatedAiScore, String updatedAiReason) {
+    public ScoredCandidate withAiResult(Double updatedAiScore, String updatedAiReason, AiScoreStatus updatedAiStatus) {
         return this.toBuilder()
                 .aiScore(updatedAiScore)
+                .aiStatus(updatedAiStatus)
                 .aiReason(updatedAiReason)
+                .build();
+    }
+
+    public ScoredCandidate withAiStatus(AiScoreStatus updatedAiStatus) {
+        return this.toBuilder()
+                .aiStatus(updatedAiStatus)
                 .build();
     }
 

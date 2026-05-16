@@ -2,6 +2,7 @@ package com.example.welfare.recommend.service;
 
 import com.example.welfare.recommend.dto.RecommendationUserSnapshot;
 import com.example.welfare.recommend.dto.ScoredCandidate;
+import com.example.welfare.recommend.entity.AiScoreStatus;
 import com.example.welfare.recommend.gateway.AiRecommendationGateway;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -50,7 +51,7 @@ public class AiScoringService {
                         if (cached == null) {
                             return candidate;
                         }
-                        return candidate.withAiResult(cached.aiScore().doubleValue(), cached.aiReason());
+                        return candidate.withAiResult(cached.aiScore().doubleValue(), cached.aiReason(), AiScoreStatus.SCORED);
                     })
                     .toList();
         }

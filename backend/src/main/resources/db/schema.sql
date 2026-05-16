@@ -501,6 +501,7 @@ CREATE TABLE IF NOT EXISTS user_recommendations (
     rule_weighted_score DECIMAL(7, 2),
     ai_score            DECIMAL(5, 2),
     ai_reason           VARCHAR(500),
+    ai_status           VARCHAR(30) NOT NULL DEFAULT 'NOT_REQUESTED',
     rule_weight_used    DECIMAL(3, 2),
     ai_weight_used      DECIMAL(3, 2),
     final_score         DECIMAL(6, 5) NOT NULL DEFAULT 0,

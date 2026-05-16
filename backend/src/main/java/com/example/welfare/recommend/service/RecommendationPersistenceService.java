@@ -46,6 +46,7 @@ public class RecommendationPersistenceService {
                         .ruleWeightedScore(BigDecimal.valueOf(c.getRuleWeightedScore()))
                         .aiScore(c.getAiScore() != null ? BigDecimal.valueOf(c.getAiScore()) : null)
                         .aiReason(c.getAiReason())
+                        .aiStatus(c.getAiStatus())
                         .ruleWeightUsed(weight.getRuleWeight())
                         .aiWeightUsed(weight.getAiWeight())
                         .finalScore(BigDecimal.valueOf(c.getFinalScore()))

@@ -4272,3 +4272,8 @@
 - 문제: server null-AI audit 결과 `gov24_null_ai_top2_count=8` 이라서, 상위 Gov24 후보도 AI 미적용 상태로 올라오는 문제가 드러났다. 하지만 코드상 `ai_score=NULL` 은 두 경우가 있다: `RealtimeAiGateway` 가 상위 `AI_TOP_N=15` 밖 후보에는 원래 AI를 안 주는 경우, 그리고 top15 안이지만 OpenAI 응답에 해당 `service_id` 결과가 없어 candidate가 그대로 남는 경우다.
 - 해결: `deploy/smoke/run-local-gov24-null-ai-cause-audit.sh` 를 추가해 latest batch `GOV24 + ai_score is null` row를 `outside_ai_top_n`, `inside_ai_top_n_blank_reason`, `inside_ai_top_n_with_reason` 으로 분류하게 했다. 동시에 샘플 row도 `user_key:rank:service_id:title:cause:rule:final:ai_reason/no-reason` 형태로 같이 출력한다.
 - 이유: 이걸 나누지 않으면 `NULL ai_score` 를 전부 같은 문제로 묶어 잘못 고치게 된다. 다음 수정은 "AI_TOP_N 을 늘릴지"와 "top15 안 누락 응답을 어떻게 다룰지"가 완전히 다른 선택지이므로, 먼저 경로를 분리해 읽는 게 맞다.
+
+## 798) 추천 전체를 튜닝하기 전에, `ai_score=NULL` 이 서로 다른 원인을 전부 삼키는 계약부터 분리해야 한다
+- 문제: 코드를 다시 읽어보니 추천 파이프라인 전체보다 `RealtimeAiGateway` 경계가 문제의 중심이었다. 현재 구조는 `AI_TOP_N=15` 밖 후보, top15 안 partial-result 누락, OpenAI 호출/파싱 전체 실패를 전부 `aiScore=null` 로만 남긴다. `RecommendationPersistenceService` 는 그 `null` 을 그대로 저장하고, `ReRankingService` 와 `RecommendationLogService` 는 단순히 "AI 없음 -> rule fallback" 으로만 처리해 원인 정보가 사라진다.
+- 해결: `AiScoreStatus` (`NOT_REQUESTED`, `SCORED`, `PARTIAL_MISSING`, `CALL_FAILED`, `RULE_ONLY`) 를 도입하고, `ScoredCandidate`, `UserRecommendation`, `RecommendationResponse` 에 `aiStatus` 를 추가했다. `RealtimeAiGateway` 는 이제 top15 밖 후보는 `NOT_REQUESTED`, 응답에 `service_id` 가 빠진 top15 후보는 `PARTIAL_MISSING`, 전체 호출 실패는 `CALL_FAILED`, bypass는 `RULE_ONLY`, 정상 score는 `SCORED` 로 명시한다. 저장/로그도 이 상태를 따라가게 바꿨다.
+- 이유: 지금 필요한 건 Gov24를 더 올리는 점수 튜닝이 아니라, `null` 의 의미를 운영 가능한 상태로 분리하는 것이다. 그래야 이후에 `AI_TOP_N` 문제인지, partial result 누락인지, 호출 실패인지 근거 있게 고칠 수 있다.

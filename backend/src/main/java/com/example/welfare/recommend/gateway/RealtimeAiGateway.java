@@ -2,6 +2,7 @@ package com.example.welfare.recommend.gateway;
 
 import com.example.welfare.recommend.dto.RecommendationUserSnapshot;
 import com.example.welfare.recommend.dto.ScoredCandidate;
+import com.example.welfare.recommend.entity.AiScoreStatus;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -17,8 +18,10 @@ import org.springframework.web.reactive.function.client.WebClient;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.LinkedHashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -67,7 +70,9 @@ public class RealtimeAiGateway implements AiRecommendationGateway {
                 log.info("[RealtimeAiGateway] OpenAI 호출을 건너뛰고 rule-only fallback을 사용합니다. keyMode={}",
                         forceRuleOnly ? "force-rule-only" : (apiKey == null || apiKey.isBlank() ? "blank" : "rule-only-sentinel"));
                 logReplayTraceResponse(clusterId, prompt, AiCallResult.empty());
-                return candidates;
+                return candidates.stream()
+                        .map(candidate -> candidate.withAiStatus(AiScoreStatus.RULE_ONLY))
+                        .toList();
             }
             AiCallResult callResult = callOpenAi(prompt, replaySeed);
             logReplayTraceResponse(clusterId, prompt, callResult);
@@ -76,22 +81,35 @@ public class RealtimeAiGateway implements AiRecommendationGateway {
             if (response != null && response.getResults() != null) {
                 Map<Long, AiResponse.Result> resultMap = response.getResults().stream()
                         .collect(Collectors.toMap(AiResponse.Result::getServiceId, r -> r));
+                Set<Long> requestedIds = topCandidates.stream()
+                        .map(candidate -> candidate.getService().getId())
+                        .collect(Collectors.toCollection(HashSet::new));
                 return candidates.stream()
                         .map(candidate -> {
+                            Long serviceId = candidate.getService().getId();
+                            if (!requestedIds.contains(serviceId)) {
+                                return candidate.withAiStatus(AiScoreStatus.NOT_REQUESTED);
+                            }
                             AiResponse.Result result = resultMap.get(candidate.getService().getId());
                             if (result == null) {
-                                return candidate;
+                                return candidate.withAiStatus(AiScoreStatus.PARTIAL_MISSING);
                             }
-                            return candidate.withAiResult((double) result.getScore(), result.getReason());
+                            return candidate.withAiResult((double) result.getScore(), result.getReason(), AiScoreStatus.SCORED);
                         })
                         .toList();
             }
         } catch (Exception e) {
             log.warn("[RealtimeAiGateway] AI 호출 실패, fallback to rule-only: {}", e.getMessage());
-            // aiScore = null 유지 → ReRankingService에서 rule만 사용
         }
 
-        return candidates;
+        Set<Long> requestedIds = topCandidates.stream()
+                .map(candidate -> candidate.getService().getId())
+                .collect(Collectors.toCollection(HashSet::new));
+        return candidates.stream()
+                .map(candidate -> requestedIds.contains(candidate.getService().getId())
+                        ? candidate.withAiStatus(AiScoreStatus.CALL_FAILED)
+                        : candidate.withAiStatus(AiScoreStatus.NOT_REQUESTED))
+                .toList();
     }
 
     static boolean shouldBypassOpenAi(String apiKey, boolean forceRuleOnly) {

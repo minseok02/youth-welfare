@@ -3,6 +3,7 @@ package com.example.welfare.recommend.service;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.recommend.dto.RecommendationUserSnapshot;
 import com.example.welfare.recommend.dto.ScoredCandidate;
+import com.example.welfare.recommend.entity.AiScoreStatus;
 import com.example.welfare.recommend.gateway.AiRecommendationGateway;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -65,7 +66,7 @@ class AiScoringServiceTest {
         ScoredCandidate candidate = candidate(3L, "정책3");
         when(clusterAiScoreCache.findByClusterId("cluster-b")).thenReturn(Map.of());
         when(aiRecommendationGateway.score("cluster-b", List.of(candidate), snapshot)).thenAnswer(invocation -> {
-            return List.of(candidate.withAiResult(88.0, "gateway"));
+            return List.of(candidate.withAiResult(88.0, "gateway", AiScoreStatus.SCORED));
         });
 
         List<ScoredCandidate> scored = service.score("cluster-b", List.of(candidate), snapshot);

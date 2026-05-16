@@ -2,6 +2,7 @@ package com.example.welfare.recommend.service;
 
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
+import com.example.welfare.recommend.entity.AiScoreStatus;
 import com.example.welfare.recommend.entity.RecommendationLog;
 import com.example.welfare.recommend.entity.ScoreWeight;
 import com.example.welfare.recommend.entity.UserRecommendation;
@@ -46,7 +47,7 @@ public class RecommendationLogService {
                         .finalScore(rec.getFinalScore())
                         .ruleWeightUsed(weight.getRuleWeight())
                         .aiWeightUsed(weight.getAiWeight())
-                        .isFallback(rec.getAiScore() == null)
+                        .isFallback(rec.getAiStatus() != AiScoreStatus.SCORED)
                         .build())
                 .toList();
 
