@@ -1,5 +1,89 @@
 #!/usr/bin/env bash
 
+smoke_trim() {
+  local value="$1"
+  value="${value#"${value%%[![:space:]]*}"}"
+  value="${value%"${value##*[![:space:]]}"}"
+  printf "%s" "${value}"
+}
+
+smoke_unquote() {
+  local value="$1"
+  if [[ "${value}" == \"*\" && "${value}" == *\" ]]; then
+    value="${value:1:${#value}-2}"
+  elif [[ "${value}" == \'*\' && "${value}" == *\' ]]; then
+    value="${value:1:${#value}-2}"
+  fi
+  printf "%s" "${value}"
+}
+
+smoke_first_csv_value() {
+  local value="$1"
+  value="${value%%,*}"
+  smoke_trim "${value}"
+}
+
+smoke_first_file_line() {
+  local file_path="$1"
+  local value
+  IFS= read -r value < "${file_path}" || value=""
+  smoke_trim "${value}"
+}
+
+smoke_load_env_file() {
+  local env_file="$1"
+  local line key value
+
+  [[ -f "${env_file}" ]] || return 0
+
+  while IFS= read -r line || [[ -n "${line}" ]]; do
+    line="${line%$'\r'}"
+    [[ -z "$(smoke_trim "${line}")" ]] && continue
+    [[ "$(smoke_trim "${line}")" == \#* ]] && continue
+    [[ "${line}" != *=* ]] && continue
+
+    key="$(smoke_trim "${line%%=*}")"
+    value="${line#*=}"
+    value="$(smoke_unquote "${value}")"
+
+    if [[ "${key}" == export\ * ]]; then
+      key="$(smoke_trim "${key#export }")"
+    fi
+
+    if [[ ! "${key}" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]]; then
+      continue
+    fi
+
+    if [[ -z "${!key+x}" ]]; then
+      export "${key}=${value}"
+    fi
+  done < "${env_file}"
+}
+
+smoke_resolve_admin_credentials() {
+  local root_dir="$1"
+  local env_file="${ENV_FILE:-${root_dir}/.env}"
+  local admin_email_file="${ADMIN_EMAIL_FILE:-/tmp/youth-welfare-admin-smoke-email}"
+  local admin_password_file="${ADMIN_PASSWORD_FILE:-/tmp/youth-welfare-admin-smoke-password}"
+
+  smoke_load_env_file "${env_file}"
+
+  if [[ -z "${ADMIN_EMAIL+x}" && -r "${admin_email_file}" ]]; then
+    export ADMIN_EMAIL
+    ADMIN_EMAIL="$(smoke_first_file_line "${admin_email_file}")"
+  fi
+
+  if [[ -z "${ADMIN_PASSWORD+x}" && -r "${admin_password_file}" ]]; then
+    export ADMIN_PASSWORD
+    ADMIN_PASSWORD="$(smoke_first_file_line "${admin_password_file}")"
+  fi
+
+  if [[ -z "${ADMIN_EMAIL+x}" && -n "${SECURITY_ADMIN_EMAILS:-}" ]]; then
+    export ADMIN_EMAIL
+    ADMIN_EMAIL="$(smoke_first_csv_value "${SECURITY_ADMIN_EMAILS}")"
+  fi
+}
+
 smoke_require_command() {
   command -v "$1" >/dev/null 2>&1 || {
     echo "missing required command: $1" >&2

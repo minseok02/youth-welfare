@@ -10,8 +10,9 @@ APP_CONTAINER_NAME="${APP_CONTAINER_NAME:-youth-welfare-app}"
 DB_CONTAINER_NAME="${DB_CONTAINER_NAME:-youth-welfare-db}"
 DB_NAME="${DB_NAME:-youth_welfare}"
 
-ADMIN_EMAIL="${ADMIN_EMAIL:-admin@example.com}"
-ADMIN_PASSWORD="${ADMIN_PASSWORD:-password123!}"
+smoke_resolve_admin_credentials "${ROOT_DIR}"
+: "${ADMIN_EMAIL:?ADMIN_EMAIL is empty; export ADMIN_EMAIL or set SECURITY_ADMIN_EMAILS/.env or /tmp/youth-welfare-admin-smoke-email}"
+: "${ADMIN_PASSWORD:?ADMIN_PASSWORD is empty; export ADMIN_PASSWORD or set /tmp/youth-welfare-admin-smoke-password}"
 
 SMOKE_PASSWORD="${SMOKE_PASSWORD:-Password123!}"
 SMOKE_EMAIL_PREFIX="${SMOKE_EMAIL_PREFIX:-forced.logout.smoke}"

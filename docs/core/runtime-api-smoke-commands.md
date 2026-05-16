@@ -102,6 +102,12 @@ deploy/smoke/run-local-auth-session-smoke.sh
 을 기본 `http://127.0.0.1:8082` 로 다시 고정합니다. 다른 API endpoint를 쓰려면 `VALIDATION_APP_BASE_URL` 로 덮어씁니다.
 로컬 admin smoke 계정 파일(`/tmp/youth-welfare-admin-smoke-email`,
 `/tmp/youth-welfare-admin-smoke-password`)이 있으면 해당 값을 우선 사용합니다.
+이 우선순위는 이제 `run-local-admin-forced-logout-smoke.sh`,
+`run-local-admin-dashboard-smoke.sh`, `run-local-policy-quality-summary.sh` 같은
+direct admin smoke에도 동일하게 적용됩니다. 따라서 서버 검증에서는
+로컬 기본 `admin@example.com/password123!` 를 기대하지 말고, 서버 `.env` 의
+`SECURITY_ADMIN_EMAILS` allowlist 안 실제 admin 계정 + 그 비밀번호를
+`ADMIN_EMAIL`/`ADMIN_PASSWORD` 또는 `/tmp` 파일로 맞춰 실행해야 합니다.
 
 ```bash
 deploy/smoke/run-local-validation-from-env.sh --quick
@@ -286,6 +292,10 @@ PY
 
 현재 local smoke baseline에서는 admin runtime 검증용 비밀번호 예시를 `password123!` 로 둡니다.
 다만 shell의 `ADMIN_PASSWORD` 나 `run-local-validation-from-env.sh` 가 읽는 `/tmp/youth-welfare-admin-smoke-password` 파일이 있으면 그 값을 우선합니다.
+서버에선 이 예시 비밀번호를 진실로 보면 안 됩니다. 서버는 `.env` allowlist 와
+실제 admin 계정 비밀번호가 기준이고, direct admin smoke도 이제 같은 우선순위를
+따르므로 서버 검증 시에는 `ADMIN_EMAIL`/`ADMIN_PASSWORD` 를 명시하거나 `/tmp`
+파일을 서버 값으로 맞춘 뒤 실행합니다.
 
 ### 2. 기본 안전 실행
 
