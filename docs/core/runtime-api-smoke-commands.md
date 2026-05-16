@@ -197,6 +197,8 @@ POST /api/notifications/deadline-test-dispatch?days=3
 - `digest-test-dispatch`: 현재 로그인 사용자의 추천 digest fan-out 확인
 - `deadline-test-dispatch`: 현재 로그인 사용자의 bookmarked 정책 중 마감 임박 후보 fan-out 확인
 
+현재 단계에서 deadline reminder runtime은 별도 `WEEKLY` 경로를 열지 않았고, `NotificationScheduleService.sendDailyDeadlineReminders()` 의 `DAILY` entry만 active 범위입니다. 서버 기준선도 duplicate 기존 사용자는 `reservation conflict` 로 skip하고, summary line과 새 DAILY 대상 delta가 남는지 확인하는 방식으로만 닫았습니다.
+
 북마크 마감 임박 알림을 수동 조합 대신 한 번에 확인할 때는 아래 wrapper를 우선 사용합니다.
 
 ```bash

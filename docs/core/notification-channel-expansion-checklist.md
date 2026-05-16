@@ -48,6 +48,7 @@
 4. 1차는 인앱 알림함과 현재 추천 digest 연결까지다.
 5. 웹푸시는 운영 서버/HTTPS 전제 이후 2단계다.
 6. deadline reminder 는 별도 이벤트 생성기로 분리한다.
+7. deadline reminder runtime 은 manual dispatch를 먼저 닫은 뒤 `DAILY` 부터 얇게 연결한다.
 
 ## 절대 하지 말 것
 
@@ -130,3 +131,4 @@
 5. 채널 분기는 문서/단위 테스트만이 아니라 `digest-test-dispatch + DB delta` 기준 local smoke까지 닫아야 한다.
 6. 별도 이벤트를 열 때도 먼저 manual dispatch(`deadline-test-dispatch` 같은 얇은 경계)로 닫고, 그 다음 scheduler/runtime 연결을 본다.
 7. `deadline reminder` 는 `run-local-deadline-reminder-smoke.sh` 또는 동등한 `deadline-test-dispatch + DB delta` 검증 없이 완료로 보지 않는다.
+8. `deadline reminder` runtime 은 현재 `DAILY` 만 active 범위로 보고, duplicate dispatch key가 있어도 다음 대상 loop를 계속 태우는 기준선까지 확인해야 한다.

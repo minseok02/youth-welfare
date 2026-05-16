@@ -116,6 +116,13 @@ UI 문구에 `이메일·푸시` 가 보이지만, 실제로는 이메일 수신
 따라서 채널 확장 문서는 "지금 있는 추천 digest를 인앱/웹푸시로도 보낸다"는 1차와,
 "deadline reminder 자체를 새로 만든다"는 2차를 분리해서 봐야 합니다.
 
+현재 `deadline reminder` 는 여기서 한 단계 더 나아가
+
+- current-user manual dispatch
+- `NotificationScheduleService.sendDailyDeadlineReminders()`
+
+까지는 닫혔지만, runtime 범위는 아직 `DAILY` 만 active 입니다. 마감 임박 이벤트 성격상 weekly를 같은 강도로 여는 건 아직 scope 밖으로 두는 편이 현재 구조/검증 범위와 맞습니다.
+
 ## 현재 프로젝트 단계에서의 현실 제약
 
 - 현재 상태 문서 기준으로 운영 서버는 아직 없습니다.
