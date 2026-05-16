@@ -58,7 +58,7 @@ class NotificationRecommendationServiceTest {
         RecommendationLog log1 = RecommendationLog.builder().id(100L).build();
         RecommendationLog log2 = RecommendationLog.builder().id(101L).build();
         NotificationTarget target = new NotificationTarget(1L, "user-key-1", "test@example.com",
-                User.NotificationPeriod.DAILY, 0.8, 10);
+                User.NotificationPeriod.DAILY, true, true, true, 0.8, 10);
 
         given(activeUserReadService.getActiveUserByUserKey("user-key-1")).willReturn(user);
         given(recommendationAccessService.getRecommendations(1L, 50)).willReturn(List.of(a1, a2));
@@ -81,7 +81,7 @@ class NotificationRecommendationServiceTest {
         User user = sampleUser();
         UserRecommendation fail = sampleRecommendation("A1", "A1 reason", "0.60");
         NotificationTarget target = new NotificationTarget(1L, "user-key-1", "test@example.com",
-                User.NotificationPeriod.DAILY, 0.95, 10);
+                User.NotificationPeriod.DAILY, true, true, true, 0.95, 10);
 
         given(activeUserReadService.getActiveUserByUserKey("user-key-1")).willReturn(user);
         given(recommendationAccessService.getRecommendations(1L, 50)).willReturn(List.of(fail));

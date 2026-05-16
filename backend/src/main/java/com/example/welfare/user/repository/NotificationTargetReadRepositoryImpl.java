@@ -28,6 +28,9 @@ public class NotificationTargetReadRepositoryImpl implements NotificationTargetR
                         row.getUserId(),
                         row.getUserKey(),
                         row.getNotificationPeriod(),
+                        row.getNotificationEmailYn(),
+                        row.getNotificationInAppYn(),
+                        row.getNotificationWebPushYn(),
                         row.getNotificationMinScore(),
                         row.getDisplayCount(),
                         emailByUserKey.get(row.getUserKey())

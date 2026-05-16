@@ -54,6 +54,18 @@ public class User extends BaseTimeEntity {
     @Builder.Default
     private boolean notificationYn = false;
 
+    @Column(nullable = false)
+    @Builder.Default
+    private boolean notificationEmailYn = true;
+
+    @Column(nullable = false)
+    @Builder.Default
+    private boolean notificationInAppYn = true;
+
+    @Column(nullable = false)
+    @Builder.Default
+    private boolean notificationWebPushYn = false;
+
     @Enumerated(EnumType.STRING)
     @Builder.Default
     private NotificationPeriod notificationPeriod = NotificationPeriod.NONE;
@@ -123,9 +135,17 @@ public class User extends BaseTimeEntity {
         this.profileCompleteness = completeness;
     }
 
-    public void updateNotification(boolean notificationYn, NotificationPeriod period,
-                                    Double minScore, LocalDateTime consentAt) {
+    public void updateNotification(boolean notificationYn,
+                                   boolean notificationEmailYn,
+                                   boolean notificationInAppYn,
+                                   boolean notificationWebPushYn,
+                                   NotificationPeriod period,
+                                   Double minScore,
+                                   LocalDateTime consentAt) {
         this.notificationYn = notificationYn;
+        this.notificationEmailYn = notificationEmailYn;
+        this.notificationInAppYn = notificationInAppYn;
+        this.notificationWebPushYn = notificationWebPushYn;
         this.notificationPeriod = period;
         this.notificationMinScore = minScore;
         this.notificationConsentAt = consentAt;
@@ -133,6 +153,9 @@ public class User extends BaseTimeEntity {
 
     public void unsubscribeNotifications() {
         this.notificationYn = false;
+        this.notificationEmailYn = false;
+        this.notificationInAppYn = false;
+        this.notificationWebPushYn = false;
         this.notificationPeriod = NotificationPeriod.NONE;
     }
 
@@ -149,6 +172,9 @@ public class User extends BaseTimeEntity {
         this.householdType = null;
         this.employmentStatus = null;
         this.notificationYn = false;
+        this.notificationEmailYn = false;
+        this.notificationInAppYn = false;
+        this.notificationWebPushYn = false;
         this.notificationConsentAt = null;
         this.isActive = false;
         this.withdrawnAt = LocalDateTime.now();

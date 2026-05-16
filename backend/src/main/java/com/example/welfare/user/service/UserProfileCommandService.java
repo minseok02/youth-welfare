@@ -54,8 +54,25 @@ public class UserProfileCommandService {
                 request.getDisplayCount() != null ? request.getDisplayCount() : user.getDisplayCount()
         );
 
-        if (request.getNotificationYn() != null || request.getNotificationPeriod() != null || request.getNotificationMinScore() != null) {
+        if (request.getNotificationYn() != null
+                || request.getNotificationEmailYn() != null
+                || request.getNotificationInAppYn() != null
+                || request.getNotificationWebPushYn() != null
+                || request.getNotificationPeriod() != null
+                || request.getNotificationMinScore() != null) {
             boolean notificationYn = request.getNotificationYn() != null ? request.getNotificationYn() : user.isNotificationYn();
+            boolean notificationEmailYn = request.getNotificationEmailYn() != null
+                    ? request.getNotificationEmailYn()
+                    : user.isNotificationEmailYn();
+            boolean notificationInAppYn = request.getNotificationInAppYn() != null
+                    ? request.getNotificationInAppYn()
+                    : user.isNotificationInAppYn();
+            boolean notificationWebPushYn = request.getNotificationWebPushYn() != null
+                    ? request.getNotificationWebPushYn()
+                    : user.isNotificationWebPushYn();
+            if (notificationYn && !notificationEmailYn && !notificationInAppYn && !notificationWebPushYn) {
+                throw new CustomException(ErrorCode.INVALID_INPUT);
+            }
             User.NotificationPeriod period = request.getNotificationPeriod() != null
                     ? parseNotificationPeriod(request.getNotificationPeriod())
                     : user.getNotificationPeriod();
@@ -65,7 +82,15 @@ public class UserProfileCommandService {
             LocalDateTime consentAt = notificationYn
                     ? (user.getNotificationConsentAt() != null ? user.getNotificationConsentAt() : LocalDateTime.now())
                     : null;
-            user.updateNotification(notificationYn, period, minScore, consentAt);
+            user.updateNotification(
+                    notificationYn,
+                    notificationEmailYn,
+                    notificationInAppYn,
+                    notificationWebPushYn,
+                    period,
+                    minScore,
+                    consentAt
+            );
         }
 
         if (request.getInterestFields() != null) {

@@ -40,6 +40,9 @@ class UserNotificationReadServiceTest {
                         1L,
                         "user-key-1",
                         "DAILY",
+                        true,
+                        true,
+                        false,
                         0.7,
                         10,
                         "encrypted-email"
@@ -49,7 +52,7 @@ class UserNotificationReadServiceTest {
         List<NotificationTarget> targets = service.getNotificationTargets(User.NotificationPeriod.DAILY);
 
         assertThat(targets).containsExactly(
-                new NotificationTarget(1L, "user-key-1", "user@example.com", User.NotificationPeriod.DAILY, 0.7, 10)
+                new NotificationTarget(1L, "user-key-1", "user@example.com", User.NotificationPeriod.DAILY, true, true, false, 0.7, 10)
         );
         verify(notificationTargetReadRepository).findNotificationTargetsByPeriod(User.NotificationPeriod.DAILY);
     }

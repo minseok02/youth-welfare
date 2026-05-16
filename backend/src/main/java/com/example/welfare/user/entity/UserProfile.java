@@ -43,6 +43,15 @@ public class UserProfile extends BaseTimeEntity {
     @Column(nullable = false)
     private boolean notificationYn;
 
+    @Column(nullable = false)
+    private boolean notificationEmailYn;
+
+    @Column(nullable = false)
+    private boolean notificationInAppYn;
+
+    @Column(nullable = false)
+    private boolean notificationWebPushYn;
+
     @Enumerated(EnumType.STRING)
     private User.NotificationPeriod notificationPeriod;
 
@@ -75,6 +84,9 @@ public class UserProfile extends BaseTimeEntity {
         this.householdType = user.getHouseholdType();
         this.employmentStatus = user.getEmploymentStatus();
         this.notificationYn = user.isNotificationYn();
+        this.notificationEmailYn = user.isNotificationEmailYn();
+        this.notificationInAppYn = user.isNotificationInAppYn();
+        this.notificationWebPushYn = user.isNotificationWebPushYn();
         this.notificationPeriod = user.getNotificationPeriod();
         this.notificationMinScore = user.getNotificationMinScore();
         this.notificationConsentAt = user.getNotificationConsentAt();

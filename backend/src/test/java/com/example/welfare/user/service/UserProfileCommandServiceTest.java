@@ -186,4 +186,37 @@ class UserProfileCommandServiceTest {
         assertThat(user.getSgg()).isEqualTo("해운대구");
         assertThat(user.getRegionCode()).isEqualTo("26350");
     }
+
+    @Test
+    @DisplayName("알림을 켠 상태에서 채널을 모두 끄면 예외를 던진다")
+    void updateProfileRejectsNoNotificationChannels() {
+        UserProfileCommandService service = new UserProfileCommandService(
+                activeUserReadService,
+                userMetadataCommandRepository,
+                priorityOptionReadService,
+                priorityWeightPolicy,
+                userCoreSyncService,
+                recommendationRefreshCacheService
+        );
+        User user = User.builder()
+                .id(1L)
+                .email("user@example.com")
+                .passwordHash("hash")
+                .notificationYn(true)
+                .notificationEmailYn(true)
+                .notificationInAppYn(true)
+                .notificationWebPushYn(false)
+                .build();
+        when(activeUserReadService.getActiveUserContext(1L))
+                .thenReturn(new ActiveUserReadService.ActiveUserContext(user, "user-key-1"));
+
+        UpdateProfileRequest request = new UpdateProfileRequest();
+        ReflectionTestUtils.setField(request, "notificationYn", true);
+        ReflectionTestUtils.setField(request, "notificationEmailYn", false);
+        ReflectionTestUtils.setField(request, "notificationInAppYn", false);
+        ReflectionTestUtils.setField(request, "notificationWebPushYn", false);
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> service.updateProfile(1L, request))
+                .isInstanceOf(com.example.welfare.global.exception.CustomException.class);
+    }
 }

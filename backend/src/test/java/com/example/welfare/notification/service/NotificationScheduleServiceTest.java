@@ -40,7 +40,7 @@ class NotificationScheduleServiceTest {
     @DisplayName("일간 스케줄은 DAILY 대상 목록을 읽어 dispatch service에 위임한다")
     void sendDailyNotificationsDelegatesToDispatchService() {
         NotificationTarget target = new NotificationTarget(1L, "user-key-1", "test@example.com",
-                User.NotificationPeriod.DAILY, 0.8, 10);
+                User.NotificationPeriod.DAILY, true, true, true, 0.8, 10);
         given(notificationExecutionGuard.runIfAvailable(eq(NotificationScheduleService.DAILY_LOCK_NAME), any()))
                 .willAnswer(invocation -> {
                     Runnable runnable = invocation.getArgument(1);
@@ -59,7 +59,7 @@ class NotificationScheduleServiceTest {
     @DisplayName("주간 스케줄은 WEEKLY 대상 목록을 읽어 dispatch service에 위임한다")
     void sendWeeklyNotificationsDelegatesToDispatchService() {
         NotificationTarget target = new NotificationTarget(1L, "user-key-1", "test@example.com",
-                User.NotificationPeriod.WEEKLY, 0.8, 10);
+                User.NotificationPeriod.WEEKLY, true, true, true, 0.8, 10);
         given(notificationExecutionGuard.runIfAvailable(eq(NotificationScheduleService.WEEKLY_LOCK_NAME), any()))
                 .willAnswer(invocation -> {
                     Runnable runnable = invocation.getArgument(1);

@@ -30,6 +30,9 @@ public class ProfileResponse {
     private String householdType;
     private String employmentStatus;
     private boolean notificationYn;
+    private boolean notificationEmailYn;
+    private boolean notificationInAppYn;
+    private boolean notificationWebPushYn;
     private String notificationPeriod;
     private Double notificationMinScore;
     private LocalDateTime notificationConsentAt;
@@ -80,6 +83,9 @@ public class ProfileResponse {
                 .householdType(user.getHouseholdType())
                 .employmentStatus(user.getEmploymentStatus())
                 .notificationYn(user.isNotificationYn())
+                .notificationEmailYn(user.isNotificationEmailYn())
+                .notificationInAppYn(user.isNotificationInAppYn())
+                .notificationWebPushYn(user.isNotificationWebPushYn())
                 .notificationPeriod(user.getNotificationPeriod().name())
                 .notificationMinScore(user.getNotificationMinScore())
                 .notificationConsentAt(user.getNotificationConsentAt())
@@ -126,6 +132,9 @@ public class ProfileResponse {
                 .householdType(profile.getHouseholdType())
                 .employmentStatus(profile.getEmploymentStatus())
                 .notificationYn(profile.isNotificationYn())
+                .notificationEmailYn(profile.isNotificationEmailYn())
+                .notificationInAppYn(profile.isNotificationInAppYn())
+                .notificationWebPushYn(profile.isNotificationWebPushYn())
                 .notificationPeriod(profile.getNotificationPeriod() != null ? profile.getNotificationPeriod().name() : User.NotificationPeriod.NONE.name())
                 .notificationMinScore(profile.getNotificationMinScore())
                 .notificationConsentAt(profile.getNotificationConsentAt())

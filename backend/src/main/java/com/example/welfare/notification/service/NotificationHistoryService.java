@@ -51,7 +51,8 @@ public class NotificationHistoryService {
                                    String messageText,
                                    List<UserRecommendation> recommendations,
                                    List<RecommendationLog> logs,
-                                   String errorMessage) {
+                                   String errorMessage,
+                                   boolean createInAppAlert) {
         notification.updateDispatchPayload(messageText, recommendations.size());
         if (status == NotificationStatus.SENT) {
             notification.markSent();
@@ -66,7 +67,9 @@ public class NotificationHistoryService {
                 saved.getId(),
                 buildItems(saved, recommendations, logs)
         );
-        userAlertCommandService.createRecommendationDigestAlert(saved, recommendations);
+        if (createInAppAlert) {
+            userAlertCommandService.createRecommendationDigestAlert(saved, recommendations);
+        }
         return saved;
     }
 

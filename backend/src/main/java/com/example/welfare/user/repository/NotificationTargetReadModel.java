@@ -8,6 +8,12 @@ public interface NotificationTargetReadModel {
 
     String getNotificationPeriod();
 
+    Boolean getNotificationEmailYn();
+
+    Boolean getNotificationInAppYn();
+
+    Boolean getNotificationWebPushYn();
+
     Double getNotificationMinScore();
 
     int getDisplayCount();

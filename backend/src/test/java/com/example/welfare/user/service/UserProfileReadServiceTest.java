@@ -43,6 +43,10 @@ class UserProfileReadServiceTest {
                 .sido("서울특별시")
                 .sgg("관악구")
                 .ageBand("25-29")
+                .notificationYn(true)
+                .notificationEmailYn(true)
+                .notificationInAppYn(true)
+                .notificationWebPushYn(false)
                 .notificationConsentAt(LocalDateTime.of(2026, 5, 1, 9, 30))
                 .hasPhone(true)
                 .displayCount(12)
@@ -67,6 +71,10 @@ class UserProfileReadServiceTest {
         assertThat(response.getName()).isEqualTo("홍길동");
         assertThat(response.getBirthDate()).isEqualTo(LocalDate.of(1999, 1, 10));
         assertThat(response.getAgeBand()).isEqualTo("25-29");
+        assertThat(response.isNotificationYn()).isTrue();
+        assertThat(response.isNotificationEmailYn()).isTrue();
+        assertThat(response.isNotificationInAppYn()).isTrue();
+        assertThat(response.isNotificationWebPushYn()).isFalse();
         assertThat(response.getNotificationConsentAt()).isEqualTo(LocalDateTime.of(2026, 5, 1, 9, 30));
         assertThat(response.isHasPhone()).isTrue();
         verify(userProfileReadRepository).findProfileAggregateByUserKey("user-key-1");

@@ -7,6 +7,9 @@ public record NotificationTarget(
         String userKey,
         String email,
         User.NotificationPeriod notificationPeriod,
+        boolean notificationEmailYn,
+        boolean notificationInAppYn,
+        boolean notificationWebPushYn,
         Double notificationMinScore,
         int displayCount
 ) {

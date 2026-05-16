@@ -120,6 +120,9 @@ public class NotificationController {
                 userKey,
                 email,
                 User.NotificationPeriod.NONE,
+                user.isNotificationEmailYn(),
+                user.isNotificationInAppYn(),
+                user.isNotificationWebPushYn(),
                 user.getNotificationMinScore(),
                 user.getDisplayCount()
         );

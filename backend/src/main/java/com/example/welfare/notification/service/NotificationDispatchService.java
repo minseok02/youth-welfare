@@ -72,7 +72,8 @@ public class NotificationDispatchService {
                     logs
             );
 
-            boolean sent = notificationGateway.send(target.email(), RECOMMEND_SUBJECT, messageText);
+            boolean emailEnabled = target.notificationEmailYn() && org.springframework.util.StringUtils.hasText(target.email());
+            boolean sent = !emailEnabled || notificationGateway.send(target.email(), RECOMMEND_SUBJECT, messageText);
             NotificationStatus status = sent ? NotificationStatus.SENT : NotificationStatus.FAILED;
             String errorMessage = sent ? null : "notification gateway returned false";
 
@@ -82,9 +83,12 @@ public class NotificationDispatchService {
                     messageText,
                     recommendations,
                     logs,
-                    errorMessage
+                    errorMessage,
+                    target.notificationInAppYn()
             );
-            webPushDispatchService.sendRecommendationDigest(target.userKey(), recommendations);
+            if (target.notificationWebPushYn()) {
+                webPushDispatchService.sendRecommendationDigest(target.userKey(), recommendations);
+            }
 
             if (!sent) {
                 log.warn("[NotificationDispatchService] 알림 발송 실패(게이트웨이 false) userId={}", user.getId());
@@ -100,7 +104,8 @@ public class NotificationDispatchService {
                         messageText,
                         recommendations,
                         logs,
-                        e.getMessage()
+                        e.getMessage(),
+                        target.notificationInAppYn()
                 );
             } catch (Exception historyException) {
                 log.error("[NotificationDispatchService] 알림 이력 저장 실패 userId={}: {}",

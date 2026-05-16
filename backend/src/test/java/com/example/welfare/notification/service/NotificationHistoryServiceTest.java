@@ -92,7 +92,8 @@ class NotificationHistoryServiceTest {
                 "body",
                 List.of(rec),
                 List.of(log),
-                null
+                null,
+                true
         );
 
         assertThat(saved.getStatus()).isEqualTo(NotificationStatus.SENT);
@@ -127,7 +128,8 @@ class NotificationHistoryServiceTest {
                 "body",
                 List.of(),
                 List.of(),
-                "gateway failed"
+                "gateway failed",
+                true
         );
         LocalDateTime after = LocalDateTime.now();
 

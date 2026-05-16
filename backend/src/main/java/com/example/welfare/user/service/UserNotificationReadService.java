@@ -28,7 +28,7 @@ public class UserNotificationReadService {
     public List<NotificationTarget> getNotificationTargets(User.NotificationPeriod period) {
         return notificationTargetReadRepository.findNotificationTargetsByPeriod(period).stream()
                 .map(this::toNotificationTarget)
-                .filter(target -> StringUtils.hasText(target.email()))
+                .filter(target -> !target.notificationEmailYn() || StringUtils.hasText(target.email()))
                 .toList();
     }
 
@@ -59,6 +59,9 @@ public class UserNotificationReadService {
                 row.userKey(),
                 email,
                 User.NotificationPeriod.valueOf(row.notificationPeriod()),
+                Boolean.TRUE.equals(row.notificationEmailYn()),
+                Boolean.TRUE.equals(row.notificationInAppYn()),
+                Boolean.TRUE.equals(row.notificationWebPushYn()),
                 row.notificationMinScore(),
                 row.displayCount()
         );

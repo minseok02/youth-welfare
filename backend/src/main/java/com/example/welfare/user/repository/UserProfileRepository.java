@@ -15,12 +15,20 @@ public interface UserProfileRepository extends JpaRepository<UserProfile, Long> 
             select u.id as userId,
                    up.user_key as userKey,
                    up.notification_period as notificationPeriod,
+                   up.notification_email_yn as notificationEmailYn,
+                   up.notification_in_app_yn as notificationInAppYn,
+                   up.notification_web_push_yn as notificationWebPushYn,
                    up.notification_min_score as notificationMinScore,
                    up.display_count as displayCount
             from user_profiles up
             join users u on u.user_key = up.user_key
             join auth_users au on au.user_key = up.user_key
             where up.notification_yn = true
+              and (
+                   up.notification_email_yn = true
+                or up.notification_in_app_yn = true
+                or up.notification_web_push_yn = true
+              )
               and up.notification_period = ?1
               and au.is_active = true
             order by u.id

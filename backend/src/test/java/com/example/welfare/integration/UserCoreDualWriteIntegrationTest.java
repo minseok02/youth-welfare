@@ -181,6 +181,9 @@ class UserCoreDualWriteIntegrationTest {
                                   "householdType": "MULTI_PERSON",
                                   "employmentStatus": "STUDENT",
                                   "notificationYn": true,
+                                  "notificationEmailYn": true,
+                                  "notificationInAppYn": true,
+                                  "notificationWebPushYn": false,
                                   "notificationPeriod": "weekly",
                                   "notificationMinScore": 0.7,
                                   "displayCount": 12
@@ -200,6 +203,9 @@ class UserCoreDualWriteIntegrationTest {
         assertThat(userProfile.getHouseholdType()).isEqualTo("MULTI_PERSON");
         assertThat(userProfile.getEmploymentStatus()).isEqualTo("STUDENT");
         assertThat(userProfile.isNotificationYn()).isTrue();
+        assertThat(userProfile.isNotificationEmailYn()).isTrue();
+        assertThat(userProfile.isNotificationInAppYn()).isTrue();
+        assertThat(userProfile.isNotificationWebPushYn()).isFalse();
         assertThat(userProfile.getNotificationPeriod()).isEqualTo(User.NotificationPeriod.WEEKLY);
         assertThat(userProfile.getNotificationMinScore()).isEqualTo(0.7);
         assertThat(userProfile.getDisplayCount()).isEqualTo(12);
@@ -243,11 +249,12 @@ class UserCoreDualWriteIntegrationTest {
         jdbcTemplate.update("""
                 update user_profiles
                 set sido = ?, sgg = ?, region_code = ?, income_level = ?, household_type = ?, employment_status = ?,
-                    notification_yn = ?, notification_period = ?, notification_min_score = ?, display_count = ?
+                    notification_yn = ?, notification_email_yn = ?, notification_in_app_yn = ?, notification_web_push_yn = ?,
+                    notification_period = ?, notification_min_score = ?, display_count = ?
                 where user_key = ?
                 """,
                 "제주특별자치도", "제주시", "50000", 2, "ONE_PERSON", "JOB_SEEKER",
-                true, "DAILY", 0.9, 7, userKey);
+                true, true, true, false, "DAILY", 0.9, 7, userKey);
         userPiiReadWriteRepository.upsertUserPii(
                 userKey,
                 aesEncryptUtil.encrypt("split-read@example.com"),
@@ -270,6 +277,9 @@ class UserCoreDualWriteIntegrationTest {
                 .andExpect(jsonPath("$.data.householdType").value("ONE_PERSON"))
                 .andExpect(jsonPath("$.data.employmentStatus").value("JOB_SEEKER"))
                 .andExpect(jsonPath("$.data.notificationYn").value(true))
+                .andExpect(jsonPath("$.data.notificationEmailYn").value(true))
+                .andExpect(jsonPath("$.data.notificationInAppYn").value(true))
+                .andExpect(jsonPath("$.data.notificationWebPushYn").value(false))
                 .andExpect(jsonPath("$.data.notificationPeriod").value("DAILY"))
                 .andExpect(jsonPath("$.data.notificationMinScore").value(0.9))
                 .andExpect(jsonPath("$.data.displayCount").value(7));

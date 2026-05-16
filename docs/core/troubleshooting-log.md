@@ -4142,3 +4142,8 @@
 - 문제: `POST /api/notifications/push-test-send` 로 sender 자체는 닫혔지만, 실제 추천 digest가 안 오면 여전히 스케줄 타이밍, 대상 선정, duplicate window, 이메일/이력 저장, 웹푸시 fan-out 중 어디가 원인인지 섞여 보일 수 있다. 이 상태에서 다시 `NotificationScheduleService` 전체를 태우면 실패 경계가 너무 넓다.
 - 해결: `NotificationController` 에 `POST /api/notifications/digest-test-dispatch` 를 추가하고, 현재 로그인 사용자의 `email`, `notificationMinScore`, `displayCount` 를 읽어 manual `NotificationTarget` 을 만든 뒤 `NotificationDispatchService.sendTopRecommendations(...)` 를 직접 호출하게 했다. period는 `NONE` 으로 고정해 `MANUAL` dispatch key를 쓰므로 일간/주간 duplicate window를 피한다. 동시에 `NotificationDispatchService` 는 이제 `SENT`, `FAILED`, `NO_RECOMMENDATIONS`, `SKIPPED_WINDOW`, `RESERVATION_CONFLICT` 와 추천 수를 결과로 돌려준다.
 - 이유: 웹푸시 sender와 추천 digest orchestration은 다른 층위의 문제다. sender가 이미 검증된 뒤에는, digest 경로를 얇게 태우는 단건 진입점이 있어야 추천 선택/이력 저장/이메일/웹푸시 fan-out이 실제로 어디서 멈추는지 다시 추적할 수 있다.
+
+## 772) 알림 채널 확장은 UI 토글만 추가하면 끝나는 게 아니라, 실제 대상 조회와 fan-out 경계까지 같이 따라가야 한다
+- 문제: 인앱 알림함과 웹푸시 연결 UI가 붙은 뒤에도 실제 사용자 설정은 여전히 `notificationYn` 하나뿐이라, 이메일을 끄고 인앱만 유지하거나 웹푸시만 끄는 식의 채널 분리가 불가능했다. 더 큰 문제는 추천 digest dispatch가 여전히 `email` 중심 구조라서, UI에서 토글을 나눠도 backend fan-out이 그대로면 체감과 저장 결과가 엇갈린다.
+- 해결: `users`, `user_profiles` 에 `notification_email_yn`, `notification_in_app_yn`, `notification_web_push_yn` 을 추가하고, `UpdateProfileRequest/ProfileResponse`, `UserProfileCommandService`, `UserProfile.syncFrom(...)` 를 같이 확장했다. `UserProfileRepository.findNotificationTargetsByPeriod(...)` 는 이제 전체 알림이 켜져 있고 채널 중 하나라도 활성인 사용자를 대상으로 읽는다. `NotificationDispatchService` 는 이메일 전송, 인앱 `user_alerts` 생성, 웹푸시 fan-out을 각각 채널 플래그로 제어하고, 전체 알림을 켠 상태에서 채널이 모두 꺼지면 저장을 거부한다.
+- 이유: 알림 채널 분리는 "어떤 채널로 보낼지" 뿐 아니라 "무슨 이벤트를 어느 채널까지 fan-out할지"의 문제다. 현재 추천 digest 이벤트를 그대로 쓰더라도, 저장 모델/대상 조회/dispatch가 같이 움직이지 않으면 UI 토글은 겉보기 기능에 그친다.

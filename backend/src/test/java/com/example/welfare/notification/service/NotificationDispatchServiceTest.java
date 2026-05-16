@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
@@ -51,7 +52,7 @@ class NotificationDispatchServiceTest {
     @DisplayName("dispatch 는 추천 계획이 없으면 발송하지 않는다")
     void sendTopRecommendationsSkipsWhenPlanMissing() {
         NotificationTarget target = new NotificationTarget(1L, "user-key-1", "test@example.com",
-                User.NotificationPeriod.DAILY, 0.8, 10);
+                User.NotificationPeriod.DAILY, true, true, true, 0.8, 10);
         given(notificationDispatchWindowReadService.hasDispatchHistoryInCurrentWindow("user-key-1", NotificationPeriodType.DAILY))
                 .willReturn(false);
         given(notificationRecommendationService.prepareDispatch(target)).willReturn(Optional.empty());
@@ -60,7 +61,7 @@ class NotificationDispatchServiceTest {
 
         verify(notificationGateway, never()).send(any(), any(), any());
         verify(notificationHistoryService, never()).reserveDispatch(any(), any(), any(), any(), any());
-        verify(notificationHistoryService, never()).saveResult(any(), any(), any(), any(), any(), any());
+        verify(notificationHistoryService, never()).saveResult(any(), any(), any(), any(), any(), any(), anyBoolean());
         verify(webPushDispatchService, never()).sendRecommendationDigest(any(), any());
     }
 
@@ -71,7 +72,7 @@ class NotificationDispatchServiceTest {
         UserRecommendation recommendation = sampleRecommendation();
         RecommendationLog log = RecommendationLog.builder().id(100L).build();
         NotificationTarget target = new NotificationTarget(1L, "user-key-1", "test@example.com",
-                User.NotificationPeriod.DAILY, 0.8, 10);
+                User.NotificationPeriod.DAILY, true, true, true, 0.8, 10);
         NotificationRecommendationService.NotificationDispatchPlan plan =
                 new NotificationRecommendationService.NotificationDispatchPlan(
                         user,
@@ -115,7 +116,8 @@ class NotificationDispatchServiceTest {
                 eq("body"),
                 eq(List.of(recommendation)),
                 eq(List.of(log)),
-                eq("notification gateway returned false")
+                eq("notification gateway returned false"),
+                eq(true)
         );
         verify(webPushDispatchService).sendRecommendationDigest("user-key-1", List.of(recommendation));
     }
@@ -124,7 +126,7 @@ class NotificationDispatchServiceTest {
     @DisplayName("현재 dispatch window 에 이미 이력이 있으면 중복 발송을 건너뛴다")
     void sendTopRecommendationsSkipsWhenWindowAlreadyDispatched() {
         NotificationTarget target = new NotificationTarget(1L, "user-key-1", "test@example.com",
-                User.NotificationPeriod.DAILY, 0.8, 10);
+                User.NotificationPeriod.DAILY, true, true, true, 0.8, 10);
         given(notificationDispatchWindowReadService.hasDispatchHistoryInCurrentWindow("user-key-1", NotificationPeriodType.DAILY))
                 .willReturn(true);
 
@@ -133,7 +135,7 @@ class NotificationDispatchServiceTest {
         verify(notificationRecommendationService, never()).prepareDispatch(any());
         verify(notificationGateway, never()).send(any(), any(), any());
         verify(notificationHistoryService, never()).reserveDispatch(any(), any(), any(), any(), any());
-        verify(notificationHistoryService, never()).saveResult(any(), any(), any(), any(), any(), any());
+        verify(notificationHistoryService, never()).saveResult(any(), any(), any(), any(), any(), any(), anyBoolean());
         verify(webPushDispatchService, never()).sendRecommendationDigest(any(), any());
     }
 
@@ -144,7 +146,7 @@ class NotificationDispatchServiceTest {
         UserRecommendation recommendation = sampleRecommendation();
         RecommendationLog log = RecommendationLog.builder().id(100L).build();
         NotificationTarget target = new NotificationTarget(1L, "user-key-1", "test@example.com",
-                User.NotificationPeriod.DAILY, 0.8, 10);
+                User.NotificationPeriod.DAILY, true, true, true, 0.8, 10);
         NotificationRecommendationService.NotificationDispatchPlan plan =
                 new NotificationRecommendationService.NotificationDispatchPlan(
                         user,
@@ -166,7 +168,7 @@ class NotificationDispatchServiceTest {
         notificationDispatchService.sendTopRecommendations(target);
 
         verify(notificationGateway, never()).send(any(), any(), any());
-        verify(notificationHistoryService, never()).saveResult(any(), any(), any(), any(), any(), any());
+        verify(notificationHistoryService, never()).saveResult(any(), any(), any(), any(), any(), any(), anyBoolean());
         verify(webPushDispatchService, never()).sendRecommendationDigest(any(), any());
     }
 

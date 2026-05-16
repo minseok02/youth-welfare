@@ -24,6 +24,9 @@ public class UpdateProfileRequest {
     private String householdType;
     private String employmentStatus;
     private Boolean notificationYn;
+    private Boolean notificationEmailYn;
+    private Boolean notificationInAppYn;
+    private Boolean notificationWebPushYn;
     private String notificationPeriod;
 
     @Min(0) @Max(1)

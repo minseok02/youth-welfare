@@ -381,6 +381,9 @@ export default function MyPage() {
   const [bookmarkLoading, setBookmarkLoading] = useState(false);
 
   const [notifOn, setNotifOn] = useState(false);
+  const [notifEmailOn, setNotifEmailOn] = useState(true);
+  const [notifInAppOn, setNotifInAppOn] = useState(true);
+  const [notifWebPushOn, setNotifWebPushOn] = useState(false);
   const [notifFreq, setNotifFreq] = useState("DAILY");
   const [notifLoading, setNotifLoading] = useState(false);
   const [notifMinScore, setNotifMinScore] = useState(0.5);
@@ -464,6 +467,9 @@ export default function MyPage() {
         setProfileAgeBand(p.ageBand ?? "");
         setHasPhone(Boolean(p.hasPhone));
         setNotifOn(p.notificationYn ?? false);
+        setNotifEmailOn(p.notificationEmailYn ?? true);
+        setNotifInAppOn(p.notificationInAppYn ?? true);
+        setNotifWebPushOn(p.notificationWebPushYn ?? false);
         setNotifFreq(p.notificationPeriod === "WEEKLY" ? "WEEKLY" : "DAILY");
         setNotifMinScore(typeof p.notificationMinScore === "number" ? p.notificationMinScore : 0.5);
         setNotifDisplayCount(Number.isFinite(p.displayCount) ? p.displayCount : 10);
@@ -576,10 +582,17 @@ export default function MyPage() {
   };
 
   const handleSaveNotif = async () => {
+    if (notifOn && !notifEmailOn && !notifInAppOn && !notifWebPushOn) {
+      showToast("알림을 켠 상태에서는 최소 한 개 이상의 수신 채널을 선택해주세요", "error");
+      return;
+    }
     setNotifLoading(true);
     try {
       await api.put("/api/users/me", {
         notificationYn: notifOn,
+        notificationEmailYn: notifEmailOn,
+        notificationInAppYn: notifInAppOn,
+        notificationWebPushYn: notifWebPushOn,
         notificationPeriod: notifOn ? notifFreq : "NONE",
         notificationMinScore: notifMinScore,
         displayCount: notifDisplayCount,
@@ -1385,13 +1398,15 @@ export default function MyPage() {
 
             {/* ── 알림 설정 ── */}
             {activeTab === "noti" && (() => {
-              const NotiRow = ({ title, desc, on, onChange }) => (
+              const NotiRow = ({ title, desc, on, onChange, disabled = false }) => (
                 <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "16px 0", borderBottom: `1px solid ${LINE2}` }}>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: 14, fontWeight: 700, color: INK }}>{title}</div>
                     <div style={{ fontSize: 12, color: INK3, marginTop: 2 }}>{desc}</div>
                   </div>
-                  <Toggle on={on} onChange={onChange} />
+                  <div style={{ opacity: disabled ? 0.6 : 1, pointerEvents: disabled ? "none" : "auto" }}>
+                    <Toggle on={on} onChange={onChange} />
+                  </div>
                 </div>
               );
               return (
@@ -1520,8 +1535,34 @@ export default function MyPage() {
                     )}
                   </SectionCard>
 
-                  <SectionCard title="수신 채널" desc="어떤 방법으로 알림을 받을지 선택하세요">
-                    <NotiRow title="이메일 수신" desc={`${user?.email || myInfo.email || "이메일"} 으로 발송`} on={notifOn} onChange={() => setNotifOn(v => !v)} />
+                  <SectionCard title="수신 채널" desc="알림 자체를 켜고, 채널별로 어디까지 받을지 따로 정할 수 있어요">
+                    <NotiRow
+                      title="알림 받기"
+                      desc="추천 digest 생성과 채널별 발송을 전체적으로 켜거나 끕니다"
+                      on={notifOn}
+                      onChange={() => setNotifOn(v => !v)}
+                    />
+                    <NotiRow
+                      title="이메일 수신"
+                      desc={`${user?.email || myInfo.email || "이메일"} 으로 추천 digest를 보냅니다`}
+                      on={notifEmailOn}
+                      onChange={() => setNotifEmailOn(v => !v)}
+                      disabled={!notifOn}
+                    />
+                    <NotiRow
+                      title="인앱 알림함 저장"
+                      desc="추천 digest를 마이페이지 알림함과 헤더 bell에서 다시 확인합니다"
+                      on={notifInAppOn}
+                      onChange={() => setNotifInAppOn(v => !v)}
+                      disabled={!notifOn}
+                    />
+                    <NotiRow
+                      title="브라우저 푸시 수신"
+                      desc="현재 브라우저 연결이 되어 있으면 새 추천 digest를 웹푸시로 받습니다"
+                      on={notifWebPushOn}
+                      onChange={() => setNotifWebPushOn(v => !v)}
+                      disabled={!notifOn}
+                    />
                   </SectionCard>
 
                   <SectionCard title="브라우저 푸시" desc="현재 브라우저를 연결하면 새 추천 알림을 즉시 받을 준비를 할 수 있어요">
@@ -1589,7 +1630,7 @@ export default function MyPage() {
                     )}
 
                     <div style={{ padding: 14, borderRadius: 12, background: BG, color: INK2, fontSize: 12, lineHeight: 1.65, marginBottom: 14 }}>
-                      실제 웹푸시 발송은 아직 열지 않았습니다. 지금 단계에서는 브라우저 권한과 구독 저장만 준비합니다.
+                      브라우저 구독 저장과 실제 웹푸시 발송이 모두 연결되어 있습니다. 다만 실제 수신은 위의 <strong>브라우저 푸시 수신</strong> 채널이 켜져 있어야 합니다.
                     </div>
 
                     {pushLoading ? (
@@ -1657,7 +1698,7 @@ export default function MyPage() {
 
                   <SectionCard>
                     <div style={{ padding: 16, background: AS, borderRadius: 12, fontSize: 13, color: INK2, lineHeight: 1.6 }}>
-                      현재 알림 설정은 이메일 수신 여부, 발송 주기, 최소 추천 점수, 발송 개수를 저장합니다. 인앱 알림함은 추천 digest가 생성되면 자동으로 기록되고, 웹푸시는 현재 브라우저 구독 저장까지만 지원합니다.
+                      현재 알림 설정은 전체 on/off, 이메일, 인앱 알림함, 브라우저 푸시 채널, 발송 주기, 최소 추천 점수, 발송 개수를 함께 저장합니다.
                       {notificationConsentAt && (
                         <div style={{ marginTop: 8, color: INK3 }}>
                           최근 수신 동의 시각: {formatConsentDateTime(notificationConsentAt)}
