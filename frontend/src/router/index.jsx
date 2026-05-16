@@ -3,6 +3,7 @@ import AuthExpiryHandler from "../components/AuthExpiryHandler.jsx";
 import RequireLogin from "../components/RequireLogin.jsx";
 import LazyRoute from "./LazyRoute.jsx";
 import {
+  AlertsPage,
   ChatPage,
   LoginPage,
   MainPage,
@@ -20,6 +21,18 @@ const router = createBrowserRouter([
   { path: "/reset-password", element: <AuthExpiryHandler><LazyRoute><ResetPasswordPage /></LazyRoute></AuthExpiryHandler> },
   { path: "/policies", element: <AuthExpiryHandler><LazyRoute><PoliciesPage /></LazyRoute></AuthExpiryHandler> },
   { path: "/policies/:id", element: <AuthExpiryHandler><LazyRoute><PolicyDetailPage /></LazyRoute></AuthExpiryHandler> },
+  {
+    path: "/alerts",
+    element: (
+      <AuthExpiryHandler>
+        <LazyRoute>
+          <RequireLogin>
+            <AlertsPage />
+          </RequireLogin>
+        </LazyRoute>
+      </AuthExpiryHandler>
+    ),
+  },
   {
     path: "/mypage",
     element: (

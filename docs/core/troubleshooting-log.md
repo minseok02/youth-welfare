@@ -4192,3 +4192,8 @@
 - 문제: `sendDailyDeadlineReminders()` 서버 검증은 통과했지만, 별도 invoker Spring context 부팅 중 `HHH90000025: PostgreSQLDialect does not need to be specified explicitly` WARN 이 매번 남았다. 기능 실패는 아니지만 runtime smoke 로그를 읽을 때 알림 관련 경고처럼 섞여 들어와 노이즈가 컸다.
 - 해결: `application.yml` 에서 `hibernate.dialect=org.hibernate.dialect.PostgreSQLDialect` 를 제거했다. 현재 드라이버/DB URL 조합이면 Hibernate 6가 dialect를 스스로 고르고, explicit 설정이 없어도 `ddl-auto=validate` 기준 동작은 유지된다.
 - 이유: 이런 종류의 framework deprecation WARN 은 실제 기능 회귀와 섞이면 smoke reading 비용만 높인다. 동작이 같다면 설정 drift를 먼저 걷어내는 편이 이후 서버/runtime 검증 신호대잡음을 높인다.
+
+## 782) 알림함이 헤더 dropdown과 `MyPage` 탭에만 있으면 목록 UX와 설정 UX가 섞여 보여서, 전용 페이지를 따로 두는 편이 현재 구조와 맞다
+- 문제: 인앱 알림은 이미 헤더 bell dropdown과 `MyPage` 의 `알림 설정` 탭 안에 있었지만, 이 상태에선 "최근 알림을 길게 본다"와 "채널 설정/웹푸시 연결을 바꾼다"가 한 화면에 섞여 있었다. 특히 bell dropdown의 `전체 보기` 도 다시 `MyPage?tab=3` 으로 보내고 있어 알림 목록 자체보다 설정 페이지로 들어가는 느낌이 강했다.
+- 해결: `/alerts` 전용 페이지를 추가하고, bell dropdown의 `전체 보기` 와 deep link 없는 alert fallback을 모두 `/alerts` 로 돌렸다. `MyPage` 알림 탭은 채널/웹푸시 설정을 유지하되, 목록 섹션에는 `전용 페이지` 진입 버튼만 추가해 역할을 분리했다.
+- 이유: 현재 프로젝트 의도상 알림은 "전달 채널 설정"과 "실제 받은 알림 확인"이 둘 다 중요하다. 이 둘을 같은 탭에 모두 우겨 넣기보다, 설정은 `MyPage`, 목록은 `/alerts` 로 가르는 편이 현재 UI 톤을 유지하면서도 구조를 더 읽기 쉽게 만든다.

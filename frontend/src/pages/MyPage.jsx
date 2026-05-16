@@ -1416,15 +1416,23 @@ export default function MyPage() {
                       <div style={{ fontSize: 13, color: INK3 }}>
                         읽지 않은 알림 <strong style={{ color: alertUnreadCount > 0 ? WARN : INK2 }}>{alertUnreadCount}</strong>개
                       </div>
-                      <button
-                        onClick={() => {
-                          setAlertsLoaded(false);
-                          syncAlertsAfterAction().catch(() => showToast("알림함 새로고침에 실패했습니다", "error"));
-                        }}
-                        style={{ padding: "8px 12px", borderRadius: 10, border: `1px solid ${LINE}`, background: WHITE, color: INK2, fontSize: 12, fontWeight: 700, cursor: "pointer" }}
-                      >
-                        새로고침
-                      </button>
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <button
+                          onClick={() => navigate("/alerts", { state: { from: location } })}
+                          style={{ padding: "8px 12px", borderRadius: 10, border: `1px solid ${LINE}`, background: WHITE, color: INK2, fontSize: 12, fontWeight: 700, cursor: "pointer" }}
+                        >
+                          전용 페이지
+                        </button>
+                        <button
+                          onClick={() => {
+                            setAlertsLoaded(false);
+                            syncAlertsAfterAction().catch(() => showToast("알림함 새로고침에 실패했습니다", "error"));
+                          }}
+                          style={{ padding: "8px 12px", borderRadius: 10, border: `1px solid ${LINE}`, background: WHITE, color: INK2, fontSize: 12, fontWeight: 700, cursor: "pointer" }}
+                        >
+                          새로고침
+                        </button>
+                      </div>
                     </div>
 
                     {alertsLoading ? (

@@ -116,8 +116,8 @@ export default function Header() {
         },
       };
   const alertInboxTarget = useMemo(() => ({
-    pathname: "/mypage",
-    search: "?tab=3",
+    pathname: "/alerts",
+    search: "",
     state: {
       ...(location.state ?? {}),
       from: location,
