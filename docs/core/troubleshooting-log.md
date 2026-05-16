@@ -4262,3 +4262,8 @@
 - 문제: 서버 `run-local-gov24-recommend-score-audit.sh` 결과에서 Gov24는 top2에서 `avg rule_weighted_score=90.00` 인데도 `avg ai_score=0.00`, `avg final_score=0.27375` 였다. 처음엔 cluster cache drift 가능성도 있었지만, 코드를 다시 보면 `ClusterService` 는 항상 `youth_all` 을 반환하고 `AiScoringService` 는 `youth_all` 일 때 cache를 우회해 `RealtimeAiGateway` 를 직접 탄다.
 - 해결: 그래서 다음 조사 축을 cache 정리나 blend 보정이 아니라, **latest batch에서 실제로 `GOV24 + ai_score=0` row가 얼마나 되는지** 로 좁혔다. 이를 위해 `deploy/smoke/run-local-gov24-zero-ai-audit.sh` 를 추가해 zero-AI Gov24 count, rank 분포, 대표 서비스, `ai_reason` 샘플, top2 zero-AI score summary를 같이 출력하게 했다.
 - 이유: 이 단계에서 중요한 건 "0점이 어디서 생기나"를 추측이 아니라 코드 경계로 분리하는 것이다. 지금 구조상 0점은 명시적 fallback이 아니라 `RealtimeAiGateway` 결과나 그 저장값에서 온다고 보는 편이 맞고, 그래서 다음 검증도 그 row 자체를 읽는 게 우선이다.
+
+## 796) zero-AI top2가 0이면, 다음엔 `Gov24 top2` 가 같은 user의 `rank1` 에게 정확히 어디서 지는지 개별 row 수준으로 봐야 한다
+- 문제: zero-AI audit 결과 local/server 모두 `gov24_zero_ai_top2_count=0` 이었다. 즉 Gov24 상위권 약세를 계속 `ai_score=0` 일반론으로 읽으면 병목을 놓친다. 실제 필요한 건 "Gov24 top2 후보가 같은 user의 rank1 경쟁 후보와 비교해 rule에서 지는지, ai에서 지는지, final에서 지는지"를 보는 것이다.
+- 해결: `deploy/smoke/run-local-gov24-top2-competitor-audit.sh` 를 추가해 latest batch에서 `source_type='GOV24' and rec_rank<=2` 인 row를 잡고, 같은 user의 `rank1` 경쟁 후보와 나란히 비교하게 했다. 이 audit은 rival source 분포, pair 샘플(`gov24 rule/ai/final/ai_reason => rank1 rival rule/ai/final`), 평균 delta를 함께 출력한다.
+- 이유: 평균 score summary만 보면 Gov24 전체가 약한 것처럼 보이지만, 실제 수정은 개별 top2 패턴에서 출발해야 한다. 그래서 이제는 평균보다 **Gov24 top2 개별 row vs rank1 rival** 비교가 다음 근거가 된다.

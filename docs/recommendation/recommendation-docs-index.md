@@ -30,6 +30,7 @@
 - `bash deploy/smoke/run-local-gov24-recommend-surface-audit.sh`
 - `bash deploy/smoke/run-local-gov24-recommend-score-audit.sh`
 - `bash deploy/smoke/run-local-gov24-zero-ai-audit.sh`
+- `bash deploy/smoke/run-local-gov24-top2-competitor-audit.sh`
 
 ### 같이 보면 좋은 기준 문서
 
@@ -113,6 +114,8 @@ Gov24가 추천에 "안 보이는지"보다 "몇 위에서 어떤 서비스로 �
 Gov24가 왜 top1/2에서 약한지 더 좁히려면 `bash deploy/smoke/run-local-gov24-recommend-score-audit.sh` 로 latest batch 기준 source별 `avg rule_weighted_score / avg ai_score / avg final_score` 를 top2/top10/rank별로 같이 봅니다.
 
 서버처럼 `Gov24 top2 avg rule은 높은데 avg ai가 0` 인 상황이 나오면 `bash deploy/smoke/run-local-gov24-zero-ai-audit.sh` 로 latest batch의 `GOV24 + ai_score=0` count, rank 분포, 대표 서비스, ai_reason 샘플을 같이 봅니다.
+
+그다음 실제로 왜 같은 사용자에서 Gov24가 `top2` 에만 머무는지 보려면 `bash deploy/smoke/run-local-gov24-top2-competitor-audit.sh` 로 `Gov24 top2 row` 와 같은 user의 `rank1 경쟁 후보` 를 나란히 비교합니다.
 
 ### 6. replay 템플릿
 
