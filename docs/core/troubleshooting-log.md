@@ -4267,3 +4267,8 @@
 - 문제: top2 competitor audit 결과 서버 latest batch에서 `gov24_top2_competitor_count=8`, `gov24_top2_rank_distribution=1:7,2:1`, `gov24_top2_rival_sources=GOV24:8` 이었다. 즉 top2에 들어온 Gov24는 대부분 이미 rank1이고, 유일한 rank2 패배도 Gov24끼리의 미세한 final 차이였다.
 - 해결: 그래서 "Gov24가 top2에서 다른 source에게 진다"는 가설은 폐기하고, competitor audit은 유지하되 다음 읽기 순서를 `null-AI 분포 -> top2 진입량 -> upstream retrieval/rule scoring` 으로 재정렬했다.
 - 이유: 이 단계에서 잘못된 가설을 빨리 버리는 게 중요하다. 지금 서버 기준으로는 top2 competitor 자체가 병목이 아니라, **애초에 top2까지 올라오는 Gov24 row가 적다**는 쪽이 더 핵심이다.
+
+## 797) `NULL ai_score` 는 최소 두 경로가 있으므로, `AI_TOP_N 밖` 과 `top15 안인데 응답/매핑 누락` 을 분리해서 봐야 한다
+- 문제: server null-AI audit 결과 `gov24_null_ai_top2_count=8` 이라서, 상위 Gov24 후보도 AI 미적용 상태로 올라오는 문제가 드러났다. 하지만 코드상 `ai_score=NULL` 은 두 경우가 있다: `RealtimeAiGateway` 가 상위 `AI_TOP_N=15` 밖 후보에는 원래 AI를 안 주는 경우, 그리고 top15 안이지만 OpenAI 응답에 해당 `service_id` 결과가 없어 candidate가 그대로 남는 경우다.
+- 해결: `deploy/smoke/run-local-gov24-null-ai-cause-audit.sh` 를 추가해 latest batch `GOV24 + ai_score is null` row를 `outside_ai_top_n`, `inside_ai_top_n_blank_reason`, `inside_ai_top_n_with_reason` 으로 분류하게 했다. 동시에 샘플 row도 `user_key:rank:service_id:title:cause:rule:final:ai_reason/no-reason` 형태로 같이 출력한다.
+- 이유: 이걸 나누지 않으면 `NULL ai_score` 를 전부 같은 문제로 묶어 잘못 고치게 된다. 다음 수정은 "AI_TOP_N 을 늘릴지"와 "top15 안 누락 응답을 어떻게 다룰지"가 완전히 다른 선택지이므로, 먼저 경로를 분리해 읽는 게 맞다.

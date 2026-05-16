@@ -32,6 +32,7 @@
 - `bash deploy/smoke/run-local-gov24-zero-ai-audit.sh`
 - `bash deploy/smoke/run-local-gov24-top2-competitor-audit.sh`
 - `bash deploy/smoke/run-local-gov24-null-ai-audit.sh`
+- `bash deploy/smoke/run-local-gov24-null-ai-cause-audit.sh`
 
 ### 같이 보면 좋은 기준 문서
 
@@ -115,6 +116,8 @@ Gov24가 추천에 "안 보이는지"보다 "몇 위에서 어떤 서비스로 �
 Gov24가 왜 top1/2에서 약한지 더 좁히려면 `bash deploy/smoke/run-local-gov24-recommend-score-audit.sh` 로 latest batch 기준 source별 `avg rule_weighted_score / avg ai_score / avg final_score` 를 top2/top10/rank별로 같이 봅니다.
 
 서버처럼 `Gov24 top2 avg rule은 높은데 avg ai가 0처럼 보이는` 상황이 나오면, 먼저 그 값이 실제 0점인지 NULL 평균이 `coalesce(..., 0)` 로 보인 것인지 나눠 봐야 합니다. 이를 위해 `bash deploy/smoke/run-local-gov24-zero-ai-audit.sh` 와 `bash deploy/smoke/run-local-gov24-null-ai-audit.sh` 를 같이 돌려 `GOV24 + ai_score=0` 과 `GOV24 + ai_score is null` 분포를 분리해서 봅니다.
+
+`NULL` 이 실제로 보이면 그다음은 `AI_TOP_N 밖이라 원래 AI를 안 받은 것인지`, 아니면 `top15 안인데 AI 결과가 비어 저장된 것인지`를 `bash deploy/smoke/run-local-gov24-null-ai-cause-audit.sh` 로 분리해서 봅니다.
 
 그다음 실제로 왜 같은 사용자에서 Gov24가 `top2` 에만 머무는지 보려면 `bash deploy/smoke/run-local-gov24-top2-competitor-audit.sh` 로 `Gov24 top2 row` 와 같은 user의 `rank1 경쟁 후보` 를 나란히 비교합니다.
 
