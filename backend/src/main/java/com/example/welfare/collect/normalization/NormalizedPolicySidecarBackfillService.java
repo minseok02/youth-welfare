@@ -40,7 +40,15 @@ public class NormalizedPolicySidecarBackfillService {
 
     @Transactional
     public BackfillResult backfillBokjiroListSidecars(int limitPerSource) {
-        return backfillListSidecars(configuredSourceTypes(SidecarBackfillCapability::supportsList), limitPerSource);
+        return backfillListSidecars(List.of(
+                WelfareService.SourceType.BOKJIRO_CENTRAL,
+                WelfareService.SourceType.BOKJIRO_LOCAL
+        ), limitPerSource);
+    }
+
+    @Transactional
+    public BackfillResult backfillGov24ListSidecars(int limitPerSource) {
+        return backfillListSidecars(List.of(WelfareService.SourceType.GOV24), limitPerSource);
     }
 
     @Transactional
@@ -159,13 +167,22 @@ public class NormalizedPolicySidecarBackfillService {
                                                                                                  ObjectMapper objectMapper) {
         EnumMap<WelfareService.SourceType, SidecarBackfillCapability> capabilities =
                 new EnumMap<>(WelfareService.SourceType.class);
-        for (CollectSourceRegistry binding : CollectSourceRegistry.detailSources()) {
+        for (CollectSourceRegistry binding : CollectSourceRegistry.values()) {
+            ListAggregateLoader listLoader = binding.supportsListAggregateBackfill()
+                    ? raw -> binding.toListAggregate(welfareServiceMapper, objectMapper, raw)
+                    : null;
+            DetailAggregateLoader detailLoader = binding.supportsDetailCollect()
+                    ? (service, raw) -> binding.toDetailAggregate(welfareServiceMapper, service, raw, objectMapper)
+                    : null;
+            if (listLoader == null && detailLoader == null) {
+                continue;
+            }
             capabilities.put(
                     binding.sourceType(),
                     new SidecarBackfillCapability(
                             binding.sourceType(),
-                            raw -> binding.toListAggregate(welfareServiceMapper, objectMapper, raw),
-                            (service, raw) -> binding.toDetailAggregate(welfareServiceMapper, service, raw, objectMapper)
+                            listLoader,
+                            detailLoader
                     )
             );
         }

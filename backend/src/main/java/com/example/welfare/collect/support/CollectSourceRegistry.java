@@ -88,7 +88,7 @@ public enum CollectSourceRegistry {
             );
         }
     },
-    GOV24(WelfareService.SourceType.GOV24, false, false) {
+    GOV24(WelfareService.SourceType.GOV24, true, false) {
         @Override
         public <T> ListCollectSourceBinding<T> listBinding(WelfareServiceMapper mapper) {
             return cast(new ListCollectSourceBinding<>(
@@ -100,6 +100,15 @@ public enum CollectSourceRegistry {
                     mapper::tagsFromGov24,
                     mapper::toNormalizedGov24
             ));
+        }
+
+        @Override
+        public NormalizedPolicyAggregate toListAggregate(WelfareServiceMapper mapper,
+                                                         ObjectMapper objectMapper,
+                                                         RawApiPayload raw) throws Exception {
+            return mapper.toNormalizedGov24(
+                    objectMapper.readValue(raw.getPayloadJson(), Gov24ServiceListDto.Item.class)
+            );
         }
     };
 

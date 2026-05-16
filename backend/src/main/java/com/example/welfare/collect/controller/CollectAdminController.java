@@ -122,6 +122,29 @@ public class CollectAdminController {
         )));
     }
 
+    @PostMapping("/gov24-sidecars-backfill")
+    public ResponseEntity<ApiResponse<SidecarBackfillResponse>> backfillGov24Sidecars(
+            @RequestParam(defaultValue = "0") int limitPerSource
+    ) {
+        NormalizedPolicySidecarBackfillService.BackfillResult result =
+                normalizedPolicySidecarBackfillService.backfillGov24ListSidecars(limitPerSource);
+
+        log.info("[Admin] Gov24 sidecar backfill 수동 트리거 limitPerSource={} scanned={} upserted={} missing={} failed={}",
+                limitPerSource,
+                result.scannedCount(),
+                result.upsertedCount(),
+                result.missingServiceCount(),
+                result.failedCount());
+        return ResponseEntity.ok(ApiResponse.success(new SidecarBackfillResponse(
+                "gov24-list",
+                limitPerSource,
+                result.scannedCount(),
+                result.upsertedCount(),
+                result.missingServiceCount(),
+                result.failedCount()
+        )));
+    }
+
     @PostMapping("/bokjiro-details-gap-fill")
     public ResponseEntity<ApiResponse<DetailGapFillResponse>> fillBokjiroDetailGaps(
             @RequestParam(defaultValue = "1") int rounds,

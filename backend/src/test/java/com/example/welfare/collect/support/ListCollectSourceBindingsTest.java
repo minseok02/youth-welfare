@@ -70,4 +70,16 @@ class ListCollectSourceBindingsTest {
                         WelfareService.SourceType.BOKJIRO_LOCAL
                 );
     }
+
+    @Test
+    @DisplayName("collect source registry는 Gov24를 list sidecar backfill source에 포함한다")
+    void collectSourceRegistryExposesGov24ListBackfillSource() {
+        assertThat(CollectSourceRegistry.listAggregateBackfillSources())
+                .extracting(CollectSourceRegistry::sourceType)
+                .containsExactly(
+                        WelfareService.SourceType.BOKJIRO_CENTRAL,
+                        WelfareService.SourceType.BOKJIRO_LOCAL,
+                        WelfareService.SourceType.GOV24
+                );
+    }
 }

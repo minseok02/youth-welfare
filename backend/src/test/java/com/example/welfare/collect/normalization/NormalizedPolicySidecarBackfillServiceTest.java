@@ -1,6 +1,7 @@
 package com.example.welfare.collect.normalization;
 
 import com.example.welfare.collect.dto.BokjiroLocalDto;
+import com.example.welfare.collect.dto.Gov24ServiceListDto;
 import com.example.welfare.collect.entity.RawApiPayload;
 import com.example.welfare.collect.gateway.BokjiroDetailClient;
 import com.example.welfare.collect.mapper.WelfareServiceMapper;
@@ -92,6 +93,11 @@ class NormalizedPolicySidecarBackfillServiceTest {
                 RawApiPayload.ApiCategory.LIST,
                 10
         )).willReturn(List.of(new NormalizedPolicySidecarBackfillTarget(raw, saved)));
+        given(normalizedPolicySidecarBackfillReadRepository.findTargetsBySourceTypeAndApiCategoryOrderByFetchedAtAsc(
+                WelfareService.SourceType.GOV24,
+                RawApiPayload.ApiCategory.LIST,
+                10
+        )).willReturn(List.of());
 
         NormalizedPolicySidecarBackfillService.BackfillResult result = service.backfillBokjiroListSidecars(10);
 
@@ -234,6 +240,11 @@ class NormalizedPolicySidecarBackfillServiceTest {
                 RawApiPayload.ApiCategory.LIST,
                 10
         )).willReturn(List.of(new NormalizedPolicySidecarBackfillTarget(raw, saved)));
+        given(normalizedPolicySidecarBackfillReadRepository.findTargetsBySourceTypeAndApiCategoryOrderByFetchedAtAsc(
+                WelfareService.SourceType.GOV24,
+                RawApiPayload.ApiCategory.LIST,
+                10
+        )).willReturn(List.of());
 
         NormalizedPolicySidecarBackfillService.BackfillResult result = service.backfillBokjiroListSidecars(10);
 
@@ -242,5 +253,60 @@ class NormalizedPolicySidecarBackfillServiceTest {
         assertThat(result.missingServiceCount()).isZero();
         assertThat(result.failedCount()).isEqualTo(1);
         verify(collectPolicyAggregateApplyService, never()).applySidecarBackfill(any(), any());
+    }
+
+    @Test
+    @DisplayName("Gov24 list raw payload를 읽어 summary label aggregate를 다시 sidecar writer로 보낸다")
+    void backfillGov24ListSidecars() throws Exception {
+        Gov24ServiceListDto.Item item = new Gov24ServiceListDto.Item();
+        ReflectionTestUtils.setField(item, "serviceId", "GOV24-1");
+        ReflectionTestUtils.setField(item, "serviceName", "청년 임대료 지원");
+        ReflectionTestUtils.setField(item, "servicePurposeSummary", "청년에게 임대료를 지원합니다.");
+        ReflectionTestUtils.setField(item, "serviceField", "주거");
+        ReflectionTestUtils.setField(item, "userType", "개인");
+        ReflectionTestUtils.setField(item, "supportType", "현금");
+
+        NormalizedPolicyAggregate directAggregate = welfareServiceMapper.toNormalizedGov24(item);
+        assertThat(directAggregate.taxonomy().summaryLabels())
+                .containsEntry("GOV24_SERVICE_FIELD", "주거")
+                .containsEntry("GOV24_USER_TYPE", "개인")
+                .containsEntry("GOV24_BENEFIT_TYPE", "현금");
+
+        RawApiPayload raw = RawApiPayload.builder()
+                .sourceType(WelfareService.SourceType.GOV24)
+                .sourceId("GOV24-1")
+                .apiCategory(RawApiPayload.ApiCategory.LIST)
+                .payloadJson(objectMapper.writeValueAsString(item))
+                .payloadHash("hash")
+                .fetchedAt(LocalDateTime.now())
+                .build();
+
+        WelfareService saved = WelfareService.builder()
+                .id(201L)
+                .sourceType(WelfareService.SourceType.GOV24)
+                .sourceId("GOV24-1")
+                .title("청년 임대료 지원")
+                .status(WelfareService.ServiceStatus.ACTIVE)
+                .build();
+
+        given(normalizedPolicySidecarBackfillReadRepository.findTargetsBySourceTypeAndApiCategoryOrderByFetchedAtAsc(
+                WelfareService.SourceType.GOV24,
+                RawApiPayload.ApiCategory.LIST,
+                10
+        )).willReturn(List.of(new NormalizedPolicySidecarBackfillTarget(raw, saved)));
+
+        NormalizedPolicySidecarBackfillService.BackfillResult result = service.backfillGov24ListSidecars(10);
+
+        assertThat(result.scannedCount()).isEqualTo(1);
+        assertThat(result.upsertedCount()).isEqualTo(1);
+        assertThat(result.missingServiceCount()).isZero();
+        assertThat(result.failedCount()).isZero();
+
+        ArgumentCaptor<NormalizedPolicyAggregate> aggregateCaptor = ArgumentCaptor.forClass(NormalizedPolicyAggregate.class);
+        verify(collectPolicyAggregateApplyService).applySidecarBackfill(eq(saved), aggregateCaptor.capture());
+        assertThat(aggregateCaptor.getValue().taxonomy().summaryLabels())
+                .containsEntry("GOV24_SERVICE_FIELD", "주거")
+                .containsEntry("GOV24_USER_TYPE", "개인")
+                .containsEntry("GOV24_BENEFIT_TYPE", "현금");
     }
 }
