@@ -4302,3 +4302,8 @@
 - 문제: `base_blend` 가 낮다는 결론만으로는 왜 그런지 모른다. 예를 들어 `4689` 는 rule이 왜 `3` 인지, `7193` 는 왜 장학금/교육 태그를 달고도 현재 user와 덜 맞는지 보려면 user 관심사/우선순위와 서비스 projection/tag/fact를 나란히 봐야 한다.
 - 해결: `deploy/smoke/run-local-gov24-fresh-upstream-audit.sh` 를 추가했다. 이 스크립트는 `TARGET_USER_KEY` 기준 fresh batch에서 `user_context` (나이/지역/소득/고용/관심분야/타겟타입/우선순위)와, `Gov24 top10 + top2 rival` 의 `summary labels`, `interest themes`, `keyword tags`, `target groups`, `fact keys`, `raw tags`, `summary_excerpt` 를 함께 출력한다.
 - 이유: 이렇게 해야 "4689가 월세보증인데 user의 주관심 `교육` 과 안 맞아서 interest bonus를 못 받는지", "7193가 장학금이지만 target group/지역/학생 조건이 현재 user와 안 맞는지" 같은 upstream 해석이 가능해진다. 지금 단계는 점수 튜닝보다 입력 신호를 먼저 읽는 게 맞다.
+
+## 804) `4689` low-rule 이 일반 구조 문제인지 확인하려면, `주거` 관심/우선순위를 준 fresh user에서 Gov24 주거 계열이 실제로 올라오는지 먼저 봐야 한다
+- 문제: fresh upstream audit만 보면 `4689 주택금융공사 월세자금보증` 은 `search_youth_relevant=true`, `COND_RENT_WON_LE_60` 같은 주거 신호가 있는데도 `rule=3` 이라 바로 코드 버그처럼 보이기 쉽다. 하지만 그 fresh user가 실제로 `주거` 관심/우선순위를 갖고 있지 않았다면, 이건 구조 문제보다 사용자 맥락 문제일 수 있다.
+- 해결: `deploy/smoke/run-local-gov24-housing-signal-smoke.sh` 를 추가해 `주거` 관심 + `HOUSING` priority fresh user를 만들고 같은 batch의 source/rank를 직접 읽게 했다. 최신 local fresh batch 기준 결과는 `top2_source_distribution=BOKJIRO_CENTRAL:1,GOV24:1`, `gov24_top2_rows=1`, `gov24_ai_status_distribution=SCORED:2` 이고, `5728 주택금융공사 월세자금보증` 이 `rank2`, `rule=54`, `ai=70`, `final=0.63261` 으로 올라왔다.
+- 이유: 이 결과는 Gov24 주거 계열이 전반적으로 rule-side에서 막혀 있는 구조 버그는 아니라는 뜻이다. 즉 `4689` low-rule 은 "Gov24 housing이면 무조건 안 오른다"가 아니라, 기본 fresh user 신호에선 약하고 `주거` 관심/우선순위를 주면 실제로 상위권까지 올라오는 **맥락 의존 경계**로 읽는 편이 더 정확하다.
