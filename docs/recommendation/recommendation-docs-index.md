@@ -38,6 +38,8 @@
 - `bash deploy/smoke/run-local-gov24-fresh-batch-audit.sh`
 - `bash deploy/smoke/run-local-gov24-fresh-score-breakdown-audit.sh`
 - `bash deploy/smoke/run-local-gov24-fresh-upstream-audit.sh`
+- `bash deploy/smoke/run-local-gov24-housing-signal-smoke.sh`
+- `bash deploy/smoke/run-local-gov24-education-signal-smoke.sh`
 
 ### 같이 보면 좋은 기준 문서
 
@@ -135,6 +137,8 @@ Gov24가 왜 top1/2에서 약한지 더 좁히려면 `bash deploy/smoke/run-loca
 fresh batch에서 "rule/ai는 어느 정도인데 final이 왜 밀렸는지"를 더 직접 보려면 `bash deploy/smoke/run-local-gov24-fresh-score-breakdown-audit.sh` 를 씁니다. 이 스크립트는 저장된 `rule_weight_used / ai_weight_used` 와 batch `rule_max` 를 기준으로 `norm_rule`, `norm_ai`, `base_blend_score`, `actual_final`, `delta(actual-final - base-blend)` 를 같이 출력합니다.
 
 그 다음 실제 upstream 입력을 확인하려면 `bash deploy/smoke/run-local-gov24-fresh-upstream-audit.sh` 를 씁니다. `TARGET_USER_KEY` 기준 fresh batch에서 Gov24 row와 top2 rival의 user context, summary labels, taxonomy terms, target groups, fact keys, raw tags를 한 번에 출력해 `4689` 처럼 rule이 낮은 서비스가 왜 그런 신호를 갖는지 직접 읽을 수 있습니다.
+
+Gov24 source 전체가 구조적으로 억눌리는지 보려면 bounded smoke 두 개를 같이 봅니다. `bash deploy/smoke/run-local-gov24-housing-signal-smoke.sh` 는 `주거` 관심 + `HOUSING` priority fresh user에서 Gov24 주거 계열이 실제로 top2까지 올라오는지 확인하고, `bash deploy/smoke/run-local-gov24-education-signal-smoke.sh` 는 `교육·직업훈련` 관심 + `EDUCATION` priority + `경기도/안산시` fresh user에서 교육/장학금 Gov24가 실제로 top1/top2까지 올라오는지 확인합니다.
 
 주의: `ai_status` 는 `e7e591a` 이후 새로 생성된 batch에서만 직접 원인값으로 믿는 편이 맞습니다. migration backfill은 기존 `NULL ai_score` row를 전부 `NOT_REQUESTED` 로 채웠기 때문에, old batch에선 `rule_rank<=15 인데 NOT_REQUESTED` 같은 row가 backfill artifact일 수 있습니다. 이런 경우는 `bash deploy/smoke/run-local-gov24-top2-rule-rank-audit.sh` 를 같이 봐야 합니다.
 

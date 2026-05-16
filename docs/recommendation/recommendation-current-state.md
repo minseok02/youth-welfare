@@ -276,3 +276,31 @@ local helper/replay smoke는 integrated schema 존재 여부와 collect/replay p
    collect 섹션에는 최근 실패 run 목록, search 섹션에는 최근 7일 0건 검색 수가 포함됩니다.
    `trend` 섹션에는 collect/recommendation/search 의 1일/7일/30일 추세가 포함됩니다.
 7. 추천 가중치/프롬프트 재조정은 CTR readiness audit가 `READY_FOR_WEIGHT_REVIEW` 를 줄 때에만 reopen 합니다.
+
+## Gov24 추적 결론
+
+`2026-05-17` 기준 Gov24 추천 추적은 여기서 1차 closeout으로 봅니다.
+
+- Gov24가 추천에서 아예 안 보이는 문제는 아닙니다.
+- fresh batch 기준 병목은 source 전체 억압보다 **개별 정책 제약 + 사용자 맥락 차이** 쪽에 더 가깝습니다.
+
+대표 해석:
+
+- `4689` 계열
+  - 기본 fresh user에선 `rule` 이 낮아 약할 수 있습니다.
+  - 하지만 `주거` 관심 + `HOUSING` priority fresh user bounded smoke에선 Gov24 주거 서비스 `5728` 이 `rank2`, `rule=54`, `ai=70`, `final=0.63261` 까지 올라왔습니다.
+  - 즉 Gov24 주거 계열이 구조적으로 rule-side에서 막혀 있는 상태로 일반화하면 안 됩니다.
+
+- `7193` 계열
+  - 특정 fresh user에선 `안산 거주 초·중·고·대학생 장학금` 성격 때문에 `ai=0` 으로 약할 수 있습니다.
+  - 하지만 `교육·직업훈련` 관심 + `EDUCATION` priority + `경기도/안산시` fresh user bounded smoke에선 교육 Gov24 `6790` 이 `rank1`, `rule=27`, `ai=80`, `final=1.03936` 으로 올라왔습니다.
+  - 즉 교육/장학금 Gov24 전체가 AI에서 구조적으로 밀린다고 보기도 어렵습니다.
+
+현재 practical 해석:
+
+1. Gov24 source 자체를 별도 가산해 억지로 올릴 단계는 아닙니다.
+2. fresh user 문맥에 따라 어떤 Gov24는 충분히 상위권까지 올라옵니다.
+3. 다음 reopen이 필요하면 source 일반론보다 **개별 정책군** 기준으로 봐야 합니다.
+   - 주거/월세보증
+   - 지역 장학금
+   - 창업/소상공인
