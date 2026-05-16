@@ -4292,3 +4292,8 @@
 - 문제: global latest batch audit은 fresh user를 새로 만든 뒤에도 다른 old batch와 섞여 보이기 쉽다. 특히 `ai_status` migration backfill이 있는 상황에서는 "latest batch 전체"보다 "지금 막 refresh한 특정 user의 batch"를 직접 읽는 편이 안전하다.
 - 해결: `deploy/smoke/run-local-gov24-fresh-batch-audit.sh` 를 추가했다. `TARGET_USER_KEY` 를 주면 해당 user 최신 batch만 읽고, Gov24 row의 `final_rank/rule_rank/inside_ai_top_n/ai_status` 와 같은 batch의 `top1/top2` rival score를 같이 출력한다. `TARGET_USER_KEY` 가 없으면 가장 최근 batch user를 기본값으로 잡는다.
 - 이유: 이 스크립트로 fresh user 기준 `Gov24 top2가 정말 없는지`, `Gov24가 rule 기준 몇 위였는지`, `inside_ai_top_n인데도 NOT_REQUESTED로 보이는 게 old batch artifact인지`를 한 번에 읽을 수 있다.
+
+## 802) fresh batch에서 점수 계산식 경계를 보려면 저장된 weight와 batch rule max 기준의 `base_blend` 와 실제 `final_score` 를 같이 봐야 한다
+- 문제: `Gov24가 top2에 못 든다`는 사실만으로는 rule score가 낮은 건지, AI score가 낮은 건지, 아니면 priority multiplier 같은 후단 조정 때문에 final에서 더 깎인 건지 알기 어렵다. 하지만 현재 DB에는 `hasPriorityMismatch` 같은 세부 flag는 저장되지 않아, exact `adjustedAiWeight` 를 사후 재현할 수는 없다.
+- 해결: `deploy/smoke/run-local-gov24-fresh-score-breakdown-audit.sh` 를 추가했다. 이 스크립트는 fresh user batch 기준으로 저장된 `rule_weight_used / ai_weight_used`, batch `rule_max`, `rule_weighted_score`, `ai_score` 를 사용해 `norm_rule`, `norm_ai`, `base_blend_score`, `actual_final`, `delta(actual_final - base_blend_score)` 를 계산하고 Gov24 row와 `top1/top2` rival을 나란히 출력한다.
+- 이유: exact 재현은 아니어도, 이 값만으로도 "기본 blend까진 비슷한데 final에서 더 눌렸는지"를 읽을 수 있다. 예를 들어 local 샘플에서 `2622` 는 `base_blend=1.00000`, `final=1.12000`, `delta=+0.12000` 으로 priority multiplier가 크게 붙고, Gov24 `6790` 는 `base_blend=0.39216`, `final=0.39216`, `delta=0` 으로 추가 보정 없이 그대로 남는다.

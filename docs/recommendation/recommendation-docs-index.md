@@ -36,6 +36,7 @@
 - `bash deploy/smoke/run-local-gov24-ai-status-audit.sh`
 - `bash deploy/smoke/run-local-gov24-top2-rule-rank-audit.sh`
 - `bash deploy/smoke/run-local-gov24-fresh-batch-audit.sh`
+- `bash deploy/smoke/run-local-gov24-fresh-score-breakdown-audit.sh`
 
 ### 같이 보면 좋은 기준 문서
 
@@ -129,6 +130,8 @@ Gov24가 왜 top1/2에서 약한지 더 좁히려면 `bash deploy/smoke/run-loca
 만약 `top2 Gov24` 가 왜 `NOT_REQUESTED` 인지 보려면 `bash deploy/smoke/run-local-gov24-top2-rule-rank-audit.sh` 로 해당 row의 `final_rank` 와 `rule_rank`, 그리고 `AI_TOP_N=15` 포함 여부(`inside_ai_top_n/outside_ai_top_n`)를 직접 비교합니다.
 
 특정 fresh user/batch를 놓고 Gov24 row와 실제 `top1/top2` rival을 같이 읽으려면 `bash deploy/smoke/run-local-gov24-fresh-batch-audit.sh` 를 씁니다. `TARGET_USER_KEY` 를 주면 그 사용자 최신 batch만 읽고, Gov24 `final_rank/rule_rank/ai_status/inside_ai_top_n` 과 `top2` rival score를 한 번에 비교합니다.
+
+fresh batch에서 "rule/ai는 어느 정도인데 final이 왜 밀렸는지"를 더 직접 보려면 `bash deploy/smoke/run-local-gov24-fresh-score-breakdown-audit.sh` 를 씁니다. 이 스크립트는 저장된 `rule_weight_used / ai_weight_used` 와 batch `rule_max` 를 기준으로 `norm_rule`, `norm_ai`, `base_blend_score`, `actual_final`, `delta(actual-final - base-blend)` 를 같이 출력합니다.
 
 주의: `ai_status` 는 `e7e591a` 이후 새로 생성된 batch에서만 직접 원인값으로 믿는 편이 맞습니다. migration backfill은 기존 `NULL ai_score` row를 전부 `NOT_REQUESTED` 로 채웠기 때문에, old batch에선 `rule_rank<=15 인데 NOT_REQUESTED` 같은 row가 backfill artifact일 수 있습니다. 이런 경우는 `bash deploy/smoke/run-local-gov24-top2-rule-rank-audit.sh` 를 같이 봐야 합니다.
 
