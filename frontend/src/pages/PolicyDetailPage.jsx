@@ -52,6 +52,25 @@ const formatAgeRange = (min, max) => {
   return null;
 };
 
+const formatIncomeRange = (min, max) => {
+  if (min && max) return `소득 ${min}~${max}분위`;
+  if (min) return `소득 ${min}분위 이상`;
+  if (max) return `소득 ${max}분위 이하`;
+  return null;
+};
+
+const joinMetaParts = (parts, separator = " · ") => {
+  const seen = new Set();
+  return parts
+    .map((part) => (typeof part === "string" ? part.trim() : part))
+    .filter((part) => {
+      if (!part || seen.has(part)) return false;
+      seen.add(part);
+      return true;
+    })
+    .join(separator);
+};
+
 const formatSource = (sourceType) => {
   if (sourceType === "YOUTH") return "온통청년";
   if (sourceType === "BOKJIRO_CENTRAL") return "복지로 중앙";
@@ -321,15 +340,63 @@ export default function PolicyDetailPage() {
     const period = formatPeriod(policy.applyStartDate, policy.applyEndDate)
       || formatPeriod(policy.startDate, policy.endDate) || "상시/문의";
     const ageRange = formatAgeRange(policy.minAge, policy.maxAge);
+    const incomeRange = formatIncomeRange(policy.minIncome, policy.maxIncome);
+    const audienceSummary = joinMetaParts([
+      ageRange,
+      incomeRange,
+      policy.lifeStage,
+      policy.gov24UserTypeLabel,
+    ]) || NO_DATA;
+    const categorySummary = joinMetaParts([
+      policy.youthMajorLabel,
+      policy.youthMidLabel,
+      policy.gov24ServiceFieldLabel,
+      policy.unifiedCategory,
+    ]) || NO_DATA;
+    const supportSummary = joinMetaParts([
+      policy.provisionType,
+      policy.supportCycle,
+      policy.gov24BenefitTypeLabel,
+    ]) || NO_DATA;
+    const applyPathSummary = joinMetaParts([
+      policy.applyMethodName,
+      policy.provisionMethodLabel,
+      policy.isOnlineApply ? "온라인 신청 가능" : null,
+    ]) || NO_DATA;
+    const orgSummary = joinMetaParts([
+      policy.hostOrg,
+      policy.operatingOrg && policy.operatingOrg !== policy.hostOrg ? policy.operatingOrg : null,
+    ]) || NO_DATA;
+    const regionSummary = regionText || "전국/원문 확인";
+
     return [
-      { ico: "💻", label: "신청방법", value: policy.applyMethodName || (policy.isOnlineApply ? "온라인 신청 가능" : NO_DATA) },
-      { ico: "👤", label: "신청대상", value: ageRange || NO_DATA },
-      { ico: "🏢", label: "소관부처", value: policy.hostOrg || policy.operatingOrg || NO_DATA },
+      { ico: "👤", label: "신청대상", value: audienceSummary },
+      { ico: "🧭", label: "지원분야", value: categorySummary },
+      { ico: "💰", label: "지원형태", value: supportSummary },
+      { ico: "💻", label: "신청경로", value: applyPathSummary },
+      { ico: "📍", label: "지원지역", value: regionSummary },
+      { ico: "🏢", label: "소관기관", value: orgSummary },
       { ico: "📅", label: "신청기간", value: period },
-      { ico: "💰", label: "지원내용", value: policy.provisionType || policy.supportCycle || NO_DATA },
       { ico: "🎯", label: "키워드", value: visibleTags.slice(0, 4).join(" · ") || NO_DATA },
     ];
-  }, [policy, visibleTags]);
+  }, [policy, regionText, visibleTags]);
+
+  const quickHighlights = useMemo(() => {
+    if (!policy) return [];
+
+    return [
+      formatAgeRange(policy.minAge, policy.maxAge),
+      formatIncomeRange(policy.minIncome, policy.maxIncome),
+      policy.lifeStage,
+      regionText,
+      policy.youthMajorLabel,
+      policy.youthMidLabel,
+      policy.provisionType,
+      policy.supportCycle,
+      policy.provisionMethodLabel,
+      policy.isOnlineApply ? "온라인 신청 가능" : null,
+    ].filter(Boolean);
+  }, [policy, regionText]);
 
   const handleBookmark = async () => {
     if (!isLoggedIn) {
@@ -568,7 +635,16 @@ export default function PolicyDetailPage() {
               {/* Summary grid */}
               <section style={{ padding: "28px 0", borderBottom: `1px solid ${LINE}` }}>
                 <div style={{ fontSize: 18, fontWeight: 800, letterSpacing: "-0.01em", marginBottom: 16, color: INK }}>요약 정보</div>
-                <div style={{ background: AS, borderRadius: 16, padding: 24, display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "20px 32px" }}>
+                {quickHighlights.length > 0 && (
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14 }}>
+                    {quickHighlights.map((item) => (
+                      <Tag key={item} bg={WHITE} color={AI} border={`${A}22`}>
+                        {item}
+                      </Tag>
+                    ))}
+                  </div>
+                )}
+                <div style={{ background: AS, borderRadius: 16, padding: 24, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "20px 24px" }}>
                   {summaryRows.map((r) => (
                     <div key={r.label} style={{ display: "flex", gap: 14, alignItems: "flex-start" }}>
                       <div style={{ width: 40, height: 40, borderRadius: 10, background: WHITE, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0, boxShadow: "0 1px 4px rgba(37,99,235,0.1)" }}>
@@ -611,6 +687,17 @@ export default function PolicyDetailPage() {
               </ContentSection>
 
               <ContentSection id="target" title="신청 대상">
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14 }}>
+                  {formatAgeRange(policy.minAge, policy.maxAge) && (
+                    <Tag bg={WHITE} border={LINE}>연령 {formatAgeRange(policy.minAge, policy.maxAge)}</Tag>
+                  )}
+                  {formatIncomeRange(policy.minIncome, policy.maxIncome) && (
+                    <Tag bg={WHITE} border={LINE}>소득 {formatIncomeRange(policy.minIncome, policy.maxIncome).replace("소득 ", "")}</Tag>
+                  )}
+                  {policy.lifeStage && <Tag bg={WHITE} border={LINE}>{policy.lifeStage}</Tag>}
+                  {policy.gov24UserTypeLabel && <Tag bg={WHITE} border={LINE}>{policy.gov24UserTypeLabel}</Tag>}
+                  {regionText && <Tag bg={WHITE} border={LINE}>{regionText}</Tag>}
+                </div>
                 <p style={{ whiteSpace: "pre-line", margin: 0 }}>
                   {decodeHtml(policy.targetDetail) || `신청 대상 정보가 없습니다. ${NO_DATA}`}
                 </p>
@@ -625,6 +712,11 @@ export default function PolicyDetailPage() {
               )}
 
               <ContentSection id="method" title="신청 방법">
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14 }}>
+                  {policy.applyMethodName && <Tag bg={WHITE} border={LINE}>{policy.applyMethodName}</Tag>}
+                  {policy.provisionMethodLabel && <Tag bg={WHITE} border={LINE}>{policy.provisionMethodLabel}</Tag>}
+                  {policy.isOnlineApply && <Tag bg={WHITE} border={LINE}>온라인 신청 가능</Tag>}
+                </div>
                 <p style={{ whiteSpace: "pre-line", margin: 0 }}>
                   {decodeHtml(policy.applyMethodDetail || policy.applyMethodName) || `신청 방법 정보가 없습니다. ${NO_DATA}`}
                 </p>
