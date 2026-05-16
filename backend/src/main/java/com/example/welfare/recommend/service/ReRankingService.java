@@ -23,7 +23,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class ReRankingService {
     private static final int NO_PRIORITY_TOP_ELIGIBLE_LIMIT = 8;
-    private static final double NO_PRIORITY_TOP_BAND = 0.07d;
+    private static final double NO_PRIORITY_TOP_BAND = 0.15d;
     private static final double NO_PRIORITY_PREFERRED_CANDIDATE_BONUS = 0.085d;
     private static final double NO_PRIORITY_SECONDARY_CANDIDATE_BONUS = 0.03d;
     private static final double NO_PRIORITY_NON_PREFERRED_TOP_PENALTY = 0.025d;

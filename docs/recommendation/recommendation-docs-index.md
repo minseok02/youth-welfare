@@ -25,6 +25,7 @@
 - `KEEP_ARTIFACTS=true deploy/smoke/run-local-education-priority-replay.sh`
 - `bash deploy/smoke/run-local-ctr-readiness-audit.sh`
 - `bash deploy/smoke/run-local-recommendation-concentration-audit.sh`
+- `bash deploy/smoke/run-local-no-priority-top1-sample.sh`
 
 ### 같이 보면 좋은 기준 문서
 
@@ -98,6 +99,8 @@
 - 우선순위 반영 여부와 편중이 동시에 어떤 상태인지
 
 를 한 번에 읽는 audit/runbook 입니다.
+
+새 no-priority 코드 변경이 **다음 refresh 표본**에 실제로 먹는지 보려면 `bash deploy/smoke/run-local-no-priority-top1-sample.sh` 를 같이 봅니다.
 
 ### 6. replay 템플릿
 

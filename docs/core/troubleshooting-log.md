@@ -4207,3 +4207,8 @@
 - 문제: 현재 concentration audit는 `latest_batch_users=156`, `top1_leader_share_pct=56.41`, `CONCENTRATED_TOP1` 로 그대로다. 이 상태에서 no-priority top band 분산 코드를 손보고 곧바로 audit 숫자가 안 움직인다고 해서 효과가 없다고 단정하면, "새로 생성될 추천"과 "이미 저장된 batch" 를 섞어 읽게 된다.
 - 해결: `ReRankingService` 의 no-priority top band 재정렬을 개별 candidate index 회전에서 `category`(없으면 `source`) 버킷 회전으로 바꿨다. 테스트는 `ReRankingServiceTest`, `RecommendationGenerationServiceTest` 로 닫고, concentration audit는 현재 저장 batch를 다시 만들지 않은 상태라 baseline 숫자가 그대로 남는다는 점을 문서에 같이 적었다.
 - 이유: 추천 품질 개선은 코드 반영 시점과 저장 batch 재생성 시점이 다를 수 있다. 따라서 "이번 변경이 다음 refresh 결과를 어떻게 바꾸는가"와 "현재 audit snapshot이 이미 바뀌었는가"를 분리해서 읽어야 불필요한 오판을 줄일 수 있다.
+
+## 785) no-priority top band 기준이 실제 후보 점수폭보다 너무 좁으면, 분산 로직이 코드에 있어도 대부분의 실제 사용자에겐 아예 발동하지 않는다
+- 문제: 새 no-priority 사용자 `8명` bounded smoke를 처음 다시 태우자 top1이 `2622 7/8 (87.5%)` 로 거의 그대로였다. DB에서 같은 표본의 상위 5개를 직접 보니 대표 패턴은 `2622=1.025`, `2571=0.880`, `6790=0.681` 같은 식이었고, 기존 `NO_PRIORITY_TOP_BAND=0.07` 에서는 `2622` 와 `2571` 차이 `0.12~0.145` 가 band 밖으로 밀려 top-band 회전 자체가 거의 안 걸렸다.
+- 해결: `ReRankingService` 의 `NO_PRIORITY_TOP_BAND` 를 `0.07 -> 0.15` 로 넓히고, 같은 smoke를 app 재기동 뒤 다시 실행했다. 새 표본 top1은 `2571 4/8`, `2622 4/8`, leader share `50.0%` 로 갈라졌고, `ReRankingServiceTest`, `RecommendationGenerationServiceTest` 도 다시 통과시켰다.
+- 이유: 이건 추측이 아니라 실제 후보 점수폭과 threshold 불일치 문제였다. retrieval pool을 더 건드리기 전에, 우선 rerank 분산 규칙이 현실적인 점수차 범위 안에서 발동하도록 band부터 맞추는 게 맞다.

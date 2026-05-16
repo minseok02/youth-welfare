@@ -240,14 +240,21 @@ class ReRankingServiceTest {
                 null
         );
 
-        List<ScoredCandidate> ranked = reRankingService.rerank(
+        List<ScoredCandidate> rankedForUserA = reRankingService.rerank(
                 List.of(housingTop, financeSecond, educationThird),
-                noPrioritySnapshot("user-b")
+                noPrioritySnapshot("user-a")
+        );
+        List<ScoredCandidate> rankedForUserC = reRankingService.rerank(
+                List.of(housingTop, financeSecond, educationThird),
+                noPrioritySnapshot("user-c")
         );
 
-        assertThat(ranked.get(0).getService().getId()).isNotEqualTo(51L);
-        assertThat(ranked.get(0).getService().getUnifiedCategory())
+        assertThat(rankedForUserA.get(0).getService().getId())
+                .isNotEqualTo(rankedForUserC.get(0).getService().getId());
+        assertThat(rankedForUserA.get(0).getService().getUnifiedCategory())
                 .isIn("금융·생활지원", "교육·직업훈련");
+        assertThat(rankedForUserC.get(0).getService().getId())
+                .isEqualTo(51L);
     }
 
     private ScoredCandidate candidate(WelfareService service,

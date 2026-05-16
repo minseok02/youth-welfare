@@ -199,25 +199,33 @@ recommendation/replay 는 collect와 sidecar snapshot 품질에 직접 의존합
 
 CTR readiness와 별개로, 최신 `user_recommendations` batch 자체도 현재 꽤 집중되어 있습니다.
 
-`2026-05-15` local concentration audit 기준:
+`2026-05-16` local concentration audit 기준:
 
-- latest batch `2394 rows / 132 users / 113 distinct services`
+- latest batch `2610 rows / 172 users / 113 distinct services`
 - top1 leader:
   - `2622 청년월세 지원사업`
-  - `75 / 132 users`
-  - `56.82%`
+  - `99 / 172 users`
+  - `57.56%`
 - latest source distribution:
   - `YOUTH 1352`
-  - `BOKJIRO_LOCAL 427`
-  - `BOKJIRO_CENTRAL 313`
-  - `GOV24 302`
+  - `BOKJIRO_LOCAL 483`
+  - `BOKJIRO_CENTRAL 393`
+  - `GOV24 382`
 - latest category distribution:
-  - `금융·생활지원 736`
+  - `금융·생활지원 832`
   - `일자리 676`
-  - `교육·직업훈련 374`
-  - `주거 323`
+  - `교육·직업훈련 414`
+  - `주거 403`
 
 우선순위가 완전히 무시되는 상태는 아닙니다.
+
+다만 같은 날 새 no-priority 사용자 `8명` bounded smoke를 다시 만들면 top1은 아래처럼 갈라집니다.
+
+- `2571 청년내일저축계좌` `4 / 8`
+- `2622 청년월세 지원사업` `4 / 8`
+- leader share `50.0%`
+
+즉 최근 no-priority top band 조정은 **새 refresh 표본에는 분산 효과가 보이기 시작했지만**, 저장 추천 전체 batch는 아직 `CONCENTRATED_TOP1` 상태로 읽는 것이 맞습니다.
 
 - `HAS_PRIORITY` 사용자 `20`
 - `NO_PRIORITY` 사용자 `112`
