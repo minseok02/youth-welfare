@@ -4307,3 +4307,8 @@
 - 문제: fresh upstream audit만 보면 `4689 주택금융공사 월세자금보증` 은 `search_youth_relevant=true`, `COND_RENT_WON_LE_60` 같은 주거 신호가 있는데도 `rule=3` 이라 바로 코드 버그처럼 보이기 쉽다. 하지만 그 fresh user가 실제로 `주거` 관심/우선순위를 갖고 있지 않았다면, 이건 구조 문제보다 사용자 맥락 문제일 수 있다.
 - 해결: `deploy/smoke/run-local-gov24-housing-signal-smoke.sh` 를 추가해 `주거` 관심 + `HOUSING` priority fresh user를 만들고 같은 batch의 source/rank를 직접 읽게 했다. 최신 local fresh batch 기준 결과는 `top2_source_distribution=BOKJIRO_CENTRAL:1,GOV24:1`, `gov24_top2_rows=1`, `gov24_ai_status_distribution=SCORED:2` 이고, `5728 주택금융공사 월세자금보증` 이 `rank2`, `rule=54`, `ai=70`, `final=0.63261` 으로 올라왔다.
 - 이유: 이 결과는 Gov24 주거 계열이 전반적으로 rule-side에서 막혀 있는 구조 버그는 아니라는 뜻이다. 즉 `4689` low-rule 은 "Gov24 housing이면 무조건 안 오른다"가 아니라, 기본 fresh user 신호에선 약하고 `주거` 관심/우선순위를 주면 실제로 상위권까지 올라오는 **맥락 의존 경계**로 읽는 편이 더 정확하다.
+
+## 805) `7193` low-AI 도 같은 bounded smoke로 확인해보면, 교육/지역 Gov24 전체가 막혀 있는 게 아니라 개별 정책 제약 차이로 읽는 편이 맞다
+- 문제: fresh upstream audit에서 `7193 행복이음 장학금` 은 `안산 거주 초·중·고·대학생 장학금` 요약 때문에 `ai=0` 이 나왔고, 이걸 보면 교육 Gov24가 전반적으로 AI에서 불리한 구조처럼 보일 수 있다. 하지만 이건 개별 정책의 지역/학생 제약 때문일 수도 있다.
+- 해결: `deploy/smoke/run-local-gov24-education-signal-smoke.sh` 를 추가해 `교육·직업훈련` 관심 + `EDUCATION` priority + `경기도/안산시` fresh user를 만들고 같은 batch를 읽었다. 최신 local fresh batch 기준 결과는 `top2_source_distribution=BOKJIRO_CENTRAL:1,GOV24:1`, `gov24_top2_rows=1`, `gov24_ai_status_distribution=SCORED:3` 이고, `6790 지역인재육성을 위한 장학금 지원` 이 `rank1`, `rule=27`, `ai=80`, `final=1.03936` 으로 올라왔다. 반면 `5728 주택금융공사 월세자금보증` 은 이 교육 user에선 `rule=-13`, `final=0` 으로 약했다.
+- 이유: 이 결과는 교육/지역 Gov24가 전반적으로 막혀 있는 것이 아니라, `7193` 같은 개별 장학금 정책이 현재 user 맥락과 얼마나 구체적으로 맞는지에 따라 갈린다는 뜻이다. 즉 `7193 ai=0` 사례를 전체 Gov24 교육 계열 구조 버그로 일반화하면 안 된다.
