@@ -4325,3 +4325,8 @@
 - 문제: surface, score, ai-status, bounded signal까지 축이 늘어나면서 Gov24 추천 추적을 다시 확인하려면 4개 wrapper를 순서대로 직접 실행해야 했다. 이러면 같은 로컬 앱 상태에서 결과를 다시 모을 때 누락이나 순서 drift가 생기기 쉽다.
 - 해결: `deploy/smoke/run-local-gov24-recommendation-suite.sh` 를 추가했다. 이 wrapper는 `run-local-gov24-recommend-surface-audit.sh`, `run-local-gov24-recommend-score-audit.sh`, `run-local-gov24-ai-status-audit.sh`, `run-local-gov24-signal-suite.sh` 를 순차 실행하고 stdout에 `[surface]`, `[score]`, `[ai-status]`, `[signal]` prefix를 붙인다. 최신 local 기준으로 suite 전체가 green 이고, 마지막 `signal` 구간도 `housing/education` 각각 fresh user smoke까지 같이 통과한다.
 - 이유: 지금 Gov24 추천 트랙은 "새 가설 하나를 더 추가"하기보다, 이미 확보한 해석 baseline을 빠르게 재현할 수 있어야 한다. 이 wrapper 하나면 source visibility, score 구조, ai_status 분포, bounded context signal을 한 번에 다시 볼 수 있어서 reopen/회귀 확인에 적합하다.
+
+## 808) 새 Gov24 wrapper 2개는 서버에서도 끝까지 돌아야만 "추적이 닫혔다"고 볼 수 있다
+- 문제: `run-local-gov24-signal-suite.sh`, `run-local-gov24-recommendation-suite.sh` 를 로컬에서만 검증하면 wrapper 자체의 운영 가치가 반쪽이다. server latest batch는 local과 분포가 달랐고, 특히 `housing/education` fresh child smoke와 `surface/score/ai-status/signal` 4-prefix 연결이 실제 서버 runtime에서도 끝까지 이어지는지 확인이 필요했다.
+- 해결: 서버에서 `HEAD=7b274a0` 기준 wrapper 2개를 그대로 재실행했고 둘 다 PASS 했다. `signal suite` 는 `housing gov24_top2_rows=0`, `education gov24_top2_rows=2` 였고, `recommendation suite` 는 `[surface] top10_gov24_share_pct=13.93 / top2_gov24_share_pct=0.39`, `[score] GOV24 top2 avg rule/ai/final = 58.50 / 27.50 / 0.37954`, `[ai-status] NOT_REQUESTED:15,SCORED:118 / top2 ai-status=NOT_REQUESTED:8,SCORED:2` 를 출력한 뒤 마지막 pass line까지 도달했다. app 로그에도 `ERROR/Exception/WARN/C003` 는 없었다.
+- 이유: 이 결과로 Gov24 추천 트랙은 개별 audit, bounded signal smoke, wrapper suite, server baseline까지 한 묶음으로 닫혔다. 다음 reopen 때는 원인 추적보다 먼저 이 wrapper 두 개가 다시 green 인지만 보면 된다.

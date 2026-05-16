@@ -1477,3 +1477,9 @@ cd backend
   - `ai-status`: `gov24_ai_status_distribution=NOT_REQUESTED:38,SCORED:766`
   - `signal`: `housing` / `education` 둘 다 green
   으로 끝난다.
+- `2026-05-17`: 서버에서도 새 wrapper 2개를 그대로 재검증해 `deploy/smoke/run-local-gov24-signal-suite.sh`, `deploy/smoke/run-local-gov24-recommendation-suite.sh` 가 모두 PASS 임을 확인했다. 현재 서버 baseline은
+  - `signal suite`: `housing gov24_top2_rows=0`, `education gov24_top2_rows=2`
+  - `recommendation suite surface`: `top10_gov24_share_pct=13.93`, `top2_gov24_share_pct=0.39`
+  - `recommendation suite score`: `GOV24 top2 avg rule/ai/final = 58.50 / 27.50 / 0.37954`
+  - `recommendation suite ai-status`: `NOT_REQUESTED:15, SCORED:118`, `top2 ai-status = NOT_REQUESTED:8, SCORED:2`
+  이고, app 로그에 `ERROR/Exception/WARN/C003` 는 없었다. 즉 이제 Gov24 추천 추적은 개별 audit뿐 아니라 server wrapper baseline까지 닫힌 상태다.
