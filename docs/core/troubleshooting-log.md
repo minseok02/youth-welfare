@@ -4177,3 +4177,8 @@
 - 문제: `deadline-test-dispatch` 는 추천 digest와 분리된 새 이벤트라 로컬 smoke가 통과해도 서버 DB 상태, route 반영, fan-out 이력 저장이 같은 계약으로 남는지 다시 확인할 필요가 있었다.
 - 해결: 서버 최신 main 기준으로 `추천 refresh -> 첫 추천 북마크 -> apply_end_date=today+3 -> POST /api/notifications/deadline-test-dispatch?days=3` 를 다시 태워 `dispatchStatus=SENT`, `policyCount=1`, `notifications +1`, `user_alerts +1`, 최신 `notifications.status=sent`, `user_alerts.kind=DEADLINE_REMINDER`, `status=UNREAD` 를 확인했다.
 - 이유: 새 알림 이벤트는 manual dispatch와 DB delta를 로컬/서버 둘 다에서 같은 숫자로 닫아야 이후 scheduler 연결 시 회귀 범위를 줄일 수 있다.
+
+## 779) `deadline reminder` 를 scheduler로 열 때도 추천 digest 배치를 건드리기보다, 기존 dispatch 서비스를 그대로 호출하는 얇은 runtime entry부터 붙여야 한다
+- 문제: `deadline reminder` manual dispatch와 후보/fan-out 계약이 닫혔다고 바로 별도 배치 로직을 새로 짜기 시작하면, 다시 period 대상 조회, lock, dispatch 결과 집계, 실제 알림 발송이 한 번에 섞인다. 이 단계에서 문제를 내면 manual 경계에서 이미 닫은 원인 분리가 다시 무너진다.
+- 해결: `NotificationScheduleService` 에 `sendDailyDeadlineReminders()` 만 얇게 추가하고, `notification-deadline-daily` lock 아래에서 `NotificationPeriod.DAILY` 대상만 읽어 `DeadlineReminderDispatchService.sendBookmarkedDeadlineReminder(...)` 를 그대로 호출하게 했다. 관련 테스트는 `NotificationScheduleServiceTest` 에서 delegation/lock-busy만 추가로 닫고, 기존 `DeadlineReminderDispatchServiceTest`, `NotificationDispatchServiceTest`, `NotificationControllerWebMvcTest` 와 함께 다시 통과시켰다.
+- 이유: 새 runtime entry는 새 비즈니스 규칙을 만드는 곳이 아니라 이미 닫힌 dispatch 경계를 스케줄에 연결하는 곳이어야 한다. 이 순서를 지키면 이후 서버 검증에서도 "배치가 뜨는가"와 "알림 후보/채널 fan-out이 맞는가"를 분리해서 볼 수 있다.
