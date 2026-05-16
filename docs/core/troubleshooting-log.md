@@ -4277,3 +4277,8 @@
 - 문제: 코드를 다시 읽어보니 추천 파이프라인 전체보다 `RealtimeAiGateway` 경계가 문제의 중심이었다. 현재 구조는 `AI_TOP_N=15` 밖 후보, top15 안 partial-result 누락, OpenAI 호출/파싱 전체 실패를 전부 `aiScore=null` 로만 남긴다. `RecommendationPersistenceService` 는 그 `null` 을 그대로 저장하고, `ReRankingService` 와 `RecommendationLogService` 는 단순히 "AI 없음 -> rule fallback" 으로만 처리해 원인 정보가 사라진다.
 - 해결: `AiScoreStatus` (`NOT_REQUESTED`, `SCORED`, `PARTIAL_MISSING`, `CALL_FAILED`, `RULE_ONLY`) 를 도입하고, `ScoredCandidate`, `UserRecommendation`, `RecommendationResponse` 에 `aiStatus` 를 추가했다. `RealtimeAiGateway` 는 이제 top15 밖 후보는 `NOT_REQUESTED`, 응답에 `service_id` 가 빠진 top15 후보는 `PARTIAL_MISSING`, 전체 호출 실패는 `CALL_FAILED`, bypass는 `RULE_ONLY`, 정상 score는 `SCORED` 로 명시한다. 저장/로그도 이 상태를 따라가게 바꿨다.
 - 이유: 지금 필요한 건 Gov24를 더 올리는 점수 튜닝이 아니라, `null` 의 의미를 운영 가능한 상태로 분리하는 것이다. 그래야 이후에 `AI_TOP_N` 문제인지, partial result 누락인지, 호출 실패인지 근거 있게 고칠 수 있다.
+
+## 799) `ai_status` 를 넣은 뒤에는 `ai_score is null` 간접 추정보다 latest batch의 상태 분포를 직접 읽는 audit이 더 정확하다
+- 문제: `zero-AI`, `null-AI`, `null-AI cause` audit으로 많이 좁혔지만, 그건 여전히 `ai_score` 와 `ai_reason` 조합을 간접 해석하는 방식이었다. `AiScoreStatus` 를 도입한 뒤에도 같은 SQL만 계속 쓰면 `NOT_REQUESTED` 와 `PARTIAL_MISSING` 차이를 다시 간접 추정하게 된다.
+- 해결: `deploy/smoke/run-local-gov24-ai-status-audit.sh` 를 추가해 latest batch의 Gov24 `ai_status` 분포를 직접 읽게 했다. 현재 local baseline은 `gov24_ai_status_distribution=NOT_REQUESTED:36,SCORED:750`, `gov24_top10_ai_status_distribution=NOT_REQUESTED:8,SCORED:687`, `gov24_top2_ai_status_distribution=NOT_REQUESTED:1,SCORED:10`, `gov24_partial_missing_services=` 이다.
+- 이유: 이 결과는 local latest batch 기준으로는 Gov24 `PARTIAL_MISSING` 이 거의 없고, 서버와 달리 대부분 `SCORED` 상태라는 뜻이다. 즉 이제 비교 기준은 `null-AI` 자체보다 `ai_status` source/rank 분포가 되어야 한다.

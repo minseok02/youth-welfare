@@ -33,6 +33,7 @@
 - `bash deploy/smoke/run-local-gov24-top2-competitor-audit.sh`
 - `bash deploy/smoke/run-local-gov24-null-ai-audit.sh`
 - `bash deploy/smoke/run-local-gov24-null-ai-cause-audit.sh`
+- `bash deploy/smoke/run-local-gov24-ai-status-audit.sh`
 
 ### 같이 보면 좋은 기준 문서
 
@@ -120,6 +121,8 @@ Gov24가 왜 top1/2에서 약한지 더 좁히려면 `bash deploy/smoke/run-loca
 `NULL` 이 실제로 보이면 그다음은 `AI_TOP_N 밖이라 원래 AI를 안 받은 것인지`, 아니면 `top15 안인데 AI 결과가 비어 저장된 것인지`를 `bash deploy/smoke/run-local-gov24-null-ai-cause-audit.sh` 로 분리해서 봅니다.
 
 그다음 실제로 왜 같은 사용자에서 Gov24가 `top2` 에만 머무는지 보려면 `bash deploy/smoke/run-local-gov24-top2-competitor-audit.sh` 로 `Gov24 top2 row` 와 같은 user의 `rank1 경쟁 후보` 를 나란히 비교합니다.
+
+`ai_score` 기반 간접 추정 대신 새 상태값을 직접 보려면 `bash deploy/smoke/run-local-gov24-ai-status-audit.sh` 로 latest batch의 Gov24 `ai_status` (`NOT_REQUESTED`, `SCORED`, `PARTIAL_MISSING`, `CALL_FAILED`, `RULE_ONLY`) 분포와 `top2/top10` 상태 분포를 읽습니다.
 
 ### 6. replay 템플릿
 
