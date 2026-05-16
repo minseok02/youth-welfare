@@ -28,20 +28,20 @@ public class NotificationDispatchService {
     private final NotificationHistoryService notificationHistoryService;
     private final WebPushDispatchService webPushDispatchService;
 
-    public void sendTopRecommendations(NotificationTarget target) {
+    public NotificationDispatchResult sendTopRecommendations(NotificationTarget target) {
         if (notificationDispatchWindowReadService.hasDispatchHistoryInCurrentWindow(
                 target.userKey(),
                 toPeriodType(target.notificationPeriod())
         )) {
             log.info("[NotificationDispatchService] 현재 dispatch window 에 이미 이력이 있어 중복 발송을 건너뜁니다. userKey={} period={}",
                     target.userKey(), target.notificationPeriod());
-            return;
+            return NotificationDispatchResult.skippedWindow();
         }
 
         NotificationRecommendationService.NotificationDispatchPlan plan =
                 notificationRecommendationService.prepareDispatch(target).orElse(null);
         if (plan == null) {
-            return;
+            return NotificationDispatchResult.noRecommendations();
         }
 
         User user = plan.user();
@@ -57,7 +57,7 @@ public class NotificationDispatchService {
         if (reserved.isEmpty()) {
             log.info("[NotificationDispatchService] dispatch reservation conflict 로 중복 발송을 건너뜁니다. userKey={} period={}",
                     user.getUserKey(), plan.periodType());
-            return;
+            return NotificationDispatchResult.reservationConflict(plan.recommendations().size());
         }
 
         com.example.welfare.notification.entity.Notification notification = reserved.get();
@@ -89,6 +89,9 @@ public class NotificationDispatchService {
             if (!sent) {
                 log.warn("[NotificationDispatchService] 알림 발송 실패(게이트웨이 false) userId={}", user.getId());
             }
+            return sent
+                    ? NotificationDispatchResult.sent(recommendations.size())
+                    : NotificationDispatchResult.failed(recommendations.size(), errorMessage);
         } catch (Exception e) {
             try {
                 notificationHistoryService.saveResult(
@@ -104,6 +107,7 @@ public class NotificationDispatchService {
                         user.getId(), historyException.getMessage());
             }
             log.error("[NotificationDispatchService] 알림 발송 실패 userId={}: {}", user.getId(), e.getMessage());
+            return NotificationDispatchResult.failed(recommendations.size(), e.getMessage());
         }
     }
 
@@ -124,5 +128,39 @@ public class NotificationDispatchService {
                 userKey,
                 window.start().toLocalDate()
         );
+    }
+
+    public record NotificationDispatchResult(
+            NotificationDispatchStatus status,
+            int recommendationCount,
+            String message
+    ) {
+        public static NotificationDispatchResult skippedWindow() {
+            return new NotificationDispatchResult(NotificationDispatchStatus.SKIPPED_WINDOW, 0, null);
+        }
+
+        public static NotificationDispatchResult noRecommendations() {
+            return new NotificationDispatchResult(NotificationDispatchStatus.NO_RECOMMENDATIONS, 0, null);
+        }
+
+        public static NotificationDispatchResult reservationConflict(int recommendationCount) {
+            return new NotificationDispatchResult(NotificationDispatchStatus.RESERVATION_CONFLICT, recommendationCount, null);
+        }
+
+        public static NotificationDispatchResult sent(int recommendationCount) {
+            return new NotificationDispatchResult(NotificationDispatchStatus.SENT, recommendationCount, null);
+        }
+
+        public static NotificationDispatchResult failed(int recommendationCount, String message) {
+            return new NotificationDispatchResult(NotificationDispatchStatus.FAILED, recommendationCount, message);
+        }
+    }
+
+    public enum NotificationDispatchStatus {
+        SENT,
+        FAILED,
+        NO_RECOMMENDATIONS,
+        SKIPPED_WINDOW,
+        RESERVATION_CONFLICT
     }
 }

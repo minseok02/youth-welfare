@@ -1,6 +1,7 @@
 package com.example.welfare.notification.controller;
 
 import com.example.welfare.global.util.JwtUtil;
+import com.example.welfare.notification.service.NotificationDispatchService;
 import com.example.welfare.notification.service.UserAlertCommandService;
 import com.example.welfare.notification.service.UserAlertReadService;
 import com.example.welfare.notification.service.WebPushDispatchService;
@@ -8,6 +9,7 @@ import com.example.welfare.notification.service.WebPushSubscriptionCommandServic
 import com.example.welfare.notification.service.WebPushSubscriptionReadService;
 import com.example.welfare.user.service.ActiveUserReadService;
 import com.example.welfare.user.service.UserAccountCommandService;
+import com.example.welfare.user.service.UserNotificationReadService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -39,6 +41,8 @@ class NotificationControllerWebMvcTest {
     @MockBean
     private UserAlertCommandService userAlertCommandService;
     @MockBean
+    private NotificationDispatchService notificationDispatchService;
+    @MockBean
     private WebPushSubscriptionReadService webPushSubscriptionReadService;
     @MockBean
     private WebPushSubscriptionCommandService webPushSubscriptionCommandService;
@@ -46,6 +50,8 @@ class NotificationControllerWebMvcTest {
     private WebPushDispatchService webPushDispatchService;
     @MockBean
     private ActiveUserReadService activeUserReadService;
+    @MockBean
+    private UserNotificationReadService userNotificationReadService;
     @MockBean
     private JpaMetamodelMappingContext jpaMetamodelMappingContext;
 

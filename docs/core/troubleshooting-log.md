@@ -4137,3 +4137,8 @@
 - 문제: 지금까지는 웹푸시가 실제로 되는지 보려면 추천 refresh -> 대상 선정 -> digest dispatch 전체를 다시 밟아야 했다. 이 구조에선 실패가 나도 원인이 발송기 자체인지, 추천 digest 상단 흐름인지 섞여 보였다.
 - 해결: `WebPushSenderClientImpl` 은 이제 `PushService` 생성을 `WebPushServiceFactory` 로 분리해 테스트 가능한 seam을 만들었다. 또 `NotificationController` 에 현재 로그인 사용자의 활성 subscription들로 직접 단건 푸시를 보내는 `POST /api/notifications/push-test-send` 를 추가했다. `WebPushDispatchService.sendTestMessage(...)` 는 `attempted/sent/disabled/failed` 집계를 반환하므로, 추천 digest 전체를 안 태우고도 sender 자체를 검증할 수 있다.
 - 이유: 웹푸시는 브라우저 subscription 저장과 실제 발송을 분리해서 봐야 한다. 단건 test send가 있어야 “추천 알림이 안 온다”를 바로 추천 로직 문제로 오판하지 않고, 발송기 자체를 먼저 닫을 수 있다.
+
+## 771) sender 단건 검증이 끝난 뒤에는, 실제 추천 digest 경로도 스케줄 전체와 분리해 단건으로 태울 수 있어야 한다
+- 문제: `POST /api/notifications/push-test-send` 로 sender 자체는 닫혔지만, 실제 추천 digest가 안 오면 여전히 스케줄 타이밍, 대상 선정, duplicate window, 이메일/이력 저장, 웹푸시 fan-out 중 어디가 원인인지 섞여 보일 수 있다. 이 상태에서 다시 `NotificationScheduleService` 전체를 태우면 실패 경계가 너무 넓다.
+- 해결: `NotificationController` 에 `POST /api/notifications/digest-test-dispatch` 를 추가하고, 현재 로그인 사용자의 `email`, `notificationMinScore`, `displayCount` 를 읽어 manual `NotificationTarget` 을 만든 뒤 `NotificationDispatchService.sendTopRecommendations(...)` 를 직접 호출하게 했다. period는 `NONE` 으로 고정해 `MANUAL` dispatch key를 쓰므로 일간/주간 duplicate window를 피한다. 동시에 `NotificationDispatchService` 는 이제 `SENT`, `FAILED`, `NO_RECOMMENDATIONS`, `SKIPPED_WINDOW`, `RESERVATION_CONFLICT` 와 추천 수를 결과로 돌려준다.
+- 이유: 웹푸시 sender와 추천 digest orchestration은 다른 층위의 문제다. sender가 이미 검증된 뒤에는, digest 경로를 얇게 태우는 단건 진입점이 있어야 추천 선택/이력 저장/이메일/웹푸시 fan-out이 실제로 어디서 멈추는지 다시 추적할 수 있다.

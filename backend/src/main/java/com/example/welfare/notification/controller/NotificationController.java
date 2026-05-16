@@ -5,11 +5,14 @@ import com.example.welfare.global.util.JwtUtil;
 import com.example.welfare.global.auth.AuthenticatedUser;
 import com.example.welfare.notification.dto.UserAlertResponse;
 import com.example.welfare.notification.dto.UserAlertUnreadCountResponse;
+import com.example.welfare.notification.dto.NotificationDigestTestDispatchResponse;
 import com.example.welfare.notification.dto.WebPushPublicKeyResponse;
 import com.example.welfare.notification.dto.WebPushSubscriptionRequest;
 import com.example.welfare.notification.dto.WebPushSubscriptionResponse;
 import com.example.welfare.notification.dto.WebPushTestSendRequest;
 import com.example.welfare.notification.dto.WebPushTestSendResponse;
+import com.example.welfare.notification.dto.NotificationTarget;
+import com.example.welfare.notification.service.NotificationDispatchService;
 import com.example.welfare.notification.service.UserAlertCommandService;
 import com.example.welfare.notification.service.UserAlertReadService;
 import com.example.welfare.notification.service.WebPushDispatchService;
@@ -17,6 +20,8 @@ import com.example.welfare.notification.service.WebPushSubscriptionCommandServic
 import com.example.welfare.notification.service.WebPushSubscriptionReadService;
 import com.example.welfare.user.service.ActiveUserReadService;
 import com.example.welfare.user.service.UserAccountCommandService;
+import com.example.welfare.user.service.UserNotificationReadService;
+import com.example.welfare.user.entity.User;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -35,10 +40,12 @@ public class NotificationController {
     private final UserAccountCommandService userAccountCommandService;
     private final UserAlertReadService userAlertReadService;
     private final UserAlertCommandService userAlertCommandService;
+    private final NotificationDispatchService notificationDispatchService;
     private final WebPushSubscriptionReadService webPushSubscriptionReadService;
     private final WebPushSubscriptionCommandService webPushSubscriptionCommandService;
     private final WebPushDispatchService webPushDispatchService;
     private final ActiveUserReadService activeUserReadService;
+    private final UserNotificationReadService userNotificationReadService;
 
     @GetMapping("/unsubscribe")
     public ResponseEntity<ApiResponse<Void>> unsubscribe(@RequestParam String token) {
@@ -100,6 +107,34 @@ public class NotificationController {
         return ResponseEntity.ok(ApiResponse.success(
                 webPushDispatchService.sendTestMessage(resolveUserKey(authenticatedUser), request)
         ));
+    }
+
+    @PostMapping("/digest-test-dispatch")
+    public ResponseEntity<ApiResponse<NotificationDigestTestDispatchResponse>> sendDigestTestDispatch(
+            @AuthenticationPrincipal AuthenticatedUser authenticatedUser) {
+        String userKey = resolveUserKey(authenticatedUser);
+        User user = activeUserReadService.getActiveUserByUserKey(userKey);
+        String email = userNotificationReadService.getNotificationEmailByUserKey(userKey);
+        NotificationTarget target = new NotificationTarget(
+                user.getId(),
+                userKey,
+                email,
+                User.NotificationPeriod.NONE,
+                user.getNotificationMinScore(),
+                user.getDisplayCount()
+        );
+        NotificationDispatchService.NotificationDispatchResult result =
+                notificationDispatchService.sendTopRecommendations(target);
+        return ResponseEntity.ok(ApiResponse.success(new NotificationDigestTestDispatchResponse(
+                userKey,
+                email,
+                target.notificationPeriod().name(),
+                target.notificationMinScore(),
+                target.displayCount(),
+                result.status().name(),
+                result.recommendationCount(),
+                result.message()
+        )));
     }
 
     @PatchMapping("/{alertId}/read")
