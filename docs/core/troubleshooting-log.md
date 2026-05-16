@@ -4257,3 +4257,8 @@
 - 문제: local baseline에서는 Gov24가 latest batch `top10 share=30.60%` 로 꽤 많이 보였지만, 서버에서 같은 `run-local-gov24-recommend-surface-audit.sh` 를 돌리니 `top10_gov24_share_pct=12.91`, `top5=4.60`, `top3=0.88`, `top2=0.22` 로 훨씬 약했다. 이 상태를 "Gov24가 안 뜬다"고 읽으면 과장이고, 실제로는 `rank1=7`, `rank2=1`, `rank6=12`, `rank10=17` 처럼 후순위 슬롯에는 계속 나타난다.
 - 해결: server baseline을 문서에 따로 고정하고, 다음 단계용으로 `deploy/smoke/run-local-gov24-recommend-score-audit.sh` 를 추가해 latest batch의 source별 `avg rule_weighted_score / avg ai_score / avg final_score` 를 top2/top10/rank별로 같이 보게 했다.
 - 이유: Gov24 추천 병목은 visibility 부재가 아니라 rank competitiveness 문제에 가깝다. 그래서 다음 조사도 "더 넣자"가 아니라 "same latest batch에서 Gov24가 rule에서 지는지, AI에서 지는지, final score에서 지는지"를 읽는 식으로 가야 한다.
+
+## 795) 현재 1차 추천 경로에서 `ai_score=0` 은 cluster cache 문제가 아니라, `youth_all` 실시간 AI 결과 자체일 가능성이 더 높다
+- 문제: 서버 `run-local-gov24-recommend-score-audit.sh` 결과에서 Gov24는 top2에서 `avg rule_weighted_score=90.00` 인데도 `avg ai_score=0.00`, `avg final_score=0.27375` 였다. 처음엔 cluster cache drift 가능성도 있었지만, 코드를 다시 보면 `ClusterService` 는 항상 `youth_all` 을 반환하고 `AiScoringService` 는 `youth_all` 일 때 cache를 우회해 `RealtimeAiGateway` 를 직접 탄다.
+- 해결: 그래서 다음 조사 축을 cache 정리나 blend 보정이 아니라, **latest batch에서 실제로 `GOV24 + ai_score=0` row가 얼마나 되는지** 로 좁혔다. 이를 위해 `deploy/smoke/run-local-gov24-zero-ai-audit.sh` 를 추가해 zero-AI Gov24 count, rank 분포, 대표 서비스, `ai_reason` 샘플, top2 zero-AI score summary를 같이 출력하게 했다.
+- 이유: 이 단계에서 중요한 건 "0점이 어디서 생기나"를 추측이 아니라 코드 경계로 분리하는 것이다. 지금 구조상 0점은 명시적 fallback이 아니라 `RealtimeAiGateway` 결과나 그 저장값에서 온다고 보는 편이 맞고, 그래서 다음 검증도 그 row 자체를 읽는 게 우선이다.
