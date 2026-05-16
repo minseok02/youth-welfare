@@ -4287,3 +4287,8 @@
 - 문제: `V2026_05_17_01__add_ai_status_to_user_recommendations.sql` 은 기존 데이터에 대해 `ai_score IS NULL -> NOT_REQUESTED`, `ai_score IS NOT NULL -> SCORED` 로 backfill 한다. 그래서 `e7e591a` 이전에 저장된 row는 실제 원인이 `PARTIAL_MISSING` 이었어도 모두 `NOT_REQUESTED` 로 보인다. 실제로 local `run-local-gov24-top2-rule-rank-audit.sh` 에서 `final_rank=1`, `rule_rank=1`, `inside_ai_top_n` 인 Gov24 row가 `NOT_REQUESTED` 로 남는 샘플이 확인됐다.
 - 해결: `deploy/smoke/run-local-gov24-top2-rule-rank-audit.sh` 를 추가해 `final_rank`, `rule_rank`, `inside_ai_top_n/outside_ai_top_n`, `ai_status` 를 함께 읽게 했다. 해석 규칙도 바꿨다. `ai_status` 는 **`e7e591a` 이후 새로 생성된 batch** 에서만 직접 원인값으로 믿고, 이전 batch에 대해서는 `rule_rank<=15 인데 NOT_REQUESTED` 면 backfill artifact 가능성을 먼저 의심한다.
 - 이유: 그렇지 않으면 `ai_status audit` 자체가 또 간접 해석 함정이 된다. 지금 필요한 건 “이 상태값이 언제부터 truth인가”를 같이 고정하는 것이다.
+
+## 801) 그래서 server/local 모두 특정 fresh user를 지정해 Gov24 row와 top1/top2 rival을 같은 batch에서 읽는 per-user audit이 필요하다
+- 문제: global latest batch audit은 fresh user를 새로 만든 뒤에도 다른 old batch와 섞여 보이기 쉽다. 특히 `ai_status` migration backfill이 있는 상황에서는 "latest batch 전체"보다 "지금 막 refresh한 특정 user의 batch"를 직접 읽는 편이 안전하다.
+- 해결: `deploy/smoke/run-local-gov24-fresh-batch-audit.sh` 를 추가했다. `TARGET_USER_KEY` 를 주면 해당 user 최신 batch만 읽고, Gov24 row의 `final_rank/rule_rank/inside_ai_top_n/ai_status` 와 같은 batch의 `top1/top2` rival score를 같이 출력한다. `TARGET_USER_KEY` 가 없으면 가장 최근 batch user를 기본값으로 잡는다.
+- 이유: 이 스크립트로 fresh user 기준 `Gov24 top2가 정말 없는지`, `Gov24가 rule 기준 몇 위였는지`, `inside_ai_top_n인데도 NOT_REQUESTED로 보이는 게 old batch artifact인지`를 한 번에 읽을 수 있다.

@@ -35,6 +35,7 @@
 - `bash deploy/smoke/run-local-gov24-null-ai-cause-audit.sh`
 - `bash deploy/smoke/run-local-gov24-ai-status-audit.sh`
 - `bash deploy/smoke/run-local-gov24-top2-rule-rank-audit.sh`
+- `bash deploy/smoke/run-local-gov24-fresh-batch-audit.sh`
 
 ### 같이 보면 좋은 기준 문서
 
@@ -126,6 +127,8 @@ Gov24가 왜 top1/2에서 약한지 더 좁히려면 `bash deploy/smoke/run-loca
 `ai_score` 기반 간접 추정 대신 새 상태값을 직접 보려면 `bash deploy/smoke/run-local-gov24-ai-status-audit.sh` 로 latest batch의 Gov24 `ai_status` (`NOT_REQUESTED`, `SCORED`, `PARTIAL_MISSING`, `CALL_FAILED`, `RULE_ONLY`) 분포와 `top2/top10` 상태 분포를 읽습니다.
 
 만약 `top2 Gov24` 가 왜 `NOT_REQUESTED` 인지 보려면 `bash deploy/smoke/run-local-gov24-top2-rule-rank-audit.sh` 로 해당 row의 `final_rank` 와 `rule_rank`, 그리고 `AI_TOP_N=15` 포함 여부(`inside_ai_top_n/outside_ai_top_n`)를 직접 비교합니다.
+
+특정 fresh user/batch를 놓고 Gov24 row와 실제 `top1/top2` rival을 같이 읽으려면 `bash deploy/smoke/run-local-gov24-fresh-batch-audit.sh` 를 씁니다. `TARGET_USER_KEY` 를 주면 그 사용자 최신 batch만 읽고, Gov24 `final_rank/rule_rank/ai_status/inside_ai_top_n` 과 `top2` rival score를 한 번에 비교합니다.
 
 주의: `ai_status` 는 `e7e591a` 이후 새로 생성된 batch에서만 직접 원인값으로 믿는 편이 맞습니다. migration backfill은 기존 `NULL ai_score` row를 전부 `NOT_REQUESTED` 로 채웠기 때문에, old batch에선 `rule_rank<=15 인데 NOT_REQUESTED` 같은 row가 backfill artifact일 수 있습니다. 이런 경우는 `bash deploy/smoke/run-local-gov24-top2-rule-rank-audit.sh` 를 같이 봐야 합니다.
 
