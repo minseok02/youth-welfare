@@ -41,7 +41,7 @@ public class WebPushSenderClientImpl implements WebPushSenderClient {
     }
 
     @Override
-    public WebPushSendResult send(WebPushSubscription subscription, RecommendationDigestContent content) {
+    public WebPushSendResult send(WebPushSubscription subscription, NotificationContent content) {
         if (!isConfigured()) {
             return WebPushSendResult.failure("web push sender is not configured");
         }

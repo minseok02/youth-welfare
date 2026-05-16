@@ -5,6 +5,7 @@ import com.example.welfare.global.util.JwtUtil;
 import com.example.welfare.global.auth.AuthenticatedUser;
 import com.example.welfare.notification.dto.UserAlertResponse;
 import com.example.welfare.notification.dto.UserAlertUnreadCountResponse;
+import com.example.welfare.notification.dto.NotificationDeadlineTestDispatchResponse;
 import com.example.welfare.notification.dto.NotificationDigestTestDispatchResponse;
 import com.example.welfare.notification.dto.WebPushPublicKeyResponse;
 import com.example.welfare.notification.dto.WebPushSubscriptionRequest;
@@ -13,6 +14,7 @@ import com.example.welfare.notification.dto.WebPushTestSendRequest;
 import com.example.welfare.notification.dto.WebPushTestSendResponse;
 import com.example.welfare.notification.dto.NotificationTarget;
 import com.example.welfare.notification.service.NotificationDispatchService;
+import com.example.welfare.notification.service.DeadlineReminderDispatchService;
 import com.example.welfare.notification.service.UserAlertCommandService;
 import com.example.welfare.notification.service.UserAlertReadService;
 import com.example.welfare.notification.service.WebPushDispatchService;
@@ -41,6 +43,7 @@ public class NotificationController {
     private final UserAlertReadService userAlertReadService;
     private final UserAlertCommandService userAlertCommandService;
     private final NotificationDispatchService notificationDispatchService;
+    private final DeadlineReminderDispatchService deadlineReminderDispatchService;
     private final WebPushSubscriptionReadService webPushSubscriptionReadService;
     private final WebPushSubscriptionCommandService webPushSubscriptionCommandService;
     private final WebPushDispatchService webPushDispatchService;
@@ -136,6 +139,36 @@ public class NotificationController {
                 target.displayCount(),
                 result.status().name(),
                 result.recommendationCount(),
+                result.message()
+        )));
+    }
+
+    @PostMapping("/deadline-test-dispatch")
+    public ResponseEntity<ApiResponse<NotificationDeadlineTestDispatchResponse>> sendDeadlineTestDispatch(
+            @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
+            @RequestParam(defaultValue = "3") int days) {
+        String userKey = resolveUserKey(authenticatedUser);
+        User user = activeUserReadService.getActiveUserByUserKey(userKey);
+        String email = userNotificationReadService.getNotificationEmailByUserKey(userKey);
+        NotificationTarget target = new NotificationTarget(
+                user.getId(),
+                userKey,
+                email,
+                User.NotificationPeriod.NONE,
+                user.isNotificationEmailYn(),
+                user.isNotificationInAppYn(),
+                user.isNotificationWebPushYn(),
+                user.getNotificationMinScore(),
+                user.getDisplayCount()
+        );
+        DeadlineReminderDispatchService.DeadlineReminderDispatchResult result =
+                deadlineReminderDispatchService.sendBookmarkedDeadlineReminder(target, days);
+        return ResponseEntity.ok(ApiResponse.success(new NotificationDeadlineTestDispatchResponse(
+                userKey,
+                email,
+                days,
+                result.status().name(),
+                result.policyCount(),
                 result.message()
         )));
     }

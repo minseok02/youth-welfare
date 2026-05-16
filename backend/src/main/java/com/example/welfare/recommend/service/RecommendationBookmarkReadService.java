@@ -51,4 +51,9 @@ public class RecommendationBookmarkReadService {
                 .map(service -> PolicySummaryResponse.from(service, true, projections.get(service.getId())))
                 .toList();
     }
+
+    @Transactional(readOnly = true)
+    public List<UserRecommendation> findLatestBookmarkedRecommendations(String userKey) {
+        return recommendationSummaryReadRepository.findLatestBookmarkedRecommendations(userKey);
+    }
 }

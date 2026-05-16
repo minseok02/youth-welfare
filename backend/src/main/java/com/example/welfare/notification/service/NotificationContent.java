@@ -1,6 +1,6 @@
 package com.example.welfare.notification.service;
 
-public record RecommendationDigestContent(
+public record NotificationContent(
         String title,
         String body,
         String deeplinkUrl,

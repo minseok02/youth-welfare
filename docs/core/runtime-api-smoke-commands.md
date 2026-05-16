@@ -177,6 +177,7 @@ deploy/smoke/run-local-policy-quality-summary.sh
 deploy/smoke/run-local-gov24-quality-audit.sh
 deploy/smoke/run-local-ctr-readiness-audit.sh
 deploy/smoke/run-local-notification-channel-smoke.sh
+deploy/smoke/run-local-deadline-reminder-smoke.sh
 ```
 
 - policy retrieval/category baseline: [policy-quality-summary-runbook.md](../policy/policy-quality-summary-runbook.md)
@@ -184,6 +185,25 @@ deploy/smoke/run-local-notification-channel-smoke.sh
 - bounded admin runtime baseline: [policy-admin-runtime-runbook.md](../policy/policy-admin-runtime-runbook.md)
 - recommendation CTR readiness baseline: [recommendation-ctr-readiness-runbook.md](../recommendation/recommendation-ctr-readiness-runbook.md)
 - notification digest channel fan-out baseline: [notification-channel-expansion-checklist.md](./notification-channel-expansion-checklist.md)
+- deadline reminder manual dispatch baseline: [notification-channel-expansion-checklist.md](./notification-channel-expansion-checklist.md)
+
+알림 기능을 수동 API 기준으로 얇게 확인할 때는 아래 두 경로를 사용합니다.
+
+```bash
+POST /api/notifications/digest-test-dispatch
+POST /api/notifications/deadline-test-dispatch?days=3
+```
+
+- `digest-test-dispatch`: 현재 로그인 사용자의 추천 digest fan-out 확인
+- `deadline-test-dispatch`: 현재 로그인 사용자의 bookmarked 정책 중 마감 임박 후보 fan-out 확인
+
+북마크 마감 임박 알림을 수동 조합 대신 한 번에 확인할 때는 아래 wrapper를 우선 사용합니다.
+
+```bash
+deploy/smoke/run-local-deadline-reminder-smoke.sh
+```
+
+이 스크립트는 `signup -> login -> recommendations refresh -> first recommendation bookmark -> bookmarked service apply_end_date 강제 조정 -> deadline-test-dispatch -> notifications/user_alerts delta` 를 한 번에 검증합니다.
 
 전제:
 

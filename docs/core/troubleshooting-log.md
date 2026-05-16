@@ -4157,3 +4157,18 @@
 - 문제: 채널 fan-out 분기를 `NotificationDispatchServiceTest` 로 보강해도, 실제 app/DB 조합에서는 새 프로필 플래그가 저장되는지, manual digest가 `notifications` 와 `user_alerts` 를 어떻게 남기는지, 웹푸시 구독이 없는 사용자가 `notificationWebPushYn=true` 여도 조용히 no-op 되는지를 한 번에 보기 어려웠다.
 - 해결: `deploy/smoke/run-local-notification-channel-smoke.sh` 를 추가했다. 이 wrapper는 세 시나리오를 새 사용자 기준으로 각각 분리해 태운다. `inapp_only` 는 `notifications +1 / user_alerts +1`, `webpush_only_no_subscription` 은 `notifications +1 / user_alerts +0 / enabled subscriptions unchanged`, `invalid_channels` 는 `notificationYn=true + all channels off` 저장 시 `400` 을 확인한다.
 - 이유: 알림 채널 분리는 결국 "토글 저장"보다 "fan-out 결과가 어떤 DB 흔적으로 남느냐"가 더 중요하다. local smoke가 있어야 서버 검증 전에도 실제 분기 계약을 재현 가능한 형태로 닫을 수 있다.
+
+## 775) 알림 채널 분기 smoke가 로컬에서 통과해도, 서버 DB에 `notification_*` channel flag migration이 빠져 있으면 app이 부팅조차 못 할 수 있다
+- 문제: 같은 채널 분기 시나리오를 서버에서 재검증할 때 app이 `user_profiles.notification_*` missing column 으로 먼저 부팅 실패했다. 기능 자체가 아니라 DB migration 적용 여부가 blocker였고, 이 상태에선 `digest-test-dispatch` fan-out 계약을 볼 수조차 없다.
+- 해결: 코드 수정 없이 체크인된 `V2026_05_16_01__add_notification_channel_flags.sql` 를 서버 DB에 적용한 뒤 app을 다시 기동했고, 이후 `inapp_only`, `webpush_only_no_subscription`, `invalid_channels` 3개 시나리오가 서버에서도 로컬과 같은 delta로 닫혔다.
+- 이유: 알림 채널 기능은 토글 저장/API route만으로 끝나지 않는다. 기존 volume/운영 DB가 새 profile 컬럼을 갖고 있는지가 first-class precondition 이므로, smoke 기준선에도 migration 선행 조건을 함께 남겨야 한다.
+
+## 776) 추천 digest 외 별도 알림 이벤트를 붙일 때는 scheduler로 바로 들어가지 말고, current-user manual dispatch 경계부터 여는 편이 원인 분리가 쉽다
+- 문제: `deadline reminder` 는 현재 코드에 `UserAlertKind.DEADLINE_REMINDER` enum만 있고 실제 이벤트 생성 경로는 없었다. 이 상태에서 곧바로 scheduler나 collect 변화와 묶어 구현하면, 후보 선택/채널 fan-out/dispatch 이력/인앱 생성 중 어디가 깨졌는지 다시 넓게 섞일 위험이 있다.
+- 해결: 다음 이벤트는 `POST /api/notifications/deadline-test-dispatch?days=3` 같은 current-user manual 경계로 먼저 열었다. 최신 bookmarked recommendation 중 `applyEndDate` 가 오늘 이상이고 지정 일수 이내인 정책만 고르고, `notifications`, `notification_services`, `user_alerts`, `web push` fan-out 은 기존 추천 digest 경계를 재사용한다.
+- 이유: 새 알림 이벤트는 "언제 스케줄링할까"보다 "무엇을 후보로 보고 어떤 채널로 fan-out할까"가 먼저 닫혀야 한다. manual dispatch는 이 두 축을 분리해서 검증하기 좋은 최소 경계다.
+
+## 777) 새 backend 알림 endpoint를 붙인 직후 로컬 smoke에서 `No static resource` 가 보이면, 기능 로직보다 Docker app 미재빌드를 먼저 확인해야 한다
+- 문제: `deadline-test-dispatch` 를 추가한 직후 로컬 smoke는 `500/C002` 로 떨어졌지만, app 로그의 실제 예외는 `No static resource api/notifications/deadline-test-dispatch` 였다. 즉 새 controller route가 아직 Docker app 이미지에 반영되지 않은 상태였다.
+- 해결: 새 backend endpoint를 붙인 뒤에는 `docker compose up -d --build app` 으로 app 이미지를 먼저 재생성하고 smoke를 다시 태우도록 기준을 정리했다. 이후 같은 smoke는 `deadline reminder smoke passed` 와 함께 `dispatchStatus=SENT`, `notifications +1`, `user_alerts +1`, `DEADLINE_REMINDER` 기준선으로 통과했다.
+- 이유: 현재 로컬 개발은 IDE 테스트 바이너리와 Docker app 바이너리가 쉽게 갈라진다. smoke 실패가 곧바로 기능 버그를 뜻하는 건 아니며, 특히 `No static resource` 는 route 미배포 가능성이 더 높다.

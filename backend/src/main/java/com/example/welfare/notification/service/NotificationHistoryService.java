@@ -5,6 +5,7 @@ import com.example.welfare.notification.entity.Notification.NotificationChannel;
 import com.example.welfare.notification.entity.Notification.NotificationPeriodType;
 import com.example.welfare.notification.entity.Notification.NotificationStatus;
 import com.example.welfare.notification.entity.NotificationServiceItem;
+import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.notification.repository.NotificationHistoryCommandRepository;
 import com.example.welfare.recommend.entity.RecommendationLog;
 import com.example.welfare.recommend.entity.UserRecommendation;
@@ -73,6 +74,34 @@ public class NotificationHistoryService {
         return saved;
     }
 
+    @Transactional
+    public Notification saveDeadlineReminderResult(Notification notification,
+                                                   NotificationStatus status,
+                                                   String messageText,
+                                                   List<WelfareService> services,
+                                                   String errorMessage,
+                                                   boolean createInAppAlert,
+                                                   int days) {
+        notification.updateDispatchPayload(messageText, services.size());
+        if (status == NotificationStatus.SENT) {
+            notification.markSent();
+        } else if (status == NotificationStatus.FAILED) {
+            notification.failInitially(LocalDateTime.now().plusMinutes(INITIAL_RETRY_DELAY_MINUTES), errorMessage);
+        } else {
+            notification.reserveDispatch();
+        }
+
+        Notification saved = notificationHistoryCommandRepository.saveNotification(notification);
+        notificationHistoryCommandRepository.replaceNotificationItems(
+                saved.getId(),
+                buildDeadlineItems(saved, services)
+        );
+        if (createInAppAlert) {
+            userAlertCommandService.createDeadlineReminderAlert(saved, services, days);
+        }
+        return saved;
+    }
+
     private List<NotificationServiceItem> buildItems(Notification notification,
                                                      List<UserRecommendation> recommendations,
                                                      List<RecommendationLog> logs) {
@@ -91,6 +120,26 @@ public class NotificationHistoryService {
                     .rankOrder(i + 1)
                     .finalScore(rec.getFinalScore())
                     .serviceTitle(rec.getService().getTitle())
+                    .build());
+        }
+        return items;
+    }
+
+    private List<NotificationServiceItem> buildDeadlineItems(Notification notification,
+                                                             List<WelfareService> services) {
+        if (services == null || services.isEmpty()) {
+            return List.of();
+        }
+        List<NotificationServiceItem> items = new ArrayList<>(services.size());
+        for (int i = 0; i < services.size(); i++) {
+            WelfareService service = services.get(i);
+            items.add(NotificationServiceItem.builder()
+                    .notification(notification)
+                    .service(service)
+                    .recommendationLogId(null)
+                    .rankOrder(i + 1)
+                    .finalScore(null)
+                    .serviceTitle(service.getTitle())
                     .build());
         }
         return items;

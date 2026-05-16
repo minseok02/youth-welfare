@@ -6,5 +6,5 @@ public interface WebPushSenderClient {
 
     boolean isConfigured();
 
-    WebPushSendResult send(WebPushSubscription subscription, RecommendationDigestContent content);
+    WebPushSendResult send(WebPushSubscription subscription, NotificationContent content);
 }

@@ -28,6 +28,8 @@ class WebPushDispatchServiceTest {
     private WebPushSenderClient webPushSenderClient;
     @Mock
     private RecommendationDigestContentService recommendationDigestContentService;
+    @Mock
+    private DeadlineReminderContentService deadlineReminderContentService;
 
     @InjectMocks
     private WebPushDispatchService webPushDispatchService;
@@ -50,7 +52,7 @@ class WebPushDispatchServiceTest {
     void sendRecommendationDigestMarksSubscriptionSentOnSuccess() {
         WebPushSubscription subscription = sampleSubscription();
         UserRecommendation recommendation = sampleRecommendation();
-        RecommendationDigestContent content = new RecommendationDigestContent(
+        NotificationContent content = new NotificationContent(
                 "title",
                 "body",
                 "/policies/1",
@@ -75,7 +77,7 @@ class WebPushDispatchServiceTest {
     void sendRecommendationDigestDisablesExpiredSubscription() {
         WebPushSubscription subscription = sampleSubscription();
         UserRecommendation recommendation = sampleRecommendation();
-        RecommendationDigestContent content = new RecommendationDigestContent(
+        NotificationContent content = new NotificationContent(
                 "title",
                 "body",
                 "/policies/1",
@@ -101,7 +103,7 @@ class WebPushDispatchServiceTest {
     void sendRecommendationDigestMarksErrorWhenSenderThrowsRuntimeException() {
         WebPushSubscription subscription = sampleSubscription();
         UserRecommendation recommendation = sampleRecommendation();
-        RecommendationDigestContent content = new RecommendationDigestContent(
+        NotificationContent content = new NotificationContent(
                 "title",
                 "body",
                 "/policies/1",

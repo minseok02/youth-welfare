@@ -62,8 +62,8 @@ class WebPushSenderClientImplTest {
         assertThat(result.errorMessage()).isEqualTo("bootstrap failed");
     }
 
-    private RecommendationDigestContent content() {
-        return new RecommendationDigestContent(
+    private NotificationContent content() {
+        return new NotificationContent(
                 "title", "body", "/policies/1", "https://example.com/policies/1"
         );
     }

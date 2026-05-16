@@ -3,6 +3,7 @@ package com.example.welfare.notification.service;
 import com.example.welfare.notification.dto.WebPushTestSendRequest;
 import com.example.welfare.notification.dto.WebPushTestSendResponse;
 import com.example.welfare.notification.entity.WebPushSubscription;
+import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.notification.repository.WebPushSubscriptionRepository;
 import com.example.welfare.recommend.entity.UserRecommendation;
 import lombok.RequiredArgsConstructor;
@@ -20,41 +21,16 @@ public class WebPushDispatchService {
     private final WebPushSubscriptionRepository webPushSubscriptionRepository;
     private final WebPushSenderClient webPushSenderClient;
     private final RecommendationDigestContentService recommendationDigestContentService;
+    private final DeadlineReminderContentService deadlineReminderContentService;
 
     @Transactional
     public void sendRecommendationDigest(String userKey, List<UserRecommendation> recommendations) {
-        List<WebPushSubscription> subscriptions =
-                webPushSubscriptionRepository.findByUserKeyAndEnabledTrueOrderByCreatedAtDesc(userKey);
-        if (subscriptions.isEmpty()) {
-            return;
-        }
-        if (!webPushSenderClient.isConfigured()) {
-            log.info("[WebPushDispatchService] web push sender not configured. skip userKey={} subscriptions={}",
-                    userKey, subscriptions.size());
-            return;
-        }
+        dispatchContent(userKey, recommendationDigestContentService.build(recommendations));
+    }
 
-        RecommendationDigestContent content = recommendationDigestContentService.build(recommendations);
-        for (WebPushSubscription subscription : subscriptions) {
-            WebPushSendResult result;
-            try {
-                result = webPushSenderClient.send(subscription, content);
-            } catch (RuntimeException | LinkageError e) {
-                log.warn("[WebPushDispatchService] unexpected web push send failure endpoint={}: {}",
-                        subscription.getEndpoint(), e.getMessage());
-                subscription.markError(e.getMessage());
-                continue;
-            }
-            if (result.success()) {
-                subscription.markSent();
-                continue;
-            }
-            if (result.disableSubscription()) {
-                subscription.disable(result.errorMessage());
-                continue;
-            }
-            subscription.markError(result.errorMessage());
-        }
+    @Transactional
+    public void sendDeadlineReminder(String userKey, List<WelfareService> services, int days) {
+        dispatchContent(userKey, deadlineReminderContentService.build(services, days));
     }
 
     @Transactional
@@ -70,7 +46,7 @@ public class WebPushDispatchService {
             return new WebPushTestSendResponse(subscriptions.size(), 0, 0, subscriptions.size());
         }
 
-        RecommendationDigestContent content = new RecommendationDigestContent(
+        NotificationContent content = new NotificationContent(
                 request.getTitle(),
                 request.getBody(),
                 request.getUrl(),
@@ -107,5 +83,39 @@ public class WebPushDispatchService {
         }
 
         return new WebPushTestSendResponse(subscriptions.size(), sentCount, disabledCount, failedCount);
+    }
+
+    private void dispatchContent(String userKey, NotificationContent content) {
+        List<WebPushSubscription> subscriptions =
+                webPushSubscriptionRepository.findByUserKeyAndEnabledTrueOrderByCreatedAtDesc(userKey);
+        if (subscriptions.isEmpty()) {
+            return;
+        }
+        if (!webPushSenderClient.isConfigured()) {
+            log.info("[WebPushDispatchService] web push sender not configured. skip userKey={} subscriptions={}",
+                    userKey, subscriptions.size());
+            return;
+        }
+
+        for (WebPushSubscription subscription : subscriptions) {
+            WebPushSendResult result;
+            try {
+                result = webPushSenderClient.send(subscription, content);
+            } catch (RuntimeException | LinkageError e) {
+                log.warn("[WebPushDispatchService] unexpected web push send failure endpoint={}: {}",
+                        subscription.getEndpoint(), e.getMessage());
+                subscription.markError(e.getMessage());
+                continue;
+            }
+            if (result.success()) {
+                subscription.markSent();
+                continue;
+            }
+            if (result.disableSubscription()) {
+                subscription.disable(result.errorMessage());
+                continue;
+            }
+            subscription.markError(result.errorMessage());
+        }
     }
 }

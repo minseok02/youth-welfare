@@ -1,6 +1,7 @@
 package com.example.welfare.notification.controller;
 
 import com.example.welfare.global.util.JwtUtil;
+import com.example.welfare.notification.service.DeadlineReminderDispatchService;
 import com.example.welfare.notification.service.NotificationDispatchService;
 import com.example.welfare.notification.service.UserAlertCommandService;
 import com.example.welfare.notification.service.UserAlertReadService;
@@ -42,6 +43,8 @@ class NotificationControllerWebMvcTest {
     private UserAlertCommandService userAlertCommandService;
     @MockBean
     private NotificationDispatchService notificationDispatchService;
+    @MockBean
+    private DeadlineReminderDispatchService deadlineReminderDispatchService;
     @MockBean
     private WebPushSubscriptionReadService webPushSubscriptionReadService;
     @MockBean
