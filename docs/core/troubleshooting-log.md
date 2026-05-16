@@ -4282,3 +4282,8 @@
 - 문제: `zero-AI`, `null-AI`, `null-AI cause` audit으로 많이 좁혔지만, 그건 여전히 `ai_score` 와 `ai_reason` 조합을 간접 해석하는 방식이었다. `AiScoreStatus` 를 도입한 뒤에도 같은 SQL만 계속 쓰면 `NOT_REQUESTED` 와 `PARTIAL_MISSING` 차이를 다시 간접 추정하게 된다.
 - 해결: `deploy/smoke/run-local-gov24-ai-status-audit.sh` 를 추가해 latest batch의 Gov24 `ai_status` 분포를 직접 읽게 했다. 현재 local baseline은 `gov24_ai_status_distribution=NOT_REQUESTED:36,SCORED:750`, `gov24_top10_ai_status_distribution=NOT_REQUESTED:8,SCORED:687`, `gov24_top2_ai_status_distribution=NOT_REQUESTED:1,SCORED:10`, `gov24_partial_missing_services=` 이다.
 - 이유: 이 결과는 local latest batch 기준으로는 Gov24 `PARTIAL_MISSING` 이 거의 없고, 서버와 달리 대부분 `SCORED` 상태라는 뜻이다. 즉 이제 비교 기준은 `null-AI` 자체보다 `ai_status` source/rank 분포가 되어야 한다.
+
+## 800) 다만 `ai_status` migration backfill은 기존 `NULL ai_score` row를 전부 `NOT_REQUESTED` 로 채우므로, old batch 해석에는 그대로 쓰면 안 된다
+- 문제: `V2026_05_17_01__add_ai_status_to_user_recommendations.sql` 은 기존 데이터에 대해 `ai_score IS NULL -> NOT_REQUESTED`, `ai_score IS NOT NULL -> SCORED` 로 backfill 한다. 그래서 `e7e591a` 이전에 저장된 row는 실제 원인이 `PARTIAL_MISSING` 이었어도 모두 `NOT_REQUESTED` 로 보인다. 실제로 local `run-local-gov24-top2-rule-rank-audit.sh` 에서 `final_rank=1`, `rule_rank=1`, `inside_ai_top_n` 인 Gov24 row가 `NOT_REQUESTED` 로 남는 샘플이 확인됐다.
+- 해결: `deploy/smoke/run-local-gov24-top2-rule-rank-audit.sh` 를 추가해 `final_rank`, `rule_rank`, `inside_ai_top_n/outside_ai_top_n`, `ai_status` 를 함께 읽게 했다. 해석 규칙도 바꿨다. `ai_status` 는 **`e7e591a` 이후 새로 생성된 batch** 에서만 직접 원인값으로 믿고, 이전 batch에 대해서는 `rule_rank<=15 인데 NOT_REQUESTED` 면 backfill artifact 가능성을 먼저 의심한다.
+- 이유: 그렇지 않으면 `ai_status audit` 자체가 또 간접 해석 함정이 된다. 지금 필요한 건 “이 상태값이 언제부터 truth인가”를 같이 고정하는 것이다.
