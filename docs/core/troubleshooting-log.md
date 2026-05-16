@@ -4202,3 +4202,8 @@
 - 문제: `/alerts` 를 분리하고 나면 사용자는 긴 목록에서 `UNREAD` 나 `DEADLINE_REMINDER` 만 빨리 보고 싶어 한다. 하지만 이 단계에서 곧바로 서버 필터 API를 더 열면, 현재 이미 닫힌 읽음/숨김/deep link 기준선 위에 query contract까지 또 넓게 얹게 된다.
 - 해결: `/alerts` 에 unread-only 토글과 `전체 / 추천 알림 / 마감 임박` kind 필터를 먼저 추가했다. 현재 구현은 이미 받아온 `/api/notifications/me` 결과를 클라이언트에서만 필터링하고, read/hide/deeplink API 계약은 그대로 유지한다.
 - 이유: 지금 단계의 목표는 알림 UX polish이지 알림 조회 API 확장이 아니다. 목록/행동 경계는 고정하고, 화면 안에서 바로 좁혀 보는 정도만 더하는 편이 리스크가 작고 체감 가치는 충분하다.
+
+## 784) 추천 편중 완화는 저장 batch 전체가 바로 안 바뀌더라도, 다음 refresh에서 다른 버킷이 top1로 오게 만드는 코드와 baseline 숫자를 분리해서 읽어야 한다
+- 문제: 현재 concentration audit는 `latest_batch_users=156`, `top1_leader_share_pct=56.41`, `CONCENTRATED_TOP1` 로 그대로다. 이 상태에서 no-priority top band 분산 코드를 손보고 곧바로 audit 숫자가 안 움직인다고 해서 효과가 없다고 단정하면, "새로 생성될 추천"과 "이미 저장된 batch" 를 섞어 읽게 된다.
+- 해결: `ReRankingService` 의 no-priority top band 재정렬을 개별 candidate index 회전에서 `category`(없으면 `source`) 버킷 회전으로 바꿨다. 테스트는 `ReRankingServiceTest`, `RecommendationGenerationServiceTest` 로 닫고, concentration audit는 현재 저장 batch를 다시 만들지 않은 상태라 baseline 숫자가 그대로 남는다는 점을 문서에 같이 적었다.
+- 이유: 추천 품질 개선은 코드 반영 시점과 저장 batch 재생성 시점이 다를 수 있다. 따라서 "이번 변경이 다음 refresh 결과를 어떻게 바꾸는가"와 "현재 audit snapshot이 이미 바뀌었는가"를 분리해서 읽어야 불필요한 오판을 줄일 수 있다.

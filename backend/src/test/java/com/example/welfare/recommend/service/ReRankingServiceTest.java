@@ -207,6 +207,49 @@ class ReRankingServiceTest {
         assertThat(gov24First.get(0).getService().getId()).isNotEqualTo(topFirst.get(0).getService().getId());
     }
 
+    @Test
+    @DisplayName("우선순위가 없는 사용자는 top band 내부에서 category bucket 기준으로 top1을 회전시킨다")
+    void rerankRotatesNoPriorityTop1AcrossCategoryBuckets() {
+        ReRankingService reRankingService = new ReRankingService(
+                new ScoreNormalizer(),
+                scoreWeightService,
+                new RecommendationDiversityService()
+        );
+
+        when(scoreWeightService.getActiveWeight()).thenReturn(ScoreWeight.builder()
+                .weightKey("COLD_START")
+                .ruleWeight(BigDecimal.valueOf(0.8))
+                .aiWeight(BigDecimal.valueOf(0.2))
+                .minLogCount(0)
+                .isActive(true)
+                .build());
+
+        ScoredCandidate housingTop = candidate(
+                service(51L, WelfareService.SourceType.BOKJIRO_CENTRAL, "주거", LocalDate.now().plusDays(20), 100, 1000L, LocalDateTime.of(2026, 1, 1, 0, 0)),
+                100.0,
+                null
+        );
+        ScoredCandidate financeSecond = candidate(
+                service(52L, WelfareService.SourceType.BOKJIRO_LOCAL, "금융·생활지원", LocalDate.now().plusDays(20), 100, 1000L, LocalDateTime.of(2026, 1, 1, 0, 0)),
+                98.0,
+                null
+        );
+        ScoredCandidate educationThird = candidate(
+                service(53L, WelfareService.SourceType.GOV24, "교육·직업훈련", LocalDate.now().plusDays(20), 100, 1000L, LocalDateTime.of(2026, 1, 1, 0, 0)),
+                97.0,
+                null
+        );
+
+        List<ScoredCandidate> ranked = reRankingService.rerank(
+                List.of(housingTop, financeSecond, educationThird),
+                noPrioritySnapshot("user-b")
+        );
+
+        assertThat(ranked.get(0).getService().getId()).isNotEqualTo(51L);
+        assertThat(ranked.get(0).getService().getUnifiedCategory())
+                .isIn("금융·생활지원", "교육·직업훈련");
+    }
+
     private ScoredCandidate candidate(WelfareService service,
                                       double ruleWeightedScore,
                                       Double aiScore,

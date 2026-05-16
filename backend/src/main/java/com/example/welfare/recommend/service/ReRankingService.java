@@ -186,23 +186,58 @@ public class ReRankingService {
             return scored;
         }
 
-        int preferredIndex = Math.floorMod(snapshot.userKey().chars().sum(), eligible.size());
-        if (preferredIndex == 0) {
+        Map<String, List<ScoredCandidate>> buckets = bucketizeNoPriorityTopBand(eligible);
+        if (buckets.size() < 2) {
             return ranked;
         }
 
-        ScoredCandidate preferredCandidate = eligible.get(preferredIndex);
+        List<String> orderedBuckets = new ArrayList<>(buckets.keySet());
+        int preferredBucketIndex = Math.floorMod(snapshot.userKey().chars().sum(), orderedBuckets.size());
+        String preferredBucket = orderedBuckets.get(preferredBucketIndex);
+        ScoredCandidate preferredCandidate = buckets.get(preferredBucket).get(0);
+        Long topCandidateId = eligible.get(0).getService().getId();
+        Long preferredId = preferredCandidate.getService().getId();
+        if (preferredId != null && preferredId.equals(topCandidateId)) {
+            return ranked;
+        }
+
         ArrayList<ScoredCandidate> reordered = new ArrayList<>(ranked.size());
         reordered.add(preferredCandidate);
         for (ScoredCandidate candidate : ranked) {
             Long candidateId = candidate.getService().getId();
-            Long preferredId = preferredCandidate.getService().getId();
             if (candidateId != null && candidateId.equals(preferredId)) {
                 continue;
             }
             reordered.add(candidate);
         }
         return List.copyOf(reordered);
+    }
+
+    private Map<String, List<ScoredCandidate>> bucketizeNoPriorityTopBand(List<ScoredCandidate> eligible) {
+        LinkedHashMap<String, List<ScoredCandidate>> byCategory = new LinkedHashMap<>();
+        for (ScoredCandidate candidate : eligible) {
+            String category = normalizeNoPriorityBucket(candidate.getService().getUnifiedCategory());
+            byCategory.computeIfAbsent(category, ignored -> new ArrayList<>()).add(candidate);
+        }
+        if (byCategory.size() >= 2) {
+            return byCategory;
+        }
+
+        LinkedHashMap<String, List<ScoredCandidate>> bySource = new LinkedHashMap<>();
+        for (ScoredCandidate candidate : eligible) {
+            String source = candidate.getService().getSourceType() == null
+                    ? "UNKNOWN"
+                    : candidate.getService().getSourceType().name();
+            bySource.computeIfAbsent(source, ignored -> new ArrayList<>()).add(candidate);
+        }
+        return bySource;
+    }
+
+    private String normalizeNoPriorityBucket(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return "기타";
+        }
+        return raw.trim();
     }
 
     private double adjustedAiWeight(ScoreWeight weight, ScoredCandidate candidate) {
