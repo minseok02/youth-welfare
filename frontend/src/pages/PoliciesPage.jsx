@@ -128,6 +128,8 @@ const mapPolicySummary = (policy) => ({
   title: policy.title,
   category: policy.unifiedCategory || "기타",
   dday: formatDday(policy.applyEndDate, policy.status) || statusLabel(policy.status),
+  sourceType: policy.sourceType || "",
+  sourceTypeLabel: SOURCE_LABEL_BY_TYPE[policy.sourceType] || "",
   source: policy.hostOrg || policy.sido || policy.applyMethodName || statusLabel(policy.status),
   orgName: policy.hostOrg || policy.operatingOrg || "",
   regionText: policy.sido || "",
@@ -228,6 +230,7 @@ function PolicyRow({ p, onNavigate, onBookmark }) {
           {p.summary}
         </div>
         <div style={{ display: "flex", gap: 14, marginTop: 10, fontSize: 12, color: INK3, flexWrap: "wrap" }}>
+          {p.sourceTypeLabel && <span>출처 {p.sourceTypeLabel}</span>}
           {p.orgName && <span>🏢 {p.orgName}</span>}
           {p.regionText && <span>📍 {p.regionText}</span>}
           {!p.orgName && p.source && <span>🏢 {p.source}</span>}
@@ -266,7 +269,10 @@ function PolicyCard({ p, onNavigate, onBookmark }) {
       </div>
       <div style={{ fontSize: 15, fontWeight: 700, lineHeight: 1.4, color: INK, marginBottom: 6 }}>{p.title}</div>
       <div style={{ fontSize: 12, color: INK2, lineHeight: 1.5, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{p.summary}</div>
-      {p.source && <div style={{ fontSize: 12, color: INK3, marginTop: 8 }}>🏢 {p.source}</div>}
+      <div style={{ display: "flex", gap: 10, marginTop: 8, fontSize: 12, color: INK3, flexWrap: "wrap" }}>
+        {p.sourceTypeLabel && <span>출처 {p.sourceTypeLabel}</span>}
+        {p.source && <span>🏢 {p.source}</span>}
+      </div>
     </div>
   );
 }

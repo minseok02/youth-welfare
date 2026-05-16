@@ -7,6 +7,13 @@ import { useAuthStore } from "../store/authStore";
 
 // ── 헬퍼 ──────────────────────────────────────────────────────────────────────
 
+const SOURCE_LABEL_BY_TYPE = {
+  YOUTH: "온통청년",
+  BOKJIRO_CENTRAL: "복지로 중앙",
+  BOKJIRO_LOCAL: "복지로 지자체",
+  GOV24: "Gov24",
+};
+
 const formatDday = (dateText, status) => {
   if (status === "CLOSED") return "종료";
   if (!dateText) return status === "UPCOMING" ? "예정" : "상시";
@@ -27,6 +34,8 @@ const mapRec = (r) => ({
   category: r.unifiedCategory || "기타",
   dday: formatDday(r.applyEndDate, r.status),
   summary: r.description || "",
+  sourceType: r.sourceType || "",
+  sourceTypeLabel: SOURCE_LABEL_BY_TYPE[r.sourceType] || "",
   source: r.hostOrg || r.sido || r.operatingOrg || "",
   aiReason: r.aiReason,
   bookmarked: Boolean(r.isBookmarked),
@@ -389,11 +398,10 @@ function RecCard({ rec, onPolicyNavigate, onBookmarkToggle }) {
       <div style={{ fontSize: 13, color: INK2, marginTop: 6, lineHeight: 1.55, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>
         {rec.summary}
       </div>
-      {rec.source && (
-        <div style={{ marginTop: 6, fontSize: 12, color: INK3 }}>
-          {rec.source}
-        </div>
-      )}
+      <div style={{ display: "flex", gap: 10, marginTop: 6, fontSize: 12, color: INK3, flexWrap: "wrap" }}>
+        {rec.sourceTypeLabel && <span>출처 {rec.sourceTypeLabel}</span>}
+        {rec.source && <span>{rec.source}</span>}
+      </div>
       {rec.aiReason && (
         <div style={{ marginTop: 8, fontSize: 12, color: A, fontStyle: "italic" }}>"{rec.aiReason}"</div>
       )}

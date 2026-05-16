@@ -18,6 +18,7 @@ public class RecommendationResponse {
     private String title;
     private String description;
     private String unifiedCategory;
+    private String sourceType;
     private String youthMajorLabel;
     private String youthMidLabel;
     private String provisionMethodLabel;
@@ -60,6 +61,7 @@ public class RecommendationResponse {
                 .title(rec.getService().getTitle())
                 .description(resolveDescription(rec, projection))
                 .unifiedCategory(resolveUnifiedCategory(rec, projection))
+                .sourceType(rec.getService().getSourceType().name())
                 .youthMajorLabel(resolveYouthMajorLabel(projection))
                 .youthMidLabel(resolveYouthMidLabel(projection))
                 .provisionMethodLabel(resolveProvisionMethodLabel(projection))

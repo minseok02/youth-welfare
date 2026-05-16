@@ -17,6 +17,7 @@ public class PolicySummaryResponse {
     private String description;
     private String unifiedCategory;
     private String status;
+    private String sourceType;
     private String hostOrg;
     private String operatingOrg;
     // 복지로 지자체 정책 중 hostOrg가 없는 경우 카드 source 표시에 사용 (service_regions.sido_name)
@@ -60,6 +61,7 @@ public class PolicySummaryResponse {
                 .description(resolveDescription(ws, projection))
                 .unifiedCategory(resolveUnifiedCategory(ws, projection))
                 .status(ws.getStatus().name())
+                .sourceType(ws.getSourceType().name())
                 .hostOrg(ws.getHostOrg())
                 .operatingOrg(ws.getOperatingOrg())
                 .sido(sido)
