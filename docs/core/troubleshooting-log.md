@@ -4172,3 +4172,8 @@
 - 문제: `deadline-test-dispatch` 를 추가한 직후 로컬 smoke는 `500/C002` 로 떨어졌지만, app 로그의 실제 예외는 `No static resource api/notifications/deadline-test-dispatch` 였다. 즉 새 controller route가 아직 Docker app 이미지에 반영되지 않은 상태였다.
 - 해결: 새 backend endpoint를 붙인 뒤에는 `docker compose up -d --build app` 으로 app 이미지를 먼저 재생성하고 smoke를 다시 태우도록 기준을 정리했다. 이후 같은 smoke는 `deadline reminder smoke passed` 와 함께 `dispatchStatus=SENT`, `notifications +1`, `user_alerts +1`, `DEADLINE_REMINDER` 기준선으로 통과했다.
 - 이유: 현재 로컬 개발은 IDE 테스트 바이너리와 Docker app 바이너리가 쉽게 갈라진다. smoke 실패가 곧바로 기능 버그를 뜻하는 건 아니며, 특히 `No static resource` 는 route 미배포 가능성이 더 높다.
+
+## 778) `deadline reminder` 도 로컬 smoke만 통과했다고 끝내지 말고, 서버에서 같은 manual dispatch delta를 한 번 더 확인해야 한다
+- 문제: `deadline-test-dispatch` 는 추천 digest와 분리된 새 이벤트라 로컬 smoke가 통과해도 서버 DB 상태, route 반영, fan-out 이력 저장이 같은 계약으로 남는지 다시 확인할 필요가 있었다.
+- 해결: 서버 최신 main 기준으로 `추천 refresh -> 첫 추천 북마크 -> apply_end_date=today+3 -> POST /api/notifications/deadline-test-dispatch?days=3` 를 다시 태워 `dispatchStatus=SENT`, `policyCount=1`, `notifications +1`, `user_alerts +1`, 최신 `notifications.status=sent`, `user_alerts.kind=DEADLINE_REMINDER`, `status=UNREAD` 를 확인했다.
+- 이유: 새 알림 이벤트는 manual dispatch와 DB delta를 로컬/서버 둘 다에서 같은 숫자로 닫아야 이후 scheduler 연결 시 회귀 범위를 줄일 수 있다.
