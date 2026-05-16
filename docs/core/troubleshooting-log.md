@@ -4297,3 +4297,8 @@
 - 문제: `Gov24가 top2에 못 든다`는 사실만으로는 rule score가 낮은 건지, AI score가 낮은 건지, 아니면 priority multiplier 같은 후단 조정 때문에 final에서 더 깎인 건지 알기 어렵다. 하지만 현재 DB에는 `hasPriorityMismatch` 같은 세부 flag는 저장되지 않아, exact `adjustedAiWeight` 를 사후 재현할 수는 없다.
 - 해결: `deploy/smoke/run-local-gov24-fresh-score-breakdown-audit.sh` 를 추가했다. 이 스크립트는 fresh user batch 기준으로 저장된 `rule_weight_used / ai_weight_used`, batch `rule_max`, `rule_weighted_score`, `ai_score` 를 사용해 `norm_rule`, `norm_ai`, `base_blend_score`, `actual_final`, `delta(actual_final - base_blend_score)` 를 계산하고 Gov24 row와 `top1/top2` rival을 나란히 출력한다.
 - 이유: exact 재현은 아니어도, 이 값만으로도 "기본 blend까진 비슷한데 final에서 더 눌렸는지"를 읽을 수 있다. 예를 들어 local 샘플에서 `2622` 는 `base_blend=1.00000`, `final=1.12000`, `delta=+0.12000` 으로 priority multiplier가 크게 붙고, Gov24 `6790` 는 `base_blend=0.39216`, `final=0.39216`, `delta=0` 으로 추가 보정 없이 그대로 남는다.
+
+## 803) 결국 `4689`, `7193` 같은 실제 Gov24 서비스가 왜 낮은지 보려면 user context와 canonical projection 입력을 같은 fresh batch에서 같이 읽어야 한다
+- 문제: `base_blend` 가 낮다는 결론만으로는 왜 그런지 모른다. 예를 들어 `4689` 는 rule이 왜 `3` 인지, `7193` 는 왜 장학금/교육 태그를 달고도 현재 user와 덜 맞는지 보려면 user 관심사/우선순위와 서비스 projection/tag/fact를 나란히 봐야 한다.
+- 해결: `deploy/smoke/run-local-gov24-fresh-upstream-audit.sh` 를 추가했다. 이 스크립트는 `TARGET_USER_KEY` 기준 fresh batch에서 `user_context` (나이/지역/소득/고용/관심분야/타겟타입/우선순위)와, `Gov24 top10 + top2 rival` 의 `summary labels`, `interest themes`, `keyword tags`, `target groups`, `fact keys`, `raw tags`, `summary_excerpt` 를 함께 출력한다.
+- 이유: 이렇게 해야 "4689가 월세보증인데 user의 주관심 `교육` 과 안 맞아서 interest bonus를 못 받는지", "7193가 장학금이지만 target group/지역/학생 조건이 현재 user와 안 맞는지" 같은 upstream 해석이 가능해진다. 지금 단계는 점수 튜닝보다 입력 신호를 먼저 읽는 게 맞다.
