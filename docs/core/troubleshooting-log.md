@@ -4147,3 +4147,13 @@
 - 문제: 인앱 알림함과 웹푸시 연결 UI가 붙은 뒤에도 실제 사용자 설정은 여전히 `notificationYn` 하나뿐이라, 이메일을 끄고 인앱만 유지하거나 웹푸시만 끄는 식의 채널 분리가 불가능했다. 더 큰 문제는 추천 digest dispatch가 여전히 `email` 중심 구조라서, UI에서 토글을 나눠도 backend fan-out이 그대로면 체감과 저장 결과가 엇갈린다.
 - 해결: `users`, `user_profiles` 에 `notification_email_yn`, `notification_in_app_yn`, `notification_web_push_yn` 을 추가하고, `UpdateProfileRequest/ProfileResponse`, `UserProfileCommandService`, `UserProfile.syncFrom(...)` 를 같이 확장했다. `UserProfileRepository.findNotificationTargetsByPeriod(...)` 는 이제 전체 알림이 켜져 있고 채널 중 하나라도 활성인 사용자를 대상으로 읽는다. `NotificationDispatchService` 는 이메일 전송, 인앱 `user_alerts` 생성, 웹푸시 fan-out을 각각 채널 플래그로 제어하고, 전체 알림을 켠 상태에서 채널이 모두 꺼지면 저장을 거부한다.
 - 이유: 알림 채널 분리는 "어떤 채널로 보낼지" 뿐 아니라 "무슨 이벤트를 어느 채널까지 fan-out할지"의 문제다. 현재 추천 digest 이벤트를 그대로 쓰더라도, 저장 모델/대상 조회/dispatch가 같이 움직이지 않으면 UI 토글은 겉보기 기능에 그친다.
+
+## 773) 로컬 Docker app이 최신 코드를 가리켜도, 기존 PostgreSQL volume에 새 알림 migration이 없으면 `user_alerts` missing table로 crash-loop 할 수 있다
+- 문제: 채널 fan-out smoke를 붙인 뒤 로컬에서 바로 `PUT /api/users/me` 를 태우자 처음엔 채널 저장 버그처럼 보였지만, 실제로는 Docker app이 아직 예전 빌드였고 최신으로 재빌드하자 이번엔 `Schema-validation: missing table [user_alerts]` 로 기동 자체가 실패했다. 즉 기존 volume에는 `V2026_05_15_02`, `V2026_05_15_03`, `V2026_05_16_01` 이 아직 적용되지 않은 상태였다.
+- 해결: 로컬 baseline 복구 절차를 명확히 했다. `postgres` 로 세 migration을 직접 적용하고, `user_alerts`, `web_push_subscriptions`, 두 sequence에 `app_core_rw` 권한을 부여했다. smoke query 계정으로 쓰는 `migration_admin` 에는 최소 `SELECT` 도 추가했다. 그 뒤 app를 다시 띄우니 알림 채널 smoke가 실제 기능 경계까지 진행됐다.
+- 이유: 이 단계의 로컬 검증은 코드보다 volume 상태에 더 크게 흔들린다. migration 누락을 그냥 "smoke 실패"처럼 읽으면 채널 분기 버그와 schema drift를 혼동하게 된다.
+
+## 774) 알림 채널 분리는 단위 테스트만으로 닫지 말고, `digest-test-dispatch + DB delta` smoke를 같이 가져가야 한다
+- 문제: 채널 fan-out 분기를 `NotificationDispatchServiceTest` 로 보강해도, 실제 app/DB 조합에서는 새 프로필 플래그가 저장되는지, manual digest가 `notifications` 와 `user_alerts` 를 어떻게 남기는지, 웹푸시 구독이 없는 사용자가 `notificationWebPushYn=true` 여도 조용히 no-op 되는지를 한 번에 보기 어려웠다.
+- 해결: `deploy/smoke/run-local-notification-channel-smoke.sh` 를 추가했다. 이 wrapper는 세 시나리오를 새 사용자 기준으로 각각 분리해 태운다. `inapp_only` 는 `notifications +1 / user_alerts +1`, `webpush_only_no_subscription` 은 `notifications +1 / user_alerts +0 / enabled subscriptions unchanged`, `invalid_channels` 는 `notificationYn=true + all channels off` 저장 시 `400` 을 확인한다.
+- 이유: 알림 채널 분리는 결국 "토글 저장"보다 "fan-out 결과가 어떤 DB 흔적으로 남느냐"가 더 중요하다. local smoke가 있어야 서버 검증 전에도 실제 분기 계약을 재현 가능한 형태로 닫을 수 있다.

@@ -176,12 +176,14 @@ bounded runtime quality/audit baseline을 다시 확인할 때는 curl 수동 �
 deploy/smoke/run-local-policy-quality-summary.sh
 deploy/smoke/run-local-gov24-quality-audit.sh
 deploy/smoke/run-local-ctr-readiness-audit.sh
+deploy/smoke/run-local-notification-channel-smoke.sh
 ```
 
 - policy retrieval/category baseline: [policy-quality-summary-runbook.md](../policy/policy-quality-summary-runbook.md)
 - Gov24 closeout/deferred inventory audit: [policy-gov24-runtime-audit-runbook.md](../policy/policy-gov24-runtime-audit-runbook.md)
 - bounded admin runtime baseline: [policy-admin-runtime-runbook.md](../policy/policy-admin-runtime-runbook.md)
 - recommendation CTR readiness baseline: [recommendation-ctr-readiness-runbook.md](../recommendation/recommendation-ctr-readiness-runbook.md)
+- notification digest channel fan-out baseline: [notification-channel-expansion-checklist.md](./notification-channel-expansion-checklist.md)
 
 전제:
 

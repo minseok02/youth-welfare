@@ -101,6 +101,7 @@
 - subscription 저장
 - 푸시 발송
 - 추천 digest 또는 refresh 완료 이벤트에 연결
+- local smoke 또는 동등한 검증으로 채널 fan-out 분기가 실제 DB 흔적까지 확인된다.
 
 이번 단계에서 금지:
 
@@ -126,3 +127,4 @@
 2. `notifications` 는 발송 이력이고, 읽음함은 별도다.
 3. 웹푸시는 인앱 알림함 다음 단계다.
 4. deadline reminder 는 별도 이벤트로 나중에 본다.
+5. 채널 분기는 문서/단위 테스트만이 아니라 `digest-test-dispatch + DB delta` 기준 local smoke까지 닫아야 한다.
