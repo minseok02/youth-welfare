@@ -28,6 +28,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.assertj.core.api.Assertions.assertThat;
 
 @ExtendWith(MockitoExtension.class)
 class NotificationDispatchServiceTest {
@@ -170,6 +171,164 @@ class NotificationDispatchServiceTest {
         verify(notificationGateway, never()).send(any(), any(), any());
         verify(notificationHistoryService, never()).saveResult(any(), any(), any(), any(), any(), any(), anyBoolean());
         verify(webPushDispatchService, never()).sendRecommendationDigest(any(), any());
+    }
+
+    @Test
+    @DisplayName("이메일 채널이 꺼져 있으면 게이트웨이를 건너뛰고 다른 채널만 처리한다")
+    void sendTopRecommendationsSkipsEmailWhenEmailChannelDisabled() {
+        User user = sampleUser();
+        UserRecommendation recommendation = sampleRecommendation();
+        RecommendationLog log = RecommendationLog.builder().id(100L).build();
+        NotificationTarget target = new NotificationTarget(1L, "user-key-1", "test@example.com",
+                User.NotificationPeriod.DAILY, false, true, true, 0.8, 10);
+        NotificationRecommendationService.NotificationDispatchPlan plan =
+                new NotificationRecommendationService.NotificationDispatchPlan(
+                        user,
+                        NotificationPeriodType.DAILY,
+                        List.of(recommendation),
+                        List.of(log)
+                );
+
+        given(notificationDispatchWindowReadService.hasDispatchHistoryInCurrentWindow("user-key-1", NotificationPeriodType.DAILY))
+                .willReturn(false);
+        given(notificationDispatchWindowReadService.currentWindow(NotificationPeriodType.DAILY, LocalDate.now()))
+                .willReturn(new NotificationDispatchWindowReadService.Window(
+                        LocalDate.now().atStartOfDay(),
+                        LocalDate.now().plusDays(1).atStartOfDay()
+                ));
+        given(notificationRecommendationService.prepareDispatch(target)).willReturn(Optional.of(plan));
+        given(notificationHistoryService.reserveDispatch(any(), any(), any(), any(), any()))
+                .willReturn(Optional.of(Notification.builder()
+                        .id(1L)
+                        .userKey("user-key-1")
+                        .dispatchKey("daily:user-key-1:" + java.time.LocalDate.now())
+                        .periodType(NotificationPeriodType.DAILY)
+                        .channel(NotificationChannel.EMAIL)
+                        .status(NotificationStatus.PENDING)
+                        .subject("[청년복지] 맞춤 정책 추천")
+                        .build()));
+        given(notificationMessageService.buildRecommendationMessage("user-key-1", 1L, List.of(recommendation), List.of(log)))
+                .willReturn("body");
+
+        NotificationDispatchService.NotificationDispatchResult result =
+                notificationDispatchService.sendTopRecommendations(target);
+
+        assertThat(result.status()).isEqualTo(NotificationDispatchService.NotificationDispatchStatus.SENT);
+        verify(notificationGateway, never()).send(any(), any(), any());
+        verify(notificationHistoryService).saveResult(
+                any(Notification.class),
+                eq(NotificationStatus.SENT),
+                eq("body"),
+                eq(List.of(recommendation)),
+                eq(List.of(log)),
+                eq(null),
+                eq(true)
+        );
+        verify(webPushDispatchService).sendRecommendationDigest("user-key-1", List.of(recommendation));
+    }
+
+    @Test
+    @DisplayName("인앱 채널이 꺼져 있으면 user_alerts 를 만들지 않는다")
+    void sendTopRecommendationsSkipsInAppWhenDisabled() {
+        User user = sampleUser();
+        UserRecommendation recommendation = sampleRecommendation();
+        RecommendationLog log = RecommendationLog.builder().id(100L).build();
+        NotificationTarget target = new NotificationTarget(1L, "user-key-1", "test@example.com",
+                User.NotificationPeriod.DAILY, true, false, false, 0.8, 10);
+        NotificationRecommendationService.NotificationDispatchPlan plan =
+                new NotificationRecommendationService.NotificationDispatchPlan(
+                        user,
+                        NotificationPeriodType.DAILY,
+                        List.of(recommendation),
+                        List.of(log)
+                );
+
+        given(notificationDispatchWindowReadService.hasDispatchHistoryInCurrentWindow("user-key-1", NotificationPeriodType.DAILY))
+                .willReturn(false);
+        given(notificationDispatchWindowReadService.currentWindow(NotificationPeriodType.DAILY, LocalDate.now()))
+                .willReturn(new NotificationDispatchWindowReadService.Window(
+                        LocalDate.now().atStartOfDay(),
+                        LocalDate.now().plusDays(1).atStartOfDay()
+                ));
+        given(notificationRecommendationService.prepareDispatch(target)).willReturn(Optional.of(plan));
+        given(notificationHistoryService.reserveDispatch(any(), any(), any(), any(), any()))
+                .willReturn(Optional.of(Notification.builder()
+                        .id(1L)
+                        .userKey("user-key-1")
+                        .dispatchKey("daily:user-key-1:" + java.time.LocalDate.now())
+                        .periodType(NotificationPeriodType.DAILY)
+                        .channel(NotificationChannel.EMAIL)
+                        .status(NotificationStatus.PENDING)
+                        .subject("[청년복지] 맞춤 정책 추천")
+                        .build()));
+        given(notificationMessageService.buildRecommendationMessage("user-key-1", 1L, List.of(recommendation), List.of(log)))
+                .willReturn("body");
+        given(notificationGateway.send("test@example.com", "[청년복지] 맞춤 정책 추천", "body")).willReturn(true);
+
+        notificationDispatchService.sendTopRecommendations(target);
+
+        verify(notificationHistoryService).saveResult(
+                any(Notification.class),
+                eq(NotificationStatus.SENT),
+                eq("body"),
+                eq(List.of(recommendation)),
+                eq(List.of(log)),
+                eq(null),
+                eq(false)
+        );
+        verify(webPushDispatchService, never()).sendRecommendationDigest(any(), any());
+    }
+
+    @Test
+    @DisplayName("웹푸시 채널이 꺼져 있으면 웹푸시 fan-out을 건너뛴다")
+    void sendTopRecommendationsSkipsWebPushWhenDisabled() {
+        User user = sampleUser();
+        UserRecommendation recommendation = sampleRecommendation();
+        RecommendationLog log = RecommendationLog.builder().id(100L).build();
+        NotificationTarget target = new NotificationTarget(1L, "user-key-1", "test@example.com",
+                User.NotificationPeriod.DAILY, true, true, false, 0.8, 10);
+        NotificationRecommendationService.NotificationDispatchPlan plan =
+                new NotificationRecommendationService.NotificationDispatchPlan(
+                        user,
+                        NotificationPeriodType.DAILY,
+                        List.of(recommendation),
+                        List.of(log)
+                );
+
+        given(notificationDispatchWindowReadService.hasDispatchHistoryInCurrentWindow("user-key-1", NotificationPeriodType.DAILY))
+                .willReturn(false);
+        given(notificationDispatchWindowReadService.currentWindow(NotificationPeriodType.DAILY, LocalDate.now()))
+                .willReturn(new NotificationDispatchWindowReadService.Window(
+                        LocalDate.now().atStartOfDay(),
+                        LocalDate.now().plusDays(1).atStartOfDay()
+                ));
+        given(notificationRecommendationService.prepareDispatch(target)).willReturn(Optional.of(plan));
+        given(notificationHistoryService.reserveDispatch(any(), any(), any(), any(), any()))
+                .willReturn(Optional.of(Notification.builder()
+                        .id(1L)
+                        .userKey("user-key-1")
+                        .dispatchKey("daily:user-key-1:" + java.time.LocalDate.now())
+                        .periodType(NotificationPeriodType.DAILY)
+                        .channel(NotificationChannel.EMAIL)
+                        .status(NotificationStatus.PENDING)
+                        .subject("[청년복지] 맞춤 정책 추천")
+                        .build()));
+        given(notificationMessageService.buildRecommendationMessage("user-key-1", 1L, List.of(recommendation), List.of(log)))
+                .willReturn("body");
+        given(notificationGateway.send("test@example.com", "[청년복지] 맞춤 정책 추천", "body")).willReturn(true);
+
+        notificationDispatchService.sendTopRecommendations(target);
+
+        verify(webPushDispatchService, never()).sendRecommendationDigest(any(), any());
+        verify(notificationHistoryService).saveResult(
+                any(Notification.class),
+                eq(NotificationStatus.SENT),
+                eq("body"),
+                eq(List.of(recommendation)),
+                eq(List.of(log)),
+                eq(null),
+                eq(true)
+        );
     }
 
     private User sampleUser() {
