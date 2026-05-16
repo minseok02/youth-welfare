@@ -60,6 +60,7 @@ export default function AlertsPage() {
   const [alertsLoading, setAlertsLoading] = useState(false);
   const [alertUnreadCount, setAlertUnreadCount] = useState(0);
   const [alertActionLoadingId, setAlertActionLoadingId] = useState(null);
+  const [batchActionLoading, setBatchActionLoading] = useState("");
   const [kindFilter, setKindFilter] = useState("ALL");
   const [unreadOnly, setUnreadOnly] = useState(false);
   const [toast, setToast] = useState({ open: false, msg: "", severity: "success" });
@@ -172,6 +173,62 @@ export default function AlertsPage() {
     }
     return true;
   });
+  const visibleUnreadCount = filteredAlerts.filter((alert) => alert.status === "UNREAD").length;
+  const visibleAlertCount = filteredAlerts.length;
+
+  const markVisibleAlertsRead = useCallback(async () => {
+    const targetIds = filteredAlerts
+      .filter((alert) => alert.status === "UNREAD")
+      .map((alert) => alert.id);
+
+    if (!targetIds.length) {
+      showToast("읽음 처리할 알림이 없습니다", "info");
+      return;
+    }
+
+    setBatchActionLoading("read");
+    try {
+      await Promise.all(targetIds.map((alertId) => api.patch(`/api/notifications/${alertId}/read`)));
+      const now = new Date().toISOString();
+      setAlerts((prev) => prev.map((alert) => (
+        targetIds.includes(alert.id)
+          ? { ...alert, status: "READ", readAt: alert.readAt ?? now }
+          : alert
+      )));
+      setAlertUnreadCount((prev) => Math.max(prev - targetIds.length, 0));
+      showToast(`보이는 알림 ${targetIds.length}건을 읽음 처리했습니다`);
+    } catch {
+      showToast("일괄 읽음 처리에 실패했습니다", "error");
+    } finally {
+      setBatchActionLoading("");
+    }
+  }, [filteredAlerts, showToast]);
+
+  const hideVisibleAlerts = useCallback(async () => {
+    const targets = filteredAlerts.map((alert) => ({
+      id: alert.id,
+      unread: alert.status === "UNREAD",
+    }));
+
+    if (!targets.length) {
+      showToast("숨길 알림이 없습니다", "info");
+      return;
+    }
+
+    setBatchActionLoading("hide");
+    try {
+      await Promise.all(targets.map((alert) => api.patch(`/api/notifications/${alert.id}/hide`)));
+      const hiddenIds = new Set(targets.map((alert) => alert.id));
+      const unreadDelta = targets.filter((alert) => alert.unread).length;
+      setAlerts((prev) => prev.filter((alert) => !hiddenIds.has(alert.id)));
+      setAlertUnreadCount((prev) => Math.max(prev - unreadDelta, 0));
+      showToast(`보이는 알림 ${targets.length}건을 숨겼습니다`);
+    } catch {
+      showToast("일괄 숨기기에 실패했습니다", "error");
+    } finally {
+      setBatchActionLoading("");
+    }
+  }, [filteredAlerts, showToast]);
 
   return (
     <div style={{ minHeight: "100vh", background: BG }}>
@@ -210,6 +267,7 @@ export default function AlertsPage() {
             <div style={{ display: "flex", gap: 8 }}>
               <button
                 onClick={() => setUnreadOnly((prev) => !prev)}
+                disabled={batchActionLoading !== ""}
                 style={{
                   padding: "8px 12px",
                   borderRadius: 10,
@@ -218,14 +276,50 @@ export default function AlertsPage() {
                   color: unreadOnly ? AI : INK2,
                   fontSize: 12,
                   fontWeight: 700,
-                  cursor: "pointer",
+                  cursor: batchActionLoading !== "" ? "wait" : "pointer",
+                  opacity: batchActionLoading !== "" ? 0.7 : 1,
                 }}
               >
                 읽지 않은 알림만
               </button>
               <button
+                onClick={() => markVisibleAlertsRead().catch(() => showToast("일괄 읽음 처리에 실패했습니다", "error"))}
+                disabled={batchActionLoading !== "" || visibleUnreadCount === 0}
+                style={{
+                  padding: "8px 12px",
+                  borderRadius: 10,
+                  border: `1px solid ${LINE}`,
+                  background: WHITE,
+                  color: INK2,
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: batchActionLoading !== "" || visibleUnreadCount === 0 ? "not-allowed" : "pointer",
+                  opacity: batchActionLoading !== "" || visibleUnreadCount === 0 ? 0.6 : 1,
+                }}
+              >
+                {batchActionLoading === "read" ? "읽음 처리 중..." : "보이는 알림 모두 읽음"}
+              </button>
+              <button
+                onClick={() => hideVisibleAlerts().catch(() => showToast("일괄 숨기기에 실패했습니다", "error"))}
+                disabled={batchActionLoading !== "" || visibleAlertCount === 0}
+                style={{
+                  padding: "8px 12px",
+                  borderRadius: 10,
+                  border: `1px solid ${LINE}`,
+                  background: WHITE,
+                  color: INK3,
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: batchActionLoading !== "" || visibleAlertCount === 0 ? "not-allowed" : "pointer",
+                  opacity: batchActionLoading !== "" || visibleAlertCount === 0 ? 0.6 : 1,
+                }}
+              >
+                {batchActionLoading === "hide" ? "숨기는 중..." : "보이는 알림 모두 숨기기"}
+              </button>
+              <button
                 onClick={() => syncAlerts().catch(() => showToast("알림함 새로고침에 실패했습니다", "error"))}
-                style={{ padding: "8px 12px", borderRadius: 10, border: `1px solid ${LINE}`, background: WHITE, color: INK2, fontSize: 12, fontWeight: 700, cursor: "pointer" }}
+                disabled={batchActionLoading !== ""}
+                style={{ padding: "8px 12px", borderRadius: 10, border: `1px solid ${LINE}`, background: WHITE, color: INK2, fontSize: 12, fontWeight: 700, cursor: batchActionLoading !== "" ? "wait" : "pointer", opacity: batchActionLoading !== "" ? 0.7 : 1 }}
               >
                 새로고침
               </button>
@@ -255,7 +349,7 @@ export default function AlertsPage() {
               );
             })}
             <div style={{ marginLeft: "auto", fontSize: 12, color: INK3, alignSelf: "center" }}>
-              현재 {filteredAlerts.length}개 표시
+              현재 {filteredAlerts.length}개 표시 · 미읽음 {visibleUnreadCount}개
             </div>
           </div>
 

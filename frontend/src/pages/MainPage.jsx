@@ -402,8 +402,19 @@ function RecCard({ rec, onPolicyNavigate, onBookmarkToggle }) {
         {rec.sourceTypeLabel && <span>출처 {rec.sourceTypeLabel}</span>}
         {rec.source && <span>{rec.source}</span>}
       </div>
-      {rec.aiReason && (
-        <div style={{ marginTop: 8, fontSize: 12, color: A, fontStyle: "italic" }}>"{rec.aiReason}"</div>
+      {(rec.aiReason || rec.sourceTypeLabel) && (
+        <div style={{
+          marginTop: 10,
+          padding: "10px 12px",
+          borderRadius: 12,
+          background: "#f8fbff",
+          border: "1px solid #dbeafe",
+        }}>
+          <div style={{ fontSize: 11, fontWeight: 800, color: AI, marginBottom: 4 }}>추천 메모</div>
+          <div style={{ fontSize: 12, lineHeight: 1.55, color: rec.aiReason ? A : INK2 }}>
+            {rec.aiReason ? `"${rec.aiReason}"` : `${rec.sourceTypeLabel} 출처 정책 기준으로 추천했어요.`}
+          </div>
+        </div>
       )}
     </div>
   );
