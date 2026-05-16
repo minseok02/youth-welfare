@@ -11,6 +11,12 @@ const INK = "#11131a", INK2 = "#4a4f5c", INK3 = "#6b7280";
 const LINE = "#e5e7eb", LINE2 = "#f3f4f6";
 const AI = "#1e3a8a";
 
+const ALERT_KIND_META = {
+  ALL: { label: "전체" },
+  RECOMMENDATION_DIGEST: { label: "추천 알림" },
+  DEADLINE_REMINDER: { label: "마감 임박" },
+};
+
 function SectionCard({ title, desc, actions, children }) {
   return (
     <div style={{ background: WHITE, border: `1px solid ${LINE}`, borderRadius: 18, padding: 28, marginBottom: 16 }}>
@@ -54,6 +60,8 @@ export default function AlertsPage() {
   const [alertsLoading, setAlertsLoading] = useState(false);
   const [alertUnreadCount, setAlertUnreadCount] = useState(0);
   const [alertActionLoadingId, setAlertActionLoadingId] = useState(null);
+  const [kindFilter, setKindFilter] = useState("ALL");
+  const [unreadOnly, setUnreadOnly] = useState(false);
   const [toast, setToast] = useState({ open: false, msg: "", severity: "success" });
 
   const showToast = useCallback((msg, severity = "success") => {
@@ -155,6 +163,16 @@ export default function AlertsPage() {
     }
   }, [location, markAlertRead, navigate, showToast]);
 
+  const filteredAlerts = alerts.filter((alert) => {
+    if (unreadOnly && alert.status !== "UNREAD") {
+      return false;
+    }
+    if (kindFilter !== "ALL" && alert.kind !== kindFilter) {
+      return false;
+    }
+    return true;
+  });
+
   return (
     <div style={{ minHeight: "100vh", background: BG }}>
       <Header />
@@ -189,21 +207,65 @@ export default function AlertsPage() {
           title="최근 알림"
           desc="읽음 처리, 숨기기, deep link 이동을 이 화면에서 바로 처리할 수 있어요."
           actions={(
-            <button
-              onClick={() => syncAlerts().catch(() => showToast("알림함 새로고침에 실패했습니다", "error"))}
-              style={{ padding: "8px 12px", borderRadius: 10, border: `1px solid ${LINE}`, background: WHITE, color: INK2, fontSize: 12, fontWeight: 700, cursor: "pointer" }}
-            >
-              새로고침
-            </button>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button
+                onClick={() => setUnreadOnly((prev) => !prev)}
+                style={{
+                  padding: "8px 12px",
+                  borderRadius: 10,
+                  border: `1px solid ${unreadOnly ? "#bfdbfe" : LINE}`,
+                  background: unreadOnly ? "#eff6ff" : WHITE,
+                  color: unreadOnly ? AI : INK2,
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
+              >
+                읽지 않은 알림만
+              </button>
+              <button
+                onClick={() => syncAlerts().catch(() => showToast("알림함 새로고침에 실패했습니다", "error"))}
+                style={{ padding: "8px 12px", borderRadius: 10, border: `1px solid ${LINE}`, background: WHITE, color: INK2, fontSize: 12, fontWeight: 700, cursor: "pointer" }}
+              >
+                새로고침
+              </button>
+            </div>
           )}
         >
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
+            {Object.entries(ALERT_KIND_META).map(([value, meta]) => {
+              const active = kindFilter === value;
+              return (
+                <button
+                  key={value}
+                  onClick={() => setKindFilter(value)}
+                  style={{
+                    padding: "8px 12px",
+                    borderRadius: 999,
+                    border: `1px solid ${active ? "#bfdbfe" : LINE}`,
+                    background: active ? "#eff6ff" : WHITE,
+                    color: active ? AI : INK2,
+                    fontSize: 12,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                  }}
+                >
+                  {meta.label}
+                </button>
+              );
+            })}
+            <div style={{ marginLeft: "auto", fontSize: 12, color: INK3, alignSelf: "center" }}>
+              현재 {filteredAlerts.length}개 표시
+            </div>
+          </div>
+
           {alertsLoading ? (
             <div style={{ display: "flex", justifyContent: "center", padding: "34px 0" }}>
               <CircularProgress size={24} />
             </div>
-          ) : alerts.length > 0 ? (
+          ) : filteredAlerts.length > 0 ? (
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              {alerts.map((alert) => {
+              {filteredAlerts.map((alert) => {
                 const unread = alert.status === "UNREAD";
                 const loading = alertActionLoadingId === alert.id;
                 return (
@@ -224,11 +286,7 @@ export default function AlertsPage() {
                           background: unread ? "#dbeafe" : BG,
                           color: unread ? AI : INK2,
                         }}>
-                          {alert.kind === "RECOMMENDATION_DIGEST"
-                            ? "추천 알림"
-                            : alert.kind === "DEADLINE_REMINDER"
-                              ? "마감 임박"
-                              : alert.kind}
+                          {ALERT_KIND_META[alert.kind]?.label ?? alert.kind}
                         </span>
                         {unread && (
                           <span style={{ color: WARN, fontSize: 11, fontWeight: 800 }}>NEW</span>
@@ -305,8 +363,14 @@ export default function AlertsPage() {
             </div>
           ) : (
             <div style={{ textAlign: "center", padding: "36px 0 20px", color: INK3 }}>
-              <div style={{ fontSize: 16, fontWeight: 700, color: INK, marginBottom: 6 }}>도착한 알림이 아직 없어요</div>
-              <div style={{ fontSize: 13 }}>추천 digest나 마감 임박 알림이 생성되면 이곳에서 다시 확인할 수 있어요.</div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: INK, marginBottom: 6 }}>
+                {alerts.length > 0 ? "필터에 맞는 알림이 없어요" : "도착한 알림이 아직 없어요"}
+              </div>
+              <div style={{ fontSize: 13 }}>
+                {alerts.length > 0
+                  ? "읽지 않은 알림 필터나 종류 필터를 다시 조정해보세요."
+                  : "추천 digest나 마감 임박 알림이 생성되면 이곳에서 다시 확인할 수 있어요."}
+              </div>
             </div>
           )}
         </SectionCard>
