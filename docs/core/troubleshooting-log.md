@@ -4312,3 +4312,11 @@
 - 문제: fresh upstream audit에서 `7193 행복이음 장학금` 은 `안산 거주 초·중·고·대학생 장학금` 요약 때문에 `ai=0` 이 나왔고, 이걸 보면 교육 Gov24가 전반적으로 AI에서 불리한 구조처럼 보일 수 있다. 하지만 이건 개별 정책의 지역/학생 제약 때문일 수도 있다.
 - 해결: `deploy/smoke/run-local-gov24-education-signal-smoke.sh` 를 추가해 `교육·직업훈련` 관심 + `EDUCATION` priority + `경기도/안산시` fresh user를 만들고 같은 batch를 읽었다. 최신 local fresh batch 기준 결과는 `top2_source_distribution=BOKJIRO_CENTRAL:1,GOV24:1`, `gov24_top2_rows=1`, `gov24_ai_status_distribution=SCORED:3` 이고, `6790 지역인재육성을 위한 장학금 지원` 이 `rank1`, `rule=27`, `ai=80`, `final=1.03936` 으로 올라왔다. 반면 `5728 주택금융공사 월세자금보증` 은 이 교육 user에선 `rule=-13`, `final=0` 으로 약했다.
 - 이유: 이 결과는 교육/지역 Gov24가 전반적으로 막혀 있는 것이 아니라, `7193` 같은 개별 장학금 정책이 현재 user 맥락과 얼마나 구체적으로 맞는지에 따라 갈린다는 뜻이다. 즉 `7193 ai=0` 사례를 전체 Gov24 교육 계열 구조 버그로 일반화하면 안 된다.
+
+## 806) Gov24 bounded smoke가 둘로 갈라지면 회귀 확인이 번거로우므로, 주거/교육 두 축을 한 번에 묶는 wrapper를 두는 편이 안전하다
+- 문제: `run-local-gov24-housing-signal-smoke.sh`, `run-local-gov24-education-signal-smoke.sh` 를 각각 돌려야 해서, 추천/Gov24 회귀 확인 때 사람이 출력과 artifact를 따로 모아 읽어야 했다.
+- 해결: `deploy/smoke/run-local-gov24-signal-suite.sh` 를 추가했다. 이 wrapper는 두 smoke를 순차 실행하고 stdout에 `[housing]`, `[education]` prefix를 붙여 결과를 한 번에 비교한다. 최신 local 실행 결과는
+  - `[housing] gov24_top2_rows=1`, `5728 rank2`
+  - `[education] gov24_top2_rows=1`, `6790 rank1`
+  으로 둘 다 green 이었다.
+- 이유: 이 정도면 Gov24 source 자체의 구조적 억압 여부를 빠르게 재검증하는 최소 bounded suite로 충분하다. 다음 reopen에서도 개별 smoke 둘을 따로 기억하기보다 이 wrapper 하나를 기준선으로 쓰는 편이 낫다.
