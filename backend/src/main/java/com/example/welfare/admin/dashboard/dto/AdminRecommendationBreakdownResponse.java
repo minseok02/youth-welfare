@@ -52,6 +52,7 @@ public record AdminRecommendationBreakdownResponse(
             String top1LeaderCategory,
             long top1LeaderUsers,
             BigDecimal top1LeaderSharePct,
+            ServiceCohortMixSnapshot top1LeaderUserMix,
             String concentrationReadiness,
             String realUserCohortGate,
             String signalQuality

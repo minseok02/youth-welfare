@@ -628,6 +628,13 @@ class AdminSecurityWebMvcTest {
                                         "주거",
                                         271,
                                         java.math.BigDecimal.valueOf(59.69),
+                                        new AdminDashboardResponse.ServiceCohortMixSnapshot(
+                                                268,
+                                                1,
+                                                2,
+                                                0,
+                                                2
+                                        ),
                                         "CONCENTRATED_TOP1",
                                         "DEFERRED_NO_REAL_USER_COHORT",
                                         "LOCAL_REAL_NON_EXAMPLE_SEED_WITH_NON_REAL_BATCH"
@@ -708,6 +715,10 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.data.recommendation.latestBatchConcentration.latestBatchRows").value(4071))
                 .andExpect(jsonPath("$.data.recommendation.latestBatchConcentration.top1LeaderServiceId").value(2622))
                 .andExpect(jsonPath("$.data.recommendation.latestBatchConcentration.top1LeaderSharePct").value(59.69))
+                .andExpect(jsonPath("$.data.recommendation.latestBatchConcentration.top1LeaderUserMix.exampleUsers").value(268))
+                .andExpect(jsonPath("$.data.recommendation.latestBatchConcentration.top1LeaderUserMix.boundedLocalUsers").value(1))
+                .andExpect(jsonPath("$.data.recommendation.latestBatchConcentration.top1LeaderUserMix.localRealNonExampleSeedUsers").value(2))
+                .andExpect(jsonPath("$.data.recommendation.latestBatchConcentration.top1LeaderUserMix.realUserUsers").value(0))
                 .andExpect(jsonPath("$.data.recommendation.latestBatchConcentration.concentrationReadiness").value("CONCENTRATED_TOP1"))
                 .andExpect(jsonPath("$.data.recommendation.latestBatchConcentration.realUserCohortGate").value("DEFERRED_NO_REAL_USER_COHORT"))
                 .andExpect(jsonPath("$.data.notification.windowDays").value(7))
@@ -783,6 +794,13 @@ class AdminSecurityWebMvcTest {
                                         null,
                                         0,
                                         java.math.BigDecimal.ZERO,
+                                        new AdminDashboardResponse.ServiceCohortMixSnapshot(
+                                                0,
+                                                0,
+                                                0,
+                                                0,
+                                                0
+                                        ),
                                         "DEFERRED_EMPTY_COHORT",
                                         "DEFERRED_EMPTY_COHORT",
                                         "EMPTY_COHORT"
@@ -997,6 +1015,13 @@ class AdminSecurityWebMvcTest {
                                 "주거",
                                 271,
                                 java.math.BigDecimal.valueOf(59.69),
+                                new AdminRecommendationBreakdownResponse.ServiceCohortMixSnapshot(
+                                        268,
+                                        1,
+                                        2,
+                                        0,
+                                        2
+                                ),
                                 "CONCENTRATED_TOP1",
                                 "DEFERRED_NO_REAL_USER_COHORT",
                                 "LOCAL_REAL_NON_EXAMPLE_SEED_WITH_NON_REAL_BATCH"
@@ -1133,6 +1158,10 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.data.latestBatchConcentration.latestBatchRows").value(4071))
                 .andExpect(jsonPath("$.data.latestBatchConcentration.top1LeaderServiceId").value(2622))
                 .andExpect(jsonPath("$.data.latestBatchConcentration.top1LeaderSharePct").value(59.69))
+                .andExpect(jsonPath("$.data.latestBatchConcentration.top1LeaderUserMix.exampleUsers").value(268))
+                .andExpect(jsonPath("$.data.latestBatchConcentration.top1LeaderUserMix.boundedLocalUsers").value(1))
+                .andExpect(jsonPath("$.data.latestBatchConcentration.top1LeaderUserMix.localRealNonExampleSeedUsers").value(2))
+                .andExpect(jsonPath("$.data.latestBatchConcentration.top1LeaderUserMix.realUserUsers").value(0))
                 .andExpect(jsonPath("$.data.latestBatchConcentration.concentrationReadiness").value("CONCENTRATED_TOP1"))
                 .andExpect(jsonPath("$.data.latestBatchConcentration.realUserCohortGate").value("DEFERRED_NO_REAL_USER_COHORT"))
                 .andExpect(jsonPath("$.data.latestBatchConcentration.signalQuality").value("LOCAL_REAL_NON_EXAMPLE_SEED_WITH_NON_REAL_BATCH"))

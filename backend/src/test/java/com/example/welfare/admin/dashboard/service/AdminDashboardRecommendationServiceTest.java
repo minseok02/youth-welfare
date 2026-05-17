@@ -69,6 +69,11 @@ class AdminDashboardRecommendationServiceTest {
                         "주거",
                         271,
                         new BigDecimal("59.69"),
+                        268,
+                        1,
+                        2,
+                        0,
+                        2,
                         "CONCENTRATED_TOP1",
                         "DEFERRED_NO_REAL_USER_COHORT",
                         "LOCAL_REAL_NON_EXAMPLE_SEED_WITH_NON_REAL_BATCH"
@@ -201,6 +206,10 @@ class AdminDashboardRecommendationServiceTest {
         assertThat(response.latestBatchConcentration().latestBatchRows()).isEqualTo(4071);
         assertThat(response.latestBatchConcentration().top1LeaderServiceId()).isEqualTo(2622L);
         assertThat(response.latestBatchConcentration().top1LeaderSharePct()).isEqualByComparingTo("59.69");
+        assertThat(response.latestBatchConcentration().top1LeaderUserMix().exampleUsers()).isEqualTo(268);
+        assertThat(response.latestBatchConcentration().top1LeaderUserMix().boundedLocalUsers()).isEqualTo(1);
+        assertThat(response.latestBatchConcentration().top1LeaderUserMix().localRealNonExampleSeedUsers()).isEqualTo(2);
+        assertThat(response.latestBatchConcentration().top1LeaderUserMix().realUserUsers()).isZero();
         assertThat(response.latestBatchConcentration().concentrationReadiness()).isEqualTo("CONCENTRATED_TOP1");
         assertThat(response.latestBatchConcentration().realUserCohortGate()).isEqualTo("DEFERRED_NO_REAL_USER_COHORT");
         assertThat(response.latestBatchConcentration().signalQuality()).isEqualTo("LOCAL_REAL_NON_EXAMPLE_SEED_WITH_NON_REAL_BATCH");

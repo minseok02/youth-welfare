@@ -140,6 +140,13 @@ public class AdminDashboardSummaryService {
                                 recommendationConcentration.top1LeaderCategory(),
                                 recommendationConcentration.top1LeaderUsers(),
                                 recommendationConcentration.top1LeaderSharePct(),
+                                new AdminDashboardResponse.ServiceCohortMixSnapshot(
+                                        recommendationConcentration.top1LeaderExampleUsers(),
+                                        recommendationConcentration.top1LeaderBoundedLocalUsers(),
+                                        recommendationConcentration.top1LeaderLocalRealNonExampleSeedUsers(),
+                                        recommendationConcentration.top1LeaderRealUserUsers(),
+                                        recommendationConcentration.top1LeaderRealNonExampleUsers()
+                                ),
                                 recommendationConcentration.concentrationReadiness(),
                                 recommendationConcentration.realUserCohortGate(),
                                 recommendationConcentration.signalQuality()

@@ -58,7 +58,7 @@ admin dashboard 반복 검증은 아래 스크립트를 우선 사용합니다.
 deploy/smoke/run-local-admin-dashboard-smoke.sh
 ```
 
-이 스크립트는 `admin login -> ROLE_ADMIN 확인 -> /api/admin/dashboard/summary -> summary window + trend window + recommendation weight progress + recommendation traffic mix + real-user traffic gate + latest batch concentration snapshot 계약` 을 한 번에 확인합니다.
+이 스크립트는 `admin login -> ROLE_ADMIN 확인 -> /api/admin/dashboard/summary -> summary window + trend window + recommendation weight progress + recommendation traffic mix + real-user traffic gate + latest batch concentration snapshot(top1LeaderUserMix 포함) 계약` 을 한 번에 확인합니다.
 로컬 Docker app이 `SECURITY_ADMIN_EMAILS` 없이 떠 있으면 `admin@example.com` 이 `ROLE_ADMIN` 없이 로그인될 수 있으므로, 이 경우에는 아래처럼 다시 띄웁니다.
 
 ```bash
@@ -85,7 +85,7 @@ HEALTH_RETRY_COUNT=30 HEALTH_RETRY_DELAY_SECONDS=1 deploy/smoke/run-local-admin-
 deploy/smoke/run-local-admin-recommendation-breakdowns-smoke.sh
 ```
 
-이 스크립트는 `admin login -> ROLE_ADMIN 확인 -> /api/admin/dashboard/recommendation-breakdowns -> traffic mix + real-user traffic gate + latest batch concentration snapshot + topRepeatedServices/top1Services(userMix 포함) + fallback/click/repeat exposure userCohort 계약` 을 한 번에 확인합니다.
+이 스크립트는 `admin login -> ROLE_ADMIN 확인 -> /api/admin/dashboard/recommendation-breakdowns -> traffic mix + real-user traffic gate + latest batch concentration snapshot(top1LeaderUserMix 포함) + topRepeatedServices/top1Services(userMix 포함) + fallback/click/repeat exposure userCohort 계약` 을 한 번에 확인합니다.
 `userCohort` 값은 현재 `EXAMPLE_SMOKE`, `BOUNDED_LOCAL`, `LOCAL_REAL_NON_EXAMPLE_SEED`, `REAL_USER` 중 하나입니다.
 기본 summary window는 `14`, 기본 limit는 `3` 이며, `SUMMARY_WINDOW_DAYS`, `BREAKDOWN_LIMIT` 으로 덮어쓸 수 있습니다.
 

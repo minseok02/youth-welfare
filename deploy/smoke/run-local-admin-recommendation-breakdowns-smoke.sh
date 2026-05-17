@@ -118,6 +118,11 @@ assert isinstance(concentration["top1LeaderUsers"], int), "latestBatchConcentrat
 assert concentration["concentrationReadiness"], "latestBatchConcentration.concentrationReadiness missing"
 assert concentration["realUserCohortGate"], "latestBatchConcentration.realUserCohortGate missing"
 assert concentration["signalQuality"], "latestBatchConcentration.signalQuality missing"
+leader_user_mix = concentration["top1LeaderUserMix"]
+assert isinstance(leader_user_mix["exampleUsers"], int), "latestBatchConcentration.top1LeaderUserMix.exampleUsers must be int"
+assert isinstance(leader_user_mix["boundedLocalUsers"], int), "latestBatchConcentration.top1LeaderUserMix.boundedLocalUsers must be int"
+assert isinstance(leader_user_mix["localRealNonExampleSeedUsers"], int), "latestBatchConcentration.top1LeaderUserMix.localRealNonExampleSeedUsers must be int"
+assert isinstance(leader_user_mix["realUserUsers"], int), "latestBatchConcentration.top1LeaderUserMix.realUserUsers must be int"
 if concentration["latestBatchUsers"] > 0:
     assert concentration["top1LeaderServiceId"] is not None, "latestBatchConcentration.top1LeaderServiceId missing"
     assert concentration["top1LeaderTitle"], "latestBatchConcentration.top1LeaderTitle missing"
@@ -205,6 +210,10 @@ print(concentration["top1LeaderSharePct"])
 print(concentration["concentrationReadiness"])
 print(concentration["realUserCohortGate"])
 print(concentration["signalQuality"])
+print(leader_user_mix["exampleUsers"])
+print(leader_user_mix["boundedLocalUsers"])
+print(leader_user_mix["localRealNonExampleSeedUsers"])
+print(leader_user_mix["realUserUsers"])
 print(data["topRepeatedServices"][0]["serviceId"] if data["topRepeatedServices"] else "")
 print(data["top1Services"][0]["serviceId"] if data["top1Services"] else "")
 print(data["topRepeatedServices"][0]["userMix"]["exampleUsers"] if data["topRepeatedServices"] else 0)
@@ -292,22 +301,26 @@ echo "top1_leader_share_pct=${BREAKDOWN_VALUES[13]}"
 echo "concentration_readiness=${BREAKDOWN_VALUES[14]}"
 echo "latest_batch_real_user_cohort_gate=${BREAKDOWN_VALUES[15]}"
 echo "latest_batch_signal_quality=${BREAKDOWN_VALUES[16]}"
-echo "top_repeated_leader_service_id=${BREAKDOWN_VALUES[17]}"
-echo "top1_distribution_leader_service_id=${BREAKDOWN_VALUES[18]}"
-echo "top_repeated_leader_example_users=${BREAKDOWN_VALUES[19]}"
-echo "top_repeated_leader_local_real_non_example_seed_users=${BREAKDOWN_VALUES[20]}"
-echo "top_repeated_leader_real_user_users=${BREAKDOWN_VALUES[21]}"
-echo "top1_distribution_leader_example_users=${BREAKDOWN_VALUES[22]}"
-echo "top1_distribution_leader_local_real_non_example_seed_users=${BREAKDOWN_VALUES[23]}"
-echo "top1_distribution_leader_real_user_users=${BREAKDOWN_VALUES[24]}"
-echo "recent_fallback_sample_user_cohort=${BREAKDOWN_VALUES[25]}"
-echo "recent_clicked_sample_user_cohort=${BREAKDOWN_VALUES[26]}"
-echo "repeat_exposure_user_cohort=${BREAKDOWN_VALUES[27]}"
-echo "top_repeated_services_count=${BREAKDOWN_VALUES[28]}"
-echo "top1_services_count=${BREAKDOWN_VALUES[29]}"
-echo "source_breakdown_count=${BREAKDOWN_VALUES[30]}"
-echo "category_breakdown_count=${BREAKDOWN_VALUES[31]}"
-echo "weight_breakdown_count=${BREAKDOWN_VALUES[32]}"
+echo "top1_leader_example_users=${BREAKDOWN_VALUES[17]}"
+echo "top1_leader_bounded_local_users=${BREAKDOWN_VALUES[18]}"
+echo "top1_leader_local_real_non_example_seed_users=${BREAKDOWN_VALUES[19]}"
+echo "top1_leader_real_user_users=${BREAKDOWN_VALUES[20]}"
+echo "top_repeated_leader_service_id=${BREAKDOWN_VALUES[21]}"
+echo "top1_distribution_leader_service_id=${BREAKDOWN_VALUES[22]}"
+echo "top_repeated_leader_example_users=${BREAKDOWN_VALUES[23]}"
+echo "top_repeated_leader_local_real_non_example_seed_users=${BREAKDOWN_VALUES[24]}"
+echo "top_repeated_leader_real_user_users=${BREAKDOWN_VALUES[25]}"
+echo "top1_distribution_leader_example_users=${BREAKDOWN_VALUES[26]}"
+echo "top1_distribution_leader_local_real_non_example_seed_users=${BREAKDOWN_VALUES[27]}"
+echo "top1_distribution_leader_real_user_users=${BREAKDOWN_VALUES[28]}"
+echo "recent_fallback_sample_user_cohort=${BREAKDOWN_VALUES[29]}"
+echo "recent_clicked_sample_user_cohort=${BREAKDOWN_VALUES[30]}"
+echo "repeat_exposure_user_cohort=${BREAKDOWN_VALUES[31]}"
+echo "top_repeated_services_count=${BREAKDOWN_VALUES[32]}"
+echo "top1_services_count=${BREAKDOWN_VALUES[33]}"
+echo "source_breakdown_count=${BREAKDOWN_VALUES[34]}"
+echo "category_breakdown_count=${BREAKDOWN_VALUES[35]}"
+echo "weight_breakdown_count=${BREAKDOWN_VALUES[36]}"
 echo "summary_window_days=${SUMMARY_WINDOW_DAYS}"
 echo "breakdown_limit=${BREAKDOWN_LIMIT}"
 if [[ -n "${CONTAINER_ADMIN_ALLOWLIST}" ]]; then

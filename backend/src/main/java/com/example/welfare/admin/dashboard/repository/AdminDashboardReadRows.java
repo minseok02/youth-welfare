@@ -149,6 +149,11 @@ public final class AdminDashboardReadRows {
             String top1LeaderCategory,
             long top1LeaderUsers,
             BigDecimal top1LeaderSharePct,
+            long top1LeaderExampleUsers,
+            long top1LeaderBoundedLocalUsers,
+            long top1LeaderLocalRealNonExampleSeedUsers,
+            long top1LeaderRealUserUsers,
+            long top1LeaderRealNonExampleUsers,
             String concentrationReadiness,
             String realUserCohortGate,
             String signalQuality

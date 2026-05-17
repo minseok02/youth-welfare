@@ -127,6 +127,11 @@ class AdminDashboardSummaryServiceTest {
                         "주거",
                         271,
                         new BigDecimal("59.69"),
+                        268,
+                        1,
+                        2,
+                        0,
+                        2,
                         "CONCENTRATED_TOP1",
                         "DEFERRED_NO_REAL_USER_COHORT",
                         "LOCAL_REAL_NON_EXAMPLE_SEED_WITH_NON_REAL_BATCH"
@@ -226,6 +231,10 @@ class AdminDashboardSummaryServiceTest {
         assertThat(response.recommendation().latestBatchConcentration().latestBatchRows()).isEqualTo(4071);
         assertThat(response.recommendation().latestBatchConcentration().top1LeaderServiceId()).isEqualTo(2622L);
         assertThat(response.recommendation().latestBatchConcentration().top1LeaderSharePct()).isEqualByComparingTo("59.69");
+        assertThat(response.recommendation().latestBatchConcentration().top1LeaderUserMix().exampleUsers()).isEqualTo(268);
+        assertThat(response.recommendation().latestBatchConcentration().top1LeaderUserMix().boundedLocalUsers()).isEqualTo(1);
+        assertThat(response.recommendation().latestBatchConcentration().top1LeaderUserMix().localRealNonExampleSeedUsers()).isEqualTo(2);
+        assertThat(response.recommendation().latestBatchConcentration().top1LeaderUserMix().realUserUsers()).isZero();
         assertThat(response.recommendation().latestBatchConcentration().concentrationReadiness()).isEqualTo("CONCENTRATED_TOP1");
         assertThat(response.recommendation().latestBatchConcentration().realUserCohortGate()).isEqualTo("DEFERRED_NO_REAL_USER_COHORT");
         assertThat(response.recommendation().trafficMixInWindow().exampleClickedUsersInWindow()).isEqualTo(9);
@@ -276,6 +285,11 @@ class AdminDashboardSummaryServiceTest {
                         null,
                         0,
                         BigDecimal.ZERO,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
                         "DEFERRED_EMPTY_COHORT",
                         "DEFERRED_EMPTY_COHORT",
                         "EMPTY_COHORT"

@@ -217,8 +217,16 @@ public class AdminDashboardRecommendationReadRepository {
                            ws.title,
                            ws.source_type,
                            coalesce(ws.unified_category, '기타') as category,
-                           count(*) as users_as_top1
+                           count(*) as users_as_top1,
+                           count(*) filter (where br.user_cohort = 'EXAMPLE_SMOKE') as example_users,
+                           count(*) filter (where br.user_cohort = 'BOUNDED_LOCAL') as bounded_local_users,
+                           count(*) filter (where br.user_cohort = 'LOCAL_REAL_NON_EXAMPLE_SEED') as local_real_non_example_seed_users,
+                           count(*) filter (where br.user_cohort = 'REAL_USER') as real_user_users,
+                           count(*) filter (where br.user_cohort in ('LOCAL_REAL_NON_EXAMPLE_SEED', 'REAL_USER')) as real_non_example_users
                       from top1 t
+                      join base_rows br
+                        on br.user_key = t.user_key
+                       and br.service_id = t.service_id
                       join welfare_services ws
                         on ws.id = t.service_id
                      group by t.service_id, ws.title, ws.source_type, coalesce(ws.unified_category, '기타')
@@ -229,6 +237,11 @@ public class AdminDashboardRecommendationReadRepository {
                            source_type,
                            category,
                            users_as_top1,
+                           example_users,
+                           bounded_local_users,
+                           local_real_non_example_seed_users,
+                           real_user_users,
+                           real_non_example_users,
                            round(users_as_top1 * 100.0 / nullif((select count(*) from top1), 0), 2) as share_pct
                       from top1_summary
                      order by users_as_top1 desc, service_id
@@ -259,6 +272,11 @@ public class AdminDashboardRecommendationReadRepository {
                        top1_leader.category as top1_leader_category,
                        coalesce(top1_leader.users_as_top1, 0) as top1_leader_users,
                        coalesce(top1_leader.share_pct, 0) as top1_leader_share_pct,
+                       coalesce(top1_leader.example_users, 0) as top1_leader_example_users,
+                       coalesce(top1_leader.bounded_local_users, 0) as top1_leader_bounded_local_users,
+                       coalesce(top1_leader.local_real_non_example_seed_users, 0) as top1_leader_local_real_non_example_seed_users,
+                       coalesce(top1_leader.real_user_users, 0) as top1_leader_real_user_users,
+                       coalesce(top1_leader.real_non_example_users, 0) as top1_leader_real_non_example_users,
                        case
                            when base.top1_users = 0 then 'DEFERRED_EMPTY_COHORT'
                            when base.top1_leader_users * 100.0 / nullif(base.top1_users, 0) >= 50 then 'CONCENTRATED_TOP1'
@@ -300,6 +318,11 @@ public class AdminDashboardRecommendationReadRepository {
                         rs.getString("top1_leader_category"),
                         rs.getLong("top1_leader_users"),
                         rs.getBigDecimal("top1_leader_share_pct"),
+                        rs.getLong("top1_leader_example_users"),
+                        rs.getLong("top1_leader_bounded_local_users"),
+                        rs.getLong("top1_leader_local_real_non_example_seed_users"),
+                        rs.getLong("top1_leader_real_user_users"),
+                        rs.getLong("top1_leader_real_non_example_users"),
                         rs.getString("concentration_readiness"),
                         rs.getString("real_user_cohort_gate"),
                         rs.getString("signal_quality")
