@@ -22,6 +22,8 @@ class UserRegistrationServiceTest {
     private UserRegistrationCommandRepository userRegistrationCommandRepository;
     @Mock
     private UserCoreSyncService userCoreSyncService;
+    @Mock
+    private UserAccountOriginResolver userAccountOriginResolver;
 
     @InjectMocks
     private UserRegistrationService userRegistrationService;

@@ -23,6 +23,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 class RecommendationRegionQueryIntegrationTest {
 
     private static final String TEST_SOURCE_PREFIX = "IT-REGION-";
+    private static final String PRIORITY_TEST_REGION_CODE = "99999";
+    private static final String PRIORITY_TEST_SIDO = "테스트광역시";
 
     @Autowired
     private WelfareServiceRepository welfareServiceRepository;
@@ -143,20 +145,22 @@ class RecommendationRegionQueryIntegrationTest {
 
         serviceRegionRepository.save(ServiceRegion.builder()
                 .service(matchingLocal)
-                .regionCode("28110")
-                .sidoName("인천광역시")
-                .sggName("중구")
+                .regionCode(PRIORITY_TEST_REGION_CODE)
+                .sidoName(PRIORITY_TEST_SIDO)
+                .sggName("테스트중구")
                 .build());
 
         List<WelfareService> results = welfareServiceRepository.findCandidatesWithRegionCode(
                 25,
                 5,
-                "28110",
+                PRIORITY_TEST_REGION_CODE,
                 PageRequest.of(0, 10)
         );
 
         assertThat(results).extracting(WelfareService::getId)
-                .startsWith(matchingLocal.getId(), nationwide.getId());
+                .contains(matchingLocal.getId(), nationwide.getId());
+        assertThat(indexOf(results, matchingLocal))
+                .isLessThan(indexOf(results, nationwide));
     }
 
     @Test
@@ -211,20 +215,22 @@ class RecommendationRegionQueryIntegrationTest {
 
         serviceRegionRepository.save(ServiceRegion.builder()
                 .service(matchingLocal)
-                .regionCode("28110")
-                .sidoName("인천광역시")
-                .sggName("중구")
+                .regionCode(PRIORITY_TEST_REGION_CODE)
+                .sidoName(PRIORITY_TEST_SIDO)
+                .sggName("테스트중구")
                 .build());
 
         List<WelfareService> results = welfareServiceRepository.findLatestCandidatesWithRegionCode(
                 25,
                 5,
-                "28110",
+                PRIORITY_TEST_REGION_CODE,
                 PageRequest.of(0, 10)
         );
 
         assertThat(results).extracting(WelfareService::getId)
-                .startsWith(matchingLocal.getId(), nationwide.getId());
+                .contains(matchingLocal.getId(), nationwide.getId());
+        assertThat(indexOf(results, matchingLocal))
+                .isLessThan(indexOf(results, nationwide));
     }
 
     @Test
@@ -273,20 +279,22 @@ class RecommendationRegionQueryIntegrationTest {
 
         serviceRegionRepository.save(ServiceRegion.builder()
                 .service(matchingLocal)
-                .regionCode("28110")
-                .sidoName("인천광역시")
-                .sggName("중구")
+                .regionCode(PRIORITY_TEST_REGION_CODE)
+                .sidoName(PRIORITY_TEST_SIDO)
+                .sggName("테스트중구")
                 .build());
 
         List<WelfareService> results = welfareServiceRepository.findCandidatesWithSido(
                 25,
                 5,
-                "인천광역시",
+                PRIORITY_TEST_SIDO,
                 PageRequest.of(0, 10)
         );
 
         assertThat(results).extracting(WelfareService::getId)
-                .startsWith(matchingLocal.getId(), nationwide.getId());
+                .contains(matchingLocal.getId(), nationwide.getId());
+        assertThat(indexOf(results, matchingLocal))
+                .isLessThan(indexOf(results, nationwide));
     }
 
     @Test
@@ -335,20 +343,22 @@ class RecommendationRegionQueryIntegrationTest {
 
         serviceRegionRepository.save(ServiceRegion.builder()
                 .service(matchingLocal)
-                .regionCode("28110")
-                .sidoName("인천광역시")
-                .sggName("중구")
+                .regionCode(PRIORITY_TEST_REGION_CODE)
+                .sidoName(PRIORITY_TEST_SIDO)
+                .sggName("테스트중구")
                 .build());
 
         List<WelfareService> results = welfareServiceRepository.findLatestCandidatesWithSido(
                 25,
                 5,
-                "인천광역시",
+                PRIORITY_TEST_SIDO,
                 PageRequest.of(0, 10)
         );
 
         assertThat(results).extracting(WelfareService::getId)
-                .startsWith(matchingLocal.getId(), nationwide.getId());
+                .contains(matchingLocal.getId(), nationwide.getId());
+        assertThat(indexOf(results, matchingLocal))
+                .isLessThan(indexOf(results, nationwide));
     }
 
     private WelfareService saveService(String label) {
@@ -368,5 +378,12 @@ class RecommendationRegionQueryIntegrationTest {
                 .maxIncome(10)
                 .apiViewCount(0L)
                 .build());
+    }
+
+    private int indexOf(List<WelfareService> services, WelfareService target) {
+        return services.stream()
+                .map(WelfareService::getId)
+                .toList()
+                .indexOf(target.getId());
     }
 }

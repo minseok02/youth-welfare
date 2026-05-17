@@ -4511,3 +4511,10 @@
   2. `DB_URL/APP_PII_DB_URL/NOTIFICATION_PII_DB_URL` 을 `127.0.0.1:5433` 로 명시 override한 뒤 rule-only replay를 다시 실행
   실제 replay baseline은 `A_top10_target=8->8`, `B_top10_target=1->1`, `A_fp=same`, `B_fp=same`, `A_reason_changed=0`, `B_reason_changed=0`, `slot_rows=46216`, `slot_services=11917`, `slot_education_services=112` 으로 유지됐다.
 - 이유: 지금 replay 경계의 의도는 “drift를 흡수하면서 돌아간다”가 아니라 “잘못된 JDBC/runtime target이면 먼저 멈추고, 올바른 local host 기준에서만 baseline을 재확인한다”이다. fail-fast 확인과 replay baseline 확인을 같이 남겨야 다음 라운드에서도 preflight 동작을 회귀로 오해하지 않는다.
+
+## 832) broad suite를 다시 태울 때는 실제 코드 회귀와 stale test contract를 구분해야 한다
+- 문제: `./gradlew test integrationTest --no-daemon` broad suite를 재실행했을 때 처음에는 두 종류의 실패가 섞여 나왔다. 하나는 `UserRegistrationServiceTest` 의 NPE였고, 다른 하나는 `RecommendationRegionQueryIntegrationTest` 4건 실패였다. 겉으로는 broad suite red지만, 둘 다 기능 버그라기보다 테스트가 현재 코드/fixture 계약을 따라오지 못한 쪽이었다.
+- 해결:
+  - `UserRegistrationServiceTest` 에는 `UserAccountOriginResolver` mock을 추가했다. `UserRegistrationService` 가 signup 시 `accountOrigin` 을 resolve하도록 바뀐 뒤에도 테스트는 예전 2-dependency 구조를 가정하고 있어 `@InjectMocks` 주입 후 null 로 터지고 있었다.
+  - `RecommendationRegionQueryIntegrationTest` 는 “결과 첫 두 칸이 정확히 테스트 row” 라는 가정을 버리고, 실제 계약인 “매칭 local이 전국 정책보다 앞선다”만 보도록 조정했다. 또 integration DB의 실제 운영 fixture와 충돌하지 않게 priority ordering 테스트용 `regionCode/sido` 를 `99999 / 테스트광역시` 로 고립시켰다.
+- 이유: broad suite red가 항상 제품 버그라는 뜻은 아니다. 이번처럼 recommendation retrieval SQL이 production fixture와 함께 돌아가는 integration 환경에서는, 정렬/우선순위 테스트가 실제 서비스 데이터와 경쟁하면서 stale assumption을 드러낼 수 있다. broad suite closeout 문서에는 “무엇이 진짜 회귀였고, 무엇이 테스트 drift였는지”를 같이 남겨야 다음 라운드에서도 같은 적색 신호를 과잉 해석하지 않는다.
