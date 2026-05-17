@@ -68,6 +68,7 @@ public record AdminDashboardResponse(
             BigDecimal fallbackRateInWindow,
             RecommendationTrafficMixSnapshot trafficMixInWindow,
             String realUserTrafficGateInWindow,
+            RecommendationConcentrationSnapshot latestBatchConcentration,
             List<RecommendationWeightSnapshot> weightBucketsInWindow
     ) {
     }
@@ -88,6 +89,22 @@ public record AdminDashboardResponse(
             long localRealNonExampleSeedClickedUsersInWindow,
             long realUserClickedUsersInWindow,
             long realNonExampleClickedUsersInWindow
+    ) {
+    }
+
+    public record RecommendationConcentrationSnapshot(
+            long latestBatchRows,
+            long latestBatchUsers,
+            long latestBatchDistinctServices,
+            Long top1LeaderServiceId,
+            String top1LeaderTitle,
+            String top1LeaderSource,
+            String top1LeaderCategory,
+            long top1LeaderUsers,
+            BigDecimal top1LeaderSharePct,
+            String concentrationReadiness,
+            String realUserCohortGate,
+            String signalQuality
     ) {
     }
 

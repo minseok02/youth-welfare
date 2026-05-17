@@ -106,6 +106,17 @@ assert isinstance(traffic_mix["localRealNonExampleSeedClickedUsersInWindow"], in
 assert isinstance(traffic_mix["realUserClickedUsersInWindow"], int), "recommendation.trafficMixInWindow.realUserClickedUsersInWindow must be int"
 assert isinstance(traffic_mix["realNonExampleClickedUsersInWindow"], int), "recommendation.trafficMixInWindow.realNonExampleClickedUsersInWindow must be int"
 assert isinstance(data["recommendation"]["realUserTrafficGateInWindow"], str) and data["recommendation"]["realUserTrafficGateInWindow"], "recommendation.realUserTrafficGateInWindow must be non-empty string"
+concentration = data["recommendation"]["latestBatchConcentration"]
+assert isinstance(concentration["latestBatchRows"], int), "recommendation.latestBatchConcentration.latestBatchRows must be int"
+assert isinstance(concentration["latestBatchUsers"], int), "recommendation.latestBatchConcentration.latestBatchUsers must be int"
+assert isinstance(concentration["latestBatchDistinctServices"], int), "recommendation.latestBatchConcentration.latestBatchDistinctServices must be int"
+assert isinstance(concentration["top1LeaderUsers"], int), "recommendation.latestBatchConcentration.top1LeaderUsers must be int"
+assert concentration["concentrationReadiness"], "recommendation.latestBatchConcentration.concentrationReadiness missing"
+assert concentration["realUserCohortGate"], "recommendation.latestBatchConcentration.realUserCohortGate missing"
+assert concentration["signalQuality"], "recommendation.latestBatchConcentration.signalQuality missing"
+if concentration["latestBatchUsers"] > 0:
+    assert concentration["top1LeaderServiceId"] is not None, "recommendation.latestBatchConcentration.top1LeaderServiceId missing"
+    assert concentration["top1LeaderTitle"], "recommendation.latestBatchConcentration.top1LeaderTitle missing"
 if data["recommendation"]["topWeightStage"]:
     assert data["recommendation"]["nextWeightKey"] is None, "top stage should not have nextWeightKey"
     assert data["recommendation"]["nextWeightMinLogCount"] is None, "top stage should not have nextWeightMinLogCount"
@@ -143,6 +154,13 @@ print(data["recommendation"]["trafficMixInWindow"]["localRealNonExampleSeedUsers
 print(data["recommendation"]["trafficMixInWindow"]["realUserUsersInWindow"])
 print(data["recommendation"]["trafficMixInWindow"]["realNonExampleUsersInWindow"])
 print(data["recommendation"]["realUserTrafficGateInWindow"])
+print(concentration["latestBatchRows"])
+print(concentration["latestBatchUsers"])
+print(concentration["top1LeaderServiceId"] or "")
+print(concentration["top1LeaderSharePct"])
+print(concentration["concentrationReadiness"])
+print(concentration["realUserCohortGate"])
+print(concentration["signalQuality"])
 print(data["notification"]["sentInWindow"])
 print(data["search"]["zeroResultSearchesInWindow"])
 print(data["collect"]["windowDays"])
@@ -224,10 +242,17 @@ echo "recommendation_local_real_non_example_seed_users_in_window=${DASHBOARD_VAL
 echo "recommendation_real_user_users_in_window=${DASHBOARD_VALUES[12]}"
 echo "recommendation_real_non_example_users_in_window=${DASHBOARD_VALUES[13]}"
 echo "recommendation_real_user_traffic_gate_in_window=${DASHBOARD_VALUES[14]}"
-echo "notification_sent_in_window=${DASHBOARD_VALUES[15]}"
-echo "search_zero_result_searches_in_window=${DASHBOARD_VALUES[16]}"
-echo "summary_window_days=${DASHBOARD_VALUES[17]}"
-echo "collect_trend_windows=${DASHBOARD_VALUES[18]}"
+echo "recommendation_latest_batch_rows=${DASHBOARD_VALUES[15]}"
+echo "recommendation_latest_batch_users=${DASHBOARD_VALUES[16]}"
+echo "recommendation_top1_leader_service_id=${DASHBOARD_VALUES[17]}"
+echo "recommendation_top1_leader_share_pct=${DASHBOARD_VALUES[18]}"
+echo "recommendation_concentration_readiness=${DASHBOARD_VALUES[19]}"
+echo "recommendation_latest_batch_real_user_cohort_gate=${DASHBOARD_VALUES[20]}"
+echo "recommendation_latest_batch_signal_quality=${DASHBOARD_VALUES[21]}"
+echo "notification_sent_in_window=${DASHBOARD_VALUES[22]}"
+echo "search_zero_result_searches_in_window=${DASHBOARD_VALUES[23]}"
+echo "summary_window_days=${DASHBOARD_VALUES[24]}"
+echo "collect_trend_windows=${DASHBOARD_VALUES[25]}"
 echo "requested_summary_window_days=${SUMMARY_WINDOW_DAYS}"
 echo "requested_trend_window_days=${TREND_WINDOW_DAYS_CSV}"
 if [[ -n "${CONTAINER_ADMIN_ALLOWLIST}" ]]; then

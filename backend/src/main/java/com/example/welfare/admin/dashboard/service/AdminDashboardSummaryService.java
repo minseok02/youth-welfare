@@ -42,6 +42,8 @@ public class AdminDashboardSummaryService {
                 adminDashboardRecommendationReadRepository.fetchRecommendationSummary(dayAgo, summaryWindowAgo);
         AdminDashboardReadRows.RecommendationTrafficMixRow recommendationTrafficMix =
                 adminDashboardRecommendationReadRepository.fetchRecommendationTrafficMix(summaryWindowAgo);
+        AdminDashboardReadRows.RecommendationConcentrationRow recommendationConcentration =
+                adminDashboardRecommendationReadRepository.fetchRecommendationConcentration();
         String realUserTrafficGate =
                 AdminDashboardQueryPolicy.resolveRealUserTrafficGate(recommendationSummary, recommendationTrafficMix);
         ScoreWeightService.ScoreWeightProgress weightProgress =
@@ -128,6 +130,20 @@ public class AdminDashboardSummaryService {
                                 recommendationTrafficMix.realNonExampleClickedUsersInWindow()
                         ),
                         realUserTrafficGate,
+                        new AdminDashboardResponse.RecommendationConcentrationSnapshot(
+                                recommendationConcentration.latestBatchRows(),
+                                recommendationConcentration.latestBatchUsers(),
+                                recommendationConcentration.latestBatchDistinctServices(),
+                                recommendationConcentration.top1LeaderServiceId(),
+                                recommendationConcentration.top1LeaderTitle(),
+                                recommendationConcentration.top1LeaderSource(),
+                                recommendationConcentration.top1LeaderCategory(),
+                                recommendationConcentration.top1LeaderUsers(),
+                                recommendationConcentration.top1LeaderSharePct(),
+                                recommendationConcentration.concentrationReadiness(),
+                                recommendationConcentration.realUserCohortGate(),
+                                recommendationConcentration.signalQuality()
+                        ),
                         adminDashboardRecommendationReadRepository.fetchRecommendationWeightBuckets(summaryWindowAgo).stream()
                                 .map(row -> new AdminDashboardResponse.RecommendationWeightSnapshot(
                                         row.weightKey(),

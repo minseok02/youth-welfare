@@ -618,6 +618,20 @@ class AdminSecurityWebMvcTest {
                                         0
                                 ),
                                 "DEFERRED_NO_REAL_USER_TRAFFIC",
+                                new AdminDashboardResponse.RecommendationConcentrationSnapshot(
+                                        4071,
+                                        454,
+                                        113,
+                                        2622L,
+                                        "청년월세 지원사업",
+                                        "BOKJIRO_CENTRAL",
+                                        "주거",
+                                        271,
+                                        java.math.BigDecimal.valueOf(59.69),
+                                        "CONCENTRATED_TOP1",
+                                        "DEFERRED_NO_REAL_USER_COHORT",
+                                        "LOCAL_REAL_NON_EXAMPLE_SEED_WITH_NON_REAL_BATCH"
+                                ),
                                 List.of(
                                         new AdminDashboardResponse.RecommendationWeightSnapshot(
                                                 "GROWTH",
@@ -691,6 +705,11 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.data.recommendation.trafficMixInWindow.realUserLogsInWindow").value(0))
                 .andExpect(jsonPath("$.data.recommendation.trafficMixInWindow.realNonExampleLogsInWindow").value(0))
                 .andExpect(jsonPath("$.data.recommendation.realUserTrafficGateInWindow").value("DEFERRED_NO_REAL_USER_TRAFFIC"))
+                .andExpect(jsonPath("$.data.recommendation.latestBatchConcentration.latestBatchRows").value(4071))
+                .andExpect(jsonPath("$.data.recommendation.latestBatchConcentration.top1LeaderServiceId").value(2622))
+                .andExpect(jsonPath("$.data.recommendation.latestBatchConcentration.top1LeaderSharePct").value(59.69))
+                .andExpect(jsonPath("$.data.recommendation.latestBatchConcentration.concentrationReadiness").value("CONCENTRATED_TOP1"))
+                .andExpect(jsonPath("$.data.recommendation.latestBatchConcentration.realUserCohortGate").value("DEFERRED_NO_REAL_USER_COHORT"))
                 .andExpect(jsonPath("$.data.notification.windowDays").value(7))
                 .andExpect(jsonPath("$.data.notification.sentInWindow").value(5))
                 .andExpect(jsonPath("$.data.search.windowDays").value(7))
@@ -754,6 +773,20 @@ class AdminSecurityWebMvcTest {
                                         0
                                 ),
                                 "DEFERRED_NO_REAL_USER_TRAFFIC",
+                                new AdminDashboardResponse.RecommendationConcentrationSnapshot(
+                                        0,
+                                        0,
+                                        0,
+                                        null,
+                                        null,
+                                        null,
+                                        null,
+                                        0,
+                                        java.math.BigDecimal.ZERO,
+                                        "DEFERRED_EMPTY_COHORT",
+                                        "DEFERRED_EMPTY_COHORT",
+                                        "EMPTY_COHORT"
+                                ),
                                 List.of()
                         ),
                         new AdminDashboardResponse.NotificationSection(0, 0, 14, 0, 0),
@@ -806,6 +839,7 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.data.recommendation.trafficMixInWindow.realUserUsersInWindow").value(0))
                 .andExpect(jsonPath("$.data.recommendation.trafficMixInWindow.realNonExampleUsersInWindow").value(0))
                 .andExpect(jsonPath("$.data.recommendation.realUserTrafficGateInWindow").value("DEFERRED_NO_REAL_USER_TRAFFIC"))
+                .andExpect(jsonPath("$.data.recommendation.latestBatchConcentration.concentrationReadiness").value("DEFERRED_EMPTY_COHORT"))
                 .andExpect(jsonPath("$.data.notification.windowDays").value(14))
                 .andExpect(jsonPath("$.data.trend.recommendation[1].fallbackRate").value(0.5000))
                 .andExpect(jsonPath("$.data.search.windowDays").value(14))
