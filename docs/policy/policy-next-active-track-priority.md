@@ -53,11 +53,12 @@
 - CTR 관련 다음 액션은 `CTR readiness audit` 와 concentration audit를 같이 읽되, 먼저 synthetic-only traffic 인지부터 걸러내고 그 다음에만 weight tuning 또는 diversity/fallback 보정 순서를 판단하는 쪽이다.
 - 군집 캐시는 실제 사용자 수와 요청 패턴이 충분히 커졌을 때 hit-rate / stale / invalidation 비용을 다시 계산하며 재검토하는 것이 맞다.
 - `카카오 알림톡` 은 비즈니스 채널/발신 프로필/템플릿 심사와 사업자 증빙이 먼저라, 코드보다 운영 자격이 선행 조건이다.
-- `2026-05-17` local CTR audit 기준 total logs는 `4089`, clicked logs는 `28` 까지 올라왔지만, 새 3단계 cohort 기준 `example_logs/users=4077/451`, `bounded_local_logs/users=6/1`, `real_non_example_logs/users=6/1` 이다.
+- `2026-05-17` local CTR audit 기준 total logs는 `4095`, clicked logs는 `29` 까지 올라왔지만, 현재 origin 기준은 `example_logs/users=4077/451`, `bounded_local_logs/users=6/1`, `local_real_non_example_seed_logs/users=12/2`, `real_user_logs/users=0/0` 이다.
 - 같은 wrapper를 `USER_COHORT=bounded_local` 로 다시 태우면 CTR은 `audit_scope_logs/users=6/1`, `DIAGNOSTIC_BOUNDED_LOCAL_TRAFFIC`, concentration은 `latest_batch_rows/users=6/1`, `BOUNDED_LOCAL_ONLY_COHORT` 이다.
-- `USER_COHORT=real_non_example` 로 다시 태우면 CTR은 `6/1`, `DEFERRED_CLICK_SAMPLE_THIN`, concentration은 `6/1`, `REAL_NON_EXAMPLE_ONLY_COHORT` 이다.
-- 다만 all-cohort readiness도 지금은 `READY_FOR_WEIGHT_REVIEW` 로 바로 열지 않고 `DEFERRED_REAL_NON_EXAMPLE_USER_SAMPLE_THIN` 으로 막는다. 현재 `REAL_NON_EXAMPLE` 표본이 local synthetic account `1명` 뿐이기 때문이다.
-- 즉 현재 phase의 실용적 다음 액션은 direct weight 변경보다 `bounded local seed와 real non-example seed를 넘어서는 실제 로그 기준선 확보 + recommendation concentration/diversity/fallback 경계 재해석` 이다. 군집 캐시는 장래 확장 포인트로 남긴다.
+- `USER_COHORT=local_real_non_example_seed` 로 다시 태우면 CTR은 `12/2`, `DEFERRED_CLICK_SAMPLE_THIN`, concentration은 `12/2`, `LOCAL_REAL_NON_EXAMPLE_SEED_ONLY_COHORT` 이다.
+- `USER_COHORT=real_user` 로 다시 태우면 CTR은 `0/0`, `DEFERRED_EMPTY_REAL_USER_COHORT`, concentration은 `0/0`, `EMPTY_REAL_USER_COHORT` 이다.
+- 다만 all-cohort readiness도 지금은 `DEFERRED_NO_REAL_USER_TRAFFIC` 로 막는다. non-example 표본은 생겼지만 전부 local synthetic seed이고 `REAL_USER` 는 아직 `0` 이기 때문이다.
+- 즉 현재 phase의 실용적 다음 액션은 direct weight 변경보다 `bounded local seed와 local real-non-example seed를 넘어서는 실제 real-user 로그 기준선 확보 + recommendation concentration/diversity/fallback 경계 재해석` 이다. 군집 캐시는 장래 확장 포인트로 남긴다.
 - 별도로 `2026-05-15` local recommendation concentration audit 기준 latest batch는 `2394 rows / 132 users / 113 services`, top1 leader `2622` 가 `75 / 132 users (56.82%)` 를 차지한다. 최근 no-priority retrieval/rerank 보강 뒤 `3611` 이 top1로 올라오는 비중이 커졌지만, overall 판정은 아직 `CONCENTRATED_TOP1` 이다. 즉 priority가 완전히 무시되는 상태는 아니고, 현재 병목은 여전히 `priority 미반영` 보다는 `diversity / fallback / balancing 약함` 쪽으로 보는 편이 맞다.
 
 반면 아래는 계속 blocked/backlog 또는 deferred 로 둡니다.

@@ -221,12 +221,12 @@ CTR readiness와 별개로, 최신 `user_recommendations` batch 자체도 현재
 `2026-05-17` local concentration audit 기준:
 
 - `USER_COHORT=all`
-- latest batch `4065 rows / 453 users / 113 distinct services`
-- latest batch signal quality는 `MIXED_WITH_NON_REAL_BATCH`
+- latest batch `4071 rows / 454 users / 113 distinct services`
+- latest batch signal quality는 `LOCAL_REAL_NON_EXAMPLE_SEED_WITH_NON_REAL_BATCH`
 - top1 leader:
   - `2622 청년월세 지원사업`
-  - `270 / 453 users`
-  - `59.60%`
+  - `271 / 454 users`
+  - `59.69%`
 - latest source distribution:
   - `YOUTH 1446`
   - `GOV24 944`
@@ -242,11 +242,17 @@ CTR readiness와 별개로, 최신 `user_recommendations` batch 자체도 현재
   - concentration readiness: `CONCENTRATED_TOP1`
   - signal quality: `BOUNDED_LOCAL_ONLY_COHORT`
 - `USER_COHORT=real_non_example`
-  - latest batch `6 rows / 1 users`
+  - latest batch `12 rows / 2 users`
   - signal quality: `REAL_NON_EXAMPLE_ONLY_COHORT`
+- `USER_COHORT=local_real_non_example_seed`
+  - latest batch `12 rows / 2 users`
+  - signal quality: `LOCAL_REAL_NON_EXAMPLE_SEED_ONLY_COHORT`
+- `USER_COHORT=real_user`
+  - latest batch `0 rows / 0 users`
+  - signal quality: `EMPTY_REAL_USER_COHORT`
 
 우선순위가 완전히 무시되는 상태는 아닙니다.
-다만 현재 latest batch의 `bounded local 1명 + real non-example 1명` 모두 실사용자가 아니라 로컬 seed 계정이라, 이 수치는 제품 실사용 baseline이라기보다 로컬 smoke/validation baseline으로 해석해야 합니다.
+다만 현재 latest batch의 `bounded local 1명 + local real-non-example seed 2명` 모두 실사용자가 아니라 로컬 seed 계정이고, `real_user` 는 여전히 `0명` 입니다. 이 수치는 제품 실사용 baseline이라기보다 로컬 smoke/validation baseline으로 해석해야 합니다.
 같은 날 새 `8명` no-priority bounded smoke를 다시 만들면 top1은 다시 `2622 8/8 (100%)` 로 잠기고, 스크립트도 `audit_user_cohort=example`, `signal_quality=SYNTHETIC_SIGNUP_SAMPLES` 를 함께 출력합니다.
 즉 최근 no-priority 조정 실험은 진단 자료로는 남지만, 지금 시점의 practical reading은 “분산이 확정됐다”가 아니라 **synthetic-heavy baseline 안에서만 반복 측정이 이뤄지고 있다** 쪽입니다.
 
@@ -291,7 +297,7 @@ local helper/replay smoke는 integrated schema 존재 여부와 collect/replay p
 5. notification 후보 선택은 현재 `[A, A, B?]` 슬롯 배치입니다.
 6. 운영 지표는 `GET /api/admin/dashboard/summary` 에서 collect/recommendation/notification/search/user_pii_sync 묶음으로 조회합니다.
    recommendation 섹션에는 현재 active weight, 누적 recommendation log 수, latest clicked 시각, 최근 7일 weight bucket 분포와 `trafficMixInWindow(example/boundedLocal/realNonExample logs/users/clicked users)` 가 포함됩니다.
-   `GET /api/admin/dashboard/recommendation-breakdowns` 의 `recentFallbackSamples`, `recentClickedSamples`, `repeatExposureGroups` 도 이제 각 row에 `userCohort(EXAMPLE/BOUNDED_LOCAL/REAL_NON_EXAMPLE)` 를 포함해, 상세 triage 시 bounded local seed와 real non-example을 분리해서 읽을 수 있습니다.
+   `GET /api/admin/dashboard/recommendation-breakdowns` 의 `recentFallbackSamples`, `recentClickedSamples`, `repeatExposureGroups` 도 이제 각 row에 `userCohort(EXAMPLE_SMOKE/BOUNDED_LOCAL/LOCAL_REAL_NON_EXAMPLE_SEED/REAL_USER)` 를 포함해, 상세 triage 시 bounded local seed, local real-non-example seed, real user를 분리해서 읽을 수 있습니다.
    collect 섹션에는 최근 실패 run 목록, search 섹션에는 최근 7일 0건 검색 수가 포함됩니다.
    `trend` 섹션에는 collect/recommendation/search 의 1일/7일/30일 추세가 포함됩니다.
 7. 추천 가중치/프롬프트 재조정은 CTR readiness audit가 `READY_FOR_WEIGHT_REVIEW` 를 줄 때에만 reopen 합니다.

@@ -223,7 +223,7 @@ CONCENTRATED_TOP1
 signal quality:
 
 ```text
-BOUNDED_LOCAL_WITH_SYNTHETIC_BATCH
+LOCAL_REAL_NON_EXAMPLE_SEED_WITH_NON_REAL_BATCH
 ```
 
 같은 시점 `USER_COHORT=bounded_local` rerun:
@@ -235,24 +235,37 @@ CONCENTRATED_TOP1
 BOUNDED_LOCAL_ONLY_COHORT
 ```
 
-같은 시점 `USER_COHORT=real_non_example` rerun:
+같은 시점 `USER_COHORT=local_real_non_example_seed` rerun:
+
+```text
+latest_batch_rows=12
+latest_batch_users=2
+CONCENTRATED_TOP1
+LOCAL_REAL_NON_EXAMPLE_SEED_ONLY_COHORT
+```
+
+같은 시점 `USER_COHORT=real_user` rerun:
 
 ```text
 latest_batch_rows=0
 latest_batch_users=0
 DEFERRED_EMPTY_COHORT
-EMPTY_REAL_NON_EXAMPLE_COHORT
+EMPTY_REAL_USER_COHORT
 ```
 
 해석:
 
 - `SYNTHETIC_ONLY_LATEST_BATCH`: latest batch 사용자가 전부 `@example.com` smoke/validation 계정이다.
-- `BOUNDED_LOCAL_WITH_SYNTHETIC_BATCH`: `REAL_NON_EXAMPLE` 은 없고 `EXAMPLE + BOUNDED_LOCAL` 만 섞여 있다.
-- `MIXED_WITH_NON_REAL_BATCH`: `REAL_NON_EXAMPLE` 과 `EXAMPLE/BOUNDED_LOCAL` 이 섞여 있다.
-- `REAL_NON_EXAMPLE_ONLY_BATCH`: `REAL_NON_EXAMPLE` 만으로 latest batch가 구성된다.
+- `BOUNDED_LOCAL_WITH_SYNTHETIC_BATCH`: `REAL_NON_EXAMPLE` 도 `REAL_USER` 도 없이 `EXAMPLE + BOUNDED_LOCAL` 만 섞여 있다.
+- `LOCAL_REAL_NON_EXAMPLE_SEED_WITH_NON_REAL_BATCH`: `LOCAL_REAL_NON_EXAMPLE_SEED` 와 `EXAMPLE/BOUNDED_LOCAL` 이 섞여 있다.
+- `MIXED_WITH_NON_REAL_BATCH`: `REAL_USER` 와 `EXAMPLE/BOUNDED_LOCAL/LOCAL_REAL_NON_EXAMPLE_SEED` 가 섞여 있다.
+- `LOCAL_REAL_NON_EXAMPLE_SEED_ONLY_BATCH`: latest batch가 local seed non-example 계정만으로 구성된다.
+- `REAL_USER_ONLY_BATCH`: latest batch가 `REAL_USER` 만으로 구성된다.
 - `EMPTY_REAL_NON_EXAMPLE_COHORT`: `USER_COHORT=real_non_example` 로 다시 봤을 때 latest batch에 실사용 계정이 없다.
+- `EMPTY_REAL_USER_COHORT`: `USER_COHORT=real_user` 로 다시 봤을 때 latest batch에 실사용 계정이 없다.
 - `EXAMPLE_ONLY_COHORT`: `USER_COHORT=example` 진단 모드 결과다.
 - `BOUNDED_LOCAL_ONLY_COHORT`: `USER_COHORT=bounded_local` 진단 모드 결과다.
+- `LOCAL_REAL_NON_EXAMPLE_SEED_ONLY_COHORT`: `USER_COHORT=local_real_non_example_seed` 진단 모드 결과다.
 
 ## 해석 기준
 
@@ -289,10 +302,11 @@ EMPTY_REAL_NON_EXAMPLE_COHORT
 `2026-05-17` local snapshot 기준 판단은:
 
 1. 우선순위는 코드와 데이터에서 **일부 반영된다**
-2. default `USER_COHORT=all` 기준 latest batch는 `latest_batch_bounded_local_users=1`, `latest_batch_real_non_example_users=0`, `signal_quality=BOUNDED_LOCAL_WITH_SYNTHETIC_BATCH` 이다
+2. default `USER_COHORT=all` 기준 latest batch는 `latest_batch_bounded_local_users=1`, `latest_batch_local_real_non_example_seed_users=2`, `latest_batch_real_user_users=0`, `signal_quality=LOCAL_REAL_NON_EXAMPLE_SEED_WITH_NON_REAL_BATCH` 이다
 3. 같은 wrapper를 `USER_COHORT=bounded_local` 로 다시 태우면 현재 값은 `latest_batch_rows=6`, `concentration_readiness=CONCENTRATED_TOP1`, `signal_quality=BOUNDED_LOCAL_ONLY_COHORT` 이다
-4. `USER_COHORT=real_non_example` 로 다시 태우면 현재 값은 `latest_batch_rows=0`, `signal_quality=EMPTY_REAL_NON_EXAMPLE_COHORT` 이다
-5. 따라서 지금 병목은 “priority 미반영”보다 **synthetic-heavy baseline + bounded local sample만 존재 + diversity / fallback / balancing 약함** 쪽이며, 상태는 계속 `CONCENTRATED_TOP1` 으로 본다
+4. `USER_COHORT=local_real_non_example_seed` 로 다시 태우면 현재 값은 `latest_batch_rows=12`, `signal_quality=LOCAL_REAL_NON_EXAMPLE_SEED_ONLY_COHORT` 이다
+5. `USER_COHORT=real_user` 로 다시 태우면 현재 값은 `latest_batch_rows=0`, `signal_quality=EMPTY_REAL_USER_COHORT` 이다
+6. 따라서 지금 병목은 “priority 미반영”보다 **synthetic-heavy baseline + local seed non-example만 존재 + real-user cohort 부재 + diversity / fallback / balancing 약함** 쪽이며, 상태는 계속 `CONCENTRATED_TOP1` 으로 본다
 
 즉 지금 practical next step은
 

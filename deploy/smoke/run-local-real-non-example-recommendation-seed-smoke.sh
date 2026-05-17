@@ -12,8 +12,8 @@ SUMMARY_WINDOW_DAYS="${SUMMARY_WINDOW_DAYS:-14}"
 
 ARTIFACT_DIR="${ARTIFACT_DIR:-$(mktemp -d)}"
 CLICK_OUTPUT="${ARTIFACT_DIR}/recommendation-click.out"
-CTR_OUTPUT="${ARTIFACT_DIR}/ctr-real-non-example.out"
-CONCENTRATION_OUTPUT="${ARTIFACT_DIR}/concentration-real-non-example.out"
+CTR_OUTPUT="${ARTIFACT_DIR}/ctr-local-real-non-example-seed.out"
+CONCENTRATION_OUTPUT="${ARTIFACT_DIR}/concentration-local-real-non-example-seed.out"
 LOG_ROW_OUTPUT="${ARTIFACT_DIR}/log-row.txt"
 WINDOW_ROW_OUTPUT="${ARTIFACT_DIR}/window-row.txt"
 
@@ -130,8 +130,8 @@ if [[ "${WINDOW_REAL_NON_EXAMPLE_LOGS}" == "0" || "${WINDOW_REAL_NON_EXAMPLE_USE
   exit 1
 fi
 
-smoke_print_step "rerun ctr audit for real-non-example cohort"
-USER_COHORT=real_non_example bash "${ROOT_DIR}/deploy/smoke/run-local-ctr-readiness-audit.sh" | tee "${CTR_OUTPUT}"
+smoke_print_step "rerun ctr audit for local-real-non-example-seed cohort"
+USER_COHORT=local_real_non_example_seed bash "${ROOT_DIR}/deploy/smoke/run-local-ctr-readiness-audit.sh" | tee "${CTR_OUTPUT}"
 
 CTR_SCOPE_LOGS="$(extract_key_value "${CTR_OUTPUT}" "audit_scope_logs")"
 CTR_SCOPE_USERS="$(extract_key_value "${CTR_OUTPUT}" "audit_scope_users")"
@@ -139,12 +139,12 @@ CTR_CLICKED_LOGS="$(extract_key_value "${CTR_OUTPUT}" "ctr_clicked_logs")"
 CTR_CLICKED_USERS="$(extract_key_value "${CTR_OUTPUT}" "ctr_clicked_users")"
 CTR_READINESS="$(extract_section_value "${CTR_OUTPUT}" "[tuning_readiness]")"
 
-smoke_print_step "rerun concentration audit for real-non-example cohort"
-USER_COHORT=real_non_example bash "${ROOT_DIR}/deploy/smoke/run-local-recommendation-concentration-audit.sh" | tee "${CONCENTRATION_OUTPUT}"
+smoke_print_step "rerun concentration audit for local-real-non-example-seed cohort"
+USER_COHORT=local_real_non_example_seed bash "${ROOT_DIR}/deploy/smoke/run-local-recommendation-concentration-audit.sh" | tee "${CONCENTRATION_OUTPUT}"
 
 CONCENTRATION_ROWS="$(extract_key_value "${CONCENTRATION_OUTPUT}" "latest_batch_rows")"
 CONCENTRATION_USERS="$(extract_key_value "${CONCENTRATION_OUTPUT}" "latest_batch_users")"
-CONCENTRATION_REAL_NON_EXAMPLE_USERS="$(extract_key_value "${CONCENTRATION_OUTPUT}" "latest_batch_real_non_example_users")"
+CONCENTRATION_LOCAL_REAL_NON_EXAMPLE_SEED_USERS="$(extract_key_value "${CONCENTRATION_OUTPUT}" "latest_batch_local_real_non_example_seed_users")"
 CONCENTRATION_READINESS="$(extract_section_value "${CONCENTRATION_OUTPUT}" "[concentration_readiness]")"
 CONCENTRATION_SIGNAL_QUALITY="$(extract_section_value "${CONCENTRATION_OUTPUT}" "[signal_quality]")"
 
@@ -166,6 +166,6 @@ echo "ctr_clicked_users=${CTR_CLICKED_USERS}"
 echo "ctr_readiness=${CTR_READINESS}"
 echo "latest_batch_rows=${CONCENTRATION_ROWS}"
 echo "latest_batch_users=${CONCENTRATION_USERS}"
-echo "latest_batch_real_non_example_users=${CONCENTRATION_REAL_NON_EXAMPLE_USERS}"
+echo "latest_batch_local_real_non_example_seed_users=${CONCENTRATION_LOCAL_REAL_NON_EXAMPLE_SEED_USERS}"
 echo "concentration_readiness=${CONCENTRATION_READINESS}"
 echo "signal_quality=${CONCENTRATION_SIGNAL_QUALITY}"
