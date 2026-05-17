@@ -11,7 +11,7 @@
 |------|------|
 | Backend | Spring Boot 3.x (단독, FastAPI 없음) |
 | Frontend | React + MUI + React Query + Zustand |
-| Database | MySQL 8.0+ (FULLTEXT ngram) |
+| Database | PostgreSQL 16+ |
 | AI API | OpenAI GPT-4o-mini (1차: 실시간 단건 / 2차: Batch API) |
 | 인증 | JWT + HttpOnly 쿠키 (Access 30분 / Refresh 7일 Rotation) |
 | 알림 | 카카오 알림톡(CoolSMS) + Gmail SMTP 폴백 |

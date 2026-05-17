@@ -53,30 +53,7 @@ public class SecondaryDataSourceSchemaGuard implements InitializingBean {
             return schemaName;
         }
 
-        if (!jdbcUrl.startsWith("jdbc:mysql:")) {
-            throw new IllegalStateException(propertyName + " must be a supported JDBC URL: " + jdbcUrl);
-        }
-
-        int hostStart = jdbcUrl.indexOf("//");
-        if (hostStart < 0) {
-            throw new IllegalStateException(propertyName + " must contain //host/database: " + jdbcUrl);
-        }
-
-        int databaseStart = jdbcUrl.indexOf('/', hostStart + 2);
-        if (databaseStart < 0 || databaseStart == jdbcUrl.length() - 1) {
-            throw new IllegalStateException(propertyName + " must contain database/schema name: " + jdbcUrl);
-        }
-
-        int databaseEnd = jdbcUrl.indexOf('?', databaseStart + 1);
-        String databaseName = databaseEnd >= 0
-                ? jdbcUrl.substring(databaseStart + 1, databaseEnd)
-                : jdbcUrl.substring(databaseStart + 1);
-
-        if (databaseName.isBlank()) {
-            throw new IllegalStateException(propertyName + " must contain database/schema name: " + jdbcUrl);
-        }
-
-        return databaseName;
+        throw new IllegalStateException(propertyName + " must be a jdbc:postgresql: URL: " + jdbcUrl);
     }
 
     private static String extractCurrentSchema(String jdbcUrl) {

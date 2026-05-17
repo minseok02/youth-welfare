@@ -94,17 +94,12 @@ extract_jdbc_kind() {
     exit 1
   fi
 
-  if [[ "${jdbc_url}" == jdbc:mysql://* ]]; then
-    printf "mysql\n"
-    return 0
-  fi
-
   if [[ "${jdbc_url}" == jdbc:postgresql://* ]]; then
     printf "postgresql\n"
     return 0
   fi
 
-  echo "${name} must be a jdbc:mysql:// or jdbc:postgresql:// URL: ${jdbc_url}" >&2
+  echo "${name} must be a jdbc:postgresql:// URL: ${jdbc_url}" >&2
   exit 1
 }
 
@@ -114,11 +109,7 @@ extract_database_name() {
   local remainder database_name jdbc_kind
 
   jdbc_kind="$(extract_jdbc_kind "${name}" "${jdbc_url}")"
-  if [[ "${jdbc_kind}" == "mysql" ]]; then
-    remainder="${jdbc_url#jdbc:mysql://}"
-  else
-    remainder="${jdbc_url#jdbc:postgresql://}"
-  fi
+  remainder="${jdbc_url#jdbc:postgresql://}"
 
   if [[ "${remainder}" != */* ]]; then
     echo "${name} must contain host/database: ${jdbc_url}" >&2
@@ -143,11 +134,7 @@ extract_host_port() {
   local remainder host_port jdbc_kind
 
   jdbc_kind="$(extract_jdbc_kind "${name}" "${jdbc_url}")"
-  if [[ "${jdbc_kind}" == "mysql" ]]; then
-    remainder="${jdbc_url#jdbc:mysql://}"
-  else
-    remainder="${jdbc_url#jdbc:postgresql://}"
-  fi
+  remainder="${jdbc_url#jdbc:postgresql://}"
 
   if [[ "${remainder}" != */* ]]; then
     echo "${name} must contain host/database: ${jdbc_url}" >&2
@@ -201,18 +188,10 @@ assert_runtime_core_target() {
 assert_runtime_pii_target() {
   local name="$1"
   local jdbc_url="$2"
-  local jdbc_kind database_name current_schema
+  local database_name current_schema
 
-  jdbc_kind="$(extract_jdbc_kind "${name}" "${jdbc_url}")"
+  extract_jdbc_kind "${name}" "${jdbc_url}" >/dev/null
   database_name="$(extract_database_name "${name}" "${jdbc_url}")"
-
-  if [[ "${jdbc_kind}" == "mysql" ]]; then
-    if [[ "${database_name}" != "youth_welfare_pii" ]]; then
-      echo "${name} must point to 'youth_welfare_pii' but was '${database_name}': ${jdbc_url}" >&2
-      exit 1
-    fi
-    return 0
-  fi
 
   if [[ "${database_name}" != "youth_welfare" ]]; then
     echo "${name} must point to 'youth_welfare' with currentSchema=youth_welfare_pii but was '${database_name}': ${jdbc_url}" >&2

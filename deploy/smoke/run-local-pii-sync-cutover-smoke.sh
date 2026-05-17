@@ -111,14 +111,22 @@ else
   export DB_MIGRATION_USERNAME
 fi
 export DB_MIGRATION_PASSWORD="${DB_MIGRATION_PASSWORD:-${DB_PASSWORD}}"
-if [[ -z "${APP_PII_DB_URL:-}" || "${APP_PII_DB_URL}" == jdbc:mysql://* ]]; then
+if [[ -z "${APP_PII_DB_URL:-}" ]]; then
   export APP_PII_DB_URL="jdbc:postgresql://db:5432/youth_welfare?sslmode=disable&currentSchema=youth_welfare_pii"
 else
+  if [[ "${APP_PII_DB_URL}" == jdbc:mysql://* ]]; then
+    echo "APP_PII_DB_URL must be jdbc:postgresql://...currentSchema=youth_welfare_pii, not mysql: ${APP_PII_DB_URL}" >&2
+    exit 1
+  fi
   export APP_PII_DB_URL
 fi
-if [[ -z "${NOTIFICATION_PII_DB_URL:-}" || "${NOTIFICATION_PII_DB_URL}" == jdbc:mysql://* ]]; then
+if [[ -z "${NOTIFICATION_PII_DB_URL:-}" ]]; then
   export NOTIFICATION_PII_DB_URL="${APP_PII_DB_URL}"
 else
+  if [[ "${NOTIFICATION_PII_DB_URL}" == jdbc:mysql://* ]]; then
+    echo "NOTIFICATION_PII_DB_URL must be jdbc:postgresql://...currentSchema=youth_welfare_pii, not mysql: ${NOTIFICATION_PII_DB_URL}" >&2
+    exit 1
+  fi
   export NOTIFICATION_PII_DB_URL
 fi
 if [[ -z "${DB_APP_PII_USERNAME_WAS_SET}" ]]; then

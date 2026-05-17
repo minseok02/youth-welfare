@@ -50,6 +50,16 @@ class SecondaryDataSourceSchemaGuardTest {
                 .hasMessageContaining("must not be blank");
     }
 
+    @Test
+    void rejectsMysqlJdbcUrl() {
+        assertThatThrownBy(() -> SecondaryDataSourceSchemaGuard.extractDatabaseName(
+                "app.datasource.pii-rw.url",
+                "jdbc:mysql://db:3306/youth_welfare_pii"
+        ))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("must be a jdbc:postgresql: URL");
+    }
+
     private DataSourceProperties properties(String url) {
         DataSourceProperties properties = new DataSourceProperties();
         properties.setUrl(url);
