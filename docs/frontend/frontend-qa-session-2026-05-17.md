@@ -80,12 +80,29 @@
   - `summary forced failure` 에서 warning banner + summary error card가 표시되고 collect/search triage는 그대로 유지됨
   - `breakdown forced failure` 에서 recommendation summary/hero는 유지되고, breakdown 섹션만 error card + retry로 분리됨
 
+### 5. 모바일 viewport 재검증
+
+- 기준 커밋: `2e3b9fa`
+- 환경: `server`
+- 기대:
+  - `청년복지플랫폼` 헤더 텍스트가 모바일 폭에서 세로로 깨지지 않을 것
+  - 상단 버튼이 wrap되어 겹치거나 화면 밖으로 밀리지 않을 것
+  - `DEFERRED_NO_REAL_USER_TRAFFIC` 같은 긴 상태값이 카드 밖으로 넘치지 않을 것
+  - 실패 카드(`... 로드 실패`, `다시 시도`, 에러 메시지)가 모바일에서도 읽힐 것
+- 결과:
+  - `pass`
+  - 헤더 브랜드 텍스트는 정상 한 줄로 표시됨
+  - 상단 버튼은 모바일에서 두 줄로 wrap되며 겹침/밀림 없음
+  - 긴 gate/status 문자열은 카드 내부에서 여러 줄로 감싸짐
+  - 실패 카드와 에러 메시지도 모바일에서 정상 가독성 유지
+  - 자동 overflow 검사 기준 화면 폭 밖으로 삐져나간 요소 없음
+
 ## 관찰 메모
 
 - local host 브라우저가 아니라 container browser로 검증했다.
 - backend prod profile의 기본 CORS 허용 origin은 `5173` 이므로, container 내부 dev server도 `5173` 으로 맞춰야 로그인까지 정상 동작했다.
 - 부분 실패 분리는 UI에서 직접 API를 끊는 대신, container Playwright runner가 `summary`, `recommendation-breakdowns` 요청만 route fulfill `500` 으로 바꿔 확인했다.
-- 이 세션에서는 admin dashboard 진입/차단/기간 전환만 닫았고, 모바일 뷰 수동 검증은 아직 하지 않았다.
+- 이후 server 기준 mobile viewport 재검증까지 추가로 닫았다.
 
 ## 발견 이슈
 
@@ -93,4 +110,4 @@
 
 ## 다음 액션
 
-- 모바일 viewport 기준 admin dashboard 가독성은 별도 수동 QA로 확인한다.
+- 없음

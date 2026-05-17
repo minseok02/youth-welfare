@@ -105,6 +105,8 @@
 - admin dashboard의 `요약 기간` 전환에서 `14 -> 7`, `7 -> 30` 은 `summary`, `recommendation-breakdowns`, `collect-failures`, `search-failures` 네 API 재호출 확인
 - `30 -> 14` 전환은 `React Query staleTime=30000` 범위라 cache reuse 가능 동작으로 본다
 - `summary` 강제 `500` 에서도 `수집 실패 상세`, `검색 실패 상세` 는 계속 렌더링되고, `recommendation-breakdowns` 강제 `500` 에서도 상단 recommendation summary/hero는 유지됨
+- `2e3b9fa` 기준 mobile viewport 재검증에서도 헤더 브랜드 텍스트, 상단 버튼 wrap, 긴 gate/status 문자열 wrapping, 실패 카드 가독성이 모두 정상
+- 같은 mobile QA에서 자동 overflow 검사 기준 화면 폭 밖으로 삐져나간 요소 없음
 
 추가 관찰:
 
