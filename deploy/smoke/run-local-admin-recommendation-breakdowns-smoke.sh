@@ -110,6 +110,17 @@ for key in (
     assert isinstance(traffic_mix[key], int), f"{key} must be int"
 
 assert isinstance(data["realUserTrafficGateInWindow"], str) and data["realUserTrafficGateInWindow"], "realUserTrafficGateInWindow must be non-empty string"
+concentration = data["latestBatchConcentration"]
+assert isinstance(concentration["latestBatchRows"], int), "latestBatchConcentration.latestBatchRows must be int"
+assert isinstance(concentration["latestBatchUsers"], int), "latestBatchConcentration.latestBatchUsers must be int"
+assert isinstance(concentration["latestBatchDistinctServices"], int), "latestBatchConcentration.latestBatchDistinctServices must be int"
+assert isinstance(concentration["top1LeaderUsers"], int), "latestBatchConcentration.top1LeaderUsers must be int"
+assert concentration["concentrationReadiness"], "latestBatchConcentration.concentrationReadiness missing"
+assert concentration["realUserCohortGate"], "latestBatchConcentration.realUserCohortGate missing"
+assert concentration["signalQuality"], "latestBatchConcentration.signalQuality missing"
+if concentration["latestBatchUsers"] > 0:
+    assert concentration["top1LeaderServiceId"] is not None, "latestBatchConcentration.top1LeaderServiceId missing"
+    assert concentration["top1LeaderTitle"], "latestBatchConcentration.top1LeaderTitle missing"
 
 for collection_key in (
     "sourceBreakdowns",
@@ -166,6 +177,13 @@ print(traffic_mix["localRealNonExampleSeedUsersInWindow"])
 print(traffic_mix["realUserUsersInWindow"])
 print(traffic_mix["realNonExampleUsersInWindow"])
 print(data["realUserTrafficGateInWindow"])
+print(concentration["latestBatchRows"])
+print(concentration["latestBatchUsers"])
+print(concentration["top1LeaderServiceId"] or "")
+print(concentration["top1LeaderSharePct"])
+print(concentration["concentrationReadiness"])
+print(concentration["realUserCohortGate"])
+print(concentration["signalQuality"])
 print(fallback_cohort)
 print(clicked_cohort)
 print(repeat_cohort)
@@ -236,12 +254,19 @@ echo "local_real_non_example_seed_users_in_window=${BREAKDOWN_VALUES[6]}"
 echo "real_user_users_in_window=${BREAKDOWN_VALUES[7]}"
 echo "real_non_example_users_in_window=${BREAKDOWN_VALUES[8]}"
 echo "real_user_traffic_gate_in_window=${BREAKDOWN_VALUES[9]}"
-echo "recent_fallback_sample_user_cohort=${BREAKDOWN_VALUES[10]}"
-echo "recent_clicked_sample_user_cohort=${BREAKDOWN_VALUES[11]}"
-echo "repeat_exposure_user_cohort=${BREAKDOWN_VALUES[12]}"
-echo "source_breakdown_count=${BREAKDOWN_VALUES[13]}"
-echo "category_breakdown_count=${BREAKDOWN_VALUES[14]}"
-echo "weight_breakdown_count=${BREAKDOWN_VALUES[15]}"
+echo "latest_batch_rows=${BREAKDOWN_VALUES[10]}"
+echo "latest_batch_users=${BREAKDOWN_VALUES[11]}"
+echo "top1_leader_service_id=${BREAKDOWN_VALUES[12]}"
+echo "top1_leader_share_pct=${BREAKDOWN_VALUES[13]}"
+echo "concentration_readiness=${BREAKDOWN_VALUES[14]}"
+echo "latest_batch_real_user_cohort_gate=${BREAKDOWN_VALUES[15]}"
+echo "latest_batch_signal_quality=${BREAKDOWN_VALUES[16]}"
+echo "recent_fallback_sample_user_cohort=${BREAKDOWN_VALUES[17]}"
+echo "recent_clicked_sample_user_cohort=${BREAKDOWN_VALUES[18]}"
+echo "repeat_exposure_user_cohort=${BREAKDOWN_VALUES[19]}"
+echo "source_breakdown_count=${BREAKDOWN_VALUES[20]}"
+echo "category_breakdown_count=${BREAKDOWN_VALUES[21]}"
+echo "weight_breakdown_count=${BREAKDOWN_VALUES[22]}"
 echo "summary_window_days=${SUMMARY_WINDOW_DAYS}"
 echo "breakdown_limit=${BREAKDOWN_LIMIT}"
 if [[ -n "${CONTAINER_ADMIN_ALLOWLIST}" ]]; then

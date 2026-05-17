@@ -157,6 +157,156 @@ public class AdminDashboardRecommendationReadRepository {
         );
     }
 
+    public AdminDashboardReadRows.RecommendationConcentrationRow fetchRecommendationConcentration() {
+        return jdbcTemplate.queryForObject("""
+                with latest as (
+                    select user_key, max(recommended_at) as recommended_at
+                      from user_recommendations
+                     group by user_key
+                ),
+                base_rows as (
+                    select ur.id as recommendation_id,
+                           ur.user_key,
+                           ur.service_id,
+                           ur.final_score,
+                           %1$s as user_origin,
+                           case
+                               when %1$s = 'EXAMPLE_SMOKE' then 'EXAMPLE_SMOKE'
+                               when %1$s = 'BOUNDED_LOCAL' then 'BOUNDED_LOCAL'
+                               when %1$s = 'LOCAL_REAL_NON_EXAMPLE_SEED' then 'LOCAL_REAL_NON_EXAMPLE_SEED'
+                               else 'REAL_USER'
+                           end as user_cohort
+                      from user_recommendations ur
+                      join latest l
+                        on l.user_key = ur.user_key
+                       and l.recommended_at = ur.recommended_at
+                      join users u
+                        on u.user_key = ur.user_key
+                ),
+                priority_profiles as (
+                    select up.user_key,
+                           string_agg(po.code, '>' order by up.priority_rank) as profile
+                      from user_priorities up
+                      join priority_options po
+                        on po.id = up.priority_option_id
+                     group by up.user_key
+                ),
+                priority_states as (
+                    select distinct br.user_key,
+                           case when pp.user_key is null then 'NO_PRIORITY' else 'HAS_PRIORITY' end as priority_state
+                      from base_rows br
+                      left join priority_profiles pp
+                        on pp.user_key = br.user_key
+                ),
+                top1 as (
+                    select *
+                      from (
+                        select br.user_key,
+                               br.service_id,
+                               br.final_score,
+                               row_number() over (
+                                   partition by br.user_key
+                                   order by br.final_score desc, br.recommendation_id desc
+                               ) as rn
+                          from base_rows br
+                      ) ranked
+                     where rn = 1
+                ),
+                top1_summary as (
+                    select t.service_id,
+                           ws.title,
+                           ws.source_type,
+                           coalesce(ws.unified_category, '기타') as category,
+                           count(*) as users_as_top1
+                      from top1 t
+                      join welfare_services ws
+                        on ws.id = t.service_id
+                     group by t.service_id, ws.title, ws.source_type, coalesce(ws.unified_category, '기타')
+                ),
+                top1_leader as (
+                    select service_id,
+                           title,
+                           source_type,
+                           category,
+                           users_as_top1,
+                           round(users_as_top1 * 100.0 / nullif((select count(*) from top1), 0), 2) as share_pct
+                      from top1_summary
+                     order by users_as_top1 desc, service_id
+                     limit 1
+                ),
+                mix as (
+                    select count(*) as latest_batch_rows,
+                           count(distinct user_key) as latest_batch_users,
+                           count(distinct service_id) as latest_batch_distinct_services,
+                           count(distinct user_key) filter (where user_cohort = 'EXAMPLE_SMOKE') as example_users,
+                           count(distinct user_key) filter (where user_cohort = 'BOUNDED_LOCAL') as bounded_local_users,
+                           count(distinct user_key) filter (where user_cohort = 'LOCAL_REAL_NON_EXAMPLE_SEED') as local_real_non_example_seed_users,
+                           count(distinct user_key) filter (where user_cohort = 'REAL_USER') as real_user_users
+                      from base_rows
+                ),
+                base as (
+                    select (select count(*) from top1) as top1_users,
+                           (select users_as_top1 from top1_leader) as top1_leader_users,
+                           (select count(*) from priority_states where priority_state = 'HAS_PRIORITY') as priority_users,
+                           (select count(*) from priority_states where priority_state = 'NO_PRIORITY') as no_priority_users
+                )
+                select mix.latest_batch_rows,
+                       mix.latest_batch_users,
+                       mix.latest_batch_distinct_services,
+                       top1_leader.service_id as top1_leader_service_id,
+                       top1_leader.title as top1_leader_title,
+                       top1_leader.source_type as top1_leader_source,
+                       top1_leader.category as top1_leader_category,
+                       coalesce(top1_leader.users_as_top1, 0) as top1_leader_users,
+                       coalesce(top1_leader.share_pct, 0) as top1_leader_share_pct,
+                       case
+                           when base.top1_users = 0 then 'DEFERRED_EMPTY_COHORT'
+                           when base.top1_leader_users * 100.0 / nullif(base.top1_users, 0) >= 50 then 'CONCENTRATED_TOP1'
+                           when base.no_priority_users > base.priority_users * 2 then 'NO_PRIORITY_DOMINANT'
+                           else 'BALANCED_ENOUGH_FOR_LOGIC_REVIEW'
+                       end as concentration_readiness,
+                       case
+                           when mix.latest_batch_users = 0 then 'DEFERRED_EMPTY_COHORT'
+                           when mix.real_user_users = 0 then 'DEFERRED_NO_REAL_USER_COHORT'
+                           when mix.real_user_users < 3 then 'DEFERRED_REAL_USER_SAMPLE_THIN'
+                           else 'READY_REAL_USER_COHORT'
+                       end as real_user_cohort_gate,
+                       case
+                           when mix.latest_batch_users = 0 then 'EMPTY_COHORT'
+                           when mix.real_user_users = 0 and mix.local_real_non_example_seed_users = 0 and mix.bounded_local_users = 0
+                               then 'SYNTHETIC_ONLY_LATEST_BATCH'
+                           when mix.real_user_users = 0 and mix.local_real_non_example_seed_users = 0 and mix.bounded_local_users > 0
+                               then 'BOUNDED_LOCAL_WITH_SYNTHETIC_BATCH'
+                           when mix.real_user_users = 0 and mix.local_real_non_example_seed_users > 0 and (mix.example_users > 0 or mix.bounded_local_users > 0)
+                               then 'LOCAL_REAL_NON_EXAMPLE_SEED_WITH_NON_REAL_BATCH'
+                           when mix.real_user_users = 0 and mix.local_real_non_example_seed_users > 0
+                               then 'LOCAL_REAL_NON_EXAMPLE_SEED_ONLY_BATCH'
+                           when mix.real_user_users > 0 and (mix.example_users > 0 or mix.bounded_local_users > 0 or mix.local_real_non_example_seed_users > 0)
+                               then 'MIXED_WITH_NON_REAL_BATCH'
+                           else 'REAL_USER_ONLY_BATCH'
+                       end as signal_quality
+                  from mix
+                  cross join base
+                  left join top1_leader on true
+                """.formatted(RECOMMENDATION_USER_ORIGIN_SQL),
+                new MapSqlParameterSource(),
+                (rs, rowNum) -> new AdminDashboardReadRows.RecommendationConcentrationRow(
+                        rs.getLong("latest_batch_rows"),
+                        rs.getLong("latest_batch_users"),
+                        rs.getLong("latest_batch_distinct_services"),
+                        AdminDashboardJdbcSupport.getLong(rs, "top1_leader_service_id"),
+                        rs.getString("top1_leader_title"),
+                        rs.getString("top1_leader_source"),
+                        rs.getString("top1_leader_category"),
+                        rs.getLong("top1_leader_users"),
+                        rs.getBigDecimal("top1_leader_share_pct"),
+                        rs.getString("concentration_readiness"),
+                        rs.getString("real_user_cohort_gate"),
+                        rs.getString("signal_quality")
+                )
+        );
+    }
+
     public List<AdminDashboardReadRows.RecommendationWeightSnapshotRow> fetchRecommendationWeightBuckets(LocalDateTime weekAgo) {
         return jdbcTemplate.query("""
                 select case

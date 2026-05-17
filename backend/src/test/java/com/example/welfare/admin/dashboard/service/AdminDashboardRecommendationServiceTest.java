@@ -58,6 +58,21 @@ class AdminDashboardRecommendationServiceTest {
                         0,
                         0
                 ));
+        given(adminDashboardRecommendationReadRepository.fetchRecommendationConcentration())
+                .willReturn(new AdminDashboardReadRows.RecommendationConcentrationRow(
+                        4071,
+                        454,
+                        113,
+                        2622L,
+                        "청년월세 지원사업",
+                        "BOKJIRO_CENTRAL",
+                        "주거",
+                        271,
+                        new BigDecimal("59.69"),
+                        "CONCENTRATED_TOP1",
+                        "DEFERRED_NO_REAL_USER_COHORT",
+                        "LOCAL_REAL_NON_EXAMPLE_SEED_WITH_NON_REAL_BATCH"
+                ));
         given(adminDashboardRecommendationReadRepository.fetchRecommendationSourceBreakdowns(
                 org.mockito.ArgumentMatchers.any(),
                 org.mockito.ArgumentMatchers.eq(3)
@@ -152,6 +167,12 @@ class AdminDashboardRecommendationServiceTest {
         assertThat(response.trafficMixInWindow().realUserUsersInWindow()).isZero();
         assertThat(response.trafficMixInWindow().realNonExampleUsersInWindow()).isZero();
         assertThat(response.realUserTrafficGateInWindow()).isEqualTo("DEFERRED_NO_REAL_USER_TRAFFIC");
+        assertThat(response.latestBatchConcentration().latestBatchRows()).isEqualTo(4071);
+        assertThat(response.latestBatchConcentration().top1LeaderServiceId()).isEqualTo(2622L);
+        assertThat(response.latestBatchConcentration().top1LeaderSharePct()).isEqualByComparingTo("59.69");
+        assertThat(response.latestBatchConcentration().concentrationReadiness()).isEqualTo("CONCENTRATED_TOP1");
+        assertThat(response.latestBatchConcentration().realUserCohortGate()).isEqualTo("DEFERRED_NO_REAL_USER_COHORT");
+        assertThat(response.latestBatchConcentration().signalQuality()).isEqualTo("LOCAL_REAL_NON_EXAMPLE_SEED_WITH_NON_REAL_BATCH");
         assertThat(response.trafficMixInWindow().exampleClickedUsersInWindow()).isEqualTo(9);
         assertThat(response.sourceBreakdowns()).singleElement().satisfies(source -> {
             assertThat(source.sourceType()).isEqualTo("YOUTH");

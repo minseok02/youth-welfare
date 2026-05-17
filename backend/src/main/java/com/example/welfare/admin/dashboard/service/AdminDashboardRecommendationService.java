@@ -28,6 +28,8 @@ public class AdminDashboardRecommendationService {
                 adminDashboardRecommendationReadRepository.fetchRecommendationSummary(dayAgo, summaryWindowAgo);
         AdminDashboardReadRows.RecommendationTrafficMixRow recommendationTrafficMix =
                 adminDashboardRecommendationReadRepository.fetchRecommendationTrafficMix(summaryWindowAgo);
+        AdminDashboardReadRows.RecommendationConcentrationRow recommendationConcentration =
+                adminDashboardRecommendationReadRepository.fetchRecommendationConcentration();
         String realUserTrafficGate =
                 AdminDashboardQueryPolicy.resolveRealUserTrafficGate(recommendationSummary, recommendationTrafficMix);
 
@@ -55,6 +57,20 @@ public class AdminDashboardRecommendationService {
                         recommendationTrafficMix.realNonExampleClickedUsersInWindow()
                 ),
                 realUserTrafficGate,
+                new AdminRecommendationBreakdownResponse.RecommendationConcentrationSnapshot(
+                        recommendationConcentration.latestBatchRows(),
+                        recommendationConcentration.latestBatchUsers(),
+                        recommendationConcentration.latestBatchDistinctServices(),
+                        recommendationConcentration.top1LeaderServiceId(),
+                        recommendationConcentration.top1LeaderTitle(),
+                        recommendationConcentration.top1LeaderSource(),
+                        recommendationConcentration.top1LeaderCategory(),
+                        recommendationConcentration.top1LeaderUsers(),
+                        recommendationConcentration.top1LeaderSharePct(),
+                        recommendationConcentration.concentrationReadiness(),
+                        recommendationConcentration.realUserCohortGate(),
+                        recommendationConcentration.signalQuality()
+                ),
                 adminDashboardRecommendationReadRepository.fetchRecommendationSourceBreakdowns(summaryWindowAgo, breakdownLimit).stream()
                         .map(row -> new AdminRecommendationBreakdownResponse.SourceBreakdown(
                                 row.sourceType(),

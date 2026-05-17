@@ -953,6 +953,20 @@ class AdminSecurityWebMvcTest {
                                 0
                         ),
                         "DEFERRED_NO_REAL_USER_TRAFFIC",
+                        new AdminRecommendationBreakdownResponse.RecommendationConcentrationSnapshot(
+                                4071,
+                                454,
+                                113,
+                                2622L,
+                                "청년월세 지원사업",
+                                "BOKJIRO_CENTRAL",
+                                "주거",
+                                271,
+                                java.math.BigDecimal.valueOf(59.69),
+                                "CONCENTRATED_TOP1",
+                                "DEFERRED_NO_REAL_USER_COHORT",
+                                "LOCAL_REAL_NON_EXAMPLE_SEED_WITH_NON_REAL_BATCH"
+                        ),
                         List.of(
                                 new AdminRecommendationBreakdownResponse.SourceBreakdown(
                                         "YOUTH",
@@ -1049,6 +1063,12 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.data.trafficMixInWindow.realUserUsersInWindow").value(0))
                 .andExpect(jsonPath("$.data.trafficMixInWindow.realNonExampleUsersInWindow").value(0))
                 .andExpect(jsonPath("$.data.realUserTrafficGateInWindow").value("DEFERRED_NO_REAL_USER_TRAFFIC"))
+                .andExpect(jsonPath("$.data.latestBatchConcentration.latestBatchRows").value(4071))
+                .andExpect(jsonPath("$.data.latestBatchConcentration.top1LeaderServiceId").value(2622))
+                .andExpect(jsonPath("$.data.latestBatchConcentration.top1LeaderSharePct").value(59.69))
+                .andExpect(jsonPath("$.data.latestBatchConcentration.concentrationReadiness").value("CONCENTRATED_TOP1"))
+                .andExpect(jsonPath("$.data.latestBatchConcentration.realUserCohortGate").value("DEFERRED_NO_REAL_USER_COHORT"))
+                .andExpect(jsonPath("$.data.latestBatchConcentration.signalQuality").value("LOCAL_REAL_NON_EXAMPLE_SEED_WITH_NON_REAL_BATCH"))
                 .andExpect(jsonPath("$.data.sourceBreakdowns[0].sourceType").value("YOUTH"))
                 .andExpect(jsonPath("$.data.categoryBreakdowns[0].category").value("HOUSING"))
                 .andExpect(jsonPath("$.data.weightBreakdowns[0].weightKey").value("GROWTH"))

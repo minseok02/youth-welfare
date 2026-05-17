@@ -18,4 +18,9 @@ final class AdminDashboardJdbcSupport {
         boolean value = rs.getBoolean(columnName);
         return rs.wasNull() ? null : value;
     }
+
+    static Long getLong(ResultSet rs, String columnName) throws SQLException {
+        long value = rs.getLong(columnName);
+        return rs.wasNull() ? null : value;
+    }
 }

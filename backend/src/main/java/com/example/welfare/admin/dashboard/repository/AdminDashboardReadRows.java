@@ -139,6 +139,22 @@ public final class AdminDashboardReadRows {
     ) {
     }
 
+    public record RecommendationConcentrationRow(
+            long latestBatchRows,
+            long latestBatchUsers,
+            long latestBatchDistinctServices,
+            Long top1LeaderServiceId,
+            String top1LeaderTitle,
+            String top1LeaderSource,
+            String top1LeaderCategory,
+            long top1LeaderUsers,
+            BigDecimal top1LeaderSharePct,
+            String concentrationReadiness,
+            String realUserCohortGate,
+            String signalQuality
+    ) {
+    }
+
     public record RecommendationSourceBreakdownRow(
             String sourceType,
             long sentCount,

@@ -298,7 +298,9 @@ local helper/replay smoke는 integrated schema 존재 여부와 collect/replay p
 6. 운영 지표는 `GET /api/admin/dashboard/summary` 에서 collect/recommendation/notification/search/user_pii_sync 묶음으로 조회합니다.
    recommendation 섹션에는 현재 active weight, 누적 recommendation log 수, latest clicked 시각, 최근 7일 weight bucket 분포, `trafficMixInWindow(example/boundedLocal/localRealNonExampleSeed/realUser logs/users/clicked users)`, 그리고 `realUserTrafficGateInWindow` 가 포함됩니다.
    현재 로컬 summary smoke 값은 `realUserTrafficGateInWindow=DEFERRED_NO_REAL_USER_TRAFFIC` 입니다.
-   `GET /api/admin/dashboard/recommendation-breakdowns` 도 같은 `realUserTrafficGateInWindow` 를 내려주고, `recentFallbackSamples`, `recentClickedSamples`, `repeatExposureGroups` 각 row에 `userCohort(EXAMPLE_SMOKE/BOUNDED_LOCAL/LOCAL_REAL_NON_EXAMPLE_SEED/REAL_USER)` 를 포함해, 상세 triage 시 bounded local seed, local real-non-example seed, real user를 분리해서 읽을 수 있습니다.
+   `GET /api/admin/dashboard/recommendation-breakdowns` 도 같은 `realUserTrafficGateInWindow` 를 내려주고, 추가로 `latestBatchConcentration` 에 `latestBatchRows/users/distinctServices`, `top1Leader*`, `concentrationReadiness`, `realUserCohortGate`, `signalQuality` 를 포함합니다.
+   현재 로컬 breakdown smoke 값은 `top1LeaderServiceId=2622`, `top1LeaderSharePct=59.69`, `concentrationReadiness=CONCENTRATED_TOP1`, `realUserCohortGate=DEFERRED_NO_REAL_USER_COHORT`, `signalQuality=LOCAL_REAL_NON_EXAMPLE_SEED_WITH_NON_REAL_BATCH` 입니다.
+   `recentFallbackSamples`, `recentClickedSamples`, `repeatExposureGroups` 각 row에는 계속 `userCohort(EXAMPLE_SMOKE/BOUNDED_LOCAL/LOCAL_REAL_NON_EXAMPLE_SEED/REAL_USER)` 가 포함되어, 상세 triage 시 bounded local seed, local real-non-example seed, real user를 분리해서 읽을 수 있습니다.
    collect 섹션에는 최근 실패 run 목록, search 섹션에는 최근 7일 0건 검색 수가 포함됩니다.
    `trend` 섹션에는 collect/recommendation/search 의 1일/7일/30일 추세가 포함됩니다.
 7. 추천 가중치/프롬프트 재조정은 CTR readiness audit가 `READY_FOR_WEIGHT_REVIEW` 를 줄 때에만 reopen 합니다.
