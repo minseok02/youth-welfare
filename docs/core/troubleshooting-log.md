@@ -4586,3 +4586,19 @@
   - token은 우선 `AdminRecommendationCandidateDiagnosticResponse` 에만 노출했다.
   - public API 응답(`/api/recommendations`, `/api/policies`) 확대나 `ServiceTag/service_taxonomy_terms/service_facts` 승격은 이번 단계에서 일부러 하지 않았다.
 - 이유: 이 순서가 가장 안전하다. raw exact label summary는 이미 사용자 응답과 AI prompt에 붙어 있으므로, 지금 먼저 필요한 것은 downstream contract 변경이 아니라 **내부 해석의 관찰 가능성**이다. token을 diagnostics 에만 붙이면 다음 단계에서 “정말 이 token을 검색/추천/관리 facet에서 소비할 가치가 있는가?”를 보고 판단할 수 있다. 즉 이번 구현의 의도는 canonical 확장이 아니라 **해석 경계의 가시화**다.
+
+## 839) 서버에서도 `Gov24` token parser는 기대대로 동작했고, 남은 문제는 소비처 선택이다
+- 문제: local 테스트와 문서 초안만으로는 `Gov24LabelTokenSupport` 가 실제 운영 diagnostics 에서도 동일하게 보이는지 아직 확인되지 않았다. 이 경계가 닫히지 않으면 다음 단계에서 parser correctness와 consumer scope를 같이 논하게 되고, 불필요하게 implementation 자체를 다시 의심하게 된다.
+- 확인:
+  - 최신 `main` (`cde9cec`) 을 서버에 fast-forward 후 app 재빌드/재기동하고 `admin recommendation diagnostics` 를 다시 호출했다.
+  - 실제 `Gov24` 서비스 `5023/5025/5027` 의 raw label은
+    - `gov24UserTypeLabel=소상공인||법인/시설/단체`
+    - `gov24BenefitTypeLabel=현금(융자)`
+    였다.
+  - diagnostics 출력은
+    - `gov24UserTypeTokens=['소상공인', '법인/시설/단체']`
+    - `gov24BenefitTypeTokens=['현금(융자)']`
+    로 나왔다.
+  - 즉 raw label 유지와 token 분해가 동시에 기대대로 보였고, 이번 변경이 추천 score나 public API 응답을 건드리지 않았다는 점도 다시 확인됐다.
+- 해결: `policy-gov24-canonical-mapping-draft.md` 와 `phase-plan.md` 에 서버 검증 메모를 추가했다.
+- 이유: 이걸 적어 두면 다음 단계의 질문을 명확히 좁힐 수 있다. 지금 남은 질문은 “parser가 맞나?”가 아니라 “이 token을 실제 어디에 쓰고 싶나?”다. 즉 다음 decision point는 구현 안정성이 아니라 **consumer scope 선택**이다.

@@ -50,6 +50,19 @@
 - `개인||가구`, `현금||서비스(의료)` 같은 복합값을 바로 공통 term/fact로 올리면, 추천 규칙이나 검색 facet에 의도치 않은 영향을 줄 수 있다.
 - 따라서 이번 단계는 **label 유지 + token 관찰 가능화**까지만 열고, 실제 canonical 소비는 별도 active 목표로 분리한다.
 
+### 서버 검증 메모
+
+운영 서버 `cde9cec` 기준으로 admin diagnostics 재검증 시 아래와 같이 raw label 유지 + token 분해가 확인됐다.
+
+- raw
+  - `소상공인||법인/시설/단체`
+  - `현금(융자)`
+- diagnostics
+  - `gov24UserTypeTokens=['소상공인', '법인/시설/단체']`
+  - `gov24BenefitTypeTokens=['현금(융자)']`
+
+즉 parser 자체는 서버에서도 기대대로 동작했고, 다음 단계의 남은 질문은 parser 버그가 아니라 **이 token을 실제 어디서 소비할 것인가** 이다.
+
 ## 이번 초안의 범위
 
 이번 초안에서 하는 것:
