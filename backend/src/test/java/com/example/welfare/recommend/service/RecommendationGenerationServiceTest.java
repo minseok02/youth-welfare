@@ -102,15 +102,17 @@ class RecommendationGenerationServiceTest {
         RetrievedRecommendationCandidates retrieved = new RetrievedRecommendationCandidates(List.of(service), null);
         ScoredCandidate scored = sampleScoredCandidate(service);
         ScoreWeight weight = sampleWeight();
-        UserRecommendation saved = sampleRecommendation(202L);
+        LocalDateTime staleRecommendedAt = LocalDateTime.of(2026, 5, 3, 12, 0);
+        UserRecommendation saved = sampleRecommendation(202L, service, LocalDateTime.of(2026, 5, 4, 12, 0));
+        LocalDateTime savedRecommendedAt = saved.getRecommendedAt();
 
         when(userRecommendationReadService.getRecommendationContext(1L))
                 .thenReturn(new UserRecommendationReadService.RecommendationReadContext(user, snapshot));
         when(recommendationExecutionGuard.runForUser(eq("user-key-1"), any(), any()))
                 .thenAnswer(invocation -> invocation.<java.util.function.Supplier<List<UserRecommendation>>>getArgument(1).get());
         when(recommendationRefreshCacheService.findReusableRecommendedAt("user-key-1"))
-                .thenReturn(Optional.of(LocalDateTime.of(2026, 5, 3, 12, 0)));
-        when(recommendationResultReadService.findSavedRecommendationsForBatch("user-key-1", LocalDateTime.of(2026, 5, 3, 12, 0)))
+                .thenReturn(Optional.of(staleRecommendedAt));
+        when(recommendationResultReadService.findSavedRecommendationsForBatch("user-key-1", staleRecommendedAt))
                 .thenReturn(List.of());
         when(clusterService.assignCluster(snapshot)).thenReturn("youth_all");
         when(retrievalService.retrieve("youth_all", snapshot)).thenReturn(retrieved);
@@ -120,6 +122,8 @@ class RecommendationGenerationServiceTest {
         when(reRankingService.rerank(List.of(scored), snapshot)).thenReturn(List.of(scored));
         when(reRankingService.getCurrentWeight()).thenReturn(weight);
         when(recommendationPersistenceService.save(user, List.of(scored), weight)).thenReturn(List.of(saved));
+        when(recommendationResultReadService.findSavedRecommendationsForBatch("user-key-1", savedRecommendedAt))
+                .thenReturn(List.of(saved));
 
         List<UserRecommendation> result = recommendationGenerationService.recommend(1L, false);
 
@@ -139,6 +143,7 @@ class RecommendationGenerationServiceTest {
         ScoredCandidate scored = sampleScoredCandidate(service);
         ScoreWeight weight = sampleWeight();
         UserRecommendation saved = sampleRecommendation(303L);
+        LocalDateTime savedRecommendedAt = saved.getRecommendedAt();
 
         when(userRecommendationReadService.getRecommendationContext(1L))
                 .thenReturn(new UserRecommendationReadService.RecommendationReadContext(user, snapshot));
@@ -151,6 +156,8 @@ class RecommendationGenerationServiceTest {
         when(reRankingService.rerank(List.of(scored), snapshot)).thenReturn(List.of(scored));
         when(reRankingService.getCurrentWeight()).thenReturn(weight);
         when(recommendationPersistenceService.save(user, List.of(scored), weight)).thenReturn(List.of(saved));
+        when(recommendationResultReadService.findSavedRecommendationsForBatch("user-key-1", savedRecommendedAt))
+                .thenReturn(List.of(saved));
 
         List<UserRecommendation> result = recommendationGenerationService.recommend(1L, true);
 
@@ -159,6 +166,50 @@ class RecommendationGenerationServiceTest {
         verify(clusterService, never()).assignCluster(snapshot);
         verify(retrievalService).retrieve("youth_all", snapshot);
         verify(recommendationRefreshCacheService, never()).markReusable(anyString(), any());
+    }
+
+    @Test
+    @DisplayName("refresh 응답은 저장 직후 DB 재조회 순서(final_score DESC, service_id DESC)를 따른다")
+    void recommendReturnsSavedRecommendationsInRepositoryOrder() {
+        User user = sampleUser();
+        RecommendationUserSnapshot snapshot = sampleSnapshot();
+        WelfareService firstService = sampleService(11L, "청년 월세 지원");
+        WelfareService secondService = sampleService(12L, "청년 전세 지원");
+        RetrievedRecommendationCandidates retrieved = new RetrievedRecommendationCandidates(List.of(firstService, secondService), null);
+        ScoredCandidate firstScored = sampleScoredCandidate(firstService);
+        ScoredCandidate secondScored = sampleScoredCandidate(secondService);
+        ScoreWeight weight = sampleWeight();
+        LocalDateTime recommendedAt = LocalDateTime.of(2026, 5, 17, 23, 20);
+
+        UserRecommendation persistedOutOfOrder = sampleRecommendation(501L, firstService, recommendedAt);
+        UserRecommendation persistedOrdered = sampleRecommendation(502L, secondService, recommendedAt);
+
+        when(userRecommendationReadService.getRecommendationContext(1L))
+                .thenReturn(new UserRecommendationReadService.RecommendationReadContext(user, snapshot));
+        when(recommendationExecutionGuard.runForUser(eq("user-key-1"), any(), any()))
+                .thenAnswer(invocation -> invocation.<java.util.function.Supplier<List<UserRecommendation>>>getArgument(1).get());
+        when(recommendationRefreshCacheService.findReusableRecommendedAt("user-key-1"))
+                .thenReturn(Optional.empty());
+        when(clusterService.assignCluster(snapshot)).thenReturn("youth_all");
+        when(retrievalService.retrieve("youth_all", snapshot)).thenReturn(retrieved);
+        when(ruleScoringService.score(retrieved, snapshot)).thenReturn(List.of(firstScored, secondScored));
+        when(recommendationPostScoringFilterService.filterSpecialTargetMismatches(List.of(firstScored, secondScored)))
+                .thenReturn(List.of(firstScored, secondScored));
+        when(aiScoringService.score("youth_all", List.of(firstScored, secondScored), snapshot))
+                .thenReturn(List.of(firstScored, secondScored));
+        when(reRankingService.rerank(List.of(firstScored, secondScored), snapshot))
+                .thenReturn(List.of(firstScored, secondScored));
+        when(reRankingService.getCurrentWeight()).thenReturn(weight);
+        when(recommendationPersistenceService.save(user, List.of(firstScored, secondScored), weight))
+                .thenReturn(List.of(persistedOutOfOrder, persistedOrdered));
+        when(recommendationResultReadService.findSavedRecommendationsForBatch("user-key-1", recommendedAt))
+                .thenReturn(List.of(persistedOrdered, persistedOutOfOrder));
+
+        List<UserRecommendation> result = recommendationGenerationService.recommend(1L, false);
+
+        assertThat(result).containsExactly(persistedOrdered, persistedOutOfOrder);
+        verify(recommendationLogService).refreshLogs(user, List.of(persistedOrdered, persistedOutOfOrder), weight);
+        verify(recommendationRefreshCacheService).markReusable("user-key-1", recommendedAt);
     }
 
     @Test
@@ -192,6 +243,7 @@ class RecommendationGenerationServiceTest {
         ScoredCandidate scored = sampleScoredCandidate(service);
         ScoreWeight weight = sampleWeight();
         UserRecommendation saved = sampleRecommendation(404L);
+        LocalDateTime savedRecommendedAt = saved.getRecommendedAt();
 
         when(userRecommendationReadService.getRecommendationContext(1L))
                 .thenReturn(new UserRecommendationReadService.RecommendationReadContext(user, snapshot));
@@ -207,6 +259,8 @@ class RecommendationGenerationServiceTest {
         when(reRankingService.rerank(List.of(scored), snapshot)).thenReturn(List.of(scored));
         when(reRankingService.getCurrentWeight()).thenReturn(weight);
         when(recommendationPersistenceService.save(user, List.of(scored), weight)).thenReturn(List.of(saved));
+        when(recommendationResultReadService.findSavedRecommendationsForBatch("user-key-1", savedRecommendedAt))
+                .thenReturn(List.of(saved));
         org.mockito.Mockito.doThrow(new IllegalStateException("log failed"))
                 .when(recommendationLogService).refreshLogs(user, List.of(saved), weight);
 
@@ -249,11 +303,15 @@ class RecommendationGenerationServiceTest {
     }
 
     private WelfareService sampleService() {
+        return sampleService(11L, "청년 월세 지원");
+    }
+
+    private WelfareService sampleService(Long id, String title) {
         return WelfareService.builder()
-                .id(11L)
+                .id(id)
                 .sourceType(WelfareService.SourceType.YOUTH)
-                .sourceId("Y11")
-                .title("청년 월세 지원")
+                .sourceId("Y" + id)
+                .title(title)
                 .status(WelfareService.ServiceStatus.ACTIVE)
                 .build();
     }
@@ -278,12 +336,16 @@ class RecommendationGenerationServiceTest {
     }
 
     private UserRecommendation sampleRecommendation(Long id) {
+        return sampleRecommendation(id, sampleService(), LocalDateTime.of(2026, 5, 3, 12, 0));
+    }
+
+    private UserRecommendation sampleRecommendation(Long id, WelfareService service, LocalDateTime recommendedAt) {
         return UserRecommendation.builder()
                 .id(id)
                 .userKey("user-key-1")
-                .service(sampleService())
+                .service(service)
                 .finalScore(BigDecimal.valueOf(0.91))
-                .recommendedAt(LocalDateTime.of(2026, 5, 3, 12, 0))
+                .recommendedAt(recommendedAt)
                 .build();
     }
 }

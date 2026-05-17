@@ -24,7 +24,7 @@ public interface UserRecommendationRepository extends JpaRepository<UserRecommen
                     FROM UserRecommendation ur2
                     WHERE ur2.userKey = :userKey
               )
-            ORDER BY ur.finalScore DESC
+            ORDER BY ur.finalScore DESC, ur.service.id DESC
             """)
     List<UserRecommendation> findLatestBatchByUserKeyOrderByFinalScoreDesc(@Param("userKey") String userKey);
 
@@ -33,7 +33,7 @@ public interface UserRecommendationRepository extends JpaRepository<UserRecommen
             JOIN FETCH ur.service
             WHERE ur.userKey = :userKey
               AND ur.recommendedAt = :recommendedAt
-            ORDER BY ur.finalScore DESC
+            ORDER BY ur.finalScore DESC, ur.service.id DESC
             """)
     List<UserRecommendation> findByUserKeyAndRecommendedAtOrderByFinalScoreDesc(@Param("userKey") String userKey,
                                                                                 @Param("recommendedAt") LocalDateTime recommendedAt);
@@ -48,7 +48,7 @@ public interface UserRecommendationRepository extends JpaRepository<UserRecommen
                     WHERE ur2.userKey = :userKey
                       AND ur2.service.id = ur.service.id
               )
-            ORDER BY ur.finalScore DESC
+            ORDER BY ur.finalScore DESC, ur.service.id DESC
             """)
     List<UserRecommendation> findLatestByUserKeyOrderByFinalScoreDesc(@Param("userKey") String userKey);
 
@@ -63,7 +63,7 @@ public interface UserRecommendationRepository extends JpaRepository<UserRecommen
                     WHERE ur2.userKey = :userKey
                       AND ur2.service.id = ur.service.id
               )
-            ORDER BY ur.finalScore DESC
+            ORDER BY ur.finalScore DESC, ur.service.id DESC
             """)
     List<UserRecommendation> findTopByUserKey(@Param("userKey") String userKey, Pageable pageable);
 

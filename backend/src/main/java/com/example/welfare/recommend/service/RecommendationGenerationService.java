@@ -93,6 +93,8 @@ public class RecommendationGenerationService {
             return saved;
         }
 
+        saved = recommendationResultReadService.findSavedRecommendationsForBatch(userKey, saved.get(0).getRecommendedAt());
+
         try {
             recommendationLogService.refreshLogs(user, saved, weight);
         } catch (Exception e) {

@@ -70,7 +70,7 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                   )
             ORDER BY
               CASE
-                WHEN ws.sourceType = com.example.welfare.policy.entity.WelfareService.SourceType.BOKJIRO_LOCAL
+                WHEN ws.sourceType = 'BOKJIRO_LOCAL'
                      AND EXISTS (
                         SELECT sr3.id FROM ServiceRegion sr3
                         WHERE sr3.service = ws
@@ -118,7 +118,7 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                   )
             ORDER BY
               CASE
-                WHEN ws.sourceType = com.example.welfare.policy.entity.WelfareService.SourceType.BOKJIRO_LOCAL
+                WHEN ws.sourceType = 'BOKJIRO_LOCAL'
                      AND EXISTS (
                         SELECT sr3.id FROM ServiceRegion sr3
                         WHERE sr3.service = ws
@@ -186,7 +186,7 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                   )
             ORDER BY
               CASE
-                WHEN ws.sourceType = com.example.welfare.policy.entity.WelfareService.SourceType.BOKJIRO_LOCAL
+                WHEN ws.sourceType = 'BOKJIRO_LOCAL'
                      AND EXISTS (
                         SELECT sr3.id FROM ServiceRegion sr3
                         WHERE sr3.service = ws
@@ -234,7 +234,7 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                   )
             ORDER BY
               CASE
-                WHEN ws.sourceType = com.example.welfare.policy.entity.WelfareService.SourceType.BOKJIRO_LOCAL
+                WHEN ws.sourceType = 'BOKJIRO_LOCAL'
                      AND EXISTS (
                         SELECT sr3.id FROM ServiceRegion sr3
                         WHERE sr3.service = ws
