@@ -28,6 +28,8 @@ public class AdminDashboardRecommendationService {
                 adminDashboardRecommendationReadRepository.fetchRecommendationSummary(dayAgo, summaryWindowAgo);
         AdminDashboardReadRows.RecommendationTrafficMixRow recommendationTrafficMix =
                 adminDashboardRecommendationReadRepository.fetchRecommendationTrafficMix(summaryWindowAgo);
+        String realUserTrafficGate =
+                AdminDashboardQueryPolicy.resolveRealUserTrafficGate(recommendationSummary, recommendationTrafficMix);
 
         return new AdminRecommendationBreakdownResponse(
                 now,
@@ -52,6 +54,7 @@ public class AdminDashboardRecommendationService {
                         recommendationTrafficMix.realUserClickedUsersInWindow(),
                         recommendationTrafficMix.realNonExampleClickedUsersInWindow()
                 ),
+                realUserTrafficGate,
                 adminDashboardRecommendationReadRepository.fetchRecommendationSourceBreakdowns(summaryWindowAgo, breakdownLimit).stream()
                         .map(row -> new AdminRecommendationBreakdownResponse.SourceBreakdown(
                                 row.sourceType(),

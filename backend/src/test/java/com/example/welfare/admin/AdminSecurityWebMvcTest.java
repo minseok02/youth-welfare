@@ -617,6 +617,7 @@ class AdminSecurityWebMvcTest {
                                         0,
                                         0
                                 ),
+                                "DEFERRED_NO_REAL_USER_TRAFFIC",
                                 List.of(
                                         new AdminDashboardResponse.RecommendationWeightSnapshot(
                                                 "GROWTH",
@@ -689,6 +690,7 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.data.recommendation.trafficMixInWindow.localRealNonExampleSeedLogsInWindow").value(0))
                 .andExpect(jsonPath("$.data.recommendation.trafficMixInWindow.realUserLogsInWindow").value(0))
                 .andExpect(jsonPath("$.data.recommendation.trafficMixInWindow.realNonExampleLogsInWindow").value(0))
+                .andExpect(jsonPath("$.data.recommendation.realUserTrafficGateInWindow").value("DEFERRED_NO_REAL_USER_TRAFFIC"))
                 .andExpect(jsonPath("$.data.notification.windowDays").value(7))
                 .andExpect(jsonPath("$.data.notification.sentInWindow").value(5))
                 .andExpect(jsonPath("$.data.search.windowDays").value(7))
@@ -751,6 +753,7 @@ class AdminSecurityWebMvcTest {
                                         0,
                                         0
                                 ),
+                                "DEFERRED_NO_REAL_USER_TRAFFIC",
                                 List.of()
                         ),
                         new AdminDashboardResponse.NotificationSection(0, 0, 14, 0, 0),
@@ -802,6 +805,7 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.data.recommendation.trafficMixInWindow.localRealNonExampleSeedUsersInWindow").value(0))
                 .andExpect(jsonPath("$.data.recommendation.trafficMixInWindow.realUserUsersInWindow").value(0))
                 .andExpect(jsonPath("$.data.recommendation.trafficMixInWindow.realNonExampleUsersInWindow").value(0))
+                .andExpect(jsonPath("$.data.recommendation.realUserTrafficGateInWindow").value("DEFERRED_NO_REAL_USER_TRAFFIC"))
                 .andExpect(jsonPath("$.data.notification.windowDays").value(14))
                 .andExpect(jsonPath("$.data.trend.recommendation[1].fallbackRate").value(0.5000))
                 .andExpect(jsonPath("$.data.search.windowDays").value(14))
@@ -948,6 +952,7 @@ class AdminSecurityWebMvcTest {
                                 0,
                                 0
                         ),
+                        "DEFERRED_NO_REAL_USER_TRAFFIC",
                         List.of(
                                 new AdminRecommendationBreakdownResponse.SourceBreakdown(
                                         "YOUTH",
@@ -1043,6 +1048,7 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.data.trafficMixInWindow.localRealNonExampleSeedUsersInWindow").value(0))
                 .andExpect(jsonPath("$.data.trafficMixInWindow.realUserUsersInWindow").value(0))
                 .andExpect(jsonPath("$.data.trafficMixInWindow.realNonExampleUsersInWindow").value(0))
+                .andExpect(jsonPath("$.data.realUserTrafficGateInWindow").value("DEFERRED_NO_REAL_USER_TRAFFIC"))
                 .andExpect(jsonPath("$.data.sourceBreakdowns[0].sourceType").value("YOUTH"))
                 .andExpect(jsonPath("$.data.categoryBreakdowns[0].category").value("HOUSING"))
                 .andExpect(jsonPath("$.data.weightBreakdowns[0].weightKey").value("GROWTH"))

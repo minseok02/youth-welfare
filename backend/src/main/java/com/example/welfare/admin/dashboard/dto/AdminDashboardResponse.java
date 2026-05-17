@@ -67,6 +67,7 @@ public record AdminDashboardResponse(
             BigDecimal clickThroughRateInWindow,
             BigDecimal fallbackRateInWindow,
             RecommendationTrafficMixSnapshot trafficMixInWindow,
+            String realUserTrafficGateInWindow,
             List<RecommendationWeightSnapshot> weightBucketsInWindow
     ) {
     }

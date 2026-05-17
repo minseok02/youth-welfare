@@ -207,6 +207,7 @@ class AdminDashboardSummaryServiceTest {
         assertThat(response.recommendation().trafficMixInWindow().localRealNonExampleSeedLogsInWindow()).isZero();
         assertThat(response.recommendation().trafficMixInWindow().realUserLogsInWindow()).isZero();
         assertThat(response.recommendation().trafficMixInWindow().realNonExampleLogsInWindow()).isZero();
+        assertThat(response.recommendation().realUserTrafficGateInWindow()).isEqualTo("DEFERRED_NO_REAL_USER_TRAFFIC");
         assertThat(response.recommendation().trafficMixInWindow().exampleClickedUsersInWindow()).isEqualTo(9);
         assertThat(response.recommendation().weightBucketsInWindow()).extracting(AdminDashboardResponse.RecommendationWeightSnapshot::weightKey)
                 .containsExactly("GROWTH", "COLD_START");
@@ -300,6 +301,7 @@ class AdminDashboardSummaryServiceTest {
                 .containsExactly(3, 14);
         assertThat(response.recommendation().windowDays()).isEqualTo(14);
         assertThat(response.recommendation().nextWeightKey()).isEqualTo("GROWTH");
+        assertThat(response.recommendation().realUserTrafficGateInWindow()).isEqualTo("DEFERRED_EMPTY_COHORT");
         assertThat(response.notification().windowDays()).isEqualTo(14);
         assertThat(response.trend().recommendation()).extracting(AdminDashboardResponse.RecommendationTrendPoint::windowDays)
                 .containsExactly(3, 14);

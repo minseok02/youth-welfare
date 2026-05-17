@@ -151,6 +151,7 @@ class AdminDashboardRecommendationServiceTest {
         assertThat(response.trafficMixInWindow().localRealNonExampleSeedUsersInWindow()).isZero();
         assertThat(response.trafficMixInWindow().realUserUsersInWindow()).isZero();
         assertThat(response.trafficMixInWindow().realNonExampleUsersInWindow()).isZero();
+        assertThat(response.realUserTrafficGateInWindow()).isEqualTo("DEFERRED_NO_REAL_USER_TRAFFIC");
         assertThat(response.trafficMixInWindow().exampleClickedUsersInWindow()).isEqualTo(9);
         assertThat(response.sourceBreakdowns()).singleElement().satisfies(source -> {
             assertThat(source.sourceType()).isEqualTo("YOUTH");

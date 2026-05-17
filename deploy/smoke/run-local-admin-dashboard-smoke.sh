@@ -105,6 +105,7 @@ assert isinstance(traffic_mix["boundedLocalClickedUsersInWindow"], int), "recomm
 assert isinstance(traffic_mix["localRealNonExampleSeedClickedUsersInWindow"], int), "recommendation.trafficMixInWindow.localRealNonExampleSeedClickedUsersInWindow must be int"
 assert isinstance(traffic_mix["realUserClickedUsersInWindow"], int), "recommendation.trafficMixInWindow.realUserClickedUsersInWindow must be int"
 assert isinstance(traffic_mix["realNonExampleClickedUsersInWindow"], int), "recommendation.trafficMixInWindow.realNonExampleClickedUsersInWindow must be int"
+assert isinstance(data["recommendation"]["realUserTrafficGateInWindow"], str) and data["recommendation"]["realUserTrafficGateInWindow"], "recommendation.realUserTrafficGateInWindow must be non-empty string"
 if data["recommendation"]["topWeightStage"]:
     assert data["recommendation"]["nextWeightKey"] is None, "top stage should not have nextWeightKey"
     assert data["recommendation"]["nextWeightMinLogCount"] is None, "top stage should not have nextWeightMinLogCount"
@@ -141,6 +142,7 @@ print(data["recommendation"]["trafficMixInWindow"]["boundedLocalUsersInWindow"])
 print(data["recommendation"]["trafficMixInWindow"]["localRealNonExampleSeedUsersInWindow"])
 print(data["recommendation"]["trafficMixInWindow"]["realUserUsersInWindow"])
 print(data["recommendation"]["trafficMixInWindow"]["realNonExampleUsersInWindow"])
+print(data["recommendation"]["realUserTrafficGateInWindow"])
 print(data["notification"]["sentInWindow"])
 print(data["search"]["zeroResultSearchesInWindow"])
 print(data["collect"]["windowDays"])
@@ -221,10 +223,11 @@ echo "recommendation_bounded_local_users_in_window=${DASHBOARD_VALUES[10]}"
 echo "recommendation_local_real_non_example_seed_users_in_window=${DASHBOARD_VALUES[11]}"
 echo "recommendation_real_user_users_in_window=${DASHBOARD_VALUES[12]}"
 echo "recommendation_real_non_example_users_in_window=${DASHBOARD_VALUES[13]}"
-echo "notification_sent_in_window=${DASHBOARD_VALUES[14]}"
-echo "search_zero_result_searches_in_window=${DASHBOARD_VALUES[15]}"
-echo "summary_window_days=${DASHBOARD_VALUES[16]}"
-echo "collect_trend_windows=${DASHBOARD_VALUES[17]}"
+echo "recommendation_real_user_traffic_gate_in_window=${DASHBOARD_VALUES[14]}"
+echo "notification_sent_in_window=${DASHBOARD_VALUES[15]}"
+echo "search_zero_result_searches_in_window=${DASHBOARD_VALUES[16]}"
+echo "summary_window_days=${DASHBOARD_VALUES[17]}"
+echo "collect_trend_windows=${DASHBOARD_VALUES[18]}"
 echo "requested_summary_window_days=${SUMMARY_WINDOW_DAYS}"
 echo "requested_trend_window_days=${TREND_WINDOW_DAYS_CSV}"
 if [[ -n "${CONTAINER_ADMIN_ALLOWLIST}" ]]; then

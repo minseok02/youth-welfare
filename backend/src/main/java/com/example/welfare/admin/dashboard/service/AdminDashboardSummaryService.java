@@ -42,6 +42,8 @@ public class AdminDashboardSummaryService {
                 adminDashboardRecommendationReadRepository.fetchRecommendationSummary(dayAgo, summaryWindowAgo);
         AdminDashboardReadRows.RecommendationTrafficMixRow recommendationTrafficMix =
                 adminDashboardRecommendationReadRepository.fetchRecommendationTrafficMix(summaryWindowAgo);
+        String realUserTrafficGate =
+                AdminDashboardQueryPolicy.resolveRealUserTrafficGate(recommendationSummary, recommendationTrafficMix);
         ScoreWeightService.ScoreWeightProgress weightProgress =
                 scoreWeightService.getProgress(recommendationSummary.totalLogs());
         ScoreWeight activeWeight = weightProgress.activeWeight();
@@ -125,6 +127,7 @@ public class AdminDashboardSummaryService {
                                 recommendationTrafficMix.realUserClickedUsersInWindow(),
                                 recommendationTrafficMix.realNonExampleClickedUsersInWindow()
                         ),
+                        realUserTrafficGate,
                         adminDashboardRecommendationReadRepository.fetchRecommendationWeightBuckets(summaryWindowAgo).stream()
                                 .map(row -> new AdminDashboardResponse.RecommendationWeightSnapshot(
                                         row.weightKey(),

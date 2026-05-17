@@ -11,6 +11,7 @@ public record AdminRecommendationBreakdownResponse(
         long clickedLogsInWindow,
         long fallbackLogsInWindow,
         RecommendationTrafficMixSnapshot trafficMixInWindow,
+        String realUserTrafficGateInWindow,
         List<SourceBreakdown> sourceBreakdowns,
         List<CategoryBreakdown> categoryBreakdowns,
         List<WeightBreakdown> weightBreakdowns,

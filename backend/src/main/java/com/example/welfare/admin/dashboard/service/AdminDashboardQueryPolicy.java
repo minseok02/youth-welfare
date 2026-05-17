@@ -1,5 +1,7 @@
 package com.example.welfare.admin.dashboard.service;
 
+import com.example.welfare.admin.dashboard.repository.AdminDashboardReadRows;
+
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.LinkedHashSet;
@@ -93,5 +95,24 @@ final class AdminDashboardQueryPolicy {
         }
         return BigDecimal.valueOf(numerator)
                 .divide(BigDecimal.valueOf(denominator), 4, RoundingMode.HALF_UP);
+    }
+
+    static String resolveRealUserTrafficGate(
+            AdminDashboardReadRows.RecommendationSummaryRow summaryRow,
+            AdminDashboardReadRows.RecommendationTrafficMixRow trafficMixRow
+    ) {
+        if (summaryRow.sentInWindow() <= 0) {
+            return "DEFERRED_EMPTY_COHORT";
+        }
+        if (trafficMixRow.realUserLogsInWindow() <= 0) {
+            return "DEFERRED_NO_REAL_USER_TRAFFIC";
+        }
+        if (trafficMixRow.realUserUsersInWindow() < 3) {
+            return "DEFERRED_REAL_USER_SAMPLE_THIN";
+        }
+        if (trafficMixRow.realUserClickedUsersInWindow() < 3) {
+            return "DEFERRED_REAL_USER_CLICK_SAMPLE_THIN";
+        }
+        return "READY_REAL_USER_TRAFFIC";
     }
 }
