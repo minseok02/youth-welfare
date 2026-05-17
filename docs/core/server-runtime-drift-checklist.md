@@ -35,12 +35,18 @@ backend/src/main/resources/db/migration/V2026_05_15_02__add_user_alerts.sql
 backend/src/main/resources/db/migration/V2026_05_15_03__add_web_push_subscriptions.sql
 backend/src/main/resources/db/migration/V2026_05_16_01__add_notification_channel_flags.sql
 backend/src/main/resources/db/migration/V2026_05_17_01__add_ai_status_to_user_recommendations.sql
+backend/src/main/resources/db/migration/V2026_05_17_01__add_user_account_origin.sql
 ```
 
 대표 증상:
 - `missing table [user_alerts]`
 - `missing column [user_profiles.notification_*]`
 - `missing column [user_recommendations.ai_status]`
+- `missing column [users.account_origin]`
+
+주의:
+- `2026-05-17` 서버 재기동에서도 실제로 `users.account_origin` 누락 때문에 첫 부팅이 실패했다.
+- 따라서 기존 volume에서는 `V2026_05_17_01__add_ai_status_to_user_recommendations.sql` 만이 아니라 `V2026_05_17_01__add_user_account_origin.sql` 도 함께 봐야 한다.
 
 수동 적용 후에는 다시:
 
@@ -62,6 +68,7 @@ docker exec -it youth-welfare-db psql -U postgres -d youth_welfare -c "\d user_r
 최근 기준으로 꼭 보여야 하는 것:
 - `user_alerts`
 - `web_push_subscriptions`
+- `users.account_origin`
 - `user_profiles.notification_email_yn`
 - `user_profiles.notification_in_app_yn`
 - `user_profiles.notification_web_push_yn`
