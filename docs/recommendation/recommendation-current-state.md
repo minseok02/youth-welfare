@@ -214,6 +214,18 @@ recommendation/replay 는 collect와 sidecar snapshot 품질에 직접 의존합
 따라서 recommendation 쪽의 다음 active 작업은 direct weight 변경이 아니라
 bounded/local seed를 넘어서는 로그 기준선 확보, concentration audit와 diversity/fallback 경계 재확인입니다.
 
+참고로 로컬 bounded drill 경로는 이제 따로 있습니다.
+
+- `deploy/smoke/run-local-real-user-gate-drill-smoke.sh`
+- 최근 `LOCAL_REAL_NON_EXAMPLE_SEED` 사용자 `3명`을 일시적으로 `REAL_USER` 로 승격
+- all-cohort CTR readiness: `READY_FOR_WEIGHT_REVIEW`
+- all-cohort concentration `real_user_cohort_gate`: `READY_REAL_USER_COHORT`
+- admin summary/breakdowns `realUserTrafficGateInWindow`: `READY_REAL_USER_TRAFFIC`
+- admin summary/breakdowns `recommendationReviewGate`: `READY_CONCENTRATED_TOP1_REVIEW`
+- top1 leader signal summary: `MIXED_REAL_USER_LEADER`
+
+즉 gate 전이 로직 자체는 현재 코드 기준으로 정상입니다. 남은 blocker는 "gate가 안 열린다"가 아니라, 운영에서 읽을 수 있는 진짜 `REAL_USER` 표본이 아직 없다는 점입니다.
+
 ### 4. 저장 추천 편중
 
 CTR readiness와 별개로, 최신 `user_recommendations` batch 자체도 현재 꽤 집중되어 있습니다.

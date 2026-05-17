@@ -196,6 +196,7 @@ REPLAY_APP_BASE_URL=http://127.0.0.1:18082 deploy/smoke/run-local-validation-sui
 `quick` 은 `auth/session -> public policy/profile/chat -> bookmark consistency -> recommendation click -> admin dashboard -> admin recommendation breakdowns` 까지만 돌고 replay는 건너뜁니다.
 기본 `full` 프로필은 replay까지 포함합니다.
 `real-non-example recommendation seed smoke` 는 local synthetic account를 `LOCAL_REAL_NON_EXAMPLE_SEED` cohort로 하나 더 만드는 opt-in 단계라서 quick/full 기본 프로필에는 넣지 않습니다.
+`real-user gate drill smoke` 도 opt-in 단계입니다. 이 스크립트는 최근 `LOCAL_REAL_NON_EXAMPLE_SEED` 사용자 최대 `3명`을 골라 일시적으로 `REAL_USER` 로 승격하고, CTR/concentration/admin dashboard gate가 실제로 `READY_*` 로 열리는지 확인한 뒤 원복합니다. 실사용 로그를 만드는 것이 아니라 local drill용 전이 검증이므로 quick/full 기본 프로필에는 넣지 않습니다.
 wrapper 끝에는 `suite_duration_seconds`, `step_duration_seconds=<label>|<seconds>` 형태의 요약이 같이 출력됩니다.
 실패 시에는 `failed_step=<label>`, `elapsed_before_failure_seconds=<n>` 도 같이 출력됩니다.
 
@@ -218,6 +219,7 @@ deploy/smoke/run-local-validation-suite.sh --quick --print-plan
 deploy/smoke/run-local-validation-suite.sh --full --skip-replay
 deploy/smoke/run-local-validation-suite.sh --only dashboard --print-plan
 deploy/smoke/run-local-validation-suite.sh --only real-non-example-seed
+deploy/smoke/run-local-validation-suite.sh --only real-user-gate-drill
 deploy/smoke/run-local-validation-suite.sh --only replay
 deploy/smoke/run-local-validation-suite.sh --only replay --keep-artifacts
 ```
@@ -233,6 +235,7 @@ deploy/smoke/run-local-ctr-readiness-audit.sh
 deploy/smoke/run-local-recommendation-concentration-audit.sh
 deploy/smoke/run-local-non-example-recommendation-seed-smoke.sh
 deploy/smoke/run-local-real-non-example-recommendation-seed-smoke.sh
+deploy/smoke/run-local-real-user-gate-drill-smoke.sh
 deploy/smoke/run-local-notification-channel-smoke.sh
 deploy/smoke/run-local-deadline-reminder-smoke.sh
 ```
@@ -242,6 +245,7 @@ deploy/smoke/run-local-deadline-reminder-smoke.sh
 - `bounded_local` 과 `local_real_non_example_seed` 는 로컬 seed 진단 모드이고, 실질 reopen gate는 `real_user` 기준입니다.
 - legacy `real_non_example` 은 `local_real_non_example_seed + real_user` aggregate, `non_example` 은 `bounded_local + real_non_example` 합산 alias 입니다.
 - `run-local-real-non-example-recommendation-seed-smoke.sh` 는 local synthetic account를 `LOCAL_REAL_NON_EXAMPLE_SEED` 로 분류되게 만들어 audit/defer guardrail을 점검하는 도구일 뿐, 실사용 품질 신호를 만드는 경로는 아닙니다.
+- `run-local-real-user-gate-drill-smoke.sh` 는 최근 `LOCAL_REAL_NON_EXAMPLE_SEED` 사용자 `3명`을 일시적으로 `REAL_USER` 로 승격해 `READY_REAL_USER_TRAFFIC`, `READY_REAL_USER_COHORT`, `READY_FOR_WEIGHT_REVIEW` 전이가 실제로 열리는지만 검증하고, 끝나면 `account_origin` 을 다시 되돌립니다.
 
 - policy retrieval/category baseline: [policy-quality-summary-runbook.md](../policy/policy-quality-summary-runbook.md)
 - Gov24 closeout/deferred inventory audit: [policy-gov24-runtime-audit-runbook.md](../policy/policy-gov24-runtime-audit-runbook.md)
