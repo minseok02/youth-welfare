@@ -71,6 +71,25 @@ public class AdminDashboardRecommendationService {
                         recommendationConcentration.realUserCohortGate(),
                         recommendationConcentration.signalQuality()
                 ),
+                adminDashboardRecommendationReadRepository.fetchTopRepeatedRecommendationServices(breakdownLimit).stream()
+                        .map(row -> new AdminRecommendationBreakdownResponse.RepeatedServiceSnapshot(
+                                row.serviceId(),
+                                row.title(),
+                                row.sourceType(),
+                                row.category(),
+                                row.rowCount(),
+                                row.distinctUsers()
+                        ))
+                        .toList(),
+                adminDashboardRecommendationReadRepository.fetchTop1RecommendationServices(breakdownLimit).stream()
+                        .map(row -> new AdminRecommendationBreakdownResponse.Top1ServiceSnapshot(
+                                row.serviceId(),
+                                row.title(),
+                                row.sourceType(),
+                                row.category(),
+                                row.usersAsTop1()
+                        ))
+                        .toList(),
                 adminDashboardRecommendationReadRepository.fetchRecommendationSourceBreakdowns(summaryWindowAgo, breakdownLimit).stream()
                         .map(row -> new AdminRecommendationBreakdownResponse.SourceBreakdown(
                                 row.sourceType(),

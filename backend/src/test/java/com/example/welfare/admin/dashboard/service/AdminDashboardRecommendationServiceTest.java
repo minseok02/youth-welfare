@@ -73,6 +73,27 @@ class AdminDashboardRecommendationServiceTest {
                         "DEFERRED_NO_REAL_USER_COHORT",
                         "LOCAL_REAL_NON_EXAMPLE_SEED_WITH_NON_REAL_BATCH"
                 ));
+        given(adminDashboardRecommendationReadRepository.fetchTopRepeatedRecommendationServices(3))
+                .willReturn(List.of(
+                        new AdminDashboardReadRows.RecommendationRepeatedServiceRow(
+                                2622L,
+                                "청년월세 지원사업",
+                                "BOKJIRO_CENTRAL",
+                                "주거",
+                                449,
+                                449
+                        )
+                ));
+        given(adminDashboardRecommendationReadRepository.fetchTop1RecommendationServices(3))
+                .willReturn(List.of(
+                        new AdminDashboardReadRows.RecommendationTop1ServiceRow(
+                                2622L,
+                                "청년월세 지원사업",
+                                "BOKJIRO_CENTRAL",
+                                "주거",
+                                271
+                        )
+                ));
         given(adminDashboardRecommendationReadRepository.fetchRecommendationSourceBreakdowns(
                 org.mockito.ArgumentMatchers.any(),
                 org.mockito.ArgumentMatchers.eq(3)
@@ -173,6 +194,15 @@ class AdminDashboardRecommendationServiceTest {
         assertThat(response.latestBatchConcentration().concentrationReadiness()).isEqualTo("CONCENTRATED_TOP1");
         assertThat(response.latestBatchConcentration().realUserCohortGate()).isEqualTo("DEFERRED_NO_REAL_USER_COHORT");
         assertThat(response.latestBatchConcentration().signalQuality()).isEqualTo("LOCAL_REAL_NON_EXAMPLE_SEED_WITH_NON_REAL_BATCH");
+        assertThat(response.topRepeatedServices()).singleElement().satisfies(service -> {
+            assertThat(service.serviceId()).isEqualTo(2622L);
+            assertThat(service.rowCount()).isEqualTo(449);
+            assertThat(service.distinctUsers()).isEqualTo(449);
+        });
+        assertThat(response.top1Services()).singleElement().satisfies(service -> {
+            assertThat(service.serviceId()).isEqualTo(2622L);
+            assertThat(service.usersAsTop1()).isEqualTo(271);
+        });
         assertThat(response.trafficMixInWindow().exampleClickedUsersInWindow()).isEqualTo(9);
         assertThat(response.sourceBreakdowns()).singleElement().satisfies(source -> {
             assertThat(source.sourceType()).isEqualTo("YOUTH");

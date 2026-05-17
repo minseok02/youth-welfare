@@ -155,6 +155,25 @@ public final class AdminDashboardReadRows {
     ) {
     }
 
+    public record RecommendationRepeatedServiceRow(
+            Long serviceId,
+            String title,
+            String sourceType,
+            String category,
+            long rowCount,
+            long distinctUsers
+    ) {
+    }
+
+    public record RecommendationTop1ServiceRow(
+            Long serviceId,
+            String title,
+            String sourceType,
+            String category,
+            long usersAsTop1
+    ) {
+    }
+
     public record RecommendationSourceBreakdownRow(
             String sourceType,
             long sentCount,

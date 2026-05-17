@@ -307,6 +307,92 @@ public class AdminDashboardRecommendationReadRepository {
         );
     }
 
+    public List<AdminDashboardReadRows.RecommendationRepeatedServiceRow> fetchTopRepeatedRecommendationServices(int limit) {
+        return jdbcTemplate.query("""
+                with latest as (
+                    select user_key, max(recommended_at) as recommended_at
+                      from user_recommendations
+                     group by user_key
+                ),
+                latest_rows as (
+                    select ur.user_key,
+                           ur.service_id
+                      from user_recommendations ur
+                      join latest l
+                        on l.user_key = ur.user_key
+                       and l.recommended_at = ur.recommended_at
+                )
+                select ws.id as service_id,
+                       ws.title,
+                       ws.source_type,
+                       coalesce(ws.unified_category, '기타') as category,
+                       count(*) as row_count,
+                       count(distinct lr.user_key) as distinct_users
+                  from latest_rows lr
+                  join welfare_services ws on ws.id = lr.service_id
+              group by ws.id, ws.title, ws.source_type, coalesce(ws.unified_category, '기타')
+              order by row_count desc, service_id asc
+                 limit %d
+                """.formatted(limit),
+                new MapSqlParameterSource(),
+                (rs, rowNum) -> new AdminDashboardReadRows.RecommendationRepeatedServiceRow(
+                        rs.getLong("service_id"),
+                        rs.getString("title"),
+                        rs.getString("source_type"),
+                        rs.getString("category"),
+                        rs.getLong("row_count"),
+                        rs.getLong("distinct_users")
+                )
+        );
+    }
+
+    public List<AdminDashboardReadRows.RecommendationTop1ServiceRow> fetchTop1RecommendationServices(int limit) {
+        return jdbcTemplate.query("""
+                with latest as (
+                    select user_key, max(recommended_at) as recommended_at
+                      from user_recommendations
+                     group by user_key
+                ),
+                top1 as (
+                    select *
+                      from (
+                        select ur.id,
+                               ur.user_key,
+                               ur.service_id,
+                               ur.final_score,
+                               row_number() over (
+                                   partition by ur.user_key
+                                   order by ur.final_score desc, ur.id desc
+                               ) as rn
+                          from user_recommendations ur
+                          join latest l
+                            on l.user_key = ur.user_key
+                           and l.recommended_at = ur.recommended_at
+                      ) ranked
+                     where rn = 1
+                )
+                select ws.id as service_id,
+                       ws.title,
+                       ws.source_type,
+                       coalesce(ws.unified_category, '기타') as category,
+                       count(*) as users_as_top1
+                  from top1 t
+                  join welfare_services ws on ws.id = t.service_id
+              group by ws.id, ws.title, ws.source_type, coalesce(ws.unified_category, '기타')
+              order by users_as_top1 desc, service_id asc
+                 limit %d
+                """.formatted(limit),
+                new MapSqlParameterSource(),
+                (rs, rowNum) -> new AdminDashboardReadRows.RecommendationTop1ServiceRow(
+                        rs.getLong("service_id"),
+                        rs.getString("title"),
+                        rs.getString("source_type"),
+                        rs.getString("category"),
+                        rs.getLong("users_as_top1")
+                )
+        );
+    }
+
     public List<AdminDashboardReadRows.RecommendationWeightSnapshotRow> fetchRecommendationWeightBuckets(LocalDateTime weekAgo) {
         return jdbcTemplate.query("""
                 select case

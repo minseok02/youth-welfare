@@ -13,6 +13,8 @@ public record AdminRecommendationBreakdownResponse(
         RecommendationTrafficMixSnapshot trafficMixInWindow,
         String realUserTrafficGateInWindow,
         RecommendationConcentrationSnapshot latestBatchConcentration,
+        List<RepeatedServiceSnapshot> topRepeatedServices,
+        List<Top1ServiceSnapshot> top1Services,
         List<SourceBreakdown> sourceBreakdowns,
         List<CategoryBreakdown> categoryBreakdowns,
         List<WeightBreakdown> weightBreakdowns,
@@ -53,6 +55,25 @@ public record AdminRecommendationBreakdownResponse(
             String concentrationReadiness,
             String realUserCohortGate,
             String signalQuality
+    ) {
+    }
+
+    public record RepeatedServiceSnapshot(
+            Long serviceId,
+            String title,
+            String sourceType,
+            String category,
+            long rowCount,
+            long distinctUsers
+    ) {
+    }
+
+    public record Top1ServiceSnapshot(
+            Long serviceId,
+            String title,
+            String sourceType,
+            String category,
+            long usersAsTop1
     ) {
     }
 

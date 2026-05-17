@@ -1002,6 +1002,25 @@ class AdminSecurityWebMvcTest {
                                 "LOCAL_REAL_NON_EXAMPLE_SEED_WITH_NON_REAL_BATCH"
                         ),
                         List.of(
+                                new AdminRecommendationBreakdownResponse.RepeatedServiceSnapshot(
+                                        2622L,
+                                        "청년월세 지원사업",
+                                        "BOKJIRO_CENTRAL",
+                                        "주거",
+                                        449,
+                                        449
+                                )
+                        ),
+                        List.of(
+                                new AdminRecommendationBreakdownResponse.Top1ServiceSnapshot(
+                                        2622L,
+                                        "청년월세 지원사업",
+                                        "BOKJIRO_CENTRAL",
+                                        "주거",
+                                        271
+                                )
+                        ),
+                        List.of(
                                 new AdminRecommendationBreakdownResponse.SourceBreakdown(
                                         "YOUTH",
                                         18,
@@ -1103,6 +1122,10 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.data.latestBatchConcentration.concentrationReadiness").value("CONCENTRATED_TOP1"))
                 .andExpect(jsonPath("$.data.latestBatchConcentration.realUserCohortGate").value("DEFERRED_NO_REAL_USER_COHORT"))
                 .andExpect(jsonPath("$.data.latestBatchConcentration.signalQuality").value("LOCAL_REAL_NON_EXAMPLE_SEED_WITH_NON_REAL_BATCH"))
+                .andExpect(jsonPath("$.data.topRepeatedServices[0].serviceId").value(2622))
+                .andExpect(jsonPath("$.data.topRepeatedServices[0].rowCount").value(449))
+                .andExpect(jsonPath("$.data.top1Services[0].serviceId").value(2622))
+                .andExpect(jsonPath("$.data.top1Services[0].usersAsTop1").value(271))
                 .andExpect(jsonPath("$.data.sourceBreakdowns[0].sourceType").value("YOUTH"))
                 .andExpect(jsonPath("$.data.categoryBreakdowns[0].category").value("HOUSING"))
                 .andExpect(jsonPath("$.data.weightBreakdowns[0].weightKey").value("GROWTH"))
