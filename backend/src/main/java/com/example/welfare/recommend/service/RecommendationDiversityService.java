@@ -20,8 +20,15 @@ public class RecommendationDiversityService {
     private static final Set<String> EXCLUDED_BUCKETS = Set.of("OTHER", "UNSPECIFIED");
 
     public List<ScoredCandidate> apply(List<ScoredCandidate> rankedCandidates) {
+        return trace(rankedCandidates).adjustedCandidates();
+    }
+
+    public DiversityTrace trace(List<ScoredCandidate> rankedCandidates) {
         if (rankedCandidates == null || rankedCandidates.size() < 3) {
-            return rankedCandidates == null ? List.of() : rankedCandidates;
+            return new DiversityTrace(
+                    rankedCandidates == null ? List.of() : rankedCandidates,
+                    Map.of()
+            );
         }
 
         long distinctBuckets = rankedCandidates.stream()
@@ -30,10 +37,11 @@ public class RecommendationDiversityService {
                 .distinct()
                 .count();
         if (distinctBuckets < 2) {
-            return rankedCandidates;
+            return new DiversityTrace(rankedCandidates, Map.of());
         }
 
         Map<String, Integer> bucketCounts = new HashMap<>();
+        Map<Long, CandidateDiversityTrace> candidateTraces = new HashMap<>();
         String previousBucket = null;
         java.util.ArrayList<ScoredCandidate> adjusted = new java.util.ArrayList<>(rankedCandidates.size());
         for (int index = 0; index < rankedCandidates.size(); index++) {
@@ -46,6 +54,9 @@ public class RecommendationDiversityService {
             String bucket = resolveDiversityBucket(candidate);
             if (EXCLUDED_BUCKETS.contains(bucket)) {
                 previousBucket = bucket;
+                if (candidate.getService().getId() != null) {
+                    candidateTraces.put(candidate.getService().getId(), new CandidateDiversityTrace(bucket, 0d));
+                }
                 adjusted.add(candidate);
                 continue;
             }
@@ -60,14 +71,20 @@ public class RecommendationDiversityService {
             previousBucket = bucket;
 
             if (penalty <= 0d) {
+                if (candidate.getService().getId() != null) {
+                    candidateTraces.put(candidate.getService().getId(), new CandidateDiversityTrace(bucket, 0d));
+                }
                 adjusted.add(candidate);
                 continue;
             }
 
             double adjustedScore = Math.max(candidate.getFinalScore() - penalty, 0d);
+            if (candidate.getService().getId() != null) {
+                candidateTraces.put(candidate.getService().getId(), new CandidateDiversityTrace(bucket, penalty));
+            }
             adjusted.add(candidate.withFinalScore(adjustedScore, candidate.isAiFallback()));
         }
-        return List.copyOf(adjusted);
+        return new DiversityTrace(List.copyOf(adjusted), Map.copyOf(candidateTraces));
     }
 
     private String resolveDiversityBucket(ScoredCandidate candidate) {
@@ -87,5 +104,17 @@ public class RecommendationDiversityService {
             return serviceBucket;
         }
         return "UNSPECIFIED";
+    }
+
+    public record DiversityTrace(
+            List<ScoredCandidate> adjustedCandidates,
+            Map<Long, CandidateDiversityTrace> candidateTraces
+    ) {
+    }
+
+    public record CandidateDiversityTrace(
+            String bucket,
+            double penalty
+    ) {
     }
 }

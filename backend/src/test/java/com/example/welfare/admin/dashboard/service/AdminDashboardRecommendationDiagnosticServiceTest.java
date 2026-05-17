@@ -12,6 +12,7 @@ import com.example.welfare.recommend.entity.UserRecommendation;
 import com.example.welfare.recommend.service.ClusterService;
 import com.example.welfare.recommend.service.RecommendationPostScoringFilterService;
 import com.example.welfare.recommend.service.RecommendationResultReadService;
+import com.example.welfare.recommend.service.ReRankingService;
 import com.example.welfare.recommend.service.RetrievalService;
 import com.example.welfare.recommend.service.RuleScoringService;
 import com.example.welfare.user.entity.User;
@@ -46,6 +47,8 @@ class AdminDashboardRecommendationDiagnosticServiceTest {
     @Mock
     private RecommendationPostScoringFilterService recommendationPostScoringFilterService;
     @Mock
+    private ReRankingService reRankingService;
+    @Mock
     private RecommendationResultReadService recommendationResultReadService;
     @Mock
     private WelfareServiceRepository welfareServiceRepository;
@@ -59,6 +62,7 @@ class AdminDashboardRecommendationDiagnosticServiceTest {
                 retrievalService,
                 ruleScoringService,
                 recommendationPostScoringFilterService,
+                reRankingService,
                 recommendationResultReadService,
                 welfareServiceRepository
         );
@@ -133,6 +137,20 @@ class AdminDashboardRecommendationDiagnosticServiceTest {
                 .thenReturn(List.of(leaderScored, droppedScored));
         when(recommendationPostScoringFilterService.filterSpecialTargetMismatches(List.of(leaderScored, droppedScored)))
                 .thenReturn(List.of(leaderScored, droppedScored));
+        when(reRankingService.trace(List.of(leaderScored, droppedScored), snapshot))
+                .thenReturn(new ReRankingService.RerankTrace(
+                        List.of(leaderScored, droppedScored),
+                        Map.of(
+                                3686L, new ReRankingService.CandidateRerankTrace(
+                                        1.0, null, 1.0, 0.0, 1.0, 1.0, 1.0,
+                                        "JOB", 0.0, true, 0.085, 1.085, 1
+                                ),
+                                2736L, new ReRankingService.CandidateRerankTrace(
+                                        0.43, null, 1.0, 0.0, 0.43, 1.0, 0.43,
+                                        "JOB", 0.03, true, 0.03, 0.40, 8
+                                )
+                        )
+                ));
         when(recommendationResultReadService.findLatestSavedRecommendations("user-key-1"))
                 .thenReturn(List.of(savedLeader));
         when(welfareServiceRepository.findAllById(any()))
@@ -153,6 +171,8 @@ class AdminDashboardRecommendationDiagnosticServiceTest {
                     assertThat(row.inLatestSavedBatch()).isTrue();
                     assertThat(row.dropStage()).isEqualTo("PRESENT_IN_SAVED_BATCH");
                     assertThat(row.latestSavedRank()).isEqualTo(1);
+                    assertThat(row.rerankCurrentRank()).isEqualTo(1);
+                    assertThat(row.rerankNoPriorityAdjustment()).isEqualTo(0.085);
                 });
 
         assertThat(response.services()).filteredOn(row -> row.serviceId().equals(2736L)).singleElement()
@@ -160,6 +180,8 @@ class AdminDashboardRecommendationDiagnosticServiceTest {
                     assertThat(row.inMergedCandidates()).isTrue();
                     assertThat(row.inLatestSavedBatch()).isFalse();
                     assertThat(row.dropStage()).isEqualTo("SCORED_BUT_NOT_IN_SAVED_BATCH");
+                    assertThat(row.rerankDiversityPenalty()).isEqualTo(0.03);
+                    assertThat(row.rerankCurrentRank()).isEqualTo(8);
                 });
 
         assertThat(response.services()).filteredOn(row -> row.serviceId().equals(3714L)).singleElement()

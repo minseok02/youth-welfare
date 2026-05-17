@@ -9,6 +9,7 @@ import com.example.welfare.recommend.entity.UserRecommendation;
 import com.example.welfare.recommend.service.ClusterService;
 import com.example.welfare.recommend.service.RecommendationPostScoringFilterService;
 import com.example.welfare.recommend.service.RecommendationResultReadService;
+import com.example.welfare.recommend.service.ReRankingService;
 import com.example.welfare.recommend.service.RetrievalService;
 import com.example.welfare.recommend.service.RuleScoringService;
 import com.example.welfare.user.entity.User;
@@ -35,6 +36,7 @@ public class AdminDashboardRecommendationDiagnosticService {
     private final RetrievalService retrievalService;
     private final RuleScoringService ruleScoringService;
     private final RecommendationPostScoringFilterService recommendationPostScoringFilterService;
+    private final ReRankingService reRankingService;
     private final RecommendationResultReadService recommendationResultReadService;
     private final WelfareServiceRepository welfareServiceRepository;
 
@@ -52,6 +54,7 @@ public class AdminDashboardRecommendationDiagnosticService {
                 context.snapshot()
         );
         List<ScoredCandidate> postScoring = recommendationPostScoringFilterService.filterSpecialTargetMismatches(scored);
+        ReRankingService.RerankTrace rerankTrace = reRankingService.trace(postScoring, context.snapshot());
         List<UserRecommendation> latestSaved = recommendationResultReadService.findLatestSavedRecommendations(userKey);
 
         Map<Long, WelfareService> serviceById = new LinkedHashMap<>();
@@ -95,6 +98,7 @@ public class AdminDashboardRecommendationDiagnosticService {
                     boolean inPostScoring = postScoringIds.contains(serviceId);
                     boolean inSaved = savedById.containsKey(serviceId);
                     RetrievalService.CandidateFilterTrace filterTrace = trace.filterTraces().get(serviceId);
+                    ReRankingService.CandidateRerankTrace rerankCandidateTrace = rerankTrace.candidateTraces().get(serviceId);
 
                     return new AdminRecommendationCandidateDiagnosticResponse.ServiceDiagnostic(
                             serviceId,
@@ -126,6 +130,17 @@ public class AdminDashboardRecommendationDiagnosticService {
                                     ? savedRecommendation.getFinalScore().doubleValue()
                                     : null,
                             savedRankById.get(serviceId),
+                            rerankCandidateTrace != null ? rerankCandidateTrace.normRule() : null,
+                            rerankCandidateTrace != null ? rerankCandidateTrace.normAi() : null,
+                            rerankCandidateTrace != null ? rerankCandidateTrace.baseBlendScore() : null,
+                            rerankCandidateTrace != null ? rerankCandidateTrace.priorityMultiplier() : null,
+                            rerankCandidateTrace != null ? rerankCandidateTrace.scoreAfterPriorityMultiplier() : null,
+                            rerankCandidateTrace != null ? rerankCandidateTrace.diversityBucket() : null,
+                            rerankCandidateTrace != null ? rerankCandidateTrace.diversityPenalty() : null,
+                            rerankCandidateTrace != null && rerankCandidateTrace.noPriorityTopBandEligible(),
+                            rerankCandidateTrace != null ? rerankCandidateTrace.noPriorityAdjustment() : null,
+                            rerankCandidateTrace != null ? rerankCandidateTrace.currentFinalScore() : null,
+                            rerankCandidateTrace != null ? rerankCandidateTrace.currentRank() : null,
                             scoredCandidate != null && scoredCandidate.isHasInterestMismatch(),
                             scoredCandidate != null && scoredCandidate.isHasPriorityMismatch(),
                             scoredCandidate != null && scoredCandidate.isHasSpecialTargetMismatch()
