@@ -505,6 +505,13 @@ export default function MainPage() {
   const authState = {
     from: location,
   };
+
+  useEffect(() => {
+    if (location.state?.reason === "admin-required") {
+      showToast("운영 대시보드는 관리자 계정만 접근할 수 있습니다.", "warning");
+    }
+  }, [location.state, showToast]);
+
   const navigateToPolicyDetail = useCallback((policyId, logId = null) => {
     navigate(`/policies/${policyId}${logId ? `?log_id=${logId}` : ""}`, {
       state: {

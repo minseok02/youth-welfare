@@ -55,6 +55,18 @@ const formatNumber = (value) => {
   return Number.isFinite(num) ? num.toLocaleString("ko-KR") : "—";
 };
 
+const formatDateTime = (value) => {
+  if (!value) return "—";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return "—";
+  return new Intl.DateTimeFormat("ko-KR", {
+    month: "numeric",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(parsed);
+};
+
 const fetchSummary = async (windowDays) => {
   const { data } = await api.get("/api/admin/dashboard/summary", {
     params: { summaryWindowDays: windowDays, trendWindowDays: [1, 7, 30] },
@@ -155,6 +167,22 @@ function ServiceListCard({ title, items, countLabel }) {
   );
 }
 
+function CompactListCard({ title, description, items, renderItem }) {
+  return (
+    <Card sx={{ background: PANEL_BG, border: `1px solid ${PANEL_LINE}`, boxShadow: "0 8px 24px rgba(15,23,42,0.04)", height: "100%" }}>
+      <CardContent sx={{ p: 2.5 }}>
+        <Typography sx={{ fontSize: 15, fontWeight: 800, color: INK }}>{title}</Typography>
+        {description && <Typography sx={{ fontSize: 12, color: INK3, mt: 0.5 }}>{description}</Typography>}
+        <Stack spacing={1.25} mt={2}>
+          {items?.length ? items.map(renderItem) : (
+            <Typography sx={{ fontSize: 13, color: INK3 }}>표시할 데이터가 없습니다.</Typography>
+          )}
+        </Stack>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function AdminDashboardPage() {
   const [windowDays, setWindowDays] = useState(14);
 
@@ -170,8 +198,9 @@ export default function AdminDashboardPage() {
     staleTime: 30_000,
   });
 
-  const summary = summaryQuery.data?.recommendation;
-  const concentration = summary?.latestBatchConcentration;
+  const summaryData = summaryQuery.data;
+  const recommendationSummary = summaryData?.recommendation;
+  const concentration = recommendationSummary?.latestBatchConcentration;
   const breakdowns = breakdownQuery.data;
   const isLoading = summaryQuery.isLoading || breakdownQuery.isLoading;
   const isError = summaryQuery.isError || breakdownQuery.isError;
@@ -221,7 +250,7 @@ export default function AdminDashboardPage() {
           </Alert>
         )}
 
-        {!isLoading && !isError && summary && concentration && breakdowns && (
+        {!isLoading && !isError && summaryData && recommendationSummary && concentration && breakdowns && (
           <Stack spacing={3} mt={3}>
             <Box
               sx={{
@@ -238,14 +267,14 @@ export default function AdminDashboardPage() {
                 <Box>
                   <Typography sx={{ fontSize: 12, fontWeight: 700, opacity: 0.8 }}>Recommendation Review Gate</Typography>
                   <Typography sx={{ fontSize: 30, fontWeight: 900, mt: 1, letterSpacing: "-0.03em" }}>
-                    {labelFor(REVIEW_GATE_TONE, summary.recommendationReviewGate)}
+                    {labelFor(REVIEW_GATE_TONE, recommendationSummary.recommendationReviewGate)}
                   </Typography>
                   <Typography sx={{ fontSize: 14, opacity: 0.85, mt: 1.5, maxWidth: 720, lineHeight: 1.6 }}>
-                    현재 review gate는 <strong>{summary.recommendationReviewGate}</strong> 입니다.
-                    top1 leader signal은 <strong>{concentration.top1LeaderSignalSummary}</strong>, real user traffic gate는 <strong>{summary.realUserTrafficGateInWindow}</strong> 입니다.
+                    현재 review gate는 <strong>{recommendationSummary.recommendationReviewGate}</strong> 입니다.
+                    top1 leader signal은 <strong>{concentration.top1LeaderSignalSummary}</strong>, real user traffic gate는 <strong>{recommendationSummary.realUserTrafficGateInWindow}</strong> 입니다.
                   </Typography>
                 </Box>
-                <GateChip value={summary.recommendationReviewGate} />
+                <GateChip value={recommendationSummary.recommendationReviewGate} />
               </Stack>
             </Box>
 
@@ -266,7 +295,30 @@ export default function AdminDashboardPage() {
                 title="Leader Signal"
                 value={labelFor(REVIEW_GATE_TONE, concentration.top1LeaderSignalSummary)}
                 description={concentration.signalQuality}
-                chip={<GateChip value={summary.realUserTrafficGateInWindow} />}
+                chip={<GateChip value={recommendationSummary.realUserTrafficGateInWindow} />}
+              />
+            </Box>
+
+            <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", md: "repeat(4, 1fr)" } }}>
+              <MetricCard
+                title="Collect 실패(24h)"
+                value={formatNumber(summaryData.collect.failedJobsLast24h)}
+                description={`window ${summaryData.collect.windowDays}일 · running ${formatNumber(summaryData.collect.runningJobs)}`}
+              />
+              <MetricCard
+                title="알림 실패(window)"
+                value={formatNumber(summaryData.notification.failedInWindow)}
+                description={`sent ${formatNumber(summaryData.notification.sentInWindow)} / last24h failed ${formatNumber(summaryData.notification.failedLast24h)}`}
+              />
+              <MetricCard
+                title="0건 검색(window)"
+                value={formatNumber(summaryData.search.zeroResultSearchesInWindow)}
+                description={`searches ${formatNumber(summaryData.search.searchesInWindow)} · users ${formatNumber(summaryData.search.uniqueFingerprintsInWindow)}`}
+              />
+              <MetricCard
+                title="PII Sync 실패"
+                value={formatNumber(summaryData.userPiiSync.failedCount)}
+                description={`pending ${formatNumber(summaryData.userPiiSync.pendingCount)} · latest ${formatDateTime(summaryData.userPiiSync.latestSyncedAt)}`}
               />
             </Box>
 
@@ -281,8 +333,8 @@ export default function AdminDashboardPage() {
                 </Box>
                 <Divider sx={{ my: 2.5 }} />
                 <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", md: "repeat(4, 1fr)" } }}>
-                  <MetricCard title="Real User Traffic Gate" value={summary.realUserTrafficGateInWindow} />
-                  <MetricCard title="Recommendation Review Gate" value={summary.recommendationReviewGate} />
+                  <MetricCard title="Real User Traffic Gate" value={recommendationSummary.realUserTrafficGateInWindow} />
+                  <MetricCard title="Recommendation Review Gate" value={recommendationSummary.recommendationReviewGate} />
                   <MetricCard title="Concentration Readiness" value={concentration.concentrationReadiness} />
                   <MetricCard title="Leader Signal Summary" value={concentration.top1LeaderSignalSummary} />
                 </Box>
@@ -292,6 +344,44 @@ export default function AdminDashboardPage() {
             <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", xl: "1fr 1fr" } }}>
               <ServiceListCard title="Top Repeated Services" items={breakdowns.topRepeatedServices} countLabel="rowCount" />
               <ServiceListCard title="Top1 Distribution Leaders" items={breakdowns.top1Services} countLabel="usersAsTop1" />
+            </Box>
+
+            <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", xl: "1fr 1fr" } }}>
+              <CompactListCard
+                title="최근 수집 실패"
+                description="collect latestFailuresInWindow"
+                items={summaryData.collect.latestFailuresInWindow}
+                renderItem={(item) => (
+                  <Box key={`${item.jobName}-${item.startedAt}`} sx={{ p: 1.5, borderRadius: 2, border: `1px solid ${PANEL_LINE}`, bgcolor: "#fafbff" }}>
+                    <Stack direction="row" justifyContent="space-between" spacing={2}>
+                      <Box>
+                        <Typography sx={{ fontSize: 13, fontWeight: 700, color: INK }}>{item.jobName}</Typography>
+                        <Typography sx={{ fontSize: 12, color: INK3, mt: 0.25 }}>
+                          {item.errorCode || item.status} · {formatDateTime(item.startedAt)}
+                        </Typography>
+                      </Box>
+                      <Typography sx={{ fontSize: 12, fontWeight: 700, color: WARNING_TEXT }}>
+                        fail {formatNumber(item.failedCount)}
+                      </Typography>
+                    </Stack>
+                  </Box>
+                )}
+              />
+              <CompactListCard
+                title="0건 검색 키워드"
+                description="search zeroResultKeywordsInWindow"
+                items={summaryData.search.zeroResultKeywordsInWindow}
+                renderItem={(item) => (
+                  <Box key={item.keyword} sx={{ p: 1.5, borderRadius: 2, border: `1px solid ${PANEL_LINE}`, bgcolor: "#fafbff" }}>
+                    <Stack direction="row" justifyContent="space-between" spacing={2}>
+                      <Typography sx={{ fontSize: 13, fontWeight: 700, color: INK }}>{item.keyword}</Typography>
+                      <Typography sx={{ fontSize: 12, fontWeight: 800, color: ACCENT }}>
+                        {formatNumber(item.searchCount)}
+                      </Typography>
+                    </Stack>
+                  </Box>
+                )}
+              />
             </Box>
           </Stack>
         )}
