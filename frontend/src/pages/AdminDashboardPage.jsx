@@ -106,6 +106,16 @@ function GateChip({ value }) {
         color: tone.color,
         border: `1px solid ${tone.border}`,
         fontWeight: 700,
+        height: "auto",
+        maxWidth: "100%",
+        "& .MuiChip-label": {
+          display: "block",
+          whiteSpace: "normal",
+          overflowWrap: "anywhere",
+          wordBreak: "break-word",
+          lineHeight: 1.25,
+          py: 0.75,
+        },
       }}
     />
   );
@@ -115,13 +125,37 @@ function MetricCard({ title, value, description, chip }) {
   return (
     <Card sx={{ background: PANEL_BG, border: `1px solid ${PANEL_LINE}`, boxShadow: "0 8px 24px rgba(15,23,42,0.04)" }}>
       <CardContent sx={{ p: 2.5 }}>
-        <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={2}>
-          <Box>
+        <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" alignItems="flex-start" spacing={2}>
+          <Box sx={{ minWidth: 0, width: "100%" }}>
             <Typography sx={{ fontSize: 13, fontWeight: 700, color: INK2 }}>{title}</Typography>
-            <Typography sx={{ fontSize: 28, fontWeight: 800, color: INK, mt: 1 }}>{value}</Typography>
-            {description && <Typography sx={{ fontSize: 12, color: INK3, mt: 0.75 }}>{description}</Typography>}
+            <Typography
+              sx={{
+                fontSize: { xs: 22, sm: 28 },
+                fontWeight: 800,
+                color: INK,
+                mt: 1,
+                lineHeight: 1.15,
+                overflowWrap: "anywhere",
+                wordBreak: "break-word",
+              }}
+            >
+              {value}
+            </Typography>
+            {description && (
+              <Typography
+                sx={{
+                  fontSize: 12,
+                  color: INK3,
+                  mt: 0.75,
+                  overflowWrap: "anywhere",
+                  wordBreak: "break-word",
+                }}
+              >
+                {description}
+              </Typography>
+            )}
           </Box>
-          {chip}
+          {chip && <Box sx={{ width: { xs: "100%", sm: "auto" } }}>{chip}</Box>}
         </Stack>
       </CardContent>
     </Card>
@@ -143,7 +177,20 @@ function CohortMix({ mix }) {
           key={item.label}
           label={`${item.label} ${formatNumber(item.value)}`}
           size="small"
-          sx={{ bgcolor: "#f8fafc", color: INK2, border: `1px solid ${PANEL_LINE}` }}
+          sx={{
+            bgcolor: "#f8fafc",
+            color: INK2,
+            border: `1px solid ${PANEL_LINE}`,
+            height: "auto",
+            maxWidth: "100%",
+            "& .MuiChip-label": {
+              display: "block",
+              whiteSpace: "normal",
+              overflowWrap: "anywhere",
+              wordBreak: "break-word",
+              py: 0.5,
+            },
+          }}
         />
       ))}
     </Stack>
@@ -158,14 +205,14 @@ function ServiceListCard({ title, items, countLabel }) {
         <Stack spacing={1.5} mt={2}>
           {items?.length ? items.map((item) => (
             <Box key={`${title}-${item.serviceId}`} sx={{ p: 1.5, borderRadius: 2, border: `1px solid ${PANEL_LINE}`, bgcolor: "#fafbff" }}>
-              <Stack direction="row" justifyContent="space-between" spacing={2}>
-                <Box>
-                  <Typography sx={{ fontSize: 14, fontWeight: 700, color: INK }}>{item.title}</Typography>
-                  <Typography sx={{ fontSize: 12, color: INK3, mt: 0.25 }}>
+              <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" spacing={2}>
+                <Box sx={{ minWidth: 0 }}>
+                  <Typography sx={{ fontSize: 14, fontWeight: 700, color: INK, overflowWrap: "anywhere", wordBreak: "break-word" }}>{item.title}</Typography>
+                  <Typography sx={{ fontSize: 12, color: INK3, mt: 0.25, overflowWrap: "anywhere", wordBreak: "break-word" }}>
                     {item.sourceType} · {item.category}
                   </Typography>
                 </Box>
-                <Typography sx={{ fontSize: 14, fontWeight: 800, color: ACCENT, whiteSpace: "nowrap" }}>
+                <Typography sx={{ fontSize: 14, fontWeight: 800, color: ACCENT, whiteSpace: "nowrap", alignSelf: { xs: "flex-start", sm: "flex-start" } }}>
                   {formatNumber(item[countLabel])}
                 </Typography>
               </Stack>

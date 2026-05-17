@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
-  AppBar, Toolbar, Typography, Button, IconButton,
+  AppBar, Toolbar, Typography, Button, IconButton, Box,
   Menu, MenuItem, Divider, Snackbar, Alert, Badge, CircularProgress,
 } from "@mui/material";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -195,18 +195,49 @@ export default function Header() {
   return (
     <>
       <AppBar position="sticky" elevation={2} sx={{ bgcolor: "primary.main" }}>
-        <Toolbar sx={{ justifyContent: "space-between", minHeight: 56, px: { xs: 2, sm: 4 } }}>
+        <Toolbar
+          sx={{
+            justifyContent: "space-between",
+            alignItems: { xs: "stretch", sm: "center" },
+            minHeight: { xs: 72, sm: 56 },
+            px: { xs: 1.5, sm: 4 },
+            py: { xs: 1, sm: 0.75 },
+            gap: { xs: 1, sm: 1.5 },
+            flexWrap: "wrap",
+          }}
+        >
           <Typography
             variant="h6"
             fontWeight={700}
-            sx={{ cursor: "pointer", display: "flex", alignItems: "center", gap: 0.5 }}
+            sx={{
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: 0.5,
+              flexShrink: 0,
+              width: { xs: "100%", sm: "auto" },
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              fontSize: { xs: 17, sm: 20 },
+              lineHeight: 1.2,
+            }}
             onClick={() => navigate("/")}
           >
             <HomeIcon fontSize="small" />
             청년복지플랫폼
           </Typography>
 
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: { xs: "flex-start", sm: "flex-end" },
+              gap: 0.75,
+              flexWrap: "wrap",
+              width: { xs: "100%", sm: "auto" },
+            }}
+          >
             <Button
               variant={isLoggedIn ? "contained" : "outlined"}
               color={isLoggedIn ? "secondary" : "inherit"}
@@ -215,7 +246,9 @@ export default function Header() {
               onClick={handleChat}
               sx={{
                 borderRadius: 2,
-                fontSize: 13,
+                fontSize: { xs: 12, sm: 13 },
+                minWidth: "auto",
+                px: { xs: 1.1, sm: 1.5 },
                 borderColor: "rgba(255,255,255,0.45)",
                 bgcolor: isLoggedIn ? "secondary.main" : "transparent",
                 color: "white",
@@ -235,7 +268,12 @@ export default function Header() {
                   onClick={() => navigate(`${policiesTarget.pathname}${policiesTarget.search ?? ""}`, {
                     state: policiesTarget.state,
                   })}
-                  sx={{ fontSize: 13, color: "rgba(255,255,255,0.9)" }}
+                  sx={{
+                    fontSize: { xs: 12, sm: 13 },
+                    color: "rgba(255,255,255,0.9)",
+                    minWidth: "auto",
+                    px: { xs: 1, sm: 1.25 },
+                  }}
                 >
                   정책 목록
                 </Button>
@@ -246,14 +284,21 @@ export default function Header() {
                     startIcon={<AdminPanelSettingsOutlinedIcon fontSize="small" />}
                     onClick={() => navigate("/admin/dashboard")}
                     sx={{
-                      fontSize: 13,
+                      fontSize: { xs: 12, sm: 13 },
                       color: "white",
                       bgcolor: "rgba(255,255,255,0.12)",
                       border: "1px solid rgba(255,255,255,0.2)",
+                      minWidth: "auto",
+                      px: { xs: 1, sm: 1.25 },
                       "&:hover": { bgcolor: "rgba(255,255,255,0.18)" },
                     }}
                   >
-                    운영 대시보드
+                    <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>
+                      운영 대시보드
+                    </Box>
+                    <Box component="span" sx={{ display: { xs: "inline", sm: "none" } }}>
+                      운영
+                    </Box>
                   </Button>
                 )}
                 <IconButton
@@ -363,7 +408,12 @@ export default function Header() {
                     border: "1px solid rgba(255,255,255,0.4)",
                     borderRadius: 2,
                     px: 1.5,
-                    fontSize: 13,
+                    fontSize: { xs: 12, sm: 13 },
+                    minWidth: "auto",
+                    maxWidth: { xs: 112, sm: 160 },
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
                   }}
                 >
                   {user?.name}님
@@ -394,7 +444,13 @@ export default function Header() {
                   onClick={() => navigate(`${mypageTarget.pathname}${mypageTarget.search ?? ""}`, {
                     state: mypageTarget.state,
                   })}
-                  sx={{ borderColor: "rgba(255,255,255,0.6)", borderRadius: 2, fontSize: 13 }}
+                  sx={{
+                    borderColor: "rgba(255,255,255,0.6)",
+                    borderRadius: 2,
+                    fontSize: { xs: 12, sm: 13 },
+                    minWidth: "auto",
+                    px: { xs: 1, sm: 1.25 },
+                  }}
                 >
                   <Badge color="error" badgeContent={unreadBadge} invisible={unreadAlertCount <= 0} overlap="rectangular">
                     <span>마이페이지</span>
@@ -411,7 +467,9 @@ export default function Header() {
                     bgcolor: "white",
                     color: "primary.main",
                     fontWeight: 700,
-                    fontSize: 13,
+                    fontSize: { xs: 12, sm: 13 },
+                    minWidth: "auto",
+                    px: { xs: 1.1, sm: 1.5 },
                     "&:hover": { bgcolor: "rgba(255,255,255,0.9)" },
                   }}
                 >
@@ -422,13 +480,19 @@ export default function Header() {
                   color="inherit"
                   size="small"
                   onClick={handleMypage}
-                  sx={{ borderColor: "rgba(255,255,255,0.6)", borderRadius: 2, fontSize: 13 }}
+                  sx={{
+                    borderColor: "rgba(255,255,255,0.6)",
+                    borderRadius: 2,
+                    fontSize: { xs: 12, sm: 13 },
+                    minWidth: "auto",
+                    px: { xs: 1, sm: 1.25 },
+                  }}
                 >
                   마이페이지
                 </Button>
               </>
             )}
-          </div>
+          </Box>
         </Toolbar>
       </AppBar>
 
