@@ -4503,3 +4503,11 @@
   - withdraw cleanup 정상
   이었다. 최종 smoke는 `smoke success: ... queue_status=SYNCED attempt_count=3` 로 끝났다.
 - 이유: 이 smoke는 split-account 경계가 단순 app boot가 아니라 실제 request-path sync와 withdraw cleanup까지 버티는지 확인하는 최소 세트다. bounded policy runtime만 green 이어도 PII sync가 drift하면 current closeout 기준선은 완전하지 않으므로, 다음 라운드 baseline으로 바로 다시 태우는 편이 맞다.
+
+## 831) replay baseline 재검증에서는 성공 숫자만 보지 말고, compose-host JDBC drift가 이제 조용히 흡수되지 않고 fail-fast 하는지도 같이 확인하는 편이 맞다
+- 문제: `run-local-education-priority-replay.sh` 는 replay baseline 자체도 중요하지만, 최근에는 `.env` 의 compose-host JDBC(`jdbc:postgresql://db:...`) 나 과거 MySQL 잔재를 조용히 흡수하지 않는 경계도 함께 맡고 있다. 이 상태에서 성공 replay 숫자만 다시 보면 “왜 예전엔 그냥 됐는데 지금은 막히는가”를 놓치고, 반대로 drift를 의도대로 막는 동작을 회귀로 오해할 수 있다.
+- 해결: current 워크트리 기준으로 replay smoke를 두 단계로 다시 확인했다.
+  1. repo `.env` 를 그대로 읽는 상태에서는 `DB_URL must target local PostgreSQL host, not docker-compose service host` 로 즉시 fail-fast 하는지 확인
+  2. `DB_URL/APP_PII_DB_URL/NOTIFICATION_PII_DB_URL` 을 `127.0.0.1:5433` 로 명시 override한 뒤 rule-only replay를 다시 실행
+  실제 replay baseline은 `A_top10_target=8->8`, `B_top10_target=1->1`, `A_fp=same`, `B_fp=same`, `A_reason_changed=0`, `B_reason_changed=0`, `slot_rows=46216`, `slot_services=11917`, `slot_education_services=112` 으로 유지됐다.
+- 이유: 지금 replay 경계의 의도는 “drift를 흡수하면서 돌아간다”가 아니라 “잘못된 JDBC/runtime target이면 먼저 멈추고, 올바른 local host 기준에서만 baseline을 재확인한다”이다. fail-fast 확인과 replay baseline 확인을 같이 남겨야 다음 라운드에서도 preflight 동작을 회귀로 오해하지 않는다.
