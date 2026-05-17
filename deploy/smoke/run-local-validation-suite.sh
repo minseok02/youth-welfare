@@ -364,9 +364,14 @@ if [[ "${RUN_REAL_USER_GATE_DRILL_SMOKE}" == "true" ]]; then
 fi
 
 if [[ "${RUN_REPLAY_SMOKE}" == "true" ]]; then
-  replay_env_prefix='unset APP_BASE_URL APP_HEALTH_URL;'
+  replay_db_url="${REPLAY_DB_URL:-jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable}"
+  replay_app_pii_db_url="${REPLAY_APP_PII_DB_URL:-jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable&currentSchema=youth_welfare_pii}"
+  replay_notification_pii_db_url="${REPLAY_NOTIFICATION_PII_DB_URL:-${replay_app_pii_db_url}}"
+  replay_env_prefix=$(printf 'unset APP_BASE_URL APP_HEALTH_URL; export DB_URL=%q; export APP_PII_DB_URL=%q; export NOTIFICATION_PII_DB_URL=%q;' \
+    "${replay_db_url}" "${replay_app_pii_db_url}" "${replay_notification_pii_db_url}")
   if [[ -n "${REPLAY_APP_BASE_URL}" ]]; then
-    replay_env_prefix=$(printf 'export APP_BASE_URL=%q; unset APP_HEALTH_URL;' "${REPLAY_APP_BASE_URL}")
+    replay_env_prefix=$(printf 'export APP_BASE_URL=%q; unset APP_HEALTH_URL; export DB_URL=%q; export APP_PII_DB_URL=%q; export NOTIFICATION_PII_DB_URL=%q;' \
+      "${REPLAY_APP_BASE_URL}" "${replay_db_url}" "${replay_app_pii_db_url}" "${replay_notification_pii_db_url}")
   fi
   run_step \
     "education priority replay smoke (run last; may restart DB/app dependencies)" \

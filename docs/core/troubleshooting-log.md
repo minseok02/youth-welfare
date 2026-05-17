@@ -4518,3 +4518,12 @@
   - `UserRegistrationServiceTest` 에는 `UserAccountOriginResolver` mock을 추가했다. `UserRegistrationService` 가 signup 시 `accountOrigin` 을 resolve하도록 바뀐 뒤에도 테스트는 예전 2-dependency 구조를 가정하고 있어 `@InjectMocks` 주입 후 null 로 터지고 있었다.
   - `RecommendationRegionQueryIntegrationTest` 는 “결과 첫 두 칸이 정확히 테스트 row” 라는 가정을 버리고, 실제 계약인 “매칭 local이 전국 정책보다 앞선다”만 보도록 조정했다. 또 integration DB의 실제 운영 fixture와 충돌하지 않게 priority ordering 테스트용 `regionCode/sido` 를 `99999 / 테스트광역시` 로 고립시켰다.
 - 이유: broad suite red가 항상 제품 버그라는 뜻은 아니다. 이번처럼 recommendation retrieval SQL이 production fixture와 함께 돌아가는 integration 환경에서는, 정렬/우선순위 테스트가 실제 서비스 데이터와 경쟁하면서 stale assumption을 드러낼 수 있다. broad suite closeout 문서에는 “무엇이 진짜 회귀였고, 무엇이 테스트 drift였는지”를 같이 남겨야 다음 라운드에서도 같은 적색 신호를 과잉 해석하지 않는다.
+
+## 833) full validation wrapper는 replay subprocess에도 local host JDBC를 명시 주입해야, `.env` 의 compose-host JDBC와 fail-fast 경계가 충돌하지 않는다
+- 문제: 개별 replay smoke는 `DB_URL=jdbc:postgresql://127.0.0.1:5433/...` 를 명시 override하면 정상 통과했지만, `run-local-validation-from-env.sh --full` 은 마지막 replay step에서만 `DB_URL must target local PostgreSQL host, not docker-compose service host` 로 끊겼다. 원인은 wrapper가 `.env` 를 읽어 전체 suite를 띄운 뒤, replay subprocess에는 `APP_BASE_URL` 만 정리하고 `DB_URL/APP_PII_DB_URL/NOTIFICATION_PII_DB_URL` 은 그대로 넘겼기 때문이다.
+- 해결: `run-local-validation-suite.sh` 의 replay step prefix를 수정해, replay subprocess 시작 전에 항상
+  - `DB_URL=jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable`
+  - `APP_PII_DB_URL=jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable&currentSchema=youth_welfare_pii`
+  - `NOTIFICATION_PII_DB_URL=...currentSchema=youth_welfare_pii`
+  를 명시 주입하게 했다. 이후 replay-only step이 다시 green 이 되었고, `run-local-validation-from-env.sh --full` 도 최종 `local validation suite passed`, `suite_duration_seconds=102` 로 끝났다.
+- 이유: 지금 replay smoke의 fail-fast 의도는 “잘못된 compose-host JDBC를 조용히 흡수하지 않는다”는 데 있다. 따라서 full wrapper도 그 의도를 유지하되, 실제 replay subprocess에는 검증용 local host JDBC를 명시로 넘겨 current baseline을 일관되게 재현해야 한다. 그렇지 않으면 wrapper만 유독 `.env` drift에 민감해져 개별 smoke와 전체 baseline의 진실이 달라진다.
