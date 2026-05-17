@@ -74,6 +74,7 @@ public class AdminDashboardRecommendationService {
                                 recommendationConcentration.top1LeaderRealUserUsers(),
                                 recommendationConcentration.top1LeaderRealNonExampleUsers()
                         ),
+                        AdminDashboardQueryPolicy.resolveTop1LeaderSignalSummary(recommendationConcentration),
                         recommendationConcentration.concentrationReadiness(),
                         recommendationConcentration.realUserCohortGate(),
                         recommendationConcentration.signalQuality()

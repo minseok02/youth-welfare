@@ -115,4 +115,28 @@ final class AdminDashboardQueryPolicy {
         }
         return "READY_REAL_USER_TRAFFIC";
     }
+
+    static String resolveTop1LeaderSignalSummary(AdminDashboardReadRows.RecommendationConcentrationRow concentrationRow) {
+        if (concentrationRow.top1LeaderUsers() <= 0) {
+            return "EMPTY_TOP1_LEADER";
+        }
+        if (concentrationRow.top1LeaderRealUserUsers() <= 0 && concentrationRow.top1LeaderLocalRealNonExampleSeedUsers() <= 0
+                && concentrationRow.top1LeaderBoundedLocalUsers() <= 0) {
+            return "EXAMPLE_SMOKE_ONLY_LEADER";
+        }
+        if (concentrationRow.top1LeaderRealUserUsers() <= 0 && concentrationRow.top1LeaderLocalRealNonExampleSeedUsers() <= 0
+                && concentrationRow.top1LeaderBoundedLocalUsers() > 0) {
+            return "BOUNDED_LOCAL_WITH_EXAMPLE_LEADER";
+        }
+        if (concentrationRow.top1LeaderRealUserUsers() <= 0 && concentrationRow.top1LeaderLocalRealNonExampleSeedUsers() > 0) {
+            return "LOCAL_SEED_WITHOUT_REAL_USER_LEADER";
+        }
+        if (concentrationRow.top1LeaderRealUserUsers() < 3) {
+            return "REAL_USER_SIGNAL_THIN_LEADER";
+        }
+        if (concentrationRow.top1LeaderRealUserUsers() < concentrationRow.top1LeaderUsers()) {
+            return "MIXED_REAL_USER_LEADER";
+        }
+        return "REAL_USER_ONLY_LEADER";
+    }
 }

@@ -210,6 +210,8 @@ class AdminDashboardRecommendationServiceTest {
         assertThat(response.latestBatchConcentration().top1LeaderUserMix().boundedLocalUsers()).isEqualTo(1);
         assertThat(response.latestBatchConcentration().top1LeaderUserMix().localRealNonExampleSeedUsers()).isEqualTo(2);
         assertThat(response.latestBatchConcentration().top1LeaderUserMix().realUserUsers()).isZero();
+        assertThat(response.latestBatchConcentration().top1LeaderSignalSummary())
+                .isEqualTo("LOCAL_SEED_WITHOUT_REAL_USER_LEADER");
         assertThat(response.latestBatchConcentration().concentrationReadiness()).isEqualTo("CONCENTRATED_TOP1");
         assertThat(response.latestBatchConcentration().realUserCohortGate()).isEqualTo("DEFERRED_NO_REAL_USER_COHORT");
         assertThat(response.latestBatchConcentration().signalQuality()).isEqualTo("LOCAL_REAL_NON_EXAMPLE_SEED_WITH_NON_REAL_BATCH");

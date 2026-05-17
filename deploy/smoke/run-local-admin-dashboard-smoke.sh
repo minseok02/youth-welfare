@@ -114,6 +114,7 @@ assert isinstance(concentration["top1LeaderUsers"], int), "recommendation.latest
 assert concentration["concentrationReadiness"], "recommendation.latestBatchConcentration.concentrationReadiness missing"
 assert concentration["realUserCohortGate"], "recommendation.latestBatchConcentration.realUserCohortGate missing"
 assert concentration["signalQuality"], "recommendation.latestBatchConcentration.signalQuality missing"
+assert concentration["top1LeaderSignalSummary"], "recommendation.latestBatchConcentration.top1LeaderSignalSummary missing"
 leader_user_mix = concentration["top1LeaderUserMix"]
 assert isinstance(leader_user_mix["exampleUsers"], int), "recommendation.latestBatchConcentration.top1LeaderUserMix.exampleUsers must be int"
 assert isinstance(leader_user_mix["boundedLocalUsers"], int), "recommendation.latestBatchConcentration.top1LeaderUserMix.boundedLocalUsers must be int"
@@ -167,6 +168,7 @@ print(leader_user_mix["exampleUsers"])
 print(leader_user_mix["boundedLocalUsers"])
 print(leader_user_mix["localRealNonExampleSeedUsers"])
 print(leader_user_mix["realUserUsers"])
+print(concentration["top1LeaderSignalSummary"])
 print(concentration["concentrationReadiness"])
 print(concentration["realUserCohortGate"])
 print(concentration["signalQuality"])
@@ -259,13 +261,14 @@ echo "recommendation_top1_leader_example_users=${DASHBOARD_VALUES[19]}"
 echo "recommendation_top1_leader_bounded_local_users=${DASHBOARD_VALUES[20]}"
 echo "recommendation_top1_leader_local_real_non_example_seed_users=${DASHBOARD_VALUES[21]}"
 echo "recommendation_top1_leader_real_user_users=${DASHBOARD_VALUES[22]}"
-echo "recommendation_concentration_readiness=${DASHBOARD_VALUES[23]}"
-echo "recommendation_latest_batch_real_user_cohort_gate=${DASHBOARD_VALUES[24]}"
-echo "recommendation_latest_batch_signal_quality=${DASHBOARD_VALUES[25]}"
-echo "notification_sent_in_window=${DASHBOARD_VALUES[26]}"
-echo "search_zero_result_searches_in_window=${DASHBOARD_VALUES[27]}"
-echo "summary_window_days=${DASHBOARD_VALUES[28]}"
-echo "collect_trend_windows=${DASHBOARD_VALUES[29]}"
+echo "recommendation_top1_leader_signal_summary=${DASHBOARD_VALUES[23]}"
+echo "recommendation_concentration_readiness=${DASHBOARD_VALUES[24]}"
+echo "recommendation_latest_batch_real_user_cohort_gate=${DASHBOARD_VALUES[25]}"
+echo "recommendation_latest_batch_signal_quality=${DASHBOARD_VALUES[26]}"
+echo "notification_sent_in_window=${DASHBOARD_VALUES[27]}"
+echo "search_zero_result_searches_in_window=${DASHBOARD_VALUES[28]}"
+echo "summary_window_days=${DASHBOARD_VALUES[29]}"
+echo "collect_trend_windows=${DASHBOARD_VALUES[30]}"
 echo "requested_summary_window_days=${SUMMARY_WINDOW_DAYS}"
 echo "requested_trend_window_days=${TREND_WINDOW_DAYS_CSV}"
 if [[ -n "${CONTAINER_ADMIN_ALLOWLIST}" ]]; then

@@ -235,6 +235,8 @@ class AdminDashboardSummaryServiceTest {
         assertThat(response.recommendation().latestBatchConcentration().top1LeaderUserMix().boundedLocalUsers()).isEqualTo(1);
         assertThat(response.recommendation().latestBatchConcentration().top1LeaderUserMix().localRealNonExampleSeedUsers()).isEqualTo(2);
         assertThat(response.recommendation().latestBatchConcentration().top1LeaderUserMix().realUserUsers()).isZero();
+        assertThat(response.recommendation().latestBatchConcentration().top1LeaderSignalSummary())
+                .isEqualTo("LOCAL_SEED_WITHOUT_REAL_USER_LEADER");
         assertThat(response.recommendation().latestBatchConcentration().concentrationReadiness()).isEqualTo("CONCENTRATED_TOP1");
         assertThat(response.recommendation().latestBatchConcentration().realUserCohortGate()).isEqualTo("DEFERRED_NO_REAL_USER_COHORT");
         assertThat(response.recommendation().trafficMixInWindow().exampleClickedUsersInWindow()).isEqualTo(9);
