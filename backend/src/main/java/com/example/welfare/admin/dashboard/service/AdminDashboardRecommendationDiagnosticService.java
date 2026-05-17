@@ -39,6 +39,7 @@ public class AdminDashboardRecommendationDiagnosticService {
     private final ReRankingService reRankingService;
     private final RecommendationResultReadService recommendationResultReadService;
     private final WelfareServiceRepository welfareServiceRepository;
+    private static final String RERANK_TRACE_MODE = "PRE_AI_POST_SCORING";
 
     @Transactional(readOnly = true)
     public AdminRecommendationCandidateDiagnosticResponse getRecommendationDiagnostics(String userKey,
@@ -126,6 +127,12 @@ public class AdminDashboardRecommendationDiagnosticService {
                             scoredCandidate != null ? scoredCandidate.getRuleBaseScore() : null,
                             scoredCandidate != null ? scoredCandidate.getRuleWeightedScore() : null,
                             scoredCandidate != null ? scoredCandidate.getAiScore() : null,
+                            savedRecommendation != null && savedRecommendation.getAiScore() != null
+                                    ? savedRecommendation.getAiScore().doubleValue()
+                                    : null,
+                            savedRecommendation != null && savedRecommendation.getAiStatus() != null
+                                    ? savedRecommendation.getAiStatus().name()
+                                    : null,
                             savedRecommendation != null && savedRecommendation.getFinalScore() != null
                                     ? savedRecommendation.getFinalScore().doubleValue()
                                     : null,
@@ -161,6 +168,7 @@ public class AdminDashboardRecommendationDiagnosticService {
                 scored.size(),
                 postScoring.size(),
                 latestSaved.size(),
+                RERANK_TRACE_MODE,
                 serviceDiagnostics
         );
     }

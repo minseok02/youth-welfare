@@ -16,6 +16,7 @@ public record AdminRecommendationCandidateDiagnosticResponse(
         int scoredCandidateCount,
         int postScoringCandidateCount,
         int latestSavedCandidateCount,
+        String rerankTraceMode,
         List<ServiceDiagnostic> services
 ) {
 
@@ -36,6 +37,8 @@ public record AdminRecommendationCandidateDiagnosticResponse(
             Double ruleBaseScore,
             Double ruleWeightedScore,
             Double aiScore,
+            Double latestSavedAiScore,
+            String latestSavedAiStatus,
             Double latestSavedFinalScore,
             Integer latestSavedRank,
             Double rerankNormRule,

@@ -1228,6 +1228,7 @@ class AdminSecurityWebMvcTest {
                 49,
                 47,
                 10,
+                "PRE_AI_POST_SCORING",
                 List.of(
                         new AdminRecommendationCandidateDiagnosticResponse.ServiceDiagnostic(
                                 3686L,
@@ -1246,6 +1247,8 @@ class AdminSecurityWebMvcTest {
                                 23.0,
                                 23.0,
                                 90.0,
+                                90.0,
+                                "SCORED",
                                 1.025,
                                 1,
                                 1.0,
@@ -1282,6 +1285,8 @@ class AdminSecurityWebMvcTest {
                                 null,
                                 null,
                                 null,
+                                null,
+                                null,
                                 0.43,
                                 null,
                                 0.43,
@@ -1309,6 +1314,7 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.data.userKey").value("user-key-1"))
                 .andExpect(jsonPath("$.data.accountOrigin").value("REAL_USER"))
                 .andExpect(jsonPath("$.data.clusterId").value("youth_all"))
+                .andExpect(jsonPath("$.data.rerankTraceMode").value("PRE_AI_POST_SCORING"))
                 .andExpect(jsonPath("$.data.baseCandidateCount").value(150))
                 .andExpect(jsonPath("$.data.postScoringCandidateCount").value(47))
                 .andExpect(jsonPath("$.data.services[0].serviceId").value(3686))

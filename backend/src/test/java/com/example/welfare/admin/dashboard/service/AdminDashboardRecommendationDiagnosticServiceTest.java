@@ -164,6 +164,7 @@ class AdminDashboardRecommendationDiagnosticServiceTest {
         assertThat(response.userKey()).isEqualTo("user-key-1");
         assertThat(response.accountOrigin()).isEqualTo("REAL_USER");
         assertThat(response.clusterId()).isEqualTo("youth_all");
+        assertThat(response.rerankTraceMode()).isEqualTo("PRE_AI_POST_SCORING");
         assertThat(response.services()).hasSize(5);
 
         assertThat(response.services()).filteredOn(row -> row.serviceId().equals(3686L)).singleElement()
@@ -171,6 +172,7 @@ class AdminDashboardRecommendationDiagnosticServiceTest {
                     assertThat(row.inLatestSavedBatch()).isTrue();
                     assertThat(row.dropStage()).isEqualTo("PRESENT_IN_SAVED_BATCH");
                     assertThat(row.latestSavedRank()).isEqualTo(1);
+                    assertThat(row.latestSavedAiStatus()).isEqualTo("NOT_REQUESTED");
                     assertThat(row.rerankCurrentRank()).isEqualTo(1);
                     assertThat(row.rerankNoPriorityAdjustment()).isEqualTo(0.085);
                 });
