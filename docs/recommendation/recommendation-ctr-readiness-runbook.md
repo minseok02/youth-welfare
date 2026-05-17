@@ -87,38 +87,38 @@ user_key|clicks
 ## 현재 기준선 (2026-05-17, signal quality guardrail 추가 후 local audit 기준)
 
 ```text
-ctr_total_logs=4083
-ctr_clicked_logs=27
-ctr_pct=0.66
-ctr_total_logs_7d=4083
-ctr_clicked_logs_7d=27
-ctr_pct_7d=0.66
-ctr_distinct_users=452
+ctr_total_logs=4143
+ctr_clicked_logs=31
+ctr_pct=0.75
+ctr_total_logs_7d=4143
+ctr_clicked_logs_7d=31
+ctr_pct_7d=0.75
+ctr_distinct_users=462
 ctr_distinct_services=113
-ctr_clicked_users=27
+ctr_clicked_users=31
 ctr_clicked_services=2
 ctr_fallback_sent=1067
 ctr_fallback_clicked=0
-ctr_ai_sent=3016
-ctr_ai_clicked=27
-ctr_example_logs=4077
+ctr_ai_sent=3076
+ctr_ai_clicked=31
+ctr_example_logs=4119
 ctr_bounded_local_logs=6
-ctr_real_non_example_logs=0
-ctr_non_example_logs=6
-ctr_example_users=451
+ctr_real_non_example_logs=18
+ctr_non_example_logs=24
+ctr_example_users=458
 ctr_bounded_local_users=1
-ctr_real_non_example_users=0
-ctr_non_example_users=1
-ctr_example_clicked_users=26
+ctr_real_non_example_users=3
+ctr_non_example_users=4
+ctr_example_clicked_users=27
 ctr_bounded_local_clicked_users=1
-ctr_real_non_example_clicked_users=0
-ctr_non_example_clicked_users=1
+ctr_real_non_example_clicked_users=3
+ctr_non_example_clicked_users=4
 ```
 
 weight bucket 분포:
 
 ```text
-0.40|0.60|3570|24|0.67
+0.40|0.60|3630|28|0.77
 0.60|0.40|366|3|0.82
 0.80|0.20|147|0|0.00
 ```
@@ -126,14 +126,14 @@ weight bucket 분포:
 clicked service concentration:
 
 ```text
-2622|21|77.78
-3688|6|22.22
+2622|25|80.65
+3688|6|19.35
 ```
 
 readiness 판정:
 
 ```text
-DEFERRED_REAL_NON_EXAMPLE_USER_SAMPLE_THIN
+DEFERRED_NO_REAL_USER_TRAFFIC
 ```
 
 같은 시점 `USER_COHORT=bounded_local` rerun:
@@ -147,8 +147,8 @@ DIAGNOSTIC_BOUNDED_LOCAL_TRAFFIC
 같은 시점 `USER_COHORT=real_non_example` rerun:
 
 ```text
-audit_scope_logs=6
-audit_scope_users=1
+audit_scope_logs=18
+audit_scope_users=3
 DEFERRED_CLICK_SAMPLE_THIN
 ```
 
@@ -208,13 +208,13 @@ DEFERRED_CLICK_SAMPLE_THIN
 
 `2026-05-17` 기준 local 데이터는:
 
-- total logs는 `4089`, clicked logs는 `28` 까지 올라 raw threshold는 넘겼음
-- `example_logs/users = 4077 / 451`, `bounded_local_logs/users = 6 / 1`, `real_non_example_logs/users = 6 / 1`
-- 다만 `REAL_NON_EXAMPLE clicked users = 1` 이라 전체 readiness는 `DEFERRED_REAL_NON_EXAMPLE_USER_SAMPLE_THIN`
+- total logs는 `4143`, clicked logs는 `31` 까지 올라 raw threshold는 넘겼음
+- `example_logs/users = 4119 / 458`, `bounded_local_logs/users = 6 / 1`, `real_non_example_logs/users = 18 / 3`
+- 다만 `REAL_USER logs/users = 0 / 0` 이라 전체 readiness는 `DEFERRED_NO_REAL_USER_TRAFFIC`
 - `USER_COHORT=bounded_local` 로 좁혀 보면 `6 logs / 1 user / 1 clicked user`, readiness `DIAGNOSTIC_BOUNDED_LOCAL_TRAFFIC`
-- `USER_COHORT=real_non_example` 로 좁혀 보면 `6 logs / 1 user / 1 clicked user`, readiness `DEFERRED_CLICK_SAMPLE_THIN`
+- `USER_COHORT=real_non_example` 로 좁혀 보면 `18 logs / 3 users / 3 clicked users`, readiness `DEFERRED_CLICK_SAMPLE_THIN`
 - clicked service는 여전히 `2` 개뿐이고 fallback `1067` 건은 클릭 `0`
-- AI `3022` 건에서만 클릭 `28` 이 나와 있어, 지금 단계에서 weight를 바로 바꾸면 smoke 계정 편향과 특정 서비스/AI 경로 편향을 함께 전체 품질 신호로 오해할 위험이 큼
+- AI `3076` 건에서만 클릭 `31` 이 나와 있어, 지금 단계에서 weight를 바로 바꾸면 smoke 계정 편향과 특정 서비스/AI 경로 편향을 함께 전체 품질 신호로 오해할 위험이 큼
 
 즉 현재 병목은 **instrumentation bug** 도, 단순 **sample 부족** 도 아니라
 **synthetic-heavy local traffic + 클릭 분포 편중 + fallback 무반응** 입니다.

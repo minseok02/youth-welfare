@@ -189,10 +189,30 @@ Gov24 source 자체가 구조적으로 억눌리는지 빠르게 확인할 때�
 - collect/snapshot 전제 상태
 - next action
 
+## 9. 운영 `REAL_USER` 기준선 확인
+
+로컬 bounded seed가 아니라 운영 실사용 표본을 읽을 때는 아래 문서를 먼저 봅니다.
+
+- [recommendation-real-user-baseline-runbook.md](./recommendation-real-user-baseline-runbook.md)
+
+운영 read-only wrapper:
+
+- `deploy/smoke/run-local-real-user-readiness-check.sh`
+
+이 단계에서는
+
+- `REAL_USER users >= 3`
+- `REAL_USER clicked users >= 3`
+- `realUserTrafficGateInWindow`
+- `recommendationReviewGate`
+
+를 먼저 확인하고, gate가 열려도 `READY_CONCENTRATED_TOP1_REVIEW` 면 집중/분산 해석을 먼저 봅니다.
+
 ## 요약
 
 1. replay는 먼저 precondition을 본다.
 2. `rule-only` 가 기본 검증선이다.
 3. `real-openai` 는 diagnostic 이다.
-4. Gov24 source 전체 구조 의심은 bounded signal suite로 먼저 가른다.
-5. exact score equality보다 target row visibility를 본다.
+4. 운영 `REAL_USER` 표본 해석은 `recommendation-real-user-baseline-runbook` 기준으로 본다.
+5. Gov24 source 전체 구조 의심은 bounded signal suite로 먼저 가른다.
+6. exact score equality보다 target row visibility를 본다.

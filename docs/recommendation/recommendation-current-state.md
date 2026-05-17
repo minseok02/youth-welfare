@@ -183,28 +183,28 @@ recommendation/replay 는 collect와 sidecar snapshot 품질에 직접 의존합
 `2026-05-17` local audit 기준:
 
 - `USER_COHORT=all`
-- total recommendation logs: `4089`
-- clicked logs: `28`
-- overall CTR: `0.68%`
-- clicked users / services: `28 / 2`
+- total recommendation logs: `4143`
+- clicked logs: `31`
+- overall CTR: `0.75%`
+- clicked users / services: `31 / 2`
 - fallback sent/clicked: `1067 / 0`
 - AI sent/clicked: `3022 / 28`
-- example logs/users: `4077 / 451`
+- example logs/users: `4119 / 458`
 - bounded-local logs/users: `6 / 1`
-- real non-example logs/users: `6 / 1`
+- real non-example logs/users: `18 / 3`
 - weight bucket:
-  - `0.40:0.60` -> `3576 sent / 25 clicked / 0.70%`
+  - `0.40:0.60` -> `3630 sent / 28 clicked / 0.77%`
   - `0.60:0.40` -> `366 sent / 3 clicked / 0.82%`
   - `0.80:0.20` -> `147 sent / 0 clicked / 0.00%`
-- all-cohort readiness: `DEFERRED_REAL_NON_EXAMPLE_USER_SAMPLE_THIN`
+- all-cohort readiness: `DEFERRED_NO_REAL_USER_TRAFFIC`
 - `USER_COHORT=bounded_local`
   - total recommendation logs: `6`
   - clicked logs: `1`
   - clicked users / services: `1 / 1`
   - readiness: `DIAGNOSTIC_BOUNDED_LOCAL_TRAFFIC`
 - `USER_COHORT=real_non_example`
-  - total recommendation logs: `6`
-  - clicked logs: `1`
+  - total recommendation logs: `18`
+  - clicked logs: `3`
   - readiness: `DEFERRED_CLICK_SAMPLE_THIN`
 
 즉 raw click 수와 weight bucket 개수만 보면 review 문턱은 넘었지만, current gate는 그걸로 reopen 하지 않습니다.
@@ -233,29 +233,29 @@ CTR readiness와 별개로, 최신 `user_recommendations` batch 자체도 현재
 `2026-05-17` local concentration audit 기준:
 
 - `USER_COHORT=all`
-- latest batch `4071 rows / 454 users / 113 distinct services`
+- latest batch `4119 rows / 462 users / 113 distinct services`
 - real-user cohort gate: `DEFERRED_NO_REAL_USER_COHORT`
 - latest batch signal quality는 `LOCAL_REAL_NON_EXAMPLE_SEED_WITH_NON_REAL_BATCH`
 - top1 leader:
   - `2622 청년월세 지원사업`
-  - `271 / 454 users`
-  - `59.69%`
+  - `278 / 462 users`
+  - `60.17%`
 - latest source distribution:
-  - `YOUTH 1450`
-  - `GOV24 948`
-  - `BOKJIRO_CENTRAL 896`
-  - `BOKJIRO_LOCAL 777`
+  - `YOUTH 1466`
+  - `GOV24 964`
+  - `BOKJIRO_CENTRAL 904`
+  - `BOKJIRO_LOCAL 785`
 - latest category distribution:
-  - `금융·생활지원 1345`
-  - `주거 1081`
-  - `교육·직업훈련 692`
+  - `금융·생활지원 1353`
+  - `주거 1113`
+  - `교육·직업훈련 700`
   - `일자리 666`
 - `USER_COHORT=bounded_local`
   - latest batch `6 rows / 1 users`
   - concentration readiness: `CONCENTRATED_TOP1`
   - signal quality: `BOUNDED_LOCAL_ONLY_COHORT`
 - `USER_COHORT=local_real_non_example_seed`
-  - latest batch `12 rows / 2 users`
+  - latest batch `18 rows / 3 users`
   - real-user cohort gate: `DIAGNOSTIC_LOCAL_REAL_NON_EXAMPLE_SEED_ONLY_COHORT`
   - signal quality: `LOCAL_REAL_NON_EXAMPLE_SEED_ONLY_COHORT`
 - `USER_COHORT=real_user`
@@ -264,7 +264,7 @@ CTR readiness와 별개로, 최신 `user_recommendations` batch 자체도 현재
   - signal quality: `EMPTY_REAL_USER_COHORT`
 
 우선순위가 완전히 무시되는 상태는 아닙니다.
-다만 현재 latest batch의 `bounded local 1명 + local real-non-example seed 2명` 모두 실사용자가 아니라 로컬 seed 계정이고, `real_user` 는 여전히 `0명` 입니다. 이 수치는 제품 실사용 baseline이라기보다 로컬 smoke/validation baseline으로 해석해야 합니다.
+다만 현재 latest batch의 `bounded local 1명 + local real-non-example seed 3명` 모두 실사용자가 아니라 로컬 seed 계정이고, `real_user` 는 여전히 `0명` 입니다. 이 수치는 제품 실사용 baseline이라기보다 로컬 smoke/validation baseline으로 해석해야 합니다.
 같은 날 새 `8명` no-priority bounded smoke를 다시 만들면 top1은 다시 `2622 8/8 (100%)` 로 잠기고, 스크립트도 `audit_user_cohort=example`, `signal_quality=SYNTHETIC_SIGNUP_SAMPLES` 를 함께 출력합니다.
 즉 최근 no-priority 조정 실험은 진단 자료로는 남지만, 지금 시점의 practical reading은 “분산이 확정됐다”가 아니라 **synthetic-heavy baseline 안에서만 반복 측정이 이뤄지고 있다** 쪽입니다.
 
@@ -309,10 +309,10 @@ local helper/replay smoke는 integrated schema 존재 여부와 collect/replay p
 5. notification 후보 선택은 현재 `[A, A, B?]` 슬롯 배치입니다.
 6. 운영 지표는 `GET /api/admin/dashboard/summary` 에서 collect/recommendation/notification/search/user_pii_sync 묶음으로 조회합니다.
    recommendation 섹션에는 현재 active weight, 누적 recommendation log 수, latest clicked 시각, 최근 7일 weight bucket 분포, `trafficMixInWindow(example/boundedLocal/localRealNonExampleSeed/realUser logs/users/clicked users)`, `realUserTrafficGateInWindow`, `recommendationReviewGate`, 그리고 `latestBatchConcentration` 이 포함됩니다.
-   현재 로컬 summary smoke 값은 `realUserTrafficGateInWindow=DEFERRED_NO_REAL_USER_TRAFFIC`, `recommendationReviewGate=DEFERRED_NO_REAL_USER_TRAFFIC`, `top1LeaderServiceId=2622`, `top1LeaderSharePct=59.69`, `top1LeaderUserMix.exampleUsers=268`, `top1LeaderUserMix.boundedLocalUsers=1`, `top1LeaderUserMix.localRealNonExampleSeedUsers=2`, `top1LeaderUserMix.realUserUsers=0`, `top1LeaderSignalSummary=LOCAL_SEED_WITHOUT_REAL_USER_LEADER`, `concentrationReadiness=CONCENTRATED_TOP1`, `realUserCohortGate=DEFERRED_NO_REAL_USER_COHORT`, `signalQuality=LOCAL_REAL_NON_EXAMPLE_SEED_WITH_NON_REAL_BATCH` 입니다.
+   현재 로컬 summary smoke 값은 `realUserTrafficGateInWindow=DEFERRED_NO_REAL_USER_TRAFFIC`, `recommendationReviewGate=DEFERRED_NO_REAL_USER_TRAFFIC`, `top1LeaderServiceId=2622`, `top1LeaderSharePct=60.17`, `top1LeaderUserMix.exampleUsers=274`, `top1LeaderUserMix.boundedLocalUsers=1`, `top1LeaderUserMix.localRealNonExampleSeedUsers=3`, `top1LeaderUserMix.realUserUsers=0`, `top1LeaderSignalSummary=LOCAL_SEED_WITHOUT_REAL_USER_LEADER`, `concentrationReadiness=CONCENTRATED_TOP1`, `realUserCohortGate=DEFERRED_NO_REAL_USER_COHORT`, `signalQuality=LOCAL_REAL_NON_EXAMPLE_SEED_WITH_NON_REAL_BATCH` 입니다.
    `GET /api/admin/dashboard/recommendation-breakdowns` 도 같은 `realUserTrafficGateInWindow`, `recommendationReviewGate` 를 내려주고, 추가로 `latestBatchConcentration` 에 `latestBatchRows/users/distinctServices`, `top1Leader*`, `top1LeaderUserMix`, `top1LeaderSignalSummary`, `concentrationReadiness`, `realUserCohortGate`, `signalQuality` 를 포함합니다.
    또한 `topRepeatedServices`, `top1Services` 도 같이 내려 current latest batch에서 어떤 서비스가 반복 노출되고 top1을 나눠 갖는지 API에서 바로 읽을 수 있고, 각 row의 `userMix(example/boundedLocal/localRealNonExampleSeed/realUser/realNonExample users)` 로 leader 편중이 어느 cohort에서 왔는지도 바로 확인할 수 있습니다.
-   현재 로컬 breakdown smoke 값은 `recommendationReviewGate=DEFERRED_NO_REAL_USER_TRAFFIC`, `top1LeaderServiceId=2622`, `top1LeaderSharePct=59.69`, `top1LeaderUserMix.exampleUsers=268`, `top1LeaderUserMix.boundedLocalUsers=1`, `top1LeaderUserMix.localRealNonExampleSeedUsers=2`, `top1LeaderUserMix.realUserUsers=0`, `top1LeaderSignalSummary=LOCAL_SEED_WITHOUT_REAL_USER_LEADER`, `concentrationReadiness=CONCENTRATED_TOP1`, `realUserCohortGate=DEFERRED_NO_REAL_USER_COHORT`, `signalQuality=LOCAL_REAL_NON_EXAMPLE_SEED_WITH_NON_REAL_BATCH`, `topRepeatedServices[0].serviceId=2622`, `topRepeatedServices[0].userMix.exampleUsers=446`, `topRepeatedServices[0].userMix.localRealNonExampleSeedUsers=2`, `topRepeatedServices[0].userMix.realUserUsers=0`, `top1Services[0].serviceId=2622`, `top1Services[0].userMix.exampleUsers=268`, `top1Services[0].userMix.localRealNonExampleSeedUsers=2`, `top1Services[0].userMix.realUserUsers=0` 입니다.
+   현재 로컬 breakdown smoke 값은 `recommendationReviewGate=DEFERRED_NO_REAL_USER_TRAFFIC`, `top1LeaderServiceId=2622`, `top1LeaderSharePct=60.17`, `top1LeaderUserMix.exampleUsers=274`, `top1LeaderUserMix.boundedLocalUsers=1`, `top1LeaderUserMix.localRealNonExampleSeedUsers=3`, `top1LeaderUserMix.realUserUsers=0`, `top1LeaderSignalSummary=LOCAL_SEED_WITHOUT_REAL_USER_LEADER`, `concentrationReadiness=CONCENTRATED_TOP1`, `realUserCohortGate=DEFERRED_NO_REAL_USER_COHORT`, `signalQuality=LOCAL_REAL_NON_EXAMPLE_SEED_WITH_NON_REAL_BATCH`, `topRepeatedServices[0].serviceId=2622`, `topRepeatedServices[0].userMix.exampleUsers=453`, `topRepeatedServices[0].userMix.localRealNonExampleSeedUsers=3`, `top1Services[0].serviceId=2622`, `top1Services[0].userMix.exampleUsers=274`, `top1Services[0].userMix.localRealNonExampleSeedUsers=3`, `top1Services[0].userMix.realUserUsers=0` 입니다.
    프론트엔드에는 이제 `ROLE_ADMIN` 전용 `/admin/dashboard` consumer가 추가되어, summary/breakdown gate와 leader cohort mix를 브라우저에서 바로 읽을 수 있습니다. 같은 화면에서 collect/search/user-pii-sync 핵심 지표와 최근 collect failure, zero-result keyword도 함께 읽습니다. 관리자가 아닌 사용자가 직접 접근하면 홈에서 안내 토스트를 보여 줍니다. 현재 local verification은 `frontend npm run lint`, `frontend npm run build` 까지만 닫혀 있고 브라우저 수동 QA는 아직 별도 미실행입니다.
    `recentFallbackSamples`, `recentClickedSamples`, `repeatExposureGroups` 각 row에는 계속 `userCohort(EXAMPLE_SMOKE/BOUNDED_LOCAL/LOCAL_REAL_NON_EXAMPLE_SEED/REAL_USER)` 가 포함되어, 상세 triage 시 bounded local seed, local real-non-example seed, real user를 분리해서 읽을 수 있습니다.
    collect 섹션에는 최근 실패 run 목록, search 섹션에는 최근 7일 0건 검색 수가 포함됩니다.
