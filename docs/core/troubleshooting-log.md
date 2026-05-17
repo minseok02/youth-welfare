@@ -4559,3 +4559,17 @@
   - 개인 eligibility 쪽 잔여는 `JA0313 2`, `JA0314 1`, `JA0315 1`, `JA0316 1`, `JA0322 2`, `JA0410 3` 수준에 그쳤다.
 - 해결: unmapped inventory 문서에 “missing fact 집합에서 `JA0301~JA0303` 는 0건”, “개인 eligibility 잔여는 매우 작고, 실질적인 gap 설명력은 사업체/업종/창업 축이 압도적”이라는 문장을 추가했다. 또한 `JA0313~JA0316` 은 low-priority deferred, `JA0322/JA0410` 은 positive fact 승격 대상 아님으로 분리해 적었다.
 - 이유: 이걸 명시해 두면 다음 턴에서 `supportConditions` 를 다시 볼 때도 우선순위가 흔들리지 않는다. 지금 남은 질문은 “개인 eligibility 축이 많이 빠져 있나?”가 아니라 “사업체/업종/창업 상태를 현재 제품이 실제로 소비할 것인가?”다. 이 구분이 없으면 fact scope 확장을 구현 문제로 오해하고 unnecessary taxonomy를 늘릴 위험이 있다.
+
+## 837) `Gov24 serviceField/userType/benefitType` 의 남은 문제는 source 부재보다 internal canonical 규칙 범위 결정이다
+- 문제: 그동안 `Gov24` 의 `서비스분야`, `사용자구분`, `지원유형` 은 외부 codebook이 없으니 아직 못 한다는 식으로 뭉뚱그려 읽히기 쉬웠다. 하지만 실제 DB를 다시 보면 raw inventory는 이미 충분히 들어와 있고, 지금 남은 질문은 “값이 무엇인가?”보다 “어디까지를 hard canonical로 고정할 것인가?” 쪽이었다. 이걸 분리하지 않으면 `Gov24` 가 아직도 순수 external-blocked 처럼 보이고, 반대로 지나치게 이른 stable code 설계를 시작할 위험도 있었다.
+- 확인:
+  - `서비스분야` exact label inventory는 `10개` 였다. (`생활안정`, `농림축산어업`, `보육·교육`, `보건·의료`, `임신·출산`, `고용·창업`, `문화·환경`, `보호·돌봄`, `행정·안전`, `주거·자립`)
+  - `사용자구분` raw 조합은 `14개` 였지만, `||` split 기준 base token은 `개인`, `가구`, `법인/시설/단체`, `소상공인` `4개` 뿐이었다.
+  - `지원유형` raw 문자열은 `172개` 였지만, `||` split 기준 base token은 `20개` 였다. 상위 token은 `현금`, `현물`, `기타`, `현금(감면)`, `이용권`, `서비스(의료)`, `시설이용`, `기타(교육)`, `현금(보험)`, `현금(장학금)` 등이다.
+  - 즉 raw vocabulary를 “관측조차 못 한 상태”는 아니고, 오히려 raw exact label 유지 + token-first 해석은 지금 당장 고정 가능한 범위였다.
+- 해결: 새 `policy-gov24-canonical-mapping-draft.md` 를 추가해 1차 internal rule을 문서화했다.
+  - `서비스분야`: `gov24ServiceFieldLabel` 은 raw exact label 유지, compat bridge는 현재 `CollectCategorySupport.mapGov24CompatCategory` 규칙 그대로 사용
+  - `사용자구분`: `gov24UserTypeLabel` 은 raw exact 유지, 내부 해석은 `||` split + trim + de-dup 으로 `개인/가구/법인·시설·단체/소상공인` token inventory 기준 처리
+  - `지원유형`: `gov24BenefitTypeLabel` 은 raw exact 유지, 내부 해석은 `||` split + trim + de-dup 으로 `20개` token inventory 기준 처리
+  - 이번 단계에서는 stable code SQL, `YOUTH_MID` 연결, `지원유형` full hard collapse는 하지 않기로 고정했다.
+- 이유: 이렇게 나눠 두면 다음 턴에서 무엇을 실제로 구현할지 판단이 쉬워진다. `Gov24` label 3종은 이제 “external source가 없어서 못 함”이 아니라 “label-first canonical 구현을 지금 열 것인가, 아니면 stable code/import-backfill 단계까지 보류할 것인가”의 문제다. 즉 남은 모호성은 데이터 존재가 아니라 **내부 규칙의 적용 반경**이다.

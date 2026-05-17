@@ -178,5 +178,5 @@ blocked SQL 과 deferred Gov24 business-code 승격보다 먼저
 | 항목 | 지금 안 하는 이유 | 다시 열 조건 |
 |---|---|---|
 | recommendation 제품 판단 | bug closeout은 끝났고, 남은 것은 local 청년 정책 신호를 더 강하게 넣을지에 대한 제품/모델링 선택이다. | 새 재현 버그가 생기거나, local 청년 정책 노출 강화가 명시 목표로 승인될 때 |
-| `Gov24` external blocked | source-of-truth/codebook 없이 `GOV24_*` / `YOUTH_MID` fact 승격을 진행하면 잘못된 매핑을 고정할 위험이 크다. | provider/operator 응답, schema export, 운영 inventory source-of-truth 중 하나가 확보될 때 |
+| `Gov24` canonical deferred | `supportConditions` 는 partial runtime fact가 active 이고, `serviceField/userType/benefitType` raw inventory와 1차 내부 매핑 초안도 정리됐다. 다만 stable code/import-backfill, `supportConditions` full-scope, `YOUTH_MID` 연결은 아직 현재 제품 경계 밖이다. | label-first canonical 구현이 별도 active 목표로 승인되거나, stable code/schema source-of-truth가 확보될 때 |
 | infra/server 확장 | 서버 reality는 확인됐지만, 현재 main track은 bounded runtime 기준선 유지와 drift 정리다. | 배포/운영 절차 고도화가 별도 active 목표로 승격될 때 |

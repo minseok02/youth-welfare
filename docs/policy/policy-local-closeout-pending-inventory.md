@@ -44,11 +44,17 @@ local-first closeout 기준의 실제 다음 액션을 고정합니다.
 
 아래는 로컬에서 문서만 더 쌓아도 unblock 되지 않습니다.
 
-- `GOV24_SERVICE_FIELD`, `GOV24_USER_TYPE`, `GOV24_BENEFIT_TYPE` 공식 label inventory import/backfill SQL 초안 작성
-- `GOV24_SUPPORT_CONDITION` 전체 code inventory 확장 및 `service_facts` backfill 초안 작성
+- `GOV24_SERVICE_FIELD`, `GOV24_USER_TYPE`, `GOV24_BENEFIT_TYPE` stable code/import-backfill SQL 작성
+- `GOV24_SUPPORT_CONDITION` full-scope code inventory 확장 및 `service_facts` backfill 초안 작성
 - `YOUTH_MID` stable code mapping SQL 초안 작성
 
-이들은 current source/codebook 응답이 와야만 다시 열 수 있습니다.
+다만 `serviceField/userType/benefitType` 는 raw inventory와 1차 내부 매핑 초안은 이미 있다.
+지금 막힌 것은 “값을 전혀 모른다”가 아니라 stable code/import-backfill을 현재 제품 경계로 열지 않았다는 점이다.
+
+즉 이들은 아래 중 하나가 있어야 다시 연다.
+
+- stable code/schema source-of-truth 확보
+- 또는 label-first canonical 구현이 별도 active 목표로 승인
 
 추가로 `Gov24 supportConditions` 의 사업체/업종/창업 상태 code 승격은
 external blocked 는 아니지만, 현재 제품 입력/추천 matcher가 개인 eligibility 축 중심이므로

@@ -92,9 +92,11 @@ latest replay artifact(`/tmp/tmp.lP4I9NWUUU`) 기준 `SUMMARY_SLOT_METRIC` 도 �
 `slot_services_*` 뿐 아니라 `slot_rows_*` 를 같이 출력하므로,
 apply/replay 양쪽에서 같은 축으로 raw row density를 바로 대조할 수 있습니다.
 현재 local snapshot에서 실제로 채워지는 managed slot은 사실상 `YOUTH_MAJOR`, `YOUTH_MID`, `PROVISION_METHOD` 이고,
-`GOV24_*` 는 아직 runtime collect 기준 populated read 후보가 아닙니다.
-`GOV24_SERVICE_FIELD / USER_TYPE / BENEFIT_TYPE` 는 현재도
-external codebook 응답이 있어야 다시 여는 blocked import/backfill 트랙으로 유지합니다.
+`GOV24_*` stable code/import-backfill 은 아직 열지 않았습니다.
+다만 `Gov24` raw inventory 자체는 이미 확인돼 있고,
+`serviceField/userType/benefitType` 는 1차 internal mapping draft가 정리된 상태입니다.
+즉 현재 남은 문제는 “값을 아직 모른다”보다
+“label-first canonical 구현을 먼저 열지, stable code/import-backfill 단계까지 deferred로 둘지”에 가깝습니다.
 
 ## 2. `YOUTH_MID_RAW_ALIAS` 현재 상태
 
