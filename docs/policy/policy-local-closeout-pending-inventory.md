@@ -16,7 +16,7 @@
 
 - 로컬에서 바로 끝낼 수 있는 항목
 - 외부 source/codebook 응답이 있어야 열리는 항목
-- 현재는 실제 대상이 없는 future infra 항목
+- active main track으로 올릴 필요는 없는 deferred infra/server 항목
 
 을 다시 분리해서,
 local-first closeout 기준의 실제 다음 액션을 고정합니다.
@@ -56,7 +56,7 @@ external blocked 는 아니지만, 현재 제품 입력/추천 matcher가 개인
 
 ## 2. future infra/deploy memo
 
-아래는 실제 서버/배포 대상이 생긴 뒤에야 의미가 있습니다.
+아래는 서버가 없어서가 아니라, 현재 bounded smoke와 drift 체크를 넘는 추가 운영 절차라서 지금 active main track으로 올리지 않는 항목입니다.
 
 - 서버 기동 절차
 - DB 계정 생성 및 datasource 전환

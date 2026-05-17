@@ -15,7 +15,7 @@
 
 - 로컬에서 바로 구현/검증 가능한 트랙
 - 외부 source/codebook 응답이 있어야 다시 열 수 있는 blocked SQL/doc 트랙
-- 서버가 생긴 뒤에만 의미가 있는 future infra/deploy 메모
+- 지금도 존재하지만 active main track으로 다시 올릴 필요는 없는 server/infra/deploy 메모
 
 중 무엇을 다음 active 메인 트랙으로 둘지 고정합니다.
 
@@ -72,9 +72,9 @@
 - `Gov24 supportConditions` 의 사업체/업종/창업 상태 code(`JA210*`, `JA220*/JA120*/JA1299/JA2299`, `JA110*`) fact 승격
 - `YOUTH_MID` stable code mapping SQL
 
-아래는 **현재 단계에서는 active track으로 보지 않습니다.**
+아래는 **현재 단계에서는 active main track으로 보지 않습니다.**
 
-- 서버가 생긴 뒤의 배포/infra 절차
+- 추가 서버/배포/infra 절차 확장
 - 운영 DB 계정 / datasource 전환
 - 운영 `.env` / secret store 전환
 - HTTPS/Nginx
@@ -103,9 +103,15 @@
 
 ## 2. future infra/deploy 메모는 지금 active track이 아니다
 
-현재는 운영 서버 자체가 없으므로,
-deploy/infra 메모는 “나중에 서버가 생기면 다시 만들 주제”일 뿐
-지금 당장 진행할 트랙이 아니다.
+운영 서버 smoke, 재기동, drift 체크 자체는 이미 실제로 확인했지만,
+그렇다고 지금 main track을 deploy/infra 확장으로 다시 올릴 필요는 없다.
+
+즉 현재 deferred 대상은
+
+- 서버 자체의 존재 여부가 아니라
+- bounded smoke와 drift 체크를 넘는 추가 운영 인프라 작업들
+
+이다.
 
 ## 3. blocked SQL 은 지금 더 파도 reopen 조건 자체는 바뀌지 않는다
 

@@ -1,7 +1,7 @@
 # 현재 상태
 
 - 현재는 운영 전환 단계가 아니라 로컬 기능/구조 검증 단계입니다.
-- 운영 서버는 아직 없습니다.
+- 운영 서버 smoke/재기동/추천 진단까지는 실제로 확인했지만, 현재 active main track은 여전히 신규 운영 인프라 확장보다 로컬 기능/구조 검증과 bounded runtime 기준선 유지입니다.
 - 프론트는 기본 연동/빌드/브라우저 smoke까지 확인했고, 현재는 신규 기능보다 회귀 방지와 운영 문서 정리가 우선입니다.
 - 지금 우선순위는 기능 검증, 구조 검증, 수정, 최적화/보안, 프론트 연동 검증 순서입니다.
 - 운영/배포 관련 작업은 마지막 단계에서만 다룹니다.
@@ -34,6 +34,7 @@
 - 프론트 QA 문서군 진입점: [frontend-qa-docs-index.md](frontend/frontend-qa-docs-index.md)
 - 정책 문서군 진입점: [policy-docs-index.md](policy/policy-docs-index.md)
 - 공통 로컬 검증 문서군 진입점: [local-validation-docs-index.md](core/local-validation-docs-index.md)
+- 서버 런타임 drift 체크리스트: [server-runtime-drift-checklist.md](core/server-runtime-drift-checklist.md)
 - 시스템 문서군 진입점: [system-docs-index.md](core/system-docs-index.md)
 - 히스토리 문서군 진입점: [history-docs-index.md](./history-docs-index.md)
 - 인증/세션: [auth-session-revocation-current-state.md](auth/auth-session-revocation-current-state.md)

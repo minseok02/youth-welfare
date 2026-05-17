@@ -4464,3 +4464,12 @@
   - 아직 안 여는 것: local 청년 정책을 더 강하게 밀지 여부, interest/theme 구조화 강화, 지역 적합성 신호 강화
   - reopen 조건: 새 rank/cache/diagnostics mismatch 같은 재현 버그가 다시 생기거나, local 청년 정책 노출 강화가 명시 목표로 승인될 때
 - 이유: 이렇게 해야 다음 reopen 때도 “지금은 버그를 잡는 단계인지, 아니면 모델링/제품 선택 단계인지”를 바로 구분할 수 있다. recommendation 트랙을 계속 active bugfix처럼 끌고 가면, 설명 가능한 AI relevance 차이까지 엔지니어링 결함으로 오해하기 쉽다.
+
+## 828) active 기준선 문서에 아직 `운영 서버 없음` 문구가 남아 있으면, 실제 현재 단계보다 로컬-only 상태처럼 읽혀 다음 우선순위 판단이 흔들린다
+- 문제: recent server smoke, auth closeout, admin dashboard QA, recommendation diagnostics까지 실제 운영 서버에서 이미 수행했는데도 `current-state.md`, `policy-next-active-track-priority.md`, `policy-local-closeout-pending-inventory.md` 일부 문구는 여전히 “운영 서버는 아직 없습니다”, “서버가 생긴 뒤에만 의미가 있다”는 예전 전제를 유지하고 있었다. 이 상태를 두면 current 문서를 기준으로 읽는 사람이 bounded server smoke/drift 체크의 존재를 과소평가하거나, 반대로 deploy/infra 자체가 아직 정의되지 않았다고 오해하기 쉽다.
+- 해결: active 문서의 표현을 현실에 맞게 정리했다. 현재 기준은
+  - 실제 서버 smoke와 drift 체크는 이미 수행됨
+  - 하지만 그 사실이 곧 deploy/infra 확장을 active main track으로 올린다는 뜻은 아님
+  - 즉 “서버는 있다, 그러나 현재 주 트랙은 bounded runtime 기준선 유지와 drift 정리”로 읽는 편이 맞다
+  로 통일했다.
+- 이유: 지금 단계의 핵심은 server existence 자체가 아니라, 그 위에서 무엇을 active bugfix/main track으로 볼지 구분하는 것이다. 문구 drift를 그대로 두면 이미 확보한 server runtime baseline과 앞으로의 local-first 작업 우선순위를 동시에 흐리게 만든다.
