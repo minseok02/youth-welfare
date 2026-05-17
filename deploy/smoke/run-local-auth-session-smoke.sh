@@ -4,6 +4,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
 RUN_RUNTIME_API_SMOKE="${RUN_RUNTIME_API_SMOKE:-true}"
+RUN_LOGIN_FAILURE_TRACKING_SMOKE="${RUN_LOGIN_FAILURE_TRACKING_SMOKE:-true}"
 RUN_WITHDRAW_SMOKE="${RUN_WITHDRAW_SMOKE:-true}"
 RUN_ADMIN_FORCED_LOGOUT_SMOKE="${RUN_ADMIN_FORCED_LOGOUT_SMOKE:-true}"
 
@@ -19,6 +20,12 @@ if [[ "${RUN_RUNTIME_API_SMOKE}" == "true" ]]; then
   run_step \
     "runtime api smoke (logout / refresh invalidation / presented access revoke)" \
     "${ROOT_DIR}/deploy/smoke/run-local-runtime-api-smoke.sh"
+fi
+
+if [[ "${RUN_LOGIN_FAILURE_TRACKING_SMOKE}" == "true" ]]; then
+  run_step \
+    "login failure tracking smoke (A004 persistence / success reset)" \
+    "${ROOT_DIR}/deploy/smoke/run-local-login-failure-tracking-smoke.sh"
 fi
 
 if [[ "${RUN_WITHDRAW_SMOKE}" == "true" ]]; then

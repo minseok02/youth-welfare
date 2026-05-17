@@ -298,7 +298,7 @@ fi
 
 if [[ "${RUN_AUTH_SESSION_SMOKE}" == "true" ]]; then
   run_step \
-    "auth/session smoke wrapper (runtime + withdraw + admin forced logout)" \
+    "auth/session smoke wrapper (runtime + login failure tracking + withdraw + admin forced logout)" \
     "${ROOT_DIR}/deploy/smoke/run-local-auth-session-smoke.sh"
 fi
 

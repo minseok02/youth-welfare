@@ -43,6 +43,15 @@ deploy/smoke/run-local-admin-forced-logout-smoke.sh
 이 스크립트는 `admin login -> forced logout -> old access deny(401/A006) -> old refresh deny(401/A003) -> relogin recovery(200)` 를 한 번에 확인합니다.
 앱 재기동 직후 startup race가 있으면 `HEALTH_RETRY_COUNT`, `HEALTH_RETRY_DELAY_SECONDS` 로 health check 재시도 횟수를 늘릴 수 있습니다.
 
+로그인 실패 누적/초기화 반복 검증은 아래 스크립트를 우선 사용합니다.
+
+```bash
+deploy/smoke/run-local-login-failure-tracking-smoke.sh
+```
+
+이 스크립트는 `signup -> wrong password login x2(401/A004) -> users/auth_users login_fail_count=2 확인 -> successful login -> users/auth_users login_fail_count=0 확인 -> logout` 를 한 번에 확인합니다.
+앱 재기동 직후 startup race가 있으면 `HEALTH_RETRY_COUNT`, `HEALTH_RETRY_DELAY_SECONDS` 로 health check 재시도 횟수를 늘릴 수 있습니다.
+
 withdraw 반복 검증은 아래 스크립트를 우선 사용합니다.
 
 ```bash
@@ -115,8 +124,9 @@ deploy/smoke/run-local-auth-session-smoke.sh
 기본 순서:
 
 1. runtime logout smoke
-2. withdraw smoke
-3. admin forced logout smoke
+2. login failure tracking smoke
+3. withdraw smoke
+4. admin forced logout smoke
 
 서버나 개인 로컬의 `.env` 값이 기본 smoke 값과 다를 때는 실제 값을 명령줄에 직접 반복해서 쓰지 말고,
 아래 wrapper를 우선 사용합니다. 이 wrapper는 `.env`를 읽어 `DB_QUERY_PASSWORD`,
@@ -156,6 +166,8 @@ VALIDATION_APP_BASE_URL=http://127.0.0.1:8082 deploy/smoke/run-local-validation-
 5. admin dashboard smoke
 6. admin recommendation breakdowns smoke
 7. education priority replay smoke
+
+현재 `auth/session smoke wrapper` 내부 순서는 `runtime logout -> login failure tracking -> withdraw -> admin forced logout` 입니다.
 
 주의:
 
