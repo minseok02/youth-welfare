@@ -172,3 +172,11 @@ blocked SQL 과 deferred Gov24 business-code 승격보다 먼저
 2. `CTR tuning` 은 raw click 수와 별개로 현재도 bounded local seed 중심이라 바로 여는 active 작업이 아니다.
 3. 지금 단계의 active main track은 local 기능/구조 검증, bounded runtime 반복 검증, 그에 따른 수정이다.
 4. 프론트 연동 검증이 끝나기 전 deploy/infra 는 current 작업 기준에서 제외한다.
+
+## deferred 정리
+
+| 항목 | 지금 안 하는 이유 | 다시 열 조건 |
+|---|---|---|
+| recommendation 제품 판단 | bug closeout은 끝났고, 남은 것은 local 청년 정책 신호를 더 강하게 넣을지에 대한 제품/모델링 선택이다. | 새 재현 버그가 생기거나, local 청년 정책 노출 강화가 명시 목표로 승인될 때 |
+| `Gov24` external blocked | source-of-truth/codebook 없이 `GOV24_*` / `YOUTH_MID` fact 승격을 진행하면 잘못된 매핑을 고정할 위험이 크다. | provider/operator 응답, schema export, 운영 inventory source-of-truth 중 하나가 확보될 때 |
+| infra/server 확장 | 서버 reality는 확인됐지만, 현재 main track은 bounded runtime 기준선 유지와 drift 정리다. | 배포/운영 절차 고도화가 별도 active 목표로 승격될 때 |

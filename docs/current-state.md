@@ -89,6 +89,14 @@
 - 프론트 번들 경고와 retrieval/embedding 운영 모니터링 보강
 - `service_taxonomies` / `service_taxonomy_summary_slots` integrated schema를 기준으로 legacy draft 문서와 smoke 설명을 더 정리
 
+### 현재 deferred 요약
+
+| 항목 | 지금 안 하는 이유 | 다시 열 조건 |
+|---|---|---|
+| recommendation 제품 판단 | 재현 가능한 bugfix는 닫혔고, `2736` 류 local 청년 정책 노출 강화는 제품/모델링 선택 문제다. | 새 rank/cache/diagnostics 재현 버그가 생기거나, local 청년 정책 노출 강화가 명시 목표로 승인될 때 |
+| `Gov24` external blocked | `GOV24_SERVICE_FIELD / USER_TYPE / BENEFIT_TYPE`, `GOV24_SUPPORT_CONDITION`, `YOUTH_MID` 는 source-of-truth/codebook 응답 없이는 안전하게 승격할 수 없다. | provider/operator codebook 응답, current schema export, 또는 운영 inventory source-of-truth가 확보될 때 |
+| 추가 infra/server 확장 | 서버 smoke/drift/runtime 검증은 닫혔지만, secret store/HTTPS/deploy 고도화는 지금 active main track이 아니다. | bounded runtime 기준선 유지보다 배포/운영 절차 확장이 우선 목표로 올라올 때 |
+
 ## 아래부터는 이력 / 참고
 
 아래 섹션들은 현재 active 기준선을 덮어쓰지 않습니다.

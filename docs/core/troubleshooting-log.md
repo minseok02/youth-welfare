@@ -4527,3 +4527,15 @@
   - `NOTIFICATION_PII_DB_URL=...currentSchema=youth_welfare_pii`
   를 명시 주입하게 했다. 이후 replay-only step이 다시 green 이 되었고, `run-local-validation-from-env.sh --full` 도 최종 `local validation suite passed`, `suite_duration_seconds=102` 로 끝났다.
 - 이유: 지금 replay smoke의 fail-fast 의도는 “잘못된 compose-host JDBC를 조용히 흡수하지 않는다”는 데 있다. 따라서 full wrapper도 그 의도를 유지하되, 실제 replay subprocess에는 검증용 local host JDBC를 명시로 넘겨 current baseline을 일관되게 재현해야 한다. 그렇지 않으면 wrapper만 유독 `.env` drift에 민감해져 개별 smoke와 전체 baseline의 진실이 달라진다.
+
+## 834) closeout 뒤 남은 일은 active bugfix가 아니라 deferred lane 정리로 읽어야 한다
+- 문제: recommendation closeout, bounded policy runtime 재검증, PII cutover rerun, education replay rerun, broad backend suite, full validation wrapper까지 모두 다시 green 이 된 뒤에도, 문서가 남은 일을 “뭔가 더 고쳐야 하는 active 트랙”처럼 보이게 두면 이미 닫힌 recommendation/`Gov24`/infra 항목을 다시 ad-hoc 으로 여는 drift가 생길 수 있다.
+- 확인:
+  - recommendation 은 `REAL_USER` gate, retrieval local 우선화, diagnostics/rerank/AI score 해석까지 닫혔고 남은 것은 local 청년 정책 노출 강화 여부에 대한 제품 판단이다.
+  - `Gov24` 는 runtime closeout과 bounded audit 기준선은 닫혔지만, `GOV24_*` / `YOUTH_MID` fact 승격은 여전히 source-of-truth/codebook 응답 없이는 열 수 없는 external blocked 항목이다.
+  - 서버 smoke와 drift/runtime 검증은 닫혔지만, secret store/HTTPS/deploy 확장은 현재 active main track이 아니다.
+- 해결: active 문서에 남은 세 항목을 `지금 안 하는 이유 / 다시 열 조건` 표로 고정했다.
+  - recommendation: 새 재현 버그 또는 local 청년 정책 노출 강화 목표가 생길 때만 reopen
+  - `Gov24`: provider/operator codebook, schema export, 운영 inventory source-of-truth가 확보될 때만 reopen
+  - infra/server: bounded runtime 유지보다 배포/운영 절차 확장이 우선 목표로 올라올 때만 reopen
+- 이유: closeout 이후에는 “무엇을 더 고칠까”보다 “무엇을 지금 안 건드리는가”를 명확히 해야 다음 라운드에서 reopen 경계가 흐려지지 않는다. deferred lane을 명시해 두면, 설명 가능한 정상 결과를 다시 bugfix처럼 다루는 비용을 줄일 수 있다.
