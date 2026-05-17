@@ -305,6 +305,52 @@ class ReRankingServiceTest {
                 .isEqualTo(62L);
     }
 
+    @Test
+    @DisplayName("기본 top band에 단일 bucket만 남아도 확장 band에서 다른 category 후보가 있으면 no-priority top1 회전을 계속 시도한다")
+    void rerankExpandsNoPriorityBandWhenPrimaryBandHasSingleBucket() {
+        ReRankingService reRankingService = new ReRankingService(
+                new ScoreNormalizer(),
+                scoreWeightService,
+                new RecommendationDiversityService()
+        );
+
+        when(scoreWeightService.getActiveWeight()).thenReturn(ScoreWeight.builder()
+                .weightKey("COLD_START")
+                .ruleWeight(BigDecimal.valueOf(0.8))
+                .aiWeight(BigDecimal.valueOf(0.2))
+                .minLogCount(0)
+                .isActive(true)
+                .build());
+
+        ScoredCandidate localTop = candidate(
+                service(71L, WelfareService.SourceType.BOKJIRO_LOCAL, "기타", LocalDate.now().plusDays(20), 100, 1000L, LocalDateTime.of(2026, 1, 1, 0, 0)),
+                100.0,
+                null
+        );
+        ScoredCandidate jobSecond = candidate(
+                service(72L, WelfareService.SourceType.BOKJIRO_CENTRAL, "일자리", LocalDate.now().plusDays(20), 100, 1000L, LocalDateTime.of(2026, 1, 1, 0, 0)),
+                84.0,
+                null
+        );
+        ScoredCandidate housingThird = candidate(
+                service(73L, WelfareService.SourceType.GOV24, "주거", LocalDate.now().plusDays(20), 100, 1000L, LocalDateTime.of(2026, 1, 1, 0, 0)),
+                70.0,
+                null
+        );
+
+        List<ScoredCandidate> rankedForUserA = reRankingService.rerank(
+                List.of(localTop, jobSecond, housingThird),
+                noPrioritySnapshot("user-a")
+        );
+        List<ScoredCandidate> rankedForUserB = reRankingService.rerank(
+                List.of(localTop, jobSecond, housingThird),
+                noPrioritySnapshot("user-b")
+        );
+
+        assertThat(rankedForUserA.get(0).getService().getId()).isEqualTo(72L);
+        assertThat(rankedForUserB.get(0).getService().getId()).isEqualTo(71L);
+    }
+
     private ScoredCandidate candidate(WelfareService service,
                                       double ruleWeightedScore,
                                       Double aiScore,

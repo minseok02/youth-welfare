@@ -25,6 +25,7 @@ import java.util.stream.Collectors;
 public class ReRankingService {
     private static final int NO_PRIORITY_TOP_ELIGIBLE_LIMIT = 8;
     private static final double NO_PRIORITY_TOP_BAND = 0.15d;
+    private static final double NO_PRIORITY_TOP_BAND_EXPANDED = 0.20d;
     private static final double NO_PRIORITY_PREFERRED_CANDIDATE_BONUS = 0.085d;
     private static final double NO_PRIORITY_SECONDARY_CANDIDATE_BONUS = 0.03d;
     private static final double NO_PRIORITY_NON_PREFERRED_TOP_PENALTY = 0.025d;
@@ -100,11 +101,10 @@ public class ReRankingService {
         List<ScoredCandidate> ranked = scored.stream()
                 .sorted(recommendationComparator())
                 .toList();
-        double topScore = ranked.get(0).getFinalScore();
-        List<ScoredCandidate> eligible = ranked.stream()
-                .limit(NO_PRIORITY_TOP_ELIGIBLE_LIMIT)
-                .filter(candidate -> topScore - candidate.getFinalScore() <= NO_PRIORITY_TOP_BAND)
-                .toList();
+        List<ScoredCandidate> eligible = eligibleNoPriorityTopBandCandidates(ranked, NO_PRIORITY_TOP_BAND);
+        if (eligible.size() < 2) {
+            eligible = eligibleNoPriorityTopBandCandidates(ranked, NO_PRIORITY_TOP_BAND_EXPANDED);
+        }
         if (eligible.size() < 2) {
             return scored;
         }
@@ -178,16 +178,19 @@ public class ReRankingService {
         List<ScoredCandidate> ranked = scored.stream()
                 .sorted(recommendationComparator())
                 .toList();
-        double topScore = ranked.get(0).getFinalScore();
-        List<ScoredCandidate> eligible = ranked.stream()
-                .limit(NO_PRIORITY_ROTATION_LIMIT)
-                .filter(candidate -> topScore - candidate.getFinalScore() <= NO_PRIORITY_TOP_BAND)
-                .toList();
+        List<ScoredCandidate> eligible = eligibleNoPriorityRotationCandidates(ranked, NO_PRIORITY_TOP_BAND);
         if (eligible.size() < 2) {
-            return scored;
+            eligible = eligibleNoPriorityRotationCandidates(ranked, NO_PRIORITY_TOP_BAND_EXPANDED);
+        }
+        if (eligible.size() < 2) {
+            return ranked;
         }
 
         Map<String, List<ScoredCandidate>> buckets = bucketizeNoPriorityTopBand(eligible);
+        if (buckets.size() < 2) {
+            eligible = eligibleNoPriorityRotationCandidates(ranked, NO_PRIORITY_TOP_BAND_EXPANDED);
+            buckets = bucketizeNoPriorityTopBand(eligible);
+        }
         if (buckets.size() < 2) {
             return ranked;
         }
@@ -213,6 +216,28 @@ public class ReRankingService {
             reordered.add(candidate);
         }
         return List.copyOf(reordered);
+    }
+
+    private List<ScoredCandidate> eligibleNoPriorityTopBandCandidates(List<ScoredCandidate> ranked, double band) {
+        if (ranked == null || ranked.isEmpty()) {
+            return List.of();
+        }
+        double topScore = ranked.get(0).getFinalScore();
+        return ranked.stream()
+                .limit(NO_PRIORITY_TOP_ELIGIBLE_LIMIT)
+                .filter(candidate -> topScore - candidate.getFinalScore() <= band)
+                .toList();
+    }
+
+    private List<ScoredCandidate> eligibleNoPriorityRotationCandidates(List<ScoredCandidate> ranked, double band) {
+        if (ranked == null || ranked.isEmpty()) {
+            return List.of();
+        }
+        double topScore = ranked.get(0).getFinalScore();
+        return ranked.stream()
+                .limit(NO_PRIORITY_ROTATION_LIMIT)
+                .filter(candidate -> topScore - candidate.getFinalScore() <= band)
+                .toList();
     }
 
     private Map<String, List<ScoredCandidate>> bucketizeNoPriorityTopBand(List<ScoredCandidate> eligible) {
