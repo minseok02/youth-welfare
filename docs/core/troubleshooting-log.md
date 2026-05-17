@@ -4473,3 +4473,21 @@
   - 즉 “서버는 있다, 그러나 현재 주 트랙은 bounded runtime 기준선 유지와 drift 정리”로 읽는 편이 맞다
   로 통일했다.
 - 이유: 지금 단계의 핵심은 server existence 자체가 아니라, 그 위에서 무엇을 active bugfix/main track으로 볼지 구분하는 것이다. 문구 drift를 그대로 두면 이미 확보한 server runtime baseline과 앞으로의 local-first 작업 우선순위를 동시에 흐리게 만든다.
+
+## 829) recommendation closeout 다음 active baseline은 새 기능 설계보다 bounded policy runtime 숫자를 다시 찍어 current truth를 유지하는 쪽이 맞다
+- 문제: recommendation 트랙을 closeout/deferred로 넘긴 뒤에도 다음 우선순위를 곧바로 새 기능 후보로 옮기면, 이미 운영적으로 반복 사용 중인 bounded policy runtime 기준선이 최신 워크트리에서 유지되는지 확인 없이 넘어가게 된다. 현재 단계에서는 retrieval/category/admin rebuild 경계가 실제 triage에 더 자주 쓰이므로, 이 baseline이 살아 있는지 먼저 다시 찍는 편이 안전하다.
+- 해결: `run-local-policy-quality-summary.sh` 와 `reference-urls/rebuild?limitPerSource=20` 을 current 워크트리 기준으로 다시 실행했다. 결과는
+  - `dataset_key=retrieval-baseline-v2`
+  - `scenario_count=11`
+  - `top1/top3/branch=1.0`
+  - `fallback_count=5`
+  - `empty_result_count=0`
+  - `quality_gate_passed=True`
+  - `category_total_policies=14870`
+  - `category_searchable_policies=3567`
+  - `category_searchable_ratio=0.2398789509078682`
+  - `category_top_unified=일자리`
+  - `youth_broad_top_dominant_unified=금융·생활지원`
+  - `reference-urls: scannedCount=80, updatedCount=0, skippedCount=80, failedCount=0`
+  로 유지됐다.
+- 이유: 지금 practical next action은 새 설계보다 baseline drift를 빠르게 배제하는 것이다. retrieval/gate/category 요약과 bounded `reference-urls` rebuild가 그대로면, 다음 라운드에서 문제가 생겨도 “현재 워크트리 기준선은 살아 있다”는 출발점을 확보할 수 있다.
