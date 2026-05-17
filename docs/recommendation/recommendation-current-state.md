@@ -39,6 +39,7 @@
 - 나이
 - 지역
 - 소득
+- `regionCode` / `sido` 가 있으면 해당 지역과 직접 매칭되는 `BOKJIRO_LOCAL` 후보를 전국 정책보다 먼저 읽음
 
 주의:
 
@@ -47,6 +48,7 @@
 
 즉 현재 candidate pool 은 “정확한 hard gate 전부” 가 아니라
 `구조화된 것은 필터`, 나머지는 `태그/후속 scoring 보조` 에 가깝습니다.
+다만 `2026-05-17` 운영 진단 기준으로는 인천 `REAL_USER` no-priority 세그먼트에서 `2736/3257/3281/3575/3714` 같은 `BOKJIRO_LOCAL / 기타` 후보가 youth/age filter나 scoring에서 떨어진 것이 아니라, 애초에 SQL retrieval 150건 안에 들어오지 못하는 경계가 확인됐습니다. 이를 줄이기 위해 현재 base/latest region query는 지역 매칭 `BOKJIRO_LOCAL` 후보를 전국 정책보다 먼저 정렬합니다. 즉 현재 다음 병목은 post-scoring보다 **지역 local candidate가 retrieval 창 안으로 실제 진입하는지** 쪽입니다.
 
 ## 현재 scoring 기준
 

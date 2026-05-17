@@ -68,6 +68,23 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                           AND sr2.regionCode = :regionCode
                     )
                   )
+            ORDER BY
+              CASE
+                WHEN ws.sourceType = com.example.welfare.policy.entity.WelfareService.SourceType.BOKJIRO_LOCAL
+                     AND EXISTS (
+                        SELECT sr3.id FROM ServiceRegion sr3
+                        WHERE sr3.service = ws
+                          AND sr3.regionCode = :regionCode
+                     ) THEN 0
+                WHEN EXISTS (
+                        SELECT sr4.id FROM ServiceRegion sr4
+                        WHERE sr4.service = ws
+                          AND sr4.regionCode = :regionCode
+                     ) THEN 1
+                ELSE 2
+              END ASC,
+              COALESCE(ws.lastModifiedAt, ws.registeredAt, ws.createdAt) DESC,
+              ws.id DESC
             """)
     List<WelfareService> findCandidatesWithRegionCode(@Param("age") int age,
                                                       @Param("incomeLevel") int incomeLevel,
@@ -99,6 +116,23 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                           AND sr2.sidoName = :sidoName
                     )
                   )
+            ORDER BY
+              CASE
+                WHEN ws.sourceType = com.example.welfare.policy.entity.WelfareService.SourceType.BOKJIRO_LOCAL
+                     AND EXISTS (
+                        SELECT sr3.id FROM ServiceRegion sr3
+                        WHERE sr3.service = ws
+                          AND sr3.sidoName = :sidoName
+                     ) THEN 0
+                WHEN EXISTS (
+                        SELECT sr4.id FROM ServiceRegion sr4
+                        WHERE sr4.service = ws
+                          AND sr4.sidoName = :sidoName
+                     ) THEN 1
+                ELSE 2
+              END ASC,
+              COALESCE(ws.lastModifiedAt, ws.registeredAt, ws.createdAt) DESC,
+              ws.id DESC
             """)
     List<WelfareService> findCandidatesWithSido(@Param("age") int age,
                                                 @Param("incomeLevel") int incomeLevel,
@@ -150,7 +184,23 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                           AND sr2.regionCode = :regionCode
                     )
                   )
-            ORDER BY ws.createdAt DESC
+            ORDER BY
+              CASE
+                WHEN ws.sourceType = com.example.welfare.policy.entity.WelfareService.SourceType.BOKJIRO_LOCAL
+                     AND EXISTS (
+                        SELECT sr3.id FROM ServiceRegion sr3
+                        WHERE sr3.service = ws
+                          AND sr3.regionCode = :regionCode
+                     ) THEN 0
+                WHEN EXISTS (
+                        SELECT sr4.id FROM ServiceRegion sr4
+                        WHERE sr4.service = ws
+                          AND sr4.regionCode = :regionCode
+                     ) THEN 1
+                ELSE 2
+              END ASC,
+              ws.createdAt DESC,
+              ws.id DESC
             """)
     List<WelfareService> findLatestCandidatesWithRegionCode(@Param("age") int age,
                                                             @Param("incomeLevel") int incomeLevel,
@@ -182,7 +232,23 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                           AND sr2.sidoName = :sidoName
                     )
                   )
-            ORDER BY ws.createdAt DESC
+            ORDER BY
+              CASE
+                WHEN ws.sourceType = com.example.welfare.policy.entity.WelfareService.SourceType.BOKJIRO_LOCAL
+                     AND EXISTS (
+                        SELECT sr3.id FROM ServiceRegion sr3
+                        WHERE sr3.service = ws
+                          AND sr3.sidoName = :sidoName
+                     ) THEN 0
+                WHEN EXISTS (
+                        SELECT sr4.id FROM ServiceRegion sr4
+                        WHERE sr4.service = ws
+                          AND sr4.sidoName = :sidoName
+                     ) THEN 1
+                ELSE 2
+              END ASC,
+              ws.createdAt DESC,
+              ws.id DESC
             """)
     List<WelfareService> findLatestCandidatesWithSido(@Param("age") int age,
                                                       @Param("incomeLevel") int incomeLevel,

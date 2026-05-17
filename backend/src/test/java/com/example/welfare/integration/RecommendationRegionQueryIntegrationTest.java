@@ -136,6 +136,30 @@ class RecommendationRegionQueryIntegrationTest {
     }
 
     @Test
+    @DisplayName("지역코드 추천 후보는 매칭된 BOKJIRO_LOCAL 정책을 전국 정책보다 먼저 노출한다")
+    void findCandidatesWithRegionCodePrioritizesMatchingLocalPolicies() {
+        WelfareService matchingLocal = saveService("region-local-first", WelfareService.SourceType.BOKJIRO_LOCAL);
+        WelfareService nationwide = saveService("region-nationwide", WelfareService.SourceType.YOUTH);
+
+        serviceRegionRepository.save(ServiceRegion.builder()
+                .service(matchingLocal)
+                .regionCode("28110")
+                .sidoName("인천광역시")
+                .sggName("중구")
+                .build());
+
+        List<WelfareService> results = welfareServiceRepository.findCandidatesWithRegionCode(
+                25,
+                5,
+                "28110",
+                PageRequest.of(0, 10)
+        );
+
+        assertThat(results).extracting(WelfareService::getId)
+                .startsWith(matchingLocal.getId(), nationwide.getId());
+    }
+
+    @Test
     @DisplayName("지역코드 최신 추천 후보도 전국 정책과 매칭 지역 정책만 포함하고 중복 반환하지 않는다")
     void findLatestCandidatesWithRegionCodeIncludesNationwideAndMatchingLocalWithoutDuplicates() {
         WelfareService nationwide = saveService("latest-nationwide");
@@ -180,6 +204,30 @@ class RecommendationRegionQueryIntegrationTest {
     }
 
     @Test
+    @DisplayName("지역코드 최신 추천 후보도 매칭된 BOKJIRO_LOCAL 정책을 전국 정책보다 먼저 노출한다")
+    void findLatestCandidatesWithRegionCodePrioritizesMatchingLocalPolicies() {
+        WelfareService matchingLocal = saveService("latest-region-local-first", WelfareService.SourceType.BOKJIRO_LOCAL);
+        WelfareService nationwide = saveService("latest-region-nationwide", WelfareService.SourceType.YOUTH);
+
+        serviceRegionRepository.save(ServiceRegion.builder()
+                .service(matchingLocal)
+                .regionCode("28110")
+                .sidoName("인천광역시")
+                .sggName("중구")
+                .build());
+
+        List<WelfareService> results = welfareServiceRepository.findLatestCandidatesWithRegionCode(
+                25,
+                5,
+                "28110",
+                PageRequest.of(0, 10)
+        );
+
+        assertThat(results).extracting(WelfareService::getId)
+                .startsWith(matchingLocal.getId(), nationwide.getId());
+    }
+
+    @Test
     @DisplayName("시도 추천 후보는 전국 정책과 같은 시도 정책만 포함한다")
     void findCandidatesWithSidoIncludesNationwideAndMatchingLocalWithoutDuplicates() {
         WelfareService nationwide = saveService("sido-nationwide");
@@ -215,6 +263,30 @@ class RecommendationRegionQueryIntegrationTest {
         assertThat(results.stream()
                 .filter(service -> service.getId().equals(seoul.getId()))
                 .count()).isEqualTo(1L);
+    }
+
+    @Test
+    @DisplayName("시도 추천 후보는 매칭된 BOKJIRO_LOCAL 정책을 전국 정책보다 먼저 노출한다")
+    void findCandidatesWithSidoPrioritizesMatchingLocalPolicies() {
+        WelfareService matchingLocal = saveService("sido-local-first", WelfareService.SourceType.BOKJIRO_LOCAL);
+        WelfareService nationwide = saveService("sido-nationwide-priority", WelfareService.SourceType.YOUTH);
+
+        serviceRegionRepository.save(ServiceRegion.builder()
+                .service(matchingLocal)
+                .regionCode("28110")
+                .sidoName("인천광역시")
+                .sggName("중구")
+                .build());
+
+        List<WelfareService> results = welfareServiceRepository.findCandidatesWithSido(
+                25,
+                5,
+                "인천광역시",
+                PageRequest.of(0, 10)
+        );
+
+        assertThat(results).extracting(WelfareService::getId)
+                .startsWith(matchingLocal.getId(), nationwide.getId());
     }
 
     @Test
@@ -255,9 +327,37 @@ class RecommendationRegionQueryIntegrationTest {
                 .count()).isEqualTo(1L);
     }
 
+    @Test
+    @DisplayName("시도 최신 추천 후보도 매칭된 BOKJIRO_LOCAL 정책을 전국 정책보다 먼저 노출한다")
+    void findLatestCandidatesWithSidoPrioritizesMatchingLocalPolicies() {
+        WelfareService matchingLocal = saveService("latest-sido-local-first", WelfareService.SourceType.BOKJIRO_LOCAL);
+        WelfareService nationwide = saveService("latest-sido-nationwide-priority", WelfareService.SourceType.YOUTH);
+
+        serviceRegionRepository.save(ServiceRegion.builder()
+                .service(matchingLocal)
+                .regionCode("28110")
+                .sidoName("인천광역시")
+                .sggName("중구")
+                .build());
+
+        List<WelfareService> results = welfareServiceRepository.findLatestCandidatesWithSido(
+                25,
+                5,
+                "인천광역시",
+                PageRequest.of(0, 10)
+        );
+
+        assertThat(results).extracting(WelfareService::getId)
+                .startsWith(matchingLocal.getId(), nationwide.getId());
+    }
+
     private WelfareService saveService(String label) {
+        return saveService(label, WelfareService.SourceType.YOUTH);
+    }
+
+    private WelfareService saveService(String label, WelfareService.SourceType sourceType) {
         return welfareServiceRepository.save(WelfareService.builder()
-                .sourceType(WelfareService.SourceType.YOUTH)
+                .sourceType(sourceType)
                 .sourceId(TEST_SOURCE_PREFIX + UUID.randomUUID().toString().substring(0, 8))
                 .title("지역 추천 테스트 정책 " + label)
                 .description("지역 추천 테스트")

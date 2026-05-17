@@ -4360,3 +4360,13 @@
 - 문제: 비밀번호 재설정 메일 링크가 `/reset-password?token=...` 형태면 브라우저 요청 URL, reverse proxy access log, 그리고 후속 외부 요청의 `Referer` 에 토큰이 그대로 남을 수 있었다. 토큰이 짧게 살아도 운영 로그에 평문처럼 흔적이 남는 구조는 불필요하게 넓은 노출면이다.
 - 해결: 메일 링크를 `/reset-password#token=...` 으로 바꾸고, 프론트 `ResetPasswordPage` 가 fragment token을 우선 읽도록 수정했다. 기존 query 링크 호환은 유지하되, 페이지 진입 직후 `window.history.replaceState` 로 즉시 `#token=` URL로 치환해 추가 로그/복사 노출을 줄였다.
 - 이유: fragment는 브라우저 클라이언트에서만 해석되고 HTTP 요청 URL에는 포함되지 않는다. reset token처럼 단발성이고 서버가 초기 HTML만 제공하면 되는 값은 query보다 fragment가 더 보수적인 기본값이다.
+
+## 815) recommendation `saved batch` 편중처럼 보여도 실제 병목이 retrieval SQL이면, scoring/rerank 숫자만 보고 튜닝부터 열면 원인을 가린다
+- 문제: 운영 `REAL_USER` 기준으로 `3686` 편중을 추적하던 중 inventory에는 인천 `BOKJIRO_LOCAL / 기타` 서비스가 10개 있고 no-priority top10에도 `2285` 같은 근접 경쟁 후보가 일부 생겨, 얼핏 보면 “scoring이나 rerank가 나머지 local 후보를 너무 세게 누른다”는 쪽으로 읽기 쉬웠다. 하지만 `recommendation-diagnostics` 로 `2736/3257/3281/3575/3714` 를 직접 찍어 보니 이 후보들은 youth/age filter나 post-scoring에서 잘린 게 아니라 전부 `NOT_IN_SQL_RETRIEVAL` 이었다.
+- 해결: 진단 결과를 기준으로 원인을 “saved batch 밖으로 밀림”이 아니라 “애초에 base/latest SQL retrieval 창에 못 들어옴”으로 다시 좁혔다. 이후 `WelfareServiceRepository.findCandidatesWithRegionCode/findCandidatesWithSido` 와 latest 변형 쿼리에 `지역 매칭 BOKJIRO_LOCAL -> 기타 지역 매칭 -> 전국 정책` 우선 정렬을 추가해, region retrieval 단계에서 local 후보가 먼저 보이도록 수정했다.
+- 이유: 후단(`rule/AI/rerank`)은 이미 들어온 후보만 다룬다. 원후보 창(`baseCandidateCount`) 밖에서 빠지는 문제를 scoring 문제처럼 해석하면, weight를 바꿔도 실제 local diversity 부족은 그대로 남고 진짜 병목 위치를 더 찾기 어려워진다.
+
+## 816) no-priority source/category 분산은 retrieval 창 안에 후보가 있을 때만 의미가 있으므로, region local 보강은 rerank fallback보다 앞단 정렬 경계까지 같이 닫아야 한다
+- 문제: `95ee4a6` 의 no-priority top band 확장 fallback은 같은 인천 세그먼트에서 `3686` 100% 고정을 일부 깨서 `2285` 를 top1로 올리는 효과는 있었지만, diagnostics 기준 `2736/3257/3281/3575/3714` 같은 인천 local 후보는 여전히 retrieval 150건 안에 못 들어왔다. 이 상태에서는 top band fallback이나 bucket rotation이 local diversity를 더 늘리고 싶어도 실제로 회전시킬 local candidate 자체가 없다.
+- 해결: regionCode/sido recommendation 쿼리와 latest 쿼리 모두에 matching `BOKJIRO_LOCAL` 우선 정렬을 넣고, `RecommendationRegionQueryIntegrationTest` 에서 regionCode/sido base/latest 네 경계 모두 “matching local이 nationwide보다 먼저 나온다”는 계약을 추가했다. 이제 no-priority 분산 로직은 최소한 retrieval 창 안으로 들어온 local 후보들에 대해 작동할 수 있다.
+- 이유: 분산 로직은 후보 순서를 재배열할 뿐, 없는 후보를 만들지 못한다. 따라서 local segment diversity 문제는 항상 “retrieval 창 진입 -> scoring -> rerank” 순서로 봐야 하고, local candidate가 retrieval 밖에 있으면 먼저 SQL 정렬/우선화 경계를 닫는 것이 맞다.
