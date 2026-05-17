@@ -9,10 +9,10 @@ POSTGRES_DB="${POSTGRES_DB:-youth_welfare}"
 USER_COHORT="${USER_COHORT:-all}"
 
 case "${USER_COHORT}" in
-  all|example|bounded_local|real_non_example|non_example)
+  all|example|bounded_local|real_non_example|real_user|local_real_non_example_seed|non_example)
     ;;
   *)
-    echo "USER_COHORT must be one of: all, example, bounded_local, real_non_example, non_example" >&2
+    echo "USER_COHORT must be one of: all, example, bounded_local, real_non_example, real_user, local_real_non_example_seed, non_example" >&2
     exit 1
     ;;
 esac
@@ -31,14 +31,10 @@ docker exec -i "${DB_CONTAINER_NAME}" psql -v cohort="${USER_COHORT}" -U "${POST
 WITH base_logs AS (
     SELECT rl.*,
            u.email,
+           COALESCE(NULLIF(u.account_origin, ''), 'REAL_USER') AS user_origin,
            CASE
-               WHEN lower(split_part(coalesce(u.email, ''), '@', 2)) = 'example.com' THEN 'EXAMPLE'
-               WHEN lower(split_part(coalesce(u.email, ''), '@', 2)) = 'smoke.local'
-                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) = 'localhost'
-                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) LIKE '%.local'
-                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) LIKE '%.test'
-                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) LIKE '%.invalid'
-                   THEN 'BOUNDED_LOCAL'
+               WHEN COALESCE(NULLIF(u.account_origin, ''), 'REAL_USER') = 'EXAMPLE_SMOKE' THEN 'EXAMPLE'
+               WHEN COALESCE(NULLIF(u.account_origin, ''), 'REAL_USER') = 'BOUNDED_LOCAL' THEN 'BOUNDED_LOCAL'
                ELSE 'REAL_NON_EXAMPLE'
            END AS user_cohort
     FROM recommendation_logs rl
@@ -52,6 +48,8 @@ scoped_logs AS (
        OR (:'cohort' = 'example' AND user_cohort = 'EXAMPLE')
        OR (:'cohort' = 'bounded_local' AND user_cohort = 'BOUNDED_LOCAL')
        OR (:'cohort' = 'real_non_example' AND user_cohort = 'REAL_NON_EXAMPLE')
+       OR (:'cohort' = 'real_user' AND user_origin = 'REAL_USER')
+       OR (:'cohort' = 'local_real_non_example_seed' AND user_origin = 'LOCAL_REAL_NON_EXAMPLE_SEED')
        OR (:'cohort' = 'non_example' AND user_cohort IN ('BOUNDED_LOCAL', 'REAL_NON_EXAMPLE'))
 ),
 total AS (
@@ -87,14 +85,20 @@ fallback AS (
 traffic_mix AS (
     SELECT COUNT(*) FILTER (WHERE user_cohort = 'EXAMPLE') AS example_logs,
            COUNT(*) FILTER (WHERE user_cohort = 'BOUNDED_LOCAL') AS bounded_local_logs,
+           COUNT(*) FILTER (WHERE user_origin = 'LOCAL_REAL_NON_EXAMPLE_SEED') AS local_real_non_example_seed_logs,
+           COUNT(*) FILTER (WHERE user_origin = 'REAL_USER') AS real_user_logs,
            COUNT(*) FILTER (WHERE user_cohort = 'REAL_NON_EXAMPLE') AS real_non_example_logs,
            COUNT(*) FILTER (WHERE user_cohort IN ('BOUNDED_LOCAL', 'REAL_NON_EXAMPLE')) AS non_example_logs,
            COUNT(DISTINCT user_key) FILTER (WHERE user_cohort = 'EXAMPLE') AS example_users,
            COUNT(DISTINCT user_key) FILTER (WHERE user_cohort = 'BOUNDED_LOCAL') AS bounded_local_users,
+           COUNT(DISTINCT user_key) FILTER (WHERE user_origin = 'LOCAL_REAL_NON_EXAMPLE_SEED') AS local_real_non_example_seed_users,
+           COUNT(DISTINCT user_key) FILTER (WHERE user_origin = 'REAL_USER') AS real_user_users,
            COUNT(DISTINCT user_key) FILTER (WHERE user_cohort = 'REAL_NON_EXAMPLE') AS real_non_example_users,
            COUNT(DISTINCT user_key) FILTER (WHERE user_cohort IN ('BOUNDED_LOCAL', 'REAL_NON_EXAMPLE')) AS non_example_users,
            COUNT(DISTINCT user_key) FILTER (WHERE is_clicked AND user_cohort = 'EXAMPLE') AS example_clicked_users,
            COUNT(DISTINCT user_key) FILTER (WHERE is_clicked AND user_cohort = 'BOUNDED_LOCAL') AS bounded_local_clicked_users,
+           COUNT(DISTINCT user_key) FILTER (WHERE is_clicked AND user_origin = 'LOCAL_REAL_NON_EXAMPLE_SEED') AS local_real_non_example_seed_clicked_users,
+           COUNT(DISTINCT user_key) FILTER (WHERE is_clicked AND user_origin = 'REAL_USER') AS real_user_clicked_users,
            COUNT(DISTINCT user_key) FILTER (WHERE is_clicked AND user_cohort = 'REAL_NON_EXAMPLE') AS real_non_example_clicked_users,
            COUNT(DISTINCT user_key) FILTER (WHERE is_clicked AND user_cohort IN ('BOUNDED_LOCAL', 'REAL_NON_EXAMPLE')) AS non_example_clicked_users
     FROM scoped_logs
@@ -143,6 +147,10 @@ SELECT 'ctr_example_logs=' || traffic_mix.example_logs FROM traffic_mix
 UNION ALL
 SELECT 'ctr_bounded_local_logs=' || traffic_mix.bounded_local_logs FROM traffic_mix
 UNION ALL
+SELECT 'ctr_local_real_non_example_seed_logs=' || traffic_mix.local_real_non_example_seed_logs FROM traffic_mix
+UNION ALL
+SELECT 'ctr_real_user_logs=' || traffic_mix.real_user_logs FROM traffic_mix
+UNION ALL
 SELECT 'ctr_real_non_example_logs=' || traffic_mix.real_non_example_logs FROM traffic_mix
 UNION ALL
 SELECT 'ctr_non_example_logs=' || traffic_mix.non_example_logs FROM traffic_mix
@@ -150,6 +158,10 @@ UNION ALL
 SELECT 'ctr_example_users=' || traffic_mix.example_users FROM traffic_mix
 UNION ALL
 SELECT 'ctr_bounded_local_users=' || traffic_mix.bounded_local_users FROM traffic_mix
+UNION ALL
+SELECT 'ctr_local_real_non_example_seed_users=' || traffic_mix.local_real_non_example_seed_users FROM traffic_mix
+UNION ALL
+SELECT 'ctr_real_user_users=' || traffic_mix.real_user_users FROM traffic_mix
 UNION ALL
 SELECT 'ctr_real_non_example_users=' || traffic_mix.real_non_example_users FROM traffic_mix
 UNION ALL
@@ -159,6 +171,10 @@ SELECT 'ctr_example_clicked_users=' || traffic_mix.example_clicked_users FROM tr
 UNION ALL
 SELECT 'ctr_bounded_local_clicked_users=' || traffic_mix.bounded_local_clicked_users FROM traffic_mix
 UNION ALL
+SELECT 'ctr_local_real_non_example_seed_clicked_users=' || traffic_mix.local_real_non_example_seed_clicked_users FROM traffic_mix
+UNION ALL
+SELECT 'ctr_real_user_clicked_users=' || traffic_mix.real_user_clicked_users FROM traffic_mix
+UNION ALL
 SELECT 'ctr_real_non_example_clicked_users=' || traffic_mix.real_non_example_clicked_users FROM traffic_mix
 UNION ALL
 SELECT 'ctr_non_example_clicked_users=' || traffic_mix.non_example_clicked_users FROM traffic_mix;
@@ -166,14 +182,10 @@ SELECT 'ctr_non_example_clicked_users=' || traffic_mix.non_example_clicked_users
 SELECT '[weight_bucket_ctr]';
 WITH base_logs AS (
     SELECT rl.*,
+           COALESCE(NULLIF(u.account_origin, ''), 'REAL_USER') AS user_origin,
            CASE
-               WHEN lower(split_part(coalesce(u.email, ''), '@', 2)) = 'example.com' THEN 'EXAMPLE'
-               WHEN lower(split_part(coalesce(u.email, ''), '@', 2)) = 'smoke.local'
-                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) = 'localhost'
-                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) LIKE '%.local'
-                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) LIKE '%.test'
-                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) LIKE '%.invalid'
-                   THEN 'BOUNDED_LOCAL'
+               WHEN COALESCE(NULLIF(u.account_origin, ''), 'REAL_USER') = 'EXAMPLE_SMOKE' THEN 'EXAMPLE'
+               WHEN COALESCE(NULLIF(u.account_origin, ''), 'REAL_USER') = 'BOUNDED_LOCAL' THEN 'BOUNDED_LOCAL'
                ELSE 'REAL_NON_EXAMPLE'
            END AS user_cohort
     FROM recommendation_logs rl
@@ -187,6 +199,8 @@ scoped_logs AS (
        OR (:'cohort' = 'example' AND user_cohort = 'EXAMPLE')
        OR (:'cohort' = 'bounded_local' AND user_cohort = 'BOUNDED_LOCAL')
        OR (:'cohort' = 'real_non_example' AND user_cohort = 'REAL_NON_EXAMPLE')
+       OR (:'cohort' = 'real_user' AND user_origin = 'REAL_USER')
+       OR (:'cohort' = 'local_real_non_example_seed' AND user_origin = 'LOCAL_REAL_NON_EXAMPLE_SEED')
        OR (:'cohort' = 'non_example' AND user_cohort IN ('BOUNDED_LOCAL', 'REAL_NON_EXAMPLE'))
 )
 SELECT rule_weight_used || '|' || ai_weight_used || '|' || COUNT(*) || '|' ||
@@ -199,14 +213,10 @@ ORDER BY COUNT(*) DESC, rule_weight_used, ai_weight_used;
 SELECT '[top_clicked_services]';
 WITH base_logs AS (
     SELECT rl.*,
+           COALESCE(NULLIF(u.account_origin, ''), 'REAL_USER') AS user_origin,
            CASE
-               WHEN lower(split_part(coalesce(u.email, ''), '@', 2)) = 'example.com' THEN 'EXAMPLE'
-               WHEN lower(split_part(coalesce(u.email, ''), '@', 2)) = 'smoke.local'
-                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) = 'localhost'
-                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) LIKE '%.local'
-                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) LIKE '%.test'
-                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) LIKE '%.invalid'
-                   THEN 'BOUNDED_LOCAL'
+               WHEN COALESCE(NULLIF(u.account_origin, ''), 'REAL_USER') = 'EXAMPLE_SMOKE' THEN 'EXAMPLE'
+               WHEN COALESCE(NULLIF(u.account_origin, ''), 'REAL_USER') = 'BOUNDED_LOCAL' THEN 'BOUNDED_LOCAL'
                ELSE 'REAL_NON_EXAMPLE'
            END AS user_cohort
     FROM recommendation_logs rl
@@ -220,6 +230,8 @@ scoped_logs AS (
        OR (:'cohort' = 'example' AND user_cohort = 'EXAMPLE')
        OR (:'cohort' = 'bounded_local' AND user_cohort = 'BOUNDED_LOCAL')
        OR (:'cohort' = 'real_non_example' AND user_cohort = 'REAL_NON_EXAMPLE')
+       OR (:'cohort' = 'real_user' AND user_origin = 'REAL_USER')
+       OR (:'cohort' = 'local_real_non_example_seed' AND user_origin = 'LOCAL_REAL_NON_EXAMPLE_SEED')
        OR (:'cohort' = 'non_example' AND user_cohort IN ('BOUNDED_LOCAL', 'REAL_NON_EXAMPLE'))
 ),
 clicked AS (
@@ -244,14 +256,10 @@ LIMIT 10;
 SELECT '[top_clicked_users]';
 WITH base_logs AS (
     SELECT rl.*,
+           COALESCE(NULLIF(u.account_origin, ''), 'REAL_USER') AS user_origin,
            CASE
-               WHEN lower(split_part(coalesce(u.email, ''), '@', 2)) = 'example.com' THEN 'EXAMPLE'
-               WHEN lower(split_part(coalesce(u.email, ''), '@', 2)) = 'smoke.local'
-                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) = 'localhost'
-                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) LIKE '%.local'
-                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) LIKE '%.test'
-                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) LIKE '%.invalid'
-                   THEN 'BOUNDED_LOCAL'
+               WHEN COALESCE(NULLIF(u.account_origin, ''), 'REAL_USER') = 'EXAMPLE_SMOKE' THEN 'EXAMPLE'
+               WHEN COALESCE(NULLIF(u.account_origin, ''), 'REAL_USER') = 'BOUNDED_LOCAL' THEN 'BOUNDED_LOCAL'
                ELSE 'REAL_NON_EXAMPLE'
            END AS user_cohort
     FROM recommendation_logs rl
@@ -265,6 +273,8 @@ scoped_logs AS (
        OR (:'cohort' = 'example' AND user_cohort = 'EXAMPLE')
        OR (:'cohort' = 'bounded_local' AND user_cohort = 'BOUNDED_LOCAL')
        OR (:'cohort' = 'real_non_example' AND user_cohort = 'REAL_NON_EXAMPLE')
+       OR (:'cohort' = 'real_user' AND user_origin = 'REAL_USER')
+       OR (:'cohort' = 'local_real_non_example_seed' AND user_origin = 'LOCAL_REAL_NON_EXAMPLE_SEED')
        OR (:'cohort' = 'non_example' AND user_cohort IN ('BOUNDED_LOCAL', 'REAL_NON_EXAMPLE'))
 ),
 clicked AS (
@@ -282,14 +292,10 @@ LIMIT 10;
 SELECT '[weight_bucket_ctr_7d]';
 WITH base_logs AS (
     SELECT rl.*,
+           COALESCE(NULLIF(u.account_origin, ''), 'REAL_USER') AS user_origin,
            CASE
-               WHEN lower(split_part(coalesce(u.email, ''), '@', 2)) = 'example.com' THEN 'EXAMPLE'
-               WHEN lower(split_part(coalesce(u.email, ''), '@', 2)) = 'smoke.local'
-                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) = 'localhost'
-                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) LIKE '%.local'
-                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) LIKE '%.test'
-                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) LIKE '%.invalid'
-                   THEN 'BOUNDED_LOCAL'
+               WHEN COALESCE(NULLIF(u.account_origin, ''), 'REAL_USER') = 'EXAMPLE_SMOKE' THEN 'EXAMPLE'
+               WHEN COALESCE(NULLIF(u.account_origin, ''), 'REAL_USER') = 'BOUNDED_LOCAL' THEN 'BOUNDED_LOCAL'
                ELSE 'REAL_NON_EXAMPLE'
            END AS user_cohort
     FROM recommendation_logs rl
@@ -303,6 +309,8 @@ scoped_logs AS (
        OR (:'cohort' = 'example' AND user_cohort = 'EXAMPLE')
        OR (:'cohort' = 'bounded_local' AND user_cohort = 'BOUNDED_LOCAL')
        OR (:'cohort' = 'real_non_example' AND user_cohort = 'REAL_NON_EXAMPLE')
+       OR (:'cohort' = 'real_user' AND user_origin = 'REAL_USER')
+       OR (:'cohort' = 'local_real_non_example_seed' AND user_origin = 'LOCAL_REAL_NON_EXAMPLE_SEED')
        OR (:'cohort' = 'non_example' AND user_cohort IN ('BOUNDED_LOCAL', 'REAL_NON_EXAMPLE'))
 )
 SELECT rule_weight_used || '|' || ai_weight_used || '|' || COUNT(*) || '|' ||
@@ -316,14 +324,10 @@ ORDER BY COUNT(*) DESC, rule_weight_used, ai_weight_used;
 SELECT '[tuning_readiness]';
 WITH base_logs AS (
     SELECT rl.*,
+           COALESCE(NULLIF(u.account_origin, ''), 'REAL_USER') AS user_origin,
            CASE
-               WHEN lower(split_part(coalesce(u.email, ''), '@', 2)) = 'example.com' THEN 'EXAMPLE'
-               WHEN lower(split_part(coalesce(u.email, ''), '@', 2)) = 'smoke.local'
-                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) = 'localhost'
-                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) LIKE '%.local'
-                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) LIKE '%.test'
-                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) LIKE '%.invalid'
-                   THEN 'BOUNDED_LOCAL'
+               WHEN COALESCE(NULLIF(u.account_origin, ''), 'REAL_USER') = 'EXAMPLE_SMOKE' THEN 'EXAMPLE'
+               WHEN COALESCE(NULLIF(u.account_origin, ''), 'REAL_USER') = 'BOUNDED_LOCAL' THEN 'BOUNDED_LOCAL'
                ELSE 'REAL_NON_EXAMPLE'
            END AS user_cohort
     FROM recommendation_logs rl
@@ -337,6 +341,8 @@ scoped_logs AS (
        OR (:'cohort' = 'example' AND user_cohort = 'EXAMPLE')
        OR (:'cohort' = 'bounded_local' AND user_cohort = 'BOUNDED_LOCAL')
        OR (:'cohort' = 'real_non_example' AND user_cohort = 'REAL_NON_EXAMPLE')
+       OR (:'cohort' = 'real_user' AND user_origin = 'REAL_USER')
+       OR (:'cohort' = 'local_real_non_example_seed' AND user_origin = 'LOCAL_REAL_NON_EXAMPLE_SEED')
        OR (:'cohort' = 'non_example' AND user_cohort IN ('BOUNDED_LOCAL', 'REAL_NON_EXAMPLE'))
 ),
 agg AS (
@@ -347,24 +353,31 @@ agg AS (
            COUNT(*) FILTER (WHERE user_cohort = 'BOUNDED_LOCAL') AS bounded_local_logs,
            COUNT(*) FILTER (WHERE user_cohort = 'REAL_NON_EXAMPLE') AS real_non_example_logs,
            COUNT(DISTINCT user_key) FILTER (WHERE user_cohort = 'REAL_NON_EXAMPLE') AS real_non_example_users,
-           COUNT(DISTINCT user_key) FILTER (WHERE user_cohort = 'REAL_NON_EXAMPLE' AND is_clicked) AS real_non_example_clicked_users
+           COUNT(DISTINCT user_key) FILTER (WHERE user_cohort = 'REAL_NON_EXAMPLE' AND is_clicked) AS real_non_example_clicked_users,
+           COUNT(*) FILTER (WHERE user_origin = 'REAL_USER') AS real_user_logs,
+           COUNT(DISTINCT user_key) FILTER (WHERE user_origin = 'REAL_USER') AS real_user_users,
+           COUNT(DISTINCT user_key) FILTER (WHERE user_origin = 'REAL_USER' AND is_clicked) AS real_user_clicked_users
     FROM scoped_logs
 )
 SELECT CASE
            WHEN total_logs = 0 AND :'cohort' = 'real_non_example' THEN 'DEFERRED_EMPTY_REAL_NON_EXAMPLE_COHORT'
+           WHEN total_logs = 0 AND :'cohort' = 'real_user' THEN 'DEFERRED_EMPTY_REAL_USER_COHORT'
+           WHEN total_logs = 0 AND :'cohort' = 'local_real_non_example_seed' THEN 'DEFERRED_EMPTY_LOCAL_REAL_NON_EXAMPLE_SEED_COHORT'
            WHEN total_logs = 0 AND :'cohort' = 'bounded_local' THEN 'DEFERRED_EMPTY_BOUNDED_LOCAL_COHORT'
            WHEN total_logs = 0 AND :'cohort' = 'non_example' THEN 'DEFERRED_EMPTY_NON_EXAMPLE_COHORT'
            WHEN total_logs = 0 THEN 'DEFERRED_EMPTY_COHORT'
            WHEN :'cohort' = 'example' THEN 'DIAGNOSTIC_EXAMPLE_ONLY_TRAFFIC'
            WHEN :'cohort' = 'bounded_local' THEN 'DIAGNOSTIC_BOUNDED_LOCAL_TRAFFIC'
+           WHEN :'cohort' = 'real_user' THEN 'DIAGNOSTIC_REAL_USER_ONLY_TRAFFIC'
+           WHEN :'cohort' = 'local_real_non_example_seed' THEN 'DIAGNOSTIC_LOCAL_REAL_NON_EXAMPLE_SEED_TRAFFIC'
            WHEN :'cohort' = 'non_example' AND real_non_example_logs = 0 AND bounded_local_logs > 0
                THEN 'DIAGNOSTIC_BOUNDED_LOCAL_ONLY_TRAFFIC'
-           WHEN :'cohort' = 'all' AND real_non_example_logs = 0
-               THEN 'DEFERRED_NO_REAL_NON_EXAMPLE_TRAFFIC'
-           WHEN :'cohort' = 'all' AND real_non_example_users < 3
-               THEN 'DEFERRED_REAL_NON_EXAMPLE_USER_SAMPLE_THIN'
-           WHEN :'cohort' = 'all' AND real_non_example_clicked_users < 3
-               THEN 'DEFERRED_REAL_NON_EXAMPLE_CLICK_SAMPLE_THIN'
+           WHEN :'cohort' = 'all' AND real_user_logs = 0
+               THEN 'DEFERRED_NO_REAL_USER_TRAFFIC'
+           WHEN :'cohort' = 'all' AND real_user_users < 3
+               THEN 'DEFERRED_REAL_USER_SAMPLE_THIN'
+           WHEN :'cohort' = 'all' AND real_user_clicked_users < 3
+               THEN 'DEFERRED_REAL_USER_CLICK_SAMPLE_THIN'
            WHEN clicked_logs < 20 THEN 'DEFERRED_CLICK_SAMPLE_THIN'
            WHEN ai_clicked < 10 THEN 'DEFERRED_AI_CLICK_SAMPLE_THIN'
            WHEN weight_bucket_count < 2 THEN 'DEFERRED_SINGLE_WEIGHT_BUCKET'

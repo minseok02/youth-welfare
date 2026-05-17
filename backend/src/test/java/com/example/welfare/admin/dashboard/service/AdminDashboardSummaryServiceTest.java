@@ -103,10 +103,16 @@ class AdminDashboardSummaryServiceTest {
                         30,
                         0,
                         0,
+                        0,
+                        0,
                         18,
                         0,
                         0,
+                        0,
+                        0,
                         9,
+                        0,
+                        0,
                         0,
                         0
                 ));
@@ -198,6 +204,8 @@ class AdminDashboardSummaryServiceTest {
         assertThat(response.recommendation().fallbackRateInWindow()).isEqualByComparingTo("0.2000");
         assertThat(response.recommendation().trafficMixInWindow().exampleLogsInWindow()).isEqualTo(30);
         assertThat(response.recommendation().trafficMixInWindow().boundedLocalLogsInWindow()).isZero();
+        assertThat(response.recommendation().trafficMixInWindow().localRealNonExampleSeedLogsInWindow()).isZero();
+        assertThat(response.recommendation().trafficMixInWindow().realUserLogsInWindow()).isZero();
         assertThat(response.recommendation().trafficMixInWindow().realNonExampleLogsInWindow()).isZero();
         assertThat(response.recommendation().trafficMixInWindow().exampleClickedUsersInWindow()).isEqualTo(9);
         assertThat(response.recommendation().weightBucketsInWindow()).extracting(AdminDashboardResponse.RecommendationWeightSnapshot::weightKey)
@@ -235,7 +243,7 @@ class AdminDashboardSummaryServiceTest {
                 org.mockito.ArgumentMatchers.any()
         )).willReturn(new AdminDashboardReadRows.RecommendationSummaryRow(0, 0, 0, 0, 0, null));
         given(adminDashboardRecommendationReadRepository.fetchRecommendationTrafficMix(org.mockito.ArgumentMatchers.any()))
-                .willReturn(new AdminDashboardReadRows.RecommendationTrafficMixRow(0, 0, 0, 0, 0, 0, 0, 0, 0));
+                .willReturn(new AdminDashboardReadRows.RecommendationTrafficMixRow(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0));
         ScoreWeight activeWeight = ScoreWeight.builder()
                 .weightKey("GROWTH")
                 .ruleWeight(new BigDecimal("0.60"))

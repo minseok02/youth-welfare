@@ -45,10 +45,16 @@ class AdminDashboardRecommendationServiceTest {
                         30,
                         0,
                         0,
+                        0,
+                        0,
                         18,
                         0,
                         0,
+                        0,
+                        0,
                         9,
+                        0,
+                        0,
                         0,
                         0
                 ));
@@ -142,6 +148,8 @@ class AdminDashboardRecommendationServiceTest {
         assertThat(response.fallbackLogsInWindow()).isEqualTo(6);
         assertThat(response.trafficMixInWindow().exampleLogsInWindow()).isEqualTo(30);
         assertThat(response.trafficMixInWindow().boundedLocalUsersInWindow()).isZero();
+        assertThat(response.trafficMixInWindow().localRealNonExampleSeedUsersInWindow()).isZero();
+        assertThat(response.trafficMixInWindow().realUserUsersInWindow()).isZero();
         assertThat(response.trafficMixInWindow().realNonExampleUsersInWindow()).isZero();
         assertThat(response.trafficMixInWindow().exampleClickedUsersInWindow()).isEqualTo(9);
         assertThat(response.sourceBreakdowns()).singleElement().satisfies(source -> {

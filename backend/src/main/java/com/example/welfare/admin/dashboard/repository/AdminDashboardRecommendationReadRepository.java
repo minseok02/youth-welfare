@@ -16,18 +16,7 @@ public class AdminDashboardRecommendationReadRepository {
 
     private final NamedParameterJdbcTemplate jdbcTemplate;
 
-    private static final String RECOMMENDATION_USER_COHORT_CASE = """
-            case
-                when lower(split_part(coalesce(u.email, ''), '@', 2)) = 'example.com' then 'EXAMPLE'
-                when lower(split_part(coalesce(u.email, ''), '@', 2)) = 'smoke.local'
-                    or lower(split_part(coalesce(u.email, ''), '@', 2)) = 'localhost'
-                    or lower(split_part(coalesce(u.email, ''), '@', 2)) like '%.local'
-                    or lower(split_part(coalesce(u.email, ''), '@', 2)) like '%.test'
-                    or lower(split_part(coalesce(u.email, ''), '@', 2)) like '%.invalid'
-                    then 'BOUNDED_LOCAL'
-                else 'REAL_NON_EXAMPLE'
-            end
-            """;
+    private static final String RECOMMENDATION_USER_ORIGIN_SQL = "coalesce(nullif(u.account_origin, ''), 'REAL_USER')";
 
     public AdminDashboardReadRows.RecommendationSummaryRow fetchRecommendationSummary(LocalDateTime dayAgo, LocalDateTime weekAgo) {
         return jdbcTemplate.queryForObject("""
@@ -76,61 +65,93 @@ public class AdminDashboardRecommendationReadRepository {
                            rl.sent_at,
                            rl.clicked_at,
                            rl.is_clicked,
-                           %s as user_cohort
+                           %s as user_origin
                       from recommendation_logs rl
                       left join users u on u.user_key = rl.user_key
                 )
                 select coalesce(sum(case
-                                       when sent_at >= :windowAgo and user_cohort = 'EXAMPLE'
+                                       when sent_at >= :windowAgo and user_origin = 'EXAMPLE_SMOKE'
                                            then 1
                                        else 0
                                    end), 0) as example_logs_in_window,
                        coalesce(sum(case
-                                       when sent_at >= :windowAgo and user_cohort = 'BOUNDED_LOCAL'
+                                       when sent_at >= :windowAgo and user_origin = 'BOUNDED_LOCAL'
                                            then 1
                                        else 0
                                    end), 0) as bounded_local_logs_in_window,
                        coalesce(sum(case
-                                       when sent_at >= :windowAgo and user_cohort = 'REAL_NON_EXAMPLE'
+                                       when sent_at >= :windowAgo and user_origin = 'LOCAL_REAL_NON_EXAMPLE_SEED'
+                                           then 1
+                                       else 0
+                                   end), 0) as local_real_non_example_seed_logs_in_window,
+                       coalesce(sum(case
+                                       when sent_at >= :windowAgo and user_origin = 'REAL_USER'
+                                           then 1
+                                       else 0
+                                   end), 0) as real_user_logs_in_window,
+                       coalesce(sum(case
+                                       when sent_at >= :windowAgo and user_origin in ('LOCAL_REAL_NON_EXAMPLE_SEED', 'REAL_USER')
                                            then 1
                                        else 0
                                    end), 0) as real_non_example_logs_in_window,
                        count(distinct case
-                                          when sent_at >= :windowAgo and user_cohort = 'EXAMPLE'
+                                          when sent_at >= :windowAgo and user_origin = 'EXAMPLE_SMOKE'
                                               then user_key
                                        end) as example_users_in_window,
                        count(distinct case
-                                          when sent_at >= :windowAgo and user_cohort = 'BOUNDED_LOCAL'
+                                          when sent_at >= :windowAgo and user_origin = 'BOUNDED_LOCAL'
                                               then user_key
                                        end) as bounded_local_users_in_window,
                        count(distinct case
-                                          when sent_at >= :windowAgo and user_cohort = 'REAL_NON_EXAMPLE'
+                                          when sent_at >= :windowAgo and user_origin = 'LOCAL_REAL_NON_EXAMPLE_SEED'
+                                              then user_key
+                                       end) as local_real_non_example_seed_users_in_window,
+                       count(distinct case
+                                          when sent_at >= :windowAgo and user_origin = 'REAL_USER'
+                                              then user_key
+                                       end) as real_user_users_in_window,
+                       count(distinct case
+                                          when sent_at >= :windowAgo and user_origin in ('LOCAL_REAL_NON_EXAMPLE_SEED', 'REAL_USER')
                                               then user_key
                                        end) as real_non_example_users_in_window,
                        count(distinct case
-                                          when is_clicked = true and clicked_at >= :windowAgo and user_cohort = 'EXAMPLE'
+                                          when is_clicked = true and clicked_at >= :windowAgo and user_origin = 'EXAMPLE_SMOKE'
                                               then user_key
                                        end) as example_clicked_users_in_window,
                        count(distinct case
-                                          when is_clicked = true and clicked_at >= :windowAgo and user_cohort = 'BOUNDED_LOCAL'
+                                          when is_clicked = true and clicked_at >= :windowAgo and user_origin = 'BOUNDED_LOCAL'
                                               then user_key
                                        end) as bounded_local_clicked_users_in_window,
                        count(distinct case
-                                          when is_clicked = true and clicked_at >= :windowAgo and user_cohort = 'REAL_NON_EXAMPLE'
+                                          when is_clicked = true and clicked_at >= :windowAgo and user_origin = 'LOCAL_REAL_NON_EXAMPLE_SEED'
+                                              then user_key
+                                       end) as local_real_non_example_seed_clicked_users_in_window,
+                       count(distinct case
+                                          when is_clicked = true and clicked_at >= :windowAgo and user_origin = 'REAL_USER'
+                                              then user_key
+                                       end) as real_user_clicked_users_in_window,
+                       count(distinct case
+                                          when is_clicked = true and clicked_at >= :windowAgo and user_origin in ('LOCAL_REAL_NON_EXAMPLE_SEED', 'REAL_USER')
                                               then user_key
                                        end) as real_non_example_clicked_users_in_window
                   from cohorted_logs
-                """.formatted(RECOMMENDATION_USER_COHORT_CASE),
+                """.formatted(RECOMMENDATION_USER_ORIGIN_SQL),
                 new MapSqlParameterSource("windowAgo", windowAgo),
                 (rs, rowNum) -> new AdminDashboardReadRows.RecommendationTrafficMixRow(
                         rs.getLong("example_logs_in_window"),
                         rs.getLong("bounded_local_logs_in_window"),
+                        rs.getLong("local_real_non_example_seed_logs_in_window"),
+                        rs.getLong("real_user_logs_in_window"),
                         rs.getLong("real_non_example_logs_in_window"),
                         rs.getLong("example_users_in_window"),
                         rs.getLong("bounded_local_users_in_window"),
+                        rs.getLong("local_real_non_example_seed_users_in_window"),
+                        rs.getLong("real_user_users_in_window"),
                         rs.getLong("real_non_example_users_in_window"),
                         rs.getLong("example_clicked_users_in_window"),
                         rs.getLong("bounded_local_clicked_users_in_window"),
+                        rs.getLong("local_real_non_example_seed_clicked_users_in_window"),
+                        rs.getLong("real_user_clicked_users_in_window"),
                         rs.getLong("real_non_example_clicked_users_in_window")
                 )
         );
@@ -259,7 +280,7 @@ public class AdminDashboardRecommendationReadRepository {
                    and rl.is_fallback = true
               order by rl.sent_at desc, rl.id desc
                  limit %d
-                """.formatted(RECOMMENDATION_USER_COHORT_CASE, limit),
+                """.formatted(RECOMMENDATION_USER_ORIGIN_SQL, limit),
                 new MapSqlParameterSource("windowAgo", windowAgo),
                 (rs, rowNum) -> new AdminDashboardReadRows.RecommendationSampleRow(
                         rs.getLong("log_id"),
@@ -297,7 +318,7 @@ public class AdminDashboardRecommendationReadRepository {
                    and rl.is_clicked = true
               order by rl.clicked_at desc, rl.id desc
                  limit %d
-                """.formatted(RECOMMENDATION_USER_COHORT_CASE, limit),
+                """.formatted(RECOMMENDATION_USER_ORIGIN_SQL, limit),
                 new MapSqlParameterSource("windowAgo", windowAgo),
                 (rs, rowNum) -> new AdminDashboardReadRows.RecommendationSampleRow(
                         rs.getLong("log_id"),
@@ -340,7 +361,7 @@ public class AdminDashboardRecommendationReadRepository {
                        rl.user_key asc,
                        ws.id asc
                  limit %d
-                """.formatted(RECOMMENDATION_USER_COHORT_CASE, RECOMMENDATION_USER_COHORT_CASE, limit),
+                """.formatted(RECOMMENDATION_USER_ORIGIN_SQL, RECOMMENDATION_USER_ORIGIN_SQL, limit),
                 new MapSqlParameterSource("windowAgo", windowAgo),
                 (rs, rowNum) -> new AdminDashboardReadRows.RecommendationRepeatExposureGroupRow(
                         rs.getString("user_key"),

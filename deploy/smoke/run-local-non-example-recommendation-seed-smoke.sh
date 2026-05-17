@@ -84,19 +84,26 @@ fi
 
 smoke_print_step "verify seeded log row is non-example"
 smoke_db_query \
-  "SELECT COALESCE(u.email, ''), rl.user_key, rl.service_id, rl.is_clicked
+  "SELECT COALESCE(u.email, ''), COALESCE(u.account_origin, ''), rl.user_key, rl.service_id, rl.is_clicked
    FROM recommendation_logs rl
    LEFT JOIN users u ON u.user_key = rl.user_key
    WHERE rl.id = ${SEED_LOG_ID};" \
   > "${LOG_ROW_OUTPUT}"
 
 ROW_EMAIL="$(awk -F $'\t' 'NR==1 {print $1}' "${LOG_ROW_OUTPUT}")"
-ROW_USER_KEY="$(awk -F $'\t' 'NR==1 {print $2}' "${LOG_ROW_OUTPUT}")"
-ROW_SERVICE_ID="$(awk -F $'\t' 'NR==1 {print $3}' "${LOG_ROW_OUTPUT}")"
-ROW_IS_CLICKED="$(awk -F $'\t' 'NR==1 {print $4}' "${LOG_ROW_OUTPUT}")"
+ROW_ACCOUNT_ORIGIN="$(awk -F $'\t' 'NR==1 {print $2}' "${LOG_ROW_OUTPUT}")"
+ROW_USER_KEY="$(awk -F $'\t' 'NR==1 {print $3}' "${LOG_ROW_OUTPUT}")"
+ROW_SERVICE_ID="$(awk -F $'\t' 'NR==1 {print $4}' "${LOG_ROW_OUTPUT}")"
+ROW_IS_CLICKED="$(awk -F $'\t' 'NR==1 {print $5}' "${LOG_ROW_OUTPUT}")"
 
 if [[ "${ROW_EMAIL}" != "${SEED_EMAIL}" ]]; then
   echo "seeded row email mismatch: expected ${SEED_EMAIL}, got ${ROW_EMAIL}" >&2
+  cat "${LOG_ROW_OUTPUT}" >&2
+  exit 1
+fi
+
+if [[ "${ROW_ACCOUNT_ORIGIN}" != "BOUNDED_LOCAL" ]]; then
+  echo "seeded row account_origin mismatch: expected BOUNDED_LOCAL, got ${ROW_ACCOUNT_ORIGIN}" >&2
   cat "${LOG_ROW_OUTPUT}" >&2
   exit 1
 fi
@@ -115,13 +122,7 @@ smoke_db_query \
    FROM recommendation_logs rl
    LEFT JOIN users u ON u.user_key = rl.user_key
    WHERE rl.sent_at >= NOW() - INTERVAL '${SUMMARY_WINDOW_DAYS} days'
-     AND (
-       lower(split_part(coalesce(u.email, ''), '@', 2)) = 'smoke.local'
-       OR lower(split_part(coalesce(u.email, ''), '@', 2)) = 'localhost'
-       OR lower(split_part(coalesce(u.email, ''), '@', 2)) LIKE '%.local'
-       OR lower(split_part(coalesce(u.email, ''), '@', 2)) LIKE '%.test'
-       OR lower(split_part(coalesce(u.email, ''), '@', 2)) LIKE '%.invalid'
-     );" \
+     AND coalesce(nullif(u.account_origin, ''), 'REAL_USER') = 'BOUNDED_LOCAL';" \
   > "${WINDOW_ROW_OUTPUT}"
 
 WINDOW_BOUNDED_LOCAL_LOGS="$(awk -F $'\t' 'NR==1 {print $1}' "${WINDOW_ROW_OUTPUT}")"
@@ -156,6 +157,7 @@ echo
 echo "non-example recommendation seed smoke passed"
 echo "seed_email=${SEED_EMAIL}"
 echo "seed_email_domain=${SMOKE_EMAIL_DOMAIN}"
+echo "seed_account_origin=${ROW_ACCOUNT_ORIGIN}"
 echo "seed_user_key=${ROW_USER_KEY}"
 echo "seed_service_id=${ROW_SERVICE_ID:-${SEED_SERVICE_ID}}"
 echo "seed_log_id=${SEED_LOG_ID}"

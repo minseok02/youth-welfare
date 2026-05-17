@@ -92,12 +92,18 @@ assert isinstance(data["recommendation"]["topWeightStage"], bool), "recommendati
 traffic_mix = data["recommendation"]["trafficMixInWindow"]
 assert isinstance(traffic_mix["exampleLogsInWindow"], int), "recommendation.trafficMixInWindow.exampleLogsInWindow must be int"
 assert isinstance(traffic_mix["boundedLocalLogsInWindow"], int), "recommendation.trafficMixInWindow.boundedLocalLogsInWindow must be int"
+assert isinstance(traffic_mix["localRealNonExampleSeedLogsInWindow"], int), "recommendation.trafficMixInWindow.localRealNonExampleSeedLogsInWindow must be int"
+assert isinstance(traffic_mix["realUserLogsInWindow"], int), "recommendation.trafficMixInWindow.realUserLogsInWindow must be int"
 assert isinstance(traffic_mix["realNonExampleLogsInWindow"], int), "recommendation.trafficMixInWindow.realNonExampleLogsInWindow must be int"
 assert isinstance(traffic_mix["exampleUsersInWindow"], int), "recommendation.trafficMixInWindow.exampleUsersInWindow must be int"
 assert isinstance(traffic_mix["boundedLocalUsersInWindow"], int), "recommendation.trafficMixInWindow.boundedLocalUsersInWindow must be int"
+assert isinstance(traffic_mix["localRealNonExampleSeedUsersInWindow"], int), "recommendation.trafficMixInWindow.localRealNonExampleSeedUsersInWindow must be int"
+assert isinstance(traffic_mix["realUserUsersInWindow"], int), "recommendation.trafficMixInWindow.realUserUsersInWindow must be int"
 assert isinstance(traffic_mix["realNonExampleUsersInWindow"], int), "recommendation.trafficMixInWindow.realNonExampleUsersInWindow must be int"
 assert isinstance(traffic_mix["exampleClickedUsersInWindow"], int), "recommendation.trafficMixInWindow.exampleClickedUsersInWindow must be int"
 assert isinstance(traffic_mix["boundedLocalClickedUsersInWindow"], int), "recommendation.trafficMixInWindow.boundedLocalClickedUsersInWindow must be int"
+assert isinstance(traffic_mix["localRealNonExampleSeedClickedUsersInWindow"], int), "recommendation.trafficMixInWindow.localRealNonExampleSeedClickedUsersInWindow must be int"
+assert isinstance(traffic_mix["realUserClickedUsersInWindow"], int), "recommendation.trafficMixInWindow.realUserClickedUsersInWindow must be int"
 assert isinstance(traffic_mix["realNonExampleClickedUsersInWindow"], int), "recommendation.trafficMixInWindow.realNonExampleClickedUsersInWindow must be int"
 if data["recommendation"]["topWeightStage"]:
     assert data["recommendation"]["nextWeightKey"] is None, "top stage should not have nextWeightKey"
@@ -128,8 +134,12 @@ print(data["recommendation"]["nextWeightKey"] or "")
 print("" if data["recommendation"]["remainingLogsUntilNextWeight"] is None else data["recommendation"]["remainingLogsUntilNextWeight"])
 print(data["recommendation"]["trafficMixInWindow"]["exampleLogsInWindow"])
 print(data["recommendation"]["trafficMixInWindow"]["boundedLocalLogsInWindow"])
+print(data["recommendation"]["trafficMixInWindow"]["localRealNonExampleSeedLogsInWindow"])
+print(data["recommendation"]["trafficMixInWindow"]["realUserLogsInWindow"])
 print(data["recommendation"]["trafficMixInWindow"]["realNonExampleLogsInWindow"])
 print(data["recommendation"]["trafficMixInWindow"]["boundedLocalUsersInWindow"])
+print(data["recommendation"]["trafficMixInWindow"]["localRealNonExampleSeedUsersInWindow"])
+print(data["recommendation"]["trafficMixInWindow"]["realUserUsersInWindow"])
 print(data["recommendation"]["trafficMixInWindow"]["realNonExampleUsersInWindow"])
 print(data["notification"]["sentInWindow"])
 print(data["search"]["zeroResultSearchesInWindow"])
@@ -204,13 +214,17 @@ echo "recommendation_next_weight_key=${DASHBOARD_VALUES[3]}"
 echo "recommendation_remaining_logs_until_next_weight=${DASHBOARD_VALUES[4]}"
 echo "recommendation_example_logs_in_window=${DASHBOARD_VALUES[5]}"
 echo "recommendation_bounded_local_logs_in_window=${DASHBOARD_VALUES[6]}"
-echo "recommendation_real_non_example_logs_in_window=${DASHBOARD_VALUES[7]}"
-echo "recommendation_bounded_local_users_in_window=${DASHBOARD_VALUES[8]}"
-echo "recommendation_real_non_example_users_in_window=${DASHBOARD_VALUES[9]}"
-echo "notification_sent_in_window=${DASHBOARD_VALUES[10]}"
-echo "search_zero_result_searches_in_window=${DASHBOARD_VALUES[11]}"
-echo "summary_window_days=${DASHBOARD_VALUES[12]}"
-echo "collect_trend_windows=${DASHBOARD_VALUES[13]}"
+echo "recommendation_local_real_non_example_seed_logs_in_window=${DASHBOARD_VALUES[7]}"
+echo "recommendation_real_user_logs_in_window=${DASHBOARD_VALUES[8]}"
+echo "recommendation_real_non_example_logs_in_window=${DASHBOARD_VALUES[9]}"
+echo "recommendation_bounded_local_users_in_window=${DASHBOARD_VALUES[10]}"
+echo "recommendation_local_real_non_example_seed_users_in_window=${DASHBOARD_VALUES[11]}"
+echo "recommendation_real_user_users_in_window=${DASHBOARD_VALUES[12]}"
+echo "recommendation_real_non_example_users_in_window=${DASHBOARD_VALUES[13]}"
+echo "notification_sent_in_window=${DASHBOARD_VALUES[14]}"
+echo "search_zero_result_searches_in_window=${DASHBOARD_VALUES[15]}"
+echo "summary_window_days=${DASHBOARD_VALUES[16]}"
+echo "collect_trend_windows=${DASHBOARD_VALUES[17]}"
 echo "requested_summary_window_days=${SUMMARY_WINDOW_DAYS}"
 echo "requested_trend_window_days=${TREND_WINDOW_DAYS_CSV}"
 if [[ -n "${CONTAINER_ADMIN_ALLOWLIST}" ]]; then

@@ -111,12 +111,18 @@ public class AdminDashboardSummaryService {
                         new AdminDashboardResponse.RecommendationTrafficMixSnapshot(
                                 recommendationTrafficMix.exampleLogsInWindow(),
                                 recommendationTrafficMix.boundedLocalLogsInWindow(),
+                                recommendationTrafficMix.localRealNonExampleSeedLogsInWindow(),
+                                recommendationTrafficMix.realUserLogsInWindow(),
                                 recommendationTrafficMix.realNonExampleLogsInWindow(),
                                 recommendationTrafficMix.exampleUsersInWindow(),
                                 recommendationTrafficMix.boundedLocalUsersInWindow(),
+                                recommendationTrafficMix.localRealNonExampleSeedUsersInWindow(),
+                                recommendationTrafficMix.realUserUsersInWindow(),
                                 recommendationTrafficMix.realNonExampleUsersInWindow(),
                                 recommendationTrafficMix.exampleClickedUsersInWindow(),
                                 recommendationTrafficMix.boundedLocalClickedUsersInWindow(),
+                                recommendationTrafficMix.localRealNonExampleSeedClickedUsersInWindow(),
+                                recommendationTrafficMix.realUserClickedUsersInWindow(),
                                 recommendationTrafficMix.realNonExampleClickedUsersInWindow()
                         ),
                         adminDashboardRecommendationReadRepository.fetchRecommendationWeightBuckets(summaryWindowAgo).stream()

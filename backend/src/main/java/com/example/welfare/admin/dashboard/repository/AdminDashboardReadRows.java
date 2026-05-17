@@ -123,12 +123,18 @@ public final class AdminDashboardReadRows {
     public record RecommendationTrafficMixRow(
             long exampleLogsInWindow,
             long boundedLocalLogsInWindow,
+            long localRealNonExampleSeedLogsInWindow,
+            long realUserLogsInWindow,
             long realNonExampleLogsInWindow,
             long exampleUsersInWindow,
             long boundedLocalUsersInWindow,
+            long localRealNonExampleSeedUsersInWindow,
+            long realUserUsersInWindow,
             long realNonExampleUsersInWindow,
             long exampleClickedUsersInWindow,
             long boundedLocalClickedUsersInWindow,
+            long localRealNonExampleSeedClickedUsersInWindow,
+            long realUserClickedUsersInWindow,
             long realNonExampleClickedUsersInWindow
     ) {
     }

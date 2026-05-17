@@ -604,10 +604,16 @@ class AdminSecurityWebMvcTest {
                                         8,
                                         0,
                                         0,
-                                        3,
                                         0,
                                         0,
                                         3,
+                                        0,
+                                        0,
+                                        0,
+                                        0,
+                                        3,
+                                        0,
+                                        0,
                                         0,
                                         0
                                 ),
@@ -680,6 +686,8 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.data.recommendation.sentInWindow").value(8))
                 .andExpect(jsonPath("$.data.recommendation.trafficMixInWindow.exampleLogsInWindow").value(8))
                 .andExpect(jsonPath("$.data.recommendation.trafficMixInWindow.boundedLocalLogsInWindow").value(0))
+                .andExpect(jsonPath("$.data.recommendation.trafficMixInWindow.localRealNonExampleSeedLogsInWindow").value(0))
+                .andExpect(jsonPath("$.data.recommendation.trafficMixInWindow.realUserLogsInWindow").value(0))
                 .andExpect(jsonPath("$.data.recommendation.trafficMixInWindow.realNonExampleLogsInWindow").value(0))
                 .andExpect(jsonPath("$.data.notification.windowDays").value(7))
                 .andExpect(jsonPath("$.data.notification.sentInWindow").value(5))
@@ -730,10 +738,16 @@ class AdminSecurityWebMvcTest {
                                         2,
                                         0,
                                         0,
-                                        1,
                                         0,
                                         0,
                                         1,
+                                        0,
+                                        0,
+                                        0,
+                                        0,
+                                        1,
+                                        0,
+                                        0,
                                         0,
                                         0
                                 ),
@@ -785,6 +799,8 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.data.recommendation.nextWeightMinLogCount").value(500))
                 .andExpect(jsonPath("$.data.recommendation.trafficMixInWindow.exampleUsersInWindow").value(1))
                 .andExpect(jsonPath("$.data.recommendation.trafficMixInWindow.boundedLocalUsersInWindow").value(0))
+                .andExpect(jsonPath("$.data.recommendation.trafficMixInWindow.localRealNonExampleSeedUsersInWindow").value(0))
+                .andExpect(jsonPath("$.data.recommendation.trafficMixInWindow.realUserUsersInWindow").value(0))
                 .andExpect(jsonPath("$.data.recommendation.trafficMixInWindow.realNonExampleUsersInWindow").value(0))
                 .andExpect(jsonPath("$.data.notification.windowDays").value(14))
                 .andExpect(jsonPath("$.data.trend.recommendation[1].fallbackRate").value(0.5000))
@@ -919,10 +935,16 @@ class AdminSecurityWebMvcTest {
                                 30,
                                 0,
                                 0,
+                                0,
+                                0,
                                 18,
                                 0,
                                 0,
+                                0,
+                                0,
                                 9,
+                                0,
+                                0,
                                 0,
                                 0
                         ),
@@ -965,7 +987,7 @@ class AdminSecurityWebMvcTest {
                                         "청년 월세 지원",
                                         "YOUTH",
                                         "HOUSING",
-                                        "EXAMPLE",
+                                        "EXAMPLE_SMOKE",
                                         java.math.BigDecimal.valueOf(0.75231),
                                         true,
                                         false,
@@ -980,7 +1002,7 @@ class AdminSecurityWebMvcTest {
                                         "청년 전세 지원",
                                         "BOKJIRO_LOCAL",
                                         "HOUSING",
-                                        "EXAMPLE",
+                                        "EXAMPLE_SMOKE",
                                         java.math.BigDecimal.valueOf(0.88123),
                                         false,
                                         true,
@@ -995,7 +1017,7 @@ class AdminSecurityWebMvcTest {
                                         "청년 월세 지원",
                                         "YOUTH",
                                         "HOUSING",
-                                        "EXAMPLE",
+                                        "EXAMPLE_SMOKE",
                                         3,
                                         1,
                                         1,
@@ -1018,16 +1040,18 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.data.fallbackLogsInWindow").value(6))
                 .andExpect(jsonPath("$.data.trafficMixInWindow.exampleLogsInWindow").value(30))
                 .andExpect(jsonPath("$.data.trafficMixInWindow.boundedLocalUsersInWindow").value(0))
+                .andExpect(jsonPath("$.data.trafficMixInWindow.localRealNonExampleSeedUsersInWindow").value(0))
+                .andExpect(jsonPath("$.data.trafficMixInWindow.realUserUsersInWindow").value(0))
                 .andExpect(jsonPath("$.data.trafficMixInWindow.realNonExampleUsersInWindow").value(0))
                 .andExpect(jsonPath("$.data.sourceBreakdowns[0].sourceType").value("YOUTH"))
                 .andExpect(jsonPath("$.data.categoryBreakdowns[0].category").value("HOUSING"))
                 .andExpect(jsonPath("$.data.weightBreakdowns[0].weightKey").value("GROWTH"))
                 .andExpect(jsonPath("$.data.recentFallbackSamples[0].title").value("청년 월세 지원"))
-                .andExpect(jsonPath("$.data.recentFallbackSamples[0].userCohort").value("EXAMPLE"))
+                .andExpect(jsonPath("$.data.recentFallbackSamples[0].userCohort").value("EXAMPLE_SMOKE"))
                 .andExpect(jsonPath("$.data.recentClickedSamples[0].title").value("청년 전세 지원"))
-                .andExpect(jsonPath("$.data.recentClickedSamples[0].userCohort").value("EXAMPLE"))
+                .andExpect(jsonPath("$.data.recentClickedSamples[0].userCohort").value("EXAMPLE_SMOKE"))
                 .andExpect(jsonPath("$.data.repeatExposureGroups[0].userKey").value("user-key-1"))
-                .andExpect(jsonPath("$.data.repeatExposureGroups[0].userCohort").value("EXAMPLE"))
+                .andExpect(jsonPath("$.data.repeatExposureGroups[0].userCohort").value("EXAMPLE_SMOKE"))
                 .andExpect(jsonPath("$.data.repeatExposureGroups[0].serviceId").value(501))
                 .andExpect(jsonPath("$.data.repeatExposureGroups[0].exposureCount").value(3));
 

@@ -93,12 +93,18 @@ traffic_mix = data["trafficMixInWindow"]
 for key in (
     "exampleLogsInWindow",
     "boundedLocalLogsInWindow",
+    "localRealNonExampleSeedLogsInWindow",
+    "realUserLogsInWindow",
     "realNonExampleLogsInWindow",
     "exampleUsersInWindow",
     "boundedLocalUsersInWindow",
+    "localRealNonExampleSeedUsersInWindow",
+    "realUserUsersInWindow",
     "realNonExampleUsersInWindow",
     "exampleClickedUsersInWindow",
     "boundedLocalClickedUsersInWindow",
+    "localRealNonExampleSeedClickedUsersInWindow",
+    "realUserClickedUsersInWindow",
     "realNonExampleClickedUsersInWindow",
 ):
     assert isinstance(traffic_mix[key], int), f"{key} must be int"
@@ -114,7 +120,7 @@ for collection_key in (
     assert isinstance(data[collection_key], list), f"{collection_key} must be list"
     assert len(data[collection_key]) <= expected_limit, f"{collection_key} exceeds limit"
 
-valid_cohorts = {"EXAMPLE", "BOUNDED_LOCAL", "REAL_NON_EXAMPLE"}
+valid_cohorts = {"EXAMPLE_SMOKE", "BOUNDED_LOCAL", "LOCAL_REAL_NON_EXAMPLE_SEED", "REAL_USER"}
 non_example_present = (
     traffic_mix["boundedLocalUsersInWindow"] > 0
     or traffic_mix["realNonExampleUsersInWindow"] > 0
@@ -129,7 +135,7 @@ if data["recentFallbackSamples"]:
     assert first["fallback"] is True, "recentFallbackSamples[0].fallback must be true"
     assert first["userCohort"] in valid_cohorts, "recentFallbackSamples[0].userCohort invalid"
     if not non_example_present:
-        assert first["userCohort"] == "EXAMPLE", "fallback sample should be EXAMPLE when non-example cohort is absent"
+        assert first["userCohort"] == "EXAMPLE_SMOKE", "fallback sample should be EXAMPLE_SMOKE when non-example cohort is absent"
     fallback_cohort = first["userCohort"]
 
 if data["recentClickedSamples"]:
@@ -137,7 +143,7 @@ if data["recentClickedSamples"]:
     assert first["clicked"] is True, "recentClickedSamples[0].clicked must be true"
     assert first["userCohort"] in valid_cohorts, "recentClickedSamples[0].userCohort invalid"
     if not non_example_present:
-        assert first["userCohort"] == "EXAMPLE", "clicked sample should be EXAMPLE when non-example cohort is absent"
+        assert first["userCohort"] == "EXAMPLE_SMOKE", "clicked sample should be EXAMPLE_SMOKE when non-example cohort is absent"
     clicked_cohort = first["userCohort"]
 
 if data["repeatExposureGroups"]:
@@ -145,7 +151,7 @@ if data["repeatExposureGroups"]:
     assert first["exposureCount"] > 1, "repeatExposureGroups[0].exposureCount must be > 1"
     assert first["userCohort"] in valid_cohorts, "repeatExposureGroups[0].userCohort invalid"
     if not non_example_present:
-        assert first["userCohort"] == "EXAMPLE", "repeat exposure sample should be EXAMPLE when non-example cohort is absent"
+        assert first["userCohort"] == "EXAMPLE_SMOKE", "repeat exposure sample should be EXAMPLE_SMOKE when non-example cohort is absent"
     repeat_cohort = first["userCohort"]
 
 print(data["generatedAt"])
@@ -154,6 +160,8 @@ print(data["clickedLogsInWindow"])
 print(data["fallbackLogsInWindow"])
 print(traffic_mix["exampleLogsInWindow"])
 print(traffic_mix["boundedLocalUsersInWindow"])
+print(traffic_mix["localRealNonExampleSeedUsersInWindow"])
+print(traffic_mix["realUserUsersInWindow"])
 print(traffic_mix["realNonExampleUsersInWindow"])
 print(fallback_cohort)
 print(clicked_cohort)
@@ -221,13 +229,15 @@ echo "clicked_logs_in_window=${BREAKDOWN_VALUES[2]}"
 echo "fallback_logs_in_window=${BREAKDOWN_VALUES[3]}"
 echo "example_logs_in_window=${BREAKDOWN_VALUES[4]}"
 echo "bounded_local_users_in_window=${BREAKDOWN_VALUES[5]}"
-echo "real_non_example_users_in_window=${BREAKDOWN_VALUES[6]}"
-echo "recent_fallback_sample_user_cohort=${BREAKDOWN_VALUES[7]}"
-echo "recent_clicked_sample_user_cohort=${BREAKDOWN_VALUES[8]}"
-echo "repeat_exposure_user_cohort=${BREAKDOWN_VALUES[9]}"
-echo "source_breakdown_count=${BREAKDOWN_VALUES[10]}"
-echo "category_breakdown_count=${BREAKDOWN_VALUES[11]}"
-echo "weight_breakdown_count=${BREAKDOWN_VALUES[12]}"
+echo "local_real_non_example_seed_users_in_window=${BREAKDOWN_VALUES[6]}"
+echo "real_user_users_in_window=${BREAKDOWN_VALUES[7]}"
+echo "real_non_example_users_in_window=${BREAKDOWN_VALUES[8]}"
+echo "recent_fallback_sample_user_cohort=${BREAKDOWN_VALUES[9]}"
+echo "recent_clicked_sample_user_cohort=${BREAKDOWN_VALUES[10]}"
+echo "repeat_exposure_user_cohort=${BREAKDOWN_VALUES[11]}"
+echo "source_breakdown_count=${BREAKDOWN_VALUES[12]}"
+echo "category_breakdown_count=${BREAKDOWN_VALUES[13]}"
+echo "weight_breakdown_count=${BREAKDOWN_VALUES[14]}"
 echo "summary_window_days=${SUMMARY_WINDOW_DAYS}"
 echo "breakdown_limit=${BREAKDOWN_LIMIT}"
 if [[ -n "${CONTAINER_ADMIN_ALLOWLIST}" ]]; then

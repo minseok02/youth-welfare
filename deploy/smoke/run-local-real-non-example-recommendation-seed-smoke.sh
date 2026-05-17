@@ -58,25 +58,9 @@ for index, line in enumerate(lines):
 PY
 }
 
-domain_classification() {
-  local lowered="${1,,}"
-  if [[ "${lowered}" == "example.com" ]]; then
-    printf '%s' "EXAMPLE"
-  elif [[ "${lowered}" == "smoke.local" || "${lowered}" == "localhost" || "${lowered}" == *.local || "${lowered}" == *.test || "${lowered}" == *.invalid ]]; then
-    printf '%s' "BOUNDED_LOCAL"
-  else
-    printf '%s' "REAL_NON_EXAMPLE"
-  fi
-}
-
 smoke_require_command bash
 smoke_require_command python3
 smoke_require_command docker
-
-if [[ "$(domain_classification "${SMOKE_EMAIL_DOMAIN}")" != "REAL_NON_EXAMPLE" ]]; then
-  echo "SMOKE_EMAIL_DOMAIN must classify as REAL_NON_EXAMPLE under current cohort rules: ${SMOKE_EMAIL_DOMAIN}" >&2
-  exit 1
-fi
 
 smoke_print_step "seed real-non-example recommendation click (${SMOKE_EMAIL_DOMAIN})"
 SMOKE_EMAIL_PREFIX="${SMOKE_EMAIL_PREFIX}" \
@@ -95,17 +79,17 @@ fi
 
 smoke_print_step "verify seeded log row is real-non-example"
 smoke_db_query \
-  "SELECT COALESCE(u.email, ''), rl.user_key, rl.service_id, rl.is_clicked
+  "SELECT COALESCE(u.email, ''), COALESCE(u.account_origin, ''), rl.user_key, rl.service_id, rl.is_clicked
    FROM recommendation_logs rl
    LEFT JOIN users u ON u.user_key = rl.user_key
    WHERE rl.id = ${SEED_LOG_ID};" \
   > "${LOG_ROW_OUTPUT}"
 
 ROW_EMAIL="$(awk -F $'\t' 'NR==1 {print $1}' "${LOG_ROW_OUTPUT}")"
-ROW_USER_KEY="$(awk -F $'\t' 'NR==1 {print $2}' "${LOG_ROW_OUTPUT}")"
-ROW_SERVICE_ID="$(awk -F $'\t' 'NR==1 {print $3}' "${LOG_ROW_OUTPUT}")"
-ROW_IS_CLICKED="$(awk -F $'\t' 'NR==1 {print $4}' "${LOG_ROW_OUTPUT}")"
-ROW_DOMAIN="${ROW_EMAIL##*@}"
+ROW_ACCOUNT_ORIGIN="$(awk -F $'\t' 'NR==1 {print $2}' "${LOG_ROW_OUTPUT}")"
+ROW_USER_KEY="$(awk -F $'\t' 'NR==1 {print $3}' "${LOG_ROW_OUTPUT}")"
+ROW_SERVICE_ID="$(awk -F $'\t' 'NR==1 {print $4}' "${LOG_ROW_OUTPUT}")"
+ROW_IS_CLICKED="$(awk -F $'\t' 'NR==1 {print $5}' "${LOG_ROW_OUTPUT}")"
 
 if [[ "${ROW_EMAIL}" != "${SEED_EMAIL}" ]]; then
   echo "seeded row email mismatch: expected ${SEED_EMAIL}, got ${ROW_EMAIL}" >&2
@@ -113,8 +97,8 @@ if [[ "${ROW_EMAIL}" != "${SEED_EMAIL}" ]]; then
   exit 1
 fi
 
-if [[ "$(domain_classification "${ROW_DOMAIN}")" != "REAL_NON_EXAMPLE" ]]; then
-  echo "seeded row domain was not classified as REAL_NON_EXAMPLE: ${ROW_DOMAIN}" >&2
+if [[ "${ROW_ACCOUNT_ORIGIN}" != "LOCAL_REAL_NON_EXAMPLE_SEED" ]]; then
+  echo "seeded row account_origin mismatch: expected LOCAL_REAL_NON_EXAMPLE_SEED, got ${ROW_ACCOUNT_ORIGIN}" >&2
   cat "${LOG_ROW_OUTPUT}" >&2
   exit 1
 fi
@@ -133,12 +117,7 @@ smoke_db_query \
    FROM recommendation_logs rl
    LEFT JOIN users u ON u.user_key = rl.user_key
    WHERE rl.sent_at >= NOW() - INTERVAL '${SUMMARY_WINDOW_DAYS} days'
-     AND lower(split_part(coalesce(u.email, ''), '@', 2)) <> 'example.com'
-     AND lower(split_part(coalesce(u.email, ''), '@', 2)) <> 'smoke.local'
-     AND lower(split_part(coalesce(u.email, ''), '@', 2)) <> 'localhost'
-     AND lower(split_part(coalesce(u.email, ''), '@', 2)) NOT LIKE '%.local'
-     AND lower(split_part(coalesce(u.email, ''), '@', 2)) NOT LIKE '%.test'
-     AND lower(split_part(coalesce(u.email, ''), '@', 2)) NOT LIKE '%.invalid';" \
+     AND coalesce(nullif(u.account_origin, ''), 'REAL_USER') = 'LOCAL_REAL_NON_EXAMPLE_SEED';" \
   > "${WINDOW_ROW_OUTPUT}"
 
 WINDOW_REAL_NON_EXAMPLE_LOGS="$(awk -F $'\t' 'NR==1 {print $1}' "${WINDOW_ROW_OUTPUT}")"
@@ -173,6 +152,7 @@ echo
 echo "real-non-example recommendation seed smoke passed"
 echo "seed_email=${SEED_EMAIL}"
 echo "seed_email_domain=${SMOKE_EMAIL_DOMAIN}"
+echo "seed_account_origin=${ROW_ACCOUNT_ORIGIN}"
 echo "seed_user_key=${ROW_USER_KEY}"
 echo "seed_service_id=${ROW_SERVICE_ID:-${SEED_SERVICE_ID}}"
 echo "seed_log_id=${SEED_LOG_ID}"

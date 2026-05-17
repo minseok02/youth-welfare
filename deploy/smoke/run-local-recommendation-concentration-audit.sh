@@ -34,14 +34,10 @@ WITH latest AS (
 base_rows AS (
     SELECT ur.*,
            u.email,
+           COALESCE(NULLIF(u.account_origin, ''), 'REAL_USER') AS user_origin,
            CASE
-               WHEN lower(split_part(coalesce(u.email, ''), '@', 2)) = 'example.com' THEN 'EXAMPLE'
-               WHEN lower(split_part(coalesce(u.email, ''), '@', 2)) = 'smoke.local'
-                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) = 'localhost'
-                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) LIKE '%.local'
-                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) LIKE '%.test'
-                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) LIKE '%.invalid'
-                   THEN 'BOUNDED_LOCAL'
+               WHEN COALESCE(NULLIF(u.account_origin, ''), 'REAL_USER') = 'EXAMPLE_SMOKE' THEN 'EXAMPLE'
+               WHEN COALESCE(NULLIF(u.account_origin, ''), 'REAL_USER') = 'BOUNDED_LOCAL' THEN 'BOUNDED_LOCAL'
                ELSE 'REAL_NON_EXAMPLE'
            END AS user_cohort
     FROM user_recommendations ur
@@ -188,14 +184,10 @@ WITH latest AS (
 ),
 base_rows AS (
     SELECT ur.*,
+           COALESCE(NULLIF(u.account_origin, ''), 'REAL_USER') AS user_origin,
            CASE
-               WHEN lower(split_part(coalesce(u.email, ''), '@', 2)) = 'example.com' THEN 'EXAMPLE'
-               WHEN lower(split_part(coalesce(u.email, ''), '@', 2)) = 'smoke.local'
-                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) = 'localhost'
-                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) LIKE '%.local'
-                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) LIKE '%.test'
-                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) LIKE '%.invalid'
-                   THEN 'BOUNDED_LOCAL'
+               WHEN COALESCE(NULLIF(u.account_origin, ''), 'REAL_USER') = 'EXAMPLE_SMOKE' THEN 'EXAMPLE'
+               WHEN COALESCE(NULLIF(u.account_origin, ''), 'REAL_USER') = 'BOUNDED_LOCAL' THEN 'BOUNDED_LOCAL'
                ELSE 'REAL_NON_EXAMPLE'
            END AS user_cohort
     FROM user_recommendations ur
@@ -229,14 +221,10 @@ WITH latest AS (
 ),
 base_rows AS (
     SELECT ur.*,
+           COALESCE(NULLIF(u.account_origin, ''), 'REAL_USER') AS user_origin,
            CASE
-               WHEN lower(split_part(coalesce(u.email, ''), '@', 2)) = 'example.com' THEN 'EXAMPLE'
-               WHEN lower(split_part(coalesce(u.email, ''), '@', 2)) = 'smoke.local'
-                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) = 'localhost'
-                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) LIKE '%.local'
-                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) LIKE '%.test'
-                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) LIKE '%.invalid'
-                   THEN 'BOUNDED_LOCAL'
+               WHEN COALESCE(NULLIF(u.account_origin, ''), 'REAL_USER') = 'EXAMPLE_SMOKE' THEN 'EXAMPLE'
+               WHEN COALESCE(NULLIF(u.account_origin, ''), 'REAL_USER') = 'BOUNDED_LOCAL' THEN 'BOUNDED_LOCAL'
                ELSE 'REAL_NON_EXAMPLE'
            END AS user_cohort
     FROM user_recommendations ur
@@ -270,14 +258,10 @@ WITH latest AS (
 ),
 base_rows AS (
     SELECT ur.*,
+           COALESCE(NULLIF(u.account_origin, ''), 'REAL_USER') AS user_origin,
            CASE
-               WHEN lower(split_part(coalesce(u.email, ''), '@', 2)) = 'example.com' THEN 'EXAMPLE'
-               WHEN lower(split_part(coalesce(u.email, ''), '@', 2)) = 'smoke.local'
-                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) = 'localhost'
-                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) LIKE '%.local'
-                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) LIKE '%.test'
-                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) LIKE '%.invalid'
-                   THEN 'BOUNDED_LOCAL'
+               WHEN COALESCE(NULLIF(u.account_origin, ''), 'REAL_USER') = 'EXAMPLE_SMOKE' THEN 'EXAMPLE'
+               WHEN COALESCE(NULLIF(u.account_origin, ''), 'REAL_USER') = 'BOUNDED_LOCAL' THEN 'BOUNDED_LOCAL'
                ELSE 'REAL_NON_EXAMPLE'
            END AS user_cohort
     FROM user_recommendations ur
@@ -313,14 +297,10 @@ WITH latest AS (
 ),
 base_rows AS (
     SELECT ur.*,
+           COALESCE(NULLIF(u.account_origin, ''), 'REAL_USER') AS user_origin,
            CASE
-               WHEN lower(split_part(coalesce(u.email, ''), '@', 2)) = 'example.com' THEN 'EXAMPLE'
-               WHEN lower(split_part(coalesce(u.email, ''), '@', 2)) = 'smoke.local'
-                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) = 'localhost'
-                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) LIKE '%.local'
-                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) LIKE '%.test'
-                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) LIKE '%.invalid'
-                   THEN 'BOUNDED_LOCAL'
+               WHEN COALESCE(NULLIF(u.account_origin, ''), 'REAL_USER') = 'EXAMPLE_SMOKE' THEN 'EXAMPLE'
+               WHEN COALESCE(NULLIF(u.account_origin, ''), 'REAL_USER') = 'BOUNDED_LOCAL' THEN 'BOUNDED_LOCAL'
                ELSE 'REAL_NON_EXAMPLE'
            END AS user_cohort
     FROM user_recommendations ur
@@ -377,14 +357,10 @@ WITH latest AS (
 ),
 base_rows AS (
     SELECT ur.*,
+           COALESCE(NULLIF(u.account_origin, ''), 'REAL_USER') AS user_origin,
            CASE
-               WHEN lower(split_part(coalesce(u.email, ''), '@', 2)) = 'example.com' THEN 'EXAMPLE'
-               WHEN lower(split_part(coalesce(u.email, ''), '@', 2)) = 'smoke.local'
-                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) = 'localhost'
-                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) LIKE '%.local'
-                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) LIKE '%.test'
-                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) LIKE '%.invalid'
-                   THEN 'BOUNDED_LOCAL'
+               WHEN COALESCE(NULLIF(u.account_origin, ''), 'REAL_USER') = 'EXAMPLE_SMOKE' THEN 'EXAMPLE'
+               WHEN COALESCE(NULLIF(u.account_origin, ''), 'REAL_USER') = 'BOUNDED_LOCAL' THEN 'BOUNDED_LOCAL'
                ELSE 'REAL_NON_EXAMPLE'
            END AS user_cohort
     FROM user_recommendations ur
@@ -451,14 +427,10 @@ WITH latest AS (
 ),
 base_rows AS (
     SELECT ur.user_key,
+           COALESCE(NULLIF(u.account_origin, ''), 'REAL_USER') AS user_origin,
            CASE
-               WHEN lower(split_part(coalesce(u.email, ''), '@', 2)) = 'example.com' THEN 'EXAMPLE'
-               WHEN lower(split_part(coalesce(u.email, ''), '@', 2)) = 'smoke.local'
-                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) = 'localhost'
-                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) LIKE '%.local'
-                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) LIKE '%.test'
-                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) LIKE '%.invalid'
-                   THEN 'BOUNDED_LOCAL'
+               WHEN COALESCE(NULLIF(u.account_origin, ''), 'REAL_USER') = 'EXAMPLE_SMOKE' THEN 'EXAMPLE'
+               WHEN COALESCE(NULLIF(u.account_origin, ''), 'REAL_USER') = 'BOUNDED_LOCAL' THEN 'BOUNDED_LOCAL'
                ELSE 'REAL_NON_EXAMPLE'
            END AS user_cohort
     FROM user_recommendations ur
@@ -501,14 +473,10 @@ WITH latest AS (
 ),
 base_rows AS (
     SELECT ur.*,
+           COALESCE(NULLIF(u.account_origin, ''), 'REAL_USER') AS user_origin,
            CASE
-               WHEN lower(split_part(coalesce(u.email, ''), '@', 2)) = 'example.com' THEN 'EXAMPLE'
-               WHEN lower(split_part(coalesce(u.email, ''), '@', 2)) = 'smoke.local'
-                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) = 'localhost'
-                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) LIKE '%.local'
-                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) LIKE '%.test'
-                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) LIKE '%.invalid'
-                   THEN 'BOUNDED_LOCAL'
+               WHEN COALESCE(NULLIF(u.account_origin, ''), 'REAL_USER') = 'EXAMPLE_SMOKE' THEN 'EXAMPLE'
+               WHEN COALESCE(NULLIF(u.account_origin, ''), 'REAL_USER') = 'BOUNDED_LOCAL' THEN 'BOUNDED_LOCAL'
                ELSE 'REAL_NON_EXAMPLE'
            END AS user_cohort
     FROM user_recommendations ur
@@ -568,14 +536,10 @@ WITH latest AS (
 ),
 base_rows AS (
     SELECT ur.*,
+           COALESCE(NULLIF(u.account_origin, ''), 'REAL_USER') AS user_origin,
            CASE
-               WHEN lower(split_part(coalesce(u.email, ''), '@', 2)) = 'example.com' THEN 'EXAMPLE'
-               WHEN lower(split_part(coalesce(u.email, ''), '@', 2)) = 'smoke.local'
-                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) = 'localhost'
-                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) LIKE '%.local'
-                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) LIKE '%.test'
-                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) LIKE '%.invalid'
-                   THEN 'BOUNDED_LOCAL'
+               WHEN COALESCE(NULLIF(u.account_origin, ''), 'REAL_USER') = 'EXAMPLE_SMOKE' THEN 'EXAMPLE'
+               WHEN COALESCE(NULLIF(u.account_origin, ''), 'REAL_USER') = 'BOUNDED_LOCAL' THEN 'BOUNDED_LOCAL'
                ELSE 'REAL_NON_EXAMPLE'
            END AS user_cohort
     FROM user_recommendations ur
@@ -657,14 +621,10 @@ WITH latest AS (
 ),
 base_rows AS (
     SELECT ur.user_key,
+           COALESCE(NULLIF(u.account_origin, ''), 'REAL_USER') AS user_origin,
            CASE
-               WHEN lower(split_part(coalesce(u.email, ''), '@', 2)) = 'example.com' THEN 'EXAMPLE'
-               WHEN lower(split_part(coalesce(u.email, ''), '@', 2)) = 'smoke.local'
-                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) = 'localhost'
-                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) LIKE '%.local'
-                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) LIKE '%.test'
-                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) LIKE '%.invalid'
-                   THEN 'BOUNDED_LOCAL'
+               WHEN COALESCE(NULLIF(u.account_origin, ''), 'REAL_USER') = 'EXAMPLE_SMOKE' THEN 'EXAMPLE'
+               WHEN COALESCE(NULLIF(u.account_origin, ''), 'REAL_USER') = 'BOUNDED_LOCAL' THEN 'BOUNDED_LOCAL'
                ELSE 'REAL_NON_EXAMPLE'
            END AS user_cohort
     FROM user_recommendations ur

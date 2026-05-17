@@ -25,6 +25,11 @@ public class User extends BaseTimeEntity {
     @Column(nullable = false, unique = true)
     private String email;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 40)
+    @Builder.Default
+    private AccountOrigin accountOrigin = AccountOrigin.REAL_USER;
+
     @Column(nullable = false)
     private String passwordHash;
 
@@ -182,5 +187,12 @@ public class User extends BaseTimeEntity {
 
     public enum NotificationPeriod {
         DAILY, WEEKLY, NONE
+    }
+
+    public enum AccountOrigin {
+        EXAMPLE_SMOKE,
+        BOUNDED_LOCAL,
+        LOCAL_REAL_NON_EXAMPLE_SEED,
+        REAL_USER
     }
 }

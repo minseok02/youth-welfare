@@ -13,11 +13,13 @@ public class UserRegistrationService {
 
     private final UserRegistrationCommandRepository userRegistrationCommandRepository;
     private final UserCoreSyncService userCoreSyncService;
+    private final UserAccountOriginResolver userAccountOriginResolver;
 
     @Transactional
     public void register(SignupRequest request, String encodedPassword) {
         User user = User.builder()
                 .email(request.getEmail())
+                .accountOrigin(userAccountOriginResolver.resolve(request.getEmail()))
                 .passwordHash(encodedPassword)
                 .name(request.getName())
                 .birthDate(request.getBirthDate())
