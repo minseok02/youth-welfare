@@ -31,8 +31,17 @@ public class UserRecommendationReadService {
     @Transactional(readOnly = true)
     public RecommendationReadContext getRecommendationContext(Long userId) {
         ActiveUserReadService.ActiveUserContext activeUserContext = activeUserReadService.getActiveUserContext(userId);
-        User user = activeUserContext.user();
-        String userKey = authIdentityReadService.requireActiveUserKey(activeUserContext.userKey());
+        return buildContext(activeUserContext.user(), activeUserContext.userKey());
+    }
+
+    @Transactional(readOnly = true)
+    public RecommendationReadContext getRecommendationContextByUserKey(String userKey) {
+        User user = activeUserReadService.getActiveUserByUserKey(userKey);
+        return buildContext(user, userKey);
+    }
+
+    private RecommendationReadContext buildContext(User user, String rawUserKey) {
+        String userKey = authIdentityReadService.requireActiveUserKey(rawUserKey);
         var aggregate = recommendationUserReadRepository.findByUserKey(userKey)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
         UserProfile profile = aggregate.profile();
@@ -49,7 +58,7 @@ public class UserRecommendationReadService {
                 .toList();
 
         RecommendationUserSnapshot snapshot = new RecommendationUserSnapshot(
-                userId,
+                user.getId(),
                 userKey,
                 profile.getAge(),
                 profile.getAgeBand(),

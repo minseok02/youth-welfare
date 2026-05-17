@@ -41,6 +41,12 @@ public class RetrievalService {
 
     @Transactional(readOnly = true)
     public RetrievedRecommendationCandidates retrieve(String clusterId, RecommendationUserSnapshot user) {
+        RecommendationRetrievalTrace trace = trace(user);
+        return new RetrievedRecommendationCandidates(trace.mergedCandidates(), trace.allProjections());
+    }
+
+    @Transactional(readOnly = true)
+    public RecommendationRetrievalTrace trace(RecommendationUserSnapshot user) {
         int age = user.resolvedAge();
         int incomeLevel = user.resolvedIncomeLevel();
 
@@ -52,14 +58,14 @@ public class RetrievalService {
                 FETCH_SIZE,
                 M * 4
         );
-        List<WelfareService> rawCandidates = recommendationCandidateReadRepository.findBaseCandidates(condition);
-        List<WelfareService> latestCandidates = recommendationCandidateReadRepository.findLatestCandidates(condition);
+        List<WelfareService> rawBaseCandidates = recommendationCandidateReadRepository.findBaseCandidates(condition);
+        List<WelfareService> rawLatestCandidates = recommendationCandidateReadRepository.findLatestCandidates(condition);
 
-        Map<Long, RecommendationCandidateProjection> projections = loadProjections(rawCandidates, latestCandidates);
+        Map<Long, RecommendationCandidateProjection> projections = loadProjections(rawBaseCandidates, rawLatestCandidates);
 
         boolean noPriorityProfile = user.priorities() == null || user.priorities().isEmpty();
 
-        List<WelfareService> filteredBase = applyRecommendationFilters(rawCandidates, projections, age);
+        List<WelfareService> filteredBase = applyRecommendationFilters(rawBaseCandidates, projections, age);
         if (noPriorityProfile) {
             filteredBase = rebalanceNoPriorityCandidates(filteredBase);
         }
@@ -67,7 +73,7 @@ public class RetrievalService {
                 .limit(K)
                 .toList();
 
-        List<WelfareService> filteredLatest = applyRecommendationFilters(latestCandidates, projections, age);
+        List<WelfareService> filteredLatest = applyRecommendationFilters(rawLatestCandidates, projections, age);
         if (noPriorityProfile) {
             filteredLatest = rebalanceNoPriorityCandidates(filteredLatest);
         }
@@ -79,19 +85,13 @@ public class RetrievalService {
                 .limit(K + M)
                 .collect(Collectors.toList());
 
-        Map<Long, RecommendationCandidateProjection> filteredProjections = candidates.stream()
-                .map(WelfareService::getId)
-                .filter(projections::containsKey)
-                .collect(Collectors.toMap(
-                        id -> id,
-                        projections::get,
-                        (left, right) -> left,
-                        LinkedHashMap::new
-                ));
-
-        return new RetrievedRecommendationCandidates(
+        return new RecommendationRetrievalTrace(
+                rawBaseCandidates,
+                rawLatestCandidates,
+                filteredBase,
+                filteredLatest,
                 candidates,
-                filteredProjections
+                projections
         );
     }
 
@@ -231,5 +231,23 @@ public class RetrievalService {
             offset++;
         } while (appended);
         return List.copyOf(balanced);
+    }
+
+    public record RecommendationRetrievalTrace(
+            List<WelfareService> rawBaseCandidates,
+            List<WelfareService> rawLatestCandidates,
+            List<WelfareService> filteredBaseCandidates,
+            List<WelfareService> filteredLatestCandidates,
+            List<WelfareService> mergedCandidates,
+            Map<Long, RecommendationCandidateProjection> allProjections
+    ) {
+        public RecommendationRetrievalTrace {
+            rawBaseCandidates = rawBaseCandidates == null ? List.of() : List.copyOf(rawBaseCandidates);
+            rawLatestCandidates = rawLatestCandidates == null ? List.of() : List.copyOf(rawLatestCandidates);
+            filteredBaseCandidates = filteredBaseCandidates == null ? List.of() : List.copyOf(filteredBaseCandidates);
+            filteredLatestCandidates = filteredLatestCandidates == null ? List.of() : List.copyOf(filteredLatestCandidates);
+            mergedCandidates = mergedCandidates == null ? List.of() : List.copyOf(mergedCandidates);
+            allProjections = allProjections == null ? Map.of() : Map.copyOf(new LinkedHashMap<>(allProjections));
+        }
     }
 }

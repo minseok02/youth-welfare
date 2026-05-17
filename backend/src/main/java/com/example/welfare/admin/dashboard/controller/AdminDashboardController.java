@@ -1,10 +1,12 @@
 package com.example.welfare.admin.dashboard.controller;
 
 import com.example.welfare.admin.dashboard.dto.AdminCollectFailureResponse;
+import com.example.welfare.admin.dashboard.dto.AdminRecommendationCandidateDiagnosticResponse;
 import com.example.welfare.admin.dashboard.dto.AdminRecommendationBreakdownResponse;
 import com.example.welfare.admin.dashboard.dto.AdminSearchFailureResponse;
 import com.example.welfare.admin.dashboard.dto.AdminDashboardResponse;
 import com.example.welfare.admin.dashboard.service.AdminDashboardCollectService;
+import com.example.welfare.admin.dashboard.service.AdminDashboardRecommendationDiagnosticService;
 import com.example.welfare.admin.dashboard.service.AdminDashboardRecommendationService;
 import com.example.welfare.admin.dashboard.service.AdminDashboardSearchService;
 import com.example.welfare.admin.dashboard.service.AdminDashboardSummaryService;
@@ -34,6 +36,7 @@ public class AdminDashboardController {
     private final AdminDashboardSummaryService adminDashboardSummaryService;
     private final AdminDashboardSearchService adminDashboardSearchService;
     private final AdminDashboardRecommendationService adminDashboardRecommendationService;
+    private final AdminDashboardRecommendationDiagnosticService adminDashboardRecommendationDiagnosticService;
     private final AdminDashboardCollectService adminDashboardCollectService;
 
     @GetMapping("/summary")
@@ -90,6 +93,21 @@ public class AdminDashboardController {
         log.info("[Admin] dashboard recommendation breakdowns 조회 summaryWindowDays={} limit={}", summaryWindowDays, limit);
         return ResponseEntity.ok(ApiResponse.success(
                 adminDashboardRecommendationService.getRecommendationBreakdowns(summaryWindowDays, limit)
+        ));
+    }
+
+    @GetMapping("/recommendation-diagnostics")
+    public ResponseEntity<ApiResponse<AdminRecommendationCandidateDiagnosticResponse>> getRecommendationDiagnostics(
+            @RequestParam(name = "userKey") String userKey,
+            @RequestParam(name = "serviceId")
+            List<@Min(value = 1, message = "serviceId는 1 이상이어야 합니다.") Long> serviceIds
+    ) {
+        if (userKey == null || userKey.isBlank() || serviceIds == null || serviceIds.isEmpty()) {
+            throw new CustomException(ErrorCode.INVALID_INPUT);
+        }
+        log.info("[Admin] dashboard recommendation diagnostics 조회 userKey={} serviceIds={}", userKey, serviceIds);
+        return ResponseEntity.ok(ApiResponse.success(
+                adminDashboardRecommendationDiagnosticService.getRecommendationDiagnostics(userKey.trim(), serviceIds)
         ));
     }
 

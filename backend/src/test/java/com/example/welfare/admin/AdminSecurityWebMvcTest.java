@@ -2,10 +2,12 @@ package com.example.welfare.admin;
 
 import com.example.welfare.admin.dashboard.controller.AdminDashboardController;
 import com.example.welfare.admin.dashboard.dto.AdminCollectFailureResponse;
+import com.example.welfare.admin.dashboard.dto.AdminRecommendationCandidateDiagnosticResponse;
 import com.example.welfare.admin.dashboard.dto.AdminRecommendationBreakdownResponse;
 import com.example.welfare.admin.dashboard.dto.AdminSearchFailureResponse;
 import com.example.welfare.admin.dashboard.dto.AdminDashboardResponse;
 import com.example.welfare.admin.dashboard.service.AdminDashboardCollectService;
+import com.example.welfare.admin.dashboard.service.AdminDashboardRecommendationDiagnosticService;
 import com.example.welfare.admin.dashboard.service.AdminDashboardRecommendationService;
 import com.example.welfare.admin.dashboard.service.AdminDashboardSearchService;
 import com.example.welfare.admin.dashboard.service.AdminDashboardSummaryService;
@@ -123,6 +125,8 @@ class AdminSecurityWebMvcTest {
     private AdminDashboardSearchService adminDashboardSearchService;
     @MockBean
     private AdminDashboardRecommendationService adminDashboardRecommendationService;
+    @MockBean
+    private AdminDashboardRecommendationDiagnosticService adminDashboardRecommendationDiagnosticService;
     @MockBean
     private AdminDashboardCollectService adminDashboardCollectService;
     @MockBean
@@ -1199,6 +1203,102 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.data.repeatExposureGroups[0].exposureCount").value(3));
 
         then(adminDashboardRecommendationService).should().getRecommendationBreakdowns(14, 3);
+    }
+
+    @Test
+    @DisplayName("관리자 토큰으로 recommendation diagnostics API를 호출하면 단계별 후보 진단 응답을 반환한다")
+    void adminEndpointAllowsRecommendationDiagnostics() throws Exception {
+        mockAuthenticatedToken("admin-token", List.of(
+                new SimpleGrantedAuthority("ROLE_USER"),
+                new SimpleGrantedAuthority("ROLE_ADMIN")
+        ));
+        given(adminDashboardRecommendationDiagnosticService.getRecommendationDiagnostics(
+                "user-key-1",
+                List.of(3686L, 2736L)
+        )).willReturn(new AdminRecommendationCandidateDiagnosticResponse(
+                LocalDateTime.of(2026, 5, 17, 20, 30),
+                "user-key-1",
+                "REAL_USER",
+                "youth_all",
+                150,
+                20,
+                44,
+                5,
+                49,
+                49,
+                47,
+                10,
+                List.of(
+                        new AdminRecommendationCandidateDiagnosticResponse.ServiceDiagnostic(
+                                3686L,
+                                "드림나래",
+                                "BOKJIRO_LOCAL",
+                                "기타",
+                                true,
+                                false,
+                                true,
+                                false,
+                                true,
+                                true,
+                                true,
+                                "PRESENT_IN_SAVED_BATCH",
+                                true,
+                                23.0,
+                                23.0,
+                                90.0,
+                                1.025,
+                                1,
+                                false,
+                                false,
+                                false
+                        ),
+                        new AdminRecommendationCandidateDiagnosticResponse.ServiceDiagnostic(
+                                2736L,
+                                "동구 청년 컬처페이 지원사업",
+                                "BOKJIRO_LOCAL",
+                                "기타",
+                                true,
+                                false,
+                                true,
+                                false,
+                                true,
+                                true,
+                                false,
+                                "SCORED_BUT_NOT_IN_SAVED_BATCH",
+                                true,
+                                10.0,
+                                10.0,
+                                null,
+                                null,
+                                null,
+                                false,
+                                false,
+                                false
+                        )
+                )
+        ));
+
+        mockMvc.perform(get("/api/admin/dashboard/recommendation-diagnostics")
+                        .param("userKey", "user-key-1")
+                        .param("serviceId", "3686", "2736")
+                        .header("Authorization", "Bearer admin-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.userKey").value("user-key-1"))
+                .andExpect(jsonPath("$.data.accountOrigin").value("REAL_USER"))
+                .andExpect(jsonPath("$.data.clusterId").value("youth_all"))
+                .andExpect(jsonPath("$.data.baseCandidateCount").value(150))
+                .andExpect(jsonPath("$.data.postScoringCandidateCount").value(47))
+                .andExpect(jsonPath("$.data.services[0].serviceId").value(3686))
+                .andExpect(jsonPath("$.data.services[0].dropStage").value("PRESENT_IN_SAVED_BATCH"))
+                .andExpect(jsonPath("$.data.services[0].latestSavedRank").value(1))
+                .andExpect(jsonPath("$.data.services[1].serviceId").value(2736))
+                .andExpect(jsonPath("$.data.services[1].inMergedCandidates").value(true))
+                .andExpect(jsonPath("$.data.services[1].inLatestSavedBatch").value(false))
+                .andExpect(jsonPath("$.data.services[1].dropStage").value("SCORED_BUT_NOT_IN_SAVED_BATCH"));
+
+        then(adminDashboardRecommendationDiagnosticService).should()
+                .getRecommendationDiagnostics("user-key-1", List.of(3686L, 2736L));
     }
 
     @Test
