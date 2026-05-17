@@ -32,7 +32,7 @@ deploy/smoke/run-local-non-example-recommendation-seed-smoke.sh
 ```
 
 이 스크립트는 `SMOKE_EMAIL_DOMAIN=smoke.local` 기본값으로 `signup -> login -> recommendations refresh -> first recommendation detail click -> recommendation_logs.is_clicked=1` 을 한 번에 확인합니다.
-현재 dashboard/breakdown 분류 기준에서는 `smoke.local`, `.local`, `.test`, `.invalid` 같은 도메인이 `BOUNDED_LOCAL` 로 잡히고, 이 값은 `REAL_NON_EXAMPLE` 과 분리해서 읽습니다. 기본 도메인을 바꾸고 싶으면 `SMOKE_EMAIL_DOMAIN` 으로 덮어씁니다.
+현재 dashboard/breakdown 분류 기준에서는 `smoke.local`, `.local`, `.test`, `.invalid` 같은 도메인이 `BOUNDED_LOCAL` 로 잡히고, `cohortseed.app` 같은 local real-non-example seed는 `LOCAL_REAL_NON_EXAMPLE_SEED` 로 따로 잡힙니다. 기본 도메인을 바꾸고 싶으면 `SMOKE_EMAIL_DOMAIN` 으로 덮어씁니다.
 
 admin forced logout 반복 검증은 아래 스크립트를 우선 사용합니다.
 
@@ -77,7 +77,7 @@ SUMMARY_WINDOW_DAYS=14 TREND_WINDOW_DAYS_CSV=3,14 deploy/smoke/run-local-admin-d
 HEALTH_RETRY_COUNT=30 HEALTH_RETRY_DELAY_SECONDS=1 deploy/smoke/run-local-admin-dashboard-smoke.sh
 ```
 
-현재 recommendation traffic mix는 `example / boundedLocal / realNonExample` 3분류를 함께 출력합니다. 즉 `smoke.local` 같은 bounded local 계정이 real non-example 처럼 섞여 보이지 않게 구분합니다.
+현재 recommendation traffic mix는 `example / boundedLocal / localRealNonExampleSeed / realUser` 4분류를 함께 출력합니다. 즉 bounded local seed와 local real-non-example seed가 `realUser` 처럼 섞여 보이지 않게 구분합니다.
 
 추천 상세 triage 반복 검증은 아래 스크립트를 우선 사용합니다.
 
@@ -86,7 +86,7 @@ deploy/smoke/run-local-admin-recommendation-breakdowns-smoke.sh
 ```
 
 이 스크립트는 `admin login -> ROLE_ADMIN 확인 -> /api/admin/dashboard/recommendation-breakdowns -> traffic mix + fallback/click/repeat exposure userCohort 계약` 을 한 번에 확인합니다.
-`userCohort` 값은 현재 `EXAMPLE`, `BOUNDED_LOCAL`, `REAL_NON_EXAMPLE` 중 하나입니다.
+`userCohort` 값은 현재 `EXAMPLE_SMOKE`, `BOUNDED_LOCAL`, `LOCAL_REAL_NON_EXAMPLE_SEED`, `REAL_USER` 중 하나입니다.
 기본 summary window는 `14`, 기본 limit는 `3` 이며, `SUMMARY_WINDOW_DAYS`, `BREAKDOWN_LIMIT` 으로 덮어쓸 수 있습니다.
 
 공개 정책 탐색 + 프로필/우선순위 + 챗 CRUD 반복 검증은 아래 스크립트를 우선 사용합니다.
@@ -173,7 +173,7 @@ REPLAY_APP_BASE_URL=http://127.0.0.1:18082 deploy/smoke/run-local-validation-sui
 
 `quick` 은 `auth/session -> public policy/profile/chat -> bookmark consistency -> recommendation click -> admin dashboard -> admin recommendation breakdowns` 까지만 돌고 replay는 건너뜁니다.
 기본 `full` 프로필은 replay까지 포함합니다.
-`real-non-example recommendation seed smoke` 는 local synthetic account를 `REAL_NON_EXAMPLE` cohort로 강제로 하나 만드는 opt-in 단계라서 quick/full 기본 프로필에는 넣지 않습니다.
+`real-non-example recommendation seed smoke` 는 local synthetic account를 `LOCAL_REAL_NON_EXAMPLE_SEED` cohort로 하나 더 만드는 opt-in 단계라서 quick/full 기본 프로필에는 넣지 않습니다.
 wrapper 끝에는 `suite_duration_seconds`, `step_duration_seconds=<label>|<seconds>` 형태의 요약이 같이 출력됩니다.
 실패 시에는 `failed_step=<label>`, `elapsed_before_failure_seconds=<n>` 도 같이 출력됩니다.
 
@@ -215,10 +215,11 @@ deploy/smoke/run-local-notification-channel-smoke.sh
 deploy/smoke/run-local-deadline-reminder-smoke.sh
 ```
 
-- recommendation audit wrapper는 `USER_COHORT=all|example|bounded_local|real_non_example|non_example` 를 받습니다.
-- `real_non_example` 이 실질 reopen gate이고, `bounded_local` 은 로컬 seed 계정만 분리해 보는 진단 모드입니다.
-- legacy `non_example` 은 `bounded_local + real_non_example` 합산 alias 입니다.
-- `run-local-real-non-example-recommendation-seed-smoke.sh` 는 local synthetic account를 `REAL_NON_EXAMPLE` 로 분류되게 만들어 audit/defer guardrail을 점검하는 도구일 뿐, 실사용 품질 신호를 만드는 경로는 아닙니다.
+- recommendation audit wrapper는 `USER_COHORT=all|example|bounded_local|local_real_non_example_seed|real_user|real_non_example|non_example` 를 받습니다.
+- CTR readiness와 concentration audit 모두 `all` 기준에서는 `REAL_USER` 가 없으면 reopen gate를 열지 않습니다.
+- `bounded_local` 과 `local_real_non_example_seed` 는 로컬 seed 진단 모드이고, 실질 reopen gate는 `real_user` 기준입니다.
+- legacy `real_non_example` 은 `local_real_non_example_seed + real_user` aggregate, `non_example` 은 `bounded_local + real_non_example` 합산 alias 입니다.
+- `run-local-real-non-example-recommendation-seed-smoke.sh` 는 local synthetic account를 `LOCAL_REAL_NON_EXAMPLE_SEED` 로 분류되게 만들어 audit/defer guardrail을 점검하는 도구일 뿐, 실사용 품질 신호를 만드는 경로는 아닙니다.
 
 - policy retrieval/category baseline: [policy-quality-summary-runbook.md](../policy/policy-quality-summary-runbook.md)
 - Gov24 closeout/deferred inventory audit: [policy-gov24-runtime-audit-runbook.md](../policy/policy-gov24-runtime-audit-runbook.md)

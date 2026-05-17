@@ -222,33 +222,33 @@ CTR readiness와 별개로, 최신 `user_recommendations` batch 자체도 현재
 
 - `USER_COHORT=all`
 - latest batch `4071 rows / 454 users / 113 distinct services`
+- real-user cohort gate: `DEFERRED_NO_REAL_USER_COHORT`
 - latest batch signal quality는 `LOCAL_REAL_NON_EXAMPLE_SEED_WITH_NON_REAL_BATCH`
 - top1 leader:
   - `2622 청년월세 지원사업`
   - `271 / 454 users`
   - `59.69%`
 - latest source distribution:
-  - `YOUTH 1446`
-  - `GOV24 944`
-  - `BOKJIRO_CENTRAL 894`
-  - `BOKJIRO_LOCAL 775`
+  - `YOUTH 1450`
+  - `GOV24 948`
+  - `BOKJIRO_CENTRAL 896`
+  - `BOKJIRO_LOCAL 777`
 - latest category distribution:
-  - `금융·생활지원 1343`
-  - `주거 1073`
-  - `교육·직업훈련 690`
+  - `금융·생활지원 1345`
+  - `주거 1081`
+  - `교육·직업훈련 692`
   - `일자리 666`
 - `USER_COHORT=bounded_local`
   - latest batch `6 rows / 1 users`
   - concentration readiness: `CONCENTRATED_TOP1`
   - signal quality: `BOUNDED_LOCAL_ONLY_COHORT`
-- `USER_COHORT=real_non_example`
-  - latest batch `12 rows / 2 users`
-  - signal quality: `REAL_NON_EXAMPLE_ONLY_COHORT`
 - `USER_COHORT=local_real_non_example_seed`
   - latest batch `12 rows / 2 users`
+  - real-user cohort gate: `DIAGNOSTIC_LOCAL_REAL_NON_EXAMPLE_SEED_ONLY_COHORT`
   - signal quality: `LOCAL_REAL_NON_EXAMPLE_SEED_ONLY_COHORT`
 - `USER_COHORT=real_user`
   - latest batch `0 rows / 0 users`
+  - real-user cohort gate: `DEFERRED_EMPTY_REAL_USER_COHORT`
   - signal quality: `EMPTY_REAL_USER_COHORT`
 
 우선순위가 완전히 무시되는 상태는 아닙니다.
@@ -256,11 +256,11 @@ CTR readiness와 별개로, 최신 `user_recommendations` batch 자체도 현재
 같은 날 새 `8명` no-priority bounded smoke를 다시 만들면 top1은 다시 `2622 8/8 (100%)` 로 잠기고, 스크립트도 `audit_user_cohort=example`, `signal_quality=SYNTHETIC_SIGNUP_SAMPLES` 를 함께 출력합니다.
 즉 최근 no-priority 조정 실험은 진단 자료로는 남지만, 지금 시점의 practical reading은 “분산이 확정됐다”가 아니라 **synthetic-heavy baseline 안에서만 반복 측정이 이뤄지고 있다** 쪽입니다.
 
-- `HAS_PRIORITY` 사용자 `36`
-- `NO_PRIORITY` 사용자 `393`
-- `NO_PRIORITY` top1 대표는 `청년월세 지원사업(2622)` `238명`
+- `HAS_PRIORITY` 사용자 `38`
+- `NO_PRIORITY` 사용자 `416`
+- `NO_PRIORITY` top1 대표는 `청년월세 지원사업(2622)` `261명`
 - 같은 `NO_PRIORITY` 구간에서 `청년 웰컴페이(이사비) 지원사업(3611)` 가 `39명`, `청년내일저축계좌(2571)` 가 `107명`의 top1까지 올라와 있어, 최근 완화 로직이 신규/최근 refresh 사용자에선 일부 분산을 만들고 있습니다.
-- `HAS_PRIORITY` 쪽에서는 `드림나래(3688)` `12명`, `지역인재육성을 위한 장학금 지원(6790)` `9명`, `청년월세 지원사업(YOUTH 1411)` `5명` 등 일부 차이가 보입니다.
+- `HAS_PRIORITY` 쪽에서는 `드림나래(3688)` `12명`, `지역인재육성을 위한 장학금 지원(6790)` `11명`, `청년월세 지원사업(YOUTH 1411)` `5명` 등 일부 차이가 보입니다.
 
 다만 no-priority candidate audit 기준 top5 source rank는 아직 `BOKJIRO_CENTRAL -> BOKJIRO_CENTRAL -> BOKJIRO_LOCAL -> GOV24 -> GOV24` 로 고정되고, top1도 여전히 `2571/2622` 둘 사이에서만 갈라집니다. 즉 현재 병목은 `priority 미반영` 보다는 **same rule peer 안에서 AI 차이가 top1을 결정하고, 같은 category bucket 안 local/source 후보가 뒤로 밀리는 구조** 쪽으로 해석하는 편이 맞습니다.
 최근 no-priority retrieval pool 재배열과 top-band rotation 이후에도 overall 판정은 아직 `CONCENTRATED_TOP1` 이므로, 효과는 “분산 시작” 수준으로 보고 추가 보정 여부를 계속 판단해야 합니다.

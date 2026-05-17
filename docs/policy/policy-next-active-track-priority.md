@@ -57,7 +57,8 @@
 - 같은 wrapper를 `USER_COHORT=bounded_local` 로 다시 태우면 CTR은 `audit_scope_logs/users=6/1`, `DIAGNOSTIC_BOUNDED_LOCAL_TRAFFIC`, concentration은 `latest_batch_rows/users=6/1`, `BOUNDED_LOCAL_ONLY_COHORT` 이다.
 - `USER_COHORT=local_real_non_example_seed` 로 다시 태우면 CTR은 `12/2`, `DEFERRED_CLICK_SAMPLE_THIN`, concentration은 `12/2`, `LOCAL_REAL_NON_EXAMPLE_SEED_ONLY_COHORT` 이다.
 - `USER_COHORT=real_user` 로 다시 태우면 CTR은 `0/0`, `DEFERRED_EMPTY_REAL_USER_COHORT`, concentration은 `0/0`, `EMPTY_REAL_USER_COHORT` 이다.
-- 다만 all-cohort readiness도 지금은 `DEFERRED_NO_REAL_USER_TRAFFIC` 로 막는다. non-example 표본은 생겼지만 전부 local synthetic seed이고 `REAL_USER` 는 아직 `0` 이기 때문이다.
+- 이제 concentration audit도 별도 `real_user_cohort_gate` 를 같이 내보내고, current `USER_COHORT=all` 값은 `DEFERRED_NO_REAL_USER_COHORT` 다.
+- 즉 all-cohort CTR readiness도 `DEFERRED_NO_REAL_USER_TRAFFIC`, concentration 해석 gate도 `DEFERRED_NO_REAL_USER_COHORT` 로 함께 막는다. non-example 표본은 생겼지만 전부 local synthetic seed이고 `REAL_USER` 는 아직 `0` 이기 때문이다.
 - 즉 현재 phase의 실용적 다음 액션은 direct weight 변경보다 `bounded local seed와 local real-non-example seed를 넘어서는 실제 real-user 로그 기준선 확보 + recommendation concentration/diversity/fallback 경계 재해석` 이다. 군집 캐시는 장래 확장 포인트로 남긴다.
 - 별도로 `2026-05-15` local recommendation concentration audit 기준 latest batch는 `2394 rows / 132 users / 113 services`, top1 leader `2622` 가 `75 / 132 users (56.82%)` 를 차지한다. 최근 no-priority retrieval/rerank 보강 뒤 `3611` 이 top1로 올라오는 비중이 커졌지만, overall 판정은 아직 `CONCENTRATED_TOP1` 이다. 즉 priority가 완전히 무시되는 상태는 아니고, 현재 병목은 여전히 `priority 미반영` 보다는 `diversity / fallback / balancing 약함` 쪽으로 보는 편이 맞다.
 

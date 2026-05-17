@@ -22,7 +22,7 @@ bash deploy/smoke/run-local-recommendation-concentration-audit.sh
 실사용 cohort 기준으로 별도 해석하려면 아래도 같이 봅니다.
 
 ```bash
-USER_COHORT=real_non_example bash deploy/smoke/run-local-recommendation-concentration-audit.sh
+USER_COHORT=real_user bash deploy/smoke/run-local-recommendation-concentration-audit.sh
 ```
 
 이 스크립트는 현재 로컬 DB의
@@ -35,7 +35,7 @@ USER_COHORT=real_non_example bash deploy/smoke/run-local-recommendation-concentr
 를 직접 읽습니다.
 
 CTR readiness wrapper와 달리, 이 스크립트는 **클릭 로그가 아니라 저장 추천 결과 자체의 집중도**를 봅니다.
-기본값 `USER_COHORT=all` 은 전체 latest batch를 읽고, `example`, `bounded_local`, `real_non_example` 으로 cohort를 좁혀 같은 batch를 다시 해석할 수 있습니다. legacy 호환용 `non_example` 은 `bounded_local + real_non_example` 합산입니다.
+기본값 `USER_COHORT=all` 은 전체 latest batch를 읽고, `example`, `bounded_local`, `local_real_non_example_seed`, `real_user` 로 cohort를 좁혀 같은 batch를 다시 해석할 수 있습니다. legacy 호환용 `real_non_example` 은 `local_real_non_example_seed + real_user` aggregate, `non_example` 은 `bounded_local + real_non_example` 합산입니다.
 
 ## 출력 항목
 
@@ -44,6 +44,8 @@ CTR readiness wrapper와 달리, 이 스크립트는 **클릭 로그가 아니�
 - `latest_batch_users`
 - `latest_batch_example_users`
 - `latest_batch_bounded_local_users`
+- `latest_batch_local_real_non_example_seed_users`
+- `latest_batch_real_user_users`
 - `latest_batch_real_non_example_users`
 - `latest_batch_non_example_users`
 - `latest_batch_distinct_services`
@@ -67,6 +69,7 @@ CTR readiness wrapper와 달리, 이 스크립트는 **클릭 로그가 아니�
 - `[priority_profile_counts]`
 - `[priority_profile_top1]`
 - `[concentration_readiness]`
+- `[real_user_cohort_gate]`
 - `[signal_quality]`
 
 포맷:
@@ -117,23 +120,25 @@ profile|title|source_type|category|users
 ## 현재 기준선 (2026-05-17, signal quality 출력 추가 후 local audit 기준)
 
 ```text
-latest_batch_rows=4059
-latest_batch_users=452
+latest_batch_rows=4071
+latest_batch_users=454
 latest_batch_example_users=451
 latest_batch_bounded_local_users=1
-latest_batch_real_non_example_users=0
-latest_batch_non_example_users=1
+latest_batch_local_real_non_example_seed_users=2
+latest_batch_real_user_users=0
+latest_batch_real_non_example_users=2
+latest_batch_non_example_users=3
 latest_batch_distinct_services=113
 latest_batch_priority_users=38
-latest_batch_no_priority_users=414
+latest_batch_no_priority_users=416
 top1_leader_service_id=2622
 top1_leader_title=청년월세 지원사업
 top1_leader_source=BOKJIRO_CENTRAL
 top1_leader_category=주거
-top1_leader_users=269
-top1_leader_share_pct=59.51
-avg_recommendations_per_user=8.98
-avg_distinct_services_per_user=8.98
+top1_leader_users=271
+top1_leader_share_pct=59.69
+avg_recommendations_per_user=8.97
+avg_distinct_services_per_user=8.97
 avg_distinct_categories_per_user=3.39
 avg_distinct_sources_per_user=3.17
 ```
@@ -141,18 +146,18 @@ avg_distinct_sources_per_user=3.17
 latest source distribution:
 
 ```text
-YOUTH|1446|117
-GOV24|944|418
-BOKJIRO_CENTRAL|894|447
-BOKJIRO_LOCAL|775|449
+YOUTH|1450|119
+GOV24|948|420
+BOKJIRO_CENTRAL|896|449
+BOKJIRO_LOCAL|777|451
 ```
 
 latest category distribution:
 
 ```text
-금융·생활지원|1343|450
-주거|1073|452
-교육·직업훈련|690|452
+금융·생활지원|1345|452
+주거|1081|454
+교육·직업훈련|692|454
 일자리|666|62
 참여·기회|188|36
 기타|59|59
@@ -163,27 +168,27 @@ latest category distribution:
 top repeated services:
 
 ```text
-2622|청년월세 지원사업|BOKJIRO_CENTRAL|주거|447|447
-5728|주택금융공사 월세자금보증|GOV24|주거|418|418
-6790|지역인재육성을 위한 장학금 지원|GOV24|교육·직업훈련|418|418
+2622|청년월세 지원사업|BOKJIRO_CENTRAL|주거|449|449
+5728|주택금융공사 월세자금보증|GOV24|주거|420|420
+6790|지역인재육성을 위한 장학금 지원|GOV24|교육·직업훈련|420|420
 2571|청년내일저축계좌|BOKJIRO_CENTRAL|금융·생활지원|390|390
-3689|인천 재직청년 복지포인트|BOKJIRO_LOCAL|금융·생활지원|354|354
+3689|인천 재직청년 복지포인트|BOKJIRO_LOCAL|금융·생활지원|356|356
 3605|나만의 결혼식 지원|BOKJIRO_LOCAL|금융·생활지원|140|140
 3611|청년 웰컴페이(이사비) 지원사업|BOKJIRO_LOCAL|금융·생활지원|140|140
-891|(국토부) 26년 청년월세 지원사업|YOUTH|주거|73|73
+891|(국토부) 26년 청년월세 지원사업|YOUTH|주거|75|75
+1416|기초청년 주거급여(임차급여)|YOUTH|주거|62|62
 969|에너지차세대리더육성|YOUTH|교육·직업훈련|60|60
 978|중남미 지역기구 인턴 파견|YOUTH|일자리|60|60
 979|지방청년인재 재외공관 파견|YOUTH|일자리|60|60
 985|산림산업 창업지원_청년 산림창업 마중물 지원|YOUTH|일자리|60|60
 2589|우수학생 국가장학금 지원|BOKJIRO_CENTRAL|금융·생활지원|55|55
 3688|드림나래(인천청년 면접복장 지원)|BOKJIRO_LOCAL|기타|54|54
-1416|기초청년 주거급여(임차급여)|YOUTH|주거|60|60
 ```
 
 top1 by priority state:
 
 ```text
-NO_PRIORITY|청년월세 지원사업|BOKJIRO_CENTRAL|주거|259
+NO_PRIORITY|청년월세 지원사업|BOKJIRO_CENTRAL|주거|261
 NO_PRIORITY|청년내일저축계좌|BOKJIRO_CENTRAL|금융·생활지원|107
 NO_PRIORITY|청년 웰컴페이(이사비) 지원사업|BOKJIRO_LOCAL|금융·생활지원|39
 HAS_PRIORITY|드림나래(인천청년 면접복장 지원)|BOKJIRO_LOCAL|기타|12
@@ -191,6 +196,8 @@ HAS_PRIORITY|지역인재육성을 위한 장학금 지원|GOV24|교육·직업�
 HAS_PRIORITY|청년월세 지원사업|BOKJIRO_CENTRAL|주거|10
 HAS_PRIORITY|청년월세 지원사업|YOUTH|주거|5
 NO_PRIORITY|드림나래(인천청년 면접복장 지원)|BOKJIRO_LOCAL|기타|5
+NO_PRIORITY|인천 재직청년 복지포인트|BOKJIRO_LOCAL|금융·생활지원|2
+NO_PRIORITY|인천 중구 청년 자격시험 응시료 지원사업|BOKJIRO_LOCAL|금융·생활지원|2
 ```
 
 priority profile counts:
@@ -218,6 +225,12 @@ concentration readiness:
 
 ```text
 CONCENTRATED_TOP1
+```
+
+real-user cohort gate:
+
+```text
+DEFERRED_NO_REAL_USER_COHORT
 ```
 
 signal quality:
@@ -250,6 +263,7 @@ LOCAL_REAL_NON_EXAMPLE_SEED_ONLY_COHORT
 latest_batch_rows=0
 latest_batch_users=0
 DEFERRED_EMPTY_COHORT
+DEFERRED_EMPTY_REAL_USER_COHORT
 EMPTY_REAL_USER_COHORT
 ```
 
@@ -258,10 +272,13 @@ EMPTY_REAL_USER_COHORT
 - `SYNTHETIC_ONLY_LATEST_BATCH`: latest batch 사용자가 전부 `@example.com` smoke/validation 계정이다.
 - `BOUNDED_LOCAL_WITH_SYNTHETIC_BATCH`: `REAL_NON_EXAMPLE` 도 `REAL_USER` 도 없이 `EXAMPLE + BOUNDED_LOCAL` 만 섞여 있다.
 - `LOCAL_REAL_NON_EXAMPLE_SEED_WITH_NON_REAL_BATCH`: `LOCAL_REAL_NON_EXAMPLE_SEED` 와 `EXAMPLE/BOUNDED_LOCAL` 이 섞여 있다.
+- `DEFERRED_NO_REAL_USER_COHORT`: latest batch는 존재하지만 `REAL_USER` 사용자가 아직 `0명` 이다. concentration 숫자를 tuning reopen 근거로 읽지 않는다.
+- `DEFERRED_REAL_USER_SAMPLE_THIN`: `REAL_USER` 가 생기긴 했지만 아직 `3명` 미만이라 여전히 reopen 근거로 읽지 않는다.
+- `READY_REAL_USER_COHORT`: latest batch 안에 `REAL_USER` 가 최소 `3명` 이상 있어 concentration 수치를 실사용 cohort 기준으로 다시 읽을 수 있다.
 - `MIXED_WITH_NON_REAL_BATCH`: `REAL_USER` 와 `EXAMPLE/BOUNDED_LOCAL/LOCAL_REAL_NON_EXAMPLE_SEED` 가 섞여 있다.
 - `LOCAL_REAL_NON_EXAMPLE_SEED_ONLY_BATCH`: latest batch가 local seed non-example 계정만으로 구성된다.
 - `REAL_USER_ONLY_BATCH`: latest batch가 `REAL_USER` 만으로 구성된다.
-- `EMPTY_REAL_NON_EXAMPLE_COHORT`: `USER_COHORT=real_non_example` 로 다시 봤을 때 latest batch에 실사용 계정이 없다.
+- `EMPTY_REAL_NON_EXAMPLE_COHORT`: `USER_COHORT=real_non_example` 로 다시 봤을 때 latest batch에 `LOCAL_REAL_NON_EXAMPLE_SEED` 와 `REAL_USER` 가 모두 없다.
 - `EMPTY_REAL_USER_COHORT`: `USER_COHORT=real_user` 로 다시 봤을 때 latest batch에 실사용 계정이 없다.
 - `EXAMPLE_ONLY_COHORT`: `USER_COHORT=example` 진단 모드 결과다.
 - `BOUNDED_LOCAL_ONLY_COHORT`: `USER_COHORT=bounded_local` 진단 모드 결과다.
@@ -302,10 +319,10 @@ EMPTY_REAL_USER_COHORT
 `2026-05-17` local snapshot 기준 판단은:
 
 1. 우선순위는 코드와 데이터에서 **일부 반영된다**
-2. default `USER_COHORT=all` 기준 latest batch는 `latest_batch_bounded_local_users=1`, `latest_batch_local_real_non_example_seed_users=2`, `latest_batch_real_user_users=0`, `signal_quality=LOCAL_REAL_NON_EXAMPLE_SEED_WITH_NON_REAL_BATCH` 이다
+2. default `USER_COHORT=all` 기준 latest batch는 `latest_batch_bounded_local_users=1`, `latest_batch_local_real_non_example_seed_users=2`, `latest_batch_real_user_users=0`, `real_user_cohort_gate=DEFERRED_NO_REAL_USER_COHORT`, `signal_quality=LOCAL_REAL_NON_EXAMPLE_SEED_WITH_NON_REAL_BATCH` 이다
 3. 같은 wrapper를 `USER_COHORT=bounded_local` 로 다시 태우면 현재 값은 `latest_batch_rows=6`, `concentration_readiness=CONCENTRATED_TOP1`, `signal_quality=BOUNDED_LOCAL_ONLY_COHORT` 이다
-4. `USER_COHORT=local_real_non_example_seed` 로 다시 태우면 현재 값은 `latest_batch_rows=12`, `signal_quality=LOCAL_REAL_NON_EXAMPLE_SEED_ONLY_COHORT` 이다
-5. `USER_COHORT=real_user` 로 다시 태우면 현재 값은 `latest_batch_rows=0`, `signal_quality=EMPTY_REAL_USER_COHORT` 이다
+4. `USER_COHORT=local_real_non_example_seed` 로 다시 태우면 현재 값은 `latest_batch_rows=12`, `real_user_cohort_gate=DIAGNOSTIC_LOCAL_REAL_NON_EXAMPLE_SEED_ONLY_COHORT`, `signal_quality=LOCAL_REAL_NON_EXAMPLE_SEED_ONLY_COHORT` 이다
+5. `USER_COHORT=real_user` 로 다시 태우면 현재 값은 `latest_batch_rows=0`, `real_user_cohort_gate=DEFERRED_EMPTY_REAL_USER_COHORT`, `signal_quality=EMPTY_REAL_USER_COHORT` 이다
 6. 따라서 지금 병목은 “priority 미반영”보다 **synthetic-heavy baseline + local seed non-example만 존재 + real-user cohort 부재 + diversity / fallback / balancing 약함** 쪽이며, 상태는 계속 `CONCENTRATED_TOP1` 으로 본다
 
 즉 지금 practical next step은

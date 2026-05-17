@@ -635,6 +635,70 @@ SELECT CASE
        END
 FROM base;
 
+SELECT '[real_user_cohort_gate]';
+WITH latest AS (
+    SELECT user_key, MAX(recommended_at) AS recommended_at
+    FROM user_recommendations
+    GROUP BY user_key
+),
+base_rows AS (
+    SELECT ur.user_key,
+           COALESCE(NULLIF(u.account_origin, ''), 'REAL_USER') AS user_origin,
+           CASE
+               WHEN COALESCE(NULLIF(u.account_origin, ''), 'REAL_USER') = 'EXAMPLE_SMOKE' THEN 'EXAMPLE'
+               WHEN COALESCE(NULLIF(u.account_origin, ''), 'REAL_USER') = 'BOUNDED_LOCAL' THEN 'BOUNDED_LOCAL'
+               ELSE 'REAL_NON_EXAMPLE'
+           END AS user_cohort
+    FROM user_recommendations ur
+    JOIN latest l
+      ON l.user_key = ur.user_key
+     AND l.recommended_at = ur.recommended_at
+    JOIN users u
+      ON u.user_key = ur.user_key
+),
+scoped_rows AS (
+    SELECT *
+    FROM base_rows
+    WHERE :'cohort' = 'all'
+       OR (:'cohort' = 'example' AND user_cohort = 'EXAMPLE')
+       OR (:'cohort' = 'bounded_local' AND user_cohort = 'BOUNDED_LOCAL')
+       OR (:'cohort' = 'real_non_example' AND user_cohort = 'REAL_NON_EXAMPLE')
+       OR (:'cohort' = 'real_user' AND user_origin = 'REAL_USER')
+       OR (:'cohort' = 'local_real_non_example_seed' AND user_origin = 'LOCAL_REAL_NON_EXAMPLE_SEED')
+       OR (:'cohort' = 'non_example' AND user_cohort IN ('BOUNDED_LOCAL', 'REAL_NON_EXAMPLE'))
+),
+mix AS (
+    SELECT COUNT(DISTINCT user_key) AS total_users,
+           COUNT(DISTINCT user_key) FILTER (WHERE user_origin = 'REAL_USER') AS real_user_users
+    FROM scoped_rows
+)
+SELECT CASE
+           WHEN total_users = 0 AND :'cohort' = 'real_user'
+               THEN 'DEFERRED_EMPTY_REAL_USER_COHORT'
+           WHEN total_users = 0
+               THEN 'DEFERRED_EMPTY_COHORT'
+           WHEN :'cohort' = 'example'
+               THEN 'DIAGNOSTIC_EXAMPLE_ONLY_COHORT'
+           WHEN :'cohort' = 'bounded_local'
+               THEN 'DIAGNOSTIC_BOUNDED_LOCAL_ONLY_COHORT'
+           WHEN :'cohort' = 'local_real_non_example_seed'
+               THEN 'DIAGNOSTIC_LOCAL_REAL_NON_EXAMPLE_SEED_ONLY_COHORT'
+           WHEN :'cohort' = 'real_non_example'
+               THEN 'DIAGNOSTIC_REAL_NON_EXAMPLE_ONLY_COHORT'
+           WHEN :'cohort' = 'real_user'
+               THEN 'DIAGNOSTIC_REAL_USER_ONLY_COHORT'
+           WHEN :'cohort' = 'non_example' AND real_user_users = 0
+               THEN 'DIAGNOSTIC_NON_REAL_USER_ONLY_COHORT'
+           WHEN :'cohort' = 'non_example'
+               THEN 'DIAGNOSTIC_MIXED_NON_EXAMPLE_COHORT'
+           WHEN real_user_users = 0
+               THEN 'DEFERRED_NO_REAL_USER_COHORT'
+           WHEN real_user_users < 3
+               THEN 'DEFERRED_REAL_USER_SAMPLE_THIN'
+           ELSE 'READY_REAL_USER_COHORT'
+       END
+FROM mix;
+
 SELECT '[signal_quality]';
 WITH latest AS (
     SELECT user_key, MAX(recommended_at) AS recommended_at
