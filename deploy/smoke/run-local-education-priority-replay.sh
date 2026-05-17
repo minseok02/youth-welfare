@@ -52,8 +52,10 @@ load_env_file() {
 }
 
 cleanup() {
-  stop_app || true
-  if [[ "${KEEP_ARTIFACTS}" != "true" ]]; then
+  if declare -F stop_app >/dev/null 2>&1; then
+    stop_app || true
+  fi
+  if [[ -n "${ARTIFACT_DIR:-}" && "${KEEP_ARTIFACTS:-true}" != "true" ]]; then
     rm -rf "${ARTIFACT_DIR}"
   fi
 }
@@ -123,24 +125,40 @@ is_postgres_jdbc_url() {
   [[ "${jdbc_url}" == jdbc:postgresql://* ]]
 }
 
+assert_local_postgres_jdbc_url() {
+  local key="$1"
+  local jdbc_url="$2"
+
+  if [[ -z "${jdbc_url}" ]]; then
+    echo "${key} must be a jdbc:postgresql:// URL" >&2
+    exit 1
+  fi
+  if [[ "${jdbc_url}" == jdbc:mysql://* ]]; then
+    echo "${key} must be a jdbc:postgresql:// URL" >&2
+    exit 1
+  fi
+  if [[ "${jdbc_url}" == jdbc:postgresql://db:* ]]; then
+    echo "${key} must target local PostgreSQL host, not docker-compose service host" >&2
+    exit 1
+  fi
+  if ! is_postgres_jdbc_url "${jdbc_url}"; then
+    echo "${key} must be a jdbc:postgresql:// URL" >&2
+    exit 1
+  fi
+}
+
 DB_USERNAME="$(normalize_local_pg_username "${DB_USERNAME}" "app_core_rw")"
 DB_MIGRATION_USERNAME="$(normalize_local_pg_username "${DB_MIGRATION_USERNAME}" "migration_admin")"
 DB_APP_PII_USERNAME="$(normalize_local_pg_username "${DB_APP_PII_USERNAME}" "app_pii_rw")"
 DB_NOTIFICATION_PII_RO_USERNAME="$(normalize_local_pg_username "${DB_NOTIFICATION_PII_RO_USERNAME}" "notification_pii_ro")"
 DB_QUERY_USERNAME="$(normalize_local_pg_username "${DB_QUERY_USERNAME}" "${DB_MIGRATION_USERNAME}")"
-
-if [[ "${DB_URL}" == jdbc:mysql://* || "${DB_URL}" == jdbc:postgresql://db:* ]]; then
-  DB_URL="jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable"
-fi
-if [[ -z "${APP_PII_DB_URL}" || "${APP_PII_DB_URL}" == jdbc:mysql://* || "${APP_PII_DB_URL}" == jdbc:postgresql://db:* ]]; then
-  APP_PII_DB_URL="jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable&currentSchema=youth_welfare_pii"
-fi
-if [[ -z "${NOTIFICATION_PII_DB_URL}" || "${NOTIFICATION_PII_DB_URL}" == jdbc:mysql://* || "${NOTIFICATION_PII_DB_URL}" == jdbc:postgresql://db:* ]]; then
-  NOTIFICATION_PII_DB_URL="${APP_PII_DB_URL}"
-fi
 if [[ "${REDIS_HOST}" == "redis" ]]; then
   REDIS_HOST="127.0.0.1"
 fi
+
+assert_local_postgres_jdbc_url "DB_URL" "${DB_URL}"
+assert_local_postgres_jdbc_url "APP_PII_DB_URL" "${APP_PII_DB_URL}"
+assert_local_postgres_jdbc_url "NOTIFICATION_PII_DB_URL" "${NOTIFICATION_PII_DB_URL}"
 
 SAMPLE_REGION_CODE="${SAMPLE_REGION_CODE:-28110}"
 SAMPLE_SIDO="${SAMPLE_SIDO:-인천광역시}"
