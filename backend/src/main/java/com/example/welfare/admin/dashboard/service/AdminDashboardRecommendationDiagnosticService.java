@@ -94,6 +94,7 @@ public class AdminDashboardRecommendationDiagnosticService {
                     boolean inMerged = mergedIds.contains(serviceId);
                     boolean inPostScoring = postScoringIds.contains(serviceId);
                     boolean inSaved = savedById.containsKey(serviceId);
+                    RetrievalService.CandidateFilterTrace filterTrace = trace.filterTraces().get(serviceId);
 
                     return new AdminRecommendationCandidateDiagnosticResponse.ServiceDiagnostic(
                             serviceId,
@@ -107,7 +108,16 @@ public class AdminDashboardRecommendationDiagnosticService {
                             inMerged,
                             inPostScoring,
                             inSaved,
-                            resolveDropStage(inBase, inLatest, inFilteredBase, inFilteredLatest, inMerged, inPostScoring, inSaved),
+                            resolveDropStage(
+                                    inBase,
+                                    inLatest,
+                                    inFilteredBase,
+                                    inFilteredLatest,
+                                    inMerged,
+                                    inPostScoring,
+                                    inSaved,
+                                    filterTrace
+                            ),
                             youthRelevant,
                             scoredCandidate != null ? scoredCandidate.getRuleBaseScore() : null,
                             scoredCandidate != null ? scoredCandidate.getRuleWeightedScore() : null,
@@ -156,7 +166,8 @@ public class AdminDashboardRecommendationDiagnosticService {
                                     boolean inFilteredLatest,
                                     boolean inMerged,
                                     boolean inPostScoring,
-                                    boolean inSaved) {
+                                    boolean inSaved,
+                                    RetrievalService.CandidateFilterTrace filterTrace) {
         if (inSaved) {
             return "PRESENT_IN_SAVED_BATCH";
         }
@@ -167,6 +178,17 @@ public class AdminDashboardRecommendationDiagnosticService {
             return "SCORED_BUT_NOT_IN_SAVED_BATCH";
         }
         if (inBase || inLatest) {
+            if (filterTrace != null) {
+                if (!filterTrace.primaryAudienceRelevant() && !filterTrace.ageConstraintMatched()) {
+                    return "FILTERED_BY_PRIMARY_AUDIENCE_AND_AGE";
+                }
+                if (!filterTrace.primaryAudienceRelevant()) {
+                    return "FILTERED_BY_PRIMARY_AUDIENCE_RELEVANCE";
+                }
+                if (!filterTrace.ageConstraintMatched()) {
+                    return "FILTERED_BY_AGE_CONSTRAINT";
+                }
+            }
             return "FILTERED_BY_YOUTH_OR_AGE";
         }
         return "NOT_IN_SQL_RETRIEVAL";

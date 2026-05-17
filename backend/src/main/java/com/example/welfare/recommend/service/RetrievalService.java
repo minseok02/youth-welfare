@@ -62,10 +62,18 @@ public class RetrievalService {
         List<WelfareService> rawLatestCandidates = recommendationCandidateReadRepository.findLatestCandidates(condition);
 
         Map<Long, RecommendationCandidateProjection> projections = loadProjections(rawBaseCandidates, rawLatestCandidates);
+        Map<Long, List<ServiceTag>> tagsByServiceId = loadTags(rawBaseCandidates, rawLatestCandidates);
+        Map<Long, CandidateFilterTrace> filterTraces = evaluateCandidateFilters(
+                rawBaseCandidates,
+                rawLatestCandidates,
+                projections,
+                tagsByServiceId,
+                age
+        );
 
         boolean noPriorityProfile = user.priorities() == null || user.priorities().isEmpty();
 
-        List<WelfareService> filteredBase = applyRecommendationFilters(rawBaseCandidates, projections, age);
+        List<WelfareService> filteredBase = applyRecommendationFilters(rawBaseCandidates, filterTraces);
         if (noPriorityProfile) {
             filteredBase = rebalanceNoPriorityCandidates(filteredBase);
         }
@@ -73,7 +81,7 @@ public class RetrievalService {
                 .limit(K)
                 .toList();
 
-        List<WelfareService> filteredLatest = applyRecommendationFilters(rawLatestCandidates, projections, age);
+        List<WelfareService> filteredLatest = applyRecommendationFilters(rawLatestCandidates, filterTraces);
         if (noPriorityProfile) {
             filteredLatest = rebalanceNoPriorityCandidates(filteredLatest);
         }
@@ -91,7 +99,8 @@ public class RetrievalService {
                 filteredBase,
                 filteredLatest,
                 candidates,
-                projections
+                projections,
+                filterTraces
         );
     }
 
@@ -100,24 +109,11 @@ public class RetrievalService {
      * KEYWORD의 COND_AGE_MIN_*, COND_AGE_MAX_* 토큰으로 보조 필터를 적용한다.
      */
     private List<WelfareService> applyRecommendationFilters(List<WelfareService> candidates,
-                                                            Map<Long, RecommendationCandidateProjection> projections,
-                                                            int userAge) {
+                                                            Map<Long, CandidateFilterTrace> filterTraces) {
         if (candidates.isEmpty()) return candidates;
 
-        List<Long> ids = candidates.stream().map(WelfareService::getId).toList();
-        Map<Long, List<ServiceTag>> tagsByServiceId = recommendationCandidateReadRepository.findTagsByServiceIds(ids);
-
         return candidates.stream()
-                .filter(service -> isPrimaryAudienceRelevant(
-                        service,
-                        projections.get(service.getId()),
-                        tagsByServiceId.getOrDefault(service.getId(), Collections.emptyList())
-                ))
-                .filter(service -> matchAgeConstraint(
-                        service,
-                        userAge,
-                        tagsByServiceId.getOrDefault(service.getId(), Collections.emptyList())
-                ))
+                .filter(service -> filterTraces.getOrDefault(service.getId(), CandidateFilterTrace.PASS_ALL).passesAll())
                 .collect(Collectors.toList());
     }
 
@@ -131,6 +127,42 @@ public class RetrievalService {
                 .map(WelfareService::getId)
                 .forEach(serviceIds::add);
         return recommendationProjectionReadService.findCandidateProjectionsByServiceIds(List.copyOf(serviceIds));
+    }
+
+    private Map<Long, List<ServiceTag>> loadTags(List<WelfareService> rawCandidates,
+                                                 List<WelfareService> latestCandidates) {
+        LinkedHashSet<Long> serviceIds = new LinkedHashSet<>();
+        rawCandidates.stream()
+                .map(WelfareService::getId)
+                .forEach(serviceIds::add);
+        latestCandidates.stream()
+                .map(WelfareService::getId)
+                .forEach(serviceIds::add);
+        if (serviceIds.isEmpty()) {
+            return Map.of();
+        }
+        return recommendationCandidateReadRepository.findTagsByServiceIds(List.copyOf(serviceIds));
+    }
+
+    private Map<Long, CandidateFilterTrace> evaluateCandidateFilters(List<WelfareService> rawBaseCandidates,
+                                                                     List<WelfareService> rawLatestCandidates,
+                                                                     Map<Long, RecommendationCandidateProjection> projections,
+                                                                     Map<Long, List<ServiceTag>> tagsByServiceId,
+                                                                     int userAge) {
+        LinkedHashMap<Long, CandidateFilterTrace> traces = new LinkedHashMap<>();
+        ArrayList<WelfareService> allCandidates = new ArrayList<>(rawBaseCandidates.size() + rawLatestCandidates.size());
+        allCandidates.addAll(rawBaseCandidates);
+        allCandidates.addAll(rawLatestCandidates);
+        for (WelfareService service : allCandidates) {
+            if (service == null || traces.containsKey(service.getId())) {
+                continue;
+            }
+            List<ServiceTag> tags = tagsByServiceId.getOrDefault(service.getId(), Collections.emptyList());
+            boolean primaryAudienceRelevant = isPrimaryAudienceRelevant(service, projections.get(service.getId()), tags);
+            boolean ageConstraintMatched = matchAgeConstraint(service, userAge, tags);
+            traces.put(service.getId(), new CandidateFilterTrace(primaryAudienceRelevant, ageConstraintMatched));
+        }
+        return Map.copyOf(traces);
     }
 
     private boolean isPrimaryAudienceRelevant(WelfareService service,
@@ -239,7 +271,8 @@ public class RetrievalService {
             List<WelfareService> filteredBaseCandidates,
             List<WelfareService> filteredLatestCandidates,
             List<WelfareService> mergedCandidates,
-            Map<Long, RecommendationCandidateProjection> allProjections
+            Map<Long, RecommendationCandidateProjection> allProjections,
+            Map<Long, CandidateFilterTrace> filterTraces
     ) {
         public RecommendationRetrievalTrace {
             rawBaseCandidates = rawBaseCandidates == null ? List.of() : List.copyOf(rawBaseCandidates);
@@ -248,6 +281,18 @@ public class RetrievalService {
             filteredLatestCandidates = filteredLatestCandidates == null ? List.of() : List.copyOf(filteredLatestCandidates);
             mergedCandidates = mergedCandidates == null ? List.of() : List.copyOf(mergedCandidates);
             allProjections = allProjections == null ? Map.of() : Map.copyOf(new LinkedHashMap<>(allProjections));
+            filterTraces = filterTraces == null ? Map.of() : Map.copyOf(new LinkedHashMap<>(filterTraces));
+        }
+    }
+
+    public record CandidateFilterTrace(
+            boolean primaryAudienceRelevant,
+            boolean ageConstraintMatched
+    ) {
+        static final CandidateFilterTrace PASS_ALL = new CandidateFilterTrace(true, true);
+
+        boolean passesAll() {
+            return primaryAudienceRelevant && ageConstraintMatched;
         }
     }
 }

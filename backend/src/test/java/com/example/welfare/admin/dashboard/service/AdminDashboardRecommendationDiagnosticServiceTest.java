@@ -91,11 +91,12 @@ class AdminDashboardRecommendationDiagnosticServiceTest {
 
         WelfareService leader = welfareService(3686L, "드림나래");
         WelfareService droppedAfterScoring = welfareService(2736L, "동구 청년 컬처페이 지원사업");
-        WelfareService filteredBeforeScoring = welfareService(3714L, "(인천형)발달장애인 주간활동서비스 추가지원");
+        WelfareService filteredByPrimaryAudience = welfareService(3714L, "(인천형)발달장애인 주간활동서비스 추가지원");
+        WelfareService filteredByAge = welfareService(8888L, "청소년 전용 정책");
         WelfareService notRetrieved = welfareService(9999L, "미조회 정책");
 
         RetrievalService.RecommendationRetrievalTrace trace = new RetrievalService.RecommendationRetrievalTrace(
-                List.of(leader, droppedAfterScoring, filteredBeforeScoring),
+                List.of(leader, droppedAfterScoring, filteredByPrimaryAudience, filteredByAge),
                 List.of(),
                 List.of(leader, droppedAfterScoring),
                 List.of(),
@@ -104,6 +105,12 @@ class AdminDashboardRecommendationDiagnosticServiceTest {
                         3686L, projection(3686L, true),
                         2736L, projection(2736L, true),
                         3714L, projection(3714L, false)
+                ),
+                Map.of(
+                        3686L, new RetrievalService.CandidateFilterTrace(true, true),
+                        2736L, new RetrievalService.CandidateFilterTrace(true, true),
+                        3714L, new RetrievalService.CandidateFilterTrace(false, true),
+                        8888L, new RetrievalService.CandidateFilterTrace(true, false)
                 )
         );
 
@@ -129,17 +136,17 @@ class AdminDashboardRecommendationDiagnosticServiceTest {
         when(recommendationResultReadService.findLatestSavedRecommendations("user-key-1"))
                 .thenReturn(List.of(savedLeader));
         when(welfareServiceRepository.findAllById(any()))
-                .thenReturn(List.of(leader, droppedAfterScoring, filteredBeforeScoring, notRetrieved));
+                .thenReturn(List.of(leader, droppedAfterScoring, filteredByPrimaryAudience, filteredByAge, notRetrieved));
 
         AdminRecommendationCandidateDiagnosticResponse response = service.getRecommendationDiagnostics(
                 "user-key-1",
-                List.of(3686L, 2736L, 3714L, 9999L)
+                List.of(3686L, 2736L, 3714L, 8888L, 9999L)
         );
 
         assertThat(response.userKey()).isEqualTo("user-key-1");
         assertThat(response.accountOrigin()).isEqualTo("REAL_USER");
         assertThat(response.clusterId()).isEqualTo("youth_all");
-        assertThat(response.services()).hasSize(4);
+        assertThat(response.services()).hasSize(5);
 
         assertThat(response.services()).filteredOn(row -> row.serviceId().equals(3686L)).singleElement()
                 .satisfies(row -> {
@@ -159,7 +166,14 @@ class AdminDashboardRecommendationDiagnosticServiceTest {
                 .satisfies(row -> {
                     assertThat(row.inBaseRetrieval()).isTrue();
                     assertThat(row.passedBaseFilters()).isFalse();
-                    assertThat(row.dropStage()).isEqualTo("FILTERED_BY_YOUTH_OR_AGE");
+                    assertThat(row.dropStage()).isEqualTo("FILTERED_BY_PRIMARY_AUDIENCE_RELEVANCE");
+                });
+
+        assertThat(response.services()).filteredOn(row -> row.serviceId().equals(8888L)).singleElement()
+                .satisfies(row -> {
+                    assertThat(row.inBaseRetrieval()).isTrue();
+                    assertThat(row.passedBaseFilters()).isFalse();
+                    assertThat(row.dropStage()).isEqualTo("FILTERED_BY_AGE_CONSTRAINT");
                 });
 
         assertThat(response.services()).filteredOn(row -> row.serviceId().equals(9999L)).singleElement()
