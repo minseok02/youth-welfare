@@ -32,6 +32,8 @@ public class AdminDashboardRecommendationService {
                 adminDashboardRecommendationReadRepository.fetchRecommendationConcentration();
         String realUserTrafficGate =
                 AdminDashboardQueryPolicy.resolveRealUserTrafficGate(recommendationSummary, recommendationTrafficMix);
+        String recommendationReviewGate =
+                AdminDashboardQueryPolicy.resolveRecommendationReviewGate(realUserTrafficGate, recommendationConcentration);
 
         return new AdminRecommendationBreakdownResponse(
                 now,
@@ -79,6 +81,7 @@ public class AdminDashboardRecommendationService {
                         recommendationConcentration.realUserCohortGate(),
                         recommendationConcentration.signalQuality()
                 ),
+                recommendationReviewGate,
                 adminDashboardRecommendationReadRepository.fetchTopRepeatedRecommendationServices(breakdownLimit).stream()
                         .map(row -> new AdminRecommendationBreakdownResponse.RepeatedServiceSnapshot(
                                 row.serviceId(),

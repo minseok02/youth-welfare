@@ -106,6 +106,7 @@ assert isinstance(traffic_mix["localRealNonExampleSeedClickedUsersInWindow"], in
 assert isinstance(traffic_mix["realUserClickedUsersInWindow"], int), "recommendation.trafficMixInWindow.realUserClickedUsersInWindow must be int"
 assert isinstance(traffic_mix["realNonExampleClickedUsersInWindow"], int), "recommendation.trafficMixInWindow.realNonExampleClickedUsersInWindow must be int"
 assert isinstance(data["recommendation"]["realUserTrafficGateInWindow"], str) and data["recommendation"]["realUserTrafficGateInWindow"], "recommendation.realUserTrafficGateInWindow must be non-empty string"
+assert isinstance(data["recommendation"]["recommendationReviewGate"], str) and data["recommendation"]["recommendationReviewGate"], "recommendation.recommendationReviewGate must be non-empty string"
 concentration = data["recommendation"]["latestBatchConcentration"]
 assert isinstance(concentration["latestBatchRows"], int), "recommendation.latestBatchConcentration.latestBatchRows must be int"
 assert isinstance(concentration["latestBatchUsers"], int), "recommendation.latestBatchConcentration.latestBatchUsers must be int"
@@ -160,6 +161,7 @@ print(data["recommendation"]["trafficMixInWindow"]["localRealNonExampleSeedUsers
 print(data["recommendation"]["trafficMixInWindow"]["realUserUsersInWindow"])
 print(data["recommendation"]["trafficMixInWindow"]["realNonExampleUsersInWindow"])
 print(data["recommendation"]["realUserTrafficGateInWindow"])
+print(data["recommendation"]["recommendationReviewGate"])
 print(concentration["latestBatchRows"])
 print(concentration["latestBatchUsers"])
 print(concentration["top1LeaderServiceId"] or "")
@@ -253,22 +255,23 @@ echo "recommendation_local_real_non_example_seed_users_in_window=${DASHBOARD_VAL
 echo "recommendation_real_user_users_in_window=${DASHBOARD_VALUES[12]}"
 echo "recommendation_real_non_example_users_in_window=${DASHBOARD_VALUES[13]}"
 echo "recommendation_real_user_traffic_gate_in_window=${DASHBOARD_VALUES[14]}"
-echo "recommendation_latest_batch_rows=${DASHBOARD_VALUES[15]}"
-echo "recommendation_latest_batch_users=${DASHBOARD_VALUES[16]}"
-echo "recommendation_top1_leader_service_id=${DASHBOARD_VALUES[17]}"
-echo "recommendation_top1_leader_share_pct=${DASHBOARD_VALUES[18]}"
-echo "recommendation_top1_leader_example_users=${DASHBOARD_VALUES[19]}"
-echo "recommendation_top1_leader_bounded_local_users=${DASHBOARD_VALUES[20]}"
-echo "recommendation_top1_leader_local_real_non_example_seed_users=${DASHBOARD_VALUES[21]}"
-echo "recommendation_top1_leader_real_user_users=${DASHBOARD_VALUES[22]}"
-echo "recommendation_top1_leader_signal_summary=${DASHBOARD_VALUES[23]}"
-echo "recommendation_concentration_readiness=${DASHBOARD_VALUES[24]}"
-echo "recommendation_latest_batch_real_user_cohort_gate=${DASHBOARD_VALUES[25]}"
-echo "recommendation_latest_batch_signal_quality=${DASHBOARD_VALUES[26]}"
-echo "notification_sent_in_window=${DASHBOARD_VALUES[27]}"
-echo "search_zero_result_searches_in_window=${DASHBOARD_VALUES[28]}"
-echo "summary_window_days=${DASHBOARD_VALUES[29]}"
-echo "collect_trend_windows=${DASHBOARD_VALUES[30]}"
+echo "recommendation_review_gate=${DASHBOARD_VALUES[15]}"
+echo "recommendation_latest_batch_rows=${DASHBOARD_VALUES[16]}"
+echo "recommendation_latest_batch_users=${DASHBOARD_VALUES[17]}"
+echo "recommendation_top1_leader_service_id=${DASHBOARD_VALUES[18]}"
+echo "recommendation_top1_leader_share_pct=${DASHBOARD_VALUES[19]}"
+echo "recommendation_top1_leader_example_users=${DASHBOARD_VALUES[20]}"
+echo "recommendation_top1_leader_bounded_local_users=${DASHBOARD_VALUES[21]}"
+echo "recommendation_top1_leader_local_real_non_example_seed_users=${DASHBOARD_VALUES[22]}"
+echo "recommendation_top1_leader_real_user_users=${DASHBOARD_VALUES[23]}"
+echo "recommendation_top1_leader_signal_summary=${DASHBOARD_VALUES[24]}"
+echo "recommendation_concentration_readiness=${DASHBOARD_VALUES[25]}"
+echo "recommendation_latest_batch_real_user_cohort_gate=${DASHBOARD_VALUES[26]}"
+echo "recommendation_latest_batch_signal_quality=${DASHBOARD_VALUES[27]}"
+echo "notification_sent_in_window=${DASHBOARD_VALUES[28]}"
+echo "search_zero_result_searches_in_window=${DASHBOARD_VALUES[29]}"
+echo "summary_window_days=${DASHBOARD_VALUES[30]}"
+echo "collect_trend_windows=${DASHBOARD_VALUES[31]}"
 echo "requested_summary_window_days=${SUMMARY_WINDOW_DAYS}"
 echo "requested_trend_window_days=${TREND_WINDOW_DAYS_CSV}"
 if [[ -n "${CONTAINER_ADMIN_ALLOWLIST}" ]]; then

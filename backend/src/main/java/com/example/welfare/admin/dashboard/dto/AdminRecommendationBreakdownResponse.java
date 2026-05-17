@@ -13,6 +13,7 @@ public record AdminRecommendationBreakdownResponse(
         RecommendationTrafficMixSnapshot trafficMixInWindow,
         String realUserTrafficGateInWindow,
         RecommendationConcentrationSnapshot latestBatchConcentration,
+        String recommendationReviewGate,
         List<RepeatedServiceSnapshot> topRepeatedServices,
         List<Top1ServiceSnapshot> top1Services,
         List<SourceBreakdown> sourceBreakdowns,

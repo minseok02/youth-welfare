@@ -228,6 +228,7 @@ class AdminDashboardSummaryServiceTest {
         assertThat(response.recommendation().trafficMixInWindow().realUserLogsInWindow()).isZero();
         assertThat(response.recommendation().trafficMixInWindow().realNonExampleLogsInWindow()).isZero();
         assertThat(response.recommendation().realUserTrafficGateInWindow()).isEqualTo("DEFERRED_NO_REAL_USER_TRAFFIC");
+        assertThat(response.recommendation().recommendationReviewGate()).isEqualTo("DEFERRED_NO_REAL_USER_TRAFFIC");
         assertThat(response.recommendation().latestBatchConcentration().latestBatchRows()).isEqualTo(4071);
         assertThat(response.recommendation().latestBatchConcentration().top1LeaderServiceId()).isEqualTo(2622L);
         assertThat(response.recommendation().latestBatchConcentration().top1LeaderSharePct()).isEqualByComparingTo("59.69");
@@ -353,6 +354,7 @@ class AdminDashboardSummaryServiceTest {
         assertThat(response.recommendation().windowDays()).isEqualTo(14);
         assertThat(response.recommendation().nextWeightKey()).isEqualTo("GROWTH");
         assertThat(response.recommendation().realUserTrafficGateInWindow()).isEqualTo("DEFERRED_EMPTY_COHORT");
+        assertThat(response.recommendation().recommendationReviewGate()).isEqualTo("DEFERRED_EMPTY_COHORT");
         assertThat(response.recommendation().latestBatchConcentration().concentrationReadiness()).isEqualTo("DEFERRED_EMPTY_COHORT");
         assertThat(response.notification().windowDays()).isEqualTo(14);
         assertThat(response.trend().recommendation()).extracting(AdminDashboardResponse.RecommendationTrendPoint::windowDays)

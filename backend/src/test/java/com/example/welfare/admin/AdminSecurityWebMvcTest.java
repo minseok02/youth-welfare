@@ -637,9 +637,10 @@ class AdminSecurityWebMvcTest {
                                 ),
                                 "LOCAL_SEED_WITHOUT_REAL_USER_LEADER",
                                 "CONCENTRATED_TOP1",
-                                "DEFERRED_NO_REAL_USER_COHORT",
-                                "LOCAL_REAL_NON_EXAMPLE_SEED_WITH_NON_REAL_BATCH"
-                        ),
+                                        "DEFERRED_NO_REAL_USER_COHORT",
+                                        "LOCAL_REAL_NON_EXAMPLE_SEED_WITH_NON_REAL_BATCH"
+                                ),
+                                "DEFERRED_NO_REAL_USER_TRAFFIC",
                                 List.of(
                                         new AdminDashboardResponse.RecommendationWeightSnapshot(
                                                 "GROWTH",
@@ -713,6 +714,7 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.data.recommendation.trafficMixInWindow.realUserLogsInWindow").value(0))
                 .andExpect(jsonPath("$.data.recommendation.trafficMixInWindow.realNonExampleLogsInWindow").value(0))
                 .andExpect(jsonPath("$.data.recommendation.realUserTrafficGateInWindow").value("DEFERRED_NO_REAL_USER_TRAFFIC"))
+                .andExpect(jsonPath("$.data.recommendation.recommendationReviewGate").value("DEFERRED_NO_REAL_USER_TRAFFIC"))
                 .andExpect(jsonPath("$.data.recommendation.latestBatchConcentration.latestBatchRows").value(4071))
                 .andExpect(jsonPath("$.data.recommendation.latestBatchConcentration.top1LeaderServiceId").value(2622))
                 .andExpect(jsonPath("$.data.recommendation.latestBatchConcentration.top1LeaderSharePct").value(59.69))
@@ -808,6 +810,7 @@ class AdminSecurityWebMvcTest {
                                         "DEFERRED_EMPTY_COHORT",
                                         "EMPTY_COHORT"
                                 ),
+                                "DEFERRED_NO_REAL_USER_TRAFFIC",
                                 List.of()
                         ),
                         new AdminDashboardResponse.NotificationSection(0, 0, 14, 0, 0),
@@ -860,6 +863,7 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.data.recommendation.trafficMixInWindow.realUserUsersInWindow").value(0))
                 .andExpect(jsonPath("$.data.recommendation.trafficMixInWindow.realNonExampleUsersInWindow").value(0))
                 .andExpect(jsonPath("$.data.recommendation.realUserTrafficGateInWindow").value("DEFERRED_NO_REAL_USER_TRAFFIC"))
+                .andExpect(jsonPath("$.data.recommendation.recommendationReviewGate").value("DEFERRED_NO_REAL_USER_TRAFFIC"))
                 .andExpect(jsonPath("$.data.recommendation.latestBatchConcentration.concentrationReadiness").value("DEFERRED_EMPTY_COHORT"))
                 .andExpect(jsonPath("$.data.notification.windowDays").value(14))
                 .andExpect(jsonPath("$.data.trend.recommendation[1].fallbackRate").value(0.5000))
@@ -1030,6 +1034,7 @@ class AdminSecurityWebMvcTest {
                                 "DEFERRED_NO_REAL_USER_COHORT",
                                 "LOCAL_REAL_NON_EXAMPLE_SEED_WITH_NON_REAL_BATCH"
                         ),
+                        "DEFERRED_NO_REAL_USER_TRAFFIC",
                         List.of(
                                 new AdminRecommendationBreakdownResponse.RepeatedServiceSnapshot(
                                         2622L,
@@ -1159,6 +1164,7 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.data.trafficMixInWindow.realUserUsersInWindow").value(0))
                 .andExpect(jsonPath("$.data.trafficMixInWindow.realNonExampleUsersInWindow").value(0))
                 .andExpect(jsonPath("$.data.realUserTrafficGateInWindow").value("DEFERRED_NO_REAL_USER_TRAFFIC"))
+                .andExpect(jsonPath("$.data.recommendationReviewGate").value("DEFERRED_NO_REAL_USER_TRAFFIC"))
                 .andExpect(jsonPath("$.data.latestBatchConcentration.latestBatchRows").value(4071))
                 .andExpect(jsonPath("$.data.latestBatchConcentration.top1LeaderServiceId").value(2622))
                 .andExpect(jsonPath("$.data.latestBatchConcentration.top1LeaderSharePct").value(59.69))

@@ -46,6 +46,8 @@ public class AdminDashboardSummaryService {
                 adminDashboardRecommendationReadRepository.fetchRecommendationConcentration();
         String realUserTrafficGate =
                 AdminDashboardQueryPolicy.resolveRealUserTrafficGate(recommendationSummary, recommendationTrafficMix);
+        String recommendationReviewGate =
+                AdminDashboardQueryPolicy.resolveRecommendationReviewGate(realUserTrafficGate, recommendationConcentration);
         ScoreWeightService.ScoreWeightProgress weightProgress =
                 scoreWeightService.getProgress(recommendationSummary.totalLogs());
         ScoreWeight activeWeight = weightProgress.activeWeight();
@@ -152,6 +154,7 @@ public class AdminDashboardSummaryService {
                                 recommendationConcentration.realUserCohortGate(),
                                 recommendationConcentration.signalQuality()
                         ),
+                        recommendationReviewGate,
                         adminDashboardRecommendationReadRepository.fetchRecommendationWeightBuckets(summaryWindowAgo).stream()
                                 .map(row -> new AdminDashboardResponse.RecommendationWeightSnapshot(
                                         row.weightKey(),

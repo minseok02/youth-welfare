@@ -69,6 +69,7 @@ public record AdminDashboardResponse(
             RecommendationTrafficMixSnapshot trafficMixInWindow,
             String realUserTrafficGateInWindow,
             RecommendationConcentrationSnapshot latestBatchConcentration,
+            String recommendationReviewGate,
             List<RecommendationWeightSnapshot> weightBucketsInWindow
     ) {
     }

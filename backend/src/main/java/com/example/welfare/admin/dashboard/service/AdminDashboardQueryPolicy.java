@@ -139,4 +139,36 @@ final class AdminDashboardQueryPolicy {
         }
         return "REAL_USER_ONLY_LEADER";
     }
+
+    static String resolveRecommendationReviewGate(
+            String realUserTrafficGate,
+            AdminDashboardReadRows.RecommendationConcentrationRow concentrationRow
+    ) {
+        if (!"READY_REAL_USER_TRAFFIC".equals(realUserTrafficGate)) {
+            return realUserTrafficGate;
+        }
+        if (!"READY_REAL_USER_COHORT".equals(concentrationRow.realUserCohortGate())) {
+            return concentrationRow.realUserCohortGate();
+        }
+
+        String top1LeaderSignalSummary = resolveTop1LeaderSignalSummary(concentrationRow);
+        if ("EXAMPLE_SMOKE_ONLY_LEADER".equals(top1LeaderSignalSummary)
+                || "BOUNDED_LOCAL_WITH_EXAMPLE_LEADER".equals(top1LeaderSignalSummary)
+                || "LOCAL_SEED_WITHOUT_REAL_USER_LEADER".equals(top1LeaderSignalSummary)) {
+            return "DEFERRED_NON_REAL_LEADER_SIGNAL";
+        }
+        if ("REAL_USER_SIGNAL_THIN_LEADER".equals(top1LeaderSignalSummary)) {
+            return "DEFERRED_REAL_USER_LEADER_SIGNAL_THIN";
+        }
+        if ("CONCENTRATED_TOP1".equals(concentrationRow.concentrationReadiness())) {
+            return "READY_CONCENTRATED_TOP1_REVIEW";
+        }
+        if ("NO_PRIORITY_DOMINANT".equals(concentrationRow.concentrationReadiness())) {
+            return "READY_NO_PRIORITY_DOMINANT_REVIEW";
+        }
+        if ("BALANCED_ENOUGH_FOR_LOGIC_REVIEW".equals(concentrationRow.concentrationReadiness())) {
+            return "READY_BALANCED_LOGIC_REVIEW";
+        }
+        return concentrationRow.concentrationReadiness();
+    }
 }

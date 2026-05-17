@@ -203,6 +203,7 @@ class AdminDashboardRecommendationServiceTest {
         assertThat(response.trafficMixInWindow().realUserUsersInWindow()).isZero();
         assertThat(response.trafficMixInWindow().realNonExampleUsersInWindow()).isZero();
         assertThat(response.realUserTrafficGateInWindow()).isEqualTo("DEFERRED_NO_REAL_USER_TRAFFIC");
+        assertThat(response.recommendationReviewGate()).isEqualTo("DEFERRED_NO_REAL_USER_TRAFFIC");
         assertThat(response.latestBatchConcentration().latestBatchRows()).isEqualTo(4071);
         assertThat(response.latestBatchConcentration().top1LeaderServiceId()).isEqualTo(2622L);
         assertThat(response.latestBatchConcentration().top1LeaderSharePct()).isEqualByComparingTo("59.69");
