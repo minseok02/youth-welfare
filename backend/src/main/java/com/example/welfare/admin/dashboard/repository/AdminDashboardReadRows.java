@@ -161,7 +161,12 @@ public final class AdminDashboardReadRows {
             String sourceType,
             String category,
             long rowCount,
-            long distinctUsers
+            long distinctUsers,
+            long exampleUsers,
+            long boundedLocalUsers,
+            long localRealNonExampleSeedUsers,
+            long realUserUsers,
+            long realNonExampleUsers
     ) {
     }
 
@@ -170,7 +175,12 @@ public final class AdminDashboardReadRows {
             String title,
             String sourceType,
             String category,
-            long usersAsTop1
+            long usersAsTop1,
+            long exampleUsers,
+            long boundedLocalUsers,
+            long localRealNonExampleSeedUsers,
+            long realUserUsers,
+            long realNonExampleUsers
     ) {
     }
 

@@ -64,7 +64,8 @@ public record AdminRecommendationBreakdownResponse(
             String sourceType,
             String category,
             long rowCount,
-            long distinctUsers
+            long distinctUsers,
+            ServiceCohortMixSnapshot userMix
     ) {
     }
 
@@ -73,7 +74,17 @@ public record AdminRecommendationBreakdownResponse(
             String title,
             String sourceType,
             String category,
-            long usersAsTop1
+            long usersAsTop1,
+            ServiceCohortMixSnapshot userMix
+    ) {
+    }
+
+    public record ServiceCohortMixSnapshot(
+            long exampleUsers,
+            long boundedLocalUsers,
+            long localRealNonExampleSeedUsers,
+            long realUserUsers,
+            long realNonExampleUsers
     ) {
     }
 

@@ -316,24 +316,32 @@ public class AdminDashboardRecommendationReadRepository {
                 ),
                 latest_rows as (
                     select ur.user_key,
-                           ur.service_id
+                           ur.service_id,
+                           %1$s as user_origin
                       from user_recommendations ur
                       join latest l
                         on l.user_key = ur.user_key
                        and l.recommended_at = ur.recommended_at
+                      join users u
+                        on u.user_key = ur.user_key
                 )
                 select ws.id as service_id,
                        ws.title,
                        ws.source_type,
                        coalesce(ws.unified_category, '기타') as category,
                        count(*) as row_count,
-                       count(distinct lr.user_key) as distinct_users
+                       count(distinct lr.user_key) as distinct_users,
+                       count(distinct lr.user_key) filter (where lr.user_origin = 'EXAMPLE_SMOKE') as example_users,
+                       count(distinct lr.user_key) filter (where lr.user_origin = 'BOUNDED_LOCAL') as bounded_local_users,
+                       count(distinct lr.user_key) filter (where lr.user_origin = 'LOCAL_REAL_NON_EXAMPLE_SEED') as local_real_non_example_seed_users,
+                       count(distinct lr.user_key) filter (where lr.user_origin = 'REAL_USER') as real_user_users,
+                       count(distinct lr.user_key) filter (where lr.user_origin in ('LOCAL_REAL_NON_EXAMPLE_SEED', 'REAL_USER')) as real_non_example_users
                   from latest_rows lr
                   join welfare_services ws on ws.id = lr.service_id
               group by ws.id, ws.title, ws.source_type, coalesce(ws.unified_category, '기타')
               order by row_count desc, service_id asc
-                 limit %d
-                """.formatted(limit),
+                 limit %2$d
+                """.formatted(RECOMMENDATION_USER_ORIGIN_SQL, limit),
                 new MapSqlParameterSource(),
                 (rs, rowNum) -> new AdminDashboardReadRows.RecommendationRepeatedServiceRow(
                         rs.getLong("service_id"),
@@ -341,7 +349,12 @@ public class AdminDashboardRecommendationReadRepository {
                         rs.getString("source_type"),
                         rs.getString("category"),
                         rs.getLong("row_count"),
-                        rs.getLong("distinct_users")
+                        rs.getLong("distinct_users"),
+                        rs.getLong("example_users"),
+                        rs.getLong("bounded_local_users"),
+                        rs.getLong("local_real_non_example_seed_users"),
+                        rs.getLong("real_user_users"),
+                        rs.getLong("real_non_example_users")
                 )
         );
     }
@@ -360,6 +373,7 @@ public class AdminDashboardRecommendationReadRepository {
                                ur.user_key,
                                ur.service_id,
                                ur.final_score,
+                               %1$s as user_origin,
                                row_number() over (
                                    partition by ur.user_key
                                    order by ur.final_score desc, ur.id desc
@@ -368,6 +382,8 @@ public class AdminDashboardRecommendationReadRepository {
                           join latest l
                             on l.user_key = ur.user_key
                            and l.recommended_at = ur.recommended_at
+                          join users u
+                            on u.user_key = ur.user_key
                       ) ranked
                      where rn = 1
                 )
@@ -375,20 +391,30 @@ public class AdminDashboardRecommendationReadRepository {
                        ws.title,
                        ws.source_type,
                        coalesce(ws.unified_category, '기타') as category,
-                       count(*) as users_as_top1
+                       count(*) as users_as_top1,
+                       count(*) filter (where t.user_origin = 'EXAMPLE_SMOKE') as example_users,
+                       count(*) filter (where t.user_origin = 'BOUNDED_LOCAL') as bounded_local_users,
+                       count(*) filter (where t.user_origin = 'LOCAL_REAL_NON_EXAMPLE_SEED') as local_real_non_example_seed_users,
+                       count(*) filter (where t.user_origin = 'REAL_USER') as real_user_users,
+                       count(*) filter (where t.user_origin in ('LOCAL_REAL_NON_EXAMPLE_SEED', 'REAL_USER')) as real_non_example_users
                   from top1 t
                   join welfare_services ws on ws.id = t.service_id
               group by ws.id, ws.title, ws.source_type, coalesce(ws.unified_category, '기타')
               order by users_as_top1 desc, service_id asc
-                 limit %d
-                """.formatted(limit),
+                 limit %2$d
+                """.formatted(RECOMMENDATION_USER_ORIGIN_SQL, limit),
                 new MapSqlParameterSource(),
                 (rs, rowNum) -> new AdminDashboardReadRows.RecommendationTop1ServiceRow(
                         rs.getLong("service_id"),
                         rs.getString("title"),
                         rs.getString("source_type"),
                         rs.getString("category"),
-                        rs.getLong("users_as_top1")
+                        rs.getLong("users_as_top1"),
+                        rs.getLong("example_users"),
+                        rs.getLong("bounded_local_users"),
+                        rs.getLong("local_real_non_example_seed_users"),
+                        rs.getLong("real_user_users"),
+                        rs.getLong("real_non_example_users")
                 )
         );
     }

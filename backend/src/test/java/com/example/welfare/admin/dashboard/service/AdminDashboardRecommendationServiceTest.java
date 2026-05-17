@@ -81,7 +81,12 @@ class AdminDashboardRecommendationServiceTest {
                                 "BOKJIRO_CENTRAL",
                                 "주거",
                                 449,
-                                449
+                                449,
+                                447,
+                                0,
+                                2,
+                                0,
+                                2
                         )
                 ));
         given(adminDashboardRecommendationReadRepository.fetchTop1RecommendationServices(3))
@@ -91,7 +96,12 @@ class AdminDashboardRecommendationServiceTest {
                                 "청년월세 지원사업",
                                 "BOKJIRO_CENTRAL",
                                 "주거",
-                                271
+                                271,
+                                269,
+                                0,
+                                2,
+                                0,
+                                2
                         )
                 ));
         given(adminDashboardRecommendationReadRepository.fetchRecommendationSourceBreakdowns(
@@ -198,10 +208,16 @@ class AdminDashboardRecommendationServiceTest {
             assertThat(service.serviceId()).isEqualTo(2622L);
             assertThat(service.rowCount()).isEqualTo(449);
             assertThat(service.distinctUsers()).isEqualTo(449);
+            assertThat(service.userMix().exampleUsers()).isEqualTo(447);
+            assertThat(service.userMix().localRealNonExampleSeedUsers()).isEqualTo(2);
+            assertThat(service.userMix().realUserUsers()).isZero();
         });
         assertThat(response.top1Services()).singleElement().satisfies(service -> {
             assertThat(service.serviceId()).isEqualTo(2622L);
             assertThat(service.usersAsTop1()).isEqualTo(271);
+            assertThat(service.userMix().exampleUsers()).isEqualTo(269);
+            assertThat(service.userMix().localRealNonExampleSeedUsers()).isEqualTo(2);
+            assertThat(service.userMix().realUserUsers()).isZero();
         });
         assertThat(response.trafficMixInWindow().exampleClickedUsersInWindow()).isEqualTo(9);
         assertThat(response.sourceBreakdowns()).singleElement().satisfies(source -> {

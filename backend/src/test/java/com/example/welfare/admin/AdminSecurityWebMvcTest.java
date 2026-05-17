@@ -1008,7 +1008,14 @@ class AdminSecurityWebMvcTest {
                                         "BOKJIRO_CENTRAL",
                                         "주거",
                                         449,
-                                        449
+                                        449,
+                                        new AdminRecommendationBreakdownResponse.ServiceCohortMixSnapshot(
+                                                447,
+                                                0,
+                                                2,
+                                                0,
+                                                2
+                                        )
                                 )
                         ),
                         List.of(
@@ -1017,7 +1024,14 @@ class AdminSecurityWebMvcTest {
                                         "청년월세 지원사업",
                                         "BOKJIRO_CENTRAL",
                                         "주거",
-                                        271
+                                        271,
+                                        new AdminRecommendationBreakdownResponse.ServiceCohortMixSnapshot(
+                                                269,
+                                                0,
+                                                2,
+                                                0,
+                                                2
+                                        )
                                 )
                         ),
                         List.of(
@@ -1124,8 +1138,14 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.data.latestBatchConcentration.signalQuality").value("LOCAL_REAL_NON_EXAMPLE_SEED_WITH_NON_REAL_BATCH"))
                 .andExpect(jsonPath("$.data.topRepeatedServices[0].serviceId").value(2622))
                 .andExpect(jsonPath("$.data.topRepeatedServices[0].rowCount").value(449))
+                .andExpect(jsonPath("$.data.topRepeatedServices[0].userMix.exampleUsers").value(447))
+                .andExpect(jsonPath("$.data.topRepeatedServices[0].userMix.localRealNonExampleSeedUsers").value(2))
+                .andExpect(jsonPath("$.data.topRepeatedServices[0].userMix.realUserUsers").value(0))
                 .andExpect(jsonPath("$.data.top1Services[0].serviceId").value(2622))
                 .andExpect(jsonPath("$.data.top1Services[0].usersAsTop1").value(271))
+                .andExpect(jsonPath("$.data.top1Services[0].userMix.exampleUsers").value(269))
+                .andExpect(jsonPath("$.data.top1Services[0].userMix.localRealNonExampleSeedUsers").value(2))
+                .andExpect(jsonPath("$.data.top1Services[0].userMix.realUserUsers").value(0))
                 .andExpect(jsonPath("$.data.sourceBreakdowns[0].sourceType").value("YOUTH"))
                 .andExpect(jsonPath("$.data.categoryBreakdowns[0].category").value("HOUSING"))
                 .andExpect(jsonPath("$.data.weightBreakdowns[0].weightKey").value("GROWTH"))

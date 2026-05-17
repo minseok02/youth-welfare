@@ -78,7 +78,14 @@ public class AdminDashboardRecommendationService {
                                 row.sourceType(),
                                 row.category(),
                                 row.rowCount(),
-                                row.distinctUsers()
+                                row.distinctUsers(),
+                                new AdminRecommendationBreakdownResponse.ServiceCohortMixSnapshot(
+                                        row.exampleUsers(),
+                                        row.boundedLocalUsers(),
+                                        row.localRealNonExampleSeedUsers(),
+                                        row.realUserUsers(),
+                                        row.realNonExampleUsers()
+                                )
                         ))
                         .toList(),
                 adminDashboardRecommendationReadRepository.fetchTop1RecommendationServices(breakdownLimit).stream()
@@ -87,7 +94,14 @@ public class AdminDashboardRecommendationService {
                                 row.title(),
                                 row.sourceType(),
                                 row.category(),
-                                row.usersAsTop1()
+                                row.usersAsTop1(),
+                                new AdminRecommendationBreakdownResponse.ServiceCohortMixSnapshot(
+                                        row.exampleUsers(),
+                                        row.boundedLocalUsers(),
+                                        row.localRealNonExampleSeedUsers(),
+                                        row.realUserUsers(),
+                                        row.realNonExampleUsers()
+                                )
                         ))
                         .toList(),
                 adminDashboardRecommendationReadRepository.fetchRecommendationSourceBreakdowns(summaryWindowAgo, breakdownLimit).stream()

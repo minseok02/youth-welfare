@@ -85,7 +85,7 @@ HEALTH_RETRY_COUNT=30 HEALTH_RETRY_DELAY_SECONDS=1 deploy/smoke/run-local-admin-
 deploy/smoke/run-local-admin-recommendation-breakdowns-smoke.sh
 ```
 
-이 스크립트는 `admin login -> ROLE_ADMIN 확인 -> /api/admin/dashboard/recommendation-breakdowns -> traffic mix + real-user traffic gate + latest batch concentration snapshot + topRepeatedServices/top1Services + fallback/click/repeat exposure userCohort 계약` 을 한 번에 확인합니다.
+이 스크립트는 `admin login -> ROLE_ADMIN 확인 -> /api/admin/dashboard/recommendation-breakdowns -> traffic mix + real-user traffic gate + latest batch concentration snapshot + topRepeatedServices/top1Services(userMix 포함) + fallback/click/repeat exposure userCohort 계약` 을 한 번에 확인합니다.
 `userCohort` 값은 현재 `EXAMPLE_SMOKE`, `BOUNDED_LOCAL`, `LOCAL_REAL_NON_EXAMPLE_SEED`, `REAL_USER` 중 하나입니다.
 기본 summary window는 `14`, 기본 limit는 `3` 이며, `SUMMARY_WINDOW_DAYS`, `BREAKDOWN_LIMIT` 으로 덮어쓸 수 있습니다.
 

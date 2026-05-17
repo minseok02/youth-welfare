@@ -140,11 +140,19 @@ if data["topRepeatedServices"]:
     assert isinstance(first["serviceId"], int), "topRepeatedServices[0].serviceId must be int"
     assert isinstance(first["rowCount"], int), "topRepeatedServices[0].rowCount must be int"
     assert isinstance(first["distinctUsers"], int), "topRepeatedServices[0].distinctUsers must be int"
+    user_mix = first["userMix"]
+    assert isinstance(user_mix["exampleUsers"], int), "topRepeatedServices[0].userMix.exampleUsers must be int"
+    assert isinstance(user_mix["localRealNonExampleSeedUsers"], int), "topRepeatedServices[0].userMix.localRealNonExampleSeedUsers must be int"
+    assert isinstance(user_mix["realUserUsers"], int), "topRepeatedServices[0].userMix.realUserUsers must be int"
 
 if data["top1Services"]:
     first = data["top1Services"][0]
     assert isinstance(first["serviceId"], int), "top1Services[0].serviceId must be int"
     assert isinstance(first["usersAsTop1"], int), "top1Services[0].usersAsTop1 must be int"
+    user_mix = first["userMix"]
+    assert isinstance(user_mix["exampleUsers"], int), "top1Services[0].userMix.exampleUsers must be int"
+    assert isinstance(user_mix["localRealNonExampleSeedUsers"], int), "top1Services[0].userMix.localRealNonExampleSeedUsers must be int"
+    assert isinstance(user_mix["realUserUsers"], int), "top1Services[0].userMix.realUserUsers must be int"
 
 valid_cohorts = {"EXAMPLE_SMOKE", "BOUNDED_LOCAL", "LOCAL_REAL_NON_EXAMPLE_SEED", "REAL_USER"}
 non_example_present = (
@@ -199,6 +207,12 @@ print(concentration["realUserCohortGate"])
 print(concentration["signalQuality"])
 print(data["topRepeatedServices"][0]["serviceId"] if data["topRepeatedServices"] else "")
 print(data["top1Services"][0]["serviceId"] if data["top1Services"] else "")
+print(data["topRepeatedServices"][0]["userMix"]["exampleUsers"] if data["topRepeatedServices"] else 0)
+print(data["topRepeatedServices"][0]["userMix"]["localRealNonExampleSeedUsers"] if data["topRepeatedServices"] else 0)
+print(data["topRepeatedServices"][0]["userMix"]["realUserUsers"] if data["topRepeatedServices"] else 0)
+print(data["top1Services"][0]["userMix"]["exampleUsers"] if data["top1Services"] else 0)
+print(data["top1Services"][0]["userMix"]["localRealNonExampleSeedUsers"] if data["top1Services"] else 0)
+print(data["top1Services"][0]["userMix"]["realUserUsers"] if data["top1Services"] else 0)
 print(fallback_cohort)
 print(clicked_cohort)
 print(repeat_cohort)
@@ -280,14 +294,20 @@ echo "latest_batch_real_user_cohort_gate=${BREAKDOWN_VALUES[15]}"
 echo "latest_batch_signal_quality=${BREAKDOWN_VALUES[16]}"
 echo "top_repeated_leader_service_id=${BREAKDOWN_VALUES[17]}"
 echo "top1_distribution_leader_service_id=${BREAKDOWN_VALUES[18]}"
-echo "recent_fallback_sample_user_cohort=${BREAKDOWN_VALUES[19]}"
-echo "recent_clicked_sample_user_cohort=${BREAKDOWN_VALUES[20]}"
-echo "repeat_exposure_user_cohort=${BREAKDOWN_VALUES[21]}"
-echo "top_repeated_services_count=${BREAKDOWN_VALUES[22]}"
-echo "top1_services_count=${BREAKDOWN_VALUES[23]}"
-echo "source_breakdown_count=${BREAKDOWN_VALUES[24]}"
-echo "category_breakdown_count=${BREAKDOWN_VALUES[25]}"
-echo "weight_breakdown_count=${BREAKDOWN_VALUES[26]}"
+echo "top_repeated_leader_example_users=${BREAKDOWN_VALUES[19]}"
+echo "top_repeated_leader_local_real_non_example_seed_users=${BREAKDOWN_VALUES[20]}"
+echo "top_repeated_leader_real_user_users=${BREAKDOWN_VALUES[21]}"
+echo "top1_distribution_leader_example_users=${BREAKDOWN_VALUES[22]}"
+echo "top1_distribution_leader_local_real_non_example_seed_users=${BREAKDOWN_VALUES[23]}"
+echo "top1_distribution_leader_real_user_users=${BREAKDOWN_VALUES[24]}"
+echo "recent_fallback_sample_user_cohort=${BREAKDOWN_VALUES[25]}"
+echo "recent_clicked_sample_user_cohort=${BREAKDOWN_VALUES[26]}"
+echo "repeat_exposure_user_cohort=${BREAKDOWN_VALUES[27]}"
+echo "top_repeated_services_count=${BREAKDOWN_VALUES[28]}"
+echo "top1_services_count=${BREAKDOWN_VALUES[29]}"
+echo "source_breakdown_count=${BREAKDOWN_VALUES[30]}"
+echo "category_breakdown_count=${BREAKDOWN_VALUES[31]}"
+echo "weight_breakdown_count=${BREAKDOWN_VALUES[32]}"
 echo "summary_window_days=${SUMMARY_WINDOW_DAYS}"
 echo "breakdown_limit=${BREAKDOWN_LIMIT}"
 if [[ -n "${CONTAINER_ADMIN_ALLOWLIST}" ]]; then
