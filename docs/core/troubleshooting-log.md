@@ -4410,3 +4410,48 @@
 - 문제: server에서 `POST /api/recommendations/refresh?personal=true` 를 직접 실행한 뒤에도 `2736 latestSavedRank=8`, `latestSavedFinalScore=0.64` 는 유지됐지만, diagnostics는 계속 `rerankCurrentRank=3`, `rerankCurrentFinalScore=1.03` 을 보여 줬다. 이 상태를 그대로 보면 “생성 경로와 diagnostics rerank가 서로 다른 후보 집합을 쓴다”는 결론으로 뛰기 쉽다.
 - 해결: 코드를 다시 읽어 `AdminDashboardRecommendationDiagnosticService` 가 실제로는 `ruleScoring -> postScoring -> rerank trace` 까지만 재현하고, `RecommendationGenerationService` 가 refresh 저장 경로에서 거치는 `AiScoringService.score(...)` 는 호출하지 않는다는 점을 명시적으로 드러냈다. 응답에 `rerankTraceMode=PRE_AI_POST_SCORING`, `latestSavedAiScore`, `latestSavedAiStatus` 를 추가해, diagnostics current rerank가 saved batch와 다를 수 있는 이유가 “버그일 수도 있음” 이전에 “trace stage가 다름”임을 API가 직접 설명하게 했다.
 - 이유: saved batch의 `final_score` 는 AI 점수와 그 이후 보정까지 반영한 persisted 결과고, diagnostics의 current rerank는 지금 단계에선 pre-AI post-scoring trace다. 이 구분이 없으면 운영에서는 every mismatch를 생성 경로 버그처럼 읽게 되고, 실제로는 `AiScoreStatus`/AI score 차이 때문에 생긴 정상적인 괴리도 모두 잘못 추적하게 된다.
+
+## 825) `2736` 은 retrieval/filter/rerank 경계가 아니라, persisted AI 점수 자체가 낮아서 최종 saved rank가 8위로 남는 케이스였다
+- 문제: `4c93550` 이후 server diagnostics는 `rerankTraceMode=PRE_AI_POST_SCORING` 을 명시했고, `2736` 의 `latestSavedAiScore=40.0`, `latestSavedAiStatus=SCORED`, `latestSavedRank=8`, `latestSavedFinalScore=0.64` 를 같이 보여 줬다. 같은 사용자/같은 시점에 `3686` 은 `ai=80`, `3282` 는 `ai=95`, `3252` 는 `ai=90` 으로 persisted batch 상위권에 있었고, `2736` 만 낮았다. 이 상태에서 `2736` 이 왜 낮은지 설명되지 않으면 다시 “AI scoring bug” 또는 “prompt가 local 후보를 못 읽는다”는 쪽으로 과잉 해석하기 쉽다.
+- 해결: server에서 `2736/3686/3282/3252` 의 title, region, category, tags, target/support 표현을 직접 나란히 읽었다. 결과는 다음과 같다.
+  - `2736 동구 청년 컬처페이 지원사업`
+    - region: `인천광역시 동구`
+    - category: `기타`
+    - tags: `LIFE_STAGE=청년`
+    - target: `동구 거주 19~39세`, `중위소득 150% 이하`
+    - support: `연 1회 20만원 바우처카드`
+  - `3686 드림나래`
+    - region: `인천광역시`
+    - category: `기타`
+    - tags: `LIFE_STAGE=청년`
+    - target: `인천 거주 또는 인천 소재 대학 재학생 청년구직자`
+    - support: `면접복장 무료 대여`, `면접 이미지 컨설팅`
+  - `3282 인천 청년도약기지`
+    - region: `인천광역시`
+    - category: `금융·생활지원`
+    - tags: `LIFE_STAGE=청년`, `INTEREST_THEME=교육/일자리/서민금융`
+    - target: `인천 거주 청년 구직자`, `취업취약계층 우선`
+    - support: `직무훈련 + 인턴십`, `월 243만원 인건비 지원`
+  - `3252 인천 중구 청년 자격시험 응시료 지원사업`
+    - region: `인천광역시 중구`
+    - category: `금융·생활지원`
+    - tags: `LIFE_STAGE=청년`, `INTEREST_THEME=서민금융`
+    - target: `중구 거주 19~39세 청년`, `자격시험 응시자`
+    - support: `자격시험 응시료 지원`
+- 이유: 대상 사용자 프로필은 `인천광역시 중구`, `25세`, `미취업`, `1인 가구`, `priority 없음`, `attribute 없음` 이었다. 이 맥락에서 `2736` 은
+  - 지역이 `중구` 가 아니라 `동구` 라서 직접성이 한 단계 낮고
+  - `INTEREST_THEME` 같은 보조 신호가 없어 title/summary 외 근거가 약하며
+  - “20만원 바우처카드” 표현은 `3686` 의 구직 면접복장, `3282` 의 직무훈련/인턴십/인건비, `3252` 의 자격시험 응시료처럼 현재 미취업 사용자에게 바로 연결되는 효용보다 상대적으로 일반적이다
+  - `중위소득 150% 이하` 조건도 현재 `income_level=5` 사용자에게 AI 입장에서 확실한 적합 신호로 읽히지 않을 수 있다
+  는 점이 동시에 작동한다. 따라서 `2736 latestSavedAiScore=40` 은 “모델이 local 정책을 못 읽어서”라기보다, **현재 사용자 입력 신호 기준으로 경쟁 후보보다 약하게 읽히는 것이 설명 가능한 결과**로 보는 편이 맞다.
+
+## 826) 이 시점의 `2736` 문제는 버그 closeout이 아니라 신호 강화 여부를 제품 판단으로 넘겨야 한다
+- 문제: `2736` 이 top3 안으로 못 들어오는 경계가 retrieval, filter, refresh cache, rerank trace mismatch까지 순차적으로 닫힌 뒤에도 남아 있었기 때문에, 마지막에 “그래도 뭔가 코드를 더 바꿔야 하지 않나”라는 압력이 생기기 쉽다. 특히 `2736` 처럼 같은 청년/local 후보가 존재하면, 순위를 올려야 한다는 직관이 먼저 들 수 있다.
+- 해결: 현재 결론을 “버그 수정”이 아니라 “신호 강화 후보”로 분리해 정리한다. 지금까지 닫힌 항목은
+  - retrieval SQL 진입 부족 → `fc5523a` 로 해소
+  - `FILTERED_BY_YOUTH_OR_AGE` 모호성 → `4701742` 로 `PRIMARY_AUDIENCE_RELEVANCE` 등으로 세분화
+  - rerank diagnostics 관측 부족 → `b4000c0`
+  - refresh cache vs saved batch 혼동 → `978154b`
+  - pre-AI trace vs persisted AI 혼동 → `4c93550`
+  까지다. 그 뒤 남은 `2736` 약세는 `latestSavedAiScore=40` 으로 설명 가능하므로, 다음 선택지는 “AI 입력에 지역 적합성/interest theme를 더 구조화해서 넣을지” 같은 제품·모델링 판단이다.
+- 이유: 지금 상태에서 추가 코드를 바로 바꾸면, 버그와 정책 선택을 다시 섞게 된다. 이미 운영 데이터로 원인을 충분히 설명할 수 있다면, 그 다음 액션은 “무조건 올린다”가 아니라 “이 후보를 더 올리고 싶은가, 그렇다면 어떤 신호를 강화할 것인가”를 제품 판단으로 넘기는 편이 맞다.

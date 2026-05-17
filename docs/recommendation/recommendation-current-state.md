@@ -48,7 +48,7 @@
 
 즉 현재 candidate pool 은 “정확한 hard gate 전부” 가 아니라
 `구조화된 것은 필터`, 나머지는 `태그/후속 scoring 보조` 에 가깝습니다.
-다만 `2026-05-17` 운영 진단 기준으로는 인천 `REAL_USER` no-priority 세그먼트에서 `2736/3257/3281/3575/3714` 같은 `BOKJIRO_LOCAL / 기타` 후보가 youth/age filter나 scoring에서 떨어진 것이 아니라, 애초에 SQL retrieval 150건 안에 들어오지 못하는 경계가 확인됐습니다. 이를 줄이기 위해 현재 base/latest region query는 지역 매칭 `BOKJIRO_LOCAL` 후보를 전국 정책보다 먼저 정렬합니다. 서버 `fc5523a` 반영 후 재진단에서는 위 후보들이 모두 `inBaseRetrieval=true` 로 바뀌었고, `2736` 은 `PRESENT_IN_SAVED_BATCH(savedRank=8)` 까지 올라왔으며 `3257/3281/3575/3714` 는 실제로는 저소득/특수대상/지역/고위험군 조건 불일치에 가까운 `FILTERED_BY_PRIMARY_AUDIENCE_RELEVANCE` 경계로 읽는 편이 맞습니다. 즉 현재 다음 병목은 더 이상 SQL retrieval 진입 자체가 아니라 **local 후보의 primary audience 적합도와 saved batch 상위권 경쟁력** 쪽입니다.
+다만 `2026-05-17` 운영 진단 기준으로는 인천 `REAL_USER` no-priority 세그먼트에서 `2736/3257/3281/3575/3714` 같은 `BOKJIRO_LOCAL / 기타` 후보가 youth/age filter나 scoring에서 떨어진 것이 아니라, 애초에 SQL retrieval 150건 안에 들어오지 못하는 경계가 확인됐습니다. 이를 줄이기 위해 현재 base/latest region query는 지역 매칭 `BOKJIRO_LOCAL` 후보를 전국 정책보다 먼저 정렬합니다. 서버 `fc5523a` 반영 후 재진단에서는 위 후보들이 모두 `inBaseRetrieval=true` 로 바뀌었고, `2736` 은 `PRESENT_IN_SAVED_BATCH(savedRank=8)` 까지 올라왔으며 `3257/3281/3575/3714` 는 실제로는 저소득/특수대상/지역/고위험군 조건 불일치에 가까운 `FILTERED_BY_PRIMARY_AUDIENCE_RELEVANCE` 경계로 읽는 편이 맞습니다. 이후 `4c93550` diagnostics로 `2736 latestSavedAiScore=40`, `3686/3282/3252 latestSavedAiScore=80/95/90` 이 확인됐고, `2736` 의 입력 신호도 `인천 동구`, `LIFE_STAGE=청년` 외 direct interest/theme가 약해 현재 `인천 중구 / 미취업 / 25세` 사용자에게 경쟁 후보보다 덜 직접적으로 읽힌다는 점이 설명됐습니다. 즉 현재 다음 병목은 버그라기보다 **local 후보 신호를 더 강하게 넣고 싶은지에 대한 제품/모델링 판단** 쪽입니다.
 
 ## 현재 scoring 기준
 
