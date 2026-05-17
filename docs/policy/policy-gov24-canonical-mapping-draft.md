@@ -30,6 +30,26 @@
 
 이번 초안의 목적은 **“지금 바로 확정 가능한 label-first 규칙”** 을 먼저 분리하는 것입니다.
 
+## 2026-05-18 구현 메모
+
+이번 초안은 문서로만 남기지 않고, 현재 코드에도 아래 범위까지만 반영했습니다.
+
+1. `gov24UserTypeLabel`, `gov24BenefitTypeLabel` raw exact label은 그대로 유지
+2. 내부 projection에서만 `||` split + trim + de-dup token parser를 추가
+3. token은 우선 `admin recommendation diagnostics` 에서만 노출
+
+이번 단계에서 일부러 하지 않은 것:
+
+1. public API (`/api/recommendations`, `/api/policies`) 응답 필드 확대
+2. `ServiceTag` / `service_taxonomy_terms` / `service_facts` 에 Gov24 token을 새 canonical 축으로 저장
+3. 추천 matcher / scoring / AI prompt 입력 변경
+
+이렇게 자른 이유:
+
+- 현재 runtime에는 raw exact label summary가 이미 붙어 있고, 먼저 부족한 것은 “표시”가 아니라 “내부 해석을 관찰 가능하게 만드는 것”이다.
+- `개인||가구`, `현금||서비스(의료)` 같은 복합값을 바로 공통 term/fact로 올리면, 추천 규칙이나 검색 facet에 의도치 않은 영향을 줄 수 있다.
+- 따라서 이번 단계는 **label 유지 + token 관찰 가능화**까지만 열고, 실제 canonical 소비는 별도 active 목표로 분리한다.
+
 ## 이번 초안의 범위
 
 이번 초안에서 하는 것:

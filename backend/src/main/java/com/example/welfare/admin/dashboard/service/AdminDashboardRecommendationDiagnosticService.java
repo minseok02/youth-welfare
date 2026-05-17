@@ -87,9 +87,8 @@ public class AdminDashboardRecommendationDiagnosticService {
                     WelfareService service = serviceById.get(serviceId);
                     ScoredCandidate scoredCandidate = scoredById.get(serviceId);
                     UserRecommendation savedRecommendation = savedById.get(serviceId);
-                    Boolean youthRelevant = trace.allProjections().containsKey(serviceId)
-                            ? trace.allProjections().get(serviceId).youthRelevant()
-                            : null;
+                    var projection = trace.allProjections().get(serviceId);
+                    Boolean youthRelevant = projection != null ? projection.youthRelevant() : null;
 
                     boolean inBase = baseIds.contains(serviceId);
                     boolean inLatest = latestIds.contains(serviceId);
@@ -106,6 +105,8 @@ public class AdminDashboardRecommendationDiagnosticService {
                             service != null ? service.getTitle() : null,
                             service != null && service.getSourceType() != null ? service.getSourceType().name() : null,
                             service != null ? service.getUnifiedCategory() : null,
+                            projection != null ? projection.gov24UserTypeTokens() : List.of(),
+                            projection != null ? projection.gov24BenefitTypeTokens() : List.of(),
                             inBase,
                             inLatest,
                             inFilteredBase,

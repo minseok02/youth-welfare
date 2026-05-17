@@ -3,7 +3,9 @@ package com.example.welfare.recommend.dto;
 import lombok.Builder;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Set;
 
 /**
@@ -24,6 +26,8 @@ public record RecommendationCandidateProjection(
         String gov24ServiceFieldLabel,
         String gov24UserTypeLabel,
         String gov24BenefitTypeLabel,
+        List<String> gov24UserTypeTokens,
+        List<String> gov24BenefitTypeTokens,
         String title,
         String summary,
         Integer minAge,
@@ -46,6 +50,8 @@ public record RecommendationCandidateProjection(
 ) {
 
     public RecommendationCandidateProjection {
+        gov24UserTypeTokens = immutableListCopy(gov24UserTypeTokens);
+        gov24BenefitTypeTokens = immutableListCopy(gov24BenefitTypeTokens);
         priorityBuckets = immutableCopy(priorityBuckets);
         interestThemes = immutableCopy(interestThemes);
         targetGroupsRaw = immutableCopy(targetGroupsRaw);
@@ -62,5 +68,12 @@ public record RecommendationCandidateProjection(
             return Set.of();
         }
         return Set.copyOf(new LinkedHashSet<>(values));
+    }
+
+    private static List<String> immutableListCopy(List<String> values) {
+        if (values == null || values.isEmpty()) {
+            return List.of();
+        }
+        return List.copyOf(new ArrayList<>(values));
     }
 }

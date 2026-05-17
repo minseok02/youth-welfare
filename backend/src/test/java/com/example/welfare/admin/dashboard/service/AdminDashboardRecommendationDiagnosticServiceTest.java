@@ -1,6 +1,7 @@
 package com.example.welfare.admin.dashboard.service;
 
 import com.example.welfare.admin.dashboard.dto.AdminRecommendationCandidateDiagnosticResponse;
+import com.example.welfare.collect.support.Gov24LabelTokenSupport;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.repository.WelfareServiceRepository;
 import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
@@ -106,9 +107,9 @@ class AdminDashboardRecommendationDiagnosticServiceTest {
                 List.of(),
                 List.of(leader, droppedAfterScoring),
                 Map.of(
-                        3686L, projection(3686L, true),
-                        2736L, projection(2736L, true),
-                        3714L, projection(3714L, false)
+                        3686L, projection(3686L, true, "개인", "현금"),
+                        2736L, projection(2736L, true, "개인||가구", "현금||서비스(의료)||현금"),
+                        3714L, projection(3714L, false, "개인", "서비스(돌봄)")
                 ),
                 Map.of(
                         3686L, new RetrievalService.CandidateFilterTrace(true, true),
@@ -182,6 +183,8 @@ class AdminDashboardRecommendationDiagnosticServiceTest {
                     assertThat(row.inMergedCandidates()).isTrue();
                     assertThat(row.inLatestSavedBatch()).isFalse();
                     assertThat(row.dropStage()).isEqualTo("SCORED_BUT_NOT_IN_SAVED_BATCH");
+                    assertThat(row.gov24UserTypeTokens()).containsExactly("개인", "가구");
+                    assertThat(row.gov24BenefitTypeTokens()).containsExactly("현금", "서비스(의료)");
                     assertThat(row.rerankDiversityPenalty()).isEqualTo(0.03);
                     assertThat(row.rerankCurrentRank()).isEqualTo(8);
                 });
@@ -215,10 +218,17 @@ class AdminDashboardRecommendationDiagnosticServiceTest {
                 .build();
     }
 
-    private RecommendationCandidateProjection projection(Long serviceId, boolean youthRelevant) {
+    private RecommendationCandidateProjection projection(Long serviceId,
+                                                         boolean youthRelevant,
+                                                         String gov24UserTypeLabel,
+                                                         String gov24BenefitTypeLabel) {
         return RecommendationCandidateProjection.builder()
                 .serviceId(serviceId)
                 .youthRelevant(youthRelevant)
+                .gov24UserTypeLabel(gov24UserTypeLabel)
+                .gov24BenefitTypeLabel(gov24BenefitTypeLabel)
+                .gov24UserTypeTokens(Gov24LabelTokenSupport.userTypeTokens(gov24UserTypeLabel))
+                .gov24BenefitTypeTokens(Gov24LabelTokenSupport.benefitTypeTokens(gov24BenefitTypeLabel))
                 .build();
     }
 

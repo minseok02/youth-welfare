@@ -1235,6 +1235,8 @@ class AdminSecurityWebMvcTest {
                                 "드림나래",
                                 "BOKJIRO_LOCAL",
                                 "기타",
+                                List.of(),
+                                List.of(),
                                 true,
                                 false,
                                 true,
@@ -1271,6 +1273,8 @@ class AdminSecurityWebMvcTest {
                                 "동구 청년 컬처페이 지원사업",
                                 "BOKJIRO_LOCAL",
                                 "기타",
+                                List.of("개인", "가구"),
+                                List.of("현금", "서비스(의료)"),
                                 true,
                                 false,
                                 true,
@@ -1321,6 +1325,8 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.data.services[0].dropStage").value("PRESENT_IN_SAVED_BATCH"))
                 .andExpect(jsonPath("$.data.services[0].latestSavedRank").value(1))
                 .andExpect(jsonPath("$.data.services[1].serviceId").value(2736))
+                .andExpect(jsonPath("$.data.services[1].gov24UserTypeTokens[0]").value("개인"))
+                .andExpect(jsonPath("$.data.services[1].gov24BenefitTypeTokens[1]").value("서비스(의료)"))
                 .andExpect(jsonPath("$.data.services[1].inMergedCandidates").value(true))
                 .andExpect(jsonPath("$.data.services[1].inLatestSavedBatch").value(false))
                 .andExpect(jsonPath("$.data.services[1].dropStage").value("SCORED_BUT_NOT_IN_SAVED_BATCH"));

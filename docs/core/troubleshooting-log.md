@@ -4573,3 +4573,16 @@
   - `지원유형`: `gov24BenefitTypeLabel` 은 raw exact 유지, 내부 해석은 `||` split + trim + de-dup 으로 `20개` token inventory 기준 처리
   - 이번 단계에서는 stable code SQL, `YOUTH_MID` 연결, `지원유형` full hard collapse는 하지 않기로 고정했다.
 - 이유: 이렇게 나눠 두면 다음 턴에서 무엇을 실제로 구현할지 판단이 쉬워진다. `Gov24` label 3종은 이제 “external source가 없어서 못 함”이 아니라 “label-first canonical 구현을 지금 열 것인가, 아니면 stable code/import-backfill 단계까지 보류할 것인가”의 문제다. 즉 남은 모호성은 데이터 존재가 아니라 **내부 규칙의 적용 반경**이다.
+
+## 838) `Gov24 사용자구분/지원유형` 은 public schema 확장보다 projection-level token 관찰부터 연다
+- 문제: `Gov24` 의 `사용자구분` 과 `지원유형` 은 raw label summary는 이미 runtime에 붙어 있지만, 복합값(`개인||가구`, `현금||서비스(의료)`)을 코드가 어떻게 해석해야 하는지는 아직 관찰 경로가 없었다. 이 상태에서 바로 `service_taxonomy_terms`, `service_facts`, public API 필드까지 넓히면, 아직 소비처가 정해지지 않은 token을 너무 일찍 canonical 축으로 고정하고 추천 규칙이나 검색 facet에 unintended effect를 만들 수 있었다.
+- 확인:
+  - `RecommendationCandidateProjection` 에는 이미 `gov24ServiceFieldLabel`, `gov24UserTypeLabel`, `gov24BenefitTypeLabel` 이 들어오고 있었다.
+  - `admin recommendation diagnostics` 는 이 projection을 그대로 읽고 있었지만, 복합 label을 쪼갠 결과는 보여 주지 않았다.
+  - 따라서 지금 필요한 최소 구현은 “새 분류체계를 저장”이 아니라 “현재 raw label을 어떻게 token으로 해석하는지 내부에서 먼저 보이게 만드는 것”이었다.
+- 해결:
+  - `Gov24LabelTokenSupport` 를 추가해 `||` split + trim + de-dup 규칙을 helper로 고정했다.
+  - `RecommendationCandidateProjection` 에 `gov24UserTypeTokens`, `gov24BenefitTypeTokens` 를 additive field로 추가했다.
+  - token은 우선 `AdminRecommendationCandidateDiagnosticResponse` 에만 노출했다.
+  - public API 응답(`/api/recommendations`, `/api/policies`) 확대나 `ServiceTag/service_taxonomy_terms/service_facts` 승격은 이번 단계에서 일부러 하지 않았다.
+- 이유: 이 순서가 가장 안전하다. raw exact label summary는 이미 사용자 응답과 AI prompt에 붙어 있으므로, 지금 먼저 필요한 것은 downstream contract 변경이 아니라 **내부 해석의 관찰 가능성**이다. token을 diagnostics 에만 붙이면 다음 단계에서 “정말 이 token을 검색/추천/관리 facet에서 소비할 가치가 있는가?”를 보고 판단할 수 있다. 즉 이번 구현의 의도는 canonical 확장이 아니라 **해석 경계의 가시화**다.

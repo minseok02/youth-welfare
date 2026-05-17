@@ -1,5 +1,6 @@
 package com.example.welfare.recommend.repository;
 
+import com.example.welfare.collect.support.Gov24LabelTokenSupport;
 import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
 import com.example.welfare.policy.support.CompatCategorySupport;
 import com.example.welfare.recommend.support.RecommendationProjectionHeuristicSupport;
@@ -374,6 +375,8 @@ public class CanonicalRecommendationReadModelRepository {
                     .gov24ServiceFieldLabel(gov24ServiceFieldLabel)
                     .gov24UserTypeLabel(gov24UserTypeLabel)
                     .gov24BenefitTypeLabel(gov24BenefitTypeLabel)
+                    .gov24UserTypeTokens(Gov24LabelTokenSupport.userTypeTokens(gov24UserTypeLabel))
+                    .gov24BenefitTypeTokens(Gov24LabelTokenSupport.benefitTypeTokens(gov24BenefitTypeLabel))
                     .title(title)
                     .summary(summary)
                     .minAge(minAge)
