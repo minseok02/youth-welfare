@@ -16,6 +16,38 @@
 현재 제품 해석은 `청년정책 통합포털 + 개인화 추천` 이며, 추천 재사용 전략도 군집 캐시보다 개인 캐시를 우선 검토하는 쪽으로 정리합니다.
 현재 코드 기준 개인 캐시는 추천 payload 전체를 Redis에 저장하는 구조가 아니라, `non-personal refresh` 를 최근에 끝냈는지 나타내는 짧은 TTL 마커만 저장하고 실제 추천 row 는 계속 DB에서 읽는 형태입니다. 이 마커 key 는 `userKey` 뿐 아니라 현재 추천 규칙 버전(예: `educationCanonicalBonusEnabled`)도 함께 포함해, 앱 재기동으로 추천 규칙 플래그가 바뀐 뒤 이전 refresh 결과를 재사용하지 않게 합니다.
 
+## 현재 판단
+
+`2026-05-18` 기준 recommendation 트랙의 현재 상태는 **bug closeout + 제품 판단 deferred** 입니다.
+
+즉 지금까지 닫힌 것은 아래입니다.
+
+- `REAL_USER` gate, concentration gate, dashboard review gate가 운영 서버에서 실제로 열리는지 여부
+- `3686` 편중이 전역 retrieval/rerank bug인지, 아니면 동질 no-priority 인천 세그먼트 영향인지 여부
+- 인천 `BOKJIRO_LOCAL` 후보가 retrieval SQL에 못 들어오는 문제
+- `FILTERED_BY_YOUTH_OR_AGE` 가 실제로는 primary audience mismatch인지 여부
+- `GET/POST /api/recommendations` 응답 순서와 persisted rank 불일치 여부
+- diagnostics `rerankCurrent*` 와 saved batch `latestSaved*` 차이가 버그인지, pre-AI trace와 persisted AI 결과 차이인지 여부
+- `2736` 이 왜 낮은지에 대한 원인 분석
+
+반대로 아직 열지 않은 것은 아래입니다.
+
+- `2736` 같은 local 청년 정책을 더 올릴지 여부
+- local 정책에 `interest/theme`, 지역 적합성, direct benefit signal을 더 강하게 구조화할지 여부
+- source/category balancing 또는 AI prompt/input 강화를 제품적으로 할지 여부
+
+즉 현재 남은 것은 구현 결함보다 **local 청년 정책을 더 적극적으로 밀고 싶은지에 대한 제품/모델링 선택** 입니다.
+
+## 다시 열 조건
+
+다음 중 하나가 생길 때만 recommendation 트랙을 다시 여는 편이 맞습니다.
+
+1. 운영 `REAL_USER` 기준으로 새로운 rank mismatch, click mismatch, cache mismatch, diagnostics mismatch 같은 **재현 가능한 버그** 가 다시 보일 때
+2. 운영 지표상 local 청년 정책 노출이 제품 기대보다 약하다는 **명시적 제품 목표** 가 생길 때
+3. `2736` 류 local 정책의 `interest/theme` 또는 지역 적합성 신호를 더 구조화하자는 **구체적 모델링 과제** 가 승인될 때
+
+그 전까지는 이 트랙을 direct weight tuning이나 ad-hoc score patch로 reopen 하지 않습니다.
+
 ## 현재 추천 파이프라인
 
 현재 추천 흐름은 아래 순서입니다.

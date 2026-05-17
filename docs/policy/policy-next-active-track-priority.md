@@ -23,6 +23,8 @@
 
 현재 next active main track은 **로컬에서의 기능/구조 추가 검증과 bounded runtime 반복 검증** 입니다.
 
+참고로 recommendation 트랙은 `2026-05-18` 기준 active main track으로 보지 않습니다. 운영 `REAL_USER` gate, retrieval local 우선화, diagnostics/rerank/AI score 해석까지 한 번 닫혔고, 남은 것은 `2736` 류 local 청년 정책 신호를 더 강하게 넣을지에 대한 제품/모델링 판단입니다. 즉 recommendation 은 새 재현 버그나 명시적 노출 강화 목표가 생길 때만 reopen 하는 편이 맞습니다.
+
 즉 다음 기본 진행축은 아래 순서입니다.
 
 1. 실제 기능이 끝까지 이어지는지 로컬에서 다시 검증하기

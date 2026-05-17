@@ -4455,3 +4455,12 @@
   - pre-AI trace vs persisted AI 혼동 → `4c93550`
   까지다. 그 뒤 남은 `2736` 약세는 `latestSavedAiScore=40` 으로 설명 가능하므로, 다음 선택지는 “AI 입력에 지역 적합성/interest theme를 더 구조화해서 넣을지” 같은 제품·모델링 판단이다.
 - 이유: 지금 상태에서 추가 코드를 바로 바꾸면, 버그와 정책 선택을 다시 섞게 된다. 이미 운영 데이터로 원인을 충분히 설명할 수 있다면, 그 다음 액션은 “무조건 올린다”가 아니라 “이 후보를 더 올리고 싶은가, 그렇다면 어떤 신호를 강화할 것인가”를 제품 판단으로 넘기는 편이 맞다.
+
+## 827) recommendation 트랙은 이 시점에서 active bugfix가 아니라 closeout/deferred 상태로 관리하는 편이 맞다
+- 문제: recommendation 관련 관측치가 풍부해질수록 `CTR gate`, `REAL_USER gate`, `retrieval`, `dropStage`, `rerank`, `AI score` 중 무엇이 아직 미해결인지 매번 다시 정리해야 하는 비용이 커졌다. 이 상태에서 closeout 기준이 없으면, 이미 설명 가능한 정상 결과도 다시 active bug처럼 다루게 된다.
+- 해결: `2026-05-18` 기준 recommendation current-state와 phase 문서에 아래를 명시한다.
+  - 현재 상태는 `bug closeout + 제품 판단 deferred`
+  - 이미 닫힌 것: `REAL_USER` gate, retrieval local 우선화, primary audience diagnostics, refresh ordering, pre-AI trace 표시, `2736 AI=40` 원인 분석
+  - 아직 안 여는 것: local 청년 정책을 더 강하게 밀지 여부, interest/theme 구조화 강화, 지역 적합성 신호 강화
+  - reopen 조건: 새 rank/cache/diagnostics mismatch 같은 재현 버그가 다시 생기거나, local 청년 정책 노출 강화가 명시 목표로 승인될 때
+- 이유: 이렇게 해야 다음 reopen 때도 “지금은 버그를 잡는 단계인지, 아니면 모델링/제품 선택 단계인지”를 바로 구분할 수 있다. recommendation 트랙을 계속 active bugfix처럼 끌고 가면, 설명 가능한 AI relevance 차이까지 엔지니어링 결함으로 오해하기 쉽다.
