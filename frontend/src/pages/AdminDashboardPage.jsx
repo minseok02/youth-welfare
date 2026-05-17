@@ -81,6 +81,20 @@ const fetchBreakdowns = async (windowDays) => {
   return data?.data;
 };
 
+const fetchCollectFailures = async (windowDays) => {
+  const { data } = await api.get("/api/admin/dashboard/collect-failures", {
+    params: { summaryWindowDays: windowDays, limit: 5 },
+  });
+  return data?.data;
+};
+
+const fetchSearchFailures = async (windowDays) => {
+  const { data } = await api.get("/api/admin/dashboard/search-failures", {
+    params: { summaryWindowDays: windowDays, limit: 5 },
+  });
+  return data?.data;
+};
+
 function GateChip({ value }) {
   const tone = REVIEW_GATE_TONE[value] ?? { bg: "#eef2ff", border: "#c7d2fe", color: "#3730a3", label: value };
   return (
@@ -183,6 +197,22 @@ function CompactListCard({ title, description, items, renderItem }) {
   );
 }
 
+function TriageSectionTitle({ eyebrow, title, description }) {
+  return (
+    <Box>
+      <Typography sx={{ fontSize: 12, fontWeight: 800, color: ACCENT, textTransform: "uppercase", letterSpacing: "0.08em" }}>
+        {eyebrow}
+      </Typography>
+      <Typography sx={{ fontSize: 22, fontWeight: 900, color: INK, mt: 0.75, letterSpacing: "-0.02em" }}>
+        {title}
+      </Typography>
+      <Typography sx={{ fontSize: 13, color: INK3, mt: 0.75 }}>
+        {description}
+      </Typography>
+    </Box>
+  );
+}
+
 export default function AdminDashboardPage() {
   const [windowDays, setWindowDays] = useState(14);
 
@@ -198,15 +228,39 @@ export default function AdminDashboardPage() {
     staleTime: 30_000,
   });
 
+  const collectFailuresQuery = useQuery({
+    queryKey: ["admin-dashboard-collect-failures", windowDays],
+    queryFn: () => fetchCollectFailures(windowDays),
+    staleTime: 30_000,
+  });
+
+  const searchFailuresQuery = useQuery({
+    queryKey: ["admin-dashboard-search-failures", windowDays],
+    queryFn: () => fetchSearchFailures(windowDays),
+    staleTime: 30_000,
+  });
+
   const summaryData = summaryQuery.data;
   const recommendationSummary = summaryData?.recommendation;
   const concentration = recommendationSummary?.latestBatchConcentration;
   const breakdowns = breakdownQuery.data;
-  const isLoading = summaryQuery.isLoading || breakdownQuery.isLoading;
-  const isError = summaryQuery.isError || breakdownQuery.isError;
+  const collectFailures = collectFailuresQuery.data;
+  const searchFailures = searchFailuresQuery.data;
+  const isLoading =
+    summaryQuery.isLoading
+    || breakdownQuery.isLoading
+    || collectFailuresQuery.isLoading
+    || searchFailuresQuery.isLoading;
+  const isError =
+    summaryQuery.isError
+    || breakdownQuery.isError
+    || collectFailuresQuery.isError
+    || searchFailuresQuery.isError;
   const errorMessage =
     summaryQuery.error?.response?.data?.message
     ?? breakdownQuery.error?.response?.data?.message
+    ?? collectFailuresQuery.error?.response?.data?.message
+    ?? searchFailuresQuery.error?.response?.data?.message
     ?? "운영 대시보드를 불러오지 못했습니다.";
 
   return (
@@ -250,7 +304,7 @@ export default function AdminDashboardPage() {
           </Alert>
         )}
 
-        {!isLoading && !isError && summaryData && recommendationSummary && concentration && breakdowns && (
+        {!isLoading && !isError && summaryData && recommendationSummary && concentration && breakdowns && collectFailures && searchFailures && (
           <Stack spacing={3} mt={3}>
             <Box
               sx={{
@@ -379,6 +433,250 @@ export default function AdminDashboardPage() {
                         {formatNumber(item.searchCount)}
                       </Typography>
                     </Stack>
+                  </Box>
+                )}
+              />
+            </Box>
+
+            <TriageSectionTitle
+              eyebrow="Collect Triage"
+              title="수집 실패 상세"
+              description="실패 job, circuit open 상태, 최근 실패 샘플을 summary 카드 아래에서 바로 확인합니다."
+            />
+
+            <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", md: "repeat(4, 1fr)" } }}>
+              <MetricCard
+                title="Failed Jobs"
+                value={formatNumber(collectFailures.failedJobsInWindow)}
+                description={`window ${collectFailures.windowDays}일`}
+              />
+              <MetricCard
+                title="Partial Success"
+                value={formatNumber(collectFailures.partialSuccessJobsInWindow)}
+                description="일부 저장 후 종료된 job"
+              />
+              <MetricCard
+                title="Open Circuits"
+                value={formatNumber(collectFailures.circuitStatuses?.filter((item) => item.open).length)}
+                description={`tracked ${formatNumber(collectFailures.circuitStatuses?.length)}`}
+              />
+              <MetricCard
+                title="Recent Failure Samples"
+                value={formatNumber(collectFailures.recentSamples?.length)}
+                description="상세 샘플 미리보기"
+              />
+            </Box>
+
+            <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", xl: "1.1fr 0.9fr" } }}>
+              <CompactListCard
+                title="Job Breakdown"
+                description="실패/부분성공이 많은 수집 job"
+                items={collectFailures.jobBreakdowns}
+                renderItem={(item) => (
+                  <Box key={`${item.jobName}-${item.latestStartedAt}`} sx={{ p: 1.5, borderRadius: 2, border: `1px solid ${PANEL_LINE}`, bgcolor: "#fafbff" }}>
+                    <Stack direction="row" justifyContent="space-between" spacing={2}>
+                      <Box>
+                        <Typography sx={{ fontSize: 13, fontWeight: 700, color: INK }}>{item.jobName}</Typography>
+                        <Typography sx={{ fontSize: 12, color: INK3, mt: 0.25 }}>
+                          latest {formatDateTime(item.latestStartedAt)}
+                        </Typography>
+                      </Box>
+                      <Stack spacing={0.5} alignItems="flex-end">
+                        <Typography sx={{ fontSize: 12, fontWeight: 800, color: WARNING_TEXT }}>
+                          fail {formatNumber(item.failedCount)}
+                        </Typography>
+                        <Typography sx={{ fontSize: 12, fontWeight: 700, color: INK2 }}>
+                          partial {formatNumber(item.partialSuccessCount)}
+                        </Typography>
+                      </Stack>
+                    </Stack>
+                  </Box>
+                )}
+              />
+              <CompactListCard
+                title="Circuit Status"
+                description="open circuit은 외부 수집 안정성 저하를 뜻합니다."
+                items={collectFailures.circuitStatuses}
+                renderItem={(item) => (
+                  <Box key={item.circuitKey} sx={{ p: 1.5, borderRadius: 2, border: `1px solid ${PANEL_LINE}`, bgcolor: item.open ? "#fff7ed" : "#f8fafc" }}>
+                    <Stack direction="row" justifyContent="space-between" spacing={2}>
+                      <Box>
+                        <Typography sx={{ fontSize: 13, fontWeight: 700, color: INK }}>{item.circuitKey}</Typography>
+                        <Typography sx={{ fontSize: 12, color: INK3, mt: 0.25 }}>
+                          open until {formatDateTime(item.openUntil)}
+                        </Typography>
+                      </Box>
+                      <Typography sx={{ fontSize: 12, fontWeight: 800, color: item.open ? WARNING_TEXT : SUCCESS_TEXT }}>
+                        {item.open ? `OPEN ${formatNumber(item.remainingMs)}ms` : "CLOSED"}
+                      </Typography>
+                    </Stack>
+                  </Box>
+                )}
+              />
+            </Box>
+
+            <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", xl: "1fr 1fr 1fr" } }}>
+              <CompactListCard
+                title="Error Codes"
+                description="실패 원인 상위 집계"
+                items={collectFailures.errorCodeBreakdowns}
+                renderItem={(item) => (
+                  <Box key={item.errorCode || "UNKNOWN"} sx={{ p: 1.5, borderRadius: 2, border: `1px solid ${PANEL_LINE}`, bgcolor: "#fafbff" }}>
+                    <Stack direction="row" justifyContent="space-between" spacing={2}>
+                      <Typography sx={{ fontSize: 13, fontWeight: 700, color: INK }}>{item.errorCode || "UNKNOWN"}</Typography>
+                      <Typography sx={{ fontSize: 12, fontWeight: 800, color: ACCENT }}>{formatNumber(item.failedCount)}</Typography>
+                    </Stack>
+                  </Box>
+                )}
+              />
+              <CompactListCard
+                title="Current Streaks"
+                description="같은 상태가 연속되는 job"
+                items={collectFailures.currentJobStreaks}
+                renderItem={(item) => (
+                  <Box key={`${item.jobName}-${item.streakStatus}`} sx={{ p: 1.5, borderRadius: 2, border: `1px solid ${PANEL_LINE}`, bgcolor: "#fafbff" }}>
+                    <Stack direction="row" justifyContent="space-between" spacing={2}>
+                      <Box>
+                        <Typography sx={{ fontSize: 13, fontWeight: 700, color: INK }}>{item.jobName}</Typography>
+                        <Typography sx={{ fontSize: 12, color: INK3, mt: 0.25 }}>
+                          {item.streakStatus} · latest {formatDateTime(item.latestStartedAt)}
+                        </Typography>
+                      </Box>
+                      <Typography sx={{ fontSize: 12, fontWeight: 800, color: ACCENT }}>{formatNumber(item.streakCount)}</Typography>
+                    </Stack>
+                  </Box>
+                )}
+              />
+              <CompactListCard
+                title="Recent Failure Samples"
+                description="에러 메시지와 저장 실패 규모"
+                items={collectFailures.recentSamples}
+                renderItem={(item) => (
+                  <Box key={`${item.jobName}-${item.startedAt}-${item.errorCode}`} sx={{ p: 1.5, borderRadius: 2, border: `1px solid ${PANEL_LINE}`, bgcolor: "#fafbff" }}>
+                    <Typography sx={{ fontSize: 13, fontWeight: 700, color: INK }}>{item.jobName}</Typography>
+                    <Typography sx={{ fontSize: 12, color: INK3, mt: 0.35 }}>
+                      {item.errorCode || item.status} · {formatDateTime(item.startedAt)}
+                    </Typography>
+                    <Typography sx={{ fontSize: 12, color: INK2, mt: 0.75 }}>
+                      req {formatNumber(item.requestedCount)} / save {formatNumber(item.savedCount)} / fail {formatNumber(item.failedCount)}
+                    </Typography>
+                    <Typography sx={{ fontSize: 12, color: INK3, mt: 0.75, lineHeight: 1.5 }}>
+                      {item.errorMessage || "에러 메시지 없음"}
+                    </Typography>
+                  </Box>
+                )}
+              />
+            </Box>
+
+            <TriageSectionTitle
+              eyebrow="Search Triage"
+              title="검색 실패 상세"
+              description="0건 검색 패턴, 재시도 묶음, recovery 여부를 같은 페이지에서 바로 확인합니다."
+            />
+
+            <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", md: "repeat(4, 1fr)" } }}>
+              <MetricCard
+                title="Zero Result Searches"
+                value={formatNumber(searchFailures.zeroResultSearchesInWindow)}
+                description={`window ${searchFailures.windowDays}일`}
+              />
+              <MetricCard
+                title="Retry Groups"
+                value={formatNumber(searchFailures.retryGroups?.length)}
+                description="동일 조건 반복 검색"
+              />
+              <MetricCard
+                title="Recovered Groups"
+                value={formatNumber(searchFailures.recoveredSearchGroups?.length)}
+                description="0건 후 결과 복구"
+              />
+              <MetricCard
+                title="Recent Search Samples"
+                value={formatNumber(searchFailures.recentSamples?.length)}
+                description="실패 샘플 미리보기"
+              />
+            </Box>
+
+            <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", xl: "1fr 1fr" } }}>
+              <CompactListCard
+                title="Zero Result Regions"
+                description="지역 단위 0건 검색 상위"
+                items={searchFailures.zeroResultRegions}
+                renderItem={(item) => (
+                  <Box key={`${item.sido}-${item.sgg}`} sx={{ p: 1.5, borderRadius: 2, border: `1px solid ${PANEL_LINE}`, bgcolor: "#fafbff" }}>
+                    <Stack direction="row" justifyContent="space-between" spacing={2}>
+                      <Typography sx={{ fontSize: 13, fontWeight: 700, color: INK }}>{item.sido || "전국"} {item.sgg || ""}</Typography>
+                      <Typography sx={{ fontSize: 12, fontWeight: 800, color: ACCENT }}>{formatNumber(item.searchCount)}</Typography>
+                    </Stack>
+                  </Box>
+                )}
+              />
+              <CompactListCard
+                title="Zero Result Filter Patterns"
+                description="필터 조합별 0건 검색"
+                items={searchFailures.zeroResultFilterPatterns}
+                renderItem={(item) => (
+                  <Box key={`${item.statusFilter}-${item.category}-${item.sourceType}-${item.onlineApply}-${item.includeClosed}-${item.sortKey}`} sx={{ p: 1.5, borderRadius: 2, border: `1px solid ${PANEL_LINE}`, bgcolor: "#fafbff" }}>
+                    <Typography sx={{ fontSize: 13, fontWeight: 700, color: INK }}>
+                      {item.category || "전체"} · {item.sourceType || "전체"}
+                    </Typography>
+                    <Typography sx={{ fontSize: 12, color: INK3, mt: 0.35 }}>
+                      {item.statusFilter || "all"} / online {String(item.onlineApply)} / closed {String(item.includeClosed)} / {item.sortKey || "default"}
+                    </Typography>
+                    <Typography sx={{ fontSize: 12, fontWeight: 800, color: ACCENT, mt: 0.75 }}>
+                      {formatNumber(item.searchCount)}
+                    </Typography>
+                  </Box>
+                )}
+              />
+            </Box>
+
+            <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", xl: "1fr 1fr 1fr" } }}>
+              <CompactListCard
+                title="Retry Groups"
+                description="같은 actor가 반복한 실패 검색"
+                items={searchFailures.retryGroups}
+                renderItem={(item) => (
+                  <Box key={`${item.actorType}-${item.actorKey}-${item.keyword}-${item.latestSearchedAt}`} sx={{ p: 1.5, borderRadius: 2, border: `1px solid ${PANEL_LINE}`, bgcolor: "#fafbff" }}>
+                    <Typography sx={{ fontSize: 13, fontWeight: 700, color: INK }}>{item.keyword || "키워드 없음"}</Typography>
+                    <Typography sx={{ fontSize: 12, color: INK3, mt: 0.35 }}>
+                      {item.actorType} · {item.actorKey || "anonymous"}
+                    </Typography>
+                    <Typography sx={{ fontSize: 12, color: INK2, mt: 0.75 }}>
+                      retry {formatNumber(item.retryCount)} · {formatDateTime(item.firstSearchedAt)} ~ {formatDateTime(item.latestSearchedAt)}
+                    </Typography>
+                  </Box>
+                )}
+              />
+              <CompactListCard
+                title="Recovered Groups"
+                description="나중에 결과가 생긴 검색 묶음"
+                items={searchFailures.recoveredSearchGroups}
+                renderItem={(item) => (
+                  <Box key={`${item.actorType}-${item.actorKey}-${item.keyword}-${item.latestRecoveredAt}`} sx={{ p: 1.5, borderRadius: 2, border: `1px solid ${PANEL_LINE}`, bgcolor: "#fafbff" }}>
+                    <Typography sx={{ fontSize: 13, fontWeight: 700, color: INK }}>{item.keyword || "키워드 없음"}</Typography>
+                    <Typography sx={{ fontSize: 12, color: INK3, mt: 0.35 }}>
+                      zero {formatNumber(item.zeroResultCount)} / recovered {formatNumber(item.recoveredResultCount)}
+                    </Typography>
+                    <Typography sx={{ fontSize: 12, color: INK2, mt: 0.75 }}>
+                      latest recovered {formatDateTime(item.latestRecoveredAt)}
+                    </Typography>
+                  </Box>
+                )}
+              />
+              <CompactListCard
+                title="Recent Zero Result Samples"
+                description="실패 검색 샘플"
+                items={searchFailures.recentSamples}
+                renderItem={(item) => (
+                  <Box key={`${item.keyword}-${item.searchedAt}-${item.sido}-${item.sgg}`} sx={{ p: 1.5, borderRadius: 2, border: `1px solid ${PANEL_LINE}`, bgcolor: "#fafbff" }}>
+                    <Typography sx={{ fontSize: 13, fontWeight: 700, color: INK }}>{item.keyword || "키워드 없음"}</Typography>
+                    <Typography sx={{ fontSize: 12, color: INK3, mt: 0.35 }}>
+                      {item.sido || "전국"} {item.sgg || ""} · {formatDateTime(item.searchedAt)}
+                    </Typography>
+                    <Typography sx={{ fontSize: 12, color: INK2, mt: 0.75 }}>
+                      {item.category || "전체"} / {item.sourceType || "전체"} / {item.statusFilter || "all"}
+                    </Typography>
                   </Box>
                 )}
               />
