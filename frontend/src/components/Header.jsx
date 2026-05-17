@@ -9,6 +9,7 @@ import HomeIcon from "@mui/icons-material/Home";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import ForumOutlinedIcon from "@mui/icons-material/ForumOutlined";
 import NotificationsNoneOutlinedIcon from "@mui/icons-material/NotificationsNoneOutlined";
+import AdminPanelSettingsOutlinedIcon from "@mui/icons-material/AdminPanelSettingsOutlined";
 import { useAuthStore } from "../store/authStore";
 import { performServerLogout } from "../lib/session";
 import { useUnreadAlertCount } from "../lib/useUnreadAlertCount";
@@ -52,6 +53,7 @@ export default function Header() {
     from: location,
   };
   const unreadBadge = unreadAlertCount > 99 ? "99+" : unreadAlertCount;
+  const isAdmin = Boolean(user?.isAdmin);
   const alertMenuOpen = Boolean(alertAnchorEl);
   const mypageTarget = location.pathname === "/mypage"
     ? {
@@ -237,6 +239,23 @@ export default function Header() {
                 >
                   정책 목록
                 </Button>
+                {isAdmin && (
+                  <Button
+                    color="inherit"
+                    size="small"
+                    startIcon={<AdminPanelSettingsOutlinedIcon fontSize="small" />}
+                    onClick={() => navigate("/admin/dashboard")}
+                    sx={{
+                      fontSize: 13,
+                      color: "white",
+                      bgcolor: "rgba(255,255,255,0.12)",
+                      border: "1px solid rgba(255,255,255,0.2)",
+                      "&:hover": { bgcolor: "rgba(255,255,255,0.18)" },
+                    }}
+                  >
+                    운영 대시보드
+                  </Button>
+                )}
                 <IconButton
                   color="inherit"
                   size="small"

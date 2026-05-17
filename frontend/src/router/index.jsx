@@ -1,8 +1,10 @@
 import { createBrowserRouter } from "react-router-dom";
 import AuthExpiryHandler from "../components/AuthExpiryHandler.jsx";
+import RequireAdmin from "../components/RequireAdmin.jsx";
 import RequireLogin from "../components/RequireLogin.jsx";
 import LazyRoute from "./LazyRoute.jsx";
 import {
+  AdminDashboardPage,
   AlertsPage,
   ChatPage,
   LoginPage,
@@ -53,6 +55,18 @@ const router = createBrowserRouter([
           <RequireLogin>
             <ChatPage />
           </RequireLogin>
+        </LazyRoute>
+      </AuthExpiryHandler>
+    ),
+  },
+  {
+    path: "/admin/dashboard",
+    element: (
+      <AuthExpiryHandler>
+        <LazyRoute>
+          <RequireAdmin>
+            <AdminDashboardPage />
+          </RequireAdmin>
         </LazyRoute>
       </AuthExpiryHandler>
     ),

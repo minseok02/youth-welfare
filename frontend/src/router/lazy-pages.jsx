@@ -9,3 +9,4 @@ export const PoliciesPage = lazy(() => import("../pages/PoliciesPage.jsx"));
 export const PolicyDetailPage = lazy(() => import("../pages/PolicyDetailPage.jsx"));
 export const MyPage = lazy(() => import("../pages/MyPage.jsx"));
 export const ChatPage = lazy(() => import("../pages/ChatPage.jsx"));
+export const AdminDashboardPage = lazy(() => import("../pages/AdminDashboardPage.jsx"));

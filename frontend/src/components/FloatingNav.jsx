@@ -4,6 +4,7 @@ import HomeIcon from "@mui/icons-material/Home";
 import SearchIcon from "@mui/icons-material/Search";
 import PersonIcon from "@mui/icons-material/Person";
 import ForumOutlinedIcon from "@mui/icons-material/ForumOutlined";
+import AdminPanelSettingsOutlinedIcon from "@mui/icons-material/AdminPanelSettingsOutlined";
 import { useAuthStore } from "../store/authStore";
 import { useUnreadAlertCount } from "../lib/useUnreadAlertCount";
 
@@ -12,6 +13,7 @@ const NAV_ITEMS = [
   { label: "정책검색", path: "/policies", icon: SearchIcon, authRequired: false },
   { label: "마이페이지", path: "/mypage", icon: PersonIcon, authRequired: true },
   { label: "AI 챗봇", path: "/chat", icon: ForumOutlinedIcon, authRequired: true },
+  { label: "운영", path: "/admin/dashboard", icon: AdminPanelSettingsOutlinedIcon, authRequired: true, adminRequired: true },
 ];
 
 const isActive = (path, location) => {
@@ -22,9 +24,10 @@ const isActive = (path, location) => {
 export default function FloatingNav() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { isLoggedIn } = useAuthStore();
+  const { isLoggedIn, user } = useAuthStore();
   const unreadAlertCount = useUnreadAlertCount(isLoggedIn);
   const unreadBadge = unreadAlertCount > 99 ? "99+" : unreadAlertCount;
+  const visibleItems = NAV_ITEMS.filter((item) => !item.adminRequired || user?.isAdmin);
   const mypageTarget = location.pathname === "/mypage"
     ? {
         pathname: "/mypage",
@@ -95,9 +98,15 @@ export default function FloatingNav() {
         ? mypageTarget
         : item.path === "/policies"
           ? policiesTarget
+          : item.path === "/admin/dashboard"
+            ? { pathname: "/admin/dashboard", search: "" }
           : { pathname: item.path, search: "" };
     if (item.authRequired && !isLoggedIn) {
       navigate("/login", { state: { from: target, reason: "login-required" } });
+      return;
+    }
+    if (item.adminRequired && !user?.isAdmin) {
+      navigate("/", { state: { from: location, reason: "admin-required" } });
       return;
     }
     navigate(`${target.pathname}${target.search ?? ""}`, {
@@ -131,7 +140,7 @@ export default function FloatingNav() {
           boxShadow: "0 4px 20px rgba(2,128,144,0.15)",
         }}
       >
-        {NAV_ITEMS.map((item, idx) => {
+        {visibleItems.map((item, idx) => {
           const active = isActive(item.path, location);
           const Icon = item.icon;
           return (
@@ -149,7 +158,7 @@ export default function FloatingNav() {
                   cursor: "pointer",
                   bgcolor: active ? "primary.main" : "white",
                   color: active ? "white" : "text.secondary",
-                  borderBottom: idx < NAV_ITEMS.length - 1 ? "1px solid rgba(0,0,0,0.06)" : "none",
+                  borderBottom: idx < visibleItems.length - 1 ? "1px solid rgba(0,0,0,0.06)" : "none",
                   transition: "all 0.18s ease",
                   "&:hover": {
                     bgcolor: active ? "primary.dark" : "rgba(2,128,144,0.07)",
