@@ -4491,3 +4491,15 @@
   - `reference-urls: scannedCount=80, updatedCount=0, skippedCount=80, failedCount=0`
   로 유지됐다.
 - 이유: 지금 practical next action은 새 설계보다 baseline drift를 빠르게 배제하는 것이다. retrieval/gate/category 요약과 bounded `reference-urls` rebuild가 그대로면, 다음 라운드에서 문제가 생겨도 “현재 워크트리 기준선은 살아 있다”는 출발점을 확보할 수 있다.
+
+## 830) bounded policy runtime 다음에는 PII split-account smoke를 바로 다시 태워 request-path sync와 withdraw cleanup 경계가 여전히 살아 있는지 확인하는 편이 맞다
+- 문제: 현재 active 기준선에는 retrieval/category/admin rebuild 경계뿐 아니라 split-account / request dual-write / sync queue / withdraw cleanup도 포함되는데, 이 축은 compose rebuild를 동반하는 smoke라 한번 통과했다고 오래 믿고 지나가면 datasource, grant, queue migration drift를 놓치기 쉽다.
+- 해결: current 워크트리 기준으로 `run-local-pii-sync-cutover-smoke.sh` 를 다시 실행했다. 결과는
+  - app rebuild/restart 후 health 정상
+  - signup/login 정상
+  - profile update 후 request-path pii sync 발생
+  - queue `SYNCED`
+  - `attempt_count=3`
+  - withdraw cleanup 정상
+  이었다. 최종 smoke는 `smoke success: ... queue_status=SYNCED attempt_count=3` 로 끝났다.
+- 이유: 이 smoke는 split-account 경계가 단순 app boot가 아니라 실제 request-path sync와 withdraw cleanup까지 버티는지 확인하는 최소 세트다. bounded policy runtime만 green 이어도 PII sync가 drift하면 current closeout 기준선은 완전하지 않으므로, 다음 라운드 baseline으로 바로 다시 태우는 편이 맞다.
