@@ -4539,3 +4539,23 @@
   - `Gov24`: provider/operator codebook, schema export, 운영 inventory source-of-truth가 확보될 때만 reopen
   - infra/server: bounded runtime 유지보다 배포/운영 절차 확장이 우선 목표로 올라올 때만 reopen
 - 이유: closeout 이후에는 “무엇을 더 고칠까”보다 “무엇을 지금 안 건드리는가”를 명확히 해야 다음 라운드에서 reopen 경계가 흐려지지 않는다. deferred lane을 명시해 두면, 설명 가능한 정상 결과를 다시 bugfix처럼 다루는 비용을 줄일 수 있다.
+
+## 835) `Gov24 supportConditions` 는 “수집 미완료 blocked” 가 아니라 “partial runtime fact + full-scope deferred” 로 읽는 편이 맞다
+- 문제: active/deferred 문서에서는 한동안 `GOV24_SUPPORT_CONDITION` 을 `GOV24_SERVICE_FIELD / USER_TYPE / BENEFIT_TYPE` 와 같은 레벨의 blocked 축처럼 뭉뚱그려 적고 있었다. 하지만 실제 코드를 다시 읽고 DB 적재 상태를 다시 확인하면 이 해석은 현재 truth보다 보수적이었다. 이 상태를 그대로 두면 “Gov24는 아직 외부 답안표가 와야만 supportConditions 를 시작할 수 있다”는 잘못된 결론으로 이어지고, 반대로 이미 구현된 runtime fact 범위를 과소평가하게 된다.
+- 확인:
+  - raw 적재는 이미 `LIST=10942`, `DETAIL=10942`, `SUPPORT=10942` 까지 닫혀 있다.
+  - `WelfareServiceMapper.gov24SupportConditionFacts(...)` 는 이미 `JA0101/0102`, `JA0110/0111`, `JA0201~0205`, `JA0317~0320`, `JA0326/0327`, `JA0401~0404`, `JA0411~0414`, `JA0328~0330` 을 `GOV24_SUPPORT_CONDITION` fact로 승격한다.
+  - 실제 DB 기준 `service_facts.fact_code_set_key='GOV24_SUPPORT_CONDITION'` coverage 는 `9963 / 10942 (91.1%)` 이다.
+  - 즉 `supportConditions` 는 raw도 있고, 일부 공식 code는 이미 fact로 소비 중이며, 완전 미구현 blocked 상태가 아니다.
+- 해결: `policy-gov24-blocked-track-status.md` 를 수정해 `supportConditions` 를 “완전 blocked” 가 아니라 “partial runtime fact는 active, full-scope 확장만 deferred/blocked” 로 다시 적었다. 동시에 blocked 의미를 `serviceField/userType/benefitType` 의 canonical 규칙 미정과 분리했다.
+- 이유: 같은 `Gov24` 라도 `serviceField/userType/benefitType` 는 canonical 매핑 규칙이 남아 있고, `supportConditions` 는 이미 일부 축이 구현돼 있다는 차이를 문서가 반영해야 다음 단계 우선순위가 정확해진다. 지금 시점의 핵심은 “external source-of-truth 가 없어서 supportConditions 를 전혀 못 한다”가 아니라 “어디까지를 current product fact scope로 넓힐 것인가”다.
+
+## 836) `supportConditions` missing fact 979건의 실질 원인은 개인 eligibility 부족이 아니라 사업체/업종/창업 축이다
+- 문제: `policy-gov24-support-unmapped-inventory.md` 는 이미 top unmapped code를 정리하고 있었지만, “그럼 개인 eligibility 쪽도 많이 빠져 있는가?”라는 질문에는 충분히 직접 답하지 못했다. 이 경계가 불명확하면 `JA0301~JA0303` 같은 축까지 추가로 fact 승격해야 하는 것처럼 보이지만, 실제 missing 서비스 집합을 따로 보면 이야기가 달랐다.
+- 확인:
+  - `support raw -> welfare_services -> service_facts` 를 다시 조인해 `missing fact` 서비스 `979건`만 별도 집계했다.
+  - 그 결과 `JA0301` 예비부모/난임, `JA0302` 임산부, `JA0303` 출산/입양은 현재 missing 집합에서 모두 `0건` 이었다. 즉 raw에는 있어도, 이 값들이 등장한 서비스는 이미 다른 매핑된 조건 fact도 같이 갖고 있어 gap 원인이 아니었다.
+  - 반대로 실질적인 missing top code는 `JA2101 465`, `JA2201 382`, `JA2299 381`, `JA2103 287`, `JA2202 280`, `JA1102 269`, `JA1299 244`, `JA1201 239`, `JA1202 233`, `JA2203 224` 로 다시 확인됐다.
+  - 개인 eligibility 쪽 잔여는 `JA0313 2`, `JA0314 1`, `JA0315 1`, `JA0316 1`, `JA0322 2`, `JA0410 3` 수준에 그쳤다.
+- 해결: unmapped inventory 문서에 “missing fact 집합에서 `JA0301~JA0303` 는 0건”, “개인 eligibility 잔여는 매우 작고, 실질적인 gap 설명력은 사업체/업종/창업 축이 압도적”이라는 문장을 추가했다. 또한 `JA0313~JA0316` 은 low-priority deferred, `JA0322/JA0410` 은 positive fact 승격 대상 아님으로 분리해 적었다.
+- 이유: 이걸 명시해 두면 다음 턴에서 `supportConditions` 를 다시 볼 때도 우선순위가 흔들리지 않는다. 지금 남은 질문은 “개인 eligibility 축이 많이 빠져 있나?”가 아니라 “사업체/업종/창업 상태를 현재 제품이 실제로 소비할 것인가?”다. 이 구분이 없으면 fact scope 확장을 구현 문제로 오해하고 unnecessary taxonomy를 늘릴 위험이 있다.

@@ -35,12 +35,12 @@
 2. raw/detail/fact 적재 및 품질 점검
 3. collect runtime 안정화
 
-이고, 여전히 외부 자료가 필요한 축은
+이고, 여전히 외부 자료 또는 내부 canonical 규칙 결정이 필요한 축은
 
 1. `GOV24_SERVICE_FIELD`
 2. `GOV24_USER_TYPE`
 3. `GOV24_BENEFIT_TYPE`
-4. `GOV24_SUPPORT_CONDITION` full inventory import/backfill
+4. `GOV24_SUPPORT_CONDITION` full-scope import/backfill
 
 입니다.
 
@@ -75,24 +75,55 @@
 
 이고, 이것은 runtime collect 부재가 아니라 **official code import/backfill을 아직 열지 않은 상태**를 반영합니다.
 
-### 2. source-of-truth 가 여전히 외부 응답 경계에 있다
+### 2. `supportConditions` 는 부분 구현 상태이고 full-scope 만 남아 있다
+
+현재 `supportConditions` 는 완전 blocked 가 아닙니다.
+
+runtime fact extractor가 이미 읽는 축:
+
+- 성별: `JA0101`, `JA0102`
+- 연령: `JA0110`, `JA0111`
+- 소득: `JA0201~JA0205`
+- 교육: `JA0317~JA0320`
+- 고용: `JA0326`, `JA0327`
+- 가구: `JA0401~JA0404`, `JA0411~JA0414`
+- 특수대상: `JA0328~JA0330`
+
+실제 local DB 기준 `service_facts.fact_code_set_key='GOV24_SUPPORT_CONDITION'` 로 적재된 서비스는
+`9963 / 10942 (91.1%)` 입니다.
+
+즉 현재 `supportConditions` 의 blocked 의미는
+
+- raw가 없다
+- 코드 의미를 전혀 모른다
+
+가 아니라,
+
+- 현재 제품 경계에서 쓰지 않는 사업체/업종/창업 축까지 full-scope 로 올릴지 아직 결정하지 않았다
+
+쪽에 가깝습니다.
+
+### 3. source-of-truth 가 여전히 외부 응답 경계에 있는 축도 남아 있다
 
 현재 blocked 축:
 
 - `GOV24_SERVICE_FIELD`
 - `GOV24_USER_TYPE`
 - `GOV24_BENEFIT_TYPE`
-- `GOV24_SUPPORT_CONDITION`
 
-이 축들은 current API 기준 공식
+이 축들은 current API 기준
 
-- field name
-- code
-- official label
+- field name 은 확인됐고
+- observed raw inventory 도 local DB 에 존재하지만
+- 전체 값 체계(closed set)와 canonical 고정 규칙은 아직 별도로 정해야 합니다
 
-자료가 있어야 import/backfill SQL 을 다시 열 수 있습니다.
+즉 import/backfill SQL 을 다시 여는 조건은
 
-즉 runtime collect와 별개로, hard taxonomy/import-backfill 쪽은 여전히 코드보다 source-of-truth 확보가 먼저입니다.
+- provider/operator codebook 응답
+- current Swagger/schema export
+- 또는 내부 canonical 매핑 규칙 승인
+
+중 하나입니다.
 
 ## reopen 조건
 
@@ -101,6 +132,7 @@
 - provider/operator codebook 응답 수신
 - current Swagger/schema export 확보
 - 운영자가 current API 기준 inventory를 전달
+- 내부에서 current raw inventory 기준 canonical 매핑 규칙을 승인
 
 그 전까지는 blocked/backlog 유지가 기본입니다.
 
@@ -109,12 +141,13 @@
 우선순위는 아래입니다.
 
 1. `GOV24_SERVICE_FIELD / USER_TYPE / BENEFIT_TYPE`
-2. `GOV24_SUPPORT_CONDITION` full inventory/backfill
+2. `GOV24_SUPPORT_CONDITION` full-scope inventory/backfill
 
 이유:
 
 - label 3종이 canonical onboarding 기준선과 직접 연결됨
-- `supportConditions` 는 representative subset 과 full inventory 판단을 따로 봐야 함
+- `supportConditions` 는 representative subset 이 아니라 이미 partial runtime fact가 존재하므로,
+  남은 full-scope 를 제품 경계에 맞게 넓힐지 별도로 판단해야 함
 
 ## 발송/수신 패키지 기준
 
@@ -136,13 +169,13 @@
 
 ### track B
 
-- `supportConditions`
+- `supportConditions` full-scope
 
 판정 기준:
 
 - code 있음
 - official label 있음
-- representative subset 이 아니라 full inventory 로 볼 수 있음
+- current runtime extractor가 아직 읽지 않는 code 군도 제품적으로 의미가 분명함
 - current API 기준 자료임이 분명함
 
 ## practical next action
@@ -176,19 +209,24 @@ runtime collect가 이미 붙은 뒤 coverage/shape/null-heavy sample을 다시 
   - 현재 local audit 기준 `missing_no_support_raw=0`, `missing_all_null_payload=0`
   - `missing_unmapped_only_payload=979`, `missing_mapped_signal_payload=0`
   - 즉 지금 남은 갭은 저장 실패보다 `현재 extractor가 아직 읽지 않는 official support code-only payload` 로 해석하는 편이 맞다
+- `missing fact` 집합을 다시 보면 `JA0301~JA0303` 같은 개인 eligibility code 는 `0건` 이고,
+  사실상 남은 축은 `JA210*`, `JA220*`, `JA120*`, `JA1299/JA2299`, `JA110*` 같은 사업체/업종/창업 코드다
+- 개인 eligibility 쪽 잔여는 `JA0313~JA0316` 이 `2/1/1/1건`, `JA0322/JA0410` 이 `2/3건` 수준으로 매우 작다
 - `JA210*`, `JA220*`, `JA120*`, `JA1299/JA2299`, `JA110*` 중심 unmapped inventory는
   [policy-gov24-support-unmapped-inventory.md](./policy-gov24-support-unmapped-inventory.md)
   에 따로 정리했고, 현재 제품 경계 기준 판단은 `deferred` 다
 
 즉 current blocked 의미는 한 층으로 줄었습니다.
 
-1. hard import/backfill 트랙만 여전히 codebook/schema 기준으로 blocked
+1. `GOV24_SERVICE_FIELD / USER_TYPE / BENEFIT_TYPE` hard import/backfill 트랙은 여전히 codebook/schema 또는 내부 canonical 규칙 기준으로 blocked
+2. `GOV24_SUPPORT_CONDITION` 은 partial runtime fact는 active, full-scope 확장만 deferred/blocked
 
 ## 요약
 
 1. `Gov24` runtime collect 트랙은 현재 active 다.
-2. 다만 `GOV24_*` hard import/backfill 은 여전히 blocked track이다.
-3. `GOV24_* = 0` 은 현재 slot/import 기준에서는 expected result 이다.
-4. `supportConditions` gap의 중심인 사업체/업종/창업 상태 code는 현재 제품 경계 기준으로 `deferred` 다.
-5. 다시 열 조건은 current API 기준 codebook/schema 확보 또는 제품이 사업체/업종 축을 실제로 소비하기 시작하는 것이다.
-6. 자료가 오면 label 3종을 먼저, `supportConditions` full inventory를 그다음 순서로 reopen 한다.
+2. `GOV24_SUPPORT_CONDITION` 은 partial runtime fact가 이미 active 이고, full-scope 확장만 남아 있다.
+3. `GOV24_SERVICE_FIELD / USER_TYPE / BENEFIT_TYPE` hard import/backfill 은 여전히 blocked track이다.
+4. `GOV24_* = 0` 은 현재 slot/import 기준에서는 expected result 이다.
+5. `supportConditions` gap의 중심인 사업체/업종/창업 상태 code는 현재 제품 경계 기준으로 `deferred` 다.
+6. 다시 열 조건은 current API 기준 codebook/schema 확보, 내부 canonical 규칙 승인, 또는 제품이 사업체/업종 축을 실제로 소비하기 시작하는 것이다.
+7. 자료나 내부 규칙이 준비되면 label 3종을 먼저, `supportConditions` full-scope 를 그다음 순서로 reopen 한다.
