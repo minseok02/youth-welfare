@@ -600,6 +600,17 @@ class AdminSecurityWebMvcTest {
                                 LocalDateTime.of(2026, 5, 2, 9, 45),
                                 java.math.BigDecimal.valueOf(0.3750),
                                 java.math.BigDecimal.valueOf(0.1250),
+                                new AdminDashboardResponse.RecommendationTrafficMixSnapshot(
+                                        8,
+                                        0,
+                                        0,
+                                        3,
+                                        0,
+                                        0,
+                                        3,
+                                        0,
+                                        0
+                                ),
                                 List.of(
                                         new AdminDashboardResponse.RecommendationWeightSnapshot(
                                                 "GROWTH",
@@ -667,6 +678,9 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.data.recommendation.nextWeightKey").value("STABLE"))
                 .andExpect(jsonPath("$.data.recommendation.remainingLogsUntilNextWeight").value(250))
                 .andExpect(jsonPath("$.data.recommendation.sentInWindow").value(8))
+                .andExpect(jsonPath("$.data.recommendation.trafficMixInWindow.exampleLogsInWindow").value(8))
+                .andExpect(jsonPath("$.data.recommendation.trafficMixInWindow.boundedLocalLogsInWindow").value(0))
+                .andExpect(jsonPath("$.data.recommendation.trafficMixInWindow.realNonExampleLogsInWindow").value(0))
                 .andExpect(jsonPath("$.data.notification.windowDays").value(7))
                 .andExpect(jsonPath("$.data.notification.sentInWindow").value(5))
                 .andExpect(jsonPath("$.data.search.windowDays").value(7))
@@ -712,6 +726,17 @@ class AdminSecurityWebMvcTest {
                                 null,
                                 java.math.BigDecimal.valueOf(0.5000),
                                 java.math.BigDecimal.valueOf(0.0000),
+                                new AdminDashboardResponse.RecommendationTrafficMixSnapshot(
+                                        2,
+                                        0,
+                                        0,
+                                        1,
+                                        0,
+                                        0,
+                                        1,
+                                        0,
+                                        0
+                                ),
                                 List.of()
                         ),
                         new AdminDashboardResponse.NotificationSection(0, 0, 14, 0, 0),
@@ -758,6 +783,9 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.data.trend.collect[1].windowDays").value(14))
                 .andExpect(jsonPath("$.data.recommendation.windowDays").value(14))
                 .andExpect(jsonPath("$.data.recommendation.nextWeightMinLogCount").value(500))
+                .andExpect(jsonPath("$.data.recommendation.trafficMixInWindow.exampleUsersInWindow").value(1))
+                .andExpect(jsonPath("$.data.recommendation.trafficMixInWindow.boundedLocalUsersInWindow").value(0))
+                .andExpect(jsonPath("$.data.recommendation.trafficMixInWindow.realNonExampleUsersInWindow").value(0))
                 .andExpect(jsonPath("$.data.notification.windowDays").value(14))
                 .andExpect(jsonPath("$.data.trend.recommendation[1].fallbackRate").value(0.5000))
                 .andExpect(jsonPath("$.data.search.windowDays").value(14))
@@ -887,6 +915,17 @@ class AdminSecurityWebMvcTest {
                         30,
                         9,
                         6,
+                        new AdminRecommendationBreakdownResponse.RecommendationTrafficMixSnapshot(
+                                30,
+                                0,
+                                0,
+                                18,
+                                0,
+                                0,
+                                9,
+                                0,
+                                0
+                        ),
                         List.of(
                                 new AdminRecommendationBreakdownResponse.SourceBreakdown(
                                         "YOUTH",
@@ -926,6 +965,7 @@ class AdminSecurityWebMvcTest {
                                         "청년 월세 지원",
                                         "YOUTH",
                                         "HOUSING",
+                                        "EXAMPLE",
                                         java.math.BigDecimal.valueOf(0.75231),
                                         true,
                                         false,
@@ -940,6 +980,7 @@ class AdminSecurityWebMvcTest {
                                         "청년 전세 지원",
                                         "BOKJIRO_LOCAL",
                                         "HOUSING",
+                                        "EXAMPLE",
                                         java.math.BigDecimal.valueOf(0.88123),
                                         false,
                                         true,
@@ -954,6 +995,7 @@ class AdminSecurityWebMvcTest {
                                         "청년 월세 지원",
                                         "YOUTH",
                                         "HOUSING",
+                                        "EXAMPLE",
                                         3,
                                         1,
                                         1,
@@ -974,12 +1016,18 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.data.sentLogsInWindow").value(30))
                 .andExpect(jsonPath("$.data.clickedLogsInWindow").value(9))
                 .andExpect(jsonPath("$.data.fallbackLogsInWindow").value(6))
+                .andExpect(jsonPath("$.data.trafficMixInWindow.exampleLogsInWindow").value(30))
+                .andExpect(jsonPath("$.data.trafficMixInWindow.boundedLocalUsersInWindow").value(0))
+                .andExpect(jsonPath("$.data.trafficMixInWindow.realNonExampleUsersInWindow").value(0))
                 .andExpect(jsonPath("$.data.sourceBreakdowns[0].sourceType").value("YOUTH"))
                 .andExpect(jsonPath("$.data.categoryBreakdowns[0].category").value("HOUSING"))
                 .andExpect(jsonPath("$.data.weightBreakdowns[0].weightKey").value("GROWTH"))
                 .andExpect(jsonPath("$.data.recentFallbackSamples[0].title").value("청년 월세 지원"))
+                .andExpect(jsonPath("$.data.recentFallbackSamples[0].userCohort").value("EXAMPLE"))
                 .andExpect(jsonPath("$.data.recentClickedSamples[0].title").value("청년 전세 지원"))
+                .andExpect(jsonPath("$.data.recentClickedSamples[0].userCohort").value("EXAMPLE"))
                 .andExpect(jsonPath("$.data.repeatExposureGroups[0].userKey").value("user-key-1"))
+                .andExpect(jsonPath("$.data.repeatExposureGroups[0].userCohort").value("EXAMPLE"))
                 .andExpect(jsonPath("$.data.repeatExposureGroups[0].serviceId").value(501))
                 .andExpect(jsonPath("$.data.repeatExposureGroups[0].exposureCount").value(3));
 

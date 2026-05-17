@@ -10,6 +10,8 @@ RUN_PUBLIC_PROFILE_CHAT_SMOKE="${RUN_PUBLIC_PROFILE_CHAT_SMOKE:-}"
 RUN_BOOKMARK_CONSISTENCY_SMOKE="${RUN_BOOKMARK_CONSISTENCY_SMOKE:-}"
 RUN_RECOMMENDATION_CLICK_SMOKE="${RUN_RECOMMENDATION_CLICK_SMOKE:-}"
 RUN_ADMIN_DASHBOARD_SMOKE="${RUN_ADMIN_DASHBOARD_SMOKE:-}"
+RUN_ADMIN_RECOMMENDATION_BREAKDOWNS_SMOKE="${RUN_ADMIN_RECOMMENDATION_BREAKDOWNS_SMOKE:-}"
+RUN_REAL_NON_EXAMPLE_SEED_SMOKE="${RUN_REAL_NON_EXAMPLE_SEED_SMOKE:-}"
 RUN_REPLAY_SMOKE="${RUN_REPLAY_SMOKE:-}"
 ONLY_STEP="${ONLY_STEP:-}"
 KEEP_ARTIFACTS="${KEEP_ARTIFACTS:-false}"
@@ -34,15 +36,15 @@ print_usage() {
 usage: deploy/smoke/run-local-validation-suite.sh [--help] [--print-plan] [--quick|--full] [--skip-replay] [--keep-artifacts] [--only STEP]
 
 Profiles:
-  VALIDATION_PROFILE=full   auth/session + public/profile/chat + bookmark + click + admin dashboard + replay
-  VALIDATION_PROFILE=quick  auth/session + public/profile/chat + bookmark + click + admin dashboard
+  VALIDATION_PROFILE=full   auth/session + public/profile/chat + bookmark + click + admin dashboard + admin recommendation breakdowns + replay
+  VALIDATION_PROFILE=quick  auth/session + public/profile/chat + bookmark + click + admin dashboard + admin recommendation breakdowns
 
 CLI shortcuts:
   --quick        set VALIDATION_PROFILE=quick
   --full         set VALIDATION_PROFILE=full
   --skip-replay  force RUN_REPLAY_SMOKE=false
   --keep-artifacts  force KEEP_ARTIFACTS=true for replay debugging
-  --only STEP    run only one step: auth-session | public-chat | bookmark | click | dashboard | replay
+  --only STEP    run only one step: auth-session | public-chat | bookmark | click | dashboard | dashboard-breakdowns | real-non-example-seed | replay
 
 Optional overrides:
   RUN_AUTH_SESSION_SMOKE=true|false
@@ -50,9 +52,11 @@ Optional overrides:
   RUN_BOOKMARK_CONSISTENCY_SMOKE=true|false
   RUN_RECOMMENDATION_CLICK_SMOKE=true|false
   RUN_ADMIN_DASHBOARD_SMOKE=true|false
+  RUN_ADMIN_RECOMMENDATION_BREAKDOWNS_SMOKE=true|false
+  RUN_REAL_NON_EXAMPLE_SEED_SMOKE=true|false
   RUN_REPLAY_SMOKE=true|false
   REPLAY_APP_BASE_URL=http://127.0.0.1:18082
-  ONLY_STEP=auth-session|public-chat|bookmark|click|dashboard|replay
+  ONLY_STEP=auth-session|public-chat|bookmark|click|dashboard|dashboard-breakdowns|real-non-example-seed|replay
   KEEP_ARTIFACTS=true|false
 
 Examples:
@@ -100,6 +104,7 @@ apply_only_step() {
       RUN_BOOKMARK_CONSISTENCY_SMOKE="false"
       RUN_RECOMMENDATION_CLICK_SMOKE="true"
       RUN_ADMIN_DASHBOARD_SMOKE="false"
+      RUN_ADMIN_RECOMMENDATION_BREAKDOWNS_SMOKE="false"
       RUN_REPLAY_SMOKE="false"
       ;;
     dashboard)
@@ -108,6 +113,27 @@ apply_only_step() {
       RUN_BOOKMARK_CONSISTENCY_SMOKE="false"
       RUN_RECOMMENDATION_CLICK_SMOKE="false"
       RUN_ADMIN_DASHBOARD_SMOKE="true"
+      RUN_ADMIN_RECOMMENDATION_BREAKDOWNS_SMOKE="false"
+      RUN_REPLAY_SMOKE="false"
+      ;;
+    dashboard-breakdowns)
+      RUN_AUTH_SESSION_SMOKE="false"
+      RUN_PUBLIC_PROFILE_CHAT_SMOKE="false"
+      RUN_BOOKMARK_CONSISTENCY_SMOKE="false"
+      RUN_RECOMMENDATION_CLICK_SMOKE="false"
+      RUN_ADMIN_DASHBOARD_SMOKE="false"
+      RUN_ADMIN_RECOMMENDATION_BREAKDOWNS_SMOKE="true"
+      RUN_REAL_NON_EXAMPLE_SEED_SMOKE="false"
+      RUN_REPLAY_SMOKE="false"
+      ;;
+    real-non-example-seed)
+      RUN_AUTH_SESSION_SMOKE="false"
+      RUN_PUBLIC_PROFILE_CHAT_SMOKE="false"
+      RUN_BOOKMARK_CONSISTENCY_SMOKE="false"
+      RUN_RECOMMENDATION_CLICK_SMOKE="false"
+      RUN_ADMIN_DASHBOARD_SMOKE="false"
+      RUN_ADMIN_RECOMMENDATION_BREAKDOWNS_SMOKE="false"
+      RUN_REAL_NON_EXAMPLE_SEED_SMOKE="true"
       RUN_REPLAY_SMOKE="false"
       ;;
     replay)
@@ -116,10 +142,12 @@ apply_only_step() {
       RUN_BOOKMARK_CONSISTENCY_SMOKE="false"
       RUN_RECOMMENDATION_CLICK_SMOKE="false"
       RUN_ADMIN_DASHBOARD_SMOKE="false"
+      RUN_ADMIN_RECOMMENDATION_BREAKDOWNS_SMOKE="false"
+      RUN_REAL_NON_EXAMPLE_SEED_SMOKE="false"
       RUN_REPLAY_SMOKE="true"
       ;;
     *)
-      echo "unsupported ONLY_STEP: ${ONLY_STEP} (expected auth-session, public-chat, bookmark, click, dashboard, or replay)" >&2
+      echo "unsupported ONLY_STEP: ${ONLY_STEP} (expected auth-session, public-chat, bookmark, click, dashboard, dashboard-breakdowns, real-non-example-seed, or replay)" >&2
       exit 1
       ;;
   esac
@@ -133,6 +161,8 @@ resolve_profile_defaults() {
       RUN_BOOKMARK_CONSISTENCY_SMOKE="${RUN_BOOKMARK_CONSISTENCY_SMOKE:-true}"
       RUN_RECOMMENDATION_CLICK_SMOKE="${RUN_RECOMMENDATION_CLICK_SMOKE:-true}"
       RUN_ADMIN_DASHBOARD_SMOKE="${RUN_ADMIN_DASHBOARD_SMOKE:-true}"
+      RUN_ADMIN_RECOMMENDATION_BREAKDOWNS_SMOKE="${RUN_ADMIN_RECOMMENDATION_BREAKDOWNS_SMOKE:-true}"
+      RUN_REAL_NON_EXAMPLE_SEED_SMOKE="${RUN_REAL_NON_EXAMPLE_SEED_SMOKE:-false}"
       RUN_REPLAY_SMOKE="${RUN_REPLAY_SMOKE:-false}"
       ;;
     full)
@@ -141,6 +171,8 @@ resolve_profile_defaults() {
       RUN_BOOKMARK_CONSISTENCY_SMOKE="${RUN_BOOKMARK_CONSISTENCY_SMOKE:-true}"
       RUN_RECOMMENDATION_CLICK_SMOKE="${RUN_RECOMMENDATION_CLICK_SMOKE:-true}"
       RUN_ADMIN_DASHBOARD_SMOKE="${RUN_ADMIN_DASHBOARD_SMOKE:-true}"
+      RUN_ADMIN_RECOMMENDATION_BREAKDOWNS_SMOKE="${RUN_ADMIN_RECOMMENDATION_BREAKDOWNS_SMOKE:-true}"
+      RUN_REAL_NON_EXAMPLE_SEED_SMOKE="${RUN_REAL_NON_EXAMPLE_SEED_SMOKE:-false}"
       RUN_REPLAY_SMOKE="${RUN_REPLAY_SMOKE:-true}"
       ;;
     *)
@@ -154,6 +186,8 @@ resolve_profile_defaults() {
   RUN_BOOKMARK_CONSISTENCY_SMOKE="$(normalize_flag "${RUN_BOOKMARK_CONSISTENCY_SMOKE}")"
   RUN_RECOMMENDATION_CLICK_SMOKE="$(normalize_flag "${RUN_RECOMMENDATION_CLICK_SMOKE}")"
   RUN_ADMIN_DASHBOARD_SMOKE="$(normalize_flag "${RUN_ADMIN_DASHBOARD_SMOKE}")"
+  RUN_ADMIN_RECOMMENDATION_BREAKDOWNS_SMOKE="$(normalize_flag "${RUN_ADMIN_RECOMMENDATION_BREAKDOWNS_SMOKE}")"
+  RUN_REAL_NON_EXAMPLE_SEED_SMOKE="$(normalize_flag "${RUN_REAL_NON_EXAMPLE_SEED_SMOKE}")"
   RUN_REPLAY_SMOKE="$(normalize_flag "${RUN_REPLAY_SMOKE}")"
   KEEP_ARTIFACTS="$(normalize_flag "${KEEP_ARTIFACTS}")"
 }
@@ -237,13 +271,15 @@ done
 resolve_profile_defaults
 apply_only_step
 
-printf 'validation_profile=%s auth=%s public_chat=%s bookmark=%s click=%s dashboard=%s replay=%s' \
+printf 'validation_profile=%s auth=%s public_chat=%s bookmark=%s click=%s dashboard=%s dashboard_breakdowns=%s real_non_example_seed=%s replay=%s' \
   "${VALIDATION_PROFILE}" \
   "${RUN_AUTH_SESSION_SMOKE}" \
   "${RUN_PUBLIC_PROFILE_CHAT_SMOKE}" \
   "${RUN_BOOKMARK_CONSISTENCY_SMOKE}" \
   "${RUN_RECOMMENDATION_CLICK_SMOKE}" \
   "${RUN_ADMIN_DASHBOARD_SMOKE}" \
+  "${RUN_ADMIN_RECOMMENDATION_BREAKDOWNS_SMOKE}" \
+  "${RUN_REAL_NON_EXAMPLE_SEED_SMOKE}" \
   "${RUN_REPLAY_SMOKE}"
 
 if [[ -n "${ONLY_STEP}" ]]; then
@@ -288,6 +324,18 @@ if [[ "${RUN_ADMIN_DASHBOARD_SMOKE}" == "true" ]]; then
   run_step \
     "admin dashboard smoke" \
     "${ROOT_DIR}/deploy/smoke/run-local-admin-dashboard-smoke.sh"
+fi
+
+if [[ "${RUN_ADMIN_RECOMMENDATION_BREAKDOWNS_SMOKE}" == "true" ]]; then
+  run_step \
+    "admin recommendation breakdowns smoke" \
+    "${ROOT_DIR}/deploy/smoke/run-local-admin-recommendation-breakdowns-smoke.sh"
+fi
+
+if [[ "${RUN_REAL_NON_EXAMPLE_SEED_SMOKE}" == "true" ]]; then
+  run_step \
+    "real-non-example recommendation seed smoke" \
+    "${ROOT_DIR}/deploy/smoke/run-local-real-non-example-recommendation-seed-smoke.sh"
 fi
 
 if [[ "${RUN_REPLAY_SMOKE}" == "true" ]]; then

@@ -26,6 +26,8 @@ public class AdminDashboardRecommendationService {
 
         AdminDashboardReadRows.RecommendationSummaryRow recommendationSummary =
                 adminDashboardRecommendationReadRepository.fetchRecommendationSummary(dayAgo, summaryWindowAgo);
+        AdminDashboardReadRows.RecommendationTrafficMixRow recommendationTrafficMix =
+                adminDashboardRecommendationReadRepository.fetchRecommendationTrafficMix(summaryWindowAgo);
 
         return new AdminRecommendationBreakdownResponse(
                 now,
@@ -33,6 +35,17 @@ public class AdminDashboardRecommendationService {
                 recommendationSummary.sentInWindow(),
                 recommendationSummary.clickedInWindow(),
                 recommendationSummary.fallbackInWindow(),
+                new AdminRecommendationBreakdownResponse.RecommendationTrafficMixSnapshot(
+                        recommendationTrafficMix.exampleLogsInWindow(),
+                        recommendationTrafficMix.boundedLocalLogsInWindow(),
+                        recommendationTrafficMix.realNonExampleLogsInWindow(),
+                        recommendationTrafficMix.exampleUsersInWindow(),
+                        recommendationTrafficMix.boundedLocalUsersInWindow(),
+                        recommendationTrafficMix.realNonExampleUsersInWindow(),
+                        recommendationTrafficMix.exampleClickedUsersInWindow(),
+                        recommendationTrafficMix.boundedLocalClickedUsersInWindow(),
+                        recommendationTrafficMix.realNonExampleClickedUsersInWindow()
+                ),
                 adminDashboardRecommendationReadRepository.fetchRecommendationSourceBreakdowns(summaryWindowAgo, breakdownLimit).stream()
                         .map(row -> new AdminRecommendationBreakdownResponse.SourceBreakdown(
                                 row.sourceType(),
@@ -72,6 +85,7 @@ public class AdminDashboardRecommendationService {
                                 row.title(),
                                 row.sourceType(),
                                 row.category(),
+                                row.userCohort(),
                                 row.finalScore(),
                                 row.fallback(),
                                 row.clicked(),
@@ -86,6 +100,7 @@ public class AdminDashboardRecommendationService {
                                 row.title(),
                                 row.sourceType(),
                                 row.category(),
+                                row.userCohort(),
                                 row.finalScore(),
                                 row.fallback(),
                                 row.clicked(),
@@ -100,6 +115,7 @@ public class AdminDashboardRecommendationService {
                                 row.title(),
                                 row.sourceType(),
                                 row.category(),
+                                row.userCohort(),
                                 row.exposureCount(),
                                 row.clickedCount(),
                                 row.fallbackCount(),

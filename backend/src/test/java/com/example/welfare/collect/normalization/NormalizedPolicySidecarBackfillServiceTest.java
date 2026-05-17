@@ -93,12 +93,6 @@ class NormalizedPolicySidecarBackfillServiceTest {
                 RawApiPayload.ApiCategory.LIST,
                 10
         )).willReturn(List.of(new NormalizedPolicySidecarBackfillTarget(raw, saved)));
-        given(normalizedPolicySidecarBackfillReadRepository.findTargetsBySourceTypeAndApiCategoryOrderByFetchedAtAsc(
-                WelfareService.SourceType.GOV24,
-                RawApiPayload.ApiCategory.LIST,
-                10
-        )).willReturn(List.of());
-
         NormalizedPolicySidecarBackfillService.BackfillResult result = service.backfillBokjiroListSidecars(10);
 
         assertThat(result.scannedCount()).isEqualTo(1);
@@ -240,12 +234,6 @@ class NormalizedPolicySidecarBackfillServiceTest {
                 RawApiPayload.ApiCategory.LIST,
                 10
         )).willReturn(List.of(new NormalizedPolicySidecarBackfillTarget(raw, saved)));
-        given(normalizedPolicySidecarBackfillReadRepository.findTargetsBySourceTypeAndApiCategoryOrderByFetchedAtAsc(
-                WelfareService.SourceType.GOV24,
-                RawApiPayload.ApiCategory.LIST,
-                10
-        )).willReturn(List.of());
-
         NormalizedPolicySidecarBackfillService.BackfillResult result = service.backfillBokjiroListSidecars(10);
 
         assertThat(result.scannedCount()).isEqualTo(1);

@@ -120,6 +120,19 @@ public final class AdminDashboardReadRows {
     ) {
     }
 
+    public record RecommendationTrafficMixRow(
+            long exampleLogsInWindow,
+            long boundedLocalLogsInWindow,
+            long realNonExampleLogsInWindow,
+            long exampleUsersInWindow,
+            long boundedLocalUsersInWindow,
+            long realNonExampleUsersInWindow,
+            long exampleClickedUsersInWindow,
+            long boundedLocalClickedUsersInWindow,
+            long realNonExampleClickedUsersInWindow
+    ) {
+    }
+
     public record RecommendationSourceBreakdownRow(
             String sourceType,
             long sentCount,
@@ -152,6 +165,7 @@ public final class AdminDashboardReadRows {
             String title,
             String sourceType,
             String category,
+            String userCohort,
             BigDecimal finalScore,
             boolean fallback,
             boolean clicked,
@@ -166,6 +180,7 @@ public final class AdminDashboardReadRows {
             String title,
             String sourceType,
             String category,
+            String userCohort,
             long exposureCount,
             long clickedCount,
             long fallbackCount,

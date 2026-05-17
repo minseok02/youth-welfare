@@ -170,77 +170,95 @@ recommendation/replay 는 collect와 sidecar snapshot 품질에 직접 의존합
 
 가 남습니다.
 
-### 3. CTR 표본 부족
+### 3. CTR raw count는 늘었지만 tuning signal은 아직 bounded synthetic-heavy
 
 클릭 추적 경계 자체는 현재 정상입니다.
 
 - 추천 응답의 `serviceId + logId` 로 정책 상세 진입 시
 - `recommendation_logs.is_clicked=1` 이 실제 DB에 기록됨
 
-즉 현재 병목은 click instrumentation이 아니라 실사용 클릭 표본 부족입니다.
+즉 현재 병목은 click instrumentation bug가 아니라,
+현재 로그가 실제 품질 튜닝에 써도 되는 신호인지의 문제입니다.
 
-`2026-05-15` local audit 기준:
+`2026-05-17` local audit 기준:
 
-- total recommendation logs: `1923`
-- clicked logs: `19`
-- overall CTR: `0.99%`
-- clicked users / services: `19 / 2`
-- fallback sent/clicked: `1068 / 0`
-- AI sent/clicked: `855 / 19`
+- `USER_COHORT=all`
+- total recommendation logs: `4089`
+- clicked logs: `28`
+- overall CTR: `0.68%`
+- clicked users / services: `28 / 2`
+- fallback sent/clicked: `1067 / 0`
+- AI sent/clicked: `3022 / 28`
+- example logs/users: `4077 / 451`
+- bounded-local logs/users: `6 / 1`
+- real non-example logs/users: `6 / 1`
 - weight bucket:
-  - `0.40:0.60` -> `1410 sent / 16 clicked / 1.13%`
+  - `0.40:0.60` -> `3576 sent / 25 clicked / 0.70%`
   - `0.60:0.40` -> `366 sent / 3 clicked / 0.82%`
   - `0.80:0.20` -> `147 sent / 0 clicked / 0.00%`
+- all-cohort readiness: `DEFERRED_REAL_NON_EXAMPLE_USER_SAMPLE_THIN`
+- `USER_COHORT=bounded_local`
+  - total recommendation logs: `6`
+  - clicked logs: `1`
+  - clicked users / services: `1 / 1`
+  - readiness: `DIAGNOSTIC_BOUNDED_LOCAL_TRAFFIC`
+- `USER_COHORT=real_non_example`
+  - total recommendation logs: `6`
+  - clicked logs: `1`
+  - readiness: `DEFERRED_CLICK_SAMPLE_THIN`
 
-즉 total log 수는 이미 top stage를 넘겼지만, 클릭 표본은 아직 얇아서 현재 readiness 판정은 `DEFERRED_CLICK_SAMPLE_THIN` 입니다. 게다가 클릭이 현재 `2`개 서비스(`2622`, `3688`)에만 몰려 있어 sample diversity도 부족합니다.
-따라서 recommendation 쪽의 다음 active 작업은 지금 당장 weight tuning을 여는 것이 아니라, readiness baseline을 유지한 채 표본이 더 쌓일 때까지 bounded runtime/quality smoke 결과를 계속 관찰하는 것입니다.
+즉 raw click 수와 weight bucket 개수만 보면 review 문턱은 넘었지만, current gate는 그걸로 reopen 하지 않습니다.
+현재 `REAL_NON_EXAMPLE` 로그도 이번에 연 `run-local-real-non-example-recommendation-seed-smoke.sh` 가 만든 local synthetic account `1명` 뿐이라 current signal은 아직 **실사용 품질 신호**가 아니라 **synthetic-heavy local baseline + cohort drill** 로 읽는 편이 맞습니다.
+게다가 클릭도 여전히 `2`개 서비스(`2622`, `3688`)에만 몰려 있고 fallback click은 `0` 이라,
+이 상태에서 곧바로 weight를 바꾸면 smoke 계정 편향과 특정 서비스 편향을 함께 품질 신호로 과대해석하게 됩니다.
+따라서 recommendation 쪽의 다음 active 작업은 direct weight 변경이 아니라
+bounded/local seed를 넘어서는 로그 기준선 확보, concentration audit와 diversity/fallback 경계 재확인입니다.
 
 ### 4. 저장 추천 편중
 
 CTR readiness와 별개로, 최신 `user_recommendations` batch 자체도 현재 꽤 집중되어 있습니다.
 
-`2026-05-16` local concentration audit 기준:
+`2026-05-17` local concentration audit 기준:
 
-- latest batch `2610 rows / 172 users / 113 distinct services`
+- `USER_COHORT=all`
+- latest batch `4065 rows / 453 users / 113 distinct services`
+- latest batch signal quality는 `MIXED_WITH_NON_REAL_BATCH`
 - top1 leader:
   - `2622 청년월세 지원사업`
-  - `99 / 172 users`
-  - `57.56%`
+  - `270 / 453 users`
+  - `59.60%`
 - latest source distribution:
-  - `YOUTH 1352`
-  - `BOKJIRO_LOCAL 483`
-  - `BOKJIRO_CENTRAL 393`
-  - `GOV24 382`
+  - `YOUTH 1446`
+  - `GOV24 944`
+  - `BOKJIRO_CENTRAL 894`
+  - `BOKJIRO_LOCAL 775`
 - latest category distribution:
-  - `금융·생활지원 832`
-  - `일자리 676`
-  - `교육·직업훈련 414`
-  - `주거 403`
+  - `금융·생활지원 1343`
+  - `주거 1073`
+  - `교육·직업훈련 690`
+  - `일자리 666`
+- `USER_COHORT=bounded_local`
+  - latest batch `6 rows / 1 users`
+  - concentration readiness: `CONCENTRATED_TOP1`
+  - signal quality: `BOUNDED_LOCAL_ONLY_COHORT`
+- `USER_COHORT=real_non_example`
+  - latest batch `6 rows / 1 users`
+  - signal quality: `REAL_NON_EXAMPLE_ONLY_COHORT`
 
 우선순위가 완전히 무시되는 상태는 아닙니다.
+다만 현재 latest batch의 `bounded local 1명 + real non-example 1명` 모두 실사용자가 아니라 로컬 seed 계정이라, 이 수치는 제품 실사용 baseline이라기보다 로컬 smoke/validation baseline으로 해석해야 합니다.
+같은 날 새 `8명` no-priority bounded smoke를 다시 만들면 top1은 다시 `2622 8/8 (100%)` 로 잠기고, 스크립트도 `audit_user_cohort=example`, `signal_quality=SYNTHETIC_SIGNUP_SAMPLES` 를 함께 출력합니다.
+즉 최근 no-priority 조정 실험은 진단 자료로는 남지만, 지금 시점의 practical reading은 “분산이 확정됐다”가 아니라 **synthetic-heavy baseline 안에서만 반복 측정이 이뤄지고 있다** 쪽입니다.
 
-다만 같은 날 새 no-priority 사용자 `8명` bounded smoke를 다시 만들면 top1은 아래처럼 갈라집니다.
-
-- `2571 청년내일저축계좌` `4 / 8`
-- `2622 청년월세 지원사업` `4 / 8`
-- leader share `50.0%`
-
-후속으로 같은 `금융·생활지원` bucket 안의 service 대표도 user key 기준으로 회전시키자, `24명` no-priority 표본은 아래처럼 다시 측정됐습니다.
-
-- `2622 청년월세 지원사업` `13 / 24`
-- `2571 청년내일저축계좌` `11 / 24`
-- leader share `54.17%`
-
-즉 최근 no-priority 조정은 **새 refresh 표본의 top1 집중을 조금씩 낮추고는 있지만**, 저장 추천 전체 batch는 아직 `CONCENTRATED_TOP1` 상태로 읽는 것이 맞습니다.
-
-- `HAS_PRIORITY` 사용자 `20`
-- `NO_PRIORITY` 사용자 `112`
-- `NO_PRIORITY` top1 대표는 `청년월세 지원사업(2622)` `73명`
-- 같은 `NO_PRIORITY` 구간에서 `청년 웰컴페이(이사비) 지원사업(3611)` 도 `32명`의 top1까지 올라와, 최근 완화 로직이 신규/최근 refresh 사용자에선 실제로 분산을 만들고 있습니다.
-- `HAS_PRIORITY` 쪽에서는 `드림나래(3688)` `12명`, `청년월세 지원사업(YOUTH 1411)` `5명` 등 일부 차이가 보입니다.
+- `HAS_PRIORITY` 사용자 `36`
+- `NO_PRIORITY` 사용자 `393`
+- `NO_PRIORITY` top1 대표는 `청년월세 지원사업(2622)` `238명`
+- 같은 `NO_PRIORITY` 구간에서 `청년 웰컴페이(이사비) 지원사업(3611)` 가 `39명`, `청년내일저축계좌(2571)` 가 `107명`의 top1까지 올라와 있어, 최근 완화 로직이 신규/최근 refresh 사용자에선 일부 분산을 만들고 있습니다.
+- `HAS_PRIORITY` 쪽에서는 `드림나래(3688)` `12명`, `지역인재육성을 위한 장학금 지원(6790)` `9명`, `청년월세 지원사업(YOUTH 1411)` `5명` 등 일부 차이가 보입니다.
 
 다만 no-priority candidate audit 기준 top5 source rank는 아직 `BOKJIRO_CENTRAL -> BOKJIRO_CENTRAL -> BOKJIRO_LOCAL -> GOV24 -> GOV24` 로 고정되고, top1도 여전히 `2571/2622` 둘 사이에서만 갈라집니다. 즉 현재 병목은 `priority 미반영` 보다는 **same rule peer 안에서 AI 차이가 top1을 결정하고, 같은 category bucket 안 local/source 후보가 뒤로 밀리는 구조** 쪽으로 해석하는 편이 맞습니다.
 최근 no-priority retrieval pool 재배열과 top-band rotation 이후에도 overall 판정은 아직 `CONCENTRATED_TOP1` 이므로, 효과는 “분산 시작” 수준으로 보고 추가 보정 여부를 계속 판단해야 합니다.
+추가로 `2026-05-17` 새 `8명` no-priority bounded smoke에서는 top1이 다시 `2622 8/8` 로 잠겼고, `NO_PRIORITY_TOP_BAND=0.20` 실험도 실제 분산 효과를 만들지 못했습니다. 따라서 다음 액션은 band 상수 추가 조정보다 **주거 후보군 내부 score gap과 no-priority AI trust 해석** 을 먼저 보는 쪽이 맞습니다.
 
 ### 5. fresh reset 뒤 collect/replay 전제
 
@@ -272,7 +290,8 @@ local helper/replay smoke는 integrated schema 존재 여부와 collect/replay p
 4. `ai_score` exact match는 현재 제품 보장 범위가 아닙니다.
 5. notification 후보 선택은 현재 `[A, A, B?]` 슬롯 배치입니다.
 6. 운영 지표는 `GET /api/admin/dashboard/summary` 에서 collect/recommendation/notification/search/user_pii_sync 묶음으로 조회합니다.
-   recommendation 섹션에는 현재 active weight, 누적 recommendation log 수, latest clicked 시각, 최근 7일 weight bucket 분포가 포함됩니다.
+   recommendation 섹션에는 현재 active weight, 누적 recommendation log 수, latest clicked 시각, 최근 7일 weight bucket 분포와 `trafficMixInWindow(example/boundedLocal/realNonExample logs/users/clicked users)` 가 포함됩니다.
+   `GET /api/admin/dashboard/recommendation-breakdowns` 의 `recentFallbackSamples`, `recentClickedSamples`, `repeatExposureGroups` 도 이제 각 row에 `userCohort(EXAMPLE/BOUNDED_LOCAL/REAL_NON_EXAMPLE)` 를 포함해, 상세 triage 시 bounded local seed와 real non-example을 분리해서 읽을 수 있습니다.
    collect 섹션에는 최근 실패 run 목록, search 섹션에는 최근 7일 0건 검색 수가 포함됩니다.
    `trend` 섹션에는 collect/recommendation/search 의 1일/7일/30일 추세가 포함됩니다.
 7. 추천 가중치/프롬프트 재조정은 CTR readiness audit가 `READY_FOR_WEIGHT_REVIEW` 를 줄 때에만 reopen 합니다.

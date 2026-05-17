@@ -10,6 +10,7 @@ public record AdminRecommendationBreakdownResponse(
         long sentLogsInWindow,
         long clickedLogsInWindow,
         long fallbackLogsInWindow,
+        RecommendationTrafficMixSnapshot trafficMixInWindow,
         List<SourceBreakdown> sourceBreakdowns,
         List<CategoryBreakdown> categoryBreakdowns,
         List<WeightBreakdown> weightBreakdowns,
@@ -17,6 +18,19 @@ public record AdminRecommendationBreakdownResponse(
         List<RecommendationSample> recentClickedSamples,
         List<RepeatExposureGroup> repeatExposureGroups
 ) {
+
+    public record RecommendationTrafficMixSnapshot(
+            long exampleLogsInWindow,
+            long boundedLocalLogsInWindow,
+            long realNonExampleLogsInWindow,
+            long exampleUsersInWindow,
+            long boundedLocalUsersInWindow,
+            long realNonExampleUsersInWindow,
+            long exampleClickedUsersInWindow,
+            long boundedLocalClickedUsersInWindow,
+            long realNonExampleClickedUsersInWindow
+    ) {
+    }
 
     public record SourceBreakdown(
             String sourceType,
@@ -56,6 +70,7 @@ public record AdminRecommendationBreakdownResponse(
             String title,
             String sourceType,
             String category,
+            String userCohort,
             BigDecimal finalScore,
             boolean fallback,
             boolean clicked,
@@ -70,6 +85,7 @@ public record AdminRecommendationBreakdownResponse(
             String title,
             String sourceType,
             String category,
+            String userCohort,
             long exposureCount,
             long clickedCount,
             long fallbackCount,

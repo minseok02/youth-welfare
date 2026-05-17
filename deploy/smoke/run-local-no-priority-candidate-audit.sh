@@ -161,6 +161,8 @@ leader_share = round(leader_count * 100.0 / len(top1_rows), 2)
 
 print(f"sample_users={sample_users}")
 print(f"top_k={len(rows) // sample_users}")
+print("audit_user_cohort=example")
+print("signal_quality=SYNTHETIC_SIGNUP_SAMPLES")
 print(f"top1_leader_service_id={leader[0]}")
 print(f"top1_leader_title={leader[1]}")
 print(f"top1_leader_source={leader[2]}")

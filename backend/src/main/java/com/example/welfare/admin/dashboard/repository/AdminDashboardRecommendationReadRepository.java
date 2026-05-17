@@ -16,6 +16,19 @@ public class AdminDashboardRecommendationReadRepository {
 
     private final NamedParameterJdbcTemplate jdbcTemplate;
 
+    private static final String RECOMMENDATION_USER_COHORT_CASE = """
+            case
+                when lower(split_part(coalesce(u.email, ''), '@', 2)) = 'example.com' then 'EXAMPLE'
+                when lower(split_part(coalesce(u.email, ''), '@', 2)) = 'smoke.local'
+                    or lower(split_part(coalesce(u.email, ''), '@', 2)) = 'localhost'
+                    or lower(split_part(coalesce(u.email, ''), '@', 2)) like '%.local'
+                    or lower(split_part(coalesce(u.email, ''), '@', 2)) like '%.test'
+                    or lower(split_part(coalesce(u.email, ''), '@', 2)) like '%.invalid'
+                    then 'BOUNDED_LOCAL'
+                else 'REAL_NON_EXAMPLE'
+            end
+            """;
+
     public AdminDashboardReadRows.RecommendationSummaryRow fetchRecommendationSummary(LocalDateTime dayAgo, LocalDateTime weekAgo) {
         return jdbcTemplate.queryForObject("""
                 select count(*) as total_logs,
@@ -52,6 +65,73 @@ public class AdminDashboardRecommendationReadRepository {
                         rs.getLong("sent_count"),
                         rs.getLong("clicked_count"),
                         rs.getLong("fallback_count")
+                )
+        );
+    }
+
+    public AdminDashboardReadRows.RecommendationTrafficMixRow fetchRecommendationTrafficMix(LocalDateTime windowAgo) {
+        return jdbcTemplate.queryForObject("""
+                with cohorted_logs as (
+                    select rl.user_key,
+                           rl.sent_at,
+                           rl.clicked_at,
+                           rl.is_clicked,
+                           %s as user_cohort
+                      from recommendation_logs rl
+                      left join users u on u.user_key = rl.user_key
+                )
+                select coalesce(sum(case
+                                       when sent_at >= :windowAgo and user_cohort = 'EXAMPLE'
+                                           then 1
+                                       else 0
+                                   end), 0) as example_logs_in_window,
+                       coalesce(sum(case
+                                       when sent_at >= :windowAgo and user_cohort = 'BOUNDED_LOCAL'
+                                           then 1
+                                       else 0
+                                   end), 0) as bounded_local_logs_in_window,
+                       coalesce(sum(case
+                                       when sent_at >= :windowAgo and user_cohort = 'REAL_NON_EXAMPLE'
+                                           then 1
+                                       else 0
+                                   end), 0) as real_non_example_logs_in_window,
+                       count(distinct case
+                                          when sent_at >= :windowAgo and user_cohort = 'EXAMPLE'
+                                              then user_key
+                                       end) as example_users_in_window,
+                       count(distinct case
+                                          when sent_at >= :windowAgo and user_cohort = 'BOUNDED_LOCAL'
+                                              then user_key
+                                       end) as bounded_local_users_in_window,
+                       count(distinct case
+                                          when sent_at >= :windowAgo and user_cohort = 'REAL_NON_EXAMPLE'
+                                              then user_key
+                                       end) as real_non_example_users_in_window,
+                       count(distinct case
+                                          when is_clicked = true and clicked_at >= :windowAgo and user_cohort = 'EXAMPLE'
+                                              then user_key
+                                       end) as example_clicked_users_in_window,
+                       count(distinct case
+                                          when is_clicked = true and clicked_at >= :windowAgo and user_cohort = 'BOUNDED_LOCAL'
+                                              then user_key
+                                       end) as bounded_local_clicked_users_in_window,
+                       count(distinct case
+                                          when is_clicked = true and clicked_at >= :windowAgo and user_cohort = 'REAL_NON_EXAMPLE'
+                                              then user_key
+                                       end) as real_non_example_clicked_users_in_window
+                  from cohorted_logs
+                """.formatted(RECOMMENDATION_USER_COHORT_CASE),
+                new MapSqlParameterSource("windowAgo", windowAgo),
+                (rs, rowNum) -> new AdminDashboardReadRows.RecommendationTrafficMixRow(
+                        rs.getLong("example_logs_in_window"),
+                        rs.getLong("bounded_local_logs_in_window"),
+                        rs.getLong("real_non_example_logs_in_window"),
+                        rs.getLong("example_users_in_window"),
+                        rs.getLong("bounded_local_users_in_window"),
+                        rs.getLong("real_non_example_users_in_window"),
+                        rs.getLong("example_clicked_users_in_window"),
+                        rs.getLong("bounded_local_clicked_users_in_window"),
+                        rs.getLong("real_non_example_clicked_users_in_window")
                 )
         );
     }
@@ -166,6 +246,7 @@ public class AdminDashboardRecommendationReadRepository {
                        ws.title,
                        ws.source_type,
                        ws.unified_category,
+                       %s as user_cohort,
                        rl.final_score,
                        rl.is_fallback,
                        rl.is_clicked,
@@ -173,11 +254,12 @@ public class AdminDashboardRecommendationReadRepository {
                        rl.clicked_at
                   from recommendation_logs rl
                   join welfare_services ws on ws.id = rl.service_id
+                  left join users u on u.user_key = rl.user_key
                  where rl.sent_at >= :windowAgo
                    and rl.is_fallback = true
               order by rl.sent_at desc, rl.id desc
                  limit %d
-                """.formatted(limit),
+                """.formatted(RECOMMENDATION_USER_COHORT_CASE, limit),
                 new MapSqlParameterSource("windowAgo", windowAgo),
                 (rs, rowNum) -> new AdminDashboardReadRows.RecommendationSampleRow(
                         rs.getLong("log_id"),
@@ -185,6 +267,7 @@ public class AdminDashboardRecommendationReadRepository {
                         rs.getString("title"),
                         rs.getString("source_type"),
                         rs.getString("unified_category"),
+                        rs.getString("user_cohort"),
                         rs.getBigDecimal("final_score"),
                         rs.getBoolean("is_fallback"),
                         rs.getBoolean("is_clicked"),
@@ -201,6 +284,7 @@ public class AdminDashboardRecommendationReadRepository {
                        ws.title,
                        ws.source_type,
                        ws.unified_category,
+                       %s as user_cohort,
                        rl.final_score,
                        rl.is_fallback,
                        rl.is_clicked,
@@ -208,11 +292,12 @@ public class AdminDashboardRecommendationReadRepository {
                        rl.clicked_at
                   from recommendation_logs rl
                   join welfare_services ws on ws.id = rl.service_id
+                  left join users u on u.user_key = rl.user_key
                  where rl.sent_at >= :windowAgo
                    and rl.is_clicked = true
               order by rl.clicked_at desc, rl.id desc
                  limit %d
-                """.formatted(limit),
+                """.formatted(RECOMMENDATION_USER_COHORT_CASE, limit),
                 new MapSqlParameterSource("windowAgo", windowAgo),
                 (rs, rowNum) -> new AdminDashboardReadRows.RecommendationSampleRow(
                         rs.getLong("log_id"),
@@ -220,6 +305,7 @@ public class AdminDashboardRecommendationReadRepository {
                         rs.getString("title"),
                         rs.getString("source_type"),
                         rs.getString("unified_category"),
+                        rs.getString("user_cohort"),
                         rs.getBigDecimal("final_score"),
                         rs.getBoolean("is_fallback"),
                         rs.getBoolean("is_clicked"),
@@ -236,6 +322,7 @@ public class AdminDashboardRecommendationReadRepository {
                        ws.title,
                        ws.source_type,
                        ws.unified_category,
+                       %s as user_cohort,
                        count(*) as exposure_count,
                        coalesce(sum(case when rl.is_clicked = true then 1 else 0 end), 0) as clicked_count,
                        coalesce(sum(case when rl.is_fallback = true then 1 else 0 end), 0) as fallback_count,
@@ -244,15 +331,16 @@ public class AdminDashboardRecommendationReadRepository {
                        max(rl.clicked_at) as latest_clicked_at
                   from recommendation_logs rl
                   join welfare_services ws on ws.id = rl.service_id
+                  left join users u on u.user_key = rl.user_key
                  where rl.sent_at >= :windowAgo
-              group by rl.user_key, ws.id, ws.title, ws.source_type, ws.unified_category
+              group by rl.user_key, ws.id, ws.title, ws.source_type, ws.unified_category, %s
                 having count(*) > 1
               order by exposure_count desc,
                        latest_sent_at desc,
                        rl.user_key asc,
                        ws.id asc
                  limit %d
-                """.formatted(limit),
+                """.formatted(RECOMMENDATION_USER_COHORT_CASE, RECOMMENDATION_USER_COHORT_CASE, limit),
                 new MapSqlParameterSource("windowAgo", windowAgo),
                 (rs, rowNum) -> new AdminDashboardReadRows.RecommendationRepeatExposureGroupRow(
                         rs.getString("user_key"),
@@ -260,6 +348,7 @@ public class AdminDashboardRecommendationReadRepository {
                         rs.getString("title"),
                         rs.getString("source_type"),
                         rs.getString("unified_category"),
+                        rs.getString("user_cohort"),
                         rs.getLong("exposure_count"),
                         rs.getLong("clicked_count"),
                         rs.getLong("fallback_count"),

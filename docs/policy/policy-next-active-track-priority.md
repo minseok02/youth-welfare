@@ -50,11 +50,14 @@
 - 개인 캐시는 recommendation payload 전체를 Redis에 넣는 대신, `non-personal refresh` 재계산을 잠시 억제하는 마커만 저장해 현재 persistence/log/bookmark 경계와 충돌을 줄였다.
 - `2026-05-15` 기준 개인 캐시 회귀 검증은 `collect/replay/broad-suite` 기준선에서 다시 통과했다. 타깃 recommendation cache 테스트, `run-local-education-priority-replay.sh`, 전체 `./gradlew test integrationTest --no-daemon` 까지 모두 green이다.
 - 따라서 지금 당장 다시 열 수 있는 practical task는 `CTR tuning` 자체보다, bounded runtime 경로와 local closeout 기준선이 문서/스크립트/실행 결과에서 계속 같은 truth를 유지하는지 반복 검증하는 쪽이다.
-- CTR 관련 다음 액션은 여전히 `CTR readiness audit` 를 기준으로 표본이 실제 튜닝 가능한 상태인지 재확인하고, 충분한 click sample이 쌓인 뒤에만 추천 품질 가중치를 다시 조정하는 쪽이다.
+- CTR 관련 다음 액션은 `CTR readiness audit` 와 concentration audit를 같이 읽되, 먼저 synthetic-only traffic 인지부터 걸러내고 그 다음에만 weight tuning 또는 diversity/fallback 보정 순서를 판단하는 쪽이다.
 - 군집 캐시는 실제 사용자 수와 요청 패턴이 충분히 커졌을 때 hit-rate / stale / invalidation 비용을 다시 계산하며 재검토하는 것이 맞다.
 - `카카오 알림톡` 은 비즈니스 채널/발신 프로필/템플릿 심사와 사업자 증빙이 먼저라, 코드보다 운영 자격이 선행 조건이다.
-- `2026-05-15` local CTR audit 기준 total logs는 `1923` 이지만 clicked logs는 `19`, overall CTR은 `0.99%`, fallback clicked는 `0`, clicked service는 `2`개뿐이라 현재 readiness 판정은 `DEFERRED_CLICK_SAMPLE_THIN` 이다.
-- 따라서 현재 phase에서 더 진행할 실용적 후보는 `CTR readiness audit + 표본 확충` 이고, 실제 weight tuning은 readiness가 올라간 뒤에만 연다. 군집 캐시는 장래 확장 포인트로 남긴다.
+- `2026-05-17` local CTR audit 기준 total logs는 `4089`, clicked logs는 `28` 까지 올라왔지만, 새 3단계 cohort 기준 `example_logs/users=4077/451`, `bounded_local_logs/users=6/1`, `real_non_example_logs/users=6/1` 이다.
+- 같은 wrapper를 `USER_COHORT=bounded_local` 로 다시 태우면 CTR은 `audit_scope_logs/users=6/1`, `DIAGNOSTIC_BOUNDED_LOCAL_TRAFFIC`, concentration은 `latest_batch_rows/users=6/1`, `BOUNDED_LOCAL_ONLY_COHORT` 이다.
+- `USER_COHORT=real_non_example` 로 다시 태우면 CTR은 `6/1`, `DEFERRED_CLICK_SAMPLE_THIN`, concentration은 `6/1`, `REAL_NON_EXAMPLE_ONLY_COHORT` 이다.
+- 다만 all-cohort readiness도 지금은 `READY_FOR_WEIGHT_REVIEW` 로 바로 열지 않고 `DEFERRED_REAL_NON_EXAMPLE_USER_SAMPLE_THIN` 으로 막는다. 현재 `REAL_NON_EXAMPLE` 표본이 local synthetic account `1명` 뿐이기 때문이다.
+- 즉 현재 phase의 실용적 다음 액션은 direct weight 변경보다 `bounded local seed와 real non-example seed를 넘어서는 실제 로그 기준선 확보 + recommendation concentration/diversity/fallback 경계 재해석` 이다. 군집 캐시는 장래 확장 포인트로 남긴다.
 - 별도로 `2026-05-15` local recommendation concentration audit 기준 latest batch는 `2394 rows / 132 users / 113 services`, top1 leader `2622` 가 `75 / 132 users (56.82%)` 를 차지한다. 최근 no-priority retrieval/rerank 보강 뒤 `3611` 이 top1로 올라오는 비중이 커졌지만, overall 판정은 아직 `CONCENTRATED_TOP1` 이다. 즉 priority가 완전히 무시되는 상태는 아니고, 현재 병목은 여전히 `priority 미반영` 보다는 `diversity / fallback / balancing 약함` 쪽으로 보는 편이 맞다.
 
 반면 아래는 계속 blocked/backlog 또는 deferred 로 둡니다.
@@ -155,6 +158,6 @@ blocked SQL 과 deferred Gov24 business-code 승격보다 먼저
 ## 요약
 
 1. `Gov24` 는 runtime closeout과 audit 기준선까지 닫혔고, 남은 것은 external blocked 또는 deferred 판단이다.
-2. `CTR tuning` 은 readiness가 아직 `DEFERRED_CLICK_SAMPLE_THIN` 이므로 바로 여는 active 작업이 아니다.
+2. `CTR tuning` 은 raw click 수와 별개로 현재도 bounded local seed 중심이라 바로 여는 active 작업이 아니다.
 3. 지금 단계의 active main track은 local 기능/구조 검증, bounded runtime 반복 검증, 그에 따른 수정이다.
 4. 프론트 연동 검증이 끝나기 전 deploy/infra 는 current 작업 기준에서 제외한다.

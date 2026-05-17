@@ -66,7 +66,21 @@ public record AdminDashboardResponse(
             LocalDateTime latestClickedAt,
             BigDecimal clickThroughRateInWindow,
             BigDecimal fallbackRateInWindow,
+            RecommendationTrafficMixSnapshot trafficMixInWindow,
             List<RecommendationWeightSnapshot> weightBucketsInWindow
+    ) {
+    }
+
+    public record RecommendationTrafficMixSnapshot(
+            long exampleLogsInWindow,
+            long boundedLocalLogsInWindow,
+            long realNonExampleLogsInWindow,
+            long exampleUsersInWindow,
+            long boundedLocalUsersInWindow,
+            long realNonExampleUsersInWindow,
+            long exampleClickedUsersInWindow,
+            long boundedLocalClickedUsersInWindow,
+            long realNonExampleClickedUsersInWindow
     ) {
     }
 

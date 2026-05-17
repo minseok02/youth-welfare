@@ -89,6 +89,16 @@ assert isinstance(data["recommendation"]["totalLogs"], int), "recommendation.tot
 assert data["collect"]["windowDays"] == expected_summary_window, "unexpected collect windowDays"
 assert data["recommendation"]["windowDays"] == expected_summary_window, "unexpected recommendation windowDays"
 assert isinstance(data["recommendation"]["topWeightStage"], bool), "recommendation.topWeightStage must be bool"
+traffic_mix = data["recommendation"]["trafficMixInWindow"]
+assert isinstance(traffic_mix["exampleLogsInWindow"], int), "recommendation.trafficMixInWindow.exampleLogsInWindow must be int"
+assert isinstance(traffic_mix["boundedLocalLogsInWindow"], int), "recommendation.trafficMixInWindow.boundedLocalLogsInWindow must be int"
+assert isinstance(traffic_mix["realNonExampleLogsInWindow"], int), "recommendation.trafficMixInWindow.realNonExampleLogsInWindow must be int"
+assert isinstance(traffic_mix["exampleUsersInWindow"], int), "recommendation.trafficMixInWindow.exampleUsersInWindow must be int"
+assert isinstance(traffic_mix["boundedLocalUsersInWindow"], int), "recommendation.trafficMixInWindow.boundedLocalUsersInWindow must be int"
+assert isinstance(traffic_mix["realNonExampleUsersInWindow"], int), "recommendation.trafficMixInWindow.realNonExampleUsersInWindow must be int"
+assert isinstance(traffic_mix["exampleClickedUsersInWindow"], int), "recommendation.trafficMixInWindow.exampleClickedUsersInWindow must be int"
+assert isinstance(traffic_mix["boundedLocalClickedUsersInWindow"], int), "recommendation.trafficMixInWindow.boundedLocalClickedUsersInWindow must be int"
+assert isinstance(traffic_mix["realNonExampleClickedUsersInWindow"], int), "recommendation.trafficMixInWindow.realNonExampleClickedUsersInWindow must be int"
 if data["recommendation"]["topWeightStage"]:
     assert data["recommendation"]["nextWeightKey"] is None, "top stage should not have nextWeightKey"
     assert data["recommendation"]["nextWeightMinLogCount"] is None, "top stage should not have nextWeightMinLogCount"
@@ -116,6 +126,11 @@ print(data["collect"]["failedJobsLast24h"])
 print(data["recommendation"]["totalLogs"])
 print(data["recommendation"]["nextWeightKey"] or "")
 print("" if data["recommendation"]["remainingLogsUntilNextWeight"] is None else data["recommendation"]["remainingLogsUntilNextWeight"])
+print(data["recommendation"]["trafficMixInWindow"]["exampleLogsInWindow"])
+print(data["recommendation"]["trafficMixInWindow"]["boundedLocalLogsInWindow"])
+print(data["recommendation"]["trafficMixInWindow"]["realNonExampleLogsInWindow"])
+print(data["recommendation"]["trafficMixInWindow"]["boundedLocalUsersInWindow"])
+print(data["recommendation"]["trafficMixInWindow"]["realNonExampleUsersInWindow"])
 print(data["notification"]["sentInWindow"])
 print(data["search"]["zeroResultSearchesInWindow"])
 print(data["collect"]["windowDays"])
@@ -187,10 +202,15 @@ echo "collect_failed_jobs_last24h=${DASHBOARD_VALUES[1]}"
 echo "recommendation_total_logs=${DASHBOARD_VALUES[2]}"
 echo "recommendation_next_weight_key=${DASHBOARD_VALUES[3]}"
 echo "recommendation_remaining_logs_until_next_weight=${DASHBOARD_VALUES[4]}"
-echo "notification_sent_in_window=${DASHBOARD_VALUES[5]}"
-echo "search_zero_result_searches_in_window=${DASHBOARD_VALUES[6]}"
-echo "summary_window_days=${DASHBOARD_VALUES[7]}"
-echo "collect_trend_windows=${DASHBOARD_VALUES[8]}"
+echo "recommendation_example_logs_in_window=${DASHBOARD_VALUES[5]}"
+echo "recommendation_bounded_local_logs_in_window=${DASHBOARD_VALUES[6]}"
+echo "recommendation_real_non_example_logs_in_window=${DASHBOARD_VALUES[7]}"
+echo "recommendation_bounded_local_users_in_window=${DASHBOARD_VALUES[8]}"
+echo "recommendation_real_non_example_users_in_window=${DASHBOARD_VALUES[9]}"
+echo "notification_sent_in_window=${DASHBOARD_VALUES[10]}"
+echo "search_zero_result_searches_in_window=${DASHBOARD_VALUES[11]}"
+echo "summary_window_days=${DASHBOARD_VALUES[12]}"
+echo "collect_trend_windows=${DASHBOARD_VALUES[13]}"
 echo "requested_summary_window_days=${SUMMARY_WINDOW_DAYS}"
 echo "requested_trend_window_days=${TREND_WINDOW_DAYS_CSV}"
 if [[ -n "${CONTAINER_ADMIN_ALLOWLIST}" ]]; then

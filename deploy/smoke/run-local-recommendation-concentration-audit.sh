@@ -4,6 +4,16 @@ set -euo pipefail
 DB_CONTAINER_NAME="${DB_CONTAINER_NAME:-youth-welfare-db}"
 POSTGRES_USER="${POSTGRES_USER:-postgres}"
 POSTGRES_DB="${POSTGRES_DB:-youth_welfare}"
+USER_COHORT="${USER_COHORT:-all}"
+
+case "${USER_COHORT}" in
+  all|example|bounded_local|real_non_example|non_example)
+    ;;
+  *)
+    echo "USER_COHORT must be one of: all, example, bounded_local, real_non_example, non_example" >&2
+    exit 1
+    ;;
+esac
 
 if ! command -v docker >/dev/null 2>&1; then
   echo "docker command is required" >&2
@@ -15,18 +25,40 @@ if ! docker ps --format '{{.Names}}' | grep -Fxq "${DB_CONTAINER_NAME}"; then
   exit 1
 fi
 
-docker exec -i "${DB_CONTAINER_NAME}" psql -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" -At <<'SQL'
+docker exec -i "${DB_CONTAINER_NAME}" psql -v cohort="${USER_COHORT}" -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" -At <<'SQL'
 WITH latest AS (
     SELECT user_key, MAX(recommended_at) AS recommended_at
     FROM user_recommendations
     GROUP BY user_key
 ),
-latest_rows AS (
-    SELECT ur.*
+base_rows AS (
+    SELECT ur.*,
+           u.email,
+           CASE
+               WHEN lower(split_part(coalesce(u.email, ''), '@', 2)) = 'example.com' THEN 'EXAMPLE'
+               WHEN lower(split_part(coalesce(u.email, ''), '@', 2)) = 'smoke.local'
+                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) = 'localhost'
+                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) LIKE '%.local'
+                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) LIKE '%.test'
+                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) LIKE '%.invalid'
+                   THEN 'BOUNDED_LOCAL'
+               ELSE 'REAL_NON_EXAMPLE'
+           END AS user_cohort
     FROM user_recommendations ur
     JOIN latest l
       ON l.user_key = ur.user_key
      AND l.recommended_at = ur.recommended_at
+    JOIN users u
+      ON u.user_key = ur.user_key
+),
+scoped_rows AS (
+    SELECT *
+    FROM base_rows
+    WHERE :'cohort' = 'all'
+       OR (:'cohort' = 'example' AND user_cohort = 'EXAMPLE')
+       OR (:'cohort' = 'bounded_local' AND user_cohort = 'BOUNDED_LOCAL')
+       OR (:'cohort' = 'real_non_example' AND user_cohort = 'REAL_NON_EXAMPLE')
+       OR (:'cohort' = 'non_example' AND user_cohort IN ('BOUNDED_LOCAL', 'REAL_NON_EXAMPLE'))
 ),
 priority_profiles AS (
     SELECT up.user_key,
@@ -37,23 +69,23 @@ priority_profiles AS (
     GROUP BY up.user_key
 ),
 priority_states AS (
-    SELECT DISTINCT lr.user_key,
+    SELECT DISTINCT sr.user_key,
            CASE WHEN pp.user_key IS NULL THEN 'NO_PRIORITY' ELSE 'HAS_PRIORITY' END AS priority_state
-    FROM latest_rows lr
+    FROM scoped_rows sr
     LEFT JOIN priority_profiles pp
-      ON pp.user_key = lr.user_key
+      ON pp.user_key = sr.user_key
 ),
 top1 AS (
     SELECT *
     FROM (
-        SELECT lr.user_key,
-               lr.service_id,
-               lr.final_score,
+        SELECT sr.user_key,
+               sr.service_id,
+               sr.final_score,
                ROW_NUMBER() OVER (
-                   PARTITION BY lr.user_key
-                   ORDER BY lr.final_score DESC, lr.id DESC
+                   PARTITION BY sr.user_key
+                   ORDER BY sr.final_score DESC, sr.id DESC
                ) AS rn
-        FROM latest_rows lr
+        FROM scoped_rows sr
     ) ranked
     WHERE rn = 1
 ),
@@ -89,54 +121,64 @@ diversity AS (
            MIN(distinct_sources) AS min_distinct_sources,
            MAX(distinct_sources) AS max_distinct_sources
     FROM (
-        SELECT lr.user_key,
+        SELECT sr.user_key,
                COUNT(*) AS rec_count,
-               COUNT(DISTINCT lr.service_id) AS distinct_services,
+               COUNT(DISTINCT sr.service_id) AS distinct_services,
                COUNT(DISTINCT COALESCE(ws.unified_category, '기타')) AS distinct_categories,
                COUNT(DISTINCT ws.source_type) AS distinct_sources
-        FROM latest_rows lr
+        FROM scoped_rows sr
         JOIN welfare_services ws
-          ON ws.id = lr.service_id
-        GROUP BY lr.user_key
+          ON ws.id = sr.service_id
+        GROUP BY sr.user_key
     ) per_user
 )
-SELECT 'latest_batch_rows=' || COUNT(*) FROM latest_rows
+SELECT 'audit_user_cohort=' || :'cohort'
 UNION ALL
-SELECT 'latest_batch_users=' || COUNT(DISTINCT user_key) FROM latest_rows
+SELECT 'latest_batch_rows=' || COUNT(*) FROM scoped_rows
 UNION ALL
-SELECT 'latest_batch_distinct_services=' || COUNT(DISTINCT service_id) FROM latest_rows
+SELECT 'latest_batch_users=' || COUNT(DISTINCT user_key) FROM scoped_rows
+UNION ALL
+SELECT 'latest_batch_example_users=' || COUNT(DISTINCT user_key) FILTER (WHERE user_cohort = 'EXAMPLE') FROM scoped_rows
+UNION ALL
+SELECT 'latest_batch_bounded_local_users=' || COUNT(DISTINCT user_key) FILTER (WHERE user_cohort = 'BOUNDED_LOCAL') FROM scoped_rows
+UNION ALL
+SELECT 'latest_batch_real_non_example_users=' || COUNT(DISTINCT user_key) FILTER (WHERE user_cohort = 'REAL_NON_EXAMPLE') FROM scoped_rows
+UNION ALL
+SELECT 'latest_batch_non_example_users=' || COUNT(DISTINCT user_key) FILTER (WHERE user_cohort IN ('BOUNDED_LOCAL', 'REAL_NON_EXAMPLE')) FROM scoped_rows
+UNION ALL
+SELECT 'latest_batch_distinct_services=' || COUNT(DISTINCT service_id) FROM scoped_rows
 UNION ALL
 SELECT 'latest_batch_priority_users=' || COUNT(*) FILTER (WHERE priority_state = 'HAS_PRIORITY') FROM priority_states
 UNION ALL
 SELECT 'latest_batch_no_priority_users=' || COUNT(*) FILTER (WHERE priority_state = 'NO_PRIORITY') FROM priority_states
 UNION ALL
-SELECT 'top1_leader_service_id=' || service_id FROM top1_leader
+SELECT 'top1_leader_service_id=' || COALESCE((SELECT service_id::text FROM top1_leader), '')
 UNION ALL
-SELECT 'top1_leader_title=' || title FROM top1_leader
+SELECT 'top1_leader_title=' || COALESCE((SELECT title FROM top1_leader), '')
 UNION ALL
-SELECT 'top1_leader_source=' || source_type FROM top1_leader
+SELECT 'top1_leader_source=' || COALESCE((SELECT source_type FROM top1_leader), '')
 UNION ALL
-SELECT 'top1_leader_category=' || category FROM top1_leader
+SELECT 'top1_leader_category=' || COALESCE((SELECT category FROM top1_leader), '')
 UNION ALL
-SELECT 'top1_leader_users=' || users_as_top1 FROM top1_leader
+SELECT 'top1_leader_users=' || COALESCE((SELECT users_as_top1::text FROM top1_leader), '')
 UNION ALL
-SELECT 'top1_leader_share_pct=' || share_pct FROM top1_leader
+SELECT 'top1_leader_share_pct=' || COALESCE((SELECT share_pct::text FROM top1_leader), '')
 UNION ALL
-SELECT 'avg_recommendations_per_user=' || avg_rec_count FROM diversity
+SELECT 'avg_recommendations_per_user=' || COALESCE(avg_rec_count::text, '') FROM diversity
 UNION ALL
-SELECT 'avg_distinct_services_per_user=' || avg_distinct_services FROM diversity
+SELECT 'avg_distinct_services_per_user=' || COALESCE(avg_distinct_services::text, '') FROM diversity
 UNION ALL
-SELECT 'avg_distinct_categories_per_user=' || avg_distinct_categories FROM diversity
+SELECT 'avg_distinct_categories_per_user=' || COALESCE(avg_distinct_categories::text, '') FROM diversity
 UNION ALL
-SELECT 'avg_distinct_sources_per_user=' || avg_distinct_sources FROM diversity
+SELECT 'avg_distinct_sources_per_user=' || COALESCE(avg_distinct_sources::text, '') FROM diversity
 UNION ALL
-SELECT 'min_distinct_categories_per_user=' || min_distinct_categories FROM diversity
+SELECT 'min_distinct_categories_per_user=' || COALESCE(min_distinct_categories::text, '') FROM diversity
 UNION ALL
-SELECT 'max_distinct_categories_per_user=' || max_distinct_categories FROM diversity
+SELECT 'max_distinct_categories_per_user=' || COALESCE(max_distinct_categories::text, '') FROM diversity
 UNION ALL
-SELECT 'min_distinct_sources_per_user=' || min_distinct_sources FROM diversity
+SELECT 'min_distinct_sources_per_user=' || COALESCE(min_distinct_sources::text, '') FROM diversity
 UNION ALL
-SELECT 'max_distinct_sources_per_user=' || max_distinct_sources FROM diversity;
+SELECT 'max_distinct_sources_per_user=' || COALESCE(max_distinct_sources::text, '') FROM diversity;
 
 SELECT '[latest_source_distribution]';
 WITH latest AS (
@@ -144,17 +186,38 @@ WITH latest AS (
     FROM user_recommendations
     GROUP BY user_key
 ),
-latest_rows AS (
-    SELECT ur.*
+base_rows AS (
+    SELECT ur.*,
+           CASE
+               WHEN lower(split_part(coalesce(u.email, ''), '@', 2)) = 'example.com' THEN 'EXAMPLE'
+               WHEN lower(split_part(coalesce(u.email, ''), '@', 2)) = 'smoke.local'
+                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) = 'localhost'
+                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) LIKE '%.local'
+                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) LIKE '%.test'
+                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) LIKE '%.invalid'
+                   THEN 'BOUNDED_LOCAL'
+               ELSE 'REAL_NON_EXAMPLE'
+           END AS user_cohort
     FROM user_recommendations ur
     JOIN latest l
       ON l.user_key = ur.user_key
      AND l.recommended_at = ur.recommended_at
+    JOIN users u
+      ON u.user_key = ur.user_key
+),
+scoped_rows AS (
+    SELECT *
+    FROM base_rows
+    WHERE :'cohort' = 'all'
+       OR (:'cohort' = 'example' AND user_cohort = 'EXAMPLE')
+       OR (:'cohort' = 'bounded_local' AND user_cohort = 'BOUNDED_LOCAL')
+       OR (:'cohort' = 'real_non_example' AND user_cohort = 'REAL_NON_EXAMPLE')
+       OR (:'cohort' = 'non_example' AND user_cohort IN ('BOUNDED_LOCAL', 'REAL_NON_EXAMPLE'))
 )
-SELECT ws.source_type || '|' || COUNT(*) || '|' || COUNT(DISTINCT lr.user_key)
-FROM latest_rows lr
+SELECT ws.source_type || '|' || COUNT(*) || '|' || COUNT(DISTINCT sr.user_key)
+FROM scoped_rows sr
 JOIN welfare_services ws
-  ON ws.id = lr.service_id
+  ON ws.id = sr.service_id
 GROUP BY ws.source_type
 ORDER BY COUNT(*) DESC, ws.source_type;
 
@@ -164,17 +227,38 @@ WITH latest AS (
     FROM user_recommendations
     GROUP BY user_key
 ),
-latest_rows AS (
-    SELECT ur.*
+base_rows AS (
+    SELECT ur.*,
+           CASE
+               WHEN lower(split_part(coalesce(u.email, ''), '@', 2)) = 'example.com' THEN 'EXAMPLE'
+               WHEN lower(split_part(coalesce(u.email, ''), '@', 2)) = 'smoke.local'
+                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) = 'localhost'
+                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) LIKE '%.local'
+                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) LIKE '%.test'
+                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) LIKE '%.invalid'
+                   THEN 'BOUNDED_LOCAL'
+               ELSE 'REAL_NON_EXAMPLE'
+           END AS user_cohort
     FROM user_recommendations ur
     JOIN latest l
       ON l.user_key = ur.user_key
      AND l.recommended_at = ur.recommended_at
+    JOIN users u
+      ON u.user_key = ur.user_key
+),
+scoped_rows AS (
+    SELECT *
+    FROM base_rows
+    WHERE :'cohort' = 'all'
+       OR (:'cohort' = 'example' AND user_cohort = 'EXAMPLE')
+       OR (:'cohort' = 'bounded_local' AND user_cohort = 'BOUNDED_LOCAL')
+       OR (:'cohort' = 'real_non_example' AND user_cohort = 'REAL_NON_EXAMPLE')
+       OR (:'cohort' = 'non_example' AND user_cohort IN ('BOUNDED_LOCAL', 'REAL_NON_EXAMPLE'))
 )
-SELECT COALESCE(ws.unified_category, '기타') || '|' || COUNT(*) || '|' || COUNT(DISTINCT lr.user_key)
-FROM latest_rows lr
+SELECT COALESCE(ws.unified_category, '기타') || '|' || COUNT(*) || '|' || COUNT(DISTINCT sr.user_key)
+FROM scoped_rows sr
 JOIN welfare_services ws
-  ON ws.id = lr.service_id
+  ON ws.id = sr.service_id
 GROUP BY COALESCE(ws.unified_category, '기타')
 ORDER BY COUNT(*) DESC, COALESCE(ws.unified_category, '기타');
 
@@ -184,20 +268,41 @@ WITH latest AS (
     FROM user_recommendations
     GROUP BY user_key
 ),
-latest_rows AS (
-    SELECT ur.*
+base_rows AS (
+    SELECT ur.*,
+           CASE
+               WHEN lower(split_part(coalesce(u.email, ''), '@', 2)) = 'example.com' THEN 'EXAMPLE'
+               WHEN lower(split_part(coalesce(u.email, ''), '@', 2)) = 'smoke.local'
+                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) = 'localhost'
+                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) LIKE '%.local'
+                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) LIKE '%.test'
+                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) LIKE '%.invalid'
+                   THEN 'BOUNDED_LOCAL'
+               ELSE 'REAL_NON_EXAMPLE'
+           END AS user_cohort
     FROM user_recommendations ur
     JOIN latest l
       ON l.user_key = ur.user_key
      AND l.recommended_at = ur.recommended_at
+    JOIN users u
+      ON u.user_key = ur.user_key
+),
+scoped_rows AS (
+    SELECT *
+    FROM base_rows
+    WHERE :'cohort' = 'all'
+       OR (:'cohort' = 'example' AND user_cohort = 'EXAMPLE')
+       OR (:'cohort' = 'bounded_local' AND user_cohort = 'BOUNDED_LOCAL')
+       OR (:'cohort' = 'real_non_example' AND user_cohort = 'REAL_NON_EXAMPLE')
+       OR (:'cohort' = 'non_example' AND user_cohort IN ('BOUNDED_LOCAL', 'REAL_NON_EXAMPLE'))
 )
-SELECT lr.service_id || '|' || ws.title || '|' || ws.source_type || '|' ||
-       COALESCE(ws.unified_category, '기타') || '|' || COUNT(*) || '|' || COUNT(DISTINCT lr.user_key)
-FROM latest_rows lr
+SELECT sr.service_id || '|' || ws.title || '|' || ws.source_type || '|' ||
+       COALESCE(ws.unified_category, '기타') || '|' || COUNT(*) || '|' || COUNT(DISTINCT sr.user_key)
+FROM scoped_rows sr
 JOIN welfare_services ws
-  ON ws.id = lr.service_id
-GROUP BY lr.service_id, ws.title, ws.source_type, COALESCE(ws.unified_category, '기타')
-ORDER BY COUNT(*) DESC, lr.service_id
+  ON ws.id = sr.service_id
+GROUP BY sr.service_id, ws.title, ws.source_type, COALESCE(ws.unified_category, '기타')
+ORDER BY COUNT(*) DESC, sr.service_id
 LIMIT 15;
 
 SELECT '[top1_services]';
@@ -206,24 +311,45 @@ WITH latest AS (
     FROM user_recommendations
     GROUP BY user_key
 ),
-latest_rows AS (
-    SELECT ur.*
+base_rows AS (
+    SELECT ur.*,
+           CASE
+               WHEN lower(split_part(coalesce(u.email, ''), '@', 2)) = 'example.com' THEN 'EXAMPLE'
+               WHEN lower(split_part(coalesce(u.email, ''), '@', 2)) = 'smoke.local'
+                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) = 'localhost'
+                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) LIKE '%.local'
+                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) LIKE '%.test'
+                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) LIKE '%.invalid'
+                   THEN 'BOUNDED_LOCAL'
+               ELSE 'REAL_NON_EXAMPLE'
+           END AS user_cohort
     FROM user_recommendations ur
     JOIN latest l
       ON l.user_key = ur.user_key
      AND l.recommended_at = ur.recommended_at
+    JOIN users u
+      ON u.user_key = ur.user_key
+),
+scoped_rows AS (
+    SELECT *
+    FROM base_rows
+    WHERE :'cohort' = 'all'
+       OR (:'cohort' = 'example' AND user_cohort = 'EXAMPLE')
+       OR (:'cohort' = 'bounded_local' AND user_cohort = 'BOUNDED_LOCAL')
+       OR (:'cohort' = 'real_non_example' AND user_cohort = 'REAL_NON_EXAMPLE')
+       OR (:'cohort' = 'non_example' AND user_cohort IN ('BOUNDED_LOCAL', 'REAL_NON_EXAMPLE'))
 ),
 top1 AS (
     SELECT *
     FROM (
-        SELECT lr.user_key,
-               lr.service_id,
-               lr.final_score,
+        SELECT sr.user_key,
+               sr.service_id,
+               sr.final_score,
                ROW_NUMBER() OVER (
-                   PARTITION BY lr.user_key
-                   ORDER BY lr.final_score DESC, lr.id DESC
+                   PARTITION BY sr.user_key
+                   ORDER BY sr.final_score DESC, sr.id DESC
                ) AS rn
-        FROM latest_rows lr
+        FROM scoped_rows sr
     ) ranked
     WHERE rn = 1
 ),
@@ -249,12 +375,33 @@ WITH latest AS (
     FROM user_recommendations
     GROUP BY user_key
 ),
-latest_rows AS (
-    SELECT ur.*
+base_rows AS (
+    SELECT ur.*,
+           CASE
+               WHEN lower(split_part(coalesce(u.email, ''), '@', 2)) = 'example.com' THEN 'EXAMPLE'
+               WHEN lower(split_part(coalesce(u.email, ''), '@', 2)) = 'smoke.local'
+                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) = 'localhost'
+                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) LIKE '%.local'
+                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) LIKE '%.test'
+                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) LIKE '%.invalid'
+                   THEN 'BOUNDED_LOCAL'
+               ELSE 'REAL_NON_EXAMPLE'
+           END AS user_cohort
     FROM user_recommendations ur
     JOIN latest l
       ON l.user_key = ur.user_key
      AND l.recommended_at = ur.recommended_at
+    JOIN users u
+      ON u.user_key = ur.user_key
+),
+scoped_rows AS (
+    SELECT *
+    FROM base_rows
+    WHERE :'cohort' = 'all'
+       OR (:'cohort' = 'example' AND user_cohort = 'EXAMPLE')
+       OR (:'cohort' = 'bounded_local' AND user_cohort = 'BOUNDED_LOCAL')
+       OR (:'cohort' = 'real_non_example' AND user_cohort = 'REAL_NON_EXAMPLE')
+       OR (:'cohort' = 'non_example' AND user_cohort IN ('BOUNDED_LOCAL', 'REAL_NON_EXAMPLE'))
 ),
 priority_profiles AS (
     SELECT up.user_key,
@@ -265,23 +412,23 @@ priority_profiles AS (
     GROUP BY up.user_key
 ),
 priority_states AS (
-    SELECT DISTINCT lr.user_key,
+    SELECT DISTINCT sr.user_key,
            CASE WHEN pp.user_key IS NULL THEN 'NO_PRIORITY' ELSE 'HAS_PRIORITY' END AS priority_state
-    FROM latest_rows lr
+    FROM scoped_rows sr
     LEFT JOIN priority_profiles pp
-      ON pp.user_key = lr.user_key
+      ON pp.user_key = sr.user_key
 ),
 top1 AS (
     SELECT *
     FROM (
-        SELECT lr.user_key,
-               lr.service_id,
-               lr.final_score,
+        SELECT sr.user_key,
+               sr.service_id,
+               sr.final_score,
                ROW_NUMBER() OVER (
-                   PARTITION BY lr.user_key
-                   ORDER BY lr.final_score DESC, lr.id DESC
+                   PARTITION BY sr.user_key
+                   ORDER BY sr.final_score DESC, sr.id DESC
                ) AS rn
-        FROM latest_rows lr
+        FROM scoped_rows sr
     ) ranked
     WHERE rn = 1
 )
@@ -297,12 +444,47 @@ ORDER BY COUNT(*) DESC, ps.priority_state, ws.title
 LIMIT 20;
 
 SELECT '[priority_profile_counts]';
-WITH priority_profiles AS (
+WITH latest AS (
+    SELECT user_key, MAX(recommended_at) AS recommended_at
+    FROM user_recommendations
+    GROUP BY user_key
+),
+base_rows AS (
+    SELECT ur.user_key,
+           CASE
+               WHEN lower(split_part(coalesce(u.email, ''), '@', 2)) = 'example.com' THEN 'EXAMPLE'
+               WHEN lower(split_part(coalesce(u.email, ''), '@', 2)) = 'smoke.local'
+                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) = 'localhost'
+                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) LIKE '%.local'
+                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) LIKE '%.test'
+                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) LIKE '%.invalid'
+                   THEN 'BOUNDED_LOCAL'
+               ELSE 'REAL_NON_EXAMPLE'
+           END AS user_cohort
+    FROM user_recommendations ur
+    JOIN latest l
+      ON l.user_key = ur.user_key
+     AND l.recommended_at = ur.recommended_at
+    JOIN users u
+      ON u.user_key = ur.user_key
+),
+latest_users AS (
+    SELECT DISTINCT user_key
+    FROM base_rows
+    WHERE :'cohort' = 'all'
+       OR (:'cohort' = 'example' AND user_cohort = 'EXAMPLE')
+       OR (:'cohort' = 'bounded_local' AND user_cohort = 'BOUNDED_LOCAL')
+       OR (:'cohort' = 'real_non_example' AND user_cohort = 'REAL_NON_EXAMPLE')
+       OR (:'cohort' = 'non_example' AND user_cohort IN ('BOUNDED_LOCAL', 'REAL_NON_EXAMPLE'))
+),
+priority_profiles AS (
     SELECT up.user_key,
            STRING_AGG(po.code, '>' ORDER BY up.priority_rank) AS profile
     FROM user_priorities up
     JOIN priority_options po
       ON po.id = up.priority_option_id
+    JOIN latest_users lu
+      ON lu.user_key = up.user_key
     GROUP BY up.user_key
 )
 SELECT profile || '|' || COUNT(*)
@@ -317,12 +499,33 @@ WITH latest AS (
     FROM user_recommendations
     GROUP BY user_key
 ),
-latest_rows AS (
-    SELECT ur.*
+base_rows AS (
+    SELECT ur.*,
+           CASE
+               WHEN lower(split_part(coalesce(u.email, ''), '@', 2)) = 'example.com' THEN 'EXAMPLE'
+               WHEN lower(split_part(coalesce(u.email, ''), '@', 2)) = 'smoke.local'
+                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) = 'localhost'
+                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) LIKE '%.local'
+                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) LIKE '%.test'
+                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) LIKE '%.invalid'
+                   THEN 'BOUNDED_LOCAL'
+               ELSE 'REAL_NON_EXAMPLE'
+           END AS user_cohort
     FROM user_recommendations ur
     JOIN latest l
       ON l.user_key = ur.user_key
      AND l.recommended_at = ur.recommended_at
+    JOIN users u
+      ON u.user_key = ur.user_key
+),
+scoped_rows AS (
+    SELECT *
+    FROM base_rows
+    WHERE :'cohort' = 'all'
+       OR (:'cohort' = 'example' AND user_cohort = 'EXAMPLE')
+       OR (:'cohort' = 'bounded_local' AND user_cohort = 'BOUNDED_LOCAL')
+       OR (:'cohort' = 'real_non_example' AND user_cohort = 'REAL_NON_EXAMPLE')
+       OR (:'cohort' = 'non_example' AND user_cohort IN ('BOUNDED_LOCAL', 'REAL_NON_EXAMPLE'))
 ),
 priority_profiles AS (
     SELECT up.user_key,
@@ -335,14 +538,14 @@ priority_profiles AS (
 top1 AS (
     SELECT *
     FROM (
-        SELECT lr.user_key,
-               lr.service_id,
-               lr.final_score,
+        SELECT sr.user_key,
+               sr.service_id,
+               sr.final_score,
                ROW_NUMBER() OVER (
-                   PARTITION BY lr.user_key
-                   ORDER BY lr.final_score DESC, lr.id DESC
+                   PARTITION BY sr.user_key
+                   ORDER BY sr.final_score DESC, sr.id DESC
                ) AS rn
-        FROM latest_rows lr
+        FROM scoped_rows sr
     ) ranked
     WHERE rn = 1
 )
@@ -363,12 +566,33 @@ WITH latest AS (
     FROM user_recommendations
     GROUP BY user_key
 ),
-latest_rows AS (
-    SELECT ur.*
+base_rows AS (
+    SELECT ur.*,
+           CASE
+               WHEN lower(split_part(coalesce(u.email, ''), '@', 2)) = 'example.com' THEN 'EXAMPLE'
+               WHEN lower(split_part(coalesce(u.email, ''), '@', 2)) = 'smoke.local'
+                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) = 'localhost'
+                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) LIKE '%.local'
+                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) LIKE '%.test'
+                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) LIKE '%.invalid'
+                   THEN 'BOUNDED_LOCAL'
+               ELSE 'REAL_NON_EXAMPLE'
+           END AS user_cohort
     FROM user_recommendations ur
     JOIN latest l
       ON l.user_key = ur.user_key
      AND l.recommended_at = ur.recommended_at
+    JOIN users u
+      ON u.user_key = ur.user_key
+),
+scoped_rows AS (
+    SELECT *
+    FROM base_rows
+    WHERE :'cohort' = 'all'
+       OR (:'cohort' = 'example' AND user_cohort = 'EXAMPLE')
+       OR (:'cohort' = 'bounded_local' AND user_cohort = 'BOUNDED_LOCAL')
+       OR (:'cohort' = 'real_non_example' AND user_cohort = 'REAL_NON_EXAMPLE')
+       OR (:'cohort' = 'non_example' AND user_cohort IN ('BOUNDED_LOCAL', 'REAL_NON_EXAMPLE'))
 ),
 priority_profiles AS (
     SELECT up.user_key,
@@ -379,23 +603,23 @@ priority_profiles AS (
     GROUP BY up.user_key
 ),
 priority_states AS (
-    SELECT DISTINCT lr.user_key,
+    SELECT DISTINCT sr.user_key,
            CASE WHEN pp.user_key IS NULL THEN 'NO_PRIORITY' ELSE 'HAS_PRIORITY' END AS priority_state
-    FROM latest_rows lr
+    FROM scoped_rows sr
     LEFT JOIN priority_profiles pp
-      ON pp.user_key = lr.user_key
+      ON pp.user_key = sr.user_key
 ),
 top1 AS (
     SELECT *
     FROM (
-        SELECT lr.user_key,
-               lr.service_id,
-               lr.final_score,
+        SELECT sr.user_key,
+               sr.service_id,
+               sr.final_score,
                ROW_NUMBER() OVER (
-                   PARTITION BY lr.user_key
-                   ORDER BY lr.final_score DESC, lr.id DESC
+                   PARTITION BY sr.user_key
+                   ORDER BY sr.final_score DESC, sr.id DESC
                ) AS rn
-        FROM latest_rows lr
+        FROM scoped_rows sr
     ) ranked
     WHERE rn = 1
 ),
@@ -418,9 +642,82 @@ base AS (
            (SELECT COUNT(*) FROM priority_states WHERE priority_state = 'NO_PRIORITY') AS no_priority_users
 )
 SELECT CASE
+           WHEN top1_users = 0 THEN 'DEFERRED_EMPTY_COHORT'
            WHEN top1_leader_users * 100.0 / NULLIF(top1_users, 0) >= 50 THEN 'CONCENTRATED_TOP1'
            WHEN no_priority_users > priority_users * 2 THEN 'NO_PRIORITY_DOMINANT'
            ELSE 'BALANCED_ENOUGH_FOR_LOGIC_REVIEW'
        END
 FROM base;
+
+SELECT '[signal_quality]';
+WITH latest AS (
+    SELECT user_key, MAX(recommended_at) AS recommended_at
+    FROM user_recommendations
+    GROUP BY user_key
+),
+base_rows AS (
+    SELECT ur.user_key,
+           CASE
+               WHEN lower(split_part(coalesce(u.email, ''), '@', 2)) = 'example.com' THEN 'EXAMPLE'
+               WHEN lower(split_part(coalesce(u.email, ''), '@', 2)) = 'smoke.local'
+                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) = 'localhost'
+                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) LIKE '%.local'
+                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) LIKE '%.test'
+                   OR lower(split_part(coalesce(u.email, ''), '@', 2)) LIKE '%.invalid'
+                   THEN 'BOUNDED_LOCAL'
+               ELSE 'REAL_NON_EXAMPLE'
+           END AS user_cohort
+    FROM user_recommendations ur
+    JOIN latest l
+      ON l.user_key = ur.user_key
+     AND l.recommended_at = ur.recommended_at
+    JOIN users u
+      ON u.user_key = ur.user_key
+),
+scoped_rows AS (
+    SELECT *
+    FROM base_rows
+    WHERE :'cohort' = 'all'
+       OR (:'cohort' = 'example' AND user_cohort = 'EXAMPLE')
+       OR (:'cohort' = 'bounded_local' AND user_cohort = 'BOUNDED_LOCAL')
+       OR (:'cohort' = 'real_non_example' AND user_cohort = 'REAL_NON_EXAMPLE')
+       OR (:'cohort' = 'non_example' AND user_cohort IN ('BOUNDED_LOCAL', 'REAL_NON_EXAMPLE'))
+),
+mix AS (
+    SELECT COUNT(DISTINCT user_key) AS total_users,
+           COUNT(DISTINCT user_key) FILTER (WHERE user_cohort = 'EXAMPLE') AS example_users,
+           COUNT(DISTINCT user_key) FILTER (WHERE user_cohort = 'BOUNDED_LOCAL') AS bounded_local_users,
+           COUNT(DISTINCT user_key) FILTER (WHERE user_cohort = 'REAL_NON_EXAMPLE') AS real_non_example_users
+    FROM scoped_rows
+)
+SELECT CASE
+           WHEN total_users = 0 AND :'cohort' = 'real_non_example'
+               THEN 'EMPTY_REAL_NON_EXAMPLE_COHORT'
+           WHEN total_users = 0 AND :'cohort' = 'bounded_local'
+               THEN 'EMPTY_BOUNDED_LOCAL_COHORT'
+           WHEN total_users = 0 AND :'cohort' = 'non_example'
+               THEN 'EMPTY_NON_EXAMPLE_COHORT'
+           WHEN total_users = 0
+               THEN 'EMPTY_COHORT'
+           WHEN :'cohort' = 'example'
+               THEN 'EXAMPLE_ONLY_COHORT'
+           WHEN :'cohort' = 'bounded_local'
+               THEN 'BOUNDED_LOCAL_ONLY_COHORT'
+           WHEN :'cohort' = 'real_non_example'
+               THEN 'REAL_NON_EXAMPLE_ONLY_COHORT'
+           WHEN :'cohort' = 'non_example' AND bounded_local_users > 0 AND real_non_example_users = 0
+               THEN 'BOUNDED_LOCAL_ONLY_NON_EXAMPLE_COHORT'
+           WHEN :'cohort' = 'non_example' AND bounded_local_users = 0 AND real_non_example_users > 0
+               THEN 'REAL_NON_EXAMPLE_ONLY_COHORT'
+           WHEN :'cohort' = 'non_example'
+               THEN 'MIXED_NON_EXAMPLE_COHORT'
+           WHEN real_non_example_users = 0 AND bounded_local_users = 0
+               THEN 'SYNTHETIC_ONLY_LATEST_BATCH'
+           WHEN real_non_example_users = 0 AND bounded_local_users > 0
+               THEN 'BOUNDED_LOCAL_WITH_SYNTHETIC_BATCH'
+           WHEN real_non_example_users > 0 AND (example_users > 0 OR bounded_local_users > 0)
+               THEN 'MIXED_WITH_NON_REAL_BATCH'
+           ELSE 'REAL_NON_EXAMPLE_ONLY_BATCH'
+       END
+FROM mix;
 SQL

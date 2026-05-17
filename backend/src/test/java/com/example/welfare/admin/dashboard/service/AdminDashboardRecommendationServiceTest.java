@@ -40,6 +40,18 @@ class AdminDashboardRecommendationServiceTest {
                 6,
                 LocalDateTime.of(2026, 5, 2, 8, 45)
         ));
+        given(adminDashboardRecommendationReadRepository.fetchRecommendationTrafficMix(org.mockito.ArgumentMatchers.any()))
+                .willReturn(new AdminDashboardReadRows.RecommendationTrafficMixRow(
+                        30,
+                        0,
+                        0,
+                        18,
+                        0,
+                        0,
+                        9,
+                        0,
+                        0
+                ));
         given(adminDashboardRecommendationReadRepository.fetchRecommendationSourceBreakdowns(
                 org.mockito.ArgumentMatchers.any(),
                 org.mockito.ArgumentMatchers.eq(3)
@@ -75,6 +87,7 @@ class AdminDashboardRecommendationServiceTest {
                         "청년 월세 지원",
                         "YOUTH",
                         "HOUSING",
+                        "EXAMPLE",
                         new BigDecimal("0.75231"),
                         true,
                         false,
@@ -92,6 +105,7 @@ class AdminDashboardRecommendationServiceTest {
                         "청년 전세 지원",
                         "BOKJIRO_LOCAL",
                         "HOUSING",
+                        "EXAMPLE",
                         new BigDecimal("0.88123"),
                         false,
                         true,
@@ -109,6 +123,7 @@ class AdminDashboardRecommendationServiceTest {
                         "청년 월세 지원",
                         "YOUTH",
                         "HOUSING",
+                        "EXAMPLE",
                         3,
                         1,
                         1,
@@ -125,6 +140,10 @@ class AdminDashboardRecommendationServiceTest {
         assertThat(response.sentLogsInWindow()).isEqualTo(30);
         assertThat(response.clickedLogsInWindow()).isEqualTo(9);
         assertThat(response.fallbackLogsInWindow()).isEqualTo(6);
+        assertThat(response.trafficMixInWindow().exampleLogsInWindow()).isEqualTo(30);
+        assertThat(response.trafficMixInWindow().boundedLocalUsersInWindow()).isZero();
+        assertThat(response.trafficMixInWindow().realNonExampleUsersInWindow()).isZero();
+        assertThat(response.trafficMixInWindow().exampleClickedUsersInWindow()).isEqualTo(9);
         assertThat(response.sourceBreakdowns()).singleElement().satisfies(source -> {
             assertThat(source.sourceType()).isEqualTo("YOUTH");
             assertThat(source.sentCount()).isEqualTo(18);
@@ -147,11 +166,13 @@ class AdminDashboardRecommendationServiceTest {
         assertThat(response.recentFallbackSamples()).singleElement().satisfies(sample -> {
             assertThat(sample.logId()).isEqualTo(101L);
             assertThat(sample.title()).isEqualTo("청년 월세 지원");
+            assertThat(sample.userCohort()).isEqualTo("EXAMPLE");
             assertThat(sample.fallback()).isTrue();
         });
         assertThat(response.recentClickedSamples()).singleElement().satisfies(sample -> {
             assertThat(sample.logId()).isEqualTo(102L);
             assertThat(sample.title()).isEqualTo("청년 전세 지원");
+            assertThat(sample.userCohort()).isEqualTo("EXAMPLE");
             assertThat(sample.clicked()).isTrue();
             assertThat(sample.clickedAt()).isEqualTo(LocalDateTime.of(2026, 5, 3, 8, 30));
         });
@@ -159,6 +180,7 @@ class AdminDashboardRecommendationServiceTest {
             assertThat(group.userKey()).isEqualTo("user-key-1");
             assertThat(group.serviceId()).isEqualTo(501L);
             assertThat(group.title()).isEqualTo("청년 월세 지원");
+            assertThat(group.userCohort()).isEqualTo("EXAMPLE");
             assertThat(group.exposureCount()).isEqualTo(3);
             assertThat(group.clickedCount()).isEqualTo(1);
             assertThat(group.fallbackCount()).isEqualTo(1);

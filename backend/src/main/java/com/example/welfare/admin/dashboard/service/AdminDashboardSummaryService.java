@@ -40,6 +40,8 @@ public class AdminDashboardSummaryService {
                 adminDashboardCollectReadRepository.fetchCollectSummary(dayAgo);
         AdminDashboardReadRows.RecommendationSummaryRow recommendationSummary =
                 adminDashboardRecommendationReadRepository.fetchRecommendationSummary(dayAgo, summaryWindowAgo);
+        AdminDashboardReadRows.RecommendationTrafficMixRow recommendationTrafficMix =
+                adminDashboardRecommendationReadRepository.fetchRecommendationTrafficMix(summaryWindowAgo);
         ScoreWeightService.ScoreWeightProgress weightProgress =
                 scoreWeightService.getProgress(recommendationSummary.totalLogs());
         ScoreWeight activeWeight = weightProgress.activeWeight();
@@ -105,6 +107,17 @@ public class AdminDashboardSummaryService {
                         AdminDashboardQueryPolicy.ratio(
                                 recommendationSummary.fallbackInWindow(),
                                 recommendationSummary.sentInWindow()
+                        ),
+                        new AdminDashboardResponse.RecommendationTrafficMixSnapshot(
+                                recommendationTrafficMix.exampleLogsInWindow(),
+                                recommendationTrafficMix.boundedLocalLogsInWindow(),
+                                recommendationTrafficMix.realNonExampleLogsInWindow(),
+                                recommendationTrafficMix.exampleUsersInWindow(),
+                                recommendationTrafficMix.boundedLocalUsersInWindow(),
+                                recommendationTrafficMix.realNonExampleUsersInWindow(),
+                                recommendationTrafficMix.exampleClickedUsersInWindow(),
+                                recommendationTrafficMix.boundedLocalClickedUsersInWindow(),
+                                recommendationTrafficMix.realNonExampleClickedUsersInWindow()
                         ),
                         adminDashboardRecommendationReadRepository.fetchRecommendationWeightBuckets(summaryWindowAgo).stream()
                                 .map(row -> new AdminDashboardResponse.RecommendationWeightSnapshot(
