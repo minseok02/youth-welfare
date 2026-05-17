@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { Alert, CircularProgress, Snackbar } from "@mui/material";
 import api from "../lib/axios";
@@ -8,6 +8,13 @@ const BG = "#f7f8fc", WHITE = "#fff";
 const INK = "#11131a", INK2 = "#4a4f5c", INK3 = "#6b7280";
 const LINE = "#e5e7eb", LINE2 = "#f3f4f6";
 const WARN = "#ef4444";
+
+const readTokenFromHash = (hash) => {
+  if (!hash) return "";
+  const normalizedHash = hash.startsWith("#") ? hash.slice(1) : hash;
+  const params = new URLSearchParams(normalizedHash);
+  return params.get("token")?.trim() ?? "";
+};
 
 const iCss = (err) => ({
   width: "100%", padding: "12px 14px", borderRadius: 10,
@@ -23,7 +30,11 @@ export default function ResetPasswordPage() {
   const chatFrom = location.state?.chatFrom ?? nestedFromState.chatFrom;
   const postLoginAction = location.state?.postLoginAction ?? nestedFromState.postLoginAction;
   const [searchParams] = useSearchParams();
-  const token = searchParams.get("token") ?? "";
+  const [token, setToken] = useState(() => {
+    const hashToken = readTokenFromHash(window.location.hash);
+    const queryToken = searchParams.get("token")?.trim() ?? "";
+    return hashToken || queryToken;
+  });
   const hasToken = useMemo(() => token.trim().length > 0, [token]);
 
   const [email, setEmail] = useState(location.state?.email ?? "");
@@ -34,6 +45,23 @@ export default function ResetPasswordPage() {
   const [toast, setToast] = useState({ open: false, msg: "", severity: "info" });
 
   const showToast = (msg, severity = "info") => setToast({ open: true, msg, severity });
+
+  useEffect(() => {
+    const hashToken = readTokenFromHash(window.location.hash);
+    const queryToken = searchParams.get("token")?.trim() ?? "";
+    const resolvedToken = hashToken || queryToken;
+
+    if (resolvedToken) {
+      if (resolvedToken !== token) {
+        setToken(resolvedToken);
+      }
+    }
+
+    if (queryToken && !hashToken) {
+      const nextHash = `#token=${encodeURIComponent(queryToken)}`;
+      window.history.replaceState(window.history.state, document.title, `${window.location.pathname}${nextHash}`);
+    }
+  }, [searchParams, token]);
 
   const handleRequest = async (e) => {
     e.preventDefault();

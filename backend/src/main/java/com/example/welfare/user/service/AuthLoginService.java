@@ -27,6 +27,7 @@ public class AuthLoginService {
     private final PasswordEncoder passwordEncoder;
     private final ActiveUserReadService activeUserReadService;
     private final UserCoreSyncService userCoreSyncService;
+    private final AuthLoginFailureCommandService authLoginFailureCommandService;
     private final AuthTokenService authTokenService;
     private final AuthAdminRoleService authAdminRoleService;
 
@@ -47,12 +48,14 @@ public class AuthLoginService {
         }
 
         if (!passwordEncoder.matches(request.getPassword(), authUser.getPasswordHash())) {
-            user.increaseLoginFailCount();
-            if (user.getLoginFailCount() >= MAX_LOGIN_FAIL) {
-                user.lock(LocalDateTime.now().plusMinutes(LOCK_MINUTES));
+            boolean locked = authLoginFailureCommandService.recordFailedAttempt(
+                    user.getId(),
+                    MAX_LOGIN_FAIL,
+                    LOCK_MINUTES
+            );
+            if (locked) {
                 log.warn("Account locked: userId={}", user.getId());
             }
-            userCoreSyncService.syncFromUser(user);
             throw new CustomException(ErrorCode.INVALID_CREDENTIALS);
         }
 

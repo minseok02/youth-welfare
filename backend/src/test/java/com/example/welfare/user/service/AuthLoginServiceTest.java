@@ -39,6 +39,8 @@ class AuthLoginServiceTest {
     @Mock
     private UserCoreSyncService userCoreSyncService;
     @Mock
+    private AuthLoginFailureCommandService authLoginFailureCommandService;
+    @Mock
     private AuthTokenService authTokenService;
 
     private AuthAdminRoleService authAdminRoleService;
@@ -55,6 +57,7 @@ class AuthLoginServiceTest {
                 passwordEncoder,
                 activeUserReadService,
                 userCoreSyncService,
+                authLoginFailureCommandService,
                 authTokenService,
                 authAdminRoleService
         );
@@ -113,12 +116,14 @@ class AuthLoginServiceTest {
         when(authIdentityReadService.findByEmail("user@example.com")).thenReturn(Optional.of(authUser));
         when(activeUserReadService.getActiveUserByUserKey("user-key-1")).thenReturn(user);
         when(passwordEncoder.matches("wrong-password", "encoded")).thenReturn(false);
+        when(authLoginFailureCommandService.recordFailedAttempt(1L, 5, 30)).thenReturn(false);
 
         assertThatThrownBy(() -> authLoginService.login(request))
                 .isInstanceOf(CustomException.class)
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.INVALID_CREDENTIALS);
 
+        verify(authLoginFailureCommandService).recordFailedAttempt(1L, 5, 30);
         verify(authTokenService, never()).issueTokens(eq("user-key-1"), eq(1L), anyList());
     }
 }

@@ -4350,3 +4350,13 @@
 - 문제: `PolicyDetailPage` 상단 요약을 8개 행 + 핵심 조건 태그로 확장한 뒤 첫 production build 검증에서 세 sourceType(`GOV24`, `BOKJIRO_CENTRAL`, `YOUTH`) 모두 상세 진입 직후 `Cannot access 'Y' before initialization` 런타임 크래시가 났다. 원인은 `summaryRows`/`quickHighlights` 가 `regionText` 선언보다 먼저 평가되는 TDZ였다. 이를 고친 뒤에는 데스크톱은 괜찮았지만, 좁은 폭에서 상세 레이아웃이 계속 `1fr 340px` 2열을 유지해 우측 aside가 화면 밖에 남으면서 `scrollWidth` 가 `706~830px` 로 커지고 모바일 horizontal overflow가 발생했다.
 - 해결: `0d612d8` 에서 `regionText` 와 `statusLabel` 선언을 `summaryRows`/`quickHighlights` 보다 먼저 옮겨 상세 렌더링 크래시를 제거했고, `3502d17` 에서 `PolicyDetailPage` 레이아웃에 responsive class/style를 추가해 `980px` 이하에서 `main + aside` 를 1열로 접고, `aside` sticky를 해제하며, 관련 정책/문의처 그리드도 1열로 전환했다. 같은 production build/preview 브라우저 검증에서 `GOV24 / BOKJIRO_CENTRAL / YOUTH` 상세 3건 모두 요약 정보 8개 행, 섹션 태그, Gov24 `분야/대상/유형` 태그를 유지한 채 렌더링됐고, 모바일 `scrollWidth=390` 으로 horizontal overflow가 해소됐다.
 - 이유: 이번 건은 단순히 "요약 정보를 더 많이 보여 준다"가 아니라, 그 요약을 안전하게 계산하는 선언 순서와, 좁은 폭에서 aside가 별도 열로 남지 않게 만드는 레이아웃 기준까지 함께 맞춰야 브라우저 기준선이 닫힌다.
+
+## 813) 로그인 실패 카운트는 `401` 예외와 같은 트랜잭션에 두면 롤백되어 잠금 기준이 무력화될 수 있다
+- 문제: `AuthLoginService.login` 은 `@Transactional` 안에서 비밀번호 불일치 시 `login_fail_count` 를 증가시키고 곧바로 `CustomException(INVALID_CREDENTIALS)` 를 던졌다. 이 경로에서는 응답은 `401` 로 나가지만 트랜잭션 전체가 롤백되므로 DB의 `login_fail_count` 와 `locked_until` 은 그대로 남아, 운영 access log에는 반복 `401` 이 찍혀도 계정 잠금 기준이 쌓이지 않는 상태가 생길 수 있었다.
+- 해결: 실패 누적 경로를 `AuthLoginFailureCommandService` 로 분리하고 `@Transactional(propagation = REQUIRES_NEW)` 로 감쌌다. 로그인 본 흐름은 이 서비스를 호출한 뒤 `401` 을 계속 던지되, 실패 횟수와 잠금 시각은 별도 트랜잭션으로 먼저 커밋되게 고정했다. `AuthRedisIntegrationTest` 에도 `401` 두 번 뒤 `login_fail_count=2` 를 검증하는 케이스를 추가했다.
+- 이유: 인증 실패는 "요청 전체를 실패로 돌려야 한다"와 "실패 사실은 영속돼야 한다"가 동시에 성립하는 드문 경계다. 이 경우 보안 상태 변경은 본 예외 트랜잭션에서 분리해 커밋해야 replay/lockout 정책이 실제로 작동한다.
+
+## 814) 비밀번호 재설정 토큰은 query string보다 URL fragment로 보내는 편이 access log와 `Referer` 노출을 줄인다
+- 문제: 비밀번호 재설정 메일 링크가 `/reset-password?token=...` 형태면 브라우저 요청 URL, reverse proxy access log, 그리고 후속 외부 요청의 `Referer` 에 토큰이 그대로 남을 수 있었다. 토큰이 짧게 살아도 운영 로그에 평문처럼 흔적이 남는 구조는 불필요하게 넓은 노출면이다.
+- 해결: 메일 링크를 `/reset-password#token=...` 으로 바꾸고, 프론트 `ResetPasswordPage` 가 fragment token을 우선 읽도록 수정했다. 기존 query 링크 호환은 유지하되, 페이지 진입 직후 `window.history.replaceState` 로 즉시 `#token=` URL로 치환해 추가 로그/복사 노출을 줄였다.
+- 이유: fragment는 브라우저 클라이언트에서만 해석되고 HTTP 요청 URL에는 포함되지 않는다. reset token처럼 단발성이고 서버가 초기 HTML만 제공하면 되는 값은 query보다 fragment가 더 보수적인 기본값이다.

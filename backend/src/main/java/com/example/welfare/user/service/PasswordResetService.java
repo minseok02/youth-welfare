@@ -127,7 +127,7 @@ public class PasswordResetService {
 
     private String buildPasswordResetText(String token) {
         String encodedToken = URLEncoder.encode(token, StandardCharsets.UTF_8);
-        String resetUrl = appBaseUrl + "/reset-password?token=" + encodedToken;
+        String resetUrl = appBaseUrl + "/reset-password#token=" + encodedToken;
         return """
                 비밀번호 재설정을 요청하셨다면 아래 링크에서 새 비밀번호를 설정해주세요.
 

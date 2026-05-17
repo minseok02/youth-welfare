@@ -50,7 +50,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class AuthRedisIntegrationTest {
 
     private static final String TEST_EMAIL_PREFIX = "it_auth_";
-    private static final Pattern RESET_TOKEN_PATTERN = Pattern.compile("token=([A-Za-z0-9\\-_%]+)");
+    private static final Pattern RESET_TOKEN_PATTERN = Pattern.compile("[#?]token=([A-Za-z0-9\\-_%]+)");
 
     @Autowired
     private MockMvc mockMvc;
@@ -172,6 +172,52 @@ class AuthRedisIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.accessToken").isNotEmpty());
+    }
+
+    @Test
+    @DisplayName("로그인 실패 카운트는 401 응답 이후에도 롤백되지 않고 누적된다")
+    void loginFailureCountPersistsAfterUnauthorizedResponse() throws Exception {
+        String email = TEST_EMAIL_PREFIX + UUID.randomUUID() + "@example.com";
+        markEmailVerified(email);
+
+        mockMvc.perform(post("/api/auth/signup")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "email": "%s",
+                                  "password": "password123",
+                                  "name": "홍길동",
+                                  "birthDate": "%s"
+                                }
+                                """.formatted(email, LocalDate.of(1998, 1, 10))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
+        mockMvc.perform(post("/api/auth/login")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "email": "%s",
+                                  "password": "wrong-password123"
+                                }
+                                """.formatted(email)))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.errorCode").value("A004"));
+
+        mockMvc.perform(post("/api/auth/login")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "email": "%s",
+                                  "password": "wrong-password123"
+                                }
+                                """.formatted(email)))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.errorCode").value("A004"));
+
+        User user = userRepository.findByEmail(email).orElseThrow();
+        assertThat(user.getLoginFailCount()).isEqualTo(2);
+        assertThat(user.getLockedUntil()).isNull();
     }
 
     @Test
