@@ -4868,3 +4868,24 @@
 - 이유:
   - 이번 단계 목표는 recommendation/public UX 변경이 아니라 `sbizCd` official signal이 서버에서도 **internal observation only** 경계로 안전하게 관찰 가능한지 확인하는 것이었다.
   - `fact_rows > 0`, diagnostics list 노출, ranking unchanged가 모두 확인됐으므로 현재 남은 문제는 저장 경계가 아니라 소비 경계다.
+
+## 853) `schoolCd` 는 signal은 크지만 multi-code 밀도가 높아 aggregate observation fact가 더 안전하다
+- 문제: `earnCndSeCd`, `jobCd`, `sbizCd` 를 닫은 뒤 다음 official fact 후보를 정해야 했다. `schoolCd` 는 local `LIST raw` 기준 signal이 `357건` 으로 충분하지만, multi-code가 `149건` 이라 `jobCd(111건)`, `sbizCd(25건)` 보다 훨씬 조밀하다. 이 축을 바로 code별 fan-out fact나 user-facing hard filter로 열면 stale row 정리와 의미 과대해석 위험이 더 커진다.
+- 확인:
+  - 이미 `YouthOfficialCodeSupport` 에는 `schoolCd` official label map과 `split + trim + de-dup` helper가 있다.
+  - 실제 multi-code 예시는 `0049005,0049006`, `0049005,0049007` 처럼 학력 상태가 함께 오는 형태다.
+  - 따라서 이 축의 첫 목적은 “학력 gate 구현”이 아니라 “학력 요건 signal을 관찰 가능하게 만드는 것”이어야 한다.
+- 해결:
+  - `YOUTH_EDUCATION_REQUIREMENT` 를 `jobCd/sbizCd` 와 같은 **aggregate observation fact** 로 추가했다.
+  - shape:
+    - `fact_code_set_key = YOUTH_EDUCATION_REQUIREMENT`
+    - `fact_merge_key = YOUTH_EDUCATION_REQUIREMENT`
+    - `fact_code = 0049005,0049006`
+    - `text_value = 대학 재학, 대졸 예정`
+    - `operator = MEMBER`
+    - `source_field = schoolCd`
+  - internal read-model/projection 과 admin diagnostics에도 `youthEducationRequirementCodes`, `youthEducationRequirementLabels` 를 추가했다.
+  - public policy/recommendation response, retrieval filter, scoring은 그대로 유지한다.
+- 이유:
+  - `schoolCd` 는 신호량은 충분하지만, 지금 단계에서 필요한 것은 rule 소비가 아니라 **multi-code를 잃지 않는 관찰 가능성**이다.
+  - 그래서 `jobCd/sbizCd` 와 같은 aggregate pattern을 재사용하되, public 경계와 scoring 경계는 열지 않는 쪽이 가장 안전하다.

@@ -187,6 +187,8 @@ class AdminDashboardRecommendationDiagnosticServiceTest {
                     assertThat(row.gov24BenefitTypeTokens()).containsExactly("현금", "서비스(의료)");
                     assertThat(row.youthEmploymentRequirementCodes()).containsExactly("0013003", "0013006");
                     assertThat(row.youthEmploymentRequirementLabels()).containsExactly("미취업자", "(예비)창업자");
+                    assertThat(row.youthEducationRequirementCodes()).containsExactly("0049005", "0049006");
+                    assertThat(row.youthEducationRequirementLabels()).containsExactly("대학 재학", "대졸 예정");
                     assertThat(row.youthSpecialRequirementCodes()).containsExactly("0014003", "0014008");
                     assertThat(row.youthSpecialRequirementLabels()).containsExactly("기초생활수급자", "지역인재");
                     assertThat(row.youthIncomeConditionTypeCode()).isEqualTo("0043002");
@@ -237,6 +239,8 @@ class AdminDashboardRecommendationDiagnosticServiceTest {
                 .gov24BenefitTypeTokens(Gov24LabelTokenSupport.benefitTypeTokens(gov24BenefitTypeLabel))
                 .youthEmploymentRequirementCodes(List.of("0013003", "0013006"))
                 .youthEmploymentRequirementLabels(List.of("미취업자", "(예비)창업자"))
+                .youthEducationRequirementCodes(List.of("0049005", "0049006"))
+                .youthEducationRequirementLabels(List.of("대학 재학", "대졸 예정"))
                 .youthSpecialRequirementCodes(List.of("0014003", "0014008"))
                 .youthSpecialRequirementLabels(List.of("기초생활수급자", "지역인재"))
                 .youthIncomeConditionTypeCode("0043002")

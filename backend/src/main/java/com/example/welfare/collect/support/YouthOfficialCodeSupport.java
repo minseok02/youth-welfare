@@ -80,6 +80,10 @@ public final class YouthOfficialCodeSupport {
         return resolveOfficialLabels(rawCodeCsv, EDUCATION_REQUIREMENT_LABELS);
     }
 
+    public static List<String> resolveEducationRequirementCodes(String rawCodeCsv) {
+        return resolveOfficialCodes(rawCodeCsv, EDUCATION_REQUIREMENT_LABELS);
+    }
+
     public static List<String> resolveSpecialRequirementLabels(String rawCodeCsv) {
         return resolveOfficialLabels(rawCodeCsv, SPECIAL_REQUIREMENT_LABELS);
     }

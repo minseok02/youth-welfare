@@ -153,6 +153,14 @@ admin diagnostics도 `serviceId=672` 에서 `youthSpecialRequirementCodes=['0014
 `youthSpecialRequirementLabels=['제한없음']` 을 반환했다.
 즉 현재 truth는 `sbizCd` 도 raw -> aggregate fact -> internal read-model -> admin diagnostics 경계까지는 닫혔고,
 남은 것은 이 값을 public UX나 rule 소비로 넓힐지 여부뿐이다.
+그 다음 후보 `schoolCd` 는 signal 자체는 `357건` 으로 `sbizCd` 보다 크지만,
+multi-code가 `149건` 으로 훨씬 많아 code별 fan-out이나 hard gate로 바로 쓰기엔 위험하다.
+그래서 이번 단계에서는 `YOUTH_EDUCATION_REQUIREMENT` 도 `jobCd/sbizCd` 와 같은 **단일 aggregate observation fact** 로만 저장하고,
+internal read-model/projection 과 admin diagnostics에만 `youthEducationRequirementCodes/Labels` 를 노출한다.
+shape은 `fact_code='0049005,0049006'`, `text_value='대학 재학, 대졸 예정'`, `operator=MEMBER`,
+`fact_merge_key='YOUTH_EDUCATION_REQUIREMENT'` 이다.
+의도는 학력 요건 신호를 잃지 않고 관찰 가능하게 만드는 것이며,
+public response, retrieval filter, scoring은 이번 단계에서도 그대로 둔다.
 
 ## 2. `YOUTH_MID_RAW_ALIAS` 현재 상태
 

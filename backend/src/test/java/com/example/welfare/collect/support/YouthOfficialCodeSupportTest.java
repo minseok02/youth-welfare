@@ -37,6 +37,12 @@ class YouthOfficialCodeSupportTest {
     }
 
     @Test
+    void resolveEducationRequirementCodes_handlesMultiCodeCsv() {
+        assertThat(YouthOfficialCodeSupport.resolveEducationRequirementCodes("0049005,0049006,0049005,0049007"))
+                .containsExactly("0049005", "0049006", "0049007");
+    }
+
+    @Test
     void resolveSpecialRequirementLabels_handlesScalarAndUnknownCodes() {
         assertThat(YouthOfficialCodeSupport.resolveSpecialRequirementLabels("0014008,9999999,0014010"))
                 .containsExactly("지역인재", "제한없음");

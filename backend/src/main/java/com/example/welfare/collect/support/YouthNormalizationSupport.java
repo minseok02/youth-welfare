@@ -117,6 +117,7 @@ public final class YouthNormalizationSupport {
                 "신청 종료일", service.getApplyEndDate(),
                 NormalizationKeySupport.SOURCE_FIELD_YOUTH_APPLY_END_DATE, NormalizedPolicyAggregate.Authority.OFFICIAL, BigDecimal.ONE, null);
         addEmploymentRequirementFact(facts, item);
+        addEducationRequirementFact(facts, item);
         addSpecialRequirementFact(facts, item);
         addIncomeConditionTypeFact(facts, item);
         return facts;
@@ -368,6 +369,36 @@ public final class YouthNormalizationSupport {
                 .valueType(NormalizedPolicyAggregate.ValueType.STRING)
                 .textValue(canonicalLabels)
                 .sourceField(NormalizationKeySupport.SOURCE_FIELD_YOUTH_SPECIAL_REQUIREMENT)
+                .authority(NormalizedPolicyAggregate.Authority.OFFICIAL)
+                .confidence(BigDecimal.ONE)
+                .rawValue(canonicalCodes)
+                .evidenceText(canonicalLabels)
+                .build());
+    }
+
+    private static void addEducationRequirementFact(List<NormalizedPolicyAggregate.Fact> facts, YouthApiDto.Item item) {
+        if (item == null) {
+            return;
+        }
+
+        List<String> codes = YouthOfficialCodeSupport.resolveEducationRequirementCodes(item.getSchoolCd());
+        List<String> labels = YouthOfficialCodeSupport.resolveEducationRequirementLabels(item.getSchoolCd());
+        if (codes.isEmpty() || labels.isEmpty()) {
+            return;
+        }
+
+        String canonicalCodes = String.join(",", codes);
+        String canonicalLabels = String.join(", ", labels);
+        facts.add(NormalizedPolicyAggregate.Fact.builder()
+                .factGroup(NormalizationKeySupport.FACT_GROUP_EDUCATION)
+                .factCodeSetKey(NormalizationKeySupport.FACT_CODE_YOUTH_EDUCATION_REQUIREMENT)
+                .factCode(canonicalCodes)
+                .factMergeKey(NormalizationKeySupport.FACT_MERGE_KEY_YOUTH_EDUCATION_REQUIREMENT)
+                .factLabel("학력 요건")
+                .operator(NormalizedPolicyAggregate.Operator.MEMBER)
+                .valueType(NormalizedPolicyAggregate.ValueType.STRING)
+                .textValue(canonicalLabels)
+                .sourceField(NormalizationKeySupport.SOURCE_FIELD_YOUTH_EDUCATION_REQUIREMENT)
                 .authority(NormalizedPolicyAggregate.Authority.OFFICIAL)
                 .confidence(BigDecimal.ONE)
                 .rawValue(canonicalCodes)

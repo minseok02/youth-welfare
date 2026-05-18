@@ -76,6 +76,7 @@ class NormalizedPolicySidecarPersistenceIntegrationTest {
                 "취업,문화활동 및 생활지원",
                 "청년일자리,직무훈련",
                 "0013003,0013006",
+                "0049005,0049006",
                 "0014003,0014008",
                 19,
                 34,
@@ -94,6 +95,7 @@ class NormalizedPolicySidecarPersistenceIntegrationTest {
                 "재직자",
                 "청년일자리",
                 "0013001",
+                "0049010",
                 "0014010",
                 20,
                 39,
@@ -148,7 +150,7 @@ class NormalizedPolicySidecarPersistenceIntegrationTest {
                 ORDER BY fact_merge_key
                 """, saved.getId());
 
-        assertThat(facts).hasSize(7);
+        assertThat(facts).hasSize(8);
         assertThat(facts).anySatisfy(row -> {
             assertThat(row.get("fact_merge_key")).isEqualTo("YOUTH_AGE_ELIGIBILITY");
             assertThat(row.get("operator")).isEqualTo("RANGE");
@@ -173,6 +175,13 @@ class NormalizedPolicySidecarPersistenceIntegrationTest {
             assertThat(row.get("text_value")).isEqualTo("재직자");
         });
         assertThat(facts).anySatisfy(row -> {
+            assertThat(row.get("fact_merge_key")).isEqualTo("YOUTH_EDUCATION_REQUIREMENT");
+            assertThat(row.get("fact_code_set_key")).isEqualTo("YOUTH_EDUCATION_REQUIREMENT");
+            assertThat(row.get("fact_code")).isEqualTo("0049005,0049006");
+            assertThat(row.get("operator")).isEqualTo("MEMBER");
+            assertThat(row.get("text_value")).isEqualTo("대학 재학, 대졸 예정");
+        });
+        assertThat(facts).anySatisfy(row -> {
             assertThat(row.get("fact_merge_key")).isEqualTo("YOUTH_INCOME_CONDITION_TYPE");
             assertThat(row.get("fact_code_set_key")).isEqualTo("YOUTH_INCOME_CONDITION_TYPE");
             assertThat(row.get("fact_code")).isEqualTo("0043002");
@@ -193,6 +202,7 @@ class NormalizedPolicySidecarPersistenceIntegrationTest {
                                        String mid,
                                        String keywords,
                                        String employmentRequirementCodes,
+                                       String educationRequirementCodes,
                                        String specialRequirementCodes,
                                        Integer minAge,
                                        Integer maxAge,
@@ -209,6 +219,7 @@ class NormalizedPolicySidecarPersistenceIntegrationTest {
         ReflectionTestUtils.setField(item, "mclsfNm", mid);
         ReflectionTestUtils.setField(item, "plcyKywdNm", keywords);
         ReflectionTestUtils.setField(item, "jobCd", employmentRequirementCodes);
+        ReflectionTestUtils.setField(item, "schoolCd", educationRequirementCodes);
         ReflectionTestUtils.setField(item, "sbizCd", specialRequirementCodes);
         ReflectionTestUtils.setField(item, "sprvsnInstCdNm", "고용노동부");
         ReflectionTestUtils.setField(item, "operInstCdNm", "청년센터");

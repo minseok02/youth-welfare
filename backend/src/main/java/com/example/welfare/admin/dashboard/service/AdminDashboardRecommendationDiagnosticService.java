@@ -109,6 +109,8 @@ public class AdminDashboardRecommendationDiagnosticService {
                             projection != null ? projection.gov24BenefitTypeTokens() : List.of(),
                             projection != null ? projection.youthEmploymentRequirementCodes() : List.of(),
                             projection != null ? projection.youthEmploymentRequirementLabels() : List.of(),
+                            projection != null ? projection.youthEducationRequirementCodes() : List.of(),
+                            projection != null ? projection.youthEducationRequirementLabels() : List.of(),
                             projection != null ? projection.youthSpecialRequirementCodes() : List.of(),
                             projection != null ? projection.youthSpecialRequirementLabels() : List.of(),
                             projection != null ? projection.youthIncomeConditionTypeCode() : null,

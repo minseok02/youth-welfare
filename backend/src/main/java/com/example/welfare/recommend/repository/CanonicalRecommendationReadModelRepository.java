@@ -263,6 +263,8 @@ public class CanonicalRecommendationReadModelRepository {
         private final String gov24BenefitTypeLabel;
         private final Set<String> youthEmploymentRequirementCodes = new LinkedHashSet<>();
         private final Set<String> youthEmploymentRequirementLabels = new LinkedHashSet<>();
+        private final Set<String> youthEducationRequirementCodes = new LinkedHashSet<>();
+        private final Set<String> youthEducationRequirementLabels = new LinkedHashSet<>();
         private final Set<String> youthSpecialRequirementCodes = new LinkedHashSet<>();
         private final Set<String> youthSpecialRequirementLabels = new LinkedHashSet<>();
         private String youthIncomeConditionTypeCode;
@@ -376,6 +378,10 @@ public class CanonicalRecommendationReadModelRepository {
                 youthEmploymentRequirementCodes.addAll(YouthOfficialCodeSupport.splitCsvValues(factCode));
                 youthEmploymentRequirementLabels.addAll(YouthOfficialCodeSupport.splitCsvValues(textValue));
             }
+            if ("YOUTH_EDUCATION_REQUIREMENT".equals(factCodeSetKey)) {
+                youthEducationRequirementCodes.addAll(YouthOfficialCodeSupport.splitCsvValues(factCode));
+                youthEducationRequirementLabels.addAll(YouthOfficialCodeSupport.splitCsvValues(textValue));
+            }
             if ("YOUTH_SPECIAL_REQUIREMENT".equals(factCodeSetKey)) {
                 youthSpecialRequirementCodes.addAll(YouthOfficialCodeSupport.splitCsvValues(factCode));
                 youthSpecialRequirementLabels.addAll(YouthOfficialCodeSupport.splitCsvValues(textValue));
@@ -406,6 +412,8 @@ public class CanonicalRecommendationReadModelRepository {
                     .gov24BenefitTypeTokens(Gov24LabelTokenSupport.benefitTypeTokens(gov24BenefitTypeLabel))
                     .youthEmploymentRequirementCodes(List.copyOf(youthEmploymentRequirementCodes))
                     .youthEmploymentRequirementLabels(List.copyOf(youthEmploymentRequirementLabels))
+                    .youthEducationRequirementCodes(List.copyOf(youthEducationRequirementCodes))
+                    .youthEducationRequirementLabels(List.copyOf(youthEducationRequirementLabels))
                     .youthSpecialRequirementCodes(List.copyOf(youthSpecialRequirementCodes))
                     .youthSpecialRequirementLabels(List.copyOf(youthSpecialRequirementLabels))
                     .youthIncomeConditionTypeCode(youthIncomeConditionTypeCode)
