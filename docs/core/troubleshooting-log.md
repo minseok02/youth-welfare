@@ -4889,3 +4889,30 @@
 - 이유:
   - `schoolCd` 는 신호량은 충분하지만, 지금 단계에서 필요한 것은 rule 소비가 아니라 **multi-code를 잃지 않는 관찰 가능성**이다.
   - 그래서 `jobCd/sbizCd` 와 같은 aggregate pattern을 재사용하되, public 경계와 scoring 경계는 열지 않는 쪽이 가장 안전하다.
+
+## 854) 서버 재수집 결과 `schoolCd` 도 raw -> aggregate fact -> diagnostics 경계까지 닫혔다
+- 문제: local에서는 `YOUTH_EDUCATION_REQUIREMENT` 구현과 테스트가 끝났지만, `schoolCd` 는 `jobCd/sbizCd` 보다 multi-code 비중이 높아 서버 런타임에서 aggregate 저장과 diagnostics list 노출이 그대로 유지되는지 별도 확인이 필요했다.
+- 확인:
+  - 서버 `5842d03` 반영 뒤 `docker compose up -d --build app` 및 health `UP`
+  - `POST /api/admin/collect/youth = 200`
+  - `POST /api/admin/collect/youth-details = 200`, `requested=1 saved=0 skipped=2568 failed=1`
+  - DB:
+    - `YOUTH LIST raw schoolCd = 2568 / 2569`
+    - `YOUTH_EDUCATION_REQUIREMENT fact_rows = 2553`
+    - `multi-code aggregate fact_rows = 146`
+  - sample fact:
+    - `2551 대학생 아르바이트 운영 -> 0049005,0049006 / 대학 재학, 대졸 예정`
+    - `2512 취업성공 디딤돌 청년인턴 사업 -> 0049004,0049006,0049007 / 고교 졸업, 대졸 예정, 대학 졸업`
+    - `2472 중남미 지역기구 인턴 파견 -> 0049005,0049006,0049007,0049008 / 대학 재학, 대졸 예정, 대학 졸업, 석·박사`
+  - admin diagnostics sample:
+    - `serviceId=672`
+    - `youthEducationRequirementCodes=['0049010']`
+    - `youthEducationRequirementLabels=['제한없음']`
+    - `latestSavedRank=1`
+    - `latestSavedFinalScore=1.12`
+- 해결:
+  - 별도 코드 수정은 필요 없었다.
+  - 서버 YOUTH 재수집을 다시 돌린 뒤 raw/fact/diagnostics가 모두 최신 코드 경로를 타는지만 확인했다.
+- 이유:
+  - 이번 단계 목표는 학력 요건을 public rule로 쓰는 것이 아니라, `schoolCd` official signal이 서버에서도 **internal observation only** 경계로 안전하게 관찰 가능한지 확인하는 것이었다.
+  - `fact_rows > 0`, diagnostics list 노출, ranking unchanged가 모두 확인됐으므로 현재 남은 문제는 저장 경계가 아니라 소비 경계다.

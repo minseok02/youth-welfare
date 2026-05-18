@@ -161,6 +161,16 @@ shape은 `fact_code='0049005,0049006'`, `text_value='대학 재학, 대졸 예�
 `fact_merge_key='YOUTH_EDUCATION_REQUIREMENT'` 이다.
 의도는 학력 요건 신호를 잃지 않고 관찰 가능하게 만드는 것이며,
 public response, retrieval filter, scoring은 이번 단계에서도 그대로 둔다.
+서버 `5842d03` 재수집 검증에서도 이 경계는 그대로 닫혔다.
+`POST /api/admin/collect/youth`, `POST /api/admin/collect/youth-details` 뒤 `YOUTH LIST raw schoolCd = 2568 / 2569`,
+`YOUTH_EDUCATION_REQUIREMENT fact_rows = 2553`, 그중 multi-code aggregate fact가 `146건` 생성되었고,
+sample row는 `0049005,0049006 -> 대학 재학, 대졸 예정`,
+`0049004,0049006,0049007 -> 고교 졸업, 대졸 예정, 대학 졸업`,
+`0049005,0049006,0049007,0049008 -> 대학 재학, 대졸 예정, 대학 졸업, 석·박사` 형태였다.
+admin diagnostics도 `serviceId=672` 에서 `youthEducationRequirementCodes=['0049010']`,
+`youthEducationRequirementLabels=['제한없음']` 을 반환했다.
+즉 현재 truth는 `schoolCd` 도 raw -> aggregate fact -> internal read-model -> admin diagnostics 경계까지는 닫혔고,
+남은 것은 이 값을 public UX나 rule 소비로 넓힐지 여부뿐이다.
 
 ## 2. `YOUTH_MID_RAW_ALIAS` 현재 상태
 
