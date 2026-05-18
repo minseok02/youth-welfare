@@ -658,6 +658,20 @@ export default function AdminDashboardPage() {
                           <Typography sx={{ fontSize: 12, color: INK2, mt: 0.75, lineHeight: 1.5, overflowWrap: "anywhere", wordBreak: "break-word" }}>
                             {item.governanceReason}
                           </Typography>
+                          {item.latestRun ? (
+                            <Box mt={1}>
+                              <Typography sx={{ fontSize: 12, fontWeight: 700, color: INK2 }}>
+                                Last run {item.latestRun.status} · {formatDateTime(item.latestRun.startedAt)}
+                              </Typography>
+                              <Typography sx={{ fontSize: 12, color: INK3, mt: 0.25 }}>
+                                req {formatNumber(item.latestRun.requestedCount)} / save {formatNumber(item.latestRun.savedCount)} / skip {formatNumber(item.latestRun.skippedCount)} / fail {formatNumber(item.latestRun.failedCount)}
+                              </Typography>
+                            </Box>
+                          ) : (
+                            <Typography sx={{ fontSize: 12, color: INK3, mt: 0.75 }}>
+                              last run 기록 없음
+                            </Typography>
+                          )}
                           {item.scheduleLabel && (
                             <Typography sx={{ fontSize: 12, color: INK3, mt: 0.75 }}>
                               {item.scheduleLabel}

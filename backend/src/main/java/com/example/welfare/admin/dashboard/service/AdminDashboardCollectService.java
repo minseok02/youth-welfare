@@ -10,6 +10,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
 
 @Service
 @RequiredArgsConstructor
@@ -24,6 +26,12 @@ public class AdminDashboardCollectService {
         int summaryWindowDays = AdminDashboardQueryPolicy.resolveSummaryWindowDays(requestedSummaryWindowDays);
         int patternLimit = AdminDashboardQueryPolicy.resolveCollectFailurePatternLimit(requestedLimit);
         java.time.LocalDateTime summaryWindowAgo = now.minusDays(summaryWindowDays);
+        Map<String, AdminDashboardReadRows.CollectJobSnapshotRow> latestRunsByJobName =
+                adminDashboardCollectReadRepository.fetchLatestCollectJobs().stream()
+                        .collect(java.util.stream.Collectors.toMap(
+                                AdminDashboardReadRows.CollectJobSnapshotRow::jobName,
+                                Function.identity()
+                        ));
 
         AdminDashboardReadRows.CollectFailureSummaryRow collectFailureSummary =
                 adminDashboardCollectReadRepository.fetchCollectFailureSummary(summaryWindowAgo);
@@ -72,7 +80,7 @@ public class AdminDashboardCollectService {
                         .map(this::toCircuitStatus)
                         .toList(),
                 CollectRuntimeLaneCatalog.currentLanes().stream()
-                        .map(this::toCollectLane)
+                        .map(lane -> toCollectLane(lane, latestRunsByJobName.get(lane.laneKey())))
                         .toList()
         );
     }
@@ -89,7 +97,8 @@ public class AdminDashboardCollectService {
     }
 
     private AdminCollectFailureResponse.CollectLane toCollectLane(
-            CollectRuntimeLaneCatalog.CollectLaneSpec lane
+            CollectRuntimeLaneCatalog.CollectLaneSpec lane,
+            AdminDashboardReadRows.CollectJobSnapshotRow latestRun
     ) {
         return new AdminCollectFailureResponse.CollectLane(
                 lane.laneKey(),
@@ -99,7 +108,26 @@ public class AdminDashboardCollectService {
                 lane.triggerPath(),
                 lane.scheduleLabel(),
                 lane.resourceProfile(),
-                lane.governanceReason()
+                lane.governanceReason(),
+                toLatestRun(latestRun)
+        );
+    }
+
+    private AdminCollectFailureResponse.LatestRun toLatestRun(
+            AdminDashboardReadRows.CollectJobSnapshotRow latestRun
+    ) {
+        if (latestRun == null) {
+            return null;
+        }
+        return new AdminCollectFailureResponse.LatestRun(
+                latestRun.status(),
+                latestRun.startedAt(),
+                latestRun.finishedAt(),
+                latestRun.requestedCount(),
+                latestRun.savedCount(),
+                latestRun.skippedCount(),
+                latestRun.filteredCount(),
+                latestRun.failedCount()
         );
     }
 }

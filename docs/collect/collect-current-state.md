@@ -32,7 +32,7 @@
 
 ## 현재 collect/runtime governance inventory
 
-`collect-failures` 는 이제 실패/partial/streak/circuit 뿐 아니라 "어떤 lane이 nightly고 어떤 lane이 manual인지"도 같이 반환합니다.
+`collect-failures` 는 이제 실패/partial/streak/circuit 뿐 아니라 "어떤 lane이 nightly고 어떤 lane이 manual인지", 그리고 lane별 `api_sync_logs` 기준 마지막 실행 요약도 같이 반환합니다.
 이 inventory는 외부 API를 실제로 치는 lane만 대상으로 하며, raw replay 기반 sidecar backfill은 여기서 제외합니다.
 
 ### nightly scheduled lane
@@ -64,6 +64,7 @@
 - `YOUTH_DETAILS`
   - lane type: `ENRICHMENT`
   - 이유: `refUrlAddr1/2` 보강용 detail lane. `500ms` pacing 으로 느리게 돌리며 snapshot 과 분리
+  - 현재는 `api_sync_logs.job_name='YOUTH_DETAILS'` 로 마지막 실행 기록도 남김
 - `BOKJIRO_DETAIL_GAP_FILL`
   - lane type: `MAINTENANCE`
   - 이유: backlog gap 을 메우는 one-off maintenance lane

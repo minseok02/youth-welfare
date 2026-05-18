@@ -18,6 +18,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class YouthDetailCollectService {
 
+    private final ApiSyncLogService apiSyncLogService;
     private final YouthApiClient youthApiClient;
     private final WelfareServiceMapper welfareServiceMapper;
     private final RawApiPayloadService rawApiPayloadService;
@@ -28,6 +29,13 @@ public class YouthDetailCollectService {
     private long requestIntervalMs;
 
     public CollectResult collectYouthDetails() {
+        return apiSyncLogService.runWithLog(
+                CollectRuntimeLaneCatalog.YOUTH_DETAILS_LANE_KEY,
+                this::collectYouthDetailsInternal
+        );
+    }
+
+    private CollectResult collectYouthDetailsInternal() {
         List<WelfareService> targets = detailReadRepository.findTargetsBySourceType(WelfareService.SourceType.YOUTH);
         int requested = 0, saved = 0, skipped = 0, failed = 0;
 

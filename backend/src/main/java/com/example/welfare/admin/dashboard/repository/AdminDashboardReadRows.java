@@ -36,6 +36,8 @@ public final class AdminDashboardReadRows {
             LocalDateTime finishedAt,
             int requestedCount,
             int savedCount,
+            int skippedCount,
+            int filteredCount,
             int failedCount
     ) {
     }

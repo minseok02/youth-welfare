@@ -58,6 +58,8 @@ public class AdminDashboardCollectReadRepository {
                        log.finished_at,
                        log.requested_count,
                        log.saved_count,
+                       log.skipped_count,
+                       log.filtered_count,
                        log.failed_count
                   from api_sync_logs log
                   join (
@@ -74,6 +76,8 @@ public class AdminDashboardCollectReadRepository {
                         AdminDashboardJdbcSupport.getLocalDateTime(rs, "finished_at"),
                         rs.getInt("requested_count"),
                         rs.getInt("saved_count"),
+                        rs.getInt("skipped_count"),
+                        rs.getInt("filtered_count"),
                         rs.getInt("failed_count")
                 )
         );

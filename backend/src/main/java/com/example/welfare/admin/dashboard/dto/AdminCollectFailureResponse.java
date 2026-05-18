@@ -67,7 +67,20 @@ public record AdminCollectFailureResponse(
             String triggerPath,
             String scheduleLabel,
             String resourceProfile,
-            String governanceReason
+            String governanceReason,
+            LatestRun latestRun
+    ) {
+    }
+
+    public record LatestRun(
+            String status,
+            LocalDateTime startedAt,
+            LocalDateTime finishedAt,
+            int requestedCount,
+            int savedCount,
+            int skippedCount,
+            int filteredCount,
+            int failedCount
     ) {
     }
 }

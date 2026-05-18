@@ -1427,7 +1427,17 @@ class AdminSecurityWebMvcTest {
                                         "/api/admin/collect/youth",
                                         "매일 02:00 Asia/Seoul",
                                         "HEAVY",
-                                        "핵심 청년 snapshot lane이다."
+                                        "핵심 청년 snapshot lane이다.",
+                                        new AdminCollectFailureResponse.LatestRun(
+                                                "SUCCESS",
+                                                LocalDateTime.of(2026, 5, 3, 8, 50),
+                                                LocalDateTime.of(2026, 5, 3, 8, 55),
+                                                2500,
+                                                2490,
+                                                5,
+                                                0,
+                                                5
+                                        )
                                 )
                         )
                 ));
@@ -1450,7 +1460,9 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.data.circuitStatuses[0].open").value(true))
                 .andExpect(jsonPath("$.data.circuitStatuses[0].remainingMs").value(60000))
                 .andExpect(jsonPath("$.data.collectSourceLanes[0].laneKey").value("YOUTH"))
-                .andExpect(jsonPath("$.data.collectSourceLanes[0].executionMode").value("SCHEDULED"));
+                .andExpect(jsonPath("$.data.collectSourceLanes[0].executionMode").value("SCHEDULED"))
+                .andExpect(jsonPath("$.data.collectSourceLanes[0].latestRun.status").value("SUCCESS"))
+                .andExpect(jsonPath("$.data.collectSourceLanes[0].latestRun.requestedCount").value(2500));
 
         then(adminDashboardCollectService).should().getCollectFailures(14, 3);
     }

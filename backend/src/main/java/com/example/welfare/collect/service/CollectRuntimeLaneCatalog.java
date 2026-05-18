@@ -4,6 +4,10 @@ import java.util.List;
 
 public final class CollectRuntimeLaneCatalog {
 
+    public static final String YOUTH_DETAILS_LANE_KEY = "YOUTH_DETAILS";
+    public static final String YOUTH_DETAILS_LOCK_NAME = "collect-youth-details";
+    public static final String YOUTH_DETAILS_TRIGGER_PATH = "/api/admin/collect/youth-details";
+
     private CollectRuntimeLaneCatalog() {
     }
 
@@ -24,11 +28,11 @@ public final class CollectRuntimeLaneCatalog {
                 manual(CollectSource.GOV24_SUPPORT_CONDITIONS, "DETAIL", "BUDGETED",
                         "Gov24 지원조건 확장 lane이다. list snapshot과 분리해 수동/budgeted로만 운영한다."),
                 new CollectLaneSpec(
-                        "YOUTH_DETAILS",
+                        YOUTH_DETAILS_LANE_KEY,
                         "온통청년 DETAIL",
                         "MANUAL",
                         "ENRICHMENT",
-                        "/api/admin/collect/youth-details",
+                        YOUTH_DETAILS_TRIGGER_PATH,
                         null,
                         "BUDGETED",
                         "refUrlAddr1/2 같은 detail 보강 lane이다. 500ms pacing으로 느리게 돌리며 목록 snapshot과 분리 운영한다."

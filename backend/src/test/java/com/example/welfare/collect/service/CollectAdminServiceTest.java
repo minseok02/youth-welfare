@@ -22,6 +22,8 @@ class CollectAdminServiceTest {
     private CollectExecutionGuard collectExecutionGuard;
     @Mock
     private CollectSourceExecutionService collectSourceExecutionService;
+    @Mock
+    private YouthDetailCollectService youthDetailCollectService;
 
     @InjectMocks
     private CollectAdminService collectAdminService;
@@ -77,5 +79,24 @@ class CollectAdminServiceTest {
         assertThat(actual).isEqualTo(expected);
         verify(collectExecutionGuard).runExclusive(eq("collect-bokjiro-details-gap-fill"), any(Runnable.class));
         verify(collectSourceExecutionService).collectBokjiroDetailGapFill(2, 95);
+    }
+
+    @Test
+    @DisplayName("온통청년 detail 수집은 전용 lock 아래에서 detail service를 실행한다")
+    void collectYouthDetailsUsesExclusiveLock() {
+        CollectResult expected = CollectResult.of(10, 8, 1, 0, 1);
+
+        doAnswer(invocation -> {
+            Runnable task = invocation.getArgument(1);
+            task.run();
+            return null;
+        }).when(collectExecutionGuard).runExclusive(eq("collect-youth-details"), any(Runnable.class));
+        when(youthDetailCollectService.collectYouthDetails()).thenReturn(expected);
+
+        CollectResult actual = collectAdminService.collectYouthDetails();
+
+        assertThat(actual).isEqualTo(expected);
+        verify(collectExecutionGuard).runExclusive(eq("collect-youth-details"), any(Runnable.class));
+        verify(youthDetailCollectService).collectYouthDetails();
     }
 }

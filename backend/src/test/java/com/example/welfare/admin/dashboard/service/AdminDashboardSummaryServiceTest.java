@@ -64,6 +64,8 @@ class AdminDashboardSummaryServiceTest {
                                 LocalDateTime.of(2026, 5, 2, 8, 2),
                                 2363,
                                 2363,
+                                0,
+                                0,
                                 0
                         )
                 ));

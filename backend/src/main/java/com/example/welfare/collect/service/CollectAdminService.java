@@ -11,6 +11,7 @@ public class CollectAdminService {
 
     private final CollectExecutionGuard collectExecutionGuard;
     private final CollectSourceExecutionService collectSourceExecutionService;
+    private final YouthDetailCollectService youthDetailCollectService;
 
     public void collect(CollectSource source) {
         collectExecutionGuard.runExclusive(source.lockName(), () -> {
@@ -46,6 +47,13 @@ public class CollectAdminService {
         AtomicReference<BokjiroDetailCollectService.GapFillResult> resultRef = new AtomicReference<>();
         collectExecutionGuard.runExclusive(CollectSource.BOKJIRO_DETAIL_GAP_FILL.lockName(), () ->
                 resultRef.set(collectSourceExecutionService.collectBokjiroDetailGapFill(rounds, maxCallsPerRound)));
+        return resultRef.get();
+    }
+
+    public CollectResult collectYouthDetails() {
+        AtomicReference<CollectResult> resultRef = new AtomicReference<>();
+        collectExecutionGuard.runExclusive(CollectRuntimeLaneCatalog.YOUTH_DETAILS_LOCK_NAME, () ->
+                resultRef.set(youthDetailCollectService.collectYouthDetails()));
         return resultRef.get();
     }
 }

@@ -32,7 +32,6 @@ public class CollectAdminController {
     private final CollectBatchService collectBatchService;
     private final CollectAdminService collectAdminService;
     private final NormalizedPolicySidecarBackfillService normalizedPolicySidecarBackfillService;
-    private final com.example.welfare.collect.service.YouthDetailCollectService youthDetailCollectService;
 
     @PostMapping("/all")
     public ResponseEntity<ApiResponse<CollectAllResponse>> collectAll() {
@@ -84,7 +83,7 @@ public class CollectAdminController {
     @PostMapping("/youth-details")
     public ResponseEntity<ApiResponse<String>> collectYouthDetails() {
         log.info("[Admin] 온통청년 DETAIL 수집 수동 트리거");
-        CollectResult result = youthDetailCollectService.collectYouthDetails();
+        CollectResult result = collectAdminService.collectYouthDetails();
         return ResponseEntity.ok(ApiResponse.success(
                 "온통청년 DETAIL 수집 완료 requested=%d saved=%d skipped=%d failed=%d"
                         .formatted(result.requestedCount(), result.savedCount(), result.skippedCount(), result.failedCount())

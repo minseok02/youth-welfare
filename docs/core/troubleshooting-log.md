@@ -5110,3 +5110,17 @@
 - 이유:
   - 이번 단계 목표는 새로운 수집 source를 여는 것이 아니라, existing collect governance 경계를 실제 운영 UI/API에서 읽을 수 있게 닫는 것이다.
   - API와 브라우저 둘 다 확인됐으므로, 이제 "어떤 collect가 자동이고 왜 어떤 건 manual인지"는 문서뿐 아니라 서버 admin 화면에서도 바로 설명 가능하다.
+
+## 863) lane inventory만으로는 반쪽이고 source별 마지막 실행 요약까지 붙여야 triage가 닫힌다
+- 문제: `collectSourceLanes` 로 scheduled/manual 경계와 이유는 읽히게 됐지만, 운영자가 실제 triage를 할 때는 "이 manual lane이 마지막으로 언제 돌았고 성공/partial/fail 이었는가"를 바로 같이 보고 싶다. 기존 `api_sync_logs` 에는 이미 source별 latest run 정보가 있었지만, lane inventory에는 연결되지 않아 collect failures 카드와 최신 실행 로그를 다시 번갈아 봐야 했다. 게다가 `YOUTH_DETAILS` 는 manual detail 보강 lane인데도 `api_sync_logs` 바깥에서 직접 실행돼, latest run summary를 아예 만들 수 없었다.
+- 확인:
+  - `AdminDashboardCollectReadRepository.fetchLatestCollectJobs()` 는 `api_sync_logs` 기준 latest snapshot 을 이미 읽고 있었다.
+  - `YOUTH`, `BOKJIRO_*`, `GOV24*` 는 `ApiSyncLogService.runWithLog(...)` 를 타지만, `YOUTH_DETAILS` 는 `CollectAdminController -> YouthDetailCollectService` 직행이라 `api_sync_logs.job_name='YOUTH_DETAILS'` 기록이 남지 않았다.
+- 해결:
+  - `collectSourceLanes` 에 `latestRun(status/startedAt/finishedAt/requested/saved/skipped/filtered/failed)` 를 추가했다.
+  - `AdminDashboardCollectService` 는 `fetchLatestCollectJobs()` 결과를 `job_name` 기준으로 lane inventory에 merge 한다.
+  - `Collect Lane Inventory` 카드도 `Last run ...` 요약을 같이 보여 준다.
+  - `YOUTH_DETAILS` 는 `ApiSyncLogService` 로 감싸 `job_name='YOUTH_DETAILS'` 기록을 남기고, admin endpoint도 전용 lock 아래에서 실행하도록 `CollectAdminService.collectYouthDetails()` 경로로 정리했다.
+- 이유:
+  - 이번 단계 목적은 새 source 추가가 아니라 source별 runtime summary 완성이다.
+  - lane inventory와 latest run을 합치면 "왜 manual인지"와 "최근에 실제로 어떻게 끝났는지"를 같은 카드에서 읽을 수 있어 collect triage 왕복을 줄인다.

@@ -77,6 +77,31 @@ class AdminDashboardCollectServiceTest {
                         1
                 )
         ));
+        given(adminDashboardCollectReadRepository.fetchLatestCollectJobs())
+                .willReturn(List.of(
+                        new AdminDashboardReadRows.CollectJobSnapshotRow(
+                                "YOUTH",
+                                "SUCCESS",
+                                LocalDateTime.of(2026, 5, 3, 8, 50),
+                                LocalDateTime.of(2026, 5, 3, 8, 55),
+                                2500,
+                                2490,
+                                5,
+                                0,
+                                5
+                        ),
+                        new AdminDashboardReadRows.CollectJobSnapshotRow(
+                                "YOUTH_DETAILS",
+                                "PARTIAL_SUCCESS",
+                                LocalDateTime.of(2026, 5, 3, 9, 10),
+                                LocalDateTime.of(2026, 5, 3, 9, 45),
+                                100,
+                                90,
+                                8,
+                                0,
+                                2
+                        )
+                ));
         given(collectRuntimeStatusService.getCircuitStatuses())
                 .willReturn(List.of(new CollectRuntimeStatusService.CircuitStatusSnapshot(
                         "BOKJIRO_LOCAL",
@@ -123,12 +148,18 @@ class AdminDashboardCollectServiceTest {
             assertThat(lane.executionMode()).isEqualTo("SCHEDULED");
             assertThat(lane.laneType()).isEqualTo("SNAPSHOT");
             assertThat(lane.triggerPath()).isEqualTo("/api/admin/collect/youth");
+            assertThat(lane.latestRun()).isNotNull();
+            assertThat(lane.latestRun().status()).isEqualTo("SUCCESS");
+            assertThat(lane.latestRun().requestedCount()).isEqualTo(2500);
         });
         assertThat(response.collectSourceLanes()).anySatisfy(lane -> {
             assertThat(lane.laneKey()).isEqualTo("YOUTH_DETAILS");
             assertThat(lane.executionMode()).isEqualTo("MANUAL");
             assertThat(lane.laneType()).isEqualTo("ENRICHMENT");
             assertThat(lane.triggerPath()).isEqualTo("/api/admin/collect/youth-details");
+            assertThat(lane.latestRun()).isNotNull();
+            assertThat(lane.latestRun().status()).isEqualTo("PARTIAL_SUCCESS");
+            assertThat(lane.latestRun().savedCount()).isEqualTo(90);
         });
     }
 }
