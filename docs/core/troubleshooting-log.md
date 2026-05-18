@@ -5557,6 +5557,14 @@
 - 이유:
   - canonical promotion의 의미를 저장층과 admin facet에만 제한하면 recommendation read-model 이 다시 legacy parser에 의존하게 된다.
   - summary label은 display 용도로 유지하되, token source만 canonical term 우선으로 바꾸면 backward compatibility를 깨지 않고 source-of-truth를 맞출 수 있다.
+- 서버 검증:
+  - `fd5d065` 반영 후 `health=UP`.
+  - Gov24 최신 샘플 5건은 DB에서 raw summary label이 그대로 유지됐다.
+    - 예: `15627 차상위 본인부담 경감대상자 지원 -> userType=개인, benefit=의료지원||현금(감면)`
+  - 실제 recommendation batch에 포함된 Gov24 서비스로 다시 보면 projection token은 정상 노출됐다.
+    - `10156 전남 청년 근속장려금 지원사업 -> userType=['개인', '법인/시설/단체'], benefit=['현금']`
+    - `14141 국가근로장학금 -> userType=['개인'], benefit=['현금(장학금)']`
+  - 즉 서버 기준으로도 `raw summary label 유지 + canonical term 우선 token projection` 이 함께 닫혔다.
 
 ## 891) `생애주기/대상군` prompt 보강은 일부 row를 살리지만, `3257/3209` 핵심 케이스는 여전히 primary audience mismatch로 0점이 유지된다
 - 문제: `3257/3209/3287` 의 `savedAi=0` 이 prompt line에 청년 신호가 약해서인지, 아니면 AI가 수급자/신혼부부/학생 같은 대상군 불일치를 강한 exclusion으로 해석해서인지 확정이 필요했다.
