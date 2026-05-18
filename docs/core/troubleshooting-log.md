@@ -5422,3 +5422,14 @@
 - 이유:
   - 이 결과로 현재 병목은 priority-profile 자체나 no-priority rebalance가 아니라, **`REGION_CODE` query ordering에서 generic `EXACT_REGION` 후보가 bounded `same-sido BOKJIRO_LOCAL` fallback보다 먼저 오는 구조** 로 좁혀진다.
   - 따라서 다음 bounded fix는 score/weight patch가 아니라 runtime query tier를 `exact-region local -> same-sido local bounded fallback -> generic exact-region` 순으로 맞추는 것이다.
+
+## 886) query tier를 actual runtime 순서와 맞추면 `3257/3281` 은 retrieval/retain 병목을 벗어나고, 다음 병목은 saved batch gap으로 이동한다
+- 문제: `3257/3281` 은 `searchYouthRelevant=true`, `pass_base=true` 인데도 runtime `actualBaseRank=110/120`, `retain_base=false` 였다. root cause는 priority-profile이 아니라 `REGION_CODE` query tier가 generic `EXACT_REGION` 을 bounded `same-sido BOKJIRO_LOCAL` fallback보다 앞에 두고 있던 점이었다.
+- 해결:
+  - `WelfareServiceRepository.findCandidatesWithRegionCode/findLatestCandidatesWithRegionCode` 의 1차 ordering CASE를 `exact-region local -> same-sido local bounded fallback -> generic exact-region -> 기타` 순으로 재배치했다.
+  - `RecommendationRegionQueryIntegrationTest` 에 base/latest 둘 다 same-sido bounded fallback이 generic exact-region보다 먼저 나오는 테스트를 추가했다.
+  - `run-local-recommendation-rebalance-audit.sh` 의 tier 계산도 runtime query와 같은 순서로 맞췄다.
+  - server 재검증에서 `3257 actualBaseRank=8`, `3281 actualBaseRank=18`, `retain_base=true`, `actualRetainBaseRank=8/18` 로 실제 runtime 이동을 확인했다.
+- 이유:
+  - 이로써 retrieval/retain 병목은 닫혔다.
+  - 현재 남은 경계는 `dropStage=SCORED_BUT_NOT_IN_SAVED_BATCH` 이므로, 다음 bounded step은 retrieval 재조정이 아니라 current rerank trace와 latest saved top competitor를 비교하는 `saved batch gap audit` 이다.

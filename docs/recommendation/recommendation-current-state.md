@@ -118,6 +118,8 @@
 
 마지막으로 `query tier` 를 wrapper에 그대로 드러내서 다시 보면, 상위 `YOUTH EXACT_REGION` 후보는 `tiers=1/3/3`, `3257/3281` 은 `BOKJIRO_LOCAL EXACT_SIDO tiers=2/2/2` 였습니다. 즉 현재 밀리는 이유는 priority-profile 자체가 아니라, **`REGION_CODE` query ordering에서 generic `EXACT_REGION` 후보가 bounded `same-sido BOKJIRO_LOCAL` fallback보다 앞서는 구조** 로 보는 편이 맞습니다. 다음 bounded fix는 score/weight가 아니라, runtime query를 `exact-region local -> same-sido local bounded fallback -> generic exact-region` 순으로 맞추는 것입니다.
 
+이 bounded fix를 서버에 다시 반영한 뒤에는 `3257/3281` 이 실제 runtime에서 `actualBaseRank=8/18`, `retain_base=true`, `actualRetainBaseRank=8/18` 로 올라왔습니다. 즉 retrieval/retain 병목은 닫혔고, 현재 남은 경계는 `dropStage=SCORED_BUT_NOT_IN_SAVED_BATCH` 입니다. 다음 bounded evidence lane은 [recommendation-saved-batch-gap-audit-runbook.md](./recommendation-saved-batch-gap-audit-runbook.md) 와 `run-local-recommendation-saved-batch-gap-audit.sh` 로 고정합니다.
+
 ## 현재 scoring 기준
 
 ### rule score

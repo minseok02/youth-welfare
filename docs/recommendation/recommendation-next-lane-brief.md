@@ -171,6 +171,8 @@ bounded family 단위로만 확장합니다.
 
 `2026-05-18` server 재검증 결과는 이 가설도 좁혔습니다. `3257/3281` 은 rebalance simulation 기준으로는 `17/37위`, `retain_sim=true` 였지만, actual runtime 기준 `base_rank=110/120`, `retain_base=false` 였습니다. 다시 runtime neighbor와 query tier를 같이 보면, 상위 20은 전부 `YOUTH EXACT_REGION tiers=1/3/3`, `3257/3281` 은 `BOKJIRO_LOCAL EXACT_SIDO tiers=2/2/2` 입니다. 즉 현재 next bounded step은 source rebalance 완화가 아니라, **`REGION_CODE` query ordering에서 bounded same-sido local fallback을 generic exact-region보다 먼저 두는 것**입니다.
 
+이 ordering fix를 서버에 다시 태우면 `3257/3281` 은 `actual_base_rank=8/18`, `retain_base=true` 로 올라옵니다. 따라서 현재 next bounded step은 retrieval 쪽이 아니라 `SCORED_BUT_NOT_IN_SAVED_BATCH` 경계를 직접 읽는 것입니다. 즉 다음 reopen lane 안의 immediate step은 `saved batch gap audit` 으로 두고, target family와 latest saved top competitor를 current rerank trace와 나란히 보는 편이 맞습니다.
+
 ## lane 1 에서 아직 안 할 일
 
 1. global source bonus

@@ -26,6 +26,7 @@
 - [recommendation-region-window-audit-runbook.md](./recommendation-region-window-audit-runbook.md)
 - [recommendation-latest-window-audit-runbook.md](./recommendation-latest-window-audit-runbook.md)
 - [recommendation-pipeline-lane-audit-runbook.md](./recommendation-pipeline-lane-audit-runbook.md)
+- [recommendation-saved-batch-gap-audit-runbook.md](./recommendation-saved-batch-gap-audit-runbook.md)
 - [recommendation-pipeline.md](./recommendation-pipeline.md)
 
 현재 practical runtime wrapper:
@@ -40,6 +41,7 @@
 - `bash deploy/smoke/run-local-recommendation-region-window-audit.sh`
 - `bash deploy/smoke/run-local-recommendation-latest-window-audit.sh`
 - `bash deploy/smoke/run-local-recommendation-pipeline-lane-audit.sh`
+- `bash deploy/smoke/run-local-recommendation-saved-batch-gap-audit.sh`
 - `bash deploy/smoke/run-local-gov24-recommend-surface-audit.sh`
 - `bash deploy/smoke/run-local-gov24-recommend-score-audit.sh`
 - `bash deploy/smoke/run-local-gov24-zero-ai-audit.sh`
@@ -205,6 +207,12 @@
 - [recommendation-pipeline-lane-audit-runbook.md](./recommendation-pipeline-lane-audit-runbook.md)
 
 이 문서는 target family가 actual recommendation trace에서 `base/latest/filter/merged/saved` 중 어디까지 들어오는지 한 줄로 읽고, 다음 bounded fix를 retrieval/latest/scoring/saved 중 어디로 둘지 좁히는 runbook 입니다.
+
+### 13. saved batch gap audit runbook
+
+- [recommendation-saved-batch-gap-audit-runbook.md](./recommendation-saved-batch-gap-audit-runbook.md)
+
+이 문서는 retrieval 경계가 닫힌 뒤에도 target family가 `SCORED_BUT_NOT_IN_SAVED_BATCH` 로 남을 때, current rerank trace와 latest saved top competitor를 같은 화면에서 비교해 saved window 직전 병목을 좁히는 runbook 입니다.
 
 Gov24가 추천에 "안 보이는지"보다 "몇 위에서 어떤 서비스로 뜨는지"를 보려면 `bash deploy/smoke/run-local-gov24-recommend-surface-audit.sh` 로 top1/top3/top5/top10 Gov24 share, rank별 source 분포, Gov24 상위 서비스 concentration을 같이 봅니다.
 
