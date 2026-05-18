@@ -4938,3 +4938,29 @@
 - 이유:
   - 이번 단계 목표는 결혼상태를 user-facing eligibility rule로 여는 것이 아니라, 공식 scalar signal을 **가장 좁게 관찰 가능하게 만드는 것**이다.
   - signal은 약하지만 구현 위험이 가장 낮아, 남은 official code 축을 계속 좁혀 가는 데 적합하다.
+
+## 856) 서버 재수집 결과 `mrgSttsCd` 도 raw -> fact -> diagnostics 경계까지 닫혔다
+- 문제: local에서는 `YOUTH_MARITAL_STATUS` 구현과 테스트가 끝났지만, 서버가 stale YOUTH raw/runtime 상태면 `mrgSttsCd` 가 실제로 fact와 diagnostics까지 반영되는지 확인할 수 없다. `mrgSttsCd` 는 scalar라 구현 자체는 단순해도, 서버 재수집 없이 “코드가 맞다”고 닫으면 again stale-data 경계를 놓치게 된다.
+- 확인:
+  - 서버 `2dbca7b` 반영 뒤 `docker compose up -d --build app` 및 health `UP`
+  - `POST /api/admin/collect/youth = 200`
+  - `POST /api/admin/collect/youth-details = 200`, `requested=1 saved=0 skipped=2568 failed=1`
+  - DB:
+    - `YOUTH LIST raw mrgSttsCd = 2568 / 2569`
+    - `YOUTH_MARITAL_STATUS fact_rows = 2553`
+  - sample fact:
+    - `15629 병역진로설계 -> 0055003 / 제한없음`
+    - `4686 익산형 근로청년수당 -> 0055003 / 제한없음`
+    - `2567 강원 고성군 청년 취업수당 지원 -> 0055003 / 제한없음`
+  - admin diagnostics sample:
+    - `serviceId=672`
+    - `youthMaritalStatusCode=0055003`
+    - `youthMaritalStatusLabel=제한없음`
+    - `latestSavedRank=1`
+    - `latestSavedFinalScore=1.12`
+- 해결:
+  - 별도 코드 수정은 필요 없었다.
+  - 서버 YOUTH 재수집을 다시 돌린 뒤 raw/fact/diagnostics가 모두 최신 코드 경로를 타는지만 확인했다.
+- 이유:
+  - 이번 단계 목표는 결혼상태를 public rule로 쓰는 것이 아니라, `mrgSttsCd` official scalar signal이 서버에서도 **internal observation only** 경계로 안전하게 관찰 가능한지 확인하는 것이었다.
+  - `fact_rows > 0`, diagnostics scalar 노출, ranking unchanged가 모두 확인됐으므로 현재 남은 문제는 저장 경계가 아니라 소비 경계다.
