@@ -3,11 +3,13 @@
 - 현재는 운영 전환 단계가 아니라 로컬 기능/구조 검증 단계입니다.
 - 운영 서버 smoke/재기동/추천 진단까지는 실제로 확인했지만, 현재 active main track은 여전히 신규 운영 인프라 확장보다 로컬 기능/구조 검증과 bounded runtime 기준선 유지입니다.
 - 프론트는 기본 연동/빌드/브라우저 smoke까지 확인했고, 현재는 신규 기능보다 회귀 방지와 운영 문서 정리가 우선입니다.
-- `2026-05-18` 기준 YOUTH official fact는 `admin diagnostics`, 정책 상세 read-only, 정책 목록 compact badge까지 연결됐고, retrieval/filter/scoring은 아직 안 건드렸습니다.
+- `2026-05-18` 기준 YOUTH official fact는 `admin diagnostics`, 정책 상세 read-only, 정책 목록 compact badge, admin recommendation facet까지 연결됐고, retrieval/filter/scoring은 아직 안 건드렸습니다.
+- `2026-05-18` 기준 Gov24 token도 `diagnostics`, admin recommendation facet까지 연결됐고, public filter/scoring은 아직 안 건드렸습니다.
 - `2026-05-18` 기준 collect/runtime governance도 한 단계 더 닫혔습니다. `admin/dashboard/collect-failures` 는 이제 실패/partial/streak/circuit 뿐 아니라 `nightly vs manual collect lane inventory`, lane별 `마지막 실행 요약`, `budget/config summary` 를 같이 내려, 어떤 source가 왜 scheduled/manual 인지와 최근 실행 결과, pacing/budget/retry guard를 운영 화면에서 바로 읽을 수 있습니다.
 - 지금 우선순위는 기능 검증, 구조 검증, 수정, 최적화/보안, 프론트 연동 검증 순서입니다.
 - 운영/배포 관련 작업은 마지막 단계에서만 다룹니다.
-- 현재 다음 active track은 새 YOUTH/Gov24 소비처 추가보다 `collect/runtime governance` 정리입니다. 즉 자동/수동 수집 경계, source별 runtime summary, 운영 문서 drift를 먼저 고정하는 것이 맞습니다.
+- 현재는 `YOUTH/Gov24 소비처 추가` 와 `collect/runtime governance` 1차 정리가 모두 닫힌 상태입니다.
+- 즉 다음 active track은 같은 축의 추가 구현이 아니라, deferred/product/infra 중 무엇을 다시 열지 선택하는 단계로 보는 편이 맞습니다.
 - 2026-05-10 기준 복지로 운영 계정을 확보했고, `중앙 list`, `중앙 detail`, `지자체 list`, `지자체 detail` 을 각각 일일 `100,000` quota로 다시 운영합니다.
 - 코드 안전 상한은 복지로 list source별 `1회 10,000 items`, detail source별 `1회 10,000 calls` 로 둡니다.
 - 복지로 detail backlog 는 더 이상 개발 계정 quota 때문에 의도적으로 남겨 두는 상태로 보지 않고, `gap fill` / `refresh` 로 full coverage 를 다시 채우는 대상으로 봅니다.

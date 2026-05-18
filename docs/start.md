@@ -30,9 +30,9 @@
 
 ## 지금 기준 한 줄 요약
 
-- `2026-05-18` 기준 YOUTH official fact는 `raw -> fact -> admin diagnostics -> detail read-only -> policy card compact badge` 까지 닫혔습니다.
-- 다음 active track은 새 YOUTH fact 추가보다 `collect/runtime governance` 정리입니다.
-- 즉 다음 작업은 제품 score 조정보다 `자동/수동 수집 경계`, `runtime summary`, `lane budget/config summary`, `운영 문서 drift` 를 먼저 보는 쪽이 맞습니다.
+- `2026-05-18` 기준 YOUTH/Gov24 신호는 `raw -> fact/token -> admin diagnostics -> detail read-only -> policy card compact badge -> admin facet` 까지 닫혔습니다.
+- `2026-05-18` 기준 `collect/runtime governance` 도 `lane inventory -> latestRun -> config summary` 까지 닫혔습니다.
+- 즉 지금은 같은 축에서 코드를 더 여는 단계가 아니라, 다음 트랙을 새로 고르는 단계로 보는 편이 맞습니다.
 
 ## 필요할 때 보는 파일
 

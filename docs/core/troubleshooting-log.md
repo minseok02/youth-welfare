@@ -5245,3 +5245,15 @@
     운영자가 최신 추천면의 분포를 안정적으로 읽을 수 있게 만드는 것이다.
   - 서버에서도 default-like YOUTH 값 제거와 Gov24 token 분포가 그대로 유지되는 것이 확인됐으므로,
     다음 판단은 구현 correctness가 아니라 “이 분포를 제품 기능으로 더 넓힐지”의 문제로 넘어간다.
+
+## 869) 현재는 같은 축의 구현을 더 여는 단계가 아니라 다음 트랙 선택 단계다
+- 문제: YOUTH/Gov24 signal 소비와 collect/runtime governance를 순서대로 닫은 뒤에도, top-level 문서가 여전히 `collect/runtime governance` 를 “현재 다음 active track” 처럼 읽히게 남아 있었다. 이 상태를 두면 실제론 closeout 된 축을 다시 이어서 파게 되고, deferred/product/infra 중 무엇을 다시 열지 고르는 판단이 흐려진다.
+- 해결:
+  - `start.md`, `current-state.md`, `policy-next-active-track-priority.md` 를 현재 truth에 맞게 갱신했다.
+  - 현재 닫힌 범위:
+    - `YOUTH/Gov24 signal -> admin diagnostics/detail/card badge/admin facet`
+    - `collect/runtime governance -> lane inventory/latestRun/config summary`
+  - 현재 상태는 “같은 축 추가 구현”이 아니라 “다음 트랙 선택”으로 고정했다.
+- 이유:
+  - 이 단계부터는 구현보다 우선순위 선택이 중요하다.
+  - top-level 문서가 이 상태를 먼저 말해야, 이후 작업이 closeout된 축을 무의미하게 다시 파지 않는다.

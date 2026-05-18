@@ -21,38 +21,35 @@
 
 ## 결론
 
-현재 next active main track은 **로컬에서의 기능/구조 추가 검증과 bounded runtime 반복 검증** 입니다.
+현재 `2026-05-18` 기준으로는 **같은 축의 추가 구현보다 다음 트랙 선택** 이 우선입니다.
+
+즉
+
+- `YOUTH/Gov24 signal 소비` 는 admin facet까지 닫혔고
+- `collect/runtime governance` 는 lane inventory, latest run, config summary까지 닫혔으며
+- recommendation/local policy/Gov24 canonical/infra 중 무엇을 다시 열지 선택하는 단계입니다.
 
 참고로 recommendation 트랙은 `2026-05-18` 기준 active main track으로 보지 않습니다. 운영 `REAL_USER` gate, retrieval local 우선화, diagnostics/rerank/AI score 해석까지 한 번 닫혔고, 남은 것은 `2736` 류 local 청년 정책 신호를 더 강하게 넣을지에 대한 제품/모델링 판단입니다. 즉 recommendation 은 새 재현 버그나 명시적 노출 강화 목표가 생길 때만 reopen 하는 편이 맞습니다.
 
-즉 다음 기본 진행축은 아래 순서입니다.
+즉 지금 기본 진행축은 아래 순서입니다.
 
-1. 실제 기능이 끝까지 이어지는지 로컬에서 다시 검증하기
-2. 새 source 추가 구조가 collector -> raw -> sidecar -> read-model 경계에서 버티는지 확인하기
-3. 검증 중 드러난 수정 포인트를 반영하기
-4. 그 다음 최적화/보안 정리
-5. 프론트 연동 검증
-6. 마지막에만 infra/deploy 검토
+1. 지금 닫힌 기준선을 유지한다
+2. 새 재현 버그가 생기면 그 축만 다시 연다
+3. 코드 작업을 더 하려면 deferred/product lane 중 하나를 명시적으로 선택한다
 
-현재 2차 기능/구조 후보 중에서는 아래 순서를 권장한다.
+현재 다시 열 후보를 고른다면 아래 순서를 권장합니다.
 
-1. bounded policy admin runtime 경로 반복 검증과 one-shot summary smoke 기준선 유지
-2. broader local 기능/구조 검증에서 드러나는 drift나 dead runbook 설명 정리
-3. CTR readiness audit 재확인 + 클릭 표본 확충
-4. recommendation concentration audit로 top1/service/source/category 편중을 baseline으로 고정
-5. readiness가 `READY_FOR_WEIGHT_REVIEW` 로 바뀌더라도, concentration audit가 계속 `CONCENTRATED_TOP1` 이면 diversity/fallback 로직을 먼저 보정
-6. 그 뒤 추천 품질 재조정
-7. 개인 캐시 운영 관측치가 더 쌓인 뒤 TTL/eviction 세부 튜닝
-8. 사용자 규모 증가 시 군집 캐시 재검토
-9. 카카오 알림톡 blocked 재검토
+1. recommendation 제품 판단
+2. `Gov24` canonical deferred
+3. infra/server 확장
 
 이유:
 
 - `검색 로그`, `대시보드`, `userKey` 기준 개인 refresh 캐시는 현재 로컬 코드/데이터만으로 구현을 끝냈다.
 - 개인 캐시는 recommendation payload 전체를 Redis에 넣는 대신, `non-personal refresh` 재계산을 잠시 억제하는 마커만 저장해 현재 persistence/log/bookmark 경계와 충돌을 줄였다.
 - `2026-05-15` 기준 개인 캐시 회귀 검증은 `collect/replay/broad-suite` 기준선에서 다시 통과했다. 타깃 recommendation cache 테스트, `run-local-education-priority-replay.sh`, 전체 `./gradlew test integrationTest --no-daemon` 까지 모두 green이다.
-- 따라서 지금 당장 다시 열 수 있는 practical task는 `CTR tuning` 자체보다, bounded runtime 경로와 local closeout 기준선이 문서/스크립트/실행 결과에서 계속 같은 truth를 유지하는지 반복 검증하는 쪽이다.
-- CTR 관련 다음 액션은 `CTR readiness audit` 와 concentration audit를 같이 읽되, 먼저 synthetic-only traffic 인지부터 걸러내고 그 다음에만 weight tuning 또는 diversity/fallback 보정 순서를 판단하는 쪽이다.
+- 따라서 지금 당장 practical task를 새로 잡으려면, 기존 기준선을 더 미세하게 닦기보다 어떤 deferred/product lane을 다시 열지 먼저 결정하는 편이 맞다.
+- CTR 관련 다음 액션도 지금은 immediate active task가 아니라, recommendation reopen이 승인된 뒤에만 다시 본다.
 - 군집 캐시는 실제 사용자 수와 요청 패턴이 충분히 커졌을 때 hit-rate / stale / invalidation 비용을 다시 계산하며 재검토하는 것이 맞다.
 - `카카오 알림톡` 은 비즈니스 채널/발신 프로필/템플릿 심사와 사업자 증빙이 먼저라, 코드보다 운영 자격이 선행 조건이다.
 - `2026-05-17` local CTR audit 기준 total logs는 `4143`, clicked logs는 `31` 까지 올라왔지만, 현재 origin 기준은 `example_logs/users=4119/458`, `bounded_local_logs/users=6/1`, `local_real_non_example_seed_logs/users=18/3`, `real_user_logs/users=0/0` 이다.
