@@ -252,6 +252,21 @@ Gov24는 `사용자구분 -> 개인 rows=214 services=16, 소상공인 rows=5 se
 같은 token 분포가 보였다.
 즉 현재 truth는 YOUTH/Gov24 admin facet도 latest recommendation batch 기준 read-only 분포 경계까지 닫혔고,
 retrieval/filter/scoring은 여전히 그대로다.
+그 다음 단계로 `Gov24 canonical promotion` 1차 구현도 열었다.
+이번 단계에서는 `serviceField/userType/benefitType` 를 hard fact나 public filter로 승격하지 않고,
+`service_taxonomy_terms` 에만 additive canonical term으로 저장한다.
+구체적으로는
+`GOV24_SERVICE_FIELD` exact-label term 1개,
+`GOV24_USER_TYPE_TOKEN` allowlist token term,
+`GOV24_BENEFIT_TYPE_TOKEN` allowlist token term
+까지만 저장하고,
+raw exact label summary(`gov24ServiceFieldLabel/gov24UserTypeLabel/gov24BenefitTypeLabel`)는 그대로 유지한다.
+즉 현재 truth는 Gov24가
+`raw exact label -> internal token parser -> admin facet`
+경계를 넘어서
+`service_taxonomy_terms` canonical term 저장
+까지는 닫혔고,
+`service_facts`, stable code/import-backfill SQL, public filter/scoring은 계속 deferred 다.
 
 ## 2. `YOUTH_MID_RAW_ALIAS` 현재 상태
 

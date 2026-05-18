@@ -2,6 +2,7 @@ package com.example.welfare.collect.mapper;
 
 import com.example.welfare.collect.dto.BokjiroCentralDto;
 import com.example.welfare.collect.dto.BokjiroLocalDto;
+import com.example.welfare.collect.dto.Gov24ServiceListDto;
 import com.example.welfare.collect.dto.YouthApiDto;
 import com.example.welfare.collect.gateway.BokjiroDetailClient;
 import com.example.welfare.collect.normalization.NormalizedPolicyAggregate;
@@ -136,6 +137,38 @@ class NormalizedPolicyAggregateTest {
                         tuple("YOUTH_MID", "취업"),
                         tuple("YOUTH_MID", "재직자"),
                         tuple("YOUTH_MID_RAW_ALIAS", "온·오프라인교육")
+                );
+    }
+
+    @Test
+    void toNormalizedGov24_buildsSummaryAndTaxonomyTerms() throws Exception {
+        Gov24ServiceListDto.Item item = new Gov24ServiceListDto.Item();
+        setField(item, "serviceId", "G001");
+        setField(item, "serviceName", "청년 이사비 지원");
+        setField(item, "servicePurposeSummary", "청년 주거비 부담 완화");
+        setField(item, "supportContent", "이사소요비용 지원");
+        setField(item, "serviceField", "주거·자립");
+        setField(item, "userType", "개인||가구");
+        setField(item, "supportType", "현금(융자)||서비스(의료)");
+        setField(item, "applyMethod", "온라인 신청");
+        setField(item, "detailUrl", "https://example.com/gov24");
+
+        NormalizedPolicyAggregate aggregate = mapper.toNormalizedGov24(item);
+
+        assertThat(aggregate.core().sourceId()).isEqualTo("G001");
+        assertThat(aggregate.taxonomy().compatUnifiedCategory()).isEqualTo("주거");
+        assertThat(aggregate.taxonomy().summaryLabel("GOV24_SERVICE_FIELD")).isEqualTo("주거·자립");
+        assertThat(aggregate.taxonomy().summaryLabel("GOV24_USER_TYPE")).isEqualTo("개인||가구");
+        assertThat(aggregate.taxonomy().summaryLabel("GOV24_BENEFIT_TYPE")).isEqualTo("현금(융자)||서비스(의료)");
+        assertThat(aggregate.taxonomyTerms())
+                .extracting(NormalizedPolicyAggregate.TaxonomyTerm::termGroup,
+                        NormalizedPolicyAggregate.TaxonomyTerm::termLabel)
+                .contains(
+                        tuple("GOV24_SERVICE_FIELD", "주거·자립"),
+                        tuple("GOV24_USER_TYPE_TOKEN", "개인"),
+                        tuple("GOV24_USER_TYPE_TOKEN", "가구"),
+                        tuple("GOV24_BENEFIT_TYPE_TOKEN", "현금(융자)"),
+                        tuple("GOV24_BENEFIT_TYPE_TOKEN", "서비스(의료)")
                 );
     }
 

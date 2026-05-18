@@ -5493,6 +5493,26 @@
   - 여기서 바로 `service_facts` 나 scoring으로 가면 범위가 과하고, 반대로 blocked SQL 만 더 파도 source-of-truth 부재 조건은 바뀌지 않는다.
   - 따라서 다음 active lane은 runtime collect 재개가 아니라, **exact label 유지 + allowlist token split 을 `service_taxonomy_terms` 중심 canonical 층으로 어디까지 승격할지 문서/코드 기준선을 맞추는 설계 단계**로 보는 편이 맞다.
 
+## 894) Gov24 canonical promotion 1차는 `service_facts` 가 아니라 `service_taxonomy_terms` 에 bounded 하게 여는 편이 맞다
+- 문제: 문서로는 `Gov24 canonical promotion` 범위를 정리했지만, 코드가 여전히 summary label만 저장하면 다음 단계에서 다시 “term으로도 올릴 건지, 아니면 parser 관찰만 할 건지”가 흐려질 수 있었다. 반대로 바로 `service_facts` 나 scoring으로 가면 `사용자구분/지원유형` 을 eligibility 축처럼 오해할 위험이 컸다.
+- 해결:
+  - `NormalizationKeySupport` 에
+    - `GOV24_SERVICE_FIELD`
+    - `GOV24_USER_TYPE_TOKEN`
+    - `GOV24_BENEFIT_TYPE_TOKEN`
+    term group과 source field 상수를 추가했다.
+  - 새 `Gov24NormalizationSupport` 를 만들어
+    - `서비스분야` 는 exact raw label term 1개
+    - `사용자구분` 은 split token allowlist term
+    - `지원유형` 은 split token allowlist term
+    으로만 조립하게 했다.
+  - `WelfareServiceMapper.toNormalizedGov24(...)` 는 이제 summary label과 함께 위 taxonomy terms를 같이 만든다.
+  - 테스트도 `Gov24NormalizationSupportTest`, `NormalizedPolicyAggregateTest`, `NormalizedPolicySidecarPersistenceIntegrationTest` 로 추가해, 실제 sidecar save path에서 `service_taxonomies` summary는 그대로 유지되면서 `service_taxonomy_terms` 에만 Gov24 canonical term이 저장되는 계약을 고정했다.
+- 이유:
+  - 이 단계의 목적은 raw exact label을 버리거나 `service_facts` 를 여는 것이 아니라, **label-first canonical term 저장층을 먼저 만드는 것**이다.
+  - `서비스분야` 는 exact-label term, `사용자구분/지원유형` 은 additive token term으로만 열면, admin/internal facet과 후속 canonical summary 읽기에는 충분하면서 matcher/scoring 오용 범위는 억제할 수 있다.
+  - 즉 현재 Gov24 active lane은 “새 조건 fact” 가 아니라 **bounded taxonomy term promotion** 으로 읽는 것이 맞다.
+
 ## 891) `생애주기/대상군` prompt 보강은 일부 row를 살리지만, `3257/3209` 핵심 케이스는 여전히 primary audience mismatch로 0점이 유지된다
 - 문제: `3257/3209/3287` 의 `savedAi=0` 이 prompt line에 청년 신호가 약해서인지, 아니면 AI가 수급자/신혼부부/학생 같은 대상군 불일치를 강한 exclusion으로 해석해서인지 확정이 필요했다.
 - 해결:

@@ -22,6 +22,9 @@ public final class NormalizationKeySupport {
     public static final String TERM_GROUP_YOUTH_MID = "YOUTH_MID";
     public static final String TERM_GROUP_YOUTH_MID_RAW_ALIAS = "YOUTH_MID_RAW_ALIAS";
     public static final String TERM_GROUP_YOUTH_KEYWORD = "YOUTH_KEYWORD";
+    public static final String TERM_GROUP_GOV24_SERVICE_FIELD = "GOV24_SERVICE_FIELD";
+    public static final String TERM_GROUP_GOV24_USER_TYPE_TOKEN = "GOV24_USER_TYPE_TOKEN";
+    public static final String TERM_GROUP_GOV24_BENEFIT_TYPE_TOKEN = "GOV24_BENEFIT_TYPE_TOKEN";
     public static final String TERM_GROUP_LIFE_STAGE = "LIFE_STAGE";
     public static final String TERM_GROUP_INTEREST_THEME = "INTEREST_THEME";
     public static final String TERM_GROUP_TARGET_GROUP = "TARGET_GROUP";
@@ -70,6 +73,9 @@ public final class NormalizationKeySupport {
     public static final String SOURCE_FIELD_YOUTH_EDUCATION_REQUIREMENT = "schoolCd";
     public static final String SOURCE_FIELD_YOUTH_SPECIAL_REQUIREMENT = "sbizCd";
     public static final String SOURCE_FIELD_YOUTH_APPLY_END_DATE = "aplyYmd";
+    public static final String SOURCE_FIELD_GOV24_SERVICE_FIELD = "serviceField";
+    public static final String SOURCE_FIELD_GOV24_USER_TYPE = "userType";
+    public static final String SOURCE_FIELD_GOV24_BENEFIT_TYPE = "supportType";
     public static final String SOURCE_FIELD_BOKJIRO_DIGEST = "servDgst";
     public static final String SOURCE_FIELD_BOKJIRO_TITLE_DIGEST_PROVISION = "servNm/servDgst/srvPvsnNm";
     public static final String SOURCE_FIELD_BOKJIRO_LIFE_ARRAY = "lifeArray";

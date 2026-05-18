@@ -11,6 +11,7 @@ import com.example.welfare.collect.gateway.BokjiroDetailClient;
 import com.example.welfare.collect.normalization.NormalizedPolicyAggregate;
 import com.example.welfare.collect.support.BokjiroNormalizationSupport;
 import com.example.welfare.collect.support.CollectCategorySupport;
+import com.example.welfare.collect.support.Gov24NormalizationSupport;
 import com.example.welfare.collect.support.NormalizationKeySupport;
 import com.example.welfare.collect.support.YouthNormalizationSupport;
 import com.example.welfare.collect.support.YouthOfficialCodeSupport;
@@ -444,6 +445,7 @@ public class WelfareServiceMapper {
                         .authority(NormalizedPolicyAggregate.Authority.OFFICIAL)
                         .confidence(BigDecimal.ONE)
                         .build())
+                .taxonomyTerms(Gov24NormalizationSupport.taxonomyTerms(item))
                 .build();
     }
 

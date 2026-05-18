@@ -1,9 +1,11 @@
 package com.example.welfare.integration;
 
 import com.example.welfare.collect.dto.YouthApiDto;
+import com.example.welfare.collect.dto.Gov24ServiceListDto;
 import com.example.welfare.collect.mapper.WelfareServiceMapper;
 import com.example.welfare.collect.normalization.NormalizedPolicyAggregate;
 import com.example.welfare.collect.service.CollectItemSaver;
+import com.example.welfare.collect.support.CollectSourceRegistry;
 import com.example.welfare.collect.support.ListCollectSourceBindings;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.repository.WelfareServiceRepository;
@@ -52,17 +54,8 @@ class NormalizedPolicySidecarPersistenceIntegrationTest {
 
     @AfterEach
     void cleanup() {
-        welfareServiceRepository.findBySourceType(WelfareService.SourceType.YOUTH).stream()
-                .filter(service -> service.getSourceId() != null && service.getSourceId().startsWith(TEST_SOURCE_PREFIX))
-                .forEach(service -> {
-                    Long serviceId = service.getId();
-                    jdbcTemplate.update("DELETE FROM service_facts WHERE service_id = ?", serviceId);
-                    jdbcTemplate.update("DELETE FROM service_taxonomy_terms WHERE service_id = ?", serviceId);
-                    jdbcTemplate.update("DELETE FROM service_taxonomies WHERE service_id = ?", serviceId);
-                    jdbcTemplate.update("DELETE FROM service_tags WHERE service_id = ?", serviceId);
-                    jdbcTemplate.update("DELETE FROM service_regions WHERE service_id = ?", serviceId);
-                    jdbcTemplate.update("DELETE FROM welfare_services WHERE id = ?", serviceId);
-                });
+        cleanupSourceType(WelfareService.SourceType.YOUTH);
+        cleanupSourceType(WelfareService.SourceType.GOV24);
     }
 
     @Test
@@ -206,6 +199,71 @@ class NormalizedPolicySidecarPersistenceIntegrationTest {
         });
     }
 
+    @Test
+    @DisplayName("gov24 list aggregate save path는 summary와 taxonomy term을 함께 저장한다")
+    void saveGov24OncePersistsSummaryAndTerms() {
+        sourceId = TEST_SOURCE_PREFIX + UUID.randomUUID();
+
+        Gov24ServiceListDto.Item item = gov24Item(
+                sourceId,
+                "주거·자립",
+                "개인||가구",
+                "현금(융자)||서비스(의료)"
+        );
+
+        NormalizedPolicyAggregate aggregate = welfareServiceMapper.toNormalizedGov24(item);
+        collectItemSaver.save(CollectSourceRegistry.GOV24.listBinding(welfareServiceMapper), item, aggregate);
+
+        WelfareService saved = welfareServiceRepository
+                .findBySourceTypeAndSourceId(WelfareService.SourceType.GOV24, sourceId)
+                .orElseThrow();
+
+        Map<String, Object> taxonomySummary = jdbcTemplate.queryForMap("""
+                SELECT compat_unified_category_label,
+                       gov24_service_field_label,
+                       gov24_user_type_label,
+                       gov24_benefit_type_label
+                FROM service_taxonomies
+                WHERE service_id = ?
+                """, saved.getId());
+
+        assertThat(taxonomySummary.get("compat_unified_category_label")).isEqualTo("주거");
+        assertThat(taxonomySummary.get("gov24_service_field_label")).isEqualTo("주거·자립");
+        assertThat(taxonomySummary.get("gov24_user_type_label")).isEqualTo("개인||가구");
+        assertThat(taxonomySummary.get("gov24_benefit_type_label")).isEqualTo("현금(융자)||서비스(의료)");
+
+        List<Map<String, Object>> taxonomyTerms = jdbcTemplate.queryForList("""
+                SELECT term_group, term_label
+                FROM service_taxonomy_terms
+                WHERE service_id = ?
+                ORDER BY term_group, sort_order
+                """, saved.getId());
+
+        Map<String, List<String>> termsByGroup = taxonomyTerms.stream()
+                .collect(Collectors.groupingBy(
+                        row -> (String) row.get("term_group"),
+                        Collectors.mapping(row -> (String) row.get("term_label"), Collectors.toList())
+                ));
+
+        assertThat(termsByGroup.get("GOV24_SERVICE_FIELD")).containsExactly("주거·자립");
+        assertThat(termsByGroup.get("GOV24_USER_TYPE_TOKEN")).containsExactly("개인", "가구");
+        assertThat(termsByGroup.get("GOV24_BENEFIT_TYPE_TOKEN")).containsExactly("현금(융자)", "서비스(의료)");
+    }
+
+    private void cleanupSourceType(WelfareService.SourceType sourceType) {
+        welfareServiceRepository.findBySourceType(sourceType).stream()
+                .filter(service -> service.getSourceId() != null && service.getSourceId().startsWith(TEST_SOURCE_PREFIX))
+                .forEach(service -> {
+                    Long serviceId = service.getId();
+                    jdbcTemplate.update("DELETE FROM service_facts WHERE service_id = ?", serviceId);
+                    jdbcTemplate.update("DELETE FROM service_taxonomy_terms WHERE service_id = ?", serviceId);
+                    jdbcTemplate.update("DELETE FROM service_taxonomies WHERE service_id = ?", serviceId);
+                    jdbcTemplate.update("DELETE FROM service_tags WHERE service_id = ?", serviceId);
+                    jdbcTemplate.update("DELETE FROM service_regions WHERE service_id = ?", serviceId);
+                    jdbcTemplate.update("DELETE FROM welfare_services WHERE id = ?", serviceId);
+                });
+    }
+
     private YouthApiDto.Item youthItem(String sourceId,
                                        String major,
                                        String mid,
@@ -248,6 +306,29 @@ class NormalizedPolicySidecarPersistenceIntegrationTest {
         ReflectionTestUtils.setField(item, "inqCnt", 10L);
         ReflectionTestUtils.setField(item, "frstRegDt", "2026-04-30 12:30:45");
         ReflectionTestUtils.setField(item, "lastMdfcnDt", "2026-04-30 13:30:45");
+        return item;
+    }
+
+    private Gov24ServiceListDto.Item gov24Item(String sourceId,
+                                               String serviceField,
+                                               String userType,
+                                               String supportType) {
+        Gov24ServiceListDto.Item item = new Gov24ServiceListDto.Item();
+        ReflectionTestUtils.setField(item, "serviceId", sourceId);
+        ReflectionTestUtils.setField(item, "serviceName", "Gov24 sidecar smoke");
+        ReflectionTestUtils.setField(item, "servicePurposeSummary", "청년 주거비 부담 완화");
+        ReflectionTestUtils.setField(item, "supportContent", "이사 및 정착 비용 지원");
+        ReflectionTestUtils.setField(item, "serviceField", serviceField);
+        ReflectionTestUtils.setField(item, "userType", userType);
+        ReflectionTestUtils.setField(item, "supportType", supportType);
+        ReflectionTestUtils.setField(item, "managingOrganizationName", "인천광역시");
+        ReflectionTestUtils.setField(item, "departmentName", "청년정책담당관");
+        ReflectionTestUtils.setField(item, "selectionCriteria", "청년 대상");
+        ReflectionTestUtils.setField(item, "applyMethod", "온라인 신청");
+        ReflectionTestUtils.setField(item, "detailUrl", "https://example.com/gov24/" + sourceId);
+        ReflectionTestUtils.setField(item, "viewCount", 10L);
+        ReflectionTestUtils.setField(item, "registeredAt", "2026-05-01 09:00:00");
+        ReflectionTestUtils.setField(item, "modifiedAt", "2026-05-02 09:00:00");
         return item;
     }
 }
