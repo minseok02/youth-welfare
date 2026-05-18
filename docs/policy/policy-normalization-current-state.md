@@ -120,6 +120,10 @@ merge key도 code별 fan-out 대신 단일 `YOUTH_INCOME_CONDITION_TYPE` 으로 
 recommendation scoring, retrieval filter, public policy/recommendation response는 아직 이 값을 소비하지 않는다.
 의도는 “값이 저장되는가” 다음에 바로 “운영자가 읽을 수 있는가”를 닫되,
 일반 사용자 UX나 추천 규칙에 의미를 과대투영하지 않는 것이다.
+서버에서도 이 경계는 재수집 후 실제로 닫혔다. `87b49c3` 반영 직후엔 stale YOUTH raw 때문에 `service_facts` 와 diagnostics 값이 비어 있었지만,
+`POST /api/admin/collect/youth` + `POST /api/admin/collect/youth-details` 재실행 후
+`LIST raw earnCndSeCd = 2568 / 2569`, `DETAIL raw earnCndSeCd = 2564 / 2564`, `YOUTH_INCOME_CONDITION_TYPE fact_rows = 2567`
+까지 올라왔고, admin diagnostics도 `youthIncomeConditionTypeCode/Label` 을 실제로 반환했다.
 
 ## 2. `YOUTH_MID_RAW_ALIAS` 현재 상태
 

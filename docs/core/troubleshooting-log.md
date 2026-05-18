@@ -4740,3 +4740,22 @@
   - 이번 단계의 목표는 “새 fact가 저장되는가” 다음에 “운영자가 그것을 실제로 읽을 수 있는가”를 닫는 것이다.
   - internal diagnostics까지만 열면 저장/관찰 경계는 닫히면서도, 일반 사용자 UX나 추천 규칙에 소득조건 유형을 과대투영하지 않는다.
   - 이 분리를 문서에 남겨 두면, 이후 public 노출이나 scoring 소비를 열 때 “이미 internal observation 단계는 끝났다”는 전제가 생겨 단계별 판단이 쉬워진다.
+
+## 848) 서버에서 `YOUTH_INCOME_CONDITION_TYPE` 가 안 보인 첫 원인은 코드가 아니라 재수집 전 stale YOUTH raw였다
+- 문제: `87b49c3` 를 서버에 반영한 뒤 admin diagnostics로 `youthIncomeConditionTypeCode/Label` 을 확인하려 했는데, YOUTH 서비스 sample에서도 두 값이 계속 `null` 이었다. 코드가 빠졌는지, read-model이 못 읽는지, 아니면 서버 DB에 fact 자체가 없는지 먼저 구분해야 했다.
+- 확인:
+  - 서버 DB에서 바로 조회하니 `service_facts.fact_code_set_key='YOUTH_INCOME_CONDITION_TYPE'` 가 `0건` 이었다.
+  - 같은 시점 `raw_api_payloads` 도 `YOUTH LIST raw earnCndSeCd = 0 / 2569` 로 나와, 최신 DTO 필드가 서버 raw snapshot에는 아직 반영되지 않은 상태였다.
+  - 즉 diagnostics `null` 은 코드 경계 실패보다 **재수집 전 데이터 freshness 문제** 로 읽는 편이 맞았다.
+- 해결:
+  - 서버에서 `POST /api/admin/collect/youth`, `POST /api/admin/collect/youth-details` 를 다시 실행했다.
+  - 재수집 후 DB 상태:
+    - `YOUTH LIST raw earnCndSeCd = 2568 / 2569`
+    - `YOUTH DETAIL raw earnCndSeCd = 2564 / 2564`
+    - `YOUTH_INCOME_CONDITION_TYPE fact_rows = 2567`
+    - 분포: `0043001=2227`, `0043002=27`, `0043003=313`
+  - 그 뒤 admin diagnostics에서 `serviceId=672` 가 `youthIncomeConditionTypeCode=0043003`, `youthIncomeConditionTypeLabel=기타` 로 실제 노출되는 것을 확인했다.
+- 이유:
+  - 이번 단계의 목적은 “internal observation only” 변경이 서버 실제 데이터에서도 살아 있는지 닫는 것이었다.
+  - 결과적으로 병목은 코드가 아니라 stale YOUTH raw였고, 재수집 후 raw -> fact -> read-model -> diagnostics 경계가 모두 이어지는 것이 확인됐다.
+  - 이 기록을 남겨 두면, 이후 official fact를 추가할 때도 서버 diagnostics `null` 을 먼저 코드 버그로 오해하지 않고 raw freshness부터 확인하는 기준점으로 쓸 수 있다.
