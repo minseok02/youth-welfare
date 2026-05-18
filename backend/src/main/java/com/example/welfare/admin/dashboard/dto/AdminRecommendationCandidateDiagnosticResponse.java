@@ -46,6 +46,8 @@ public record AdminRecommendationCandidateDiagnosticResponse(
             boolean inLatestSavedBatch,
             String dropStage,
             Boolean youthRelevant,
+            Boolean primaryAudienceRelevant,
+            Boolean ageConstraintMatched,
             Double ruleBaseScore,
             Double ruleWeightedScore,
             Double aiScore,

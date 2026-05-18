@@ -135,6 +135,8 @@ public class AdminDashboardRecommendationDiagnosticService {
                                     filterTrace
                             ),
                             youthRelevant,
+                            filterTrace != null ? filterTrace.primaryAudienceRelevant() : null,
+                            filterTrace != null ? filterTrace.ageConstraintMatched() : null,
                             scoredCandidate != null ? scoredCandidate.getRuleBaseScore() : null,
                             scoredCandidate != null ? scoredCandidate.getRuleWeightedScore() : null,
                             scoredCandidate != null ? scoredCandidate.getAiScore() : null,

@@ -61,6 +61,9 @@ bash deploy/smoke/run-local-recommendation-pipeline-lane-audit.sh
 - `latest`
 - `pass_base`
 - `pass_latest`
+- `primary`
+- `age`
+- `youthRelevant`
 - `merged`
 - `post`
 - `saved`
@@ -87,6 +90,15 @@ bash deploy/smoke/run-local-recommendation-pipeline-lane-audit.sh
 
 이 경우 latest lane은 약하지만 base lane 덕분에 후보는 실제 pipeline 안에 살아 있습니다.  
 즉 `latest 20` 경계가 전부는 아닙니다.
+
+### 3. `pass_base=false` 면 `primary/age/youthRelevant` 를 같이 본다
+
+- `primary=false`, `age=true`
+  - primary audience mismatch
+- `primary=true`, `age=false`
+  - age constraint mismatch
+- `youthRelevant=true` 인데 `primary=false`
+  - projection/target-group 계열 mismatch를 의심
 
 ### 3. `latest=true`, `pass_latest=true`, `merged=false`
 

@@ -203,6 +203,8 @@ class AdminDashboardRecommendationDiagnosticServiceTest {
                 .satisfies(row -> {
                     assertThat(row.inBaseRetrieval()).isTrue();
                     assertThat(row.passedBaseFilters()).isFalse();
+                    assertThat(row.primaryAudienceRelevant()).isFalse();
+                    assertThat(row.ageConstraintMatched()).isTrue();
                     assertThat(row.dropStage()).isEqualTo("FILTERED_BY_PRIMARY_AUDIENCE_RELEVANCE");
                 });
 
@@ -210,6 +212,8 @@ class AdminDashboardRecommendationDiagnosticServiceTest {
                 .satisfies(row -> {
                     assertThat(row.inBaseRetrieval()).isTrue();
                     assertThat(row.passedBaseFilters()).isFalse();
+                    assertThat(row.primaryAudienceRelevant()).isTrue();
+                    assertThat(row.ageConstraintMatched()).isFalse();
                     assertThat(row.dropStage()).isEqualTo("FILTERED_BY_AGE_CONSTRAINT");
                 });
 
