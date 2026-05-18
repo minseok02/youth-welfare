@@ -1,0 +1,163 @@
+# recommendation next lane brief
+
+문서군 진입점: [recommendation-docs-index.md](./recommendation-docs-index.md)
+
+## 목적
+
+이 문서는 현재 recommendation 트랙을
+다시 열기로 결정한다면,
+**무엇부터 여는 편이 맞는지** 를 한 장으로 고정하는 brief 입니다.
+
+현재 기준 권장안은:
+
+- `lane 1. local 신호 구조화`
+
+입니다.
+
+즉 다음 recommendation reopen 은
+`diversity/balancing` 이나 `direct tuning` 보다 먼저
+**local 청년 정책군의 direct signal 구조화** 로 시작하는 편이 맞습니다.
+
+## 현재 권장 결론
+
+`2026-05-18` 기준으로 recommendation 을 다시 열면,
+첫 reopen lane 은 아래로 둡니다.
+
+1. `lane 1. local 신호 구조화`
+2. 그다음 필요하면 `lane 2. diversity/balancing`
+3. `lane 3. direct ranking/weight/prompt tuning` 은 마지막
+
+즉 current recommendation next lane 은
+**global tuning 이 아니라 local signal structuring** 입니다.
+
+## 왜 lane 1 이 먼저인가
+
+현재 evidence 는 대체로 아래를 말합니다.
+
+1. 새 재현 가능한 recommendation bugfix는 이미 닫혔다.
+2. 인천 local 후보는 retrieval 자체에서 빠지던 경계가 이미 줄었다.
+3. `2736` 류 후보는 이제 retrieval 안에는 들어오지만,
+   경쟁 후보보다 direct `interest/theme/benefit` 신호가 약하게 읽힌다.
+4. 따라서 남은 문제는 “추천이 고장났다”보다
+   “local 청년 정책군 신호를 더 구조화하고 싶은가”에 가깝다.
+
+즉 현재 병목은
+
+- priority 미반영 bug
+- retrieval miss bug
+
+보다
+
+- local 정책군의 설명 신호 부족
+
+으로 읽는 편이 맞습니다.
+
+## 지금 바로 lane 2 로 가지 않는 이유
+
+`diversity/balancing` 은 여전히 유효한 다음 후보지만,
+현재 local 사례는 source 전체 집중 문제보다
+**개별 정책군 direct signal 부족** 으로 설명되는 비중이 더 큽니다.
+
+즉 아래 질문부터 먼저 푸는 편이 맞습니다.
+
+- `2736` 류 local 청년 정책군에
+  `interest/theme`, 지역 적합성, direct benefit signal 을 더 줄 것인가
+
+이걸 풀기 전에 바로
+
+- source/category balancing
+- diversity penalty
+- fallback 분산 규칙
+
+으로 가면 문제를 너무 크게 일반화할 수 있습니다.
+
+## 지금 바로 lane 3 로 가지 않는 이유
+
+현재 단계에서 direct tuning 을 미루는 이유는 단순합니다.
+
+1. `REAL_USER` gate 와 recommendation review gate는 reopen 전제일 뿐,
+   곧바로 global tuning 근거는 아니다.
+2. local 정책군 문제를 더 좁게 설명할 수 있는데,
+   바로 weight patch 로 가면 과하다.
+3. admin facet, detail read-only, card badge까지는 이미 붙어 있어
+   먼저 신호 구조화를 시도할 수 있다.
+
+즉 direct tuning 은
+**더 좁은 lane 으로 안 풀린다는 증거가 남을 때만** 갑니다.
+
+## 현재 대상으로 보는 정책군
+
+현재 권장 해석은 source 전체가 아니라 **정책군 단위** 입니다.
+
+### 1. 인천 지역 청년 일자리/생활지원 계열
+
+대표 사례:
+
+- `2736`
+- 인천 local `BOKJIRO_LOCAL / 기타` 근접 후보군
+
+이 정책군은
+
+- 지역/청년 맥락은 있으나
+- 경쟁 후보보다 direct `interest/theme/benefit` 신호가 약한지
+
+를 먼저 봅니다.
+
+### 2. 필요 시 bounded family 단위 확장
+
+다음 가족군은 source 전체 일반론이 아니라
+bounded family 단위로만 확장합니다.
+
+- 주거 / 월세보증
+- 지역 장학금
+- 창업 / 소상공인
+
+이 분류는 [gov24-recommendation-audit-runbook.md](./gov24-recommendation-audit-runbook.md)
+와 같은 “정책군 단위 읽기” 원칙과 맞춥니다.
+
+## lane 1 에서 먼저 열 일
+
+1. local 청년 정책군의 `interest/theme` 구조화 강화
+2. 지역 적합성 신호 재정리
+3. direct benefit / program type 신호를 더 구조화할지 검토
+4. 필요하면 admin/read-only 관찰 경계부터 먼저 추가
+
+## lane 1 에서 아직 안 할 일
+
+1. global source bonus
+2. direct weight patch
+3. AI prompt 대규모 변경
+4. public filter/scoring 즉시 승격
+
+## 최소 실험 범위
+
+lane 1 reopen 을 실제로 승인하면
+최소 범위는 아래로 둡니다.
+
+1. 정책군 범위 명시
+   - 예: `인천 지역 청년 일자리/생활지원`
+2. 어떤 신호를 더 구조화하는지 명시
+   - `interest/theme`
+   - 지역 적합성
+   - direct benefit / program type
+3. 비교 baseline 명시
+   - latest batch
+   - fresh batch
+   - top competitor 비교
+4. 이번 단계에서 안 건드리는 것 명시
+   - global weight
+   - source balancing
+   - scoring/ranking direct patch
+
+## 다음 문서 순서
+
+1. [recommendation-real-user-baseline-runbook.md](./recommendation-real-user-baseline-runbook.md)
+2. [recommendation-reopen-decision-runbook.md](./recommendation-reopen-decision-runbook.md)
+3. 이 brief
+4. 필요하면 개별 audit runbook
+
+## 요약
+
+1. 현재 recommendation next lane 은 `lane 1. local 신호 구조화` 입니다.
+2. `2736` 류 사례는 source 전체가 아니라 정책군 단위로 읽습니다.
+3. `diversity/balancing` 은 다음 후보이고, `direct tuning` 은 마지막입니다.

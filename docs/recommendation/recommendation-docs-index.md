@@ -21,6 +21,7 @@
 - [recommendation-concentration-audit-runbook.md](./recommendation-concentration-audit-runbook.md)
 - [recommendation-real-user-baseline-runbook.md](./recommendation-real-user-baseline-runbook.md)
 - [recommendation-reopen-decision-runbook.md](./recommendation-reopen-decision-runbook.md)
+- [recommendation-next-lane-brief.md](./recommendation-next-lane-brief.md)
 - [recommendation-pipeline.md](./recommendation-pipeline.md)
 
 현재 practical runtime wrapper:
@@ -148,6 +149,18 @@
 
 를 정리한 decision runbook 입니다.
 
+### 8. next lane brief
+
+- [recommendation-next-lane-brief.md](./recommendation-next-lane-brief.md)
+
+이 문서는
+
+- 지금 recommendation 을 다시 열면 어떤 lane 부터 고르는 편이 맞는지
+- 왜 현재 권장안이 `local 신호 구조화` 인지
+- `diversity/balancing` 과 `direct tuning` 을 왜 뒤로 미루는지
+
+를 한 장으로 정리한 brief 입니다.
+
 Gov24가 추천에 "안 보이는지"보다 "몇 위에서 어떤 서비스로 뜨는지"를 보려면 `bash deploy/smoke/run-local-gov24-recommend-surface-audit.sh` 로 top1/top3/top5/top10 Gov24 share, rank별 source 분포, Gov24 상위 서비스 concentration을 같이 봅니다.
 
 Gov24 추천 추적만 별도로 빠르게 따라가려면 [gov24-recommendation-audit-runbook.md](./gov24-recommendation-audit-runbook.md) 를 먼저 봅니다. 이 문서는 `surface -> score -> zero/null/ai_status -> fresh batch -> bounded signal suite` 순서를 한 번에 정리합니다.
@@ -178,7 +191,7 @@ Gov24 source 전체가 구조적으로 억눌리는지 보려면 bounded smoke �
 
 주의: `ai_status` 는 `e7e591a` 이후 새로 생성된 batch에서만 직접 원인값으로 믿는 편이 맞습니다. migration backfill은 기존 `NULL ai_score` row를 전부 `NOT_REQUESTED` 로 채웠기 때문에, old batch에선 `rule_rank<=15 인데 NOT_REQUESTED` 같은 row가 backfill artifact일 수 있습니다. 이런 경우는 `bash deploy/smoke/run-local-gov24-top2-rule-rank-audit.sh` 를 같이 봐야 합니다.
 
-### 8. replay 템플릿
+### 9. replay 템플릿
 
 - [recommendation-replay-template.md](./recommendation-replay-template.md)
 
@@ -198,8 +211,9 @@ Gov24 source 전체가 구조적으로 억눌리는지 보려면 bounded smoke �
 3. [recommendation-concentration-audit-runbook.md](./recommendation-concentration-audit-runbook.md)
 4. 운영 `REAL_USER` 표본이면 [recommendation-real-user-baseline-runbook.md](./recommendation-real-user-baseline-runbook.md)
 5. reopen 종류를 고를 때 [recommendation-reopen-decision-runbook.md](./recommendation-reopen-decision-runbook.md)
-6. [recommendation-pipeline.md](./recommendation-pipeline.md)
-7. 필요하면 [runtime-api-smoke-commands.md](../core/runtime-api-smoke-commands.md)
+6. 현재 권장 lane 을 바로 확인할 때 [recommendation-next-lane-brief.md](./recommendation-next-lane-brief.md)
+7. [recommendation-pipeline.md](./recommendation-pipeline.md)
+8. 필요하면 [runtime-api-smoke-commands.md](../core/runtime-api-smoke-commands.md)
 
 ### 실험/비교 기록을 남길 때
 
@@ -216,5 +230,6 @@ Gov24 source 전체가 구조적으로 억눌리는지 보려면 bounded smoke �
 4. 추천 편중과 우선순위 반영 상태는 [recommendation-concentration-audit-runbook.md](./recommendation-concentration-audit-runbook.md) 로 따로 확인합니다.
 5. 운영 `REAL_USER` 표본 해석은 [recommendation-real-user-baseline-runbook.md](./recommendation-real-user-baseline-runbook.md) 로 따로 확인합니다.
 6. gate 가 열린 뒤 어떤 종류의 recommendation 과제를 다시 열지 고를 때는 [recommendation-reopen-decision-runbook.md](./recommendation-reopen-decision-runbook.md) 를 봅니다.
-7. 구조 설명은 [recommendation-pipeline.md](./recommendation-pipeline.md) 에 더 자세히 적혀 있습니다.
-8. replay/CTR/집중도 기록은 [recommendation-replay-template.md](./recommendation-replay-template.md) 또는 각 runbook의 최소 기록 항목을 기준으로 남기고, 요약 문서 갱신보다 evidence 기록을 먼저 합니다.
+7. 현재 권장 reopen lane 을 빠르게 확인할 때는 [recommendation-next-lane-brief.md](./recommendation-next-lane-brief.md) 를 봅니다.
+8. 구조 설명은 [recommendation-pipeline.md](./recommendation-pipeline.md) 에 더 자세히 적혀 있습니다.
+9. replay/CTR/집중도 기록은 [recommendation-replay-template.md](./recommendation-replay-template.md) 또는 각 runbook의 최소 기록 항목을 기준으로 남기고, 요약 문서 갱신보다 evidence 기록을 먼저 합니다.

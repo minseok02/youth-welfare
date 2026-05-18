@@ -5268,3 +5268,13 @@
 - 이유:
   - readiness 와 reopen 종류 선택은 다른 문제다.
   - recommendation 을 다시 열더라도 source 전체 가산점이나 direct weight patch부터 시작하지 않고, 먼저 더 좁은 lane 으로 설명 가능한지 보게 해야 제품 판단과 구현 경계가 흐려지지 않는다.
+
+## 871) decision runbook만으로는 추상적이라 현재 recommendation 의 권장 reopen lane을 한 장으로 더 고정해 두는 편이 낫다
+- 문제: `recommendation-reopen-decision-runbook.md` 는 선택 사다리를 고정하지만, 실제 현재 상태에서 어느 lane 이 권장인지까지는 별도 해석이 필요했다. 이 상태를 두면 문서를 읽는 사람마다 “지금은 diversity를 먼저 볼지, local signal을 먼저 볼지”를 다시 해석하게 된다.
+- 해결:
+  - 새 [recommendation-next-lane-brief.md](../recommendation/recommendation-next-lane-brief.md) 를 추가했다.
+  - 현재 quick 결론을 `lane 1. local 신호 구조화` 로 고정하고, `2736` 류 사례를 source 전체가 아니라 `인천 지역 청년 일자리/생활지원` 같은 정책군 단위로 읽게 정리했다.
+  - `recommendation-docs-index.md` 와 `recommendation-current-state.md` 에도 이 brief 를 연결했다.
+- 이유:
+  - 지금 recommendation 의 남은 문제는 새 bugfix보다 “어떤 종류의 reopen 을 먼저 고를 것인가”다.
+  - 이때 decision 사다리와 별도로 “현재 권장안은 lane 1” 이라는 one-page brief 가 있어야 다음 작업이 곧바로 global tuning 으로 점프하지 않는다.

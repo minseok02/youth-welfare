@@ -6,6 +6,7 @@
 
 - [recommendation-pipeline.md](./recommendation-pipeline.md)
 - [recommendation-reopen-decision-runbook.md](./recommendation-reopen-decision-runbook.md)
+- [recommendation-next-lane-brief.md](./recommendation-next-lane-brief.md)
 - [policy-normalization-current-state.md](../policy/policy-normalization-current-state.md)
 - [policy-local-closeout-pending-inventory.md](../policy/policy-local-closeout-pending-inventory.md)
 
@@ -41,6 +42,7 @@
 
 이 선택을 실제로 다시 열 때는 [recommendation-reopen-decision-runbook.md](./recommendation-reopen-decision-runbook.md) 기준으로
 `local 신호 구조화 -> diversity/balancing -> direct tuning` 순서를 먼저 고릅니다.
+현재 quick 결론은 [recommendation-next-lane-brief.md](./recommendation-next-lane-brief.md) 에 따로 고정합니다.
 
 ## 다시 열 조건
 
