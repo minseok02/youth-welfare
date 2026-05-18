@@ -111,7 +111,7 @@ public class WelfareServiceMapper {
                         .confidence(BigDecimal.ONE)
                         .build())
                 .taxonomyTerms(YouthNormalizationSupport.taxonomyTerms(item, youthMidPartition))
-                .facts(YouthNormalizationSupport.facts(service))
+                .facts(YouthNormalizationSupport.facts(service, item))
                 .build();
     }
 
@@ -212,6 +212,7 @@ public class WelfareServiceMapper {
                         .authority(NormalizedPolicyAggregate.Authority.OFFICIAL)
                         .confidence(BigDecimal.ONE)
                         .build())
+                .facts(YouthNormalizationSupport.facts(service, detail))
                 .build();
     }
 

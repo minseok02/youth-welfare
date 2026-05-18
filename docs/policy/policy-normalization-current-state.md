@@ -108,6 +108,12 @@ apply/replay 양쪽에서 같은 축으로 raw row density를 바로 대조할 �
 `YouthOfficialCodeSupport` 의 in-code official label map을 기준으로 해석하는 쪽이 더 안전하다.
 이 단계의 목적은 code import/backfill reopening이 아니라,
 future fact scope에서 multi-code를 잘못된 단일값으로 오해하지 않도록 parsing contract를 먼저 고정하는 것이다.
+그 위에서 2026-05-18 기준 `earnCndSeCd` 는 첫 official eligibility fact로 좁게 열었다.
+현재 local DB 분포는 `LIST 2566 / 2571`, `DETAIL 982 / 2568` 이 `earnCndSeCd` 를 보유하고, multi-code는 `0건` 이다.
+분포도 `0043001=무관 2226`, `0043003=기타 313`, `0043002=연소득 27` 로 scalar shape가 유지되므로,
+이번 단계에서는 `YOUTH_INCOME_CONDITION_TYPE` 을 별도 official fact로만 저장하고 추천/검색 gate에는 연결하지 않았다.
+중요한 경계는 이것이 `earnMinAmt/earnMaxAmt` 를 대체하는 hard income rule이 아니라, 소득조건 **유형 설명 fact** 라는 점이다.
+merge key도 code별 fan-out 대신 단일 `YOUTH_INCOME_CONDITION_TYPE` 으로 유지해, 향후 source 값이 바뀌더라도 stale fact가 누적되지 않게 했다.
 
 ## 2. `YOUTH_MID_RAW_ALIAS` 현재 상태
 

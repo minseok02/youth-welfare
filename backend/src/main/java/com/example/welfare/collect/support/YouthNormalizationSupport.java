@@ -85,6 +85,10 @@ public final class YouthNormalizationSupport {
     }
 
     public static List<NormalizedPolicyAggregate.Fact> facts(WelfareService service) {
+        return facts(service, null);
+    }
+
+    public static List<NormalizedPolicyAggregate.Fact> facts(WelfareService service, YouthApiDto.Item item) {
         List<NormalizedPolicyAggregate.Fact> facts = new ArrayList<>();
         addRangeFact(facts,
                 NormalizationKeySupport.FACT_GROUP_AGE,
@@ -112,6 +116,7 @@ public final class YouthNormalizationSupport {
                 NormalizationKeySupport.FACT_MERGE_KEY_YOUTH_APPLY_END_DATE,
                 "신청 종료일", service.getApplyEndDate(),
                 NormalizationKeySupport.SOURCE_FIELD_YOUTH_APPLY_END_DATE, NormalizedPolicyAggregate.Authority.OFFICIAL, BigDecimal.ONE, null);
+        addIncomeConditionTypeFact(facts, item);
         return facts;
     }
 
@@ -275,6 +280,36 @@ public final class YouthNormalizationSupport {
                 .confidence(confidence)
                 .rawValue(dateValue.toString())
                 .evidenceText(RawFieldValidator.normalize(evidenceText))
+                .build());
+    }
+
+    private static void addIncomeConditionTypeFact(List<NormalizedPolicyAggregate.Fact> facts, YouthApiDto.Item item) {
+        if (item == null) {
+            return;
+        }
+
+        List<String> codes = YouthOfficialCodeSupport.splitOfficialCodes(item.getEarnCndSeCd());
+        List<String> labels = YouthOfficialCodeSupport.resolveIncomeConditionTypeLabels(item.getEarnCndSeCd());
+        if (codes.size() != 1 || labels.size() != 1) {
+            return;
+        }
+
+        String code = codes.get(0);
+        String label = labels.get(0);
+        facts.add(NormalizedPolicyAggregate.Fact.builder()
+                .factGroup(NormalizationKeySupport.FACT_GROUP_INCOME)
+                .factCodeSetKey(NormalizationKeySupport.FACT_CODE_YOUTH_INCOME_CONDITION_TYPE)
+                .factCode(code)
+                .factMergeKey(NormalizationKeySupport.FACT_MERGE_KEY_YOUTH_INCOME_CONDITION_TYPE)
+                .factLabel("소득조건 구분")
+                .operator(NormalizedPolicyAggregate.Operator.EQ)
+                .valueType(NormalizedPolicyAggregate.ValueType.STRING)
+                .textValue(label)
+                .sourceField(NormalizationKeySupport.SOURCE_FIELD_YOUTH_INCOME_CONDITION_TYPE)
+                .authority(NormalizedPolicyAggregate.Authority.OFFICIAL)
+                .confidence(BigDecimal.ONE)
+                .rawValue(code)
+                .evidenceText(label)
                 .build());
     }
 

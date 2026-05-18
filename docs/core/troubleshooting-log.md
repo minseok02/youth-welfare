@@ -4696,3 +4696,31 @@
   - `sbizCd`: signal 중간, multi-code 일부
   - `mrgSttsCd`: signal 약함
 - 이유: 다음 fact scope는 “무엇이 있느냐”보다 “무엇이 지금 가장 의미 있고 안전하게 열리느냐”의 문제다. 이 숫자를 남겨 두면 다음 턴에서 `jobCd` 를 먼저 열지, scalar인 `earnCndSeCd` 를 먼저 열지 같은 선택을 다시 감으로 하지 않게 된다.
+
+## 846) `earnCndSeCd` 는 hard income gate가 아니라 observation-only official fact로 먼저 여는 편이 안전하다
+- 문제: 온통청년 공식 요건코드 관측과 parser 계약을 닫은 뒤, 첫 eligibility fact를 무엇으로 열지 결정해야 했다. `jobCd` 는 signal row가 가장 많지만 multi-code가 실제로 섞여 있고, `schoolCd` 도 같은 비용이 있다. 반면 `earnCndSeCd` 는 scalar라 구현이 단순하지만, 이름만 보면 `earnMinAmt/earnMaxAmt` 처럼 실제 소득 gate로 오해하기 쉽다.
+- 확인:
+  - local DB `raw_api_payloads`
+    - `LIST earnCndSeCd = 2566 / 2571`
+    - `DETAIL earnCndSeCd = 982 / 2568`
+    - multi-code `0건`
+  - `LIST` 분포
+    - `0043001=무관 2226`
+    - `0043003=기타 313`
+    - `0043002=연소득 27`
+  - `normalization_code_sets` 에는 `YOUTH_INCOME_CONDITION_TYPE` 가 이미 있고, active runtime `normalization_codes` 는 여전히 `0건`
+- 해결:
+  - `YouthNormalizationSupport.facts(service, item)` 에 `earnCndSeCd` 전용 fact를 추가했다.
+  - shape:
+    - `fact_code_set_key = YOUTH_INCOME_CONDITION_TYPE`
+    - `fact_merge_key = YOUTH_INCOME_CONDITION_TYPE`
+    - `fact_code = 0043001|0043002|0043003`
+    - `text_value = 무관|연소득|기타`
+    - `source_field = earnCndSeCd`
+  - `toNormalizedYouth()` 와 `toYouthDetailAggregate()` 둘 다 같은 helper를 타게 맞춰, list/detail 어느 경로로 들어와도 같은 fact로 덮어쓰게 했다.
+  - integration test도 `0043001 -> 0043002` refresh 시 기존 row가 stale하게 남지 않고 단일 merge key로 갱신되는지 고정했다.
+- 이유:
+  - `earnCndSeCd` 는 **소득 상·하한**이 아니라 **소득조건 유형**이다.
+  - 따라서 이 단계에서 retrieval/recommendation gate로 바로 연결하면 의미를 과대해석할 위험이 있다.
+  - 반대로 observation-only official fact로 저장해 두면, 나중에 admin/read-model에서 설명과 분석에는 쓸 수 있고, hard gate로 오해한 채 로직을 뒤틀 일도 막을 수 있다.
+  - merge key를 code별 fan-out으로 만들지 않고 단일 축으로 둔 이유도 같다. 현재 데이터가 scalar인 상태에서 code가 바뀔 때 old fact가 누적되는 것보다, “현재 공식 값 하나를 정확히 반영”하는 편이 더 안전하다.

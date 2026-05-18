@@ -57,8 +57,10 @@ class YouthNormalizationSupportTest {
                 .maxIncome(100)
                 .applyEndDate(LocalDate.of(2026, 12, 31))
                 .build();
+        YouthApiDto.Item item = new YouthApiDto.Item();
+        ReflectionTestUtils.setField(item, "earnCndSeCd", "0043002");
 
-        var facts = YouthNormalizationSupport.facts(service);
+        var facts = YouthNormalizationSupport.facts(service, item);
 
         assertThat(facts)
                 .extracting(NormalizedPolicyAggregate.Fact::factMergeKey)
@@ -66,7 +68,17 @@ class YouthNormalizationSupportTest {
                         "YOUTH_AGE_ELIGIBILITY",
                         "YOUTH_INCOME_MIN",
                         "YOUTH_INCOME_MAX",
-                        "YOUTH_APPLY_END_DATE"
+                        "YOUTH_APPLY_END_DATE",
+                        "YOUTH_INCOME_CONDITION_TYPE"
                 );
+        assertThat(facts)
+                .filteredOn(fact -> "YOUTH_INCOME_CONDITION_TYPE".equals(fact.factMergeKey()))
+                .singleElement()
+                .satisfies(fact -> {
+                    assertThat(fact.factCodeSetKey()).isEqualTo("YOUTH_INCOME_CONDITION_TYPE");
+                    assertThat(fact.factCode()).isEqualTo("0043002");
+                    assertThat(fact.textValue()).isEqualTo("연소득");
+                    assertThat(fact.sourceField()).isEqualTo("earnCndSeCd");
+                });
     }
 }

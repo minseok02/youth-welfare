@@ -79,7 +79,8 @@ class NormalizedPolicySidecarPersistenceIntegrationTest {
                 34,
                 0,
                 500,
-                "20260401 ~ 20260531"
+                "20260401 ~ 20260531",
+                "0043001"
         );
 
         NormalizedPolicyAggregate initialAggregate = welfareServiceMapper.toNormalizedYouth(initialItem);
@@ -94,7 +95,8 @@ class NormalizedPolicySidecarPersistenceIntegrationTest {
                 39,
                 0,
                 700,
-                "20260401 ~ 20260630"
+                "20260401 ~ 20260630",
+                "0043002"
         );
 
         NormalizedPolicyAggregate refreshedAggregate = welfareServiceMapper.toNormalizedYouth(refreshedItem);
@@ -135,14 +137,14 @@ class NormalizedPolicySidecarPersistenceIntegrationTest {
         assertThat(termsByGroup.get("YOUTH_KEYWORD")).containsExactly("청년일자리");
 
         List<Map<String, Object>> facts = jdbcTemplate.queryForList("""
-                SELECT fact_merge_key, operator, int_value, range_min_int, range_max_int,
+                SELECT fact_merge_key, fact_code_set_key, fact_code, operator, int_value, text_value, range_min_int, range_max_int,
                        TO_CHAR(date_value, 'YYYY-MM-DD') AS date_value
                 FROM service_facts
                 WHERE service_id = ?
                 ORDER BY fact_merge_key
                 """, saved.getId());
 
-        assertThat(facts).hasSize(4);
+        assertThat(facts).hasSize(5);
         assertThat(facts).anySatisfy(row -> {
             assertThat(row.get("fact_merge_key")).isEqualTo("YOUTH_AGE_ELIGIBILITY");
             assertThat(row.get("operator")).isEqualTo("RANGE");
@@ -159,6 +161,13 @@ class NormalizedPolicySidecarPersistenceIntegrationTest {
             assertThat(row.get("operator")).isEqualTo("EQ");
             assertThat(row.get("date_value")).isEqualTo(LocalDate.of(2026, 6, 30).toString());
         });
+        assertThat(facts).anySatisfy(row -> {
+            assertThat(row.get("fact_merge_key")).isEqualTo("YOUTH_INCOME_CONDITION_TYPE");
+            assertThat(row.get("fact_code_set_key")).isEqualTo("YOUTH_INCOME_CONDITION_TYPE");
+            assertThat(row.get("fact_code")).isEqualTo("0043002");
+            assertThat(row.get("operator")).isEqualTo("EQ");
+            assertThat(row.get("text_value")).isEqualTo("연소득");
+        });
     }
 
     private YouthApiDto.Item youthItem(String sourceId,
@@ -169,7 +178,8 @@ class NormalizedPolicySidecarPersistenceIntegrationTest {
                                        Integer maxAge,
                                        Integer minIncome,
                                        Integer maxIncome,
-                                       String applyRange) {
+                                       String applyRange,
+                                       String incomeConditionTypeCode) {
         YouthApiDto.Item item = new YouthApiDto.Item();
         ReflectionTestUtils.setField(item, "plcyNo", sourceId);
         ReflectionTestUtils.setField(item, "plcyNm", "청년 정책 sidecar smoke");
@@ -184,6 +194,7 @@ class NormalizedPolicySidecarPersistenceIntegrationTest {
         ReflectionTestUtils.setField(item, "sprtTrgtMaxAge", maxAge);
         ReflectionTestUtils.setField(item, "earnMinAmt", minIncome);
         ReflectionTestUtils.setField(item, "earnMaxAmt", maxIncome);
+        ReflectionTestUtils.setField(item, "earnCndSeCd", incomeConditionTypeCode);
         ReflectionTestUtils.setField(item, "bizPrdBgngYmd", "20260401");
         ReflectionTestUtils.setField(item, "bizPrdEndYmd", "20261231");
         ReflectionTestUtils.setField(item, "aplyYmd", applyRange);
