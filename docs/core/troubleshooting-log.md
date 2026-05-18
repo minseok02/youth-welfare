@@ -4660,3 +4660,39 @@
   - trim + de-dup
   - summary 단일값 축으로 무리하게 collapse하지 않음
 - 이유: 지금 필요한 건 “code를 더 모으는 것”이 아니라, **이미 들어오는 multi-code reality를 왜곡하지 않는 적용 규칙**이다. 이걸 먼저 고정해 두지 않으면 다음 단계에서 `jobCd/schoolCd/...` 를 fact로 여는 순간 잘못된 scalar 모델로 굳어질 수 있다.
+
+## 844) 온통청년 공식 요건코드는 DB seed보다 in-code parsing contract를 먼저 고정하는 편이 안전하다
+- 문제: 온통청년 공식 요건코드 관측이 복구된 뒤 바로 `normalization_codes` lookup이나 `service_facts` 승격으로 가고 싶어질 수 있다. 하지만 active local DB를 다시 확인해 보니 `normalization_code_sets` row는 존재해도 `normalization_codes` 는 아직 `0건` 이었다. 이 상태에서 runtime이 DB-backed official code dictionary를 가정하면, 실제 수집·재생산 경계와 schema seed 상태가 다시 어긋날 수 있다.
+- 확인:
+  - local DB `normalization_code_sets=15`, `normalization_codes=0`
+  - `YOUTH_MARITAL_STATUS`, `YOUTH_INCOME_CONDITION_TYPE`, `YOUTH_EMPLOYMENT_REQUIREMENT`, `YOUTH_EDUCATION_REQUIREMENT`, `YOUTH_SPECIAL_REQUIREMENT` code set key는 이미 schema에 존재
+  - 하지만 code row 자체는 아직 active runtime에 실리지 않았다.
+  - 반면 live payload는 이미 `jobCd/schoolCd/plcyMajorCd/sbizCd` multi-code를 포함해 충분히 들어오고 있다.
+- 해결:
+  - `YouthOfficialCodeSupport` 를 확장해 `mrgSttsCd`, `earnCndSeCd`, `plcyMajorCd`, `jobCd`, `schoolCd`, `sbizCd` 공식 label map을 코드 안에 추가했다.
+  - 동시에 `splitOfficialCodes()` 와 각 축별 `resolve*Labels()` helper를 추가해 comma-delimited multi-code를 `split + trim + de-dup` 규칙으로 해석하게 고정했다.
+  - 아직 어떤 축도 `service_facts` 로 승격하지 않았고, public/read-model 소비도 열지 않았다.
+- 이유: 지금 필요한 건 seed migration reopening보다 **parsing contract 선행**이다. official code row가 DB에 없어도 현재 raw payload를 왜곡 없이 읽을 수 있어야, 다음 단계에서 “어떤 축을 fact로 열지”를 제품/신호 기준으로 판단할 수 있다. 즉 이번 단계의 의도는 canonical 확장이 아니라, future fact scope의 전제 조건을 코드로 먼저 닫는 것이다.
+
+## 845) 온통청년 공식 요건코드의 다음 fact 후보는 coverage뿐 아니라 signal density와 multi-code 비용을 같이 봐야 한다
+- 문제: 공식 code가 관측된다고 해서 모든 축을 같은 우선순위로 fact화할 수는 없다. `제한없음/무관` 이 대부분인 축과, signal row는 많지만 multi-code parsing 비용이 큰 축을 구분하지 않으면 다음 단계에서 비용 대비 효과가 낮은 fact를 먼저 열 수 있다.
+- 확인:
+  - local `LIST raw` 기준 기본/blank를 제외한 row 수는:
+    - `jobCd=666`
+    - `schoolCd=357`
+    - `earnCndSeCd=340`
+    - `sbizCd=325`
+    - `mrgSttsCd=71`
+  - multi-code row는:
+    - `schoolCd=149`
+    - `jobCd=111`
+    - `sbizCd=25`
+    - `earnCndSeCd=0`
+    - `mrgSttsCd=0`
+- 해결: 우선순위 판단 기준을 coverage 단일값에서 `signal row 수 + multi-code 비용` 으로 바꿔 문서에 고정했다.
+  - `jobCd`: signal strongest, but multi-code cost 큼
+  - `schoolCd`: signal 중간, multi-code cost 큼
+  - `earnCndSeCd`: signal 중간, scalar라 가장 단순
+  - `sbizCd`: signal 중간, multi-code 일부
+  - `mrgSttsCd`: signal 약함
+- 이유: 다음 fact scope는 “무엇이 있느냐”보다 “무엇이 지금 가장 의미 있고 안전하게 열리느냐”의 문제다. 이 숫자를 남겨 두면 다음 턴에서 `jobCd` 를 먼저 열지, scalar인 `earnCndSeCd` 를 먼저 열지 같은 선택을 다시 감으로 하지 않게 된다.

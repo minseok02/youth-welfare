@@ -103,6 +103,11 @@ apply/replay 양쪽에서 같은 축으로 raw row density를 바로 대조할 �
 또 2026-05-18 local 재수집 기준으로 `YOUTH` LIST raw는 `pvsnInstGroupCd`, `plcyPvsnMthdCd`, `plcyAprvSttsCd`, `aplyPrdSeCd`, `bizPrdSeCd`, `mrgSttsCd`, `earnCndSeCd`, `plcyMajorCd`, `jobCd`, `schoolCd`, `sbizCd` 를 거의 전 row에서 관측한다.
 다만 `jobCd`, `schoolCd`, `plcyMajorCd`, `sbizCd` 는 단일 코드만 오는 게 아니라 comma-delimited multi-code(`0013001,0013003` 등)도 실제로 섞여 있으므로,
 다음 eligibility fact 단계는 scalar 가정이 아니라 split + trim + de-dup 규칙을 전제로 열어야 한다.
+추가로 active local DB는 `normalization_code_sets` row는 있지만 `normalization_codes` 는 아직 `0건` 이다.
+즉 현재 runtime에서 온통청년 공식 요건코드를 읽을 때는 DB seed lookup이 아니라
+`YouthOfficialCodeSupport` 의 in-code official label map을 기준으로 해석하는 쪽이 더 안전하다.
+이 단계의 목적은 code import/backfill reopening이 아니라,
+future fact scope에서 multi-code를 잘못된 단일값으로 오해하지 않도록 parsing contract를 먼저 고정하는 것이다.
 
 ## 2. `YOUTH_MID_RAW_ALIAS` 현재 상태
 
