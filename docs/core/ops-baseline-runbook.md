@@ -66,6 +66,15 @@ bash deploy/smoke/run-local-ops-baseline-suite.sh
 - `admin_collect_failures_stdout`
 - `admin_recommendation_breakdowns_stdout`
 
+서버 기준 최신 확인(`2026-05-18`)에서는 suite가 실제로 끝까지 통과했고,
+
+- `failed_jobs_in_window=0`
+- `partial_success_jobs_in_window=0`
+- `open_collect_circuits=0`
+- `lane_count=10`
+
+까지 한 번에 다시 확인됐습니다.
+
 각 하위 smoke는 자체적으로 contract를 검증합니다.
 
 ### dashboard summary

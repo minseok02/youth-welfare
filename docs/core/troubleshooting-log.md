@@ -5361,3 +5361,13 @@
 - 이유:
   - branch inclusion 문제는 이미 닫혔다.
   - base에서 `in_window=true` 인데 latest에서만 밀리면, 병목은 scoring 이전의 latest retrieval ordering/window 이다.
+
+## 879) ops baseline suite는 smoke wrapper 추가만으로 끝나는 게 아니라 실제 서버 contract에 맞춰 collect failures smoke를 다시 닫아야 한다
+- 문제: `run-local-ops-baseline-suite.sh` 를 추가한 뒤 서버에서 처음 다시 돌렸을 때, `run-local-admin-collect-failures-smoke.sh` 가 `summaryWindowDays`, `openCollectCircuits`, `laneCount`, `failedSources` 같은 현재 응답에 없는 필드를 기대해 중간에 실패했다. 즉 suite 의도는 맞았지만 collect failures smoke 계약이 실제 `AdminCollectFailureResponse` 와 어긋나 있었다.
+- 해결:
+  - collect failures smoke를 `windowDays`, `jobBreakdowns`, `currentJobStreaks`, `errorCodeBreakdowns`, `recentSamples`, `circuitStatuses`, `collectSourceLanes` 기준으로 다시 맞췄다.
+  - `open_collect_circuits` 는 `circuitStatuses.open=true` count 로, `lane_count` 는 `collectSourceLanes` 길이로 계산하게 바꿨다.
+  - 그 뒤 `run-local-ops-baseline-suite.sh` 를 서버에서 다시 태워 suite 전체가 실제로 끝까지 통과하는 것을 확인했다.
+- 이유:
+  - infra/server hardening 의 가치는 smoke wrapper를 많이 만드는 데 있지 않고, 실제 서버 runtime 계약과 맞는 one-shot baseline 을 유지하는 데 있다.
+  - 이번 서버 기준선이 통과했으므로 현재 bounded ops hardening 라운드는 closeout 상태로 봐도 된다.
