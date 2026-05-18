@@ -5352,3 +5352,12 @@
 - 이유:
   - 현재 병목은 score가 아니라 branch inclusion이다.
   - 다만 broad same-sido 전체를 열면 지역성이 급격히 약해지므로, `BOKJIRO_LOCAL + youth relevant + non-기타` 로만 좁혀 bounded 하게 푼다.
+
+## 878) same-sido fallback 뒤에도 `3257/3281` 이 latest 20-window 밖이면 다음 병목은 inclusion이 아니라 latest ordering/window 다
+- 문제: server에서 same-sido fallback을 다시 반영하자 `2736/3257/3281/3575` 는 `REGION_CODE:28110` branch 안으로 실제로 들어왔다. base retrieval 기준으로 `3257=8위`, `3281=18위` 로 이미 `150-window` 안이었고 `3575=29위` 도 branch 안이었다. 하지만 latest retrieval 기준으로는 `3257=28위`, `3281=24위`, `2736=33위` 로 여전히 `20-window` 밖이었고, `3575=7위` 만 안으로 들어왔다.
+- 해결:
+  - 이번 단계에서는 더 이상의 weight patch를 하지 않고, same-user latest branch 상위 row와 target family rank를 비교하는 bounded audit까지만 닫는다.
+  - 다음 질문은 “왜 안 들어오나”가 아니라 “왜 `24~33위` 에 머무르나”이므로, latest query ordering 또는 latest fetch size 경계를 우선 의심하는 게 맞다.
+- 이유:
+  - branch inclusion 문제는 이미 닫혔다.
+  - base에서 `in_window=true` 인데 latest에서만 밀리면, 병목은 scoring 이전의 latest retrieval ordering/window 이다.

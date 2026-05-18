@@ -155,6 +155,14 @@ bounded family 단위로만 확장합니다.
 
 첫 bounded fix는 `REGION_CODE` branch 필터 자체에 `BOKJIRO_LOCAL + same-sido + searchYouthRelevant=true + unifiedCategory!=기타` fallback tier를 넣는 것입니다. 목적은 exact-region code가 비어 `EXACT_SIDO` 로만 잡히는 local youth-support 후보를 branch 안으로 편입시키는 것이지, broad same-sido 정책 전반을 여는 것이 아닙니다.
 
+이 fix를 서버에 다시 태운 뒤 결과는 이렇게 읽습니다.
+
+1. `3257/3281` 은 branch 바깥에서 branch 안으로 이동했다.
+2. base retrieval 에서는 `3257=8위`, `3281=18위` 로 이미 `150-window` 안이다.
+3. latest retrieval 에서는 `3257=28위`, `3281=24위` 로 아직 `20-window` 밖이다.
+
+즉 다음 bounded step은 다시 youth relevance 나 region inclusion이 아니라, **latest 20 window ordering / latest fetch size 경계 안에서 same-sido local 후보가 왜 밀리는지** 를 좁히는 것이다.
+
 ## lane 1 에서 아직 안 할 일
 
 1. global source bonus

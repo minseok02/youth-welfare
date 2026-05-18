@@ -98,6 +98,8 @@
 
 그 다음 bounded fix는 `REGION_CODE` branch 안에서 `BOKJIRO_LOCAL + same-sido + searchYouthRelevant=true + unifiedCategory!=기타` 후보를 exact-region local 뒤의 fallback tier로 편입하는 것입니다. 이건 broad same-sido 전체를 푸는 것이 아니라, `3257/3281` 같은 structured local youth-support 후보가 아예 branch 바깥으로 떨어지는 문제만 겨냥합니다.
 
+서버에서 이 same-sido fallback까지 다시 태운 결과, `2736/3257/3281/3575` 는 `REGION_CODE:28110` branch 안으로 실제로 들어왔습니다. base retrieval 기준으로는 `2736=2위`, `3257=8위`, `3281=18위`, `3575=29위` 였고, `3257/3281/3575` 모두 `in_window=true` 였습니다. latest retrieval 기준으로는 `3575=7위` 만 `20-window` 안에 들어왔고, `3257=28위`, `3281=24위`, `2736=33위` 로 아직 latest window 밖입니다. 즉 현재 lane 1 의 다음 병목은 더 이상 branch inclusion이 아니라 **latest 20 window 안에서 exact-sido local 후보가 더 최신 local row에 밀리는 정렬/창 크기 문제** 로 좁혀졌습니다.
+
 ## 현재 scoring 기준
 
 ### rule score
