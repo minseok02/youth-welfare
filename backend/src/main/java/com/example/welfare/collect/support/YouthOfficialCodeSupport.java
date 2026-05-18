@@ -38,18 +38,22 @@ public final class YouthOfficialCodeSupport {
     }
 
     public static List<String> splitOfficialCodes(String rawCodeCsv) {
-        String normalized = RawFieldValidator.normalize(rawCodeCsv);
+        return splitCsvValues(rawCodeCsv);
+    }
+
+    public static List<String> splitCsvValues(String rawCsv) {
+        String normalized = RawFieldValidator.normalize(rawCsv);
         if (normalized == null) {
             return List.of();
         }
-        LinkedHashSet<String> codes = new LinkedHashSet<>();
+        LinkedHashSet<String> values = new LinkedHashSet<>();
         for (String rawToken : normalized.split(",")) {
-            String code = RawFieldValidator.normalize(rawToken);
-            if (code != null) {
-                codes.add(code);
+            String value = RawFieldValidator.normalize(rawToken);
+            if (value != null) {
+                values.add(value);
             }
         }
-        return List.copyOf(codes);
+        return List.copyOf(values);
     }
 
     public static List<String> resolveMaritalStatusLabels(String rawCodeCsv) {
@@ -68,6 +72,10 @@ public final class YouthOfficialCodeSupport {
         return resolveOfficialLabels(rawCodeCsv, EMPLOYMENT_REQUIREMENT_LABELS);
     }
 
+    public static List<String> resolveEmploymentRequirementCodes(String rawCodeCsv) {
+        return resolveOfficialCodes(rawCodeCsv, EMPLOYMENT_REQUIREMENT_LABELS);
+    }
+
     public static List<String> resolveEducationRequirementLabels(String rawCodeCsv) {
         return resolveOfficialLabels(rawCodeCsv, EDUCATION_REQUIREMENT_LABELS);
     }
@@ -82,6 +90,16 @@ public final class YouthOfficialCodeSupport {
             String label = labelsByCode.get(code);
             if (label != null && !resolved.contains(label)) {
                 resolved.add(label);
+            }
+        }
+        return List.copyOf(resolved);
+    }
+
+    private static List<String> resolveOfficialCodes(String rawCodeCsv, Map<String, String> labelsByCode) {
+        List<String> resolved = new ArrayList<>();
+        for (String code : splitOfficialCodes(rawCodeCsv)) {
+            if (labelsByCode.containsKey(code) && !resolved.contains(code)) {
+                resolved.add(code);
             }
         }
         return List.copyOf(resolved);

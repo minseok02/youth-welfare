@@ -1237,6 +1237,8 @@ class AdminSecurityWebMvcTest {
                                 "기타",
                                 List.of(),
                                 List.of(),
+                                List.of(),
+                                List.of(),
                                 null,
                                 null,
                                 true,
@@ -1277,6 +1279,8 @@ class AdminSecurityWebMvcTest {
                                 "기타",
                                 List.of("개인", "가구"),
                                 List.of("현금", "서비스(의료)"),
+                                List.of("0013003", "0013006"),
+                                List.of("미취업자", "(예비)창업자"),
                                 "0043002",
                                 "연소득",
                                 true,
@@ -1331,6 +1335,8 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.data.services[1].serviceId").value(2736))
                 .andExpect(jsonPath("$.data.services[1].gov24UserTypeTokens[0]").value("개인"))
                 .andExpect(jsonPath("$.data.services[1].gov24BenefitTypeTokens[1]").value("서비스(의료)"))
+                .andExpect(jsonPath("$.data.services[1].youthEmploymentRequirementCodes[0]").value("0013003"))
+                .andExpect(jsonPath("$.data.services[1].youthEmploymentRequirementLabels[1]").value("(예비)창업자"))
                 .andExpect(jsonPath("$.data.services[1].youthIncomeConditionTypeCode").value("0043002"))
                 .andExpect(jsonPath("$.data.services[1].youthIncomeConditionTypeLabel").value("연소득"))
                 .andExpect(jsonPath("$.data.services[1].inMergedCandidates").value(true))

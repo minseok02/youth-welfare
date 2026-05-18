@@ -1,6 +1,7 @@
 package com.example.welfare.recommend.repository;
 
 import com.example.welfare.collect.support.Gov24LabelTokenSupport;
+import com.example.welfare.collect.support.YouthOfficialCodeSupport;
 import com.example.welfare.recommend.dto.RecommendationCandidateProjection;
 import com.example.welfare.policy.support.CompatCategorySupport;
 import com.example.welfare.recommend.support.RecommendationProjectionHeuristicSupport;
@@ -260,6 +261,8 @@ public class CanonicalRecommendationReadModelRepository {
         private final String gov24ServiceFieldLabel;
         private final String gov24UserTypeLabel;
         private final String gov24BenefitTypeLabel;
+        private final Set<String> youthEmploymentRequirementCodes = new LinkedHashSet<>();
+        private final Set<String> youthEmploymentRequirementLabels = new LinkedHashSet<>();
         private String youthIncomeConditionTypeCode;
         private String youthIncomeConditionTypeLabel;
         private final String title;
@@ -367,6 +370,10 @@ public class CanonicalRecommendationReadModelRepository {
             if (factMergeKey != null && !factMergeKey.isBlank()) {
                 factKeys.add(factMergeKey);
             }
+            if ("YOUTH_EMPLOYMENT_REQUIREMENT".equals(factCodeSetKey)) {
+                youthEmploymentRequirementCodes.addAll(YouthOfficialCodeSupport.splitCsvValues(factCode));
+                youthEmploymentRequirementLabels.addAll(YouthOfficialCodeSupport.splitCsvValues(textValue));
+            }
             if ("YOUTH_INCOME_CONDITION_TYPE".equals(factCodeSetKey)) {
                 youthIncomeConditionTypeCode = factCode;
                 youthIncomeConditionTypeLabel = textValue;
@@ -391,6 +398,8 @@ public class CanonicalRecommendationReadModelRepository {
                     .gov24BenefitTypeLabel(gov24BenefitTypeLabel)
                     .gov24UserTypeTokens(Gov24LabelTokenSupport.userTypeTokens(gov24UserTypeLabel))
                     .gov24BenefitTypeTokens(Gov24LabelTokenSupport.benefitTypeTokens(gov24BenefitTypeLabel))
+                    .youthEmploymentRequirementCodes(List.copyOf(youthEmploymentRequirementCodes))
+                    .youthEmploymentRequirementLabels(List.copyOf(youthEmploymentRequirementLabels))
                     .youthIncomeConditionTypeCode(youthIncomeConditionTypeCode)
                     .youthIncomeConditionTypeLabel(youthIncomeConditionTypeLabel)
                     .title(title)

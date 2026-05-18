@@ -4759,3 +4759,29 @@
   - 이번 단계의 목적은 “internal observation only” 변경이 서버 실제 데이터에서도 살아 있는지 닫는 것이었다.
   - 결과적으로 병목은 코드가 아니라 stale YOUTH raw였고, 재수집 후 raw -> fact -> read-model -> diagnostics 경계가 모두 이어지는 것이 확인됐다.
   - 이 기록을 남겨 두면, 이후 official fact를 추가할 때도 서버 diagnostics `null` 을 먼저 코드 버그로 오해하지 않고 raw freshness부터 확인하는 기준점으로 쓸 수 있다.
+
+## 849) `jobCd` 는 signal이 크더라도 fan-out fact보다 aggregate observation fact로 먼저 여는 편이 안전하다
+- 문제: `earnCndSeCd` 다음 official fact 후보로 `jobCd` 가 가장 먼저 보였다. local `LIST raw` 기준 신호가 `2568건`으로 크고, `0013003=미취업자`, `0013006=(예비)창업자` 같이 추천/설명에 의미 있는 축도 보인다. 하지만 같은 분포를 읽어 보니 `0013010=제한없음` 이 `1902건` 으로 압도적이고, multi-code row도 `111건` 이었다. `0013001,0013003`, `0013003,0013006` 같은 조합뿐 아니라 거의 전 코드를 쉼표로 묶은 broad row도 실제로 존재했다.
+- 확인:
+  - local DB `raw_api_payloads`
+    - `jobCd signal_rows = 2568`
+    - `jobCd multi_code_rows = 111`
+    - `0013010 = 1902`
+    - top rows: `0013003=272`, `0013006=96`, `0013001=90`
+  - collect 기본 경로는 `service_facts` 를 code set 단위로 항상 replace하지 않고 merge-upsert 중심으로 반영한다.
+  - 따라서 `jobCd` 를 code별 여러 fact row로 fan-out하면, 다음 수집에서 code 조합이 줄어든 경우 stale old code row를 기본 경로에서 자동으로 지우기 어렵다.
+- 해결:
+  - `YouthNormalizationSupport` 에 `YOUTH_EMPLOYMENT_REQUIREMENT` official fact를 추가하되, **code별 row fan-out 대신 단일 aggregate observation fact** 로 저장했다.
+  - shape:
+    - `fact_code_set_key = YOUTH_EMPLOYMENT_REQUIREMENT`
+    - `fact_merge_key = YOUTH_EMPLOYMENT_REQUIREMENT`
+    - `fact_code = 0013003,0013006`
+    - `text_value = 미취업자, (예비)창업자`
+    - `operator = MEMBER`
+    - `source_field = jobCd`
+  - read-model/projection 과 admin diagnostics는 이 single row를 다시 `youthEmploymentRequirementCodes`, `youthEmploymentRequirementLabels` 리스트로만 풀어 준다.
+  - public policy/recommendation response, retrieval filter, scoring은 이번 단계에서 그대로 유지했다.
+- 이유:
+  - 이번 단계의 목적은 `jobCd` 의미를 **잃지 않고 관찰 가능하게 만드는 것**이지, 아직 code-level targeting rule을 여는 것이 아니다.
+  - aggregate fact로 두면 multi-code 현실을 왜곡하지 않으면서도, `YOUTH_INCOME_CONDITION_TYPE` 때처럼 “저장 -> read-model -> admin diagnostics” 경계는 닫을 수 있다.
+  - fan-out granularity가 정말 필요해지면, 그때는 collect 저장 경계를 code set replace로 안전하게 재설계한 뒤 다시 여는 편이 맞다.

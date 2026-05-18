@@ -28,6 +28,8 @@ public record RecommendationCandidateProjection(
         String gov24BenefitTypeLabel,
         List<String> gov24UserTypeTokens,
         List<String> gov24BenefitTypeTokens,
+        List<String> youthEmploymentRequirementCodes,
+        List<String> youthEmploymentRequirementLabels,
         String youthIncomeConditionTypeCode,
         String youthIncomeConditionTypeLabel,
         String title,
@@ -54,6 +56,8 @@ public record RecommendationCandidateProjection(
     public RecommendationCandidateProjection {
         gov24UserTypeTokens = immutableListCopy(gov24UserTypeTokens);
         gov24BenefitTypeTokens = immutableListCopy(gov24BenefitTypeTokens);
+        youthEmploymentRequirementCodes = immutableListCopy(youthEmploymentRequirementCodes);
+        youthEmploymentRequirementLabels = immutableListCopy(youthEmploymentRequirementLabels);
         priorityBuckets = immutableCopy(priorityBuckets);
         interestThemes = immutableCopy(interestThemes);
         targetGroupsRaw = immutableCopy(targetGroupsRaw);

@@ -107,6 +107,8 @@ public class AdminDashboardRecommendationDiagnosticService {
                             service != null ? service.getUnifiedCategory() : null,
                             projection != null ? projection.gov24UserTypeTokens() : List.of(),
                             projection != null ? projection.gov24BenefitTypeTokens() : List.of(),
+                            projection != null ? projection.youthEmploymentRequirementCodes() : List.of(),
+                            projection != null ? projection.youthEmploymentRequirementLabels() : List.of(),
                             projection != null ? projection.youthIncomeConditionTypeCode() : null,
                             projection != null ? projection.youthIncomeConditionTypeLabel() : null,
                             inBase,

@@ -27,6 +27,8 @@ public record AdminRecommendationCandidateDiagnosticResponse(
             String category,
             List<String> gov24UserTypeTokens,
             List<String> gov24BenefitTypeTokens,
+            List<String> youthEmploymentRequirementCodes,
+            List<String> youthEmploymentRequirementLabels,
             String youthIncomeConditionTypeCode,
             String youthIncomeConditionTypeLabel,
             boolean inBaseRetrieval,

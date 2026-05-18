@@ -32,6 +32,7 @@ class NormalizedPolicyAggregateTest {
         setField(item, "sprtTrgtMaxAge", 34);
         setField(item, "earnMinAmt", 0);
         setField(item, "earnMaxAmt", 100);
+        setField(item, "jobCd", "0013003,0013006");
         setField(item, "earnCndSeCd", "0043002");
         setField(item, "aplyYmd", "20260101 ~ 20261231");
         setField(item, "plcyPvsnMthdCd", "0042006");
@@ -70,6 +71,14 @@ class NormalizedPolicyAggregateTest {
                 .filteredOn(fact -> "APPLY_END_DATE".equals(fact.factGroup()))
                 .singleElement()
                 .satisfies(fact -> assertThat(fact.dateValue()).isEqualTo(LocalDate.of(2026, 12, 31)));
+        assertThat(aggregate.facts())
+                .filteredOn(fact -> "YOUTH_EMPLOYMENT_REQUIREMENT".equals(fact.factMergeKey()))
+                .singleElement()
+                .satisfies(fact -> {
+                    assertThat(fact.factCode()).isEqualTo("0013003,0013006");
+                    assertThat(fact.textValue()).isEqualTo("미취업자, (예비)창업자");
+                    assertThat(fact.factCodeSetKey()).isEqualTo("YOUTH_EMPLOYMENT_REQUIREMENT");
+                });
         assertThat(aggregate.facts())
                 .filteredOn(fact -> "YOUTH_INCOME_CONDITION_TYPE".equals(fact.factMergeKey()))
                 .singleElement()

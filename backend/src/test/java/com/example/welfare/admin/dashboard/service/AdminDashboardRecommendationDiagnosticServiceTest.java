@@ -185,6 +185,8 @@ class AdminDashboardRecommendationDiagnosticServiceTest {
                     assertThat(row.dropStage()).isEqualTo("SCORED_BUT_NOT_IN_SAVED_BATCH");
                     assertThat(row.gov24UserTypeTokens()).containsExactly("개인", "가구");
                     assertThat(row.gov24BenefitTypeTokens()).containsExactly("현금", "서비스(의료)");
+                    assertThat(row.youthEmploymentRequirementCodes()).containsExactly("0013003", "0013006");
+                    assertThat(row.youthEmploymentRequirementLabels()).containsExactly("미취업자", "(예비)창업자");
                     assertThat(row.youthIncomeConditionTypeCode()).isEqualTo("0043002");
                     assertThat(row.youthIncomeConditionTypeLabel()).isEqualTo("연소득");
                     assertThat(row.rerankDiversityPenalty()).isEqualTo(0.03);
@@ -231,6 +233,8 @@ class AdminDashboardRecommendationDiagnosticServiceTest {
                 .gov24BenefitTypeLabel(gov24BenefitTypeLabel)
                 .gov24UserTypeTokens(Gov24LabelTokenSupport.userTypeTokens(gov24UserTypeLabel))
                 .gov24BenefitTypeTokens(Gov24LabelTokenSupport.benefitTypeTokens(gov24BenefitTypeLabel))
+                .youthEmploymentRequirementCodes(List.of("0013003", "0013006"))
+                .youthEmploymentRequirementLabels(List.of("미취업자", "(예비)창업자"))
                 .youthIncomeConditionTypeCode("0043002")
                 .youthIncomeConditionTypeLabel("연소득")
                 .build();

@@ -124,6 +124,13 @@ recommendation scoring, retrieval filter, public policy/recommendation response�
 `POST /api/admin/collect/youth` + `POST /api/admin/collect/youth-details` 재실행 후
 `LIST raw earnCndSeCd = 2568 / 2569`, `DETAIL raw earnCndSeCd = 2564 / 2564`, `YOUTH_INCOME_CONDITION_TYPE fact_rows = 2567`
 까지 올라왔고, admin diagnostics도 `youthIncomeConditionTypeCode/Label` 을 실제로 반환했다.
+그 다음 official fact 후보 `jobCd` 는 같은 방식으로 열지 않았다. local `LIST raw` 기준 `jobCd` 는 `2568건` signal 중
+`0013010=제한없음` 이 `1902건`, multi-code가 `111건` 으로 실제 조합값이 섞여 있다.
+그래서 이번 단계에서는 `YOUTH_EMPLOYMENT_REQUIREMENT` 를 fan-out fact가 아니라 **단일 aggregate observation fact** 로 저장한다.
+shape는 `fact_code='0013003,0013006'`, `text_value='미취업자, (예비)창업자'`, `operator=MEMBER`, `fact_merge_key='YOUTH_EMPLOYMENT_REQUIREMENT'` 이다.
+이 값도 마찬가지로 internal read-model/projection 과 admin diagnostics에서만
+`youthEmploymentRequirementCodes`, `youthEmploymentRequirementLabels` 리스트로 풀어 주고,
+public policy/recommendation response, retrieval filter, scoring에는 아직 연결하지 않는다.
 
 ## 2. `YOUTH_MID_RAW_ALIAS` 현재 상태
 

@@ -116,6 +116,7 @@ public final class YouthNormalizationSupport {
                 NormalizationKeySupport.FACT_MERGE_KEY_YOUTH_APPLY_END_DATE,
                 "신청 종료일", service.getApplyEndDate(),
                 NormalizationKeySupport.SOURCE_FIELD_YOUTH_APPLY_END_DATE, NormalizedPolicyAggregate.Authority.OFFICIAL, BigDecimal.ONE, null);
+        addEmploymentRequirementFact(facts, item);
         addIncomeConditionTypeFact(facts, item);
         return facts;
     }
@@ -310,6 +311,36 @@ public final class YouthNormalizationSupport {
                 .confidence(BigDecimal.ONE)
                 .rawValue(code)
                 .evidenceText(label)
+                .build());
+    }
+
+    private static void addEmploymentRequirementFact(List<NormalizedPolicyAggregate.Fact> facts, YouthApiDto.Item item) {
+        if (item == null) {
+            return;
+        }
+
+        List<String> codes = YouthOfficialCodeSupport.resolveEmploymentRequirementCodes(item.getJobCd());
+        List<String> labels = YouthOfficialCodeSupport.resolveEmploymentRequirementLabels(item.getJobCd());
+        if (codes.isEmpty() || labels.isEmpty()) {
+            return;
+        }
+
+        String canonicalCodes = String.join(",", codes);
+        String canonicalLabels = String.join(", ", labels);
+        facts.add(NormalizedPolicyAggregate.Fact.builder()
+                .factGroup(NormalizationKeySupport.FACT_GROUP_EMPLOYMENT)
+                .factCodeSetKey(NormalizationKeySupport.FACT_CODE_YOUTH_EMPLOYMENT_REQUIREMENT)
+                .factCode(canonicalCodes)
+                .factMergeKey(NormalizationKeySupport.FACT_MERGE_KEY_YOUTH_EMPLOYMENT_REQUIREMENT)
+                .factLabel("취업 요건")
+                .operator(NormalizedPolicyAggregate.Operator.MEMBER)
+                .valueType(NormalizedPolicyAggregate.ValueType.STRING)
+                .textValue(canonicalLabels)
+                .sourceField(NormalizationKeySupport.SOURCE_FIELD_YOUTH_EMPLOYMENT_REQUIREMENT)
+                .authority(NormalizedPolicyAggregate.Authority.OFFICIAL)
+                .confidence(BigDecimal.ONE)
+                .rawValue(canonicalCodes)
+                .evidenceText(canonicalLabels)
                 .build());
     }
 

@@ -28,6 +28,7 @@ public final class NormalizationKeySupport {
 
     public static final String FACT_GROUP_AGE = "AGE";
     public static final String FACT_GROUP_INCOME = "INCOME";
+    public static final String FACT_GROUP_EMPLOYMENT = "EMPLOYMENT";
     public static final String FACT_GROUP_APPLY_END_DATE = "APPLY_END_DATE";
 
     public static final String FACT_CODE_YOUTH_AGE = "YOUTH_AGE";
@@ -35,6 +36,7 @@ public final class NormalizationKeySupport {
     public static final String FACT_CODE_YOUTH_INCOME_MAX = "YOUTH_INCOME_MAX";
     public static final String FACT_CODE_YOUTH_APPLY_END_DATE = "YOUTH_APPLY_END_DATE";
     public static final String FACT_CODE_YOUTH_INCOME_CONDITION_TYPE = "YOUTH_INCOME_CONDITION_TYPE";
+    public static final String FACT_CODE_YOUTH_EMPLOYMENT_REQUIREMENT = "YOUTH_EMPLOYMENT_REQUIREMENT";
     public static final String FACT_CODE_BOKJIRO_AGE = "BOKJIRO_RULE_AGE";
     public static final String FACT_CODE_BOKJIRO_APPLY_END_DATE = "BOKJIRO_RULE_APPLY_END_DATE";
 
@@ -43,6 +45,7 @@ public final class NormalizationKeySupport {
     public static final String FACT_MERGE_KEY_YOUTH_INCOME_MAX = "YOUTH_INCOME_MAX";
     public static final String FACT_MERGE_KEY_YOUTH_APPLY_END_DATE = "YOUTH_APPLY_END_DATE";
     public static final String FACT_MERGE_KEY_YOUTH_INCOME_CONDITION_TYPE = "YOUTH_INCOME_CONDITION_TYPE";
+    public static final String FACT_MERGE_KEY_YOUTH_EMPLOYMENT_REQUIREMENT = "YOUTH_EMPLOYMENT_REQUIREMENT";
     public static final String FACT_MERGE_KEY_BOKJIRO_AGE = "BK_AGE_ELIGIBILITY";
     public static final String FACT_MERGE_KEY_BOKJIRO_APPLY_END_DATE = "BK_APPLY_END_DATE";
 
@@ -53,6 +56,7 @@ public final class NormalizationKeySupport {
     public static final String SOURCE_FIELD_YOUTH_INCOME_MIN = "earnMinAmt";
     public static final String SOURCE_FIELD_YOUTH_INCOME_MAX = "earnMaxAmt";
     public static final String SOURCE_FIELD_YOUTH_INCOME_CONDITION_TYPE = "earnCndSeCd";
+    public static final String SOURCE_FIELD_YOUTH_EMPLOYMENT_REQUIREMENT = "jobCd";
     public static final String SOURCE_FIELD_YOUTH_APPLY_END_DATE = "aplyYmd";
     public static final String SOURCE_FIELD_BOKJIRO_DIGEST = "servDgst";
     public static final String SOURCE_FIELD_BOKJIRO_LIFE_ARRAY = "lifeArray";
