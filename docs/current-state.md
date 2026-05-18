@@ -12,7 +12,8 @@
 - 지금 우선순위는 기능 검증, 구조 검증, 수정, 최적화/보안, 프론트 연동 검증 순서입니다.
 - 운영/배포 관련 작업은 마지막 단계에서만 다룹니다.
 - 현재는 `YOUTH/Gov24 소비처 추가` 와 `collect/runtime governance` 1차 정리가 모두 닫힌 상태입니다.
-- 즉 다음 active track은 같은 축의 추가 구현이 아니라, deferred/product/infra 중 무엇을 다시 열지 선택하는 단계로 보는 편이 맞습니다.
+- recommendation 과 collect/runtime governance 는 기준선 유지 단계이고,
+- 다음 active track은 `Gov24 canonical promotion` 설계로 보는 편이 맞습니다.
 - 2026-05-10 기준 복지로 운영 계정을 확보했고, `중앙 list`, `중앙 detail`, `지자체 list`, `지자체 detail` 을 각각 일일 `100,000` quota로 다시 운영합니다.
 - 코드 안전 상한은 복지로 list source별 `1회 10,000 items`, detail source별 `1회 10,000 calls` 로 둡니다.
 - 복지로 detail backlog 는 더 이상 개발 계정 quota 때문에 의도적으로 남겨 두는 상태로 보지 않고, `gap fill` / `refresh` 로 full coverage 를 다시 채우는 대상으로 봅니다.
@@ -55,6 +56,7 @@
 - 다음 active track 우선순위: [policy-next-active-track-priority.md](policy/policy-next-active-track-priority.md)
 - 로컬 closeout pending: [policy-local-closeout-pending-inventory.md](policy/policy-local-closeout-pending-inventory.md)
 - `Gov24` runtime closeout / blocked-deferred track: [policy-gov24-blocked-track-status.md](policy/policy-gov24-blocked-track-status.md)
+- `Gov24` canonical promotion 설계: [policy-gov24-canonical-promotion-plan.md](policy/policy-gov24-canonical-promotion-plan.md)
 - 정책 admin runtime 런북: [policy-admin-runtime-runbook.md](policy/policy-admin-runtime-runbook.md)
 - 정책 quality summary 런북: [policy-quality-summary-runbook.md](policy/policy-quality-summary-runbook.md)
 - 신규 source 구조: [policy-source-onboarding-architecture.md](policy/policy-source-onboarding-architecture.md)
@@ -103,7 +105,7 @@
 | 항목 | 지금 안 하는 이유 | 다시 열 조건 |
 |---|---|---|
 | recommendation 제품 판단 | 재현 가능한 bugfix는 닫혔고, `2736` 류 local 청년 정책 노출 강화는 제품/모델링 선택 문제다. | 새 rank/cache/diagnostics 재현 버그가 생기거나, local 청년 정책 노출 강화가 명시 목표로 승인될 때 |
-| `Gov24` canonical deferred | `supportConditions` 는 partial runtime fact가 이미 active 이고, `serviceField/userType/benefitType` raw inventory와 1차 내부 매핑 초안도 있다. 남은 것은 stable code/import-backfill, `supportConditions` full-scope, `YOUTH_MID` 별도 축 연결 같은 deferred 판단이다. | label-first canonical 구현이 별도 active 목표로 승인되거나, stable code/schema source-of-truth가 확보될 때 |
+| `Gov24` canonical promotion | `supportConditions` 는 partial runtime fact가 이미 active 이고, `serviceField/userType/benefitType` raw inventory와 1차 내부 매핑 초안도 있다. 현재 active 범위는 exact label 유지 + allowlist token split 을 `service_taxonomy_terms` 중심 canonical 층으로 어디까지 올릴지 고정하는 것이다. stable code/import-backfill, full-scope support condition, `YOUTH_MID` 연결은 계속 deferred 다. | 현재 active |
 | 추가 infra/server 확장 | 서버 smoke/drift/runtime 검증은 닫혔지만, secret store/HTTPS/deploy 고도화는 지금 active main track이 아니다. | bounded runtime 기준선 유지보다 배포/운영 절차 확장이 우선 목표로 올라올 때 |
 
 ## 아래부터는 이력 / 참고

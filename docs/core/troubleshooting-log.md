@@ -5475,6 +5475,24 @@
   - 다음 bounded step은 이제 category bonus나 broad AI patch가 아니라, zero row와 same source/category positive peer의 `keyword / lifeStage / INTEREST_THEME / KEYWORD / TARGET_GROUP / supportContent` 입력 신호 차이를 나란히 보는 것이다.
   - 이를 위해 `run-local-recommendation-ai-input-contrast-audit.sh` 와 관련 runbook을 추가해, AI 입력 차이 근거를 먼저 수집하는 쪽으로 넘긴다.
 
+## 893) recommendation 쪽은 안정 기준선으로 되돌리고, 다음 active track은 `Gov24 canonical promotion` 설계로 고정한다
+- 문제: recommendation `3257류 savedAi=0` 경로는 retrieval/signals/runtime drift가 아니라 AI가 `수급자/신혼부부/학생` 같은 primary audience mismatch를 exclusion으로 읽는 제품 판단 경계로 좁혀졌다. prompt line 보강과 hybrid system prompt 실험까지 했지만, 핵심 zero cohort를 구조적으로 줄이지 못했고 일부 row는 오히려 다시 `savedAi=0` 으로 회귀했다.
+- 해결:
+  - mixed-audience prompt tweak 은 `9529355` 로 원복해 mainline을 안정 기준선으로 되돌렸다.
+  - 이후 recommendation/collect 쪽은 추가 구현보다 기준선 유지로 정리하고, 정책 트랙의 다음 active lane을 `Gov24 canonical promotion` 설계로 다시 열었다.
+  - 새 `policy-gov24-canonical-promotion-plan.md` 에서 다음 경계를 고정했다.
+    - `서비스분야`: exact raw label `10개` 를 `GOV24_SERVICE_FIELD` exact-label term 후보로 본다.
+    - `사용자구분`: `개인 / 가구 / 법인/시설/단체 / 소상공인` `4 token` 만 `GOV24_USER_TYPE_TOKEN` allowlist term 후보로 본다.
+    - `지원유형`: current `20 token` allowlist 만 `GOV24_BENEFIT_TYPE_TOKEN` term 후보로 본다.
+    - raw exact label summary는 계속 유지한다.
+    - canonical 저장층은 `service_facts` 가 아니라 `service_taxonomy_terms` 우선으로 제한한다.
+    - stable code/import-backfill SQL, `YOUTH_MID` bridge, public filter/scoring 은 계속 deferred 로 둔다.
+- 이유:
+  - 현재 Gov24는 runtime collect, raw exact label summary, token parser, diagnostics/admin facet까지는 이미 닫혀 있다.
+  - 남은 practical next action은 “값이 있나?”가 아니라 **무엇을 공통 canonical 층으로 올릴지** 를 정하는 것이다.
+  - 여기서 바로 `service_facts` 나 scoring으로 가면 범위가 과하고, 반대로 blocked SQL 만 더 파도 source-of-truth 부재 조건은 바뀌지 않는다.
+  - 따라서 다음 active lane은 runtime collect 재개가 아니라, **exact label 유지 + allowlist token split 을 `service_taxonomy_terms` 중심 canonical 층으로 어디까지 승격할지 문서/코드 기준선을 맞추는 설계 단계**로 보는 편이 맞다.
+
 ## 891) `생애주기/대상군` prompt 보강은 일부 row를 살리지만, `3257/3209` 핵심 케이스는 여전히 primary audience mismatch로 0점이 유지된다
 - 문제: `3257/3209/3287` 의 `savedAi=0` 이 prompt line에 청년 신호가 약해서인지, 아니면 AI가 수급자/신혼부부/학생 같은 대상군 불일치를 강한 exclusion으로 해석해서인지 확정이 필요했다.
 - 해결:
