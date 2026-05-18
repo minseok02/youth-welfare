@@ -92,13 +92,15 @@ public class AdminDashboardRecommendationDiagnosticService {
 
                     boolean inBase = baseIds.contains(serviceId);
                     boolean inLatest = latestIds.contains(serviceId);
-                    boolean inFilteredBase = filteredBaseIds.contains(serviceId);
-                    boolean inFilteredLatest = filteredLatestIds.contains(serviceId);
+                    boolean retainedBaseWindow = filteredBaseIds.contains(serviceId);
+                    boolean retainedLatestWindow = filteredLatestIds.contains(serviceId);
                     boolean inMerged = mergedIds.contains(serviceId);
                     boolean inPostScoring = postScoringIds.contains(serviceId);
                     boolean inSaved = savedById.containsKey(serviceId);
                     RetrievalService.CandidateFilterTrace filterTrace = trace.filterTraces().get(serviceId);
                     ReRankingService.CandidateRerankTrace rerankCandidateTrace = rerankTrace.candidateTraces().get(serviceId);
+                    boolean passedBaseFilters = inBase && passesFilters(filterTrace);
+                    boolean passedLatestFilters = inLatest && passesFilters(filterTrace);
 
                     return new AdminRecommendationCandidateDiagnosticResponse.ServiceDiagnostic(
                             serviceId,
@@ -119,16 +121,20 @@ public class AdminDashboardRecommendationDiagnosticService {
                             projection != null ? projection.youthIncomeConditionTypeLabel() : null,
                             inBase,
                             inLatest,
-                            inFilteredBase,
-                            inFilteredLatest,
+                            passedBaseFilters,
+                            passedLatestFilters,
+                            retainedBaseWindow,
+                            retainedLatestWindow,
                             inMerged,
                             inPostScoring,
                             inSaved,
                             resolveDropStage(
                                     inBase,
                                     inLatest,
-                                    inFilteredBase,
-                                    inFilteredLatest,
+                                    passedBaseFilters,
+                                    passedLatestFilters,
+                                    retainedBaseWindow,
+                                    retainedLatestWindow,
                                     inMerged,
                                     inPostScoring,
                                     inSaved,
@@ -198,8 +204,10 @@ public class AdminDashboardRecommendationDiagnosticService {
 
     private String resolveDropStage(boolean inBase,
                                     boolean inLatest,
-                                    boolean inFilteredBase,
-                                    boolean inFilteredLatest,
+                                    boolean passedBaseFilters,
+                                    boolean passedLatestFilters,
+                                    boolean retainedBaseWindow,
+                                    boolean retainedLatestWindow,
                                     boolean inMerged,
                                     boolean inPostScoring,
                                     boolean inSaved,
@@ -210,8 +218,11 @@ public class AdminDashboardRecommendationDiagnosticService {
         if (inMerged && !inPostScoring) {
             return "FILTERED_BY_SPECIAL_TARGET_MISMATCH";
         }
-        if (inFilteredBase || inFilteredLatest) {
+        if (retainedBaseWindow || retainedLatestWindow) {
             return "SCORED_BUT_NOT_IN_SAVED_BATCH";
+        }
+        if (passedBaseFilters || passedLatestFilters) {
+            return "TRIMMED_BY_BASE_OR_LATEST_LIMIT";
         }
         if (inBase || inLatest) {
             if (filterTrace != null) {
@@ -228,5 +239,9 @@ public class AdminDashboardRecommendationDiagnosticService {
             return "FILTERED_BY_YOUTH_OR_AGE";
         }
         return "NOT_IN_SQL_RETRIEVAL";
+    }
+
+    private boolean passesFilters(RetrievalService.CandidateFilterTrace filterTrace) {
+        return filterTrace != null && filterTrace.passesAll();
     }
 }

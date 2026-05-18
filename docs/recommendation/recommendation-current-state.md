@@ -104,6 +104,14 @@
 
 그 다음 확인은 [recommendation-pipeline-lane-audit-runbook.md](./recommendation-pipeline-lane-audit-runbook.md) 와 `run-local-recommendation-pipeline-lane-audit.sh` 로 이어집니다. 이 wrapper는 같은 target family를 actual `recommendation-diagnostics` trace에 넣어 `base/latest/filter/merged/post-scoring/saved` 경계를 한 줄로 보여 줍니다. 즉 `latest 20` 바깥이라는 사실이 실제 merged/saved 병목과 같은 층인지, 아니면 base lane 덕분에 이미 pipeline 안으로 들어오는지 구분하게 합니다.
 
+`2026-05-18` 서버 재진단에서 `3257/3281/3575` 는 `base=true`, `primary=true`, `age=true`, `youthRelevant=true` 인데도 기존 diagnostics 상 `pass_base=false`, `dropStage=FILTERED_BY_YOUTH_OR_AGE` 로 남았습니다. 이건 실제 youth/age mismatch가 아니라 `filteredBase.limit(50)` / `filteredLatest.limit(5)` 이후 window 밖으로 밀린 케이스까지 같은 라벨로 덮어쓴 것이었습니다. 그래서 현재 diagnostics 계약은 다음처럼 읽는 것이 맞습니다.
+
+- `passedBaseFilters` / `passedLatestFilters`: actual youth+age predicate pass
+- `retainedBaseWindow` / `retainedLatestWindow`: post-filter top window 안에 남았는지
+- `dropStage=TRIMMED_BY_BASE_OR_LATEST_LIMIT`: predicate는 통과했지만 base/latest window에서 밀린 상태
+
+즉 현재 남은 next step은 더 이상 `FILTERED_BY_YOUTH_OR_AGE` 묶음 해석이 아니라, `3257/3281` 이 `TRIMMED_BY_BASE_OR_LATEST_LIMIT` 으로 실제로 재분류되는지 확인한 뒤 `base/latest window size` 나 ordering을 어디까지 bounded 하게 조정할지 결정하는 것입니다.
+
 ## 현재 scoring 기준
 
 ### rule score

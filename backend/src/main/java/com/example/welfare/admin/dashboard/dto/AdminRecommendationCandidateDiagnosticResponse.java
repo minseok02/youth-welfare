@@ -41,6 +41,8 @@ public record AdminRecommendationCandidateDiagnosticResponse(
             boolean inLatestRetrieval,
             boolean passedBaseFilters,
             boolean passedLatestFilters,
+            boolean retainedBaseWindow,
+            boolean retainedLatestWindow,
             boolean inMergedCandidates,
             boolean inPostScoringCandidates,
             boolean inLatestSavedBatch,

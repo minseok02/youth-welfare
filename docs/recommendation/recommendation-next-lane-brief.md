@@ -165,7 +165,7 @@ bounded family 단위로만 확장합니다.
 
 이 단계의 기본 wrapper는 [recommendation-latest-window-audit-runbook.md](./recommendation-latest-window-audit-runbook.md) 와 `run-local-recommendation-latest-window-audit.sh` 로 고정합니다.
 
-그리고 latest evidence만으로 바로 ordering patch로 가지 않고, 같은 family를 `run-local-recommendation-pipeline-lane-audit.sh` 에 넣어 실제 `merged -> saved` 경계까지 같이 읽는 편이 맞습니다.
+그리고 latest evidence만으로 바로 ordering patch로 가지 않고, 같은 family를 `run-local-recommendation-pipeline-lane-audit.sh` 에 넣어 실제 `merged -> saved` 경계까지 같이 읽는 편이 맞습니다. 현재 이 wrapper는 `pass_base/pass_latest` 를 actual predicate pass 로, `retain_base/retain_latest` 를 base/latest top window 잔존 여부로 따로 보여 줍니다. 즉 다음 질문은 더 이상 “youth/age가 맞나”가 아니라, **`3257/3281` 이 predicate는 통과했는데 `base 50 / latest 5` window에서 밀리는지** 입니다.
 
 ## lane 1 에서 아직 안 할 일
 

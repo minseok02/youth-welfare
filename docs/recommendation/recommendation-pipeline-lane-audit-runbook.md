@@ -61,6 +61,8 @@ bash deploy/smoke/run-local-recommendation-pipeline-lane-audit.sh
 - `latest`
 - `pass_base`
 - `pass_latest`
+- `retain_base`
+- `retain_latest`
 - `primary`
 - `age`
 - `youthRelevant`
@@ -100,15 +102,20 @@ bash deploy/smoke/run-local-recommendation-pipeline-lane-audit.sh
 - `youthRelevant=true` 인데 `primary=false`
   - projection/target-group 계열 mismatch를 의심
 
-### 3. `latest=true`, `pass_latest=true`, `merged=false`
+### 4. `pass_base=true` 인데 `retain_base=false`
+
+이 경우는 youth/age predicate는 통과했지만 `filteredBase.limit(50)` 또는 `filteredLatest.limit(5)` 전에 밀린 것입니다.  
+즉 필터 mismatch가 아니라 `window trim` 이며 diagnostics `dropStage` 는 `TRIMMED_BY_BASE_OR_LATEST_LIMIT` 로 읽는 게 맞습니다.
+
+### 5. `latest=true`, `pass_latest=true`, `merged=false`
 
 이 경우는 merge window 또는 dedupe/limit 쪽을 의심합니다.
 
-### 4. `merged=true`, `post=false`
+### 6. `merged=true`, `post=false`
 
 이 경우는 post-scoring filter mismatch 입니다.
 
-### 5. `post=true`, `saved=false`
+### 7. `post=true`, `saved=false`
 
 이 경우는 rerank/saved top window 경쟁입니다.
 

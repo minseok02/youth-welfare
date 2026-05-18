@@ -291,7 +291,7 @@ public class RetrievalService {
     ) {
         static final CandidateFilterTrace PASS_ALL = new CandidateFilterTrace(true, true);
 
-        boolean passesAll() {
+        public boolean passesAll() {
             return primaryAudienceRelevant && ageConstraintMatched;
         }
     }

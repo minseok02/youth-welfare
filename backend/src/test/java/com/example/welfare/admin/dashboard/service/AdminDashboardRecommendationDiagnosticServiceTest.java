@@ -98,10 +98,11 @@ class AdminDashboardRecommendationDiagnosticServiceTest {
         WelfareService droppedAfterScoring = welfareService(2736L, "동구 청년 컬처페이 지원사업");
         WelfareService filteredByPrimaryAudience = welfareService(3714L, "(인천형)발달장애인 주간활동서비스 추가지원");
         WelfareService filteredByAge = welfareService(8888L, "청소년 전용 정책");
+        WelfareService trimmedByWindow = welfareService(7777L, "latest window 밖 local 정책");
         WelfareService notRetrieved = welfareService(9999L, "미조회 정책");
 
         RetrievalService.RecommendationRetrievalTrace trace = new RetrievalService.RecommendationRetrievalTrace(
-                List.of(leader, droppedAfterScoring, filteredByPrimaryAudience, filteredByAge),
+                List.of(leader, droppedAfterScoring, filteredByPrimaryAudience, filteredByAge, trimmedByWindow),
                 List.of(),
                 List.of(leader, droppedAfterScoring),
                 List.of(),
@@ -115,7 +116,8 @@ class AdminDashboardRecommendationDiagnosticServiceTest {
                         3686L, new RetrievalService.CandidateFilterTrace(true, true),
                         2736L, new RetrievalService.CandidateFilterTrace(true, true),
                         3714L, new RetrievalService.CandidateFilterTrace(false, true),
-                        8888L, new RetrievalService.CandidateFilterTrace(true, false)
+                        8888L, new RetrievalService.CandidateFilterTrace(true, false),
+                        7777L, new RetrievalService.CandidateFilterTrace(true, true)
                 )
         );
 
@@ -155,18 +157,18 @@ class AdminDashboardRecommendationDiagnosticServiceTest {
         when(recommendationResultReadService.findLatestSavedRecommendations("user-key-1"))
                 .thenReturn(List.of(savedLeader));
         when(welfareServiceRepository.findAllById(any()))
-                .thenReturn(List.of(leader, droppedAfterScoring, filteredByPrimaryAudience, filteredByAge, notRetrieved));
+                .thenReturn(List.of(leader, droppedAfterScoring, filteredByPrimaryAudience, filteredByAge, trimmedByWindow, notRetrieved));
 
         AdminRecommendationCandidateDiagnosticResponse response = service.getRecommendationDiagnostics(
                 "user-key-1",
-                List.of(3686L, 2736L, 3714L, 8888L, 9999L)
+                List.of(3686L, 2736L, 3714L, 8888L, 7777L, 9999L)
         );
 
         assertThat(response.userKey()).isEqualTo("user-key-1");
         assertThat(response.accountOrigin()).isEqualTo("REAL_USER");
         assertThat(response.clusterId()).isEqualTo("youth_all");
         assertThat(response.rerankTraceMode()).isEqualTo("PRE_AI_POST_SCORING");
-        assertThat(response.services()).hasSize(5);
+        assertThat(response.services()).hasSize(6);
 
         assertThat(response.services()).filteredOn(row -> row.serviceId().equals(3686L)).singleElement()
                 .satisfies(row -> {
@@ -195,6 +197,8 @@ class AdminDashboardRecommendationDiagnosticServiceTest {
                     assertThat(row.youthMaritalStatusLabel()).isEqualTo("제한없음");
                     assertThat(row.youthIncomeConditionTypeCode()).isEqualTo("0043002");
                     assertThat(row.youthIncomeConditionTypeLabel()).isEqualTo("연소득");
+                    assertThat(row.passedBaseFilters()).isTrue();
+                    assertThat(row.retainedBaseWindow()).isTrue();
                     assertThat(row.rerankDiversityPenalty()).isEqualTo(0.03);
                     assertThat(row.rerankCurrentRank()).isEqualTo(8);
                 });
@@ -215,6 +219,16 @@ class AdminDashboardRecommendationDiagnosticServiceTest {
                     assertThat(row.primaryAudienceRelevant()).isTrue();
                     assertThat(row.ageConstraintMatched()).isFalse();
                     assertThat(row.dropStage()).isEqualTo("FILTERED_BY_AGE_CONSTRAINT");
+                });
+
+        assertThat(response.services()).filteredOn(row -> row.serviceId().equals(7777L)).singleElement()
+                .satisfies(row -> {
+                    assertThat(row.inBaseRetrieval()).isTrue();
+                    assertThat(row.passedBaseFilters()).isTrue();
+                    assertThat(row.retainedBaseWindow()).isFalse();
+                    assertThat(row.primaryAudienceRelevant()).isTrue();
+                    assertThat(row.ageConstraintMatched()).isTrue();
+                    assertThat(row.dropStage()).isEqualTo("TRIMMED_BY_BASE_OR_LATEST_LIMIT");
                 });
 
         assertThat(response.services()).filteredOn(row -> row.serviceId().equals(9999L)).singleElement()

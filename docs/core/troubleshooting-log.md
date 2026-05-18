@@ -5391,3 +5391,14 @@
 - 이유:
   - infra/server hardening 의 가치는 smoke wrapper를 많이 만드는 데 있지 않고, 실제 서버 runtime 계약과 맞는 one-shot baseline 을 유지하는 데 있다.
   - 이번 서버 기준선이 통과했으므로 현재 bounded ops hardening 라운드는 closeout 상태로 봐도 된다.
+
+## 883) recommendation diagnostics에서 `pass_base=false` 가 실제 youth/age mismatch인지, 아니면 base/latest window trim인지 계약을 분리해야 한다
+- 문제: server pipeline lane audit에서 `3257/3281/3575` 는 `primary=true`, `age=true`, `youthRelevant=true`, `base=true` 인데도 `pass_base=false`, `dropStage=FILTERED_BY_YOUTH_OR_AGE` 로 찍혔다. 즉 실제 predicate는 통과했는데 `filteredBase.limit(50)` / `filteredLatest.limit(5)` 이후 window 밖으로 밀린 케이스가 youth/age filter mismatch처럼 보였다.
+- 해결:
+  - `AdminRecommendationCandidateDiagnosticResponse` 에 `retainedBaseWindow`, `retainedLatestWindow` 를 추가했다.
+  - `passedBaseFilters`, `passedLatestFilters` 는 이제 actual `CandidateFilterTrace.passesAll()` 기준으로 계산한다.
+  - `resolveDropStage(...)` 는 `predicate pass + not retained` 케이스를 `TRIMMED_BY_BASE_OR_LATEST_LIMIT` 으로 분리한다.
+  - `run-local-recommendation-pipeline-lane-audit.sh` 도 `retain_base`, `retain_latest` 를 같이 출력하게 바꿨다.
+- 이유:
+  - 지금 next step은 youth relevance나 age gate를 다시 손보는 게 아니라, `3257/3281` 이 실제로는 filter mismatch가 아니라 base/latest top window trim이라는 사실을 먼저 정확히 드러내는 것이다.
+  - 이 계약이 분리돼야만 다음 bounded fix를 `window size/ordering` 쪽으로 안전하게 좁힐 수 있다.
