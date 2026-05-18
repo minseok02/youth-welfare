@@ -59,6 +59,7 @@ bash deploy/smoke/run-local-recommendation-rebalance-audit.sh
 - `retain_sim`
 - `dropStage`
 - `projection`
+- `tiers`
 - `category`
 
 ### 3. top / blocker
@@ -71,6 +72,7 @@ bash deploy/smoke/run-local-recommendation-rebalance-audit.sh
   - diagnostics `actualBaseRank` 기준 실제 app runtime 상위 base 후보
 - `[TARGET ACTUAL BASE NEIGHBORS]`
   - target 주변 `actualBaseRank ±3` 이웃 후보
+  - 여기서 `tiers` 는 JPQL `ORDER BY CASE ...` 3개를 그대로 수치화한 값
 
 ## 읽는 법
 
@@ -92,6 +94,13 @@ bash deploy/smoke/run-local-recommendation-rebalance-audit.sh
 이 경우 script simulation 과 app runtime 이 어긋난 것입니다.  
 이때는 `[ACTUAL TOP BASE]`, `[TARGET ACTUAL BASE NEIGHBORS]` 를 봐서
 실제 app runtime 에서 target 앞을 누가 막는지 먼저 확인합니다.
+
+특히 `tiers` 를 같이 보면,
+
+- `1/3/3` 같은 `EXACT_REGION` 일반 후보가
+- `2/2/2` 같은 `EXACT_SIDO fallback` local 후보보다 앞서는지
+
+를 바로 읽을 수 있습니다.
 
 즉 이 경우 다음 질문은
 

@@ -216,6 +216,68 @@ base_ranked as (
       when coalesce(bc.exact_sido_match, false) = true then 'EXACT_SIDO'
       else 'REGION_MISMATCH'
     end as region_projection,
+    case
+      when (select branch_mode from params) = 'REGION_CODE'
+           and bc.source_type = 'BOKJIRO_LOCAL'
+           and bc.exact_region_match then 0
+      when (select branch_mode from params) = 'REGION_CODE'
+           and bc.exact_region_match then 1
+      when (select branch_mode from params) = 'REGION_CODE'
+           and bc.source_type = 'BOKJIRO_LOCAL'
+           and bc.exact_sido_match
+           and bc.search_youth_relevant = true
+           and bc.unified_category <> '기타' then 2
+      when (select branch_mode from params) = 'SIDO'
+           and bc.source_type = 'BOKJIRO_LOCAL'
+           and bc.exact_sido_match then 0
+      when (select branch_mode from params) = 'SIDO'
+           and bc.exact_sido_match then 1
+      else 3
+    end as tier_region_branch,
+    case
+      when (select branch_mode from params) = 'REGION_CODE'
+           and bc.source_type = 'BOKJIRO_LOCAL'
+           and bc.exact_region_match
+           and bc.search_youth_relevant = true then 0
+      when (select branch_mode from params) = 'REGION_CODE'
+           and bc.source_type = 'BOKJIRO_LOCAL'
+           and bc.exact_region_match then 1
+      when (select branch_mode from params) = 'REGION_CODE'
+           and bc.source_type = 'BOKJIRO_LOCAL'
+           and bc.exact_sido_match
+           and bc.search_youth_relevant = true
+           and bc.unified_category <> '기타' then 2
+      when (select branch_mode from params) = 'SIDO'
+           and bc.source_type = 'BOKJIRO_LOCAL'
+           and bc.exact_sido_match
+           and bc.search_youth_relevant = true then 0
+      when (select branch_mode from params) = 'SIDO'
+           and bc.source_type = 'BOKJIRO_LOCAL'
+           and bc.exact_sido_match then 1
+      else 3
+    end as tier_youth_local,
+    case
+      when (select branch_mode from params) = 'REGION_CODE'
+           and bc.source_type = 'BOKJIRO_LOCAL'
+           and bc.exact_region_match
+           and bc.unified_category <> '기타' then 0
+      when (select branch_mode from params) = 'REGION_CODE'
+           and bc.source_type = 'BOKJIRO_LOCAL'
+           and bc.exact_region_match then 1
+      when (select branch_mode from params) = 'REGION_CODE'
+           and bc.source_type = 'BOKJIRO_LOCAL'
+           and bc.exact_sido_match
+           and bc.search_youth_relevant = true
+           and bc.unified_category <> '기타' then 2
+      when (select branch_mode from params) = 'SIDO'
+           and bc.source_type = 'BOKJIRO_LOCAL'
+           and bc.exact_sido_match
+           and bc.unified_category <> '기타' then 0
+      when (select branch_mode from params) = 'SIDO'
+           and bc.source_type = 'BOKJIRO_LOCAL'
+           and bc.exact_sido_match then 1
+      else 3
+    end as tier_local_category,
     row_number() over (
       order by
         case
@@ -293,6 +355,9 @@ select
   br.search_youth_relevant,
   br.life_stage,
   br.region_projection,
+  br.tier_region_branch,
+  br.tier_youth_local,
+  br.tier_local_category,
   br.raw_rank
 from base_ranked br
 where br.raw_rank <= ${BASE_FETCH_SIZE}
@@ -368,7 +433,7 @@ for line in open(raw_tsv_path, "r", encoding="utf-8"):
     line = line.rstrip("\n")
     if not line:
         continue
-    service_id, title, source_type, category, youth_relevant, life_stage, region_projection, raw_rank = line.split("\t")
+    service_id, title, source_type, category, youth_relevant, life_stage, region_projection, tier_region_branch, tier_youth_local, tier_local_category, raw_rank = line.split("\t")
     raw_rows.append({
         "serviceId": int(service_id),
         "title": title,
@@ -377,6 +442,9 @@ for line in open(raw_tsv_path, "r", encoding="utf-8"):
         "searchYouthRelevant": youth_relevant == "t",
         "lifeStage": life_stage,
         "regionProjection": region_projection,
+        "tierRegionBranch": int(tier_region_branch),
+        "tierYouthLocal": int(tier_youth_local),
+        "tierLocalCategory": int(tier_local_category),
         "rawRank": int(raw_rank),
     })
 
@@ -454,6 +522,7 @@ for row in [r for r in raw_rows if r["serviceId"] in target_ids]:
         f"actual_merged_rank={row['actualMergedRank']}\t"
         f"dropStage={row['dropStage']}\t"
         f"projection={row['regionProjection']}\t"
+        f"tiers={row['tierRegionBranch']}/{row['tierYouthLocal']}/{row['tierLocalCategory']}\t"
         f"category={row['category']}\t"
         f"title={row['title']}"
     )
@@ -468,7 +537,8 @@ for row in actual_base_rows[:base_window_limit]:
     print(
         f"{row['actualBaseRank']}\t{marker}\t{row['serviceId']}\t{row['sourceType']}\t"
         f"raw_rank={row['rawRank']}\trebalance_rank={row['rebalanceRank']}\t"
-        f"projection={row['regionProjection']}\tcategory={row['category']}\ttitle={row['title']}"
+        f"projection={row['regionProjection']}\ttiers={row['tierRegionBranch']}/{row['tierYouthLocal']}/{row['tierLocalCategory']}\t"
+        f"category={row['category']}\ttitle={row['title']}"
     )
 
 print()
@@ -485,7 +555,8 @@ for target in [r for r in raw_rows if r["serviceId"] in target_ids and r["actual
         print(
             f"{rank}\t{marker}\t{row['serviceId']}\t{row['sourceType']}\t"
             f"raw_rank={row['rawRank']}\trebalance_rank={row['rebalanceRank']}\t"
-            f"projection={row['regionProjection']}\tcategory={row['category']}\ttitle={row['title']}"
+            f"projection={row['regionProjection']}\ttiers={row['tierRegionBranch']}/{row['tierYouthLocal']}/{row['tierLocalCategory']}\t"
+            f"category={row['category']}\ttitle={row['title']}"
         )
     print()
 
