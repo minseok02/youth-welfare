@@ -48,7 +48,7 @@ cd backend
 현재 main 기준 로컬 계정/권한은 Docker Compose init 경로에서 맞춰지므로,
 `deploy/mysql/**` 아래 계정 복구 스크립트는 legacy MySQL history로만 봅니다.
 
-## Gmail SMTP smoke test
+## SMTP smoke test
 
 실제 SMTP 설정으로 테스트 메일 1건을 발송할 때만 실행합니다.
 기본 테스트에서는 비활성화되어 있으며, `RUN_SMTP_SMOKE=true`를 명시해야 동작합니다.
@@ -60,14 +60,29 @@ MAIL_PORT=587 \
 MAIL_USERNAME=your-account@gmail.com \
 MAIL_PASSWORD=your-app-password \
 SMTP_SMOKE_TO=receiver@example.com \
-RUN_SMTP_SMOKE=true ./gradlew test --tests com.example.welfare.notification.gateway.GmailSmtpSmokeTest --rerun-tasks
+RUN_SMTP_SMOKE=true ./gradlew test --tests com.example.welfare.notification.gateway.SmtpSmokeTest --rerun-tasks
 ```
 
 `.env` 전체를 shell `source` 하지 말고, 필요한 SMTP 관련 값만 inline env 또는 `export`로 넘깁니다.
 수신 주소를 발신 계정과 다르게 지정하려면 `.env`의 `SMTP_SMOKE_TO` 값을 그대로 넘기면 됩니다.
 
 ```bash
-RUN_SMTP_SMOKE=true ./gradlew test --tests com.example.welfare.notification.gateway.GmailSmtpSmokeTest --rerun-tasks
+RUN_SMTP_SMOKE=true ./gradlew test --tests com.example.welfare.notification.gateway.SmtpSmokeTest --rerun-tasks
+```
+
+AWS SES SMTP로 검증할 때는 host와 provider만 SES 기준으로 바꾸면 됩니다.
+
+```bash
+cd backend
+MAIL_HOST=email-smtp.ap-northeast-2.amazonaws.com \
+MAIL_PORT=587 \
+MAIL_USERNAME=AKIA...SMTPUSER \
+MAIL_PASSWORD=ses-smtp-password \
+MAIL_PROVIDER=aws-ses-smtp \
+MAIL_FROM_ADDRESS=no-reply@example.com \
+MAIL_REPLY_TO=support@example.com \
+SMTP_SMOKE_TO=receiver@example.com \
+RUN_SMTP_SMOKE=true ./gradlew test --tests com.example.welfare.notification.gateway.SmtpSmokeTest --rerun-tasks
 ```
 
 ## 언제 무엇을 실행할까
@@ -75,7 +90,7 @@ RUN_SMTP_SMOKE=true ./gradlew test --tests com.example.welfare.notification.gate
 - 서비스/컨트롤러/리포지토리 단위 변경: `./gradlew test`
 - 로그인, refresh token, Redis 저장 흐름 변경: `./gradlew integrationTest`
 - 북마크, 추천 refresh/get 전체 흐름 변경: `./gradlew integrationTest`
-- SMTP 계정/비밀번호 검증: `RUN_SMTP_SMOKE=true ./gradlew test --tests com.example.welfare.notification.gateway.GmailSmtpSmokeTest --rerun-tasks`
+- SMTP 계정/비밀번호 검증: `RUN_SMTP_SMOKE=true ./gradlew test --tests com.example.welfare.notification.gateway.SmtpSmokeTest --rerun-tasks`
 - 배포 전 최종 확인: `./gradlew test` 실행 후 `docker compose up -d db redis` 상태에서 `./gradlew integrationTest`
 
 ## integration preflight 우회

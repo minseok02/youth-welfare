@@ -34,6 +34,7 @@
 - `2026-05-18` 기준 `collect/runtime governance` 도 `lane inventory -> latestRun -> config summary` 까지 닫혔습니다.
 - `2026-05-18` 기준 recommendation 의 남은 `3257류` 이슈는 retrieval/신호 부족 버그가 아니라, AI가 `수급자/신혼부부/학생` 같은 primary audience mismatch를 강한 exclusion으로 해석하는 제품 판단 경계로 좁혀졌습니다.
 - recommendation/collect 쪽은 기준선 유지 단계이고, 다음 active track은 `Gov24 canonical promotion` 설계로 보는 편이 맞습니다.
+- 메일 발송은 SMTP 기반이며 `MAIL_*` 설정을 우선 사용합니다. provider-neutral 경계는 닫혔고, 다음 운영 선택지는 Gmail 유지보다 AWS SES SMTP 전환 검토가 우선입니다.
 
 ## 필요할 때 보는 파일
 

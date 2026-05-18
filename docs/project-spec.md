@@ -47,7 +47,7 @@
 - 온통청년 API
 - 복지로 API
 - Gov24 API
-- Gmail SMTP
+- SMTP 메일 발송 (`MAIL_*` 설정, 현재 기본값은 Gmail SMTP)
 
 ## 참고 문서
 

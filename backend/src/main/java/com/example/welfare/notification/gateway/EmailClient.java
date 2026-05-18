@@ -24,7 +24,7 @@ public class EmailClient {
     }
 
     /**
-     * Gmail SMTP 이메일 발송 (카카오 알림톡 실패 시 폴백)
+     * SMTP 이메일 발송.
      */
     public boolean send(String to, String subject, String text) {
         try {

@@ -34,7 +34,7 @@ spring:
 app:
   base-url: ${APP_BASE_URL}
   mail:
-    provider: ${MAIL_PROVIDER:gmail-smtp}
+    provider: ${MAIL_PROVIDER:smtp}
     from-address: ${MAIL_FROM_ADDRESS:${MAIL_USERNAME:${GMAIL_USERNAME}}}
     reply-to: ${MAIL_REPLY_TO:${MAIL_FROM_ADDRESS:${MAIL_USERNAME:${GMAIL_USERNAME}}}}
   datasource:

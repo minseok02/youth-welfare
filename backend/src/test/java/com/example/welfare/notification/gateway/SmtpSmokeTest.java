@@ -9,7 +9,7 @@ import java.util.Properties;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-class GmailSmtpSmokeTest {
+class SmtpSmokeTest {
 
     @Test
     @EnabledIfEnvironmentVariable(named = "RUN_SMTP_SMOKE", matches = "true")

@@ -7,7 +7,7 @@ import org.springframework.stereotype.Component;
 @ConfigurationProperties(prefix = "app.mail")
 public class MailDeliveryProperties {
 
-    private String provider = "gmail-smtp";
+    private String provider = "smtp";
     private String fromAddress;
     private String replyTo;
 

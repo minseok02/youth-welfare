@@ -510,15 +510,15 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
   - API 응답 200
   - `api_sync_logs`에 `job_name=YOUTH`, `status=success`, `requested_count=2266`, `saved_count=2266`, `failed_count=0` 기록 확인
   - `welfare_services`의 `YOUTH` 정책 2266건, `raw_api_payloads`의 `YOUTH` 원문 2266건 확인
-- 2026-04-24 Gmail SMTP 실제 발송 smoke test 실행
+- 2026-04-24 SMTP 실제 발송 smoke test 실행
   - `.env`의 `MAIL_USERNAME` 또는 legacy `GMAIL_USERNAME`, `MAIL_PASSWORD` 또는 legacy `GMAIL_PASSWORD` 환경변수 로딩 확인
-  - `RUN_SMTP_SMOKE=true ./gradlew test --tests com.example.welfare.notification.gateway.GmailSmtpSmokeTest --no-daemon`
+  - `RUN_SMTP_SMOKE=true ./gradlew test --tests com.example.welfare.notification.gateway.SmtpSmokeTest --no-daemon`
   - 발신 계정 자신에게 테스트 메일 1건 발송 성공
-- 2026-04-24 Gmail SMTP smoke test 수신자 분리 실행
+- 2026-04-24 SMTP smoke test 수신자 분리 실행
   - `.env`의 `SMTP_SMOKE_TO` 환경변수 로딩 확인
-  - `RUN_SMTP_SMOKE=true ./gradlew test --tests com.example.welfare.notification.gateway.GmailSmtpSmokeTest --no-daemon --rerun-tasks`
+  - `RUN_SMTP_SMOKE=true ./gradlew test --tests com.example.welfare.notification.gateway.SmtpSmokeTest --no-daemon --rerun-tasks`
   - 지정 수신자 대상으로 테스트 메일 1건 발송 성공
-- 2026-04-24 Gmail SMTP smoke test 추가 후 `backend`에서 `./gradlew test --no-daemon`
+- 2026-04-24 SMTP smoke test 추가 후 `backend`에서 `./gradlew test --no-daemon`
 - 2026-04-24 정책 상세 페이지 API 연동 후 `frontend`에서 `npm run lint`
 - 2026-04-24 정책 상세 페이지 API 연동 후 `frontend`에서 `npm run build`
   - Vite 번들 크기 경고 발생. 빌드는 성공했으며 기능 실패는 아님.
@@ -1162,7 +1162,7 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
 - [x] 기존 DB에 최신 migration 적용
 - [x] `api_sync_logs` 기록 확인
 - [x] 실제 공공 API key로 수집 smoke test
-- [x] Gmail SMTP 실제 발송 smoke test
+- [x] SMTP 실제 발송 smoke test
 - [x] 정책 상세 API 연결
 - [x] 정책 목록 페이지 더미 데이터 제거 및 API 연결
 - [x] 추천 refresh API 연결

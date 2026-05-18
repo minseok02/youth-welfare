@@ -17,6 +17,7 @@
 - [testing.md](./testing.md)
 - [runtime-api-smoke-commands.md](./runtime-api-smoke-commands.md)
 - [server-runtime-drift-checklist.md](./server-runtime-drift-checklist.md)
+- [mail-ses-migration-runbook.md](./mail-ses-migration-runbook.md)
 - runtime preflight shell 진입점: `deploy/smoke/preflight-integration-runtime.sh`
 
 ### 같이 보면 좋은 문서
@@ -41,7 +42,8 @@
 
 - `./gradlew test`
 - `./gradlew integrationTest`
-- Gmail SMTP smoke
+- SMTP smoke
+- AWS SES SMTP 전환 런북
 - split-account 계정 복구
 
 를 언제 어떻게 실행하는지 정리한 공통 실행 기준입니다.

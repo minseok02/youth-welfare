@@ -5,6 +5,7 @@
 - 프론트는 기본 연동/빌드/브라우저 smoke까지 확인했고, 현재는 신규 기능보다 회귀 방지와 운영 문서 정리가 우선입니다.
 - `2026-05-18` 기준 YOUTH official fact는 `admin diagnostics`, 정책 상세 read-only, 정책 목록 compact badge, admin recommendation facet까지 연결됐고, retrieval/filter/scoring은 아직 안 건드렸습니다.
 - `2026-05-18` 기준 Gov24 token도 `diagnostics`, admin recommendation facet까지 연결됐고, public filter/scoring은 아직 안 건드렸습니다.
+- `2026-05-18` 기준 메일 발송은 provider-neutral SMTP 설정으로 일반화됐습니다. 현재 기본 runtime은 Gmail SMTP fallback을 유지하지만, 운영 방향은 건당 과금과 bulk 발송 적합성을 고려해 AWS SES SMTP 전환 검토가 우선입니다.
 - `2026-05-18` 기준 collect/runtime governance도 한 단계 더 닫혔습니다. `admin/dashboard/collect-failures` 는 이제 실패/partial/streak/circuit 뿐 아니라 `nightly vs manual collect lane inventory`, lane별 `마지막 실행 요약`, `budget/config summary` 를 같이 내려, 어떤 source가 왜 scheduled/manual 인지와 최근 실행 결과, pacing/budget/retry guard를 운영 화면에서 바로 읽을 수 있습니다.
 - `2026-05-18` 기준 운영 read-only 기준선도 one-shot wrapper로 묶였습니다. `deploy/smoke/run-local-ops-baseline-suite.sh` 는 `health -> admin dashboard -> collect failures -> recommendation breakdowns` 를 한 번에 다시 확인합니다.
 - `2026-05-18` 기준 위 `ops baseline suite` 는 운영 서버에서도 끝까지 통과했습니다. 즉 health, admin dashboard, collect failures, recommendation breakdowns 세 축을 one-shot read-only smoke로 다시 확인하는 경로가 실제 runtime 기준선으로 닫혔습니다.
