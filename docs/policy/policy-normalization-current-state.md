@@ -267,6 +267,10 @@ raw exact label summary(`gov24ServiceFieldLabel/gov24UserTypeLabel/gov24BenefitT
 `service_taxonomy_terms` canonical term 저장
 까지는 닫혔고,
 `service_facts`, stable code/import-backfill SQL, public filter/scoring은 계속 deferred 다.
+추가로 admin recommendation facet도 이제 canonical term을 우선 읽는다.
+- `GOV24_USER_TYPE_TOKEN`, `GOV24_BENEFIT_TYPE_TOKEN` term이 있으면 이를 그대로 집계한다.
+- term이 없는 legacy row만 `service_taxonomies.gov24_user_type_label`, `gov24_benefit_type_label` `||` split 으로 fallback 한다.
+- 즉 현재 Gov24 admin facet의 canonical truth는 `service_taxonomy_terms`, raw split은 호환 fallback 이다.
 
 ## 2. `YOUTH_MID_RAW_ALIAS` 현재 상태
 

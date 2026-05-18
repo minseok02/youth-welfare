@@ -5524,6 +5524,23 @@
   - 그렇지 않으면 local/fresh DB에서는 통과해도 existing server DB에서는 FK 오류로 바로 드러난다.
   - 즉 Gov24 canonical promotion 1차의 실제 closeout 기준에는 **term 저장 + metadata seed + existing DB migration** 이 모두 포함된다고 보는 것이 맞다.
 
+## 896) Gov24 admin facet는 raw split 대신 canonical term을 우선 읽고 legacy row만 fallback 하는 편이 맞다
+- 문제: Gov24 token term을 `service_taxonomy_terms` 에 올린 뒤에도 admin recommendation facet SQL이 계속 `service_taxonomies.gov24_user_type_label`, `gov24_benefit_type_label` 을 `||` split 하고 있으면, canonical promotion을 해도 실제 소비 경계는 여전히 raw parser에 머문다. 이 상태면 term 저장과 admin facet 분포가 drift 날 수 있고, “canonical로 승격했다”는 의미도 약해진다.
+- 해결:
+  - `AdminDashboardRecommendationReadRepository.fetchLatestBatchGov24FacetRows(...)` 는 이제 `service_taxonomy_terms` 의
+    - `GOV24_USER_TYPE_TOKEN`
+    - `GOV24_BENEFIT_TYPE_TOKEN`
+    을 먼저 집계한다.
+  - 같은 서비스에 해당 term group이 있으면 raw split 결과는 무시한다.
+  - 해당 term group이 아예 없는 legacy row만 raw summary label `||` split 으로 fallback 한다.
+  - integration test를 추가해
+    - canonical term이 있는 Gov24 서비스는 raw label보다 term 값이 우선 집계되고
+    - term이 없는 Gov24 서비스는 기존 raw split 결과가 그대로 집계되는
+    경계를 실제 DB 기준으로 고정했다.
+- 이유:
+  - canonical promotion 2차의 실익은 “저장만 canonical” 이 아니라, 소비처도 같은 canonical source를 읽게 만드는 데 있다.
+  - 동시에 backfill이 덜 된 row는 아직 있을 수 있으므로 raw split fallback을 남겨 backward compatibility를 유지하는 것이 맞다.
+
 ## 891) `생애주기/대상군` prompt 보강은 일부 row를 살리지만, `3257/3209` 핵심 케이스는 여전히 primary audience mismatch로 0점이 유지된다
 - 문제: `3257/3209/3287` 의 `savedAi=0` 이 prompt line에 청년 신호가 약해서인지, 아니면 AI가 수급자/신혼부부/학생 같은 대상군 불일치를 강한 exclusion으로 해석해서인지 확정이 필요했다.
 - 해결:

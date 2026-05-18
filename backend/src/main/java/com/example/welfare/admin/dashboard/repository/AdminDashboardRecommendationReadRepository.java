@@ -783,11 +783,33 @@ public class AdminDashboardRecommendationReadRepository {
                       left join service_taxonomies st
                         on st.service_id = ws.id
                      cross join lateral (
+                         select 'GOV24_USER_TYPE_TOKEN' as facet_key, stt.term_label as bucket_label
+                           from service_taxonomy_terms stt
+                          where stt.service_id = ws.id
+                            and stt.term_group = 'GOV24_USER_TYPE_TOKEN'
+                         union all
                          select 'GOV24_USER_TYPE_TOKEN' as facet_key, btrim(token_parts.bucket_label) as bucket_label
                            from regexp_split_to_table(coalesce(st.gov24_user_type_label, ''), '\\|\\|') as token_parts(bucket_label)
+                          where not exists (
+                              select 1
+                                from service_taxonomy_terms stt
+                               where stt.service_id = ws.id
+                                 and stt.term_group = 'GOV24_USER_TYPE_TOKEN'
+                          )
+                         union all
+                         select 'GOV24_BENEFIT_TYPE_TOKEN' as facet_key, stt.term_label as bucket_label
+                           from service_taxonomy_terms stt
+                          where stt.service_id = ws.id
+                            and stt.term_group = 'GOV24_BENEFIT_TYPE_TOKEN'
                          union all
                          select 'GOV24_BENEFIT_TYPE_TOKEN' as facet_key, btrim(token_parts.bucket_label) as bucket_label
                            from regexp_split_to_table(coalesce(st.gov24_benefit_type_label, ''), '\\|\\|') as token_parts(bucket_label)
+                          where not exists (
+                              select 1
+                                from service_taxonomy_terms stt
+                               where stt.service_id = ws.id
+                                 and stt.term_group = 'GOV24_BENEFIT_TYPE_TOKEN'
+                          )
                      ) tokens
                      where nullif(tokens.bucket_label, '') is not null
                 ),
