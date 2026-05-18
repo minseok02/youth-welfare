@@ -13,6 +13,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 
 /**
@@ -29,6 +30,18 @@ public final class BokjiroNormalizationSupport {
             "교육급여 수급자",
             "수급권자"
     );
+    private static final Set<String> HOUSING_HINTS = Set.of(
+            "주거", "주택", "월세", "전세", "보증금", "임대료", "임차료", "주거급여"
+    );
+    private static final Set<String> FINANCE_LIFE_HINTS = Set.of(
+            "생활안정", "생활지원", "생활비", "생계", "자금", "융자", "대출", "보증", "월세보증금"
+    );
+    private static final Set<String> CARE_HINTS = Set.of(
+            "돌봄", "주간활동", "안부확인", "발달장애인"
+    );
+    private static final Set<String> EDUCATION_HINTS = Set.of(
+            "교육", "훈련", "직무", "학습", "어학", "자격증", "장학"
+    );
 
     private BokjiroNormalizationSupport() {
     }
@@ -42,11 +55,97 @@ public final class BokjiroNormalizationSupport {
     }
 
     public static List<NormalizedPolicyAggregate.TaxonomyTerm> localTerms(BokjiroLocalDto.Item item) {
-        return listTerms(
+        List<NormalizedPolicyAggregate.TaxonomyTerm> terms = listTerms(
                 item.getLifeNmArray(), NormalizationKeySupport.SOURCE_FIELD_BOKJIRO_LIFE_NM_ARRAY,
                 item.getIntrsThemaNmArray(), NormalizationKeySupport.SOURCE_FIELD_BOKJIRO_INTEREST_THEME_NM_ARRAY,
                 item.getTrgterIndvdlNmArray(), NormalizationKeySupport.SOURCE_FIELD_BOKJIRO_TARGET_GROUP_NM_ARRAY
         );
+        int sortOrder = terms.size();
+        for (String label : derivedLocalInterestThemes(item)) {
+            addTaxonomyTermIfAbsent(
+                    terms,
+                    NormalizationKeySupport.TERM_GROUP_INTEREST_THEME,
+                    null,
+                    null,
+                    label,
+                    NormalizationKeySupport.SOURCE_FIELD_BOKJIRO_TITLE_DIGEST_PROVISION,
+                    NormalizedPolicyAggregate.Authority.SYSTEM_DERIVED,
+                    sortOrder++
+            );
+        }
+        return terms;
+    }
+
+    public static List<String> derivedLocalInterestThemes(BokjiroLocalDto.Item item) {
+        String normalized = localHeuristicText(item);
+        if (normalized == null) {
+            return List.of();
+        }
+        LinkedHashSet<String> labels = new LinkedHashSet<>();
+        if (containsAny(normalized, HOUSING_HINTS)) {
+            labels.add("주거");
+        }
+        if (containsAny(normalized, FINANCE_LIFE_HINTS)) {
+            labels.add("생활지원");
+        }
+        if (containsAny(normalized, CARE_HINTS)) {
+            labels.add("보호·돌봄");
+        }
+        if (containsAny(normalized, EDUCATION_HINTS)) {
+            labels.add("교육");
+        }
+        return List.copyOf(labels);
+    }
+
+    public static List<String> derivedLocalProgramKeywords(BokjiroLocalDto.Item item) {
+        String normalized = localHeuristicText(item);
+        if (normalized == null) {
+            return List.of();
+        }
+        LinkedHashSet<String> tags = new LinkedHashSet<>();
+
+        if (containsAny(normalized, HOUSING_HINTS)) {
+            tags.add("주거지원");
+        }
+        if (normalized.contains("월세") && normalized.contains("보증금")) {
+            tags.add("월세보증금");
+        }
+        if (normalized.contains("주거급여")) {
+            tags.add("주거급여지원");
+        }
+        if (containsAny(normalized, FINANCE_LIFE_HINTS)) {
+            tags.add("금융지원");
+        }
+        if (normalized.contains("생활안정자금")) {
+            tags.add("생활안정자금");
+        }
+        if (normalized.contains("융자") || normalized.contains("대출")) {
+            tags.add("융자");
+        }
+        if (normalized.contains("바우처")) {
+            tags.add("바우처");
+        }
+        if (containsAny(normalized, CARE_HINTS)) {
+            tags.add("돌봄서비스");
+        }
+        if (normalized.contains("주간활동")) {
+            tags.add("주간활동서비스");
+        }
+        if (normalized.contains("안부확인")) {
+            tags.add("안부확인서비스");
+        }
+        if (normalized.contains("맞춤형") && normalized.contains("상담")) {
+            tags.add("맞춤형상담서비스");
+        } else if (normalized.contains("상담")) {
+            tags.add("상담서비스");
+        }
+        if (containsAny(normalized, EDUCATION_HINTS)) {
+            tags.add("교육지원");
+        }
+        if (normalized.contains("인프라") || normalized.contains("조성") || normalized.contains("구축")) {
+            tags.add("인프라 구축");
+        }
+        return List.copyOf(tags);
     }
 
     public static List<NormalizedPolicyAggregate.TaxonomyTerm> detailTerms(BokjiroDetailClient.DetailPayload detailPayload) {
@@ -155,6 +254,15 @@ public final class BokjiroNormalizationSupport {
         return false;
     }
 
+    private static boolean containsAny(String text, Set<String> candidates) {
+        for (String candidate : candidates) {
+            if (text.contains(candidate)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private static List<NormalizedPolicyAggregate.TaxonomyTerm> listTerms(String lifeStageCsv,
                                                                           String lifeStageField,
                                                                           String interestThemeCsv,
@@ -233,6 +341,52 @@ public final class BokjiroNormalizationSupport {
                 .authority(authority)
                 .sortOrder(sortOrder)
                 .build());
+    }
+
+    private static void addTaxonomyTermIfAbsent(List<NormalizedPolicyAggregate.TaxonomyTerm> terms,
+                                                String termGroup,
+                                                String codeSetKey,
+                                                String termCode,
+                                                String termLabel,
+                                                String sourceField,
+                                                NormalizedPolicyAggregate.Authority authority,
+                                                int sortOrder) {
+        String normalizedLabel = RawFieldValidator.normalize(termLabel);
+        if (normalizedLabel == null) {
+            return;
+        }
+        boolean exists = terms.stream().anyMatch(term ->
+                normalizedLabel.equals(term.termLabel()) && termGroup.equals(term.termGroup()));
+        if (exists) {
+            return;
+        }
+        addTaxonomyTerm(terms, termGroup, codeSetKey, termCode, normalizedLabel, sourceField, authority, sortOrder);
+    }
+
+    private static String localHeuristicText(BokjiroLocalDto.Item item) {
+        return normalizeJoined(
+                item.getServNm(),
+                item.getServDgst(),
+                item.getSrvPvsnNm(),
+                item.getAplyMtdNm()
+        );
+    }
+
+    private static String normalizeJoined(String... values) {
+        LinkedHashSet<String> segments = new LinkedHashSet<>();
+        if (values == null) {
+            return null;
+        }
+        for (String value : values) {
+            String normalized = RawFieldValidator.normalize(value);
+            if (normalized != null) {
+                segments.add(normalized.toLowerCase(Locale.ROOT));
+            }
+        }
+        if (segments.isEmpty()) {
+            return null;
+        }
+        return String.join(" ", segments);
     }
 
     private static void addRangeFact(List<NormalizedPolicyAggregate.Fact> facts,

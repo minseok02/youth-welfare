@@ -83,6 +83,38 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                      ) THEN 1
                 ELSE 2
               END ASC,
+              CASE
+                WHEN ws.sourceType = 'BOKJIRO_LOCAL'
+                     AND EXISTS (
+                        SELECT sr5.id FROM ServiceRegion sr5
+                        WHERE sr5.service = ws
+                          AND sr5.regionCode = :regionCode
+                     )
+                     AND ws.searchYouthRelevant = true THEN 0
+                WHEN ws.sourceType = 'BOKJIRO_LOCAL'
+                     AND EXISTS (
+                        SELECT sr6.id FROM ServiceRegion sr6
+                        WHERE sr6.service = ws
+                          AND sr6.regionCode = :regionCode
+                     ) THEN 1
+                ELSE 2
+              END ASC,
+              CASE
+                WHEN ws.sourceType = 'BOKJIRO_LOCAL'
+                     AND EXISTS (
+                        SELECT sr7.id FROM ServiceRegion sr7
+                        WHERE sr7.service = ws
+                          AND sr7.regionCode = :regionCode
+                     )
+                     AND ws.unifiedCategory <> '기타' THEN 0
+                WHEN ws.sourceType = 'BOKJIRO_LOCAL'
+                     AND EXISTS (
+                        SELECT sr8.id FROM ServiceRegion sr8
+                        WHERE sr8.service = ws
+                          AND sr8.regionCode = :regionCode
+                     ) THEN 1
+                ELSE 2
+              END ASC,
               COALESCE(ws.lastModifiedAt, ws.registeredAt, ws.createdAt) DESC,
               ws.id DESC
             """)
@@ -128,6 +160,38 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                         SELECT sr4.id FROM ServiceRegion sr4
                         WHERE sr4.service = ws
                           AND sr4.sidoName = :sidoName
+                     ) THEN 1
+                ELSE 2
+              END ASC,
+              CASE
+                WHEN ws.sourceType = 'BOKJIRO_LOCAL'
+                     AND EXISTS (
+                        SELECT sr5.id FROM ServiceRegion sr5
+                        WHERE sr5.service = ws
+                          AND sr5.sidoName = :sidoName
+                     )
+                     AND ws.searchYouthRelevant = true THEN 0
+                WHEN ws.sourceType = 'BOKJIRO_LOCAL'
+                     AND EXISTS (
+                        SELECT sr6.id FROM ServiceRegion sr6
+                        WHERE sr6.service = ws
+                          AND sr6.sidoName = :sidoName
+                     ) THEN 1
+                ELSE 2
+              END ASC,
+              CASE
+                WHEN ws.sourceType = 'BOKJIRO_LOCAL'
+                     AND EXISTS (
+                        SELECT sr7.id FROM ServiceRegion sr7
+                        WHERE sr7.service = ws
+                          AND sr7.sidoName = :sidoName
+                     )
+                     AND ws.unifiedCategory <> '기타' THEN 0
+                WHEN ws.sourceType = 'BOKJIRO_LOCAL'
+                     AND EXISTS (
+                        SELECT sr8.id FROM ServiceRegion sr8
+                        WHERE sr8.service = ws
+                          AND sr8.sidoName = :sidoName
                      ) THEN 1
                 ELSE 2
               END ASC,
@@ -199,6 +263,38 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                      ) THEN 1
                 ELSE 2
               END ASC,
+              CASE
+                WHEN ws.sourceType = 'BOKJIRO_LOCAL'
+                     AND EXISTS (
+                        SELECT sr5.id FROM ServiceRegion sr5
+                        WHERE sr5.service = ws
+                          AND sr5.regionCode = :regionCode
+                     )
+                     AND ws.searchYouthRelevant = true THEN 0
+                WHEN ws.sourceType = 'BOKJIRO_LOCAL'
+                     AND EXISTS (
+                        SELECT sr6.id FROM ServiceRegion sr6
+                        WHERE sr6.service = ws
+                          AND sr6.regionCode = :regionCode
+                     ) THEN 1
+                ELSE 2
+              END ASC,
+              CASE
+                WHEN ws.sourceType = 'BOKJIRO_LOCAL'
+                     AND EXISTS (
+                        SELECT sr7.id FROM ServiceRegion sr7
+                        WHERE sr7.service = ws
+                          AND sr7.regionCode = :regionCode
+                     )
+                     AND ws.unifiedCategory <> '기타' THEN 0
+                WHEN ws.sourceType = 'BOKJIRO_LOCAL'
+                     AND EXISTS (
+                        SELECT sr8.id FROM ServiceRegion sr8
+                        WHERE sr8.service = ws
+                          AND sr8.regionCode = :regionCode
+                     ) THEN 1
+                ELSE 2
+              END ASC,
               ws.createdAt DESC,
               ws.id DESC
             """)
@@ -244,6 +340,38 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                         SELECT sr4.id FROM ServiceRegion sr4
                         WHERE sr4.service = ws
                           AND sr4.sidoName = :sidoName
+                     ) THEN 1
+                ELSE 2
+              END ASC,
+              CASE
+                WHEN ws.sourceType = 'BOKJIRO_LOCAL'
+                     AND EXISTS (
+                        SELECT sr5.id FROM ServiceRegion sr5
+                        WHERE sr5.service = ws
+                          AND sr5.sidoName = :sidoName
+                     )
+                     AND ws.searchYouthRelevant = true THEN 0
+                WHEN ws.sourceType = 'BOKJIRO_LOCAL'
+                     AND EXISTS (
+                        SELECT sr6.id FROM ServiceRegion sr6
+                        WHERE sr6.service = ws
+                          AND sr6.sidoName = :sidoName
+                     ) THEN 1
+                ELSE 2
+              END ASC,
+              CASE
+                WHEN ws.sourceType = 'BOKJIRO_LOCAL'
+                     AND EXISTS (
+                        SELECT sr7.id FROM ServiceRegion sr7
+                        WHERE sr7.service = ws
+                          AND sr7.sidoName = :sidoName
+                     )
+                     AND ws.unifiedCategory <> '기타' THEN 0
+                WHEN ws.sourceType = 'BOKJIRO_LOCAL'
+                     AND EXISTS (
+                        SELECT sr8.id FROM ServiceRegion sr8
+                        WHERE sr8.service = ws
+                          AND sr8.sidoName = :sidoName
                      ) THEN 1
                 ELSE 2
               END ASC,

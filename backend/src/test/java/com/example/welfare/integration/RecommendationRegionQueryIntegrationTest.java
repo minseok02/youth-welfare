@@ -164,6 +164,48 @@ class RecommendationRegionQueryIntegrationTest {
     }
 
     @Test
+    @DisplayName("지역코드 추천 후보는 같은 매칭 BOKJIRO_LOCAL 안에서도 youth/non-기타 신호를 먼저 노출한다")
+    void findCandidatesWithRegionCodePrioritizesYouthRelevantNonOtherMatchingLocalPolicies() {
+        WelfareService strongLocal = saveService(
+                "region-local-strong",
+                WelfareService.SourceType.BOKJIRO_LOCAL,
+                true,
+                "주거"
+        );
+        WelfareService weakLocal = saveService(
+                "region-local-weak",
+                WelfareService.SourceType.BOKJIRO_LOCAL,
+                false,
+                "기타"
+        );
+
+        serviceRegionRepository.saveAll(List.of(
+                ServiceRegion.builder()
+                        .service(weakLocal)
+                        .regionCode(PRIORITY_TEST_REGION_CODE)
+                        .sidoName(PRIORITY_TEST_SIDO)
+                        .sggName("테스트중구")
+                        .build(),
+                ServiceRegion.builder()
+                        .service(strongLocal)
+                        .regionCode(PRIORITY_TEST_REGION_CODE)
+                        .sidoName(PRIORITY_TEST_SIDO)
+                        .sggName("테스트중구")
+                        .build()
+        ));
+
+        List<WelfareService> results = welfareServiceRepository.findCandidatesWithRegionCode(
+                25,
+                5,
+                PRIORITY_TEST_REGION_CODE,
+                PageRequest.of(0, 10)
+        );
+
+        assertThat(indexOf(results, strongLocal))
+                .isLessThan(indexOf(results, weakLocal));
+    }
+
+    @Test
     @DisplayName("지역코드 최신 추천 후보도 전국 정책과 매칭 지역 정책만 포함하고 중복 반환하지 않는다")
     void findLatestCandidatesWithRegionCodeIncludesNationwideAndMatchingLocalWithoutDuplicates() {
         WelfareService nationwide = saveService("latest-nationwide");
@@ -231,6 +273,48 @@ class RecommendationRegionQueryIntegrationTest {
                 .contains(matchingLocal.getId(), nationwide.getId());
         assertThat(indexOf(results, matchingLocal))
                 .isLessThan(indexOf(results, nationwide));
+    }
+
+    @Test
+    @DisplayName("지역코드 최신 추천 후보도 같은 매칭 BOKJIRO_LOCAL 안에서 youth/non-기타 신호를 먼저 노출한다")
+    void findLatestCandidatesWithRegionCodePrioritizesYouthRelevantNonOtherMatchingLocalPolicies() {
+        WelfareService strongLocal = saveService(
+                "latest-region-local-strong",
+                WelfareService.SourceType.BOKJIRO_LOCAL,
+                true,
+                "주거"
+        );
+        WelfareService weakLocal = saveService(
+                "latest-region-local-weak",
+                WelfareService.SourceType.BOKJIRO_LOCAL,
+                false,
+                "기타"
+        );
+
+        serviceRegionRepository.saveAll(List.of(
+                ServiceRegion.builder()
+                        .service(weakLocal)
+                        .regionCode(PRIORITY_TEST_REGION_CODE)
+                        .sidoName(PRIORITY_TEST_SIDO)
+                        .sggName("테스트중구")
+                        .build(),
+                ServiceRegion.builder()
+                        .service(strongLocal)
+                        .regionCode(PRIORITY_TEST_REGION_CODE)
+                        .sidoName(PRIORITY_TEST_SIDO)
+                        .sggName("테스트중구")
+                        .build()
+        ));
+
+        List<WelfareService> results = welfareServiceRepository.findLatestCandidatesWithRegionCode(
+                25,
+                5,
+                PRIORITY_TEST_REGION_CODE,
+                PageRequest.of(0, 10)
+        );
+
+        assertThat(indexOf(results, strongLocal))
+                .isLessThan(indexOf(results, weakLocal));
     }
 
     @Test
@@ -366,6 +450,13 @@ class RecommendationRegionQueryIntegrationTest {
     }
 
     private WelfareService saveService(String label, WelfareService.SourceType sourceType) {
+        return saveService(label, sourceType, true, "주거");
+    }
+
+    private WelfareService saveService(String label,
+                                       WelfareService.SourceType sourceType,
+                                       boolean searchYouthRelevant,
+                                       String unifiedCategory) {
         return welfareServiceRepository.save(WelfareService.builder()
                 .sourceType(sourceType)
                 .sourceId(TEST_SOURCE_PREFIX + UUID.randomUUID().toString().substring(0, 8))
@@ -376,6 +467,8 @@ class RecommendationRegionQueryIntegrationTest {
                 .maxAge(34)
                 .minIncome(1)
                 .maxIncome(10)
+                .searchYouthRelevant(searchYouthRelevant)
+                .unifiedCategory(unifiedCategory)
                 .apiViewCount(0L)
                 .build());
     }

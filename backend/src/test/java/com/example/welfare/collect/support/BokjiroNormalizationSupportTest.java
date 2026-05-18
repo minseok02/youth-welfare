@@ -1,6 +1,7 @@
 package com.example.welfare.collect.support;
 
 import com.example.welfare.collect.dto.BokjiroCentralDto;
+import com.example.welfare.collect.dto.BokjiroLocalDto;
 import com.example.welfare.collect.gateway.BokjiroDetailClient;
 import com.example.welfare.collect.normalization.NormalizedPolicyAggregate;
 import com.example.welfare.policy.entity.WelfareService;
@@ -14,6 +15,20 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.groups.Tuple.tuple;
 
 class BokjiroNormalizationSupportTest {
+
+    @Test
+    @DisplayName("복지로 지자체 summary/provision text에서 derived 관심주제와 program keyword를 추출한다")
+    void derivesLocalInterestThemesAndProgramKeywords() throws Exception {
+        BokjiroLocalDto.Item item = new BokjiroLocalDto.Item();
+        setField(item, "servNm", "주거급여수급자 월세보증금 지원");
+        setField(item, "servDgst", "무주택 청년에게 월세보증금 융자와 생활안정자금을 지원합니다.");
+        setField(item, "srvPvsnNm", "바우처");
+
+        assertThat(BokjiroNormalizationSupport.derivedLocalInterestThemes(item))
+                .containsExactly("주거", "생활지원");
+        assertThat(BokjiroNormalizationSupport.derivedLocalProgramKeywords(item))
+                .contains("주거지원", "월세보증금", "주거급여지원", "금융지원", "생활안정자금", "융자", "바우처");
+    }
 
     @Test
     @DisplayName("복지로 상세 문구에서 기초생활수급자와 차상위계층 버킷을 공통 규칙으로 추출한다")

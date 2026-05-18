@@ -71,6 +71,7 @@ public final class NormalizationKeySupport {
     public static final String SOURCE_FIELD_YOUTH_SPECIAL_REQUIREMENT = "sbizCd";
     public static final String SOURCE_FIELD_YOUTH_APPLY_END_DATE = "aplyYmd";
     public static final String SOURCE_FIELD_BOKJIRO_DIGEST = "servDgst";
+    public static final String SOURCE_FIELD_BOKJIRO_TITLE_DIGEST_PROVISION = "servNm/servDgst/srvPvsnNm";
     public static final String SOURCE_FIELD_BOKJIRO_LIFE_ARRAY = "lifeArray";
     public static final String SOURCE_FIELD_BOKJIRO_INTEREST_THEME_ARRAY = "intrsThemaArray";
     public static final String SOURCE_FIELD_BOKJIRO_TARGET_GROUP_ARRAY = "trgterIndvdlArray";

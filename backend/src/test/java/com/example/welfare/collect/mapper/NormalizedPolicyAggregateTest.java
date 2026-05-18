@@ -229,6 +229,27 @@ class NormalizedPolicyAggregateTest {
     }
 
     @Test
+    void toNormalizedBokjiroLocal_addsDerivedInterestThemeTermsFromSummarySignals() throws Exception {
+        BokjiroLocalDto.Item item = new BokjiroLocalDto.Item();
+        setField(item, "servId", "L003");
+        setField(item, "servNm", "주거급여수급자 월세보증금 지원");
+        setField(item, "servDgst", "청년 무주택 가구에 월세보증금 융자를 지원합니다.");
+        setField(item, "intrsThemaNmArray", "생활지원");
+        setField(item, "srvPvsnNm", "융자");
+
+        NormalizedPolicyAggregate aggregate = mapper.toNormalizedBokjiroLocal(item, null);
+
+        assertThat(aggregate.taxonomyTerms())
+                .extracting(NormalizedPolicyAggregate.TaxonomyTerm::termGroup,
+                        NormalizedPolicyAggregate.TaxonomyTerm::termLabel,
+                        NormalizedPolicyAggregate.TaxonomyTerm::authority)
+                .contains(
+                        tuple("INTEREST_THEME", "생활지원", NormalizedPolicyAggregate.Authority.OFFICIAL),
+                        tuple("INTEREST_THEME", "주거", NormalizedPolicyAggregate.Authority.SYSTEM_DERIVED)
+                );
+    }
+
+    @Test
     void toNormalizedBokjiroDetail_enrichesDetailAndFactsFromPayload() {
         WelfareService service = WelfareService.builder()
                 .sourceType(WelfareService.SourceType.BOKJIRO_CENTRAL)

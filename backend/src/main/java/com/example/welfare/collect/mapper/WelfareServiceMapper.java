@@ -297,7 +297,12 @@ public class WelfareServiceMapper {
                         stripAndNormalize(item.getServDgst()),
                         RawFieldValidator.normalize(item.getSrvPvsnNm())
                 ))
-                .unifiedCategory(CollectCategorySupport.mapBokjiroCompatCategory(item.getIntrsThemaNmArray()))
+                .unifiedCategory(CollectCategorySupport.mapBokjiroCompatCategory(
+                        item.getIntrsThemaNmArray(),
+                        item.getServNm(),
+                        item.getServDgst(),
+                        item.getSrvPvsnNm()
+                ))
                 .operatingOrg(RawFieldValidator.normalize(item.getBizChrDeptNm()))
                 .minAge(constraints.minAge())
                 .maxAge(constraints.maxAge())
@@ -360,6 +365,10 @@ public class WelfareServiceMapper {
         addTagsFromCsv(tags, service, item.getLifeNmArray(), ServiceTag.TagType.LIFE_STAGE);
         addTagsFromCsv(tags, service, item.getIntrsThemaNmArray(), ServiceTag.TagType.INTEREST_THEME);
         addTagsFromCsv(tags, service, item.getTrgterIndvdlNmArray(), ServiceTag.TagType.TARGET_GROUP);
+        BokjiroNormalizationSupport.derivedLocalInterestThemes(item)
+                .forEach(label -> addTagIfAbsent(tags, service, ServiceTag.TagType.INTEREST_THEME, label));
+        BokjiroNormalizationSupport.derivedLocalProgramKeywords(item)
+                .forEach(label -> addTagIfAbsent(tags, service, ServiceTag.TagType.KEYWORD, label));
         addConstraintKeywordTags(tags, service, item.getServDgst());
         return tags;
     }
@@ -587,7 +596,7 @@ public class WelfareServiceMapper {
         for (String v : csv.split(",")) {
             String value = v.strip();
             if (!value.isEmpty()) {
-                tags.add(buildTag(service, type, value));
+                addTagIfAbsent(tags, service, type, value);
             }
         }
     }
@@ -606,7 +615,22 @@ public class WelfareServiceMapper {
      */
     private void addConstraintKeywordTags(List<ServiceTag> tags, WelfareService service, String... texts) {
         Set<String> extracted = TextConstraintExtractor.extract(texts);
-        extracted.forEach(token -> tags.add(buildTag(service, ServiceTag.TagType.KEYWORD, token)));
+        extracted.forEach(token -> addTagIfAbsent(tags, service, ServiceTag.TagType.KEYWORD, token));
+    }
+
+    private void addTagIfAbsent(List<ServiceTag> tags,
+                                WelfareService service,
+                                ServiceTag.TagType type,
+                                String value) {
+        String normalized = RawFieldValidator.normalize(value);
+        if (normalized == null) {
+            return;
+        }
+        boolean exists = tags.stream().anyMatch(tag ->
+                tag.getTagType() == type && normalized.equals(tag.getTagValue()));
+        if (!exists) {
+            tags.add(buildTag(service, type, normalized));
+        }
     }
 
     /**

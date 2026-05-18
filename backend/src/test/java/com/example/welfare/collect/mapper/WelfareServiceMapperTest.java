@@ -212,6 +212,30 @@ class WelfareServiceMapperTest {
     }
 
     @Test
+    void fromBokjiroLocal_reclassifiesBroadOrMissingSignalsFromSummaryAndProvisionType() throws Exception {
+        BokjiroLocalDto.Item housingItem = new BokjiroLocalDto.Item();
+        setField(housingItem, "servId", "L003");
+        setField(housingItem, "servNm", "주거급여수급자 월세보증금 지원");
+        setField(housingItem, "servDgst", "청년 무주택 가구에 월세보증금 융자를 지원합니다.");
+        setField(housingItem, "intrsThemaNmArray", "생활지원");
+        setField(housingItem, "srvPvsnNm", "융자");
+
+        WelfareService housingService = mapper.fromBokjiroLocal(housingItem);
+
+        BokjiroLocalDto.Item financeItem = new BokjiroLocalDto.Item();
+        setField(financeItem, "servId", "L004");
+        setField(financeItem, "servNm", "주민소득지원 및 생활안정자금 지원");
+        setField(financeItem, "servDgst", "저소득 가구 생활안정자금을 지원합니다.");
+        setField(financeItem, "intrsThemaNmArray", "");
+        setField(financeItem, "srvPvsnNm", "현금");
+
+        WelfareService financeService = mapper.fromBokjiroLocal(financeItem);
+
+        assertThat(housingService.getUnifiedCategory()).isEqualTo("주거");
+        assertThat(financeService.getUnifiedCategory()).isEqualTo("금융·생활지원");
+    }
+
+    @Test
     void fromYouth_reclassifiesBroadWelfareCultureToCultureOrHealth() throws Exception {
         YouthApiDto.Item cultureItem = new YouthApiDto.Item();
         setField(cultureItem, "plcyNo", "YC001");

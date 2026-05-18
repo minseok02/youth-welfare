@@ -55,6 +55,20 @@ public final class CollectCategorySupport {
     private static final Set<String> FAMILY_HINTS = Set.of(
             "돌봄", "보육", "가족", "임신", "출산", "양육", "육아"
     );
+    private static final Set<String> HOUSING_HINTS = Set.of(
+            "주거", "주택", "월세", "전세", "보증금", "임대료", "임차료", "주거급여"
+    );
+    private static final Set<String> FINANCE_LIFE_HINTS = Set.of(
+            "생활안정", "생활지원", "생활비", "생계", "자금", "융자", "대출", "보증", "월세보증금"
+    );
+    private static final Set<String> EDUCATION_HINTS = Set.of(
+            "교육", "훈련", "직무", "학습", "어학", "자격증", "장학"
+    );
+    private static final Set<String> BOKJIRO_BROAD_FINANCE_LIFE_LABELS = Set.of(
+            "생활지원",
+            "민간금융",
+            "서민금융"
+    );
 
     private CollectCategorySupport() {
     }
@@ -97,11 +111,19 @@ public final class CollectCategorySupport {
     }
 
     public static String mapBokjiroCompatCategory(String rawInterestThemesCsv) {
+        return mapBokjiroCompatCategory(rawInterestThemesCsv, null, null, null);
+    }
+
+    public static String mapBokjiroCompatCategory(String rawInterestThemesCsv,
+                                                  String title,
+                                                  String description,
+                                                  String provisionType) {
         if (rawInterestThemesCsv == null || rawInterestThemesCsv.isBlank()) {
-            return COMPAT_OTHER;
+            return inferBokjiroCompatCategory(COMPAT_OTHER, null, title, description, provisionType);
         }
         String firstLabel = normalizeMiddleDot(rawInterestThemesCsv.split(",")[0].trim());
-        return BOKJIRO_COMPAT_CATEGORIES.getOrDefault(firstLabel, COMPAT_OTHER);
+        String mapped = BOKJIRO_COMPAT_CATEGORIES.getOrDefault(firstLabel, COMPAT_OTHER);
+        return inferBokjiroCompatCategory(mapped, firstLabel, title, description, provisionType);
     }
 
     public static String mapGov24CompatCategory(String rawServiceField,
@@ -154,5 +176,34 @@ public final class CollectCategorySupport {
             return false;
         }
         return hints.stream().anyMatch(text::contains);
+    }
+
+    private static String inferBokjiroCompatCategory(String mapped,
+                                                     String firstLabel,
+                                                     String title,
+                                                     String description,
+                                                     String provisionType) {
+        String heuristicText = combinedNormalizedText(firstLabel, title, description, provisionType);
+        boolean broadFinanceLife = firstLabel != null && BOKJIRO_BROAD_FINANCE_LIFE_LABELS.contains(firstLabel);
+
+        if (containsAny(heuristicText, HOUSING_HINTS) && (COMPAT_OTHER.equals(mapped) || broadFinanceLife)) {
+            return "주거";
+        }
+        if (containsAny(heuristicText, HEALTH_HINTS) && (COMPAT_OTHER.equals(mapped) || broadFinanceLife)) {
+            return COMPAT_HEALTH;
+        }
+        if (containsAny(heuristicText, FAMILY_HINTS) && (COMPAT_OTHER.equals(mapped) || broadFinanceLife)) {
+            return COMPAT_FAMILY;
+        }
+        if (containsAny(heuristicText, EDUCATION_HINTS) && COMPAT_OTHER.equals(mapped)) {
+            return "교육·직업훈련";
+        }
+        if (containsAny(heuristicText, CULTURE_HINTS) && COMPAT_OTHER.equals(mapped)) {
+            return COMPAT_CULTURE;
+        }
+        if (containsAny(heuristicText, FINANCE_LIFE_HINTS) && COMPAT_OTHER.equals(mapped)) {
+            return COMPAT_FINANCE_LIFE;
+        }
+        return mapped;
     }
 }

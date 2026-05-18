@@ -125,6 +125,18 @@ bounded family 단위로만 확장합니다.
    target family와 latest batch competitor 의 signal gap 을 고정
 5. 필요하면 admin/read-only 관찰 경계부터 먼저 추가
 
+현재 첫 concrete scope는 아래로 좁힙니다.
+
+1. `BOKJIRO_LOCAL` summary/provision text에서 `주거`, `생활지원`, `보호·돌봄`, `교육`
+   같은 derived `INTEREST_THEME` 를 additive 하게 생성
+2. 같은 입력에서 `주거지원`, `월세보증금`, `생활안정자금`, `융자`, `바우처`, `돌봄서비스`
+   같은 program `KEYWORD` 를 additive 하게 생성
+3. exact-region `BOKJIRO_LOCAL` retrieval 안에서는
+   `searchYouthRelevant=true`, `unifiedCategory!=기타` 후보를 pure recency보다 먼저 보게 좁게 정렬
+
+즉 lane 1 의 첫 구현은 global tuning 이 아니라
+**`BOKJIRO_LOCAL` structured signal + bounded region-ordering** 입니다.
+
 ## lane 1 에서 아직 안 할 일
 
 1. global source bonus

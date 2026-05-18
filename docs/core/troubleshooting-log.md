@@ -5289,3 +5289,16 @@
 - 이유:
   - lane 1 의 핵심은 “무슨 structured signal 이 비어 있는지”를 먼저 좁히는 것이다.
   - target family와 competitor를 한 번에 읽는 bounded audit 경로가 있어야, 다음 과제가 global tuning 이 아니라 local signal structuring 으로 유지된다.
+
+## 873) bounded audit 결과가 `NOT_IN_SQL_RETRIEVAL` 이면 단순 read-only signal 추가만으로는 부족하고 `BOKJIRO_LOCAL` list signal과 exact-region ordering을 같이 건드려야 한다
+- 문제: 서버 bounded audit에서 `2736/3257/3281/3575/3714` target family가 다시 전부 `NOT_IN_SQL_RETRIEVAL` 로 관측됐다. competitor `672/625/650` 는 `주거지원`, `보조금`, `인프라 구축`, `교육지원`, `맞춤형상담서비스` 같이 직접적인 `benefit/program` 과 `interest/theme` 구조화 신호가 이미 보였지만, target family는 support summary 안의 `월세보증금`, `융자`, `생활안정자금`, `바우처`, `돌봄서비스` 같은 값이 거의 unstructured 상태였다. 이 상황에서 detail/read-only/admin facet만 더 늘려서는 retrieval 150건 경계 자체를 건드릴 수 없다.
+- 해결:
+  - `BOKJIRO_LOCAL` list path에 summary/provision 기반 heuristic을 추가했다.
+  - `CollectCategorySupport.mapBokjiroCompatCategory(...)` 는 이제 broad/blank `intrsThemaNmArray` 일 때 title+digest+provision text를 같이 보고 `주거`, `금융·생활지원`, `가족·돌봄`, `교육·직업훈련` 으로 재분류할 수 있다.
+  - `BokjiroNormalizationSupport.localTerms(...)` 는 official `life/theme/target` 외에 derived `INTEREST_THEME`(`주거`, `생활지원`, `보호·돌봄`, `교육`) 를 `SYSTEM_DERIVED` 로 additive 하게 생성한다.
+  - `WelfareServiceMapper.tagsFromBokjiroLocal(...)` 는 `주거지원`, `월세보증금`, `주거급여지원`, `금융지원`, `생활안정자금`, `융자`, `바우처`, `돌봄서비스`, `주간활동서비스`, `안부확인서비스`, `맞춤형상담서비스`, `교육지원`, `인프라 구축` 같은 program `KEYWORD` 를 additive 하게 생성한다.
+  - 동시에 exact-region `BOKJIRO_LOCAL` retrieval query는 같은 region 안에서 `searchYouthRelevant=true`, `unifiedCategory!=기타` 후보를 pure recency보다 먼저 정렬한다.
+  - 테스트는 `BokjiroNormalizationSupportTest`, `WelfareServiceMapperTest`, `NormalizedPolicyAggregateTest`, `RecommendationRegionQueryIntegrationTest` 로 닫았다.
+- 이유:
+  - 이번 lane 1 의 evidence는 “global tuning” 이 아니라 “`BOKJIRO_LOCAL` direct signal이 retrieval 이전부터 약하다”는 쪽이다.
+  - 따라서 first fix는 direct `theme/benefit` 구조화와 exact-region local ordering 보정이어야 하고, weight patch나 source balancing은 그 다음이다.
