@@ -33,6 +33,7 @@ class NormalizedPolicyAggregateTest {
         setField(item, "earnMinAmt", 0);
         setField(item, "earnMaxAmt", 100);
         setField(item, "aplyYmd", "20260101 ~ 20261231");
+        setField(item, "plcyPvsnMthdCd", "0042006");
         setField(item, "plcyAplyMthdCn", "온라인 신청");
         setField(item, "aplyUrlAddr", "https://example.com/apply");
 
@@ -43,6 +44,7 @@ class NormalizedPolicyAggregateTest {
         assertThat(aggregate.detail().supportDetail()).isEqualTo("월 최대 20만원 지원");
         assertThat(aggregate.detail().applyMethodDetail()).isEqualTo("온라인 신청");
         assertThat(aggregate.taxonomy().compatUnifiedCategory()).isEqualTo("주거");
+        assertThat(aggregate.taxonomy().provisionMethod()).isEqualTo("보조금");
         assertThat(aggregate.taxonomy().summaryLabel("YOUTH_MAJOR")).isEqualTo("주거");
         assertThat(aggregate.taxonomy().summaryLabel("YOUTH_MID")).isEqualTo("전월세 및 주거급여 지원");
         assertThat(aggregate.taxonomyTerms())

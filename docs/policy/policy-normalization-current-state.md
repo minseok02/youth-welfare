@@ -97,6 +97,9 @@ apply/replay 양쪽에서 같은 축으로 raw row density를 바로 대조할 �
 `serviceField/userType/benefitType` 는 1차 internal mapping draft가 정리된 상태입니다.
 즉 현재 남은 문제는 “값을 아직 모른다”보다
 “label-first canonical 구현을 먼저 열지, stable code/import-backfill 단계까지 deferred로 둘지”에 가깝습니다.
+추가로 `YOUTH` 의 `PROVISION_METHOD` 는 이제 `applyMethodName` 오용 대신
+공식 `plcyPvsnMthdCd` label을 우선 source로 쓰고, payload에 코드가 비는 경우에만 기존 신청방법 라벨을 compatibility fallback으로 유지합니다.
+즉 `YOUTH_MID` stable code는 여전히 보류지만, `PROVISION_METHOD` 축은 공식 codebook이 있어 별도로 바로잡을 수 있는 상태입니다.
 
 ## 2. `YOUTH_MID_RAW_ALIAS` 현재 상태
 

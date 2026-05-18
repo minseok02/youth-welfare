@@ -11,8 +11,9 @@ import com.example.welfare.collect.gateway.BokjiroDetailClient;
 import com.example.welfare.collect.normalization.NormalizedPolicyAggregate;
 import com.example.welfare.collect.support.BokjiroNormalizationSupport;
 import com.example.welfare.collect.support.CollectCategorySupport;
-import com.example.welfare.collect.support.YouthNormalizationSupport;
 import com.example.welfare.collect.support.NormalizationKeySupport;
+import com.example.welfare.collect.support.YouthNormalizationSupport;
+import com.example.welfare.collect.support.YouthOfficialCodeSupport;
 import com.example.welfare.collect.validation.RawFieldValidator;
 import com.example.welfare.collect.validation.TextConstraintExtractor;
 import com.example.welfare.policy.entity.ServiceRegion;
@@ -97,12 +98,14 @@ public class WelfareServiceMapper {
         WelfareService service = fromYouth(item);
         YouthNormalizationSupport.YouthMidPartition youthMidPartition =
                 YouthNormalizationSupport.partitionYouthMidLabels(item.getMclsfNm());
+        String provisionMethodLabel =
+                YouthOfficialCodeSupport.resolveProvisionMethodLabel(item.getPlcyPvsnMthdCd(), service.getApplyMethodName());
         return NormalizedPolicyAggregate.builder()
                 .core(buildCore(service))
                 .detail(buildDetail(service, null))
                 .taxonomy(NormalizedPolicyAggregate.TaxonomySummary.builder()
                         .compatUnifiedCategory(service.getUnifiedCategory())
-                        .provisionMethod(service.getApplyMethodName())
+                        .provisionMethod(provisionMethodLabel)
                         .summaryLabels(YouthNormalizationSupport.summaryLabels(service, youthMidPartition))
                         .authority(NormalizedPolicyAggregate.Authority.OFFICIAL)
                         .confidence(BigDecimal.ONE)
@@ -171,6 +174,8 @@ public class WelfareServiceMapper {
     public NormalizedPolicyAggregate toYouthDetailAggregate(WelfareService service, YouthApiDto.Item detail) {
         String resolvedUrl = firstNonBlank(detail.getAplyUrlAddr(), detail.getRefUrlAddr1(), detail.getRefUrlAddr2());
         boolean onlineApply = inferOnlineApply(resolvedUrl, detail.getPlcyAplyMthdCn());
+        String provisionMethodLabel =
+                YouthOfficialCodeSupport.resolveProvisionMethodLabel(detail.getPlcyPvsnMthdCd(), service.getApplyMethodName());
         return NormalizedPolicyAggregate.builder()
                 .core(NormalizedPolicyAggregate.Core.builder()
                         .sourceType(NormalizedPolicyAggregate.SourceType.valueOf(service.getSourceType().name()))
@@ -203,6 +208,7 @@ public class WelfareServiceMapper {
                         .build())
                 .taxonomy(NormalizedPolicyAggregate.TaxonomySummary.builder()
                         .compatUnifiedCategory(service.getUnifiedCategory())
+                        .provisionMethod(provisionMethodLabel)
                         .authority(NormalizedPolicyAggregate.Authority.OFFICIAL)
                         .confidence(BigDecimal.ONE)
                         .build())

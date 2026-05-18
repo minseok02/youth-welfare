@@ -70,6 +70,9 @@ public class YouthApiDto {
         @JsonProperty("plcyKywdNm")
         private String plcyKywdNm;          // 키워드 (콤마 구분) → service_tags KEYWORD
 
+        @JsonProperty("plcyPvsnMthdCd")
+        private String plcyPvsnMthdCd;      // 정책제공방법코드 → PROVISION_METHOD summary label
+
         @JsonProperty("sprvsnInstCdNm")
         private String sprvsnInstCdNm;      // 주관기관명 → host_org
 

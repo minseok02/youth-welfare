@@ -122,6 +122,7 @@ class WelfareServiceMapperTest {
         setField(detail, "plcyNo", "Y007");
         setField(detail, "plcyNm", "청년 정책");
         setField(detail, "lclsfNm", "주거");
+        setField(detail, "plcyPvsnMthdCd", "0042003");
         setField(detail, "aplyUrlAddr", "https://apply.example.com");
         setField(detail, "refUrlAddr1", "www.reference-one.example.com");
         setField(detail, "plcyAplyMthdCn", "온라인 신청은 https://guide.example.com 에서 진행");
@@ -131,6 +132,8 @@ class WelfareServiceMapperTest {
         var aggregate = mapper.toYouthDetailAggregate(service, detail);
         String json = aggregate.detail().referenceUrlsJson();
 
+        assertThat(aggregate.taxonomy().provisionMethod()).isEqualTo("직접대출");
+        assertThat(aggregate.detail().applyMethodDetail()).contains("온라인 신청");
         assertThat(json).contains("https://apply.example.com");
         assertThat(json).contains("https://www.reference-one.example.com");
         assertThat(json).contains("https://guide.example.com");

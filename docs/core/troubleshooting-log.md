@@ -4602,3 +4602,17 @@
   - 즉 raw label 유지와 token 분해가 동시에 기대대로 보였고, 이번 변경이 추천 score나 public API 응답을 건드리지 않았다는 점도 다시 확인됐다.
 - 해결: `policy-gov24-canonical-mapping-draft.md` 와 `phase-plan.md` 에 서버 검증 메모를 추가했다.
 - 이유: 이걸 적어 두면 다음 단계의 질문을 명확히 좁힐 수 있다. 지금 남은 질문은 “parser가 맞나?”가 아니라 “이 token을 실제 어디에 쓰고 싶나?”다. 즉 다음 decision point는 구현 안정성이 아니라 **consumer scope 선택**이다.
+
+## 840) 온통청년 `PROVISION_METHOD` 를 `applyMethodName` 으로 읽고 있으면, `YOUTH_MID` 보류와 무관하게 summary slot 의미 자체가 틀어진다
+- 문제: 온통청년은 그동안 `YOUTH_MAJOR/YOUTH_MID/PROVISION_METHOD` slot이 채워져 있었지만, 코드를 다시 읽어보니 `WelfareServiceMapper.toNormalizedYouth(...)` 와 `toYouthDetailAggregate(...)` 가 `taxonomy.provisionMethod` 에 `service.getApplyMethodName()` 을 넣고 있었다. 그런데 실제 온통청년 명세는 `plcyPvsnMthdCd=정책제공방법코드`, `plcyAplyMthdCn=신청방법내용` 으로 축이 명확히 갈린다. 이 상태를 두면 `온라인 신청`, `방문 접수` 같은 신청방법 문장이 `PROVISION_METHOD` slot으로 저장돼, summary slot density는 있어 보여도 의미는 어긋난다.
+- 확인:
+  - `YouthApiDto` 에는 `plcyPvsnMthdCd` 가 아예 정의돼 있지 않았고, `YouthNormalizationSupport` 도 `lclsfNm/mclsfNm/plcyKywdNm` 중심으로만 정규화하고 있었다.
+  - 반면 draft migration/seed에는 이미 `YOUTH_PROVISION_METHOD` code subset(`0042001~0042013`)이 들어 있어, 제공방법 공식 codebook 자체는 확보된 상태였다.
+  - 즉 지금 막힌 건 source 부재가 아니라, **공식 제공방법 코드를 runtime mapper가 안 읽고 있다는 drift** 였다.
+- 해결:
+  - `YouthApiDto.Item` 에 `plcyPvsnMthdCd` 를 추가했다.
+  - 새 `YouthOfficialCodeSupport` 를 만들어 `0042001~0042013 -> 인프라 구축/프로그램/직접대출/.../기타` 라벨 매핑을 고정했다.
+  - `WelfareServiceMapper.toNormalizedYouth(...)`, `toYouthDetailAggregate(...)` 는 이제 `plcyPvsnMthdCd` 라벨을 `taxonomy.provisionMethod` 에 우선 저장한다.
+  - 다만 historical/runtime density를 한 번에 깨지 않도록, payload에 공식 code가 비어 있으면 기존 `applyMethodName` 을 compatibility fallback으로 유지했다.
+  - 관련 테스트로 `YouthOfficialCodeSupportTest`, `NormalizedPolicyAggregateTest`, `WelfareServiceMapperTest` 를 추가/수정해 list/detail 둘 다 같은 경계를 쓰도록 고정했다.
+- 이유: 이건 `YOUTH_MID` stable code reopening 문제와 다르다. `YOUTH_MID` 는 여전히 authenticated/export source가 없어 label-only를 유지해야 하지만, `PROVISION_METHOD` 는 이미 공식 코드표가 있으므로 summary slot 의미를 바로잡는 것이 더 우선이다. 즉 이번 수정의 의도는 “온통청년 canonical 확장”이 아니라 **이미 존재하는 slot의 의미 오염을 제거하는 것**이다.
