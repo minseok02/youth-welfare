@@ -186,6 +186,11 @@ admin diagnostics도 `serviceId=672` 에서 `youthMaritalStatusCode=0055003`,
 남은 것은 이 값을 public UX나 rule 소비로 넓힐지 여부뿐이다.
 의도는 결혼상태 신호를 과대해석하지 않고 관찰 가능하게 만드는 것이며,
 public response, retrieval filter, scoring은 이번 단계에서도 그대로 둔다.
+다음 단계는 같은 official fact를 또 쌓는 것이 아니라, 이미 닫힌 YOUTH official fact를 **정책 상세 read-only UX** 에 제한적으로 연결하는 것이다.
+이때도 public list/recommendation response 전체를 넓히거나 scoring/filter를 건드리지 않고,
+`/api/policies/{id}` detail response와 상세 페이지에서만 `소득조건 유형`, `취업 요건`, `학력 요건`, `특화 요건`, `결혼 상태` 라벨을 그대로 보여 준다.
+의도는 운영자-only diagnostics에 머물던 official signal을 일반 사용자도 상세 페이지에서 읽게 만드는 것이지,
+이 값을 eligibility hard gate나 ranking signal로 재해석하는 것이 아니다.
 
 ## 2. `YOUTH_MID_RAW_ALIAS` 현재 상태
 

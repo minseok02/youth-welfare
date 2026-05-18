@@ -4964,3 +4964,30 @@
 - 이유:
   - 이번 단계 목표는 결혼상태를 public rule로 쓰는 것이 아니라, `mrgSttsCd` official scalar signal이 서버에서도 **internal observation only** 경계로 안전하게 관찰 가능한지 확인하는 것이었다.
   - `fact_rows > 0`, diagnostics scalar 노출, ranking unchanged가 모두 확인됐으므로 현재 남은 문제는 저장 경계가 아니라 소비 경계다.
+
+## 857) 다음 단계는 새 YOUTH fact 추가보다 상세 페이지 read-only 소비가 맞다
+- 문제: `earnCndSeCd`, `jobCd`, `sbizCd`, `schoolCd`, `mrgSttsCd` 가 모두 raw -> fact -> diagnostics 경계까지 닫혔는데, 아직 이 official signal은 운영자만 admin diagnostics에서 읽을 수 있다. 계속 새 fact만 쌓으면 저장/관찰 경계는 더 촘촘해지지만, 일반 사용자는 상세 화면에서 이 정보를 전혀 보지 못해 “공식 요건을 왜 수집하나”가 남는다.
+- 확인:
+  - 현재 public `PolicyDetailResponse` 는 `youthMajorLabel`, `youthMidLabel`, `provisionMethodLabel`, `gov24*Label` 까지만 내려준다.
+  - `RecommendationCandidateProjection` 에는 이미
+    - `youthIncomeConditionTypeLabel`
+    - `youthEmploymentRequirementLabels`
+    - `youthEducationRequirementLabels`
+    - `youthSpecialRequirementLabels`
+    - `youthMaritalStatusLabel`
+    가 들어 있다.
+  - 프론트 `PolicyDetailPage` 도 Gov24일 때만 `분야/대상/유형` 메타 태그를 read-only로 보여 주고, YOUTH official fact는 아직 전혀 소비하지 않는다.
+- 해결:
+  - `/api/policies/{id}` detail response에 위 YOUTH official fact label만 추가했다.
+  - `PolicyDetailPage` 는 `sourceType === YOUTH` 인 경우 `신청 대상` 섹션 안에 `온통청년 공식 요건` read-only 박스를 렌더링한다.
+  - 노출 값은 exact label 그대로다.
+    - `소득조건 유형`
+    - `취업 요건`
+    - `학력 요건`
+    - `특화 요건`
+    - `결혼 상태`
+  - list/recommendation 응답, retrieval filter, scoring은 그대로 유지한다.
+- 이유:
+  - 지금 필요한 건 새 scoring signal이 아니라, 이미 닫힌 official fact를 일반 사용자도 **상세 페이지에서 읽게 만드는 첫 소비처**다.
+  - 상세 페이지 read-only 노출은 가장 안전하다. 추천 순위나 필터를 흔들지 않고도, 공식 요건 라벨이 실제 사용자 UX에서 읽히는지 확인할 수 있다.
+  - 반대로 이 단계에서 list/recommendation/filter까지 같이 열면 설명용 signal을 곧바로 eligibility hard gate처럼 오해할 위험이 커진다.

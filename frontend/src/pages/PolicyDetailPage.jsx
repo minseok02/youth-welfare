@@ -302,6 +302,38 @@ export default function PolicyDetailPage() {
     policy?.gov24ServiceFieldLabel,
     policy?.gov24UserTypeLabel,
   ]);
+  const youthOfficialFactRows = useMemo(() => {
+    if (policy?.sourceType !== "YOUTH") return [];
+    return [
+      {
+        label: "소득조건 유형",
+        values: policy?.youthIncomeConditionTypeLabel ? [policy.youthIncomeConditionTypeLabel] : [],
+      },
+      {
+        label: "취업 요건",
+        values: policy?.youthEmploymentRequirementLabels ?? [],
+      },
+      {
+        label: "학력 요건",
+        values: policy?.youthEducationRequirementLabels ?? [],
+      },
+      {
+        label: "특화 요건",
+        values: policy?.youthSpecialRequirementLabels ?? [],
+      },
+      {
+        label: "결혼 상태",
+        values: policy?.youthMaritalStatusLabel ? [policy.youthMaritalStatusLabel] : [],
+      },
+    ].filter((row) => row.values.length > 0);
+  }, [
+    policy?.sourceType,
+    policy?.youthEducationRequirementLabels,
+    policy?.youthEmploymentRequirementLabels,
+    policy?.youthIncomeConditionTypeLabel,
+    policy?.youthMaritalStatusLabel,
+    policy?.youthSpecialRequirementLabels,
+  ]);
   const statusLabel = policy ? formatStatusLabel(policy.status, policy.applyEndDate) : "";
   const regionText = policy?.sido
     || policy?.regions?.filter(r => !/^\d+$/.test(r))?.join(", ")
@@ -704,6 +736,37 @@ export default function PolicyDetailPage() {
                   {policy.gov24UserTypeLabel && <Tag bg={WHITE} border={LINE}>{policy.gov24UserTypeLabel}</Tag>}
                   {regionText && <Tag bg={WHITE} border={LINE}>{regionText}</Tag>}
                 </div>
+                {youthOfficialFactRows.length > 0 && (
+                  <div
+                    style={{
+                      background: WHITE,
+                      border: `1px solid ${LINE}`,
+                      borderRadius: 14,
+                      padding: 16,
+                      marginBottom: 14,
+                    }}
+                  >
+                    <div style={{ fontSize: 13, fontWeight: 800, color: INK, marginBottom: 10 }}>
+                      온통청년 공식 요건
+                    </div>
+                    <div style={{ display: "grid", gap: 10 }}>
+                      {youthOfficialFactRows.map((row) => (
+                        <div key={row.label}>
+                          <div style={{ fontSize: 12, fontWeight: 700, color: INK3, marginBottom: 6 }}>
+                            {row.label}
+                          </div>
+                          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                            {row.values.map((value) => (
+                              <Tag key={`${row.label}-${value}`} bg={WHITE} border={LINE}>
+                                {value}
+                              </Tag>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 <p style={{ whiteSpace: "pre-line", margin: 0 }}>
                   {decodeHtml(policy.targetDetail) || `신청 대상 정보가 없습니다. ${NO_DATA}`}
                 </p>

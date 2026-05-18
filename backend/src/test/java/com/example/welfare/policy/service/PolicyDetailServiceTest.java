@@ -77,6 +77,11 @@ class PolicyDetailServiceTest {
                         RecommendationCandidateProjection.builder()
                                 .serviceId(11L)
                                 .unifiedCategoryCompat("주거")
+                                .youthIncomeConditionTypeLabel("무관")
+                                .youthEmploymentRequirementLabels(List.of("미취업자"))
+                                .youthEducationRequirementLabels(List.of("대학 재학"))
+                                .youthSpecialRequirementLabels(List.of("지역인재"))
+                                .youthMaritalStatusLabel("제한없음")
                                 .build()
                 ));
 
@@ -94,6 +99,11 @@ class PolicyDetailServiceTest {
         assertEquals("신청서, 주민등록등본", response.getFormFiles());
         assertEquals("[{\"url\":\"https://apply.example.com\",\"type\":\"APPLY\"}]", response.getReferenceUrlsJson());
         assertEquals(List.of("서울특별시 강남구"), response.getRegions());
+        assertEquals("무관", response.getYouthIncomeConditionTypeLabel());
+        assertEquals(List.of("미취업자"), response.getYouthEmploymentRequirementLabels());
+        assertEquals(List.of("대학 재학"), response.getYouthEducationRequirementLabels());
+        assertEquals(List.of("지역인재"), response.getYouthSpecialRequirementLabels());
+        assertEquals("제한없음", response.getYouthMaritalStatusLabel());
         verify(policyLookupService).getRequiredService(11L);
         verify(policyDetailReadService).getAggregate(11L);
     }
