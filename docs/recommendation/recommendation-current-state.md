@@ -92,6 +92,8 @@
 
 서버에서 이 bounded structuring을 재검증하면 `3257` 은 `주거`, `주거/생활지원`, `융자/금융지원/주거지원/월세보증금/주거급여지원` 으로, `3281` 은 `금융·생활지원`, `생활지원`, `융자/금융지원/생활안정자금` 으로 실제 구조화됐습니다. 다만 같은 latest batch 사용자 기준으로는 target family 전부가 여전히 `NOT_IN_SQL_RETRIEVAL` 이고, 남은 공통점은 `3257/3281/3575/3714` 의 `searchYouthRelevant=false` 였습니다. 그래서 lane 1 의 다음 bounded step은 broad mixed life stage 전부를 youth 정책으로 올리는 것이 아니라, **`BOKJIRO_LOCAL + 청년 포함 life stage + structured local support signal` 조합에만 `searchYouthRelevant` bridge를 여는 것**으로 좁힙니다. 즉 이번 단계도 여전히 retrieval 경계 안으로 local 청년 후보를 들이기 위한 bounded fix 이고, global score/weight patch는 아닙니다.
 
+서버에서 이 bridge까지 다시 태운 뒤에는 `3257/3281/3575/3714` 의 `searchYouthRelevant=true` 가 실제 DB에 반영됐습니다. 그럼에도 같은 `target_user_key=05c03e8cfda140cb8c410ac9dbc098fc` bounded audit에서는 target family 전부가 계속 `NOT_IN_SQL_RETRIEVAL` 이었고, saved batch나 diagnostics retrieval 안으로 새로 들어온 target도 없었습니다. 즉 `searchYouthRelevant` 병목 하나는 닫혔지만 retrieval movement는 아직 없고, 현재 남은 다음 evidence 수집 축은 **region projection / exact-region ordering 내부 우선순위 / 150-row candidate window 안에서 이 family가 왜 계속 밀리는지** 쪽입니다.
+
 ## 현재 scoring 기준
 
 ### rule score

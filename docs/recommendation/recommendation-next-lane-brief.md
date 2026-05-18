@@ -145,6 +145,10 @@ bounded family 단위로만 확장합니다.
 
 즉 여전히 broad local 전체를 youth로 푸는 것이 아니라, **청년 life stage를 이미 갖고 있고 local structured signal이 생긴 후보만 retrieval gate를 넘기는 bounded bridge** 로 읽습니다.
 
+이 bridge를 서버에 다시 반영하면 `3257/3281/3575/3714` 의 `searchYouthRelevant=true` 자체는 실제 DB에 기록됩니다. 다만 같은 bounded audit family는 여전히 전부 `NOT_IN_SQL_RETRIEVAL` 이고 retrieval/saved batch 안으로 새로 들어온 target도 없었습니다. 따라서 lane 1 의 다음 concrete scope는 score patch가 아니라 아래로 다시 좁혀집니다.
+
+5. same-user exact-region candidate query 안에서 이 family가 150-row window 바깥에 남는 이유를 region projection / ordering branch / candidate window 관점에서 직접 audit 하기
+
 ## lane 1 에서 아직 안 할 일
 
 1. global source bonus

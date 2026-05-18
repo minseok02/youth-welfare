@@ -5318,3 +5318,14 @@
   - 서버 bounded audit가 말해 주는 다음 병목은 weight가 아니라 retrieval gate다.
   - broad mixed life stage 전체를 youth 정책으로 푸는 건 과하지만, 이미 청년 life stage와 local structured support signal이 같이 잡힌 `BOKJIRO_LOCAL` 후보를 계속 false 로 두는 것도 과도하게 보수적이다.
   - 따라서 이번 단계는 global youth relevance 완화가 아니라, `3257` 류 exact-region local 후보를 retrieval 안으로 들이기 위한 bounded bridge로 읽는 편이 맞다.
+
+## 875) `searchYouthRelevant=true` 까지 올려도 target family가 계속 `NOT_IN_SQL_RETRIEVAL` 이면 다음 병목은 youth gate가 아니라 region/query window 안쪽이다
+- 문제: `f328f27` bounded local bridge를 서버에 반영하고 `BOKJIRO_LOCAL` 을 다시 수집한 뒤 `3257/3281/3575/3714` 의 `search_youth_relevant=true` 는 실제 DB에 기록됐다. `3257` 의 `unified_category=주거`, `3281` 의 `unified_category=금융·생활지원` 도 유지됐다. 하지만 같은 `target_user_key=05c03e8cfda140cb8c410ac9dbc098fc` bounded signal gap audit를 다시 태우면 target family는 여전히 전부 `NOT_IN_SQL_RETRIEVAL` 이었고, retrieval/saved batch 안으로 새로 들어온 target도 없었다.
+- 해결:
+  - 이번 단계에서는 추가 코드 수정으로 점프하지 않는다.
+  - `searchYouthRelevant` 병목은 닫혔다고 기록하고, next evidence lane을 `region projection / exact-region ordering / candidate window` 안쪽으로 넘긴다.
+  - 즉 다음 bounded audit 질문은 “왜 false 였나”가 아니라 “true 인데도 exact-region latest/base candidate 150건 밖에 남는 이유가 무엇인가”다.
+- 이유:
+  - `searchYouthRelevant` 가 false 인 local 후보를 retrieval gate 앞에서 막는 문제와, true 인 뒤에도 query window 밖에 남는 문제는 다른 층의 병목이다.
+  - 여기서 바로 weight patch나 source bonus로 가면 원인을 섞게 된다.
+  - 따라서 지금부터는 same-user candidate query branch와 region projection strength를 먼저 좁히는 편이 맞다.
