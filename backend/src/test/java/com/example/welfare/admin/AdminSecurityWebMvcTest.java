@@ -1428,6 +1428,10 @@ class AdminSecurityWebMvcTest {
                                         "매일 02:00 Asia/Seoul",
                                         "HEAVY",
                                         "핵심 청년 snapshot lane이다.",
+                                        List.of(
+                                                new AdminCollectFailureResponse.ConfigEntry("Scheduler", "0 0 2 * * * @ Asia/Seoul"),
+                                                new AdminCollectFailureResponse.ConfigEntry("List pacing", "300ms")
+                                        ),
                                         new AdminCollectFailureResponse.LatestRun(
                                                 "SUCCESS",
                                                 LocalDateTime.of(2026, 5, 3, 8, 50),
@@ -1461,6 +1465,8 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.data.circuitStatuses[0].remainingMs").value(60000))
                 .andExpect(jsonPath("$.data.collectSourceLanes[0].laneKey").value("YOUTH"))
                 .andExpect(jsonPath("$.data.collectSourceLanes[0].executionMode").value("SCHEDULED"))
+                .andExpect(jsonPath("$.data.collectSourceLanes[0].configEntries[0].label").value("Scheduler"))
+                .andExpect(jsonPath("$.data.collectSourceLanes[0].configEntries[1].value").value("300ms"))
                 .andExpect(jsonPath("$.data.collectSourceLanes[0].latestRun.status").value("SUCCESS"))
                 .andExpect(jsonPath("$.data.collectSourceLanes[0].latestRun.requestedCount").value(2500));
 

@@ -3,6 +3,7 @@ package com.example.welfare.admin.dashboard.service;
 import com.example.welfare.admin.dashboard.dto.AdminCollectFailureResponse;
 import com.example.welfare.admin.dashboard.repository.AdminDashboardCollectReadRepository;
 import com.example.welfare.admin.dashboard.repository.AdminDashboardReadRows;
+import com.example.welfare.collect.service.CollectRuntimeLaneConfigCatalog;
 import com.example.welfare.collect.service.CollectRuntimeStatusService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -25,6 +26,9 @@ class AdminDashboardCollectServiceTest {
 
     @Mock
     private CollectRuntimeStatusService collectRuntimeStatusService;
+
+    @Mock
+    private CollectRuntimeLaneConfigCatalog collectRuntimeLaneConfigCatalog;
 
     @InjectMocks
     private AdminDashboardCollectService adminDashboardCollectService;
@@ -109,6 +113,31 @@ class AdminDashboardCollectServiceTest {
                         60000L,
                         LocalDateTime.of(2026, 5, 3, 10, 0)
                 )));
+        given(collectRuntimeLaneConfigCatalog.configEntriesFor("YOUTH"))
+                .willReturn(List.of(
+                        new CollectRuntimeLaneConfigCatalog.ConfigEntrySpec("Scheduler", "0 0 2 * * * @ Asia/Seoul"),
+                        new CollectRuntimeLaneConfigCatalog.ConfigEntrySpec("List pacing", "300ms")
+                ));
+        given(collectRuntimeLaneConfigCatalog.configEntriesFor("YOUTH_DETAILS"))
+                .willReturn(List.of(
+                        new CollectRuntimeLaneConfigCatalog.ConfigEntrySpec("Budget", "missing detail rows only")
+                ));
+        given(collectRuntimeLaneConfigCatalog.configEntriesFor("BOKJIRO_CENTRAL"))
+                .willReturn(List.of());
+        given(collectRuntimeLaneConfigCatalog.configEntriesFor("BOKJIRO_LOCAL"))
+                .willReturn(List.of());
+        given(collectRuntimeLaneConfigCatalog.configEntriesFor("BOKJIRO_DETAIL"))
+                .willReturn(List.of());
+        given(collectRuntimeLaneConfigCatalog.configEntriesFor("GOV24"))
+                .willReturn(List.of());
+        given(collectRuntimeLaneConfigCatalog.configEntriesFor("GOV24_DETAIL"))
+                .willReturn(List.of());
+        given(collectRuntimeLaneConfigCatalog.configEntriesFor("GOV24_SUPPORT_CONDITIONS"))
+                .willReturn(List.of());
+        given(collectRuntimeLaneConfigCatalog.configEntriesFor("BOKJIRO_DETAIL_GAP_FILL"))
+                .willReturn(List.of());
+        given(collectRuntimeLaneConfigCatalog.configEntriesFor("BOKJIRO_DETAIL_REFRESH"))
+                .willReturn(List.of());
 
         AdminCollectFailureResponse response = adminDashboardCollectService.getCollectFailures(14, 3);
 
@@ -148,6 +177,8 @@ class AdminDashboardCollectServiceTest {
             assertThat(lane.executionMode()).isEqualTo("SCHEDULED");
             assertThat(lane.laneType()).isEqualTo("SNAPSHOT");
             assertThat(lane.triggerPath()).isEqualTo("/api/admin/collect/youth");
+            assertThat(lane.configEntries()).extracting(AdminCollectFailureResponse.ConfigEntry::label)
+                    .contains("Scheduler", "List pacing");
             assertThat(lane.latestRun()).isNotNull();
             assertThat(lane.latestRun().status()).isEqualTo("SUCCESS");
             assertThat(lane.latestRun().requestedCount()).isEqualTo(2500);
@@ -157,6 +188,10 @@ class AdminDashboardCollectServiceTest {
             assertThat(lane.executionMode()).isEqualTo("MANUAL");
             assertThat(lane.laneType()).isEqualTo("ENRICHMENT");
             assertThat(lane.triggerPath()).isEqualTo("/api/admin/collect/youth-details");
+            assertThat(lane.configEntries()).singleElement().satisfies(entry -> {
+                assertThat(entry.label()).isEqualTo("Budget");
+                assertThat(entry.value()).isEqualTo("missing detail rows only");
+            });
             assertThat(lane.latestRun()).isNotNull();
             assertThat(lane.latestRun().status()).isEqualTo("PARTIAL_SUCCESS");
             assertThat(lane.latestRun().savedCount()).isEqualTo(90);

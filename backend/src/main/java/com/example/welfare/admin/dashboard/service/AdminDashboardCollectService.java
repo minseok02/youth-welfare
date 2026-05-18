@@ -4,6 +4,7 @@ import com.example.welfare.admin.dashboard.dto.AdminCollectFailureResponse;
 import com.example.welfare.admin.dashboard.repository.AdminDashboardCollectReadRepository;
 import com.example.welfare.admin.dashboard.repository.AdminDashboardReadRows;
 import com.example.welfare.collect.service.CollectRuntimeLaneCatalog;
+import com.example.welfare.collect.service.CollectRuntimeLaneConfigCatalog;
 import com.example.welfare.collect.service.CollectRuntimeStatusService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -20,6 +21,7 @@ public class AdminDashboardCollectService {
 
     private final AdminDashboardCollectReadRepository adminDashboardCollectReadRepository;
     private final CollectRuntimeStatusService collectRuntimeStatusService;
+    private final CollectRuntimeLaneConfigCatalog collectRuntimeLaneConfigCatalog;
 
     public AdminCollectFailureResponse getCollectFailures(Integer requestedSummaryWindowDays, Integer requestedLimit) {
         java.time.LocalDateTime now = java.time.LocalDateTime.now();
@@ -109,6 +111,9 @@ public class AdminDashboardCollectService {
                 lane.scheduleLabel(),
                 lane.resourceProfile(),
                 lane.governanceReason(),
+                collectRuntimeLaneConfigCatalog.configEntriesFor(lane.laneKey()).stream()
+                        .map(entry -> new AdminCollectFailureResponse.ConfigEntry(entry.label(), entry.value()))
+                        .toList(),
                 toLatestRun(latestRun)
         );
     }

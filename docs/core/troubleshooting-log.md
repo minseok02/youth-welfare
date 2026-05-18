@@ -5151,3 +5151,24 @@
 - 이유:
   - 이번 단계 목표는 수집 규칙 변경이 아니라 collect runtime summary를 실제 운영 서버 기준으로 닫는 것이다.
   - `YOUTH_DETAILS` 도 이제 다른 source와 같은 `api_sync_logs` 경계에 들어왔으므로, scheduled/manual lane 모두 최근 실행 결과를 한 화면에서 읽을 수 있다.
+
+## 865) latestRun만으로는 "왜 느린가 / 왜 manual인가"를 설명하기 어렵고 budget/config summary가 같이 있어야 운영 triage가 닫힌다
+- 문제: `collectSourceLanes` 가 scheduled/manual 경계와 `latestRun` 까지 내려주게 됐지만, 운영자가 실제로 보고 싶은 건 "이 lane이 heavy/budgeted 인 건 알겠는데, 지금 코드 기준으로 요청 간격이 몇 ms고 max calls가 얼마며 retry/backoff가 어떤가"까지 같은 카드에서 읽는 것이다. 그렇지 않으면 여전히 코드를 열어 `@Value` 기본값을 다시 뒤져야 해서 admin runtime과 운영 문서 사이 drift가 남는다.
+- 확인:
+  - 실제 collect 설정은 여러 클래스에 흩어져 있다.
+    - list snapshot: `YouthApiClient`, `BokjiroCentralClient`, `BokjiroLocalClient`, `Gov24Client`
+    - detail/manual lane: `BokjiroDetailCollectService`, `Gov24DetailCollectService`, `Gov24SupportConditionsCollectService`, `YouthDetailCollectService`
+    - 공통 lock guard: `CollectExecutionGuard`
+  - 운영자가 궁금해하는 값은 주로 `request-interval-ms`, `max-items/max-calls-per-run`, `retry.max-attempts`, `retry.base-backoff-ms`, `open-circuit-ms`, `lock lease/heartbeat` 였다.
+- 해결:
+  - `CollectRuntimeLaneConfigCatalog` 를 추가해 lane key 기준 `configEntries(label/value)` 를 구성했다.
+  - `AdminCollectFailureResponse.CollectLane` 에 `configEntries` 를 추가하고 `AdminDashboardCollectService` 가 lane inventory와 함께 merge 한다.
+  - `AdminDashboardPage` `Collect Lane Inventory` 카드는 `Last run ...` 아래에 lane별 config summary를 같이 렌더링한다.
+  - 표현은 정형 숫자 필드 덤프보다 운영자가 바로 읽을 수 있는 요약 항목으로 제한했다.
+    - 예: `Budget · max 50 calls/run`
+    - `Retry · 3 attempts / 1500ms backoff`
+    - `Open circuit · 1800000ms`
+    - `Lock guard · lease 15m / heartbeat 60s`
+- 이유:
+  - 이번 단계 목적은 새 collect 규칙을 여는 것이 아니라, 현재 코드의 운영 budget/config truth를 admin runtime에 복제해 drift를 줄이는 것이다.
+  - lane별 예산/속도/guard를 같은 카드에 보여 주면 “왜 manual이고 왜 느린가”를 코드 열람 없이 설명할 수 있어 triage 비용이 낮아진다.

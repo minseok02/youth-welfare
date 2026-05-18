@@ -68,7 +68,14 @@ public record AdminCollectFailureResponse(
             String scheduleLabel,
             String resourceProfile,
             String governanceReason,
+            List<ConfigEntry> configEntries,
             LatestRun latestRun
+    ) {
+    }
+
+    public record ConfigEntry(
+            String label,
+            String value
     ) {
     }
 

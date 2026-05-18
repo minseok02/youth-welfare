@@ -32,7 +32,7 @@
 
 ## 현재 collect/runtime governance inventory
 
-`collect-failures` 는 이제 실패/partial/streak/circuit 뿐 아니라 "어떤 lane이 nightly고 어떤 lane이 manual인지", 그리고 lane별 `api_sync_logs` 기준 마지막 실행 요약도 같이 반환합니다.
+`collect-failures` 는 이제 실패/partial/streak/circuit 뿐 아니라 "어떤 lane이 nightly고 어떤 lane이 manual인지", lane별 `api_sync_logs` 기준 마지막 실행 요약, 그리고 pacing/budget/retry 같은 `config summary` 도 같이 반환합니다.
 이 inventory는 외부 API를 실제로 치는 lane만 대상으로 하며, raw replay 기반 sidecar backfill은 여기서 제외합니다.
 
 ### nightly scheduled lane
@@ -76,6 +76,55 @@
 
 - snapshot 기준선과 비싼 detail/enrichment/maintenance lane 을 분리해야 quota, app runtime, 운영 triage 비용을 같이 제어할 수 있다.
 - 특히 `Gov24 detail/support`, `YOUTH detail`, `Bokjiro gap-fill/refresh` 는 "매일 반드시 도는 기준선"이 아니라 필요할 때만 태우는 것이 현재 운영 원칙이다.
+
+### 현재 lane budget/config summary
+
+- `YOUTH`
+  - scheduler: `0 0 2 * * * @ Asia/Seoul`
+  - list pacing: `300ms`
+  - retry: `3 attempts / 1000ms backoff`
+- `BOKJIRO_CENTRAL`
+  - budget: `max 10000 items/run`
+  - list pacing: `300ms`
+  - `429` guard: `3x 429 / cooldown 10000ms`
+  - retry: `3 attempts / 1000ms backoff`
+- `BOKJIRO_LOCAL`
+  - budget: `max 10000 items/run`
+  - list pacing: `300ms`
+  - `429` guard: `3x 429 / cooldown 10000ms`
+  - open circuit: `1800000ms`
+  - retry: `3 attempts / 1000ms backoff`
+- `BOKJIRO_DETAIL`
+  - budget: `central max 10000 calls/run / local max 10000 calls/run`
+  - detail pacing: `1000ms`
+  - `429` abort: `5 consecutive hits`
+  - retry: `3 attempts / 1500ms backoff`
+- `GOV24`
+  - budget: `max 20000 items/run`
+  - list pacing: `300ms`
+  - retry: `3 attempts / 1000ms backoff`
+- `GOV24_DETAIL`
+  - budget: `max 50 calls/run`
+  - detail pacing: `300ms`
+  - retry: `3 attempts / 1500ms backoff`
+- `GOV24_SUPPORT_CONDITIONS`
+  - budget: `max 50 calls/run`
+  - detail pacing: `300ms`
+  - retry: `3 attempts / 1500ms backoff`
+- `YOUTH_DETAILS`
+  - budget: `missing detail rows only`
+  - detail pacing: `500ms`
+- `BOKJIRO_DETAIL_GAP_FILL`
+  - budget: `operator supplied rounds/maxCallsPerRound`
+  - per-source cap: `central/local max 10000 calls/run`
+  - detail pacing: `1000ms`
+  - `429` abort: `5 consecutive hits`
+- `BOKJIRO_DETAIL_REFRESH`
+  - budget: `central/local max 10000 calls/run`
+  - detail pacing: `1000ms`
+  - `429` abort: `5 consecutive hits`
+
+모든 lane은 공통 `CollectExecutionGuard` 아래에서 `lease 15m / heartbeat 60s` lock guard를 사용합니다.
 
 ## 현재 source dispatch 구조
 
@@ -151,7 +200,7 @@ collect 이후 저장되는 축은 아래입니다.
 
 - 2026-05-10 기준 복지로 운영 계정을 확보했고, `중앙 list`, `중앙 detail`, `지자체 list`, `지자체 detail` 은 각각 일일 `100,000` quota를 사용한다.
 - 현재 코드 기본값은 복지로 list source별 `1회 10,000 items`, detail source별 `1회 10,000 calls` 안전 상한이다.
-- detail 호출 pacing 기본값은 `300ms`, 연속 `429` 임계치는 `2회`다.
+- detail 호출 pacing 기본값은 `1000ms`, 연속 `429` 임계치는 `5회`다.
 - 따라서 detail backlog 는 더 이상 개발 계정 quota 때문에 남겨둔 의도된 상태로만 보지 않는다.
 - coverage 완전성 평가는 이제 운영 계정 기준 gap-fill / refresh 결과까지 포함해 본다.
 

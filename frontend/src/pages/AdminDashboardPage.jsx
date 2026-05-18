@@ -672,6 +672,18 @@ export default function AdminDashboardPage() {
                               last run 기록 없음
                             </Typography>
                           )}
+                          {item.configEntries?.length ? (
+                            <Box mt={1}>
+                              {item.configEntries.map((entry) => (
+                                <Typography
+                                  key={`${item.laneKey}-${entry.label}`}
+                                  sx={{ fontSize: 12, color: INK3, mt: 0.25, overflowWrap: "anywhere", wordBreak: "break-word" }}
+                                >
+                                  {entry.label} · {entry.value}
+                                </Typography>
+                              ))}
+                            </Box>
+                          ) : null}
                           {item.scheduleLabel && (
                             <Typography sx={{ fontSize: 12, color: INK3, mt: 0.75 }}>
                               {item.scheduleLabel}
