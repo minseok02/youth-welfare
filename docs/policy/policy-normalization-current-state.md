@@ -228,6 +228,17 @@ public response, retrieval filter, scoring은 이번 단계에서도 그대로 �
 즉 현재 truth는 YOUTH official fact가
 `summary response -> compact read-only card badge`
 까지 연결된 상태이며, ranking/filter/scoring은 여전히 그대로다.
+그 다음 단계는 ranking/filter로 바로 가지 않고, admin recommendation breakdown에
+YOUTH official fact와 Gov24 token 분포를 **facet 집계**로만 여는 것이다.
+이번 단계에서 `recommendation-breakdowns` 는 latest recommendation batch 기준으로
+`YOUTH_INCOME_CONDITION_TYPE`, `YOUTH_EMPLOYMENT_REQUIREMENT`, `YOUTH_EDUCATION_REQUIREMENT`,
+`YOUTH_SPECIAL_REQUIREMENT`, `YOUTH_MARITAL_STATUS` 의 상위 bucket과
+`Gov24 사용자구분/지원유형` token 상위 bucket을 같이 반환한다.
+의도는 운영자가 “실제로 어떤 official signal/token이 최신 추천면에 많이 깔려 있는가”를
+코드나 SQL 없이 admin 화면에서 바로 읽게 만드는 것이지,
+이 값을 public filter나 recommendation scoring으로 승격하는 것이 아니다.
+그래서 이번 facet은 admin `recommendation-breakdowns` 와 `AdminDashboardPage` 에만 연결하고,
+retrieval/filter/scoring 계약은 그대로 유지한다.
 
 ## 2. `YOUTH_MID_RAW_ALIAS` 현재 상태
 

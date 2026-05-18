@@ -248,6 +248,14 @@ public final class AdminDashboardReadRows {
     ) {
     }
 
+    public record RecommendationFacetRow(
+            String facetKey,
+            String bucketLabel,
+            long rowCount,
+            long distinctServices
+    ) {
+    }
+
     public record NotificationSummaryRow(
             long sentLast24h,
             long failedLast24h,

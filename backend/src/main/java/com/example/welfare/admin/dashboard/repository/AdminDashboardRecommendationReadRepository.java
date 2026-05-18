@@ -17,6 +17,23 @@ public class AdminDashboardRecommendationReadRepository {
     private final NamedParameterJdbcTemplate jdbcTemplate;
 
     private static final String RECOMMENDATION_USER_ORIGIN_SQL = "coalesce(nullif(u.account_origin, ''), 'REAL_USER')";
+    private static final String YOUTH_FACET_ORDER_CASE = """
+            case facet_key
+                when 'YOUTH_INCOME_CONDITION_TYPE' then 1
+                when 'YOUTH_EMPLOYMENT_REQUIREMENT' then 2
+                when 'YOUTH_EDUCATION_REQUIREMENT' then 3
+                when 'YOUTH_SPECIAL_REQUIREMENT' then 4
+                when 'YOUTH_MARITAL_STATUS' then 5
+                else 99
+            end
+            """;
+    private static final String GOV24_FACET_ORDER_CASE = """
+            case facet_key
+                when 'GOV24_USER_TYPE_TOKEN' then 1
+                when 'GOV24_BENEFIT_TYPE_TOKEN' then 2
+                else 99
+            end
+            """;
 
     public AdminDashboardReadRows.RecommendationSummaryRow fetchRecommendationSummary(LocalDateTime dayAgo, LocalDateTime weekAgo) {
         return jdbcTemplate.queryForObject("""
@@ -661,6 +678,152 @@ public class AdminDashboardRecommendationReadRepository {
                         AdminDashboardJdbcSupport.getLocalDateTime(rs, "first_sent_at"),
                         AdminDashboardJdbcSupport.getLocalDateTime(rs, "latest_sent_at"),
                         AdminDashboardJdbcSupport.getLocalDateTime(rs, "latest_clicked_at")
+                )
+        );
+    }
+
+    public List<AdminDashboardReadRows.RecommendationFacetRow> fetchLatestBatchYouthOfficialFacetRows(int limitPerFacet) {
+        return jdbcTemplate.query("""
+                with latest as (
+                    select user_key, max(recommended_at) as recommended_at
+                      from user_recommendations
+                     group by user_key
+                ),
+                latest_rows as (
+                    select ur.user_key,
+                           ur.service_id
+                      from user_recommendations ur
+                      join latest l
+                        on l.user_key = ur.user_key
+                       and l.recommended_at = ur.recommended_at
+                ),
+                expanded as (
+                    select distinct lr.user_key,
+                           lr.service_id,
+                           sf.fact_code_set_key as facet_key,
+                           btrim(token_parts.bucket_label) as bucket_label
+                      from latest_rows lr
+                      join welfare_services ws
+                        on ws.id = lr.service_id
+                       and ws.source_type = 'YOUTH'
+                      join service_facts sf
+                        on sf.service_id = ws.id
+                       and sf.fact_code_set_key in (
+                           'YOUTH_INCOME_CONDITION_TYPE',
+                           'YOUTH_EMPLOYMENT_REQUIREMENT',
+                           'YOUTH_EDUCATION_REQUIREMENT',
+                           'YOUTH_SPECIAL_REQUIREMENT',
+                           'YOUTH_MARITAL_STATUS'
+                       )
+                     cross join lateral regexp_split_to_table(coalesce(sf.text_value, ''), '\\s*,\\s*') as token_parts(bucket_label)
+                     where nullif(btrim(token_parts.bucket_label), '') is not null
+                       and btrim(token_parts.bucket_label) not in ('제한없음', '무관')
+                ),
+                aggregated as (
+                    select facet_key,
+                           bucket_label,
+                           count(*) as row_count,
+                           count(distinct service_id) as distinct_services
+                      from expanded
+                     group by facet_key, bucket_label
+                ),
+                ranked as (
+                    select facet_key,
+                           bucket_label,
+                           row_count,
+                           distinct_services,
+                           row_number() over (
+                               partition by facet_key
+                               order by row_count desc, distinct_services desc, bucket_label asc
+                           ) as rn
+                      from aggregated
+                )
+                select facet_key,
+                       bucket_label,
+                       row_count,
+                       distinct_services
+                  from ranked
+                 where rn <= :limitPerFacet
+              order by %s, row_count desc, distinct_services desc, bucket_label asc
+                """.formatted(YOUTH_FACET_ORDER_CASE),
+                new MapSqlParameterSource("limitPerFacet", limitPerFacet),
+                (rs, rowNum) -> new AdminDashboardReadRows.RecommendationFacetRow(
+                        rs.getString("facet_key"),
+                        rs.getString("bucket_label"),
+                        rs.getLong("row_count"),
+                        rs.getLong("distinct_services")
+                )
+        );
+    }
+
+    public List<AdminDashboardReadRows.RecommendationFacetRow> fetchLatestBatchGov24FacetRows(int limitPerFacet) {
+        return jdbcTemplate.query("""
+                with latest as (
+                    select user_key, max(recommended_at) as recommended_at
+                      from user_recommendations
+                     group by user_key
+                ),
+                latest_rows as (
+                    select ur.user_key,
+                           ur.service_id
+                      from user_recommendations ur
+                      join latest l
+                        on l.user_key = ur.user_key
+                       and l.recommended_at = ur.recommended_at
+                ),
+                expanded as (
+                    select distinct lr.user_key,
+                           lr.service_id,
+                           tokens.facet_key,
+                           tokens.bucket_label
+                      from latest_rows lr
+                      join welfare_services ws
+                        on ws.id = lr.service_id
+                       and ws.source_type = 'GOV24'
+                      left join service_taxonomies st
+                        on st.service_id = ws.id
+                     cross join lateral (
+                         select 'GOV24_USER_TYPE_TOKEN' as facet_key, btrim(token_parts.bucket_label) as bucket_label
+                           from regexp_split_to_table(coalesce(st.gov24_user_type_label, ''), '\\|\\|') as token_parts(bucket_label)
+                         union all
+                         select 'GOV24_BENEFIT_TYPE_TOKEN' as facet_key, btrim(token_parts.bucket_label) as bucket_label
+                           from regexp_split_to_table(coalesce(st.gov24_benefit_type_label, ''), '\\|\\|') as token_parts(bucket_label)
+                     ) tokens
+                     where nullif(tokens.bucket_label, '') is not null
+                ),
+                aggregated as (
+                    select facet_key,
+                           bucket_label,
+                           count(*) as row_count,
+                           count(distinct service_id) as distinct_services
+                      from expanded
+                     group by facet_key, bucket_label
+                ),
+                ranked as (
+                    select facet_key,
+                           bucket_label,
+                           row_count,
+                           distinct_services,
+                           row_number() over (
+                               partition by facet_key
+                               order by row_count desc, distinct_services desc, bucket_label asc
+                           ) as rn
+                      from aggregated
+                )
+                select facet_key,
+                       bucket_label,
+                       row_count,
+                       distinct_services
+                  from ranked
+                 where rn <= :limitPerFacet
+              order by %s, row_count desc, distinct_services desc, bucket_label asc
+                """.formatted(GOV24_FACET_ORDER_CASE),
+                new MapSqlParameterSource("limitPerFacet", limitPerFacet),
+                (rs, rowNum) -> new AdminDashboardReadRows.RecommendationFacetRow(
+                        rs.getString("facet_key"),
+                        rs.getString("bucket_label"),
+                        rs.getLong("row_count"),
+                        rs.getLong("distinct_services")
                 )
         );
     }

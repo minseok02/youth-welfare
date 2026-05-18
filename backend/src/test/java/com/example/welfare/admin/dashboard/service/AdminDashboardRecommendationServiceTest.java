@@ -134,6 +134,36 @@ class AdminDashboardRecommendationServiceTest {
                         2
                 )
         ));
+        given(adminDashboardRecommendationReadRepository.fetchLatestBatchYouthOfficialFacetRows(3))
+                .willReturn(List.of(
+                        new AdminDashboardReadRows.RecommendationFacetRow(
+                                "YOUTH_INCOME_CONDITION_TYPE",
+                                "기타",
+                                12,
+                                7
+                        ),
+                        new AdminDashboardReadRows.RecommendationFacetRow(
+                                "YOUTH_EMPLOYMENT_REQUIREMENT",
+                                "미취업자",
+                                9,
+                                5
+                        )
+                ));
+        given(adminDashboardRecommendationReadRepository.fetchLatestBatchGov24FacetRows(3))
+                .willReturn(List.of(
+                        new AdminDashboardReadRows.RecommendationFacetRow(
+                                "GOV24_USER_TYPE_TOKEN",
+                                "소상공인",
+                                4,
+                                4
+                        ),
+                        new AdminDashboardReadRows.RecommendationFacetRow(
+                                "GOV24_BENEFIT_TYPE_TOKEN",
+                                "현금(융자)",
+                                3,
+                                3
+                        )
+                ));
         given(adminDashboardRecommendationReadRepository.fetchRecentFallbackRecommendationSamples(
                 org.mockito.ArgumentMatchers.any(),
                 org.mockito.ArgumentMatchers.eq(3)
@@ -251,6 +281,24 @@ class AdminDashboardRecommendationServiceTest {
             assertThat(weight.clickThroughRate()).isEqualByComparingTo("0.2500");
             assertThat(weight.fallbackRate()).isEqualByComparingTo("0.1667");
         });
+        assertThat(response.youthOfficialFacetGroups()).hasSize(2);
+        assertThat(response.youthOfficialFacetGroups().get(0).facetKey()).isEqualTo("YOUTH_INCOME_CONDITION_TYPE");
+        assertThat(response.youthOfficialFacetGroups().get(0).label()).isEqualTo("소득조건 유형");
+        assertThat(response.youthOfficialFacetGroups().get(0).buckets()).singleElement().satisfies(bucket -> {
+            assertThat(bucket.label()).isEqualTo("기타");
+            assertThat(bucket.rowCount()).isEqualTo(12);
+            assertThat(bucket.distinctServices()).isEqualTo(7);
+        });
+        assertThat(response.youthOfficialFacetGroups().get(1).facetKey()).isEqualTo("YOUTH_EMPLOYMENT_REQUIREMENT");
+        assertThat(response.gov24FacetGroups()).hasSize(2);
+        assertThat(response.gov24FacetGroups().get(0).facetKey()).isEqualTo("GOV24_USER_TYPE_TOKEN");
+        assertThat(response.gov24FacetGroups().get(0).label()).isEqualTo("Gov24 사용자구분");
+        assertThat(response.gov24FacetGroups().get(0).buckets()).singleElement().satisfies(bucket -> {
+            assertThat(bucket.label()).isEqualTo("소상공인");
+            assertThat(bucket.rowCount()).isEqualTo(4);
+            assertThat(bucket.distinctServices()).isEqualTo(4);
+        });
+        assertThat(response.gov24FacetGroups().get(1).facetKey()).isEqualTo("GOV24_BENEFIT_TYPE_TOKEN");
         assertThat(response.recentFallbackSamples()).singleElement().satisfies(sample -> {
             assertThat(sample.logId()).isEqualTo(101L);
             assertThat(sample.title()).isEqualTo("청년 월세 지원");

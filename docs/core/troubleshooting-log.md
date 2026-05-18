@@ -5193,3 +5193,30 @@
 - 이유:
   - 운영자가 진짜 필요한 것은 source code의 기본값이 아니라 지금 서버에서 실제로 적용 중인 pacing/budget/guard다.
   - admin inventory가 그 effective 값을 보여 주면, `429` triage나 “왜 이 lane이 예상보다 빠르거나 느린가”를 코드 열람 없이 설명할 수 있다.
+
+## 867) YOUTH official fact와 Gov24 token은 다음 단계에서 scoring보다 admin facet으로 먼저 여는 편이 안전하다
+- 문제: YOUTH official fact는 이미 `raw -> fact -> diagnostics -> detail -> policy card badge` 까지 닫혔고, Gov24 token도 diagnostics에서 parser correctness가 확인됐다. 이 상태에서 다음 소비처를 고를 때 바로 filter/scoring으로 가면 “설명 신호”를 곧바로 제품 rule로 오해할 위험이 크다. 반대로 운영자는 지금도 최신 추천면에 어떤 official signal과 Gov24 token이 많이 깔려 있는지 한눈에 보기 어렵다.
+- 확인:
+  - `recommendation-breakdowns` 는 이미 latest recommendation batch 기준 `topRepeatedServices`, `top1Services`, `source/category/weight breakdown`, fallback/click sample을 모아 보는 admin 전용 API였다.
+  - YOUTH official fact는 `service_facts.text_value` 에 aggregate observation shape로 들어 있으므로,
+    admin facet에서는 이 값을 다시 split 해도 public 계약이나 ranking 규칙을 건드리지 않는다.
+  - Gov24도 `gov24UserTypeLabel`, `gov24BenefitTypeLabel` raw exact label을 그대로 유지한 채,
+    admin facet에서만 `||` token 분포를 읽게 할 수 있다.
+- 해결:
+  - `recommendation-breakdowns` 에 `youthOfficialFacetGroups`, `gov24FacetGroups` 를 추가했다.
+  - YOUTH facet은 latest recommendation batch 안의 YOUTH 서비스만 모아
+    `YOUTH_INCOME_CONDITION_TYPE`, `YOUTH_EMPLOYMENT_REQUIREMENT`,
+    `YOUTH_EDUCATION_REQUIREMENT`, `YOUTH_SPECIAL_REQUIREMENT`, `YOUTH_MARITAL_STATUS`
+    상위 bucket을 집계한다.
+  - Gov24 facet은 latest recommendation batch 안의 Gov24 서비스만 모아
+    `Gov24 사용자구분`, `Gov24 지원유형` token 상위 bucket을 집계한다.
+  - `AdminDashboardPage` recommendation triage 섹션에는
+    `YOUTH Official Facets`, `Gov24 Token Facets` compact card를 추가해
+    bucket별 `rows / services` 를 read-only로 렌더링한다.
+  - retrieval/filter/scoring과 public UX 계약은 이번 단계에서 그대로 유지한다.
+- 이유:
+  - admin facet은 다음 단계 제품 판단의 안전한 중간지점이다.
+  - 운영자가 최신 추천면의 signal 분포를 실제 데이터로 먼저 본 뒤에야,
+    이 값을 목록 filter나 ranking signal로 넓힐지 판단할 수 있다.
+  - 즉 이번 단계 의도는 **consumption before ranking** 이고,
+    저장된 신호를 바로 점수 규칙으로 승격하는 것이 아니다.

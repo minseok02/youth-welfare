@@ -7,12 +7,38 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class AdminDashboardRecommendationService {
 
     private final AdminDashboardRecommendationReadRepository adminDashboardRecommendationReadRepository;
+    private static final List<String> YOUTH_OFFICIAL_FACET_ORDER = List.of(
+            "YOUTH_INCOME_CONDITION_TYPE",
+            "YOUTH_EMPLOYMENT_REQUIREMENT",
+            "YOUTH_EDUCATION_REQUIREMENT",
+            "YOUTH_SPECIAL_REQUIREMENT",
+            "YOUTH_MARITAL_STATUS"
+    );
+    private static final List<String> GOV24_FACET_ORDER = List.of(
+            "GOV24_USER_TYPE_TOKEN",
+            "GOV24_BENEFIT_TYPE_TOKEN"
+    );
+    private static final Map<String, String> YOUTH_OFFICIAL_FACET_LABELS = Map.of(
+            "YOUTH_INCOME_CONDITION_TYPE", "소득조건 유형",
+            "YOUTH_EMPLOYMENT_REQUIREMENT", "취업 요건",
+            "YOUTH_EDUCATION_REQUIREMENT", "학력 요건",
+            "YOUTH_SPECIAL_REQUIREMENT", "특화 요건",
+            "YOUTH_MARITAL_STATUS", "결혼 상태"
+    );
+    private static final Map<String, String> GOV24_FACET_LABELS = Map.of(
+            "GOV24_USER_TYPE_TOKEN", "Gov24 사용자구분",
+            "GOV24_BENEFIT_TYPE_TOKEN", "Gov24 지원유형"
+    );
 
     public AdminRecommendationBreakdownResponse getRecommendationBreakdowns(
             Integer requestedSummaryWindowDays,
@@ -34,6 +60,16 @@ public class AdminDashboardRecommendationService {
                 AdminDashboardQueryPolicy.resolveRealUserTrafficGate(recommendationSummary, recommendationTrafficMix);
         String recommendationReviewGate =
                 AdminDashboardQueryPolicy.resolveRecommendationReviewGate(realUserTrafficGate, recommendationConcentration);
+        List<AdminRecommendationBreakdownResponse.FacetGroup> youthOfficialFacetGroups = buildFacetGroups(
+                adminDashboardRecommendationReadRepository.fetchLatestBatchYouthOfficialFacetRows(breakdownLimit),
+                YOUTH_OFFICIAL_FACET_ORDER,
+                YOUTH_OFFICIAL_FACET_LABELS
+        );
+        List<AdminRecommendationBreakdownResponse.FacetGroup> gov24FacetGroups = buildFacetGroups(
+                adminDashboardRecommendationReadRepository.fetchLatestBatchGov24FacetRows(breakdownLimit),
+                GOV24_FACET_ORDER,
+                GOV24_FACET_LABELS
+        );
 
         return new AdminRecommendationBreakdownResponse(
                 now,
@@ -147,6 +183,8 @@ public class AdminDashboardRecommendationService {
                                 AdminDashboardQueryPolicy.ratio(row.fallbackCount(), row.sentCount())
                         ))
                         .toList(),
+                youthOfficialFacetGroups,
+                gov24FacetGroups,
                 adminDashboardRecommendationReadRepository.fetchRecentFallbackRecommendationSamples(summaryWindowAgo, breakdownLimit).stream()
                         .map(row -> new AdminRecommendationBreakdownResponse.RecommendationSample(
                                 row.logId(),
@@ -194,5 +232,32 @@ public class AdminDashboardRecommendationService {
                         ))
                         .toList()
         );
+    }
+
+    private List<AdminRecommendationBreakdownResponse.FacetGroup> buildFacetGroups(
+            List<AdminDashboardReadRows.RecommendationFacetRow> rows,
+            List<String> orderedKeys,
+            Map<String, String> labelMap
+    ) {
+        Map<String, List<AdminRecommendationBreakdownResponse.FacetBucket>> grouped = new LinkedHashMap<>();
+        for (String orderedKey : orderedKeys) {
+            grouped.put(orderedKey, new java.util.ArrayList<>());
+        }
+        for (AdminDashboardReadRows.RecommendationFacetRow row : rows) {
+            grouped.computeIfAbsent(row.facetKey(), ignored -> new java.util.ArrayList<>())
+                    .add(new AdminRecommendationBreakdownResponse.FacetBucket(
+                            row.bucketLabel(),
+                            row.rowCount(),
+                            row.distinctServices()
+                    ));
+        }
+        return grouped.entrySet().stream()
+                .filter(entry -> !entry.getValue().isEmpty())
+                .map(entry -> new AdminRecommendationBreakdownResponse.FacetGroup(
+                        entry.getKey(),
+                        labelMap.getOrDefault(entry.getKey(), entry.getKey()),
+                        List.copyOf(entry.getValue())
+                ))
+                .toList();
     }
 }

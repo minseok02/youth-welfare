@@ -1105,6 +1105,32 @@ class AdminSecurityWebMvcTest {
                                 )
                         ),
                         List.of(
+                                new AdminRecommendationBreakdownResponse.FacetGroup(
+                                        "YOUTH_INCOME_CONDITION_TYPE",
+                                        "소득조건 유형",
+                                        List.of(
+                                                new AdminRecommendationBreakdownResponse.FacetBucket(
+                                                        "기타",
+                                                        12,
+                                                        7
+                                                )
+                                        )
+                                )
+                        ),
+                        List.of(
+                                new AdminRecommendationBreakdownResponse.FacetGroup(
+                                        "GOV24_USER_TYPE_TOKEN",
+                                        "Gov24 사용자구분",
+                                        List.of(
+                                                new AdminRecommendationBreakdownResponse.FacetBucket(
+                                                        "소상공인",
+                                                        4,
+                                                        4
+                                                )
+                                        )
+                                )
+                        ),
+                        List.of(
                                 new AdminRecommendationBreakdownResponse.RecommendationSample(
                                         101L,
                                         501L,
@@ -1193,6 +1219,11 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.data.sourceBreakdowns[0].sourceType").value("YOUTH"))
                 .andExpect(jsonPath("$.data.categoryBreakdowns[0].category").value("HOUSING"))
                 .andExpect(jsonPath("$.data.weightBreakdowns[0].weightKey").value("GROWTH"))
+                .andExpect(jsonPath("$.data.youthOfficialFacetGroups[0].facetKey").value("YOUTH_INCOME_CONDITION_TYPE"))
+                .andExpect(jsonPath("$.data.youthOfficialFacetGroups[0].label").value("소득조건 유형"))
+                .andExpect(jsonPath("$.data.youthOfficialFacetGroups[0].buckets[0].label").value("기타"))
+                .andExpect(jsonPath("$.data.gov24FacetGroups[0].facetKey").value("GOV24_USER_TYPE_TOKEN"))
+                .andExpect(jsonPath("$.data.gov24FacetGroups[0].buckets[0].label").value("소상공인"))
                 .andExpect(jsonPath("$.data.recentFallbackSamples[0].title").value("청년 월세 지원"))
                 .andExpect(jsonPath("$.data.recentFallbackSamples[0].userCohort").value("EXAMPLE_SMOKE"))
                 .andExpect(jsonPath("$.data.recentClickedSamples[0].title").value("청년 전세 지원"))

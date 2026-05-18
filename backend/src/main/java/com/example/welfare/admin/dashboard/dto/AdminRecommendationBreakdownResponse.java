@@ -19,6 +19,8 @@ public record AdminRecommendationBreakdownResponse(
         List<SourceBreakdown> sourceBreakdowns,
         List<CategoryBreakdown> categoryBreakdowns,
         List<WeightBreakdown> weightBreakdowns,
+        List<FacetGroup> youthOfficialFacetGroups,
+        List<FacetGroup> gov24FacetGroups,
         List<RecommendationSample> recentFallbackSamples,
         List<RecommendationSample> recentClickedSamples,
         List<RepeatExposureGroup> repeatExposureGroups
@@ -120,6 +122,20 @@ public record AdminRecommendationBreakdownResponse(
             long fallbackCount,
             BigDecimal clickThroughRate,
             BigDecimal fallbackRate
+    ) {
+    }
+
+    public record FacetGroup(
+            String facetKey,
+            String label,
+            List<FacetBucket> buckets
+    ) {
+    }
+
+    public record FacetBucket(
+            String label,
+            long rowCount,
+            long distinctServices
     ) {
     }
 

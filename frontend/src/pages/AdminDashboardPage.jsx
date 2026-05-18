@@ -587,10 +587,81 @@ export default function AdminDashboardPage() {
           )}
 
           {breakdowns && (
-            <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", xl: "1fr 1fr" } }}>
-              <ServiceListCard title="Top Repeated Services" items={breakdowns.topRepeatedServices} countLabel="rowCount" />
-              <ServiceListCard title="Top1 Distribution Leaders" items={breakdowns.top1Services} countLabel="usersAsTop1" />
-            </Box>
+            <>
+              <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", xl: "1fr 1fr" } }}>
+                <ServiceListCard title="Top Repeated Services" items={breakdowns.topRepeatedServices} countLabel="rowCount" />
+                <ServiceListCard title="Top1 Distribution Leaders" items={breakdowns.top1Services} countLabel="usersAsTop1" />
+              </Box>
+
+              <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", xl: "1fr 1fr" } }}>
+                <CompactListCard
+                  title="YOUTH Official Facets"
+                  description="latest recommendation batch 기준 온통청년 official fact 분포"
+                  items={breakdowns.youthOfficialFacetGroups}
+                  renderItem={(group) => (
+                    <Box key={group.facetKey} sx={{ p: 1.5, borderRadius: 2, border: `1px solid ${PANEL_LINE}`, bgcolor: "#fafbff" }}>
+                      <Typography sx={{ fontSize: 13, fontWeight: 700, color: INK }}>{group.label}</Typography>
+                      <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap mt={1}>
+                        {group.buckets?.map((bucket) => (
+                          <Chip
+                            key={`${group.facetKey}-${bucket.label}`}
+                            label={`${bucket.label} · rows ${formatNumber(bucket.rowCount)} / services ${formatNumber(bucket.distinctServices)}`}
+                            size="small"
+                            sx={{
+                              bgcolor: "#f8fafc",
+                              color: INK2,
+                              border: `1px solid ${PANEL_LINE}`,
+                              height: "auto",
+                              maxWidth: "100%",
+                              "& .MuiChip-label": {
+                                display: "block",
+                                whiteSpace: "normal",
+                                overflowWrap: "anywhere",
+                                wordBreak: "break-word",
+                                py: 0.5,
+                              },
+                            }}
+                          />
+                        ))}
+                      </Stack>
+                    </Box>
+                  )}
+                />
+                <CompactListCard
+                  title="Gov24 Token Facets"
+                  description="latest recommendation batch 기준 Gov24 사용자구분/지원유형 token 분포"
+                  items={breakdowns.gov24FacetGroups}
+                  renderItem={(group) => (
+                    <Box key={group.facetKey} sx={{ p: 1.5, borderRadius: 2, border: `1px solid ${PANEL_LINE}`, bgcolor: "#fafbff" }}>
+                      <Typography sx={{ fontSize: 13, fontWeight: 700, color: INK }}>{group.label}</Typography>
+                      <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap mt={1}>
+                        {group.buckets?.map((bucket) => (
+                          <Chip
+                            key={`${group.facetKey}-${bucket.label}`}
+                            label={`${bucket.label} · rows ${formatNumber(bucket.rowCount)} / services ${formatNumber(bucket.distinctServices)}`}
+                            size="small"
+                            sx={{
+                              bgcolor: "#f8fafc",
+                              color: INK2,
+                              border: `1px solid ${PANEL_LINE}`,
+                              height: "auto",
+                              maxWidth: "100%",
+                              "& .MuiChip-label": {
+                                display: "block",
+                                whiteSpace: "normal",
+                                overflowWrap: "anywhere",
+                                wordBreak: "break-word",
+                                py: 0.5,
+                              },
+                            }}
+                          />
+                        ))}
+                      </Stack>
+                    </Box>
+                  )}
+                />
+              </Box>
+            </>
           )}
 
           <TriageSectionTitle
