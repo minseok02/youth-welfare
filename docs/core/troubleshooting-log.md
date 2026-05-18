@@ -5442,3 +5442,24 @@
   - 함께 [recommendation-fresh-saved-gap-audit-runbook.md](../recommendation/recommendation-fresh-saved-gap-audit-runbook.md) 를 추가해 stale latest batch와 fresh persisted gap을 분리하는 절차를 고정했다.
 - 이유:
   - 지금 다음 bounded step은 score patch가 아니라, `3257` 이 단지 오래된 latest saved batch 때문에 비어 보이는지, 아니면 fresh persisted batch에서도 실제로 빠지는지 먼저 가르는 것이다.
+
+## 888) `3257` 이 fresh persisted batch에 들어오면 stale latest batch 문제는 닫히고, 다음 병목은 persisted AI score/AI request 경계다
+- 문제: server에서 `run-local-recommendation-fresh-saved-gap-audit.sh` 를 다시 태운 결과, `3257` 은 `inFreshTop=true`, `savedRank=8`, `savedFinal=0.34948`, `savedAi=0`, `savedAiStatus=SCORED` 로 fresh persisted batch 안에 실제로 들어왔다. 즉 “saved batch에 안 보인다”는 관측은 stale latest batch 문제였다. 반면 `3281` 은 fresh persisted batch에서도 `savedRank=37`, `savedAiStatus=NOT_REQUESTED`, `rerankRank=28` 로 남았고, `2736/3575` 도 fresh에서 각각 `26/29위` 였다.
+- 해결:
+  - current next step을 retrieval/stale batch 쪽에서 내리고, fresh persisted AI stage를 읽는 bounded audit 쪽으로 다시 좁혔다.
+  - 해석 기준도 분리했다.
+    - `3257`: fresh batch 진입 성공, 다만 persisted `AI=0` 때문에 current rerank보다 saved final이 내려감
+    - `3281/2736/3575`: AI `NOT_REQUESTED` 또는 낮은 current rerank로 fresh top window 경쟁력 자체가 약함
+- 이유:
+  - 이 결과로 `3257` 문제는 더 이상 retrieval이나 cache staleness가 아니다.
+  - 다음 bounded fix는 score patch보다 먼저, **왜 `3257` 은 persisted AI가 `0` 인지, 왜 `3281/2736/3575` 는 AI request top-N 밖에 머무는지** 를 읽는 AI-stage audit 이다.
+
+## 889) fresh persisted batch 기준으로 `savedAi=0` 과 `NOT_REQUESTED` 를 분리해서 봐야 다음 fix를 AI 입력/응답 쪽으로 둘지, AI top-N 이전 경쟁력 쪽으로 둘지 정할 수 있다
+- 문제: fresh saved gap audit 뒤에도 `3257` 은 `savedAi=0`, `savedAiStatus=SCORED`, `savedFinal < currentFinal` 이고, `3281/2736/3575` 는 `savedAiStatus=NOT_REQUESTED` 또는 낮은 current rerank로 남는다. 이 상태에서 둘을 한데 묶어 “AI 때문에 약하다”고 읽으면, `AI request는 갔지만 0점` 인 케이스와 `애초에 AI top-N 밖` 인 케이스를 섞게 된다.
+- 해결:
+  - `deploy/smoke/run-local-recommendation-ai-stage-gap-audit.sh` 를 추가했다.
+  - 이 wrapper는 `personal=true` fresh refresh 뒤 target family와 fresh top batch를 admin diagnostics로 다시 읽고, `savedAi`, `savedAiStatus`, `currentFinal`, `savedFinal`, `delta(savedFinal-currentFinal)` 를 같이 출력한다.
+  - [recommendation-ai-stage-gap-audit-runbook.md](../recommendation/recommendation-ai-stage-gap-audit-runbook.md) 도 함께 추가해 해석 절차를 고정했다.
+- 이유:
+  - `3257` 처럼 fresh top 안에는 들어오지만 `savedAi=0` 으로 내려가는 케이스는 AI input/response 품질 쪽 next step이 맞다.
+  - `3281/2736/3575` 처럼 `NOT_REQUESTED` 로 남는 케이스는 AI 이전 top-N 경쟁력 문제로 읽는 편이 맞다.

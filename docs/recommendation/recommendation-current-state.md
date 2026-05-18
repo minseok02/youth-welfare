@@ -122,6 +122,10 @@
 
 `2026-05-18` server saved-gap 재검증에서는 `3257` 이 `rerank_rank=5`, `currentFinal=0.5629` 인데도 `saved_rank=None`, `savedAi=None`, `dropStage=SCORED_BUT_NOT_IN_SAVED_BATCH` 로 남았습니다. 반면 `3281` 은 `rerank_rank=28`, `currentFinal<0` 로 current rerank 자체도 낮았습니다. 즉 `3257` 은 retrieval/retain 문제가 아니라 latest saved batch와 current rerank 사이의 차이를 더 좁혀야 하는 케이스입니다. 다음 bounded step은 [recommendation-fresh-saved-gap-audit-runbook.md](./recommendation-fresh-saved-gap-audit-runbook.md) 와 `run-local-recommendation-fresh-saved-gap-audit.sh` 로 `personal=true` fresh persisted batch를 강제로 다시 만들고, stale latest batch와 fresh persisted gap을 분리하는 것입니다.
 
+`2026-05-18` server fresh-saved-gap 재검증으로 이 경계도 더 좁혀졌습니다. `3257` 은 `personal=true` fresh persisted batch 기준 `inFreshTop=true`, `savedRank=8`, `savedFinal=0.34948`, `savedAi=0`, `savedAiStatus=SCORED` 로 실제 batch 안에 들어왔습니다. 즉 `3257` 의 “saved batch에 안 보임”은 stale latest batch 문제였고, current rerank(`rank=5`, `currentFinal=0.5629`) 와 fresh persisted batch 사이 차이는 persisted AI score가 `0` 으로 들어가 최종점수가 낮아진 데 있습니다. 반대로 `3281` 은 fresh persisted batch에서도 `savedRank=37`, `savedAiStatus=NOT_REQUESTED`, `rerankRank=28` 이라 top window 경쟁력 자체가 낮습니다. 따라서 현재 다음 bounded step은 retrieval이나 stale batch가 아니라, **`3257` 의 persisted AI=0 원인과 `3281/2736/3575` 의 AI 미요청 경계** 를 읽는 것입니다.
+
+이 다음 evidence lane은 [recommendation-ai-stage-gap-audit-runbook.md](./recommendation-ai-stage-gap-audit-runbook.md) 와 `run-local-recommendation-ai-stage-gap-audit.sh` 로 고정합니다. 이 wrapper는 fresh persisted top batch와 target family를 기준으로 `savedAi`, `savedAiStatus`, `currentFinal -> savedFinal delta` 를 같이 출력해, 현재 남은 병목이 AI 0점인지 AI 미요청인지 바로 가르게 합니다.
+
 ## 현재 scoring 기준
 
 ### rule score

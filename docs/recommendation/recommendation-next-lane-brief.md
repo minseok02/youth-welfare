@@ -175,6 +175,8 @@ bounded family 단위로만 확장합니다.
 
 그리고 `2026-05-18` server 결과에서 `3257` 은 `rerank_rank=5` 인데도 latest saved batch에는 없었습니다. 이 경우는 곧바로 score patch보다 먼저, latest saved batch가 stale인지 `personal=true` fresh persisted batch에서도 그대로 빠지는지 분리해야 합니다. 따라서 다음 immediate bounded step은 `fresh saved gap audit` 으로 두는 편이 맞습니다.
 
+이 fresh audit까지 다시 보면 `3257` 은 stale latest batch 문제였고, fresh persisted batch에서는 `savedRank=8` 로 실제로 들어옵니다. 다만 `savedAi=0`, `savedAiStatus=SCORED` 라 current rerank보다 persisted final이 더 낮아집니다. 반대로 `3281` 은 fresh persisted batch에서도 `savedRank=37`, `savedAiStatus=NOT_REQUESTED` 로 남습니다. 즉 현재 immediate bounded step은 다시 retrieval이 아니라, **`3257` 의 persisted AI=0 이유와 `3281` 의 AI 미요청 경계를 읽는 AI-stage audit** 으로 두는 편이 맞습니다.
+
 ## lane 1 에서 아직 안 할 일
 
 1. global source bonus
