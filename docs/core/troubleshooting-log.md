@@ -5474,3 +5474,18 @@
 - 이유:
   - 다음 bounded step은 이제 category bonus나 broad AI patch가 아니라, zero row와 same source/category positive peer의 `keyword / lifeStage / INTEREST_THEME / KEYWORD / TARGET_GROUP / supportContent` 입력 신호 차이를 나란히 보는 것이다.
   - 이를 위해 `run-local-recommendation-ai-input-contrast-audit.sh` 와 관련 runbook을 추가해, AI 입력 차이 근거를 먼저 수집하는 쪽으로 넘긴다.
+
+## 891) `생애주기/대상군` prompt 보강은 일부 row를 살리지만, `3257/3209` 핵심 케이스는 여전히 primary audience mismatch로 0점이 유지된다
+- 문제: `3257/3209/3287` 의 `savedAi=0` 이 prompt line에 청년 신호가 약해서인지, 아니면 AI가 수급자/신혼부부/학생 같은 대상군 불일치를 강한 exclusion으로 해석해서인지 확정이 필요했다.
+- 해결:
+  - `run-local-recommendation-ai-prompt-line-contrast-audit.sh` 와 `run-local-recommendation-ai-reason-contrast-audit.sh` 를 추가했다.
+  - 이후 `720a9cd` 로 `RealtimeAiGateway.buildPromptPolicyLine(...)` 에 `생애주기`, `대상군` 을 bounded 하게 추가하고 서버에서 fresh batch를 다시 만들었다.
+  - server 재검증 결과:
+    - `3257`: `savedAi=0`, reason=`저소득층을 위한 지원으로 소득 5분위인 사용자에게는 적합하지 않음`
+    - `3209`: `savedAi=0`, reason=`신혼부부 대상의 지원으로 미혼인 사용자에게는 해당되지 않음`
+    - `3287`: `savedAi=0`, reason=`대학생 등록금 지원은 이미 졸업한 미취업 청년에게는 해당되지 않음`
+    - `3288`: `savedAi=0 -> 70` 으로 개선
+- 이유:
+  - 즉 prompt line에 `생애주기/대상군` 을 넣는 것만으로는 `3257/3209` 의 0점을 뒤집지 못했다.
+  - 현재 남은 핵심은 signal 부족이 아니라, **AI가 수급자/신혼부부/학생 같은 primary audience mismatch를 실제 exclusion으로 강하게 해석하는 것**이다.
+  - 다음 bounded step은 retrieval/AI input 기술 문제가 아니라, 이 exclusion을 product rule로 존중할지 아니면 AI over-exclusion으로 완화할지 결정하는 제품 판단이다.

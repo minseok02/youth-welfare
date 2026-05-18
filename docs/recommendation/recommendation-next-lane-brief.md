@@ -179,6 +179,8 @@ bounded family 단위로만 확장합니다.
 
 그리고 같은 날 server `ai zero cohort / contrast` 결과까지 합치면 `3257` 류 0점은 `BOKJIRO_LOCAL` 전체 현상도, `주거` category 전체 현상도 아닙니다. fresh top 안에서 `3257/3209` 는 `savedAi=0` 이지만 같은 `BOKJIRO_LOCAL 주거` 인 `3609` 는 `savedAi=60` 이고, `교육·직업훈련` 도 `3287=0`, `3108=20` 으로 갈립니다. 따라서 현재 next immediate bounded step은 category bonus나 AI global patch가 아니라, **zero row와 same source/category positive peer의 입력 신호 차이**를 보는 `AI input contrast audit` 으로 두는 편이 맞습니다.
 
+그리고 `AI input / prompt line / reason contrast` 까지 다시 보면, `3257/3209` 는 “청년 신호가 아예 안 보여서 0점” 쪽보다는 **수급자/신혼부부 같은 primary audience를 현재 사용자와 직접 불일치로 읽는 케이스** 에 가깝습니다. prompt line에 `생애주기/대상군` 을 추가한 뒤에도 `3257` 은 `소득 5분위라 저소득층 지원과 맞지 않음`, `3209` 는 `미혼이라 신혼부부 지원과 맞지 않음` 으로 0점 reason이 유지됐고, 대신 `3288` 은 `0 -> 70` 으로 일부 완화됐습니다. 따라서 다음 immediate bounded step은 broad prompt 재설계가 아니라, **이 primary audience mismatch를 실제 product exclusion으로 볼지, 아니면 AI over-exclusion으로 완화할지 결정하는 제품 판단** 입니다.
+
 ## lane 1 에서 아직 안 할 일
 
 1. global source bonus

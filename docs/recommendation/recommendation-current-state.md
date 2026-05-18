@@ -128,6 +128,8 @@
 
 그리고 `2026-05-18` server `ai zero contrast audit` 결과로 `3257` 류 `savedAi=0` 은 source-wide나 category-wide 현상이 아니라 **선택적 패턴** 임이 더 좁혀졌습니다. fresh top 안에서 `ai_zero_count=3`, `ai_positive_count=11` 이고, `BOKJIRO_LOCAL 주거` 안에서도 `3257/3209` 는 `savedAi=0` 인 반면 `3609` 는 `savedAi=60` 이었습니다. `교육·직업훈련` 도 `3287=0`, `3108=20` 으로 갈렸습니다. 즉 다음 immediate bounded step은 category bonus나 global prompt 변경이 아니라, **zero row와 same source/category positive peer의 입력 신호 차이를 나란히 보는 `AI input contrast audit`** 입니다.
 
+그리고 `2026-05-18` server `ai input contrast / prompt line contrast / ai reason contrast` 까지 다시 태운 결과, `3257/3209` 는 structured signal이 빈약해서 0점인 쪽이 아니라 **AI가 primary audience mismatch를 직접 0점 이유로 적는 케이스** 로 좁혀졌습니다. `3257` 은 `savedAi=0`, reason=`저소득층을 위한 지원으로 소득 5분위인 사용자에게는 적합하지 않음`, `3209` 는 `신혼부부 대상의 지원으로 미혼인 사용자에게는 해당되지 않음` 으로 저장됐습니다. 같은 `BOKJIRO_LOCAL 주거` 인 `3609` 는 `savedAi=60` 이고 reason도 “미취업 상태에서는 직접적인 혜택이 적을 수 있음” 수준이라, 이번 prompt line 보강은 `3288` 처럼 일부 row를 0점 밖으로 끌어내리는 효과는 있었지만 `3257/3209` 핵심 케이스를 뒤집지는 못했습니다. 즉 현재 남은 문제는 prompt에 청년 신호가 안 보이는 것이 아니라, **AI가 수급자/신혼부부/학생 같은 대상군 불일치를 강한 exclusion으로 해석하는 것**입니다.
+
 ## 현재 scoring 기준
 
 ### rule score
