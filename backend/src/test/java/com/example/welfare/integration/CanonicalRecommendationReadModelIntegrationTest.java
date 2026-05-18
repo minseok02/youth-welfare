@@ -119,6 +119,38 @@ class CanonicalRecommendationReadModelIntegrationTest {
         insertSummarySlot(createdServiceId, "PROVISION_METHOD", "slot-provision");
         insertSummarySlot(createdServiceId, "GOV24_SERVICE_FIELD", "slot-service-field");
         insertSummarySlot(createdServiceId, "GOV24_BENEFIT_TYPE", "slot-benefit-type");
+        jdbcTemplate.update("""
+                INSERT INTO service_facts (
+                    service_id,
+                    fact_group,
+                    fact_code_set_key,
+                    fact_code,
+                    fact_merge_key,
+                    fact_label,
+                    operator,
+                    value_type,
+                    text_value,
+                    source_field,
+                    authority,
+                    confidence,
+                    raw_value,
+                    evidence_text
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                createdServiceId,
+                "INCOME",
+                "YOUTH_INCOME_CONDITION_TYPE",
+                "0043002",
+                "YOUTH_INCOME_CONDITION_TYPE",
+                "소득조건 구분",
+                "EQ",
+                "STRING",
+                "연소득",
+                "earnCndSeCd",
+                "OFFICIAL",
+                1.0,
+                "0043002",
+                "연소득");
 
         Map<Long, RecommendationCandidateProjection> projections =
                 canonicalRecommendationReadModelRepository.findByServiceIds(List.of(createdServiceId));
@@ -132,6 +164,9 @@ class CanonicalRecommendationReadModelIntegrationTest {
         assertThat(projection.gov24ServiceFieldLabel()).isEqualTo("slot-service-field");
         assertThat(projection.gov24UserTypeLabel()).isEqualTo("legacy-user-type");
         assertThat(projection.gov24BenefitTypeLabel()).isEqualTo("slot-benefit-type");
+        assertThat(projection.youthIncomeConditionTypeCode()).isEqualTo("0043002");
+        assertThat(projection.youthIncomeConditionTypeLabel()).isEqualTo("연소득");
+        assertThat(projection.factKeys()).contains("YOUTH_INCOME_CONDITION_TYPE");
     }
 
     private void insertSummarySlot(Long serviceId, String slotKey, String slotLabel) {

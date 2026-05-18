@@ -28,6 +28,8 @@ public record RecommendationCandidateProjection(
         String gov24BenefitTypeLabel,
         List<String> gov24UserTypeTokens,
         List<String> gov24BenefitTypeTokens,
+        String youthIncomeConditionTypeCode,
+        String youthIncomeConditionTypeLabel,
         String title,
         String summary,
         Integer minAge,

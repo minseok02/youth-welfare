@@ -1237,6 +1237,8 @@ class AdminSecurityWebMvcTest {
                                 "기타",
                                 List.of(),
                                 List.of(),
+                                null,
+                                null,
                                 true,
                                 false,
                                 true,
@@ -1275,6 +1277,8 @@ class AdminSecurityWebMvcTest {
                                 "기타",
                                 List.of("개인", "가구"),
                                 List.of("현금", "서비스(의료)"),
+                                "0043002",
+                                "연소득",
                                 true,
                                 false,
                                 true,
@@ -1327,6 +1331,8 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.data.services[1].serviceId").value(2736))
                 .andExpect(jsonPath("$.data.services[1].gov24UserTypeTokens[0]").value("개인"))
                 .andExpect(jsonPath("$.data.services[1].gov24BenefitTypeTokens[1]").value("서비스(의료)"))
+                .andExpect(jsonPath("$.data.services[1].youthIncomeConditionTypeCode").value("0043002"))
+                .andExpect(jsonPath("$.data.services[1].youthIncomeConditionTypeLabel").value("연소득"))
                 .andExpect(jsonPath("$.data.services[1].inMergedCandidates").value(true))
                 .andExpect(jsonPath("$.data.services[1].inLatestSavedBatch").value(false))
                 .andExpect(jsonPath("$.data.services[1].dropStage").value("SCORED_BUT_NOT_IN_SAVED_BATCH"));

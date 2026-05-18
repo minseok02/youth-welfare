@@ -63,7 +63,12 @@ public class CanonicalRecommendationReadModelRepository {
             if (projection == null) {
                 continue;
             }
-            projection.addFactKey(stringValue(row.get("fact_merge_key")));
+            projection.addFact(
+                    stringValue(row.get("fact_merge_key")),
+                    stringValue(row.get("fact_code_set_key")),
+                    stringValue(row.get("fact_code")),
+                    stringValue(row.get("text_value"))
+            );
         }
 
         LinkedHashMap<Long, RecommendationCandidateProjection> result = new LinkedHashMap<>();
@@ -195,7 +200,10 @@ public class CanonicalRecommendationReadModelRepository {
     private List<Map<String, Object>> factRows(MapSqlParameterSource params) {
         return namedParameterJdbcTemplate.queryForList("""
                 SELECT service_id,
-                       fact_merge_key
+                       fact_merge_key,
+                       fact_code_set_key,
+                       fact_code,
+                       text_value
                 FROM service_facts
                 WHERE service_id IN (:serviceIds)
                 ORDER BY service_id, fact_merge_key
@@ -252,6 +260,8 @@ public class CanonicalRecommendationReadModelRepository {
         private final String gov24ServiceFieldLabel;
         private final String gov24UserTypeLabel;
         private final String gov24BenefitTypeLabel;
+        private String youthIncomeConditionTypeCode;
+        private String youthIncomeConditionTypeLabel;
         private final String title;
         private final String summary;
         private final Integer minAge;
@@ -353,9 +363,13 @@ public class CanonicalRecommendationReadModelRepository {
             RecommendationProjectionHeuristicSupport.collectSpecialTargetBuckets(specialTargetBuckets, termLabel);
         }
 
-        void addFactKey(String factMergeKey) {
+        void addFact(String factMergeKey, String factCodeSetKey, String factCode, String textValue) {
             if (factMergeKey != null && !factMergeKey.isBlank()) {
                 factKeys.add(factMergeKey);
+            }
+            if ("YOUTH_INCOME_CONDITION_TYPE".equals(factCodeSetKey)) {
+                youthIncomeConditionTypeCode = factCode;
+                youthIncomeConditionTypeLabel = textValue;
             }
         }
 
@@ -377,6 +391,8 @@ public class CanonicalRecommendationReadModelRepository {
                     .gov24BenefitTypeLabel(gov24BenefitTypeLabel)
                     .gov24UserTypeTokens(Gov24LabelTokenSupport.userTypeTokens(gov24UserTypeLabel))
                     .gov24BenefitTypeTokens(Gov24LabelTokenSupport.benefitTypeTokens(gov24BenefitTypeLabel))
+                    .youthIncomeConditionTypeCode(youthIncomeConditionTypeCode)
+                    .youthIncomeConditionTypeLabel(youthIncomeConditionTypeLabel)
                     .title(title)
                     .summary(summary)
                     .minAge(minAge)

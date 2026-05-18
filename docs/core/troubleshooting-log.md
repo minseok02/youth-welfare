@@ -4724,3 +4724,19 @@
   - 따라서 이 단계에서 retrieval/recommendation gate로 바로 연결하면 의미를 과대해석할 위험이 있다.
   - 반대로 observation-only official fact로 저장해 두면, 나중에 admin/read-model에서 설명과 분석에는 쓸 수 있고, hard gate로 오해한 채 로직을 뒤틀 일도 막을 수 있다.
   - merge key를 code별 fan-out으로 만들지 않고 단일 축으로 둔 이유도 같다. 현재 데이터가 scalar인 상태에서 code가 바뀔 때 old fact가 누적되는 것보다, “현재 공식 값 하나를 정확히 반영”하는 편이 더 안전하다.
+
+## 847) `YOUTH_INCOME_CONDITION_TYPE` 은 저장 직후 internal diagnostics까지만 연결하는 편이 안전하다
+- 문제: `earnCndSeCd` fact를 저장하는 단계까지 닫은 뒤, 다음으로 어디까지 노출할지 결정해야 했다. 곧바로 public policy/recommendation response나 retrieval/recommendation rule에 연결하면 “연소득” 같은 값이 실제 income threshold처럼 읽히거나, 일반 사용자에게 지나치게 강한 eligibility 신호로 보일 수 있다. 반대로 아무 데도 노출하지 않으면 collect/persistence는 됐지만 운영자가 값이 실제로 read-model까지 올라오는지 확인할 수 없다.
+- 확인:
+  - 현재 collect 단계에서 저장되는 값은 `fact_code_set_key=YOUTH_INCOME_CONDITION_TYPE`, `fact_code=0043001|0043002|0043003`, `text_value=무관|연소득|기타` 형태다.
+  - 이 값은 `earnMinAmt/earnMaxAmt` 와 달리 상·하한 수치가 아니라 source가 주는 **소득조건 유형 라벨** 이다.
+  - admin recommendation diagnostics는 이미 source/category/fact key 관측용 내부 API로 쓰고 있고, public contract와 추천 점수 경계에서 분리돼 있다.
+- 해결:
+  - `CanonicalRecommendationReadModelRepository` 가 `service_facts` 에서 `fact_code_set_key`, `fact_code`, `text_value` 까지 읽도록 넓혔다.
+  - `RecommendationCandidateProjection` 에 `youthIncomeConditionTypeCode`, `youthIncomeConditionTypeLabel` 을 추가했다.
+  - admin `recommendation-diagnostics` 응답에도 같은 필드를 노출해, 운영자가 특정 서비스의 `earnCndSeCd` 저장/해석 결과를 바로 볼 수 있게 했다.
+  - 반면 public policy/recommendation response, retrieval filter, recommendation scoring은 이번 단계에서 그대로 유지했다.
+- 이유:
+  - 이번 단계의 목표는 “새 fact가 저장되는가” 다음에 “운영자가 그것을 실제로 읽을 수 있는가”를 닫는 것이다.
+  - internal diagnostics까지만 열면 저장/관찰 경계는 닫히면서도, 일반 사용자 UX나 추천 규칙에 소득조건 유형을 과대투영하지 않는다.
+  - 이 분리를 문서에 남겨 두면, 이후 public 노출이나 scoring 소비를 열 때 “이미 internal observation 단계는 끝났다”는 전제가 생겨 단계별 판단이 쉬워진다.

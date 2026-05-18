@@ -114,6 +114,12 @@ future fact scope에서 multi-code를 잘못된 단일값으로 오해하지 않
 이번 단계에서는 `YOUTH_INCOME_CONDITION_TYPE` 을 별도 official fact로만 저장하고 추천/검색 gate에는 연결하지 않았다.
 중요한 경계는 이것이 `earnMinAmt/earnMaxAmt` 를 대체하는 hard income rule이 아니라, 소득조건 **유형 설명 fact** 라는 점이다.
 merge key도 code별 fan-out 대신 단일 `YOUTH_INCOME_CONDITION_TYPE` 으로 유지해, 향후 source 값이 바뀌더라도 stale fact가 누적되지 않게 했다.
+그 다음 단계로 이 fact는 public 응답이 아니라 internal read-model/projection 경계에만 노출했다.
+현재 `RecommendationCandidateProjection` 과 admin `recommendation-diagnostics` 는
+`youthIncomeConditionTypeCode`, `youthIncomeConditionTypeLabel` 을 읽을 수 있지만,
+recommendation scoring, retrieval filter, public policy/recommendation response는 아직 이 값을 소비하지 않는다.
+의도는 “값이 저장되는가” 다음에 바로 “운영자가 읽을 수 있는가”를 닫되,
+일반 사용자 UX나 추천 규칙에 의미를 과대투영하지 않는 것이다.
 
 ## 2. `YOUTH_MID_RAW_ALIAS` 현재 상태
 
