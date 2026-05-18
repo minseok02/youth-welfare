@@ -17,6 +17,8 @@ import org.springframework.web.reactive.function.client.WebClient;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -245,6 +247,8 @@ public class RealtimeAiGateway implements AiRecommendationGateway {
         appendPromptField(line, "정책분야", resolveYouthMajorLabel(candidate));
         appendPromptField(line, "세부분야", resolveYouthMidLabel(candidate));
         appendPromptField(line, "제공방식", resolveProvisionMethodLabel(candidate));
+        appendPromptField(line, "생애주기", resolveLifeStagesLabel(candidate));
+        appendPromptField(line, "대상군", resolveTargetGroupsLabel(candidate));
         appendPromptField(line, "서비스분야", resolveGov24ServiceFieldLabel(candidate));
         appendPromptField(line, "이용대상", resolveGov24UserTypeLabel(candidate));
         appendPromptField(line, "지원유형", resolveGov24BenefitTypeLabel(candidate));
@@ -271,6 +275,14 @@ public class RealtimeAiGateway implements AiRecommendationGateway {
         return candidate.getProjection() != null ? candidate.getProjection().provisionMethodLabel() : null;
     }
 
+    static String resolveLifeStagesLabel(ScoredCandidate candidate) {
+        return joinSorted(candidate.getProjection() != null ? candidate.getProjection().lifeStages() : Set.of());
+    }
+
+    static String resolveTargetGroupsLabel(ScoredCandidate candidate) {
+        return joinSorted(candidate.getProjection() != null ? candidate.getProjection().targetGroupsRaw() : Set.of());
+    }
+
     static String resolveGov24ServiceFieldLabel(ScoredCandidate candidate) {
         return candidate.getProjection() != null ? candidate.getProjection().gov24ServiceFieldLabel() : null;
     }
@@ -288,6 +300,20 @@ public class RealtimeAiGateway implements AiRecommendationGateway {
             return;
         }
         line.append(" | ").append(label).append(':').append(value);
+    }
+
+    private static String joinSorted(Set<String> values) {
+        if (values == null || values.isEmpty()) {
+            return null;
+        }
+        List<String> normalized = new ArrayList<>(values.stream()
+                .filter(value -> value != null && !value.isBlank())
+                .toList());
+        if (normalized.isEmpty()) {
+            return null;
+        }
+        normalized.sort(Comparator.naturalOrder());
+        return String.join(", ", normalized);
     }
 
     private AiCallResult callOpenAi(String userPrompt, Long replaySeed) {

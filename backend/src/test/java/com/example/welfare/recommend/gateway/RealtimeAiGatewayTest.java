@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -129,6 +130,8 @@ class RealtimeAiGatewayTest {
                         .youthMajorLabel("주거")
                         .youthMidLabel("전월세 및 주거급여 지원")
                         .provisionMethodLabel("온라인")
+                        .lifeStages(Set.of("청년", "중장년"))
+                        .targetGroupsRaw(Set.of("저소득", "청년"))
                         .gov24ServiceFieldLabel("보육")
                         .gov24UserTypeLabel("청년")
                         .gov24BenefitTypeLabel("서비스")
@@ -144,6 +147,8 @@ class RealtimeAiGatewayTest {
                 .contains("정책분야:주거")
                 .contains("세부분야:전월세 및 주거급여 지원")
                 .contains("제공방식:온라인")
+                .contains("생애주기:중장년, 청년")
+                .contains("대상군:저소득, 청년")
                 .contains("서비스분야:보육")
                 .contains("이용대상:청년")
                 .contains("지원유형:서비스")
@@ -164,6 +169,8 @@ class RealtimeAiGatewayTest {
                         .youthMajorLabel("")
                         .youthMidLabel(null)
                         .provisionMethodLabel(" ")
+                        .lifeStages(Set.of("", " "))
+                        .targetGroupsRaw(Set.of())
                         .gov24ServiceFieldLabel("")
                         .gov24UserTypeLabel(" ")
                         .gov24BenefitTypeLabel(null)
@@ -179,6 +186,8 @@ class RealtimeAiGatewayTest {
                 .doesNotContain("정책분야:")
                 .doesNotContain("세부분야:")
                 .doesNotContain("제공방식:")
+                .doesNotContain("생애주기:")
+                .doesNotContain("대상군:")
                 .doesNotContain("서비스분야:")
                 .doesNotContain("이용대상:")
                 .doesNotContain("지원유형:");
