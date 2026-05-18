@@ -187,3 +187,19 @@ LIMIT 20;
 - 429 발생 시 다음 실행 시점까지 source 단위 쿨다운
 - 소스별 마지막 성공 시각/마지막 성공 건수 대시보드화
 - 운영 계정 quota(`중앙/지자체 각각 100,000`) 기준 복지로 detail gap fill / refresh 실표본 재검증
+
+## 운영 baseline wrapper
+
+수집 lane 운영 surface를 서버에서 다시 볼 때는 아래 wrapper를 같이 씁니다.
+
+- [ops-baseline-runbook.md](../core/ops-baseline-runbook.md)
+- `bash deploy/smoke/run-local-ops-baseline-suite.sh`
+
+이 wrapper는
+
+- health
+- admin dashboard summary
+- admin `collect-failures`
+- admin recommendation breakdowns
+
+를 한 번에 다시 확인합니다.

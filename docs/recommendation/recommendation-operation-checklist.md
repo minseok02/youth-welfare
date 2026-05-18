@@ -199,6 +199,11 @@ Gov24 source 자체가 구조적으로 억눌리는지 빠르게 확인할 때�
 
 - `deploy/smoke/run-local-real-user-readiness-check.sh`
 
+운영 surface를 더 넓게 다시 볼 때는 아래 baseline suite도 같이 씁니다.
+
+- [ops-baseline-runbook.md](../core/ops-baseline-runbook.md)
+- `deploy/smoke/run-local-ops-baseline-suite.sh`
+
 이 단계에서는
 
 - `REAL_USER users >= 3`

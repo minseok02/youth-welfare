@@ -41,6 +41,7 @@
 - [testing.md](core/testing.md)
 - [local-validation-docs-index.md](core/local-validation-docs-index.md)
 - [system-docs-index.md](core/system-docs-index.md)
+- [ops-baseline-runbook.md](core/ops-baseline-runbook.md)
 - [history-docs-index.md](./history-docs-index.md)
 - [documentation-map.md](./documentation-map.md)
 

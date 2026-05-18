@@ -6,6 +6,7 @@
 - `2026-05-18` 기준 YOUTH official fact는 `admin diagnostics`, 정책 상세 read-only, 정책 목록 compact badge, admin recommendation facet까지 연결됐고, retrieval/filter/scoring은 아직 안 건드렸습니다.
 - `2026-05-18` 기준 Gov24 token도 `diagnostics`, admin recommendation facet까지 연결됐고, public filter/scoring은 아직 안 건드렸습니다.
 - `2026-05-18` 기준 collect/runtime governance도 한 단계 더 닫혔습니다. `admin/dashboard/collect-failures` 는 이제 실패/partial/streak/circuit 뿐 아니라 `nightly vs manual collect lane inventory`, lane별 `마지막 실행 요약`, `budget/config summary` 를 같이 내려, 어떤 source가 왜 scheduled/manual 인지와 최근 실행 결과, pacing/budget/retry guard를 운영 화면에서 바로 읽을 수 있습니다.
+- `2026-05-18` 기준 운영 read-only 기준선도 one-shot wrapper로 묶였습니다. `deploy/smoke/run-local-ops-baseline-suite.sh` 는 `health -> admin dashboard -> collect failures -> recommendation breakdowns` 를 한 번에 다시 확인합니다.
 - 지금 우선순위는 기능 검증, 구조 검증, 수정, 최적화/보안, 프론트 연동 검증 순서입니다.
 - 운영/배포 관련 작업은 마지막 단계에서만 다룹니다.
 - 현재는 `YOUTH/Gov24 소비처 추가` 와 `collect/runtime governance` 1차 정리가 모두 닫힌 상태입니다.
@@ -40,6 +41,7 @@
 - 정책 문서군 진입점: [policy-docs-index.md](policy/policy-docs-index.md)
 - 공통 로컬 검증 문서군 진입점: [local-validation-docs-index.md](core/local-validation-docs-index.md)
 - 서버 런타임 drift 체크리스트: [server-runtime-drift-checklist.md](core/server-runtime-drift-checklist.md)
+- 운영 baseline wrapper: [ops-baseline-runbook.md](core/ops-baseline-runbook.md)
 - 시스템 문서군 진입점: [system-docs-index.md](core/system-docs-index.md)
 - 히스토리 문서군 진입점: [history-docs-index.md](./history-docs-index.md)
 - 인증/세션: [auth-session-revocation-current-state.md](auth/auth-session-revocation-current-state.md)
