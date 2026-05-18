@@ -117,6 +117,7 @@ public final class YouthNormalizationSupport {
                 "신청 종료일", service.getApplyEndDate(),
                 NormalizationKeySupport.SOURCE_FIELD_YOUTH_APPLY_END_DATE, NormalizedPolicyAggregate.Authority.OFFICIAL, BigDecimal.ONE, null);
         addEmploymentRequirementFact(facts, item);
+        addSpecialRequirementFact(facts, item);
         addIncomeConditionTypeFact(facts, item);
         return facts;
     }
@@ -337,6 +338,36 @@ public final class YouthNormalizationSupport {
                 .valueType(NormalizedPolicyAggregate.ValueType.STRING)
                 .textValue(canonicalLabels)
                 .sourceField(NormalizationKeySupport.SOURCE_FIELD_YOUTH_EMPLOYMENT_REQUIREMENT)
+                .authority(NormalizedPolicyAggregate.Authority.OFFICIAL)
+                .confidence(BigDecimal.ONE)
+                .rawValue(canonicalCodes)
+                .evidenceText(canonicalLabels)
+                .build());
+    }
+
+    private static void addSpecialRequirementFact(List<NormalizedPolicyAggregate.Fact> facts, YouthApiDto.Item item) {
+        if (item == null) {
+            return;
+        }
+
+        List<String> codes = YouthOfficialCodeSupport.resolveSpecialRequirementCodes(item.getSbizCd());
+        List<String> labels = YouthOfficialCodeSupport.resolveSpecialRequirementLabels(item.getSbizCd());
+        if (codes.isEmpty() || labels.isEmpty()) {
+            return;
+        }
+
+        String canonicalCodes = String.join(",", codes);
+        String canonicalLabels = String.join(", ", labels);
+        facts.add(NormalizedPolicyAggregate.Fact.builder()
+                .factGroup(NormalizationKeySupport.FACT_GROUP_SPECIAL_REQUIREMENT)
+                .factCodeSetKey(NormalizationKeySupport.FACT_CODE_YOUTH_SPECIAL_REQUIREMENT)
+                .factCode(canonicalCodes)
+                .factMergeKey(NormalizationKeySupport.FACT_MERGE_KEY_YOUTH_SPECIAL_REQUIREMENT)
+                .factLabel("특화 요건")
+                .operator(NormalizedPolicyAggregate.Operator.MEMBER)
+                .valueType(NormalizedPolicyAggregate.ValueType.STRING)
+                .textValue(canonicalLabels)
+                .sourceField(NormalizationKeySupport.SOURCE_FIELD_YOUTH_SPECIAL_REQUIREMENT)
                 .authority(NormalizedPolicyAggregate.Authority.OFFICIAL)
                 .confidence(BigDecimal.ONE)
                 .rawValue(canonicalCodes)

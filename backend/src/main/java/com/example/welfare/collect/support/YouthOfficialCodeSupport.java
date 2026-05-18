@@ -84,6 +84,10 @@ public final class YouthOfficialCodeSupport {
         return resolveOfficialLabels(rawCodeCsv, SPECIAL_REQUIREMENT_LABELS);
     }
 
+    public static List<String> resolveSpecialRequirementCodes(String rawCodeCsv) {
+        return resolveOfficialCodes(rawCodeCsv, SPECIAL_REQUIREMENT_LABELS);
+    }
+
     private static List<String> resolveOfficialLabels(String rawCodeCsv, Map<String, String> labelsByCode) {
         List<String> resolved = new ArrayList<>();
         for (String code : splitOfficialCodes(rawCodeCsv)) {

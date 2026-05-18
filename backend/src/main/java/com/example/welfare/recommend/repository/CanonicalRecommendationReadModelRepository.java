@@ -263,6 +263,8 @@ public class CanonicalRecommendationReadModelRepository {
         private final String gov24BenefitTypeLabel;
         private final Set<String> youthEmploymentRequirementCodes = new LinkedHashSet<>();
         private final Set<String> youthEmploymentRequirementLabels = new LinkedHashSet<>();
+        private final Set<String> youthSpecialRequirementCodes = new LinkedHashSet<>();
+        private final Set<String> youthSpecialRequirementLabels = new LinkedHashSet<>();
         private String youthIncomeConditionTypeCode;
         private String youthIncomeConditionTypeLabel;
         private final String title;
@@ -374,6 +376,10 @@ public class CanonicalRecommendationReadModelRepository {
                 youthEmploymentRequirementCodes.addAll(YouthOfficialCodeSupport.splitCsvValues(factCode));
                 youthEmploymentRequirementLabels.addAll(YouthOfficialCodeSupport.splitCsvValues(textValue));
             }
+            if ("YOUTH_SPECIAL_REQUIREMENT".equals(factCodeSetKey)) {
+                youthSpecialRequirementCodes.addAll(YouthOfficialCodeSupport.splitCsvValues(factCode));
+                youthSpecialRequirementLabels.addAll(YouthOfficialCodeSupport.splitCsvValues(textValue));
+            }
             if ("YOUTH_INCOME_CONDITION_TYPE".equals(factCodeSetKey)) {
                 youthIncomeConditionTypeCode = factCode;
                 youthIncomeConditionTypeLabel = textValue;
@@ -400,6 +406,8 @@ public class CanonicalRecommendationReadModelRepository {
                     .gov24BenefitTypeTokens(Gov24LabelTokenSupport.benefitTypeTokens(gov24BenefitTypeLabel))
                     .youthEmploymentRequirementCodes(List.copyOf(youthEmploymentRequirementCodes))
                     .youthEmploymentRequirementLabels(List.copyOf(youthEmploymentRequirementLabels))
+                    .youthSpecialRequirementCodes(List.copyOf(youthSpecialRequirementCodes))
+                    .youthSpecialRequirementLabels(List.copyOf(youthSpecialRequirementLabels))
                     .youthIncomeConditionTypeCode(youthIncomeConditionTypeCode)
                     .youthIncomeConditionTypeLabel(youthIncomeConditionTypeLabel)
                     .title(title)

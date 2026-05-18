@@ -40,6 +40,8 @@ class YouthOfficialCodeSupportTest {
     void resolveSpecialRequirementLabels_handlesScalarAndUnknownCodes() {
         assertThat(YouthOfficialCodeSupport.resolveSpecialRequirementLabels("0014008,9999999,0014010"))
                 .containsExactly("지역인재", "제한없음");
+        assertThat(YouthOfficialCodeSupport.resolveSpecialRequirementCodes("0014008,9999999,0014010,0014008"))
+                .containsExactly("0014008", "0014010");
     }
 
     @Test

@@ -76,6 +76,7 @@ class NormalizedPolicySidecarPersistenceIntegrationTest {
                 "취업,문화활동 및 생활지원",
                 "청년일자리,직무훈련",
                 "0013003,0013006",
+                "0014003,0014008",
                 19,
                 34,
                 0,
@@ -93,6 +94,7 @@ class NormalizedPolicySidecarPersistenceIntegrationTest {
                 "재직자",
                 "청년일자리",
                 "0013001",
+                "0014010",
                 20,
                 39,
                 0,
@@ -146,7 +148,7 @@ class NormalizedPolicySidecarPersistenceIntegrationTest {
                 ORDER BY fact_merge_key
                 """, saved.getId());
 
-        assertThat(facts).hasSize(6);
+        assertThat(facts).hasSize(7);
         assertThat(facts).anySatisfy(row -> {
             assertThat(row.get("fact_merge_key")).isEqualTo("YOUTH_AGE_ELIGIBILITY");
             assertThat(row.get("operator")).isEqualTo("RANGE");
@@ -177,6 +179,13 @@ class NormalizedPolicySidecarPersistenceIntegrationTest {
             assertThat(row.get("operator")).isEqualTo("EQ");
             assertThat(row.get("text_value")).isEqualTo("연소득");
         });
+        assertThat(facts).anySatisfy(row -> {
+            assertThat(row.get("fact_merge_key")).isEqualTo("YOUTH_SPECIAL_REQUIREMENT");
+            assertThat(row.get("fact_code_set_key")).isEqualTo("YOUTH_SPECIAL_REQUIREMENT");
+            assertThat(row.get("fact_code")).isEqualTo("0014010");
+            assertThat(row.get("operator")).isEqualTo("MEMBER");
+            assertThat(row.get("text_value")).isEqualTo("제한없음");
+        });
     }
 
     private YouthApiDto.Item youthItem(String sourceId,
@@ -184,6 +193,7 @@ class NormalizedPolicySidecarPersistenceIntegrationTest {
                                        String mid,
                                        String keywords,
                                        String employmentRequirementCodes,
+                                       String specialRequirementCodes,
                                        Integer minAge,
                                        Integer maxAge,
                                        Integer minIncome,
@@ -199,6 +209,7 @@ class NormalizedPolicySidecarPersistenceIntegrationTest {
         ReflectionTestUtils.setField(item, "mclsfNm", mid);
         ReflectionTestUtils.setField(item, "plcyKywdNm", keywords);
         ReflectionTestUtils.setField(item, "jobCd", employmentRequirementCodes);
+        ReflectionTestUtils.setField(item, "sbizCd", specialRequirementCodes);
         ReflectionTestUtils.setField(item, "sprvsnInstCdNm", "고용노동부");
         ReflectionTestUtils.setField(item, "operInstCdNm", "청년센터");
         ReflectionTestUtils.setField(item, "sprtTrgtMinAge", minAge);

@@ -4808,3 +4808,36 @@
 - 이유:
   - 이번 단계의 목적은 `jobCd` 가 public UX나 추천 점수에 쓰이는지 확인하는 것이 아니라, aggregate observation shape가 서버 실데이터에서도 살아 있는지 닫는 것이다.
   - multi-code fact가 DB에 실제로 남고, diagnostics도 최소 single-code 리스트를 읽는 것이 확인됐으므로, 다음 판단은 저장 경계가 아니라 **소비 경계** 로 이동한다.
+
+## 851) `sbizCd` 는 signal/위험 비율이 좋아 세 번째 official observation fact 후보로 적합하다
+- 문제: `jobCd` 와 `earnCndSeCd` 를 닫은 뒤 다음 official fact 후보를 골라야 했다. `schoolCd` 는 signal은 있지만 multi-code가 `149건` 으로 커서 즉시 fan-out/aggregate 규칙을 넓히기 부담스럽고, `mrgSttsCd` 는 scalar지만 signal이 약하다. 반면 `sbizCd` 는 공식 문서상 특화요건코드이고 의미도 직접적인데, 정확히 어느 정도 신호와 multi-code 비용이 있는지 기준이 필요했다.
+- 확인:
+  - local `LIST raw` 기준
+    - `sbizCd signal_rows = 325`
+    - `sbizCd multi_code_rows = 25`
+  - 관측 코드 의미:
+    - `0014001 중소기업`
+    - `0014002 여성`
+    - `0014003 기초생활수급자`
+    - `0014004 한부모가정`
+    - `0014005 장애인`
+    - `0014006 농업인`
+    - `0014007 군인`
+    - `0014008 지역인재`
+    - `0014009 기타`
+    - `0014010 제한없음`
+  - 즉 `schoolCd` 보다 multi-code 비용이 낮고, `jobCd` 보다 대상 의미가 더 바로 읽힌다.
+- 해결:
+  - `YOUTH_SPECIAL_REQUIREMENT` 를 `jobCd` 와 같은 **aggregate observation fact** 로 추가했다.
+  - shape:
+    - `fact_code_set_key = YOUTH_SPECIAL_REQUIREMENT`
+    - `fact_merge_key = YOUTH_SPECIAL_REQUIREMENT`
+    - `fact_code = 0014003,0014008`
+    - `text_value = 기초생활수급자, 지역인재`
+    - `operator = MEMBER`
+    - `source_field = sbizCd`
+  - internal read-model/projection 과 admin diagnostics에도 `youthSpecialRequirementCodes`, `youthSpecialRequirementLabels` 를 추가했다.
+  - public policy/recommendation response, retrieval filter, scoring은 그대로 유지한다.
+- 이유:
+  - 이번 단계의 목적은 특화요건 신호를 사용자-facing 규칙으로 바로 쓰는 것이 아니라, official code 의미를 잃지 않고 **관찰 가능하게 만들기**다.
+  - `sbizCd` 는 지금 단계에서 value-density와 해석 가능성의 균형이 가장 좋다. 따라서 code import/backfill이나 fan-out redesign을 다시 열지 않고도 다음 운영 관찰 축으로 올릴 수 있다.

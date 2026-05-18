@@ -33,6 +33,7 @@ class NormalizedPolicyAggregateTest {
         setField(item, "earnMinAmt", 0);
         setField(item, "earnMaxAmt", 100);
         setField(item, "jobCd", "0013003,0013006");
+        setField(item, "sbizCd", "0014003,0014008");
         setField(item, "earnCndSeCd", "0043002");
         setField(item, "aplyYmd", "20260101 ~ 20261231");
         setField(item, "plcyPvsnMthdCd", "0042006");
@@ -86,6 +87,14 @@ class NormalizedPolicyAggregateTest {
                     assertThat(fact.factCode()).isEqualTo("0043002");
                     assertThat(fact.textValue()).isEqualTo("연소득");
                     assertThat(fact.factCodeSetKey()).isEqualTo("YOUTH_INCOME_CONDITION_TYPE");
+                });
+        assertThat(aggregate.facts())
+                .filteredOn(fact -> "YOUTH_SPECIAL_REQUIREMENT".equals(fact.factMergeKey()))
+                .singleElement()
+                .satisfies(fact -> {
+                    assertThat(fact.factCode()).isEqualTo("0014003,0014008");
+                    assertThat(fact.textValue()).isEqualTo("기초생활수급자, 지역인재");
+                    assertThat(fact.factCodeSetKey()).isEqualTo("YOUTH_SPECIAL_REQUIREMENT");
                 });
     }
 

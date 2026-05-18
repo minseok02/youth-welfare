@@ -183,6 +183,38 @@ class CanonicalRecommendationReadModelIntegrationTest {
                 1.0,
                 "0013003,0013006",
                 "미취업자, (예비)창업자");
+        jdbcTemplate.update("""
+                INSERT INTO service_facts (
+                    service_id,
+                    fact_group,
+                    fact_code_set_key,
+                    fact_code,
+                    fact_merge_key,
+                    fact_label,
+                    operator,
+                    value_type,
+                    text_value,
+                    source_field,
+                    authority,
+                    confidence,
+                    raw_value,
+                    evidence_text
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                createdServiceId,
+                "SPECIAL_REQUIREMENT",
+                "YOUTH_SPECIAL_REQUIREMENT",
+                "0014003,0014008",
+                "YOUTH_SPECIAL_REQUIREMENT",
+                "특화 요건",
+                "MEMBER",
+                "STRING",
+                "기초생활수급자, 지역인재",
+                "sbizCd",
+                "OFFICIAL",
+                1.0,
+                "0014003,0014008",
+                "기초생활수급자, 지역인재");
 
         Map<Long, RecommendationCandidateProjection> projections =
                 canonicalRecommendationReadModelRepository.findByServiceIds(List.of(createdServiceId));
@@ -198,9 +230,12 @@ class CanonicalRecommendationReadModelIntegrationTest {
         assertThat(projection.gov24BenefitTypeLabel()).isEqualTo("slot-benefit-type");
         assertThat(projection.youthEmploymentRequirementCodes()).containsExactly("0013003", "0013006");
         assertThat(projection.youthEmploymentRequirementLabels()).containsExactly("미취업자", "(예비)창업자");
+        assertThat(projection.youthSpecialRequirementCodes()).containsExactly("0014003", "0014008");
+        assertThat(projection.youthSpecialRequirementLabels()).containsExactly("기초생활수급자", "지역인재");
         assertThat(projection.youthIncomeConditionTypeCode()).isEqualTo("0043002");
         assertThat(projection.youthIncomeConditionTypeLabel()).isEqualTo("연소득");
         assertThat(projection.factKeys()).contains("YOUTH_EMPLOYMENT_REQUIREMENT");
+        assertThat(projection.factKeys()).contains("YOUTH_SPECIAL_REQUIREMENT");
         assertThat(projection.factKeys()).contains("YOUTH_INCOME_CONDITION_TYPE");
     }
 

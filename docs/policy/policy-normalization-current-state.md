@@ -138,6 +138,12 @@ admin diagnostics에서도 `serviceId=672` 가 `youthEmploymentRequirementCodes=
 으로 실제 노출되었고, multi-code fact 샘플은 `0013003,0013006,0013009 -> 미취업자, (예비)창업자, 기타` 형태로 DB에 저장되는 것이 확인됐다.
 즉 현재 truth는 `jobCd` 도 raw -> aggregate fact -> internal read-model -> admin diagnostics 경계까지는 닫혔고,
 남은 것은 이 값을 public UX나 추천 규칙으로 소비할지 여부뿐이다.
+그 다음 후보 `sbizCd` 는 `jobCd` 와 같은 fan-out 위험은 있지만 더 좁은 범위에서 열 만하다.
+local `LIST raw` 기준 signal은 `325건`, multi-code는 `25건` 이라 `schoolCd(149건)` 보다 구현 위험이 낮고,
+의미도 `중소기업`, `여성`, `기초생활수급자`, `한부모가정`, `장애인`, `농업인`, `군인`, `지역인재` 처럼 직접적이다.
+그래서 이번 단계에서는 `YOUTH_SPECIAL_REQUIREMENT` 를 역시 fan-out이 아닌 **단일 aggregate observation fact** 로 저장하고,
+internal read-model/projection 과 admin diagnostics에만 `youthSpecialRequirementCodes/Labels` 로 노출한다.
+의도는 특화요건 신호를 잃지 않고 관찰 가능하게 만드는 것이며, public response, retrieval filter, scoring은 그대로 둔다.
 
 ## 2. `YOUTH_MID_RAW_ALIAS` 현재 상태
 
