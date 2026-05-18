@@ -5017,3 +5017,29 @@
 - 이유:
   - 이번 단계 목표는 official fact를 **일반 사용자 상세 UX에 read-only로 연결하는 것**이지, 추천 규칙을 바꾸는 것이 아니다.
   - backend field 노출과 frontend bundle 반영이 모두 확인됐고 rank/score도 unchanged라서, 현재 남은 문제는 저장/배포 경계가 아니라 이 신호를 다음에 어디까지 소비할지의 제품 판단이다.
+
+## 859) 목록 카드는 full label보다 compact read-only badge가 맞다
+- 문제: 상세 페이지까지 YOUTH official fact를 노출한 뒤, 다음 소비처를 정책 목록 카드로 넓히려면 카드 공간 제약을 먼저 해결해야 했다. 상세처럼 `소득조건 유형`, `취업 요건`, `학력 요건`, `특화 요건`, `결혼 상태` full label을 전부 뿌리면 리스트 카드가 금방 과밀해지고, `제한없음`, `무관` 같은 default-like 값까지 반복되면 읽는 가치가 거의 없다.
+- 확인:
+  - `PolicySummaryResponse` 는 현재 `youthMajorLabel`, `youthMidLabel`, `provisionMethodLabel`, `gov24*Label` 정도만 내려준다.
+  - 목록 카드에서 바로 쓸 수 있는 YOUTH official fact는
+    - `youthIncomeConditionTypeLabel`
+    - `youthEmploymentRequirementLabels`
+    - `youthEducationRequirementLabels`
+    - `youthSpecialRequirementLabels`
+    - `youthMaritalStatusLabel`
+    이다.
+  - 하지만 실제 서버 샘플 `serviceId=672` 는 대부분 `제한없음`, `기타` 류라, 아무 suppression 없이 카드에 실으면 noise가 커진다.
+- 해결:
+  - `PolicySummaryResponse` 에는 위 YOUTH official label을 그대로 추가했다.
+  - 프론트 `PoliciesPage` 는 이 raw label을 그대로 쓰지 않고, 카드 전용 compact rule을 둔다.
+    - `제한없음`, `무관` 은 숨김
+    - 남은 라벨만 de-dup
+    - 최대 3개 read-only badge만 노출
+    - `소득조건 유형`, `결혼 상태` 는 scalar라 카드에서 `소득 X`, `결혼 Y` prefix를 붙임
+  - `PolicyRow`, `PolicyCard` 둘 다 같은 badge 규칙을 쓴다.
+  - retrieval/filter, scoring은 그대로 유지한다.
+- 이유:
+  - backend는 official raw label을 손대지 않고, compact 여부는 frontend 표시 규칙으로만 두는 편이 안전하다.
+  - 이 방식이면 상세는 full signal을 유지하고, 목록은 “빨리 훑어보는 탐색”에 맞는 density로 줄일 수 있다.
+  - 즉 이번 단계 목표는 list ranking을 바꾸는 것이 아니라, 이미 닫힌 official fact를 목록 탐색에서도 **읽기 좋은 설명 신호** 로 쓰는 것이다.

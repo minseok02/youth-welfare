@@ -140,7 +140,42 @@ const mapPolicySummary = (policy) => ({
   createdAt: policy.createdAt ?? null,
   registeredAt: policy.registeredAt ?? null,
   lastModifiedAt: policy.lastModifiedAt ?? null,
+  youthOfficialBadges: buildYouthOfficialBadges(policy),
 });
+
+const YOUTH_OFFICIAL_SUPPRESSED = new Set(["제한없음", "무관"]);
+
+const uniqueNonBlank = (values) => {
+  const seen = new Set();
+  return (values ?? [])
+    .map((value) => (typeof value === "string" ? value.trim() : ""))
+    .filter((value) => {
+      if (!value || seen.has(value)) return false;
+      seen.add(value);
+      return true;
+    });
+};
+
+const buildYouthOfficialBadges = (policy) => {
+  if (policy?.sourceType !== "YOUTH") return [];
+
+  const badges = [
+    policy?.youthIncomeConditionTypeLabel && !YOUTH_OFFICIAL_SUPPRESSED.has(policy.youthIncomeConditionTypeLabel)
+      ? `소득 ${policy.youthIncomeConditionTypeLabel}`
+      : null,
+    ...uniqueNonBlank(policy?.youthEmploymentRequirementLabels)
+      .filter((label) => !YOUTH_OFFICIAL_SUPPRESSED.has(label)),
+    ...uniqueNonBlank(policy?.youthEducationRequirementLabels)
+      .filter((label) => !YOUTH_OFFICIAL_SUPPRESSED.has(label)),
+    ...uniqueNonBlank(policy?.youthSpecialRequirementLabels)
+      .filter((label) => !YOUTH_OFFICIAL_SUPPRESSED.has(label)),
+    policy?.youthMaritalStatusLabel && !YOUTH_OFFICIAL_SUPPRESSED.has(policy.youthMaritalStatusLabel)
+      ? `결혼 ${policy.youthMaritalStatusLabel}`
+      : null,
+  ].filter(Boolean);
+
+  return [...new Set(badges)].slice(0, 3);
+};
 
 const resolveInitialSort = (paramsSearch, paramsSort) => {
   const hasSearch = Boolean(paramsSearch?.trim());
@@ -229,6 +264,28 @@ function PolicyRow({ p, onNavigate, onBookmark }) {
         <div style={{ fontSize: 13, color: INK2, marginTop: 6, lineHeight: 1.55, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 1, WebkitBoxOrient: "vertical" }}>
           {p.summary}
         </div>
+        {p.youthOfficialBadges?.length > 0 && (
+          <div style={{ display: "flex", gap: 6, marginTop: 10, flexWrap: "wrap" }}>
+            {p.youthOfficialBadges.map((badge) => (
+              <span
+                key={badge}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  padding: "3px 9px",
+                  borderRadius: 99,
+                  fontSize: 11,
+                  fontWeight: 700,
+                  color: AI,
+                  background: "white",
+                  border: `1px solid ${LINE}`,
+                }}
+              >
+                {badge}
+              </span>
+            ))}
+          </div>
+        )}
         <div style={{ display: "flex", gap: 14, marginTop: 10, fontSize: 12, color: INK3, flexWrap: "wrap" }}>
           {p.sourceTypeLabel && <span>출처 {p.sourceTypeLabel}</span>}
           {p.orgName && <span>🏢 {p.orgName}</span>}
@@ -269,6 +326,28 @@ function PolicyCard({ p, onNavigate, onBookmark }) {
       </div>
       <div style={{ fontSize: 15, fontWeight: 700, lineHeight: 1.4, color: INK, marginBottom: 6 }}>{p.title}</div>
       <div style={{ fontSize: 12, color: INK2, lineHeight: 1.5, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{p.summary}</div>
+      {p.youthOfficialBadges?.length > 0 && (
+        <div style={{ display: "flex", gap: 6, marginTop: 10, flexWrap: "wrap" }}>
+          {p.youthOfficialBadges.map((badge) => (
+            <span
+              key={badge}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                padding: "3px 9px",
+                borderRadius: 99,
+                fontSize: 11,
+                fontWeight: 700,
+                color: AI,
+                background: "white",
+                border: `1px solid ${LINE}`,
+              }}
+            >
+              {badge}
+            </span>
+          ))}
+        </div>
+      )}
       <div style={{ display: "flex", gap: 10, marginTop: 8, fontSize: 12, color: INK3, flexWrap: "wrap" }}>
         {p.sourceTypeLabel && <span>출처 {p.sourceTypeLabel}</span>}
         {p.source && <span>🏢 {p.source}</span>}

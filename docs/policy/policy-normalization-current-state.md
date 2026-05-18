@@ -206,6 +206,12 @@ public response, retrieval filter, scoring은 이번 단계에서도 그대로 �
 `raw -> fact -> internal diagnostics` 를 넘어
 `detail response -> 상세 read-only UX`
 까지 연결된 상태이며, ranking/filter/scoring은 여전히 그대로다.
+그 다음 단계는 이 신호를 정책 목록 카드에도 제한적으로 연결하는 것이다.
+다만 목록 카드는 공간이 좁기 때문에 상세처럼 full label을 모두 보여 주지 않고,
+`PolicySummaryResponse` 에는 같은 YOUTH official label을 그대로 추가하되
+프론트 목록 카드에서는 `제한없음`, `무관` 같은 default-like 값은 숨기고 실제 신호가 있는 라벨만 최대 3개 read-only badge로 노출한다.
+의도는 “공식 요건을 목록 탐색에서도 빨리 읽게 만드는 것”이지,
+이 값을 list filter나 ranking signal로 쓰는 것이 아니다.
 
 ## 2. `YOUTH_MID_RAW_ALIAS` 현재 상태
 

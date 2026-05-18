@@ -7,6 +7,7 @@ import lombok.Getter;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Getter
 @Builder
@@ -28,6 +29,11 @@ public class PolicySummaryResponse {
     private String youthMajorLabel;
     private String youthMidLabel;
     private String provisionMethodLabel;
+    private List<String> youthEmploymentRequirementLabels;
+    private List<String> youthEducationRequirementLabels;
+    private List<String> youthSpecialRequirementLabels;
+    private String youthMaritalStatusLabel;
+    private String youthIncomeConditionTypeLabel;
     private String gov24ServiceFieldLabel;
     private String gov24UserTypeLabel;
     private String gov24BenefitTypeLabel;
@@ -71,6 +77,11 @@ public class PolicySummaryResponse {
                 .youthMajorLabel(resolveYouthMajorLabel(projection))
                 .youthMidLabel(resolveYouthMidLabel(projection))
                 .provisionMethodLabel(resolveProvisionMethodLabel(projection))
+                .youthEmploymentRequirementLabels(resolveYouthEmploymentRequirementLabels(projection))
+                .youthEducationRequirementLabels(resolveYouthEducationRequirementLabels(projection))
+                .youthSpecialRequirementLabels(resolveYouthSpecialRequirementLabels(projection))
+                .youthMaritalStatusLabel(resolveYouthMaritalStatusLabel(projection))
+                .youthIncomeConditionTypeLabel(resolveYouthIncomeConditionTypeLabel(projection))
                 .gov24ServiceFieldLabel(resolveGov24ServiceFieldLabel(projection))
                 .gov24UserTypeLabel(resolveGov24UserTypeLabel(projection))
                 .gov24BenefitTypeLabel(resolveGov24BenefitTypeLabel(projection))
@@ -115,6 +126,26 @@ public class PolicySummaryResponse {
 
     private static String resolveProvisionMethodLabel(RecommendationCandidateProjection projection) {
         return projection != null ? projection.provisionMethodLabel() : null;
+    }
+
+    private static List<String> resolveYouthEmploymentRequirementLabels(RecommendationCandidateProjection projection) {
+        return projection != null ? projection.youthEmploymentRequirementLabels() : List.of();
+    }
+
+    private static List<String> resolveYouthEducationRequirementLabels(RecommendationCandidateProjection projection) {
+        return projection != null ? projection.youthEducationRequirementLabels() : List.of();
+    }
+
+    private static List<String> resolveYouthSpecialRequirementLabels(RecommendationCandidateProjection projection) {
+        return projection != null ? projection.youthSpecialRequirementLabels() : List.of();
+    }
+
+    private static String resolveYouthMaritalStatusLabel(RecommendationCandidateProjection projection) {
+        return projection != null ? projection.youthMaritalStatusLabel() : null;
+    }
+
+    private static String resolveYouthIncomeConditionTypeLabel(RecommendationCandidateProjection projection) {
+        return projection != null ? projection.youthIncomeConditionTypeLabel() : null;
     }
 
     private static String resolveGov24ServiceFieldLabel(RecommendationCandidateProjection projection) {

@@ -128,6 +128,11 @@ class PolicyListServiceTest {
                                 .youthMajorLabel("주거")
                                 .youthMidLabel("전월세 및 주거급여 지원")
                                 .provisionMethodLabel("온라인")
+                                .youthIncomeConditionTypeLabel("무관")
+                                .youthEmploymentRequirementLabels(List.of("미취업자"))
+                                .youthEducationRequirementLabels(List.of("대학 재학"))
+                                .youthSpecialRequirementLabels(List.of("지역인재"))
+                                .youthMaritalStatusLabel("제한없음")
                                 .gov24ServiceFieldLabel("보육")
                                 .gov24UserTypeLabel("청년")
                                 .gov24BenefitTypeLabel("서비스")
@@ -154,6 +159,11 @@ class PolicyListServiceTest {
         assertEquals("주거", result.getContent().get(0).getYouthMajorLabel());
         assertEquals("전월세 및 주거급여 지원", result.getContent().get(0).getYouthMidLabel());
         assertEquals("온라인", result.getContent().get(0).getProvisionMethodLabel());
+        assertEquals("무관", result.getContent().get(0).getYouthIncomeConditionTypeLabel());
+        assertEquals(List.of("미취업자"), result.getContent().get(0).getYouthEmploymentRequirementLabels());
+        assertEquals(List.of("대학 재학"), result.getContent().get(0).getYouthEducationRequirementLabels());
+        assertEquals(List.of("지역인재"), result.getContent().get(0).getYouthSpecialRequirementLabels());
+        assertEquals("제한없음", result.getContent().get(0).getYouthMaritalStatusLabel());
         assertEquals("보육", result.getContent().get(0).getGov24ServiceFieldLabel());
         assertEquals("청년", result.getContent().get(0).getGov24UserTypeLabel());
         assertEquals("서비스", result.getContent().get(0).getGov24BenefitTypeLabel());
