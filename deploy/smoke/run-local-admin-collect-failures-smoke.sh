@@ -84,24 +84,27 @@ expected_window = int(sys.argv[2])
 expected_limit = int(sys.argv[3])
 
 assert data["generatedAt"], "generatedAt missing"
-assert data["summaryWindowDays"] == expected_window, "unexpected summaryWindowDays"
+assert data["windowDays"] == expected_window, "unexpected windowDays"
 assert isinstance(data["failedJobsInWindow"], int), "failedJobsInWindow must be int"
 assert isinstance(data["partialSuccessJobsInWindow"], int), "partialSuccessJobsInWindow must be int"
-assert isinstance(data["openCollectCircuits"], int), "openCollectCircuits must be int"
-assert isinstance(data["laneCount"], int), "laneCount must be int"
 
-failed_sources = data["failedSources"]
-partial_sources = data["partialSuccessSources"]
-streaks = data["activeFailureStreaks"]
+job_breakdowns = data["jobBreakdowns"]
+streaks = data["currentJobStreaks"]
+circuit_statuses = data["circuitStatuses"]
+recent_samples = data["recentSamples"]
+error_code_breakdowns = data["errorCodeBreakdowns"]
 lanes = data["collectSourceLanes"]
 
-assert isinstance(failed_sources, list), "failedSources must be list"
-assert isinstance(partial_sources, list), "partialSuccessSources must be list"
-assert isinstance(streaks, list), "activeFailureStreaks must be list"
+assert isinstance(job_breakdowns, list), "jobBreakdowns must be list"
+assert isinstance(streaks, list), "currentJobStreaks must be list"
+assert isinstance(circuit_statuses, list), "circuitStatuses must be list"
+assert isinstance(recent_samples, list), "recentSamples must be list"
+assert isinstance(error_code_breakdowns, list), "errorCodeBreakdowns must be list"
 assert isinstance(lanes, list), "collectSourceLanes must be list"
-assert len(failed_sources) <= expected_limit, "failedSources exceeds limit"
-assert len(partial_sources) <= expected_limit, "partialSuccessSources exceeds limit"
-assert len(streaks) <= expected_limit, "activeFailureStreaks exceeds limit"
+assert len(job_breakdowns) <= expected_limit, "jobBreakdowns exceeds limit"
+assert len(streaks) <= expected_limit, "currentJobStreaks exceeds limit"
+assert len(recent_samples) <= expected_limit, "recentSamples exceeds limit"
+assert len(error_code_breakdowns) <= expected_limit, "errorCodeBreakdowns exceeds limit"
 assert len(lanes) >= 4, "collectSourceLanes unexpectedly short"
 
 lane_keys = set()
@@ -133,11 +136,14 @@ required_lane_keys = {
 }
 assert required_lane_keys.issubset(lane_keys), f"missing lane keys: {sorted(required_lane_keys - lane_keys)}"
 
+open_collect_circuits = sum(1 for circuit in circuit_statuses if circuit["open"] is True)
+lane_count = len(lanes)
+
 print(data["generatedAt"])
 print(data["failedJobsInWindow"])
 print(data["partialSuccessJobsInWindow"])
-print(data["openCollectCircuits"])
-print(data["laneCount"])
+print(open_collect_circuits)
+print(lane_count)
 print(",".join(sorted(lane_keys)))
 PY
 }
