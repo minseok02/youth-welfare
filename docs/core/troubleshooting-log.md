@@ -4841,3 +4841,30 @@
 - 이유:
   - 이번 단계의 목적은 특화요건 신호를 사용자-facing 규칙으로 바로 쓰는 것이 아니라, official code 의미를 잃지 않고 **관찰 가능하게 만들기**다.
   - `sbizCd` 는 지금 단계에서 value-density와 해석 가능성의 균형이 가장 좋다. 따라서 code import/backfill이나 fan-out redesign을 다시 열지 않고도 다음 운영 관찰 축으로 올릴 수 있다.
+
+## 852) 서버 재수집 결과 `sbizCd` 도 raw -> aggregate fact -> diagnostics 경계까지 닫혔다
+- 문제: local에서는 `YOUTH_SPECIAL_REQUIREMENT` 구현과 테스트가 끝났지만, 서버는 이전 `earnCndSeCd/jobCd` 때처럼 stale raw/runtime 상태일 수 있었다. 즉 `sbizCd` 가 upstream에 와도 서버 raw 저장과 sidecar fact 생성, diagnostics 노출이 실제로 닫혔는지 별도 확인이 필요했다.
+- 확인:
+  - 서버 `fb57377` 반영 뒤 `docker compose up -d --build app` 및 health `UP`
+  - `POST /api/admin/collect/youth = 200`
+  - `POST /api/admin/collect/youth-details = 200`, `requested=1 saved=0 skipped=2568 failed=1`
+  - DB:
+    - `YOUTH LIST raw sbizCd = 2568 / 2569`
+    - `YOUTH_SPECIAL_REQUIREMENT fact_rows = 2557`
+    - `multi-code aggregate fact_rows = 24`
+  - sample fact:
+    - `4686 익산형 근로청년수당 -> 0014001,0014009 / 중소기업, 기타`
+    - `2495 청년 및 주거취약계층 주택 중개수수료 지원 사업 -> 0014003,0014004 / 기초생활수급자, 한부모가정`
+    - `1744 울산 미래인재육성 장학사업 -> 0014003,0014004,0014005,0014008 / 기초생활수급자, 한부모가정, 장애인, 지역인재`
+  - admin diagnostics sample:
+    - `serviceId=672`
+    - `youthSpecialRequirementCodes=['0014010']`
+    - `youthSpecialRequirementLabels=['제한없음']`
+    - `latestSavedRank=1`
+    - `latestSavedFinalScore=1.12`
+- 해결:
+  - 별도 코드 수정은 필요 없었다.
+  - 서버 YOUTH 재수집을 한 번 더 돌린 뒤 raw/fact/diagnostics가 모두 최신 코드 경로를 타는지만 확인했다.
+- 이유:
+  - 이번 단계 목표는 recommendation/public UX 변경이 아니라 `sbizCd` official signal이 서버에서도 **internal observation only** 경계로 안전하게 관찰 가능한지 확인하는 것이었다.
+  - `fact_rows > 0`, diagnostics list 노출, ranking unchanged가 모두 확인됐으므로 현재 남은 문제는 저장 경계가 아니라 소비 경계다.

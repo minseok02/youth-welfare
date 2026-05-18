@@ -144,6 +144,15 @@ local `LIST raw` 기준 signal은 `325건`, multi-code는 `25건` 이라 `school
 그래서 이번 단계에서는 `YOUTH_SPECIAL_REQUIREMENT` 를 역시 fan-out이 아닌 **단일 aggregate observation fact** 로 저장하고,
 internal read-model/projection 과 admin diagnostics에만 `youthSpecialRequirementCodes/Labels` 로 노출한다.
 의도는 특화요건 신호를 잃지 않고 관찰 가능하게 만드는 것이며, public response, retrieval filter, scoring은 그대로 둔다.
+서버 `fb57377` 재수집 검증에서도 이 경계는 그대로 닫혔다.
+`POST /api/admin/collect/youth`, `POST /api/admin/collect/youth-details` 뒤 `YOUTH LIST raw sbizCd = 2568 / 2569`,
+`YOUTH_SPECIAL_REQUIREMENT fact_rows = 2557`, 그중 multi-code aggregate fact가 `24건` 생성되었고,
+sample row는 `0014001,0014009 -> 중소기업, 기타`, `0014003,0014004 -> 기초생활수급자, 한부모가정`,
+`0014003,0014004,0014005,0014008 -> 기초생활수급자, 한부모가정, 장애인, 지역인재` 형태였다.
+admin diagnostics도 `serviceId=672` 에서 `youthSpecialRequirementCodes=['0014010']`,
+`youthSpecialRequirementLabels=['제한없음']` 을 반환했다.
+즉 현재 truth는 `sbizCd` 도 raw -> aggregate fact -> internal read-model -> admin diagnostics 경계까지는 닫혔고,
+남은 것은 이 값을 public UX나 rule 소비로 넓힐지 여부뿐이다.
 
 ## 2. `YOUTH_MID_RAW_ALIAS` 현재 상태
 
