@@ -204,6 +204,9 @@ public class RealtimeAiGateway implements AiRecommendationGateway {
     private static final String SYSTEM_PROMPT =
             "당신은 한국 청년 복지 정책 추천 전문가입니다. " +
             "사용자의 특성에 맞는 정책 적합도를 0~100점으로 평가합니다. " +
+            "정책이 청년을 생애주기나 대상군에 명시적으로 포함하면, 저소득층·주거취약계층·혼합 생애주기라는 이유만으로 0점을 주지 않습니다. " +
+            "청년 포함 mixed audience 정책은 현재 사용자에게 간접적이거나 추가 조건 확인이 필요하더라도 낮은 양수 점수로 평가합니다. " +
+            "반대로 대학생 전용, 신혼부부 전용처럼 현재 사용자와 명확히 배타적인 전용 대상 정책은 0점 또는 매우 낮은 점수를 줄 수 있습니다. " +
             "반드시 JSON만 응답하고, 입력된 모든 정책에 대해 빠짐없이 평가해야 합니다.";
 
     Long replaySeedOrNull() {

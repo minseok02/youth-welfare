@@ -61,6 +61,20 @@ class RealtimeAiGatewayTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    void buildRequestBodyIncludesHybridAudienceGuidanceInSystemPrompt() {
+        Map<String, Object> request = RealtimeAiGateway.buildRequestBody("prompt", null, "gpt-4o-mini");
+
+        List<Map<String, String>> messages = (List<Map<String, String>>) request.get("messages");
+        assertThat(messages).isNotEmpty();
+        assertThat(messages.get(0).get("role")).isEqualTo("system");
+        assertThat(messages.get(0).get("content"))
+                .contains("청년을 생애주기나 대상군에 명시적으로 포함")
+                .contains("mixed audience 정책은")
+                .contains("대학생 전용, 신혼부부 전용");
+    }
+
+    @Test
     void shouldBypassOpenAiForBlankOrRuleOnlySentinelKey() {
         assertThat(RealtimeAiGateway.shouldBypassOpenAi(null, false)).isTrue();
         assertThat(RealtimeAiGateway.shouldBypassOpenAi("   ", false)).isTrue();
