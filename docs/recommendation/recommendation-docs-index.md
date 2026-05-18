@@ -23,6 +23,7 @@
 - [recommendation-reopen-decision-runbook.md](./recommendation-reopen-decision-runbook.md)
 - [recommendation-next-lane-brief.md](./recommendation-next-lane-brief.md)
 - [recommendation-signal-gap-audit-runbook.md](./recommendation-signal-gap-audit-runbook.md)
+- [recommendation-region-window-audit-runbook.md](./recommendation-region-window-audit-runbook.md)
 - [recommendation-pipeline.md](./recommendation-pipeline.md)
 
 현재 practical runtime wrapper:
@@ -34,6 +35,7 @@
 - `bash deploy/smoke/run-local-no-priority-top1-sample.sh`
 - `bash deploy/smoke/run-local-no-priority-candidate-audit.sh`
 - `bash deploy/smoke/run-local-recommendation-signal-gap-audit.sh`
+- `bash deploy/smoke/run-local-recommendation-region-window-audit.sh`
 - `bash deploy/smoke/run-local-gov24-recommend-surface-audit.sh`
 - `bash deploy/smoke/run-local-gov24-recommend-score-audit.sh`
 - `bash deploy/smoke/run-local-gov24-zero-ai-audit.sh`
@@ -174,6 +176,19 @@
 - source 전체 일반론이 아니라 정책군 단위 local signal 과제로 이어가는 법
 
 을 정리한 bounded audit runbook 입니다.
+
+### 10. region window audit runbook
+
+- [recommendation-region-window-audit-runbook.md](./recommendation-region-window-audit-runbook.md)
+
+이 문서는
+
+- `searchYouthRelevant` 와 local structured signal이 살아난 뒤에도
+- target family가 왜 `NOT_IN_SQL_RETRIEVAL` 인지
+- actual retrieval branch가 `REGION_CODE` / `SIDO` 중 무엇이고
+- target family가 query 안에는 들어오는지, 들어오면 몇 위인지
+
+를 읽는 bounded audit runbook 입니다.
 
 Gov24가 추천에 "안 보이는지"보다 "몇 위에서 어떤 서비스로 뜨는지"를 보려면 `bash deploy/smoke/run-local-gov24-recommend-surface-audit.sh` 로 top1/top3/top5/top10 Gov24 share, rank별 source 분포, Gov24 상위 서비스 concentration을 같이 봅니다.
 

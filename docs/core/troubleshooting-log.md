@@ -5329,3 +5329,15 @@
   - `searchYouthRelevant` 가 false 인 local 후보를 retrieval gate 앞에서 막는 문제와, true 인 뒤에도 query window 밖에 남는 문제는 다른 층의 병목이다.
   - 여기서 바로 weight patch나 source bonus로 가면 원인을 섞게 된다.
   - 따라서 지금부터는 same-user candidate query branch와 region projection strength를 먼저 좁히는 편이 맞다.
+
+## 876) `NOT_IN_SQL_RETRIEVAL` 다음 단계는 점수 조정보다 same-user actual region branch/window audit 경로를 먼저 고정하는 편이 낫다
+- 문제: `searchYouthRelevant` bridge까지 서버에서 확인한 뒤에도 `2736/3257/3281/3575/3714` 는 같은 사용자 기준 계속 `NOT_IN_SQL_RETRIEVAL` 이었다. 이 상태에서 바로 query ordering이나 score patch로 들어가면, target family가 branch filter 밖인지, query 안에는 있는데 150건/20건 window 밖으로 밀리는지, exact-region/local row에 어떤 competitor가 앞서는지 매번 ad-hoc SQL로 다시 파야 한다.
+- 해결:
+  - 새 `deploy/smoke/run-local-recommendation-region-window-audit.sh` 를 추가했다.
+  - 이 wrapper는 same-user `user_context` 를 읽어 actual retrieval branch를 `REGION_CODE`/`SIDO`/`NONE` 으로 고정하고,
+    base/latest candidate query를 limit 없이 재현한 뒤 target family의 `present`, `rank`, `in_window`, `regionProjection(EXACT_REGION/EXACT_SIDO/NATIONWIDE/REGION_MISMATCH)` 를 같이 출력한다.
+  - 최신 batch top competitor도 같이 붙여 actual branch 상위 `TOP_WINDOW_LIMIT` 과 target family를 한 화면에서 읽게 했다.
+  - 새 [recommendation-region-window-audit-runbook.md](../recommendation/recommendation-region-window-audit-runbook.md) 에도 이 경로를 문서화했다.
+- 이유:
+  - 현재 다음 질문은 “청년성 신호가 약한가”가 아니라 “actual branch 안에서 몇 위고, 왜 window 밖에 남나”이다.
+  - 이 층을 먼저 고정해야 다음 수정도 region projection/order/window 중 어디를 건드릴지 bounded 하게 좁힐 수 있다.

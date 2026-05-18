@@ -94,6 +94,8 @@
 
 서버에서 이 bridge까지 다시 태운 뒤에는 `3257/3281/3575/3714` 의 `searchYouthRelevant=true` 가 실제 DB에 반영됐습니다. 그럼에도 같은 `target_user_key=05c03e8cfda140cb8c410ac9dbc098fc` bounded audit에서는 target family 전부가 계속 `NOT_IN_SQL_RETRIEVAL` 이었고, saved batch나 diagnostics retrieval 안으로 새로 들어온 target도 없었습니다. 즉 `searchYouthRelevant` 병목 하나는 닫혔지만 retrieval movement는 아직 없고, 현재 남은 다음 evidence 수집 축은 **region projection / exact-region ordering 내부 우선순위 / 150-row candidate window 안에서 이 family가 왜 계속 밀리는지** 쪽입니다.
 
+이 다음 evidence lane은 [recommendation-region-window-audit-runbook.md](./recommendation-region-window-audit-runbook.md) 와 `run-local-recommendation-region-window-audit.sh` 로 actual retrieval branch(`REGION_CODE`/`SIDO`) 안에서 target family의 실제 rank/in-window 여부를 읽는 경로로 고정합니다.
+
 ## 현재 scoring 기준
 
 ### rule score

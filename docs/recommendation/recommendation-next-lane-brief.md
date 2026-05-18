@@ -149,6 +149,10 @@ bounded family 단위로만 확장합니다.
 
 5. same-user exact-region candidate query 안에서 이 family가 150-row window 바깥에 남는 이유를 region projection / ordering branch / candidate window 관점에서 직접 audit 하기
 
+이 단계의 기본 wrapper는
+[recommendation-region-window-audit-runbook.md](./recommendation-region-window-audit-runbook.md)
+와 `run-local-recommendation-region-window-audit.sh` 로 고정합니다.
+
 ## lane 1 에서 아직 안 할 일
 
 1. global source bonus
