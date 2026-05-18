@@ -5172,3 +5172,24 @@
 - 이유:
   - 이번 단계 목적은 새 collect 규칙을 여는 것이 아니라, 현재 코드의 운영 budget/config truth를 admin runtime에 복제해 drift를 줄이는 것이다.
   - lane별 예산/속도/guard를 같은 카드에 보여 주면 “왜 manual이고 왜 느린가”를 코드 열람 없이 설명할 수 있어 triage 비용이 낮아진다.
+
+## 866) collect lane config summary는 코드 default가 아니라 서버 effective runtime 값을 보여 주는지까지 확인해야 운영 drift를 줄일 수 있다
+- 문제: local 코드 기준 `BokjiroDetailCollectService` 기본값은 `detail pacing=1000ms`, `max-consecutive-rate-limit-hits=5` 이고 `Gov24DetailCollectService` 기본값은 `detail pacing=300ms` 다. 그런데 운영 서버는 env override를 통해 다른 pacing/abort threshold를 쓸 수 있다. 만약 admin `Collect Lane Inventory` 가 코드 default를 하드코딩해 보여 주면, 운영자는 화면을 보고도 실제 서버의 요청 속도나 `429` guard를 오판하게 된다.
+- 확인:
+  - 서버 최신 `main be1c7c0` 반영 뒤 `/api/admin/dashboard/collect-failures` 응답 `200`
+  - `collectSourceLanes_count=10`
+  - lane별 `configEntries` 존재 확인
+  - 대표값:
+    - `YOUTH`: `Scheduler=0 0 2 * * * @ Asia/Seoul`, `List pacing=300ms`, `Retry=3 attempts / 1000ms backoff`
+    - `BOKJIRO_DETAIL`: `Budget=central max 10000 calls/run / local max 10000 calls/run`, `Detail pacing=50ms`, `429 abort=2 consecutive hits`, `Retry=3 attempts / 1500ms backoff`
+    - `GOV24_DETAIL`: `Budget=max 50 calls/run`, `Detail pacing=50ms`, `Retry=3 attempts / 1500ms backoff`
+    - `YOUTH_DETAILS`: `Budget=missing detail rows only`, `Detail pacing=500ms`
+  - 즉 `BOKJIRO_DETAIL` / `GOV24_DETAIL` 은 local code default와 다른 서버 override가 실제로 적용된 상태였다.
+  - 프론트도 Playwright 기준 `Budget · max 50 calls/run=2`, `Retry · 3 attempts / 1500ms backoff=5`, `Lock guard · lease 15m / heartbeat 60s=10`, `List pacing · 300ms=4`, `Detail pacing · 500ms=1`, `page_errors=0`
+- 해결:
+  - 별도 코드 수정은 필요 없었다.
+  - 이번 서버 검증으로 `configEntries` 가 코드 default 복제본이 아니라 실제 Spring runtime property를 읽은 effective summary임을 확인했다.
+  - collect current-state 문서에도 “코드 기본값 기준 요약”과 “서버 effective override는 admin inventory를 우선”이라는 독법을 같이 남겼다.
+- 이유:
+  - 운영자가 진짜 필요한 것은 source code의 기본값이 아니라 지금 서버에서 실제로 적용 중인 pacing/budget/guard다.
+  - admin inventory가 그 effective 값을 보여 주면, `429` triage나 “왜 이 lane이 예상보다 빠르거나 느린가”를 코드 열람 없이 설명할 수 있다.

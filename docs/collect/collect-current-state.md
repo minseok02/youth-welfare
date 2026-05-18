@@ -79,6 +79,8 @@
 
 ### 현재 lane budget/config summary
 
+아래 값은 **코드 기본값 기준 요약**입니다. 실제 운영 서버는 env override를 통해 다른 effective 값을 가질 수 있고, admin `Collect Lane Inventory` 의 `configEntries` 는 그 **실효 runtime 값**을 그대로 보여 줍니다.
+
 - `YOUTH`
   - scheduler: `0 0 2 * * * @ Asia/Seoul`
   - list pacing: `300ms`
@@ -125,6 +127,16 @@
   - `429` abort: `5 consecutive hits`
 
 모든 lane은 공통 `CollectExecutionGuard` 아래에서 `lease 15m / heartbeat 60s` lock guard를 사용합니다.
+
+### 서버 runtime override 메모
+
+- 2026-05-18 서버 재검증 기준:
+  - `BOKJIRO_DETAIL`
+    - `Detail pacing = 50ms`
+    - `429 abort = 2 consecutive hits`
+  - `GOV24_DETAIL`
+    - `Detail pacing = 50ms`
+  - 즉 현재 서버 admin inventory는 코드 default dump가 아니라, 실제 운영 env override를 반영하는 effective runtime summary로 읽어야 합니다.
 
 ## 현재 source dispatch 구조
 
