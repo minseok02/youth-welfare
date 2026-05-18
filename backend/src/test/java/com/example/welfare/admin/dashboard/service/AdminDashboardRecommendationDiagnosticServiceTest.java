@@ -168,6 +168,7 @@ class AdminDashboardRecommendationDiagnosticServiceTest {
         assertThat(response.accountOrigin()).isEqualTo("REAL_USER");
         assertThat(response.clusterId()).isEqualTo("youth_all");
         assertThat(response.rerankTraceMode()).isEqualTo("PRE_AI_POST_SCORING");
+        assertThat(response.noPriorityProfile()).isTrue();
         assertThat(response.services()).hasSize(6);
 
         assertThat(response.services()).filteredOn(row -> row.serviceId().equals(3686L)).singleElement()
@@ -185,6 +186,9 @@ class AdminDashboardRecommendationDiagnosticServiceTest {
                     assertThat(row.inMergedCandidates()).isTrue();
                     assertThat(row.inLatestSavedBatch()).isFalse();
                     assertThat(row.dropStage()).isEqualTo("SCORED_BUT_NOT_IN_SAVED_BATCH");
+                    assertThat(row.baseRetrievalRank()).isEqualTo(2);
+                    assertThat(row.retainedBaseRank()).isEqualTo(2);
+                    assertThat(row.mergedCandidateRank()).isEqualTo(2);
                     assertThat(row.gov24UserTypeTokens()).containsExactly("개인", "가구");
                     assertThat(row.gov24BenefitTypeTokens()).containsExactly("현금", "서비스(의료)");
                     assertThat(row.youthEmploymentRequirementCodes()).containsExactly("0013003", "0013006");
@@ -207,6 +211,8 @@ class AdminDashboardRecommendationDiagnosticServiceTest {
                 .satisfies(row -> {
                     assertThat(row.inBaseRetrieval()).isTrue();
                     assertThat(row.passedBaseFilters()).isFalse();
+                    assertThat(row.baseRetrievalRank()).isEqualTo(3);
+                    assertThat(row.retainedBaseRank()).isNull();
                     assertThat(row.primaryAudienceRelevant()).isFalse();
                     assertThat(row.ageConstraintMatched()).isTrue();
                     assertThat(row.dropStage()).isEqualTo("FILTERED_BY_PRIMARY_AUDIENCE_RELEVANCE");
@@ -216,6 +222,8 @@ class AdminDashboardRecommendationDiagnosticServiceTest {
                 .satisfies(row -> {
                     assertThat(row.inBaseRetrieval()).isTrue();
                     assertThat(row.passedBaseFilters()).isFalse();
+                    assertThat(row.baseRetrievalRank()).isEqualTo(4);
+                    assertThat(row.retainedBaseRank()).isNull();
                     assertThat(row.primaryAudienceRelevant()).isTrue();
                     assertThat(row.ageConstraintMatched()).isFalse();
                     assertThat(row.dropStage()).isEqualTo("FILTERED_BY_AGE_CONSTRAINT");
@@ -225,7 +233,9 @@ class AdminDashboardRecommendationDiagnosticServiceTest {
                 .satisfies(row -> {
                     assertThat(row.inBaseRetrieval()).isTrue();
                     assertThat(row.passedBaseFilters()).isTrue();
+                    assertThat(row.baseRetrievalRank()).isEqualTo(5);
                     assertThat(row.retainedBaseWindow()).isFalse();
+                    assertThat(row.retainedBaseRank()).isNull();
                     assertThat(row.primaryAudienceRelevant()).isTrue();
                     assertThat(row.ageConstraintMatched()).isTrue();
                     assertThat(row.dropStage()).isEqualTo("TRIMMED_BY_BASE_OR_LATEST_LIMIT");

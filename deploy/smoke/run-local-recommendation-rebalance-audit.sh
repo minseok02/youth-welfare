@@ -381,9 +381,12 @@ for line in open(raw_tsv_path, "r", encoding="utf-8"):
     })
 
 with open(diagnostics_path, "r", encoding="utf-8") as fp:
-    diagnostics = json.load(fp)["data"]["services"]
+    payload = json.load(fp)["data"]
+    diagnostics = payload["services"]
 
 diag_by_id = {int(row["serviceId"]): row for row in diagnostics}
+
+print(f"METRIC no_priority_profile={payload.get('noPriorityProfile')}")
 
 passed_rows = []
 source_rank_counters = {}
@@ -391,6 +394,9 @@ for row in raw_rows:
     diag = diag_by_id.get(row["serviceId"], {})
     row["passBase"] = bool(diag.get("passedBaseFilters"))
     row["retainBase"] = bool(diag.get("retainedBaseWindow"))
+    row["actualBaseRank"] = diag.get("baseRetrievalRank")
+    row["actualRetainedBaseRank"] = diag.get("retainedBaseRank")
+    row["actualMergedRank"] = diag.get("mergedCandidateRank")
     row["dropStage"] = diag.get("dropStage")
     row["primary"] = diag.get("primaryAudienceRelevant")
     row["age"] = diag.get("ageConstraintMatched")
@@ -437,12 +443,15 @@ for row in [r for r in raw_rows if r["serviceId"] in target_ids]:
     print(
         f"{row['serviceId']}\t"
         f"raw_rank={row['rawRank']}\t"
+        f"actual_base_rank={row['actualBaseRank']}\t"
         f"pass_base={row['passBase']}\t"
         f"source={row['sourceType']}\t"
         f"source_pass_rank={row['sourcePassRank']}\t"
         f"rebalance_rank={row['rebalanceRank']}\t"
         f"retain_base={row['retainBase']}\t"
+        f"actual_retain_base_rank={row['actualRetainedBaseRank']}\t"
         f"retain_sim={row['retainedBySimulation']}\t"
+        f"actual_merged_rank={row['actualMergedRank']}\t"
         f"dropStage={row['dropStage']}\t"
         f"projection={row['regionProjection']}\t"
         f"category={row['category']}\t"

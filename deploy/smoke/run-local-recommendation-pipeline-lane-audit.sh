@@ -200,6 +200,7 @@ print(f"METRIC filtered_latest_candidate_count={payload.get('filteredLatestCandi
 print(f"METRIC merged_candidate_count={payload.get('mergedCandidateCount')}")
 print(f"METRIC latest_saved_candidate_count={payload.get('latestSavedCandidateCount')}")
 print(f"METRIC rerank_trace_mode={payload.get('rerankTraceMode')}")
+print(f"METRIC no_priority_profile={payload.get('noPriorityProfile')}")
 
 services = payload.get("services") or []
 
@@ -221,12 +222,17 @@ for row in sorted(services, key=lambda item: ((item.get("latestSavedRank") or 99
         f"latest={row.get('inLatestRetrieval')}\t"
         f"pass_base={row.get('passedBaseFilters')}\t"
         f"pass_latest={row.get('passedLatestFilters')}\t"
+        f"base_rank={row.get('baseRetrievalRank')}\t"
+        f"latest_rank={row.get('latestRetrievalRank')}\t"
         f"retain_base={row.get('retainedBaseWindow')}\t"
         f"retain_latest={row.get('retainedLatestWindow')}\t"
+        f"retain_base_rank={row.get('retainedBaseRank')}\t"
+        f"retain_latest_rank={row.get('retainedLatestRank')}\t"
         f"primary={row.get('primaryAudienceRelevant')}\t"
         f"age={row.get('ageConstraintMatched')}\t"
         f"youthRelevant={row.get('youthRelevant')}\t"
         f"merged={row.get('inMergedCandidates')}\t"
+        f"merged_rank={row.get('mergedCandidateRank')}\t"
         f"post={row.get('inPostScoringCandidates')}\t"
         f"saved={row.get('inLatestSavedBatch')}\t"
         f"dropStage={row.get('dropStage')}\t"

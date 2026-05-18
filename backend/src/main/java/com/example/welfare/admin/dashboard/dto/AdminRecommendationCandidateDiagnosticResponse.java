@@ -17,6 +17,7 @@ public record AdminRecommendationCandidateDiagnosticResponse(
         int postScoringCandidateCount,
         int latestSavedCandidateCount,
         String rerankTraceMode,
+        boolean noPriorityProfile,
         List<ServiceDiagnostic> services
 ) {
 
@@ -41,9 +42,14 @@ public record AdminRecommendationCandidateDiagnosticResponse(
             boolean inLatestRetrieval,
             boolean passedBaseFilters,
             boolean passedLatestFilters,
+            Integer baseRetrievalRank,
+            Integer latestRetrievalRank,
             boolean retainedBaseWindow,
             boolean retainedLatestWindow,
+            Integer retainedBaseRank,
+            Integer retainedLatestRank,
             boolean inMergedCandidates,
+            Integer mergedCandidateRank,
             boolean inPostScoringCandidates,
             boolean inLatestSavedBatch,
             String dropStage,

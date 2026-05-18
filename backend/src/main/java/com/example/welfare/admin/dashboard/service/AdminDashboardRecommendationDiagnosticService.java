@@ -50,6 +50,7 @@ public class AdminDashboardRecommendationDiagnosticService {
         String clusterId = clusterService.assignCluster(context.snapshot());
 
         RetrievalService.RecommendationRetrievalTrace trace = retrievalService.trace(context.snapshot());
+        boolean noPriorityProfile = context.snapshot().priorities() == null || context.snapshot().priorities().isEmpty();
         List<ScoredCandidate> scored = ruleScoringService.score(
                 new RetrievedRecommendationCandidates(trace.mergedCandidates(), trace.allProjections()),
                 context.snapshot()
@@ -73,6 +74,11 @@ public class AdminDashboardRecommendationDiagnosticService {
         Set<Long> filteredLatestIds = ids(trace.filteredLatestCandidates());
         Set<Long> mergedIds = ids(trace.mergedCandidates());
         Set<Long> postScoringIds = ids(postScoring.stream().map(ScoredCandidate::getService).toList());
+        Map<Long, Integer> baseRankById = rankMap(trace.rawBaseCandidates());
+        Map<Long, Integer> latestRankById = rankMap(trace.rawLatestCandidates());
+        Map<Long, Integer> retainedBaseRankById = rankMap(trace.filteredBaseCandidates());
+        Map<Long, Integer> retainedLatestRankById = rankMap(trace.filteredLatestCandidates());
+        Map<Long, Integer> mergedRankById = rankMap(trace.mergedCandidates());
         Map<Long, ScoredCandidate> scoredById = scored.stream()
                 .collect(Collectors.toMap(candidate -> candidate.getService().getId(), Function.identity(), (left, right) -> left));
         Map<Long, UserRecommendation> savedById = latestSaved.stream()
@@ -123,9 +129,14 @@ public class AdminDashboardRecommendationDiagnosticService {
                             inLatest,
                             passedBaseFilters,
                             passedLatestFilters,
+                            baseRankById.get(serviceId),
+                            latestRankById.get(serviceId),
                             retainedBaseWindow,
                             retainedLatestWindow,
+                            retainedBaseRankById.get(serviceId),
+                            retainedLatestRankById.get(serviceId),
                             inMerged,
+                            mergedRankById.get(serviceId),
                             inPostScoring,
                             inSaved,
                             resolveDropStage(
@@ -188,6 +199,7 @@ public class AdminDashboardRecommendationDiagnosticService {
                 postScoring.size(),
                 latestSaved.size(),
                 RERANK_TRACE_MODE,
+                noPriorityProfile,
                 serviceDiagnostics
         );
     }
@@ -200,6 +212,14 @@ public class AdminDashboardRecommendationDiagnosticService {
         return services.stream()
                 .map(WelfareService::getId)
                 .collect(Collectors.toCollection(LinkedHashSet::new));
+    }
+
+    private Map<Long, Integer> rankMap(List<WelfareService> services) {
+        LinkedHashMap<Long, Integer> ranks = new LinkedHashMap<>();
+        for (int i = 0; i < services.size(); i++) {
+            ranks.putIfAbsent(services.get(i).getId(), i + 1);
+        }
+        return Map.copyOf(ranks);
     }
 
     private String resolveDropStage(boolean inBase,

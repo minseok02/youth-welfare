@@ -61,12 +61,17 @@ bash deploy/smoke/run-local-recommendation-pipeline-lane-audit.sh
 - `latest`
 - `pass_base`
 - `pass_latest`
+- `base_rank`
+- `latest_rank`
 - `retain_base`
 - `retain_latest`
+- `retain_base_rank`
+- `retain_latest_rank`
 - `primary`
 - `age`
 - `youthRelevant`
 - `merged`
+- `merged_rank`
 - `post`
 - `saved`
 - `dropStage`
@@ -80,6 +85,9 @@ bash deploy/smoke/run-local-recommendation-pipeline-lane-audit.sh
 `retrieval -> filter -> merge -> post-scoring -> saved`
 
 경계를 같이 읽습니다.
+
+Top-level metric 에도 `no_priority_profile` 이 같이 찍힙니다.  
+즉 현재 user가 no-priority source rebalance 대상인지 바로 확인할 수 있습니다.
 
 ## 읽는 법
 
