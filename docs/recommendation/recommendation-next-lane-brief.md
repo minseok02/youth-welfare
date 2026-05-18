@@ -137,6 +137,14 @@ bounded family 단위로만 확장합니다.
 즉 lane 1 의 첫 구현은 global tuning 이 아니라
 **`BOKJIRO_LOCAL` structured signal + bounded region-ordering** 입니다.
 
+이 첫 구현을 서버 bounded audit로 다시 확인하면 `3257/3281` 의 `category/theme/keyword` 구조화는 실제로 살아났지만, same-user latest batch 기준으로는 여전히 target family가 전부 `NOT_IN_SQL_RETRIEVAL` 로 남았습니다. 현재 남은 공통 병목은 broad mixed life stage 때문에 `searchYouthRelevant=false` 인 local 후보들이 exact-region ordering 안에서도 뒤로 밀리는 점입니다.
+
+그래서 lane 1 의 다음 concrete scope는 아래 한 줄로 더 좁힙니다.
+
+4. `BOKJIRO_LOCAL + 청년 포함 life stage + structured local support signal` 조합에만 bounded `searchYouthRelevant` bridge를 열어 `3257` 같은 exact-region 후보가 retrieval 안으로 먼저 들어오게 보기
+
+즉 여전히 broad local 전체를 youth로 푸는 것이 아니라, **청년 life stage를 이미 갖고 있고 local structured signal이 생긴 후보만 retrieval gate를 넘기는 bounded bridge** 로 읽습니다.
+
 ## lane 1 에서 아직 안 할 일
 
 1. global source bonus

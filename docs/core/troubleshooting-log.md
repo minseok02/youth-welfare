@@ -5302,3 +5302,19 @@
 - 이유:
   - 이번 lane 1 의 evidence는 “global tuning” 이 아니라 “`BOKJIRO_LOCAL` direct signal이 retrieval 이전부터 약하다”는 쪽이다.
   - 따라서 first fix는 direct `theme/benefit` 구조화와 exact-region local ordering 보정이어야 하고, weight patch나 source balancing은 그 다음이다.
+
+## 874) `BOKJIRO_LOCAL` 구조화가 살아나도 broad mixed life stage local 후보는 `searchYouthRelevant=false` 면 exact-region ordering 안에서 계속 retrieval 밖에 남을 수 있다
+- 문제: `4fd21ba` 반영 뒤 서버에서 `BOKJIRO_LOCAL` 을 재수집해 보니 `3257` 은 `unified_category=주거`, `INTEREST_THEME=주거/생활지원`, `KEYWORD=융자/금융지원/주거지원/월세보증금/주거급여지원` 으로, `3281` 은 `unified_category=금융·생활지원`, `INTEREST_THEME=생활지원`, `KEYWORD=융자/금융지원/생활안정자금` 으로 실제 구조화됐다. 하지만 같은 latest batch 사용자 기준 signal gap audit를 다시 태우면 `2736/3257/3281/3575/3714` 는 여전히 전부 `NOT_IN_SQL_RETRIEVAL` 이었고, 남은 공통 약점은 `3257/3281/3575/3714` 의 `searchYouthRelevant=false` 였다. 즉 category/theme/keyword 구조화만으로는 broad mixed life stage local 후보를 retrieval 경계 안으로 밀어 넣기엔 부족했다.
+- 해결:
+  - `RecommendationYouthRelevanceSupport` 에 bounded local bridge를 추가했다.
+  - 대상은 broad source 전체가 아니라 `BOKJIRO_LOCAL` 만이다.
+  - 조건은 아래 셋을 동시에 만족할 때만 `searchYouthRelevant=true` 로 본다.
+    1. life stage 에 `청년` 이 포함됨
+    2. focused youth stage는 아니어서 기존 규칙만으론 false 일 수 있음
+    3. `unifiedCategory` 또는 derived `INTEREST_THEME/KEYWORD` 가 local structured support signal(`주거`, `생활지원`, `교육`, `보호·돌봄`, `주거지원`, `월세보증금`, `생활안정자금`, `융자`, `바우처`, `돌봄서비스` 등)을 가짐
+  - `BOKJIRO_CENTRAL` 이나 generic broad policy는 기존 exclusion 규칙을 유지한다.
+  - 테스트는 `RecommendationYouthRelevanceSupportTest`, `YouthPolicyFilterTest` 로 닫는다.
+- 이유:
+  - 서버 bounded audit가 말해 주는 다음 병목은 weight가 아니라 retrieval gate다.
+  - broad mixed life stage 전체를 youth 정책으로 푸는 건 과하지만, 이미 청년 life stage와 local structured support signal이 같이 잡힌 `BOKJIRO_LOCAL` 후보를 계속 false 로 두는 것도 과도하게 보수적이다.
+  - 따라서 이번 단계는 global youth relevance 완화가 아니라, `3257` 류 exact-region local 후보를 retrieval 안으로 들이기 위한 bounded bridge로 읽는 편이 맞다.

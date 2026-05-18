@@ -119,6 +119,25 @@ class YouthPolicyFilterTest {
         assertThat(filter.isYouthRelevant(service, tags)).isFalse();
     }
 
+    @Test
+    void includesStructuredLocalPolicyWithMixedLifeStagesAndHousingSignals() {
+        WelfareService service = WelfareService.builder()
+                .sourceType(WelfareService.SourceType.BOKJIRO_LOCAL)
+                .sourceId("L6")
+                .title("주거급여수급자 월세보증금 지원")
+                .unifiedCategory("주거")
+                .status(WelfareService.ServiceStatus.ACTIVE)
+                .build();
+        List<ServiceTag> tags = List.of(
+                tag(service, ServiceTag.TagType.LIFE_STAGE, "청년"),
+                tag(service, ServiceTag.TagType.LIFE_STAGE, "중장년"),
+                tag(service, ServiceTag.TagType.INTEREST_THEME, "주거"),
+                tag(service, ServiceTag.TagType.KEYWORD, "월세보증금")
+        );
+
+        assertThat(filter.isYouthRelevant(service, tags)).isTrue();
+    }
+
     private WelfareService baseService(WelfareService.SourceType sourceType, String title) {
         return WelfareService.builder()
                 .sourceType(sourceType)

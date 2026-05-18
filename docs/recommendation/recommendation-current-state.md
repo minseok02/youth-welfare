@@ -90,6 +90,8 @@
 
 그 뒤 `2026-05-18` bounded signal gap audit를 같은 family(`2736,3257,3281,3575,3714`)에 다시 태운 결과, 특정 latest batch 사용자 기준으로는 이 다섯 건이 다시 전부 `NOT_IN_SQL_RETRIEVAL` 로 관측됐습니다. competitor `672/625/650` 는 `YOUTH` `주거/건강·의료` 축에서 direct `benefit/program` 과 `interest/theme` 신호가 구조화돼 있었지만, target family는 support summary 안의 `월세보증금`, `융자`, `생활안정자금`, `바우처`, `돌봄서비스` 같은 값이 mostly unstructured 상태였습니다. 그래서 현재 lane 1 첫 구현은 `BOKJIRO_LOCAL` summary/provision text에서 `INTEREST_THEME` 와 program `KEYWORD` 를 derived signal로 올리고, exact-region local retrieval 안에서는 `searchYouthRelevant=true`, `unifiedCategory!=기타` 를 pure recency보다 먼저 보게 좁게 보정하는 쪽으로 잡습니다. 이 단계도 여전히 global weight patch가 아니라 **local signal structuring + bounded retrieval ordering** 범위입니다.
 
+서버에서 이 bounded structuring을 재검증하면 `3257` 은 `주거`, `주거/생활지원`, `융자/금융지원/주거지원/월세보증금/주거급여지원` 으로, `3281` 은 `금융·생활지원`, `생활지원`, `융자/금융지원/생활안정자금` 으로 실제 구조화됐습니다. 다만 같은 latest batch 사용자 기준으로는 target family 전부가 여전히 `NOT_IN_SQL_RETRIEVAL` 이고, 남은 공통점은 `3257/3281/3575/3714` 의 `searchYouthRelevant=false` 였습니다. 그래서 lane 1 의 다음 bounded step은 broad mixed life stage 전부를 youth 정책으로 올리는 것이 아니라, **`BOKJIRO_LOCAL + 청년 포함 life stage + structured local support signal` 조합에만 `searchYouthRelevant` bridge를 여는 것**으로 좁힙니다. 즉 이번 단계도 여전히 retrieval 경계 안으로 local 청년 후보를 들이기 위한 bounded fix 이고, global score/weight patch는 아닙니다.
+
 ## 현재 scoring 기준
 
 ### rule score

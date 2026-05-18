@@ -1,5 +1,7 @@
 # 구현 현황
 
+- 2026-05-18: `4fd21ba` 로 `BOKJIRO_LOCAL` summary/provision 기반 `INTEREST_THEME/KEYWORD` 구조화와 exact-region retrieval ordering(`searchYouthRelevant=true`, `unifiedCategory!=기타` 우선)을 넣은 뒤 서버 bounded audit를 다시 태웠다. 결과는 `3257/3281` 의 `category/theme/keyword` 구조화 자체는 성공했지만, target family는 same-user latest batch 기준 여전히 전부 `NOT_IN_SQL_RETRIEVAL` 이었다. 공통 병목은 broad mixed life stage 때문에 `searchYouthRelevant=false` 인 local 후보들이 exact-region ordering 안에서도 뒤로 밀리는 점이었다. 따라서 lane 1 의 다음 bounded step은 broad mixed stage 전체를 푸는 것이 아니라, `BOKJIRO_LOCAL + 청년 포함 life stage + structured local support signal` 조합에만 `searchYouthRelevant` bridge를 여는 쪽으로 좁힌다.
+
 - 이 문서의 상단 최신 항목은 현재 active 기준선과 최근 closeout 기록을 우선 보여 줍니다.
 - 아래로 내려갈수록 오래된 이력 로그가 섞여 있으며, `MySQL`, `draft sidecar`, `service_taxonomy_summary_slots` 관련 항목 상당수는 **과거 실험/전환 기록**입니다.
 - 현재 실행 기준이 충돌할 때는 이 문서의 최신 항목보다 [current-state.md](./current-state.md), [testing.md](./core/testing.md), [policy-local-closeout-pending-inventory.md](./policy/policy-local-closeout-pending-inventory.md) 같은 active 문서를 우선합니다.

@@ -64,6 +64,63 @@ class RecommendationYouthRelevanceSupportTest {
         assertThat(support.isYouthRelevant(service, tags)).isFalse();
     }
 
+    @Test
+    void includesStructuredBokjiroLocalWithMixedLifeStagesWhenYouthAndHousingSignalsExist() {
+        WelfareService service = WelfareService.builder()
+                .sourceType(WelfareService.SourceType.BOKJIRO_LOCAL)
+                .sourceId("L4")
+                .title("주거급여수급자 월세보증금 지원")
+                .unifiedCategory("주거")
+                .status(WelfareService.ServiceStatus.ACTIVE)
+                .build();
+        List<ServiceTag> tags = List.of(
+                tag(service, ServiceTag.TagType.LIFE_STAGE, "청년"),
+                tag(service, ServiceTag.TagType.LIFE_STAGE, "중장년"),
+                tag(service, ServiceTag.TagType.LIFE_STAGE, "노년"),
+                tag(service, ServiceTag.TagType.INTEREST_THEME, "주거"),
+                tag(service, ServiceTag.TagType.KEYWORD, "월세보증금")
+        );
+
+        assertThat(support.isYouthRelevant(service, tags)).isTrue();
+    }
+
+    @Test
+    void excludesMixedLifeStageCentralPolicyEvenWhenSupportSignalsLookYouthFriendly() {
+        WelfareService service = WelfareService.builder()
+                .sourceType(WelfareService.SourceType.BOKJIRO_CENTRAL)
+                .sourceId("C4")
+                .title("월세보증금 지원")
+                .unifiedCategory("주거")
+                .status(WelfareService.ServiceStatus.ACTIVE)
+                .build();
+        List<ServiceTag> tags = List.of(
+                tag(service, ServiceTag.TagType.LIFE_STAGE, "청년"),
+                tag(service, ServiceTag.TagType.LIFE_STAGE, "중장년"),
+                tag(service, ServiceTag.TagType.INTEREST_THEME, "주거"),
+                tag(service, ServiceTag.TagType.KEYWORD, "월세보증금")
+        );
+
+        assertThat(support.isYouthRelevant(service, tags)).isFalse();
+    }
+
+    @Test
+    void excludesMixedLifeStageLocalPolicyWithoutStructuredLocalSupportSignals() {
+        WelfareService service = WelfareService.builder()
+                .sourceType(WelfareService.SourceType.BOKJIRO_LOCAL)
+                .sourceId("L5")
+                .title("일반 생활 안내")
+                .unifiedCategory("기타")
+                .status(WelfareService.ServiceStatus.ACTIVE)
+                .build();
+        List<ServiceTag> tags = List.of(
+                tag(service, ServiceTag.TagType.LIFE_STAGE, "청년"),
+                tag(service, ServiceTag.TagType.LIFE_STAGE, "중장년"),
+                tag(service, ServiceTag.TagType.KEYWORD, "일반안내")
+        );
+
+        assertThat(support.isYouthRelevant(service, tags)).isFalse();
+    }
+
     private WelfareService baseService(WelfareService.SourceType sourceType, String title) {
         return WelfareService.builder()
                 .sourceType(sourceType)

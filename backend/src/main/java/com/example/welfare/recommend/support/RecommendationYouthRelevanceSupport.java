@@ -40,6 +40,36 @@ public class RecommendationYouthRelevanceSupport {
             "임신",
             "출산"
     );
+    private static final Set<String> LOCAL_YOUTH_BRIDGE_CATEGORIES = Set.of(
+            "주거",
+            "금융·생활지원",
+            "교육·직업훈련",
+            "일자리",
+            "가족·돌봄"
+    );
+    private static final Set<String> LOCAL_YOUTH_BRIDGE_INTEREST_THEMES = Set.of(
+            "주거",
+            "생활지원",
+            "보호·돌봄",
+            "교육",
+            "일자리"
+    );
+    private static final Set<String> LOCAL_YOUTH_BRIDGE_KEYWORDS = Set.of(
+            "주거지원",
+            "월세보증금",
+            "주거급여지원",
+            "금융지원",
+            "생활안정자금",
+            "융자",
+            "바우처",
+            "돌봄서비스",
+            "주간활동서비스",
+            "안부확인서비스",
+            "맞춤형상담서비스",
+            "상담서비스",
+            "교육지원",
+            "인프라 구축"
+    );
 
     public boolean isYouthRelevant(WelfareService service, List<ServiceTag> tags) {
         return computeYouthRelevant(service, tags);
@@ -54,6 +84,9 @@ public class RecommendationYouthRelevanceSupport {
             return true;
         }
         if (hasYouthFocusedLifeStage(service, tags)) {
+            return true;
+        }
+        if (hasStructuredLocalYouthBridge(service, tags)) {
             return true;
         }
         if (isYouthFocusedAgeRange(service.getMinAge(), service.getMaxAge())) {
@@ -117,6 +150,35 @@ public class RecommendationYouthRelevanceSupport {
                 .toList();
 
         return isYouthOnlyOrFocusedStage(lifeStageTags);
+    }
+
+    private static boolean hasStructuredLocalYouthBridge(WelfareService service, List<ServiceTag> tags) {
+        if (service == null || service.getSourceType() != WelfareService.SourceType.BOKJIRO_LOCAL) {
+            return false;
+        }
+        if (!hasAnyYouthLifeStage(service, tags)) {
+            return false;
+        }
+        if (matchesAnyNormalized(service.getUnifiedCategory(), LOCAL_YOUTH_BRIDGE_CATEGORIES)) {
+            return true;
+        }
+        if (matchesAnyTagValue(tags, ServiceTag.TagType.INTEREST_THEME, LOCAL_YOUTH_BRIDGE_INTEREST_THEMES)) {
+            return true;
+        }
+        return matchesAnyTagValue(tags, ServiceTag.TagType.KEYWORD, LOCAL_YOUTH_BRIDGE_KEYWORDS);
+    }
+
+    private static boolean hasAnyYouthLifeStage(WelfareService service, List<ServiceTag> tags) {
+        if (splitTokens(service.getLifeStage()).stream().anyMatch(RecommendationYouthRelevanceSupport::containsYouthSignal)) {
+            return true;
+        }
+        if (tags == null || tags.isEmpty()) {
+            return false;
+        }
+        return tags.stream()
+                .filter(tag -> tag.getTagType() == ServiceTag.TagType.LIFE_STAGE)
+                .map(ServiceTag::getTagValue)
+                .anyMatch(RecommendationYouthRelevanceSupport::containsYouthSignal);
     }
 
     private static boolean isYouthOnlyOrFocusedStage(List<String> stages) {
@@ -197,5 +259,28 @@ public class RecommendationYouthRelevanceSupport {
         return tagType == ServiceTag.TagType.TARGET_GROUP
                 || tagType == ServiceTag.TagType.KEYWORD
                 || tagType == ServiceTag.TagType.INTEREST_THEME;
+    }
+
+    private static boolean matchesAnyTagValue(List<ServiceTag> tags,
+                                              ServiceTag.TagType tagType,
+                                              Set<String> expectedValues) {
+        if (tags == null || tags.isEmpty()) {
+            return false;
+        }
+        return tags.stream()
+                .filter(tag -> tag.getTagType() == tagType)
+                .map(ServiceTag::getTagValue)
+                .anyMatch(value -> matchesAnyNormalized(value, expectedValues));
+    }
+
+    private static boolean matchesAnyNormalized(String raw, Set<String> expectedValues) {
+        String normalized = RawFieldValidator.normalize(raw);
+        if (normalized == null) {
+            return false;
+        }
+        String lower = normalized.toLowerCase(Locale.ROOT);
+        return expectedValues.stream()
+                .map(value -> value.toLowerCase(Locale.ROOT))
+                .anyMatch(lower::contains);
     }
 }
