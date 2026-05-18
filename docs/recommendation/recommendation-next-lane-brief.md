@@ -163,6 +163,8 @@ bounded family 단위로만 확장합니다.
 
 즉 다음 bounded step은 다시 youth relevance 나 region inclusion이 아니라, **latest 20 window ordering / latest fetch size 경계 안에서 same-sido local 후보가 왜 밀리는지** 를 좁히는 것이다.
 
+이 단계의 기본 wrapper는 [recommendation-latest-window-audit-runbook.md](./recommendation-latest-window-audit-runbook.md) 와 `run-local-recommendation-latest-window-audit.sh` 로 고정합니다.
+
 ## lane 1 에서 아직 안 할 일
 
 1. global source bonus

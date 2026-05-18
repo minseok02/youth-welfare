@@ -24,6 +24,7 @@
 - [recommendation-next-lane-brief.md](./recommendation-next-lane-brief.md)
 - [recommendation-signal-gap-audit-runbook.md](./recommendation-signal-gap-audit-runbook.md)
 - [recommendation-region-window-audit-runbook.md](./recommendation-region-window-audit-runbook.md)
+- [recommendation-latest-window-audit-runbook.md](./recommendation-latest-window-audit-runbook.md)
 - [recommendation-pipeline.md](./recommendation-pipeline.md)
 
 현재 practical runtime wrapper:
@@ -36,6 +37,7 @@
 - `bash deploy/smoke/run-local-no-priority-candidate-audit.sh`
 - `bash deploy/smoke/run-local-recommendation-signal-gap-audit.sh`
 - `bash deploy/smoke/run-local-recommendation-region-window-audit.sh`
+- `bash deploy/smoke/run-local-recommendation-latest-window-audit.sh`
 - `bash deploy/smoke/run-local-gov24-recommend-surface-audit.sh`
 - `bash deploy/smoke/run-local-gov24-recommend-score-audit.sh`
 - `bash deploy/smoke/run-local-gov24-zero-ai-audit.sh`
@@ -189,6 +191,12 @@
 - target family가 query 안에는 들어오는지, 들어오면 몇 위인지
 
 를 읽는 bounded audit runbook 입니다.
+
+### 11. latest window audit runbook
+
+- [recommendation-latest-window-audit-runbook.md](./recommendation-latest-window-audit-runbook.md)
+
+이 문서는 branch inclusion 뒤에도 target family가 latest `20-window` 밖에 남을 때 top 20 과 blocker `21~40위` 를 같이 읽고, latest ordering vs latest fetch size 문제를 좁히는 bounded audit runbook 입니다.
 
 Gov24가 추천에 "안 보이는지"보다 "몇 위에서 어떤 서비스로 뜨는지"를 보려면 `bash deploy/smoke/run-local-gov24-recommend-surface-audit.sh` 로 top1/top3/top5/top10 Gov24 share, rank별 source 분포, Gov24 상위 서비스 concentration을 같이 봅니다.
 

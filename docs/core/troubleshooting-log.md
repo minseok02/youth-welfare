@@ -5362,7 +5362,18 @@
   - branch inclusion 문제는 이미 닫혔다.
   - base에서 `in_window=true` 인데 latest에서만 밀리면, 병목은 scoring 이전의 latest retrieval ordering/window 이다.
 
-## 879) ops baseline suite는 smoke wrapper 추가만으로 끝나는 게 아니라 실제 서버 contract에 맞춰 collect failures smoke를 다시 닫아야 한다
+## 879) latest 20-window 병목은 top20과 blocker 21~40위, 그리고 ordering tier를 같이 보여 주는 wrapper로 먼저 좁히는 편이 맞다
+- 문제: `3257/3281` 이 latest retrieval 에서 `24위`, `28위` 로 밀린 상태에서는 direct score patch보다 먼저, top 20 과 blocker `21~40위` 를 같이 읽어 어떤 tier에서 막히는지 보는 evidence가 필요했다.
+- 해결:
+  - `deploy/smoke/run-local-recommendation-latest-window-audit.sh` 를 추가했다.
+  - [recommendation-latest-window-audit-runbook.md](../recommendation/recommendation-latest-window-audit-runbook.md) 를 추가했다.
+  - 이 wrapper는 latest query만 재현하고, target family / top20 / blocker 21~40위 를 함께 출력한다.
+  - 동시에 `regionTier / youthTier / categoryTier` 를 노출해 target이 같은 tier 안 recency 경쟁에서 밀리는지, 아니면 더 약한 tier에 있는지 구분하게 했다.
+- 이유:
+  - 현재 다음 질문은 “왜 branch 밖이냐”가 아니라 “왜 아직 24~33위인가”다.
+  - 이 층을 먼저 고정해야 다음 bounded fix를 `latest ordering` 으로 둘지, `latest fetch size` 로 둘지 증거 기반으로 좁힐 수 있다.
+
+## 880) ops baseline suite는 smoke wrapper 추가만으로 끝나는 게 아니라 실제 서버 contract에 맞춰 collect failures smoke를 다시 닫아야 한다
 - 문제: `run-local-ops-baseline-suite.sh` 를 추가한 뒤 서버에서 처음 다시 돌렸을 때, `run-local-admin-collect-failures-smoke.sh` 가 `summaryWindowDays`, `openCollectCircuits`, `laneCount`, `failedSources` 같은 현재 응답에 없는 필드를 기대해 중간에 실패했다. 즉 suite 의도는 맞았지만 collect failures smoke 계약이 실제 `AdminCollectFailureResponse` 와 어긋나 있었다.
 - 해결:
   - collect failures smoke를 `windowDays`, `jobBreakdowns`, `currentJobStreaks`, `errorCodeBreakdowns`, `recentSamples`, `circuitStatuses`, `collectSourceLanes` 기준으로 다시 맞췄다.
