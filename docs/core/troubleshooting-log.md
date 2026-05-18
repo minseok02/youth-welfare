@@ -5124,3 +5124,30 @@
 - 이유:
   - 이번 단계 목적은 새 source 추가가 아니라 source별 runtime summary 완성이다.
   - lane inventory와 latest run을 합치면 "왜 manual인지"와 "최근에 실제로 어떻게 끝났는지"를 같은 카드에서 읽을 수 있어 collect triage 왕복을 줄인다.
+
+## 864) 서버 검증 결과 latestRun summary와 YOUTH_DETAILS 로그 편입도 같이 닫혔다
+- 문제: local에서 `latestRun` 필드와 `YOUTH_DETAILS` 로그 편입을 맞춰도, 서버가 실제로 lane별 latest snapshot을 내리고 `YOUTH_DETAILS` manual lane까지 `api_sync_logs` 경계로 들어오는지 확인하지 않으면 collect runtime summary는 여전히 불완전할 수 있다.
+- 확인:
+  - 서버 최신 `main 1f641b0` 반영 뒤 app 재빌드/재기동 및 health `UP`
+  - `/api/admin/dashboard/collect-failures` 응답 `200`
+  - lane별 `latestRun` 존재 확인
+  - 주요 latest run 예:
+    - `YOUTH = partial_success requested=2568 saved=2555 skipped=0 failed=13`
+    - `BOKJIRO_CENTRAL = success requested=413 saved=134 skipped=0 failed=0`
+    - `BOKJIRO_LOCAL = success requested=4565 saved=1223 skipped=0 failed=0`
+    - `BOKJIRO_DETAIL = success requested=0 saved=0 skipped=1357 failed=0`
+    - `GOV24 = success requested=10941 saved=10941 skipped=0 failed=0`
+    - `GOV24_DETAIL = success requested=940 saved=940 skipped=10001 failed=0`
+    - `GOV24_SUPPORT_CONDITIONS = success requested=940 saved=940 skipped=10001 failed=0`
+  - `YOUTH_DETAILS` 는 실행 전 `latestRun` 이 비어 있었고, `POST /api/admin/collect/youth-details` 후
+    - `latestStatus=partial_success`
+    - `requested=1 saved=0 skipped=2568 failed=1`
+    로 채워짐
+  - 프론트:
+    - 최신 admin 번들 배포 후 Playwright 기준 `Collect Lane Inventory=1`, `Last run=10`, `YOUTH_DETAILS=1`, `req 1 / save 0 / skip 2,568 / fail 1=1`, `page_errors=0`
+- 해결:
+  - 별도 코드 수정은 필요 없었다.
+  - 서버는 `latestRun` API contract와 `YOUTH_DETAILS` manual lane의 실제 로그 편입, 그리고 `Last run` UI 렌더링만 재확인했다.
+- 이유:
+  - 이번 단계 목표는 수집 규칙 변경이 아니라 collect runtime summary를 실제 운영 서버 기준으로 닫는 것이다.
+  - `YOUTH_DETAILS` 도 이제 다른 source와 같은 `api_sync_logs` 경계에 들어왔으므로, scheduled/manual lane 모두 최근 실행 결과를 한 화면에서 읽을 수 있다.
