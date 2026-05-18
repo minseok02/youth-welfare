@@ -144,10 +144,17 @@ class EducationPriorityTargetCandidateCompositionIntegrationTest {
                   AND sr.region_code = ?
                 """.formatted(youthMajorJoin, youthMajorFilter), Long.class, USER_AGE, USER_AGE, USER_INCOME_LEVEL, USER_INCOME_LEVEL, representativeRegion);
 
+        String representativeSido = jdbcTemplate.queryForObject("""
+                SELECT MIN(sido_name)
+                FROM service_regions
+                WHERE region_code = ?
+                """, String.class, representativeRegion);
+
         List<WelfareService> rawCandidates = welfareServiceRepository.findCandidatesWithRegionCode(
                 USER_AGE,
                 USER_INCOME_LEVEL,
                 representativeRegion,
+                representativeSido,
                 PageRequest.of(0, 150)
         );
         long rawTargetHits = rawCandidates.stream()

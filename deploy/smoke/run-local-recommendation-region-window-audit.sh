@@ -254,6 +254,17 @@ base_candidates as (
             where sr5.service_id = ws.id
               and sr5.region_code = p.region_code
           )
+          or (
+            ws.source_type = 'BOKJIRO_LOCAL'
+            and ws.search_youth_relevant = true
+            and coalesce(ws.unified_category, '') <> '기타'
+            and exists (
+              select 1 from service_regions sr5s
+              where sr5s.service_id = ws.id
+                and p.sido is not null
+                and sr5s.sido_name = p.sido
+            )
+          )
         )
       )
       or (
@@ -287,48 +298,63 @@ base_ranked as (
           when (select branch_mode from params) = 'REGION_CODE'
                and bc.source_type = 'BOKJIRO_LOCAL'
                and bc.exact_region_match then 0
+          when (select branch_mode from params) = 'REGION_CODE'
+               and bc.source_type = 'BOKJIRO_LOCAL'
+               and bc.exact_sido_match
+               and bc.search_youth_relevant = true
+               and bc.unified_category <> '기타' then 1
           when (select branch_mode from params) = 'SIDO'
                and bc.source_type = 'BOKJIRO_LOCAL'
                and bc.exact_sido_match then 0
           when (select branch_mode from params) = 'REGION_CODE'
-               and bc.exact_region_match then 1
+               and bc.exact_region_match then 2
           when (select branch_mode from params) = 'SIDO'
                and bc.exact_sido_match then 1
-          else 2
+          else 3
         end asc,
         case
           when (select branch_mode from params) = 'REGION_CODE'
                and bc.source_type = 'BOKJIRO_LOCAL'
                and bc.exact_region_match
                and bc.search_youth_relevant = true then 0
+          when (select branch_mode from params) = 'REGION_CODE'
+               and bc.source_type = 'BOKJIRO_LOCAL'
+               and bc.exact_sido_match
+               and bc.search_youth_relevant = true
+               and bc.unified_category <> '기타' then 1
           when (select branch_mode from params) = 'SIDO'
                and bc.source_type = 'BOKJIRO_LOCAL'
                and bc.exact_sido_match
                and bc.search_youth_relevant = true then 0
           when (select branch_mode from params) = 'REGION_CODE'
                and bc.source_type = 'BOKJIRO_LOCAL'
-               and bc.exact_region_match then 1
+               and bc.exact_region_match then 2
           when (select branch_mode from params) = 'SIDO'
                and bc.source_type = 'BOKJIRO_LOCAL'
                and bc.exact_sido_match then 1
-          else 2
+          else 3
         end asc,
         case
           when (select branch_mode from params) = 'REGION_CODE'
                and bc.source_type = 'BOKJIRO_LOCAL'
                and bc.exact_region_match
                and bc.unified_category <> '기타' then 0
+          when (select branch_mode from params) = 'REGION_CODE'
+               and bc.source_type = 'BOKJIRO_LOCAL'
+               and bc.exact_sido_match
+               and bc.search_youth_relevant = true
+               and bc.unified_category <> '기타' then 1
           when (select branch_mode from params) = 'SIDO'
                and bc.source_type = 'BOKJIRO_LOCAL'
                and bc.exact_sido_match
                and bc.unified_category <> '기타' then 0
           when (select branch_mode from params) = 'REGION_CODE'
                and bc.source_type = 'BOKJIRO_LOCAL'
-               and bc.exact_region_match then 1
+               and bc.exact_region_match then 2
           when (select branch_mode from params) = 'SIDO'
                and bc.source_type = 'BOKJIRO_LOCAL'
                and bc.exact_sido_match then 1
-          else 2
+          else 3
         end asc,
         bc.sort_ts desc,
         bc.service_id desc
@@ -391,6 +417,17 @@ latest_candidates as (
             where sr5.service_id = ws.id
               and sr5.region_code = p.region_code
           )
+          or (
+            ws.source_type = 'BOKJIRO_LOCAL'
+            and ws.search_youth_relevant = true
+            and coalesce(ws.unified_category, '') <> '기타'
+            and exists (
+              select 1 from service_regions sr5s
+              where sr5s.service_id = ws.id
+                and p.sido is not null
+                and sr5s.sido_name = p.sido
+            )
+          )
         )
       )
       or (
@@ -424,48 +461,63 @@ latest_ranked as (
           when (select branch_mode from params) = 'REGION_CODE'
                and lc.source_type = 'BOKJIRO_LOCAL'
                and lc.exact_region_match then 0
+          when (select branch_mode from params) = 'REGION_CODE'
+               and lc.source_type = 'BOKJIRO_LOCAL'
+               and lc.exact_sido_match
+               and lc.search_youth_relevant = true
+               and lc.unified_category <> '기타' then 1
           when (select branch_mode from params) = 'SIDO'
                and lc.source_type = 'BOKJIRO_LOCAL'
                and lc.exact_sido_match then 0
           when (select branch_mode from params) = 'REGION_CODE'
-               and lc.exact_region_match then 1
+               and lc.exact_region_match then 2
           when (select branch_mode from params) = 'SIDO'
                and lc.exact_sido_match then 1
-          else 2
+          else 3
         end asc,
         case
           when (select branch_mode from params) = 'REGION_CODE'
                and lc.source_type = 'BOKJIRO_LOCAL'
                and lc.exact_region_match
                and lc.search_youth_relevant = true then 0
+          when (select branch_mode from params) = 'REGION_CODE'
+               and lc.source_type = 'BOKJIRO_LOCAL'
+               and lc.exact_sido_match
+               and lc.search_youth_relevant = true
+               and lc.unified_category <> '기타' then 1
           when (select branch_mode from params) = 'SIDO'
                and lc.source_type = 'BOKJIRO_LOCAL'
                and lc.exact_sido_match
                and lc.search_youth_relevant = true then 0
           when (select branch_mode from params) = 'REGION_CODE'
                and lc.source_type = 'BOKJIRO_LOCAL'
-               and lc.exact_region_match then 1
+               and lc.exact_region_match then 2
           when (select branch_mode from params) = 'SIDO'
                and lc.source_type = 'BOKJIRO_LOCAL'
                and lc.exact_sido_match then 1
-          else 2
+          else 3
         end asc,
         case
           when (select branch_mode from params) = 'REGION_CODE'
                and lc.source_type = 'BOKJIRO_LOCAL'
                and lc.exact_region_match
                and lc.unified_category <> '기타' then 0
+          when (select branch_mode from params) = 'REGION_CODE'
+               and lc.source_type = 'BOKJIRO_LOCAL'
+               and lc.exact_sido_match
+               and lc.search_youth_relevant = true
+               and lc.unified_category <> '기타' then 1
           when (select branch_mode from params) = 'SIDO'
                and lc.source_type = 'BOKJIRO_LOCAL'
                and lc.exact_sido_match
                and lc.unified_category <> '기타' then 0
           when (select branch_mode from params) = 'REGION_CODE'
                and lc.source_type = 'BOKJIRO_LOCAL'
-               and lc.exact_region_match then 1
+               and lc.exact_region_match then 2
           when (select branch_mode from params) = 'SIDO'
                and lc.source_type = 'BOKJIRO_LOCAL'
                and lc.exact_sido_match then 1
-          else 2
+          else 3
         end asc,
         lc.sort_ts desc,
         lc.service_id desc

@@ -5341,3 +5341,14 @@
 - 이유:
   - 현재 다음 질문은 “청년성 신호가 약한가”가 아니라 “actual branch 안에서 몇 위고, 왜 window 밖에 남나”이다.
   - 이 층을 먼저 고정해야 다음 수정도 region projection/order/window 중 어디를 건드릴지 bounded 하게 좁힐 수 있다.
+
+## 877) region-window audit 결과 exact-region ordering보다 `REGION_CODE` branch inclusion 자체가 병목이면 same-sido local youth-support fallback을 query에 제한적으로 넣는 편이 맞다
+- 문제: same-user region-window audit에서 `3257/3281/3575/3714` 는 `searchYouthRelevant=true`, structured `category/theme/keyword` 를 갖고도 `present=false`, `projection=EXACT_SIDO` 로만 찍혔다. 즉 이 family는 query 안에서 순위가 낮은 것이 아니라 `REGION_CODE` branch가 `region_code exact` 만 허용해 아예 branch 바깥으로 밀리고 있었다.
+- 해결:
+  - `WelfareServiceRepository.findCandidatesWithRegionCode/findLatestCandidatesWithRegionCode` 에 `BOKJIRO_LOCAL + same-sido + searchYouthRelevant=true + unifiedCategory!=기타` fallback을 추가했다.
+  - ordering도 `exact-region local -> same-sido local bounded fallback -> other exact-region -> nationwide/기타` 순으로 맞췄다.
+  - `PolicyExplorationService` 는 regionCode branch에서 `condition.sido()` 를 함께 넘기도록 수정했다.
+  - `run-local-recommendation-region-window-audit.sh` 도 같은 fallback tier를 반영하도록 갱신했다.
+- 이유:
+  - 현재 병목은 score가 아니라 branch inclusion이다.
+  - 다만 broad same-sido 전체를 열면 지역성이 급격히 약해지므로, `BOKJIRO_LOCAL + youth relevant + non-기타` 로만 좁혀 bounded 하게 푼다.

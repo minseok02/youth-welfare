@@ -153,6 +153,8 @@ bounded family 단위로만 확장합니다.
 [recommendation-region-window-audit-runbook.md](./recommendation-region-window-audit-runbook.md)
 와 `run-local-recommendation-region-window-audit.sh` 로 고정합니다.
 
+첫 bounded fix는 `REGION_CODE` branch 필터 자체에 `BOKJIRO_LOCAL + same-sido + searchYouthRelevant=true + unifiedCategory!=기타` fallback tier를 넣는 것입니다. 목적은 exact-region code가 비어 `EXACT_SIDO` 로만 잡히는 local youth-support 후보를 branch 안으로 편입시키는 것이지, broad same-sido 정책 전반을 여는 것이 아닙니다.
+
 ## lane 1 에서 아직 안 할 일
 
 1. global source bonus

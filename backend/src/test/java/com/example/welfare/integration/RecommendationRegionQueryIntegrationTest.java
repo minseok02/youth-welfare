@@ -125,6 +125,7 @@ class RecommendationRegionQueryIntegrationTest {
                 25,
                 5,
                 "11680",
+                "서울특별시",
                 PageRequest.of(0, 5000)
         );
 
@@ -154,6 +155,7 @@ class RecommendationRegionQueryIntegrationTest {
                 25,
                 5,
                 PRIORITY_TEST_REGION_CODE,
+                PRIORITY_TEST_SIDO,
                 PageRequest.of(0, 10)
         );
 
@@ -198,11 +200,56 @@ class RecommendationRegionQueryIntegrationTest {
                 25,
                 5,
                 PRIORITY_TEST_REGION_CODE,
+                PRIORITY_TEST_SIDO,
                 PageRequest.of(0, 10)
         );
 
         assertThat(indexOf(results, strongLocal))
                 .isLessThan(indexOf(results, weakLocal));
+    }
+
+    @Test
+    @DisplayName("지역코드 추천 후보는 region_code가 비어도 same-sido BOKJIRO_LOCAL youth/non-기타 후보를 포함한다")
+    void findCandidatesWithRegionCodeIncludesSameSidoLocalYouthBridgeWithoutExactRegionCode() {
+        WelfareService sameSidoLocal = saveService(
+                "region-local-sido-bridge",
+                WelfareService.SourceType.BOKJIRO_LOCAL,
+                true,
+                "주거"
+        );
+        WelfareService sameSidoOther = saveService(
+                "region-local-sido-other",
+                WelfareService.SourceType.BOKJIRO_LOCAL,
+                true,
+                "기타"
+        );
+
+        serviceRegionRepository.saveAll(List.of(
+                ServiceRegion.builder()
+                        .service(sameSidoLocal)
+                        .regionCode(null)
+                        .sidoName(PRIORITY_TEST_SIDO)
+                        .sggName("다른시군구")
+                        .build(),
+                ServiceRegion.builder()
+                        .service(sameSidoOther)
+                        .regionCode(null)
+                        .sidoName(PRIORITY_TEST_SIDO)
+                        .sggName("다른시군구")
+                        .build()
+        ));
+
+        List<WelfareService> results = welfareServiceRepository.findCandidatesWithRegionCode(
+                25,
+                5,
+                PRIORITY_TEST_REGION_CODE,
+                PRIORITY_TEST_SIDO,
+                PageRequest.of(0, 20)
+        );
+
+        assertThat(results).extracting(WelfareService::getId)
+                .contains(sameSidoLocal.getId())
+                .doesNotContain(sameSidoOther.getId());
     }
 
     @Test
@@ -237,6 +284,7 @@ class RecommendationRegionQueryIntegrationTest {
                 25,
                 5,
                 "11680",
+                "서울특별시",
                 PageRequest.of(0, 5000)
         );
 
@@ -266,6 +314,7 @@ class RecommendationRegionQueryIntegrationTest {
                 25,
                 5,
                 PRIORITY_TEST_REGION_CODE,
+                PRIORITY_TEST_SIDO,
                 PageRequest.of(0, 10)
         );
 
@@ -310,11 +359,56 @@ class RecommendationRegionQueryIntegrationTest {
                 25,
                 5,
                 PRIORITY_TEST_REGION_CODE,
+                PRIORITY_TEST_SIDO,
                 PageRequest.of(0, 10)
         );
 
         assertThat(indexOf(results, strongLocal))
                 .isLessThan(indexOf(results, weakLocal));
+    }
+
+    @Test
+    @DisplayName("지역코드 최신 추천 후보도 region_code가 비어도 same-sido BOKJIRO_LOCAL youth/non-기타 후보를 포함한다")
+    void findLatestCandidatesWithRegionCodeIncludesSameSidoLocalYouthBridgeWithoutExactRegionCode() {
+        WelfareService sameSidoLocal = saveService(
+                "latest-region-local-sido-bridge",
+                WelfareService.SourceType.BOKJIRO_LOCAL,
+                true,
+                "금융·생활지원"
+        );
+        WelfareService sameSidoOther = saveService(
+                "latest-region-local-sido-other",
+                WelfareService.SourceType.BOKJIRO_LOCAL,
+                true,
+                "기타"
+        );
+
+        serviceRegionRepository.saveAll(List.of(
+                ServiceRegion.builder()
+                        .service(sameSidoLocal)
+                        .regionCode(null)
+                        .sidoName(PRIORITY_TEST_SIDO)
+                        .sggName("다른시군구")
+                        .build(),
+                ServiceRegion.builder()
+                        .service(sameSidoOther)
+                        .regionCode(null)
+                        .sidoName(PRIORITY_TEST_SIDO)
+                        .sggName("다른시군구")
+                        .build()
+        ));
+
+        List<WelfareService> results = welfareServiceRepository.findLatestCandidatesWithRegionCode(
+                25,
+                5,
+                PRIORITY_TEST_REGION_CODE,
+                PRIORITY_TEST_SIDO,
+                PageRequest.of(0, 20)
+        );
+
+        assertThat(results).extracting(WelfareService::getId)
+                .contains(sameSidoLocal.getId())
+                .doesNotContain(sameSidoOther.getId());
     }
 
     @Test

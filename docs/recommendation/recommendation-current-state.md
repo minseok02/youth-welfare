@@ -96,6 +96,8 @@
 
 이 다음 evidence lane은 [recommendation-region-window-audit-runbook.md](./recommendation-region-window-audit-runbook.md) 와 `run-local-recommendation-region-window-audit.sh` 로 actual retrieval branch(`REGION_CODE`/`SIDO`) 안에서 target family의 실제 rank/in-window 여부를 읽는 경로로 고정합니다.
 
+그 다음 bounded fix는 `REGION_CODE` branch 안에서 `BOKJIRO_LOCAL + same-sido + searchYouthRelevant=true + unifiedCategory!=기타` 후보를 exact-region local 뒤의 fallback tier로 편입하는 것입니다. 이건 broad same-sido 전체를 푸는 것이 아니라, `3257/3281` 같은 structured local youth-support 후보가 아예 branch 바깥으로 떨어지는 문제만 겨냥합니다.
+
 ## 현재 scoring 기준
 
 ### rule score

@@ -65,7 +65,16 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                     OR EXISTS (
                         SELECT sr2.id FROM ServiceRegion sr2
                         WHERE sr2.service = ws
-                          AND sr2.regionCode = :regionCode
+                          AND (
+                              sr2.regionCode = :regionCode
+                              OR (
+                                  ws.sourceType = 'BOKJIRO_LOCAL'
+                                  AND :sidoName IS NOT NULL
+                                  AND sr2.sidoName = :sidoName
+                                  AND ws.searchYouthRelevant = true
+                                  AND ws.unifiedCategory <> '기타'
+                              )
+                          )
                     )
                   )
             ORDER BY
@@ -81,7 +90,16 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                         WHERE sr4.service = ws
                           AND sr4.regionCode = :regionCode
                      ) THEN 1
-                ELSE 2
+                WHEN ws.sourceType = 'BOKJIRO_LOCAL'
+                     AND :sidoName IS NOT NULL
+                     AND ws.searchYouthRelevant = true
+                     AND ws.unifiedCategory <> '기타'
+                     AND EXISTS (
+                        SELECT sr4s.id FROM ServiceRegion sr4s
+                        WHERE sr4s.service = ws
+                          AND sr4s.sidoName = :sidoName
+                     ) THEN 2
+                ELSE 3
               END ASC,
               CASE
                 WHEN ws.sourceType = 'BOKJIRO_LOCAL'
@@ -97,7 +115,16 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                         WHERE sr6.service = ws
                           AND sr6.regionCode = :regionCode
                      ) THEN 1
-                ELSE 2
+                WHEN ws.sourceType = 'BOKJIRO_LOCAL'
+                     AND :sidoName IS NOT NULL
+                     AND ws.searchYouthRelevant = true
+                     AND ws.unifiedCategory <> '기타'
+                     AND EXISTS (
+                        SELECT sr6s.id FROM ServiceRegion sr6s
+                        WHERE sr6s.service = ws
+                          AND sr6s.sidoName = :sidoName
+                     ) THEN 2
+                ELSE 3
               END ASC,
               CASE
                 WHEN ws.sourceType = 'BOKJIRO_LOCAL'
@@ -113,7 +140,16 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                         WHERE sr8.service = ws
                           AND sr8.regionCode = :regionCode
                      ) THEN 1
-                ELSE 2
+                WHEN ws.sourceType = 'BOKJIRO_LOCAL'
+                     AND :sidoName IS NOT NULL
+                     AND ws.searchYouthRelevant = true
+                     AND ws.unifiedCategory <> '기타'
+                     AND EXISTS (
+                        SELECT sr8s.id FROM ServiceRegion sr8s
+                        WHERE sr8s.service = ws
+                          AND sr8s.sidoName = :sidoName
+                     ) THEN 2
+                ELSE 3
               END ASC,
               COALESCE(ws.lastModifiedAt, ws.registeredAt, ws.createdAt) DESC,
               ws.id DESC
@@ -121,6 +157,7 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
     List<WelfareService> findCandidatesWithRegionCode(@Param("age") int age,
                                                       @Param("incomeLevel") int incomeLevel,
                                                       @Param("regionCode") String regionCode,
+                                                      @Param("sidoName") String sidoName,
                                                       Pageable pageable);
 
     // 시도 필터 포함 추천 후보
@@ -245,7 +282,16 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                     OR EXISTS (
                         SELECT sr2.id FROM ServiceRegion sr2
                         WHERE sr2.service = ws
-                          AND sr2.regionCode = :regionCode
+                          AND (
+                              sr2.regionCode = :regionCode
+                              OR (
+                                  ws.sourceType = 'BOKJIRO_LOCAL'
+                                  AND :sidoName IS NOT NULL
+                                  AND sr2.sidoName = :sidoName
+                                  AND ws.searchYouthRelevant = true
+                                  AND ws.unifiedCategory <> '기타'
+                              )
+                          )
                     )
                   )
             ORDER BY
@@ -261,7 +307,16 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                         WHERE sr4.service = ws
                           AND sr4.regionCode = :regionCode
                      ) THEN 1
-                ELSE 2
+                WHEN ws.sourceType = 'BOKJIRO_LOCAL'
+                     AND :sidoName IS NOT NULL
+                     AND ws.searchYouthRelevant = true
+                     AND ws.unifiedCategory <> '기타'
+                     AND EXISTS (
+                        SELECT sr4s.id FROM ServiceRegion sr4s
+                        WHERE sr4s.service = ws
+                          AND sr4s.sidoName = :sidoName
+                     ) THEN 2
+                ELSE 3
               END ASC,
               CASE
                 WHEN ws.sourceType = 'BOKJIRO_LOCAL'
@@ -277,7 +332,16 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                         WHERE sr6.service = ws
                           AND sr6.regionCode = :regionCode
                      ) THEN 1
-                ELSE 2
+                WHEN ws.sourceType = 'BOKJIRO_LOCAL'
+                     AND :sidoName IS NOT NULL
+                     AND ws.searchYouthRelevant = true
+                     AND ws.unifiedCategory <> '기타'
+                     AND EXISTS (
+                        SELECT sr6s.id FROM ServiceRegion sr6s
+                        WHERE sr6s.service = ws
+                          AND sr6s.sidoName = :sidoName
+                     ) THEN 2
+                ELSE 3
               END ASC,
               CASE
                 WHEN ws.sourceType = 'BOKJIRO_LOCAL'
@@ -293,7 +357,16 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                         WHERE sr8.service = ws
                           AND sr8.regionCode = :regionCode
                      ) THEN 1
-                ELSE 2
+                WHEN ws.sourceType = 'BOKJIRO_LOCAL'
+                     AND :sidoName IS NOT NULL
+                     AND ws.searchYouthRelevant = true
+                     AND ws.unifiedCategory <> '기타'
+                     AND EXISTS (
+                        SELECT sr8s.id FROM ServiceRegion sr8s
+                        WHERE sr8s.service = ws
+                          AND sr8s.sidoName = :sidoName
+                     ) THEN 2
+                ELSE 3
               END ASC,
               ws.createdAt DESC,
               ws.id DESC
@@ -301,6 +374,7 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
     List<WelfareService> findLatestCandidatesWithRegionCode(@Param("age") int age,
                                                             @Param("incomeLevel") int incomeLevel,
                                                             @Param("regionCode") String regionCode,
+                                                            @Param("sidoName") String sidoName,
                                                             Pageable pageable);
 
     // 시도 필터 포함 추천 후보 조회(최신순): 신규 정책 M건 강제 포함용
