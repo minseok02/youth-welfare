@@ -5490,7 +5490,7 @@
   - 현재 남은 핵심은 signal 부족이 아니라, **AI가 수급자/신혼부부/학생 같은 primary audience mismatch를 실제 exclusion으로 강하게 해석하는 것**이다.
   - 다음 bounded step은 retrieval/AI input 기술 문제가 아니라, 이 exclusion을 product rule로 존중할지 아니면 AI over-exclusion으로 완화할지 결정하는 제품 판단이다.
 
-## 892) 하이브리드 완화는 system prompt 수준에서 먼저 시도하고, 전용 대상 불일치는 유지한다
+## 892) 하이브리드 완화는 system prompt 수준에서 먼저 시도했지만, 핵심 zero cohort를 줄이지 못해 mainline에 유지하지 않는다
 - 문제: 원인 분석상 `3257/3209` 는 단순 bug가 아니라 AI가 primary audience mismatch를 강하게 exclusion으로 읽는 케이스였다. 그렇다고 바로 global score patch를 넣으면 `신혼부부 전용`, `대학생 전용` 같은 실제 불일치 정책까지 함께 풀릴 수 있다.
 - 해결:
   - `RealtimeAiGateway.SYSTEM_PROMPT` 에 bounded hybrid 가이드를 추가했다.
@@ -5499,5 +5499,13 @@
     - 청년 포함 mixed audience 정책은 간접적이거나 추가 조건 확인이 필요해도 낮은 양수 점수로 평가한다.
     - 반대로 대학생 전용, 신혼부부 전용처럼 현재 사용자와 명확히 배타적인 전용 대상 정책은 0점 또는 매우 낮은 점수를 줄 수 있다.
   - `RealtimeAiGatewayTest` 에 system prompt가 이 hybrid guidance를 포함하는지 검증을 추가했다.
+- 서버 재검증:
+  - `3257`: 여전히 `savedAi=0`, reason=`저소득층을 대상으로 한 정책으로, 현재 사용자의 소득 수준과 맞지 않는다.`
+  - `3209`: 여전히 `savedAi=0`, reason=`신혼부부 전용 정책으로, 현재 사용자의 특성과 맞지 않는다.`
+  - `3287`: 여전히 `savedAi=0`
+  - `3288`: 직전 `savedAi=70` 에서 다시 `savedAi=0` 으로 하락
+  - `fresh_top_ai_zero_count`: `3 -> 4`
 - 이유:
-  - 이 수정은 `3257` 류 over-exclusion을 완화하려는 bounded 시도이지만, product 정책상 유지해야 하는 명확한 대상군 exclusion까지 풀지 않기 위한 안전장치다.
+  - 즉 이 수정은 `3257` 류 over-exclusion을 완화하는 데 실패했고, 일부 row(`3288`)를 다시 0점 cohort로 되돌렸다.
+  - 따라서 hybrid prompt 완화는 실험 결과만 문서에 남기고 mainline에서는 원복하는 편이 맞다.
+  - 남은 쟁점은 기술 버그가 아니라, 이 primary audience exclusion을 제품 정책으로 유지할지 여부다.

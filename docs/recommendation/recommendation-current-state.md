@@ -130,7 +130,7 @@
 
 그리고 `2026-05-18` server `ai input contrast / prompt line contrast / ai reason contrast` 까지 다시 태운 결과, `3257/3209` 는 structured signal이 빈약해서 0점인 쪽이 아니라 **AI가 primary audience mismatch를 직접 0점 이유로 적는 케이스** 로 좁혀졌습니다. `3257` 은 `savedAi=0`, reason=`저소득층을 위한 지원으로 소득 5분위인 사용자에게는 적합하지 않음`, `3209` 는 `신혼부부 대상의 지원으로 미혼인 사용자에게는 해당되지 않음` 으로 저장됐습니다. 같은 `BOKJIRO_LOCAL 주거` 인 `3609` 는 `savedAi=60` 이고 reason도 “미취업 상태에서는 직접적인 혜택이 적을 수 있음” 수준이라, 이번 prompt line 보강은 `3288` 처럼 일부 row를 0점 밖으로 끌어내리는 효과는 있었지만 `3257/3209` 핵심 케이스를 뒤집지는 못했습니다. 즉 현재 남은 문제는 prompt에 청년 신호가 안 보이는 것이 아니라, **AI가 수급자/신혼부부/학생 같은 대상군 불일치를 강한 exclusion으로 해석하는 것**입니다.
 
-이 판단에 대해 `2026-05-18` 에 bounded hybrid 완화도 한 번 넣었습니다. `RealtimeAiGateway` system prompt에 “청년을 생애주기/대상군에 명시적으로 포함하면 저소득층·주거취약계층·mixed life stage라는 이유만으로 0점을 주지 말고, mixed audience는 낮은 양수 점수로 평가하라. 대신 대학생 전용/신혼부부 전용 같은 명확한 전용 대상 불일치는 0점 또는 매우 낮은 점수를 허용한다”는 가이드를 추가했습니다. 즉 현재 코드는 **전용 대상 불일치는 유지하되, 청년 포함 mixed audience는 0점까지는 덜 가게 유도하는 하이브리드 정책** 으로 한 번 완화된 상태입니다.
+이 판단에 대해 `2026-05-18` 에 bounded hybrid 완화도 한 번 실험했습니다. `RealtimeAiGateway` system prompt에 “청년을 생애주기/대상군에 명시적으로 포함하면 저소득층·주거취약계층·mixed life stage라는 이유만으로 0점을 주지 말라”는 가이드를 추가해 봤지만, server 재검증 결과 `3257/3209` 는 여전히 `savedAi=0` 이었고, 오히려 직전 완화됐던 `3288` 도 다시 `savedAi=0` 으로 내려갔습니다. 즉 이 prompt 완화는 효과적으로 검증되지 않았고, 현재 기준 mainline에서는 원복했습니다. 따라서 남은 이슈는 기술 수정이 아니라 **이 primary audience exclusion을 제품 정책으로 유지할지, 더 강한 프롬프트/후처리 완화를 승인할지에 대한 제품 판단** 입니다.
 
 ## 현재 scoring 기준
 
