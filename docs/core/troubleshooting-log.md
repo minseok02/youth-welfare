@@ -5220,3 +5220,28 @@
     이 값을 목록 filter나 ranking signal로 넓힐지 판단할 수 있다.
   - 즉 이번 단계 의도는 **consumption before ranking** 이고,
     저장된 신호를 바로 점수 규칙으로 승격하는 것이 아니다.
+
+## 868) admin facet은 서버에서도 latest-batch read-only 분포 경계까지 닫혔고 YOUTH default-like 값 제거가 실제로 유지됐다
+- 문제: local 구현과 테스트만으로는 `youthOfficialFacetGroups`, `gov24FacetGroups` 가 서버 latest recommendation batch에서도 같은 규칙으로 채워지는지 확신할 수 없다. 특히 YOUTH는 `제한없음`, `무관` 을 SQL 단계에서 제외했기 때문에, 서버에서 실제로 이 값이 빠지는지 확인하지 않으면 admin facet이 signal이 아니라 default 노이즈를 다시 뿌릴 수 있다.
+- 확인:
+  - 최신 `83274d9` 반영 뒤 `/api/admin/dashboard/recommendation-breakdowns?summaryWindowDays=14&limit=3` 응답 200
+  - `youthOfficialFacetGroups=5`, `gov24FacetGroups=2`
+  - YOUTH bucket에는 `제한없음`, `무관` 없음
+  - 대표값:
+    - `소득조건 유형 -> 기타 rows=114 services=12`, `연소득 rows=82 services=3`
+    - `취업 요건 -> (예비)창업자 rows=124 services=10`, `미취업자 rows=88 services=16`, `기타 rows=48 services=5`
+    - `Gov24 사용자구분 -> 개인 rows=214 services=16`, `가구 rows=5 services=2`, `소상공인 rows=5 services=1`
+    - `Gov24 지원유형 -> 현금(장학금) rows=88 services=4`, `현금 rows=71 services=9`, `상담/법률지원 rows=43 services=2`
+  - 프론트는 최신 admin 번들 배포 후 headless browser 기준
+    - `YOUTH Official Facets` 카드 렌더링
+    - `Gov24 Token Facets` 카드 렌더링
+    - `기타 · rows 114 / services 12` 형식 chip 렌더링
+    - admin dashboard 관련 API 200, browser console error 없음
+- 해결:
+  - 별도 코드 수정은 필요 없었다.
+  - 서버는 latest batch admin facet response와 카드 렌더링이 local 규칙과 같은지만 재확인했다.
+- 이유:
+  - 이번 단계 목표는 YOUTH/Gov24 signal을 public filter나 ranking으로 넓히는 것이 아니라,
+    운영자가 최신 추천면의 분포를 안정적으로 읽을 수 있게 만드는 것이다.
+  - 서버에서도 default-like YOUTH 값 제거와 Gov24 token 분포가 그대로 유지되는 것이 확인됐으므로,
+    다음 판단은 구현 correctness가 아니라 “이 분포를 제품 기능으로 더 넓힐지”의 문제로 넘어간다.

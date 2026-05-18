@@ -239,6 +239,19 @@ YOUTH official fact와 Gov24 token 분포를 **facet 집계**로만 여는 것�
 이 값을 public filter나 recommendation scoring으로 승격하는 것이 아니다.
 그래서 이번 facet은 admin `recommendation-breakdowns` 와 `AdminDashboardPage` 에만 연결하고,
 retrieval/filter/scoring 계약은 그대로 유지한다.
+서버 `83274d9` 검증에서도 이 경계는 그대로 닫혔다.
+`/api/admin/dashboard/recommendation-breakdowns?summaryWindowDays=14&limit=3` 응답은
+`youthOfficialFacetGroups=5`, `gov24FacetGroups=2` 를 실제로 반환했고,
+YOUTH 쪽 bucket에는 `제한없음`, `무관` 이 들어오지 않았다.
+예시로 YOUTH는
+`소득조건 유형 -> 기타 rows=114 services=12, 연소득 rows=82 services=3`,
+`취업 요건 -> (예비)창업자 rows=124 services=10, 미취업자 rows=88 services=16`
+처럼 signal만 남았고,
+Gov24는 `사용자구분 -> 개인 rows=214 services=16, 소상공인 rows=5 services=1`,
+`지원유형 -> 현금(장학금) rows=88 services=4, 현금 rows=71 services=9`
+같은 token 분포가 보였다.
+즉 현재 truth는 YOUTH/Gov24 admin facet도 latest recommendation batch 기준 read-only 분포 경계까지 닫혔고,
+retrieval/filter/scoring은 여전히 그대로다.
 
 ## 2. `YOUTH_MID_RAW_ALIAS` 현재 상태
 
