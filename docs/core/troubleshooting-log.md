@@ -4785,3 +4785,26 @@
   - 이번 단계의 목적은 `jobCd` 의미를 **잃지 않고 관찰 가능하게 만드는 것**이지, 아직 code-level targeting rule을 여는 것이 아니다.
   - aggregate fact로 두면 multi-code 현실을 왜곡하지 않으면서도, `YOUTH_INCOME_CONDITION_TYPE` 때처럼 “저장 -> read-model -> admin diagnostics” 경계는 닫을 수 있다.
   - fan-out granularity가 정말 필요해지면, 그때는 collect 저장 경계를 code set replace로 안전하게 재설계한 뒤 다시 여는 편이 맞다.
+
+## 850) `jobCd` 도 서버 재수집 뒤 raw -> aggregate fact -> diagnostics 경계까지는 닫혔다
+- 문제: local에서 `YOUTH_EMPLOYMENT_REQUIREMENT` 를 저장하고 diagnostics까지 연결해도, server가 stale YOUTH raw를 들고 있으면 `jobCd` 가 실제로 fact까지 생성되는지 확인할 수 없다. 특히 `jobCd` 는 multi-code 조합이 있어, 단순히 single-code 샘플 하나만 보이면 aggregate fact 설계가 runtime에서 제대로 동작하는지 안심하기 어렵다.
+- 확인:
+  - 서버 `ba0d3db` 반영 후 `POST /api/admin/collect/youth`, `POST /api/admin/collect/youth-details` 재실행
+  - 재수집 뒤 DB:
+    - `YOUTH LIST raw jobCd = 2568 / 2569`
+    - `YOUTH DETAIL raw jobCd = 2569 / 2569`
+    - `YOUTH_EMPLOYMENT_REQUIREMENT fact_rows = 2557`
+    - `multi-code aggregate fact_rows = 100`
+  - multi-code fact sample:
+    - `0013003,0013006,0013009 -> 미취업자, (예비)창업자, 기타`
+    - `0013002,0013006 -> 자영업자, (예비)창업자`
+  - admin diagnostics sample:
+    - `serviceId=672`
+    - `youthEmploymentRequirementCodes=['0013010']`
+    - `youthEmploymentRequirementLabels=['제한없음']`
+- 해결:
+  - 현재 server truth 기준으로 `jobCd` 는 raw 적재, aggregate fact 생성, internal read-model, admin diagnostics 노출까지 모두 확인됐다.
+  - 다만 latest recommendation batch 상위 샘플에서 multi-code 서비스가 바로 잡히진 않아, diagnostics 최종 출력 예시는 single-code 서비스로 닫았다.
+- 이유:
+  - 이번 단계의 목적은 `jobCd` 가 public UX나 추천 점수에 쓰이는지 확인하는 것이 아니라, aggregate observation shape가 서버 실데이터에서도 살아 있는지 닫는 것이다.
+  - multi-code fact가 DB에 실제로 남고, diagnostics도 최소 single-code 리스트를 읽는 것이 확인됐으므로, 다음 판단은 저장 경계가 아니라 **소비 경계** 로 이동한다.

@@ -131,6 +131,13 @@ shape는 `fact_code='0013003,0013006'`, `text_value='미취업자, (예비)창�
 이 값도 마찬가지로 internal read-model/projection 과 admin diagnostics에서만
 `youthEmploymentRequirementCodes`, `youthEmploymentRequirementLabels` 리스트로 풀어 주고,
 public policy/recommendation response, retrieval filter, scoring에는 아직 연결하지 않는다.
+서버에서도 이 경계는 재수집 후 닫혔다. `ba0d3db` 반영 직후 `POST /api/admin/collect/youth`, `POST /api/admin/collect/youth-details` 를 다시 실행하자
+`YOUTH LIST raw jobCd = 2568 / 2569`, `YOUTH DETAIL raw jobCd = 2569 / 2569`, `YOUTH_EMPLOYMENT_REQUIREMENT fact_rows = 2557`,
+그중 multi-code aggregate fact가 `100건` 까지 생성되었다.
+admin diagnostics에서도 `serviceId=672` 가 `youthEmploymentRequirementCodes=['0013010']`, `youthEmploymentRequirementLabels=['제한없음']`
+으로 실제 노출되었고, multi-code fact 샘플은 `0013003,0013006,0013009 -> 미취업자, (예비)창업자, 기타` 형태로 DB에 저장되는 것이 확인됐다.
+즉 현재 truth는 `jobCd` 도 raw -> aggregate fact -> internal read-model -> admin diagnostics 경계까지는 닫혔고,
+남은 것은 이 값을 public UX나 추천 규칙으로 소비할지 여부뿐이다.
 
 ## 2. `YOUTH_MID_RAW_ALIAS` 현재 상태
 
