@@ -258,6 +258,12 @@
 
 이 문서는 `savedAi=0` row와 same source/category 양수 AI peer를 실제 AI prompt에 들어가는 `제목 / 분류 / 내용(description short)` 기준으로 비교하고, `supportContent` 는 prompt 밖 참고값으로 함께 붙여 보는 runbook 입니다.
 
+### 20. ai reason contrast audit runbook
+
+- [recommendation-ai-reason-contrast-audit-runbook.md](./recommendation-ai-reason-contrast-audit-runbook.md)
+
+이 문서는 fresh persisted batch의 `ai_reason` 을 직접 읽어, `savedAi=0` row와 same source/category 양수 AI peer가 어떤 이유 문장으로 갈리는지 비교하는 runbook 입니다.
+
 Gov24가 추천에 "안 보이는지"보다 "몇 위에서 어떤 서비스로 뜨는지"를 보려면 `bash deploy/smoke/run-local-gov24-recommend-surface-audit.sh` 로 top1/top3/top5/top10 Gov24 share, rank별 source 분포, Gov24 상위 서비스 concentration을 같이 봅니다.
 
 Gov24 추천 추적만 별도로 빠르게 따라가려면 [gov24-recommendation-audit-runbook.md](./gov24-recommendation-audit-runbook.md) 를 먼저 봅니다. 이 문서는 `surface -> score -> zero/null/ai_status -> fresh batch -> bounded signal suite` 순서를 한 번에 정리합니다.
