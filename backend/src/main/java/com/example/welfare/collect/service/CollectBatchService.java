@@ -14,10 +14,14 @@ import java.util.concurrent.atomic.AtomicReference;
 @RequiredArgsConstructor
 public class CollectBatchService {
 
+    public static final String SCHEDULE_CRON = "0 0 2 * * *";
+    public static final String SCHEDULE_ZONE = "Asia/Seoul";
+    public static final String SCHEDULE_LABEL = "매일 02:00 Asia/Seoul";
+
     private final CollectExecutionGuard collectExecutionGuard;
     private final CollectSourceExecutionService collectSourceExecutionService;
 
-    @Scheduled(cron = "0 0 2 * * *", zone = "Asia/Seoul")
+    @Scheduled(cron = SCHEDULE_CRON, zone = SCHEDULE_ZONE)
     public void collectAll() {
         collectAllNow();
     }

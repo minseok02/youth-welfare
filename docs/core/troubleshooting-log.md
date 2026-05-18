@@ -5072,3 +5072,19 @@
 - 이유:
   - 이번 단계 목표는 YOUTH official fact를 **목록 탐색에서 읽기 좋은 compact badge로 연결하는 것**이지, filter/scoring을 바꾸는 것이 아니다.
   - backend raw label 노출과 frontend compact suppression 결과가 함께 확인됐고 rank/score도 unchanged라서, 현재 남은 문제는 저장/배포 경계가 아니라 다음 소비처를 더 열지의 제품 판단이다.
+
+## 861) collect/runtime governance는 문서만이 아니라 admin collect-failures에도 같이 보여야 한다
+- 문제: `CollectSource`, `YouthDetailCollectService`, `collect-current-state.md` 를 각각 읽으면 지금 어떤 lane이 nightly고 어떤 lane이 manual인지 알 수는 있었지만, 운영자가 장애 triage 중 한 화면에서 `YOUTH`, `BOKJIRO_*`, `GOV24*`, `YOUTH_DETAILS` 의 실행 경계를 바로 읽기는 어려웠다. 특히 "왜 `Gov24 detail/support` 는 nightly가 아니고", "왜 `YOUTH_DETAILS` 는 수동 보강 lane인지" 같은 운영 의도는 문서와 코드에 흩어져 있어 drift가 생기기 쉬웠다.
+- 확인:
+  - scheduled nightly는 실제로 `YOUTH`, `BOKJIRO_CENTRAL`, `BOKJIRO_LOCAL`, `BOKJIRO_DETAIL` 네 개뿐이다.
+  - `GOV24`, `GOV24_DETAIL`, `GOV24_SUPPORT_CONDITIONS`, `YOUTH_DETAILS`, `BOKJIRO_DETAIL_GAP_FILL`, `BOKJIRO_DETAIL_REFRESH` 는 모두 manual/on-demand lane 이다.
+  - 기존 `/api/admin/dashboard/collect-failures` 는 failed/partial/streak/error/circuit 는 보여 주지만, 이 scheduled/manual inventory는 내려주지 않았다.
+- 해결:
+  - `CollectRuntimeLaneCatalog` 를 추가해 현재 external collect lane inventory를 한 곳에 고정했다.
+  - `AdminCollectFailureResponse` 와 `AdminDashboardCollectService` 는 이제 `collectSourceLanes` 를 함께 반환한다.
+  - `AdminDashboardPage` collect triage 섹션에는 `Collect Lane Inventory` 카드를 추가해 execution mode(`SCHEDULED`/`MANUAL`), lane type(`SNAPSHOT`/`DETAIL`/`ENRICHMENT`/`MAINTENANCE`), resource profile, trigger path, governance reason 을 같이 렌더링한다.
+  - `collect-current-state.md` 도 같은 기준으로 nightly/manual lane 과 이유를 명시했다.
+- 이유:
+  - 이번 단계 목적은 수집 실행 규칙 변경이 아니라, 이미 존재하는 운영 경계를 문서와 admin runtime에 동시에 노출해 drift를 줄이는 것이다.
+  - 실패 샘플만 봐서는 "왜 이 source가 자동이 아닌지"를 설명하기 어렵다. lane inventory를 같은 응답에 붙이면 장애 triage와 운영 원칙 확인이 한 번에 된다.
+  - sidecar backfill은 external API collect가 아니라 stored raw replay이므로, 이번 inventory에서는 의도적으로 제외했다.

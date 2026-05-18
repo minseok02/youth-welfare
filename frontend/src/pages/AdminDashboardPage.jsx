@@ -31,6 +31,9 @@ const WARNING_TEXT = "#9a3412";
 const SUCCESS_BG = "#ecfdf5";
 const SUCCESS_BORDER = "#86efac";
 const SUCCESS_TEXT = "#166534";
+const INFO_BG = "#eff6ff";
+const INFO_BORDER = "#93c5fd";
+const INFO_TEXT = "#1d4ed8";
 
 const REVIEW_GATE_TONE = {
   DEFERRED_EMPTY_COHORT: { label: "비어 있음", bg: WARNING_BG, border: WARNING_BORDER, color: WARNING_TEXT },
@@ -42,6 +45,25 @@ const REVIEW_GATE_TONE = {
   READY_CONCENTRATED_TOP1_REVIEW: { label: "top1 집중 리뷰 가능", bg: SUCCESS_BG, border: SUCCESS_BORDER, color: SUCCESS_TEXT },
   READY_NO_PRIORITY_DOMINANT_REVIEW: { label: "무우선순위 리뷰 가능", bg: SUCCESS_BG, border: SUCCESS_BORDER, color: SUCCESS_TEXT },
   READY_BALANCED_LOGIC_REVIEW: { label: "로직 리뷰 가능", bg: SUCCESS_BG, border: SUCCESS_BORDER, color: SUCCESS_TEXT },
+};
+
+const COLLECT_EXECUTION_TONE = {
+  SCHEDULED: { label: "Nightly", bg: INFO_BG, border: INFO_BORDER, color: INFO_TEXT },
+  MANUAL: { label: "Manual", bg: WARNING_BG, border: WARNING_BORDER, color: WARNING_TEXT },
+};
+
+const COLLECT_LANE_TONE = {
+  SNAPSHOT: { label: "Snapshot", bg: "#f8fafc", border: PANEL_LINE, color: INK2 },
+  DETAIL: { label: "Detail", bg: "#f8fafc", border: PANEL_LINE, color: INK2 },
+  ENRICHMENT: { label: "Enrichment", bg: "#f8fafc", border: PANEL_LINE, color: INK2 },
+  MAINTENANCE: { label: "Maintenance", bg: "#f8fafc", border: PANEL_LINE, color: INK2 },
+};
+
+const COLLECT_RESOURCE_TONE = {
+  HEAVY: { label: "Heavy", bg: "#fee2e2", border: "#fca5a5", color: "#b91c1c" },
+  STANDARD: { label: "Standard", bg: SUCCESS_BG, border: SUCCESS_BORDER, color: SUCCESS_TEXT },
+  BUDGETED: { label: "Budgeted", bg: WARNING_BG, border: WARNING_BORDER, color: WARNING_TEXT },
+  ON_DEMAND: { label: "On-demand", bg: INFO_BG, border: INFO_BORDER, color: INFO_TEXT },
 };
 
 const labelFor = (map, key) => map[key]?.label ?? key;
@@ -116,6 +138,22 @@ function GateChip({ value }) {
           lineHeight: 1.25,
           py: 0.75,
         },
+      }}
+    />
+  );
+}
+
+function ToneChip({ toneMap, value }) {
+  const tone = toneMap[value] ?? { label: value, bg: "#f8fafc", border: PANEL_LINE, color: INK2 };
+  return (
+    <Chip
+      label={tone.label}
+      size="small"
+      sx={{
+        bgcolor: tone.bg,
+        color: tone.color,
+        border: `1px solid ${tone.border}`,
+        fontWeight: 700,
       }}
     />
   );
@@ -603,6 +641,38 @@ export default function AdminDashboardPage() {
               </Box>
 
               <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", xl: "1.1fr 0.9fr" } }}>
+                <CompactListCard
+                  title="Collect Lane Inventory"
+                  description="nightly 자동수집과 manual lane 경계를 같은 화면에서 본다."
+                  items={collectFailures.collectSourceLanes}
+                  renderItem={(item) => (
+                    <Box key={item.laneKey} sx={{ p: 1.5, borderRadius: 2, border: `1px solid ${PANEL_LINE}`, bgcolor: "#fafbff" }}>
+                      <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" spacing={1.5}>
+                        <Box sx={{ minWidth: 0 }}>
+                          <Typography sx={{ fontSize: 13, fontWeight: 700, color: INK, overflowWrap: "anywhere", wordBreak: "break-word" }}>
+                            {item.label}
+                          </Typography>
+                          <Typography sx={{ fontSize: 12, color: INK3, mt: 0.25, overflowWrap: "anywhere", wordBreak: "break-word" }}>
+                            {item.laneKey} · {item.triggerPath}
+                          </Typography>
+                          <Typography sx={{ fontSize: 12, color: INK2, mt: 0.75, lineHeight: 1.5, overflowWrap: "anywhere", wordBreak: "break-word" }}>
+                            {item.governanceReason}
+                          </Typography>
+                          {item.scheduleLabel && (
+                            <Typography sx={{ fontSize: 12, color: INK3, mt: 0.75 }}>
+                              {item.scheduleLabel}
+                            </Typography>
+                          )}
+                        </Box>
+                        <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap alignSelf="flex-start">
+                          <ToneChip toneMap={COLLECT_EXECUTION_TONE} value={item.executionMode} />
+                          <ToneChip toneMap={COLLECT_LANE_TONE} value={item.laneType} />
+                          <ToneChip toneMap={COLLECT_RESOURCE_TONE} value={item.resourceProfile} />
+                        </Stack>
+                      </Stack>
+                    </Box>
+                  )}
+                />
                 <CompactListCard
                   title="Job Breakdown"
                   description="실패/부분성공이 많은 수집 job"

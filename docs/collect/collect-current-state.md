@@ -30,6 +30,52 @@
 - `CollectBatchService.collectAll()`
 - 매일 새벽 2시 실행
 
+## 현재 collect/runtime governance inventory
+
+`collect-failures` 는 이제 실패/partial/streak/circuit 뿐 아니라 "어떤 lane이 nightly고 어떤 lane이 manual인지"도 같이 반환합니다.
+이 inventory는 외부 API를 실제로 치는 lane만 대상으로 하며, raw replay 기반 sidecar backfill은 여기서 제외합니다.
+
+### nightly scheduled lane
+
+- `YOUTH`
+  - lane type: `SNAPSHOT`
+  - 이유: 핵심 청년 snapshot 기준선이라 nightly 자동수집에 포함
+- `BOKJIRO_CENTRAL`
+  - lane type: `SNAPSHOT`
+  - 이유: 복지로 중앙 목록 기준선 유지
+- `BOKJIRO_LOCAL`
+  - lane type: `SNAPSHOT`
+  - 이유: 복지로 지자체 목록 기준선 유지 + local `429/open-circuit` triage 대상
+- `BOKJIRO_DETAIL`
+  - lane type: `DETAIL`
+  - 이유: detail coverage 를 nightly로 따라가되, quota/runtime 보호를 위해 budgeted lane 으로 제한
+
+### manual on-demand lane
+
+- `GOV24`
+  - lane type: `SNAPSHOT`
+  - 이유: nightly 제외. 수동 실행 시 `serviceList -> detail -> supportConditions` 를 연쇄 실행
+- `GOV24_DETAIL`
+  - lane type: `DETAIL`
+  - 이유: `maxCallsPerRun`, `sourceId` override 를 두는 budgeted manual lane
+- `GOV24_SUPPORT_CONDITIONS`
+  - lane type: `DETAIL`
+  - 이유: list snapshot 과 분리된 지원조건 확장 lane
+- `YOUTH_DETAILS`
+  - lane type: `ENRICHMENT`
+  - 이유: `refUrlAddr1/2` 보강용 detail lane. `500ms` pacing 으로 느리게 돌리며 snapshot 과 분리
+- `BOKJIRO_DETAIL_GAP_FILL`
+  - lane type: `MAINTENANCE`
+  - 이유: backlog gap 을 메우는 one-off maintenance lane
+- `BOKJIRO_DETAIL_REFRESH`
+  - lane type: `MAINTENANCE`
+  - 이유: 기존 detail 을 다시 읽는 rerun lane
+
+### 왜 이렇게 나눴나
+
+- snapshot 기준선과 비싼 detail/enrichment/maintenance lane 을 분리해야 quota, app runtime, 운영 triage 비용을 같이 제어할 수 있다.
+- 특히 `Gov24 detail/support`, `YOUTH detail`, `Bokjiro gap-fill/refresh` 는 "매일 반드시 도는 기준선"이 아니라 필요할 때만 태우는 것이 현재 운영 원칙이다.
+
 ## 현재 source dispatch 구조
 
 현재 collect는 source별 service 메서드를 늘리는 구조가 아니라:

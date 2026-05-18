@@ -3,6 +3,7 @@ package com.example.welfare.admin.dashboard.service;
 import com.example.welfare.admin.dashboard.dto.AdminCollectFailureResponse;
 import com.example.welfare.admin.dashboard.repository.AdminDashboardCollectReadRepository;
 import com.example.welfare.admin.dashboard.repository.AdminDashboardReadRows;
+import com.example.welfare.collect.service.CollectRuntimeLaneCatalog;
 import com.example.welfare.collect.service.CollectRuntimeStatusService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -69,6 +70,9 @@ public class AdminDashboardCollectService {
                         .toList(),
                 collectRuntimeStatusService.getCircuitStatuses().stream()
                         .map(this::toCircuitStatus)
+                        .toList(),
+                CollectRuntimeLaneCatalog.currentLanes().stream()
+                        .map(this::toCollectLane)
                         .toList()
         );
     }
@@ -81,6 +85,21 @@ public class AdminDashboardCollectService {
                 status.open(),
                 status.remainingMs(),
                 status.openUntil()
+        );
+    }
+
+    private AdminCollectFailureResponse.CollectLane toCollectLane(
+            CollectRuntimeLaneCatalog.CollectLaneSpec lane
+    ) {
+        return new AdminCollectFailureResponse.CollectLane(
+                lane.laneKey(),
+                lane.label(),
+                lane.executionMode(),
+                lane.laneType(),
+                lane.triggerPath(),
+                lane.scheduleLabel(),
+                lane.resourceProfile(),
+                lane.governanceReason()
         );
     }
 }

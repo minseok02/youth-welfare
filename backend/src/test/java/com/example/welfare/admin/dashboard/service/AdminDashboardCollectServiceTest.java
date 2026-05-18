@@ -118,5 +118,17 @@ class AdminDashboardCollectServiceTest {
             assertThat(circuit.remainingMs()).isEqualTo(60000L);
             assertThat(circuit.openUntil()).isEqualTo(LocalDateTime.of(2026, 5, 3, 10, 0));
         });
+        assertThat(response.collectSourceLanes()).anySatisfy(lane -> {
+            assertThat(lane.laneKey()).isEqualTo("YOUTH");
+            assertThat(lane.executionMode()).isEqualTo("SCHEDULED");
+            assertThat(lane.laneType()).isEqualTo("SNAPSHOT");
+            assertThat(lane.triggerPath()).isEqualTo("/api/admin/collect/youth");
+        });
+        assertThat(response.collectSourceLanes()).anySatisfy(lane -> {
+            assertThat(lane.laneKey()).isEqualTo("YOUTH_DETAILS");
+            assertThat(lane.executionMode()).isEqualTo("MANUAL");
+            assertThat(lane.laneType()).isEqualTo("ENRICHMENT");
+            assertThat(lane.triggerPath()).isEqualTo("/api/admin/collect/youth-details");
+        });
     }
 }

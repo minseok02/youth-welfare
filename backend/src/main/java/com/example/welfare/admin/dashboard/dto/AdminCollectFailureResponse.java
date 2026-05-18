@@ -12,7 +12,8 @@ public record AdminCollectFailureResponse(
         List<JobStreak> currentJobStreaks,
         List<ErrorCodeBreakdown> errorCodeBreakdowns,
         List<FailureSample> recentSamples,
-        List<CircuitStatus> circuitStatuses
+        List<CircuitStatus> circuitStatuses,
+        List<CollectLane> collectSourceLanes
 ) {
 
     public record JobBreakdown(
@@ -55,6 +56,18 @@ public record AdminCollectFailureResponse(
             boolean open,
             long remainingMs,
             LocalDateTime openUntil
+    ) {
+    }
+
+    public record CollectLane(
+            String laneKey,
+            String label,
+            String executionMode,
+            String laneType,
+            String triggerPath,
+            String scheduleLabel,
+            String resourceProfile,
+            String governanceReason
     ) {
     }
 }
