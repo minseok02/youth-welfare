@@ -5088,3 +5088,25 @@
   - 이번 단계 목적은 수집 실행 규칙 변경이 아니라, 이미 존재하는 운영 경계를 문서와 admin runtime에 동시에 노출해 drift를 줄이는 것이다.
   - 실패 샘플만 봐서는 "왜 이 source가 자동이 아닌지"를 설명하기 어렵다. lane inventory를 같은 응답에 붙이면 장애 triage와 운영 원칙 확인이 한 번에 된다.
   - sidecar backfill은 external API collect가 아니라 stored raw replay이므로, 이번 inventory에서는 의도적으로 제외했다.
+
+## 862) 서버 검증 결과 collect/runtime lane inventory는 API와 admin UI에서 같이 닫혔다
+- 문제: local에서 `collect-failures` 응답과 `AdminDashboardPage` 를 수정해도, 서버가 실제로 `collectSourceLanes` 를 내리고 최신 admin 번들을 서빙하는지 확인하지 않으면 운영자는 여전히 문서와 로그를 따로 읽어야 한다. 이번 단계 목표는 "nightly/manual 경계를 운영 화면에서 한 번에 읽게 하는 것" 이므로, API와 브라우저 렌더링을 같이 봐야 했다.
+- 확인:
+  - 서버 최신 `main 7b7823f` 반영 뒤 app 재빌드/재기동 및 health `UP`
+  - `/api/admin/dashboard/collect-failures?summaryWindowDays=14&limit=5` 응답 `200`
+  - `collectSourceLanes_count=10`
+  - 내려온 lane:
+    - `YOUTH`, `BOKJIRO_CENTRAL`, `BOKJIRO_LOCAL`, `BOKJIRO_DETAIL` = `SCHEDULED`
+    - `GOV24`, `GOV24_DETAIL`, `GOV24_SUPPORT_CONDITIONS`, `YOUTH_DETAILS`, `BOKJIRO_DETAIL_GAP_FILL`, `BOKJIRO_DETAIL_REFRESH` = `MANUAL`
+  - 각 row에 `executionMode`, `laneType`, `triggerPath`, `scheduleLabel`, `resourceProfile`, `governanceReason` 모두 존재
+  - 프론트:
+    - `npm run build` 후 `/var/www/youth-welfare/frontend/` 배포
+    - 최신 `AdminDashboardPage` 번들 서빙 확인
+    - Playwright 기준 `Collect Lane Inventory=1`, `Nightly/Manual`, `Snapshot/Detail/Enrichment/Maintenance`, `Heavy/Standard/Budgeted/On-demand`, trigger path, governance reason 렌더링 확인
+    - `page_errors=0`
+- 해결:
+  - 별도 코드 수정은 필요 없었다.
+  - 서버는 `collectSourceLanes` API contract와 최신 admin 번들 렌더링만 확인했다.
+- 이유:
+  - 이번 단계 목표는 새로운 수집 source를 여는 것이 아니라, existing collect governance 경계를 실제 운영 UI/API에서 읽을 수 있게 닫는 것이다.
+  - API와 브라우저 둘 다 확인됐으므로, 이제 "어떤 collect가 자동이고 왜 어떤 건 manual인지"는 문서뿐 아니라 서버 admin 화면에서도 바로 설명 가능하다.
