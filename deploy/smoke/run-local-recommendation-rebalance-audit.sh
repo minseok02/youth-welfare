@@ -459,6 +459,37 @@ for row in [r for r in raw_rows if r["serviceId"] in target_ids]:
     )
 
 print()
+actual_base_rows = [r for r in raw_rows if r["actualBaseRank"] is not None]
+actual_base_rows.sort(key=lambda r: (r["actualBaseRank"], r["serviceId"]))
+
+print("[ACTUAL TOP BASE]")
+for row in actual_base_rows[:base_window_limit]:
+    marker = "target" if row["serviceId"] in target_ids else "-"
+    print(
+        f"{row['actualBaseRank']}\t{marker}\t{row['serviceId']}\t{row['sourceType']}\t"
+        f"raw_rank={row['rawRank']}\trebalance_rank={row['rebalanceRank']}\t"
+        f"projection={row['regionProjection']}\tcategory={row['category']}\ttitle={row['title']}"
+    )
+
+print()
+print("[TARGET ACTUAL BASE NEIGHBORS]")
+for target in [r for r in raw_rows if r["serviceId"] in target_ids and r["actualBaseRank"] is not None]:
+    lower = max(1, target["actualBaseRank"] - 3)
+    upper = target["actualBaseRank"] + 3
+    print(f"## target={target['serviceId']} actual_base_rank={target['actualBaseRank']} title={target['title']}")
+    for row in actual_base_rows:
+        rank = row["actualBaseRank"]
+        if rank is None or rank < lower or rank > upper:
+            continue
+        marker = "target" if row["serviceId"] == target["serviceId"] else "-"
+        print(
+            f"{rank}\t{marker}\t{row['serviceId']}\t{row['sourceType']}\t"
+            f"raw_rank={row['rawRank']}\trebalance_rank={row['rebalanceRank']}\t"
+            f"projection={row['regionProjection']}\tcategory={row['category']}\ttitle={row['title']}"
+        )
+    print()
+
+print()
 print("[TOP REBALANCED BASE]")
 for row in rebalanced[:base_window_limit]:
     marker = "target" if row["serviceId"] in target_ids else "-"

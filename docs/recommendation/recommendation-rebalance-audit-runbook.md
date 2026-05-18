@@ -67,6 +67,10 @@ bash deploy/smoke/run-local-recommendation-rebalance-audit.sh
   - simulated round-robin 뒤 `base 50` 안에 남는 후보
 - `[BLOCKER REBALANCED BASE]`
   - `51~70` 구간 blocker
+- `[ACTUAL TOP BASE]`
+  - diagnostics `actualBaseRank` 기준 실제 app runtime 상위 base 후보
+- `[TARGET ACTUAL BASE NEIGHBORS]`
+  - target 주변 `actualBaseRank ±3` 이웃 후보
 
 ## 읽는 법
 
@@ -85,8 +89,16 @@ bash deploy/smoke/run-local-recommendation-rebalance-audit.sh
 
 ### 2. `retain_sim=true` 인데 `retain_base=false`
 
-이 경우 script simulation 과 app runtime 이 어긋난 것이므로,
-rebalance 외 다른 정렬/limit 경계를 다시 봐야 합니다.
+이 경우 script simulation 과 app runtime 이 어긋난 것입니다.  
+이때는 `[ACTUAL TOP BASE]`, `[TARGET ACTUAL BASE NEIGHBORS]` 를 봐서
+실제 app runtime 에서 target 앞을 누가 막는지 먼저 확인합니다.
+
+즉 이 경우 다음 질문은
+
+- query simulation 이 실제 JPQL ordering 과 어긋난 것인지
+- app runtime 에 추가 ordering tier 가 있는지
+
+를 좁히는 것입니다.
 
 ### 3. `source_pass_rank` 가 큰데 같은 source가 blocker 구간에 많다
 
