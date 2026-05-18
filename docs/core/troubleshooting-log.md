@@ -5463,3 +5463,14 @@
 - 이유:
   - `3257` 처럼 fresh top 안에는 들어오지만 `savedAi=0` 으로 내려가는 케이스는 AI input/response 품질 쪽 next step이 맞다.
   - `3281/2736/3575` 처럼 `NOT_REQUESTED` 로 남는 케이스는 AI 이전 top-N 경쟁력 문제로 읽는 편이 맞다.
+
+## 890) `3257` 류 `savedAi=0` 이 같은 category 안에서도 양수 AI peer와 갈리면, 다음 bounded step은 category-wide patch가 아니라 입력 신호 contrast다
+- 문제: `run-local-recommendation-ai-zero-cohort-audit.sh` 결과 `3257` 포함 fresh top `savedAi=0` cohort가 `BOKJIRO_LOCAL` 안에서 반복되는 건 확인됐지만, 이것만으로는 `주거` 나 `교육·직업훈련` category 전체가 0점화되는지, 아니면 같은 category 안에서도 일부만 0점인지 분명하지 않았다. 이 상태에서 category bonus나 AI global patch로 가면 과한 수정이 될 수 있다.
+- 해결:
+  - `run-local-recommendation-ai-zero-contrast-audit.sh` 를 서버에 다시 태워 zero cohort를 same source/category 양수 AI peer와 직접 비교했다.
+  - 결과는 `ai_zero_count=3`, `ai_positive_count=11`, `ai_zero_sources=BOKJIRO_LOCAL:3`, `ai_positive_sources=BOKJIRO_LOCAL:5 | YOUTH:6` 이었다.
+  - `BOKJIRO_LOCAL 주거` 에서는 `3257`, `3209` 가 `savedAi=0` 인 반면 `3609` 는 `savedAi=60` 이었고, `교육·직업훈련` 에서는 `3287=0`, `3108=20` 으로 갈렸다.
+  - 따라서 `savedAi=0` 은 source-wide도, category-wide도 아닌 **선택적 패턴** 으로 좁혀졌다.
+- 이유:
+  - 다음 bounded step은 이제 category bonus나 broad AI patch가 아니라, zero row와 same source/category positive peer의 `keyword / lifeStage / INTEREST_THEME / KEYWORD / TARGET_GROUP / supportContent` 입력 신호 차이를 나란히 보는 것이다.
+  - 이를 위해 `run-local-recommendation-ai-input-contrast-audit.sh` 와 관련 runbook을 추가해, AI 입력 차이 근거를 먼저 수집하는 쪽으로 넘긴다.

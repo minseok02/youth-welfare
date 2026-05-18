@@ -246,6 +246,12 @@
 
 이 문서는 `savedAi=0` cohort를 같은 fresh top 안의 양수 AI peer와 대비해 category-wide 현상인지 개별 row 문제인지 가르는 runbook 입니다.
 
+### 18. ai input contrast audit runbook
+
+- [recommendation-ai-input-contrast-audit-runbook.md](./recommendation-ai-input-contrast-audit-runbook.md)
+
+이 문서는 `savedAi=0` row와 같은 fresh top 안의 same source/category 양수 AI peer를 `keyword / lifeStage / INTEREST_THEME / KEYWORD / TARGET_GROUP / supportContent` 입력 신호 기준으로 나란히 비교하는 runbook 입니다.
+
 Gov24가 추천에 "안 보이는지"보다 "몇 위에서 어떤 서비스로 뜨는지"를 보려면 `bash deploy/smoke/run-local-gov24-recommend-surface-audit.sh` 로 top1/top3/top5/top10 Gov24 share, rank별 source 분포, Gov24 상위 서비스 concentration을 같이 봅니다.
 
 Gov24 추천 추적만 별도로 빠르게 따라가려면 [gov24-recommendation-audit-runbook.md](./gov24-recommendation-audit-runbook.md) 를 먼저 봅니다. 이 문서는 `surface -> score -> zero/null/ai_status -> fresh batch -> bounded signal suite` 순서를 한 번에 정리합니다.

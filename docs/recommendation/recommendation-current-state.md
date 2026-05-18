@@ -126,6 +126,8 @@
 
 이 다음 evidence lane은 [recommendation-ai-stage-gap-audit-runbook.md](./recommendation-ai-stage-gap-audit-runbook.md) 와 `run-local-recommendation-ai-stage-gap-audit.sh` 로 고정합니다. 이 wrapper는 fresh persisted top batch와 target family를 기준으로 `savedAi`, `savedAiStatus`, `currentFinal -> savedFinal delta` 를 같이 출력해, 현재 남은 병목이 AI 0점인지 AI 미요청인지 바로 가르게 합니다.
 
+그리고 `2026-05-18` server `ai zero contrast audit` 결과로 `3257` 류 `savedAi=0` 은 source-wide나 category-wide 현상이 아니라 **선택적 패턴** 임이 더 좁혀졌습니다. fresh top 안에서 `ai_zero_count=3`, `ai_positive_count=11` 이고, `BOKJIRO_LOCAL 주거` 안에서도 `3257/3209` 는 `savedAi=0` 인 반면 `3609` 는 `savedAi=60` 이었습니다. `교육·직업훈련` 도 `3287=0`, `3108=20` 으로 갈렸습니다. 즉 다음 immediate bounded step은 category bonus나 global prompt 변경이 아니라, **zero row와 same source/category positive peer의 입력 신호 차이를 나란히 보는 `AI input contrast audit`** 입니다.
+
 ## 현재 scoring 기준
 
 ### rule score

@@ -177,6 +177,8 @@ bounded family 단위로만 확장합니다.
 
 이 fresh audit까지 다시 보면 `3257` 은 stale latest batch 문제였고, fresh persisted batch에서는 `savedRank=8` 로 실제로 들어옵니다. 다만 `savedAi=0`, `savedAiStatus=SCORED` 라 current rerank보다 persisted final이 더 낮아집니다. 반대로 `3281` 은 fresh persisted batch에서도 `savedRank=37`, `savedAiStatus=NOT_REQUESTED` 로 남습니다. 즉 현재 immediate bounded step은 다시 retrieval이 아니라, **`3257` 의 persisted AI=0 이유와 `3281` 의 AI 미요청 경계를 읽는 AI-stage audit** 으로 두는 편이 맞습니다.
 
+그리고 같은 날 server `ai zero cohort / contrast` 결과까지 합치면 `3257` 류 0점은 `BOKJIRO_LOCAL` 전체 현상도, `주거` category 전체 현상도 아닙니다. fresh top 안에서 `3257/3209` 는 `savedAi=0` 이지만 같은 `BOKJIRO_LOCAL 주거` 인 `3609` 는 `savedAi=60` 이고, `교육·직업훈련` 도 `3287=0`, `3108=20` 으로 갈립니다. 따라서 현재 next immediate bounded step은 category bonus나 AI global patch가 아니라, **zero row와 same source/category positive peer의 입력 신호 차이**를 보는 `AI input contrast audit` 으로 두는 편이 맞습니다.
+
 ## lane 1 에서 아직 안 할 일
 
 1. global source bonus
