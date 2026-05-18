@@ -32,6 +32,7 @@
 
 - `2026-05-18` 기준 YOUTH/Gov24 신호는 `raw -> fact/token -> admin diagnostics -> detail read-only -> policy card compact badge -> admin facet` 까지 닫혔습니다.
 - `2026-05-18` 기준 `collect/runtime governance` 도 `lane inventory -> latestRun -> config summary` 까지 닫혔습니다.
+- `2026-05-18` 기준 recommendation 의 남은 `3257류` 이슈는 retrieval/신호 부족 버그가 아니라, AI가 `수급자/신혼부부/학생` 같은 primary audience mismatch를 강한 exclusion으로 해석하는 제품 판단 경계로 좁혀졌습니다.
 - 즉 지금은 같은 축에서 코드를 더 여는 단계가 아니라, 다음 트랙을 새로 고르는 단계로 보는 편이 맞습니다.
 
 ## 필요할 때 보는 파일
