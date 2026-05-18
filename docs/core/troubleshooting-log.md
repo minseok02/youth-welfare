@@ -5373,7 +5373,16 @@
   - 현재 다음 질문은 “왜 branch 밖이냐”가 아니라 “왜 아직 24~33위인가”다.
   - 이 층을 먼저 고정해야 다음 bounded fix를 `latest ordering` 으로 둘지, `latest fetch size` 로 둘지 증거 기반으로 좁힐 수 있다.
 
-## 880) ops baseline suite는 smoke wrapper 추가만으로 끝나는 게 아니라 실제 서버 contract에 맞춰 collect failures smoke를 다시 닫아야 한다
+## 881) latest window evidence만으로는 실제 merged/saved 병목과 같은 층인지 확정할 수 없으니 diagnostics trace wrapper로 한 번 더 좁히는 편이 맞다
+- 문제: latest window audit에서 `3257=28위`, `3281=24위` 라는 evidence는 얻었지만, RetrievalService 실제 흐름은 `rawLatest -> filteredLatest(limit 5) -> merge(base+latest) -> scoring -> saved batch` 다. 게다가 `3257/3281` 은 base retrieval 에서는 이미 `150-window` 안이므로, latest 20 밖이라는 사실만으로 곧바로 ordering patch로 가면 층을 섞을 수 있었다.
+- 해결:
+  - `deploy/smoke/run-local-recommendation-pipeline-lane-audit.sh` 를 추가했다.
+  - [recommendation-pipeline-lane-audit-runbook.md](../recommendation/recommendation-pipeline-lane-audit-runbook.md) 를 추가했다.
+  - 이 wrapper는 admin `recommendation-diagnostics` 를 이용해 target family와 competitor의 `inBaseRetrieval / inLatestRetrieval / passedBaseFilters / passedLatestFilters / inMergedCandidates / inPostScoringCandidates / inLatestSavedBatch / dropStage` 를 한 줄로 출력한다.
+- 이유:
+  - `latest 20` 바깥이라는 signal이 실제 pipeline 병목과 같은 층인지, 아니면 base lane 덕분에 이미 merged 안에는 살아 있고 saved/rerank 쪽이 더 큰지 먼저 분리해야 다음 bounded fix를 더 정확히 고를 수 있다.
+
+## 882) ops baseline suite는 smoke wrapper 추가만으로 끝나는 게 아니라 실제 서버 contract에 맞춰 collect failures smoke를 다시 닫아야 한다
 - 문제: `run-local-ops-baseline-suite.sh` 를 추가한 뒤 서버에서 처음 다시 돌렸을 때, `run-local-admin-collect-failures-smoke.sh` 가 `summaryWindowDays`, `openCollectCircuits`, `laneCount`, `failedSources` 같은 현재 응답에 없는 필드를 기대해 중간에 실패했다. 즉 suite 의도는 맞았지만 collect failures smoke 계약이 실제 `AdminCollectFailureResponse` 와 어긋나 있었다.
 - 해결:
   - collect failures smoke를 `windowDays`, `jobBreakdowns`, `currentJobStreaks`, `errorCodeBreakdowns`, `recentSamples`, `circuitStatuses`, `collectSourceLanes` 기준으로 다시 맞췄다.

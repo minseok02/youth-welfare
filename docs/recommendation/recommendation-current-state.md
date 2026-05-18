@@ -102,6 +102,8 @@
 
 이 다음 evidence lane은 [recommendation-latest-window-audit-runbook.md](./recommendation-latest-window-audit-runbook.md) 와 `run-local-recommendation-latest-window-audit.sh` 로 고정합니다. 이 wrapper는 latest query 상위 `20` 건과 blocker `21~40위` 를 같이 보여 주고, target family와 blocker row의 `region/youth/category` tier를 그대로 드러냅니다. 즉 현재 질문을 “왜 아직 24~33위인가”로 고정하고, direct scoring이 아니라 **latest ordering / latest fetch size** 쪽으로 더 좁히기 위한 단계입니다.
 
+그 다음 확인은 [recommendation-pipeline-lane-audit-runbook.md](./recommendation-pipeline-lane-audit-runbook.md) 와 `run-local-recommendation-pipeline-lane-audit.sh` 로 이어집니다. 이 wrapper는 같은 target family를 actual `recommendation-diagnostics` trace에 넣어 `base/latest/filter/merged/post-scoring/saved` 경계를 한 줄로 보여 줍니다. 즉 `latest 20` 바깥이라는 사실이 실제 merged/saved 병목과 같은 층인지, 아니면 base lane 덕분에 이미 pipeline 안으로 들어오는지 구분하게 합니다.
+
 ## 현재 scoring 기준
 
 ### rule score

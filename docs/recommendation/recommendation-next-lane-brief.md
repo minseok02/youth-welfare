@@ -165,6 +165,8 @@ bounded family 단위로만 확장합니다.
 
 이 단계의 기본 wrapper는 [recommendation-latest-window-audit-runbook.md](./recommendation-latest-window-audit-runbook.md) 와 `run-local-recommendation-latest-window-audit.sh` 로 고정합니다.
 
+그리고 latest evidence만으로 바로 ordering patch로 가지 않고, 같은 family를 `run-local-recommendation-pipeline-lane-audit.sh` 에 넣어 실제 `merged -> saved` 경계까지 같이 읽는 편이 맞습니다.
+
 ## lane 1 에서 아직 안 할 일
 
 1. global source bonus
