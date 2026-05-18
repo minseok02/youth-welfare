@@ -169,7 +169,7 @@ collect 이후 저장되는 축은 아래입니다.
 온통청년 LIST API(`pageType=1`)는 `refUrlAddr1`, `refUrlAddr2` 필드를 응답에 포함하지 않는다.
 해당 필드는 DETAIL API(`pageType=2`)에서만 반환된다.
 
-LIST API 응답 필드: `aplyUrlAddr` 포함, `refUrlAddr1`/`refUrlAddr2`/`sbizCd` **없음**
+LIST API 응답 필드: `aplyUrlAddr`, `sbizCd` 포함, `refUrlAddr1`/`refUrlAddr2` **없음**
 DETAIL API 응답 필드: `aplyUrlAddr` + `refUrlAddr1` + `refUrlAddr2` + `sbizCd` **있음**
 
 초기 수집(LIST만)에서 링크 없는 정책이 68%(1,754건)였던 원인이 여기에 있다.

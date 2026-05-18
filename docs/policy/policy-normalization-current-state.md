@@ -100,6 +100,9 @@ apply/replay 양쪽에서 같은 축으로 raw row density를 바로 대조할 �
 추가로 `YOUTH` 의 `PROVISION_METHOD` 는 이제 `applyMethodName` 오용 대신
 공식 `plcyPvsnMthdCd` label을 우선 source로 쓰고, payload에 코드가 비는 경우에만 기존 신청방법 라벨을 compatibility fallback으로 유지합니다.
 즉 `YOUTH_MID` stable code는 여전히 보류지만, `PROVISION_METHOD` 축은 공식 codebook이 있어 별도로 바로잡을 수 있는 상태입니다.
+또 2026-05-18 local 재수집 기준으로 `YOUTH` LIST raw는 `pvsnInstGroupCd`, `plcyPvsnMthdCd`, `plcyAprvSttsCd`, `aplyPrdSeCd`, `bizPrdSeCd`, `mrgSttsCd`, `earnCndSeCd`, `plcyMajorCd`, `jobCd`, `schoolCd`, `sbizCd` 를 거의 전 row에서 관측한다.
+다만 `jobCd`, `schoolCd`, `plcyMajorCd`, `sbizCd` 는 단일 코드만 오는 게 아니라 comma-delimited multi-code(`0013001,0013003` 등)도 실제로 섞여 있으므로,
+다음 eligibility fact 단계는 scalar 가정이 아니라 split + trim + de-dup 규칙을 전제로 열어야 한다.
 
 ## 2. `YOUTH_MID_RAW_ALIAS` 현재 상태
 

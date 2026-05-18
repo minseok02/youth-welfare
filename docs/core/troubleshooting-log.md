@@ -4628,3 +4628,35 @@
   - `RawFieldValidator.recordStatsYouth()` 에도 같은 필드를 추가해 다음 collect run부터 `providerGroupCode/provisionMethodCode/approvalStatusCode/.../specialRequirementCode` coverage를 collect stats에서 바로 볼 수 있게 했다.
   - `RawApiPayloadServiceTest` 와 `WelfareServiceMapperTest` 에서 새 코드 필드가 raw JSON 직렬화와 DTO 역직렬화에서 보존되는지 고정했다.
 - 이유: 이번 단계의 목적은 아직 `jobCd/schoolCd/...` 를 추천/검색 fact로 소비하는 것이 아니다. 먼저 “official code가 실제 payload에 오면 우리 런타임이 raw와 stats에서 놓치지 않는다”는 보존 경계를 닫아야, 다음 collect 결과를 근거로 어떤 축을 fact로 열지 판단할 수 있다. 즉 지금 필요한 것은 canonical 확장보다 **관측 손실 제거**다.
+
+## 842) 온통청년 공식 요건코드 `0건` 은 upstream 부재가 아니라 stale runtime + 미재수집이었다
+- 문제: `YouthApiDto` 에 공식 요건코드를 추가한 뒤에도 local DB `raw_api_payloads` 에서는 여전히 `jobCd/schoolCd/plcyMajorCd/... = 0건` 으로 보였다. 이 상태만 보면 “업스트림이 실제로 이 필드를 안 준다”는 잘못된 결론으로 가기 쉽다.
+- 확인:
+  - 먼저 upstream `https://www.youthcenter.go.kr/go/ythip/getPlcy` 를 직접 다시 호출하니, 목록(`pageNum=1&pageSize=1`)과 상세(`pageType=2&plcyNo=...`) 모두 `pvsnInstGroupCd`, `plcyPvsnMthdCd`, `plcyAprvSttsCd`, `aplyPrdSeCd`, `bizPrdSeCd`, `mrgSttsCd`, `earnCndSeCd`, `plcyMajorCd`, `jobCd`, `schoolCd`, `sbizCd` 를 실제로 반환했다.
+  - 그런데 local app는 아직 예전 이미지로 떠 있었고, 그 상태에서 `POST /api/admin/collect/youth` 를 한 번 더 태워도 DTO가 옛 버전이라 raw에는 새 필드가 반영되지 않았다.
+  - `docker compose up -d --build app` 로 최신 `86089a7` 이미지를 다시 올린 뒤 `POST /api/admin/collect/youth` 를 재실행하자, `LIST raw` coverage가 바로 바뀌었다.
+- 해결:
+  - 최신 runtime 재기동 뒤 `POST /api/admin/collect/youth` 를 다시 실행해 `LIST raw` 를 덮어썼다.
+  - 결과:
+    - `LIST total=2571`
+    - `pvsnInstGroupCd/plcyPvsnMthdCd/plcyAprvSttsCd/aplyPrdSeCd/bizPrdSeCd/mrgSttsCd/earnCndSeCd/plcyMajorCd/jobCd/schoolCd = 2568`
+    - `sbizCd = 2571`
+    - blank 잔여: `mrg=5`, `earn=5`, `major=3`, `job=3`, `school=5`
+  - 동시에 앱 로그 `FieldQuality[YOUTH]` 에도 `educationRequirementCode`, `maritalStatusCode`, `incomeConditionTypeCode` 가 새 coverage 항목으로 실제 출력되었다.
+- 이유: 이번 이슈의 본질은 DTO 추가만으로 끝나지 않는다는 점이다. `raw_api_payloads` 가 DTO snapshot 기반인 구조에서는 **코드 수정 + app rebuild + collect rerun** 세 단계가 모두 닫혀야만 관측 truth가 바뀐다. 즉 “DB가 아직 0건이다”를 바로 upstream absence로 읽지 말고, 먼저 실행 중인 runtime이 최신 collect DTO를 반영했는지 확인해야 한다.
+
+## 843) 온통청년 공식 요건코드는 scalar가 아니라 comma-delimited multi-code도 실제로 온다
+- 문제: 공식 코드표만 보고 있으면 `jobCd`, `schoolCd`, `plcyMajorCd`, `sbizCd` 같은 요건코드는 한 정책에 하나의 code만 들어온다고 착각하기 쉽다. 그렇게 가정한 채 fact나 summary를 설계하면, 실제 live payload가 comma-delimited multi-code를 보낼 때 정보를 잃거나 잘못된 단일값으로 collapse하게 된다.
+- 확인:
+  - local `LIST raw` 재수집 후 실제 분포를 다시 보니:
+    - `jobCd`: `0013010` 이 가장 많지만 `0013001,0013003`, `0013003,0013006`, `0013001,0013002,0013003,0013004,0013005,0013006,0013007,0013008,0013009` 같은 multi-code도 존재
+    - `schoolCd`: `0049010` 이 가장 많지만 `0049005,0049006`, `0049005,0049006,0049007` 같은 multi-code도 존재
+    - `plcyMajorCd`: `0011009` 가 주류지만 `0011004,0011005`, `0011001,0011002,0011003,0011004,0011005,0011006,0011007,0011008` 같은 multi-code도 존재
+    - `sbizCd`: `0014010` 가 주류지만 `0014001,0014009`, `0014003,0014009` 같은 multi-code도 존재
+  - 즉 이 축은 `YOUTH_MID` 와 마찬가지로 exact official code를 보존하되, 소비 시점에는 split이 필요하다.
+- 해결: 이번 단계에서는 아직 fact 저장을 열지 않았지만, 다음 eligibility fact 단계의 전제를 문서에 고정했다.
+  - raw exact code 문자열은 그대로 보존
+  - consumer 단계에서 comma split
+  - trim + de-dup
+  - summary 단일값 축으로 무리하게 collapse하지 않음
+- 이유: 지금 필요한 건 “code를 더 모으는 것”이 아니라, **이미 들어오는 multi-code reality를 왜곡하지 않는 적용 규칙**이다. 이걸 먼저 고정해 두지 않으면 다음 단계에서 `jobCd/schoolCd/...` 를 fact로 여는 순간 잘못된 scalar 모델로 굳어질 수 있다.
