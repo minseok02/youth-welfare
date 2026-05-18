@@ -765,6 +765,8 @@ INSERT INTO normalization_code_sets (
 ('GOV24_SERVICE_FIELD', 'TAXONOMY', 'GOV24', 'Gov24 서비스 분야', 'draft-2026-04-30', TRUE),
 ('GOV24_USER_TYPE', 'TAXONOMY', 'GOV24', 'Gov24 사용자 구분', 'draft-2026-04-30', TRUE),
 ('GOV24_BENEFIT_TYPE', 'TAXONOMY', 'GOV24', 'Gov24 지원 유형', 'draft-2026-04-30', TRUE),
+('GOV24_USER_TYPE_TOKEN', 'TAXONOMY', 'GOV24', 'Gov24 사용자 구분 token', 'draft-2026-05-18', TRUE),
+('GOV24_BENEFIT_TYPE_TOKEN', 'TAXONOMY', 'GOV24', 'Gov24 지원 유형 token', 'draft-2026-05-18', TRUE),
 ('GOV24_SUPPORT_CONDITION', 'FACT', 'GOV24', 'Gov24 지원 조건 코드', 'draft-2026-04-30', TRUE),
 ('YOUTH_PROVIDER_GROUP', 'TAXONOMY', 'YOUTH', '온통청년 제공기관 그룹코드', 'draft-2026-04-30-youth-codeinfo', TRUE),
 ('YOUTH_PROVISION_METHOD', 'TAXONOMY', 'YOUTH', '온통청년 정책제공방법코드', 'draft-2026-04-30-youth-codeinfo', TRUE),

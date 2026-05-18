@@ -19,6 +19,8 @@ INSERT INTO normalization_code_sets (
     ('GOV24_SERVICE_FIELD', 'TAXONOMY', 'GOV24', 'Gov24 서비스 분야', 'draft-2026-04-30', 1),
     ('GOV24_USER_TYPE', 'TAXONOMY', 'GOV24', 'Gov24 사용자 구분', 'draft-2026-04-30', 1),
     ('GOV24_BENEFIT_TYPE', 'TAXONOMY', 'GOV24', 'Gov24 지원 유형', 'draft-2026-04-30', 1),
+    ('GOV24_USER_TYPE_TOKEN', 'TAXONOMY', 'GOV24', 'Gov24 사용자 구분 token', 'draft-2026-05-18', 1),
+    ('GOV24_BENEFIT_TYPE_TOKEN', 'TAXONOMY', 'GOV24', 'Gov24 지원 유형 token', 'draft-2026-05-18', 1),
     ('GOV24_SUPPORT_CONDITION', 'FACT', 'GOV24', 'Gov24 지원 조건 코드', 'draft-2026-04-30', 1)
 ON DUPLICATE KEY UPDATE
     domain_type = VALUES(domain_type),
