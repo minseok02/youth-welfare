@@ -5278,3 +5278,14 @@
 - 이유:
   - 지금 recommendation 의 남은 문제는 새 bugfix보다 “어떤 종류의 reopen 을 먼저 고를 것인가”다.
   - 이때 decision 사다리와 별도로 “현재 권장안은 lane 1” 이라는 one-page brief 가 있어야 다음 작업이 곧바로 global tuning 으로 점프하지 않는다.
+
+## 872) lane 1 이라고만 적어 두면 추상적이라 target family와 latest-batch competitor를 같이 읽는 signal gap audit 경로가 따로 있어야 한다
+- 문제: `recommendation-next-lane-brief.md` 로 현재 권장 reopen 이 `local 신호 구조화` 라는 점은 고정됐지만, 실제로 무슨 신호가 비어 있는지 좁히는 실행 경로가 없으면 여전히 사람마다 다른 SQL/diagnostics 조합을 즉흥적으로 쓰게 된다. 특히 `2736` 류 사례는 source 전체가 아니라 정책군 단위로 봐야 하는데, 이를 한 번에 읽는 wrapper가 없으면 direct tuning이나 source 일반론으로 다시 점프하기 쉽다.
+- 해결:
+  - 새 `deploy/smoke/run-local-recommendation-signal-gap-audit.sh` 를 추가했다.
+  - 기본값은 `2736,3257,3281,3575,3714` target family와 same-user latest batch top competitor `3건` 이다.
+  - 이 wrapper는 DB 기준 `user_context`, `latest_batch_focus_rows`, summary labels, taxonomy terms, fact summary, raw tags를 출력하고, admin credentials가 있으면 `recommendation-diagnostics` 도 같이 호출해 `dropStage`, `latestSavedRank`, `latestSavedAiScore`, `rerankCurrentRank` 까지 한 번에 보여 준다.
+  - 새 [recommendation-signal-gap-audit-runbook.md](../recommendation/recommendation-signal-gap-audit-runbook.md) 도 추가해 이 경로를 recommendation 문서군에 연결했다.
+- 이유:
+  - lane 1 의 핵심은 “무슨 structured signal 이 비어 있는지”를 먼저 좁히는 것이다.
+  - target family와 competitor를 한 번에 읽는 bounded audit 경로가 있어야, 다음 과제가 global tuning 이 아니라 local signal structuring 으로 유지된다.

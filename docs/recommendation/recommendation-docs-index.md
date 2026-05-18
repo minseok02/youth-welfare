@@ -22,6 +22,7 @@
 - [recommendation-real-user-baseline-runbook.md](./recommendation-real-user-baseline-runbook.md)
 - [recommendation-reopen-decision-runbook.md](./recommendation-reopen-decision-runbook.md)
 - [recommendation-next-lane-brief.md](./recommendation-next-lane-brief.md)
+- [recommendation-signal-gap-audit-runbook.md](./recommendation-signal-gap-audit-runbook.md)
 - [recommendation-pipeline.md](./recommendation-pipeline.md)
 
 현재 practical runtime wrapper:
@@ -32,6 +33,7 @@
 - `bash deploy/smoke/run-local-real-user-readiness-check.sh`
 - `bash deploy/smoke/run-local-no-priority-top1-sample.sh`
 - `bash deploy/smoke/run-local-no-priority-candidate-audit.sh`
+- `bash deploy/smoke/run-local-recommendation-signal-gap-audit.sh`
 - `bash deploy/smoke/run-local-gov24-recommend-surface-audit.sh`
 - `bash deploy/smoke/run-local-gov24-recommend-score-audit.sh`
 - `bash deploy/smoke/run-local-gov24-zero-ai-audit.sh`
@@ -161,6 +163,18 @@
 
 를 한 장으로 정리한 brief 입니다.
 
+### 9. signal gap audit runbook
+
+- [recommendation-signal-gap-audit-runbook.md](./recommendation-signal-gap-audit-runbook.md)
+
+이 문서는
+
+- `2736` 류 local 정책군과 latest batch competitor 를 같이 읽는 법
+- 어떤 structured signal 이 비어 있는지 먼저 좁히는 법
+- source 전체 일반론이 아니라 정책군 단위 local signal 과제로 이어가는 법
+
+을 정리한 bounded audit runbook 입니다.
+
 Gov24가 추천에 "안 보이는지"보다 "몇 위에서 어떤 서비스로 뜨는지"를 보려면 `bash deploy/smoke/run-local-gov24-recommend-surface-audit.sh` 로 top1/top3/top5/top10 Gov24 share, rank별 source 분포, Gov24 상위 서비스 concentration을 같이 봅니다.
 
 Gov24 추천 추적만 별도로 빠르게 따라가려면 [gov24-recommendation-audit-runbook.md](./gov24-recommendation-audit-runbook.md) 를 먼저 봅니다. 이 문서는 `surface -> score -> zero/null/ai_status -> fresh batch -> bounded signal suite` 순서를 한 번에 정리합니다.
@@ -191,7 +205,7 @@ Gov24 source 전체가 구조적으로 억눌리는지 보려면 bounded smoke �
 
 주의: `ai_status` 는 `e7e591a` 이후 새로 생성된 batch에서만 직접 원인값으로 믿는 편이 맞습니다. migration backfill은 기존 `NULL ai_score` row를 전부 `NOT_REQUESTED` 로 채웠기 때문에, old batch에선 `rule_rank<=15 인데 NOT_REQUESTED` 같은 row가 backfill artifact일 수 있습니다. 이런 경우는 `bash deploy/smoke/run-local-gov24-top2-rule-rank-audit.sh` 를 같이 봐야 합니다.
 
-### 9. replay 템플릿
+### 10. replay 템플릿
 
 - [recommendation-replay-template.md](./recommendation-replay-template.md)
 
@@ -212,8 +226,9 @@ Gov24 source 전체가 구조적으로 억눌리는지 보려면 bounded smoke �
 4. 운영 `REAL_USER` 표본이면 [recommendation-real-user-baseline-runbook.md](./recommendation-real-user-baseline-runbook.md)
 5. reopen 종류를 고를 때 [recommendation-reopen-decision-runbook.md](./recommendation-reopen-decision-runbook.md)
 6. 현재 권장 lane 을 바로 확인할 때 [recommendation-next-lane-brief.md](./recommendation-next-lane-brief.md)
-7. [recommendation-pipeline.md](./recommendation-pipeline.md)
-8. 필요하면 [runtime-api-smoke-commands.md](../core/runtime-api-smoke-commands.md)
+7. local 신호 부족을 실제로 좁힐 때 [recommendation-signal-gap-audit-runbook.md](./recommendation-signal-gap-audit-runbook.md)
+8. [recommendation-pipeline.md](./recommendation-pipeline.md)
+9. 필요하면 [runtime-api-smoke-commands.md](../core/runtime-api-smoke-commands.md)
 
 ### 실험/비교 기록을 남길 때
 
@@ -231,5 +246,6 @@ Gov24 source 전체가 구조적으로 억눌리는지 보려면 bounded smoke �
 5. 운영 `REAL_USER` 표본 해석은 [recommendation-real-user-baseline-runbook.md](./recommendation-real-user-baseline-runbook.md) 로 따로 확인합니다.
 6. gate 가 열린 뒤 어떤 종류의 recommendation 과제를 다시 열지 고를 때는 [recommendation-reopen-decision-runbook.md](./recommendation-reopen-decision-runbook.md) 를 봅니다.
 7. 현재 권장 reopen lane 을 빠르게 확인할 때는 [recommendation-next-lane-brief.md](./recommendation-next-lane-brief.md) 를 봅니다.
-8. 구조 설명은 [recommendation-pipeline.md](./recommendation-pipeline.md) 에 더 자세히 적혀 있습니다.
-9. replay/CTR/집중도 기록은 [recommendation-replay-template.md](./recommendation-replay-template.md) 또는 각 runbook의 최소 기록 항목을 기준으로 남기고, 요약 문서 갱신보다 evidence 기록을 먼저 합니다.
+8. local 정책군 signal gap 을 실제로 좁힐 때는 [recommendation-signal-gap-audit-runbook.md](./recommendation-signal-gap-audit-runbook.md) 와 `run-local-recommendation-signal-gap-audit.sh` 를 씁니다.
+9. 구조 설명은 [recommendation-pipeline.md](./recommendation-pipeline.md) 에 더 자세히 적혀 있습니다.
+10. replay/CTR/집중도 기록은 [recommendation-replay-template.md](./recommendation-replay-template.md) 또는 각 runbook의 최소 기록 항목을 기준으로 남기고, 요약 문서 갱신보다 evidence 기록을 먼저 합니다.

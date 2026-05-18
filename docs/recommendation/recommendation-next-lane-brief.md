@@ -120,7 +120,10 @@ bounded family 단위로만 확장합니다.
 1. local 청년 정책군의 `interest/theme` 구조화 강화
 2. 지역 적합성 신호 재정리
 3. direct benefit / program type 신호를 더 구조화할지 검토
-4. 필요하면 admin/read-only 관찰 경계부터 먼저 추가
+4. 먼저 [recommendation-signal-gap-audit-runbook.md](./recommendation-signal-gap-audit-runbook.md)
+   와 `run-local-recommendation-signal-gap-audit.sh` 로
+   target family와 latest batch competitor 의 signal gap 을 고정
+5. 필요하면 admin/read-only 관찰 경계부터 먼저 추가
 
 ## lane 1 에서 아직 안 할 일
 
