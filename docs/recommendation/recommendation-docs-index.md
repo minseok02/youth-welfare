@@ -27,6 +27,7 @@
 - [recommendation-latest-window-audit-runbook.md](./recommendation-latest-window-audit-runbook.md)
 - [recommendation-pipeline-lane-audit-runbook.md](./recommendation-pipeline-lane-audit-runbook.md)
 - [recommendation-saved-batch-gap-audit-runbook.md](./recommendation-saved-batch-gap-audit-runbook.md)
+- [recommendation-fresh-saved-gap-audit-runbook.md](./recommendation-fresh-saved-gap-audit-runbook.md)
 - [recommendation-pipeline.md](./recommendation-pipeline.md)
 
 현재 practical runtime wrapper:
@@ -42,6 +43,7 @@
 - `bash deploy/smoke/run-local-recommendation-latest-window-audit.sh`
 - `bash deploy/smoke/run-local-recommendation-pipeline-lane-audit.sh`
 - `bash deploy/smoke/run-local-recommendation-saved-batch-gap-audit.sh`
+- `bash deploy/smoke/run-local-recommendation-fresh-saved-gap-audit.sh`
 - `bash deploy/smoke/run-local-gov24-recommend-surface-audit.sh`
 - `bash deploy/smoke/run-local-gov24-recommend-score-audit.sh`
 - `bash deploy/smoke/run-local-gov24-zero-ai-audit.sh`
@@ -213,6 +215,12 @@
 - [recommendation-saved-batch-gap-audit-runbook.md](./recommendation-saved-batch-gap-audit-runbook.md)
 
 이 문서는 retrieval 경계가 닫힌 뒤에도 target family가 `SCORED_BUT_NOT_IN_SAVED_BATCH` 로 남을 때, current rerank trace와 latest saved top competitor를 같은 화면에서 비교해 saved window 직전 병목을 좁히는 runbook 입니다.
+
+### 14. fresh saved gap audit runbook
+
+- [recommendation-fresh-saved-gap-audit-runbook.md](./recommendation-fresh-saved-gap-audit-runbook.md)
+
+이 문서는 `personal=true` fresh refresh를 강제로 다시 돌린 뒤 target family가 fresh persisted batch에도 빠지는지 확인해, stale latest batch와 fresh persisted gap을 분리하는 runbook 입니다.
 
 Gov24가 추천에 "안 보이는지"보다 "몇 위에서 어떤 서비스로 뜨는지"를 보려면 `bash deploy/smoke/run-local-gov24-recommend-surface-audit.sh` 로 top1/top3/top5/top10 Gov24 share, rank별 source 분포, Gov24 상위 서비스 concentration을 같이 봅니다.
 

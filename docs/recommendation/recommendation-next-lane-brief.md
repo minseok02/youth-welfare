@@ -173,6 +173,8 @@ bounded family 단위로만 확장합니다.
 
 이 ordering fix를 서버에 다시 태우면 `3257/3281` 은 `actual_base_rank=8/18`, `retain_base=true` 로 올라옵니다. 따라서 현재 next bounded step은 retrieval 쪽이 아니라 `SCORED_BUT_NOT_IN_SAVED_BATCH` 경계를 직접 읽는 것입니다. 즉 다음 reopen lane 안의 immediate step은 `saved batch gap audit` 으로 두고, target family와 latest saved top competitor를 current rerank trace와 나란히 보는 편이 맞습니다.
 
+그리고 `2026-05-18` server 결과에서 `3257` 은 `rerank_rank=5` 인데도 latest saved batch에는 없었습니다. 이 경우는 곧바로 score patch보다 먼저, latest saved batch가 stale인지 `personal=true` fresh persisted batch에서도 그대로 빠지는지 분리해야 합니다. 따라서 다음 immediate bounded step은 `fresh saved gap audit` 으로 두는 편이 맞습니다.
+
 ## lane 1 에서 아직 안 할 일
 
 1. global source bonus

@@ -5433,3 +5433,12 @@
 - 이유:
   - 이로써 retrieval/retain 병목은 닫혔다.
   - 현재 남은 경계는 `dropStage=SCORED_BUT_NOT_IN_SAVED_BATCH` 이므로, 다음 bounded step은 retrieval 재조정이 아니라 current rerank trace와 latest saved top competitor를 비교하는 `saved batch gap audit` 이다.
+
+## 887) `3257` 이 current rerank 상위인데도 saved batch에 없으면, 다음 질문은 stale latest batch인지 fresh persisted batch에서도 빠지는지다
+- 문제: server `saved batch gap audit` 에서 `3257` 은 `retain_base=true`, `rerank_rank=5`, `currentFinal=0.5629` 인데도 `saved_rank=None`, `savedAi=None`, `dropStage=SCORED_BUT_NOT_IN_SAVED_BATCH` 로 남았다. 반면 latest saved top10에는 `savedFinal=0.55556` 수준의 `YOUTH` row가 다수 있었다. 즉 `3257` 은 retrieval/retain 이전 경계가 아니라, latest saved batch와 current rerank 사이의 차이를 더 좁혀야 하는 케이스다.
+- 해결:
+  - `deploy/smoke/run-local-recommendation-fresh-saved-gap-audit.sh` 를 추가했다.
+  - 이 wrapper는 user token으로 `POST /api/recommendations/refresh?personal=true` 를 강제로 다시 실행한 뒤, fresh refresh 상위 N과 target family를 admin diagnostics로 같이 읽는다.
+  - 함께 [recommendation-fresh-saved-gap-audit-runbook.md](../recommendation/recommendation-fresh-saved-gap-audit-runbook.md) 를 추가해 stale latest batch와 fresh persisted gap을 분리하는 절차를 고정했다.
+- 이유:
+  - 지금 다음 bounded step은 score patch가 아니라, `3257` 이 단지 오래된 latest saved batch 때문에 비어 보이는지, 아니면 fresh persisted batch에서도 실제로 빠지는지 먼저 가르는 것이다.

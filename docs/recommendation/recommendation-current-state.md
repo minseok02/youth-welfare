@@ -120,6 +120,8 @@
 
 이 bounded fix를 서버에 다시 반영한 뒤에는 `3257/3281` 이 실제 runtime에서 `actualBaseRank=8/18`, `retain_base=true`, `actualRetainBaseRank=8/18` 로 올라왔습니다. 즉 retrieval/retain 병목은 닫혔고, 현재 남은 경계는 `dropStage=SCORED_BUT_NOT_IN_SAVED_BATCH` 입니다. 다음 bounded evidence lane은 [recommendation-saved-batch-gap-audit-runbook.md](./recommendation-saved-batch-gap-audit-runbook.md) 와 `run-local-recommendation-saved-batch-gap-audit.sh` 로 고정합니다.
 
+`2026-05-18` server saved-gap 재검증에서는 `3257` 이 `rerank_rank=5`, `currentFinal=0.5629` 인데도 `saved_rank=None`, `savedAi=None`, `dropStage=SCORED_BUT_NOT_IN_SAVED_BATCH` 로 남았습니다. 반면 `3281` 은 `rerank_rank=28`, `currentFinal<0` 로 current rerank 자체도 낮았습니다. 즉 `3257` 은 retrieval/retain 문제가 아니라 latest saved batch와 current rerank 사이의 차이를 더 좁혀야 하는 케이스입니다. 다음 bounded step은 [recommendation-fresh-saved-gap-audit-runbook.md](./recommendation-fresh-saved-gap-audit-runbook.md) 와 `run-local-recommendation-fresh-saved-gap-audit.sh` 로 `personal=true` fresh persisted batch를 강제로 다시 만들고, stale latest batch와 fresh persisted gap을 분리하는 것입니다.
+
 ## 현재 scoring 기준
 
 ### rule score
