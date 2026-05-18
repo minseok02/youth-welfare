@@ -29,6 +29,7 @@
 - [recommendation-saved-batch-gap-audit-runbook.md](./recommendation-saved-batch-gap-audit-runbook.md)
 - [recommendation-fresh-saved-gap-audit-runbook.md](./recommendation-fresh-saved-gap-audit-runbook.md)
 - [recommendation-ai-stage-gap-audit-runbook.md](./recommendation-ai-stage-gap-audit-runbook.md)
+- [recommendation-ai-zero-cohort-audit-runbook.md](./recommendation-ai-zero-cohort-audit-runbook.md)
 - [recommendation-pipeline.md](./recommendation-pipeline.md)
 
 현재 practical runtime wrapper:
@@ -46,6 +47,7 @@
 - `bash deploy/smoke/run-local-recommendation-saved-batch-gap-audit.sh`
 - `bash deploy/smoke/run-local-recommendation-fresh-saved-gap-audit.sh`
 - `bash deploy/smoke/run-local-recommendation-ai-stage-gap-audit.sh`
+- `bash deploy/smoke/run-local-recommendation-ai-zero-cohort-audit.sh`
 - `bash deploy/smoke/run-local-gov24-recommend-surface-audit.sh`
 - `bash deploy/smoke/run-local-gov24-recommend-score-audit.sh`
 - `bash deploy/smoke/run-local-gov24-zero-ai-audit.sh`
@@ -229,6 +231,12 @@
 - [recommendation-ai-stage-gap-audit-runbook.md](./recommendation-ai-stage-gap-audit-runbook.md)
 
 이 문서는 fresh persisted batch까지 다시 만든 뒤에도 남는 `savedAi=0` / `NOT_REQUESTED` / `savedFinal-currentFinal delta` 를 읽어 AI stage 이후 차이를 좁히는 runbook 입니다.
+
+### 16. ai zero cohort audit runbook
+
+- [recommendation-ai-zero-cohort-audit-runbook.md](./recommendation-ai-zero-cohort-audit-runbook.md)
+
+이 문서는 fresh top batch 안에서 `savedAi=0` 인 서비스를 묶어 봐서, `3257` 단일 이상치인지 반복 패턴인지 가르는 runbook 입니다.
 
 Gov24가 추천에 "안 보이는지"보다 "몇 위에서 어떤 서비스로 뜨는지"를 보려면 `bash deploy/smoke/run-local-gov24-recommend-surface-audit.sh` 로 top1/top3/top5/top10 Gov24 share, rank별 source 분포, Gov24 상위 서비스 concentration을 같이 봅니다.
 
