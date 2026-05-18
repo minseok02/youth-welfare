@@ -191,6 +191,21 @@ public response, retrieval filter, scoring은 이번 단계에서도 그대로 �
 `/api/policies/{id}` detail response와 상세 페이지에서만 `소득조건 유형`, `취업 요건`, `학력 요건`, `특화 요건`, `결혼 상태` 라벨을 그대로 보여 준다.
 의도는 운영자-only diagnostics에 머물던 official signal을 일반 사용자도 상세 페이지에서 읽게 만드는 것이지,
 이 값을 eligibility hard gate나 ranking signal로 재해석하는 것이 아니다.
+서버 `aacc431` 검증에서도 이 경계는 그대로 닫혔다.
+`/api/policies/672` 는 `sourceType=YOUTH` 와 함께
+`youthIncomeConditionTypeLabel=기타`,
+`youthEmploymentRequirementLabels=['제한없음']`,
+`youthEducationRequirementLabels=['제한없음']`,
+`youthSpecialRequirementLabels=['제한없음']`,
+`youthMaritalStatusLabel=제한없음`
+을 실제로 반환했다.
+프론트는 `npm run build` 뒤 Nginx 정적 경로에 반영된 최신 번들에서
+`온통청년 공식 요건`, `소득조건 유형`, `취업 요건`, `학력 요건`, `특화 요건`, `결혼 상태`
+렌더링 코드가 포함된 것도 확인됐다.
+즉 현재 truth는 YOUTH official fact가 이제
+`raw -> fact -> internal diagnostics` 를 넘어
+`detail response -> 상세 read-only UX`
+까지 연결된 상태이며, ranking/filter/scoring은 여전히 그대로다.
 
 ## 2. `YOUTH_MID_RAW_ALIAS` 현재 상태
 

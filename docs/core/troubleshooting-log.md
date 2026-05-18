@@ -4991,3 +4991,29 @@
   - 지금 필요한 건 새 scoring signal이 아니라, 이미 닫힌 official fact를 일반 사용자도 **상세 페이지에서 읽게 만드는 첫 소비처**다.
   - 상세 페이지 read-only 노출은 가장 안전하다. 추천 순위나 필터를 흔들지 않고도, 공식 요건 라벨이 실제 사용자 UX에서 읽히는지 확인할 수 있다.
   - 반대로 이 단계에서 list/recommendation/filter까지 같이 열면 설명용 signal을 곧바로 eligibility hard gate처럼 오해할 위험이 커진다.
+
+## 858) 서버 검증 결과 YOUTH official fact는 상세 read-only UX까지 닫혔다
+- 문제: local에서 detail response와 `PolicyDetailPage` 를 수정해도, 서버 배포본이 실제로 새 필드를 내리고 최신 정적 번들을 서빙하는지 확인하지 않으면 “코드는 있는데 운영 화면은 예전 상태”일 수 있다. 이번 단계는 admin diagnostics가 아니라 일반 사용자 read-only UX를 여는 것이므로, detail API와 프론트 배포 번들을 같이 검증해야 한다.
+- 확인:
+  - 서버 최신 `main aacc431` 반영 뒤 app 재기동 및 health `UP`
+  - `/api/policies/672`:
+    - `sourceType=YOUTH`
+    - `youthIncomeConditionTypeLabel=기타`
+    - `youthEmploymentRequirementLabels=['제한없음']`
+    - `youthEducationRequirementLabels=['제한없음']`
+    - `youthSpecialRequirementLabels=['제한없음']`
+    - `youthMaritalStatusLabel=제한없음`
+  - 프론트:
+    - `npm run build` 후 Nginx 정적 경로 `/var/www/youth-welfare/frontend/` 반영
+    - 배포 번들 안에 `온통청년 공식 요건`, `소득조건 유형`, `취업 요건`, `학력 요건`, `특화 요건`, `결혼 상태` 렌더링 코드 포함 확인
+  - 기존 추천 batch 값:
+    - `service_id=672`
+    - `rank_no=1`
+    - `final_score=1.12000`
+    - `recommended_at=2026-05-17 16:20:18`
+- 해결:
+  - 별도 코드 수정은 필요 없었다.
+  - 서버는 detail API가 새 YOUTH official label을 실제로 내리고, 프론트는 최신 정적 번들을 서빙하는지만 확인했다.
+- 이유:
+  - 이번 단계 목표는 official fact를 **일반 사용자 상세 UX에 read-only로 연결하는 것**이지, 추천 규칙을 바꾸는 것이 아니다.
+  - backend field 노출과 frontend bundle 반영이 모두 확인됐고 rank/score도 unchanged라서, 현재 남은 문제는 저장/배포 경계가 아니라 이 신호를 다음에 어디까지 소비할지의 제품 판단이다.
