@@ -5043,3 +5043,32 @@
   - backend는 official raw label을 손대지 않고, compact 여부는 frontend 표시 규칙으로만 두는 편이 안전하다.
   - 이 방식이면 상세는 full signal을 유지하고, 목록은 “빨리 훑어보는 탐색”에 맞는 density로 줄일 수 있다.
   - 즉 이번 단계 목표는 list ranking을 바꾸는 것이 아니라, 이미 닫힌 official fact를 목록 탐색에서도 **읽기 좋은 설명 신호** 로 쓰는 것이다.
+
+## 860) 서버 검증 결과 YOUTH official fact는 목록 compact badge까지 닫혔다
+- 문제: local에서 `PolicySummaryResponse` 와 `PoliciesPage` 를 수정해도, 서버 배포본이 실제로 새 summary 필드를 내리고 최신 목록 번들을 서빙하는지 확인하지 않으면 “API는 바뀌었는데 카드 UI는 예전 상태”일 수 있다. 이번 단계는 목록 card UX를 여는 것이므로, summary API와 frontend suppression 결과를 같이 확인해야 한다.
+- 확인:
+  - 서버 최신 `main 7ca6a6c` 반영 뒤 app 재기동 및 health `UP`
+  - `GET /api/policies?sourceType=YOUTH&page=0&size=10&sort=LATEST&statusFilter=ALL`
+  - summary sample `serviceId=4686`:
+    - `youthIncomeConditionTypeLabel=기타`
+    - `youthEmploymentRequirementLabels=['재직자']`
+    - `youthEducationRequirementLabels=['제한없음']`
+    - `youthSpecialRequirementLabels=['중소기업', '기타']`
+    - `youthMaritalStatusLabel=제한없음`
+  - 프론트:
+    - `npm run build` 후 `/var/www/youth-welfare/frontend/` 배포
+    - Nginx가 최신 `PoliciesPage` 번들을 서빙하는 것 확인
+    - 같은 raw label 조합에서 frontend badge 계산 결과:
+      - raw = `기타 / ['재직자'] / ['제한없음'] / ['중소기업', '기타'] / 제한없음`
+      - badges = `['소득 기타', '재직자', '중소기업']`
+  - 기존 추천 batch 값:
+    - `service_id=672`
+    - `rank_no=1`
+    - `final_score=1.12000`
+    - `recommended_at=2026-05-17 16:20:18`
+- 해결:
+  - 별도 코드 수정은 필요 없었다.
+  - 서버는 summary API가 새 YOUTH official label을 실제로 내리고, 프론트가 compact suppression 규칙을 포함한 최신 목록 번들을 서빙하는지만 확인했다.
+- 이유:
+  - 이번 단계 목표는 YOUTH official fact를 **목록 탐색에서 읽기 좋은 compact badge로 연결하는 것**이지, filter/scoring을 바꾸는 것이 아니다.
+  - backend raw label 노출과 frontend compact suppression 결과가 함께 확인됐고 rank/score도 unchanged라서, 현재 남은 문제는 저장/배포 경계가 아니라 다음 소비처를 더 열지의 제품 판단이다.
