@@ -5,6 +5,7 @@
 관련 문서:
 
 - [recommendation-pipeline.md](./recommendation-pipeline.md)
+- [recommendation-reopen-decision-runbook.md](./recommendation-reopen-decision-runbook.md)
 - [policy-normalization-current-state.md](../policy/policy-normalization-current-state.md)
 - [policy-local-closeout-pending-inventory.md](../policy/policy-local-closeout-pending-inventory.md)
 
@@ -37,6 +38,9 @@
 - source/category balancing 또는 AI prompt/input 강화를 제품적으로 할지 여부
 
 즉 현재 남은 것은 구현 결함보다 **local 청년 정책을 더 적극적으로 밀고 싶은지에 대한 제품/모델링 선택** 입니다.
+
+이 선택을 실제로 다시 열 때는 [recommendation-reopen-decision-runbook.md](./recommendation-reopen-decision-runbook.md) 기준으로
+`local 신호 구조화 -> diversity/balancing -> direct tuning` 순서를 먼저 고릅니다.
 
 ## 다시 열 조건
 

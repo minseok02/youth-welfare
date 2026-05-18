@@ -5257,3 +5257,14 @@
 - 이유:
   - 이 단계부터는 구현보다 우선순위 선택이 중요하다.
   - top-level 문서가 이 상태를 먼저 말해야, 이후 작업이 closeout된 축을 무의미하게 다시 파지 않는다.
+
+## 870) recommendation 은 readiness runbook만으로는 부족하고 gate 이후 어떤 lane을 다시 열지 고르는 decision runbook이 따로 있어야 한다
+- 문제: 기존 recommendation 문서군에는 `REAL_USER` gate를 다시 열 수 있는지 판단하는 runbook은 있었지만, gate가 열린 뒤 바로 무엇을 다시 열어야 하는지는 흩어져 있었다. 이 상태를 두면 `2736` 같은 local 정책 사례가 나올 때도 `local 신호 구조화`, `diversity/balancing`, `direct tuning` 중 무엇이 먼저인지 매번 새로 해석해야 하고, 쉽게 global weight patch로 점프하게 된다.
+- 해결:
+  - 새 [recommendation-reopen-decision-runbook.md](../recommendation/recommendation-reopen-decision-runbook.md) 를 추가했다.
+  - 이 문서는 recommendation reopen 선택을 `유지 -> local 신호 구조화 -> diversity/balancing -> direct tuning` 순서로 고정한다.
+  - `recommendation-docs-index.md` 에도 이 문서를 추가해, `recommendation-real-user-baseline-runbook.md` 다음에 바로 “어떤 lane을 다시 열지”로 내려가게 정리했다.
+  - `recommendation-current-state.md` 도 이 decision runbook 을 현재 deferred 판단과 연결했다.
+- 이유:
+  - readiness 와 reopen 종류 선택은 다른 문제다.
+  - recommendation 을 다시 열더라도 source 전체 가산점이나 direct weight patch부터 시작하지 않고, 먼저 더 좁은 lane 으로 설명 가능한지 보게 해야 제품 판단과 구현 경계가 흐려지지 않는다.
