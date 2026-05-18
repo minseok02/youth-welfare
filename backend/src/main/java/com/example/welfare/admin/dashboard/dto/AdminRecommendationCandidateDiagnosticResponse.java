@@ -33,6 +33,8 @@ public record AdminRecommendationCandidateDiagnosticResponse(
             List<String> youthEducationRequirementLabels,
             List<String> youthSpecialRequirementCodes,
             List<String> youthSpecialRequirementLabels,
+            String youthMaritalStatusCode,
+            String youthMaritalStatusLabel,
             String youthIncomeConditionTypeCode,
             String youthIncomeConditionTypeLabel,
             boolean inBaseRetrieval,

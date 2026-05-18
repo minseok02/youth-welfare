@@ -170,6 +170,38 @@ class CanonicalRecommendationReadModelIntegrationTest {
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 createdServiceId,
+                "MARITAL_STATUS",
+                "YOUTH_MARITAL_STATUS",
+                "0055003",
+                "YOUTH_MARITAL_STATUS",
+                "결혼 상태",
+                "EQ",
+                "STRING",
+                "제한없음",
+                "mrgSttsCd",
+                "OFFICIAL",
+                1.0,
+                "0055003",
+                "제한없음");
+        jdbcTemplate.update("""
+                INSERT INTO service_facts (
+                    service_id,
+                    fact_group,
+                    fact_code_set_key,
+                    fact_code,
+                    fact_merge_key,
+                    fact_label,
+                    operator,
+                    value_type,
+                    text_value,
+                    source_field,
+                    authority,
+                    confidence,
+                    raw_value,
+                    evidence_text
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                createdServiceId,
                 "EMPLOYMENT",
                 "YOUTH_EMPLOYMENT_REQUIREMENT",
                 "0013003,0013006",
@@ -266,8 +298,11 @@ class CanonicalRecommendationReadModelIntegrationTest {
         assertThat(projection.youthEducationRequirementLabels()).containsExactly("대학 재학", "대졸 예정");
         assertThat(projection.youthSpecialRequirementCodes()).containsExactly("0014003", "0014008");
         assertThat(projection.youthSpecialRequirementLabels()).containsExactly("기초생활수급자", "지역인재");
+        assertThat(projection.youthMaritalStatusCode()).isEqualTo("0055003");
+        assertThat(projection.youthMaritalStatusLabel()).isEqualTo("제한없음");
         assertThat(projection.youthIncomeConditionTypeCode()).isEqualTo("0043002");
         assertThat(projection.youthIncomeConditionTypeLabel()).isEqualTo("연소득");
+        assertThat(projection.factKeys()).contains("YOUTH_MARITAL_STATUS");
         assertThat(projection.factKeys()).contains("YOUTH_EDUCATION_REQUIREMENT");
         assertThat(projection.factKeys()).contains("YOUTH_EMPLOYMENT_REQUIREMENT");
         assertThat(projection.factKeys()).contains("YOUTH_SPECIAL_REQUIREMENT");

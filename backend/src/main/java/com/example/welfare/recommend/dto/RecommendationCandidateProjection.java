@@ -34,6 +34,8 @@ public record RecommendationCandidateProjection(
         List<String> youthEducationRequirementLabels,
         List<String> youthSpecialRequirementCodes,
         List<String> youthSpecialRequirementLabels,
+        String youthMaritalStatusCode,
+        String youthMaritalStatusLabel,
         String youthIncomeConditionTypeCode,
         String youthIncomeConditionTypeLabel,
         String title,

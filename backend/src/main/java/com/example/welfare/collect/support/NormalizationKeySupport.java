@@ -30,6 +30,7 @@ public final class NormalizationKeySupport {
     public static final String FACT_GROUP_INCOME = "INCOME";
     public static final String FACT_GROUP_EMPLOYMENT = "EMPLOYMENT";
     public static final String FACT_GROUP_EDUCATION = "EDUCATION";
+    public static final String FACT_GROUP_MARITAL_STATUS = "MARITAL_STATUS";
     public static final String FACT_GROUP_SPECIAL_REQUIREMENT = "SPECIAL_REQUIREMENT";
     public static final String FACT_GROUP_APPLY_END_DATE = "APPLY_END_DATE";
 
@@ -37,6 +38,7 @@ public final class NormalizationKeySupport {
     public static final String FACT_CODE_YOUTH_INCOME_MIN = "YOUTH_INCOME_MIN";
     public static final String FACT_CODE_YOUTH_INCOME_MAX = "YOUTH_INCOME_MAX";
     public static final String FACT_CODE_YOUTH_APPLY_END_DATE = "YOUTH_APPLY_END_DATE";
+    public static final String FACT_CODE_YOUTH_MARITAL_STATUS = "YOUTH_MARITAL_STATUS";
     public static final String FACT_CODE_YOUTH_INCOME_CONDITION_TYPE = "YOUTH_INCOME_CONDITION_TYPE";
     public static final String FACT_CODE_YOUTH_EMPLOYMENT_REQUIREMENT = "YOUTH_EMPLOYMENT_REQUIREMENT";
     public static final String FACT_CODE_YOUTH_EDUCATION_REQUIREMENT = "YOUTH_EDUCATION_REQUIREMENT";
@@ -48,6 +50,7 @@ public final class NormalizationKeySupport {
     public static final String FACT_MERGE_KEY_YOUTH_INCOME_MIN = "YOUTH_INCOME_MIN";
     public static final String FACT_MERGE_KEY_YOUTH_INCOME_MAX = "YOUTH_INCOME_MAX";
     public static final String FACT_MERGE_KEY_YOUTH_APPLY_END_DATE = "YOUTH_APPLY_END_DATE";
+    public static final String FACT_MERGE_KEY_YOUTH_MARITAL_STATUS = "YOUTH_MARITAL_STATUS";
     public static final String FACT_MERGE_KEY_YOUTH_INCOME_CONDITION_TYPE = "YOUTH_INCOME_CONDITION_TYPE";
     public static final String FACT_MERGE_KEY_YOUTH_EMPLOYMENT_REQUIREMENT = "YOUTH_EMPLOYMENT_REQUIREMENT";
     public static final String FACT_MERGE_KEY_YOUTH_EDUCATION_REQUIREMENT = "YOUTH_EDUCATION_REQUIREMENT";
@@ -59,6 +62,7 @@ public final class NormalizationKeySupport {
     public static final String SOURCE_FIELD_YOUTH_CATEGORY_SUB = "category_sub";
     public static final String SOURCE_FIELD_YOUTH_KEYWORD = "plcyKywdNm";
     public static final String SOURCE_FIELD_YOUTH_AGE = "sprtTrgtMinAge/sprtTrgtMaxAge";
+    public static final String SOURCE_FIELD_YOUTH_MARITAL_STATUS = "mrgSttsCd";
     public static final String SOURCE_FIELD_YOUTH_INCOME_MIN = "earnMinAmt";
     public static final String SOURCE_FIELD_YOUTH_INCOME_MAX = "earnMaxAmt";
     public static final String SOURCE_FIELD_YOUTH_INCOME_CONDITION_TYPE = "earnCndSeCd";

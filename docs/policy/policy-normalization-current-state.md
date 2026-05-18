@@ -171,6 +171,13 @@ admin diagnostics도 `serviceId=672` 에서 `youthEducationRequirementCodes=['00
 `youthEducationRequirementLabels=['제한없음']` 을 반환했다.
 즉 현재 truth는 `schoolCd` 도 raw -> aggregate fact -> internal read-model -> admin diagnostics 경계까지는 닫혔고,
 남은 것은 이 값을 public UX나 rule 소비로 넓힐지 여부뿐이다.
+그 다음 후보 `mrgSttsCd` 는 signal이 `71건` 으로 작지만,
+multi-code가 없고 `기혼/미혼/제한없음` scalar 의미가 명확해서 가장 좁고 안전한 official fact 후보다.
+그래서 이번 단계에서는 `YOUTH_MARITAL_STATUS` 를 single-code observation fact로만 저장하고,
+internal read-model/projection 과 admin diagnostics에만 `youthMaritalStatusCode/Label` 을 노출한다.
+shape은 `fact_code='0055003'`, `text_value='제한없음'`, `operator=EQ`, `fact_merge_key='YOUTH_MARITAL_STATUS'` 이다.
+의도는 결혼상태 신호를 과대해석하지 않고 관찰 가능하게 만드는 것이며,
+public response, retrieval filter, scoring은 이번 단계에서도 그대로 둔다.
 
 ## 2. `YOUTH_MID_RAW_ALIAS` 현재 상태
 

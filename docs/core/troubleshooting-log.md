@@ -4916,3 +4916,25 @@
 - 이유:
   - 이번 단계 목표는 학력 요건을 public rule로 쓰는 것이 아니라, `schoolCd` official signal이 서버에서도 **internal observation only** 경계로 안전하게 관찰 가능한지 확인하는 것이었다.
   - `fact_rows > 0`, diagnostics list 노출, ranking unchanged가 모두 확인됐으므로 현재 남은 문제는 저장 경계가 아니라 소비 경계다.
+
+## 855) `mrgSttsCd` 는 신호는 약해도 scalar라서 가장 안전한 single-code observation fact 후보다
+- 문제: `schoolCd` 까지 닫은 뒤 남은 공식 요건코드 중 무엇을 다음으로 열지 결정해야 했다. `plcyMajorCd` 는 multi-code와 broad/default-like 값이 섞여 해석이 더 거칠고, `mrgSttsCd` 는 signal이 `71건` 으로 약하다. 하지만 `mrgSttsCd` 는 `기혼/미혼/제한없음` scalar 의미가 명확하고 multi-code가 없어서, 구현 위험은 가장 낮다.
+- 확인:
+  - local `LIST raw` 기준 `mrgSttsCd signal_rows = 71`
+  - multi-code row = `0`
+  - official label map은 이미 `YouthOfficialCodeSupport` 에 존재한다.
+  - 따라서 이 축은 aggregate fan-out 고민 없이 `earnCndSeCd` 와 같은 single-code observation fact로 처리할 수 있다.
+- 해결:
+  - `YOUTH_MARITAL_STATUS` 를 single-code observation fact로 추가했다.
+  - shape:
+    - `fact_code_set_key = YOUTH_MARITAL_STATUS`
+    - `fact_merge_key = YOUTH_MARITAL_STATUS`
+    - `fact_code = 0055003`
+    - `text_value = 제한없음`
+    - `operator = EQ`
+    - `source_field = mrgSttsCd`
+  - internal read-model/projection 과 admin diagnostics에도 `youthMaritalStatusCode`, `youthMaritalStatusLabel` 을 추가했다.
+  - public policy/recommendation response, retrieval filter, scoring은 그대로 유지한다.
+- 이유:
+  - 이번 단계 목표는 결혼상태를 user-facing eligibility rule로 여는 것이 아니라, 공식 scalar signal을 **가장 좁게 관찰 가능하게 만드는 것**이다.
+  - signal은 약하지만 구현 위험이 가장 낮아, 남은 official code 축을 계속 좁혀 가는 데 적합하다.

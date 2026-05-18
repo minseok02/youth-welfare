@@ -54,6 +54,8 @@ class YouthOfficialCodeSupportTest {
     void resolveMaritalAndIncomeConditionLabels_handleBlankSafely() {
         assertThat(YouthOfficialCodeSupport.resolveMaritalStatusLabels("0055001,,0055003"))
                 .containsExactly("기혼", "제한없음");
+        assertThat(YouthOfficialCodeSupport.resolveMaritalStatusCodes("0055001,,0055003,0055001"))
+                .containsExactly("0055001", "0055003");
         assertThat(YouthOfficialCodeSupport.resolveIncomeConditionTypeLabels(null))
                 .isEmpty();
     }

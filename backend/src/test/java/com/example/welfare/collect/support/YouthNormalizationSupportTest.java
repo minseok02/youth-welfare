@@ -60,6 +60,7 @@ class YouthNormalizationSupportTest {
         YouthApiDto.Item item = new YouthApiDto.Item();
         ReflectionTestUtils.setField(item, "jobCd", "0013003,0013006,0013003");
         ReflectionTestUtils.setField(item, "schoolCd", "0049005,0049006,0049005");
+        ReflectionTestUtils.setField(item, "mrgSttsCd", "0055003");
         ReflectionTestUtils.setField(item, "earnCndSeCd", "0043002");
 
         var facts = YouthNormalizationSupport.facts(service, item);
@@ -73,6 +74,7 @@ class YouthNormalizationSupportTest {
                         "YOUTH_APPLY_END_DATE",
                         "YOUTH_EMPLOYMENT_REQUIREMENT",
                         "YOUTH_EDUCATION_REQUIREMENT",
+                        "YOUTH_MARITAL_STATUS",
                         "YOUTH_INCOME_CONDITION_TYPE"
                 );
         assertThat(facts)
@@ -94,6 +96,16 @@ class YouthNormalizationSupportTest {
                     assertThat(fact.textValue()).isEqualTo("대학 재학, 대졸 예정");
                     assertThat(fact.operator()).isEqualTo(NormalizedPolicyAggregate.Operator.MEMBER);
                     assertThat(fact.sourceField()).isEqualTo("schoolCd");
+                });
+        assertThat(facts)
+                .filteredOn(fact -> "YOUTH_MARITAL_STATUS".equals(fact.factMergeKey()))
+                .singleElement()
+                .satisfies(fact -> {
+                    assertThat(fact.factCodeSetKey()).isEqualTo("YOUTH_MARITAL_STATUS");
+                    assertThat(fact.factCode()).isEqualTo("0055003");
+                    assertThat(fact.textValue()).isEqualTo("제한없음");
+                    assertThat(fact.operator()).isEqualTo(NormalizedPolicyAggregate.Operator.EQ);
+                    assertThat(fact.sourceField()).isEqualTo("mrgSttsCd");
                 });
         assertThat(facts)
                 .filteredOn(fact -> "YOUTH_INCOME_CONDITION_TYPE".equals(fact.factMergeKey()))

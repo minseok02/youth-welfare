@@ -191,6 +191,8 @@ class AdminDashboardRecommendationDiagnosticServiceTest {
                     assertThat(row.youthEducationRequirementLabels()).containsExactly("대학 재학", "대졸 예정");
                     assertThat(row.youthSpecialRequirementCodes()).containsExactly("0014003", "0014008");
                     assertThat(row.youthSpecialRequirementLabels()).containsExactly("기초생활수급자", "지역인재");
+                    assertThat(row.youthMaritalStatusCode()).isEqualTo("0055003");
+                    assertThat(row.youthMaritalStatusLabel()).isEqualTo("제한없음");
                     assertThat(row.youthIncomeConditionTypeCode()).isEqualTo("0043002");
                     assertThat(row.youthIncomeConditionTypeLabel()).isEqualTo("연소득");
                     assertThat(row.rerankDiversityPenalty()).isEqualTo(0.03);
@@ -243,6 +245,8 @@ class AdminDashboardRecommendationDiagnosticServiceTest {
                 .youthEducationRequirementLabels(List.of("대학 재학", "대졸 예정"))
                 .youthSpecialRequirementCodes(List.of("0014003", "0014008"))
                 .youthSpecialRequirementLabels(List.of("기초생활수급자", "지역인재"))
+                .youthMaritalStatusCode("0055003")
+                .youthMaritalStatusLabel("제한없음")
                 .youthIncomeConditionTypeCode("0043002")
                 .youthIncomeConditionTypeLabel("연소득")
                 .build();

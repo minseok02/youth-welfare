@@ -113,6 +113,8 @@ public class AdminDashboardRecommendationDiagnosticService {
                             projection != null ? projection.youthEducationRequirementLabels() : List.of(),
                             projection != null ? projection.youthSpecialRequirementCodes() : List.of(),
                             projection != null ? projection.youthSpecialRequirementLabels() : List.of(),
+                            projection != null ? projection.youthMaritalStatusCode() : null,
+                            projection != null ? projection.youthMaritalStatusLabel() : null,
                             projection != null ? projection.youthIncomeConditionTypeCode() : null,
                             projection != null ? projection.youthIncomeConditionTypeLabel() : null,
                             inBase,

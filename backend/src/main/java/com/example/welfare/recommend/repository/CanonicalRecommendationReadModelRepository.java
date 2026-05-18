@@ -267,6 +267,8 @@ public class CanonicalRecommendationReadModelRepository {
         private final Set<String> youthEducationRequirementLabels = new LinkedHashSet<>();
         private final Set<String> youthSpecialRequirementCodes = new LinkedHashSet<>();
         private final Set<String> youthSpecialRequirementLabels = new LinkedHashSet<>();
+        private String youthMaritalStatusCode;
+        private String youthMaritalStatusLabel;
         private String youthIncomeConditionTypeCode;
         private String youthIncomeConditionTypeLabel;
         private final String title;
@@ -386,6 +388,10 @@ public class CanonicalRecommendationReadModelRepository {
                 youthSpecialRequirementCodes.addAll(YouthOfficialCodeSupport.splitCsvValues(factCode));
                 youthSpecialRequirementLabels.addAll(YouthOfficialCodeSupport.splitCsvValues(textValue));
             }
+            if ("YOUTH_MARITAL_STATUS".equals(factCodeSetKey)) {
+                youthMaritalStatusCode = factCode;
+                youthMaritalStatusLabel = textValue;
+            }
             if ("YOUTH_INCOME_CONDITION_TYPE".equals(factCodeSetKey)) {
                 youthIncomeConditionTypeCode = factCode;
                 youthIncomeConditionTypeLabel = textValue;
@@ -416,6 +422,8 @@ public class CanonicalRecommendationReadModelRepository {
                     .youthEducationRequirementLabels(List.copyOf(youthEducationRequirementLabels))
                     .youthSpecialRequirementCodes(List.copyOf(youthSpecialRequirementCodes))
                     .youthSpecialRequirementLabels(List.copyOf(youthSpecialRequirementLabels))
+                    .youthMaritalStatusCode(youthMaritalStatusCode)
+                    .youthMaritalStatusLabel(youthMaritalStatusLabel)
                     .youthIncomeConditionTypeCode(youthIncomeConditionTypeCode)
                     .youthIncomeConditionTypeLabel(youthIncomeConditionTypeLabel)
                     .title(title)

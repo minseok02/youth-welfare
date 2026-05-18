@@ -110,6 +110,7 @@ public final class YouthNormalizationSupport {
                 "소득 상한", service.getMaxIncome(),
                 NormalizedPolicyAggregate.Operator.LTE, "legacy-int", NormalizationKeySupport.SOURCE_FIELD_YOUTH_INCOME_MAX,
                 NormalizedPolicyAggregate.Authority.OFFICIAL, BigDecimal.ONE, null);
+        addMaritalStatusFact(facts, item);
         addDateFact(facts,
                 NormalizationKeySupport.FACT_GROUP_APPLY_END_DATE,
                 NormalizationKeySupport.FACT_CODE_YOUTH_APPLY_END_DATE,
@@ -121,6 +122,36 @@ public final class YouthNormalizationSupport {
         addSpecialRequirementFact(facts, item);
         addIncomeConditionTypeFact(facts, item);
         return facts;
+    }
+
+    private static void addMaritalStatusFact(List<NormalizedPolicyAggregate.Fact> facts, YouthApiDto.Item item) {
+        if (item == null) {
+            return;
+        }
+
+        List<String> codes = YouthOfficialCodeSupport.resolveMaritalStatusCodes(item.getMrgSttsCd());
+        List<String> labels = YouthOfficialCodeSupport.resolveMaritalStatusLabels(item.getMrgSttsCd());
+        if (codes.size() != 1 || labels.size() != 1) {
+            return;
+        }
+
+        String code = codes.get(0);
+        String label = labels.get(0);
+        facts.add(NormalizedPolicyAggregate.Fact.builder()
+                .factGroup(NormalizationKeySupport.FACT_GROUP_MARITAL_STATUS)
+                .factCodeSetKey(NormalizationKeySupport.FACT_CODE_YOUTH_MARITAL_STATUS)
+                .factCode(code)
+                .factMergeKey(NormalizationKeySupport.FACT_MERGE_KEY_YOUTH_MARITAL_STATUS)
+                .factLabel("결혼 상태")
+                .operator(NormalizedPolicyAggregate.Operator.EQ)
+                .valueType(NormalizedPolicyAggregate.ValueType.STRING)
+                .textValue(label)
+                .sourceField(NormalizationKeySupport.SOURCE_FIELD_YOUTH_MARITAL_STATUS)
+                .authority(NormalizedPolicyAggregate.Authority.OFFICIAL)
+                .confidence(BigDecimal.ONE)
+                .rawValue(code)
+                .evidenceText(label)
+                .build());
     }
 
     private static void putIfPresent(Map<String, String> labels, String key, String value) {

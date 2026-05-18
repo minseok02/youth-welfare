@@ -1245,6 +1245,8 @@ class AdminSecurityWebMvcTest {
                                 List.of(),
                                 null,
                                 null,
+                                null,
+                                null,
                                 true,
                                 false,
                                 true,
@@ -1289,6 +1291,8 @@ class AdminSecurityWebMvcTest {
                                 List.of("대학 재학", "대졸 예정"),
                                 List.of("0014003", "0014008"),
                                 List.of("기초생활수급자", "지역인재"),
+                                "0055003",
+                                "제한없음",
                                 "0043002",
                                 "연소득",
                                 true,
@@ -1349,6 +1353,8 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.data.services[1].youthEducationRequirementLabels[1]").value("대졸 예정"))
                 .andExpect(jsonPath("$.data.services[1].youthSpecialRequirementCodes[0]").value("0014003"))
                 .andExpect(jsonPath("$.data.services[1].youthSpecialRequirementLabels[1]").value("지역인재"))
+                .andExpect(jsonPath("$.data.services[1].youthMaritalStatusCode").value("0055003"))
+                .andExpect(jsonPath("$.data.services[1].youthMaritalStatusLabel").value("제한없음"))
                 .andExpect(jsonPath("$.data.services[1].youthIncomeConditionTypeCode").value("0043002"))
                 .andExpect(jsonPath("$.data.services[1].youthIncomeConditionTypeLabel").value("연소득"))
                 .andExpect(jsonPath("$.data.services[1].inMergedCandidates").value(true))

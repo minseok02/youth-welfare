@@ -60,6 +60,10 @@ public final class YouthOfficialCodeSupport {
         return resolveOfficialLabels(rawCodeCsv, MARITAL_STATUS_LABELS);
     }
 
+    public static List<String> resolveMaritalStatusCodes(String rawCodeCsv) {
+        return resolveOfficialCodes(rawCodeCsv, MARITAL_STATUS_LABELS);
+    }
+
     public static List<String> resolveIncomeConditionTypeLabels(String rawCodeCsv) {
         return resolveOfficialLabels(rawCodeCsv, INCOME_CONDITION_TYPE_LABELS);
     }
