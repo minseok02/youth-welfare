@@ -112,6 +112,8 @@
 
 즉 현재 남은 next step은 더 이상 `FILTERED_BY_YOUTH_OR_AGE` 묶음 해석이 아니라, `3257/3281` 이 `TRIMMED_BY_BASE_OR_LATEST_LIMIT` 으로 실제로 재분류되는지 확인한 뒤 `base/latest window size` 나 ordering을 어디까지 bounded 하게 조정할지 결정하는 것입니다.
 
+이 다음 evidence lane은 [recommendation-rebalance-audit-runbook.md](./recommendation-rebalance-audit-runbook.md) 와 `run-local-recommendation-rebalance-audit.sh` 로 고정합니다. 이 wrapper는 raw base 순위, source 내부 순위, source round-robin 후 재배치 순위를 같이 보여 줍니다. 즉 다음 질문을 “window size를 늘릴까”가 아니라 **`3257/3281` 이 실제로 source rebalance 때문에 `base 50` 밖으로 밀리는가** 로 먼저 좁히는 단계입니다.
+
 ## 현재 scoring 기준
 
 ### rule score

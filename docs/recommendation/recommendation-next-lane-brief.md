@@ -167,6 +167,8 @@ bounded family 단위로만 확장합니다.
 
 그리고 latest evidence만으로 바로 ordering patch로 가지 않고, 같은 family를 `run-local-recommendation-pipeline-lane-audit.sh` 에 넣어 실제 `merged -> saved` 경계까지 같이 읽는 편이 맞습니다. 현재 이 wrapper는 `pass_base/pass_latest` 를 actual predicate pass 로, `retain_base/retain_latest` 를 base/latest top window 잔존 여부로 따로 보여 줍니다. 즉 다음 질문은 더 이상 “youth/age가 맞나”가 아니라, **`3257/3281` 이 predicate는 통과했는데 `base 50 / latest 5` window에서 밀리는지** 입니다.
 
+이 상태에서 바로 `base 50` 확대나 latest size patch로 가지 않고, 먼저 `run-local-recommendation-rebalance-audit.sh` 로 raw base 순위와 source round-robin 뒤 순위를 같이 봅니다. 현재 가장 가능성 높은 bounded 원인은 no-priority source rebalance가 region-matched `BOKJIRO_LOCAL` 후보를 `base 50` 밖으로 미는지 여부입니다.
+
 ## lane 1 에서 아직 안 할 일
 
 1. global source bonus

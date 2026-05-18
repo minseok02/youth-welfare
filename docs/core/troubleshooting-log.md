@@ -5402,3 +5402,13 @@
 - 이유:
   - 지금 next step은 youth relevance나 age gate를 다시 손보는 게 아니라, `3257/3281` 이 실제로는 filter mismatch가 아니라 base/latest top window trim이라는 사실을 먼저 정확히 드러내는 것이다.
   - 이 계약이 분리돼야만 다음 bounded fix를 `window size/ordering` 쪽으로 안전하게 좁힐 수 있다.
+
+## 884) `pass_base=true`, `retain_base=false` 가 확인되면 다음 질문은 youth/age가 아니라 no-priority source rebalance가 raw base 상위 local 후보를 밖으로 미는지 여부다
+- 문제: server 재검증에서 `2736/3257/3281/3575` 는 `primary=true`, `age=true`, `pass_base=true`, `retain_base=false`, `dropStage=TRIMMED_BY_BASE_OR_LATEST_LIMIT` 으로 좁혀졌다. 즉 filter mismatch는 아니고 `base 50` 안 잔존 실패다. 이 상태에서 바로 `base 50` 확대나 latest ordering patch로 가면, 실제 원인이 raw SQL 정렬인지 no-priority source round-robin rebalance인지 섞일 수 있다.
+- 해결:
+  - `deploy/smoke/run-local-recommendation-rebalance-audit.sh` 를 추가했다.
+  - [recommendation-rebalance-audit-runbook.md](../recommendation/recommendation-rebalance-audit-runbook.md) 를 추가했다.
+  - 이 wrapper는 raw base `150` 후보를 actual query ordering으로 다시 읽고, diagnostics에서 `pass_base/retain_base` 를 붙인 뒤, same source round-robin rebalance를 스크립트에서 그대로 재현한다.
+  - target family에 대해 `raw_rank`, `source_pass_rank`, `rebalance_rank`, `retain_base`, `retain_sim` 을 같이 보여 준다.
+- 이유:
+  - 다음 bounded fix는 `window size` 가 아니라, no-priority source rebalance가 region-matched `BOKJIRO_LOCAL` 후보를 `base 50` 밖으로 미는지 먼저 확인한 뒤 결정하는 게 맞다.

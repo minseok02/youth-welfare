@@ -258,8 +258,10 @@ Gov24 source 전체가 구조적으로 억눌리는지 보려면 bounded smoke �
 5. reopen 종류를 고를 때 [recommendation-reopen-decision-runbook.md](./recommendation-reopen-decision-runbook.md)
 6. 현재 권장 lane 을 바로 확인할 때 [recommendation-next-lane-brief.md](./recommendation-next-lane-brief.md)
 7. local 신호 부족을 실제로 좁힐 때 [recommendation-signal-gap-audit-runbook.md](./recommendation-signal-gap-audit-runbook.md)
-8. [recommendation-pipeline.md](./recommendation-pipeline.md)
-9. 필요하면 [runtime-api-smoke-commands.md](../core/runtime-api-smoke-commands.md)
+8. latest/base/saved 경계를 같이 볼 때 [recommendation-pipeline-lane-audit-runbook.md](./recommendation-pipeline-lane-audit-runbook.md)
+9. `pass_base=true`, `retain_base=false` 를 source rebalance 기준으로 좁힐 때 [recommendation-rebalance-audit-runbook.md](./recommendation-rebalance-audit-runbook.md)
+10. [recommendation-pipeline.md](./recommendation-pipeline.md)
+11. 필요하면 [runtime-api-smoke-commands.md](../core/runtime-api-smoke-commands.md)
 
 ### 실험/비교 기록을 남길 때
 
@@ -278,5 +280,7 @@ Gov24 source 전체가 구조적으로 억눌리는지 보려면 bounded smoke �
 6. gate 가 열린 뒤 어떤 종류의 recommendation 과제를 다시 열지 고를 때는 [recommendation-reopen-decision-runbook.md](./recommendation-reopen-decision-runbook.md) 를 봅니다.
 7. 현재 권장 reopen lane 을 빠르게 확인할 때는 [recommendation-next-lane-brief.md](./recommendation-next-lane-brief.md) 를 봅니다.
 8. local 정책군 signal gap 을 실제로 좁힐 때는 [recommendation-signal-gap-audit-runbook.md](./recommendation-signal-gap-audit-runbook.md) 와 `run-local-recommendation-signal-gap-audit.sh` 를 씁니다.
-9. 구조 설명은 [recommendation-pipeline.md](./recommendation-pipeline.md) 에 더 자세히 적혀 있습니다.
-10. replay/CTR/집중도 기록은 [recommendation-replay-template.md](./recommendation-replay-template.md) 또는 각 runbook의 최소 기록 항목을 기준으로 남기고, 요약 문서 갱신보다 evidence 기록을 먼저 합니다.
+9. latest/base/saved 경계를 같이 읽을 때는 [recommendation-pipeline-lane-audit-runbook.md](./recommendation-pipeline-lane-audit-runbook.md) 를 봅니다.
+10. `pass_base=true`, `retain_base=false` 인 retained ordering 병목은 [recommendation-rebalance-audit-runbook.md](./recommendation-rebalance-audit-runbook.md) 로 좁힙니다.
+11. 구조 설명은 [recommendation-pipeline.md](./recommendation-pipeline.md) 에 더 자세히 적혀 있습니다.
+12. replay/CTR/집중도 기록은 [recommendation-replay-template.md](./recommendation-replay-template.md) 또는 각 runbook의 최소 기록 항목을 기준으로 남기고, 요약 문서 갱신보다 evidence 기록을 먼저 합니다.
