@@ -5412,3 +5412,13 @@
   - target family에 대해 `raw_rank`, `source_pass_rank`, `rebalance_rank`, `retain_base`, `retain_sim` 을 같이 보여 준다.
 - 이유:
   - 다음 bounded fix는 `window size` 가 아니라, no-priority source rebalance가 region-matched `BOKJIRO_LOCAL` 후보를 `base 50` 밖으로 미는지 먼저 확인한 뒤 결정하는 게 맞다.
+
+## 885) rebalance simulation과 runtime `actualBaseRank` 가 갈리면 다음 병목은 source rebalance가 아니라 actual query ordering tier다
+- 문제: server rebalance audit에서 `3257/3281` 은 `raw_rank=8/18`, `rebalance_rank=17/37`, `retain_sim=true` 인데도 runtime diagnostics 기준 `actualBaseRank=110/120`, `retain_base=false` 였다. 즉 source rebalance simulation은 둘을 `base 50` 안에 남기는 반면, 실제 app runtime 은 훨씬 뒤로 밀고 있었다.
+- 해결:
+  - `recommendation-diagnostics` 에 runtime retrieval rank(`base/latest/retained/merged`)를 추가해 smoke simulation과 실제 app ordering을 분리해 읽게 했다.
+  - `run-local-recommendation-rebalance-audit.sh` 는 runtime `actualBaseRank` 와 target neighbor를 함께 출력하게 확장했다.
+  - 마지막으로 query tier까지 같이 노출해, 상위 20 `YOUTH EXACT_REGION` 후보가 `tiers=1/3/3`, `3257/3281` 이 `BOKJIRO_LOCAL EXACT_SIDO tiers=2/2/2` 임을 server에서 직접 확인했다.
+- 이유:
+  - 이 결과로 현재 병목은 priority-profile 자체나 no-priority rebalance가 아니라, **`REGION_CODE` query ordering에서 generic `EXACT_REGION` 후보가 bounded `same-sido BOKJIRO_LOCAL` fallback보다 먼저 오는 구조** 로 좁혀진다.
+  - 따라서 다음 bounded fix는 score/weight patch가 아니라 runtime query tier를 `exact-region local -> same-sido local bounded fallback -> generic exact-region` 순으로 맞추는 것이다.

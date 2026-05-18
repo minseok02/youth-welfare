@@ -253,6 +253,51 @@ class RecommendationRegionQueryIntegrationTest {
     }
 
     @Test
+    @DisplayName("지역코드 추천 후보는 bounded same-sido BOKJIRO_LOCAL fallback을 generic exact-region 후보보다 먼저 노출한다")
+    void findCandidatesWithRegionCodePrioritizesBoundedSameSidoLocalFallbackOverGenericExactRegion() {
+        WelfareService sameSidoLocal = saveService(
+                "region-local-sido-priority",
+                WelfareService.SourceType.BOKJIRO_LOCAL,
+                true,
+                "주거"
+        );
+        WelfareService exactRegionYouth = saveService(
+                "region-exact-generic",
+                WelfareService.SourceType.YOUTH,
+                true,
+                "일자리"
+        );
+
+        serviceRegionRepository.saveAll(List.of(
+                ServiceRegion.builder()
+                        .service(sameSidoLocal)
+                        .regionCode(null)
+                        .sidoName(PRIORITY_TEST_SIDO)
+                        .sggName("다른시군구")
+                        .build(),
+                ServiceRegion.builder()
+                        .service(exactRegionYouth)
+                        .regionCode(PRIORITY_TEST_REGION_CODE)
+                        .sidoName(PRIORITY_TEST_SIDO)
+                        .sggName("테스트중구")
+                        .build()
+        ));
+
+        List<WelfareService> results = welfareServiceRepository.findCandidatesWithRegionCode(
+                25,
+                5,
+                PRIORITY_TEST_REGION_CODE,
+                PRIORITY_TEST_SIDO,
+                PageRequest.of(0, 20)
+        );
+
+        assertThat(results).extracting(WelfareService::getId)
+                .contains(sameSidoLocal.getId(), exactRegionYouth.getId());
+        assertThat(indexOf(results, sameSidoLocal))
+                .isLessThan(indexOf(results, exactRegionYouth));
+    }
+
+    @Test
     @DisplayName("지역코드 최신 추천 후보도 전국 정책과 매칭 지역 정책만 포함하고 중복 반환하지 않는다")
     void findLatestCandidatesWithRegionCodeIncludesNationwideAndMatchingLocalWithoutDuplicates() {
         WelfareService nationwide = saveService("latest-nationwide");
@@ -409,6 +454,51 @@ class RecommendationRegionQueryIntegrationTest {
         assertThat(results).extracting(WelfareService::getId)
                 .contains(sameSidoLocal.getId())
                 .doesNotContain(sameSidoOther.getId());
+    }
+
+    @Test
+    @DisplayName("지역코드 최신 추천 후보도 bounded same-sido BOKJIRO_LOCAL fallback을 generic exact-region 후보보다 먼저 노출한다")
+    void findLatestCandidatesWithRegionCodePrioritizesBoundedSameSidoLocalFallbackOverGenericExactRegion() {
+        WelfareService sameSidoLocal = saveService(
+                "latest-region-local-sido-priority",
+                WelfareService.SourceType.BOKJIRO_LOCAL,
+                true,
+                "금융·생활지원"
+        );
+        WelfareService exactRegionYouth = saveService(
+                "latest-region-exact-generic",
+                WelfareService.SourceType.YOUTH,
+                true,
+                "일자리"
+        );
+
+        serviceRegionRepository.saveAll(List.of(
+                ServiceRegion.builder()
+                        .service(sameSidoLocal)
+                        .regionCode(null)
+                        .sidoName(PRIORITY_TEST_SIDO)
+                        .sggName("다른시군구")
+                        .build(),
+                ServiceRegion.builder()
+                        .service(exactRegionYouth)
+                        .regionCode(PRIORITY_TEST_REGION_CODE)
+                        .sidoName(PRIORITY_TEST_SIDO)
+                        .sggName("테스트중구")
+                        .build()
+        ));
+
+        List<WelfareService> results = welfareServiceRepository.findLatestCandidatesWithRegionCode(
+                25,
+                5,
+                PRIORITY_TEST_REGION_CODE,
+                PRIORITY_TEST_SIDO,
+                PageRequest.of(0, 20)
+        );
+
+        assertThat(results).extracting(WelfareService::getId)
+                .contains(sameSidoLocal.getId(), exactRegionYouth.getId());
+        assertThat(indexOf(results, sameSidoLocal))
+                .isLessThan(indexOf(results, exactRegionYouth));
     }
 
     @Test

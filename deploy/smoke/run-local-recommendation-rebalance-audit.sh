@@ -221,12 +221,12 @@ base_ranked as (
            and bc.source_type = 'BOKJIRO_LOCAL'
            and bc.exact_region_match then 0
       when (select branch_mode from params) = 'REGION_CODE'
-           and bc.exact_region_match then 1
-      when (select branch_mode from params) = 'REGION_CODE'
            and bc.source_type = 'BOKJIRO_LOCAL'
            and bc.exact_sido_match
            and bc.search_youth_relevant = true
-           and bc.unified_category <> '기타' then 2
+           and bc.unified_category <> '기타' then 1
+      when (select branch_mode from params) = 'REGION_CODE'
+           and bc.exact_region_match then 2
       when (select branch_mode from params) = 'SIDO'
            and bc.source_type = 'BOKJIRO_LOCAL'
            and bc.exact_sido_match then 0

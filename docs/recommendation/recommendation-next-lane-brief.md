@@ -169,6 +169,8 @@ bounded family 단위로만 확장합니다.
 
 이 상태에서 바로 `base 50` 확대나 latest size patch로 가지 않고, 먼저 `run-local-recommendation-rebalance-audit.sh` 로 raw base 순위와 source round-robin 뒤 순위를 같이 봅니다. 현재 가장 가능성 높은 bounded 원인은 no-priority source rebalance가 region-matched `BOKJIRO_LOCAL` 후보를 `base 50` 밖으로 미는지 여부입니다.
 
+`2026-05-18` server 재검증 결과는 이 가설도 좁혔습니다. `3257/3281` 은 rebalance simulation 기준으로는 `17/37위`, `retain_sim=true` 였지만, actual runtime 기준 `base_rank=110/120`, `retain_base=false` 였습니다. 다시 runtime neighbor와 query tier를 같이 보면, 상위 20은 전부 `YOUTH EXACT_REGION tiers=1/3/3`, `3257/3281` 은 `BOKJIRO_LOCAL EXACT_SIDO tiers=2/2/2` 입니다. 즉 현재 next bounded step은 source rebalance 완화가 아니라, **`REGION_CODE` query ordering에서 bounded same-sido local fallback을 generic exact-region보다 먼저 두는 것**입니다.
+
 ## lane 1 에서 아직 안 할 일
 
 1. global source bonus

@@ -85,11 +85,6 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                         WHERE sr3.service = ws
                           AND sr3.regionCode = :regionCode
                      ) THEN 0
-                WHEN EXISTS (
-                        SELECT sr4.id FROM ServiceRegion sr4
-                        WHERE sr4.service = ws
-                          AND sr4.regionCode = :regionCode
-                     ) THEN 1
                 WHEN ws.sourceType = 'BOKJIRO_LOCAL'
                      AND :sidoName IS NOT NULL
                      AND ws.searchYouthRelevant = true
@@ -98,6 +93,11 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                         SELECT sr4s.id FROM ServiceRegion sr4s
                         WHERE sr4s.service = ws
                           AND sr4s.sidoName = :sidoName
+                     ) THEN 1
+                WHEN EXISTS (
+                        SELECT sr4.id FROM ServiceRegion sr4
+                        WHERE sr4.service = ws
+                          AND sr4.regionCode = :regionCode
                      ) THEN 2
                 ELSE 3
               END ASC,
@@ -302,11 +302,6 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                         WHERE sr3.service = ws
                           AND sr3.regionCode = :regionCode
                      ) THEN 0
-                WHEN EXISTS (
-                        SELECT sr4.id FROM ServiceRegion sr4
-                        WHERE sr4.service = ws
-                          AND sr4.regionCode = :regionCode
-                     ) THEN 1
                 WHEN ws.sourceType = 'BOKJIRO_LOCAL'
                      AND :sidoName IS NOT NULL
                      AND ws.searchYouthRelevant = true
@@ -315,6 +310,11 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
                         SELECT sr4s.id FROM ServiceRegion sr4s
                         WHERE sr4s.service = ws
                           AND sr4s.sidoName = :sidoName
+                     ) THEN 1
+                WHEN EXISTS (
+                        SELECT sr4.id FROM ServiceRegion sr4
+                        WHERE sr4.service = ws
+                          AND sr4.regionCode = :regionCode
                      ) THEN 2
                 ELSE 3
               END ASC,

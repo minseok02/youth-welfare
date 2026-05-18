@@ -114,6 +114,10 @@
 
 이 다음 evidence lane은 [recommendation-rebalance-audit-runbook.md](./recommendation-rebalance-audit-runbook.md) 와 `run-local-recommendation-rebalance-audit.sh` 로 고정합니다. 이 wrapper는 raw base 순위, source 내부 순위, source round-robin 후 재배치 순위를 같이 보여 줍니다. 즉 다음 질문을 “window size를 늘릴까”가 아니라 **`3257/3281` 이 실제로 source rebalance 때문에 `base 50` 밖으로 밀리는가** 로 먼저 좁히는 단계입니다.
 
+그 뒤 `2026-05-18` server 재검증에서 `3257/3281` 은 `retain_sim=true` 인데도 runtime `actualBaseRank=110/120`, `retain_base=false` 로 남았습니다. 즉 no-priority source rebalance simulation이 아니라 **actual app runtime ordering** 이 더 큰 병목이라는 뜻입니다. runtime neighbor를 다시 보면 `3257/3281` 앞은 같은 `BOKJIRO_LOCAL EXACT_SIDO` 묶음이고, 더 위 상위 20은 전부 `YOUTH EXACT_REGION` 이었습니다.
+
+마지막으로 `query tier` 를 wrapper에 그대로 드러내서 다시 보면, 상위 `YOUTH EXACT_REGION` 후보는 `tiers=1/3/3`, `3257/3281` 은 `BOKJIRO_LOCAL EXACT_SIDO tiers=2/2/2` 였습니다. 즉 현재 밀리는 이유는 priority-profile 자체가 아니라, **`REGION_CODE` query ordering에서 generic `EXACT_REGION` 후보가 bounded `same-sido BOKJIRO_LOCAL` fallback보다 앞서는 구조** 로 보는 편이 맞습니다. 다음 bounded fix는 score/weight가 아니라, runtime query를 `exact-region local -> same-sido local bounded fallback -> generic exact-region` 순으로 맞추는 것입니다.
+
 ## 현재 scoring 기준
 
 ### rule score
