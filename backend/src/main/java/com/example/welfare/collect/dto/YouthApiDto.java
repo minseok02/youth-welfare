@@ -70,8 +70,35 @@ public class YouthApiDto {
         @JsonProperty("plcyKywdNm")
         private String plcyKywdNm;          // 키워드 (콤마 구분) → service_tags KEYWORD
 
+        @JsonProperty("pvsnInstGroupCd")
+        private String pvsnInstGroupCd;     // 제공기관그룹코드 (중앙부처/지자체)
+
         @JsonProperty("plcyPvsnMthdCd")
         private String plcyPvsnMthdCd;      // 정책제공방법코드 → PROVISION_METHOD summary label
+
+        @JsonProperty("plcyAprvSttsCd")
+        private String plcyAprvSttsCd;      // 정책승인상태코드
+
+        @JsonProperty("aplyPrdSeCd")
+        private String aplyPrdSeCd;         // 신청기간구분코드
+
+        @JsonProperty("bizPrdSeCd")
+        private String bizPrdSeCd;          // 사업기간구분코드
+
+        @JsonProperty("mrgSttsCd")
+        private String mrgSttsCd;           // 결혼상태코드
+
+        @JsonProperty("earnCndSeCd")
+        private String earnCndSeCd;         // 소득조건구분코드
+
+        @JsonProperty("plcyMajorCd")
+        private String plcyMajorCd;         // 정책전공요건코드
+
+        @JsonProperty("jobCd")
+        private String jobCd;               // 정책취업요건코드
+
+        @JsonProperty("schoolCd")
+        private String schoolCd;            // 정책학력요건코드
 
         @JsonProperty("sprvsnInstCdNm")
         private String sprvsnInstCdNm;      // 주관기관명 → host_org

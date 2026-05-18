@@ -4616,3 +4616,15 @@
   - 다만 historical/runtime density를 한 번에 깨지 않도록, payload에 공식 code가 비어 있으면 기존 `applyMethodName` 을 compatibility fallback으로 유지했다.
   - 관련 테스트로 `YouthOfficialCodeSupportTest`, `NormalizedPolicyAggregateTest`, `WelfareServiceMapperTest` 를 추가/수정해 list/detail 둘 다 같은 경계를 쓰도록 고정했다.
 - 이유: 이건 `YOUTH_MID` stable code reopening 문제와 다르다. `YOUTH_MID` 는 여전히 authenticated/export source가 없어 label-only를 유지해야 하지만, `PROVISION_METHOD` 는 이미 공식 코드표가 있으므로 summary slot 의미를 바로잡는 것이 더 우선이다. 즉 이번 수정의 의도는 “온통청년 canonical 확장”이 아니라 **이미 존재하는 slot의 의미 오염을 제거하는 것**이다.
+
+## 841) 온통청년 공식 요건코드를 바로 fact로 쓰기 전에, 현재 `raw_api_payloads` 가 DTO-shaped snapshot이라 unknown field를 이미 잃고 있다는 점부터 닫아야 한다
+- 문제: 온통청년 공식 문서에는 `jobCd`, `schoolCd`, `mrgSttsCd`, `earnCndSeCd`, `plcyMajorCd` 같은 요건코드가 보이지만, local DB `raw_api_payloads` 를 다시 조회하니 현재 저장된 `LIST=2571`, `DETAIL=1584` row에서 이 값들은 전부 `0건` 이고 `sbizCd` 만 관측됐다. 그대로 보면 “업스트림이 이 필드를 안 준다”고 단정하기 쉽지만, 저장 경로를 다시 읽어보니 `RawApiPayloadService` 는 upstream 원문을 보존하는 게 아니라 `YouthApiDto.Item` 직렬화본을 `raw_api_payloads` 에 넣는다. 즉 DTO에 없는 필드는 upstream에 실제로 왔더라도 raw 저장 단계에서 바로 사라진다.
+- 확인:
+  - `RawApiPayloadService.saveList(...)` / `saveYouthDetail(...)` 는 `ObjectMapper.writeValueAsString(YouthApiDto.Item)` 결과를 그대로 저장한다.
+  - 기존 `YouthApiDto` 에는 `pvsnInstGroupCd`, `plcyAprvSttsCd`, `aplyPrdSeCd`, `bizPrdSeCd`, `mrgSttsCd`, `earnCndSeCd`, `plcyMajorCd`, `jobCd`, `schoolCd` 가 없었다.
+  - 따라서 local DB 기준 “현재 raw에서 안 보인다”는 사실만으로는 upstream absence 와 DTO omission 을 구분할 수 없었다.
+- 해결:
+  - `YouthApiDto` 에 위 공식 코드 필드를 모두 추가해 future collect/replay에서 더 이상 raw가 해당 필드를 잃지 않게 했다.
+  - `RawFieldValidator.recordStatsYouth()` 에도 같은 필드를 추가해 다음 collect run부터 `providerGroupCode/provisionMethodCode/approvalStatusCode/.../specialRequirementCode` coverage를 collect stats에서 바로 볼 수 있게 했다.
+  - `RawApiPayloadServiceTest` 와 `WelfareServiceMapperTest` 에서 새 코드 필드가 raw JSON 직렬화와 DTO 역직렬화에서 보존되는지 고정했다.
+- 이유: 이번 단계의 목적은 아직 `jobCd/schoolCd/...` 를 추천/검색 fact로 소비하는 것이 아니다. 먼저 “official code가 실제 payload에 오면 우리 런타임이 raw와 stats에서 놓치지 않는다”는 보존 경계를 닫아야, 다음 collect 결과를 근거로 어떤 축을 fact로 열지 판단할 수 있다. 즉 지금 필요한 것은 canonical 확장보다 **관측 손실 제거**다.

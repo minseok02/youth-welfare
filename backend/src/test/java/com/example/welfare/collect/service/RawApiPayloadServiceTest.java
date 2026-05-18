@@ -145,6 +145,49 @@ class RawApiPayloadServiceTest {
     }
 
     @Test
+    void saveYouthListPreservesOfficialCodeFieldsInRawPayload() {
+        YouthApiDto.Item item = new YouthApiDto.Item();
+        ListCollectSourceBinding<YouthApiDto.Item> binding = ListCollectSourceBindings.youth(welfareServiceMapper);
+        ReflectionTestUtils.setField(item, "plcyNo", "Y-RAW-2");
+        ReflectionTestUtils.setField(item, "plcyNm", "청년 정책");
+        ReflectionTestUtils.setField(item, "pvsnInstGroupCd", "0054002");
+        ReflectionTestUtils.setField(item, "plcyPvsnMthdCd", "0042006");
+        ReflectionTestUtils.setField(item, "plcyAprvSttsCd", "0044002");
+        ReflectionTestUtils.setField(item, "aplyPrdSeCd", "0057002");
+        ReflectionTestUtils.setField(item, "bizPrdSeCd", "0056001");
+        ReflectionTestUtils.setField(item, "mrgSttsCd", "0055003");
+        ReflectionTestUtils.setField(item, "earnCndSeCd", "0043002");
+        ReflectionTestUtils.setField(item, "plcyMajorCd", "0011005");
+        ReflectionTestUtils.setField(item, "jobCd", "0013003");
+        ReflectionTestUtils.setField(item, "schoolCd", "0049005");
+        ReflectionTestUtils.setField(item, "sbizCd", "0014008");
+
+        boolean saved = rawApiPayloadService.saveList(binding, item);
+
+        assertThat(saved).isTrue();
+        org.mockito.ArgumentCaptor<String> payloadJsonCaptor = org.mockito.ArgumentCaptor.forClass(String.class);
+        verify(rawApiPayloadCommandRepository).upsert(
+                eq(WelfareService.SourceType.YOUTH),
+                eq("Y-RAW-2"),
+                eq(com.example.welfare.collect.entity.RawApiPayload.ApiCategory.LIST),
+                payloadJsonCaptor.capture(),
+                any(String.class),
+                any(java.time.LocalDateTime.class)
+        );
+        assertThat(payloadJsonCaptor.getValue()).contains("\"pvsnInstGroupCd\":\"0054002\"");
+        assertThat(payloadJsonCaptor.getValue()).contains("\"plcyPvsnMthdCd\":\"0042006\"");
+        assertThat(payloadJsonCaptor.getValue()).contains("\"plcyAprvSttsCd\":\"0044002\"");
+        assertThat(payloadJsonCaptor.getValue()).contains("\"aplyPrdSeCd\":\"0057002\"");
+        assertThat(payloadJsonCaptor.getValue()).contains("\"bizPrdSeCd\":\"0056001\"");
+        assertThat(payloadJsonCaptor.getValue()).contains("\"mrgSttsCd\":\"0055003\"");
+        assertThat(payloadJsonCaptor.getValue()).contains("\"earnCndSeCd\":\"0043002\"");
+        assertThat(payloadJsonCaptor.getValue()).contains("\"plcyMajorCd\":\"0011005\"");
+        assertThat(payloadJsonCaptor.getValue()).contains("\"jobCd\":\"0013003\"");
+        assertThat(payloadJsonCaptor.getValue()).contains("\"schoolCd\":\"0049005\"");
+        assertThat(payloadJsonCaptor.getValue()).contains("\"sbizCd\":\"0014008\"");
+    }
+
+    @Test
     void saveGov24ListStoresJsonObjectPayload() {
         Gov24ServiceListDto.Item item = new Gov24ServiceListDto.Item();
         ListCollectSourceBinding<Gov24ServiceListDto.Item> binding = CollectSourceRegistry.GOV24.listBinding(welfareServiceMapper);

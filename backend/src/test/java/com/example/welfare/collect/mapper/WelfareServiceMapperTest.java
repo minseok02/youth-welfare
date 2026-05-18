@@ -100,6 +100,10 @@ class WelfareServiceMapperTest {
                       {
                         "plcyNo": "Y006",
                         "plcyNm": "청년 정책",
+                        "plcyPvsnMthdCd": "0042006",
+                        "jobCd": "0013003",
+                        "schoolCd": "0049005",
+                        "sbizCd": "0014008",
                         "refUrlAddr1": "https://reference-one.example.com",
                         "refUrlAddr2": "https://reference-two.example.com"
                       }
@@ -112,6 +116,10 @@ class WelfareServiceMapperTest {
                 """, YouthApiDto.class);
 
         YouthApiDto.Item item = dto.getResult().getYouthPolicyList().get(0);
+        assertThat(item.getPlcyPvsnMthdCd()).isEqualTo("0042006");
+        assertThat(item.getJobCd()).isEqualTo("0013003");
+        assertThat(item.getSchoolCd()).isEqualTo("0049005");
+        assertThat(item.getSbizCd()).isEqualTo("0014008");
         assertThat(item.getRefUrlAddr1()).isEqualTo("https://reference-one.example.com");
         assertThat(item.getRefUrlAddr2()).isEqualTo("https://reference-two.example.com");
     }

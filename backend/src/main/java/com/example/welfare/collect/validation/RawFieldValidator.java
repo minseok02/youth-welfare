@@ -133,6 +133,17 @@ public final class RawFieldValidator {
             stats.record("supportContent",  item.getPlcySprtCn());
             stats.record("category",        item.getLclsfNm());
             stats.record("keywords",        item.getPlcyKywdNm());
+            stats.record("providerGroupCode", item.getPvsnInstGroupCd());
+            stats.record("provisionMethodCode", item.getPlcyPvsnMthdCd());
+            stats.record("approvalStatusCode", item.getPlcyAprvSttsCd());
+            stats.record("applyPeriodTypeCode", item.getAplyPrdSeCd());
+            stats.record("bizPeriodTypeCode", item.getBizPrdSeCd());
+            stats.record("maritalStatusCode", item.getMrgSttsCd());
+            stats.record("incomeConditionTypeCode", item.getEarnCndSeCd());
+            stats.record("majorRequirementCode", item.getPlcyMajorCd());
+            stats.record("employmentRequirementCode", item.getJobCd());
+            stats.record("educationRequirementCode", item.getSchoolCd());
+            stats.record("specialRequirementCode", item.getSbizCd());
             stats.record("minAge",          item.getSprtTrgtMinAge());
             stats.record("maxAge",          item.getSprtTrgtMaxAge());
             stats.record("minIncome",       item.getEarnMinAmt());
