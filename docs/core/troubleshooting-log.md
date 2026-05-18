@@ -5541,6 +5541,23 @@
   - canonical promotion 2차의 실익은 “저장만 canonical” 이 아니라, 소비처도 같은 canonical source를 읽게 만드는 데 있다.
   - 동시에 backfill이 덜 된 row는 아직 있을 수 있으므로 raw split fallback을 남겨 backward compatibility를 유지하는 것이 맞다.
 
+## 897) Gov24 recommendation read-model token도 raw summary split보다 canonical term을 우선 읽는 편이 맞다
+- 문제: admin facet만 canonical term을 우선 읽고, recommendation read-model projection 은 계속 `Gov24LabelTokenSupport.userTypeTokens(...)`, `benefitTypeTokens(...)` 로 raw summary label을 split 하면 같은 Gov24 token이 소비처마다 다른 source-of-truth 에 매달리게 된다. 이 상태에서는 admin facet 분포와 recommendation projection token list가 drift 날 수 있다.
+- 해결:
+  - `CanonicalRecommendationReadModelRepository.MutableProjection` 에
+    - `GOV24_USER_TYPE_TOKEN`
+    - `GOV24_BENEFIT_TYPE_TOKEN`
+    term 수집 set을 추가했다.
+  - projection 빌드 시 token term이 있으면 그 값을 그대로 `gov24UserTypeTokens`, `gov24BenefitTypeTokens` 로 사용한다.
+  - term이 없는 legacy row만 기존 raw summary label split (`Gov24LabelTokenSupport`) 으로 fallback 한다.
+  - integration test를 추가해
+    - canonical term이 있는 Gov24 서비스는 raw label보다 term 값이 projection token list에 우선 반영되고
+    - term이 없는 Gov24 서비스는 기존 raw split token list가 유지되는
+    계약을 실제 DB 기준으로 고정했다.
+- 이유:
+  - canonical promotion의 의미를 저장층과 admin facet에만 제한하면 recommendation read-model 이 다시 legacy parser에 의존하게 된다.
+  - summary label은 display 용도로 유지하되, token source만 canonical term 우선으로 바꾸면 backward compatibility를 깨지 않고 source-of-truth를 맞출 수 있다.
+
 ## 891) `생애주기/대상군` prompt 보강은 일부 row를 살리지만, `3257/3209` 핵심 케이스는 여전히 primary audience mismatch로 0점이 유지된다
 - 문제: `3257/3209/3287` 의 `savedAi=0` 이 prompt line에 청년 신호가 약해서인지, 아니면 AI가 수급자/신혼부부/학생 같은 대상군 불일치를 강한 exclusion으로 해석해서인지 확정이 필요했다.
 - 해결:

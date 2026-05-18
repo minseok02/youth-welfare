@@ -292,6 +292,8 @@ class CanonicalRecommendationReadModelIntegrationTest {
         assertThat(projection.gov24ServiceFieldLabel()).isEqualTo("slot-service-field");
         assertThat(projection.gov24UserTypeLabel()).isEqualTo("legacy-user-type");
         assertThat(projection.gov24BenefitTypeLabel()).isEqualTo("slot-benefit-type");
+        assertThat(projection.gov24UserTypeTokens()).containsExactly("legacy-user-type");
+        assertThat(projection.gov24BenefitTypeTokens()).containsExactly("slot-benefit-type");
         assertThat(projection.youthEmploymentRequirementCodes()).containsExactly("0013003", "0013006");
         assertThat(projection.youthEmploymentRequirementLabels()).containsExactly("미취업자", "(예비)창업자");
         assertThat(projection.youthEducationRequirementCodes()).containsExactly("0049005", "0049006");
@@ -307,6 +309,95 @@ class CanonicalRecommendationReadModelIntegrationTest {
         assertThat(projection.factKeys()).contains("YOUTH_EMPLOYMENT_REQUIREMENT");
         assertThat(projection.factKeys()).contains("YOUTH_SPECIAL_REQUIREMENT");
         assertThat(projection.factKeys()).contains("YOUTH_INCOME_CONDITION_TYPE");
+    }
+
+    @Test
+    @DisplayName("canonical read-model은 Gov24 token term이 있으면 term을 우선하고, 없으면 legacy label split으로 fallback한다")
+    void findByServiceIds_prefersGov24TokenTermsAndFallsBackToLegacySplit() {
+        WelfareService canonicalService = welfareServiceRepository.save(WelfareService.builder()
+                .sourceType(WelfareService.SourceType.GOV24)
+                .sourceId(TEST_SOURCE_PREFIX + UUID.randomUUID().toString().substring(0, 8))
+                .title("Gov24 canonical term priority")
+                .description("term-first projection")
+                .status(WelfareService.ServiceStatus.ACTIVE)
+                .unifiedCategory("기타")
+                .apiViewCount(0L)
+                .searchYouthRelevant(false)
+                .build());
+        createdServiceId = canonicalService.getId();
+
+        jdbcTemplate.update("""
+                INSERT INTO service_taxonomies (
+                    service_id,
+                    primary_source_system,
+                    compat_unified_category_label,
+                    gov24_service_field_label,
+                    gov24_user_type_label,
+                    gov24_benefit_type_label,
+                    authority
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                canonicalService.getId(),
+                "GOV24",
+                "기타",
+                "보건·의료",
+                "개인||가구",
+                "현금||의료지원",
+                "OFFICIAL");
+        jdbcTemplate.update("""
+                INSERT INTO service_taxonomy_terms (
+                    service_id,
+                    term_group,
+                    term_code,
+                    term_label,
+                    authority,
+                    source_field,
+                    sort_order
+                ) VALUES
+                    (?, 'GOV24_USER_TYPE_TOKEN', '개인', '개인', 'OFFICIAL', 'userType', 0),
+                    (?, 'GOV24_BENEFIT_TYPE_TOKEN', '현금(감면)', '현금(감면)', 'OFFICIAL', 'supportType', 0),
+                    (?, 'GOV24_BENEFIT_TYPE_TOKEN', '의료지원', '의료지원', 'OFFICIAL', 'supportType', 1)
+                """,
+                canonicalService.getId(),
+                canonicalService.getId(),
+                canonicalService.getId());
+
+        WelfareService fallbackService = welfareServiceRepository.save(WelfareService.builder()
+                .sourceType(WelfareService.SourceType.GOV24)
+                .sourceId(TEST_SOURCE_PREFIX + UUID.randomUUID().toString().substring(0, 8))
+                .title("Gov24 legacy fallback")
+                .description("label split projection")
+                .status(WelfareService.ServiceStatus.ACTIVE)
+                .unifiedCategory("기타")
+                .apiViewCount(0L)
+                .searchYouthRelevant(false)
+                .build());
+        jdbcTemplate.update("""
+                INSERT INTO service_taxonomies (
+                    service_id,
+                    primary_source_system,
+                    compat_unified_category_label,
+                    gov24_service_field_label,
+                    gov24_user_type_label,
+                    gov24_benefit_type_label,
+                    authority
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                fallbackService.getId(),
+                "GOV24",
+                "기타",
+                "생활안정",
+                "소상공인||법인/시설/단체",
+                "현금(융자)||상담/법률지원",
+                "OFFICIAL");
+
+        Map<Long, RecommendationCandidateProjection> projections =
+                canonicalRecommendationReadModelRepository.findByServiceIds(List.of(canonicalService.getId(), fallbackService.getId()));
+
+        assertThat(projections.get(canonicalService.getId()).gov24UserTypeTokens()).containsExactly("개인");
+        assertThat(projections.get(canonicalService.getId()).gov24BenefitTypeTokens()).containsExactly("현금(감면)", "의료지원");
+        assertThat(projections.get(fallbackService.getId()).gov24UserTypeTokens()).containsExactly("소상공인", "법인/시설/단체");
+        assertThat(projections.get(fallbackService.getId()).gov24BenefitTypeTokens()).containsExactly("현금(융자)", "상담/법률지원");
     }
 
     private void insertSummarySlot(Long serviceId, String slotKey, String slotLabel) {

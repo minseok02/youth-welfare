@@ -271,6 +271,9 @@ raw exact label summary(`gov24ServiceFieldLabel/gov24UserTypeLabel/gov24BenefitT
 - `GOV24_USER_TYPE_TOKEN`, `GOV24_BENEFIT_TYPE_TOKEN` term이 있으면 이를 그대로 집계한다.
 - term이 없는 legacy row만 `service_taxonomies.gov24_user_type_label`, `gov24_benefit_type_label` `||` split 으로 fallback 한다.
 - 즉 현재 Gov24 admin facet의 canonical truth는 `service_taxonomy_terms`, raw split은 호환 fallback 이다.
+같은 원칙으로 recommendation read-model projection 의 `gov24UserTypeTokens`, `gov24BenefitTypeTokens` 도 canonical term 우선으로 정리했다.
+- term이 있으면 projection token list는 term 값을 그대로 쓴다.
+- term이 없는 legacy row만 기존 raw summary label split 으로 fallback 한다.
 
 ## 2. `YOUTH_MID_RAW_ALIAS` 현재 상태
 

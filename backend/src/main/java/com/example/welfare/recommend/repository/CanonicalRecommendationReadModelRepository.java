@@ -261,6 +261,8 @@ public class CanonicalRecommendationReadModelRepository {
         private final String gov24ServiceFieldLabel;
         private final String gov24UserTypeLabel;
         private final String gov24BenefitTypeLabel;
+        private final Set<String> gov24UserTypeTokens = new LinkedHashSet<>();
+        private final Set<String> gov24BenefitTypeTokens = new LinkedHashSet<>();
         private final Set<String> youthEmploymentRequirementCodes = new LinkedHashSet<>();
         private final Set<String> youthEmploymentRequirementLabels = new LinkedHashSet<>();
         private final Set<String> youthEducationRequirementCodes = new LinkedHashSet<>();
@@ -358,6 +360,8 @@ public class CanonicalRecommendationReadModelRepository {
                 case "INTEREST_THEME" -> interestThemes.add(termLabel);
                 case "LIFE_STAGE" -> lifeStages.add(termLabel);
                 case "YOUTH_KEYWORD" -> keywordTags.add(termLabel);
+                case "GOV24_USER_TYPE_TOKEN" -> gov24UserTypeTokens.add(termLabel);
+                case "GOV24_BENEFIT_TYPE_TOKEN" -> gov24BenefitTypeTokens.add(termLabel);
                 case "TARGET_GROUP" -> {
                     targetGroupsRaw.add(termLabel);
                     if (RecommendationProjectionHeuristicSupport.isBeneficiaryDetailTerm(termLabel, sourceField)) {
@@ -414,8 +418,8 @@ public class CanonicalRecommendationReadModelRepository {
                     .gov24ServiceFieldLabel(gov24ServiceFieldLabel)
                     .gov24UserTypeLabel(gov24UserTypeLabel)
                     .gov24BenefitTypeLabel(gov24BenefitTypeLabel)
-                    .gov24UserTypeTokens(Gov24LabelTokenSupport.userTypeTokens(gov24UserTypeLabel))
-                    .gov24BenefitTypeTokens(Gov24LabelTokenSupport.benefitTypeTokens(gov24BenefitTypeLabel))
+                    .gov24UserTypeTokens(resolveGov24UserTypeTokens())
+                    .gov24BenefitTypeTokens(resolveGov24BenefitTypeTokens())
                     .youthEmploymentRequirementCodes(List.copyOf(youthEmploymentRequirementCodes))
                     .youthEmploymentRequirementLabels(List.copyOf(youthEmploymentRequirementLabels))
                     .youthEducationRequirementCodes(List.copyOf(youthEducationRequirementCodes))
@@ -460,6 +464,20 @@ public class CanonicalRecommendationReadModelRepository {
                     .specialTargetBuckets(specialTargetBuckets)
                     .factKeys(factKeys)
                     .build();
+        }
+
+        private List<String> resolveGov24UserTypeTokens() {
+            if (!gov24UserTypeTokens.isEmpty()) {
+                return List.copyOf(gov24UserTypeTokens);
+            }
+            return Gov24LabelTokenSupport.userTypeTokens(gov24UserTypeLabel);
+        }
+
+        private List<String> resolveGov24BenefitTypeTokens() {
+            if (!gov24BenefitTypeTokens.isEmpty()) {
+                return List.copyOf(gov24BenefitTypeTokens);
+            }
+            return Gov24LabelTokenSupport.benefitTypeTokens(gov24BenefitTypeLabel);
         }
 
         private void addPriorityBucket(String priorityBucket) {
