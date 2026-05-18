@@ -13,26 +13,37 @@ class GmailSmtpSmokeTest {
 
     @Test
     @EnabledIfEnvironmentVariable(named = "RUN_SMTP_SMOKE", matches = "true")
-    void sendSmokeEmailThroughGmailSmtp() {
-        String username = requiredEnv("GMAIL_USERNAME");
-        String password = requiredEnv("GMAIL_PASSWORD");
+    void sendSmokeEmailThroughConfiguredSmtp() {
+        String host = envOrDefault("MAIL_HOST", "smtp.gmail.com");
+        int port = Integer.parseInt(envOrDefault("MAIL_PORT", "587"));
+        String username = requiredEnvOrFallback("MAIL_USERNAME", "GMAIL_USERNAME");
+        String password = requiredEnvOrFallback("MAIL_PASSWORD", "GMAIL_PASSWORD");
         String to = envOrDefault("SMTP_SMOKE_TO", username);
 
         EmailClient emailClient = new EmailClient(mailSender(username, password));
 
         boolean sent = emailClient.send(
                 to,
-                "[SMOKE TEST] youth-welfare Gmail SMTP",
-                "Gmail SMTP smoke test sent at " + LocalDateTime.now()
+                "[SMOKE TEST] youth-welfare SMTP",
+                "SMTP smoke test sent at " + LocalDateTime.now()
         );
 
         assertThat(sent).isTrue();
     }
 
     private JavaMailSenderImpl mailSender(String username, String password) {
+        return mailSender(
+                envOrDefault("MAIL_HOST", "smtp.gmail.com"),
+                Integer.parseInt(envOrDefault("MAIL_PORT", "587")),
+                username,
+                password
+        );
+    }
+
+    private JavaMailSenderImpl mailSender(String host, int port, String username, String password) {
         JavaMailSenderImpl sender = new JavaMailSenderImpl();
-        sender.setHost("smtp.gmail.com");
-        sender.setPort(587);
+        sender.setHost(host);
+        sender.setPort(port);
         sender.setUsername(username);
         sender.setPassword(password);
 
@@ -44,6 +55,14 @@ class GmailSmtpSmokeTest {
         properties.put("mail.smtp.writetimeout", "10000");
 
         return sender;
+    }
+
+    private String requiredEnvOrFallback(String primaryName, String legacyName) {
+        String primary = System.getenv(primaryName);
+        if (primary != null && !primary.isBlank()) {
+            return primary;
+        }
+        return requiredEnv(legacyName);
     }
 
     private String requiredEnv(String name) {

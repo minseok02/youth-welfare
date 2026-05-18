@@ -1,18 +1,27 @@
 package com.example.welfare.notification.gateway;
 
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.mail.MailException;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class EmailClient {
 
     private final JavaMailSender mailSender;
+    private final MailDeliveryProperties mailDeliveryProperties;
+
+    public EmailClient(JavaMailSender mailSender, MailDeliveryProperties mailDeliveryProperties) {
+        this.mailSender = mailSender;
+        this.mailDeliveryProperties = mailDeliveryProperties;
+    }
+
+    EmailClient(JavaMailSender mailSender) {
+        this(mailSender, MailDeliveryProperties.defaults());
+    }
 
     /**
      * Gmail SMTP 이메일 발송 (카카오 알림톡 실패 시 폴백)
@@ -23,11 +32,22 @@ public class EmailClient {
             message.setTo(to);
             message.setSubject(subject);
             message.setText(text);
+            if (StringUtils.hasText(mailDeliveryProperties.getFromAddress())) {
+                message.setFrom(mailDeliveryProperties.getFromAddress());
+            }
+            if (StringUtils.hasText(mailDeliveryProperties.getReplyTo())) {
+                message.setReplyTo(mailDeliveryProperties.getReplyTo());
+            }
             mailSender.send(message);
-            log.info("[EmailClient] 발송 성공 to={}", maskEmail(to));
+            log.info("[EmailClient] 발송 성공 provider={} to={}",
+                    mailDeliveryProperties.getProvider(),
+                    maskEmail(to));
             return true;
         } catch (MailException e) {
-            log.error("[EmailClient] 발송 실패 to={}: {}", maskEmail(to), e.getMessage());
+            log.error("[EmailClient] 발송 실패 provider={} to={}: {}",
+                    mailDeliveryProperties.getProvider(),
+                    maskEmail(to),
+                    e.getMessage());
             return false;
         }
     }

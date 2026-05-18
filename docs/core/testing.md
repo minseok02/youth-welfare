@@ -50,18 +50,20 @@ cd backend
 
 ## Gmail SMTP smoke test
 
-실제 Gmail SMTP 설정으로 테스트 메일 1건을 발송할 때만 실행합니다.
+실제 SMTP 설정으로 테스트 메일 1건을 발송할 때만 실행합니다.
 기본 테스트에서는 비활성화되어 있으며, `RUN_SMTP_SMOKE=true`를 명시해야 동작합니다.
 
 ```bash
 cd backend
-GMAIL_USERNAME=your-account@gmail.com \
-GMAIL_PASSWORD=your-app-password \
+MAIL_HOST=smtp.gmail.com \
+MAIL_PORT=587 \
+MAIL_USERNAME=your-account@gmail.com \
+MAIL_PASSWORD=your-app-password \
 SMTP_SMOKE_TO=receiver@example.com \
 RUN_SMTP_SMOKE=true ./gradlew test --tests com.example.welfare.notification.gateway.GmailSmtpSmokeTest --rerun-tasks
 ```
 
-`.env` 전체를 shell `source` 하지 말고, 필요한 Gmail 관련 값만 inline env 또는 `export`로 넘깁니다.
+`.env` 전체를 shell `source` 하지 말고, 필요한 SMTP 관련 값만 inline env 또는 `export`로 넘깁니다.
 수신 주소를 발신 계정과 다르게 지정하려면 `.env`의 `SMTP_SMOKE_TO` 값을 그대로 넘기면 됩니다.
 
 ```bash
@@ -73,7 +75,7 @@ RUN_SMTP_SMOKE=true ./gradlew test --tests com.example.welfare.notification.gate
 - 서비스/컨트롤러/리포지토리 단위 변경: `./gradlew test`
 - 로그인, refresh token, Redis 저장 흐름 변경: `./gradlew integrationTest`
 - 북마크, 추천 refresh/get 전체 흐름 변경: `./gradlew integrationTest`
-- Gmail SMTP 계정/앱 비밀번호 검증: `RUN_SMTP_SMOKE=true ./gradlew test --tests com.example.welfare.notification.gateway.GmailSmtpSmokeTest --rerun-tasks`
+- SMTP 계정/비밀번호 검증: `RUN_SMTP_SMOKE=true ./gradlew test --tests com.example.welfare.notification.gateway.GmailSmtpSmokeTest --rerun-tasks`
 - 배포 전 최종 확인: `./gradlew test` 실행 후 `docker compose up -d db redis` 상태에서 `./gradlew integrationTest`
 
 ## integration preflight 우회

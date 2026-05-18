@@ -22,16 +22,16 @@ spring:
       port: ${REDIS_PORT:6379}
 
   mail:
-    host: smtp.gmail.com
-    port: 587
-    username: ${GMAIL_USERNAME}
-    password: ${GMAIL_PASSWORD}
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:${GMAIL_USERNAME:}}
+    password: ${MAIL_PASSWORD:${GMAIL_PASSWORD:}}
     properties:
       mail:
         smtp:
-          auth: true
+          auth: ${MAIL_SMTP_AUTH:true}
           starttls:
-            enable: true
+            enable: ${MAIL_SMTP_STARTTLS_ENABLE:true}
 
 jwt:
   secret: ${JWT_SECRET}
@@ -50,6 +50,10 @@ openai:
 
 app:
   base-url: ${APP_BASE_URL:http://localhost:5173}
+  mail:
+    provider: ${MAIL_PROVIDER:gmail-smtp}
+    from-address: ${MAIL_FROM_ADDRESS:${MAIL_USERNAME:${GMAIL_USERNAME:}}}
+    reply-to: ${MAIL_REPLY_TO:${MAIL_FROM_ADDRESS:${MAIL_USERNAME:${GMAIL_USERNAME:}}}}
   datasource:
     pii-rw:
       url: ${APP_PII_DB_URL:jdbc:postgresql://localhost:5432/youth_welfare?sslmode=disable&currentSchema=youth_welfare_pii}

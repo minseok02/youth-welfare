@@ -20,11 +20,23 @@ spring:
       port: ${REDIS_PORT}
 
   mail:
-    username: ${GMAIL_USERNAME}
-    password: ${GMAIL_PASSWORD}
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:${GMAIL_USERNAME}}
+    password: ${MAIL_PASSWORD:${GMAIL_PASSWORD}}
+    properties:
+      mail:
+        smtp:
+          auth: ${MAIL_SMTP_AUTH:true}
+          starttls:
+            enable: ${MAIL_SMTP_STARTTLS_ENABLE:true}
 
 app:
   base-url: ${APP_BASE_URL}
+  mail:
+    provider: ${MAIL_PROVIDER:gmail-smtp}
+    from-address: ${MAIL_FROM_ADDRESS:${MAIL_USERNAME:${GMAIL_USERNAME}}}
+    reply-to: ${MAIL_REPLY_TO:${MAIL_FROM_ADDRESS:${MAIL_USERNAME:${GMAIL_USERNAME}}}}
   datasource:
     pii-rw:
       url: ${APP_PII_DB_URL}

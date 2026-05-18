@@ -511,7 +511,7 @@ pre-28 schema로 띄운 임시 MySQL 8.0에서도 `migration_admin` 계정으로
   - `api_sync_logs`에 `job_name=YOUTH`, `status=success`, `requested_count=2266`, `saved_count=2266`, `failed_count=0` 기록 확인
   - `welfare_services`의 `YOUTH` 정책 2266건, `raw_api_payloads`의 `YOUTH` 원문 2266건 확인
 - 2026-04-24 Gmail SMTP 실제 발송 smoke test 실행
-  - `.env`의 `GMAIL_USERNAME`, `GMAIL_PASSWORD` 환경변수 로딩 확인
+  - `.env`의 `MAIL_USERNAME` 또는 legacy `GMAIL_USERNAME`, `MAIL_PASSWORD` 또는 legacy `GMAIL_PASSWORD` 환경변수 로딩 확인
   - `RUN_SMTP_SMOKE=true ./gradlew test --tests com.example.welfare.notification.gateway.GmailSmtpSmokeTest --no-daemon`
   - 발신 계정 자신에게 테스트 메일 1건 발송 성공
 - 2026-04-24 Gmail SMTP smoke test 수신자 분리 실행
