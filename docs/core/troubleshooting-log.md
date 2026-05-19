@@ -1,5 +1,10 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 354) 로컬 문서 lifecycle을 정리한 뒤에도 PR body가 예전 구조에 머물면, reviewer는 GitHub 화면과 저장소 문서를 서로 다른 순서로 읽게 된다
+- 문제: `review brief`, `draft exit`, `post-merge follow-up`, `real-user recheck` 문서까지 정리한 뒤에도 PR body가 초기 closeout 설명과 검증 목록 중심에 머물면, 저장소 안에서는 lifecycle이 정리돼 있어도 GitHub PR 화면만 보는 reviewer는 여전히 “무엇부터 읽고, 왜 아직 draft인지”를 comments에 의존해 해석하게 된다
+- 해결: PR body를 현재 문서 구조에 맞게 다시 정리해 `review brief -> draft exit -> post-merge follow-up -> REAL_USER recheck` 순서, `WAIT_FOR_REAL_USER_TRAFFIC` blocker, intentional credential-like inventory 분류를 직접 반영했다
+- 이유: 지금 단계에선 코드보다 전달면 정합성이 중요하다. 로컬 active 문서와 GitHub PR body가 같은 lifecycle 순서를 말해야 reviewer가 저장소 안팎에서 같은 해석을 유지할 수 있다
+
 ## 353) review brief, draft exit, post-merge follow-up, real-user recheck가 각각 따로만 보이면 lifecycle 순서를 다시 사람이 조합해야 한다
 - 문제: recommendation closeout PR 관련 문서는 `review brief`, `draft exit`, `post-merge follow-up`, `real-user recheck` 까지 각각 생겼지만, 이 문서들이 어떤 순서 관계인지가 인덱스에 직접 적혀 있지 않으면 여전히 사람이 “지금은 review 단계인가, merge 뒤 follow-up 단계인가, REAL_USER reopen 단계인가”를 다시 조합해야 한다
 - 해결: `recommendation-docs-index.md` 에 `PR lifecycle order` 섹션을 추가해 `review brief -> draft exit -> post-merge follow-up -> real-user recheck` 순서를 직접 적고, `start.md`, `current-state.md` 에도 이 인덱스 entrypoint를 다시 연결했다
