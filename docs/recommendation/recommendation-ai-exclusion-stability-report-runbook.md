@@ -2,6 +2,20 @@
 
 문서군 진입점: [recommendation-docs-index.md](./recommendation-docs-index.md)
 
+관련 문서:
+
+- [recommendation-pr-review-brief.md](./recommendation-pr-review-brief.md)
+- [recommendation-pr-draft-exit-checklist.md](./recommendation-pr-draft-exit-checklist.md)
+- [recommendation-post-merge-followup-checklist.md](./recommendation-post-merge-followup-checklist.md)
+- [recommendation-real-user-recheck-checklist.md](./recommendation-real-user-recheck-checklist.md)
+- [recommendation-ai-exclusion-volatility-audit-runbook.md](./recommendation-ai-exclusion-volatility-audit-runbook.md)
+
+## 현재 단계 해석
+
+현재 local 기본값은 `WAIT_FOR_REAL_USER_TRAFFIC`, latest reading은 `VOLATILE_ONLY_DRIFT` 입니다.
+
+즉 이 runbook은 recommendation을 지금 다시 열지 말지 결정하는 문서가 아니라, **현재 유지 중인 evidence에서 어떤 key를 stable baseline으로 볼지, 어떤 key를 volatile observation으로 볼지 정리하는 해석 helper** 로 읽는 편이 맞습니다.
+
 ## 목적
 
 이 문서는 `volatility-summary.txt` 를 읽어,

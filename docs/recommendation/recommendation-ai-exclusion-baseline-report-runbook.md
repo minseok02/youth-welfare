@@ -2,6 +2,20 @@
 
 문서군 진입점: [recommendation-docs-index.md](./recommendation-docs-index.md)
 
+관련 문서:
+
+- [recommendation-pr-review-brief.md](./recommendation-pr-review-brief.md)
+- [recommendation-pr-draft-exit-checklist.md](./recommendation-pr-draft-exit-checklist.md)
+- [recommendation-post-merge-followup-checklist.md](./recommendation-post-merge-followup-checklist.md)
+- [recommendation-real-user-recheck-checklist.md](./recommendation-real-user-recheck-checklist.md)
+- [recommendation-ai-exclusion-stability-report-runbook.md](./recommendation-ai-exclusion-stability-report-runbook.md)
+
+## 현재 단계 해석
+
+현재 local recommendation current truth는 `WAIT_FOR_REAL_USER_TRAFFIC`, latest reading은 `VOLATILE_ONLY_DRIFT` 입니다.
+
+즉 이 baseline report는 새로운 제품 판단을 여는 문서가 아니라, **current evidence를 사람이 바로 읽는 한 장짜리 report로 다시 묶어 stable baseline과 latest volatile observation을 구분하는 summary helper** 로 보는 편이 맞습니다.
+
 ## 목적
 
 이 문서는 current AI exclusion evidence를 사람이 바로 읽는 한 장의 report로 정리합니다.

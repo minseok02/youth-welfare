@@ -1,5 +1,10 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 364) stability-report / baseline-report 같은 사람이 바로 읽는 summary helper도 current blocker를 안 말하면, compact report가 다시 즉시 의사결정 문서처럼 읽히기 쉽다
+- 문제: `recommendation-ai-exclusion-stability-report-runbook.md`, `recommendation-ai-exclusion-baseline-report-runbook.md` 는 stable/volatile 분리와 one-page report 목적은 분명했지만, 현재 local 기본값이 아직 `WAIT_FOR_REAL_USER_TRAFFIC`, latest reading이 `VOLATILE_ONLY_DRIFT` 라는 점과 이 문서들이 유지 단계의 summary helper라는 성격은 상단에서 직접 고정하지 않았다. 이 상태면 사람이 report helper만 열었을 때도 “지금 recommendation을 다시 열 결론을 내리는 문서인가”와 “현재 evidence를 정리해 읽는 문서인가”를 다시 추론해야 한다
+- 해결: 두 runbook 상단에 companion docs(`review brief / draft exit / post-merge / real-user recheck`)와 current 단계 해석(`WAIT_FOR_REAL_USER_TRAFFIC`, `VOLATILE_ONLY_DRIFT`)을 추가하고, 각각 stable/volatile 분리 helper, one-page summary helper라는 역할을 직접 적었다
+- 이유: 기계적 compare helper뿐 아니라 사람이 바로 읽는 compact report도 current stage를 먼저 말해야 한다. 요약 문서일수록 오히려 “지금은 유지 단계”라는 맥락이 빠지면 즉시 결론 문서처럼 과대해석되기 쉽다
+
 ## 363) snapshot/volatility/drift-classify 계열 runbook이 compare mechanics만 설명하면, evidence helper도 다시 immediate reopen/tuning 문서처럼 읽히기 쉽다
 - 문제: `recommendation-ai-exclusion-snapshot-runbook.md`, `recommendation-ai-exclusion-snapshot-compare-runbook.md`, `recommendation-ai-exclusion-volatility-audit-runbook.md`, `recommendation-ai-exclusion-drift-classify-runbook.md` 는 artifact 생성/비교 mechanics는 잘 설명하지만, 현재 local 기본값이 아직 `WAIT_FOR_REAL_USER_TRAFFIC`, latest reading이 `VOLATILE_ONLY_DRIFT` 라는 점과 이 문서들이 유지 단계의 evidence helper라는 성격은 직접 적지 않았다. 이 상태면 operator가 이 계열 문서만 열었을 때도 “지금 recommendation을 다시 열어야 하나”와 “관찰 artifact를 더 정리하는 중인가”를 다시 추론해야 한다
 - 해결: 네 runbook 상단에 companion docs(`review brief / draft exit / post-merge / real-user recheck`)와 current 단계 해석(`WAIT_FOR_REAL_USER_TRAFFIC`, `VOLATILE_ONLY_DRIFT`)을 추가하고, snapshot/evidence capture, read-only compare, volatility helper, drift interpretation helper라는 역할을 직접 적었다
