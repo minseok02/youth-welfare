@@ -1,5 +1,10 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 346) start/current-state만 placeholder로 바꿔도, active support 문서에 예시 자격이 남아 있으면 public-facing hygiene는 아직 덜 끝난 상태다
+- 문제: `start.md`, recommendation current-state/runbook을 placeholder로 바꾼 뒤에도 `runtime-api-smoke-commands.md`, `server-runtime-drift-checklist.md` 같은 active support 문서에는 여전히 `admin@example.com`, `password123!` 류 예시가 남아 있었다. 이 상태면 진입 문서만 깨끗하고, 실제 operator가 따라가는 support 문서에서는 같은 noise가 다시 보이게 된다
+- 해결: active support 문서의 실행 예시도 `<local admin email>`, `<local admin password>`, `<local smoke email>`, `<local smoke password>` placeholder로 맞췄다. 실제 값은 계속 shell env, `.env`, `/tmp/youth-welfare-admin-smoke-password` discovery 경계에서 주입하게 두고, 문서에는 “무엇을 넣어야 하는지”만 남긴다
+- 이유: current 단계의 목적은 문서만 보고도 현재 계약과 실행 순서를 다시 읽게 하는 것이다. active support 문서까지 같은 placeholder 기준을 써야 PR review와 운영 handoff가 같은 해석을 유지한다
+
 ## 345) recommendation AI exclusion wrapper에서 같은 shell helper가 여러 번 복제되면, 기능보다 사소한 drift와 수정 누락이 더 쉽게 생긴다
 - 문제: `latest-status`, `latest-gate`, `latest-status-export`, `latest-overview`, snapshot/refresh/drift 계열 wrapper에 `normalize_flag`, tri-state 정규화, UTC/KST timestamp 생성, latest symlink 갱신 같은 shell helper가 반복 복사돼 있었다. 이 상태면 관찰 계약은 같아도 사소한 helper 수정이 여러 파일에 흩어져 들어가고, 일부 wrapper만 갱신되는 drift가 다시 생기기 쉽다
 - 해결: `smoke-common.sh` 에 `smoke_normalize_bool`, `smoke_normalize_tri_state`, `smoke_now_ts_utc`, `smoke_now_iso_utc`, `smoke_now_iso_kst`, `smoke_update_links` 를 추가하고 recommendation AI exclusion 계열 wrapper들이 이 helper를 공통으로 쓰게 맞췄다. 이후 `bash -n` 전수 확인과 `run-local-recommendation-ai-exclusion-latest-overview.sh` 재실행으로 observable output이 그대로 유지되는 것을 확인했다

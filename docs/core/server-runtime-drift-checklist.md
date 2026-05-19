@@ -89,7 +89,7 @@ docker exec -it youth-welfare-db psql -U postgres -d youth_welfare -c "\d user_r
    - password는 따로 필요
 
 중요:
-- 서버에서는 local 기본값 `admin@example.com/password123!` 를 기대하지 않습니다.
+- 서버에서는 local 기본값 `<local admin email>/<local admin password>` 를 기대하지 않습니다.
 - 운영 기준으로는 **서버 allowlist admin 이메일 + 그 계정 비밀번호**를 명시해서 실행합니다.
 
 예:
