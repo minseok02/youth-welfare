@@ -2,6 +2,20 @@
 
 문서군 진입점: [recommendation-docs-index.md](./recommendation-docs-index.md)
 
+관련 문서:
+
+- [recommendation-pr-review-brief.md](./recommendation-pr-review-brief.md)
+- [recommendation-pr-draft-exit-checklist.md](./recommendation-pr-draft-exit-checklist.md)
+- [recommendation-post-merge-followup-checklist.md](./recommendation-post-merge-followup-checklist.md)
+- [recommendation-real-user-recheck-checklist.md](./recommendation-real-user-recheck-checklist.md)
+- [recommendation-reopen-decision-runbook.md](./recommendation-reopen-decision-runbook.md)
+
+## 현재 단계 해석
+
+현재 local 기본값은 여전히 `WAIT_FOR_REAL_USER_TRAFFIC` 입니다.
+
+즉 이 문서는 지금 당장 prompt/post-processing tuning을 다시 여는 작업 지시서가 아니라, `REAL_USER` gate가 아직 `DEFERRED_NO_REAL_USER_TRAFFIC / DEFERRED_NO_REAL_USER_COHORT` 인 상태에서 **현재 product exclusion 기본값을 어떻게 읽는지 고정하는 decision memo** 로 봐야 합니다.
+
 ## 목적
 
 이 문서는 fresh runtime 기준 `savedAi=0` 이유를 제품적으로 어떻게 읽을지 고정합니다.
@@ -82,7 +96,7 @@
 
 아래 중 하나가 생기면 이 memo를 다시 엽니다.
 
-1. 실제 운영 `REAL_USER` 에서도 같은 bucket이 과도하게 많이 반복될 때
+1. 실제 운영 `REAL_USER` gate가 열리고, 같은 bucket이 과도하게 많이 반복될 때
 2. 제품 요구상 `대학생/장학금` 류도 청년 general discovery에 더 노출해야 한다는 목표가 생길 때
 3. zero-AI 주된 bucket이 `LOW_DIRECT_HELP` 쪽으로 이동할 때
 

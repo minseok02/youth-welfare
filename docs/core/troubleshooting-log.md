@@ -1,5 +1,10 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 360) primary audience exclusion decision memo가 current blocker와 lifecycle companion docs를 안 말하면, gate가 닫힌 시기에도 “지금 당장 tuning” 문서처럼 읽히기 쉽다
+- 문제: `recommendation-real-user-baseline-runbook.md`, `recommendation-reopen-decision-runbook.md`, `recommendation-next-lane-brief.md` 까지는 `WAIT_FOR_REAL_USER_TRAFFIC` 와 companion lifecycle 문서를 직접 말하도록 맞췄지만, `recommendation-primary-audience-exclusion-decision-memo.md` 는 여전히 bucket 해석 자체에만 집중하고 있었다. 이 상태면 operator/reviewer가 이 memo만 바로 열었을 때 현재 단계가 아직 `REAL_USER` gate deferred 라는 점보다 “어떤 exclusion을 완화할지”에 먼저 시선이 가기 쉽다
+- 해결: decision memo 상단에 companion docs(`review brief / draft exit / post-merge / real-user recheck / reopen decision`)와 current 단계 해석(`WAIT_FOR_REAL_USER_TRAFFIC`, `DEFERRED_NO_REAL_USER_TRAFFIC / DEFERRED_NO_REAL_USER_COHORT`)을 직접 추가하고, reopen 조건도 `REAL_USER` gate가 실제로 열린 뒤 반복 evidence가 생기는 경우로 다시 적었다
+- 이유: 같은 recommendation 문서군 안에서도 memo 성격이 다르면 current stage 해석이 빠지기 쉽다. 하지만 지금처럼 gate가 아직 닫힌 시기에는 bucket decision memo도 “현재 기본값은 유지, reopen은 나중”이라는 문맥을 먼저 말해야 decision 문서가 immediate tuning backlog로 오해되지 않는다
+
 ## 359) decision/runbook 문서가 reopen lane만 설명하고 current blocker를 안 말하면, gate가 닫힌 시기에도 바로 튜닝 문서처럼 읽히기 쉽다
 - 문제: `recommendation-real-user-baseline-runbook.md`, `recommendation-reopen-decision-runbook.md`, `recommendation-next-lane-brief.md` 는 reopen 이후 무엇을 볼지와 어떤 lane이 먼저인지 잘 설명하지만, current local 기본값이 여전히 `WAIT_FOR_REAL_USER_TRAFFIC` 이라는 점과 lifecycle companion docs 연결은 약했다. 이 상태면 gate가 아직 닫힌 시기에도 decision 문서가 “지금 당장 recommendation을 다시 열 문서”처럼 읽히기 쉽다
 - 해결: 세 문서 모두에 companion docs(`review brief / draft exit / post-merge / real-user recheck`)와 current local 기본 해석(`WAIT_FOR_REAL_USER_TRAFFIC`, deferred gate)을 추가했다
