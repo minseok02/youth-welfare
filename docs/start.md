@@ -36,7 +36,7 @@
 - `2026-05-19` 기준 recommendation 의 `savedAi=0` 이슈는 구조 버그보다 AI exclusion evidence 정리 단계로 넘어갔고, 현재 one-shot 기준선은 `drift_class=VOLATILE_ONLY_DRIFT`, `recommended_reading=READ_LATEST_AS_VOLATILE_OBSERVATION` 입니다.
 - recommendation, `Gov24 canonical promotion`, collect/runtime governance 는 모두 로컬 closeout 뒤 기준선 유지 단계이고, 지금 다음 관찰 track은 recommendation `AI exclusion baseline` 재확인과 `REAL_USER` cohort readiness gate가 열리는지 보는 것입니다.
 - 메일 발송은 SMTP 기반이며 `MAIL_*` 설정을 우선 사용합니다. provider-neutral 경계는 닫혔고, 다음 운영 선택지는 Gmail 유지보다 AWS SES SMTP 전환 검토가 우선입니다.
-- `2026-05-20` KST 재확인에서도 recommendation latest status와 `REAL_USER` readiness는 바뀌지 않았습니다. latest status는 계속 `VOLATILE_ONLY_DRIFT`, 기본 gate는 `PASS`, strict gate는 `LATEST_OBSERVATION_CHANGED`, readiness는 `DEFERRED_NO_REAL_USER_TRAFFIC / DEFERRED_NO_REAL_USER_COHORT` 입니다.
+- `2026-05-20` KST 기준 local generic-domain signup으로 만든 분산 `REAL_USER` 샘플 13명까지는 실제로 확보됐습니다. live readiness는 `READY_REAL_USER_TRAFFIC / READY_REAL_USER_COHORT` 로 열렸고, 현재 blocker는 더 이상 traffic/cohort 부재가 아니라 `recommendation_review_gate=DEFERRED_NON_REAL_LEADER_SIGNAL` 입니다. latest status artifact는 여전히 `VOLATILE_ONLY_DRIFT`, 기본 gate `PASS`, strict gate `LATEST_OBSERVATION_CHANGED` 이지만, readiness 포함 overview에서는 `effective_operator_next_step=WAIT_FOR_REAL_USER_LEADER_SIGNAL` 로 읽는 편이 맞습니다.
 
 ## recommendation 관찰 순서
 
@@ -50,7 +50,7 @@
 - 지금 recommendation 상태만 빠르게 보려면 `bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-status.sh`
 - 운영 메모/핸드오프용 산출물이 필요하면 `bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-status-export.sh`
 - 자동 판정만 보려면 `bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-gate.sh`
-- `REAL_USER` gate가 실제로 열렸는지 보려면 `APP_BASE_URL='http://127.0.0.1:8082' ADMIN_EMAIL='<local admin email>' ADMIN_PASSWORD='<local admin password>' bash deploy/smoke/run-local-real-user-exclusion-readiness-check.sh`
+- `REAL_USER` gate와 review gate를 실제로 같이 보려면 `APP_BASE_URL='http://127.0.0.1:8082' ADMIN_EMAIL='<local admin email>' ADMIN_PASSWORD='<local admin password>' bash deploy/smoke/run-local-real-user-exclusion-readiness-check.sh`
 - `REAL_USER` traffic/cohort가 실제로 생긴 뒤에는 [recommendation-real-user-recheck-checklist.md](./recommendation/recommendation-real-user-recheck-checklist.md) 순서대로 다시 확인합니다.
 - strict gate(`FAIL_ON_LATEST_OBSERVATION_CHANGE=true`)가 fail 하더라도 `latest_drift_class=VOLATILE_ONLY_DRIFT` 와 `stable_baseline_changed=false` 면 stable baseline 회귀가 아니라 fresh window 흔들림으로 읽습니다.
 - artifact 경로와 `generated_at` 은 UTC(`...Z`) 기준이라 KST 자정 이후 실행도 전날처럼 보일 수 있습니다. 최신 실행 여부는 `tmp/.../latest` symlink 이동으로 확인합니다.
