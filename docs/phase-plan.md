@@ -1,5 +1,6 @@
 # 구현 현황
 
+- 2026-05-20: recommendation 내부 active 문서도 lifecycle/current truth를 더 직접 읽게 보강했다. `recommendation-current-state.md` 상단 관련 문서에 `review brief / draft exit / post-merge follow-up / real-user recheck` 를 추가했고, `recommendation-operation-checklist.md` 의 AI exclusion 섹션에도 같은 순서를 직접 적어 folder 내부에서 `current-state -> operation-checklist -> lifecycle docs` 흐름이 보이게 맞췄다.
 - 2026-05-20: recommendation 폴더 README와 루트 docs README도 현재 lifecycle/current truth에 맞게 보강했다. 이제 `docs/recommendation/README.md` 에서도 `latest-overview`, `VOLATILE_ONLY_DRIFT`, `WAIT_FOR_REAL_USER_TRAFFIC`, `review brief -> draft exit -> post-merge -> REAL_USER recheck` 순서를 바로 읽을 수 있고, 루트 `docs/README.md` 도 recommendation entrypoint를 같은 해석으로 안내한다.
 - 2026-05-20: PR top-level comment도 lifecycle 문서 순서에 맞게 다시 동기화했다. 이제 PR body뿐 아니라 첫 reviewer entrypoint comment에서도 `review brief -> draft exit -> post-merge follow-up -> REAL_USER recheck` 순서와 `WAIT_FOR_REAL_USER_TRAFFIC` blocker를 같이 읽을 수 있게 맞췄다.
 - 2026-05-20: draft PR 본문도 현재 lifecycle 문서 구조에 맞게 다시 정리했다. 이제 PR body에서도 `review brief -> draft exit -> post-merge follow-up -> REAL_USER recheck` 순서와 `WAIT_FOR_REAL_USER_TRAFFIC` blocker를 직접 읽을 수 있게 맞췄다. 즉 문서 인덱스와 GitHub PR 전달면이 같은 해석을 쓰도록 동기화했다.

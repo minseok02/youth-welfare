@@ -7,6 +7,10 @@
 - [recommendation-pipeline.md](./recommendation-pipeline.md)
 - [recommendation-reopen-decision-runbook.md](./recommendation-reopen-decision-runbook.md)
 - [recommendation-next-lane-brief.md](./recommendation-next-lane-brief.md)
+- [recommendation-pr-review-brief.md](./recommendation-pr-review-brief.md)
+- [recommendation-pr-draft-exit-checklist.md](./recommendation-pr-draft-exit-checklist.md)
+- [recommendation-post-merge-followup-checklist.md](./recommendation-post-merge-followup-checklist.md)
+- [recommendation-real-user-recheck-checklist.md](./recommendation-real-user-recheck-checklist.md)
 - [policy-normalization-current-state.md](../policy/policy-normalization-current-state.md)
 - [policy-local-closeout-pending-inventory.md](../policy/policy-local-closeout-pending-inventory.md)
 
@@ -43,6 +47,9 @@
 이 선택을 실제로 다시 열 때는 [recommendation-reopen-decision-runbook.md](./recommendation-reopen-decision-runbook.md) 기준으로
 `local 신호 구조화 -> diversity/balancing -> direct tuning` 순서를 먼저 고릅니다.
 현재 quick 결론은 [recommendation-next-lane-brief.md](./recommendation-next-lane-brief.md) 에 따로 고정합니다.
+현재 closeout / draft / merge 뒤 follow-up / `REAL_USER` reopen 순서를 같이 읽을 때는
+`review brief -> draft exit -> post-merge follow-up -> real-user recheck` 흐름을 따르고,
+그 entrypoint는 [recommendation-docs-index.md](./recommendation-docs-index.md) 의 `PR lifecycle order` 섹션에 고정돼 있습니다.
 
 ## 다시 열 조건
 

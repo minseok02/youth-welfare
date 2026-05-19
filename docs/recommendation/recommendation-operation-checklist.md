@@ -183,6 +183,17 @@ Gov24 source 자체가 구조적으로 억눌리는지 빠르게 확인할 때�
 
 현재 로컬에서 AI exclusion evidence를 한 번에 다시 태울 때는 아래 suite를 먼저 씁니다.
 
+PR / handoff / reopen 문서를 같이 볼 때는 아래 순서를 기준으로 읽습니다.
+
+1. 범위/현재 해석 quick summary
+   - [recommendation-pr-review-brief.md](./recommendation-pr-review-brief.md)
+2. 현재 draft 유지/해제 기준
+   - [recommendation-pr-draft-exit-checklist.md](./recommendation-pr-draft-exit-checklist.md)
+3. merge 뒤 follow-up current 해석
+   - [recommendation-post-merge-followup-checklist.md](./recommendation-post-merge-followup-checklist.md)
+4. `REAL_USER` traffic/cohort가 생긴 뒤 재실행 순서
+   - [recommendation-real-user-recheck-checklist.md](./recommendation-real-user-recheck-checklist.md)
+
 daily operator entrypoint:
 
 - `bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-overview.sh`

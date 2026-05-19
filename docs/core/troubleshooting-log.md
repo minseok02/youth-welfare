@@ -1,5 +1,10 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 357) 폴더 README와 인덱스만 lifecycle을 말하고 current-state / operation-checklist 안쪽이 그대로면, recommendation 폴더 내부로 내려간 순간 다시 순서를 잃는다
+- 문제: `recommendation-docs-index.md`, `docs/recommendation/README.md`, PR body/comment까지 lifecycle 순서를 맞춘 뒤에도, 실제로 가장 자주 여는 `recommendation-current-state.md` 와 `recommendation-operation-checklist.md` 안에는 `review brief / draft exit / post-merge / real-user recheck` 연결이 약했다. 이 상태면 recommendation 폴더 안에서 바로 current-state나 checklist를 연 사람은 lifecycle 문서를 다시 인덱스로 되돌아가서 찾아야 한다
+- 해결: `recommendation-current-state.md` 상단 관련 문서와 현재 해석 섹션에 lifecycle 문서를 직접 연결하고, `recommendation-operation-checklist.md` 의 AI exclusion baseline 섹션에도 같은 순서를 추가했다
+- 이유: entrypoint는 바깥에서 안으로 내려올수록 같은 truth를 더 짧게 반복해야 한다. recommendation 내부 active 문서까지 lifecycle map을 직접 적어 두는 편이 실제 사용 흐름에서 탐색 비용이 더 낮다
+
 ## 356) 인덱스와 PR 전달면만 맞추고 폴더 README를 그대로 두면, 폴더 진입점만 보는 사람은 다시 예전 요약을 보게 된다
 - 문제: `recommendation-docs-index.md`, PR body, PR comment까지 lifecycle/current truth를 맞춘 뒤에도 `docs/recommendation/README.md` 는 여전히 “문서 폴더입니다, 인덱스를 보세요” 수준에 머물러 있었다. 이 상태면 recommendation 폴더에 바로 들어온 사람은 `latest-overview`, `WAIT_FOR_REAL_USER_TRAFFIC`, lifecycle order 같은 current 해석을 다시 못 본다
 - 해결: `docs/recommendation/README.md` 에 current active 기준 요약(`latest-overview`, `VOLATILE_ONLY_DRIFT`, basic/strict gate, `WAIT_FOR_REAL_USER_TRAFFIC`)과 `review brief -> draft exit -> post-merge -> REAL_USER recheck` 순서를 직접 적고, 루트 `docs/README.md` 도 recommendation entrypoint를 같은 흐름으로 안내하게 보강했다
