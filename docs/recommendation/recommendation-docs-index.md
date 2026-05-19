@@ -105,6 +105,21 @@
 
 ## 문서 역할
 
+### 0. PR lifecycle order
+
+recommendation closeout PR 관련 문서는 아래 순서로 읽는 편이 맞습니다.
+
+1. reviewer가 범위를 먼저 파악할 때
+   - [recommendation-pr-review-brief.md](./recommendation-pr-review-brief.md)
+2. author가 현재 draft 유지/해제 기준을 볼 때
+   - [recommendation-pr-draft-exit-checklist.md](./recommendation-pr-draft-exit-checklist.md)
+3. closeout PR merge 뒤 current 해석과 follow-up을 유지할 때
+   - [recommendation-post-merge-followup-checklist.md](./recommendation-post-merge-followup-checklist.md)
+4. `REAL_USER` traffic/cohort가 실제로 생긴 뒤 다시 열 때
+   - [recommendation-real-user-recheck-checklist.md](./recommendation-real-user-recheck-checklist.md)
+
+즉 현재 문서 구조는 `review -> undraft/merge 판단 -> merge 후 관찰 유지 -> REAL_USER reopen` 순서로 읽게 정리돼 있습니다.
+
 ### 1. 현재 동작 기준
 
 - [recommendation-current-state.md](./recommendation-current-state.md)

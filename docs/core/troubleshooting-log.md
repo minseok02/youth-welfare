@@ -1,5 +1,10 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 353) review brief, draft exit, post-merge follow-up, real-user recheck가 각각 따로만 보이면 lifecycle 순서를 다시 사람이 조합해야 한다
+- 문제: recommendation closeout PR 관련 문서는 `review brief`, `draft exit`, `post-merge follow-up`, `real-user recheck` 까지 각각 생겼지만, 이 문서들이 어떤 순서 관계인지가 인덱스에 직접 적혀 있지 않으면 여전히 사람이 “지금은 review 단계인가, merge 뒤 follow-up 단계인가, REAL_USER reopen 단계인가”를 다시 조합해야 한다
+- 해결: `recommendation-docs-index.md` 에 `PR lifecycle order` 섹션을 추가해 `review brief -> draft exit -> post-merge follow-up -> real-user recheck` 순서를 직접 적고, `start.md`, `current-state.md` 에도 이 인덱스 entrypoint를 다시 연결했다
+- 이유: 지금 recommendation 문서군의 목적은 문서를 많이 두는 것이 아니라 현재 단계별 해석을 빠르게 찾게 하는 것이다. lifecycle map을 인덱스에 직접 적어 두는 편이 문서 수가 늘어난 뒤의 탐색 비용을 줄인다
+
 ## 352) draft exit 문서만 있고 merge 뒤 follow-up 기준이 없으면, closeout merge 후에도 `REAL_USER` reopen과 current-state 유지가 다시 한 문맥으로 섞인다
 - 문제: `recommendation-pr-draft-exit-checklist.md` 로 draft 유지와 reviewer-ready/merge-ready 경계는 정리됐지만, merge된 뒤 무엇을 다시 남기고 어떤 해석을 계속 유지할지는 별도 문서가 없었다. 이 상태면 merge 직후에도 `latest-overview` 재실행, handoff artifact 갱신, `REAL_USER` gate가 열렸을 때 reopen 순서를 다시 한 번 섞어 읽게 된다
 - 해결: `recommendation-post-merge-followup-checklist.md` 를 추가해 merge 직후 `latest-overview` / `latest-status-export` 재실행, 유지할 current 해석, `REAL_USER` gate가 열렸을 때 다시 볼 문서를 분리했다. 동시에 `start`, `current-state`, `phase-plan`, `recommendation-docs-index`, `recommendation-pr-draft-exit-checklist` 에 entrypoint를 연결했다

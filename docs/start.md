@@ -46,6 +46,7 @@
 - reviewer/handoff 관점으로 이번 closeout 범위를 먼저 읽으려면 [recommendation-pr-review-brief.md](./recommendation/recommendation-pr-review-brief.md)
 - 현재 draft PR을 왜 유지하는지와 draft 해제 조건을 보려면 [recommendation-pr-draft-exit-checklist.md](./recommendation/recommendation-pr-draft-exit-checklist.md)
 - merge 뒤 follow-up과 `REAL_USER` reopen 전 current 해석을 보려면 [recommendation-post-merge-followup-checklist.md](./recommendation/recommendation-post-merge-followup-checklist.md)
+- recommendation PR lifecycle 전체 순서를 한눈에 보려면 [recommendation-docs-index.md](./recommendation/recommendation-docs-index.md) 의 `PR lifecycle order` 섹션을 먼저 봅니다.
 - 지금 recommendation 상태만 빠르게 보려면 `bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-status.sh`
 - 운영 메모/핸드오프용 산출물이 필요하면 `bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-status-export.sh`
 - 자동 판정만 보려면 `bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-gate.sh`
