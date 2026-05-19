@@ -32,6 +32,8 @@
 
 즉 이 runbook은 지금 단계에서 “모델 튜닝”보다 **current baseline 유지와 `REAL_USER` gate 대기**를 다시 확인하는 entrypoint 입니다.
 
+다만 `REAL_USER` readiness를 같이 포함한 실행에서는 live gate가 이미 열렸는데도 baseline artifact 기반 `latest status` 가 아직 `WAIT_FOR_REAL_USER_TRAFFIC` 로 남을 수 있습니다. 이 경우는 새 `effective_operator_next_step`, `readiness_override_detected`, `readiness_override_reason`, `real_user_review_gate` 를 같이 읽는 편이 맞습니다.
+
 ## 기본 스크립트
 
 ```bash
@@ -97,8 +99,18 @@ bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-overview.sh
   - 기본 `auto` 모드에서 무엇이 빠져 readiness를 생략했는지 더 구체적으로 보여 줍니다.
 - `real_user_readiness_next_action=SET_ADMIN_PASSWORD_OR_ADMIN_PASSWORD_FILE`
   - auto discovery가 어디까지 됐는지 본 뒤 바로 다음 조치까지 한 줄로 안내합니다.
+- `real_user_readiness_next_action=WAIT_FOR_REAL_USER_LEADER_SIGNAL`
+  - readiness gate는 열렸지만 current local처럼 review gate가 `DEFERRED_NON_REAL_LEADER_SIGNAL` 인 경우의 실제 다음 행동입니다.
 - `real_user_readiness_detected_admin_email`, `real_user_readiness_has_admin_password`
   - auto discovery가 어디까지 성공했는지 바로 확인하는 값입니다.
+- `readiness_override_detected=true`
+  - live readiness gate는 이미 열렸지만 baseline artifact 기반 `operator_next_step` 은 아직 old wait 상태라는 뜻입니다.
+- `effective_operator_next_step=WAIT_FOR_REAL_USER_LEADER_SIGNAL`
+  - current local처럼 `dashboard_real_user_gate=READY_REAL_USER_TRAFFIC`, `breakdown_real_user_cohort_gate=READY_REAL_USER_COHORT` 는 열렸지만 `real_user_review_gate=DEFERRED_NON_REAL_LEADER_SIGNAL` 인 경우의 실제 다음 행동입니다.
+- `real_user_review_gate=DEFERRED_NON_REAL_LEADER_SIGNAL`
+  - `REAL_USER` traffic/cohort는 확보됐지만 top1 leader가 아직 non-real signal 위주라 review gate까지는 안 열렸다는 뜻입니다.
+- `real_user_top1_leader_real_user_users=0`, `real_user_top1_leader_signal_summary=LOCAL_SEED_WITHOUT_REAL_USER_LEADER`
+  - review gate가 왜 deferred인지 같이 읽는 보조 설명입니다.
 - `REAL_USER` gate가 실제로 열린 뒤 다음 순서를 다시 보려면
   - [recommendation-real-user-recheck-checklist.md](./recommendation-real-user-recheck-checklist.md)
 - 현재 draft 유지/해제와 merge 뒤 follow-up 판단을 같이 보려면

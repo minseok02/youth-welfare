@@ -182,10 +182,25 @@ gate = parse_kv(gate_out)
 strict_gate = parse_kv(strict_gate_out)
 readiness = parse_kv(readiness_out)
 
+dashboard_real_user_gate = readiness.get("dashboard_real_user_gate", "")
+breakdown_real_user_cohort_gate = readiness.get("breakdown_real_user_cohort_gate", "")
+recommendation_review_gate = readiness.get("recommendation_review_gate", "")
+recommendation_top1_leader_real_user_users = readiness.get("recommendation_top1_leader_real_user_users", "")
+recommendation_top1_leader_signal_summary = readiness.get("recommendation_top1_leader_signal_summary", "")
+
 readiness_next_action = ""
 readiness_skip_reason = readiness.get("real_user_readiness_skip_reason", "")
 if readiness.get("real_user_readiness_included", "") == "true":
-    readiness_next_action = "WAIT_FOR_REAL_USER_GATE_OR_TRAFFIC"
+    if (
+        dashboard_real_user_gate == "READY_REAL_USER_TRAFFIC"
+        and breakdown_real_user_cohort_gate == "READY_REAL_USER_COHORT"
+    ):
+        if recommendation_review_gate == "DEFERRED_NON_REAL_LEADER_SIGNAL":
+            readiness_next_action = "WAIT_FOR_REAL_USER_LEADER_SIGNAL"
+        else:
+            readiness_next_action = "RUN_REAL_USER_RECHECK_DECISION"
+    else:
+        readiness_next_action = "WAIT_FOR_REAL_USER_GATE_OR_TRAFFIC"
 elif readiness_skip_reason == "AUTO_SKIP_MISSING_ADMIN_PASSWORD":
     readiness_next_action = "SET_ADMIN_PASSWORD_OR_ADMIN_PASSWORD_FILE"
 elif readiness_skip_reason == "AUTO_SKIP_MISSING_ADMIN_EMAIL":
@@ -205,10 +220,30 @@ elif readiness_skip_reason == "MISSING_APP_BASE_URL":
 elif readiness_skip_reason == "REAL_USER_READINESS_DISABLED":
     readiness_next_action = "ENABLE_INCLUDE_REAL_USER_READINESS"
 
+effective_operator_next_step = status.get("operator_next_step", "")
+readiness_override_detected = "false"
+readiness_override_reason = ""
+if (
+    readiness.get("real_user_readiness_included", "") == "true"
+    and dashboard_real_user_gate == "READY_REAL_USER_TRAFFIC"
+    and breakdown_real_user_cohort_gate == "READY_REAL_USER_COHORT"
+    and status.get("operator_next_step", "") == "WAIT_FOR_REAL_USER_TRAFFIC"
+):
+    readiness_override_detected = "true"
+    if recommendation_review_gate == "DEFERRED_NON_REAL_LEADER_SIGNAL":
+        readiness_override_reason = "LIVE_REAL_USER_GATES_READY_BUT_REVIEW_GATE_PENDING"
+        effective_operator_next_step = "WAIT_FOR_REAL_USER_LEADER_SIGNAL"
+    else:
+        readiness_override_reason = "LIVE_REAL_USER_GATES_READY_BUT_BASELINE_STATUS_STILL_WAITING"
+        effective_operator_next_step = "RUN_REAL_USER_RECHECK_DECISION"
+
 lines = [
     f"generated_at_utc={status.get('generated_at_utc', '')}",
     f"generated_at_kst={status.get('generated_at_kst', '')}",
     f"operator_next_step={status.get('operator_next_step', '')}",
+    f"effective_operator_next_step={effective_operator_next_step}",
+    f"readiness_override_detected={readiness_override_detected}",
+    f"readiness_override_reason={readiness_override_reason}",
     f"status_json_stale_relative_to_summaries={status.get('status_json_stale_relative_to_summaries', '')}",
     f"latest_drift_class={status.get('latest_drift_class', '')}",
     f"latest_recommended_reading={status.get('latest_recommended_reading', '')}",
@@ -229,8 +264,11 @@ lines = [
     f"real_user_readiness_detected_app_base_url={readiness.get('real_user_readiness_detected_app_base_url', '')}",
     f"real_user_readiness_detected_admin_email={readiness.get('real_user_readiness_detected_admin_email', '')}",
     f"real_user_readiness_has_admin_password={readiness.get('real_user_readiness_has_admin_password', '')}",
-    f"real_user_dashboard_gate={readiness.get('dashboard_real_user_gate', '')}",
-    f"real_user_breakdown_cohort_gate={readiness.get('breakdown_real_user_cohort_gate', '')}",
+    f"real_user_dashboard_gate={dashboard_real_user_gate}",
+    f"real_user_breakdown_cohort_gate={breakdown_real_user_cohort_gate}",
+    f"real_user_review_gate={recommendation_review_gate}",
+    f"real_user_top1_leader_real_user_users={recommendation_top1_leader_real_user_users}",
+    f"real_user_top1_leader_signal_summary={recommendation_top1_leader_signal_summary}",
     f"real_user_distribution_executed={readiness.get('real_user_distribution_executed', '')}",
 ]
 
@@ -242,6 +280,9 @@ note_lines = [
     f"- generated_at_utc: `{status.get('generated_at_utc', '')}`",
     f"- generated_at_kst: `{status.get('generated_at_kst', '')}`",
     f"- operator_next_step: `{status.get('operator_next_step', '')}`",
+    f"- effective_operator_next_step: `{effective_operator_next_step}`",
+    f"- readiness_override_detected: `{readiness_override_detected}`",
+    f"- readiness_override_reason: `{readiness_override_reason}`",
     f"- status_json_stale_relative_to_summaries: `{status.get('status_json_stale_relative_to_summaries', '')}`",
     "",
     "## Baseline",
@@ -274,8 +315,11 @@ note_lines = [
     f"- real_user_readiness_detected_app_base_url: `{readiness.get('real_user_readiness_detected_app_base_url', '')}`",
     f"- real_user_readiness_detected_admin_email: `{readiness.get('real_user_readiness_detected_admin_email', '')}`",
     f"- real_user_readiness_has_admin_password: `{readiness.get('real_user_readiness_has_admin_password', '')}`",
-    f"- real_user_dashboard_gate: `{readiness.get('dashboard_real_user_gate', '')}`",
-    f"- real_user_breakdown_cohort_gate: `{readiness.get('breakdown_real_user_cohort_gate', '')}`",
+    f"- real_user_dashboard_gate: `{dashboard_real_user_gate}`",
+    f"- real_user_breakdown_cohort_gate: `{breakdown_real_user_cohort_gate}`",
+    f"- real_user_review_gate: `{recommendation_review_gate}`",
+    f"- real_user_top1_leader_real_user_users: `{recommendation_top1_leader_real_user_users}`",
+    f"- real_user_top1_leader_signal_summary: `{recommendation_top1_leader_signal_summary}`",
     f"- real_user_distribution_executed: `{readiness.get('real_user_distribution_executed', '')}`",
 ]
 note_out.write_text("\n".join(note_lines) + "\n", encoding="utf-8")
@@ -284,6 +328,9 @@ json_payload = {
     "generated_at_utc": status.get("generated_at_utc", ""),
     "generated_at_kst": status.get("generated_at_kst", ""),
     "operator_next_step": status.get("operator_next_step", ""),
+    "effective_operator_next_step": effective_operator_next_step,
+    "readiness_override_detected": readiness_override_detected,
+    "readiness_override_reason": readiness_override_reason,
     "status_json_stale_relative_to_summaries": status.get("status_json_stale_relative_to_summaries", ""),
     "baseline": {
         "latest_drift_class": status.get("latest_drift_class", ""),
@@ -311,8 +358,11 @@ json_payload = {
         "real_user_readiness_detected_app_base_url": readiness.get("real_user_readiness_detected_app_base_url", ""),
         "real_user_readiness_detected_admin_email": readiness.get("real_user_readiness_detected_admin_email", ""),
         "real_user_readiness_has_admin_password": readiness.get("real_user_readiness_has_admin_password", ""),
-        "dashboard_real_user_gate": readiness.get("dashboard_real_user_gate", ""),
-        "breakdown_real_user_cohort_gate": readiness.get("breakdown_real_user_cohort_gate", ""),
+        "dashboard_real_user_gate": dashboard_real_user_gate,
+        "breakdown_real_user_cohort_gate": breakdown_real_user_cohort_gate,
+        "recommendation_review_gate": recommendation_review_gate,
+        "recommendation_top1_leader_real_user_users": recommendation_top1_leader_real_user_users,
+        "recommendation_top1_leader_signal_summary": recommendation_top1_leader_signal_summary,
         "real_user_distribution_executed": readiness.get("real_user_distribution_executed", ""),
     },
 }

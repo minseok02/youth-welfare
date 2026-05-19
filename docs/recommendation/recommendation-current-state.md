@@ -171,7 +171,11 @@
 
 `latest-status` 와 `latest-gate` 도 이제 export JSON이 있으면 `generated_at_utc`, `generated_at_kst` 를 같이 보여 주므로, 현재 읽고 있는 latest artifact가 UTC로 언제 생성됐고 KST로는 언제 실행된 것인지 CLI 출력만으로도 바로 확인할 수 있습니다.
 
-같은 latest export JSON은 이제 `operator_next_step` 도 같이 남깁니다. current local 기준 값은 `WAIT_FOR_REAL_USER_TRAFFIC` 이고, 이는 stable baseline drift 대응보다 먼저 `REAL_USER` traffic/cohort가 쌓일 때까지 관찰 단계로 남아 있다는 뜻입니다.
+같은 latest export JSON은 이제 `operator_next_step` 도 같이 남깁니다. artifact baseline 기준 current local 값은 여전히 `WAIT_FOR_REAL_USER_TRAFFIC` 이고, 이는 stable baseline drift 대응보다 먼저 `REAL_USER` traffic/cohort가 쌓일 때까지 관찰 단계로 남아 있다는 뜻입니다.
+
+다만 `2026-05-20` 에 local generic-domain signup 계정 3개(`account_origin=REAL_USER`)로 추천 refresh + click 표본을 실제로 쌓은 뒤, live readiness gate는 이미 열렸습니다. `run-local-real-user-exclusion-readiness-check.sh` 결과는 `dashboard_real_user_gate=READY_REAL_USER_TRAFFIC`, `breakdown_real_user_cohort_gate=READY_REAL_USER_COHORT`, `real_user_distribution_executed=true`, `zero_ai_rows=0` 이었습니다. 대신 admin recommendation 쪽 review gate는 아직 `recommendation_review_gate=DEFERRED_NON_REAL_LEADER_SIGNAL` 로 남아 있고, `recommendation_top1_leader_real_user_users=0`, `recommendation_top1_leader_signal_summary=LOCAL_SEED_WITHOUT_REAL_USER_LEADER` 가 같이 확인됐습니다.
+
+그래서 현재 `latest-overview` 는 두 층을 같이 보여 줍니다. baseline artifact 기반 `operator_next_step` 은 계속 `WAIT_FOR_REAL_USER_TRAFFIC` 로 남지만, readiness 포함 실행에서는 `effective_operator_next_step=WAIT_FOR_REAL_USER_LEADER_SIGNAL`, `readiness_override_detected=true`, `readiness_override_reason=LIVE_REAL_USER_GATES_READY_BUT_REVIEW_GATE_PENDING` 를 같이 보여 줍니다. 즉 지금 남은 blocker는 더 이상 “real-user traffic/cohort 없음”이 아니라 **real-user leader/review signal이 아직 top1에 안 올라온 상태**로 읽는 편이 맞습니다.
 
 또 `latest-status` 와 `latest-gate` 는 이제 `status_json_stale_relative_to_summaries`, `status_json_recommended_action` 도 같이 보여 줍니다. 만약 latest refresh/drift summary가 export JSON보다 새로워졌다면 `RERUN_LATEST_STATUS_EXPORT` 를 먼저 수행해 human/machine latest artifact를 다시 맞추는 편이 맞습니다.
 
