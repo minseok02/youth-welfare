@@ -40,6 +40,7 @@ backend/gradle.properties
 .jdk/
 .codex
 .tmp/
+tmp/
 
 # Maven
 pom.xml.tag

@@ -1,5 +1,10 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 342) `tmp/` 아래 smoke/latest artifact가 계속 Git untracked 로 남는 이유는 `.gitignore` 가 `.tmp/` 만 무시하고 실제 경로 `tmp/` 는 놓치고 있었기 때문이다
+- 문제: recommendation latest/export/overview 계열 wrapper가 artifact를 `tmp/recommendation-*` 아래에 남기는데, 저장소의 `.gitignore` 는 `.tmp/` 만 무시하고 `tmp/` 는 무시하지 않았다. 그래서 작업을 다 커밋/푸시한 뒤에도 `git status --short` 에 `?? tmp/` 가 계속 남아 Git 정리가 덜 된 것처럼 보였다
+- 해결: `.gitignore` 에 `tmp/` 를 추가해 실제 artifact 루트를 직접 무시하도록 맞췄다. 이제 daily smoke/latest overview artifact는 계속 로컬에 남겨도 Git untracked 잡음으로 올라오지 않는다
+- 이유: 이 프로젝트의 smoke/operator artifact는 dot-prefixed temp 디렉터리가 아니라 repo-root `tmp/` 를 기준으로 저장된다. 무시 규칙도 실제 출력 경로와 정확히 맞아야 워킹트리가 안정적으로 clean 하다
+
 ## 341) `latest-status-export` 직후 `latest-status` 를 병렬로 읽으면, symlink 갱신 타이밍 때문에 직전 JSON을 먼저 집어 stale처럼 보일 수 있다
 - 문제: `latest-status-export` 와 `latest-status` 또는 `latest-gate` 를 거의 동시에 태우면, export가 새 artifact를 쓰는 동안 status/gate가 직전 `latest-status.json` 을 먼저 읽을 수 있다. 이 경우 summary는 최신인데 JSON만 한 템포 늦어 `status_json_stale_relative_to_summaries=true` 로 보일 수 있다
 - 해결: 현재는 `status_json_stale_relative_to_summaries`, `status_json_recommended_action` 으로 이 상태를 바로 드러내고, 필요하면 `AUTO_REFRESH_STATUS_JSON_IF_STALE=true` 로 `latest-status` / `latest-gate` 를 실행해 `latest-status-export` 를 먼저 다시 태운 뒤 fresh JSON 기준으로 읽게 맞췄다. 시뮬레이션 검증에서도 stale 상태를 일부러 만든 뒤 auto-refresh로 `generated_at_utc`, `generated_at_kst` 가 새 값으로 갱신되고 stale flag가 `false` 로 돌아오는 것을 확인했다
