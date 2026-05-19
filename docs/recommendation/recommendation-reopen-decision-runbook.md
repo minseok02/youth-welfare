@@ -15,6 +15,20 @@
 이 문서는 weight tuning 문서가 아닙니다.
 핵심은 **무엇을 먼저 다시 열어야 하는지** 를 정하는 것입니다.
 
+같이 보면 좋은 문서:
+
+- [recommendation-pr-review-brief.md](./recommendation-pr-review-brief.md)
+- [recommendation-pr-draft-exit-checklist.md](./recommendation-pr-draft-exit-checklist.md)
+- [recommendation-post-merge-followup-checklist.md](./recommendation-post-merge-followup-checklist.md)
+- [recommendation-real-user-baseline-runbook.md](./recommendation-real-user-baseline-runbook.md)
+- [recommendation-real-user-recheck-checklist.md](./recommendation-real-user-recheck-checklist.md)
+
+현재 기본 해석은 아래와 같습니다.
+
+- `REAL_USER` gate가 아직 deferred면 이 문서를 바로 쓰지 않습니다.
+- 그 상태의 current decision은 계속 `WAIT_FOR_REAL_USER_TRAFFIC` 입니다.
+- reopen 판단은 gate 확인 뒤에만 들어옵니다.
+
 ## 언제 이 문서를 쓰나
 
 아래 중 하나가 생기면 이 문서를 봅니다.
@@ -194,3 +208,4 @@ reopen 판단 전 최소한 아래 증거는 같이 봅니다.
 2. 기본 순서는 `유지 -> local 신호 구조화 -> diversity/balancing -> direct tuning` 입니다.
 3. `2736` 류 사례는 source 전체가 아니라 정책군 사례로 읽습니다.
 4. direct weight tuning 은 마지막 lane 입니다.
+5. `REAL_USER` gate가 아직 deferred면 current 기본값은 계속 `WAIT_FOR_REAL_USER_TRAFFIC` 입니다.

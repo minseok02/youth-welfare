@@ -18,6 +18,20 @@
 `diversity/balancing` 이나 `direct tuning` 보다 먼저
 **local 청년 정책군의 direct signal 구조화** 로 시작하는 편이 맞습니다.
 
+같이 보면 좋은 문서:
+
+- [recommendation-pr-review-brief.md](./recommendation-pr-review-brief.md)
+- [recommendation-pr-draft-exit-checklist.md](./recommendation-pr-draft-exit-checklist.md)
+- [recommendation-post-merge-followup-checklist.md](./recommendation-post-merge-followup-checklist.md)
+- [recommendation-real-user-baseline-runbook.md](./recommendation-real-user-baseline-runbook.md)
+- [recommendation-real-user-recheck-checklist.md](./recommendation-real-user-recheck-checklist.md)
+- [recommendation-reopen-decision-runbook.md](./recommendation-reopen-decision-runbook.md)
+
+현재 이 brief를 읽는 기본 전제는:
+
+- 지금 current local 결정은 여전히 `WAIT_FOR_REAL_USER_TRAFFIC`
+- 즉 이 문서는 “지금 당장 reopen 한다”가 아니라, **reopen 하게 된다면 어떤 lane이 먼저인가**를 정리한 문서입니다.
+
 ## 현재 권장 결론
 
 `2026-05-18` 기준으로 recommendation 을 다시 열면,
@@ -219,6 +233,7 @@ lane 1 reopen 을 실제로 승인하면
 
 ## 요약
 
-1. 현재 recommendation next lane 은 `lane 1. local 신호 구조화` 입니다.
-2. `2736` 류 사례는 source 전체가 아니라 정책군 단위로 읽습니다.
-3. `diversity/balancing` 은 다음 후보이고, `direct tuning` 은 마지막입니다.
+1. current local 기본값은 계속 `WAIT_FOR_REAL_USER_TRAFFIC` 입니다.
+2. recommendation 을 다시 열면 첫 lane 은 `local 신호 구조화` 입니다.
+3. `diversity/balancing` 과 `direct tuning` 은 더 뒤입니다.
+4. `2736` 류 사례는 source 전체가 아니라 정책군 단위로 읽습니다.

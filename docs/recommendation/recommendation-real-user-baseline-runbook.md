@@ -13,6 +13,22 @@
 
 이 문서는 weight tuning 문서가 아니라, **운영에서 gate를 다시 열어도 되는지 판단하는 runbook** 입니다.
 
+같이 보면 좋은 문서:
+
+- [recommendation-pr-review-brief.md](./recommendation-pr-review-brief.md)
+- [recommendation-pr-draft-exit-checklist.md](./recommendation-pr-draft-exit-checklist.md)
+- [recommendation-post-merge-followup-checklist.md](./recommendation-post-merge-followup-checklist.md)
+- [recommendation-real-user-recheck-checklist.md](./recommendation-real-user-recheck-checklist.md)
+- [recommendation-reopen-decision-runbook.md](./recommendation-reopen-decision-runbook.md)
+
+현재 local 기준 기본 해석은:
+
+- `WAIT_FOR_REAL_USER_TRAFFIC`
+- `dashboard_real_user_gate=DEFERRED_NO_REAL_USER_TRAFFIC`
+- `breakdown_real_user_cohort_gate=DEFERRED_NO_REAL_USER_COHORT`
+
+즉 이 문서는 지금 당장 튜닝을 여는 문서가 아니라, **언제 reopen 판단으로 넘어갈 수 있는지**를 가르는 gate 문서에 가깝습니다.
+
 ## 전제
 
 - 최신 서버 코드가 recommendation `realUserTrafficGateInWindow`, `recommendationReviewGate`, `latestBatchConcentration` 을 이미 노출하는 상태여야 합니다.
@@ -186,3 +202,4 @@ bash deploy/smoke/run-local-recommendation-ai-zero-reason-distribution-audit.sh
 2. 최소 `3명` 이상 사용자와 `3명` 이상 clicked user가 필요합니다.
 3. read-only 확인은 `run-local-real-user-readiness-check.sh` 하나로 묶습니다.
 4. gate가 열려도 `READY_CONCENTRATED_TOP1_REVIEW` 면 바로 weight tuning보다 집중/분산 해석을 먼저 봅니다.
+5. gate가 아직 닫혀 있으면 current 기본 해석은 계속 `WAIT_FOR_REAL_USER_TRAFFIC` 입니다.

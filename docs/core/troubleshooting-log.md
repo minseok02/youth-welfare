@@ -1,5 +1,10 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 359) decision/runbook 문서가 reopen lane만 설명하고 current blocker를 안 말하면, gate가 닫힌 시기에도 바로 튜닝 문서처럼 읽히기 쉽다
+- 문제: `recommendation-real-user-baseline-runbook.md`, `recommendation-reopen-decision-runbook.md`, `recommendation-next-lane-brief.md` 는 reopen 이후 무엇을 볼지와 어떤 lane이 먼저인지 잘 설명하지만, current local 기본값이 여전히 `WAIT_FOR_REAL_USER_TRAFFIC` 이라는 점과 lifecycle companion docs 연결은 약했다. 이 상태면 gate가 아직 닫힌 시기에도 decision 문서가 “지금 당장 recommendation을 다시 열 문서”처럼 읽히기 쉽다
+- 해결: 세 문서 모두에 companion docs(`review brief / draft exit / post-merge / real-user recheck`)와 current local 기본 해석(`WAIT_FOR_REAL_USER_TRAFFIC`, deferred gate)을 추가했다
+- 이유: reopen 문서는 다음 행동을 정리하되, 현재 단계가 아직 reopen 전이라는 맥락도 같이 말해야 한다. 특히 `REAL_USER` gate가 닫힌 시기에는 decision 문서가 “나중에 다시 볼 문서”라는 점을 먼저 드러내는 편이 해석 drift를 줄인다
+
 ## 358) current-state/checklist만 lifecycle을 말하고 실제 operator runbook이 그대로면, 실행 단계에서 다시 “지금 gate를 보는 건지 reopen을 여는 건지”가 헷갈린다
 - 문제: `recommendation-current-state.md` 와 `recommendation-operation-checklist.md` 까지 lifecycle/current truth를 맞춘 뒤에도, 실제로 daily 실행에 쓰는 `recommendation-ai-exclusion-latest-overview-runbook.md` 와 `recommendation-real-user-exclusion-readiness-check-runbook.md` 안에는 현재 단계 해석과 companion lifecycle 문서 연결이 약했다. 이 상태면 runbook만 열었을 때 다시 “지금은 baseline 유지 단계인가, REAL_USER reopen 단계인가”를 따로 추론해야 한다
 - 해결: overview runbook에 current reading(`WAIT_FOR_REAL_USER_TRAFFIC`, `VOLATILE_ONLY_DRIFT`, basic/strict gate)과 companion docs를 추가하고, readiness runbook에도 현재 local gate 상태와 `real_user_distribution_executed=false` 일 때의 기본 해석, 다음 문서를 직접 연결했다
