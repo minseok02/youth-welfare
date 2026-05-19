@@ -91,6 +91,55 @@ smoke_require_command() {
   }
 }
 
+smoke_normalize_bool() {
+  local value="${1,,}"
+  case "${value}" in
+    true|false) printf '%s' "${value}" ;;
+    *)
+      echo "unsupported flag value: ${1}" >&2
+      exit 1
+      ;;
+  esac
+}
+
+smoke_normalize_tri_state() {
+  local value="${1,,}"
+  case "${value}" in
+    true|false|auto) printf '%s' "${value}" ;;
+    *)
+      echo "unsupported tri-state value: ${1}" >&2
+      exit 1
+      ;;
+  esac
+}
+
+smoke_now_ts_utc() {
+  date -u +%Y%m%dT%H%M%SZ
+}
+
+smoke_now_iso_utc() {
+  date -u +%Y-%m-%dT%H:%M:%SZ
+}
+
+smoke_now_iso_kst() {
+  TZ=Asia/Seoul date +%Y-%m-%dT%H:%M:%S%z
+}
+
+smoke_update_links() {
+  if (( $# == 0 || $# % 2 != 0 )); then
+    echo "smoke_update_links requires target/link pairs" >&2
+    exit 1
+  fi
+
+  local target link
+  while (( $# > 0 )); do
+    target="$1"
+    link="$2"
+    ln -sfn "${target}" "${link}"
+    shift 2
+  done
+}
+
 smoke_http_status() {
   local method="$1"
   local url="$2"

@@ -14,18 +14,7 @@ DRIFT_SUMMARY="${DRIFT_SUMMARY:-${DRIFT_CHECK_ROOT}/latest-baseline-refresh-drif
 STATUS_JSON="${STATUS_JSON:-${STATUS_ROOT}/latest-status.json}"
 AUTO_REFRESH_STATUS_JSON_IF_STALE="${AUTO_REFRESH_STATUS_JSON_IF_STALE:-false}"
 
-normalize_flag() {
-  local value="${1,,}"
-  case "${value}" in
-    true|false) printf '%s' "${value}" ;;
-    *)
-      echo "unsupported flag value: ${1}" >&2
-      exit 1
-      ;;
-  esac
-}
-
-AUTO_REFRESH_STATUS_JSON_IF_STALE="$(normalize_flag "${AUTO_REFRESH_STATUS_JSON_IF_STALE}")"
+AUTO_REFRESH_STATUS_JSON_IF_STALE="$(smoke_normalize_bool "${AUTO_REFRESH_STATUS_JSON_IF_STALE}")"
 
 if [[ ! -f "${REFRESH_SUMMARY}" ]]; then
   echo "latest refresh summary not found: ${REFRESH_SUMMARY}" >&2

@@ -10,19 +10,8 @@ FAIL_ON_LATEST_OBSERVATION_CHANGE="${FAIL_ON_LATEST_OBSERVATION_CHANGE:-false}"
 STATUS_EXPORT_SCRIPT="${STATUS_EXPORT_SCRIPT:-${ROOT_DIR}/deploy/smoke/run-local-recommendation-ai-exclusion-latest-status-export.sh}"
 AUTO_REFRESH_STATUS_JSON_IF_STALE="${AUTO_REFRESH_STATUS_JSON_IF_STALE:-false}"
 
-normalize_flag() {
-  local value="${1,,}"
-  case "${value}" in
-    true|false) printf '%s' "${value}" ;;
-    *)
-      echo "unsupported flag value: ${1}" >&2
-      exit 1
-      ;;
-  esac
-}
-
-FAIL_ON_LATEST_OBSERVATION_CHANGE="$(normalize_flag "${FAIL_ON_LATEST_OBSERVATION_CHANGE}")"
-AUTO_REFRESH_STATUS_JSON_IF_STALE="$(normalize_flag "${AUTO_REFRESH_STATUS_JSON_IF_STALE}")"
+FAIL_ON_LATEST_OBSERVATION_CHANGE="$(smoke_normalize_bool "${FAIL_ON_LATEST_OBSERVATION_CHANGE}")"
+AUTO_REFRESH_STATUS_JSON_IF_STALE="$(smoke_normalize_bool "${AUTO_REFRESH_STATUS_JSON_IF_STALE}")"
 
 if [[ ! -f "${STATUS_JSON}" ]]; then
   if [[ "${AUTO_REFRESH_STATUS_JSON_IF_STALE}" == "true" ]]; then

@@ -13,7 +13,7 @@ APP_BASE_URL="${APP_BASE_URL:-http://127.0.0.1:8082}"
 
 AUTO_REFRESH_STATUS_JSON_IF_STALE="${AUTO_REFRESH_STATUS_JSON_IF_STALE:-true}"
 INCLUDE_REAL_USER_READINESS="${INCLUDE_REAL_USER_READINESS:-auto}"
-RUN_TS_UTC="$(date -u +%Y%m%dT%H%M%SZ)"
+RUN_TS_UTC="$(smoke_now_ts_utc)"
 ARTIFACT_DIR="${ARTIFACT_DIR:-${OVERVIEW_ROOT}/${RUN_TS_UTC}}"
 STATUS_OUT="${ARTIFACT_DIR}/latest-status.out"
 GATE_OUT="${ARTIFACT_DIR}/latest-gate.out"
@@ -28,31 +28,8 @@ LATEST_SUMMARY_LINK="${OVERVIEW_ROOT}/latest-overview-summary.txt"
 LATEST_NOTE_LINK="${OVERVIEW_ROOT}/latest-overview-note.md"
 LATEST_JSON_LINK="${OVERVIEW_ROOT}/latest-overview.json"
 
-normalize_flag() {
-  local value="${1,,}"
-  case "${value}" in
-    true|false) printf '%s' "${value}" ;;
-    *)
-      echo "unsupported flag value: ${1}" >&2
-      exit 1
-      ;;
-  esac
-}
-
-AUTO_REFRESH_STATUS_JSON_IF_STALE="$(normalize_flag "${AUTO_REFRESH_STATUS_JSON_IF_STALE}")"
-
-normalize_tri_state() {
-  local value="${1,,}"
-  case "${value}" in
-    true|false|auto) printf '%s' "${value}" ;;
-    *)
-      echo "unsupported tri-state value: ${1}" >&2
-      exit 1
-      ;;
-  esac
-}
-
-INCLUDE_REAL_USER_READINESS="$(normalize_tri_state "${INCLUDE_REAL_USER_READINESS}")"
+AUTO_REFRESH_STATUS_JSON_IF_STALE="$(smoke_normalize_bool "${AUTO_REFRESH_STATUS_JSON_IF_STALE}")"
+INCLUDE_REAL_USER_READINESS="$(smoke_normalize_tri_state "${INCLUDE_REAL_USER_READINESS}")"
 mkdir -p "${ARTIFACT_DIR}"
 smoke_require_command python3
 smoke_resolve_admin_credentials "${ROOT_DIR}"
@@ -343,10 +320,11 @@ json_out.write_text(json.dumps(json_payload, ensure_ascii=False, indent=2) + "\n
 PY
 
 mkdir -p "${OVERVIEW_ROOT}"
-ln -sfn "${ARTIFACT_DIR}" "${LATEST_ARTIFACT_LINK}"
-ln -sfn "${SUMMARY_OUT}" "${LATEST_SUMMARY_LINK}"
-ln -sfn "${NOTE_OUT}" "${LATEST_NOTE_LINK}"
-ln -sfn "${JSON_OUT}" "${LATEST_JSON_LINK}"
+smoke_update_links \
+  "${ARTIFACT_DIR}" "${LATEST_ARTIFACT_LINK}" \
+  "${SUMMARY_OUT}" "${LATEST_SUMMARY_LINK}" \
+  "${NOTE_OUT}" "${LATEST_NOTE_LINK}" \
+  "${JSON_OUT}" "${LATEST_JSON_LINK}"
 
 echo
 echo "overview_artifact_dir=${ARTIFACT_DIR}"

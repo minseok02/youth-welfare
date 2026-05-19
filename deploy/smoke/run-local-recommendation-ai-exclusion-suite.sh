@@ -2,6 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+source "${ROOT_DIR}/deploy/smoke/smoke-common.sh"
 
 TARGET_SERVICE_IDS_CSV="${TARGET_SERVICE_IDS_CSV:-3288,3289,3290,5837}"
 TOP_REFRESH_LIMIT="${TOP_REFRESH_LIMIT:-20}"
@@ -11,18 +12,7 @@ BASELINE_COHORT="${BASELINE_COHORT:-non_example}"
 TARGET_COHORT="${TARGET_COHORT:-real_user}"
 KEEP_ARTIFACTS="${KEEP_ARTIFACTS:-false}"
 
-normalize_flag() {
-  local value="${1,,}"
-  case "${value}" in
-    true|false) printf '%s' "${value}" ;;
-    *)
-      echo "unsupported flag value: ${1}" >&2
-      exit 1
-      ;;
-  esac
-}
-
-KEEP_ARTIFACTS="$(normalize_flag "${KEEP_ARTIFACTS}")"
+KEEP_ARTIFACTS="$(smoke_normalize_bool "${KEEP_ARTIFACTS}")"
 
 run_prefixed() {
   local suite_name="$1"

@@ -1,5 +1,10 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 345) recommendation AI exclusion wrapper에서 같은 shell helper가 여러 번 복제되면, 기능보다 사소한 drift와 수정 누락이 더 쉽게 생긴다
+- 문제: `latest-status`, `latest-gate`, `latest-status-export`, `latest-overview`, snapshot/refresh/drift 계열 wrapper에 `normalize_flag`, tri-state 정규화, UTC/KST timestamp 생성, latest symlink 갱신 같은 shell helper가 반복 복사돼 있었다. 이 상태면 관찰 계약은 같아도 사소한 helper 수정이 여러 파일에 흩어져 들어가고, 일부 wrapper만 갱신되는 drift가 다시 생기기 쉽다
+- 해결: `smoke-common.sh` 에 `smoke_normalize_bool`, `smoke_normalize_tri_state`, `smoke_now_ts_utc`, `smoke_now_iso_utc`, `smoke_now_iso_kst`, `smoke_update_links` 를 추가하고 recommendation AI exclusion 계열 wrapper들이 이 helper를 공통으로 쓰게 맞췄다. 이후 `bash -n` 전수 확인과 `run-local-recommendation-ai-exclusion-latest-overview.sh` 재실행으로 observable output이 그대로 유지되는 것을 확인했다
+- 이유: 지금 단계의 핵심은 새로운 판단을 더 만드는 것이 아니라 current baseline을 안정적으로 다시 읽게 하는 것이다. 반복 helper는 공통화하되, Python summary payload 자체까지 한 번에 크게 합치기보다는 shell-level helper부터 묶는 편이 변경 위험이 낮고 효과 대비 안전하다
+
 ## 344) reviewer용 읽기 순서와 `REAL_USER` 재오픈 순서가 active 문서에 흩어져 있으면, closeout PR도 review/handoff 때 다시 탐색 비용이 커진다
 - 문제: 현재 active 문서에는 latest overview, readiness, drift, reopen 관련 정보가 충분히 있었지만, reviewer 관점의 “이번 PR을 어디부터 읽을지”와 `REAL_USER` traffic이 생긴 뒤의 “재오픈 순서”는 서로 다른 문서에 흩어져 있었다. 이 상태면 closeout PR도 review 때 다시 문서 탐색 비용이 커지고, traffic이 생긴 뒤에는 같은 wrapper를 어떤 순서로 다시 태울지 매번 새로 조합하게 된다
 - 해결: [recommendation-pr-review-brief.md](../recommendation/recommendation-pr-review-brief.md) 를 추가해 `Gov24 closeout / recommendation observability / active docs hygiene` 세 덩어리와 우선 읽을 문서를 고정했고, [recommendation-real-user-recheck-checklist.md](../recommendation/recommendation-real-user-recheck-checklist.md) 를 추가해 `latest-overview -> readiness -> baseline-refresh-drift-check -> latest-status-export` one-page 순서를 따로 뽑았다

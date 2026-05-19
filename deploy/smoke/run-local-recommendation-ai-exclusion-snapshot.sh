@@ -13,23 +13,12 @@ BASELINE_COHORT="${BASELINE_COHORT:-non_example}"
 TARGET_COHORT="${TARGET_COHORT:-real_user}"
 KEEP_ARTIFACTS="${KEEP_ARTIFACTS:-true}"
 
-RUN_TS_UTC="$(date -u +%Y%m%dT%H%M%SZ)"
+RUN_TS_UTC="$(smoke_now_ts_utc)"
 ARTIFACT_DIR="${ARTIFACT_DIR:-${ROOT_DIR}/tmp/recommendation-ai-exclusion-snapshot/${RUN_TS_UTC}}"
 SUITE_OUTPUT="${ARTIFACT_DIR}/ai-exclusion-suite.out"
 SUMMARY_OUTPUT="${ARTIFACT_DIR}/ai-exclusion-snapshot-summary.txt"
 
-normalize_flag() {
-  local value="${1,,}"
-  case "${value}" in
-    true|false) printf '%s' "${value}" ;;
-    *)
-      echo "unsupported flag value: ${1}" >&2
-      exit 1
-      ;;
-  esac
-}
-
-KEEP_ARTIFACTS="$(normalize_flag "${KEEP_ARTIFACTS}")"
+KEEP_ARTIFACTS="$(smoke_normalize_bool "${KEEP_ARTIFACTS}")"
 
 cleanup() {
   if [[ "${KEEP_ARTIFACTS}" != "true" ]]; then

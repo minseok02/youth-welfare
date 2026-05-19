@@ -8,7 +8,7 @@ REFRESH_ROOT="${REFRESH_ROOT:-${ROOT_DIR}/tmp/recommendation-ai-exclusion-baseli
 BASELINE_REFRESH_SUMMARY="${BASELINE_REFRESH_SUMMARY:-}"
 KEEP_ARTIFACTS="${KEEP_ARTIFACTS:-true}"
 
-RUN_TS_UTC="$(date -u +%Y%m%dT%H%M%SZ)"
+RUN_TS_UTC="$(smoke_now_ts_utc)"
 DRIFT_CHECK_ROOT="${DRIFT_CHECK_ROOT:-${ROOT_DIR}/tmp/recommendation-ai-exclusion-baseline-refresh-drift-check}"
 ARTIFACT_DIR="${ARTIFACT_DIR:-${DRIFT_CHECK_ROOT}/${RUN_TS_UTC}}"
 REFRESH_DIR="${ARTIFACT_DIR}/refresh"
@@ -18,17 +18,6 @@ SUMMARY_OUTPUT="${ARTIFACT_DIR}/baseline-refresh-drift-summary.txt"
 LATEST_ARTIFACT_LINK="${DRIFT_CHECK_ROOT}/latest"
 LATEST_COMPARE_LINK="${DRIFT_CHECK_ROOT}/latest-baseline-refresh-compare.out"
 LATEST_SUMMARY_LINK="${DRIFT_CHECK_ROOT}/latest-baseline-refresh-drift-summary.txt"
-
-normalize_flag() {
-  local value="${1,,}"
-  case "${value}" in
-    true|false) printf '%s' "${value}" ;;
-    *)
-      echo "unsupported flag value: ${1}" >&2
-      exit 1
-      ;;
-  esac
-}
 
 find_recent_files() {
   local root="$1"
@@ -54,7 +43,7 @@ with open(output_file, "r", encoding="utf-8") as fp:
 PY
 }
 
-KEEP_ARTIFACTS="$(normalize_flag "${KEEP_ARTIFACTS}")"
+KEEP_ARTIFACTS="$(smoke_normalize_bool "${KEEP_ARTIFACTS}")"
 
 if [[ -z "${BASELINE_REFRESH_SUMMARY}" ]]; then
   mapfile -t SUMMARY_FILES < <(find_recent_files "${REFRESH_ROOT}" 'baseline-refresh-summary.txt')
@@ -182,9 +171,10 @@ print(f"summary_output={summary_output}")
 PY
 
 mkdir -p "${DRIFT_CHECK_ROOT}"
-ln -sfn "${ARTIFACT_DIR}" "${LATEST_ARTIFACT_LINK}"
-ln -sfn "${COMPARE_STDOUT}" "${LATEST_COMPARE_LINK}"
-ln -sfn "${SUMMARY_OUTPUT}" "${LATEST_SUMMARY_LINK}"
+smoke_update_links \
+  "${ARTIFACT_DIR}" "${LATEST_ARTIFACT_LINK}" \
+  "${COMPARE_STDOUT}" "${LATEST_COMPARE_LINK}" \
+  "${SUMMARY_OUTPUT}" "${LATEST_SUMMARY_LINK}"
 
 echo
 echo "recommendation ai exclusion baseline refresh drift check passed"

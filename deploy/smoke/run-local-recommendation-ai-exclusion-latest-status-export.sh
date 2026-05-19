@@ -11,9 +11,9 @@ STATUS_ROOT="${STATUS_ROOT:-${ROOT_DIR}/tmp/recommendation-ai-exclusion-latest-s
 REFRESH_SUMMARY="${REFRESH_SUMMARY:-${REFRESH_ROOT}/latest-baseline-refresh-summary.txt}"
 DRIFT_SUMMARY="${DRIFT_SUMMARY:-${DRIFT_CHECK_ROOT}/latest-baseline-refresh-drift-summary.txt}"
 
-RUN_TS_UTC="$(date -u +%Y%m%dT%H%M%SZ)"
-GENERATED_AT_UTC="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-GENERATED_AT_KST="$(TZ=Asia/Seoul date +%Y-%m-%dT%H:%M:%S%z)"
+RUN_TS_UTC="$(smoke_now_ts_utc)"
+GENERATED_AT_UTC="$(smoke_now_iso_utc)"
+GENERATED_AT_KST="$(smoke_now_iso_kst)"
 ARTIFACT_DIR="${ARTIFACT_DIR:-${STATUS_ROOT}/${RUN_TS_UTC}}"
 OUTPUT_MD="${ARTIFACT_DIR}/latest-status-note.md"
 OUTPUT_JSON="${ARTIFACT_DIR}/latest-status.json"
@@ -154,9 +154,10 @@ print(output_json)
 PY
 
 mkdir -p "${STATUS_ROOT}"
-ln -sfn "${ARTIFACT_DIR}" "${LATEST_ARTIFACT_LINK}"
-ln -sfn "${OUTPUT_MD}" "${LATEST_NOTE_LINK}"
-ln -sfn "${OUTPUT_JSON}" "${LATEST_JSON_LINK}"
+smoke_update_links \
+  "${ARTIFACT_DIR}" "${LATEST_ARTIFACT_LINK}" \
+  "${OUTPUT_MD}" "${LATEST_NOTE_LINK}" \
+  "${OUTPUT_JSON}" "${LATEST_JSON_LINK}"
 
 echo
 echo "latest_artifact_link=${LATEST_ARTIFACT_LINK}"

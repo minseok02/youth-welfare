@@ -14,7 +14,7 @@ TARGET_COHORT="${TARGET_COHORT:-real_user}"
 RUN_COUNT="${RUN_COUNT:-2}"
 KEEP_ARTIFACTS="${KEEP_ARTIFACTS:-true}"
 
-RUN_TS_UTC="$(date -u +%Y%m%dT%H%M%SZ)"
+RUN_TS_UTC="$(smoke_now_ts_utc)"
 REFRESH_ROOT="${REFRESH_ROOT:-${ROOT_DIR}/tmp/recommendation-ai-exclusion-baseline-refresh}"
 ARTIFACT_DIR="${ARTIFACT_DIR:-${REFRESH_ROOT}/${RUN_TS_UTC}}"
 VOLATILITY_DIR="${ARTIFACT_DIR}/volatility"
@@ -24,17 +24,6 @@ SUMMARY_OUTPUT="${ARTIFACT_DIR}/baseline-refresh-summary.txt"
 LATEST_ARTIFACT_LINK="${REFRESH_ROOT}/latest"
 LATEST_SUMMARY_LINK="${REFRESH_ROOT}/latest-baseline-refresh-summary.txt"
 LATEST_REPORT_LINK="${REFRESH_ROOT}/latest-baseline-report.out"
-
-normalize_flag() {
-  local value="${1,,}"
-  case "${value}" in
-    true|false) printf '%s' "${value}" ;;
-    *)
-      echo "unsupported flag value: ${1}" >&2
-      exit 1
-      ;;
-  esac
-}
 
 extract_key_value() {
   local output_file="$1"
@@ -54,7 +43,7 @@ with open(output_file, "r", encoding="utf-8") as fp:
 PY
 }
 
-KEEP_ARTIFACTS="$(normalize_flag "${KEEP_ARTIFACTS}")"
+KEEP_ARTIFACTS="$(smoke_normalize_bool "${KEEP_ARTIFACTS}")"
 
 mkdir -p "${ARTIFACT_DIR}"
 
@@ -167,9 +156,10 @@ print(f"summary_output={summary_output}")
 PY
 
 mkdir -p "${REFRESH_ROOT}"
-ln -sfn "${ARTIFACT_DIR}" "${LATEST_ARTIFACT_LINK}"
-ln -sfn "${SUMMARY_OUTPUT}" "${LATEST_SUMMARY_LINK}"
-ln -sfn "${REPORT_OUTPUT}" "${LATEST_REPORT_LINK}"
+smoke_update_links \
+  "${ARTIFACT_DIR}" "${LATEST_ARTIFACT_LINK}" \
+  "${SUMMARY_OUTPUT}" "${LATEST_SUMMARY_LINK}" \
+  "${REPORT_OUTPUT}" "${LATEST_REPORT_LINK}"
 
 echo
 echo "recommendation ai exclusion baseline refresh passed"

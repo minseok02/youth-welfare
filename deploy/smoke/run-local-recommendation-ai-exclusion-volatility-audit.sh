@@ -9,20 +9,9 @@ RUN_COUNT="${RUN_COUNT:-3}"
 BASELINE_SUMMARY="${BASELINE_SUMMARY:-}"
 KEEP_ARTIFACTS="${KEEP_ARTIFACTS:-true}"
 
-RUN_TS_UTC="$(date -u +%Y%m%dT%H%M%SZ)"
+RUN_TS_UTC="$(smoke_now_ts_utc)"
 ARTIFACT_DIR="${ARTIFACT_DIR:-${ROOT_DIR}/tmp/recommendation-ai-exclusion-volatility/${RUN_TS_UTC}}"
 SUMMARY_OUTPUT="${ARTIFACT_DIR}/volatility-summary.txt"
-
-normalize_flag() {
-  local value="${1,,}"
-  case "${value}" in
-    true|false) printf '%s' "${value}" ;;
-    *)
-      echo "unsupported flag value: ${1}" >&2
-      exit 1
-      ;;
-  esac
-}
 
 find_recent_summaries() {
   find "${SNAPSHOT_ROOT}" -type f -name 'ai-exclusion-snapshot-summary.txt' | sort
@@ -46,7 +35,7 @@ with open(output_file, "r", encoding="utf-8") as fp:
 PY
 }
 
-KEEP_ARTIFACTS="$(normalize_flag "${KEEP_ARTIFACTS}")"
+KEEP_ARTIFACTS="$(smoke_normalize_bool "${KEEP_ARTIFACTS}")"
 
 if [[ ! "${RUN_COUNT}" =~ ^[0-9]+$ ]] || (( RUN_COUNT < 2 )); then
   echo "RUN_COUNT must be an integer >= 2" >&2
