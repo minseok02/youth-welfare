@@ -52,12 +52,18 @@
 - active 문서가 지금 truth와 맞는가
 - 로컬 예시 자격과 example 계정을 public-facing 진입점에서 분리했는가
 - troubleshooting에 왜 그렇게 했는지 남아 있는가
+- repo-wide grep에 아직 남는 credential-like 문자열이 active 누락인지, intentional smoke/test/history scope인지 구분돼 있는가
 
 우선 파일:
 
 - [start.md](../start.md)
 - [current-state.md](../current-state.md)
 - [troubleshooting-log.md](../core/troubleshooting-log.md)
+
+review hint:
+
+- 현재 남아 있는 `admin@example.com`, `password123!`, `Password123!`, `welfare1234!` 류 문자열은 active/current/support/handoff 누락보다 `phase-plan` / `troubleshooting-log` 이력, `deploy/smoke` local 기본값, `backend/src/test/**`, `application-integration.yml` fixture에 집중돼 있다
+- 즉 reviewer는 “문서 hygiene 누락”과 “local smoke/test fixture 계약”을 같은 문제로 보지 않는 편이 맞다
 
 ## reviewer가 먼저 확인할 현재 판정
 

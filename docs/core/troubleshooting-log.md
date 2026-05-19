@@ -1,5 +1,10 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 350) reviewer quick entrypoint에 남은 intentional credential-like inventory를 명시하지 않으면, 이미 분류한 hygiene 이슈도 PR 코멘트에서 반복된다
+- 문제: active/current/support/handoff/history 문서와 `.env.example` 정리를 끝내고 남은 매치를 intentional scope로 분류해도, reviewer는 보통 PR 전체 grep 결과를 먼저 보기 때문에 `deploy/smoke` 기본값이나 test fixture까지 다시 “문서 hygiene 누락”으로 읽을 수 있다. 분류 결과가 active current-state/phase-plan에만 있으면 reviewer quick entrypoint에서는 이 맥락이 바로 보이지 않는다
+- 해결: `recommendation-pr-review-brief.md` 의 active docs / handoff hygiene 섹션에 남은 `admin@example.com`, `password123!`, `Password123!`, `welfare1234!` 류 문자열이 `phase-plan` / `troubleshooting-log` 이력, `deploy/smoke` local 기본값, `backend/src/test/**`, `application-integration.yml` fixture에 집중돼 있다는 reviewer hint를 추가했다
+- 이유: 지금 단계의 reviewer 질문은 “남은 문자열이 있냐”보다 “그 문자열이 active 문서 누락이냐 intentional fixture냐”를 빠르게 가르는 것이다. reviewer 진입점 문서에 이 분류를 직접 적어 두는 편이 같은 hygiene 질문의 반복 비용을 줄인다
+
 ## 349) repo-wide grep에서 credential-like 문자열이 계속 잡혀도, active 문서 정리와 smoke/test fixture 정리는 같은 문제로 취급하면 안 된다
 - 문제: active/current/support/handoff/history 문서와 `.env.example` 까지 placeholder 정리를 끝낸 뒤에도 repo-wide grep에는 `admin@example.com`, `password123!`, `Password123!`, `welfare1234!` 같은 문자열이 계속 남아 있었다. 이 상태만 보면 문서 hygiene가 덜 끝난 것처럼 보이지만, 실제 남은 매치는 `docs/phase-plan.md`, `docs/core/troubleshooting-log.md` 같은 이력 기록과 `deploy/smoke` 기본값, `backend/src/test/**`, `application-integration.yml` fixture에 집중돼 있었다
 - 해결: 남은 매치를 `1) active/public-facing entrypoint 문서`, `2) history/troubleshooting 이력`, `3) local smoke 기본값`, `4) backend test/integration fixture` 로 분리해 다시 inventory를 남겼다. active/public-facing entrypoint는 placeholder 기준으로 유지하고, 남은 문자열은 동작 재현과 회귀 검증에 필요한 intentional scope로 문서화했다
