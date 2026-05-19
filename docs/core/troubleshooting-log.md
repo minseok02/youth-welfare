@@ -1,5 +1,10 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 367) `REAL_USER` cohort가 커지면 zero-reason distribution wrapper가 rows를 env/argv로 넘기다 `Argument list too long` 로 터질 수 있다
+- 문제: `run-local-recommendation-ai-zero-reason-distribution-audit.sh` 는 latest batch rows를 `rows="$(...)"` 로 모은 뒤 `RAW_ROWS="${rows}" python3 ...` 형태로 Python에 넘겼다. 13명 정도까지는 버텼지만, 30명 `REAL_USER` 샘플로 latest batch rows가 커지자 readiness/overview 내부에서 `/usr/bin/python3: Argument list too long` 로 깨졌다. 이 상태면 `dashboard_real_user_gate=READY_REAL_USER_TRAFFIC`, `breakdown_real_user_cohort_gate=READY_REAL_USER_COHORT` 까지는 확인돼도, 바로 이어지는 zero-AI distribution 단계에서 wrapper가 중단된다.
+- 해결: DB rows를 환경변수로 넘기지 않고 `mktemp` file에 저장한 뒤 Python이 그 파일을 직접 읽게 바꿨다. 이렇게 하면 cohort row 수가 커져도 shell env/argv 한계에 걸리지 않는다.
+- 이유: recommendation evidence wrapper는 small bounded sample뿐 아니라 distributed `REAL_USER` cohort가 커졌을 때도 same entrypoint로 계속 돌아가야 한다. row payload를 env/argv로 넘기는 구현은 cohort 확장 시 깨지기 쉬우므로, file handoff로 바꾸는 편이 맞다.
+
 ## 366) homogeneous `REAL_USER` 몇 개만으로는 zero-AI/exclusion 분포를 과소평가할 수 있다
 - 문제: local generic-domain signup 계정 3개로 처음 `account_origin=REAL_USER` 샘플을 만들었을 때는 live readiness gate는 열렸지만 `real_user_distribution_executed=true`, `zero_ai_rows=0` 이라, real-user window에서는 exclusion bucket이 사실상 사라진 것처럼 보였다. 하지만 이 3개는 지역/소득/취업상태가 거의 비슷한 homogeneous 샘플이어서, 실제 분산 프로필 real-user window를 대표한다고 보기 어려웠다.
 - 해결: `birthDate/sido/sgg/incomeLevel/employmentStatus/householdType` 를 서로 다르게 준 generic-domain signup 계정 10개를 추가로 만들고 refresh + click까지 다시 쌓아, 총 13명 real-user window로 readiness와 distribution을 재실행했다. 그 결과 `dashboard_real_user_gate=READY_REAL_USER_TRAFFIC`, `breakdown_real_user_cohort_gate=READY_REAL_USER_COHORT` 는 유지되면서도 `zero_ai_rows=14`, `zero_ai_reason_buckets=AUDIENCE_MISMATCH:1,INCOME_MISMATCH:5,OTHER:5,STUDENT_AUDIENCE_MISMATCH:3` 가 다시 드러났다. 동시에 real-user-only concentration은 `top1_share_pct=23.08`, `concentration_readiness=NO_PRIORITY_DOMINANT` 로 분산됐다.

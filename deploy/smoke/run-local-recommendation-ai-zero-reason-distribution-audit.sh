@@ -85,18 +85,23 @@ rows="$(
   "
 )"
 
-RAW_ROWS="${rows}" python3 - "${USER_COHORT}" "${TOP_N}" "${SAMPLE_LIMIT}" <<'PY'
+rows_file="$(mktemp)"
+trap 'rm -f "${rows_file}"' EXIT
+printf '%s\n' "${rows}" > "${rows_file}"
+
+python3 - "${USER_COHORT}" "${TOP_N}" "${SAMPLE_LIMIT}" "${rows_file}" <<'PY'
 import csv
 import io
-import os
 import sys
 from collections import Counter
 
 user_cohort = sys.argv[1]
 top_n = int(sys.argv[2])
 sample_limit = int(sys.argv[3])
+rows_path = sys.argv[4]
 
-raw = os.environ.get("RAW_ROWS", "")
+with open(rows_path, "r", encoding="utf-8") as fp:
+    raw = fp.read()
 reader = csv.reader(io.StringIO(raw), delimiter="\t")
 rows = []
 for row in reader:

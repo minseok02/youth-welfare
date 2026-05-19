@@ -13,6 +13,8 @@
 
 즉 이 runbook은 refresh를 새로 만들지 않고, cohort 전반의 latest batch를 read-only로 보는 분포 audit 입니다.
 
+현재 local처럼 `REAL_USER` 샘플을 30명 수준까지 늘린 경우에도 이 wrapper는 cohort rows를 temp file로 넘기므로, 큰 latest batch row를 그대로 읽어도 `Argument list too long` 없이 실행되는 쪽이 맞습니다.
+
 ## 언제 쓰나
 
 다음 중 하나일 때 씁니다.
