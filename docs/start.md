@@ -44,6 +44,7 @@
 - `REAL_USER` readiness까지 같이 보려면 `APP_BASE_URL='http://127.0.0.1:8082' ADMIN_EMAIL='<local admin email>' ADMIN_PASSWORD='<local admin password>' INCLUDE_REAL_USER_READINESS=true bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-overview.sh`
 - overview artifact는 `tmp/recommendation-ai-exclusion-latest-overview/latest-overview-summary.txt`, `latest-overview-note.md`, `latest-overview.json` 을 먼저 봅니다.
 - reviewer/handoff 관점으로 이번 closeout 범위를 먼저 읽으려면 [recommendation-pr-review-brief.md](./recommendation/recommendation-pr-review-brief.md)
+- 현재 draft PR을 왜 유지하는지와 draft 해제 조건을 보려면 [recommendation-pr-draft-exit-checklist.md](./recommendation/recommendation-pr-draft-exit-checklist.md)
 - 지금 recommendation 상태만 빠르게 보려면 `bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-status.sh`
 - 운영 메모/핸드오프용 산출물이 필요하면 `bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-status-export.sh`
 - 자동 판정만 보려면 `bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-gate.sh`

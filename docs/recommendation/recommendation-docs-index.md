@@ -22,6 +22,7 @@
 - [recommendation-real-user-baseline-runbook.md](./recommendation-real-user-baseline-runbook.md)
 - [recommendation-real-user-exclusion-readiness-check-runbook.md](./recommendation-real-user-exclusion-readiness-check-runbook.md)
 - [recommendation-real-user-recheck-checklist.md](./recommendation-real-user-recheck-checklist.md)
+- [recommendation-pr-draft-exit-checklist.md](./recommendation-pr-draft-exit-checklist.md)
 - [recommendation-ai-exclusion-snapshot-runbook.md](./recommendation-ai-exclusion-snapshot-runbook.md)
 - [recommendation-ai-exclusion-snapshot-compare-runbook.md](./recommendation-ai-exclusion-snapshot-compare-runbook.md)
 - [recommendation-ai-exclusion-drift-check-runbook.md](./recommendation-ai-exclusion-drift-check-runbook.md)
@@ -229,6 +230,12 @@
 - [recommendation-pr-review-brief.md](./recommendation-pr-review-brief.md)
 
 이 문서는 reviewer가 이번 closeout PR을 `Gov24 closeout / recommendation observability / active docs hygiene` 세 덩어리로 빠르게 읽게 정리한 brief 입니다.
+
+### 8-3. PR draft exit checklist
+
+- [recommendation-pr-draft-exit-checklist.md](./recommendation-pr-draft-exit-checklist.md)
+
+이 문서는 author 관점에서 현재 draft PR을 왜 유지하는지, 언제 reviewer-ready 또는 merge-ready로 올릴지 정리한 checklist 입니다.
 
 ### 9. signal gap audit runbook
 

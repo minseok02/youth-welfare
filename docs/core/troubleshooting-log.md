@@ -1,5 +1,10 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 351) draft PR이 왜 아직 draft인지와 언제 draft를 풀 수 있는지 한 장으로 안 적어두면, blocker가 코드인지 evidence 부재인지 다시 섞인다
+- 문제: current-state와 reviewer brief만으로도 현재 blocker가 `REAL_USER` traffic/cohort 부재라는 점은 읽을 수 있었지만, author 관점에서 “그래서 지금 draft를 유지하는 이유가 코드 미완성인지, evidence 부재인지”와 “언제 reviewer-ready 또는 merge-ready로 올릴지”는 한 문서에 모여 있지 않았다. 이 상태면 같은 closeout PR을 두고도 draft 유지 이유가 다시 코드 결함처럼 읽히기 쉽다
+- 해결: `recommendation-pr-draft-exit-checklist.md` 를 추가해 현재 draft 유지 이유를 `operator_next_step=WAIT_FOR_REAL_USER_TRAFFIC`, readiness deferred, `VOLATILE_ONLY_DRIFT` 관찰 상태 기준으로 고정하고, `draft 유지 / reviewer-ready / merge-ready` 경계를 분리해서 정리했다. 동시에 `start`, `current-state`, `phase-plan`, `recommendation-docs-index`, `recommendation-pr-review-brief` 에 entrypoint를 연결했다
+- 이유: 지금 단계의 남은 과제는 새 코드보다 “언제 closeout review만 받고, 언제 REAL_USER evidence까지 확인한 뒤 merge 판단으로 넘어갈지”를 분리하는 것이다. author-side draft exit 기준을 따로 적어 두는 편이 PR 해석을 더 안정적으로 만든다
+
 ## 350) reviewer quick entrypoint에 남은 intentional credential-like inventory를 명시하지 않으면, 이미 분류한 hygiene 이슈도 PR 코멘트에서 반복된다
 - 문제: active/current/support/handoff/history 문서와 `.env.example` 정리를 끝내고 남은 매치를 intentional scope로 분류해도, reviewer는 보통 PR 전체 grep 결과를 먼저 보기 때문에 `deploy/smoke` 기본값이나 test fixture까지 다시 “문서 hygiene 누락”으로 읽을 수 있다. 분류 결과가 active current-state/phase-plan에만 있으면 reviewer quick entrypoint에서는 이 맥락이 바로 보이지 않는다
 - 해결: `recommendation-pr-review-brief.md` 의 active docs / handoff hygiene 섹션에 남은 `admin@example.com`, `password123!`, `Password123!`, `welfare1234!` 류 문자열이 `phase-plan` / `troubleshooting-log` 이력, `deploy/smoke` local 기본값, `backend/src/test/**`, `application-integration.yml` fixture에 집중돼 있다는 reviewer hint를 추가했다

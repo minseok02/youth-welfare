@@ -59,6 +59,7 @@
 - [start.md](../start.md)
 - [current-state.md](../current-state.md)
 - [troubleshooting-log.md](../core/troubleshooting-log.md)
+- [recommendation-pr-draft-exit-checklist.md](./recommendation-pr-draft-exit-checklist.md)
 
 review hint:
 
