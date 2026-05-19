@@ -1,5 +1,10 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 348) active support 문서와 `.env.example` 까지 같이 보지 않으면, repo-wide 예시 자격 inventory는 계속 남아 있게 된다
+- 문제: active/current/history/support 문서를 순서대로 정리한 뒤에도 `policy-admin-runtime-runbook.md`, `frontend-qa-current-state.md`, `frontend-qa-session-2026-05-17.md`, `.env.example` 에는 여전히 `admin@example.com`, `password123!` 같은 예시가 남아 있었다. 특히 `.env.example` 은 문서가 아니라 설정 예시라서, grep 기준으로는 쉽게 놓치기 쉽다
+- 해결: active support 문서의 admin 예시는 `<local admin email>`, `<local admin password>` placeholder로 맞추고, `.env.example` 의 `SECURITY_ADMIN_EMAILS` 는 단일 예시 계정보다 `admin1@example.com,admin2@example.com` 처럼 “allowlist 형식 예시”가 보이게 바꿨다
+- 이유: repo hygiene는 문서만 정리해서 끝나지 않는다. 실제 operator가 복사하는 support 문서와 설정 예시 파일까지 같이 봐야 “무엇을 넣어야 하는지”는 남기고 “지금 값을 그대로 쓰면 되는 것처럼 보이는 예시”는 줄일 수 있다
+
 ## 347) active 문서만 정리해도 history 문서에 예시 자격이 남아 있으면 public repo hygiene 관점의 노이즈는 완전히 사라지지 않는다
 - 문제: active/current/support 문서는 placeholder 기준으로 정리했지만, `docs/history/ai/policy-normalization-education-priority-replay-procedure.md` 같은 history 문서에는 여전히 `Password123!` 류 예시 자격이 남아 있었다. history 문서는 현재 계약을 덮어쓰지 않더라도, public repo scan이나 reviewer 시야에서는 같은 문자열이 계속 잡혀 noise가 남는다
 - 해결: history 문서의 sample credential 예시도 `<sample A password>`, `<sample B password>` 같은 placeholder로 바꿨다. 현재 계약과 실행 순서는 여전히 active 문서가 기준이고, history 문서는 배경 기록만 남긴다

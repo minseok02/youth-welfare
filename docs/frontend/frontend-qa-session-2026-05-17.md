@@ -14,12 +14,12 @@
 - 관련 baseline:
   - `cd frontend && npm run lint` 통과
   - `cd frontend && npm run build` 통과
-  - `ADMIN_PASSWORD=password123! ./deploy/smoke/run-local-admin-dashboard-smoke.sh` 통과
-  - `ADMIN_PASSWORD=password123! ./deploy/smoke/run-local-admin-recommendation-breakdowns-smoke.sh` 통과
+  - `ADMIN_PASSWORD=<local admin password> ./deploy/smoke/run-local-admin-dashboard-smoke.sh` 통과
+  - `ADMIN_PASSWORD=<local admin password> ./deploy/smoke/run-local-admin-recommendation-breakdowns-smoke.sh` 통과
 
 ## 사전 조건
 
-- admin 사용자: `admin@example.com`
+- admin 사용자: `<local admin email>`
 - 일반 사용자: `recommend.cl.af8b89b472bd4b@example.com`
 - 시작 URL: `http://127.0.0.1:5173`
 - backend API origin: `http://app:8080` (container network 기준)
