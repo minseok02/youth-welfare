@@ -62,6 +62,7 @@
 - reviewer가 현재 closeout 범위를 승인
 - `REAL_USER` blocker는 “후속 운영 관찰 과제”로 분리
 - current-state / phase-plan / PR 본문에 그 분리가 명시됨
+- merge 뒤 follow-up 기준은 [recommendation-post-merge-followup-checklist.md](./recommendation-post-merge-followup-checklist.md) 로 넘김
 
 ### 2. `REAL_USER` 확인까지 보고 merge
 

@@ -1,5 +1,10 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 352) draft exit 문서만 있고 merge 뒤 follow-up 기준이 없으면, closeout merge 후에도 `REAL_USER` reopen과 current-state 유지가 다시 한 문맥으로 섞인다
+- 문제: `recommendation-pr-draft-exit-checklist.md` 로 draft 유지와 reviewer-ready/merge-ready 경계는 정리됐지만, merge된 뒤 무엇을 다시 남기고 어떤 해석을 계속 유지할지는 별도 문서가 없었다. 이 상태면 merge 직후에도 `latest-overview` 재실행, handoff artifact 갱신, `REAL_USER` gate가 열렸을 때 reopen 순서를 다시 한 번 섞어 읽게 된다
+- 해결: `recommendation-post-merge-followup-checklist.md` 를 추가해 merge 직후 `latest-overview` / `latest-status-export` 재실행, 유지할 current 해석, `REAL_USER` gate가 열렸을 때 다시 볼 문서를 분리했다. 동시에 `start`, `current-state`, `phase-plan`, `recommendation-docs-index`, `recommendation-pr-draft-exit-checklist` 에 entrypoint를 연결했다
+- 이유: closeout PR은 draft exit과 merge 후 follow-up이 다르다. 하나는 “언제 review/merge 판단으로 올릴지”, 다른 하나는 “merge 뒤 무엇을 계속 관찰할지”이므로, 두 단계를 분리해 둬야 reopen 경계가 다시 흐려지지 않는다
+
 ## 351) draft PR이 왜 아직 draft인지와 언제 draft를 풀 수 있는지 한 장으로 안 적어두면, blocker가 코드인지 evidence 부재인지 다시 섞인다
 - 문제: current-state와 reviewer brief만으로도 현재 blocker가 `REAL_USER` traffic/cohort 부재라는 점은 읽을 수 있었지만, author 관점에서 “그래서 지금 draft를 유지하는 이유가 코드 미완성인지, evidence 부재인지”와 “언제 reviewer-ready 또는 merge-ready로 올릴지”는 한 문서에 모여 있지 않았다. 이 상태면 같은 closeout PR을 두고도 draft 유지 이유가 다시 코드 결함처럼 읽히기 쉽다
 - 해결: `recommendation-pr-draft-exit-checklist.md` 를 추가해 현재 draft 유지 이유를 `operator_next_step=WAIT_FOR_REAL_USER_TRAFFIC`, readiness deferred, `VOLATILE_ONLY_DRIFT` 관찰 상태 기준으로 고정하고, `draft 유지 / reviewer-ready / merge-ready` 경계를 분리해서 정리했다. 동시에 `start`, `current-state`, `phase-plan`, `recommendation-docs-index`, `recommendation-pr-review-brief` 에 entrypoint를 연결했다
