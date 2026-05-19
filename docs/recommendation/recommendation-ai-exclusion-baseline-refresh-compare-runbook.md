@@ -2,6 +2,20 @@
 
 문서군 진입점: [recommendation-docs-index.md](./recommendation-docs-index.md)
 
+관련 문서:
+
+- [recommendation-pr-review-brief.md](./recommendation-pr-review-brief.md)
+- [recommendation-pr-draft-exit-checklist.md](./recommendation-pr-draft-exit-checklist.md)
+- [recommendation-post-merge-followup-checklist.md](./recommendation-post-merge-followup-checklist.md)
+- [recommendation-real-user-recheck-checklist.md](./recommendation-real-user-recheck-checklist.md)
+- [recommendation-ai-exclusion-baseline-refresh-runbook.md](./recommendation-ai-exclusion-baseline-refresh-runbook.md)
+
+## 현재 단계 해석
+
+현재 local 기본 해석은 여전히 `WAIT_FOR_REAL_USER_TRAFFIC` 이고, latest recommendation reading은 `VOLATILE_ONLY_DRIFT` 입니다.
+
+즉 이 compare runbook은 새 제품 판단을 여는 문서가 아니라, **이미 만들어 둔 baseline refresh summary 두 개를 놓고 stable baseline과 latest observation 중 무엇이 바뀌었는지 compact하게 재분류할 때 쓰는 read-only helper** 로 읽는 것이 맞습니다.
+
 ## 목적
 
 이 문서는 `baseline-refresh-summary.txt` 두 개만 놓고

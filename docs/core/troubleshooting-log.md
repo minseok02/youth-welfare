@@ -1,5 +1,10 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 361) baseline refresh 계열 runbook이 current blocker 없이 compare/refresh mechanics만 설명하면, deeper helper도 reopen/tuning gate처럼 읽히기 쉽다
+- 문제: `recommendation-ai-exclusion-baseline-refresh-runbook.md`, `recommendation-ai-exclusion-baseline-refresh-drift-check-runbook.md`, `recommendation-ai-exclusion-baseline-refresh-compare-runbook.md` 는 baseline 재실행과 compare mechanics는 잘 설명하지만, current local 기본값이 아직 `WAIT_FOR_REAL_USER_TRAFFIC` 이고 latest reading이 `VOLATILE_ONLY_DRIFT` 라는 맥락은 직접 말하지 않았다. 이 상태면 operator가 deeper helper를 열었을 때도 “지금 recommendation을 다시 열어야 하나”와 “baseline을 더 정리하는 중인가”를 다시 추론해야 한다
+- 해결: 세 runbook 상단에 companion docs(`review brief / draft exit / post-merge / real-user recheck`)와 current 단계 해석(`WAIT_FOR_REAL_USER_TRAFFIC`, `VOLATILE_ONLY_DRIFT`, basic/strict gate)을 추가하고, 이 문서들이 현재는 stable baseline / volatile observation을 더 명확히 분리하는 deeper helper라는 점을 직접 적었다
+- 이유: overview/current-state만 current blocker를 말하고 deeper helper가 mechanics만 설명하면, 문서 층위가 내려갈수록 다시 immediate tuning backlog처럼 읽히는 drift가 생긴다. baseline refresh 계열도 current stage를 먼저 말해야 operator가 “지금은 유지 단계, 이건 해석 보조 도구”라는 맥락을 잃지 않는다
+
 ## 360) primary audience exclusion decision memo가 current blocker와 lifecycle companion docs를 안 말하면, gate가 닫힌 시기에도 “지금 당장 tuning” 문서처럼 읽히기 쉽다
 - 문제: `recommendation-real-user-baseline-runbook.md`, `recommendation-reopen-decision-runbook.md`, `recommendation-next-lane-brief.md` 까지는 `WAIT_FOR_REAL_USER_TRAFFIC` 와 companion lifecycle 문서를 직접 말하도록 맞췄지만, `recommendation-primary-audience-exclusion-decision-memo.md` 는 여전히 bucket 해석 자체에만 집중하고 있었다. 이 상태면 operator/reviewer가 이 memo만 바로 열었을 때 현재 단계가 아직 `REAL_USER` gate deferred 라는 점보다 “어떤 exclusion을 완화할지”에 먼저 시선이 가기 쉽다
 - 해결: decision memo 상단에 companion docs(`review brief / draft exit / post-merge / real-user recheck / reopen decision`)와 current 단계 해석(`WAIT_FOR_REAL_USER_TRAFFIC`, `DEFERRED_NO_REAL_USER_TRAFFIC / DEFERRED_NO_REAL_USER_COHORT`)을 직접 추가하고, reopen 조건도 `REAL_USER` gate가 실제로 열린 뒤 반복 evidence가 생기는 경우로 다시 적었다
