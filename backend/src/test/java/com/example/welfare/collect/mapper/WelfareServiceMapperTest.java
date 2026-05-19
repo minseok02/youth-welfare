@@ -151,6 +151,23 @@ class WelfareServiceMapperTest {
     }
 
     @Test
+    void toYouthDetailAggregate_usesShorterReferenceUrlWhenPrimaryIsTooLong() throws Exception {
+        YouthApiDto.Item detail = new YouthApiDto.Item();
+        setField(detail, "plcyNo", "Y008");
+        setField(detail, "plcyNm", "긴 URL 정책");
+        setField(detail, "lclsfNm", "교육");
+        setField(detail, "refUrlAddr1", "https://example.com/" + "a".repeat(530));
+        setField(detail, "refUrlAddr2", "https://short.example.com/reference");
+
+        WelfareService service = mapper.fromYouth(detail);
+        var aggregate = mapper.toYouthDetailAggregate(service, detail);
+
+        assertThat(aggregate.core().detailUrl()).isEqualTo("https://short.example.com/reference");
+        assertThat(aggregate.detail().referenceUrlsJson()).contains("https://short.example.com/reference");
+        assertThat(aggregate.detail().referenceUrlsJson()).contains("https://example.com/");
+    }
+
+    @Test
     void fromBokjiroLocal_extractsAgeAndOnlineApplyFromText() throws Exception {
         BokjiroLocalDto.Item item = new BokjiroLocalDto.Item();
         setField(item, "servId", "L001");

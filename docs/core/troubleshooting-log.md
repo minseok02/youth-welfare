@@ -5566,6 +5566,29 @@
     - `14141 국가근로장학금 -> userType=['개인'], benefit=['현금(장학금)']`
   - 즉 서버 기준으로도 `raw summary label 유지 + canonical term 우선 token projection` 이 함께 닫혔다.
 
+## 898) YOUTH 멀티코드 official fact는 `fact_code VARCHAR(64)` 에 전체 CSV를 넣지 말고 `raw_value` 로 보존해야 한다
+- 문제: 운영 서버 `YOUTH` list collect 가 `PARTIAL_SUCCESS` 로 떨어졌고, 실패 13건 모두 `service_facts.fact_code` 길이 초과였다. 실제 원인은 `jobCd`, `schoolCd` 같은 공식 멀티코드를 `0013001,...` 식 CSV로 합쳐 `fact_code` 에 그대로 넣은 것이었다.
+- 해결:
+  - `YouthNormalizationSupport.addEmploymentRequirementFact()`, `addEducationRequirementFact()`, `addSpecialRequirementFact()` 는 이제 aggregate fact에서
+    - `fact_code` 는 첫 canonical code만 저장하고
+    - 전체 official CSV는 `raw_value`
+    - label CSV는 `text_value/evidence_text`
+    로 보존한다.
+  - `CanonicalRecommendationReadModelRepository` 는 YOUTH 멀티코드 소비 시 `fact_code` 대신 `raw_value` 를 우선 split 하도록 바꿨다. 따라서 diagnostics/detail/card/admin facet 에서 보이는 code list는 유지되면서, 저장층은 `VARCHAR(64)` 제한 안으로 들어온다.
+- 이유:
+  - `fact_code` 는 인덱스/정규화 축이라 aggregate CSV 전체를 넣는 것보다 원자값 또는 대표값으로 두는 편이 맞다.
+  - 소비처가 `raw_value` fallback 을 같이 읽으면 backward compatibility를 깨지 않고 서버 수집 실패를 닫을 수 있다.
+
+## 899) YOUTH detail 긴 참고 URL은 `homepage_url VARCHAR(500)` 에 직접 넣지 말고 500자 이하 대표 URL만 남겨야 한다
+- 문제: 운영 서버 `YOUTH_DETAILS` lane 에서 `refUrlAddr1` 이 542자인 row 1건이 `welfare_service_details.homepage_url VARCHAR(500)` 초과로 실패했다. 코드상 `aplyUrlAddr -> refUrlAddr1 -> refUrlAddr2` 중 첫 non-blank URL을 그대로 `detailUrl/homepageUrl` 로 넣고 있었다.
+- 해결:
+  - `WelfareServiceMapper.toYouthDetailAggregate()` 는 이제 `aplyUrlAddr`, `refUrlAddr1`, `refUrlAddr2` 중 **500자 이하인 첫 URL**만 대표 `detailUrl/onlineApplyUrl` 로 선택한다.
+  - `BokjiroDetailPersistenceSupport.mergeDetail()` 에도 길이 가드를 넣어, 다른 경로에서 긴 URL이 들어와도 `homepage_url` 에는 500자 이하 URL만 저장되도록 보강했다.
+  - 전체 URL 원문 보존은 기존처럼 `reference_urls_json` 에 계속 남긴다.
+- 이유:
+  - `homepage_url` 은 대표 URL 성격이고, 긴 원문 후보 전체 보존은 이미 `reference_urls_json` 이 담당한다.
+  - 이 문제는 스키마를 바로 `TEXT` 로 넓히기보다, 대표 URL 선택 규칙을 bounded 하게 고치는 편이 현재 저장 경계에 더 잘 맞는다.
+
 ## 891) `생애주기/대상군` prompt 보강은 일부 row를 살리지만, `3257/3209` 핵심 케이스는 여전히 primary audience mismatch로 0점이 유지된다
 - 문제: `3257/3209/3287` 의 `savedAi=0` 이 prompt line에 청년 신호가 약해서인지, 아니면 AI가 수급자/신혼부부/학생 같은 대상군 불일치를 강한 exclusion으로 해석해서인지 확정이 필요했다.
 - 해결:

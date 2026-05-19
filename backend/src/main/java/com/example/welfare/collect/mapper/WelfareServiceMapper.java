@@ -173,7 +173,10 @@ public class WelfareServiceMapper {
     }
 
     public NormalizedPolicyAggregate toYouthDetailAggregate(WelfareService service, YouthApiDto.Item detail) {
-        String resolvedUrl = firstNonBlank(detail.getAplyUrlAddr(), detail.getRefUrlAddr1(), detail.getRefUrlAddr2());
+        String resolvedUrl = firstNormalizedUrlWithinMaxLength(500,
+                detail.getAplyUrlAddr(),
+                detail.getRefUrlAddr1(),
+                detail.getRefUrlAddr2());
         boolean onlineApply = inferOnlineApply(resolvedUrl, detail.getPlcyAplyMthdCn());
         String provisionMethodLabel =
                 YouthOfficialCodeSupport.resolveProvisionMethodLabel(detail.getPlcyPvsnMthdCd(), service.getApplyMethodName());
@@ -735,6 +738,25 @@ public class WelfareServiceMapper {
                 return "https://" + normalized;
             }
             return normalized;
+        }
+        return null;
+    }
+
+    private String firstNormalizedUrlWithinMaxLength(int maxLength, String... values) {
+        if (values == null) {
+            return null;
+        }
+        for (String value : values) {
+            String normalized = RawFieldValidator.normalize(value);
+            if (normalized == null) {
+                continue;
+            }
+            String candidate = normalized.regionMatches(true, 0, "www.", 0, 4)
+                    ? "https://" + normalized
+                    : normalized;
+            if (candidate.length() <= maxLength) {
+                return candidate;
+            }
         }
         return null;
     }

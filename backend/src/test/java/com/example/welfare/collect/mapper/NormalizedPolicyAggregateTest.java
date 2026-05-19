@@ -79,7 +79,8 @@ class NormalizedPolicyAggregateTest {
                 .filteredOn(fact -> "YOUTH_EMPLOYMENT_REQUIREMENT".equals(fact.factMergeKey()))
                 .singleElement()
                 .satisfies(fact -> {
-                    assertThat(fact.factCode()).isEqualTo("0013003,0013006");
+                    assertThat(fact.factCode()).isEqualTo("0013003");
+                    assertThat(fact.rawValue()).isEqualTo("0013003,0013006");
                     assertThat(fact.textValue()).isEqualTo("미취업자, (예비)창업자");
                     assertThat(fact.factCodeSetKey()).isEqualTo("YOUTH_EMPLOYMENT_REQUIREMENT");
                 });
@@ -87,7 +88,8 @@ class NormalizedPolicyAggregateTest {
                 .filteredOn(fact -> "YOUTH_EDUCATION_REQUIREMENT".equals(fact.factMergeKey()))
                 .singleElement()
                 .satisfies(fact -> {
-                    assertThat(fact.factCode()).isEqualTo("0049005,0049006");
+                    assertThat(fact.factCode()).isEqualTo("0049005");
+                    assertThat(fact.rawValue()).isEqualTo("0049005,0049006");
                     assertThat(fact.textValue()).isEqualTo("대학 재학, 대졸 예정");
                     assertThat(fact.factCodeSetKey()).isEqualTo("YOUTH_EDUCATION_REQUIREMENT");
                 });
@@ -111,7 +113,8 @@ class NormalizedPolicyAggregateTest {
                 .filteredOn(fact -> "YOUTH_SPECIAL_REQUIREMENT".equals(fact.factMergeKey()))
                 .singleElement()
                 .satisfies(fact -> {
-                    assertThat(fact.factCode()).isEqualTo("0014003,0014008");
+                    assertThat(fact.factCode()).isEqualTo("0014003");
+                    assertThat(fact.rawValue()).isEqualTo("0014003,0014008");
                     assertThat(fact.textValue()).isEqualTo("기초생활수급자, 지역인재");
                     assertThat(fact.factCodeSetKey()).isEqualTo("YOUTH_SPECIAL_REQUIREMENT");
                 });

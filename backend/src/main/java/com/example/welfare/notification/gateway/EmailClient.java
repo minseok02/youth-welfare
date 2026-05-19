@@ -1,6 +1,7 @@
 package com.example.welfare.notification.gateway;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.mail.MailException;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
@@ -14,6 +15,7 @@ public class EmailClient {
     private final JavaMailSender mailSender;
     private final MailDeliveryProperties mailDeliveryProperties;
 
+    @Autowired
     public EmailClient(JavaMailSender mailSender, MailDeliveryProperties mailDeliveryProperties) {
         this.mailSender = mailSender;
         this.mailDeliveryProperties = mailDeliveryProperties;

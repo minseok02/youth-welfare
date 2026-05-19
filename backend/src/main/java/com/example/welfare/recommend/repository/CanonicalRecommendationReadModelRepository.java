@@ -68,6 +68,7 @@ public class CanonicalRecommendationReadModelRepository {
                     stringValue(row.get("fact_merge_key")),
                     stringValue(row.get("fact_code_set_key")),
                     stringValue(row.get("fact_code")),
+                    stringValue(row.get("raw_value")),
                     stringValue(row.get("text_value"))
             );
         }
@@ -204,6 +205,7 @@ public class CanonicalRecommendationReadModelRepository {
                        fact_merge_key,
                        fact_code_set_key,
                        fact_code,
+                       raw_value,
                        text_value
                 FROM service_facts
                 WHERE service_id IN (:serviceIds)
@@ -376,20 +378,21 @@ public class CanonicalRecommendationReadModelRepository {
             RecommendationProjectionHeuristicSupport.collectSpecialTargetBuckets(specialTargetBuckets, termLabel);
         }
 
-        void addFact(String factMergeKey, String factCodeSetKey, String factCode, String textValue) {
+        void addFact(String factMergeKey, String factCodeSetKey, String factCode, String rawValue, String textValue) {
             if (factMergeKey != null && !factMergeKey.isBlank()) {
                 factKeys.add(factMergeKey);
             }
+            String codeCsv = preferredCodeCsv(rawValue, factCode);
             if ("YOUTH_EMPLOYMENT_REQUIREMENT".equals(factCodeSetKey)) {
-                youthEmploymentRequirementCodes.addAll(YouthOfficialCodeSupport.splitCsvValues(factCode));
+                youthEmploymentRequirementCodes.addAll(YouthOfficialCodeSupport.splitCsvValues(codeCsv));
                 youthEmploymentRequirementLabels.addAll(YouthOfficialCodeSupport.splitCsvValues(textValue));
             }
             if ("YOUTH_EDUCATION_REQUIREMENT".equals(factCodeSetKey)) {
-                youthEducationRequirementCodes.addAll(YouthOfficialCodeSupport.splitCsvValues(factCode));
+                youthEducationRequirementCodes.addAll(YouthOfficialCodeSupport.splitCsvValues(codeCsv));
                 youthEducationRequirementLabels.addAll(YouthOfficialCodeSupport.splitCsvValues(textValue));
             }
             if ("YOUTH_SPECIAL_REQUIREMENT".equals(factCodeSetKey)) {
-                youthSpecialRequirementCodes.addAll(YouthOfficialCodeSupport.splitCsvValues(factCode));
+                youthSpecialRequirementCodes.addAll(YouthOfficialCodeSupport.splitCsvValues(codeCsv));
                 youthSpecialRequirementLabels.addAll(YouthOfficialCodeSupport.splitCsvValues(textValue));
             }
             if ("YOUTH_MARITAL_STATUS".equals(factCodeSetKey)) {
@@ -400,6 +403,10 @@ public class CanonicalRecommendationReadModelRepository {
                 youthIncomeConditionTypeCode = factCode;
                 youthIncomeConditionTypeLabel = textValue;
             }
+        }
+
+        private String preferredCodeCsv(String rawValue, String factCode) {
+            return rawValue != null && !rawValue.isBlank() ? rawValue : factCode;
         }
 
         RecommendationCandidateProjection toProjection() {

@@ -26,11 +26,19 @@ final class BokjiroDetailPersistenceSupport {
                 .contactList(toJsonArray(detail.contactText()))
                 .supportCycle(detail.supportCycle())
                 .provisionType(detail.provisionType())
-                .homepageUrl(detail.onlineApplyUrl())
+                .homepageUrl(boundedUrl(detail.onlineApplyUrl()))
                 .relatedLaw(detail.legalBasisText())
                 .formFiles(detail.requiredDocuments())
                 .referenceUrlsJson(detail.referenceUrlsJson())
                 .build();
+    }
+
+    private String boundedUrl(String value) {
+        String normalized = RawFieldValidator.normalize(value);
+        if (normalized == null || normalized.length() > 500) {
+            return null;
+        }
+        return normalized;
     }
 
     void applyFallbacksToService(WelfareService service, NormalizedPolicyAggregate aggregate) {

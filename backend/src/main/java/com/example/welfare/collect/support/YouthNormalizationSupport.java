@@ -363,7 +363,7 @@ public final class YouthNormalizationSupport {
         facts.add(NormalizedPolicyAggregate.Fact.builder()
                 .factGroup(NormalizationKeySupport.FACT_GROUP_EMPLOYMENT)
                 .factCodeSetKey(NormalizationKeySupport.FACT_CODE_YOUTH_EMPLOYMENT_REQUIREMENT)
-                .factCode(canonicalCodes)
+                .factCode(firstAggregateFactCode(codes))
                 .factMergeKey(NormalizationKeySupport.FACT_MERGE_KEY_YOUTH_EMPLOYMENT_REQUIREMENT)
                 .factLabel("취업 요건")
                 .operator(NormalizedPolicyAggregate.Operator.MEMBER)
@@ -393,7 +393,7 @@ public final class YouthNormalizationSupport {
         facts.add(NormalizedPolicyAggregate.Fact.builder()
                 .factGroup(NormalizationKeySupport.FACT_GROUP_SPECIAL_REQUIREMENT)
                 .factCodeSetKey(NormalizationKeySupport.FACT_CODE_YOUTH_SPECIAL_REQUIREMENT)
-                .factCode(canonicalCodes)
+                .factCode(firstAggregateFactCode(codes))
                 .factMergeKey(NormalizationKeySupport.FACT_MERGE_KEY_YOUTH_SPECIAL_REQUIREMENT)
                 .factLabel("특화 요건")
                 .operator(NormalizedPolicyAggregate.Operator.MEMBER)
@@ -423,7 +423,7 @@ public final class YouthNormalizationSupport {
         facts.add(NormalizedPolicyAggregate.Fact.builder()
                 .factGroup(NormalizationKeySupport.FACT_GROUP_EDUCATION)
                 .factCodeSetKey(NormalizationKeySupport.FACT_CODE_YOUTH_EDUCATION_REQUIREMENT)
-                .factCode(canonicalCodes)
+                .factCode(firstAggregateFactCode(codes))
                 .factMergeKey(NormalizationKeySupport.FACT_MERGE_KEY_YOUTH_EDUCATION_REQUIREMENT)
                 .factLabel("학력 요건")
                 .operator(NormalizedPolicyAggregate.Operator.MEMBER)
@@ -448,6 +448,13 @@ public final class YouthNormalizationSupport {
             }
         }
         return null;
+    }
+
+    private static String firstAggregateFactCode(List<String> codes) {
+        if (codes == null || codes.isEmpty()) {
+            return null;
+        }
+        return codes.get(0);
     }
 
     public record YouthMidPartition(

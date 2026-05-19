@@ -82,7 +82,8 @@ class YouthNormalizationSupportTest {
                 .singleElement()
                 .satisfies(fact -> {
                     assertThat(fact.factCodeSetKey()).isEqualTo("YOUTH_EMPLOYMENT_REQUIREMENT");
-                    assertThat(fact.factCode()).isEqualTo("0013003,0013006");
+                    assertThat(fact.factCode()).isEqualTo("0013003");
+                    assertThat(fact.rawValue()).isEqualTo("0013003,0013006");
                     assertThat(fact.textValue()).isEqualTo("미취업자, (예비)창업자");
                     assertThat(fact.operator()).isEqualTo(NormalizedPolicyAggregate.Operator.MEMBER);
                     assertThat(fact.sourceField()).isEqualTo("jobCd");
@@ -92,7 +93,8 @@ class YouthNormalizationSupportTest {
                 .singleElement()
                 .satisfies(fact -> {
                     assertThat(fact.factCodeSetKey()).isEqualTo("YOUTH_EDUCATION_REQUIREMENT");
-                    assertThat(fact.factCode()).isEqualTo("0049005,0049006");
+                    assertThat(fact.factCode()).isEqualTo("0049005");
+                    assertThat(fact.rawValue()).isEqualTo("0049005,0049006");
                     assertThat(fact.textValue()).isEqualTo("대학 재학, 대졸 예정");
                     assertThat(fact.operator()).isEqualTo(NormalizedPolicyAggregate.Operator.MEMBER);
                     assertThat(fact.sourceField()).isEqualTo("schoolCd");
