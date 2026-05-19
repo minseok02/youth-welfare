@@ -2,6 +2,20 @@
 
 문서군 진입점: [recommendation-docs-index.md](./recommendation-docs-index.md)
 
+관련 문서:
+
+- [recommendation-pr-review-brief.md](./recommendation-pr-review-brief.md)
+- [recommendation-pr-draft-exit-checklist.md](./recommendation-pr-draft-exit-checklist.md)
+- [recommendation-post-merge-followup-checklist.md](./recommendation-post-merge-followup-checklist.md)
+- [recommendation-real-user-recheck-checklist.md](./recommendation-real-user-recheck-checklist.md)
+- [recommendation-ai-exclusion-latest-status-runbook.md](./recommendation-ai-exclusion-latest-status-runbook.md)
+
+## 현재 단계 해석
+
+현재 local recommendation current truth는 `WAIT_FOR_REAL_USER_TRAFFIC`, basic gate `PASS`, strict gate `LATEST_OBSERVATION_CHANGED`, `VOLATILE_ONLY_DRIFT` 입니다.
+
+즉 이 gate runbook은 recommendation reopen 여부를 오늘 바로 결정하는 문서가 아니라, **latest artifact 기준 해석 변화 / stable baseline 변화 / strict observation 변화를 자동 판정하는 운영 gate helper** 로 보는 편이 맞습니다.
+
 ## 목적
 
 이 문서는 latest `latest-status.json` 을 읽어

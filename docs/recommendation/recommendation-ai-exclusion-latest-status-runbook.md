@@ -2,6 +2,20 @@
 
 문서군 진입점: [recommendation-docs-index.md](./recommendation-docs-index.md)
 
+관련 문서:
+
+- [recommendation-pr-review-brief.md](./recommendation-pr-review-brief.md)
+- [recommendation-pr-draft-exit-checklist.md](./recommendation-pr-draft-exit-checklist.md)
+- [recommendation-post-merge-followup-checklist.md](./recommendation-post-merge-followup-checklist.md)
+- [recommendation-real-user-recheck-checklist.md](./recommendation-real-user-recheck-checklist.md)
+- [recommendation-ai-exclusion-latest-overview-runbook.md](./recommendation-ai-exclusion-latest-overview-runbook.md)
+
+## 현재 단계 해석
+
+현재 local 기본값은 `WAIT_FOR_REAL_USER_TRAFFIC`, latest reading은 `VOLATILE_ONLY_DRIFT` 입니다.
+
+즉 이 runbook은 새 refresh를 다시 태우는 reopen entrypoint가 아니라, **이미 남아 있는 latest artifact를 기준으로 current stable baseline / latest volatile observation / drift 판정을 read-only로 확인하는 daily status helper** 로 읽는 편이 맞습니다.
+
 ## 목적
 
 이 문서는 최신 `baseline refresh` 요약과 최신 `drift-check` 요약을 한 번에 읽는 read-only entrypoint 입니다.

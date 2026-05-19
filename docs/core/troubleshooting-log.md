@@ -1,5 +1,10 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 362) latest status/gate/export runbook이 current truth는 말해도 lifecycle companion docs와 helper 성격을 안 고정하면, daily operator entrypoint도 다시 “reopen gate”처럼 읽히기 쉽다
+- 문제: `recommendation-ai-exclusion-latest-status-runbook.md`, `recommendation-ai-exclusion-latest-gate-runbook.md`, `recommendation-ai-exclusion-latest-status-export-runbook.md` 는 `WAIT_FOR_REAL_USER_TRAFFIC`, `VOLATILE_ONLY_DRIFT`, gate key는 이미 설명하고 있었지만, companion lifecycle 문서 연결과 “이 문서는 current baseline을 read-only로 보는 daily helper”라는 성격 구분은 직접 적지 않았다. 이 상태면 operator가 latest helper만 열었을 때도 PR lifecycle / post-merge / real-user recheck 문맥을 다시 바깥 문서에서 찾아야 한다
+- 해결: 세 runbook 상단에 companion docs(`review brief / draft exit / post-merge / real-user recheck`)와 current 단계 해석을 직접 추가하고, 각각이 daily status helper / 운영 gate helper / handoff export helper라는 역할을 상단에서 바로 읽게 맞췄다
+- 이유: overview만 lifecycle을 말하고 하위 latest helper가 mechanics만 설명하면, 실행 층위가 내려갈수록 다시 immediate reopen gate처럼 읽히는 drift가 생긴다. latest status/gate/export도 current blocker와 문서 lifecycle 안에서 어디에 놓이는지 먼저 보여 주는 편이 실제 운영 해석 비용을 줄인다
+
 ## 361) baseline refresh 계열 runbook이 current blocker 없이 compare/refresh mechanics만 설명하면, deeper helper도 reopen/tuning gate처럼 읽히기 쉽다
 - 문제: `recommendation-ai-exclusion-baseline-refresh-runbook.md`, `recommendation-ai-exclusion-baseline-refresh-drift-check-runbook.md`, `recommendation-ai-exclusion-baseline-refresh-compare-runbook.md` 는 baseline 재실행과 compare mechanics는 잘 설명하지만, current local 기본값이 아직 `WAIT_FOR_REAL_USER_TRAFFIC` 이고 latest reading이 `VOLATILE_ONLY_DRIFT` 라는 맥락은 직접 말하지 않았다. 이 상태면 operator가 deeper helper를 열었을 때도 “지금 recommendation을 다시 열어야 하나”와 “baseline을 더 정리하는 중인가”를 다시 추론해야 한다
 - 해결: 세 runbook 상단에 companion docs(`review brief / draft exit / post-merge / real-user recheck`)와 current 단계 해석(`WAIT_FOR_REAL_USER_TRAFFIC`, `VOLATILE_ONLY_DRIFT`, basic/strict gate)을 추가하고, 이 문서들이 현재는 stable baseline / volatile observation을 더 명확히 분리하는 deeper helper라는 점을 직접 적었다

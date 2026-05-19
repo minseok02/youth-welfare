@@ -2,6 +2,20 @@
 
 문서군 진입점: [recommendation-docs-index.md](./recommendation-docs-index.md)
 
+관련 문서:
+
+- [recommendation-pr-review-brief.md](./recommendation-pr-review-brief.md)
+- [recommendation-pr-draft-exit-checklist.md](./recommendation-pr-draft-exit-checklist.md)
+- [recommendation-post-merge-followup-checklist.md](./recommendation-post-merge-followup-checklist.md)
+- [recommendation-real-user-recheck-checklist.md](./recommendation-real-user-recheck-checklist.md)
+- [recommendation-ai-exclusion-latest-status-runbook.md](./recommendation-ai-exclusion-latest-status-runbook.md)
+
+## 현재 단계 해석
+
+현재 local 기본값은 여전히 `WAIT_FOR_REAL_USER_TRAFFIC` 이고, latest recommendation reading은 `VOLATILE_ONLY_DRIFT` 입니다.
+
+즉 이 export runbook은 새로운 tuning 결론을 만드는 문서가 아니라, **현재 latest refresh/drift artifact를 사람용 note와 machine-readable JSON으로 다시 포장해 handoff/운영 메모에 쓰기 쉽게 만드는 export helper** 로 읽는 것이 맞습니다.
+
 ## 목적
 
 이 문서는 latest refresh summary와 latest drift summary를 읽어
