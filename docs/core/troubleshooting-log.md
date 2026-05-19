@@ -1,5 +1,10 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 347) active 문서만 정리해도 history 문서에 예시 자격이 남아 있으면 public repo hygiene 관점의 노이즈는 완전히 사라지지 않는다
+- 문제: active/current/support 문서는 placeholder 기준으로 정리했지만, `docs/history/ai/policy-normalization-education-priority-replay-procedure.md` 같은 history 문서에는 여전히 `Password123!` 류 예시 자격이 남아 있었다. history 문서는 현재 계약을 덮어쓰지 않더라도, public repo scan이나 reviewer 시야에서는 같은 문자열이 계속 잡혀 noise가 남는다
+- 해결: history 문서의 sample credential 예시도 `<sample A password>`, `<sample B password>` 같은 placeholder로 바꿨다. 현재 계약과 실행 순서는 여전히 active 문서가 기준이고, history 문서는 배경 기록만 남긴다
+- 이유: active 문서와 history 문서를 동일 선상에서 보지는 않지만, 공개 저장소 hygiene 기준으로는 둘 다 검색 인덱스에 걸린다. 그래서 active 우선 정리 후 history도 최소 placeholder 정리는 해 두는 편이 후속 리뷰 비용이 낮다
+
 ## 346) start/current-state만 placeholder로 바꿔도, active support 문서에 예시 자격이 남아 있으면 public-facing hygiene는 아직 덜 끝난 상태다
 - 문제: `start.md`, recommendation current-state/runbook을 placeholder로 바꾼 뒤에도 `runtime-api-smoke-commands.md`, `server-runtime-drift-checklist.md` 같은 active support 문서에는 여전히 `admin@example.com`, `password123!` 류 예시가 남아 있었다. 이 상태면 진입 문서만 깨끗하고, 실제 operator가 따라가는 support 문서에서는 같은 noise가 다시 보이게 된다
 - 해결: active support 문서의 실행 예시도 `<local admin email>`, `<local admin password>`, `<local smoke email>`, `<local smoke password>` placeholder로 맞췄다. 실제 값은 계속 shell env, `.env`, `/tmp/youth-welfare-admin-smoke-password` discovery 경계에서 주입하게 두고, 문서에는 “무엇을 넣어야 하는지”만 남긴다
