@@ -40,6 +40,10 @@ artifact:
 - `mixed_top1_leader_title`
 - `mixed_top1_leader_share_pct`
 - `mixed_top1_leader_real_user_users`
+- `real_user_mixed_leader_top1_count`
+- `real_user_mixed_leader_top3_count`
+- `real_user_mixed_leader_top5_count`
+- `real_user_mixed_leader_top10_count`
 - `mixed_concentration_readiness`
 - `real_user_top1_leader_title`
 - `real_user_top1_leader_share_pct`
@@ -55,10 +59,22 @@ artifact:
 - `REAL_USER` traffic/cohort는 충분하지만, mixed latest batch top1 leader는 아직 example/local seed가 주도합니다.
 - 이 경우 바로 제품 reopen으로 가지 말고 mixed leader transition을 더 관찰합니다.
 
+### 1-1. `blocker_class=MIXED_BATCH_NON_REAL_DOMINANCE_WITH_NO_REAL_USER_PATH`
+
+- current local 30-user 샘플의 더 정확한 해석입니다.
+- mixed latest batch top1 leader 서비스가 real-user 쪽 top10 안에도 한 번도 안 들어온 상태입니다.
+- 현재 local 값:
+  - `real_user_mixed_leader_top1_count=0`
+  - `real_user_mixed_leader_top3_count=0`
+  - `real_user_mixed_leader_top5_count=0`
+  - `real_user_mixed_leader_top10_count=0`
+- 즉 지금은 단순히 “real-user top1에 아직 안 붙었다”보다, **현재 real-user 샘플 구성으로는 mixed leader 전이 경로가 안 보이는 상태** 입니다.
+
 ### 2. `mixed_top1_leader_real_user_users=0` 이고 `real_user_concentration_readiness=NO_PRIORITY_DOMINANT`
 
 - real-user 쪽 자체는 충분히 분산됐는데, mixed batch에서는 example 비중이 너무 커서 review gate가 안 열린다는 뜻입니다.
 - current local 30-user 샘플이 여기에 해당합니다.
+- 여기에 `real_user_mixed_leader_top10_count=0` 까지 붙으면, mixed leader 서비스 자체가 real-user 후보 상단에 없다는 뜻이므로 targeted housing-like sample이 없으면 gate 전이가 계속 늦어질 수 있습니다.
 
 ### 3. `mixed_top1_leader_real_user_users>0`
 
@@ -74,10 +90,11 @@ artifact:
   - `top1_leader=청년월세 지원사업`
   - `top1_leader_share_pct=55.62`
   - `top1_leader_real_user_users=0`
+  - `real_user_mixed_leader_top10_count=0`
 - real-user only latest batch:
   - `latest_batch_users=30`
   - `top1_leader=드림나래(인천청년 면접복장 지원)`
   - `top1_leader_share_pct=10.00`
   - `concentration_readiness=NO_PRIORITY_DOMINANT`
 
-즉 현재 review gate blocker는 **real-user 부족**보다 **mixed latest batch non-real dominance** 로 읽는 편이 맞습니다.
+즉 현재 review gate blocker는 **real-user 부족**보다 **mixed latest batch non-real dominance + 현재 real-user sample에 mixed leader transition path 부재** 로 읽는 편이 맞습니다.

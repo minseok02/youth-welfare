@@ -16,6 +16,7 @@ mkdir -p "${ARTIFACT_DIR}"
 MIXED_OUTPUT="${ARTIFACT_DIR}/mixed-concentration.out"
 REAL_USER_OUTPUT="${ARTIFACT_DIR}/real-user-concentration.out"
 LEADER_MIX_OUTPUT="${ARTIFACT_DIR}/leader-origin-mix.out"
+LEADER_GAP_OUTPUT="${ARTIFACT_DIR}/leader-transition-gap.out"
 SUMMARY_OUTPUT="${ARTIFACT_DIR}/review-gate-blocker-summary.txt"
 
 extract_key_value() {
@@ -126,6 +127,67 @@ REAL_USER_TOP1_LEADER_SHARE_PCT="$(extract_key_value "${REAL_USER_OUTPUT}" "top1
 REAL_USER_CONCENTRATION_READINESS="$(extract_section_value "${REAL_USER_OUTPUT}" "concentration_readiness")"
 REAL_USER_LATEST_BATCH_USERS="$(extract_key_value "${REAL_USER_OUTPUT}" "latest_batch_users")"
 
+docker exec -i youth-welfare-db psql -U postgres -d youth_welfare -At <<'SQL' > "${LEADER_GAP_OUTPUT}"
+WITH latest AS (
+  SELECT user_key, MAX(recommended_at) AS recommended_at
+  FROM user_recommendations
+  GROUP BY user_key
+),
+real_user_rows AS (
+  SELECT ur.user_key,
+         ur.service_id,
+         ROW_NUMBER() OVER (
+             PARTITION BY ur.user_key
+             ORDER BY ur.final_score DESC, ur.id DESC
+         ) AS rn
+  FROM user_recommendations ur
+  JOIN latest l
+    ON l.user_key = ur.user_key
+   AND l.recommended_at = ur.recommended_at
+  JOIN users u
+    ON u.user_key = ur.user_key
+  WHERE COALESCE(NULLIF(u.account_origin, ''), 'REAL_USER') = 'REAL_USER'
+),
+mixed_top1_leader AS (
+  SELECT service_id
+  FROM (
+    SELECT ur.user_key,
+           ur.service_id,
+           ROW_NUMBER() OVER (
+               PARTITION BY ur.user_key
+               ORDER BY ur.final_score DESC, ur.id DESC
+           ) AS rn
+    FROM user_recommendations ur
+    JOIN latest l
+      ON l.user_key = ur.user_key
+     AND l.recommended_at = ur.recommended_at
+  ) ranked
+  WHERE rn = 1
+  GROUP BY service_id
+  ORDER BY COUNT(*) DESC, service_id
+  LIMIT 1
+)
+SELECT 'real_user_mixed_leader_top1_count=' || COUNT(*) FILTER (WHERE rn = 1)
+FROM real_user_rows
+WHERE service_id = (SELECT service_id FROM mixed_top1_leader)
+UNION ALL
+SELECT 'real_user_mixed_leader_top3_count=' || COUNT(*) FILTER (WHERE rn <= 3)
+FROM real_user_rows
+WHERE service_id = (SELECT service_id FROM mixed_top1_leader)
+UNION ALL
+SELECT 'real_user_mixed_leader_top5_count=' || COUNT(*) FILTER (WHERE rn <= 5)
+FROM real_user_rows
+WHERE service_id = (SELECT service_id FROM mixed_top1_leader)
+UNION ALL
+SELECT 'real_user_mixed_leader_top10_count=' || COUNT(*) FILTER (WHERE rn <= 10)
+FROM real_user_rows
+WHERE service_id = (SELECT service_id FROM mixed_top1_leader)
+UNION ALL
+SELECT 'real_user_mixed_leader_any_rank_count=' || COUNT(*)
+FROM real_user_rows
+WHERE service_id = (SELECT service_id FROM mixed_top1_leader);
+SQL
+
 MIXED_TOP1_LEADER_REAL_USER_USERS="$(
   python3 - "${LEADER_MIX_OUTPUT}" <<'PY'
 import sys
@@ -141,7 +203,16 @@ print(value)
 PY
 )"
 
-if [[ "${MIXED_TOP1_LEADER_REAL_USER_USERS}" == "0" ]]; then
+REAL_USER_MIXED_LEADER_TOP1_COUNT="$(extract_key_value "${LEADER_GAP_OUTPUT}" "real_user_mixed_leader_top1_count")"
+REAL_USER_MIXED_LEADER_TOP3_COUNT="$(extract_key_value "${LEADER_GAP_OUTPUT}" "real_user_mixed_leader_top3_count")"
+REAL_USER_MIXED_LEADER_TOP5_COUNT="$(extract_key_value "${LEADER_GAP_OUTPUT}" "real_user_mixed_leader_top5_count")"
+REAL_USER_MIXED_LEADER_TOP10_COUNT="$(extract_key_value "${LEADER_GAP_OUTPUT}" "real_user_mixed_leader_top10_count")"
+REAL_USER_MIXED_LEADER_ANY_RANK_COUNT="$(extract_key_value "${LEADER_GAP_OUTPUT}" "real_user_mixed_leader_any_rank_count")"
+
+if [[ "${MIXED_TOP1_LEADER_REAL_USER_USERS}" == "0" && "${REAL_USER_MIXED_LEADER_TOP10_COUNT}" == "0" ]]; then
+  BLOCKER_CLASS="MIXED_BATCH_NON_REAL_DOMINANCE_WITH_NO_REAL_USER_PATH"
+  NEXT_ACTION="ADD_TARGETED_REAL_USER_PROFILES_OR_WAIT_FOR_REAL_USER_HOUSING_SIGNAL"
+elif [[ "${MIXED_TOP1_LEADER_REAL_USER_USERS}" == "0" ]]; then
   BLOCKER_CLASS="MIXED_BATCH_NON_REAL_DOMINANCE"
   NEXT_ACTION="KEEP_REAL_USER_TRAFFIC_AND_OBSERVE_LEADER_TRANSITION"
 else
@@ -161,6 +232,11 @@ mixed_top1_leader_title=${MIXED_TOP1_LEADER_TITLE}
 mixed_top1_leader_users=${MIXED_TOP1_LEADER_USERS}
 mixed_top1_leader_share_pct=${MIXED_TOP1_LEADER_SHARE_PCT}
 mixed_top1_leader_real_user_users=${MIXED_TOP1_LEADER_REAL_USER_USERS}
+real_user_mixed_leader_top1_count=${REAL_USER_MIXED_LEADER_TOP1_COUNT}
+real_user_mixed_leader_top3_count=${REAL_USER_MIXED_LEADER_TOP3_COUNT}
+real_user_mixed_leader_top5_count=${REAL_USER_MIXED_LEADER_TOP5_COUNT}
+real_user_mixed_leader_top10_count=${REAL_USER_MIXED_LEADER_TOP10_COUNT}
+real_user_mixed_leader_any_rank_count=${REAL_USER_MIXED_LEADER_ANY_RANK_COUNT}
 mixed_concentration_readiness=${MIXED_CONCENTRATION_READINESS}
 mixed_signal_quality=${MIXED_SIGNAL_QUALITY}
 real_user_latest_batch_users=${REAL_USER_LATEST_BATCH_USERS}

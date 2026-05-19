@@ -1,5 +1,10 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 369) mixed latest batch review gate가 deferred인 이유가 단순 volume gap이 아니라, current real-user sample에 mixed leader transition path 자체가 없을 수 있다
+- 문제: 30명 `REAL_USER` 표본을 만든 뒤에도 mixed latest batch review gate는 `DEFERRED_NON_REAL_LEADER_SIGNAL` 이었다. 처음엔 example 사용자가 많아서 top1 leader가 안 바뀌는 단순 volume gap처럼 보였지만, 실제로 mixed leader 서비스 `2622(청년월세 지원사업)` 가 real-user 쪽 후보 상단에 아예 없는지까지는 확인되지 않았다.
+- 해결: blocker audit에 mixed leader 서비스의 real-user `top1/top3/top5/top10/any-rank` 출현 수를 같이 넣었다. 현재 local 값은 `real_user_mixed_leader_top1_count=0`, `top3_count=0`, `top5_count=0`, `top10_count=0` 이고, blocker class는 `MIXED_BATCH_NON_REAL_DOMINANCE_WITH_NO_REAL_USER_PATH` 다.
+- 이유: 이 상태는 “real-user가 더 많아지면 언젠가 mixed leader에 붙을 것”과 다르다. current real-user sample 자체에 mixed leader 서비스가 후보 상단으로 안 뜨므로, 단순 wait만으로는 review gate 전이가 늦어질 수 있다. 이 경우는 housing-like targeted real-user signal을 추가로 보거나, mixed batch 해석을 별도로 유지하는 편이 맞다.
+
 ## 368) `REAL_USER` traffic/cohort gate가 이미 열렸는데도 review gate가 계속 deferred이면, 원인을 readiness 부족으로 읽지 말고 mixed latest batch leader dominance 와 분리해서 봐야 한다
 - 문제: local generic-domain signup 계정 30개로 `account_origin=REAL_USER` 표본을 충분히 쌓은 뒤에도 `run-local-real-user-exclusion-readiness-check.sh` 는 `READY_REAL_USER_TRAFFIC / READY_REAL_USER_COHORT` 를 보여 주지만, mixed latest batch review gate는 계속 `DEFERRED_NON_REAL_LEADER_SIGNAL` 로 남았다. 이 상태를 readiness 부족으로만 읽으면 “real-user를 더 만들면 풀리나”와 “mixed latest batch 자체가 example에 너무 치우쳤나”를 구분하기 어렵다.
 - 해결: `run-local-recommendation-review-gate-blocker-audit.sh` 를 추가해 mixed latest batch와 real-user-only latest batch의 top1 leader를 같은 축으로 비교하게 했다. 현재 local truth는 mixed latest batch `users=498`, `example_users=464`, `real_user_users=30`, `top1_leader=청년월세 지원사업`, `top1_leader_share_pct=55.62`, `top1_leader_real_user_users=0` 인 반면, real-user-only latest batch는 `top1_leader=드림나래(인천청년 면접복장 지원)`, `top1_leader_share_pct=10.00`, `concentration_readiness=NO_PRIORITY_DOMINANT` 이다.
