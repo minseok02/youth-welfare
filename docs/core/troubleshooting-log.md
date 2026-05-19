@@ -1,5 +1,10 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 363) snapshot/volatility/drift-classify 계열 runbook이 compare mechanics만 설명하면, evidence helper도 다시 immediate reopen/tuning 문서처럼 읽히기 쉽다
+- 문제: `recommendation-ai-exclusion-snapshot-runbook.md`, `recommendation-ai-exclusion-snapshot-compare-runbook.md`, `recommendation-ai-exclusion-volatility-audit-runbook.md`, `recommendation-ai-exclusion-drift-classify-runbook.md` 는 artifact 생성/비교 mechanics는 잘 설명하지만, 현재 local 기본값이 아직 `WAIT_FOR_REAL_USER_TRAFFIC`, latest reading이 `VOLATILE_ONLY_DRIFT` 라는 점과 이 문서들이 유지 단계의 evidence helper라는 성격은 직접 적지 않았다. 이 상태면 operator가 이 계열 문서만 열었을 때도 “지금 recommendation을 다시 열어야 하나”와 “관찰 artifact를 더 정리하는 중인가”를 다시 추론해야 한다
+- 해결: 네 runbook 상단에 companion docs(`review brief / draft exit / post-merge / real-user recheck`)와 current 단계 해석(`WAIT_FOR_REAL_USER_TRAFFIC`, `VOLATILE_ONLY_DRIFT`)을 추가하고, snapshot/evidence capture, read-only compare, volatility helper, drift interpretation helper라는 역할을 직접 적었다
+- 이유: latest/overview만 current blocker를 말하고 deeper evidence helper가 mechanics만 설명하면, 문서 층위가 내려갈수록 다시 immediate tuning backlog처럼 읽히는 drift가 생긴다. snapshot/volatility/drift-classify 계열도 “지금은 유지 단계, 이건 evidence helper”라는 맥락을 먼저 보여 주는 편이 맞다
+
 ## 362) latest status/gate/export runbook이 current truth는 말해도 lifecycle companion docs와 helper 성격을 안 고정하면, daily operator entrypoint도 다시 “reopen gate”처럼 읽히기 쉽다
 - 문제: `recommendation-ai-exclusion-latest-status-runbook.md`, `recommendation-ai-exclusion-latest-gate-runbook.md`, `recommendation-ai-exclusion-latest-status-export-runbook.md` 는 `WAIT_FOR_REAL_USER_TRAFFIC`, `VOLATILE_ONLY_DRIFT`, gate key는 이미 설명하고 있었지만, companion lifecycle 문서 연결과 “이 문서는 current baseline을 read-only로 보는 daily helper”라는 성격 구분은 직접 적지 않았다. 이 상태면 operator가 latest helper만 열었을 때도 PR lifecycle / post-merge / real-user recheck 문맥을 다시 바깥 문서에서 찾아야 한다
 - 해결: 세 runbook 상단에 companion docs(`review brief / draft exit / post-merge / real-user recheck`)와 current 단계 해석을 직접 추가하고, 각각이 daily status helper / 운영 gate helper / handoff export helper라는 역할을 상단에서 바로 읽게 맞췄다

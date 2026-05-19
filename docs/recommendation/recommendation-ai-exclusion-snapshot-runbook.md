@@ -2,6 +2,20 @@
 
 문서군 진입점: [recommendation-docs-index.md](./recommendation-docs-index.md)
 
+관련 문서:
+
+- [recommendation-pr-review-brief.md](./recommendation-pr-review-brief.md)
+- [recommendation-pr-draft-exit-checklist.md](./recommendation-pr-draft-exit-checklist.md)
+- [recommendation-post-merge-followup-checklist.md](./recommendation-post-merge-followup-checklist.md)
+- [recommendation-real-user-recheck-checklist.md](./recommendation-real-user-recheck-checklist.md)
+- [recommendation-ai-exclusion-latest-overview-runbook.md](./recommendation-ai-exclusion-latest-overview-runbook.md)
+
+## 현재 단계 해석
+
+현재 local 기본값은 `WAIT_FOR_REAL_USER_TRAFFIC`, latest reading은 `VOLATILE_ONLY_DRIFT` 입니다.
+
+즉 이 snapshot runbook은 recommendation을 지금 다시 튜닝하는 reopen entrypoint가 아니라, **현재 exclusion baseline을 날짜 붙은 summary로 재실행하고 비교 가능한 형태로 남기는 evidence capture helper** 로 읽는 것이 맞습니다.
+
 ## 목적
 
 이 문서는 현재 local recommendation `AI exclusion` baseline을 **재실행 + 요약 캡처**까지 한 번에 남기는 wrapper 입니다.
