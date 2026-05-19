@@ -30,6 +30,7 @@
 
 ## 지금 기준 한 줄 요약
 
+- `2026-05-19` 기준 로컬 full collect baseline도 다시 닫혔습니다. `YOUTH`, `BOKJIRO_CENTRAL`, `BOKJIRO_LOCAL`, `GOV24`, `GOV24_DETAIL`, `GOV24_SUPPORT_CONDITIONS`, `YOUTH_DETAILS`, `BOKJIRO_DETAIL_REFRESH` 를 실제로 다시 태워 hard failure 없이 끝냈고, `run-local-ops-baseline-suite.sh` 도 같은 로컬 runtime에서 다시 통과했습니다.
 - `2026-05-18` 기준 YOUTH/Gov24 신호는 `raw -> fact/token -> admin diagnostics -> detail read-only -> policy card compact badge -> admin facet` 까지 닫혔습니다.
 - `2026-05-18` 기준 `collect/runtime governance` 도 `lane inventory -> latestRun -> config summary` 까지 닫혔습니다.
 - `2026-05-18` 기준 recommendation 의 남은 `3257류` 이슈는 retrieval/신호 부족 버그가 아니라, AI가 `수급자/신혼부부/학생` 같은 primary audience mismatch를 강한 exclusion으로 해석하는 제품 판단 경계로 좁혀졌습니다.

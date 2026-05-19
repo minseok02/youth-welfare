@@ -5589,6 +5589,32 @@
   - `homepage_url` 은 대표 URL 성격이고, 긴 원문 후보 전체 보존은 이미 `reference_urls_json` 이 담당한다.
   - 이 문제는 스키마를 바로 `TEXT` 로 넓히기보다, 대표 URL 선택 규칙을 bounded 하게 고치는 편이 현재 저장 경계에 더 잘 맞는다.
 
+## 900) 로컬 full collect는 코드 fix만으로 닫히지 않고, 떠 있는 앱 컨테이너가 최신 `aa2fc71` 인지도 같이 확인해야 한다
+- 문제: `aa2fc71` 로 `YOUTH fact_code overflow` 와 `YOUTH detail long URL overflow` 를 고친 뒤, 로컬에서 `collect/all -> youth-details -> gov24` 전체 수집을 다시 태웠다. 이때 `collect/all` 은 green 이었지만 `youth-details` 는 다시 `failed=1` 로 떨어졌고, 앱 로그에는 여전히 `homepage_url varchar(500)` 초과가 찍혔다.
+- 해결:
+  - 원인은 코드가 아니라 **로컬 앱 컨테이너 drift** 였다. workspace HEAD는 이미 `aa2fc71` 인데, 떠 있는 `youth-welfare-app` 은 그 이전 이미지라서 수정 전 바이너리를 계속 실행 중이었다.
+  - `docker compose up -d --build app` 로 app 이미지를 다시 빌드/재기동한 뒤 `POST /api/admin/collect/youth-details` 를 다시 태우자 `requested=1 saved=1 skipped=2577 failed=0` 으로 닫혔다.
+  - 같은 라운드에서 `POST /api/admin/collect/gov24`, `gov24-details`, `gov24-support-conditions`, `bokjiro-details-refresh` 까지 이어서 태워 최종 local full collect baseline `YOUTH=2578`, `GOV24=10948`, `BOKJIRO_DETAIL_REFRESH requested=1358 saved=1357 failed=0` 을 다시 확인했다.
+- 이유:
+  - collect overflow fix 류는 source payload drift와 컨테이너 drift 둘 다 영향을 준다.
+  - 로컬에서 코드 수정 뒤 collect를 바로 검증할 때는 source별 재수집만 볼 게 아니라, 현재 앱 컨테이너가 해당 commit으로 재빌드됐는지 먼저 확인해야 한다.
+
+## 901) `collect/all` 은 전체 source를 모두 태우는 것이 아니라 scheduled batch 4개만 포함하므로, local full collect closeout에는 manual lane을 따로 포함해야 한다
+- 문제: 로컬 full collect를 “한 번에 전부” 다시 돌리려 했을 때, 직감상 `POST /api/admin/collect/all` 만 태우면 끝날 것처럼 보였지만 실제 결과에는 `Gov24`, `YOUTH_DETAILS`, `BOKJIRO_DETAIL_REFRESH` 가 포함되지 않았다.
+- 해결:
+  - `CollectSource.executionOrder()` 는 `runsInScheduledBatch=true` 인 source만 포함한다. 현재 여기에 들어가는 것은 `YOUTH`, `BOKJIRO_CENTRAL`, `BOKJIRO_LOCAL`, `BOKJIRO_DETAIL` 4개뿐이다.
+  - 따라서 local full collect closeout은 아래 순서로 다시 고정했다.
+    1. `POST /api/admin/collect/all`
+    2. `POST /api/admin/collect/youth-details`
+    3. `POST /api/admin/collect/gov24`
+    4. `POST /api/admin/collect/gov24-details`
+    5. `POST /api/admin/collect/gov24-support-conditions`
+    6. `POST /api/admin/collect/bokjiro-details-refresh`
+  - 이후 raw payload 최신 시각과 `run-local-ops-baseline-suite.sh` 까지 다시 읽어, local runtime 기준 `health -> admin dashboard -> collect failures -> recommendation breakdowns` one-shot baseline도 green 으로 닫았다.
+- 이유:
+  - `collect all` 과 `local full collect` 는 같은 말이 아니다.
+  - runtime governance에서 `scheduled/manual lane` 을 이미 나눴다면, bounded local closeout도 그 lane 구분을 그대로 따라 manual source를 명시적으로 포함해야 한다.
+
 ## 891) `생애주기/대상군` prompt 보강은 일부 row를 살리지만, `3257/3209` 핵심 케이스는 여전히 primary audience mismatch로 0점이 유지된다
 - 문제: `3257/3209/3287` 의 `savedAi=0` 이 prompt line에 청년 신호가 약해서인지, 아니면 AI가 수급자/신혼부부/학생 같은 대상군 불일치를 강한 exclusion으로 해석해서인지 확정이 필요했다.
 - 해결:
