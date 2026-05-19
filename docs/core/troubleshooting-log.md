@@ -1,5 +1,10 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 355) PR body만 lifecycle 기준으로 맞추고 top-level comment를 그대로 두면, reviewer quick entrypoint는 다시 예전 2단계 구조를 보여 주게 된다
+- 문제: PR body를 `review brief -> draft exit -> post-merge follow-up -> REAL_USER recheck` 구조로 갱신한 뒤에도 첫 top-level comment는 여전히 `review brief + REAL_USER recheck` 두 개만 보여 주고 있었다. 이 상태면 GitHub 화면에서 가장 먼저 보이는 quick entrypoint는 다시 예전 구조를 따라가게 된다
+- 해결: 첫 PR comment를 업데이트해 `review brief`, `draft exit`, `post-merge follow-up`, `REAL_USER recheck` 네 문서를 모두 같은 순서로 연결하고, current reading도 `WAIT_FOR_REAL_USER_TRAFFIC`, `VOLATILE_ONLY_DRIFT`, basic gate `PASS`, strict gate `LATEST_OBSERVATION_CHANGED` 기준으로 다시 맞췄다
+- 이유: 전달면 동기화는 PR body만으로 끝나지 않는다. reviewer가 실제로 가장 먼저 보는 top comment까지 같은 lifecycle을 설명해야 저장소 문서, PR body, PR comment가 같은 순서로 읽힌다
+
 ## 354) 로컬 문서 lifecycle을 정리한 뒤에도 PR body가 예전 구조에 머물면, reviewer는 GitHub 화면과 저장소 문서를 서로 다른 순서로 읽게 된다
 - 문제: `review brief`, `draft exit`, `post-merge follow-up`, `real-user recheck` 문서까지 정리한 뒤에도 PR body가 초기 closeout 설명과 검증 목록 중심에 머물면, 저장소 안에서는 lifecycle이 정리돼 있어도 GitHub PR 화면만 보는 reviewer는 여전히 “무엇부터 읽고, 왜 아직 draft인지”를 comments에 의존해 해석하게 된다
 - 해결: PR body를 현재 문서 구조에 맞게 다시 정리해 `review brief -> draft exit -> post-merge follow-up -> REAL_USER recheck` 순서, `WAIT_FOR_REAL_USER_TRAFFIC` blocker, intentional credential-like inventory 분류를 직접 반영했다
