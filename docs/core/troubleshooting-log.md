@@ -1,5 +1,10 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 349) repo-wide grep에서 credential-like 문자열이 계속 잡혀도, active 문서 정리와 smoke/test fixture 정리는 같은 문제로 취급하면 안 된다
+- 문제: active/current/support/handoff/history 문서와 `.env.example` 까지 placeholder 정리를 끝낸 뒤에도 repo-wide grep에는 `admin@example.com`, `password123!`, `Password123!`, `welfare1234!` 같은 문자열이 계속 남아 있었다. 이 상태만 보면 문서 hygiene가 덜 끝난 것처럼 보이지만, 실제 남은 매치는 `docs/phase-plan.md`, `docs/core/troubleshooting-log.md` 같은 이력 기록과 `deploy/smoke` 기본값, `backend/src/test/**`, `application-integration.yml` fixture에 집중돼 있었다
+- 해결: 남은 매치를 `1) active/public-facing entrypoint 문서`, `2) history/troubleshooting 이력`, `3) local smoke 기본값`, `4) backend test/integration fixture` 로 분리해 다시 inventory를 남겼다. active/public-facing entrypoint는 placeholder 기준으로 유지하고, 남은 문자열은 동작 재현과 회귀 검증에 필요한 intentional scope로 문서화했다
+- 이유: repo hygiene와 실행 계약은 분리해서 다뤄야 한다. active 문서에 남은 예시 자격은 operator/reviewer 오해를 만들지만, smoke 기본값과 test fixture는 현재 local/runtime 계약을 고정하는 역할이 있어 무조건 치환하면 오히려 실행 경계와 회귀 재현성이 흐려진다
+
 ## 348) active support 문서와 `.env.example` 까지 같이 보지 않으면, repo-wide 예시 자격 inventory는 계속 남아 있게 된다
 - 문제: active/current/history/support 문서를 순서대로 정리한 뒤에도 `policy-admin-runtime-runbook.md`, `frontend-qa-current-state.md`, `frontend-qa-session-2026-05-17.md`, `.env.example` 에는 여전히 `admin@example.com`, `password123!` 같은 예시가 남아 있었다. 특히 `.env.example` 은 문서가 아니라 설정 예시라서, grep 기준으로는 쉽게 놓치기 쉽다
 - 해결: active support 문서의 admin 예시는 `<local admin email>`, `<local admin password>` placeholder로 맞추고, `.env.example` 의 `SECURITY_ADMIN_EMAILS` 는 단일 예시 계정보다 `admin1@example.com,admin2@example.com` 처럼 “allowlist 형식 예시”가 보이게 바꿨다

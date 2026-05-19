@@ -16,6 +16,7 @@
 - 개별 wrapper를 직접 읽을 때는 `latest-status -> latest-status-export -> latest-gate -> real-user-exclusion-readiness-check` 순서로 보는 편이 맞습니다. 현재 local에서는 기본 gate는 `PASS`, strict gate(`FAIL_ON_LATEST_OBSERVATION_CHANGE=true`)는 `LATEST_OBSERVATION_CHANGED` 로 `FAIL` 이지만, 이는 stable baseline drift가 아니라 fresh window 관찰값 흔들림으로 해석합니다.
 - reviewer가 이번 closeout 범위를 빨리 파악하려면 [recommendation-pr-review-brief.md](recommendation/recommendation-pr-review-brief.md) 를 먼저 보고, `REAL_USER` traffic/cohort가 실제로 생기면 [recommendation-real-user-recheck-checklist.md](recommendation/recommendation-real-user-recheck-checklist.md) 순서대로 다시 여는 편이 맞습니다.
 - `2026-05-20` KST 재확인에서도 위 판정은 그대로였습니다. 다만 일부 wrapper의 `generated_at` 과 artifact 경로는 UTC `Z` 기준이라 로컬 날짜보다 하루 전처럼 보일 수 있으므로, 최신 실행 여부는 `tmp/.../latest` symlink와 wrapper 재실행 자체로 판단하는 편이 맞습니다.
+- `2026-05-20` 기준 repo-wide 예시 자격 inventory도 다시 분류됐습니다. active/current/support/handoff/history 문서와 `.env.example` 쪽 placeholder 정리는 닫혔고, 남은 `admin@example.com`, `password123!`, `Password123!`, `welfare1234!` 류 문자열은 주로 `phase-plan` / `troubleshooting-log` 이력, `deploy/smoke` local 기본값, `backend/src/test/**` 및 `application-integration.yml` fixture 같은 intentional scope에만 남아 있습니다.
 - 지금 우선순위는 기능 검증, 구조 검증, 수정, 최적화/보안, 프론트 연동 검증 순서입니다.
 - 운영/배포 관련 작업은 마지막 단계에서만 다룹니다.
 - 현재는 `YOUTH/Gov24 소비처 추가` 와 `collect/runtime governance` 1차 정리가 모두 닫힌 상태입니다.
