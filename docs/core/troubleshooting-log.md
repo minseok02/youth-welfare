@@ -1,5 +1,10 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 343) active 문서와 handoff runbook에는 로컬 예시 자격과 example 계정을 그대로 남기지 않는다
+- 문제: `start.md`, recommendation operation/runbook, current-state 같은 active 문서에 local smoke용 `admin@example.com`, `password123!`, example recommendation user 문자열이 그대로 남아 있으면, 실제 secret 유출은 아니어도 공개 PR/리뷰 기준으로 불필요한 오해와 noise를 만든다
+- 해결: active 문서와 handoff runbook의 실행 예시는 `ADMIN_EMAIL='<local admin email>'`, `ADMIN_PASSWORD='<local admin password>'`, `<example local recommendation user>` 같은 placeholder로 치환하고, 실제 값 주입은 shell env나 `/tmp/youth-welfare-admin-smoke-password` 파일 discovery 경계에 맡긴다
+- 이유: 이 프로젝트의 active 문서는 현재 작업 진입점이다. 실행 방법은 남기되 실제 로컬 자격 문자열은 환경 변수와 local artifact 경계에 두는 편이 PR hygiene와 운영 문서 해석 모두에 안전하다
+
 ## 342) `tmp/` 아래 smoke/latest artifact가 계속 Git untracked 로 남는 이유는 `.gitignore` 가 `.tmp/` 만 무시하고 실제 경로 `tmp/` 는 놓치고 있었기 때문이다
 - 문제: recommendation latest/export/overview 계열 wrapper가 artifact를 `tmp/recommendation-*` 아래에 남기는데, 저장소의 `.gitignore` 는 `.tmp/` 만 무시하고 `tmp/` 는 무시하지 않았다. 그래서 작업을 다 커밋/푸시한 뒤에도 `git status --short` 에 `?? tmp/` 가 계속 남아 Git 정리가 덜 된 것처럼 보였다
 - 해결: `.gitignore` 에 `tmp/` 를 추가해 실제 artifact 루트를 직접 무시하도록 맞췄다. 이제 daily smoke/latest overview artifact는 계속 로컬에 남겨도 Git untracked 잡음으로 올라오지 않는다

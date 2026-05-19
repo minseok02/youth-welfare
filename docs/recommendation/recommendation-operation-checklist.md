@@ -187,7 +187,7 @@ daily operator entrypoint:
 
 - `bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-overview.sh`
 - `REAL_USER` readiness까지 같이 보려면
-  - `APP_BASE_URL='http://127.0.0.1:8082' ADMIN_EMAIL='admin@example.com' ADMIN_PASSWORD='password123!' INCLUDE_REAL_USER_READINESS=true bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-overview.sh`
+  - `APP_BASE_URL='http://127.0.0.1:8082' ADMIN_EMAIL='<local admin email>' ADMIN_PASSWORD='<local admin password>' INCLUDE_REAL_USER_READINESS=true bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-overview.sh`
 - latest overview artifact:
   - `tmp/recommendation-ai-exclusion-latest-overview/latest-overview-summary.txt`
   - `tmp/recommendation-ai-exclusion-latest-overview/latest-overview-note.md`
@@ -260,7 +260,7 @@ daily operator entrypoint:
   - `bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-status.sh`
   - `bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-status-export.sh`
   - `bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-gate.sh`
-  - `APP_BASE_URL='http://127.0.0.1:8082' ADMIN_EMAIL='admin@example.com' ADMIN_PASSWORD='password123!' bash deploy/smoke/run-local-real-user-exclusion-readiness-check.sh`
+  - `APP_BASE_URL='http://127.0.0.1:8082' ADMIN_EMAIL='<local admin email>' ADMIN_PASSWORD='<local admin password>' bash deploy/smoke/run-local-real-user-exclusion-readiness-check.sh`
   - current local 결과는 `latest gate=PASS`, strict gate=`LATEST_OBSERVATION_CHANGED`, readiness=`DEFERRED_NO_REAL_USER_TRAFFIC / DEFERRED_NO_REAL_USER_COHORT` 입니다.
 - stable baseline key와 volatile key를 자동 분류하려면
   - `bash deploy/smoke/run-local-recommendation-ai-exclusion-stability-report.sh` 를 씁니다.

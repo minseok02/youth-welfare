@@ -35,8 +35,8 @@ bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-overview.sh
 
 ```bash
 APP_BASE_URL='http://127.0.0.1:8082' \
-ADMIN_EMAIL='admin@example.com' \
-ADMIN_PASSWORD='password123!' \
+ADMIN_EMAIL='<local admin email>' \
+ADMIN_PASSWORD='<local admin password>' \
 INCLUDE_REAL_USER_READINESS=true \
 bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-overview.sh
 ```

@@ -19,7 +19,7 @@
 2. `run-local-recommendation-ai-reason-contrast-audit.sh`
 3. `run-local-recommendation-ai-zero-reason-bucket-audit.sh`
 
-대표 계정은 `bookmark.con.742d41fb58534c@example.com` 이고, fresh top `20` 기준 zero-AI bucket은 아래 두 개였습니다.
+대표 계정은 `<example local recommendation user>` 이고, fresh top `20` 기준 zero-AI bucket은 아래 두 개였습니다.
 
 - `INCOME_MISMATCH:1`
 - `STUDENT_AUDIENCE_MISMATCH:1`
