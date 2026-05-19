@@ -1,5 +1,10 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 356) 인덱스와 PR 전달면만 맞추고 폴더 README를 그대로 두면, 폴더 진입점만 보는 사람은 다시 예전 요약을 보게 된다
+- 문제: `recommendation-docs-index.md`, PR body, PR comment까지 lifecycle/current truth를 맞춘 뒤에도 `docs/recommendation/README.md` 는 여전히 “문서 폴더입니다, 인덱스를 보세요” 수준에 머물러 있었다. 이 상태면 recommendation 폴더에 바로 들어온 사람은 `latest-overview`, `WAIT_FOR_REAL_USER_TRAFFIC`, lifecycle order 같은 current 해석을 다시 못 본다
+- 해결: `docs/recommendation/README.md` 에 current active 기준 요약(`latest-overview`, `VOLATILE_ONLY_DRIFT`, basic/strict gate, `WAIT_FOR_REAL_USER_TRAFFIC`)과 `review brief -> draft exit -> post-merge -> REAL_USER recheck` 순서를 직접 적고, 루트 `docs/README.md` 도 recommendation entrypoint를 같은 흐름으로 안내하게 보강했다
+- 이유: entrypoint는 계층마다 같은 truth를 말해야 한다. 인덱스와 PR 전달면만 최신이어도 폴더 README가 비어 있으면, 폴더 단위 진입에서는 같은 current state를 다시 찾게 된다
+
 ## 355) PR body만 lifecycle 기준으로 맞추고 top-level comment를 그대로 두면, reviewer quick entrypoint는 다시 예전 2단계 구조를 보여 주게 된다
 - 문제: PR body를 `review brief -> draft exit -> post-merge follow-up -> REAL_USER recheck` 구조로 갱신한 뒤에도 첫 top-level comment는 여전히 `review brief + REAL_USER recheck` 두 개만 보여 주고 있었다. 이 상태면 GitHub 화면에서 가장 먼저 보이는 quick entrypoint는 다시 예전 구조를 따라가게 된다
 - 해결: 첫 PR comment를 업데이트해 `review brief`, `draft exit`, `post-merge follow-up`, `REAL_USER recheck` 네 문서를 모두 같은 순서로 연결하고, current reading도 `WAIT_FOR_REAL_USER_TRAFFIC`, `VOLATILE_ONLY_DRIFT`, basic gate `PASS`, strict gate `LATEST_OBSERVATION_CHANGED` 기준으로 다시 맞췄다

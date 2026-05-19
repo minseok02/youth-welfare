@@ -47,6 +47,7 @@
 
 - [recommendation/README.md](recommendation/README.md)
   추천 파이프라인, 현재 상태, 검증 문서입니다.
+  현재 recommendation active 기준은 `latest-overview -> PR lifecycle order -> REAL_USER recheck` 순서로 읽는 편이 맞습니다.
 
 - [policy/README.md](policy/README.md)
   정책 정규화, source 온보딩, 상태 관리 문서입니다.
