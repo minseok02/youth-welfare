@@ -1,5 +1,10 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 344) reviewer용 읽기 순서와 `REAL_USER` 재오픈 순서가 active 문서에 흩어져 있으면, closeout PR도 review/handoff 때 다시 탐색 비용이 커진다
+- 문제: 현재 active 문서에는 latest overview, readiness, drift, reopen 관련 정보가 충분히 있었지만, reviewer 관점의 “이번 PR을 어디부터 읽을지”와 `REAL_USER` traffic이 생긴 뒤의 “재오픈 순서”는 서로 다른 문서에 흩어져 있었다. 이 상태면 closeout PR도 review 때 다시 문서 탐색 비용이 커지고, traffic이 생긴 뒤에는 같은 wrapper를 어떤 순서로 다시 태울지 매번 새로 조합하게 된다
+- 해결: [recommendation-pr-review-brief.md](../recommendation/recommendation-pr-review-brief.md) 를 추가해 `Gov24 closeout / recommendation observability / active docs hygiene` 세 덩어리와 우선 읽을 문서를 고정했고, [recommendation-real-user-recheck-checklist.md](../recommendation/recommendation-real-user-recheck-checklist.md) 를 추가해 `latest-overview -> readiness -> baseline-refresh-drift-check -> latest-status-export` one-page 순서를 따로 뽑았다
+- 이유: 지금 단계의 main blocker는 코드가 아니라 `REAL_USER` traffic 부재다. 이런 단계일수록 새 구현보다 “어떤 문서를 먼저 보고, traffic이 생기면 무엇부터 다시 확인할지”를 분리해 두는 편이 handoff와 review 모두에 더 직접적이다
+
 ## 343) active 문서와 handoff runbook에는 로컬 예시 자격과 example 계정을 그대로 남기지 않는다
 - 문제: `start.md`, recommendation operation/runbook, current-state 같은 active 문서에 local smoke용 `admin@example.com`, `password123!`, example recommendation user 문자열이 그대로 남아 있으면, 실제 secret 유출은 아니어도 공개 PR/리뷰 기준으로 불필요한 오해와 noise를 만든다
 - 해결: active 문서와 handoff runbook의 실행 예시는 `ADMIN_EMAIL='<local admin email>'`, `ADMIN_PASSWORD='<local admin password>'`, `<example local recommendation user>` 같은 placeholder로 치환하고, 실제 값 주입은 shell env나 `/tmp/youth-welfare-admin-smoke-password` 파일 discovery 경계에 맡긴다

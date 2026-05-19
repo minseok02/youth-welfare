@@ -21,6 +21,7 @@
 - [recommendation-concentration-audit-runbook.md](./recommendation-concentration-audit-runbook.md)
 - [recommendation-real-user-baseline-runbook.md](./recommendation-real-user-baseline-runbook.md)
 - [recommendation-real-user-exclusion-readiness-check-runbook.md](./recommendation-real-user-exclusion-readiness-check-runbook.md)
+- [recommendation-real-user-recheck-checklist.md](./recommendation-real-user-recheck-checklist.md)
 - [recommendation-ai-exclusion-snapshot-runbook.md](./recommendation-ai-exclusion-snapshot-runbook.md)
 - [recommendation-ai-exclusion-snapshot-compare-runbook.md](./recommendation-ai-exclusion-snapshot-compare-runbook.md)
 - [recommendation-ai-exclusion-drift-check-runbook.md](./recommendation-ai-exclusion-drift-check-runbook.md)
@@ -32,6 +33,7 @@
 - [recommendation-reopen-decision-runbook.md](./recommendation-reopen-decision-runbook.md)
 - [recommendation-next-lane-brief.md](./recommendation-next-lane-brief.md)
 - [recommendation-primary-audience-exclusion-decision-memo.md](./recommendation-primary-audience-exclusion-decision-memo.md)
+- [recommendation-pr-review-brief.md](./recommendation-pr-review-brief.md)
 - [recommendation-signal-gap-audit-runbook.md](./recommendation-signal-gap-audit-runbook.md)
 - [recommendation-region-window-audit-runbook.md](./recommendation-region-window-audit-runbook.md)
 - [recommendation-latest-window-audit-runbook.md](./recommendation-latest-window-audit-runbook.md)
@@ -186,6 +188,12 @@
 
 이 문서는 `REAL_USER` gate readiness와 latest batch zero-AI bucket 분포를 한 번에 확인하는 wrapper/runbook 입니다.
 
+### 6-2. real-user recheck checklist
+
+- [recommendation-real-user-recheck-checklist.md](./recommendation-real-user-recheck-checklist.md)
+
+이 문서는 `REAL_USER` traffic/cohort가 실제로 생긴 뒤 어떤 순서로 baseline/drift를 다시 확인할지 한 장으로 정리한 checklist 입니다.
+
 ### 7. reopen decision runbook
 
 - [recommendation-reopen-decision-runbook.md](./recommendation-reopen-decision-runbook.md)
@@ -215,6 +223,12 @@
 - [recommendation-primary-audience-exclusion-decision-memo.md](./recommendation-primary-audience-exclusion-decision-memo.md)
 
 이 문서는 fresh runtime 기준 zero-AI bucket 중 어떤 exclusion을 product적으로 유지하고, 어떤 bucket만 나중 완화 후보로 둘지 정리한 decision memo 입니다.
+
+### 8-2. PR review brief
+
+- [recommendation-pr-review-brief.md](./recommendation-pr-review-brief.md)
+
+이 문서는 reviewer가 이번 closeout PR을 `Gov24 closeout / recommendation observability / active docs hygiene` 세 덩어리로 빠르게 읽게 정리한 brief 입니다.
 
 ### 9. signal gap audit runbook
 
