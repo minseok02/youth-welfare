@@ -1,5 +1,10 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 358) current-state/checklist만 lifecycle을 말하고 실제 operator runbook이 그대로면, 실행 단계에서 다시 “지금 gate를 보는 건지 reopen을 여는 건지”가 헷갈린다
+- 문제: `recommendation-current-state.md` 와 `recommendation-operation-checklist.md` 까지 lifecycle/current truth를 맞춘 뒤에도, 실제로 daily 실행에 쓰는 `recommendation-ai-exclusion-latest-overview-runbook.md` 와 `recommendation-real-user-exclusion-readiness-check-runbook.md` 안에는 현재 단계 해석과 companion lifecycle 문서 연결이 약했다. 이 상태면 runbook만 열었을 때 다시 “지금은 baseline 유지 단계인가, REAL_USER reopen 단계인가”를 따로 추론해야 한다
+- 해결: overview runbook에 current reading(`WAIT_FOR_REAL_USER_TRAFFIC`, `VOLATILE_ONLY_DRIFT`, basic/strict gate)과 companion docs를 추가하고, readiness runbook에도 현재 local gate 상태와 `real_user_distribution_executed=false` 일 때의 기본 해석, 다음 문서를 직접 연결했다
+- 이유: operator runbook은 실행 명령만이 아니라 현재 단계 해석까지 같이 줘야 한다. 특히 `REAL_USER` gate가 닫힌 시기에는 runbook이 “지금은 관찰 단계”라는 맥락을 먼저 말해 주는 편이 혼선을 줄인다
+
 ## 357) 폴더 README와 인덱스만 lifecycle을 말하고 current-state / operation-checklist 안쪽이 그대로면, recommendation 폴더 내부로 내려간 순간 다시 순서를 잃는다
 - 문제: `recommendation-docs-index.md`, `docs/recommendation/README.md`, PR body/comment까지 lifecycle 순서를 맞춘 뒤에도, 실제로 가장 자주 여는 `recommendation-current-state.md` 와 `recommendation-operation-checklist.md` 안에는 `review brief / draft exit / post-merge / real-user recheck` 연결이 약했다. 이 상태면 recommendation 폴더 안에서 바로 current-state나 checklist를 연 사람은 lifecycle 문서를 다시 인덱스로 되돌아가서 찾아야 한다
 - 해결: `recommendation-current-state.md` 상단 관련 문서와 현재 해석 섹션에 lifecycle 문서를 직접 연결하고, `recommendation-operation-checklist.md` 의 AI exclusion baseline 섹션에도 같은 순서를 추가했다

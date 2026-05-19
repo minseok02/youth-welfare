@@ -16,6 +16,22 @@
 
 개별 wrapper를 따로 치기 전에 지금 상태를 한 화면에서 다시 확인하고 싶을 때 씁니다.
 
+같이 보면 좋은 문서:
+
+- [recommendation-pr-review-brief.md](./recommendation-pr-review-brief.md)
+- [recommendation-pr-draft-exit-checklist.md](./recommendation-pr-draft-exit-checklist.md)
+- [recommendation-post-merge-followup-checklist.md](./recommendation-post-merge-followup-checklist.md)
+- [recommendation-real-user-recheck-checklist.md](./recommendation-real-user-recheck-checklist.md)
+
+현재 이 runbook의 기본 해석은 아래와 같습니다.
+
+- `operator_next_step=WAIT_FOR_REAL_USER_TRAFFIC`
+- `latest_drift_class=VOLATILE_ONLY_DRIFT`
+- basic gate `PASS`
+- strict gate `LATEST_OBSERVATION_CHANGED`
+
+즉 이 runbook은 지금 단계에서 “모델 튜닝”보다 **current baseline 유지와 `REAL_USER` gate 대기**를 다시 확인하는 entrypoint 입니다.
+
 ## 기본 스크립트
 
 ```bash
@@ -83,3 +99,8 @@ bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-overview.sh
   - auto discovery가 어디까지 됐는지 본 뒤 바로 다음 조치까지 한 줄로 안내합니다.
 - `real_user_readiness_detected_admin_email`, `real_user_readiness_has_admin_password`
   - auto discovery가 어디까지 성공했는지 바로 확인하는 값입니다.
+- `REAL_USER` gate가 실제로 열린 뒤 다음 순서를 다시 보려면
+  - [recommendation-real-user-recheck-checklist.md](./recommendation-real-user-recheck-checklist.md)
+- 현재 draft 유지/해제와 merge 뒤 follow-up 판단을 같이 보려면
+  - [recommendation-pr-draft-exit-checklist.md](./recommendation-pr-draft-exit-checklist.md)
+  - [recommendation-post-merge-followup-checklist.md](./recommendation-post-merge-followup-checklist.md)
