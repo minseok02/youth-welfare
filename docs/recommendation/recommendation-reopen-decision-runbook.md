@@ -42,6 +42,8 @@ reopen 판단 전 최소한 아래 증거는 같이 봅니다.
    - `run-local-no-priority-candidate-audit.sh`
    - `run-local-gov24-top2-competitor-audit.sh`
    - `run-local-gov24-fresh-upstream-audit.sh`
+5. AI exclusion을 완화할지 고민하면
+   - [recommendation-primary-audience-exclusion-decision-memo.md](./recommendation-primary-audience-exclusion-decision-memo.md)
 
 특히 아래 둘은 분리해서 읽습니다.
 
@@ -144,6 +146,14 @@ reopen 판단 전 최소한 아래 증거는 같이 봅니다.
 - success/fail 조건
 
 을 먼저 고정합니다.
+
+## primary audience exclusion 예외
+
+현재 fresh runtime evidence 기준 `INCOME_MISMATCH`, `STUDENT_AUDIENCE_MISMATCH` 는 direct tuning으로 완화하기보다 **product exclusion 유지** 쪽이 기본값입니다.
+
+즉 `savedAi=0` 이라고 해서 모두 tuning 후보가 되는 것은 아닙니다.
+
+반대로 `LOW_DIRECT_HELP` 같은 bucket이 반복되면 그때는 완화 후보가 될 수 있습니다.
 
 ## 증상별 권장 lane
 

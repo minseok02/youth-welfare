@@ -181,6 +181,8 @@ bounded family 단위로만 확장합니다.
 
 그리고 `AI input / prompt line / reason contrast` 까지 다시 보면, `3257/3209` 는 “청년 신호가 아예 안 보여서 0점” 쪽보다는 **수급자/신혼부부 같은 primary audience를 현재 사용자와 직접 불일치로 읽는 케이스** 에 가깝습니다. prompt line에 `생애주기/대상군` 을 추가한 뒤에도 `3257` 은 `소득 5분위라 저소득층 지원과 맞지 않음`, `3209` 는 `미혼이라 신혼부부 지원과 맞지 않음` 으로 0점 reason이 유지됐고, 대신 `3288` 은 `0 -> 70` 으로 일부 완화됐습니다. 따라서 다음 immediate bounded step은 broad prompt 재설계가 아니라, **이 primary audience mismatch를 실제 product exclusion으로 볼지, 아니면 AI over-exclusion으로 완화할지 결정하는 제품 판단** 입니다.
 
+`2026-05-19` rebuilt local app 기준 fresh zero-AI reason bucket까지 다시 보면 현재 권장 해석은 더 좁습니다. 지금 fresh top에서 반복된 bucket은 `INCOME_MISMATCH`, `STUDENT_AUDIENCE_MISMATCH` 두 개였고, 둘 다 broad tuning보다 **product exclusion 유지** 쪽이 기본값입니다. 자세한 기준은 [recommendation-primary-audience-exclusion-decision-memo.md](./recommendation-primary-audience-exclusion-decision-memo.md) 에 고정합니다.
+
 ## lane 1 에서 아직 안 할 일
 
 1. global source bonus

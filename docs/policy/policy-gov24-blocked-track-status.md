@@ -28,7 +28,13 @@
 
 ## 현재 결론
 
-현재 `Gov24` 는 **runtime collect/source 트랙은 active**, **hard import/backfill 트랙은 blocked** 상태입니다.
+현재 `Gov24` 는
+
+- **runtime collect/source 트랙은 active**
+- **label-first canonical promotion 트랙도 active**
+- **hard import/backfill / stable-code 트랙만 blocked 또는 deferred**
+
+상태입니다.
 
 즉 현재 로컬에서 이미 진행 가능한 축은
 
@@ -36,7 +42,7 @@
 2. raw/detail/fact 적재 및 품질 점검
 3. collect runtime 안정화
 
-이고, 여전히 외부 자료 또는 내부 canonical 규칙 결정이 필요한 축은
+이고, 여전히 stable code/import-backfill 또는 제품 범위 결정이 필요한 축은
 
 1. `GOV24_SERVICE_FIELD`
 2. `GOV24_USER_TYPE`
@@ -49,7 +55,7 @@
 
 - runtime 쪽: backlog closeout 기준을 유지하고 샘플 품질을 점검
 - support fact gap 쪽: unmapped official support code inventory를 기준으로 deferred 판단 유지
-- normalization 쪽: provider/operator 응답 수신 또는 current API schema/codebook 확보
+- normalization 쪽: string label을 canonical term으로 올리는 내부 규칙 고정, 또는 stable code/import-backfill 여부 판정
 
 ## 지금 blocked 인 이유
 
@@ -104,34 +110,29 @@ runtime fact extractor가 이미 읽는 축:
 
 쪽에 가깝습니다.
 
-### 3. source-of-truth 가 여전히 외부 응답 경계에 있는 축도 남아 있다
+### 3. label 3종은 더 이상 “공개 codebook 대기” 상태로 보지 않는다
 
-현재 blocked 축:
-
-- `GOV24_SERVICE_FIELD`
-- `GOV24_USER_TYPE`
-- `GOV24_BENEFIT_TYPE`
-
-이 축들은 current API 기준
+`서비스분야 / 사용자구분 / 지원유형` 3축은 current API 기준
 
 - field name 은 확인됐고
-- observed raw inventory 도 local DB 에 존재하지만
-- 전체 값 체계(closed set)와 canonical 고정 규칙은 아직 별도로 정해야 합니다
+- observed raw inventory 도 local DB 에 존재하며
+- 공개 공식 Swagger 기준으로도 이 값들은 enum/codebook 이 아니라 `string` 필드다
 
-즉 import/backfill SQL 을 다시 여는 조건은
+즉 현재 active 과제는 “외부 codebook이 오기 전까지 멈춤”이 아니라,
+**공식 codebook 부재를 전제로 raw exact label + allowlist token split 규칙을 내부 canonical 층에 어떻게 고정할지 정하는 것**이다.
 
-- provider/operator codebook 응답
-- current Swagger/schema export
-- 또는 내부 canonical 매핑 규칙 승인
+반대로 계속 blocked 로 남는 것은
 
-중 하나입니다.
+- 이 3축의 stable code/import-backfill SQL
+- `supportConditions` full-scope business/industry/startup code 승격
+
+같은 더 강한 구조화 단계다.
 
 ## reopen 조건
 
-아래 중 하나가 오면 `Gov24` blocked SQL 을 다시 active 로 올립니다.
+아래 중 하나가 오면 `Gov24` stable-code blocked SQL 을 다시 active 로 올립니다.
 
-- provider/operator codebook 응답 수신
-- current Swagger/schema export 확보
+- current API 기준 공식 codebook / enum / schema export 확보
 - 운영자가 current API 기준 inventory를 전달
 - 내부에서 current raw inventory 기준 canonical 매핑 규칙을 승인
 
@@ -183,11 +184,12 @@ runtime fact extractor가 이미 읽는 축:
 
 현재 practical next action 은 아래 셋 중 하나입니다.
 
-1. 실제 provider/operator 에 request package 발송
-2. 응답 수신 전까지 runtime collect + quality audit 계속 진행
-3. 응답 수신 전까지는 local-first closeout 트랙 계속 진행
+1. `서비스분야 / 사용자구분 / 지원유형` label-first canonical 규칙을 코드/문서에 고정
+2. runtime collect + quality audit 기준선을 계속 유지
+3. stable code/import-backfill 또는 `supportConditions` full-scope 확장은 deferred/blocked 로 유지
 
-즉 내부 문서/코드만 더 쌓는 것으로는 unblock 되지 않습니다.
+즉 label-first canonical 승격은 내부 문서/코드로 진행 가능하지만,
+stable code/import-backfill 은 여전히 외부 source-of-truth 없이는 unblock 되지 않습니다.
 
 단, `Gov24` runtime collect 자체를 검토/구현할 때는
 [policy-gov24-implementation-checklist.md](./policy-gov24-implementation-checklist.md)
@@ -219,15 +221,15 @@ runtime collect가 이미 붙은 뒤 coverage/shape/null-heavy sample을 다시 
 
 즉 current blocked 의미는 한 층으로 줄었습니다.
 
-1. `GOV24_SERVICE_FIELD / USER_TYPE / BENEFIT_TYPE` hard import/backfill 트랙은 여전히 codebook/schema 또는 내부 canonical 규칙 기준으로 blocked
+1. `GOV24_SERVICE_FIELD / USER_TYPE / BENEFIT_TYPE` hard import/backfill 트랙은 여전히 stable code/schema 기준으로 blocked
 2. `GOV24_SUPPORT_CONDITION` 은 partial runtime fact는 active, full-scope 확장만 deferred/blocked
 
 ## 요약
 
 1. `Gov24` runtime collect 트랙은 현재 active 다.
 2. `GOV24_SUPPORT_CONDITION` 은 partial runtime fact가 이미 active 이고, full-scope 확장만 남아 있다.
-3. `GOV24_SERVICE_FIELD / USER_TYPE / BENEFIT_TYPE` hard import/backfill 은 여전히 blocked track이다.
+3. `서비스분야 / 사용자구분 / 지원유형` label-first canonical 승격은 active 이고, hard import/backfill 만 blocked track이다.
 4. `GOV24_* = 0` 은 현재 slot/import 기준에서는 expected result 이다.
 5. `supportConditions` gap의 중심인 사업체/업종/창업 상태 code는 현재 제품 경계 기준으로 `deferred` 다.
-6. 다시 열 조건은 current API 기준 codebook/schema 확보, 내부 canonical 규칙 승인, 또는 제품이 사업체/업종 축을 실제로 소비하기 시작하는 것이다.
-7. 자료나 내부 규칙이 준비되면 label 3종을 먼저, `supportConditions` full-scope 를 그다음 순서로 reopen 한다.
+6. stable code/import-backfill 을 다시 열 조건은 current API 기준 codebook/schema 확보, 또는 제품이 더 강한 구조화를 실제로 요구하기 시작하는 것이다.
+7. 현재 active 순서는 label 3종 canonical term 고정이 먼저이고, `supportConditions` full-scope 와 stable code/import-backfill 은 그다음이다.

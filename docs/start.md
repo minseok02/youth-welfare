@@ -33,9 +33,22 @@
 - `2026-05-19` 기준 로컬 full collect baseline도 다시 닫혔습니다. `YOUTH`, `BOKJIRO_CENTRAL`, `BOKJIRO_LOCAL`, `GOV24`, `GOV24_DETAIL`, `GOV24_SUPPORT_CONDITIONS`, `YOUTH_DETAILS`, `BOKJIRO_DETAIL_REFRESH` 를 실제로 다시 태워 hard failure 없이 끝냈고, `run-local-ops-baseline-suite.sh` 도 같은 로컬 runtime에서 다시 통과했습니다.
 - `2026-05-18` 기준 YOUTH/Gov24 신호는 `raw -> fact/token -> admin diagnostics -> detail read-only -> policy card compact badge -> admin facet` 까지 닫혔습니다.
 - `2026-05-18` 기준 `collect/runtime governance` 도 `lane inventory -> latestRun -> config summary` 까지 닫혔습니다.
-- `2026-05-18` 기준 recommendation 의 남은 `3257류` 이슈는 retrieval/신호 부족 버그가 아니라, AI가 `수급자/신혼부부/학생` 같은 primary audience mismatch를 강한 exclusion으로 해석하는 제품 판단 경계로 좁혀졌습니다.
-- recommendation/collect 쪽은 기준선 유지 단계이고, 다음 active track은 `Gov24 canonical promotion` 설계로 보는 편이 맞습니다.
+- `2026-05-19` 기준 recommendation 의 `savedAi=0` 이슈는 구조 버그보다 AI exclusion evidence 정리 단계로 넘어갔고, 현재 one-shot 기준선은 `drift_class=VOLATILE_ONLY_DRIFT`, `recommended_reading=READ_LATEST_AS_VOLATILE_OBSERVATION` 입니다.
+- recommendation, `Gov24 canonical promotion`, collect/runtime governance 는 모두 로컬 closeout 뒤 기준선 유지 단계이고, 지금 다음 관찰 track은 recommendation `AI exclusion baseline` 재확인과 `REAL_USER` cohort readiness gate가 열리는지 보는 것입니다.
 - 메일 발송은 SMTP 기반이며 `MAIL_*` 설정을 우선 사용합니다. provider-neutral 경계는 닫혔고, 다음 운영 선택지는 Gmail 유지보다 AWS SES SMTP 전환 검토가 우선입니다.
+- `2026-05-20` KST 재확인에서도 recommendation latest status와 `REAL_USER` readiness는 바뀌지 않았습니다. latest status는 계속 `VOLATILE_ONLY_DRIFT`, 기본 gate는 `PASS`, strict gate는 `LATEST_OBSERVATION_CHANGED`, readiness는 `DEFERRED_NO_REAL_USER_TRAFFIC / DEFERRED_NO_REAL_USER_COHORT` 입니다.
+
+## recommendation 관찰 순서
+
+- daily one-shot으로 recommendation 상태를 다시 보려면 `bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-overview.sh`
+- `REAL_USER` readiness까지 같이 보려면 `APP_BASE_URL='http://127.0.0.1:8082' ADMIN_EMAIL='admin@example.com' ADMIN_PASSWORD='password123!' INCLUDE_REAL_USER_READINESS=true bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-overview.sh`
+- overview artifact는 `tmp/recommendation-ai-exclusion-latest-overview/latest-overview-summary.txt`, `latest-overview-note.md`, `latest-overview.json` 을 먼저 봅니다.
+- 지금 recommendation 상태만 빠르게 보려면 `bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-status.sh`
+- 운영 메모/핸드오프용 산출물이 필요하면 `bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-status-export.sh`
+- 자동 판정만 보려면 `bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-gate.sh`
+- `REAL_USER` gate가 실제로 열렸는지 보려면 `APP_BASE_URL='http://127.0.0.1:8082' ADMIN_EMAIL='admin@example.com' ADMIN_PASSWORD='password123!' bash deploy/smoke/run-local-real-user-exclusion-readiness-check.sh`
+- strict gate(`FAIL_ON_LATEST_OBSERVATION_CHANGE=true`)가 fail 하더라도 `latest_drift_class=VOLATILE_ONLY_DRIFT` 와 `stable_baseline_changed=false` 면 stable baseline 회귀가 아니라 fresh window 흔들림으로 읽습니다.
+- artifact 경로와 `generated_at` 은 UTC(`...Z`) 기준이라 KST 자정 이후 실행도 전날처럼 보일 수 있습니다. 최신 실행 여부는 `tmp/.../latest` symlink 이동으로 확인합니다.
 
 ## 필요할 때 보는 파일
 

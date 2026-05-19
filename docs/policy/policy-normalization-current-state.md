@@ -39,6 +39,17 @@
 5. `YOUTH 0/0 income` repository pass-through
 6. `교육 -> 교육·직업훈련` narrow scoring experiment
 
+추가로 `2026-05-19` closeout 기준,
+`Gov24 canonical promotion` 의 현재 truth는 단순 draft가 아니라
+**read-model / admin / presentation / prompt / integration verification까지 닫힌 local active lane** 이다.
+현재 `gov24ServiceFieldLabel` 은 `GOV24_SERVICE_FIELD` exact-label term 우선,
+`gov24UserTypeTokens`, `gov24BenefitTypeTokens` 는 allowlist token term 우선으로 읽고,
+legacy `service_taxonomies` raw summary는 canonical term이 없는 row에서만 fallback 된다.
+또한 이 term들은 official codebook 기반 hard code가 아니라 공개 Swagger상 string label을 internal canonical term으로 승격한 결과이므로,
+`service_taxonomy_terms.code_set_key` 도 현재 `null` 로 유지한다.
+즉 `Gov24` 3축은 지금 단계에서 `normalization_code_sets` FK에 기대는 stable-code taxonomy가 아니라,
+**raw exact label / allowlist token을 보존하는 label-first taxonomy term** 으로 읽는 편이 맞다.
+
 ## 1. canonical sidecar 저장
 
 현재 canonical sidecar의 중심 테이블은:
@@ -97,6 +108,10 @@ apply/replay 양쪽에서 같은 축으로 raw row density를 바로 대조할 �
 `serviceField/userType/benefitType` 는 1차 internal mapping draft가 정리된 상태입니다.
 즉 현재 남은 문제는 “값을 아직 모른다”보다
 “label-first canonical 구현을 먼저 열지, stable code/import-backfill 단계까지 deferred로 둘지”에 가깝습니다.
+추가로 `2026-05-19` 공식 문서 재확인 기준 공공데이터포털 Swagger에서
+`서비스분야/사용자구분/지원유형` 은 모두 enum/codebook 없는 `string` 필드로만 공개됩니다.
+즉 이 3축은 현재 active 문서 기준으로도 “외부 공식 codebook을 아직 못 구했다”가 아니라,
+**공식 공개값이 string label뿐인 상태에서 internal canonical term을 어떻게 고정할지 정하는 단계**로 읽는 편이 맞습니다.
 추가로 `YOUTH` 의 `PROVISION_METHOD` 는 이제 `applyMethodName` 오용 대신
 공식 `plcyPvsnMthdCd` label을 우선 source로 쓰고, payload에 코드가 비는 경우에만 기존 신청방법 라벨을 compatibility fallback으로 유지합니다.
 즉 `YOUTH_MID` stable code는 여전히 보류지만, `PROVISION_METHOD` 축은 공식 codebook이 있어 별도로 바로잡을 수 있는 상태입니다.
@@ -241,13 +256,14 @@ YOUTH official fact와 Gov24 token 분포를 **facet 집계**로만 여는 것�
 retrieval/filter/scoring 계약은 그대로 유지한다.
 서버 `83274d9` 검증에서도 이 경계는 그대로 닫혔다.
 `/api/admin/dashboard/recommendation-breakdowns?summaryWindowDays=14&limit=3` 응답은
-`youthOfficialFacetGroups=5`, `gov24FacetGroups=2` 를 실제로 반환했고,
+`youthOfficialFacetGroups=5`, `gov24FacetGroups=3` 를 실제로 반환했고,
 YOUTH 쪽 bucket에는 `제한없음`, `무관` 이 들어오지 않았다.
 예시로 YOUTH는
 `소득조건 유형 -> 기타 rows=114 services=12, 연소득 rows=82 services=3`,
 `취업 요건 -> (예비)창업자 rows=124 services=10, 미취업자 rows=88 services=16`
 처럼 signal만 남았고,
-Gov24는 `사용자구분 -> 개인 rows=214 services=16, 소상공인 rows=5 services=1`,
+Gov24는 `서비스분야 -> 보육·교육, 주거·자립`,
+`사용자구분 -> 개인 rows=214 services=16, 소상공인 rows=5 services=1`,
 `지원유형 -> 현금(장학금) rows=88 services=4, 현금 rows=71 services=9`
 같은 token 분포가 보였다.
 즉 현재 truth는 YOUTH/Gov24 admin facet도 latest recommendation batch 기준 read-only 분포 경계까지 닫혔고,
@@ -271,9 +287,9 @@ raw exact label summary(`gov24ServiceFieldLabel/gov24UserTypeLabel/gov24BenefitT
 - `GOV24_USER_TYPE_TOKEN`, `GOV24_BENEFIT_TYPE_TOKEN` term이 있으면 이를 그대로 집계한다.
 - term이 없는 legacy row만 `service_taxonomies.gov24_user_type_label`, `gov24_benefit_type_label` `||` split 으로 fallback 한다.
 - 즉 현재 Gov24 admin facet의 canonical truth는 `service_taxonomy_terms`, raw split은 호환 fallback 이다.
-같은 원칙으로 recommendation read-model projection 의 `gov24UserTypeTokens`, `gov24BenefitTypeTokens` 도 canonical term 우선으로 정리했다.
-- term이 있으면 projection token list는 term 값을 그대로 쓴다.
-- term이 없는 legacy row만 기존 raw summary label split 으로 fallback 한다.
+같은 원칙으로 recommendation read-model projection 도 canonical term 우선으로 정리했다.
+- `gov24ServiceFieldLabel` 은 `GOV24_SERVICE_FIELD` term이 있으면 그 exact label을 우선 쓰고, 없으면 legacy summary label을 fallback 으로 쓴다.
+- `gov24UserTypeTokens`, `gov24BenefitTypeTokens` 도 term이 있으면 term 값을 그대로 쓰고, term이 없는 legacy row만 기존 raw summary label split 으로 fallback 한다.
 
 ## 2. `YOUTH_MID_RAW_ALIAS` 현재 상태
 
@@ -470,13 +486,14 @@ canonical taxonomy 대표값이 아니라
 
 ### external blocked
 
-- `GOV24_SERVICE_FIELD / USER_TYPE / BENEFIT_TYPE` full codebook
+- `GOV24_SERVICE_FIELD / USER_TYPE / BENEFIT_TYPE` stable code/import-backfill
 - `GOV24_SUPPORT_CONDITION` full inventory
 - `YOUTH_MID` stable code mapping
 
 공통 이유:
 
-- provider/operator/codebook 응답이 먼저 필요
+- 공개 공식 문서만으로는 stable code/schema가 없거나 부족하다
+- 즉 label-first canonical 승격은 가능하지만, hard import/backfill 은 아직 source-of-truth 부족 상태다
 
 ### future infra/deploy memo
 

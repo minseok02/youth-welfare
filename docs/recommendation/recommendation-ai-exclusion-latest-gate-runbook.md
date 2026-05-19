@@ -1,0 +1,77 @@
+# recommendation ai exclusion latest gate runbook
+
+문서군 진입점: [recommendation-docs-index.md](./recommendation-docs-index.md)
+
+## 목적
+
+이 문서는 latest `latest-status.json` 을 읽어
+
+- 해석이 바뀌었는지
+- stable baseline이 바뀌었는지
+- 필요하면 latest observation 변화까지 fail로 볼지
+
+를 자동 판정하는 gate runbook 입니다.
+
+사람이 읽는 요약이 아니라, CI/자동화/운영 체크에서 pass/fail 신호가 필요할 때 씁니다.
+
+## 기본 스크립트
+
+```bash
+bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-gate.sh
+```
+
+latest JSON이 summary보다 오래됐을 때 자동으로 export를 다시 태우고 싶으면:
+
+```bash
+AUTO_REFRESH_STATUS_JSON_IF_STALE=true \
+bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-gate.sh
+```
+
+기본값은 아래일 때만 fail 합니다.
+
+- `interpretation_changed=true`
+- `stable_baseline_changed=true`
+
+latest observation 변화도 fail로 보고 싶으면:
+
+```bash
+FAIL_ON_LATEST_OBSERVATION_CHANGE=true \
+bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-gate.sh
+```
+
+## 주요 출력
+
+- `gate_status`
+- `gate_reason`
+- `generated_at_utc`
+- `generated_at_kst`
+- `operator_next_step`
+- `status_json_stale_relative_to_summaries`
+- `status_json_recommended_action`
+- `latest_drift_class`
+- `latest_recommended_reading`
+- `interpretation_changed`
+- `stable_baseline_changed`
+- `latest_observation_changed`
+- `changed_keys`
+
+## 읽는 법
+
+- `gate_status=PASS`
+  - 현재 latest status는 허용 범위입니다.
+- `gate_reason=INTERPRETATION_CHANGED`
+  - latest 해석이 바뀌었으므로 운영 메모/current-state 결론도 다시 봐야 합니다.
+- `gate_reason=STABLE_BASELINE_CHANGED`
+  - stable baseline 자체가 바뀌었으므로 기준선 갱신이 필요합니다.
+- `gate_reason=LATEST_OBSERVATION_CHANGED`
+  - strict mode에서만 쓰는 fail reason입니다.
+- `generated_at_utc`, `generated_at_kst`
+  - 현재 gate가 읽은 latest-status JSON이 언제 생성된 것인지 UTC/KST 둘 다 바로 확인할 수 있습니다.
+- `operator_next_step`
+  - gate가 PASS여도 지금 다음 실무 행동이 `WAIT_FOR_REAL_USER_TRAFFIC` 인지, `OBSERVE_FRESH_WINDOW_VOLATILITY` 인지 바로 읽을 수 있습니다.
+- `status_json_stale_relative_to_summaries=true`
+  - gate가 보고 있는 JSON이 latest summary보다 오래됐다는 뜻입니다.
+- `status_json_recommended_action=RERUN_LATEST_STATUS_EXPORT`
+  - gate를 다시 믿기 전에 latest export JSON부터 새로 뽑는 편이 맞습니다.
+- `AUTO_REFRESH_STATUS_JSON_IF_STALE=true`
+  - stale JSON이면 gate가 `latest-status-export` 를 먼저 다시 태운 뒤 fresh latest JSON 기준으로 판정합니다.

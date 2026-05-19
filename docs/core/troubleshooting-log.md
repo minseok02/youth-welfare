@@ -1,5 +1,30 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 341) `latest-status-export` 직후 `latest-status` 를 병렬로 읽으면, symlink 갱신 타이밍 때문에 직전 JSON을 먼저 집어 stale처럼 보일 수 있다
+- 문제: `latest-status-export` 와 `latest-status` 또는 `latest-gate` 를 거의 동시에 태우면, export가 새 artifact를 쓰는 동안 status/gate가 직전 `latest-status.json` 을 먼저 읽을 수 있다. 이 경우 summary는 최신인데 JSON만 한 템포 늦어 `status_json_stale_relative_to_summaries=true` 로 보일 수 있다
+- 해결: 현재는 `status_json_stale_relative_to_summaries`, `status_json_recommended_action` 으로 이 상태를 바로 드러내고, 필요하면 `AUTO_REFRESH_STATUS_JSON_IF_STALE=true` 로 `latest-status` / `latest-gate` 를 실행해 `latest-status-export` 를 먼저 다시 태운 뒤 fresh JSON 기준으로 읽게 맞췄다. 시뮬레이션 검증에서도 stale 상태를 일부러 만든 뒤 auto-refresh로 `generated_at_utc`, `generated_at_kst` 가 새 값으로 갱신되고 stale flag가 `false` 로 돌아오는 것을 확인했다
+- 이유: latest summary와 latest JSON은 서로 다른 artifact이므로, 병렬 실행 타이밍에 따라 한쪽이 먼저 갱신될 수 있다. 이 상태를 “회귀”로 읽는 대신 stale artifact race로 분리해야 하고, operator가 매번 수동 export를 다시 치지 않아도 되도록 auto-refresh 경로를 두는 편이 맞다
+
+## 340) `generated_at` 이나 artifact timestamp가 `2026-05-19T15:03:54Z` 처럼 보이면, KST 기준으로는 이미 `2026-05-20` 실행인데도 전날처럼 오해할 수 있다
+- 문제: `run-local-real-user-exclusion-readiness-check.sh`, admin dashboard/breakdowns smoke, latest status export를 `2026-05-20` KST에 다시 태워도 일부 출력의 `generated_at` 은 `2026-05-19T15:03:54...` 처럼 전날 UTC 시각으로 보인다. 이 값을 로컬 날짜 그대로 읽으면 “오늘 실행이 아니라 어제 artifact를 보고 있는 것 아닌가”라는 혼선이 생긴다
+- 해결: 실행 당일 여부는 `tmp/.../latest` symlink가 가리키는 최신 artifact 경로와 실제 wrapper 재실행 여부로 확인하고, `generated_at` 은 UTC 타임스탬프로 읽는다. 현재 latest export artifact도 `tmp/recommendation-ai-exclusion-latest-status/20260519T150359Z` 로 갱신됐고, 이는 KST로는 `2026-05-20 00:03:59` 실행이다
+- 이유: wrapper/artifact 경로는 이미 `Z` suffix UTC 기준으로 정렬되므로, local date(KST)와 표기 날짜가 하루 어긋나는 것은 정상이다. drift나 stale-runtime 여부를 판단할 때는 날짜 문자열보다 latest symlink 이동과 gate/status 재실행 결과를 우선 봐야 한다
+
+## 339) `latest gate` 의 strict 모드 실패를 stable baseline 회귀로 오해하면, fresh window 관찰값 흔들림까지 불필요하게 blocker로 읽을 수 있다
+- 문제: `run-local-recommendation-ai-exclusion-latest-gate.sh` 는 기본 모드에서는 `interpretation_changed` 또는 `stable_baseline_changed` 가 있을 때만 fail 하지만, `FAIL_ON_LATEST_OBSERVATION_CHANGE=true` strict 모드로 돌리면 `latest_observation_changed=true` 만으로도 `LATEST_OBSERVATION_CHANGED` fail 이 난다. 이 상태를 곧바로 regression으로 해석하면, 현재 local truth인 `VOLATILE_ONLY_DRIFT` 와 stable baseline unchanged를 놓치기 쉽다
+- 해결: 먼저 `run-local-recommendation-ai-exclusion-latest-status.sh` 또는 `run-local-recommendation-ai-exclusion-latest-status-export.sh` 로 `latest_drift_class`, `stable_baseline_changed`, `latest_observation_changed` 를 같이 본다. `latest_drift_class=VOLATILE_ONLY_DRIFT`, `stable_baseline_changed=false`, `latest_observation_changed=true` 조합이면 strict gate fail도 stable baseline regression이 아니라 fresh window 흔들림으로 읽는다. 현재 local 최신 상태도 이 케이스다
+- 이유: strict gate는 “해석이 바뀌었는가”가 아니라 “최신 관찰값까지 완전히 고정할 것인가”를 묻는 더 강한 정책이다. 현재 로컬 기준선은 fresh target family zero-AI window가 `2~3` 범위에서 흔들릴 수 있으므로, strict fail과 stable baseline drift를 분리해서 읽어야 운영 판단이 과도하게 닫히지 않는다
+
+## 338) `REAL_USER` readiness wrapper도 결국 admin dashboard/breakdowns smoke를 부르므로, 로컬 기본 셸에 `ADMIN_PASSWORD` 가 없으면 gate 자체가 아니라 자격 누락에서 먼저 끊긴다
+- 문제: `run-local-real-user-exclusion-readiness-check.sh` 는 처음 CTR/concentration 단계만 보면 read-only cohort audit처럼 보이지만, 뒤에서 `run-local-admin-dashboard-smoke.sh`, `run-local-admin-recommendation-breakdowns-smoke.sh` 도 같이 호출한다. 이 상태에서 로컬 셸에 `ADMIN_PASSWORD` 가 없으면 실제 `REAL_USER` gate 상태와 무관하게 `ADMIN_PASSWORD is empty` 에서 먼저 중단된다
+- 해결: 로컬 baseline 재확인 시에는 `APP_BASE_URL='http://127.0.0.1:8082' ADMIN_EMAIL='admin@example.com' ADMIN_PASSWORD='password123!' bash deploy/smoke/run-local-real-user-exclusion-readiness-check.sh` 처럼 명시적으로 자격을 넣어 끝까지 태운다. 현재 local 결과는 다시 `dashboard_real_user_gate=DEFERRED_NO_REAL_USER_TRAFFIC`, `breakdown_real_user_cohort_gate=DEFERRED_NO_REAL_USER_COHORT`, `real_user_distribution_executed=false` 였다
+- 이유: readiness wrapper의 핵심 질문은 `REAL_USER` gate가 열렸는지이지만, 실제 구현은 admin summary/breakdown smoke까지 묶인 one-shot 경로다. 따라서 local에서 gate 결과를 믿으려면 먼저 admin 자격 경계를 명시적으로 닫아야 한다
+
+## 337) nested wrapper stdout에서 첫 `summary_output=` 나 `artifact_dir=` 를 집어 읽으면, 상위 wrapper가 하위 snapshot/run-01 artifact를 최종 산출물로 오인할 수 있다
+- 문제: `run-local-recommendation-ai-exclusion-baseline-refresh.sh`, `run-local-recommendation-ai-exclusion-baseline-refresh-drift-check.sh` 를 만들 때 처음에는 `tee` 로 모은 stdout 에서 `summary_output=` 나 `artifact_dir=` 를 다시 파싱했다. 그런데 하위 wrapper들도 같은 key를 출력하므로, 상위 wrapper가 `volatility summary` 대신 `run-01 snapshot`, 또는 `baseline-refresh-summary.txt` 대신 `run-01` 내부 artifact를 집어 오는 경계가 생겼다
+- 해결: 최종 산출물은 stdout에서 추론하지 않고 deterministic path로 직접 읽도록 고쳤다. 예를 들어 baseline refresh는 `VOLATILITY_DIR/volatility-summary.txt`, drift-check는 `REFRESH_DIR/baseline-refresh-summary.txt` 를 최종 truth로 사용한다. 추가로 `baseline-refresh-summary.txt`, `baseline-refresh-drift-summary.txt`, `latest-status.json` 같은 compact artifact와 `latest` symlink를 따로 남겨, 후속 wrapper는 nested full stdout 대신 이 요약 파일만 읽게 정리했다
+- 이유: wrapper가 wrapper를 호출하는 구조에서는 “stdout 첫 매치 파싱”이 매우 취약하다. 상위 단계가 믿어야 할 것은 사람이 읽는 로그가 아니라 명시적 artifact path여야 하고, downstream automation도 long stdout이 아니라 compact summary를 기준으로 움직여야 drift가 줄어든다
+
 ## 336) 챗 메시지에 `references` 는 있는데 `referencedServiceIds` 가 비어 있으면, 연결 정책 카드가 통째로 사라질 수 있다
 - 문제: `ChatPage` 는 연결 정책 카드 렌더링 조건을 `message.referencedServiceIds.length > 0` 에만 걸고 있었다. 그래서 레거시/부분 데이터처럼 `references` 배열은 존재하지만 `referencedServiceIds` 가 비어 있는 메시지가 오면, 제목/근거가 충분히 있어도 카드 섹션 자체가 렌더링되지 않을 수 있었다
 - 해결: `mapMessage()` 단계에서 `referencedServiceIds` 가 비어 있으면 `references[].serviceId` 를 fallback으로 채우도록 정리했다. 이제 메시지 응답이 두 필드 중 하나만 채워도 연결 정책 카드를 계속 렌더링할 수 있다. 이후 `cd frontend && npm run lint`, `cd frontend && npm run build` 를 다시 통과시켰다

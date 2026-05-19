@@ -25,6 +25,7 @@ public class AdminDashboardRecommendationService {
             "YOUTH_MARITAL_STATUS"
     );
     private static final List<String> GOV24_FACET_ORDER = List.of(
+            "GOV24_SERVICE_FIELD",
             "GOV24_USER_TYPE_TOKEN",
             "GOV24_BENEFIT_TYPE_TOKEN"
     );
@@ -36,6 +37,7 @@ public class AdminDashboardRecommendationService {
             "YOUTH_MARITAL_STATUS", "결혼 상태"
     );
     private static final Map<String, String> GOV24_FACET_LABELS = Map.of(
+            "GOV24_SERVICE_FIELD", "Gov24 서비스분야",
             "GOV24_USER_TYPE_TOKEN", "Gov24 사용자구분",
             "GOV24_BENEFIT_TYPE_TOKEN", "Gov24 지원유형"
     );

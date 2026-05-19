@@ -1119,6 +1119,17 @@ class AdminSecurityWebMvcTest {
                         ),
                         List.of(
                                 new AdminRecommendationBreakdownResponse.FacetGroup(
+                                        "GOV24_SERVICE_FIELD",
+                                        "Gov24 서비스분야",
+                                        List.of(
+                                                new AdminRecommendationBreakdownResponse.FacetBucket(
+                                                        "주거·자립",
+                                                        6,
+                                                        4
+                                                )
+                                        )
+                                ),
+                                new AdminRecommendationBreakdownResponse.FacetGroup(
                                         "GOV24_USER_TYPE_TOKEN",
                                         "Gov24 사용자구분",
                                         List.of(
@@ -1222,8 +1233,10 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.data.youthOfficialFacetGroups[0].facetKey").value("YOUTH_INCOME_CONDITION_TYPE"))
                 .andExpect(jsonPath("$.data.youthOfficialFacetGroups[0].label").value("소득조건 유형"))
                 .andExpect(jsonPath("$.data.youthOfficialFacetGroups[0].buckets[0].label").value("기타"))
-                .andExpect(jsonPath("$.data.gov24FacetGroups[0].facetKey").value("GOV24_USER_TYPE_TOKEN"))
-                .andExpect(jsonPath("$.data.gov24FacetGroups[0].buckets[0].label").value("소상공인"))
+                .andExpect(jsonPath("$.data.gov24FacetGroups[0].facetKey").value("GOV24_SERVICE_FIELD"))
+                .andExpect(jsonPath("$.data.gov24FacetGroups[0].buckets[0].label").value("주거·자립"))
+                .andExpect(jsonPath("$.data.gov24FacetGroups[1].facetKey").value("GOV24_USER_TYPE_TOKEN"))
+                .andExpect(jsonPath("$.data.gov24FacetGroups[1].buckets[0].label").value("소상공인"))
                 .andExpect(jsonPath("$.data.recentFallbackSamples[0].title").value("청년 월세 지원"))
                 .andExpect(jsonPath("$.data.recentFallbackSamples[0].userCohort").value("EXAMPLE_SMOKE"))
                 .andExpect(jsonPath("$.data.recentClickedSamples[0].title").value("청년 전세 지원"))
@@ -1267,6 +1280,7 @@ class AdminSecurityWebMvcTest {
                                 "드림나래",
                                 "BOKJIRO_LOCAL",
                                 "기타",
+                                "보육·교육",
                                 List.of(),
                                 List.of(),
                                 List.of(),
@@ -1302,6 +1316,7 @@ class AdminSecurityWebMvcTest {
                                 90.0,
                                 90.0,
                                 "SCORED",
+                                "청년 직무 경험과 직접 연결됨",
                                 1.025,
                                 1,
                                 1.0,
@@ -1324,6 +1339,7 @@ class AdminSecurityWebMvcTest {
                                 "동구 청년 컬처페이 지원사업",
                                 "BOKJIRO_LOCAL",
                                 "기타",
+                                "주거·자립",
                                 List.of("개인", "가구"),
                                 List.of("현금", "서비스(의료)"),
                                 List.of("0013003", "0013006"),
@@ -1356,6 +1372,7 @@ class AdminSecurityWebMvcTest {
                                 true,
                                 10.0,
                                 10.0,
+                                null,
                                 null,
                                 null,
                                 null,
@@ -1394,7 +1411,9 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.data.services[0].serviceId").value(3686))
                 .andExpect(jsonPath("$.data.services[0].dropStage").value("PRESENT_IN_SAVED_BATCH"))
                 .andExpect(jsonPath("$.data.services[0].latestSavedRank").value(1))
+                .andExpect(jsonPath("$.data.services[0].latestSavedAiReason").value("청년 직무 경험과 직접 연결됨"))
                 .andExpect(jsonPath("$.data.services[1].serviceId").value(2736))
+                .andExpect(jsonPath("$.data.services[1].gov24ServiceFieldLabel").value("주거·자립"))
                 .andExpect(jsonPath("$.data.services[1].gov24UserTypeTokens[0]").value("개인"))
                 .andExpect(jsonPath("$.data.services[1].gov24BenefitTypeTokens[1]").value("서비스(의료)"))
                 .andExpect(jsonPath("$.data.services[1].youthEmploymentRequirementCodes[0]").value("0013003"))

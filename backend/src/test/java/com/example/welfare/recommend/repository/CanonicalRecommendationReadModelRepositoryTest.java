@@ -250,4 +250,63 @@ class CanonicalRecommendationReadModelRepositoryTest {
         assertThat(projection.gov24BenefitTypeLabel()).isEqualTo("서비스");
         assertThat(projection.educationPriorityBoostEligible()).isTrue();
     }
+
+    @Test
+    @DisplayName("Gov24 canonical term이 있으면 서비스분야 label과 사용자/지원유형 token은 term-first로 읽고 raw summary는 fallback으로만 사용한다")
+    void findByServiceIds_prefersGov24CanonicalTerms() {
+        Map<String, Object> baseRow = new LinkedHashMap<>();
+        baseRow.put("service_id", 7701L);
+        baseRow.put("source_type", "GOV24");
+        baseRow.put("unified_category", "주거");
+        baseRow.put("youth_major_label", null);
+        baseRow.put("youth_mid_label", null);
+        baseRow.put("provision_method_label", null);
+        baseRow.put("gov24_service_field_label", "legacy-field");
+        baseRow.put("gov24_user_type_label", "legacy-user");
+        baseRow.put("gov24_benefit_type_label", "legacy-benefit");
+        baseRow.put("title", "청년 이사비 지원");
+        baseRow.put("summary", "청년 주거비 부담 완화");
+        baseRow.put("min_age", 19);
+        baseRow.put("max_age", 34);
+        baseRow.put("min_income", 0);
+        baseRow.put("max_income", 0);
+        baseRow.put("apply_end_date", null);
+        baseRow.put("search_youth_relevant", true);
+
+        given(jdbcTemplate.queryForObject(org.mockito.ArgumentMatchers.contains("table_name = ?"), org.mockito.ArgumentMatchers.eq(Integer.class), org.mockito.ArgumentMatchers.eq("service_taxonomy_summary_slots")))
+                .willReturn(0);
+        given(namedParameterJdbcTemplate.queryForList(org.mockito.ArgumentMatchers.contains("FROM welfare_services"), any(MapSqlParameterSource.class)))
+                .willReturn(List.of(baseRow));
+        given(namedParameterJdbcTemplate.queryForList(org.mockito.ArgumentMatchers.contains("FROM service_taxonomy_terms"), any(MapSqlParameterSource.class)))
+                .willReturn(List.of(
+                        Map.of(
+                                "service_id", 7701L,
+                                "term_group", "GOV24_SERVICE_FIELD",
+                                "term_label", "주거·자립",
+                                "source_field", "serviceField"
+                        ),
+                        Map.of(
+                                "service_id", 7701L,
+                                "term_group", "GOV24_USER_TYPE_TOKEN",
+                                "term_label", "개인",
+                                "source_field", "userType"
+                        ),
+                        Map.of(
+                                "service_id", 7701L,
+                                "term_group", "GOV24_BENEFIT_TYPE_TOKEN",
+                                "term_label", "현금(융자)",
+                                "source_field", "supportType"
+                        )
+                ));
+        given(namedParameterJdbcTemplate.queryForList(org.mockito.ArgumentMatchers.contains("FROM service_facts"), any(MapSqlParameterSource.class)))
+                .willReturn(List.of());
+
+        RecommendationCandidateProjection projection = repository.findByServiceIds(List.of(7701L)).get(7701L);
+
+        assertThat(projection.gov24ServiceFieldLabel()).isEqualTo("주거·자립");
+        assertThat(projection.gov24UserTypeTokens()).containsExactly("개인");
+        assertThat(projection.gov24BenefitTypeTokens()).containsExactly("현금(융자)");
+        assertThat(projection.gov24UserTypeLabel()).isEqualTo("legacy-user");
+        assertThat(projection.gov24BenefitTypeLabel()).isEqualTo("legacy-benefit");
+    }
 }

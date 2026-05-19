@@ -108,9 +108,9 @@ class AdminDashboardRecommendationDiagnosticServiceTest {
                 List.of(),
                 List.of(leader, droppedAfterScoring),
                 Map.of(
-                        3686L, projection(3686L, true, "개인", "현금"),
-                        2736L, projection(2736L, true, "개인||가구", "현금||서비스(의료)||현금"),
-                        3714L, projection(3714L, false, "개인", "서비스(돌봄)")
+                        3686L, projection(3686L, true, "보육·교육", "개인", "현금"),
+                        2736L, projection(2736L, true, "주거·자립", "개인||가구", "현금||서비스(의료)||현금"),
+                        3714L, projection(3714L, false, "보호·돌봄", "개인", "서비스(돌봄)")
                 ),
                 Map.of(
                         3686L, new RetrievalService.CandidateFilterTrace(true, true),
@@ -130,6 +130,7 @@ class AdminDashboardRecommendationDiagnosticServiceTest {
                 .service(leader)
                 .recommendedAt(LocalDateTime.of(2026, 5, 17, 21, 0))
                 .finalScore(BigDecimal.valueOf(1.025))
+                .aiReason("청년 직무 경험과 직접 연결됨")
                 .build();
 
         when(userRecommendationReadService.getRecommendationContextByUserKey("user-key-1"))
@@ -177,6 +178,7 @@ class AdminDashboardRecommendationDiagnosticServiceTest {
                     assertThat(row.dropStage()).isEqualTo("PRESENT_IN_SAVED_BATCH");
                     assertThat(row.latestSavedRank()).isEqualTo(1);
                     assertThat(row.latestSavedAiStatus()).isEqualTo("NOT_REQUESTED");
+                    assertThat(row.latestSavedAiReason()).isEqualTo("청년 직무 경험과 직접 연결됨");
                     assertThat(row.rerankCurrentRank()).isEqualTo(1);
                     assertThat(row.rerankNoPriorityAdjustment()).isEqualTo(0.085);
                 });
@@ -189,6 +191,7 @@ class AdminDashboardRecommendationDiagnosticServiceTest {
                     assertThat(row.baseRetrievalRank()).isEqualTo(2);
                     assertThat(row.retainedBaseRank()).isEqualTo(2);
                     assertThat(row.mergedCandidateRank()).isEqualTo(2);
+                    assertThat(row.gov24ServiceFieldLabel()).isEqualTo("주거·자립");
                     assertThat(row.gov24UserTypeTokens()).containsExactly("개인", "가구");
                     assertThat(row.gov24BenefitTypeTokens()).containsExactly("현금", "서비스(의료)");
                     assertThat(row.youthEmploymentRequirementCodes()).containsExactly("0013003", "0013006");
@@ -258,11 +261,13 @@ class AdminDashboardRecommendationDiagnosticServiceTest {
 
     private RecommendationCandidateProjection projection(Long serviceId,
                                                          boolean youthRelevant,
+                                                         String gov24ServiceFieldLabel,
                                                          String gov24UserTypeLabel,
                                                          String gov24BenefitTypeLabel) {
         return RecommendationCandidateProjection.builder()
                 .serviceId(serviceId)
                 .youthRelevant(youthRelevant)
+                .gov24ServiceFieldLabel(gov24ServiceFieldLabel)
                 .gov24UserTypeLabel(gov24UserTypeLabel)
                 .gov24BenefitTypeLabel(gov24BenefitTypeLabel)
                 .gov24UserTypeTokens(Gov24LabelTokenSupport.userTypeTokens(gov24UserTypeLabel))

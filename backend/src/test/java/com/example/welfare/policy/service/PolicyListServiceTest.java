@@ -133,7 +133,7 @@ class PolicyListServiceTest {
                                 .youthEducationRequirementLabels(List.of("대학 재학"))
                                 .youthSpecialRequirementLabels(List.of("지역인재"))
                                 .youthMaritalStatusLabel("제한없음")
-                                .gov24ServiceFieldLabel("보육")
+                                .gov24ServiceFieldLabel("주거·자립")
                                 .gov24UserTypeLabel("청년")
                                 .gov24BenefitTypeLabel("서비스")
                                 .build()
@@ -164,7 +164,7 @@ class PolicyListServiceTest {
         assertEquals(List.of("대학 재학"), result.getContent().get(0).getYouthEducationRequirementLabels());
         assertEquals(List.of("지역인재"), result.getContent().get(0).getYouthSpecialRequirementLabels());
         assertEquals("제한없음", result.getContent().get(0).getYouthMaritalStatusLabel());
-        assertEquals("보육", result.getContent().get(0).getGov24ServiceFieldLabel());
+        assertEquals("주거·자립", result.getContent().get(0).getGov24ServiceFieldLabel());
         assertEquals("청년", result.getContent().get(0).getGov24UserTypeLabel());
         assertEquals("서비스", result.getContent().get(0).getGov24BenefitTypeLabel());
     }

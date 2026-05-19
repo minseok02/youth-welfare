@@ -29,8 +29,9 @@ public class AdminDashboardRecommendationReadRepository {
             """;
     private static final String GOV24_FACET_ORDER_CASE = """
             case facet_key
-                when 'GOV24_USER_TYPE_TOKEN' then 1
-                when 'GOV24_BENEFIT_TYPE_TOKEN' then 2
+                when 'GOV24_SERVICE_FIELD' then 1
+                when 'GOV24_USER_TYPE_TOKEN' then 2
+                when 'GOV24_BENEFIT_TYPE_TOKEN' then 3
                 else 99
             end
             """;
@@ -780,9 +781,22 @@ public class AdminDashboardRecommendationReadRepository {
                       join welfare_services ws
                         on ws.id = lr.service_id
                        and ws.source_type = 'GOV24'
-                      left join service_taxonomies st
+                     left join service_taxonomies st
                         on st.service_id = ws.id
                      cross join lateral (
+                         select 'GOV24_SERVICE_FIELD' as facet_key, stt.term_label as bucket_label
+                           from service_taxonomy_terms stt
+                          where stt.service_id = ws.id
+                            and stt.term_group = 'GOV24_SERVICE_FIELD'
+                         union all
+                         select 'GOV24_SERVICE_FIELD' as facet_key, st.gov24_service_field_label as bucket_label
+                          where not exists (
+                              select 1
+                                from service_taxonomy_terms stt
+                               where stt.service_id = ws.id
+                                 and stt.term_group = 'GOV24_SERVICE_FIELD'
+                          )
+                         union all
                          select 'GOV24_USER_TYPE_TOKEN' as facet_key, stt.term_label as bucket_label
                            from service_taxonomy_terms stt
                           where stt.service_id = ws.id

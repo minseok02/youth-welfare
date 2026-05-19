@@ -263,6 +263,7 @@ public class CanonicalRecommendationReadModelRepository {
         private final String gov24ServiceFieldLabel;
         private final String gov24UserTypeLabel;
         private final String gov24BenefitTypeLabel;
+        private String gov24ServiceFieldTermLabel;
         private final Set<String> gov24UserTypeTokens = new LinkedHashSet<>();
         private final Set<String> gov24BenefitTypeTokens = new LinkedHashSet<>();
         private final Set<String> youthEmploymentRequirementCodes = new LinkedHashSet<>();
@@ -362,6 +363,11 @@ public class CanonicalRecommendationReadModelRepository {
                 case "INTEREST_THEME" -> interestThemes.add(termLabel);
                 case "LIFE_STAGE" -> lifeStages.add(termLabel);
                 case "YOUTH_KEYWORD" -> keywordTags.add(termLabel);
+                case "GOV24_SERVICE_FIELD" -> {
+                    if (gov24ServiceFieldTermLabel == null || gov24ServiceFieldTermLabel.isBlank()) {
+                        gov24ServiceFieldTermLabel = termLabel;
+                    }
+                }
                 case "GOV24_USER_TYPE_TOKEN" -> gov24UserTypeTokens.add(termLabel);
                 case "GOV24_BENEFIT_TYPE_TOKEN" -> gov24BenefitTypeTokens.add(termLabel);
                 case "TARGET_GROUP" -> {
@@ -422,7 +428,7 @@ public class CanonicalRecommendationReadModelRepository {
                     .youthMajorLabel(youthMajorLabel)
                     .youthMidLabel(youthMidLabel)
                     .provisionMethodLabel(provisionMethodLabel)
-                    .gov24ServiceFieldLabel(gov24ServiceFieldLabel)
+                    .gov24ServiceFieldLabel(resolveGov24ServiceFieldLabel())
                     .gov24UserTypeLabel(gov24UserTypeLabel)
                     .gov24BenefitTypeLabel(gov24BenefitTypeLabel)
                     .gov24UserTypeTokens(resolveGov24UserTypeTokens())
@@ -471,6 +477,13 @@ public class CanonicalRecommendationReadModelRepository {
                     .specialTargetBuckets(specialTargetBuckets)
                     .factKeys(factKeys)
                     .build();
+        }
+
+        private String resolveGov24ServiceFieldLabel() {
+            if (gov24ServiceFieldTermLabel != null && !gov24ServiceFieldTermLabel.isBlank()) {
+                return gov24ServiceFieldTermLabel;
+            }
+            return gov24ServiceFieldLabel;
         }
 
         private List<String> resolveGov24UserTypeTokens() {

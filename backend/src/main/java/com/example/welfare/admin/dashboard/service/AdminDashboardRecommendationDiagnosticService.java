@@ -113,6 +113,7 @@ public class AdminDashboardRecommendationDiagnosticService {
                             service != null ? service.getTitle() : null,
                             service != null && service.getSourceType() != null ? service.getSourceType().name() : null,
                             service != null ? service.getUnifiedCategory() : null,
+                            projection != null ? projection.gov24ServiceFieldLabel() : null,
                             projection != null ? projection.gov24UserTypeTokens() : List.of(),
                             projection != null ? projection.gov24BenefitTypeTokens() : List.of(),
                             projection != null ? projection.youthEmploymentRequirementCodes() : List.of(),
@@ -163,6 +164,7 @@ public class AdminDashboardRecommendationDiagnosticService {
                             savedRecommendation != null && savedRecommendation.getAiStatus() != null
                                     ? savedRecommendation.getAiStatus().name()
                                     : null,
+                            savedRecommendation != null ? savedRecommendation.getAiReason() : null,
                             savedRecommendation != null && savedRecommendation.getFinalScore() != null
                                     ? savedRecommendation.getFinalScore().doubleValue()
                                     : null,

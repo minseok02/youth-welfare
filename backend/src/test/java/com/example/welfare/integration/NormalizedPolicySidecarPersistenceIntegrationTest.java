@@ -172,16 +172,16 @@ class NormalizedPolicySidecarPersistenceIntegrationTest {
         assertThat(facts).anySatisfy(row -> {
             assertThat(row.get("fact_merge_key")).isEqualTo("YOUTH_EDUCATION_REQUIREMENT");
             assertThat(row.get("fact_code_set_key")).isEqualTo("YOUTH_EDUCATION_REQUIREMENT");
-            assertThat(row.get("fact_code")).isEqualTo("0049005,0049006");
+            assertThat(row.get("fact_code")).isEqualTo("0049010");
             assertThat(row.get("operator")).isEqualTo("MEMBER");
-            assertThat(row.get("text_value")).isEqualTo("대학 재학, 대졸 예정");
+            assertThat(row.get("text_value")).isEqualTo("제한없음");
         });
         assertThat(facts).anySatisfy(row -> {
             assertThat(row.get("fact_merge_key")).isEqualTo("YOUTH_MARITAL_STATUS");
             assertThat(row.get("fact_code_set_key")).isEqualTo("YOUTH_MARITAL_STATUS");
-            assertThat(row.get("fact_code")).isEqualTo("0055003");
+            assertThat(row.get("fact_code")).isEqualTo("0055002");
             assertThat(row.get("operator")).isEqualTo("EQ");
-            assertThat(row.get("text_value")).isEqualTo("제한없음");
+            assertThat(row.get("text_value")).isEqualTo("미혼");
         });
         assertThat(facts).anySatisfy(row -> {
             assertThat(row.get("fact_merge_key")).isEqualTo("YOUTH_INCOME_CONDITION_TYPE");

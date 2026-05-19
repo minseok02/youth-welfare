@@ -79,6 +79,7 @@ public class RealtimeAiGateway implements AiRecommendationGateway {
             AiCallResult callResult = callOpenAi(prompt, replaySeed);
             logReplayTraceResponse(clusterId, prompt, callResult);
             AiResponse response = callResult.aiResponse();
+            logAiReasonCoverage(clusterId, response);
 
             if (response != null && response.getResults() != null) {
                 Map<Long, AiResponse.Result> resultMap = response.getResults().stream()
@@ -156,6 +157,22 @@ public class RealtimeAiGateway implements AiRecommendationGateway {
         );
     }
 
+    void logAiReasonCoverage(String clusterId, AiResponse response) {
+        if (response == null || response.getResults() == null || response.getResults().isEmpty()) {
+            return;
+        }
+        int blankReasonCount = blankReasonCount(response.getResults());
+        int nonBlankReasonCount = response.getResults().size() - blankReasonCount;
+        log.info(
+                "[RealtimeAiGateway][reason-coverage] clusterId={} resultsCount={} blankReasonCount={} nonBlankReasonCount={} blankReasonServiceIds={}",
+                clusterId,
+                response.getResults().size(),
+                blankReasonCount,
+                nonBlankReasonCount,
+                blankReasonServiceIds(response.getResults())
+        );
+    }
+
     static String candidateIds(List<ScoredCandidate> topCandidates) {
         return topCandidates.stream()
                 .map(candidate -> String.valueOf(candidate.getService().getId()))
@@ -165,6 +182,19 @@ public class RealtimeAiGateway implements AiRecommendationGateway {
     static String candidateRuleScores(List<ScoredCandidate> topCandidates) {
         return topCandidates.stream()
                 .map(candidate -> candidate.getService().getId() + ":" + String.format(java.util.Locale.ROOT, "%.2f", candidate.getRuleWeightedScore()))
+                .collect(Collectors.joining(","));
+    }
+
+    static int blankReasonCount(List<AiResponse.Result> results) {
+        return (int) results.stream()
+                .filter(result -> result.getReason() == null || result.getReason().isBlank())
+                .count();
+    }
+
+    static String blankReasonServiceIds(List<AiResponse.Result> results) {
+        return results.stream()
+                .filter(result -> result.getReason() == null || result.getReason().isBlank())
+                .map(result -> String.valueOf(result.getServiceId()))
                 .collect(Collectors.joining(","));
     }
 

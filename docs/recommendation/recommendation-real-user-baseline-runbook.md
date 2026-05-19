@@ -26,6 +26,8 @@
 - `deploy/smoke/run-local-admin-dashboard-smoke.sh`
 - `deploy/smoke/run-local-admin-recommendation-breakdowns-smoke.sh`
 - `deploy/smoke/run-local-real-user-readiness-check.sh`
+- `deploy/smoke/run-local-recommendation-ai-zero-reason-distribution-audit.sh`
+- `deploy/smoke/run-local-real-user-exclusion-readiness-check.sh`
 
 ## 어떤 사용자를 `REAL_USER` 로 보나
 
@@ -93,6 +95,15 @@ deploy/smoke/run-local-real-user-readiness-check.sh
 3. admin dashboard summary smoke
 4. admin dashboard recommendation-breakdowns smoke
 
+readiness와 zero-AI bucket 분포를 한 번에 보려면 아래 wrapper를 씁니다.
+
+```bash
+ADMIN_EMAIL='<server admin email>' \
+ADMIN_PASSWORD='<server admin password>' \
+APP_BASE_URL='http://127.0.0.1:8082' \
+bash deploy/smoke/run-local-real-user-exclusion-readiness-check.sh
+```
+
 ## 읽는 법
 
 중요한 출력은 아래입니다.
@@ -144,6 +155,16 @@ deploy/smoke/run-local-real-user-readiness-check.sh
 - `READY_CONCENTRATED_TOP1_REVIEW`
 - `READY_NO_PRIORITY_DOMINANT_REVIEW`
 - `READY_BALANCED_LOGIC_REVIEW`
+
+gate가 열린 뒤 zero-AI latest batch 패턴까지 더 보려면 아래를 추가로 실행합니다.
+
+```bash
+USER_COHORT=real_user \
+TOP_N=20 \
+bash deploy/smoke/run-local-recommendation-ai-zero-reason-distribution-audit.sh
+```
+
+여기서 `zero_ai_reason_buckets` 가 계속 `INCOME_MISMATCH`, `STUDENT_AUDIENCE_MISMATCH` 중심이면 현재 product exclusion이 운영 latest batch에도 반복된다는 뜻으로 읽습니다.
 
 ## 실행 후 남길 최소 기록
 

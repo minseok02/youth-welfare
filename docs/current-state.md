@@ -6,17 +6,20 @@
 - `2026-05-19` 기준 로컬 full collect도 다시 끝까지 닫혔습니다. `collect/all` + `youth-details` + `gov24` 3축 + `bokjiro-details-refresh` 를 실제 runtime에서 다시 태웠고, 최종 기준선은 `YOUTH=2578`, `GOV24=10948`, `BOKJIRO_LOCAL=1223`, `BOKJIRO_CENTRAL=134`, `YOUTH_DETAILS failed=0`, `BOKJIRO_DETAIL_REFRESH requested=1358 saved=1357 failed=0` 입니다.
 - `2026-05-19` 기준 위 로컬 full collect 뒤 `run-local-ops-baseline-suite.sh` 도 다시 통과했습니다. 즉 로컬 runtime 기준으로도 `health -> admin dashboard -> collect failures -> recommendation breakdowns` one-shot 기준선이 현재 수집 데이터 위에서 다시 green 입니다.
 - `2026-05-18` 기준 YOUTH official fact는 `admin diagnostics`, 정책 상세 read-only, 정책 목록 compact badge, admin recommendation facet까지 연결됐고, retrieval/filter/scoring은 아직 안 건드렸습니다.
-- `2026-05-18` 기준 Gov24 token도 `diagnostics`, admin recommendation facet까지 연결됐고, public filter/scoring은 아직 안 건드렸습니다.
+- `2026-05-19` 기준 `Gov24 canonical promotion` 로컬 closeout도 닫혔습니다. `GOV24_SERVICE_FIELD` exact-label term, `GOV24_USER_TYPE_TOKEN / GOV24_BENEFIT_TYPE_TOKEN` allowlist token term은 이제 `diagnostics`, admin facet, recommendation read-model, presentation, AI prompt, integration test까지 term-first 경계로 고정됐고, public filter/scoring/service_facts 승격은 아직 안 건드렸습니다.
 - `2026-05-18` 기준 메일 발송은 provider-neutral SMTP 설정으로 일반화됐습니다. 현재 기본 runtime은 Gmail SMTP fallback을 유지하지만, 운영 방향은 건당 과금과 bulk 발송 적합성을 고려해 AWS SES SMTP 전환 검토가 우선입니다.
 - `2026-05-18` 기준 collect/runtime governance도 한 단계 더 닫혔습니다. `admin/dashboard/collect-failures` 는 이제 실패/partial/streak/circuit 뿐 아니라 `nightly vs manual collect lane inventory`, lane별 `마지막 실행 요약`, `budget/config summary` 를 같이 내려, 어떤 source가 왜 scheduled/manual 인지와 최근 실행 결과, pacing/budget/retry guard를 운영 화면에서 바로 읽을 수 있습니다.
 - `2026-05-18` 기준 운영 read-only 기준선도 one-shot wrapper로 묶였습니다. `deploy/smoke/run-local-ops-baseline-suite.sh` 는 `health -> admin dashboard -> collect failures -> recommendation breakdowns` 를 한 번에 다시 확인합니다.
 - `2026-05-18` 기준 위 `ops baseline suite` 는 운영 서버에서도 끝까지 통과했습니다. 즉 health, admin dashboard, collect failures, recommendation breakdowns 세 축을 one-shot read-only smoke로 다시 확인하는 경로가 실제 runtime 기준선으로 닫혔습니다.
-- `2026-05-18` 기준 recommendation 의 `3257류 savedAi=0` 이슈는 retrieval bug나 signal 누락보다, AI가 `저소득층/신혼부부/학생` 같은 primary audience mismatch를 강한 exclusion으로 읽는 제품 판단 경계로 좁혀졌습니다.
+- `2026-05-19` 기준 recommendation 의 `savedAi=0` 이슈도 구조 버그보다 AI exclusion evidence 정리 단계로 넘어갔습니다. 현재 one-shot 기준선은 `run-local-recommendation-ai-exclusion-baseline-refresh.sh` 와 `run-local-recommendation-ai-exclusion-latest-status.sh` 기준으로 다시 닫혔고, 최종 판정은 `drift_class=VOLATILE_ONLY_DRIFT`, `recommended_reading=READ_LATEST_AS_VOLATILE_OBSERVATION` 입니다. stable baseline은 `baseline_zero_ai_reason_buckets=AUDIENCE_MISMATCH:4,STUDENT_AUDIENCE_MISMATCH:4`, `dashboard_real_user_gate=DEFERRED_NO_REAL_USER_TRAFFIC`, `breakdown_real_user_cohort_gate=DEFERRED_NO_REAL_USER_COHORT` 이고, latest volatile observation 은 `fresh_top_ai_zero_count=2`, `ai_zero_count=2`, `ai_zero_reason_buckets=INCOME_MISMATCH:1,STUDENT_AUDIENCE_MISMATCH:1` 입니다.
+- recommendation 관찰 첫 entrypoint는 이제 `latest-overview` 입니다. `run-local-recommendation-ai-exclusion-latest-overview.sh` 는 latest export, latest status, 기본/strict gate를 한 번에 다시 태우고, artifact도 `latest-overview-summary.txt`, `latest-overview-note.md`, `latest-overview.json` 으로 남깁니다. `REAL_USER` readiness까지 같이 보려면 `INCLUDE_REAL_USER_READINESS=true` 와 admin/app 자격을 함께 넘기면 됩니다.
+- 개별 wrapper를 직접 읽을 때는 `latest-status -> latest-status-export -> latest-gate -> real-user-exclusion-readiness-check` 순서로 보는 편이 맞습니다. 현재 local에서는 기본 gate는 `PASS`, strict gate(`FAIL_ON_LATEST_OBSERVATION_CHANGE=true`)는 `LATEST_OBSERVATION_CHANGED` 로 `FAIL` 이지만, 이는 stable baseline drift가 아니라 fresh window 관찰값 흔들림으로 해석합니다.
+- `2026-05-20` KST 재확인에서도 위 판정은 그대로였습니다. 다만 일부 wrapper의 `generated_at` 과 artifact 경로는 UTC `Z` 기준이라 로컬 날짜보다 하루 전처럼 보일 수 있으므로, 최신 실행 여부는 `tmp/.../latest` symlink와 wrapper 재실행 자체로 판단하는 편이 맞습니다.
 - 지금 우선순위는 기능 검증, 구조 검증, 수정, 최적화/보안, 프론트 연동 검증 순서입니다.
 - 운영/배포 관련 작업은 마지막 단계에서만 다룹니다.
 - 현재는 `YOUTH/Gov24 소비처 추가` 와 `collect/runtime governance` 1차 정리가 모두 닫힌 상태입니다.
-- recommendation 과 collect/runtime governance 는 기준선 유지 단계이고,
-- 다음 active track은 `Gov24 canonical promotion` 설계로 보는 편이 맞습니다.
+- recommendation, `Gov24 canonical promotion`, collect/runtime governance 는 모두 로컬 closeout 뒤 기준선 유지 단계입니다.
+- 지금 다음 관찰 track은 recommendation `AI exclusion baseline` 재확인과 `REAL_USER` cohort readiness gate가 열리는지 보는 것입니다.
 - 2026-05-10 기준 복지로 운영 계정을 확보했고, `중앙 list`, `중앙 detail`, `지자체 list`, `지자체 detail` 을 각각 일일 `100,000` quota로 다시 운영합니다.
 - 코드 안전 상한은 복지로 list source별 `1회 10,000 items`, detail source별 `1회 10,000 calls` 로 둡니다.
 - 복지로 detail backlog 는 더 이상 개발 계정 quota 때문에 의도적으로 남겨 두는 상태로 보지 않고, `gap fill` / `refresh` 로 full coverage 를 다시 채우는 대상으로 봅니다.
@@ -95,6 +98,7 @@
 ### 지금 남은 우선순위
 
 - 운영 문서/런북 고정
+- recommendation `AI exclusion suite` 기준선 유지 및 `REAL_USER` readiness gate 반복 확인
 - `Gov24` runtime audit runbook 고정 및 반복 점검 경로 유지
 - `Gov24` support unmapped inventory는 기준선으로 유지하되, 사업체/업종/창업 상태 code fact 승격은 현재 단계에서 deferred 유지
 - `referenceUrlsJson` rebuild/backfill 운영 절차 문서화
@@ -108,7 +112,7 @@
 | 항목 | 지금 안 하는 이유 | 다시 열 조건 |
 |---|---|---|
 | recommendation 제품 판단 | 재현 가능한 bugfix는 닫혔고, `2736` 류 local 청년 정책 노출 강화는 제품/모델링 선택 문제다. | 새 rank/cache/diagnostics 재현 버그가 생기거나, local 청년 정책 노출 강화가 명시 목표로 승인될 때 |
-| `Gov24` canonical promotion | `supportConditions` 는 partial runtime fact가 이미 active 이고, `serviceField/userType/benefitType` raw inventory와 1차 내부 매핑 초안도 있다. 현재 active 범위는 exact label 유지 + allowlist token split 을 `service_taxonomy_terms` 중심 canonical 층으로 어디까지 올릴지 고정하는 것이다. stable code/import-backfill, full-scope support condition, `YOUTH_MID` 연결은 계속 deferred 다. | 현재 active |
+| `Gov24` stable code/import-backfill / full-scope fact promotion | `Gov24 canonical promotion` core lane은 로컬 closeout까지 끝났고, 현재 남은 것은 `stable code/import-backfill`, `supportConditions` business/industry/startup full-scope fact 승격, `YOUTH_MID` 연결처럼 외연을 넓히는 후속 과제뿐이다. | 외부 codebook/import source가 추가로 확보되거나, `service_facts`/public filter/scoring까지 확장하는 목표가 승인될 때 |
 | 추가 infra/server 확장 | 서버 smoke/drift/runtime 검증은 닫혔지만, secret store/HTTPS/deploy 고도화는 지금 active main track이 아니다. | bounded runtime 기준선 유지보다 배포/운영 절차 확장이 우선 목표로 올라올 때 |
 
 ## 아래부터는 이력 / 참고

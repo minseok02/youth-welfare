@@ -2,7 +2,7 @@
 
 ## 목적
 
-이 문서는 fresh persisted batch 기준 `savedAi=0` row와 같은 source/category 양수 AI row의 **persisted `ai_reason`** 을 직접 비교합니다.
+이 문서는 fresh persisted batch 기준 `savedAi=0` row와 같은 source/category 양수 AI row의 **admin diagnostics `latestSavedAiReason`** 을 비교합니다.
 
 질문은 이것입니다.
 
@@ -10,7 +10,7 @@
 - 같은 category 양수 row는 어떤 이유로 높게 봤는가
 - mixed life stage / 저소득 / 수급자 / 신혼부부 같은 표현이 실제 AI reason에도 드러나는가
 
-즉 이 runbook은 `input contrast` 다음 단계의 **모델 해석 근거 확인** 용도입니다.
+즉 이 runbook은 `input contrast` 다음 단계의 **모델 해석 근거 확인** 용도이며, 별도 DB `ai_reason` 조회가 아니라 diagnostics API truth를 기준으로 읽습니다.
 
 ## 언제 쓰나
 
@@ -59,9 +59,12 @@ bash deploy/smoke/run-local-recommendation-ai-reason-contrast-audit.sh
 
 핵심 필드:
 
+- `aiZeroBlankReasonCount`
+- `aiPositiveBlankReasonCount`
+- `savedAiStatus`
 - `savedAi`
 - `savedRank`
-- `aiReason`
+- `savedAiReason`
 
 ## 읽는 법
 
@@ -77,9 +80,13 @@ bash deploy/smoke/run-local-recommendation-ai-reason-contrast-audit.sh
 
 ### 2. zero row reason이 모호하거나 비어 있고, positive row reason만 또렷하면
 
-이 경우는 AI 입력/응답 품질 불안정 가능성도 있습니다.
+이 경우는 AI 입력/응답 품질 불안정 가능성도 있습니다. 다만 이 wrapper는 latest persisted diagnostics truth만 보므로, DB raw row를 따로 재확인하기 전에는 저장 drift로 단정하지 않습니다.
 
-### 3. 같은 category positive row reason이 청년 직접성 표현을 반복하면
+### 3. zero/positive reason이 둘 다 비어 있으면
+
+이 경우는 primary audience mismatch 해석 이전에 **persisted reason coverage 부족** 으로 읽는 편이 맞습니다. 우선 `aiZeroBlankReasonCount`, `aiPositiveBlankReasonCount` 를 보고, blank가 많으면 이 wrapper는 “0점 이유 확인”보다 “현재 저장된 reason이 거의 없음”을 보여주는 용도로 해석합니다.
+
+### 4. 같은 category positive row reason이 청년 직접성 표현을 반복하면
 
 예:
 

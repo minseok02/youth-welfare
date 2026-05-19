@@ -130,6 +130,64 @@
 
 그리고 `2026-05-18` server `ai input contrast / prompt line contrast / ai reason contrast` 까지 다시 태운 결과, `3257/3209` 는 structured signal이 빈약해서 0점인 쪽이 아니라 **AI가 primary audience mismatch를 직접 0점 이유로 적는 케이스** 로 좁혀졌습니다. `3257` 은 `savedAi=0`, reason=`저소득층을 위한 지원으로 소득 5분위인 사용자에게는 적합하지 않음`, `3209` 는 `신혼부부 대상의 지원으로 미혼인 사용자에게는 해당되지 않음` 으로 저장됐습니다. 같은 `BOKJIRO_LOCAL 주거` 인 `3609` 는 `savedAi=60` 이고 reason도 “미취업 상태에서는 직접적인 혜택이 적을 수 있음” 수준이라, 이번 prompt line 보강은 `3288` 처럼 일부 row를 0점 밖으로 끌어내리는 효과는 있었지만 `3257/3209` 핵심 케이스를 뒤집지는 못했습니다. 즉 현재 남은 문제는 prompt에 청년 신호가 안 보이는 것이 아니라, **AI가 수급자/신혼부부/학생 같은 대상군 불일치를 강한 exclusion으로 해석하는 것**입니다.
 
+`2026-05-19` rebuilt local app 기준으로 다시 잡히는 fresh runtime family도 같은 성격입니다. 현재 로컬에서 바로 재현되는 계정은 `bookmark.con.742d41fb58534c@example.com` 이고, `run-local-recommendation-ai-stage-gap-audit.sh` / `run-local-recommendation-ai-reason-contrast-audit.sh` 를 fresh top 기준으로 다시 태우면 zero-AI family는 `3289`, `3611`, `3290`, `5837` 으로 잡힙니다. 이 중 `3289` 는 `기초생활수급자 대상이라 소득 5분위 사용자와 불일치`, `3290` 은 `대학생 학자금 대출 이자 지원이라 미취업 청년에게 직접적 도움 부족`, `5837` 은 `대학생 대상 장학금이라 미취업 청년에게 해당되지 않음` 으로 0점 이유가 명시됐고, comparator `3284/12595/3110` 은 같은 category 안에서도 `취업역량 제고`, `청년 창업 지원`, `현장체험학습비는 청년 직접성 낮음` 같이 훨씬 선명한 이유 문장을 가졌습니다. 즉 현재 local HEAD 기준으로도 병목은 reason blank가 아니라 **AI가 대상군/직접성 불일치를 강한 exclusion으로 읽는 것** 입니다.
+
+같은 계정으로 `run-local-recommendation-ai-zero-reason-bucket-audit.sh` 를 fresh top `20` 기준으로 다시 태워 보면, 현재 zero-AI bucket은 `INCOME_MISMATCH:1`, `STUDENT_AUDIENCE_MISMATCH:2`, `OTHER:1` 로 잡힙니다. 실제 row는 `3289(BOKJIRO_LOCAL/교육·직업훈련)`, `3290(BOKJIRO_LOCAL/금융·생활지원)`, `3611(BOKJIRO_LOCAL/금융·생활지원)`, `5837(GOV24/일자리)` 네 건이고, `3289` 는 소득 불일치, `3290/5837` 은 대학생 대상 불일치, `3611` 은 “미취업 상태와 직접 관련 없음” 계열 reason으로 읽혔습니다. 즉 최신 fresh runtime 기준 zero-AI 핵심은 여전히 **명시적 audience exclusion** 이지만, 지금 local top window에는 `학생/대학생 대상 불일치` 외에 `직접성 낮음` 성격 `OTHER` bucket도 한 건 섞여 있습니다.
+
+현재 문서 기준 product 기본값은 이 두 bucket을 완화하지 않고 유지하는 쪽입니다. 세부 판단은 [recommendation-primary-audience-exclusion-decision-memo.md](./recommendation-primary-audience-exclusion-decision-memo.md) 에 따로 고정합니다.
+
+현재 local exclusion baseline을 한 번에 다시 확인할 때는 [recommendation-ai-exclusion-suite-runbook.md](./recommendation-ai-exclusion-suite-runbook.md) 와 `run-local-recommendation-ai-exclusion-suite.sh` 를 entrypoint로 봅니다. 같은 baseline을 날짜별 summary artifact로 남길 때는 [recommendation-ai-exclusion-snapshot-runbook.md](./recommendation-ai-exclusion-snapshot-runbook.md) 와 `run-local-recommendation-ai-exclusion-snapshot.sh` 를 쓰고, 직전 snapshot과 drift만 빠르게 볼 때는 [recommendation-ai-exclusion-snapshot-compare-runbook.md](./recommendation-ai-exclusion-snapshot-compare-runbook.md) 와 `run-local-recommendation-ai-exclusion-snapshot-compare.sh` 를 씁니다. 새 snapshot 생성과 직전 baseline compare를 한 번에 끝낼 때는 [recommendation-ai-exclusion-drift-check-runbook.md](./recommendation-ai-exclusion-drift-check-runbook.md) 와 `run-local-recommendation-ai-exclusion-drift-check.sh` 를 씁니다. fresh target window 자체가 얼마나 흔들리는지 보려면 [recommendation-ai-exclusion-volatility-audit-runbook.md](./recommendation-ai-exclusion-volatility-audit-runbook.md) 와 `run-local-recommendation-ai-exclusion-volatility-audit.sh` 를 쓰고, 어떤 key를 stable baseline으로 볼지 분류할 때는 [recommendation-ai-exclusion-stability-report-runbook.md](./recommendation-ai-exclusion-stability-report-runbook.md) 와 `run-local-recommendation-ai-exclusion-stability-report.sh` 를 씁니다. 개별 compare가 stable baseline drift인지 volatile-only drift인지 바로 판정할 때는 [recommendation-ai-exclusion-drift-classify-runbook.md](./recommendation-ai-exclusion-drift-classify-runbook.md) 와 `run-local-recommendation-ai-exclusion-drift-classify.sh` 를 쓰고, 이 둘을 사람 읽기용 한 장으로 볼 때는 [recommendation-ai-exclusion-baseline-report-runbook.md](./recommendation-ai-exclusion-baseline-report-runbook.md) 와 `run-local-recommendation-ai-exclusion-baseline-report.sh` 를 씁니다. volatility audit와 baseline report를 한 번에 다시 태울 때는 [recommendation-ai-exclusion-baseline-refresh-runbook.md](./recommendation-ai-exclusion-baseline-refresh-runbook.md) 와 `run-local-recommendation-ai-exclusion-baseline-refresh.sh` 를 씁니다.
+
+`2026-05-19` snapshot wrapper 재실행 기준 summary는 `fresh_top_ai_zero_count=2`, `ai_zero_count=4`, `ai_zero_reason_buckets=INCOME_MISMATCH:1,OTHER:1,STUDENT_AUDIENCE_MISMATCH:2`, `baseline_zero_ai_reason_buckets=AUDIENCE_MISMATCH:4,STUDENT_AUDIENCE_MISMATCH:4`, `real_user_distribution_executed=false`, `dashboard_real_user_gate=DEFERRED_NO_REAL_USER_TRAFFIC`, `breakdown_real_user_cohort_gate=DEFERRED_NO_REAL_USER_COHORT` 입니다. 즉 target family 핵심은 여전히 `3289/5837` 이지만, fresh top 전체로 보면 `3290/3611` 까지 포함한 4건 zero-AI window로 읽는 편이 더 정확합니다.
+
+같은 baseline을 고정하고 `RUN_COUNT=2` 로 `run-local-recommendation-ai-exclusion-volatility-audit.sh` 를 다시 태워 보면, current drift는 실제로 fresh window 변동성으로 보입니다. 이번 local 반복 결과는 `drift_detected_runs=2`, `changed_keys_frequency=fresh_top_ai_zero_count:2,ai_zero_count:1,ai_zero_reason_buckets:1`, `fresh_top_ai_zero_count_frequency=2:1,4:1` 이었고, cohort baseline과 `REAL_USER` gate는 그대로였습니다. 즉 현재 local truth는 **`non_example` baseline과 `REAL_USER` gate는 안정적이지만, fresh target family zero-AI window는 2~4건 범위에서 흔들릴 수 있다** 는 쪽입니다.
+
+같은 artifact에 `run-local-recommendation-ai-exclusion-stability-report.sh` 를 적용하면 stable/volatile 분리도 더 명확합니다. 현재 stable key는 `target_service_ids_csv`, `baseline_scope_users`, `baseline_zero_ai_reason_buckets`, `target_scope_users`, `target_zero_ai_reason_buckets`, `real_user_distribution_executed`, `dashboard_real_user_gate`, `breakdown_real_user_cohort_gate` 이고, volatile key는 `fresh_top_ai_zero_count`, `ai_zero_count`, `ai_zero_reason_buckets` 입니다. 즉 지금 문서에서 **고정 baseline처럼 써도 되는 건 cohort/gate 계열** 이고, **fresh target family zero-AI 개수/버킷은 관찰값으로만 읽는 편** 이 맞습니다.
+
+실제로 baseline snapshot `20260519T135555Z` 와 volatility run `run-02` snapshot을 `run-local-recommendation-ai-exclusion-drift-classify.sh` 로 분류하면 `drift_class=VOLATILE_ONLY_DRIFT`, `volatile_changed_keys=fresh_top_ai_zero_count`, `stable_changed_keys=` 로 나옵니다. 즉 지금 local compare에서 보이는 drift는 stable baseline 변화가 아니라 **fresh target window count 흔들림** 으로 읽는 것이 맞습니다.
+
+이 기준선을 one-shot으로 다시 태우는 entrypoint는 이제 `run-local-recommendation-ai-exclusion-baseline-refresh.sh` 입니다. latest pointer 기준으로는 `run-local-recommendation-ai-exclusion-latest-status.sh` 가 현재 truth를 가장 빠르게 보여 줍니다. 최종 판정은 `drift_class=VOLATILE_ONLY_DRIFT`, `recommended_reading=READ_LATEST_AS_VOLATILE_OBSERVATION` 이며, stable baseline은 `baseline_zero_ai_reason_buckets=AUDIENCE_MISMATCH:4,STUDENT_AUDIENCE_MISMATCH:4`, `dashboard_real_user_gate=DEFERRED_NO_REAL_USER_TRAFFIC`, `breakdown_real_user_cohort_gate=DEFERRED_NO_REAL_USER_COHORT` 입니다. 반면 latest volatile observation 은 `fresh_top_ai_zero_count=2`, `ai_zero_count=2`, `ai_zero_reason_buckets=INCOME_MISMATCH:1,STUDENT_AUDIENCE_MISMATCH:1` 으로 읽는 편이 맞습니다.
+
+이제 refresh 결과는 `baseline-refresh-summary.txt` 로도 따로 남기므로, 직전 두 refresh를 high-signal key만으로 바로 비교할 때는 `run-local-recommendation-ai-exclusion-baseline-refresh-compare.sh` 를 쓰는 편이 맞습니다. 여기서 `stable_baseline_changed=false`, `latest_observation_changed=true` 면 stable baseline은 그대로고 fresh window 관찰값만 흔들린 것으로 읽습니다.
+
+새 refresh를 실제로 다시 태운 뒤 직전 refresh summary와 one-shot으로 비교할 때는 `run-local-recommendation-ai-exclusion-baseline-refresh-drift-check.sh` 를 씁니다. 이 wrapper는 `baseline refresh -> compact summary compare` 를 한 번에 끝내므로, latest refresh가 stable baseline drift인지 fresh observation drift인지 바로 읽을 수 있습니다.
+
+이제 drift-check 결과도 `baseline-refresh-drift-summary.txt` 로 따로 남기므로, 가장 최근 compare를 high-signal key만으로 바로 읽을 때는 `latest-baseline-refresh-drift-summary.txt` 를 먼저 보는 편이 맞습니다.
+
+재실행 없이 지금 latest baseline/drift 상태만 한 화면에서 바로 볼 때는 `run-local-recommendation-ai-exclusion-latest-status.sh` 를 쓰면 됩니다. 이 wrapper는 latest refresh summary와 latest drift summary를 같이 읽어 stable baseline, latest volatile observation, latest drift 판정을 한 번에 요약합니다.
+
+같은 latest 상태를 운영 메모/핸드오프용 Markdown note로 바로 뽑을 때는 `run-local-recommendation-ai-exclusion-latest-status-export.sh` 를 쓰면 됩니다.
+
+이 export는 이제 `latest-status.json` 도 같이 남기므로, 후속 자동화나 요약 스크립트에서는 `latest_json_link` 를 바로 읽는 편이 맞습니다. note/json 모두 `generated_at_utc`, `generated_at_kst` 를 같이 남기므로, UTC artifact 경로와 로컬 KST 실행 시각을 함께 확인할 수 있습니다.
+
+같은 latest JSON을 자동 판정용으로 읽을 때는 `run-local-recommendation-ai-exclusion-latest-gate.sh` 를 쓰면 됩니다. 현재 기본 gate는 latest observation 변화만으로는 fail 하지 않고, `interpretation_changed` 나 `stable_baseline_changed` 가 있을 때만 fail 합니다.
+
+`latest-status` 와 `latest-gate` 도 이제 export JSON이 있으면 `generated_at_utc`, `generated_at_kst` 를 같이 보여 주므로, 현재 읽고 있는 latest artifact가 UTC로 언제 생성됐고 KST로는 언제 실행된 것인지 CLI 출력만으로도 바로 확인할 수 있습니다.
+
+같은 latest export JSON은 이제 `operator_next_step` 도 같이 남깁니다. current local 기준 값은 `WAIT_FOR_REAL_USER_TRAFFIC` 이고, 이는 stable baseline drift 대응보다 먼저 `REAL_USER` traffic/cohort가 쌓일 때까지 관찰 단계로 남아 있다는 뜻입니다.
+
+또 `latest-status` 와 `latest-gate` 는 이제 `status_json_stale_relative_to_summaries`, `status_json_recommended_action` 도 같이 보여 줍니다. 만약 latest refresh/drift summary가 export JSON보다 새로워졌다면 `RERUN_LATEST_STATUS_EXPORT` 를 먼저 수행해 human/machine latest artifact를 다시 맞추는 편이 맞습니다.
+
+수동 정합보다 편한 경로가 필요하면 `AUTO_REFRESH_STATUS_JSON_IF_STALE=true` 로 `latest-status`, `latest-gate` 를 실행할 수 있습니다. 이 경우 stale JSON이면 `latest-status-export` 를 먼저 다시 태운 뒤 fresh latest JSON 기준으로 값을 읽습니다.
+
+daily operator entrypoint로는 `run-local-recommendation-ai-exclusion-latest-overview.sh` 를 쓰는 편이 맞습니다. 이 wrapper는 latest export를 먼저 갱신한 뒤 `latest-status`, 기본 `latest-gate`, strict `latest-gate` 를 순서대로 보여 주므로, 지금 상태와 다음 행동을 한 번에 다시 읽을 수 있습니다.
+
+이 overview wrapper는 이제 `tmp/recommendation-ai-exclusion-latest-overview/<ts>/latest-overview-summary.txt`, `latest-overview-note.md`, `latest-overview.json` 과 `latest` symlink도 같이 남깁니다. 즉 daily 확인 뒤에는 stdout만 보지 않고 compact summary, 사람용 note, machine-readable JSON 중 필요한 artifact를 바로 handoff 기준으로 써도 됩니다.
+
+필요하면 같은 overview에서 `REAL_USER` readiness도 같이 확인할 수 있습니다. `INCLUDE_REAL_USER_READINESS=true` 와 `APP_BASE_URL`, `ADMIN_EMAIL`, `ADMIN_PASSWORD` 를 넘기면 overview artifact에 readiness gate와 distribution 실행 여부까지 함께 남깁니다. 기본 `auto` 모드도 로컬 기본 URL `http://127.0.0.1:8082` 와 발견 가능한 admin 자격이 있으면 readiness를 자동 포함하려 시도하고, 자격이 없으면 skip 이유만 남기고 계속 진행합니다.
+
+auto skip일 때는 `real_user_readiness_next_action` 도 같이 남깁니다. 현재 로컬 auto 기준으로는 `SET_ADMIN_PASSWORD_OR_ADMIN_PASSWORD_FILE` 이고, 이는 admin email은 찾았지만 password discovery가 비어 있다는 뜻입니다.
+
+strict 모드(`FAIL_ON_LATEST_OBSERVATION_CHANGE=true`)는 current local에서 `LATEST_OBSERVATION_CHANGED` 로 fail 합니다. 다만 현재 latest status 자체가 `latest_drift_class=VOLATILE_ONLY_DRIFT`, `stable_baseline_changed=false`, `latest_observation_changed=true` 이므로, 이 fail을 stable baseline regression으로 읽는 편은 맞지 않습니다. 지금은 fresh target window 관찰값만 흔들리는 상태로 읽는 편이 정확합니다.
+
+`2026-05-20` KST에 latest status / latest gate / readiness를 다시 태워도 이 판정은 그대로 유지됐습니다. current latest export artifact는 `tmp/recommendation-ai-exclusion-latest-status/20260519T150359Z` 이고, `Z` suffix UTC 기준이라 KST 자정 이후 실행도 날짜상 전날처럼 보일 수 있습니다.
+
+현재 admin `recommendation-diagnostics` 응답도 이 판단을 더 직접 읽게 보강된 상태다. 기존 `latestSavedAiScore`, `latestSavedAiStatus` 에 더해 `latestSavedAiReason` 도 같이 내려가므로, fresh saved batch 기준 target family와 top competitor를 비교할 때 더 이상 DB row를 따로 열지 않고도 persisted exclusion 이유를 바로 확인할 수 있다. `ai stage gap / ai input contrast / ai reason contrast` wrapper도 이제 이 diagnostics truth를 공통으로 사용한다.
+
+`2026-05-19` local 검증 중간에는 `bookmark.con.742d41fb58534c@example.com` 계정으로 `run-local-recommendation-ai-reason-contrast-audit.sh`, `run-local-recommendation-ai-reason-coverage-audit.sh` 를 태웠을 때 fresh top scored row의 `savedAiReason` 이 전부 blank로 보이는 구간이 있었습니다. 당시에는 `ai_scored_count=15`, `ai_scored_blank_reason_count=15`, `ai_scored_non_blank_reason_count=0` 이었고, 분포도 `sourceType=BOKJIRO_LOCAL:9,GOV24:6` 으로 넓게 퍼져 있어 persisted reason coverage 부족처럼 읽혔습니다.
+
+다만 같은 날 최신 workspace 코드로 `docker compose up -d --build app` 뒤 `run-local-recommendation-ai-upstream-reason-trace-audit.sh` 를 같은 계정에 다시 태우자 현재 truth는 달랐습니다. fresh top `20` 기준 `ai_scored_count=15`, `ai_scored_blank_reason_count=0`, `ai_scored_non_blank_reason_count=15` 였고, same refresh 구간의 app log도 `[RealtimeAiGateway][reason-coverage] ... blankReasonCount=0 nonBlankReasonCount=15` 로 찍혔습니다. 즉 현재 HEAD/local runtime 기준으로는 OpenAI upstream 응답과 persisted saved row가 모두 reason을 보존하고 있으며, 직전 all-blank 관측은 **stale app runtime drift** 로 읽는 편이 맞습니다.
+
 이 판단에 대해 `2026-05-18` 에 bounded hybrid 완화도 한 번 실험했습니다. `RealtimeAiGateway` system prompt에 “청년을 생애주기/대상군에 명시적으로 포함하면 저소득층·주거취약계층·mixed life stage라는 이유만으로 0점을 주지 말라”는 가이드를 추가해 봤지만, server 재검증 결과 `3257/3209` 는 여전히 `savedAi=0` 이었고, 오히려 직전 완화됐던 `3288` 도 다시 `savedAi=0` 으로 내려갔습니다. 즉 이 prompt 완화는 효과적으로 검증되지 않았고, 현재 기준 mainline에서는 원복했습니다. 따라서 남은 이슈는 기술 수정이 아니라 **이 primary audience exclusion을 제품 정책으로 유지할지, 더 강한 프롬프트/후처리 완화를 승인할지에 대한 제품 판단** 입니다.
 
 ## 현재 scoring 기준

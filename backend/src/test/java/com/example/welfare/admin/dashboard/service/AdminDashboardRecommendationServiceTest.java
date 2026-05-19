@@ -152,6 +152,12 @@ class AdminDashboardRecommendationServiceTest {
         given(adminDashboardRecommendationReadRepository.fetchLatestBatchGov24FacetRows(3))
                 .willReturn(List.of(
                         new AdminDashboardReadRows.RecommendationFacetRow(
+                                "GOV24_SERVICE_FIELD",
+                                "주거·자립",
+                                5,
+                                5
+                        ),
+                        new AdminDashboardReadRows.RecommendationFacetRow(
                                 "GOV24_USER_TYPE_TOKEN",
                                 "소상공인",
                                 4,
@@ -290,15 +296,22 @@ class AdminDashboardRecommendationServiceTest {
             assertThat(bucket.distinctServices()).isEqualTo(7);
         });
         assertThat(response.youthOfficialFacetGroups().get(1).facetKey()).isEqualTo("YOUTH_EMPLOYMENT_REQUIREMENT");
-        assertThat(response.gov24FacetGroups()).hasSize(2);
-        assertThat(response.gov24FacetGroups().get(0).facetKey()).isEqualTo("GOV24_USER_TYPE_TOKEN");
-        assertThat(response.gov24FacetGroups().get(0).label()).isEqualTo("Gov24 사용자구분");
+        assertThat(response.gov24FacetGroups()).hasSize(3);
+        assertThat(response.gov24FacetGroups().get(0).facetKey()).isEqualTo("GOV24_SERVICE_FIELD");
+        assertThat(response.gov24FacetGroups().get(0).label()).isEqualTo("Gov24 서비스분야");
         assertThat(response.gov24FacetGroups().get(0).buckets()).singleElement().satisfies(bucket -> {
+            assertThat(bucket.label()).isEqualTo("주거·자립");
+            assertThat(bucket.rowCount()).isEqualTo(5);
+            assertThat(bucket.distinctServices()).isEqualTo(5);
+        });
+        assertThat(response.gov24FacetGroups().get(1).facetKey()).isEqualTo("GOV24_USER_TYPE_TOKEN");
+        assertThat(response.gov24FacetGroups().get(1).label()).isEqualTo("Gov24 사용자구분");
+        assertThat(response.gov24FacetGroups().get(1).buckets()).singleElement().satisfies(bucket -> {
             assertThat(bucket.label()).isEqualTo("소상공인");
             assertThat(bucket.rowCount()).isEqualTo(4);
             assertThat(bucket.distinctServices()).isEqualTo(4);
         });
-        assertThat(response.gov24FacetGroups().get(1).facetKey()).isEqualTo("GOV24_BENEFIT_TYPE_TOKEN");
+        assertThat(response.gov24FacetGroups().get(2).facetKey()).isEqualTo("GOV24_BENEFIT_TYPE_TOKEN");
         assertThat(response.recentFallbackSamples()).singleElement().satisfies(sample -> {
             assertThat(sample.logId()).isEqualTo(101L);
             assertThat(sample.title()).isEqualTo("청년 월세 지원");
