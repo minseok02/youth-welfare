@@ -99,7 +99,7 @@ fresh persisted batch에서도 AI top-N 밖에 머문 것입니다.
 
 ### 3. `savedAiReason` 이 명시적 exclusion 문구일 때
 
-예: `저소득층 지원`, `신혼부부 대상`, `학생 대상` 같은 문구가 직접 내려오면  
+예: `저소득층 지원`, `신혼부부 대상`, `학생 대상` 같은 문구가 직접 내려오면
 이 케이스는 signal 부족보다 **AI primary audience mismatch 해석** 에 더 가깝습니다.
 
 ### 4. `delta < 0`
