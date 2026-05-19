@@ -45,6 +45,14 @@ bash deploy/smoke/run-local-real-user-exclusion-readiness-check.sh
 
 이 단계는 `latest-overview` artifact에 readiness가 포함됐더라도, gate 해석만 따로 다시 고정하고 싶을 때 씁니다.
 
+### 2-1. review-gate blocker를 mixed/latest batch 기준으로 분리 확인
+
+```bash
+bash deploy/smoke/run-local-recommendation-review-gate-blocker-audit.sh
+```
+
+이 단계는 readiness가 이미 열렸는데도 review gate가 계속 `DEFERRED_NON_REAL_LEADER_SIGNAL` 인 경우, blocker가 `REAL_USER` 부족이 아니라 mixed latest batch leader dominance 인지 따로 고정하고 싶을 때 씁니다.
+
 ### 3. baseline refresh drift check
 
 ```bash

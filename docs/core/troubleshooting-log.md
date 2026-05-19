@@ -1,5 +1,10 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 368) `REAL_USER` traffic/cohort gate가 이미 열렸는데도 review gate가 계속 deferred이면, 원인을 readiness 부족으로 읽지 말고 mixed latest batch leader dominance 와 분리해서 봐야 한다
+- 문제: local generic-domain signup 계정 30개로 `account_origin=REAL_USER` 표본을 충분히 쌓은 뒤에도 `run-local-real-user-exclusion-readiness-check.sh` 는 `READY_REAL_USER_TRAFFIC / READY_REAL_USER_COHORT` 를 보여 주지만, mixed latest batch review gate는 계속 `DEFERRED_NON_REAL_LEADER_SIGNAL` 로 남았다. 이 상태를 readiness 부족으로만 읽으면 “real-user를 더 만들면 풀리나”와 “mixed latest batch 자체가 example에 너무 치우쳤나”를 구분하기 어렵다.
+- 해결: `run-local-recommendation-review-gate-blocker-audit.sh` 를 추가해 mixed latest batch와 real-user-only latest batch의 top1 leader를 같은 축으로 비교하게 했다. 현재 local truth는 mixed latest batch `users=498`, `example_users=464`, `real_user_users=30`, `top1_leader=청년월세 지원사업`, `top1_leader_share_pct=55.62`, `top1_leader_real_user_users=0` 인 반면, real-user-only latest batch는 `top1_leader=드림나래(인천청년 면접복장 지원)`, `top1_leader_share_pct=10.00`, `concentration_readiness=NO_PRIORITY_DOMINANT` 이다.
+- 이유: live readiness gate와 mixed review gate는 같은 층이 아니다. readiness는 “real-user traffic/cohort가 생겼는가”를 말하고, review gate는 “mixed latest batch top1 leader에 real-user signal이 올라왔는가”를 말한다. 지금 로컬 상태는 후자 쪽 blocker가 남아 있으므로, review gate deferred를 더 많은 real-user 생성 문제로만 읽으면 해석이 어긋난다.
+
 ## 367) `REAL_USER` cohort가 커지면 zero-reason distribution wrapper가 rows를 env/argv로 넘기다 `Argument list too long` 로 터질 수 있다
 - 문제: `run-local-recommendation-ai-zero-reason-distribution-audit.sh` 는 latest batch rows를 `rows="$(...)"` 로 모은 뒤 `RAW_ROWS="${rows}" python3 ...` 형태로 Python에 넘겼다. 13명 정도까지는 버텼지만, 30명 `REAL_USER` 샘플로 latest batch rows가 커지자 readiness/overview 내부에서 `/usr/bin/python3: Argument list too long` 로 깨졌다. 이 상태면 `dashboard_real_user_gate=READY_REAL_USER_TRAFFIC`, `breakdown_real_user_cohort_gate=READY_REAL_USER_COHORT` 까지는 확인돼도, 바로 이어지는 zero-AI distribution 단계에서 wrapper가 중단된다.
 - 해결: DB rows를 환경변수로 넘기지 않고 `mktemp` file에 저장한 뒤 Python이 그 파일을 직접 읽게 바꿨다. 이렇게 하면 cohort row 수가 커져도 shell env/argv 한계에 걸리지 않는다.

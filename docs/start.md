@@ -51,6 +51,7 @@
 - 운영 메모/핸드오프용 산출물이 필요하면 `bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-status-export.sh`
 - 자동 판정만 보려면 `bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-gate.sh`
 - `REAL_USER` gate와 review gate를 실제로 같이 보려면 `APP_BASE_URL='http://127.0.0.1:8082' ADMIN_EMAIL='<local admin email>' ADMIN_PASSWORD='<local admin password>' bash deploy/smoke/run-local-real-user-exclusion-readiness-check.sh`
+- mixed latest batch review gate가 왜 아직 `DEFERRED_NON_REAL_LEADER_SIGNAL` 인지 직접 보려면 `bash deploy/smoke/run-local-recommendation-review-gate-blocker-audit.sh`
 - `REAL_USER` traffic/cohort가 실제로 생긴 뒤에는 [recommendation-real-user-recheck-checklist.md](./recommendation/recommendation-real-user-recheck-checklist.md) 순서대로 다시 확인합니다.
 - strict gate(`FAIL_ON_LATEST_OBSERVATION_CHANGE=true`)가 fail 하더라도 `latest_drift_class=VOLATILE_ONLY_DRIFT` 와 `stable_baseline_changed=false` 면 stable baseline 회귀가 아니라 fresh window 흔들림으로 읽습니다.
 - artifact 경로와 `generated_at` 은 UTC(`...Z`) 기준이라 KST 자정 이후 실행도 전날처럼 보일 수 있습니다. 최신 실행 여부는 `tmp/.../latest` symlink 이동으로 확인합니다.

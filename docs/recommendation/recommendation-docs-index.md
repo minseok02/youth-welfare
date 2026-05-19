@@ -21,6 +21,7 @@
 - [recommendation-concentration-audit-runbook.md](./recommendation-concentration-audit-runbook.md)
 - [recommendation-real-user-baseline-runbook.md](./recommendation-real-user-baseline-runbook.md)
 - [recommendation-real-user-exclusion-readiness-check-runbook.md](./recommendation-real-user-exclusion-readiness-check-runbook.md)
+- [recommendation-review-gate-blocker-audit-runbook.md](./recommendation-review-gate-blocker-audit-runbook.md)
 - [recommendation-real-user-recheck-checklist.md](./recommendation-real-user-recheck-checklist.md)
 - [recommendation-pr-draft-exit-checklist.md](./recommendation-pr-draft-exit-checklist.md)
 - [recommendation-post-merge-followup-checklist.md](./recommendation-post-merge-followup-checklist.md)
@@ -56,6 +57,7 @@
 - `bash deploy/smoke/run-local-ctr-readiness-audit.sh`
 - `bash deploy/smoke/run-local-recommendation-concentration-audit.sh`
 - `bash deploy/smoke/run-local-real-user-readiness-check.sh`
+- `bash deploy/smoke/run-local-recommendation-review-gate-blocker-audit.sh`
 - `bash deploy/smoke/run-local-no-priority-top1-sample.sh`
 - `bash deploy/smoke/run-local-no-priority-candidate-audit.sh`
 - `bash deploy/smoke/run-local-recommendation-signal-gap-audit.sh`
@@ -204,6 +206,12 @@ recommendation closeout PR 관련 문서는 아래 순서로 읽는 편이 맞�
 - [recommendation-real-user-exclusion-readiness-check-runbook.md](./recommendation-real-user-exclusion-readiness-check-runbook.md)
 
 이 문서는 `REAL_USER` gate readiness와 latest batch zero-AI bucket 분포를 한 번에 확인하는 wrapper/runbook 입니다.
+
+### 6-1-a. review-gate blocker audit runbook
+
+- [recommendation-review-gate-blocker-audit-runbook.md](./recommendation-review-gate-blocker-audit-runbook.md)
+
+이 문서는 live readiness가 이미 열린 뒤에도 mixed latest batch review gate가 왜 `DEFERRED_NON_REAL_LEADER_SIGNAL` 인지, mixed batch와 real-user-only top1 leader를 같은 축으로 비교해 읽는 wrapper/runbook 입니다.
 
 ### 6-2. real-user recheck checklist
 
