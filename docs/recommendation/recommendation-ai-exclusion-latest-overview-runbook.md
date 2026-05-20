@@ -116,6 +116,10 @@ bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-overview.sh
   - current local 기준 기본 current action입니다. full latest batch gate historical inertia와 recent-window current-live signal을 같이 읽으라는 뜻입니다.
 - `gate_action_class=READ_PRIMARY_AND_SUPPLEMENTAL_REVIEW_GATES`
   - overview에서 operator가 제일 먼저 읽을 실행 분류입니다. 지금은 primary historical gate와 supplemental recent-window gate를 함께 보라는 뜻입니다.
+- `gate_policy_status=PRIMARY_BLOCKED_SUPPLEMENTAL_CLEAR`
+  - daily overview에서 drift gate와 별도로 먼저 읽을 운영 정책 상태입니다. primary full latest batch gate는 blocker지만 recent-window current-live signal은 clear라는 뜻입니다.
+- `gate_policy_reason=HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR`
+  - 위 policy 상태를 만든 운영 해석 클래스입니다.
 - `review_gate_interpretation_class=HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR`
   - primary full latest batch gate는 historical blocker인데 recent-window current-live signal은 이미 clear라는 뜻입니다.
 - `review_gate_operating_mode=PRIMARY_BASELINE_WITH_SUPPLEMENTAL_RECENT_WINDOW`

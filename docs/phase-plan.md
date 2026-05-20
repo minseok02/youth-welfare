@@ -1,5 +1,6 @@
 # 구현 현황
 
+- 2026-05-20: `latest-gate` 의 `PASS/FAIL` 은 drift gate로 유지하고, 별도로 `gate_policy_status`, `gate_policy_reason` 을 올렸다. 현재 local 기준으로는 `gate_status=PASS` 와 함께 `gate_policy_status=PRIMARY_BLOCKED_SUPPLEMENTAL_CLEAR`, `gate_policy_reason=HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR` 를 같이 읽는 편이 맞다.
 - 2026-05-20: operator artifact에 추가한 `gate_action_class=READ_PRIMARY_AND_SUPPLEMENTAL_REVIEW_GATES` 를 reviewer-facing brief와 GitHub PR 전달면에도 같이 올렸다. 이제 reviewer도 `review_gate_interpretation_class`, `review_gate_operating_mode` 에 더해 first action을 같은 한 줄로 읽는다.
 - 2026-05-20: latest operator surface에 `gate_action_class` 도 올렸다. 현재 local 기준 값은 `READ_PRIMARY_AND_SUPPLEMENTAL_REVIEW_GATES` 이고, operator는 이제 `effective_operator_next_step`, `review_gate_interpretation_class`, `review_gate_operating_mode` 를 다시 조합하지 않고도 첫 행동을 한 줄로 읽을 수 있다.
 - 2026-05-20: reopen / next-lane / primary-audience-exclusion 문서에도 `review_gate_interpretation_class=HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR`, `review_gate_operating_mode=PRIMARY_BASELINE_WITH_SUPPLEMENTAL_RECENT_WINDOW` 를 직접 올렸다. 이제 product-decision surface도 같은 current 운영 클래스를 기준으로 읽는다.

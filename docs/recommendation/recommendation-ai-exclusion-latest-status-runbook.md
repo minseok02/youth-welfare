@@ -48,6 +48,8 @@ bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-status.sh
 - `operator_next_step`
 - `effective_operator_next_step`
 - `gate_action_class`
+- `gate_policy_status`
+- `gate_policy_reason`
 - `status_json_stale_relative_to_summaries`
 - `status_json_recommended_action`
 - `latest_drift_class`
@@ -80,6 +82,10 @@ bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-status.sh
   - current local truth 기준 실제 다음 해석입니다. full latest batch gate가 stale historical example inertia를 포함하므로, recent-window current signal을 같이 읽으라는 뜻입니다.
 - `gate_action_class=READ_PRIMARY_AND_SUPPLEMENTAL_REVIEW_GATES`
   - operator가 한 줄로 먼저 읽을 실행 분류입니다. 현재 local 기준으로는 full latest batch historical baseline과 recent-window current-live signal을 같이 보라는 뜻입니다.
+- `gate_policy_status=PRIMARY_BLOCKED_SUPPLEMENTAL_CLEAR`
+  - drift 여부와 별도로, current 운영 정책 상태를 짧게 읽는 값입니다. primary full latest batch gate는 blocker지만 supplemental recent-window signal은 clear라는 뜻입니다.
+- `gate_policy_reason=HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR`
+  - 위 policy 상태를 만든 운영 해석 클래스입니다.
 - `review_gate_interpretation_class=HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR`
   - primary full latest batch gate는 아직 historical blocker인데, supplemental recent-window current signal은 이미 clear 쪽으로 움직였다는 뜻입니다.
 - `review_gate_operating_mode=PRIMARY_BASELINE_WITH_SUPPLEMENTAL_RECENT_WINDOW`

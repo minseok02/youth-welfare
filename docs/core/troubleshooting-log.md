@@ -1,5 +1,10 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 915) `latest-gate` 에서 `PASS/FAIL` 만 보여 주면, drift gate는 통과했는데 운영 정책 상태는 아직 blocked인 current recommendation 해석을 한 줄로 못 드러낸다
+- 문제: current local truth는 `gate_status=PASS` 여도 full latest batch primary gate는 아직 historical blocker이고 recent-window는 supplemental clear다. 그런데 `gate_status/gate_reason` 만 보면 이 둘이 같은 층의 판정처럼 보이고, operator는 다시 `review_gate_interpretation_class`, `review_gate_operating_mode` 를 해석해야 한다.
+- 해결: `latest-status-export`, `latest-status`, `latest-gate`, `latest-overview` 에 `gate_policy_status`, `gate_policy_reason` 을 추가했다. 현재 local 기준으로는 `PRIMARY_BLOCKED_SUPPLEMENTAL_CLEAR`, `HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR` 를 drift gate와 나란히 읽는 편이 맞다.
+- 이유: current recommendation latest surface에는 두 종류의 gate가 있다. 하나는 artifact drift gate(`PASS/FAIL`), 다른 하나는 운영 정책 해석 gate(primary historical blocker vs supplemental current clear)다. 둘을 분리해야 `PASS인데 왜 아직 blocked라고 하냐`는 혼선을 줄일 수 있다.
+
 ## 914) operator artifact에 `gate_action_class` 를 올린 뒤 reviewer-facing PR surface가 같은 값을 안 쓰면, reviewer는 current first action을 다시 해석해야 한다
 - 문제: `latest-status`, `latest-gate`, `latest-overview` 는 이미 `gate_action_class=READ_PRIMARY_AND_SUPPLEMENTAL_REVIEW_GATES` 를 직접 내리고 있었지만, `recommendation-pr-review-brief.md` 와 PR 본문/quick comment는 여전히 `review_gate_interpretation_class`, `review_gate_operating_mode`, `operator next step` 까지만 적고 있었다.
 - 해결: reviewer brief와 GitHub PR 전달면에도 `gate action class` 를 같이 올려, reviewer가 GitHub 화면만 봐도 operator와 같은 first action을 한 줄로 읽게 맞췄다.

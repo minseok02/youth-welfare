@@ -120,6 +120,27 @@ elif not gate_action_class:
     else:
         gate_action_class = "KEEP_BASELINE_MONITORING"
 
+gate_policy_status = data.get("gate_policy_status", "")
+gate_policy_reason = data.get("gate_policy_reason", "")
+review_gate_context = data.get("review_gate_context", {})
+review_gate_interpretation_class = review_gate_context.get("review_gate_interpretation_class", "")
+if not gate_policy_status:
+    if interpretation_changed == "true" or stable_baseline_changed == "true":
+        gate_policy_status = "BASELINE_DRIFT_BLOCKING"
+        gate_policy_reason = "INTERPRETATION_CHANGED" if interpretation_changed == "true" else "STABLE_BASELINE_CHANGED"
+    elif review_gate_interpretation_class == "HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR":
+        gate_policy_status = "PRIMARY_BLOCKED_SUPPLEMENTAL_CLEAR"
+        gate_policy_reason = review_gate_interpretation_class
+    elif review_gate_interpretation_class == "PRIMARY_AND_RECENT_WINDOW_BOTH_BLOCKING":
+        gate_policy_status = "PRIMARY_AND_RECENT_WINDOW_BLOCKING"
+        gate_policy_reason = review_gate_interpretation_class
+    elif review_gate_interpretation_class == "PRIMARY_BLOCKER_WITHOUT_SUPPLEMENTAL_SIGNAL":
+        gate_policy_status = "PRIMARY_BLOCKER_ONLY"
+        gate_policy_reason = review_gate_interpretation_class
+    else:
+        gate_policy_status = "BASELINE_MONITORING"
+        gate_policy_reason = review_gate_interpretation_class or "NO_SPECIAL_REVIEW_GATE_SPLIT"
+
 print(f"status_json={status_json}")
 print(f"gate_status={status}")
 print(f"gate_reason={reason}")
@@ -128,6 +149,8 @@ print(f"generated_at_kst={data.get('generated_at_kst', '')}")
 print(f"operator_next_step={data.get('operator_next_step', '')}")
 print(f"effective_operator_next_step={data.get('effective_operator_next_step', data.get('operator_next_step', ''))}")
 print(f"gate_action_class={gate_action_class}")
+print(f"gate_policy_status={gate_policy_status}")
+print(f"gate_policy_reason={gate_policy_reason}")
 print(f"status_json_stale_relative_to_summaries={status_json_stale_relative_to_summaries}")
 print(f"status_json_recommended_action={status_json_recommended_action}")
 print(f"latest_drift_class={data.get('latest_drift_class', '')}")
@@ -136,7 +159,6 @@ print(f"interpretation_changed={interpretation_changed}")
 print(f"stable_baseline_changed={stable_baseline_changed}")
 print(f"latest_observation_changed={latest_observation_changed}")
 print(f"changed_keys={drift.get('changed_keys', '')}")
-review_gate_context = data.get("review_gate_context", {})
 print(f"primary_review_gate_blocker_class={review_gate_context.get('primary_review_gate_blocker_class', '')}")
 print(f"review_gate_interpretation_class={review_gate_context.get('review_gate_interpretation_class', '')}")
 print(f"review_gate_operating_mode={review_gate_context.get('review_gate_operating_mode', '')}")

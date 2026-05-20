@@ -95,6 +95,21 @@ elif review_gate_blocker.get("blocker_class", "") == "MIXED_BATCH_NON_REAL_DOMIN
     review_gate_interpretation_class = "PRIMARY_BLOCKER_WITHOUT_SUPPLEMENTAL_SIGNAL"
     review_gate_operating_mode = "USE_PRIMARY_REVIEW_GATE_ONLY"
 
+gate_policy_status = "BASELINE_MONITORING"
+gate_policy_reason = "NO_SPECIAL_REVIEW_GATE_SPLIT"
+if interpretation_changed == "true" or stable_baseline_changed == "true":
+    gate_policy_status = "BASELINE_DRIFT_BLOCKING"
+    gate_policy_reason = "INTERPRETATION_CHANGED" if interpretation_changed == "true" else "STABLE_BASELINE_CHANGED"
+elif review_gate_interpretation_class == "HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR":
+    gate_policy_status = "PRIMARY_BLOCKED_SUPPLEMENTAL_CLEAR"
+    gate_policy_reason = review_gate_interpretation_class
+elif review_gate_interpretation_class == "PRIMARY_AND_RECENT_WINDOW_BOTH_BLOCKING":
+    gate_policy_status = "PRIMARY_AND_RECENT_WINDOW_BLOCKING"
+    gate_policy_reason = review_gate_interpretation_class
+elif review_gate_interpretation_class == "PRIMARY_BLOCKER_WITHOUT_SUPPLEMENTAL_SIGNAL":
+    gate_policy_status = "PRIMARY_BLOCKER_ONLY"
+    gate_policy_reason = review_gate_interpretation_class
+
 operator_next_step = "BASELINE_STABLE_NO_ACTION"
 if interpretation_changed == "true" or stable_baseline_changed == "true":
     operator_next_step = "INVESTIGATE_STABLE_BASELINE_DRIFT"
@@ -141,6 +156,8 @@ lines = [
     f"- operator_next_step: `{operator_next_step}`",
     f"- effective_operator_next_step: `{effective_operator_next_step}`",
     f"- gate_action_class: `{gate_action_class}`",
+    f"- gate_policy_status: `{gate_policy_status}`",
+    f"- gate_policy_reason: `{gate_policy_reason}`",
     f"- refresh_summary: `{refresh_path}`",
     f"- drift_summary: `{drift_path}`",
     f"- latest_drift_class: `{refresh.get('drift_class', '')}`",
@@ -196,6 +213,8 @@ json_payload = {
     "operator_next_step": operator_next_step,
     "effective_operator_next_step": effective_operator_next_step,
     "gate_action_class": gate_action_class,
+    "gate_policy_status": gate_policy_status,
+    "gate_policy_reason": gate_policy_reason,
     "status_json_stale_relative_to_summaries": "false",
     "status_json_recommended_action": "",
     "refresh_summary": str(refresh_path),

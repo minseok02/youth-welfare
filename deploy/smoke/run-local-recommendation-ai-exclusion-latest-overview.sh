@@ -254,6 +254,8 @@ elif readiness_skip_reason == "REAL_USER_READINESS_DISABLED":
 baseline_operator_next_step = status.get("operator_next_step", "")
 effective_operator_next_step = status.get("effective_operator_next_step", baseline_operator_next_step)
 gate_action_class = status.get("gate_action_class", "")
+gate_policy_status = status.get("gate_policy_status", "")
+gate_policy_reason = status.get("gate_policy_reason", "")
 readiness_override_detected = "false"
 readiness_override_reason = ""
 if (
@@ -271,6 +273,22 @@ if (
         effective_operator_next_step = "RUN_REAL_USER_RECHECK_DECISION"
 
 gate_action_class = resolve_gate_action_class(gate.get("gate_reason", ""), effective_operator_next_step)
+if gate.get("gate_reason", "") in {"INTERPRETATION_CHANGED", "STABLE_BASELINE_CHANGED"}:
+    gate_policy_status = "BASELINE_DRIFT_BLOCKING"
+    gate_policy_reason = gate.get("gate_reason", "")
+elif not gate_policy_status:
+    if review_gate_interpretation_class == "HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR":
+        gate_policy_status = "PRIMARY_BLOCKED_SUPPLEMENTAL_CLEAR"
+        gate_policy_reason = review_gate_interpretation_class
+    elif review_gate_interpretation_class == "PRIMARY_AND_RECENT_WINDOW_BOTH_BLOCKING":
+        gate_policy_status = "PRIMARY_AND_RECENT_WINDOW_BLOCKING"
+        gate_policy_reason = review_gate_interpretation_class
+    elif review_gate_interpretation_class == "PRIMARY_BLOCKER_WITHOUT_SUPPLEMENTAL_SIGNAL":
+        gate_policy_status = "PRIMARY_BLOCKER_ONLY"
+        gate_policy_reason = review_gate_interpretation_class
+    else:
+        gate_policy_status = "BASELINE_MONITORING"
+        gate_policy_reason = review_gate_interpretation_class or "NO_SPECIAL_REVIEW_GATE_SPLIT"
 
 lines = [
     f"generated_at_utc={status.get('generated_at_utc', '')}",
@@ -278,6 +296,8 @@ lines = [
     f"operator_next_step={baseline_operator_next_step}",
     f"effective_operator_next_step={effective_operator_next_step}",
     f"gate_action_class={gate_action_class}",
+    f"gate_policy_status={gate_policy_status}",
+    f"gate_policy_reason={gate_policy_reason}",
     f"readiness_override_detected={readiness_override_detected}",
     f"readiness_override_reason={readiness_override_reason}",
     f"status_json_stale_relative_to_summaries={status.get('status_json_stale_relative_to_summaries', '')}",
@@ -334,6 +354,8 @@ note_lines = [
     f"- operator_next_step: `{baseline_operator_next_step}`",
     f"- effective_operator_next_step: `{effective_operator_next_step}`",
     f"- gate_action_class: `{gate_action_class}`",
+    f"- gate_policy_status: `{gate_policy_status}`",
+    f"- gate_policy_reason: `{gate_policy_reason}`",
     f"- readiness_override_detected: `{readiness_override_detected}`",
     f"- readiness_override_reason: `{readiness_override_reason}`",
     f"- status_json_stale_relative_to_summaries: `{status.get('status_json_stale_relative_to_summaries', '')}`",
@@ -402,6 +424,8 @@ json_payload = {
     "operator_next_step": baseline_operator_next_step,
     "effective_operator_next_step": effective_operator_next_step,
     "gate_action_class": gate_action_class,
+    "gate_policy_status": gate_policy_status,
+    "gate_policy_reason": gate_policy_reason,
     "readiness_override_detected": readiness_override_detected,
     "readiness_override_reason": readiness_override_reason,
     "status_json_stale_relative_to_summaries": status.get("status_json_stale_relative_to_summaries", ""),
