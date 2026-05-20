@@ -1,5 +1,10 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 377) mixed leader `2622` 를 current flow bug로만 읽으면, 오래된 example latest batch가 review gate를 계속 지배하는 구조를 놓친다
+- 문제: same-profile fresh-saved differential까지 보면 representative example user의 `2622` 는 fresh refresh 뒤 바로 사라진다. 그런데 mixed latest batch review gate는 여전히 `2622` 가 top1 leader로 보이므로, 이 상태를 계속 current flow bug로만 읽으면 “왜 mixed gate는 그대로냐”가 설명되지 않는다.
+- 해결: `run-local-recommendation-review-gate-staleness-audit.sh` 를 추가해 origin별 latest batch recency와 target leader `2622` top1 user recency를 같이 읽게 했다. 현재 truth는 `example_smoke_target_top1_users=272`, `example_smoke_target_top1_last_24h=0`, oldest/newest `2026-05-13 13:39:31 / 2026-05-17 11:49:50` 이고, 반대로 `real_user_latest_users_last_24h=80` 이다.
+- 이유: 이 상태는 current real-user flow가 `2622` 를 못 올리는 문제 이전에, **historical example latest batch가 mixed review gate 해석을 계속 지배하는 구조** 를 뜻한다. 즉 다음 질문은 “real-user를 더 만들까”보다 “review gate를 stale example latest batch와 함께 읽어도 되나” 쪽이다.
+
 ## 376) same-profile example differential을 current flow 차이로만 읽으면, stale saved batch가 mixed leader 해석을 왜곡한 사실을 놓친다
 - 문제: same-profile path audit에서 representative example user는 `2622` 를 `PRESENT_IN_SAVED_BATCH` 로 갖고 있고 generic-domain `REAL_USER` 는 `NOT_IN_SQL_RETRIEVAL` 이었다. 이 값만 보면 쉽게 “example current flow만 다르다”로 읽기 쉽다.
 - 해결: `run-local-recommendation-same-profile-fresh-saved-differential-audit.sh` 를 추가해 representative example/real-user에 `personal=true` fresh refresh를 직접 다시 태웠다. 현재 truth는 example 쪽도 refresh 뒤 즉시 `saved=false`, `drop_stage=NOT_IN_SQL_RETRIEVAL` 로 내려가고, real-user는 전후 모두 `NOT_IN_SQL_RETRIEVAL` 이다.
