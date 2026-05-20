@@ -6059,3 +6059,45 @@ reviewer/author/product surface에도 아래 두 층을 current reading으로 �
 - promotion review pending 여부
 
 를 같은 언어로 읽는다.
+## #926 policy candidate와 promotion review pending은 다른 상태로 문서화해야 했다
+
+### 상황
+
+admin API와 latest artifact에
+
+- `reviewGatePolicyCandidateStatus=RECENT_WINDOW_POLICY_CANDIDATE`
+- `reviewGatePolicyPromotionStatus=REQUIRES_EXPLICIT_POLICY_CHANGE_REVIEW`
+
+가 이미 들어왔지만, “그럼 언제 recent-window를 실제 승격 검토 대상으로 보나”는 기준은 흩어져 있었다.
+
+### 문제
+
+이 상태면 operator/reviewer/author는 current truth를 읽을 수는 있어도,
+
+- candidate가 된 이유
+- 왜 아직 promotion ready가 아닌지
+- 어떤 evidence가 모이면 explicit review를 시작하는지
+
+를 다시 blocker/staleness/recent-window runbook을 합쳐 추론해야 했다.
+
+### 조치
+
+`recommendation-review-gate-policy-promotion-checklist.md` 를 추가해서
+
+- readiness prerequisite
+- staleness evidence
+- recent-window clear evidence
+- current gate action/policy 보존 조건
+- keep baseline vs bounded promotion review 판단
+
+을 한 문서에 고정했다.
+
+### 결과
+
+이제 recent-window는
+
+- candidate인지
+- promotion pending인지
+- 실제 승격 검토를 언제 시작하는지
+
+를 active 문서만으로 바로 읽을 수 있다.

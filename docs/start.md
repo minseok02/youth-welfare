@@ -58,6 +58,7 @@
 - exact same profile 대표 example/real-user에 fresh personal refresh를 다시 태워 stale saved batch인지 확인하려면 `APP_BASE_URL='http://127.0.0.1:8082' ADMIN_EMAIL='<local admin email>' ADMIN_PASSWORD='<local admin password>' bash deploy/smoke/run-local-recommendation-same-profile-fresh-saved-differential-audit.sh`
 - mixed leader `2622` 가 현재 flow보다 old example latest batch에 더 의존하는지 보려면 `bash deploy/smoke/run-local-recommendation-review-gate-staleness-audit.sh`
 - stale batch를 제외한 recent 24h latest batch 기준 보조 review gate를 보려면 `bash deploy/smoke/run-local-recommendation-review-gate-recent-window-audit.sh`
+- recent-window가 policy candidate인 상태에서 실제 승격 검토 기준을 보려면 [recommendation-review-gate-policy-promotion-checklist.md](./recommendation/recommendation-review-gate-policy-promotion-checklist.md)
 - 재사용 가능한 `REAL_USER` cohort library(`housing / education / job / finance`)를 다시 시드하려면 `APP_BASE_URL='http://127.0.0.1:8082' ADMIN_EMAIL='<local admin email>' ADMIN_PASSWORD='<local admin password>' bash deploy/smoke/run-local-real-user-cohort-library-seed.sh`
 - `REAL_USER` traffic/cohort가 실제로 생긴 뒤에는 [recommendation-real-user-recheck-checklist.md](./recommendation/recommendation-real-user-recheck-checklist.md) 순서대로 다시 확인합니다.
 - strict gate(`FAIL_ON_LATEST_OBSERVATION_CHANGE=true`)가 fail 하더라도 `latest_drift_class=VOLATILE_ONLY_DRIFT` 와 `stable_baseline_changed=false` 면 stable baseline 회귀가 아니라 fresh window 흔들림으로 읽습니다.
