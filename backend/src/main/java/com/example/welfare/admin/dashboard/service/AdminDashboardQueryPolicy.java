@@ -492,4 +492,43 @@ final class AdminDashboardQueryPolicy {
         }
         return "PROMOTION_EXECUTION_LAYER_NOT_READY_FOR_EXPLICIT_APPROVAL";
     }
+
+    static String resolveReviewGatePolicyPromotionApprovalDecisionStatus(
+            String reviewGatePolicyPromotionApprovalCriteriaStatus,
+            String reviewGatePolicyPromotionApprovalStatus
+    ) {
+        if (!"READY_FOR_EXPLICIT_PROMOTION_APPROVAL".equals(reviewGatePolicyPromotionApprovalCriteriaStatus)) {
+            return "APPROVAL_DECISION_NOT_READY";
+        }
+        return switch (reviewGatePolicyPromotionApprovalStatus) {
+            case "PENDING_EXPLICIT_PROMOTION_APPROVAL" -> "AWAIT_EXPLICIT_PROMOTION_APPROVAL_DECISION";
+            case "BOUNDED_PROMOTION_REVIEW_APPROVED" -> "APPROVED_FOR_BOUNDED_PROMOTION_REVIEW";
+            case "PROMOTION_APPROVAL_NOT_APPLICABLE" -> "APPROVAL_DECISION_NOT_APPLICABLE";
+            default -> "APPROVAL_DECISION_NOT_APPLICABLE";
+        };
+    }
+
+    static String resolveReviewGatePolicyPromotionApprovalDecisionReason(
+            String reviewGatePolicyPromotionApprovalCriteriaStatus,
+            String reviewGatePolicyPromotionApprovalCriteriaReason,
+            String reviewGatePolicyPromotionApprovalStatus,
+            String reviewGatePolicyPromotionApprovalReason
+    ) {
+        String status = resolveReviewGatePolicyPromotionApprovalDecisionStatus(
+                reviewGatePolicyPromotionApprovalCriteriaStatus,
+                reviewGatePolicyPromotionApprovalStatus
+        );
+
+        return switch (status) {
+            case "AWAIT_EXPLICIT_PROMOTION_APPROVAL_DECISION" ->
+                    "APPROVAL_CRITERIA_MET_BUT_EXPLICIT_APPROVAL_NOT_RECORDED";
+            case "APPROVED_FOR_BOUNDED_PROMOTION_REVIEW" ->
+                    "EXPLICIT_PROMOTION_APPROVAL_RECORDED";
+            case "APPROVAL_DECISION_NOT_READY" ->
+                    reviewGatePolicyPromotionApprovalCriteriaReason;
+            case "APPROVAL_DECISION_NOT_APPLICABLE" ->
+                    reviewGatePolicyPromotionApprovalReason;
+            default -> status;
+        };
+    }
 }

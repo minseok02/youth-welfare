@@ -62,6 +62,10 @@
   - `READY_FOR_EXPLICIT_PROMOTION_APPROVAL`
 - review gate policy promotion approval criteria reason:
   - `PRIMARY_STALENESS_AND_RECENT_WINDOW_SIGNAL_CONFIRMED`
+- review gate policy promotion approval decision status:
+  - `AWAIT_EXPLICIT_PROMOTION_APPROVAL_DECISION`
+- review gate policy promotion approval decision reason:
+  - `APPROVAL_CRITERIA_MET_BUT_EXPLICIT_APPROVAL_NOT_RECORDED`
 
 즉 current truth는:
 
@@ -73,6 +77,7 @@
 6. current execution status는 `AWAIT_EXPLICIT_POLICY_REVIEW_DECISION`
 7. current approval status는 `PENDING_EXPLICIT_PROMOTION_APPROVAL`
 8. current approval criteria status는 `READY_FOR_EXPLICIT_PROMOTION_APPROVAL`
+9. current approval decision status는 `AWAIT_EXPLICIT_PROMOTION_APPROVAL_DECISION`
 
 입니다.
 
@@ -186,6 +191,7 @@ promotion review 전 최소한 아래 4개는 같이 봅니다.
 10. `reviewGatePolicyPromotionExecutionStatus/Reason`
 11. `reviewGatePolicyPromotionApprovalCriteriaStatus/Reason`
 12. `reviewGatePolicyPromotionApprovalStatus/Reason`
+13. `reviewGatePolicyPromotionApprovalDecisionStatus/Reason`
 
 ## 현재 추천 판단
 
