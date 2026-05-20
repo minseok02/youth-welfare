@@ -291,6 +291,10 @@ class AdminDashboardSummaryServiceTest {
                 .isEqualTo("NOT_A_CANDIDATE_PRIMARY_GATE_NOT_NON_REAL_BLOCKED");
         assertThat(response.recommendation().reviewGatePolicyCandidateReason())
                 .isEqualTo("PRIMARY_REVIEW_GATE_IS_NOT_DEFERRED_NON_REAL_LEADER_SIGNAL");
+        assertThat(response.recommendation().reviewGatePolicyPromotionStatus())
+                .isEqualTo("KEEP_PRIMARY_BASELINE");
+        assertThat(response.recommendation().reviewGatePolicyPromotionReason())
+                .isEqualTo("RECENT_WINDOW_CANDIDATE_HAS_NOT_CLEARED_PRIMARY_BASELINE_REQUIREMENTS");
         assertThat(response.recommendation().trafficMixInWindow().exampleClickedUsersInWindow()).isEqualTo(9);
         assertThat(response.recommendation().weightBucketsInWindow()).extracting(AdminDashboardResponse.RecommendationWeightSnapshot::weightKey)
                 .containsExactly("GROWTH", "COLD_START");
@@ -445,6 +449,10 @@ class AdminDashboardSummaryServiceTest {
                 .isEqualTo("NOT_A_CANDIDATE_PRIMARY_GATE_NOT_NON_REAL_BLOCKED");
         assertThat(response.recommendation().reviewGatePolicyCandidateReason())
                 .isEqualTo("PRIMARY_REVIEW_GATE_IS_NOT_DEFERRED_NON_REAL_LEADER_SIGNAL");
+        assertThat(response.recommendation().reviewGatePolicyPromotionStatus())
+                .isEqualTo("KEEP_PRIMARY_BASELINE");
+        assertThat(response.recommendation().reviewGatePolicyPromotionReason())
+                .isEqualTo("RECENT_WINDOW_CANDIDATE_HAS_NOT_CLEARED_PRIMARY_BASELINE_REQUIREMENTS");
         assertThat(response.notification().windowDays()).isEqualTo(14);
         assertThat(response.trend().recommendation()).extracting(AdminDashboardResponse.RecommendationTrendPoint::windowDays)
                 .containsExactly(3, 14);

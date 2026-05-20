@@ -20,6 +20,8 @@ public record AdminRecommendationBreakdownResponse(
         boolean historicalExampleDominanceDetected,
         String reviewGatePolicyCandidateStatus,
         String reviewGatePolicyCandidateReason,
+        String reviewGatePolicyPromotionStatus,
+        String reviewGatePolicyPromotionReason,
         List<RepeatedServiceSnapshot> topRepeatedServices,
         List<Top1ServiceSnapshot> top1Services,
         List<SourceBreakdown> sourceBreakdowns,

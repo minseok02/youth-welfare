@@ -115,6 +115,8 @@ assert isinstance(data["recentWindowRecommendationReviewReading"], str) and data
 assert isinstance(data["historicalExampleDominanceDetected"], bool), "historicalExampleDominanceDetected must be bool"
 assert isinstance(data["reviewGatePolicyCandidateStatus"], str) and data["reviewGatePolicyCandidateStatus"], "reviewGatePolicyCandidateStatus must be non-empty string"
 assert isinstance(data["reviewGatePolicyCandidateReason"], str) and data["reviewGatePolicyCandidateReason"], "reviewGatePolicyCandidateReason must be non-empty string"
+assert isinstance(data["reviewGatePolicyPromotionStatus"], str) and data["reviewGatePolicyPromotionStatus"], "reviewGatePolicyPromotionStatus must be non-empty string"
+assert isinstance(data["reviewGatePolicyPromotionReason"], str) and data["reviewGatePolicyPromotionReason"], "reviewGatePolicyPromotionReason must be non-empty string"
 staleness = data["reviewGateStaleness"]
 assert isinstance(staleness["targetServiceId"], int), "reviewGateStaleness.targetServiceId must be int"
 assert isinstance(staleness["primaryReferenceMode"], str) and staleness["primaryReferenceMode"], "reviewGateStaleness.primaryReferenceMode must be non-empty string"
@@ -264,6 +266,8 @@ print(data["recentWindowRecommendationReviewReading"])
 print(str(data["historicalExampleDominanceDetected"]).lower())
 print(data["reviewGatePolicyCandidateStatus"])
 print(data["reviewGatePolicyCandidateReason"])
+print(data["reviewGatePolicyPromotionStatus"])
+print(data["reviewGatePolicyPromotionReason"])
 print(staleness["primaryReferenceMode"])
 print(staleness["exampleTargetTop1Users"])
 print(staleness["exampleTargetTop1Last24h"])
@@ -374,19 +378,21 @@ echo "recent_window_recommendation_review_reading=${BREAKDOWN_VALUES[39]}"
 echo "historical_example_dominance_detected=${BREAKDOWN_VALUES[40]}"
 echo "review_gate_policy_candidate_status=${BREAKDOWN_VALUES[41]}"
 echo "review_gate_policy_candidate_reason=${BREAKDOWN_VALUES[42]}"
-echo "review_gate_primary_reference_mode=${BREAKDOWN_VALUES[43]}"
-echo "review_gate_example_target_top1_users=${BREAKDOWN_VALUES[44]}"
-echo "review_gate_example_target_top1_last_24h=${BREAKDOWN_VALUES[45]}"
-echo "review_gate_real_user_latest_users=${BREAKDOWN_VALUES[46]}"
-echo "review_gate_real_user_target_top1_users=${BREAKDOWN_VALUES[47]}"
-echo "recent_window_hours=${BREAKDOWN_VALUES[48]}"
-echo "recent_window_target_service_id=${BREAKDOWN_VALUES[49]}"
-echo "recent_window_latest_batch_users=${BREAKDOWN_VALUES[50]}"
-echo "recent_window_real_user_users=${BREAKDOWN_VALUES[51]}"
-echo "recent_window_top1_leader_service_id=${BREAKDOWN_VALUES[52]}"
-echo "recent_window_top1_leader_real_user_users=${BREAKDOWN_VALUES[53]}"
-echo "recent_window_target_top1_users=${BREAKDOWN_VALUES[54]}"
-echo "recent_window_target_top1_real_user_users=${BREAKDOWN_VALUES[55]}"
+echo "review_gate_policy_promotion_status=${BREAKDOWN_VALUES[43]}"
+echo "review_gate_policy_promotion_reason=${BREAKDOWN_VALUES[44]}"
+echo "review_gate_primary_reference_mode=${BREAKDOWN_VALUES[45]}"
+echo "review_gate_example_target_top1_users=${BREAKDOWN_VALUES[46]}"
+echo "review_gate_example_target_top1_last_24h=${BREAKDOWN_VALUES[47]}"
+echo "review_gate_real_user_latest_users=${BREAKDOWN_VALUES[48]}"
+echo "review_gate_real_user_target_top1_users=${BREAKDOWN_VALUES[49]}"
+echo "recent_window_hours=${BREAKDOWN_VALUES[50]}"
+echo "recent_window_target_service_id=${BREAKDOWN_VALUES[51]}"
+echo "recent_window_latest_batch_users=${BREAKDOWN_VALUES[52]}"
+echo "recent_window_real_user_users=${BREAKDOWN_VALUES[53]}"
+echo "recent_window_top1_leader_service_id=${BREAKDOWN_VALUES[54]}"
+echo "recent_window_top1_leader_real_user_users=${BREAKDOWN_VALUES[55]}"
+echo "recent_window_target_top1_users=${BREAKDOWN_VALUES[56]}"
+echo "recent_window_target_top1_real_user_users=${BREAKDOWN_VALUES[57]}"
 echo "summary_window_days=${SUMMARY_WINDOW_DAYS}"
 echo "breakdown_limit=${BREAKDOWN_LIMIT}"
 if [[ -n "${CONTAINER_ADMIN_ALLOWLIST}" ]]; then

@@ -76,6 +76,8 @@ public record AdminDashboardResponse(
             boolean historicalExampleDominanceDetected,
             String reviewGatePolicyCandidateStatus,
             String reviewGatePolicyCandidateReason,
+            String reviewGatePolicyPromotionStatus,
+            String reviewGatePolicyPromotionReason,
             List<RecommendationWeightSnapshot> weightBucketsInWindow
     ) {
     }

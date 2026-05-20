@@ -261,4 +261,37 @@ final class AdminDashboardQueryPolicy {
             default -> status;
         };
     }
+
+    static String resolveReviewGatePolicyPromotionStatus(
+            String reviewGatePolicyCandidateStatus,
+            AdminDashboardReadRows.RecommendationReviewGateStalenessRow stalenessRow
+    ) {
+        if (!"RECENT_WINDOW_POLICY_CANDIDATE".equals(reviewGatePolicyCandidateStatus)) {
+            return "KEEP_PRIMARY_BASELINE";
+        }
+        if ("ALL_TIME_LATEST_PER_USER".equals(stalenessRow.primaryReferenceMode())) {
+            return "REQUIRES_EXPLICIT_POLICY_CHANGE_REVIEW";
+        }
+        return "PROMOTION_READY";
+    }
+
+    static String resolveReviewGatePolicyPromotionReason(
+            String reviewGatePolicyCandidateStatus,
+            AdminDashboardReadRows.RecommendationReviewGateStalenessRow stalenessRow
+    ) {
+        String status = resolveReviewGatePolicyPromotionStatus(
+                reviewGatePolicyCandidateStatus,
+                stalenessRow
+        );
+
+        return switch (status) {
+            case "REQUIRES_EXPLICIT_POLICY_CHANGE_REVIEW" ->
+                    "RECENT_WINDOW_IS_A_CANDIDATE_BUT_PRIMARY_BASELINE_IS_STILL_ALL_TIME_LATEST";
+            case "PROMOTION_READY" ->
+                    "RECENT_WINDOW_CANDIDATE_CAN_BE_PROMOTED_WITHOUT_ALL_TIME_PRIMARY_REFERENCE";
+            case "KEEP_PRIMARY_BASELINE" ->
+                    "RECENT_WINDOW_CANDIDATE_HAS_NOT_CLEARED_PRIMARY_BASELINE_REQUIREMENTS";
+            default -> status;
+        };
+    }
 }
