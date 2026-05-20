@@ -60,6 +60,10 @@
   - `AWAIT_EXPLICIT_POLICY_REVIEW_DECISION`
 - review gate policy promotion execution reason:
   - `READINESS_MET_BUT_EXPLICIT_POLICY_REVIEW_DECISION_IS_STILL_PENDING`
+- review gate policy promotion approval criteria status:
+  - `READY_FOR_EXPLICIT_PROMOTION_APPROVAL`
+- review gate policy promotion approval criteria reason:
+  - `PRIMARY_STALENESS_AND_RECENT_WINDOW_SIGNAL_CONFIRMED`
 - review gate policy promotion approval status:
   - `PENDING_EXPLICIT_PROMOTION_APPROVAL`
 - review gate policy promotion approval reason:
@@ -91,7 +95,7 @@
 6. 워킹트리와 branch diff-check가 clean
 7. full latest batch gate와 recent-window supplemental gate 역할이 문서에 고정돼 있음
 8. review gate decision class(`HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR`)와 operating mode(`PRIMARY_BASELINE_WITH_SUPPLEMENTAL_RECENT_WINDOW`)가 reviewer 문서/PR surface에도 같이 고정돼 있음
-9. review gate candidate / promotion / readiness / approval 판단(`RECENT_WINDOW_POLICY_CANDIDATE` / `REQUIRES_EXPLICIT_POLICY_CHANGE_REVIEW` / `READY_FOR_BOUNDED_PROMOTION_REVIEW` / `PENDING_EXPLICIT_PROMOTION_APPROVAL`)도 reviewer 문서/PR surface에 같이 고정돼 있음
+9. review gate candidate / promotion / readiness / approval criteria / approval 판단(`RECENT_WINDOW_POLICY_CANDIDATE` / `REQUIRES_EXPLICIT_POLICY_CHANGE_REVIEW` / `READY_FOR_BOUNDED_PROMOTION_REVIEW` / `READY_FOR_EXPLICIT_PROMOTION_APPROVAL` / `PENDING_EXPLICIT_PROMOTION_APPROVAL`)도 reviewer 문서/PR surface에 같이 고정돼 있음
 
 주의:
 

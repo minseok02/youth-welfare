@@ -437,4 +437,59 @@ final class AdminDashboardQueryPolicy {
             default -> status;
         };
     }
+
+    static String resolveReviewGatePolicyPromotionApprovalCriteriaStatus(
+            String reviewGatePolicyPromotionReadinessStatus,
+            String reviewGatePolicyCandidateStatus,
+            String reviewGatePolicyPromotionStatus,
+            String reviewGatePolicyPromotionExecutionStatus
+    ) {
+        if (!"READY_FOR_BOUNDED_PROMOTION_REVIEW".equals(reviewGatePolicyPromotionReadinessStatus)) {
+            return "NOT_READY_FOR_EXPLICIT_PROMOTION_APPROVAL";
+        }
+        if (!"RECENT_WINDOW_POLICY_CANDIDATE".equals(reviewGatePolicyCandidateStatus)) {
+            return "NOT_READY_FOR_EXPLICIT_PROMOTION_APPROVAL";
+        }
+        if (!"REQUIRES_EXPLICIT_POLICY_CHANGE_REVIEW".equals(reviewGatePolicyPromotionStatus)
+                && !"PROMOTION_READY".equals(reviewGatePolicyPromotionStatus)) {
+            return "NOT_READY_FOR_EXPLICIT_PROMOTION_APPROVAL";
+        }
+        if (!"AWAIT_EXPLICIT_POLICY_REVIEW_DECISION".equals(reviewGatePolicyPromotionExecutionStatus)
+                && !"RUN_BOUNDED_PROMOTION_REVIEW".equals(reviewGatePolicyPromotionExecutionStatus)) {
+            return "NOT_READY_FOR_EXPLICIT_PROMOTION_APPROVAL";
+        }
+        return "READY_FOR_EXPLICIT_PROMOTION_APPROVAL";
+    }
+
+    static String resolveReviewGatePolicyPromotionApprovalCriteriaReason(
+            String reviewGatePolicyPromotionReadinessStatus,
+            String reviewGatePolicyPromotionReadinessReason,
+            String reviewGatePolicyCandidateStatus,
+            String reviewGatePolicyPromotionStatus,
+            String reviewGatePolicyPromotionExecutionStatus
+    ) {
+        String status = resolveReviewGatePolicyPromotionApprovalCriteriaStatus(
+                reviewGatePolicyPromotionReadinessStatus,
+                reviewGatePolicyCandidateStatus,
+                reviewGatePolicyPromotionStatus,
+                reviewGatePolicyPromotionExecutionStatus
+        );
+        if ("READY_FOR_EXPLICIT_PROMOTION_APPROVAL".equals(status)) {
+            if ("PROMOTION_READY".equals(reviewGatePolicyPromotionStatus)) {
+                return "PROMOTION_READY_AND_EXECUTION_LAYER_ALIGNED";
+            }
+            return "PRIMARY_STALENESS_AND_RECENT_WINDOW_SIGNAL_CONFIRMED";
+        }
+        if (!"READY_FOR_BOUNDED_PROMOTION_REVIEW".equals(reviewGatePolicyPromotionReadinessStatus)) {
+            return reviewGatePolicyPromotionReadinessReason;
+        }
+        if (!"RECENT_WINDOW_POLICY_CANDIDATE".equals(reviewGatePolicyCandidateStatus)) {
+            return "RECENT_WINDOW_POLICY_CANDIDATE_NOT_CONFIRMED";
+        }
+        if (!"REQUIRES_EXPLICIT_POLICY_CHANGE_REVIEW".equals(reviewGatePolicyPromotionStatus)
+                && !"PROMOTION_READY".equals(reviewGatePolicyPromotionStatus)) {
+            return "PROMOTION_REVIEW_STATE_NOT_ACTIVE";
+        }
+        return "PROMOTION_EXECUTION_LAYER_NOT_READY_FOR_EXPLICIT_APPROVAL";
+    }
 }

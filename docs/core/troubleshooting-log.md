@@ -1,5 +1,13 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 935) approval pending만 보이면, explicit promotion approval에 필요한 근거가 이미 충족됐는지 여부를 다시 추론해야 한다
+- 문제: `PENDING_EXPLICIT_PROMOTION_APPROVAL` 만 surface에 올린 상태에서는, operator/reviewer가 “지금은 승인만 안 난 건가, 아니면 승인 근거도 아직 부족한가”를 다시 해석해야 했다.
+- 해결: admin summary/breakdowns, latest artifact, active current/runbook surface에 `reviewGatePolicyPromotionApprovalCriteriaStatus`, `reviewGatePolicyPromotionApprovalCriteriaReason` 을 추가했다. 현재 local 기준 값은 `READY_FOR_EXPLICIT_PROMOTION_APPROVAL`, `PRIMARY_STALENESS_AND_RECENT_WINDOW_SIGNAL_CONFIRMED` 이고, approval criteria met와 approval pending을 분리해서 읽는다.
+
+## 936) reviewer/author lifecycle surface가 approval pending까지만 적으면, approval criteria met 여부를 GitHub 화면에서 다시 추론해야 한다
+- 문제: active current/runbook과 latest artifact에는 `reviewGatePolicyPromotionApprovalCriteriaStatus`, `reviewGatePolicyPromotionApprovalCriteriaReason` 이 올라갔지만, reviewer brief / draft-exit / post-merge checklist는 approval pending까지만 적고 있어 lifecycle 문서와 PR 전달면에서 한 층 덜 보였다.
+- 해결: reviewer brief, draft-exit checklist, post-merge checklist와 PR 전달면도 `READY_FOR_EXPLICIT_PROMOTION_APPROVAL`, `PRIMARY_STALENESS_AND_RECENT_WINDOW_SIGNAL_CONFIRMED` 까지 같이 적도록 맞췄다.
+
 ## 934) execution 대기와 실제 bounded promotion review 승인 대기를 같은 층으로 두면, readiness met 이후에 무엇이 아직 비어 있는지 다시 추론해야 한다
 - 문제: `AWAIT_EXPLICIT_POLICY_REVIEW_DECISION` 까지 surface에 올린 뒤에도, operator/reviewer는 “실행 대기와 승인 미기록이 같은 뜻인가?”를 다시 해석해야 했다. bounded review prerequisite은 이미 충족됐지만 explicit promotion approval 자체는 아직 없는 상태를 별도 값으로 읽을 수 없었다.
 - 해결: admin summary/breakdowns, latest artifact, active current/runbook surface에 `reviewGatePolicyPromotionApprovalStatus`, `reviewGatePolicyPromotionApprovalReason` 을 추가했다. 현재 local 기준 값은 `PENDING_EXPLICIT_PROMOTION_APPROVAL`, `EXECUTION_READY_BUT_EXPLICIT_PROMOTION_APPROVAL_NOT_RECORDED` 이고, readiness/execution과 approval pending을 따로 읽는다.

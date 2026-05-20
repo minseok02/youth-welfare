@@ -213,6 +213,8 @@ review_gate_policy_promotion_readiness_status = status.get("review_gate_policy_p
 review_gate_policy_promotion_readiness_reason = status.get("review_gate_policy_promotion_readiness_reason", "")
 review_gate_policy_promotion_execution_status = status.get("review_gate_policy_promotion_execution_status", "")
 review_gate_policy_promotion_execution_reason = status.get("review_gate_policy_promotion_execution_reason", "")
+review_gate_policy_promotion_approval_criteria_status = status.get("review_gate_policy_promotion_approval_criteria_status", "")
+review_gate_policy_promotion_approval_criteria_reason = status.get("review_gate_policy_promotion_approval_criteria_reason", "")
 review_gate_policy_promotion_approval_status = status.get("review_gate_policy_promotion_approval_status", "")
 review_gate_policy_promotion_approval_reason = status.get("review_gate_policy_promotion_approval_reason", "")
 
@@ -352,6 +354,8 @@ lines = [
     f"review_gate_policy_promotion_readiness_reason={review_gate_policy_promotion_readiness_reason}",
     f"review_gate_policy_promotion_execution_status={review_gate_policy_promotion_execution_status}",
     f"review_gate_policy_promotion_execution_reason={review_gate_policy_promotion_execution_reason}",
+    f"review_gate_policy_promotion_approval_criteria_status={review_gate_policy_promotion_approval_criteria_status}",
+    f"review_gate_policy_promotion_approval_criteria_reason={review_gate_policy_promotion_approval_criteria_reason}",
     f"review_gate_policy_promotion_approval_status={review_gate_policy_promotion_approval_status}",
     f"review_gate_policy_promotion_approval_reason={review_gate_policy_promotion_approval_reason}",
     f"primary_mixed_top1_leader_service_id={primary_mixed_top1_leader_service_id}",
@@ -437,6 +441,8 @@ note_lines = [
     f"- review_gate_policy_promotion_readiness_reason: `{review_gate_policy_promotion_readiness_reason}`",
     f"- review_gate_policy_promotion_execution_status: `{review_gate_policy_promotion_execution_status}`",
     f"- review_gate_policy_promotion_execution_reason: `{review_gate_policy_promotion_execution_reason}`",
+    f"- review_gate_policy_promotion_approval_criteria_status: `{review_gate_policy_promotion_approval_criteria_status}`",
+    f"- review_gate_policy_promotion_approval_criteria_reason: `{review_gate_policy_promotion_approval_criteria_reason}`",
     f"- review_gate_policy_promotion_approval_status: `{review_gate_policy_promotion_approval_status}`",
     f"- review_gate_policy_promotion_approval_reason: `{review_gate_policy_promotion_approval_reason}`",
     f"- primary_mixed_top1_leader_service_id: `{primary_mixed_top1_leader_service_id}`",
@@ -513,6 +519,8 @@ json_payload = {
         "review_gate_policy_promotion_readiness_reason": review_gate_policy_promotion_readiness_reason,
         "review_gate_policy_promotion_execution_status": review_gate_policy_promotion_execution_status,
         "review_gate_policy_promotion_execution_reason": review_gate_policy_promotion_execution_reason,
+        "review_gate_policy_promotion_approval_criteria_status": review_gate_policy_promotion_approval_criteria_status,
+        "review_gate_policy_promotion_approval_criteria_reason": review_gate_policy_promotion_approval_criteria_reason,
         "review_gate_policy_promotion_approval_status": review_gate_policy_promotion_approval_status,
         "review_gate_policy_promotion_approval_reason": review_gate_policy_promotion_approval_reason,
         "primary_mixed_top1_leader_service_id": primary_mixed_top1_leader_service_id,

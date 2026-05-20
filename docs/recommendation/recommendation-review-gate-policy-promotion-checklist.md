@@ -58,6 +58,10 @@
   - `PENDING_EXPLICIT_PROMOTION_APPROVAL`
 - review gate policy promotion approval reason:
   - `EXECUTION_READY_BUT_EXPLICIT_PROMOTION_APPROVAL_NOT_RECORDED`
+- review gate policy promotion approval criteria status:
+  - `READY_FOR_EXPLICIT_PROMOTION_APPROVAL`
+- review gate policy promotion approval criteria reason:
+  - `PRIMARY_STALENESS_AND_RECENT_WINDOW_SIGNAL_CONFIRMED`
 
 즉 current truth는:
 
@@ -68,6 +72,7 @@
 5. 다만 bounded promotion review를 열 prerequisite 자체는 이미 `READY_FOR_BOUNDED_PROMOTION_REVIEW`
 6. current execution status는 `AWAIT_EXPLICIT_POLICY_REVIEW_DECISION`
 7. current approval status는 `PENDING_EXPLICIT_PROMOTION_APPROVAL`
+8. current approval criteria status는 `READY_FOR_EXPLICIT_PROMOTION_APPROVAL`
 
 입니다.
 
@@ -179,7 +184,8 @@ promotion review 전 최소한 아래 4개는 같이 봅니다.
 8. 이번 단계에서 **안 바꾸는 것**
 9. `reviewGatePolicyPromotionReadinessStatus/Reason`
 10. `reviewGatePolicyPromotionExecutionStatus/Reason`
-11. `reviewGatePolicyPromotionApprovalStatus/Reason`
+11. `reviewGatePolicyPromotionApprovalCriteriaStatus/Reason`
+12. `reviewGatePolicyPromotionApprovalStatus/Reason`
 
 ## 현재 추천 판단
 

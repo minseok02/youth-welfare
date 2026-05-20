@@ -137,6 +137,10 @@ bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-gate.sh
   - execution readiness와 별도로, bounded promotion review 승인 자체가 기록됐는지 보여 주는 값입니다. 현재 local 기준으로는 `PENDING_EXPLICIT_PROMOTION_APPROVAL` 입니다.
 - `review_gate_policy_promotion_approval_reason`
   - 위 approval status를 만든 직접 이유입니다. 현재 local 기준으로는 `EXECUTION_READY_BUT_EXPLICIT_PROMOTION_APPROVAL_NOT_RECORDED` 입니다.
+- `review_gate_policy_promotion_approval_criteria_status`
+  - explicit approval을 판단하는 근거 자체가 이미 충족됐는지 보여 주는 값입니다. 현재 local 기준으로는 `READY_FOR_EXPLICIT_PROMOTION_APPROVAL` 입니다.
+- `review_gate_policy_promotion_approval_criteria_reason`
+  - 위 approval criteria status를 만든 직접 이유입니다. 현재 local 기준으로는 `PRIMARY_STALENESS_AND_RECENT_WINDOW_SIGNAL_CONFIRMED` 입니다.
 - `review_gate_interpretation_class`
   - primary full latest batch gate와 supplemental recent-window gate를 합친 운영 해석 클래스입니다. 현재 local 기준으로는 `HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR` 입니다.
 - `review_gate_operating_mode`

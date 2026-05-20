@@ -101,6 +101,10 @@ merge 전 현재 PR 상태 reference:
   - `AWAIT_EXPLICIT_POLICY_REVIEW_DECISION`
 - review gate policy promotion execution reason:
   - `READINESS_MET_BUT_EXPLICIT_POLICY_REVIEW_DECISION_IS_STILL_PENDING`
+- review gate policy promotion approval criteria status:
+  - `READY_FOR_EXPLICIT_PROMOTION_APPROVAL`
+- review gate policy promotion approval criteria reason:
+  - `PRIMARY_STALENESS_AND_RECENT_WINDOW_SIGNAL_CONFIRMED`
 - review gate policy promotion approval status:
   - `PENDING_EXPLICIT_PROMOTION_APPROVAL`
 - review gate policy promotion approval reason:
