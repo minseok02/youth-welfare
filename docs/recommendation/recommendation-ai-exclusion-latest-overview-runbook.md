@@ -35,7 +35,7 @@
 
 즉 이 runbook은 지금 단계에서 “모델 튜닝”보다 **current baseline 유지와 historical full latest batch / current recent-window signal 분리 해석** 을 다시 확인하는 entrypoint 입니다.
 
-다만 `REAL_USER` readiness를 같이 포함한 실행에서는 live gate가 이미 열렸는데도 baseline artifact 기반 `latest status` 가 아직 `WAIT_FOR_REAL_USER_TRAFFIC` 로 남을 수 있습니다. 이 값은 **older pre-live baseline snapshot pointer** 로 읽는 편이 맞고, current live truth는 새 `effective_operator_next_step`, `readiness_override_detected`, `readiness_override_reason`, `real_user_review_gate` 를 같이 읽어야 합니다.
+다만 `REAL_USER` readiness를 같이 포함한 실행에서도, current action의 기본값은 이제 `latest-status` 가 계산한 `effective_operator_next_step` 입니다. 즉 baseline artifact 기반 `operator_next_step=WAIT_FOR_REAL_USER_TRAFFIC` 는 **older pre-live baseline snapshot pointer** 로 남기되, overview는 먼저 `effective_operator_next_step=USE_RECENT_WINDOW_AS_SUPPLEMENTAL_REVIEW_CONTEXT` 같은 current review-gate 해석을 따릅니다. 그 위에 readiness가 실제로 추가 override를 만들 때만 `readiness_override_detected`, `readiness_override_reason` 를 같이 읽으면 됩니다.
 
 ## 기본 스크립트
 
@@ -112,8 +112,10 @@ bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-overview.sh
   - auto discovery가 어디까지 성공했는지 바로 확인하는 값입니다.
 - `readiness_override_detected=true`
   - live readiness gate는 이미 열렸지만 baseline artifact 기반 `operator_next_step` 은 아직 old wait 상태라는 뜻입니다.
+- `effective_operator_next_step=USE_RECENT_WINDOW_AS_SUPPLEMENTAL_REVIEW_CONTEXT`
+  - current local 기준 기본 current action입니다. full latest batch gate historical inertia와 recent-window current-live signal을 같이 읽으라는 뜻입니다.
 - `effective_operator_next_step=WAIT_FOR_REAL_USER_LEADER_SIGNAL`
-  - current local처럼 `dashboard_real_user_gate=READY_REAL_USER_TRAFFIC`, `breakdown_real_user_cohort_gate=READY_REAL_USER_COHORT` 는 열렸지만 `real_user_review_gate=DEFERRED_NON_REAL_LEADER_SIGNAL` 인 경우의 실제 다음 행동입니다.
+  - readiness 포함 실행에서 status effective reading이 아직 old wait-state로 남아 있을 때만 추가 override로 나오는 값입니다.
 - `real_user_review_gate=DEFERRED_NON_REAL_LEADER_SIGNAL`
   - `REAL_USER` traffic/cohort는 확보됐지만 top1 leader가 아직 non-real signal 위주라 review gate까지는 안 열렸다는 뜻입니다.
 - `real_user_top1_leader_real_user_users=0`, `real_user_top1_leader_signal_summary=LOCAL_SEED_WITHOUT_REAL_USER_LEADER`

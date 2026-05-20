@@ -234,14 +234,15 @@ elif readiness_skip_reason == "MISSING_APP_BASE_URL":
 elif readiness_skip_reason == "REAL_USER_READINESS_DISABLED":
     readiness_next_action = "ENABLE_INCLUDE_REAL_USER_READINESS"
 
-effective_operator_next_step = status.get("operator_next_step", "")
+baseline_operator_next_step = status.get("operator_next_step", "")
+effective_operator_next_step = status.get("effective_operator_next_step", baseline_operator_next_step)
 readiness_override_detected = "false"
 readiness_override_reason = ""
 if (
     readiness.get("real_user_readiness_included", "") == "true"
     and dashboard_real_user_gate == "READY_REAL_USER_TRAFFIC"
     and breakdown_real_user_cohort_gate == "READY_REAL_USER_COHORT"
-    and status.get("operator_next_step", "") == "WAIT_FOR_REAL_USER_TRAFFIC"
+    and effective_operator_next_step == "WAIT_FOR_REAL_USER_TRAFFIC"
 ):
     readiness_override_detected = "true"
     if recommendation_review_gate == "DEFERRED_NON_REAL_LEADER_SIGNAL":
@@ -254,7 +255,7 @@ if (
 lines = [
     f"generated_at_utc={status.get('generated_at_utc', '')}",
     f"generated_at_kst={status.get('generated_at_kst', '')}",
-    f"operator_next_step={status.get('operator_next_step', '')}",
+    f"operator_next_step={baseline_operator_next_step}",
     f"effective_operator_next_step={effective_operator_next_step}",
     f"readiness_override_detected={readiness_override_detected}",
     f"readiness_override_reason={readiness_override_reason}",
@@ -307,7 +308,7 @@ note_lines = [
     "",
     f"- generated_at_utc: `{status.get('generated_at_utc', '')}`",
     f"- generated_at_kst: `{status.get('generated_at_kst', '')}`",
-    f"- operator_next_step: `{status.get('operator_next_step', '')}`",
+    f"- operator_next_step: `{baseline_operator_next_step}`",
     f"- effective_operator_next_step: `{effective_operator_next_step}`",
     f"- readiness_override_detected: `{readiness_override_detected}`",
     f"- readiness_override_reason: `{readiness_override_reason}`",
@@ -372,7 +373,7 @@ note_out.write_text("\n".join(note_lines) + "\n", encoding="utf-8")
 json_payload = {
     "generated_at_utc": status.get("generated_at_utc", ""),
     "generated_at_kst": status.get("generated_at_kst", ""),
-    "operator_next_step": status.get("operator_next_step", ""),
+    "operator_next_step": baseline_operator_next_step,
     "effective_operator_next_step": effective_operator_next_step,
     "readiness_override_detected": readiness_override_detected,
     "readiness_override_reason": readiness_override_reason,

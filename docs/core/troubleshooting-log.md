@@ -1,5 +1,10 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 907) latest-status만 effective next-step으로 바꾸고 overview는 readiness override를 old baseline pointer에서 시작하면, readiness 포함 실행이 다시 과도하게 `WAIT_FOR_REAL_USER_LEADER_SIGNAL` 쪽으로 기운다
+- 문제: `latest-status` 와 `latest-gate` 는 이미 `effective_operator_next_step=USE_RECENT_WINDOW_AS_SUPPLEMENTAL_REVIEW_CONTEXT` 를 current action으로 보여 주는데, `latest-overview` 는 여전히 baseline artifact 기반 `operator_next_step=WAIT_FOR_REAL_USER_TRAFFIC` 에서 readiness override를 시작하고 있었다. 이러면 readiness 포함 실행에서 current review-gate 해석보다 `WAIT_FOR_REAL_USER_LEADER_SIGNAL` 이 먼저 보이게 된다.
+- 해결: `latest-overview` 도 current action의 기본값을 `latest-status` 의 `effective_operator_next_step` 로 맞추고, status effective reading이 아직 old wait-state일 때만 readiness override를 추가로 얹도록 바꿨다.
+- 이유: overview는 one-shot daily entrypoint라서 operator가 가장 먼저 읽는 surface다. 여기서만 old baseline pointer를 기준으로 override를 시작하면, 이미 정리한 current review-gate 해석이 다시 readiness 문구에 묻혀 버린다.
+
 ## 906) latest artifact에 review gate context만 올리고 next-step 계산은 old baseline pointer에 그대로 두면, operator는 새 근거를 봐도 마지막 행동 문구는 옛 wait-state로 다시 읽게 된다
 - 문제: `review_gate_context` 를 `latest-status-note.md`, `latest-status.json`, `latest-gate` 에 추가한 뒤에도, top-level next-step 값은 여전히 baseline artifact 기반 `operator_next_step=WAIT_FOR_REAL_USER_TRAFFIC` 였다. 이 상태에선 새 context를 읽어도 마지막 액션 문구가 옛 wait-state로 남아 해석 drift가 다시 생긴다.
 - 해결: old baseline pointer인 `operator_next_step` 은 유지하되, current review-gate context를 반영한 `effective_operator_next_step` 를 별도 승격했다. 현재 local에서는 `effective_operator_next_step=USE_RECENT_WINDOW_AS_SUPPLEMENTAL_REVIEW_CONTEXT` 를 먼저 읽는 편이 맞다.
