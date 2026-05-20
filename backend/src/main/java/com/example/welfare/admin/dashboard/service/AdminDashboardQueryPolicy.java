@@ -656,6 +656,42 @@ final class AdminDashboardQueryPolicy {
         };
     }
 
+    static String resolveReviewGatePolicyPromotionReviewRunApprovalStatus(
+            String reviewGatePolicyPromotionReviewRunDecisionStatus
+    ) {
+        return switch (reviewGatePolicyPromotionReviewRunDecisionStatus) {
+            case "BOUNDED_PROMOTION_REVIEW_RUN_DECISION_NOT_READY" ->
+                    "BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_NOT_READY";
+            case "AWAIT_BOUNDED_PROMOTION_REVIEW_RUN_DECISION" ->
+                    "PENDING_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL";
+            case "BOUNDED_PROMOTION_REVIEW_RUN_APPROVED" ->
+                    "APPROVED_FOR_BOUNDED_PROMOTION_REVIEW_RUN";
+            case "BOUNDED_PROMOTION_REVIEW_RUN_DECISION_NOT_APPLICABLE" ->
+                    "BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_NOT_APPLICABLE";
+            default -> "BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_NOT_APPLICABLE";
+        };
+    }
+
+    static String resolveReviewGatePolicyPromotionReviewRunApprovalReason(
+            String reviewGatePolicyPromotionReviewRunDecisionStatus,
+            String reviewGatePolicyPromotionReviewRunDecisionReason
+    ) {
+        String status = resolveReviewGatePolicyPromotionReviewRunApprovalStatus(
+                reviewGatePolicyPromotionReviewRunDecisionStatus
+        );
+
+        return switch (status) {
+            case "PENDING_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL" ->
+                    "REVIEW_RUN_DECISION_PENDING_BECAUSE_APPROVAL_RECORD_NOT_WRITTEN";
+            case "APPROVED_FOR_BOUNDED_PROMOTION_REVIEW_RUN" ->
+                    "REVIEW_RUN_DECISION_SUPPORTS_EXECUTION";
+            case "BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_NOT_READY",
+                 "BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_NOT_APPLICABLE" ->
+                    reviewGatePolicyPromotionReviewRunDecisionReason;
+            default -> status;
+        };
+    }
+
     static String resolveReviewGatePolicyPromotionReviewRunReason(
             String reviewGatePolicyPromotionApprovalRecordStatus,
             String reviewGatePolicyPromotionApprovalRecordReason

@@ -6172,3 +6172,8 @@ admin API와 latest artifact에
 - 문제: `reviewGatePolicyPromotionReviewRunCriteriaStatus=READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN` 까지 surface에 올린 뒤에도, actual bounded review run이 아직 안 돌고 있다는 사실과 마지막 run decision이 아직 explicit approval record 미작성 때문에 pending이라는 사실이 한 덩어리처럼 읽혔다.
 - 해결: `reviewGatePolicyPromotionReviewRunDecisionStatus`, `reviewGatePolicyPromotionReviewRunDecisionReason` 을 admin API, latest artifact, active current/runbook, reviewer/author/PR surface에 추가했다.
 - 이유: `run prerequisite ready` 와 `run decision pending` 은 다른 상태다. 이 둘을 분리해야 operator/reviewer가 “실행 조건은 맞았지만 마지막 시작 decision은 아직 approval record 미작성 때문에 보류”를 같은 언어로 읽을 수 있다.
+
+## #937 run decision pending과 final run approval pending도 다른 층으로 분리해야 마지막 승인 해석 drift가 안 생긴다
+- 문제: `reviewGatePolicyPromotionReviewRunDecisionStatus=AWAIT_BOUNDED_PROMOTION_REVIEW_RUN_DECISION` 까지 surface에 올린 뒤에도, 마지막 run decision pending과 actual bounded review run approval pending이 같은 층처럼 읽혔다.
+- 해결: `reviewGatePolicyPromotionReviewRunApprovalStatus`, `reviewGatePolicyPromotionReviewRunApprovalReason` 을 admin API, latest artifact, active current/runbook, reviewer/author/PR surface에 추가했다.
+- 이유: `run decision pending` 과 `run approval pending` 은 다른 상태다. 이 둘을 분리해야 operator/reviewer가 “마지막 시작 decision도 아직 없고, approval도 아직 못 남겼다”를 같은 언어로 읽을 수 있다.
