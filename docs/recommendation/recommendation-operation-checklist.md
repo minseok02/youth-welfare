@@ -272,7 +272,7 @@ daily operator entrypoint:
   - `bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-status-export.sh`
   - `bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-gate.sh`
   - `APP_BASE_URL='http://127.0.0.1:8082' ADMIN_EMAIL='<local admin email>' ADMIN_PASSWORD='<local admin password>' bash deploy/smoke/run-local-real-user-exclusion-readiness-check.sh`
-  - current local 결과는 `latest gate=PASS`, strict gate=`LATEST_OBSERVATION_CHANGED`, readiness=`DEFERRED_NO_REAL_USER_TRAFFIC / DEFERRED_NO_REAL_USER_COHORT` 입니다.
+  - current local 결과는 `latest gate=PASS`, strict gate=`LATEST_OBSERVATION_CHANGED`, live readiness=`READY_REAL_USER_TRAFFIC / READY_REAL_USER_COHORT`, full latest batch review gate=`DEFERRED_NON_REAL_LEADER_SIGNAL`, recent-window supplemental reading=`RECENT_WINDOW_CLEARS_HISTORICAL_2622_DOMINANCE` 입니다.
 - stable baseline key와 volatile key를 자동 분류하려면
   - `bash deploy/smoke/run-local-recommendation-ai-exclusion-stability-report.sh` 를 씁니다.
   - current local 분류 기준 stable key는 cohort/gate 계열이고, volatile key는 `fresh_top_ai_zero_count`, `ai_zero_count`, `ai_zero_reason_buckets` 입니다.

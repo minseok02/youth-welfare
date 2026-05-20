@@ -1,5 +1,10 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 385) active helper 상단은 최신화돼도 operation checklist와 남은 runbook 상단이 옛 blocker를 말하면 운영자가 다시 예전 순서로 돌아간다
+- 문제: baseline-refresh, latest-overview, latest-gate, primary-audience memo, operation checklist 일부 현재형 문장은 여전히 `WAIT_FOR_REAL_USER_TRAFFIC` / deferred-only 해석을 먼저 보여 줬다. 하지만 current truth는 readiness opened + full latest batch historical inertia + recent-window supplemental gate까지 좁혀진 상태였다.
+- 해결: 현재형으로 쓰인 active helper/runbook/checklist 상단과 “지금 local에서 다시 시작할 때” 같은 구간을 최신 truth로 다시 맞췄다. 과거 `2026-05-19` baseline 관측 자체는 history evidence로 남겨 두고, current operator instruction만 바꿨다.
+- 이유: current-state만 최신이어도 operator는 실제로 개별 helper/runbook/checklist의 현재형 문장을 따라 실행한다. current vs historical evidence를 분리하지 않으면 실제 운용 순서가 다시 예전 blocker 기준으로 회귀한다.
+
 ## 384) active current-state가 baseline artifact의 옛 `operator_next_step` 를 그대로 현재 truth처럼 말하면 live readiness/review gate 해석이 묻힌다
 - 문제: `recommendation-current-state.md` 와 top-level `current-state.md` 일부 설명은 baseline artifact에 남아 있는 `WAIT_FOR_REAL_USER_TRAFFIC` 포인터를 현재 truth처럼 적고 있었다. 하지만 live readiness는 이미 열렸고, 실제 current blocker는 full latest batch historical inertia와 recent-window current signal 분리 해석 쪽으로 옮겨가 있었다.
 - 해결: current-state 설명을 baseline artifact 포인터와 live current truth를 구분하는 방향으로 다시 정리했다. 이제 `operator_next_step` 자체는 old artifact 요약값일 수 있고, 실제 current 해석은 `effective_operator_next_step`, readiness, review-gate audit까지 같이 읽는다는 점을 명시한다.

@@ -12,7 +12,7 @@
 
 ## 현재 단계 해석
 
-현재 local recommendation current truth는 `WAIT_FOR_REAL_USER_TRAFFIC`, basic gate `PASS`, strict gate `LATEST_OBSERVATION_CHANGED`, `VOLATILE_ONLY_DRIFT` 입니다.
+현재 local recommendation current truth는 full latest batch review gate `DEFERRED_NON_REAL_LEADER_SIGNAL`, recent-window supplemental reading `RECENT_WINDOW_CLEARS_HISTORICAL_2622_DOMINANCE`, basic gate `PASS`, strict gate `LATEST_OBSERVATION_CHANGED`, `VOLATILE_ONLY_DRIFT` 입니다.
 
 즉 이 gate runbook은 recommendation reopen 여부를 오늘 바로 결정하는 문서가 아니라, **latest artifact 기준 해석 변화 / stable baseline 변화 / strict observation 변화를 자동 판정하는 운영 gate helper** 로 보는 편이 맞습니다.
 
@@ -82,7 +82,7 @@ bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-gate.sh
 - `generated_at_utc`, `generated_at_kst`
   - 현재 gate가 읽은 latest-status JSON이 언제 생성된 것인지 UTC/KST 둘 다 바로 확인할 수 있습니다.
 - `operator_next_step`
-  - gate가 PASS여도 지금 다음 실무 행동이 `WAIT_FOR_REAL_USER_TRAFFIC` 인지, `OBSERVE_FRESH_WINDOW_VOLATILITY` 인지 바로 읽을 수 있습니다.
+  - gate가 PASS여도 baseline artifact의 old wait-state인지, current live 해석이 `USE_RECENT_WINDOW_AS_SUPPLEMENTAL_REVIEW_CONTEXT` 인지 같이 구분해서 읽을 수 있습니다.
 - `status_json_stale_relative_to_summaries=true`
   - gate가 보고 있는 JSON이 latest summary보다 오래됐다는 뜻입니다.
 - `status_json_recommended_action=RERUN_LATEST_STATUS_EXPORT`

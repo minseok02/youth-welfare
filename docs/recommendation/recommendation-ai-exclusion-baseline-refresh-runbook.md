@@ -12,7 +12,7 @@
 
 ## 현재 단계 해석
 
-현재 local 기본값은 여전히 `WAIT_FOR_REAL_USER_TRAFFIC` 이고, latest reading도 `VOLATILE_ONLY_DRIFT` 입니다.
+현재 local 기본값은 full latest batch review gate `DEFERRED_NON_REAL_LEADER_SIGNAL`, recent-window supplemental reading `RECENT_WINDOW_CLEARS_HISTORICAL_2622_DOMINANCE`, latest reading `VOLATILE_ONLY_DRIFT` 입니다.
 
 즉 이 runbook은 recommendation을 지금 당장 다시 튜닝하기 위한 reopen entrypoint가 아니라, **현재 baseline 유지 단계에서 stable baseline / volatile observation을 더 깊게 다시 정리할 때 쓰는 one-shot wrapper** 로 읽는 편이 맞습니다.
 

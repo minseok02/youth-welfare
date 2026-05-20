@@ -12,7 +12,7 @@
 
 ## 현재 단계 해석
 
-현재 local 기본 해석은 여전히 `WAIT_FOR_REAL_USER_TRAFFIC` 이고, latest recommendation reading은 `VOLATILE_ONLY_DRIFT` 입니다.
+현재 local 기본 해석은 full latest batch review gate `DEFERRED_NON_REAL_LEADER_SIGNAL`, recent-window supplemental reading `RECENT_WINDOW_CLEARS_HISTORICAL_2622_DOMINANCE`, latest recommendation reading `VOLATILE_ONLY_DRIFT` 입니다.
 
 즉 이 compare runbook은 새 제품 판단을 여는 문서가 아니라, **이미 만들어 둔 baseline refresh summary 두 개를 놓고 stable baseline과 latest observation 중 무엇이 바뀌었는지 compact하게 재분류할 때 쓰는 read-only helper** 로 읽는 것이 맞습니다.
 
