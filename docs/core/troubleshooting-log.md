@@ -6147,3 +6147,8 @@ admin API와 latest artifact에
 - 문제: `recommendation-review-gate-policy-promotion-checklist.md` 를 추가해 explicit policy review 기준은 생겼지만, reviewer brief / draft exit / post-merge follow-up 에서 그 문서로 바로 가는 연결이 약하면 reviewer/author는 다시 문서군 전체에서 “그래서 어디서 승격 검토 기준을 보나”를 찾아야 했다.
 - 해결: PR lifecycle surface에 checklist 링크와 읽는 순서를 직접 연결했다.
 - 이유: current truth는 이제 `candidate -> promotion pending -> explicit review checklist` 세 단계로 읽어야 한다. 이 흐름이 PR lifecycle surface에서도 한 번에 이어져야 GitHub 화면과 로컬 문서가 같은 길찾기를 제공한다.
+
+## #928 explicit approval decision과 approval record를 같은 층으로 두면 마지막 승인 경계가 다시 흐려진다
+- 문제: `AWAIT_EXPLICIT_PROMOTION_APPROVAL_DECISION` 까지 surface에 올린 뒤에도, 실제 승인 기록이 남았는지는 별도로 드러나지 않았다. 이 상태에선 approval criteria 충족, approval pending, approval decision pending, approval record pending이 한 덩어리처럼 읽혀 bounded promotion review 실행 경계가 다시 모호해졌다.
+- 해결: `reviewGatePolicyPromotionApprovalRecordStatus`, `reviewGatePolicyPromotionApprovalRecordReason` 을 admin API, latest artifact, active runbook, reviewer/author/PR surface에 추가했다.
+- 이유: `approval decision pending` 과 `approval record not written` 은 다른 상태다. explicit approval이 나중에 기록 기반으로 남는지까지 분리해야 operator/reviewer가 “준비는 됐지만 아직 승인 기록은 없음”을 같은 언어로 읽을 수 있다.

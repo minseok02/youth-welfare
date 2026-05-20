@@ -34,6 +34,8 @@ public record AdminRecommendationBreakdownResponse(
         String reviewGatePolicyPromotionApprovalReason,
         String reviewGatePolicyPromotionApprovalDecisionStatus,
         String reviewGatePolicyPromotionApprovalDecisionReason,
+        String reviewGatePolicyPromotionApprovalRecordStatus,
+        String reviewGatePolicyPromotionApprovalRecordReason,
         List<RepeatedServiceSnapshot> topRepeatedServices,
         List<Top1ServiceSnapshot> top1Services,
         List<SourceBreakdown> sourceBreakdowns,

@@ -72,6 +72,18 @@ bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-gate.sh
 - `review_gate_policy_promotion_action_reason`
 - `review_gate_policy_promotion_readiness_status`
 - `review_gate_policy_promotion_readiness_reason`
+- `review_gate_policy_promotion_execution_status`
+- `review_gate_policy_promotion_execution_reason`
+- `review_gate_policy_promotion_approval_criteria_status`
+- `review_gate_policy_promotion_approval_criteria_reason`
+- `review_gate_policy_promotion_approval_status`
+- `review_gate_policy_promotion_approval_reason`
+- `review_gate_policy_promotion_approval_decision_status`
+- `review_gate_policy_promotion_approval_decision_reason`
+- `review_gate_policy_promotion_approval_record_status`
+- `review_gate_policy_promotion_approval_record_reason`
+- `review_gate_policy_promotion_readiness_status`
+- `review_gate_policy_promotion_readiness_reason`
 - `status_json_stale_relative_to_summaries`
 - `status_json_recommended_action`
 - `latest_drift_class`
@@ -145,6 +157,10 @@ bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-gate.sh
   - approval criteria는 충족됐지만 explicit approval decision record가 아직 있는지 없는지를 보여 주는 값입니다. 현재 local 기준으로는 `AWAIT_EXPLICIT_PROMOTION_APPROVAL_DECISION` 입니다.
 - `review_gate_policy_promotion_approval_decision_reason`
   - 위 approval decision status를 만든 직접 이유입니다. 현재 local 기준으로는 `APPROVAL_CRITERIA_MET_BUT_EXPLICIT_APPROVAL_NOT_RECORDED` 입니다.
+- `review_gate_policy_promotion_approval_record_status`
+  - explicit approval decision 다음 실제 approval record가 남았는지를 보여 주는 값입니다. 현재 local 기준으로는 `PENDING_EXPLICIT_PROMOTION_APPROVAL_RECORD` 입니다.
+- `review_gate_policy_promotion_approval_record_reason`
+  - 위 approval record status를 만든 직접 이유입니다. 현재 local 기준으로는 `APPROVAL_DECISION_PENDING_AND_RECORD_NOT_WRITTEN` 입니다.
 - `review_gate_interpretation_class`
   - primary full latest batch gate와 supplemental recent-window gate를 합친 운영 해석 클래스입니다. 현재 local 기준으로는 `HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR` 입니다.
 - `review_gate_operating_mode`

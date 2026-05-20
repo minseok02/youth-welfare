@@ -66,6 +66,10 @@
   - `AWAIT_EXPLICIT_PROMOTION_APPROVAL_DECISION`
 - review gate policy promotion approval decision reason:
   - `APPROVAL_CRITERIA_MET_BUT_EXPLICIT_APPROVAL_NOT_RECORDED`
+- review gate policy promotion approval record status:
+  - `PENDING_EXPLICIT_PROMOTION_APPROVAL_RECORD`
+- review gate policy promotion approval record reason:
+  - `APPROVAL_DECISION_PENDING_AND_RECORD_NOT_WRITTEN`
 
 즉 current truth는:
 
@@ -78,6 +82,7 @@
 7. current approval status는 `PENDING_EXPLICIT_PROMOTION_APPROVAL`
 8. current approval criteria status는 `READY_FOR_EXPLICIT_PROMOTION_APPROVAL`
 9. current approval decision status는 `AWAIT_EXPLICIT_PROMOTION_APPROVAL_DECISION`
+10. current approval record status는 `PENDING_EXPLICIT_PROMOTION_APPROVAL_RECORD`
 
 입니다.
 

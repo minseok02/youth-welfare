@@ -58,6 +58,16 @@ bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-status.sh
 - `review_gate_policy_promotion_action_reason`
 - `review_gate_policy_promotion_readiness_status`
 - `review_gate_policy_promotion_readiness_reason`
+- `review_gate_policy_promotion_execution_status`
+- `review_gate_policy_promotion_execution_reason`
+- `review_gate_policy_promotion_approval_criteria_status`
+- `review_gate_policy_promotion_approval_criteria_reason`
+- `review_gate_policy_promotion_approval_status`
+- `review_gate_policy_promotion_approval_reason`
+- `review_gate_policy_promotion_approval_decision_status`
+- `review_gate_policy_promotion_approval_decision_reason`
+- `review_gate_policy_promotion_approval_record_status`
+- `review_gate_policy_promotion_approval_record_reason`
 - `status_json_stale_relative_to_summaries`
 - `status_json_recommended_action`
 - `latest_drift_class`
@@ -125,6 +135,9 @@ bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-status.sh
 - `review_gate_policy_promotion_approval_decision_status=AWAIT_EXPLICIT_PROMOTION_APPROVAL_DECISION`
   - approval criteria는 충족됐지만 explicit approval decision record는 아직 없다는 뜻입니다.
 - `review_gate_policy_promotion_approval_decision_reason=APPROVAL_CRITERIA_MET_BUT_EXPLICIT_APPROVAL_NOT_RECORDED`
+- `review_gate_policy_promotion_approval_record_status=PENDING_EXPLICIT_PROMOTION_APPROVAL_RECORD`
+  - explicit approval decision이 아직 기록되지 않아 approval record도 아직 남기지 못한 상태라는 뜻입니다.
+- `review_gate_policy_promotion_approval_record_reason=APPROVAL_DECISION_PENDING_AND_RECORD_NOT_WRITTEN`
 - `review_gate_interpretation_class=HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR`
   - primary full latest batch gate는 아직 historical blocker인데, supplemental recent-window current signal은 이미 clear 쪽으로 움직였다는 뜻입니다.
 - `review_gate_operating_mode=PRIMARY_BASELINE_WITH_SUPPLEMENTAL_RECENT_WINDOW`

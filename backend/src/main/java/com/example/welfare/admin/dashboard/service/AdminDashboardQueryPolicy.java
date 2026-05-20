@@ -531,4 +531,35 @@ final class AdminDashboardQueryPolicy {
             default -> status;
         };
     }
+
+    static String resolveReviewGatePolicyPromotionApprovalRecordStatus(
+            String reviewGatePolicyPromotionApprovalDecisionStatus
+    ) {
+        return switch (reviewGatePolicyPromotionApprovalDecisionStatus) {
+            case "APPROVAL_DECISION_NOT_READY" -> "APPROVAL_RECORD_NOT_READY";
+            case "AWAIT_EXPLICIT_PROMOTION_APPROVAL_DECISION" -> "PENDING_EXPLICIT_PROMOTION_APPROVAL_RECORD";
+            case "APPROVED_FOR_BOUNDED_PROMOTION_REVIEW" -> "EXPLICIT_PROMOTION_APPROVAL_RECORDED";
+            case "APPROVAL_DECISION_NOT_APPLICABLE" -> "APPROVAL_RECORD_NOT_APPLICABLE";
+            default -> "APPROVAL_RECORD_NOT_APPLICABLE";
+        };
+    }
+
+    static String resolveReviewGatePolicyPromotionApprovalRecordReason(
+            String reviewGatePolicyPromotionApprovalDecisionStatus,
+            String reviewGatePolicyPromotionApprovalDecisionReason
+    ) {
+        String status = resolveReviewGatePolicyPromotionApprovalRecordStatus(
+                reviewGatePolicyPromotionApprovalDecisionStatus
+        );
+
+        return switch (status) {
+            case "PENDING_EXPLICIT_PROMOTION_APPROVAL_RECORD" ->
+                    "APPROVAL_DECISION_PENDING_AND_RECORD_NOT_WRITTEN";
+            case "EXPLICIT_PROMOTION_APPROVAL_RECORDED" ->
+                    "APPROVAL_RECORD_ALLOWS_BOUNDED_PROMOTION_REVIEW";
+            case "APPROVAL_RECORD_NOT_READY", "APPROVAL_RECORD_NOT_APPLICABLE" ->
+                    reviewGatePolicyPromotionApprovalDecisionReason;
+            default -> status;
+        };
+    }
 }
