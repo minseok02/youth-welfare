@@ -58,6 +58,13 @@ bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-status-export.sh
 
 ## merge 후 계속 유지할 current 해석
 
+merge 전 현재 PR 상태 reference:
+
+- PR review readiness status:
+  - `REVIEWER_READY`
+- PR draft maintenance status:
+  - `DRAFT_MAINTAINED_BY_POLICY_GATE`
+
 현재 merge 뒤에도 기본 해석은 이것입니다.
 
 - full latest batch review gate:

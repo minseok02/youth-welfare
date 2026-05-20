@@ -21,6 +21,11 @@
 
 현재 recommendation closeout PR은 아래 이유로 **draft 유지**가 기본값입니다.
 
+- PR review readiness status:
+  - `REVIEWER_READY`
+- PR draft maintenance status:
+  - `DRAFT_MAINTAINED_BY_POLICY_GATE`
+
 - full latest batch review gate:
   - `DEFERRED_NON_REAL_LEADER_SIGNAL`
 - full latest batch reading:
@@ -39,6 +44,7 @@
   - `USE_RECENT_WINDOW_AS_SUPPLEMENTAL_REVIEW_CONTEXT`
 - latest 관찰은 계속 `VOLATILE_ONLY_DRIFT`
 - 즉 남은 blocker는 코드 결함보다 **review gate 해석을 stale historical latest batch와 current recent-window signal로 분리해서 읽는 문제** 입니다.
+- 즉 현재 브랜치는 **review는 바로 받을 수 있지만, undraft는 policy gate가 아직 막는 상태** 입니다.
 
 ## draft 유지 조건
 
@@ -88,7 +94,7 @@
 
 현재는 아래 순서가 맞습니다.
 
-1. PR은 draft 유지
+1. PR은 `reviewer-ready but draft-maintained` 로 읽고 draft 유지
 2. reviewer는 closeout 범위를 먼저 review
 3. `REAL_USER` traffic/cohort가 생기면 recheck checklist 재실행
 4. 그 결과로 draft 해제 또는 후속 reopen PR 분리 결정
@@ -132,6 +138,7 @@ bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-overview.sh
   - drift gate는 통과했지만 운영 정책 gate는 아직 primary historical blocker 상태입니다.
   - 즉 `PASS` 는 “artifact drift 없음”이지 “undraft 가능”을 뜻하지 않습니다.
   - 이 조합에서는 `READ_PRIMARY_AND_SUPPLEMENTAL_REVIEW_GATES` 와 `USE_RECENT_WINDOW_AS_SUPPLEMENTAL_REVIEW_CONTEXT` 를 먼저 읽는 편이 맞습니다.
+  - 현재 PR status는 계속 `REVIEWER_READY + DRAFT_MAINTAINED_BY_POLICY_GATE` 입니다.
 
 ### 2. readiness opened + stable baseline unchanged
 

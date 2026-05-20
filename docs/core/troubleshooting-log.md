@@ -1,5 +1,10 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 919) reviewer-facing brief와 draft checklist가 gate 값만 말하고 “리뷰 가능하지만 draft 유지” 상태값을 안 적으면, 사람은 다시 PASS/blocked 조합을 머리로 번역해야 한다
+- 문제: reviewer/operator/author surface에 `gate_status=PASS`, `gate_policy_status=PRIMARY_BLOCKED_SUPPLEMENTAL_CLEAR` 는 이미 올라갔지만, PR review brief와 draft/post-merge checklist는 여전히 그 조합을 사람이 다시 `review는 가능하지만 undraft는 안 됨`으로 번역해야 했다.
+- 해결: `recommendation-pr-review-brief.md`, `recommendation-pr-draft-exit-checklist.md`, `recommendation-post-merge-followup-checklist.md` 에 `PR review readiness status=REVIEWER_READY`, `PR draft maintenance status=DRAFT_MAINTAINED_BY_POLICY_GATE` 를 직접 추가했다.
+- 이유: 지금 recommendation closeout PR의 핵심은 “드리프트 gate는 통과했지만 정책 gate는 아직 blocked”라는 두 층 구조다. 이걸 상태값으로 한 번 더 접어 주면 reviewer/author가 GitHub나 문서에서 같은 현재 상태를 더 빠르게 읽을 수 있다.
+
 ## 918) reviewer surface와 checklist만 `gate_policy_status` 를 쓰고 author-side PR note가 예전 문장에 머물면, author는 GitHub 코멘트만 볼 때 다시 `PASS인데 왜 draft인가`를 해석해야 한다
 - 문제: PR 본문과 reviewer quick entrypoint, draft/post-merge checklist에는 이미 `gate_policy_status=PRIMARY_BLOCKED_SUPPLEMENTAL_CLEAR` 가 있었지만, author-side note는 아직 “historical primary-gate inertia vs current-live signal interpretation” 수준에서만 설명하고 있었다.
 - 해결: author-side note도 `basic latest gate=PASS` 와 별도로 `gate_policy_status=PRIMARY_BLOCKED_SUPPLEMENTAL_CLEAR`, `gate_policy_reason=HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR` 조합을 직접 적는 쪽으로 갱신했다.

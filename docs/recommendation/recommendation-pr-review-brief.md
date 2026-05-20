@@ -71,6 +71,8 @@ review hint:
 
 ## reviewer가 먼저 확인할 현재 판정
 
+- PR review readiness status: `REVIEWER_READY`
+- PR draft maintenance status: `DRAFT_MAINTAINED_BY_POLICY_GATE`
 - current local recommendation latest status: `VOLATILE_ONLY_DRIFT`
 - basic latest gate: `PASS`
 - strict latest gate: `LATEST_OBSERVATION_CHANGED`
@@ -84,7 +86,7 @@ review hint:
 - gate policy reason: `HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR`
 - operator next step: `USE_RECENT_WINDOW_AS_SUPPLEMENTAL_REVIEW_CONTEXT`
 
-즉 현재 PR은 모델 튜닝 PR이 아니라, **closeout + observability + handoff 정리 PR** 로 읽는 편이 맞습니다.
+즉 현재 PR은 **review는 바로 가능한 closeout + observability + handoff 정리 PR** 이지만, undraft는 아직 policy gate가 막는 상태로 읽는 편이 맞습니다.
 
 ## reviewer가 깊게 파지 않아도 되는 것
 
