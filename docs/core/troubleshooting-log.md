@@ -1,5 +1,10 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 910) operator artifact에 `review_gate_interpretation_class`, `review_gate_operating_mode` 를 올린 뒤에도 reviewer-facing brief/PR surface가 예전 raw gate 설명만 남겨 두면, reviewer는 current 운영 해석 승격을 GitHub 화면에서 바로 못 읽는다
+- 문제: `latest-status`, `latest-gate`, `latest-overview` 는 이미 primary/supplemental review gate 조합을 decision class로 승격했는데, reviewer quick entrypoint와 PR 본문은 아직 raw gate 값과 next-step까지만 요약하고 있었다.
+- 해결: `recommendation-pr-review-brief.md`, PR body, reviewer quick entrypoint comment에 `review_gate_interpretation_class=HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR`, `review_gate_operating_mode=PRIMARY_BASELINE_WITH_SUPPLEMENTAL_RECENT_WINDOW` 를 같이 올렸다.
+- 이유: reviewer가 GitHub PR surface만 봐도 “raw gate 값 셋”이 아니라 “현재 운영 결정 클래스”를 바로 읽을 수 있어야, 저장소 문서와 PR 전달면이 다시 갈라지지 않는다.
+
 ## 909) primary/supplemental review gate 값을 artifact에 같이 올려도, operator가 그 조합을 어떤 decision class로 읽어야 하는지 매번 문장으로 다시 합쳐야 하면 one-shot gate surface로서 완결성이 떨어진다
 - 문제: `latest-status`, `latest-gate`, `latest-overview` 는 이미 `primary_review_gate_blocker_class`, `recent_window_recommendation_review_reading`, `historical_example_dominance_detected` 를 같이 내리고 있었지만, operator는 여전히 이 값들을 머리로 합쳐 “historical primary blocker지만 recent-window는 clear”라고 직접 번역해야 했다.
 - 해결: latest artifact와 CLI 출력에 `review_gate_interpretation_class`, `review_gate_operating_mode` 를 추가했다. 현재 local 기준 값은 `HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR`, `PRIMARY_BASELINE_WITH_SUPPLEMENTAL_RECENT_WINDOW` 이다.

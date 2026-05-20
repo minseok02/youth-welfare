@@ -77,6 +77,8 @@ review hint:
 - full latest batch review blocker: `DEFERRED_NON_REAL_LEADER_SIGNAL`
 - full latest batch reading: `historical example latest batch dominance`
 - recent-window supplemental reading: `RECENT_WINDOW_CLEARS_HISTORICAL_2622_DOMINANCE`
+- review gate interpretation class: `HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR`
+- review gate operating mode: `PRIMARY_BASELINE_WITH_SUPPLEMENTAL_RECENT_WINDOW`
 - operator next step: `USE_RECENT_WINDOW_AS_SUPPLEMENTAL_REVIEW_CONTEXT`
 
 즉 현재 PR은 모델 튜닝 PR이 아니라, **closeout + observability + handoff 정리 PR** 로 읽는 편이 맞습니다.
