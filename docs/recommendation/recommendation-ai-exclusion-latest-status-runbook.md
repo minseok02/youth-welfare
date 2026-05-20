@@ -80,6 +80,8 @@ bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-status.sh
 - `review_gate_policy_promotion_review_run_approval_decision_reason`
 - `review_gate_policy_promotion_review_run_approval_status`
 - `review_gate_policy_promotion_review_run_approval_reason`
+- `review_gate_policy_promotion_review_run_approval_record_criteria_status`
+- `review_gate_policy_promotion_review_run_approval_record_criteria_reason`
 - `review_gate_policy_promotion_review_run_approval_record_status`
 - `review_gate_policy_promotion_review_run_approval_record_reason`
 - `status_json_stale_relative_to_summaries`
@@ -170,6 +172,9 @@ bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-status.sh
 - `review_gate_policy_promotion_review_run_approval_status=PENDING_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL`
   - 마지막 review run decision 뒤 approval 자체도 아직 explicit approval record 미작성 때문에 pending이라는 뜻입니다.
 - `review_gate_policy_promotion_review_run_approval_reason=REVIEW_RUN_DECISION_PENDING_BECAUSE_APPROVAL_RECORD_NOT_WRITTEN`
+- `review_gate_policy_promotion_review_run_approval_record_criteria_status=READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD`
+  - 마지막 review run approval record를 남길 prerequisite 자체는 이미 충족됐다는 뜻입니다.
+- `review_gate_policy_promotion_review_run_approval_record_criteria_reason=REVIEW_RUN_APPROVAL_RECORD_PREREQUISITES_MET_BUT_RECORD_PENDING`
 - `review_gate_policy_promotion_review_run_approval_record_status=PENDING_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD`
   - 마지막 review run approval decision이 아직 pending이라 approval record 자체도 아직 남기지 못한 상태라는 뜻입니다.
 - `review_gate_policy_promotion_review_run_approval_record_reason=REVIEW_RUN_APPROVAL_DECISION_PENDING_AND_RECORD_NOT_WRITTEN`

@@ -798,6 +798,39 @@ final class AdminDashboardQueryPolicy {
         };
     }
 
+    static String resolveReviewGatePolicyPromotionReviewRunApprovalRecordCriteriaStatus(
+            String reviewGatePolicyPromotionReviewRunApprovalStatus
+    ) {
+        return switch (reviewGatePolicyPromotionReviewRunApprovalStatus) {
+            case "BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_NOT_READY" ->
+                    "NOT_READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD";
+            case "PENDING_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL",
+                 "APPROVED_FOR_BOUNDED_PROMOTION_REVIEW_RUN" ->
+                    "READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD";
+            case "BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_NOT_APPLICABLE" ->
+                    "BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_NOT_APPLICABLE";
+            default -> "BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_NOT_APPLICABLE";
+        };
+    }
+
+    static String resolveReviewGatePolicyPromotionReviewRunApprovalRecordCriteriaReason(
+            String reviewGatePolicyPromotionReviewRunApprovalStatus,
+            String reviewGatePolicyPromotionReviewRunApprovalReason
+    ) {
+        String status = resolveReviewGatePolicyPromotionReviewRunApprovalRecordCriteriaStatus(
+                reviewGatePolicyPromotionReviewRunApprovalStatus
+        );
+
+        return switch (status) {
+            case "READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD" ->
+                    "REVIEW_RUN_APPROVAL_RECORD_PREREQUISITES_MET_BUT_RECORD_PENDING";
+            case "NOT_READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD",
+                 "BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_NOT_APPLICABLE" ->
+                    reviewGatePolicyPromotionReviewRunApprovalReason;
+            default -> status;
+        };
+    }
+
     static String resolveReviewGatePolicyPromotionReviewRunApprovalRecordReason(
             String reviewGatePolicyPromotionReviewRunApprovalDecisionStatus,
             String reviewGatePolicyPromotionReviewRunApprovalDecisionReason

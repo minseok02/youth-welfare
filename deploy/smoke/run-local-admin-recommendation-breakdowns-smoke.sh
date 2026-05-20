@@ -322,6 +322,8 @@ print(data["reviewGatePolicyPromotionReviewRunApprovalDecisionStatus"])
 print(data["reviewGatePolicyPromotionReviewRunApprovalDecisionReason"])
 print(data["reviewGatePolicyPromotionReviewRunApprovalStatus"])
 print(data["reviewGatePolicyPromotionReviewRunApprovalReason"])
+print(data["reviewGatePolicyPromotionReviewRunApprovalRecordCriteriaStatus"])
+print(data["reviewGatePolicyPromotionReviewRunApprovalRecordCriteriaReason"])
 print(data["reviewGatePolicyPromotionReviewRunApprovalRecordStatus"])
 print(data["reviewGatePolicyPromotionReviewRunApprovalRecordReason"])
 print(staleness["primaryReferenceMode"])
@@ -462,21 +464,23 @@ echo "review_gate_policy_promotion_review_run_approval_decision_status=${BREAKDO
 echo "review_gate_policy_promotion_review_run_approval_decision_reason=${BREAKDOWN_VALUES[68]}"
 echo "review_gate_policy_promotion_review_run_approval_status=${BREAKDOWN_VALUES[69]}"
 echo "review_gate_policy_promotion_review_run_approval_reason=${BREAKDOWN_VALUES[70]}"
-echo "review_gate_policy_promotion_review_run_approval_record_status=${BREAKDOWN_VALUES[71]}"
-echo "review_gate_policy_promotion_review_run_approval_record_reason=${BREAKDOWN_VALUES[72]}"
-echo "review_gate_primary_reference_mode=${BREAKDOWN_VALUES[73]}"
-echo "review_gate_example_target_top1_users=${BREAKDOWN_VALUES[74]}"
-echo "review_gate_example_target_top1_last_24h=${BREAKDOWN_VALUES[75]}"
-echo "review_gate_real_user_latest_users=${BREAKDOWN_VALUES[76]}"
-echo "review_gate_real_user_target_top1_users=${BREAKDOWN_VALUES[77]}"
-echo "recent_window_hours=${BREAKDOWN_VALUES[78]}"
-echo "recent_window_target_service_id=${BREAKDOWN_VALUES[79]}"
-echo "recent_window_latest_batch_users=${BREAKDOWN_VALUES[80]}"
-echo "recent_window_real_user_users=${BREAKDOWN_VALUES[81]}"
-echo "recent_window_top1_leader_service_id=${BREAKDOWN_VALUES[82]}"
-echo "recent_window_top1_leader_real_user_users=${BREAKDOWN_VALUES[83]}"
-echo "recent_window_target_top1_users=${BREAKDOWN_VALUES[84]}"
-echo "recent_window_target_top1_real_user_users=${BREAKDOWN_VALUES[85]}"
+echo "review_gate_policy_promotion_review_run_approval_record_criteria_status=${BREAKDOWN_VALUES[71]}"
+echo "review_gate_policy_promotion_review_run_approval_record_criteria_reason=${BREAKDOWN_VALUES[72]}"
+echo "review_gate_policy_promotion_review_run_approval_record_status=${BREAKDOWN_VALUES[73]}"
+echo "review_gate_policy_promotion_review_run_approval_record_reason=${BREAKDOWN_VALUES[74]}"
+echo "review_gate_primary_reference_mode=${BREAKDOWN_VALUES[75]}"
+echo "review_gate_example_target_top1_users=${BREAKDOWN_VALUES[76]}"
+echo "review_gate_example_target_top1_last_24h=${BREAKDOWN_VALUES[77]}"
+echo "review_gate_real_user_latest_users=${BREAKDOWN_VALUES[78]}"
+echo "review_gate_real_user_target_top1_users=${BREAKDOWN_VALUES[79]}"
+echo "recent_window_hours=${BREAKDOWN_VALUES[80]}"
+echo "recent_window_target_service_id=${BREAKDOWN_VALUES[81]}"
+echo "recent_window_latest_batch_users=${BREAKDOWN_VALUES[82]}"
+echo "recent_window_real_user_users=${BREAKDOWN_VALUES[83]}"
+echo "recent_window_top1_leader_service_id=${BREAKDOWN_VALUES[84]}"
+echo "recent_window_top1_leader_real_user_users=${BREAKDOWN_VALUES[85]}"
+echo "recent_window_target_top1_users=${BREAKDOWN_VALUES[86]}"
+echo "recent_window_target_top1_real_user_users=${BREAKDOWN_VALUES[87]}"
 echo "summary_window_days=${SUMMARY_WINDOW_DAYS}"
 echo "breakdown_limit=${BREAKDOWN_LIMIT}"
 if [[ -n "${CONTAINER_ADMIN_ALLOWLIST}" ]]; then

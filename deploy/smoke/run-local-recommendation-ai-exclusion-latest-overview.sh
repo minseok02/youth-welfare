@@ -233,6 +233,8 @@ review_gate_policy_promotion_review_run_approval_decision_status = status.get("r
 review_gate_policy_promotion_review_run_approval_decision_reason = status.get("review_gate_policy_promotion_review_run_approval_decision_reason", "")
 review_gate_policy_promotion_review_run_approval_status = status.get("review_gate_policy_promotion_review_run_approval_status", "")
 review_gate_policy_promotion_review_run_approval_reason = status.get("review_gate_policy_promotion_review_run_approval_reason", "")
+review_gate_policy_promotion_review_run_approval_record_criteria_status = status.get("review_gate_policy_promotion_review_run_approval_record_criteria_status", "")
+review_gate_policy_promotion_review_run_approval_record_criteria_reason = status.get("review_gate_policy_promotion_review_run_approval_record_criteria_reason", "")
 review_gate_policy_promotion_review_run_approval_record_status = status.get("review_gate_policy_promotion_review_run_approval_record_status", "")
 review_gate_policy_promotion_review_run_approval_record_reason = status.get("review_gate_policy_promotion_review_run_approval_record_reason", "")
 
@@ -392,6 +394,8 @@ lines = [
     f"review_gate_policy_promotion_review_run_approval_decision_reason={review_gate_policy_promotion_review_run_approval_decision_reason}",
     f"review_gate_policy_promotion_review_run_approval_status={review_gate_policy_promotion_review_run_approval_status}",
     f"review_gate_policy_promotion_review_run_approval_reason={review_gate_policy_promotion_review_run_approval_reason}",
+    f"review_gate_policy_promotion_review_run_approval_record_criteria_status={review_gate_policy_promotion_review_run_approval_record_criteria_status}",
+    f"review_gate_policy_promotion_review_run_approval_record_criteria_reason={review_gate_policy_promotion_review_run_approval_record_criteria_reason}",
     f"review_gate_policy_promotion_review_run_approval_record_status={review_gate_policy_promotion_review_run_approval_record_status}",
     f"review_gate_policy_promotion_review_run_approval_record_reason={review_gate_policy_promotion_review_run_approval_record_reason}",
     f"primary_mixed_top1_leader_service_id={primary_mixed_top1_leader_service_id}",
@@ -497,6 +501,8 @@ note_lines = [
     f"- review_gate_policy_promotion_review_run_approval_decision_reason: `{review_gate_policy_promotion_review_run_approval_decision_reason}`",
     f"- review_gate_policy_promotion_review_run_approval_status: `{review_gate_policy_promotion_review_run_approval_status}`",
     f"- review_gate_policy_promotion_review_run_approval_reason: `{review_gate_policy_promotion_review_run_approval_reason}`",
+    f"- review_gate_policy_promotion_review_run_approval_record_criteria_status: `{review_gate_policy_promotion_review_run_approval_record_criteria_status}`",
+    f"- review_gate_policy_promotion_review_run_approval_record_criteria_reason: `{review_gate_policy_promotion_review_run_approval_record_criteria_reason}`",
     f"- review_gate_policy_promotion_review_run_approval_record_status: `{review_gate_policy_promotion_review_run_approval_record_status}`",
     f"- review_gate_policy_promotion_review_run_approval_record_reason: `{review_gate_policy_promotion_review_run_approval_record_reason}`",
     f"- primary_mixed_top1_leader_service_id: `{primary_mixed_top1_leader_service_id}`",
@@ -593,6 +599,8 @@ json_payload = {
         "review_gate_policy_promotion_review_run_approval_decision_reason": review_gate_policy_promotion_review_run_approval_decision_reason,
         "review_gate_policy_promotion_review_run_approval_status": review_gate_policy_promotion_review_run_approval_status,
         "review_gate_policy_promotion_review_run_approval_reason": review_gate_policy_promotion_review_run_approval_reason,
+        "review_gate_policy_promotion_review_run_approval_record_criteria_status": review_gate_policy_promotion_review_run_approval_record_criteria_status,
+        "review_gate_policy_promotion_review_run_approval_record_criteria_reason": review_gate_policy_promotion_review_run_approval_record_criteria_reason,
         "review_gate_policy_promotion_review_run_approval_record_status": review_gate_policy_promotion_review_run_approval_record_status,
         "review_gate_policy_promotion_review_run_approval_record_reason": review_gate_policy_promotion_review_run_approval_record_reason,
     "primary_mixed_top1_leader_service_id": primary_mixed_top1_leader_service_id,

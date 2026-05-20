@@ -1,5 +1,9 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 940) 마지막 run approval record pending만 보이면, record를 남길 prerequisite이 이미 충족됐는지 다시 추론해야 한다
+- 문제: `PENDING_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD` 만 surface에 올린 상태에서는, operator/reviewer가 “지금은 마지막 approval record만 안 쓴 건가, 아니면 그 record를 남길 prerequisite도 아직 부족한가”를 다시 해석해야 했다.
+- 해결: admin summary/breakdowns, latest artifact, active current/runbook, PR surface에 `reviewGatePolicyPromotionReviewRunApprovalRecordCriteriaStatus`, `reviewGatePolicyPromotionReviewRunApprovalRecordCriteriaReason` 을 추가했다. 현재 local 기준 값은 `READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD`, `REVIEW_RUN_APPROVAL_RECORD_PREREQUISITES_MET_BUT_RECORD_PENDING` 이고, 마지막 approval record prerequisite ready와 actual record pending을 분리해서 읽는다.
+
 ## 938) review run approval criteria와 review run approval pending만 보이면, 마지막 approval decision 대기 여부를 또 추론해야 한다
 - 문제: `READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL` 과 `PENDING_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL` 만 surface에 올린 상태에서는, operator/reviewer가 “run approval prerequisite은 충족됐고 이제 approval decision만 남았는가”를 다시 해석해야 했다.
 - 해결: admin summary/breakdowns, latest artifact, active current/runbook, PR surface에 `reviewGatePolicyPromotionReviewRunApprovalDecisionStatus`, `reviewGatePolicyPromotionReviewRunApprovalDecisionReason` 을 추가했다. 현재 local 기준 값은 `AWAIT_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_DECISION`, `REVIEW_RUN_APPROVAL_CRITERIA_MET_BUT_APPROVAL_RECORD_NOT_WRITTEN` 이다.

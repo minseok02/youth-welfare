@@ -254,6 +254,18 @@ elif review_gate_policy_promotion_review_run_decision_status == "BOUNDED_PROMOTI
     review_gate_policy_promotion_review_run_approval_status = "APPROVED_FOR_BOUNDED_PROMOTION_REVIEW_RUN"
     review_gate_policy_promotion_review_run_approval_reason = "REVIEW_RUN_APPROVAL_DECISION_SUPPORTS_EXECUTION"
 
+review_gate_policy_promotion_review_run_approval_record_criteria_status = "BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_NOT_APPLICABLE"
+review_gate_policy_promotion_review_run_approval_record_criteria_reason = review_gate_policy_promotion_review_run_approval_reason
+if review_gate_policy_promotion_review_run_approval_status == "BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_NOT_READY":
+    review_gate_policy_promotion_review_run_approval_record_criteria_status = "NOT_READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD"
+    review_gate_policy_promotion_review_run_approval_record_criteria_reason = review_gate_policy_promotion_review_run_approval_reason
+elif review_gate_policy_promotion_review_run_approval_status in {
+    "PENDING_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL",
+    "APPROVED_FOR_BOUNDED_PROMOTION_REVIEW_RUN",
+}:
+    review_gate_policy_promotion_review_run_approval_record_criteria_status = "READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD"
+    review_gate_policy_promotion_review_run_approval_record_criteria_reason = "REVIEW_RUN_APPROVAL_RECORD_PREREQUISITES_MET_BUT_RECORD_PENDING"
+
 review_gate_policy_promotion_review_run_approval_decision_status = "BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_DECISION_NOT_APPLICABLE"
 review_gate_policy_promotion_review_run_approval_decision_reason = review_gate_policy_promotion_review_run_approval_criteria_reason
 if review_gate_policy_promotion_review_run_approval_criteria_status == "NOT_READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL":
@@ -405,6 +417,8 @@ lines = [
     f"- review_gate_policy_promotion_review_run_approval_decision_reason: `{review_gate_policy_promotion_review_run_approval_decision_reason}`",
     f"- review_gate_policy_promotion_review_run_approval_status: `{review_gate_policy_promotion_review_run_approval_status}`",
     f"- review_gate_policy_promotion_review_run_approval_reason: `{review_gate_policy_promotion_review_run_approval_reason}`",
+    f"- review_gate_policy_promotion_review_run_approval_record_criteria_status: `{review_gate_policy_promotion_review_run_approval_record_criteria_status}`",
+    f"- review_gate_policy_promotion_review_run_approval_record_criteria_reason: `{review_gate_policy_promotion_review_run_approval_record_criteria_reason}`",
     f"- review_gate_policy_promotion_review_run_approval_record_status: `{review_gate_policy_promotion_review_run_approval_record_status}`",
     f"- review_gate_policy_promotion_review_run_approval_record_reason: `{review_gate_policy_promotion_review_run_approval_record_reason}`",
     f"- primary_mixed_top1_leader_service_id: `{review_gate_blocker.get('mixed_top1_leader_service_id', '')}`",
@@ -493,6 +507,8 @@ json_payload = {
         "review_gate_policy_promotion_review_run_approval_decision_reason": review_gate_policy_promotion_review_run_approval_decision_reason,
         "review_gate_policy_promotion_review_run_approval_status": review_gate_policy_promotion_review_run_approval_status,
         "review_gate_policy_promotion_review_run_approval_reason": review_gate_policy_promotion_review_run_approval_reason,
+        "review_gate_policy_promotion_review_run_approval_record_criteria_status": review_gate_policy_promotion_review_run_approval_record_criteria_status,
+        "review_gate_policy_promotion_review_run_approval_record_criteria_reason": review_gate_policy_promotion_review_run_approval_record_criteria_reason,
         "review_gate_policy_promotion_review_run_approval_record_status": review_gate_policy_promotion_review_run_approval_record_status,
         "review_gate_policy_promotion_review_run_approval_record_reason": review_gate_policy_promotion_review_run_approval_record_reason,
         "primary_mixed_top1_leader_service_id": review_gate_blocker.get("mixed_top1_leader_service_id", ""),

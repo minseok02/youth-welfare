@@ -137,6 +137,10 @@ merge 전 현재 PR 상태 reference:
   - `PENDING_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL`
 - review gate policy promotion review run approval reason:
   - `REVIEW_RUN_APPROVAL_DECISION_PENDING_BECAUSE_APPROVAL_RECORD_NOT_WRITTEN`
+- review gate policy promotion review run approval record criteria status:
+  - `READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD`
+- review gate policy promotion review run approval record criteria reason:
+  - `REVIEW_RUN_APPROVAL_RECORD_PREREQUISITES_MET_BUT_RECORD_PENDING`
 - review gate policy promotion review run approval record status:
   - `PENDING_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD`
 - review gate policy promotion review run approval record reason:
@@ -168,6 +172,7 @@ merge 전 현재 PR 상태 reference:
 13. `review_gate_policy_promotion_review_run_approval_decision_status=AWAIT_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_DECISION` 은 run approval도 decision 단계에서 explicit approval record가 없어 pending이라는 뜻임
 14. `review_gate_policy_promotion_review_run_approval_status=PENDING_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL` 은 run decision 이후 approval도 아직 explicit approval record가 없어 pending이라는 뜻임
 15. `review_gate_policy_promotion_review_run_approval_record_status=PENDING_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD` 은 마지막 run approval decision이 아직 pending이라 approval record 자체도 아직 남기지 못한 상태라는 뜻임
+16. `review_gate_policy_promotion_review_run_approval_record_criteria_status=READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD` 은 마지막 run approval record 자체를 남길 prerequisite은 이미 충족됐다는 뜻임
 
 이때 current decision은 계속:
 
