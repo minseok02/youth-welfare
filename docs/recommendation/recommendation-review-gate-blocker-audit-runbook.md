@@ -61,19 +61,20 @@ artifact:
 
 ### 1-1. `blocker_class=MIXED_BATCH_NON_REAL_DOMINANCE_WITH_NO_REAL_USER_PATH`
 
-- current local 30-user 샘플의 더 정확한 해석입니다.
+- current local 80-user library의 더 정확한 해석입니다.
 - mixed latest batch top1 leader 서비스가 real-user 쪽 top10 안에도 한 번도 안 들어온 상태입니다.
 - 현재 local 값:
   - `real_user_mixed_leader_top1_count=0`
   - `real_user_mixed_leader_top3_count=0`
   - `real_user_mixed_leader_top5_count=0`
   - `real_user_mixed_leader_top10_count=0`
-- 즉 지금은 단순히 “real-user top1에 아직 안 붙었다”보다, **현재 real-user 샘플 구성으로는 mixed leader 전이 경로가 안 보이는 상태** 입니다.
+- 게다가 `housing_leader_path` exact cohort로 example-heavy leader profile과 같은 `인천광역시/중구/income=5/미취업/1인 가구` 를 generic-domain `REAL_USER` 로 다시 시드해도 path가 계속 `0` 이었습니다.
+- 즉 지금은 단순히 “real-user top1에 아직 안 붙었다”보다, **현재 real-user 샘플 구성으로는 mixed leader 전이 경로가 안 보이고 same-profile example vs real-user differential이 남아 있는 상태** 입니다.
 
 ### 2. `mixed_top1_leader_real_user_users=0` 이고 `real_user_concentration_readiness=NO_PRIORITY_DOMINANT`
 
 - real-user 쪽 자체는 충분히 분산됐는데, mixed batch에서는 example 비중이 너무 커서 review gate가 안 열린다는 뜻입니다.
-- current local 30-user 샘플이 여기에 해당합니다.
+- current local 80-user 샘플도 여기에 해당합니다.
 - 여기에 `real_user_mixed_leader_top10_count=0` 까지 붙으면, mixed leader 서비스 자체가 real-user 후보 상단에 없다는 뜻이므로 targeted housing-like sample이 없으면 gate 전이가 계속 늦어질 수 있습니다.
 
 ### 3. `mixed_top1_leader_real_user_users>0`
@@ -84,17 +85,17 @@ artifact:
 ## 현재 local truth
 
 - mixed latest batch:
-  - `latest_batch_users=498`
+  - `latest_batch_users=548`
   - `example_users=464`
-  - `real_user_users=30`
+  - `real_user_users=80`
   - `top1_leader=청년월세 지원사업`
-  - `top1_leader_share_pct=55.62`
+  - `top1_leader_share_pct=50.55`
   - `top1_leader_real_user_users=0`
   - `real_user_mixed_leader_top10_count=0`
 - real-user only latest batch:
-  - `latest_batch_users=30`
+  - `latest_batch_users=80`
   - `top1_leader=드림나래(인천청년 면접복장 지원)`
-  - `top1_leader_share_pct=10.00`
+  - `top1_leader_share_pct=7.50`
   - `concentration_readiness=NO_PRIORITY_DOMINANT`
 
-즉 현재 review gate blocker는 **real-user 부족**보다 **mixed latest batch non-real dominance + 현재 real-user sample에 mixed leader transition path 부재** 로 읽는 편이 맞습니다.
+즉 현재 review gate blocker는 **real-user 부족**보다 **mixed latest batch non-real dominance + 현재 real-user sample에 mixed leader transition path 부재 + same-profile example vs real-user differential** 로 읽는 편이 맞습니다.

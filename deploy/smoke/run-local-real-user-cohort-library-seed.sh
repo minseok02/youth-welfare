@@ -102,6 +102,16 @@ finance	realuser.finance07@realuser.app	금융사	1994-01-12	부산광역시	북
 finance	realuser.finance08@realuser.app	금융아	2001-06-18	전북특별자치도	익산시	2	대학생	자취
 finance	realuser.finance09@realuser.app	금융자	1997-10-24	경상북도	포항시	3	창업준비중	1인 가구
 finance	realuser.finance10@realuser.app	금융차	1995-12-02	제주특별자치도	제주시	2	미취업	한부모 가구
+housing_leader_path	realuser.hpath01@realuser.app	경로가	2001-04-30	인천광역시	중구	5	미취업	1인 가구
+housing_leader_path	realuser.hpath02@realuser.app	경로나	2001-04-30	인천광역시	중구	5	미취업	1인 가구
+housing_leader_path	realuser.hpath03@realuser.app	경로다	2001-04-30	인천광역시	중구	5	미취업	1인 가구
+housing_leader_path	realuser.hpath04@realuser.app	경로라	2001-04-30	인천광역시	중구	5	미취업	1인 가구
+housing_leader_path	realuser.hpath05@realuser.app	경로마	2001-04-30	인천광역시	중구	5	미취업	1인 가구
+housing_leader_path	realuser.hpath06@realuser.app	경로바	2001-04-30	인천광역시	중구	5	미취업	1인 가구
+housing_leader_path	realuser.hpath07@realuser.app	경로사	2001-04-30	인천광역시	중구	5	미취업	1인 가구
+housing_leader_path	realuser.hpath08@realuser.app	경로아	2001-04-30	인천광역시	중구	5	미취업	1인 가구
+housing_leader_path	realuser.hpath09@realuser.app	경로자	2001-04-30	인천광역시	중구	5	미취업	1인 가구
+housing_leader_path	realuser.hpath10@realuser.app	경로차	2001-04-30	인천광역시	중구	5	미취업	1인 가구
 EOF
 
 printf '%s\n' "cohort	email	name	birth_date	sido	sgg	income_level	employment_status	household_type	existing_user_reused	service_id	log_id" > "${SEEDED_USERS_OUTPUT}"

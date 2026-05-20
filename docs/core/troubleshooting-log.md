@@ -1,5 +1,10 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 373) mixed leader `2622` 와 exact same persona를 generic-domain `REAL_USER` 로 다시 만들어도 path가 계속 `0` 이면, 표본 수 부족보다 example vs real-user differential을 먼저 의심해야 한다
+- 문제: `housing / education / job / finance` targeted cohort 40명까지 넣은 뒤에도 mixed latest batch leader `2622(청년월세 지원사업)` 는 real-user `top10` 안에 한 번도 안 나타났다. 처음 해석은 “housing-like real-user를 더 추가하면 path가 열릴 수도 있다”는 쪽이었다.
+- 해결: example-heavy leader profile과 같은 `인천광역시 / 중구 / income=5 / 미취업 / 1인 가구` 로 `housing_leader_path` exact cohort 10명을 generic-domain `REAL_USER` 로 다시 시드해 총 `80명` library로 재검증했다. 결과는 여전히 `real_user_mixed_leader_top1/top3/top5/top10/any-rank=0`, mixed latest batch `users=548`, `example_users=464`, `real_user_users=80`, `top1_leader_real_user_users=0` 이었다.
+- 이유: 이 상태는 “housing-like real-user 표본이 아직 적다”보다 강한 신호다. 같은 persona를 넣어도 example 쪽에서만 `2622` path가 보이면, 다음 질문은 표본 수가 아니라 `account_origin`, signup flow, seed cohort 성격, latest batch composition 차이가 candidate path를 어떻게 바꾸는지다.
+
 ## 372) local generic-domain `REAL_USER` library는 signup 이름도 backend validation에 맞춰야 한다
 - 문제: targeted cohort library를 처음 시드할 때 `COHORT_HOUSING_01` 같은 이름을 그대로 넣었더니 `/api/auth/signup` 이 `이름은 특수 기호 및 숫자를 제외한 한글 2~10자로 입력해주세요.`(`errorCode=C001`) 로 막혔다. 이메일/도메인/account_origin 설계는 맞았지만, name validation을 놓치면 seeder가 첫 계정부터 중단된다.
 - 해결: manifest의 `name` 을 `주거가`, `교육가`, `구직가`, `금융가` 처럼 한글 2~10자 규칙에 맞는 값으로 바꿨다. cohort 식별은 deterministic email(`realuser.housing01@realuser.app` 등)로 하고, 이름은 validation-safe 한글 label만 유지한다.

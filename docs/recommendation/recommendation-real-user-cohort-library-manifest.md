@@ -24,19 +24,20 @@
 - 계정은 고정 이메일과 고정 `name` 을 사용합니다.
   - rerun 때는 새 계정을 만들지 않고 같은 계정을 재사용합니다.
 - cohort는 4개로 나눕니다.
-  - `housing`
-  - `education`
-  - `job`
-  - `finance`
+- `housing`
+- `housing_leader_path`
+- `education`
+- `job`
+- `finance`
 
 ## 현재 라이브러리
 
 - 기존 distributed baseline sample: `30명`
   - broad gate/readiness/evidence 확인용
-- targeted cohort library: `40명`
+- targeted cohort library: `50명`
   - 각 cohort `10명`
 
-즉 총량은 `70명` 내외로 유지하는 편을 기본값으로 봅니다.
+즉 총량은 `80명` 내외로 유지하는 편을 기본값으로 봅니다.
 
 ## cohort 역할
 
@@ -44,6 +45,19 @@
 
 - 월세/주거/이사비/보증금 성격 신호를 더 많이 보려는 cohort
 - mixed leader가 `청년월세 지원사업` 같은 housing service일 때 우선 확인합니다.
+
+### 1-1. `housing_leader_path`
+
+- mixed latest batch leader `2622(청년월세 지원사업)` 와 가장 가까운 exact persona를 재현하는 cohort 입니다.
+- 현재 local example leader profile은 거의 전부
+  - `인천광역시`
+  - `중구`
+  - `incomeLevel=5`
+  - `미취업`
+  - `1인 가구`
+  - `NO_PRIORITY`
+  로 수렴합니다.
+- 이 exact profile을 generic-domain `REAL_USER` 로 다시 시드해도 `2622` path가 열리는지 직접 확인할 때 씁니다.
 
 ### 2. `education`
 
@@ -102,6 +116,7 @@ artifact:
 `run-local-real-user-cohort-library-seed.sh` 안의 고정 manifest를 source of truth로 봅니다.
 
 - `housing`: `realuser.housing01@realuser.app` ... `realuser.housing10@realuser.app`
+- `housing_leader_path`: `realuser.hpath01@realuser.app` ... `realuser.hpath10@realuser.app`
 - `education`: `realuser.edu01@realuser.app` ... `realuser.edu10@realuser.app`
 - `job`: `realuser.job01@realuser.app` ... `realuser.job10@realuser.app`
 - `finance`: `realuser.finance01@realuser.app` ... `realuser.finance10@realuser.app`
@@ -118,6 +133,6 @@ artifact:
 ## 현재 local 해석
 
 - distributed `REAL_USER` 30명만으로는 mixed leader `2622(청년월세 지원사업)` 가 real-user `top10` 안에도 없었습니다.
-- 그래서 다음 실질 step은 무작정 random 100명을 늘리는 것보다
-  - `housing` targeted cohort를 포함한 cohort library를 미리 확보하고
-  - 그 위에서 mixed leader transition path를 다시 보는 쪽이 맞습니다.
+- 그래서 `housing` targeted cohort와 `housing_leader_path` exact cohort까지 추가해 총 `80명` library로 다시 봤지만, mixed leader path는 여전히 `top1/top3/top5/top10/any-rank=0` 이었습니다.
+- 즉 현재 이 manifest의 용도는 “많이 만들어 두기”보다 **same-profile example vs real-user differential을 재현 가능한 cohort로 고정** 하는 쪽에 더 가깝습니다.
+- 다음 실질 step은 무작정 random 100명을 더 늘리는 것보다, 이 exact cohort를 다시 refresh/click 하면서 account_origin/flow 차이가 `2622` candidate path를 어떻게 바꾸는지 좁혀 보는 것입니다.
