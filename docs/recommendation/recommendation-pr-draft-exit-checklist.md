@@ -21,12 +21,16 @@
 
 현재 recommendation closeout PR은 아래 이유로 **draft 유지**가 기본값입니다.
 
-- `operator_next_step=WAIT_FOR_REAL_USER_TRAFFIC`
-- `REAL_USER` readiness gate:
-  - `DEFERRED_NO_REAL_USER_TRAFFIC`
-  - `DEFERRED_NO_REAL_USER_COHORT`
+- full latest batch review gate:
+  - `DEFERRED_NON_REAL_LEADER_SIGNAL`
+- full latest batch reading:
+  - historical `EXAMPLE_SMOKE` latest batch inertia
+- recent-window supplemental gate:
+  - `RECENT_WINDOW_CLEARS_HISTORICAL_2622_DOMINANCE`
+- current next step:
+  - `USE_RECENT_WINDOW_AS_SUPPLEMENTAL_REVIEW_CONTEXT`
 - latest 관찰은 계속 `VOLATILE_ONLY_DRIFT`
-- 즉 남은 blocker는 코드 결함보다 `REAL_USER` 표본 부재입니다.
+- 즉 남은 blocker는 코드 결함보다 **review gate 해석을 stale historical latest batch와 current recent-window signal로 분리해서 읽는 문제** 입니다.
 
 ## draft 유지 조건
 
@@ -34,7 +38,7 @@
 
 1. `REAL_USER` readiness gate가 아직 deferred
 2. `latest-overview` / `latest-status` / `latest-gate` / readiness runbook이 active 문서와 어긋남
-3. reviewer가 현재 기준선을 문서만 보고 재현하기 어려움
+3. reviewer가 full latest batch gate와 recent-window supplemental gate를 문서만 보고 구분해 읽기 어려움
 4. current PR 범위가 closeout보다 새 제품 판단 reopen 쪽으로 번짐
 
 ## reviewer-ready 조건
@@ -47,6 +51,7 @@
 4. `REAL_USER` recheck checklist가 traffic 발생 후 재실행 순서를 고정함
 5. 남은 credential-like inventory가 intentional scope로 분류돼 있음
 6. 워킹트리와 branch diff-check가 clean
+7. full latest batch gate와 recent-window supplemental gate 역할이 문서에 고정돼 있음
 
 주의:
 
@@ -107,7 +112,7 @@ bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-overview.sh
 - current 기본 해석:
   - draft 유지
 - 이유:
-  - stable baseline 회귀보다 fresh observation 흔들림 + `REAL_USER` 부재가 main blocker
+  - stable baseline 회귀보다 stale historical latest batch와 current recent-window signal 해석 정리가 main blocker
 
 ### 2. readiness opened + stable baseline unchanged
 

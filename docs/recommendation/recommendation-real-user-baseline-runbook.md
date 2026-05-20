@@ -23,11 +23,16 @@
 
 현재 local 기준 기본 해석은:
 
-- `WAIT_FOR_REAL_USER_TRAFFIC`
-- `dashboard_real_user_gate=DEFERRED_NO_REAL_USER_TRAFFIC`
-- `breakdown_real_user_cohort_gate=DEFERRED_NO_REAL_USER_COHORT`
+- `dashboard_real_user_gate=READY_REAL_USER_TRAFFIC`
+- `breakdown_real_user_cohort_gate=READY_REAL_USER_COHORT`
+- full latest batch review gate:
+  - `DEFERRED_NON_REAL_LEADER_SIGNAL`
+- full latest batch reading:
+  - historical example latest batch dominance
+- recent-window supplemental gate:
+  - `RECENT_WINDOW_CLEARS_HISTORICAL_2622_DOMINANCE`
 
-즉 이 문서는 지금 당장 튜닝을 여는 문서가 아니라, **언제 reopen 판단으로 넘어갈 수 있는지**를 가르는 gate 문서에 가깝습니다.
+즉 이 문서는 지금 당장 튜닝을 여는 문서가 아니라, **언제 reopen 판단으로 넘어갈 수 있는지와 어떤 gate를 primary/supplemental로 읽어야 하는지**를 가르는 gate 문서에 가깝습니다.
 
 ## 전제
 
@@ -45,6 +50,8 @@
 - `deploy/smoke/run-local-real-user-readiness-check.sh`
 - `deploy/smoke/run-local-recommendation-ai-zero-reason-distribution-audit.sh`
 - `deploy/smoke/run-local-real-user-exclusion-readiness-check.sh`
+- `deploy/smoke/run-local-recommendation-review-gate-staleness-audit.sh`
+- `deploy/smoke/run-local-recommendation-review-gate-recent-window-audit.sh`
 
 ## 어떤 사용자를 `REAL_USER` 로 보나
 
@@ -138,6 +145,8 @@ bash deploy/smoke/run-local-real-user-exclusion-readiness-check.sh
 - `breakdown_real_user_gate`
 - `breakdown_review_gate`
 - `breakdown_top1_signal_summary`
+- `full_latest_batch_review_reading`
+- `recent_window_review_reading`
 
 ### 아직 reopen 금지
 
@@ -160,6 +169,19 @@ bash deploy/smoke/run-local-real-user-exclusion-readiness-check.sh
 
 이 상태면 **reopen은 가능** 하지만, 다음 액션은 weight tuning보다 먼저
 `top1 집중`, `fallback 무반응`, `diversity/balancing` 쪽을 같이 보는 편이 맞습니다.
+
+또한 현재 local처럼 full latest batch gate가 stale historical example inertia를 포함할 수 있으므로,
+아래 둘도 같이 읽는 편이 맞습니다.
+
+```bash
+bash deploy/smoke/run-local-recommendation-review-gate-staleness-audit.sh
+bash deploy/smoke/run-local-recommendation-review-gate-recent-window-audit.sh
+```
+
+- staleness audit:
+  - historical latest batch가 현재 leader 해석을 얼마나 지배하는지 확인
+- recent-window audit:
+  - recent 24h current signal만 보면 leader가 이미 달라졌는지 확인
 
 ### reopen 가능한 상태
 
@@ -205,4 +227,4 @@ bash deploy/smoke/run-local-recommendation-ai-zero-reason-distribution-audit.sh
 2. 최소 `3명` 이상 사용자와 `3명` 이상 clicked user가 필요합니다.
 3. read-only 확인은 `run-local-real-user-readiness-check.sh` 하나로 묶습니다.
 4. gate가 열려도 `READY_CONCENTRATED_TOP1_REVIEW` 면 바로 weight tuning보다 집중/분산 해석을 먼저 봅니다.
-5. gate가 아직 닫혀 있으면 current 기본 해석은 계속 `WAIT_FOR_REAL_USER_TRAFFIC` 입니다.
+5. local current truth에서는 readiness gate가 이미 열려 있어도 full latest batch review gate는 historical inertia를 포함할 수 있으므로, full latest batch를 primary baseline으로 보고 recent-window gate를 supplemental current signal로 같이 읽는 편이 맞습니다.

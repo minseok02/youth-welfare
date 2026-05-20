@@ -1,5 +1,10 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 379) review gate를 한 값으로만 문서화하면, historical latest batch와 current recent-window signal이 다른 상황을 팀이 잘못 읽는다
+- 문제: full latest batch gate는 `2622` historical example inertia를 보여 주고, recent-window supplemental gate는 `3284` 중심 current live signal을 보여 준다. 이 둘을 문서에서 한 줄로만 적으면 reviewer, operator, merge 후 follow-up 담당자가 “지금 leader가 무엇인가”를 각자 다르게 읽게 된다.
+- 해결: PR review brief, draft exit, post-merge follow-up, real-user recheck, real-user baseline 문서에 **full latest batch gate는 primary, recent-window gate는 supplemental** 이라는 역할을 명시적으로 넣었다.
+- 이유: 지금 남은 문제는 새 코드보다 운영 해석 경계다. 같은 수치를 보더라도 어느 gate가 historical baseline이고 어느 gate가 current live signal 보조 해석인지 고정돼 있어야 handoff와 reopen 판단이 흔들리지 않는다.
+
 ## 378) full latest batch review gate만 보면, current live signal이 이미 바뀌었는지 놓칠 수 있다
 - 문제: staleness audit으로 `2622` top1 example users `272명` 이 최근 `24h=0` 이라는 사실은 잡혔지만, 그것만으로는 “그러면 지금 live signal은 어디로 갔나”가 안 보인다. 이 상태에서 full latest batch gate만 계속 보면 historical inertia와 current live signal을 같은 해석으로 섞게 된다.
 - 해결: `run-local-recommendation-review-gate-recent-window-audit.sh` 를 추가해 recent `24h` latest batch만 따로 집계했다. 현재 truth는 `recent_latest_batch_users=83`, `recent_example_users=3`, `recent_real_user_users=80`, recent leader `3284`, share `7.23%`, origin mix `EXAMPLE_SMOKE:1,REAL_USER:5`, `2622 top1=0` 이다.

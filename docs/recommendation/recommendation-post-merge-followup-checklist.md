@@ -24,7 +24,7 @@
 - [current-state.md](../current-state.md)
 - [phase-plan.md](../phase-plan.md)
 
-핵심은 recommendation 관찰 진입점이 계속 `latest-overview` 인지, 그리고 main blocker가 여전히 `WAIT_FOR_REAL_USER_TRAFFIC` 인지 확인하는 것입니다.
+핵심은 recommendation 관찰 진입점이 계속 `latest-overview` 인지, 그리고 main blocker가 여전히 **full latest batch historical inertia vs recent-window current signal 분리 해석** 인지 확인하는 것입니다.
 
 ### 2. daily one-shot 한 번 재실행
 
@@ -60,13 +60,17 @@ bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-status-export.sh
 
 현재 merge 뒤에도 기본 해석은 이것입니다.
 
-- `operator_next_step=WAIT_FOR_REAL_USER_TRAFFIC`
+- full latest batch review gate:
+  - `DEFERRED_NON_REAL_LEADER_SIGNAL`
+- full latest batch reading:
+  - historical example latest batch dominance
+- recent-window supplemental gate:
+  - `RECENT_WINDOW_CLEARS_HISTORICAL_2622_DOMINANCE`
+- current next step:
+  - `USE_RECENT_WINDOW_AS_SUPPLEMENTAL_REVIEW_CONTEXT`
 - `latest_drift_class=VOLATILE_ONLY_DRIFT`
 - basic gate `PASS`
 - strict gate `LATEST_OBSERVATION_CHANGED`
-- readiness:
-  - `DEFERRED_NO_REAL_USER_TRAFFIC`
-  - `DEFERRED_NO_REAL_USER_COHORT`
 
 즉 merge가 곧 reopen을 뜻하지는 않습니다.
 
@@ -77,6 +81,7 @@ bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-status-export.sh
 1. `REAL_USER` readiness gate가 deferred
 2. `stable_baseline_changed=false`
 3. latest 관찰 변화가 fresh window 흔들림 범위에 머묾
+4. full latest batch gate는 stale historical example inertia를, recent-window gate는 current live signal을 보여 주는 상태
 
 이때 current decision은 계속:
 
@@ -120,4 +125,4 @@ bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-status-export.sh
 
 ## 한 줄 요약
 
-merge 뒤의 기본값은 **closeout 기준선 유지 + `REAL_USER` traffic 대기** 이고, `REAL_USER` gate가 실제로 열리거나 stable baseline이 바뀌는 경우에만 reopen 판단으로 넘어갑니다.
+merge 뒤의 기본값은 **closeout 기준선 유지 + full latest batch primary gate / recent-window supplemental gate 분리 관찰** 이고, stable baseline이 바뀌거나 recent/current signal 해석 경계가 다시 흔들릴 때만 reopen 판단으로 넘어갑니다.

@@ -37,12 +37,15 @@
 - latest baseline을 daily one-shot으로 다시 읽을 수 있는가
 - stable baseline과 volatile observation을 분리해서 해석하는가
 - `REAL_USER` gate가 열리면 같은 entrypoint로 재확인할 수 있는가
+- full latest batch review gate와 recent-window supplemental gate를 같이 읽도록 정리됐는가
 
 우선 파일:
 
 - [recommendation-ai-exclusion-latest-overview-runbook.md](./recommendation-ai-exclusion-latest-overview-runbook.md)
 - [recommendation-ai-exclusion-latest-status-runbook.md](./recommendation-ai-exclusion-latest-status-runbook.md)
 - [recommendation-real-user-exclusion-readiness-check-runbook.md](./recommendation-real-user-exclusion-readiness-check-runbook.md)
+- [recommendation-review-gate-staleness-audit-runbook.md](./recommendation-review-gate-staleness-audit-runbook.md)
+- [recommendation-review-gate-recent-window-audit-runbook.md](./recommendation-review-gate-recent-window-audit-runbook.md)
 - [recommendation-real-user-recheck-checklist.md](./recommendation-real-user-recheck-checklist.md)
 
 ### 3. active 문서 / handoff hygiene
@@ -71,8 +74,10 @@ review hint:
 - current local recommendation latest status: `VOLATILE_ONLY_DRIFT`
 - basic latest gate: `PASS`
 - strict latest gate: `LATEST_OBSERVATION_CHANGED`
-- operator next step: `WAIT_FOR_REAL_USER_TRAFFIC`
-- `REAL_USER` readiness gate: `DEFERRED_NO_REAL_USER_TRAFFIC / DEFERRED_NO_REAL_USER_COHORT`
+- full latest batch review blocker: `DEFERRED_NON_REAL_LEADER_SIGNAL`
+- full latest batch reading: `historical example latest batch dominance`
+- recent-window supplemental reading: `RECENT_WINDOW_CLEARS_HISTORICAL_2622_DOMINANCE`
+- operator next step: `USE_RECENT_WINDOW_AS_SUPPLEMENTAL_REVIEW_CONTEXT`
 
 즉 현재 PR은 모델 튜닝 PR이 아니라, **closeout + observability + handoff 정리 PR** 로 읽는 편이 맞습니다.
 
@@ -92,4 +97,4 @@ review hint:
 
 ## 한 줄 요약
 
-이 PR은 **Gov24 canonical promotion closeout + recommendation AI exclusion observability + active handoff hygiene** 를 묶은 closeout PR이고, 현재 남은 blocker는 코드가 아니라 `REAL_USER` traffic/cohort 부재입니다.
+이 PR은 **Gov24 canonical promotion closeout + recommendation AI exclusion observability + active handoff hygiene** 를 묶은 closeout PR이고, 현재 남은 blocker는 코드 결함보다 **historical full latest batch review gate와 current recent-window signal을 분리해서 읽는 운영 해석 경계** 입니다.
