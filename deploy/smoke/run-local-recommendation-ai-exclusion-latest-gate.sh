@@ -124,6 +124,8 @@ gate_policy_status = data.get("gate_policy_status", "")
 gate_policy_reason = data.get("gate_policy_reason", "")
 review_gate_context = data.get("review_gate_context", {})
 review_gate_interpretation_class = review_gate_context.get("review_gate_interpretation_class", "")
+review_gate_policy_candidate_status = review_gate_context.get("review_gate_policy_candidate_status", "")
+review_gate_policy_candidate_reason = review_gate_context.get("review_gate_policy_candidate_reason", "")
 if not gate_policy_status:
     if interpretation_changed == "true" or stable_baseline_changed == "true":
         gate_policy_status = "BASELINE_DRIFT_BLOCKING"
@@ -162,6 +164,8 @@ print(f"changed_keys={drift.get('changed_keys', '')}")
 print(f"primary_review_gate_blocker_class={review_gate_context.get('primary_review_gate_blocker_class', '')}")
 print(f"review_gate_interpretation_class={review_gate_context.get('review_gate_interpretation_class', '')}")
 print(f"review_gate_operating_mode={review_gate_context.get('review_gate_operating_mode', '')}")
+print(f"review_gate_policy_candidate_status={review_gate_policy_candidate_status}")
+print(f"review_gate_policy_candidate_reason={review_gate_policy_candidate_reason}")
 print(f"recent_window_recommendation_review_reading={review_gate_context.get('recent_window_recommendation_review_reading', '')}")
 print(f"historical_example_dominance_detected={str(review_gate_context.get('historical_example_dominance_detected', '')).lower() if review_gate_context else ''}")
 

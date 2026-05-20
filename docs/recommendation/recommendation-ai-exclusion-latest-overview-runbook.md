@@ -120,6 +120,10 @@ bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-overview.sh
   - daily overview에서 drift gate와 별도로 먼저 읽을 운영 정책 상태입니다. primary full latest batch gate는 blocker지만 recent-window current-live signal은 clear라는 뜻입니다.
 - `gate_policy_reason=HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR`
   - 위 policy 상태를 만든 운영 해석 클래스입니다.
+- `review_gate_policy_candidate_status=RECENT_WINDOW_POLICY_CANDIDATE`
+  - recent-window current-live signal을 실제 policy gate 후보로 볼 수 있는 상태라는 뜻입니다.
+- `review_gate_policy_candidate_reason=PRIMARY_GATE_BLOCKED_BY_STALE_ALL_TIME_EXAMPLE_REFERENCE_BUT_RECENT_WINDOW_CLEAR`
+  - 위 candidate 상태를 만든 직접 이유입니다.
 - `review_gate_interpretation_class=HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR`
   - primary full latest batch gate는 historical blocker인데 recent-window current-live signal은 이미 clear라는 뜻입니다.
 - `review_gate_operating_mode=PRIMARY_BASELINE_WITH_SUPPLEMENTAL_RECENT_WINDOW`

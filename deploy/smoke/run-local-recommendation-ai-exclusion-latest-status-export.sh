@@ -95,6 +95,18 @@ elif review_gate_blocker.get("blocker_class", "") == "MIXED_BATCH_NON_REAL_DOMIN
     review_gate_interpretation_class = "PRIMARY_BLOCKER_WITHOUT_SUPPLEMENTAL_SIGNAL"
     review_gate_operating_mode = "USE_PRIMARY_REVIEW_GATE_ONLY"
 
+review_gate_policy_candidate_status = "NOT_A_POLICY_GATE_CANDIDATE"
+review_gate_policy_candidate_reason = "NO_SPECIAL_REVIEW_GATE_SPLIT"
+if review_gate_interpretation_class == "HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR":
+    review_gate_policy_candidate_status = "RECENT_WINDOW_POLICY_CANDIDATE"
+    review_gate_policy_candidate_reason = "PRIMARY_GATE_BLOCKED_BY_STALE_ALL_TIME_EXAMPLE_REFERENCE_BUT_RECENT_WINDOW_CLEAR"
+elif review_gate_interpretation_class == "PRIMARY_AND_RECENT_WINDOW_BOTH_BLOCKING":
+    review_gate_policy_candidate_status = "NOT_A_POLICY_GATE_CANDIDATE"
+    review_gate_policy_candidate_reason = "RECENT_WINDOW_STILL_BLOCKED_BY_TARGET_DOMINANCE"
+elif review_gate_interpretation_class == "PRIMARY_BLOCKER_WITHOUT_SUPPLEMENTAL_SIGNAL":
+    review_gate_policy_candidate_status = "NOT_A_POLICY_GATE_CANDIDATE"
+    review_gate_policy_candidate_reason = "PRIMARY_BLOCKER_HAS_NO_RECENT_WINDOW_CLEAR_SIGNAL"
+
 gate_policy_status = "BASELINE_MONITORING"
 gate_policy_reason = "NO_SPECIAL_REVIEW_GATE_SPLIT"
 if interpretation_changed == "true" or stable_baseline_changed == "true":
@@ -192,6 +204,8 @@ lines = [
     f"- primary_review_gate_operator_next_step: `{review_gate_blocker.get('operator_next_step', '')}`",
     f"- review_gate_interpretation_class: `{review_gate_interpretation_class}`",
     f"- review_gate_operating_mode: `{review_gate_operating_mode}`",
+    f"- review_gate_policy_candidate_status: `{review_gate_policy_candidate_status}`",
+    f"- review_gate_policy_candidate_reason: `{review_gate_policy_candidate_reason}`",
     f"- primary_mixed_top1_leader_service_id: `{review_gate_blocker.get('mixed_top1_leader_service_id', '')}`",
     f"- primary_mixed_top1_leader_title: `{review_gate_blocker.get('mixed_top1_leader_title', '')}`",
     f"- primary_mixed_top1_leader_share_pct: `{review_gate_blocker.get('mixed_top1_leader_share_pct', '')}`",
@@ -248,6 +262,8 @@ json_payload = {
         "primary_review_gate_operator_next_step": review_gate_blocker.get("operator_next_step", ""),
         "review_gate_interpretation_class": review_gate_interpretation_class,
         "review_gate_operating_mode": review_gate_operating_mode,
+        "review_gate_policy_candidate_status": review_gate_policy_candidate_status,
+        "review_gate_policy_candidate_reason": review_gate_policy_candidate_reason,
         "primary_mixed_top1_leader_service_id": review_gate_blocker.get("mixed_top1_leader_service_id", ""),
         "primary_mixed_top1_leader_title": review_gate_blocker.get("mixed_top1_leader_title", ""),
         "primary_mixed_top1_leader_share_pct": review_gate_blocker.get("mixed_top1_leader_share_pct", ""),

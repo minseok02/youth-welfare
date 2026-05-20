@@ -1,5 +1,10 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 922) admin API에만 recent-window policy candidate를 올리고 latest artifact는 여전히 raw interpretation/policy gate까지만 들고 있으면, operator는 one-shot handoff note를 봐도 “candidate인지”를 다시 admin surface에서 확인해야 한다
+- 문제: admin summary/breakdowns 는 이미 `reviewGatePolicyCandidateStatus=RECENT_WINDOW_POLICY_CANDIDATE` 를 내리기 시작했지만, `latest-status-note.md`, `latest-status.json`, `latest-overview-summary.txt` 는 여전히 `gate_policy_status`, `review_gate_interpretation_class`, `review_gate_operating_mode` 까지만 보여 줬다. 이 상태에선 operator가 one-shot artifact만 봐서는 “recent-window를 실제 policy gate 후보로 봐도 되는가”를 한 번 더 추론하거나 admin API smoke 결과를 다시 열어야 했다.
+- 해결: `latest-status-export`, `latest-status`, `latest-gate`, `latest-overview` 에 `review_gate_policy_candidate_status`, `review_gate_policy_candidate_reason` 을 같이 올렸다. 현재 local 기준으로는 `RECENT_WINDOW_POLICY_CANDIDATE`, `PRIMARY_GATE_BLOCKED_BY_STALE_ALL_TIME_EXAMPLE_REFERENCE_BUT_RECENT_WINDOW_CLEAR` 를 latest artifact에서 직접 읽는다.
+- 이유: current 단계의 next decision은 recent-window를 실제 운영 policy gate 후보로 승격 검토하는 것이다. 이 값이 one-shot artifact에 없으면 operator/reviewer/author surface가 다시 분리된다.
+
 ## 921) staleness snapshot만 API에 올리고 “그래서 recent-window를 policy gate 후보로 볼 수 있는가”를 derived field로 안 접어 주면, operator는 raw evidence를 다시 머리로 합쳐 후보 여부를 수동 판단해야 한다
 - 문제: admin summary/breakdowns 에 `reviewGateStaleness` 를 올린 뒤에는 `ALL_TIME_LATEST_PER_USER`, `exampleTargetTop1Users=272`, `exampleTargetTop1Last24h=0` 같은 raw 근거를 직접 볼 수 있었지만, 실제 next decision은 여전히 사람이 `recommendationReviewGate + recentWindowRecommendationReviewReading + historicalExampleDominanceDetected + reviewGateStaleness` 를 다시 조합해 “recent-window를 policy gate 후보로 봐도 되는지”를 수동 판단해야 했다.
 - 해결: admin summary/breakdowns 에 `reviewGatePolicyCandidateStatus`, `reviewGatePolicyCandidateReason` 을 추가하고, smoke도 현재 local 값 `RECENT_WINDOW_POLICY_CANDIDATE`, `PRIMARY_GATE_BLOCKED_BY_STALE_ALL_TIME_EXAMPLE_REFERENCE_BUT_RECENT_WINDOW_CLEAR` 를 직접 검증하도록 확장했다.

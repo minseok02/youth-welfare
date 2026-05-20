@@ -64,6 +64,8 @@ bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-gate.sh
 - `gate_action_class`
 - `gate_policy_status`
 - `gate_policy_reason`
+- `review_gate_policy_candidate_status`
+- `review_gate_policy_candidate_reason`
 - `status_json_stale_relative_to_summaries`
 - `status_json_recommended_action`
 - `latest_drift_class`
@@ -74,6 +76,8 @@ bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-gate.sh
 - `changed_keys`
 - `review_gate_interpretation_class`
 - `review_gate_operating_mode`
+- `review_gate_policy_candidate_status`
+- `review_gate_policy_candidate_reason`
 
 ## 읽는 법
 
@@ -99,6 +103,10 @@ bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-gate.sh
   - drift 여부와 별도로, current 운영 정책 상태를 짧게 요약한 값입니다. 현재 local 기준으로는 `PRIMARY_BLOCKED_SUPPLEMENTAL_CLEAR` 를 먼저 읽는 편이 맞습니다.
 - `gate_policy_reason`
   - 위 policy 상태를 만든 운영 해석 클래스입니다. 현재 local 기준으로는 `HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR` 입니다.
+- `review_gate_policy_candidate_status`
+  - recent-window gate를 실제 policy gate 후보로 볼 수 있는 current 상태인지 보여 주는 값입니다. 현재 local 기준으로는 `RECENT_WINDOW_POLICY_CANDIDATE` 입니다.
+- `review_gate_policy_candidate_reason`
+  - 위 candidate 상태를 만든 직접 이유입니다. 현재 local 기준으로는 `PRIMARY_GATE_BLOCKED_BY_STALE_ALL_TIME_EXAMPLE_REFERENCE_BUT_RECENT_WINDOW_CLEAR` 입니다.
 - `review_gate_interpretation_class`
   - primary full latest batch gate와 supplemental recent-window gate를 합친 운영 해석 클래스입니다. 현재 local 기준으로는 `HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR` 입니다.
 - `review_gate_operating_mode`

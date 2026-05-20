@@ -203,6 +203,8 @@ recent_window_top1_leader_share_pct = status.get("recent_window_top1_leader_shar
 recent_window_top1_leader_real_user_users = status.get("recent_window_top1_leader_real_user_users", "")
 recent_window_target_top1_users = status.get("recent_window_target_top1_users", "")
 historical_example_dominance_detected = status.get("historical_example_dominance_detected", "")
+review_gate_policy_candidate_status = status.get("review_gate_policy_candidate_status", "")
+review_gate_policy_candidate_reason = status.get("review_gate_policy_candidate_reason", "")
 
 def resolve_gate_action_class(gate_reason: str, effective_next_step: str) -> str:
     if gate_reason in {"INTERPRETATION_CHANGED", "STABLE_BASELINE_CHANGED"}:
@@ -330,6 +332,8 @@ lines = [
     f"primary_review_gate_operator_next_step={primary_review_gate_operator_next_step}",
     f"review_gate_interpretation_class={review_gate_interpretation_class}",
     f"review_gate_operating_mode={review_gate_operating_mode}",
+    f"review_gate_policy_candidate_status={review_gate_policy_candidate_status}",
+    f"review_gate_policy_candidate_reason={review_gate_policy_candidate_reason}",
     f"primary_mixed_top1_leader_service_id={primary_mixed_top1_leader_service_id}",
     f"primary_mixed_top1_leader_title={primary_mixed_top1_leader_title}",
     f"primary_mixed_top1_leader_share_pct={primary_mixed_top1_leader_share_pct}",
@@ -403,6 +407,8 @@ note_lines = [
     f"- primary_review_gate_operator_next_step: `{primary_review_gate_operator_next_step}`",
     f"- review_gate_interpretation_class: `{review_gate_interpretation_class}`",
     f"- review_gate_operating_mode: `{review_gate_operating_mode}`",
+    f"- review_gate_policy_candidate_status: `{review_gate_policy_candidate_status}`",
+    f"- review_gate_policy_candidate_reason: `{review_gate_policy_candidate_reason}`",
     f"- primary_mixed_top1_leader_service_id: `{primary_mixed_top1_leader_service_id}`",
     f"- primary_mixed_top1_leader_title: `{primary_mixed_top1_leader_title}`",
     f"- primary_mixed_top1_leader_share_pct: `{primary_mixed_top1_leader_share_pct}`",
@@ -467,6 +473,8 @@ json_payload = {
         "primary_review_gate_operator_next_step": primary_review_gate_operator_next_step,
         "review_gate_interpretation_class": review_gate_interpretation_class,
         "review_gate_operating_mode": review_gate_operating_mode,
+        "review_gate_policy_candidate_status": review_gate_policy_candidate_status,
+        "review_gate_policy_candidate_reason": review_gate_policy_candidate_reason,
         "primary_mixed_top1_leader_service_id": primary_mixed_top1_leader_service_id,
         "primary_mixed_top1_leader_title": primary_mixed_top1_leader_title,
         "primary_mixed_top1_leader_share_pct": primary_mixed_top1_leader_share_pct,
