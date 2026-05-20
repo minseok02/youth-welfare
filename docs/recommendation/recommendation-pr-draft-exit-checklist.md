@@ -31,6 +31,10 @@
   - `HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR`
 - review gate operating mode:
   - `PRIMARY_BASELINE_WITH_SUPPLEMENTAL_RECENT_WINDOW`
+- gate policy status:
+  - `PRIMARY_BLOCKED_SUPPLEMENTAL_CLEAR`
+- gate policy reason:
+  - `HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR`
 - current next step:
   - `USE_RECENT_WINDOW_AS_SUPPLEMENTAL_REVIEW_CONTEXT`
 - latest 관찰은 계속 `VOLATILE_ONLY_DRIFT`
@@ -119,6 +123,15 @@ bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-overview.sh
 - 이유:
   - stable baseline 회귀보다 stale historical latest batch와 current recent-window signal 해석 정리가 main blocker
   - 현재 운영 클래스는 `HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR` 이고, operating mode는 `PRIMARY_BASELINE_WITH_SUPPLEMENTAL_RECENT_WINDOW` 입니다.
+
+### 1a. basic gate pass + gate policy status `PRIMARY_BLOCKED_SUPPLEMENTAL_CLEAR`
+
+- current 기본 해석:
+  - draft 유지
+- 이유:
+  - drift gate는 통과했지만 운영 정책 gate는 아직 primary historical blocker 상태입니다.
+  - 즉 `PASS` 는 “artifact drift 없음”이지 “undraft 가능”을 뜻하지 않습니다.
+  - 이 조합에서는 `READ_PRIMARY_AND_SUPPLEMENTAL_REVIEW_GATES` 와 `USE_RECENT_WINDOW_AS_SUPPLEMENTAL_REVIEW_CONTEXT` 를 먼저 읽는 편이 맞습니다.
 
 ### 2. readiness opened + stable baseline unchanged
 

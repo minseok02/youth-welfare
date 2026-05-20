@@ -1,5 +1,10 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 917) reviewer surface에만 `gate_policy_status` 를 올리고 draft/merge checklist가 그대로면, author는 `PASS인데 왜 아직 undraft를 막는가`를 다시 해석해야 한다
+- 문제: PR brief와 GitHub PR surface에는 이미 `gate_policy_status=PRIMARY_BLOCKED_SUPPLEMENTAL_CLEAR` 가 있었지만, `recommendation-pr-draft-exit-checklist.md` 와 `recommendation-post-merge-followup-checklist.md` 는 여전히 interpretation class 중심이라 author가 `PASS but still blocked` 조합을 다시 번역해야 했다.
+- 해결: draft exit / post-merge follow-up 문서에도 `gate policy status`, `gate policy reason` 을 직접 추가하고, `basic gate pass + gate policy status PRIMARY_BLOCKED_SUPPLEMENTAL_CLEAR` 조합은 draft 유지라는 규칙을 명시했다.
+- 이유: current closeout lane에서 reviewer, operator, author가 같은 두 층의 gate를 읽지 않으면, PR surface에서는 blocked인데 checklist에서는 undraft 가능처럼 읽히는 drift가 생긴다.
+
 ## 916) operator artifact에 `gate_policy_status` 를 올린 뒤 reviewer-facing PR surface가 그 값을 안 쓰면, reviewer는 `PASS인데 왜 아직 blocked인가`를 다시 해석해야 한다
 - 문제: latest surface에는 이미 `gate_status=PASS` 와 별도로 `gate_policy_status=PRIMARY_BLOCKED_SUPPLEMENTAL_CLEAR`, `gate_policy_reason=HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR` 가 같이 있었지만, reviewer brief와 PR 전달면은 여전히 interpretation class와 action class까지만 적고 있었다.
 - 해결: reviewer brief와 GitHub PR 본문/quick comment에도 `gate policy status`, `gate policy reason` 을 같이 올려, reviewer가 GitHub 화면만 봐도 drift gate와 운영 정책 gate를 분리해 읽게 맞췄다.

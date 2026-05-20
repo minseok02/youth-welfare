@@ -70,6 +70,10 @@ bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-status-export.sh
   - `HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR`
 - review gate operating mode:
   - `PRIMARY_BASELINE_WITH_SUPPLEMENTAL_RECENT_WINDOW`
+- gate policy status:
+  - `PRIMARY_BLOCKED_SUPPLEMENTAL_CLEAR`
+- gate policy reason:
+  - `HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR`
 - current next step:
   - `USE_RECENT_WINDOW_AS_SUPPLEMENTAL_REVIEW_CONTEXT`
 - `latest_drift_class=VOLATILE_ONLY_DRIFT`
@@ -87,6 +91,7 @@ bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-status-export.sh
 3. latest 관찰 변화가 fresh window 흔들림 범위에 머묾
 4. full latest batch gate는 stale historical example inertia를, recent-window gate는 current live signal을 보여 주는 상태
 5. review gate decision class가 계속 `HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR` 로 유지됨
+6. `gate_status=PASS` 여도 `gate_policy_status=PRIMARY_BLOCKED_SUPPLEMENTAL_CLEAR` 가 유지됨
 
 이때 current decision은 계속:
 
