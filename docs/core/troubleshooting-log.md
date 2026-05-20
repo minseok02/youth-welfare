@@ -1,5 +1,10 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 380) active 문서만 최신화하고 PR body/comment를 그대로 두면 reviewer는 예전 blocker를 계속 읽는다
+- 문제: active 문서는 이미 `DEFERRED_NON_REAL_LEADER_SIGNAL`, historical example latest batch dominance, recent-window supplemental gate로 넘어갔는데, PR body와 top-level quick entrypoint comment는 여전히 `WAIT_FOR_REAL_USER_TRAFFIC` 를 main blocker처럼 말하고 있었다.
+- 해결: PR lifecycle 문서 동기화 뒤에는 GitHub PR body와 첫 quick entrypoint comment도 같은 날 바로 갱신해, full latest batch primary gate와 recent-window supplemental gate 역할이 GitHub 전달면에서도 똑같이 보이게 맞췄다.
+- 이유: 지금 recommendation closeout의 핵심은 코드보다 운영 해석 경계다. 저장소 문서와 GitHub 리뷰 entrypoint가 다른 blocker를 말하면 reviewer가 잘못된 기준으로 draft 상태와 reopen 조건을 읽게 된다.
+
 ## 379) review gate를 한 값으로만 문서화하면, historical latest batch와 current recent-window signal이 다른 상황을 팀이 잘못 읽는다
 - 문제: full latest batch gate는 `2622` historical example inertia를 보여 주고, recent-window supplemental gate는 `3284` 중심 current live signal을 보여 준다. 이 둘을 문서에서 한 줄로만 적으면 reviewer, operator, merge 후 follow-up 담당자가 “지금 leader가 무엇인가”를 각자 다르게 읽게 된다.
 - 해결: PR review brief, draft exit, post-merge follow-up, real-user recheck, real-user baseline 문서에 **full latest batch gate는 primary, recent-window gate는 supplemental** 이라는 역할을 명시적으로 넣었다.
