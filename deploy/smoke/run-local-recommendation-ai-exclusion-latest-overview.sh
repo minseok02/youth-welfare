@@ -189,6 +189,8 @@ recommendation_top1_leader_real_user_users = readiness.get("recommendation_top1_
 recommendation_top1_leader_signal_summary = readiness.get("recommendation_top1_leader_signal_summary", "")
 primary_review_gate_blocker_class = status.get("primary_review_gate_blocker_class", "")
 primary_review_gate_operator_next_step = status.get("primary_review_gate_operator_next_step", "")
+review_gate_interpretation_class = status.get("review_gate_interpretation_class", "")
+review_gate_operating_mode = status.get("review_gate_operating_mode", "")
 primary_mixed_top1_leader_service_id = status.get("primary_mixed_top1_leader_service_id", "")
 primary_mixed_top1_leader_title = status.get("primary_mixed_top1_leader_title", "")
 primary_mixed_top1_leader_share_pct = status.get("primary_mixed_top1_leader_share_pct", "")
@@ -287,6 +289,8 @@ lines = [
     f"real_user_distribution_executed={readiness.get('real_user_distribution_executed', '')}",
     f"primary_review_gate_blocker_class={primary_review_gate_blocker_class}",
     f"primary_review_gate_operator_next_step={primary_review_gate_operator_next_step}",
+    f"review_gate_interpretation_class={review_gate_interpretation_class}",
+    f"review_gate_operating_mode={review_gate_operating_mode}",
     f"primary_mixed_top1_leader_service_id={primary_mixed_top1_leader_service_id}",
     f"primary_mixed_top1_leader_title={primary_mixed_top1_leader_title}",
     f"primary_mixed_top1_leader_share_pct={primary_mixed_top1_leader_share_pct}",
@@ -355,6 +359,8 @@ note_lines = [
     "",
     f"- primary_review_gate_blocker_class: `{primary_review_gate_blocker_class}`",
     f"- primary_review_gate_operator_next_step: `{primary_review_gate_operator_next_step}`",
+    f"- review_gate_interpretation_class: `{review_gate_interpretation_class}`",
+    f"- review_gate_operating_mode: `{review_gate_operating_mode}`",
     f"- primary_mixed_top1_leader_service_id: `{primary_mixed_top1_leader_service_id}`",
     f"- primary_mixed_top1_leader_title: `{primary_mixed_top1_leader_title}`",
     f"- primary_mixed_top1_leader_share_pct: `{primary_mixed_top1_leader_share_pct}`",
@@ -414,6 +420,8 @@ json_payload = {
     "review_gate_context": {
         "primary_review_gate_blocker_class": primary_review_gate_blocker_class,
         "primary_review_gate_operator_next_step": primary_review_gate_operator_next_step,
+        "review_gate_interpretation_class": review_gate_interpretation_class,
+        "review_gate_operating_mode": review_gate_operating_mode,
         "primary_mixed_top1_leader_service_id": primary_mixed_top1_leader_service_id,
         "primary_mixed_top1_leader_title": primary_mixed_top1_leader_title,
         "primary_mixed_top1_leader_share_pct": primary_mixed_top1_leader_share_pct,

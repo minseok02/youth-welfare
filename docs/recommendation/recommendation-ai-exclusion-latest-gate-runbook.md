@@ -69,6 +69,8 @@ bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-gate.sh
 - `stable_baseline_changed`
 - `latest_observation_changed`
 - `changed_keys`
+- `review_gate_interpretation_class`
+- `review_gate_operating_mode`
 
 ## 읽는 법
 
@@ -86,6 +88,10 @@ bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-gate.sh
   - older baseline artifact가 들고 있던 historical pointer입니다.
 - `effective_operator_next_step`
   - gate가 PASS여도 실제 current 해석이 무엇인지 보여 주는 값입니다. 현재 local 기준으로는 `USE_RECENT_WINDOW_AS_SUPPLEMENTAL_REVIEW_CONTEXT` 를 먼저 읽는 편이 맞습니다.
+- `review_gate_interpretation_class`
+  - primary full latest batch gate와 supplemental recent-window gate를 합친 운영 해석 클래스입니다. 현재 local 기준으로는 `HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR` 입니다.
+- `review_gate_operating_mode`
+  - primary/supplemental gate를 어떤 조합으로 실제 운영 해석에 써야 하는지 보여 주는 값입니다. 현재 local 기준으로는 `PRIMARY_BASELINE_WITH_SUPPLEMENTAL_RECENT_WINDOW` 입니다.
 - `status_json_stale_relative_to_summaries=true`
   - gate가 보고 있는 JSON이 latest summary보다 오래됐다는 뜻입니다.
 - `status_json_recommended_action=RERUN_LATEST_STATUS_EXPORT`

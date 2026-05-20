@@ -64,6 +64,8 @@ bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-status.sh
 - `latest_observation_changed`
 - `latest_changed_keys`
 - `primary_review_gate_blocker_class`
+- `review_gate_interpretation_class`
+- `review_gate_operating_mode`
 - `recent_window_recommendation_review_reading`
 - `historical_example_dominance_detected`
 
@@ -75,6 +77,10 @@ bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-status.sh
   - older baseline artifact가 들고 있던 historical pointer입니다.
 - `effective_operator_next_step=USE_RECENT_WINDOW_AS_SUPPLEMENTAL_REVIEW_CONTEXT`
   - current local truth 기준 실제 다음 해석입니다. full latest batch gate가 stale historical example inertia를 포함하므로, recent-window current signal을 같이 읽으라는 뜻입니다.
+- `review_gate_interpretation_class=HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR`
+  - primary full latest batch gate는 아직 historical blocker인데, supplemental recent-window current signal은 이미 clear 쪽으로 움직였다는 뜻입니다.
+- `review_gate_operating_mode=PRIMARY_BASELINE_WITH_SUPPLEMENTAL_RECENT_WINDOW`
+  - operator는 full latest batch gate를 historical baseline으로 두고, current live signal은 recent-window gate를 같이 보라는 뜻입니다.
 - `operator_next_step=OBSERVE_FRESH_WINDOW_VOLATILITY`
   - stable baseline은 유지되고 있고 fresh window 관찰값만 더 보면 되는 상태입니다.
 - `operator_next_step=INVESTIGATE_STABLE_BASELINE_DRIFT`

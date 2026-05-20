@@ -1,5 +1,10 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 909) primary/supplemental review gate 값을 artifact에 같이 올려도, operator가 그 조합을 어떤 decision class로 읽어야 하는지 매번 문장으로 다시 합쳐야 하면 one-shot gate surface로서 완결성이 떨어진다
+- 문제: `latest-status`, `latest-gate`, `latest-overview` 는 이미 `primary_review_gate_blocker_class`, `recent_window_recommendation_review_reading`, `historical_example_dominance_detected` 를 같이 내리고 있었지만, operator는 여전히 이 값들을 머리로 합쳐 “historical primary blocker지만 recent-window는 clear”라고 직접 번역해야 했다.
+- 해결: latest artifact와 CLI 출력에 `review_gate_interpretation_class`, `review_gate_operating_mode` 를 추가했다. 현재 local 기준 값은 `HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR`, `PRIMARY_BASELINE_WITH_SUPPLEMENTAL_RECENT_WINDOW` 이다.
+- 이유: current recommendation blocker는 이제 단일 gate 값이 아니라 primary historical gate와 supplemental current-live gate의 조합으로 읽어야 한다. 이 조합을 operator-facing artifact에서 한 번 더 결정 클래스로 승격해야 해석 drift가 줄어든다.
+
 ## 908) `latest-overview` 와 active 문서가 `effective_operator_next_step=USE_RECENT_WINDOW_AS_SUPPLEMENTAL_REVIEW_CONTEXT` 로 올라간 뒤에도, PR body/author note가 예전 `WAIT_FOR_REAL_USER_TRAFFIC` draft 이유를 그대로 말하면 reviewer는 현재 draft 경계를 잘못 읽게 된다
 - 문제: active 문서와 handoff artifact는 이미 live readiness open, primary full latest batch gate `DEFERRED_NON_REAL_LEADER_SIGNAL`, supplemental recent-window reading `RECENT_WINDOW_CLEARS_HISTORICAL_2622_DOMINANCE` 로 해석이 바뀌었는데, PR 설명 일부는 아직 draft 유지 이유를 “real-user traffic/cohort evidence missing”으로 적고 있었다.
 - 해결: PR body와 quick entrypoint comment, stale author note를 current gate reading 기준으로 다시 압축했다. draft 이유는 이제 단순 traffic 부족이 아니라 **historical primary gate와 recent-window supplemental gate를 함께 읽어야 하는 상태** 로 설명한다.

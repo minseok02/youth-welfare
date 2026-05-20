@@ -80,6 +80,21 @@ historical_example_dominance_detected = (
     and recent_window_recommendation_review_reading == "RECENT_WINDOW_CLEARS_HISTORICAL_2622_DOMINANCE"
 )
 
+review_gate_interpretation_class = "NO_SPECIAL_REVIEW_GATE_SPLIT"
+review_gate_operating_mode = "USE_PRIMARY_REVIEW_GATE_ONLY"
+if historical_example_dominance_detected:
+    review_gate_interpretation_class = "HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR"
+    review_gate_operating_mode = "PRIMARY_BASELINE_WITH_SUPPLEMENTAL_RECENT_WINDOW"
+elif (
+    review_gate_blocker.get("blocker_class", "") == "MIXED_BATCH_NON_REAL_DOMINANCE_WITH_NO_REAL_USER_PATH"
+    and recent_window_recommendation_review_reading == "RECENT_WINDOW_STILL_TARGET_DOMINANT"
+):
+    review_gate_interpretation_class = "PRIMARY_AND_RECENT_WINDOW_BOTH_BLOCKING"
+    review_gate_operating_mode = "KEEP_PRIMARY_TARGET_LEADER_TRACING"
+elif review_gate_blocker.get("blocker_class", "") == "MIXED_BATCH_NON_REAL_DOMINANCE_WITH_NO_REAL_USER_PATH":
+    review_gate_interpretation_class = "PRIMARY_BLOCKER_WITHOUT_SUPPLEMENTAL_SIGNAL"
+    review_gate_operating_mode = "USE_PRIMARY_REVIEW_GATE_ONLY"
+
 operator_next_step = "BASELINE_STABLE_NO_ACTION"
 if interpretation_changed == "true" or stable_baseline_changed == "true":
     operator_next_step = "INVESTIGATE_STABLE_BASELINE_DRIFT"
@@ -143,6 +158,8 @@ lines = [
     "",
     f"- primary_review_gate_blocker_class: `{review_gate_blocker.get('blocker_class', '')}`",
     f"- primary_review_gate_operator_next_step: `{review_gate_blocker.get('operator_next_step', '')}`",
+    f"- review_gate_interpretation_class: `{review_gate_interpretation_class}`",
+    f"- review_gate_operating_mode: `{review_gate_operating_mode}`",
     f"- primary_mixed_top1_leader_service_id: `{review_gate_blocker.get('mixed_top1_leader_service_id', '')}`",
     f"- primary_mixed_top1_leader_title: `{review_gate_blocker.get('mixed_top1_leader_title', '')}`",
     f"- primary_mixed_top1_leader_share_pct: `{review_gate_blocker.get('mixed_top1_leader_share_pct', '')}`",
@@ -194,6 +211,8 @@ json_payload = {
     "review_gate_context": {
         "primary_review_gate_blocker_class": review_gate_blocker.get("blocker_class", ""),
         "primary_review_gate_operator_next_step": review_gate_blocker.get("operator_next_step", ""),
+        "review_gate_interpretation_class": review_gate_interpretation_class,
+        "review_gate_operating_mode": review_gate_operating_mode,
         "primary_mixed_top1_leader_service_id": review_gate_blocker.get("mixed_top1_leader_service_id", ""),
         "primary_mixed_top1_leader_title": review_gate_blocker.get("mixed_top1_leader_title", ""),
         "primary_mixed_top1_leader_share_pct": review_gate_blocker.get("mixed_top1_leader_share_pct", ""),
