@@ -302,6 +302,18 @@ elif review_gate_policy_promotion_review_run_approval_record_status == "BOUNDED_
     review_gate_policy_promotion_review_run_approval_record_transition_status = "BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_WRITTEN"
     review_gate_policy_promotion_review_run_approval_record_transition_reason = "APPROVAL_RECORD_WRITTEN_AND_REVIEW_RUN_CAN_ADVANCE"
 
+review_gate_policy_promotion_review_run_approval_record_write_status = "BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_WRITE_NOT_APPLICABLE"
+review_gate_policy_promotion_review_run_approval_record_write_reason = review_gate_policy_promotion_review_run_approval_record_transition_reason
+if review_gate_policy_promotion_review_run_approval_record_transition_status == "BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_TRANSITION_NOT_READY":
+    review_gate_policy_promotion_review_run_approval_record_write_status = "BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_WRITE_NOT_READY"
+    review_gate_policy_promotion_review_run_approval_record_write_reason = review_gate_policy_promotion_review_run_approval_record_transition_reason
+elif review_gate_policy_promotion_review_run_approval_record_transition_status == "AWAIT_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_WRITE":
+    review_gate_policy_promotion_review_run_approval_record_write_status = "PENDING_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_WRITE"
+    review_gate_policy_promotion_review_run_approval_record_write_reason = "APPROVAL_RECORD_TRANSITION_READY_BUT_WRITE_NOT_EXECUTED"
+elif review_gate_policy_promotion_review_run_approval_record_transition_status == "BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_WRITTEN":
+    review_gate_policy_promotion_review_run_approval_record_write_status = "BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_WRITE_COMPLETED"
+    review_gate_policy_promotion_review_run_approval_record_write_reason = "APPROVAL_RECORD_WRITE_COMPLETED_AND_REVIEW_RUN_CAN_ADVANCE"
+
 gate_policy_status = "BASELINE_MONITORING"
 gate_policy_reason = "NO_SPECIAL_REVIEW_GATE_SPLIT"
 if interpretation_changed == "true" or stable_baseline_changed == "true":
@@ -435,6 +447,8 @@ lines = [
     f"- review_gate_policy_promotion_review_run_approval_record_reason: `{review_gate_policy_promotion_review_run_approval_record_reason}`",
     f"- review_gate_policy_promotion_review_run_approval_record_transition_status: `{review_gate_policy_promotion_review_run_approval_record_transition_status}`",
     f"- review_gate_policy_promotion_review_run_approval_record_transition_reason: `{review_gate_policy_promotion_review_run_approval_record_transition_reason}`",
+    f"- review_gate_policy_promotion_review_run_approval_record_write_status: `{review_gate_policy_promotion_review_run_approval_record_write_status}`",
+    f"- review_gate_policy_promotion_review_run_approval_record_write_reason: `{review_gate_policy_promotion_review_run_approval_record_write_reason}`",
     f"- primary_mixed_top1_leader_service_id: `{review_gate_blocker.get('mixed_top1_leader_service_id', '')}`",
     f"- primary_mixed_top1_leader_title: `{review_gate_blocker.get('mixed_top1_leader_title', '')}`",
     f"- primary_mixed_top1_leader_share_pct: `{review_gate_blocker.get('mixed_top1_leader_share_pct', '')}`",
@@ -527,6 +541,8 @@ json_payload = {
         "review_gate_policy_promotion_review_run_approval_record_reason": review_gate_policy_promotion_review_run_approval_record_reason,
         "review_gate_policy_promotion_review_run_approval_record_transition_status": review_gate_policy_promotion_review_run_approval_record_transition_status,
         "review_gate_policy_promotion_review_run_approval_record_transition_reason": review_gate_policy_promotion_review_run_approval_record_transition_reason,
+        "review_gate_policy_promotion_review_run_approval_record_write_status": review_gate_policy_promotion_review_run_approval_record_write_status,
+        "review_gate_policy_promotion_review_run_approval_record_write_reason": review_gate_policy_promotion_review_run_approval_record_write_reason,
         "primary_mixed_top1_leader_service_id": review_gate_blocker.get("mixed_top1_leader_service_id", ""),
         "primary_mixed_top1_leader_title": review_gate_blocker.get("mixed_top1_leader_title", ""),
         "primary_mixed_top1_leader_share_pct": review_gate_blocker.get("mixed_top1_leader_share_pct", ""),

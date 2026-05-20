@@ -86,6 +86,8 @@ bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-status.sh
 - `review_gate_policy_promotion_review_run_approval_record_reason`
 - `review_gate_policy_promotion_review_run_approval_record_transition_status`
 - `review_gate_policy_promotion_review_run_approval_record_transition_reason`
+- `review_gate_policy_promotion_review_run_approval_record_write_status`
+- `review_gate_policy_promotion_review_run_approval_record_write_reason`
 - `status_json_stale_relative_to_summaries`
 - `status_json_recommended_action`
 - `latest_drift_class`
@@ -183,6 +185,9 @@ bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-status.sh
 - `review_gate_policy_promotion_review_run_approval_record_transition_status=AWAIT_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_WRITE`
   - 마지막 approval record write를 막는 것이 prerequisite 부족이 아니라 explicit record 미작성이라는 뜻입니다.
 - `review_gate_policy_promotion_review_run_approval_record_transition_reason=APPROVAL_RECORD_CRITERIA_MET_BUT_RECORD_NOT_WRITTEN`
+- `review_gate_policy_promotion_review_run_approval_record_write_status=PENDING_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_WRITE`
+  - transition prerequisite은 이미 닫혔고 final write 자체만 아직 실행되지 않았다는 뜻입니다.
+- `review_gate_policy_promotion_review_run_approval_record_write_reason=APPROVAL_RECORD_TRANSITION_READY_BUT_WRITE_NOT_EXECUTED`
 - `review_gate_interpretation_class=HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR`
   - primary full latest batch gate는 아직 historical blocker인데, supplemental recent-window current signal은 이미 clear 쪽으로 움직였다는 뜻입니다.
 - `review_gate_operating_mode=PRIMARY_BASELINE_WITH_SUPPLEMENTAL_RECENT_WINDOW`

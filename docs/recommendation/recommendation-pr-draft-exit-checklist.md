@@ -217,6 +217,7 @@ bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-overview.sh
 - `review_gate_policy_promotion_review_run_approval_record_status=PENDING_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD` 은 마지막 run approval decision이 아직 pending이라 approval record 자체도 아직 남기지 못한 상태라는 뜻입니다.
 - `review_gate_policy_promotion_review_run_approval_record_criteria_status=READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD` 은 마지막 run approval record를 남길 prerequisite 자체는 이미 충족됐다는 뜻입니다.
 - `review_gate_policy_promotion_review_run_approval_record_transition_status=AWAIT_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_WRITE` 은 prerequisite이 이미 충족된 뒤 final approval record write 자체만 남은 상태라는 뜻입니다.
+- `review_gate_policy_promotion_review_run_approval_record_write_status=PENDING_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_WRITE` 은 transition ready 이후 final write execution만 아직 안 됐다는 뜻입니다.
   - 즉 `PASS` 는 “artifact drift 없음”이지 “undraft 가능”을 뜻하지 않습니다.
   - 이 조합에서는 `READ_PRIMARY_AND_SUPPLEMENTAL_REVIEW_GATES` 와 `USE_RECENT_WINDOW_AS_SUPPLEMENTAL_REVIEW_CONTEXT` 를 먼저 읽는 편이 맞습니다.
   - 현재 PR status는 계속 `REVIEWER_READY + DRAFT_MAINTAINED_BY_POLICY_GATE` 입니다.

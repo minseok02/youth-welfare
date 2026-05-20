@@ -121,6 +121,8 @@ review hint:
 - review gate policy promotion review run approval record reason: `REVIEW_RUN_APPROVAL_DECISION_PENDING_AND_RECORD_NOT_WRITTEN`
 - review gate policy promotion review run approval record transition status: `AWAIT_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_WRITE`
 - review gate policy promotion review run approval record transition reason: `APPROVAL_RECORD_CRITERIA_MET_BUT_RECORD_NOT_WRITTEN`
+- review gate policy promotion review run approval record write status: `PENDING_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_WRITE`
+- review gate policy promotion review run approval record write reason: `APPROVAL_RECORD_TRANSITION_READY_BUT_WRITE_NOT_EXECUTED`
 - operator next step: `USE_RECENT_WINDOW_AS_SUPPLEMENTAL_REVIEW_CONTEXT`
 
 explicit promotion review 기준은 [recommendation-review-gate-policy-promotion-checklist.md](./recommendation-review-gate-policy-promotion-checklist.md) 를 같이 봅니다.

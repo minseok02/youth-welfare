@@ -178,6 +178,7 @@ merge 전 현재 PR 상태 reference:
 15. `review_gate_policy_promotion_review_run_approval_record_status=PENDING_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD` 은 마지막 run approval decision이 아직 pending이라 approval record 자체도 아직 남기지 못한 상태라는 뜻임
 16. `review_gate_policy_promotion_review_run_approval_record_criteria_status=READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD` 은 마지막 run approval record 자체를 남길 prerequisite은 이미 충족됐다는 뜻임
 17. `review_gate_policy_promotion_review_run_approval_record_transition_status=AWAIT_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_WRITE` 은 final approval record write 자체만 아직 남았다는 뜻임
+18. `review_gate_policy_promotion_review_run_approval_record_write_status=PENDING_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_WRITE` 은 transition ready 뒤 final write execution만 아직 안 된 상태라는 뜻임
 
 이때 current decision은 계속:
 

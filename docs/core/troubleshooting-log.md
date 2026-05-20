@@ -1,5 +1,9 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 942) 마지막 transition ready와 final record write pending을 같은 뜻으로 두면, 실제로 write가 아직 안 실행됐는지 다시 추론해야 한다
+- 문제: `AWAIT_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_WRITE` 만 surface에 올린 상태에서는 prerequisite 충족과 final write 미실행이 같은 층에 섞여 보여, operator/reviewer가 마지막 explicit write가 실제로 아직 안 된 건지 다시 해석해야 했다.
+- 해결: admin summary/breakdowns, latest artifact, active current/runbook, PR surface에 `reviewGatePolicyPromotionReviewRunApprovalRecordWriteStatus`, `reviewGatePolicyPromotionReviewRunApprovalRecordWriteReason` 을 추가했다. 현재 local 기준 값은 `PENDING_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_WRITE`, `APPROVAL_RECORD_TRANSITION_READY_BUT_WRITE_NOT_EXECUTED` 이다.
+
 ## 941) 마지막 approval record pending과 final record write pending을 같은 뜻으로 두면, 실제로 남은 마지막 전이를 다시 추론해야 한다
 - 문제: `PENDING_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD` 와 `READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD` 까지만 surface에 올린 상태에서는, operator/reviewer가 “지금은 prerequisite까지 다 충족됐고 마지막 record write만 남은 건가”를 다시 해석해야 했다.
 - 해결: admin summary/breakdowns, latest artifact, active current/runbook, PR surface에 `reviewGatePolicyPromotionReviewRunApprovalRecordTransitionStatus`, `reviewGatePolicyPromotionReviewRunApprovalRecordTransitionReason` 을 추가했다. 현재 local 기준 값은 `AWAIT_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_WRITE`, `APPROVAL_RECORD_CRITERIA_MET_BUT_RECORD_NOT_WRITTEN` 이다.
