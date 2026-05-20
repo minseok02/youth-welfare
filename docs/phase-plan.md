@@ -1,5 +1,6 @@
 # 구현 현황
 
+- 2026-05-20: `recommendation-current-state.md` 하단의 `2026-05-17` CTR audit / concentration audit / summary smoke / breakdown smoke 값도 `historical pre-real-user` 라벨로 다시 분리했다. 이제 같은 파일 안에서 상단 current truth와 old deferred/cohort-empty smoke snapshot이 모두 “현재 로컬 값”처럼 섞여 읽히지 않게 정리됐다.
 - 2026-05-20: `recommendation-ctr-readiness-runbook.md`, `recommendation-concentration-audit-runbook.md` 안에 남아 있던 `2026-05-17` old sample output / `현재 판단` 구간도 `historical pre-real-user baseline` 으로 다시 라벨링했다. 이제 helper 중간의 deferred/cohort-empty 예시를 current live truth처럼 읽지 않도록 문장 자체에서 분리된다.
 - 2026-05-20: active helper/current-state 안에 남아 있던 `2026-05-19` pre-live baseline sample output도 더 직접적으로 라벨링했다. 이제 `recommendation-current-state.md`, `recommendation-operation-checklist.md`, `recommendation-ai-exclusion-latest-overview-runbook.md` 에서 `WAIT_FOR_REAL_USER_TRAFFIC` / `DEFERRED_NO_REAL_USER_TRAFFIC` 는 current truth가 아니라 `historical pre-live baseline` 또는 `older pre-live snapshot pointer` 로 읽히게 정리했다.
 - 2026-05-20: `recommendation-review-gate-blocker-audit-runbook.md` 상단 current-reading 문구도 부정형(`WAIT_FOR_REAL_USER_TRAFFIC 자체는 아님`)이 아니라 현재 truth 자체를 직접 말하도록 다시 맞췄다. 이제 operator가 이 runbook만 열어도 `DEFERRED_NON_REAL_LEADER_SIGNAL` full gate와 `historical example latest batch dominance + stale example saved batch path + current real SQL gap` 조합을 바로 읽게 된다.

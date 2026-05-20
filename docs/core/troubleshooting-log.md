@@ -1,5 +1,10 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 902) current-state 하단의 old audit/smoke snapshot도 현재형 문장으로 남아 있으면, 상단 current truth를 고쳐도 파일 하나만 읽는 사람은 다시 예전 deferred 상태로 돌아간다
+- 문제: `recommendation-current-state.md` 상단 current-reading 은 최신이었지만, 중간/하단의 `2026-05-17` CTR audit, concentration audit, summary smoke, breakdown smoke 값은 일부가 여전히 “현재 로컬 ... 값은” 같은 표현으로 남아 있었다.
+- 해결: 해당 구간을 `historical pre-real-user local audit`, `historical pre-real-user local concentration audit`, `historical pre-real-user local summary/breakdown smoke 값` 으로 다시 라벨링했다.
+- 이유: `current-state` 는 상단만 읽고 끝나는 문서가 아니다. 하단 example/output 블록도 자주 복사되므로, 파일 안 어느 지점을 잘라도 old deferred/cohort-empty 상태를 current truth로 오해하지 않게 해야 한다.
+
 ## 388) current-reading을 고쳐도 helper 중간의 old sample output 블록에 historical 라벨이 없으면 operator는 예전 deferred/cohort 부재를 다시 현재로 읽는다
 - 문제: `recommendation-ctr-readiness-runbook.md`, `recommendation-concentration-audit-runbook.md` 는 상단 current-reading은 최신으로 맞아 있어도, 중간 sample output과 `현재 판단` 섹션이 여전히 `2026-05-17` pre-real-user baseline을 현재형처럼 보이게 남겨 두고 있었다.
 - 해결: 해당 블록을 `historical pre-real-user local sample output`, `historical baseline evidence` 로 직접 라벨링해, current local truth와 구분되도록 바꿨다.
