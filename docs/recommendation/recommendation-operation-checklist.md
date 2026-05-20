@@ -216,7 +216,7 @@ daily operator entrypoint:
 - `[cohort-compare]`
 - `[real-user-ready]`
 
-현재 local 기준선(2026-05-19):
+현재 local 기준선(2026-05-19 historical pre-live baseline):
 
 - `[stage-gap]`
   - fresh target family 기준 zero-AI 핵심은 `3289`, `5837`
@@ -231,6 +231,8 @@ daily operator entrypoint:
 - `[real-user-ready]`
   - `dashboard_real_user_gate=DEFERRED_NO_REAL_USER_TRAFFIC`
   - `breakdown_real_user_cohort_gate=DEFERRED_NO_REAL_USER_COHORT`
+
+위 블록은 **live readiness가 열리기 전 local historical sample output** 입니다. current live truth는 아래의 “지금 local에서 recommendation 관찰을 다시 시작할 때”와 `latest-overview/readiness/review-gate` 현재형 해석을 우선합니다.
 
 읽는 법:
 

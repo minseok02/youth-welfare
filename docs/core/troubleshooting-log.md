@@ -1,5 +1,10 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 387) active 문서 안의 historical baseline sample output에 라벨이 없으면, 이미 열린 live gate보다 옛 deferred snapshot을 current truth로 오해하기 쉽다
+- 문제: `recommendation-current-state.md`, `recommendation-operation-checklist.md`, `recommendation-ai-exclusion-latest-overview-runbook.md` 에는 현재형 설명과 함께 `2026-05-19` pre-live baseline artifact/output 이 같이 남아 있었는데, 일부 구간은 “historical pre-live baseline” 이라는 라벨이 약했다. 이 상태에선 `WAIT_FOR_REAL_USER_TRAFFIC`, `DEFERRED_NO_REAL_USER_TRAFFIC` 같은 옛 snapshot 값이 여전히 current truth처럼 읽힐 수 있다.
+- 해결: 해당 구간에 `historical pre-live baseline`, `older pre-live baseline snapshot pointer`, `live readiness가 열리기 전 sample output` 같은 문구를 직접 넣어, baseline artifact와 live current truth를 문장 자체에서 분리했다.
+- 이유: 지금 recommendation 문서군의 남은 혼선은 값 자체보다 **같은 문서 안에서 current instruction과 historical sample output이 붙어 있는 구조** 에서 나온다. 현재형 문서라도 history/example 블록이면 그 사실을 명시해야 operator가 오래된 deferred state를 다시 현재 blocker로 읽지 않는다.
+
 ## 386) active runbook이 “옛 blocker는 아니다” 수준에서 멈추면, 지금의 blocker가 무엇인지는 다시 추론해야 한다
 - 문제: `recommendation-review-gate-blocker-audit-runbook.md` 상단은 `WAIT_FOR_REAL_USER_TRAFFIC 자체가 아니다` 라고는 말했지만, 지금 실제 current blocker가 `DEFERRED_NON_REAL_LEADER_SIGNAL + historical example latest batch dominance + stale example saved batch path + current real SQL gap` 이라는 점을 직접 쓰지 않았다.
 - 해결: runbook 상단 current-reading 문구를 부정형 설명이 아니라 현재 truth 자체를 바로 말하는 문장으로 바꿨다.

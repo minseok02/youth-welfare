@@ -35,7 +35,7 @@
 
 즉 이 runbook은 지금 단계에서 “모델 튜닝”보다 **current baseline 유지와 historical full latest batch / current recent-window signal 분리 해석** 을 다시 확인하는 entrypoint 입니다.
 
-다만 `REAL_USER` readiness를 같이 포함한 실행에서는 live gate가 이미 열렸는데도 baseline artifact 기반 `latest status` 가 아직 `WAIT_FOR_REAL_USER_TRAFFIC` 로 남을 수 있습니다. 이 경우는 새 `effective_operator_next_step`, `readiness_override_detected`, `readiness_override_reason`, `real_user_review_gate` 를 같이 읽는 편이 맞습니다.
+다만 `REAL_USER` readiness를 같이 포함한 실행에서는 live gate가 이미 열렸는데도 baseline artifact 기반 `latest status` 가 아직 `WAIT_FOR_REAL_USER_TRAFFIC` 로 남을 수 있습니다. 이 값은 **older pre-live baseline snapshot pointer** 로 읽는 편이 맞고, current live truth는 새 `effective_operator_next_step`, `readiness_override_detected`, `readiness_override_reason`, `real_user_review_gate` 를 같이 읽어야 합니다.
 
 ## 기본 스크립트
 
@@ -83,7 +83,7 @@ bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-overview.sh
 ## 읽는 법
 
 - `latest status` 에서 `operator_next_step=WAIT_FOR_REAL_USER_TRAFFIC`
-  - baseline artifact가 아직 older wait-state snapshot을 가리키는 경우입니다. current live truth는 readiness/review gate 결과를 같이 읽어야 합니다.
+  - baseline artifact가 아직 older pre-live wait-state snapshot을 가리키는 경우입니다. current live truth는 readiness/review gate 결과를 같이 읽어야 합니다.
 - `latest gate` 가 `PASS`
   - stable baseline/interpretation 기준으로는 현재 latest 상태가 허용 범위입니다.
 - `latest gate (strict)` 가 `LATEST_OBSERVATION_CHANGED`
