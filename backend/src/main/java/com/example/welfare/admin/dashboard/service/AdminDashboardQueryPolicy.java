@@ -294,4 +294,27 @@ final class AdminDashboardQueryPolicy {
             default -> status;
         };
     }
+
+    static String resolveReviewGatePolicyPromotionActionStatus(
+            String reviewGatePolicyPromotionStatus
+    ) {
+        return switch (reviewGatePolicyPromotionStatus) {
+            case "PROMOTION_READY" -> "RUN_BOUNDED_PROMOTION_REVIEW";
+            case "REQUIRES_EXPLICIT_POLICY_CHANGE_REVIEW", "KEEP_PRIMARY_BASELINE" -> "KEEP_PRIMARY_BASELINE";
+            default -> "KEEP_PRIMARY_BASELINE";
+        };
+    }
+
+    static String resolveReviewGatePolicyPromotionActionReason(
+            String reviewGatePolicyPromotionStatus
+    ) {
+        return switch (reviewGatePolicyPromotionStatus) {
+            case "PROMOTION_READY" -> "PROMOTION_PREREQUISITES_MET_FOR_BOUNDED_REVIEW";
+            case "REQUIRES_EXPLICIT_POLICY_CHANGE_REVIEW" ->
+                    "PROMOTION_STILL_REQUIRES_EXPLICIT_POLICY_REVIEW";
+            case "KEEP_PRIMARY_BASELINE" ->
+                    "RECENT_WINDOW_POLICY_PROMOTION_CONDITIONS_NOT_MET";
+            default -> reviewGatePolicyPromotionStatus;
+        };
+    }
 }

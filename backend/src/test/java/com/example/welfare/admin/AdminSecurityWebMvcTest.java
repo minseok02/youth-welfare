@@ -681,6 +681,8 @@ class AdminSecurityWebMvcTest {
                                 "PRIMARY_REVIEW_GATE_IS_NOT_DEFERRED_NON_REAL_LEADER_SIGNAL",
                                 "KEEP_PRIMARY_BASELINE",
                                 "RECENT_WINDOW_CANDIDATE_HAS_NOT_CLEARED_PRIMARY_BASELINE_REQUIREMENTS",
+                                "KEEP_PRIMARY_BASELINE",
+                                "RECENT_WINDOW_POLICY_PROMOTION_CONDITIONS_NOT_MET",
                                 List.of(
                                         new AdminDashboardResponse.RecommendationWeightSnapshot(
                                                 "GROWTH",
@@ -780,6 +782,8 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyCandidateReason").value("PRIMARY_REVIEW_GATE_IS_NOT_DEFERRED_NON_REAL_LEADER_SIGNAL"))
                 .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyPromotionStatus").value("KEEP_PRIMARY_BASELINE"))
                 .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyPromotionReason").value("RECENT_WINDOW_CANDIDATE_HAS_NOT_CLEARED_PRIMARY_BASELINE_REQUIREMENTS"))
+                .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyPromotionActionStatus").value("KEEP_PRIMARY_BASELINE"))
+                .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyPromotionActionReason").value("RECENT_WINDOW_POLICY_PROMOTION_CONDITIONS_NOT_MET"))
                 .andExpect(jsonPath("$.data.notification.windowDays").value(7))
                 .andExpect(jsonPath("$.data.notification.sentInWindow").value(5))
                 .andExpect(jsonPath("$.data.search.windowDays").value(7))
@@ -902,6 +906,8 @@ class AdminSecurityWebMvcTest {
                                 "PRIMARY_REVIEW_GATE_IS_NOT_DEFERRED_NON_REAL_LEADER_SIGNAL",
                                 "KEEP_PRIMARY_BASELINE",
                                 "RECENT_WINDOW_CANDIDATE_HAS_NOT_CLEARED_PRIMARY_BASELINE_REQUIREMENTS",
+                                "KEEP_PRIMARY_BASELINE",
+                                "RECENT_WINDOW_POLICY_PROMOTION_CONDITIONS_NOT_MET",
                                 List.of()
                         ),
                         new AdminDashboardResponse.NotificationSection(0, 0, 14, 0, 0),
@@ -964,6 +970,8 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyCandidateReason").value("PRIMARY_REVIEW_GATE_IS_NOT_DEFERRED_NON_REAL_LEADER_SIGNAL"))
                 .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyPromotionStatus").value("KEEP_PRIMARY_BASELINE"))
                 .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyPromotionReason").value("RECENT_WINDOW_CANDIDATE_HAS_NOT_CLEARED_PRIMARY_BASELINE_REQUIREMENTS"))
+                .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyPromotionActionStatus").value("KEEP_PRIMARY_BASELINE"))
+                .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyPromotionActionReason").value("RECENT_WINDOW_POLICY_PROMOTION_CONDITIONS_NOT_MET"))
                 .andExpect(jsonPath("$.data.notification.windowDays").value(14))
                 .andExpect(jsonPath("$.data.trend.recommendation[1].fallbackRate").value(0.5000))
                 .andExpect(jsonPath("$.data.search.windowDays").value(14))
@@ -1170,6 +1178,8 @@ class AdminSecurityWebMvcTest {
                 "PRIMARY_REVIEW_GATE_IS_NOT_DEFERRED_NON_REAL_LEADER_SIGNAL",
                 "KEEP_PRIMARY_BASELINE",
                 "RECENT_WINDOW_CANDIDATE_HAS_NOT_CLEARED_PRIMARY_BASELINE_REQUIREMENTS",
+                "KEEP_PRIMARY_BASELINE",
+                "RECENT_WINDOW_POLICY_PROMOTION_CONDITIONS_NOT_MET",
                 List.of(
                         new AdminRecommendationBreakdownResponse.RepeatedServiceSnapshot(
                                         2622L,
@@ -1363,6 +1373,8 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.data.reviewGatePolicyCandidateReason").value("PRIMARY_REVIEW_GATE_IS_NOT_DEFERRED_NON_REAL_LEADER_SIGNAL"))
                 .andExpect(jsonPath("$.data.reviewGatePolicyPromotionStatus").value("KEEP_PRIMARY_BASELINE"))
                 .andExpect(jsonPath("$.data.reviewGatePolicyPromotionReason").value("RECENT_WINDOW_CANDIDATE_HAS_NOT_CLEARED_PRIMARY_BASELINE_REQUIREMENTS"))
+                .andExpect(jsonPath("$.data.reviewGatePolicyPromotionActionStatus").value("KEEP_PRIMARY_BASELINE"))
+                .andExpect(jsonPath("$.data.reviewGatePolicyPromotionActionReason").value("RECENT_WINDOW_POLICY_PROMOTION_CONDITIONS_NOT_MET"))
                 .andExpect(jsonPath("$.data.topRepeatedServices[0].serviceId").value(2622))
                 .andExpect(jsonPath("$.data.topRepeatedServices[0].rowCount").value(449))
                 .andExpect(jsonPath("$.data.topRepeatedServices[0].userMix.exampleUsers").value(447))

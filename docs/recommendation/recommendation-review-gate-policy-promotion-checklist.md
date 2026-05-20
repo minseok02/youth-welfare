@@ -42,12 +42,17 @@
   - `REQUIRES_EXPLICIT_POLICY_CHANGE_REVIEW`
 - review gate policy promotion reason:
   - `RECENT_WINDOW_IS_A_CANDIDATE_BUT_PRIMARY_BASELINE_IS_STILL_ALL_TIME_LATEST`
+- review gate policy promotion action status:
+  - `KEEP_PRIMARY_BASELINE`
+- review gate policy promotion action reason:
+  - `PROMOTION_STILL_REQUIRES_EXPLICIT_POLICY_REVIEW`
 
 즉 current truth는:
 
 1. recent-window는 이미 `policy candidate`
 2. 하지만 아직 `automatic promotion` 단계는 아님
 3. explicit policy review를 먼저 거쳐야 함
+4. current action은 promotion 실행이 아니라 `KEEP_PRIMARY_BASELINE`
 
 입니다.
 

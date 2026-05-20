@@ -1,5 +1,6 @@
 # 구현 현황
 
+- 2026-05-20: admin summary/breakdowns 와 one-shot latest artifact에 `reviewGatePolicyPromotionActionStatus`, `reviewGatePolicyPromotionActionReason` 도 올렸다. current local 기준 값은 `KEEP_PRIMARY_BASELINE`, `PROMOTION_STILL_REQUIRES_EXPLICIT_POLICY_REVIEW` 이고, promotion pending 상태에서 지금 당장 operator가 무엇을 해야 하는지까지 API/note/json/summary에서 직접 읽는다.
 - 2026-05-20: admin summary/breakdowns 에 recent-window 승격 후보도 올렸다. 이제 `reviewGatePolicyCandidateStatus=RECENT_WINDOW_POLICY_CANDIDATE`, `reviewGatePolicyCandidateReason=PRIMARY_GATE_BLOCKED_BY_STALE_ALL_TIME_EXAMPLE_REFERENCE_BUT_RECENT_WINDOW_CLEAR` 를 API 응답과 admin smoke에서 직접 읽을 수 있다.
 - 2026-05-20: admin summary/breakdowns 에 recent-window 승격 보류 상태도 함께 올렸다. 이제 `reviewGatePolicyPromotionStatus=REQUIRES_EXPLICIT_POLICY_CHANGE_REVIEW`, `reviewGatePolicyPromotionReason=RECENT_WINDOW_IS_A_CANDIDATE_BUT_PRIMARY_BASELINE_IS_STILL_ALL_TIME_LATEST` 를 API 응답과 admin smoke에서 같이 읽는다.
 - 2026-05-20: one-shot latest artifact(`latest-status-export`, `latest-status`, `latest-gate`, `latest-overview`)에도 recent-window 승격 후보를 올렸다. 이제 operator는 admin API를 다시 보지 않아도 `review_gate_policy_candidate_status=RECENT_WINDOW_POLICY_CANDIDATE`, `review_gate_policy_candidate_reason=PRIMARY_GATE_BLOCKED_BY_STALE_ALL_TIME_EXAMPLE_REFERENCE_BUT_RECENT_WINDOW_CLEAR` 를 latest note/json/summary에서 직접 읽는다.

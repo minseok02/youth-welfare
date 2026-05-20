@@ -304,6 +304,10 @@ class AdminDashboardRecommendationServiceTest {
                 .isEqualTo("KEEP_PRIMARY_BASELINE");
         assertThat(response.reviewGatePolicyPromotionReason())
                 .isEqualTo("RECENT_WINDOW_CANDIDATE_HAS_NOT_CLEARED_PRIMARY_BASELINE_REQUIREMENTS");
+        assertThat(response.reviewGatePolicyPromotionActionStatus())
+                .isEqualTo("KEEP_PRIMARY_BASELINE");
+        assertThat(response.reviewGatePolicyPromotionActionReason())
+                .isEqualTo("RECENT_WINDOW_POLICY_PROMOTION_CONDITIONS_NOT_MET");
         assertThat(response.topRepeatedServices()).singleElement().satisfies(service -> {
             assertThat(service.serviceId()).isEqualTo(2622L);
             assertThat(service.rowCount()).isEqualTo(449);

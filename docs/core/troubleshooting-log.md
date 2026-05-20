@@ -1,5 +1,10 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 928) promotion pending 상태만 노출하고 current action을 안 접어 주면, operator는 여전히 “후보이지만 보류”를 보고도 지금 무엇을 해야 하는지 다시 추론해야 한다
+- 문제: `reviewGatePolicyPromotionStatus=REQUIRES_EXPLICIT_POLICY_CHANGE_REVIEW`, `reviewGatePolicyPromotionReason=RECENT_WINDOW_IS_A_CANDIDATE_BUT_PRIMARY_BASELINE_IS_STILL_ALL_TIME_LATEST` 까지 올린 뒤에도, operator는 여전히 “그래서 지금 keep baseline인가, bounded review를 바로 시작하나”를 다시 해석해야 했다.
+- 해결: admin summary/breakdowns 와 `latest-status-export`, `latest-status`, `latest-gate`, `latest-overview` 에 `reviewGatePolicyPromotionActionStatus`, `reviewGatePolicyPromotionActionReason` 을 추가해 현재 local 기준 `KEEP_PRIMARY_BASELINE`, `PROMOTION_STILL_REQUIRES_EXPLICIT_POLICY_REVIEW` 를 직접 읽게 했다.
+- 이유: candidate / promotion pending 까지는 상태 설명이고, current action은 별도 층이다. 이걸 접어 주지 않으면 operator/reviewer/author surface가 또다시 “상태는 같지만 행동은 각자 추론” 구조로 갈라진다.
+
 ## 923) recent-window는 policy candidate여도 즉시 승격 상태와는 다르다
 - 문제: `reviewGatePolicyCandidateStatus=RECENT_WINDOW_POLICY_CANDIDATE` 만 노출하면, operator/reviewer가 “candidate니까 바로 recent-window를 primary gate로 올려도 되나”를 다시 추론해야 했다. 현재 truth는 candidate가 맞지만, primary reference 자체가 아직 `ALL_TIME_LATEST_PER_USER` 이라서 explicit policy change review 없이 자동 승격하는 단계는 아니다.
 - 해결: admin summary/breakdowns 에 `reviewGatePolicyPromotionStatus`, `reviewGatePolicyPromotionReason` 을 추가해 `REQUIRES_EXPLICIT_POLICY_CHANGE_REVIEW`, `RECENT_WINDOW_IS_A_CANDIDATE_BUT_PRIMARY_BASELINE_IS_STILL_ALL_TIME_LATEST` 를 같이 내렸다. 이제 API/smoke만 봐도 “후보”와 “즉시 승격 가능”을 분리해서 읽는다.
