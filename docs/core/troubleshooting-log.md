@@ -1,5 +1,20 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 372) local generic-domain `REAL_USER` library는 signup 이름도 backend validation에 맞춰야 한다
+- 문제: targeted cohort library를 처음 시드할 때 `COHORT_HOUSING_01` 같은 이름을 그대로 넣었더니 `/api/auth/signup` 이 `이름은 특수 기호 및 숫자를 제외한 한글 2~10자로 입력해주세요.`(`errorCode=C001`) 로 막혔다. 이메일/도메인/account_origin 설계는 맞았지만, name validation을 놓치면 seeder가 첫 계정부터 중단된다.
+- 해결: manifest의 `name` 을 `주거가`, `교육가`, `구직가`, `금융가` 처럼 한글 2~10자 규칙에 맞는 값으로 바꿨다. cohort 식별은 deterministic email(`realuser.housing01@realuser.app` 등)로 하고, 이름은 validation-safe 한글 label만 유지한다.
+- 이유: cohort library의 추적 키는 이름보다 이메일 local-part가 더 안정적이다. backend signup validation과 충돌할 수 있는 영문/숫자/언더스코어 이름을 고집할 이유가 없으므로, name은 validation-safe, email은 deterministic 한 구조가 재사용에 더 맞다.
+
+## 371) housing targeted cohort를 추가로 넣어도 mixed leader `2622` 가 real-user top10 안에 0회면, 현재 표본 방향과 mixed leader path를 분리해서 봐야 한다
+- 문제: `30명` distributed sample에서는 mixed leader `2622(청년월세 지원사업)` 가 real-user `top10` 에 한 번도 안 나타나서, housing-like targeted cohort를 추가하면 path가 생길 수도 있다는 가설이 있었다. 그래서 `housing / education / job / finance` targeted cohort `40명`을 추가해 총 `70명` real-user 표본으로 다시 봤다.
+- 해결: targeted cohort를 포함한 뒤에도 blocker audit 결과는 `real_user_mixed_leader_top1_count=0`, `top3_count=0`, `top5_count=0`, `top10_count=0`, `any_rank_count=0` 이었다. 즉 current library 기준으로는 mixed leader transition path가 여전히 없다. readiness는 `READY_REAL_USER_TRAFFIC / READY_REAL_USER_COHORT` 로 열려 있지만, mixed review gate는 계속 `DEFERRED_NON_REAL_LEADER_SIGNAL` 이고 blocker class는 `MIXED_BATCH_NON_REAL_DOMINANCE_WITH_NO_REAL_USER_PATH` 다.
+- 이유: targeted cohort를 추가했다고 바로 mixed leader path가 생기는 건 아니다. current sample의 housing-like profile이 example-heavy mixed leader와 여전히 안 맞을 수 있고, 이때는 “더 많이 만들면 풀릴 것”보다 “지금 라이브러리로도 path가 0인지”를 먼저 고정하는 편이 맞다.
+
+## 370) local generic-domain `REAL_USER` cohort library를 deterministic email로 재사용하려면 click smoke가 고정 이메일과 기존 계정 재사용을 허용해야 한다
+- 문제: `run-local-recommendation-click-smoke.sh` 는 매번 `smoke_build_email()` 로 새 이메일을 만들고 signup을 기대하는 구조라, 같은 persona 세트를 재사용하려면 계정이 계속 늘어나기만 했다. 또한 targeted cohort library를 deterministic email로 만들더라도 rerun 시 기존 계정을 바로 재사용할 수 없었다.
+- 해결: click smoke에 `SMOKE_EMAIL` override 와 `ALLOW_EXISTING_USER=true` 경계를 추가했다. 이제 fixed email을 넘기면 기존 user 존재 여부를 DB에서 확인하고, 이미 있으면 signup 대신 login/refresh/click 으로 바로 재사용한다. 이 위에 `run-local-real-user-cohort-library-seed.sh` 와 [recommendation-real-user-cohort-library-manifest.md](../recommendation/recommendation-real-user-cohort-library-manifest.md) 를 얹어 `housing / education / job / finance` targeted cohort 40명을 deterministic email로 관리하게 맞췄다.
+- 이유: 앞으로 recommendation 검증을 계속할 거라면 random one-off 계정보다 **재사용 가능한 cohort library** 가 낫다. deterministic email + existing-user reuse 경계가 있어야 같은 persona 세트를 계속 refresh/click 하면서 결과만 비교할 수 있다.
+
 ## 369) mixed latest batch review gate가 deferred인 이유가 단순 volume gap이 아니라, current real-user sample에 mixed leader transition path 자체가 없을 수 있다
 - 문제: 30명 `REAL_USER` 표본을 만든 뒤에도 mixed latest batch review gate는 `DEFERRED_NON_REAL_LEADER_SIGNAL` 이었다. 처음엔 example 사용자가 많아서 top1 leader가 안 바뀌는 단순 volume gap처럼 보였지만, 실제로 mixed leader 서비스 `2622(청년월세 지원사업)` 가 real-user 쪽 후보 상단에 아예 없는지까지는 확인되지 않았다.
 - 해결: blocker audit에 mixed leader 서비스의 real-user `top1/top3/top5/top10/any-rank` 출현 수를 같이 넣었다. 현재 local 값은 `real_user_mixed_leader_top1_count=0`, `top3_count=0`, `top5_count=0`, `top10_count=0` 이고, blocker class는 `MIXED_BATCH_NON_REAL_DOMINANCE_WITH_NO_REAL_USER_PATH` 다.

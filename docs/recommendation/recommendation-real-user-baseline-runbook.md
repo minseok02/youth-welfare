@@ -39,6 +39,7 @@
 
 - `deploy/smoke/run-local-ctr-readiness-audit.sh`
 - `deploy/smoke/run-local-recommendation-concentration-audit.sh`
+- `deploy/smoke/run-local-real-user-cohort-library-seed.sh`
 - `deploy/smoke/run-local-admin-dashboard-smoke.sh`
 - `deploy/smoke/run-local-admin-recommendation-breakdowns-smoke.sh`
 - `deploy/smoke/run-local-real-user-readiness-check.sh`
@@ -56,6 +57,8 @@
 - `LOCAL_REAL_NON_EXAMPLE_SEED`
 
 운영에서 `REAL_USER` 기준선을 열고 싶으면, 실제 운영 사용자 계정이 recommendation log를 남겨야 합니다.
+
+로컬 재현/관찰용 generic-domain `REAL_USER` library는 [recommendation-real-user-cohort-library-manifest.md](./recommendation-real-user-cohort-library-manifest.md) 를 따릅니다.
 
 ## 최소 표본
 

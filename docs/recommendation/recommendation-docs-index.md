@@ -20,6 +20,7 @@
 - [recommendation-ctr-readiness-runbook.md](./recommendation-ctr-readiness-runbook.md)
 - [recommendation-concentration-audit-runbook.md](./recommendation-concentration-audit-runbook.md)
 - [recommendation-real-user-baseline-runbook.md](./recommendation-real-user-baseline-runbook.md)
+- [recommendation-real-user-cohort-library-manifest.md](./recommendation-real-user-cohort-library-manifest.md)
 - [recommendation-real-user-exclusion-readiness-check-runbook.md](./recommendation-real-user-exclusion-readiness-check-runbook.md)
 - [recommendation-review-gate-blocker-audit-runbook.md](./recommendation-review-gate-blocker-audit-runbook.md)
 - [recommendation-real-user-recheck-checklist.md](./recommendation-real-user-recheck-checklist.md)
@@ -57,6 +58,7 @@
 - `bash deploy/smoke/run-local-ctr-readiness-audit.sh`
 - `bash deploy/smoke/run-local-recommendation-concentration-audit.sh`
 - `bash deploy/smoke/run-local-real-user-readiness-check.sh`
+- `bash deploy/smoke/run-local-real-user-cohort-library-seed.sh`
 - `bash deploy/smoke/run-local-recommendation-review-gate-blocker-audit.sh`
 - `bash deploy/smoke/run-local-no-priority-top1-sample.sh`
 - `bash deploy/smoke/run-local-no-priority-candidate-audit.sh`
@@ -200,6 +202,12 @@ recommendation closeout PR 관련 문서는 아래 순서로 읽는 편이 맞�
 - 서버에서 어떤 read-only wrapper를 먼저 실행해야 하는지
 
 를 정리한 운영 runbook 입니다.
+
+### 6-0. real-user cohort library manifest
+
+- [recommendation-real-user-cohort-library-manifest.md](./recommendation-real-user-cohort-library-manifest.md)
+
+이 문서는 local generic-domain signup 기반 `REAL_USER` cohort library를 어떤 의도로 설계했고, `housing / education / job / finance` targeted cohort를 어떻게 재사용할지 정리한 manifest 입니다.
 
 ### 6-1. real-user exclusion readiness check runbook
 
