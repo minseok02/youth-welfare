@@ -233,7 +233,7 @@ lane 1 reopen 을 실제로 승인하면
 
 ## 요약
 
-1. current local 기본값은 계속 `WAIT_FOR_REAL_USER_TRAFFIC` 입니다.
+1. current local 기본값은 full latest batch review gate `DEFERRED_NON_REAL_LEADER_SIGNAL` 과 recent-window supplemental reading `RECENT_WINDOW_CLEARS_HISTORICAL_2622_DOMINANCE` 를 같이 읽는 상태입니다.
 2. recommendation 을 다시 열면 첫 lane 은 `local 신호 구조화` 입니다.
 3. `diversity/balancing` 과 `direct tuning` 은 더 뒤입니다.
 4. `2736` 류 사례는 source 전체가 아니라 정책군 단위로 읽습니다.

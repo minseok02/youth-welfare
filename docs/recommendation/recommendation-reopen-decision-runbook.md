@@ -208,4 +208,4 @@ reopen 판단 전 최소한 아래 증거는 같이 봅니다.
 2. 기본 순서는 `유지 -> local 신호 구조화 -> diversity/balancing -> direct tuning` 입니다.
 3. `2736` 류 사례는 source 전체가 아니라 정책군 사례로 읽습니다.
 4. direct weight tuning 은 마지막 lane 입니다.
-5. `REAL_USER` gate가 아직 deferred면 current 기본값은 계속 `WAIT_FOR_REAL_USER_TRAFFIC` 입니다.
+5. local current truth에서는 readiness는 열렸지만 full latest batch review gate가 stale historical example inertia에 묶여 있으므로, current 기본값은 `USE_RECENT_WINDOW_AS_SUPPLEMENTAL_REVIEW_CONTEXT` 로 읽는 편이 맞습니다.

@@ -1,5 +1,10 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 383) 같은 문서 안에서 상단 current-reading 과 하단 요약이 다른 blocker를 말하면 operator가 마지막 요약 한 줄을 더 믿고 돌아간다
+- 문제: reopen-decision, next-lane 같은 문서는 상단 current-reading 을 최신 truth로 고친 뒤에도 하단 `요약` 한 줄이 여전히 `WAIT_FOR_REAL_USER_TRAFFIC` 를 말하고 있었다.
+- 해결: 상단뿐 아니라 문서 하단 summary/decision bullet까지 current truth에 맞게 다시 정리했다.
+- 이유: 실제 운영에서는 문서 상단만 읽지 않고 끝의 요약 bullet도 많이 참고한다. 같은 문서 안에서 blocker가 두 개처럼 보이면 handoff보다 혼선만 커진다.
+
 ## 382) deeper helper와 decision 문서 상단이 예전 blocker를 말하면, operator는 current-state보다 오래된 전제를 들고 재실행한다
 - 문제: snapshot/compare/volatility/drift-classify, baseline-refresh drift-check, reopen-decision, next-lane, real-user readiness helper 상단은 여전히 `WAIT_FOR_REAL_USER_TRAFFIC` 나 deferred-only 설명을 먼저 보여 줬다. 하지만 current truth는 이미 readiness opened + full latest batch historical inertia + recent-window supplemental gate까지 좁혀진 상태였다.
 - 해결: deeper helper/decision/runbook 상단 current-reading 문구를 `DEFERRED_NON_REAL_LEADER_SIGNAL` full latest batch gate와 `RECENT_WINDOW_CLEARS_HISTORICAL_2622_DOMINANCE` recent-window supplemental gate 기준으로 다시 맞췄다.
