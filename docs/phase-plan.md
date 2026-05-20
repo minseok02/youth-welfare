@@ -1,5 +1,6 @@
 # 구현 현황
 
+- 2026-05-20: 보안/검증 current baseline을 한 번 더 정리했다. `ChatAiGateway` 는 이제 OpenAI 호출 전 사용자 질문/최근 대화에서 이메일, 휴대전화, `YYYY-MM-DD` 생년월일 패턴을 `[REDACTED_*]` 로 마스킹한다. 또 `deploy/smoke/run-local-admin-authorization-smoke.sh` 를 추가해 admin summary에 대한 `비로그인 401/A006`, `일반 사용자 403/C003` 인가 경계를 짧게 재검증할 수 있게 했고, testing/smoke 문서도 이 경로를 기본 검증에 포함시켰다.
 - 2026-05-20: `docs/core/testing.md` 를 현재 closeout 기준선에 맞춰 보강했다. 이제 backend `test` / `integrationTest` 뿐 아니라 frontend `lint` / `build`, 그리고 필요 시 `ops baseline` / `policy quality summary` / `recommendation latest overview` one-shot smoke를 같이 current 전체 검증 경로로 읽는다.
 - 2026-05-20: 전체 검증 재실행에서 backend `test` 는 성공, frontend `lint` / `build` 도 성공, backend `integrationTest` 는 리포트 기준 `76 tests / 0 failures / 2 ignored / 100%` 까지 완료됐지만 Gradle test worker가 종료를 못 하고 남았다. 결과는 보고서와 XML에 남아 있어 성공으로 읽되, local Java/Gradle 종료 경계는 후속 환경 이슈로 분리한다.
 - 2026-05-20: `bounded policy admin runtime one-page runbook` 을 별도 새 문서 작업으로 다시 열지 않고 existing current runbook를 기준선으로 못 박았다. `policy-admin-runtime-runbook.md` 는 수동 admin endpoint 한 장 경로, `policy-quality-summary-runbook.md` 는 retrieval/category one-shot summary 경로로 읽는다. pending 목록에는 더 이상 “새로 정리할 일”처럼 남기지 않는다.

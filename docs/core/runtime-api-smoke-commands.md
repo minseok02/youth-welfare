@@ -43,6 +43,14 @@ deploy/smoke/run-local-admin-forced-logout-smoke.sh
 이 스크립트는 `admin login -> forced logout -> old access deny(401/A006) -> old refresh deny(401/A003) -> relogin recovery(200)` 를 한 번에 확인합니다.
 앱 재기동 직후 startup race가 있으면 `HEALTH_RETRY_COUNT`, `HEALTH_RETRY_DELAY_SECONDS` 로 health check 재시도 횟수를 늘릴 수 있습니다.
 
+관리자 무권한 접근 차단 확인은 아래 스크립트를 우선 사용합니다.
+
+```bash
+deploy/smoke/run-local-admin-authorization-smoke.sh
+```
+
+이 스크립트는 `비로그인 admin summary -> 401/A006`, `일반 사용자 admin summary -> 403/C003` 를 한 번에 확인합니다. 정상 admin smoke만 green이어도 이 경계가 깨져 있으면 false confidence가 생길 수 있으므로 같이 확인하는 편이 맞습니다.
+
 로그인 실패 누적/초기화 반복 검증은 아래 스크립트를 우선 사용합니다.
 
 ```bash

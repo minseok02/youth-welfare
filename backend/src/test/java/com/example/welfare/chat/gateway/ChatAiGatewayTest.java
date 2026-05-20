@@ -101,4 +101,19 @@ class ChatAiGatewayTest {
 
         assertThat(chatAiGateway.parseContent(content, candidates)).isNull();
     }
+
+    @Test
+    @DisplayName("AI 프롬프트 전송 전 이메일, 전화번호, 생년월일을 마스킹한다")
+    void redactSensitiveTextMasksDirectIdentifiers() {
+        String source = "메일 test.user@example.com, 전화 010-1234-5678, 생년월일 2001-04-30";
+
+        String redacted = chatAiGateway.redactSensitiveText(source);
+
+        assertThat(redacted).contains("[REDACTED_EMAIL]");
+        assertThat(redacted).contains("[REDACTED_PHONE]");
+        assertThat(redacted).contains("[REDACTED_BIRTH_DATE]");
+        assertThat(redacted).doesNotContain("test.user@example.com");
+        assertThat(redacted).doesNotContain("010-1234-5678");
+        assertThat(redacted).doesNotContain("2001-04-30");
+    }
 }

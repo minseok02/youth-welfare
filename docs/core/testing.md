@@ -84,7 +84,7 @@ AWS SES SMTP로 검증할 때는 host와 provider만 SES 기준으로 바꾸면 
 cd backend
 MAIL_HOST=email-smtp.ap-northeast-2.amazonaws.com \
 MAIL_PORT=587 \
-MAIL_USERNAME=AKIA...SMTPUSER \
+MAIL_USERNAME='<ses smtp username>' \
 MAIL_PASSWORD=ses-smtp-password \
 MAIL_PROVIDER=aws-ses-smtp \
 MAIL_FROM_ADDRESS=no-reply@example.com \
@@ -93,6 +93,11 @@ SMTP_SMOKE_TO=receiver@example.com \
 RUN_SMTP_SMOKE=true ./gradlew test --tests com.example.welfare.notification.gateway.SmtpSmokeTest --rerun-tasks
 ```
 
+보안 주의:
+
+- 실제 access key처럼 보이는 예시는 문서에 그대로 두지 않습니다. SMTP 계정 예시는 항상 placeholder 형식으로 적습니다.
+- 관리자 경로 검증은 정상 smoke만 보지 말고 비로그인 `401`, 일반 사용자 `403` 도 같이 확인합니다.
+
 ## 언제 무엇을 실행할까
 
 - 서비스/컨트롤러/리포지토리 단위 변경: `./gradlew test`
@@ -100,6 +105,7 @@ RUN_SMTP_SMOKE=true ./gradlew test --tests com.example.welfare.notification.gate
 - 북마크, 추천 refresh/get 전체 흐름 변경: `./gradlew integrationTest`
 - 프론트 페이지/상태/라우팅 변경: `cd frontend && npm run lint && npm run build`
 - SMTP 계정/비밀번호 검증: `RUN_SMTP_SMOKE=true ./gradlew test --tests com.example.welfare.notification.gateway.SmtpSmokeTest --rerun-tasks`
+- 관리자 인가 경계 확인: `bash deploy/smoke/run-local-admin-authorization-smoke.sh`
 - 배포 전 최종 확인: `./gradlew test` 실행 후 `docker compose up -d db redis` 상태에서 `./gradlew integrationTest`
 
 ## 현재 closeout 기준 전체 검증
@@ -114,6 +120,9 @@ cd backend
 cd ../frontend
 npm run lint
 npm run build
+
+cd ..
+bash deploy/smoke/run-local-admin-authorization-smoke.sh
 ```
 
 필요하면 그 다음 runtime smoke를 붙입니다.

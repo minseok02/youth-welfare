@@ -1,5 +1,13 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 952) 채팅 AI에 사용자 자유 텍스트를 그대로 보내면, 이메일/전화/생년월일 같은 직접 식별자가 외부 LLM으로 나갈 수 있다
+- 문제: `ChatAiGateway` 는 사용자 질문과 최근 대화 메시지를 그대로 OpenAI chat completion에 넣고 있었다. 사용자 프로필은 범주형으로 축약돼 있었지만, 자유 텍스트에는 이메일/전화번호/생년월일 같은 직접 식별자가 섞일 수 있어 개인정보 노출 면에서 불필요한 위험이 있었다.
+- 해결: OpenAI 호출 전 `ChatAiGateway.redactSensitiveText()` 로 이메일, 휴대전화 번호, `YYYY-MM-DD` 형태 생년월일을 `[REDACTED_*]` placeholder로 마스킹하도록 줄였다. 단위 테스트도 추가해 직접 식별자 패턴이 외부로 그대로 가지 않게 고정했다.
+
+## 951) 정상 smoke만 green이면, 관리자 무권한 접근이 깨져도 false confidence가 생긴다
+- 문제: 기존 smoke/runbook은 admin summary/breakdowns의 정상 관리자 경로는 잘 다뤘지만, 비로그인 `401` 과 일반 사용자 `403` 같은 인가 경계를 한 번에 다시 찍는 짧은 security smoke가 없었다. 이 상태면 기능 smoke가 모두 초록이어도 admin 경계 regression을 놓치기 쉬웠다.
+- 해결: `deploy/smoke/run-local-admin-authorization-smoke.sh` 를 추가해 `비로그인 admin summary -> 401/A006`, `일반 사용자 admin summary -> 403/C003` 를 한 번에 검증하게 했다. `docs/core/testing.md`, `docs/core/runtime-api-smoke-commands.md` 도 이 smoke를 current 기본 검증 경로에 포함시켰다.
+
 ## 950) integrationTest 리포트는 성공인데 Gradle test worker가 종료를 못 하고 남을 수 있다
 - 문제: `./gradlew integrationTest --no-daemon` 재실행에서 `backend/build/reports/tests/integrationTest/index.html` 기준 `76 tests / 0 failures / 2 ignored / 100%` 까지 리포트가 생성됐는데도 Gradle wrapper 프로세스가 종료되지 않고 worker가 계속 남았다.
 - 해결: 현재는 test report와 XML 결과를 성공 근거로 읽고, 남은 worker는 수동으로 정리했다. 코드 regression이라기보다 local Java/Gradle 종료 경계에 가까우므로, 다음에 반복되면 test worker shutdown 쪽으로 별도 원인 추적한다.
