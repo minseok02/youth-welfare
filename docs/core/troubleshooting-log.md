@@ -6152,3 +6152,8 @@ admin API와 latest artifact에
 - 문제: `AWAIT_EXPLICIT_PROMOTION_APPROVAL_DECISION` 까지 surface에 올린 뒤에도, 실제 승인 기록이 남았는지는 별도로 드러나지 않았다. 이 상태에선 approval criteria 충족, approval pending, approval decision pending, approval record pending이 한 덩어리처럼 읽혀 bounded promotion review 실행 경계가 다시 모호해졌다.
 - 해결: `reviewGatePolicyPromotionApprovalRecordStatus`, `reviewGatePolicyPromotionApprovalRecordReason` 을 admin API, latest artifact, active runbook, reviewer/author/PR surface에 추가했다.
 - 이유: `approval decision pending` 과 `approval record not written` 은 다른 상태다. explicit approval이 나중에 기록 기반으로 남는지까지 분리해야 operator/reviewer가 “준비는 됐지만 아직 승인 기록은 없음”을 같은 언어로 읽을 수 있다.
+
+## #929 approval record pending과 actual bounded promotion review run pending도 다른 층으로 봐야 한다
+- 문제: `PENDING_EXPLICIT_PROMOTION_APPROVAL_RECORD` 까지 보이게 한 뒤에도, 실제 bounded promotion review를 이미 실행했는지 여부는 surface에 없었다. 이 상태에선 approval record pending과 actual review run pending이 다시 같은 의미처럼 읽혀 마지막 실행 경계가 흐려졌다.
+- 해결: `reviewGatePolicyPromotionReviewRunStatus`, `reviewGatePolicyPromotionReviewRunReason` 을 admin API, latest artifact, active runbook, reviewer/author/PR surface에 추가했다.
+- 이유: explicit approval record가 아직 없어서 run을 못 하는 상태와, approval record는 남았지만 실제 bounded review run은 아직 안 돈 상태는 다른 단계다. 이 둘을 분리해야 operator/reviewer가 “승인 기록 전 대기”와 “실행 대기”를 같은 언어로 읽을 수 있다.

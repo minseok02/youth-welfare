@@ -117,6 +117,10 @@ merge 전 현재 PR 상태 reference:
   - `PENDING_EXPLICIT_PROMOTION_APPROVAL_RECORD`
 - review gate policy promotion approval record reason:
   - `APPROVAL_DECISION_PENDING_AND_RECORD_NOT_WRITTEN`
+- review gate policy promotion review run status:
+  - `PENDING_BOUNDED_PROMOTION_REVIEW_RUN`
+- review gate policy promotion review run reason:
+  - `EXPLICIT_APPROVAL_RECORD_NOT_WRITTEN_FOR_BOUNDED_REVIEW_RUN`
 - current next step:
   - `USE_RECENT_WINDOW_AS_SUPPLEMENTAL_REVIEW_CONTEXT`
 - `latest_drift_class=VOLATILE_ONLY_DRIFT`

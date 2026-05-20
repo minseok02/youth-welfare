@@ -167,6 +167,15 @@ public class AdminDashboardSummaryService {
                         reviewGatePolicyPromotionApprovalDecisionStatus,
                         reviewGatePolicyPromotionApprovalDecisionReason
                 );
+        String reviewGatePolicyPromotionReviewRunStatus =
+                AdminDashboardQueryPolicy.resolveReviewGatePolicyPromotionReviewRunStatus(
+                        reviewGatePolicyPromotionApprovalRecordStatus
+                );
+        String reviewGatePolicyPromotionReviewRunReason =
+                AdminDashboardQueryPolicy.resolveReviewGatePolicyPromotionReviewRunReason(
+                        reviewGatePolicyPromotionApprovalRecordStatus,
+                        reviewGatePolicyPromotionApprovalRecordReason
+                );
         ScoreWeightService.ScoreWeightProgress weightProgress =
                 scoreWeightService.getProgress(recommendationSummary.totalLogs());
         ScoreWeight activeWeight = weightProgress.activeWeight();
@@ -324,6 +333,8 @@ public class AdminDashboardSummaryService {
                         reviewGatePolicyPromotionApprovalDecisionReason,
                         reviewGatePolicyPromotionApprovalRecordStatus,
                         reviewGatePolicyPromotionApprovalRecordReason,
+                        reviewGatePolicyPromotionReviewRunStatus,
+                        reviewGatePolicyPromotionReviewRunReason,
                         adminDashboardRecommendationReadRepository.fetchRecommendationWeightBuckets(summaryWindowAgo).stream()
                                 .map(row -> new AdminDashboardResponse.RecommendationWeightSnapshot(
                                         row.weightKey(),
