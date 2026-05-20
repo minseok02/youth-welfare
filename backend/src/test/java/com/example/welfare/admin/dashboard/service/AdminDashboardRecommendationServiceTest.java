@@ -94,6 +94,22 @@ class AdminDashboardRecommendationServiceTest {
                         0,
                         0
                 ));
+        given(adminDashboardRecommendationReadRepository.fetchRecommendationReviewGateStalenessSnapshot(24, 2622L))
+                .willReturn(new AdminDashboardReadRows.RecommendationReviewGateStalenessRow(
+                        2622L,
+                        "ALL_TIME_LATEST_PER_USER",
+                        24,
+                        454,
+                        3,
+                        272,
+                        0,
+                        LocalDateTime.of(2026, 5, 13, 13, 39, 31),
+                        LocalDateTime.of(2026, 5, 17, 11, 49, 50),
+                        80,
+                        80,
+                        0,
+                        0
+                ));
         given(adminDashboardRecommendationReadRepository.fetchTopRepeatedRecommendationServices(3))
                 .willReturn(List.of(
                         new AdminDashboardReadRows.RecommendationRepeatedServiceRow(
@@ -272,6 +288,11 @@ class AdminDashboardRecommendationServiceTest {
         assertThat(response.recentWindowLatestBatch().top1LeaderServiceId()).isEqualTo(3284L);
         assertThat(response.recentWindowLatestBatch().top1LeaderRealUserUsers()).isEqualTo(5);
         assertThat(response.recentWindowLatestBatch().targetTop1Users()).isZero();
+        assertThat(response.reviewGateStaleness().primaryReferenceMode()).isEqualTo("ALL_TIME_LATEST_PER_USER");
+        assertThat(response.reviewGateStaleness().exampleTargetTop1Users()).isEqualTo(272);
+        assertThat(response.reviewGateStaleness().exampleTargetTop1Last24h()).isZero();
+        assertThat(response.reviewGateStaleness().realUserLatestUsers()).isEqualTo(80);
+        assertThat(response.reviewGateStaleness().realUserTargetTop1Users()).isZero();
         assertThat(response.recentWindowRecommendationReviewReading())
                 .isEqualTo("RECENT_WINDOW_CLEARS_HISTORICAL_2622_DOMINANCE");
         assertThat(response.historicalExampleDominanceDetected()).isFalse();

@@ -113,6 +113,18 @@ assert isinstance(data["realUserTrafficGateInWindow"], str) and data["realUserTr
 assert isinstance(data["recommendationReviewGate"], str) and data["recommendationReviewGate"], "recommendationReviewGate must be non-empty string"
 assert isinstance(data["recentWindowRecommendationReviewReading"], str) and data["recentWindowRecommendationReviewReading"], "recentWindowRecommendationReviewReading must be non-empty string"
 assert isinstance(data["historicalExampleDominanceDetected"], bool), "historicalExampleDominanceDetected must be bool"
+staleness = data["reviewGateStaleness"]
+assert isinstance(staleness["targetServiceId"], int), "reviewGateStaleness.targetServiceId must be int"
+assert isinstance(staleness["primaryReferenceMode"], str) and staleness["primaryReferenceMode"], "reviewGateStaleness.primaryReferenceMode must be non-empty string"
+assert isinstance(staleness["recentWindowHours"], int), "reviewGateStaleness.recentWindowHours must be int"
+assert isinstance(staleness["exampleLatestUsers"], int), "reviewGateStaleness.exampleLatestUsers must be int"
+assert isinstance(staleness["exampleLatestUsersLast24h"], int), "reviewGateStaleness.exampleLatestUsersLast24h must be int"
+assert isinstance(staleness["exampleTargetTop1Users"], int), "reviewGateStaleness.exampleTargetTop1Users must be int"
+assert isinstance(staleness["exampleTargetTop1Last24h"], int), "reviewGateStaleness.exampleTargetTop1Last24h must be int"
+assert isinstance(staleness["realUserLatestUsers"], int), "reviewGateStaleness.realUserLatestUsers must be int"
+assert isinstance(staleness["realUserLatestUsersLast24h"], int), "reviewGateStaleness.realUserLatestUsersLast24h must be int"
+assert isinstance(staleness["realUserTargetTop1Users"], int), "reviewGateStaleness.realUserTargetTop1Users must be int"
+assert isinstance(staleness["realUserTargetTop1Last24h"], int), "reviewGateStaleness.realUserTargetTop1Last24h must be int"
 concentration = data["latestBatchConcentration"]
 assert isinstance(concentration["latestBatchRows"], int), "latestBatchConcentration.latestBatchRows must be int"
 assert isinstance(concentration["latestBatchUsers"], int), "latestBatchConcentration.latestBatchUsers must be int"
@@ -248,6 +260,11 @@ print(len(data["categoryBreakdowns"]))
 print(len(data["weightBreakdowns"]))
 print(data["recentWindowRecommendationReviewReading"])
 print(str(data["historicalExampleDominanceDetected"]).lower())
+print(staleness["primaryReferenceMode"])
+print(staleness["exampleTargetTop1Users"])
+print(staleness["exampleTargetTop1Last24h"])
+print(staleness["realUserLatestUsers"])
+print(staleness["realUserTargetTop1Users"])
 print(recent["recentWindowHours"])
 print(recent["targetServiceId"])
 print(recent["latestBatchUsers"])
@@ -351,14 +368,19 @@ echo "category_breakdown_count=${BREAKDOWN_VALUES[37]}"
 echo "weight_breakdown_count=${BREAKDOWN_VALUES[38]}"
 echo "recent_window_recommendation_review_reading=${BREAKDOWN_VALUES[39]}"
 echo "historical_example_dominance_detected=${BREAKDOWN_VALUES[40]}"
-echo "recent_window_hours=${BREAKDOWN_VALUES[41]}"
-echo "recent_window_target_service_id=${BREAKDOWN_VALUES[42]}"
-echo "recent_window_latest_batch_users=${BREAKDOWN_VALUES[43]}"
-echo "recent_window_real_user_users=${BREAKDOWN_VALUES[44]}"
-echo "recent_window_top1_leader_service_id=${BREAKDOWN_VALUES[45]}"
-echo "recent_window_top1_leader_real_user_users=${BREAKDOWN_VALUES[46]}"
-echo "recent_window_target_top1_users=${BREAKDOWN_VALUES[47]}"
-echo "recent_window_target_top1_real_user_users=${BREAKDOWN_VALUES[48]}"
+echo "review_gate_primary_reference_mode=${BREAKDOWN_VALUES[41]}"
+echo "review_gate_example_target_top1_users=${BREAKDOWN_VALUES[42]}"
+echo "review_gate_example_target_top1_last_24h=${BREAKDOWN_VALUES[43]}"
+echo "review_gate_real_user_latest_users=${BREAKDOWN_VALUES[44]}"
+echo "review_gate_real_user_target_top1_users=${BREAKDOWN_VALUES[45]}"
+echo "recent_window_hours=${BREAKDOWN_VALUES[46]}"
+echo "recent_window_target_service_id=${BREAKDOWN_VALUES[47]}"
+echo "recent_window_latest_batch_users=${BREAKDOWN_VALUES[48]}"
+echo "recent_window_real_user_users=${BREAKDOWN_VALUES[49]}"
+echo "recent_window_top1_leader_service_id=${BREAKDOWN_VALUES[50]}"
+echo "recent_window_top1_leader_real_user_users=${BREAKDOWN_VALUES[51]}"
+echo "recent_window_target_top1_users=${BREAKDOWN_VALUES[52]}"
+echo "recent_window_target_top1_real_user_users=${BREAKDOWN_VALUES[53]}"
 echo "summary_window_days=${SUMMARY_WINDOW_DAYS}"
 echo "breakdown_limit=${BREAKDOWN_LIMIT}"
 if [[ -n "${CONTAINER_ADMIN_ALLOWLIST}" ]]; then

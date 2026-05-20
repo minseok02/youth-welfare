@@ -1,5 +1,10 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 920) recent-window gate를 admin API에 올린 뒤에도 full latest batch gate의 reference window와 stale target counts가 안 보이면, operator는 여전히 wrapper와 API를 머리로 합쳐야 한다
+- 문제: admin summary/breakdowns 는 이미 `recentWindowLatestBatch`, `recentWindowRecommendationReviewReading`, `historicalExampleDominanceDetected` 를 내리고 있었지만, full latest batch gate가 실제로 `ALL_TIME_LATEST_PER_USER` 기준인지와 `2622` historical example top1이 최근 24시간에는 `0` 인지 같은 staleness 근거는 wrapper(`run-local-recommendation-review-gate-staleness-audit.sh`)에서만 확인할 수 있었다.
+- 해결: admin summary/breakdowns 에 `reviewGateStaleness` snapshot을 추가하고, smoke contract도 `primaryReferenceMode=ALL_TIME_LATEST_PER_USER`, `exampleTargetTop1Users`, `exampleTargetTop1Last24h`, `realUserLatestUsers`, `realUserTargetTop1Users` 를 직접 검증하도록 확장했다.
+- 이유: next step이 primary review gate 정책 자체를 조정할지 검토하는 것이라면, “recent-window가 clear하다” 뿐 아니라 “primary gate가 무엇을 보고 막고 있는가”를 API surface에서 바로 읽을 수 있어야 한다.
+
 ## 919) reviewer-facing brief와 draft checklist가 gate 값만 말하고 “리뷰 가능하지만 draft 유지” 상태값을 안 적으면, 사람은 다시 PASS/blocked 조합을 머리로 번역해야 한다
 - 문제: reviewer/operator/author surface에 `gate_status=PASS`, `gate_policy_status=PRIMARY_BLOCKED_SUPPLEMENTAL_CLEAR` 는 이미 올라갔지만, PR review brief와 draft/post-merge checklist는 여전히 그 조합을 사람이 다시 `review는 가능하지만 undraft는 안 됨`으로 번역해야 했다.
 - 해결: `recommendation-pr-review-brief.md`, `recommendation-pr-draft-exit-checklist.md`, `recommendation-post-merge-followup-checklist.md` 에 `PR review readiness status=REVIEWER_READY`, `PR draft maintenance status=DRAFT_MAINTAINED_BY_POLICY_GATE` 를 직접 추가했다.

@@ -49,6 +49,11 @@ public class AdminDashboardSummaryService {
                         AdminDashboardQueryPolicy.RECENT_REVIEW_WINDOW_HOURS,
                         AdminDashboardQueryPolicy.HISTORICAL_TARGET_TOP1_SERVICE_ID
                 );
+        AdminDashboardReadRows.RecommendationReviewGateStalenessRow reviewGateStalenessSnapshot =
+                adminDashboardRecommendationReadRepository.fetchRecommendationReviewGateStalenessSnapshot(
+                        AdminDashboardQueryPolicy.RECENT_REVIEW_WINDOW_HOURS,
+                        AdminDashboardQueryPolicy.HISTORICAL_TARGET_TOP1_SERVICE_ID
+                );
         String realUserTrafficGate =
                 AdminDashboardQueryPolicy.resolveRealUserTrafficGate(recommendationSummary, recommendationTrafficMix);
         String recommendationReviewGate =
@@ -181,6 +186,21 @@ public class AdminDashboardSummaryService {
                                 recentWindowReviewSnapshot.recentTop1LeaderSharePct(),
                                 recentWindowReviewSnapshot.recentTargetTop1Users(),
                                 recentWindowReviewSnapshot.recentTargetTop1RealUserUsers()
+                        ),
+                        new AdminDashboardResponse.RecommendationReviewGateStalenessSnapshot(
+                                reviewGateStalenessSnapshot.targetServiceId(),
+                                reviewGateStalenessSnapshot.primaryReferenceMode(),
+                                reviewGateStalenessSnapshot.recentWindowHours(),
+                                reviewGateStalenessSnapshot.exampleLatestUsers(),
+                                reviewGateStalenessSnapshot.exampleLatestUsersLast24h(),
+                                reviewGateStalenessSnapshot.exampleTargetTop1Users(),
+                                reviewGateStalenessSnapshot.exampleTargetTop1Last24h(),
+                                reviewGateStalenessSnapshot.exampleTargetOldestTop1At(),
+                                reviewGateStalenessSnapshot.exampleTargetNewestTop1At(),
+                                reviewGateStalenessSnapshot.realUserLatestUsers(),
+                                reviewGateStalenessSnapshot.realUserLatestUsersLast24h(),
+                                reviewGateStalenessSnapshot.realUserTargetTop1Users(),
+                                reviewGateStalenessSnapshot.realUserTargetTop1Last24h()
                         ),
                         recentWindowRecommendationReviewReading,
                         historicalExampleDominanceDetected,

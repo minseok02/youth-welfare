@@ -660,6 +660,21 @@ class AdminSecurityWebMvcTest {
                                         0,
                                         0
                                 ),
+                                new AdminDashboardResponse.RecommendationReviewGateStalenessSnapshot(
+                                        2622L,
+                                        "ALL_TIME_LATEST_PER_USER",
+                                        24,
+                                        454,
+                                        3,
+                                        272,
+                                        0,
+                                        LocalDateTime.of(2026, 5, 13, 13, 39, 31),
+                                        LocalDateTime.of(2026, 5, 17, 11, 49, 50),
+                                        80,
+                                        80,
+                                        0,
+                                        0
+                                ),
                                 "RECENT_WINDOW_CLEARS_HISTORICAL_2622_DOMINANCE",
                                 true,
                                 List.of(
@@ -750,6 +765,11 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.data.recommendation.recentWindowLatestBatch.top1LeaderServiceId").value(3284))
                 .andExpect(jsonPath("$.data.recommendation.recentWindowLatestBatch.top1LeaderRealUserUsers").value(5))
                 .andExpect(jsonPath("$.data.recommendation.recentWindowLatestBatch.targetTop1Users").value(0))
+                .andExpect(jsonPath("$.data.recommendation.reviewGateStaleness.primaryReferenceMode").value("ALL_TIME_LATEST_PER_USER"))
+                .andExpect(jsonPath("$.data.recommendation.reviewGateStaleness.exampleTargetTop1Users").value(272))
+                .andExpect(jsonPath("$.data.recommendation.reviewGateStaleness.exampleTargetTop1Last24h").value(0))
+                .andExpect(jsonPath("$.data.recommendation.reviewGateStaleness.realUserLatestUsers").value(80))
+                .andExpect(jsonPath("$.data.recommendation.reviewGateStaleness.realUserTargetTop1Users").value(0))
                 .andExpect(jsonPath("$.data.recommendation.recentWindowRecommendationReviewReading").value("RECENT_WINDOW_CLEARS_HISTORICAL_2622_DOMINANCE"))
                 .andExpect(jsonPath("$.data.recommendation.historicalExampleDominanceDetected").value(true))
                 .andExpect(jsonPath("$.data.notification.windowDays").value(7))
@@ -853,6 +873,21 @@ class AdminSecurityWebMvcTest {
                                         0,
                                         0
                                 ),
+                                new AdminDashboardResponse.RecommendationReviewGateStalenessSnapshot(
+                                        2622L,
+                                        "ALL_TIME_LATEST_PER_USER",
+                                        24,
+                                        0,
+                                        0,
+                                        0,
+                                        0,
+                                        null,
+                                        null,
+                                        0,
+                                        0,
+                                        0,
+                                        0
+                                ),
                                 "DEFERRED_EMPTY_RECENT_WINDOW",
                                 false,
                                 List.of()
@@ -909,6 +944,8 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.data.recommendation.realUserTrafficGateInWindow").value("DEFERRED_NO_REAL_USER_TRAFFIC"))
                 .andExpect(jsonPath("$.data.recommendation.recommendationReviewGate").value("DEFERRED_NO_REAL_USER_TRAFFIC"))
                 .andExpect(jsonPath("$.data.recommendation.latestBatchConcentration.concentrationReadiness").value("DEFERRED_EMPTY_COHORT"))
+                .andExpect(jsonPath("$.data.recommendation.reviewGateStaleness.primaryReferenceMode").value("ALL_TIME_LATEST_PER_USER"))
+                .andExpect(jsonPath("$.data.recommendation.reviewGateStaleness.exampleTargetTop1Users").value(0))
                 .andExpect(jsonPath("$.data.recommendation.recentWindowRecommendationReviewReading").value("DEFERRED_EMPTY_RECENT_WINDOW"))
                 .andExpect(jsonPath("$.data.recommendation.historicalExampleDominanceDetected").value(false))
                 .andExpect(jsonPath("$.data.notification.windowDays").value(14))
@@ -1096,6 +1133,21 @@ class AdminSecurityWebMvcTest {
                                 0,
                                 0
                         ),
+                        new AdminRecommendationBreakdownResponse.RecommendationReviewGateStalenessSnapshot(
+                                2622L,
+                                "ALL_TIME_LATEST_PER_USER",
+                                24,
+                                454,
+                                3,
+                                272,
+                                0,
+                                LocalDateTime.of(2026, 5, 13, 13, 39, 31),
+                                LocalDateTime.of(2026, 5, 17, 11, 49, 50),
+                                80,
+                                80,
+                                0,
+                                0
+                        ),
                         "RECENT_WINDOW_CLEARS_HISTORICAL_2622_DOMINANCE",
                         true,
                         List.of(
@@ -1280,6 +1332,11 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.data.recentWindowLatestBatch.top1LeaderServiceId").value(3284))
                 .andExpect(jsonPath("$.data.recentWindowLatestBatch.top1LeaderRealUserUsers").value(5))
                 .andExpect(jsonPath("$.data.recentWindowLatestBatch.targetTop1Users").value(0))
+                .andExpect(jsonPath("$.data.reviewGateStaleness.primaryReferenceMode").value("ALL_TIME_LATEST_PER_USER"))
+                .andExpect(jsonPath("$.data.reviewGateStaleness.exampleTargetTop1Users").value(272))
+                .andExpect(jsonPath("$.data.reviewGateStaleness.exampleTargetTop1Last24h").value(0))
+                .andExpect(jsonPath("$.data.reviewGateStaleness.realUserLatestUsers").value(80))
+                .andExpect(jsonPath("$.data.reviewGateStaleness.realUserTargetTop1Users").value(0))
                 .andExpect(jsonPath("$.data.recentWindowRecommendationReviewReading").value("RECENT_WINDOW_CLEARS_HISTORICAL_2622_DOMINANCE"))
                 .andExpect(jsonPath("$.data.historicalExampleDominanceDetected").value(true))
                 .andExpect(jsonPath("$.data.topRepeatedServices[0].serviceId").value(2622))

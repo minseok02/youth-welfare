@@ -109,6 +109,18 @@ assert isinstance(data["recommendation"]["realUserTrafficGateInWindow"], str) an
 assert isinstance(data["recommendation"]["recommendationReviewGate"], str) and data["recommendation"]["recommendationReviewGate"], "recommendation.recommendationReviewGate must be non-empty string"
 assert isinstance(data["recommendation"]["recentWindowRecommendationReviewReading"], str) and data["recommendation"]["recentWindowRecommendationReviewReading"], "recommendation.recentWindowRecommendationReviewReading must be non-empty string"
 assert isinstance(data["recommendation"]["historicalExampleDominanceDetected"], bool), "recommendation.historicalExampleDominanceDetected must be bool"
+staleness = data["recommendation"]["reviewGateStaleness"]
+assert isinstance(staleness["targetServiceId"], int), "recommendation.reviewGateStaleness.targetServiceId must be int"
+assert isinstance(staleness["primaryReferenceMode"], str) and staleness["primaryReferenceMode"], "recommendation.reviewGateStaleness.primaryReferenceMode must be non-empty string"
+assert isinstance(staleness["recentWindowHours"], int), "recommendation.reviewGateStaleness.recentWindowHours must be int"
+assert isinstance(staleness["exampleLatestUsers"], int), "recommendation.reviewGateStaleness.exampleLatestUsers must be int"
+assert isinstance(staleness["exampleLatestUsersLast24h"], int), "recommendation.reviewGateStaleness.exampleLatestUsersLast24h must be int"
+assert isinstance(staleness["exampleTargetTop1Users"], int), "recommendation.reviewGateStaleness.exampleTargetTop1Users must be int"
+assert isinstance(staleness["exampleTargetTop1Last24h"], int), "recommendation.reviewGateStaleness.exampleTargetTop1Last24h must be int"
+assert isinstance(staleness["realUserLatestUsers"], int), "recommendation.reviewGateStaleness.realUserLatestUsers must be int"
+assert isinstance(staleness["realUserLatestUsersLast24h"], int), "recommendation.reviewGateStaleness.realUserLatestUsersLast24h must be int"
+assert isinstance(staleness["realUserTargetTop1Users"], int), "recommendation.reviewGateStaleness.realUserTargetTop1Users must be int"
+assert isinstance(staleness["realUserTargetTop1Last24h"], int), "recommendation.reviewGateStaleness.realUserTargetTop1Last24h must be int"
 concentration = data["recommendation"]["latestBatchConcentration"]
 assert isinstance(concentration["latestBatchRows"], int), "recommendation.latestBatchConcentration.latestBatchRows must be int"
 assert isinstance(concentration["latestBatchUsers"], int), "recommendation.latestBatchConcentration.latestBatchUsers must be int"
@@ -192,6 +204,11 @@ print(data["collect"]["windowDays"])
 print(",".join(str(v) for v in collect_windows))
 print(data["recommendation"]["recentWindowRecommendationReviewReading"])
 print(str(data["recommendation"]["historicalExampleDominanceDetected"]).lower())
+print(staleness["primaryReferenceMode"])
+print(staleness["exampleTargetTop1Users"])
+print(staleness["exampleTargetTop1Last24h"])
+print(staleness["realUserLatestUsers"])
+print(staleness["realUserTargetTop1Users"])
 print(recent["recentWindowHours"])
 print(recent["targetServiceId"])
 print(recent["latestBatchUsers"])
@@ -296,14 +313,19 @@ echo "summary_window_days=${DASHBOARD_VALUES[30]}"
 echo "collect_trend_windows=${DASHBOARD_VALUES[31]}"
 echo "recommendation_recent_window_review_reading=${DASHBOARD_VALUES[32]}"
 echo "recommendation_historical_example_dominance_detected=${DASHBOARD_VALUES[33]}"
-echo "recommendation_recent_window_hours=${DASHBOARD_VALUES[34]}"
-echo "recommendation_recent_window_target_service_id=${DASHBOARD_VALUES[35]}"
-echo "recommendation_recent_window_latest_batch_users=${DASHBOARD_VALUES[36]}"
-echo "recommendation_recent_window_real_user_users=${DASHBOARD_VALUES[37]}"
-echo "recommendation_recent_window_top1_leader_service_id=${DASHBOARD_VALUES[38]}"
-echo "recommendation_recent_window_top1_leader_real_user_users=${DASHBOARD_VALUES[39]}"
-echo "recommendation_recent_window_target_top1_users=${DASHBOARD_VALUES[40]}"
-echo "recommendation_recent_window_target_top1_real_user_users=${DASHBOARD_VALUES[41]}"
+echo "recommendation_review_gate_primary_reference_mode=${DASHBOARD_VALUES[34]}"
+echo "recommendation_review_gate_example_target_top1_users=${DASHBOARD_VALUES[35]}"
+echo "recommendation_review_gate_example_target_top1_last_24h=${DASHBOARD_VALUES[36]}"
+echo "recommendation_review_gate_real_user_latest_users=${DASHBOARD_VALUES[37]}"
+echo "recommendation_review_gate_real_user_target_top1_users=${DASHBOARD_VALUES[38]}"
+echo "recommendation_recent_window_hours=${DASHBOARD_VALUES[39]}"
+echo "recommendation_recent_window_target_service_id=${DASHBOARD_VALUES[40]}"
+echo "recommendation_recent_window_latest_batch_users=${DASHBOARD_VALUES[41]}"
+echo "recommendation_recent_window_real_user_users=${DASHBOARD_VALUES[42]}"
+echo "recommendation_recent_window_top1_leader_service_id=${DASHBOARD_VALUES[43]}"
+echo "recommendation_recent_window_top1_leader_real_user_users=${DASHBOARD_VALUES[44]}"
+echo "recommendation_recent_window_target_top1_users=${DASHBOARD_VALUES[45]}"
+echo "recommendation_recent_window_target_top1_real_user_users=${DASHBOARD_VALUES[46]}"
 echo "requested_summary_window_days=${SUMMARY_WINDOW_DAYS}"
 echo "requested_trend_window_days=${TREND_WINDOW_DAYS_CSV}"
 if [[ -n "${CONTAINER_ADMIN_ALLOWLIST}" ]]; then

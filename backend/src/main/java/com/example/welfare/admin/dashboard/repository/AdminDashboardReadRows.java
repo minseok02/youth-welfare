@@ -179,6 +179,23 @@ public final class AdminDashboardReadRows {
     ) {
     }
 
+    public record RecommendationReviewGateStalenessRow(
+            long targetServiceId,
+            String primaryReferenceMode,
+            int recentWindowHours,
+            long exampleLatestUsers,
+            long exampleLatestUsersLast24h,
+            long exampleTargetTop1Users,
+            long exampleTargetTop1Last24h,
+            LocalDateTime exampleTargetOldestTop1At,
+            LocalDateTime exampleTargetNewestTop1At,
+            long realUserLatestUsers,
+            long realUserLatestUsersLast24h,
+            long realUserTargetTop1Users,
+            long realUserTargetTop1Last24h
+    ) {
+    }
+
     public record RecommendationRepeatedServiceRow(
             Long serviceId,
             String title,

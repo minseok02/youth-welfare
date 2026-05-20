@@ -447,6 +447,103 @@ public class AdminDashboardRecommendationReadRepository {
         );
     }
 
+    public AdminDashboardReadRows.RecommendationReviewGateStalenessRow fetchRecommendationReviewGateStalenessSnapshot(
+            int recentWindowHours,
+            long targetServiceId
+    ) {
+        return jdbcTemplate.queryForObject("""
+                with latest as (
+                    select user_key, max(recommended_at) as recommended_at
+                      from user_recommendations
+                     group by user_key
+                ),
+                ranked as (
+                    select ur.user_key,
+                           %1$s as user_origin,
+                           case
+                               when %1$s = 'EXAMPLE_SMOKE' then 'EXAMPLE_SMOKE'
+                               when %1$s = 'BOUNDED_LOCAL' then 'BOUNDED_LOCAL'
+                               when %1$s = 'LOCAL_REAL_NON_EXAMPLE_SEED' then 'LOCAL_REAL_NON_EXAMPLE_SEED'
+                               else 'REAL_USER'
+                           end as user_cohort,
+                           ur.recommended_at,
+                           ws.id as service_id,
+                           row_number() over (
+                               partition by ur.user_key
+                               order by ur.final_score desc, ur.id desc
+                           ) as rn
+                      from user_recommendations ur
+                      join latest l
+                        on l.user_key = ur.user_key
+                       and l.recommended_at = ur.recommended_at
+                      join users u
+                        on u.user_key = ur.user_key
+                      join welfare_services ws
+                        on ws.id = ur.service_id
+                ),
+                example_summary as (
+                    select count(*) filter (where rn = 1 and user_cohort = 'EXAMPLE_SMOKE') as latest_users,
+                           count(*) filter (where rn = 1 and user_cohort = 'EXAMPLE_SMOKE'
+                               and recommended_at >= now() - make_interval(hours => :recentWindowHours)) as latest_users_last_24h,
+                           count(*) filter (where rn = 1 and user_cohort = 'EXAMPLE_SMOKE'
+                               and service_id = :targetServiceId) as target_top1_users,
+                           count(*) filter (where rn = 1 and user_cohort = 'EXAMPLE_SMOKE'
+                               and service_id = :targetServiceId
+                               and recommended_at >= now() - make_interval(hours => :recentWindowHours)) as target_top1_last_24h,
+                           min(recommended_at) filter (where rn = 1 and user_cohort = 'EXAMPLE_SMOKE'
+                               and service_id = :targetServiceId) as target_oldest_top1_at,
+                           max(recommended_at) filter (where rn = 1 and user_cohort = 'EXAMPLE_SMOKE'
+                               and service_id = :targetServiceId) as target_newest_top1_at
+                      from ranked
+                ),
+                real_user_summary as (
+                    select count(*) filter (where rn = 1 and user_cohort = 'REAL_USER') as latest_users,
+                           count(*) filter (where rn = 1 and user_cohort = 'REAL_USER'
+                               and recommended_at >= now() - make_interval(hours => :recentWindowHours)) as latest_users_last_24h,
+                           count(*) filter (where rn = 1 and user_cohort = 'REAL_USER'
+                               and service_id = :targetServiceId) as target_top1_users,
+                           count(*) filter (where rn = 1 and user_cohort = 'REAL_USER'
+                               and service_id = :targetServiceId
+                               and recommended_at >= now() - make_interval(hours => :recentWindowHours)) as target_top1_last_24h
+                      from ranked
+                )
+                select :targetServiceId as target_service_id,
+                       'ALL_TIME_LATEST_PER_USER' as primary_reference_mode,
+                       :recentWindowHours as recent_window_hours,
+                       coalesce(example_summary.latest_users, 0) as example_latest_users,
+                       coalesce(example_summary.latest_users_last_24h, 0) as example_latest_users_last_24h,
+                       coalesce(example_summary.target_top1_users, 0) as example_target_top1_users,
+                       coalesce(example_summary.target_top1_last_24h, 0) as example_target_top1_last_24h,
+                       example_summary.target_oldest_top1_at as example_target_oldest_top1_at,
+                       example_summary.target_newest_top1_at as example_target_newest_top1_at,
+                       coalesce(real_user_summary.latest_users, 0) as real_user_latest_users,
+                       coalesce(real_user_summary.latest_users_last_24h, 0) as real_user_latest_users_last_24h,
+                       coalesce(real_user_summary.target_top1_users, 0) as real_user_target_top1_users,
+                       coalesce(real_user_summary.target_top1_last_24h, 0) as real_user_target_top1_last_24h
+                  from example_summary
+                  cross join real_user_summary
+                """.formatted(RECOMMENDATION_USER_ORIGIN_SQL),
+                new MapSqlParameterSource()
+                        .addValue("recentWindowHours", recentWindowHours)
+                        .addValue("targetServiceId", targetServiceId),
+                (rs, rowNum) -> new AdminDashboardReadRows.RecommendationReviewGateStalenessRow(
+                        rs.getLong("target_service_id"),
+                        rs.getString("primary_reference_mode"),
+                        rs.getInt("recent_window_hours"),
+                        rs.getLong("example_latest_users"),
+                        rs.getLong("example_latest_users_last_24h"),
+                        rs.getLong("example_target_top1_users"),
+                        rs.getLong("example_target_top1_last_24h"),
+                        AdminDashboardJdbcSupport.getLocalDateTime(rs, "example_target_oldest_top1_at"),
+                        AdminDashboardJdbcSupport.getLocalDateTime(rs, "example_target_newest_top1_at"),
+                        rs.getLong("real_user_latest_users"),
+                        rs.getLong("real_user_latest_users_last_24h"),
+                        rs.getLong("real_user_target_top1_users"),
+                        rs.getLong("real_user_target_top1_last_24h")
+                )
+        );
+    }
+
     public List<AdminDashboardReadRows.RecommendationRepeatedServiceRow> fetchTopRepeatedRecommendationServices(int limit) {
         return jdbcTemplate.query("""
                 with latest as (

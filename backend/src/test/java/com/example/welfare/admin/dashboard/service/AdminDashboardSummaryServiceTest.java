@@ -154,6 +154,22 @@ class AdminDashboardSummaryServiceTest {
                         0,
                         0
                 ));
+        given(adminDashboardRecommendationReadRepository.fetchRecommendationReviewGateStalenessSnapshot(24, 2622L))
+                .willReturn(new AdminDashboardReadRows.RecommendationReviewGateStalenessRow(
+                        2622L,
+                        "ALL_TIME_LATEST_PER_USER",
+                        24,
+                        454,
+                        3,
+                        272,
+                        0,
+                        LocalDateTime.of(2026, 5, 13, 13, 39, 31),
+                        LocalDateTime.of(2026, 5, 17, 11, 49, 50),
+                        80,
+                        80,
+                        0,
+                        0
+                ));
         ScoreWeight activeWeight = ScoreWeight.builder()
                 .weightKey("GROWTH")
                 .ruleWeight(new BigDecimal("0.60"))
@@ -262,6 +278,12 @@ class AdminDashboardSummaryServiceTest {
         assertThat(response.recommendation().recentWindowLatestBatch().top1LeaderServiceId()).isEqualTo(3284L);
         assertThat(response.recommendation().recentWindowLatestBatch().top1LeaderRealUserUsers()).isEqualTo(5);
         assertThat(response.recommendation().recentWindowLatestBatch().targetTop1Users()).isZero();
+        assertThat(response.recommendation().reviewGateStaleness().primaryReferenceMode())
+                .isEqualTo("ALL_TIME_LATEST_PER_USER");
+        assertThat(response.recommendation().reviewGateStaleness().exampleTargetTop1Users()).isEqualTo(272);
+        assertThat(response.recommendation().reviewGateStaleness().exampleTargetTop1Last24h()).isZero();
+        assertThat(response.recommendation().reviewGateStaleness().realUserLatestUsers()).isEqualTo(80);
+        assertThat(response.recommendation().reviewGateStaleness().realUserTargetTop1Users()).isZero();
         assertThat(response.recommendation().recentWindowRecommendationReviewReading())
                 .isEqualTo("RECENT_WINDOW_CLEARS_HISTORICAL_2622_DOMINANCE");
         assertThat(response.recommendation().historicalExampleDominanceDetected()).isFalse();
@@ -335,6 +357,22 @@ class AdminDashboardSummaryServiceTest {
                         0,
                         0,
                         BigDecimal.ZERO,
+                        0,
+                        0
+                ));
+        given(adminDashboardRecommendationReadRepository.fetchRecommendationReviewGateStalenessSnapshot(24, 2622L))
+                .willReturn(new AdminDashboardReadRows.RecommendationReviewGateStalenessRow(
+                        2622L,
+                        "ALL_TIME_LATEST_PER_USER",
+                        24,
+                        0,
+                        0,
+                        0,
+                        0,
+                        null,
+                        null,
+                        0,
+                        0,
                         0,
                         0
                 ));

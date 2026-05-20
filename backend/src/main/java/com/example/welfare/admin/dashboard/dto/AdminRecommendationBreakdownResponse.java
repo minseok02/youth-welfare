@@ -15,6 +15,7 @@ public record AdminRecommendationBreakdownResponse(
         RecommendationConcentrationSnapshot latestBatchConcentration,
         String recommendationReviewGate,
         RecommendationRecentWindowSnapshot recentWindowLatestBatch,
+        RecommendationReviewGateStalenessSnapshot reviewGateStaleness,
         String recentWindowRecommendationReviewReading,
         boolean historicalExampleDominanceDetected,
         List<RepeatedServiceSnapshot> topRepeatedServices,
@@ -80,6 +81,23 @@ public record AdminRecommendationBreakdownResponse(
             BigDecimal top1LeaderSharePct,
             long targetTop1Users,
             long targetTop1RealUserUsers
+    ) {
+    }
+
+    public record RecommendationReviewGateStalenessSnapshot(
+            long targetServiceId,
+            String primaryReferenceMode,
+            int recentWindowHours,
+            long exampleLatestUsers,
+            long exampleLatestUsersLast24h,
+            long exampleTargetTop1Users,
+            long exampleTargetTop1Last24h,
+            LocalDateTime exampleTargetOldestTop1At,
+            LocalDateTime exampleTargetNewestTop1At,
+            long realUserLatestUsers,
+            long realUserLatestUsersLast24h,
+            long realUserTargetTop1Users,
+            long realUserTargetTop1Last24h
     ) {
     }
 
