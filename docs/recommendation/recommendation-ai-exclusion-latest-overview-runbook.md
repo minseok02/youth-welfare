@@ -124,6 +124,10 @@ bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-overview.sh
   - recent-window current-live signal을 실제 policy gate 후보로 볼 수 있는 상태라는 뜻입니다.
 - `review_gate_policy_candidate_reason=PRIMARY_GATE_BLOCKED_BY_STALE_ALL_TIME_EXAMPLE_REFERENCE_BUT_RECENT_WINDOW_CLEAR`
   - 위 candidate 상태를 만든 직접 이유입니다.
+- `review_gate_policy_promotion_status=REQUIRES_EXPLICIT_POLICY_CHANGE_REVIEW`
+  - candidate와 별도로, current 시점에 recent-window를 바로 primary gate로 승격하는 단계는 아니라는 뜻입니다.
+- `review_gate_policy_promotion_reason=RECENT_WINDOW_IS_A_CANDIDATE_BUT_PRIMARY_BASELINE_IS_STILL_ALL_TIME_LATEST`
+  - 위 promotion 보류 상태를 만든 직접 이유입니다.
 - `review_gate_interpretation_class=HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR`
   - primary full latest batch gate는 historical blocker인데 recent-window current-live signal은 이미 clear라는 뜻입니다.
 - `review_gate_operating_mode=PRIMARY_BASELINE_WITH_SUPPLEMENTAL_RECENT_WINDOW`

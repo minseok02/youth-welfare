@@ -52,6 +52,8 @@ bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-status.sh
 - `gate_policy_reason`
 - `review_gate_policy_candidate_status`
 - `review_gate_policy_candidate_reason`
+- `review_gate_policy_promotion_status`
+- `review_gate_policy_promotion_reason`
 - `status_json_stale_relative_to_summaries`
 - `status_json_recommended_action`
 - `latest_drift_class`
@@ -73,6 +75,8 @@ bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-status.sh
 - `review_gate_operating_mode`
 - `review_gate_policy_candidate_status`
 - `review_gate_policy_candidate_reason`
+- `review_gate_policy_promotion_status`
+- `review_gate_policy_promotion_reason`
 - `recent_window_recommendation_review_reading`
 - `historical_example_dominance_detected`
 
@@ -94,6 +98,10 @@ bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-status.sh
   - primary full latest batch gate는 아직 blocker지만, recent-window current-live signal은 실제 policy gate 후보로 볼 수 있는 상태라는 뜻입니다.
 - `review_gate_policy_candidate_reason=PRIMARY_GATE_BLOCKED_BY_STALE_ALL_TIME_EXAMPLE_REFERENCE_BUT_RECENT_WINDOW_CLEAR`
   - 위 candidate 상태를 만든 직접 이유입니다.
+- `review_gate_policy_promotion_status=REQUIRES_EXPLICIT_POLICY_CHANGE_REVIEW`
+  - recent-window는 후보이지만, primary baseline이 아직 `ALL_TIME_LATEST_PER_USER` 이라 즉시 승격이 아니라 explicit policy change review가 필요하다는 뜻입니다.
+- `review_gate_policy_promotion_reason=RECENT_WINDOW_IS_A_CANDIDATE_BUT_PRIMARY_BASELINE_IS_STILL_ALL_TIME_LATEST`
+  - 위 promotion 보류 상태를 만든 직접 이유입니다.
 - `review_gate_interpretation_class=HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR`
   - primary full latest batch gate는 아직 historical blocker인데, supplemental recent-window current signal은 이미 clear 쪽으로 움직였다는 뜻입니다.
 - `review_gate_operating_mode=PRIMARY_BASELINE_WITH_SUPPLEMENTAL_RECENT_WINDOW`
