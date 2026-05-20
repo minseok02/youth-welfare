@@ -16,7 +16,7 @@
 
 현재 단계 해석:
 
-- local current blocker는 `WAIT_FOR_REAL_USER_TRAFFIC` 자체가 아니라, live readiness가 열린 뒤에도 mixed latest batch review gate가 `DEFERRED_NON_REAL_LEADER_SIGNAL` 로 남는지 확인하는 단계입니다.
+- local current blocker는 full latest batch review gate `DEFERRED_NON_REAL_LEADER_SIGNAL` 이고, 핵심 해석은 historical example latest batch dominance + stale example saved batch path + current real SQL gap 입니다.
 - latest artifact reading은 계속 `VOLATILE_ONLY_DRIFT` 이고, 이 문서는 reopen 결정문이 아니라 **mixed batch leader blocker를 읽는 보조 audit** 입니다.
 
 ## 목적

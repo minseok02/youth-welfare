@@ -1,5 +1,10 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 386) active runbook이 “옛 blocker는 아니다” 수준에서 멈추면, 지금의 blocker가 무엇인지는 다시 추론해야 한다
+- 문제: `recommendation-review-gate-blocker-audit-runbook.md` 상단은 `WAIT_FOR_REAL_USER_TRAFFIC 자체가 아니다` 라고는 말했지만, 지금 실제 current blocker가 `DEFERRED_NON_REAL_LEADER_SIGNAL + historical example latest batch dominance + stale example saved batch path + current real SQL gap` 이라는 점을 직접 쓰지 않았다.
+- 해결: runbook 상단 current-reading 문구를 부정형 설명이 아니라 현재 truth 자체를 바로 말하는 문장으로 바꿨다.
+- 이유: operator는 “무엇이 아닌가”보다 “지금 무엇인가”를 먼저 봐야 한다. 부정형 설명만 남으면 여전히 current-state로 돌아가 재추론해야 해서 실행 흐름이 길어진다.
+
 ## 385) active helper 상단은 최신화돼도 operation checklist와 남은 runbook 상단이 옛 blocker를 말하면 운영자가 다시 예전 순서로 돌아간다
 - 문제: baseline-refresh, latest-overview, latest-gate, primary-audience memo, operation checklist 일부 현재형 문장은 여전히 `WAIT_FOR_REAL_USER_TRAFFIC` / deferred-only 해석을 먼저 보여 줬다. 하지만 current truth는 readiness opened + full latest batch historical inertia + recent-window supplemental gate까지 좁혀진 상태였다.
 - 해결: 현재형으로 쓰인 active helper/runbook/checklist 상단과 “지금 local에서 다시 시작할 때” 같은 구간을 최신 truth로 다시 맞췄다. 과거 `2026-05-19` baseline 관측 자체는 history evidence로 남겨 두고, current operator instruction만 바꿨다.
