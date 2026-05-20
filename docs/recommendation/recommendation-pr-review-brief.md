@@ -129,6 +129,23 @@ explicit promotion review 기준은 [recommendation-review-gate-policy-promotion
 
 즉 현재 PR은 **review는 바로 가능한 closeout + observability + handoff 정리 PR** 이지만, undraft는 아직 policy gate가 막는 상태로 읽는 편이 맞습니다.
 
+### 상태값 빠른 번역
+
+- `REVIEWER_READY`
+  - 리뷰는 지금 바로 시작해도 된다는 뜻입니다.
+- `DRAFT_MAINTAINED_BY_POLICY_GATE`
+  - 코드가 미완성이라서가 아니라, 정책 판단이 아직 안 끝나서 draft를 유지한다는 뜻입니다.
+- `RECENT_WINDOW_POLICY_CANDIDATE`
+  - recent-window는 운영 판단 후보로 볼 만하다는 뜻입니다.
+- `KEEP_PRIMARY_BASELINE`
+  - 하지만 현재 운영 기준은 아직 old full latest batch baseline을 유지한다는 뜻입니다.
+- `READY_FOR_BOUNDED_PROMOTION_REVIEW`
+  - bounded review를 시작할 준비는 이미 됐다는 뜻입니다.
+- `PASS_RECENT_WINDOW_POLICY_CANDIDATE`
+  - bounded review를 실제로 돌려 보면 recent-window 쪽은 후보로 합격이라는 뜻입니다.
+
+한 줄로 줄이면, **리뷰는 진행 가능하지만 운영 기준 전환은 아직 보류** 상태입니다.
+
 ## reviewer가 깊게 파지 않아도 되는 것
 
 - historical `3257/3209` 사례의 모든 세부 이력

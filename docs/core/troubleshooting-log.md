@@ -1,5 +1,9 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 947) 코드형 상태값만 연속으로 나열하면 문서를 읽는 사람 입장에서 현재 결론이 오히려 안 보인다
+- 문제: `RECENT_WINDOW_POLICY_CANDIDATE`, `KEEP_PRIMARY_BASELINE`, `READY_FOR_BOUNDED_PROMOTION_REVIEW`, `PASS_RECENT_WINDOW_POLICY_CANDIDATE` 같은 값은 코드/테스트에는 유용하지만, active 문서에서 이것만 계속 이어지면 reviewer/author가 “그래서 지금 뜻이 뭐냐”를 다시 해석해야 했다.
+- 해결: 앞으로는 active/current/reviewer 문서에서 주요 상태값 옆에 바로 사람 말 번역을 붙인다. 예를 들어 `PASS_RECENT_WINDOW_POLICY_CANDIDATE` 옆에는 “recent-window는 후보로는 합격”, `KEEP_PRIMARY_BASELINE` 옆에는 “운영 기본 기준은 아직 유지”처럼 적는다.
+
 ## 946) promotion ladder를 끝까지 다 쪼개도 결국 마지막엔 정책 문장 하나로 수렴해야 한다
 - 문제: bounded review 관련 ladder를 approval/record/run 층까지 계속 surface에 올리면, 근거는 늘어나도 실제 정책 결론은 오히려 더 늦게 보였다. user-facing 관점에서는 “그래서 지금 승격하자는 건지, 말자는 건지”가 흐려졌다.
 - 해결: `run-local-recommendation-bounded-promotion-review.sh` 결과를 기준으로 현재 결론을 문장 하나로 고정했다. `PASS_RECENT_WINDOW_POLICY_CANDIDATE` 는 bounded promotion review 승인 근거로 쓰되, primary full latest batch baseline을 recent-window로 바로 승격하는 정책 변경은 아직 보류한다.

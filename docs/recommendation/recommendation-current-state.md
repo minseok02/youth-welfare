@@ -56,6 +56,7 @@
 또한 `2026-05-20` 기준 explicit promotion approval record write path도 실제로 연결됐습니다. `run-local-admin-recommendation-review-gate-promotion-approval-record-smoke.sh` 는 baseline pending tuple -> approved tuple -> clear 뒤 baseline 복귀를 실제로 검증하고, existing PostgreSQL volume에서 relation missing 또는 permission denied가 보이면 `bash deploy/postgres/apply-local-runtime-schema-patch.sh` 로 runtime patch/grant를 먼저 적용하는 경계까지 같이 확인합니다.
 그리고 여기서 더 이상 status ladder를 늘리지 않고, 실제 bounded promotion review go/no-go를 한 번에 보는 wrapper로 [recommendation-bounded-promotion-review-runbook.md](./recommendation-bounded-promotion-review-runbook.md) 를 추가했습니다. 이 wrapper는 approval record preflight, recent-window clear, historical staleness만 묶어 `bounded_promotion_review_result_status` 로 압축합니다.
 현재 explicit policy review 결론도 여기까지입니다. `PASS_RECENT_WINDOW_POLICY_CANDIDATE` 는 **bounded promotion review를 승인할 근거**로 읽되, **primary full latest batch baseline을 recent-window로 즉시 승격하는 결정은 아직 하지 않는 것**이 현재 기준입니다.
+사람 말로 더 짧게 풀면, **recent-window는 시험해 볼 만하지만 운영 기본 규칙을 갈아엎을 단계는 아직 아니다** 입니다.
 
 ## 다시 열 조건
 

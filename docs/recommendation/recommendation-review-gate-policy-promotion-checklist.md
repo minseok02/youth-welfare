@@ -35,6 +35,21 @@
 
 즉 지금은 `RECENT_WINDOW_POLICY_CANDIDATE` 와 bounded review run 자체는 진행 가능한 상태로 보되, 운영 primary gate를 recent-window로 바로 바꾸지는 않습니다.
 
+### 상태값 빠른 번역
+
+- `RECENT_WINDOW_POLICY_CANDIDATE`
+  - recent-window는 정책 후보로 검토할 가치가 있다는 뜻입니다.
+- `REQUIRES_EXPLICIT_POLICY_CHANGE_REVIEW`
+  - 하지만 운영 기준을 바꿀 만큼 결정이 끝난 상태는 아니라는 뜻입니다.
+- `KEEP_PRIMARY_BASELINE`
+  - 지금 당장은 기존 full latest batch 기준을 유지한다는 뜻입니다.
+- `READY_FOR_BOUNDED_PROMOTION_REVIEW`
+  - bounded review를 시작할 준비는 끝났다는 뜻입니다.
+- `PASS_RECENT_WINDOW_POLICY_CANDIDATE`
+  - bounded review 결과만 놓고 보면 recent-window 후보는 통과라는 뜻입니다.
+
+한 줄로 줄이면, **후보로는 합격이지만 운영 기준 전환까지 승인된 것은 아님** 입니다.
+
 현재 local/live 기준 recommendation review gate 해석은 아래와 같습니다.
 
 - full latest batch review gate:
