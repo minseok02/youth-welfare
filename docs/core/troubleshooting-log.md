@@ -1,5 +1,10 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 381) helper/README 상단이 예전 blocker를 말하면 operator가 최신 current-state보다 옛 해석을 먼저 읽게 된다
+- 문제: `recommendation/README` 와 summary/status helper runbook 상단은 여전히 `WAIT_FOR_REAL_USER_TRAFFIC` 를 local 기본값처럼 적고 있었는데, active current-state는 이미 full latest batch historical inertia와 recent-window supplemental gate까지 좁혀진 상태였다.
+- 해결: `recommendation/README`, `latest-status`, `latest-status-export`, `stability-report`, `baseline-report` 상단 current-reading 문구를 `DEFERRED_NON_REAL_LEADER_SIGNAL` full gate + `RECENT_WINDOW_CLEARS_HISTORICAL_2622_DOMINANCE` supplemental gate로 다시 맞췄다.
+- 이유: operator는 인덱스보다 README나 helper runbook을 먼저 열 때가 많다. 상단 한 줄이 오래된 blocker를 말하면 이후 상세 설명을 읽기 전에 이미 잘못된 current truth를 가져가게 된다.
+
 ## 380) active 문서만 최신화하고 PR body/comment를 그대로 두면 reviewer는 예전 blocker를 계속 읽는다
 - 문제: active 문서는 이미 `DEFERRED_NON_REAL_LEADER_SIGNAL`, historical example latest batch dominance, recent-window supplemental gate로 넘어갔는데, PR body와 top-level quick entrypoint comment는 여전히 `WAIT_FOR_REAL_USER_TRAFFIC` 를 main blocker처럼 말하고 있었다.
 - 해결: PR lifecycle 문서 동기화 뒤에는 GitHub PR body와 첫 quick entrypoint comment도 같은 날 바로 갱신해, full latest batch primary gate와 recent-window supplemental gate 역할이 GitHub 전달면에서도 똑같이 보이게 맞췄다.

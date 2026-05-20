@@ -12,7 +12,7 @@
 
 ## 현재 단계 해석
 
-현재 local 기본값은 `WAIT_FOR_REAL_USER_TRAFFIC`, latest reading은 `VOLATILE_ONLY_DRIFT` 입니다.
+현재 local 기본값은 full latest batch review gate `DEFERRED_NON_REAL_LEADER_SIGNAL`, recent-window supplemental reading `RECENT_WINDOW_CLEARS_HISTORICAL_2622_DOMINANCE`, latest reading `VOLATILE_ONLY_DRIFT` 입니다.
 
 즉 이 runbook은 새 refresh를 다시 태우는 reopen entrypoint가 아니라, **이미 남아 있는 latest artifact를 기준으로 current stable baseline / latest volatile observation / drift 판정을 read-only로 확인하는 daily status helper** 로 읽는 편이 맞습니다.
 
@@ -67,8 +67,8 @@ bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-status.sh
 
 - `generated_at_utc`, `generated_at_kst`
   - latest export JSON이 있으면 같은 latest artifact의 UTC/KST 실행 시각을 같이 보여 줍니다.
-- `operator_next_step=WAIT_FOR_REAL_USER_TRAFFIC`
-  - 현재 stable baseline보다 먼저 해결할 일은 real-user traffic/cohort 확보라는 뜻입니다.
+- `operator_next_step=USE_RECENT_WINDOW_AS_SUPPLEMENTAL_REVIEW_CONTEXT`
+  - readiness는 열렸지만 full latest batch gate가 stale historical example inertia를 포함하므로, recent-window current signal을 같이 읽으라는 뜻입니다.
 - `operator_next_step=OBSERVE_FRESH_WINDOW_VOLATILITY`
   - stable baseline은 유지되고 있고 fresh window 관찰값만 더 보면 되는 상태입니다.
 - `operator_next_step=INVESTIGATE_STABLE_BASELINE_DRIFT`

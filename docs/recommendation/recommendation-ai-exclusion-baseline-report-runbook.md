@@ -12,7 +12,7 @@
 
 ## 현재 단계 해석
 
-현재 local recommendation current truth는 `WAIT_FOR_REAL_USER_TRAFFIC`, latest reading은 `VOLATILE_ONLY_DRIFT` 입니다.
+현재 local recommendation current truth는 full latest batch review gate `DEFERRED_NON_REAL_LEADER_SIGNAL`, recent-window supplemental reading `RECENT_WINDOW_CLEARS_HISTORICAL_2622_DOMINANCE`, latest reading `VOLATILE_ONLY_DRIFT` 입니다.
 
 즉 이 baseline report는 새로운 제품 판단을 여는 문서가 아니라, **current evidence를 사람이 바로 읽는 한 장짜리 report로 다시 묶어 stable baseline과 latest volatile observation을 구분하는 summary helper** 로 보는 편이 맞습니다.
 

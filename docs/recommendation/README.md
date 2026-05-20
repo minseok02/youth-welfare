@@ -12,9 +12,10 @@
   - `VOLATILE_ONLY_DRIFT`
   - basic gate `PASS`
   - strict gate `LATEST_OBSERVATION_CHANGED`
-  - `WAIT_FOR_REAL_USER_TRAFFIC`
+  - full latest batch review gate `DEFERRED_NON_REAL_LEADER_SIGNAL`
+  - recent-window supplemental reading `RECENT_WINDOW_CLEARS_HISTORICAL_2622_DOMINANCE`
 - current main blocker:
-  - `REAL_USER` traffic/cohort 부재
+  - historical example latest batch dominance + stale example saved batch path + current real SQL gap
 
 PR / handoff / reopen 문서를 읽는 순서:
 
