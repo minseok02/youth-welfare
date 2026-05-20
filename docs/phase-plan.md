@@ -1,5 +1,6 @@
 # 구현 현황
 
+- 2026-05-20: draft exit / post-merge follow-up 체크리스트에도 `review_gate_interpretation_class=HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR`, `review_gate_operating_mode=PRIMARY_BASELINE_WITH_SUPPLEMENTAL_RECENT_WINDOW` 를 직접 올렸다. 이제 author도 undraft/merge 판단을 raw gate 값이 아니라 current 운영 클래스 기준으로 읽는다.
 - 2026-05-20: reviewer-facing brief와 GitHub PR 전달면에도 `review_gate_interpretation_class=HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR`, `review_gate_operating_mode=PRIMARY_BASELINE_WITH_SUPPLEMENTAL_RECENT_WINDOW` 를 같이 올렸다. 이제 reviewer도 raw gate 값 셋 대신 current 운영 결정 클래스를 바로 읽을 수 있다.
 - 2026-05-20: `latest-status`, `latest-gate`, `latest-overview` 에 primary/supplemental review gate 조합을 직접 읽는 `review_gate_interpretation_class`, `review_gate_operating_mode` 도 올렸다. 현재 local 기준 값은 `HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR`, `PRIMARY_BASELINE_WITH_SUPPLEMENTAL_RECENT_WINDOW` 이고, operator는 raw gate 값 셋을 수동으로 다시 합치지 않아도 된다.
 - 2026-05-20: `latest-overview` 와 active 문서가 `effective_operator_next_step=USE_RECENT_WINDOW_AS_SUPPLEMENTAL_REVIEW_CONTEXT` 기준으로 올라간 뒤, GitHub PR 전달면도 같은 해석으로 다시 맞췄다. 이제 draft 유지 이유는 old `WAIT_FOR_REAL_USER_TRAFFIC` 문구보다 `DEFERRED_NON_REAL_LEADER_SIGNAL` primary gate와 `RECENT_WINDOW_CLEARS_HISTORICAL_2622_DOMINANCE` supplemental gate를 함께 읽는 current state로 설명한다.

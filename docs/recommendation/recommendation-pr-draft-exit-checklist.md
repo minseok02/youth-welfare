@@ -27,6 +27,10 @@
   - historical `EXAMPLE_SMOKE` latest batch inertia
 - recent-window supplemental gate:
   - `RECENT_WINDOW_CLEARS_HISTORICAL_2622_DOMINANCE`
+- review gate interpretation class:
+  - `HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR`
+- review gate operating mode:
+  - `PRIMARY_BASELINE_WITH_SUPPLEMENTAL_RECENT_WINDOW`
 - current next step:
   - `USE_RECENT_WINDOW_AS_SUPPLEMENTAL_REVIEW_CONTEXT`
 - latest 관찰은 계속 `VOLATILE_ONLY_DRIFT`
@@ -52,6 +56,7 @@
 5. 남은 credential-like inventory가 intentional scope로 분류돼 있음
 6. 워킹트리와 branch diff-check가 clean
 7. full latest batch gate와 recent-window supplemental gate 역할이 문서에 고정돼 있음
+8. review gate decision class(`HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR`)와 operating mode(`PRIMARY_BASELINE_WITH_SUPPLEMENTAL_RECENT_WINDOW`)가 reviewer 문서/PR surface에도 같이 고정돼 있음
 
 주의:
 
@@ -113,6 +118,7 @@ bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-overview.sh
   - draft 유지
 - 이유:
   - stable baseline 회귀보다 stale historical latest batch와 current recent-window signal 해석 정리가 main blocker
+  - 현재 운영 클래스는 `HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR` 이고, operating mode는 `PRIMARY_BASELINE_WITH_SUPPLEMENTAL_RECENT_WINDOW` 입니다.
 
 ### 2. readiness opened + stable baseline unchanged
 
@@ -127,4 +133,4 @@ bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-overview.sh
 
 ## 한 줄 요약
 
-현재 draft PR은 **코드 미완성 때문이 아니라 `REAL_USER` evidence가 아직 없기 때문에 draft 유지**가 기본값이고, reviewer-ready와 merge-ready는 분리해서 판단하는 편이 맞습니다.
+현재 draft PR은 **코드 미완성 때문이 아니라 primary historical gate와 supplemental current-live gate를 같이 읽는 current 운영 클래스가 아직 남아 있기 때문에 draft 유지**가 기본값이고, reviewer-ready와 merge-ready는 분리해서 판단하는 편이 맞습니다.

@@ -1,5 +1,10 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 911) reviewer-facing brief와 PR surface에 decision class를 올린 뒤에도 draft exit / post-merge follow-up 체크리스트가 raw gate 설명만 유지하면, author는 여전히 undraft/merge 판단을 값 해석 단계에서 수동으로 번역해야 한다
+- 문제: reviewer quick entrypoint와 PR 본문에는 `review_gate_interpretation_class`, `review_gate_operating_mode` 를 올렸지만, author가 실제로 쓰는 `recommendation-pr-draft-exit-checklist.md`, `recommendation-post-merge-followup-checklist.md` 는 아직 raw full/latest/recent gate 설명 중심이었다.
+- 해결: 두 체크리스트에도 current 운영 클래스 `HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR`, `PRIMARY_BASELINE_WITH_SUPPLEMENTAL_RECENT_WINDOW` 를 직접 넣었다.
+- 이유: review, draft exit, post-merge follow-up 이 서로 다른 문서여도 같은 운영 클래스를 기준으로 읽어야 author/reviewer/operator 해석 drift가 다시 생기지 않는다.
+
 ## 910) operator artifact에 `review_gate_interpretation_class`, `review_gate_operating_mode` 를 올린 뒤에도 reviewer-facing brief/PR surface가 예전 raw gate 설명만 남겨 두면, reviewer는 current 운영 해석 승격을 GitHub 화면에서 바로 못 읽는다
 - 문제: `latest-status`, `latest-gate`, `latest-overview` 는 이미 primary/supplemental review gate 조합을 decision class로 승격했는데, reviewer quick entrypoint와 PR 본문은 아직 raw gate 값과 next-step까지만 요약하고 있었다.
 - 해결: `recommendation-pr-review-brief.md`, PR body, reviewer quick entrypoint comment에 `review_gate_interpretation_class=HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR`, `review_gate_operating_mode=PRIMARY_BASELINE_WITH_SUPPLEMENTAL_RECENT_WINDOW` 를 같이 올렸다.

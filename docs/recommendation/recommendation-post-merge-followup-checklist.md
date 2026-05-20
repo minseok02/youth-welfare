@@ -66,6 +66,10 @@ bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-status-export.sh
   - historical example latest batch dominance
 - recent-window supplemental gate:
   - `RECENT_WINDOW_CLEARS_HISTORICAL_2622_DOMINANCE`
+- review gate interpretation class:
+  - `HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR`
+- review gate operating mode:
+  - `PRIMARY_BASELINE_WITH_SUPPLEMENTAL_RECENT_WINDOW`
 - current next step:
   - `USE_RECENT_WINDOW_AS_SUPPLEMENTAL_REVIEW_CONTEXT`
 - `latest_drift_class=VOLATILE_ONLY_DRIFT`
@@ -82,6 +86,7 @@ bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-status-export.sh
 2. `stable_baseline_changed=false`
 3. latest 관찰 변화가 fresh window 흔들림 범위에 머묾
 4. full latest batch gate는 stale historical example inertia를, recent-window gate는 current live signal을 보여 주는 상태
+5. review gate decision class가 계속 `HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR` 로 유지됨
 
 이때 current decision은 계속:
 
@@ -125,4 +130,4 @@ bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-status-export.sh
 
 ## 한 줄 요약
 
-merge 뒤의 기본값은 **closeout 기준선 유지 + full latest batch primary gate / recent-window supplemental gate 분리 관찰** 이고, stable baseline이 바뀌거나 recent/current signal 해석 경계가 다시 흔들릴 때만 reopen 판단으로 넘어갑니다.
+merge 뒤의 기본값은 **closeout 기준선 유지 + `HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR` / `PRIMARY_BASELINE_WITH_SUPPLEMENTAL_RECENT_WINDOW` 운영 클래스 유지** 이고, stable baseline이 바뀌거나 recent/current signal 해석 경계가 다시 흔들릴 때만 reopen 판단으로 넘어갑니다.
