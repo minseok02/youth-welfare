@@ -121,6 +121,10 @@ merge 전 현재 PR 상태 reference:
   - `PENDING_BOUNDED_PROMOTION_REVIEW_RUN`
 - review gate policy promotion review run reason:
   - `EXPLICIT_APPROVAL_RECORD_NOT_WRITTEN_FOR_BOUNDED_REVIEW_RUN`
+- review gate policy promotion review run criteria status:
+  - `READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN`
+- review gate policy promotion review run criteria reason:
+  - `BOUNDED_REVIEW_RUN_PREREQUISITES_MET_BUT_APPROVAL_RECORD_PENDING`
 - current next step:
   - `USE_RECENT_WINDOW_AS_SUPPLEMENTAL_REVIEW_CONTEXT`
 - `latest_drift_class=VOLATILE_ONLY_DRIFT`
@@ -142,6 +146,7 @@ merge 전 현재 PR 상태 reference:
 7. recent-window는 policy candidate지만 `review_gate_policy_promotion_status=REQUIRES_EXPLICIT_POLICY_CHANGE_REVIEW` 라 현재 merge 후 기본값도 promotion review pending 으로 읽음
 8. current promotion action도 `KEEP_PRIMARY_BASELINE` 이므로 merge 뒤 immediate follow-up 기본값은 bounded promotion review가 아니라 baseline 유지
 9. `review_gate_policy_promotion_readiness_status=READY_FOR_BOUNDED_PROMOTION_REVIEW` 는 merge 뒤 explicit policy review를 열 수 있는 근거가 있다는 뜻이지만, current action을 곧바로 바꾸는 값은 아님
+10. `review_gate_policy_promotion_review_run_criteria_status=READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN` 도 actual bounded review run prerequisite이 충족됐다는 뜻이지, approval record 없이 곧바로 run으로 넘어간다는 뜻은 아님
 
 이때 current decision은 계속:
 
@@ -184,6 +189,7 @@ merge 전 현재 PR 상태 reference:
   - `keep observing`
   - `reopen product decision`
 - recent-window promotion review 실행 여부
+- `reviewGatePolicyPromotionReviewRunCriteriaStatus/Reason`
 
 ## 한 줄 요약
 

@@ -6162,3 +6162,8 @@ admin API와 latest artifact에
 - 문제: `PENDING_BOUNDED_PROMOTION_REVIEW_RUN` 까지 surface에 올린 뒤에도, actual bounded review run이 아직 안 돌고 있다는 사실과 bounded review run을 열 prerequisite 자체는 이미 충족됐다는 사실이 같은 층처럼 읽혔다. 게다가 admin smoke는 새 필드 추가 뒤 positional output index가 밀려 staleness/recent-window 값 라벨이 잘못 보였다.
 - 해결: `reviewGatePolicyPromotionReviewRunCriteriaStatus`, `reviewGatePolicyPromotionReviewRunCriteriaReason` 을 admin API, latest artifact, active runbook에 추가했고, admin smoke output index도 새 필드 순서에 맞춰 재정렬했다.
 - 이유: `actual run pending` 과 `run prerequisite ready` 는 다른 상태다. 이 둘을 분리해야 operator가 “지금은 아직 실행 전이지만 prerequisite은 이미 다 맞았다”를 바로 읽을 수 있고, smoke 출력도 그 상태를 왜곡 없이 보여 줄 수 있다.
+
+## #935 reviewer/author surface에도 review run criteria 층을 같이 올려야 마지막 실행 해석 drift가 안 생긴다
+- 문제: `reviewGatePolicyPromotionReviewRunCriteriaStatus`, `reviewGatePolicyPromotionReviewRunCriteriaReason` 을 admin API, latest artifact, active runbook에만 올리면 reviewer brief / draft exit / post-merge / promotion checklist / PR surface는 여전히 `review run pending` 까지만 읽게 된다.
+- 해결: reviewer/author/promotion-checklist surface와 PR 본문/quick comment/author note에도 `READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN`, `BOUNDED_REVIEW_RUN_PREREQUISITES_MET_BUT_APPROVAL_RECORD_PENDING` 를 같이 올렸다.
+- 이유: latest/current surface와 GitHub 전달면이 같은 마지막 실행 층을 써야 `approval record pending` 과 `run prerequisite ready` 를 같은 언어로 읽고, explicit approval record가 써지기 전까지 왜 actual bounded review run이 아직 pending인지 즉시 이해할 수 있다.

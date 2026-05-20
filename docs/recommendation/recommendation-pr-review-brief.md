@@ -105,6 +105,8 @@ review hint:
 - review gate policy promotion approval record reason: `APPROVAL_DECISION_PENDING_AND_RECORD_NOT_WRITTEN`
 - review gate policy promotion review run status: `PENDING_BOUNDED_PROMOTION_REVIEW_RUN`
 - review gate policy promotion review run reason: `EXPLICIT_APPROVAL_RECORD_NOT_WRITTEN_FOR_BOUNDED_REVIEW_RUN`
+- review gate policy promotion review run criteria status: `READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN`
+- review gate policy promotion review run criteria reason: `BOUNDED_REVIEW_RUN_PREREQUISITES_MET_BUT_APPROVAL_RECORD_PENDING`
 - operator next step: `USE_RECENT_WINDOW_AS_SUPPLEMENTAL_REVIEW_CONTEXT`
 
 explicit promotion review 기준은 [recommendation-review-gate-policy-promotion-checklist.md](./recommendation-review-gate-policy-promotion-checklist.md) 를 같이 봅니다.
