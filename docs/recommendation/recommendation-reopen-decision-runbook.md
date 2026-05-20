@@ -15,6 +15,24 @@
 이 문서는 weight tuning 문서가 아닙니다.
 핵심은 **무엇을 먼저 다시 열어야 하는지** 를 정하는 것입니다.
 
+같이 보면 좋은 문서:
+
+- [recommendation-pr-review-brief.md](./recommendation-pr-review-brief.md)
+- [recommendation-pr-draft-exit-checklist.md](./recommendation-pr-draft-exit-checklist.md)
+- [recommendation-post-merge-followup-checklist.md](./recommendation-post-merge-followup-checklist.md)
+- [recommendation-real-user-baseline-runbook.md](./recommendation-real-user-baseline-runbook.md)
+- [recommendation-real-user-recheck-checklist.md](./recommendation-real-user-recheck-checklist.md)
+
+현재 기본 해석은 아래와 같습니다.
+
+- `REAL_USER` readiness gate가 deferred면 이 문서를 바로 쓰지 않습니다.
+- readiness는 열렸지만 full latest batch review gate가 historical example inertia에 묶여 있으면, current decision은 `USE_RECENT_WINDOW_AS_SUPPLEMENTAL_REVIEW_CONTEXT` 로 읽는 편이 맞습니다.
+- current review gate interpretation class는 `HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR` 입니다.
+- current review gate operating mode는 `PRIMARY_BASELINE_WITH_SUPPLEMENTAL_RECENT_WINDOW` 입니다.
+- current review gate policy candidate status는 `RECENT_WINDOW_POLICY_CANDIDATE` 입니다.
+- current review gate policy promotion status는 `REQUIRES_EXPLICIT_POLICY_CHANGE_REVIEW` 입니다.
+- reopen 판단은 gate 확인 뒤에만 들어옵니다.
+
 ## 언제 이 문서를 쓰나
 
 아래 중 하나가 생기면 이 문서를 봅니다.
@@ -42,6 +60,8 @@ reopen 판단 전 최소한 아래 증거는 같이 봅니다.
    - `run-local-no-priority-candidate-audit.sh`
    - `run-local-gov24-top2-competitor-audit.sh`
    - `run-local-gov24-fresh-upstream-audit.sh`
+5. AI exclusion을 완화할지 고민하면
+   - [recommendation-primary-audience-exclusion-decision-memo.md](./recommendation-primary-audience-exclusion-decision-memo.md)
 
 특히 아래 둘은 분리해서 읽습니다.
 
@@ -145,6 +165,14 @@ reopen 판단 전 최소한 아래 증거는 같이 봅니다.
 
 을 먼저 고정합니다.
 
+## primary audience exclusion 예외
+
+현재 fresh runtime evidence 기준 `INCOME_MISMATCH`, `STUDENT_AUDIENCE_MISMATCH` 는 direct tuning으로 완화하기보다 **product exclusion 유지** 쪽이 기본값입니다.
+
+즉 `savedAi=0` 이라고 해서 모두 tuning 후보가 되는 것은 아닙니다.
+
+반대로 `LOW_DIRECT_HELP` 같은 bucket이 반복되면 그때는 완화 후보가 될 수 있습니다.
+
 ## 증상별 권장 lane
 
 | 관측 | 먼저 볼 것 | 권장 lane |
@@ -184,3 +212,6 @@ reopen 판단 전 최소한 아래 증거는 같이 봅니다.
 2. 기본 순서는 `유지 -> local 신호 구조화 -> diversity/balancing -> direct tuning` 입니다.
 3. `2736` 류 사례는 source 전체가 아니라 정책군 사례로 읽습니다.
 4. direct weight tuning 은 마지막 lane 입니다.
+5. local current truth에서는 readiness는 열렸지만 full latest batch review gate가 stale historical example inertia에 묶여 있으므로, current 기본값은 `USE_RECENT_WINDOW_AS_SUPPLEMENTAL_REVIEW_CONTEXT` 로 읽는 편이 맞습니다.
+6. 즉 reopen 전 product/engineering 결정도 raw gate 값보다 `HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR` / `PRIMARY_BASELINE_WITH_SUPPLEMENTAL_RECENT_WINDOW` 운영 클래스를 먼저 기준으로 읽는 편이 맞습니다.
+7. 그리고 recent-window는 이미 `RECENT_WINDOW_POLICY_CANDIDATE` 이지만, 아직 `REQUIRES_EXPLICIT_POLICY_CHANGE_REVIEW` 상태이므로 primary gate를 자동 교체하는 단계는 아닙니다.

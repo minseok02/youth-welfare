@@ -70,6 +70,48 @@ public record AdminDashboardResponse(
             String realUserTrafficGateInWindow,
             RecommendationConcentrationSnapshot latestBatchConcentration,
             String recommendationReviewGate,
+            RecommendationRecentWindowSnapshot recentWindowLatestBatch,
+            RecommendationReviewGateStalenessSnapshot reviewGateStaleness,
+            String recentWindowRecommendationReviewReading,
+            boolean historicalExampleDominanceDetected,
+            String reviewGatePolicyCandidateStatus,
+            String reviewGatePolicyCandidateReason,
+            String reviewGatePolicyPromotionStatus,
+            String reviewGatePolicyPromotionReason,
+            String reviewGatePolicyPromotionActionStatus,
+            String reviewGatePolicyPromotionActionReason,
+            String reviewGatePolicyPromotionReadinessStatus,
+            String reviewGatePolicyPromotionReadinessReason,
+            String reviewGatePolicyPromotionExecutionStatus,
+            String reviewGatePolicyPromotionExecutionReason,
+            String reviewGatePolicyPromotionApprovalCriteriaStatus,
+            String reviewGatePolicyPromotionApprovalCriteriaReason,
+            String reviewGatePolicyPromotionApprovalStatus,
+            String reviewGatePolicyPromotionApprovalReason,
+            String reviewGatePolicyPromotionApprovalDecisionStatus,
+            String reviewGatePolicyPromotionApprovalDecisionReason,
+            String reviewGatePolicyPromotionApprovalRecordStatus,
+            String reviewGatePolicyPromotionApprovalRecordReason,
+            String reviewGatePolicyPromotionReviewRunStatus,
+            String reviewGatePolicyPromotionReviewRunReason,
+            String reviewGatePolicyPromotionReviewRunCriteriaStatus,
+            String reviewGatePolicyPromotionReviewRunCriteriaReason,
+            String reviewGatePolicyPromotionReviewRunDecisionStatus,
+            String reviewGatePolicyPromotionReviewRunDecisionReason,
+            String reviewGatePolicyPromotionReviewRunApprovalCriteriaStatus,
+            String reviewGatePolicyPromotionReviewRunApprovalCriteriaReason,
+            String reviewGatePolicyPromotionReviewRunApprovalDecisionStatus,
+            String reviewGatePolicyPromotionReviewRunApprovalDecisionReason,
+            String reviewGatePolicyPromotionReviewRunApprovalStatus,
+            String reviewGatePolicyPromotionReviewRunApprovalReason,
+            String reviewGatePolicyPromotionReviewRunApprovalRecordCriteriaStatus,
+            String reviewGatePolicyPromotionReviewRunApprovalRecordCriteriaReason,
+            String reviewGatePolicyPromotionReviewRunApprovalRecordStatus,
+            String reviewGatePolicyPromotionReviewRunApprovalRecordReason,
+            String reviewGatePolicyPromotionReviewRunApprovalRecordTransitionStatus,
+            String reviewGatePolicyPromotionReviewRunApprovalRecordTransitionReason,
+            String reviewGatePolicyPromotionReviewRunApprovalRecordWriteStatus,
+            String reviewGatePolicyPromotionReviewRunApprovalRecordWriteReason,
             List<RecommendationWeightSnapshot> weightBucketsInWindow
     ) {
     }
@@ -108,6 +150,40 @@ public record AdminDashboardResponse(
             String concentrationReadiness,
             String realUserCohortGate,
             String signalQuality
+    ) {
+    }
+
+    public record RecommendationRecentWindowSnapshot(
+            int recentWindowHours,
+            long targetServiceId,
+            long latestBatchUsers,
+            long exampleUsers,
+            long realUserUsers,
+            long localRealNonExampleSeedUsers,
+            Long top1LeaderServiceId,
+            String top1LeaderTitle,
+            long top1LeaderUsers,
+            long top1LeaderRealUserUsers,
+            BigDecimal top1LeaderSharePct,
+            long targetTop1Users,
+            long targetTop1RealUserUsers
+    ) {
+    }
+
+    public record RecommendationReviewGateStalenessSnapshot(
+            long targetServiceId,
+            String primaryReferenceMode,
+            int recentWindowHours,
+            long exampleLatestUsers,
+            long exampleLatestUsersLast24h,
+            long exampleTargetTop1Users,
+            long exampleTargetTop1Last24h,
+            LocalDateTime exampleTargetOldestTop1At,
+            LocalDateTime exampleTargetNewestTop1At,
+            long realUserLatestUsers,
+            long realUserLatestUsersLast24h,
+            long realUserTargetTop1Users,
+            long realUserTargetTop1Last24h
     ) {
     }
 

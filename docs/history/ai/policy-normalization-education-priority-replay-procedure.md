@@ -266,11 +266,11 @@ host에서 직접 `bootRun` 할 때는 아래를 같이 맞춥니다.
 ```bash
 export APP_BASE_URL="http://127.0.0.1:18082"
 
-export SAMPLE_A_EMAIL="education.sample@example.com"
-export SAMPLE_A_PASSWORD="Password123!"
+export SAMPLE_A_EMAIL="<sample A email>"
+export SAMPLE_A_PASSWORD="<sample A password>"
 
-export SAMPLE_B_EMAIL="control.sample@example.com"
-export SAMPLE_B_PASSWORD="Password123!"
+export SAMPLE_B_EMAIL="<sample B email>"
+export SAMPLE_B_PASSWORD="<sample B password>"
 
 export COOKIE_A="$(mktemp)"
 export COOKIE_B="$(mktemp)"

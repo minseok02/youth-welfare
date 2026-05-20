@@ -1,6 +1,7 @@
 package com.example.welfare.admin.dashboard.repository;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.jdbc.BadSqlGrammarException;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -8,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 @RequiredArgsConstructor
@@ -29,8 +31,9 @@ public class AdminDashboardRecommendationReadRepository {
             """;
     private static final String GOV24_FACET_ORDER_CASE = """
             case facet_key
-                when 'GOV24_USER_TYPE_TOKEN' then 1
-                when 'GOV24_BENEFIT_TYPE_TOKEN' then 2
+                when 'GOV24_SERVICE_FIELD' then 1
+                when 'GOV24_USER_TYPE_TOKEN' then 2
+                when 'GOV24_BENEFIT_TYPE_TOKEN' then 3
                 else 99
             end
             """;
@@ -343,6 +346,202 @@ public class AdminDashboardRecommendationReadRepository {
                         rs.getString("concentration_readiness"),
                         rs.getString("real_user_cohort_gate"),
                         rs.getString("signal_quality")
+                )
+        );
+    }
+
+    public AdminDashboardReadRows.RecommendationRecentWindowRow fetchRecommendationRecentWindowSnapshot(
+            int recentWindowHours,
+            long targetServiceId
+    ) {
+        return jdbcTemplate.queryForObject("""
+                with latest as (
+                    select user_key, max(recommended_at) as recommended_at
+                      from user_recommendations
+                     group by user_key
+                ),
+                recent_latest as (
+                    select l.user_key, l.recommended_at
+                      from latest l
+                     where l.recommended_at >= now() - make_interval(hours => :recentWindowHours)
+                ),
+                ranked as (
+                    select ur.user_key,
+                           %1$s as user_origin,
+                           case
+                               when %1$s = 'EXAMPLE_SMOKE' then 'EXAMPLE_SMOKE'
+                               when %1$s = 'BOUNDED_LOCAL' then 'BOUNDED_LOCAL'
+                               when %1$s = 'LOCAL_REAL_NON_EXAMPLE_SEED' then 'LOCAL_REAL_NON_EXAMPLE_SEED'
+                               else 'REAL_USER'
+                           end as user_cohort,
+                           ws.id as service_id,
+                           ws.title,
+                           ur.final_score,
+                           row_number() over (
+                               partition by ur.user_key
+                               order by ur.final_score desc, ur.id desc
+                           ) as rn
+                      from user_recommendations ur
+                      join recent_latest rl
+                        on rl.user_key = ur.user_key
+                       and rl.recommended_at = ur.recommended_at
+                      join users u
+                        on u.user_key = ur.user_key
+                      join welfare_services ws
+                        on ws.id = ur.service_id
+                ),
+                top1 as (
+                    select *
+                      from ranked
+                     where rn = 1
+                ),
+                leader as (
+                    select service_id,
+                           title,
+                           count(*) as users_as_top1,
+                           count(*) filter (where user_cohort = 'REAL_USER') as real_user_users_as_top1
+                      from top1
+                     group by service_id, title
+                     order by users_as_top1 desc, service_id
+                     limit 1
+                ),
+                base as (
+                    select count(*) as recent_latest_batch_users,
+                           count(*) filter (where user_cohort = 'EXAMPLE_SMOKE') as recent_example_users,
+                           count(*) filter (where user_cohort = 'REAL_USER') as recent_real_user_users,
+                           count(*) filter (where user_cohort = 'LOCAL_REAL_NON_EXAMPLE_SEED') as recent_local_real_non_example_seed_users
+                      from top1
+                )
+                select :recentWindowHours as recent_window_hours,
+                       :targetServiceId as target_service_id,
+                       base.recent_latest_batch_users,
+                       base.recent_example_users,
+                       base.recent_real_user_users,
+                       base.recent_local_real_non_example_seed_users,
+                       leader.service_id as recent_top1_leader_service_id,
+                       leader.title as recent_top1_leader_title,
+                       coalesce(leader.users_as_top1, 0) as recent_top1_leader_users,
+                       coalesce(leader.real_user_users_as_top1, 0) as recent_top1_leader_real_user_users,
+                       round(coalesce(leader.users_as_top1, 0) * 100.0 / nullif(base.recent_latest_batch_users, 0), 2) as recent_top1_leader_share_pct,
+                       coalesce((select count(*) from top1 where service_id = :targetServiceId), 0) as recent_target_top1_users,
+                       coalesce((select count(*) from top1 where service_id = :targetServiceId and user_cohort = 'REAL_USER'), 0) as recent_target_top1_real_user_users
+                  from base
+                  left join leader on true
+                """.formatted(RECOMMENDATION_USER_ORIGIN_SQL),
+                new MapSqlParameterSource()
+                        .addValue("recentWindowHours", recentWindowHours)
+                        .addValue("targetServiceId", targetServiceId),
+                (rs, rowNum) -> new AdminDashboardReadRows.RecommendationRecentWindowRow(
+                        rs.getInt("recent_window_hours"),
+                        rs.getLong("target_service_id"),
+                        rs.getLong("recent_latest_batch_users"),
+                        rs.getLong("recent_example_users"),
+                        rs.getLong("recent_real_user_users"),
+                        rs.getLong("recent_local_real_non_example_seed_users"),
+                        AdminDashboardJdbcSupport.getLong(rs, "recent_top1_leader_service_id"),
+                        rs.getString("recent_top1_leader_title"),
+                        rs.getLong("recent_top1_leader_users"),
+                        rs.getLong("recent_top1_leader_real_user_users"),
+                        rs.getBigDecimal("recent_top1_leader_share_pct"),
+                        rs.getLong("recent_target_top1_users"),
+                        rs.getLong("recent_target_top1_real_user_users")
+                )
+        );
+    }
+
+    public AdminDashboardReadRows.RecommendationReviewGateStalenessRow fetchRecommendationReviewGateStalenessSnapshot(
+            int recentWindowHours,
+            long targetServiceId
+    ) {
+        return jdbcTemplate.queryForObject("""
+                with latest as (
+                    select user_key, max(recommended_at) as recommended_at
+                      from user_recommendations
+                     group by user_key
+                ),
+                ranked as (
+                    select ur.user_key,
+                           %1$s as user_origin,
+                           case
+                               when %1$s = 'EXAMPLE_SMOKE' then 'EXAMPLE_SMOKE'
+                               when %1$s = 'BOUNDED_LOCAL' then 'BOUNDED_LOCAL'
+                               when %1$s = 'LOCAL_REAL_NON_EXAMPLE_SEED' then 'LOCAL_REAL_NON_EXAMPLE_SEED'
+                               else 'REAL_USER'
+                           end as user_cohort,
+                           ur.recommended_at,
+                           ws.id as service_id,
+                           row_number() over (
+                               partition by ur.user_key
+                               order by ur.final_score desc, ur.id desc
+                           ) as rn
+                      from user_recommendations ur
+                      join latest l
+                        on l.user_key = ur.user_key
+                       and l.recommended_at = ur.recommended_at
+                      join users u
+                        on u.user_key = ur.user_key
+                      join welfare_services ws
+                        on ws.id = ur.service_id
+                ),
+                example_summary as (
+                    select count(*) filter (where rn = 1 and user_cohort = 'EXAMPLE_SMOKE') as latest_users,
+                           count(*) filter (where rn = 1 and user_cohort = 'EXAMPLE_SMOKE'
+                               and recommended_at >= now() - make_interval(hours => :recentWindowHours)) as latest_users_last_24h,
+                           count(*) filter (where rn = 1 and user_cohort = 'EXAMPLE_SMOKE'
+                               and service_id = :targetServiceId) as target_top1_users,
+                           count(*) filter (where rn = 1 and user_cohort = 'EXAMPLE_SMOKE'
+                               and service_id = :targetServiceId
+                               and recommended_at >= now() - make_interval(hours => :recentWindowHours)) as target_top1_last_24h,
+                           min(recommended_at) filter (where rn = 1 and user_cohort = 'EXAMPLE_SMOKE'
+                               and service_id = :targetServiceId) as target_oldest_top1_at,
+                           max(recommended_at) filter (where rn = 1 and user_cohort = 'EXAMPLE_SMOKE'
+                               and service_id = :targetServiceId) as target_newest_top1_at
+                      from ranked
+                ),
+                real_user_summary as (
+                    select count(*) filter (where rn = 1 and user_cohort = 'REAL_USER') as latest_users,
+                           count(*) filter (where rn = 1 and user_cohort = 'REAL_USER'
+                               and recommended_at >= now() - make_interval(hours => :recentWindowHours)) as latest_users_last_24h,
+                           count(*) filter (where rn = 1 and user_cohort = 'REAL_USER'
+                               and service_id = :targetServiceId) as target_top1_users,
+                           count(*) filter (where rn = 1 and user_cohort = 'REAL_USER'
+                               and service_id = :targetServiceId
+                               and recommended_at >= now() - make_interval(hours => :recentWindowHours)) as target_top1_last_24h
+                      from ranked
+                )
+                select :targetServiceId as target_service_id,
+                       'ALL_TIME_LATEST_PER_USER' as primary_reference_mode,
+                       :recentWindowHours as recent_window_hours,
+                       coalesce(example_summary.latest_users, 0) as example_latest_users,
+                       coalesce(example_summary.latest_users_last_24h, 0) as example_latest_users_last_24h,
+                       coalesce(example_summary.target_top1_users, 0) as example_target_top1_users,
+                       coalesce(example_summary.target_top1_last_24h, 0) as example_target_top1_last_24h,
+                       example_summary.target_oldest_top1_at as example_target_oldest_top1_at,
+                       example_summary.target_newest_top1_at as example_target_newest_top1_at,
+                       coalesce(real_user_summary.latest_users, 0) as real_user_latest_users,
+                       coalesce(real_user_summary.latest_users_last_24h, 0) as real_user_latest_users_last_24h,
+                       coalesce(real_user_summary.target_top1_users, 0) as real_user_target_top1_users,
+                       coalesce(real_user_summary.target_top1_last_24h, 0) as real_user_target_top1_last_24h
+                  from example_summary
+                  cross join real_user_summary
+                """.formatted(RECOMMENDATION_USER_ORIGIN_SQL),
+                new MapSqlParameterSource()
+                        .addValue("recentWindowHours", recentWindowHours)
+                        .addValue("targetServiceId", targetServiceId),
+                (rs, rowNum) -> new AdminDashboardReadRows.RecommendationReviewGateStalenessRow(
+                        rs.getLong("target_service_id"),
+                        rs.getString("primary_reference_mode"),
+                        rs.getInt("recent_window_hours"),
+                        rs.getLong("example_latest_users"),
+                        rs.getLong("example_latest_users_last_24h"),
+                        rs.getLong("example_target_top1_users"),
+                        rs.getLong("example_target_top1_last_24h"),
+                        AdminDashboardJdbcSupport.getLocalDateTime(rs, "example_target_oldest_top1_at"),
+                        AdminDashboardJdbcSupport.getLocalDateTime(rs, "example_target_newest_top1_at"),
+                        rs.getLong("real_user_latest_users"),
+                        rs.getLong("real_user_latest_users_last_24h"),
+                        rs.getLong("real_user_target_top1_users"),
+                        rs.getLong("real_user_target_top1_last_24h")
                 )
         );
     }
@@ -780,9 +979,22 @@ public class AdminDashboardRecommendationReadRepository {
                       join welfare_services ws
                         on ws.id = lr.service_id
                        and ws.source_type = 'GOV24'
-                      left join service_taxonomies st
+                     left join service_taxonomies st
                         on st.service_id = ws.id
                      cross join lateral (
+                         select 'GOV24_SERVICE_FIELD' as facet_key, stt.term_label as bucket_label
+                           from service_taxonomy_terms stt
+                          where stt.service_id = ws.id
+                            and stt.term_group = 'GOV24_SERVICE_FIELD'
+                         union all
+                         select 'GOV24_SERVICE_FIELD' as facet_key, st.gov24_service_field_label as bucket_label
+                          where not exists (
+                              select 1
+                                from service_taxonomy_terms stt
+                               where stt.service_id = ws.id
+                                 and stt.term_group = 'GOV24_SERVICE_FIELD'
+                          )
+                         union all
                          select 'GOV24_USER_TYPE_TOKEN' as facet_key, stt.term_label as bucket_label
                            from service_taxonomy_terms stt
                           where stt.service_id = ws.id
@@ -848,5 +1060,43 @@ public class AdminDashboardRecommendationReadRepository {
                         rs.getLong("distinct_services")
                 )
         );
+    }
+
+    public Optional<AdminDashboardReadRows.RecommendationReviewGatePromotionApprovalRecordRow>
+    fetchRecommendationReviewGatePromotionApprovalRecord(String approvalKey) {
+        List<AdminDashboardReadRows.RecommendationReviewGatePromotionApprovalRecordRow> rows;
+        try {
+            rows = jdbcTemplate.query("""
+                            select approval_key,
+                                   approval_status,
+                                   approval_scope,
+                                   approval_note,
+                                   approved_by_user_key,
+                                   approved_at
+                              from recommendation_review_gate_promotion_approvals
+                             where approval_key = :approvalKey
+                            """,
+                    new MapSqlParameterSource("approvalKey", approvalKey),
+                    (rs, rowNum) -> new AdminDashboardReadRows.RecommendationReviewGatePromotionApprovalRecordRow(
+                            rs.getString("approval_key"),
+                            rs.getString("approval_status"),
+                            rs.getString("approval_scope"),
+                            rs.getString("approval_note"),
+                            rs.getString("approved_by_user_key"),
+                            AdminDashboardJdbcSupport.getLocalDateTime(rs, "approved_at")
+                    )
+            );
+        } catch (BadSqlGrammarException ex) {
+            if (ex.getMostSpecificCause() != null
+                    && ex.getMostSpecificCause().getMessage() != null
+                    && ex.getMostSpecificCause().getMessage().contains("recommendation_review_gate_promotion_approvals")) {
+                return Optional.empty();
+            }
+            throw ex;
+        }
+        if (rows.isEmpty()) {
+            return Optional.empty();
+        }
+        return Optional.of(rows.get(0));
     }
 }

@@ -11,6 +11,7 @@
 3. category distribution이 대략 어떤 모양인가
 
 이 문서는 그 세 가지를 **한 번의 요약 실행**으로 확인하는 절차입니다.
+즉 active 문서에서 말하는 `retrieval/category one-shot summary smoke` 는 이 wrapper와 이 문서를 뜻합니다.
 
 ## 실행
 

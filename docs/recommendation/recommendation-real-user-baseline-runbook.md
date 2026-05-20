@@ -13,6 +13,27 @@
 
 이 문서는 weight tuning 문서가 아니라, **운영에서 gate를 다시 열어도 되는지 판단하는 runbook** 입니다.
 
+같이 보면 좋은 문서:
+
+- [recommendation-pr-review-brief.md](./recommendation-pr-review-brief.md)
+- [recommendation-pr-draft-exit-checklist.md](./recommendation-pr-draft-exit-checklist.md)
+- [recommendation-post-merge-followup-checklist.md](./recommendation-post-merge-followup-checklist.md)
+- [recommendation-real-user-recheck-checklist.md](./recommendation-real-user-recheck-checklist.md)
+- [recommendation-reopen-decision-runbook.md](./recommendation-reopen-decision-runbook.md)
+
+현재 local 기준 기본 해석은:
+
+- `dashboard_real_user_gate=READY_REAL_USER_TRAFFIC`
+- `breakdown_real_user_cohort_gate=READY_REAL_USER_COHORT`
+- full latest batch review gate:
+  - `DEFERRED_NON_REAL_LEADER_SIGNAL`
+- full latest batch reading:
+  - historical example latest batch dominance
+- recent-window supplemental gate:
+  - `RECENT_WINDOW_CLEARS_HISTORICAL_2622_DOMINANCE`
+
+즉 이 문서는 지금 당장 튜닝을 여는 문서가 아니라, **언제 reopen 판단으로 넘어갈 수 있는지와 어떤 gate를 primary/supplemental로 읽어야 하는지**를 가르는 gate 문서에 가깝습니다.
+
 ## 전제
 
 - 최신 서버 코드가 recommendation `realUserTrafficGateInWindow`, `recommendationReviewGate`, `latestBatchConcentration` 을 이미 노출하는 상태여야 합니다.
@@ -23,9 +44,14 @@
 
 - `deploy/smoke/run-local-ctr-readiness-audit.sh`
 - `deploy/smoke/run-local-recommendation-concentration-audit.sh`
+- `deploy/smoke/run-local-real-user-cohort-library-seed.sh`
 - `deploy/smoke/run-local-admin-dashboard-smoke.sh`
 - `deploy/smoke/run-local-admin-recommendation-breakdowns-smoke.sh`
 - `deploy/smoke/run-local-real-user-readiness-check.sh`
+- `deploy/smoke/run-local-recommendation-ai-zero-reason-distribution-audit.sh`
+- `deploy/smoke/run-local-real-user-exclusion-readiness-check.sh`
+- `deploy/smoke/run-local-recommendation-review-gate-staleness-audit.sh`
+- `deploy/smoke/run-local-recommendation-review-gate-recent-window-audit.sh`
 
 ## 어떤 사용자를 `REAL_USER` 로 보나
 
@@ -38,6 +64,8 @@
 - `LOCAL_REAL_NON_EXAMPLE_SEED`
 
 운영에서 `REAL_USER` 기준선을 열고 싶으면, 실제 운영 사용자 계정이 recommendation log를 남겨야 합니다.
+
+로컬 재현/관찰용 generic-domain `REAL_USER` library는 [recommendation-real-user-cohort-library-manifest.md](./recommendation-real-user-cohort-library-manifest.md) 를 따릅니다.
 
 ## 최소 표본
 
@@ -93,6 +121,15 @@ deploy/smoke/run-local-real-user-readiness-check.sh
 3. admin dashboard summary smoke
 4. admin dashboard recommendation-breakdowns smoke
 
+readiness와 zero-AI bucket 분포를 한 번에 보려면 아래 wrapper를 씁니다.
+
+```bash
+ADMIN_EMAIL='<server admin email>' \
+ADMIN_PASSWORD='<server admin password>' \
+APP_BASE_URL='http://127.0.0.1:8082' \
+bash deploy/smoke/run-local-real-user-exclusion-readiness-check.sh
+```
+
 ## 읽는 법
 
 중요한 출력은 아래입니다.
@@ -108,6 +145,8 @@ deploy/smoke/run-local-real-user-readiness-check.sh
 - `breakdown_real_user_gate`
 - `breakdown_review_gate`
 - `breakdown_top1_signal_summary`
+- `full_latest_batch_review_reading`
+- `recent_window_review_reading`
 
 ### 아직 reopen 금지
 
@@ -131,6 +170,19 @@ deploy/smoke/run-local-real-user-readiness-check.sh
 이 상태면 **reopen은 가능** 하지만, 다음 액션은 weight tuning보다 먼저
 `top1 집중`, `fallback 무반응`, `diversity/balancing` 쪽을 같이 보는 편이 맞습니다.
 
+또한 현재 local처럼 full latest batch gate가 stale historical example inertia를 포함할 수 있으므로,
+아래 둘도 같이 읽는 편이 맞습니다.
+
+```bash
+bash deploy/smoke/run-local-recommendation-review-gate-staleness-audit.sh
+bash deploy/smoke/run-local-recommendation-review-gate-recent-window-audit.sh
+```
+
+- staleness audit:
+  - historical latest batch가 현재 leader 해석을 얼마나 지배하는지 확인
+- recent-window audit:
+  - recent 24h current signal만 보면 leader가 이미 달라졌는지 확인
+
 ### reopen 가능한 상태
 
 최소한 아래는 만족해야 합니다.
@@ -144,6 +196,16 @@ deploy/smoke/run-local-real-user-readiness-check.sh
 - `READY_CONCENTRATED_TOP1_REVIEW`
 - `READY_NO_PRIORITY_DOMINANT_REVIEW`
 - `READY_BALANCED_LOGIC_REVIEW`
+
+gate가 열린 뒤 zero-AI latest batch 패턴까지 더 보려면 아래를 추가로 실행합니다.
+
+```bash
+USER_COHORT=real_user \
+TOP_N=20 \
+bash deploy/smoke/run-local-recommendation-ai-zero-reason-distribution-audit.sh
+```
+
+여기서 `zero_ai_reason_buckets` 가 계속 `INCOME_MISMATCH`, `STUDENT_AUDIENCE_MISMATCH` 중심이면 현재 product exclusion이 운영 latest batch에도 반복된다는 뜻으로 읽습니다.
 
 ## 실행 후 남길 최소 기록
 
@@ -165,3 +227,4 @@ deploy/smoke/run-local-real-user-readiness-check.sh
 2. 최소 `3명` 이상 사용자와 `3명` 이상 clicked user가 필요합니다.
 3. read-only 확인은 `run-local-real-user-readiness-check.sh` 하나로 묶습니다.
 4. gate가 열려도 `READY_CONCENTRATED_TOP1_REVIEW` 면 바로 weight tuning보다 집중/분산 해석을 먼저 봅니다.
+5. local current truth에서는 readiness gate가 이미 열려 있어도 full latest batch review gate는 historical inertia를 포함할 수 있으므로, full latest batch를 primary baseline으로 보고 recent-window gate를 supplemental current signal로 같이 읽는 편이 맞습니다.

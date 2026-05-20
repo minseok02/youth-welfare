@@ -782,3 +782,17 @@ ON CONFLICT (code_set_key) DO UPDATE SET
     version_label = EXCLUDED.version_label,
     is_active = EXCLUDED.is_active,
     updated_at = CURRENT_TIMESTAMP;
+
+CREATE TABLE IF NOT EXISTS recommendation_review_gate_promotion_approvals (
+    approval_key         VARCHAR(100) PRIMARY KEY,
+    approval_status      VARCHAR(50) NOT NULL,
+    approval_scope       VARCHAR(100) NOT NULL,
+    approval_note        TEXT,
+    approved_by_user_key VARCHAR(32) NOT NULL,
+    approved_at          TIMESTAMP NOT NULL,
+    created_at           TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at           TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_rrgpa_scope_approved_at
+    ON recommendation_review_gate_promotion_approvals (approval_scope, approved_at DESC);

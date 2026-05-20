@@ -44,10 +44,242 @@ public class AdminDashboardSummaryService {
                 adminDashboardRecommendationReadRepository.fetchRecommendationTrafficMix(summaryWindowAgo);
         AdminDashboardReadRows.RecommendationConcentrationRow recommendationConcentration =
                 adminDashboardRecommendationReadRepository.fetchRecommendationConcentration();
+        AdminDashboardReadRows.RecommendationRecentWindowRow recentWindowReviewSnapshot =
+                adminDashboardRecommendationReadRepository.fetchRecommendationRecentWindowSnapshot(
+                        AdminDashboardQueryPolicy.RECENT_REVIEW_WINDOW_HOURS,
+                        AdminDashboardQueryPolicy.HISTORICAL_TARGET_TOP1_SERVICE_ID
+                );
+        AdminDashboardReadRows.RecommendationReviewGateStalenessRow reviewGateStalenessSnapshot =
+                adminDashboardRecommendationReadRepository.fetchRecommendationReviewGateStalenessSnapshot(
+                        AdminDashboardQueryPolicy.RECENT_REVIEW_WINDOW_HOURS,
+                        AdminDashboardQueryPolicy.HISTORICAL_TARGET_TOP1_SERVICE_ID
+                );
+        boolean reviewGatePromotionApprovalRecorded = adminDashboardRecommendationReadRepository
+                .fetchRecommendationReviewGatePromotionApprovalRecord(
+                        AdminDashboardQueryPolicy.REVIEW_GATE_PROMOTION_APPROVAL_KEY
+                )
+                .map(AdminDashboardQueryPolicy::isReviewGatePromotionApprovalRecorded)
+                .orElse(false);
         String realUserTrafficGate =
                 AdminDashboardQueryPolicy.resolveRealUserTrafficGate(recommendationSummary, recommendationTrafficMix);
         String recommendationReviewGate =
                 AdminDashboardQueryPolicy.resolveRecommendationReviewGate(realUserTrafficGate, recommendationConcentration);
+        String recentWindowRecommendationReviewReading =
+                AdminDashboardQueryPolicy.resolveRecentWindowRecommendationReviewReading(recentWindowReviewSnapshot);
+        boolean historicalExampleDominanceDetected =
+                AdminDashboardQueryPolicy.resolveHistoricalExampleDominanceDetected(
+                        recommendationReviewGate,
+                        recentWindowRecommendationReviewReading
+                );
+        String reviewGatePolicyCandidateStatus =
+                AdminDashboardQueryPolicy.resolveReviewGatePolicyCandidateStatus(
+                        recommendationReviewGate,
+                        recentWindowRecommendationReviewReading,
+                        historicalExampleDominanceDetected,
+                        reviewGateStalenessSnapshot
+                );
+        String reviewGatePolicyCandidateReason =
+                AdminDashboardQueryPolicy.resolveReviewGatePolicyCandidateReason(
+                        recommendationReviewGate,
+                        recentWindowRecommendationReviewReading,
+                        historicalExampleDominanceDetected,
+                        reviewGateStalenessSnapshot
+                );
+        String reviewGatePolicyPromotionStatus =
+                AdminDashboardQueryPolicy.resolveReviewGatePolicyPromotionStatus(
+                        reviewGatePolicyCandidateStatus,
+                        reviewGateStalenessSnapshot
+                );
+        String reviewGatePolicyPromotionReason =
+                AdminDashboardQueryPolicy.resolveReviewGatePolicyPromotionReason(
+                        reviewGatePolicyCandidateStatus,
+                        reviewGateStalenessSnapshot
+                );
+        String reviewGatePolicyPromotionActionStatus =
+                AdminDashboardQueryPolicy.resolveReviewGatePolicyPromotionActionStatus(
+                        reviewGatePolicyPromotionStatus,
+                        reviewGatePromotionApprovalRecorded
+                );
+        String reviewGatePolicyPromotionActionReason =
+                AdminDashboardQueryPolicy.resolveReviewGatePolicyPromotionActionReason(
+                        reviewGatePolicyPromotionStatus,
+                        reviewGatePromotionApprovalRecorded
+                );
+        String reviewGatePolicyPromotionReadinessStatus =
+                AdminDashboardQueryPolicy.resolveReviewGatePolicyPromotionReadinessStatus(
+                        realUserTrafficGate,
+                        recommendationConcentration,
+                        reviewGatePolicyCandidateStatus,
+                        reviewGatePolicyPromotionStatus
+                );
+        String reviewGatePolicyPromotionReadinessReason =
+                AdminDashboardQueryPolicy.resolveReviewGatePolicyPromotionReadinessReason(
+                        realUserTrafficGate,
+                        recommendationConcentration,
+                        reviewGatePolicyCandidateStatus,
+                        reviewGatePolicyPromotionStatus
+                );
+        String reviewGatePolicyPromotionExecutionStatus =
+                AdminDashboardQueryPolicy.resolveReviewGatePolicyPromotionExecutionStatus(
+                        reviewGatePolicyPromotionReadinessStatus,
+                        reviewGatePolicyPromotionStatus,
+                        reviewGatePromotionApprovalRecorded
+                );
+        String reviewGatePolicyPromotionExecutionReason =
+                AdminDashboardQueryPolicy.resolveReviewGatePolicyPromotionExecutionReason(
+                        reviewGatePolicyPromotionReadinessStatus,
+                        reviewGatePolicyPromotionReadinessReason,
+                        reviewGatePolicyPromotionStatus,
+                        reviewGatePromotionApprovalRecorded
+                );
+        String reviewGatePolicyPromotionApprovalCriteriaStatus =
+                AdminDashboardQueryPolicy.resolveReviewGatePolicyPromotionApprovalCriteriaStatus(
+                        reviewGatePolicyPromotionReadinessStatus,
+                        reviewGatePolicyCandidateStatus,
+                        reviewGatePolicyPromotionStatus,
+                        reviewGatePolicyPromotionExecutionStatus
+                );
+        String reviewGatePolicyPromotionApprovalCriteriaReason =
+                AdminDashboardQueryPolicy.resolveReviewGatePolicyPromotionApprovalCriteriaReason(
+                        reviewGatePolicyPromotionReadinessStatus,
+                        reviewGatePolicyPromotionReadinessReason,
+                        reviewGatePolicyCandidateStatus,
+                        reviewGatePolicyPromotionStatus,
+                        reviewGatePolicyPromotionExecutionStatus
+                );
+        String reviewGatePolicyPromotionApprovalStatus =
+                AdminDashboardQueryPolicy.resolveReviewGatePolicyPromotionApprovalStatus(
+                        reviewGatePolicyPromotionExecutionStatus,
+                        reviewGatePromotionApprovalRecorded
+                );
+        String reviewGatePolicyPromotionApprovalReason =
+                AdminDashboardQueryPolicy.resolveReviewGatePolicyPromotionApprovalReason(
+                        reviewGatePolicyPromotionExecutionStatus,
+                        reviewGatePolicyPromotionExecutionReason,
+                        reviewGatePromotionApprovalRecorded
+                );
+        String reviewGatePolicyPromotionApprovalDecisionStatus =
+                AdminDashboardQueryPolicy.resolveReviewGatePolicyPromotionApprovalDecisionStatus(
+                        reviewGatePolicyPromotionApprovalCriteriaStatus,
+                        reviewGatePolicyPromotionApprovalStatus
+                );
+        String reviewGatePolicyPromotionApprovalDecisionReason =
+                AdminDashboardQueryPolicy.resolveReviewGatePolicyPromotionApprovalDecisionReason(
+                        reviewGatePolicyPromotionApprovalCriteriaStatus,
+                        reviewGatePolicyPromotionApprovalCriteriaReason,
+                        reviewGatePolicyPromotionApprovalStatus,
+                        reviewGatePolicyPromotionApprovalReason
+                );
+        String reviewGatePolicyPromotionApprovalRecordStatus =
+                AdminDashboardQueryPolicy.resolveReviewGatePolicyPromotionApprovalRecordStatus(
+                        reviewGatePolicyPromotionApprovalDecisionStatus
+                );
+        String reviewGatePolicyPromotionApprovalRecordReason =
+                AdminDashboardQueryPolicy.resolveReviewGatePolicyPromotionApprovalRecordReason(
+                        reviewGatePolicyPromotionApprovalDecisionStatus,
+                        reviewGatePolicyPromotionApprovalDecisionReason
+                );
+        String reviewGatePolicyPromotionReviewRunStatus =
+                AdminDashboardQueryPolicy.resolveReviewGatePolicyPromotionReviewRunStatus(
+                        reviewGatePolicyPromotionApprovalRecordStatus
+                );
+        String reviewGatePolicyPromotionReviewRunReason =
+                AdminDashboardQueryPolicy.resolveReviewGatePolicyPromotionReviewRunReason(
+                        reviewGatePolicyPromotionApprovalRecordStatus,
+                        reviewGatePolicyPromotionApprovalRecordReason
+                );
+        String reviewGatePolicyPromotionReviewRunCriteriaStatus =
+                AdminDashboardQueryPolicy.resolveReviewGatePolicyPromotionReviewRunCriteriaStatus(
+                        reviewGatePolicyPromotionApprovalCriteriaStatus,
+                        reviewGatePolicyPromotionApprovalRecordStatus
+                );
+        String reviewGatePolicyPromotionReviewRunCriteriaReason =
+                AdminDashboardQueryPolicy.resolveReviewGatePolicyPromotionReviewRunCriteriaReason(
+                        reviewGatePolicyPromotionApprovalCriteriaStatus,
+                        reviewGatePolicyPromotionApprovalCriteriaReason,
+                        reviewGatePolicyPromotionApprovalRecordStatus,
+                        reviewGatePolicyPromotionApprovalRecordReason
+                );
+        String reviewGatePolicyPromotionReviewRunDecisionStatus =
+                AdminDashboardQueryPolicy.resolveReviewGatePolicyPromotionReviewRunDecisionStatus(
+                        reviewGatePolicyPromotionReviewRunCriteriaStatus,
+                        reviewGatePolicyPromotionReviewRunStatus
+                );
+        String reviewGatePolicyPromotionReviewRunDecisionReason =
+                AdminDashboardQueryPolicy.resolveReviewGatePolicyPromotionReviewRunDecisionReason(
+                        reviewGatePolicyPromotionReviewRunCriteriaStatus,
+                        reviewGatePolicyPromotionReviewRunCriteriaReason,
+                        reviewGatePolicyPromotionReviewRunStatus,
+                        reviewGatePolicyPromotionReviewRunReason
+                );
+        String reviewGatePolicyPromotionReviewRunApprovalStatus =
+                AdminDashboardQueryPolicy.resolveReviewGatePolicyPromotionReviewRunApprovalStatus(
+                        reviewGatePolicyPromotionReviewRunDecisionStatus
+                );
+        String reviewGatePolicyPromotionReviewRunApprovalCriteriaStatus =
+                AdminDashboardQueryPolicy.resolveReviewGatePolicyPromotionReviewRunApprovalCriteriaStatus(
+                        reviewGatePolicyPromotionReviewRunDecisionStatus
+                );
+        String reviewGatePolicyPromotionReviewRunApprovalCriteriaReason =
+                AdminDashboardQueryPolicy.resolveReviewGatePolicyPromotionReviewRunApprovalCriteriaReason(
+                        reviewGatePolicyPromotionReviewRunDecisionStatus,
+                        reviewGatePolicyPromotionReviewRunDecisionReason
+                );
+        String reviewGatePolicyPromotionReviewRunApprovalDecisionStatus =
+                AdminDashboardQueryPolicy.resolveReviewGatePolicyPromotionReviewRunApprovalDecisionStatus(
+                        reviewGatePolicyPromotionReviewRunApprovalCriteriaStatus,
+                        reviewGatePolicyPromotionReviewRunApprovalStatus
+                );
+        String reviewGatePolicyPromotionReviewRunApprovalDecisionReason =
+                AdminDashboardQueryPolicy.resolveReviewGatePolicyPromotionReviewRunApprovalDecisionReason(
+                        reviewGatePolicyPromotionReviewRunApprovalCriteriaStatus,
+                        reviewGatePolicyPromotionReviewRunApprovalCriteriaReason,
+                        reviewGatePolicyPromotionReviewRunApprovalStatus
+                );
+        String reviewGatePolicyPromotionReviewRunApprovalReason =
+                AdminDashboardQueryPolicy.resolveReviewGatePolicyPromotionReviewRunApprovalReason(
+                        reviewGatePolicyPromotionReviewRunApprovalDecisionStatus,
+                        reviewGatePolicyPromotionReviewRunApprovalDecisionReason
+                );
+        String reviewGatePolicyPromotionReviewRunApprovalRecordCriteriaStatus =
+                AdminDashboardQueryPolicy.resolveReviewGatePolicyPromotionReviewRunApprovalRecordCriteriaStatus(
+                        reviewGatePolicyPromotionReviewRunApprovalStatus
+                );
+        String reviewGatePolicyPromotionReviewRunApprovalRecordCriteriaReason =
+                AdminDashboardQueryPolicy.resolveReviewGatePolicyPromotionReviewRunApprovalRecordCriteriaReason(
+                        reviewGatePolicyPromotionReviewRunApprovalStatus,
+                        reviewGatePolicyPromotionReviewRunApprovalReason
+                );
+        String reviewGatePolicyPromotionReviewRunApprovalRecordStatus =
+                AdminDashboardQueryPolicy.resolveReviewGatePolicyPromotionReviewRunApprovalRecordStatus(
+                        reviewGatePolicyPromotionReviewRunApprovalDecisionStatus
+                );
+        String reviewGatePolicyPromotionReviewRunApprovalRecordReason =
+                AdminDashboardQueryPolicy.resolveReviewGatePolicyPromotionReviewRunApprovalRecordReason(
+                        reviewGatePolicyPromotionReviewRunApprovalDecisionStatus,
+                        reviewGatePolicyPromotionReviewRunApprovalDecisionReason
+                );
+        String reviewGatePolicyPromotionReviewRunApprovalRecordTransitionStatus =
+                AdminDashboardQueryPolicy.resolveReviewGatePolicyPromotionReviewRunApprovalRecordTransitionStatus(
+                        reviewGatePolicyPromotionReviewRunApprovalRecordCriteriaStatus,
+                        reviewGatePolicyPromotionReviewRunApprovalRecordStatus
+                );
+        String reviewGatePolicyPromotionReviewRunApprovalRecordTransitionReason =
+                AdminDashboardQueryPolicy.resolveReviewGatePolicyPromotionReviewRunApprovalRecordTransitionReason(
+                        reviewGatePolicyPromotionReviewRunApprovalRecordCriteriaStatus,
+                        reviewGatePolicyPromotionReviewRunApprovalRecordCriteriaReason,
+                        reviewGatePolicyPromotionReviewRunApprovalRecordStatus,
+                        reviewGatePolicyPromotionReviewRunApprovalRecordReason
+                );
+        String reviewGatePolicyPromotionReviewRunApprovalRecordWriteStatus =
+                AdminDashboardQueryPolicy.resolveReviewGatePolicyPromotionReviewRunApprovalRecordWriteStatus(
+                        reviewGatePolicyPromotionReviewRunApprovalRecordTransitionStatus
+                );
+        String reviewGatePolicyPromotionReviewRunApprovalRecordWriteReason =
+                AdminDashboardQueryPolicy.resolveReviewGatePolicyPromotionReviewRunApprovalRecordWriteReason(
+                        reviewGatePolicyPromotionReviewRunApprovalRecordTransitionStatus,
+                        reviewGatePolicyPromotionReviewRunApprovalRecordTransitionReason
+                );
         ScoreWeightService.ScoreWeightProgress weightProgress =
                 scoreWeightService.getProgress(recommendationSummary.totalLogs());
         ScoreWeight activeWeight = weightProgress.activeWeight();
@@ -155,6 +387,76 @@ public class AdminDashboardSummaryService {
                                 recommendationConcentration.signalQuality()
                         ),
                         recommendationReviewGate,
+                        new AdminDashboardResponse.RecommendationRecentWindowSnapshot(
+                                recentWindowReviewSnapshot.recentWindowHours(),
+                                recentWindowReviewSnapshot.targetServiceId(),
+                                recentWindowReviewSnapshot.recentLatestBatchUsers(),
+                                recentWindowReviewSnapshot.recentExampleUsers(),
+                                recentWindowReviewSnapshot.recentRealUserUsers(),
+                                recentWindowReviewSnapshot.recentLocalRealNonExampleSeedUsers(),
+                                recentWindowReviewSnapshot.recentTop1LeaderServiceId(),
+                                recentWindowReviewSnapshot.recentTop1LeaderTitle(),
+                                recentWindowReviewSnapshot.recentTop1LeaderUsers(),
+                                recentWindowReviewSnapshot.recentTop1LeaderRealUserUsers(),
+                                recentWindowReviewSnapshot.recentTop1LeaderSharePct(),
+                                recentWindowReviewSnapshot.recentTargetTop1Users(),
+                                recentWindowReviewSnapshot.recentTargetTop1RealUserUsers()
+                        ),
+                        new AdminDashboardResponse.RecommendationReviewGateStalenessSnapshot(
+                                reviewGateStalenessSnapshot.targetServiceId(),
+                                reviewGateStalenessSnapshot.primaryReferenceMode(),
+                                reviewGateStalenessSnapshot.recentWindowHours(),
+                                reviewGateStalenessSnapshot.exampleLatestUsers(),
+                                reviewGateStalenessSnapshot.exampleLatestUsersLast24h(),
+                                reviewGateStalenessSnapshot.exampleTargetTop1Users(),
+                                reviewGateStalenessSnapshot.exampleTargetTop1Last24h(),
+                                reviewGateStalenessSnapshot.exampleTargetOldestTop1At(),
+                                reviewGateStalenessSnapshot.exampleTargetNewestTop1At(),
+                                reviewGateStalenessSnapshot.realUserLatestUsers(),
+                                reviewGateStalenessSnapshot.realUserLatestUsersLast24h(),
+                                reviewGateStalenessSnapshot.realUserTargetTop1Users(),
+                                reviewGateStalenessSnapshot.realUserTargetTop1Last24h()
+                        ),
+                        recentWindowRecommendationReviewReading,
+                        historicalExampleDominanceDetected,
+                        reviewGatePolicyCandidateStatus,
+                        reviewGatePolicyCandidateReason,
+                        reviewGatePolicyPromotionStatus,
+                        reviewGatePolicyPromotionReason,
+                        reviewGatePolicyPromotionActionStatus,
+                        reviewGatePolicyPromotionActionReason,
+                        reviewGatePolicyPromotionReadinessStatus,
+                        reviewGatePolicyPromotionReadinessReason,
+                        reviewGatePolicyPromotionExecutionStatus,
+                        reviewGatePolicyPromotionExecutionReason,
+                        reviewGatePolicyPromotionApprovalCriteriaStatus,
+                        reviewGatePolicyPromotionApprovalCriteriaReason,
+                        reviewGatePolicyPromotionApprovalStatus,
+                        reviewGatePolicyPromotionApprovalReason,
+                        reviewGatePolicyPromotionApprovalDecisionStatus,
+                        reviewGatePolicyPromotionApprovalDecisionReason,
+                        reviewGatePolicyPromotionApprovalRecordStatus,
+                        reviewGatePolicyPromotionApprovalRecordReason,
+                        reviewGatePolicyPromotionReviewRunStatus,
+                        reviewGatePolicyPromotionReviewRunReason,
+                        reviewGatePolicyPromotionReviewRunCriteriaStatus,
+                        reviewGatePolicyPromotionReviewRunCriteriaReason,
+                        reviewGatePolicyPromotionReviewRunDecisionStatus,
+                        reviewGatePolicyPromotionReviewRunDecisionReason,
+                        reviewGatePolicyPromotionReviewRunApprovalCriteriaStatus,
+                        reviewGatePolicyPromotionReviewRunApprovalCriteriaReason,
+                        reviewGatePolicyPromotionReviewRunApprovalDecisionStatus,
+                        reviewGatePolicyPromotionReviewRunApprovalDecisionReason,
+                        reviewGatePolicyPromotionReviewRunApprovalStatus,
+                        reviewGatePolicyPromotionReviewRunApprovalReason,
+                        reviewGatePolicyPromotionReviewRunApprovalRecordCriteriaStatus,
+                        reviewGatePolicyPromotionReviewRunApprovalRecordCriteriaReason,
+                        reviewGatePolicyPromotionReviewRunApprovalRecordStatus,
+                        reviewGatePolicyPromotionReviewRunApprovalRecordReason,
+                        reviewGatePolicyPromotionReviewRunApprovalRecordTransitionStatus,
+                        reviewGatePolicyPromotionReviewRunApprovalRecordTransitionReason,
+                        reviewGatePolicyPromotionReviewRunApprovalRecordWriteStatus,
+                        reviewGatePolicyPromotionReviewRunApprovalRecordWriteReason,
                         adminDashboardRecommendationReadRepository.fetchRecommendationWeightBuckets(summaryWindowAgo).stream()
                                 .map(row -> new AdminDashboardResponse.RecommendationWeightSnapshot(
                                         row.weightKey(),

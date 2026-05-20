@@ -246,6 +246,7 @@ for idx, row in enumerate(top_rows, start=1):
         f"delta={delta}\t"
         f"savedAi={row.get('latestSavedAiScore')}\t"
         f"savedAiStatus={row.get('latestSavedAiStatus')}\t"
+        f"savedAiReason={row.get('latestSavedAiReason')}\t"
         f"sourceType={row.get('sourceType')}\t"
         f"category={row.get('category')}\t"
         f"title={row.get('title')}"
@@ -274,6 +275,7 @@ for service_id in sorted(target_ids):
         f"delta={delta}\t"
         f"savedAi={row.get('latestSavedAiScore')}\t"
         f"savedAiStatus={row.get('latestSavedAiStatus')}\t"
+        f"savedAiReason={row.get('latestSavedAiReason')}\t"
         f"dropStage={row.get('dropStage')}\t"
         f"title={row.get('title')}"
     )

@@ -100,7 +100,7 @@
 
 2026-05-17 추가 manual QA 기준선:
 
-- `admin@example.com` 으로 `/admin/dashboard` 진입 시 recommendation hero, `수집 실패 상세`, `검색 실패 상세` 가 함께 렌더링됨
+- `<local admin email>` 로 `/admin/dashboard` 진입 시 recommendation hero, `수집 실패 상세`, `검색 실패 상세` 가 함께 렌더링됨
 - 일반 사용자로 `/admin/dashboard` 접근 시 `/` redirect + `운영 대시보드는 관리자 계정만 접근할 수 있습니다.` toast 표시
 - admin dashboard의 `요약 기간` 전환에서 `14 -> 7`, `7 -> 30` 은 `summary`, `recommendation-breakdowns`, `collect-failures`, `search-failures` 네 API 재호출 확인
 - `30 -> 14` 전환은 `React Query staleTime=30000` 범위라 cache reuse 가능 동작으로 본다

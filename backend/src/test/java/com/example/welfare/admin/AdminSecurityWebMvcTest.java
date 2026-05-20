@@ -4,11 +4,14 @@ import com.example.welfare.admin.dashboard.controller.AdminDashboardController;
 import com.example.welfare.admin.dashboard.dto.AdminCollectFailureResponse;
 import com.example.welfare.admin.dashboard.dto.AdminRecommendationCandidateDiagnosticResponse;
 import com.example.welfare.admin.dashboard.dto.AdminRecommendationBreakdownResponse;
+import com.example.welfare.admin.dashboard.dto.AdminRecommendationReviewGatePromotionApprovalRecordClearResponse;
+import com.example.welfare.admin.dashboard.dto.AdminRecommendationReviewGatePromotionApprovalRecordResponse;
 import com.example.welfare.admin.dashboard.dto.AdminSearchFailureResponse;
 import com.example.welfare.admin.dashboard.dto.AdminDashboardResponse;
 import com.example.welfare.admin.dashboard.service.AdminDashboardCollectService;
 import com.example.welfare.admin.dashboard.service.AdminDashboardRecommendationDiagnosticService;
 import com.example.welfare.admin.dashboard.service.AdminDashboardRecommendationService;
+import com.example.welfare.admin.dashboard.service.AdminRecommendationReviewGatePromotionApprovalRecordService;
 import com.example.welfare.admin.dashboard.service.AdminDashboardSearchService;
 import com.example.welfare.admin.dashboard.service.AdminDashboardSummaryService;
 import com.example.welfare.collect.controller.CollectAdminController;
@@ -57,6 +60,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.data.jpa.mapping.JpaMetamodelMappingContext;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.MediaType;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -69,6 +73,7 @@ import static org.mockito.Mockito.doNothing;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -128,6 +133,8 @@ class AdminSecurityWebMvcTest {
     @MockBean
     private AdminDashboardRecommendationDiagnosticService adminDashboardRecommendationDiagnosticService;
     @MockBean
+    private AdminRecommendationReviewGatePromotionApprovalRecordService adminRecommendationReviewGatePromotionApprovalRecordService;
+    @MockBean
     private AdminDashboardCollectService adminDashboardCollectService;
     @MockBean
     private JwtUtil jwtUtil;
@@ -180,6 +187,64 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.data").value("온통청년 수집 완료"));
 
         then(collectAdminService).should().collect(CollectSource.YOUTH);
+    }
+
+    @Test
+    @DisplayName("관리자 토큰으로 recommendation promotion approval record write API를 호출하면 approval record service를 실행한다")
+    void adminEndpointAllowsRecommendationPromotionApprovalRecordWrite() throws Exception {
+        mockAuthenticatedToken("admin-token", List.of(
+                new SimpleGrantedAuthority("ROLE_USER"),
+                new SimpleGrantedAuthority("ROLE_ADMIN")
+        ));
+        given(adminRecommendationReviewGatePromotionApprovalRecordService.recordApproval(
+                org.mockito.ArgumentMatchers.eq("user-key-1"),
+                org.mockito.ArgumentMatchers.eq("bounded review approved")
+        )).willReturn(new AdminRecommendationReviewGatePromotionApprovalRecordResponse(
+                "RECENT_WINDOW_BOUNDED_PROMOTION_REVIEW",
+                "APPROVED_FOR_BOUNDED_PROMOTION_REVIEW",
+                "RECOMMENDATION_REVIEW_GATE_POLICY_PROMOTION",
+                "bounded review approved",
+                "user-key-1",
+                LocalDateTime.of(2026, 5, 20, 10, 0),
+                true
+        ));
+
+        mockMvc.perform(post("/api/admin/dashboard/recommendation-review-gate/promotion-approval-record")
+                        .header("Authorization", "Bearer admin-token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"approvalNote":"bounded review approved"}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.approvalKey").value("RECENT_WINDOW_BOUNDED_PROMOTION_REVIEW"))
+                .andExpect(jsonPath("$.data.recorded").value(true));
+
+        then(adminRecommendationReviewGatePromotionApprovalRecordService).should()
+                .recordApproval("user-key-1", "bounded review approved");
+    }
+
+    @Test
+    @DisplayName("관리자 토큰으로 recommendation promotion approval record clear API를 호출하면 approval record service를 실행한다")
+    void adminEndpointAllowsRecommendationPromotionApprovalRecordClear() throws Exception {
+        mockAuthenticatedToken("admin-token", List.of(
+                new SimpleGrantedAuthority("ROLE_USER"),
+                new SimpleGrantedAuthority("ROLE_ADMIN")
+        ));
+        given(adminRecommendationReviewGatePromotionApprovalRecordService.clearApproval())
+                .willReturn(new AdminRecommendationReviewGatePromotionApprovalRecordClearResponse(
+                        "RECENT_WINDOW_BOUNDED_PROMOTION_REVIEW",
+                        true
+                ));
+
+        mockMvc.perform(delete("/api/admin/dashboard/recommendation-review-gate/promotion-approval-record")
+                        .header("Authorization", "Bearer admin-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.approvalKey").value("RECENT_WINDOW_BOUNDED_PROMOTION_REVIEW"))
+                .andExpect(jsonPath("$.data.cleared").value(true));
+
+        then(adminRecommendationReviewGatePromotionApprovalRecordService).should().clearApproval();
     }
 
     @Test
@@ -645,6 +710,76 @@ class AdminSecurityWebMvcTest {
                                         "LOCAL_REAL_NON_EXAMPLE_SEED_WITH_NON_REAL_BATCH"
                                 ),
                                 "DEFERRED_NO_REAL_USER_TRAFFIC",
+                                new AdminDashboardResponse.RecommendationRecentWindowSnapshot(
+                                        24,
+                                        2622L,
+                                        83,
+                                        3,
+                                        80,
+                                        0,
+                                        3284L,
+                                        "인천 청년도약기지(취업아카데미)",
+                                        6,
+                                        5,
+                                        java.math.BigDecimal.valueOf(7.23),
+                                        0,
+                                        0
+                                ),
+                                new AdminDashboardResponse.RecommendationReviewGateStalenessSnapshot(
+                                        2622L,
+                                        "ALL_TIME_LATEST_PER_USER",
+                                        24,
+                                        454,
+                                        3,
+                                        272,
+                                        0,
+                                        LocalDateTime.of(2026, 5, 13, 13, 39, 31),
+                                        LocalDateTime.of(2026, 5, 17, 11, 49, 50),
+                                        80,
+                                        80,
+                                        0,
+                                        0
+                                ),
+                                "RECENT_WINDOW_CLEARS_HISTORICAL_2622_DOMINANCE",
+                                true,
+                                "NOT_A_CANDIDATE_PRIMARY_GATE_NOT_NON_REAL_BLOCKED",
+                                "PRIMARY_REVIEW_GATE_IS_NOT_DEFERRED_NON_REAL_LEADER_SIGNAL",
+                                "KEEP_PRIMARY_BASELINE",
+                                "RECENT_WINDOW_CANDIDATE_HAS_NOT_CLEARED_PRIMARY_BASELINE_REQUIREMENTS",
+                                "KEEP_PRIMARY_BASELINE",
+                                "RECENT_WINDOW_POLICY_PROMOTION_CONDITIONS_NOT_MET",
+                                "NOT_READY_FOR_BOUNDED_PROMOTION_REVIEW",
+                                "REAL_USER_TRAFFIC_GATE_NOT_READY",
+                                "DO_NOT_RUN_BOUNDED_PROMOTION_REVIEW",
+                                "REAL_USER_TRAFFIC_GATE_NOT_READY",
+                                "NOT_READY_FOR_EXPLICIT_PROMOTION_APPROVAL",
+                                "REAL_USER_TRAFFIC_GATE_NOT_READY",
+                                "PROMOTION_APPROVAL_NOT_APPLICABLE",
+                                "REAL_USER_TRAFFIC_GATE_NOT_READY",
+                                "APPROVAL_DECISION_NOT_READY",
+                                "REAL_USER_TRAFFIC_GATE_NOT_READY",
+                                "APPROVAL_RECORD_NOT_READY",
+                                "REAL_USER_TRAFFIC_GATE_NOT_READY",
+                                "BOUNDED_PROMOTION_REVIEW_RUN_NOT_READY",
+                                "REAL_USER_TRAFFIC_GATE_NOT_READY",
+                                "NOT_READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN",
+                                "REAL_USER_TRAFFIC_GATE_NOT_READY",
+                                "BOUNDED_PROMOTION_REVIEW_RUN_DECISION_NOT_READY",
+                                "REAL_USER_TRAFFIC_GATE_NOT_READY",
+                                "NOT_READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL",
+                                "REAL_USER_TRAFFIC_GATE_NOT_READY",
+                                "BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_DECISION_NOT_READY",
+                                "REAL_USER_TRAFFIC_GATE_NOT_READY",
+                                "BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_NOT_READY",
+                                "REAL_USER_TRAFFIC_GATE_NOT_READY",
+                                "NOT_READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD",
+                                "REAL_USER_TRAFFIC_GATE_NOT_READY",
+                                "BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_NOT_READY",
+                                "REAL_USER_TRAFFIC_GATE_NOT_READY",
+                                "BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_TRANSITION_NOT_READY",
+                                "REAL_USER_TRAFFIC_GATE_NOT_READY",
+                                "BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_WRITE_NOT_READY",
+                                "REAL_USER_TRAFFIC_GATE_NOT_READY",
                                 List.of(
                                         new AdminDashboardResponse.RecommendationWeightSnapshot(
                                                 "GROWTH",
@@ -729,6 +864,55 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.data.recommendation.latestBatchConcentration.top1LeaderSignalSummary").value("LOCAL_SEED_WITHOUT_REAL_USER_LEADER"))
                 .andExpect(jsonPath("$.data.recommendation.latestBatchConcentration.concentrationReadiness").value("CONCENTRATED_TOP1"))
                 .andExpect(jsonPath("$.data.recommendation.latestBatchConcentration.realUserCohortGate").value("DEFERRED_NO_REAL_USER_COHORT"))
+                .andExpect(jsonPath("$.data.recommendation.recentWindowLatestBatch.recentWindowHours").value(24))
+                .andExpect(jsonPath("$.data.recommendation.recentWindowLatestBatch.top1LeaderServiceId").value(3284))
+                .andExpect(jsonPath("$.data.recommendation.recentWindowLatestBatch.top1LeaderRealUserUsers").value(5))
+                .andExpect(jsonPath("$.data.recommendation.recentWindowLatestBatch.targetTop1Users").value(0))
+                .andExpect(jsonPath("$.data.recommendation.reviewGateStaleness.primaryReferenceMode").value("ALL_TIME_LATEST_PER_USER"))
+                .andExpect(jsonPath("$.data.recommendation.reviewGateStaleness.exampleTargetTop1Users").value(272))
+                .andExpect(jsonPath("$.data.recommendation.reviewGateStaleness.exampleTargetTop1Last24h").value(0))
+                .andExpect(jsonPath("$.data.recommendation.reviewGateStaleness.realUserLatestUsers").value(80))
+                .andExpect(jsonPath("$.data.recommendation.reviewGateStaleness.realUserTargetTop1Users").value(0))
+                .andExpect(jsonPath("$.data.recommendation.recentWindowRecommendationReviewReading").value("RECENT_WINDOW_CLEARS_HISTORICAL_2622_DOMINANCE"))
+                .andExpect(jsonPath("$.data.recommendation.historicalExampleDominanceDetected").value(true))
+                .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyCandidateStatus").value("NOT_A_CANDIDATE_PRIMARY_GATE_NOT_NON_REAL_BLOCKED"))
+                .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyCandidateReason").value("PRIMARY_REVIEW_GATE_IS_NOT_DEFERRED_NON_REAL_LEADER_SIGNAL"))
+                .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyPromotionStatus").value("KEEP_PRIMARY_BASELINE"))
+                .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyPromotionReason").value("RECENT_WINDOW_CANDIDATE_HAS_NOT_CLEARED_PRIMARY_BASELINE_REQUIREMENTS"))
+                .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyPromotionActionStatus").value("KEEP_PRIMARY_BASELINE"))
+                .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyPromotionActionReason").value("RECENT_WINDOW_POLICY_PROMOTION_CONDITIONS_NOT_MET"))
+                .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyPromotionReadinessStatus").value("NOT_READY_FOR_BOUNDED_PROMOTION_REVIEW"))
+                .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyPromotionReadinessReason").value("REAL_USER_TRAFFIC_GATE_NOT_READY"))
+                .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyPromotionExecutionStatus").value("DO_NOT_RUN_BOUNDED_PROMOTION_REVIEW"))
+                .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyPromotionExecutionReason").value("REAL_USER_TRAFFIC_GATE_NOT_READY"))
+                .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyPromotionApprovalCriteriaStatus").value("NOT_READY_FOR_EXPLICIT_PROMOTION_APPROVAL"))
+                .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyPromotionApprovalCriteriaReason").value("REAL_USER_TRAFFIC_GATE_NOT_READY"))
+                .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyPromotionApprovalStatus").value("PROMOTION_APPROVAL_NOT_APPLICABLE"))
+                .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyPromotionApprovalReason").value("REAL_USER_TRAFFIC_GATE_NOT_READY"))
+                .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyPromotionApprovalDecisionStatus").value("APPROVAL_DECISION_NOT_READY"))
+                .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyPromotionApprovalDecisionReason").value("REAL_USER_TRAFFIC_GATE_NOT_READY"))
+                .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyPromotionApprovalRecordStatus").value("APPROVAL_RECORD_NOT_READY"))
+                .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyPromotionApprovalRecordReason").value("REAL_USER_TRAFFIC_GATE_NOT_READY"))
+                .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyPromotionReviewRunStatus").value("BOUNDED_PROMOTION_REVIEW_RUN_NOT_READY"))
+                .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyPromotionReviewRunReason").value("REAL_USER_TRAFFIC_GATE_NOT_READY"))
+                .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyPromotionReviewRunCriteriaStatus").value("NOT_READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN"))
+                .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyPromotionReviewRunCriteriaReason").value("REAL_USER_TRAFFIC_GATE_NOT_READY"))
+                .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyPromotionReviewRunDecisionStatus").value("BOUNDED_PROMOTION_REVIEW_RUN_DECISION_NOT_READY"))
+                .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyPromotionReviewRunDecisionReason").value("REAL_USER_TRAFFIC_GATE_NOT_READY"))
+                .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyPromotionReviewRunApprovalCriteriaStatus").value("NOT_READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL"))
+                .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyPromotionReviewRunApprovalCriteriaReason").value("REAL_USER_TRAFFIC_GATE_NOT_READY"))
+                .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyPromotionReviewRunApprovalDecisionStatus").value("BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_DECISION_NOT_READY"))
+                .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyPromotionReviewRunApprovalDecisionReason").value("REAL_USER_TRAFFIC_GATE_NOT_READY"))
+                .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyPromotionReviewRunApprovalStatus").value("BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_NOT_READY"))
+                .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyPromotionReviewRunApprovalReason").value("REAL_USER_TRAFFIC_GATE_NOT_READY"))
+                .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyPromotionReviewRunApprovalRecordCriteriaStatus").value("NOT_READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD"))
+                .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyPromotionReviewRunApprovalRecordCriteriaReason").value("REAL_USER_TRAFFIC_GATE_NOT_READY"))
+                .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyPromotionReviewRunApprovalRecordStatus").value("BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_NOT_READY"))
+                .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyPromotionReviewRunApprovalRecordReason").value("REAL_USER_TRAFFIC_GATE_NOT_READY"))
+                .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyPromotionReviewRunApprovalRecordTransitionStatus").value("BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_TRANSITION_NOT_READY"))
+                .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyPromotionReviewRunApprovalRecordTransitionReason").value("REAL_USER_TRAFFIC_GATE_NOT_READY"))
+                .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyPromotionReviewRunApprovalRecordWriteStatus").value("BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_WRITE_NOT_READY"))
+                .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyPromotionReviewRunApprovalRecordWriteReason").value("REAL_USER_TRAFFIC_GATE_NOT_READY"))
                 .andExpect(jsonPath("$.data.notification.windowDays").value(7))
                 .andExpect(jsonPath("$.data.notification.sentInWindow").value(5))
                 .andExpect(jsonPath("$.data.search.windowDays").value(7))
@@ -815,6 +999,76 @@ class AdminSecurityWebMvcTest {
                                         "EMPTY_COHORT"
                                 ),
                                 "DEFERRED_NO_REAL_USER_TRAFFIC",
+                                new AdminDashboardResponse.RecommendationRecentWindowSnapshot(
+                                        24,
+                                        2622L,
+                                        0,
+                                        0,
+                                        0,
+                                        0,
+                                        null,
+                                        null,
+                                        0,
+                                        0,
+                                        java.math.BigDecimal.ZERO,
+                                        0,
+                                        0
+                                ),
+                                new AdminDashboardResponse.RecommendationReviewGateStalenessSnapshot(
+                                        2622L,
+                                        "ALL_TIME_LATEST_PER_USER",
+                                        24,
+                                        0,
+                                        0,
+                                        0,
+                                        0,
+                                        null,
+                                        null,
+                                        0,
+                                        0,
+                                        0,
+                                        0
+                                ),
+                                "DEFERRED_EMPTY_RECENT_WINDOW",
+                                false,
+                                "NOT_A_CANDIDATE_PRIMARY_GATE_NOT_NON_REAL_BLOCKED",
+                                "PRIMARY_REVIEW_GATE_IS_NOT_DEFERRED_NON_REAL_LEADER_SIGNAL",
+                                "KEEP_PRIMARY_BASELINE",
+                                "RECENT_WINDOW_CANDIDATE_HAS_NOT_CLEARED_PRIMARY_BASELINE_REQUIREMENTS",
+                                "KEEP_PRIMARY_BASELINE",
+                                "RECENT_WINDOW_POLICY_PROMOTION_CONDITIONS_NOT_MET",
+                                "NOT_READY_FOR_BOUNDED_PROMOTION_REVIEW",
+                                "REAL_USER_TRAFFIC_GATE_NOT_READY",
+                                "DO_NOT_RUN_BOUNDED_PROMOTION_REVIEW",
+                                "REAL_USER_TRAFFIC_GATE_NOT_READY",
+                                "NOT_READY_FOR_EXPLICIT_PROMOTION_APPROVAL",
+                                "REAL_USER_TRAFFIC_GATE_NOT_READY",
+                                "PROMOTION_APPROVAL_NOT_APPLICABLE",
+                                "REAL_USER_TRAFFIC_GATE_NOT_READY",
+                                "APPROVAL_DECISION_NOT_READY",
+                                "REAL_USER_TRAFFIC_GATE_NOT_READY",
+                                "APPROVAL_RECORD_NOT_READY",
+                                "REAL_USER_TRAFFIC_GATE_NOT_READY",
+                                "BOUNDED_PROMOTION_REVIEW_RUN_NOT_READY",
+                                "REAL_USER_TRAFFIC_GATE_NOT_READY",
+                                "NOT_READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN",
+                                "REAL_USER_TRAFFIC_GATE_NOT_READY",
+                                "BOUNDED_PROMOTION_REVIEW_RUN_DECISION_NOT_READY",
+                                "REAL_USER_TRAFFIC_GATE_NOT_READY",
+                                "NOT_READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL",
+                                "REAL_USER_TRAFFIC_GATE_NOT_READY",
+                                "BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_DECISION_NOT_READY",
+                                "REAL_USER_TRAFFIC_GATE_NOT_READY",
+                                "BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_NOT_READY",
+                                "REAL_USER_TRAFFIC_GATE_NOT_READY",
+                                "NOT_READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD",
+                                "REAL_USER_TRAFFIC_GATE_NOT_READY",
+                                "BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_NOT_READY",
+                                "REAL_USER_TRAFFIC_GATE_NOT_READY",
+                                "BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_TRANSITION_NOT_READY",
+                                "REAL_USER_TRAFFIC_GATE_NOT_READY",
+                                "BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_WRITE_NOT_READY",
+                                "REAL_USER_TRAFFIC_GATE_NOT_READY",
                                 List.of()
                         ),
                         new AdminDashboardResponse.NotificationSection(0, 0, 14, 0, 0),
@@ -869,6 +1123,48 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.data.recommendation.realUserTrafficGateInWindow").value("DEFERRED_NO_REAL_USER_TRAFFIC"))
                 .andExpect(jsonPath("$.data.recommendation.recommendationReviewGate").value("DEFERRED_NO_REAL_USER_TRAFFIC"))
                 .andExpect(jsonPath("$.data.recommendation.latestBatchConcentration.concentrationReadiness").value("DEFERRED_EMPTY_COHORT"))
+                .andExpect(jsonPath("$.data.recommendation.reviewGateStaleness.primaryReferenceMode").value("ALL_TIME_LATEST_PER_USER"))
+                .andExpect(jsonPath("$.data.recommendation.reviewGateStaleness.exampleTargetTop1Users").value(0))
+                .andExpect(jsonPath("$.data.recommendation.recentWindowRecommendationReviewReading").value("DEFERRED_EMPTY_RECENT_WINDOW"))
+                .andExpect(jsonPath("$.data.recommendation.historicalExampleDominanceDetected").value(false))
+                .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyCandidateStatus").value("NOT_A_CANDIDATE_PRIMARY_GATE_NOT_NON_REAL_BLOCKED"))
+                .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyCandidateReason").value("PRIMARY_REVIEW_GATE_IS_NOT_DEFERRED_NON_REAL_LEADER_SIGNAL"))
+                .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyPromotionStatus").value("KEEP_PRIMARY_BASELINE"))
+                .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyPromotionReason").value("RECENT_WINDOW_CANDIDATE_HAS_NOT_CLEARED_PRIMARY_BASELINE_REQUIREMENTS"))
+                .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyPromotionActionStatus").value("KEEP_PRIMARY_BASELINE"))
+                .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyPromotionActionReason").value("RECENT_WINDOW_POLICY_PROMOTION_CONDITIONS_NOT_MET"))
+                .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyPromotionReadinessStatus").value("NOT_READY_FOR_BOUNDED_PROMOTION_REVIEW"))
+                .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyPromotionReadinessReason").value("REAL_USER_TRAFFIC_GATE_NOT_READY"))
+                .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyPromotionExecutionStatus").value("DO_NOT_RUN_BOUNDED_PROMOTION_REVIEW"))
+                .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyPromotionExecutionReason").value("REAL_USER_TRAFFIC_GATE_NOT_READY"))
+                .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyPromotionApprovalCriteriaStatus").value("NOT_READY_FOR_EXPLICIT_PROMOTION_APPROVAL"))
+                .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyPromotionApprovalCriteriaReason").value("REAL_USER_TRAFFIC_GATE_NOT_READY"))
+                .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyPromotionApprovalStatus").value("PROMOTION_APPROVAL_NOT_APPLICABLE"))
+                .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyPromotionApprovalReason").value("REAL_USER_TRAFFIC_GATE_NOT_READY"))
+                .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyPromotionApprovalDecisionStatus").value("APPROVAL_DECISION_NOT_READY"))
+                .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyPromotionApprovalDecisionReason").value("REAL_USER_TRAFFIC_GATE_NOT_READY"))
+                .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyPromotionApprovalRecordStatus").value("APPROVAL_RECORD_NOT_READY"))
+                .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyPromotionApprovalRecordReason").value("REAL_USER_TRAFFIC_GATE_NOT_READY"))
+                .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyPromotionReviewRunStatus").value("BOUNDED_PROMOTION_REVIEW_RUN_NOT_READY"))
+                .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyPromotionReviewRunReason").value("REAL_USER_TRAFFIC_GATE_NOT_READY"))
+                .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyPromotionReviewRunCriteriaStatus").value("NOT_READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN"))
+                .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyPromotionReviewRunCriteriaReason").value("REAL_USER_TRAFFIC_GATE_NOT_READY"))
+                .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyPromotionReviewRunDecisionStatus").value("BOUNDED_PROMOTION_REVIEW_RUN_DECISION_NOT_READY"))
+                .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyPromotionReviewRunDecisionReason").value("REAL_USER_TRAFFIC_GATE_NOT_READY"))
+                .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyPromotionReviewRunApprovalCriteriaStatus").value("NOT_READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL"))
+                .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyPromotionReviewRunApprovalCriteriaReason").value("REAL_USER_TRAFFIC_GATE_NOT_READY"))
+                .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyPromotionReviewRunApprovalDecisionStatus").value("BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_DECISION_NOT_READY"))
+                .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyPromotionReviewRunApprovalDecisionReason").value("REAL_USER_TRAFFIC_GATE_NOT_READY"))
+                .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyPromotionReviewRunApprovalStatus").value("BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_NOT_READY"))
+                .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyPromotionReviewRunApprovalReason").value("REAL_USER_TRAFFIC_GATE_NOT_READY"))
+                .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyPromotionReviewRunApprovalRecordCriteriaStatus").value("NOT_READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD"))
+                .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyPromotionReviewRunApprovalRecordCriteriaReason").value("REAL_USER_TRAFFIC_GATE_NOT_READY"))
+                .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyPromotionReviewRunApprovalRecordStatus").value("BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_NOT_READY"))
+                .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyPromotionReviewRunApprovalRecordReason").value("REAL_USER_TRAFFIC_GATE_NOT_READY"))
+                .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyPromotionReviewRunApprovalRecordTransitionStatus").value("BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_TRANSITION_NOT_READY"))
+                .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyPromotionReviewRunApprovalRecordTransitionReason").value("REAL_USER_TRAFFIC_GATE_NOT_READY"))
+                .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyPromotionReviewRunApprovalRecordWriteStatus").value("BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_WRITE_NOT_READY"))
+                .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyPromotionReviewRunApprovalRecordWriteReason").value("REAL_USER_TRAFFIC_GATE_NOT_READY"))
                 .andExpect(jsonPath("$.data.notification.windowDays").value(14))
                 .andExpect(jsonPath("$.data.trend.recommendation[1].fallbackRate").value(0.5000))
                 .andExpect(jsonPath("$.data.search.windowDays").value(14))
@@ -1039,8 +1335,78 @@ class AdminSecurityWebMvcTest {
                                 "LOCAL_REAL_NON_EXAMPLE_SEED_WITH_NON_REAL_BATCH"
                         ),
                         "DEFERRED_NO_REAL_USER_TRAFFIC",
-                        List.of(
-                                new AdminRecommendationBreakdownResponse.RepeatedServiceSnapshot(
+                        new AdminRecommendationBreakdownResponse.RecommendationRecentWindowSnapshot(
+                                24,
+                                2622L,
+                                83,
+                                3,
+                                80,
+                                0,
+                                3284L,
+                                "인천 청년도약기지(취업아카데미)",
+                                6,
+                                5,
+                                java.math.BigDecimal.valueOf(7.23),
+                                0,
+                                0
+                        ),
+                        new AdminRecommendationBreakdownResponse.RecommendationReviewGateStalenessSnapshot(
+                                2622L,
+                                "ALL_TIME_LATEST_PER_USER",
+                                24,
+                                454,
+                                3,
+                                272,
+                                0,
+                                LocalDateTime.of(2026, 5, 13, 13, 39, 31),
+                                LocalDateTime.of(2026, 5, 17, 11, 49, 50),
+                                80,
+                                80,
+                        0,
+                        0
+                ),
+                "RECENT_WINDOW_CLEARS_HISTORICAL_2622_DOMINANCE",
+                true,
+                "NOT_A_CANDIDATE_PRIMARY_GATE_NOT_NON_REAL_BLOCKED",
+                "PRIMARY_REVIEW_GATE_IS_NOT_DEFERRED_NON_REAL_LEADER_SIGNAL",
+                "KEEP_PRIMARY_BASELINE",
+                "RECENT_WINDOW_CANDIDATE_HAS_NOT_CLEARED_PRIMARY_BASELINE_REQUIREMENTS",
+                "KEEP_PRIMARY_BASELINE",
+                "RECENT_WINDOW_POLICY_PROMOTION_CONDITIONS_NOT_MET",
+                "NOT_READY_FOR_BOUNDED_PROMOTION_REVIEW",
+                "REAL_USER_TRAFFIC_GATE_NOT_READY",
+                "DO_NOT_RUN_BOUNDED_PROMOTION_REVIEW",
+                "REAL_USER_TRAFFIC_GATE_NOT_READY",
+                "NOT_READY_FOR_EXPLICIT_PROMOTION_APPROVAL",
+                "REAL_USER_TRAFFIC_GATE_NOT_READY",
+                "PROMOTION_APPROVAL_NOT_APPLICABLE",
+                "REAL_USER_TRAFFIC_GATE_NOT_READY",
+                "APPROVAL_DECISION_NOT_READY",
+                "REAL_USER_TRAFFIC_GATE_NOT_READY",
+                "APPROVAL_RECORD_NOT_READY",
+                "REAL_USER_TRAFFIC_GATE_NOT_READY",
+                "BOUNDED_PROMOTION_REVIEW_RUN_NOT_READY",
+                "REAL_USER_TRAFFIC_GATE_NOT_READY",
+                "NOT_READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN",
+                "REAL_USER_TRAFFIC_GATE_NOT_READY",
+                "BOUNDED_PROMOTION_REVIEW_RUN_DECISION_NOT_READY",
+                "REAL_USER_TRAFFIC_GATE_NOT_READY",
+                "NOT_READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL",
+                "REAL_USER_TRAFFIC_GATE_NOT_READY",
+                "BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_DECISION_NOT_READY",
+                "REAL_USER_TRAFFIC_GATE_NOT_READY",
+                "BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_NOT_READY",
+                "REAL_USER_TRAFFIC_GATE_NOT_READY",
+                "NOT_READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD",
+                "REAL_USER_TRAFFIC_GATE_NOT_READY",
+                "BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_NOT_READY",
+                "REAL_USER_TRAFFIC_GATE_NOT_READY",
+                "BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_TRANSITION_NOT_READY",
+                "REAL_USER_TRAFFIC_GATE_NOT_READY",
+                "BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_WRITE_NOT_READY",
+                "REAL_USER_TRAFFIC_GATE_NOT_READY",
+                List.of(
+                        new AdminRecommendationBreakdownResponse.RepeatedServiceSnapshot(
                                         2622L,
                                         "청년월세 지원사업",
                                         "BOKJIRO_CENTRAL",
@@ -1118,6 +1484,17 @@ class AdminSecurityWebMvcTest {
                                 )
                         ),
                         List.of(
+                                new AdminRecommendationBreakdownResponse.FacetGroup(
+                                        "GOV24_SERVICE_FIELD",
+                                        "Gov24 서비스분야",
+                                        List.of(
+                                                new AdminRecommendationBreakdownResponse.FacetBucket(
+                                                        "주거·자립",
+                                                        6,
+                                                        4
+                                                )
+                                        )
+                                ),
                                 new AdminRecommendationBreakdownResponse.FacetGroup(
                                         "GOV24_USER_TYPE_TOKEN",
                                         "Gov24 사용자구분",
@@ -1206,6 +1583,55 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.data.latestBatchConcentration.concentrationReadiness").value("CONCENTRATED_TOP1"))
                 .andExpect(jsonPath("$.data.latestBatchConcentration.realUserCohortGate").value("DEFERRED_NO_REAL_USER_COHORT"))
                 .andExpect(jsonPath("$.data.latestBatchConcentration.signalQuality").value("LOCAL_REAL_NON_EXAMPLE_SEED_WITH_NON_REAL_BATCH"))
+                .andExpect(jsonPath("$.data.recentWindowLatestBatch.recentWindowHours").value(24))
+                .andExpect(jsonPath("$.data.recentWindowLatestBatch.top1LeaderServiceId").value(3284))
+                .andExpect(jsonPath("$.data.recentWindowLatestBatch.top1LeaderRealUserUsers").value(5))
+                .andExpect(jsonPath("$.data.recentWindowLatestBatch.targetTop1Users").value(0))
+                .andExpect(jsonPath("$.data.reviewGateStaleness.primaryReferenceMode").value("ALL_TIME_LATEST_PER_USER"))
+                .andExpect(jsonPath("$.data.reviewGateStaleness.exampleTargetTop1Users").value(272))
+                .andExpect(jsonPath("$.data.reviewGateStaleness.exampleTargetTop1Last24h").value(0))
+                .andExpect(jsonPath("$.data.reviewGateStaleness.realUserLatestUsers").value(80))
+                .andExpect(jsonPath("$.data.reviewGateStaleness.realUserTargetTop1Users").value(0))
+                .andExpect(jsonPath("$.data.recentWindowRecommendationReviewReading").value("RECENT_WINDOW_CLEARS_HISTORICAL_2622_DOMINANCE"))
+                .andExpect(jsonPath("$.data.historicalExampleDominanceDetected").value(true))
+                .andExpect(jsonPath("$.data.reviewGatePolicyCandidateStatus").value("NOT_A_CANDIDATE_PRIMARY_GATE_NOT_NON_REAL_BLOCKED"))
+                .andExpect(jsonPath("$.data.reviewGatePolicyCandidateReason").value("PRIMARY_REVIEW_GATE_IS_NOT_DEFERRED_NON_REAL_LEADER_SIGNAL"))
+                .andExpect(jsonPath("$.data.reviewGatePolicyPromotionStatus").value("KEEP_PRIMARY_BASELINE"))
+                .andExpect(jsonPath("$.data.reviewGatePolicyPromotionReason").value("RECENT_WINDOW_CANDIDATE_HAS_NOT_CLEARED_PRIMARY_BASELINE_REQUIREMENTS"))
+                .andExpect(jsonPath("$.data.reviewGatePolicyPromotionActionStatus").value("KEEP_PRIMARY_BASELINE"))
+                .andExpect(jsonPath("$.data.reviewGatePolicyPromotionActionReason").value("RECENT_WINDOW_POLICY_PROMOTION_CONDITIONS_NOT_MET"))
+                .andExpect(jsonPath("$.data.reviewGatePolicyPromotionReadinessStatus").value("NOT_READY_FOR_BOUNDED_PROMOTION_REVIEW"))
+                .andExpect(jsonPath("$.data.reviewGatePolicyPromotionReadinessReason").value("REAL_USER_TRAFFIC_GATE_NOT_READY"))
+                .andExpect(jsonPath("$.data.reviewGatePolicyPromotionExecutionStatus").value("DO_NOT_RUN_BOUNDED_PROMOTION_REVIEW"))
+                .andExpect(jsonPath("$.data.reviewGatePolicyPromotionExecutionReason").value("REAL_USER_TRAFFIC_GATE_NOT_READY"))
+                .andExpect(jsonPath("$.data.reviewGatePolicyPromotionApprovalCriteriaStatus").value("NOT_READY_FOR_EXPLICIT_PROMOTION_APPROVAL"))
+                .andExpect(jsonPath("$.data.reviewGatePolicyPromotionApprovalCriteriaReason").value("REAL_USER_TRAFFIC_GATE_NOT_READY"))
+                .andExpect(jsonPath("$.data.reviewGatePolicyPromotionApprovalStatus").value("PROMOTION_APPROVAL_NOT_APPLICABLE"))
+                .andExpect(jsonPath("$.data.reviewGatePolicyPromotionApprovalReason").value("REAL_USER_TRAFFIC_GATE_NOT_READY"))
+                .andExpect(jsonPath("$.data.reviewGatePolicyPromotionApprovalDecisionStatus").value("APPROVAL_DECISION_NOT_READY"))
+                .andExpect(jsonPath("$.data.reviewGatePolicyPromotionApprovalDecisionReason").value("REAL_USER_TRAFFIC_GATE_NOT_READY"))
+                .andExpect(jsonPath("$.data.reviewGatePolicyPromotionApprovalRecordStatus").value("APPROVAL_RECORD_NOT_READY"))
+                .andExpect(jsonPath("$.data.reviewGatePolicyPromotionApprovalRecordReason").value("REAL_USER_TRAFFIC_GATE_NOT_READY"))
+                .andExpect(jsonPath("$.data.reviewGatePolicyPromotionReviewRunStatus").value("BOUNDED_PROMOTION_REVIEW_RUN_NOT_READY"))
+                .andExpect(jsonPath("$.data.reviewGatePolicyPromotionReviewRunReason").value("REAL_USER_TRAFFIC_GATE_NOT_READY"))
+                .andExpect(jsonPath("$.data.reviewGatePolicyPromotionReviewRunCriteriaStatus").value("NOT_READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN"))
+                .andExpect(jsonPath("$.data.reviewGatePolicyPromotionReviewRunCriteriaReason").value("REAL_USER_TRAFFIC_GATE_NOT_READY"))
+                .andExpect(jsonPath("$.data.reviewGatePolicyPromotionReviewRunDecisionStatus").value("BOUNDED_PROMOTION_REVIEW_RUN_DECISION_NOT_READY"))
+                .andExpect(jsonPath("$.data.reviewGatePolicyPromotionReviewRunDecisionReason").value("REAL_USER_TRAFFIC_GATE_NOT_READY"))
+                .andExpect(jsonPath("$.data.reviewGatePolicyPromotionReviewRunApprovalCriteriaStatus").value("NOT_READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL"))
+                .andExpect(jsonPath("$.data.reviewGatePolicyPromotionReviewRunApprovalCriteriaReason").value("REAL_USER_TRAFFIC_GATE_NOT_READY"))
+                .andExpect(jsonPath("$.data.reviewGatePolicyPromotionReviewRunApprovalDecisionStatus").value("BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_DECISION_NOT_READY"))
+                .andExpect(jsonPath("$.data.reviewGatePolicyPromotionReviewRunApprovalDecisionReason").value("REAL_USER_TRAFFIC_GATE_NOT_READY"))
+                .andExpect(jsonPath("$.data.reviewGatePolicyPromotionReviewRunApprovalStatus").value("BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_NOT_READY"))
+                .andExpect(jsonPath("$.data.reviewGatePolicyPromotionReviewRunApprovalReason").value("REAL_USER_TRAFFIC_GATE_NOT_READY"))
+                .andExpect(jsonPath("$.data.reviewGatePolicyPromotionReviewRunApprovalRecordCriteriaStatus").value("NOT_READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD"))
+                .andExpect(jsonPath("$.data.reviewGatePolicyPromotionReviewRunApprovalRecordCriteriaReason").value("REAL_USER_TRAFFIC_GATE_NOT_READY"))
+                .andExpect(jsonPath("$.data.reviewGatePolicyPromotionReviewRunApprovalRecordStatus").value("BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_NOT_READY"))
+                .andExpect(jsonPath("$.data.reviewGatePolicyPromotionReviewRunApprovalRecordReason").value("REAL_USER_TRAFFIC_GATE_NOT_READY"))
+                .andExpect(jsonPath("$.data.reviewGatePolicyPromotionReviewRunApprovalRecordTransitionStatus").value("BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_TRANSITION_NOT_READY"))
+                .andExpect(jsonPath("$.data.reviewGatePolicyPromotionReviewRunApprovalRecordTransitionReason").value("REAL_USER_TRAFFIC_GATE_NOT_READY"))
+                .andExpect(jsonPath("$.data.reviewGatePolicyPromotionReviewRunApprovalRecordWriteStatus").value("BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_WRITE_NOT_READY"))
+                .andExpect(jsonPath("$.data.reviewGatePolicyPromotionReviewRunApprovalRecordWriteReason").value("REAL_USER_TRAFFIC_GATE_NOT_READY"))
                 .andExpect(jsonPath("$.data.topRepeatedServices[0].serviceId").value(2622))
                 .andExpect(jsonPath("$.data.topRepeatedServices[0].rowCount").value(449))
                 .andExpect(jsonPath("$.data.topRepeatedServices[0].userMix.exampleUsers").value(447))
@@ -1222,8 +1648,10 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.data.youthOfficialFacetGroups[0].facetKey").value("YOUTH_INCOME_CONDITION_TYPE"))
                 .andExpect(jsonPath("$.data.youthOfficialFacetGroups[0].label").value("소득조건 유형"))
                 .andExpect(jsonPath("$.data.youthOfficialFacetGroups[0].buckets[0].label").value("기타"))
-                .andExpect(jsonPath("$.data.gov24FacetGroups[0].facetKey").value("GOV24_USER_TYPE_TOKEN"))
-                .andExpect(jsonPath("$.data.gov24FacetGroups[0].buckets[0].label").value("소상공인"))
+                .andExpect(jsonPath("$.data.gov24FacetGroups[0].facetKey").value("GOV24_SERVICE_FIELD"))
+                .andExpect(jsonPath("$.data.gov24FacetGroups[0].buckets[0].label").value("주거·자립"))
+                .andExpect(jsonPath("$.data.gov24FacetGroups[1].facetKey").value("GOV24_USER_TYPE_TOKEN"))
+                .andExpect(jsonPath("$.data.gov24FacetGroups[1].buckets[0].label").value("소상공인"))
                 .andExpect(jsonPath("$.data.recentFallbackSamples[0].title").value("청년 월세 지원"))
                 .andExpect(jsonPath("$.data.recentFallbackSamples[0].userCohort").value("EXAMPLE_SMOKE"))
                 .andExpect(jsonPath("$.data.recentClickedSamples[0].title").value("청년 전세 지원"))
@@ -1267,6 +1695,7 @@ class AdminSecurityWebMvcTest {
                                 "드림나래",
                                 "BOKJIRO_LOCAL",
                                 "기타",
+                                "보육·교육",
                                 List.of(),
                                 List.of(),
                                 List.of(),
@@ -1302,6 +1731,7 @@ class AdminSecurityWebMvcTest {
                                 90.0,
                                 90.0,
                                 "SCORED",
+                                "청년 직무 경험과 직접 연결됨",
                                 1.025,
                                 1,
                                 1.0,
@@ -1324,6 +1754,7 @@ class AdminSecurityWebMvcTest {
                                 "동구 청년 컬처페이 지원사업",
                                 "BOKJIRO_LOCAL",
                                 "기타",
+                                "주거·자립",
                                 List.of("개인", "가구"),
                                 List.of("현금", "서비스(의료)"),
                                 List.of("0013003", "0013006"),
@@ -1356,6 +1787,7 @@ class AdminSecurityWebMvcTest {
                                 true,
                                 10.0,
                                 10.0,
+                                null,
                                 null,
                                 null,
                                 null,
@@ -1394,7 +1826,9 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.data.services[0].serviceId").value(3686))
                 .andExpect(jsonPath("$.data.services[0].dropStage").value("PRESENT_IN_SAVED_BATCH"))
                 .andExpect(jsonPath("$.data.services[0].latestSavedRank").value(1))
+                .andExpect(jsonPath("$.data.services[0].latestSavedAiReason").value("청년 직무 경험과 직접 연결됨"))
                 .andExpect(jsonPath("$.data.services[1].serviceId").value(2736))
+                .andExpect(jsonPath("$.data.services[1].gov24ServiceFieldLabel").value("주거·자립"))
                 .andExpect(jsonPath("$.data.services[1].gov24UserTypeTokens[0]").value("개인"))
                 .andExpect(jsonPath("$.data.services[1].gov24BenefitTypeTokens[1]").value("서비스(의료)"))
                 .andExpect(jsonPath("$.data.services[1].youthEmploymentRequirementCodes[0]").value("0013003"))

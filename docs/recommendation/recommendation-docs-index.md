@@ -20,8 +20,32 @@
 - [recommendation-ctr-readiness-runbook.md](./recommendation-ctr-readiness-runbook.md)
 - [recommendation-concentration-audit-runbook.md](./recommendation-concentration-audit-runbook.md)
 - [recommendation-real-user-baseline-runbook.md](./recommendation-real-user-baseline-runbook.md)
+- [recommendation-real-user-cohort-library-manifest.md](./recommendation-real-user-cohort-library-manifest.md)
+- [recommendation-real-user-exclusion-readiness-check-runbook.md](./recommendation-real-user-exclusion-readiness-check-runbook.md)
+- [recommendation-review-gate-blocker-audit-runbook.md](./recommendation-review-gate-blocker-audit-runbook.md)
+- [recommendation-same-profile-origin-differential-audit-runbook.md](./recommendation-same-profile-origin-differential-audit-runbook.md)
+- [recommendation-same-profile-path-differential-audit-runbook.md](./recommendation-same-profile-path-differential-audit-runbook.md)
+- [recommendation-same-profile-fresh-saved-differential-audit-runbook.md](./recommendation-same-profile-fresh-saved-differential-audit-runbook.md)
+- [recommendation-review-gate-staleness-audit-runbook.md](./recommendation-review-gate-staleness-audit-runbook.md)
+- [recommendation-review-gate-recent-window-audit-runbook.md](./recommendation-review-gate-recent-window-audit-runbook.md)
+- [recommendation-review-gate-policy-promotion-checklist.md](./recommendation-review-gate-policy-promotion-checklist.md)
+- [recommendation-review-gate-promotion-approval-record-smoke-runbook.md](./recommendation-review-gate-promotion-approval-record-smoke-runbook.md)
+- [recommendation-bounded-promotion-review-runbook.md](./recommendation-bounded-promotion-review-runbook.md)
+- [recommendation-real-user-recheck-checklist.md](./recommendation-real-user-recheck-checklist.md)
+- [recommendation-pr-draft-exit-checklist.md](./recommendation-pr-draft-exit-checklist.md)
+- [recommendation-post-merge-followup-checklist.md](./recommendation-post-merge-followup-checklist.md)
+- [recommendation-ai-exclusion-snapshot-runbook.md](./recommendation-ai-exclusion-snapshot-runbook.md)
+- [recommendation-ai-exclusion-snapshot-compare-runbook.md](./recommendation-ai-exclusion-snapshot-compare-runbook.md)
+- [recommendation-ai-exclusion-drift-check-runbook.md](./recommendation-ai-exclusion-drift-check-runbook.md)
+- [recommendation-ai-exclusion-volatility-audit-runbook.md](./recommendation-ai-exclusion-volatility-audit-runbook.md)
+- [recommendation-ai-exclusion-stability-report-runbook.md](./recommendation-ai-exclusion-stability-report-runbook.md)
+- [recommendation-ai-exclusion-drift-classify-runbook.md](./recommendation-ai-exclusion-drift-classify-runbook.md)
+- [recommendation-ai-exclusion-baseline-report-runbook.md](./recommendation-ai-exclusion-baseline-report-runbook.md)
+- [recommendation-ai-exclusion-baseline-refresh-runbook.md](./recommendation-ai-exclusion-baseline-refresh-runbook.md)
 - [recommendation-reopen-decision-runbook.md](./recommendation-reopen-decision-runbook.md)
 - [recommendation-next-lane-brief.md](./recommendation-next-lane-brief.md)
+- [recommendation-primary-audience-exclusion-decision-memo.md](./recommendation-primary-audience-exclusion-decision-memo.md)
+- [recommendation-pr-review-brief.md](./recommendation-pr-review-brief.md)
 - [recommendation-signal-gap-audit-runbook.md](./recommendation-signal-gap-audit-runbook.md)
 - [recommendation-region-window-audit-runbook.md](./recommendation-region-window-audit-runbook.md)
 - [recommendation-latest-window-audit-runbook.md](./recommendation-latest-window-audit-runbook.md)
@@ -31,6 +55,9 @@
 - [recommendation-ai-stage-gap-audit-runbook.md](./recommendation-ai-stage-gap-audit-runbook.md)
 - [recommendation-ai-zero-cohort-audit-runbook.md](./recommendation-ai-zero-cohort-audit-runbook.md)
 - [recommendation-ai-zero-contrast-audit-runbook.md](./recommendation-ai-zero-contrast-audit-runbook.md)
+- [recommendation-ai-zero-reason-distribution-audit-runbook.md](./recommendation-ai-zero-reason-distribution-audit-runbook.md)
+- [recommendation-ai-zero-reason-cohort-compare-runbook.md](./recommendation-ai-zero-reason-cohort-compare-runbook.md)
+- [recommendation-ai-exclusion-suite-runbook.md](./recommendation-ai-exclusion-suite-runbook.md)
 - [recommendation-pipeline.md](./recommendation-pipeline.md)
 
 현재 practical runtime wrapper:
@@ -39,6 +66,16 @@
 - `bash deploy/smoke/run-local-ctr-readiness-audit.sh`
 - `bash deploy/smoke/run-local-recommendation-concentration-audit.sh`
 - `bash deploy/smoke/run-local-real-user-readiness-check.sh`
+- `bash deploy/smoke/run-local-real-user-cohort-library-seed.sh`
+- `bash deploy/smoke/run-local-recommendation-review-gate-blocker-audit.sh`
+- `bash deploy/smoke/run-local-recommendation-same-profile-origin-differential-audit.sh`
+- `APP_BASE_URL='http://127.0.0.1:8082' ADMIN_EMAIL='<local admin email>' ADMIN_PASSWORD='<local admin password>' bash deploy/smoke/run-local-recommendation-same-profile-path-differential-audit.sh`
+- `APP_BASE_URL='http://127.0.0.1:8082' ADMIN_EMAIL='<local admin email>' ADMIN_PASSWORD='<local admin password>' bash deploy/smoke/run-local-recommendation-same-profile-fresh-saved-differential-audit.sh`
+- `bash deploy/smoke/run-local-recommendation-review-gate-staleness-audit.sh`
+- `bash deploy/smoke/run-local-recommendation-review-gate-recent-window-audit.sh`
+- `ADMIN_EMAIL='<local admin email>' ADMIN_PASSWORD='<local admin password>' bash deploy/smoke/run-local-admin-recommendation-review-gate-promotion-approval-record-smoke.sh`
+  - existing PostgreSQL volume이면 먼저 `bash deploy/postgres/apply-local-runtime-schema-patch.sh`
+- `ADMIN_EMAIL='<local admin email>' ADMIN_PASSWORD='<local admin password>' bash deploy/smoke/run-local-recommendation-bounded-promotion-review.sh`
 - `bash deploy/smoke/run-local-no-priority-top1-sample.sh`
 - `bash deploy/smoke/run-local-no-priority-candidate-audit.sh`
 - `bash deploy/smoke/run-local-recommendation-signal-gap-audit.sh`
@@ -50,6 +87,18 @@
 - `bash deploy/smoke/run-local-recommendation-ai-stage-gap-audit.sh`
 - `bash deploy/smoke/run-local-recommendation-ai-zero-cohort-audit.sh`
 - `bash deploy/smoke/run-local-recommendation-ai-zero-contrast-audit.sh`
+- `bash deploy/smoke/run-local-recommendation-ai-zero-reason-distribution-audit.sh`
+- `bash deploy/smoke/run-local-recommendation-ai-exclusion-suite.sh`
+- `bash deploy/smoke/run-local-recommendation-ai-exclusion-snapshot.sh`
+- `bash deploy/smoke/run-local-recommendation-ai-exclusion-snapshot-compare.sh`
+- `bash deploy/smoke/run-local-recommendation-ai-exclusion-drift-check.sh`
+- `RUN_COUNT=3 bash deploy/smoke/run-local-recommendation-ai-exclusion-volatility-audit.sh`
+- `bash deploy/smoke/run-local-recommendation-ai-exclusion-stability-report.sh`
+- `bash deploy/smoke/run-local-recommendation-ai-exclusion-drift-classify.sh`
+- `bash deploy/smoke/run-local-recommendation-ai-exclusion-baseline-report.sh`
+- `RUN_COUNT=2 bash deploy/smoke/run-local-recommendation-ai-exclusion-baseline-refresh.sh`
+- `bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-overview.sh`
+  - daily one-shot 확인 뒤 artifact는 `tmp/recommendation-ai-exclusion-latest-overview/latest-overview-summary.txt`, `latest-overview-note.md`, `latest-overview.json`
 - `bash deploy/smoke/run-local-gov24-recommend-surface-audit.sh`
 - `bash deploy/smoke/run-local-gov24-recommend-score-audit.sh`
 - `bash deploy/smoke/run-local-gov24-zero-ai-audit.sh`
@@ -75,6 +124,21 @@
 - [phase-plan.md](../phase-plan.md) ← 최신 상단 closeout 기록만 참고, 현재 계약은 위 current-state/runbook 문서를 우선
 
 ## 문서 역할
+
+### 0. PR lifecycle order
+
+recommendation closeout PR 관련 문서는 아래 순서로 읽는 편이 맞습니다.
+
+1. reviewer가 범위를 먼저 파악할 때
+   - [recommendation-pr-review-brief.md](./recommendation-pr-review-brief.md)
+2. author가 현재 draft 유지/해제 기준을 볼 때
+   - [recommendation-pr-draft-exit-checklist.md](./recommendation-pr-draft-exit-checklist.md)
+3. closeout PR merge 뒤 current 해석과 follow-up을 유지할 때
+   - [recommendation-post-merge-followup-checklist.md](./recommendation-post-merge-followup-checklist.md)
+4. `REAL_USER` traffic/cohort가 실제로 생긴 뒤 다시 열 때
+   - [recommendation-real-user-recheck-checklist.md](./recommendation-real-user-recheck-checklist.md)
+
+즉 현재 문서 구조는 `review -> undraft/merge 판단 -> merge 후 관찰 유지 -> REAL_USER reopen` 순서로 읽게 정리돼 있습니다.
 
 ### 1. 현재 동작 기준
 
@@ -155,6 +219,39 @@
 
 를 정리한 운영 runbook 입니다.
 
+### 6-0. real-user cohort library manifest
+
+- [recommendation-real-user-cohort-library-manifest.md](./recommendation-real-user-cohort-library-manifest.md)
+
+이 문서는 local generic-domain signup 기반 `REAL_USER` cohort library를 어떤 의도로 설계했고, `housing / education / job / finance` targeted cohort를 어떻게 재사용할지 정리한 manifest 입니다.
+
+### 6-1. real-user exclusion readiness check runbook
+
+- [recommendation-real-user-exclusion-readiness-check-runbook.md](./recommendation-real-user-exclusion-readiness-check-runbook.md)
+
+이 문서는 `REAL_USER` gate readiness와 latest batch zero-AI bucket 분포를 한 번에 확인하는 wrapper/runbook 입니다.
+
+### 6-1-a. review-gate blocker audit runbook
+
+- [recommendation-review-gate-blocker-audit-runbook.md](./recommendation-review-gate-blocker-audit-runbook.md)
+
+### 6-1-b. same-profile origin differential audit runbook
+
+- [recommendation-same-profile-origin-differential-audit-runbook.md](./recommendation-same-profile-origin-differential-audit-runbook.md)
+- [recommendation-same-profile-path-differential-audit-runbook.md](./recommendation-same-profile-path-differential-audit-runbook.md)
+- [recommendation-same-profile-fresh-saved-differential-audit-runbook.md](./recommendation-same-profile-fresh-saved-differential-audit-runbook.md)
+- [recommendation-review-gate-staleness-audit-runbook.md](./recommendation-review-gate-staleness-audit-runbook.md)
+- [recommendation-review-gate-recent-window-audit-runbook.md](./recommendation-review-gate-recent-window-audit-runbook.md)
+
+이 문서는 live readiness가 이미 열린 뒤에도 mixed latest batch review gate가 왜 `DEFERRED_NON_REAL_LEADER_SIGNAL` 인지, mixed batch와 real-user-only top1 leader를 같은 축으로 비교해 읽는 wrapper/runbook 입니다.
+현재 operator 기본 해석은 full latest batch review gate를 primary historical baseline으로, recent-window gate를 supplemental current-live signal로 같이 읽는 쪽입니다.
+
+### 6-2. real-user recheck checklist
+
+- [recommendation-real-user-recheck-checklist.md](./recommendation-real-user-recheck-checklist.md)
+
+이 문서는 `REAL_USER` traffic/cohort가 실제로 생긴 뒤 어떤 순서로 baseline/drift를 다시 확인할지 한 장으로 정리한 checklist 입니다.
+
 ### 7. reopen decision runbook
 
 - [recommendation-reopen-decision-runbook.md](./recommendation-reopen-decision-runbook.md)
@@ -178,6 +275,30 @@
 - `diversity/balancing` 과 `direct tuning` 을 왜 뒤로 미루는지
 
 를 한 장으로 정리한 brief 입니다.
+
+### 8-1. primary audience exclusion decision memo
+
+- [recommendation-primary-audience-exclusion-decision-memo.md](./recommendation-primary-audience-exclusion-decision-memo.md)
+
+이 문서는 fresh runtime 기준 zero-AI bucket 중 어떤 exclusion을 product적으로 유지하고, 어떤 bucket만 나중 완화 후보로 둘지 정리한 decision memo 입니다.
+
+### 8-2. PR review brief
+
+- [recommendation-pr-review-brief.md](./recommendation-pr-review-brief.md)
+
+이 문서는 reviewer가 이번 closeout PR을 `Gov24 closeout / recommendation observability / active docs hygiene` 세 덩어리로 빠르게 읽게 정리한 brief 입니다.
+
+### 8-3. PR draft exit checklist
+
+- [recommendation-pr-draft-exit-checklist.md](./recommendation-pr-draft-exit-checklist.md)
+
+이 문서는 author 관점에서 현재 draft PR을 왜 유지하는지, 언제 reviewer-ready 또는 merge-ready로 올릴지 정리한 checklist 입니다.
+
+### 8-4. post-merge follow-up checklist
+
+- [recommendation-post-merge-followup-checklist.md](./recommendation-post-merge-followup-checklist.md)
+
+이 문서는 closeout PR merge 뒤 어떤 current 해석을 유지하고, 언제 `REAL_USER` reopen 관찰로 넘어갈지 정리한 checklist 입니다.
 
 ### 9. signal gap audit runbook
 
@@ -262,7 +383,121 @@
 
 - [recommendation-ai-reason-contrast-audit-runbook.md](./recommendation-ai-reason-contrast-audit-runbook.md)
 
-이 문서는 fresh persisted batch의 `ai_reason` 을 직접 읽어, `savedAi=0` row와 same source/category 양수 AI peer가 어떤 이유 문장으로 갈리는지 비교하는 runbook 입니다.
+이 문서는 fresh persisted batch의 `latestSavedAiReason` 을 읽어, `savedAi=0` row와 same source/category 양수 AI peer가 어떤 이유 문장으로 갈리는지 비교하는 runbook 입니다.
+
+### 21. ai reason coverage audit runbook
+
+- [recommendation-ai-reason-coverage-audit-runbook.md](./recommendation-ai-reason-coverage-audit-runbook.md)
+
+이 문서는 fresh top window에서 `savedAiStatus=SCORED` row의 `latestSavedAiReason` 이 실제로 얼마나 채워져 있는지 먼저 확인하는 runbook 입니다.
+
+### 22. ai upstream reason trace audit runbook
+
+- [recommendation-ai-upstream-reason-trace-audit-runbook.md](./recommendation-ai-upstream-reason-trace-audit-runbook.md)
+
+이 문서는 same refresh 구간의 persisted blank coverage와 app log의 upstream `reason` blank coverage를 같이 읽어, OpenAI 응답 단계인지 저장 이후 경계인지 가르는 runbook 입니다.
+
+### 23. ai zero reason bucket audit runbook
+
+- [recommendation-ai-zero-reason-bucket-audit-runbook.md](./recommendation-ai-zero-reason-bucket-audit-runbook.md)
+
+이 문서는 fresh top 안의 zero-AI row를 `소득 불일치 / 학생 대상 / 직접성 부족` 같은 reason bucket으로 묶어, 제품 판단용 반복 패턴을 빠르게 보는 runbook 입니다.
+
+### 24. ai zero reason distribution audit runbook
+
+- [recommendation-ai-zero-reason-distribution-audit-runbook.md](./recommendation-ai-zero-reason-distribution-audit-runbook.md)
+
+이 문서는 latest saved batch top N 기준 zero-AI reason bucket 분포를 cohort 단위(`real_user`, `non_example`)로 read-only 집계하는 runbook 입니다.
+
+### 25. ai zero reason cohort compare runbook
+
+- [recommendation-ai-zero-reason-cohort-compare-runbook.md](./recommendation-ai-zero-reason-cohort-compare-runbook.md)
+
+이 문서는 baseline cohort(`non_example`) 와 target cohort(`real_user`) 의 latest batch zero-AI reason bucket 분포를 나란히 비교하는 runbook 입니다.
+
+### 26. ai exclusion suite runbook
+
+- [recommendation-ai-exclusion-suite-runbook.md](./recommendation-ai-exclusion-suite-runbook.md)
+
+이 문서는 current local AI exclusion evidence(`stage-gap`, `zero-reason-bucket`, `cohort-compare`, `real-user-ready`)를 한 번에 다시 태우는 suite runbook 입니다.
+
+### 27. ai exclusion snapshot runbook
+
+- [recommendation-ai-exclusion-snapshot-runbook.md](./recommendation-ai-exclusion-snapshot-runbook.md)
+
+이 문서는 current local AI exclusion suite를 다시 실행한 뒤, 비교에 필요한 핵심 key를 `snapshot summary` 로 다시 뽑아 artifact로 남기는 runbook 입니다.
+
+### 28. ai exclusion snapshot compare runbook
+
+- [recommendation-ai-exclusion-snapshot-compare-runbook.md](./recommendation-ai-exclusion-snapshot-compare-runbook.md)
+
+이 문서는 snapshot summary 2개를 바로 비교해 exclusion baseline drift를 보는 runbook 입니다.
+
+### 29. ai exclusion drift check runbook
+
+- [recommendation-ai-exclusion-drift-check-runbook.md](./recommendation-ai-exclusion-drift-check-runbook.md)
+
+이 문서는 새 snapshot 생성과 직전 baseline compare를 한 번에 수행하는 one-shot drift check runbook 입니다.
+
+### 30. ai exclusion volatility audit runbook
+
+- [recommendation-ai-exclusion-volatility-audit-runbook.md](./recommendation-ai-exclusion-volatility-audit-runbook.md)
+
+이 문서는 baseline snapshot 하나를 고정한 뒤 drift check를 여러 번 반복해 fresh target window volatility를 보는 runbook 입니다.
+
+### 31. ai exclusion stability report runbook
+
+- [recommendation-ai-exclusion-stability-report-runbook.md](./recommendation-ai-exclusion-stability-report-runbook.md)
+
+이 문서는 volatility summary를 읽어 stable baseline key와 volatile fresh-window key를 자동 분류하는 runbook 입니다.
+
+### 32. ai exclusion drift classify runbook
+
+- [recommendation-ai-exclusion-drift-classify-runbook.md](./recommendation-ai-exclusion-drift-classify-runbook.md)
+
+이 문서는 snapshot compare 결과를 stable baseline drift인지 volatile-only drift인지 자동 판정하는 runbook 입니다.
+
+### 33. ai exclusion baseline report runbook
+
+- [recommendation-ai-exclusion-baseline-report-runbook.md](./recommendation-ai-exclusion-baseline-report-runbook.md)
+
+이 문서는 stability + drift classify를 합쳐 사람이 읽는 baseline report를 한 번에 출력하는 runbook 입니다.
+
+### 34. ai exclusion baseline refresh runbook
+
+- [recommendation-ai-exclusion-baseline-refresh-runbook.md](./recommendation-ai-exclusion-baseline-refresh-runbook.md)
+
+이 문서는 volatility audit와 baseline report를 한 번에 다시 태우는 one-shot refresh runbook 입니다.
+
+### 35. ai exclusion baseline refresh compare runbook
+
+- [recommendation-ai-exclusion-baseline-refresh-compare-runbook.md](./recommendation-ai-exclusion-baseline-refresh-compare-runbook.md)
+
+이 문서는 `baseline-refresh-summary.txt` 두 개만 놓고 stable baseline / latest observation / 해석 drift를 high-signal key 기준으로 바로 비교하는 runbook 입니다.
+
+### 36. ai exclusion baseline refresh drift check runbook
+
+- [recommendation-ai-exclusion-baseline-refresh-drift-check-runbook.md](./recommendation-ai-exclusion-baseline-refresh-drift-check-runbook.md)
+
+이 문서는 새 `baseline refresh` 를 실제로 다시 태운 뒤 직전 refresh summary와 one-shot으로 비교하는 runbook 입니다.
+
+### 37. ai exclusion latest status runbook
+
+- [recommendation-ai-exclusion-latest-status-runbook.md](./recommendation-ai-exclusion-latest-status-runbook.md)
+
+이 문서는 latest refresh summary와 latest drift summary를 한 번에 읽어 현재 stable baseline / latest observation / latest drift 판정을 바로 보는 runbook 입니다.
+
+### 38. ai exclusion latest status export runbook
+
+- [recommendation-ai-exclusion-latest-status-export-runbook.md](./recommendation-ai-exclusion-latest-status-export-runbook.md)
+
+이 문서는 latest refresh summary와 latest drift summary를 읽어 붙여넣기 가능한 Markdown note를 생성하는 runbook 입니다.
+
+### 39. ai exclusion latest gate runbook
+
+- [recommendation-ai-exclusion-latest-gate-runbook.md](./recommendation-ai-exclusion-latest-gate-runbook.md)
+
+이 문서는 latest `latest-status.json` 을 읽어 stable baseline/interpretation drift를 pass/fail 로 판정하는 gate runbook 입니다.
 
 Gov24가 추천에 "안 보이는지"보다 "몇 위에서 어떤 서비스로 뜨는지"를 보려면 `bash deploy/smoke/run-local-gov24-recommend-surface-audit.sh` 로 top1/top3/top5/top10 Gov24 share, rank별 source 분포, Gov24 상위 서비스 concentration을 같이 봅니다.
 

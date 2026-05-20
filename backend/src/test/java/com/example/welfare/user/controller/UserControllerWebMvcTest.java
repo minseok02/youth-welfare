@@ -59,7 +59,7 @@ class UserControllerWebMvcTest {
                         .youthMajorLabel("주거")
                         .youthMidLabel("전월세 및 주거급여 지원")
                         .provisionMethodLabel("온라인")
-                        .gov24ServiceFieldLabel("보육")
+                        .gov24ServiceFieldLabel("주거·자립")
                         .gov24UserTypeLabel("청년")
                         .gov24BenefitTypeLabel("서비스")
                         .build()
@@ -78,7 +78,7 @@ class UserControllerWebMvcTest {
                 .andExpect(jsonPath("$.data[0].youthMajorLabel").value("주거"))
                 .andExpect(jsonPath("$.data[0].youthMidLabel").value("전월세 및 주거급여 지원"))
                 .andExpect(jsonPath("$.data[0].provisionMethodLabel").value("온라인"))
-                .andExpect(jsonPath("$.data[0].gov24ServiceFieldLabel").value("보육"))
+                .andExpect(jsonPath("$.data[0].gov24ServiceFieldLabel").value("주거·자립"))
                 .andExpect(jsonPath("$.data[0].gov24UserTypeLabel").value("청년"))
                 .andExpect(jsonPath("$.data[0].gov24BenefitTypeLabel").value("서비스"));
 

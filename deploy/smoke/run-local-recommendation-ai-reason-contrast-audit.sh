@@ -24,7 +24,6 @@ USER_LOGIN_RESPONSE="${ARTIFACT_DIR}/user-login.json"
 ADMIN_LOGIN_RESPONSE="${ARTIFACT_DIR}/admin-login.json"
 REFRESH_RESPONSE="${ARTIFACT_DIR}/refresh-personal.json"
 DIAGNOSTICS_RESPONSE="${ARTIFACT_DIR}/recommendation-diagnostics.json"
-AI_REASON_RESPONSE="${ARTIFACT_DIR}/ai-reasons.tsv"
 
 cleanup() {
   if [[ "${KEEP_ARTIFACTS}" == "true" ]]; then
@@ -170,35 +169,12 @@ DIAGNOSTICS_STATUS="$(
   )"
 smoke_assert_status 200 "${DIAGNOSTICS_STATUS}" "recommendation diagnostics" "${DIAGNOSTICS_RESPONSE}"
 
-smoke_print_step "query persisted ai reasons"
-smoke_db_query "
-  with latest_batch as (
-    select max(recommended_at) as recommended_at
-    from user_recommendations
-    where user_key = '${TARGET_USER_KEY}'
-  )
-  select
-    ur.service_id,
-    coalesce(ur.ai_reason, ''),
-    coalesce(ur.ai_status::text, ''),
-    coalesce(ur.ai_score::text, ''),
-    coalesce(ur.final_score::text, ''),
-    coalesce(ws.title, '')
-  from user_recommendations ur
-  join latest_batch lb on ur.recommended_at = lb.recommended_at
-  join welfare_services ws on ws.id = ur.service_id
-  where ur.user_key = '${TARGET_USER_KEY}'
-    and ur.service_id in (${REFRESH_SERVICE_IDS_CSV})
-  order by ur.final_score desc, ur.service_id desc;
-" > "${AI_REASON_RESPONSE}"
-
-python3 - "${REFRESH_RESPONSE}" "${DIAGNOSTICS_RESPONSE}" "${AI_REASON_RESPONSE}" <<'PY'
-import csv
+python3 - "${REFRESH_RESPONSE}" "${DIAGNOSTICS_RESPONSE}" <<'PY'
 import json
 import sys
 from collections import defaultdict
 
-refresh_path, diag_path, reason_path = sys.argv[1:4]
+refresh_path, diag_path = sys.argv[1:3]
 
 with open(refresh_path, "r", encoding="utf-8") as fp:
     refresh_rows = json.load(fp)["data"]
@@ -225,20 +201,6 @@ positive_rows = [
     if row.get("latestSavedAiStatus") == "SCORED" and (row.get("latestSavedAiScore") or 0.0) > 0.0
 ]
 
-reason_map = {}
-with open(reason_path, "r", encoding="utf-8") as fp:
-    reader = csv.reader(fp, delimiter="\t")
-    for row in reader:
-        if not row:
-            continue
-        reason_map[int(row[0])] = {
-            "aiReason": row[1],
-            "aiStatus": row[2],
-            "aiScore": row[3],
-            "finalScore": row[4],
-            "title": row[5],
-        }
-
 positive_by_source_category = defaultdict(list)
 for row in positive_rows:
     positive_by_source_category[(row.get("sourceType"), row.get("category"))].append(row)
@@ -253,33 +215,41 @@ print(f"METRIC target_user_key={diag.get('userKey')}")
 print(f"METRIC refresh_count={len(refresh_rows)}")
 print(f"METRIC ai_zero_count={len(zero_rows)}")
 print(f"METRIC ai_positive_count={len(positive_rows)}")
+print(
+    "METRIC ai_zero_blank_reason_count="
+    + str(sum(1 for row in zero_rows if not (row.get("latestSavedAiReason") or "").strip()))
+)
+print(
+    "METRIC ai_positive_blank_reason_count="
+    + str(sum(1 for row in positive_rows if not (row.get("latestSavedAiReason") or "").strip()))
+)
 print()
 print("[AI REASON CONTRAST]")
 for row in zero_rows:
     zero_id = int(row["serviceId"])
-    zero_reason = reason_map.get(zero_id, {})
     comp = choose_comparator(row)
     print(
         f"zero={zero_id}\t"
         f"title={row.get('title')}\t"
         f"category={row.get('category')}\t"
+        f"savedAiStatus={row.get('latestSavedAiStatus')}\t"
         f"savedAi={row.get('latestSavedAiScore')}\t"
         f"savedRank={row.get('latestSavedRank')}\t"
-        f"aiReason={zero_reason.get('aiReason','')}"
+        f"savedAiReason={row.get('latestSavedAiReason') or ''}"
     )
     if comp is None:
         print("comp=NONE")
         print()
         continue
     comp_id = int(comp["serviceId"])
-    comp_reason = reason_map.get(comp_id, {})
     print(
         f"comp={comp_id}\t"
         f"title={comp.get('title')}\t"
         f"category={comp.get('category')}\t"
+        f"savedAiStatus={comp.get('latestSavedAiStatus')}\t"
         f"savedAi={comp.get('latestSavedAiScore')}\t"
         f"savedRank={comp.get('latestSavedRank')}\t"
-        f"aiReason={comp_reason.get('aiReason','')}"
+        f"savedAiReason={comp.get('latestSavedAiReason') or ''}"
     )
     print()
 PY

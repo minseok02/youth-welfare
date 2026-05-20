@@ -13,6 +13,7 @@
 5. category audit
 
 이 문서는 위 다섯 가지를 **한 장에서** 따라가게 정리한 current runbook입니다.
+즉 active 문서에서 말하는 `bounded policy admin runtime one-page runbook` 은 별도 초안이 아니라 이 문서를 뜻합니다.
 
 ## 범위
 
@@ -33,7 +34,7 @@
 앱/DB/Redis 기동:
 
 ```bash
-SECURITY_ADMIN_EMAILS=admin@example.com docker compose up -d db redis app
+SECURITY_ADMIN_EMAILS='<local admin email>' docker compose up -d db redis app
 ```
 
 health:
@@ -46,8 +47,8 @@ admin token 준비:
 
 ```bash
 export APP_BASE_URL="http://127.0.0.1:8082"
-export ADMIN_EMAIL="admin@example.com"
-export ADMIN_PASSWORD="password123!"
+export ADMIN_EMAIL="<local admin email>"
+export ADMIN_PASSWORD="<local admin password>"
 export ADMIN_LOGIN_RESPONSE="$(mktemp)"
 
 curl -sS \
@@ -59,7 +60,7 @@ curl -sS \
   }" | tee "$ADMIN_LOGIN_RESPONSE"
 ```
 
-현재 local smoke baseline에서는 admin runtime 검증용 비밀번호 예시를 `password123!` 로 맞춥니다.
+현재 local smoke baseline에서는 admin runtime 검증용 비밀번호 예시를 `<local admin password>` placeholder로 둡니다.
 다만 shell에 이미 `ADMIN_PASSWORD` 가 있거나 validation wrapper가 `/tmp/youth-welfare-admin-smoke-password` 를 만들어 둔 경우에는 그 값을 우선 사용합니다.
 
 ```bash
@@ -81,6 +82,11 @@ PY
 ```bash
 bash deploy/smoke/run-local-policy-quality-summary.sh
 ```
+
+짧게 말하면:
+
+- [policy-admin-runtime-runbook.md](./policy-admin-runtime-runbook.md): 수동 admin endpoint 순서와 해석
+- [policy-quality-summary-runbook.md](./policy-quality-summary-runbook.md): retrieval/gate/category one-shot summary
 
 ## 실행 순서
 

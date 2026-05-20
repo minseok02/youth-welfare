@@ -111,6 +111,56 @@ for key in (
 
 assert isinstance(data["realUserTrafficGateInWindow"], str) and data["realUserTrafficGateInWindow"], "realUserTrafficGateInWindow must be non-empty string"
 assert isinstance(data["recommendationReviewGate"], str) and data["recommendationReviewGate"], "recommendationReviewGate must be non-empty string"
+assert isinstance(data["recentWindowRecommendationReviewReading"], str) and data["recentWindowRecommendationReviewReading"], "recentWindowRecommendationReviewReading must be non-empty string"
+assert isinstance(data["historicalExampleDominanceDetected"], bool), "historicalExampleDominanceDetected must be bool"
+assert isinstance(data["reviewGatePolicyCandidateStatus"], str) and data["reviewGatePolicyCandidateStatus"], "reviewGatePolicyCandidateStatus must be non-empty string"
+assert isinstance(data["reviewGatePolicyCandidateReason"], str) and data["reviewGatePolicyCandidateReason"], "reviewGatePolicyCandidateReason must be non-empty string"
+assert isinstance(data["reviewGatePolicyPromotionStatus"], str) and data["reviewGatePolicyPromotionStatus"], "reviewGatePolicyPromotionStatus must be non-empty string"
+assert isinstance(data["reviewGatePolicyPromotionReason"], str) and data["reviewGatePolicyPromotionReason"], "reviewGatePolicyPromotionReason must be non-empty string"
+assert isinstance(data["reviewGatePolicyPromotionActionStatus"], str) and data["reviewGatePolicyPromotionActionStatus"], "reviewGatePolicyPromotionActionStatus must be non-empty string"
+assert isinstance(data["reviewGatePolicyPromotionActionReason"], str) and data["reviewGatePolicyPromotionActionReason"], "reviewGatePolicyPromotionActionReason must be non-empty string"
+assert isinstance(data["reviewGatePolicyPromotionReadinessStatus"], str) and data["reviewGatePolicyPromotionReadinessStatus"], "reviewGatePolicyPromotionReadinessStatus must be non-empty string"
+assert isinstance(data["reviewGatePolicyPromotionReadinessReason"], str) and data["reviewGatePolicyPromotionReadinessReason"], "reviewGatePolicyPromotionReadinessReason must be non-empty string"
+assert isinstance(data["reviewGatePolicyPromotionExecutionStatus"], str) and data["reviewGatePolicyPromotionExecutionStatus"], "reviewGatePolicyPromotionExecutionStatus must be non-empty string"
+assert isinstance(data["reviewGatePolicyPromotionExecutionReason"], str) and data["reviewGatePolicyPromotionExecutionReason"], "reviewGatePolicyPromotionExecutionReason must be non-empty string"
+assert isinstance(data["reviewGatePolicyPromotionApprovalCriteriaStatus"], str) and data["reviewGatePolicyPromotionApprovalCriteriaStatus"], "reviewGatePolicyPromotionApprovalCriteriaStatus must be non-empty string"
+assert isinstance(data["reviewGatePolicyPromotionApprovalCriteriaReason"], str) and data["reviewGatePolicyPromotionApprovalCriteriaReason"], "reviewGatePolicyPromotionApprovalCriteriaReason must be non-empty string"
+assert isinstance(data["reviewGatePolicyPromotionApprovalStatus"], str) and data["reviewGatePolicyPromotionApprovalStatus"], "reviewGatePolicyPromotionApprovalStatus must be non-empty string"
+assert isinstance(data["reviewGatePolicyPromotionApprovalReason"], str) and data["reviewGatePolicyPromotionApprovalReason"], "reviewGatePolicyPromotionApprovalReason must be non-empty string"
+assert isinstance(data["reviewGatePolicyPromotionApprovalDecisionStatus"], str) and data["reviewGatePolicyPromotionApprovalDecisionStatus"], "reviewGatePolicyPromotionApprovalDecisionStatus must be non-empty string"
+assert isinstance(data["reviewGatePolicyPromotionApprovalDecisionReason"], str) and data["reviewGatePolicyPromotionApprovalDecisionReason"], "reviewGatePolicyPromotionApprovalDecisionReason must be non-empty string"
+assert isinstance(data["reviewGatePolicyPromotionApprovalRecordStatus"], str) and data["reviewGatePolicyPromotionApprovalRecordStatus"], "reviewGatePolicyPromotionApprovalRecordStatus must be non-empty string"
+assert isinstance(data["reviewGatePolicyPromotionApprovalRecordReason"], str) and data["reviewGatePolicyPromotionApprovalRecordReason"], "reviewGatePolicyPromotionApprovalRecordReason must be non-empty string"
+assert isinstance(data["reviewGatePolicyPromotionReviewRunStatus"], str) and data["reviewGatePolicyPromotionReviewRunStatus"], "reviewGatePolicyPromotionReviewRunStatus must be non-empty string"
+assert isinstance(data["reviewGatePolicyPromotionReviewRunReason"], str) and data["reviewGatePolicyPromotionReviewRunReason"], "reviewGatePolicyPromotionReviewRunReason must be non-empty string"
+assert isinstance(data["reviewGatePolicyPromotionReviewRunCriteriaStatus"], str) and data["reviewGatePolicyPromotionReviewRunCriteriaStatus"], "reviewGatePolicyPromotionReviewRunCriteriaStatus must be non-empty string"
+assert isinstance(data["reviewGatePolicyPromotionReviewRunCriteriaReason"], str) and data["reviewGatePolicyPromotionReviewRunCriteriaReason"], "reviewGatePolicyPromotionReviewRunCriteriaReason must be non-empty string"
+assert isinstance(data["reviewGatePolicyPromotionReviewRunDecisionStatus"], str) and data["reviewGatePolicyPromotionReviewRunDecisionStatus"], "reviewGatePolicyPromotionReviewRunDecisionStatus must be non-empty string"
+assert isinstance(data["reviewGatePolicyPromotionReviewRunDecisionReason"], str) and data["reviewGatePolicyPromotionReviewRunDecisionReason"], "reviewGatePolicyPromotionReviewRunDecisionReason must be non-empty string"
+assert isinstance(data["reviewGatePolicyPromotionReviewRunApprovalCriteriaStatus"], str) and data["reviewGatePolicyPromotionReviewRunApprovalCriteriaStatus"], "reviewGatePolicyPromotionReviewRunApprovalCriteriaStatus must be non-empty string"
+assert isinstance(data["reviewGatePolicyPromotionReviewRunApprovalCriteriaReason"], str) and data["reviewGatePolicyPromotionReviewRunApprovalCriteriaReason"], "reviewGatePolicyPromotionReviewRunApprovalCriteriaReason must be non-empty string"
+assert isinstance(data["reviewGatePolicyPromotionReviewRunApprovalDecisionStatus"], str) and data["reviewGatePolicyPromotionReviewRunApprovalDecisionStatus"], "reviewGatePolicyPromotionReviewRunApprovalDecisionStatus must be non-empty string"
+assert isinstance(data["reviewGatePolicyPromotionReviewRunApprovalDecisionReason"], str) and data["reviewGatePolicyPromotionReviewRunApprovalDecisionReason"], "reviewGatePolicyPromotionReviewRunApprovalDecisionReason must be non-empty string"
+assert isinstance(data["reviewGatePolicyPromotionReviewRunApprovalStatus"], str) and data["reviewGatePolicyPromotionReviewRunApprovalStatus"], "reviewGatePolicyPromotionReviewRunApprovalStatus must be non-empty string"
+assert isinstance(data["reviewGatePolicyPromotionReviewRunApprovalReason"], str) and data["reviewGatePolicyPromotionReviewRunApprovalReason"], "reviewGatePolicyPromotionReviewRunApprovalReason must be non-empty string"
+assert isinstance(data["reviewGatePolicyPromotionReviewRunApprovalRecordStatus"], str) and data["reviewGatePolicyPromotionReviewRunApprovalRecordStatus"], "reviewGatePolicyPromotionReviewRunApprovalRecordStatus must be non-empty string"
+assert isinstance(data["reviewGatePolicyPromotionReviewRunApprovalRecordReason"], str) and data["reviewGatePolicyPromotionReviewRunApprovalRecordReason"], "reviewGatePolicyPromotionReviewRunApprovalRecordReason must be non-empty string"
+assert isinstance(data["reviewGatePolicyPromotionReviewRunApprovalRecordTransitionStatus"], str) and data["reviewGatePolicyPromotionReviewRunApprovalRecordTransitionStatus"], "reviewGatePolicyPromotionReviewRunApprovalRecordTransitionStatus must be non-empty string"
+assert isinstance(data["reviewGatePolicyPromotionReviewRunApprovalRecordTransitionReason"], str) and data["reviewGatePolicyPromotionReviewRunApprovalRecordTransitionReason"], "reviewGatePolicyPromotionReviewRunApprovalRecordTransitionReason must be non-empty string"
+assert isinstance(data["reviewGatePolicyPromotionReviewRunApprovalRecordWriteStatus"], str) and data["reviewGatePolicyPromotionReviewRunApprovalRecordWriteStatus"], "reviewGatePolicyPromotionReviewRunApprovalRecordWriteStatus must be non-empty string"
+assert isinstance(data["reviewGatePolicyPromotionReviewRunApprovalRecordWriteReason"], str) and data["reviewGatePolicyPromotionReviewRunApprovalRecordWriteReason"], "reviewGatePolicyPromotionReviewRunApprovalRecordWriteReason must be non-empty string"
+staleness = data["reviewGateStaleness"]
+assert isinstance(staleness["targetServiceId"], int), "reviewGateStaleness.targetServiceId must be int"
+assert isinstance(staleness["primaryReferenceMode"], str) and staleness["primaryReferenceMode"], "reviewGateStaleness.primaryReferenceMode must be non-empty string"
+assert isinstance(staleness["recentWindowHours"], int), "reviewGateStaleness.recentWindowHours must be int"
+assert isinstance(staleness["exampleLatestUsers"], int), "reviewGateStaleness.exampleLatestUsers must be int"
+assert isinstance(staleness["exampleLatestUsersLast24h"], int), "reviewGateStaleness.exampleLatestUsersLast24h must be int"
+assert isinstance(staleness["exampleTargetTop1Users"], int), "reviewGateStaleness.exampleTargetTop1Users must be int"
+assert isinstance(staleness["exampleTargetTop1Last24h"], int), "reviewGateStaleness.exampleTargetTop1Last24h must be int"
+assert isinstance(staleness["realUserLatestUsers"], int), "reviewGateStaleness.realUserLatestUsers must be int"
+assert isinstance(staleness["realUserLatestUsersLast24h"], int), "reviewGateStaleness.realUserLatestUsersLast24h must be int"
+assert isinstance(staleness["realUserTargetTop1Users"], int), "reviewGateStaleness.realUserTargetTop1Users must be int"
+assert isinstance(staleness["realUserTargetTop1Last24h"], int), "reviewGateStaleness.realUserTargetTop1Last24h must be int"
 concentration = data["latestBatchConcentration"]
 assert isinstance(concentration["latestBatchRows"], int), "latestBatchConcentration.latestBatchRows must be int"
 assert isinstance(concentration["latestBatchUsers"], int), "latestBatchConcentration.latestBatchUsers must be int"
@@ -125,9 +175,19 @@ assert isinstance(leader_user_mix["exampleUsers"], int), "latestBatchConcentrati
 assert isinstance(leader_user_mix["boundedLocalUsers"], int), "latestBatchConcentration.top1LeaderUserMix.boundedLocalUsers must be int"
 assert isinstance(leader_user_mix["localRealNonExampleSeedUsers"], int), "latestBatchConcentration.top1LeaderUserMix.localRealNonExampleSeedUsers must be int"
 assert isinstance(leader_user_mix["realUserUsers"], int), "latestBatchConcentration.top1LeaderUserMix.realUserUsers must be int"
+recent = data["recentWindowLatestBatch"]
+assert isinstance(recent["recentWindowHours"], int), "recentWindowLatestBatch.recentWindowHours must be int"
+assert isinstance(recent["targetServiceId"], int), "recentWindowLatestBatch.targetServiceId must be int"
+assert isinstance(recent["latestBatchUsers"], int), "recentWindowLatestBatch.latestBatchUsers must be int"
+assert isinstance(recent["realUserUsers"], int), "recentWindowLatestBatch.realUserUsers must be int"
+assert isinstance(recent["targetTop1Users"], int), "recentWindowLatestBatch.targetTop1Users must be int"
+assert isinstance(recent["targetTop1RealUserUsers"], int), "recentWindowLatestBatch.targetTop1RealUserUsers must be int"
+assert isinstance(recent["top1LeaderRealUserUsers"], int), "recentWindowLatestBatch.top1LeaderRealUserUsers must be int"
 if concentration["latestBatchUsers"] > 0:
     assert concentration["top1LeaderServiceId"] is not None, "latestBatchConcentration.top1LeaderServiceId missing"
     assert concentration["top1LeaderTitle"], "latestBatchConcentration.top1LeaderTitle missing"
+if recent["latestBatchUsers"] > 0 and recent["top1LeaderServiceId"] is not None:
+    assert recent["top1LeaderTitle"], "recentWindowLatestBatch.top1LeaderTitle missing"
 
 for collection_key in (
     "topRepeatedServices",
@@ -234,6 +294,59 @@ print(len(data["top1Services"]))
 print(len(data["sourceBreakdowns"]))
 print(len(data["categoryBreakdowns"]))
 print(len(data["weightBreakdowns"]))
+print(data["recentWindowRecommendationReviewReading"])
+print(str(data["historicalExampleDominanceDetected"]).lower())
+print(data["reviewGatePolicyCandidateStatus"])
+print(data["reviewGatePolicyCandidateReason"])
+print(data["reviewGatePolicyPromotionStatus"])
+print(data["reviewGatePolicyPromotionReason"])
+print(data["reviewGatePolicyPromotionActionStatus"])
+print(data["reviewGatePolicyPromotionActionReason"])
+print(data["reviewGatePolicyPromotionReadinessStatus"])
+print(data["reviewGatePolicyPromotionReadinessReason"])
+print(data["reviewGatePolicyPromotionExecutionStatus"])
+print(data["reviewGatePolicyPromotionExecutionReason"])
+print(data["reviewGatePolicyPromotionApprovalCriteriaStatus"])
+print(data["reviewGatePolicyPromotionApprovalCriteriaReason"])
+print(data["reviewGatePolicyPromotionApprovalStatus"])
+print(data["reviewGatePolicyPromotionApprovalReason"])
+print(data["reviewGatePolicyPromotionApprovalDecisionStatus"])
+print(data["reviewGatePolicyPromotionApprovalDecisionReason"])
+print(data["reviewGatePolicyPromotionApprovalRecordStatus"])
+print(data["reviewGatePolicyPromotionApprovalRecordReason"])
+print(data["reviewGatePolicyPromotionReviewRunStatus"])
+print(data["reviewGatePolicyPromotionReviewRunReason"])
+print(data["reviewGatePolicyPromotionReviewRunCriteriaStatus"])
+print(data["reviewGatePolicyPromotionReviewRunCriteriaReason"])
+print(data["reviewGatePolicyPromotionReviewRunDecisionStatus"])
+print(data["reviewGatePolicyPromotionReviewRunDecisionReason"])
+print(data["reviewGatePolicyPromotionReviewRunApprovalCriteriaStatus"])
+print(data["reviewGatePolicyPromotionReviewRunApprovalCriteriaReason"])
+print(data["reviewGatePolicyPromotionReviewRunApprovalDecisionStatus"])
+print(data["reviewGatePolicyPromotionReviewRunApprovalDecisionReason"])
+print(data["reviewGatePolicyPromotionReviewRunApprovalStatus"])
+print(data["reviewGatePolicyPromotionReviewRunApprovalReason"])
+print(data["reviewGatePolicyPromotionReviewRunApprovalRecordCriteriaStatus"])
+print(data["reviewGatePolicyPromotionReviewRunApprovalRecordCriteriaReason"])
+print(data["reviewGatePolicyPromotionReviewRunApprovalRecordStatus"])
+print(data["reviewGatePolicyPromotionReviewRunApprovalRecordReason"])
+print(data["reviewGatePolicyPromotionReviewRunApprovalRecordTransitionStatus"])
+print(data["reviewGatePolicyPromotionReviewRunApprovalRecordTransitionReason"])
+print(data["reviewGatePolicyPromotionReviewRunApprovalRecordWriteStatus"])
+print(data["reviewGatePolicyPromotionReviewRunApprovalRecordWriteReason"])
+print(staleness["primaryReferenceMode"])
+print(staleness["exampleTargetTop1Users"])
+print(staleness["exampleTargetTop1Last24h"])
+print(staleness["realUserLatestUsers"])
+print(staleness["realUserTargetTop1Users"])
+print(recent["recentWindowHours"])
+print(recent["targetServiceId"])
+print(recent["latestBatchUsers"])
+print(recent["realUserUsers"])
+print(recent["top1LeaderServiceId"] or "")
+print(recent["top1LeaderRealUserUsers"])
+print(recent["targetTop1Users"])
+print(recent["targetTop1RealUserUsers"])
 PY
 }
 
@@ -327,6 +440,59 @@ echo "top1_services_count=${BREAKDOWN_VALUES[35]}"
 echo "source_breakdown_count=${BREAKDOWN_VALUES[36]}"
 echo "category_breakdown_count=${BREAKDOWN_VALUES[37]}"
 echo "weight_breakdown_count=${BREAKDOWN_VALUES[38]}"
+echo "recent_window_recommendation_review_reading=${BREAKDOWN_VALUES[39]}"
+echo "historical_example_dominance_detected=${BREAKDOWN_VALUES[40]}"
+echo "review_gate_policy_candidate_status=${BREAKDOWN_VALUES[41]}"
+echo "review_gate_policy_candidate_reason=${BREAKDOWN_VALUES[42]}"
+echo "review_gate_policy_promotion_status=${BREAKDOWN_VALUES[43]}"
+echo "review_gate_policy_promotion_reason=${BREAKDOWN_VALUES[44]}"
+echo "review_gate_policy_promotion_action_status=${BREAKDOWN_VALUES[45]}"
+echo "review_gate_policy_promotion_action_reason=${BREAKDOWN_VALUES[46]}"
+echo "review_gate_policy_promotion_readiness_status=${BREAKDOWN_VALUES[47]}"
+echo "review_gate_policy_promotion_readiness_reason=${BREAKDOWN_VALUES[48]}"
+echo "review_gate_policy_promotion_execution_status=${BREAKDOWN_VALUES[49]}"
+echo "review_gate_policy_promotion_execution_reason=${BREAKDOWN_VALUES[50]}"
+echo "review_gate_policy_promotion_approval_criteria_status=${BREAKDOWN_VALUES[51]}"
+echo "review_gate_policy_promotion_approval_criteria_reason=${BREAKDOWN_VALUES[52]}"
+echo "review_gate_policy_promotion_approval_status=${BREAKDOWN_VALUES[53]}"
+echo "review_gate_policy_promotion_approval_reason=${BREAKDOWN_VALUES[54]}"
+echo "review_gate_policy_promotion_approval_decision_status=${BREAKDOWN_VALUES[55]}"
+echo "review_gate_policy_promotion_approval_decision_reason=${BREAKDOWN_VALUES[56]}"
+echo "review_gate_policy_promotion_approval_record_status=${BREAKDOWN_VALUES[57]}"
+echo "review_gate_policy_promotion_approval_record_reason=${BREAKDOWN_VALUES[58]}"
+echo "review_gate_policy_promotion_review_run_status=${BREAKDOWN_VALUES[59]}"
+echo "review_gate_policy_promotion_review_run_reason=${BREAKDOWN_VALUES[60]}"
+echo "review_gate_policy_promotion_review_run_criteria_status=${BREAKDOWN_VALUES[61]}"
+echo "review_gate_policy_promotion_review_run_criteria_reason=${BREAKDOWN_VALUES[62]}"
+echo "review_gate_policy_promotion_review_run_decision_status=${BREAKDOWN_VALUES[63]}"
+echo "review_gate_policy_promotion_review_run_decision_reason=${BREAKDOWN_VALUES[64]}"
+echo "review_gate_policy_promotion_review_run_approval_criteria_status=${BREAKDOWN_VALUES[65]}"
+echo "review_gate_policy_promotion_review_run_approval_criteria_reason=${BREAKDOWN_VALUES[66]}"
+echo "review_gate_policy_promotion_review_run_approval_decision_status=${BREAKDOWN_VALUES[67]}"
+echo "review_gate_policy_promotion_review_run_approval_decision_reason=${BREAKDOWN_VALUES[68]}"
+echo "review_gate_policy_promotion_review_run_approval_status=${BREAKDOWN_VALUES[69]}"
+echo "review_gate_policy_promotion_review_run_approval_reason=${BREAKDOWN_VALUES[70]}"
+echo "review_gate_policy_promotion_review_run_approval_record_criteria_status=${BREAKDOWN_VALUES[71]}"
+echo "review_gate_policy_promotion_review_run_approval_record_criteria_reason=${BREAKDOWN_VALUES[72]}"
+echo "review_gate_policy_promotion_review_run_approval_record_status=${BREAKDOWN_VALUES[73]}"
+echo "review_gate_policy_promotion_review_run_approval_record_reason=${BREAKDOWN_VALUES[74]}"
+echo "review_gate_policy_promotion_review_run_approval_record_transition_status=${BREAKDOWN_VALUES[75]}"
+echo "review_gate_policy_promotion_review_run_approval_record_transition_reason=${BREAKDOWN_VALUES[76]}"
+echo "review_gate_policy_promotion_review_run_approval_record_write_status=${BREAKDOWN_VALUES[77]}"
+echo "review_gate_policy_promotion_review_run_approval_record_write_reason=${BREAKDOWN_VALUES[78]}"
+echo "review_gate_primary_reference_mode=${BREAKDOWN_VALUES[79]}"
+echo "review_gate_example_target_top1_users=${BREAKDOWN_VALUES[80]}"
+echo "review_gate_example_target_top1_last_24h=${BREAKDOWN_VALUES[81]}"
+echo "review_gate_real_user_latest_users=${BREAKDOWN_VALUES[82]}"
+echo "review_gate_real_user_target_top1_users=${BREAKDOWN_VALUES[83]}"
+echo "recent_window_hours=${BREAKDOWN_VALUES[84]}"
+echo "recent_window_target_service_id=${BREAKDOWN_VALUES[85]}"
+echo "recent_window_latest_batch_users=${BREAKDOWN_VALUES[86]}"
+echo "recent_window_real_user_users=${BREAKDOWN_VALUES[87]}"
+echo "recent_window_top1_leader_service_id=${BREAKDOWN_VALUES[88]}"
+echo "recent_window_top1_leader_real_user_users=${BREAKDOWN_VALUES[89]}"
+echo "recent_window_target_top1_users=${BREAKDOWN_VALUES[90]}"
+echo "recent_window_target_top1_real_user_users=${BREAKDOWN_VALUES[91]}"
 echo "summary_window_days=${SUMMARY_WINDOW_DAYS}"
 echo "breakdown_limit=${BREAKDOWN_LIMIT}"
 if [[ -n "${CONTAINER_ADMIN_ALLOWLIST}" ]]; then

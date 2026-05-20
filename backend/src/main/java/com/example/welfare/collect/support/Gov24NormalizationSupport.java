@@ -16,7 +16,7 @@ public final class Gov24NormalizationSupport {
         List<NormalizedPolicyAggregate.TaxonomyTerm> terms = new ArrayList<>();
         addTerm(terms,
                 NormalizationKeySupport.TERM_GROUP_GOV24_SERVICE_FIELD,
-                NormalizationKeySupport.TERM_GROUP_GOV24_SERVICE_FIELD,
+                null,
                 item.getServiceField(),
                 NormalizationKeySupport.SOURCE_FIELD_GOV24_SERVICE_FIELD,
                 0);
@@ -38,7 +38,7 @@ public final class Gov24NormalizationSupport {
                                       String sourceField) {
         int sortOrder = 0;
         for (String label : labels) {
-            addTerm(terms, termGroup, termGroup, label, sourceField, sortOrder++);
+            addTerm(terms, termGroup, null, label, sourceField, sortOrder++);
         }
     }
 

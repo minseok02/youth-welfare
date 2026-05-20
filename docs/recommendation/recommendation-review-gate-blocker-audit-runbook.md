@@ -1,0 +1,108 @@
+# recommendation review-gate blocker audit runbook
+
+문서군 진입점: [recommendation-docs-index.md](./recommendation-docs-index.md)
+
+관련 문서:
+
+- [recommendation-pr-review-brief.md](./recommendation-pr-review-brief.md)
+- [recommendation-pr-draft-exit-checklist.md](./recommendation-pr-draft-exit-checklist.md)
+- [recommendation-post-merge-followup-checklist.md](./recommendation-post-merge-followup-checklist.md)
+- [recommendation-real-user-recheck-checklist.md](./recommendation-real-user-recheck-checklist.md)
+- [recommendation-same-profile-origin-differential-audit-runbook.md](./recommendation-same-profile-origin-differential-audit-runbook.md)
+- [recommendation-same-profile-path-differential-audit-runbook.md](./recommendation-same-profile-path-differential-audit-runbook.md)
+- [recommendation-same-profile-fresh-saved-differential-audit-runbook.md](./recommendation-same-profile-fresh-saved-differential-audit-runbook.md)
+- [recommendation-review-gate-staleness-audit-runbook.md](./recommendation-review-gate-staleness-audit-runbook.md)
+- [recommendation-review-gate-recent-window-audit-runbook.md](./recommendation-review-gate-recent-window-audit-runbook.md)
+
+현재 단계 해석:
+
+- local current blocker는 full latest batch review gate `DEFERRED_NON_REAL_LEADER_SIGNAL` 이고, 핵심 해석은 historical example latest batch dominance + stale example saved batch path + current real SQL gap 입니다.
+- admin summary/breakdowns 는 이제 이 해석의 SQL 경계도 같이 노출합니다. `reviewGateStaleness.primaryReferenceMode=ALL_TIME_LATEST_PER_USER`, `exampleTargetTop1Users=272`, `exampleTargetTop1Last24h=0`, `realUserLatestUsers=80`, `realUserTargetTop1Users=0` 를 함께 보면, full latest batch gate가 current live recent-window가 아니라 old example latest batches를 primary baseline으로 읽고 있다는 점을 API 한 번으로 확인할 수 있습니다. 거기에 `reviewGatePolicyCandidateStatus=RECENT_WINDOW_POLICY_CANDIDATE`, `reviewGatePolicyCandidateReason=PRIMARY_GATE_BLOCKED_BY_STALE_ALL_TIME_EXAMPLE_REFERENCE_BUT_RECENT_WINDOW_CLEAR`, `reviewGatePolicyPromotionStatus=REQUIRES_EXPLICIT_POLICY_CHANGE_REVIEW`, `reviewGatePolicyPromotionReason=RECENT_WINDOW_IS_A_CANDIDATE_BUT_PRIMARY_BASELINE_IS_STILL_ALL_TIME_LATEST` 도 같이 내려오므로, recent-window gate를 실제 policy gate 후보로 볼 수는 있지만 아직 explicit policy change review를 거치지 않은 상태라는 점까지 같은 응답에서 읽을 수 있습니다.
+- latest artifact reading은 계속 `VOLATILE_ONLY_DRIFT` 이고, 이 문서는 reopen 결정문이 아니라 **mixed batch leader blocker를 읽는 보조 audit** 입니다.
+
+## 목적
+
+이 문서는 아래 질문을 한 번에 확인합니다.
+
+- mixed latest batch top1 leader가 아직 non-real 중심인가
+- `REAL_USER` only cohort에서는 top1이 실제로 분산되는가
+- review gate blocker가 traffic 부족인지, mixed batch leader dominance 인지
+
+## 실행
+
+```bash
+bash deploy/smoke/run-local-recommendation-review-gate-blocker-audit.sh
+```
+
+artifact:
+
+- `tmp/recommendation-review-gate-blocker-audit/latest-review-gate-blocker-summary.txt`
+
+## 먼저 볼 값
+
+- `mixed_latest_batch_users`
+- `mixed_example_users`
+- `mixed_real_user_users`
+- `mixed_top1_leader_title`
+- `mixed_top1_leader_share_pct`
+- `mixed_top1_leader_real_user_users`
+- `real_user_mixed_leader_top1_count`
+- `real_user_mixed_leader_top3_count`
+- `real_user_mixed_leader_top5_count`
+- `real_user_mixed_leader_top10_count`
+- `mixed_concentration_readiness`
+- `real_user_top1_leader_title`
+- `real_user_top1_leader_share_pct`
+- `real_user_concentration_readiness`
+- `blocker_class`
+- `operator_next_step`
+
+## 해석 규칙
+
+### 1. `blocker_class=MIXED_BATCH_NON_REAL_DOMINANCE`
+
+- current local 기본 해석입니다.
+- `REAL_USER` traffic/cohort는 충분하지만, mixed latest batch top1 leader는 아직 example/local seed가 주도합니다.
+- 이 경우 바로 제품 reopen으로 가지 말고 mixed leader transition을 더 관찰합니다.
+
+### 1-1. `blocker_class=MIXED_BATCH_NON_REAL_DOMINANCE_WITH_NO_REAL_USER_PATH`
+
+- current local 80-user library의 더 정확한 해석입니다.
+- mixed latest batch top1 leader 서비스가 real-user 쪽 top10 안에도 한 번도 안 들어온 상태입니다.
+- 현재 local 값:
+  - `real_user_mixed_leader_top1_count=0`
+  - `real_user_mixed_leader_top3_count=0`
+  - `real_user_mixed_leader_top5_count=0`
+  - `real_user_mixed_leader_top10_count=0`
+- 게다가 `housing_leader_path` exact cohort로 example-heavy leader profile과 같은 `인천광역시/중구/income=5/미취업/1인 가구` 를 generic-domain `REAL_USER` 로 다시 시드해도 path가 계속 `0` 이었습니다.
+- 즉 지금은 단순히 “real-user top1에 아직 안 붙었다”보다, **현재 real-user 샘플 구성으로는 mixed leader 전이 경로가 안 보이고 same-profile example vs real-user differential이 남아 있는 상태** 입니다.
+- 같은 profile 대표 user를 직접 열어 보면, target `2622` 는 example 쪽 `drop_stage=PRESENT_IN_SAVED_BATCH`, real-user 쪽 `drop_stage=NOT_IN_SQL_RETRIEVAL` 입니다. 그리고 representative example/real-user에 `personal=true` fresh refresh를 다시 태우면, example 쪽 stale saved path도 즉시 `NOT_IN_SQL_RETRIEVAL` 로 내려갑니다. 추가로 staleness audit 기준 `2622` top1 example users `272명` 은 최근 `24h=0` 이고, recent-window audit 기준 recent 24h mixed leader는 `3284`, origin mix `EXAMPLE_SMOKE:1,REAL_USER:5`, `2622 top1=0` 입니다. 즉 current blocker는 mixed leader dominance뿐 아니라 **historical example latest batch dominance + stale example saved batch path** 를 full latest batch gate와 recent-window 보조 gate로 같이 읽어야 합니다.
+
+### 2. `mixed_top1_leader_real_user_users=0` 이고 `real_user_concentration_readiness=NO_PRIORITY_DOMINANT`
+
+- real-user 쪽 자체는 충분히 분산됐는데, mixed batch에서는 example 비중이 너무 커서 review gate가 안 열린다는 뜻입니다.
+- current local 80-user 샘플도 여기에 해당합니다.
+- 여기에 `real_user_mixed_leader_top10_count=0` 까지 붙으면, mixed leader 서비스 자체가 real-user 후보 상단에 없다는 뜻이므로 targeted housing-like sample이 없으면 gate 전이가 계속 늦어질 수 있습니다.
+
+### 3. `mixed_top1_leader_real_user_users>0`
+
+- real-user leader signal이 mixed batch top1에도 올라오기 시작한 상태입니다.
+- 그때부터 readiness/runbook을 다시 같이 보고 review gate 전이 여부를 확인합니다.
+
+## 현재 local truth
+
+- mixed latest batch:
+  - `latest_batch_users=548`
+  - `example_users=464`
+  - `real_user_users=80`
+  - `top1_leader=청년월세 지원사업`
+  - `top1_leader_share_pct=50.55`
+  - `top1_leader_real_user_users=0`
+  - `real_user_mixed_leader_top10_count=0`
+- real-user only latest batch:
+  - `latest_batch_users=80`
+  - `top1_leader=드림나래(인천청년 면접복장 지원)`
+  - `top1_leader_share_pct=7.50`
+  - `concentration_readiness=NO_PRIORITY_DOMINANT`
+
+즉 현재 review gate blocker는 **real-user 부족**보다 **mixed latest batch non-real dominance + 현재 real-user sample에 mixed leader transition path 부재 + same-profile example vs real-user differential** 로 읽는 편이 맞습니다.

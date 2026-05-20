@@ -76,11 +76,12 @@ admin dashboard 반복 검증은 아래 스크립트를 우선 사용합니다.
 deploy/smoke/run-local-admin-dashboard-smoke.sh
 ```
 
-이 스크립트는 `admin login -> ROLE_ADMIN 확인 -> /api/admin/dashboard/summary -> summary window + trend window + recommendation weight progress + recommendation traffic mix + real-user traffic gate + recommendationReviewGate + latest batch concentration snapshot(top1LeaderUserMix/top1LeaderSignalSummary 포함) 계약` 을 한 번에 확인합니다.
-로컬 Docker app이 `SECURITY_ADMIN_EMAILS` 없이 떠 있으면 `admin@example.com` 이 `ROLE_ADMIN` 없이 로그인될 수 있으므로, 이 경우에는 아래처럼 다시 띄웁니다.
+이 스크립트는 `admin login -> ROLE_ADMIN 확인 -> /api/admin/dashboard/summary -> summary window + trend window + recommendation weight progress + recommendation traffic mix + real-user traffic gate + recommendationReviewGate + latest batch concentration snapshot(top1LeaderUserMix/top1LeaderSignalSummary 포함) + reviewGateStaleness + recentWindowLatestBatch + reviewGatePolicyCandidateStatus/reviewGatePolicyCandidateReason + reviewGatePolicyPromotionStatus/reviewGatePolicyPromotionReason + reviewGatePolicyPromotionActionStatus/reviewGatePolicyPromotionActionReason + reviewGatePolicyPromotionReadinessStatus/reviewGatePolicyPromotionReadinessReason + reviewGatePolicyPromotionExecutionStatus/reviewGatePolicyPromotionExecutionReason + reviewGatePolicyPromotionApprovalStatus/reviewGatePolicyPromotionApprovalReason + reviewGatePolicyPromotionApprovalCriteriaStatus/reviewGatePolicyPromotionApprovalCriteriaReason + reviewGatePolicyPromotionApprovalDecisionStatus/reviewGatePolicyPromotionApprovalDecisionReason + reviewGatePolicyPromotionApprovalRecordStatus/reviewGatePolicyPromotionApprovalRecordReason + reviewGatePolicyPromotionReviewRunStatus/reviewGatePolicyPromotionReviewRunReason + reviewGatePolicyPromotionReviewRunCriteriaStatus/reviewGatePolicyPromotionReviewRunCriteriaReason + reviewGatePolicyPromotionReviewRunDecisionStatus/reviewGatePolicyPromotionReviewRunDecisionReason + reviewGatePolicyPromotionReviewRunApprovalCriteriaStatus/reviewGatePolicyPromotionReviewRunApprovalCriteriaReason + reviewGatePolicyPromotionReviewRunApprovalDecisionStatus/reviewGatePolicyPromotionReviewRunApprovalDecisionReason + reviewGatePolicyPromotionReviewRunApprovalStatus/reviewGatePolicyPromotionReviewRunApprovalReason 계약` 을 한 번에 확인합니다.
+현재는 마지막 transition 층도 같이 봅니다. 즉 summary smoke 출력에서 `reviewGatePolicyPromotionReviewRunApprovalRecordTransitionStatus`, `reviewGatePolicyPromotionReviewRunApprovalRecordTransitionReason` 가 non-empty 인지 같이 확인하는 편이 맞습니다.
+로컬 Docker app이 `SECURITY_ADMIN_EMAILS` 없이 떠 있으면 `<local admin email>` 이 `ROLE_ADMIN` 없이 로그인될 수 있으므로, 이 경우에는 아래처럼 다시 띄웁니다.
 
 ```bash
-SECURITY_ADMIN_EMAILS=admin@example.com docker compose up -d --force-recreate app
+SECURITY_ADMIN_EMAILS='<local admin email>' docker compose up -d --force-recreate app
 ```
 
 기본 summary window는 `7`, 기본 trend window는 `1,7,30` 입니다. 다른 기간을 보고 싶으면 `SUMMARY_WINDOW_DAYS`, `TREND_WINDOW_DAYS_CSV` 로 덮어씁니다.
@@ -103,7 +104,21 @@ HEALTH_RETRY_COUNT=30 HEALTH_RETRY_DELAY_SECONDS=1 deploy/smoke/run-local-admin-
 deploy/smoke/run-local-admin-recommendation-breakdowns-smoke.sh
 ```
 
-이 스크립트는 `admin login -> ROLE_ADMIN 확인 -> /api/admin/dashboard/recommendation-breakdowns -> traffic mix + real-user traffic gate + recommendationReviewGate + latest batch concentration snapshot(top1LeaderUserMix/top1LeaderSignalSummary 포함) + topRepeatedServices/top1Services(userMix 포함) + fallback/click/repeat exposure userCohort 계약` 을 한 번에 확인합니다.
+이 스크립트는 `admin login -> ROLE_ADMIN 확인 -> /api/admin/dashboard/recommendation-breakdowns -> traffic mix + real-user traffic gate + recommendationReviewGate + latest batch concentration snapshot(top1LeaderUserMix/top1LeaderSignalSummary 포함) + reviewGateStaleness + recentWindowLatestBatch + reviewGatePolicyCandidateStatus/reviewGatePolicyCandidateReason + reviewGatePolicyPromotionStatus/reviewGatePolicyPromotionReason + reviewGatePolicyPromotionActionStatus/reviewGatePolicyPromotionActionReason + reviewGatePolicyPromotionReadinessStatus/reviewGatePolicyPromotionReadinessReason + reviewGatePolicyPromotionExecutionStatus/reviewGatePolicyPromotionExecutionReason + reviewGatePolicyPromotionApprovalStatus/reviewGatePolicyPromotionApprovalReason + reviewGatePolicyPromotionApprovalCriteriaStatus/reviewGatePolicyPromotionApprovalCriteriaReason + reviewGatePolicyPromotionApprovalDecisionStatus/reviewGatePolicyPromotionApprovalDecisionReason + reviewGatePolicyPromotionApprovalRecordStatus/reviewGatePolicyPromotionApprovalRecordReason + reviewGatePolicyPromotionReviewRunStatus/reviewGatePolicyPromotionReviewRunReason + reviewGatePolicyPromotionReviewRunCriteriaStatus/reviewGatePolicyPromotionReviewRunCriteriaReason + reviewGatePolicyPromotionReviewRunDecisionStatus/reviewGatePolicyPromotionReviewRunDecisionReason + reviewGatePolicyPromotionReviewRunApprovalCriteriaStatus/reviewGatePolicyPromotionReviewRunApprovalCriteriaReason + reviewGatePolicyPromotionReviewRunApprovalDecisionStatus/reviewGatePolicyPromotionReviewRunApprovalDecisionReason + reviewGatePolicyPromotionReviewRunApprovalStatus/reviewGatePolicyPromotionReviewRunApprovalReason + topRepeatedServices/top1Services(userMix 포함) + fallback/click/repeat exposure userCohort 계약` 을 한 번에 확인합니다.
+breakdowns smoke도 같은 마지막 transition 층과 final write 층을 같이 봅니다. 즉 `reviewGatePolicyPromotionReviewRunApprovalRecordTransitionStatus=AWAIT_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_WRITE`, `reviewGatePolicyPromotionReviewRunApprovalRecordTransitionReason=APPROVAL_RECORD_CRITERIA_MET_BUT_RECORD_NOT_WRITTEN`, `reviewGatePolicyPromotionReviewRunApprovalRecordWriteStatus=PENDING_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_WRITE`, `reviewGatePolicyPromotionReviewRunApprovalRecordWriteReason=APPROVAL_RECORD_TRANSITION_READY_BUT_WRITE_NOT_EXECUTED` 을 같이 읽는 편이 맞습니다.
+explicit promotion approval record의 실제 write/clear path를 검증할 때는 아래 smoke를 먼저 사용합니다.
+
+```bash
+ADMIN_EMAIL='<local admin email>' ADMIN_PASSWORD='<local admin password>' \
+deploy/smoke/run-local-admin-recommendation-review-gate-promotion-approval-record-smoke.sh
+```
+
+이 smoke는 `baseline pending tuple -> explicit approval record write -> approved tuple -> explicit approval record clear -> baseline tuple 복귀` 를 한 번에 확인합니다. 기존 로컬 PostgreSQL volume에서 relation missing 또는 permission denied가 보이면 먼저 아래 runtime patch를 적용합니다.
+
+```bash
+bash deploy/postgres/apply-local-runtime-schema-patch.sh
+```
+
 `userCohort` 값은 현재 `EXAMPLE_SMOKE`, `BOUNDED_LOCAL`, `LOCAL_REAL_NON_EXAMPLE_SEED`, `REAL_USER` 중 하나입니다.
 기본 summary window는 `14`, 기본 limit는 `3` 이며, `SUMMARY_WINDOW_DAYS`, `BREAKDOWN_LIMIT` 으로 덮어쓸 수 있습니다.
 
@@ -148,7 +163,7 @@ deploy/smoke/run-local-auth-session-smoke.sh
 이 우선순위는 이제 `run-local-admin-forced-logout-smoke.sh`,
 `run-local-admin-dashboard-smoke.sh`, `run-local-policy-quality-summary.sh` 같은
 direct admin smoke에도 동일하게 적용됩니다. 따라서 서버 검증에서는
-로컬 기본 `admin@example.com/password123!` 를 기대하지 말고, 서버 `.env` 의
+로컬 기본 `<local admin email>/<local admin password>` 를 기대하지 말고, 서버 `.env` 의
 `SECURITY_ADMIN_EMAILS` allowlist 안 실제 admin 계정 + 그 비밀번호를
 `ADMIN_EMAIL`/`ADMIN_PASSWORD` 또는 `/tmp` 파일로 맞춰 실행해야 합니다.
 
@@ -184,7 +199,7 @@ VALIDATION_APP_BASE_URL=http://127.0.0.1:8082 deploy/smoke/run-local-validation-
 - replay smoke는 DB/app 재기동이 섞일 수 있어 항상 마지막에 둡니다.
 - replay smoke는 독립 `bootRun` 인스턴스를 기본 `18082` 포트로 띄우므로, 상위 wrapper가 `APP_BASE_URL=http://127.0.0.1:8082` 를 쓰더라도 replay 단계에서는 이를 넘기지 않습니다.
 - replay를 다른 포트/URL로 강제하려면 `REPLAY_APP_BASE_URL` 을 명시합니다.
-- local Docker app에서 admin 검증이 필요하면 `SECURITY_ADMIN_EMAILS=admin@example.com` 상태로 app이 떠 있어야 합니다.
+- local Docker app에서 admin 검증이 필요하면 `SECURITY_ADMIN_EMAILS=<local admin email>` 상태로 app이 떠 있어야 합니다.
 
 빠른 재검증만 할 때는 `quick` 프로필을 사용합니다.
 
@@ -299,7 +314,7 @@ deploy/smoke/run-local-deadline-reminder-smoke.sh
 앱/DB/Redis 기동:
 
 ```bash
-SECURITY_ADMIN_EMAILS=admin@example.com docker compose up -d db redis app
+SECURITY_ADMIN_EMAILS='<local admin email>' docker compose up -d db redis app
 ```
 
 health 확인:
@@ -327,8 +342,8 @@ FROM welfare_service_details;
 
 ```bash
 export APP_BASE_URL="http://127.0.0.1:8082"
-export ADMIN_EMAIL="admin@example.com"
-export ADMIN_PASSWORD="password123!"
+export ADMIN_EMAIL="<local admin email>"
+export ADMIN_PASSWORD="<local admin password>"
 export ADMIN_LOGIN_RESPONSE="$(mktemp)"
 
 curl -sS \
@@ -353,7 +368,7 @@ PY
 )"
 ```
 
-현재 local smoke baseline에서는 admin runtime 검증용 비밀번호 예시를 `password123!` 로 둡니다.
+현재 local smoke baseline에서는 admin runtime 검증용 비밀번호 예시를 `<local admin password>` placeholder로 둡니다.
 다만 shell의 `ADMIN_PASSWORD` 나 `run-local-validation-from-env.sh` 가 읽는 `/tmp/youth-welfare-admin-smoke-password` 파일이 있으면 그 값을 우선합니다.
 서버에선 이 예시 비밀번호를 진실로 보면 안 됩니다. 서버는 `.env` allowlist 와
 실제 admin 계정 비밀번호가 기준이고, direct admin smoke도 이제 같은 우선순위를
@@ -486,8 +501,8 @@ FROM welfare_service_details;
 
 ```bash
 export APP_BASE_URL="http://127.0.0.1:8082"
-export SMOKE_EMAIL="user@example.com"
-export SMOKE_PASSWORD="password123!"
+export SMOKE_EMAIL="<local smoke email>"
+export SMOKE_PASSWORD="<local smoke password>"
 
 export COOKIE_JAR="$(mktemp)"
 export LOGIN_RESPONSE="$(mktemp)"

@@ -74,6 +74,8 @@ bash deploy/smoke/run-local-recommendation-ai-input-contrast-audit.sh
 
 둘 다 아래 입력 신호를 포함합니다.
 
+- `savedAiStatus`
+- `savedAiReason`
 - `keywordRaw`
 - `lifeStageRaw`
 - `interestThemes`
@@ -94,6 +96,10 @@ bash deploy/smoke/run-local-recommendation-ai-input-contrast-audit.sh
 - 설명 텍스트 밀도
 
 쪽을 의심하는 편이 맞습니다.
+
+특히 zero row의 `savedAiReason` 이 `저소득층`, `신혼부부`, `학생 대상` 같은
+명시적 exclusion 문구라면, 이 단계의 병목은 signal 부족보다
+**AI primary audience mismatch 해석** 에 더 가깝습니다.
 
 ### 2. zero row만 `targetGroups`, `interestThemes`, `keywordTags` 가 비어 있거나 약하면
 

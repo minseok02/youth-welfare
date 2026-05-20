@@ -8,6 +8,7 @@
 
 - `savedAi`
 - `savedAiStatus`
+- `savedAiReason`
 - `currentFinal -> savedFinal delta`
 
 관점에서 읽는 bounded audit 입니다.
@@ -62,6 +63,7 @@ fresh persisted top batch에 대해:
 - `delta`
 - `savedAi`
 - `savedAiStatus`
+- `savedAiReason`
 
 를 같이 봅니다.
 
@@ -78,6 +80,7 @@ fresh persisted top batch에 대해:
 - `delta`
 - `savedAi`
 - `savedAiStatus`
+- `savedAiReason`
 - `dropStage`
 
 를 같이 봅니다.
@@ -94,7 +97,12 @@ AI request는 갔지만 persisted AI 점수가 0점입니다.
 fresh persisted batch에서도 AI top-N 밖에 머문 것입니다.  
 이 경우는 AI stage 이전 경쟁력 자체가 낮다고 읽는 편이 맞습니다.
 
-### 3. `delta < 0`
+### 3. `savedAiReason` 이 명시적 exclusion 문구일 때
+
+예: `저소득층 지원`, `신혼부부 대상`, `학생 대상` 같은 문구가 직접 내려오면
+이 케이스는 signal 부족보다 **AI primary audience mismatch 해석** 에 더 가깝습니다.
+
+### 4. `delta < 0`
 
 persisted final이 current rerank trace보다 더 낮아졌습니다.  
 대체로 AI score 또는 persisted 후속 보정의 영향입니다.
@@ -109,4 +117,5 @@ persisted final이 current rerank trace보다 더 낮아졌습니다.
 
 1. 이 문서는 fresh persisted batch 이후 남는 AI-stage 차이를 봅니다.
 2. `savedAi=0` 과 `NOT_REQUESTED` 를 분리합니다.
-3. 다음 bounded fix를 AI input/response 쪽으로 둘지, AI top-N 이전 경쟁력 쪽으로 둘지 좁힐 때 씁니다.
+3. `savedAiReason` 으로 signal 부족인지 primary audience exclusion인지도 같이 읽습니다.
+4. 다음 bounded fix를 AI input/response 쪽으로 둘지, AI top-N 이전 경쟁력 쪽으로 둘지 좁힐 때 씁니다.

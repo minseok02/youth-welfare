@@ -90,7 +90,7 @@ class RecommendationBookmarkReadServiceTest {
                                 .youthMajorLabel("주거")
                                 .youthMidLabel("전월세 및 주거급여 지원")
                                 .provisionMethodLabel("온라인")
-                                .gov24ServiceFieldLabel("보육")
+                                .gov24ServiceFieldLabel("주거·자립")
                                 .gov24UserTypeLabel("청년")
                                 .gov24BenefitTypeLabel("서비스")
                                 .build()
@@ -105,7 +105,7 @@ class RecommendationBookmarkReadServiceTest {
         assertThat(response.get(0).getYouthMajorLabel()).isEqualTo("주거");
         assertThat(response.get(0).getYouthMidLabel()).isEqualTo("전월세 및 주거급여 지원");
         assertThat(response.get(0).getProvisionMethodLabel()).isEqualTo("온라인");
-        assertThat(response.get(0).getGov24ServiceFieldLabel()).isEqualTo("보육");
+        assertThat(response.get(0).getGov24ServiceFieldLabel()).isEqualTo("주거·자립");
         assertThat(response.get(0).getGov24UserTypeLabel()).isEqualTo("청년");
         assertThat(response.get(0).getGov24BenefitTypeLabel()).isEqualTo("서비스");
         assertThat(response.get(0).isBookmarked()).isTrue();

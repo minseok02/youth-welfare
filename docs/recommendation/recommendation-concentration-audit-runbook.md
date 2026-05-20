@@ -239,6 +239,8 @@ signal quality:
 LOCAL_REAL_NON_EXAMPLE_SEED_WITH_NON_REAL_BATCH
 ```
 
+위 블록은 **`2026-05-17` historical pre-real-user local sample output** 입니다. current local truth와는 분리해서 읽어야 합니다.
+
 같은 시점 `USER_COHORT=bounded_local` rerun:
 
 ```text
@@ -316,14 +318,14 @@ EMPTY_REAL_USER_COHORT
 
 ## 현재 판단
 
-`2026-05-17` local snapshot 기준 판단은:
+`2026-05-17` historical pre-real-user local snapshot 기준 판단은:
 
 1. 우선순위는 코드와 데이터에서 **일부 반영된다**
 2. default `USER_COHORT=all` 기준 latest batch는 `latest_batch_bounded_local_users=1`, `latest_batch_local_real_non_example_seed_users=2`, `latest_batch_real_user_users=0`, `real_user_cohort_gate=DEFERRED_NO_REAL_USER_COHORT`, `signal_quality=LOCAL_REAL_NON_EXAMPLE_SEED_WITH_NON_REAL_BATCH` 이다
 3. 같은 wrapper를 `USER_COHORT=bounded_local` 로 다시 태우면 현재 값은 `latest_batch_rows=6`, `concentration_readiness=CONCENTRATED_TOP1`, `signal_quality=BOUNDED_LOCAL_ONLY_COHORT` 이다
 4. `USER_COHORT=local_real_non_example_seed` 로 다시 태우면 현재 값은 `latest_batch_rows=12`, `real_user_cohort_gate=DIAGNOSTIC_LOCAL_REAL_NON_EXAMPLE_SEED_ONLY_COHORT`, `signal_quality=LOCAL_REAL_NON_EXAMPLE_SEED_ONLY_COHORT` 이다
 5. `USER_COHORT=real_user` 로 다시 태우면 현재 값은 `latest_batch_rows=0`, `real_user_cohort_gate=DEFERRED_EMPTY_REAL_USER_COHORT`, `signal_quality=EMPTY_REAL_USER_COHORT` 이다
-6. 따라서 지금 병목은 “priority 미반영”보다 **synthetic-heavy baseline + local seed non-example만 존재 + real-user cohort 부재 + diversity / fallback / balancing 약함** 쪽이며, 상태는 계속 `CONCENTRATED_TOP1` 으로 본다
+6. 따라서 이 시점의 병목은 “priority 미반영”보다 **synthetic-heavy baseline + local seed non-example만 존재 + real-user cohort 부재 + diversity / fallback / balancing 약함** 쪽이었고, 상태는 계속 `CONCENTRATED_TOP1` 으로 봤다. current local truth는 이후 `REAL_USER` live gate 개방, historical example latest batch inertia, recent-window supplemental gate 해석으로 넘어갔으므로, 이 문단은 historical baseline evidence로 읽는 편이 맞다.
 
 즉 지금 practical next step은
 

@@ -12,7 +12,7 @@
 
 1. `온통청년`, `복지로`, `Gov24`, `추천`, `OpenAI replay` 를 동시에 바꾸지 않고 작은 local-first task로 나눴습니다.
 2. 실제 로컬 검증 전후에 판단이 많이 바뀌어, 각 단계의 inventory / drift / bridge / blocked source 근거를 따로 남겼습니다.
-3. 일부는 외부 응답이 있어야 다시 열 수 있는 blocked 트랙이라, 구현 문서가 아니라 "왜 지금 못 가는지" 를 남기는 기록이 됐습니다.
+3. 일부는 외부 응답이 있어야 다시 열 수 있는 blocked 트랙이라, 구현 문서가 아니라 "왜 지금 못 가는지" 를 남기는 기록이 됐습니다. 다만 `Gov24 서비스분야/사용자구분/지원유형` 은 현재 active 문서 기준으로 더 이상 “공개 codebook 대기”가 아니라 label-first canonical 승격 설계 대상으로 읽습니다.
 
 그래서 지금 `policy-*` 파일 다수는 현재 구현 설명서라기보다, 정규화/수집/추천 전환의 설계 히스토리와 조사 로그입니다.
 
@@ -110,8 +110,8 @@
 5. `Gov24` support fact gap이 어떤 code 군집 때문인지 볼 때는 [policy-gov24-support-unmapped-inventory.md](./policy-gov24-support-unmapped-inventory.md) 를 봅니다.
 6. `Gov24 serviceField/userType/benefitType` 에 대해 지금 바로 확정 가능한 internal rule만 보려면 [policy-gov24-canonical-mapping-draft.md](./policy-gov24-canonical-mapping-draft.md) 를 봅니다.
 7. `Gov24` 를 다음 active track으로 다시 열 때, 무엇을 canonical term으로 올리고 무엇을 deferred 로 남길지 보려면 [policy-gov24-canonical-promotion-plan.md](./policy-gov24-canonical-promotion-plan.md) 을 먼저 봅니다.
-8. 정책 admin bounded runtime 경로(`reference-urls/rebuild`, `embeddings/rebuild`, `retrieval-evaluations/gate`, `category-audit`)를 한 장에서 다시 열 때는 [policy-admin-runtime-runbook.md](./policy-admin-runtime-runbook.md) 을 먼저 봅니다.
-9. retrieval/category 상태를 운영 보고서처럼 짧게 읽고 싶을 때는 [policy-quality-summary-runbook.md](./policy-quality-summary-runbook.md) 을 먼저 보고, `dataset_key / scenario_count / gate / category summary` 를 같이 기록합니다.
+8. 정책 admin bounded runtime 경로(`reference-urls/rebuild`, `embeddings/rebuild`, `retrieval-evaluations/gate`, `category-audit`)를 한 장에서 다시 열 때는 [policy-admin-runtime-runbook.md](./policy-admin-runtime-runbook.md) 을 먼저 봅니다. 이 문서가 current one-page runtime runbook 입니다.
+9. retrieval/category 상태를 운영 보고서처럼 짧게 읽고 싶을 때는 [policy-quality-summary-runbook.md](./policy-quality-summary-runbook.md) 을 먼저 보고, `dataset_key / scenario_count / gate / category summary` 를 같이 기록합니다. 이 문서가 current one-shot summary smoke runbook 입니다.
 10. 신규 API를 어떻게 꽂을지 큰 구조는 [policy-source-onboarding-architecture.md](./policy-source-onboarding-architecture.md)를 먼저 봅니다.
 11. 실제로 새 source를 받을 때는 [policy-source-onboarding-checklist.md](./policy-source-onboarding-checklist.md) 순서대로 판단합니다.
 12. 실제 코드에서 어디를 열지 찾으려면 [policy-source-code-entrypoints.md](./policy-source-code-entrypoints.md)를 봅니다.

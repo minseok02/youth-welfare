@@ -8,6 +8,7 @@ APP_BASE_URL="${APP_BASE_URL:-http://127.0.0.1:8082}"
 APP_HEALTH_URL="${APP_HEALTH_URL:-${APP_BASE_URL}/actuator/health}"
 SMOKE_PASSWORD="${SMOKE_PASSWORD:-Password123!}"
 SMOKE_EMAIL_PREFIX="${SMOKE_EMAIL_PREFIX:-recommend.click.smoke}"
+SMOKE_EMAIL="${SMOKE_EMAIL:-}"
 SMOKE_NAME="${SMOKE_NAME:-추천클릭점검}"
 SMOKE_BIRTH_DATE="${SMOKE_BIRTH_DATE:-2001-04-30}"
 SMOKE_SIDO="${SMOKE_SIDO:-인천광역시}"
@@ -15,6 +16,7 @@ SMOKE_SGG="${SMOKE_SGG:-중구}"
 SMOKE_INCOME_LEVEL="${SMOKE_INCOME_LEVEL:-5}"
 SMOKE_EMPLOYMENT_STATUS="${SMOKE_EMPLOYMENT_STATUS:-미취업}"
 SMOKE_HOUSEHOLD_TYPE="${SMOKE_HOUSEHOLD_TYPE:-1인 가구}"
+ALLOW_EXISTING_USER="${ALLOW_EXISTING_USER:-false}"
 DB_CONTAINER_NAME="${DB_CONTAINER_NAME:-youth-welfare-db}"
 DB_NAME="${DB_NAME:-youth_welfare}"
 DB_QUERY_USERNAME="${DB_QUERY_USERNAME:-migration_admin}"
@@ -84,34 +86,50 @@ print(payload.get("errorCode", ""))
 PY
 }
 
+existing_user_count() {
+  local normalized_email="$1"
+  smoke_db_query \
+    "SELECT COUNT(*) FROM users WHERE lower(email) = lower('${normalized_email}');"
+}
+
 smoke_require_command curl
 smoke_require_command python3
 smoke_require_command docker
 
-SMOKE_EMAIL="$(smoke_build_email "${SMOKE_EMAIL_PREFIX}")"
+ALLOW_EXISTING_USER="$(smoke_normalize_bool "${ALLOW_EXISTING_USER}")"
+SMOKE_EMAIL="${SMOKE_EMAIL:-$(smoke_build_email "${SMOKE_EMAIL_PREFIX}")}"
+EXISTING_USER_COUNT="$(existing_user_count "${SMOKE_EMAIL}")"
 
 smoke_print_step "health check"
 HEALTH_STATUS="$(smoke_wait_for_health "${HEALTH_RETRY_COUNT}" "${HEALTH_RETRY_DELAY_SECONDS}" "${APP_HEALTH_URL}" "${HEALTH_RESPONSE}" "${ARTIFACT_DIR}/health.stderr")"
 smoke_assert_status 200 "${HEALTH_STATUS}" "health check" "${HEALTH_RESPONSE}"
 
-smoke_print_step "signup ${SMOKE_EMAIL}"
-smoke_seed_verified_email "${SMOKE_EMAIL}"
-SIGNUP_STATUS="$(
-  smoke_http_status POST "${APP_BASE_URL}/api/auth/signup" "${SIGNUP_RESPONSE}" \
-    -H 'Content-Type: application/json' \
-    -d "{
-      \"email\": \"${SMOKE_EMAIL}\",
-      \"password\": \"${SMOKE_PASSWORD}\",
-      \"name\": \"${SMOKE_NAME}\",
-      \"birthDate\": \"${SMOKE_BIRTH_DATE}\",
-      \"sido\": \"${SMOKE_SIDO}\",
-      \"sgg\": \"${SMOKE_SGG}\",
-      \"incomeLevel\": ${SMOKE_INCOME_LEVEL},
-      \"employmentStatus\": \"${SMOKE_EMPLOYMENT_STATUS}\",
-      \"householdType\": \"${SMOKE_HOUSEHOLD_TYPE}\"
-    }"
-)"
-smoke_assert_status 200 "${SIGNUP_STATUS}" "signup" "${SIGNUP_RESPONSE}"
+if [[ "${EXISTING_USER_COUNT}" == "0" ]]; then
+  smoke_print_step "signup ${SMOKE_EMAIL}"
+  smoke_seed_verified_email "${SMOKE_EMAIL}"
+  SIGNUP_STATUS="$(
+    smoke_http_status POST "${APP_BASE_URL}/api/auth/signup" "${SIGNUP_RESPONSE}" \
+      -H 'Content-Type: application/json' \
+      -d "{
+        \"email\": \"${SMOKE_EMAIL}\",
+        \"password\": \"${SMOKE_PASSWORD}\",
+        \"name\": \"${SMOKE_NAME}\",
+        \"birthDate\": \"${SMOKE_BIRTH_DATE}\",
+        \"sido\": \"${SMOKE_SIDO}\",
+        \"sgg\": \"${SMOKE_SGG}\",
+        \"incomeLevel\": ${SMOKE_INCOME_LEVEL},
+        \"employmentStatus\": \"${SMOKE_EMPLOYMENT_STATUS}\",
+        \"householdType\": \"${SMOKE_HOUSEHOLD_TYPE}\"
+      }"
+  )"
+  smoke_assert_status 200 "${SIGNUP_STATUS}" "signup" "${SIGNUP_RESPONSE}"
+else
+  if [[ "${ALLOW_EXISTING_USER}" != "true" ]]; then
+    echo "user already exists for smoke_email=${SMOKE_EMAIL}; set ALLOW_EXISTING_USER=true to reuse it" >&2
+    exit 1
+  fi
+  smoke_print_step "reuse existing user ${SMOKE_EMAIL}"
+fi
 
 smoke_print_step "login"
 LOGIN_STATUS="$(
@@ -175,6 +193,7 @@ echo
 echo "recommendation click smoke passed"
 echo "app_base_url=${APP_BASE_URL}"
 echo "smoke_email=${SMOKE_EMAIL}"
+echo "existing_user_reused=$([[ "${EXISTING_USER_COUNT}" == "0" ]] && echo false || echo true)"
 echo "recommendation_id=${RECOMMENDATION_ID}"
 echo "service_id=${SERVICE_ID}"
 echo "log_id=${LOG_ID}"

@@ -37,6 +37,15 @@
 
 까지입니다.
 
+추가로 `2026-05-19` 공식 문서 재확인 기준:
+
+- 공공데이터포털 공식 Swagger에서 직접 확인되는 필드명은 영문 `serviceField/userType/benefitType` 가 아니라
+  `서비스분야/사용자구분/지원유형` 이다.
+- 이 세 필드는 공개 Swagger에서 모두 `string` 으로만 정의되어 있고,
+  별도 enum / codebook / closed-set inventory 는 공개돼 있지 않다.
+- 즉 이번 active lane은 “공식 code를 더 기다렸다가 code-first 로 가는 트랙”이 아니라,
+  **공개 공식 문서상 string label로만 존재하는 값을 내부 canonical term으로 어디까지 승격할지 정하는 트랙**이다.
+
 이번 단계에서 여전히 열지 않는 것은:
 
 1. `GOV24_SERVICE_FIELD / USER_TYPE / BENEFIT_TYPE` stable code SQL
@@ -229,6 +238,16 @@ canonical term은 additive multi-term 으로만 봅니다.
 2. term 승격 대상이 `서비스분야 10`, `사용자구분 4`, `지원유형 20` allowlist로 고정됨
 3. canonical 저장층이 `service_taxonomy_terms` 로 제한됨
 4. `service_facts` / public filter / scoring 미개방 경계가 문서에 명시됨
+
+`2026-05-19` local closeout 기준 위 조건은 현재 충족된 상태다.
+
+- `GOV24_SERVICE_FIELD` exact-label term 우선 read-model 경계가 코드와 테스트에 반영됨
+- admin diagnostics / admin facet / recommendation response / policy summary/detail/ranking / bookmark / AI prompt가 같은 exact label truth를 읽음
+- `CanonicalRecommendationReadModelIntegrationTest` 도 로컬 PostgreSQL/Redis runtime에서 다시 통과함
+- `Gov24` taxonomy term 저장도 stable code FK가 아니라 label-first term 경계에 맞게 `code_set_key=null` 로 정리됨
+
+즉 이 문서의 다음 단계는 “이 설계가 맞는지”를 계속 탐색하는 것이 아니라,
+현 경계를 closeout truth로 유지하면서 future reopen 범위를 `service_facts/public filter/scoring` 쪽 deferred 판단으로 제한하는 것이다.
 
 ## 요약
 

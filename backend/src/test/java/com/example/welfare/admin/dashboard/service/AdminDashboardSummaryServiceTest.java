@@ -20,6 +20,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
@@ -138,6 +139,41 @@ class AdminDashboardSummaryServiceTest {
                         "DEFERRED_NO_REAL_USER_COHORT",
                         "LOCAL_REAL_NON_EXAMPLE_SEED_WITH_NON_REAL_BATCH"
                 ));
+        given(adminDashboardRecommendationReadRepository.fetchRecommendationRecentWindowSnapshot(24, 2622L))
+                .willReturn(new AdminDashboardReadRows.RecommendationRecentWindowRow(
+                        24,
+                        2622L,
+                        83,
+                        3,
+                        80,
+                        0,
+                        3284L,
+                        "인천 청년도약기지(취업아카데미)",
+                        6,
+                        5,
+                        new BigDecimal("7.23"),
+                        0,
+                        0
+                ));
+        given(adminDashboardRecommendationReadRepository.fetchRecommendationReviewGateStalenessSnapshot(24, 2622L))
+                .willReturn(new AdminDashboardReadRows.RecommendationReviewGateStalenessRow(
+                        2622L,
+                        "ALL_TIME_LATEST_PER_USER",
+                        24,
+                        454,
+                        3,
+                        272,
+                        0,
+                        LocalDateTime.of(2026, 5, 13, 13, 39, 31),
+                        LocalDateTime.of(2026, 5, 17, 11, 49, 50),
+                        80,
+                        80,
+                        0,
+                        0
+                ));
+        given(adminDashboardRecommendationReadRepository.fetchRecommendationReviewGatePromotionApprovalRecord(
+                AdminDashboardQueryPolicy.REVIEW_GATE_PROMOTION_APPROVAL_KEY
+        )).willReturn(Optional.empty());
         ScoreWeight activeWeight = ScoreWeight.builder()
                 .weightKey("GROWTH")
                 .ruleWeight(new BigDecimal("0.60"))
@@ -242,6 +278,95 @@ class AdminDashboardSummaryServiceTest {
                 .isEqualTo("LOCAL_SEED_WITHOUT_REAL_USER_LEADER");
         assertThat(response.recommendation().latestBatchConcentration().concentrationReadiness()).isEqualTo("CONCENTRATED_TOP1");
         assertThat(response.recommendation().latestBatchConcentration().realUserCohortGate()).isEqualTo("DEFERRED_NO_REAL_USER_COHORT");
+        assertThat(response.recommendation().recentWindowLatestBatch().recentWindowHours()).isEqualTo(24);
+        assertThat(response.recommendation().recentWindowLatestBatch().top1LeaderServiceId()).isEqualTo(3284L);
+        assertThat(response.recommendation().recentWindowLatestBatch().top1LeaderRealUserUsers()).isEqualTo(5);
+        assertThat(response.recommendation().recentWindowLatestBatch().targetTop1Users()).isZero();
+        assertThat(response.recommendation().reviewGateStaleness().primaryReferenceMode())
+                .isEqualTo("ALL_TIME_LATEST_PER_USER");
+        assertThat(response.recommendation().reviewGateStaleness().exampleTargetTop1Users()).isEqualTo(272);
+        assertThat(response.recommendation().reviewGateStaleness().exampleTargetTop1Last24h()).isZero();
+        assertThat(response.recommendation().reviewGateStaleness().realUserLatestUsers()).isEqualTo(80);
+        assertThat(response.recommendation().reviewGateStaleness().realUserTargetTop1Users()).isZero();
+        assertThat(response.recommendation().recentWindowRecommendationReviewReading())
+                .isEqualTo("RECENT_WINDOW_CLEARS_HISTORICAL_2622_DOMINANCE");
+        assertThat(response.recommendation().historicalExampleDominanceDetected()).isFalse();
+        assertThat(response.recommendation().reviewGatePolicyCandidateStatus())
+                .isEqualTo("NOT_A_CANDIDATE_PRIMARY_GATE_NOT_NON_REAL_BLOCKED");
+        assertThat(response.recommendation().reviewGatePolicyCandidateReason())
+                .isEqualTo("PRIMARY_REVIEW_GATE_IS_NOT_DEFERRED_NON_REAL_LEADER_SIGNAL");
+        assertThat(response.recommendation().reviewGatePolicyPromotionStatus())
+                .isEqualTo("KEEP_PRIMARY_BASELINE");
+        assertThat(response.recommendation().reviewGatePolicyPromotionReason())
+                .isEqualTo("RECENT_WINDOW_CANDIDATE_HAS_NOT_CLEARED_PRIMARY_BASELINE_REQUIREMENTS");
+        assertThat(response.recommendation().reviewGatePolicyPromotionActionStatus())
+                .isEqualTo("KEEP_PRIMARY_BASELINE");
+        assertThat(response.recommendation().reviewGatePolicyPromotionActionReason())
+                .isEqualTo("RECENT_WINDOW_POLICY_PROMOTION_CONDITIONS_NOT_MET");
+        assertThat(response.recommendation().reviewGatePolicyPromotionReadinessStatus())
+                .isEqualTo("NOT_READY_FOR_BOUNDED_PROMOTION_REVIEW");
+        assertThat(response.recommendation().reviewGatePolicyPromotionReadinessReason())
+                .isEqualTo("REAL_USER_TRAFFIC_GATE_NOT_READY");
+        assertThat(response.recommendation().reviewGatePolicyPromotionExecutionStatus())
+                .isEqualTo("DO_NOT_RUN_BOUNDED_PROMOTION_REVIEW");
+        assertThat(response.recommendation().reviewGatePolicyPromotionExecutionReason())
+                .isEqualTo("REAL_USER_TRAFFIC_GATE_NOT_READY");
+        assertThat(response.recommendation().reviewGatePolicyPromotionApprovalCriteriaStatus())
+                .isEqualTo("NOT_READY_FOR_EXPLICIT_PROMOTION_APPROVAL");
+        assertThat(response.recommendation().reviewGatePolicyPromotionApprovalCriteriaReason())
+                .isEqualTo("REAL_USER_TRAFFIC_GATE_NOT_READY");
+        assertThat(response.recommendation().reviewGatePolicyPromotionApprovalStatus())
+                .isEqualTo("PROMOTION_APPROVAL_NOT_APPLICABLE");
+        assertThat(response.recommendation().reviewGatePolicyPromotionApprovalReason())
+                .isEqualTo("REAL_USER_TRAFFIC_GATE_NOT_READY");
+        assertThat(response.recommendation().reviewGatePolicyPromotionApprovalDecisionStatus())
+                .isEqualTo("APPROVAL_DECISION_NOT_READY");
+        assertThat(response.recommendation().reviewGatePolicyPromotionApprovalDecisionReason())
+                .isEqualTo("REAL_USER_TRAFFIC_GATE_NOT_READY");
+        assertThat(response.recommendation().reviewGatePolicyPromotionApprovalRecordStatus())
+                .isEqualTo("APPROVAL_RECORD_NOT_READY");
+        assertThat(response.recommendation().reviewGatePolicyPromotionApprovalRecordReason())
+                .isEqualTo("REAL_USER_TRAFFIC_GATE_NOT_READY");
+        assertThat(response.recommendation().reviewGatePolicyPromotionReviewRunStatus())
+                .isEqualTo("BOUNDED_PROMOTION_REVIEW_RUN_NOT_READY");
+        assertThat(response.recommendation().reviewGatePolicyPromotionReviewRunReason())
+                .isEqualTo("REAL_USER_TRAFFIC_GATE_NOT_READY");
+        assertThat(response.recommendation().reviewGatePolicyPromotionReviewRunCriteriaStatus())
+                .isEqualTo("NOT_READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN");
+        assertThat(response.recommendation().reviewGatePolicyPromotionReviewRunCriteriaReason())
+                .isEqualTo("REAL_USER_TRAFFIC_GATE_NOT_READY");
+        assertThat(response.recommendation().reviewGatePolicyPromotionReviewRunDecisionStatus())
+                .isEqualTo("BOUNDED_PROMOTION_REVIEW_RUN_DECISION_NOT_READY");
+        assertThat(response.recommendation().reviewGatePolicyPromotionReviewRunDecisionReason())
+                .isEqualTo("REAL_USER_TRAFFIC_GATE_NOT_READY");
+        assertThat(response.recommendation().reviewGatePolicyPromotionReviewRunApprovalCriteriaStatus())
+                .isEqualTo("NOT_READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL");
+        assertThat(response.recommendation().reviewGatePolicyPromotionReviewRunApprovalCriteriaReason())
+                .isEqualTo("REAL_USER_TRAFFIC_GATE_NOT_READY");
+        assertThat(response.recommendation().reviewGatePolicyPromotionReviewRunApprovalDecisionStatus())
+                .isEqualTo("BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_DECISION_NOT_READY");
+        assertThat(response.recommendation().reviewGatePolicyPromotionReviewRunApprovalDecisionReason())
+                .isEqualTo("REAL_USER_TRAFFIC_GATE_NOT_READY");
+        assertThat(response.recommendation().reviewGatePolicyPromotionReviewRunApprovalStatus())
+                .isEqualTo("BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_NOT_READY");
+        assertThat(response.recommendation().reviewGatePolicyPromotionReviewRunApprovalReason())
+                .isEqualTo("REAL_USER_TRAFFIC_GATE_NOT_READY");
+        assertThat(response.recommendation().reviewGatePolicyPromotionReviewRunApprovalRecordCriteriaStatus())
+                .isEqualTo("NOT_READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD");
+        assertThat(response.recommendation().reviewGatePolicyPromotionReviewRunApprovalRecordCriteriaReason())
+                .isEqualTo("REAL_USER_TRAFFIC_GATE_NOT_READY");
+        assertThat(response.recommendation().reviewGatePolicyPromotionReviewRunApprovalRecordStatus())
+                .isEqualTo("BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_NOT_READY");
+        assertThat(response.recommendation().reviewGatePolicyPromotionReviewRunApprovalRecordReason())
+                .isEqualTo("REAL_USER_TRAFFIC_GATE_NOT_READY");
+        assertThat(response.recommendation().reviewGatePolicyPromotionReviewRunApprovalRecordTransitionStatus())
+                .isEqualTo("BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_TRANSITION_NOT_READY");
+        assertThat(response.recommendation().reviewGatePolicyPromotionReviewRunApprovalRecordTransitionReason())
+                .isEqualTo("REAL_USER_TRAFFIC_GATE_NOT_READY");
+        assertThat(response.recommendation().reviewGatePolicyPromotionReviewRunApprovalRecordWriteStatus())
+                .isEqualTo("BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_WRITE_NOT_READY");
+        assertThat(response.recommendation().reviewGatePolicyPromotionReviewRunApprovalRecordWriteReason())
+                .isEqualTo("REAL_USER_TRAFFIC_GATE_NOT_READY");
         assertThat(response.recommendation().trafficMixInWindow().exampleClickedUsersInWindow()).isEqualTo(9);
         assertThat(response.recommendation().weightBucketsInWindow()).extracting(AdminDashboardResponse.RecommendationWeightSnapshot::weightKey)
                 .containsExactly("GROWTH", "COLD_START");
@@ -299,6 +424,41 @@ class AdminDashboardSummaryServiceTest {
                         "DEFERRED_EMPTY_COHORT",
                         "EMPTY_COHORT"
                 ));
+        given(adminDashboardRecommendationReadRepository.fetchRecommendationRecentWindowSnapshot(24, 2622L))
+                .willReturn(new AdminDashboardReadRows.RecommendationRecentWindowRow(
+                        24,
+                        2622L,
+                        0,
+                        0,
+                        0,
+                        0,
+                        null,
+                        null,
+                        0,
+                        0,
+                        BigDecimal.ZERO,
+                        0,
+                        0
+                ));
+        given(adminDashboardRecommendationReadRepository.fetchRecommendationReviewGateStalenessSnapshot(24, 2622L))
+                .willReturn(new AdminDashboardReadRows.RecommendationReviewGateStalenessRow(
+                        2622L,
+                        "ALL_TIME_LATEST_PER_USER",
+                        24,
+                        0,
+                        0,
+                        0,
+                        0,
+                        null,
+                        null,
+                        0,
+                        0,
+                        0,
+                        0
+                ));
+        given(adminDashboardRecommendationReadRepository.fetchRecommendationReviewGatePromotionApprovalRecord(
+                AdminDashboardQueryPolicy.REVIEW_GATE_PROMOTION_APPROVAL_KEY
+        )).willReturn(Optional.empty());
         ScoreWeight activeWeight = ScoreWeight.builder()
                 .weightKey("GROWTH")
                 .ruleWeight(new BigDecimal("0.60"))
@@ -358,6 +518,84 @@ class AdminDashboardSummaryServiceTest {
         assertThat(response.recommendation().realUserTrafficGateInWindow()).isEqualTo("DEFERRED_EMPTY_COHORT");
         assertThat(response.recommendation().recommendationReviewGate()).isEqualTo("DEFERRED_EMPTY_COHORT");
         assertThat(response.recommendation().latestBatchConcentration().concentrationReadiness()).isEqualTo("DEFERRED_EMPTY_COHORT");
+        assertThat(response.recommendation().recentWindowRecommendationReviewReading()).isEqualTo("DEFERRED_EMPTY_RECENT_WINDOW");
+        assertThat(response.recommendation().historicalExampleDominanceDetected()).isFalse();
+        assertThat(response.recommendation().reviewGatePolicyCandidateStatus())
+                .isEqualTo("NOT_A_CANDIDATE_PRIMARY_GATE_NOT_NON_REAL_BLOCKED");
+        assertThat(response.recommendation().reviewGatePolicyCandidateReason())
+                .isEqualTo("PRIMARY_REVIEW_GATE_IS_NOT_DEFERRED_NON_REAL_LEADER_SIGNAL");
+        assertThat(response.recommendation().reviewGatePolicyPromotionStatus())
+                .isEqualTo("KEEP_PRIMARY_BASELINE");
+        assertThat(response.recommendation().reviewGatePolicyPromotionReason())
+                .isEqualTo("RECENT_WINDOW_CANDIDATE_HAS_NOT_CLEARED_PRIMARY_BASELINE_REQUIREMENTS");
+        assertThat(response.recommendation().reviewGatePolicyPromotionActionStatus())
+                .isEqualTo("KEEP_PRIMARY_BASELINE");
+        assertThat(response.recommendation().reviewGatePolicyPromotionActionReason())
+                .isEqualTo("RECENT_WINDOW_POLICY_PROMOTION_CONDITIONS_NOT_MET");
+        assertThat(response.recommendation().reviewGatePolicyPromotionReadinessStatus())
+                .isEqualTo("NOT_READY_FOR_BOUNDED_PROMOTION_REVIEW");
+        assertThat(response.recommendation().reviewGatePolicyPromotionReadinessReason())
+                .isEqualTo("REAL_USER_TRAFFIC_GATE_NOT_READY");
+        assertThat(response.recommendation().reviewGatePolicyPromotionExecutionStatus())
+                .isEqualTo("DO_NOT_RUN_BOUNDED_PROMOTION_REVIEW");
+        assertThat(response.recommendation().reviewGatePolicyPromotionExecutionReason())
+                .isEqualTo("REAL_USER_TRAFFIC_GATE_NOT_READY");
+        assertThat(response.recommendation().reviewGatePolicyPromotionApprovalCriteriaStatus())
+                .isEqualTo("NOT_READY_FOR_EXPLICIT_PROMOTION_APPROVAL");
+        assertThat(response.recommendation().reviewGatePolicyPromotionApprovalCriteriaReason())
+                .isEqualTo("REAL_USER_TRAFFIC_GATE_NOT_READY");
+        assertThat(response.recommendation().reviewGatePolicyPromotionApprovalStatus())
+                .isEqualTo("PROMOTION_APPROVAL_NOT_APPLICABLE");
+        assertThat(response.recommendation().reviewGatePolicyPromotionApprovalReason())
+                .isEqualTo("REAL_USER_TRAFFIC_GATE_NOT_READY");
+        assertThat(response.recommendation().reviewGatePolicyPromotionApprovalDecisionStatus())
+                .isEqualTo("APPROVAL_DECISION_NOT_READY");
+        assertThat(response.recommendation().reviewGatePolicyPromotionApprovalDecisionReason())
+                .isEqualTo("REAL_USER_TRAFFIC_GATE_NOT_READY");
+        assertThat(response.recommendation().reviewGatePolicyPromotionApprovalRecordStatus())
+                .isEqualTo("APPROVAL_RECORD_NOT_READY");
+        assertThat(response.recommendation().reviewGatePolicyPromotionApprovalRecordReason())
+                .isEqualTo("REAL_USER_TRAFFIC_GATE_NOT_READY");
+        assertThat(response.recommendation().reviewGatePolicyPromotionReviewRunStatus())
+                .isEqualTo("BOUNDED_PROMOTION_REVIEW_RUN_NOT_READY");
+        assertThat(response.recommendation().reviewGatePolicyPromotionReviewRunReason())
+                .isEqualTo("REAL_USER_TRAFFIC_GATE_NOT_READY");
+        assertThat(response.recommendation().reviewGatePolicyPromotionReviewRunCriteriaStatus())
+                .isEqualTo("NOT_READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN");
+        assertThat(response.recommendation().reviewGatePolicyPromotionReviewRunCriteriaReason())
+                .isEqualTo("REAL_USER_TRAFFIC_GATE_NOT_READY");
+        assertThat(response.recommendation().reviewGatePolicyPromotionReviewRunDecisionStatus())
+                .isEqualTo("BOUNDED_PROMOTION_REVIEW_RUN_DECISION_NOT_READY");
+        assertThat(response.recommendation().reviewGatePolicyPromotionReviewRunDecisionReason())
+                .isEqualTo("REAL_USER_TRAFFIC_GATE_NOT_READY");
+        assertThat(response.recommendation().reviewGatePolicyPromotionReviewRunApprovalCriteriaStatus())
+                .isEqualTo("NOT_READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL");
+        assertThat(response.recommendation().reviewGatePolicyPromotionReviewRunApprovalCriteriaReason())
+                .isEqualTo("REAL_USER_TRAFFIC_GATE_NOT_READY");
+        assertThat(response.recommendation().reviewGatePolicyPromotionReviewRunApprovalDecisionStatus())
+                .isEqualTo("BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_DECISION_NOT_READY");
+        assertThat(response.recommendation().reviewGatePolicyPromotionReviewRunApprovalDecisionReason())
+                .isEqualTo("REAL_USER_TRAFFIC_GATE_NOT_READY");
+        assertThat(response.recommendation().reviewGatePolicyPromotionReviewRunApprovalStatus())
+                .isEqualTo("BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_NOT_READY");
+        assertThat(response.recommendation().reviewGatePolicyPromotionReviewRunApprovalReason())
+                .isEqualTo("REAL_USER_TRAFFIC_GATE_NOT_READY");
+        assertThat(response.recommendation().reviewGatePolicyPromotionReviewRunApprovalRecordCriteriaStatus())
+                .isEqualTo("NOT_READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD");
+        assertThat(response.recommendation().reviewGatePolicyPromotionReviewRunApprovalRecordCriteriaReason())
+                .isEqualTo("REAL_USER_TRAFFIC_GATE_NOT_READY");
+        assertThat(response.recommendation().reviewGatePolicyPromotionReviewRunApprovalRecordStatus())
+                .isEqualTo("BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_NOT_READY");
+        assertThat(response.recommendation().reviewGatePolicyPromotionReviewRunApprovalRecordReason())
+                .isEqualTo("REAL_USER_TRAFFIC_GATE_NOT_READY");
+        assertThat(response.recommendation().reviewGatePolicyPromotionReviewRunApprovalRecordTransitionStatus())
+                .isEqualTo("BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_TRANSITION_NOT_READY");
+        assertThat(response.recommendation().reviewGatePolicyPromotionReviewRunApprovalRecordTransitionReason())
+                .isEqualTo("REAL_USER_TRAFFIC_GATE_NOT_READY");
+        assertThat(response.recommendation().reviewGatePolicyPromotionReviewRunApprovalRecordWriteStatus())
+                .isEqualTo("BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_WRITE_NOT_READY");
+        assertThat(response.recommendation().reviewGatePolicyPromotionReviewRunApprovalRecordWriteReason())
+                .isEqualTo("REAL_USER_TRAFFIC_GATE_NOT_READY");
         assertThat(response.notification().windowDays()).isEqualTo(14);
         assertThat(response.trend().recommendation()).extracting(AdminDashboardResponse.RecommendationTrendPoint::windowDays)
                 .containsExactly(3, 14);
@@ -368,5 +606,107 @@ class AdminDashboardSummaryServiceTest {
         verify(adminDashboardCollectReadRepository, times(2)).fetchCollectTrend(org.mockito.ArgumentMatchers.any());
         verify(adminDashboardRecommendationReadRepository, times(2)).fetchRecommendationTrend(org.mockito.ArgumentMatchers.any());
         verify(adminDashboardSearchReadRepository, times(2)).fetchSearchTrend(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    @DisplayName("explicit promotion approval record가 있으면 approval decision과 write status를 completed로 읽는다")
+    void getSummaryReflectsRecordedPromotionApproval() {
+        given(adminDashboardCollectReadRepository.fetchCollectSummary(org.mockito.ArgumentMatchers.any()))
+                .willReturn(new AdminDashboardReadRows.CollectSummaryRow(0, 0, 0, 0));
+        given(adminDashboardCollectReadRepository.fetchLatestCollectJobs()).willReturn(List.of());
+        given(adminDashboardCollectReadRepository.fetchLatestCollectFailures(org.mockito.ArgumentMatchers.any())).willReturn(List.of());
+        given(adminDashboardCollectReadRepository.fetchCollectTrend(org.mockito.ArgumentMatchers.any()))
+                .willReturn(
+                        new AdminDashboardReadRows.CollectTrendRow(0, 0, 0),
+                        new AdminDashboardReadRows.CollectTrendRow(0, 0, 0),
+                        new AdminDashboardReadRows.CollectTrendRow(0, 0, 0)
+                );
+        given(adminDashboardRecommendationReadRepository.fetchRecommendationSummary(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any()
+        )).willReturn(new AdminDashboardReadRows.RecommendationSummaryRow(
+                100,
+                10,
+                20,
+                10,
+                0,
+                LocalDateTime.of(2026, 5, 20, 9, 0)
+        ));
+        given(adminDashboardRecommendationReadRepository.fetchRecommendationTrafficMix(org.mockito.ArgumentMatchers.any()))
+                .willReturn(new AdminDashboardReadRows.RecommendationTrafficMixRow(
+                        3, 0, 0, 50, 50, 3, 0, 0, 10, 10, 2, 0, 0, 5, 5
+                ));
+        given(adminDashboardRecommendationReadRepository.fetchRecommendationConcentration())
+                .willReturn(new AdminDashboardReadRows.RecommendationConcentrationRow(
+                        100, 80, 20, 2622L, "청년월세 지원사업", "BOKJIRO_CENTRAL", "주거", 30,
+                        new BigDecimal("37.50"), 25, 0, 0, 0, 0,
+                        "CONCENTRATED_TOP1", "READY_REAL_USER_COHORT", "LOCAL_REAL_NON_EXAMPLE_SEED_WITH_NON_REAL_BATCH"
+                ));
+        given(adminDashboardRecommendationReadRepository.fetchRecommendationRecentWindowSnapshot(24, 2622L))
+                .willReturn(new AdminDashboardReadRows.RecommendationRecentWindowRow(
+                        24, 2622L, 83, 3, 80, 0, 3284L, "인천 청년도약기지(취업아카데미)", 6, 5,
+                        new BigDecimal("7.23"), 0, 0
+                ));
+        given(adminDashboardRecommendationReadRepository.fetchRecommendationReviewGateStalenessSnapshot(24, 2622L))
+                .willReturn(new AdminDashboardReadRows.RecommendationReviewGateStalenessRow(
+                        2622L, "ALL_TIME_LATEST_PER_USER", 24, 454, 3, 272, 0,
+                        LocalDateTime.of(2026, 5, 13, 13, 39, 31),
+                        LocalDateTime.of(2026, 5, 17, 11, 49, 50),
+                        80, 80, 0, 0
+                ));
+        given(adminDashboardRecommendationReadRepository.fetchRecommendationReviewGatePromotionApprovalRecord(
+                AdminDashboardQueryPolicy.REVIEW_GATE_PROMOTION_APPROVAL_KEY
+        )).willReturn(Optional.of(
+                new AdminDashboardReadRows.RecommendationReviewGatePromotionApprovalRecordRow(
+                        AdminDashboardQueryPolicy.REVIEW_GATE_PROMOTION_APPROVAL_KEY,
+                        "APPROVED_FOR_BOUNDED_PROMOTION_REVIEW",
+                        AdminDashboardQueryPolicy.REVIEW_GATE_PROMOTION_APPROVAL_SCOPE,
+                        "approved",
+                        "admin-user-key",
+                        LocalDateTime.of(2026, 5, 20, 9, 30)
+                )
+        ));
+        ScoreWeight activeWeight = ScoreWeight.builder()
+                .weightKey("STABLE")
+                .ruleWeight(new BigDecimal("0.40"))
+                .aiWeight(new BigDecimal("0.60"))
+                .minLogCount(500)
+                .isActive(true)
+                .build();
+        given(scoreWeightService.getProgress(100))
+                .willReturn(new ScoreWeightService.ScoreWeightProgress(activeWeight, 100, null, null, null, true));
+        given(adminDashboardRecommendationReadRepository.fetchRecommendationWeightBuckets(org.mockito.ArgumentMatchers.any()))
+                .willReturn(List.of());
+        given(adminDashboardRecommendationReadRepository.fetchRecommendationTrend(org.mockito.ArgumentMatchers.any()))
+                .willReturn(
+                        new AdminDashboardReadRows.RecommendationTrendRow(1, 1, 0),
+                        new AdminDashboardReadRows.RecommendationTrendRow(1, 1, 0),
+                        new AdminDashboardReadRows.RecommendationTrendRow(1, 1, 0)
+                );
+        given(adminDashboardNotificationReadRepository.fetchNotificationSummary(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any()
+        )).willReturn(new AdminDashboardReadRows.NotificationSummaryRow(0, 0, 0, 0));
+        given(adminDashboardSearchReadRepository.fetchSearchSummary(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any()
+        )).willReturn(new AdminDashboardReadRows.SearchSummaryRow(0, 0, 0, 0, BigDecimal.ZERO));
+        given(adminDashboardSearchReadRepository.fetchSearchTrend(org.mockito.ArgumentMatchers.any()))
+                .willReturn(
+                        new AdminDashboardReadRows.SearchTrendRow(0, 0),
+                        new AdminDashboardReadRows.SearchTrendRow(0, 0),
+                        new AdminDashboardReadRows.SearchTrendRow(0, 0)
+                );
+        given(adminDashboardSearchReadRepository.fetchTopSearchKeywords(org.mockito.ArgumentMatchers.any())).willReturn(List.of());
+        given(adminDashboardSearchReadRepository.fetchTopZeroResultSearchKeywords(org.mockito.ArgumentMatchers.any())).willReturn(List.of());
+        given(userPiiSyncStatusService.getStatus(5))
+                .willReturn(new UserPiiSyncStatusResponse(0, 0, 0, null, null, null, null, null, List.of()));
+
+        AdminDashboardResponse response = adminDashboardSummaryService.getSummary(null, null);
+
+        assertThat(response.recommendation().reviewGatePolicyPromotionApprovalDecisionStatus())
+                .isEqualTo("APPROVED_FOR_BOUNDED_PROMOTION_REVIEW");
+        assertThat(response.recommendation().reviewGatePolicyPromotionReviewRunApprovalRecordWriteStatus())
+                .isEqualTo("BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_WRITE_COMPLETED");
     }
 }

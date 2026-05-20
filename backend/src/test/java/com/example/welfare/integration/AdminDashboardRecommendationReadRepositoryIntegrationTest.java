@@ -66,23 +66,48 @@ class AdminDashboardRecommendationReadRepositoryIntegrationTest {
     }
 
     @Test
-    @DisplayName("Gov24 facet 집계는 canonical term을 우선 읽고 term이 없을 때만 raw split으로 fallback한다")
+    @DisplayName("Gov24 facet 집계는 서비스분야 exact-label term과 token term을 우선 읽고 term이 없을 때만 raw split으로 fallback한다")
     void fetchLatestBatchGov24FacetRows_prefersCanonicalTermsAndFallsBackToRawSplit() {
+        String suffix = UUID.randomUUID().toString().substring(0, 8);
+        String canonicalServiceField = "주거·자립-" + suffix;
+        String canonicalUserType = "개인-" + suffix;
+        String canonicalBenefitType = "현금(감면)-" + suffix;
+        String suppressedRawServiceField = "보건·의료-" + suffix;
+        String suppressedRawUserType = "가구-" + suffix;
+        String suppressedRawBenefitTypeA = "현금-" + suffix;
+        String suppressedRawBenefitTypeB = "의료지원-" + suffix;
+        String fallbackServiceField = "생활안정-" + suffix;
+        String fallbackUserTypeA = "소상공인-" + suffix;
+        String fallbackUserTypeB = "법인/시설/단체-" + suffix;
+        String fallbackBenefitTypeA = "현금(융자)-" + suffix;
+        String fallbackBenefitTypeB = "상담/법률지원-" + suffix;
+
         WelfareService canonicalService = createGov24Service("canonical priority service");
         WelfareService fallbackService = createGov24Service("raw fallback service");
 
-        insertGov24Summary(canonicalService.getId(), "보건·의료", "개인||가구", "현금||의료지원");
-        insertGov24Summary(fallbackService.getId(), "생활안정", "소상공인||법인/시설/단체", "현금(융자)||상담/법률지원");
+        insertGov24Summary(
+                canonicalService.getId(),
+                suppressedRawServiceField,
+                canonicalUserType + "||" + suppressedRawUserType,
+                suppressedRawBenefitTypeA + "||" + suppressedRawBenefitTypeB
+        );
+        insertGov24Summary(
+                fallbackService.getId(),
+                fallbackServiceField,
+                fallbackUserTypeA + "||" + fallbackUserTypeB,
+                fallbackBenefitTypeA + "||" + fallbackBenefitTypeB
+        );
 
-        insertTaxonomyTerm(canonicalService.getId(), "GOV24_USER_TYPE_TOKEN", "개인", 0);
-        insertTaxonomyTerm(canonicalService.getId(), "GOV24_BENEFIT_TYPE_TOKEN", "현금(감면)", 0);
+        insertTaxonomyTerm(canonicalService.getId(), "GOV24_SERVICE_FIELD", canonicalServiceField, 0);
+        insertTaxonomyTerm(canonicalService.getId(), "GOV24_USER_TYPE_TOKEN", canonicalUserType, 0);
+        insertTaxonomyTerm(canonicalService.getId(), "GOV24_BENEFIT_TYPE_TOKEN", canonicalBenefitType, 0);
 
         LocalDateTime recommendedAt = LocalDateTime.of(2026, 5, 18, 12, 30);
         insertRecommendation("gov24-user-1", canonicalService.getId(), recommendedAt, new BigDecimal("0.81000"));
         insertRecommendation("gov24-user-2", fallbackService.getId(), recommendedAt, new BigDecimal("0.62000"));
 
         List<AdminDashboardReadRows.RecommendationFacetRow> rows =
-                adminDashboardRecommendationReadRepository.fetchLatestBatchGov24FacetRows(10);
+                adminDashboardRecommendationReadRepository.fetchLatestBatchGov24FacetRows(10_000);
 
         Map<String, List<String>> labelsByFacet = rows.stream()
                 .collect(Collectors.groupingBy(
@@ -90,22 +115,30 @@ class AdminDashboardRecommendationReadRepositoryIntegrationTest {
                         Collectors.mapping(AdminDashboardReadRows.RecommendationFacetRow::bucketLabel, Collectors.toList())
                 ));
 
+        assertThat(labelsByFacet.get("GOV24_SERVICE_FIELD"))
+                .contains(canonicalServiceField, fallbackServiceField);
         assertThat(labelsByFacet.get("GOV24_USER_TYPE_TOKEN"))
-                .containsExactlyInAnyOrder("개인", "소상공인", "법인/시설/단체")
-                .doesNotContain("가구");
+                .contains(canonicalUserType, fallbackUserTypeA, fallbackUserTypeB);
         assertThat(labelsByFacet.get("GOV24_BENEFIT_TYPE_TOKEN"))
-                .containsExactlyInAnyOrder("현금(감면)", "현금(융자)", "상담/법률지원")
-                .doesNotContain("현금", "의료지원");
+                .contains(canonicalBenefitType, fallbackBenefitTypeA, fallbackBenefitTypeB);
 
         Map<String, Long> rowCountByFacetAndLabel = rows.stream()
                 .collect(Collectors.toMap(
                         row -> row.facetKey() + "::" + row.bucketLabel(),
                         AdminDashboardReadRows.RecommendationFacetRow::rowCount
                 ));
-        assertThat(rowCountByFacetAndLabel.get("GOV24_USER_TYPE_TOKEN::개인")).isEqualTo(1L);
-        assertThat(rowCountByFacetAndLabel.get("GOV24_BENEFIT_TYPE_TOKEN::현금(감면)")).isEqualTo(1L);
-        assertThat(rowCountByFacetAndLabel.get("GOV24_USER_TYPE_TOKEN::소상공인")).isEqualTo(1L);
-        assertThat(rowCountByFacetAndLabel.get("GOV24_BENEFIT_TYPE_TOKEN::현금(융자)")).isEqualTo(1L);
+        assertThat(rowCountByFacetAndLabel.get("GOV24_SERVICE_FIELD::" + canonicalServiceField)).isEqualTo(1L);
+        assertThat(rowCountByFacetAndLabel.get("GOV24_SERVICE_FIELD::" + fallbackServiceField)).isEqualTo(1L);
+        assertThat(rowCountByFacetAndLabel.get("GOV24_USER_TYPE_TOKEN::" + canonicalUserType)).isEqualTo(1L);
+        assertThat(rowCountByFacetAndLabel.get("GOV24_BENEFIT_TYPE_TOKEN::" + canonicalBenefitType)).isEqualTo(1L);
+        assertThat(rowCountByFacetAndLabel.get("GOV24_USER_TYPE_TOKEN::" + fallbackUserTypeA)).isEqualTo(1L);
+        assertThat(rowCountByFacetAndLabel.get("GOV24_BENEFIT_TYPE_TOKEN::" + fallbackBenefitTypeA)).isEqualTo(1L);
+        assertThat(rowCountByFacetAndLabel).doesNotContainKeys(
+                "GOV24_SERVICE_FIELD::" + suppressedRawServiceField,
+                "GOV24_USER_TYPE_TOKEN::" + suppressedRawUserType,
+                "GOV24_BENEFIT_TYPE_TOKEN::" + suppressedRawBenefitTypeA,
+                "GOV24_BENEFIT_TYPE_TOKEN::" + suppressedRawBenefitTypeB
+        );
     }
 
     private WelfareService createGov24Service(String title) {

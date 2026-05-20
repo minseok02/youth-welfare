@@ -18,6 +18,23 @@
 `diversity/balancing` 이나 `direct tuning` 보다 먼저
 **local 청년 정책군의 direct signal 구조화** 로 시작하는 편이 맞습니다.
 
+같이 보면 좋은 문서:
+
+- [recommendation-pr-review-brief.md](./recommendation-pr-review-brief.md)
+- [recommendation-pr-draft-exit-checklist.md](./recommendation-pr-draft-exit-checklist.md)
+- [recommendation-post-merge-followup-checklist.md](./recommendation-post-merge-followup-checklist.md)
+- [recommendation-real-user-baseline-runbook.md](./recommendation-real-user-baseline-runbook.md)
+- [recommendation-real-user-recheck-checklist.md](./recommendation-real-user-recheck-checklist.md)
+- [recommendation-reopen-decision-runbook.md](./recommendation-reopen-decision-runbook.md)
+
+현재 이 brief를 읽는 기본 전제는:
+
+- 지금 current local 결정은 full latest batch review gate `DEFERRED_NON_REAL_LEADER_SIGNAL` 과 recent-window supplemental reading `RECENT_WINDOW_CLEARS_HISTORICAL_2622_DOMINANCE` 를 같이 읽는 상태
+- 현재 review gate interpretation class는 `HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR`
+- 현재 review gate operating mode는 `PRIMARY_BASELINE_WITH_SUPPLEMENTAL_RECENT_WINDOW`
+- recent-window는 현재 `RECENT_WINDOW_POLICY_CANDIDATE` 이지만, promotion status는 아직 `REQUIRES_EXPLICIT_POLICY_CHANGE_REVIEW`
+- 즉 이 문서는 “지금 당장 reopen 한다”가 아니라, **reopen 하게 된다면 어떤 lane이 먼저인가**를 정리한 문서입니다.
+
 ## 현재 권장 결론
 
 `2026-05-18` 기준으로 recommendation 을 다시 열면,
@@ -29,6 +46,7 @@
 
 즉 current recommendation next lane 은
 **global tuning 이 아니라 local signal structuring** 입니다.
+그리고 이 판단은 raw gate 값만 보고 내리는 것이 아니라, `HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR` / `PRIMARY_BASELINE_WITH_SUPPLEMENTAL_RECENT_WINDOW` 운영 클래스 안에서 무엇을 먼저 다시 열지 정하는 것으로 읽는 편이 맞습니다.
 
 ## 왜 lane 1 이 먼저인가
 
@@ -181,6 +199,8 @@ bounded family 단위로만 확장합니다.
 
 그리고 `AI input / prompt line / reason contrast` 까지 다시 보면, `3257/3209` 는 “청년 신호가 아예 안 보여서 0점” 쪽보다는 **수급자/신혼부부 같은 primary audience를 현재 사용자와 직접 불일치로 읽는 케이스** 에 가깝습니다. prompt line에 `생애주기/대상군` 을 추가한 뒤에도 `3257` 은 `소득 5분위라 저소득층 지원과 맞지 않음`, `3209` 는 `미혼이라 신혼부부 지원과 맞지 않음` 으로 0점 reason이 유지됐고, 대신 `3288` 은 `0 -> 70` 으로 일부 완화됐습니다. 따라서 다음 immediate bounded step은 broad prompt 재설계가 아니라, **이 primary audience mismatch를 실제 product exclusion으로 볼지, 아니면 AI over-exclusion으로 완화할지 결정하는 제품 판단** 입니다.
 
+`2026-05-19` rebuilt local app 기준 fresh zero-AI reason bucket까지 다시 보면 현재 권장 해석은 더 좁습니다. 지금 fresh top에서 반복된 bucket은 `INCOME_MISMATCH`, `STUDENT_AUDIENCE_MISMATCH` 두 개였고, 둘 다 broad tuning보다 **product exclusion 유지** 쪽이 기본값입니다. 자세한 기준은 [recommendation-primary-audience-exclusion-decision-memo.md](./recommendation-primary-audience-exclusion-decision-memo.md) 에 고정합니다.
+
 ## lane 1 에서 아직 안 할 일
 
 1. global source bonus
@@ -217,6 +237,7 @@ lane 1 reopen 을 실제로 승인하면
 
 ## 요약
 
-1. 현재 recommendation next lane 은 `lane 1. local 신호 구조화` 입니다.
-2. `2736` 류 사례는 source 전체가 아니라 정책군 단위로 읽습니다.
-3. `diversity/balancing` 은 다음 후보이고, `direct tuning` 은 마지막입니다.
+1. current local 기본값은 full latest batch review gate `DEFERRED_NON_REAL_LEADER_SIGNAL` 과 recent-window supplemental reading `RECENT_WINDOW_CLEARS_HISTORICAL_2622_DOMINANCE` 를 같이 읽는 상태입니다.
+2. recommendation 을 다시 열면 첫 lane 은 `local 신호 구조화` 입니다.
+3. `diversity/balancing` 과 `direct tuning` 은 더 뒤입니다.
+4. `2736` 류 사례는 source 전체가 아니라 정책군 단위로 읽습니다.

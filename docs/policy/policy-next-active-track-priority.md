@@ -32,6 +32,11 @@
 - 따라서 다음 active track은 `Gov24 canonical deferred` 를 막연한 backlog가 아니라
   **label-first canonical promotion 설계** 범위로 다시 여는 쪽이 맞습니다.
 
+추가로 `2026-05-19` 공식 문서 재확인 기준,
+`서비스분야 / 사용자구분 / 지원유형` 은 공공데이터포털 공식 Swagger에서도 enum/codebook 이 아니라 `string` 필드로만 공개됩니다.
+즉 현재 practical next action은 외부 codebook 응답 대기가 아니라,
+**공개 공식 문서상 string label인 값을 internal canonical term으로 어디까지 승격할지 고정하는 것**입니다.
+
 참고로 recommendation 트랙은 `2026-05-18` 기준 active main track으로 보지 않습니다. 운영 `REAL_USER` gate, retrieval local 우선화, diagnostics/rerank/AI score 해석까지 한 번 닫혔고, 남은 것은 `2736` 류 local 청년 정책 신호를 더 강하게 넣을지에 대한 제품/모델링 판단입니다. 즉 recommendation 은 새 재현 버그나 명시적 노출 강화 목표가 생길 때만 reopen 하는 편이 맞습니다.
 
 즉 지금 기본 진행축은 아래 순서입니다.
@@ -97,7 +102,7 @@
 즉 이제 `Gov24` 쪽 액션은 세 갈래로 나뉩니다.
 
 1. `serviceField/userType/benefitType` 의 label-first canonical promotion 설계
-2. hard import/backfill 쪽은 **provider/operator 발송 또는 응답 수신 대기**
+2. hard import/backfill 쪽은 **stable code/schema 확보 전까지 blocked 유지**
 3. runtime support gap 쪽은 **현재 제품이 사업체/업종 축을 실제로 소비하기 전까지 deferred 유지**
 
 여기서 지금 당장 local 코드/문서로 끝낼 수 있는 것은 1번뿐입니다.
@@ -155,8 +160,7 @@ blocked SQL 과 deferred Gov24 business-code 승격보다 먼저
 
 아래 중 하나가 생기면 `Gov24` blocked SQL 을 다시 active로 올린다.
 
-- provider/operator codebook 응답 수신
-- current Swagger/schema export 추가 확보
+- current API 기준 공식 codebook/enum/schema export 추가 확보
 - 운영자가 current API 기준 inventory를 전달
 
 그 전까지는 blocked/backlog 유지가 기본이다.

@@ -312,8 +312,8 @@ class CanonicalRecommendationReadModelIntegrationTest {
     }
 
     @Test
-    @DisplayName("canonical read-model은 Gov24 token term이 있으면 term을 우선하고, 없으면 legacy label split으로 fallback한다")
-    void findByServiceIds_prefersGov24TokenTermsAndFallsBackToLegacySplit() {
+    @DisplayName("canonical read-model은 Gov24 service field exact-label term과 token term을 우선하고, 없으면 legacy label split으로 fallback한다")
+    void findByServiceIds_prefersGov24CanonicalTermsAndFallsBackToLegacySplit() {
         WelfareService canonicalService = welfareServiceRepository.save(WelfareService.builder()
                 .sourceType(WelfareService.SourceType.GOV24)
                 .sourceId(TEST_SOURCE_PREFIX + UUID.randomUUID().toString().substring(0, 8))
@@ -354,10 +354,12 @@ class CanonicalRecommendationReadModelIntegrationTest {
                     source_field,
                     sort_order
                 ) VALUES
+                    (?, 'GOV24_SERVICE_FIELD', '주거·자립', '주거·자립', 'OFFICIAL', 'serviceField', 0),
                     (?, 'GOV24_USER_TYPE_TOKEN', '개인', '개인', 'OFFICIAL', 'userType', 0),
                     (?, 'GOV24_BENEFIT_TYPE_TOKEN', '현금(감면)', '현금(감면)', 'OFFICIAL', 'supportType', 0),
                     (?, 'GOV24_BENEFIT_TYPE_TOKEN', '의료지원', '의료지원', 'OFFICIAL', 'supportType', 1)
                 """,
+                canonicalService.getId(),
                 canonicalService.getId(),
                 canonicalService.getId(),
                 canonicalService.getId());
@@ -394,8 +396,10 @@ class CanonicalRecommendationReadModelIntegrationTest {
         Map<Long, RecommendationCandidateProjection> projections =
                 canonicalRecommendationReadModelRepository.findByServiceIds(List.of(canonicalService.getId(), fallbackService.getId()));
 
+        assertThat(projections.get(canonicalService.getId()).gov24ServiceFieldLabel()).isEqualTo("주거·자립");
         assertThat(projections.get(canonicalService.getId()).gov24UserTypeTokens()).containsExactly("개인");
         assertThat(projections.get(canonicalService.getId()).gov24BenefitTypeTokens()).containsExactly("현금(감면)", "의료지원");
+        assertThat(projections.get(fallbackService.getId()).gov24ServiceFieldLabel()).isEqualTo("생활안정");
         assertThat(projections.get(fallbackService.getId()).gov24UserTypeTokens()).containsExactly("소상공인", "법인/시설/단체");
         assertThat(projections.get(fallbackService.getId()).gov24BenefitTypeTokens()).containsExactly("현금(융자)", "상담/법률지원");
     }

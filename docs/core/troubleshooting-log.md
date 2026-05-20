@@ -1,5 +1,460 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 948) 이미 current runbook가 있는 항목을 계속 pending처럼 남겨두면, 실제로는 새 일이 없는데도 끝이 안 나는 것처럼 보인다
+- 문제: `bounded policy admin runtime one-page runbook`, `referenceUrlsJson rebuild 절차`, `retrieval/category one-shot summary smoke` 는 이미 [policy-admin-runtime-runbook.md](../policy/policy-admin-runtime-runbook.md), [policy-quality-summary-runbook.md](../policy/policy-quality-summary-runbook.md) 로 current 경로가 있었는데, active pending 목록에 계속 남아 있어 새 문서를 더 만들어야 하는 것처럼 읽혔다.
+- 해결: active 기준선에서 이 둘을 명시적으로 current runbook로 선언하고, pending 목록에서는 뺐다. 앞으로는 “문서가 없다”와 “문서는 있는데 완료 상태로 못 박지 않았다”를 구분해서 적는다.
+
+## 947) 코드형 상태값만 연속으로 나열하면 문서를 읽는 사람 입장에서 현재 결론이 오히려 안 보인다
+- 문제: `RECENT_WINDOW_POLICY_CANDIDATE`, `KEEP_PRIMARY_BASELINE`, `READY_FOR_BOUNDED_PROMOTION_REVIEW`, `PASS_RECENT_WINDOW_POLICY_CANDIDATE` 같은 값은 코드/테스트에는 유용하지만, active 문서에서 이것만 계속 이어지면 reviewer/author가 “그래서 지금 뜻이 뭐냐”를 다시 해석해야 했다.
+- 해결: 앞으로는 active/current/reviewer 문서에서 주요 상태값 옆에 바로 사람 말 번역을 붙인다. 예를 들어 `PASS_RECENT_WINDOW_POLICY_CANDIDATE` 옆에는 “recent-window는 후보로는 합격”, `KEEP_PRIMARY_BASELINE` 옆에는 “운영 기본 기준은 아직 유지”처럼 적는다.
+
+## 946) promotion ladder를 끝까지 다 쪼개도 결국 마지막엔 정책 문장 하나로 수렴해야 한다
+- 문제: bounded review 관련 ladder를 approval/record/run 층까지 계속 surface에 올리면, 근거는 늘어나도 실제 정책 결론은 오히려 더 늦게 보였다. user-facing 관점에서는 “그래서 지금 승격하자는 건지, 말자는 건지”가 흐려졌다.
+- 해결: `run-local-recommendation-bounded-promotion-review.sh` 결과를 기준으로 현재 결론을 문장 하나로 고정했다. `PASS_RECENT_WINDOW_POLICY_CANDIDATE` 는 bounded promotion review 승인 근거로 쓰되, primary full latest batch baseline을 recent-window로 바로 승격하는 정책 변경은 아직 보류한다.
+
+## 945) review gate promotion 상태를 계속 잘게 쪼개면 실제로 무엇을 실행해야 하는지가 더 흐려진다
+- 문제: approval/promotion/review-run ladder를 계속 상태값으로만 확장하면, 실제 operator 입장에서는 “그래서 지금 무엇을 한 번 돌려 봐야 하느냐”가 더 흐려졌다. user-facing closeout 감각도 약해지고 상태만 늘어나는 인상이 강해졌다.
+- 해결: 상태 추가를 멈추고 `run-local-recommendation-bounded-promotion-review.sh` 를 따로 만들었다. 이 wrapper는 approval record preflight, recent-window clear, historical staleness만 묶어 `bounded_promotion_review_result_status` 로 go/no-go를 바로 보여 준다.
+
+## 944) approval-record smoke가 summary와 breakdowns JSON field depth를 같다고 가정하면 승인 tuple 검증이 잘못된다
+- 문제: approval-record smoke 초기 버전은 summary와 breakdowns 둘 다 gate 필드가 같은 depth에 있다고 가정했다. 하지만 summary는 `data.recommendation.*`, breakdowns는 `data.*` 에 gate 필드가 있어 같은 파서로 읽으면 summary approved/baseline tuple 검증이 어긋났다.
+- 해결: smoke parser가 `data.get("recommendation", data)` 형태로 summary/breakdowns 두 응답을 모두 처리하게 고쳤다. 이제 baseline pending tuple, approved tuple, clear 뒤 baseline 복귀를 같은 helper로 안정적으로 검증한다.
+
+## 943) 기존 PostgreSQL volume에서는 앱 재빌드만으로 새 approval table/grant가 적용되지 않아 summary가 relation missing 또는 permission denied로 끊길 수 있다
+- 문제: `recommendation_review_gate_promotion_approvals` table을 migration에만 추가한 상태에서 기존 로컬 PostgreSQL volume로 앱만 다시 띄우면, admin summary/breakdowns read path가 relation missing 또는 `app_core_rw permission denied` 로 500이 났다.
+- 해결: `deploy/postgres/patches/V2026_05_20_01__add_recommendation_review_gate_promotion_approvals.sql` 와 `bash deploy/postgres/apply-local-runtime-schema-patch.sh` 경로를 추가했고, migration/patch SQL 모두 grant를 같이 적용하게 맞췄다. read repository는 missing relation일 때 `Optional.empty()` 로 graceful degrade 하게 해, existing volume에서도 runtime patch 전후 경계를 분리해서 읽게 했다.
+
+## 942) 마지막 transition ready와 final record write pending을 같은 뜻으로 두면, 실제로 write가 아직 안 실행됐는지 다시 추론해야 한다
+- 문제: `AWAIT_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_WRITE` 만 surface에 올린 상태에서는 prerequisite 충족과 final write 미실행이 같은 층에 섞여 보여, operator/reviewer가 마지막 explicit write가 실제로 아직 안 된 건지 다시 해석해야 했다.
+- 해결: admin summary/breakdowns, latest artifact, active current/runbook, PR surface에 `reviewGatePolicyPromotionReviewRunApprovalRecordWriteStatus`, `reviewGatePolicyPromotionReviewRunApprovalRecordWriteReason` 을 추가했다. 현재 local 기준 값은 `PENDING_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_WRITE`, `APPROVAL_RECORD_TRANSITION_READY_BUT_WRITE_NOT_EXECUTED` 이다.
+
+## 941) 마지막 approval record pending과 final record write pending을 같은 뜻으로 두면, 실제로 남은 마지막 전이를 다시 추론해야 한다
+- 문제: `PENDING_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD` 와 `READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD` 까지만 surface에 올린 상태에서는, operator/reviewer가 “지금은 prerequisite까지 다 충족됐고 마지막 record write만 남은 건가”를 다시 해석해야 했다.
+- 해결: admin summary/breakdowns, latest artifact, active current/runbook, PR surface에 `reviewGatePolicyPromotionReviewRunApprovalRecordTransitionStatus`, `reviewGatePolicyPromotionReviewRunApprovalRecordTransitionReason` 을 추가했다. 현재 local 기준 값은 `AWAIT_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_WRITE`, `APPROVAL_RECORD_CRITERIA_MET_BUT_RECORD_NOT_WRITTEN` 이다.
+
+## 940) 마지막 run approval record pending만 보이면, record를 남길 prerequisite이 이미 충족됐는지 다시 추론해야 한다
+- 문제: `PENDING_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD` 만 surface에 올린 상태에서는, operator/reviewer가 “지금은 마지막 approval record만 안 쓴 건가, 아니면 그 record를 남길 prerequisite도 아직 부족한가”를 다시 해석해야 했다.
+- 해결: admin summary/breakdowns, latest artifact, active current/runbook, PR surface에 `reviewGatePolicyPromotionReviewRunApprovalRecordCriteriaStatus`, `reviewGatePolicyPromotionReviewRunApprovalRecordCriteriaReason` 을 추가했다. 현재 local 기준 값은 `READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD`, `REVIEW_RUN_APPROVAL_RECORD_PREREQUISITES_MET_BUT_RECORD_PENDING` 이고, 마지막 approval record prerequisite ready와 actual record pending을 분리해서 읽는다.
+
+## 938) review run approval criteria와 review run approval pending만 보이면, 마지막 approval decision 대기 여부를 또 추론해야 한다
+- 문제: `READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL` 과 `PENDING_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL` 만 surface에 올린 상태에서는, operator/reviewer가 “run approval prerequisite은 충족됐고 이제 approval decision만 남았는가”를 다시 해석해야 했다.
+- 해결: admin summary/breakdowns, latest artifact, active current/runbook, PR surface에 `reviewGatePolicyPromotionReviewRunApprovalDecisionStatus`, `reviewGatePolicyPromotionReviewRunApprovalDecisionReason` 을 추가했다. 현재 local 기준 값은 `AWAIT_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_DECISION`, `REVIEW_RUN_APPROVAL_CRITERIA_MET_BUT_APPROVAL_RECORD_NOT_WRITTEN` 이다.
+
+## 935) approval pending만 보이면, explicit promotion approval에 필요한 근거가 이미 충족됐는지 여부를 다시 추론해야 한다
+- 문제: `PENDING_EXPLICIT_PROMOTION_APPROVAL` 만 surface에 올린 상태에서는, operator/reviewer가 “지금은 승인만 안 난 건가, 아니면 승인 근거도 아직 부족한가”를 다시 해석해야 했다.
+- 해결: admin summary/breakdowns, latest artifact, active current/runbook surface에 `reviewGatePolicyPromotionApprovalCriteriaStatus`, `reviewGatePolicyPromotionApprovalCriteriaReason` 을 추가했다. 현재 local 기준 값은 `READY_FOR_EXPLICIT_PROMOTION_APPROVAL`, `PRIMARY_STALENESS_AND_RECENT_WINDOW_SIGNAL_CONFIRMED` 이고, approval criteria met와 approval pending을 분리해서 읽는다.
+
+## 936) reviewer/author lifecycle surface가 approval pending까지만 적으면, approval criteria met 여부를 GitHub 화면에서 다시 추론해야 한다
+- 문제: active current/runbook과 latest artifact에는 `reviewGatePolicyPromotionApprovalCriteriaStatus`, `reviewGatePolicyPromotionApprovalCriteriaReason` 이 올라갔지만, reviewer brief / draft-exit / post-merge checklist는 approval pending까지만 적고 있어 lifecycle 문서와 PR 전달면에서 한 층 덜 보였다.
+- 해결: reviewer brief, draft-exit checklist, post-merge checklist와 PR 전달면도 `READY_FOR_EXPLICIT_PROMOTION_APPROVAL`, `PRIMARY_STALENESS_AND_RECENT_WINDOW_SIGNAL_CONFIRMED` 까지 같이 적도록 맞췄다.
+
+## 937) approval criteria met와 explicit approval decision pending을 같은 층으로 두면, 승인 근거 충족과 실제 승인 기록 대기를 다시 섞어 읽게 된다
+- 문제: `READY_FOR_EXPLICIT_PROMOTION_APPROVAL` 과 `PENDING_EXPLICIT_PROMOTION_APPROVAL` 까지는 보였지만, operator/reviewer는 “승인 근거는 충족됐고 이제 decision만 남았는가”를 다시 추론해야 했다.
+- 해결: admin summary/breakdowns, latest artifact, active current/runbook, PR surface에 `reviewGatePolicyPromotionApprovalDecisionStatus`, `reviewGatePolicyPromotionApprovalDecisionReason` 을 추가했다. 현재 local 기준 값은 `AWAIT_EXPLICIT_PROMOTION_APPROVAL_DECISION`, `APPROVAL_CRITERIA_MET_BUT_EXPLICIT_APPROVAL_NOT_RECORDED` 이다.
+
+## 934) execution 대기와 실제 bounded promotion review 승인 대기를 같은 층으로 두면, readiness met 이후에 무엇이 아직 비어 있는지 다시 추론해야 한다
+- 문제: `AWAIT_EXPLICIT_POLICY_REVIEW_DECISION` 까지 surface에 올린 뒤에도, operator/reviewer는 “실행 대기와 승인 미기록이 같은 뜻인가?”를 다시 해석해야 했다. bounded review prerequisite은 이미 충족됐지만 explicit promotion approval 자체는 아직 없는 상태를 별도 값으로 읽을 수 없었다.
+- 해결: admin summary/breakdowns, latest artifact, active current/runbook surface에 `reviewGatePolicyPromotionApprovalStatus`, `reviewGatePolicyPromotionApprovalReason` 을 추가했다. 현재 local 기준 값은 `PENDING_EXPLICIT_PROMOTION_APPROVAL`, `EXECUTION_READY_BUT_EXPLICIT_PROMOTION_APPROVAL_NOT_RECORDED` 이고, readiness/execution과 approval pending을 따로 읽는다.
+
+## 931) promotion pending/action까지만 reviewer/author surface에 올리면, bounded promotion review를 바로 열 수 있는지 여부를 GitHub 화면만 봐서는 다시 추론해야 한다
+- 문제: local API/smoke/latest artifact는 이미 `reviewGatePolicyPromotionReadinessStatus=READY_FOR_BOUNDED_PROMOTION_REVIEW`, `reviewGatePolicyPromotionReadinessReason=EXPLICIT_POLICY_REVIEW_PENDING_WITH_BOUNDED_REVIEW_PREREQUISITES_MET` 를 내리기 시작했는데, PR 본문과 reviewer/author 문서는 아직 promotion pending/action까지만 적고 있었다.
+- 해결: reviewer brief, draft-exit checklist, post-merge follow-up checklist, 그리고 PR `#253` body / quick entrypoint / author-side note에도 readiness 층을 직접 올려, “지금은 keep baseline이지만 bounded promotion review를 열 prerequisite은 이미 충족” 상태를 GitHub 화면만으로도 읽게 맞춘다.
+
+## 932) readiness와 execution을 같은 뜻으로 읽으면, explicit policy review decision 없이 bounded review를 바로 실행하는 오해가 생긴다
+- 문제: `READY_FOR_BOUNDED_PROMOTION_REVIEW` 까지 surface에 올린 뒤에도 readiness 충족을 곧바로 `RUN_BOUNDED_PROMOTION_REVIEW` 로 읽기 쉬웠다. 하지만 현재 정책은 여전히 `KEEP_PRIMARY_BASELINE` 이고 explicit policy review decision이 남아 있다.
+- 해결: admin summary/breakdowns, latest artifact, active runbook/current 문서에 `reviewGatePolicyPromotionExecutionStatus`, `reviewGatePolicyPromotionExecutionReason` 을 추가했다. 현재 local 기준 값은 `AWAIT_EXPLICIT_POLICY_REVIEW_DECISION`, `READINESS_MET_BUT_EXPLICIT_POLICY_REVIEW_DECISION_IS_STILL_PENDING` 이고, readiness와 실제 실행 상태를 분리해서 읽는다.
+
+## 933) 로컬 문서와 API만 execution 층을 쓰고 GitHub PR surface가 그대로면 reviewer/author가 최신 5층 gate를 다시 추론해야 한다
+- 문제: local docs/API/smoke/latest artifact는 이미 `reviewGatePolicyPromotionExecutionStatus`, `reviewGatePolicyPromotionExecutionReason` 을 내리기 시작했는데, PR 본문과 reviewer/author 코멘트는 readiness까지만 적고 있었다.
+- 해결: PR `#253` body, reviewer quick entrypoint comment, author-side note도 `AWAIT_EXPLICIT_POLICY_REVIEW_DECISION`, `READINESS_MET_BUT_EXPLICIT_POLICY_REVIEW_DECISION_IS_STILL_PENDING` 기준으로 갱신해 GitHub 전달면도 candidate / promotion / action / readiness / execution 5층을 그대로 읽게 맞춘다.
+
+## 930) candidate / promotion pending / current action만으로는 bounded promotion review를 지금 시작할 prerequisite이 이미 충족됐는지 알 수 없다
+- 문제: `reviewGatePolicyPromotionActionStatus=KEEP_PRIMARY_BASELINE` 까지 surface에 올린 뒤에도, operator는 “승격은 아직 안 하지만 bounded promotion review를 지금 열 수는 있나?”를 다시 추론해야 했다. 즉 current action과 future review readiness가 같은 층으로 섞여 있었다.
+- 해결: admin summary/breakdowns 와 `latest-status-export`, `latest-status`, `latest-gate`, `latest-overview` 에 `reviewGatePolicyPromotionReadinessStatus`, `reviewGatePolicyPromotionReadinessReason` 을 추가했다. 현재 local 기준 값은 `READY_FOR_BOUNDED_PROMOTION_REVIEW`, `EXPLICIT_POLICY_REVIEW_PENDING_WITH_BOUNDED_REVIEW_PREREQUISITES_MET` 이고, “지금은 keep baseline이지만 bounded review를 열 prerequisite은 이미 충족” 상태를 별도 층으로 읽는다.
+
+## 929) operator surface에만 promotion action을 올리고 reviewer/author 문서가 promotion pending까지만 말하면, PR 판단 쪽에서는 또 “그래서 지금 keep baseline인가”를 다시 추론해야 한다
+- 문제: latest artifact와 admin API는 이미 `reviewGatePolicyPromotionActionStatus=KEEP_PRIMARY_BASELINE`, `reviewGatePolicyPromotionActionReason=PROMOTION_STILL_REQUIRES_EXPLICIT_POLICY_REVIEW` 를 내리기 시작했지만, reviewer brief / draft exit / post-merge follow-up 문서는 여전히 candidate / promotion pending까지만 적고 있었다.
+- 해결: reviewer/author/post-merge 문서에도 promotion action status/reason을 직접 올리고, PR surface도 같은 문구로 다시 맞췄다.
+- 이유: current recommendation 상태는 `candidate -> promotion pending -> current action` 3층을 같이 읽어야 한다. 마지막 action 층이 GitHub lifecycle surface에 빠지면 `PASS but blocked` 이후의 실제 행동이 다시 사람 머리로만 남는다.
+
+## 928) promotion pending 상태만 노출하고 current action을 안 접어 주면, operator는 여전히 “후보이지만 보류”를 보고도 지금 무엇을 해야 하는지 다시 추론해야 한다
+- 문제: `reviewGatePolicyPromotionStatus=REQUIRES_EXPLICIT_POLICY_CHANGE_REVIEW`, `reviewGatePolicyPromotionReason=RECENT_WINDOW_IS_A_CANDIDATE_BUT_PRIMARY_BASELINE_IS_STILL_ALL_TIME_LATEST` 까지 올린 뒤에도, operator는 여전히 “그래서 지금 keep baseline인가, bounded review를 바로 시작하나”를 다시 해석해야 했다.
+- 해결: admin summary/breakdowns 와 `latest-status-export`, `latest-status`, `latest-gate`, `latest-overview` 에 `reviewGatePolicyPromotionActionStatus`, `reviewGatePolicyPromotionActionReason` 을 추가해 현재 local 기준 `KEEP_PRIMARY_BASELINE`, `PROMOTION_STILL_REQUIRES_EXPLICIT_POLICY_REVIEW` 를 직접 읽게 했다.
+- 이유: candidate / promotion pending 까지는 상태 설명이고, current action은 별도 층이다. 이걸 접어 주지 않으면 operator/reviewer/author surface가 또다시 “상태는 같지만 행동은 각자 추론” 구조로 갈라진다.
+
+## 923) recent-window는 policy candidate여도 즉시 승격 상태와는 다르다
+- 문제: `reviewGatePolicyCandidateStatus=RECENT_WINDOW_POLICY_CANDIDATE` 만 노출하면, operator/reviewer가 “candidate니까 바로 recent-window를 primary gate로 올려도 되나”를 다시 추론해야 했다. 현재 truth는 candidate가 맞지만, primary reference 자체가 아직 `ALL_TIME_LATEST_PER_USER` 이라서 explicit policy change review 없이 자동 승격하는 단계는 아니다.
+- 해결: admin summary/breakdowns 에 `reviewGatePolicyPromotionStatus`, `reviewGatePolicyPromotionReason` 을 추가해 `REQUIRES_EXPLICIT_POLICY_CHANGE_REVIEW`, `RECENT_WINDOW_IS_A_CANDIDATE_BUT_PRIMARY_BASELINE_IS_STILL_ALL_TIME_LATEST` 를 같이 내렸다. 이제 API/smoke만 봐도 “후보”와 “즉시 승격 가능”을 분리해서 읽는다.
+
+## 924) admin API에만 promotion review 상태를 올리고 latest artifact는 candidate까지만 들고 있으면, operator는 one-shot artifact만 보고 승격 보류 여부를 확정할 수 없다
+- 문제: admin summary/breakdowns 는 `reviewGatePolicyPromotionStatus=REQUIRES_EXPLICIT_POLICY_CHANGE_REVIEW` 를 내리기 시작했지만, `latest-status-note.md`, `latest-status.json`, `latest-overview-summary.txt` 는 아직 candidate status/reason까지만 보여 줬다. 이 상태에선 operator가 one-shot artifact만 봐서는 “candidate는 맞지만 승격은 보류 상태인가”를 다시 admin API smoke에서 확인해야 했다.
+- 해결: `latest-status-export`, `latest-status`, `latest-gate`, `latest-overview` 에 `review_gate_policy_promotion_status`, `review_gate_policy_promotion_reason` 을 같이 올렸다. 현재 local 기준으로는 `REQUIRES_EXPLICIT_POLICY_CHANGE_REVIEW`, `RECENT_WINDOW_IS_A_CANDIDATE_BUT_PRIMARY_BASELINE_IS_STILL_ALL_TIME_LATEST` 를 latest artifact에서 직접 읽는다.
+
+## 922) admin API에만 recent-window policy candidate를 올리고 latest artifact는 여전히 raw interpretation/policy gate까지만 들고 있으면, operator는 one-shot handoff note를 봐도 “candidate인지”를 다시 admin surface에서 확인해야 한다
+- 문제: admin summary/breakdowns 는 이미 `reviewGatePolicyCandidateStatus=RECENT_WINDOW_POLICY_CANDIDATE` 를 내리기 시작했지만, `latest-status-note.md`, `latest-status.json`, `latest-overview-summary.txt` 는 여전히 `gate_policy_status`, `review_gate_interpretation_class`, `review_gate_operating_mode` 까지만 보여 줬다. 이 상태에선 operator가 one-shot artifact만 봐서는 “recent-window를 실제 policy gate 후보로 봐도 되는가”를 한 번 더 추론하거나 admin API smoke 결과를 다시 열어야 했다.
+- 해결: `latest-status-export`, `latest-status`, `latest-gate`, `latest-overview` 에 `review_gate_policy_candidate_status`, `review_gate_policy_candidate_reason` 을 같이 올렸다. 현재 local 기준으로는 `RECENT_WINDOW_POLICY_CANDIDATE`, `PRIMARY_GATE_BLOCKED_BY_STALE_ALL_TIME_EXAMPLE_REFERENCE_BUT_RECENT_WINDOW_CLEAR` 를 latest artifact에서 직접 읽는다.
+- 이유: current 단계의 next decision은 recent-window를 실제 운영 policy gate 후보로 승격 검토하는 것이다. 이 값이 one-shot artifact에 없으면 operator/reviewer/author surface가 다시 분리된다.
+
+## 921) staleness snapshot만 API에 올리고 “그래서 recent-window를 policy gate 후보로 볼 수 있는가”를 derived field로 안 접어 주면, operator는 raw evidence를 다시 머리로 합쳐 후보 여부를 수동 판단해야 한다
+- 문제: admin summary/breakdowns 에 `reviewGateStaleness` 를 올린 뒤에는 `ALL_TIME_LATEST_PER_USER`, `exampleTargetTop1Users=272`, `exampleTargetTop1Last24h=0` 같은 raw 근거를 직접 볼 수 있었지만, 실제 next decision은 여전히 사람이 `recommendationReviewGate + recentWindowRecommendationReviewReading + historicalExampleDominanceDetected + reviewGateStaleness` 를 다시 조합해 “recent-window를 policy gate 후보로 봐도 되는지”를 수동 판단해야 했다.
+- 해결: admin summary/breakdowns 에 `reviewGatePolicyCandidateStatus`, `reviewGatePolicyCandidateReason` 을 추가하고, smoke도 현재 local 값 `RECENT_WINDOW_POLICY_CANDIDATE`, `PRIMARY_GATE_BLOCKED_BY_STALE_ALL_TIME_EXAMPLE_REFERENCE_BUT_RECENT_WINDOW_CLEAR` 를 직접 검증하도록 확장했다.
+- 이유: 다음 단계가 primary full latest batch gate를 계속 유지할지 recent-window를 더 강하게 승격할지 비교하는 것이라면, raw evidence snapshot만으론 부족하다. 운영 surface에서 이미 “candidate 여부”까지 한 번 더 접어 줘야 reviewer/operator/author가 같은 정책 후보 상태를 빠르게 읽는다.
+
+## 920) recent-window gate를 admin API에 올린 뒤에도 full latest batch gate의 reference window와 stale target counts가 안 보이면, operator는 여전히 wrapper와 API를 머리로 합쳐야 한다
+- 문제: admin summary/breakdowns 는 이미 `recentWindowLatestBatch`, `recentWindowRecommendationReviewReading`, `historicalExampleDominanceDetected` 를 내리고 있었지만, full latest batch gate가 실제로 `ALL_TIME_LATEST_PER_USER` 기준인지와 `2622` historical example top1이 최근 24시간에는 `0` 인지 같은 staleness 근거는 wrapper(`run-local-recommendation-review-gate-staleness-audit.sh`)에서만 확인할 수 있었다.
+- 해결: admin summary/breakdowns 에 `reviewGateStaleness` snapshot을 추가하고, smoke contract도 `primaryReferenceMode=ALL_TIME_LATEST_PER_USER`, `exampleTargetTop1Users`, `exampleTargetTop1Last24h`, `realUserLatestUsers`, `realUserTargetTop1Users` 를 직접 검증하도록 확장했다.
+- 이유: next step이 primary review gate 정책 자체를 조정할지 검토하는 것이라면, “recent-window가 clear하다” 뿐 아니라 “primary gate가 무엇을 보고 막고 있는가”를 API surface에서 바로 읽을 수 있어야 한다.
+
+## 919) reviewer-facing brief와 draft checklist가 gate 값만 말하고 “리뷰 가능하지만 draft 유지” 상태값을 안 적으면, 사람은 다시 PASS/blocked 조합을 머리로 번역해야 한다
+- 문제: reviewer/operator/author surface에 `gate_status=PASS`, `gate_policy_status=PRIMARY_BLOCKED_SUPPLEMENTAL_CLEAR` 는 이미 올라갔지만, PR review brief와 draft/post-merge checklist는 여전히 그 조합을 사람이 다시 `review는 가능하지만 undraft는 안 됨`으로 번역해야 했다.
+- 해결: `recommendation-pr-review-brief.md`, `recommendation-pr-draft-exit-checklist.md`, `recommendation-post-merge-followup-checklist.md` 에 `PR review readiness status=REVIEWER_READY`, `PR draft maintenance status=DRAFT_MAINTAINED_BY_POLICY_GATE` 를 직접 추가했다.
+- 이유: 지금 recommendation closeout PR의 핵심은 “드리프트 gate는 통과했지만 정책 gate는 아직 blocked”라는 두 층 구조다. 이걸 상태값으로 한 번 더 접어 주면 reviewer/author가 GitHub나 문서에서 같은 현재 상태를 더 빠르게 읽을 수 있다.
+
+## 918) reviewer surface와 checklist만 `gate_policy_status` 를 쓰고 author-side PR note가 예전 문장에 머물면, author는 GitHub 코멘트만 볼 때 다시 `PASS인데 왜 draft인가`를 해석해야 한다
+- 문제: PR 본문과 reviewer quick entrypoint, draft/post-merge checklist에는 이미 `gate_policy_status=PRIMARY_BLOCKED_SUPPLEMENTAL_CLEAR` 가 있었지만, author-side note는 아직 “historical primary-gate inertia vs current-live signal interpretation” 수준에서만 설명하고 있었다.
+- 해결: author-side note도 `basic latest gate=PASS` 와 별도로 `gate_policy_status=PRIMARY_BLOCKED_SUPPLEMENTAL_CLEAR`, `gate_policy_reason=HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR` 조합을 직접 적는 쪽으로 갱신했다.
+- 이유: reviewer, operator, author가 모두 GitHub surface만 봐도 같은 두 층의 gate를 읽어야, draft 유지 이유가 문서와 코멘트 사이에서 다시 달라지지 않는다.
+
+## 917) reviewer surface에만 `gate_policy_status` 를 올리고 draft/merge checklist가 그대로면, author는 `PASS인데 왜 아직 undraft를 막는가`를 다시 해석해야 한다
+- 문제: PR brief와 GitHub PR surface에는 이미 `gate_policy_status=PRIMARY_BLOCKED_SUPPLEMENTAL_CLEAR` 가 있었지만, `recommendation-pr-draft-exit-checklist.md` 와 `recommendation-post-merge-followup-checklist.md` 는 여전히 interpretation class 중심이라 author가 `PASS but still blocked` 조합을 다시 번역해야 했다.
+- 해결: draft exit / post-merge follow-up 문서에도 `gate policy status`, `gate policy reason` 을 직접 추가하고, `basic gate pass + gate policy status PRIMARY_BLOCKED_SUPPLEMENTAL_CLEAR` 조합은 draft 유지라는 규칙을 명시했다.
+- 이유: current closeout lane에서 reviewer, operator, author가 같은 두 층의 gate를 읽지 않으면, PR surface에서는 blocked인데 checklist에서는 undraft 가능처럼 읽히는 drift가 생긴다.
+
+## 916) operator artifact에 `gate_policy_status` 를 올린 뒤 reviewer-facing PR surface가 그 값을 안 쓰면, reviewer는 `PASS인데 왜 아직 blocked인가`를 다시 해석해야 한다
+- 문제: latest surface에는 이미 `gate_status=PASS` 와 별도로 `gate_policy_status=PRIMARY_BLOCKED_SUPPLEMENTAL_CLEAR`, `gate_policy_reason=HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR` 가 같이 있었지만, reviewer brief와 PR 전달면은 여전히 interpretation class와 action class까지만 적고 있었다.
+- 해결: reviewer brief와 GitHub PR 본문/quick comment에도 `gate policy status`, `gate policy reason` 을 같이 올려, reviewer가 GitHub 화면만 봐도 drift gate와 운영 정책 gate를 분리해 읽게 맞췄다.
+- 이유: current recommendation current truth에서 가장 혼동되기 쉬운 지점은 `PASS인데도 아직 blocked라고 말하는 이유` 다. 이걸 reviewer surface에서 분리하지 않으면 operator artifact와 PR 해석이 다시 엇갈린다.
+
+## 915) `latest-gate` 에서 `PASS/FAIL` 만 보여 주면, drift gate는 통과했는데 운영 정책 상태는 아직 blocked인 current recommendation 해석을 한 줄로 못 드러낸다
+- 문제: current local truth는 `gate_status=PASS` 여도 full latest batch primary gate는 아직 historical blocker이고 recent-window는 supplemental clear다. 그런데 `gate_status/gate_reason` 만 보면 이 둘이 같은 층의 판정처럼 보이고, operator는 다시 `review_gate_interpretation_class`, `review_gate_operating_mode` 를 해석해야 한다.
+- 해결: `latest-status-export`, `latest-status`, `latest-gate`, `latest-overview` 에 `gate_policy_status`, `gate_policy_reason` 을 추가했다. 현재 local 기준으로는 `PRIMARY_BLOCKED_SUPPLEMENTAL_CLEAR`, `HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR` 를 drift gate와 나란히 읽는 편이 맞다.
+- 이유: current recommendation latest surface에는 두 종류의 gate가 있다. 하나는 artifact drift gate(`PASS/FAIL`), 다른 하나는 운영 정책 해석 gate(primary historical blocker vs supplemental current clear)다. 둘을 분리해야 `PASS인데 왜 아직 blocked라고 하냐`는 혼선을 줄일 수 있다.
+
+## 914) operator artifact에 `gate_action_class` 를 올린 뒤 reviewer-facing PR surface가 같은 값을 안 쓰면, reviewer는 current first action을 다시 해석해야 한다
+- 문제: `latest-status`, `latest-gate`, `latest-overview` 는 이미 `gate_action_class=READ_PRIMARY_AND_SUPPLEMENTAL_REVIEW_GATES` 를 직접 내리고 있었지만, `recommendation-pr-review-brief.md` 와 PR 본문/quick comment는 여전히 `review_gate_interpretation_class`, `review_gate_operating_mode`, `operator next step` 까지만 적고 있었다.
+- 해결: reviewer brief와 GitHub PR 전달면에도 `gate action class` 를 같이 올려, reviewer가 GitHub 화면만 봐도 operator와 같은 first action을 한 줄로 읽게 맞췄다.
+- 이유: current recommendation 해석은 primary/supplemental gate 역할 분리까지는 이미 충분히 정리됐지만, 첫 행동을 다시 문장으로 번역해야 하면 reviewer와 operator surface가 또 어긋난다.
+
+## 913) `effective_operator_next_step`, interpretation class, operating mode까지 올린 뒤에도 operator가 맨 위에서 바로 읽을 짧은 실행 분류가 없으면, CLI를 보는 사람은 여전히 세 값을 조합해 첫 행동을 판단해야 한다
+- 문제: latest surface에 current 해석은 충분히 올라왔지만, operator가 `latest-gate` 한 줄만 보고 즉시 행동을 고르려면 `effective_operator_next_step`, `review_gate_interpretation_class`, `review_gate_operating_mode` 를 다시 머리로 합쳐야 했다.
+- 해결: `latest-status-export`, `latest-status`, `latest-gate`, `latest-overview` 에 `gate_action_class` 를 추가했다. 현재 local 기준 값은 `READ_PRIMARY_AND_SUPPLEMENTAL_REVIEW_GATES` 이다.
+- 이유: operator one-shot surface는 결국 “지금 무엇을 할 것인가”를 가장 짧게 보여 줘야 한다. decision class와 operating mode 위에 한 단계 더 얇은 실행 분류가 있으면 해석 속도가 더 빨라진다.
+
+## 912) reviewer/author/operator surface에만 decision class를 올리고 reopen/next-lane/product memo가 raw gate 설명에 머물면, 실제 product-decision 문서만 읽는 사람은 다시 old gate 값 해석 단계로 돌아간다
+- 문제: `latest-status`, `latest-gate`, `latest-overview`, PR surface, draft/post-merge checklist는 이미 `review_gate_interpretation_class`, `review_gate_operating_mode` 를 직접 쓰기 시작했는데, `recommendation-reopen-decision-runbook.md`, `recommendation-next-lane-brief.md`, `recommendation-primary-audience-exclusion-decision-memo.md` 는 여전히 raw gate 값과 next-step 중심으로 설명하고 있었다.
+- 해결: product-decision 문서 세 곳에도 current 운영 클래스 `HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR`, `PRIMARY_BASELINE_WITH_SUPPLEMENTAL_RECENT_WINDOW` 를 직접 넣었다.
+- 이유: reopen lane 선택, next lane 정리, audience exclusion 유지/완화 판단도 결국 같은 review gate 해석 위에서 이루어진다. 이 문서들만 다른 언어를 쓰면 실제 제품 판단 시점에 다시 해석 drift가 생긴다.
+
+## 911) reviewer-facing brief와 PR surface에 decision class를 올린 뒤에도 draft exit / post-merge follow-up 체크리스트가 raw gate 설명만 유지하면, author는 여전히 undraft/merge 판단을 값 해석 단계에서 수동으로 번역해야 한다
+- 문제: reviewer quick entrypoint와 PR 본문에는 `review_gate_interpretation_class`, `review_gate_operating_mode` 를 올렸지만, author가 실제로 쓰는 `recommendation-pr-draft-exit-checklist.md`, `recommendation-post-merge-followup-checklist.md` 는 아직 raw full/latest/recent gate 설명 중심이었다.
+- 해결: 두 체크리스트에도 current 운영 클래스 `HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR`, `PRIMARY_BASELINE_WITH_SUPPLEMENTAL_RECENT_WINDOW` 를 직접 넣었다.
+- 이유: review, draft exit, post-merge follow-up 이 서로 다른 문서여도 같은 운영 클래스를 기준으로 읽어야 author/reviewer/operator 해석 drift가 다시 생기지 않는다.
+
+## 910) operator artifact에 `review_gate_interpretation_class`, `review_gate_operating_mode` 를 올린 뒤에도 reviewer-facing brief/PR surface가 예전 raw gate 설명만 남겨 두면, reviewer는 current 운영 해석 승격을 GitHub 화면에서 바로 못 읽는다
+- 문제: `latest-status`, `latest-gate`, `latest-overview` 는 이미 primary/supplemental review gate 조합을 decision class로 승격했는데, reviewer quick entrypoint와 PR 본문은 아직 raw gate 값과 next-step까지만 요약하고 있었다.
+- 해결: `recommendation-pr-review-brief.md`, PR body, reviewer quick entrypoint comment에 `review_gate_interpretation_class=HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR`, `review_gate_operating_mode=PRIMARY_BASELINE_WITH_SUPPLEMENTAL_RECENT_WINDOW` 를 같이 올렸다.
+- 이유: reviewer가 GitHub PR surface만 봐도 “raw gate 값 셋”이 아니라 “현재 운영 결정 클래스”를 바로 읽을 수 있어야, 저장소 문서와 PR 전달면이 다시 갈라지지 않는다.
+
+## 909) primary/supplemental review gate 값을 artifact에 같이 올려도, operator가 그 조합을 어떤 decision class로 읽어야 하는지 매번 문장으로 다시 합쳐야 하면 one-shot gate surface로서 완결성이 떨어진다
+- 문제: `latest-status`, `latest-gate`, `latest-overview` 는 이미 `primary_review_gate_blocker_class`, `recent_window_recommendation_review_reading`, `historical_example_dominance_detected` 를 같이 내리고 있었지만, operator는 여전히 이 값들을 머리로 합쳐 “historical primary blocker지만 recent-window는 clear”라고 직접 번역해야 했다.
+- 해결: latest artifact와 CLI 출력에 `review_gate_interpretation_class`, `review_gate_operating_mode` 를 추가했다. 현재 local 기준 값은 `HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR`, `PRIMARY_BASELINE_WITH_SUPPLEMENTAL_RECENT_WINDOW` 이다.
+- 이유: current recommendation blocker는 이제 단일 gate 값이 아니라 primary historical gate와 supplemental current-live gate의 조합으로 읽어야 한다. 이 조합을 operator-facing artifact에서 한 번 더 결정 클래스로 승격해야 해석 drift가 줄어든다.
+
+## 908) `latest-overview` 와 active 문서가 `effective_operator_next_step=USE_RECENT_WINDOW_AS_SUPPLEMENTAL_REVIEW_CONTEXT` 로 올라간 뒤에도, PR body/author note가 예전 `WAIT_FOR_REAL_USER_TRAFFIC` draft 이유를 그대로 말하면 reviewer는 현재 draft 경계를 잘못 읽게 된다
+- 문제: active 문서와 handoff artifact는 이미 live readiness open, primary full latest batch gate `DEFERRED_NON_REAL_LEADER_SIGNAL`, supplemental recent-window reading `RECENT_WINDOW_CLEARS_HISTORICAL_2622_DOMINANCE` 로 해석이 바뀌었는데, PR 설명 일부는 아직 draft 유지 이유를 “real-user traffic/cohort evidence missing”으로 적고 있었다.
+- 해결: PR body와 quick entrypoint comment, stale author note를 current gate reading 기준으로 다시 압축했다. draft 이유는 이제 단순 traffic 부족이 아니라 **historical primary gate와 recent-window supplemental gate를 함께 읽어야 하는 상태** 로 설명한다.
+- 이유: reviewer가 가장 먼저 읽는 surface가 GitHub PR 전달면인데, 여기만 예전 wait-state를 유지하면 저장소 문서와 실제 artifact 해석이 다시 갈라진다.
+
+## 907) latest-status만 effective next-step으로 바꾸고 overview는 readiness override를 old baseline pointer에서 시작하면, readiness 포함 실행이 다시 과도하게 `WAIT_FOR_REAL_USER_LEADER_SIGNAL` 쪽으로 기운다
+- 문제: `latest-status` 와 `latest-gate` 는 이미 `effective_operator_next_step=USE_RECENT_WINDOW_AS_SUPPLEMENTAL_REVIEW_CONTEXT` 를 current action으로 보여 주는데, `latest-overview` 는 여전히 baseline artifact 기반 `operator_next_step=WAIT_FOR_REAL_USER_TRAFFIC` 에서 readiness override를 시작하고 있었다. 이러면 readiness 포함 실행에서 current review-gate 해석보다 `WAIT_FOR_REAL_USER_LEADER_SIGNAL` 이 먼저 보이게 된다.
+- 해결: `latest-overview` 도 current action의 기본값을 `latest-status` 의 `effective_operator_next_step` 로 맞추고, status effective reading이 아직 old wait-state일 때만 readiness override를 추가로 얹도록 바꿨다.
+- 이유: overview는 one-shot daily entrypoint라서 operator가 가장 먼저 읽는 surface다. 여기서만 old baseline pointer를 기준으로 override를 시작하면, 이미 정리한 current review-gate 해석이 다시 readiness 문구에 묻혀 버린다.
+
+## 906) latest artifact에 review gate context만 올리고 next-step 계산은 old baseline pointer에 그대로 두면, operator는 새 근거를 봐도 마지막 행동 문구는 옛 wait-state로 다시 읽게 된다
+- 문제: `review_gate_context` 를 `latest-status-note.md`, `latest-status.json`, `latest-gate` 에 추가한 뒤에도, top-level next-step 값은 여전히 baseline artifact 기반 `operator_next_step=WAIT_FOR_REAL_USER_TRAFFIC` 였다. 이 상태에선 새 context를 읽어도 마지막 액션 문구가 옛 wait-state로 남아 해석 drift가 다시 생긴다.
+- 해결: old baseline pointer인 `operator_next_step` 은 유지하되, current review-gate context를 반영한 `effective_operator_next_step` 를 별도 승격했다. 현재 local에서는 `effective_operator_next_step=USE_RECENT_WINDOW_AS_SUPPLEMENTAL_REVIEW_CONTEXT` 를 먼저 읽는 편이 맞다.
+- 이유: 지금 recommendation latest artifact의 역할은 history를 지우는 게 아니라 historical baseline과 current live interpretation을 함께 드러내는 것이다. 값을 덮어쓰면 baseline provenance를 잃고, 값을 분리하지 않으면 current operator action이 다시 옛 wait-state에 묶인다.
+
+## 905) recent-window gate를 admin API에는 올려도 latest handoff artifact에 안 싣으면, operator는 dashboard와 note/json을 번갈아 보며 current interpretation을 다시 조합해야 한다
+- 문제: `recentWindowRecommendationReviewReading`, `historicalExampleDominanceDetected` 는 이제 admin summary/breakdowns 응답에는 있었지만, `latest-status-note.md`, `latest-status.json`, `latest-overview-summary.txt` 같은 handoff artifact에는 여전히 drift/baseline 값만 남아 있었다.
+- 해결: `latest-status-export`, `latest-status`, `latest-gate`, `latest-overview` 에 `review_gate_context` 를 추가해 `primary_review_gate_blocker_class`, `recent_window_recommendation_review_reading`, `historical_example_dominance_detected` 를 함께 남기게 맞췄다.
+- 이유: 지금 recommendation current truth는 full latest batch primary gate와 recent-window supplemental gate를 같이 읽어야 한다. 이걸 note/json/summary에 안 싣으면 operator는 매번 admin API smoke 결과와 handoff artifact를 수동으로 합쳐야 해서 해석 drift가 다시 생긴다.
+
+## 904) review gate 해석을 wrapper/runbook에만 두면, operator가 실제 admin API 응답에서는 old full-gate 값만 보고 current live signal을 놓칠 수 있다
+- 문제: `recent-window` review gate는 smoke wrapper와 runbook에서만 보조 해석으로 쓰고 있었고, 실제 `GET /api/admin/dashboard/summary`, `GET /api/admin/dashboard/recommendation-breakdowns` 응답에는 full latest batch gate(`recommendationReviewGate`)만 있었다. 이 상태에선 operator가 API surface만 보면 `DEFERRED_NON_REAL_LEADER_SIGNAL` 만 보고, `RECENT_WINDOW_CLEARS_HISTORICAL_2622_DOMINANCE` current-live signal을 다시 별도 wrapper에서 찾아야 했다.
+- 해결: admin DTO/summary/breakdowns 응답에 `recentWindowLatestBatch`, `recentWindowRecommendationReviewReading`, `historicalExampleDominanceDetected` 를 추가하고, local admin smoke도 그 필드를 계약으로 검증하게 맞췄다.
+- 이유: 지금 recommendation 해석의 핵심은 full latest batch historical baseline과 recent-window current-live signal을 분리해 읽는 것이다. 이 경계가 API surface에 없으면 wrapper 문구를 아무리 정리해도 실제 운영 화면/응답 소비 쪽에서는 다시 old full-gate 단일 값으로 회귀한다.
+
+## 903) current-state와 runbook를 다 고쳐도 README/인덱스 진입점에 gate 역할 구분이 빠지면, 새로 들어온 사람은 여전히 “지금 blocker가 하나뿐”이라고 오해하기 쉽다
+- 문제: `docs/README.md`, `docs/recommendation/README.md`, `recommendation-docs-index.md` 는 entrypoint로는 맞았지만, full latest batch review gate가 primary historical baseline이고 recent-window gate가 supplemental current-live signal이라는 역할 구분은 직접 적혀 있지 않았다.
+- 해결: recommendation entrypoint 문구에 gate 역할을 한 줄로 추가해, 인덱스만 읽어도 current blocker 해석 구조를 바로 잡을 수 있게 했다.
+- 이유: 실제 handoff에서는 상세 runbook보다 README/인덱스를 먼저 열 때가 많다. 이 지점에서 gate 역할이 빠지면 뒤 문서를 열기 전까지는 blocker를 단일 값처럼 오해하기 쉽다.
+
+## 902) current-state 하단의 old audit/smoke snapshot도 현재형 문장으로 남아 있으면, 상단 current truth를 고쳐도 파일 하나만 읽는 사람은 다시 예전 deferred 상태로 돌아간다
+- 문제: `recommendation-current-state.md` 상단 current-reading 은 최신이었지만, 중간/하단의 `2026-05-17` CTR audit, concentration audit, summary smoke, breakdown smoke 값은 일부가 여전히 “현재 로컬 ... 값은” 같은 표현으로 남아 있었다.
+- 해결: 해당 구간을 `historical pre-real-user local audit`, `historical pre-real-user local concentration audit`, `historical pre-real-user local summary/breakdown smoke 값` 으로 다시 라벨링했다.
+- 이유: `current-state` 는 상단만 읽고 끝나는 문서가 아니다. 하단 example/output 블록도 자주 복사되므로, 파일 안 어느 지점을 잘라도 old deferred/cohort-empty 상태를 current truth로 오해하지 않게 해야 한다.
+
+## 388) current-reading을 고쳐도 helper 중간의 old sample output 블록에 historical 라벨이 없으면 operator는 예전 deferred/cohort 부재를 다시 현재로 읽는다
+- 문제: `recommendation-ctr-readiness-runbook.md`, `recommendation-concentration-audit-runbook.md` 는 상단 current-reading은 최신으로 맞아 있어도, 중간 sample output과 `현재 판단` 섹션이 여전히 `2026-05-17` pre-real-user baseline을 현재형처럼 보이게 남겨 두고 있었다.
+- 해결: 해당 블록을 `historical pre-real-user local sample output`, `historical baseline evidence` 로 직접 라벨링해, current local truth와 구분되도록 바꿨다.
+- 이유: active helper 문서는 상단 current-reading만 읽고 끝나지 않는다. operator가 중간 sample block이나 `현재 판단` 요약만 복사해도 current interpretation이 틀어지지 않게, old deferred/cohort-empty 상태는 history라는 사실을 문장 자체에 박아 두는 편이 맞다.
+
+## 387) active 문서 안의 historical baseline sample output에 라벨이 없으면, 이미 열린 live gate보다 옛 deferred snapshot을 current truth로 오해하기 쉽다
+- 문제: `recommendation-current-state.md`, `recommendation-operation-checklist.md`, `recommendation-ai-exclusion-latest-overview-runbook.md` 에는 현재형 설명과 함께 `2026-05-19` pre-live baseline artifact/output 이 같이 남아 있었는데, 일부 구간은 “historical pre-live baseline” 이라는 라벨이 약했다. 이 상태에선 `WAIT_FOR_REAL_USER_TRAFFIC`, `DEFERRED_NO_REAL_USER_TRAFFIC` 같은 옛 snapshot 값이 여전히 current truth처럼 읽힐 수 있다.
+- 해결: 해당 구간에 `historical pre-live baseline`, `older pre-live baseline snapshot pointer`, `live readiness가 열리기 전 sample output` 같은 문구를 직접 넣어, baseline artifact와 live current truth를 문장 자체에서 분리했다.
+- 이유: 지금 recommendation 문서군의 남은 혼선은 값 자체보다 **같은 문서 안에서 current instruction과 historical sample output이 붙어 있는 구조** 에서 나온다. 현재형 문서라도 history/example 블록이면 그 사실을 명시해야 operator가 오래된 deferred state를 다시 현재 blocker로 읽지 않는다.
+
+## 386) active runbook이 “옛 blocker는 아니다” 수준에서 멈추면, 지금의 blocker가 무엇인지는 다시 추론해야 한다
+- 문제: `recommendation-review-gate-blocker-audit-runbook.md` 상단은 `WAIT_FOR_REAL_USER_TRAFFIC 자체가 아니다` 라고는 말했지만, 지금 실제 current blocker가 `DEFERRED_NON_REAL_LEADER_SIGNAL + historical example latest batch dominance + stale example saved batch path + current real SQL gap` 이라는 점을 직접 쓰지 않았다.
+- 해결: runbook 상단 current-reading 문구를 부정형 설명이 아니라 현재 truth 자체를 바로 말하는 문장으로 바꿨다.
+- 이유: operator는 “무엇이 아닌가”보다 “지금 무엇인가”를 먼저 봐야 한다. 부정형 설명만 남으면 여전히 current-state로 돌아가 재추론해야 해서 실행 흐름이 길어진다.
+
+## 385) active helper 상단은 최신화돼도 operation checklist와 남은 runbook 상단이 옛 blocker를 말하면 운영자가 다시 예전 순서로 돌아간다
+- 문제: baseline-refresh, latest-overview, latest-gate, primary-audience memo, operation checklist 일부 현재형 문장은 여전히 `WAIT_FOR_REAL_USER_TRAFFIC` / deferred-only 해석을 먼저 보여 줬다. 하지만 current truth는 readiness opened + full latest batch historical inertia + recent-window supplemental gate까지 좁혀진 상태였다.
+- 해결: 현재형으로 쓰인 active helper/runbook/checklist 상단과 “지금 local에서 다시 시작할 때” 같은 구간을 최신 truth로 다시 맞췄다. 과거 `2026-05-19` baseline 관측 자체는 history evidence로 남겨 두고, current operator instruction만 바꿨다.
+- 이유: current-state만 최신이어도 operator는 실제로 개별 helper/runbook/checklist의 현재형 문장을 따라 실행한다. current vs historical evidence를 분리하지 않으면 실제 운용 순서가 다시 예전 blocker 기준으로 회귀한다.
+
+## 384) active current-state가 baseline artifact의 옛 `operator_next_step` 를 그대로 현재 truth처럼 말하면 live readiness/review gate 해석이 묻힌다
+- 문제: `recommendation-current-state.md` 와 top-level `current-state.md` 일부 설명은 baseline artifact에 남아 있는 `WAIT_FOR_REAL_USER_TRAFFIC` 포인터를 현재 truth처럼 적고 있었다. 하지만 live readiness는 이미 열렸고, 실제 current blocker는 full latest batch historical inertia와 recent-window current signal 분리 해석 쪽으로 옮겨가 있었다.
+- 해결: current-state 설명을 baseline artifact 포인터와 live current truth를 구분하는 방향으로 다시 정리했다. 이제 `operator_next_step` 자체는 old artifact 요약값일 수 있고, 실제 current 해석은 `effective_operator_next_step`, readiness, review-gate audit까지 같이 읽는다는 점을 명시한다.
+- 이유: current-state는 제일 먼저 보는 문서다. 여기서 artifact 포인터와 live truth를 구분하지 않으면 이후 runbook을 아무리 고쳐도 top-level 현재 해석이 다시 예전 blocker로 회귀한다.
+
+## 383) 같은 문서 안에서 상단 current-reading 과 하단 요약이 다른 blocker를 말하면 operator가 마지막 요약 한 줄을 더 믿고 돌아간다
+- 문제: reopen-decision, next-lane 같은 문서는 상단 current-reading 을 최신 truth로 고친 뒤에도 하단 `요약` 한 줄이 여전히 `WAIT_FOR_REAL_USER_TRAFFIC` 를 말하고 있었다.
+- 해결: 상단뿐 아니라 문서 하단 summary/decision bullet까지 current truth에 맞게 다시 정리했다.
+- 이유: 실제 운영에서는 문서 상단만 읽지 않고 끝의 요약 bullet도 많이 참고한다. 같은 문서 안에서 blocker가 두 개처럼 보이면 handoff보다 혼선만 커진다.
+
+## 382) deeper helper와 decision 문서 상단이 예전 blocker를 말하면, operator는 current-state보다 오래된 전제를 들고 재실행한다
+- 문제: snapshot/compare/volatility/drift-classify, baseline-refresh drift-check, reopen-decision, next-lane, real-user readiness helper 상단은 여전히 `WAIT_FOR_REAL_USER_TRAFFIC` 나 deferred-only 설명을 먼저 보여 줬다. 하지만 current truth는 이미 readiness opened + full latest batch historical inertia + recent-window supplemental gate까지 좁혀진 상태였다.
+- 해결: deeper helper/decision/runbook 상단 current-reading 문구를 `DEFERRED_NON_REAL_LEADER_SIGNAL` full latest batch gate와 `RECENT_WINDOW_CLEARS_HISTORICAL_2622_DOMINANCE` recent-window supplemental gate 기준으로 다시 맞췄다.
+- 이유: operator는 detailed helper 문서를 바로 열고 실행하는 경우가 많다. 상단 전제가 오래되면 같은 wrapper를 다시 돌려도 결과를 예전 blocker 프레임으로 잘못 해석하게 된다.
+
+## 381) helper/README 상단이 예전 blocker를 말하면 operator가 최신 current-state보다 옛 해석을 먼저 읽게 된다
+- 문제: `recommendation/README` 와 summary/status helper runbook 상단은 여전히 `WAIT_FOR_REAL_USER_TRAFFIC` 를 local 기본값처럼 적고 있었는데, active current-state는 이미 full latest batch historical inertia와 recent-window supplemental gate까지 좁혀진 상태였다.
+- 해결: `recommendation/README`, `latest-status`, `latest-status-export`, `stability-report`, `baseline-report` 상단 current-reading 문구를 `DEFERRED_NON_REAL_LEADER_SIGNAL` full gate + `RECENT_WINDOW_CLEARS_HISTORICAL_2622_DOMINANCE` supplemental gate로 다시 맞췄다.
+- 이유: operator는 인덱스보다 README나 helper runbook을 먼저 열 때가 많다. 상단 한 줄이 오래된 blocker를 말하면 이후 상세 설명을 읽기 전에 이미 잘못된 current truth를 가져가게 된다.
+
+## 380) active 문서만 최신화하고 PR body/comment를 그대로 두면 reviewer는 예전 blocker를 계속 읽는다
+- 문제: active 문서는 이미 `DEFERRED_NON_REAL_LEADER_SIGNAL`, historical example latest batch dominance, recent-window supplemental gate로 넘어갔는데, PR body와 top-level quick entrypoint comment는 여전히 `WAIT_FOR_REAL_USER_TRAFFIC` 를 main blocker처럼 말하고 있었다.
+- 해결: PR lifecycle 문서 동기화 뒤에는 GitHub PR body와 첫 quick entrypoint comment도 같은 날 바로 갱신해, full latest batch primary gate와 recent-window supplemental gate 역할이 GitHub 전달면에서도 똑같이 보이게 맞췄다.
+- 이유: 지금 recommendation closeout의 핵심은 코드보다 운영 해석 경계다. 저장소 문서와 GitHub 리뷰 entrypoint가 다른 blocker를 말하면 reviewer가 잘못된 기준으로 draft 상태와 reopen 조건을 읽게 된다.
+
+## 379) review gate를 한 값으로만 문서화하면, historical latest batch와 current recent-window signal이 다른 상황을 팀이 잘못 읽는다
+- 문제: full latest batch gate는 `2622` historical example inertia를 보여 주고, recent-window supplemental gate는 `3284` 중심 current live signal을 보여 준다. 이 둘을 문서에서 한 줄로만 적으면 reviewer, operator, merge 후 follow-up 담당자가 “지금 leader가 무엇인가”를 각자 다르게 읽게 된다.
+- 해결: PR review brief, draft exit, post-merge follow-up, real-user recheck, real-user baseline 문서에 **full latest batch gate는 primary, recent-window gate는 supplemental** 이라는 역할을 명시적으로 넣었다.
+- 이유: 지금 남은 문제는 새 코드보다 운영 해석 경계다. 같은 수치를 보더라도 어느 gate가 historical baseline이고 어느 gate가 current live signal 보조 해석인지 고정돼 있어야 handoff와 reopen 판단이 흔들리지 않는다.
+
+## 378) full latest batch review gate만 보면, current live signal이 이미 바뀌었는지 놓칠 수 있다
+- 문제: staleness audit으로 `2622` top1 example users `272명` 이 최근 `24h=0` 이라는 사실은 잡혔지만, 그것만으로는 “그러면 지금 live signal은 어디로 갔나”가 안 보인다. 이 상태에서 full latest batch gate만 계속 보면 historical inertia와 current live signal을 같은 해석으로 섞게 된다.
+- 해결: `run-local-recommendation-review-gate-recent-window-audit.sh` 를 추가해 recent `24h` latest batch만 따로 집계했다. 현재 truth는 `recent_latest_batch_users=83`, `recent_example_users=3`, `recent_real_user_users=80`, recent leader `3284`, share `7.23%`, origin mix `EXAMPLE_SMOKE:1,REAL_USER:5`, `2622 top1=0` 이다.
+- 이유: current 운영 해석은 full latest batch gate를 폐기하는 게 아니라, **historical latest batch gate + recent-window supplemental gate** 를 같이 읽는 편이 맞다. 그래야 stale example inertia와 current real-user signal을 동시에 본다.
+
+## 377) mixed leader `2622` 를 current flow bug로만 읽으면, 오래된 example latest batch가 review gate를 계속 지배하는 구조를 놓친다
+- 문제: same-profile fresh-saved differential까지 보면 representative example user의 `2622` 는 fresh refresh 뒤 바로 사라진다. 그런데 mixed latest batch review gate는 여전히 `2622` 가 top1 leader로 보이므로, 이 상태를 계속 current flow bug로만 읽으면 “왜 mixed gate는 그대로냐”가 설명되지 않는다.
+- 해결: `run-local-recommendation-review-gate-staleness-audit.sh` 를 추가해 origin별 latest batch recency와 target leader `2622` top1 user recency를 같이 읽게 했다. 현재 truth는 `example_smoke_target_top1_users=272`, `example_smoke_target_top1_last_24h=0`, oldest/newest `2026-05-13 13:39:31 / 2026-05-17 11:49:50` 이고, 반대로 `real_user_latest_users_last_24h=80` 이다.
+- 이유: 이 상태는 current real-user flow가 `2622` 를 못 올리는 문제 이전에, **historical example latest batch가 mixed review gate 해석을 계속 지배하는 구조** 를 뜻한다. 즉 다음 질문은 “real-user를 더 만들까”보다 “review gate를 stale example latest batch와 함께 읽어도 되나” 쪽이다.
+
+## 376) same-profile example differential을 current flow 차이로만 읽으면, stale saved batch가 mixed leader 해석을 왜곡한 사실을 놓친다
+- 문제: same-profile path audit에서 representative example user는 `2622` 를 `PRESENT_IN_SAVED_BATCH` 로 갖고 있고 generic-domain `REAL_USER` 는 `NOT_IN_SQL_RETRIEVAL` 이었다. 이 값만 보면 쉽게 “example current flow만 다르다”로 읽기 쉽다.
+- 해결: `run-local-recommendation-same-profile-fresh-saved-differential-audit.sh` 를 추가해 representative example/real-user에 `personal=true` fresh refresh를 직접 다시 태웠다. 현재 truth는 example 쪽도 refresh 뒤 즉시 `saved=false`, `drop_stage=NOT_IN_SQL_RETRIEVAL` 로 내려가고, real-user는 전후 모두 `NOT_IN_SQL_RETRIEVAL` 이다.
+- 이유: 이 상태의 1차 원인은 current-flow origin differential보다 **stale example saved batch path** 다. 즉 mixed leader 해석을 더 좁힐 때는 “왜 real-user가 못 들어오나” 이전에 “왜 example saved batch가 refresh 전까지 persisted 돼 있었나”를 먼저 봐야 한다.
+
+## 375) same-profile differential을 “retrieval/filter에서 갈린다”로 단정하면, example 쪽 saved-only path와 real-user SQL gap을 놓칠 수 있다
+- 문제: exact same profile(`인천광역시/중구/income=5/미취업/1인 가구`)에서 `EXAMPLE_SMOKE` 는 `2622` 가 강하게 뜨고 generic-domain `REAL_USER` 는 `0회` 라는 사실만 보면, 쉽게 “real-user가 retrieval이나 filter에서 밀린다”로 추정하기 쉽다. 하지만 이건 saved batch에 이미 남아 있는 example path와 current diagnostics retrieval path를 같은 축으로 섞어 읽을 위험이 있다.
+- 해결: `run-local-recommendation-same-profile-path-differential-audit.sh` 를 추가해 representative example user와 representative real-user를 exact profile에서 직접 뽑고, target `2622` 의 diagnostics/saved 상태를 side-by-side로 비교하게 했다. 현재 truth는 example 쪽 `drop_stage=PRESENT_IN_SAVED_BATCH`, `latest_saved_rank=1`, real-user 쪽 `drop_stage=NOT_IN_SQL_RETRIEVAL` 이다.
+- 이유: current blocker는 generic한 “same-profile origin differential” 보다 더 좁다. 지금 필요한 질문은 `2622` 가 real-user later stage에서 탈락하느냐가 아니라, **왜 example은 saved batch에 `2622` 를 갖고 있고 real-user는 SQL retrieval부터 못 들어가느냐** 다.
+
+## 374) mixed leader blocker를 “example가 많다”로만 읽으면, exact same profile에서 `REAL_USER` path가 완전히 닫혀 있는 더 강한 차이를 놓친다
+- 문제: 80명 `REAL_USER` library와 review-gate blocker audit만 보면 현재 해석은 `MIXED_BATCH_NON_REAL_DOMINANCE_WITH_NO_REAL_USER_PATH` 다. 하지만 이 값만으로는 “example 비중이 높아서 mixed top1이 안 바뀐다”와 “same profile인데도 generic-domain `REAL_USER` 쪽 path 자체가 없다”를 구분하기 어렵다.
+- 해결: `run-local-recommendation-same-profile-origin-differential-audit.sh` 를 추가해 exact profile(`인천광역시/중구/income=5/미취업/1인 가구`)만 분리해서 origin별 target service path를 직접 비교하게 했다. 현재 local truth는 `EXAMPLE_SMOKE=454`, `REAL_USER=14`, `LOCAL_REAL_NON_EXAMPLE_SEED=3`, `BOUNDED_LOCAL=1` 이고, target `2622` 는 example 쪽 `top1=272`, `top3=434`, `top10=442` 인 반면 real-user 쪽은 `top1/top3/top5/top10/any-rank=0` 이다.
+- 이유: 이 상태는 단순 volume gap보다 강한 differential 이다. 같은 profile이라도 example/local seed/bounded local 에서는 `2622` path가 강하게 보이고 generic-domain real-user 에서는 완전히 닫혀 있으므로, 다음 질문은 표본 수가 아니라 `account_origin`, signup flow, latest batch composition 차이가 recommendation path를 어떻게 바꾸는지다.
+
+## 373) mixed leader `2622` 와 exact same persona를 generic-domain `REAL_USER` 로 다시 만들어도 path가 계속 `0` 이면, 표본 수 부족보다 example vs real-user differential을 먼저 의심해야 한다
+- 문제: `housing / education / job / finance` targeted cohort 40명까지 넣은 뒤에도 mixed latest batch leader `2622(청년월세 지원사업)` 는 real-user `top10` 안에 한 번도 안 나타났다. 처음 해석은 “housing-like real-user를 더 추가하면 path가 열릴 수도 있다”는 쪽이었다.
+- 해결: example-heavy leader profile과 같은 `인천광역시 / 중구 / income=5 / 미취업 / 1인 가구` 로 `housing_leader_path` exact cohort 10명을 generic-domain `REAL_USER` 로 다시 시드해 총 `80명` library로 재검증했다. 결과는 여전히 `real_user_mixed_leader_top1/top3/top5/top10/any-rank=0`, mixed latest batch `users=548`, `example_users=464`, `real_user_users=80`, `top1_leader_real_user_users=0` 이었다.
+- 이유: 이 상태는 “housing-like real-user 표본이 아직 적다”보다 강한 신호다. 같은 persona를 넣어도 example 쪽에서만 `2622` path가 보이면, 다음 질문은 표본 수가 아니라 `account_origin`, signup flow, seed cohort 성격, latest batch composition 차이가 candidate path를 어떻게 바꾸는지다.
+
+## 372) local generic-domain `REAL_USER` library는 signup 이름도 backend validation에 맞춰야 한다
+- 문제: targeted cohort library를 처음 시드할 때 `COHORT_HOUSING_01` 같은 이름을 그대로 넣었더니 `/api/auth/signup` 이 `이름은 특수 기호 및 숫자를 제외한 한글 2~10자로 입력해주세요.`(`errorCode=C001`) 로 막혔다. 이메일/도메인/account_origin 설계는 맞았지만, name validation을 놓치면 seeder가 첫 계정부터 중단된다.
+- 해결: manifest의 `name` 을 `주거가`, `교육가`, `구직가`, `금융가` 처럼 한글 2~10자 규칙에 맞는 값으로 바꿨다. cohort 식별은 deterministic email(`realuser.housing01@realuser.app` 등)로 하고, 이름은 validation-safe 한글 label만 유지한다.
+- 이유: cohort library의 추적 키는 이름보다 이메일 local-part가 더 안정적이다. backend signup validation과 충돌할 수 있는 영문/숫자/언더스코어 이름을 고집할 이유가 없으므로, name은 validation-safe, email은 deterministic 한 구조가 재사용에 더 맞다.
+
+## 371) housing targeted cohort를 추가로 넣어도 mixed leader `2622` 가 real-user top10 안에 0회면, 현재 표본 방향과 mixed leader path를 분리해서 봐야 한다
+- 문제: `30명` distributed sample에서는 mixed leader `2622(청년월세 지원사업)` 가 real-user `top10` 에 한 번도 안 나타나서, housing-like targeted cohort를 추가하면 path가 생길 수도 있다는 가설이 있었다. 그래서 `housing / education / job / finance` targeted cohort `40명`을 추가해 총 `70명` real-user 표본으로 다시 봤다.
+- 해결: targeted cohort를 포함한 뒤에도 blocker audit 결과는 `real_user_mixed_leader_top1_count=0`, `top3_count=0`, `top5_count=0`, `top10_count=0`, `any_rank_count=0` 이었다. 즉 current library 기준으로는 mixed leader transition path가 여전히 없다. readiness는 `READY_REAL_USER_TRAFFIC / READY_REAL_USER_COHORT` 로 열려 있지만, mixed review gate는 계속 `DEFERRED_NON_REAL_LEADER_SIGNAL` 이고 blocker class는 `MIXED_BATCH_NON_REAL_DOMINANCE_WITH_NO_REAL_USER_PATH` 다.
+- 이유: targeted cohort를 추가했다고 바로 mixed leader path가 생기는 건 아니다. current sample의 housing-like profile이 example-heavy mixed leader와 여전히 안 맞을 수 있고, 이때는 “더 많이 만들면 풀릴 것”보다 “지금 라이브러리로도 path가 0인지”를 먼저 고정하는 편이 맞다.
+
+## 370) local generic-domain `REAL_USER` cohort library를 deterministic email로 재사용하려면 click smoke가 고정 이메일과 기존 계정 재사용을 허용해야 한다
+- 문제: `run-local-recommendation-click-smoke.sh` 는 매번 `smoke_build_email()` 로 새 이메일을 만들고 signup을 기대하는 구조라, 같은 persona 세트를 재사용하려면 계정이 계속 늘어나기만 했다. 또한 targeted cohort library를 deterministic email로 만들더라도 rerun 시 기존 계정을 바로 재사용할 수 없었다.
+- 해결: click smoke에 `SMOKE_EMAIL` override 와 `ALLOW_EXISTING_USER=true` 경계를 추가했다. 이제 fixed email을 넘기면 기존 user 존재 여부를 DB에서 확인하고, 이미 있으면 signup 대신 login/refresh/click 으로 바로 재사용한다. 이 위에 `run-local-real-user-cohort-library-seed.sh` 와 [recommendation-real-user-cohort-library-manifest.md](../recommendation/recommendation-real-user-cohort-library-manifest.md) 를 얹어 `housing / education / job / finance` targeted cohort 40명을 deterministic email로 관리하게 맞췄다.
+- 이유: 앞으로 recommendation 검증을 계속할 거라면 random one-off 계정보다 **재사용 가능한 cohort library** 가 낫다. deterministic email + existing-user reuse 경계가 있어야 같은 persona 세트를 계속 refresh/click 하면서 결과만 비교할 수 있다.
+
+## 369) mixed latest batch review gate가 deferred인 이유가 단순 volume gap이 아니라, current real-user sample에 mixed leader transition path 자체가 없을 수 있다
+- 문제: 30명 `REAL_USER` 표본을 만든 뒤에도 mixed latest batch review gate는 `DEFERRED_NON_REAL_LEADER_SIGNAL` 이었다. 처음엔 example 사용자가 많아서 top1 leader가 안 바뀌는 단순 volume gap처럼 보였지만, 실제로 mixed leader 서비스 `2622(청년월세 지원사업)` 가 real-user 쪽 후보 상단에 아예 없는지까지는 확인되지 않았다.
+- 해결: blocker audit에 mixed leader 서비스의 real-user `top1/top3/top5/top10/any-rank` 출현 수를 같이 넣었다. 현재 local 값은 `real_user_mixed_leader_top1_count=0`, `top3_count=0`, `top5_count=0`, `top10_count=0` 이고, blocker class는 `MIXED_BATCH_NON_REAL_DOMINANCE_WITH_NO_REAL_USER_PATH` 다.
+- 이유: 이 상태는 “real-user가 더 많아지면 언젠가 mixed leader에 붙을 것”과 다르다. current real-user sample 자체에 mixed leader 서비스가 후보 상단으로 안 뜨므로, 단순 wait만으로는 review gate 전이가 늦어질 수 있다. 이 경우는 housing-like targeted real-user signal을 추가로 보거나, mixed batch 해석을 별도로 유지하는 편이 맞다.
+
+## 368) `REAL_USER` traffic/cohort gate가 이미 열렸는데도 review gate가 계속 deferred이면, 원인을 readiness 부족으로 읽지 말고 mixed latest batch leader dominance 와 분리해서 봐야 한다
+- 문제: local generic-domain signup 계정 30개로 `account_origin=REAL_USER` 표본을 충분히 쌓은 뒤에도 `run-local-real-user-exclusion-readiness-check.sh` 는 `READY_REAL_USER_TRAFFIC / READY_REAL_USER_COHORT` 를 보여 주지만, mixed latest batch review gate는 계속 `DEFERRED_NON_REAL_LEADER_SIGNAL` 로 남았다. 이 상태를 readiness 부족으로만 읽으면 “real-user를 더 만들면 풀리나”와 “mixed latest batch 자체가 example에 너무 치우쳤나”를 구분하기 어렵다.
+- 해결: `run-local-recommendation-review-gate-blocker-audit.sh` 를 추가해 mixed latest batch와 real-user-only latest batch의 top1 leader를 같은 축으로 비교하게 했다. 현재 local truth는 mixed latest batch `users=498`, `example_users=464`, `real_user_users=30`, `top1_leader=청년월세 지원사업`, `top1_leader_share_pct=55.62`, `top1_leader_real_user_users=0` 인 반면, real-user-only latest batch는 `top1_leader=드림나래(인천청년 면접복장 지원)`, `top1_leader_share_pct=10.00`, `concentration_readiness=NO_PRIORITY_DOMINANT` 이다.
+- 이유: live readiness gate와 mixed review gate는 같은 층이 아니다. readiness는 “real-user traffic/cohort가 생겼는가”를 말하고, review gate는 “mixed latest batch top1 leader에 real-user signal이 올라왔는가”를 말한다. 지금 로컬 상태는 후자 쪽 blocker가 남아 있으므로, review gate deferred를 더 많은 real-user 생성 문제로만 읽으면 해석이 어긋난다.
+
+## 367) `REAL_USER` cohort가 커지면 zero-reason distribution wrapper가 rows를 env/argv로 넘기다 `Argument list too long` 로 터질 수 있다
+- 문제: `run-local-recommendation-ai-zero-reason-distribution-audit.sh` 는 latest batch rows를 `rows="$(...)"` 로 모은 뒤 `RAW_ROWS="${rows}" python3 ...` 형태로 Python에 넘겼다. 13명 정도까지는 버텼지만, 30명 `REAL_USER` 샘플로 latest batch rows가 커지자 readiness/overview 내부에서 `/usr/bin/python3: Argument list too long` 로 깨졌다. 이 상태면 `dashboard_real_user_gate=READY_REAL_USER_TRAFFIC`, `breakdown_real_user_cohort_gate=READY_REAL_USER_COHORT` 까지는 확인돼도, 바로 이어지는 zero-AI distribution 단계에서 wrapper가 중단된다.
+- 해결: DB rows를 환경변수로 넘기지 않고 `mktemp` file에 저장한 뒤 Python이 그 파일을 직접 읽게 바꿨다. 이렇게 하면 cohort row 수가 커져도 shell env/argv 한계에 걸리지 않는다.
+- 이유: recommendation evidence wrapper는 small bounded sample뿐 아니라 distributed `REAL_USER` cohort가 커졌을 때도 same entrypoint로 계속 돌아가야 한다. row payload를 env/argv로 넘기는 구현은 cohort 확장 시 깨지기 쉬우므로, file handoff로 바꾸는 편이 맞다.
+
+## 366) homogeneous `REAL_USER` 몇 개만으로는 zero-AI/exclusion 분포를 과소평가할 수 있다
+- 문제: local generic-domain signup 계정 3개로 처음 `account_origin=REAL_USER` 샘플을 만들었을 때는 live readiness gate는 열렸지만 `real_user_distribution_executed=true`, `zero_ai_rows=0` 이라, real-user window에서는 exclusion bucket이 사실상 사라진 것처럼 보였다. 하지만 이 3개는 지역/소득/취업상태가 거의 비슷한 homogeneous 샘플이어서, 실제 분산 프로필 real-user window를 대표한다고 보기 어려웠다.
+- 해결: `birthDate/sido/sgg/incomeLevel/employmentStatus/householdType` 를 서로 다르게 준 generic-domain signup 계정 10개를 추가로 만들고 refresh + click까지 다시 쌓아, 총 13명 real-user window로 readiness와 distribution을 재실행했다. 그 결과 `dashboard_real_user_gate=READY_REAL_USER_TRAFFIC`, `breakdown_real_user_cohort_gate=READY_REAL_USER_COHORT` 는 유지되면서도 `zero_ai_rows=14`, `zero_ai_reason_buckets=AUDIENCE_MISMATCH:1,INCOME_MISMATCH:5,OTHER:5,STUDENT_AUDIENCE_MISMATCH:3` 가 다시 드러났다. 동시에 real-user-only concentration은 `top1_share_pct=23.08`, `concentration_readiness=NO_PRIORITY_DOMINANT` 로 분산됐다.
+- 이유: local `REAL_USER` gate를 여는 것과 real-user exclusion evidence를 representative 하게 보는 것은 다른 문제다. gate-open 여부는 homogeneous 샘플 몇 개로도 확인할 수 있지만, exclusion bucket과 top1 다양성은 분산 프로필 샘플이 있어야 과소평가를 피할 수 있다.
+
+## 365) live `REAL_USER` readiness gate가 이미 열렸는데도 baseline artifact 기반 `latest-status` 가 계속 `WAIT_FOR_REAL_USER_TRAFFIC` 로 남을 수 있다
+- 문제: local generic-domain signup 계정 3개로 `account_origin=REAL_USER` 샘플을 만들고 추천 refresh + click을 쌓자, `run-local-real-user-exclusion-readiness-check.sh` 는 `dashboard_real_user_gate=READY_REAL_USER_TRAFFIC`, `breakdown_real_user_cohort_gate=READY_REAL_USER_COHORT`, `real_user_distribution_executed=true` 를 바로 보여 줬다. 그런데 `run-local-recommendation-ai-exclusion-latest-status.sh` 는 여전히 baseline refresh artifact의 stable gate(`DEFERRED_NO_REAL_USER_TRAFFIC / DEFERRED_NO_REAL_USER_COHORT`)를 기준으로 `operator_next_step=WAIT_FOR_REAL_USER_TRAFFIC` 를 유지했다. 이 상태면 same overview 안에서도 “gate는 열렸다”와 “다음 행동은 still wait”가 충돌해 보인다.
+- 해결: `run-local-recommendation-ai-exclusion-latest-overview.sh` 에 live readiness override 해석을 추가해 `effective_operator_next_step`, `readiness_override_detected`, `readiness_override_reason`, `real_user_review_gate`, `real_user_top1_leader_real_user_users`, `real_user_top1_leader_signal_summary` 를 같이 남기게 했다. 현재 local truth에서는 `readiness_override_detected=true`, `effective_operator_next_step=WAIT_FOR_REAL_USER_LEADER_SIGNAL`, `real_user_review_gate=DEFERRED_NON_REAL_LEADER_SIGNAL` 로 읽는다.
+- 이유: baseline artifact는 여전히 historical stable pointer이고, readiness check는 live runtime gate다. 둘을 같은 층으로 취급하면 “traffic/cohort가 없어서 wait”와 “review gate가 아직 deferred라서 wait”가 섞인다. overview 단계에서 두 층을 같이 보여 주고, live gate-open 이후에는 review gate pending 쪽으로 해석을 넘기는 편이 맞다.
+
+## 364) stability-report / baseline-report 같은 사람이 바로 읽는 summary helper도 current blocker를 안 말하면, compact report가 다시 즉시 의사결정 문서처럼 읽히기 쉽다
+- 문제: `recommendation-ai-exclusion-stability-report-runbook.md`, `recommendation-ai-exclusion-baseline-report-runbook.md` 는 stable/volatile 분리와 one-page report 목적은 분명했지만, 현재 local 기본값이 아직 `WAIT_FOR_REAL_USER_TRAFFIC`, latest reading이 `VOLATILE_ONLY_DRIFT` 라는 점과 이 문서들이 유지 단계의 summary helper라는 성격은 상단에서 직접 고정하지 않았다. 이 상태면 사람이 report helper만 열었을 때도 “지금 recommendation을 다시 열 결론을 내리는 문서인가”와 “현재 evidence를 정리해 읽는 문서인가”를 다시 추론해야 한다
+- 해결: 두 runbook 상단에 companion docs(`review brief / draft exit / post-merge / real-user recheck`)와 current 단계 해석(`WAIT_FOR_REAL_USER_TRAFFIC`, `VOLATILE_ONLY_DRIFT`)을 추가하고, 각각 stable/volatile 분리 helper, one-page summary helper라는 역할을 직접 적었다
+- 이유: 기계적 compare helper뿐 아니라 사람이 바로 읽는 compact report도 current stage를 먼저 말해야 한다. 요약 문서일수록 오히려 “지금은 유지 단계”라는 맥락이 빠지면 즉시 결론 문서처럼 과대해석되기 쉽다
+
+## 363) snapshot/volatility/drift-classify 계열 runbook이 compare mechanics만 설명하면, evidence helper도 다시 immediate reopen/tuning 문서처럼 읽히기 쉽다
+- 문제: `recommendation-ai-exclusion-snapshot-runbook.md`, `recommendation-ai-exclusion-snapshot-compare-runbook.md`, `recommendation-ai-exclusion-volatility-audit-runbook.md`, `recommendation-ai-exclusion-drift-classify-runbook.md` 는 artifact 생성/비교 mechanics는 잘 설명하지만, 현재 local 기본값이 아직 `WAIT_FOR_REAL_USER_TRAFFIC`, latest reading이 `VOLATILE_ONLY_DRIFT` 라는 점과 이 문서들이 유지 단계의 evidence helper라는 성격은 직접 적지 않았다. 이 상태면 operator가 이 계열 문서만 열었을 때도 “지금 recommendation을 다시 열어야 하나”와 “관찰 artifact를 더 정리하는 중인가”를 다시 추론해야 한다
+- 해결: 네 runbook 상단에 companion docs(`review brief / draft exit / post-merge / real-user recheck`)와 current 단계 해석(`WAIT_FOR_REAL_USER_TRAFFIC`, `VOLATILE_ONLY_DRIFT`)을 추가하고, snapshot/evidence capture, read-only compare, volatility helper, drift interpretation helper라는 역할을 직접 적었다
+- 이유: latest/overview만 current blocker를 말하고 deeper evidence helper가 mechanics만 설명하면, 문서 층위가 내려갈수록 다시 immediate tuning backlog처럼 읽히는 drift가 생긴다. snapshot/volatility/drift-classify 계열도 “지금은 유지 단계, 이건 evidence helper”라는 맥락을 먼저 보여 주는 편이 맞다
+
+## 362) latest status/gate/export runbook이 current truth는 말해도 lifecycle companion docs와 helper 성격을 안 고정하면, daily operator entrypoint도 다시 “reopen gate”처럼 읽히기 쉽다
+- 문제: `recommendation-ai-exclusion-latest-status-runbook.md`, `recommendation-ai-exclusion-latest-gate-runbook.md`, `recommendation-ai-exclusion-latest-status-export-runbook.md` 는 `WAIT_FOR_REAL_USER_TRAFFIC`, `VOLATILE_ONLY_DRIFT`, gate key는 이미 설명하고 있었지만, companion lifecycle 문서 연결과 “이 문서는 current baseline을 read-only로 보는 daily helper”라는 성격 구분은 직접 적지 않았다. 이 상태면 operator가 latest helper만 열었을 때도 PR lifecycle / post-merge / real-user recheck 문맥을 다시 바깥 문서에서 찾아야 한다
+- 해결: 세 runbook 상단에 companion docs(`review brief / draft exit / post-merge / real-user recheck`)와 current 단계 해석을 직접 추가하고, 각각이 daily status helper / 운영 gate helper / handoff export helper라는 역할을 상단에서 바로 읽게 맞췄다
+- 이유: overview만 lifecycle을 말하고 하위 latest helper가 mechanics만 설명하면, 실행 층위가 내려갈수록 다시 immediate reopen gate처럼 읽히는 drift가 생긴다. latest status/gate/export도 current blocker와 문서 lifecycle 안에서 어디에 놓이는지 먼저 보여 주는 편이 실제 운영 해석 비용을 줄인다
+
+## 361) baseline refresh 계열 runbook이 current blocker 없이 compare/refresh mechanics만 설명하면, deeper helper도 reopen/tuning gate처럼 읽히기 쉽다
+- 문제: `recommendation-ai-exclusion-baseline-refresh-runbook.md`, `recommendation-ai-exclusion-baseline-refresh-drift-check-runbook.md`, `recommendation-ai-exclusion-baseline-refresh-compare-runbook.md` 는 baseline 재실행과 compare mechanics는 잘 설명하지만, current local 기본값이 아직 `WAIT_FOR_REAL_USER_TRAFFIC` 이고 latest reading이 `VOLATILE_ONLY_DRIFT` 라는 맥락은 직접 말하지 않았다. 이 상태면 operator가 deeper helper를 열었을 때도 “지금 recommendation을 다시 열어야 하나”와 “baseline을 더 정리하는 중인가”를 다시 추론해야 한다
+- 해결: 세 runbook 상단에 companion docs(`review brief / draft exit / post-merge / real-user recheck`)와 current 단계 해석(`WAIT_FOR_REAL_USER_TRAFFIC`, `VOLATILE_ONLY_DRIFT`, basic/strict gate)을 추가하고, 이 문서들이 현재는 stable baseline / volatile observation을 더 명확히 분리하는 deeper helper라는 점을 직접 적었다
+- 이유: overview/current-state만 current blocker를 말하고 deeper helper가 mechanics만 설명하면, 문서 층위가 내려갈수록 다시 immediate tuning backlog처럼 읽히는 drift가 생긴다. baseline refresh 계열도 current stage를 먼저 말해야 operator가 “지금은 유지 단계, 이건 해석 보조 도구”라는 맥락을 잃지 않는다
+
+## 360) primary audience exclusion decision memo가 current blocker와 lifecycle companion docs를 안 말하면, gate가 닫힌 시기에도 “지금 당장 tuning” 문서처럼 읽히기 쉽다
+- 문제: `recommendation-real-user-baseline-runbook.md`, `recommendation-reopen-decision-runbook.md`, `recommendation-next-lane-brief.md` 까지는 `WAIT_FOR_REAL_USER_TRAFFIC` 와 companion lifecycle 문서를 직접 말하도록 맞췄지만, `recommendation-primary-audience-exclusion-decision-memo.md` 는 여전히 bucket 해석 자체에만 집중하고 있었다. 이 상태면 operator/reviewer가 이 memo만 바로 열었을 때 현재 단계가 아직 `REAL_USER` gate deferred 라는 점보다 “어떤 exclusion을 완화할지”에 먼저 시선이 가기 쉽다
+- 해결: decision memo 상단에 companion docs(`review brief / draft exit / post-merge / real-user recheck / reopen decision`)와 current 단계 해석(`WAIT_FOR_REAL_USER_TRAFFIC`, `DEFERRED_NO_REAL_USER_TRAFFIC / DEFERRED_NO_REAL_USER_COHORT`)을 직접 추가하고, reopen 조건도 `REAL_USER` gate가 실제로 열린 뒤 반복 evidence가 생기는 경우로 다시 적었다
+- 이유: 같은 recommendation 문서군 안에서도 memo 성격이 다르면 current stage 해석이 빠지기 쉽다. 하지만 지금처럼 gate가 아직 닫힌 시기에는 bucket decision memo도 “현재 기본값은 유지, reopen은 나중”이라는 문맥을 먼저 말해야 decision 문서가 immediate tuning backlog로 오해되지 않는다
+
+## 359) decision/runbook 문서가 reopen lane만 설명하고 current blocker를 안 말하면, gate가 닫힌 시기에도 바로 튜닝 문서처럼 읽히기 쉽다
+- 문제: `recommendation-real-user-baseline-runbook.md`, `recommendation-reopen-decision-runbook.md`, `recommendation-next-lane-brief.md` 는 reopen 이후 무엇을 볼지와 어떤 lane이 먼저인지 잘 설명하지만, current local 기본값이 여전히 `WAIT_FOR_REAL_USER_TRAFFIC` 이라는 점과 lifecycle companion docs 연결은 약했다. 이 상태면 gate가 아직 닫힌 시기에도 decision 문서가 “지금 당장 recommendation을 다시 열 문서”처럼 읽히기 쉽다
+- 해결: 세 문서 모두에 companion docs(`review brief / draft exit / post-merge / real-user recheck`)와 current local 기본 해석(`WAIT_FOR_REAL_USER_TRAFFIC`, deferred gate)을 추가했다
+- 이유: reopen 문서는 다음 행동을 정리하되, 현재 단계가 아직 reopen 전이라는 맥락도 같이 말해야 한다. 특히 `REAL_USER` gate가 닫힌 시기에는 decision 문서가 “나중에 다시 볼 문서”라는 점을 먼저 드러내는 편이 해석 drift를 줄인다
+
+## 358) current-state/checklist만 lifecycle을 말하고 실제 operator runbook이 그대로면, 실행 단계에서 다시 “지금 gate를 보는 건지 reopen을 여는 건지”가 헷갈린다
+- 문제: `recommendation-current-state.md` 와 `recommendation-operation-checklist.md` 까지 lifecycle/current truth를 맞춘 뒤에도, 실제로 daily 실행에 쓰는 `recommendation-ai-exclusion-latest-overview-runbook.md` 와 `recommendation-real-user-exclusion-readiness-check-runbook.md` 안에는 현재 단계 해석과 companion lifecycle 문서 연결이 약했다. 이 상태면 runbook만 열었을 때 다시 “지금은 baseline 유지 단계인가, REAL_USER reopen 단계인가”를 따로 추론해야 한다
+- 해결: overview runbook에 current reading(`WAIT_FOR_REAL_USER_TRAFFIC`, `VOLATILE_ONLY_DRIFT`, basic/strict gate)과 companion docs를 추가하고, readiness runbook에도 현재 local gate 상태와 `real_user_distribution_executed=false` 일 때의 기본 해석, 다음 문서를 직접 연결했다
+- 이유: operator runbook은 실행 명령만이 아니라 현재 단계 해석까지 같이 줘야 한다. 특히 `REAL_USER` gate가 닫힌 시기에는 runbook이 “지금은 관찰 단계”라는 맥락을 먼저 말해 주는 편이 혼선을 줄인다
+
+## 357) 폴더 README와 인덱스만 lifecycle을 말하고 current-state / operation-checklist 안쪽이 그대로면, recommendation 폴더 내부로 내려간 순간 다시 순서를 잃는다
+- 문제: `recommendation-docs-index.md`, `docs/recommendation/README.md`, PR body/comment까지 lifecycle 순서를 맞춘 뒤에도, 실제로 가장 자주 여는 `recommendation-current-state.md` 와 `recommendation-operation-checklist.md` 안에는 `review brief / draft exit / post-merge / real-user recheck` 연결이 약했다. 이 상태면 recommendation 폴더 안에서 바로 current-state나 checklist를 연 사람은 lifecycle 문서를 다시 인덱스로 되돌아가서 찾아야 한다
+- 해결: `recommendation-current-state.md` 상단 관련 문서와 현재 해석 섹션에 lifecycle 문서를 직접 연결하고, `recommendation-operation-checklist.md` 의 AI exclusion baseline 섹션에도 같은 순서를 추가했다
+- 이유: entrypoint는 바깥에서 안으로 내려올수록 같은 truth를 더 짧게 반복해야 한다. recommendation 내부 active 문서까지 lifecycle map을 직접 적어 두는 편이 실제 사용 흐름에서 탐색 비용이 더 낮다
+
+## 356) 인덱스와 PR 전달면만 맞추고 폴더 README를 그대로 두면, 폴더 진입점만 보는 사람은 다시 예전 요약을 보게 된다
+- 문제: `recommendation-docs-index.md`, PR body, PR comment까지 lifecycle/current truth를 맞춘 뒤에도 `docs/recommendation/README.md` 는 여전히 “문서 폴더입니다, 인덱스를 보세요” 수준에 머물러 있었다. 이 상태면 recommendation 폴더에 바로 들어온 사람은 `latest-overview`, `WAIT_FOR_REAL_USER_TRAFFIC`, lifecycle order 같은 current 해석을 다시 못 본다
+- 해결: `docs/recommendation/README.md` 에 current active 기준 요약(`latest-overview`, `VOLATILE_ONLY_DRIFT`, basic/strict gate, `WAIT_FOR_REAL_USER_TRAFFIC`)과 `review brief -> draft exit -> post-merge -> REAL_USER recheck` 순서를 직접 적고, 루트 `docs/README.md` 도 recommendation entrypoint를 같은 흐름으로 안내하게 보강했다
+- 이유: entrypoint는 계층마다 같은 truth를 말해야 한다. 인덱스와 PR 전달면만 최신이어도 폴더 README가 비어 있으면, 폴더 단위 진입에서는 같은 current state를 다시 찾게 된다
+
+## 355) PR body만 lifecycle 기준으로 맞추고 top-level comment를 그대로 두면, reviewer quick entrypoint는 다시 예전 2단계 구조를 보여 주게 된다
+- 문제: PR body를 `review brief -> draft exit -> post-merge follow-up -> REAL_USER recheck` 구조로 갱신한 뒤에도 첫 top-level comment는 여전히 `review brief + REAL_USER recheck` 두 개만 보여 주고 있었다. 이 상태면 GitHub 화면에서 가장 먼저 보이는 quick entrypoint는 다시 예전 구조를 따라가게 된다
+- 해결: 첫 PR comment를 업데이트해 `review brief`, `draft exit`, `post-merge follow-up`, `REAL_USER recheck` 네 문서를 모두 같은 순서로 연결하고, current reading도 `WAIT_FOR_REAL_USER_TRAFFIC`, `VOLATILE_ONLY_DRIFT`, basic gate `PASS`, strict gate `LATEST_OBSERVATION_CHANGED` 기준으로 다시 맞췄다
+- 이유: 전달면 동기화는 PR body만으로 끝나지 않는다. reviewer가 실제로 가장 먼저 보는 top comment까지 같은 lifecycle을 설명해야 저장소 문서, PR body, PR comment가 같은 순서로 읽힌다
+
+## 354) 로컬 문서 lifecycle을 정리한 뒤에도 PR body가 예전 구조에 머물면, reviewer는 GitHub 화면과 저장소 문서를 서로 다른 순서로 읽게 된다
+- 문제: `review brief`, `draft exit`, `post-merge follow-up`, `real-user recheck` 문서까지 정리한 뒤에도 PR body가 초기 closeout 설명과 검증 목록 중심에 머물면, 저장소 안에서는 lifecycle이 정리돼 있어도 GitHub PR 화면만 보는 reviewer는 여전히 “무엇부터 읽고, 왜 아직 draft인지”를 comments에 의존해 해석하게 된다
+- 해결: PR body를 현재 문서 구조에 맞게 다시 정리해 `review brief -> draft exit -> post-merge follow-up -> REAL_USER recheck` 순서, `WAIT_FOR_REAL_USER_TRAFFIC` blocker, intentional credential-like inventory 분류를 직접 반영했다
+- 이유: 지금 단계에선 코드보다 전달면 정합성이 중요하다. 로컬 active 문서와 GitHub PR body가 같은 lifecycle 순서를 말해야 reviewer가 저장소 안팎에서 같은 해석을 유지할 수 있다
+
+## 353) review brief, draft exit, post-merge follow-up, real-user recheck가 각각 따로만 보이면 lifecycle 순서를 다시 사람이 조합해야 한다
+- 문제: recommendation closeout PR 관련 문서는 `review brief`, `draft exit`, `post-merge follow-up`, `real-user recheck` 까지 각각 생겼지만, 이 문서들이 어떤 순서 관계인지가 인덱스에 직접 적혀 있지 않으면 여전히 사람이 “지금은 review 단계인가, merge 뒤 follow-up 단계인가, REAL_USER reopen 단계인가”를 다시 조합해야 한다
+- 해결: `recommendation-docs-index.md` 에 `PR lifecycle order` 섹션을 추가해 `review brief -> draft exit -> post-merge follow-up -> real-user recheck` 순서를 직접 적고, `start.md`, `current-state.md` 에도 이 인덱스 entrypoint를 다시 연결했다
+- 이유: 지금 recommendation 문서군의 목적은 문서를 많이 두는 것이 아니라 현재 단계별 해석을 빠르게 찾게 하는 것이다. lifecycle map을 인덱스에 직접 적어 두는 편이 문서 수가 늘어난 뒤의 탐색 비용을 줄인다
+
+## 352) draft exit 문서만 있고 merge 뒤 follow-up 기준이 없으면, closeout merge 후에도 `REAL_USER` reopen과 current-state 유지가 다시 한 문맥으로 섞인다
+- 문제: `recommendation-pr-draft-exit-checklist.md` 로 draft 유지와 reviewer-ready/merge-ready 경계는 정리됐지만, merge된 뒤 무엇을 다시 남기고 어떤 해석을 계속 유지할지는 별도 문서가 없었다. 이 상태면 merge 직후에도 `latest-overview` 재실행, handoff artifact 갱신, `REAL_USER` gate가 열렸을 때 reopen 순서를 다시 한 번 섞어 읽게 된다
+- 해결: `recommendation-post-merge-followup-checklist.md` 를 추가해 merge 직후 `latest-overview` / `latest-status-export` 재실행, 유지할 current 해석, `REAL_USER` gate가 열렸을 때 다시 볼 문서를 분리했다. 동시에 `start`, `current-state`, `phase-plan`, `recommendation-docs-index`, `recommendation-pr-draft-exit-checklist` 에 entrypoint를 연결했다
+- 이유: closeout PR은 draft exit과 merge 후 follow-up이 다르다. 하나는 “언제 review/merge 판단으로 올릴지”, 다른 하나는 “merge 뒤 무엇을 계속 관찰할지”이므로, 두 단계를 분리해 둬야 reopen 경계가 다시 흐려지지 않는다
+
+## 351) draft PR이 왜 아직 draft인지와 언제 draft를 풀 수 있는지 한 장으로 안 적어두면, blocker가 코드인지 evidence 부재인지 다시 섞인다
+- 문제: current-state와 reviewer brief만으로도 현재 blocker가 `REAL_USER` traffic/cohort 부재라는 점은 읽을 수 있었지만, author 관점에서 “그래서 지금 draft를 유지하는 이유가 코드 미완성인지, evidence 부재인지”와 “언제 reviewer-ready 또는 merge-ready로 올릴지”는 한 문서에 모여 있지 않았다. 이 상태면 같은 closeout PR을 두고도 draft 유지 이유가 다시 코드 결함처럼 읽히기 쉽다
+- 해결: `recommendation-pr-draft-exit-checklist.md` 를 추가해 현재 draft 유지 이유를 `operator_next_step=WAIT_FOR_REAL_USER_TRAFFIC`, readiness deferred, `VOLATILE_ONLY_DRIFT` 관찰 상태 기준으로 고정하고, `draft 유지 / reviewer-ready / merge-ready` 경계를 분리해서 정리했다. 동시에 `start`, `current-state`, `phase-plan`, `recommendation-docs-index`, `recommendation-pr-review-brief` 에 entrypoint를 연결했다
+- 이유: 지금 단계의 남은 과제는 새 코드보다 “언제 closeout review만 받고, 언제 REAL_USER evidence까지 확인한 뒤 merge 판단으로 넘어갈지”를 분리하는 것이다. author-side draft exit 기준을 따로 적어 두는 편이 PR 해석을 더 안정적으로 만든다
+
+## 350) reviewer quick entrypoint에 남은 intentional credential-like inventory를 명시하지 않으면, 이미 분류한 hygiene 이슈도 PR 코멘트에서 반복된다
+- 문제: active/current/support/handoff/history 문서와 `.env.example` 정리를 끝내고 남은 매치를 intentional scope로 분류해도, reviewer는 보통 PR 전체 grep 결과를 먼저 보기 때문에 `deploy/smoke` 기본값이나 test fixture까지 다시 “문서 hygiene 누락”으로 읽을 수 있다. 분류 결과가 active current-state/phase-plan에만 있으면 reviewer quick entrypoint에서는 이 맥락이 바로 보이지 않는다
+- 해결: `recommendation-pr-review-brief.md` 의 active docs / handoff hygiene 섹션에 남은 `admin@example.com`, `password123!`, `Password123!`, `welfare1234!` 류 문자열이 `phase-plan` / `troubleshooting-log` 이력, `deploy/smoke` local 기본값, `backend/src/test/**`, `application-integration.yml` fixture에 집중돼 있다는 reviewer hint를 추가했다
+- 이유: 지금 단계의 reviewer 질문은 “남은 문자열이 있냐”보다 “그 문자열이 active 문서 누락이냐 intentional fixture냐”를 빠르게 가르는 것이다. reviewer 진입점 문서에 이 분류를 직접 적어 두는 편이 같은 hygiene 질문의 반복 비용을 줄인다
+
+## 349) repo-wide grep에서 credential-like 문자열이 계속 잡혀도, active 문서 정리와 smoke/test fixture 정리는 같은 문제로 취급하면 안 된다
+- 문제: active/current/support/handoff/history 문서와 `.env.example` 까지 placeholder 정리를 끝낸 뒤에도 repo-wide grep에는 `admin@example.com`, `password123!`, `Password123!`, `welfare1234!` 같은 문자열이 계속 남아 있었다. 이 상태만 보면 문서 hygiene가 덜 끝난 것처럼 보이지만, 실제 남은 매치는 `docs/phase-plan.md`, `docs/core/troubleshooting-log.md` 같은 이력 기록과 `deploy/smoke` 기본값, `backend/src/test/**`, `application-integration.yml` fixture에 집중돼 있었다
+- 해결: 남은 매치를 `1) active/public-facing entrypoint 문서`, `2) history/troubleshooting 이력`, `3) local smoke 기본값`, `4) backend test/integration fixture` 로 분리해 다시 inventory를 남겼다. active/public-facing entrypoint는 placeholder 기준으로 유지하고, 남은 문자열은 동작 재현과 회귀 검증에 필요한 intentional scope로 문서화했다
+- 이유: repo hygiene와 실행 계약은 분리해서 다뤄야 한다. active 문서에 남은 예시 자격은 operator/reviewer 오해를 만들지만, smoke 기본값과 test fixture는 현재 local/runtime 계약을 고정하는 역할이 있어 무조건 치환하면 오히려 실행 경계와 회귀 재현성이 흐려진다
+
+## 348) active support 문서와 `.env.example` 까지 같이 보지 않으면, repo-wide 예시 자격 inventory는 계속 남아 있게 된다
+- 문제: active/current/history/support 문서를 순서대로 정리한 뒤에도 `policy-admin-runtime-runbook.md`, `frontend-qa-current-state.md`, `frontend-qa-session-2026-05-17.md`, `.env.example` 에는 여전히 `admin@example.com`, `password123!` 같은 예시가 남아 있었다. 특히 `.env.example` 은 문서가 아니라 설정 예시라서, grep 기준으로는 쉽게 놓치기 쉽다
+- 해결: active support 문서의 admin 예시는 `<local admin email>`, `<local admin password>` placeholder로 맞추고, `.env.example` 의 `SECURITY_ADMIN_EMAILS` 는 단일 예시 계정보다 `admin1@example.com,admin2@example.com` 처럼 “allowlist 형식 예시”가 보이게 바꿨다
+- 이유: repo hygiene는 문서만 정리해서 끝나지 않는다. 실제 operator가 복사하는 support 문서와 설정 예시 파일까지 같이 봐야 “무엇을 넣어야 하는지”는 남기고 “지금 값을 그대로 쓰면 되는 것처럼 보이는 예시”는 줄일 수 있다
+
+## 347) active 문서만 정리해도 history 문서에 예시 자격이 남아 있으면 public repo hygiene 관점의 노이즈는 완전히 사라지지 않는다
+- 문제: active/current/support 문서는 placeholder 기준으로 정리했지만, `docs/history/ai/policy-normalization-education-priority-replay-procedure.md` 같은 history 문서에는 여전히 `Password123!` 류 예시 자격이 남아 있었다. history 문서는 현재 계약을 덮어쓰지 않더라도, public repo scan이나 reviewer 시야에서는 같은 문자열이 계속 잡혀 noise가 남는다
+- 해결: history 문서의 sample credential 예시도 `<sample A password>`, `<sample B password>` 같은 placeholder로 바꿨다. 현재 계약과 실행 순서는 여전히 active 문서가 기준이고, history 문서는 배경 기록만 남긴다
+- 이유: active 문서와 history 문서를 동일 선상에서 보지는 않지만, 공개 저장소 hygiene 기준으로는 둘 다 검색 인덱스에 걸린다. 그래서 active 우선 정리 후 history도 최소 placeholder 정리는 해 두는 편이 후속 리뷰 비용이 낮다
+
+## 346) start/current-state만 placeholder로 바꿔도, active support 문서에 예시 자격이 남아 있으면 public-facing hygiene는 아직 덜 끝난 상태다
+- 문제: `start.md`, recommendation current-state/runbook을 placeholder로 바꾼 뒤에도 `runtime-api-smoke-commands.md`, `server-runtime-drift-checklist.md` 같은 active support 문서에는 여전히 `admin@example.com`, `password123!` 류 예시가 남아 있었다. 이 상태면 진입 문서만 깨끗하고, 실제 operator가 따라가는 support 문서에서는 같은 noise가 다시 보이게 된다
+- 해결: active support 문서의 실행 예시도 `<local admin email>`, `<local admin password>`, `<local smoke email>`, `<local smoke password>` placeholder로 맞췄다. 실제 값은 계속 shell env, `.env`, `/tmp/youth-welfare-admin-smoke-password` discovery 경계에서 주입하게 두고, 문서에는 “무엇을 넣어야 하는지”만 남긴다
+- 이유: current 단계의 목적은 문서만 보고도 현재 계약과 실행 순서를 다시 읽게 하는 것이다. active support 문서까지 같은 placeholder 기준을 써야 PR review와 운영 handoff가 같은 해석을 유지한다
+
+## 345) recommendation AI exclusion wrapper에서 같은 shell helper가 여러 번 복제되면, 기능보다 사소한 drift와 수정 누락이 더 쉽게 생긴다
+- 문제: `latest-status`, `latest-gate`, `latest-status-export`, `latest-overview`, snapshot/refresh/drift 계열 wrapper에 `normalize_flag`, tri-state 정규화, UTC/KST timestamp 생성, latest symlink 갱신 같은 shell helper가 반복 복사돼 있었다. 이 상태면 관찰 계약은 같아도 사소한 helper 수정이 여러 파일에 흩어져 들어가고, 일부 wrapper만 갱신되는 drift가 다시 생기기 쉽다
+- 해결: `smoke-common.sh` 에 `smoke_normalize_bool`, `smoke_normalize_tri_state`, `smoke_now_ts_utc`, `smoke_now_iso_utc`, `smoke_now_iso_kst`, `smoke_update_links` 를 추가하고 recommendation AI exclusion 계열 wrapper들이 이 helper를 공통으로 쓰게 맞췄다. 이후 `bash -n` 전수 확인과 `run-local-recommendation-ai-exclusion-latest-overview.sh` 재실행으로 observable output이 그대로 유지되는 것을 확인했다
+- 이유: 지금 단계의 핵심은 새로운 판단을 더 만드는 것이 아니라 current baseline을 안정적으로 다시 읽게 하는 것이다. 반복 helper는 공통화하되, Python summary payload 자체까지 한 번에 크게 합치기보다는 shell-level helper부터 묶는 편이 변경 위험이 낮고 효과 대비 안전하다
+
+## 344) reviewer용 읽기 순서와 `REAL_USER` 재오픈 순서가 active 문서에 흩어져 있으면, closeout PR도 review/handoff 때 다시 탐색 비용이 커진다
+- 문제: 현재 active 문서에는 latest overview, readiness, drift, reopen 관련 정보가 충분히 있었지만, reviewer 관점의 “이번 PR을 어디부터 읽을지”와 `REAL_USER` traffic이 생긴 뒤의 “재오픈 순서”는 서로 다른 문서에 흩어져 있었다. 이 상태면 closeout PR도 review 때 다시 문서 탐색 비용이 커지고, traffic이 생긴 뒤에는 같은 wrapper를 어떤 순서로 다시 태울지 매번 새로 조합하게 된다
+- 해결: [recommendation-pr-review-brief.md](../recommendation/recommendation-pr-review-brief.md) 를 추가해 `Gov24 closeout / recommendation observability / active docs hygiene` 세 덩어리와 우선 읽을 문서를 고정했고, [recommendation-real-user-recheck-checklist.md](../recommendation/recommendation-real-user-recheck-checklist.md) 를 추가해 `latest-overview -> readiness -> baseline-refresh-drift-check -> latest-status-export` one-page 순서를 따로 뽑았다
+- 이유: 지금 단계의 main blocker는 코드가 아니라 `REAL_USER` traffic 부재다. 이런 단계일수록 새 구현보다 “어떤 문서를 먼저 보고, traffic이 생기면 무엇부터 다시 확인할지”를 분리해 두는 편이 handoff와 review 모두에 더 직접적이다
+
+## 343) active 문서와 handoff runbook에는 로컬 예시 자격과 example 계정을 그대로 남기지 않는다
+- 문제: `start.md`, recommendation operation/runbook, current-state 같은 active 문서에 local smoke용 `admin@example.com`, `password123!`, example recommendation user 문자열이 그대로 남아 있으면, 실제 secret 유출은 아니어도 공개 PR/리뷰 기준으로 불필요한 오해와 noise를 만든다
+- 해결: active 문서와 handoff runbook의 실행 예시는 `ADMIN_EMAIL='<local admin email>'`, `ADMIN_PASSWORD='<local admin password>'`, `<example local recommendation user>` 같은 placeholder로 치환하고, 실제 값 주입은 shell env나 `/tmp/youth-welfare-admin-smoke-password` 파일 discovery 경계에 맡긴다
+- 이유: 이 프로젝트의 active 문서는 현재 작업 진입점이다. 실행 방법은 남기되 실제 로컬 자격 문자열은 환경 변수와 local artifact 경계에 두는 편이 PR hygiene와 운영 문서 해석 모두에 안전하다
+
+## 342) `tmp/` 아래 smoke/latest artifact가 계속 Git untracked 로 남는 이유는 `.gitignore` 가 `.tmp/` 만 무시하고 실제 경로 `tmp/` 는 놓치고 있었기 때문이다
+- 문제: recommendation latest/export/overview 계열 wrapper가 artifact를 `tmp/recommendation-*` 아래에 남기는데, 저장소의 `.gitignore` 는 `.tmp/` 만 무시하고 `tmp/` 는 무시하지 않았다. 그래서 작업을 다 커밋/푸시한 뒤에도 `git status --short` 에 `?? tmp/` 가 계속 남아 Git 정리가 덜 된 것처럼 보였다
+- 해결: `.gitignore` 에 `tmp/` 를 추가해 실제 artifact 루트를 직접 무시하도록 맞췄다. 이제 daily smoke/latest overview artifact는 계속 로컬에 남겨도 Git untracked 잡음으로 올라오지 않는다
+- 이유: 이 프로젝트의 smoke/operator artifact는 dot-prefixed temp 디렉터리가 아니라 repo-root `tmp/` 를 기준으로 저장된다. 무시 규칙도 실제 출력 경로와 정확히 맞아야 워킹트리가 안정적으로 clean 하다
+
+## 341) `latest-status-export` 직후 `latest-status` 를 병렬로 읽으면, symlink 갱신 타이밍 때문에 직전 JSON을 먼저 집어 stale처럼 보일 수 있다
+- 문제: `latest-status-export` 와 `latest-status` 또는 `latest-gate` 를 거의 동시에 태우면, export가 새 artifact를 쓰는 동안 status/gate가 직전 `latest-status.json` 을 먼저 읽을 수 있다. 이 경우 summary는 최신인데 JSON만 한 템포 늦어 `status_json_stale_relative_to_summaries=true` 로 보일 수 있다
+- 해결: 현재는 `status_json_stale_relative_to_summaries`, `status_json_recommended_action` 으로 이 상태를 바로 드러내고, 필요하면 `AUTO_REFRESH_STATUS_JSON_IF_STALE=true` 로 `latest-status` / `latest-gate` 를 실행해 `latest-status-export` 를 먼저 다시 태운 뒤 fresh JSON 기준으로 읽게 맞췄다. 시뮬레이션 검증에서도 stale 상태를 일부러 만든 뒤 auto-refresh로 `generated_at_utc`, `generated_at_kst` 가 새 값으로 갱신되고 stale flag가 `false` 로 돌아오는 것을 확인했다
+- 이유: latest summary와 latest JSON은 서로 다른 artifact이므로, 병렬 실행 타이밍에 따라 한쪽이 먼저 갱신될 수 있다. 이 상태를 “회귀”로 읽는 대신 stale artifact race로 분리해야 하고, operator가 매번 수동 export를 다시 치지 않아도 되도록 auto-refresh 경로를 두는 편이 맞다
+
+## 340) `generated_at` 이나 artifact timestamp가 `2026-05-19T15:03:54Z` 처럼 보이면, KST 기준으로는 이미 `2026-05-20` 실행인데도 전날처럼 오해할 수 있다
+- 문제: `run-local-real-user-exclusion-readiness-check.sh`, admin dashboard/breakdowns smoke, latest status export를 `2026-05-20` KST에 다시 태워도 일부 출력의 `generated_at` 은 `2026-05-19T15:03:54...` 처럼 전날 UTC 시각으로 보인다. 이 값을 로컬 날짜 그대로 읽으면 “오늘 실행이 아니라 어제 artifact를 보고 있는 것 아닌가”라는 혼선이 생긴다
+- 해결: 실행 당일 여부는 `tmp/.../latest` symlink가 가리키는 최신 artifact 경로와 실제 wrapper 재실행 여부로 확인하고, `generated_at` 은 UTC 타임스탬프로 읽는다. 현재 latest export artifact도 `tmp/recommendation-ai-exclusion-latest-status/20260519T150359Z` 로 갱신됐고, 이는 KST로는 `2026-05-20 00:03:59` 실행이다
+- 이유: wrapper/artifact 경로는 이미 `Z` suffix UTC 기준으로 정렬되므로, local date(KST)와 표기 날짜가 하루 어긋나는 것은 정상이다. drift나 stale-runtime 여부를 판단할 때는 날짜 문자열보다 latest symlink 이동과 gate/status 재실행 결과를 우선 봐야 한다
+
+## 339) `latest gate` 의 strict 모드 실패를 stable baseline 회귀로 오해하면, fresh window 관찰값 흔들림까지 불필요하게 blocker로 읽을 수 있다
+- 문제: `run-local-recommendation-ai-exclusion-latest-gate.sh` 는 기본 모드에서는 `interpretation_changed` 또는 `stable_baseline_changed` 가 있을 때만 fail 하지만, `FAIL_ON_LATEST_OBSERVATION_CHANGE=true` strict 모드로 돌리면 `latest_observation_changed=true` 만으로도 `LATEST_OBSERVATION_CHANGED` fail 이 난다. 이 상태를 곧바로 regression으로 해석하면, 현재 local truth인 `VOLATILE_ONLY_DRIFT` 와 stable baseline unchanged를 놓치기 쉽다
+- 해결: 먼저 `run-local-recommendation-ai-exclusion-latest-status.sh` 또는 `run-local-recommendation-ai-exclusion-latest-status-export.sh` 로 `latest_drift_class`, `stable_baseline_changed`, `latest_observation_changed` 를 같이 본다. `latest_drift_class=VOLATILE_ONLY_DRIFT`, `stable_baseline_changed=false`, `latest_observation_changed=true` 조합이면 strict gate fail도 stable baseline regression이 아니라 fresh window 흔들림으로 읽는다. 현재 local 최신 상태도 이 케이스다
+- 이유: strict gate는 “해석이 바뀌었는가”가 아니라 “최신 관찰값까지 완전히 고정할 것인가”를 묻는 더 강한 정책이다. 현재 로컬 기준선은 fresh target family zero-AI window가 `2~3` 범위에서 흔들릴 수 있으므로, strict fail과 stable baseline drift를 분리해서 읽어야 운영 판단이 과도하게 닫히지 않는다
+
+## 338) `REAL_USER` readiness wrapper도 결국 admin dashboard/breakdowns smoke를 부르므로, 로컬 기본 셸에 `ADMIN_PASSWORD` 가 없으면 gate 자체가 아니라 자격 누락에서 먼저 끊긴다
+- 문제: `run-local-real-user-exclusion-readiness-check.sh` 는 처음 CTR/concentration 단계만 보면 read-only cohort audit처럼 보이지만, 뒤에서 `run-local-admin-dashboard-smoke.sh`, `run-local-admin-recommendation-breakdowns-smoke.sh` 도 같이 호출한다. 이 상태에서 로컬 셸에 `ADMIN_PASSWORD` 가 없으면 실제 `REAL_USER` gate 상태와 무관하게 `ADMIN_PASSWORD is empty` 에서 먼저 중단된다
+- 해결: 로컬 baseline 재확인 시에는 `APP_BASE_URL='http://127.0.0.1:8082' ADMIN_EMAIL='admin@example.com' ADMIN_PASSWORD='password123!' bash deploy/smoke/run-local-real-user-exclusion-readiness-check.sh` 처럼 명시적으로 자격을 넣어 끝까지 태운다. 현재 local 결과는 다시 `dashboard_real_user_gate=DEFERRED_NO_REAL_USER_TRAFFIC`, `breakdown_real_user_cohort_gate=DEFERRED_NO_REAL_USER_COHORT`, `real_user_distribution_executed=false` 였다
+- 이유: readiness wrapper의 핵심 질문은 `REAL_USER` gate가 열렸는지이지만, 실제 구현은 admin summary/breakdown smoke까지 묶인 one-shot 경로다. 따라서 local에서 gate 결과를 믿으려면 먼저 admin 자격 경계를 명시적으로 닫아야 한다
+
+## 337) nested wrapper stdout에서 첫 `summary_output=` 나 `artifact_dir=` 를 집어 읽으면, 상위 wrapper가 하위 snapshot/run-01 artifact를 최종 산출물로 오인할 수 있다
+- 문제: `run-local-recommendation-ai-exclusion-baseline-refresh.sh`, `run-local-recommendation-ai-exclusion-baseline-refresh-drift-check.sh` 를 만들 때 처음에는 `tee` 로 모은 stdout 에서 `summary_output=` 나 `artifact_dir=` 를 다시 파싱했다. 그런데 하위 wrapper들도 같은 key를 출력하므로, 상위 wrapper가 `volatility summary` 대신 `run-01 snapshot`, 또는 `baseline-refresh-summary.txt` 대신 `run-01` 내부 artifact를 집어 오는 경계가 생겼다
+- 해결: 최종 산출물은 stdout에서 추론하지 않고 deterministic path로 직접 읽도록 고쳤다. 예를 들어 baseline refresh는 `VOLATILITY_DIR/volatility-summary.txt`, drift-check는 `REFRESH_DIR/baseline-refresh-summary.txt` 를 최종 truth로 사용한다. 추가로 `baseline-refresh-summary.txt`, `baseline-refresh-drift-summary.txt`, `latest-status.json` 같은 compact artifact와 `latest` symlink를 따로 남겨, 후속 wrapper는 nested full stdout 대신 이 요약 파일만 읽게 정리했다
+- 이유: wrapper가 wrapper를 호출하는 구조에서는 “stdout 첫 매치 파싱”이 매우 취약하다. 상위 단계가 믿어야 할 것은 사람이 읽는 로그가 아니라 명시적 artifact path여야 하고, downstream automation도 long stdout이 아니라 compact summary를 기준으로 움직여야 drift가 줄어든다
+
 ## 336) 챗 메시지에 `references` 는 있는데 `referencedServiceIds` 가 비어 있으면, 연결 정책 카드가 통째로 사라질 수 있다
 - 문제: `ChatPage` 는 연결 정책 카드 렌더링 조건을 `message.referencedServiceIds.length > 0` 에만 걸고 있었다. 그래서 레거시/부분 데이터처럼 `references` 배열은 존재하지만 `referencedServiceIds` 가 비어 있는 메시지가 오면, 제목/근거가 충분히 있어도 카드 섹션 자체가 렌더링되지 않을 수 있었다
 - 해결: `mapMessage()` 단계에서 `referencedServiceIds` 가 비어 있으면 `references[].serviceId` 를 fallback으로 채우도록 정리했다. 이제 메시지 응답이 두 필드 중 하나만 채워도 연결 정책 카드를 계속 렌더링할 수 있다. 이후 `cd frontend && npm run lint`, `cd frontend && npm run build` 를 다시 통과시켰다
@@ -5589,6 +6044,32 @@
   - `homepage_url` 은 대표 URL 성격이고, 긴 원문 후보 전체 보존은 이미 `reference_urls_json` 이 담당한다.
   - 이 문제는 스키마를 바로 `TEXT` 로 넓히기보다, 대표 URL 선택 규칙을 bounded 하게 고치는 편이 현재 저장 경계에 더 잘 맞는다.
 
+## 900) 로컬 full collect는 코드 fix만으로 닫히지 않고, 떠 있는 앱 컨테이너가 최신 `aa2fc71` 인지도 같이 확인해야 한다
+- 문제: `aa2fc71` 로 `YOUTH fact_code overflow` 와 `YOUTH detail long URL overflow` 를 고친 뒤, 로컬에서 `collect/all -> youth-details -> gov24` 전체 수집을 다시 태웠다. 이때 `collect/all` 은 green 이었지만 `youth-details` 는 다시 `failed=1` 로 떨어졌고, 앱 로그에는 여전히 `homepage_url varchar(500)` 초과가 찍혔다.
+- 해결:
+  - 원인은 코드가 아니라 **로컬 앱 컨테이너 drift** 였다. workspace HEAD는 이미 `aa2fc71` 인데, 떠 있는 `youth-welfare-app` 은 그 이전 이미지라서 수정 전 바이너리를 계속 실행 중이었다.
+  - `docker compose up -d --build app` 로 app 이미지를 다시 빌드/재기동한 뒤 `POST /api/admin/collect/youth-details` 를 다시 태우자 `requested=1 saved=1 skipped=2577 failed=0` 으로 닫혔다.
+  - 같은 라운드에서 `POST /api/admin/collect/gov24`, `gov24-details`, `gov24-support-conditions`, `bokjiro-details-refresh` 까지 이어서 태워 최종 local full collect baseline `YOUTH=2578`, `GOV24=10948`, `BOKJIRO_DETAIL_REFRESH requested=1358 saved=1357 failed=0` 을 다시 확인했다.
+- 이유:
+  - collect overflow fix 류는 source payload drift와 컨테이너 drift 둘 다 영향을 준다.
+  - 로컬에서 코드 수정 뒤 collect를 바로 검증할 때는 source별 재수집만 볼 게 아니라, 현재 앱 컨테이너가 해당 commit으로 재빌드됐는지 먼저 확인해야 한다.
+
+## 901) `collect/all` 은 전체 source를 모두 태우는 것이 아니라 scheduled batch 4개만 포함하므로, local full collect closeout에는 manual lane을 따로 포함해야 한다
+- 문제: 로컬 full collect를 “한 번에 전부” 다시 돌리려 했을 때, 직감상 `POST /api/admin/collect/all` 만 태우면 끝날 것처럼 보였지만 실제 결과에는 `Gov24`, `YOUTH_DETAILS`, `BOKJIRO_DETAIL_REFRESH` 가 포함되지 않았다.
+- 해결:
+  - `CollectSource.executionOrder()` 는 `runsInScheduledBatch=true` 인 source만 포함한다. 현재 여기에 들어가는 것은 `YOUTH`, `BOKJIRO_CENTRAL`, `BOKJIRO_LOCAL`, `BOKJIRO_DETAIL` 4개뿐이다.
+  - 따라서 local full collect closeout은 아래 순서로 다시 고정했다.
+    1. `POST /api/admin/collect/all`
+    2. `POST /api/admin/collect/youth-details`
+    3. `POST /api/admin/collect/gov24`
+    4. `POST /api/admin/collect/gov24-details`
+    5. `POST /api/admin/collect/gov24-support-conditions`
+    6. `POST /api/admin/collect/bokjiro-details-refresh`
+  - 이후 raw payload 최신 시각과 `run-local-ops-baseline-suite.sh` 까지 다시 읽어, local runtime 기준 `health -> admin dashboard -> collect failures -> recommendation breakdowns` one-shot baseline도 green 으로 닫았다.
+- 이유:
+  - `collect all` 과 `local full collect` 는 같은 말이 아니다.
+  - runtime governance에서 `scheduled/manual lane` 을 이미 나눴다면, bounded local closeout도 그 lane 구분을 그대로 따라 manual source를 명시적으로 포함해야 한다.
+
 ## 891) `생애주기/대상군` prompt 보강은 일부 row를 살리지만, `3257/3209` 핵심 케이스는 여전히 primary audience mismatch로 0점이 유지된다
 - 문제: `3257/3209/3287` 의 `savedAi=0` 이 prompt line에 청년 신호가 약해서인지, 아니면 AI가 수급자/신혼부부/학생 같은 대상군 불일치를 강한 exclusion으로 해석해서인지 확정이 필요했다.
 - 해결:
@@ -5623,3 +6104,126 @@
   - 즉 이 수정은 `3257` 류 over-exclusion을 완화하는 데 실패했고, 일부 row(`3288`)를 다시 0점 cohort로 되돌렸다.
   - 따라서 hybrid prompt 완화는 실험 결과만 문서에 남기고 mainline에서는 원복하는 편이 맞다.
   - 남은 쟁점은 기술 버그가 아니라, 이 primary audience exclusion을 제품 정책으로 유지할지 여부다.
+## #925 reviewer/author/product surface에도 policy candidate와 promotion review status를 같이 올려야 했다
+
+### 상황
+
+admin API와 latest one-shot artifact에는
+
+- `reviewGatePolicyCandidateStatus=RECENT_WINDOW_POLICY_CANDIDATE`
+- `reviewGatePolicyPromotionStatus=REQUIRES_EXPLICIT_POLICY_CHANGE_REVIEW`
+
+가 이미 붙어 있었는데, reviewer brief / draft-exit / post-merge / reopen / next-lane / exclusion memo 쪽은 여전히 interpretation class와 policy gate까지만 말하고 있었다.
+
+### 문제
+
+이 상태면 GitHub PR surface나 author/product 문서만 읽는 사람은
+
+- recent-window가 이미 policy candidate인지
+- 그런데도 왜 아직 primary baseline을 자동 승격하지 않는지
+
+를 다시 latest artifact나 admin API까지 내려가서 합쳐야 했다.
+
+### 조치
+
+reviewer/author/product surface에도 아래 두 층을 current reading으로 같이 올렸다.
+
+- `reviewGatePolicyCandidateStatus=RECENT_WINDOW_POLICY_CANDIDATE`
+- `reviewGatePolicyPromotionStatus=REQUIRES_EXPLICIT_POLICY_CHANGE_REVIEW`
+
+### 결과
+
+이제 reviewer / author / product surface 모두
+
+- current 운영 클래스
+- current action
+- recent-window candidate 여부
+- promotion review pending 여부
+
+를 같은 언어로 읽는다.
+## #926 policy candidate와 promotion review pending은 다른 상태로 문서화해야 했다
+
+### 상황
+
+admin API와 latest artifact에
+
+- `reviewGatePolicyCandidateStatus=RECENT_WINDOW_POLICY_CANDIDATE`
+- `reviewGatePolicyPromotionStatus=REQUIRES_EXPLICIT_POLICY_CHANGE_REVIEW`
+
+가 이미 들어왔지만, “그럼 언제 recent-window를 실제 승격 검토 대상으로 보나”는 기준은 흩어져 있었다.
+
+### 문제
+
+이 상태면 operator/reviewer/author는 current truth를 읽을 수는 있어도,
+
+- candidate가 된 이유
+- 왜 아직 promotion ready가 아닌지
+- 어떤 evidence가 모이면 explicit review를 시작하는지
+
+를 다시 blocker/staleness/recent-window runbook을 합쳐 추론해야 했다.
+
+### 조치
+
+`recommendation-review-gate-policy-promotion-checklist.md` 를 추가해서
+
+- readiness prerequisite
+- staleness evidence
+- recent-window clear evidence
+- current gate action/policy 보존 조건
+- keep baseline vs bounded promotion review 판단
+
+을 한 문서에 고정했다.
+
+### 결과
+
+이제 recent-window는
+
+- candidate인지
+- promotion pending인지
+- 실제 승격 검토를 언제 시작하는지
+
+를 active 문서만으로 바로 읽을 수 있다.
+## #927 promotion review checklist가 있어도 PR lifecycle surface에 연결하지 않으면 reviewer/author가 다시 길을 잃는다
+- 문제: `recommendation-review-gate-policy-promotion-checklist.md` 를 추가해 explicit policy review 기준은 생겼지만, reviewer brief / draft exit / post-merge follow-up 에서 그 문서로 바로 가는 연결이 약하면 reviewer/author는 다시 문서군 전체에서 “그래서 어디서 승격 검토 기준을 보나”를 찾아야 했다.
+- 해결: PR lifecycle surface에 checklist 링크와 읽는 순서를 직접 연결했다.
+- 이유: current truth는 이제 `candidate -> promotion pending -> explicit review checklist` 세 단계로 읽어야 한다. 이 흐름이 PR lifecycle surface에서도 한 번에 이어져야 GitHub 화면과 로컬 문서가 같은 길찾기를 제공한다.
+
+## #928 explicit approval decision과 approval record를 같은 층으로 두면 마지막 승인 경계가 다시 흐려진다
+- 문제: `AWAIT_EXPLICIT_PROMOTION_APPROVAL_DECISION` 까지 surface에 올린 뒤에도, 실제 승인 기록이 남았는지는 별도로 드러나지 않았다. 이 상태에선 approval criteria 충족, approval pending, approval decision pending, approval record pending이 한 덩어리처럼 읽혀 bounded promotion review 실행 경계가 다시 모호해졌다.
+- 해결: `reviewGatePolicyPromotionApprovalRecordStatus`, `reviewGatePolicyPromotionApprovalRecordReason` 을 admin API, latest artifact, active runbook, reviewer/author/PR surface에 추가했다.
+- 이유: `approval decision pending` 과 `approval record not written` 은 다른 상태다. explicit approval이 나중에 기록 기반으로 남는지까지 분리해야 operator/reviewer가 “준비는 됐지만 아직 승인 기록은 없음”을 같은 언어로 읽을 수 있다.
+
+## #929 approval record pending과 actual bounded promotion review run pending도 다른 층으로 봐야 한다
+- 문제: `PENDING_EXPLICIT_PROMOTION_APPROVAL_RECORD` 까지 보이게 한 뒤에도, 실제 bounded promotion review를 이미 실행했는지 여부는 surface에 없었다. 이 상태에선 approval record pending과 actual review run pending이 다시 같은 의미처럼 읽혀 마지막 실행 경계가 흐려졌다.
+- 해결: `reviewGatePolicyPromotionReviewRunStatus`, `reviewGatePolicyPromotionReviewRunReason` 을 admin API, latest artifact, active runbook, reviewer/author/PR surface에 추가했다.
+- 이유: explicit approval record가 아직 없어서 run을 못 하는 상태와, approval record는 남았지만 실제 bounded review run은 아직 안 돈 상태는 다른 단계다. 이 둘을 분리해야 operator/reviewer가 “승인 기록 전 대기”와 “실행 대기”를 같은 언어로 읽을 수 있다.
+
+## #934 bounded review run pending과 bounded review run prerequisite ready를 같은 필드로 읽으면 마지막 실행 준비 경계가 다시 흐려진다
+- 문제: `PENDING_BOUNDED_PROMOTION_REVIEW_RUN` 까지 surface에 올린 뒤에도, actual bounded review run이 아직 안 돌고 있다는 사실과 bounded review run을 열 prerequisite 자체는 이미 충족됐다는 사실이 같은 층처럼 읽혔다. 게다가 admin smoke는 새 필드 추가 뒤 positional output index가 밀려 staleness/recent-window 값 라벨이 잘못 보였다.
+- 해결: `reviewGatePolicyPromotionReviewRunCriteriaStatus`, `reviewGatePolicyPromotionReviewRunCriteriaReason` 을 admin API, latest artifact, active runbook에 추가했고, admin smoke output index도 새 필드 순서에 맞춰 재정렬했다.
+- 이유: `actual run pending` 과 `run prerequisite ready` 는 다른 상태다. 이 둘을 분리해야 operator가 “지금은 아직 실행 전이지만 prerequisite은 이미 다 맞았다”를 바로 읽을 수 있고, smoke 출력도 그 상태를 왜곡 없이 보여 줄 수 있다.
+
+## #935 reviewer/author surface에도 review run criteria 층을 같이 올려야 마지막 실행 해석 drift가 안 생긴다
+- 문제: `reviewGatePolicyPromotionReviewRunCriteriaStatus`, `reviewGatePolicyPromotionReviewRunCriteriaReason` 을 admin API, latest artifact, active runbook에만 올리면 reviewer brief / draft exit / post-merge / promotion checklist / PR surface는 여전히 `review run pending` 까지만 읽게 된다.
+- 해결: reviewer/author/promotion-checklist surface와 PR 본문/quick comment/author note에도 `READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN`, `BOUNDED_REVIEW_RUN_PREREQUISITES_MET_BUT_APPROVAL_RECORD_PENDING` 를 같이 올렸다.
+- 이유: latest/current surface와 GitHub 전달면이 같은 마지막 실행 층을 써야 `approval record pending` 과 `run prerequisite ready` 를 같은 언어로 읽고, explicit approval record가 써지기 전까지 왜 actual bounded review run이 아직 pending인지 즉시 이해할 수 있다.
+
+## #936 run prerequisite ready와 final run decision pending도 다른 층으로 분리해야 마지막 승인-실행 경계가 다시 흐려지지 않는다
+- 문제: `reviewGatePolicyPromotionReviewRunCriteriaStatus=READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN` 까지 surface에 올린 뒤에도, actual bounded review run이 아직 안 돌고 있다는 사실과 마지막 run decision이 아직 explicit approval record 미작성 때문에 pending이라는 사실이 한 덩어리처럼 읽혔다.
+- 해결: `reviewGatePolicyPromotionReviewRunDecisionStatus`, `reviewGatePolicyPromotionReviewRunDecisionReason` 을 admin API, latest artifact, active current/runbook, reviewer/author/PR surface에 추가했다.
+- 이유: `run prerequisite ready` 와 `run decision pending` 은 다른 상태다. 이 둘을 분리해야 operator/reviewer가 “실행 조건은 맞았지만 마지막 시작 decision은 아직 approval record 미작성 때문에 보류”를 같은 언어로 읽을 수 있다.
+
+## #937 run decision pending과 final run approval pending도 다른 층으로 분리해야 마지막 승인 해석 drift가 안 생긴다
+- 문제: `reviewGatePolicyPromotionReviewRunDecisionStatus=AWAIT_BOUNDED_PROMOTION_REVIEW_RUN_DECISION` 까지 surface에 올린 뒤에도, 마지막 run decision pending과 actual bounded review run approval pending이 같은 층처럼 읽혔다.
+- 해결: `reviewGatePolicyPromotionReviewRunApprovalStatus`, `reviewGatePolicyPromotionReviewRunApprovalReason` 을 admin API, latest artifact, active current/runbook, reviewer/author/PR surface에 추가했다.
+- 이유: `run decision pending` 과 `run approval pending` 은 다른 상태다. 이 둘을 분리해야 operator/reviewer가 “마지막 시작 decision도 아직 없고, approval도 아직 못 남겼다”를 같은 언어로 읽을 수 있다.
+
+## #938 final run approval prerequisite ready와 actual run approval pending도 다른 층으로 분리해야 마지막 승인 해석이 다시 뭉개지지 않는다
+- 문제: `reviewGatePolicyPromotionReviewRunApprovalStatus=PENDING_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL` 만 surface에 올려 두면, actual run approval이 아직 pending이라는 사실과 마지막 run approval prerequisite 자체는 이미 충족됐다는 사실이 한 층처럼 읽힌다.
+- 해결: `reviewGatePolicyPromotionReviewRunApprovalCriteriaStatus`, `reviewGatePolicyPromotionReviewRunApprovalCriteriaReason` 을 admin API, latest artifact, active current/runbook, reviewer/author/PR surface에 추가했다.
+- 이유: `run approval prerequisite ready` 와 `actual run approval pending` 은 다른 상태다. 이 둘을 분리해야 operator/reviewer가 “마지막 approval을 읽을 준비는 끝났지만 approval record가 없어 아직 pending”을 같은 언어로 읽을 수 있다.
+## 939) review run approval pending까지만 보이면 마지막 approval record 미작성 여부를 또 추론해야 한다
+
+상태값을 `reviewGatePolicyPromotionReviewRunApprovalStatus=PENDING_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL` 까지만 두면, 실제로는 approval decision이 pending인지, approval record가 아직 안 써졌는지를 operator가 다시 머리로 합쳐야 했다.
+
+`reviewGatePolicyPromotionReviewRunApprovalRecordStatus/Reason` 를 admin summary/breakdowns, latest artifact, active 문서, PR surface에 같이 올려서 마지막 layer도 `approval pending` 과 `approval record pending` 을 분리해서 읽게 맞췄다.

@@ -112,6 +112,27 @@ class RealtimeAiGatewayTest {
     }
 
     @Test
+    void blankReasonHelpersCountAndListOnlyBlankResults() throws Exception {
+        ObjectMapper objectMapper = new ObjectMapper();
+        String responseBody = """
+                {
+                  "choices": [
+                    {
+                      "message": {
+                        "content": "{\\"results\\":[{\\"service_id\\":403,\\"score\\":91,\\"reason\\":\\"\\"},{\\"service_id\\":356,\\"score\\":87,\\"reason\\":\\"matched\\"},{\\"service_id\\":371,\\"score\\":40}]}"
+                      }
+                    }
+                  ]
+                }
+                """;
+
+        RealtimeAiGateway.AiCallResult result = RealtimeAiGateway.parseAiCallResult(objectMapper, responseBody);
+
+        assertThat(RealtimeAiGateway.blankReasonCount(result.aiResponse().getResults())).isEqualTo(2);
+        assertThat(RealtimeAiGateway.blankReasonServiceIds(result.aiResponse().getResults())).isEqualTo("403,371");
+    }
+
+    @Test
     void resolveUnifiedCategoryUsesProjectionCompatBeforeEntityField() {
         ScoredCandidate candidate = ScoredCandidate.builder()
                 .service(WelfareService.builder()
@@ -146,7 +167,7 @@ class RealtimeAiGatewayTest {
                         .provisionMethodLabel("온라인")
                         .lifeStages(Set.of("청년", "중장년"))
                         .targetGroupsRaw(Set.of("저소득", "청년"))
-                        .gov24ServiceFieldLabel("보육")
+                        .gov24ServiceFieldLabel("주거·자립")
                         .gov24UserTypeLabel("청년")
                         .gov24BenefitTypeLabel("서비스")
                         .build())
@@ -163,7 +184,7 @@ class RealtimeAiGatewayTest {
                 .contains("제공방식:온라인")
                 .contains("생애주기:중장년, 청년")
                 .contains("대상군:저소득, 청년")
-                .contains("서비스분야:보육")
+                .contains("서비스분야:주거·자립")
                 .contains("이용대상:청년")
                 .contains("지원유형:서비스")
                 .contains("내용:설명");
