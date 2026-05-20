@@ -1,5 +1,10 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 921) staleness snapshot만 API에 올리고 “그래서 recent-window를 policy gate 후보로 볼 수 있는가”를 derived field로 안 접어 주면, operator는 raw evidence를 다시 머리로 합쳐 후보 여부를 수동 판단해야 한다
+- 문제: admin summary/breakdowns 에 `reviewGateStaleness` 를 올린 뒤에는 `ALL_TIME_LATEST_PER_USER`, `exampleTargetTop1Users=272`, `exampleTargetTop1Last24h=0` 같은 raw 근거를 직접 볼 수 있었지만, 실제 next decision은 여전히 사람이 `recommendationReviewGate + recentWindowRecommendationReviewReading + historicalExampleDominanceDetected + reviewGateStaleness` 를 다시 조합해 “recent-window를 policy gate 후보로 봐도 되는지”를 수동 판단해야 했다.
+- 해결: admin summary/breakdowns 에 `reviewGatePolicyCandidateStatus`, `reviewGatePolicyCandidateReason` 을 추가하고, smoke도 현재 local 값 `RECENT_WINDOW_POLICY_CANDIDATE`, `PRIMARY_GATE_BLOCKED_BY_STALE_ALL_TIME_EXAMPLE_REFERENCE_BUT_RECENT_WINDOW_CLEAR` 를 직접 검증하도록 확장했다.
+- 이유: 다음 단계가 primary full latest batch gate를 계속 유지할지 recent-window를 더 강하게 승격할지 비교하는 것이라면, raw evidence snapshot만으론 부족하다. 운영 surface에서 이미 “candidate 여부”까지 한 번 더 접어 줘야 reviewer/operator/author가 같은 정책 후보 상태를 빠르게 읽는다.
+
 ## 920) recent-window gate를 admin API에 올린 뒤에도 full latest batch gate의 reference window와 stale target counts가 안 보이면, operator는 여전히 wrapper와 API를 머리로 합쳐야 한다
 - 문제: admin summary/breakdowns 는 이미 `recentWindowLatestBatch`, `recentWindowRecommendationReviewReading`, `historicalExampleDominanceDetected` 를 내리고 있었지만, full latest batch gate가 실제로 `ALL_TIME_LATEST_PER_USER` 기준인지와 `2622` historical example top1이 최근 24시간에는 `0` 인지 같은 staleness 근거는 wrapper(`run-local-recommendation-review-gate-staleness-audit.sh`)에서만 확인할 수 있었다.
 - 해결: admin summary/breakdowns 에 `reviewGateStaleness` snapshot을 추가하고, smoke contract도 `primaryReferenceMode=ALL_TIME_LATEST_PER_USER`, `exampleTargetTop1Users`, `exampleTargetTop1Last24h`, `realUserLatestUsers`, `realUserTargetTop1Users` 를 직접 검증하도록 확장했다.

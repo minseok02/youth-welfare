@@ -74,6 +74,8 @@ public record AdminDashboardResponse(
             RecommendationReviewGateStalenessSnapshot reviewGateStaleness,
             String recentWindowRecommendationReviewReading,
             boolean historicalExampleDominanceDetected,
+            String reviewGatePolicyCandidateStatus,
+            String reviewGatePolicyCandidateReason,
             List<RecommendationWeightSnapshot> weightBucketsInWindow
     ) {
     }

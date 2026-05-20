@@ -1,5 +1,6 @@
 # 구현 현황
 
+- 2026-05-20: admin summary/breakdowns 에 recent-window 승격 후보도 올렸다. 이제 `reviewGatePolicyCandidateStatus=RECENT_WINDOW_POLICY_CANDIDATE`, `reviewGatePolicyCandidateReason=PRIMARY_GATE_BLOCKED_BY_STALE_ALL_TIME_EXAMPLE_REFERENCE_BUT_RECENT_WINDOW_CLEAR` 를 API 응답과 admin smoke에서 직접 읽을 수 있다.
 - 2026-05-20: admin summary/breakdowns 에 `reviewGateStaleness` snapshot도 올렸다. 이제 full latest batch review gate가 `ALL_TIME_LATEST_PER_USER` 기준임과 `exampleTargetTop1Users=272`, `exampleTargetTop1Last24h=0`, `realUserLatestUsers=80`, `realUserTargetTop1Users=0` 같은 historical example inertia 근거를 wrapper뿐 아니라 API 응답/연동 smoke에서 직접 읽을 수 있다.
 - 2026-05-20: `recommendation-pr-review-brief`, `recommendation-pr-draft-exit-checklist`, `recommendation-post-merge-followup-checklist` 에 `PR review readiness status=REVIEWER_READY`, `PR draft maintenance status=DRAFT_MAINTAINED_BY_POLICY_GATE` 를 직접 올렸다. 이제 reviewer/author는 `PASS but PRIMARY_BLOCKED_SUPPLEMENTAL_CLEAR` 조합을 “리뷰는 가능하지만 draft는 유지”라는 상태값으로 더 기계적으로 읽는다.
 - 2026-05-20: PR author-side note도 `PASS but PRIMARY_BLOCKED_SUPPLEMENTAL_CLEAR` 조합을 직접 읽도록 갱신했다. 이제 reviewer뿐 아니라 author도 GitHub PR 코멘트만 보고 drift gate와 운영 정책 gate를 분리해 읽는다.

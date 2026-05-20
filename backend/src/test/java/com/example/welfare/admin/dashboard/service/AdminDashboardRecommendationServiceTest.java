@@ -296,6 +296,10 @@ class AdminDashboardRecommendationServiceTest {
         assertThat(response.recentWindowRecommendationReviewReading())
                 .isEqualTo("RECENT_WINDOW_CLEARS_HISTORICAL_2622_DOMINANCE");
         assertThat(response.historicalExampleDominanceDetected()).isFalse();
+        assertThat(response.reviewGatePolicyCandidateStatus())
+                .isEqualTo("NOT_A_CANDIDATE_PRIMARY_GATE_NOT_NON_REAL_BLOCKED");
+        assertThat(response.reviewGatePolicyCandidateReason())
+                .isEqualTo("PRIMARY_REVIEW_GATE_IS_NOT_DEFERRED_NON_REAL_LEADER_SIGNAL");
         assertThat(response.topRepeatedServices()).singleElement().satisfies(service -> {
             assertThat(service.serviceId()).isEqualTo(2622L);
             assertThat(service.rowCount()).isEqualTo(449);

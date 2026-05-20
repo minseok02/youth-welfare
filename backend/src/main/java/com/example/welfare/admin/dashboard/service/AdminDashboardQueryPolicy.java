@@ -202,4 +202,63 @@ final class AdminDashboardQueryPolicy {
         return "DEFERRED_NON_REAL_LEADER_SIGNAL".equals(recommendationReviewGate)
                 && "RECENT_WINDOW_CLEARS_HISTORICAL_2622_DOMINANCE".equals(recentWindowRecommendationReviewReading);
     }
+
+    static String resolveReviewGatePolicyCandidateStatus(
+            String recommendationReviewGate,
+            String recentWindowRecommendationReviewReading,
+            boolean historicalExampleDominanceDetected,
+            AdminDashboardReadRows.RecommendationReviewGateStalenessRow stalenessRow
+    ) {
+        if (!"DEFERRED_NON_REAL_LEADER_SIGNAL".equals(recommendationReviewGate)) {
+            return "NOT_A_CANDIDATE_PRIMARY_GATE_NOT_NON_REAL_BLOCKED";
+        }
+        if (!historicalExampleDominanceDetected) {
+            return "NOT_A_CANDIDATE_NO_HISTORICAL_EXAMPLE_DOMINANCE";
+        }
+        if (!"ALL_TIME_LATEST_PER_USER".equals(stalenessRow.primaryReferenceMode())) {
+            return "NOT_A_CANDIDATE_PRIMARY_REFERENCE_NOT_ALL_TIME_LATEST";
+        }
+        if (stalenessRow.exampleTargetTop1Last24h() > 0) {
+            return "NOT_A_CANDIDATE_TARGET_STILL_PRESENT_IN_RECENT_EXAMPLE_WINDOW";
+        }
+        if (stalenessRow.realUserLatestUsersLast24h() <= 0) {
+            return "NOT_A_CANDIDATE_NO_REAL_USER_RECENT_LATEST_USERS";
+        }
+        if (!"RECENT_WINDOW_CLEARS_HISTORICAL_2622_DOMINANCE".equals(recentWindowRecommendationReviewReading)) {
+            return "NOT_A_CANDIDATE_RECENT_WINDOW_NOT_CLEAR";
+        }
+        return "RECENT_WINDOW_POLICY_CANDIDATE";
+    }
+
+    static String resolveReviewGatePolicyCandidateReason(
+            String recommendationReviewGate,
+            String recentWindowRecommendationReviewReading,
+            boolean historicalExampleDominanceDetected,
+            AdminDashboardReadRows.RecommendationReviewGateStalenessRow stalenessRow
+    ) {
+        String status = resolveReviewGatePolicyCandidateStatus(
+                recommendationReviewGate,
+                recentWindowRecommendationReviewReading,
+                historicalExampleDominanceDetected,
+                stalenessRow
+        );
+
+        return switch (status) {
+            case "RECENT_WINDOW_POLICY_CANDIDATE" ->
+                    "PRIMARY_GATE_BLOCKED_BY_STALE_ALL_TIME_EXAMPLE_REFERENCE_BUT_RECENT_WINDOW_CLEAR";
+            case "NOT_A_CANDIDATE_PRIMARY_GATE_NOT_NON_REAL_BLOCKED" ->
+                    "PRIMARY_REVIEW_GATE_IS_NOT_DEFERRED_NON_REAL_LEADER_SIGNAL";
+            case "NOT_A_CANDIDATE_NO_HISTORICAL_EXAMPLE_DOMINANCE" ->
+                    "HISTORICAL_EXAMPLE_DOMINANCE_NOT_DETECTED";
+            case "NOT_A_CANDIDATE_PRIMARY_REFERENCE_NOT_ALL_TIME_LATEST" ->
+                    "PRIMARY_REFERENCE_MODE_IS_NOT_ALL_TIME_LATEST_PER_USER";
+            case "NOT_A_CANDIDATE_TARGET_STILL_PRESENT_IN_RECENT_EXAMPLE_WINDOW" ->
+                    "TARGET_SERVICE_STILL_APPEARS_IN_RECENT_EXAMPLE_TOP1_WINDOW";
+            case "NOT_A_CANDIDATE_NO_REAL_USER_RECENT_LATEST_USERS" ->
+                    "REAL_USER_RECENT_LATEST_USERS_ARE_EMPTY";
+            case "NOT_A_CANDIDATE_RECENT_WINDOW_NOT_CLEAR" ->
+                    "RECENT_WINDOW_REVIEW_READING_HAS_NOT_CLEARED_HISTORICAL_2622_DOMINANCE";
+            default -> status;
+        };
+    }
 }

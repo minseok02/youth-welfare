@@ -287,6 +287,10 @@ class AdminDashboardSummaryServiceTest {
         assertThat(response.recommendation().recentWindowRecommendationReviewReading())
                 .isEqualTo("RECENT_WINDOW_CLEARS_HISTORICAL_2622_DOMINANCE");
         assertThat(response.recommendation().historicalExampleDominanceDetected()).isFalse();
+        assertThat(response.recommendation().reviewGatePolicyCandidateStatus())
+                .isEqualTo("NOT_A_CANDIDATE_PRIMARY_GATE_NOT_NON_REAL_BLOCKED");
+        assertThat(response.recommendation().reviewGatePolicyCandidateReason())
+                .isEqualTo("PRIMARY_REVIEW_GATE_IS_NOT_DEFERRED_NON_REAL_LEADER_SIGNAL");
         assertThat(response.recommendation().trafficMixInWindow().exampleClickedUsersInWindow()).isEqualTo(9);
         assertThat(response.recommendation().weightBucketsInWindow()).extracting(AdminDashboardResponse.RecommendationWeightSnapshot::weightKey)
                 .containsExactly("GROWTH", "COLD_START");
@@ -437,6 +441,10 @@ class AdminDashboardSummaryServiceTest {
         assertThat(response.recommendation().latestBatchConcentration().concentrationReadiness()).isEqualTo("DEFERRED_EMPTY_COHORT");
         assertThat(response.recommendation().recentWindowRecommendationReviewReading()).isEqualTo("DEFERRED_EMPTY_RECENT_WINDOW");
         assertThat(response.recommendation().historicalExampleDominanceDetected()).isFalse();
+        assertThat(response.recommendation().reviewGatePolicyCandidateStatus())
+                .isEqualTo("NOT_A_CANDIDATE_PRIMARY_GATE_NOT_NON_REAL_BLOCKED");
+        assertThat(response.recommendation().reviewGatePolicyCandidateReason())
+                .isEqualTo("PRIMARY_REVIEW_GATE_IS_NOT_DEFERRED_NON_REAL_LEADER_SIGNAL");
         assertThat(response.notification().windowDays()).isEqualTo(14);
         assertThat(response.trend().recommendation()).extracting(AdminDashboardResponse.RecommendationTrendPoint::windowDays)
                 .containsExactly(3, 14);

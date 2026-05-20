@@ -17,7 +17,7 @@
 현재 단계 해석:
 
 - local current blocker는 full latest batch review gate `DEFERRED_NON_REAL_LEADER_SIGNAL` 이고, 핵심 해석은 historical example latest batch dominance + stale example saved batch path + current real SQL gap 입니다.
-- admin summary/breakdowns 는 이제 이 해석의 SQL 경계도 같이 노출합니다. `reviewGateStaleness.primaryReferenceMode=ALL_TIME_LATEST_PER_USER`, `exampleTargetTop1Users=272`, `exampleTargetTop1Last24h=0`, `realUserLatestUsers=80`, `realUserTargetTop1Users=0` 를 함께 보면, full latest batch gate가 current live recent-window가 아니라 old example latest batches를 primary baseline으로 읽고 있다는 점을 API 한 번으로 확인할 수 있습니다.
+- admin summary/breakdowns 는 이제 이 해석의 SQL 경계도 같이 노출합니다. `reviewGateStaleness.primaryReferenceMode=ALL_TIME_LATEST_PER_USER`, `exampleTargetTop1Users=272`, `exampleTargetTop1Last24h=0`, `realUserLatestUsers=80`, `realUserTargetTop1Users=0` 를 함께 보면, full latest batch gate가 current live recent-window가 아니라 old example latest batches를 primary baseline으로 읽고 있다는 점을 API 한 번으로 확인할 수 있습니다. 거기에 `reviewGatePolicyCandidateStatus=RECENT_WINDOW_POLICY_CANDIDATE`, `reviewGatePolicyCandidateReason=PRIMARY_GATE_BLOCKED_BY_STALE_ALL_TIME_EXAMPLE_REFERENCE_BUT_RECENT_WINDOW_CLEAR` 도 같이 내려오므로, recent-window gate를 실제 policy gate 후보로 볼 수 있는 상태인지도 같은 응답에서 바로 읽을 수 있습니다.
 - latest artifact reading은 계속 `VOLATILE_ONLY_DRIFT` 이고, 이 문서는 reopen 결정문이 아니라 **mixed batch leader blocker를 읽는 보조 audit** 입니다.
 
 ## 목적

@@ -677,6 +677,8 @@ class AdminSecurityWebMvcTest {
                                 ),
                                 "RECENT_WINDOW_CLEARS_HISTORICAL_2622_DOMINANCE",
                                 true,
+                                "NOT_A_CANDIDATE_PRIMARY_GATE_NOT_NON_REAL_BLOCKED",
+                                "PRIMARY_REVIEW_GATE_IS_NOT_DEFERRED_NON_REAL_LEADER_SIGNAL",
                                 List.of(
                                         new AdminDashboardResponse.RecommendationWeightSnapshot(
                                                 "GROWTH",
@@ -772,6 +774,8 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.data.recommendation.reviewGateStaleness.realUserTargetTop1Users").value(0))
                 .andExpect(jsonPath("$.data.recommendation.recentWindowRecommendationReviewReading").value("RECENT_WINDOW_CLEARS_HISTORICAL_2622_DOMINANCE"))
                 .andExpect(jsonPath("$.data.recommendation.historicalExampleDominanceDetected").value(true))
+                .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyCandidateStatus").value("NOT_A_CANDIDATE_PRIMARY_GATE_NOT_NON_REAL_BLOCKED"))
+                .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyCandidateReason").value("PRIMARY_REVIEW_GATE_IS_NOT_DEFERRED_NON_REAL_LEADER_SIGNAL"))
                 .andExpect(jsonPath("$.data.notification.windowDays").value(7))
                 .andExpect(jsonPath("$.data.notification.sentInWindow").value(5))
                 .andExpect(jsonPath("$.data.search.windowDays").value(7))
@@ -890,6 +894,8 @@ class AdminSecurityWebMvcTest {
                                 ),
                                 "DEFERRED_EMPTY_RECENT_WINDOW",
                                 false,
+                                "NOT_A_CANDIDATE_PRIMARY_GATE_NOT_NON_REAL_BLOCKED",
+                                "PRIMARY_REVIEW_GATE_IS_NOT_DEFERRED_NON_REAL_LEADER_SIGNAL",
                                 List.of()
                         ),
                         new AdminDashboardResponse.NotificationSection(0, 0, 14, 0, 0),
@@ -948,6 +954,8 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.data.recommendation.reviewGateStaleness.exampleTargetTop1Users").value(0))
                 .andExpect(jsonPath("$.data.recommendation.recentWindowRecommendationReviewReading").value("DEFERRED_EMPTY_RECENT_WINDOW"))
                 .andExpect(jsonPath("$.data.recommendation.historicalExampleDominanceDetected").value(false))
+                .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyCandidateStatus").value("NOT_A_CANDIDATE_PRIMARY_GATE_NOT_NON_REAL_BLOCKED"))
+                .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyCandidateReason").value("PRIMARY_REVIEW_GATE_IS_NOT_DEFERRED_NON_REAL_LEADER_SIGNAL"))
                 .andExpect(jsonPath("$.data.notification.windowDays").value(14))
                 .andExpect(jsonPath("$.data.trend.recommendation[1].fallbackRate").value(0.5000))
                 .andExpect(jsonPath("$.data.search.windowDays").value(14))
@@ -1145,13 +1153,15 @@ class AdminSecurityWebMvcTest {
                                 LocalDateTime.of(2026, 5, 17, 11, 49, 50),
                                 80,
                                 80,
-                                0,
-                                0
-                        ),
-                        "RECENT_WINDOW_CLEARS_HISTORICAL_2622_DOMINANCE",
-                        true,
-                        List.of(
-                                new AdminRecommendationBreakdownResponse.RepeatedServiceSnapshot(
+                        0,
+                        0
+                ),
+                "RECENT_WINDOW_CLEARS_HISTORICAL_2622_DOMINANCE",
+                true,
+                "NOT_A_CANDIDATE_PRIMARY_GATE_NOT_NON_REAL_BLOCKED",
+                "PRIMARY_REVIEW_GATE_IS_NOT_DEFERRED_NON_REAL_LEADER_SIGNAL",
+                List.of(
+                        new AdminRecommendationBreakdownResponse.RepeatedServiceSnapshot(
                                         2622L,
                                         "청년월세 지원사업",
                                         "BOKJIRO_CENTRAL",
@@ -1339,6 +1349,8 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.data.reviewGateStaleness.realUserTargetTop1Users").value(0))
                 .andExpect(jsonPath("$.data.recentWindowRecommendationReviewReading").value("RECENT_WINDOW_CLEARS_HISTORICAL_2622_DOMINANCE"))
                 .andExpect(jsonPath("$.data.historicalExampleDominanceDetected").value(true))
+                .andExpect(jsonPath("$.data.reviewGatePolicyCandidateStatus").value("NOT_A_CANDIDATE_PRIMARY_GATE_NOT_NON_REAL_BLOCKED"))
+                .andExpect(jsonPath("$.data.reviewGatePolicyCandidateReason").value("PRIMARY_REVIEW_GATE_IS_NOT_DEFERRED_NON_REAL_LEADER_SIGNAL"))
                 .andExpect(jsonPath("$.data.topRepeatedServices[0].serviceId").value(2622))
                 .andExpect(jsonPath("$.data.topRepeatedServices[0].rowCount").value(449))
                 .andExpect(jsonPath("$.data.topRepeatedServices[0].userMix.exampleUsers").value(447))
