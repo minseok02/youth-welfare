@@ -1,5 +1,6 @@
 # 구현 현황
 
+- 2026-05-20: PR author-side note도 `PASS but PRIMARY_BLOCKED_SUPPLEMENTAL_CLEAR` 조합을 직접 읽도록 갱신했다. 이제 reviewer뿐 아니라 author도 GitHub PR 코멘트만 보고 drift gate와 운영 정책 gate를 분리해 읽는다.
 - 2026-05-20: draft exit / post-merge follow-up 문서에도 `gate_policy_status=PRIMARY_BLOCKED_SUPPLEMENTAL_CLEAR`, `gate_policy_reason=HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR` 를 직접 올렸다. 이제 author는 `PASS but still blocked` 조합을 checklist만 보고도 drift gate와 운영 정책 gate로 분리해 읽는다.
 - 2026-05-20: `gate_policy_status=PRIMARY_BLOCKED_SUPPLEMENTAL_CLEAR`, `gate_policy_reason=HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR` 도 reviewer-facing brief와 GitHub PR 전달면에 같이 올렸다. 이제 reviewer는 drift gate(`PASS/FAIL`)와 운영 정책 gate를 같은 화면에서 분리해 읽는다.
 - 2026-05-20: `latest-gate` 의 `PASS/FAIL` 은 drift gate로 유지하고, 별도로 `gate_policy_status`, `gate_policy_reason` 을 올렸다. 현재 local 기준으로는 `gate_status=PASS` 와 함께 `gate_policy_status=PRIMARY_BLOCKED_SUPPLEMENTAL_CLEAR`, `gate_policy_reason=HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR` 를 같이 읽는 편이 맞다.

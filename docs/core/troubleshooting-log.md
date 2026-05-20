@@ -1,5 +1,10 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 918) reviewer surface와 checklist만 `gate_policy_status` 를 쓰고 author-side PR note가 예전 문장에 머물면, author는 GitHub 코멘트만 볼 때 다시 `PASS인데 왜 draft인가`를 해석해야 한다
+- 문제: PR 본문과 reviewer quick entrypoint, draft/post-merge checklist에는 이미 `gate_policy_status=PRIMARY_BLOCKED_SUPPLEMENTAL_CLEAR` 가 있었지만, author-side note는 아직 “historical primary-gate inertia vs current-live signal interpretation” 수준에서만 설명하고 있었다.
+- 해결: author-side note도 `basic latest gate=PASS` 와 별도로 `gate_policy_status=PRIMARY_BLOCKED_SUPPLEMENTAL_CLEAR`, `gate_policy_reason=HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR` 조합을 직접 적는 쪽으로 갱신했다.
+- 이유: reviewer, operator, author가 모두 GitHub surface만 봐도 같은 두 층의 gate를 읽어야, draft 유지 이유가 문서와 코멘트 사이에서 다시 달라지지 않는다.
+
 ## 917) reviewer surface에만 `gate_policy_status` 를 올리고 draft/merge checklist가 그대로면, author는 `PASS인데 왜 아직 undraft를 막는가`를 다시 해석해야 한다
 - 문제: PR brief와 GitHub PR surface에는 이미 `gate_policy_status=PRIMARY_BLOCKED_SUPPLEMENTAL_CLEAR` 가 있었지만, `recommendation-pr-draft-exit-checklist.md` 와 `recommendation-post-merge-followup-checklist.md` 는 여전히 interpretation class 중심이라 author가 `PASS but still blocked` 조합을 다시 번역해야 했다.
 - 해결: draft exit / post-merge follow-up 문서에도 `gate policy status`, `gate policy reason` 을 직접 추가하고, `basic gate pass + gate policy status PRIMARY_BLOCKED_SUPPLEMENTAL_CLEAR` 조합은 draft 유지라는 규칙을 명시했다.
