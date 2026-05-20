@@ -1,5 +1,10 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 384) active current-state가 baseline artifact의 옛 `operator_next_step` 를 그대로 현재 truth처럼 말하면 live readiness/review gate 해석이 묻힌다
+- 문제: `recommendation-current-state.md` 와 top-level `current-state.md` 일부 설명은 baseline artifact에 남아 있는 `WAIT_FOR_REAL_USER_TRAFFIC` 포인터를 현재 truth처럼 적고 있었다. 하지만 live readiness는 이미 열렸고, 실제 current blocker는 full latest batch historical inertia와 recent-window current signal 분리 해석 쪽으로 옮겨가 있었다.
+- 해결: current-state 설명을 baseline artifact 포인터와 live current truth를 구분하는 방향으로 다시 정리했다. 이제 `operator_next_step` 자체는 old artifact 요약값일 수 있고, 실제 current 해석은 `effective_operator_next_step`, readiness, review-gate audit까지 같이 읽는다는 점을 명시한다.
+- 이유: current-state는 제일 먼저 보는 문서다. 여기서 artifact 포인터와 live truth를 구분하지 않으면 이후 runbook을 아무리 고쳐도 top-level 현재 해석이 다시 예전 blocker로 회귀한다.
+
 ## 383) 같은 문서 안에서 상단 current-reading 과 하단 요약이 다른 blocker를 말하면 operator가 마지막 요약 한 줄을 더 믿고 돌아간다
 - 문제: reopen-decision, next-lane 같은 문서는 상단 current-reading 을 최신 truth로 고친 뒤에도 하단 `요약` 한 줄이 여전히 `WAIT_FOR_REAL_USER_TRAFFIC` 를 말하고 있었다.
 - 해결: 상단뿐 아니라 문서 하단 summary/decision bullet까지 current truth에 맞게 다시 정리했다.
