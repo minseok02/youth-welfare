@@ -672,6 +672,43 @@ final class AdminDashboardQueryPolicy {
         };
     }
 
+    static String resolveReviewGatePolicyPromotionReviewRunApprovalCriteriaStatus(
+            String reviewGatePolicyPromotionReviewRunDecisionStatus
+    ) {
+        return switch (reviewGatePolicyPromotionReviewRunDecisionStatus) {
+            case "BOUNDED_PROMOTION_REVIEW_RUN_DECISION_NOT_READY" ->
+                    "NOT_READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL";
+            case "AWAIT_BOUNDED_PROMOTION_REVIEW_RUN_DECISION",
+                 "BOUNDED_PROMOTION_REVIEW_RUN_APPROVED" ->
+                    "READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL";
+            case "BOUNDED_PROMOTION_REVIEW_RUN_DECISION_NOT_APPLICABLE" ->
+                    "BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_NOT_APPLICABLE";
+            default -> "BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_NOT_APPLICABLE";
+        };
+    }
+
+    static String resolveReviewGatePolicyPromotionReviewRunApprovalCriteriaReason(
+            String reviewGatePolicyPromotionReviewRunDecisionStatus,
+            String reviewGatePolicyPromotionReviewRunDecisionReason
+    ) {
+        String status = resolveReviewGatePolicyPromotionReviewRunApprovalCriteriaStatus(
+                reviewGatePolicyPromotionReviewRunDecisionStatus
+        );
+
+        return switch (status) {
+            case "READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL" -> {
+                if ("BOUNDED_PROMOTION_REVIEW_RUN_APPROVED".equals(reviewGatePolicyPromotionReviewRunDecisionStatus)) {
+                    yield "REVIEW_RUN_APPROVAL_SUPPORTED_BY_EXECUTION_READY_DECISION";
+                }
+                yield "REVIEW_RUN_APPROVAL_PREREQUISITES_MET_BUT_APPROVAL_RECORD_PENDING";
+            }
+            case "NOT_READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL",
+                 "BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_NOT_APPLICABLE" ->
+                    reviewGatePolicyPromotionReviewRunDecisionReason;
+            default -> status;
+        };
+    }
+
     static String resolveReviewGatePolicyPromotionReviewRunApprovalReason(
             String reviewGatePolicyPromotionReviewRunDecisionStatus,
             String reviewGatePolicyPromotionReviewRunDecisionReason

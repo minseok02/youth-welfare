@@ -137,6 +137,8 @@ assert isinstance(data["reviewGatePolicyPromotionReviewRunCriteriaStatus"], str)
 assert isinstance(data["reviewGatePolicyPromotionReviewRunCriteriaReason"], str) and data["reviewGatePolicyPromotionReviewRunCriteriaReason"], "reviewGatePolicyPromotionReviewRunCriteriaReason must be non-empty string"
 assert isinstance(data["reviewGatePolicyPromotionReviewRunDecisionStatus"], str) and data["reviewGatePolicyPromotionReviewRunDecisionStatus"], "reviewGatePolicyPromotionReviewRunDecisionStatus must be non-empty string"
 assert isinstance(data["reviewGatePolicyPromotionReviewRunDecisionReason"], str) and data["reviewGatePolicyPromotionReviewRunDecisionReason"], "reviewGatePolicyPromotionReviewRunDecisionReason must be non-empty string"
+assert isinstance(data["reviewGatePolicyPromotionReviewRunApprovalCriteriaStatus"], str) and data["reviewGatePolicyPromotionReviewRunApprovalCriteriaStatus"], "reviewGatePolicyPromotionReviewRunApprovalCriteriaStatus must be non-empty string"
+assert isinstance(data["reviewGatePolicyPromotionReviewRunApprovalCriteriaReason"], str) and data["reviewGatePolicyPromotionReviewRunApprovalCriteriaReason"], "reviewGatePolicyPromotionReviewRunApprovalCriteriaReason must be non-empty string"
 assert isinstance(data["reviewGatePolicyPromotionReviewRunApprovalStatus"], str) and data["reviewGatePolicyPromotionReviewRunApprovalStatus"], "reviewGatePolicyPromotionReviewRunApprovalStatus must be non-empty string"
 assert isinstance(data["reviewGatePolicyPromotionReviewRunApprovalReason"], str) and data["reviewGatePolicyPromotionReviewRunApprovalReason"], "reviewGatePolicyPromotionReviewRunApprovalReason must be non-empty string"
 staleness = data["reviewGateStaleness"]
@@ -310,6 +312,8 @@ print(data["reviewGatePolicyPromotionReviewRunCriteriaStatus"])
 print(data["reviewGatePolicyPromotionReviewRunCriteriaReason"])
 print(data["reviewGatePolicyPromotionReviewRunDecisionStatus"])
 print(data["reviewGatePolicyPromotionReviewRunDecisionReason"])
+print(data["reviewGatePolicyPromotionReviewRunApprovalCriteriaStatus"])
+print(data["reviewGatePolicyPromotionReviewRunApprovalCriteriaReason"])
 print(data["reviewGatePolicyPromotionReviewRunApprovalStatus"])
 print(data["reviewGatePolicyPromotionReviewRunApprovalReason"])
 print(staleness["primaryReferenceMode"])
@@ -444,21 +448,23 @@ echo "review_gate_policy_promotion_review_run_criteria_status=${BREAKDOWN_VALUES
 echo "review_gate_policy_promotion_review_run_criteria_reason=${BREAKDOWN_VALUES[62]}"
 echo "review_gate_policy_promotion_review_run_decision_status=${BREAKDOWN_VALUES[63]}"
 echo "review_gate_policy_promotion_review_run_decision_reason=${BREAKDOWN_VALUES[64]}"
-echo "review_gate_policy_promotion_review_run_approval_status=${BREAKDOWN_VALUES[65]}"
-echo "review_gate_policy_promotion_review_run_approval_reason=${BREAKDOWN_VALUES[66]}"
-echo "review_gate_primary_reference_mode=${BREAKDOWN_VALUES[67]}"
-echo "review_gate_example_target_top1_users=${BREAKDOWN_VALUES[68]}"
-echo "review_gate_example_target_top1_last_24h=${BREAKDOWN_VALUES[69]}"
-echo "review_gate_real_user_latest_users=${BREAKDOWN_VALUES[70]}"
-echo "review_gate_real_user_target_top1_users=${BREAKDOWN_VALUES[71]}"
-echo "recent_window_hours=${BREAKDOWN_VALUES[72]}"
-echo "recent_window_target_service_id=${BREAKDOWN_VALUES[73]}"
-echo "recent_window_latest_batch_users=${BREAKDOWN_VALUES[74]}"
-echo "recent_window_real_user_users=${BREAKDOWN_VALUES[75]}"
-echo "recent_window_top1_leader_service_id=${BREAKDOWN_VALUES[76]}"
-echo "recent_window_top1_leader_real_user_users=${BREAKDOWN_VALUES[77]}"
-echo "recent_window_target_top1_users=${BREAKDOWN_VALUES[78]}"
-echo "recent_window_target_top1_real_user_users=${BREAKDOWN_VALUES[79]}"
+echo "review_gate_policy_promotion_review_run_approval_criteria_status=${BREAKDOWN_VALUES[65]}"
+echo "review_gate_policy_promotion_review_run_approval_criteria_reason=${BREAKDOWN_VALUES[66]}"
+echo "review_gate_policy_promotion_review_run_approval_status=${BREAKDOWN_VALUES[67]}"
+echo "review_gate_policy_promotion_review_run_approval_reason=${BREAKDOWN_VALUES[68]}"
+echo "review_gate_primary_reference_mode=${BREAKDOWN_VALUES[69]}"
+echo "review_gate_example_target_top1_users=${BREAKDOWN_VALUES[70]}"
+echo "review_gate_example_target_top1_last_24h=${BREAKDOWN_VALUES[71]}"
+echo "review_gate_real_user_latest_users=${BREAKDOWN_VALUES[72]}"
+echo "review_gate_real_user_target_top1_users=${BREAKDOWN_VALUES[73]}"
+echo "recent_window_hours=${BREAKDOWN_VALUES[74]}"
+echo "recent_window_target_service_id=${BREAKDOWN_VALUES[75]}"
+echo "recent_window_latest_batch_users=${BREAKDOWN_VALUES[76]}"
+echo "recent_window_real_user_users=${BREAKDOWN_VALUES[77]}"
+echo "recent_window_top1_leader_service_id=${BREAKDOWN_VALUES[78]}"
+echo "recent_window_top1_leader_real_user_users=${BREAKDOWN_VALUES[79]}"
+echo "recent_window_target_top1_users=${BREAKDOWN_VALUES[80]}"
+echo "recent_window_target_top1_real_user_users=${BREAKDOWN_VALUES[81]}"
 echo "summary_window_days=${SUMMARY_WINDOW_DAYS}"
 echo "breakdown_limit=${BREAKDOWN_LIMIT}"
 if [[ -n "${CONTAINER_ADMIN_ALLOWLIST}" ]]; then

@@ -204,6 +204,15 @@ public class AdminDashboardSummaryService {
                 AdminDashboardQueryPolicy.resolveReviewGatePolicyPromotionReviewRunApprovalStatus(
                         reviewGatePolicyPromotionReviewRunDecisionStatus
                 );
+        String reviewGatePolicyPromotionReviewRunApprovalCriteriaStatus =
+                AdminDashboardQueryPolicy.resolveReviewGatePolicyPromotionReviewRunApprovalCriteriaStatus(
+                        reviewGatePolicyPromotionReviewRunDecisionStatus
+                );
+        String reviewGatePolicyPromotionReviewRunApprovalCriteriaReason =
+                AdminDashboardQueryPolicy.resolveReviewGatePolicyPromotionReviewRunApprovalCriteriaReason(
+                        reviewGatePolicyPromotionReviewRunDecisionStatus,
+                        reviewGatePolicyPromotionReviewRunDecisionReason
+                );
         String reviewGatePolicyPromotionReviewRunApprovalReason =
                 AdminDashboardQueryPolicy.resolveReviewGatePolicyPromotionReviewRunApprovalReason(
                         reviewGatePolicyPromotionReviewRunDecisionStatus,
@@ -372,6 +381,8 @@ public class AdminDashboardSummaryService {
                         reviewGatePolicyPromotionReviewRunCriteriaReason,
                         reviewGatePolicyPromotionReviewRunDecisionStatus,
                         reviewGatePolicyPromotionReviewRunDecisionReason,
+                        reviewGatePolicyPromotionReviewRunApprovalCriteriaStatus,
+                        reviewGatePolicyPromotionReviewRunApprovalCriteriaReason,
                         reviewGatePolicyPromotionReviewRunApprovalStatus,
                         reviewGatePolicyPromotionReviewRunApprovalReason,
                         adminDashboardRecommendationReadRepository.fetchRecommendationWeightBuckets(summaryWindowAgo).stream()

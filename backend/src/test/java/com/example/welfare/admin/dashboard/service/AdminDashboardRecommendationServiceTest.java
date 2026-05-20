@@ -344,6 +344,10 @@ class AdminDashboardRecommendationServiceTest {
                 .isEqualTo("BOUNDED_PROMOTION_REVIEW_RUN_DECISION_NOT_READY");
         assertThat(response.reviewGatePolicyPromotionReviewRunDecisionReason())
                 .isEqualTo("REAL_USER_TRAFFIC_GATE_NOT_READY");
+        assertThat(response.reviewGatePolicyPromotionReviewRunApprovalCriteriaStatus())
+                .isEqualTo("NOT_READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL");
+        assertThat(response.reviewGatePolicyPromotionReviewRunApprovalCriteriaReason())
+                .isEqualTo("REAL_USER_TRAFFIC_GATE_NOT_READY");
         assertThat(response.reviewGatePolicyPromotionReviewRunApprovalStatus())
                 .isEqualTo("BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_NOT_READY");
         assertThat(response.reviewGatePolicyPromotionReviewRunApprovalReason())

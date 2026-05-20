@@ -230,6 +230,18 @@ elif review_gate_policy_promotion_review_run_status == "AWAIT_BOUNDED_PROMOTION_
     review_gate_policy_promotion_review_run_decision_status = "BOUNDED_PROMOTION_REVIEW_RUN_APPROVED"
     review_gate_policy_promotion_review_run_decision_reason = "APPROVAL_RECORD_SUPPORTS_BOUNDED_REVIEW_RUN_EXECUTION"
 
+review_gate_policy_promotion_review_run_approval_criteria_status = "BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_NOT_APPLICABLE"
+review_gate_policy_promotion_review_run_approval_criteria_reason = review_gate_policy_promotion_review_run_decision_reason
+if review_gate_policy_promotion_review_run_decision_status == "BOUNDED_PROMOTION_REVIEW_RUN_DECISION_NOT_READY":
+    review_gate_policy_promotion_review_run_approval_criteria_status = "NOT_READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL"
+    review_gate_policy_promotion_review_run_approval_criteria_reason = review_gate_policy_promotion_review_run_decision_reason
+elif review_gate_policy_promotion_review_run_decision_status == "AWAIT_BOUNDED_PROMOTION_REVIEW_RUN_DECISION":
+    review_gate_policy_promotion_review_run_approval_criteria_status = "READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL"
+    review_gate_policy_promotion_review_run_approval_criteria_reason = "REVIEW_RUN_APPROVAL_PREREQUISITES_MET_BUT_APPROVAL_RECORD_PENDING"
+elif review_gate_policy_promotion_review_run_decision_status == "BOUNDED_PROMOTION_REVIEW_RUN_APPROVED":
+    review_gate_policy_promotion_review_run_approval_criteria_status = "READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL"
+    review_gate_policy_promotion_review_run_approval_criteria_reason = "REVIEW_RUN_APPROVAL_SUPPORTED_BY_EXECUTION_READY_DECISION"
+
 review_gate_policy_promotion_review_run_approval_status = "BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_NOT_APPLICABLE"
 review_gate_policy_promotion_review_run_approval_reason = review_gate_policy_promotion_review_run_decision_reason
 if review_gate_policy_promotion_review_run_decision_status == "BOUNDED_PROMOTION_REVIEW_RUN_DECISION_NOT_READY":
@@ -363,6 +375,8 @@ lines = [
     f"- review_gate_policy_promotion_review_run_criteria_reason: `{review_gate_policy_promotion_review_run_criteria_reason}`",
     f"- review_gate_policy_promotion_review_run_decision_status: `{review_gate_policy_promotion_review_run_decision_status}`",
     f"- review_gate_policy_promotion_review_run_decision_reason: `{review_gate_policy_promotion_review_run_decision_reason}`",
+    f"- review_gate_policy_promotion_review_run_approval_criteria_status: `{review_gate_policy_promotion_review_run_approval_criteria_status}`",
+    f"- review_gate_policy_promotion_review_run_approval_criteria_reason: `{review_gate_policy_promotion_review_run_approval_criteria_reason}`",
     f"- review_gate_policy_promotion_review_run_approval_status: `{review_gate_policy_promotion_review_run_approval_status}`",
     f"- review_gate_policy_promotion_review_run_approval_reason: `{review_gate_policy_promotion_review_run_approval_reason}`",
     f"- primary_mixed_top1_leader_service_id: `{review_gate_blocker.get('mixed_top1_leader_service_id', '')}`",
@@ -445,6 +459,8 @@ json_payload = {
         "review_gate_policy_promotion_review_run_criteria_reason": review_gate_policy_promotion_review_run_criteria_reason,
         "review_gate_policy_promotion_review_run_decision_status": review_gate_policy_promotion_review_run_decision_status,
         "review_gate_policy_promotion_review_run_decision_reason": review_gate_policy_promotion_review_run_decision_reason,
+        "review_gate_policy_promotion_review_run_approval_criteria_status": review_gate_policy_promotion_review_run_approval_criteria_status,
+        "review_gate_policy_promotion_review_run_approval_criteria_reason": review_gate_policy_promotion_review_run_approval_criteria_reason,
         "review_gate_policy_promotion_review_run_approval_status": review_gate_policy_promotion_review_run_approval_status,
         "review_gate_policy_promotion_review_run_approval_reason": review_gate_policy_promotion_review_run_approval_reason,
         "primary_mixed_top1_leader_service_id": review_gate_blocker.get("mixed_top1_leader_service_id", ""),

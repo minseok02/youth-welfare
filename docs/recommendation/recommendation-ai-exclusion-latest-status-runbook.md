@@ -155,6 +155,9 @@ bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-status.sh
 - `review_gate_policy_promotion_review_run_decision_status=AWAIT_BOUNDED_PROMOTION_REVIEW_RUN_DECISION`
   - prerequisite은 이미 충족됐지만, 마지막 review run decision은 아직 explicit approval record 미작성 때문에 pending이라는 뜻입니다.
 - `review_gate_policy_promotion_review_run_decision_reason=REVIEW_RUN_CRITERIA_MET_BUT_APPROVAL_RECORD_NOT_WRITTEN`
+- `review_gate_policy_promotion_review_run_approval_criteria_status=READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL`
+  - 마지막 review run approval prerequisite 자체는 이미 충족됐고, approval record만 pending인 상태라는 뜻입니다.
+- `review_gate_policy_promotion_review_run_approval_criteria_reason=REVIEW_RUN_APPROVAL_PREREQUISITES_MET_BUT_APPROVAL_RECORD_PENDING`
 - `review_gate_policy_promotion_review_run_approval_status=PENDING_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL`
   - 마지막 review run decision 뒤 approval 자체도 아직 explicit approval record 미작성 때문에 pending이라는 뜻입니다.
 - `review_gate_policy_promotion_review_run_approval_reason=REVIEW_RUN_DECISION_PENDING_BECAUSE_APPROVAL_RECORD_NOT_WRITTEN`

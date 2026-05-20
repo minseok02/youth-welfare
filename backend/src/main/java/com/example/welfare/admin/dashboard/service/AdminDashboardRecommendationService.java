@@ -218,6 +218,15 @@ public class AdminDashboardRecommendationService {
                 AdminDashboardQueryPolicy.resolveReviewGatePolicyPromotionReviewRunApprovalStatus(
                         reviewGatePolicyPromotionReviewRunDecisionStatus
                 );
+        String reviewGatePolicyPromotionReviewRunApprovalCriteriaStatus =
+                AdminDashboardQueryPolicy.resolveReviewGatePolicyPromotionReviewRunApprovalCriteriaStatus(
+                        reviewGatePolicyPromotionReviewRunDecisionStatus
+                );
+        String reviewGatePolicyPromotionReviewRunApprovalCriteriaReason =
+                AdminDashboardQueryPolicy.resolveReviewGatePolicyPromotionReviewRunApprovalCriteriaReason(
+                        reviewGatePolicyPromotionReviewRunDecisionStatus,
+                        reviewGatePolicyPromotionReviewRunDecisionReason
+                );
         String reviewGatePolicyPromotionReviewRunApprovalReason =
                 AdminDashboardQueryPolicy.resolveReviewGatePolicyPromotionReviewRunApprovalReason(
                         reviewGatePolicyPromotionReviewRunDecisionStatus,
@@ -337,6 +346,8 @@ public class AdminDashboardRecommendationService {
                 reviewGatePolicyPromotionReviewRunCriteriaReason,
                 reviewGatePolicyPromotionReviewRunDecisionStatus,
                 reviewGatePolicyPromotionReviewRunDecisionReason,
+                reviewGatePolicyPromotionReviewRunApprovalCriteriaStatus,
+                reviewGatePolicyPromotionReviewRunApprovalCriteriaReason,
                 reviewGatePolicyPromotionReviewRunApprovalStatus,
                 reviewGatePolicyPromotionReviewRunApprovalReason,
                 adminDashboardRecommendationReadRepository.fetchTopRepeatedRecommendationServices(breakdownLimit).stream()
