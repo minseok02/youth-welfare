@@ -1,5 +1,13 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 956) semantic embedding 경로는 답변 프롬프트 redaction과 별개라, 질문 원문이 그대로 OpenAI embeddings로 나갈 수 있다
+- 문제: `ChatAiGateway` 쪽에는 이메일/전화/생년월일 redaction을 넣어 두었지만, 후보 검색 단계의 `ChatSemanticSearchService -> OpenAiChatEmbeddingGateway.embedQuery()` 는 질문 원문 기반 `semanticQuery` 를 그대로 embeddings API로 보낼 수 있었다. 즉 답변 생성 경로만 보고 “직접 식별자는 외부로 안 나간다”고 읽으면 false confidence가 생긴다.
+- 해결: 공통 유틸 `SensitiveTextRedactor` 를 추가하고, `ChatAiGateway` 와 `ChatSemanticSearchService` 가 같은 redaction을 공유하게 맞췄다. 이제 semantic retrieval query도 OpenAI 전송 전에 `[REDACTED_EMAIL]`, `[REDACTED_PHONE]`, `[REDACTED_BIRTH_DATE]` 로 마스킹된다.
+
+## 955) prod 예시 `.env` 에 localhost CORS origin이 남아 있으면, 운영 설정 복붙 시 credentialed local origin이 같이 열릴 수 있다
+- 문제: `.env.example` 은 운영형 `prod` 예시인데 `SECURITY_CORS_ALLOWED_ORIGINS` 에 `http://localhost:5173`, `http://127.0.0.1:5173` 이 포함돼 있었다. 실제 prod `.env` 에 그대로 복붙하면 credentialed CORS 대상에 localhost가 남아 설정 drift를 만들 수 있다.
+- 해결: `.env.example` 의 기본값은 실제 운영 도메인만 남기고, local origin은 개인 개발용 `.env` 에서만 추가하라고 분리했다. 이제 운영 예시를 그대로 읽을 때 localhost를 기본 허용값으로 오해하지 않게 된다.
+
 ## 953) integration preflight가 포트만 보면, 실제 DB 비밀번호 drift는 못 잡고 전체 통합 테스트가 연쇄로 터진다
 - 문제: `integrationRuntimePreflight` 와 `deploy/smoke/preflight-integration-runtime.sh` 는 원래 `127.0.0.1:5433` / `6379` 포트 접근성만 봤다. 이 상태에서는 PostgreSQL 컨테이너는 살아 있어도 `app_core_rw` 비밀번호가 `application-integration.yml` 의 고정 `welfare1234!` 와 어긋나면, preflight는 통과하지만 실제 `integrationTest` 는 Spring/JPA 초기화 단계에서 `password authentication failed for user "app_core_rw"` 로 전부 연쇄 실패했다.
 - 해결: `application-integration.yml` 을 `INTEGRATION_*` env override 구조로 바꾸고, `backend/build.gradle` 의 `integrationRuntimePreflight` 를 `JavaExec` 기반 JDBC 로그인 확인으로 교체했다. 이제 preflight가 primary / pii-rw / notification-pii-ro datasource 실제 인증까지 먼저 보고, integrationTest 도 repo root `.env` 와 현재 shell env를 따라 같은 값을 읽는다.
