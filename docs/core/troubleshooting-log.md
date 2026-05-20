@@ -1,5 +1,13 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 959) collect sidecar는 JDBC라 보여도 같은 트랜잭션 안에서 `welfare_services` FK를 바로 쓰기 때문에 2차 최소권한 1순위 후보로는 부적절했다
+- 문제: 처음에는 `service_regions`, `service_taxonomy_*`, `service_facts` 같은 collect sidecar delete를 별도 계정으로 떼는 게 가장 쉬워 보였다. 하지만 실제 저장 경로를 따라가 보니 `CollectItemSaver` 가 primary JPA 트랜잭션 안에서 `welfare_services` 를 `saveAndFlush()` 한 직후 sidecar delete/insert를 실행하고, sidecar 테이블도 `welfare_services(id)` FK를 바로 건다.
+- 해결: collect sidecar 분리는 1순위에서 내리고, 별도 connection/트랜잭션으로 분리해도 원자성 영향을 거의 안 받는 `cluster_ai_results` TTL cleanup부터 떼는 방향으로 바꿨다. 이번 2차 최소권한화는 `cluster_ai_cleanup_rw` role과 datasource를 추가하고, `ClusterAiResultCommandRepositoryImpl.deleteExpiredBefore()` 만 cleanup JDBC로 옮겼다.
+
+## 960) `DELETE` 전체를 한 번에 줄이기 어렵다면, 스케줄러성 단일 테이블 cleanup부터 별도 role로 떼는 편이 가장 작고 안전하다
+- 문제: `app_core_rw` 에서 `DELETE` 를 빼고 싶어도 recommendation refresh, user cleanup, collect sidecar, notification replace처럼 핵심 흐름에 붙은 delete가 많아 한 번에 줄이면 regression 범위가 너무 커진다.
+- 해결: 이번 2차 최소권한 1호는 `cluster_ai_results` TTL cleanup으로 잡았다. 저장/조회는 기존 primary JPA를 유지하고, `StatusUpdateService` 가 새벽 정리 때 호출하는 `deleteExpiredBefore()` 만 `cluster_ai_cleanup_rw` role의 별도 datasource로 실행한다. 이 role은 `cluster_ai_results` 에 대한 `DELETE` 와 `public` schema `USAGE` 만 갖고 다른 public table write는 받지 않는다.
+
 ## 957) `app_core_rw` 를 바로 잘게 자르려 하면 collect/recommend/user write 경로가 너무 넓어 1차 최소권한 작업이 곧바로 고위험 마이그레이션이 된다
 - 문제: 서버 점검에서 “`app_core_rw` 가 public schema 전체에 DML 권한을 갖는다”는 지적은 맞지만, 지금 runtime은 collect refresh, recommendation persistence, user metadata, notification history 등 public write 경로가 한 계정에 많이 묶여 있다. 이 상태에서 `DELETE` 나 table grant를 한 번에 줄이면 어디가 깨지는지 검증 범위가 급격히 커진다.
 - 해결: 1차는 write path를 건드리지 않고, admin dashboard read-only 경로부터 별도 role `admin_dashboard_ro` 와 별도 datasource로 떼었다. 새 role은 `public` schema `SELECT` 만 갖고, admin summary/breakdowns repository는 `adminDashboardReadNamedParameterJdbcTemplate` 로 읽게 맞췄다. 실제로 `UPDATE score_weights SET is_active = is_active WHERE 1=0` 를 `admin_dashboard_ro` 로 실행하면 `permission denied` 가 난다.

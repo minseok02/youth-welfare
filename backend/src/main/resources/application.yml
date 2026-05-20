@@ -62,6 +62,11 @@ app:
       driver-class-name: org.postgresql.Driver
       hikari:
         read-only: true
+    cluster-ai-cleanup:
+      url: ${CLUSTER_AI_CLEANUP_DB_URL:${DB_URL:jdbc:postgresql://localhost:5432/youth_welfare?sslmode=disable}}
+      username: ${DB_CLUSTER_AI_CLEANUP_USERNAME:cluster_ai_cleanup_rw}
+      password: ${DB_CLUSTER_AI_CLEANUP_PASSWORD:${DB_PASSWORD:}}
+      driver-class-name: org.postgresql.Driver
     pii-rw:
       url: ${APP_PII_DB_URL:jdbc:postgresql://localhost:5432/youth_welfare?sslmode=disable&currentSchema=youth_welfare_pii}
       username: ${DB_APP_PII_USERNAME:app_pii_rw}

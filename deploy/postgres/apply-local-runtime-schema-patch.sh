@@ -48,6 +48,8 @@ load_env_value() {
 ADMIN_RO_USERNAME="${DB_ADMIN_RO_USERNAME:-$(load_env_value DB_ADMIN_RO_USERNAME admin_dashboard_ro)}"
 DB_PASSWORD_VALUE="$(load_env_value DB_PASSWORD '')"
 ADMIN_RO_PASSWORD="${DB_ADMIN_RO_PASSWORD:-$(load_env_value DB_ADMIN_RO_PASSWORD "${DB_PASSWORD_VALUE}")}"
+CLUSTER_AI_CLEANUP_USERNAME="${DB_CLUSTER_AI_CLEANUP_USERNAME:-$(load_env_value DB_CLUSTER_AI_CLEANUP_USERNAME cluster_ai_cleanup_rw)}"
+CLUSTER_AI_CLEANUP_PASSWORD="${DB_CLUSTER_AI_CLEANUP_PASSWORD:-$(load_env_value DB_CLUSTER_AI_CLEANUP_PASSWORD "${DB_PASSWORD_VALUE}")}"
 MIGRATION_USERNAME="${DB_MIGRATION_USERNAME:-$(load_env_value DB_MIGRATION_USERNAME migration_admin)}"
 
 shopt -s nullglob
@@ -65,6 +67,8 @@ for patch in "${patches[@]}"; do
     -v ON_ERROR_STOP=1 \
     -v "admin_ro_username=${ADMIN_RO_USERNAME}" \
     -v "admin_ro_password=${ADMIN_RO_PASSWORD}" \
+    -v "cluster_ai_cleanup_username=${CLUSTER_AI_CLEANUP_USERNAME}" \
+    -v "cluster_ai_cleanup_password=${CLUSTER_AI_CLEANUP_PASSWORD}" \
     -v "migration_username=${MIGRATION_USERNAME}" \
     -U postgres -d "${DB_NAME}" < "${patch}"
 done
