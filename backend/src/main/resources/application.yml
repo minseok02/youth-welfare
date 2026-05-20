@@ -55,6 +55,13 @@ app:
     from-address: ${MAIL_FROM_ADDRESS:${MAIL_USERNAME:${GMAIL_USERNAME:}}}
     reply-to: ${MAIL_REPLY_TO:${MAIL_FROM_ADDRESS:${MAIL_USERNAME:${GMAIL_USERNAME:}}}}
   datasource:
+    admin-ro:
+      url: ${ADMIN_RO_DB_URL:${DB_URL:jdbc:postgresql://localhost:5432/youth_welfare?sslmode=disable}}
+      username: ${DB_ADMIN_RO_USERNAME:admin_dashboard_ro}
+      password: ${DB_ADMIN_RO_PASSWORD:${DB_PASSWORD:}}
+      driver-class-name: org.postgresql.Driver
+      hikari:
+        read-only: true
     pii-rw:
       url: ${APP_PII_DB_URL:jdbc:postgresql://localhost:5432/youth_welfare?sslmode=disable&currentSchema=youth_welfare_pii}
       username: ${DB_APP_PII_USERNAME:app_pii_rw}

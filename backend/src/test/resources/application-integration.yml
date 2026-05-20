@@ -61,6 +61,15 @@ bokjiro:
 app:
   base-url: http://localhost:8082
   datasource:
+    admin-ro:
+      url: ${INTEGRATION_ADMIN_RO_DB_URL:jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable}
+      username: ${INTEGRATION_ADMIN_RO_DB_USERNAME:admin_dashboard_ro}
+      password: ${INTEGRATION_ADMIN_RO_DB_PASSWORD:welfare1234!}
+      driver-class-name: org.postgresql.Driver
+      hikari:
+        maximum-pool-size: 2
+        minimum-idle: 0
+        read-only: true
     pii-rw:
       url: ${INTEGRATION_APP_PII_DB_URL:jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable&currentSchema=youth_welfare_pii}
       username: ${INTEGRATION_APP_PII_DB_USERNAME:app_pii_rw}

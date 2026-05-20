@@ -5,6 +5,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 PATCH_DIR="${PATCH_DIR:-${ROOT_DIR}/deploy/postgres/patches}"
 DB_CONTAINER="${DB_CONTAINER:-youth-welfare-db}"
 DB_NAME="${DB_NAME:-youth_welfare}"
+ENV_FILE="${ENV_FILE:-${ROOT_DIR}/.env}"
 
 if ! command -v docker >/dev/null 2>&1; then
   echo "docker command not found" >&2
@@ -26,6 +27,29 @@ if [[ ! -d "${PATCH_DIR}" ]]; then
   exit 1
 fi
 
+load_env_value() {
+  local key="$1"
+  local fallback="${2:-}"
+  if [[ -n "${!key:-}" ]]; then
+    printf '%s' "${!key}"
+    return 0
+  fi
+  if [[ -f "${ENV_FILE}" ]]; then
+    local line
+    line="$(grep -E "^${key}=" "${ENV_FILE}" | tail -n 1 || true)"
+    if [[ -n "${line}" ]]; then
+      printf '%s' "${line#*=}"
+      return 0
+    fi
+  fi
+  printf '%s' "${fallback}"
+}
+
+ADMIN_RO_USERNAME="${DB_ADMIN_RO_USERNAME:-$(load_env_value DB_ADMIN_RO_USERNAME admin_dashboard_ro)}"
+DB_PASSWORD_VALUE="$(load_env_value DB_PASSWORD '')"
+ADMIN_RO_PASSWORD="${DB_ADMIN_RO_PASSWORD:-$(load_env_value DB_ADMIN_RO_PASSWORD "${DB_PASSWORD_VALUE}")}"
+MIGRATION_USERNAME="${DB_MIGRATION_USERNAME:-$(load_env_value DB_MIGRATION_USERNAME migration_admin)}"
+
 shopt -s nullglob
 patches=("${PATCH_DIR}"/*.sql)
 shopt -u nullglob
@@ -37,7 +61,12 @@ fi
 
 for patch in "${patches[@]}"; do
   echo "applying $(basename "${patch}")"
-  docker exec -i "${DB_CONTAINER}" psql -v ON_ERROR_STOP=1 -U postgres -d "${DB_NAME}" < "${patch}"
+  docker exec -i "${DB_CONTAINER}" psql \
+    -v ON_ERROR_STOP=1 \
+    -v "admin_ro_username=${ADMIN_RO_USERNAME}" \
+    -v "admin_ro_password=${ADMIN_RO_PASSWORD}" \
+    -v "migration_username=${MIGRATION_USERNAME}" \
+    -U postgres -d "${DB_NAME}" < "${patch}"
 done
 
 echo "local runtime schema patch applied"

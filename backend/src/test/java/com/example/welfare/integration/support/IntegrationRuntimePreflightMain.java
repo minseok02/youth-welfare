@@ -23,6 +23,10 @@ public final class IntegrationRuntimePreflightMain {
         String piiUsername = env("INTEGRATION_APP_PII_DB_USERNAME", "app_pii_rw");
         String piiPassword = env("INTEGRATION_APP_PII_DB_PASSWORD", primaryPassword);
 
+        String adminRoUrl = env("INTEGRATION_ADMIN_RO_DB_URL", "jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable");
+        String adminRoUsername = env("INTEGRATION_ADMIN_RO_DB_USERNAME", "admin_dashboard_ro");
+        String adminRoPassword = env("INTEGRATION_ADMIN_RO_DB_PASSWORD", primaryPassword);
+
         String notificationUrl = env("INTEGRATION_NOTIFICATION_PII_DB_URL", "jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable&currentSchema=youth_welfare_pii");
         String notificationUsername = env("INTEGRATION_NOTIFICATION_PII_DB_USERNAME", "notification_pii_ro");
         String notificationPassword = env("INTEGRATION_NOTIFICATION_PII_DB_PASSWORD", primaryPassword);
@@ -32,6 +36,7 @@ public final class IntegrationRuntimePreflightMain {
 
         checkJdbc("primary", primaryUrl, primaryUsername, primaryPassword, failures);
         checkJdbc("pii-rw", piiUrl, piiUsername, piiPassword, failures);
+        checkJdbc("admin-ro", adminRoUrl, adminRoUsername, adminRoPassword, failures);
         checkJdbc("notification-pii-ro", notificationUrl, notificationUsername, notificationPassword, failures);
         checkRedis(redisHost, redisPort, failures);
 

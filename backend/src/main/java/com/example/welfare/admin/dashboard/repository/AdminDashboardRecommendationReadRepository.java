@@ -1,6 +1,6 @@
 package com.example.welfare.admin.dashboard.repository;
 
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.BadSqlGrammarException;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -12,11 +12,16 @@ import java.util.List;
 import java.util.Optional;
 
 @Repository
-@RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class AdminDashboardRecommendationReadRepository {
 
     private final NamedParameterJdbcTemplate jdbcTemplate;
+
+    public AdminDashboardRecommendationReadRepository(
+            @Qualifier("adminDashboardReadNamedParameterJdbcTemplate") NamedParameterJdbcTemplate jdbcTemplate
+    ) {
+        this.jdbcTemplate = jdbcTemplate;
+    }
 
     private static final String RECOMMENDATION_USER_ORIGIN_SQL = "coalesce(nullif(u.account_origin, ''), 'REAL_USER')";
     private static final String YOUTH_FACET_ORDER_CASE = """

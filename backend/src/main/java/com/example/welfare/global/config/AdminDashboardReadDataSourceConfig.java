@@ -1,0 +1,38 @@
+package com.example.welfare.global.config;
+
+import com.zaxxer.hikari.HikariDataSource;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.boot.autoconfigure.jdbc.DataSourceProperties;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+
+import javax.sql.DataSource;
+
+@Configuration
+public class AdminDashboardReadDataSourceConfig {
+
+    @Bean
+    @ConfigurationProperties("app.datasource.admin-ro")
+    public DataSourceProperties adminDashboardReadDataSourceProperties() {
+        return new DataSourceProperties();
+    }
+
+    @Bean(name = "adminDashboardReadDataSource")
+    @ConfigurationProperties("app.datasource.admin-ro.hikari")
+    public DataSource adminDashboardReadDataSource(
+            @Qualifier("adminDashboardReadDataSourceProperties") DataSourceProperties properties
+    ) {
+        return properties.initializeDataSourceBuilder()
+                .type(HikariDataSource.class)
+                .build();
+    }
+
+    @Bean(name = "adminDashboardReadNamedParameterJdbcTemplate")
+    public NamedParameterJdbcTemplate adminDashboardReadNamedParameterJdbcTemplate(
+            @Qualifier("adminDashboardReadDataSource") DataSource dataSource
+    ) {
+        return new NamedParameterJdbcTemplate(dataSource);
+    }
+}

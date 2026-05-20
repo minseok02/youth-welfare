@@ -1,5 +1,13 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 957) `app_core_rw` 를 바로 잘게 자르려 하면 collect/recommend/user write 경로가 너무 넓어 1차 최소권한 작업이 곧바로 고위험 마이그레이션이 된다
+- 문제: 서버 점검에서 “`app_core_rw` 가 public schema 전체에 DML 권한을 갖는다”는 지적은 맞지만, 지금 runtime은 collect refresh, recommendation persistence, user metadata, notification history 등 public write 경로가 한 계정에 많이 묶여 있다. 이 상태에서 `DELETE` 나 table grant를 한 번에 줄이면 어디가 깨지는지 검증 범위가 급격히 커진다.
+- 해결: 1차는 write path를 건드리지 않고, admin dashboard read-only 경로부터 별도 role `admin_dashboard_ro` 와 별도 datasource로 떼었다. 새 role은 `public` schema `SELECT` 만 갖고, admin summary/breakdowns repository는 `adminDashboardReadNamedParameterJdbcTemplate` 로 읽게 맞췄다. 실제로 `UPDATE score_weights SET is_active = is_active WHERE 1=0` 를 `admin_dashboard_ro` 로 실행하면 `permission denied` 가 난다.
+
+## 958) secondary datasource를 하나 더 추가할 때는 “설정만 추가”로 끝내면 실제 로그인 drift를 놓친다
+- 문제: `admin_dashboard_ro` datasource를 코드와 설정에만 추가하면, 기존 local PostgreSQL volume에는 role/grant가 없어서 app startup이나 integration preflight 단계에서야 뒤늦게 `password authentication failed for user "admin_dashboard_ro"` 로 터질 수 있다.
+- 해결: `deploy/postgres/init/z90-create-runtime-db-users.sh` 에 role/grant/default privilege를 추가하고, 기존 volume용으로 `deploy/postgres/patches/V2026_05_21_01__add_admin_dashboard_readonly_role.sql` 도 만들었다. `apply-local-runtime-schema-patch.sh` 는 이제 `.env` 또는 shell env 기준 `DB_ADMIN_RO_USERNAME`, `DB_ADMIN_RO_PASSWORD`, `DB_MIGRATION_USERNAME` 을 psql 변수로 넘겨 runtime patch도 현재 자격과 같은 값으로 적용한다. 동시에 `integrationRuntimePreflight` 도 primary / admin-ro / pii-rw / notification-pii-ro JDBC 로그인을 다 확인하게 확장해 설정만 맞고 실제 role은 없는 drift를 빠르게 잡는다.
+
 ## 956) semantic embedding 경로는 답변 프롬프트 redaction과 별개라, 질문 원문이 그대로 OpenAI embeddings로 나갈 수 있다
 - 문제: `ChatAiGateway` 쪽에는 이메일/전화/생년월일 redaction을 넣어 두었지만, 후보 검색 단계의 `ChatSemanticSearchService -> OpenAiChatEmbeddingGateway.embedQuery()` 는 질문 원문 기반 `semanticQuery` 를 그대로 embeddings API로 보낼 수 있었다. 즉 답변 생성 경로만 보고 “직접 식별자는 외부로 안 나간다”고 읽으면 false confidence가 생긴다.
 - 해결: 공통 유틸 `SensitiveTextRedactor` 를 추가하고, `ChatAiGateway` 와 `ChatSemanticSearchService` 가 같은 redaction을 공유하게 맞췄다. 이제 semantic retrieval query도 OpenAI 전송 전에 `[REDACTED_EMAIL]`, `[REDACTED_PHONE]`, `[REDACTED_BIRTH_DATE]` 로 마스킹된다.

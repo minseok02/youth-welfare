@@ -614,11 +614,12 @@ secondary datasource URL도 권한 모델과 같이 맞춰야 한다. `APP_PII_D
 
 ## Spring Boot 구조 변경안
 
-현재는 기본 JPA datasource 하나와 보조 datasource 둘(`app_pii_rw`, `notification_pii_ro`)을 함께 쓴다. 런타임 `root`는 제거했고 프로필/비밀번호 재설정/알림/backfill/request sync는 목적별 datasource로 분리됐으며, 기본 datasource는 더 이상 `user_pii` 를 직접 다루지 않는다. 신규 init 스크립트와 계정 템플릿에서도 `app_core_rw` 의 `user_pii` DML 권한을 제거했고, 남은 작업은 기존 운영 DB에 같은 권한 회수를 실제 반영하는 것이다.
+현재는 기본 JPA datasource 하나와 보조 datasource 셋(`admin_dashboard_ro`, `app_pii_rw`, `notification_pii_ro`)을 함께 쓴다. 런타임 `root`는 제거했고 프로필/비밀번호 재설정/알림/backfill/request sync는 목적별 datasource로 분리됐으며, 기본 datasource는 더 이상 `user_pii` 를 직접 다루지 않는다. 신규 init 스크립트와 계정 템플릿에서도 `app_core_rw` 의 `user_pii` DML 권한을 제거했고, admin dashboard read 경로는 `admin_dashboard_ro` `SELECT` 전용 계정으로 떼었다. 남은 작업은 기존 운영 DB에 같은 권한 회수를 실제 반영하는 것과, `app_core_rw` 의 public schema write 권한을 기능별로 더 잘게 자르는 2차 최소권한화다.
 
 분리 후에는 최소 2개 datasource를 둔다.
 
 - `app.datasource.core`
+- `app.datasource.admin-ro`
 - `app.datasource.pii`
 
 패키지도 책임 기준으로 나누는 편이 좋다.

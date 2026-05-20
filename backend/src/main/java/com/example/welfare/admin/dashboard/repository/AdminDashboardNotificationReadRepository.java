@@ -1,6 +1,6 @@
 package com.example.welfare.admin.dashboard.repository;
 
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -9,11 +9,16 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 
 @Repository
-@RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class AdminDashboardNotificationReadRepository {
 
     private final NamedParameterJdbcTemplate jdbcTemplate;
+
+    public AdminDashboardNotificationReadRepository(
+            @Qualifier("adminDashboardReadNamedParameterJdbcTemplate") NamedParameterJdbcTemplate jdbcTemplate
+    ) {
+        this.jdbcTemplate = jdbcTemplate;
+    }
 
     public AdminDashboardReadRows.NotificationSummaryRow fetchNotificationSummary(LocalDateTime dayAgo, LocalDateTime weekAgo) {
         return jdbcTemplate.queryForObject("""

@@ -1,6 +1,6 @@
 package com.example.welfare.admin.dashboard.repository;
 
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -10,13 +10,18 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @Repository
-@RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class AdminDashboardSearchReadRepository {
 
     private static final int DEFAULT_TOP_KEYWORD_LIMIT = 5;
 
     private final NamedParameterJdbcTemplate jdbcTemplate;
+
+    public AdminDashboardSearchReadRepository(
+            @Qualifier("adminDashboardReadNamedParameterJdbcTemplate") NamedParameterJdbcTemplate jdbcTemplate
+    ) {
+        this.jdbcTemplate = jdbcTemplate;
+    }
 
     public AdminDashboardReadRows.SearchSummaryRow fetchSearchSummary(LocalDateTime dayAgo, LocalDateTime weekAgo) {
         return jdbcTemplate.queryForObject("""
