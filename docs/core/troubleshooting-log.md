@@ -1,5 +1,10 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 908) `latest-overview` 와 active 문서가 `effective_operator_next_step=USE_RECENT_WINDOW_AS_SUPPLEMENTAL_REVIEW_CONTEXT` 로 올라간 뒤에도, PR body/author note가 예전 `WAIT_FOR_REAL_USER_TRAFFIC` draft 이유를 그대로 말하면 reviewer는 현재 draft 경계를 잘못 읽게 된다
+- 문제: active 문서와 handoff artifact는 이미 live readiness open, primary full latest batch gate `DEFERRED_NON_REAL_LEADER_SIGNAL`, supplemental recent-window reading `RECENT_WINDOW_CLEARS_HISTORICAL_2622_DOMINANCE` 로 해석이 바뀌었는데, PR 설명 일부는 아직 draft 유지 이유를 “real-user traffic/cohort evidence missing”으로 적고 있었다.
+- 해결: PR body와 quick entrypoint comment, stale author note를 current gate reading 기준으로 다시 압축했다. draft 이유는 이제 단순 traffic 부족이 아니라 **historical primary gate와 recent-window supplemental gate를 함께 읽어야 하는 상태** 로 설명한다.
+- 이유: reviewer가 가장 먼저 읽는 surface가 GitHub PR 전달면인데, 여기만 예전 wait-state를 유지하면 저장소 문서와 실제 artifact 해석이 다시 갈라진다.
+
 ## 907) latest-status만 effective next-step으로 바꾸고 overview는 readiness override를 old baseline pointer에서 시작하면, readiness 포함 실행이 다시 과도하게 `WAIT_FOR_REAL_USER_LEADER_SIGNAL` 쪽으로 기운다
 - 문제: `latest-status` 와 `latest-gate` 는 이미 `effective_operator_next_step=USE_RECENT_WINDOW_AS_SUPPLEMENTAL_REVIEW_CONTEXT` 를 current action으로 보여 주는데, `latest-overview` 는 여전히 baseline artifact 기반 `operator_next_step=WAIT_FOR_REAL_USER_TRAFFIC` 에서 readiness override를 시작하고 있었다. 이러면 readiness 포함 실행에서 current review-gate 해석보다 `WAIT_FOR_REAL_USER_LEADER_SIGNAL` 이 먼저 보이게 된다.
 - 해결: `latest-overview` 도 current action의 기본값을 `latest-status` 의 `effective_operator_next_step` 로 맞추고, status effective reading이 아직 old wait-state일 때만 readiness override를 추가로 얹도록 바꿨다.
