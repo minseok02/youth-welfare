@@ -114,6 +114,8 @@ bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-overview.sh
   - live readiness gate는 이미 열렸지만 baseline artifact 기반 `operator_next_step` 은 아직 old wait 상태라는 뜻입니다.
 - `effective_operator_next_step=USE_RECENT_WINDOW_AS_SUPPLEMENTAL_REVIEW_CONTEXT`
   - current local 기준 기본 current action입니다. full latest batch gate historical inertia와 recent-window current-live signal을 같이 읽으라는 뜻입니다.
+- `gate_action_class=READ_PRIMARY_AND_SUPPLEMENTAL_REVIEW_GATES`
+  - overview에서 operator가 제일 먼저 읽을 실행 분류입니다. 지금은 primary historical gate와 supplemental recent-window gate를 함께 보라는 뜻입니다.
 - `review_gate_interpretation_class=HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR`
   - primary full latest batch gate는 historical blocker인데 recent-window current-live signal은 이미 clear라는 뜻입니다.
 - `review_gate_operating_mode=PRIMARY_BASELINE_WITH_SUPPLEMENTAL_RECENT_WINDOW`

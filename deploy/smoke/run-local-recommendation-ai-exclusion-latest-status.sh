@@ -62,6 +62,8 @@ generated_at_kst = ""
 status_json_stale_relative_to_summaries = ""
 status_json_recommended_action = ""
 effective_operator_next_step = ""
+gate_action_class = ""
+status_data = {}
 
 interpretation_changed = drift.get("interpretation_changed", "")
 stable_baseline_changed = drift.get("stable_baseline_changed", "")
@@ -86,10 +88,27 @@ if status_json_path.is_file():
     generated_at_kst = status_data.get("generated_at_kst", "")
     operator_next_step = status_data.get("operator_next_step", operator_next_step)
     effective_operator_next_step = status_data.get("effective_operator_next_step", operator_next_step)
+    gate_action_class = status_data.get("gate_action_class", "")
     newest_summary_mtime = max(refresh_path.stat().st_mtime, drift_path.stat().st_mtime)
     status_json_stale_relative_to_summaries = "true" if status_json_path.stat().st_mtime < newest_summary_mtime else "false"
     if status_json_stale_relative_to_summaries == "true":
         status_json_recommended_action = "RERUN_LATEST_STATUS_EXPORT"
+
+if not gate_action_class:
+    if effective_operator_next_step == "USE_RECENT_WINDOW_AS_SUPPLEMENTAL_REVIEW_CONTEXT":
+        gate_action_class = "READ_PRIMARY_AND_SUPPLEMENTAL_REVIEW_GATES"
+    elif effective_operator_next_step == "WAIT_FOR_REAL_USER_LEADER_SIGNAL":
+        gate_action_class = "WAIT_FOR_REAL_USER_LEADER_SIGNAL"
+    elif effective_operator_next_step == "RUN_REAL_USER_RECHECK_DECISION":
+        gate_action_class = "RUN_REAL_USER_RECHECK"
+    elif effective_operator_next_step == "OBSERVE_FRESH_WINDOW_VOLATILITY":
+        gate_action_class = "OBSERVE_FRESH_WINDOW_VOLATILITY"
+    elif effective_operator_next_step == "KEEP_TRACING_CURRENT_TARGET_LEADER_PATH":
+        gate_action_class = "TRACE_CURRENT_TARGET_LEADER_PATH"
+    elif effective_operator_next_step == "INVESTIGATE_STABLE_BASELINE_DRIFT":
+        gate_action_class = "INVESTIGATE_BASELINE_DRIFT"
+    else:
+        gate_action_class = "KEEP_BASELINE_MONITORING"
 
 print(f"refresh_summary={refresh_path}")
 print(f"drift_summary={drift_path}")
@@ -98,6 +117,7 @@ print(f"generated_at_utc={generated_at_utc}")
 print(f"generated_at_kst={generated_at_kst}")
 print(f"operator_next_step={operator_next_step}")
 print(f"effective_operator_next_step={effective_operator_next_step}")
+print(f"gate_action_class={gate_action_class}")
 print(f"status_json_stale_relative_to_summaries={status_json_stale_relative_to_summaries}")
 print(f"status_json_recommended_action={status_json_recommended_action}")
 print(f"latest_drift_class={refresh.get('drift_class', '')}")

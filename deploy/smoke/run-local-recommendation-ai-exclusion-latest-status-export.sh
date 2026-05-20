@@ -119,6 +119,20 @@ elif review_gate_blocker.get("blocker_class", "") == "MIXED_BATCH_NON_REAL_DOMIN
 elif recent_window_recommendation_review_reading == "RECENT_WINDOW_STILL_TARGET_DOMINANT":
     effective_operator_next_step = "KEEP_TRACING_CURRENT_TARGET_LEADER_PATH"
 
+gate_action_class = "KEEP_BASELINE_MONITORING"
+if interpretation_changed == "true" or stable_baseline_changed == "true":
+    gate_action_class = "INVESTIGATE_BASELINE_DRIFT"
+elif effective_operator_next_step == "USE_RECENT_WINDOW_AS_SUPPLEMENTAL_REVIEW_CONTEXT":
+    gate_action_class = "READ_PRIMARY_AND_SUPPLEMENTAL_REVIEW_GATES"
+elif effective_operator_next_step == "WAIT_FOR_REAL_USER_LEADER_SIGNAL":
+    gate_action_class = "WAIT_FOR_REAL_USER_LEADER_SIGNAL"
+elif effective_operator_next_step == "RUN_REAL_USER_RECHECK_DECISION":
+    gate_action_class = "RUN_REAL_USER_RECHECK"
+elif effective_operator_next_step == "OBSERVE_FRESH_WINDOW_VOLATILITY":
+    gate_action_class = "OBSERVE_FRESH_WINDOW_VOLATILITY"
+elif effective_operator_next_step == "KEEP_TRACING_CURRENT_TARGET_LEADER_PATH":
+    gate_action_class = "TRACE_CURRENT_TARGET_LEADER_PATH"
+
 lines = [
     "# AI Exclusion Latest Status",
     "",
@@ -126,6 +140,7 @@ lines = [
     f"- generated_at_kst: `{generated_at_kst}`",
     f"- operator_next_step: `{operator_next_step}`",
     f"- effective_operator_next_step: `{effective_operator_next_step}`",
+    f"- gate_action_class: `{gate_action_class}`",
     f"- refresh_summary: `{refresh_path}`",
     f"- drift_summary: `{drift_path}`",
     f"- latest_drift_class: `{refresh.get('drift_class', '')}`",
@@ -180,6 +195,7 @@ json_payload = {
     "generated_at_kst": generated_at_kst,
     "operator_next_step": operator_next_step,
     "effective_operator_next_step": effective_operator_next_step,
+    "gate_action_class": gate_action_class,
     "status_json_stale_relative_to_summaries": "false",
     "status_json_recommended_action": "",
     "refresh_summary": str(refresh_path),

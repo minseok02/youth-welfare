@@ -61,6 +61,7 @@ bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-gate.sh
 - `generated_at_kst`
 - `operator_next_step`
 - `effective_operator_next_step`
+- `gate_action_class`
 - `status_json_stale_relative_to_summaries`
 - `status_json_recommended_action`
 - `latest_drift_class`
@@ -88,6 +89,8 @@ bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-gate.sh
   - older baseline artifact가 들고 있던 historical pointer입니다.
 - `effective_operator_next_step`
   - gate가 PASS여도 실제 current 해석이 무엇인지 보여 주는 값입니다. 현재 local 기준으로는 `USE_RECENT_WINDOW_AS_SUPPLEMENTAL_REVIEW_CONTEXT` 를 먼저 읽는 편이 맞습니다.
+- `gate_action_class`
+  - gate 한 줄만 보고도 바로 취할 실행 분류입니다. 현재 local 기준으로는 `READ_PRIMARY_AND_SUPPLEMENTAL_REVIEW_GATES` 입니다.
 - `review_gate_interpretation_class`
   - primary full latest batch gate와 supplemental recent-window gate를 합친 운영 해석 클래스입니다. 현재 local 기준으로는 `HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR` 입니다.
 - `review_gate_operating_mode`

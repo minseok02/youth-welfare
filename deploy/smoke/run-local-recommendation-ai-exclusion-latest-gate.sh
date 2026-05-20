@@ -98,6 +98,28 @@ elif fail_on_latest_observation_change and latest_observation_changed == "true":
     reason = "LATEST_OBSERVATION_CHANGED"
     exit_code = 1
 
+gate_action_class = data.get("gate_action_class", "")
+if reason in {"INTERPRETATION_CHANGED", "STABLE_BASELINE_CHANGED"}:
+    gate_action_class = "INVESTIGATE_BASELINE_DRIFT"
+elif fail_on_latest_observation_change and latest_observation_changed == "true":
+    gate_action_class = "OBSERVE_FRESH_WINDOW_VOLATILITY"
+elif not gate_action_class:
+    effective_operator_next_step = data.get('effective_operator_next_step', data.get('operator_next_step', ''))
+    if effective_operator_next_step == "USE_RECENT_WINDOW_AS_SUPPLEMENTAL_REVIEW_CONTEXT":
+        gate_action_class = "READ_PRIMARY_AND_SUPPLEMENTAL_REVIEW_GATES"
+    elif effective_operator_next_step == "WAIT_FOR_REAL_USER_LEADER_SIGNAL":
+        gate_action_class = "WAIT_FOR_REAL_USER_LEADER_SIGNAL"
+    elif effective_operator_next_step == "RUN_REAL_USER_RECHECK_DECISION":
+        gate_action_class = "RUN_REAL_USER_RECHECK"
+    elif effective_operator_next_step == "OBSERVE_FRESH_WINDOW_VOLATILITY":
+        gate_action_class = "OBSERVE_FRESH_WINDOW_VOLATILITY"
+    elif effective_operator_next_step == "KEEP_TRACING_CURRENT_TARGET_LEADER_PATH":
+        gate_action_class = "TRACE_CURRENT_TARGET_LEADER_PATH"
+    elif effective_operator_next_step == "INVESTIGATE_STABLE_BASELINE_DRIFT":
+        gate_action_class = "INVESTIGATE_BASELINE_DRIFT"
+    else:
+        gate_action_class = "KEEP_BASELINE_MONITORING"
+
 print(f"status_json={status_json}")
 print(f"gate_status={status}")
 print(f"gate_reason={reason}")
@@ -105,6 +127,7 @@ print(f"generated_at_utc={data.get('generated_at_utc', '')}")
 print(f"generated_at_kst={data.get('generated_at_kst', '')}")
 print(f"operator_next_step={data.get('operator_next_step', '')}")
 print(f"effective_operator_next_step={data.get('effective_operator_next_step', data.get('operator_next_step', ''))}")
+print(f"gate_action_class={gate_action_class}")
 print(f"status_json_stale_relative_to_summaries={status_json_stale_relative_to_summaries}")
 print(f"status_json_recommended_action={status_json_recommended_action}")
 print(f"latest_drift_class={data.get('latest_drift_class', '')}")

@@ -204,6 +204,21 @@ recent_window_top1_leader_real_user_users = status.get("recent_window_top1_leade
 recent_window_target_top1_users = status.get("recent_window_target_top1_users", "")
 historical_example_dominance_detected = status.get("historical_example_dominance_detected", "")
 
+def resolve_gate_action_class(gate_reason: str, effective_next_step: str) -> str:
+    if gate_reason in {"INTERPRETATION_CHANGED", "STABLE_BASELINE_CHANGED"}:
+        return "INVESTIGATE_BASELINE_DRIFT"
+    if effective_next_step == "USE_RECENT_WINDOW_AS_SUPPLEMENTAL_REVIEW_CONTEXT":
+        return "READ_PRIMARY_AND_SUPPLEMENTAL_REVIEW_GATES"
+    if effective_next_step == "WAIT_FOR_REAL_USER_LEADER_SIGNAL":
+        return "WAIT_FOR_REAL_USER_LEADER_SIGNAL"
+    if effective_next_step == "RUN_REAL_USER_RECHECK_DECISION":
+        return "RUN_REAL_USER_RECHECK"
+    if effective_next_step == "OBSERVE_FRESH_WINDOW_VOLATILITY":
+        return "OBSERVE_FRESH_WINDOW_VOLATILITY"
+    if effective_next_step == "KEEP_TRACING_CURRENT_TARGET_LEADER_PATH":
+        return "TRACE_CURRENT_TARGET_LEADER_PATH"
+    return "KEEP_BASELINE_MONITORING"
+
 readiness_next_action = ""
 readiness_skip_reason = readiness.get("real_user_readiness_skip_reason", "")
 if readiness.get("real_user_readiness_included", "") == "true":
@@ -238,6 +253,7 @@ elif readiness_skip_reason == "REAL_USER_READINESS_DISABLED":
 
 baseline_operator_next_step = status.get("operator_next_step", "")
 effective_operator_next_step = status.get("effective_operator_next_step", baseline_operator_next_step)
+gate_action_class = status.get("gate_action_class", "")
 readiness_override_detected = "false"
 readiness_override_reason = ""
 if (
@@ -254,11 +270,14 @@ if (
         readiness_override_reason = "LIVE_REAL_USER_GATES_READY_BUT_BASELINE_STATUS_STILL_WAITING"
         effective_operator_next_step = "RUN_REAL_USER_RECHECK_DECISION"
 
+gate_action_class = resolve_gate_action_class(gate.get("gate_reason", ""), effective_operator_next_step)
+
 lines = [
     f"generated_at_utc={status.get('generated_at_utc', '')}",
     f"generated_at_kst={status.get('generated_at_kst', '')}",
     f"operator_next_step={baseline_operator_next_step}",
     f"effective_operator_next_step={effective_operator_next_step}",
+    f"gate_action_class={gate_action_class}",
     f"readiness_override_detected={readiness_override_detected}",
     f"readiness_override_reason={readiness_override_reason}",
     f"status_json_stale_relative_to_summaries={status.get('status_json_stale_relative_to_summaries', '')}",
@@ -314,6 +333,7 @@ note_lines = [
     f"- generated_at_kst: `{status.get('generated_at_kst', '')}`",
     f"- operator_next_step: `{baseline_operator_next_step}`",
     f"- effective_operator_next_step: `{effective_operator_next_step}`",
+    f"- gate_action_class: `{gate_action_class}`",
     f"- readiness_override_detected: `{readiness_override_detected}`",
     f"- readiness_override_reason: `{readiness_override_reason}`",
     f"- status_json_stale_relative_to_summaries: `{status.get('status_json_stale_relative_to_summaries', '')}`",
@@ -381,6 +401,7 @@ json_payload = {
     "generated_at_kst": status.get("generated_at_kst", ""),
     "operator_next_step": baseline_operator_next_step,
     "effective_operator_next_step": effective_operator_next_step,
+    "gate_action_class": gate_action_class,
     "readiness_override_detected": readiness_override_detected,
     "readiness_override_reason": readiness_override_reason,
     "status_json_stale_relative_to_summaries": status.get("status_json_stale_relative_to_summaries", ""),

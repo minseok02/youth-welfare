@@ -1,5 +1,10 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 913) `effective_operator_next_step`, interpretation class, operating mode까지 올린 뒤에도 operator가 맨 위에서 바로 읽을 짧은 실행 분류가 없으면, CLI를 보는 사람은 여전히 세 값을 조합해 첫 행동을 판단해야 한다
+- 문제: latest surface에 current 해석은 충분히 올라왔지만, operator가 `latest-gate` 한 줄만 보고 즉시 행동을 고르려면 `effective_operator_next_step`, `review_gate_interpretation_class`, `review_gate_operating_mode` 를 다시 머리로 합쳐야 했다.
+- 해결: `latest-status-export`, `latest-status`, `latest-gate`, `latest-overview` 에 `gate_action_class` 를 추가했다. 현재 local 기준 값은 `READ_PRIMARY_AND_SUPPLEMENTAL_REVIEW_GATES` 이다.
+- 이유: operator one-shot surface는 결국 “지금 무엇을 할 것인가”를 가장 짧게 보여 줘야 한다. decision class와 operating mode 위에 한 단계 더 얇은 실행 분류가 있으면 해석 속도가 더 빨라진다.
+
 ## 912) reviewer/author/operator surface에만 decision class를 올리고 reopen/next-lane/product memo가 raw gate 설명에 머물면, 실제 product-decision 문서만 읽는 사람은 다시 old gate 값 해석 단계로 돌아간다
 - 문제: `latest-status`, `latest-gate`, `latest-overview`, PR surface, draft/post-merge checklist는 이미 `review_gate_interpretation_class`, `review_gate_operating_mode` 를 직접 쓰기 시작했는데, `recommendation-reopen-decision-runbook.md`, `recommendation-next-lane-brief.md`, `recommendation-primary-audience-exclusion-decision-memo.md` 는 여전히 raw gate 값과 next-step 중심으로 설명하고 있었다.
 - 해결: product-decision 문서 세 곳에도 current 운영 클래스 `HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR`, `PRIMARY_BASELINE_WITH_SUPPLEMENTAL_RECENT_WINDOW` 를 직접 넣었다.

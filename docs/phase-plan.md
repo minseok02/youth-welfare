@@ -1,5 +1,6 @@
 # 구현 현황
 
+- 2026-05-20: latest operator surface에 `gate_action_class` 도 올렸다. 현재 local 기준 값은 `READ_PRIMARY_AND_SUPPLEMENTAL_REVIEW_GATES` 이고, operator는 이제 `effective_operator_next_step`, `review_gate_interpretation_class`, `review_gate_operating_mode` 를 다시 조합하지 않고도 첫 행동을 한 줄로 읽을 수 있다.
 - 2026-05-20: reopen / next-lane / primary-audience-exclusion 문서에도 `review_gate_interpretation_class=HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR`, `review_gate_operating_mode=PRIMARY_BASELINE_WITH_SUPPLEMENTAL_RECENT_WINDOW` 를 직접 올렸다. 이제 product-decision surface도 같은 current 운영 클래스를 기준으로 읽는다.
 - 2026-05-20: draft exit / post-merge follow-up 체크리스트에도 `review_gate_interpretation_class=HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR`, `review_gate_operating_mode=PRIMARY_BASELINE_WITH_SUPPLEMENTAL_RECENT_WINDOW` 를 직접 올렸다. 이제 author도 undraft/merge 판단을 raw gate 값이 아니라 current 운영 클래스 기준으로 읽는다.
 - 2026-05-20: reviewer-facing brief와 GitHub PR 전달면에도 `review_gate_interpretation_class=HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR`, `review_gate_operating_mode=PRIMARY_BASELINE_WITH_SUPPLEMENTAL_RECENT_WINDOW` 를 같이 올렸다. 이제 reviewer도 raw gate 값 셋 대신 current 운영 결정 클래스를 바로 읽을 수 있다.
