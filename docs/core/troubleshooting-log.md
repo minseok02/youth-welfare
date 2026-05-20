@@ -1,5 +1,13 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 950) integrationTest 리포트는 성공인데 Gradle test worker가 종료를 못 하고 남을 수 있다
+- 문제: `./gradlew integrationTest --no-daemon` 재실행에서 `backend/build/reports/tests/integrationTest/index.html` 기준 `76 tests / 0 failures / 2 ignored / 100%` 까지 리포트가 생성됐는데도 Gradle wrapper 프로세스가 종료되지 않고 worker가 계속 남았다.
+- 해결: 현재는 test report와 XML 결과를 성공 근거로 읽고, 남은 worker는 수동으로 정리했다. 코드 regression이라기보다 local Java/Gradle 종료 경계에 가까우므로, 다음에 반복되면 test worker shutdown 쪽으로 별도 원인 추적한다.
+
+## 949) 테스트 문서가 backend 기준만 남기고 있으면, 실제 current closeout 검증 범위보다 좁게 읽힌다
+- 문제: `docs/core/testing.md` 는 backend `test` / `integrationTest` 중심이라, 현재 main에서 기본처럼 같이 보는 frontend `lint` / `build` 와 one-shot smoke 경로가 빠져 있었다.
+- 해결: testing 문서에 frontend 기본 검증과 `ops baseline` / `policy quality summary` / `recommendation latest overview` one-shot smoke를 현재 closeout 기준 전체 검증 경로로 추가했다.
+
 ## 948) 이미 current runbook가 있는 항목을 계속 pending처럼 남겨두면, 실제로는 새 일이 없는데도 끝이 안 나는 것처럼 보인다
 - 문제: `bounded policy admin runtime one-page runbook`, `referenceUrlsJson rebuild 절차`, `retrieval/category one-shot summary smoke` 는 이미 [policy-admin-runtime-runbook.md](../policy/policy-admin-runtime-runbook.md), [policy-quality-summary-runbook.md](../policy/policy-quality-summary-runbook.md) 로 current 경로가 있었는데, active pending 목록에 계속 남아 있어 새 문서를 더 만들어야 하는 것처럼 읽혔다.
 - 해결: active 기준선에서 이 둘을 명시적으로 current runbook로 선언하고, pending 목록에서는 뺐다. 앞으로는 “문서가 없다”와 “문서는 있는데 완료 상태로 못 박지 않았다”를 구분해서 적는다.

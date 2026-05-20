@@ -1,5 +1,7 @@
 # 구현 현황
 
+- 2026-05-20: `docs/core/testing.md` 를 현재 closeout 기준선에 맞춰 보강했다. 이제 backend `test` / `integrationTest` 뿐 아니라 frontend `lint` / `build`, 그리고 필요 시 `ops baseline` / `policy quality summary` / `recommendation latest overview` one-shot smoke를 같이 current 전체 검증 경로로 읽는다.
+- 2026-05-20: 전체 검증 재실행에서 backend `test` 는 성공, frontend `lint` / `build` 도 성공, backend `integrationTest` 는 리포트 기준 `76 tests / 0 failures / 2 ignored / 100%` 까지 완료됐지만 Gradle test worker가 종료를 못 하고 남았다. 결과는 보고서와 XML에 남아 있어 성공으로 읽되, local Java/Gradle 종료 경계는 후속 환경 이슈로 분리한다.
 - 2026-05-20: `bounded policy admin runtime one-page runbook` 을 별도 새 문서 작업으로 다시 열지 않고 existing current runbook를 기준선으로 못 박았다. `policy-admin-runtime-runbook.md` 는 수동 admin endpoint 한 장 경로, `policy-quality-summary-runbook.md` 는 retrieval/category one-shot summary 경로로 읽는다. pending 목록에는 더 이상 “새로 정리할 일”처럼 남기지 않는다.
 - 2026-05-20: active 문서에서 코드형 상태값만 나열하지 않고, 바로 옆에 사람 말 번역을 붙이는 기준을 추가했다. current-state / reviewer brief / promotion checklist에는 `RECENT_WINDOW_POLICY_CANDIDATE`, `KEEP_PRIMARY_BASELINE`, `READY_FOR_BOUNDED_PROMOTION_REVIEW`, `PASS_RECENT_WINDOW_POLICY_CANDIDATE` 옆에 실제 뜻을 풀어 쓴다.
 - 2026-05-20: explicit policy review current decision을 고정했다. `run-local-recommendation-bounded-promotion-review.sh` 결과 `PASS_RECENT_WINDOW_POLICY_CANDIDATE` 를 근거로 bounded promotion review는 승인하지만, primary full latest batch baseline을 recent-window로 즉시 승격하는 정책 변경은 아직 보류한다.

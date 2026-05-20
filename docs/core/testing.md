@@ -13,6 +13,14 @@ cd backend
 
 기본 `test` 태스크는 `backend/src/test/java/com/example/welfare/integration` 아래 통합 테스트를 제외합니다.
 
+프론트 기본 검증은 아래 두 개를 같이 봅니다.
+
+```bash
+cd frontend
+npm run lint
+npm run build
+```
+
 ## 통합 테스트
 
 PostgreSQL과 Redis까지 포함한 실제 흐름을 확인할 때 실행합니다.
@@ -90,8 +98,37 @@ RUN_SMTP_SMOKE=true ./gradlew test --tests com.example.welfare.notification.gate
 - 서비스/컨트롤러/리포지토리 단위 변경: `./gradlew test`
 - 로그인, refresh token, Redis 저장 흐름 변경: `./gradlew integrationTest`
 - 북마크, 추천 refresh/get 전체 흐름 변경: `./gradlew integrationTest`
+- 프론트 페이지/상태/라우팅 변경: `cd frontend && npm run lint && npm run build`
 - SMTP 계정/비밀번호 검증: `RUN_SMTP_SMOKE=true ./gradlew test --tests com.example.welfare.notification.gateway.SmtpSmokeTest --rerun-tasks`
 - 배포 전 최종 확인: `./gradlew test` 실행 후 `docker compose up -d db redis` 상태에서 `./gradlew integrationTest`
+
+## 현재 closeout 기준 전체 검증
+
+현재 main 기준으로 “전체 테스트를 다시 돌린다”는 말은 보통 아래 순서를 뜻합니다.
+
+```bash
+cd backend
+./gradlew test --no-daemon
+./gradlew integrationTest --no-daemon
+
+cd ../frontend
+npm run lint
+npm run build
+```
+
+필요하면 그 다음 runtime smoke를 붙입니다.
+
+- 운영 read-only baseline: `bash deploy/smoke/run-local-ops-baseline-suite.sh`
+- 정책 retrieval/category summary: `bash deploy/smoke/run-local-policy-quality-summary.sh`
+- recommendation current overview: `bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-overview.sh`
+
+즉 테스트 문서 기준에서도
+
+- backend 단위/통합 테스트
+- frontend lint/build
+- 변경 축에 맞는 one-shot smoke
+
+를 함께 current baseline으로 읽습니다.
 
 ## integration preflight 우회
 
