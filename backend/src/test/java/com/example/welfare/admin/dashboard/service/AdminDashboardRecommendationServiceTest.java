@@ -336,6 +336,10 @@ class AdminDashboardRecommendationServiceTest {
                 .isEqualTo("BOUNDED_PROMOTION_REVIEW_RUN_NOT_READY");
         assertThat(response.reviewGatePolicyPromotionReviewRunReason())
                 .isEqualTo("REAL_USER_TRAFFIC_GATE_NOT_READY");
+        assertThat(response.reviewGatePolicyPromotionReviewRunCriteriaStatus())
+                .isEqualTo("NOT_READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN");
+        assertThat(response.reviewGatePolicyPromotionReviewRunCriteriaReason())
+                .isEqualTo("REAL_USER_TRAFFIC_GATE_NOT_READY");
         assertThat(response.topRepeatedServices()).singleElement().satisfies(service -> {
             assertThat(service.serviceId()).isEqualTo(2622L);
             assertThat(service.rowCount()).isEqualTo(449);

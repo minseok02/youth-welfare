@@ -575,6 +575,45 @@ final class AdminDashboardQueryPolicy {
         };
     }
 
+    static String resolveReviewGatePolicyPromotionReviewRunCriteriaStatus(
+            String reviewGatePolicyPromotionApprovalCriteriaStatus,
+            String reviewGatePolicyPromotionApprovalRecordStatus
+    ) {
+        if (!"READY_FOR_EXPLICIT_PROMOTION_APPROVAL".equals(reviewGatePolicyPromotionApprovalCriteriaStatus)) {
+            return "NOT_READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN";
+        }
+        return switch (reviewGatePolicyPromotionApprovalRecordStatus) {
+            case "PENDING_EXPLICIT_PROMOTION_APPROVAL_RECORD", "EXPLICIT_PROMOTION_APPROVAL_RECORDED" ->
+                    "READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN";
+            case "APPROVAL_RECORD_NOT_READY", "APPROVAL_RECORD_NOT_APPLICABLE" ->
+                    "NOT_READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN";
+            default -> "NOT_READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN";
+        };
+    }
+
+    static String resolveReviewGatePolicyPromotionReviewRunCriteriaReason(
+            String reviewGatePolicyPromotionApprovalCriteriaStatus,
+            String reviewGatePolicyPromotionApprovalCriteriaReason,
+            String reviewGatePolicyPromotionApprovalRecordStatus,
+            String reviewGatePolicyPromotionApprovalRecordReason
+    ) {
+        String status = resolveReviewGatePolicyPromotionReviewRunCriteriaStatus(
+                reviewGatePolicyPromotionApprovalCriteriaStatus,
+                reviewGatePolicyPromotionApprovalRecordStatus
+        );
+
+        if ("READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN".equals(status)) {
+            if ("EXPLICIT_PROMOTION_APPROVAL_RECORDED".equals(reviewGatePolicyPromotionApprovalRecordStatus)) {
+                return "EXPLICIT_APPROVAL_RECORD_SUPPORTS_BOUNDED_REVIEW_RUN";
+            }
+            return "BOUNDED_REVIEW_RUN_PREREQUISITES_MET_BUT_APPROVAL_RECORD_PENDING";
+        }
+        if (!"READY_FOR_EXPLICIT_PROMOTION_APPROVAL".equals(reviewGatePolicyPromotionApprovalCriteriaStatus)) {
+            return reviewGatePolicyPromotionApprovalCriteriaReason;
+        }
+        return reviewGatePolicyPromotionApprovalRecordReason;
+    }
+
     static String resolveReviewGatePolicyPromotionReviewRunReason(
             String reviewGatePolicyPromotionApprovalRecordStatus,
             String reviewGatePolicyPromotionApprovalRecordReason

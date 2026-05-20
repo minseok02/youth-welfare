@@ -141,6 +141,9 @@ bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-status.sh
 - `review_gate_policy_promotion_review_run_status=PENDING_BOUNDED_PROMOTION_REVIEW_RUN`
   - explicit approval record가 아직 없어 actual bounded promotion review run도 아직 시작할 수 없다는 뜻입니다.
 - `review_gate_policy_promotion_review_run_reason=EXPLICIT_APPROVAL_RECORD_NOT_WRITTEN_FOR_BOUNDED_REVIEW_RUN`
+- `review_gate_policy_promotion_review_run_criteria_status=READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN`
+  - actual run은 아직 pending이지만 bounded promotion review run을 열 prerequisite 자체는 이미 충족됐다는 뜻입니다.
+- `review_gate_policy_promotion_review_run_criteria_reason=BOUNDED_REVIEW_RUN_PREREQUISITES_MET_BUT_APPROVAL_RECORD_PENDING`
 - `review_gate_interpretation_class=HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR`
   - primary full latest batch gate는 아직 historical blocker인데, supplemental recent-window current signal은 이미 clear 쪽으로 움직였다는 뜻입니다.
 - `review_gate_operating_mode=PRIMARY_BASELINE_WITH_SUPPLEMENTAL_RECENT_WINDOW`

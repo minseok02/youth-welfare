@@ -6157,3 +6157,8 @@ admin API와 latest artifact에
 - 문제: `PENDING_EXPLICIT_PROMOTION_APPROVAL_RECORD` 까지 보이게 한 뒤에도, 실제 bounded promotion review를 이미 실행했는지 여부는 surface에 없었다. 이 상태에선 approval record pending과 actual review run pending이 다시 같은 의미처럼 읽혀 마지막 실행 경계가 흐려졌다.
 - 해결: `reviewGatePolicyPromotionReviewRunStatus`, `reviewGatePolicyPromotionReviewRunReason` 을 admin API, latest artifact, active runbook, reviewer/author/PR surface에 추가했다.
 - 이유: explicit approval record가 아직 없어서 run을 못 하는 상태와, approval record는 남았지만 실제 bounded review run은 아직 안 돈 상태는 다른 단계다. 이 둘을 분리해야 operator/reviewer가 “승인 기록 전 대기”와 “실행 대기”를 같은 언어로 읽을 수 있다.
+
+## #934 bounded review run pending과 bounded review run prerequisite ready를 같은 필드로 읽으면 마지막 실행 준비 경계가 다시 흐려진다
+- 문제: `PENDING_BOUNDED_PROMOTION_REVIEW_RUN` 까지 surface에 올린 뒤에도, actual bounded review run이 아직 안 돌고 있다는 사실과 bounded review run을 열 prerequisite 자체는 이미 충족됐다는 사실이 같은 층처럼 읽혔다. 게다가 admin smoke는 새 필드 추가 뒤 positional output index가 밀려 staleness/recent-window 값 라벨이 잘못 보였다.
+- 해결: `reviewGatePolicyPromotionReviewRunCriteriaStatus`, `reviewGatePolicyPromotionReviewRunCriteriaReason` 을 admin API, latest artifact, active runbook에 추가했고, admin smoke output index도 새 필드 순서에 맞춰 재정렬했다.
+- 이유: `actual run pending` 과 `run prerequisite ready` 는 다른 상태다. 이 둘을 분리해야 operator가 “지금은 아직 실행 전이지만 prerequisite은 이미 다 맞았다”를 바로 읽을 수 있고, smoke 출력도 그 상태를 왜곡 없이 보여 줄 수 있다.
