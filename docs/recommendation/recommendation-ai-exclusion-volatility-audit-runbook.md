@@ -12,7 +12,7 @@
 
 ## 현재 단계 해석
 
-현재 local 기본값은 `WAIT_FOR_REAL_USER_TRAFFIC`, latest reading은 `VOLATILE_ONLY_DRIFT` 입니다.
+현재 local 기본값은 full latest batch review gate `DEFERRED_NON_REAL_LEADER_SIGNAL`, recent-window supplemental reading `RECENT_WINDOW_CLEARS_HISTORICAL_2622_DOMINANCE`, latest reading `VOLATILE_ONLY_DRIFT` 입니다.
 
 즉 이 volatility audit은 recommendation을 당장 reopen할지 보는 gate가 아니라, **현재 유지 중인 baseline에서 fresh target-family window가 얼마나 흔들리는지 더 정교하게 측정하는 volatility helper** 로 읽는 것이 맞습니다.
 

@@ -12,7 +12,7 @@
 
 ## 현재 단계 해석
 
-현재 local 기본값은 `WAIT_FOR_REAL_USER_TRAFFIC`, latest reading은 `VOLATILE_ONLY_DRIFT` 입니다.
+현재 local 기본값은 full latest batch review gate `DEFERRED_NON_REAL_LEADER_SIGNAL`, recent-window supplemental reading `RECENT_WINDOW_CLEARS_HISTORICAL_2622_DOMINANCE`, latest reading `VOLATILE_ONLY_DRIFT` 입니다.
 
 즉 이 snapshot runbook은 recommendation을 지금 다시 튜닝하는 reopen entrypoint가 아니라, **현재 exclusion baseline을 날짜 붙은 summary로 재실행하고 비교 가능한 형태로 남기는 evidence capture helper** 로 읽는 것이 맞습니다.
 

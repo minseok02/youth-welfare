@@ -12,7 +12,7 @@
 
 ## 현재 단계 해석
 
-현재 local recommendation current truth는 `WAIT_FOR_REAL_USER_TRAFFIC`, basic gate `PASS`, strict gate `LATEST_OBSERVATION_CHANGED`, `VOLATILE_ONLY_DRIFT` 입니다.
+현재 local recommendation current truth는 full latest batch review gate `DEFERRED_NON_REAL_LEADER_SIGNAL`, recent-window supplemental reading `RECENT_WINDOW_CLEARS_HISTORICAL_2622_DOMINANCE`, basic gate `PASS`, strict gate `LATEST_OBSERVATION_CHANGED`, `VOLATILE_ONLY_DRIFT` 입니다.
 
 즉 이 drift-check는 “reopen 여부를 오늘 바로 결정하는 gate”라기보다, **baseline refresh를 다시 태운 뒤 변화가 stable baseline drift인지 fresh observation 흔들림인지 더 명확히 분리할 때 쓰는 deeper compare wrapper** 로 보는 편이 맞습니다.
 

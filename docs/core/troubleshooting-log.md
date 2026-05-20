@@ -1,5 +1,10 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 382) deeper helper와 decision 문서 상단이 예전 blocker를 말하면, operator는 current-state보다 오래된 전제를 들고 재실행한다
+- 문제: snapshot/compare/volatility/drift-classify, baseline-refresh drift-check, reopen-decision, next-lane, real-user readiness helper 상단은 여전히 `WAIT_FOR_REAL_USER_TRAFFIC` 나 deferred-only 설명을 먼저 보여 줬다. 하지만 current truth는 이미 readiness opened + full latest batch historical inertia + recent-window supplemental gate까지 좁혀진 상태였다.
+- 해결: deeper helper/decision/runbook 상단 current-reading 문구를 `DEFERRED_NON_REAL_LEADER_SIGNAL` full latest batch gate와 `RECENT_WINDOW_CLEARS_HISTORICAL_2622_DOMINANCE` recent-window supplemental gate 기준으로 다시 맞췄다.
+- 이유: operator는 detailed helper 문서를 바로 열고 실행하는 경우가 많다. 상단 전제가 오래되면 같은 wrapper를 다시 돌려도 결과를 예전 blocker 프레임으로 잘못 해석하게 된다.
+
 ## 381) helper/README 상단이 예전 blocker를 말하면 operator가 최신 current-state보다 옛 해석을 먼저 읽게 된다
 - 문제: `recommendation/README` 와 summary/status helper runbook 상단은 여전히 `WAIT_FOR_REAL_USER_TRAFFIC` 를 local 기본값처럼 적고 있었는데, active current-state는 이미 full latest batch historical inertia와 recent-window supplemental gate까지 좁혀진 상태였다.
 - 해결: `recommendation/README`, `latest-status`, `latest-status-export`, `stability-report`, `baseline-report` 상단 current-reading 문구를 `DEFERRED_NON_REAL_LEADER_SIGNAL` full gate + `RECENT_WINDOW_CLEARS_HISTORICAL_2622_DOMINANCE` supplemental gate로 다시 맞췄다.

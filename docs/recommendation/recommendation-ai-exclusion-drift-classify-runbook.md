@@ -12,7 +12,7 @@
 
 ## 현재 단계 해석
 
-현재 local 기본 해석은 `WAIT_FOR_REAL_USER_TRAFFIC`, `VOLATILE_ONLY_DRIFT` 입니다.
+현재 local 기본 해석은 full latest batch review gate `DEFERRED_NON_REAL_LEADER_SIGNAL`, recent-window supplemental reading `RECENT_WINDOW_CLEARS_HISTORICAL_2622_DOMINANCE`, `VOLATILE_ONLY_DRIFT` 입니다.
 
 즉 이 drift-classify helper는 recommendation lane을 즉시 다시 여는 판정기가 아니라, **이미 관측된 snapshot drift를 stable baseline drift와 volatile fresh-window drift로 나눠 읽기 쉽게 만드는 해석 보조 도구** 로 보는 편이 맞습니다.
 

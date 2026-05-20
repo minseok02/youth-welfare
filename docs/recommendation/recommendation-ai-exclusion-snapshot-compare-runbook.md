@@ -12,7 +12,7 @@
 
 ## 현재 단계 해석
 
-현재 local recommendation current truth는 여전히 `WAIT_FOR_REAL_USER_TRAFFIC`, `VOLATILE_ONLY_DRIFT` 입니다.
+현재 local recommendation current truth는 full latest batch review gate `DEFERRED_NON_REAL_LEADER_SIGNAL`, recent-window supplemental reading `RECENT_WINDOW_CLEARS_HISTORICAL_2622_DOMINANCE`, `VOLATILE_ONLY_DRIFT` 입니다.
 
 즉 이 compare runbook은 새로운 제품 결론을 여는 문서가 아니라, **snapshot summary 두 개를 놓고 현재 drift가 fresh window 흔들림인지 stable baseline 변화인지 compact하게 다시 분리하는 read-only compare helper** 로 봐야 합니다.
 

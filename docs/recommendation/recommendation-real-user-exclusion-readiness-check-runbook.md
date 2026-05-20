@@ -20,10 +20,14 @@
 
 현재 local 기본 해석은:
 
-- `dashboard_real_user_gate=DEFERRED_NO_REAL_USER_TRAFFIC`
-- `breakdown_real_user_cohort_gate=DEFERRED_NO_REAL_USER_COHORT`
+- `dashboard_real_user_gate=READY_REAL_USER_TRAFFIC`
+- `breakdown_real_user_cohort_gate=READY_REAL_USER_COHORT`
+- full latest batch review gate:
+  - `DEFERRED_NON_REAL_LEADER_SIGNAL`
+- recent-window supplemental gate:
+  - `RECENT_WINDOW_CLEARS_HISTORICAL_2622_DOMINANCE`
 
-즉 이 runbook은 지금 당장 distribution을 읽기보다, **언제 distribution/reopen 관찰을 실제로 시작할 수 있는지**를 가르는 gate 용도에 더 가깝습니다.
+즉 이 runbook은 이제 “gate가 아직 안 열렸다”보다, **gate는 열렸지만 distribution과 review 해석을 어떤 순서로 볼지**를 가르는 runbook에 더 가깝습니다.
 
 ## 기본 스크립트
 
@@ -54,11 +58,7 @@ bash deploy/smoke/run-local-real-user-exclusion-readiness-check.sh
 
 이 경우는 아직 `REAL_USER` gate가 닫혀 있어 bucket 분포를 읽을 단계가 아닙니다.
 
-이때 current 기본 해석은:
-
-- `WAIT_FOR_REAL_USER_TRAFFIC`
-- closeout baseline 유지
-- product reopen 아님
+이때 current 기본 해석은 readiness는 아직 deferred이고, closeout baseline 유지 / product reopen 아님 입니다.
 
 ### 2. `real_user_distribution_executed=true`
 

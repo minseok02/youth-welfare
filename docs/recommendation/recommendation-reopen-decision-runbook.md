@@ -25,8 +25,8 @@
 
 현재 기본 해석은 아래와 같습니다.
 
-- `REAL_USER` gate가 아직 deferred면 이 문서를 바로 쓰지 않습니다.
-- 그 상태의 current decision은 계속 `WAIT_FOR_REAL_USER_TRAFFIC` 입니다.
+- `REAL_USER` readiness gate가 deferred면 이 문서를 바로 쓰지 않습니다.
+- readiness는 열렸지만 full latest batch review gate가 historical example inertia에 묶여 있으면, current decision은 `USE_RECENT_WINDOW_AS_SUPPLEMENTAL_REVIEW_CONTEXT` 로 읽는 편이 맞습니다.
 - reopen 판단은 gate 확인 뒤에만 들어옵니다.
 
 ## 언제 이 문서를 쓰나

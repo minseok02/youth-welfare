@@ -29,7 +29,7 @@
 
 현재 이 brief를 읽는 기본 전제는:
 
-- 지금 current local 결정은 여전히 `WAIT_FOR_REAL_USER_TRAFFIC`
+- 지금 current local 결정은 full latest batch review gate `DEFERRED_NON_REAL_LEADER_SIGNAL` 과 recent-window supplemental reading `RECENT_WINDOW_CLEARS_HISTORICAL_2622_DOMINANCE` 를 같이 읽는 상태
 - 즉 이 문서는 “지금 당장 reopen 한다”가 아니라, **reopen 하게 된다면 어떤 lane이 먼저인가**를 정리한 문서입니다.
 
 ## 현재 권장 결론
