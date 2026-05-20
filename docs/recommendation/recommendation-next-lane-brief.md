@@ -30,6 +30,8 @@
 현재 이 brief를 읽는 기본 전제는:
 
 - 지금 current local 결정은 full latest batch review gate `DEFERRED_NON_REAL_LEADER_SIGNAL` 과 recent-window supplemental reading `RECENT_WINDOW_CLEARS_HISTORICAL_2622_DOMINANCE` 를 같이 읽는 상태
+- 현재 review gate interpretation class는 `HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR`
+- 현재 review gate operating mode는 `PRIMARY_BASELINE_WITH_SUPPLEMENTAL_RECENT_WINDOW`
 - 즉 이 문서는 “지금 당장 reopen 한다”가 아니라, **reopen 하게 된다면 어떤 lane이 먼저인가**를 정리한 문서입니다.
 
 ## 현재 권장 결론
@@ -43,6 +45,7 @@
 
 즉 current recommendation next lane 은
 **global tuning 이 아니라 local signal structuring** 입니다.
+그리고 이 판단은 raw gate 값만 보고 내리는 것이 아니라, `HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR` / `PRIMARY_BASELINE_WITH_SUPPLEMENTAL_RECENT_WINDOW` 운영 클래스 안에서 무엇을 먼저 다시 열지 정하는 것으로 읽는 편이 맞습니다.
 
 ## 왜 lane 1 이 먼저인가
 

@@ -13,6 +13,7 @@
 ## 현재 단계 해석
 
 현재 local 기본값은 full latest batch review gate `DEFERRED_NON_REAL_LEADER_SIGNAL`, recent-window supplemental reading `RECENT_WINDOW_CLEARS_HISTORICAL_2622_DOMINANCE` 입니다.
+현재 review gate interpretation class는 `HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR`, current operating mode는 `PRIMARY_BASELINE_WITH_SUPPLEMENTAL_RECENT_WINDOW` 입니다.
 
 즉 이 문서는 지금 당장 prompt/post-processing tuning을 다시 여는 작업 지시서가 아니라, live readiness가 열린 뒤에도 **현재 product exclusion 기본값과 review gate 해석을 어떻게 같이 읽는지** 고정하는 decision memo로 봐야 합니다.
 
@@ -91,6 +92,7 @@
   - 반복되면 later review
 - 지금 immediate lane
   - direct tuning이 아니라 **제품 정책 유지 확인 + evidence 기록**
+- 그리고 이 판단은 `HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR` / `PRIMARY_BASELINE_WITH_SUPPLEMENTAL_RECENT_WINDOW` 운영 클래스 안에서 읽는 편이 맞습니다.
 
 ## 다음에 다시 열 조건
 

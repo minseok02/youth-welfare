@@ -27,6 +27,8 @@
 
 - `REAL_USER` readiness gate가 deferred면 이 문서를 바로 쓰지 않습니다.
 - readiness는 열렸지만 full latest batch review gate가 historical example inertia에 묶여 있으면, current decision은 `USE_RECENT_WINDOW_AS_SUPPLEMENTAL_REVIEW_CONTEXT` 로 읽는 편이 맞습니다.
+- current review gate interpretation class는 `HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR` 입니다.
+- current review gate operating mode는 `PRIMARY_BASELINE_WITH_SUPPLEMENTAL_RECENT_WINDOW` 입니다.
 - reopen 판단은 gate 확인 뒤에만 들어옵니다.
 
 ## 언제 이 문서를 쓰나
@@ -209,3 +211,4 @@ reopen 판단 전 최소한 아래 증거는 같이 봅니다.
 3. `2736` 류 사례는 source 전체가 아니라 정책군 사례로 읽습니다.
 4. direct weight tuning 은 마지막 lane 입니다.
 5. local current truth에서는 readiness는 열렸지만 full latest batch review gate가 stale historical example inertia에 묶여 있으므로, current 기본값은 `USE_RECENT_WINDOW_AS_SUPPLEMENTAL_REVIEW_CONTEXT` 로 읽는 편이 맞습니다.
+6. 즉 reopen 전 product/engineering 결정도 raw gate 값보다 `HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR` / `PRIMARY_BASELINE_WITH_SUPPLEMENTAL_RECENT_WINDOW` 운영 클래스를 먼저 기준으로 읽는 편이 맞습니다.

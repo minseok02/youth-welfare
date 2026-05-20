@@ -1,5 +1,10 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 912) reviewer/author/operator surface에만 decision class를 올리고 reopen/next-lane/product memo가 raw gate 설명에 머물면, 실제 product-decision 문서만 읽는 사람은 다시 old gate 값 해석 단계로 돌아간다
+- 문제: `latest-status`, `latest-gate`, `latest-overview`, PR surface, draft/post-merge checklist는 이미 `review_gate_interpretation_class`, `review_gate_operating_mode` 를 직접 쓰기 시작했는데, `recommendation-reopen-decision-runbook.md`, `recommendation-next-lane-brief.md`, `recommendation-primary-audience-exclusion-decision-memo.md` 는 여전히 raw gate 값과 next-step 중심으로 설명하고 있었다.
+- 해결: product-decision 문서 세 곳에도 current 운영 클래스 `HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR`, `PRIMARY_BASELINE_WITH_SUPPLEMENTAL_RECENT_WINDOW` 를 직접 넣었다.
+- 이유: reopen lane 선택, next lane 정리, audience exclusion 유지/완화 판단도 결국 같은 review gate 해석 위에서 이루어진다. 이 문서들만 다른 언어를 쓰면 실제 제품 판단 시점에 다시 해석 drift가 생긴다.
+
 ## 911) reviewer-facing brief와 PR surface에 decision class를 올린 뒤에도 draft exit / post-merge follow-up 체크리스트가 raw gate 설명만 유지하면, author는 여전히 undraft/merge 판단을 값 해석 단계에서 수동으로 번역해야 한다
 - 문제: reviewer quick entrypoint와 PR 본문에는 `review_gate_interpretation_class`, `review_gate_operating_mode` 를 올렸지만, author가 실제로 쓰는 `recommendation-pr-draft-exit-checklist.md`, `recommendation-post-merge-followup-checklist.md` 는 아직 raw full/latest/recent gate 설명 중심이었다.
 - 해결: 두 체크리스트에도 current 운영 클래스 `HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR`, `PRIMARY_BASELINE_WITH_SUPPLEMENTAL_RECENT_WINDOW` 를 직접 넣었다.
