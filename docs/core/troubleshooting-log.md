@@ -1,5 +1,10 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 929) operator surface에만 promotion action을 올리고 reviewer/author 문서가 promotion pending까지만 말하면, PR 판단 쪽에서는 또 “그래서 지금 keep baseline인가”를 다시 추론해야 한다
+- 문제: latest artifact와 admin API는 이미 `reviewGatePolicyPromotionActionStatus=KEEP_PRIMARY_BASELINE`, `reviewGatePolicyPromotionActionReason=PROMOTION_STILL_REQUIRES_EXPLICIT_POLICY_REVIEW` 를 내리기 시작했지만, reviewer brief / draft exit / post-merge follow-up 문서는 여전히 candidate / promotion pending까지만 적고 있었다.
+- 해결: reviewer/author/post-merge 문서에도 promotion action status/reason을 직접 올리고, PR surface도 같은 문구로 다시 맞췄다.
+- 이유: current recommendation 상태는 `candidate -> promotion pending -> current action` 3층을 같이 읽어야 한다. 마지막 action 층이 GitHub lifecycle surface에 빠지면 `PASS but blocked` 이후의 실제 행동이 다시 사람 머리로만 남는다.
+
 ## 928) promotion pending 상태만 노출하고 current action을 안 접어 주면, operator는 여전히 “후보이지만 보류”를 보고도 지금 무엇을 해야 하는지 다시 추론해야 한다
 - 문제: `reviewGatePolicyPromotionStatus=REQUIRES_EXPLICIT_POLICY_CHANGE_REVIEW`, `reviewGatePolicyPromotionReason=RECENT_WINDOW_IS_A_CANDIDATE_BUT_PRIMARY_BASELINE_IS_STILL_ALL_TIME_LATEST` 까지 올린 뒤에도, operator는 여전히 “그래서 지금 keep baseline인가, bounded review를 바로 시작하나”를 다시 해석해야 했다.
 - 해결: admin summary/breakdowns 와 `latest-status-export`, `latest-status`, `latest-gate`, `latest-overview` 에 `reviewGatePolicyPromotionActionStatus`, `reviewGatePolicyPromotionActionReason` 을 추가해 현재 local 기준 `KEEP_PRIMARY_BASELINE`, `PROMOTION_STILL_REQUIRES_EXPLICIT_POLICY_REVIEW` 를 직접 읽게 했다.

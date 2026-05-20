@@ -48,6 +48,10 @@
   - `REQUIRES_EXPLICIT_POLICY_CHANGE_REVIEW`
 - review gate policy promotion reason:
   - `RECENT_WINDOW_IS_A_CANDIDATE_BUT_PRIMARY_BASELINE_IS_STILL_ALL_TIME_LATEST`
+- review gate policy promotion action status:
+  - `KEEP_PRIMARY_BASELINE`
+- review gate policy promotion action reason:
+  - `PROMOTION_STILL_REQUIRES_EXPLICIT_POLICY_REVIEW`
 - current next step:
   - `USE_RECENT_WINDOW_AS_SUPPLEMENTAL_REVIEW_CONTEXT`
 - latest 관찰은 계속 `VOLATILE_ONLY_DRIFT`
@@ -147,6 +151,7 @@ bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-overview.sh
 - 이유:
   - drift gate는 통과했지만 운영 정책 gate는 아직 primary historical blocker 상태입니다.
   - recent-window는 policy candidate지만, promotion status가 아직 `REQUIRES_EXPLICIT_POLICY_CHANGE_REVIEW` 이므로 undraft까지 바로 밀지 않습니다.
+  - current promotion action도 `KEEP_PRIMARY_BASELINE` 이므로, 지금은 bounded promotion review를 여는 것보다 primary baseline 유지가 먼저입니다.
   - 즉 `PASS` 는 “artifact drift 없음”이지 “undraft 가능”을 뜻하지 않습니다.
   - 이 조합에서는 `READ_PRIMARY_AND_SUPPLEMENTAL_REVIEW_GATES` 와 `USE_RECENT_WINDOW_AS_SUPPLEMENTAL_REVIEW_CONTEXT` 를 먼저 읽는 편이 맞습니다.
   - 현재 PR status는 계속 `REVIEWER_READY + DRAFT_MAINTAINED_BY_POLICY_GATE` 입니다.
