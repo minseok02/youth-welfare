@@ -16,6 +16,9 @@
   - recent-window supplemental reading `RECENT_WINDOW_CLEARS_HISTORICAL_2622_DOMINANCE`
 - current main blocker:
   - historical example latest batch dominance + stale example saved batch path + current real SQL gap
+- review gate reading:
+  - full latest batch gate는 primary historical baseline
+  - recent-window gate는 supplemental current-live signal
 
 PR / handoff / reopen 문서를 읽는 순서:
 

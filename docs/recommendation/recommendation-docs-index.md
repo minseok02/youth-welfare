@@ -238,6 +238,7 @@ recommendation closeout PR 관련 문서는 아래 순서로 읽는 편이 맞�
 - [recommendation-review-gate-recent-window-audit-runbook.md](./recommendation-review-gate-recent-window-audit-runbook.md)
 
 이 문서는 live readiness가 이미 열린 뒤에도 mixed latest batch review gate가 왜 `DEFERRED_NON_REAL_LEADER_SIGNAL` 인지, mixed batch와 real-user-only top1 leader를 같은 축으로 비교해 읽는 wrapper/runbook 입니다.
+현재 operator 기본 해석은 full latest batch review gate를 primary historical baseline으로, recent-window gate를 supplemental current-live signal로 같이 읽는 쪽입니다.
 
 ### 6-2. real-user recheck checklist
 

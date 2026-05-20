@@ -1,5 +1,10 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 903) current-state와 runbook를 다 고쳐도 README/인덱스 진입점에 gate 역할 구분이 빠지면, 새로 들어온 사람은 여전히 “지금 blocker가 하나뿐”이라고 오해하기 쉽다
+- 문제: `docs/README.md`, `docs/recommendation/README.md`, `recommendation-docs-index.md` 는 entrypoint로는 맞았지만, full latest batch review gate가 primary historical baseline이고 recent-window gate가 supplemental current-live signal이라는 역할 구분은 직접 적혀 있지 않았다.
+- 해결: recommendation entrypoint 문구에 gate 역할을 한 줄로 추가해, 인덱스만 읽어도 current blocker 해석 구조를 바로 잡을 수 있게 했다.
+- 이유: 실제 handoff에서는 상세 runbook보다 README/인덱스를 먼저 열 때가 많다. 이 지점에서 gate 역할이 빠지면 뒤 문서를 열기 전까지는 blocker를 단일 값처럼 오해하기 쉽다.
+
 ## 902) current-state 하단의 old audit/smoke snapshot도 현재형 문장으로 남아 있으면, 상단 current truth를 고쳐도 파일 하나만 읽는 사람은 다시 예전 deferred 상태로 돌아간다
 - 문제: `recommendation-current-state.md` 상단 current-reading 은 최신이었지만, 중간/하단의 `2026-05-17` CTR audit, concentration audit, summary smoke, breakdown smoke 값은 일부가 여전히 “현재 로컬 ... 값은” 같은 표현으로 남아 있었다.
 - 해결: 해당 구간을 `historical pre-real-user local audit`, `historical pre-real-user local concentration audit`, `historical pre-real-user local summary/breakdown smoke 값` 으로 다시 라벨링했다.
