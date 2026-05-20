@@ -1,5 +1,10 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 916) operator artifact에 `gate_policy_status` 를 올린 뒤 reviewer-facing PR surface가 그 값을 안 쓰면, reviewer는 `PASS인데 왜 아직 blocked인가`를 다시 해석해야 한다
+- 문제: latest surface에는 이미 `gate_status=PASS` 와 별도로 `gate_policy_status=PRIMARY_BLOCKED_SUPPLEMENTAL_CLEAR`, `gate_policy_reason=HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR` 가 같이 있었지만, reviewer brief와 PR 전달면은 여전히 interpretation class와 action class까지만 적고 있었다.
+- 해결: reviewer brief와 GitHub PR 본문/quick comment에도 `gate policy status`, `gate policy reason` 을 같이 올려, reviewer가 GitHub 화면만 봐도 drift gate와 운영 정책 gate를 분리해 읽게 맞췄다.
+- 이유: current recommendation current truth에서 가장 혼동되기 쉬운 지점은 `PASS인데도 아직 blocked라고 말하는 이유` 다. 이걸 reviewer surface에서 분리하지 않으면 operator artifact와 PR 해석이 다시 엇갈린다.
+
 ## 915) `latest-gate` 에서 `PASS/FAIL` 만 보여 주면, drift gate는 통과했는데 운영 정책 상태는 아직 blocked인 current recommendation 해석을 한 줄로 못 드러낸다
 - 문제: current local truth는 `gate_status=PASS` 여도 full latest batch primary gate는 아직 historical blocker이고 recent-window는 supplemental clear다. 그런데 `gate_status/gate_reason` 만 보면 이 둘이 같은 층의 판정처럼 보이고, operator는 다시 `review_gate_interpretation_class`, `review_gate_operating_mode` 를 해석해야 한다.
 - 해결: `latest-status-export`, `latest-status`, `latest-gate`, `latest-overview` 에 `gate_policy_status`, `gate_policy_reason` 을 추가했다. 현재 local 기준으로는 `PRIMARY_BLOCKED_SUPPLEMENTAL_CLEAR`, `HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR` 를 drift gate와 나란히 읽는 편이 맞다.
