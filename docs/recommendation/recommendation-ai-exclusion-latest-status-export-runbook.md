@@ -45,7 +45,7 @@ bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-status-export.sh
 
 `latest-status-note.md` 는 사람용 메모이고, `latest-status.json` 은 후속 스크립트나 자동화가 읽기 쉬운 machine-readable artifact 입니다.
 둘 다 `generated_at_utc`, `generated_at_kst` 를 같이 남기므로, UTC artifact 경로(`...Z`)와 KST 실행 날짜를 한 화면에서 같이 읽을 수 있습니다.
-또 `operator_next_step` 도 같이 남기므로, 현재 latest artifact 기준 다음 운영 행동을 한 줄로 읽을 수 있습니다.
+이제 `operator_next_step` 과 `effective_operator_next_step` 를 같이 남기므로, historical baseline pointer와 current local 해석을 분리해서 읽을 수 있습니다.
 이제는 `review_gate_context` 도 함께 남기므로, handoff note/json만 열어도 full latest batch primary gate(`MIXED_BATCH_NON_REAL_DOMINANCE_WITH_NO_REAL_USER_PATH`)와 recent-window supplemental reading(`RECENT_WINDOW_CLEARS_HISTORICAL_2622_DOMINANCE`)을 같이 볼 수 있습니다.
 
 ## 읽는 법

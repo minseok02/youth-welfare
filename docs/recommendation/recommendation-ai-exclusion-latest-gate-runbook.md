@@ -60,6 +60,7 @@ bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-gate.sh
 - `generated_at_utc`
 - `generated_at_kst`
 - `operator_next_step`
+- `effective_operator_next_step`
 - `status_json_stale_relative_to_summaries`
 - `status_json_recommended_action`
 - `latest_drift_class`
@@ -82,7 +83,9 @@ bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-gate.sh
 - `generated_at_utc`, `generated_at_kst`
   - 현재 gate가 읽은 latest-status JSON이 언제 생성된 것인지 UTC/KST 둘 다 바로 확인할 수 있습니다.
 - `operator_next_step`
-  - gate가 PASS여도 baseline artifact의 old wait-state인지, current live 해석이 `USE_RECENT_WINDOW_AS_SUPPLEMENTAL_REVIEW_CONTEXT` 인지 같이 구분해서 읽을 수 있습니다.
+  - older baseline artifact가 들고 있던 historical pointer입니다.
+- `effective_operator_next_step`
+  - gate가 PASS여도 실제 current 해석이 무엇인지 보여 주는 값입니다. 현재 local 기준으로는 `USE_RECENT_WINDOW_AS_SUPPLEMENTAL_REVIEW_CONTEXT` 를 먼저 읽는 편이 맞습니다.
 - `status_json_stale_relative_to_summaries=true`
   - gate가 보고 있는 JSON이 latest summary보다 오래됐다는 뜻입니다.
 - `status_json_recommended_action=RERUN_LATEST_STATUS_EXPORT`

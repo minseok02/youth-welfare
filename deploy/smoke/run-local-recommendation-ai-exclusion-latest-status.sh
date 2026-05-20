@@ -61,6 +61,7 @@ generated_at_utc = ""
 generated_at_kst = ""
 status_json_stale_relative_to_summaries = ""
 status_json_recommended_action = ""
+effective_operator_next_step = ""
 
 interpretation_changed = drift.get("interpretation_changed", "")
 stable_baseline_changed = drift.get("stable_baseline_changed", "")
@@ -84,6 +85,7 @@ if status_json_path.is_file():
     generated_at_utc = status_data.get("generated_at_utc", "")
     generated_at_kst = status_data.get("generated_at_kst", "")
     operator_next_step = status_data.get("operator_next_step", operator_next_step)
+    effective_operator_next_step = status_data.get("effective_operator_next_step", operator_next_step)
     newest_summary_mtime = max(refresh_path.stat().st_mtime, drift_path.stat().st_mtime)
     status_json_stale_relative_to_summaries = "true" if status_json_path.stat().st_mtime < newest_summary_mtime else "false"
     if status_json_stale_relative_to_summaries == "true":
@@ -95,6 +97,7 @@ print(f"status_json={status_json_path if status_json_path.is_file() else ''}")
 print(f"generated_at_utc={generated_at_utc}")
 print(f"generated_at_kst={generated_at_kst}")
 print(f"operator_next_step={operator_next_step}")
+print(f"effective_operator_next_step={effective_operator_next_step}")
 print(f"status_json_stale_relative_to_summaries={status_json_stale_relative_to_summaries}")
 print(f"status_json_recommended_action={status_json_recommended_action}")
 print(f"latest_drift_class={refresh.get('drift_class', '')}")

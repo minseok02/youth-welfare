@@ -1,5 +1,10 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 906) latest artifact에 review gate context만 올리고 next-step 계산은 old baseline pointer에 그대로 두면, operator는 새 근거를 봐도 마지막 행동 문구는 옛 wait-state로 다시 읽게 된다
+- 문제: `review_gate_context` 를 `latest-status-note.md`, `latest-status.json`, `latest-gate` 에 추가한 뒤에도, top-level next-step 값은 여전히 baseline artifact 기반 `operator_next_step=WAIT_FOR_REAL_USER_TRAFFIC` 였다. 이 상태에선 새 context를 읽어도 마지막 액션 문구가 옛 wait-state로 남아 해석 drift가 다시 생긴다.
+- 해결: old baseline pointer인 `operator_next_step` 은 유지하되, current review-gate context를 반영한 `effective_operator_next_step` 를 별도 승격했다. 현재 local에서는 `effective_operator_next_step=USE_RECENT_WINDOW_AS_SUPPLEMENTAL_REVIEW_CONTEXT` 를 먼저 읽는 편이 맞다.
+- 이유: 지금 recommendation latest artifact의 역할은 history를 지우는 게 아니라 historical baseline과 current live interpretation을 함께 드러내는 것이다. 값을 덮어쓰면 baseline provenance를 잃고, 값을 분리하지 않으면 current operator action이 다시 옛 wait-state에 묶인다.
+
 ## 905) recent-window gate를 admin API에는 올려도 latest handoff artifact에 안 싣으면, operator는 dashboard와 note/json을 번갈아 보며 current interpretation을 다시 조합해야 한다
 - 문제: `recentWindowRecommendationReviewReading`, `historicalExampleDominanceDetected` 는 이제 admin summary/breakdowns 응답에는 있었지만, `latest-status-note.md`, `latest-status.json`, `latest-overview-summary.txt` 같은 handoff artifact에는 여전히 drift/baseline 값만 남아 있었다.
 - 해결: `latest-status-export`, `latest-status`, `latest-gate`, `latest-overview` 에 `review_gate_context` 를 추가해 `primary_review_gate_blocker_class`, `recent_window_recommendation_review_reading`, `historical_example_dominance_detected` 를 함께 남기게 맞췄다.

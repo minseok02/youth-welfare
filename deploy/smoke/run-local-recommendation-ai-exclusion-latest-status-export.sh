@@ -91,12 +91,26 @@ elif (
 elif latest_observation_changed == "true":
     operator_next_step = "OBSERVE_FRESH_WINDOW_VOLATILITY"
 
+effective_operator_next_step = operator_next_step
+if interpretation_changed == "true" or stable_baseline_changed == "true":
+    effective_operator_next_step = "INVESTIGATE_STABLE_BASELINE_DRIFT"
+elif historical_example_dominance_detected:
+    effective_operator_next_step = "USE_RECENT_WINDOW_AS_SUPPLEMENTAL_REVIEW_CONTEXT"
+elif review_gate_blocker.get("blocker_class", "") == "MIXED_BATCH_NON_REAL_DOMINANCE_WITH_NO_REAL_USER_PATH":
+    effective_operator_next_step = review_gate_blocker.get(
+        "operator_next_step",
+        "INVESTIGATE_SAME_PROFILE_EXAMPLE_VS_REAL_USER_DIFFERENTIAL",
+    )
+elif recent_window_recommendation_review_reading == "RECENT_WINDOW_STILL_TARGET_DOMINANT":
+    effective_operator_next_step = "KEEP_TRACING_CURRENT_TARGET_LEADER_PATH"
+
 lines = [
     "# AI Exclusion Latest Status",
     "",
     f"- generated_at_utc: `{generated_at_utc}`",
     f"- generated_at_kst: `{generated_at_kst}`",
     f"- operator_next_step: `{operator_next_step}`",
+    f"- effective_operator_next_step: `{effective_operator_next_step}`",
     f"- refresh_summary: `{refresh_path}`",
     f"- drift_summary: `{drift_path}`",
     f"- latest_drift_class: `{refresh.get('drift_class', '')}`",
@@ -148,6 +162,7 @@ json_payload = {
     "generated_at_utc": generated_at_utc,
     "generated_at_kst": generated_at_kst,
     "operator_next_step": operator_next_step,
+    "effective_operator_next_step": effective_operator_next_step,
     "status_json_stale_relative_to_summaries": "false",
     "status_json_recommended_action": "",
     "refresh_summary": str(refresh_path),

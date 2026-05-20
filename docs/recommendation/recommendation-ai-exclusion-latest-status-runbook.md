@@ -46,6 +46,7 @@ bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-status.sh
 - `generated_at_utc`
 - `generated_at_kst`
 - `operator_next_step`
+- `effective_operator_next_step`
 - `status_json_stale_relative_to_summaries`
 - `status_json_recommended_action`
 - `latest_drift_class`
@@ -70,8 +71,10 @@ bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-status.sh
 
 - `generated_at_utc`, `generated_at_kst`
   - latest export JSON이 있으면 같은 latest artifact의 UTC/KST 실행 시각을 같이 보여 줍니다.
-- `operator_next_step=USE_RECENT_WINDOW_AS_SUPPLEMENTAL_REVIEW_CONTEXT`
-  - readiness는 열렸지만 full latest batch gate가 stale historical example inertia를 포함하므로, recent-window current signal을 같이 읽으라는 뜻입니다.
+- `operator_next_step`
+  - older baseline artifact가 들고 있던 historical pointer입니다.
+- `effective_operator_next_step=USE_RECENT_WINDOW_AS_SUPPLEMENTAL_REVIEW_CONTEXT`
+  - current local truth 기준 실제 다음 해석입니다. full latest batch gate가 stale historical example inertia를 포함하므로, recent-window current signal을 같이 읽으라는 뜻입니다.
 - `operator_next_step=OBSERVE_FRESH_WINDOW_VOLATILITY`
   - stable baseline은 유지되고 있고 fresh window 관찰값만 더 보면 되는 상태입니다.
 - `operator_next_step=INVESTIGATE_STABLE_BASELINE_DRIFT`
