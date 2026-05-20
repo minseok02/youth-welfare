@@ -1,5 +1,10 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 914) operator artifact에 `gate_action_class` 를 올린 뒤 reviewer-facing PR surface가 같은 값을 안 쓰면, reviewer는 current first action을 다시 해석해야 한다
+- 문제: `latest-status`, `latest-gate`, `latest-overview` 는 이미 `gate_action_class=READ_PRIMARY_AND_SUPPLEMENTAL_REVIEW_GATES` 를 직접 내리고 있었지만, `recommendation-pr-review-brief.md` 와 PR 본문/quick comment는 여전히 `review_gate_interpretation_class`, `review_gate_operating_mode`, `operator next step` 까지만 적고 있었다.
+- 해결: reviewer brief와 GitHub PR 전달면에도 `gate action class` 를 같이 올려, reviewer가 GitHub 화면만 봐도 operator와 같은 first action을 한 줄로 읽게 맞췄다.
+- 이유: current recommendation 해석은 primary/supplemental gate 역할 분리까지는 이미 충분히 정리됐지만, 첫 행동을 다시 문장으로 번역해야 하면 reviewer와 operator surface가 또 어긋난다.
+
 ## 913) `effective_operator_next_step`, interpretation class, operating mode까지 올린 뒤에도 operator가 맨 위에서 바로 읽을 짧은 실행 분류가 없으면, CLI를 보는 사람은 여전히 세 값을 조합해 첫 행동을 판단해야 한다
 - 문제: latest surface에 current 해석은 충분히 올라왔지만, operator가 `latest-gate` 한 줄만 보고 즉시 행동을 고르려면 `effective_operator_next_step`, `review_gate_interpretation_class`, `review_gate_operating_mode` 를 다시 머리로 합쳐야 했다.
 - 해결: `latest-status-export`, `latest-status`, `latest-gate`, `latest-overview` 에 `gate_action_class` 를 추가했다. 현재 local 기준 값은 `READ_PRIMARY_AND_SUPPLEMENTAL_REVIEW_GATES` 이다.
