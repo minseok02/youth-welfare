@@ -107,6 +107,7 @@
 2. reviewer는 closeout 범위를 먼저 review
 3. `REAL_USER` traffic/cohort가 생기면 recheck checklist 재실행
 4. 그 결과로 draft 해제 또는 후속 reopen PR 분리 결정
+5. recent-window promotion review가 필요하면 [recommendation-review-gate-policy-promotion-checklist.md](./recommendation-review-gate-policy-promotion-checklist.md) 기준으로 별도 정책 판단
 
 ## draft 해제 전 최소 확인 명령
 

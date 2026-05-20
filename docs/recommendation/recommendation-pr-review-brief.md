@@ -46,6 +46,7 @@
 - [recommendation-real-user-exclusion-readiness-check-runbook.md](./recommendation-real-user-exclusion-readiness-check-runbook.md)
 - [recommendation-review-gate-staleness-audit-runbook.md](./recommendation-review-gate-staleness-audit-runbook.md)
 - [recommendation-review-gate-recent-window-audit-runbook.md](./recommendation-review-gate-recent-window-audit-runbook.md)
+- [recommendation-review-gate-policy-promotion-checklist.md](./recommendation-review-gate-policy-promotion-checklist.md)
 - [recommendation-real-user-recheck-checklist.md](./recommendation-real-user-recheck-checklist.md)
 
 ### 3. active 문서 / handoff hygiene
@@ -89,6 +90,8 @@ review hint:
 - review gate policy promotion status: `REQUIRES_EXPLICIT_POLICY_CHANGE_REVIEW`
 - review gate policy promotion reason: `RECENT_WINDOW_IS_A_CANDIDATE_BUT_PRIMARY_BASELINE_IS_STILL_ALL_TIME_LATEST`
 - operator next step: `USE_RECENT_WINDOW_AS_SUPPLEMENTAL_REVIEW_CONTEXT`
+
+explicit promotion review 기준은 [recommendation-review-gate-policy-promotion-checklist.md](./recommendation-review-gate-policy-promotion-checklist.md) 를 같이 봅니다.
 
 즉 현재 PR은 **review는 바로 가능한 closeout + observability + handoff 정리 PR** 이지만, undraft는 아직 policy gate가 막는 상태로 읽는 편이 맞습니다.
 

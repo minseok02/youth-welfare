@@ -130,6 +130,7 @@ merge 전 현재 PR 상태 reference:
 - [recommendation-reopen-decision-runbook.md](./recommendation-reopen-decision-runbook.md)
 - [recommendation-next-lane-brief.md](./recommendation-next-lane-brief.md)
 - [recommendation-primary-audience-exclusion-decision-memo.md](./recommendation-primary-audience-exclusion-decision-memo.md)
+- [recommendation-review-gate-policy-promotion-checklist.md](./recommendation-review-gate-policy-promotion-checklist.md)
 
 실행 순서는 그대로:
 
@@ -148,6 +149,7 @@ merge 전 현재 PR 상태 reference:
 - current decision:
   - `keep observing`
   - `reopen product decision`
+- recent-window promotion review 실행 여부
 
 ## 한 줄 요약
 

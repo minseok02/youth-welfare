@@ -6101,3 +6101,7 @@ admin API와 latest artifact에
 - 실제 승격 검토를 언제 시작하는지
 
 를 active 문서만으로 바로 읽을 수 있다.
+## #927 promotion review checklist가 있어도 PR lifecycle surface에 연결하지 않으면 reviewer/author가 다시 길을 잃는다
+- 문제: `recommendation-review-gate-policy-promotion-checklist.md` 를 추가해 explicit policy review 기준은 생겼지만, reviewer brief / draft exit / post-merge follow-up 에서 그 문서로 바로 가는 연결이 약하면 reviewer/author는 다시 문서군 전체에서 “그래서 어디서 승격 검토 기준을 보나”를 찾아야 했다.
+- 해결: PR lifecycle surface에 checklist 링크와 읽는 순서를 직접 연결했다.
+- 이유: current truth는 이제 `candidate -> promotion pending -> explicit review checklist` 세 단계로 읽어야 한다. 이 흐름이 PR lifecycle surface에서도 한 번에 이어져야 GitHub 화면과 로컬 문서가 같은 길찾기를 제공한다.
