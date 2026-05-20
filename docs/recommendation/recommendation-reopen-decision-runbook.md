@@ -29,6 +29,8 @@
 - readiness는 열렸지만 full latest batch review gate가 historical example inertia에 묶여 있으면, current decision은 `USE_RECENT_WINDOW_AS_SUPPLEMENTAL_REVIEW_CONTEXT` 로 읽는 편이 맞습니다.
 - current review gate interpretation class는 `HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR` 입니다.
 - current review gate operating mode는 `PRIMARY_BASELINE_WITH_SUPPLEMENTAL_RECENT_WINDOW` 입니다.
+- current review gate policy candidate status는 `RECENT_WINDOW_POLICY_CANDIDATE` 입니다.
+- current review gate policy promotion status는 `REQUIRES_EXPLICIT_POLICY_CHANGE_REVIEW` 입니다.
 - reopen 판단은 gate 확인 뒤에만 들어옵니다.
 
 ## 언제 이 문서를 쓰나
@@ -212,3 +214,4 @@ reopen 판단 전 최소한 아래 증거는 같이 봅니다.
 4. direct weight tuning 은 마지막 lane 입니다.
 5. local current truth에서는 readiness는 열렸지만 full latest batch review gate가 stale historical example inertia에 묶여 있으므로, current 기본값은 `USE_RECENT_WINDOW_AS_SUPPLEMENTAL_REVIEW_CONTEXT` 로 읽는 편이 맞습니다.
 6. 즉 reopen 전 product/engineering 결정도 raw gate 값보다 `HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR` / `PRIMARY_BASELINE_WITH_SUPPLEMENTAL_RECENT_WINDOW` 운영 클래스를 먼저 기준으로 읽는 편이 맞습니다.
+7. 그리고 recent-window는 이미 `RECENT_WINDOW_POLICY_CANDIDATE` 이지만, 아직 `REQUIRES_EXPLICIT_POLICY_CHANGE_REVIEW` 상태이므로 primary gate를 자동 교체하는 단계는 아닙니다.

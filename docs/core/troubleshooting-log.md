@@ -6022,3 +6022,40 @@
   - 즉 이 수정은 `3257` 류 over-exclusion을 완화하는 데 실패했고, 일부 row(`3288`)를 다시 0점 cohort로 되돌렸다.
   - 따라서 hybrid prompt 완화는 실험 결과만 문서에 남기고 mainline에서는 원복하는 편이 맞다.
   - 남은 쟁점은 기술 버그가 아니라, 이 primary audience exclusion을 제품 정책으로 유지할지 여부다.
+## #925 reviewer/author/product surface에도 policy candidate와 promotion review status를 같이 올려야 했다
+
+### 상황
+
+admin API와 latest one-shot artifact에는
+
+- `reviewGatePolicyCandidateStatus=RECENT_WINDOW_POLICY_CANDIDATE`
+- `reviewGatePolicyPromotionStatus=REQUIRES_EXPLICIT_POLICY_CHANGE_REVIEW`
+
+가 이미 붙어 있었는데, reviewer brief / draft-exit / post-merge / reopen / next-lane / exclusion memo 쪽은 여전히 interpretation class와 policy gate까지만 말하고 있었다.
+
+### 문제
+
+이 상태면 GitHub PR surface나 author/product 문서만 읽는 사람은
+
+- recent-window가 이미 policy candidate인지
+- 그런데도 왜 아직 primary baseline을 자동 승격하지 않는지
+
+를 다시 latest artifact나 admin API까지 내려가서 합쳐야 했다.
+
+### 조치
+
+reviewer/author/product surface에도 아래 두 층을 current reading으로 같이 올렸다.
+
+- `reviewGatePolicyCandidateStatus=RECENT_WINDOW_POLICY_CANDIDATE`
+- `reviewGatePolicyPromotionStatus=REQUIRES_EXPLICIT_POLICY_CHANGE_REVIEW`
+
+### 결과
+
+이제 reviewer / author / product surface 모두
+
+- current 운영 클래스
+- current action
+- recent-window candidate 여부
+- promotion review pending 여부
+
+를 같은 언어로 읽는다.

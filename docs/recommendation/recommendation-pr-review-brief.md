@@ -84,6 +84,10 @@ review hint:
 - gate action class: `READ_PRIMARY_AND_SUPPLEMENTAL_REVIEW_GATES`
 - gate policy status: `PRIMARY_BLOCKED_SUPPLEMENTAL_CLEAR`
 - gate policy reason: `HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR`
+- review gate policy candidate status: `RECENT_WINDOW_POLICY_CANDIDATE`
+- review gate policy candidate reason: `PRIMARY_GATE_BLOCKED_BY_STALE_ALL_TIME_EXAMPLE_REFERENCE_BUT_RECENT_WINDOW_CLEAR`
+- review gate policy promotion status: `REQUIRES_EXPLICIT_POLICY_CHANGE_REVIEW`
+- review gate policy promotion reason: `RECENT_WINDOW_IS_A_CANDIDATE_BUT_PRIMARY_BASELINE_IS_STILL_ALL_TIME_LATEST`
 - operator next step: `USE_RECENT_WINDOW_AS_SUPPLEMENTAL_REVIEW_CONTEXT`
 
 즉 현재 PR은 **review는 바로 가능한 closeout + observability + handoff 정리 PR** 이지만, undraft는 아직 policy gate가 막는 상태로 읽는 편이 맞습니다.

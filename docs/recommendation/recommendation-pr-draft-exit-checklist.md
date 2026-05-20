@@ -40,6 +40,14 @@
   - `PRIMARY_BLOCKED_SUPPLEMENTAL_CLEAR`
 - gate policy reason:
   - `HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR`
+- review gate policy candidate status:
+  - `RECENT_WINDOW_POLICY_CANDIDATE`
+- review gate policy candidate reason:
+  - `PRIMARY_GATE_BLOCKED_BY_STALE_ALL_TIME_EXAMPLE_REFERENCE_BUT_RECENT_WINDOW_CLEAR`
+- review gate policy promotion status:
+  - `REQUIRES_EXPLICIT_POLICY_CHANGE_REVIEW`
+- review gate policy promotion reason:
+  - `RECENT_WINDOW_IS_A_CANDIDATE_BUT_PRIMARY_BASELINE_IS_STILL_ALL_TIME_LATEST`
 - current next step:
   - `USE_RECENT_WINDOW_AS_SUPPLEMENTAL_REVIEW_CONTEXT`
 - latest 관찰은 계속 `VOLATILE_ONLY_DRIFT`
@@ -67,6 +75,7 @@
 6. 워킹트리와 branch diff-check가 clean
 7. full latest batch gate와 recent-window supplemental gate 역할이 문서에 고정돼 있음
 8. review gate decision class(`HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR`)와 operating mode(`PRIMARY_BASELINE_WITH_SUPPLEMENTAL_RECENT_WINDOW`)가 reviewer 문서/PR surface에도 같이 고정돼 있음
+9. review gate candidate / promotion 판단(`RECENT_WINDOW_POLICY_CANDIDATE` / `REQUIRES_EXPLICIT_POLICY_CHANGE_REVIEW`)도 reviewer 문서/PR surface에 같이 고정돼 있음
 
 주의:
 
@@ -136,6 +145,7 @@ bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-overview.sh
   - draft 유지
 - 이유:
   - drift gate는 통과했지만 운영 정책 gate는 아직 primary historical blocker 상태입니다.
+  - recent-window는 policy candidate지만, promotion status가 아직 `REQUIRES_EXPLICIT_POLICY_CHANGE_REVIEW` 이므로 undraft까지 바로 밀지 않습니다.
   - 즉 `PASS` 는 “artifact drift 없음”이지 “undraft 가능”을 뜻하지 않습니다.
   - 이 조합에서는 `READ_PRIMARY_AND_SUPPLEMENTAL_REVIEW_GATES` 와 `USE_RECENT_WINDOW_AS_SUPPLEMENTAL_REVIEW_CONTEXT` 를 먼저 읽는 편이 맞습니다.
   - 현재 PR status는 계속 `REVIEWER_READY + DRAFT_MAINTAINED_BY_POLICY_GATE` 입니다.

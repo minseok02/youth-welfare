@@ -32,6 +32,7 @@
 - 지금 current local 결정은 full latest batch review gate `DEFERRED_NON_REAL_LEADER_SIGNAL` 과 recent-window supplemental reading `RECENT_WINDOW_CLEARS_HISTORICAL_2622_DOMINANCE` 를 같이 읽는 상태
 - 현재 review gate interpretation class는 `HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR`
 - 현재 review gate operating mode는 `PRIMARY_BASELINE_WITH_SUPPLEMENTAL_RECENT_WINDOW`
+- recent-window는 현재 `RECENT_WINDOW_POLICY_CANDIDATE` 이지만, promotion status는 아직 `REQUIRES_EXPLICIT_POLICY_CHANGE_REVIEW`
 - 즉 이 문서는 “지금 당장 reopen 한다”가 아니라, **reopen 하게 된다면 어떤 lane이 먼저인가**를 정리한 문서입니다.
 
 ## 현재 권장 결론
