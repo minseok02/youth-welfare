@@ -26,6 +26,15 @@
 
 ## 현재 기준선
 
+### 현재 결정
+
+`2026-05-20` current decision은 아래 한 줄로 고정합니다.
+
+- **bounded promotion review는 승인**
+- **primary full latest batch baseline 승격 변경은 아직 보류**
+
+즉 지금은 `RECENT_WINDOW_POLICY_CANDIDATE` 와 bounded review run 자체는 진행 가능한 상태로 보되, 운영 primary gate를 recent-window로 바로 바꾸지는 않습니다.
+
 현재 local/live 기준 recommendation review gate 해석은 아래와 같습니다.
 
 - full latest batch review gate:

@@ -1,5 +1,9 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 946) promotion ladder를 끝까지 다 쪼개도 결국 마지막엔 정책 문장 하나로 수렴해야 한다
+- 문제: bounded review 관련 ladder를 approval/record/run 층까지 계속 surface에 올리면, 근거는 늘어나도 실제 정책 결론은 오히려 더 늦게 보였다. user-facing 관점에서는 “그래서 지금 승격하자는 건지, 말자는 건지”가 흐려졌다.
+- 해결: `run-local-recommendation-bounded-promotion-review.sh` 결과를 기준으로 현재 결론을 문장 하나로 고정했다. `PASS_RECENT_WINDOW_POLICY_CANDIDATE` 는 bounded promotion review 승인 근거로 쓰되, primary full latest batch baseline을 recent-window로 바로 승격하는 정책 변경은 아직 보류한다.
+
 ## 945) review gate promotion 상태를 계속 잘게 쪼개면 실제로 무엇을 실행해야 하는지가 더 흐려진다
 - 문제: approval/promotion/review-run ladder를 계속 상태값으로만 확장하면, 실제 operator 입장에서는 “그래서 지금 무엇을 한 번 돌려 봐야 하느냐”가 더 흐려졌다. user-facing closeout 감각도 약해지고 상태만 늘어나는 인상이 강해졌다.
 - 해결: 상태 추가를 멈추고 `run-local-recommendation-bounded-promotion-review.sh` 를 따로 만들었다. 이 wrapper는 approval record preflight, recent-window clear, historical staleness만 묶어 `bounded_promotion_review_result_status` 로 go/no-go를 바로 보여 준다.
