@@ -20,6 +20,8 @@ final class AdminDashboardQueryPolicy {
     static final int MAX_WINDOW_DAYS = 365;
     static final int RECENT_REVIEW_WINDOW_HOURS = 24;
     static final long HISTORICAL_TARGET_TOP1_SERVICE_ID = 2622L;
+    static final String REVIEW_GATE_PROMOTION_APPROVAL_KEY = "RECENT_WINDOW_BOUNDED_PROMOTION_REVIEW";
+    static final String REVIEW_GATE_PROMOTION_APPROVAL_SCOPE = "RECOMMENDATION_REVIEW_GATE_POLICY_PROMOTION";
     static final int MAX_COLLECT_FAILURE_PATTERN_LIMIT = 20;
     static final int MAX_SEARCH_FAILURE_PATTERN_LIMIT = 20;
     static final int MAX_RECOMMENDATION_BREAKDOWN_LIMIT = 20;
@@ -203,6 +205,16 @@ final class AdminDashboardQueryPolicy {
                 && "RECENT_WINDOW_CLEARS_HISTORICAL_2622_DOMINANCE".equals(recentWindowRecommendationReviewReading);
     }
 
+    static boolean isReviewGatePromotionApprovalRecorded(
+            AdminDashboardReadRows.RecommendationReviewGatePromotionApprovalRecordRow approvalRecordRow
+    ) {
+        if (approvalRecordRow == null) {
+            return false;
+        }
+        return REVIEW_GATE_PROMOTION_APPROVAL_KEY.equals(approvalRecordRow.approvalKey())
+                && "APPROVED_FOR_BOUNDED_PROMOTION_REVIEW".equals(approvalRecordRow.approvalStatus());
+    }
+
     static String resolveReviewGatePolicyCandidateStatus(
             String recommendationReviewGate,
             String recentWindowRecommendationReviewReading,
@@ -296,8 +308,12 @@ final class AdminDashboardQueryPolicy {
     }
 
     static String resolveReviewGatePolicyPromotionActionStatus(
-            String reviewGatePolicyPromotionStatus
+            String reviewGatePolicyPromotionStatus,
+            boolean reviewGatePromotionApprovalRecorded
     ) {
+        if (reviewGatePromotionApprovalRecorded) {
+            return "RUN_BOUNDED_PROMOTION_REVIEW";
+        }
         return switch (reviewGatePolicyPromotionStatus) {
             case "PROMOTION_READY" -> "RUN_BOUNDED_PROMOTION_REVIEW";
             case "REQUIRES_EXPLICIT_POLICY_CHANGE_REVIEW", "KEEP_PRIMARY_BASELINE" -> "KEEP_PRIMARY_BASELINE";
@@ -306,8 +322,12 @@ final class AdminDashboardQueryPolicy {
     }
 
     static String resolveReviewGatePolicyPromotionActionReason(
-            String reviewGatePolicyPromotionStatus
+            String reviewGatePolicyPromotionStatus,
+            boolean reviewGatePromotionApprovalRecorded
     ) {
+        if (reviewGatePromotionApprovalRecorded) {
+            return "EXPLICIT_PROMOTION_APPROVAL_RECORD_SUPPORTS_BOUNDED_REVIEW";
+        }
         return switch (reviewGatePolicyPromotionStatus) {
             case "PROMOTION_READY" -> "PROMOTION_PREREQUISITES_MET_FOR_BOUNDED_REVIEW";
             case "REQUIRES_EXPLICIT_POLICY_CHANGE_REVIEW" ->
@@ -373,10 +393,14 @@ final class AdminDashboardQueryPolicy {
 
     static String resolveReviewGatePolicyPromotionExecutionStatus(
             String reviewGatePolicyPromotionReadinessStatus,
-            String reviewGatePolicyPromotionStatus
+            String reviewGatePolicyPromotionStatus,
+            boolean reviewGatePromotionApprovalRecorded
     ) {
         if (!"READY_FOR_BOUNDED_PROMOTION_REVIEW".equals(reviewGatePolicyPromotionReadinessStatus)) {
             return "DO_NOT_RUN_BOUNDED_PROMOTION_REVIEW";
+        }
+        if (reviewGatePromotionApprovalRecorded) {
+            return "RUN_BOUNDED_PROMOTION_REVIEW";
         }
         if ("REQUIRES_EXPLICIT_POLICY_CHANGE_REVIEW".equals(reviewGatePolicyPromotionStatus)) {
             return "AWAIT_EXPLICIT_POLICY_REVIEW_DECISION";
@@ -390,11 +414,13 @@ final class AdminDashboardQueryPolicy {
     static String resolveReviewGatePolicyPromotionExecutionReason(
             String reviewGatePolicyPromotionReadinessStatus,
             String reviewGatePolicyPromotionReadinessReason,
-            String reviewGatePolicyPromotionStatus
+            String reviewGatePolicyPromotionStatus,
+            boolean reviewGatePromotionApprovalRecorded
     ) {
         String status = resolveReviewGatePolicyPromotionExecutionStatus(
                 reviewGatePolicyPromotionReadinessStatus,
-                reviewGatePolicyPromotionStatus
+                reviewGatePolicyPromotionStatus,
+                reviewGatePromotionApprovalRecorded
         );
 
         return switch (status) {
@@ -409,8 +435,13 @@ final class AdminDashboardQueryPolicy {
     }
 
     static String resolveReviewGatePolicyPromotionApprovalStatus(
-            String reviewGatePolicyPromotionExecutionStatus
+            String reviewGatePolicyPromotionExecutionStatus,
+            boolean reviewGatePromotionApprovalRecorded
     ) {
+        if (reviewGatePromotionApprovalRecorded
+                && !"DO_NOT_RUN_BOUNDED_PROMOTION_REVIEW".equals(reviewGatePolicyPromotionExecutionStatus)) {
+            return "BOUNDED_PROMOTION_REVIEW_APPROVED";
+        }
         return switch (reviewGatePolicyPromotionExecutionStatus) {
             case "AWAIT_EXPLICIT_POLICY_REVIEW_DECISION" -> "PENDING_EXPLICIT_PROMOTION_APPROVAL";
             case "RUN_BOUNDED_PROMOTION_REVIEW" -> "BOUNDED_PROMOTION_REVIEW_APPROVED";
@@ -421,10 +452,12 @@ final class AdminDashboardQueryPolicy {
 
     static String resolveReviewGatePolicyPromotionApprovalReason(
             String reviewGatePolicyPromotionExecutionStatus,
-            String reviewGatePolicyPromotionExecutionReason
+            String reviewGatePolicyPromotionExecutionReason,
+            boolean reviewGatePromotionApprovalRecorded
     ) {
         String status = resolveReviewGatePolicyPromotionApprovalStatus(
-                reviewGatePolicyPromotionExecutionStatus
+                reviewGatePolicyPromotionExecutionStatus,
+                reviewGatePromotionApprovalRecorded
         );
 
         return switch (status) {

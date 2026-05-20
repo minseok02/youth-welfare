@@ -1,6 +1,7 @@
 package com.example.welfare.admin.dashboard.repository;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.jdbc.BadSqlGrammarException;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -8,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 @RequiredArgsConstructor
@@ -1058,5 +1060,43 @@ public class AdminDashboardRecommendationReadRepository {
                         rs.getLong("distinct_services")
                 )
         );
+    }
+
+    public Optional<AdminDashboardReadRows.RecommendationReviewGatePromotionApprovalRecordRow>
+    fetchRecommendationReviewGatePromotionApprovalRecord(String approvalKey) {
+        List<AdminDashboardReadRows.RecommendationReviewGatePromotionApprovalRecordRow> rows;
+        try {
+            rows = jdbcTemplate.query("""
+                            select approval_key,
+                                   approval_status,
+                                   approval_scope,
+                                   approval_note,
+                                   approved_by_user_key,
+                                   approved_at
+                              from recommendation_review_gate_promotion_approvals
+                             where approval_key = :approvalKey
+                            """,
+                    new MapSqlParameterSource("approvalKey", approvalKey),
+                    (rs, rowNum) -> new AdminDashboardReadRows.RecommendationReviewGatePromotionApprovalRecordRow(
+                            rs.getString("approval_key"),
+                            rs.getString("approval_status"),
+                            rs.getString("approval_scope"),
+                            rs.getString("approval_note"),
+                            rs.getString("approved_by_user_key"),
+                            AdminDashboardJdbcSupport.getLocalDateTime(rs, "approved_at")
+                    )
+            );
+        } catch (BadSqlGrammarException ex) {
+            if (ex.getMostSpecificCause() != null
+                    && ex.getMostSpecificCause().getMessage() != null
+                    && ex.getMostSpecificCause().getMessage().contains("recommendation_review_gate_promotion_approvals")) {
+                return Optional.empty();
+            }
+            throw ex;
+        }
+        if (rows.isEmpty()) {
+            return Optional.empty();
+        }
+        return Optional.of(rows.get(0));
     }
 }

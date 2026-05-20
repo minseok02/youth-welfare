@@ -29,6 +29,7 @@
 - [recommendation-review-gate-staleness-audit-runbook.md](./recommendation-review-gate-staleness-audit-runbook.md)
 - [recommendation-review-gate-recent-window-audit-runbook.md](./recommendation-review-gate-recent-window-audit-runbook.md)
 - [recommendation-review-gate-policy-promotion-checklist.md](./recommendation-review-gate-policy-promotion-checklist.md)
+- [recommendation-review-gate-promotion-approval-record-smoke-runbook.md](./recommendation-review-gate-promotion-approval-record-smoke-runbook.md)
 - [recommendation-real-user-recheck-checklist.md](./recommendation-real-user-recheck-checklist.md)
 - [recommendation-pr-draft-exit-checklist.md](./recommendation-pr-draft-exit-checklist.md)
 - [recommendation-post-merge-followup-checklist.md](./recommendation-post-merge-followup-checklist.md)
@@ -71,6 +72,8 @@
 - `APP_BASE_URL='http://127.0.0.1:8082' ADMIN_EMAIL='<local admin email>' ADMIN_PASSWORD='<local admin password>' bash deploy/smoke/run-local-recommendation-same-profile-fresh-saved-differential-audit.sh`
 - `bash deploy/smoke/run-local-recommendation-review-gate-staleness-audit.sh`
 - `bash deploy/smoke/run-local-recommendation-review-gate-recent-window-audit.sh`
+- `ADMIN_EMAIL='<local admin email>' ADMIN_PASSWORD='<local admin password>' bash deploy/smoke/run-local-admin-recommendation-review-gate-promotion-approval-record-smoke.sh`
+  - existing PostgreSQL volume이면 먼저 `bash deploy/postgres/apply-local-runtime-schema-patch.sh`
 - `bash deploy/smoke/run-local-no-priority-top1-sample.sh`
 - `bash deploy/smoke/run-local-no-priority-candidate-audit.sh`
 - `bash deploy/smoke/run-local-recommendation-signal-gap-audit.sh`

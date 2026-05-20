@@ -196,6 +196,16 @@ public final class AdminDashboardReadRows {
     ) {
     }
 
+    public record RecommendationReviewGatePromotionApprovalRecordRow(
+            String approvalKey,
+            String approvalStatus,
+            String approvalScope,
+            String approvalNote,
+            String approvedByUserKey,
+            LocalDateTime approvedAt
+    ) {
+    }
+
     public record RecommendationRepeatedServiceRow(
             Long serviceId,
             String title,

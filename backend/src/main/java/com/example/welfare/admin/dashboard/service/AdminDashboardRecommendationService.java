@@ -68,6 +68,12 @@ public class AdminDashboardRecommendationService {
                         AdminDashboardQueryPolicy.RECENT_REVIEW_WINDOW_HOURS,
                         AdminDashboardQueryPolicy.HISTORICAL_TARGET_TOP1_SERVICE_ID
                 );
+        boolean reviewGatePromotionApprovalRecorded = adminDashboardRecommendationReadRepository
+                .fetchRecommendationReviewGatePromotionApprovalRecord(
+                        AdminDashboardQueryPolicy.REVIEW_GATE_PROMOTION_APPROVAL_KEY
+                )
+                .map(AdminDashboardQueryPolicy::isReviewGatePromotionApprovalRecorded)
+                .orElse(false);
         String realUserTrafficGate =
                 AdminDashboardQueryPolicy.resolveRealUserTrafficGate(recommendationSummary, recommendationTrafficMix);
         String recommendationReviewGate =
@@ -105,11 +111,13 @@ public class AdminDashboardRecommendationService {
                 );
         String reviewGatePolicyPromotionActionStatus =
                 AdminDashboardQueryPolicy.resolveReviewGatePolicyPromotionActionStatus(
-                        reviewGatePolicyPromotionStatus
+                        reviewGatePolicyPromotionStatus,
+                        reviewGatePromotionApprovalRecorded
                 );
         String reviewGatePolicyPromotionActionReason =
                 AdminDashboardQueryPolicy.resolveReviewGatePolicyPromotionActionReason(
-                        reviewGatePolicyPromotionStatus
+                        reviewGatePolicyPromotionStatus,
+                        reviewGatePromotionApprovalRecorded
                 );
         String reviewGatePolicyPromotionReadinessStatus =
                 AdminDashboardQueryPolicy.resolveReviewGatePolicyPromotionReadinessStatus(
@@ -128,13 +136,15 @@ public class AdminDashboardRecommendationService {
         String reviewGatePolicyPromotionExecutionStatus =
                 AdminDashboardQueryPolicy.resolveReviewGatePolicyPromotionExecutionStatus(
                         reviewGatePolicyPromotionReadinessStatus,
-                        reviewGatePolicyPromotionStatus
+                        reviewGatePolicyPromotionStatus,
+                        reviewGatePromotionApprovalRecorded
                 );
         String reviewGatePolicyPromotionExecutionReason =
                 AdminDashboardQueryPolicy.resolveReviewGatePolicyPromotionExecutionReason(
                         reviewGatePolicyPromotionReadinessStatus,
                         reviewGatePolicyPromotionReadinessReason,
-                        reviewGatePolicyPromotionStatus
+                        reviewGatePolicyPromotionStatus,
+                        reviewGatePromotionApprovalRecorded
                 );
         String reviewGatePolicyPromotionApprovalCriteriaStatus =
                 AdminDashboardQueryPolicy.resolveReviewGatePolicyPromotionApprovalCriteriaStatus(
@@ -153,12 +163,14 @@ public class AdminDashboardRecommendationService {
                 );
         String reviewGatePolicyPromotionApprovalStatus =
                 AdminDashboardQueryPolicy.resolveReviewGatePolicyPromotionApprovalStatus(
-                        reviewGatePolicyPromotionExecutionStatus
+                        reviewGatePolicyPromotionExecutionStatus,
+                        reviewGatePromotionApprovalRecorded
                 );
         String reviewGatePolicyPromotionApprovalReason =
                 AdminDashboardQueryPolicy.resolveReviewGatePolicyPromotionApprovalReason(
                         reviewGatePolicyPromotionExecutionStatus,
-                        reviewGatePolicyPromotionExecutionReason
+                        reviewGatePolicyPromotionExecutionReason,
+                        reviewGatePromotionApprovalRecorded
                 );
         String reviewGatePolicyPromotionApprovalDecisionStatus =
                 AdminDashboardQueryPolicy.resolveReviewGatePolicyPromotionApprovalDecisionStatus(

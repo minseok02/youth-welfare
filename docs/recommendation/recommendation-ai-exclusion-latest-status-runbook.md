@@ -9,6 +9,7 @@
 - [recommendation-post-merge-followup-checklist.md](./recommendation-post-merge-followup-checklist.md)
 - [recommendation-real-user-recheck-checklist.md](./recommendation-real-user-recheck-checklist.md)
 - [recommendation-ai-exclusion-latest-overview-runbook.md](./recommendation-ai-exclusion-latest-overview-runbook.md)
+- [recommendation-review-gate-promotion-approval-record-smoke-runbook.md](./recommendation-review-gate-promotion-approval-record-smoke-runbook.md)
 
 ## 현재 단계 해석
 

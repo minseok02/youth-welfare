@@ -3,24 +3,33 @@ package com.example.welfare.admin.dashboard.controller;
 import com.example.welfare.admin.dashboard.dto.AdminCollectFailureResponse;
 import com.example.welfare.admin.dashboard.dto.AdminRecommendationCandidateDiagnosticResponse;
 import com.example.welfare.admin.dashboard.dto.AdminRecommendationBreakdownResponse;
+import com.example.welfare.admin.dashboard.dto.AdminRecommendationReviewGatePromotionApprovalRecordClearResponse;
+import com.example.welfare.admin.dashboard.dto.AdminRecommendationReviewGatePromotionApprovalRecordRequest;
+import com.example.welfare.admin.dashboard.dto.AdminRecommendationReviewGatePromotionApprovalRecordResponse;
 import com.example.welfare.admin.dashboard.dto.AdminSearchFailureResponse;
 import com.example.welfare.admin.dashboard.dto.AdminDashboardResponse;
 import com.example.welfare.admin.dashboard.service.AdminDashboardCollectService;
 import com.example.welfare.admin.dashboard.service.AdminDashboardRecommendationDiagnosticService;
 import com.example.welfare.admin.dashboard.service.AdminDashboardRecommendationService;
+import com.example.welfare.admin.dashboard.service.AdminRecommendationReviewGatePromotionApprovalRecordService;
 import com.example.welfare.admin.dashboard.service.AdminDashboardSearchService;
 import com.example.welfare.admin.dashboard.service.AdminDashboardSummaryService;
+import com.example.welfare.global.auth.AuthenticatedUser;
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.global.response.ApiResponse;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -38,6 +47,8 @@ public class AdminDashboardController {
     private final AdminDashboardRecommendationService adminDashboardRecommendationService;
     private final AdminDashboardRecommendationDiagnosticService adminDashboardRecommendationDiagnosticService;
     private final AdminDashboardCollectService adminDashboardCollectService;
+    private final AdminRecommendationReviewGatePromotionApprovalRecordService
+            adminRecommendationReviewGatePromotionApprovalRecordService;
 
     @GetMapping("/summary")
     public ResponseEntity<ApiResponse<AdminDashboardResponse>> getSummary(
@@ -127,6 +138,29 @@ public class AdminDashboardController {
         log.info("[Admin] dashboard collect failures 조회 summaryWindowDays={} limit={}", summaryWindowDays, limit);
         return ResponseEntity.ok(ApiResponse.success(
                 adminDashboardCollectService.getCollectFailures(summaryWindowDays, limit)
+        ));
+    }
+
+    @PostMapping("/recommendation-review-gate/promotion-approval-record")
+    public ResponseEntity<ApiResponse<AdminRecommendationReviewGatePromotionApprovalRecordResponse>>
+    recordRecommendationReviewGatePromotionApproval(
+            @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
+            @RequestBody(required = false) AdminRecommendationReviewGatePromotionApprovalRecordRequest request
+    ) {
+        String actorUserKey = authenticatedUser != null ? authenticatedUser.userKey() : null;
+        String approvalNote = request != null ? request.approvalNote() : null;
+        log.info("[Admin] recommendation review gate promotion approval record upsert actorUserKey={}", actorUserKey);
+        return ResponseEntity.ok(ApiResponse.success(
+                adminRecommendationReviewGatePromotionApprovalRecordService.recordApproval(actorUserKey, approvalNote)
+        ));
+    }
+
+    @DeleteMapping("/recommendation-review-gate/promotion-approval-record")
+    public ResponseEntity<ApiResponse<AdminRecommendationReviewGatePromotionApprovalRecordClearResponse>>
+    clearRecommendationReviewGatePromotionApproval() {
+        log.info("[Admin] recommendation review gate promotion approval record clear");
+        return ResponseEntity.ok(ApiResponse.success(
+                adminRecommendationReviewGatePromotionApprovalRecordService.clearApproval()
         ));
     }
 

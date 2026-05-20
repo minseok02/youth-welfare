@@ -1,5 +1,13 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 944) approval-record smoke가 summary와 breakdowns JSON field depth를 같다고 가정하면 승인 tuple 검증이 잘못된다
+- 문제: approval-record smoke 초기 버전은 summary와 breakdowns 둘 다 gate 필드가 같은 depth에 있다고 가정했다. 하지만 summary는 `data.recommendation.*`, breakdowns는 `data.*` 에 gate 필드가 있어 같은 파서로 읽으면 summary approved/baseline tuple 검증이 어긋났다.
+- 해결: smoke parser가 `data.get("recommendation", data)` 형태로 summary/breakdowns 두 응답을 모두 처리하게 고쳤다. 이제 baseline pending tuple, approved tuple, clear 뒤 baseline 복귀를 같은 helper로 안정적으로 검증한다.
+
+## 943) 기존 PostgreSQL volume에서는 앱 재빌드만으로 새 approval table/grant가 적용되지 않아 summary가 relation missing 또는 permission denied로 끊길 수 있다
+- 문제: `recommendation_review_gate_promotion_approvals` table을 migration에만 추가한 상태에서 기존 로컬 PostgreSQL volume로 앱만 다시 띄우면, admin summary/breakdowns read path가 relation missing 또는 `app_core_rw permission denied` 로 500이 났다.
+- 해결: `deploy/postgres/patches/V2026_05_20_01__add_recommendation_review_gate_promotion_approvals.sql` 와 `bash deploy/postgres/apply-local-runtime-schema-patch.sh` 경로를 추가했고, migration/patch SQL 모두 grant를 같이 적용하게 맞췄다. read repository는 missing relation일 때 `Optional.empty()` 로 graceful degrade 하게 해, existing volume에서도 runtime patch 전후 경계를 분리해서 읽게 했다.
+
 ## 942) 마지막 transition ready와 final record write pending을 같은 뜻으로 두면, 실제로 write가 아직 안 실행됐는지 다시 추론해야 한다
 - 문제: `AWAIT_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_WRITE` 만 surface에 올린 상태에서는 prerequisite 충족과 final write 미실행이 같은 층에 섞여 보여, operator/reviewer가 마지막 explicit write가 실제로 아직 안 된 건지 다시 해석해야 했다.
 - 해결: admin summary/breakdowns, latest artifact, active current/runbook, PR surface에 `reviewGatePolicyPromotionReviewRunApprovalRecordWriteStatus`, `reviewGatePolicyPromotionReviewRunApprovalRecordWriteReason` 을 추가했다. 현재 local 기준 값은 `PENDING_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_WRITE`, `APPROVAL_RECORD_TRANSITION_READY_BUT_WRITE_NOT_EXECUTED` 이다.

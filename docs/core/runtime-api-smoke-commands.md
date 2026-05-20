@@ -106,6 +106,19 @@ deploy/smoke/run-local-admin-recommendation-breakdowns-smoke.sh
 
 이 스크립트는 `admin login -> ROLE_ADMIN 확인 -> /api/admin/dashboard/recommendation-breakdowns -> traffic mix + real-user traffic gate + recommendationReviewGate + latest batch concentration snapshot(top1LeaderUserMix/top1LeaderSignalSummary 포함) + reviewGateStaleness + recentWindowLatestBatch + reviewGatePolicyCandidateStatus/reviewGatePolicyCandidateReason + reviewGatePolicyPromotionStatus/reviewGatePolicyPromotionReason + reviewGatePolicyPromotionActionStatus/reviewGatePolicyPromotionActionReason + reviewGatePolicyPromotionReadinessStatus/reviewGatePolicyPromotionReadinessReason + reviewGatePolicyPromotionExecutionStatus/reviewGatePolicyPromotionExecutionReason + reviewGatePolicyPromotionApprovalStatus/reviewGatePolicyPromotionApprovalReason + reviewGatePolicyPromotionApprovalCriteriaStatus/reviewGatePolicyPromotionApprovalCriteriaReason + reviewGatePolicyPromotionApprovalDecisionStatus/reviewGatePolicyPromotionApprovalDecisionReason + reviewGatePolicyPromotionApprovalRecordStatus/reviewGatePolicyPromotionApprovalRecordReason + reviewGatePolicyPromotionReviewRunStatus/reviewGatePolicyPromotionReviewRunReason + reviewGatePolicyPromotionReviewRunCriteriaStatus/reviewGatePolicyPromotionReviewRunCriteriaReason + reviewGatePolicyPromotionReviewRunDecisionStatus/reviewGatePolicyPromotionReviewRunDecisionReason + reviewGatePolicyPromotionReviewRunApprovalCriteriaStatus/reviewGatePolicyPromotionReviewRunApprovalCriteriaReason + reviewGatePolicyPromotionReviewRunApprovalDecisionStatus/reviewGatePolicyPromotionReviewRunApprovalDecisionReason + reviewGatePolicyPromotionReviewRunApprovalStatus/reviewGatePolicyPromotionReviewRunApprovalReason + topRepeatedServices/top1Services(userMix 포함) + fallback/click/repeat exposure userCohort 계약` 을 한 번에 확인합니다.
 breakdowns smoke도 같은 마지막 transition 층과 final write 층을 같이 봅니다. 즉 `reviewGatePolicyPromotionReviewRunApprovalRecordTransitionStatus=AWAIT_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_WRITE`, `reviewGatePolicyPromotionReviewRunApprovalRecordTransitionReason=APPROVAL_RECORD_CRITERIA_MET_BUT_RECORD_NOT_WRITTEN`, `reviewGatePolicyPromotionReviewRunApprovalRecordWriteStatus=PENDING_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_WRITE`, `reviewGatePolicyPromotionReviewRunApprovalRecordWriteReason=APPROVAL_RECORD_TRANSITION_READY_BUT_WRITE_NOT_EXECUTED` 을 같이 읽는 편이 맞습니다.
+explicit promotion approval record의 실제 write/clear path를 검증할 때는 아래 smoke를 먼저 사용합니다.
+
+```bash
+ADMIN_EMAIL='<local admin email>' ADMIN_PASSWORD='<local admin password>' \
+deploy/smoke/run-local-admin-recommendation-review-gate-promotion-approval-record-smoke.sh
+```
+
+이 smoke는 `baseline pending tuple -> explicit approval record write -> approved tuple -> explicit approval record clear -> baseline tuple 복귀` 를 한 번에 확인합니다. 기존 로컬 PostgreSQL volume에서 relation missing 또는 permission denied가 보이면 먼저 아래 runtime patch를 적용합니다.
+
+```bash
+bash deploy/postgres/apply-local-runtime-schema-patch.sh
+```
+
 `userCohort` 값은 현재 `EXAMPLE_SMOKE`, `BOUNDED_LOCAL`, `LOCAL_REAL_NON_EXAMPLE_SEED`, `REAL_USER` 중 하나입니다.
 기본 summary window는 `14`, 기본 limit는 `3` 이며, `SUMMARY_WINDOW_DAYS`, `BREAKDOWN_LIMIT` 으로 덮어쓸 수 있습니다.
 

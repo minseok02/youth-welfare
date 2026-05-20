@@ -4,11 +4,14 @@ import com.example.welfare.admin.dashboard.controller.AdminDashboardController;
 import com.example.welfare.admin.dashboard.dto.AdminCollectFailureResponse;
 import com.example.welfare.admin.dashboard.dto.AdminRecommendationCandidateDiagnosticResponse;
 import com.example.welfare.admin.dashboard.dto.AdminRecommendationBreakdownResponse;
+import com.example.welfare.admin.dashboard.dto.AdminRecommendationReviewGatePromotionApprovalRecordClearResponse;
+import com.example.welfare.admin.dashboard.dto.AdminRecommendationReviewGatePromotionApprovalRecordResponse;
 import com.example.welfare.admin.dashboard.dto.AdminSearchFailureResponse;
 import com.example.welfare.admin.dashboard.dto.AdminDashboardResponse;
 import com.example.welfare.admin.dashboard.service.AdminDashboardCollectService;
 import com.example.welfare.admin.dashboard.service.AdminDashboardRecommendationDiagnosticService;
 import com.example.welfare.admin.dashboard.service.AdminDashboardRecommendationService;
+import com.example.welfare.admin.dashboard.service.AdminRecommendationReviewGatePromotionApprovalRecordService;
 import com.example.welfare.admin.dashboard.service.AdminDashboardSearchService;
 import com.example.welfare.admin.dashboard.service.AdminDashboardSummaryService;
 import com.example.welfare.collect.controller.CollectAdminController;
@@ -57,6 +60,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.data.jpa.mapping.JpaMetamodelMappingContext;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.MediaType;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -69,6 +73,7 @@ import static org.mockito.Mockito.doNothing;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -128,6 +133,8 @@ class AdminSecurityWebMvcTest {
     @MockBean
     private AdminDashboardRecommendationDiagnosticService adminDashboardRecommendationDiagnosticService;
     @MockBean
+    private AdminRecommendationReviewGatePromotionApprovalRecordService adminRecommendationReviewGatePromotionApprovalRecordService;
+    @MockBean
     private AdminDashboardCollectService adminDashboardCollectService;
     @MockBean
     private JwtUtil jwtUtil;
@@ -180,6 +187,64 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.data").value("온통청년 수집 완료"));
 
         then(collectAdminService).should().collect(CollectSource.YOUTH);
+    }
+
+    @Test
+    @DisplayName("관리자 토큰으로 recommendation promotion approval record write API를 호출하면 approval record service를 실행한다")
+    void adminEndpointAllowsRecommendationPromotionApprovalRecordWrite() throws Exception {
+        mockAuthenticatedToken("admin-token", List.of(
+                new SimpleGrantedAuthority("ROLE_USER"),
+                new SimpleGrantedAuthority("ROLE_ADMIN")
+        ));
+        given(adminRecommendationReviewGatePromotionApprovalRecordService.recordApproval(
+                org.mockito.ArgumentMatchers.eq("user-key-1"),
+                org.mockito.ArgumentMatchers.eq("bounded review approved")
+        )).willReturn(new AdminRecommendationReviewGatePromotionApprovalRecordResponse(
+                "RECENT_WINDOW_BOUNDED_PROMOTION_REVIEW",
+                "APPROVED_FOR_BOUNDED_PROMOTION_REVIEW",
+                "RECOMMENDATION_REVIEW_GATE_POLICY_PROMOTION",
+                "bounded review approved",
+                "user-key-1",
+                LocalDateTime.of(2026, 5, 20, 10, 0),
+                true
+        ));
+
+        mockMvc.perform(post("/api/admin/dashboard/recommendation-review-gate/promotion-approval-record")
+                        .header("Authorization", "Bearer admin-token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"approvalNote":"bounded review approved"}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.approvalKey").value("RECENT_WINDOW_BOUNDED_PROMOTION_REVIEW"))
+                .andExpect(jsonPath("$.data.recorded").value(true));
+
+        then(adminRecommendationReviewGatePromotionApprovalRecordService).should()
+                .recordApproval("user-key-1", "bounded review approved");
+    }
+
+    @Test
+    @DisplayName("관리자 토큰으로 recommendation promotion approval record clear API를 호출하면 approval record service를 실행한다")
+    void adminEndpointAllowsRecommendationPromotionApprovalRecordClear() throws Exception {
+        mockAuthenticatedToken("admin-token", List.of(
+                new SimpleGrantedAuthority("ROLE_USER"),
+                new SimpleGrantedAuthority("ROLE_ADMIN")
+        ));
+        given(adminRecommendationReviewGatePromotionApprovalRecordService.clearApproval())
+                .willReturn(new AdminRecommendationReviewGatePromotionApprovalRecordClearResponse(
+                        "RECENT_WINDOW_BOUNDED_PROMOTION_REVIEW",
+                        true
+                ));
+
+        mockMvc.perform(delete("/api/admin/dashboard/recommendation-review-gate/promotion-approval-record")
+                        .header("Authorization", "Bearer admin-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.approvalKey").value("RECENT_WINDOW_BOUNDED_PROMOTION_REVIEW"))
+                .andExpect(jsonPath("$.data.cleared").value(true));
+
+        then(adminRecommendationReviewGatePromotionApprovalRecordService).should().clearApproval();
     }
 
     @Test

@@ -13,6 +13,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
@@ -110,6 +111,9 @@ class AdminDashboardRecommendationServiceTest {
                         0,
                         0
                 ));
+        given(adminDashboardRecommendationReadRepository.fetchRecommendationReviewGatePromotionApprovalRecord(
+                AdminDashboardQueryPolicy.REVIEW_GATE_PROMOTION_APPROVAL_KEY
+        )).willReturn(Optional.empty());
         given(adminDashboardRecommendationReadRepository.fetchTopRepeatedRecommendationServices(3))
                 .willReturn(List.of(
                         new AdminDashboardReadRows.RecommendationRepeatedServiceRow(
@@ -457,5 +461,86 @@ class AdminDashboardRecommendationServiceTest {
             assertThat(group.latestSentAt()).isEqualTo(LocalDateTime.of(2026, 5, 3, 9, 0));
             assertThat(group.latestClickedAt()).isEqualTo(LocalDateTime.of(2026, 5, 3, 9, 10));
         });
+    }
+
+    @Test
+    @DisplayName("explicit promotion approval record가 있으면 breakdown도 completed write status를 읽는다")
+    void getRecommendationBreakdownsReflectRecordedPromotionApproval() {
+        given(adminDashboardRecommendationReadRepository.fetchRecommendationSummary(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any()
+        )).willReturn(new AdminDashboardReadRows.RecommendationSummaryRow(
+                250, 12, 30, 9, 6, LocalDateTime.of(2026, 5, 2, 8, 45)
+        ));
+        given(adminDashboardRecommendationReadRepository.fetchRecommendationTrafficMix(org.mockito.ArgumentMatchers.any()))
+                .willReturn(new AdminDashboardReadRows.RecommendationTrafficMixRow(
+                        3, 0, 0, 40, 40, 3, 0, 0, 10, 10, 2, 0, 0, 5, 5
+                ));
+        given(adminDashboardRecommendationReadRepository.fetchRecommendationConcentration())
+                .willReturn(new AdminDashboardReadRows.RecommendationConcentrationRow(
+                        100, 80, 20, 2622L, "청년월세 지원사업", "BOKJIRO_CENTRAL", "주거", 30,
+                        new BigDecimal("37.50"), 25, 0, 0, 0, 0,
+                        "CONCENTRATED_TOP1", "READY_REAL_USER_COHORT", "LOCAL_REAL_NON_EXAMPLE_SEED_WITH_NON_REAL_BATCH"
+                ));
+        given(adminDashboardRecommendationReadRepository.fetchRecommendationRecentWindowSnapshot(24, 2622L))
+                .willReturn(new AdminDashboardReadRows.RecommendationRecentWindowRow(
+                        24, 2622L, 83, 3, 80, 0, 3284L, "인천 청년도약기지(취업아카데미)", 6, 5,
+                        new BigDecimal("7.23"), 0, 0
+                ));
+        given(adminDashboardRecommendationReadRepository.fetchRecommendationReviewGateStalenessSnapshot(24, 2622L))
+                .willReturn(new AdminDashboardReadRows.RecommendationReviewGateStalenessRow(
+                        2622L, "ALL_TIME_LATEST_PER_USER", 24, 454, 3, 272, 0,
+                        LocalDateTime.of(2026, 5, 13, 13, 39, 31),
+                        LocalDateTime.of(2026, 5, 17, 11, 49, 50),
+                        80, 80, 0, 0
+                ));
+        given(adminDashboardRecommendationReadRepository.fetchRecommendationReviewGatePromotionApprovalRecord(
+                AdminDashboardQueryPolicy.REVIEW_GATE_PROMOTION_APPROVAL_KEY
+        )).willReturn(Optional.of(
+                new AdminDashboardReadRows.RecommendationReviewGatePromotionApprovalRecordRow(
+                        AdminDashboardQueryPolicy.REVIEW_GATE_PROMOTION_APPROVAL_KEY,
+                        "APPROVED_FOR_BOUNDED_PROMOTION_REVIEW",
+                        AdminDashboardQueryPolicy.REVIEW_GATE_PROMOTION_APPROVAL_SCOPE,
+                        "approved",
+                        "admin-user-key",
+                        LocalDateTime.of(2026, 5, 20, 9, 30)
+                )
+        ));
+        given(adminDashboardRecommendationReadRepository.fetchTopRepeatedRecommendationServices(3)).willReturn(List.of());
+        given(adminDashboardRecommendationReadRepository.fetchTop1RecommendationServices(3)).willReturn(List.of());
+        given(adminDashboardRecommendationReadRepository.fetchRecommendationSourceBreakdowns(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.eq(3)
+        )).willReturn(List.of());
+        given(adminDashboardRecommendationReadRepository.fetchRecommendationCategoryBreakdowns(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.eq(3)
+        )).willReturn(List.of());
+        given(adminDashboardRecommendationReadRepository.fetchRecommendationWeightBreakdowns(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.eq(3)
+        )).willReturn(List.of());
+        given(adminDashboardRecommendationReadRepository.fetchLatestBatchYouthOfficialFacetRows(3)).willReturn(List.of());
+        given(adminDashboardRecommendationReadRepository.fetchLatestBatchGov24FacetRows(3)).willReturn(List.of());
+        given(adminDashboardRecommendationReadRepository.fetchRecentFallbackRecommendationSamples(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.eq(3)
+        )).willReturn(List.of());
+        given(adminDashboardRecommendationReadRepository.fetchRecentClickedRecommendationSamples(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.eq(3)
+        )).willReturn(List.of());
+        given(adminDashboardRecommendationReadRepository.fetchRecommendationRepeatExposureGroups(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.eq(3)
+        )).willReturn(List.of());
+
+        AdminRecommendationBreakdownResponse response =
+                adminDashboardRecommendationService.getRecommendationBreakdowns(14, 3);
+
+        assertThat(response.reviewGatePolicyPromotionApprovalDecisionStatus())
+                .isEqualTo("APPROVED_FOR_BOUNDED_PROMOTION_REVIEW");
+        assertThat(response.reviewGatePolicyPromotionReviewRunApprovalRecordWriteStatus())
+                .isEqualTo("BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_WRITE_COMPLETED");
     }
 }

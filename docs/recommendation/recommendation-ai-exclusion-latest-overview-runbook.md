@@ -22,6 +22,7 @@
 - [recommendation-pr-draft-exit-checklist.md](./recommendation-pr-draft-exit-checklist.md)
 - [recommendation-post-merge-followup-checklist.md](./recommendation-post-merge-followup-checklist.md)
 - [recommendation-real-user-recheck-checklist.md](./recommendation-real-user-recheck-checklist.md)
+- [recommendation-review-gate-promotion-approval-record-smoke-runbook.md](./recommendation-review-gate-promotion-approval-record-smoke-runbook.md)
 
 현재 이 runbook의 기본 해석은 아래와 같습니다.
 
