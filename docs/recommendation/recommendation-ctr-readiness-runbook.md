@@ -136,6 +136,8 @@ readiness 판정:
 DEFERRED_NO_REAL_USER_TRAFFIC
 ```
 
+위 블록은 **`2026-05-17` historical pre-real-user local sample output** 입니다. current local truth와는 분리해서 읽어야 합니다.
+
 같은 시점 `USER_COHORT=bounded_local` rerun:
 
 ```text
@@ -206,7 +208,7 @@ DEFERRED_CLICK_SAMPLE_THIN
 
 ## 현재 판단
 
-`2026-05-17` 기준 local 데이터는:
+`2026-05-17` 기준 historical pre-real-user local 데이터는:
 
 - total logs는 `4143`, clicked logs는 `31` 까지 올라 raw threshold는 넘겼음
 - `example_logs/users = 4119 / 458`, `bounded_local_logs/users = 6 / 1`, `real_non_example_logs/users = 18 / 3`
@@ -216,8 +218,8 @@ DEFERRED_CLICK_SAMPLE_THIN
 - clicked service는 여전히 `2` 개뿐이고 fallback `1067` 건은 클릭 `0`
 - AI `3076` 건에서만 클릭 `31` 이 나와 있어, 지금 단계에서 weight를 바로 바꾸면 smoke 계정 편향과 특정 서비스/AI 경로 편향을 함께 전체 품질 신호로 오해할 위험이 큼
 
-즉 현재 병목은 **instrumentation bug** 도, 단순 **sample 부족** 도 아니라
-**synthetic-heavy local traffic + 클릭 분포 편중 + fallback 무반응** 입니다.
+즉 이 시점의 병목은 **instrumentation bug** 도, 단순 **sample 부족** 도 아니라
+**synthetic-heavy local traffic + 클릭 분포 편중 + fallback 무반응** 이었습니다. current local truth는 이후 `REAL_USER` live gate 개방과 review-gate supplemental 해석으로 넘어갔으므로, 이 문단은 historical baseline evidence로 읽는 편이 맞습니다.
 
 따라서 다음 practical step은:
 

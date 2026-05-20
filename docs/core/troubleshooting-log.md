@@ -1,5 +1,10 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 388) current-reading을 고쳐도 helper 중간의 old sample output 블록에 historical 라벨이 없으면 operator는 예전 deferred/cohort 부재를 다시 현재로 읽는다
+- 문제: `recommendation-ctr-readiness-runbook.md`, `recommendation-concentration-audit-runbook.md` 는 상단 current-reading은 최신으로 맞아 있어도, 중간 sample output과 `현재 판단` 섹션이 여전히 `2026-05-17` pre-real-user baseline을 현재형처럼 보이게 남겨 두고 있었다.
+- 해결: 해당 블록을 `historical pre-real-user local sample output`, `historical baseline evidence` 로 직접 라벨링해, current local truth와 구분되도록 바꿨다.
+- 이유: active helper 문서는 상단 current-reading만 읽고 끝나지 않는다. operator가 중간 sample block이나 `현재 판단` 요약만 복사해도 current interpretation이 틀어지지 않게, old deferred/cohort-empty 상태는 history라는 사실을 문장 자체에 박아 두는 편이 맞다.
+
 ## 387) active 문서 안의 historical baseline sample output에 라벨이 없으면, 이미 열린 live gate보다 옛 deferred snapshot을 current truth로 오해하기 쉽다
 - 문제: `recommendation-current-state.md`, `recommendation-operation-checklist.md`, `recommendation-ai-exclusion-latest-overview-runbook.md` 에는 현재형 설명과 함께 `2026-05-19` pre-live baseline artifact/output 이 같이 남아 있었는데, 일부 구간은 “historical pre-live baseline” 이라는 라벨이 약했다. 이 상태에선 `WAIT_FOR_REAL_USER_TRAFFIC`, `DEFERRED_NO_REAL_USER_TRAFFIC` 같은 옛 snapshot 값이 여전히 current truth처럼 읽힐 수 있다.
 - 해결: 해당 구간에 `historical pre-live baseline`, `older pre-live baseline snapshot pointer`, `live readiness가 열리기 전 sample output` 같은 문구를 직접 넣어, baseline artifact와 live current truth를 문장 자체에서 분리했다.
