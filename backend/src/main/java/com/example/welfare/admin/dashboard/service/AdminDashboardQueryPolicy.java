@@ -317,4 +317,57 @@ final class AdminDashboardQueryPolicy {
             default -> reviewGatePolicyPromotionStatus;
         };
     }
+
+    static String resolveReviewGatePolicyPromotionReadinessStatus(
+            String realUserTrafficGate,
+            AdminDashboardReadRows.RecommendationConcentrationRow concentrationRow,
+            String reviewGatePolicyCandidateStatus,
+            String reviewGatePolicyPromotionStatus
+    ) {
+        if (!"READY_REAL_USER_TRAFFIC".equals(realUserTrafficGate)) {
+            return "NOT_READY_FOR_BOUNDED_PROMOTION_REVIEW";
+        }
+        if (!"READY_REAL_USER_COHORT".equals(concentrationRow.realUserCohortGate())) {
+            return "NOT_READY_FOR_BOUNDED_PROMOTION_REVIEW";
+        }
+        if (!"RECENT_WINDOW_POLICY_CANDIDATE".equals(reviewGatePolicyCandidateStatus)) {
+            return "NOT_READY_FOR_BOUNDED_PROMOTION_REVIEW";
+        }
+        if ("REQUIRES_EXPLICIT_POLICY_CHANGE_REVIEW".equals(reviewGatePolicyPromotionStatus)
+                || "PROMOTION_READY".equals(reviewGatePolicyPromotionStatus)) {
+            return "READY_FOR_BOUNDED_PROMOTION_REVIEW";
+        }
+        return "NOT_READY_FOR_BOUNDED_PROMOTION_REVIEW";
+    }
+
+    static String resolveReviewGatePolicyPromotionReadinessReason(
+            String realUserTrafficGate,
+            AdminDashboardReadRows.RecommendationConcentrationRow concentrationRow,
+            String reviewGatePolicyCandidateStatus,
+            String reviewGatePolicyPromotionStatus
+    ) {
+        String status = resolveReviewGatePolicyPromotionReadinessStatus(
+                realUserTrafficGate,
+                concentrationRow,
+                reviewGatePolicyCandidateStatus,
+                reviewGatePolicyPromotionStatus
+        );
+
+        if ("READY_FOR_BOUNDED_PROMOTION_REVIEW".equals(status)) {
+            if ("PROMOTION_READY".equals(reviewGatePolicyPromotionStatus)) {
+                return "BOUNDED_PROMOTION_REVIEW_PREREQUISITES_MET";
+            }
+            return "EXPLICIT_POLICY_REVIEW_PENDING_WITH_BOUNDED_REVIEW_PREREQUISITES_MET";
+        }
+        if (!"READY_REAL_USER_TRAFFIC".equals(realUserTrafficGate)) {
+            return "REAL_USER_TRAFFIC_GATE_NOT_READY";
+        }
+        if (!"READY_REAL_USER_COHORT".equals(concentrationRow.realUserCohortGate())) {
+            return "REAL_USER_COHORT_GATE_NOT_READY";
+        }
+        if (!"RECENT_WINDOW_POLICY_CANDIDATE".equals(reviewGatePolicyCandidateStatus)) {
+            return "RECENT_WINDOW_POLICY_CANDIDATE_NOT_CONFIRMED";
+        }
+        return "BOUNDED_PROMOTION_REVIEW_PREREQUISITES_NOT_MET";
+    }
 }

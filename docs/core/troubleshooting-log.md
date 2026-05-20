@@ -1,5 +1,13 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 931) promotion pending/action까지만 reviewer/author surface에 올리면, bounded promotion review를 바로 열 수 있는지 여부를 GitHub 화면만 봐서는 다시 추론해야 한다
+- 문제: local API/smoke/latest artifact는 이미 `reviewGatePolicyPromotionReadinessStatus=READY_FOR_BOUNDED_PROMOTION_REVIEW`, `reviewGatePolicyPromotionReadinessReason=EXPLICIT_POLICY_REVIEW_PENDING_WITH_BOUNDED_REVIEW_PREREQUISITES_MET` 를 내리기 시작했는데, PR 본문과 reviewer/author 문서는 아직 promotion pending/action까지만 적고 있었다.
+- 해결: reviewer brief, draft-exit checklist, post-merge follow-up checklist, 그리고 PR `#253` body / quick entrypoint / author-side note에도 readiness 층을 직접 올려, “지금은 keep baseline이지만 bounded promotion review를 열 prerequisite은 이미 충족” 상태를 GitHub 화면만으로도 읽게 맞춘다.
+
+## 930) candidate / promotion pending / current action만으로는 bounded promotion review를 지금 시작할 prerequisite이 이미 충족됐는지 알 수 없다
+- 문제: `reviewGatePolicyPromotionActionStatus=KEEP_PRIMARY_BASELINE` 까지 surface에 올린 뒤에도, operator는 “승격은 아직 안 하지만 bounded promotion review를 지금 열 수는 있나?”를 다시 추론해야 했다. 즉 current action과 future review readiness가 같은 층으로 섞여 있었다.
+- 해결: admin summary/breakdowns 와 `latest-status-export`, `latest-status`, `latest-gate`, `latest-overview` 에 `reviewGatePolicyPromotionReadinessStatus`, `reviewGatePolicyPromotionReadinessReason` 을 추가했다. 현재 local 기준 값은 `READY_FOR_BOUNDED_PROMOTION_REVIEW`, `EXPLICIT_POLICY_REVIEW_PENDING_WITH_BOUNDED_REVIEW_PREREQUISITES_MET` 이고, “지금은 keep baseline이지만 bounded review를 열 prerequisite은 이미 충족” 상태를 별도 층으로 읽는다.
+
 ## 929) operator surface에만 promotion action을 올리고 reviewer/author 문서가 promotion pending까지만 말하면, PR 판단 쪽에서는 또 “그래서 지금 keep baseline인가”를 다시 추론해야 한다
 - 문제: latest artifact와 admin API는 이미 `reviewGatePolicyPromotionActionStatus=KEEP_PRIMARY_BASELINE`, `reviewGatePolicyPromotionActionReason=PROMOTION_STILL_REQUIRES_EXPLICIT_POLICY_REVIEW` 를 내리기 시작했지만, reviewer brief / draft exit / post-merge follow-up 문서는 여전히 candidate / promotion pending까지만 적고 있었다.
 - 해결: reviewer/author/post-merge 문서에도 promotion action status/reason을 직접 올리고, PR surface도 같은 문구로 다시 맞췄다.

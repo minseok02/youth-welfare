@@ -111,6 +111,20 @@ public class AdminDashboardRecommendationService {
                 AdminDashboardQueryPolicy.resolveReviewGatePolicyPromotionActionReason(
                         reviewGatePolicyPromotionStatus
                 );
+        String reviewGatePolicyPromotionReadinessStatus =
+                AdminDashboardQueryPolicy.resolveReviewGatePolicyPromotionReadinessStatus(
+                        realUserTrafficGate,
+                        recommendationConcentration,
+                        reviewGatePolicyCandidateStatus,
+                        reviewGatePolicyPromotionStatus
+                );
+        String reviewGatePolicyPromotionReadinessReason =
+                AdminDashboardQueryPolicy.resolveReviewGatePolicyPromotionReadinessReason(
+                        realUserTrafficGate,
+                        recommendationConcentration,
+                        reviewGatePolicyCandidateStatus,
+                        reviewGatePolicyPromotionStatus
+                );
         List<AdminRecommendationBreakdownResponse.FacetGroup> youthOfficialFacetGroups = buildFacetGroups(
                 adminDashboardRecommendationReadRepository.fetchLatestBatchYouthOfficialFacetRows(breakdownLimit),
                 YOUTH_OFFICIAL_FACET_ORDER,
@@ -207,6 +221,8 @@ public class AdminDashboardRecommendationService {
                 reviewGatePolicyPromotionReason,
                 reviewGatePolicyPromotionActionStatus,
                 reviewGatePolicyPromotionActionReason,
+                reviewGatePolicyPromotionReadinessStatus,
+                reviewGatePolicyPromotionReadinessReason,
                 adminDashboardRecommendationReadRepository.fetchTopRepeatedRecommendationServices(breakdownLimit).stream()
                         .map(row -> new AdminRecommendationBreakdownResponse.RepeatedServiceSnapshot(
                                 row.serviceId(),

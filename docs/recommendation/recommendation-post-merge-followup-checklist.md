@@ -93,6 +93,10 @@ merge 전 현재 PR 상태 reference:
   - `KEEP_PRIMARY_BASELINE`
 - review gate policy promotion action reason:
   - `PROMOTION_STILL_REQUIRES_EXPLICIT_POLICY_REVIEW`
+- review gate policy promotion readiness status:
+  - `READY_FOR_BOUNDED_PROMOTION_REVIEW`
+- review gate policy promotion readiness reason:
+  - `EXPLICIT_POLICY_REVIEW_PENDING_WITH_BOUNDED_REVIEW_PREREQUISITES_MET`
 - current next step:
   - `USE_RECENT_WINDOW_AS_SUPPLEMENTAL_REVIEW_CONTEXT`
 - `latest_drift_class=VOLATILE_ONLY_DRIFT`
@@ -113,6 +117,7 @@ merge 전 현재 PR 상태 reference:
 6. `gate_status=PASS` 여도 `gate_policy_status=PRIMARY_BLOCKED_SUPPLEMENTAL_CLEAR` 가 유지됨
 7. recent-window는 policy candidate지만 `review_gate_policy_promotion_status=REQUIRES_EXPLICIT_POLICY_CHANGE_REVIEW` 라 현재 merge 후 기본값도 promotion review pending 으로 읽음
 8. current promotion action도 `KEEP_PRIMARY_BASELINE` 이므로 merge 뒤 immediate follow-up 기본값은 bounded promotion review가 아니라 baseline 유지
+9. `review_gate_policy_promotion_readiness_status=READY_FOR_BOUNDED_PROMOTION_REVIEW` 는 merge 뒤 explicit policy review를 열 수 있는 근거가 있다는 뜻이지만, current action을 곧바로 바꾸는 값은 아님
 
 이때 current decision은 계속:
 

@@ -46,6 +46,10 @@
   - `KEEP_PRIMARY_BASELINE`
 - review gate policy promotion action reason:
   - `PROMOTION_STILL_REQUIRES_EXPLICIT_POLICY_REVIEW`
+- review gate policy promotion readiness status:
+  - `READY_FOR_BOUNDED_PROMOTION_REVIEW`
+- review gate policy promotion readiness reason:
+  - `EXPLICIT_POLICY_REVIEW_PENDING_WITH_BOUNDED_REVIEW_PREREQUISITES_MET`
 
 즉 current truth는:
 
@@ -53,6 +57,7 @@
 2. 하지만 아직 `automatic promotion` 단계는 아님
 3. explicit policy review를 먼저 거쳐야 함
 4. current action은 promotion 실행이 아니라 `KEEP_PRIMARY_BASELINE`
+5. 다만 bounded promotion review를 열 prerequisite 자체는 이미 `READY_FOR_BOUNDED_PROMOTION_REVIEW`
 
 입니다.
 
@@ -162,6 +167,7 @@ promotion review 전 최소한 아래 4개는 같이 봅니다.
    또는
    `promote recent-window-aware gate for bounded trial`
 8. 이번 단계에서 **안 바꾸는 것**
+9. `reviewGatePolicyPromotionReadinessStatus/Reason`
 
 ## 현재 추천 판단
 

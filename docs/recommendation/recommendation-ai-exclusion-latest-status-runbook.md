@@ -56,6 +56,8 @@ bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-status.sh
 - `review_gate_policy_promotion_reason`
 - `review_gate_policy_promotion_action_status`
 - `review_gate_policy_promotion_action_reason`
+- `review_gate_policy_promotion_readiness_status`
+- `review_gate_policy_promotion_readiness_reason`
 - `status_json_stale_relative_to_summaries`
 - `status_json_recommended_action`
 - `latest_drift_class`
@@ -110,6 +112,10 @@ bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-status.sh
   - current 시점에 operator가 즉시 취할 행동을 더 짧게 접은 값입니다. 지금은 승격 검토를 열기보다 primary baseline을 유지하는 편이 맞다는 뜻입니다.
 - `review_gate_policy_promotion_action_reason=PROMOTION_STILL_REQUIRES_EXPLICIT_POLICY_REVIEW`
   - 위 action status를 만든 직접 이유입니다.
+- `review_gate_policy_promotion_readiness_status=READY_FOR_BOUNDED_PROMOTION_REVIEW`
+  - 지금 당장 primary baseline을 바꾸진 않더라도, bounded promotion review를 시작할 prerequisite 자체는 충족됐는지 보여 주는 값입니다. 현재 local 기준으로는 `READY_FOR_BOUNDED_PROMOTION_REVIEW` 입니다.
+- `review_gate_policy_promotion_readiness_reason=EXPLICIT_POLICY_REVIEW_PENDING_WITH_BOUNDED_REVIEW_PREREQUISITES_MET`
+  - 위 readiness 상태를 만든 직접 이유입니다. 현재 local 기준으로는 explicit policy review는 아직 남아 있지만 bounded review를 열 prerequisite은 이미 충족된 상태라는 뜻입니다.
 - `review_gate_interpretation_class=HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR`
   - primary full latest batch gate는 아직 historical blocker인데, supplemental recent-window current signal은 이미 clear 쪽으로 움직였다는 뜻입니다.
 - `review_gate_operating_mode=PRIMARY_BASELINE_WITH_SUPPLEMENTAL_RECENT_WINDOW`
