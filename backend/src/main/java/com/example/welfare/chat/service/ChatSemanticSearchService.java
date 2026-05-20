@@ -2,6 +2,7 @@ package com.example.welfare.chat.service;
 
 import com.example.welfare.chat.gateway.ChatEmbeddingGateway;
 import com.example.welfare.chat.repository.PolicyChunkVectorRepository;
+import com.example.welfare.global.util.SensitiveTextRedactor;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.policy.repository.WelfareServiceRepository;
 import lombok.RequiredArgsConstructor;
@@ -63,9 +64,10 @@ public class ChatSemanticSearchService {
     }
 
     private String buildSemanticQuery(String question, List<String> preferredTerms) {
+        String sanitizedQuestion = SensitiveTextRedactor.redactDirectIdentifiers(question.trim());
         if (preferredTerms == null || preferredTerms.isEmpty()) {
-            return question.trim();
+            return sanitizedQuestion;
         }
-        return question.trim() + " " + String.join(" ", preferredTerms);
+        return sanitizedQuestion + " " + String.join(" ", preferredTerms);
     }
 }

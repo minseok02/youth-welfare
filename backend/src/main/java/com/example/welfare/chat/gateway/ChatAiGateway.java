@@ -4,6 +4,7 @@ import com.example.welfare.chat.dto.ChatAiResult;
 import com.example.welfare.chat.dto.ChatPolicyCandidate;
 import com.example.welfare.chat.dto.response.ChatReferenceResponse;
 import com.example.welfare.chat.entity.ChatMessage;
+import com.example.welfare.global.util.SensitiveTextRedactor;
 import com.example.welfare.user.entity.User;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -25,21 +26,12 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class ChatAiGateway {
-
-    private static final Pattern EMAIL_PATTERN =
-            Pattern.compile("(?i)\\b[0-9a-z._%+-]+@[0-9a-z.-]+\\.[a-z]{2,}\\b");
-    private static final Pattern PHONE_PATTERN =
-            Pattern.compile("\\b01[0-9][- ]?[0-9]{3,4}[- ]?[0-9]{4}\\b");
-    private static final Pattern BIRTH_DATE_PATTERN =
-            Pattern.compile("\\b(?:19|20)\\d{2}[-./](?:0[1-9]|1[0-2])[-./](?:0[1-9]|[12]\\d|3[01])\\b");
-
     private static final String SYSTEM_PROMPT =
             "당신은 한국 청년 복지 정책 상담 보조입니다. " +
             "반드시 제공된 정책 후보 안에서만 답변하고, 자격 또는 지급 확정 표현을 하지 마세요. " +
@@ -230,13 +222,7 @@ public class ChatAiGateway {
     }
 
     String redactSensitiveText(String value) {
-        if (!StringUtils.hasText(value)) {
-            return value;
-        }
-        String redacted = EMAIL_PATTERN.matcher(value).replaceAll("[REDACTED_EMAIL]");
-        redacted = PHONE_PATTERN.matcher(redacted).replaceAll("[REDACTED_PHONE]");
-        redacted = BIRTH_DATE_PATTERN.matcher(redacted).replaceAll("[REDACTED_BIRTH_DATE]");
-        return redacted;
+        return SensitiveTextRedactor.redactDirectIdentifiers(value);
     }
 
     private String callOpenAi(String userPrompt) {
