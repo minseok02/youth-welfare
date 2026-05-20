@@ -90,6 +90,10 @@
   - `AWAIT_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_DECISION`
 - review gate policy promotion review run approval decision reason:
   - `REVIEW_RUN_APPROVAL_CRITERIA_MET_BUT_APPROVAL_RECORD_NOT_WRITTEN`
+- review gate policy promotion review run approval record status:
+  - `PENDING_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD`
+- review gate policy promotion review run approval record reason:
+  - `REVIEW_RUN_APPROVAL_DECISION_PENDING_AND_RECORD_NOT_WRITTEN`
 
 즉 current truth는:
 
@@ -109,6 +113,7 @@
 14. current review run approval criteria status는 `READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL`
 15. current review run approval decision status는 `AWAIT_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_DECISION`
 16. current review run approval status는 `PENDING_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL`
+17. current review run approval record status는 `PENDING_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD`
 
 입니다.
 
@@ -230,6 +235,7 @@ promotion review 전 최소한 아래 4개는 같이 봅니다.
 18. `reviewGatePolicyPromotionReviewRunApprovalCriteriaStatus/Reason`
 19. `reviewGatePolicyPromotionReviewRunApprovalDecisionStatus/Reason`
 20. `reviewGatePolicyPromotionReviewRunApprovalStatus/Reason`
+21. `reviewGatePolicyPromotionReviewRunApprovalRecordStatus/Reason`
 
 ## 현재 추천 판단
 

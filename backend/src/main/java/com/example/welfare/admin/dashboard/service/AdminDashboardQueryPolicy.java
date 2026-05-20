@@ -782,6 +782,42 @@ final class AdminDashboardQueryPolicy {
         };
     }
 
+    static String resolveReviewGatePolicyPromotionReviewRunApprovalRecordStatus(
+            String reviewGatePolicyPromotionReviewRunApprovalDecisionStatus
+    ) {
+        return switch (reviewGatePolicyPromotionReviewRunApprovalDecisionStatus) {
+            case "BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_DECISION_NOT_READY" ->
+                    "BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_NOT_READY";
+            case "AWAIT_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_DECISION" ->
+                    "PENDING_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD";
+            case "BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_APPROVED" ->
+                    "BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORDED";
+            case "BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_DECISION_NOT_APPLICABLE" ->
+                    "BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_NOT_APPLICABLE";
+            default -> "BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_NOT_APPLICABLE";
+        };
+    }
+
+    static String resolveReviewGatePolicyPromotionReviewRunApprovalRecordReason(
+            String reviewGatePolicyPromotionReviewRunApprovalDecisionStatus,
+            String reviewGatePolicyPromotionReviewRunApprovalDecisionReason
+    ) {
+        String status = resolveReviewGatePolicyPromotionReviewRunApprovalRecordStatus(
+                reviewGatePolicyPromotionReviewRunApprovalDecisionStatus
+        );
+
+        return switch (status) {
+            case "PENDING_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD" ->
+                    "REVIEW_RUN_APPROVAL_DECISION_PENDING_AND_RECORD_NOT_WRITTEN";
+            case "BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORDED" ->
+                    "REVIEW_RUN_APPROVAL_RECORD_SUPPORTS_EXECUTION";
+            case "BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_NOT_READY",
+                 "BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_NOT_APPLICABLE" ->
+                    reviewGatePolicyPromotionReviewRunApprovalDecisionReason;
+            default -> status;
+        };
+    }
+
     static String resolveReviewGatePolicyPromotionReviewRunReason(
             String reviewGatePolicyPromotionApprovalRecordStatus,
             String reviewGatePolicyPromotionApprovalRecordReason

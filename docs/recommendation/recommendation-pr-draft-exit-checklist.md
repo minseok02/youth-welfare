@@ -96,6 +96,10 @@
   - `PENDING_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL`
 - review gate policy promotion review run approval reason:
   - `REVIEW_RUN_APPROVAL_DECISION_PENDING_BECAUSE_APPROVAL_RECORD_NOT_WRITTEN`
+- review gate policy promotion review run approval record status:
+  - `PENDING_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD`
+- review gate policy promotion review run approval record reason:
+  - `REVIEW_RUN_APPROVAL_DECISION_PENDING_AND_RECORD_NOT_WRITTEN`
 - current next step:
   - `USE_RECENT_WINDOW_AS_SUPPLEMENTAL_REVIEW_CONTEXT`
 - latest 관찰은 계속 `VOLATILE_ONLY_DRIFT`
@@ -123,7 +127,7 @@
 6. 워킹트리와 branch diff-check가 clean
 7. full latest batch gate와 recent-window supplemental gate 역할이 문서에 고정돼 있음
 8. review gate decision class(`HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR`)와 operating mode(`PRIMARY_BASELINE_WITH_SUPPLEMENTAL_RECENT_WINDOW`)가 reviewer 문서/PR surface에도 같이 고정돼 있음
-9. review gate candidate / promotion / readiness / approval criteria / approval / approval decision / approval record / review run / review run criteria / review run decision / review run approval criteria / review run approval decision / review run approval 판단(`RECENT_WINDOW_POLICY_CANDIDATE` / `REQUIRES_EXPLICIT_POLICY_CHANGE_REVIEW` / `READY_FOR_BOUNDED_PROMOTION_REVIEW` / `READY_FOR_EXPLICIT_PROMOTION_APPROVAL` / `PENDING_EXPLICIT_PROMOTION_APPROVAL` / `AWAIT_EXPLICIT_PROMOTION_APPROVAL_DECISION` / `PENDING_EXPLICIT_PROMOTION_APPROVAL_RECORD` / `PENDING_BOUNDED_PROMOTION_REVIEW_RUN` / `READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN` / `AWAIT_BOUNDED_PROMOTION_REVIEW_RUN_DECISION` / `READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL` / `AWAIT_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_DECISION` / `PENDING_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL`)도 reviewer 문서/PR surface에 같이 고정돼 있음
+9. review gate candidate / promotion / readiness / approval criteria / approval / approval decision / approval record / review run / review run criteria / review run decision / review run approval criteria / review run approval decision / review run approval / review run approval record 판단(`RECENT_WINDOW_POLICY_CANDIDATE` / `REQUIRES_EXPLICIT_POLICY_CHANGE_REVIEW` / `READY_FOR_BOUNDED_PROMOTION_REVIEW` / `READY_FOR_EXPLICIT_PROMOTION_APPROVAL` / `PENDING_EXPLICIT_PROMOTION_APPROVAL` / `AWAIT_EXPLICIT_PROMOTION_APPROVAL_DECISION` / `PENDING_EXPLICIT_PROMOTION_APPROVAL_RECORD` / `PENDING_BOUNDED_PROMOTION_REVIEW_RUN` / `READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN` / `AWAIT_BOUNDED_PROMOTION_REVIEW_RUN_DECISION` / `READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL` / `AWAIT_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_DECISION` / `PENDING_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL` / `PENDING_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD`)도 reviewer 문서/PR surface에 같이 고정돼 있음
 
 주의:
 
@@ -202,6 +206,7 @@ bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-overview.sh
   - `review_gate_policy_promotion_review_run_approval_criteria_status=READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL` 은 마지막 run approval을 읽을 prerequisite 자체는 이미 충족됐다는 뜻입니다.
   - `review_gate_policy_promotion_review_run_approval_decision_status=AWAIT_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_DECISION` 은 마지막 run approval도 approval record 미작성 때문에 decision 단계에서 pending이라는 뜻입니다.
   - `review_gate_policy_promotion_review_run_approval_status=PENDING_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL` 은 last-mile run approval도 아직 explicit approval record 미작성 때문에 pending이라는 뜻입니다.
+  - `review_gate_policy_promotion_review_run_approval_record_status=PENDING_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD` 은 마지막 run approval decision이 아직 pending이라 approval record 자체도 아직 남기지 못한 상태라는 뜻입니다.
   - 즉 `PASS` 는 “artifact drift 없음”이지 “undraft 가능”을 뜻하지 않습니다.
   - 이 조합에서는 `READ_PRIMARY_AND_SUPPLEMENTAL_REVIEW_GATES` 와 `USE_RECENT_WINDOW_AS_SUPPLEMENTAL_REVIEW_CONTEXT` 를 먼저 읽는 편이 맞습니다.
   - 현재 PR status는 계속 `REVIEWER_READY + DRAFT_MAINTAINED_BY_POLICY_GATE` 입니다.

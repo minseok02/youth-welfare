@@ -104,6 +104,8 @@ public record AdminDashboardResponse(
             String reviewGatePolicyPromotionReviewRunApprovalDecisionReason,
             String reviewGatePolicyPromotionReviewRunApprovalStatus,
             String reviewGatePolicyPromotionReviewRunApprovalReason,
+            String reviewGatePolicyPromotionReviewRunApprovalRecordStatus,
+            String reviewGatePolicyPromotionReviewRunApprovalRecordReason,
             List<RecommendationWeightSnapshot> weightBucketsInWindow
     ) {
     }

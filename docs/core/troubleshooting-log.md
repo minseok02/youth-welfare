@@ -6186,3 +6186,8 @@ admin API와 latest artifact에
 - 문제: `reviewGatePolicyPromotionReviewRunApprovalStatus=PENDING_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL` 만 surface에 올려 두면, actual run approval이 아직 pending이라는 사실과 마지막 run approval prerequisite 자체는 이미 충족됐다는 사실이 한 층처럼 읽힌다.
 - 해결: `reviewGatePolicyPromotionReviewRunApprovalCriteriaStatus`, `reviewGatePolicyPromotionReviewRunApprovalCriteriaReason` 을 admin API, latest artifact, active current/runbook, reviewer/author/PR surface에 추가했다.
 - 이유: `run approval prerequisite ready` 와 `actual run approval pending` 은 다른 상태다. 이 둘을 분리해야 operator/reviewer가 “마지막 approval을 읽을 준비는 끝났지만 approval record가 없어 아직 pending”을 같은 언어로 읽을 수 있다.
+## 939) review run approval pending까지만 보이면 마지막 approval record 미작성 여부를 또 추론해야 한다
+
+상태값을 `reviewGatePolicyPromotionReviewRunApprovalStatus=PENDING_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL` 까지만 두면, 실제로는 approval decision이 pending인지, approval record가 아직 안 써졌는지를 operator가 다시 머리로 합쳐야 했다.
+
+`reviewGatePolicyPromotionReviewRunApprovalRecordStatus/Reason` 를 admin summary/breakdowns, latest artifact, active 문서, PR surface에 같이 올려서 마지막 layer도 `approval pending` 과 `approval record pending` 을 분리해서 읽게 맞췄다.
