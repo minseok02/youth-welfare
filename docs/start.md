@@ -53,6 +53,7 @@
 - 자동 판정만 보려면 `bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-gate.sh`
 - `REAL_USER` gate와 review gate를 실제로 같이 보려면 `APP_BASE_URL='http://127.0.0.1:8082' ADMIN_EMAIL='<local admin email>' ADMIN_PASSWORD='<local admin password>' bash deploy/smoke/run-local-real-user-exclusion-readiness-check.sh`
 - mixed latest batch review gate가 왜 아직 `DEFERRED_NON_REAL_LEADER_SIGNAL` 인지 직접 보려면 `bash deploy/smoke/run-local-recommendation-review-gate-blocker-audit.sh`
+- exact same profile에서 `EXAMPLE_SMOKE` 와 `REAL_USER` path가 왜 갈리는지 직접 보려면 `bash deploy/smoke/run-local-recommendation-same-profile-origin-differential-audit.sh`
 - 재사용 가능한 `REAL_USER` cohort library(`housing / education / job / finance`)를 다시 시드하려면 `APP_BASE_URL='http://127.0.0.1:8082' ADMIN_EMAIL='<local admin email>' ADMIN_PASSWORD='<local admin password>' bash deploy/smoke/run-local-real-user-cohort-library-seed.sh`
 - `REAL_USER` traffic/cohort가 실제로 생긴 뒤에는 [recommendation-real-user-recheck-checklist.md](./recommendation/recommendation-real-user-recheck-checklist.md) 순서대로 다시 확인합니다.
 - strict gate(`FAIL_ON_LATEST_OBSERVATION_CHANGE=true`)가 fail 하더라도 `latest_drift_class=VOLATILE_ONLY_DRIFT` 와 `stable_baseline_changed=false` 면 stable baseline 회귀가 아니라 fresh window 흔들림으로 읽습니다.

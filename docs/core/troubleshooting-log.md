@@ -1,5 +1,10 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 374) mixed leader blocker를 “example가 많다”로만 읽으면, exact same profile에서 `REAL_USER` path가 완전히 닫혀 있는 더 강한 차이를 놓친다
+- 문제: 80명 `REAL_USER` library와 review-gate blocker audit만 보면 현재 해석은 `MIXED_BATCH_NON_REAL_DOMINANCE_WITH_NO_REAL_USER_PATH` 다. 하지만 이 값만으로는 “example 비중이 높아서 mixed top1이 안 바뀐다”와 “same profile인데도 generic-domain `REAL_USER` 쪽 path 자체가 없다”를 구분하기 어렵다.
+- 해결: `run-local-recommendation-same-profile-origin-differential-audit.sh` 를 추가해 exact profile(`인천광역시/중구/income=5/미취업/1인 가구`)만 분리해서 origin별 target service path를 직접 비교하게 했다. 현재 local truth는 `EXAMPLE_SMOKE=454`, `REAL_USER=14`, `LOCAL_REAL_NON_EXAMPLE_SEED=3`, `BOUNDED_LOCAL=1` 이고, target `2622` 는 example 쪽 `top1=272`, `top3=434`, `top10=442` 인 반면 real-user 쪽은 `top1/top3/top5/top10/any-rank=0` 이다.
+- 이유: 이 상태는 단순 volume gap보다 강한 differential 이다. 같은 profile이라도 example/local seed/bounded local 에서는 `2622` path가 강하게 보이고 generic-domain real-user 에서는 완전히 닫혀 있으므로, 다음 질문은 표본 수가 아니라 `account_origin`, signup flow, latest batch composition 차이가 recommendation path를 어떻게 바꾸는지다.
+
 ## 373) mixed leader `2622` 와 exact same persona를 generic-domain `REAL_USER` 로 다시 만들어도 path가 계속 `0` 이면, 표본 수 부족보다 example vs real-user differential을 먼저 의심해야 한다
 - 문제: `housing / education / job / finance` targeted cohort 40명까지 넣은 뒤에도 mixed latest batch leader `2622(청년월세 지원사업)` 는 real-user `top10` 안에 한 번도 안 나타났다. 처음 해석은 “housing-like real-user를 더 추가하면 path가 열릴 수도 있다”는 쪽이었다.
 - 해결: example-heavy leader profile과 같은 `인천광역시 / 중구 / income=5 / 미취업 / 1인 가구` 로 `housing_leader_path` exact cohort 10명을 generic-domain `REAL_USER` 로 다시 시드해 총 `80명` library로 재검증했다. 결과는 여전히 `real_user_mixed_leader_top1/top3/top5/top10/any-rank=0`, mixed latest batch `users=548`, `example_users=464`, `real_user_users=80`, `top1_leader_real_user_users=0` 이었다.
