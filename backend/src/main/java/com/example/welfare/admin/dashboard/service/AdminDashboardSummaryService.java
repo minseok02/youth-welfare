@@ -247,6 +247,18 @@ public class AdminDashboardSummaryService {
                         reviewGatePolicyPromotionReviewRunApprovalDecisionStatus,
                         reviewGatePolicyPromotionReviewRunApprovalDecisionReason
                 );
+        String reviewGatePolicyPromotionReviewRunApprovalRecordTransitionStatus =
+                AdminDashboardQueryPolicy.resolveReviewGatePolicyPromotionReviewRunApprovalRecordTransitionStatus(
+                        reviewGatePolicyPromotionReviewRunApprovalRecordCriteriaStatus,
+                        reviewGatePolicyPromotionReviewRunApprovalRecordStatus
+                );
+        String reviewGatePolicyPromotionReviewRunApprovalRecordTransitionReason =
+                AdminDashboardQueryPolicy.resolveReviewGatePolicyPromotionReviewRunApprovalRecordTransitionReason(
+                        reviewGatePolicyPromotionReviewRunApprovalRecordCriteriaStatus,
+                        reviewGatePolicyPromotionReviewRunApprovalRecordCriteriaReason,
+                        reviewGatePolicyPromotionReviewRunApprovalRecordStatus,
+                        reviewGatePolicyPromotionReviewRunApprovalRecordReason
+                );
         ScoreWeightService.ScoreWeightProgress weightProgress =
                 scoreWeightService.getProgress(recommendationSummary.totalLogs());
         ScoreWeight activeWeight = weightProgress.activeWeight();
@@ -420,6 +432,8 @@ public class AdminDashboardSummaryService {
                         reviewGatePolicyPromotionReviewRunApprovalRecordCriteriaReason,
                         reviewGatePolicyPromotionReviewRunApprovalRecordStatus,
                         reviewGatePolicyPromotionReviewRunApprovalRecordReason,
+                        reviewGatePolicyPromotionReviewRunApprovalRecordTransitionStatus,
+                        reviewGatePolicyPromotionReviewRunApprovalRecordTransitionReason,
                         adminDashboardRecommendationReadRepository.fetchRecommendationWeightBuckets(summaryWindowAgo).stream()
                                 .map(row -> new AdminDashboardResponse.RecommendationWeightSnapshot(
                                         row.weightKey(),

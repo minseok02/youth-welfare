@@ -98,6 +98,10 @@
   - `PENDING_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD`
 - review gate policy promotion review run approval record reason:
   - `REVIEW_RUN_APPROVAL_DECISION_PENDING_AND_RECORD_NOT_WRITTEN`
+- review gate policy promotion review run approval record transition status:
+  - `AWAIT_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_WRITE`
+- review gate policy promotion review run approval record transition reason:
+  - `APPROVAL_RECORD_CRITERIA_MET_BUT_RECORD_NOT_WRITTEN`
 
 즉 current truth는:
 
@@ -119,6 +123,7 @@
 16. current review run approval status는 `PENDING_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL`
 17. current review run approval record criteria status는 `READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD`
 18. current review run approval record status는 `PENDING_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD`
+19. current review run approval record transition status는 `AWAIT_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_WRITE`
 
 입니다.
 

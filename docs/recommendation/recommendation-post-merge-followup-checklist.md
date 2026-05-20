@@ -145,6 +145,10 @@ merge 전 현재 PR 상태 reference:
   - `PENDING_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD`
 - review gate policy promotion review run approval record reason:
   - `REVIEW_RUN_APPROVAL_DECISION_PENDING_AND_RECORD_NOT_WRITTEN`
+- review gate policy promotion review run approval record transition status:
+  - `AWAIT_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_WRITE`
+- review gate policy promotion review run approval record transition reason:
+  - `APPROVAL_RECORD_CRITERIA_MET_BUT_RECORD_NOT_WRITTEN`
 - current next step:
   - `USE_RECENT_WINDOW_AS_SUPPLEMENTAL_REVIEW_CONTEXT`
 - `latest_drift_class=VOLATILE_ONLY_DRIFT`
@@ -173,6 +177,7 @@ merge 전 현재 PR 상태 reference:
 14. `review_gate_policy_promotion_review_run_approval_status=PENDING_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL` 은 run decision 이후 approval도 아직 explicit approval record가 없어 pending이라는 뜻임
 15. `review_gate_policy_promotion_review_run_approval_record_status=PENDING_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD` 은 마지막 run approval decision이 아직 pending이라 approval record 자체도 아직 남기지 못한 상태라는 뜻임
 16. `review_gate_policy_promotion_review_run_approval_record_criteria_status=READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD` 은 마지막 run approval record 자체를 남길 prerequisite은 이미 충족됐다는 뜻임
+17. `review_gate_policy_promotion_review_run_approval_record_transition_status=AWAIT_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_WRITE` 은 final approval record write 자체만 아직 남았다는 뜻임
 
 이때 current decision은 계속:
 

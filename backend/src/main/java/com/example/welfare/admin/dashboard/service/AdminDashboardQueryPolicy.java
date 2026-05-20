@@ -851,6 +851,52 @@ final class AdminDashboardQueryPolicy {
         };
     }
 
+    static String resolveReviewGatePolicyPromotionReviewRunApprovalRecordTransitionStatus(
+            String reviewGatePolicyPromotionReviewRunApprovalRecordCriteriaStatus,
+            String reviewGatePolicyPromotionReviewRunApprovalRecordStatus
+    ) {
+        if (!"READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD".equals(
+                reviewGatePolicyPromotionReviewRunApprovalRecordCriteriaStatus
+        )) {
+            return "BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_TRANSITION_NOT_READY";
+        }
+        return switch (reviewGatePolicyPromotionReviewRunApprovalRecordStatus) {
+            case "PENDING_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD" ->
+                    "AWAIT_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_WRITE";
+            case "BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORDED" ->
+                    "BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_WRITTEN";
+            case "BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_NOT_READY" ->
+                    "BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_TRANSITION_NOT_READY";
+            case "BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_NOT_APPLICABLE" ->
+                    "BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_TRANSITION_NOT_APPLICABLE";
+            default -> "BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_TRANSITION_NOT_APPLICABLE";
+        };
+    }
+
+    static String resolveReviewGatePolicyPromotionReviewRunApprovalRecordTransitionReason(
+            String reviewGatePolicyPromotionReviewRunApprovalRecordCriteriaStatus,
+            String reviewGatePolicyPromotionReviewRunApprovalRecordCriteriaReason,
+            String reviewGatePolicyPromotionReviewRunApprovalRecordStatus,
+            String reviewGatePolicyPromotionReviewRunApprovalRecordReason
+    ) {
+        String status = resolveReviewGatePolicyPromotionReviewRunApprovalRecordTransitionStatus(
+                reviewGatePolicyPromotionReviewRunApprovalRecordCriteriaStatus,
+                reviewGatePolicyPromotionReviewRunApprovalRecordStatus
+        );
+
+        return switch (status) {
+            case "AWAIT_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_WRITE" ->
+                    "APPROVAL_RECORD_CRITERIA_MET_BUT_RECORD_NOT_WRITTEN";
+            case "BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_WRITTEN" ->
+                    "APPROVAL_RECORD_WRITTEN_AND_REVIEW_RUN_CAN_ADVANCE";
+            case "BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_TRANSITION_NOT_READY" ->
+                    reviewGatePolicyPromotionReviewRunApprovalRecordCriteriaReason;
+            case "BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_TRANSITION_NOT_APPLICABLE" ->
+                    reviewGatePolicyPromotionReviewRunApprovalRecordReason;
+            default -> status;
+        };
+    }
+
     static String resolveReviewGatePolicyPromotionReviewRunReason(
             String reviewGatePolicyPromotionApprovalRecordStatus,
             String reviewGatePolicyPromotionApprovalRecordReason

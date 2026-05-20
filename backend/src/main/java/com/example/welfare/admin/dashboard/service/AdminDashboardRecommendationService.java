@@ -261,6 +261,18 @@ public class AdminDashboardRecommendationService {
                         reviewGatePolicyPromotionReviewRunApprovalDecisionStatus,
                         reviewGatePolicyPromotionReviewRunApprovalDecisionReason
                 );
+        String reviewGatePolicyPromotionReviewRunApprovalRecordTransitionStatus =
+                AdminDashboardQueryPolicy.resolveReviewGatePolicyPromotionReviewRunApprovalRecordTransitionStatus(
+                        reviewGatePolicyPromotionReviewRunApprovalRecordCriteriaStatus,
+                        reviewGatePolicyPromotionReviewRunApprovalRecordStatus
+                );
+        String reviewGatePolicyPromotionReviewRunApprovalRecordTransitionReason =
+                AdminDashboardQueryPolicy.resolveReviewGatePolicyPromotionReviewRunApprovalRecordTransitionReason(
+                        reviewGatePolicyPromotionReviewRunApprovalRecordCriteriaStatus,
+                        reviewGatePolicyPromotionReviewRunApprovalRecordCriteriaReason,
+                        reviewGatePolicyPromotionReviewRunApprovalRecordStatus,
+                        reviewGatePolicyPromotionReviewRunApprovalRecordReason
+                );
         List<AdminRecommendationBreakdownResponse.FacetGroup> youthOfficialFacetGroups = buildFacetGroups(
                 adminDashboardRecommendationReadRepository.fetchLatestBatchYouthOfficialFacetRows(breakdownLimit),
                 YOUTH_OFFICIAL_FACET_ORDER,
@@ -385,6 +397,8 @@ public class AdminDashboardRecommendationService {
                 reviewGatePolicyPromotionReviewRunApprovalRecordCriteriaReason,
                 reviewGatePolicyPromotionReviewRunApprovalRecordStatus,
                 reviewGatePolicyPromotionReviewRunApprovalRecordReason,
+                reviewGatePolicyPromotionReviewRunApprovalRecordTransitionStatus,
+                reviewGatePolicyPromotionReviewRunApprovalRecordTransitionReason,
                 adminDashboardRecommendationReadRepository.fetchTopRepeatedRecommendationServices(breakdownLimit).stream()
                         .map(row -> new AdminRecommendationBreakdownResponse.RepeatedServiceSnapshot(
                                 row.serviceId(),
