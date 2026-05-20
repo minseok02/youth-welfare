@@ -1,5 +1,10 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 378) full latest batch review gate만 보면, current live signal이 이미 바뀌었는지 놓칠 수 있다
+- 문제: staleness audit으로 `2622` top1 example users `272명` 이 최근 `24h=0` 이라는 사실은 잡혔지만, 그것만으로는 “그러면 지금 live signal은 어디로 갔나”가 안 보인다. 이 상태에서 full latest batch gate만 계속 보면 historical inertia와 current live signal을 같은 해석으로 섞게 된다.
+- 해결: `run-local-recommendation-review-gate-recent-window-audit.sh` 를 추가해 recent `24h` latest batch만 따로 집계했다. 현재 truth는 `recent_latest_batch_users=83`, `recent_example_users=3`, `recent_real_user_users=80`, recent leader `3284`, share `7.23%`, origin mix `EXAMPLE_SMOKE:1,REAL_USER:5`, `2622 top1=0` 이다.
+- 이유: current 운영 해석은 full latest batch gate를 폐기하는 게 아니라, **historical latest batch gate + recent-window supplemental gate** 를 같이 읽는 편이 맞다. 그래야 stale example inertia와 current real-user signal을 동시에 본다.
+
 ## 377) mixed leader `2622` 를 current flow bug로만 읽으면, 오래된 example latest batch가 review gate를 계속 지배하는 구조를 놓친다
 - 문제: same-profile fresh-saved differential까지 보면 representative example user의 `2622` 는 fresh refresh 뒤 바로 사라진다. 그런데 mixed latest batch review gate는 여전히 `2622` 가 top1 leader로 보이므로, 이 상태를 계속 current flow bug로만 읽으면 “왜 mixed gate는 그대로냐”가 설명되지 않는다.
 - 해결: `run-local-recommendation-review-gate-staleness-audit.sh` 를 추가해 origin별 latest batch recency와 target leader `2622` top1 user recency를 같이 읽게 했다. 현재 truth는 `example_smoke_target_top1_users=272`, `example_smoke_target_top1_last_24h=0`, oldest/newest `2026-05-13 13:39:31 / 2026-05-17 11:49:50` 이고, 반대로 `real_user_latest_users_last_24h=80` 이다.
