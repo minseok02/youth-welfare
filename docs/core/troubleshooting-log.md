@@ -1,5 +1,9 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 948) 이미 current runbook가 있는 항목을 계속 pending처럼 남겨두면, 실제로는 새 일이 없는데도 끝이 안 나는 것처럼 보인다
+- 문제: `bounded policy admin runtime one-page runbook`, `referenceUrlsJson rebuild 절차`, `retrieval/category one-shot summary smoke` 는 이미 [policy-admin-runtime-runbook.md](../policy/policy-admin-runtime-runbook.md), [policy-quality-summary-runbook.md](../policy/policy-quality-summary-runbook.md) 로 current 경로가 있었는데, active pending 목록에 계속 남아 있어 새 문서를 더 만들어야 하는 것처럼 읽혔다.
+- 해결: active 기준선에서 이 둘을 명시적으로 current runbook로 선언하고, pending 목록에서는 뺐다. 앞으로는 “문서가 없다”와 “문서는 있는데 완료 상태로 못 박지 않았다”를 구분해서 적는다.
+
 ## 947) 코드형 상태값만 연속으로 나열하면 문서를 읽는 사람 입장에서 현재 결론이 오히려 안 보인다
 - 문제: `RECENT_WINDOW_POLICY_CANDIDATE`, `KEEP_PRIMARY_BASELINE`, `READY_FOR_BOUNDED_PROMOTION_REVIEW`, `PASS_RECENT_WINDOW_POLICY_CANDIDATE` 같은 값은 코드/테스트에는 유용하지만, active 문서에서 이것만 계속 이어지면 reviewer/author가 “그래서 지금 뜻이 뭐냐”를 다시 해석해야 했다.
 - 해결: 앞으로는 active/current/reviewer 문서에서 주요 상태값 옆에 바로 사람 말 번역을 붙인다. 예를 들어 `PASS_RECENT_WINDOW_POLICY_CANDIDATE` 옆에는 “recent-window는 후보로는 합격”, `KEEP_PRIMARY_BASELINE` 옆에는 “운영 기본 기준은 아직 유지”처럼 적는다.

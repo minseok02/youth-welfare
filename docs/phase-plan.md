@@ -1,5 +1,6 @@
 # 구현 현황
 
+- 2026-05-20: `bounded policy admin runtime one-page runbook` 을 별도 새 문서 작업으로 다시 열지 않고 existing current runbook를 기준선으로 못 박았다. `policy-admin-runtime-runbook.md` 는 수동 admin endpoint 한 장 경로, `policy-quality-summary-runbook.md` 는 retrieval/category one-shot summary 경로로 읽는다. pending 목록에는 더 이상 “새로 정리할 일”처럼 남기지 않는다.
 - 2026-05-20: active 문서에서 코드형 상태값만 나열하지 않고, 바로 옆에 사람 말 번역을 붙이는 기준을 추가했다. current-state / reviewer brief / promotion checklist에는 `RECENT_WINDOW_POLICY_CANDIDATE`, `KEEP_PRIMARY_BASELINE`, `READY_FOR_BOUNDED_PROMOTION_REVIEW`, `PASS_RECENT_WINDOW_POLICY_CANDIDATE` 옆에 실제 뜻을 풀어 쓴다.
 - 2026-05-20: explicit policy review current decision을 고정했다. `run-local-recommendation-bounded-promotion-review.sh` 결과 `PASS_RECENT_WINDOW_POLICY_CANDIDATE` 를 근거로 bounded promotion review는 승인하지만, primary full latest batch baseline을 recent-window로 즉시 승격하는 정책 변경은 아직 보류한다.
 - 2026-05-20: 상태 ladder를 더 늘리는 대신 실제 bounded promotion review go/no-go wrapper를 추가했다. `run-local-recommendation-bounded-promotion-review.sh` 는 approval record write/clear preflight, recent-window clear, historical example staleness를 한 번에 묶어 `bounded_promotion_review_result_status` 만 요약한다.

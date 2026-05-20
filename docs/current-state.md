@@ -5,6 +5,7 @@
 - 프론트는 기본 연동/빌드/브라우저 smoke까지 확인했고, 현재는 신규 기능보다 회귀 방지와 운영 문서 정리가 우선입니다.
 - `2026-05-19` 기준 로컬 full collect도 다시 끝까지 닫혔습니다. `collect/all` + `youth-details` + `gov24` 3축 + `bokjiro-details-refresh` 를 실제 runtime에서 다시 태웠고, 최종 기준선은 `YOUTH=2578`, `GOV24=10948`, `BOKJIRO_LOCAL=1223`, `BOKJIRO_CENTRAL=134`, `YOUTH_DETAILS failed=0`, `BOKJIRO_DETAIL_REFRESH requested=1358 saved=1357 failed=0` 입니다.
 - `2026-05-19` 기준 위 로컬 full collect 뒤 `run-local-ops-baseline-suite.sh` 도 다시 통과했습니다. 즉 로컬 runtime 기준으로도 `health -> admin dashboard -> collect failures -> recommendation breakdowns` one-shot 기준선이 현재 수집 데이터 위에서 다시 green 입니다.
+- `2026-05-20` 기준 정책 admin bounded runtime one-page 경로도 별도 pending 초안이 아니라 existing runbook로 닫힌 상태입니다. [policy-admin-runtime-runbook.md](policy/policy-admin-runtime-runbook.md) 이 `reference-urls/rebuild -> search-youth-relevance/rebuild -> embeddings/rebuild -> retrieval evaluation/gate -> category audit` 수동 경로를 한 장에서 정리하고, [policy-quality-summary-runbook.md](policy/policy-quality-summary-runbook.md) 이 `run-local-policy-quality-summary.sh` one-shot summary 경로를 고정합니다.
 - `2026-05-18` 기준 YOUTH official fact는 `admin diagnostics`, 정책 상세 read-only, 정책 목록 compact badge, admin recommendation facet까지 연결됐고, retrieval/filter/scoring은 아직 안 건드렸습니다.
 - `2026-05-19` 기준 `Gov24 canonical promotion` 로컬 closeout도 닫혔습니다. `GOV24_SERVICE_FIELD` exact-label term, `GOV24_USER_TYPE_TOKEN / GOV24_BENEFIT_TYPE_TOKEN` allowlist token term은 이제 `diagnostics`, admin facet, recommendation read-model, presentation, AI prompt, integration test까지 term-first 경계로 고정됐고, public filter/scoring/service_facts 승격은 아직 안 건드렸습니다.
 - `2026-05-18` 기준 메일 발송은 provider-neutral SMTP 설정으로 일반화됐습니다. 현재 기본 runtime은 Gmail SMTP fallback을 유지하지만, 운영 방향은 건당 과금과 bulk 발송 적합성을 고려해 AWS SES SMTP 전환 검토가 우선입니다.
@@ -116,9 +117,6 @@
 - recommendation `AI exclusion suite` 기준선 유지 및 `REAL_USER` readiness gate 반복 확인
 - `Gov24` runtime audit runbook 고정 및 반복 점검 경로 유지
 - `Gov24` support unmapped inventory는 기준선으로 유지하되, 사업체/업종/창업 상태 code fact 승격은 현재 단계에서 deferred 유지
-- `referenceUrlsJson` rebuild/backfill 운영 절차 문서화
-- bounded policy admin runtime 경로(`reference-urls/rebuild`, `embeddings/rebuild`, `retrieval-evaluations/gate`, `category-audit`) one-page runbook 정리
-- retrieval/category 상태를 one-shot summary smoke로 재확인하는 경로 고정 (`retrieval-baseline-v2`, gate `passed=true`, top unified `일자리`, searchable ratio `0.2399`)
 - 프론트 번들 경고와 retrieval/embedding 운영 모니터링 보강
 - `service_taxonomies` / `service_taxonomy_summary_slots` integrated schema를 기준으로 legacy draft 문서와 smoke 설명을 더 정리
 

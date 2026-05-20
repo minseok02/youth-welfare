@@ -13,6 +13,7 @@
 5. category audit
 
 이 문서는 위 다섯 가지를 **한 장에서** 따라가게 정리한 current runbook입니다.
+즉 active 문서에서 말하는 `bounded policy admin runtime one-page runbook` 은 별도 초안이 아니라 이 문서를 뜻합니다.
 
 ## 범위
 
@@ -81,6 +82,11 @@ PY
 ```bash
 bash deploy/smoke/run-local-policy-quality-summary.sh
 ```
+
+짧게 말하면:
+
+- [policy-admin-runtime-runbook.md](./policy-admin-runtime-runbook.md): 수동 admin endpoint 순서와 해석
+- [policy-quality-summary-runbook.md](./policy-quality-summary-runbook.md): retrieval/gate/category one-shot summary
 
 ## 실행 순서
 
