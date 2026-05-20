@@ -135,6 +135,8 @@ assert isinstance(data["recommendation"]["reviewGatePolicyPromotionReviewRunDeci
 assert isinstance(data["recommendation"]["reviewGatePolicyPromotionReviewRunDecisionReason"], str) and data["recommendation"]["reviewGatePolicyPromotionReviewRunDecisionReason"], "recommendation.reviewGatePolicyPromotionReviewRunDecisionReason must be non-empty string"
 assert isinstance(data["recommendation"]["reviewGatePolicyPromotionReviewRunApprovalCriteriaStatus"], str) and data["recommendation"]["reviewGatePolicyPromotionReviewRunApprovalCriteriaStatus"], "recommendation.reviewGatePolicyPromotionReviewRunApprovalCriteriaStatus must be non-empty string"
 assert isinstance(data["recommendation"]["reviewGatePolicyPromotionReviewRunApprovalCriteriaReason"], str) and data["recommendation"]["reviewGatePolicyPromotionReviewRunApprovalCriteriaReason"], "recommendation.reviewGatePolicyPromotionReviewRunApprovalCriteriaReason must be non-empty string"
+assert isinstance(data["recommendation"]["reviewGatePolicyPromotionReviewRunApprovalDecisionStatus"], str) and data["recommendation"]["reviewGatePolicyPromotionReviewRunApprovalDecisionStatus"], "recommendation.reviewGatePolicyPromotionReviewRunApprovalDecisionStatus must be non-empty string"
+assert isinstance(data["recommendation"]["reviewGatePolicyPromotionReviewRunApprovalDecisionReason"], str) and data["recommendation"]["reviewGatePolicyPromotionReviewRunApprovalDecisionReason"], "recommendation.reviewGatePolicyPromotionReviewRunApprovalDecisionReason must be non-empty string"
 assert isinstance(data["recommendation"]["reviewGatePolicyPromotionReviewRunApprovalStatus"], str) and data["recommendation"]["reviewGatePolicyPromotionReviewRunApprovalStatus"], "recommendation.reviewGatePolicyPromotionReviewRunApprovalStatus must be non-empty string"
 assert isinstance(data["recommendation"]["reviewGatePolicyPromotionReviewRunApprovalReason"], str) and data["recommendation"]["reviewGatePolicyPromotionReviewRunApprovalReason"], "recommendation.reviewGatePolicyPromotionReviewRunApprovalReason must be non-empty string"
 staleness = data["recommendation"]["reviewGateStaleness"]
@@ -258,6 +260,8 @@ print(data["recommendation"]["reviewGatePolicyPromotionReviewRunDecisionStatus"]
 print(data["recommendation"]["reviewGatePolicyPromotionReviewRunDecisionReason"])
 print(data["recommendation"]["reviewGatePolicyPromotionReviewRunApprovalCriteriaStatus"])
 print(data["recommendation"]["reviewGatePolicyPromotionReviewRunApprovalCriteriaReason"])
+print(data["recommendation"]["reviewGatePolicyPromotionReviewRunApprovalDecisionStatus"])
+print(data["recommendation"]["reviewGatePolicyPromotionReviewRunApprovalDecisionReason"])
 print(data["recommendation"]["reviewGatePolicyPromotionReviewRunApprovalStatus"])
 print(data["recommendation"]["reviewGatePolicyPromotionReviewRunApprovalReason"])
 print(staleness["primaryReferenceMode"])
@@ -395,21 +399,23 @@ echo "recommendation_review_gate_policy_promotion_review_run_decision_status=${D
 echo "recommendation_review_gate_policy_promotion_review_run_decision_reason=${DASHBOARD_VALUES[57]}"
 echo "recommendation_review_gate_policy_promotion_review_run_approval_criteria_status=${DASHBOARD_VALUES[58]}"
 echo "recommendation_review_gate_policy_promotion_review_run_approval_criteria_reason=${DASHBOARD_VALUES[59]}"
-echo "recommendation_review_gate_policy_promotion_review_run_approval_status=${DASHBOARD_VALUES[60]}"
-echo "recommendation_review_gate_policy_promotion_review_run_approval_reason=${DASHBOARD_VALUES[61]}"
-echo "recommendation_review_gate_primary_reference_mode=${DASHBOARD_VALUES[62]}"
-echo "recommendation_review_gate_example_target_top1_users=${DASHBOARD_VALUES[63]}"
-echo "recommendation_review_gate_example_target_top1_last_24h=${DASHBOARD_VALUES[64]}"
-echo "recommendation_review_gate_real_user_latest_users=${DASHBOARD_VALUES[65]}"
-echo "recommendation_review_gate_real_user_target_top1_users=${DASHBOARD_VALUES[66]}"
-echo "recommendation_recent_window_hours=${DASHBOARD_VALUES[67]}"
-echo "recommendation_recent_window_target_service_id=${DASHBOARD_VALUES[68]}"
-echo "recommendation_recent_window_latest_batch_users=${DASHBOARD_VALUES[69]}"
-echo "recommendation_recent_window_real_user_users=${DASHBOARD_VALUES[70]}"
-echo "recommendation_recent_window_top1_leader_service_id=${DASHBOARD_VALUES[71]}"
-echo "recommendation_recent_window_top1_leader_real_user_users=${DASHBOARD_VALUES[72]}"
-echo "recommendation_recent_window_target_top1_users=${DASHBOARD_VALUES[73]}"
-echo "recommendation_recent_window_target_top1_real_user_users=${DASHBOARD_VALUES[74]}"
+echo "recommendation_review_gate_policy_promotion_review_run_approval_decision_status=${DASHBOARD_VALUES[60]}"
+echo "recommendation_review_gate_policy_promotion_review_run_approval_decision_reason=${DASHBOARD_VALUES[61]}"
+echo "recommendation_review_gate_policy_promotion_review_run_approval_status=${DASHBOARD_VALUES[62]}"
+echo "recommendation_review_gate_policy_promotion_review_run_approval_reason=${DASHBOARD_VALUES[63]}"
+echo "recommendation_review_gate_primary_reference_mode=${DASHBOARD_VALUES[64]}"
+echo "recommendation_review_gate_example_target_top1_users=${DASHBOARD_VALUES[65]}"
+echo "recommendation_review_gate_example_target_top1_last_24h=${DASHBOARD_VALUES[66]}"
+echo "recommendation_review_gate_real_user_latest_users=${DASHBOARD_VALUES[67]}"
+echo "recommendation_review_gate_real_user_target_top1_users=${DASHBOARD_VALUES[68]}"
+echo "recommendation_recent_window_hours=${DASHBOARD_VALUES[69]}"
+echo "recommendation_recent_window_target_service_id=${DASHBOARD_VALUES[70]}"
+echo "recommendation_recent_window_latest_batch_users=${DASHBOARD_VALUES[71]}"
+echo "recommendation_recent_window_real_user_users=${DASHBOARD_VALUES[72]}"
+echo "recommendation_recent_window_top1_leader_service_id=${DASHBOARD_VALUES[73]}"
+echo "recommendation_recent_window_top1_leader_real_user_users=${DASHBOARD_VALUES[74]}"
+echo "recommendation_recent_window_target_top1_users=${DASHBOARD_VALUES[75]}"
+echo "recommendation_recent_window_target_top1_real_user_users=${DASHBOARD_VALUES[76]}"
 echo "requested_summary_window_days=${SUMMARY_WINDOW_DAYS}"
 echo "requested_trend_window_days=${TREND_WINDOW_DAYS_CSV}"
 if [[ -n "${CONTAINER_ADMIN_ALLOWLIST}" ]]; then

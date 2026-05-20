@@ -125,14 +125,18 @@ merge 전 현재 PR 상태 reference:
   - `READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN`
 - review gate policy promotion review run criteria reason:
   - `BOUNDED_REVIEW_RUN_PREREQUISITES_MET_BUT_APPROVAL_RECORD_PENDING`
-- review gate policy promotion review run approval status:
-  - `PENDING_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL`
-- review gate policy promotion review run approval reason:
-  - `REVIEW_RUN_DECISION_PENDING_BECAUSE_APPROVAL_RECORD_NOT_WRITTEN`
 - review gate policy promotion review run approval criteria status:
   - `READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL`
 - review gate policy promotion review run approval criteria reason:
   - `REVIEW_RUN_APPROVAL_PREREQUISITES_MET_BUT_APPROVAL_RECORD_PENDING`
+- review gate policy promotion review run approval decision status:
+  - `AWAIT_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_DECISION`
+- review gate policy promotion review run approval decision reason:
+  - `REVIEW_RUN_APPROVAL_CRITERIA_MET_BUT_APPROVAL_RECORD_NOT_WRITTEN`
+- review gate policy promotion review run approval status:
+  - `PENDING_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL`
+- review gate policy promotion review run approval reason:
+  - `REVIEW_RUN_APPROVAL_DECISION_PENDING_BECAUSE_APPROVAL_RECORD_NOT_WRITTEN`
 - current next step:
   - `USE_RECENT_WINDOW_AS_SUPPLEMENTAL_REVIEW_CONTEXT`
 - `latest_drift_class=VOLATILE_ONLY_DRIFT`
@@ -157,7 +161,8 @@ merge 전 현재 PR 상태 reference:
 10. `review_gate_policy_promotion_review_run_criteria_status=READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN` 도 actual bounded review run prerequisite이 충족됐다는 뜻이지, approval record 없이 곧바로 run으로 넘어간다는 뜻은 아님
 11. `review_gate_policy_promotion_review_run_decision_status=AWAIT_BOUNDED_PROMOTION_REVIEW_RUN_DECISION` 은 prerequisite ready 이후에도 마지막 run decision은 아직 explicit approval record가 없어 pending이라는 뜻임
 12. `review_gate_policy_promotion_review_run_approval_criteria_status=READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL` 은 마지막 run approval prerequisite 자체는 이미 충족됐다는 뜻임
-13. `review_gate_policy_promotion_review_run_approval_status=PENDING_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL` 은 run decision 이후 approval도 아직 explicit approval record가 없어 pending이라는 뜻임
+13. `review_gate_policy_promotion_review_run_approval_decision_status=AWAIT_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_DECISION` 은 run approval도 decision 단계에서 explicit approval record가 없어 pending이라는 뜻임
+14. `review_gate_policy_promotion_review_run_approval_status=PENDING_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL` 은 run decision 이후 approval도 아직 explicit approval record가 없어 pending이라는 뜻임
 
 이때 current decision은 계속:
 

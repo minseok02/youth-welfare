@@ -213,10 +213,21 @@ public class AdminDashboardSummaryService {
                         reviewGatePolicyPromotionReviewRunDecisionStatus,
                         reviewGatePolicyPromotionReviewRunDecisionReason
                 );
+        String reviewGatePolicyPromotionReviewRunApprovalDecisionStatus =
+                AdminDashboardQueryPolicy.resolveReviewGatePolicyPromotionReviewRunApprovalDecisionStatus(
+                        reviewGatePolicyPromotionReviewRunApprovalCriteriaStatus,
+                        reviewGatePolicyPromotionReviewRunApprovalStatus
+                );
+        String reviewGatePolicyPromotionReviewRunApprovalDecisionReason =
+                AdminDashboardQueryPolicy.resolveReviewGatePolicyPromotionReviewRunApprovalDecisionReason(
+                        reviewGatePolicyPromotionReviewRunApprovalCriteriaStatus,
+                        reviewGatePolicyPromotionReviewRunApprovalCriteriaReason,
+                        reviewGatePolicyPromotionReviewRunApprovalStatus
+                );
         String reviewGatePolicyPromotionReviewRunApprovalReason =
                 AdminDashboardQueryPolicy.resolveReviewGatePolicyPromotionReviewRunApprovalReason(
-                        reviewGatePolicyPromotionReviewRunDecisionStatus,
-                        reviewGatePolicyPromotionReviewRunDecisionReason
+                        reviewGatePolicyPromotionReviewRunApprovalDecisionStatus,
+                        reviewGatePolicyPromotionReviewRunApprovalDecisionReason
                 );
         ScoreWeightService.ScoreWeightProgress weightProgress =
                 scoreWeightService.getProgress(recommendationSummary.totalLogs());
@@ -383,6 +394,8 @@ public class AdminDashboardSummaryService {
                         reviewGatePolicyPromotionReviewRunDecisionReason,
                         reviewGatePolicyPromotionReviewRunApprovalCriteriaStatus,
                         reviewGatePolicyPromotionReviewRunApprovalCriteriaReason,
+                        reviewGatePolicyPromotionReviewRunApprovalDecisionStatus,
+                        reviewGatePolicyPromotionReviewRunApprovalDecisionReason,
                         reviewGatePolicyPromotionReviewRunApprovalStatus,
                         reviewGatePolicyPromotionReviewRunApprovalReason,
                         adminDashboardRecommendationReadRepository.fetchRecommendationWeightBuckets(summaryWindowAgo).stream()

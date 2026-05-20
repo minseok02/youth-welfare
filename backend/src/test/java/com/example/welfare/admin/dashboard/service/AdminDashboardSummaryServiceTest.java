@@ -339,6 +339,10 @@ class AdminDashboardSummaryServiceTest {
                 .isEqualTo("NOT_READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL");
         assertThat(response.recommendation().reviewGatePolicyPromotionReviewRunApprovalCriteriaReason())
                 .isEqualTo("REAL_USER_TRAFFIC_GATE_NOT_READY");
+        assertThat(response.recommendation().reviewGatePolicyPromotionReviewRunApprovalDecisionStatus())
+                .isEqualTo("BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_DECISION_NOT_READY");
+        assertThat(response.recommendation().reviewGatePolicyPromotionReviewRunApprovalDecisionReason())
+                .isEqualTo("REAL_USER_TRAFFIC_GATE_NOT_READY");
         assertThat(response.recommendation().reviewGatePolicyPromotionReviewRunApprovalStatus())
                 .isEqualTo("BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_NOT_READY");
         assertThat(response.recommendation().reviewGatePolicyPromotionReviewRunApprovalReason())
@@ -544,6 +548,10 @@ class AdminDashboardSummaryServiceTest {
         assertThat(response.recommendation().reviewGatePolicyPromotionReviewRunApprovalCriteriaStatus())
                 .isEqualTo("NOT_READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL");
         assertThat(response.recommendation().reviewGatePolicyPromotionReviewRunApprovalCriteriaReason())
+                .isEqualTo("REAL_USER_TRAFFIC_GATE_NOT_READY");
+        assertThat(response.recommendation().reviewGatePolicyPromotionReviewRunApprovalDecisionStatus())
+                .isEqualTo("BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_DECISION_NOT_READY");
+        assertThat(response.recommendation().reviewGatePolicyPromotionReviewRunApprovalDecisionReason())
                 .isEqualTo("REAL_USER_TRAFFIC_GATE_NOT_READY");
         assertThat(response.recommendation().reviewGatePolicyPromotionReviewRunApprovalStatus())
                 .isEqualTo("BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_NOT_READY");

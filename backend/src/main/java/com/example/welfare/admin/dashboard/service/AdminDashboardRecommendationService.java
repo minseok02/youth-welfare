@@ -227,10 +227,21 @@ public class AdminDashboardRecommendationService {
                         reviewGatePolicyPromotionReviewRunDecisionStatus,
                         reviewGatePolicyPromotionReviewRunDecisionReason
                 );
+        String reviewGatePolicyPromotionReviewRunApprovalDecisionStatus =
+                AdminDashboardQueryPolicy.resolveReviewGatePolicyPromotionReviewRunApprovalDecisionStatus(
+                        reviewGatePolicyPromotionReviewRunApprovalCriteriaStatus,
+                        reviewGatePolicyPromotionReviewRunApprovalStatus
+                );
+        String reviewGatePolicyPromotionReviewRunApprovalDecisionReason =
+                AdminDashboardQueryPolicy.resolveReviewGatePolicyPromotionReviewRunApprovalDecisionReason(
+                        reviewGatePolicyPromotionReviewRunApprovalCriteriaStatus,
+                        reviewGatePolicyPromotionReviewRunApprovalCriteriaReason,
+                        reviewGatePolicyPromotionReviewRunApprovalStatus
+                );
         String reviewGatePolicyPromotionReviewRunApprovalReason =
                 AdminDashboardQueryPolicy.resolveReviewGatePolicyPromotionReviewRunApprovalReason(
-                        reviewGatePolicyPromotionReviewRunDecisionStatus,
-                        reviewGatePolicyPromotionReviewRunDecisionReason
+                        reviewGatePolicyPromotionReviewRunApprovalDecisionStatus,
+                        reviewGatePolicyPromotionReviewRunApprovalDecisionReason
                 );
         List<AdminRecommendationBreakdownResponse.FacetGroup> youthOfficialFacetGroups = buildFacetGroups(
                 adminDashboardRecommendationReadRepository.fetchLatestBatchYouthOfficialFacetRows(breakdownLimit),
@@ -348,6 +359,8 @@ public class AdminDashboardRecommendationService {
                 reviewGatePolicyPromotionReviewRunDecisionReason,
                 reviewGatePolicyPromotionReviewRunApprovalCriteriaStatus,
                 reviewGatePolicyPromotionReviewRunApprovalCriteriaReason,
+                reviewGatePolicyPromotionReviewRunApprovalDecisionStatus,
+                reviewGatePolicyPromotionReviewRunApprovalDecisionReason,
                 reviewGatePolicyPromotionReviewRunApprovalStatus,
                 reviewGatePolicyPromotionReviewRunApprovalReason,
                 adminDashboardRecommendationReadRepository.fetchTopRepeatedRecommendationServices(breakdownLimit).stream()
