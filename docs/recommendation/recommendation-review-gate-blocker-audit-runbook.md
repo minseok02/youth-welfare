@@ -9,6 +9,7 @@
 - [recommendation-post-merge-followup-checklist.md](./recommendation-post-merge-followup-checklist.md)
 - [recommendation-real-user-recheck-checklist.md](./recommendation-real-user-recheck-checklist.md)
 - [recommendation-same-profile-origin-differential-audit-runbook.md](./recommendation-same-profile-origin-differential-audit-runbook.md)
+- [recommendation-same-profile-path-differential-audit-runbook.md](./recommendation-same-profile-path-differential-audit-runbook.md)
 
 현재 단계 해석:
 
@@ -71,6 +72,7 @@ artifact:
   - `real_user_mixed_leader_top10_count=0`
 - 게다가 `housing_leader_path` exact cohort로 example-heavy leader profile과 같은 `인천광역시/중구/income=5/미취업/1인 가구` 를 generic-domain `REAL_USER` 로 다시 시드해도 path가 계속 `0` 이었습니다.
 - 즉 지금은 단순히 “real-user top1에 아직 안 붙었다”보다, **현재 real-user 샘플 구성으로는 mixed leader 전이 경로가 안 보이고 same-profile example vs real-user differential이 남아 있는 상태** 입니다.
+- 같은 profile 대표 user를 직접 열어 보면, target `2622` 는 example 쪽 `drop_stage=PRESENT_IN_SAVED_BATCH`, real-user 쪽 `drop_stage=NOT_IN_SQL_RETRIEVAL` 입니다. 즉 current blocker는 mixed leader dominance뿐 아니라 **saved-only example vs real SQL gap** 도 같이 봐야 합니다.
 
 ### 2. `mixed_top1_leader_real_user_users=0` 이고 `real_user_concentration_readiness=NO_PRIORITY_DOMINANT`
 

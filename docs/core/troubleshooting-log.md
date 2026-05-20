@@ -1,5 +1,10 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 375) same-profile differential을 “retrieval/filter에서 갈린다”로 단정하면, example 쪽 saved-only path와 real-user SQL gap을 놓칠 수 있다
+- 문제: exact same profile(`인천광역시/중구/income=5/미취업/1인 가구`)에서 `EXAMPLE_SMOKE` 는 `2622` 가 강하게 뜨고 generic-domain `REAL_USER` 는 `0회` 라는 사실만 보면, 쉽게 “real-user가 retrieval이나 filter에서 밀린다”로 추정하기 쉽다. 하지만 이건 saved batch에 이미 남아 있는 example path와 current diagnostics retrieval path를 같은 축으로 섞어 읽을 위험이 있다.
+- 해결: `run-local-recommendation-same-profile-path-differential-audit.sh` 를 추가해 representative example user와 representative real-user를 exact profile에서 직접 뽑고, target `2622` 의 diagnostics/saved 상태를 side-by-side로 비교하게 했다. 현재 truth는 example 쪽 `drop_stage=PRESENT_IN_SAVED_BATCH`, `latest_saved_rank=1`, real-user 쪽 `drop_stage=NOT_IN_SQL_RETRIEVAL` 이다.
+- 이유: current blocker는 generic한 “same-profile origin differential” 보다 더 좁다. 지금 필요한 질문은 `2622` 가 real-user later stage에서 탈락하느냐가 아니라, **왜 example은 saved batch에 `2622` 를 갖고 있고 real-user는 SQL retrieval부터 못 들어가느냐** 다.
+
 ## 374) mixed leader blocker를 “example가 많다”로만 읽으면, exact same profile에서 `REAL_USER` path가 완전히 닫혀 있는 더 강한 차이를 놓친다
 - 문제: 80명 `REAL_USER` library와 review-gate blocker audit만 보면 현재 해석은 `MIXED_BATCH_NON_REAL_DOMINANCE_WITH_NO_REAL_USER_PATH` 다. 하지만 이 값만으로는 “example 비중이 높아서 mixed top1이 안 바뀐다”와 “same profile인데도 generic-domain `REAL_USER` 쪽 path 자체가 없다”를 구분하기 어렵다.
 - 해결: `run-local-recommendation-same-profile-origin-differential-audit.sh` 를 추가해 exact profile(`인천광역시/중구/income=5/미취업/1인 가구`)만 분리해서 origin별 target service path를 직접 비교하게 했다. 현재 local truth는 `EXAMPLE_SMOKE=454`, `REAL_USER=14`, `LOCAL_REAL_NON_EXAMPLE_SEED=3`, `BOUNDED_LOCAL=1` 이고, target `2622` 는 example 쪽 `top1=272`, `top3=434`, `top10=442` 인 반면 real-user 쪽은 `top1/top3/top5/top10/any-rank=0` 이다.
