@@ -1,5 +1,9 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 945) review gate promotion 상태를 계속 잘게 쪼개면 실제로 무엇을 실행해야 하는지가 더 흐려진다
+- 문제: approval/promotion/review-run ladder를 계속 상태값으로만 확장하면, 실제 operator 입장에서는 “그래서 지금 무엇을 한 번 돌려 봐야 하느냐”가 더 흐려졌다. user-facing closeout 감각도 약해지고 상태만 늘어나는 인상이 강해졌다.
+- 해결: 상태 추가를 멈추고 `run-local-recommendation-bounded-promotion-review.sh` 를 따로 만들었다. 이 wrapper는 approval record preflight, recent-window clear, historical staleness만 묶어 `bounded_promotion_review_result_status` 로 go/no-go를 바로 보여 준다.
+
 ## 944) approval-record smoke가 summary와 breakdowns JSON field depth를 같다고 가정하면 승인 tuple 검증이 잘못된다
 - 문제: approval-record smoke 초기 버전은 summary와 breakdowns 둘 다 gate 필드가 같은 depth에 있다고 가정했다. 하지만 summary는 `data.recommendation.*`, breakdowns는 `data.*` 에 gate 필드가 있어 같은 파서로 읽으면 summary approved/baseline tuple 검증이 어긋났다.
 - 해결: smoke parser가 `data.get("recommendation", data)` 형태로 summary/breakdowns 두 응답을 모두 처리하게 고쳤다. 이제 baseline pending tuple, approved tuple, clear 뒤 baseline 복귀를 같은 helper로 안정적으로 검증한다.

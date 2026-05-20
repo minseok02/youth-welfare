@@ -30,6 +30,7 @@
 - [recommendation-review-gate-recent-window-audit-runbook.md](./recommendation-review-gate-recent-window-audit-runbook.md)
 - [recommendation-review-gate-policy-promotion-checklist.md](./recommendation-review-gate-policy-promotion-checklist.md)
 - [recommendation-review-gate-promotion-approval-record-smoke-runbook.md](./recommendation-review-gate-promotion-approval-record-smoke-runbook.md)
+- [recommendation-bounded-promotion-review-runbook.md](./recommendation-bounded-promotion-review-runbook.md)
 - [recommendation-real-user-recheck-checklist.md](./recommendation-real-user-recheck-checklist.md)
 - [recommendation-pr-draft-exit-checklist.md](./recommendation-pr-draft-exit-checklist.md)
 - [recommendation-post-merge-followup-checklist.md](./recommendation-post-merge-followup-checklist.md)
@@ -74,6 +75,7 @@
 - `bash deploy/smoke/run-local-recommendation-review-gate-recent-window-audit.sh`
 - `ADMIN_EMAIL='<local admin email>' ADMIN_PASSWORD='<local admin password>' bash deploy/smoke/run-local-admin-recommendation-review-gate-promotion-approval-record-smoke.sh`
   - existing PostgreSQL volume이면 먼저 `bash deploy/postgres/apply-local-runtime-schema-patch.sh`
+- `ADMIN_EMAIL='<local admin email>' ADMIN_PASSWORD='<local admin password>' bash deploy/smoke/run-local-recommendation-bounded-promotion-review.sh`
 - `bash deploy/smoke/run-local-no-priority-top1-sample.sh`
 - `bash deploy/smoke/run-local-no-priority-candidate-audit.sh`
 - `bash deploy/smoke/run-local-recommendation-signal-gap-audit.sh`

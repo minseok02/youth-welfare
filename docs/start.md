@@ -62,6 +62,7 @@
 - recent-window가 policy candidate인 상태에서 실제 승격 검토 기준을 보려면 [recommendation-review-gate-policy-promotion-checklist.md](./recommendation/recommendation-review-gate-policy-promotion-checklist.md)
 - explicit promotion approval record write/clear path를 실제로 검증하려면 `ADMIN_EMAIL='<local admin email>' ADMIN_PASSWORD='<local admin password>' bash deploy/smoke/run-local-admin-recommendation-review-gate-promotion-approval-record-smoke.sh`
 - 위 smoke에서 기존 로컬 PostgreSQL volume이 relation missing 또는 permission denied로 끊기면 먼저 `bash deploy/postgres/apply-local-runtime-schema-patch.sh`
+- 상태값을 더 쪼개지 않고 bounded promotion review go/no-go만 한 번에 보려면 `ADMIN_EMAIL='<local admin email>' ADMIN_PASSWORD='<local admin password>' bash deploy/smoke/run-local-recommendation-bounded-promotion-review.sh`
 - 재사용 가능한 `REAL_USER` cohort library(`housing / education / job / finance`)를 다시 시드하려면 `APP_BASE_URL='http://127.0.0.1:8082' ADMIN_EMAIL='<local admin email>' ADMIN_PASSWORD='<local admin password>' bash deploy/smoke/run-local-real-user-cohort-library-seed.sh`
 - `REAL_USER` traffic/cohort가 실제로 생긴 뒤에는 [recommendation-real-user-recheck-checklist.md](./recommendation/recommendation-real-user-recheck-checklist.md) 순서대로 다시 확인합니다.
 - strict gate(`FAIL_ON_LATEST_OBSERVATION_CHANGE=true`)가 fail 하더라도 `latest_drift_class=VOLATILE_ONLY_DRIFT` 와 `stable_baseline_changed=false` 면 stable baseline 회귀가 아니라 fresh window 흔들림으로 읽습니다.
