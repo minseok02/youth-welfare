@@ -95,6 +95,8 @@ review hint:
 - review gate policy promotion readiness reason: `EXPLICIT_POLICY_REVIEW_PENDING_WITH_BOUNDED_REVIEW_PREREQUISITES_MET`
 - review gate policy promotion execution status: `AWAIT_EXPLICIT_POLICY_REVIEW_DECISION`
 - review gate policy promotion execution reason: `READINESS_MET_BUT_EXPLICIT_POLICY_REVIEW_DECISION_IS_STILL_PENDING`
+- review gate policy promotion approval status: `PENDING_EXPLICIT_PROMOTION_APPROVAL`
+- review gate policy promotion approval reason: `EXECUTION_READY_BUT_EXPLICIT_PROMOTION_APPROVAL_NOT_RECORDED`
 - operator next step: `USE_RECENT_WINDOW_AS_SUPPLEMENTAL_REVIEW_CONTEXT`
 
 explicit promotion review 기준은 [recommendation-review-gate-policy-promotion-checklist.md](./recommendation-review-gate-policy-promotion-checklist.md) 를 같이 봅니다.

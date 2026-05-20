@@ -139,6 +139,9 @@ bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-overview.sh
 - `review_gate_policy_promotion_execution_status=AWAIT_EXPLICIT_POLICY_REVIEW_DECISION`
   - readiness 다음 실제 실행 상태입니다. 현재 local 기준으로는 explicit policy review decision 대기입니다.
 - `review_gate_policy_promotion_execution_reason=READINESS_MET_BUT_EXPLICIT_POLICY_REVIEW_DECISION_IS_STILL_PENDING`
+- `review_gate_policy_promotion_approval_status=PENDING_EXPLICIT_PROMOTION_APPROVAL`
+  - execution readiness와 별도로, bounded promotion review 승인 자체는 아직 기록되지 않았다는 뜻입니다.
+- `review_gate_policy_promotion_approval_reason=EXECUTION_READY_BUT_EXPLICIT_PROMOTION_APPROVAL_NOT_RECORDED`
 - `review_gate_interpretation_class=HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR`
   - primary full latest batch gate는 historical blocker인데 recent-window current-live signal은 이미 clear라는 뜻입니다.
 - `review_gate_operating_mode=PRIMARY_BASELINE_WITH_SUPPLEMENTAL_RECENT_WINDOW`

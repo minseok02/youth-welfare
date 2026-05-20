@@ -50,6 +50,14 @@
   - `READY_FOR_BOUNDED_PROMOTION_REVIEW`
 - review gate policy promotion readiness reason:
   - `EXPLICIT_POLICY_REVIEW_PENDING_WITH_BOUNDED_REVIEW_PREREQUISITES_MET`
+- review gate policy promotion execution status:
+  - `AWAIT_EXPLICIT_POLICY_REVIEW_DECISION`
+- review gate policy promotion execution reason:
+  - `READINESS_MET_BUT_EXPLICIT_POLICY_REVIEW_DECISION_IS_STILL_PENDING`
+- review gate policy promotion approval status:
+  - `PENDING_EXPLICIT_PROMOTION_APPROVAL`
+- review gate policy promotion approval reason:
+  - `EXECUTION_READY_BUT_EXPLICIT_PROMOTION_APPROVAL_NOT_RECORDED`
 
 즉 current truth는:
 
@@ -59,6 +67,7 @@
 4. current action은 promotion 실행이 아니라 `KEEP_PRIMARY_BASELINE`
 5. 다만 bounded promotion review를 열 prerequisite 자체는 이미 `READY_FOR_BOUNDED_PROMOTION_REVIEW`
 6. current execution status는 `AWAIT_EXPLICIT_POLICY_REVIEW_DECISION`
+7. current approval status는 `PENDING_EXPLICIT_PROMOTION_APPROVAL`
 
 입니다.
 
@@ -169,6 +178,8 @@ promotion review 전 최소한 아래 4개는 같이 봅니다.
    `promote recent-window-aware gate for bounded trial`
 8. 이번 단계에서 **안 바꾸는 것**
 9. `reviewGatePolicyPromotionReadinessStatus/Reason`
+10. `reviewGatePolicyPromotionExecutionStatus/Reason`
+11. `reviewGatePolicyPromotionApprovalStatus/Reason`
 
 ## 현재 추천 판단
 

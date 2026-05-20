@@ -407,4 +407,34 @@ final class AdminDashboardQueryPolicy {
             default -> status;
         };
     }
+
+    static String resolveReviewGatePolicyPromotionApprovalStatus(
+            String reviewGatePolicyPromotionExecutionStatus
+    ) {
+        return switch (reviewGatePolicyPromotionExecutionStatus) {
+            case "AWAIT_EXPLICIT_POLICY_REVIEW_DECISION" -> "PENDING_EXPLICIT_PROMOTION_APPROVAL";
+            case "RUN_BOUNDED_PROMOTION_REVIEW" -> "BOUNDED_PROMOTION_REVIEW_APPROVED";
+            case "DO_NOT_RUN_BOUNDED_PROMOTION_REVIEW" -> "PROMOTION_APPROVAL_NOT_APPLICABLE";
+            default -> "PROMOTION_APPROVAL_NOT_APPLICABLE";
+        };
+    }
+
+    static String resolveReviewGatePolicyPromotionApprovalReason(
+            String reviewGatePolicyPromotionExecutionStatus,
+            String reviewGatePolicyPromotionExecutionReason
+    ) {
+        String status = resolveReviewGatePolicyPromotionApprovalStatus(
+                reviewGatePolicyPromotionExecutionStatus
+        );
+
+        return switch (status) {
+            case "PENDING_EXPLICIT_PROMOTION_APPROVAL" ->
+                    "EXECUTION_READY_BUT_EXPLICIT_PROMOTION_APPROVAL_NOT_RECORDED";
+            case "BOUNDED_PROMOTION_REVIEW_APPROVED" ->
+                    "EXECUTION_STATUS_ALREADY_ALLOWS_BOUNDED_PROMOTION_REVIEW";
+            case "PROMOTION_APPROVAL_NOT_APPLICABLE" ->
+                    reviewGatePolicyPromotionExecutionReason;
+            default -> status;
+        };
+    }
 }
