@@ -116,6 +116,9 @@ bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-status.sh
   - 지금 당장 primary baseline을 바꾸진 않더라도, bounded promotion review를 시작할 prerequisite 자체는 충족됐는지 보여 주는 값입니다. 현재 local 기준으로는 `READY_FOR_BOUNDED_PROMOTION_REVIEW` 입니다.
 - `review_gate_policy_promotion_readiness_reason=EXPLICIT_POLICY_REVIEW_PENDING_WITH_BOUNDED_REVIEW_PREREQUISITES_MET`
   - 위 readiness 상태를 만든 직접 이유입니다. 현재 local 기준으로는 explicit policy review는 아직 남아 있지만 bounded review를 열 prerequisite은 이미 충족된 상태라는 뜻입니다.
+- `review_gate_policy_promotion_execution_status=AWAIT_EXPLICIT_POLICY_REVIEW_DECISION`
+  - readiness는 충족됐지만 explicit policy review decision이 아직 남아 있어 bounded review를 바로 실행하진 않는다는 뜻입니다.
+- `review_gate_policy_promotion_execution_reason=READINESS_MET_BUT_EXPLICIT_POLICY_REVIEW_DECISION_IS_STILL_PENDING`
 - `review_gate_interpretation_class=HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR`
   - primary full latest batch gate는 아직 historical blocker인데, supplemental recent-window current signal은 이미 clear 쪽으로 움직였다는 뜻입니다.
 - `review_gate_operating_mode=PRIMARY_BASELINE_WITH_SUPPLEMENTAL_RECENT_WINDOW`

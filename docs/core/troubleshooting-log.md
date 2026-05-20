@@ -4,6 +4,10 @@
 - 문제: local API/smoke/latest artifact는 이미 `reviewGatePolicyPromotionReadinessStatus=READY_FOR_BOUNDED_PROMOTION_REVIEW`, `reviewGatePolicyPromotionReadinessReason=EXPLICIT_POLICY_REVIEW_PENDING_WITH_BOUNDED_REVIEW_PREREQUISITES_MET` 를 내리기 시작했는데, PR 본문과 reviewer/author 문서는 아직 promotion pending/action까지만 적고 있었다.
 - 해결: reviewer brief, draft-exit checklist, post-merge follow-up checklist, 그리고 PR `#253` body / quick entrypoint / author-side note에도 readiness 층을 직접 올려, “지금은 keep baseline이지만 bounded promotion review를 열 prerequisite은 이미 충족” 상태를 GitHub 화면만으로도 읽게 맞춘다.
 
+## 932) readiness와 execution을 같은 뜻으로 읽으면, explicit policy review decision 없이 bounded review를 바로 실행하는 오해가 생긴다
+- 문제: `READY_FOR_BOUNDED_PROMOTION_REVIEW` 까지 surface에 올린 뒤에도 readiness 충족을 곧바로 `RUN_BOUNDED_PROMOTION_REVIEW` 로 읽기 쉬웠다. 하지만 현재 정책은 여전히 `KEEP_PRIMARY_BASELINE` 이고 explicit policy review decision이 남아 있다.
+- 해결: admin summary/breakdowns, latest artifact, active runbook/current 문서에 `reviewGatePolicyPromotionExecutionStatus`, `reviewGatePolicyPromotionExecutionReason` 을 추가했다. 현재 local 기준 값은 `AWAIT_EXPLICIT_POLICY_REVIEW_DECISION`, `READINESS_MET_BUT_EXPLICIT_POLICY_REVIEW_DECISION_IS_STILL_PENDING` 이고, readiness와 실제 실행 상태를 분리해서 읽는다.
+
 ## 930) candidate / promotion pending / current action만으로는 bounded promotion review를 지금 시작할 prerequisite이 이미 충족됐는지 알 수 없다
 - 문제: `reviewGatePolicyPromotionActionStatus=KEEP_PRIMARY_BASELINE` 까지 surface에 올린 뒤에도, operator는 “승격은 아직 안 하지만 bounded promotion review를 지금 열 수는 있나?”를 다시 추론해야 했다. 즉 current action과 future review readiness가 같은 층으로 섞여 있었다.
 - 해결: admin summary/breakdowns 와 `latest-status-export`, `latest-status`, `latest-gate`, `latest-overview` 에 `reviewGatePolicyPromotionReadinessStatus`, `reviewGatePolicyPromotionReadinessReason` 을 추가했다. 현재 local 기준 값은 `READY_FOR_BOUNDED_PROMOTION_REVIEW`, `EXPLICIT_POLICY_REVIEW_PENDING_WITH_BOUNDED_REVIEW_PREREQUISITES_MET` 이고, “지금은 keep baseline이지만 bounded review를 열 prerequisite은 이미 충족” 상태를 별도 층으로 읽는다.

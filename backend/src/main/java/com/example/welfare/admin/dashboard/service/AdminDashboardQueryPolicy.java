@@ -370,4 +370,41 @@ final class AdminDashboardQueryPolicy {
         }
         return "BOUNDED_PROMOTION_REVIEW_PREREQUISITES_NOT_MET";
     }
+
+    static String resolveReviewGatePolicyPromotionExecutionStatus(
+            String reviewGatePolicyPromotionReadinessStatus,
+            String reviewGatePolicyPromotionStatus
+    ) {
+        if (!"READY_FOR_BOUNDED_PROMOTION_REVIEW".equals(reviewGatePolicyPromotionReadinessStatus)) {
+            return "DO_NOT_RUN_BOUNDED_PROMOTION_REVIEW";
+        }
+        if ("REQUIRES_EXPLICIT_POLICY_CHANGE_REVIEW".equals(reviewGatePolicyPromotionStatus)) {
+            return "AWAIT_EXPLICIT_POLICY_REVIEW_DECISION";
+        }
+        if ("PROMOTION_READY".equals(reviewGatePolicyPromotionStatus)) {
+            return "RUN_BOUNDED_PROMOTION_REVIEW";
+        }
+        return "DO_NOT_RUN_BOUNDED_PROMOTION_REVIEW";
+    }
+
+    static String resolveReviewGatePolicyPromotionExecutionReason(
+            String reviewGatePolicyPromotionReadinessStatus,
+            String reviewGatePolicyPromotionReadinessReason,
+            String reviewGatePolicyPromotionStatus
+    ) {
+        String status = resolveReviewGatePolicyPromotionExecutionStatus(
+                reviewGatePolicyPromotionReadinessStatus,
+                reviewGatePolicyPromotionStatus
+        );
+
+        return switch (status) {
+            case "AWAIT_EXPLICIT_POLICY_REVIEW_DECISION" ->
+                    "READINESS_MET_BUT_EXPLICIT_POLICY_REVIEW_DECISION_IS_STILL_PENDING";
+            case "RUN_BOUNDED_PROMOTION_REVIEW" ->
+                    "READINESS_MET_AND_PROMOTION_IS_READY_FOR_BOUNDED_REVIEW";
+            case "DO_NOT_RUN_BOUNDED_PROMOTION_REVIEW" ->
+                    reviewGatePolicyPromotionReadinessReason;
+            default -> status;
+        };
+    }
 }

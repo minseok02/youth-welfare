@@ -129,6 +129,10 @@ bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-gate.sh
   - explicit policy review를 아직 거치지 않았더라도 bounded promotion review의 prerequisite 자체는 이미 충족됐는지 보여 주는 값입니다. 현재 local 기준으로는 `READY_FOR_BOUNDED_PROMOTION_REVIEW` 입니다.
 - `review_gate_policy_promotion_readiness_reason`
   - 위 readiness 상태를 만든 직접 이유입니다. 현재 local 기준으로는 `EXPLICIT_POLICY_REVIEW_PENDING_WITH_BOUNDED_REVIEW_PREREQUISITES_MET` 입니다.
+- `review_gate_policy_promotion_execution_status`
+  - readiness 다음 실제 실행 상태입니다. 현재 local 기준으로는 `AWAIT_EXPLICIT_POLICY_REVIEW_DECISION` 입니다.
+- `review_gate_policy_promotion_execution_reason`
+  - 위 execution status를 만든 직접 이유입니다. 현재 local 기준으로는 `READINESS_MET_BUT_EXPLICIT_POLICY_REVIEW_DECISION_IS_STILL_PENDING` 입니다.
 - `review_gate_interpretation_class`
   - primary full latest batch gate와 supplemental recent-window gate를 합친 운영 해석 클래스입니다. 현재 local 기준으로는 `HISTORICAL_PRIMARY_BLOCKER_CURRENT_WINDOW_CLEAR` 입니다.
 - `review_gate_operating_mode`

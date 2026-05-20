@@ -58,6 +58,7 @@
 3. explicit policy review를 먼저 거쳐야 함
 4. current action은 promotion 실행이 아니라 `KEEP_PRIMARY_BASELINE`
 5. 다만 bounded promotion review를 열 prerequisite 자체는 이미 `READY_FOR_BOUNDED_PROMOTION_REVIEW`
+6. current execution status는 `AWAIT_EXPLICIT_POLICY_REVIEW_DECISION`
 
 입니다.
 

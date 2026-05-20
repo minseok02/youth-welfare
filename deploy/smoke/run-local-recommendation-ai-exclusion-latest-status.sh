@@ -124,6 +124,8 @@ review_gate_policy_promotion_action_status = review_gate_context.get("review_gat
 review_gate_policy_promotion_action_reason = review_gate_context.get("review_gate_policy_promotion_action_reason", "")
 review_gate_policy_promotion_readiness_status = review_gate_context.get("review_gate_policy_promotion_readiness_status", "")
 review_gate_policy_promotion_readiness_reason = review_gate_context.get("review_gate_policy_promotion_readiness_reason", "")
+review_gate_policy_promotion_execution_status = review_gate_context.get("review_gate_policy_promotion_execution_status", "")
+review_gate_policy_promotion_execution_reason = review_gate_context.get("review_gate_policy_promotion_execution_reason", "")
 if not gate_policy_status:
     if interpretation_changed == "true" or stable_baseline_changed == "true":
         gate_policy_status = "BASELINE_DRIFT_BLOCKING"
@@ -181,6 +183,8 @@ print(f"review_gate_policy_promotion_action_status={review_gate_policy_promotion
 print(f"review_gate_policy_promotion_action_reason={review_gate_policy_promotion_action_reason}")
 print(f"review_gate_policy_promotion_readiness_status={review_gate_policy_promotion_readiness_status}")
 print(f"review_gate_policy_promotion_readiness_reason={review_gate_policy_promotion_readiness_reason}")
+print(f"review_gate_policy_promotion_execution_status={review_gate_policy_promotion_execution_status}")
+print(f"review_gate_policy_promotion_execution_reason={review_gate_policy_promotion_execution_reason}")
 print(f"primary_mixed_top1_leader_service_id={review_gate_context.get('primary_mixed_top1_leader_service_id', '')}")
 print(f"primary_mixed_top1_leader_title={review_gate_context.get('primary_mixed_top1_leader_title', '')}")
 print(f"primary_mixed_top1_leader_share_pct={review_gate_context.get('primary_mixed_top1_leader_share_pct', '')}")

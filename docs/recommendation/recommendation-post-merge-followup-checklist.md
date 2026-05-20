@@ -97,6 +97,10 @@ merge 전 현재 PR 상태 reference:
   - `READY_FOR_BOUNDED_PROMOTION_REVIEW`
 - review gate policy promotion readiness reason:
   - `EXPLICIT_POLICY_REVIEW_PENDING_WITH_BOUNDED_REVIEW_PREREQUISITES_MET`
+- review gate policy promotion execution status:
+  - `AWAIT_EXPLICIT_POLICY_REVIEW_DECISION`
+- review gate policy promotion execution reason:
+  - `READINESS_MET_BUT_EXPLICIT_POLICY_REVIEW_DECISION_IS_STILL_PENDING`
 - current next step:
   - `USE_RECENT_WINDOW_AS_SUPPLEMENTAL_REVIEW_CONTEXT`
 - `latest_drift_class=VOLATILE_ONLY_DRIFT`
