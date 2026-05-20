@@ -1,5 +1,10 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 376) same-profile example differential을 current flow 차이로만 읽으면, stale saved batch가 mixed leader 해석을 왜곡한 사실을 놓친다
+- 문제: same-profile path audit에서 representative example user는 `2622` 를 `PRESENT_IN_SAVED_BATCH` 로 갖고 있고 generic-domain `REAL_USER` 는 `NOT_IN_SQL_RETRIEVAL` 이었다. 이 값만 보면 쉽게 “example current flow만 다르다”로 읽기 쉽다.
+- 해결: `run-local-recommendation-same-profile-fresh-saved-differential-audit.sh` 를 추가해 representative example/real-user에 `personal=true` fresh refresh를 직접 다시 태웠다. 현재 truth는 example 쪽도 refresh 뒤 즉시 `saved=false`, `drop_stage=NOT_IN_SQL_RETRIEVAL` 로 내려가고, real-user는 전후 모두 `NOT_IN_SQL_RETRIEVAL` 이다.
+- 이유: 이 상태의 1차 원인은 current-flow origin differential보다 **stale example saved batch path** 다. 즉 mixed leader 해석을 더 좁힐 때는 “왜 real-user가 못 들어오나” 이전에 “왜 example saved batch가 refresh 전까지 persisted 돼 있었나”를 먼저 봐야 한다.
+
 ## 375) same-profile differential을 “retrieval/filter에서 갈린다”로 단정하면, example 쪽 saved-only path와 real-user SQL gap을 놓칠 수 있다
 - 문제: exact same profile(`인천광역시/중구/income=5/미취업/1인 가구`)에서 `EXAMPLE_SMOKE` 는 `2622` 가 강하게 뜨고 generic-domain `REAL_USER` 는 `0회` 라는 사실만 보면, 쉽게 “real-user가 retrieval이나 filter에서 밀린다”로 추정하기 쉽다. 하지만 이건 saved batch에 이미 남아 있는 example path와 current diagnostics retrieval path를 같은 축으로 섞어 읽을 위험이 있다.
 - 해결: `run-local-recommendation-same-profile-path-differential-audit.sh` 를 추가해 representative example user와 representative real-user를 exact profile에서 직접 뽑고, target `2622` 의 diagnostics/saved 상태를 side-by-side로 비교하게 했다. 현재 truth는 example 쪽 `drop_stage=PRESENT_IN_SAVED_BATCH`, `latest_saved_rank=1`, real-user 쪽 `drop_stage=NOT_IN_SQL_RETRIEVAL` 이다.
