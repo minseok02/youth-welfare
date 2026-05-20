@@ -699,6 +699,8 @@ class AdminSecurityWebMvcTest {
                                 "REAL_USER_TRAFFIC_GATE_NOT_READY",
                                 "NOT_READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN",
                                 "REAL_USER_TRAFFIC_GATE_NOT_READY",
+                                "BOUNDED_PROMOTION_REVIEW_RUN_DECISION_NOT_READY",
+                                "REAL_USER_TRAFFIC_GATE_NOT_READY",
                                 List.of(
                                         new AdminDashboardResponse.RecommendationWeightSnapshot(
                                                 "GROWTH",
@@ -816,6 +818,8 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyPromotionReviewRunReason").value("REAL_USER_TRAFFIC_GATE_NOT_READY"))
                 .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyPromotionReviewRunCriteriaStatus").value("NOT_READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN"))
                 .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyPromotionReviewRunCriteriaReason").value("REAL_USER_TRAFFIC_GATE_NOT_READY"))
+                .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyPromotionReviewRunDecisionStatus").value("BOUNDED_PROMOTION_REVIEW_RUN_DECISION_NOT_READY"))
+                .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyPromotionReviewRunDecisionReason").value("REAL_USER_TRAFFIC_GATE_NOT_READY"))
                 .andExpect(jsonPath("$.data.notification.windowDays").value(7))
                 .andExpect(jsonPath("$.data.notification.sentInWindow").value(5))
                 .andExpect(jsonPath("$.data.search.windowDays").value(7))
@@ -956,6 +960,8 @@ class AdminSecurityWebMvcTest {
                                 "REAL_USER_TRAFFIC_GATE_NOT_READY",
                                 "NOT_READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN",
                                 "REAL_USER_TRAFFIC_GATE_NOT_READY",
+                                "BOUNDED_PROMOTION_REVIEW_RUN_DECISION_NOT_READY",
+                                "REAL_USER_TRAFFIC_GATE_NOT_READY",
                                 List.of()
                         ),
                         new AdminDashboardResponse.NotificationSection(0, 0, 14, 0, 0),
@@ -1036,6 +1042,8 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyPromotionReviewRunReason").value("REAL_USER_TRAFFIC_GATE_NOT_READY"))
                 .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyPromotionReviewRunCriteriaStatus").value("NOT_READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN"))
                 .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyPromotionReviewRunCriteriaReason").value("REAL_USER_TRAFFIC_GATE_NOT_READY"))
+                .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyPromotionReviewRunDecisionStatus").value("BOUNDED_PROMOTION_REVIEW_RUN_DECISION_NOT_READY"))
+                .andExpect(jsonPath("$.data.recommendation.reviewGatePolicyPromotionReviewRunDecisionReason").value("REAL_USER_TRAFFIC_GATE_NOT_READY"))
                 .andExpect(jsonPath("$.data.notification.windowDays").value(14))
                 .andExpect(jsonPath("$.data.trend.recommendation[1].fallbackRate").value(0.5000))
                 .andExpect(jsonPath("$.data.search.windowDays").value(14))
@@ -1260,6 +1268,8 @@ class AdminSecurityWebMvcTest {
                 "REAL_USER_TRAFFIC_GATE_NOT_READY",
                 "NOT_READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN",
                 "REAL_USER_TRAFFIC_GATE_NOT_READY",
+                "BOUNDED_PROMOTION_REVIEW_RUN_DECISION_NOT_READY",
+                "REAL_USER_TRAFFIC_GATE_NOT_READY",
                 List.of(
                         new AdminRecommendationBreakdownResponse.RepeatedServiceSnapshot(
                                         2622L,
@@ -1471,6 +1481,8 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.data.reviewGatePolicyPromotionReviewRunReason").value("REAL_USER_TRAFFIC_GATE_NOT_READY"))
                 .andExpect(jsonPath("$.data.reviewGatePolicyPromotionReviewRunCriteriaStatus").value("NOT_READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN"))
                 .andExpect(jsonPath("$.data.reviewGatePolicyPromotionReviewRunCriteriaReason").value("REAL_USER_TRAFFIC_GATE_NOT_READY"))
+                .andExpect(jsonPath("$.data.reviewGatePolicyPromotionReviewRunDecisionStatus").value("BOUNDED_PROMOTION_REVIEW_RUN_DECISION_NOT_READY"))
+                .andExpect(jsonPath("$.data.reviewGatePolicyPromotionReviewRunDecisionReason").value("REAL_USER_TRAFFIC_GATE_NOT_READY"))
                 .andExpect(jsonPath("$.data.topRepeatedServices[0].serviceId").value(2622))
                 .andExpect(jsonPath("$.data.topRepeatedServices[0].rowCount").value(449))
                 .andExpect(jsonPath("$.data.topRepeatedServices[0].userMix.exampleUsers").value(447))

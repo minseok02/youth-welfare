@@ -6167,3 +6167,8 @@ admin API와 latest artifact에
 - 문제: `reviewGatePolicyPromotionReviewRunCriteriaStatus`, `reviewGatePolicyPromotionReviewRunCriteriaReason` 을 admin API, latest artifact, active runbook에만 올리면 reviewer brief / draft exit / post-merge / promotion checklist / PR surface는 여전히 `review run pending` 까지만 읽게 된다.
 - 해결: reviewer/author/promotion-checklist surface와 PR 본문/quick comment/author note에도 `READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN`, `BOUNDED_REVIEW_RUN_PREREQUISITES_MET_BUT_APPROVAL_RECORD_PENDING` 를 같이 올렸다.
 - 이유: latest/current surface와 GitHub 전달면이 같은 마지막 실행 층을 써야 `approval record pending` 과 `run prerequisite ready` 를 같은 언어로 읽고, explicit approval record가 써지기 전까지 왜 actual bounded review run이 아직 pending인지 즉시 이해할 수 있다.
+
+## #936 run prerequisite ready와 final run decision pending도 다른 층으로 분리해야 마지막 승인-실행 경계가 다시 흐려지지 않는다
+- 문제: `reviewGatePolicyPromotionReviewRunCriteriaStatus=READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN` 까지 surface에 올린 뒤에도, actual bounded review run이 아직 안 돌고 있다는 사실과 마지막 run decision이 아직 explicit approval record 미작성 때문에 pending이라는 사실이 한 덩어리처럼 읽혔다.
+- 해결: `reviewGatePolicyPromotionReviewRunDecisionStatus`, `reviewGatePolicyPromotionReviewRunDecisionReason` 을 admin API, latest artifact, active current/runbook, reviewer/author/PR surface에 추가했다.
+- 이유: `run prerequisite ready` 와 `run decision pending` 은 다른 상태다. 이 둘을 분리해야 operator/reviewer가 “실행 조건은 맞았지만 마지막 시작 decision은 아직 approval record 미작성 때문에 보류”를 같은 언어로 읽을 수 있다.

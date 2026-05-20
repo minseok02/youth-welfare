@@ -614,6 +614,48 @@ final class AdminDashboardQueryPolicy {
         return reviewGatePolicyPromotionApprovalRecordReason;
     }
 
+    static String resolveReviewGatePolicyPromotionReviewRunDecisionStatus(
+            String reviewGatePolicyPromotionReviewRunCriteriaStatus,
+            String reviewGatePolicyPromotionReviewRunStatus
+    ) {
+        if (!"READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN".equals(reviewGatePolicyPromotionReviewRunCriteriaStatus)) {
+            return "BOUNDED_PROMOTION_REVIEW_RUN_DECISION_NOT_READY";
+        }
+        return switch (reviewGatePolicyPromotionReviewRunStatus) {
+            case "PENDING_BOUNDED_PROMOTION_REVIEW_RUN" -> "AWAIT_BOUNDED_PROMOTION_REVIEW_RUN_DECISION";
+            case "AWAIT_BOUNDED_PROMOTION_REVIEW_RUN" -> "BOUNDED_PROMOTION_REVIEW_RUN_APPROVED";
+            case "BOUNDED_PROMOTION_REVIEW_RUN_NOT_READY" ->
+                    "BOUNDED_PROMOTION_REVIEW_RUN_DECISION_NOT_READY";
+            case "BOUNDED_PROMOTION_REVIEW_RUN_NOT_APPLICABLE" ->
+                    "BOUNDED_PROMOTION_REVIEW_RUN_DECISION_NOT_APPLICABLE";
+            default -> "BOUNDED_PROMOTION_REVIEW_RUN_DECISION_NOT_APPLICABLE";
+        };
+    }
+
+    static String resolveReviewGatePolicyPromotionReviewRunDecisionReason(
+            String reviewGatePolicyPromotionReviewRunCriteriaStatus,
+            String reviewGatePolicyPromotionReviewRunCriteriaReason,
+            String reviewGatePolicyPromotionReviewRunStatus,
+            String reviewGatePolicyPromotionReviewRunReason
+    ) {
+        String status = resolveReviewGatePolicyPromotionReviewRunDecisionStatus(
+                reviewGatePolicyPromotionReviewRunCriteriaStatus,
+                reviewGatePolicyPromotionReviewRunStatus
+        );
+
+        return switch (status) {
+            case "AWAIT_BOUNDED_PROMOTION_REVIEW_RUN_DECISION" ->
+                    "REVIEW_RUN_CRITERIA_MET_BUT_APPROVAL_RECORD_NOT_WRITTEN";
+            case "BOUNDED_PROMOTION_REVIEW_RUN_APPROVED" ->
+                    "APPROVAL_RECORD_SUPPORTS_BOUNDED_REVIEW_RUN_EXECUTION";
+            case "BOUNDED_PROMOTION_REVIEW_RUN_DECISION_NOT_READY" ->
+                    reviewGatePolicyPromotionReviewRunCriteriaReason;
+            case "BOUNDED_PROMOTION_REVIEW_RUN_DECISION_NOT_APPLICABLE" ->
+                    reviewGatePolicyPromotionReviewRunReason;
+            default -> status;
+        };
+    }
+
     static String resolveReviewGatePolicyPromotionReviewRunReason(
             String reviewGatePolicyPromotionApprovalRecordStatus,
             String reviewGatePolicyPromotionApprovalRecordReason

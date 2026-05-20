@@ -331,6 +331,10 @@ class AdminDashboardSummaryServiceTest {
                 .isEqualTo("NOT_READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN");
         assertThat(response.recommendation().reviewGatePolicyPromotionReviewRunCriteriaReason())
                 .isEqualTo("REAL_USER_TRAFFIC_GATE_NOT_READY");
+        assertThat(response.recommendation().reviewGatePolicyPromotionReviewRunDecisionStatus())
+                .isEqualTo("BOUNDED_PROMOTION_REVIEW_RUN_DECISION_NOT_READY");
+        assertThat(response.recommendation().reviewGatePolicyPromotionReviewRunDecisionReason())
+                .isEqualTo("REAL_USER_TRAFFIC_GATE_NOT_READY");
         assertThat(response.recommendation().trafficMixInWindow().exampleClickedUsersInWindow()).isEqualTo(9);
         assertThat(response.recommendation().weightBucketsInWindow()).extracting(AdminDashboardResponse.RecommendationWeightSnapshot::weightKey)
                 .containsExactly("GROWTH", "COLD_START");
@@ -524,6 +528,10 @@ class AdminDashboardSummaryServiceTest {
         assertThat(response.recommendation().reviewGatePolicyPromotionReviewRunCriteriaStatus())
                 .isEqualTo("NOT_READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN");
         assertThat(response.recommendation().reviewGatePolicyPromotionReviewRunCriteriaReason())
+                .isEqualTo("REAL_USER_TRAFFIC_GATE_NOT_READY");
+        assertThat(response.recommendation().reviewGatePolicyPromotionReviewRunDecisionStatus())
+                .isEqualTo("BOUNDED_PROMOTION_REVIEW_RUN_DECISION_NOT_READY");
+        assertThat(response.recommendation().reviewGatePolicyPromotionReviewRunDecisionReason())
                 .isEqualTo("REAL_USER_TRAFFIC_GATE_NOT_READY");
         assertThat(response.notification().windowDays()).isEqualTo(14);
         assertThat(response.trend().recommendation()).extracting(AdminDashboardResponse.RecommendationTrendPoint::windowDays)

@@ -93,6 +93,7 @@
 10. current approval record status는 `PENDING_EXPLICIT_PROMOTION_APPROVAL_RECORD`
 11. current review run status는 `PENDING_BOUNDED_PROMOTION_REVIEW_RUN`
 12. current review run criteria status는 `READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN`
+13. current review run decision status는 `AWAIT_BOUNDED_PROMOTION_REVIEW_RUN_DECISION`
 
 입니다.
 
@@ -210,6 +211,7 @@ promotion review 전 최소한 아래 4개는 같이 봅니다.
 14. `reviewGatePolicyPromotionApprovalRecordStatus/Reason`
 15. `reviewGatePolicyPromotionReviewRunStatus/Reason`
 16. `reviewGatePolicyPromotionReviewRunCriteriaStatus/Reason`
+17. `reviewGatePolicyPromotionReviewRunDecisionStatus/Reason`
 
 ## 현재 추천 판단
 

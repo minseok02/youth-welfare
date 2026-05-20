@@ -147,6 +147,7 @@ merge 전 현재 PR 상태 reference:
 8. current promotion action도 `KEEP_PRIMARY_BASELINE` 이므로 merge 뒤 immediate follow-up 기본값은 bounded promotion review가 아니라 baseline 유지
 9. `review_gate_policy_promotion_readiness_status=READY_FOR_BOUNDED_PROMOTION_REVIEW` 는 merge 뒤 explicit policy review를 열 수 있는 근거가 있다는 뜻이지만, current action을 곧바로 바꾸는 값은 아님
 10. `review_gate_policy_promotion_review_run_criteria_status=READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN` 도 actual bounded review run prerequisite이 충족됐다는 뜻이지, approval record 없이 곧바로 run으로 넘어간다는 뜻은 아님
+11. `review_gate_policy_promotion_review_run_decision_status=AWAIT_BOUNDED_PROMOTION_REVIEW_RUN_DECISION` 은 prerequisite ready 이후에도 마지막 run decision은 아직 explicit approval record가 없어 pending이라는 뜻임
 
 이때 current decision은 계속:
 
