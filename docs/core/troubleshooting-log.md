@@ -1,5 +1,13 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 953) integration preflight가 포트만 보면, 실제 DB 비밀번호 drift는 못 잡고 전체 통합 테스트가 연쇄로 터진다
+- 문제: `integrationRuntimePreflight` 와 `deploy/smoke/preflight-integration-runtime.sh` 는 원래 `127.0.0.1:5433` / `6379` 포트 접근성만 봤다. 이 상태에서는 PostgreSQL 컨테이너는 살아 있어도 `app_core_rw` 비밀번호가 `application-integration.yml` 의 고정 `welfare1234!` 와 어긋나면, preflight는 통과하지만 실제 `integrationTest` 는 Spring/JPA 초기화 단계에서 `password authentication failed for user "app_core_rw"` 로 전부 연쇄 실패했다.
+- 해결: `application-integration.yml` 을 `INTEGRATION_*` env override 구조로 바꾸고, `backend/build.gradle` 의 `integrationRuntimePreflight` 를 `JavaExec` 기반 JDBC 로그인 확인으로 교체했다. 이제 preflight가 primary / pii-rw / notification-pii-ro datasource 실제 인증까지 먼저 보고, integrationTest 도 repo root `.env` 와 현재 shell env를 따라 같은 값을 읽는다.
+
+## 954) 날짜 고정 기대값을 integration 테스트에 박아두면, 시간이 지나면서 green baseline이 가짜 red로 바뀐다
+- 문제: `UserCoreDualWriteIntegrationTest` 는 `birthDate=1996-05-20` 에 대해 `ageBand=25_29` 를 하드코딩하고 있었다. 2026-05-21 기준 실제 계산값은 `30_34` 라서, 런타임/DB 문제를 다 고친 뒤에도 마지막 1건이 계속 실패했다.
+- 해결: 테스트가 현재 날짜 기준 age band를 계산하는 helper를 쓰게 바꿨다. 이제 실패가 생겨도 날짜 drift 때문이 아니라 실제 profile dual-write regression으로 읽는 편이 맞다.
+
 ## 952) 채팅 AI에 사용자 자유 텍스트를 그대로 보내면, 이메일/전화/생년월일 같은 직접 식별자가 외부 LLM으로 나갈 수 있다
 - 문제: `ChatAiGateway` 는 사용자 질문과 최근 대화 메시지를 그대로 OpenAI chat completion에 넣고 있었다. 사용자 프로필은 범주형으로 축약돼 있었지만, 자유 텍스트에는 이메일/전화번호/생년월일 같은 직접 식별자가 섞일 수 있어 개인정보 노출 면에서 불필요한 위험이 있었다.
 - 해결: OpenAI 호출 전 `ChatAiGateway.redactSensitiveText()` 로 이메일, 휴대전화 번호, `YYYY-MM-DD` 형태 생년월일을 `[REDACTED_*]` placeholder로 마스킹하도록 줄였다. 단위 테스트도 추가해 직접 식별자 패턴이 외부로 그대로 가지 않게 고정했다.

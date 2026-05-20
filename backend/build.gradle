@@ -24,6 +24,50 @@ repositories {
     mavenCentral()
 }
 
+def loadEnvFile = { File envFile ->
+    def values = [:]
+    if (envFile.exists()) {
+        envFile.readLines().each { line ->
+            def trimmed = line.trim()
+            if (trimmed && !trimmed.startsWith('#')) {
+                def idx = trimmed.indexOf('=')
+                if (idx > 0) {
+                    def key = trimmed.substring(0, idx).trim()
+                    def value = trimmed.substring(idx + 1).trim()
+                    values[key] = value
+                }
+            }
+        }
+    }
+    values
+}
+
+def envFileValues = loadEnvFile(file("../.env"))
+def runtimeEnv = { String key ->
+    System.getenv(key) ?: envFileValues[key]
+}
+def sanitizedJdbcUrl = { String value, String fallback ->
+    if (!value || value.startsWith('jdbc:mysql://') || value.startsWith('jdbc:postgresql://db:')) {
+        return fallback
+    }
+    value
+}
+def sanitizedUsername = { String value, String fallback ->
+    if (!value || value == 'root') {
+        return fallback
+    }
+    value
+}
+def sanitizedRedisHost = { String value ->
+    if (!value || value == 'redis') {
+        return 'localhost'
+    }
+    value
+}
+def sanitizedRedisPort = { String value ->
+    value ?: '6379'
+}
+
 dependencies {
     // Spring Boot
     implementation 'org.springframework.boot:spring-boot-starter-web'
@@ -69,45 +113,8 @@ dependencies {
 }
 
 bootRun {
-    def envFile = file("../.env")
-    def envFileValues = [:]
-    if (envFile.exists()) {
-        envFile.readLines().each { line ->
-            def trimmed = line.trim()
-            if (trimmed && !trimmed.startsWith('#')) {
-                def idx = trimmed.indexOf('=')
-                if (idx > 0) {
-                    def key = trimmed.substring(0, idx).trim()
-                    def value = trimmed.substring(idx + 1).trim()
-                    envFileValues[key] = value
-                    environment(key, value)
-                }
-            }
-        }
-    }
-    def runtimeEnv = { String key ->
-        System.getenv(key) ?: envFileValues[key]
-    }
-    def sanitizedJdbcUrl = { String value, String fallback ->
-        if (!value || value.startsWith('jdbc:mysql://') || value.startsWith('jdbc:postgresql://db:')) {
-            return fallback
-        }
-        value
-    }
-    def sanitizedUsername = { String value, String fallback ->
-        if (!value || value == 'root') {
-            return fallback
-        }
-        value
-    }
-    def sanitizedRedisHost = { String value ->
-        if (!value || value == 'redis') {
-            return 'localhost'
-        }
-        value
-    }
-    def sanitizedRedisPort = { String value ->
-        value ?: '6379'
+    envFileValues.each { key, value ->
+        environment(key, value)
     }
 
     // Docker 컨테이너 포트 로컬 매핑 (db:5432 -> localhost:5433, redis -> localhost)
@@ -151,48 +158,31 @@ def canConnectToPort = { String host, int port, int timeoutMs ->
     }
 }
 
-tasks.register('integrationRuntimePreflight') {
+tasks.register('integrationRuntimePreflight', JavaExec) {
     description = 'Fails fast when the PostgreSQL/Redis runtime required by integration tests is not available.'
     group = 'verification'
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'com.example.welfare.integration.support.IntegrationRuntimePreflightMain'
 
-    doLast {
-        if (integrationRuntimePreflightDisabled()) {
+    environment 'INTEGRATION_DB_URL', sanitizedJdbcUrl(runtimeEnv('INTEGRATION_DB_URL') ?: runtimeEnv('DB_URL'), 'jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable')
+    environment 'INTEGRATION_DB_USERNAME', sanitizedUsername(runtimeEnv('INTEGRATION_DB_USERNAME') ?: runtimeEnv('TARGET_DB_USERNAME') ?: runtimeEnv('DB_USERNAME'), 'app_core_rw')
+    environment 'INTEGRATION_DB_PASSWORD', runtimeEnv('INTEGRATION_DB_PASSWORD') ?: (runtimeEnv('DB_PASSWORD') ?: '')
+    environment 'INTEGRATION_APP_PII_DB_URL', sanitizedJdbcUrl(runtimeEnv('INTEGRATION_APP_PII_DB_URL') ?: runtimeEnv('APP_PII_DB_URL'), 'jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable&currentSchema=youth_welfare_pii')
+    environment 'INTEGRATION_APP_PII_DB_USERNAME', sanitizedUsername(runtimeEnv('INTEGRATION_APP_PII_DB_USERNAME') ?: runtimeEnv('DB_APP_PII_USERNAME'), 'app_pii_rw')
+    environment 'INTEGRATION_APP_PII_DB_PASSWORD', runtimeEnv('INTEGRATION_APP_PII_DB_PASSWORD') ?: (runtimeEnv('DB_APP_PII_PASSWORD') ?: (runtimeEnv('DB_PASSWORD') ?: ''))
+    environment 'INTEGRATION_NOTIFICATION_PII_DB_URL', sanitizedJdbcUrl(runtimeEnv('INTEGRATION_NOTIFICATION_PII_DB_URL') ?: runtimeEnv('NOTIFICATION_PII_DB_URL'), 'jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable&currentSchema=youth_welfare_pii')
+    environment 'INTEGRATION_NOTIFICATION_PII_DB_USERNAME', sanitizedUsername(runtimeEnv('INTEGRATION_NOTIFICATION_PII_DB_USERNAME') ?: runtimeEnv('DB_NOTIFICATION_PII_RO_USERNAME'), 'notification_pii_ro')
+    environment 'INTEGRATION_NOTIFICATION_PII_DB_PASSWORD', runtimeEnv('INTEGRATION_NOTIFICATION_PII_DB_PASSWORD') ?: (runtimeEnv('DB_NOTIFICATION_PII_RO_PASSWORD') ?: (runtimeEnv('DB_PASSWORD') ?: ''))
+    environment 'INTEGRATION_REDIS_HOST', sanitizedRedisHost(runtimeEnv('INTEGRATION_REDIS_HOST') ?: runtimeEnv('REDIS_HOST'))
+    environment 'INTEGRATION_REDIS_PORT', sanitizedRedisPort(runtimeEnv('INTEGRATION_REDIS_PORT') ?: runtimeEnv('REDIS_PORT'))
+
+    dependsOn tasks.named('testClasses')
+    onlyIf {
+        def disabled = integrationRuntimePreflightDisabled()
+        if (disabled) {
             logger.lifecycle('integration runtime preflight skipped via SKIP_INTEGRATION_RUNTIME_PREFLIGHT or -PskipIntegrationRuntimePreflight=true')
-            return
         }
-
-        def dbHost = '127.0.0.1'
-        def dbPort = 5433
-        def redisHost = '127.0.0.1'
-        def redisPort = 6379
-        def timeoutMs = 1000
-        def missingTargets = []
-
-        if (!canConnectToPort(dbHost, dbPort, timeoutMs)) {
-            missingTargets << "PostgreSQL ${dbHost}:${dbPort}"
-        }
-        if (!canConnectToPort(redisHost, redisPort, timeoutMs)) {
-            missingTargets << "Redis ${redisHost}:${redisPort}"
-        }
-
-        if (!missingTargets.isEmpty()) {
-            throw new GradleException(
-                """Integration runtime preflight failed.
-Missing: ${missingTargets.join(', ')}
-
-integrationTest uses backend/src/test/resources/application-integration.yml and expects:
-- PostgreSQL at ${dbHost}:${dbPort}
-- Redis at ${redisHost}:${redisPort}
-
-Start the local runtime first, for example:
-- repo root: docker compose up -d db redis
-
-If you are running inside WSL and use Docker Desktop, enable WSL integration first.
-If you intentionally want to bypass this check, use:
-- SKIP_INTEGRATION_RUNTIME_PREFLIGHT=true ./gradlew integrationTest
-- ./gradlew integrationTest -PskipIntegrationRuntimePreflight=true
-""".stripIndent())
-        }
+        return !disabled
     }
 }
 
@@ -206,4 +196,14 @@ tasks.register('integrationTest', Test) {
     include '**/integration/**'
     shouldRunAfter test
     dependsOn tasks.named('integrationRuntimePreflight')
+
+    environment 'INTEGRATION_DB_URL', sanitizedJdbcUrl(runtimeEnv('INTEGRATION_DB_URL') ?: runtimeEnv('DB_URL'), 'jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable')
+    environment 'INTEGRATION_DB_USERNAME', sanitizedUsername(runtimeEnv('INTEGRATION_DB_USERNAME') ?: runtimeEnv('TARGET_DB_USERNAME') ?: runtimeEnv('DB_USERNAME'), 'app_core_rw')
+    environment 'INTEGRATION_DB_PASSWORD', runtimeEnv('INTEGRATION_DB_PASSWORD') ?: (runtimeEnv('DB_PASSWORD') ?: 'welfare1234!')
+    environment 'INTEGRATION_APP_PII_DB_URL', sanitizedJdbcUrl(runtimeEnv('INTEGRATION_APP_PII_DB_URL') ?: runtimeEnv('APP_PII_DB_URL'), 'jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable&currentSchema=youth_welfare_pii')
+    environment 'INTEGRATION_APP_PII_DB_USERNAME', sanitizedUsername(runtimeEnv('INTEGRATION_APP_PII_DB_USERNAME') ?: runtimeEnv('DB_APP_PII_USERNAME'), 'app_pii_rw')
+    environment 'INTEGRATION_APP_PII_DB_PASSWORD', runtimeEnv('INTEGRATION_APP_PII_DB_PASSWORD') ?: (runtimeEnv('DB_APP_PII_PASSWORD') ?: (runtimeEnv('DB_PASSWORD') ?: 'welfare1234!'))
+    environment 'INTEGRATION_NOTIFICATION_PII_DB_URL', sanitizedJdbcUrl(runtimeEnv('INTEGRATION_NOTIFICATION_PII_DB_URL') ?: runtimeEnv('NOTIFICATION_PII_DB_URL'), 'jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable&currentSchema=youth_welfare_pii')
+    environment 'INTEGRATION_NOTIFICATION_PII_DB_USERNAME', sanitizedUsername(runtimeEnv('INTEGRATION_NOTIFICATION_PII_DB_USERNAME') ?: runtimeEnv('DB_NOTIFICATION_PII_RO_USERNAME'), 'notification_pii_ro')
+    environment 'INTEGRATION_NOTIFICATION_PII_DB_PASSWORD', runtimeEnv('INTEGRATION_NOTIFICATION_PII_DB_PASSWORD') ?: (runtimeEnv('DB_NOTIFICATION_PII_RO_PASSWORD') ?: (runtimeEnv('DB_PASSWORD') ?: 'welfare1234!'))
 }

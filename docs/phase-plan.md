@@ -1,5 +1,6 @@
 # 구현 현황
 
+- 2026-05-21: integration runtime drift를 실제로 막는 쪽으로 고쳤다. `application-integration.yml` 은 이제 `INTEGRATION_*` env override를 받고, `backend/build.gradle` 의 `integrationRuntimePreflight` 도 포트만 확인하던 generic task에서 primary / pii-rw / notification-pii-ro datasource JDBC 로그인까지 보는 `JavaExec` preflight로 바뀌었다. 같은 라운드에서 `UserCoreDualWriteIntegrationTest` 의 age band 고정 기대값도 현재 날짜 기준 helper로 바꿨고, 전체 `./gradlew integrationTest --no-daemon` 를 다시 돌려 `BUILD SUCCESSFUL` 까지 확인했다.
 - 2026-05-20: 보안/검증 current baseline을 한 번 더 정리했다. `ChatAiGateway` 는 이제 OpenAI 호출 전 사용자 질문/최근 대화에서 이메일, 휴대전화, `YYYY-MM-DD` 생년월일 패턴을 `[REDACTED_*]` 로 마스킹한다. 또 `deploy/smoke/run-local-admin-authorization-smoke.sh` 를 추가해 admin summary에 대한 `비로그인 401/A006`, `일반 사용자 403/C003` 인가 경계를 짧게 재검증할 수 있게 했고, testing/smoke 문서도 이 경로를 기본 검증에 포함시켰다.
 - 2026-05-20: `docs/core/testing.md` 를 현재 closeout 기준선에 맞춰 보강했다. 이제 backend `test` / `integrationTest` 뿐 아니라 frontend `lint` / `build`, 그리고 필요 시 `ops baseline` / `policy quality summary` / `recommendation latest overview` one-shot smoke를 같이 current 전체 검증 경로로 읽는다.
 - 2026-05-20: 전체 검증 재실행에서 backend `test` 는 성공, frontend `lint` / `build` 도 성공, backend `integrationTest` 는 리포트 기준 `76 tests / 0 failures / 2 ignored / 100%` 까지 완료됐지만 Gradle test worker가 종료를 못 하고 남았다. 결과는 보고서와 XML에 남아 있어 성공으로 읽되, local Java/Gradle 종료 경계는 후속 환경 이슈로 분리한다.

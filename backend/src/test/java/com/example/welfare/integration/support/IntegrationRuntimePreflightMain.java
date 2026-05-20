@@ -1,0 +1,74 @@
+package com.example.welfare.integration.support;
+
+import java.net.InetSocketAddress;
+import java.net.Socket;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.util.ArrayList;
+import java.util.List;
+
+public final class IntegrationRuntimePreflightMain {
+
+    private IntegrationRuntimePreflightMain() {
+    }
+
+    public static void main(String[] args) throws Exception {
+        List<String> failures = new ArrayList<>();
+
+        String primaryUrl = env("INTEGRATION_DB_URL", "jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable");
+        String primaryUsername = env("INTEGRATION_DB_USERNAME", "app_core_rw");
+        String primaryPassword = env("INTEGRATION_DB_PASSWORD", "");
+
+        String piiUrl = env("INTEGRATION_APP_PII_DB_URL", "jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable&currentSchema=youth_welfare_pii");
+        String piiUsername = env("INTEGRATION_APP_PII_DB_USERNAME", "app_pii_rw");
+        String piiPassword = env("INTEGRATION_APP_PII_DB_PASSWORD", primaryPassword);
+
+        String notificationUrl = env("INTEGRATION_NOTIFICATION_PII_DB_URL", "jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable&currentSchema=youth_welfare_pii");
+        String notificationUsername = env("INTEGRATION_NOTIFICATION_PII_DB_USERNAME", "notification_pii_ro");
+        String notificationPassword = env("INTEGRATION_NOTIFICATION_PII_DB_PASSWORD", primaryPassword);
+
+        String redisHost = env("INTEGRATION_REDIS_HOST", "127.0.0.1");
+        int redisPort = Integer.parseInt(env("INTEGRATION_REDIS_PORT", "6379"));
+
+        checkJdbc("primary", primaryUrl, primaryUsername, primaryPassword, failures);
+        checkJdbc("pii-rw", piiUrl, piiUsername, piiPassword, failures);
+        checkJdbc("notification-pii-ro", notificationUrl, notificationUsername, notificationPassword, failures);
+        checkRedis(redisHost, redisPort, failures);
+
+        if (!failures.isEmpty()) {
+            throw new IllegalStateException(String.join(System.lineSeparator(), failures));
+        }
+    }
+
+    private static void checkJdbc(String label, String url, String username, String password, List<String> failures) {
+        try (Connection ignored = DriverManager.getConnection(url, username, password)) {
+            // no-op
+        } catch (Exception e) {
+            failures.add(String.format(
+                    "integration runtime preflight failed for %s datasource: url=%s username=%s cause=%s",
+                    label,
+                    url,
+                    username,
+                    e.getMessage()
+            ));
+        }
+    }
+
+    private static void checkRedis(String host, int port, List<String> failures) {
+        try (Socket socket = new Socket()) {
+            socket.connect(new InetSocketAddress(host, port), 1000);
+        } catch (Exception e) {
+            failures.add(String.format(
+                    "integration runtime preflight failed for redis: host=%s port=%d cause=%s",
+                    host,
+                    port,
+                    e.getMessage()
+            ));
+        }
+    }
+
+    private static String env(String key, String defaultValue) {
+        String value = System.getenv(key);
+        return value == null || value.isBlank() ? defaultValue : value;
+    }
+}

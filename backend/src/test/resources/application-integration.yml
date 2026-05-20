@@ -1,8 +1,8 @@
 spring:
   datasource:
-    url: jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable
-    username: app_core_rw
-    password: welfare1234!
+    url: ${INTEGRATION_DB_URL:jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable}
+    username: ${INTEGRATION_DB_USERNAME:app_core_rw}
+    password: ${INTEGRATION_DB_PASSWORD:welfare1234!}
     driver-class-name: org.postgresql.Driver
     hikari:
       maximum-pool-size: 2
@@ -62,17 +62,17 @@ app:
   base-url: http://localhost:8082
   datasource:
     pii-rw:
-      url: jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable&currentSchema=youth_welfare_pii
-      username: app_pii_rw
-      password: welfare1234!
+      url: ${INTEGRATION_APP_PII_DB_URL:jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable&currentSchema=youth_welfare_pii}
+      username: ${INTEGRATION_APP_PII_DB_USERNAME:app_pii_rw}
+      password: ${INTEGRATION_APP_PII_DB_PASSWORD:welfare1234!}
       driver-class-name: org.postgresql.Driver
       hikari:
         maximum-pool-size: 2
         minimum-idle: 0
     notification-pii-ro:
-      url: jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable&currentSchema=youth_welfare_pii
-      username: notification_pii_ro
-      password: welfare1234!
+      url: ${INTEGRATION_NOTIFICATION_PII_DB_URL:jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable&currentSchema=youth_welfare_pii}
+      username: ${INTEGRATION_NOTIFICATION_PII_DB_USERNAME:notification_pii_ro}
+      password: ${INTEGRATION_NOTIFICATION_PII_DB_PASSWORD:welfare1234!}
       driver-class-name: org.postgresql.Driver
       hikari:
         maximum-pool-size: 2

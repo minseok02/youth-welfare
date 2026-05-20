@@ -37,8 +37,12 @@ cd backend
 [application-integration.yml](../backend/src/test/resources/application-integration.yml)에 정의되어 있습니다.
 현재 main 기준 integration runtime 기대값은 `127.0.0.1:5433` PostgreSQL과 `127.0.0.1:6379` Redis 입니다.
 `integrationTest` 는 실행 전에 `integrationRuntimePreflight` 를 먼저 태워 이 runtime 이 없으면 개별 통합 테스트가 연쇄로 쏟아지기 전에 즉시 실패합니다.
+이 preflight 는 이제 포트 접근성만 보지 않고, primary / pii-rw / notification-pii-ro datasource에 실제 JDBC 로그인까지 확인합니다.
 WSL에서 Docker Desktop을 쓰는 경우 `docker` 명령이 안 보이면 먼저 Docker Desktop의 WSL integration을 켜야 합니다.
 실행 전에 shell 기준 진단만 빠르게 보고 싶으면 `deploy/smoke/preflight-integration-runtime.sh` 를 먼저 실행합니다.
+
+또한 integration 설정은 더 이상 `welfare1234!` 같은 고정 비밀번호만 믿지 않고, Gradle이 repo root `.env` 와 현재 shell env를 읽어 `INTEGRATION_*` 값을 주입합니다.
+즉 로컬 PostgreSQL `app_core_rw` 비밀번호가 `.env` 기준으로 바뀌어도, 테스트 쪽이 그 값을 따라가도록 맞춰져 있습니다.
 
 로컬 Docker PostgreSQL 볼륨을 오래 재사용해 `schema-validation` 실패나 누락 컬럼 문제처럼
 현재 `schema.sql` 과 drift 된 상태가 보이면, 볼륨을 지우기 전에 아래 patch 스크립트로 현재 기준선을 먼저 맞춥니다.

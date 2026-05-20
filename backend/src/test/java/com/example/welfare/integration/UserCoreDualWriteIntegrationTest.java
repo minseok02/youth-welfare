@@ -133,7 +133,7 @@ class UserCoreDualWriteIntegrationTest {
         assertThat(userProfile.getSido()).isEqualTo("서울특별시");
         assertThat(userProfile.getSgg()).isEqualTo("강남구");
         assertThat(userProfile.getIncomeLevel()).isEqualTo((byte) 5);
-        assertThat(userProfile.getAgeBand()).isEqualTo("25_29");
+        assertThat(userProfile.getAgeBand()).isEqualTo(expectedAgeBand(LocalDate.parse("1998-01-10")));
         assertThat(userProfile.isHasName()).isTrue();
         assertThat(userProfile.isHasBirthDate()).isTrue();
         assertThat(userProfile.isHasPhone()).isFalse();
@@ -209,7 +209,7 @@ class UserCoreDualWriteIntegrationTest {
         assertThat(userProfile.getNotificationPeriod()).isEqualTo(User.NotificationPeriod.WEEKLY);
         assertThat(userProfile.getNotificationMinScore()).isEqualTo(0.7);
         assertThat(userProfile.getDisplayCount()).isEqualTo(12);
-        assertThat(userProfile.getAgeBand()).isEqualTo("25_29");
+        assertThat(userProfile.getAgeBand()).isEqualTo(expectedAgeBand(LocalDate.parse("1996-05-20")));
         assertThat(userProfile.isHasPhone()).isFalse();
         assertThat(aesEncryptUtil.decrypt(userPii.nameEnc())).isEqualTo("김철수");
         assertThat(aesEncryptUtil.decrypt(userPii.birthDateEnc())).isEqualTo("1996-05-20");
@@ -299,5 +299,16 @@ class UserCoreDualWriteIntegrationTest {
         } catch (Exception e) {
             throw new IllegalStateException(e);
         }
+    }
+
+    private String expectedAgeBand(LocalDate birthDate) {
+        int age = LocalDate.now().getYear() - birthDate.getYear();
+        if (age < 25) {
+            return "19_24";
+        }
+        if (age < 30) {
+            return "25_29";
+        }
+        return "30_34";
     }
 }
