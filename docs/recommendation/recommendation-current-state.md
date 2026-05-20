@@ -195,7 +195,7 @@
 
 daily operator entrypoint로는 `run-local-recommendation-ai-exclusion-latest-overview.sh` 를 쓰는 편이 맞습니다. 이 wrapper는 latest export를 먼저 갱신한 뒤 `latest-status`, 기본 `latest-gate`, strict `latest-gate` 를 순서대로 보여 주므로, 지금 상태와 다음 행동을 한 번에 다시 읽을 수 있습니다.
 
-이 overview wrapper는 이제 `tmp/recommendation-ai-exclusion-latest-overview/<ts>/latest-overview-summary.txt`, `latest-overview-note.md`, `latest-overview.json` 과 `latest` symlink도 같이 남깁니다. 즉 daily 확인 뒤에는 stdout만 보지 않고 compact summary, 사람용 note, machine-readable JSON 중 필요한 artifact를 바로 handoff 기준으로 써도 됩니다.
+이 overview wrapper는 이제 `tmp/recommendation-ai-exclusion-latest-overview/<ts>/latest-overview-summary.txt`, `latest-overview-note.md`, `latest-overview.json` 과 `latest` symlink도 같이 남깁니다. 즉 daily 확인 뒤에는 stdout만 보지 않고 compact summary, 사람용 note, machine-readable JSON 중 필요한 artifact를 바로 handoff 기준으로 써도 됩니다. 같은 artifact에는 `review_gate_context` 도 포함돼, full latest batch primary gate(`MIXED_BATCH_NON_REAL_DOMINANCE_WITH_NO_REAL_USER_PATH`)와 recent-window supplemental reading(`RECENT_WINDOW_CLEARS_HISTORICAL_2622_DOMINANCE`), 그리고 `historical_example_dominance_detected=true` 까지 한 번에 같이 읽을 수 있습니다.
 
 필요하면 같은 overview에서 `REAL_USER` readiness도 같이 확인할 수 있습니다. `INCLUDE_REAL_USER_READINESS=true` 와 `APP_BASE_URL`, `ADMIN_EMAIL`, `ADMIN_PASSWORD` 를 넘기면 overview artifact에 readiness gate와 distribution 실행 여부까지 함께 남깁니다. 기본 `auto` 모드도 로컬 기본 URL `http://127.0.0.1:8082` 와 발견 가능한 admin 자격이 있으면 readiness를 자동 포함하려 시도하고, 자격이 없으면 skip 이유만 남기고 계속 진행합니다.
 

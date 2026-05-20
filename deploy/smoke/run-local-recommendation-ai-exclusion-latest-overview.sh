@@ -187,6 +187,20 @@ breakdown_real_user_cohort_gate = readiness.get("breakdown_real_user_cohort_gate
 recommendation_review_gate = readiness.get("recommendation_review_gate", "")
 recommendation_top1_leader_real_user_users = readiness.get("recommendation_top1_leader_real_user_users", "")
 recommendation_top1_leader_signal_summary = readiness.get("recommendation_top1_leader_signal_summary", "")
+primary_review_gate_blocker_class = status.get("primary_review_gate_blocker_class", "")
+primary_review_gate_operator_next_step = status.get("primary_review_gate_operator_next_step", "")
+primary_mixed_top1_leader_service_id = status.get("primary_mixed_top1_leader_service_id", "")
+primary_mixed_top1_leader_title = status.get("primary_mixed_top1_leader_title", "")
+primary_mixed_top1_leader_share_pct = status.get("primary_mixed_top1_leader_share_pct", "")
+primary_mixed_top1_leader_real_user_users = status.get("primary_mixed_top1_leader_real_user_users", "")
+recent_window_recommendation_review_reading = status.get("recent_window_recommendation_review_reading", "")
+recent_window_hours = status.get("recent_window_hours", "")
+recent_window_top1_leader_service_id = status.get("recent_window_top1_leader_service_id", "")
+recent_window_top1_leader_title = status.get("recent_window_top1_leader_title", "")
+recent_window_top1_leader_share_pct = status.get("recent_window_top1_leader_share_pct", "")
+recent_window_top1_leader_real_user_users = status.get("recent_window_top1_leader_real_user_users", "")
+recent_window_target_top1_users = status.get("recent_window_target_top1_users", "")
+historical_example_dominance_detected = status.get("historical_example_dominance_detected", "")
 
 readiness_next_action = ""
 readiness_skip_reason = readiness.get("real_user_readiness_skip_reason", "")
@@ -270,6 +284,20 @@ lines = [
     f"real_user_top1_leader_real_user_users={recommendation_top1_leader_real_user_users}",
     f"real_user_top1_leader_signal_summary={recommendation_top1_leader_signal_summary}",
     f"real_user_distribution_executed={readiness.get('real_user_distribution_executed', '')}",
+    f"primary_review_gate_blocker_class={primary_review_gate_blocker_class}",
+    f"primary_review_gate_operator_next_step={primary_review_gate_operator_next_step}",
+    f"primary_mixed_top1_leader_service_id={primary_mixed_top1_leader_service_id}",
+    f"primary_mixed_top1_leader_title={primary_mixed_top1_leader_title}",
+    f"primary_mixed_top1_leader_share_pct={primary_mixed_top1_leader_share_pct}",
+    f"primary_mixed_top1_leader_real_user_users={primary_mixed_top1_leader_real_user_users}",
+    f"recent_window_recommendation_review_reading={recent_window_recommendation_review_reading}",
+    f"recent_window_hours={recent_window_hours}",
+    f"recent_window_top1_leader_service_id={recent_window_top1_leader_service_id}",
+    f"recent_window_top1_leader_title={recent_window_top1_leader_title}",
+    f"recent_window_top1_leader_share_pct={recent_window_top1_leader_share_pct}",
+    f"recent_window_top1_leader_real_user_users={recent_window_top1_leader_real_user_users}",
+    f"recent_window_target_top1_users={recent_window_target_top1_users}",
+    f"historical_example_dominance_detected={historical_example_dominance_detected}",
 ]
 
 summary_out.write_text("\n".join(lines) + "\n", encoding="utf-8")
@@ -321,6 +349,23 @@ note_lines = [
     f"- real_user_top1_leader_real_user_users: `{recommendation_top1_leader_real_user_users}`",
     f"- real_user_top1_leader_signal_summary: `{recommendation_top1_leader_signal_summary}`",
     f"- real_user_distribution_executed: `{readiness.get('real_user_distribution_executed', '')}`",
+    "",
+    "## Review Gate Context",
+    "",
+    f"- primary_review_gate_blocker_class: `{primary_review_gate_blocker_class}`",
+    f"- primary_review_gate_operator_next_step: `{primary_review_gate_operator_next_step}`",
+    f"- primary_mixed_top1_leader_service_id: `{primary_mixed_top1_leader_service_id}`",
+    f"- primary_mixed_top1_leader_title: `{primary_mixed_top1_leader_title}`",
+    f"- primary_mixed_top1_leader_share_pct: `{primary_mixed_top1_leader_share_pct}`",
+    f"- primary_mixed_top1_leader_real_user_users: `{primary_mixed_top1_leader_real_user_users}`",
+    f"- recent_window_recommendation_review_reading: `{recent_window_recommendation_review_reading}`",
+    f"- recent_window_hours: `{recent_window_hours}`",
+    f"- recent_window_top1_leader_service_id: `{recent_window_top1_leader_service_id}`",
+    f"- recent_window_top1_leader_title: `{recent_window_top1_leader_title}`",
+    f"- recent_window_top1_leader_share_pct: `{recent_window_top1_leader_share_pct}`",
+    f"- recent_window_top1_leader_real_user_users: `{recent_window_top1_leader_real_user_users}`",
+    f"- recent_window_target_top1_users: `{recent_window_target_top1_users}`",
+    f"- historical_example_dominance_detected: `{historical_example_dominance_detected}`",
 ]
 note_out.write_text("\n".join(note_lines) + "\n", encoding="utf-8")
 
@@ -364,6 +409,22 @@ json_payload = {
         "recommendation_top1_leader_real_user_users": recommendation_top1_leader_real_user_users,
         "recommendation_top1_leader_signal_summary": recommendation_top1_leader_signal_summary,
         "real_user_distribution_executed": readiness.get("real_user_distribution_executed", ""),
+    },
+    "review_gate_context": {
+        "primary_review_gate_blocker_class": primary_review_gate_blocker_class,
+        "primary_review_gate_operator_next_step": primary_review_gate_operator_next_step,
+        "primary_mixed_top1_leader_service_id": primary_mixed_top1_leader_service_id,
+        "primary_mixed_top1_leader_title": primary_mixed_top1_leader_title,
+        "primary_mixed_top1_leader_share_pct": primary_mixed_top1_leader_share_pct,
+        "primary_mixed_top1_leader_real_user_users": primary_mixed_top1_leader_real_user_users,
+        "recent_window_recommendation_review_reading": recent_window_recommendation_review_reading,
+        "recent_window_hours": recent_window_hours,
+        "recent_window_top1_leader_service_id": recent_window_top1_leader_service_id,
+        "recent_window_top1_leader_title": recent_window_top1_leader_title,
+        "recent_window_top1_leader_share_pct": recent_window_top1_leader_share_pct,
+        "recent_window_top1_leader_real_user_users": recent_window_top1_leader_real_user_users,
+        "recent_window_target_top1_users": recent_window_target_top1_users,
+        "historical_example_dominance_detected": historical_example_dominance_detected,
     },
 }
 json_out.write_text(json.dumps(json_payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")

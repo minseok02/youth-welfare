@@ -96,6 +96,10 @@ bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-overview.sh
   - 사람용 handoff note 입니다.
 - `latest-overview.json`
   - 후속 자동화나 machine-readable 확인이 필요할 때 읽는 artifact 입니다.
+- 위 세 artifact는 이제 `review_gate_context` 도 같이 담습니다.
+  - primary full latest batch gate: `primary_review_gate_blocker_class`
+  - supplemental recent-window gate: `recent_window_recommendation_review_reading`
+  - combined hint: `historical_example_dominance_detected`
 - `real_user_readiness_included=true`
   - overview에 readiness 결과도 같이 포함됐다는 뜻입니다.
 - `real_user_readiness_skip_reason=AUTO_SKIP_MISSING_ADMIN_EMAIL`, `AUTO_SKIP_MISSING_ADMIN_PASSWORD`

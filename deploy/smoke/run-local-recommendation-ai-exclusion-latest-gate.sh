@@ -112,6 +112,10 @@ print(f"interpretation_changed={interpretation_changed}")
 print(f"stable_baseline_changed={stable_baseline_changed}")
 print(f"latest_observation_changed={latest_observation_changed}")
 print(f"changed_keys={drift.get('changed_keys', '')}")
+review_gate_context = data.get("review_gate_context", {})
+print(f"primary_review_gate_blocker_class={review_gate_context.get('primary_review_gate_blocker_class', '')}")
+print(f"recent_window_recommendation_review_reading={review_gate_context.get('recent_window_recommendation_review_reading', '')}")
+print(f"historical_example_dominance_detected={str(review_gate_context.get('historical_example_dominance_detected', '')).lower() if review_gate_context else ''}")
 
 sys.exit(exit_code)
 PY

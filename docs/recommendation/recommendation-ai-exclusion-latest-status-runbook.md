@@ -62,6 +62,9 @@ bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-status.sh
 - `latest_stable_baseline_changed`
 - `latest_observation_changed`
 - `latest_changed_keys`
+- `primary_review_gate_blocker_class`
+- `recent_window_recommendation_review_reading`
+- `historical_example_dominance_detected`
 
 ## 읽는 법
 
@@ -83,5 +86,9 @@ bash deploy/smoke/run-local-recommendation-ai-exclusion-latest-status.sh
   - latest compare는 fresh window 관찰값만 흔들린 것입니다.
 - `latest_recommended_reading=READ_LATEST_AS_VOLATILE_OBSERVATION`
   - latest fresh window 값은 고정 baseline이 아니라 관찰값으로 읽는 편이 맞습니다.
+- `primary_review_gate_blocker_class=MIXED_BATCH_NON_REAL_DOMINANCE_WITH_NO_REAL_USER_PATH`
+  - full latest batch review gate는 현재 historical example inertia가 섞인 primary baseline으로 읽습니다.
+- `recent_window_recommendation_review_reading=RECENT_WINDOW_CLEARS_HISTORICAL_2622_DOMINANCE`
+  - recent 24h latest batch current-live signal은 이미 old `2622` dominance를 벗어난 상태라는 뜻입니다.
 - `stable_dashboard_real_user_gate` 와 `stable_breakdown_real_user_cohort_gate` 가 deferred면
   - 아직 `REAL_USER` 운영 분포 비교는 열리지 않은 상태입니다.

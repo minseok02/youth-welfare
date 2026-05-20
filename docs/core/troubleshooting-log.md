@@ -1,5 +1,10 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 905) recent-window gate를 admin API에는 올려도 latest handoff artifact에 안 싣으면, operator는 dashboard와 note/json을 번갈아 보며 current interpretation을 다시 조합해야 한다
+- 문제: `recentWindowRecommendationReviewReading`, `historicalExampleDominanceDetected` 는 이제 admin summary/breakdowns 응답에는 있었지만, `latest-status-note.md`, `latest-status.json`, `latest-overview-summary.txt` 같은 handoff artifact에는 여전히 drift/baseline 값만 남아 있었다.
+- 해결: `latest-status-export`, `latest-status`, `latest-gate`, `latest-overview` 에 `review_gate_context` 를 추가해 `primary_review_gate_blocker_class`, `recent_window_recommendation_review_reading`, `historical_example_dominance_detected` 를 함께 남기게 맞췄다.
+- 이유: 지금 recommendation current truth는 full latest batch primary gate와 recent-window supplemental gate를 같이 읽어야 한다. 이걸 note/json/summary에 안 싣으면 operator는 매번 admin API smoke 결과와 handoff artifact를 수동으로 합쳐야 해서 해석 drift가 다시 생긴다.
+
 ## 904) review gate 해석을 wrapper/runbook에만 두면, operator가 실제 admin API 응답에서는 old full-gate 값만 보고 current live signal을 놓칠 수 있다
 - 문제: `recent-window` review gate는 smoke wrapper와 runbook에서만 보조 해석으로 쓰고 있었고, 실제 `GET /api/admin/dashboard/summary`, `GET /api/admin/dashboard/recommendation-breakdowns` 응답에는 full latest batch gate(`recommendationReviewGate`)만 있었다. 이 상태에선 operator가 API surface만 보면 `DEFERRED_NON_REAL_LEADER_SIGNAL` 만 보고, `RECENT_WINDOW_CLEARS_HISTORICAL_2622_DOMINANCE` current-live signal을 다시 별도 wrapper에서 찾아야 했다.
 - 해결: admin DTO/summary/breakdowns 응답에 `recentWindowLatestBatch`, `recentWindowRecommendationReviewReading`, `historicalExampleDominanceDetected` 를 추가하고, local admin smoke도 그 필드를 계약으로 검증하게 맞췄다.
