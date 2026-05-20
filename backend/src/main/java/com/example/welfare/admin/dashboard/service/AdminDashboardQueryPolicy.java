@@ -18,6 +18,8 @@ final class AdminDashboardQueryPolicy {
     static final int DEFAULT_SUMMARY_WINDOW_DAYS = 7;
     static final List<Integer> DEFAULT_TREND_WINDOWS_DAYS = List.of(1, 7, 30);
     static final int MAX_WINDOW_DAYS = 365;
+    static final int RECENT_REVIEW_WINDOW_HOURS = 24;
+    static final long HISTORICAL_TARGET_TOP1_SERVICE_ID = 2622L;
     static final int MAX_COLLECT_FAILURE_PATTERN_LIMIT = 20;
     static final int MAX_SEARCH_FAILURE_PATTERN_LIMIT = 20;
     static final int MAX_RECOMMENDATION_BREAKDOWN_LIMIT = 20;
@@ -170,5 +172,34 @@ final class AdminDashboardQueryPolicy {
             return "READY_BALANCED_LOGIC_REVIEW";
         }
         return concentrationRow.concentrationReadiness();
+    }
+
+    static String resolveRecentWindowRecommendationReviewReading(
+            AdminDashboardReadRows.RecommendationRecentWindowRow recentWindowRow
+    ) {
+        if (recentWindowRow.recentLatestBatchUsers() <= 0) {
+            return "DEFERRED_EMPTY_RECENT_WINDOW";
+        }
+        if (recentWindowRow.recentRealUserUsers() <= 0) {
+            return "DEFERRED_NO_REAL_USER_RECENT_WINDOW";
+        }
+        if (recentWindowRow.recentTop1LeaderServiceId() != null
+                && recentWindowRow.recentTop1LeaderServiceId() == HISTORICAL_TARGET_TOP1_SERVICE_ID) {
+            return "RECENT_WINDOW_STILL_TARGET_DOMINANT";
+        }
+        if (recentWindowRow.recentTargetTop1Users() == 0
+                && recentWindowRow.recentTargetTop1RealUserUsers() == 0
+                && recentWindowRow.recentTop1LeaderRealUserUsers() > 0) {
+            return "RECENT_WINDOW_CLEARS_HISTORICAL_2622_DOMINANCE";
+        }
+        return "RECENT_WINDOW_INCONCLUSIVE";
+    }
+
+    static boolean resolveHistoricalExampleDominanceDetected(
+            String recommendationReviewGate,
+            String recentWindowRecommendationReviewReading
+    ) {
+        return "DEFERRED_NON_REAL_LEADER_SIGNAL".equals(recommendationReviewGate)
+                && "RECENT_WINDOW_CLEARS_HISTORICAL_2622_DOMINANCE".equals(recentWindowRecommendationReviewReading);
     }
 }

@@ -107,6 +107,8 @@ assert isinstance(traffic_mix["realUserClickedUsersInWindow"], int), "recommenda
 assert isinstance(traffic_mix["realNonExampleClickedUsersInWindow"], int), "recommendation.trafficMixInWindow.realNonExampleClickedUsersInWindow must be int"
 assert isinstance(data["recommendation"]["realUserTrafficGateInWindow"], str) and data["recommendation"]["realUserTrafficGateInWindow"], "recommendation.realUserTrafficGateInWindow must be non-empty string"
 assert isinstance(data["recommendation"]["recommendationReviewGate"], str) and data["recommendation"]["recommendationReviewGate"], "recommendation.recommendationReviewGate must be non-empty string"
+assert isinstance(data["recommendation"]["recentWindowRecommendationReviewReading"], str) and data["recommendation"]["recentWindowRecommendationReviewReading"], "recommendation.recentWindowRecommendationReviewReading must be non-empty string"
+assert isinstance(data["recommendation"]["historicalExampleDominanceDetected"], bool), "recommendation.historicalExampleDominanceDetected must be bool"
 concentration = data["recommendation"]["latestBatchConcentration"]
 assert isinstance(concentration["latestBatchRows"], int), "recommendation.latestBatchConcentration.latestBatchRows must be int"
 assert isinstance(concentration["latestBatchUsers"], int), "recommendation.latestBatchConcentration.latestBatchUsers must be int"
@@ -121,9 +123,19 @@ assert isinstance(leader_user_mix["exampleUsers"], int), "recommendation.latestB
 assert isinstance(leader_user_mix["boundedLocalUsers"], int), "recommendation.latestBatchConcentration.top1LeaderUserMix.boundedLocalUsers must be int"
 assert isinstance(leader_user_mix["localRealNonExampleSeedUsers"], int), "recommendation.latestBatchConcentration.top1LeaderUserMix.localRealNonExampleSeedUsers must be int"
 assert isinstance(leader_user_mix["realUserUsers"], int), "recommendation.latestBatchConcentration.top1LeaderUserMix.realUserUsers must be int"
+recent = data["recommendation"]["recentWindowLatestBatch"]
+assert isinstance(recent["recentWindowHours"], int), "recommendation.recentWindowLatestBatch.recentWindowHours must be int"
+assert isinstance(recent["targetServiceId"], int), "recommendation.recentWindowLatestBatch.targetServiceId must be int"
+assert isinstance(recent["latestBatchUsers"], int), "recommendation.recentWindowLatestBatch.latestBatchUsers must be int"
+assert isinstance(recent["realUserUsers"], int), "recommendation.recentWindowLatestBatch.realUserUsers must be int"
+assert isinstance(recent["targetTop1Users"], int), "recommendation.recentWindowLatestBatch.targetTop1Users must be int"
+assert isinstance(recent["targetTop1RealUserUsers"], int), "recommendation.recentWindowLatestBatch.targetTop1RealUserUsers must be int"
+assert isinstance(recent["top1LeaderRealUserUsers"], int), "recommendation.recentWindowLatestBatch.top1LeaderRealUserUsers must be int"
 if concentration["latestBatchUsers"] > 0:
     assert concentration["top1LeaderServiceId"] is not None, "recommendation.latestBatchConcentration.top1LeaderServiceId missing"
     assert concentration["top1LeaderTitle"], "recommendation.latestBatchConcentration.top1LeaderTitle missing"
+if recent["latestBatchUsers"] > 0 and recent["top1LeaderServiceId"] is not None:
+    assert recent["top1LeaderTitle"], "recommendation.recentWindowLatestBatch.top1LeaderTitle missing"
 if data["recommendation"]["topWeightStage"]:
     assert data["recommendation"]["nextWeightKey"] is None, "top stage should not have nextWeightKey"
     assert data["recommendation"]["nextWeightMinLogCount"] is None, "top stage should not have nextWeightMinLogCount"
@@ -178,6 +190,16 @@ print(data["notification"]["sentInWindow"])
 print(data["search"]["zeroResultSearchesInWindow"])
 print(data["collect"]["windowDays"])
 print(",".join(str(v) for v in collect_windows))
+print(data["recommendation"]["recentWindowRecommendationReviewReading"])
+print(str(data["recommendation"]["historicalExampleDominanceDetected"]).lower())
+print(recent["recentWindowHours"])
+print(recent["targetServiceId"])
+print(recent["latestBatchUsers"])
+print(recent["realUserUsers"])
+print(recent["top1LeaderServiceId"] or "")
+print(recent["top1LeaderRealUserUsers"])
+print(recent["targetTop1Users"])
+print(recent["targetTop1RealUserUsers"])
 PY
 }
 
@@ -272,6 +294,16 @@ echo "notification_sent_in_window=${DASHBOARD_VALUES[28]}"
 echo "search_zero_result_searches_in_window=${DASHBOARD_VALUES[29]}"
 echo "summary_window_days=${DASHBOARD_VALUES[30]}"
 echo "collect_trend_windows=${DASHBOARD_VALUES[31]}"
+echo "recommendation_recent_window_review_reading=${DASHBOARD_VALUES[32]}"
+echo "recommendation_historical_example_dominance_detected=${DASHBOARD_VALUES[33]}"
+echo "recommendation_recent_window_hours=${DASHBOARD_VALUES[34]}"
+echo "recommendation_recent_window_target_service_id=${DASHBOARD_VALUES[35]}"
+echo "recommendation_recent_window_latest_batch_users=${DASHBOARD_VALUES[36]}"
+echo "recommendation_recent_window_real_user_users=${DASHBOARD_VALUES[37]}"
+echo "recommendation_recent_window_top1_leader_service_id=${DASHBOARD_VALUES[38]}"
+echo "recommendation_recent_window_top1_leader_real_user_users=${DASHBOARD_VALUES[39]}"
+echo "recommendation_recent_window_target_top1_users=${DASHBOARD_VALUES[40]}"
+echo "recommendation_recent_window_target_top1_real_user_users=${DASHBOARD_VALUES[41]}"
 echo "requested_summary_window_days=${SUMMARY_WINDOW_DAYS}"
 echo "requested_trend_window_days=${TREND_WINDOW_DAYS_CSV}"
 if [[ -n "${CONTAINER_ADMIN_ALLOWLIST}" ]]; then

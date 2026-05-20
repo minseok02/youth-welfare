@@ -44,10 +44,22 @@ public class AdminDashboardSummaryService {
                 adminDashboardRecommendationReadRepository.fetchRecommendationTrafficMix(summaryWindowAgo);
         AdminDashboardReadRows.RecommendationConcentrationRow recommendationConcentration =
                 adminDashboardRecommendationReadRepository.fetchRecommendationConcentration();
+        AdminDashboardReadRows.RecommendationRecentWindowRow recentWindowReviewSnapshot =
+                adminDashboardRecommendationReadRepository.fetchRecommendationRecentWindowSnapshot(
+                        AdminDashboardQueryPolicy.RECENT_REVIEW_WINDOW_HOURS,
+                        AdminDashboardQueryPolicy.HISTORICAL_TARGET_TOP1_SERVICE_ID
+                );
         String realUserTrafficGate =
                 AdminDashboardQueryPolicy.resolveRealUserTrafficGate(recommendationSummary, recommendationTrafficMix);
         String recommendationReviewGate =
                 AdminDashboardQueryPolicy.resolveRecommendationReviewGate(realUserTrafficGate, recommendationConcentration);
+        String recentWindowRecommendationReviewReading =
+                AdminDashboardQueryPolicy.resolveRecentWindowRecommendationReviewReading(recentWindowReviewSnapshot);
+        boolean historicalExampleDominanceDetected =
+                AdminDashboardQueryPolicy.resolveHistoricalExampleDominanceDetected(
+                        recommendationReviewGate,
+                        recentWindowRecommendationReviewReading
+                );
         ScoreWeightService.ScoreWeightProgress weightProgress =
                 scoreWeightService.getProgress(recommendationSummary.totalLogs());
         ScoreWeight activeWeight = weightProgress.activeWeight();
@@ -155,6 +167,23 @@ public class AdminDashboardSummaryService {
                                 recommendationConcentration.signalQuality()
                         ),
                         recommendationReviewGate,
+                        new AdminDashboardResponse.RecommendationRecentWindowSnapshot(
+                                recentWindowReviewSnapshot.recentWindowHours(),
+                                recentWindowReviewSnapshot.targetServiceId(),
+                                recentWindowReviewSnapshot.recentLatestBatchUsers(),
+                                recentWindowReviewSnapshot.recentExampleUsers(),
+                                recentWindowReviewSnapshot.recentRealUserUsers(),
+                                recentWindowReviewSnapshot.recentLocalRealNonExampleSeedUsers(),
+                                recentWindowReviewSnapshot.recentTop1LeaderServiceId(),
+                                recentWindowReviewSnapshot.recentTop1LeaderTitle(),
+                                recentWindowReviewSnapshot.recentTop1LeaderUsers(),
+                                recentWindowReviewSnapshot.recentTop1LeaderRealUserUsers(),
+                                recentWindowReviewSnapshot.recentTop1LeaderSharePct(),
+                                recentWindowReviewSnapshot.recentTargetTop1Users(),
+                                recentWindowReviewSnapshot.recentTargetTop1RealUserUsers()
+                        ),
+                        recentWindowRecommendationReviewReading,
+                        historicalExampleDominanceDetected,
                         adminDashboardRecommendationReadRepository.fetchRecommendationWeightBuckets(summaryWindowAgo).stream()
                                 .map(row -> new AdminDashboardResponse.RecommendationWeightSnapshot(
                                         row.weightKey(),

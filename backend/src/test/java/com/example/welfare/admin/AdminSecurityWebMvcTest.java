@@ -645,6 +645,23 @@ class AdminSecurityWebMvcTest {
                                         "LOCAL_REAL_NON_EXAMPLE_SEED_WITH_NON_REAL_BATCH"
                                 ),
                                 "DEFERRED_NO_REAL_USER_TRAFFIC",
+                                new AdminDashboardResponse.RecommendationRecentWindowSnapshot(
+                                        24,
+                                        2622L,
+                                        83,
+                                        3,
+                                        80,
+                                        0,
+                                        3284L,
+                                        "인천 청년도약기지(취업아카데미)",
+                                        6,
+                                        5,
+                                        java.math.BigDecimal.valueOf(7.23),
+                                        0,
+                                        0
+                                ),
+                                "RECENT_WINDOW_CLEARS_HISTORICAL_2622_DOMINANCE",
+                                true,
                                 List.of(
                                         new AdminDashboardResponse.RecommendationWeightSnapshot(
                                                 "GROWTH",
@@ -729,6 +746,12 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.data.recommendation.latestBatchConcentration.top1LeaderSignalSummary").value("LOCAL_SEED_WITHOUT_REAL_USER_LEADER"))
                 .andExpect(jsonPath("$.data.recommendation.latestBatchConcentration.concentrationReadiness").value("CONCENTRATED_TOP1"))
                 .andExpect(jsonPath("$.data.recommendation.latestBatchConcentration.realUserCohortGate").value("DEFERRED_NO_REAL_USER_COHORT"))
+                .andExpect(jsonPath("$.data.recommendation.recentWindowLatestBatch.recentWindowHours").value(24))
+                .andExpect(jsonPath("$.data.recommendation.recentWindowLatestBatch.top1LeaderServiceId").value(3284))
+                .andExpect(jsonPath("$.data.recommendation.recentWindowLatestBatch.top1LeaderRealUserUsers").value(5))
+                .andExpect(jsonPath("$.data.recommendation.recentWindowLatestBatch.targetTop1Users").value(0))
+                .andExpect(jsonPath("$.data.recommendation.recentWindowRecommendationReviewReading").value("RECENT_WINDOW_CLEARS_HISTORICAL_2622_DOMINANCE"))
+                .andExpect(jsonPath("$.data.recommendation.historicalExampleDominanceDetected").value(true))
                 .andExpect(jsonPath("$.data.notification.windowDays").value(7))
                 .andExpect(jsonPath("$.data.notification.sentInWindow").value(5))
                 .andExpect(jsonPath("$.data.search.windowDays").value(7))
@@ -815,6 +838,23 @@ class AdminSecurityWebMvcTest {
                                         "EMPTY_COHORT"
                                 ),
                                 "DEFERRED_NO_REAL_USER_TRAFFIC",
+                                new AdminDashboardResponse.RecommendationRecentWindowSnapshot(
+                                        24,
+                                        2622L,
+                                        0,
+                                        0,
+                                        0,
+                                        0,
+                                        null,
+                                        null,
+                                        0,
+                                        0,
+                                        java.math.BigDecimal.ZERO,
+                                        0,
+                                        0
+                                ),
+                                "DEFERRED_EMPTY_RECENT_WINDOW",
+                                false,
                                 List.of()
                         ),
                         new AdminDashboardResponse.NotificationSection(0, 0, 14, 0, 0),
@@ -869,6 +909,8 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.data.recommendation.realUserTrafficGateInWindow").value("DEFERRED_NO_REAL_USER_TRAFFIC"))
                 .andExpect(jsonPath("$.data.recommendation.recommendationReviewGate").value("DEFERRED_NO_REAL_USER_TRAFFIC"))
                 .andExpect(jsonPath("$.data.recommendation.latestBatchConcentration.concentrationReadiness").value("DEFERRED_EMPTY_COHORT"))
+                .andExpect(jsonPath("$.data.recommendation.recentWindowRecommendationReviewReading").value("DEFERRED_EMPTY_RECENT_WINDOW"))
+                .andExpect(jsonPath("$.data.recommendation.historicalExampleDominanceDetected").value(false))
                 .andExpect(jsonPath("$.data.notification.windowDays").value(14))
                 .andExpect(jsonPath("$.data.trend.recommendation[1].fallbackRate").value(0.5000))
                 .andExpect(jsonPath("$.data.search.windowDays").value(14))
@@ -1039,6 +1081,23 @@ class AdminSecurityWebMvcTest {
                                 "LOCAL_REAL_NON_EXAMPLE_SEED_WITH_NON_REAL_BATCH"
                         ),
                         "DEFERRED_NO_REAL_USER_TRAFFIC",
+                        new AdminRecommendationBreakdownResponse.RecommendationRecentWindowSnapshot(
+                                24,
+                                2622L,
+                                83,
+                                3,
+                                80,
+                                0,
+                                3284L,
+                                "인천 청년도약기지(취업아카데미)",
+                                6,
+                                5,
+                                java.math.BigDecimal.valueOf(7.23),
+                                0,
+                                0
+                        ),
+                        "RECENT_WINDOW_CLEARS_HISTORICAL_2622_DOMINANCE",
+                        true,
                         List.of(
                                 new AdminRecommendationBreakdownResponse.RepeatedServiceSnapshot(
                                         2622L,
@@ -1217,6 +1276,12 @@ class AdminSecurityWebMvcTest {
                 .andExpect(jsonPath("$.data.latestBatchConcentration.concentrationReadiness").value("CONCENTRATED_TOP1"))
                 .andExpect(jsonPath("$.data.latestBatchConcentration.realUserCohortGate").value("DEFERRED_NO_REAL_USER_COHORT"))
                 .andExpect(jsonPath("$.data.latestBatchConcentration.signalQuality").value("LOCAL_REAL_NON_EXAMPLE_SEED_WITH_NON_REAL_BATCH"))
+                .andExpect(jsonPath("$.data.recentWindowLatestBatch.recentWindowHours").value(24))
+                .andExpect(jsonPath("$.data.recentWindowLatestBatch.top1LeaderServiceId").value(3284))
+                .andExpect(jsonPath("$.data.recentWindowLatestBatch.top1LeaderRealUserUsers").value(5))
+                .andExpect(jsonPath("$.data.recentWindowLatestBatch.targetTop1Users").value(0))
+                .andExpect(jsonPath("$.data.recentWindowRecommendationReviewReading").value("RECENT_WINDOW_CLEARS_HISTORICAL_2622_DOMINANCE"))
+                .andExpect(jsonPath("$.data.historicalExampleDominanceDetected").value(true))
                 .andExpect(jsonPath("$.data.topRepeatedServices[0].serviceId").value(2622))
                 .andExpect(jsonPath("$.data.topRepeatedServices[0].rowCount").value(449))
                 .andExpect(jsonPath("$.data.topRepeatedServices[0].userMix.exampleUsers").value(447))

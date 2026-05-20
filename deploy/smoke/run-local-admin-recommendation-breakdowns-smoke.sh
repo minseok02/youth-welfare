@@ -111,6 +111,8 @@ for key in (
 
 assert isinstance(data["realUserTrafficGateInWindow"], str) and data["realUserTrafficGateInWindow"], "realUserTrafficGateInWindow must be non-empty string"
 assert isinstance(data["recommendationReviewGate"], str) and data["recommendationReviewGate"], "recommendationReviewGate must be non-empty string"
+assert isinstance(data["recentWindowRecommendationReviewReading"], str) and data["recentWindowRecommendationReviewReading"], "recentWindowRecommendationReviewReading must be non-empty string"
+assert isinstance(data["historicalExampleDominanceDetected"], bool), "historicalExampleDominanceDetected must be bool"
 concentration = data["latestBatchConcentration"]
 assert isinstance(concentration["latestBatchRows"], int), "latestBatchConcentration.latestBatchRows must be int"
 assert isinstance(concentration["latestBatchUsers"], int), "latestBatchConcentration.latestBatchUsers must be int"
@@ -125,9 +127,19 @@ assert isinstance(leader_user_mix["exampleUsers"], int), "latestBatchConcentrati
 assert isinstance(leader_user_mix["boundedLocalUsers"], int), "latestBatchConcentration.top1LeaderUserMix.boundedLocalUsers must be int"
 assert isinstance(leader_user_mix["localRealNonExampleSeedUsers"], int), "latestBatchConcentration.top1LeaderUserMix.localRealNonExampleSeedUsers must be int"
 assert isinstance(leader_user_mix["realUserUsers"], int), "latestBatchConcentration.top1LeaderUserMix.realUserUsers must be int"
+recent = data["recentWindowLatestBatch"]
+assert isinstance(recent["recentWindowHours"], int), "recentWindowLatestBatch.recentWindowHours must be int"
+assert isinstance(recent["targetServiceId"], int), "recentWindowLatestBatch.targetServiceId must be int"
+assert isinstance(recent["latestBatchUsers"], int), "recentWindowLatestBatch.latestBatchUsers must be int"
+assert isinstance(recent["realUserUsers"], int), "recentWindowLatestBatch.realUserUsers must be int"
+assert isinstance(recent["targetTop1Users"], int), "recentWindowLatestBatch.targetTop1Users must be int"
+assert isinstance(recent["targetTop1RealUserUsers"], int), "recentWindowLatestBatch.targetTop1RealUserUsers must be int"
+assert isinstance(recent["top1LeaderRealUserUsers"], int), "recentWindowLatestBatch.top1LeaderRealUserUsers must be int"
 if concentration["latestBatchUsers"] > 0:
     assert concentration["top1LeaderServiceId"] is not None, "latestBatchConcentration.top1LeaderServiceId missing"
     assert concentration["top1LeaderTitle"], "latestBatchConcentration.top1LeaderTitle missing"
+if recent["latestBatchUsers"] > 0 and recent["top1LeaderServiceId"] is not None:
+    assert recent["top1LeaderTitle"], "recentWindowLatestBatch.top1LeaderTitle missing"
 
 for collection_key in (
     "topRepeatedServices",
@@ -234,6 +246,16 @@ print(len(data["top1Services"]))
 print(len(data["sourceBreakdowns"]))
 print(len(data["categoryBreakdowns"]))
 print(len(data["weightBreakdowns"]))
+print(data["recentWindowRecommendationReviewReading"])
+print(str(data["historicalExampleDominanceDetected"]).lower())
+print(recent["recentWindowHours"])
+print(recent["targetServiceId"])
+print(recent["latestBatchUsers"])
+print(recent["realUserUsers"])
+print(recent["top1LeaderServiceId"] or "")
+print(recent["top1LeaderRealUserUsers"])
+print(recent["targetTop1Users"])
+print(recent["targetTop1RealUserUsers"])
 PY
 }
 
@@ -327,6 +349,16 @@ echo "top1_services_count=${BREAKDOWN_VALUES[35]}"
 echo "source_breakdown_count=${BREAKDOWN_VALUES[36]}"
 echo "category_breakdown_count=${BREAKDOWN_VALUES[37]}"
 echo "weight_breakdown_count=${BREAKDOWN_VALUES[38]}"
+echo "recent_window_recommendation_review_reading=${BREAKDOWN_VALUES[39]}"
+echo "historical_example_dominance_detected=${BREAKDOWN_VALUES[40]}"
+echo "recent_window_hours=${BREAKDOWN_VALUES[41]}"
+echo "recent_window_target_service_id=${BREAKDOWN_VALUES[42]}"
+echo "recent_window_latest_batch_users=${BREAKDOWN_VALUES[43]}"
+echo "recent_window_real_user_users=${BREAKDOWN_VALUES[44]}"
+echo "recent_window_top1_leader_service_id=${BREAKDOWN_VALUES[45]}"
+echo "recent_window_top1_leader_real_user_users=${BREAKDOWN_VALUES[46]}"
+echo "recent_window_target_top1_users=${BREAKDOWN_VALUES[47]}"
+echo "recent_window_target_top1_real_user_users=${BREAKDOWN_VALUES[48]}"
 echo "summary_window_days=${SUMMARY_WINDOW_DAYS}"
 echo "breakdown_limit=${BREAKDOWN_LIMIT}"
 if [[ -n "${CONTAINER_ADMIN_ALLOWLIST}" ]]; then

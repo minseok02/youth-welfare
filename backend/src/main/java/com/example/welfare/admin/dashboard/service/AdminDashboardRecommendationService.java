@@ -58,10 +58,22 @@ public class AdminDashboardRecommendationService {
                 adminDashboardRecommendationReadRepository.fetchRecommendationTrafficMix(summaryWindowAgo);
         AdminDashboardReadRows.RecommendationConcentrationRow recommendationConcentration =
                 adminDashboardRecommendationReadRepository.fetchRecommendationConcentration();
+        AdminDashboardReadRows.RecommendationRecentWindowRow recentWindowReviewSnapshot =
+                adminDashboardRecommendationReadRepository.fetchRecommendationRecentWindowSnapshot(
+                        AdminDashboardQueryPolicy.RECENT_REVIEW_WINDOW_HOURS,
+                        AdminDashboardQueryPolicy.HISTORICAL_TARGET_TOP1_SERVICE_ID
+                );
         String realUserTrafficGate =
                 AdminDashboardQueryPolicy.resolveRealUserTrafficGate(recommendationSummary, recommendationTrafficMix);
         String recommendationReviewGate =
                 AdminDashboardQueryPolicy.resolveRecommendationReviewGate(realUserTrafficGate, recommendationConcentration);
+        String recentWindowRecommendationReviewReading =
+                AdminDashboardQueryPolicy.resolveRecentWindowRecommendationReviewReading(recentWindowReviewSnapshot);
+        boolean historicalExampleDominanceDetected =
+                AdminDashboardQueryPolicy.resolveHistoricalExampleDominanceDetected(
+                        recommendationReviewGate,
+                        recentWindowRecommendationReviewReading
+                );
         List<AdminRecommendationBreakdownResponse.FacetGroup> youthOfficialFacetGroups = buildFacetGroups(
                 adminDashboardRecommendationReadRepository.fetchLatestBatchYouthOfficialFacetRows(breakdownLimit),
                 YOUTH_OFFICIAL_FACET_ORDER,
@@ -120,6 +132,23 @@ public class AdminDashboardRecommendationService {
                         recommendationConcentration.signalQuality()
                 ),
                 recommendationReviewGate,
+                new AdminRecommendationBreakdownResponse.RecommendationRecentWindowSnapshot(
+                        recentWindowReviewSnapshot.recentWindowHours(),
+                        recentWindowReviewSnapshot.targetServiceId(),
+                        recentWindowReviewSnapshot.recentLatestBatchUsers(),
+                        recentWindowReviewSnapshot.recentExampleUsers(),
+                        recentWindowReviewSnapshot.recentRealUserUsers(),
+                        recentWindowReviewSnapshot.recentLocalRealNonExampleSeedUsers(),
+                        recentWindowReviewSnapshot.recentTop1LeaderServiceId(),
+                        recentWindowReviewSnapshot.recentTop1LeaderTitle(),
+                        recentWindowReviewSnapshot.recentTop1LeaderUsers(),
+                        recentWindowReviewSnapshot.recentTop1LeaderRealUserUsers(),
+                        recentWindowReviewSnapshot.recentTop1LeaderSharePct(),
+                        recentWindowReviewSnapshot.recentTargetTop1Users(),
+                        recentWindowReviewSnapshot.recentTargetTop1RealUserUsers()
+                ),
+                recentWindowRecommendationReviewReading,
+                historicalExampleDominanceDetected,
                 adminDashboardRecommendationReadRepository.fetchTopRepeatedRecommendationServices(breakdownLimit).stream()
                         .map(row -> new AdminRecommendationBreakdownResponse.RepeatedServiceSnapshot(
                                 row.serviceId(),

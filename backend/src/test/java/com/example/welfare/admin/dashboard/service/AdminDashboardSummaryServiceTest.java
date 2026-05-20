@@ -138,6 +138,22 @@ class AdminDashboardSummaryServiceTest {
                         "DEFERRED_NO_REAL_USER_COHORT",
                         "LOCAL_REAL_NON_EXAMPLE_SEED_WITH_NON_REAL_BATCH"
                 ));
+        given(adminDashboardRecommendationReadRepository.fetchRecommendationRecentWindowSnapshot(24, 2622L))
+                .willReturn(new AdminDashboardReadRows.RecommendationRecentWindowRow(
+                        24,
+                        2622L,
+                        83,
+                        3,
+                        80,
+                        0,
+                        3284L,
+                        "인천 청년도약기지(취업아카데미)",
+                        6,
+                        5,
+                        new BigDecimal("7.23"),
+                        0,
+                        0
+                ));
         ScoreWeight activeWeight = ScoreWeight.builder()
                 .weightKey("GROWTH")
                 .ruleWeight(new BigDecimal("0.60"))
@@ -242,6 +258,13 @@ class AdminDashboardSummaryServiceTest {
                 .isEqualTo("LOCAL_SEED_WITHOUT_REAL_USER_LEADER");
         assertThat(response.recommendation().latestBatchConcentration().concentrationReadiness()).isEqualTo("CONCENTRATED_TOP1");
         assertThat(response.recommendation().latestBatchConcentration().realUserCohortGate()).isEqualTo("DEFERRED_NO_REAL_USER_COHORT");
+        assertThat(response.recommendation().recentWindowLatestBatch().recentWindowHours()).isEqualTo(24);
+        assertThat(response.recommendation().recentWindowLatestBatch().top1LeaderServiceId()).isEqualTo(3284L);
+        assertThat(response.recommendation().recentWindowLatestBatch().top1LeaderRealUserUsers()).isEqualTo(5);
+        assertThat(response.recommendation().recentWindowLatestBatch().targetTop1Users()).isZero();
+        assertThat(response.recommendation().recentWindowRecommendationReviewReading())
+                .isEqualTo("RECENT_WINDOW_CLEARS_HISTORICAL_2622_DOMINANCE");
+        assertThat(response.recommendation().historicalExampleDominanceDetected()).isFalse();
         assertThat(response.recommendation().trafficMixInWindow().exampleClickedUsersInWindow()).isEqualTo(9);
         assertThat(response.recommendation().weightBucketsInWindow()).extracting(AdminDashboardResponse.RecommendationWeightSnapshot::weightKey)
                 .containsExactly("GROWTH", "COLD_START");
@@ -298,6 +321,22 @@ class AdminDashboardSummaryServiceTest {
                         "DEFERRED_EMPTY_COHORT",
                         "DEFERRED_EMPTY_COHORT",
                         "EMPTY_COHORT"
+                ));
+        given(adminDashboardRecommendationReadRepository.fetchRecommendationRecentWindowSnapshot(24, 2622L))
+                .willReturn(new AdminDashboardReadRows.RecommendationRecentWindowRow(
+                        24,
+                        2622L,
+                        0,
+                        0,
+                        0,
+                        0,
+                        null,
+                        null,
+                        0,
+                        0,
+                        BigDecimal.ZERO,
+                        0,
+                        0
                 ));
         ScoreWeight activeWeight = ScoreWeight.builder()
                 .weightKey("GROWTH")
@@ -358,6 +397,8 @@ class AdminDashboardSummaryServiceTest {
         assertThat(response.recommendation().realUserTrafficGateInWindow()).isEqualTo("DEFERRED_EMPTY_COHORT");
         assertThat(response.recommendation().recommendationReviewGate()).isEqualTo("DEFERRED_EMPTY_COHORT");
         assertThat(response.recommendation().latestBatchConcentration().concentrationReadiness()).isEqualTo("DEFERRED_EMPTY_COHORT");
+        assertThat(response.recommendation().recentWindowRecommendationReviewReading()).isEqualTo("DEFERRED_EMPTY_RECENT_WINDOW");
+        assertThat(response.recommendation().historicalExampleDominanceDetected()).isFalse();
         assertThat(response.notification().windowDays()).isEqualTo(14);
         assertThat(response.trend().recommendation()).extracting(AdminDashboardResponse.RecommendationTrendPoint::windowDays)
                 .containsExactly(3, 14);

@@ -1,5 +1,10 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 904) review gate 해석을 wrapper/runbook에만 두면, operator가 실제 admin API 응답에서는 old full-gate 값만 보고 current live signal을 놓칠 수 있다
+- 문제: `recent-window` review gate는 smoke wrapper와 runbook에서만 보조 해석으로 쓰고 있었고, 실제 `GET /api/admin/dashboard/summary`, `GET /api/admin/dashboard/recommendation-breakdowns` 응답에는 full latest batch gate(`recommendationReviewGate`)만 있었다. 이 상태에선 operator가 API surface만 보면 `DEFERRED_NON_REAL_LEADER_SIGNAL` 만 보고, `RECENT_WINDOW_CLEARS_HISTORICAL_2622_DOMINANCE` current-live signal을 다시 별도 wrapper에서 찾아야 했다.
+- 해결: admin DTO/summary/breakdowns 응답에 `recentWindowLatestBatch`, `recentWindowRecommendationReviewReading`, `historicalExampleDominanceDetected` 를 추가하고, local admin smoke도 그 필드를 계약으로 검증하게 맞췄다.
+- 이유: 지금 recommendation 해석의 핵심은 full latest batch historical baseline과 recent-window current-live signal을 분리해 읽는 것이다. 이 경계가 API surface에 없으면 wrapper 문구를 아무리 정리해도 실제 운영 화면/응답 소비 쪽에서는 다시 old full-gate 단일 값으로 회귀한다.
+
 ## 903) current-state와 runbook를 다 고쳐도 README/인덱스 진입점에 gate 역할 구분이 빠지면, 새로 들어온 사람은 여전히 “지금 blocker가 하나뿐”이라고 오해하기 쉽다
 - 문제: `docs/README.md`, `docs/recommendation/README.md`, `recommendation-docs-index.md` 는 entrypoint로는 맞았지만, full latest batch review gate가 primary historical baseline이고 recent-window gate가 supplemental current-live signal이라는 역할 구분은 직접 적혀 있지 않았다.
 - 해결: recommendation entrypoint 문구에 gate 역할을 한 줄로 추가해, 인덱스만 읽어도 current blocker 해석 구조를 바로 잡을 수 있게 했다.

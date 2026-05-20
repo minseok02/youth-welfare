@@ -162,6 +162,23 @@ public final class AdminDashboardReadRows {
     ) {
     }
 
+    public record RecommendationRecentWindowRow(
+            int recentWindowHours,
+            long targetServiceId,
+            long recentLatestBatchUsers,
+            long recentExampleUsers,
+            long recentRealUserUsers,
+            long recentLocalRealNonExampleSeedUsers,
+            Long recentTop1LeaderServiceId,
+            String recentTop1LeaderTitle,
+            long recentTop1LeaderUsers,
+            long recentTop1LeaderRealUserUsers,
+            BigDecimal recentTop1LeaderSharePct,
+            long recentTargetTop1Users,
+            long recentTargetTop1RealUserUsers
+    ) {
+    }
+
     public record RecommendationRepeatedServiceRow(
             Long serviceId,
             String title,

@@ -348,6 +348,105 @@ public class AdminDashboardRecommendationReadRepository {
         );
     }
 
+    public AdminDashboardReadRows.RecommendationRecentWindowRow fetchRecommendationRecentWindowSnapshot(
+            int recentWindowHours,
+            long targetServiceId
+    ) {
+        return jdbcTemplate.queryForObject("""
+                with latest as (
+                    select user_key, max(recommended_at) as recommended_at
+                      from user_recommendations
+                     group by user_key
+                ),
+                recent_latest as (
+                    select l.user_key, l.recommended_at
+                      from latest l
+                     where l.recommended_at >= now() - make_interval(hours => :recentWindowHours)
+                ),
+                ranked as (
+                    select ur.user_key,
+                           %1$s as user_origin,
+                           case
+                               when %1$s = 'EXAMPLE_SMOKE' then 'EXAMPLE_SMOKE'
+                               when %1$s = 'BOUNDED_LOCAL' then 'BOUNDED_LOCAL'
+                               when %1$s = 'LOCAL_REAL_NON_EXAMPLE_SEED' then 'LOCAL_REAL_NON_EXAMPLE_SEED'
+                               else 'REAL_USER'
+                           end as user_cohort,
+                           ws.id as service_id,
+                           ws.title,
+                           ur.final_score,
+                           row_number() over (
+                               partition by ur.user_key
+                               order by ur.final_score desc, ur.id desc
+                           ) as rn
+                      from user_recommendations ur
+                      join recent_latest rl
+                        on rl.user_key = ur.user_key
+                       and rl.recommended_at = ur.recommended_at
+                      join users u
+                        on u.user_key = ur.user_key
+                      join welfare_services ws
+                        on ws.id = ur.service_id
+                ),
+                top1 as (
+                    select *
+                      from ranked
+                     where rn = 1
+                ),
+                leader as (
+                    select service_id,
+                           title,
+                           count(*) as users_as_top1,
+                           count(*) filter (where user_cohort = 'REAL_USER') as real_user_users_as_top1
+                      from top1
+                     group by service_id, title
+                     order by users_as_top1 desc, service_id
+                     limit 1
+                ),
+                base as (
+                    select count(*) as recent_latest_batch_users,
+                           count(*) filter (where user_cohort = 'EXAMPLE_SMOKE') as recent_example_users,
+                           count(*) filter (where user_cohort = 'REAL_USER') as recent_real_user_users,
+                           count(*) filter (where user_cohort = 'LOCAL_REAL_NON_EXAMPLE_SEED') as recent_local_real_non_example_seed_users
+                      from top1
+                )
+                select :recentWindowHours as recent_window_hours,
+                       :targetServiceId as target_service_id,
+                       base.recent_latest_batch_users,
+                       base.recent_example_users,
+                       base.recent_real_user_users,
+                       base.recent_local_real_non_example_seed_users,
+                       leader.service_id as recent_top1_leader_service_id,
+                       leader.title as recent_top1_leader_title,
+                       coalesce(leader.users_as_top1, 0) as recent_top1_leader_users,
+                       coalesce(leader.real_user_users_as_top1, 0) as recent_top1_leader_real_user_users,
+                       round(coalesce(leader.users_as_top1, 0) * 100.0 / nullif(base.recent_latest_batch_users, 0), 2) as recent_top1_leader_share_pct,
+                       coalesce((select count(*) from top1 where service_id = :targetServiceId), 0) as recent_target_top1_users,
+                       coalesce((select count(*) from top1 where service_id = :targetServiceId and user_cohort = 'REAL_USER'), 0) as recent_target_top1_real_user_users
+                  from base
+                  left join leader on true
+                """.formatted(RECOMMENDATION_USER_ORIGIN_SQL),
+                new MapSqlParameterSource()
+                        .addValue("recentWindowHours", recentWindowHours)
+                        .addValue("targetServiceId", targetServiceId),
+                (rs, rowNum) -> new AdminDashboardReadRows.RecommendationRecentWindowRow(
+                        rs.getInt("recent_window_hours"),
+                        rs.getLong("target_service_id"),
+                        rs.getLong("recent_latest_batch_users"),
+                        rs.getLong("recent_example_users"),
+                        rs.getLong("recent_real_user_users"),
+                        rs.getLong("recent_local_real_non_example_seed_users"),
+                        AdminDashboardJdbcSupport.getLong(rs, "recent_top1_leader_service_id"),
+                        rs.getString("recent_top1_leader_title"),
+                        rs.getLong("recent_top1_leader_users"),
+                        rs.getLong("recent_top1_leader_real_user_users"),
+                        rs.getBigDecimal("recent_top1_leader_share_pct"),
+                        rs.getLong("recent_target_top1_users"),
+                        rs.getLong("recent_target_top1_real_user_users")
+                )
+        );
+    }
+
     public List<AdminDashboardReadRows.RecommendationRepeatedServiceRow> fetchTopRepeatedRecommendationServices(int limit) {
         return jdbcTemplate.query("""
                 with latest as (

@@ -14,6 +14,9 @@ public record AdminRecommendationBreakdownResponse(
         String realUserTrafficGateInWindow,
         RecommendationConcentrationSnapshot latestBatchConcentration,
         String recommendationReviewGate,
+        RecommendationRecentWindowSnapshot recentWindowLatestBatch,
+        String recentWindowRecommendationReviewReading,
+        boolean historicalExampleDominanceDetected,
         List<RepeatedServiceSnapshot> topRepeatedServices,
         List<Top1ServiceSnapshot> top1Services,
         List<SourceBreakdown> sourceBreakdowns,
@@ -60,6 +63,23 @@ public record AdminRecommendationBreakdownResponse(
             String concentrationReadiness,
             String realUserCohortGate,
             String signalQuality
+    ) {
+    }
+
+    public record RecommendationRecentWindowSnapshot(
+            int recentWindowHours,
+            long targetServiceId,
+            long latestBatchUsers,
+            long exampleUsers,
+            long realUserUsers,
+            long localRealNonExampleSeedUsers,
+            Long top1LeaderServiceId,
+            String top1LeaderTitle,
+            long top1LeaderUsers,
+            long top1LeaderRealUserUsers,
+            BigDecimal top1LeaderSharePct,
+            long targetTop1Users,
+            long targetTop1RealUserUsers
     ) {
     }
 

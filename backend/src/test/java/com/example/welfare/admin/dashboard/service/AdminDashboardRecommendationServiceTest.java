@@ -78,6 +78,22 @@ class AdminDashboardRecommendationServiceTest {
                         "DEFERRED_NO_REAL_USER_COHORT",
                         "LOCAL_REAL_NON_EXAMPLE_SEED_WITH_NON_REAL_BATCH"
                 ));
+        given(adminDashboardRecommendationReadRepository.fetchRecommendationRecentWindowSnapshot(24, 2622L))
+                .willReturn(new AdminDashboardReadRows.RecommendationRecentWindowRow(
+                        24,
+                        2622L,
+                        83,
+                        3,
+                        80,
+                        0,
+                        3284L,
+                        "인천 청년도약기지(취업아카데미)",
+                        6,
+                        5,
+                        new BigDecimal("7.23"),
+                        0,
+                        0
+                ));
         given(adminDashboardRecommendationReadRepository.fetchTopRepeatedRecommendationServices(3))
                 .willReturn(List.of(
                         new AdminDashboardReadRows.RecommendationRepeatedServiceRow(
@@ -252,6 +268,13 @@ class AdminDashboardRecommendationServiceTest {
         assertThat(response.latestBatchConcentration().concentrationReadiness()).isEqualTo("CONCENTRATED_TOP1");
         assertThat(response.latestBatchConcentration().realUserCohortGate()).isEqualTo("DEFERRED_NO_REAL_USER_COHORT");
         assertThat(response.latestBatchConcentration().signalQuality()).isEqualTo("LOCAL_REAL_NON_EXAMPLE_SEED_WITH_NON_REAL_BATCH");
+        assertThat(response.recentWindowLatestBatch().recentWindowHours()).isEqualTo(24);
+        assertThat(response.recentWindowLatestBatch().top1LeaderServiceId()).isEqualTo(3284L);
+        assertThat(response.recentWindowLatestBatch().top1LeaderRealUserUsers()).isEqualTo(5);
+        assertThat(response.recentWindowLatestBatch().targetTop1Users()).isZero();
+        assertThat(response.recentWindowRecommendationReviewReading())
+                .isEqualTo("RECENT_WINDOW_CLEARS_HISTORICAL_2622_DOMINANCE");
+        assertThat(response.historicalExampleDominanceDetected()).isFalse();
         assertThat(response.topRepeatedServices()).singleElement().satisfies(service -> {
             assertThat(service.serviceId()).isEqualTo(2622L);
             assertThat(service.rowCount()).isEqualTo(449);
