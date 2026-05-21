@@ -18,6 +18,7 @@ import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.user.entity.User;
 import com.example.welfare.user.service.ActiveUserReadService;
+import com.example.welfare.user.repository.UserProfileRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -54,6 +55,7 @@ public class ChatConversationService {
     private final ChatMessageCommandService chatMessageCommandService;
     private final ChatRetrievalSnapshotService chatRetrievalSnapshotService;
     private final ActiveUserReadService activeUserReadService;
+    private final UserProfileRepository userProfileRepository;
     private final ObjectMapper objectMapper;
 
     @Transactional(readOnly = true)
@@ -111,6 +113,7 @@ public class ChatConversationService {
         if (!candidates.isEmpty()) {
             aiResult = chatAiGateway.generateAnswer(
                     user,
+                    resolveAgeBand(activeUserContext.userKey()),
                     content,
                     getRecentMessages(session.getId()),
                     candidates,
@@ -436,5 +439,11 @@ public class ChatConversationService {
             return value;
         }
         return value.substring(0, maxLength);
+    }
+
+    private String resolveAgeBand(String userKey) {
+        return userProfileRepository.findByUserKey(userKey)
+                .map(com.example.welfare.user.entity.UserProfile::getAgeBand)
+                .orElse(null);
     }
 }

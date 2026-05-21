@@ -82,7 +82,9 @@ class UserCoreProjectionCommandRepositoryImplTest {
                 "user-key-1",
                 28,
                 "25_29",
-                LocalDateTime.of(2026, 5, 4, 1, 0)
+                LocalDateTime.of(2026, 5, 4, 1, 0),
+                true,
+                true
         );
 
         ArgumentCaptor<UserProfile> captor = ArgumentCaptor.forClass(UserProfile.class);

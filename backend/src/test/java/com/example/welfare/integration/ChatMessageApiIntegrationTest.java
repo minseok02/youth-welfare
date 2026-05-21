@@ -245,7 +245,7 @@ class ChatMessageApiIntegrationTest {
                 .apiViewCount(0L)
                 .viewCount(50)
                 .build());
-        when(chatAiGateway.generateAnswer(any(), any(), any(), any()))
+        when(chatAiGateway.generateAnswer(any(), any(), any(), any(), any(), any()))
                 .thenReturn(ChatAiResult.builder()
                         .answer(uniqueKeyword + " 월세 지원 정책을 먼저 확인해보세요.")
                         .needsClarification(false)
@@ -325,7 +325,7 @@ class ChatMessageApiIntegrationTest {
                 .apiViewCount(0L)
                 .viewCount(50)
                 .build());
-        when(chatAiGateway.generateAnswer(any(), any(), any(), any()))
+        when(chatAiGateway.generateAnswer(any(), any(), any(), any(), any(), any()))
                 .thenReturn(ChatAiResult.builder()
                         .answer(uniqueKeyword + " 월세 지원 정책을 먼저 확인해보세요.")
                         .needsClarification(false)

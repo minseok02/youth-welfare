@@ -12,5 +12,7 @@ public interface UserCoreProjectionCommandRepository {
                                      String userKey,
                                      Integer age,
                                      String ageBand,
-                                     LocalDateTime ageCalculatedAt);
+                                     LocalDateTime ageCalculatedAt,
+                                     boolean hasName,
+                                     boolean hasBirthDate);
 }

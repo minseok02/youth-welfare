@@ -51,6 +51,7 @@ public class ChatAiGateway {
 
     public ChatAiResult generateAnswer(
             User user,
+            String ageBand,
             String question,
             List<ChatMessage> recentMessages,
             List<ChatPolicyCandidate> candidates,
@@ -60,7 +61,7 @@ public class ChatAiGateway {
         }
 
         try {
-            String responseBody = callOpenAi(buildUserPrompt(user, question, recentMessages, candidates, evidenceByServiceId));
+            String responseBody = callOpenAi(buildUserPrompt(user, ageBand, question, recentMessages, candidates, evidenceByServiceId));
             return parseResponse(responseBody, candidates, evidenceByServiceId);
         } catch (Exception e) {
             log.warn("[ChatAiGateway] OpenAI 호출 실패, fallback 사용: {}", e.getMessage());
@@ -70,10 +71,11 @@ public class ChatAiGateway {
 
     public ChatAiResult generateAnswer(
             User user,
+            String ageBand,
             String question,
             List<ChatMessage> recentMessages,
             List<ChatPolicyCandidate> candidates) {
-        return generateAnswer(user, question, recentMessages, candidates, Map.of());
+        return generateAnswer(user, ageBand, question, recentMessages, candidates, Map.of());
     }
 
     ChatAiResult parseResponse(String responseBody, List<ChatPolicyCandidate> candidates) {
@@ -150,11 +152,12 @@ public class ChatAiGateway {
 
     private String buildUserPrompt(
             User user,
+            String ageBand,
             String question,
             List<ChatMessage> recentMessages,
             List<ChatPolicyCandidate> candidates,
             Map<Long, String> evidenceByServiceId) {
-        String ageGroup = resolveAgeGroup(user);
+        String ageGroup = resolveAgeGroup(ageBand, user);
         String region = buildRegion(user);
         String incomeRange = user.getIncomeLevel() != null ? user.getIncomeLevel() + "분위" : "미입력";
         String employment = StringUtils.hasText(user.getEmploymentStatus()) ? user.getEmploymentStatus().trim() : "미입력";
@@ -271,7 +274,18 @@ public class ChatAiGateway {
                 .build();
     }
 
-    private String resolveAgeGroup(User user) {
+    private String resolveAgeGroup(String ageBand, User user) {
+        if (StringUtils.hasText(ageBand)) {
+            return switch (ageBand.trim()) {
+                case "UNDER_19" -> "10대 이하";
+                case "19_24" -> "20대 초반";
+                case "25_29" -> "20대 후반";
+                case "30_34" -> "30대 초반";
+                case "35_39" -> "30대 후반";
+                case "40_PLUS" -> "40대 이상";
+                default -> "미입력";
+            };
+        }
         if (user.getBirthDate() == null) {
             return "미입력";
         }

@@ -21,8 +21,6 @@ public class UserRegistrationService {
                 .email(request.getEmail())
                 .accountOrigin(userAccountOriginResolver.resolve(request.getEmail()))
                 .passwordHash(encodedPassword)
-                .name(request.getName())
-                .birthDate(request.getBirthDate())
                 .sido(request.getSido())
                 .sgg(request.getSgg())
                 .incomeLevel(request.getIncomeLevel())
@@ -31,6 +29,13 @@ public class UserRegistrationService {
                 .build();
 
         userRegistrationCommandRepository.save(user);
-        userCoreSyncService.syncFromUser(user);
+        userCoreSyncService.syncFromUser(
+                user,
+                new UserPlainPii(
+                        request.getEmail(),
+                        request.getName(),
+                        request.getBirthDate()
+                )
+        );
     }
 }

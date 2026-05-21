@@ -35,6 +35,7 @@ class UserProfileCommandServiceTest {
     @Mock private PriorityOptionReadService priorityOptionReadService;
     @Mock private PriorityWeightPolicy priorityWeightPolicy;
     @Mock private UserCoreSyncService userCoreSyncService;
+    @Mock private UserPlainPiiReadService userPlainPiiReadService;
     @Mock private RecommendationRefreshCacheService recommendationRefreshCacheService;
 
     @Test
@@ -46,6 +47,7 @@ class UserProfileCommandServiceTest {
                 priorityOptionReadService,
                 priorityWeightPolicy,
                 userCoreSyncService,
+                userPlainPiiReadService,
                 recommendationRefreshCacheService
         );
         User user = User.builder()
@@ -57,6 +59,8 @@ class UserProfileCommandServiceTest {
                 .build();
         when(activeUserReadService.getActiveUserContext(1L))
                 .thenReturn(new ActiveUserReadService.ActiveUserContext(user, "user-key-1"));
+        when(userPlainPiiReadService.resolveCurrent(user, "user-key-1"))
+                .thenReturn(new UserPlainPii("user@example.com", "tester", LocalDate.of(1998, 1, 1)));
 
         UpdateProfileRequest request = new UpdateProfileRequest();
         ReflectionTestUtils.setField(request, "interestFields", List.of("주거", "취업"));
@@ -65,7 +69,7 @@ class UserProfileCommandServiceTest {
         service.updateProfile(1L, request);
 
         verify(recommendationRefreshCacheService).evict("user-key-1");
-        verify(userCoreSyncService).syncFromUser(user);
+        verify(userCoreSyncService).syncFromUser(org.mockito.Mockito.eq(user), org.mockito.ArgumentMatchers.any(UserPlainPii.class));
         verify(userMetadataCommandRepository).replaceAttributes(1L, "user-key-1",
                 UserAttribute.AttrType.INTEREST_FIELD.name(), List.of("주거", "취업"));
         verify(userMetadataCommandRepository).replaceAttributes(1L, "user-key-1",
@@ -81,6 +85,7 @@ class UserProfileCommandServiceTest {
                 priorityOptionReadService,
                 priorityWeightPolicy,
                 userCoreSyncService,
+                userPlainPiiReadService,
                 recommendationRefreshCacheService
         );
         User user = User.builder()
@@ -124,6 +129,7 @@ class UserProfileCommandServiceTest {
                 priorityOptionReadService,
                 priorityWeightPolicy,
                 userCoreSyncService,
+                userPlainPiiReadService,
                 recommendationRefreshCacheService
         );
         User user = User.builder()
@@ -140,6 +146,8 @@ class UserProfileCommandServiceTest {
                 .build();
         when(activeUserReadService.getActiveUserContext(1L))
                 .thenReturn(new ActiveUserReadService.ActiveUserContext(user, "user-key-1"));
+        when(userPlainPiiReadService.resolveCurrent(user, "user-key-1"))
+                .thenReturn(new UserPlainPii("user@example.com", "tester", LocalDate.of(1998, 1, 1)));
         when(userMetadataCommandRepository.hasAttributeValues("user-key-1", UserAttribute.AttrType.INTEREST_FIELD.name()))
                 .thenReturn(true);
 
@@ -147,7 +155,7 @@ class UserProfileCommandServiceTest {
         service.updateProfile(1L, request);
 
         verify(recommendationRefreshCacheService).evict("user-key-1");
-        verify(userCoreSyncService).syncFromUser(user);
+        verify(userCoreSyncService).syncFromUser(org.mockito.Mockito.eq(user), org.mockito.ArgumentMatchers.any(UserPlainPii.class));
         assertThat(user.getProfileCompleteness()).isEqualTo(90);
     }
 
@@ -160,6 +168,7 @@ class UserProfileCommandServiceTest {
                 priorityOptionReadService,
                 priorityWeightPolicy,
                 userCoreSyncService,
+                userPlainPiiReadService,
                 recommendationRefreshCacheService
         );
         User user = User.builder()
@@ -173,6 +182,8 @@ class UserProfileCommandServiceTest {
                 .build();
         when(activeUserReadService.getActiveUserContext(1L))
                 .thenReturn(new ActiveUserReadService.ActiveUserContext(user, "user-key-1"));
+        when(userPlainPiiReadService.resolveCurrent(user, "user-key-1"))
+                .thenReturn(new UserPlainPii("user@example.com", "tester", LocalDate.of(1998, 1, 1)));
 
         UpdateProfileRequest request = new UpdateProfileRequest();
         ReflectionTestUtils.setField(request, "sido", "부산광역시");
@@ -181,7 +192,7 @@ class UserProfileCommandServiceTest {
         service.updateProfile(1L, request);
 
         verify(recommendationRefreshCacheService).evict("user-key-1");
-        verify(userCoreSyncService).syncFromUser(user);
+        verify(userCoreSyncService).syncFromUser(org.mockito.Mockito.eq(user), org.mockito.ArgumentMatchers.any(UserPlainPii.class));
         assertThat(user.getSido()).isEqualTo("부산광역시");
         assertThat(user.getSgg()).isEqualTo("해운대구");
         assertThat(user.getRegionCode()).isEqualTo("26350");
@@ -196,6 +207,7 @@ class UserProfileCommandServiceTest {
                 priorityOptionReadService,
                 priorityWeightPolicy,
                 userCoreSyncService,
+                userPlainPiiReadService,
                 recommendationRefreshCacheService
         );
         User user = User.builder()
@@ -209,6 +221,8 @@ class UserProfileCommandServiceTest {
                 .build();
         when(activeUserReadService.getActiveUserContext(1L))
                 .thenReturn(new ActiveUserReadService.ActiveUserContext(user, "user-key-1"));
+        when(userPlainPiiReadService.resolveCurrent(user, "user-key-1"))
+                .thenReturn(new UserPlainPii("user@example.com", "tester", LocalDate.of(1998, 1, 1)));
 
         UpdateProfileRequest request = new UpdateProfileRequest();
         ReflectionTestUtils.setField(request, "notificationYn", true);

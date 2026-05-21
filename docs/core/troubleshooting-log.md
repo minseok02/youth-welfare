@@ -1,5 +1,13 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 967) `users.name` / `users.birth_date` 를 그대로 남겨두면 PII dual-write 구조가 있어도 public schema 평문 중복이 계속 남는다
+- 문제: 프로필 조회는 이미 `app_pii_rw` 암호문 기준으로 읽고 있었지만, 가입/프로필 수정/채팅 나이대 계산이 여전히 `users.name`, `users.birth_date` 평문에 기대고 있어 public schema에 직접식별자 중복이 계속 남았다.
+- 해결: `UserPlainPiiReadService` 를 추가해 runtime source를 `users` plain 값이 아니라 `user_pii` 암호문 fallback으로 읽게 바꿨다. 가입은 `users` 에 `name` / `birthDate` 를 더 이상 저장하지 않고 `UserCoreSyncService.syncFromUser(user, plainPii)` 로만 `user_pii` / `user_profiles` 를 갱신한다. 프로필 수정도 completeness와 sync를 `plainPii` 기준으로 계산하고, 채팅 age group은 `user_profiles.age_band` 를 우선 사용하게 바꿨다. 기존 로컬 volume에는 `V2026_05_21_06__null_duplicated_user_plain_profile_pii.sql` patch를 적용해 `user_pii` 암호문이 있는 row의 plain `name` / `birth_date` 를 null 처리한다.
+
+## 968) full unit/integration은 green이어도 `run-local-auth-session-smoke.sh` 는 local recommendation FK drift 때문에 별도로 깨질 수 있다
+- 문제: 이번 PII dedup 1차 검증에서는 `./gradlew test`, `./gradlew integrationRuntimePreflight`, `./gradlew integrationTest` 가 모두 통과했고 `public-profile-chat`, `admin-authorization`, `admin-dashboard` smoke도 green이었다. 하지만 `run-local-auth-session-smoke.sh` 안 `recommendations refresh` 단계는 local runtime에서 `fk_ur_service` constraint violation (`service_id=21507` missing in `welfare_services`) 로 500이 났다.
+- 해결: 현재 증상은 이번 PII dedup 코드보다는 local recommendation dataset drift에 가깝다. `public-profile-chat` 과 integration `RecommendationFlowIntegrationTest`, `ChatMessageApiIntegrationTest` 는 모두 통과했고, app log stack도 `user_recommendations -> welfare_services` FK mismatch를 가리켰다. 따라서 이번 수정은 유지하고, auth/session smoke 실패는 별도 recommendation data repair lane으로 분리해 추적한다.
+
 ## 965) `notification_service_items` delete는 같은 `saveResult()` 트랜잭션 안 `delete + saveAll` 교체 흐름이라, 다음 bounded 후보로는 부적절했다
 - 문제: notification 최소권한 다음 후보로 `notification_service_items.deleteByNotificationId()` 를 보았지만, 이 delete는 `NotificationHistoryService.saveResult()` / `saveDeadlineReminderResult()` 안에서 곧바로 `saveAll(items)` 와 연속 실행된다.
 - 해결: 별도 datasource로 delete만 빼면 기존 항목 삭제는 다른 connection에서 즉시 반영되고, 뒤쪽 `saveAll`/상위 트랜잭션 rollback과 원자성이 깨질 수 있다. 그래서 이 경로는 보류하고, 대신 `collect_execution_locks` release delete처럼 finally성 단일 delete를 다음 bounded 후보로 잡았다.

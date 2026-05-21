@@ -30,12 +30,14 @@ public class UserCoreProjectionCommandRepositoryImpl implements UserCoreProjecti
                                             String userKey,
                                             Integer age,
                                             String ageBand,
-                                            LocalDateTime ageCalculatedAt) {
+                                            LocalDateTime ageCalculatedAt,
+                                            boolean hasName,
+                                            boolean hasBirthDate) {
         UserProfile userProfile = userProfileRepository.findByUserKey(userKey)
                 .orElse(UserProfile.builder()
                         .userKey(userKey)
                         .build());
-        userProfile.syncFrom(user, age, ageBand, ageCalculatedAt);
+        userProfile.syncFrom(user, age, ageBand, ageCalculatedAt, hasName, hasBirthDate);
         userProfileRepository.save(userProfile);
     }
 }

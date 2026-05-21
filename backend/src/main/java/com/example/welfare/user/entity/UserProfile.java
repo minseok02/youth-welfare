@@ -73,7 +73,12 @@ public class UserProfile extends BaseTimeEntity {
     @Column(nullable = false)
     private boolean hasPhone;
 
-    public void syncFrom(User user, Integer age, String ageBand, LocalDateTime ageCalculatedAt) {
+    public void syncFrom(User user,
+                         Integer age,
+                         String ageBand,
+                         LocalDateTime ageCalculatedAt,
+                         boolean hasName,
+                         boolean hasBirthDate) {
         this.age = age;
         this.ageBand = ageBand;
         this.ageCalculatedAt = ageCalculatedAt;
@@ -92,8 +97,8 @@ public class UserProfile extends BaseTimeEntity {
         this.notificationConsentAt = user.getNotificationConsentAt();
         this.displayCount = user.getDisplayCount();
         this.profileCompleteness = user.getProfileCompleteness();
-        this.hasName = user.getName() != null && !user.getName().trim().isEmpty();
-        this.hasBirthDate = user.getBirthDate() != null;
+        this.hasName = hasName;
+        this.hasBirthDate = hasBirthDate;
         this.hasPhone = user.getPhoneEnc() != null && !user.getPhoneEnc().trim().isEmpty();
     }
 }

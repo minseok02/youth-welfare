@@ -16,11 +16,11 @@ public class UserCoreProjectionSyncService {
     private final UserCoreProjectionCommandRepository userCoreProjectionCommandRepository;
 
     @Transactional
-    public void syncAuthUser(User user, String userKey) {
+    public void syncAuthUser(User user, String userKey, String email) {
         userCoreProjectionCommandRepository.upsertAuthProjection(
                 user,
                 userKey,
-                EmailLookupKeyGenerator.hash(user.getEmail())
+                EmailLookupKeyGenerator.hash(email)
         );
     }
 
@@ -29,13 +29,17 @@ public class UserCoreProjectionSyncService {
                                 String userKey,
                                 Integer age,
                                 String ageBand,
-                                LocalDateTime ageCalculatedAt) {
+                                LocalDateTime ageCalculatedAt,
+                                boolean hasName,
+                                boolean hasBirthDate) {
         userCoreProjectionCommandRepository.upsertUserProfileProjection(
                 user,
                 userKey,
                 age,
                 ageBand,
-                ageCalculatedAt
+                ageCalculatedAt,
+                hasName,
+                hasBirthDate
         );
     }
 }

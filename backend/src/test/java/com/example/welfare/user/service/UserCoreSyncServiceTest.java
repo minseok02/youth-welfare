@@ -28,6 +28,9 @@ class UserCoreSyncServiceTest {
     private UserPiiSyncQueueService userPiiSyncQueueService;
 
     @Mock
+    private UserPlainPiiReadService userPlainPiiReadService;
+
+    @Mock
     private AesEncryptUtil aesEncryptUtil;
 
     @Mock
@@ -51,6 +54,8 @@ class UserCoreSyncServiceTest {
                 .build();
 
         given(userKeyLookupService.findRequired(1L)).willReturn("user-key-1");
+        given(userPlainPiiReadService.resolveCurrent(user, "user-key-1"))
+                .willReturn(new UserPlainPii("user@example.com", "Queue User", LocalDate.of(1998, 1, 10)));
         given(aesEncryptUtil.encrypt("user@example.com")).willReturn("enc-email");
         given(aesEncryptUtil.encrypt("Queue User")).willReturn("enc-name");
         given(aesEncryptUtil.encrypt("1998-01-10")).willReturn("enc-birth");
@@ -59,6 +64,7 @@ class UserCoreSyncServiceTest {
                 userKeyLookupService,
                 userCoreProjectionSyncService,
                 userPiiSyncQueueService,
+                userPlainPiiReadService,
                 aesEncryptUtil,
                 applicationEventPublisher
         );
@@ -66,14 +72,16 @@ class UserCoreSyncServiceTest {
         service.syncFromUser(user);
 
         then(userCoreProjectionSyncService).should()
-                .syncAuthUser(user, "user-key-1");
+                .syncAuthUser(user, "user-key-1", "user@example.com");
         then(userCoreProjectionSyncService).should()
                 .syncUserProfile(
                         org.mockito.ArgumentMatchers.same(user),
                         org.mockito.ArgumentMatchers.eq("user-key-1"),
                         org.mockito.ArgumentMatchers.eq(28),
                         org.mockito.ArgumentMatchers.eq("25_29"),
-                        org.mockito.ArgumentMatchers.any()
+                        org.mockito.ArgumentMatchers.any(),
+                        org.mockito.ArgumentMatchers.eq(true),
+                        org.mockito.ArgumentMatchers.eq(true)
                 );
 
         then(userPiiSyncQueueService).should()

@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -29,6 +30,7 @@ public class UserProfileCommandService {
     private final PriorityOptionReadService priorityOptionReadService;
     private final PriorityWeightPolicy priorityWeightPolicy;
     private final UserCoreSyncService userCoreSyncService;
+    private final UserPlainPiiReadService userPlainPiiReadService;
     private final RecommendationRefreshCacheService recommendationRefreshCacheService;
 
     @Transactional
@@ -41,10 +43,11 @@ public class UserProfileCommandService {
         String effectiveSido = request.getSido() != null ? request.getSido() : user.getSido();
         String effectiveSgg = request.getSgg() != null ? request.getSgg() : user.getSgg();
         String effectiveRegionCode = resolveRegionCode(request, user, effectiveSido, effectiveSgg);
+        UserPlainPii currentPii = userPlainPiiReadService.resolveCurrent(user, userKey);
+        String effectiveName = request.getName() != null ? request.getName() : currentPii.name();
+        LocalDate effectiveBirthDate = request.getBirthDate() != null ? request.getBirthDate() : currentPii.birthDate();
 
         user.updateProfile(
-                request.getName() != null ? request.getName() : user.getName(),
-                request.getBirthDate() != null ? request.getBirthDate() : user.getBirthDate(),
                 effectiveSido,
                 effectiveSgg,
                 effectiveRegionCode,
@@ -108,11 +111,11 @@ public class UserProfileCommandService {
                     userKey,
                     UserAttribute.AttrType.TARGET_TYPE.name(),
                     request.getTargetTypes()
-            );
+                );
         }
 
-        user.updateProfileCompleteness(calculateCompleteness(userKey, user, request));
-        userCoreSyncService.syncFromUser(user);
+        user.updateProfileCompleteness(calculateCompleteness(userKey, user, request, effectiveName, effectiveBirthDate));
+        userCoreSyncService.syncFromUser(user, new UserPlainPii(currentPii.email(), effectiveName, effectiveBirthDate));
     }
 
     @Transactional
@@ -145,10 +148,14 @@ public class UserProfileCommandService {
         userMetadataCommandRepository.replacePriorities(userKey, priorities);
     }
 
-    private int calculateCompleteness(String userKey, User user, UpdateProfileRequest request) {
+    private int calculateCompleteness(String userKey,
+                                      User user,
+                                      UpdateProfileRequest request,
+                                      String effectiveName,
+                                      LocalDate effectiveBirthDate) {
         int score = 0;
-        if (user.getName() != null) score += 20;
-        if (user.getBirthDate() != null) score += 20;
+        if (effectiveName != null && !effectiveName.trim().isEmpty()) score += 20;
+        if (effectiveBirthDate != null) score += 20;
         if (user.getSido() != null) score += 10;
         if (user.getIncomeLevel() != null) score += 10;
         if (user.getEmploymentStatus() != null) score += 10;

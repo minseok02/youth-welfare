@@ -14,6 +14,8 @@ import com.example.welfare.chat.repository.ChatMessageReadRepository;
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.user.entity.User;
+import com.example.welfare.user.entity.UserProfile;
+import com.example.welfare.user.repository.UserProfileRepository;
 import com.example.welfare.user.service.ActiveUserReadService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -32,9 +34,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -58,6 +62,8 @@ class ChatConversationServiceTest {
     private ActiveUserReadService activeUserReadService;
     @Mock
     private ChatGroundingService chatGroundingService;
+    @Mock
+    private UserProfileRepository userProfileRepository;
 
     private ChatConversationService chatConversationService;
 
@@ -73,6 +79,7 @@ class ChatConversationServiceTest {
                 chatMessageCommandService,
                 chatRetrievalSnapshotService,
                 activeUserReadService,
+                userProfileRepository,
                 new ObjectMapper()
         );
     }
@@ -110,7 +117,7 @@ class ChatConversationServiceTest {
                         1829L, "월세 부담을 낮추는 지원을 제공합니다.",
                         2451L, "전세 주거 안정을 지원합니다."
                 ));
-        when(chatAiGateway.generateAnswer(any(User.class), any(String.class), any(List.class), any(List.class), any(Map.class)))
+        when(chatAiGateway.generateAnswer(any(User.class), nullable(String.class), anyString(), any(List.class), any(List.class), any(Map.class)))
                 .thenReturn(ChatAiResult.builder()
                         .answer("청년월세 한시 특별지원과 청년전세임대를 먼저 확인해보세요.")
                         .needsClarification(false)
@@ -195,6 +202,8 @@ class ChatConversationServiceTest {
 
         when(activeUserReadService.getActiveUserContext(1L))
                 .thenReturn(new ActiveUserReadService.ActiveUserContext(user, "user-key-1"));
+        when(userProfileRepository.findByUserKey("user-key-1"))
+                .thenReturn(Optional.of(UserProfile.builder().userKey("user-key-1").ageBand("25_29").build()));
         when(chatMessageReadRepository.findOwnedSession(10L, "user-key-1")).thenReturn(Optional.of(session));
         ChatPolicyService.CandidateTrace trace = new ChatPolicyService.CandidateTrace(
                 "서울 월세 지원 알려줘",
@@ -213,7 +222,7 @@ class ChatConversationServiceTest {
         when(chatPolicyService.traceCandidates("서울 월세 지원 알려줘", null, 3)).thenReturn(trace);
         when(chatGroundingService.loadEvidenceMap(any(List.class)))
                 .thenReturn(Map.of(1829L, "월세 부담을 낮추는 지원을 제공합니다."));
-        when(chatAiGateway.generateAnswer(any(User.class), any(String.class), any(List.class), any(List.class), any(Map.class)))
+        when(chatAiGateway.generateAnswer(any(User.class), nullable(String.class), anyString(), any(List.class), any(List.class), any(Map.class)))
                 .thenReturn(null);
         when(chatMessageReadRepository.findRecentMessages(10L, 6)).thenReturn(List.of());
 

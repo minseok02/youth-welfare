@@ -35,7 +35,7 @@ class UserCoreProjectionSyncServiceTest {
                 userCoreProjectionCommandRepository
         );
 
-        service.syncAuthUser(user, "user-key-1");
+        service.syncAuthUser(user, "user-key-1", "user@example.com");
 
         then(userCoreProjectionCommandRepository).should()
                 .upsertAuthProjection(
@@ -62,7 +62,7 @@ class UserCoreProjectionSyncServiceTest {
                 userCoreProjectionCommandRepository
         );
 
-        service.syncUserProfile(user, "user-key-1", 28, "25_29", LocalDateTime.of(2026, 5, 4, 1, 0));
+        service.syncUserProfile(user, "user-key-1", 28, "25_29", LocalDateTime.of(2026, 5, 4, 1, 0), true, true);
 
         then(userCoreProjectionCommandRepository).should()
                 .upsertUserProfileProjection(
@@ -70,7 +70,9 @@ class UserCoreProjectionSyncServiceTest {
                         eq("user-key-1"),
                         eq(28),
                         eq("25_29"),
-                        eq(LocalDateTime.of(2026, 5, 4, 1, 0))
+                        eq(LocalDateTime.of(2026, 5, 4, 1, 0)),
+                        eq(true),
+                        eq(true)
                 );
     }
 }

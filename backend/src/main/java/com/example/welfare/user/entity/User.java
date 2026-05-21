@@ -114,11 +114,9 @@ public class User extends BaseTimeEntity {
         return lockedUntil != null && LocalDateTime.now().isBefore(lockedUntil);
     }
 
-    public void updateProfile(String name, LocalDate birthDate, String sido, String sgg,
+    public void updateProfile(String sido, String sgg,
                                String regionCode, Byte incomeLevel, String householdType,
                                String employmentStatus, int displayCount) {
-        this.name = name;
-        this.birthDate = birthDate;
         this.sido = sido;
         this.sgg = sgg;
         this.regionCode = regionCode;

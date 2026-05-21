@@ -13,7 +13,10 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class UserRegistrationServiceTest {
@@ -34,14 +37,22 @@ class UserRegistrationServiceTest {
         SignupRequest request = new SignupRequest();
         ReflectionTestUtils.setField(request, "email", "user@example.com");
         ReflectionTestUtils.setField(request, "name", "홍길동");
+        ReflectionTestUtils.setField(request, "birthDate", java.time.LocalDate.of(2000, 1, 10));
+        when(userAccountOriginResolver.resolve("user@example.com")).thenReturn(User.AccountOrigin.REAL_USER);
 
         userRegistrationService.register(request, "encoded-password");
 
         ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
         verify(userRegistrationCommandRepository).save(userCaptor.capture());
-        verify(userCoreSyncService).syncFromUser(userCaptor.getValue());
+        verify(userCoreSyncService).syncFromUser(
+                eq(userCaptor.getValue()),
+                argThat(pii -> pii != null
+                        && "user@example.com".equals(pii.email())
+                        && "홍길동".equals(pii.name())
+                        && java.time.LocalDate.of(2000, 1, 10).equals(pii.birthDate()))
+        );
         assertThat(userCaptor.getValue().getEmail()).isEqualTo("user@example.com");
         assertThat(userCaptor.getValue().getPasswordHash()).isEqualTo("encoded-password");
-        assertThat(userCaptor.getValue().getName()).isEqualTo("홍길동");
+        assertThat(userCaptor.getValue().getName()).isNull();
     }
 }
