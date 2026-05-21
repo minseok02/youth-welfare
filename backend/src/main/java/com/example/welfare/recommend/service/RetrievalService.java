@@ -14,13 +14,15 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Collections;
-import java.util.LinkedHashSet;
+import java.util.Deque;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.OptionalInt;
-import java.util.ArrayList;
 import java.util.stream.Collectors;
 
 /**
@@ -33,7 +35,9 @@ public class RetrievalService {
 
     private static final int K = 50;
     private static final int M = 5;
-    private static final int FETCH_SIZE = 150; // 후처리 필터 감안해 넉넉히 조회
+    private static final int DEFAULT_FETCH_SIZE = 150; // 후처리 필터 감안해 넉넉히 조회
+    private static final int REGION_TARGETED_FETCH_SIZE = 300; // local-first 정렬에서 cross-source 후보가 창 밖으로 밀리지 않게 확대
+    private static final int REGION_DIVERSITY_HEAD_SIZE = 40; // 상위 local-first는 유지하고 tail만 bounded diversity 보강
 
     private final RecommendationCandidateReadRepository recommendationCandidateReadRepository;
     private final RecommendationYouthRelevanceSupport recommendationYouthRelevanceSupport;
@@ -55,7 +59,7 @@ public class RetrievalService {
                 incomeLevel,
                 user.sido(),
                 normalizeRegionCode(user.regionCode()),
-                FETCH_SIZE,
+                resolveBaseFetchSize(user),
                 M * 4
         );
         List<WelfareService> rawBaseCandidates = recommendationCandidateReadRepository.findBaseCandidates(condition);
@@ -77,6 +81,7 @@ public class RetrievalService {
         if (noPriorityProfile) {
             filteredBase = rebalanceNoPriorityCandidates(filteredBase);
         }
+        filteredBase = rebalanceRegionDominatedCandidates(filteredBase, user);
         filteredBase = filteredBase.stream()
                 .limit(K)
                 .toList();
@@ -220,6 +225,13 @@ public class RetrievalService {
         return regionCode.trim();
     }
 
+    private int resolveBaseFetchSize(RecommendationUserSnapshot user) {
+        if (StringUtils.hasText(user.regionCode()) || StringUtils.hasText(user.sido())) {
+            return REGION_TARGETED_FETCH_SIZE;
+        }
+        return DEFAULT_FETCH_SIZE;
+    }
+
     /**
      * 기본 후보 K + 최신 정책 M을 중복 없이 합친다.
      * 순서는 기본 후보 우선, 이후 최신 후보를 뒤에 보강한다.
@@ -263,6 +275,83 @@ public class RetrievalService {
             offset++;
         } while (appended);
         return List.copyOf(balanced);
+    }
+
+    /**
+     * 지역 기반 추천에서 local source가 상위 창을 전부 차지하면,
+     * 상위 40건은 그대로 두고 41~50 구간에 non-dominant source를 bounded하게 섞는다.
+     * local-first 원칙은 유지하되 cross-source 후보가 base retrieval 창 안으로 전혀 못 들어오는 현상만 완화한다.
+     */
+    private List<WelfareService> rebalanceRegionDominatedCandidates(List<WelfareService> candidates,
+                                                                    RecommendationUserSnapshot user) {
+        if (candidates == null || candidates.size() <= K) {
+            return candidates;
+        }
+        if (!StringUtils.hasText(user.regionCode()) && !StringUtils.hasText(user.sido())) {
+            return candidates;
+        }
+
+        List<WelfareService> topWindow = candidates.subList(0, K);
+        WelfareService.SourceType dominantSource = detectDominantSource(topWindow);
+        if (dominantSource == null) {
+            return candidates;
+        }
+
+        boolean hasNonDominantTail = candidates.stream()
+                .skip(REGION_DIVERSITY_HEAD_SIZE)
+                .anyMatch(candidate -> candidate.getSourceType() != dominantSource);
+        if (!hasNonDominantTail) {
+            return candidates;
+        }
+
+        LinkedHashMap<WelfareService.SourceType, Deque<WelfareService>> nonDominantBuckets = new LinkedHashMap<>();
+        for (WelfareService candidate : candidates.subList(REGION_DIVERSITY_HEAD_SIZE, candidates.size())) {
+            if (candidate.getSourceType() == dominantSource) {
+                continue;
+            }
+            nonDominantBuckets
+                    .computeIfAbsent(candidate.getSourceType(), ignored -> new ArrayDeque<>())
+                    .addLast(candidate);
+        }
+
+        LinkedHashMap<Long, WelfareService> reordered = new LinkedHashMap<>();
+        candidates.subList(0, REGION_DIVERSITY_HEAD_SIZE)
+                .forEach(candidate -> reordered.put(candidate.getId(), candidate));
+
+        while (reordered.size() < K) {
+            boolean added = false;
+            for (Deque<WelfareService> bucket : nonDominantBuckets.values()) {
+                WelfareService next = bucket.pollFirst();
+                if (next == null || reordered.containsKey(next.getId())) {
+                    continue;
+                }
+                reordered.put(next.getId(), next);
+                added = true;
+                if (reordered.size() >= K) {
+                    break;
+                }
+            }
+            if (!added) {
+                break;
+            }
+        }
+
+        for (WelfareService candidate : candidates) {
+            reordered.putIfAbsent(candidate.getId(), candidate);
+        }
+        return List.copyOf(reordered.values());
+    }
+
+    private WelfareService.SourceType detectDominantSource(List<WelfareService> topWindow) {
+        LinkedHashMap<WelfareService.SourceType, Integer> counts = new LinkedHashMap<>();
+        for (WelfareService candidate : topWindow) {
+            counts.merge(candidate.getSourceType(), 1, Integer::sum);
+        }
+        return counts.entrySet().stream()
+                .filter(entry -> entry.getValue() >= REGION_DIVERSITY_HEAD_SIZE)
+                .max(Map.Entry.comparingByValue())
+                .map(Map.Entry::getKey)
+                .orElse(null);
     }
 
     public record RecommendationRetrievalTrace(

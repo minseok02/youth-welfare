@@ -58,6 +58,8 @@
 현재 explicit policy review 결론도 여기까지입니다. `PASS_RECENT_WINDOW_POLICY_CANDIDATE` 는 **bounded promotion review를 승인할 근거**로 읽되, **primary full latest batch baseline을 recent-window로 즉시 승격하는 결정은 아직 하지 않는 것**이 현재 기준입니다.
 사람 말로 더 짧게 풀면, **recent-window는 시험해 볼 만하지만 운영 기본 규칙을 갈아엎을 단계는 아직 아니다** 입니다.
 
+다만 `2026-05-22` live current truth는 이 `2026-05-20` snapshot과 다릅니다. 최신 `run-local-ops-baseline-suite.sh` 기준 recommendation live 값은 `recommendation_historical_example_dominance_detected=false`, `review_gate_policy_candidate_status=NOT_A_CANDIDATE_NO_HISTORICAL_EXAMPLE_DOMINANCE`, `review_gate_policy_promotion_status=KEEP_PRIMARY_BASELINE`, `review_gate_policy_promotion_readiness_status=NOT_READY_FOR_BOUNDED_PROMOTION_REVIEW`, `review_gate_policy_promotion_execution_status=DO_NOT_RUN_BOUNDED_PROMOTION_REVIEW` 입니다. 즉 아래 historical lane 기록에 남아 있는 `RECENT_WINDOW_POLICY_CANDIDATE`, `READY_FOR_BOUNDED_PROMOTION_REVIEW`, `AWAIT_EXPLICIT_POLICY_REVIEW_DECISION` 류 값은 **현재 live baseline이 아니라 2026-05-20 당시 closeout snapshot** 으로 읽는 편이 맞습니다.
+
 ## 다시 열 조건
 
 다음 중 하나가 생길 때만 recommendation 트랙을 다시 여는 편이 맞습니다.
@@ -507,10 +509,10 @@ local helper/replay smoke는 integrated schema 존재 여부와 collect/replay p
   - 하지만 `주거` 관심 + `HOUSING` priority fresh user bounded smoke에선 Gov24 주거 서비스 `5728` 이 `rank2`, `rule=54`, `ai=70`, `final=0.63261` 까지 올라왔습니다.
   - 즉 Gov24 주거 계열이 구조적으로 rule-side에서 막혀 있는 상태로 일반화하면 안 됩니다.
 
-- `7193` 계열
-  - 특정 fresh user에선 `안산 거주 초·중·고·대학생 장학금` 성격 때문에 `ai=0` 으로 약할 수 있습니다.
-  - 하지만 `교육·직업훈련` 관심 + `EDUCATION` priority + `경기도/안산시` fresh user bounded smoke에선 교육 Gov24 `6790` 이 `rank1`, `rule=27`, `ai=80`, `final=1.03936` 으로 올라왔습니다.
-  - 즉 교육/장학금 Gov24 전체가 AI에서 구조적으로 밀린다고 보기도 어렵습니다.
+- `education bounded smoke`
+  - 현재 active smoke target은 `16490 국가장학금 Ⅰ유형 (학생직접지원형)` 입니다.
+  - `2026-05-22` fresh run 기준 `gov24_rows=8`, `gov24_top10_rows=3`, `gov24_top2_rows=1` 이고, `16490` 이 `rank1`, `rule=27`, `ai=80`, `final=1.01376` 으로 latest saved batch에 올라왔습니다.
+  - 예전 `7193` 기준 해석은 historical note로만 읽습니다. 현재 dataset에서 `7193` 은 `지역화폐(강남사랑상품권)` 이라 education signal target으로는 맞지 않습니다.
 
 현재 practical 해석:
 

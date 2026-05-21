@@ -1,5 +1,22 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 974) `findCandidatesWithSido()` local-first 정렬이 강하면 Gov24 교육 서비스가 retrieval 창 밖으로 밀려 `gov24_rows=0` 이 될 수 있다
+- 문제: `run-local-gov24-education-signal-smoke.sh` fresh run은 반복해서 `gov24_rows=0`, `gov24_top10_rows=0`, `gov24_top2_rows=0` 이었다. collect/runtime audit는 정상이었고, admin diagnostics로 대표 Gov24 교육 서비스(`16490`, `16521`, `16919`, `18286`)를 찍으면 전부 `inBaseRetrieval=false`, `dropStage=NOT_IN_SQL_RETRIEVAL` 이었다. DB에서 same persona 조건으로 `findCandidatesWithSido()` 정렬을 재현하면 top150 source distribution이 `BOKJIRO_LOCAL:150` 이었고, `16490/16919/18286` 도 실제 rank `194/231/194` 수준으로 창 밖에 있었다.
+- 해결: region/sido 기반 추천일 때 `RetrievalService` base candidate fetch size를 `150 -> 300` 으로 넓히고, `BOKJIRO_LOCAL` 이 top-50 창을 과점하면 상위 40건은 그대로 두되 41~50 구간에 non-dominant source를 bounded하게 섞었다. 이후 `run-local-gov24-education-signal-smoke.sh` 는 `gov24_rows=8`, `gov24_top10_rows=3`, `gov24_top2_rows=1`, `top2_source_distribution=BOKJIRO_LOCAL:1,GOV24:1` 로 회복됐다. 다만 기존 target `7193` 은 여전히 `missing` 이라, 이번 fix는 Gov24 교육 계열이 창 밖에서 전부 잘리던 현상을 줄인 bounded retrieval fix로 기록한다.
+
+## 975) `run-local-gov24-education-signal-smoke.sh` 의 옛 target `7193` 은 현재 dataset에선 education service가 아니라 `지역화폐(강남사랑상품권)` 이라 active smoke target으로 부적절하다
+- 문제: bounded retrieval fix 뒤에도 `run-local-gov24-education-signal-smoke.sh` 의 `target_service_row` 는 계속 `missing` 이었다. 처음엔 retrieval/ranking 잔여 이슈처럼 보였지만, diagnostics와 DB를 다시 찍어 보니 `7193` 자체가 더 이상 교육/장학금 Gov24가 아니었다.
+- 확인: current local DB에서 `7193` 은 `GOV24 / 지역화폐(강남사랑상품권) / 안전·위기` 로 들어와 있고, 같은 fresh user 기준 active education Gov24는 `16490 국가장학금 Ⅰ유형 (학생직접지원형)` 과 `15176 국가근로장학금`, `6790 지역인재육성을 위한 장학금 지원` 이 top10/top2 안으로 들어온다.
+- 해결: active smoke default target을 `16490` 으로 옮기고, current-state/runbook/phase-plan 설명도 `7193` current target 해석 대신 `16490` 중심 bounded education signal로 맞췄다. `7193` 관련 설명은 historical dataset note로만 남긴다.
+
+## 972) recommendation current-state 문서가 `2026-05-20` historical snapshot을 계속 current truth처럼 적고 있으면, live ops baseline과 충돌해 운영 해석을 잘못 읽게 된다
+- 문제: `docs/current-state.md`, `docs/recommendation/recommendation-current-state.md` 에 남아 있던 recommendation gate ladder 설명은 `historical_example_dominance_detected=true`, `RECENT_WINDOW_POLICY_CANDIDATE`, `READY_FOR_BOUNDED_PROMOTION_REVIEW` 같은 `2026-05-20` 시점 값을 중심으로 적혀 있었다. 하지만 `2026-05-22` broad quality 재검사 기준 최신 live ops baseline은 `historical_example_dominance_detected=false`, `review_gate_policy_candidate_status=NOT_A_CANDIDATE_NO_HISTORICAL_EXAMPLE_DOMINANCE`, `review_gate_policy_promotion_readiness_status=NOT_READY_FOR_BOUNDED_PROMOTION_REVIEW` 로 이미 바뀌어 있었다.
+- 해결: current-state 문서 상단에 `2026-05-22` live truth를 별도로 적고, 아래 historical ladder는 `2026-05-20 closeout snapshot` 으로 읽으라고 분리했다. `docs/current-state.md` 에 남아 있던 `<<<<<<< HEAD` merge marker도 같이 제거했다.
+
+## 973) Gov24 education signal이 fresh scenario에서 0건이어도, collect/runtime 품질 회귀로 바로 읽으면 안 된다
+- 문제: broad quality 재검사 중 `run-local-gov24-education-signal-smoke.sh` fresh run은 다시 `gov24_rows=0`, `gov24_top10_rows=0`, `gov24_top2_rows=0` 이었다. 이 결과만 보면 Gov24 collect나 canonical promotion regression처럼 보일 수 있다.
+- 해결: 같은 날 `run-local-gov24-quality-audit.sh` 결과는 `gov24_total_services=10948`, `gov24_detail_rows=10948`, `gov24_support_raw=10948` 로 유지됐고, DB 기준 Gov24 교육 계열 서비스도 `1856`건 존재했다. 따라서 현재 문제는 collect/runtime closeout이 아니라 **recommendation education scenario bounded drift** 로 분리해서 본다.
+
 ## 967) `users.name` / `users.birth_date` 를 그대로 남겨두면 PII dual-write 구조가 있어도 public schema 평문 중복이 계속 남는다
 - 문제: 프로필 조회는 이미 `app_pii_rw` 암호문 기준으로 읽고 있었지만, 가입/프로필 수정/채팅 나이대 계산이 여전히 `users.name`, `users.birth_date` 평문에 기대고 있어 public schema에 직접식별자 중복이 계속 남았다.
 - 해결: `UserPlainPiiReadService` 를 추가해 runtime source를 `users` plain 값이 아니라 `user_pii` 암호문 fallback으로 읽게 바꿨다. 가입은 `users` 에 `name` / `birthDate` 를 더 이상 저장하지 않고 `UserCoreSyncService.syncFromUser(user, plainPii)` 로만 `user_pii` / `user_profiles` 를 갱신한다. 프로필 수정도 completeness와 sync를 `plainPii` 기준으로 계산하고, 채팅 age group은 `user_profiles.age_band` 를 우선 사용하게 바꿨다. 기존 로컬 volume에는 `V2026_05_21_06__null_duplicated_user_plain_profile_pii.sql` patch를 적용해 `user_pii` 암호문이 있는 row의 plain `name` / `birth_date` 를 null 처리한다.

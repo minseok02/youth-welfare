@@ -151,8 +151,8 @@ source 전체 일반화 전에, 특정 맥락을 맞춰주면 Gov24가 실제로
   - `rank2`, `rule=54`, `ai=70`, `final=0.63261`
 - `education`
   - `gov24_top2_rows=1`
-  - `6790 지역인재육성을 위한 장학금 지원`
-  - `rank1`, `rule=27`, `ai=80`, `final=1.03936`
+  - `16490 국가장학금 Ⅰ유형 (학생직접지원형)`
+  - `rank1`, `rule=27`, `ai=80`, `final=1.01376`
 
 읽는 법:
 
@@ -165,6 +165,6 @@ source 전체 일반화 전에, 특정 맥락을 맞춰주면 Gov24가 실제로
 
 1. Gov24가 추천에 아예 안 뜨는 문제는 아닙니다.
 2. fresh batch 기준으로는 `AI_TOP_N 밖`, `PARTIAL_MISSING` 이 주원인이 아닐 수 있습니다.
-3. `4689` 류는 rule-side 약세, `7193` 류는 개별 정책 제약/지역·학생 맥락 때문에 AI-side 약세로 읽는 편이 맞습니다.
+3. `4689` 류는 rule-side 약세로 읽는 편이 맞고, 현재 education bounded smoke는 `16490` 같은 교육 Gov24가 충분히 top2 안으로 들어옵니다. 예전 `7193` 류 해석은 historical dataset 기준으로만 남겨 둡니다.
 4. bounded signal smoke까지 보면 Gov24 source 전체를 구조적으로 눌려 있다고 보긴 어렵습니다.
 5. 다음 reopen이 필요하면 source 일반론보다 **주거/월세보증**, **지역 장학금**, **창업/소상공인** 같은 정책군 단위로 보는 편이 맞습니다.
