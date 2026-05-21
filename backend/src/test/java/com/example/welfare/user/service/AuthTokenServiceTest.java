@@ -36,6 +36,7 @@ class AuthTokenServiceTest {
     @Mock private AccessTokenRevocationService accessTokenRevocationService;
     @Mock private ChatSessionCleanupService chatSessionCleanupService;
     @Mock private UserKeyLookupService userKeyLookupService;
+    @Mock private UserPlainPiiReadService userPlainPiiReadService;
     @Mock private ValueOperations<String, String> valueOperations;
 
     private AuthTokenService authTokenService;
@@ -48,7 +49,8 @@ class AuthTokenServiceTest {
                 activeUserReadService,
                 accessTokenRevocationService,
                 chatSessionCleanupService,
-                userKeyLookupService
+                userKeyLookupService,
+                userPlainPiiReadService
         );
         lenient().when(redisTemplate.opsForValue()).thenReturn(valueOperations);
     }
@@ -74,6 +76,8 @@ class AuthTokenServiceTest {
                 .build();
         when(activeUserReadService.getActiveUserContext(7L))
                 .thenReturn(new ActiveUserReadService.ActiveUserContext(user, "user-key-7"));
+        when(userPlainPiiReadService.resolveCurrent(user, "user-key-7"))
+                .thenReturn(new UserPlainPii("user@example.com", null, null));
         when(valueOperations.get("refresh:user-key-7")).thenReturn("refresh-token");
         when(jwtUtil.getSubject("refresh-token")).thenReturn("user-key-7");
         when(jwtUtil.getUserId("refresh-token")).thenReturn(7L);

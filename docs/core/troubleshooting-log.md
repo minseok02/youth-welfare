@@ -12,6 +12,10 @@
 - 문제: local runtime에서 `recommendations refresh` 가 가끔 `service_id=21507 missing in welfare_services` 같은 FK 오류로 500이 났다. 기존 `user_recommendations` row 자체에는 orphan가 없었고, 증상은 새 추천 저장 직전에만 보였다.
 - 해결: `RecommendationPersistenceService` 가 저장 직전 후보 `service_id` 들을 다시 한 번 `welfare_services` 에 조회하고, 현재 DB에 없는 ID는 로그만 남기고 제외하게 바꿨다. 즉 root cause가 local dataset drift든 stale candidate read든, 추천 refresh 전체가 FK 예외로 죽지 않게 persistence 경계에서 흡수한다. 이 뒤 `run-local-runtime-api-smoke.sh` 와 `run-local-auth-session-smoke.sh` 를 다시 돌려 auth/session 묶음 전체가 green으로 복귀한 것을 확인했다.
 
+## 970) `users.email` 을 계속 먼저 읽으면 PII split 뒤에도 refresh role resolution이 public 평문에 기대게 된다
+- 문제: `UserPlainPiiReadService` 는 기존에 `users.email/name/birth_date` 를 먼저 읽고 `user_pii` 를 fallback으로만 썼다. 그래서 프로필 read는 이미 `user_pii` 기준이더라도, refresh token 재발급 시 admin role resolution 같은 경로는 여전히 `user.getEmail()` 평문을 먼저 보게 된다.
+- 해결: `UserPlainPiiReadService` 우선순위를 뒤집어 `user_pii` 암호문 복호화 값을 먼저 쓰고, 없을 때만 `users` plain 값을 fallback으로 쓰게 바꿨다. 동시에 `AuthTokenService.refresh()` 는 role resolution 시 `user.getEmail()` 대신 `userPlainPiiReadService.resolveCurrent(user, userKey).email()` 을 사용한다. 즉 `users.email` 저장은 아직 남아 있어도, runtime read source는 한 단계 더 `user_pii` 쪽으로 이동했다. 검증은 `AuthTokenServiceTest`, `UserPlainPiiReadServiceTest`, 그리고 전체 `run-local-auth-session-smoke.sh` green으로 닫았다.
+
 ## 965) `notification_service_items` delete는 같은 `saveResult()` 트랜잭션 안 `delete + saveAll` 교체 흐름이라, 다음 bounded 후보로는 부적절했다
 - 문제: notification 최소권한 다음 후보로 `notification_service_items.deleteByNotificationId()` 를 보았지만, 이 delete는 `NotificationHistoryService.saveResult()` / `saveDeadlineReminderResult()` 안에서 곧바로 `saveAll(items)` 와 연속 실행된다.
 - 해결: 별도 datasource로 delete만 빼면 기존 항목 삭제는 다른 connection에서 즉시 반영되고, 뒤쪽 `saveAll`/상위 트랜잭션 rollback과 원자성이 깨질 수 있다. 그래서 이 경로는 보류하고, 대신 `collect_execution_locks` release delete처럼 finally성 단일 delete를 다음 bounded 후보로 잡았다.

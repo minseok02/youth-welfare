@@ -21,17 +21,31 @@ public class UserPlainPiiReadService {
         UserPiiReadModel stored = userPiiReadWriteRepository.findByUserKey(userKey)
                 .orElse(null);
 
-        String email = StringUtils.hasText(user.getEmail())
-                ? user.getEmail()
-                : decryptNullable(stored != null ? stored.emailEnc() : null);
-        String name = StringUtils.hasText(user.getName())
-                ? user.getName()
-                : decryptNullable(stored != null ? stored.nameEnc() : null);
-        LocalDate birthDate = user.getBirthDate() != null
-                ? user.getBirthDate()
-                : decryptBirthDate(stored != null ? stored.birthDateEnc() : null);
+        String email = firstText(
+                decryptNullable(stored != null ? stored.emailEnc() : null),
+                user.getEmail()
+        );
+        String name = firstText(
+                decryptNullable(stored != null ? stored.nameEnc() : null),
+                user.getName()
+        );
+        LocalDate birthDate = firstDate(
+                decryptBirthDate(stored != null ? stored.birthDateEnc() : null),
+                user.getBirthDate()
+        );
 
         return new UserPlainPii(email, name, birthDate);
+    }
+
+    private String firstText(String preferred, String fallback) {
+        if (StringUtils.hasText(preferred)) {
+            return preferred;
+        }
+        return StringUtils.hasText(fallback) ? fallback : null;
+    }
+
+    private LocalDate firstDate(LocalDate preferred, LocalDate fallback) {
+        return preferred != null ? preferred : fallback;
     }
 
     private String decryptNullable(String encryptedValue) {

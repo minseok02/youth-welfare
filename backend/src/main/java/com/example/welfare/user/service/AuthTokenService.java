@@ -30,6 +30,7 @@ public class AuthTokenService {
     private final AccessTokenRevocationService accessTokenRevocationService;
     private final ChatSessionCleanupService chatSessionCleanupService;
     private final UserKeyLookupService userKeyLookupService;
+    private final UserPlainPiiReadService userPlainPiiReadService;
 
     public TokenResponse issueTokens(String userKey, Long userId, List<String> roles) {
         String accessToken = jwtUtil.generateAccessToken(userKey, userId, roles);
@@ -52,7 +53,8 @@ public class AuthTokenService {
             throw new CustomException(ErrorCode.REUSED_REFRESH_TOKEN);
         }
 
-        return issueTokens(userKey, userId, rolesResolver.apply(user.getEmail()));
+        String emailForRoles = userPlainPiiReadService.resolveCurrent(user, userKey).email();
+        return issueTokens(userKey, userId, rolesResolver.apply(emailForRoles));
     }
 
     @Transactional
