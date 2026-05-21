@@ -5,6 +5,7 @@ import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.notification.dto.WebPushSubscriptionRequest;
 import com.example.welfare.notification.dto.WebPushSubscriptionResponse;
 import com.example.welfare.notification.entity.WebPushSubscription;
+import com.example.welfare.notification.repository.WebPushSubscriptionCleanupCommandRepository;
 import com.example.welfare.notification.repository.WebPushSubscriptionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -17,6 +18,7 @@ import java.time.LocalDateTime;
 public class WebPushSubscriptionCommandService {
 
     private final WebPushSubscriptionRepository webPushSubscriptionRepository;
+    private final WebPushSubscriptionCleanupCommandRepository webPushSubscriptionCleanupCommandRepository;
 
     @Transactional
     public WebPushSubscriptionResponse register(String userKey, WebPushSubscriptionRequest request) {
@@ -47,6 +49,6 @@ public class WebPushSubscriptionCommandService {
     public void delete(String userKey, Long subscriptionId) {
         WebPushSubscription subscription = webPushSubscriptionRepository.findByIdAndUserKey(subscriptionId, userKey)
                 .orElseThrow(() -> new CustomException(ErrorCode.NOTIFICATION_PUSH_SUBSCRIPTION_NOT_FOUND));
-        webPushSubscriptionRepository.delete(subscription);
+        webPushSubscriptionCleanupCommandRepository.deleteByIdAndUserKey(subscription.getId(), subscription.getUserKey());
     }
 }

@@ -86,6 +86,14 @@ app:
       hikari:
         maximum-pool-size: 2
         minimum-idle: 0
+    web-push-subscription-cleanup:
+      url: ${INTEGRATION_WEB_PUSH_SUBSCRIPTION_CLEANUP_DB_URL:jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable}
+      username: ${INTEGRATION_WEB_PUSH_SUBSCRIPTION_CLEANUP_DB_USERNAME:web_push_subscription_cleanup_rw}
+      password: ${INTEGRATION_WEB_PUSH_SUBSCRIPTION_CLEANUP_DB_PASSWORD:welfare1234!}
+      driver-class-name: org.postgresql.Driver
+      hikari:
+        maximum-pool-size: 2
+        minimum-idle: 0
     pii-rw:
       url: ${INTEGRATION_APP_PII_DB_URL:jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable&currentSchema=youth_welfare_pii}
       username: ${INTEGRATION_APP_PII_DB_USERNAME:app_pii_rw}

@@ -35,6 +35,10 @@ public final class IntegrationRuntimePreflightMain {
         String recommendationRetentionCleanupUsername = env("INTEGRATION_RECOMMENDATION_RETENTION_CLEANUP_DB_USERNAME", "recommendation_retention_cleanup_rw");
         String recommendationRetentionCleanupPassword = env("INTEGRATION_RECOMMENDATION_RETENTION_CLEANUP_DB_PASSWORD", primaryPassword);
 
+        String webPushSubscriptionCleanupUrl = env("INTEGRATION_WEB_PUSH_SUBSCRIPTION_CLEANUP_DB_URL", "jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable");
+        String webPushSubscriptionCleanupUsername = env("INTEGRATION_WEB_PUSH_SUBSCRIPTION_CLEANUP_DB_USERNAME", "web_push_subscription_cleanup_rw");
+        String webPushSubscriptionCleanupPassword = env("INTEGRATION_WEB_PUSH_SUBSCRIPTION_CLEANUP_DB_PASSWORD", primaryPassword);
+
         String notificationUrl = env("INTEGRATION_NOTIFICATION_PII_DB_URL", "jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable&currentSchema=youth_welfare_pii");
         String notificationUsername = env("INTEGRATION_NOTIFICATION_PII_DB_USERNAME", "notification_pii_ro");
         String notificationPassword = env("INTEGRATION_NOTIFICATION_PII_DB_PASSWORD", primaryPassword);
@@ -47,6 +51,7 @@ public final class IntegrationRuntimePreflightMain {
         checkJdbc("admin-ro", adminRoUrl, adminRoUsername, adminRoPassword, failures);
         checkJdbc("cluster-ai-cleanup", clusterAiCleanupUrl, clusterAiCleanupUsername, clusterAiCleanupPassword, failures);
         checkJdbc("recommendation-retention-cleanup", recommendationRetentionCleanupUrl, recommendationRetentionCleanupUsername, recommendationRetentionCleanupPassword, failures);
+        checkJdbc("web-push-subscription-cleanup", webPushSubscriptionCleanupUrl, webPushSubscriptionCleanupUsername, webPushSubscriptionCleanupPassword, failures);
         checkJdbc("notification-pii-ro", notificationUrl, notificationUsername, notificationPassword, failures);
         checkRedis(redisHost, redisPort, failures);
 

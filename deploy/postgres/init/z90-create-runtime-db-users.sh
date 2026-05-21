@@ -14,6 +14,8 @@ cluster_ai_cleanup_username="${DB_CLUSTER_AI_CLEANUP_USERNAME:-cluster_ai_cleanu
 cluster_ai_cleanup_password="${DB_CLUSTER_AI_CLEANUP_PASSWORD:-$app_password}"
 recommendation_retention_cleanup_username="${DB_RECOMMENDATION_RETENTION_CLEANUP_USERNAME:-recommendation_retention_cleanup_rw}"
 recommendation_retention_cleanup_password="${DB_RECOMMENDATION_RETENTION_CLEANUP_PASSWORD:-$app_password}"
+web_push_subscription_cleanup_username="${DB_WEB_PUSH_SUBSCRIPTION_CLEANUP_USERNAME:-web_push_subscription_cleanup_rw}"
+web_push_subscription_cleanup_password="${DB_WEB_PUSH_SUBSCRIPTION_CLEANUP_PASSWORD:-$app_password}"
 migration_username="${DB_MIGRATION_USERNAME:-migration_admin}"
 migration_password="${DB_MIGRATION_PASSWORD:-$app_password}"
 
@@ -56,6 +58,12 @@ BEGIN
         EXECUTE format('ALTER ROLE %I LOGIN PASSWORD %L', '${recommendation_retention_cleanup_username}', '${recommendation_retention_cleanup_password}');
     END IF;
 
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '${web_push_subscription_cleanup_username}') THEN
+        EXECUTE format('CREATE ROLE %I LOGIN PASSWORD %L', '${web_push_subscription_cleanup_username}', '${web_push_subscription_cleanup_password}');
+    ELSE
+        EXECUTE format('ALTER ROLE %I LOGIN PASSWORD %L', '${web_push_subscription_cleanup_username}', '${web_push_subscription_cleanup_password}');
+    END IF;
+
     IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '${migration_username}') THEN
         EXECUTE format('CREATE ROLE %I LOGIN PASSWORD %L', '${migration_username}', '${migration_password}');
     ELSE
@@ -64,9 +72,9 @@ BEGIN
 END
 \$\$;
 
-GRANT CONNECT ON DATABASE ${db_name} TO ${app_username}, ${app_pii_username}, ${notification_ro_username}, ${admin_ro_username}, ${cluster_ai_cleanup_username}, ${recommendation_retention_cleanup_username}, ${migration_username};
+GRANT CONNECT ON DATABASE ${db_name} TO ${app_username}, ${app_pii_username}, ${notification_ro_username}, ${admin_ro_username}, ${cluster_ai_cleanup_username}, ${recommendation_retention_cleanup_username}, ${web_push_subscription_cleanup_username}, ${migration_username};
 
-GRANT USAGE ON SCHEMA public TO ${app_username}, ${admin_ro_username}, ${cluster_ai_cleanup_username}, ${recommendation_retention_cleanup_username}, ${migration_username};
+GRANT USAGE ON SCHEMA public TO ${app_username}, ${admin_ro_username}, ${cluster_ai_cleanup_username}, ${recommendation_retention_cleanup_username}, ${web_push_subscription_cleanup_username}, ${migration_username};
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO ${app_username};
 GRANT SELECT ON ALL TABLES IN SCHEMA public TO ${admin_ro_username};
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO ${app_username};
@@ -85,6 +93,15 @@ BEGIN
     IF to_regclass('public.user_recommendations') IS NOT NULL THEN
         EXECUTE format('GRANT DELETE ON TABLE public.user_recommendations TO %I', '${recommendation_retention_cleanup_username}');
         EXECUTE format('GRANT SELECT (recommended_at, is_bookmarked) ON TABLE public.user_recommendations TO %I', '${recommendation_retention_cleanup_username}');
+    END IF;
+END
+\$\$;
+
+DO \$\$
+BEGIN
+    IF to_regclass('public.web_push_subscriptions') IS NOT NULL THEN
+        EXECUTE format('GRANT DELETE ON TABLE public.web_push_subscriptions TO %I', '${web_push_subscription_cleanup_username}');
+        EXECUTE format('GRANT SELECT (id, user_key) ON TABLE public.web_push_subscriptions TO %I', '${web_push_subscription_cleanup_username}');
     END IF;
 END
 \$\$;

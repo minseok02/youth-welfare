@@ -1,5 +1,13 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 963) `notification_service_items` 는 replace 흐름 안 delete+saveAll 묶음이라, 다음 notification 최소권한 후보로는 `web_push_subscriptions` delete가 더 작았다
+- 문제: notification 쪽 delete를 다음 후보로 볼 때 `notification_service_items.deleteByNotificationId()` 는 이름만 보면 쉬워 보였지만 실제로는 `replaceNotificationItems()` 안에서 바로 `saveAll()` 과 묶여 dispatch 트랜잭션에 붙어 있다.
+- 해결: 이번 단계는 `notification_service_items` 대신 `web_push_subscriptions` 삭제만 분리했다. 구독 해제는 `findByIdAndUserKey()` 소유 확인 뒤 `DELETE FROM web_push_subscriptions WHERE id=:subscriptionId AND user_key=:userKey` 한 문장으로 끝나므로 `web_push_subscription_cleanup_rw` 로 떼기 더 bounded했다.
+
+## 964) `web_push_subscriptions` delete도 table `DELETE` 만으로는 부족하고, 조건 컬럼 `id`, `user_key` `SELECT` 가 같이 필요하다
+- 문제: 웹푸시 구독 해제 delete는 `WHERE id = :subscriptionId AND user_key = :userKey` 조건을 읽기 때문에 cleanup role에 `DELETE` 만 주면 실행이 안 된다.
+- 해결: `web_push_subscription_cleanup_rw` 에는 table `DELETE` 와 column-level `SELECT(id, user_key)` 만 부여했다. 실제로 이 계정으로 대상 delete는 성공하고, 다른 public table `UPDATE` 는 `permission denied` 로 막힌다.
+
 ## 961) `user_recommendations` retention delete는 recommendation refresh replace와 달리 별도 cleanup role로 떼기 쉬운 bounded 후보였다
 - 문제: recommendation 영역의 delete를 다 같이 보게 되면 `replaceAllForUser()` 와 `deleteOldUnbookmarked()` 가 같은 repository 안에 있어 둘 다 한꺼번에 분리하고 싶어지기 쉽다. 하지만 `replaceAllForUser()` 는 추천 refresh 핵심 흐름이라 지금 건드리면 regression 범위가 커진다.
 - 해결: `deleteOldUnbookmarked()` 만 `recommendation_retention_cleanup_rw` 로 분리하고, `replaceAllForUser()` 는 그대로 primary JPA `app_core_rw` 경로에 남겼다. 즉 “추천 삭제” 전체가 아니라 “30일 경과 미북마크 정리” 한 경로만 bounded cleanup으로 떼었다.
