@@ -7,6 +7,4 @@ public interface CollectExecutionLockRepository {
     boolean tryAcquire(String lockName, String ownerToken, LocalDateTime now, LocalDateTime lockedUntil);
 
     boolean refresh(String lockName, String ownerToken, LocalDateTime now, LocalDateTime lockedUntil);
-
-    boolean release(String lockName, String ownerToken);
 }

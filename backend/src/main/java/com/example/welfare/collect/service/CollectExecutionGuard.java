@@ -1,5 +1,6 @@
 package com.example.welfare.collect.service;
 
+import com.example.welfare.collect.repository.CollectExecutionLockCleanupCommandRepository;
 import com.example.welfare.collect.repository.CollectExecutionLockRepository;
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
@@ -24,13 +25,16 @@ public class CollectExecutionGuard {
     static final String GLOBAL_LOCK_NAME = "collect-global";
 
     private final CollectExecutionLockRepository collectExecutionLockRepository;
+    private final CollectExecutionLockCleanupCommandRepository collectExecutionLockCleanupCommandRepository;
     private final long lockLeaseMinutes;
     private final long heartbeatSeconds;
 
     public CollectExecutionGuard(CollectExecutionLockRepository collectExecutionLockRepository,
+                                 CollectExecutionLockCleanupCommandRepository collectExecutionLockCleanupCommandRepository,
                                  @Value("${collect.execution.lock-lease-minutes:15}") long lockLeaseMinutes,
                                  @Value("${collect.execution.lock-heartbeat-seconds:60}") long heartbeatSeconds) {
         this.collectExecutionLockRepository = collectExecutionLockRepository;
+        this.collectExecutionLockCleanupCommandRepository = collectExecutionLockCleanupCommandRepository;
         this.lockLeaseMinutes = lockLeaseMinutes;
         this.heartbeatSeconds = heartbeatSeconds;
     }
@@ -50,7 +54,7 @@ public class CollectExecutionGuard {
             task.run();
         } finally {
             heartbeat.shutdownNow();
-            if (!collectExecutionLockRepository.release(GLOBAL_LOCK_NAME, ownerToken)) {
+            if (!collectExecutionLockCleanupCommandRepository.release(GLOBAL_LOCK_NAME, ownerToken)) {
                 log.warn("[CollectExecutionGuard] 수집 lock 해제 확인 실패 job={} ownerToken={}", jobName, ownerToken);
             }
             log.info("[CollectExecutionGuard] 수집 실행 종료 job={}", jobName);

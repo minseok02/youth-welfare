@@ -1,5 +1,13 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 965) `notification_service_items` delete는 같은 `saveResult()` 트랜잭션 안 `delete + saveAll` 교체 흐름이라, 다음 bounded 후보로는 부적절했다
+- 문제: notification 최소권한 다음 후보로 `notification_service_items.deleteByNotificationId()` 를 보았지만, 이 delete는 `NotificationHistoryService.saveResult()` / `saveDeadlineReminderResult()` 안에서 곧바로 `saveAll(items)` 와 연속 실행된다.
+- 해결: 별도 datasource로 delete만 빼면 기존 항목 삭제는 다른 connection에서 즉시 반영되고, 뒤쪽 `saveAll`/상위 트랜잭션 rollback과 원자성이 깨질 수 있다. 그래서 이 경로는 보류하고, 대신 `collect_execution_locks` release delete처럼 finally성 단일 delete를 다음 bounded 후보로 잡았다.
+
+## 966) `collect_execution_locks` release delete도 `DELETE` 만으로는 부족하고 조건 컬럼 `lock_name`, `owner_token` `SELECT` 가 같이 필요하다
+- 문제: collect lock release는 `DELETE FROM collect_execution_locks WHERE lock_name = ? AND owner_token = ?` 조건이라 cleanup role에 table `DELETE` 만 주면 실행이 안 된다.
+- 해결: `collect_execution_lock_cleanup_rw` 에는 table `DELETE` 와 column-level `SELECT(lock_name, owner_token)` 만 부여했다. release delete는 성공하고, 다른 public table write는 계속 막히는 걸 기준으로 검증한다.
+
 ## 963) `notification_service_items` 는 replace 흐름 안 delete+saveAll 묶음이라, 다음 notification 최소권한 후보로는 `web_push_subscriptions` delete가 더 작았다
 - 문제: notification 쪽 delete를 다음 후보로 볼 때 `notification_service_items.deleteByNotificationId()` 는 이름만 보면 쉬워 보였지만 실제로는 `replaceNotificationItems()` 안에서 바로 `saveAll()` 과 묶여 dispatch 트랜잭션에 붙어 있다.
 - 해결: 이번 단계는 `notification_service_items` 대신 `web_push_subscriptions` 삭제만 분리했다. 구독 해제는 `findByIdAndUserKey()` 소유 확인 뒤 `DELETE FROM web_push_subscriptions WHERE id=:subscriptionId AND user_key=:userKey` 한 문장으로 끝나므로 `web_push_subscription_cleanup_rw` 로 떼기 더 bounded했다.

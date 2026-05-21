@@ -37,7 +37,7 @@ cd backend
 [application-integration.yml](../backend/src/test/resources/application-integration.yml)에 정의되어 있습니다.
 현재 main 기준 integration runtime 기대값은 `127.0.0.1:5433` PostgreSQL과 `127.0.0.1:6379` Redis 입니다.
 `integrationTest` 는 실행 전에 `integrationRuntimePreflight` 를 먼저 태워 이 runtime 이 없으면 개별 통합 테스트가 연쇄로 쏟아지기 전에 즉시 실패합니다.
-이 preflight 는 이제 포트 접근성만 보지 않고, primary / admin-ro / cluster-ai-cleanup / recommendation-retention-cleanup / web-push-subscription-cleanup / pii-rw / notification-pii-ro datasource에 실제 JDBC 로그인까지 확인합니다.
+이 preflight 는 이제 포트 접근성만 보지 않고, primary / admin-ro / cluster-ai-cleanup / recommendation-retention-cleanup / collect-execution-lock-cleanup / web-push-subscription-cleanup / pii-rw / notification-pii-ro datasource에 실제 JDBC 로그인까지 확인합니다.
 WSL에서 Docker Desktop을 쓰는 경우 `docker` 명령이 안 보이면 먼저 Docker Desktop의 WSL integration을 켜야 합니다.
 실행 전에 shell 기준 진단만 빠르게 보고 싶으면 `deploy/smoke/preflight-integration-runtime.sh` 를 먼저 실행합니다.
 
@@ -56,7 +56,7 @@ cd backend
 ```
 
 이 스크립트는 기존 PostgreSQL volume을 지우지 않고, 현재 main 기준에서 확인된 drift patch
-(`chat_messages.references_json`, `chat_retrieval_snapshots.needs_clarification`, `admin_dashboard_ro`, `cluster_ai_cleanup_rw`, `recommendation_retention_cleanup_rw`, `web_push_subscription_cleanup_rw` role/grant 등)를 재적용합니다.
+(`chat_messages.references_json`, `chat_retrieval_snapshots.needs_clarification`, `admin_dashboard_ro`, `cluster_ai_cleanup_rw`, `recommendation_retention_cleanup_rw`, `collect_execution_lock_cleanup_rw`, `web_push_subscription_cleanup_rw` role/grant 등)를 재적용합니다.
 현재 main 기준 로컬 계정/권한은 Docker Compose init 경로에서 맞춰지므로,
 `deploy/mysql/**` 아래 계정 복구 스크립트는 legacy MySQL history로만 봅니다.
 

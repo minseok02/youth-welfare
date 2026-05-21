@@ -1,5 +1,6 @@
 package com.example.welfare.collect.service;
 
+import com.example.welfare.collect.repository.CollectExecutionLockCleanupCommandRepository;
 import com.example.welfare.collect.repository.CollectExecutionLockRepository;
 import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
@@ -22,24 +23,26 @@ class CollectExecutionGuardTest {
     @DisplayName("DB lock 을 획득하면 task 를 실행하고 종료 시 lock 을 해제한다")
     void runExclusiveAcquiresAndReleasesLock() {
         CollectExecutionLockRepository repository = mock(CollectExecutionLockRepository.class);
+        CollectExecutionLockCleanupCommandRepository cleanupRepository = mock(CollectExecutionLockCleanupCommandRepository.class);
         when(repository.tryAcquire(eq(CollectExecutionGuard.GLOBAL_LOCK_NAME), any(), any(), any())).thenReturn(true);
-        when(repository.release(eq(CollectExecutionGuard.GLOBAL_LOCK_NAME), any())).thenReturn(true);
-        CollectExecutionGuard guard = new CollectExecutionGuard(repository, 15L, 60L);
+        when(cleanupRepository.release(eq(CollectExecutionGuard.GLOBAL_LOCK_NAME), any())).thenReturn(true);
+        CollectExecutionGuard guard = new CollectExecutionGuard(repository, cleanupRepository, 15L, 60L);
         AtomicBoolean executed = new AtomicBoolean(false);
 
         guard.runExclusive("collect-all", () -> executed.set(true));
 
         assertThat(executed).isTrue();
         verify(repository).tryAcquire(eq(CollectExecutionGuard.GLOBAL_LOCK_NAME), any(), any(), any());
-        verify(repository).release(eq(CollectExecutionGuard.GLOBAL_LOCK_NAME), any());
+        verify(cleanupRepository).release(eq(CollectExecutionGuard.GLOBAL_LOCK_NAME), any());
     }
 
     @Test
     @DisplayName("DB lock 을 획득하지 못하면 COLLECT_ALREADY_RUNNING 을 던진다")
     void runExclusiveThrowsWhenLockBusy() {
         CollectExecutionLockRepository repository = mock(CollectExecutionLockRepository.class);
+        CollectExecutionLockCleanupCommandRepository cleanupRepository = mock(CollectExecutionLockCleanupCommandRepository.class);
         when(repository.tryAcquire(eq(CollectExecutionGuard.GLOBAL_LOCK_NAME), any(), any(), any())).thenReturn(false);
-        CollectExecutionGuard guard = new CollectExecutionGuard(repository, 15L, 60L);
+        CollectExecutionGuard guard = new CollectExecutionGuard(repository, cleanupRepository, 15L, 60L);
 
         assertThatThrownBy(() -> guard.runExclusive("collect-all", () -> {}))
                 .isInstanceOf(CustomException.class)
@@ -51,10 +54,11 @@ class CollectExecutionGuardTest {
     @DisplayName("수집 실행 중 heartbeat 는 lock lease 를 주기적으로 갱신한다")
     void runExclusiveRefreshesLockLeaseWhileRunning() throws InterruptedException {
         CollectExecutionLockRepository repository = mock(CollectExecutionLockRepository.class);
+        CollectExecutionLockCleanupCommandRepository cleanupRepository = mock(CollectExecutionLockCleanupCommandRepository.class);
         when(repository.tryAcquire(eq(CollectExecutionGuard.GLOBAL_LOCK_NAME), any(), any(), any())).thenReturn(true);
         when(repository.refresh(eq(CollectExecutionGuard.GLOBAL_LOCK_NAME), any(), any(), any())).thenReturn(true);
-        when(repository.release(eq(CollectExecutionGuard.GLOBAL_LOCK_NAME), any())).thenReturn(true);
-        CollectExecutionGuard guard = new CollectExecutionGuard(repository, 15L, 1L);
+        when(cleanupRepository.release(eq(CollectExecutionGuard.GLOBAL_LOCK_NAME), any())).thenReturn(true);
+        CollectExecutionGuard guard = new CollectExecutionGuard(repository, cleanupRepository, 15L, 1L);
 
         guard.runExclusive("collect-all", () -> {
             try {

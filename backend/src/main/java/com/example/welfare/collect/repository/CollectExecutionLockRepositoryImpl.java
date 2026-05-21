@@ -69,17 +69,4 @@ public class CollectExecutionLockRepositoryImpl implements CollectExecutionLockR
         );
         return updated == 1;
     }
-
-    @Override
-    public boolean release(String lockName, String ownerToken) {
-        int deleted = jdbcTemplate.update("""
-                delete from collect_execution_locks
-                 where lock_name = ?
-                   and owner_token = ?
-                """,
-                lockName,
-                ownerToken
-        );
-        return deleted == 1;
-    }
 }

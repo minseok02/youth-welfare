@@ -72,6 +72,11 @@ app:
       username: ${DB_RECOMMENDATION_RETENTION_CLEANUP_USERNAME:recommendation_retention_cleanup_rw}
       password: ${DB_RECOMMENDATION_RETENTION_CLEANUP_PASSWORD:${DB_PASSWORD:}}
       driver-class-name: org.postgresql.Driver
+    collect-execution-lock-cleanup:
+      url: ${COLLECT_EXECUTION_LOCK_CLEANUP_DB_URL:${DB_URL:jdbc:postgresql://localhost:5432/youth_welfare?sslmode=disable}}
+      username: ${DB_COLLECT_EXECUTION_LOCK_CLEANUP_USERNAME:collect_execution_lock_cleanup_rw}
+      password: ${DB_COLLECT_EXECUTION_LOCK_CLEANUP_PASSWORD:${DB_PASSWORD:}}
+      driver-class-name: org.postgresql.Driver
     web-push-subscription-cleanup:
       url: ${WEB_PUSH_SUBSCRIPTION_CLEANUP_DB_URL:${DB_URL:jdbc:postgresql://localhost:5432/youth_welfare?sslmode=disable}}
       username: ${DB_WEB_PUSH_SUBSCRIPTION_CLEANUP_USERNAME:web_push_subscription_cleanup_rw}
