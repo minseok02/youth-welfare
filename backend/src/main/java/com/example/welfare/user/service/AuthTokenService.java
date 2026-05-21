@@ -5,6 +5,7 @@ import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.global.util.JwtUtil;
 import com.example.welfare.user.dto.response.TokenResponse;
+import com.example.welfare.user.entity.AuthUser;
 import com.example.welfare.user.entity.User;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,7 +31,7 @@ public class AuthTokenService {
     private final AccessTokenRevocationService accessTokenRevocationService;
     private final ChatSessionCleanupService chatSessionCleanupService;
     private final UserKeyLookupService userKeyLookupService;
-    private final UserPlainPiiReadService userPlainPiiReadService;
+    private final AuthIdentityReadService authIdentityReadService;
 
     public TokenResponse issueTokens(String userKey, Long userId, List<String> roles) {
         String accessToken = jwtUtil.generateAccessToken(userKey, userId, roles);
@@ -53,8 +54,9 @@ public class AuthTokenService {
             throw new CustomException(ErrorCode.REUSED_REFRESH_TOKEN);
         }
 
-        String emailForRoles = userPlainPiiReadService.resolveCurrent(user, userKey).email();
-        return issueTokens(userKey, userId, rolesResolver.apply(emailForRoles));
+        AuthUser authUser = authIdentityReadService.findByUserKey(userKey)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+        return issueTokens(userKey, userId, rolesResolver.apply(authUser.getEmailLookupHash()));
     }
 
     @Transactional

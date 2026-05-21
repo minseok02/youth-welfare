@@ -4,6 +4,7 @@ import com.example.welfare.global.util.AesEncryptUtil;
 import com.example.welfare.user.entity.User;
 import com.example.welfare.user.repository.UserPiiReadModel;
 import com.example.welfare.user.repository.UserPiiReadWriteRepository;
+import com.example.welfare.user.util.UserEmailShadowValue;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -77,5 +78,29 @@ class UserPlainPiiReadServiceTest {
         assertThat(pii.email()).isEqualTo("user@example.com");
         assertThat(pii.name()).isNull();
         assertThat(pii.birthDate()).isNull();
+    }
+
+    @Test
+    @DisplayName("users.email 이 shadow 값이면 암호문 없는 fallback source로 사용하지 않는다")
+    void resolveCurrentDoesNotUseShadowEmailAsFallback() {
+        User user = User.builder()
+                .id(1L)
+                .email(UserEmailShadowValue.from("real.user@private-domain.com"))
+                .passwordHash("hash")
+                .build();
+        when(userPiiReadWriteRepository.findByUserKey("user-key-1"))
+                .thenReturn(Optional.of(new UserPiiReadModel(
+                        "user-key-1",
+                        null,
+                        null,
+                        null,
+                        null
+                )));
+
+        UserPlainPiiReadService service = new UserPlainPiiReadService(userPiiReadWriteRepository, aesEncryptUtil);
+
+        UserPlainPii pii = service.resolveCurrent(user, "user-key-1");
+
+        assertThat(pii.email()).isNull();
     }
 }

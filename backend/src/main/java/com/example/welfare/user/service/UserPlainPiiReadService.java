@@ -4,6 +4,7 @@ import com.example.welfare.global.util.AesEncryptUtil;
 import com.example.welfare.user.entity.User;
 import com.example.welfare.user.repository.UserPiiReadModel;
 import com.example.welfare.user.repository.UserPiiReadWriteRepository;
+import com.example.welfare.user.util.UserEmailShadowValue;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -23,7 +24,7 @@ public class UserPlainPiiReadService {
 
         String email = firstText(
                 decryptNullable(stored != null ? stored.emailEnc() : null),
-                user.getEmail()
+                fallbackPlainEmail(user.getEmail())
         );
         String name = firstText(
                 decryptNullable(stored != null ? stored.nameEnc() : null),
@@ -61,5 +62,12 @@ public class UserPlainPiiReadService {
             return null;
         }
         return LocalDate.parse(decrypted);
+    }
+
+    private String fallbackPlainEmail(String storedEmail) {
+        if (!StringUtils.hasText(storedEmail) || UserEmailShadowValue.isShadowValue(storedEmail)) {
+            return null;
+        }
+        return storedEmail;
     }
 }

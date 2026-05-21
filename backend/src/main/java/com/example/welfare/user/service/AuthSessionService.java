@@ -14,7 +14,7 @@ public class AuthSessionService {
 
     @Transactional
     public TokenResponse refresh(String refreshToken) {
-        return authTokenService.refresh(refreshToken, authAdminRoleService::resolveRoles);
+        return authTokenService.refresh(refreshToken, authAdminRoleService::resolveRolesByEmailLookupHash);
     }
 
     @Transactional

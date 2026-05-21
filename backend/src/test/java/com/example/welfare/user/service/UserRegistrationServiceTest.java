@@ -3,6 +3,7 @@ package com.example.welfare.user.service;
 import com.example.welfare.user.dto.request.SignupRequest;
 import com.example.welfare.user.entity.User;
 import com.example.welfare.user.repository.UserRegistrationCommandRepository;
+import com.example.welfare.user.util.UserEmailShadowValue;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -54,5 +55,20 @@ class UserRegistrationServiceTest {
         assertThat(userCaptor.getValue().getEmail()).isEqualTo("user@example.com");
         assertThat(userCaptor.getValue().getPasswordHash()).isEqualTo("encoded-password");
         assertThat(userCaptor.getValue().getName()).isNull();
+    }
+
+    @Test
+    @DisplayName("실사용 도메인 이메일은 users 평문 대신 shadow 값으로 저장한다")
+    void registerStoresShadowValueForNonTestDomainEmail() {
+        SignupRequest request = new SignupRequest();
+        ReflectionTestUtils.setField(request, "email", "real.user@private-domain.com");
+        when(userAccountOriginResolver.resolve("real.user@private-domain.com")).thenReturn(User.AccountOrigin.REAL_USER);
+
+        userRegistrationService.register(request, "encoded-password");
+
+        ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
+        verify(userRegistrationCommandRepository).save(userCaptor.capture());
+        assertThat(userCaptor.getValue().getEmail())
+                .isEqualTo(UserEmailShadowValue.from("real.user@private-domain.com"));
     }
 }

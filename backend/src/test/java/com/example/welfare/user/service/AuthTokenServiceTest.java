@@ -5,6 +5,7 @@ import com.example.welfare.global.exception.CustomException;
 import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.global.util.JwtUtil;
 import com.example.welfare.user.dto.response.TokenResponse;
+import com.example.welfare.user.entity.AuthUser;
 import com.example.welfare.user.entity.User;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -36,7 +37,7 @@ class AuthTokenServiceTest {
     @Mock private AccessTokenRevocationService accessTokenRevocationService;
     @Mock private ChatSessionCleanupService chatSessionCleanupService;
     @Mock private UserKeyLookupService userKeyLookupService;
-    @Mock private UserPlainPiiReadService userPlainPiiReadService;
+    @Mock private AuthIdentityReadService authIdentityReadService;
     @Mock private ValueOperations<String, String> valueOperations;
 
     private AuthTokenService authTokenService;
@@ -50,7 +51,7 @@ class AuthTokenServiceTest {
                 accessTokenRevocationService,
                 chatSessionCleanupService,
                 userKeyLookupService,
-                userPlainPiiReadService
+                authIdentityReadService
         );
         lenient().when(redisTemplate.opsForValue()).thenReturn(valueOperations);
     }
@@ -76,15 +77,15 @@ class AuthTokenServiceTest {
                 .build();
         when(activeUserReadService.getActiveUserContext(7L))
                 .thenReturn(new ActiveUserReadService.ActiveUserContext(user, "user-key-7"));
-        when(userPlainPiiReadService.resolveCurrent(user, "user-key-7"))
-                .thenReturn(new UserPlainPii("user@example.com", null, null));
+        when(authIdentityReadService.findByUserKey("user-key-7"))
+                .thenReturn(Optional.of(AuthUser.builder().userKey("user-key-7").emailLookupHash("email-hash").build()));
         when(valueOperations.get("refresh:user-key-7")).thenReturn("refresh-token");
         when(jwtUtil.getSubject("refresh-token")).thenReturn("user-key-7");
         when(jwtUtil.getUserId("refresh-token")).thenReturn(7L);
         when(jwtUtil.generateAccessToken("user-key-7", 7L, List.of("ROLE_USER"))).thenReturn("new-access");
         when(jwtUtil.generateRefreshToken("user-key-7", 7L)).thenReturn("new-refresh");
 
-        TokenResponse response = authTokenService.refresh("refresh-token", email -> List.of("ROLE_USER"));
+        TokenResponse response = authTokenService.refresh("refresh-token", emailHash -> List.of("ROLE_USER"));
 
         assertThat(response.getAccessToken()).isEqualTo("new-access");
         assertThat(response.getRefreshToken()).isEqualTo("new-refresh");

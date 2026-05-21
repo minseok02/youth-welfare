@@ -1,6 +1,7 @@
 package com.example.welfare.user.repository;
 
 import com.example.welfare.user.entity.User;
+import com.example.welfare.user.util.EmailLookupKeyGenerator;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -11,11 +12,33 @@ import java.util.Optional;
 
 public interface UserRepository extends JpaRepository<User, Long> {
 
-    Optional<User> findByEmail(String email);
+    @Query(value = """
+            select u.*
+            from users u
+            join auth_users au on au.user_key = u.user_key
+            where au.email_lookup_hash = :emailLookupHash
+            limit 1
+            """, nativeQuery = true)
+    Optional<User> findByEmailLookupHash(@Param("emailLookupHash") String emailLookupHash);
+
+    default Optional<User> findByEmail(String email) {
+        return findByEmailLookupHash(EmailLookupKeyGenerator.hash(email));
+    }
+
+    @Query(value = """
+            select exists(
+                select 1
+                from auth_users au
+                where au.email_lookup_hash = :emailLookupHash
+            )
+            """, nativeQuery = true)
+    boolean existsByEmailLookupHash(@Param("emailLookupHash") String emailLookupHash);
+
+    default boolean existsByEmail(String email) {
+        return existsByEmailLookupHash(EmailLookupKeyGenerator.hash(email));
+    }
 
     Optional<User> findByUserKey(String userKey);
-
-    boolean existsByEmail(String email);
 
     List<User> findByNotificationYnTrueAndNotificationPeriod(User.NotificationPeriod period);
 

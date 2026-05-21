@@ -23,6 +23,7 @@ public class AuthAdminRoleService {
     private String adminEmailsProperty;
 
     private Set<String> adminEmails = Set.of();
+    private Set<String> adminEmailLookupHashes = Set.of();
 
     @PostConstruct
     void initAdminEmails() {
@@ -30,6 +31,9 @@ public class AuthAdminRoleService {
                 .map(String::trim)
                 .filter(StringUtils::hasText)
                 .map(email -> email.toLowerCase(Locale.ROOT))
+                .collect(Collectors.toUnmodifiableSet());
+        adminEmailLookupHashes = adminEmails.stream()
+                .map(EmailLookupKeyGenerator::hash)
                 .collect(Collectors.toUnmodifiableSet());
     }
 
@@ -41,6 +45,13 @@ public class AuthAdminRoleService {
 
     public List<String> resolveRoles(String email) {
         if (isReservedAdminEmail(email)) {
+            return List.of("ROLE_USER", "ROLE_ADMIN");
+        }
+        return List.of("ROLE_USER");
+    }
+
+    public List<String> resolveRolesByEmailLookupHash(String emailLookupHash) {
+        if (StringUtils.hasText(emailLookupHash) && adminEmailLookupHashes.contains(emailLookupHash)) {
             return List.of("ROLE_USER", "ROLE_ADMIN");
         }
         return List.of("ROLE_USER");

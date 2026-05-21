@@ -6315,3 +6315,11 @@ admin API와 latest artifact에
 상태값을 `reviewGatePolicyPromotionReviewRunApprovalStatus=PENDING_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL` 까지만 두면, 실제로는 approval decision이 pending인지, approval record가 아직 안 써졌는지를 operator가 다시 머리로 합쳐야 했다.
 
 `reviewGatePolicyPromotionReviewRunApprovalRecordStatus/Reason` 를 admin summary/breakdowns, latest artifact, active 문서, PR surface에 같이 올려서 마지막 layer도 `approval pending` 과 `approval record pending` 을 분리해서 읽게 맞췄다.
+
+## 971) `users.email` 을 바로 비우기 전에 login identity와 contact/profile email을 먼저 분리해야 했다
+- 문제: `users.name` / `users.birth_date` 축소 뒤 같은 방식으로 `users.email` 의존도도 줄이려 했지만, email은 profile 표시값이 아니라 로그인 identity, refresh role resolution, password reset 흐름까지 같이 얽혀 있었다. 이 상태에서 `user_pii.email` 을 그대로 auth source처럼 쓰면 “연락용 이메일 변경”이 곧 “로그인 이메일 변경”처럼 번져 auth 경계가 깨질 수 있었다.
+- 해결: login identity의 source-of-truth는 계속 `auth_users.email_lookup_hash` 로 두고, `user_pii.email` 은 contact/profile read source로만 쓰도록 다시 분리했다. `AuthTokenService`, `AuthSessionService`, `UserCoreSyncService` 는 이제 기존 auth hash를 보존하고, profile read만 `UserPlainPiiReadService` 를 통해 `user_pii` 우선으로 읽는다.
+
+## 972) `users.email` 평문 축소는 “lookup rewrite + shadow 저장”을 같이 하지 않으면 auth 회귀를 만들기 쉽다
+- 문제: `users.email` 을 단순히 null 처리하거나 임의값으로 바꾸면, 아직 `findByEmail` / `existsByEmail` / fallback read가 `users.email` 을 직접 보는 경로가 남아 있는 동안 로그인/가입/비밀번호 재설정이 조용히 깨질 수 있다.
+- 해결: `UserRepository.findByEmail` / `existsByEmail` 를 `auth_users.email_lookup_hash` 기준 조회로 바꾸고, `users.email` 은 test/smoke 도메인만 plain 유지하고 나머지는 `shadow_<sha256(email)>` 형태로 저장하게 맞췄다. 동시에 `UserPlainPiiReadService` 는 shadow 값을 profile read fallback으로 쓰지 않게 막아 “평문 축소”와 “런타임 동작 유지”를 함께 만족하게 했다.

@@ -2,7 +2,6 @@ package com.example.welfare.user.service;
 
 import com.example.welfare.user.entity.User;
 import com.example.welfare.user.repository.UserCoreProjectionCommandRepository;
-import com.example.welfare.user.util.EmailLookupKeyGenerator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,11 +15,11 @@ public class UserCoreProjectionSyncService {
     private final UserCoreProjectionCommandRepository userCoreProjectionCommandRepository;
 
     @Transactional
-    public void syncAuthUser(User user, String userKey, String email) {
+    public void syncAuthUser(User user, String userKey, String emailLookupHash) {
         userCoreProjectionCommandRepository.upsertAuthProjection(
                 user,
                 userKey,
-                EmailLookupKeyGenerator.hash(email)
+                emailLookupHash
         );
     }
 

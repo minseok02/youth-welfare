@@ -3,6 +3,7 @@ package com.example.welfare.user.service;
 import com.example.welfare.user.dto.request.SignupRequest;
 import com.example.welfare.user.entity.User;
 import com.example.welfare.user.repository.UserRegistrationCommandRepository;
+import com.example.welfare.user.util.UserEmailShadowValue;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,9 +18,10 @@ public class UserRegistrationService {
 
     @Transactional
     public void register(SignupRequest request, String encodedPassword) {
+        String normalizedEmail = request.getEmail();
         User user = User.builder()
-                .email(request.getEmail())
-                .accountOrigin(userAccountOriginResolver.resolve(request.getEmail()))
+                .email(UserEmailShadowValue.from(normalizedEmail))
+                .accountOrigin(userAccountOriginResolver.resolve(normalizedEmail))
                 .passwordHash(encodedPassword)
                 .sido(request.getSido())
                 .sgg(request.getSgg())
@@ -32,7 +34,7 @@ public class UserRegistrationService {
         userCoreSyncService.syncFromUser(
                 user,
                 new UserPlainPii(
-                        request.getEmail(),
+                        normalizedEmail,
                         request.getName(),
                         request.getBirthDate()
                 )

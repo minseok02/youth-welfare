@@ -1,12 +1,15 @@
 package com.example.welfare.user.service;
 
 import com.example.welfare.global.util.AesEncryptUtil;
+import com.example.welfare.user.entity.AuthUser;
 import com.example.welfare.user.entity.User;
 import com.example.welfare.user.event.UserPiiSyncRequestedEvent;
+import com.example.welfare.user.util.EmailLookupKeyGenerator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -20,6 +23,7 @@ public class UserCoreSyncService {
     private final UserCoreProjectionSyncService userCoreProjectionSyncService;
     private final UserPiiSyncQueueService userPiiSyncQueueService;
     private final UserPlainPiiReadService userPlainPiiReadService;
+    private final AuthIdentityReadService authIdentityReadService;
     private final AesEncryptUtil aesEncryptUtil;
     private final ApplicationEventPublisher applicationEventPublisher;
 
@@ -40,8 +44,9 @@ public class UserCoreSyncService {
         Integer age = calculateAge(pii.birthDate());
         String ageBand = resolveAgeBand(age);
         LocalDateTime ageCalculatedAt = age == null ? null : LocalDateTime.now();
+        String emailLookupHash = resolveAuthEmailLookupHash(userKey, pii);
 
-        userCoreProjectionSyncService.syncAuthUser(user, userKey, pii.email());
+        userCoreProjectionSyncService.syncAuthUser(user, userKey, emailLookupHash);
         userCoreProjectionSyncService.syncUserProfile(
                 user,
                 userKey,
@@ -63,6 +68,19 @@ public class UserCoreSyncService {
                 user.getPhoneEnc()
         );
         applicationEventPublisher.publishEvent(new UserPiiSyncRequestedEvent(userKey));
+    }
+
+    private String resolveAuthEmailLookupHash(String userKey, UserPlainPii pii) {
+        return authIdentityReadService.findByUserKey(userKey)
+                .map(AuthUser::getEmailLookupHash)
+                .orElseGet(() -> EmailLookupKeyGenerator.hash(requireAuthIdentityEmail(pii.email(), userKey)));
+    }
+
+    private String requireAuthIdentityEmail(String email, String userKey) {
+        if (StringUtils.hasText(email)) {
+            return email;
+        }
+        throw new IllegalStateException("auth identity email missing for new userKey=" + userKey);
     }
 
     private Integer calculateAge(LocalDate birthDate) {
