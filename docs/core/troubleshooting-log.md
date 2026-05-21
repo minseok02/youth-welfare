@@ -1,5 +1,13 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 961) `user_recommendations` retention delete는 recommendation refresh replace와 달리 별도 cleanup role로 떼기 쉬운 bounded 후보였다
+- 문제: recommendation 영역의 delete를 다 같이 보게 되면 `replaceAllForUser()` 와 `deleteOldUnbookmarked()` 가 같은 repository 안에 있어 둘 다 한꺼번에 분리하고 싶어지기 쉽다. 하지만 `replaceAllForUser()` 는 추천 refresh 핵심 흐름이라 지금 건드리면 regression 범위가 커진다.
+- 해결: `deleteOldUnbookmarked()` 만 `recommendation_retention_cleanup_rw` 로 분리하고, `replaceAllForUser()` 는 그대로 primary JPA `app_core_rw` 경로에 남겼다. 즉 “추천 삭제” 전체가 아니라 “30일 경과 미북마크 정리” 한 경로만 bounded cleanup으로 떼었다.
+
+## 962) PostgreSQL에서 `DELETE ... WHERE recommended_at < ... AND is_bookmarked = false` 를 별도 role로 실행하려면 `DELETE` 만 아니라 조건 컬럼 `SELECT` 도 같이 필요하다
+- 문제: cleanup role에 `DELETE ON user_recommendations` 만 줘도 될 것처럼 보였지만, 실제로는 `WHERE recommended_at < :before AND is_bookmarked = false` 조건을 읽으려면 `recommended_at`, `is_bookmarked` 컬럼 `SELECT` 권한이 같이 필요하다.
+- 해결: `recommendation_retention_cleanup_rw` 에는 table `DELETE` 와 column-level `SELECT(recommended_at, is_bookmarked)` 만 부여했다. 실제로 이 계정으로 대상 delete는 성공하고, `score_weights` 같은 다른 테이블 `UPDATE` 는 `permission denied` 로 막힌다.
+
 ## 959) collect sidecar는 JDBC라 보여도 같은 트랜잭션 안에서 `welfare_services` FK를 바로 쓰기 때문에 2차 최소권한 1순위 후보로는 부적절했다
 - 문제: 처음에는 `service_regions`, `service_taxonomy_*`, `service_facts` 같은 collect sidecar delete를 별도 계정으로 떼는 게 가장 쉬워 보였다. 하지만 실제 저장 경로를 따라가 보니 `CollectItemSaver` 가 primary JPA 트랜잭션 안에서 `welfare_services` 를 `saveAndFlush()` 한 직후 sidecar delete/insert를 실행하고, sidecar 테이블도 `welfare_services(id)` FK를 바로 건다.
 - 해결: collect sidecar 분리는 1순위에서 내리고, 별도 connection/트랜잭션으로 분리해도 원자성 영향을 거의 안 받는 `cluster_ai_results` TTL cleanup부터 떼는 방향으로 바꿨다. 이번 2차 최소권한화는 `cluster_ai_cleanup_rw` role과 datasource를 추가하고, `ClusterAiResultCommandRepositoryImpl.deleteExpiredBefore()` 만 cleanup JDBC로 옮겼다.

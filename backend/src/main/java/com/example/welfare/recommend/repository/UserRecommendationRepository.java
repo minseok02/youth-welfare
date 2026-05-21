@@ -133,11 +133,4 @@ public interface UserRecommendationRepository extends JpaRepository<UserRecommen
             WHERE ur.userKey = :userKey
             """)
     void deleteAllByUserKey(@Param("userKey") String userKey);
-
-    @Modifying
-    @Query("""
-            DELETE FROM UserRecommendation ur
-            WHERE ur.recommendedAt < :before AND ur.isBookmarked = false
-            """)
-    void deleteOldUnbookmarked(@Param("before") LocalDateTime before);
 }

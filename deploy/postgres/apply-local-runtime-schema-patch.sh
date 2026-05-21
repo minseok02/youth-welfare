@@ -50,6 +50,8 @@ DB_PASSWORD_VALUE="$(load_env_value DB_PASSWORD '')"
 ADMIN_RO_PASSWORD="${DB_ADMIN_RO_PASSWORD:-$(load_env_value DB_ADMIN_RO_PASSWORD "${DB_PASSWORD_VALUE}")}"
 CLUSTER_AI_CLEANUP_USERNAME="${DB_CLUSTER_AI_CLEANUP_USERNAME:-$(load_env_value DB_CLUSTER_AI_CLEANUP_USERNAME cluster_ai_cleanup_rw)}"
 CLUSTER_AI_CLEANUP_PASSWORD="${DB_CLUSTER_AI_CLEANUP_PASSWORD:-$(load_env_value DB_CLUSTER_AI_CLEANUP_PASSWORD "${DB_PASSWORD_VALUE}")}"
+RECOMMENDATION_RETENTION_CLEANUP_USERNAME="${DB_RECOMMENDATION_RETENTION_CLEANUP_USERNAME:-$(load_env_value DB_RECOMMENDATION_RETENTION_CLEANUP_USERNAME recommendation_retention_cleanup_rw)}"
+RECOMMENDATION_RETENTION_CLEANUP_PASSWORD="${DB_RECOMMENDATION_RETENTION_CLEANUP_PASSWORD:-$(load_env_value DB_RECOMMENDATION_RETENTION_CLEANUP_PASSWORD "${DB_PASSWORD_VALUE}")}"
 MIGRATION_USERNAME="${DB_MIGRATION_USERNAME:-$(load_env_value DB_MIGRATION_USERNAME migration_admin)}"
 
 shopt -s nullglob
@@ -69,6 +71,8 @@ for patch in "${patches[@]}"; do
     -v "admin_ro_password=${ADMIN_RO_PASSWORD}" \
     -v "cluster_ai_cleanup_username=${CLUSTER_AI_CLEANUP_USERNAME}" \
     -v "cluster_ai_cleanup_password=${CLUSTER_AI_CLEANUP_PASSWORD}" \
+    -v "recommendation_retention_cleanup_username=${RECOMMENDATION_RETENTION_CLEANUP_USERNAME}" \
+    -v "recommendation_retention_cleanup_password=${RECOMMENDATION_RETENTION_CLEANUP_PASSWORD}" \
     -v "migration_username=${MIGRATION_USERNAME}" \
     -U postgres -d "${DB_NAME}" < "${patch}"
 done
