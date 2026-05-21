@@ -8,6 +8,10 @@
 - 문제: 이번 PII dedup 1차 검증에서는 `./gradlew test`, `./gradlew integrationRuntimePreflight`, `./gradlew integrationTest` 가 모두 통과했고 `public-profile-chat`, `admin-authorization`, `admin-dashboard` smoke도 green이었다. 하지만 `run-local-auth-session-smoke.sh` 안 `recommendations refresh` 단계는 local runtime에서 `fk_ur_service` constraint violation (`service_id=21507` missing in `welfare_services`) 로 500이 났다.
 - 해결: 현재 증상은 이번 PII dedup 코드보다는 local recommendation dataset drift에 가깝다. `public-profile-chat` 과 integration `RecommendationFlowIntegrationTest`, `ChatMessageApiIntegrationTest` 는 모두 통과했고, app log stack도 `user_recommendations -> welfare_services` FK mismatch를 가리켰다. 따라서 이번 수정은 유지하고, auth/session smoke 실패는 별도 recommendation data repair lane으로 분리해 추적한다.
 
+## 969) local recommendation dataset drift가 있어도 refresh 전체를 500으로 죽이지 않게 저장 직전 존재 확인이 필요했다
+- 문제: local runtime에서 `recommendations refresh` 가 가끔 `service_id=21507 missing in welfare_services` 같은 FK 오류로 500이 났다. 기존 `user_recommendations` row 자체에는 orphan가 없었고, 증상은 새 추천 저장 직전에만 보였다.
+- 해결: `RecommendationPersistenceService` 가 저장 직전 후보 `service_id` 들을 다시 한 번 `welfare_services` 에 조회하고, 현재 DB에 없는 ID는 로그만 남기고 제외하게 바꿨다. 즉 root cause가 local dataset drift든 stale candidate read든, 추천 refresh 전체가 FK 예외로 죽지 않게 persistence 경계에서 흡수한다. 이 뒤 `run-local-runtime-api-smoke.sh` 와 `run-local-auth-session-smoke.sh` 를 다시 돌려 auth/session 묶음 전체가 green으로 복귀한 것을 확인했다.
+
 ## 965) `notification_service_items` delete는 같은 `saveResult()` 트랜잭션 안 `delete + saveAll` 교체 흐름이라, 다음 bounded 후보로는 부적절했다
 - 문제: notification 최소권한 다음 후보로 `notification_service_items.deleteByNotificationId()` 를 보았지만, 이 delete는 `NotificationHistoryService.saveResult()` / `saveDeadlineReminderResult()` 안에서 곧바로 `saveAll(items)` 와 연속 실행된다.
 - 해결: 별도 datasource로 delete만 빼면 기존 항목 삭제는 다른 connection에서 즉시 반영되고, 뒤쪽 `saveAll`/상위 트랜잭션 rollback과 원자성이 깨질 수 있다. 그래서 이 경로는 보류하고, 대신 `collect_execution_locks` release delete처럼 finally성 단일 delete를 다음 bounded 후보로 잡았다.

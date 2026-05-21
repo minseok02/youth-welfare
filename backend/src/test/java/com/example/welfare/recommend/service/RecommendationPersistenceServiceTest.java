@@ -1,6 +1,7 @@
 package com.example.welfare.recommend.service;
 
 import com.example.welfare.policy.entity.WelfareService;
+import com.example.welfare.policy.repository.WelfareServiceRepository;
 import com.example.welfare.recommend.dto.ScoredCandidate;
 import com.example.welfare.recommend.entity.ScoreWeight;
 import com.example.welfare.recommend.entity.UserRecommendation;
@@ -32,6 +33,8 @@ class RecommendationPersistenceServiceTest {
     private RecommendationPersistenceCommandRepository recommendationPersistenceCommandRepository;
     @Mock
     private RecommendationBookmarkStateReadService recommendationBookmarkStateReadService;
+    @Mock
+    private WelfareServiceRepository welfareServiceRepository;
 
     @InjectMocks
     private RecommendationPersistenceService recommendationPersistenceService;
@@ -66,6 +69,8 @@ class RecommendationPersistenceServiceTest {
 
         when(recommendationBookmarkStateReadService.findLatestBookmarkStateByServiceId("user-key-7"))
                 .thenReturn(java.util.Map.of());
+        when(welfareServiceRepository.findExistingIdsByIdIn(java.util.List.of(11L)))
+                .thenReturn(java.util.List.of(11L));
         when(recommendationPersistenceCommandRepository.replaceAllForUser(org.mockito.ArgumentMatchers.eq("user-key-7"), anyList()))
                 .thenAnswer(invocation -> invocation.getArgument(1));
 
@@ -112,6 +117,8 @@ class RecommendationPersistenceServiceTest {
 
         when(recommendationBookmarkStateReadService.findLatestBookmarkStateByServiceId("user-key-7"))
                 .thenReturn(java.util.Map.of(11L, true));
+        when(welfareServiceRepository.findExistingIdsByIdIn(java.util.List.of(11L)))
+                .thenReturn(java.util.List.of(11L));
         when(recommendationPersistenceCommandRepository.replaceAllForUser(org.mockito.ArgumentMatchers.eq("user-key-7"), anyList()))
                 .thenAnswer(invocation -> invocation.getArgument(1));
 
@@ -138,7 +145,64 @@ class RecommendationPersistenceServiceTest {
 
         assertThat(saved).isEmpty();
         verify(recommendationBookmarkStateReadService, never()).findLatestBookmarkStateByServiceId(any());
+        verify(welfareServiceRepository, never()).findExistingIdsByIdIn(anyList());
         verify(recommendationPersistenceCommandRepository, never()).replaceAllForUser(any(), anyList());
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 welfare service 후보는 저장 전에 제외한다")
+    void saveSkipsMissingServicesBeforePersistence() {
+        User user = User.builder().id(7L).userKey("user-key-7").build();
+        WelfareService validService = WelfareService.builder()
+                .id(11L)
+                .sourceType(WelfareService.SourceType.YOUTH)
+                .sourceId("Y1")
+                .title("유효 정책")
+                .status(WelfareService.ServiceStatus.ACTIVE)
+                .build();
+        WelfareService missingService = WelfareService.builder()
+                .id(21507L)
+                .sourceType(WelfareService.SourceType.YOUTH)
+                .sourceId("Y2")
+                .title("유실 정책")
+                .status(WelfareService.ServiceStatus.ACTIVE)
+                .build();
+        ScoredCandidate validCandidate = ScoredCandidate.builder()
+                .service(validService)
+                .ruleBaseScore(10.0)
+                .ruleWeightedScore(12.0)
+                .finalScore(0.73)
+                .build();
+        ScoredCandidate missingCandidate = ScoredCandidate.builder()
+                .service(missingService)
+                .ruleBaseScore(9.0)
+                .ruleWeightedScore(11.0)
+                .finalScore(0.51)
+                .build();
+        ScoreWeight weight = ScoreWeight.builder()
+                .weightKey("COLD_START")
+                .ruleWeight(BigDecimal.valueOf(0.8))
+                .aiWeight(BigDecimal.valueOf(0.2))
+                .minLogCount(0)
+                .isActive(true)
+                .build();
+
+        when(welfareServiceRepository.findExistingIdsByIdIn(java.util.List.of(11L, 21507L)))
+                .thenReturn(java.util.List.of(11L));
+        when(recommendationBookmarkStateReadService.findLatestBookmarkStateByServiceId("user-key-7"))
+                .thenReturn(java.util.Map.of());
+        when(recommendationPersistenceCommandRepository.replaceAllForUser(org.mockito.ArgumentMatchers.eq("user-key-7"), anyList()))
+                .thenAnswer(invocation -> invocation.getArgument(1));
+
+        List<UserRecommendation> saved = recommendationPersistenceService.save(
+                user,
+                List.of(validCandidate, missingCandidate),
+                weight
+        );
+
+        assertThat(saved).hasSize(1);
+        assertThat(saved.get(0).getService().getId()).isEqualTo(11L);
+        verify(recommendationPersistenceCommandRepository).replaceAllForUser(org.mockito.ArgumentMatchers.eq("user-key-7"), anyList());
     }
 
 }

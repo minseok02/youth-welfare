@@ -17,6 +17,12 @@ public interface WelfareServiceRepository extends JpaRepository<WelfareService, 
 
     @Query("""
             SELECT ws.id FROM WelfareService ws
+            WHERE ws.id IN :serviceIds
+            """)
+    List<Long> findExistingIdsByIdIn(@Param("serviceIds") List<Long> serviceIds);
+
+    @Query("""
+            SELECT ws.id FROM WelfareService ws
             WHERE ws.searchYouthRelevant = true
               AND ws.status IN :statuses
             ORDER BY ws.id ASC
