@@ -28,6 +28,9 @@
 - [github-workflow.md](./github-workflow.md)
   브랜치, 커밋, staging, PR 규칙을 봅니다.
 
+- [deployment.md](./deployment.md)
+  `EC2 + RDS` 전환을 실제로 준비하거나 실행할 때만 봅니다. 로컬 compose와 운영 compose/env 차이, RDS bootstrap, 운영 smoke 순서를 한 장으로 정리합니다.
+
 ## 지금 기준 한 줄 요약
 
 - `2026-05-19` 기준 로컬 full collect baseline도 다시 닫혔습니다. `YOUTH`, `BOKJIRO_CENTRAL`, `BOKJIRO_LOCAL`, `GOV24`, `GOV24_DETAIL`, `GOV24_SUPPORT_CONDITIONS`, `YOUTH_DETAILS`, `BOKJIRO_DETAIL_REFRESH` 를 실제로 다시 태워 hard failure 없이 끝냈고, `run-local-ops-baseline-suite.sh` 도 같은 로컬 runtime에서 다시 통과했습니다.

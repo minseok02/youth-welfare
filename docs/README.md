@@ -68,6 +68,7 @@
 ## 기본 기준 문서
 
 - [architecture.md](./architecture.md)
+- [deployment.md](./deployment.md)
 - [srs-v2.10.md](core/srs-v2.10.md)
 - [testing.md](core/testing.md)
 - [local-validation-docs-index.md](core/local-validation-docs-index.md)

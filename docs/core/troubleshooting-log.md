@@ -6340,3 +6340,7 @@ admin API와 latest artifact에
 ## 972) `users.email` 평문 축소는 “lookup rewrite + shadow 저장”을 같이 하지 않으면 auth 회귀를 만들기 쉽다
 - 문제: `users.email` 을 단순히 null 처리하거나 임의값으로 바꾸면, 아직 `findByEmail` / `existsByEmail` / fallback read가 `users.email` 을 직접 보는 경로가 남아 있는 동안 로그인/가입/비밀번호 재설정이 조용히 깨질 수 있다.
 - 해결: `UserRepository.findByEmail` / `existsByEmail` 를 `auth_users.email_lookup_hash` 기준 조회로 바꾸고, `users.email` 은 test/smoke 도메인만 plain 유지하고 나머지는 `shadow_<sha256(email)>` 형태로 저장하게 맞췄다. 동시에 `UserPlainPiiReadService` 는 shadow 값을 profile read fallback으로 쓰지 않게 막아 “평문 축소”와 “런타임 동작 유지”를 함께 만족하게 했다.
+## 976) 로컬 `app + db + redis` compose와 운영 `EC2 + RDS` 전환 경계를 코드가 아니라 실행 설정에서 분리하지 않으면, 운영 준비 단계에서 `db` 컨테이너 전제를 계속 끌고 가게 된다
+- 문제: 현재 앱 코드는 env key(`DB_URL`, `APP_PII_DB_URL`, `REDIS_HOST`)만 보면 되는데, 기존 [docker-compose.yml](/home/minseok/youth-welfare/docker-compose.yml:1) 은 `db` 컨테이너와 `docker-entrypoint-initdb.d` 자동 init을 전제로 한다. 이 상태로는 "코드를 EC2+RDS 형태로 바꿔야 하나?"라는 혼선이 계속 생긴다.
+- 해결: 로컬 compose는 그대로 두고, 운영은 [docker-compose.prod.yml](/home/minseok/youth-welfare/docker-compose.prod.yml:1) 과 [env.production.example](/home/minseok/youth-welfare/env.production.example:1) 로 분리했다. 운영형 compose는 `app + redis` 만 띄우고 DB는 RDS endpoint를 직접 보게 하며, bootstrap은 [bootstrap-rds-runtime.sh](/home/minseok/youth-welfare/deploy/postgres/bootstrap-rds-runtime.sh:1) 로 `schema.sql -> runtime roles/grants -> patch` 순서를 EC2 shell에서 수행하게 고정했다.
+- 이유: `Dockerfile` 은 하나로 유지하고, 환경별 차이는 compose/env/bootstrap 절차에서만 분리하는 게 가장 단순하다. 이렇게 해야 로컬 개발은 안 깨고, 운영에서는 `db` 컨테이너가 없는 구조를 명시적으로 강제할 수 있다.

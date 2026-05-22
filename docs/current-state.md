@@ -1,6 +1,7 @@
 # 현재 상태
 
 - 현재는 운영 전환 단계가 아니라 로컬 기능/구조 검증 단계입니다.
+- 다만 `EC2 + RDS` 전환을 실제로 준비할 때 바로 쓸 수 있도록 운영용 compose/env/bootstrap/run smoke 순서는 [deployment.md](./deployment.md) 에 따로 정리했습니다. 평소 active main track으로 읽지는 않고, 운영 전환을 명시적으로 진행할 때만 봅니다.
 - 운영 서버 smoke/재기동/추천 진단까지는 실제로 확인했지만, 현재 active main track은 여전히 신규 운영 인프라 확장보다 로컬 기능/구조 검증과 bounded runtime 기준선 유지입니다.
 - 프론트는 기본 연동/빌드/브라우저 smoke까지 확인했고, 현재는 신규 기능보다 회귀 방지와 운영 문서 정리가 우선입니다.
 - `2026-05-19` 기준 로컬 full collect도 다시 끝까지 닫혔습니다. `collect/all` + `youth-details` + `gov24` 3축 + `bokjiro-details-refresh` 를 실제 runtime에서 다시 태웠고, 최종 기준선은 `YOUTH=2578`, `GOV24=10948`, `BOKJIRO_LOCAL=1223`, `BOKJIRO_CENTRAL=134`, `YOUTH_DETAILS failed=0`, `BOKJIRO_DETAIL_REFRESH requested=1358 saved=1357 failed=0` 입니다.

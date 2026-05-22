@@ -155,14 +155,15 @@
 
 ## 4. future infra/deploy
 
-현재는 운영 서버가 없고,
-프론트 연동 검증도 아직 남아 있으므로
-배포/cron/runbook 문서는 active current-state 문서로 유지하지 않습니다.
+현재 active main track은 여전히 로컬 검증과 bounded runtime 기준선 유지다.
+다만 `EC2 + RDS` 전환을 실제로 준비할 때 바로 쓸 수 있도록 배포 문서를 다시 추가했다.
+
+- [deployment.md](./deployment.md)
 
 해석:
 
-- 지금은 로컬 smoke와 코드/구조 문서만 본다
-- 실제 서버가 생길 때 deploy runbook을 다시 만드는 편이 맞다
+- 평소에는 로컬 smoke와 코드/구조 문서를 먼저 본다.
+- `EC2 + RDS` 를 실제로 준비하거나 실행할 때만 `deployment.md` 를 연다.
 
 ## 5. 추천 읽기 순서
 
