@@ -84,7 +84,8 @@ docker exec -it youth-welfare-db psql -U postgres -d youth_welfare -c "\d user_r
 
 1. 이미 export된 `ADMIN_EMAIL`, `ADMIN_PASSWORD`
 2. `/tmp/youth-welfare-admin-smoke-email`, `/tmp/youth-welfare-admin-smoke-password`
-3. `.env` 의 `SECURITY_ADMIN_EMAILS`
+3. `.env` 의 `ADMIN_EMAIL`, `ADMIN_PASSWORD`
+4. `.env` 의 `SECURITY_ADMIN_EMAILS`
    - email만 보조로 사용
    - password는 따로 필요
 
@@ -136,6 +137,28 @@ bash deploy/smoke/run-local-admin-forced-logout-smoke.sh
 ```bash
 docker exec -it youth-welfare-db psql -U postgres -d youth_welfare -c "SELECT CURRENT_DATE;"
 ```
+
+추가 주의:
+
+- 이 smoke는 `welfare_services.apply_end_date/status` 를 잠깐 바꿉니다.
+- 로컬 Docker DB에서는 trap으로 원복됩니다.
+- RDS 같은 direct postgres mode에서는 기본 차단되며, 정말 돌려야 하면 `ALLOW_DIRECT_DB_MUTATION=true` 를 명시해야 합니다.
+
+## 6-1. RDS / direct postgres mode
+
+DB 컨테이너가 없는 EC2 + RDS 런타임에서는 아래처럼 direct postgres mode를 명시합니다.
+
+```bash
+ENV_FILE=.env.production \
+SMOKE_DB_MODE=postgres \
+APP_BASE_URL=http://127.0.0.1:8082 \
+ADMIN_EMAIL='<server allowlist admin email>' \
+ADMIN_PASSWORD='<that password>' \
+bash deploy/smoke/run-local-admin-forced-logout-smoke.sh
+```
+
+기본 query 계정은 `.env.production` 의 `DB_MIGRATION_USERNAME` / `DB_MIGRATION_PASSWORD` 를 사용합니다.
+다른 계정을 강제하려면 `DB_QUERY_USERNAME`, `DB_QUERY_PASSWORD`, 필요 시 `DB_DIRECT_URL` 을 직접 넘깁니다.
 
 ## 7. 현재 기준 빠른 재확인 묶음
 
