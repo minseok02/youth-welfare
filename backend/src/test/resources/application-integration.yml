@@ -5,7 +5,7 @@ spring:
     password: ${INTEGRATION_DB_PASSWORD:welfare1234!}
     driver-class-name: org.postgresql.Driver
     hikari:
-      maximum-pool-size: 2
+      maximum-pool-size: 4
       minimum-idle: 0
   data:
     redis:
@@ -67,7 +67,7 @@ app:
       password: ${INTEGRATION_ADMIN_RO_DB_PASSWORD:welfare1234!}
       driver-class-name: org.postgresql.Driver
       hikari:
-        maximum-pool-size: 2
+        maximum-pool-size: 1
         minimum-idle: 0
         read-only: true
     cluster-ai-cleanup:
@@ -76,7 +76,7 @@ app:
       password: ${INTEGRATION_CLUSTER_AI_CLEANUP_DB_PASSWORD:welfare1234!}
       driver-class-name: org.postgresql.Driver
       hikari:
-        maximum-pool-size: 2
+        maximum-pool-size: 1
         minimum-idle: 0
     recommendation-retention-cleanup:
       url: ${INTEGRATION_RECOMMENDATION_RETENTION_CLEANUP_DB_URL:jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable}
@@ -84,7 +84,7 @@ app:
       password: ${INTEGRATION_RECOMMENDATION_RETENTION_CLEANUP_DB_PASSWORD:welfare1234!}
       driver-class-name: org.postgresql.Driver
       hikari:
-        maximum-pool-size: 2
+        maximum-pool-size: 1
         minimum-idle: 0
     collect-execution-lock-cleanup:
       url: ${INTEGRATION_COLLECT_EXECUTION_LOCK_CLEANUP_DB_URL:jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable}
@@ -92,7 +92,7 @@ app:
       password: ${INTEGRATION_COLLECT_EXECUTION_LOCK_CLEANUP_DB_PASSWORD:welfare1234!}
       driver-class-name: org.postgresql.Driver
       hikari:
-        maximum-pool-size: 2
+        maximum-pool-size: 1
         minimum-idle: 0
     web-push-subscription-cleanup:
       url: ${INTEGRATION_WEB_PUSH_SUBSCRIPTION_CLEANUP_DB_URL:jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable}
@@ -100,7 +100,7 @@ app:
       password: ${INTEGRATION_WEB_PUSH_SUBSCRIPTION_CLEANUP_DB_PASSWORD:welfare1234!}
       driver-class-name: org.postgresql.Driver
       hikari:
-        maximum-pool-size: 2
+        maximum-pool-size: 1
         minimum-idle: 0
     pii-rw:
       url: ${INTEGRATION_APP_PII_DB_URL:jdbc:postgresql://127.0.0.1:5433/youth_welfare?sslmode=disable&currentSchema=youth_welfare_pii}
@@ -116,7 +116,7 @@ app:
       password: ${INTEGRATION_NOTIFICATION_PII_DB_PASSWORD:welfare1234!}
       driver-class-name: org.postgresql.Driver
       hikari:
-        maximum-pool-size: 2
+        maximum-pool-size: 1
         minimum-idle: 0
 
 auth:
