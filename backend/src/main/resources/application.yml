@@ -4,6 +4,9 @@ spring:
     username: ${DB_USERNAME:app_core_rw}
     password: ${DB_PASSWORD:}
     driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: ${DB_POOL_MAX_SIZE:10}
+      minimum-idle: ${DB_POOL_MIN_IDLE:0}
 
   jpa:
     hibernate:
@@ -61,37 +64,57 @@ app:
       password: ${DB_ADMIN_RO_PASSWORD:${DB_PASSWORD:}}
       driver-class-name: org.postgresql.Driver
       hikari:
+        maximum-pool-size: ${DB_ADMIN_RO_POOL_MAX_SIZE:2}
+        minimum-idle: ${DB_ADMIN_RO_POOL_MIN_IDLE:0}
         read-only: true
     cluster-ai-cleanup:
       url: ${CLUSTER_AI_CLEANUP_DB_URL:${DB_URL:jdbc:postgresql://localhost:5432/youth_welfare?sslmode=disable}}
       username: ${DB_CLUSTER_AI_CLEANUP_USERNAME:cluster_ai_cleanup_rw}
       password: ${DB_CLUSTER_AI_CLEANUP_PASSWORD:${DB_PASSWORD:}}
       driver-class-name: org.postgresql.Driver
+      hikari:
+        maximum-pool-size: ${DB_CLUSTER_AI_CLEANUP_POOL_MAX_SIZE:1}
+        minimum-idle: ${DB_CLUSTER_AI_CLEANUP_POOL_MIN_IDLE:0}
     recommendation-retention-cleanup:
       url: ${RECOMMENDATION_RETENTION_CLEANUP_DB_URL:${DB_URL:jdbc:postgresql://localhost:5432/youth_welfare?sslmode=disable}}
       username: ${DB_RECOMMENDATION_RETENTION_CLEANUP_USERNAME:recommendation_retention_cleanup_rw}
       password: ${DB_RECOMMENDATION_RETENTION_CLEANUP_PASSWORD:${DB_PASSWORD:}}
       driver-class-name: org.postgresql.Driver
+      hikari:
+        maximum-pool-size: ${DB_RECOMMENDATION_RETENTION_CLEANUP_POOL_MAX_SIZE:1}
+        minimum-idle: ${DB_RECOMMENDATION_RETENTION_CLEANUP_POOL_MIN_IDLE:0}
     collect-execution-lock-cleanup:
       url: ${COLLECT_EXECUTION_LOCK_CLEANUP_DB_URL:${DB_URL:jdbc:postgresql://localhost:5432/youth_welfare?sslmode=disable}}
       username: ${DB_COLLECT_EXECUTION_LOCK_CLEANUP_USERNAME:collect_execution_lock_cleanup_rw}
       password: ${DB_COLLECT_EXECUTION_LOCK_CLEANUP_PASSWORD:${DB_PASSWORD:}}
       driver-class-name: org.postgresql.Driver
+      hikari:
+        maximum-pool-size: ${DB_COLLECT_EXECUTION_LOCK_CLEANUP_POOL_MAX_SIZE:1}
+        minimum-idle: ${DB_COLLECT_EXECUTION_LOCK_CLEANUP_POOL_MIN_IDLE:0}
     web-push-subscription-cleanup:
       url: ${WEB_PUSH_SUBSCRIPTION_CLEANUP_DB_URL:${DB_URL:jdbc:postgresql://localhost:5432/youth_welfare?sslmode=disable}}
       username: ${DB_WEB_PUSH_SUBSCRIPTION_CLEANUP_USERNAME:web_push_subscription_cleanup_rw}
       password: ${DB_WEB_PUSH_SUBSCRIPTION_CLEANUP_PASSWORD:${DB_PASSWORD:}}
       driver-class-name: org.postgresql.Driver
+      hikari:
+        maximum-pool-size: ${DB_WEB_PUSH_SUBSCRIPTION_CLEANUP_POOL_MAX_SIZE:1}
+        minimum-idle: ${DB_WEB_PUSH_SUBSCRIPTION_CLEANUP_POOL_MIN_IDLE:0}
     pii-rw:
       url: ${APP_PII_DB_URL:jdbc:postgresql://localhost:5432/youth_welfare?sslmode=disable&currentSchema=youth_welfare_pii}
       username: ${DB_APP_PII_USERNAME:app_pii_rw}
       password: ${DB_APP_PII_PASSWORD:${DB_PASSWORD:}}
       driver-class-name: org.postgresql.Driver
+      hikari:
+        maximum-pool-size: ${DB_APP_PII_POOL_MAX_SIZE:4}
+        minimum-idle: ${DB_APP_PII_POOL_MIN_IDLE:0}
     notification-pii-ro:
       url: ${NOTIFICATION_PII_DB_URL:${APP_PII_DB_URL:jdbc:postgresql://localhost:5432/youth_welfare?sslmode=disable&currentSchema=youth_welfare_pii}}
       username: ${DB_NOTIFICATION_PII_RO_USERNAME:notification_pii_ro}
       password: ${DB_NOTIFICATION_PII_RO_PASSWORD:${DB_PASSWORD:}}
       driver-class-name: org.postgresql.Driver
+      hikari:
+        maximum-pool-size: ${DB_NOTIFICATION_PII_RO_POOL_MAX_SIZE:2}
+        minimum-idle: ${DB_NOTIFICATION_PII_RO_POOL_MIN_IDLE:0}
 
 auth:
   refresh:
