@@ -41,6 +41,7 @@ CREATE TABLE IF NOT EXISTS users (
     notification_consent_at TIMESTAMP,
     login_fail_count        INTEGER NOT NULL DEFAULT 0,
     locked_until            TIMESTAMP,
+    account_origin          VARCHAR(40) NOT NULL DEFAULT 'REAL_USER',
     display_count           INTEGER NOT NULL DEFAULT 10,
     profile_completeness    INTEGER DEFAULT 0,
     withdrawn_at            TIMESTAMP,
