@@ -1,6 +1,7 @@
 package com.example.welfare.user.service;
 
 import com.example.welfare.user.entity.User;
+import com.example.welfare.user.util.EmailLookupKeyGenerator;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -35,7 +36,7 @@ class UserCoreProjectionSyncServiceTest {
                 userCoreProjectionCommandRepository
         );
 
-        service.syncAuthUser(user, "user-key-1", "user@example.com");
+        service.syncAuthUser(user, "user-key-1", EmailLookupKeyGenerator.hash("user@example.com"));
 
         then(userCoreProjectionCommandRepository).should()
                 .upsertAuthProjection(
