@@ -28,7 +28,7 @@ public class AuthSignupService {
         }
 
         if (authIdentityReadService.existsByEmail(request.getEmail())) {
-            return;
+            throw new CustomException(ErrorCode.DUPLICATE_EMAIL);
         }
 
         try {
@@ -36,7 +36,7 @@ public class AuthSignupService {
             emailVerificationService.clearVerified(request.getEmail());
         } catch (DataIntegrityViolationException e) {
             if (authIdentityReadService.existsByEmail(request.getEmail())) {
-                return;
+                throw new CustomException(ErrorCode.DUPLICATE_EMAIL);
             }
             throw e;
         }

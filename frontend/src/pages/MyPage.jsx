@@ -311,8 +311,7 @@ export default function MyPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { isLoggedIn, user, logout, filterSettings, setFilterSettings, setUser } = useAuthStore();
 
-  const initTab = TAB_IDS[parseInt(searchParams.get("tab") ?? "0")] ?? "info";
-  const [activeTab, setActiveTab] = useState(initTab);
+  const activeTab = TAB_IDS[parseInt(searchParams.get("tab") ?? "0", 10)] ?? "info";
   const [toast, setToast] = useState({ open: false, msg: "", severity: "success" });
   const showToast = useCallback((msg, severity = "success") => setToast({ open: true, msg, severity }), []);
 
@@ -327,22 +326,19 @@ export default function MyPage() {
       });
     }
   }, [isLoggedIn, location, navigate]);
-  useEffect(() => {
-    const tabFromUrl = TAB_IDS[parseInt(searchParams.get("tab") ?? "0")] ?? "info";
-    if (tabFromUrl !== activeTab) {
-      setActiveTab(tabFromUrl);
-    }
-  }, [activeTab, searchParams]);
 
-  useEffect(() => {
-    const nextTabIndex = String(Math.max(TAB_IDS.indexOf(activeTab), 0));
+  const handleTabChange = useCallback((tabId) => {
+    const tabIndex = TAB_IDS.indexOf(tabId);
+    if (tabIndex < 0) return;
+
+    const nextTabIndex = String(tabIndex);
     if (searchParams.get("tab") === nextTabIndex) {
       return;
     }
     const nextParams = new URLSearchParams(searchParams);
     nextParams.set("tab", nextTabIndex);
-    setSearchParams(nextParams, { replace: true, state: location.state });
-  }, [activeTab, location.state, searchParams, setSearchParams]);
+    setSearchParams(nextParams);
+  }, [searchParams, setSearchParams]);
 
   // expose logout to sidebar
   useEffect(() => {
@@ -975,13 +971,13 @@ export default function MyPage() {
           <ProfileBanner
             pct={completionPct}
             missing={missingLabels}
-            onComplete={() => setActiveTab(!myInfo.birthYear || !myInfo.region || !myInfo.income || !myInfo.employ ? "info" : "pref")}
+            onComplete={() => handleTabChange(!myInfo.birthYear || !myInfo.region || !myInfo.income || !myInfo.employ ? "info" : "pref")}
           />
         )}
 
         <div style={{ display: "grid", gridTemplateColumns: "260px 1fr", gap: 28, alignItems: "flex-start" }}>
           {/* Sidebar */}
-          <SidebarNav active={activeTab} onChange={setActiveTab} bookmarkCount={bookmarks.length} alertUnreadCount={alertUnreadCount} />
+          <SidebarNav active={activeTab} onChange={handleTabChange} bookmarkCount={bookmarks.length} alertUnreadCount={alertUnreadCount} />
 
           {/* Content */}
           <div>
