@@ -114,6 +114,13 @@ const TAB_TITLES = {
   account:  { t: "계정",         d: "비밀번호·탈퇴 관련 설정" },
 };
 
+const resolveTabId = (rawTab) => {
+  const tabIndex = Number.parseInt(rawTab ?? "0", 10);
+  return Number.isInteger(tabIndex) && TAB_IDS[tabIndex] ? TAB_IDS[tabIndex] : "info";
+};
+
+const resolveTabIndex = (tabId) => String(Math.max(TAB_IDS.indexOf(tabId), 0));
+
 const formatDday = (dateText, status) => {
   if (status === "CLOSED") return "종료";
   if (!dateText) return status === "UPCOMING" ? "예정" : "상시/문의";
@@ -311,10 +318,19 @@ export default function MyPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { isLoggedIn, user, logout, filterSettings, setFilterSettings, setUser } = useAuthStore();
 
-  const initTab = TAB_IDS[parseInt(searchParams.get("tab") ?? "0")] ?? "info";
-  const [activeTab, setActiveTab] = useState(initTab);
+  const activeTab = resolveTabId(searchParams.get("tab"));
   const [toast, setToast] = useState({ open: false, msg: "", severity: "success" });
   const showToast = useCallback((msg, severity = "success") => setToast({ open: true, msg, severity }), []);
+
+  const handleTabChange = useCallback((nextTabId) => {
+    const nextTabIndex = resolveTabIndex(nextTabId);
+    if (searchParams.get("tab") === nextTabIndex) {
+      return;
+    }
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.set("tab", nextTabIndex);
+    setSearchParams(nextParams, { replace: true });
+  }, [searchParams, setSearchParams]);
 
   useEffect(() => {
     if (!isLoggedIn) {
@@ -327,22 +343,6 @@ export default function MyPage() {
       });
     }
   }, [isLoggedIn, location, navigate]);
-  useEffect(() => {
-    const tabFromUrl = TAB_IDS[parseInt(searchParams.get("tab") ?? "0")] ?? "info";
-    if (tabFromUrl !== activeTab) {
-      setActiveTab(tabFromUrl);
-    }
-  }, [activeTab, searchParams]);
-
-  useEffect(() => {
-    const nextTabIndex = String(Math.max(TAB_IDS.indexOf(activeTab), 0));
-    if (searchParams.get("tab") === nextTabIndex) {
-      return;
-    }
-    const nextParams = new URLSearchParams(searchParams);
-    nextParams.set("tab", nextTabIndex);
-    setSearchParams(nextParams, { replace: true, state: location.state });
-  }, [activeTab, location.state, searchParams, setSearchParams]);
 
   // expose logout to sidebar
   useEffect(() => {
@@ -618,7 +618,7 @@ export default function MyPage() {
         state: {
           from: {
             pathname: location.pathname,
-            search: `?tab=${Math.max(TAB_IDS.indexOf(activeTab), 0)}`,
+            search: `?tab=${resolveTabIndex(activeTab)}`,
           },
           reason: "password-reset-complete",
           email: myInfo.email || user?.email || "",
@@ -975,13 +975,13 @@ export default function MyPage() {
           <ProfileBanner
             pct={completionPct}
             missing={missingLabels}
-            onComplete={() => setActiveTab(!myInfo.birthYear || !myInfo.region || !myInfo.income || !myInfo.employ ? "info" : "pref")}
+            onComplete={() => handleTabChange(!myInfo.birthYear || !myInfo.region || !myInfo.income || !myInfo.employ ? "info" : "pref")}
           />
         )}
 
         <div style={{ display: "grid", gridTemplateColumns: "260px 1fr", gap: 28, alignItems: "flex-start" }}>
           {/* Sidebar */}
-          <SidebarNav active={activeTab} onChange={setActiveTab} bookmarkCount={bookmarks.length} alertUnreadCount={alertUnreadCount} />
+          <SidebarNav active={activeTab} onChange={handleTabChange} bookmarkCount={bookmarks.length} alertUnreadCount={alertUnreadCount} />
 
           {/* Content */}
           <div>
