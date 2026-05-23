@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS users (
     id                      BIGSERIAL PRIMARY KEY,
     user_key                VARCHAR(32) NOT NULL DEFAULT replace(gen_random_uuid()::text, '-', ''),
     email                   VARCHAR(255) NOT NULL,
+    account_origin          VARCHAR(40) NOT NULL DEFAULT 'REAL_USER',
     password_hash           VARCHAR(255) NOT NULL,
     name                    VARCHAR(50),
     birth_date              DATE,

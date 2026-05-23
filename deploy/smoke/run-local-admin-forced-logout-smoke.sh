@@ -138,6 +138,9 @@ if [[ -z "${USER_KEY}" ]]; then
   exit 1
 fi
 
+smoke_print_step "ensure admin account"
+smoke_ensure_admin_account "${APP_BASE_URL}" "${ADMIN_EMAIL}" "${ADMIN_PASSWORD}"
+
 smoke_print_step "admin login (${ADMIN_EMAIL})"
 ADMIN_LOGIN_STATUS="$(
   smoke_http_status POST "${APP_BASE_URL}/api/auth/login" "${ADMIN_LOGIN_RESPONSE}" \

@@ -104,6 +104,9 @@ smoke_print_step "health check"
 HEALTH_STATUS="$(smoke_wait_for_health "${HEALTH_RETRY_COUNT}" "${HEALTH_RETRY_DELAY_SECONDS}" "${APP_HEALTH_URL}" "${HEALTH_RESPONSE}" "${ARTIFACT_DIR}/health.stderr")"
 smoke_assert_status 200 "${HEALTH_STATUS}" "health check" "${HEALTH_RESPONSE}"
 
+smoke_print_step "ensure policy fixture"
+smoke_ensure_policy_fixture
+
 if [[ "${EXISTING_USER_COUNT}" == "0" ]]; then
   smoke_print_step "signup ${SMOKE_EMAIL}"
   smoke_seed_verified_email "${SMOKE_EMAIL}"

@@ -359,6 +359,9 @@ smoke_assert_status 200 "${HEALTH_STATUS}" "health check" "${HEALTH_RESPONSE}"
 
 CONTAINER_ADMIN_ALLOWLIST="$(extract_container_admin_allowlist)"
 
+smoke_print_step "ensure admin account"
+smoke_ensure_admin_account "${APP_BASE_URL}" "${ADMIN_EMAIL}" "${ADMIN_PASSWORD}"
+
 smoke_print_step "admin login (${ADMIN_EMAIL})"
 LOGIN_STATUS="$(
   smoke_http_status POST "${APP_BASE_URL}/api/auth/login" "${LOGIN_RESPONSE}" \

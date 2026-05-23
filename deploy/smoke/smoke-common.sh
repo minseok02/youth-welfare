@@ -206,6 +206,24 @@ smoke_http_status() {
   curl -sS -o "${output_file}" -w "%{http_code}" -X "${method}" "$url" "$@"
 }
 
+smoke_sha256_hex() {
+  local raw_value="$1"
+
+  smoke_require_command python3
+
+  python3 - "${raw_value}" <<'PY'
+import hashlib
+import sys
+
+print(hashlib.sha256(sys.argv[1].strip().lower().encode("utf-8")).hexdigest())
+PY
+}
+
+smoke_sql_quote() {
+  local raw_value="$1"
+  printf "'%s'" "${raw_value//\'/\'\'}"
+}
+
 smoke_health_status_is_up() {
   local health_response_file="$1"
 
@@ -478,20 +496,218 @@ smoke_seed_verified_email() {
   local hash
 
   smoke_require_command docker
-  smoke_require_command python3
-
-  hash="$(
-    python3 - "${raw_email}" <<'PY'
-import hashlib
-import sys
-
-normalized = sys.argv[1].strip().lower()
-print(hashlib.sha256(normalized.encode("utf-8")).hexdigest())
-PY
-  )"
+  hash="$(smoke_sha256_hex "${raw_email}")"
 
   docker exec "${redis_container_name}" \
     redis-cli SETEX "email-verify:verified:${hash}" "${verified_ttl_seconds}" 1 >/dev/null
+}
+
+smoke_ensure_admin_account() {
+  local app_base_url="$1"
+  local admin_email="$2"
+  local admin_password="$3"
+  local bootstrap_mode="${SMOKE_ADMIN_BOOTSTRAP_MODE:-auto}"
+  local db_mode
+  local admin_email_hash
+  local existing_auth_count
+  local existing_user_count
+  local bootstrap_email
+  local bootstrap_dir
+  local signup_response
+  local signup_status
+  local bootstrap_user_key
+  local admin_email_sql
+  local admin_email_hash_sql
+
+  db_mode="$(smoke_resolve_db_mode)"
+  case "${bootstrap_mode}" in
+    auto)
+      if [[ "${db_mode}" != "docker" ]]; then
+        return 0
+      fi
+      ;;
+    true)
+      ;;
+    false)
+      return 0
+      ;;
+    *)
+      echo "unsupported SMOKE_ADMIN_BOOTSTRAP_MODE: ${bootstrap_mode} (expected auto, true, or false)" >&2
+      exit 1
+      ;;
+  esac
+
+  admin_email_hash="$(smoke_sha256_hex "${admin_email}")"
+  existing_auth_count="$(smoke_db_query "SELECT COUNT(*) FROM auth_users WHERE email_lookup_hash = $(smoke_sql_quote "${admin_email_hash}");")"
+  if [[ "${existing_auth_count}" != "0" ]]; then
+    return 0
+  fi
+
+  existing_user_count="$(smoke_db_query "SELECT COUNT(*) FROM users WHERE email = $(smoke_sql_quote "${admin_email}");")"
+  if [[ "${existing_user_count}" != "0" ]]; then
+    echo "admin bootstrap refused: users.email already contains ${admin_email} but auth_users does not" >&2
+    exit 1
+  fi
+
+  bootstrap_email="$(smoke_build_email "admin.bootstrap.smoke")"
+  bootstrap_dir="$(mktemp -d)"
+  signup_response="${bootstrap_dir}/signup.json"
+
+  smoke_seed_verified_email "${bootstrap_email}"
+  signup_status="$(
+    smoke_http_status POST "${app_base_url}/api/auth/signup" "${signup_response}" \
+      -H 'Content-Type: application/json' \
+      -d "{
+        \"email\": \"${bootstrap_email}\",
+        \"password\": \"${admin_password}\",
+        \"name\": \"관리자\",
+        \"birthDate\": \"1998-01-10\",
+        \"sido\": \"서울특별시\",
+        \"sgg\": \"중구\",
+        \"incomeLevel\": 5,
+        \"employmentStatus\": \"미취업\",
+        \"householdType\": \"1인 가구\"
+      }"
+  )"
+  if [[ "${signup_status}" != "200" ]]; then
+    echo "admin bootstrap signup failed: expected 200, got ${signup_status}" >&2
+    cat "${signup_response}" >&2
+    rm -rf "${bootstrap_dir}"
+    exit 1
+  fi
+
+  bootstrap_user_key="$(smoke_db_query "SELECT user_key FROM users WHERE email = $(smoke_sql_quote "${bootstrap_email}") LIMIT 1;")"
+  if [[ -z "${bootstrap_user_key}" ]]; then
+    echo "admin bootstrap failed: user_key not found for ${bootstrap_email}" >&2
+    rm -rf "${bootstrap_dir}"
+    exit 1
+  fi
+
+  admin_email_sql="$(smoke_sql_quote "${admin_email}")"
+  admin_email_hash_sql="$(smoke_sql_quote "${admin_email_hash}")"
+  smoke_db_query "UPDATE users SET email = ${admin_email_sql} WHERE user_key = $(smoke_sql_quote "${bootstrap_user_key}");" >/dev/null
+  smoke_db_query "UPDATE auth_users SET email_lookup_hash = ${admin_email_hash_sql} WHERE user_key = $(smoke_sql_quote "${bootstrap_user_key}");" >/dev/null
+
+  rm -rf "${bootstrap_dir}"
+}
+
+smoke_ensure_policy_fixture() {
+  local fixture_mode="${SMOKE_POLICY_FIXTURE_MODE:-auto}"
+  local db_mode
+  local searchable_service_count
+
+  db_mode="$(smoke_resolve_db_mode)"
+  case "${fixture_mode}" in
+    auto)
+      if [[ "${db_mode}" != "docker" ]]; then
+        return 0
+      fi
+      ;;
+    true)
+      ;;
+    false)
+      return 0
+      ;;
+    *)
+      echo "unsupported SMOKE_POLICY_FIXTURE_MODE: ${fixture_mode} (expected auto, true, or false)" >&2
+      exit 1
+      ;;
+  esac
+
+  searchable_service_count="$(smoke_db_query "SELECT COUNT(*) FROM welfare_services WHERE search_youth_relevant IS TRUE AND status IN ('ACTIVE', 'UPCOMING');")"
+  if [[ "${searchable_service_count}" != "0" ]]; then
+    return 0
+  fi
+
+  smoke_db_query "
+    INSERT INTO welfare_services (
+      source_type,
+      source_id,
+      title,
+      description,
+      support_content,
+      category_main,
+      category_sub,
+      keyword,
+      min_age,
+      max_age,
+      min_income,
+      max_income,
+      apply_start_date,
+      apply_end_date,
+      life_stage,
+      apply_method_name,
+      host_org,
+      operating_org,
+      detail_url,
+      unified_category,
+      is_youth_specific,
+      search_youth_relevant,
+      status,
+      is_online_apply,
+      api_view_count,
+      view_count,
+      registered_at,
+      last_modified_at
+    )
+    VALUES (
+      'YOUTH',
+      'SMOKE-SEED-POLICY',
+      '청년 취업 지원 점검 정책',
+      'fresh smoke 검증용 최소 정책 데이터입니다.',
+      '청년 구직 활동과 취업 준비를 지원합니다.',
+      '일자리',
+      '취업지원',
+      '청년,취업,점검',
+      18,
+      34,
+      0,
+      10,
+      CURRENT_DATE,
+      CURRENT_DATE + 30,
+      '청년',
+      '온라인 신청',
+      '청년정책점검',
+      '청년정책점검',
+      'https://example.com/smoke-policy',
+      '일자리',
+      TRUE,
+      TRUE,
+      'ACTIVE',
+      TRUE,
+      0,
+      0,
+      CURRENT_TIMESTAMP,
+      CURRENT_TIMESTAMP
+    )
+    ON CONFLICT (source_type, source_id) DO UPDATE
+    SET title = EXCLUDED.title,
+        description = EXCLUDED.description,
+        support_content = EXCLUDED.support_content,
+        category_main = EXCLUDED.category_main,
+        category_sub = EXCLUDED.category_sub,
+        keyword = EXCLUDED.keyword,
+        min_age = EXCLUDED.min_age,
+        max_age = EXCLUDED.max_age,
+        min_income = EXCLUDED.min_income,
+        max_income = EXCLUDED.max_income,
+        apply_start_date = EXCLUDED.apply_start_date,
+        apply_end_date = EXCLUDED.apply_end_date,
+        life_stage = EXCLUDED.life_stage,
+        apply_method_name = EXCLUDED.apply_method_name,
+        host_org = EXCLUDED.host_org,
+        operating_org = EXCLUDED.operating_org,
+        detail_url = EXCLUDED.detail_url,
+        unified_category = EXCLUDED.unified_category,
+        is_youth_specific = EXCLUDED.is_youth_specific,
+        search_youth_relevant = EXCLUDED.search_youth_relevant,
+        status = EXCLUDED.status,
+        is_online_apply = EXCLUDED.is_online_apply,
+        api_view_count = EXCLUDED.api_view_count,
+        view_count = EXCLUDED.view_count,
+        registered_at = EXCLUDED.registered_at,
+        last_modified_at = EXCLUDED.last_modified_at;
+  " >/dev/null
 }
 
 smoke_unique_suffix() {

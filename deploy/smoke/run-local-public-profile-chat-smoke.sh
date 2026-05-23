@@ -72,12 +72,15 @@ smoke_print_step "health check"
 HEALTH_STATUS="$(smoke_wait_for_health "${HEALTH_RETRY_COUNT}" "${HEALTH_RETRY_DELAY_SECONDS}" "${APP_HEALTH_URL}" "${HEALTH_RESPONSE}" "${ARTIFACT_DIR}/health.stderr")"
 smoke_assert_status 200 "${HEALTH_STATUS}" "health check" "${HEALTH_RESPONSE}"
 
+smoke_print_step "ensure policy fixture"
+smoke_ensure_policy_fixture
+
 smoke_print_step "public policies list"
 POLICY_LIST_STATUS="$(
   smoke_http_status GET "${APP_BASE_URL}/api/policies?size=3&statusFilter=ACTIVE_ONLY" "${POLICY_LIST_RESPONSE}"
 )"
 smoke_assert_status 200 "${POLICY_LIST_STATUS}" "public policies list" "${POLICY_LIST_RESPONSE}"
-POLICY_ID="$(extract_json "${POLICY_LIST_RESPONSE}" 'payload["data"]["content"][0]["id"]')"
+POLICY_ID="$(extract_json "${POLICY_LIST_RESPONSE}" '(payload["data"]["content"] or [])[0].get("id", "") if (payload["data"]["content"] or []) else ""')"
 if [[ -z "${POLICY_ID}" ]]; then
   echo "public policies list returned no first policy id" >&2
   cat "${POLICY_LIST_RESPONSE}" >&2
