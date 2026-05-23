@@ -21,6 +21,7 @@ SMOKE_DISPLAY_COUNT="${SMOKE_DISPLAY_COUNT:-10}"
 HEALTH_RETRY_COUNT="${HEALTH_RETRY_COUNT:-90}"
 HEALTH_RETRY_DELAY_SECONDS="${HEALTH_RETRY_DELAY_SECONDS:-1}"
 KEEP_ARTIFACTS="${KEEP_ARTIFACTS:-false}"
+ALLOW_DIRECT_DB_MUTATION="${ALLOW_DIRECT_DB_MUTATION:-false}"
 
 ARTIFACT_DIR="${ARTIFACT_DIR:-$(mktemp -d)}"
 HEALTH_RESPONSE="${ARTIFACT_DIR}/health.json"
@@ -31,8 +32,29 @@ REFRESH_RESPONSE="${ARTIFACT_DIR}/recommendations.json"
 BOOKMARK_RESPONSE="${ARTIFACT_DIR}/bookmark.json"
 PROFILE_RESPONSE="${ARTIFACT_DIR}/profile.json"
 DISPATCH_RESPONSE="${ARTIFACT_DIR}/deadline-dispatch.json"
+RESTORE_SERVICE_STATE="false"
+ORIGINAL_APPLY_END_DATE=""
+ORIGINAL_STATUS=""
+SERVICE_ID=""
 
 cleanup() {
+  if [[ "${RESTORE_SERVICE_STATE}" == "true" && -n "${SERVICE_ID}" ]]; then
+    local apply_end_date_sql="NULL"
+    local status_sql="NULL"
+
+    if [[ -n "${ORIGINAL_APPLY_END_DATE}" ]]; then
+      apply_end_date_sql="DATE '${ORIGINAL_APPLY_END_DATE}'"
+    fi
+
+    if [[ -n "${ORIGINAL_STATUS}" ]]; then
+      status_sql="'${ORIGINAL_STATUS//\'/\'\'}'"
+    fi
+
+    smoke_db_query \
+      "UPDATE welfare_services SET apply_end_date = ${apply_end_date_sql}, status = ${status_sql} WHERE id = ${SERVICE_ID};" \
+      >/dev/null || echo "failed to restore welfare_services row id=${SERVICE_ID}" >&2
+  fi
+
   if [[ "${KEEP_ARTIFACTS}" != "true" ]]; then
     rm -rf "${ARTIFACT_DIR}"
   fi
@@ -112,6 +134,14 @@ assert_int_delta() {
   fi
 }
 
+ALLOW_DIRECT_DB_MUTATION="$(smoke_normalize_bool "${ALLOW_DIRECT_DB_MUTATION}")"
+KEEP_ARTIFACTS="$(smoke_normalize_bool "${KEEP_ARTIFACTS}")"
+
+if [[ "$(smoke_resolve_db_mode)" != "docker" && "${ALLOW_DIRECT_DB_MUTATION}" != "true" ]]; then
+  echo "deadline reminder smoke mutates welfare_services; refuse to run against direct postgres mode unless ALLOW_DIRECT_DB_MUTATION=true" >&2
+  exit 1
+fi
+
 smoke_print_step "health check"
 smoke_assert_status 200 "$(smoke_wait_for_health "${HEALTH_RETRY_COUNT}" "${HEALTH_RETRY_DELAY_SECONDS}" "${APP_HEALTH_URL}" "${HEALTH_RESPONSE}" "${ARTIFACT_DIR}/health.stderr")" "health check" "${HEALTH_RESPONSE}"
 
@@ -186,6 +216,23 @@ smoke_assert_status 200 "$(
 )" "save notification profile" "${PROFILE_RESPONSE}"
 
 TARGET_DATE="$(smoke_db_query "SELECT (CURRENT_DATE + ${SMOKE_DEADLINE_DAYS})::date;")"
+ORIGINAL_SERVICE_STATE="$(
+  smoke_db_query "SELECT coalesce(to_char(apply_end_date, 'YYYY-MM-DD'), '__SMOKE_NULL__'), coalesce(status, '__SMOKE_NULL__') FROM welfare_services WHERE id = ${SERVICE_ID};"
+)"
+if [[ -z "${ORIGINAL_SERVICE_STATE}" ]]; then
+  echo "failed to capture original welfare_services row for id=${SERVICE_ID}" >&2
+  exit 1
+fi
+
+IFS=$'\t' read -r ORIGINAL_APPLY_END_DATE ORIGINAL_STATUS <<< "${ORIGINAL_SERVICE_STATE}"
+if [[ "${ORIGINAL_APPLY_END_DATE}" == "__SMOKE_NULL__" ]]; then
+  ORIGINAL_APPLY_END_DATE=""
+fi
+if [[ "${ORIGINAL_STATUS}" == "__SMOKE_NULL__" ]]; then
+  ORIGINAL_STATUS=""
+fi
+RESTORE_SERVICE_STATE="true"
+
 smoke_print_step "force bookmarked service apply_end_date=${TARGET_DATE}"
 smoke_db_query "UPDATE welfare_services SET apply_end_date = DATE '${TARGET_DATE}', status = 'ACTIVE' WHERE id = ${SERVICE_ID};" >/dev/null
 
