@@ -5,7 +5,7 @@ import { useAuthStore } from "../store/authStore";
 export default function AuthExpiryHandler({ children }) {
   const location = useLocation();
   const navigate = useNavigate();
-  const { isLoggedIn, logout } = useAuthStore();
+  const { isLoggedIn, clearSession } = useAuthStore();
 
   useEffect(() => {
     if (!isLoggedIn) {
@@ -16,7 +16,7 @@ export default function AuthExpiryHandler({ children }) {
     }
 
     const handleAuthExpired = () => {
-      logout();
+      clearSession();
       navigate("/login", {
         replace: true,
         state: {
@@ -33,7 +33,7 @@ export default function AuthExpiryHandler({ children }) {
         delete window.__authExpired;
       }
     };
-  }, [isLoggedIn, location, logout, navigate]);
+  }, [clearSession, isLoggedIn, location, navigate]);
 
   return children;
 }

@@ -1,20 +1,26 @@
 package com.example.welfare.notification.service;
 
+import com.example.welfare.global.exception.CustomException;
+import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.notification.entity.WebPushSubscription;
 import com.example.welfare.notification.repository.WebPushSubscriptionRepository;
 import com.example.welfare.policy.entity.WelfareService;
 import com.example.welfare.recommend.entity.UserRecommendation;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.math.BigDecimal;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -33,6 +39,11 @@ class WebPushDispatchServiceTest {
 
     @InjectMocks
     private WebPushDispatchService webPushDispatchService;
+
+    @BeforeEach
+    void setUp() {
+        ReflectionTestUtils.setField(webPushDispatchService, "appBaseUrl", "https://youth-welfare.kr");
+    }
 
     @Test
     @DisplayName("sender 미구성 상태면 구독이 있어도 웹푸시를 보내지 않는다")
@@ -154,6 +165,63 @@ class WebPushDispatchServiceTest {
         assertThat(disabled.isEnabled()).isFalse();
     }
 
+    @Test
+    @DisplayName("test send는 내부 path URL을 앱 base-url 기준 absolute URL로 정규화해 보낸다")
+    void sendTestMessageNormalizesInternalPathUrl() {
+        WebPushSubscription success = sampleSubscription();
+        given(webPushSubscriptionRepository.findByUserKeyAndEnabledTrueOrderByCreatedAtDesc("user-key-1"))
+                .willReturn(List.of(success));
+        given(webPushSenderClient.isConfigured()).willReturn(true);
+        given(webPushSenderClient.send(org.mockito.ArgumentMatchers.eq(success), org.mockito.ArgumentMatchers.any()))
+                .willReturn(WebPushSendResult.sent());
+        var request = request();
+        request.setUrl("/policies/99?from=push");
+
+        webPushDispatchService.sendTestMessage("user-key-1", request);
+
+        ArgumentCaptor<NotificationContent> contentCaptor = ArgumentCaptor.forClass(NotificationContent.class);
+        verify(webPushSenderClient).send(org.mockito.ArgumentMatchers.eq(success), contentCaptor.capture());
+        assertThat(contentCaptor.getValue().deeplinkUrl()).isEqualTo("/policies/99?from=push");
+        assertThat(contentCaptor.getValue().absoluteUrl()).isEqualTo("https://youth-welfare.kr/policies/99?from=push");
+    }
+
+    @Test
+    @DisplayName("test send는 같은 origin absolute URL을 내부 path로 받아들인다")
+    void sendTestMessageAcceptsSameOriginAbsoluteUrl() {
+        WebPushSubscription success = sampleSubscription();
+        given(webPushSubscriptionRepository.findByUserKeyAndEnabledTrueOrderByCreatedAtDesc("user-key-1"))
+                .willReturn(List.of(success));
+        given(webPushSenderClient.isConfigured()).willReturn(true);
+        given(webPushSenderClient.send(org.mockito.ArgumentMatchers.eq(success), org.mockito.ArgumentMatchers.any()))
+                .willReturn(WebPushSendResult.sent());
+        var request = request();
+        request.setUrl("https://youth-welfare.kr/mypage?tab=3");
+
+        webPushDispatchService.sendTestMessage("user-key-1", request);
+
+        ArgumentCaptor<NotificationContent> contentCaptor = ArgumentCaptor.forClass(NotificationContent.class);
+        verify(webPushSenderClient).send(org.mockito.ArgumentMatchers.eq(success), contentCaptor.capture());
+        assertThat(contentCaptor.getValue().deeplinkUrl()).isEqualTo("/mypage?tab=3");
+        assertThat(contentCaptor.getValue().absoluteUrl()).isEqualTo("https://youth-welfare.kr/mypage?tab=3");
+    }
+
+    @Test
+    @DisplayName("test send는 외부 origin URL을 거부한다")
+    void sendTestMessageRejectsExternalOriginUrl() {
+        given(webPushSubscriptionRepository.findByUserKeyAndEnabledTrueOrderByCreatedAtDesc("user-key-1"))
+                .willReturn(List.of(sampleSubscription()));
+        given(webPushSenderClient.isConfigured()).willReturn(true);
+        var request = request();
+        request.setUrl("https://evil.example/phish");
+
+        assertThatThrownBy(() -> webPushDispatchService.sendTestMessage("user-key-1", request))
+                .isInstanceOf(CustomException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.INVALID_INPUT);
+
+        verify(webPushSenderClient, never()).send(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
+    }
+
     private WebPushSubscription sampleSubscription() {
         return WebPushSubscription.builder()
                 .id(1L)
@@ -180,7 +248,7 @@ class WebPushDispatchServiceTest {
         var request = new com.example.welfare.notification.dto.WebPushTestSendRequest();
         request.setTitle("test");
         request.setBody("body");
-        request.setUrl("https://example.com/test");
+        request.setUrl("/mypage?tab=3");
         return request;
     }
 }

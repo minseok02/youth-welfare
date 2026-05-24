@@ -12,22 +12,38 @@ import java.time.Duration;
 public class AuthRateLimitService {
 
     private static final String EMAIL_CHECK_PREFIX = "auth:rate-limit:email-check:";
+    private static final String EMAIL_VERIFICATION_SEND_PREFIX = "auth:rate-limit:email-verification-send:";
 
     private final RedisTemplate<String, String> redisTemplate;
-    private final int maxRequests;
-    private final long windowSeconds;
+    private final int emailCheckMaxRequests;
+    private final long emailCheckWindowSeconds;
+    private final int emailVerificationSendMaxRequests;
+    private final long emailVerificationSendWindowSeconds;
 
     public AuthRateLimitService(
             RedisTemplate<String, String> redisTemplate,
-            @Value("${auth.rate-limit.email-check.max-requests:10}") int maxRequests,
-            @Value("${auth.rate-limit.email-check.window-seconds:60}") long windowSeconds) {
+            @Value("${auth.rate-limit.email-check.max-requests:10}") int emailCheckMaxRequests,
+            @Value("${auth.rate-limit.email-check.window-seconds:60}") long emailCheckWindowSeconds,
+            @Value("${auth.rate-limit.email-verification-send.max-requests:5}") int emailVerificationSendMaxRequests,
+            @Value("${auth.rate-limit.email-verification-send.window-seconds:300}") long emailVerificationSendWindowSeconds) {
         this.redisTemplate = redisTemplate;
-        this.maxRequests = maxRequests;
-        this.windowSeconds = windowSeconds;
+        this.emailCheckMaxRequests = emailCheckMaxRequests;
+        this.emailCheckWindowSeconds = emailCheckWindowSeconds;
+        this.emailVerificationSendMaxRequests = emailVerificationSendMaxRequests;
+        this.emailVerificationSendWindowSeconds = emailVerificationSendWindowSeconds;
     }
 
     public void checkEmailCheckLimit(String fingerprint) {
-        String key = EMAIL_CHECK_PREFIX + fingerprint;
+        checkLimit(EMAIL_CHECK_PREFIX + fingerprint, emailCheckMaxRequests, emailCheckWindowSeconds);
+    }
+
+    public void checkEmailVerificationSendLimit(String fingerprint) {
+        checkLimit(EMAIL_VERIFICATION_SEND_PREFIX + fingerprint,
+                emailVerificationSendMaxRequests,
+                emailVerificationSendWindowSeconds);
+    }
+
+    private void checkLimit(String key, int maxRequests, long windowSeconds) {
         Long count = redisTemplate.opsForValue().increment(key);
         if (count == null) {
             throw new CustomException(ErrorCode.INTERNAL_SERVER_ERROR);

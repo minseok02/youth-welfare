@@ -5,7 +5,7 @@ import { useAuthStore } from "../store/authStore";
 export default function RequireLogin({ children }) {
   const location = useLocation();
   const navigate = useNavigate();
-  const { isLoggedIn, logout } = useAuthStore();
+  const { isLoggedIn, clearSession } = useAuthStore();
 
   useEffect(() => {
     if (!isLoggedIn) {
@@ -13,7 +13,7 @@ export default function RequireLogin({ children }) {
     }
 
     const handleAuthExpired = () => {
-      logout();
+      clearSession();
       navigate("/login", {
         replace: true,
         state: { from: location, reason: "expired" },
@@ -27,7 +27,7 @@ export default function RequireLogin({ children }) {
         delete window.__authExpired;
       }
     };
-  }, [isLoggedIn, location, logout, navigate]);
+  }, [clearSession, isLoggedIn, location, navigate]);
 
   if (!isLoggedIn) {
     return (

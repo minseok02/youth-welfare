@@ -1,5 +1,7 @@
 package com.example.welfare.user.controller;
 
+import com.example.welfare.global.exception.CustomException;
+import com.example.welfare.global.exception.ErrorCode;
 import com.example.welfare.global.web.ClientFingerprintService;
 import com.example.welfare.user.service.AuthAvailabilityService;
 import com.example.welfare.user.service.AuthLoginService;
@@ -68,6 +70,50 @@ class AuthControllerWebMvcTest {
 
         then(authAvailabilityService).should().checkEmailAvailability("new@example.com");
         then(authRateLimitService).should().checkEmailCheckLimit("fp-auth");
+    }
+
+    @Test
+    @DisplayName("이메일 인증코드 발송은 fingerprint rate limit을 먼저 확인한다")
+    void sendEmailVerificationChecksFingerprintRateLimit() throws Exception {
+        given(clientFingerprintService.build(org.mockito.ArgumentMatchers.any())).willReturn("fp-email-send");
+
+        mockMvc.perform(post("/api/auth/email-verification/send")
+                        .param("email", "new@example.com"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
+        then(authRateLimitService).should().checkEmailVerificationSendLimit("fp-email-send");
+        then(emailVerificationService).should().sendCode("new@example.com");
+    }
+
+    @Test
+    @DisplayName("이메일 인증코드 발송은 잘못된 이메일 형식을 400으로 거부한다")
+    void sendEmailVerificationRejectsInvalidEmail() throws Exception {
+        mockMvc.perform(post("/api/auth/email-verification/send")
+                        .param("email", "not-an-email"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("C001"));
+
+        then(authRateLimitService).should(never()).checkEmailVerificationSendLimit(org.mockito.ArgumentMatchers.any());
+        then(emailVerificationService).should(never()).sendCode(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    @DisplayName("이메일 인증코드 발송은 fingerprint rate limit 초과 시 429를 반환한다")
+    void sendEmailVerificationReturnsTooManyRequestsWhenFingerprintLimitExceeded() throws Exception {
+        given(clientFingerprintService.build(org.mockito.ArgumentMatchers.any())).willReturn("fp-email-send");
+        org.mockito.BDDMockito.willThrow(new CustomException(ErrorCode.AUTH_RATE_LIMIT_EXCEEDED))
+                .given(authRateLimitService)
+                .checkEmailVerificationSendLimit("fp-email-send");
+
+        mockMvc.perform(post("/api/auth/email-verification/send")
+                        .param("email", "new@example.com"))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("A010"));
+
+        then(emailVerificationService).should(never()).sendCode(org.mockito.ArgumentMatchers.any());
     }
 
     @Test

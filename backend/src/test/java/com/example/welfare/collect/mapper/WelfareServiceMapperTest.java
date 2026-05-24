@@ -90,6 +90,20 @@ class WelfareServiceMapperTest {
     }
 
     @Test
+    void fromYouth_rejectsNonHttpSchemeUrls() throws Exception {
+        YouthApiDto.Item item = new YouthApiDto.Item();
+        setField(item, "plcyNo", "Y005-A");
+        setField(item, "plcyNm", "청년 취업 정보");
+        setField(item, "lclsfNm", "일자리");
+        setField(item, "aplyUrlAddr", "javascript:alert(1)");
+        setField(item, "refUrlAddr1", "data:text/html;base64,Zm9v");
+
+        WelfareService service = mapper.fromYouth(item);
+
+        assertThat(service.getDetailUrl()).isNull();
+    }
+
+    @Test
     void youthDto_deserializesReferenceUrls() throws Exception {
         ObjectMapper objectMapper = new ObjectMapper();
 
@@ -148,6 +162,25 @@ class WelfareServiceMapperTest {
         assertThat(json).contains("\"type\":\"APPLY\"");
         assertThat(json).contains("\"type\":\"REFERENCE\"");
         assertThat(json).contains("\"type\":\"EXTRACTED_FROM_TEXT\"");
+    }
+
+    @Test
+    void toYouthDetailAggregate_filtersUnsafeReferenceUrls() throws Exception {
+        YouthApiDto.Item detail = new YouthApiDto.Item();
+        setField(detail, "plcyNo", "Y007-A");
+        setField(detail, "plcyNm", "청년 정책");
+        setField(detail, "lclsfNm", "주거");
+        setField(detail, "aplyUrlAddr", "javascript:alert(1)");
+        setField(detail, "refUrlAddr1", "intent://malicious");
+        setField(detail, "plcyAplyMthdCn", "안내는 https://guide.example.com 에서 확인");
+
+        WelfareService service = mapper.fromYouth(detail);
+        var aggregate = mapper.toYouthDetailAggregate(service, detail);
+
+        assertThat(aggregate.core().detailUrl()).isNull();
+        assertThat(aggregate.detail().referenceUrlsJson()).contains("https://guide.example.com");
+        assertThat(aggregate.detail().referenceUrlsJson()).doesNotContain("javascript:");
+        assertThat(aggregate.detail().referenceUrlsJson()).doesNotContain("intent://");
     }
 
     @Test

@@ -25,6 +25,8 @@ import org.jsoup.Jsoup;
 import org.jsoup.safety.Safelist;
 import org.springframework.stereotype.Component;
 
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -247,7 +249,7 @@ public class WelfareServiceMapper {
                 .supportCycle(RawFieldValidator.normalize(item.getSprtCycNm()))
                 .provisionType(RawFieldValidator.normalize(item.getSrvPvsnNm()))
                 .isOnlineApply("Y".equalsIgnoreCase(item.getOnapPsbltYn()))
-                .detailUrl(RawFieldValidator.normalize(item.getServDtlLink()))
+                .detailUrl(normalizeUrl(item.getServDtlLink()))
                 .apiViewCount(item.getInqNum())
                 .registeredAt(parseDateTimeLoose(item.getSvcfrstRegTs()))
                 .status(WelfareService.ServiceStatus.ACTIVE)
@@ -316,7 +318,7 @@ public class WelfareServiceMapper {
                 .provisionType(RawFieldValidator.normalize(item.getSrvPvsnNm()))
                 .applyMethodName(RawFieldValidator.normalize(item.getAplyMtdNm()))
                 .isOnlineApply(inferOnlineApply(null, item.getAplyMtdNm()))
-                .detailUrl(RawFieldValidator.normalize(item.getServDtlLink()))
+                .detailUrl(normalizeUrl(item.getServDtlLink()))
                 .apiViewCount(item.getInqNum())
                 .startDate(parseDate(item.getEnfcBgngYmd()))
                 .endDate(parseDate(item.getEnfcEndYmd()))
@@ -730,14 +732,10 @@ public class WelfareServiceMapper {
             return null;
         }
         for (String value : values) {
-            String normalized = RawFieldValidator.normalize(value);
-            if (normalized == null) {
-                continue;
+            String candidate = normalizeUrl(value);
+            if (candidate != null) {
+                return candidate;
             }
-            if (normalized.regionMatches(true, 0, "www.", 0, 4)) {
-                return "https://" + normalized;
-            }
-            return normalized;
         }
         return null;
     }
@@ -747,13 +745,10 @@ public class WelfareServiceMapper {
             return null;
         }
         for (String value : values) {
-            String normalized = RawFieldValidator.normalize(value);
-            if (normalized == null) {
+            String candidate = normalizeUrl(value);
+            if (candidate == null) {
                 continue;
             }
-            String candidate = normalized.regionMatches(true, 0, "www.", 0, 4)
-                    ? "https://" + normalized
-                    : normalized;
             if (candidate.length() <= maxLength) {
                 return candidate;
             }
@@ -953,10 +948,23 @@ public class WelfareServiceMapper {
         if (normalized == null) {
             return null;
         }
-        if (normalized.regionMatches(true, 0, "www.", 0, 4)) {
-            return "https://" + normalized;
+        String candidate = normalized.regionMatches(true, 0, "www.", 0, 4)
+                ? "https://" + normalized
+                : normalized;
+        try {
+            URI uri = new URI(candidate);
+            String scheme = RawFieldValidator.normalize(uri.getScheme());
+            if (scheme == null) {
+                return null;
+            }
+            if (!"http".equalsIgnoreCase(scheme) && !"https".equalsIgnoreCase(scheme)) {
+                return null;
+            }
+            String host = RawFieldValidator.normalize(uri.getHost());
+            return host != null ? uri.toString() : null;
+        } catch (URISyntaxException e) {
+            return null;
         }
-        return normalized;
     }
 
     private String escapeJson(String value) {

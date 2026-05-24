@@ -52,7 +52,8 @@ public class NotificationController {
 
     @GetMapping("/unsubscribe")
     public ResponseEntity<ApiResponse<Void>> unsubscribe(@RequestParam String token) {
-        String userKey = jwtUtil.getSubjectAllowExpired(token);
+        jwtUtil.validate(token);
+        String userKey = jwtUtil.getSubject(token);
         userAccountCommandService.unsubscribeNotificationsByUserKey(userKey);
         return ResponseEntity.ok(ApiResponse.success(null));
     }

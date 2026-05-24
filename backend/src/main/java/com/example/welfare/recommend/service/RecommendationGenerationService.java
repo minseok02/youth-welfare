@@ -29,6 +29,7 @@ public class RecommendationGenerationService {
     private final RecommendationPersistenceService recommendationPersistenceService;
     private final RecommendationLogService recommendationLogService;
     private final RecommendationRefreshCacheService recommendationRefreshCacheService;
+    private final RecommendationRefreshRateLimitService recommendationRefreshRateLimitService;
     private final RecommendationResultReadService recommendationResultReadService;
     private final UserRecommendationReadService userRecommendationReadService;
     private final RecommendationExecutionGuard recommendationExecutionGuard;
@@ -39,6 +40,7 @@ public class RecommendationGenerationService {
         RecommendationUserSnapshot snapshot = context.snapshot();
         User user = context.user();
         String userKey = snapshot.userKey();
+        recommendationRefreshRateLimitService.checkRefreshLimit(userKey, personal);
 
         return recommendationExecutionGuard.runForUser(
                 userKey,

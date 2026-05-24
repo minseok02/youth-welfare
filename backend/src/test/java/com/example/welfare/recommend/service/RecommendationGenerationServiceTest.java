@@ -42,6 +42,7 @@ class RecommendationGenerationServiceTest {
     @Mock private RecommendationPersistenceService recommendationPersistenceService;
     @Mock private RecommendationLogService recommendationLogService;
     @Mock private RecommendationRefreshCacheService recommendationRefreshCacheService;
+    @Mock private RecommendationRefreshRateLimitService recommendationRefreshRateLimitService;
     @Mock private RecommendationResultReadService recommendationResultReadService;
     @Mock private UserRecommendationReadService userRecommendationReadService;
     @Mock private RecommendationExecutionGuard recommendationExecutionGuard;
@@ -60,6 +61,7 @@ class RecommendationGenerationServiceTest {
                 recommendationPersistenceService,
                 recommendationLogService,
                 recommendationRefreshCacheService,
+                recommendationRefreshRateLimitService,
                 recommendationResultReadService,
                 userRecommendationReadService,
                 recommendationExecutionGuard
@@ -85,6 +87,7 @@ class RecommendationGenerationServiceTest {
         List<UserRecommendation> result = recommendationGenerationService.recommend(1L, false);
 
         assertThat(result).containsExactly(cached);
+        verify(recommendationRefreshRateLimitService).checkRefreshLimit("user-key-1", false);
         verify(retrievalService, never()).retrieve(any(), any());
         verify(ruleScoringService, never()).score(any(RetrievedRecommendationCandidates.class), eq(snapshot));
         verify(aiScoringService, never()).score(any(), any(), any());
@@ -162,10 +165,32 @@ class RecommendationGenerationServiceTest {
         List<UserRecommendation> result = recommendationGenerationService.recommend(1L, true);
 
         assertThat(result).containsExactly(saved);
+        verify(recommendationRefreshRateLimitService).checkRefreshLimit("user-key-1", true);
         verify(recommendationRefreshCacheService).evict("user-key-1");
         verify(clusterService, never()).assignCluster(snapshot);
         verify(retrievalService).retrieve("youth_all", snapshot);
         verify(recommendationRefreshCacheService, never()).markReusable(anyString(), any());
+    }
+
+    @Test
+    @DisplayName("refresh rate limit을 초과하면 추천 파이프라인에 들어가기 전에 R004를 던진다")
+    void recommendThrowsWhenRefreshRateLimitExceeded() {
+        User user = sampleUser();
+        RecommendationUserSnapshot snapshot = sampleSnapshot();
+
+        when(userRecommendationReadService.getRecommendationContext(1L))
+                .thenReturn(new UserRecommendationReadService.RecommendationReadContext(user, snapshot));
+        org.mockito.Mockito.doThrow(new CustomException(ErrorCode.RECOMMENDATION_REFRESH_RATE_LIMIT_EXCEEDED))
+                .when(recommendationRefreshRateLimitService)
+                .checkRefreshLimit("user-key-1", true);
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> recommendationGenerationService.recommend(1L, true))
+                .isInstanceOf(CustomException.class)
+                .satisfies(ex -> assertThat(((CustomException) ex).getErrorCode())
+                        .isEqualTo(ErrorCode.RECOMMENDATION_REFRESH_RATE_LIMIT_EXCEEDED));
+
+        verify(recommendationExecutionGuard, never()).runForUser(anyString(), any(), any());
+        verify(retrievalService, never()).retrieve(any(), any());
     }
 
     @Test

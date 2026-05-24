@@ -244,6 +244,25 @@ class RecommendationPolicyFlowWebMvcTest {
     }
 
     @Test
+    @DisplayName("personal 추천 갱신 rate limit 초과 시 429를 반환한다")
+    void refreshReturnsTooManyRequestsWhenRecommendationRefreshRateLimited() throws Exception {
+        given(recommendationGenerationService.recommend(org.mockito.ArgumentMatchers.any(), eq(true)))
+                .willThrow(new CustomException(ErrorCode.RECOMMENDATION_REFRESH_RATE_LIMIT_EXCEEDED));
+
+        mockMvc.perform(post("/api/recommendations/refresh")
+                        .param("personal", "true")
+                        .with(authentication(new UsernamePasswordAuthenticationToken(
+                                new AuthenticatedUser(1L, "user-key-1"),
+                                null,
+                                Collections.emptyList()
+                        )))
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("R004"));
+    }
+
+    @Test
     @DisplayName("정책 검색 rate limit 초과 시 429를 반환한다")
     void searchReturnsTooManyRequestsWhenRateLimitExceeded() throws Exception {
         given(clientFingerprintService.build(any())).willReturn("fp-search");

@@ -40,6 +40,7 @@ public enum ErrorCode {
     RECOMMENDATION_NOT_FOUND(HttpStatus.NOT_FOUND, "R001", "추천 정보를 찾을 수 없습니다."),
     SCORE_WEIGHT_NOT_CONFIGURED(HttpStatus.INTERNAL_SERVER_ERROR, "R002", "추천 가중치 설정을 찾을 수 없습니다."),
     RECOMMENDATION_ALREADY_RUNNING(HttpStatus.CONFLICT, "R003", "이미 같은 사용자에 대한 추천 생성이 진행 중입니다."),
+    RECOMMENDATION_REFRESH_RATE_LIMIT_EXCEEDED(HttpStatus.TOO_MANY_REQUESTS, "R004", "추천 갱신 요청이 너무 많습니다. 잠시 후 다시 시도하세요."),
 
     // 알림
     NOTIFICATION_SEND_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "N001", "알림 발송에 실패했습니다."),

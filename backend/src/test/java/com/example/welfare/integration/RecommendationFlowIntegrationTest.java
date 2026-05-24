@@ -240,4 +240,64 @@ class RecommendationFlowIntegrationTest {
                 .orElseThrow()
                 .isBookmarked()).isFalse();
     }
+
+    @Test
+    @DisplayName("personal 추천 refresh 는 짧은 시간 재요청 시 429와 R004를 반환한다")
+    void personalRefreshIsRateLimitedPerUser() throws Exception {
+        User user = userRepository.save(User.builder()
+                .email(TEST_EMAIL_PREFIX + UUID.randomUUID() + "@example.com")
+                .passwordHash("pw")
+                .name("Recommendation Personal Rate Limit")
+                .birthDate(LocalDate.of(2000, 1, 1))
+                .incomeLevel((byte) 5)
+                .displayCount(10)
+                .build());
+        userCoreSyncService.syncFromUser(user);
+        String userKey = userRepository.findUserKeyById(user.getId()).orElseThrow();
+
+        PriorityOption housing = priorityOptionRepository.findByCode("HOUSING").orElseThrow();
+        userPriorityRepository.save(UserPriority.builder()
+                .userId(user.getId())
+                .userKey(userKey)
+                .priorityOption(housing)
+                .priorityRank(1)
+                .weight(2.0)
+                .build());
+
+        welfareServiceRepository.save(WelfareService.builder()
+                .sourceType(WelfareService.SourceType.YOUTH)
+                .sourceId(TEST_SOURCE_PREFIX + "RATE-" + UUID.randomUUID())
+                .title("청년 월세 지원")
+                .description("청년 주거비 경감")
+                .unifiedCategory("주거")
+                .status(WelfareService.ServiceStatus.ACTIVE)
+                .minAge(19)
+                .maxAge(34)
+                .minIncome(1)
+                .maxIncome(10)
+                .applyEndDate(LocalDate.now().plusDays(1))
+                .lifeStage("청년")
+                .viewCount(9_999)
+                .apiViewCount(0L)
+                .registeredAt(java.time.LocalDateTime.now())
+                .build());
+
+        given(aiRecommendationGateway.score(anyString(), anyList(), any(RecommendationUserSnapshot.class)))
+                .willAnswer(invocation -> invocation.getArgument(1));
+
+        String accessToken = jwtUtil.generateAccessToken(userKey, user.getId());
+
+        mockMvc.perform(post("/api/recommendations/refresh")
+                        .param("personal", "true")
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
+        mockMvc.perform(post("/api/recommendations/refresh")
+                        .param("personal", "true")
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("R004"));
+    }
 }

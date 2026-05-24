@@ -19,6 +19,7 @@ import com.example.welfare.user.service.AuthSignupService;
 import com.example.welfare.user.service.EmailVerificationService;
 import com.example.welfare.user.service.PasswordResetService;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.constraints.Email;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -26,10 +27,12 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
+@Validated
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
 public class AuthController {
@@ -57,7 +60,9 @@ public class AuthController {
 
     @PostMapping("/email-verification/send")
     public ResponseEntity<ApiResponse<Void>> sendEmailVerificationCode(
-            @RequestParam String email) {
+            @RequestParam @Email String email,
+            HttpServletRequest request) {
+        authRateLimitService.checkEmailVerificationSendLimit(clientFingerprintService.build(request));
         emailVerificationService.sendCode(email);
         return ResponseEntity.ok(ApiResponse.success(null));
     }

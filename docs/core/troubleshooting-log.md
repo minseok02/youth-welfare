@@ -6344,3 +6344,48 @@ admin API와 latest artifact에
 - 문제: 현재 앱 코드는 env key(`DB_URL`, `APP_PII_DB_URL`, `REDIS_HOST`)만 보면 되는데, 기존 [docker-compose.yml](/home/minseok/youth-welfare/docker-compose.yml:1) 은 `db` 컨테이너와 `docker-entrypoint-initdb.d` 자동 init을 전제로 한다. 이 상태로는 "코드를 EC2+RDS 형태로 바꿔야 하나?"라는 혼선이 계속 생긴다.
 - 해결: 로컬 compose는 그대로 두고, 운영은 [docker-compose.prod.yml](/home/minseok/youth-welfare/docker-compose.prod.yml:1) 과 [env.production.example](/home/minseok/youth-welfare/env.production.example:1) 로 분리했다. 운영형 compose는 `app + redis` 만 띄우고 DB는 RDS endpoint를 직접 보게 하며, bootstrap은 [bootstrap-rds-runtime.sh](/home/minseok/youth-welfare/deploy/postgres/bootstrap-rds-runtime.sh:1) 로 `schema.sql -> runtime roles/grants -> patch` 순서를 EC2 shell에서 수행하게 고정했다.
 - 이유: `Dockerfile` 은 하나로 유지하고, 환경별 차이는 compose/env/bootstrap 절차에서만 분리하는 게 가장 단순하다. 이렇게 해야 로컬 개발은 안 깨고, 운영에서는 `db` 컨테이너가 없는 구조를 명시적으로 강제할 수 있다.
+
+## 977) refresh cookie를 이미 쓰고 있어도 access token을 `localStorage` 에 두면 XSS 시 저장소 탈취면이 그대로 남는다
+- 문제: 이 프로젝트는 [AuthController.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/user/controller/AuthController.java:1) 에서 refresh token을 `HttpOnly + SameSite=Lax` cookie로 내려 주고 있었지만, 프론트 [axios.js](/home/minseok/youth-welfare/frontend/src/lib/axios.js:1) 와 [authStore.js](/home/minseok/youth-welfare/frontend/src/store/authStore.js:1) 는 access token을 `localStorage("token")` 에 따로 저장해 Bearer로 붙였다. 그래서 refresh cookie 자체는 읽지 못해도, XSS가 나면 access token을 브라우저 영구 저장소에서 바로 꺼내 쓸 수 있는 경계가 남아 있었다.
+- 해결: access token은 더 이상 persist/localStorage에 저장하지 않고 zustand 메모리 state에만 유지하게 바꿨다. 앱 시작 시 [AuthBootstrap.jsx](/home/minseok/youth-welfare/frontend/src/components/AuthBootstrap.jsx:1) 가 refresh cookie로 `/api/auth/refresh` 를 먼저 호출해 세션을 복구한 뒤 라우터를 렌더링하고, refresh 실패/만료 시에는 `logout` 과 별도인 `clearSession` 으로 세션만 비운다. 또한 legacy `token` / `auth-store` localStorage 흔적은 초기화해 이전 브라우저 저장소가 남아도 새 코드가 다시 읽지 않게 맞췄다.
+- 이유: 이 프로젝트는 이미 refresh cookie 구조가 있으므로, access token만 메모리로 옮겨도 보안 개선 효과가 크고 구조 변경 비용은 제한적이다. cookie-only auth 전체 전환보다 영향 범위가 작으면서도 "브라우저 영구 저장소에서 Bearer token을 바로 탈취"하는 가장 쉬운 경로를 줄일 수 있다.
+
+## 978) AES-CBC 저장 암호문을 GCM으로 바로 덮어쓰면 기존 `user_pii` 데이터를 읽지 못하게 될 수 있다
+- 문제: [AesEncryptUtil.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/global/util/AesEncryptUtil.java:1) 는 기존에 `AES/CBC/PKCS5Padding` 으로 `Base64(iv+ciphertext)` 형태를 저장하고 있었고, integration tests도 이 포맷으로 누적된 `user_pii` 데이터를 전제로 돌고 있다. 여기서 encrypt/decrypt를 GCM으로만 단순 교체하면, 이미 저장된 CBC payload를 더 이상 복호화하지 못해 로그인/프로필/알림 관련 기존 row read가 깨질 수 있다.
+- 해결: 새 암호문은 `v2:Base64(nonce(12 bytes)+ciphertext+tag)` 로 저장하고, decrypt는 `v2:` prefix가 있으면 GCM, 없으면 기존 CBC payload로 fallback 하게 분기했다. 테스트도 `round trip`, `tampered GCM decrypt failure`, `legacy CBC fallback decrypt success` 로 나눠 고정했다.
+- 이유: 이번 작업의 목적은 "새 값에 인증 암호화(GCM)를 붙이는 것"이지, 기존 DB row를 한 번에 전량 재암호화하는 것이 아니다. prefix 기반 점진 전환이 가장 안전하고 운영 리스크가 낮다.
+
+## 979) 이 저장소에서는 integration 테스트를 `test --tests ...` 로 바로 치면 안 되고 `integrationTest --tests ...` 로 타야 한다
+- 문제: 암호화 변경 후 대표 PII 흐름 검증으로 `AuthRedisIntegrationTest`, `UserCoreDualWriteIntegrationTest`, `UserPiiBackfillIntegrationTest`, `UserPiiSyncReplayIntegrationTest` 를 부분 실행하려고 했지만, 이 저장소 `build.gradle` 은 기본 `test` 태스크에서 `**/integration/**` 을 제외한다. 그래서 `./gradlew test --tests com.example.welfare.integration...` 는 "No tests found for given includes" 로 실패했다.
+- 해결: integration 케이스는 `./gradlew integrationTest --tests ...` 로 다시 실행했고, runtime preflight(DB/Redis 로그인) 뒤 정상 통과했다.
+- 이유: 현재 테스트 규약은 빠른 unit/webmvc 회귀는 `test`, 실제 PostgreSQL/Redis가 필요한 케이스는 `integrationTest` 로 분리돼 있다. 보안 변경 검증도 이 규약을 그대로 따르는 편이 맞다.
+
+## 980) 공개 이메일 인증 발송 API는 이메일별 cooldown 하나만으로는 대량 발송 abuse를 막지 못한다
+- 문제: `/api/auth/email-verification/send` 는 `permitAll` 공개 엔드포인트인데, 기존 [EmailVerificationService.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/user/service/EmailVerificationService.java:1) 는 같은 이메일에 대한 cooldown만 걸고 있었다. 이 상태에선 공격자가 이메일 주소만 계속 바꿔 같은 IP/UA에서 반복 호출해 메일 발송 비용과 평판을 소모시킬 수 있다.
+- 해결: [AuthController.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/user/controller/AuthController.java:1) 에서 `ClientFingerprintService.build(request)` 값을 먼저 구해 [AuthRateLimitService.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/user/service/AuthRateLimitService.java:1) 의 `checkEmailVerificationSendLimit()` 를 태우고, 기존 `EmailVerificationService.sendCode(email)` 의 이메일별 cooldown은 그대로 유지하게 맞췄다. 동시에 `@Validated` + `@RequestParam @Email` 로 형식이 잘못된 주소는 서비스 진입 전에 400으로 거른다.
+- 이유: 공개 메일 발송 abuse 방어는 `email 축` 과 `client 축` 두 개를 같이 봐야 한다. 이 저장소에는 이미 Redis 기반 auth rate limit과 fingerprint 패턴이 있으므로, 새로운 큰 구조 없이 기존 패턴을 재사용하는 것이 가장 작고 안전한 수정이다.
+
+## 981) Gradle `test` 를 같은 모듈에서 병렬로 두 번 돌리면 코드가 멀쩡해도 `build/test-results/test` XML 쓰기 충돌로 실패할 수 있다
+- 문제: email verification 보강 후 targeted `./gradlew test --tests ...` 와 전체 `./gradlew test` 를 동시에 돌렸더니, 실제 테스트 실패가 아니라 `Could not write XML test results ...` 로 다수 케이스가 한꺼번에 깨졌다. 둘 다 같은 `backend/build/test-results/test` 경로에 결과 XML을 쓰기 때문이다.
+- 해결: 같은 모듈의 `test` 태스크는 직렬로 다시 실행했고, targeted test와 단독 전체 `./gradlew test --no-daemon` 모두 정상 통과했다.
+- 이유: 이 저장소에서 Gradle 검증은 병렬화할 수 있는 read 명령과 달리, 동일 출력 디렉터리를 공유하는 test task는 병렬 실행 대상이 아니다. 이후 보안 회귀 검증도 `targeted -> full` 순서로 직렬 실행하는 편이 안전하다.
+
+## 982) 추천 refresh 는 `execution lock` 만으로는 비용성 abuse를 못 막는다
+- 문제: [RecommendationExecutionGuard.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/recommend/service/RecommendationExecutionGuard.java:1) 는 userKey 기준 lock으로 "동시에 두 번" 실행되는 것만 막는다. 하지만 `/api/recommendations/refresh?personal=true` 는 [RecommendationGenerationService.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/recommend/service/RecommendationGenerationService.java:1) 에서 refresh cache를 즉시 비우고 retrieval/rule/AI/rerank/save를 다시 태우므로, 사용자가 순차적으로 짧은 간격으로 여러 번 누르면 lock이 풀릴 때마다 비싼 파이프라인이 계속 돈다.
+- 해결: 새 [RecommendationRefreshRateLimitService.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/recommend/service/RecommendationRefreshRateLimitService.java:1) 를 추가해 userKey 기준 Redis TTL 키를 두고, `personal=true` 는 기본 `1회 / 600초`, `personal=false` 는 기본 `3회 / 60초` 로 제한했다. 검사는 generation service 초입, 즉 execution lock 전에 수행하고 초과 시 새 429 코드 `R004` 를 반환한다.
+- 이유: 이 경계에서 필요한 것은 "동시성 제어"가 아니라 "짧은 시간 반복 강제 재실행 제어"다. lock과 rate limit은 역할이 다르며, 둘을 함께 써야 AI/추천 비용성 API를 현실적으로 보호할 수 있다.
+
+## 983) 외부 URL은 "문자열 정리"만으로는 부족하고 scheme allowlist를 명시해야 한다
+- 문제: 기존 [WelfareServiceMapper.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/collect/mapper/WelfareServiceMapper.java:1) 는 `www.` 를 `https://` 로 보정하는 정도였고, 일부 source는 `RawFieldValidator.normalize(servDtlLink)` 값을 그대로 `detailUrl` 에 넣었다. 프론트 [PolicyDetailPage.jsx](/home/minseok/youth-welfare/frontend/src/pages/PolicyDetailPage.jsx:1) 도 `href` 와 `window.open()` 에 그 값을 거의 그대로 넘겼다. 이 상태에선 `javascript:`, `data:`, `intent:` 같은 비정상 scheme이 수집 데이터로 들어오면 렌더링/오픈 경계가 느슨해진다.
+- 해결: 백엔드 `normalizeUrl()` 을 `URI` 파싱 기반으로 바꿔 `http`/`https` scheme + host가 있는 경우만 통과시키고, `detailUrl` / `referenceUrlsJson` 후보 모두 이 헬퍼를 타게 맞췄다. 프론트도 `normalizeSafeExternalUrl()` 과 `safeOpenExternalUrl()` 로 다시 검증하고, 새 탭 열기는 항상 `noopener,noreferrer` 를 강제했다.
+- 이유: 수집형 서비스는 upstream 데이터가 완전히 신뢰되지 않는다. 그래서 "DB에 저장할 때 한 번, 브라우저에서 열 때 한 번" 두 겹으로 URL 경계를 두는 것이 가장 작은 비용으로 가장 큰 위험을 줄이는 방식이다.
+
+## 984) unsubscribe 토큰에서 `AllowExpired` subject 추출을 쓰면 exp claim이 사실상 무력화된다
+- 문제: [NotificationController.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/notification/controller/NotificationController.java:1) 는 공개 링크 `/api/notifications/unsubscribe` 에서 `jwtUtil.getSubjectAllowExpired(token)` 으로 userKey를 읽고 있었다. 이 메서드는 [JwtUtil.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/global/util/JwtUtil.java:1) 에서 `ExpiredJwtException` 이어도 claims에서 subject를 꺼내 반환하므로, 서명만 맞으면 만료된 unsubscribe 링크도 계속 성공한다.
+- 해결: controller에서 `jwtUtil.validate(token)` 를 먼저 호출하고, 통과한 경우에만 `jwtUtil.getSubject(token)` 으로 userKey를 읽게 바꿨다. WebMvc 테스트도 정상 토큰 성공, expired `A002`, invalid `A001` 세 케이스로 다시 고정했다.
+- 이유: unsubscribe JWT에 expiration을 넣어 두고 서버가 expired 토큰을 받아 주면 exp claim의 의미가 사라진다. 공개 링크일수록 토큰 만료를 명시적으로 지켜야 경계가 일관된다.
+
+## 985) Web Push 클릭 URL은 payload 문자열이 아니라 앱 내부 path로 다뤄야 한다
+- 문제: 기존 [frontend/public/sw.js](/home/minseok/youth-welfare/frontend/public/sw.js:1) 는 notification payload의 `url` 을 그대로 `navigate()` / `openWindow()` 에 넘겼고, [WebPushDispatchService.java](/home/minseok/youth-welfare/backend/src/main/java/com/example/welfare/notification/service/WebPushDispatchService.java:1) 의 test send도 `request.url` 을 그대로 payload에 실었다. 이 상태에선 외부 origin URL이나 비정상 scheme이 push payload에 들어오면, 사용자는 "앱 알림"을 눌렀는데 외부 사이트로 이동할 수 있다.
+- 해결: 서비스워커에 `resolveSafeNotificationUrl()` 을 추가해 same-origin path 또는 same-origin absolute URL만 내부 path로 정규화하고, 그 외는 `/mypage?tab=3` 로 fallback 하게 바꿨다. 서버 test send도 `app.base-url` 과 같은 origin absolute URL 또는 `/...` path만 허용하고, 외부 origin/잘못된 scheme은 `INVALID_INPUT(C001)` 로 거부한다.
+- 이유: 알림 클릭은 신뢰도가 높은 UX 경계이므로, URL을 "외부 링크"가 아니라 "앱 내부 라우팅 토큰"처럼 다루는 편이 맞다. 특히 수동 test send 경계부터 같은 정책을 강제해야 운영 중 잘못된 payload가 쌓이지 않는다.

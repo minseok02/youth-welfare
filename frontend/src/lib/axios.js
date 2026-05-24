@@ -1,6 +1,8 @@
 import axios from "axios";
+import { useAuthStore } from "../store/authStore";
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim() || "";
+const REFRESH_PATH = "/api/auth/refresh";
 
 const api = axios.create({
   baseURL: apiBaseUrl,
@@ -8,8 +10,12 @@ const api = axios.create({
 });
 
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("token");
-  if (token) config.headers.Authorization = `Bearer ${token}`;
+  const token = useAuthStore.getState().accessToken;
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  } else if (config.headers?.Authorization) {
+    delete config.headers.Authorization;
+  }
   return config;
 });
 
@@ -28,8 +34,10 @@ api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
+    const requestUrl = originalRequest?.url ?? "";
+    const isRefreshRequest = requestUrl.includes(REFRESH_PATH);
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    if (error.response?.status === 401 && !originalRequest?._retry && !isRefreshRequest) {
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
@@ -45,18 +53,17 @@ api.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        const { data } = await api.post("/api/auth/refresh");
+        const { data } = await api.post(REFRESH_PATH);
         const newToken = data?.data?.accessToken;
         if (!newToken) {
           throw new Error("refresh token rotation response missing accessToken");
         }
-        localStorage.setItem("token", newToken);
-        api.defaults.headers.common.Authorization = `Bearer ${newToken}`;
+        useAuthStore.getState().login(newToken, useAuthStore.getState().user);
         processQueue(null, newToken);
         return api(originalRequest);
       } catch (refreshError) {
         processQueue(refreshError, null);
-        localStorage.removeItem("token");
+        useAuthStore.getState().clearSession();
         window.__authExpired?.();
         return Promise.reject(refreshError);
       } finally {

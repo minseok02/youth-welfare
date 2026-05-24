@@ -25,9 +25,32 @@ const HTML_ENTITIES = {
   "&nbsp;": " ", "&middot;": "·", "&bull;": "•", "&ndash;": "–",
   "&mdash;": "—", "&laquo;": "«", "&raquo;": "»", "&times;": "×",
 };
+const EXTERNAL_URL_PROTOCOLS = new Set(["http:", "https:"]);
+
 const decodeHtml = (text) => {
   if (!text) return text;
   return text.replace(/&[a-zA-Z0-9#]+;/g, (e) => HTML_ENTITIES[e] ?? e);
+};
+
+const normalizeSafeExternalUrl = (value) => {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const candidate = /^https?:\/\//i.test(trimmed) ? trimmed : trimmed.startsWith("www.") ? `https://${trimmed}` : trimmed;
+
+  try {
+    const parsed = new URL(candidate);
+    return EXTERNAL_URL_PROTOCOLS.has(parsed.protocol) ? parsed.toString() : null;
+  } catch {
+    return null;
+  }
+};
+
+const safeOpenExternalUrl = (value) => {
+  const safeUrl = normalizeSafeExternalUrl(value);
+  if (!safeUrl) return false;
+  window.open(safeUrl, "_blank", "noopener,noreferrer");
+  return true;
 };
 
 const formatDate = (value) => {
@@ -130,12 +153,12 @@ const parseReferenceUrls = (raw) => {
     const seen = new Set();
     return parsed
       .map((item) => {
-        const url = typeof item?.url === "string" ? item.url.trim() : "";
-        if (!url) return null;
-        const normalizedUrl = /^https?:\/\//i.test(url) ? url : `https://${url}`;
+        const displayUrl = typeof item?.url === "string" ? item.url.trim() : "";
+        const normalizedUrl = normalizeSafeExternalUrl(displayUrl);
+        if (!normalizedUrl) return null;
         return {
           url: normalizedUrl,
-          displayUrl: url,
+          displayUrl,
           type: item?.type || "REFERENCE",
           label: item?.label || "추가 링크",
           sourceField: item?.sourceField || "",
@@ -245,12 +268,14 @@ export default function PolicyDetailPage() {
 
   const contacts = useMemo(() => parseContacts(policy?.contactList), [policy?.contactList]);
   const referenceUrls = useMemo(() => parseReferenceUrls(policy?.referenceUrlsJson), [policy?.referenceUrlsJson]);
+  const safeDetailUrl = useMemo(() => normalizeSafeExternalUrl(policy?.detailUrl), [policy?.detailUrl]);
+  const safeHomepageUrl = useMemo(() => normalizeSafeExternalUrl(policy?.homepageUrl), [policy?.homepageUrl]);
   const primaryReferenceUrls = useMemo(
-    () => referenceUrls.filter((item) => item.url !== policy?.homepageUrl && item.url !== policy?.detailUrl),
-    [policy?.detailUrl, policy?.homepageUrl, referenceUrls]
+    () => referenceUrls.filter((item) => item.url !== safeHomepageUrl && item.url !== safeDetailUrl),
+    [referenceUrls, safeDetailUrl, safeHomepageUrl]
   );
   const hasExtraSection = Boolean(
-    policy?.homepageUrl || policy?.relatedLaw || policy?.formFiles || primaryReferenceUrls.length
+    safeHomepageUrl || policy?.relatedLaw || policy?.formFiles || primaryReferenceUrls.length
   );
 
   const detailTabs = useMemo(() => {
@@ -809,15 +834,15 @@ export default function PolicyDetailPage() {
               {hasExtraSection && (
                 <ContentSection id="extra" title="추가 정보">
                   <div style={{ display: "grid", gap: 16 }}>
-                    {policy.homepageUrl && (
+                    {safeHomepageUrl && (
                       <div>
                         <div style={{ fontSize: 13, fontWeight: 700, color: INK, marginBottom: 6 }}>
                           참고 홈페이지
                         </div>
                         <a
-                          href={policy.homepageUrl}
+                          href={safeHomepageUrl}
                           target="_blank"
-                          rel="noreferrer"
+                          rel="noopener noreferrer"
                           style={{ color: A, fontWeight: 700, textDecoration: "none", wordBreak: "break-all" }}
                         >
                           {policy.homepageUrl} ↗
@@ -835,7 +860,7 @@ export default function PolicyDetailPage() {
                               key={`${item.type}-${item.url}`}
                               href={item.url}
                               target="_blank"
-                              rel="noreferrer"
+                              rel="noopener noreferrer"
                               style={{
                                 color: A,
                                 fontWeight: 700,
@@ -977,24 +1002,24 @@ export default function PolicyDetailPage() {
 
                 <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                   <button
-                    onClick={() => policy?.detailUrl && window.open(policy.detailUrl, "_blank")}
-                    disabled={!policy?.detailUrl}
+                    onClick={() => safeOpenExternalUrl(safeDetailUrl)}
+                    disabled={!safeDetailUrl}
                     style={{
                       padding: "14px 0", fontSize: 14, fontWeight: 700,
-                      background: policy?.detailUrl ? A : LINE2,
-                      color: policy?.detailUrl ? WHITE : INK3,
+                      background: safeDetailUrl ? A : LINE2,
+                      color: safeDetailUrl ? WHITE : INK3,
                       border: 0, borderRadius: 10,
-                      cursor: policy?.detailUrl ? "pointer" : "not-allowed",
+                      cursor: safeDetailUrl ? "pointer" : "not-allowed",
                       display: "flex", justifyContent: "center", alignItems: "center", gap: 6,
                     }}
-                    onMouseEnter={e => { if (policy?.detailUrl) e.currentTarget.style.background = A7; }}
-                    onMouseLeave={e => { if (policy?.detailUrl) e.currentTarget.style.background = A; }}
+                    onMouseEnter={e => { if (safeDetailUrl) e.currentTarget.style.background = A7; }}
+                    onMouseLeave={e => { if (safeDetailUrl) e.currentTarget.style.background = A; }}
                   >
-                    {policy?.detailUrl ? "관련 사이트 보기 ↗" : "링크 없음"}
+                    {safeDetailUrl ? "관련 사이트 보기 ↗" : "링크 없음"}
                   </button>
-                  {policy?.homepageUrl && policy.homepageUrl !== policy.detailUrl && (
+                  {safeHomepageUrl && safeHomepageUrl !== safeDetailUrl && (
                     <button
-                      onClick={() => window.open(policy.homepageUrl, "_blank")}
+                      onClick={() => safeOpenExternalUrl(safeHomepageUrl)}
                       style={{
                         padding: "12px 0", fontSize: 13, fontWeight: 700,
                         background: WHITE,
@@ -1006,9 +1031,9 @@ export default function PolicyDetailPage() {
                       참고 홈페이지 ↗
                     </button>
                   )}
-                  {!policy?.homepageUrl && primaryReferenceUrls[0] && (
+                  {!safeHomepageUrl && primaryReferenceUrls[0] && (
                     <button
-                      onClick={() => window.open(primaryReferenceUrls[0].url, "_blank")}
+                      onClick={() => safeOpenExternalUrl(primaryReferenceUrls[0].url)}
                       style={{
                         padding: "12px 0", fontSize: 13, fontWeight: 700,
                         background: WHITE,

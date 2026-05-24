@@ -1,3 +1,35 @@
+self.FALLBACK_NOTIFICATION_URL = "/mypage?tab=3";
+
+const resolveSafeNotificationUrl = (rawUrl) => {
+  if (typeof rawUrl !== "string") {
+    return self.FALLBACK_NOTIFICATION_URL;
+  }
+
+  const trimmed = rawUrl.trim();
+  if (!trimmed) {
+    return self.FALLBACK_NOTIFICATION_URL;
+  }
+
+  const isPath = trimmed.startsWith("/") && !trimmed.startsWith("//");
+  const isAbsolute = /^https?:\/\//i.test(trimmed);
+  if (!isPath && !isAbsolute) {
+    return self.FALLBACK_NOTIFICATION_URL;
+  }
+
+  try {
+    const parsed = new URL(trimmed, self.location.origin);
+    if (parsed.origin !== self.location.origin) {
+      return self.FALLBACK_NOTIFICATION_URL;
+    }
+    if (!/^https?:$/i.test(parsed.protocol)) {
+      return self.FALLBACK_NOTIFICATION_URL;
+    }
+    return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+  } catch {
+    return self.FALLBACK_NOTIFICATION_URL;
+  }
+};
+
 self.addEventListener("install", (event) => {
   event.waitUntil(self.skipWaiting());
 });
@@ -10,7 +42,7 @@ self.addEventListener("push", (event) => {
   const fallback = {
     title: "청년복지플랫폼",
     body: "새로운 알림이 도착했습니다.",
-    url: "/mypage?tab=3",
+    url: self.FALLBACK_NOTIFICATION_URL,
   };
 
   let payload = fallback;
@@ -28,7 +60,7 @@ self.addEventListener("push", (event) => {
       icon: "/favicon.svg",
       badge: "/favicon.svg",
       data: {
-        url: payload.url,
+        url: resolveSafeNotificationUrl(payload.url),
       },
     })
   );
@@ -36,7 +68,7 @@ self.addEventListener("push", (event) => {
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const targetUrl = event.notification.data?.url || "/mypage?tab=3";
+  const targetUrl = resolveSafeNotificationUrl(event.notification.data?.url);
 
   event.waitUntil((async () => {
     const allClients = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
