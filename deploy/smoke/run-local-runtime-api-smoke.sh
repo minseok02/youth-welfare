@@ -220,8 +220,10 @@ OLDER_AFTER_LOGOUT_STATUS="$(
   smoke_http_status GET "${APP_BASE_URL}/api/users/me/bookmarks" "${OLDER_TOKEN_AFTER_LOGOUT_RESPONSE}" \
     -H "Authorization: Bearer ${LOGIN_TOKEN}"
 )"
-if [[ "${OLDER_AFTER_LOGOUT_STATUS}" != "200" && "${OLDER_AFTER_LOGOUT_STATUS}" != "401" ]]; then
-  echo "unexpected older-token-after-logout status: ${OLDER_AFTER_LOGOUT_STATUS}" >&2
+smoke_assert_status 401 "${OLDER_AFTER_LOGOUT_STATUS}" "older login token after logout" "${OLDER_TOKEN_AFTER_LOGOUT_RESPONSE}"
+OLDER_AFTER_LOGOUT_ERROR="$(extract_error_code "${OLDER_TOKEN_AFTER_LOGOUT_RESPONSE}")"
+if [[ "${OLDER_AFTER_LOGOUT_ERROR}" != "A006" ]]; then
+  echo "unexpected older-token-after-logout errorCode: ${OLDER_AFTER_LOGOUT_ERROR}" >&2
   cat "${OLDER_TOKEN_AFTER_LOGOUT_RESPONSE}" >&2
   exit 1
 fi
@@ -232,4 +234,4 @@ echo "app_base_url=${APP_BASE_URL}"
 echo "smoke_email=${SMOKE_EMAIL}"
 echo "recommendation_count=${RECOMMENDATION_COUNT}"
 echo "presented_after_logout=401/${PRESENTED_AFTER_LOGOUT_ERROR}"
-echo "older_login_token_after_logout=${OLDER_AFTER_LOGOUT_STATUS}"
+echo "older_login_token_after_logout=401/${OLDER_AFTER_LOGOUT_ERROR}"

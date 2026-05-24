@@ -45,20 +45,23 @@
 현재 계약:
 
 - refresh token 삭제
+- user-wide access cutoff 기록
 - 요청에 `Authorization: Bearer ...` 가 같이 실리면 그 access token exact revoke
-- bearer 없이 cookie-only logout 이면 refresh 회수만 보장
+- bearer 없이 cookie-only logout 이어도 같은 userKey의 기존 access token은 cutoff로 차단
 
 구현 위치:
 
 - `AuthSessionService.logout(...)`
 - `AuthSessionService.logoutByUserKey(...)`
 - `AuthSessionService.logoutByRefreshToken(...)`
+- `UserSessionRevocationService.revokeUserSessions(...)`
 - `AccessTokenRevocationService.revoke(...)`
 
 에러/후속 동작:
 
-- old refresh 재사용: `401 / A001` 또는 refresh invalidation 계열로 실패
+- old refresh 재사용: `401 / A003` 또는 refresh invalidation 계열로 실패
 - logout 요청에 실렸던 old access token 재사용: `401 / A006`
+- refresh 이전 older login access token 재사용: `401 / A006`
 
 ## 2. withdraw
 
@@ -230,7 +233,7 @@ forced logout 로그:
 
 ## 지금 기준의 간단한 결론
 
-1. `logout` 은 refresh 회수 + bearer-present exact access revoke 입니다.
+1. `logout` 은 이제 refresh 회수 + user-wide access cutoff + bearer-present exact access revoke 입니다.
 2. `withdraw` 는 refresh 회수 + presented access revoke + withdrawn state 반영까지 구현돼 있습니다.
 3. `admin allowlist revoke` 는 즉시 forced logout 이 아니라 future role issuance 변경입니다.
 4. `admin forced logout` 는 이미 구현돼 있고, `POST /api/admin/users/forced-logout` + Redis cutoff + `JwtAuthenticationFilter` gate + `iatm` 계약까지 현재 코드에 반영돼 있습니다.

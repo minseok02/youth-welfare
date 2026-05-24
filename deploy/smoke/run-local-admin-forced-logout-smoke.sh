@@ -11,8 +11,14 @@ DB_CONTAINER_NAME="${DB_CONTAINER_NAME:-youth-welfare-db}"
 DB_NAME="${DB_NAME:-youth_welfare}"
 
 smoke_resolve_admin_credentials "${ROOT_DIR}"
-: "${ADMIN_EMAIL:?ADMIN_EMAIL is empty; export ADMIN_EMAIL or set SECURITY_ADMIN_EMAILS/.env or /tmp/youth-welfare-admin-smoke-email}"
-: "${ADMIN_PASSWORD:?ADMIN_PASSWORD is empty; export ADMIN_PASSWORD or set /tmp/youth-welfare-admin-smoke-password}"
+if [[ -z "${ADMIN_EMAIL:-}" ]]; then
+  echo "ADMIN_EMAIL is empty; set ADMIN_EMAIL, SECURITY_ADMIN_EMAILS in ${ENV_FILE:-${ROOT_DIR}/.env}, or /tmp/youth-welfare-admin-smoke-email" >&2
+  exit 1
+fi
+if [[ -z "${ADMIN_PASSWORD:-}" ]]; then
+  echo "ADMIN_PASSWORD is empty; set ADMIN_PASSWORD, ADMIN_PASSWORD in ${ENV_FILE:-${ROOT_DIR}/.env}, or /tmp/youth-welfare-admin-smoke-password" >&2
+  exit 1
+fi
 
 SMOKE_PASSWORD="${SMOKE_PASSWORD:-Password123!}"
 SMOKE_EMAIL_PREFIX="${SMOKE_EMAIL_PREFIX:-forced.logout.smoke}"

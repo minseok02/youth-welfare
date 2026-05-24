@@ -1,5 +1,13 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 976) logout에 user-wide cutoff를 바로 붙이면 immediate relogin access token까지 같은 millisecond에 false-negative로 막힐 수 있다
+- 문제: `UserSessionRevocationService.isAccessAllowed()` 는 `issuedAtMillis > cutoffMillis` 인 경우만 허용한다. 그래서 일반 logout에도 `revokeUserSessions(userKey, System.currentTimeMillis())` 를 연결하면 older access token은 막을 수 있지만, 바로 뒤 로그인/refresh가 같은 millisecond에 새 access token을 발급받으면 `iatm == cutoffMillis` 로 잘못 차단될 수 있다.
+- 해결: logout/write 경계만 바꾸지 않고 token issue 경계도 같이 수정했다. `AuthTokenService.issueTokens()` 는 이제 `UserSessionRevocationService.resolveNextAccessIssuedAtMillis(userKey, candidateIssuedAtMillis)` 를 통해 현재 cutoff를 읽고, candidate가 cutoff 이하이면 `cutoff + 1` 로 access token `iatm` 을 밀어낸다. `JwtUtil.generateAccessToken(..., issuedAtMillis)` overload를 추가해 이 값을 실제 claim으로 넣게 했고, 결과적으로 `older_login_token_after_logout` 는 `401/A006` 으로 막으면서도 immediate relogin token은 계속 통과한다.
+
+## 977) root 소유 `.vite` 캐시가 남아 있으면 `npm ci` 와 `eslint .` 가 코드 문제가 아닌 권한/경로 스캔 문제로 깨질 수 있다
+- 문제: 이번 frontend 재검증에서 `frontend/node_modules/.vite/deps` 일부가 `root:root` 소유로 남아 있어 `npm ci` 가 `EACCES unlink .../.vite/deps/...` 로 실패했다. 권한 문제를 피하려고 `node_modules` 를 `frontend/node_modules.stale-root-*` 로 옮겼더니, 이번엔 `eslint .` 가 stale 디렉터리까지 전부 스캔하면서 오래 걸리고 Babel deopt log만 쏟아냈다.
+- 해결: `frontend/node_modules` 는 통째로 옆으로 치워 새 `npm ci` 를 깨끗하게 다시 받고, stale 디렉터리는 프로젝트 루트 밖 `/home/minseok/node_modules.stale-root-20260525` 로 옮겨 `eslint .` 대상에서 제외했다. 이후 `npm audit`, `npm run lint`, `npm run build` 는 모두 green으로 다시 닫혔다.
+
 ## 974) `findCandidatesWithSido()` local-first 정렬이 강하면 Gov24 교육 서비스가 retrieval 창 밖으로 밀려 `gov24_rows=0` 이 될 수 있다
 - 문제: `run-local-gov24-education-signal-smoke.sh` fresh run은 반복해서 `gov24_rows=0`, `gov24_top10_rows=0`, `gov24_top2_rows=0` 이었다. collect/runtime audit는 정상이었고, admin diagnostics로 대표 Gov24 교육 서비스(`16490`, `16521`, `16919`, `18286`)를 찍으면 전부 `inBaseRetrieval=false`, `dropStage=NOT_IN_SQL_RETRIEVAL` 이었다. DB에서 same persona 조건으로 `findCandidatesWithSido()` 정렬을 재현하면 top150 source distribution이 `BOKJIRO_LOCAL:150` 이었고, `16490/16919/18286` 도 실제 rank `194/231/194` 수준으로 창 밖에 있었다.
 - 해결: region/sido 기반 추천일 때 `RetrievalService` base candidate fetch size를 `150 -> 300` 으로 넓히고, `BOKJIRO_LOCAL` 이 top-50 창을 과점하면 상위 40건은 그대로 두되 41~50 구간에 non-dominant source를 bounded하게 섞었다. 이후 `run-local-gov24-education-signal-smoke.sh` 는 `gov24_rows=8`, `gov24_top10_rows=3`, `gov24_top2_rows=1`, `top2_source_distribution=BOKJIRO_LOCAL:1,GOV24:1` 로 회복됐다. 다만 기존 target `7193` 은 여전히 `missing` 이라, 이번 fix는 Gov24 교육 계열이 창 밖에서 전부 잘리던 현상을 줄인 bounded retrieval fix로 기록한다.

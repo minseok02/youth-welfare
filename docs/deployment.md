@@ -159,6 +159,12 @@ docker compose --env-file .env.production -f docker-compose.prod.yml up -d redis
 
 즉 app 컨테이너는 외부에 직접 노출하지 않고, nginx가 `127.0.0.1:8082` 로 프록시한다.
 
+현재 운영 템플릿 원칙:
+
+- `Strict-Transport-Security`, `X-Frame-Options`, `X-Content-Type-Options` 는 edge nginx가 단일 책임으로 내려준다.
+- `/api/`, `/swagger-ui/`, `/v3/api-docs/`, `/actuator/` 프록시 경로에서는 upstream Spring이 내려준 같은 헤더를 `proxy_hide_header` 로 숨긴다.
+- `/actuator/` 는 외부 인터넷에 공개하지 않고 `127.0.0.1` / `::1` 및 명시적으로 허용한 내부 모니터링 IP만 통과시킨다.
+
 ## 9. 운영 smoke 최소 순서
 
 app가 올라오면 최소한 이 순서로 확인한다.
@@ -176,6 +182,24 @@ ADMIN_EMAIL='<admin email>' \
 ADMIN_PASSWORD='<admin password>' \
 bash deploy/smoke/run-local-auth-session-smoke.sh
 ```
+
+관리자 비밀번호를 shell history에 남기고 싶지 않으면:
+
+```bash
+printf '%s\n' '<admin password>' >/tmp/youth-welfare-admin-smoke-password
+chmod 600 /tmp/youth-welfare-admin-smoke-password
+
+ENV_FILE=.env.production \
+ADMIN_EMAIL='<admin email>' \
+bash deploy/smoke/run-local-admin-forced-logout-smoke.sh
+```
+
+`run-local-admin-forced-logout-smoke.sh` 는 아래 우선순위로 admin 자격을 찾는다.
+
+1. 현재 shell env의 `ADMIN_EMAIL`, `ADMIN_PASSWORD`
+2. `/tmp/youth-welfare-admin-smoke-email`, `/tmp/youth-welfare-admin-smoke-password`
+3. `ENV_FILE` 또는 기본 `.env` 안의 `ADMIN_EMAIL`, `ADMIN_PASSWORD`
+4. `SECURITY_ADMIN_EMAILS` 의 첫 이메일
 
 운영 직전에는 필요 시:
 

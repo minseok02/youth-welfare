@@ -9,6 +9,7 @@ import java.net.Socket
 
 group = 'com.example'
 version = '0.0.1-SNAPSHOT'
+ext['tomcat.version'] = '10.1.55'
 
 java {
     sourceCompatibility = JavaVersion.VERSION_17

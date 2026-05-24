@@ -32,9 +32,14 @@ public class AuthTokenService {
     private final ChatSessionCleanupService chatSessionCleanupService;
     private final UserKeyLookupService userKeyLookupService;
     private final AuthIdentityReadService authIdentityReadService;
+    private final UserSessionRevocationService userSessionRevocationService;
 
     public TokenResponse issueTokens(String userKey, Long userId, List<String> roles) {
-        String accessToken = jwtUtil.generateAccessToken(userKey, userId, roles);
+        long accessIssuedAtMillis = userSessionRevocationService.resolveNextAccessIssuedAtMillis(
+                userKey,
+                System.currentTimeMillis()
+        );
+        String accessToken = jwtUtil.generateAccessToken(userKey, userId, roles, accessIssuedAtMillis);
         String refreshToken = jwtUtil.generateRefreshToken(userKey, userId);
         saveRefreshToken(userKey, refreshToken);
         return TokenResponse.of(accessToken, refreshToken);
@@ -67,7 +72,7 @@ public class AuthTokenService {
 
     @Transactional
     public void logoutByUserKey(String userKey, String accessToken) {
-        invalidateRefreshToken(userKey);
+        revokeUserSessions(userKey);
         revokePresentedAccessToken(accessToken);
         chatSessionCleanupService.deleteAllByUserKey(userKey);
     }
@@ -75,7 +80,7 @@ public class AuthTokenService {
     @Transactional
     public void logoutByRefreshToken(String refreshToken, String accessToken) {
         String userKey = resolveTokenUserKeyAllowExpired(refreshToken);
-        invalidateRefreshToken(userKey);
+        revokeUserSessions(userKey);
         revokePresentedAccessToken(accessToken);
         chatSessionCleanupService.deleteAllByUserKey(userKey);
     }
@@ -97,6 +102,10 @@ public class AuthTokenService {
         } catch (CustomException e) {
             log.debug("Skipping access-token revocation during logout because presented token was invalid");
         }
+    }
+
+    private void revokeUserSessions(String userKey) {
+        userSessionRevocationService.revokeUserSessions(userKey, System.currentTimeMillis());
     }
 
     private String resolveTokenUserKey(String token) {

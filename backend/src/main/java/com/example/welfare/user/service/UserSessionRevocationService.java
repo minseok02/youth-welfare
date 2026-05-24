@@ -64,6 +64,20 @@ public class UserSessionRevocationService {
         );
     }
 
+    public long resolveNextAccessIssuedAtMillis(String userKey, long candidateIssuedAtMillis) {
+        String cutoffValue = redisTemplate.opsForValue().get(accessCutoffKey(userKey));
+        if (!StringUtils.hasText(cutoffValue)) {
+            return candidateIssuedAtMillis;
+        }
+
+        try {
+            long cutoffMillis = Long.parseLong(cutoffValue);
+            return candidateIssuedAtMillis <= cutoffMillis ? cutoffMillis + 1 : candidateIssuedAtMillis;
+        } catch (NumberFormatException e) {
+            return candidateIssuedAtMillis;
+        }
+    }
+
     private String refreshTokenKey(String userKey) {
         return REFRESH_TOKEN_PREFIX + userKey;
     }

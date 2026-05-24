@@ -38,6 +38,7 @@ class AuthTokenServiceTest {
     @Mock private ChatSessionCleanupService chatSessionCleanupService;
     @Mock private UserKeyLookupService userKeyLookupService;
     @Mock private AuthIdentityReadService authIdentityReadService;
+    @Mock private UserSessionRevocationService userSessionRevocationService;
     @Mock private ValueOperations<String, String> valueOperations;
 
     private AuthTokenService authTokenService;
@@ -51,19 +52,36 @@ class AuthTokenServiceTest {
                 accessTokenRevocationService,
                 chatSessionCleanupService,
                 userKeyLookupService,
-                authIdentityReadService
+                authIdentityReadService,
+                userSessionRevocationService
         );
         lenient().when(redisTemplate.opsForValue()).thenReturn(valueOperations);
     }
 
     @Test
-    @DisplayName("로그아웃은 refresh token을 지우고 현재 access token을 revoke한다")
-    void logoutByUserKeyDeletesRefreshTokenAndRevokesAccessToken() {
+    @DisplayName("로그아웃은 사용자 refresh/access 세션을 함께 끊고 현재 access token을 revoke한다")
+    void logoutByUserKeyRevokesUserSessionsAndPresentedAccessToken() {
         authTokenService.logoutByUserKey("user-key-7", "access-token-value");
 
-        verify(redisTemplate).delete("refresh:user-key-7");
+        verify(userSessionRevocationService).revokeUserSessions(eq("user-key-7"), any(Long.class));
         verify(accessTokenRevocationService).revoke("access-token-value");
         verify(chatSessionCleanupService).deleteAllByUserKey("user-key-7");
+    }
+
+    @Test
+    @DisplayName("새 access token 발급 시 cutoff와 같은 millisecond면 cutoff 다음 millisecond로 밀어낸다")
+    void issueTokensBumpsAccessIssuedAtPastCutoff() {
+        when(userSessionRevocationService.resolveNextAccessIssuedAtMillis(eq("user-key-7"), any(Long.class)))
+                .thenReturn(1_777_588_800_001L);
+        when(jwtUtil.generateAccessToken("user-key-7", 7L, List.of("ROLE_USER"), 1_777_588_800_001L))
+                .thenReturn("new-access");
+        when(jwtUtil.generateRefreshToken("user-key-7", 7L)).thenReturn("new-refresh");
+
+        TokenResponse response = authTokenService.issueTokens("user-key-7", 7L, List.of("ROLE_USER"));
+
+        assertThat(response.getAccessToken()).isEqualTo("new-access");
+        assertThat(response.getRefreshToken()).isEqualTo("new-refresh");
+        verify(jwtUtil).generateAccessToken("user-key-7", 7L, List.of("ROLE_USER"), 1_777_588_800_001L);
     }
 
     @Test
@@ -82,7 +100,10 @@ class AuthTokenServiceTest {
         when(valueOperations.get("refresh:user-key-7")).thenReturn("refresh-token");
         when(jwtUtil.getSubject("refresh-token")).thenReturn("user-key-7");
         when(jwtUtil.getUserId("refresh-token")).thenReturn(7L);
-        when(jwtUtil.generateAccessToken("user-key-7", 7L, List.of("ROLE_USER"))).thenReturn("new-access");
+        when(userSessionRevocationService.resolveNextAccessIssuedAtMillis(eq("user-key-7"), any(Long.class)))
+                .thenReturn(1_777_588_800_010L);
+        when(jwtUtil.generateAccessToken("user-key-7", 7L, List.of("ROLE_USER"), 1_777_588_800_010L))
+                .thenReturn("new-access");
         when(jwtUtil.generateRefreshToken("user-key-7", 7L)).thenReturn("new-refresh");
 
         TokenResponse response = authTokenService.refresh("refresh-token", emailHash -> List.of("ROLE_USER"));

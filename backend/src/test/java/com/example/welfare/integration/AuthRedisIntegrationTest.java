@@ -5,6 +5,7 @@ import com.example.welfare.chat.entity.ChatMessageRole;
 import com.example.welfare.chat.entity.ChatSession;
 import com.example.welfare.chat.repository.ChatMessageRepository;
 import com.example.welfare.chat.repository.ChatSessionRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.example.welfare.global.util.AesEncryptUtil;
 import com.example.welfare.notification.gateway.EmailClient;
 import com.example.welfare.user.entity.User;
@@ -51,6 +52,7 @@ class AuthRedisIntegrationTest {
 
     private static final String TEST_EMAIL_PREFIX = "it_auth_";
     private static final Pattern RESET_TOKEN_PATTERN = Pattern.compile("[#?]token=([A-Za-z0-9\\-_%]+)");
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     @Autowired
     private MockMvc mockMvc;
@@ -331,6 +333,7 @@ class AuthRedisIntegrationTest {
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.accessToken").isNotEmpty())
                 .andReturn();
+        String loginAccessToken = extractAccessToken(loginResult.getResponse().getContentAsString());
 
         String storedRefreshToken = redisTemplate.opsForValue().get("refresh:" + userKey);
         assertNotNull(storedRefreshToken);
@@ -341,11 +344,13 @@ class AuthRedisIntegrationTest {
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.accessToken").isNotEmpty())
                 .andReturn();
+        String refreshedAccessToken = extractAccessToken(refreshResult.getResponse().getContentAsString());
 
         String rotatedRefreshToken = redisTemplate.opsForValue().get("refresh:" + userKey);
         assertNotNull(rotatedRefreshToken);
 
         mockMvc.perform(post("/api/auth/logout")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + refreshedAccessToken)
                         .header("X-Refresh-Token", rotatedRefreshToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true));
@@ -353,6 +358,25 @@ class AuthRedisIntegrationTest {
         assertNull(redisTemplate.opsForValue().get("refresh:" + userKey));
         assertThat(chatSessionRepository.findById(chatSession.getId())).isEmpty();
         assertEquals(0L, chatMessageRepository.countBySessionId(chatSession.getId()));
+
+        mockMvc.perform(get("/api/users/me/bookmarks")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + refreshedAccessToken))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("A006"));
+
+        mockMvc.perform(get("/api/users/me/bookmarks")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + loginAccessToken))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("A006"));
+
+        mockMvc.perform(post("/api/auth/refresh")
+                        .header("X-Refresh-Token", rotatedRefreshToken))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("A003"));
+
         assertNotNull(loginResult.getResponse().getHeader(HttpHeaders.SET_COOKIE));
         assertNotNull(refreshResult.getResponse().getHeader(HttpHeaders.SET_COOKIE));
     }
@@ -443,6 +467,10 @@ class AuthRedisIntegrationTest {
         Matcher matcher = RESET_TOKEN_PATTERN.matcher(body);
         assertThat(matcher.find()).isTrue();
         return java.net.URLDecoder.decode(matcher.group(1), java.nio.charset.StandardCharsets.UTF_8);
+    }
+
+    private String extractAccessToken(String body) throws Exception {
+        return OBJECT_MAPPER.readTree(body).path("data").path("accessToken").asText();
     }
 
     private void markEmailVerified(String email) {

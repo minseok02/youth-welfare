@@ -49,7 +49,7 @@ public class JwtUtil {
     }
 
     public String generateAccessToken(Long userId, Collection<String> roles) {
-        return buildToken(String.valueOf(userId), userId, accessExpiration, roles, true);
+        return generateAccessToken(String.valueOf(userId), userId, roles, System.currentTimeMillis());
     }
 
     public String generateAccessToken(String userKey, Long userId) {
@@ -57,7 +57,11 @@ public class JwtUtil {
     }
 
     public String generateAccessToken(String userKey, Long userId, Collection<String> roles) {
-        return buildToken(userKey, userId, accessExpiration, roles, true);
+        return generateAccessToken(userKey, userId, roles, System.currentTimeMillis());
+    }
+
+    public String generateAccessToken(String userKey, Long userId, Collection<String> roles, long issuedAtMillis) {
+        return buildToken(userKey, userId, accessExpiration, roles, true, issuedAtMillis);
     }
 
     public String generateRefreshToken(Long userId) {
@@ -83,7 +87,18 @@ public class JwtUtil {
             Collection<String> roles,
             boolean includeIssuedAtMillis
     ) {
-        Date now = new Date();
+        return buildToken(subject, userId, expiration, roles, includeIssuedAtMillis, System.currentTimeMillis());
+    }
+
+    private String buildToken(
+            String subject,
+            Long userId,
+            long expiration,
+            Collection<String> roles,
+            boolean includeIssuedAtMillis,
+            long issuedAtMillis
+    ) {
+        Date now = new Date(issuedAtMillis);
         JwtBuilder builder = Jwts.builder()
                 .subject(subject)
                 .issuedAt(now)

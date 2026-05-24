@@ -112,6 +112,16 @@ class UserSessionRevocationServiceTest {
     }
 
     @Test
+    @DisplayName("새 access token 발급 시각은 기존 cutoff보다 작거나 같으면 cutoff 다음 millisecond로 보정한다")
+    void resolveNextAccessIssuedAtMillisBumpsPastCutoff() {
+        when(valueOperations.get("access-cutoff:user-key-7")).thenReturn("2000");
+
+        long nextIssuedAt = userSessionRevocationService.resolveNextAccessIssuedAtMillis("user-key-7", 2000L);
+
+        assertThat(nextIssuedAt).isEqualTo(2001L);
+    }
+
+    @Test
     @DisplayName("iatm이 없는 legacy token은 access를 허용하지 않는다")
     void isAccessAllowedReturnsFalseForLegacyTokenWithoutIatm() {
         when(accessTokenRevocationService.isRevoked("access-token")).thenReturn(false);
