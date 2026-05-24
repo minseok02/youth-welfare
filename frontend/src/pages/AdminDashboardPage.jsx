@@ -100,32 +100,32 @@ const COLLECT_RESOURCE_TONE = {
 const STATUS_LABELS = {
   READY_REAL_USER_TRAFFIC: "실사용자 트래픽 준비됨",
   READY_REAL_USER_COHORT: "실사용자 코호트 확보",
-  CONCENTRATED_TOP1: "top1 집중 상태",
+  CONCENTRATED_TOP1: "1순위 집중 상태",
   NO_PRIORITY_DOMINANT: "무우선순위 편중 상태",
-  EXAMPLE_SMOKE_ONLY_LEADER: "예제 스모크만 leader",
-  LOCAL_SEED_WITHOUT_REAL_USER_LEADER: "로컬 seed만 leader",
+  EXAMPLE_SMOKE_ONLY_LEADER: "예제 스모크만 선두",
+  LOCAL_SEED_WITHOUT_REAL_USER_LEADER: "로컬 시드만 선두",
   SYNTHETIC_ONLY_LATEST_BATCH: "합성 데이터 위주 배치",
   MIXED_WITH_NON_REAL_BATCH: "비실사용 혼합 배치",
   DEFERRED_NO_REAL_USER_RECENT_WINDOW: "최근 실사용자 데이터 부족",
   NOT_A_CANDIDATE_NO_HISTORICAL_EXAMPLE_DOMINANCE: "예제 지배 이력 없음",
   NOT_A_CANDIDATE_PRIMARY_GATE_NOT_NON_REAL_BLOCKED: "현재 gate 기준 후보 아님",
   KEEP_PRIMARY_BASELINE: "기본 gate 유지",
-  NOT_READY_FOR_BOUNDED_PROMOTION_REVIEW: "bounded promotion review 미준비",
-  DO_NOT_RUN_BOUNDED_PROMOTION_REVIEW: "bounded promotion review 실행 안 함",
+  NOT_READY_FOR_BOUNDED_PROMOTION_REVIEW: "제한 승격 검토 미준비",
+  DO_NOT_RUN_BOUNDED_PROMOTION_REVIEW: "제한 승격 검토 실행 안 함",
   NOT_READY_FOR_EXPLICIT_PROMOTION_APPROVAL: "명시적 승격 승인 미준비",
   PROMOTION_APPROVAL_NOT_APPLICABLE: "승격 승인 대상 아님",
   APPROVAL_DECISION_NOT_READY: "승인 결정 미준비",
   APPROVAL_RECORD_NOT_READY: "승인 기록 미준비",
-  BOUNDED_PROMOTION_REVIEW_RUN_NOT_READY: "bounded review run 미준비",
-  NOT_READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN: "bounded review run 기준 미충족",
-  BOUNDED_PROMOTION_REVIEW_RUN_DECISION_NOT_READY: "bounded review run 결정 미준비",
-  NOT_READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL: "bounded review run 승인 미준비",
-  BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_DECISION_NOT_READY: "bounded review run 승인 결정 미준비",
-  BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_NOT_READY: "bounded review run 승인 기록 미준비",
-  NOT_READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD: "bounded review run 승인 레코드 미준비",
-  BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_NOT_READY: "bounded review run 승인 레코드 없음",
-  BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_TRANSITION_NOT_READY: "bounded review run 전이 미준비",
-  BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_WRITE_NOT_READY: "bounded review run 기록 쓰기 미준비",
+  BOUNDED_PROMOTION_REVIEW_RUN_NOT_READY: "제한 검토 실행 미준비",
+  NOT_READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN: "제한 검토 실행 기준 미충족",
+  BOUNDED_PROMOTION_REVIEW_RUN_DECISION_NOT_READY: "제한 검토 실행 결정 미준비",
+  NOT_READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL: "제한 검토 실행 승인 미준비",
+  BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_DECISION_NOT_READY: "제한 검토 실행 승인 결정 미준비",
+  BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_NOT_READY: "제한 검토 실행 승인 기록 미준비",
+  NOT_READY_FOR_BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD: "제한 검토 실행 승인 레코드 미준비",
+  BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_NOT_READY: "제한 검토 실행 승인 레코드 없음",
+  BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_TRANSITION_NOT_READY: "제한 검토 실행 전이 미준비",
+  BOUNDED_PROMOTION_REVIEW_RUN_APPROVAL_RECORD_WRITE_NOT_READY: "제한 검토 실행 기록 쓰기 미준비",
   SCHEDULED: "예약됨",
   RUNNING: "실행 중",
   SUCCESS: "성공",
@@ -141,11 +141,7 @@ const humanizeStatusKey = (value) => {
   return String(value)
     .split("_")
     .filter(Boolean)
-    .map((part, index) => {
-      const lower = part.toLowerCase();
-      return index === 0 ? lower.charAt(0).toUpperCase() + lower.slice(1) : lower;
-    })
-    .join(" ");
+    .join(" / ");
 };
 
 const formatStatusLabel = (value) => STATUS_LABELS[value] ?? humanizeStatusKey(value);
@@ -306,10 +302,10 @@ function MetricCard({ title, value, description, chip }) {
 
 function CohortMix({ mix }) {
   const items = [
-    { label: "Example", value: mix?.exampleUsers },
-    { label: "Bounded Local", value: mix?.boundedLocalUsers },
-    { label: "Local Seed", value: mix?.localRealNonExampleSeedUsers },
-    { label: "Real User", value: mix?.realUserUsers },
+    { label: "예제", value: mix?.exampleUsers },
+    { label: "로컬 제한군", value: mix?.boundedLocalUsers },
+    { label: "로컬 시드", value: mix?.localRealNonExampleSeedUsers },
+    { label: "실사용자", value: mix?.realUserUsers },
   ];
 
   return (
@@ -546,7 +542,7 @@ export default function AdminDashboardPage() {
               운영 추천 대시보드
             </Typography>
             <Typography sx={{ fontSize: 14, color: INK3, mt: 1 }}>
-              recommendation review gate, top1 leader signal, cohort mix를 한 화면에서 확인합니다.
+              추천 검토 게이트, 1순위 선두 신호, 코호트 구성을 한 화면에서 확인합니다.
             </Typography>
           </Box>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} alignItems={{ xs: "stretch", sm: "center" }}>
@@ -590,13 +586,13 @@ export default function AdminDashboardPage() {
               <Stack direction={{ xs: "column", lg: "row" }} justifyContent="space-between" spacing={2}>
                 <Box>
                   <Typography sx={{ fontSize: 12, fontWeight: 800, color: ACCENT, textTransform: "uppercase", letterSpacing: "0.08em" }}>
-                    Ops Snapshot
+                    운영 스냅샷
                   </Typography>
                   <Typography sx={{ fontSize: 20, fontWeight: 900, color: INK, mt: 0.75, letterSpacing: "-0.02em" }}>
                     오늘 볼 운영 신호를 먼저 모았습니다
                   </Typography>
                   <Typography sx={{ fontSize: 13, color: INK3, mt: 0.75 }}>
-                    실패 섹션, 회로 오픈, retry group, 마지막 갱신 시각을 먼저 확인하고 아래 상세로 내려가면 됩니다.
+                    실패 섹션, 열린 회로, 재시도 묶음, 마지막 갱신 시각을 먼저 확인하고 아래 상세로 내려가면 됩니다.
                   </Typography>
                 </Box>
                 <Stack spacing={0.5} alignItems={{ xs: "flex-start", lg: "flex-end" }}>
@@ -616,17 +612,17 @@ export default function AdminDashboardPage() {
                   description={failedSectionCount > 0 ? "부분 실패 있음" : "전체 섹션 응답 정상"}
                 />
                 <MetricCard
-                  title="Open Circuits"
+                  title="열린 회로"
                   value={formatNumber(openCircuitCount)}
                   description="외부 수집 안정성 저하 신호"
                 />
                 <MetricCard
-                  title="Retry Groups"
+                  title="재시도 묶음"
                   value={formatNumber(retryGroupCount)}
                   description="같은 조건 반복 검색"
                 />
                 <MetricCard
-                  title="Recovered Groups"
+                  title="복구된 묶음"
                   value={formatNumber(recoveredGroupCount)}
                   description="0건 후 결과가 생긴 검색"
                 />
@@ -652,14 +648,14 @@ export default function AdminDashboardPage() {
           {summaryQuery.isLoading && (
             <SectionLoadingCard
               title="운영 요약 로딩 중"
-              description="review gate, latest batch concentration, collect/search overview를 불러오는 중입니다."
+              description="추천 검토 상태, 최근 배치 집중도, 수집/검색 개요를 불러오는 중입니다."
             />
           )}
 
           {summaryQuery.isError && (
             <SectionErrorCard
               title="운영 요약 로드 실패"
-              description="summary API가 실패해도 collect/search triage 상세는 아래에서 계속 확인할 수 있습니다."
+              description="요약 API가 실패해도 수집/검색 상세 진단은 아래에서 계속 확인할 수 있습니다."
               message={summaryErrorMessage}
               onRetry={() => summaryQuery.refetch()}
             />
@@ -681,13 +677,13 @@ export default function AdminDashboardPage() {
                   <Box sx={{ position: "absolute", inset: 0, background: "radial-gradient(circle at top right, rgba(255,255,255,0.18), transparent 36%)" }} />
                   <Stack direction={{ xs: "column", lg: "row" }} justifyContent="space-between" spacing={3} sx={{ position: "relative" }}>
                     <Box>
-                      <Typography sx={{ fontSize: 12, fontWeight: 700, opacity: 0.8 }}>Recommendation Review Gate</Typography>
+                      <Typography sx={{ fontSize: 12, fontWeight: 700, opacity: 0.8 }}>추천 검토 게이트</Typography>
                   <Typography sx={{ fontSize: 30, fontWeight: 900, mt: 1, letterSpacing: "-0.03em" }}>
                         {formatStatusLabel(recommendationSummary.recommendationReviewGate)}
                       </Typography>
                       <Typography sx={{ fontSize: 14, opacity: 0.85, mt: 1.5, maxWidth: 720, lineHeight: 1.6 }}>
-                        현재 review gate는 <strong>{formatStatusLabel(recommendationSummary.recommendationReviewGate)}</strong> 입니다.
-                        top1 leader signal은 <strong>{formatStatusLabel(concentration.top1LeaderSignalSummary)}</strong>, real user traffic gate는 <strong>{formatStatusLabel(recommendationSummary.realUserTrafficGateInWindow)}</strong> 입니다.
+                        현재 추천 검토 상태는 <strong>{formatStatusLabel(recommendationSummary.recommendationReviewGate)}</strong> 입니다.
+                        1순위 선두 신호는 <strong>{formatStatusLabel(concentration.top1LeaderSignalSummary)}</strong>, 실사용자 트래픽 게이트는 <strong>{formatStatusLabel(recommendationSummary.realUserTrafficGateInWindow)}</strong> 입니다.
                       </Typography>
                     </Box>
                     <GateChip value={recommendationSummary.recommendationReviewGate} />
@@ -696,19 +692,19 @@ export default function AdminDashboardPage() {
 
                 <Box sx={{ display: "grid", gap: 2, mt: 2, gridTemplateColumns: { xs: "1fr", md: "repeat(3, 1fr)" } }}>
                   <MetricCard
-                    title="Top1 Leader"
+                    title="1순위 선두 서비스"
                     value={concentration.top1LeaderTitle ?? "—"}
                     description={`${formatSourceType(concentration.top1LeaderSource)} · ${concentration.top1LeaderCategory}`}
                     chip={<Typography sx={{ fontSize: 22, fontWeight: 900, color: ACCENT }}>{formatPercent(concentration.top1LeaderSharePct)}</Typography>}
                   />
                   <MetricCard
-                    title="Latest Batch Users"
+                    title="최근 배치 사용자"
                     value={formatNumber(concentration.latestBatchUsers)}
-                    description={`rows ${formatNumber(concentration.latestBatchRows)} · services ${formatNumber(concentration.latestBatchDistinctServices)}`}
+                    description={`행 ${formatNumber(concentration.latestBatchRows)} · 서비스 ${formatNumber(concentration.latestBatchDistinctServices)}`}
                     chip={<GateChip value={concentration.realUserCohortGate} />}
                   />
                   <MetricCard
-                    title="Leader Signal"
+                    title="선두 신호"
                     value={formatStatusLabel(concentration.top1LeaderSignalSummary)}
                     description={formatStatusLabel(concentration.signalQuality)}
                     chip={<GateChip value={recommendationSummary.realUserTrafficGateInWindow} />}
@@ -717,42 +713,42 @@ export default function AdminDashboardPage() {
 
                 <Box sx={{ display: "grid", gap: 2, mt: 2, gridTemplateColumns: { xs: "1fr", md: "repeat(4, 1fr)" } }}>
                   <MetricCard
-                    title="Collect 실패(24h)"
+                    title="수집 실패(24시간)"
                     value={formatNumber(summaryData.collect.failedJobsLast24h)}
-                    description={`window ${summaryData.collect.windowDays}일 · running ${formatNumber(summaryData.collect.runningJobs)}`}
+                    description={`최근 ${summaryData.collect.windowDays}일 · 실행 중 ${formatNumber(summaryData.collect.runningJobs)}`}
                   />
                   <MetricCard
-                    title="알림 실패(window)"
+                    title="알림 실패(기간)"
                     value={formatNumber(summaryData.notification.failedInWindow)}
-                    description={`sent ${formatNumber(summaryData.notification.sentInWindow)} / last24h failed ${formatNumber(summaryData.notification.failedLast24h)}`}
+                    description={`발송 ${formatNumber(summaryData.notification.sentInWindow)} / 최근 24시간 실패 ${formatNumber(summaryData.notification.failedLast24h)}`}
                   />
                   <MetricCard
-                    title="0건 검색(window)"
+                    title="0건 검색(기간)"
                     value={formatNumber(summaryData.search.zeroResultSearchesInWindow)}
-                    description={`searches ${formatNumber(summaryData.search.searchesInWindow)} · users ${formatNumber(summaryData.search.uniqueFingerprintsInWindow)}`}
+                    description={`검색 ${formatNumber(summaryData.search.searchesInWindow)} · 사용자 ${formatNumber(summaryData.search.uniqueFingerprintsInWindow)}`}
                   />
                   <MetricCard
-                    title="PII Sync 실패"
+                    title="PII 동기화 실패"
                     value={formatNumber(summaryData.userPiiSync.failedCount)}
-                    description={`pending ${formatNumber(summaryData.userPiiSync.pendingCount)} · latest ${formatDateTime(summaryData.userPiiSync.latestSyncedAt)}`}
+                    description={`대기 ${formatNumber(summaryData.userPiiSync.pendingCount)} · 최근 동기화 ${formatDateTime(summaryData.userPiiSync.latestSyncedAt)}`}
                   />
                 </Box>
 
                 <Card sx={{ mt: 2, background: PANEL_BG, border: `1px solid ${PANEL_LINE}`, boxShadow: "0 8px 24px rgba(15,23,42,0.04)" }}>
                   <CardContent sx={{ p: 2.5 }}>
-                    <Typography sx={{ fontSize: 15, fontWeight: 800, color: INK }}>Top1 Leader Cohort Mix</Typography>
+                    <Typography sx={{ fontSize: 15, fontWeight: 800, color: INK }}>1순위 선두 코호트 구성</Typography>
                     <Typography sx={{ fontSize: 13, color: INK3, mt: 0.75 }}>
-                      현재 top1 leader는 `{concentration.top1LeaderServiceId}` 이며, real user 기준으로는 아직 review reopen 근거가 아닙니다.
+                      현재 1순위 선두 서비스는 `{concentration.top1LeaderServiceId}` 이며, 실사용자 기준으로는 아직 재검토 재개 근거가 아닙니다.
                     </Typography>
                     <Box mt={2}>
                       <CohortMix mix={concentration.top1LeaderUserMix} />
                     </Box>
                     <Divider sx={{ my: 2.5 }} />
                     <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", md: "repeat(4, 1fr)" } }}>
-                      <MetricCard title="Real User Traffic Gate" value={formatStatusLabel(recommendationSummary.realUserTrafficGateInWindow)} />
-                      <MetricCard title="Recommendation Review Gate" value={formatStatusLabel(recommendationSummary.recommendationReviewGate)} />
-                      <MetricCard title="Concentration Readiness" value={formatStatusLabel(concentration.concentrationReadiness)} />
-                      <MetricCard title="Leader Signal Summary" value={formatStatusLabel(concentration.top1LeaderSignalSummary)} />
+                      <MetricCard title="실사용자 트래픽 게이트" value={formatStatusLabel(recommendationSummary.realUserTrafficGateInWindow)} />
+                      <MetricCard title="추천 검토 게이트" value={formatStatusLabel(recommendationSummary.recommendationReviewGate)} />
+                      <MetricCard title="집중도 준비 상태" value={formatStatusLabel(concentration.concentrationReadiness)} />
+                      <MetricCard title="선두 신호 요약" value={formatStatusLabel(concentration.top1LeaderSignalSummary)} />
                     </Box>
                   </CardContent>
                 </Card>
@@ -760,7 +756,7 @@ export default function AdminDashboardPage() {
                 <Box sx={{ display: "grid", gap: 2, mt: 2, gridTemplateColumns: { xs: "1fr", xl: "1fr 1fr" } }}>
                   <CompactListCard
                     title="최근 수집 실패"
-                    description="collect latestFailuresInWindow"
+                    description="최근 수집 실패 샘플"
                     items={summaryData.collect.latestFailuresInWindow}
                     renderItem={(item) => (
                       <Box key={`${item.jobName}-${item.startedAt}`} sx={{ p: 1.5, borderRadius: 2, border: `1px solid ${PANEL_LINE}`, bgcolor: "#fafbff" }}>
@@ -772,7 +768,7 @@ export default function AdminDashboardPage() {
                             </Typography>
                           </Box>
                           <Typography sx={{ fontSize: 12, fontWeight: 700, color: WARNING_TEXT }}>
-                            fail {formatNumber(item.failedCount)}
+                            실패 {formatNumber(item.failedCount)}
                           </Typography>
                         </Stack>
                       </Box>
@@ -780,7 +776,7 @@ export default function AdminDashboardPage() {
                   />
                   <CompactListCard
                     title="0건 검색 키워드"
-                    description="search zeroResultKeywordsInWindow"
+                    description="최근 0건 검색 키워드"
                     items={summaryData.search.zeroResultKeywordsInWindow}
                     renderItem={(item) => (
                       <Box key={item.keyword} sx={{ p: 1.5, borderRadius: 2, border: `1px solid ${PANEL_LINE}`, bgcolor: "#fafbff" }}>
@@ -800,15 +796,15 @@ export default function AdminDashboardPage() {
 
           {breakdownQuery.isLoading && (
             <SectionLoadingCard
-              title="추천 상세 triage 로딩 중"
-              description="top repeated services, top1 distribution leaders, fallback/click sample을 불러오는 중입니다."
+              title="추천 상세 진단 로딩 중"
+              description="반복 노출 서비스, 1순위 분포 선두, 세부 샘플을 불러오는 중입니다."
             />
           )}
 
           {breakdownQuery.isError && (
             <SectionErrorCard
-              title="추천 상세 triage 로드 실패"
-              description="summary API가 살아 있으면 상단 recommendation gate와 latest batch concentration은 계속 볼 수 있습니다."
+              title="추천 상세 진단 로드 실패"
+              description="요약 API가 살아 있으면 상단 추천 게이트와 최근 배치 집중도는 계속 볼 수 있습니다."
               message={breakdownErrorMessage}
               onRetry={() => breakdownQuery.refetch()}
             />
@@ -818,14 +814,14 @@ export default function AdminDashboardPage() {
             <>
               <Box id="admin-recommendation-breakdowns" sx={{ scrollMarginTop: 96 }}>
                 <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", xl: "1fr 1fr" } }}>
-                  <ServiceListCard title="Top Repeated Services" items={breakdowns.topRepeatedServices} countLabel="rowCount" />
-                  <ServiceListCard title="Top1 Distribution Leaders" items={breakdowns.top1Services} countLabel="usersAsTop1" />
+                  <ServiceListCard title="반복 노출 상위 서비스" items={breakdowns.topRepeatedServices} countLabel="rowCount" />
+                  <ServiceListCard title="1순위 분포 선두 서비스" items={breakdowns.top1Services} countLabel="usersAsTop1" />
                 </Box>
 
                 <Box sx={{ display: "grid", gap: 2, mt: 2, gridTemplateColumns: { xs: "1fr", xl: "1fr 1fr" } }}>
                   <CompactListCard
-                    title="YOUTH Official Facets"
-                    description="latest recommendation batch 기준 온통청년 official fact 분포"
+                    title="온통청년 공식 속성 분포"
+                    description="최근 추천 배치 기준 온통청년 공식 속성 분포"
                     items={breakdowns.youthOfficialFacetGroups}
                     renderItem={(group) => (
                       <Box key={group.facetKey} sx={{ p: 1.5, borderRadius: 2, border: `1px solid ${PANEL_LINE}`, bgcolor: "#fafbff" }}>
@@ -834,7 +830,7 @@ export default function AdminDashboardPage() {
                           {group.buckets?.map((bucket) => (
                             <Chip
                               key={`${group.facetKey}-${bucket.label}`}
-                              label={`${bucket.label} · rows ${formatNumber(bucket.rowCount)} / services ${formatNumber(bucket.distinctServices)}`}
+                              label={`${bucket.label} · 행 ${formatNumber(bucket.rowCount)} / 서비스 ${formatNumber(bucket.distinctServices)}`}
                               size="small"
                               sx={{
                                 bgcolor: "#f8fafc",
@@ -857,8 +853,8 @@ export default function AdminDashboardPage() {
                     )}
                   />
                   <CompactListCard
-                    title="Gov24 Token Facets"
-                    description="latest recommendation batch 기준 Gov24 사용자구분/지원유형 token 분포"
+                    title="정부24 토큰 속성 분포"
+                    description="최근 추천 배치 기준 정부24 사용자구분/지원유형 토큰 분포"
                     items={breakdowns.gov24FacetGroups}
                     renderItem={(group) => (
                       <Box key={group.facetKey} sx={{ p: 1.5, borderRadius: 2, border: `1px solid ${PANEL_LINE}`, bgcolor: "#fafbff" }}>
@@ -867,7 +863,7 @@ export default function AdminDashboardPage() {
                           {group.buckets?.map((bucket) => (
                             <Chip
                               key={`${group.facetKey}-${bucket.label}`}
-                              label={`${bucket.label} · rows ${formatNumber(bucket.rowCount)} / services ${formatNumber(bucket.distinctServices)}`}
+                              label={`${bucket.label} · 행 ${formatNumber(bucket.rowCount)} / 서비스 ${formatNumber(bucket.distinctServices)}`}
                               size="small"
                               sx={{
                                 bgcolor: "#f8fafc",
@@ -896,23 +892,23 @@ export default function AdminDashboardPage() {
 
           <Box id="admin-collect-triage" sx={{ scrollMarginTop: 96 }}>
             <TriageSectionTitle
-              eyebrow="Collect Triage"
+              eyebrow="수집 진단"
               title="수집 실패 상세"
-              description="실패 job, circuit open 상태, 최근 실패 샘플을 summary 카드 아래에서 바로 확인합니다."
+              description="실패 작업, 회로 열림 상태, 최근 실패 샘플을 요약 카드 아래에서 바로 확인합니다."
             />
           </Box>
 
           {collectFailuresQuery.isLoading && (
             <SectionLoadingCard
               title="수집 실패 상세 로딩 중"
-              description="collect-failures API를 불러오는 중입니다."
+              description="수집 실패 API를 불러오는 중입니다."
             />
           )}
 
           {collectFailuresQuery.isError && (
             <SectionErrorCard
               title="수집 실패 상세 로드 실패"
-              description="수집 triage만 실패한 경우 recommendation/search 섹션은 그대로 확인할 수 있습니다."
+              description="수집 진단만 실패한 경우 추천/검색 섹션은 그대로 확인할 수 있습니다."
               message={collectErrorMessage}
               onRetry={() => collectFailuresQuery.refetch()}
             />
@@ -922,22 +918,22 @@ export default function AdminDashboardPage() {
             <>
               <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", md: "repeat(4, 1fr)" } }}>
               <MetricCard
-                title="Failed Jobs"
+                title="실패 작업"
                 value={formatNumber(collectFailures.failedJobsInWindow)}
-                description={`window ${collectFailures.windowDays}일`}
+                description={`최근 ${collectFailures.windowDays}일`}
               />
               <MetricCard
-                title="Partial Success"
+                title="부분 성공"
                 value={formatNumber(collectFailures.partialSuccessJobsInWindow)}
-                description="일부 저장 후 종료된 job"
+                description="일부 저장 후 종료된 작업"
               />
               <MetricCard
-                title="Open Circuits"
+                title="열린 회로"
                 value={formatNumber(collectFailures.circuitStatuses?.filter((item) => item.open).length)}
-                description={`tracked ${formatNumber(collectFailures.circuitStatuses?.length)}`}
+                description={`추적 중 ${formatNumber(collectFailures.circuitStatuses?.length)}`}
               />
               <MetricCard
-                title="Recent Failure Samples"
+                title="최근 실패 샘플"
                 value={formatNumber(collectFailures.recentSamples?.length)}
                 description="상세 샘플 미리보기"
               />
@@ -945,8 +941,8 @@ export default function AdminDashboardPage() {
 
               <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", xl: "1.1fr 0.9fr" } }}>
                 <CompactListCard
-                  title="Collect Lane Inventory"
-                  description="nightly 자동수집과 manual lane 경계를 같은 화면에서 본다."
+                  title="수집 레인 구성"
+                  description="야간 자동수집과 수동 레인 구성을 같은 화면에서 봅니다."
                   items={collectFailures.collectSourceLanes}
                   renderItem={(item) => (
                     <Box key={item.laneKey} sx={{ p: 1.5, borderRadius: 2, border: `1px solid ${PANEL_LINE}`, bgcolor: "#fafbff" }}>
@@ -967,12 +963,12 @@ export default function AdminDashboardPage() {
                                 최근 실행 {formatStatusLabel(item.latestRun.status)} · {formatDateTime(item.latestRun.startedAt)}
                               </Typography>
                               <Typography sx={{ fontSize: 12, color: INK3, mt: 0.25 }}>
-                                req {formatNumber(item.latestRun.requestedCount)} / save {formatNumber(item.latestRun.savedCount)} / skip {formatNumber(item.latestRun.skippedCount)} / fail {formatNumber(item.latestRun.failedCount)}
+                                요청 {formatNumber(item.latestRun.requestedCount)} / 저장 {formatNumber(item.latestRun.savedCount)} / 건너뜀 {formatNumber(item.latestRun.skippedCount)} / 실패 {formatNumber(item.latestRun.failedCount)}
                               </Typography>
                             </Box>
                           ) : (
                             <Typography sx={{ fontSize: 12, color: INK3, mt: 0.75 }}>
-                              last run 기록 없음
+                              최근 실행 기록 없음
                             </Typography>
                           )}
                           {item.configEntries?.length ? (
@@ -1003,8 +999,8 @@ export default function AdminDashboardPage() {
                   )}
                 />
                 <CompactListCard
-                  title="Job Breakdown"
-                  description="실패/부분성공이 많은 수집 job"
+                  title="작업별 현황"
+                  description="실패/부분 성공이 많은 수집 작업"
                   items={collectFailures.jobBreakdowns}
                   renderItem={(item) => (
                     <Box key={`${item.jobName}-${item.latestStartedAt}`} sx={{ p: 1.5, borderRadius: 2, border: `1px solid ${PANEL_LINE}`, bgcolor: "#fafbff" }}>
@@ -1012,15 +1008,15 @@ export default function AdminDashboardPage() {
                         <Box>
                           <Typography sx={{ fontSize: 13, fontWeight: 700, color: INK }}>{item.jobName}</Typography>
                           <Typography sx={{ fontSize: 12, color: INK3, mt: 0.25 }}>
-                            latest {formatDateTime(item.latestStartedAt)}
+                            최근 실행 {formatDateTime(item.latestStartedAt)}
                           </Typography>
                         </Box>
                         <Stack spacing={0.5} alignItems="flex-end">
                           <Typography sx={{ fontSize: 12, fontWeight: 800, color: WARNING_TEXT }}>
-                            fail {formatNumber(item.failedCount)}
+                            실패 {formatNumber(item.failedCount)}
                           </Typography>
                           <Typography sx={{ fontSize: 12, fontWeight: 700, color: INK2 }}>
-                            partial {formatNumber(item.partialSuccessCount)}
+                            부분 성공 {formatNumber(item.partialSuccessCount)}
                           </Typography>
                         </Stack>
                       </Stack>
@@ -1028,8 +1024,8 @@ export default function AdminDashboardPage() {
                   )}
                 />
                 <CompactListCard
-                  title="Circuit Status"
-                  description="open circuit은 외부 수집 안정성 저하를 뜻합니다."
+                  title="회로 상태"
+                  description="열린 회로는 외부 수집 안정성 저하를 뜻합니다."
                   items={collectFailures.circuitStatuses}
                   renderItem={(item) => (
                     <Box key={item.circuitKey} sx={{ p: 1.5, borderRadius: 2, border: `1px solid ${PANEL_LINE}`, bgcolor: item.open ? "#fff7ed" : "#f8fafc" }}>
@@ -1051,7 +1047,7 @@ export default function AdminDashboardPage() {
 
               <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", xl: "1fr 1fr 1fr" } }}>
                 <CompactListCard
-                  title="Error Codes"
+                  title="오류 코드"
                   description="실패 원인 상위 집계"
                   items={collectFailures.errorCodeBreakdowns}
                   renderItem={(item) => (
@@ -1064,8 +1060,8 @@ export default function AdminDashboardPage() {
                   )}
                 />
                 <CompactListCard
-                  title="Current Streaks"
-                  description="같은 상태가 연속되는 job"
+                  title="현재 연속 상태"
+                  description="같은 상태가 연속되는 작업"
                   items={collectFailures.currentJobStreaks}
                   renderItem={(item) => (
                     <Box key={`${item.jobName}-${item.streakStatus}`} sx={{ p: 1.5, borderRadius: 2, border: `1px solid ${PANEL_LINE}`, bgcolor: "#fafbff" }}>
@@ -1073,7 +1069,7 @@ export default function AdminDashboardPage() {
                         <Box>
                           <Typography sx={{ fontSize: 13, fontWeight: 700, color: INK }}>{item.jobName}</Typography>
                           <Typography sx={{ fontSize: 12, color: INK3, mt: 0.25 }}>
-                            {formatStatusLabel(item.streakStatus)} · latest {formatDateTime(item.latestStartedAt)}
+                            {formatStatusLabel(item.streakStatus)} · 최근 {formatDateTime(item.latestStartedAt)}
                           </Typography>
                         </Box>
                         <Typography sx={{ fontSize: 12, fontWeight: 800, color: ACCENT }}>{formatNumber(item.streakCount)}</Typography>
@@ -1082,17 +1078,17 @@ export default function AdminDashboardPage() {
                   )}
                 />
                 <CompactListCard
-                  title="Recent Failure Samples"
+                  title="최근 실패 샘플"
                   description="에러 메시지와 저장 실패 규모"
                   items={collectFailures.recentSamples}
                   renderItem={(item) => (
                     <Box key={`${item.jobName}-${item.startedAt}-${item.errorCode}`} sx={{ p: 1.5, borderRadius: 2, border: `1px solid ${PANEL_LINE}`, bgcolor: "#fafbff" }}>
                       <Typography sx={{ fontSize: 13, fontWeight: 700, color: INK }}>{item.jobName}</Typography>
                       <Typography sx={{ fontSize: 12, color: INK3, mt: 0.35 }}>
-                        {item.errorCode || item.status} · {formatDateTime(item.startedAt)}
+                        {formatCodeOrStatus(item.errorCode || item.status)} · {formatDateTime(item.startedAt)}
                       </Typography>
                       <Typography sx={{ fontSize: 12, color: INK2, mt: 0.75 }}>
-                        req {formatNumber(item.requestedCount)} / save {formatNumber(item.savedCount)} / fail {formatNumber(item.failedCount)}
+                        요청 {formatNumber(item.requestedCount)} / 저장 {formatNumber(item.savedCount)} / 실패 {formatNumber(item.failedCount)}
                       </Typography>
                       <Typography sx={{ fontSize: 12, color: INK3, mt: 0.75, lineHeight: 1.5 }}>
                         {item.errorMessage || "에러 메시지 없음"}
@@ -1106,7 +1102,7 @@ export default function AdminDashboardPage() {
 
           <Box id="admin-search-triage" sx={{ scrollMarginTop: 96 }}>
             <TriageSectionTitle
-              eyebrow="Search Triage"
+              eyebrow="검색 진단"
               title="검색 실패 상세"
               description="0건 검색 패턴, 재시도 묶음, recovery 여부를 같은 페이지에서 바로 확인합니다."
             />
@@ -1115,14 +1111,14 @@ export default function AdminDashboardPage() {
           {searchFailuresQuery.isLoading && (
             <SectionLoadingCard
               title="검색 실패 상세 로딩 중"
-              description="search-failures API를 불러오는 중입니다."
+              description="검색 실패 API를 불러오는 중입니다."
             />
           )}
 
           {searchFailuresQuery.isError && (
             <SectionErrorCard
               title="검색 실패 상세 로드 실패"
-              description="검색 triage만 실패한 경우 recommendation/collect 섹션은 그대로 확인할 수 있습니다."
+              description="검색 진단만 실패한 경우 추천/수집 섹션은 그대로 확인할 수 있습니다."
               message={searchErrorMessage}
               onRetry={() => searchFailuresQuery.refetch()}
             />
@@ -1132,22 +1128,22 @@ export default function AdminDashboardPage() {
             <>
               <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", md: "repeat(4, 1fr)" } }}>
               <MetricCard
-                title="Zero Result Searches"
+                title="0건 검색"
                 value={formatNumber(searchFailures.zeroResultSearchesInWindow)}
-                description={`window ${searchFailures.windowDays}일`}
+                description={`최근 ${searchFailures.windowDays}일`}
               />
               <MetricCard
-                title="Retry Groups"
+                title="재시도 묶음"
                 value={formatNumber(searchFailures.retryGroups?.length)}
                 description="동일 조건 반복 검색"
               />
               <MetricCard
-                title="Recovered Groups"
+                title="복구된 묶음"
                 value={formatNumber(searchFailures.recoveredSearchGroups?.length)}
                 description="0건 후 결과 복구"
               />
               <MetricCard
-                title="Recent Search Samples"
+                title="최근 검색 샘플"
                 value={formatNumber(searchFailures.recentSamples?.length)}
                 description="실패 샘플 미리보기"
               />
@@ -1155,7 +1151,7 @@ export default function AdminDashboardPage() {
 
               <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", xl: "1fr 1fr" } }}>
                 <CompactListCard
-                  title="Zero Result Regions"
+                  title="0건 검색 지역"
                   description="지역 단위 0건 검색 상위"
                   items={searchFailures.zeroResultRegions}
                   renderItem={(item) => (
@@ -1168,7 +1164,7 @@ export default function AdminDashboardPage() {
                   )}
                 />
                 <CompactListCard
-                  title="Zero Result Filter Patterns"
+                  title="0건 검색 필터 패턴"
                   description="필터 조합별 0건 검색"
                   items={searchFailures.zeroResultFilterPatterns}
                   renderItem={(item) => (
@@ -1189,8 +1185,8 @@ export default function AdminDashboardPage() {
 
               <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", xl: "1fr 1fr 1fr" } }}>
                 <CompactListCard
-                  title="Retry Groups"
-                  description="같은 actor가 반복한 실패 검색"
+                  title="재시도 묶음"
+                  description="같은 사용자 주체가 반복한 실패 검색"
                   items={searchFailures.retryGroups}
                   renderItem={(item) => (
                     <Box key={`${item.actorType}-${item.actorKey}-${item.keyword}-${item.latestSearchedAt}`} sx={{ p: 1.5, borderRadius: 2, border: `1px solid ${PANEL_LINE}`, bgcolor: "#fafbff" }}>
@@ -1199,29 +1195,29 @@ export default function AdminDashboardPage() {
                         {formatActorType(item.actorType)} · {item.actorKey || "익명"}
                       </Typography>
                       <Typography sx={{ fontSize: 12, color: INK2, mt: 0.75 }}>
-                        retry {formatNumber(item.retryCount)} · {formatDateTime(item.firstSearchedAt)} ~ {formatDateTime(item.latestSearchedAt)}
+                        재시도 {formatNumber(item.retryCount)} · {formatDateTime(item.firstSearchedAt)} ~ {formatDateTime(item.latestSearchedAt)}
                       </Typography>
                     </Box>
                   )}
                 />
                 <CompactListCard
-                  title="Recovered Groups"
+                  title="복구된 묶음"
                   description="나중에 결과가 생긴 검색 묶음"
                   items={searchFailures.recoveredSearchGroups}
                   renderItem={(item) => (
                     <Box key={`${item.actorType}-${item.actorKey}-${item.keyword}-${item.latestRecoveredAt}`} sx={{ p: 1.5, borderRadius: 2, border: `1px solid ${PANEL_LINE}`, bgcolor: "#fafbff" }}>
                       <Typography sx={{ fontSize: 13, fontWeight: 700, color: INK }}>{item.keyword || "키워드 없음"}</Typography>
                       <Typography sx={{ fontSize: 12, color: INK3, mt: 0.35 }}>
-                        zero {formatNumber(item.zeroResultCount)} / recovered {formatNumber(item.recoveredResultCount)}
+                        0건 {formatNumber(item.zeroResultCount)} / 복구 {formatNumber(item.recoveredResultCount)}
                       </Typography>
                       <Typography sx={{ fontSize: 12, color: INK2, mt: 0.75 }}>
-                        latest recovered {formatDateTime(item.latestRecoveredAt)}
+                        최근 복구 {formatDateTime(item.latestRecoveredAt)}
                       </Typography>
                     </Box>
                   )}
                 />
                 <CompactListCard
-                  title="Recent Zero Result Samples"
+                  title="최근 0건 검색 샘플"
                   description="실패 검색 샘플"
                   items={searchFailures.recentSamples}
                   renderItem={(item) => (
