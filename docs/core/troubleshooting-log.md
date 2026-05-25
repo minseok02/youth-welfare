@@ -1,5 +1,9 @@
 # 트러블슈팅 로그 (작업 중 문제/해결 기록)
 
+## 991) manual dispatch 권한을 admin-only로 줄였으면 smoke와 active 문서도 “현재 로그인 admin 사용자” 기준으로 같이 바꿔야 drift가 안 난다
+- 문제: `digest-test-dispatch`, `deadline-test-dispatch`, `push-test-send` 는 이미 `ROLE_ADMIN` 경계로 줄었는데, smoke 스크립트와 current-state 문서 일부는 여전히 “일반 로그인 사용자로 수동 dispatch를 때린다”는 전제를 유지하고 있었다. 이 상태로는 실제 서버에선 smoke가 `403` 으로 깨지거나, 문서가 최신 계약과 다른 설명을 하게 된다.
+- 해결: `run-local-notification-channel-smoke.sh`, `run-local-deadline-reminder-smoke.sh` 를 admin credential helper 기반으로 다시 묶어 현재 로그인 admin 사용자 경계에서 수동 dispatch를 검증하게 바꿨다. 동시에 runtime smoke 명령 문서, notification checklist, collect current-state/ops, security hardening current-state 문서도 “admin-only manual dispatch”, “admin 수동 파라미터 capped default/상한”, “latest hardening baseline” 기준으로 다시 정리했다.
+
 ## 990) nginx `Server` 버전 노출은 애플리케이션 코드가 아니라 edge 템플릿에서 닫아야 하고, 로컬엔 nginx가 없으면 운영 서버에서만 최종 확인할 수 있다
 - 문제: `server: nginx/1.24.0 (Ubuntu)` 같은 응답은 위험도는 낮아도 불필요한 버전 힌트를 준다. 이건 Spring이나 frontend 코드에서 막을 수 있는 게 아니라 실제 응답을 내리는 nginx server block에서 `server_tokens off;` 를 켜야 닫힌다.
 - 해결: [deploy/nginx/youth-welfare.conf](/home/minseok/youth-welfare/deploy/nginx/youth-welfare.conf:1) 와 [deploy/nginx/youth-welfare.bootstrap.conf](/home/minseok/youth-welfare/deploy/nginx/youth-welfare.bootstrap.conf:1) 의 server block에 `server_tokens off;` 를 추가했다. 다만 현재 로컬 작업 환경에는 host nginx가 없어서 템플릿 수정까지만 가능하고, 실제 반영 확인은 운영 서버에서 `sudo nginx -t`, `sudo systemctl reload nginx`, `curl -I https://youthmoa.kr/` 로 따로 닫아야 한다.

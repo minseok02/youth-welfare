@@ -23,8 +23,37 @@ KEEP_ARTIFACTS="${KEEP_ARTIFACTS:-false}"
 
 ARTIFACT_DIR="${ARTIFACT_DIR:-$(mktemp -d)}"
 HEALTH_RESPONSE="${ARTIFACT_DIR}/health.json"
+ADMIN_LOGIN_RESPONSE="${ARTIFACT_DIR}/admin.login.json"
+
+ADMIN_EMAIL=""
+ADMIN_PASSWORD=""
+ADMIN_ACCESS_TOKEN=""
+ADMIN_USER_KEY=""
+ORIGINAL_NOTIFICATION_YN=""
+ORIGINAL_NOTIFICATION_EMAIL_YN=""
+ORIGINAL_NOTIFICATION_IN_APP_YN=""
+ORIGINAL_NOTIFICATION_WEB_PUSH_YN=""
+ORIGINAL_NOTIFICATION_PERIOD=""
+ORIGINAL_NOTIFICATION_MIN_SCORE=""
+ORIGINAL_DISPLAY_COUNT=""
+RESTORE_PROFILE="false"
 
 cleanup() {
+  if [[ "${RESTORE_PROFILE}" == "true" && -n "${ADMIN_ACCESS_TOKEN}" ]]; then
+    smoke_http_status PUT "${APP_BASE_URL}/api/users/me" /dev/null \
+      -H "Authorization: Bearer ${ADMIN_ACCESS_TOKEN}" \
+      -H 'Content-Type: application/json' \
+      -d "{
+        \"notificationYn\": ${ORIGINAL_NOTIFICATION_YN},
+        \"notificationEmailYn\": ${ORIGINAL_NOTIFICATION_EMAIL_YN},
+        \"notificationInAppYn\": ${ORIGINAL_NOTIFICATION_IN_APP_YN},
+        \"notificationWebPushYn\": ${ORIGINAL_NOTIFICATION_WEB_PUSH_YN},
+        \"notificationPeriod\": \"${ORIGINAL_NOTIFICATION_PERIOD}\",
+        \"notificationMinScore\": ${ORIGINAL_NOTIFICATION_MIN_SCORE},
+        \"displayCount\": ${ORIGINAL_DISPLAY_COUNT}
+      }" >/dev/null || echo "failed to restore admin notification profile" >&2
+  fi
+
   if [[ "${KEEP_ARTIFACTS}" != "true" ]]; then
     rm -rf "${ARTIFACT_DIR}"
   fi
@@ -72,11 +101,6 @@ extract_error_code() {
   json_read "$1" "errorCode"
 }
 
-get_user_key_by_email() {
-  local email="$1"
-  smoke_db_query "SELECT user_key FROM users WHERE email = '${email}' LIMIT 1;"
-}
-
 query_count() {
   local sql="$1"
   smoke_db_query "${sql}"
@@ -104,76 +128,59 @@ assert_int_delta() {
   fi
 }
 
-signup_and_login() {
-  local scenario_key="$1"
-  local email_var="$2"
-  local token_var="$3"
-  local user_key_var="$4"
+login_admin() {
+  smoke_resolve_admin_credentials "${ROOT_DIR}"
+  : "${ADMIN_EMAIL:?ADMIN_EMAIL is empty; export ADMIN_EMAIL or set /tmp/youth-welfare-admin-smoke-email}"
+  : "${ADMIN_PASSWORD:?ADMIN_PASSWORD is empty; export ADMIN_PASSWORD or set /tmp/youth-welfare-admin-smoke-password}"
 
-  local generated_email
-  local signup_response="${ARTIFACT_DIR}/${scenario_key}.signup.json"
-  local login_response="${ARTIFACT_DIR}/${scenario_key}.login.json"
-  local cookie_jar="${ARTIFACT_DIR}/${scenario_key}.cookie"
-
-  generated_email="$(smoke_build_email "${SMOKE_EMAIL_PREFIX}.${scenario_key}")"
-  smoke_seed_verified_email "${generated_email}"
-
-  smoke_print_step "${scenario_key}: signup ${generated_email}"
-  local signup_status
-  signup_status="$(
-    smoke_http_status POST "${APP_BASE_URL}/api/auth/signup" "${signup_response}" \
-      -H 'Content-Type: application/json' \
-      -d "{
-        \"email\": \"${generated_email}\",
-        \"password\": \"${SMOKE_PASSWORD}\",
-        \"name\": \"${SMOKE_NAME}\",
-        \"birthDate\": \"${SMOKE_BIRTH_DATE}\",
-        \"sido\": \"${SMOKE_SIDO}\",
-        \"sgg\": \"${SMOKE_SGG}\",
-        \"incomeLevel\": ${SMOKE_INCOME_LEVEL},
-        \"employmentStatus\": \"${SMOKE_EMPLOYMENT_STATUS}\",
-        \"householdType\": \"${SMOKE_HOUSEHOLD_TYPE}\"
-      }"
-  )"
-  smoke_assert_status 200 "${signup_status}" "${scenario_key} signup" "${signup_response}"
-
-  smoke_print_step "${scenario_key}: login"
+  smoke_print_step "admin login (${ADMIN_EMAIL})"
   local login_status
   login_status="$(
-    smoke_http_status POST "${APP_BASE_URL}/api/auth/login" "${login_response}" \
-      -c "${cookie_jar}" \
+    smoke_http_status POST "${APP_BASE_URL}/api/auth/login" "${ADMIN_LOGIN_RESPONSE}" \
       -H 'Content-Type: application/json' \
       -d "{
-        \"email\": \"${generated_email}\",
-        \"password\": \"${SMOKE_PASSWORD}\"
+        \"email\": \"${ADMIN_EMAIL}\",
+        \"password\": \"${ADMIN_PASSWORD}\"
       }"
   )"
-  smoke_assert_status 200 "${login_status}" "${scenario_key} login" "${login_response}"
+  smoke_assert_status 200 "${login_status}" "admin login" "${ADMIN_LOGIN_RESPONSE}"
 
-  local resolved_access_token
-  resolved_access_token="$(extract_access_token "${login_response}")"
-  local resolved_user_key
-  resolved_user_key="$(get_user_key_by_email "${generated_email}")"
-  if [[ -z "${resolved_user_key}" ]]; then
-    echo "${scenario_key}: failed to resolve user_key for ${generated_email}" >&2
+  ADMIN_ACCESS_TOKEN="$(extract_access_token "${ADMIN_LOGIN_RESPONSE}")"
+  ADMIN_USER_KEY="$(smoke_db_query "SELECT user_key FROM users WHERE email = '${ADMIN_EMAIL}' LIMIT 1;")"
+  if [[ -z "${ADMIN_USER_KEY}" ]]; then
+    echo "failed to resolve admin user_key for ${ADMIN_EMAIL}" >&2
     exit 1
   fi
+}
 
-  printf -v "${email_var}" '%s' "${generated_email}"
-  printf -v "${token_var}" '%s' "${resolved_access_token}"
-  printf -v "${user_key_var}" '%s' "${resolved_user_key}"
+capture_original_profile() {
+  local profile_response="${ARTIFACT_DIR}/admin.profile.original.json"
+  local profile_status
+  profile_status="$(
+    smoke_http_status GET "${APP_BASE_URL}/api/users/me" "${profile_response}" \
+      -H "Authorization: Bearer ${ADMIN_ACCESS_TOKEN}"
+  )"
+  smoke_assert_status 200 "${profile_status}" "capture admin profile" "${profile_response}"
+
+  ORIGINAL_NOTIFICATION_YN="$(json_read "${profile_response}" "data.notificationYn")"
+  ORIGINAL_NOTIFICATION_EMAIL_YN="$(json_read "${profile_response}" "data.notificationEmailYn")"
+  ORIGINAL_NOTIFICATION_IN_APP_YN="$(json_read "${profile_response}" "data.notificationInAppYn")"
+  ORIGINAL_NOTIFICATION_WEB_PUSH_YN="$(json_read "${profile_response}" "data.notificationWebPushYn")"
+  ORIGINAL_NOTIFICATION_PERIOD="$(json_read "${profile_response}" "data.notificationPeriod")"
+  ORIGINAL_NOTIFICATION_MIN_SCORE="$(json_read "${profile_response}" "data.notificationMinScore")"
+  ORIGINAL_DISPLAY_COUNT="$(json_read "${profile_response}" "data.displayCount")"
+  RESTORE_PROFILE="true"
 }
 
 refresh_recommendations() {
   local scenario_key="$1"
-  local access_token="$2"
   local refresh_response="${ARTIFACT_DIR}/${scenario_key}.recommend-refresh.json"
 
   smoke_print_step "${scenario_key}: recommendations refresh"
   local refresh_status
   refresh_status="$(
     smoke_http_status POST "${APP_BASE_URL}/api/recommendations/refresh" "${refresh_response}" \
-      -H "Authorization: Bearer ${access_token}"
+      -H "Authorization: Bearer ${ADMIN_ACCESS_TOKEN}"
   )"
   smoke_assert_status 200 "${refresh_status}" "${scenario_key} recommendations refresh" "${refresh_response}"
 
@@ -195,7 +202,6 @@ PY
 
 save_notification_profile() {
   local scenario_key="$1"
-  local access_token="$2"
   local notif_yn="$3"
   local email_yn="$4"
   local in_app_yn="$5"
@@ -207,7 +213,7 @@ save_notification_profile() {
   local status
   status="$(
     smoke_http_status PUT "${APP_BASE_URL}/api/users/me" "${response_file}" \
-      -H "Authorization: Bearer ${access_token}" \
+      -H "Authorization: Bearer ${ADMIN_ACCESS_TOKEN}" \
       -H 'Content-Type: application/json' \
       -d "{
         \"notificationYn\": ${notif_yn},
@@ -230,7 +236,6 @@ save_notification_profile() {
 
 assert_profile_flags() {
   local scenario_key="$1"
-  local access_token="$2"
   local expected_notif="$3"
   local expected_email="$4"
   local expected_in_app="$5"
@@ -240,7 +245,7 @@ assert_profile_flags() {
   local profile_status
   profile_status="$(
     smoke_http_status GET "${APP_BASE_URL}/api/users/me" "${profile_response}" \
-      -H "Authorization: Bearer ${access_token}"
+      -H "Authorization: Bearer ${ADMIN_ACCESS_TOKEN}"
   )"
   smoke_assert_status 200 "${profile_status}" "${scenario_key} read profile" "${profile_response}"
 
@@ -252,14 +257,13 @@ assert_profile_flags() {
 
 run_digest_dispatch() {
   local scenario_key="$1"
-  local access_token="$2"
   local response_file="${ARTIFACT_DIR}/${scenario_key}.digest.json"
 
   smoke_print_step "${scenario_key}: digest test dispatch"
   local status
   status="$(
     smoke_http_status POST "${APP_BASE_URL}/api/notifications/digest-test-dispatch" "${response_file}" \
-      -H "Authorization: Bearer ${access_token}"
+      -H "Authorization: Bearer ${ADMIN_ACCESS_TOKEN}"
   )"
   smoke_assert_status 200 "${status}" "${scenario_key} digest test dispatch" "${response_file}"
   assert_equals "true" "$(json_read "${response_file}" "success")" "${scenario_key} digest response success"
@@ -275,24 +279,22 @@ run_digest_dispatch() {
 }
 
 run_inapp_only_scenario() {
-  local email token user_key
-  signup_and_login "inapp_only" email token user_key
-  refresh_recommendations "inapp_only" "${token}"
-  save_notification_profile "inapp_only" "${token}" true false true false 200
-  assert_profile_flags "inapp_only" "${token}" true false true false
+  refresh_recommendations "inapp_only"
+  save_notification_profile "inapp_only" true false true false 200
+  assert_profile_flags "inapp_only" true false true false
 
   local notif_before alert_before
-  notif_before="$(query_count "SELECT COUNT(*) FROM notifications WHERE user_key='${user_key}';")"
-  alert_before="$(query_count "SELECT COUNT(*) FROM user_alerts WHERE user_key='${user_key}';")"
+  notif_before="$(query_count "SELECT COUNT(*) FROM notifications WHERE user_key='${ADMIN_USER_KEY}';")"
+  alert_before="$(query_count "SELECT COUNT(*) FROM user_alerts WHERE user_key='${ADMIN_USER_KEY}';")"
 
-  run_digest_dispatch "inapp_only" "${token}"
+  run_digest_dispatch "inapp_only"
 
   local notif_after alert_after latest_notif_status latest_notif_total latest_alert_status
-  notif_after="$(query_count "SELECT COUNT(*) FROM notifications WHERE user_key='${user_key}';")"
-  alert_after="$(query_count "SELECT COUNT(*) FROM user_alerts WHERE user_key='${user_key}';")"
-  latest_notif_status="$(query_count "SELECT status FROM notifications WHERE user_key='${user_key}' ORDER BY created_at DESC LIMIT 1;")"
-  latest_notif_total="$(query_count "SELECT total_services FROM notifications WHERE user_key='${user_key}' ORDER BY created_at DESC LIMIT 1;")"
-  latest_alert_status="$(query_count "SELECT status FROM user_alerts WHERE user_key='${user_key}' ORDER BY created_at DESC LIMIT 1;")"
+  notif_after="$(query_count "SELECT COUNT(*) FROM notifications WHERE user_key='${ADMIN_USER_KEY}';")"
+  alert_after="$(query_count "SELECT COUNT(*) FROM user_alerts WHERE user_key='${ADMIN_USER_KEY}';")"
+  latest_notif_status="$(query_count "SELECT status FROM notifications WHERE user_key='${ADMIN_USER_KEY}' ORDER BY created_at DESC LIMIT 1;")"
+  latest_notif_total="$(query_count "SELECT total_services FROM notifications WHERE user_key='${ADMIN_USER_KEY}' ORDER BY created_at DESC LIMIT 1;")"
+  latest_alert_status="$(query_count "SELECT status FROM user_alerts WHERE user_key='${ADMIN_USER_KEY}' ORDER BY created_at DESC LIMIT 1;")"
 
   assert_int_delta "${notif_before}" "${notif_after}" 1 "inapp_only notifications delta"
   assert_int_delta "${alert_before}" "${alert_after}" 1 "inapp_only user_alerts delta"
@@ -304,26 +306,24 @@ run_inapp_only_scenario() {
   fi
 }
 
-run_webpush_only_no_subscription_scenario() {
-  local email token user_key
-  signup_and_login "webpush_only" email token user_key
-  refresh_recommendations "webpush_only" "${token}"
-  save_notification_profile "webpush_only" "${token}" true false false true 200
-  assert_profile_flags "webpush_only" "${token}" true false false true
+run_webpush_only_subscription_state_scenario() {
+  refresh_recommendations "webpush_only"
+  save_notification_profile "webpush_only" true false false true 200
+  assert_profile_flags "webpush_only" true false false true
 
   local notif_before alert_before push_before
-  notif_before="$(query_count "SELECT COUNT(*) FROM notifications WHERE user_key='${user_key}';")"
-  alert_before="$(query_count "SELECT COUNT(*) FROM user_alerts WHERE user_key='${user_key}';")"
-  push_before="$(query_count "SELECT COUNT(*) FROM web_push_subscriptions WHERE user_key='${user_key}' AND enabled = true;")"
+  notif_before="$(query_count "SELECT COUNT(*) FROM notifications WHERE user_key='${ADMIN_USER_KEY}';")"
+  alert_before="$(query_count "SELECT COUNT(*) FROM user_alerts WHERE user_key='${ADMIN_USER_KEY}';")"
+  push_before="$(query_count "SELECT COUNT(*) FROM web_push_subscriptions WHERE user_key='${ADMIN_USER_KEY}' AND enabled = true;")"
 
-  run_digest_dispatch "webpush_only" "${token}"
+  run_digest_dispatch "webpush_only"
 
   local notif_after alert_after push_after latest_notif_status latest_notif_total
-  notif_after="$(query_count "SELECT COUNT(*) FROM notifications WHERE user_key='${user_key}';")"
-  alert_after="$(query_count "SELECT COUNT(*) FROM user_alerts WHERE user_key='${user_key}';")"
-  push_after="$(query_count "SELECT COUNT(*) FROM web_push_subscriptions WHERE user_key='${user_key}' AND enabled = true;")"
-  latest_notif_status="$(query_count "SELECT status FROM notifications WHERE user_key='${user_key}' ORDER BY created_at DESC LIMIT 1;")"
-  latest_notif_total="$(query_count "SELECT total_services FROM notifications WHERE user_key='${user_key}' ORDER BY created_at DESC LIMIT 1;")"
+  notif_after="$(query_count "SELECT COUNT(*) FROM notifications WHERE user_key='${ADMIN_USER_KEY}';")"
+  alert_after="$(query_count "SELECT COUNT(*) FROM user_alerts WHERE user_key='${ADMIN_USER_KEY}';")"
+  push_after="$(query_count "SELECT COUNT(*) FROM web_push_subscriptions WHERE user_key='${ADMIN_USER_KEY}' AND enabled = true;")"
+  latest_notif_status="$(query_count "SELECT status FROM notifications WHERE user_key='${ADMIN_USER_KEY}' ORDER BY created_at DESC LIMIT 1;")"
+  latest_notif_total="$(query_count "SELECT total_services FROM notifications WHERE user_key='${ADMIN_USER_KEY}' ORDER BY created_at DESC LIMIT 1;")"
 
   assert_int_delta "${notif_before}" "${notif_after}" 1 "webpush_only notifications delta"
   assert_int_delta "${alert_before}" "${alert_after}" 0 "webpush_only user_alerts delta"
@@ -336,15 +336,13 @@ run_webpush_only_no_subscription_scenario() {
 }
 
 run_invalid_no_channel_scenario() {
-  local email token user_key
-  signup_and_login "invalid_channels" email token user_key
   local response_file="${ARTIFACT_DIR}/invalid_channels.profile.invalid.json"
 
   smoke_print_step "invalid_channels: reject no enabled channels"
   local status
   status="$(
     smoke_http_status PUT "${APP_BASE_URL}/api/users/me" "${response_file}" \
-      -H "Authorization: Bearer ${token}" \
+      -H "Authorization: Bearer ${ADMIN_ACCESS_TOKEN}" \
       -H 'Content-Type: application/json' \
       -d "{
         \"notificationYn\": true,
@@ -366,12 +364,16 @@ smoke_print_step "health check"
 HEALTH_STATUS="$(smoke_wait_for_health "${HEALTH_RETRY_COUNT}" "${HEALTH_RETRY_DELAY_SECONDS}" "${APP_HEALTH_URL}" "${HEALTH_RESPONSE}" "${ARTIFACT_DIR}/health.stderr")"
 smoke_assert_status 200 "${HEALTH_STATUS}" "health check" "${HEALTH_RESPONSE}"
 
+login_admin
+capture_original_profile
 run_inapp_only_scenario
-run_webpush_only_no_subscription_scenario
+run_webpush_only_subscription_state_scenario
 run_invalid_no_channel_scenario
 
 echo
 echo "notification channel smoke passed"
 echo "app_base_url=${APP_BASE_URL}"
+echo "admin_email=${ADMIN_EMAIL}"
+echo "admin_user_key=${ADMIN_USER_KEY}"
 echo "artifact_dir=${ARTIFACT_DIR}"
-echo "scenarios=inapp_only,webpush_only_no_subscription,invalid_channels"
+echo "scenarios=inapp_only,webpush_only_subscription_state,invalid_channels"

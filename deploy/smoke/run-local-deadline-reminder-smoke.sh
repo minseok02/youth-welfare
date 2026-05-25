@@ -25,9 +25,7 @@ ALLOW_DIRECT_DB_MUTATION="${ALLOW_DIRECT_DB_MUTATION:-false}"
 
 ARTIFACT_DIR="${ARTIFACT_DIR:-$(mktemp -d)}"
 HEALTH_RESPONSE="${ARTIFACT_DIR}/health.json"
-COOKIE_JAR="${ARTIFACT_DIR}/deadline.cookie"
-SIGNUP_RESPONSE="${ARTIFACT_DIR}/signup.json"
-LOGIN_RESPONSE="${ARTIFACT_DIR}/login.json"
+LOGIN_RESPONSE="${ARTIFACT_DIR}/admin.login.json"
 REFRESH_RESPONSE="${ARTIFACT_DIR}/recommendations.json"
 BOOKMARK_RESPONSE="${ARTIFACT_DIR}/bookmark.json"
 PROFILE_RESPONSE="${ARTIFACT_DIR}/profile.json"
@@ -36,8 +34,28 @@ RESTORE_SERVICE_STATE="false"
 ORIGINAL_APPLY_END_DATE=""
 ORIGINAL_STATUS=""
 SERVICE_ID=""
+ADMIN_EMAIL=""
+ADMIN_PASSWORD=""
+USER_KEY=""
+ACCESS_TOKEN=""
+RECOMMENDATION_ID=""
+ORIGINAL_IS_BOOKMARKED=""
+RESTORE_BOOKMARK="false"
+RESTORE_PROFILE="false"
+ORIGINAL_NOTIFICATION_YN=""
+ORIGINAL_NOTIFICATION_EMAIL_YN=""
+ORIGINAL_NOTIFICATION_IN_APP_YN=""
+ORIGINAL_NOTIFICATION_WEB_PUSH_YN=""
+ORIGINAL_NOTIFICATION_PERIOD=""
+ORIGINAL_NOTIFICATION_MIN_SCORE=""
+ORIGINAL_DISPLAY_COUNT=""
 
 cleanup() {
+  if [[ "${RESTORE_BOOKMARK}" == "true" && -n "${RECOMMENDATION_ID}" && -n "${ACCESS_TOKEN}" ]]; then
+    smoke_http_status POST "${APP_BASE_URL}/api/recommendations/${RECOMMENDATION_ID}/bookmark" /dev/null \
+      -H "Authorization: Bearer ${ACCESS_TOKEN}" >/dev/null || echo "failed to restore bookmark state for recommendationId=${RECOMMENDATION_ID}" >&2
+  fi
+
   if [[ "${RESTORE_SERVICE_STATE}" == "true" && -n "${SERVICE_ID}" ]]; then
     local apply_end_date_sql="NULL"
     local status_sql="NULL"
@@ -53,6 +71,21 @@ cleanup() {
     smoke_db_query \
       "UPDATE welfare_services SET apply_end_date = ${apply_end_date_sql}, status = ${status_sql} WHERE id = ${SERVICE_ID};" \
       >/dev/null || echo "failed to restore welfare_services row id=${SERVICE_ID}" >&2
+  fi
+
+  if [[ "${RESTORE_PROFILE}" == "true" && -n "${ACCESS_TOKEN}" ]]; then
+    smoke_http_status PUT "${APP_BASE_URL}/api/users/me" /dev/null \
+      -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+      -H 'Content-Type: application/json' \
+      -d "{
+        \"notificationYn\": ${ORIGINAL_NOTIFICATION_YN},
+        \"notificationEmailYn\": ${ORIGINAL_NOTIFICATION_EMAIL_YN},
+        \"notificationInAppYn\": ${ORIGINAL_NOTIFICATION_IN_APP_YN},
+        \"notificationWebPushYn\": ${ORIGINAL_NOTIFICATION_WEB_PUSH_YN},
+        \"notificationPeriod\": \"${ORIGINAL_NOTIFICATION_PERIOD}\",
+        \"notificationMinScore\": ${ORIGINAL_NOTIFICATION_MIN_SCORE},
+        \"displayCount\": ${ORIGINAL_DISPLAY_COUNT}
+      }" >/dev/null || echo "failed to restore admin notification profile" >&2
   fi
 
   if [[ "${KEEP_ARTIFACTS}" != "true" ]]; then
@@ -104,11 +137,13 @@ if not items:
     print("")
     print("")
     print("")
+    print("")
 else:
     first = items[0]
     print(first.get("id", ""))
     print(first.get("serviceId", ""))
     print(first.get("logId", ""))
+    print("true" if first.get("isBookmarked") else "false")
 PY
 }
 
@@ -142,41 +177,51 @@ if [[ "$(smoke_resolve_db_mode)" != "docker" && "${ALLOW_DIRECT_DB_MUTATION}" !=
   exit 1
 fi
 
+login_admin() {
+  smoke_resolve_admin_credentials "${ROOT_DIR}"
+  : "${ADMIN_EMAIL:?ADMIN_EMAIL is empty; export ADMIN_EMAIL or set /tmp/youth-welfare-admin-smoke-email}"
+  : "${ADMIN_PASSWORD:?ADMIN_PASSWORD is empty; export ADMIN_PASSWORD or set /tmp/youth-welfare-admin-smoke-password}"
+
+  smoke_print_step "admin login (${ADMIN_EMAIL})"
+  smoke_assert_status 200 "$(
+    smoke_http_status POST "${APP_BASE_URL}/api/auth/login" "${LOGIN_RESPONSE}" \
+      -H 'Content-Type: application/json' \
+      -d "{
+        \"email\": \"${ADMIN_EMAIL}\",
+        \"password\": \"${ADMIN_PASSWORD}\"
+      }"
+  )" "admin login" "${LOGIN_RESPONSE}"
+  ACCESS_TOKEN="$(extract_access_token "${LOGIN_RESPONSE}")"
+  USER_KEY="$(smoke_db_query "SELECT user_key FROM users WHERE email = '${ADMIN_EMAIL}' LIMIT 1;")"
+  if [[ -z "${USER_KEY}" ]]; then
+    echo "failed to resolve admin user_key for ${ADMIN_EMAIL}" >&2
+    exit 1
+  fi
+}
+
+capture_original_profile() {
+  local original_profile_response="${ARTIFACT_DIR}/profile.original.json"
+  smoke_assert_status 200 "$(
+    smoke_http_status GET "${APP_BASE_URL}/api/users/me" "${original_profile_response}" \
+      -H "Authorization: Bearer ${ACCESS_TOKEN}"
+  )" "capture admin profile" "${original_profile_response}"
+
+  ORIGINAL_NOTIFICATION_YN="$(json_read "${original_profile_response}" "data.notificationYn")"
+  ORIGINAL_NOTIFICATION_EMAIL_YN="$(json_read "${original_profile_response}" "data.notificationEmailYn")"
+  ORIGINAL_NOTIFICATION_IN_APP_YN="$(json_read "${original_profile_response}" "data.notificationInAppYn")"
+  ORIGINAL_NOTIFICATION_WEB_PUSH_YN="$(json_read "${original_profile_response}" "data.notificationWebPushYn")"
+  ORIGINAL_NOTIFICATION_PERIOD="$(json_read "${original_profile_response}" "data.notificationPeriod")"
+  ORIGINAL_NOTIFICATION_MIN_SCORE="$(json_read "${original_profile_response}" "data.notificationMinScore")"
+  ORIGINAL_DISPLAY_COUNT="$(json_read "${original_profile_response}" "data.displayCount")"
+  RESTORE_PROFILE="true"
+}
+
 smoke_print_step "health check"
 smoke_assert_status 200 "$(smoke_wait_for_health "${HEALTH_RETRY_COUNT}" "${HEALTH_RETRY_DELAY_SECONDS}" "${APP_HEALTH_URL}" "${HEALTH_RESPONSE}" "${ARTIFACT_DIR}/health.stderr")" "health check" "${HEALTH_RESPONSE}"
 
 SMOKE_EMAIL="$(smoke_build_email "${SMOKE_EMAIL_PREFIX}")"
-smoke_seed_verified_email "${SMOKE_EMAIL}"
-
-smoke_print_step "signup ${SMOKE_EMAIL}"
-smoke_assert_status 200 "$(
-  smoke_http_status POST "${APP_BASE_URL}/api/auth/signup" "${SIGNUP_RESPONSE}" \
-    -H 'Content-Type: application/json' \
-    -d "{
-      \"email\": \"${SMOKE_EMAIL}\",
-      \"password\": \"${SMOKE_PASSWORD}\",
-      \"name\": \"${SMOKE_NAME}\",
-      \"birthDate\": \"${SMOKE_BIRTH_DATE}\",
-      \"sido\": \"${SMOKE_SIDO}\",
-      \"sgg\": \"${SMOKE_SGG}\",
-      \"incomeLevel\": ${SMOKE_INCOME_LEVEL},
-      \"employmentStatus\": \"${SMOKE_EMPLOYMENT_STATUS}\",
-      \"householdType\": \"${SMOKE_HOUSEHOLD_TYPE}\"
-    }"
-)" "signup" "${SIGNUP_RESPONSE}"
-
-smoke_print_step "login"
-smoke_assert_status 200 "$(
-  smoke_http_status POST "${APP_BASE_URL}/api/auth/login" "${LOGIN_RESPONSE}" \
-    -c "${COOKIE_JAR}" \
-    -H 'Content-Type: application/json' \
-    -d "{
-      \"email\": \"${SMOKE_EMAIL}\",
-      \"password\": \"${SMOKE_PASSWORD}\"
-    }"
-)" "login" "${LOGIN_RESPONSE}"
-ACCESS_TOKEN="$(extract_access_token "${LOGIN_RESPONSE}")"
-USER_KEY="$(smoke_db_query "SELECT user_key FROM users WHERE email = '${SMOKE_EMAIL}' LIMIT 1;")"
+login_admin
+capture_original_profile
 
 smoke_print_step "recommendations refresh"
 smoke_assert_status 200 "$(
@@ -187,17 +232,21 @@ smoke_assert_status 200 "$(
 mapfile -t RECOMMENDATION_FIELDS < <(extract_recommendation_triplet "${REFRESH_RESPONSE}")
 RECOMMENDATION_ID="${RECOMMENDATION_FIELDS[0]:-}"
 SERVICE_ID="${RECOMMENDATION_FIELDS[1]:-}"
+ORIGINAL_IS_BOOKMARKED="${RECOMMENDATION_FIELDS[3]:-false}"
 if [[ -z "${RECOMMENDATION_ID}" || -z "${SERVICE_ID}" ]]; then
   echo "deadline reminder smoke requires at least one recommendation" >&2
   cat "${REFRESH_RESPONSE}" >&2
   exit 1
 fi
 
-smoke_print_step "bookmark first recommendation"
-smoke_assert_status 200 "$(
-  smoke_http_status POST "${APP_BASE_URL}/api/recommendations/${RECOMMENDATION_ID}/bookmark" "${BOOKMARK_RESPONSE}" \
-    -H "Authorization: Bearer ${ACCESS_TOKEN}"
-)" "bookmark recommendation" "${BOOKMARK_RESPONSE}"
+if [[ "${ORIGINAL_IS_BOOKMARKED}" != "true" ]]; then
+  smoke_print_step "bookmark first recommendation"
+  smoke_assert_status 200 "$(
+    smoke_http_status POST "${APP_BASE_URL}/api/recommendations/${RECOMMENDATION_ID}/bookmark" "${BOOKMARK_RESPONSE}" \
+      -H "Authorization: Bearer ${ACCESS_TOKEN}"
+  )" "bookmark recommendation" "${BOOKMARK_RESPONSE}"
+  RESTORE_BOOKMARK="true"
+fi
 
 smoke_print_step "save in-app only notification profile"
 smoke_assert_status 200 "$(
@@ -270,7 +319,7 @@ assert_equals "UNREAD" "${LATEST_ALERT_STATUS}" "latest alert status"
 echo
 echo "deadline reminder smoke passed"
 echo "app_base_url=${APP_BASE_URL}"
-echo "smoke_email=${SMOKE_EMAIL}"
+echo "admin_email=${ADMIN_EMAIL}"
 echo "user_key=${USER_KEY}"
 echo "recommendation_id=${RECOMMENDATION_ID}"
 echo "service_id=${SERVICE_ID}"

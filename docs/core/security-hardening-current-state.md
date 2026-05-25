@@ -60,6 +60,12 @@
 - Tomcat `10.1.55` 는 [backend/build.gradle](../../backend/build.gradle) 의 `ext['tomcat.version']` override로 강제합니다.
 - 운영 서버가 예전 `main` 을 보고 있으면 여전히 `10.1.54` 결과가 나올 수 있으니, 실제 해석 버전은 항상 `runtimeClasspath` 로 다시 확인합니다.
 
+Web Push 전이 의존성도 현재 기준선에 포함합니다.
+
+- `nl.martijndwars:web-push 5.1.2`
+- `org.asynchttpclient:async-http-client 2.15.0`
+- `org.bitbucket.b_c:jose4j 0.9.6`
+
 ### 2. access token/session hardening
 
 현재 logout 계약:
@@ -79,13 +85,21 @@ edge case:
 
 - cutoff와 같은 millisecond에 새 access token이 발급되면 false-negative가 날 수 있어, 새 access token `iatm` 은 필요 시 `cutoff + 1ms` 로 밀어냅니다.
 
+추가 저장소 hardening:
+
+- unsubscribe 메일 링크는 이제 JWT query token 대신 opaque token을 우선 사용합니다.
+- Redis에는 `sha256(unsubscribeToken)` / `sha256(accessToken)` 기반 key만 저장하고, 원문 token/JWT는 key에 남기지 않습니다.
+
 ### 3. edge nginx hardening
 
 배포 템플릿 기준 현재 원칙:
 
 - `Strict-Transport-Security`, `X-Frame-Options`, `X-Content-Type-Options` 는 edge nginx가 단일 책임으로 내려줍니다.
+- `Content-Security-Policy` 도 edge nginx가 단일 책임으로 내려줍니다.
 - `/api/`, `/swagger-ui/`, `/v3/api-docs/`, `/actuator/` 프록시 경로에서는 upstream Spring이 내려준 같은 헤더를 `proxy_hide_header` 로 숨깁니다.
 - `/actuator/` 는 `127.0.0.1`, `::1`, 명시 허용 IP 외에는 `deny all` 입니다.
+- `server_tokens off;` 로 nginx 버전 노출을 줄입니다.
+- dotfile, `.env/.sql/.log/.bak`, `wp-admin`, `wp-login.php`, `xmlrpc.php`, `cgi-bin` 같은 스캐너 경로는 edge에서 바로 차단합니다.
 
 주의:
 
@@ -102,6 +116,30 @@ edge case:
 4. `SECURITY_ADMIN_EMAILS` 의 첫 이메일
 
 값이 없으면 이제 더 직접적인 fail-fast 메시지를 출력합니다.
+
+### 5. input validation / manual dispatch hardening
+
+- `AuthController` 는 `check-email`, `email-verification/send`, `email-verification/verify` 에서 입력 검증을 더 강하게 적용합니다.
+- request parameter 누락/타입 오류는 `GlobalExceptionHandler` 에서 `400 / INVALID_INPUT` 으로 통일합니다.
+- `NotificationController` 의 `digest-test-dispatch`, `deadline-test-dispatch`, `push-test-send` 는 이제 admin 전용 manual dispatch 경계입니다.
+- `deadline-test-dispatch?days=` 는 `1..30` 범위만 허용합니다.
+
+### 6. container / prod runtime hardening
+
+- prod app 컨테이너는 non-root `appuser` 로 실행합니다.
+- `docker-compose.prod.yml` 은 `read_only`, `tmpfs`, `no-new-privileges`, `pids_limit`, `mem_limit` 를 적용합니다.
+- prod compose logging은 `json-file` rotation cap을 둡니다.
+
+### 7. query/input cost guard
+
+- `GET /api/recommendations?size=` 는 `1..100` 만 허용합니다.
+- `PolicyRankingService` 도 랭킹 size를 내부에서 `MAX_SIZE=100` 으로 clamp 합니다.
+- collect/policy admin 수동 경로는 `maxCallsPerRun <= 5000`, `limitPerSource <= 1000`, `rounds <= 10`, `maxCallsPerRound <= 1000` 상한을 둡니다.
+
+### 8. RDS bootstrap hardening
+
+- runtime DB role bootstrap은 PostgreSQL 식별자를 quoting해서 하이픈/대소문자/특수문자 섞인 role 이름도 안전하게 처리합니다.
+- migration role 권한 보존 로직도 같이 정리돼, bootstrap 과정에서 runtime role만 다시 만들다가 migration 경계를 깨지 않게 맞춥니다.
 
 ## 운영 반영 시 체크할 것
 

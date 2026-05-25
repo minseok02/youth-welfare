@@ -118,11 +118,12 @@
   - detail pacing: `500ms`
 - `BOKJIRO_DETAIL_GAP_FILL`
   - budget: `operator supplied rounds/maxCallsPerRound`
-  - per-source cap: `central/local max 10000 calls/run`
+  - per-source cap: `controller cap = max 1000 calls/round`
+  - rounds cap: `max 10`
   - detail pacing: `1000ms`
   - `429` abort: `5 consecutive hits`
 - `BOKJIRO_DETAIL_REFRESH`
-  - budget: `central/local max 10000 calls/run`
+  - budget: `manual override는 max 5000 calls/run, no-arg 실행은 source default`
   - detail pacing: `1000ms`
   - `429` abort: `5 consecutive hits`
 
@@ -197,6 +198,14 @@ collect 이후 저장되는 축은 아래입니다.
 
 - collect는 한 번에 하나만 실행
 - 다른 collect 작업이 실행 중이면 `409 / COL002`
+
+### 1-1. admin 수동 파라미터는 운영 상한 안에서만 허용
+
+- `collect/{sourceKey}?maxCallsPerRun=` 는 `1..5000`
+- `bokjiro-sidecars-backfill`, `gov24-sidecars-backfill`, `reference-urls/rebuild` 의 `limitPerSource=0` 은 무제한이 아니라 capped default `1000`
+- `limitPerSource` 명시값은 `1..1000`
+- `bokjiro-details-gap-fill` 의 `rounds` 는 `1..10`, `maxCallsPerRound` 는 `1..1000`
+- 즉 current-state 기준 `0 = unlimited` 라고 읽으면 안 된다.
 
 ### 2. 부분 성공 허용
 

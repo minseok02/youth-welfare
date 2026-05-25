@@ -279,14 +279,15 @@ deploy/smoke/run-local-deadline-reminder-smoke.sh
 - deadline reminder manual dispatch baseline: [notification-channel-expansion-checklist.md](./notification-channel-expansion-checklist.md)
 
 알림 기능을 수동 API 기준으로 얇게 확인할 때는 아래 두 경로를 사용합니다.
+현재 둘 다 `ROLE_ADMIN` 이 필요합니다.
 
 ```bash
 POST /api/notifications/digest-test-dispatch
 POST /api/notifications/deadline-test-dispatch?days=3
 ```
 
-- `digest-test-dispatch`: 현재 로그인 사용자의 추천 digest fan-out 확인
-- `deadline-test-dispatch`: 현재 로그인 사용자의 bookmarked 정책 중 마감 임박 후보 fan-out 확인
+- `digest-test-dispatch`: **현재 로그인한 admin 사용자**의 추천 digest fan-out 확인
+- `deadline-test-dispatch`: **현재 로그인한 admin 사용자**의 bookmarked 정책 중 마감 임박 후보 fan-out 확인
 
 현재 단계에서 deadline reminder runtime은 별도 `WEEKLY` 경로를 열지 않았고, `NotificationScheduleService.sendDailyDeadlineReminders()` 의 `DAILY` entry만 active 범위입니다. 서버 기준선도 duplicate 기존 사용자는 `reservation conflict` 로 skip하고, summary line과 새 DAILY 대상 delta가 남는지 확인하는 방식으로만 닫았습니다.
 
@@ -296,13 +297,13 @@ POST /api/notifications/deadline-test-dispatch?days=3
 deploy/smoke/run-local-deadline-reminder-smoke.sh
 ```
 
-이 스크립트는 `signup -> login -> recommendations refresh -> first recommendation bookmark -> bookmarked service apply_end_date 강제 조정 -> deadline-test-dispatch -> notifications/user_alerts delta` 를 한 번에 검증합니다.
+이 스크립트는 **admin 계정**으로 `login -> recommendations refresh -> first recommendation bookmark(필요 시) -> bookmarked service apply_end_date 강제 조정 -> deadline-test-dispatch -> notifications/user_alerts delta` 를 한 번에 검증합니다.
 현재는 host shell 날짜가 아니라 **DB `CURRENT_DATE + days`** 기준으로 `apply_end_date` 를 맞춥니다. app/DB 날짜와 host 날짜가 하루 어긋난 상태에서도 `NO_CANDIDATES` 오탐을 줄이기 위한 기준입니다.
 
 전제:
 
 - 앱 base URL은 `APP_BASE_URL` 로 둡니다.
-- 로그인 계정은 일반 사용자 1개, admin 확인이 필요하면 관리자 계정 1개를 따로 준비합니다.
+- `digest-test-dispatch`, `deadline-test-dispatch` 는 모두 admin-only 이므로 `ADMIN_EMAIL`, `ADMIN_PASSWORD` 또는 `/tmp/youth-welfare-admin-smoke-*` 준비가 필요합니다.
 - `python3` 는 로그인/refresh 응답에서 `accessToken` 을 뽑는 용도로 사용합니다.
 
 ## referenceUrlsJson rebuild 런북

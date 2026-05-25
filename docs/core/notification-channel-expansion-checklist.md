@@ -128,7 +128,7 @@
 2. `notifications` 는 발송 이력이고, 읽음함은 별도다.
 3. 웹푸시는 인앱 알림함 다음 단계다.
 4. deadline reminder 는 별도 이벤트로 나중에 본다.
-5. 채널 분기는 문서/단위 테스트만이 아니라 `digest-test-dispatch + DB delta` 기준 local smoke까지 닫아야 한다.
-6. 별도 이벤트를 열 때도 먼저 manual dispatch(`deadline-test-dispatch` 같은 얇은 경계)로 닫고, 그 다음 scheduler/runtime 연결을 본다.
-7. `deadline reminder` 는 `run-local-deadline-reminder-smoke.sh` 또는 동등한 `deadline-test-dispatch + DB delta` 검증 없이 완료로 보지 않는다.
+5. 채널 분기는 문서/단위 테스트만이 아니라 **admin 계정 기준** `digest-test-dispatch + DB delta` local smoke까지 닫아야 한다.
+6. 별도 이벤트를 열 때도 먼저 admin-only manual dispatch(`deadline-test-dispatch` 같은 얇은 경계)로 닫고, 그 다음 scheduler/runtime 연결을 본다.
+7. `deadline reminder` 는 `run-local-deadline-reminder-smoke.sh` 또는 동등한 **admin account** `deadline-test-dispatch + DB delta` 검증 없이 완료로 보지 않는다.
 8. `deadline reminder` runtime 은 현재 `DAILY` 만 active 범위로 보고, duplicate dispatch key가 있어도 다음 대상 loop를 계속 태우는 기준선까지 확인해야 한다.

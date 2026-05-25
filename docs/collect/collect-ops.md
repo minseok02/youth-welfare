@@ -19,6 +19,9 @@
   - `POST /api/admin/collect/bokjiro-sidecars-backfill?scope=all|list|detail&limitPerSource=0`
   - `POST /api/admin/collect/gov24-sidecars-backfill?limitPerSource=0`
   도 같은 시간대에 일반 collect 수동 실행과 겹치지 않게 사용한다.
+- 주의:
+  - 현재 controller 기준 `limitPerSource=0` 은 무제한이 아니라 capped default `1000` 으로 정규화된다.
+  - admin 수동 파라미터 상한은 `maxCallsPerRun <= 5000`, `limitPerSource <= 1000`, `rounds <= 10`, `maxCallsPerRound <= 1000` 이다.
 - 이미 다른 수집 작업이 실행 중이면 새 요청은 `409 Conflict (COL002)`로 거절한다.
 - 이유: 중복 실행 시 `service_tags` 저장 경합과 deadlock 위험이 커진다.
 
@@ -51,7 +54,7 @@
 
 - `/api/admin/collect/bokjiro-details` 는 detail row가 없는 정책 위주로 채우는 기본 경로다.
 - `/api/admin/collect/bokjiro-details-refresh` 는 기존 detail row가 있어도 다시 fetch/merge 하는 refresh 전용 수동 경로다.
-- `/api/admin/collect/bokjiro-details-gap-fill` 는 기본 detail 경로를 여러 라운드로 반복 호출해, 현재 운영 기본값 기준 `중앙 detail round당 10,000 calls + 지자체 detail round당 10,000 calls` 안전 상한 안에서 missing detail backlog 를 더 채우는 coverage 확장 전용 수동 경로다.
+- `/api/admin/collect/bokjiro-details-gap-fill` 는 기본 detail 경로를 여러 라운드로 반복 호출해, 현재 controller 상한 기준 `round당 source별 최대 1,000 calls`, `최대 10 rounds` 안에서 missing detail backlog 를 더 채우는 coverage 확장 전용 수동 경로다.
 - `/api/admin/collect/bokjiro-sidecars-backfill` 는 외부 API를 다시 호출하지 않고, 이미 저장된 `raw_api_payloads` 를 canonical sidecar(`service_taxonomies`, `service_taxonomy_terms`, `service_facts`) 로 재적재하는 replay 전용 경로다.
 - `/api/admin/collect/gov24-sidecars-backfill` 는 Gov24 `LIST raw` 를 다시 읽어 `service_taxonomy_summary_slots` 같은 canonical sidecar summary label을 재적재하는 replay 전용 경로다.
 - 운영 해석:
@@ -97,6 +100,10 @@
 - `collectBokjiroDetailsResult()` 는 중앙/지자체 상세를 shared pool로 나누지 않고, source별 독립 상한으로 돈다.
 - 현재 코드 기본값은 `중앙 detail 10,000 calls`, `지자체 detail 10,000 calls` 이다.
 - `collectBokjiroDetailsResult(maxCalls)` / `collectBokjiroDetailGapFillResult(rounds, maxCallsPerRound)` 의 `maxCalls*` 값도 total budget이 아니라 source별 override 로 해석한다.
+- 다만 현재 admin 수동 진입점은 별도 운영 상한을 둔다.
+  - `collect/{sourceKey}?maxCallsPerRun=` 는 `5000` 초과 불가
+  - `bokjiro-details-gap-fill?maxCallsPerRound=` 는 `1000` 초과 불가
+  - `rounds` 는 `10` 초과 불가
 - 이유:
   - 공공데이터포털 운영 계정 quota가 `중앙 detail` 과 `지자체 detail` 에서 서로 독립이기 때문이다.
   - one source backlog가 커도 다른 source quota를 같이 깎아 먹지 않게 해야 한다.
