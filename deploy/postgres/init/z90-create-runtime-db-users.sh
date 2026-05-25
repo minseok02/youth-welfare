@@ -83,6 +83,7 @@ END
 GRANT CONNECT ON DATABASE ${db_name} TO ${app_username}, ${app_pii_username}, ${notification_ro_username}, ${admin_ro_username}, ${cluster_ai_cleanup_username}, ${recommendation_retention_cleanup_username}, ${collect_execution_lock_cleanup_username}, ${web_push_subscription_cleanup_username}, ${migration_username};
 
 GRANT USAGE ON SCHEMA public TO ${app_username}, ${admin_ro_username}, ${cluster_ai_cleanup_username}, ${recommendation_retention_cleanup_username}, ${collect_execution_lock_cleanup_username}, ${web_push_subscription_cleanup_username}, ${migration_username};
+GRANT CREATE ON SCHEMA public TO ${migration_username};
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO ${app_username};
 GRANT SELECT ON ALL TABLES IN SCHEMA public TO ${admin_ro_username};
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO ${app_username};
@@ -124,6 +125,7 @@ END
 \$\$;
 
 GRANT USAGE ON SCHEMA youth_welfare_pii TO ${app_pii_username}, ${notification_ro_username}, ${migration_username};
+GRANT CREATE ON SCHEMA youth_welfare_pii TO ${migration_username};
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA youth_welfare_pii TO ${app_pii_username};
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA youth_welfare_pii TO ${app_pii_username};
 GRANT SELECT (user_key, email_enc) ON youth_welfare_pii.user_pii TO ${notification_ro_username};

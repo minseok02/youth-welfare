@@ -11,4 +11,6 @@ SELECT format(
     'ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA public GRANT SELECT ON TABLES TO %I',
     :'migration_username',
     :'admin_ro_username'
-) \gexec
+)
+WHERE current_user = :'migration_username'
+   OR pg_has_role(current_user, :'migration_username', 'MEMBER') \gexec
